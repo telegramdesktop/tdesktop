@@ -8853,7 +8853,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_details_gram" = "What is Gram?";
 "lng_wallet_details_operation" = "Operation";
 "lng_wallet_details_key_change" = "Wallet key update";
-"lng_wallet_details_reduced" = "Full details for this transaction are unavailable. Only information from the message is shown.";
+"lng_wallet_details_fee_unknown" = "Lookup failed";
 "lng_wallet_comment_unavailable" = "This comment can't be decrypted with the wallet information currently available.";
 "lng_wallet_comment_decryption_failed" = "This comment couldn't be decrypted. Please try again.";
 "lng_wallet_comment_key_mismatch" = "This comment was encrypted for a different wallet key and can't be decrypted on this device.";
@@ -9053,7 +9053,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_backup_update_quote_error" = "Couldn't estimate the network fee for a new phrase. You can still disable the backup with your current phrase.";
 "lng_wallet_send_error_too_small" = "The minimum transfer is {amount} Grams.";
 "lng_wallet_send_error_insufficient" = "You don't have enough Grams for this transfer.";
-"lng_wallet_send_error_fees" = "You don't have enough Grams to cover the network fee.";
 "lng_wallet_send_error_unresolved" = "Your previous transfer is not confirmed yet. Please wait for it to complete.";
 "lng_wallet_send_error_in_progress" = "Another transfer is already in progress.";
 "lng_wallet_send_error_signing" = "This wallet can't sign transfers on this device.";

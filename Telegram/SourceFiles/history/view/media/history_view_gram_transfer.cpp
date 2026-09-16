@@ -70,7 +70,9 @@ struct GramTransferOrigin {
 
 struct GramTransferDetails {
 	Wallet::TransferItem item;
-	bool reduced = true;
+	// True while the box has only what the message said, and the
+	// transaction it names has not been served yet.
+	bool partial = true;
 };
 
 class GramTransferCardPart final
@@ -291,6 +293,12 @@ private:
 	} else {
 		item.comment = action.comment;
 	}
+	// The message's own date stands in for the transaction's until the
+	// served record names the moment the chain accepted it, which is the
+	// same moment give or take the delivery.
+	if (const auto message = session->data().message(action.itemId)) {
+		item.date = message->date();
+	}
 	if (item.id.isEmpty() || item.counterparty.isEmpty()) {
 		return result;
 	}
@@ -320,7 +328,7 @@ private:
 		return result;
 	}
 	item = *match;
-	result.reduced = false;
+	result.partial = false;
 	return result;
 }
 
@@ -428,7 +436,7 @@ void GramTransferCardPart::showDetails(const ClickContext &context) {
 	Wallet::ShowTransactionDetails(
 		show,
 		std::move(details.item),
-		details.reduced,
+		details.partial,
 		nullptr,
 		[weak = base::make_weak(this), origin] {
 			return weak && CurrentGramTransfer(origin);

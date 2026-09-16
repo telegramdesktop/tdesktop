@@ -992,6 +992,20 @@ void FailShareFetch(
 	return SendError::Failed;
 }
 
+[[nodiscard]] bool IsInsufficientForFees(const EngineError &error) {
+	if (!error.underlying) {
+		return false;
+	}
+	try {
+		std::rethrow_exception(error.underlying);
+	} catch (const engine::wallet_client_error
+			::InsufficientBalanceForFees &) {
+		return true;
+	} catch (...) {
+	}
+	return false;
+}
+
 [[nodiscard]] bool IsSubmissionUnknown(const EngineError &error) {
 	if (!error.underlying) {
 		return false;
@@ -5578,6 +5592,41 @@ bool Session::historyRequestCurrent(const HistoryRequest &request) const {
 		&& request.identity == transferWalletIdentity();
 }
 
+void Session::resolveTransaction(
+		const QString &id,
+		Fn<void(ResolvedTransaction)> done) {
+	if (id.isEmpty()) {
+		if (done) {
+			done({ .failed = true });
+		}
+		return;
+	}
+	const auto identity = transferWalletIdentity();
+	_stateApi.request(MTPwallet_GetTransactionsByIDs(
+		MTP_vector<MTPstring>(1, MTP_string(id.toStdString()))
+	)).done([=](const MTPwallet_Transactions &result) {
+		const auto &data = result.data();
+		// The peers come first, for the same reason the feed stores them
+		// first: a transaction whose user is missing from Data::Session
+		// falls back to its address instead of the Telegram identity.
+		_session->data().processUsers(data.vusers());
+		_session->data().processChats(data.vchats());
+		auto list = HistoryFromServer(data.vtransactions().v, identity);
+		const auto i = ranges::find(list, id, &TransferItem::id);
+		if (done) {
+			done({ .item = (i != end(list))
+				? std::make_optional(std::move(*i))
+				: std::nullopt });
+		}
+	}).fail([=](const MTP::Error &error) {
+		LOG(("Wallet Error: wallet.getTransactionsByIDs failed: %1"
+			).arg(error.type()));
+		if (done) {
+			done({ .failed = true });
+		}
+	}).send();
+}
+
 void Session::applyTransactions(
 		const MTPwallet_Transactions &result,
 		bool more,
@@ -6603,6 +6652,9 @@ void Session::previewPrepared(uint64 flight, engine::SendMessageBody body) {
 		IntentFromArgs(active.request.args, std::move(body)));
 	active.stage = PreviewState::Flight::Stage::Previewing;
 	const auto client = active.request.client;
+	const auto paired = active.request.terms.eligible(
+		active.request.args.amountNano,
+		active.request.args.destination);
 	auto request = engine::SendPreviewRequest{ .intent = *active.intent };
 	_engine->run([client, request = std::move(request)] {
 		return client->preview_send(request);
@@ -6612,6 +6664,15 @@ void Session::previewPrepared(uint64 flight, engine::SendMessageBody body) {
 			? FeeResult{ .feeNano = *fee }
 			: FeeResult{ .error = SendError::Failed });
 	}, [=, this](EngineError error) {
+		// The preview emulates the ordinary form of the transfer, so it
+		// refuses an amount that would leave the wallet without its fee.
+		// A fee-free transfer is not paid for by the wallet, and the engine
+		// asks nothing but the amount of it when it signs the pair, so the
+		// refusal is the fee reserve alone and this transfer carries none.
+		if (paired && IsInsufficientForFees(error)) {
+			finishPreview(flight, FeeResult{ .feeNano = 0 });
+			return;
+		}
 		finishPreview(flight, FeeResult{ .error = SendErrorFrom(error) });
 	});
 }
@@ -6791,11 +6852,14 @@ void Session::send(
 		fail(SendError::Locked);
 		return;
 	}
+	const auto paired = terms.eligible(args.amountNano, args.destination);
 	const auto balance = _balanceNano.current();
 	if (args.amountNano > balance) {
 		fail(SendError::InsufficientBalance);
 		return;
-	} else if (prepared->feeNano > balance - args.amountNano) {
+	} else if (!paired && prepared->feeNano > balance - args.amountNano) {
+		// The relayer pays a fee-free transfer's fee, so nothing of the
+		// balance is kept back for it and the whole of it can be sent.
 		fail(SendError::InsufficientFees);
 		return;
 	}
@@ -6803,7 +6867,6 @@ void Session::send(
 	const auto client = prepared->client;
 	const auto generation = prepared->generation;
 	const auto identity = prepared->identity;
-	const auto paired = terms.eligible(args.amountNano, args.destination);
 	const auto custodyRecord = custody().current(
 		identity.address,
 		identity.publicKey);
@@ -7183,7 +7246,10 @@ void Session::submitTransfer(
 	if (amount > balance) {
 		refuse(SendError::InsufficientBalance, u"WALLET_TRANSFER_BALANCE_LOW"_q);
 		return;
-	} else if (prepared->feeNano > balance - amount) {
+	} else if (!_submission->paired
+		&& prepared->feeNano > balance - amount) {
+		// A paired transfer's fee is the relayer's, so the balance is not
+		// asked to cover it.
 		refuse(SendError::InsufficientFees, u"WALLET_TRANSFER_FEES_LOW"_q);
 		return;
 	}

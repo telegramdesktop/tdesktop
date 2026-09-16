@@ -152,6 +152,8 @@ constexpr auto kCardFoldMinHeight = 1.;
 constexpr auto kIntroTooltipShownPref = "wallet_intro_tooltip_shown"_cs;
 constexpr auto kWalletIntroGlares = 2;
 constexpr auto kFeeFiatDecimals = 5;
+constexpr auto kTransactionLookupInterval = crl::time(1000);
+constexpr auto kTransactionLookupAttempts = 10;
 constexpr auto kMaxFiatUnits = 999'999'999LL;
 constexpr auto kMaxAmountNano = 999'999'999'999'999'999LL;
 constexpr auto kSendUserLoadTimeout = 30 * crl::time(1000);
@@ -1927,6 +1929,41 @@ void ShowNetworkFeesAbout(
 	return helper.paletteDependent(std::move(descriptor));
 }
 
+// A transaction a message named is served after the box is already open, so
+// the fee row exists from the first frame and says what it is waiting for.
+enum class DetailsFee {
+	Known,
+	Loading,
+	Failed,
+};
+
+void AddPendingFeeTableRow(
+		not_null<Ui::TableLayout*> table,
+		DetailsFee state) {
+	Expects(state != DetailsFee::Known);
+
+	if (state == DetailsFee::Failed) {
+		Ui::AddTableRow(
+			table,
+			tr::lng_wallet_details_fee(),
+			tr::lng_wallet_details_fee_unknown(tr::marked));
+		return;
+	}
+	const auto size = table->st().defaultValue.style.font->height;
+	auto value = object_ptr<Ui::RpWidget>(table);
+	const auto raw = value.data();
+	raw->resize(size, size);
+	const auto loading = Info::Statistics::InfiniteRadialAnimationWidget(
+		raw,
+		size);
+	Info::Statistics::AddChildToWidgetCenter(raw, loading);
+	loading->showOn(rpl::single(true));
+	Ui::AddTableRow(
+		table,
+		tr::lng_wallet_details_fee(),
+		std::move(value));
+}
+
 void AddFeeTableRow(
 		not_null<Ui::TableLayout*> table,
 		std::shared_ptr<Ui::Show> show,
@@ -2011,12 +2048,14 @@ void AddPeerCounterpartyRows(
 
 void AddDetailsTable(
 		not_null<Ui::GenericBox*> box,
+		not_null<Ui::VerticalLayout*> container,
 		not_null<Main::Session*> session,
-		const TransferItem &item) {
-	const auto wrap = box->addRow(
+		const TransferItem &item,
+		DetailsFee fee) {
+	const auto wrap = container->add(
 		object_ptr<Ui::PaddingWrap<Ui::TableLayout>>(
-			box,
-			object_ptr<Ui::TableLayout>(box, st::walletDetailsTable),
+			container,
+			object_ptr<Ui::TableLayout>(container, st::walletDetailsTable),
 			style::margins()),
 		st::giveawayGiftCodeTableMargin);
 	const auto bg = wrap->lifetime().make_state<Ui::RoundRect>(
@@ -2073,8 +2112,16 @@ void AddDetailsTable(
 	}
 	const auto pending
 		= (item.status == TransferItem::Status::Pending);
-	if (!pending && (item.gasless || (item.feeNano && *item.feeNano > 0))) {
-		AddFeeTableRow(table, box->uiShow(), session, item);
+	// An incoming transfer was paid for by whoever sent it, and what the
+	// wallet spends to receive one is a few nanograms, so the row is left
+	// out entirely and nothing is waited for on its behalf.
+	if (!item.incoming) {
+		if (fee != DetailsFee::Known) {
+			AddPendingFeeTableRow(table, fee);
+		} else if (!pending
+			&& (item.gasless || (item.feeNano && *item.feeNano > 0))) {
+			AddFeeTableRow(table, box->uiShow(), session, item);
+		}
 	}
 	if (item.date) {
 		Ui::AddTableRow(
@@ -3828,7 +3875,7 @@ void WalletTransactionBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
 		TransferItem item,
-		bool reduced,
+		bool partial,
 		std::shared_ptr<CollectibleMedia> media,
 		Fn<bool()> originCurrent,
 		rpl::producer<> originInvalidated,
@@ -3842,43 +3889,80 @@ void WalletTransactionBox(
 	box->setNoContentMargin(true);
 	box->setTitle(tr::lng_wallet_details_title());
 
-	if (ShowsCollectible(item)) {
+	struct State {
+		TransferItem item;
+		base::Timer retry;
+		int attempts = 0;
+		bool looking = false;
+	};
+	const auto looking = partial && !item.id.isEmpty();
+	const auto state = box->lifetime().make_state<State>();
+	state->item = std::move(item);
+	state->looking = looking;
+	if (ShowsCollectible(state->item)) {
 		if (!media) {
 			media = std::make_shared<CollectibleMedia>(session);
 		}
-		media->resolve(item.collectible);
-		AddDetailsCollectibleHeader(box, session, std::move(media), item);
+		media->resolve(state->item.collectible);
+		AddDetailsCollectibleHeader(box, session, std::move(media), state->item);
 	} else {
 		AddDetailsAmountHeader(
 			box,
-			item,
+			state->item,
 			st::walletDetailsAmountTopSkip,
 			FiatRateValue(session));
 	}
 	AddDetailsComment(
 		box,
 		Main::MakeSessionShow(box->uiShow(), session),
-		item,
+		state->item,
 		originCurrent);
-	AddDetailsTable(box, session, item);
-	if (reduced) {
-		const auto label = box->addRow(
-			object_ptr<Ui::FlatLabel>(
-				box,
-				tr::lng_wallet_details_reduced(),
-				st::defaultFlatLabel),
-			st::giveawayGiftCodeTableMargin);
-		label->setTextColorOverride(st::windowSubTextFg->c);
-		style::PaletteChanged() | rpl::on_next([=] {
-			label->setTextColorOverride(st::windowSubTextFg->c);
-		}, label->lifetime());
+
+	// The amount and the comment are what the message itself said, while the
+	// rows below are the transaction's own record: who it went to under their
+	// Telegram name, what it cost and when the chain accepted it. The table
+	// is built from the message at once and again from the served record, so
+	// the box shows everything it can immediately and nothing of it waits.
+	const auto details = box->addRow(
+		object_ptr<Ui::VerticalLayout>(box),
+		style::margins());
+	const auto rebuild = [=](DetailsFee fee) {
+		details->clear();
+		AddDetailsTable(box, details, session, state->item, fee);
+	};
+	rebuild(state->looking ? DetailsFee::Loading : DetailsFee::Known);
+	if (state->looking) {
+		// The message can arrive before the transaction it names is served,
+		// which is what a transfer just sent looks like, so an answer that
+		// names nothing is asked again for a while before it is read as an
+		// answer. The timer belongs to the box, so closing it stops asking.
+		const auto lookup = [=] {
+			session->wallet().resolveTransaction(
+				state->item.id,
+				crl::guard(box, [=](ResolvedTransaction resolved) {
+					if (originCurrent && !originCurrent()) {
+						return;
+					} else if (resolved.item) {
+						state->item = std::move(*resolved.item);
+						state->looking = false;
+						rebuild(DetailsFee::Known);
+						return;
+					} else if (resolved.failed
+						|| ++state->attempts >= kTransactionLookupAttempts) {
+						rebuild(DetailsFee::Failed);
+						return;
+					}
+					state->retry.callOnce(kTransactionLookupInterval);
+				}));
+		};
+		state->retry.setCallback(lookup);
+		lookup();
 	}
 
 	AddBoxCloseButton(box);
 	const auto toggle = box->addTopButton(st::boxTitleMenu);
 	const auto menu = box->lifetime().make_state<
 		base::unique_qptr<Ui::PopupMenu>>();
-	const auto url = ExplorerTransactionUrl(session, item.traceId);
 	const auto show = box->uiShow();
 	toggle->setClickedCallback([=] {
 		if (*menu) {
@@ -3892,6 +3976,9 @@ void WalletTransactionBox(
 			toggle->setForceRippled(false);
 		}));
 		toggle->setForceRippled(true);
+		// Read when the menu opens, not when the box was built: a served
+		// transaction can name the trace a message did not carry.
+		const auto url = ExplorerTransactionUrl(session, state->item.traceId);
 		if (!url.isEmpty()) {
 			raw->addAction(
 				Ui::Text::FixAmpersandInAction(
@@ -4367,10 +4454,11 @@ void WalletSendCommentBox(
 			QString::number(kSendCommentMaxBytes));
 	case SendError::CommentEncryptionUnavailable:
 		return tr::lng_wallet_comment_encryption_failed(tr::now);
+	// A balance that covers the amount but not the fee is the same problem
+	// to the sender as one that covers neither, and one sentence says it.
 	case SendError::InsufficientBalance:
-		return tr::lng_wallet_send_error_insufficient(tr::now);
 	case SendError::InsufficientFees:
-		return tr::lng_wallet_send_error_fees(tr::now);
+		return tr::lng_wallet_send_error_insufficient(tr::now);
 	case SendError::PreviousUnresolved:
 		return tr::lng_wallet_send_error_unresolved(tr::now);
 	case SendError::AlreadySending:
@@ -5719,15 +5807,23 @@ void WalletSendBox(
 		state->fee.value(),
 		state->previewInsufficient.value(),
 		wallet->balanceNanoValue(),
-		wallet->stateKnownValue()
-	) | rpl::map([](
+		wallet->stateKnownValue(),
+		wallet->gaslessTermsValue()
+	) | rpl::map([=](
 			int64 amount,
 			int64 fee,
 			bool preview,
 			int64 balance,
-			bool known) {
+			bool known,
+			const GaslessTerms &terms) {
+		// A fee-free transfer keeps nothing back for the fee, so the whole
+		// balance is sendable when the offer covers this one.
+		const auto destination = state->flow
+			? state->flow->destination
+			: QString();
+		const auto reserve = terms.eligible(amount, destination) ? 0 : fee;
 		return (amount > 0)
-			&& (preview || (known && amount > balance - fee));
+			&& (preview || (known && amount > balance - reserve));
 	});
 	state->canSend = rpl::combine(
 		state->amount.value(),
@@ -5887,6 +5983,9 @@ void WalletSendBox(
 				}),
 				user ? st::walletSendUserErrorLabel : st::walletSendErrorLabel)),
 		style::al_justify);
+	// An error that does not fit one line reads better split evenly than
+	// with a full line above a single trailing word.
+	insufficientWrap->entity()->setTryMakeSimilarLines(true);
 	insufficientWrap->toggleOn(rpl::duplicate(showInsufficient));
 	insufficientWrap->finishAnimating();
 	auto refusalText = rpl::combine(
@@ -5930,6 +6029,7 @@ void WalletSendBox(
 				rpl::duplicate(refusalText),
 				user ? st::walletSendUserErrorLabel : st::walletCommentErrorLabel)),
 		style::al_justify);
+	refusalWrap->entity()->setTryMakeSimilarLines(true);
 	refusalWrap->toggleOn(std::move(refusalText) | rpl::map([](
 			const QString &text) {
 		return !text.isEmpty();
@@ -11802,7 +11902,7 @@ void AcquireTransferCommentKey(
 void ShowTransactionDetails(
 		std::shared_ptr<Main::SessionShow> show,
 		TransferItem item,
-		bool reduced,
+		bool partial,
 		std::shared_ptr<CollectibleMedia> media,
 		Fn<bool()> originCurrent,
 		rpl::producer<> originInvalidated,
@@ -11815,7 +11915,7 @@ void ShowTransactionDetails(
 		WalletTransactionBox,
 		&show->session(),
 		std::move(item),
-		reduced,
+		partial,
 		std::move(media),
 		std::move(originCurrent),
 		std::move(originInvalidated),

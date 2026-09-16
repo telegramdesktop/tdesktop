@@ -42,7 +42,7 @@ void AcquireTransferCommentKey(
 void ShowTransactionDetails(
 	std::shared_ptr<Main::SessionShow> show,
 	TransferItem item,
-	bool reduced = false,
+	bool partial = false,
 	std::shared_ptr<CollectibleMedia> media = nullptr,
 	Fn<bool()> originCurrent = nullptr,
 	rpl::producer<> originInvalidated = nullptr,

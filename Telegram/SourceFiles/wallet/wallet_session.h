@@ -255,6 +255,14 @@ struct CommentDecryptResult {
 	CommentDecryptError error = CommentDecryptError::None;
 };
 
+// The answer to one transaction lookup. An empty |item| with |failed| false
+// is the server not naming that transaction yet, which is a transfer whose
+// message arrived before it was indexed, and not the same as a refusal.
+struct ResolvedTransaction {
+	std::optional<TransferItem> item;
+	bool failed = false;
+};
+
 inline constexpr auto kTransferMinNanosDefault = int64(100'000'000);
 inline constexpr auto kTransferMinNanosMax = (int64(1) << 53);
 
@@ -480,6 +488,18 @@ public:
 	[[nodiscard]] std::vector<CustodyRecord> parkedRecords();
 
 	void refreshState();
+
+	// Asks Telegram for one transaction by the id a message carried, for a
+	// surface that has only what that message said about it. |done| runs
+	// exactly once. A transaction the server does not name yet answers with
+	// an empty |item| and |failed| false, which is what a just-sent transfer
+	// looks like until it is indexed, so a caller can ask again; a request
+	// that failed answers |failed| true. Destruction retires the request
+	// without running |done|.
+	void resolveTransaction(
+		const QString &id,
+		Fn<void(ResolvedTransaction)> done);
+
 	void applyUpdate(const MTPDupdateWalletState &data);
 	void applyUpdate(const MTPDupdateSentWalletTransaction &data);
 	void applyUpdate(const MTPDupdateWalletGaslessInfo &data);
