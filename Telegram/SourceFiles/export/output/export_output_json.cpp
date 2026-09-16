@@ -2056,6 +2056,28 @@ QByteArray SerializeMessage(
 		pushActor();
 		pushAction("managed_bot_created");
 		pushBare("bot", wrapUserName(data.botId));
+	}, [&](const ActionGramTransfer &data) {
+		pushActor();
+		pushAction("gram_transfer");
+		push("amount_whole", data.amount / Data::kNanosInGram);
+		push("amount_nano", data.amount % Data::kNanosInGram);
+		push("peer_address", data.peerAddress);
+		push("transaction_id", data.transactionId);
+		push("comment_encrypted", data.commentEncrypted);
+		if (data.commentEncrypted) {
+			push("encrypted_comment_base64", data.comment);
+		} else {
+			push("comment", data.comment);
+		}
+	}, [&](const ActionWalletTonConnectRequest &data) {
+		pushActor();
+		pushAction("ton_connect_request");
+		push("session_id", data.sessionId);
+		push("expires", data.expires);
+		push("topic", data.topic);
+		push("trace_id", data.traceId);
+		push("accepted", data.accepted);
+		push("declined", data.declined);
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {

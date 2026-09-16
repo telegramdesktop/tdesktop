@@ -2792,8 +2792,23 @@ ServiceAction ParseServiceAction(
 		auto content = ActionChatJoinedViaCommunity();
 		content.communityId = ChannelId(data.vcommunity_id().v);
 		result.content = content;
-	}, [](const MTPDmessageActionGramTransfer &) {
-	}, [](const MTPDmessageActionWalletTonConnectRequest &) {
+	}, [&](const MTPDmessageActionGramTransfer &data) {
+		result.content = ActionGramTransfer{
+			.amount = int64(data.vamount().v),
+			.peerAddress = data.vpeer_address().v,
+			.transactionId = data.vtransaction_id().v,
+			.comment = data.vcomment().value_or_empty(),
+			.commentEncrypted = data.is_comment_encrypted(),
+		};
+	}, [&](const MTPDmessageActionWalletTonConnectRequest &data) {
+		result.content = ActionWalletTonConnectRequest{
+			.sessionId = data.vsession_id().v,
+			.expires = data.vexpires().v,
+			.topic = data.vtopic().value_or_empty(),
+			.traceId = data.vtrace_id().value_or_empty(),
+			.accepted = data.is_accepted(),
+			.declined = data.is_declined(),
+		};
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }
@@ -3563,6 +3578,22 @@ Utf8String FormatMoneyAmount(int64 amount, const Utf8String &currency) {
 	return Ui::FillAmountAndCurrency(
 		amount,
 		QString::fromUtf8(currency)).toUtf8();
+}
+
+Utf8String FormatGramsAmount(int64 nanos) {
+	constexpr auto kNanos = uint64(kNanosInGram);
+
+	const auto negative = (nanos < 0);
+	const auto absolute = negative ? (0 - uint64(nanos)) : uint64(nanos);
+	const auto whole = absolute / kNanos;
+	auto fraction = NumberToString(absolute % kNanos, 9);
+	while (fraction.endsWith('0')) {
+		fraction.chop(1);
+	}
+	return (negative ? Utf8String("-") : Utf8String())
+		+ NumberToString(whole)
+		+ (fraction.isEmpty() ? Utf8String() : ('.' + fraction))
+		+ ((absolute == kNanos) ? " Gram" : " Grams");
 }
 
 Utf8String FormatFileSize(int64 size) {

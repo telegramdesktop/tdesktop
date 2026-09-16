@@ -4391,6 +4391,46 @@ auto HtmlWriter::Wrap::pushMessage(
 		return serviceFrom
 			+ " created a bot "
 			+ peers.wrapUserName(data.botId);
+	}, [&](const ActionGramTransfer &data) {
+		const auto amount = FormatGramsAmount(data.amount);
+		const auto address = data.peerAddress.isEmpty()
+			? QByteArray()
+			: (" (" + SerializeString(data.peerAddress) + ")");
+		auto result = message.out
+			? ("You sent "
+				+ amount
+				+ " to "
+				+ peers.wrapPeerName(dialog.peerId)
+				+ address)
+			: (serviceFrom + address + " sent you " + amount);
+		if (!data.transactionId.isEmpty()) {
+			result += ", transaction "
+				+ SerializeString(data.transactionId);
+		}
+		if (data.commentEncrypted) {
+			result += ", with an ";
+			result += pushTag("span", {
+				{ "class", "gram_transfer_encrypted_comment" },
+				{ "data-encrypted-comment", data.comment },
+				{ "inline", QByteArray() },
+			});
+			result += "encrypted comment";
+			result += popTag();
+		} else if (!data.comment.isEmpty()) {
+			result += ", with comment: &laquo;"
+				+ SerializeString(data.comment)
+				+ "&raquo;";
+		}
+		return result;
+	}, [&](const ActionWalletTonConnectRequest &data) {
+		const auto topic = data.topic.isEmpty()
+			? QByteArray()
+			: (" &laquo;" + SerializeString(data.topic) + "&raquo;");
+		return data.accepted
+			? ("You approved a TON Connect request" + topic + ".")
+			: data.declined
+			? ("You declined a TON Connect request" + topic + ".")
+			: ("You received a TON Connect request" + topic + ".");
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {
