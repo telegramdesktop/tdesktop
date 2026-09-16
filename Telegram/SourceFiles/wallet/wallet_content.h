@@ -72,6 +72,13 @@ void ShowWalletConflict(
 	std::shared_ptr<Main::SessionShow> show,
 	Fn<void()> switched);
 
+// A box holding only a spinner, for an action with no surface of its own
+// to show progress on. Returns the call that closes it; a close by the user
+// instead reports through dismissed.
+[[nodiscard]] Fn<void()> ShowWalletBusyBox(
+	std::shared_ptr<Main::SessionShow> show,
+	Fn<void()> dismissed);
+
 [[nodiscard]] rpl::producer<bool> TransactionsShownValue(
 	not_null<Main::Session*> session);
 

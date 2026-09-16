@@ -162,6 +162,14 @@ void TransferComment::activate(std::shared_ptr<Main::SessionShow> show) {
 	if (!current()) {
 		return;
 	}
+	// The key may have to come from the backup, which takes a while, and
+	// neither the details box nor the message paints a pending state: the
+	// spinner box is that state, and closing it gives the attempt up.
+	_closeBusy = ShowWalletBusyBox(show, [=] {
+		if (weak && weak->_revision == revision && weak->_pending) {
+			weak->reset();
+		}
+	});
 	AcquireTransferCommentKey(show, _scope, current, _attempt, [=](
 			KeyAuthorization auth) {
 		if (!current()) {
@@ -202,6 +210,9 @@ void TransferComment::finish(
 	if (result.error == Error::None) {
 		_plaintext = std::move(result.text);
 		_pending = false;
+		if (const auto close = base::take(_closeBusy)) {
+			close();
+		}
 		_changes.fire({});
 		return;
 	}
@@ -236,6 +247,9 @@ void TransferComment::clear() {
 	++_revision;
 	_pending = false;
 	_plaintext.reset();
+	if (const auto close = base::take(_closeBusy)) {
+		close();
+	}
 	const auto scope = base::take(_scope);
 	auto attempt = base::take(_attempt);
 	attempt.destroy();

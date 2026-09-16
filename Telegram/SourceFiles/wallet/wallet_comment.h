@@ -48,6 +48,7 @@ private:
 	const TransferItem _target;
 	const Fn<bool()> _originCurrent;
 	std::shared_ptr<CommentScope> _scope;
+	Fn<void()> _closeBusy;
 	std::optional<QString> _plaintext;
 	rpl::event_stream<> _changes;
 	uint64 _revision = 0;

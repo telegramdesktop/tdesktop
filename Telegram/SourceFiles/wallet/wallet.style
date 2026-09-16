@@ -162,6 +162,10 @@ walletListsLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
 	color: windowSubTextFg;
 	thickness: 4px;
 }
+walletKeysRowLoading: InfiniteRadialAnimation(startGiveawayButtonLoading) {
+	color: windowSubTextFg;
+}
+walletBusyBoxPadding: margins(0px, 24px, 0px, 24px);
 
 walletTabsSlider: SettingsSlider(defaultTabsSlider) {
 	padding: 12px;

@@ -1883,6 +1883,42 @@ void AddBusyFooterSpinner(
 	loading->showOn(std::move(shown));
 }
 
+// The row counterpart of the footer spinner: the same animation in the
+// row's subtext colour at its right edge, so a settings row keeps its label
+// while the action it started is still in flight.
+void AddRowSpinner(
+		not_null<Ui::SettingsButton*> button,
+		rpl::producer<bool> shown) {
+	const auto &st = button->st();
+	const auto size = st.style.font->height;
+	const auto loading = Info::Statistics::InfiniteRadialAnimationWidget(
+		button,
+		size,
+		&st::walletKeysRowLoading);
+	loading->setAttribute(Qt::WA_TransparentForMouseEvents);
+	button->sizeValue() | rpl::on_next([=](QSize outer) {
+		loading->moveToRight(
+			st.padding.right(),
+			(outer.height() - size) / 2,
+			outer.width());
+	}, loading->lifetime());
+	loading->showOn(std::move(shown));
+}
+
+void WalletBusyBox(not_null<Ui::GenericBox*> box) {
+	const auto &loading = st::walletListsLoading;
+	const auto side = loading.size.height() + 2 * loading.thickness;
+	const auto content = box->addRow(
+		object_ptr<Ui::FixedHeightWidget>(box, side),
+		st::walletBusyBoxPadding);
+	const auto indicator = Info::Statistics::InfiniteRadialAnimationWidget(
+		content,
+		side,
+		&loading);
+	Info::Statistics::AddChildToWidgetCenter(content, indicator);
+	indicator->show();
+}
+
 [[nodiscard]] QImage ReceiveQrCenter(int side, int markSide) {
 	auto result = QImage(side, side, QImage::Format_ARGB32_Premultiplied);
 	result.fill(Qt::white);
@@ -8306,7 +8342,8 @@ void ShowBackupDisableBox(
 void StartBackupDisable(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::GenericBox*> origin,
-		not_null<bool*> busy) {
+		not_null<bool*> busy,
+		not_null<rpl::variable<bool>*> restoring) {
 	const auto weak = base::make_weak(origin);
 	const auto confirm = [=] {
 		AcquireVaultUnlock({
@@ -8328,16 +8365,21 @@ void StartBackupDisable(
 		return;
 	}
 	*busy = true;
+	*restoring = true;
 	StartCustodyRestore(
 		show,
 		KeyAuthorization{ .install = MakeCustodyInstaller(show) },
 		[=] {
 			if (weak) {
 				*busy = false;
+				*restoring = false;
 				confirm();
 			}
 		},
-		crl::guard(origin, [=] { *busy = false; }));
+		crl::guard(origin, [=] {
+			*busy = false;
+			*restoring = false;
+		}));
 }
 
 [[nodiscard]] QStringList SplitPhraseWords(const QString &text) {
@@ -9300,6 +9342,8 @@ void AddBackupSection(
 		not_null<Ui::GenericBox*> box) {
 	auto &wallet = show->session().wallet();
 	const auto busy = box->lifetime().make_state<bool>(false);
+	const auto restoring = box->lifetime().make_state<rpl::variable<bool>>(
+		false);
 	Ui::AddSubsectionTitle(container, tr::lng_wallet_backup_section());
 	const auto disable = container->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
@@ -9313,12 +9357,13 @@ void AddBackupSection(
 		return capabilities.backupEnabled;
 	}));
 	disable->finishAnimating();
+	AddRowSpinner(disable->entity(), restoring->value());
 	disable->entity()->addClickHandler([=] {
 		if (*busy) {
 			return;
 		}
 		RunKeyRequiringAction(show, crl::guard(box, [=] {
-			StartBackupDisable(show, box, busy);
+			StartBackupDisable(show, box, busy, restoring);
 		}), KeyActionKind::Reveal);
 	});
 	const auto enable = container->add(
@@ -11600,6 +11645,28 @@ void ShowWalletConflict(
 		std::shared_ptr<Main::SessionShow> show,
 		Fn<void()> switched) {
 	show->showBox(Box(WalletConflictBox, show, std::move(switched)));
+}
+
+Fn<void()> ShowWalletBusyBox(
+		std::shared_ptr<Main::SessionShow> show,
+		Fn<void()> dismissed) {
+	auto box = Box(WalletBusyBox);
+	const auto weak = base::make_weak(box.data());
+	const auto closing = std::make_shared<bool>(false);
+	box->boxClosing() | rpl::on_next([=] {
+		if (!*closing && dismissed) {
+			dismissed();
+		}
+	}, box->lifetime());
+	show->showBox(std::move(box));
+	return [=] {
+		*closing = true;
+		if (const auto strong = weak.get()) {
+			if (strong->hasDelegate()) {
+				strong->closeBox();
+			}
+		}
+	};
 }
 
 void ShowSendToUser(
