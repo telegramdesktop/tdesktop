@@ -338,7 +338,7 @@ void AppendMappedTargetSelfTest(not_null<Runner*> runner) {
 			const auto local = state->fixture.elasticLocal;
 			state->fixture.elastic->scrollToY(
 				local.top(),
-				local.bottom());
+				local.top() + local.height());
 			Ui::SendPendingMoveResizeEvents(state->fixture.elastic);
 			if (const auto content = state->fixture.elastic->widget()) {
 				Ui::SendPendingMoveResizeEvents(content);
@@ -413,7 +413,9 @@ void AppendMappedTargetSelfTest(not_null<Runner*> runner) {
 				return;
 			}
 			const auto local = state->fixture.areaLocal;
-			state->fixture.area->scrollToY(local.top(), local.bottom());
+			state->fixture.area->scrollToY(
+				local.top(),
+				local.top() + local.height());
 			Ui::SendPendingMoveResizeEvents(state->fixture.area);
 			if (const auto content = state->fixture.area->widget()) {
 				Ui::SendPendingMoveResizeEvents(content);
