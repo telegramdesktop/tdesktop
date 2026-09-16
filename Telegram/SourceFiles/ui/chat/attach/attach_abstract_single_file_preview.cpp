@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/attach/attach_abstract_single_file_preview.h"
 
-#include "base/timer_rpl.h"
 #include "ui/image/image_prepare.h"
 #include "ui/painter.h"
 #include "ui/text/text_options.h"
@@ -30,7 +29,8 @@ AbstractSingleFilePreview::AbstractSingleFilePreview(
 , _type(type)
 , _captionContext(captionContext)
 , _editMedia(this, _st.files.buttonFile)
-, _deleteMedia(this, _st.files.buttonFile) {
+, _deleteMedia(this, _st.files.buttonFile)
+, _selectCheck(_st.files.selectCheck, [=] { update(); }) {
 	const auto repaint = _captionContext.repaint;
 	_captionContext.repaint = [=] {
 		if (repaint) {
@@ -63,13 +63,15 @@ AbstractSingleFilePreview::AbstractSingleFilePreview(
 AbstractSingleFilePreview::~AbstractSingleFilePreview() = default;
 
 rpl::producer<> AbstractSingleFilePreview::editRequests() const {
-	return _editMedia->clicks() | rpl::map([] {
-		return base::timer_once(st::historyAttach.ripple.hideDuration);
-	}) | rpl::flatten_latest();
+	return _editMedia->clicks() | rpl::to_empty;
 }
 
 rpl::producer<> AbstractSingleFilePreview::renameRequests() const {
 	return _renameRequests.events();
+}
+
+rpl::producer<> AbstractSingleFilePreview::selectRequests() const {
+	return _selectRequests.events();
 }
 
 rpl::producer<> AbstractSingleFilePreview::deleteRequests() const {
@@ -89,6 +91,24 @@ void AbstractSingleFilePreview::setRenameEnabled(bool enabled) {
 		_namePressed = false;
 		applyCursor(style::cur_default);
 	}
+}
+
+void AbstractSingleFilePreview::setSelectable(bool selectable) {
+	_selectable = selectable && (_type == AttachControls::Type::Full);
+}
+
+void AbstractSingleFilePreview::setSelectionMode(bool enabled) {
+	_selectionMode = enabled;
+}
+
+void AbstractSingleFilePreview::setSelected(
+		bool selected,
+		anim::type animated) {
+	_selectCheck.setChecked(selected, animated);
+}
+
+bool AbstractSingleFilePreview::selected() const {
+	return _selectCheck.checked();
 }
 
 void AbstractSingleFilePreview::setDisplayName(const QString &displayName) {
@@ -174,6 +194,14 @@ void AbstractSingleFilePreview::paintEvent(QPaintEvent *e) {
 			style::rtlrect(x, y, st.thumbSize, st.thumbSize, width()));
 		p.drawPixmap(rthumb.topLeft(), _data.fileThumb);
 	}
+	const auto checkSize = _st.files.selectCheck.size;
+	const auto check = style::rtlrect(
+		x + st.thumbSize - checkSize,
+		y + st.thumbSize - checkSize,
+		checkSize,
+		checkSize,
+		width());
+	_selectCheck.paint(p, check.x(), check.y(), width());
 	p.setFont(st::semiboldFont);
 	p.setPen(_st.files.nameFg);
 	p.drawTextLeft(
@@ -297,7 +325,11 @@ void AbstractSingleFilePreview::setData(Data data) {
 }
 
 void AbstractSingleFilePreview::mousePressEvent(QMouseEvent *e) {
-	if (isOverName(e->pos())) {
+	if (e->button() != Qt::LeftButton) {
+		return;
+	} else if (selectingByClick(e->modifiers())) {
+		_selectPressed = true;
+	} else if (isOverName(e->pos())) {
 		_namePressed = true;
 	}
 }
@@ -309,9 +341,13 @@ void AbstractSingleFilePreview::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void AbstractSingleFilePreview::mouseReleaseEvent(QMouseEvent *e) {
-	if (base::take(_namePressed)
-		&& (e->button() == Qt::LeftButton)
-		&& isOverName(e->pos())) {
+	const auto selectPressed = base::take(_selectPressed);
+	const auto namePressed = base::take(_namePressed);
+	if (e->button() != Qt::LeftButton) {
+		return;
+	} else if (selectPressed && rect().contains(e->pos())) {
+		_selectRequests.fire({});
+	} else if (namePressed && isOverName(e->pos())) {
 		_renameRequests.fire({});
 	}
 }
@@ -335,7 +371,13 @@ QRect AbstractSingleFilePreview::nameRect() const {
 }
 
 bool AbstractSingleFilePreview::isOverName(QPoint point) const {
-	return _renameEnabled && nameRect().contains(point);
+	return _renameEnabled && !_selectionMode && nameRect().contains(point);
+}
+
+bool AbstractSingleFilePreview::selectingByClick(
+		Qt::KeyboardModifiers modifiers) const {
+	return _selectable
+		&& (_selectionMode || modifiers.testFlag(Qt::ControlModifier));
 }
 
 void AbstractSingleFilePreview::applyCursor(style::cursor cursor) {

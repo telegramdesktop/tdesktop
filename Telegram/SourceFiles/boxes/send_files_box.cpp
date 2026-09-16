@@ -545,6 +545,21 @@ rpl::producer<int> SendFilesBox::Block::itemRenameRequest() const {
 	}
 }
 
+rpl::producer<int> SendFilesBox::Block::itemSelectRequest() const {
+	using namespace rpl::mappers;
+
+	const auto preview = _preview.get();
+	const auto from = _from;
+	if (_isAlbum) {
+		const auto album = static_cast<Ui::AlbumPreview*>(preview);
+		return album->thumbSelected() | rpl::map(_1 + from);
+	} else if (_isSingleMedia) {
+		return rpl::never<int>();
+	}
+	const auto single = static_cast<Ui::SingleFilePreview*>(preview);
+	return single->selectRequests() | rpl::map_to(from);
+}
+
 rpl::producer<> SendFilesBox::Block::orderUpdated() const {
 	if (_isAlbum) {
 		const auto album = static_cast<Ui::AlbumPreview*>(_preview.get());
@@ -579,6 +594,28 @@ void SendFilesBox::Block::toggleSpoilers(bool enabled) {
 		const auto media = static_cast<Ui::SingleMediaPreview*>(
 			_preview.get());
 		media->setSpoiler(enabled);
+	}
+}
+
+void SendFilesBox::Block::setSelectionMode(bool enabled) {
+	if (_isAlbum) {
+		const auto album = static_cast<Ui::AlbumPreview*>(_preview.get());
+		album->setSelectionMode(enabled);
+	} else if (!_isSingleMedia) {
+		const auto single = static_cast<Ui::SingleFilePreview*>(
+			_preview.get());
+		single->setSelectionMode(enabled);
+	}
+}
+
+void SendFilesBox::Block::setSelected(int index, bool selected) {
+	if (_isAlbum) {
+		const auto album = static_cast<Ui::AlbumPreview*>(_preview.get());
+		album->setSelected(index - _from, selected);
+	} else if (!_isSingleMedia) {
+		const auto single = static_cast<Ui::SingleFilePreview*>(
+			_preview.get());
+		single->setSelected(selected);
 	}
 }
 
@@ -959,6 +996,171 @@ void SendFilesBox::refreshAllAfterChanges(int fromItem, Fn<void()> perform) {
 	_inner->resizeToWidth(st::boxWideWidth);
 	refreshControls();
 	captionResized();
+	updateSelectionMode();
+}
+
+void SendFilesBox::unpackArchive(int index) {
+	if (_preparing || index < 0 || index >= _list.files.size()) {
+		return;
+	}
+	const auto archive = _list.files[index].archive;
+	if (!archive) {
+		return;
+	}
+	const auto paths = archive->folder.isEmpty()
+		? archive->paths
+		: Storage::FolderFilesForSending(archive->folder);
+	auto list = Storage::PrepareMediaList(
+		paths,
+		st::sendMediaPreviewSize,
+		_show->session().premium());
+	if (list.error != Ui::PreparedList::Error::None
+		|| list.files.empty()) {
+		showToast(tr::lng_send_media_invalid_files(tr::now));
+		return;
+	} else if (!checkWith(list, _sendWay.current())) {
+		return;
+	} else if (_limits & SendFilesAllow::OnlyOne) {
+		auto removing = std::move(_list.files[index]);
+		std::swap(_list.files[index], _list.files.back());
+		_list.files.pop_back();
+		const auto ok = _list.canBeSentInSlowmodeWith(list);
+		_list.files.push_back(std::move(removing));
+		std::swap(_list.files[index], _list.files.back());
+		if (!ok) {
+			showToast(tr::lng_slowmode_no_many(tr::now));
+			return;
+		}
+	}
+	for (auto i = 0; i != archive->names.size(); ++i) {
+		if (archive->names[i].isEmpty()) {
+			continue;
+		}
+		for (auto &file : list.files) {
+			if (file.path == archive->paths[i]) {
+				file.displayName = archive->names[i];
+			}
+		}
+	}
+	refreshAllAfterChanges(index, [&] {
+		_list.files.erase(_list.files.begin() + index);
+		_list.files.insert(
+			_list.files.begin() + index,
+			std::make_move_iterator(list.files.begin()),
+			std::make_move_iterator(list.files.end()));
+	});
+	_list.filesToProcess.insert(
+		_list.filesToProcess.end(),
+		std::make_move_iterator(list.filesToProcess.begin()),
+		std::make_move_iterator(list.filesToProcess.end()));
+	enqueueNextPrepare();
+}
+
+std::vector<int> SendFilesBox::archivableIndices(bool selectedOnly) const {
+	auto result = std::vector<int>();
+	for (auto i = 0, count = int(_list.files.size()); i != count; ++i) {
+		const auto &file = _list.files[i];
+		if (!file.archive
+			&& !file.path.isEmpty()
+			&& (!selectedOnly || file.selected)) {
+			result.push_back(i);
+		}
+	}
+	return result;
+}
+
+bool SendFilesBox::canArchiveAll() const {
+	const auto count = int(_list.files.size());
+	return !_preparing
+		&& (count > 0)
+		&& (archivableIndices(false).size() == count);
+}
+
+bool SendFilesBox::hasArchives() const {
+	return !_preparing && ranges::any_of(_list.files, [](const auto &file) {
+		return file.archive != nullptr;
+	});
+}
+
+void SendFilesBox::unpackArchives() {
+	for (auto i = int(_list.files.size()); i != 0;) {
+		--i;
+		if (_list.files[i].archive) {
+			unpackArchive(i);
+		}
+	}
+}
+
+bool SendFilesBox::hasSelection() const {
+	return ranges::any_of(_list.files, &Ui::PreparedFile::selected);
+}
+
+void SendFilesBox::toggleSelection(int index) {
+	applyBlockChanges();
+	if (index < 0 || index >= _list.files.size()) {
+		return;
+	}
+	auto &file = _list.files[index];
+	file.selected = !file.selected;
+	for (auto &block : _blocks) {
+		if (index >= block.fromIndex() && index < block.tillIndex()) {
+			block.setSelected(index, file.selected);
+		}
+	}
+	updateSelectionMode();
+}
+
+bool SendFilesBox::clearSelection() {
+	if (!hasSelection()) {
+		return false;
+	}
+	for (auto i = 0, count = int(_list.files.size()); i != count; ++i) {
+		auto &file = _list.files[i];
+		if (!file.selected) {
+			continue;
+		}
+		file.selected = false;
+		for (auto &block : _blocks) {
+			if (i >= block.fromIndex() && i < block.tillIndex()) {
+				block.setSelected(i, false);
+			}
+		}
+	}
+	updateSelectionMode();
+	return true;
+}
+
+void SendFilesBox::updateSelectionMode() {
+	const auto enabled = hasSelection();
+	for (auto &block : _blocks) {
+		block.setSelectionMode(enabled);
+	}
+}
+
+void SendFilesBox::archiveFiles(const std::vector<int> &indices) {
+	if (_preparing || indices.empty()) {
+		return;
+	}
+	auto paths = QStringList();
+	auto names = QStringList();
+	for (const auto index : indices) {
+		const auto &file = _list.files[index];
+		paths.push_back(file.path);
+		names.push_back(file.displayName);
+	}
+	auto list = Ui::PreparedList();
+	list.files.push_back(Storage::PrepareFilesArchive(paths, names));
+	if (!checkWith(list, _sendWay.current())) {
+		return;
+	}
+	refreshAllAfterChanges(indices.front(), [&] {
+		for (const auto index : ranges::views::reverse(indices)) {
+			_list.files.erase(_list.files.begin() + index);
+		}
+		_list.files.insert(
+			_list.files.begin() + indices.front(),
+			std::move(list.files.front()));
+	});
 }
 
 bool SendFilesBox::setDisplayNameInSingleFilePreview(
@@ -1244,7 +1446,7 @@ QImage SendFilesBox::preparePriceTagBg(QSize size) const {
 
 void SendFilesBox::addMenuButton() {
 	const auto details = _sendMenuDetails();
-	if (!hasSendMenu(details)) {
+	if (!hasSendMenu(details) && !canArchiveAll() && !hasArchives()) {
 		return;
 	}
 
@@ -1254,6 +1456,18 @@ void SendFilesBox::addMenuButton() {
 		_menu = base::make_unique_q<Ui::PopupMenu>(top, tabbed.menu);
 		_menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
 		const auto position = QCursor::pos();
+		if (canArchiveAll()) {
+			_menu->addAction(
+				tr::lng_folder_archive_pack(tr::now),
+				[=] { archiveFiles(archivableIndices(false)); },
+				&st::menuIconArchive);
+		}
+		if (hasArchives()) {
+			_menu->addAction(
+				tr::lng_folder_archive_unpack(tr::now),
+				[=] { unpackArchives(); },
+				&st::menuIconUnarchive);
+		}
 		const auto result = SendMenu::FillSendMenu(
 			_menu.get(),
 			_show,
@@ -1261,11 +1475,11 @@ void SendFilesBox::addMenuButton() {
 			_sendMenuCallback,
 			&_st.tabbed.icons,
 			position);
-		if (result != SendMenu::FillMenuResult::Prepared) {
+		if (result == SendMenu::FillMenuResult::Failed || _menu->empty()) {
 			_menu = nullptr;
 			return true;
 		}
-		_menu->popupPrepared();
+		_menu->popup(position);
 		return true;
 	});
 }
@@ -1396,6 +1610,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 		gifPaused,
 		_sendWay.current());
 	auto &block = _blocks.back();
+	block.setSelectionMode(hasSelection());
 	const auto widget = _inner->add(
 		block.takeWidget(),
 		QMargins(0, _inner->count() ? st::sendMediaRowSkip : 0, 0, 0));
@@ -1598,7 +1813,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 		if (!canEditFileData) {
 			return;
 		}
-		const auto allowExtensionEdit = file.path.isEmpty();
+		const auto allowExtensionEdit = file.path.isEmpty() && !file.archive;
 		_show->show(Box(
 			RenameFileBox,
 			file.displayName,
@@ -1808,6 +2023,23 @@ void SendFilesBox::pushBlock(int from, int till) {
 					&st::menuIconCancel);
 			}
 		}
+		if (!compressed && !_preparing && !file.archive) {
+			const auto selected = archivableIndices(true);
+			if (!selected.empty()) {
+				state->menu->addAction(
+					tr::lng_folder_archive_pack_selected(tr::now),
+					[=] { archiveFiles(selected); },
+					&st::menuIconArchive);
+			}
+			if (!file.path.isEmpty()) {
+				state->menu->addAction(
+					(file.selected
+						? tr::lng_folder_archive_deselect
+						: tr::lng_folder_archive_select)(tr::now),
+					[=] { toggleSelection(fileIndex); },
+					&st::menuIconSelect);
+			}
+		}
 		if (state->menu->empty()) {
 			state->menu = nullptr;
 			return false;
@@ -1860,6 +2092,11 @@ void SendFilesBox::pushBlock(int from, int till) {
 	block.itemRenameRequest(
 	) | rpl::on_next([=](int index) {
 		renameFile(index);
+	}, widget->lifetime());
+
+	block.itemSelectRequest(
+	) | rpl::on_next([=](int index) {
+		toggleSelection(index);
 	}, widget->lifetime());
 
 	block.orderUpdated() | rpl::on_next([=]{
@@ -2069,6 +2306,9 @@ void SendFilesBox::setupCaption() {
 	}, _caption->lifetime());
 	_caption->cancelled(
 	) | rpl::on_next([=] {
+		if (hasSelection()) {
+			return;
+		}
 		requestToTakeTextWithTags();
 		closeBox();
 	}, _caption->lifetime());
@@ -2436,6 +2676,8 @@ void SendFilesBox::keyPressEvent(QKeyEvent *e) {
 			|| modifiers.testFlag(Qt::MetaModifier);
 		const auto shift = modifiers.testFlag(Qt::ShiftModifier);
 		send({}, ctrl && shift);
+	} else if (e->key() == Qt::Key_Escape && clearSelection()) {
+		e->accept();
 	} else {
 		BoxContent::keyPressEvent(e);
 	}

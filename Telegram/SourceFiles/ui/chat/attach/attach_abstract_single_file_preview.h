@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/chat/attach/attach_abstract_single_preview.h"
 #include "ui/chat/attach/attach_controls.h"
+#include "ui/effects/round_checkbox.h"
 #include "base/object_ptr.h"
 
 namespace style {
@@ -31,8 +32,14 @@ public:
 	[[nodiscard]] rpl::producer<> deleteRequests() const override;
 	[[nodiscard]] rpl::producer<> editRequests() const override;
 	[[nodiscard]] rpl::producer<> renameRequests() const;
+	[[nodiscard]] rpl::producer<> selectRequests() const;
 	[[nodiscard]] rpl::producer<> modifyRequests() const override;
 	void setRenameEnabled(bool enabled);
+	void setSelectionMode(bool enabled);
+	void setSelected(
+		bool selected,
+		anim::type animated = anim::type::normal);
+	[[nodiscard]] bool selected() const;
 	virtual void setDisplayName(const QString &displayName);
 	virtual void setCaption(const TextWithTags &caption);
 
@@ -56,6 +63,7 @@ protected:
 	}
 
 	void setData(Data data);
+	void setSelectable(bool selectable);
 
 private:
 	void paintEvent(QPaintEvent *e) override;
@@ -69,6 +77,8 @@ private:
 	[[nodiscard]] QRect captionRect() const;
 	[[nodiscard]] QRect nameRect() const;
 	[[nodiscard]] bool isOverName(QPoint point) const;
+	[[nodiscard]] bool selectingByClick(
+		Qt::KeyboardModifiers modifiers) const;
 	void applyCursor(style::cursor cursor);
 
 	const style::ComposeControls &_st;
@@ -80,10 +90,15 @@ private:
 	object_ptr<IconButton> _editMedia = { nullptr };
 	object_ptr<IconButton> _deleteMedia = { nullptr };
 	rpl::event_stream<> _renameRequests;
+	rpl::event_stream<> _selectRequests;
+	RoundCheckbox _selectCheck;
 
 	style::cursor _cursor = style::cur_default;
 	bool _namePressed = false;
 	bool _renameEnabled = false;
+	bool _selectable = false;
+	bool _selectionMode = false;
+	bool _selectPressed = false;
 
 };
 

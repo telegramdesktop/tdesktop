@@ -184,10 +184,13 @@ private:
 		[[nodiscard]] rpl::producer<int> itemReplaceRequest() const;
 		[[nodiscard]] rpl::producer<int> itemModifyRequest() const;
 		[[nodiscard]] rpl::producer<int> itemRenameRequest() const;
+		[[nodiscard]] rpl::producer<int> itemSelectRequest() const;
 		[[nodiscard]] rpl::producer<> orderUpdated() const;
 
 		void setSendWay(Ui::SendFilesWay way);
 		void toggleSpoilers(bool enabled);
+		void setSelectionMode(bool enabled);
+		void setSelected(int index, bool selected);
 		void applyChanges();
 
 		[[nodiscard]] QImage generatePriceTagBackground() const;
@@ -267,6 +270,16 @@ private:
 
 	void openDialogToAddFileToAlbum();
 	void refreshAllAfterChanges(int fromItem, Fn<void()> perform = nullptr);
+	void unpackArchive(int index);
+	[[nodiscard]] std::vector<int> archivableIndices(bool selectedOnly) const;
+	[[nodiscard]] bool hasSelection() const;
+	void toggleSelection(int index);
+	void updateSelectionMode();
+	[[nodiscard]] bool clearSelection();
+	void archiveFiles(const std::vector<int> &indices);
+	[[nodiscard]] bool canArchiveAll() const;
+	[[nodiscard]] bool hasArchives() const;
+	void unpackArchives();
 	[[nodiscard]] bool setDisplayNameInSingleFilePreview(
 		int fileIndex,
 		const QString &displayName);
