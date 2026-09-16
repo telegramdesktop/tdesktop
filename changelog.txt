@@ -1,3 +1,7 @@
+7.2.9 (16.09.26)
+
+- Fix some tlottie incorrect renderings.
+
 7.2.8 (09.09.26)
 
 - Fix some more crashes with bad lottie files.
