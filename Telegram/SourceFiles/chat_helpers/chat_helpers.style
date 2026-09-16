@@ -227,6 +227,7 @@ ComposeFiles {
 	buttonFile: IconButton;
 	buttonFileEdit: icon;
 	buttonFileDelete: icon;
+	selectCheck: RoundCheckbox;
 	iconBg: color;
 	iconPlay: icon;
 	iconImage: icon;
@@ -705,6 +706,9 @@ sendBoxAlbumGroupButtonFile: IconButton(editMediaButton) {
 }
 sendBoxAlbumGroupEditButtonIconFile: editMediaButtonIconFile;
 sendBoxAlbumGroupDeleteButtonIconFile: icon {{ "send_media/send_media_cross", menuIconFg }};
+sendBoxFileSelectCheck: RoundCheckbox(defaultPeerListCheck) {
+	bgActive: boxTextFgGood;
+}
 
 sendBoxAlbumButtonMediaMore: icon {{ "send_media/send_media_more", roundedFg }};
 sendBoxAlbumGroupButtonMediaMore: icon {{ "send_media/send_media_more", roundedFg, point(4px, 1px) }};
@@ -1578,6 +1582,7 @@ defaultComposeFiles: ComposeFiles {
 	buttonFile: sendBoxAlbumGroupButtonFile;
 	buttonFileEdit: sendBoxAlbumGroupEditButtonIconFile;
 	buttonFileDelete: sendBoxAlbumGroupDeleteButtonIconFile;
+	selectCheck: sendBoxFileSelectCheck;
 	iconBg: msgFileInBg;
 	iconPlay: icon {{ "history_file_play", historyFileInIconFg }};
 	iconImage: icon {{ "history_file_image", historyFileInIconFg }};

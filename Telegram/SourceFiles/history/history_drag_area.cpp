@@ -57,7 +57,9 @@ constexpr auto kDragAreaEvents = {
 		}
 	}
 	if (!modifiers) {
-		return state;
+		return (state == DragState::FilesArchive)
+			? DragState::Files
+			: state;
 	}
 	return (state == DragState::PhotoFiles)
 		? DragState::PhotoFilesArchive
@@ -68,7 +70,9 @@ constexpr auto kDragAreaEvents = {
 
 [[nodiscard]] bool IsPromotedToArchive(Storage::MimeDataState state) {
 	using DragState = Storage::MimeDataState;
-	return (state == DragState::PhotoFilesArchive)
+	return (state == DragState::FilesArchive)
+		|| (state == DragState::FilesArchiveOnly)
+		|| (state == DragState::PhotoFilesArchive)
 		|| (state == DragState::MediaFilesArchive);
 }
 
