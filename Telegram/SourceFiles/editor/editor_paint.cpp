@@ -7,25 +7,40 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/editor_paint.h"
 
+#include "apiwrap.h"
 #include "base/platform/base_platform_haptic.h"
+#include "base/qthelp_url.h"
+#include "chat_helpers/compose/compose_show.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
+#include "data/data_peer.h"
+#include "data/data_session.h"
 #include "editor/controllers/controllers.h"
+#include "editor/editor_link_box.h"
+#include "editor/editor_message_render.h"
+#include "editor/editor_message_source.h"
 #include "editor/scene/scene_item_canvas.h"
 #include "editor/scene/scene_item_image.h"
+#include "editor/scene/scene_item_link.h"
+#include "editor/scene/scene_item_message.h"
 #include "editor/scene/scene_item_shape.h"
 #include "editor/scene/scene_item_sticker.h"
 #include "editor/scene/scene_item_text.h"
 #include "editor/scene/scene_item_video.h"
 #include "editor/scene/scene.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_single_player.h"
+#include "main/main_session.h"
 #include "platform/platform_file_utilities.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
+#include "window/themes/window_theme.h"
+#include "styles/style_editor.h"
 
 #include <QGraphicsView>
 #include <QNativeGestureEvent>
@@ -40,6 +55,28 @@ constexpr auto kMaxBrush = 25.;
 constexpr auto kMinBrush = 1.;
 constexpr auto kShapeSizeRatio = 2. / 5.;
 constexpr auto kMediaSizeRatio = 1. / 2.;
+constexpr auto kImageMaxSizeRatio = 4.;
+
+constexpr auto kMessageMaxWidthRatio = 0.88;
+constexpr auto kMessageMaxHeightRatio = 0.7;
+constexpr auto kMessagesCascadeRatio = 1. / 20.;
+
+[[nodiscard]] bool IsForwardMimeData(not_null<const QMimeData*> data) {
+	return data->hasFormat(u"application/x-td-forward"_q);
+}
+
+[[nodiscard]] QString MimeLinkUrl(not_null<const QMimeData*> data) {
+	const auto urls = Core::ReadMimeUrls(data);
+	const auto text = (urls.size() == 1 && !urls.front().isLocalFile())
+		? urls.front().toString()
+		: urls.isEmpty()
+		? Core::ReadMimeText(data).trimmed()
+		: QString();
+	if (text.isEmpty() || text.contains('\n') || text.contains(' ')) {
+		return QString();
+	}
+	return qthelp::validate_url(text);
+}
 
 [[nodiscard]] float64 BrushSize(const Brush &brush) {
 	return kMinBrush + float64(kMaxBrush - kMinBrush) * brush.sizeRatio;
@@ -90,7 +127,8 @@ Paint::Paint(
 , _viewport(_view->viewport())
 , _imageSize(imageSize)
 , _fixedCrop(data.fixedCrop)
-, _composeAnimated(data.composeAnimated) {
+, _composeAnimated(data.composeAnimated)
+, _composeSound(data.composeSound) {
 	Expects(modifications.paint != nullptr);
 
 	_scene->setBlurSource(std::move(blurSource));
@@ -176,6 +214,10 @@ Paint::Paint(
 				controllers->stickersPanelController->stickerChosen(
 				) | rpl::map_to(ShowRequest::HideAnimated),
 				controllers->stickersPanelController->photoRequests(
+				) | rpl::map_to(ShowRequest::HideAnimated),
+				controllers->stickersPanelController->audioRequests(
+				) | rpl::map_to(ShowRequest::HideAnimated),
+				controllers->stickersPanelController->linkRequests(
 				) | rpl::map_to(ShowRequest::HideAnimated)));
 
 		controllers->stickersPanelController->stickerChosen(
@@ -188,6 +230,16 @@ Paint::Paint(
 		controllers->stickersPanelController->photoRequests(
 		) | rpl::on_next([=] {
 			choosePhotoFile();
+		}, lifetime());
+
+		controllers->stickersPanelController->audioRequests(
+		) | rpl::on_next([=] {
+			chooseAudioFile();
+		}, lifetime());
+
+		controllers->stickersPanelController->linkRequests(
+		) | rpl::on_next([=] {
+			chooseLink(QString());
 		}, lifetime());
 	}
 
@@ -235,7 +287,7 @@ bool Paint::zoomSceneItems(float64 wheelDelta, bool fine) {
 }
 
 bool Paint::zoomSceneItemsByFactor(float64 factor) {
-	const auto center = rect::center(_scene->sceneRect());
+	const auto center = rect::center(_scene->canvasRect());
 	auto applied = false;
 	for (const auto &item : _scene->items()) {
 		const auto raw = item.get();
@@ -378,28 +430,37 @@ Paint::~Paint() {
 }
 
 void Paint::updateViewGeometry() {
-	if (_imageGeometry.isEmpty()) {
+	if (_canvasGeometry.isEmpty()) {
 		return;
 	}
 	const auto target = (_transform.userZoom - kMinCanvasZoom) > kZoomEpsilon
 		? _outerGeometry
-		: _imageGeometry;
+		: _canvasGeometry;
 	if (geometry() != target) {
 		setGeometry(target);
 	}
 	_view->setGeometry(rect());
 }
 
-void Paint::applyTransform(QRect geometry, int angle, bool flipped) {
-	if (geometry.isEmpty()) {
+void Paint::applyTransform(
+		QRect geometry,
+		QRect canvasGeometry,
+		QRectF canvas,
+		int angle,
+		bool flipped) {
+	if (geometry.isEmpty() || canvasGeometry.isEmpty()) {
 		return;
 	}
-	_imageGeometry = geometry;
+	_canvasGeometry = canvasGeometry;
+	_canvas = canvas;
 	_outerGeometry = parentWidget() ? parentWidget()->rect() : geometry;
+	_view->setSceneRect((canvas == _scene->sceneRect()) ? QRectF() : canvas);
+	_scene->setCanvasRect(canvas);
 
 	const auto center = (_transform.fitZoom <= 0.)
 		|| _view->viewport()->rect().isEmpty()
-		? rect::center(_scene->sceneRect())
+		|| (_transform.userZoom == kMinCanvasZoom)
+		? rect::center(canvas)
 		: _view->mapToScene(_view->viewport()->rect().center());
 	const auto size = geometry.size();
 
@@ -431,7 +492,7 @@ void Paint::applyTransform(QRect geometry, int angle, bool flipped) {
 
 std::shared_ptr<Scene> Paint::saveScene() const {
 	_scene->save(SaveState::Save);
-	return _scene->items().empty()
+	return (_scene->items().empty() && !_scene->audio())
 		? nullptr
 		: _scene;
 }
@@ -510,8 +571,17 @@ void Paint::disarmShapeTool() {
 }
 
 bool Paint::handleKeyPress(not_null<QKeyEvent*> e) {
-	if ((e->key() == Qt::Key_Escape) && _scene->hasPendingShape()) {
+	const auto key = e->key();
+	if ((key == Qt::Key_Escape) && _scene->hasPendingShape()) {
 		disarmShapeTool();
+		return true;
+	} else if (!_scene->audioSelected()) {
+		return false;
+	} else if (key == Qt::Key_Escape) {
+		_scene->setAudioSelected(false);
+		return true;
+	} else if ((key == Qt::Key_Delete) || (key == Qt::Key_Backspace)) {
+		removeAudio();
 		return true;
 	}
 	return false;
@@ -519,6 +589,50 @@ bool Paint::handleKeyPress(not_null<QKeyEvent*> e) {
 
 void Paint::clearSelection() {
 	_scene->clearSelection();
+}
+
+void Paint::removeAudio() {
+	_scene->setAudio(nullptr);
+}
+
+void Paint::setAudioSelected(bool selected) {
+	_scene->setAudioSelected(selected);
+}
+
+bool Paint::canEqualizeDurations() const {
+	return _scene->canEqualizeDurations();
+}
+
+void Paint::matchDurations(crl::time duration) {
+	_scene->matchDurations(duration);
+}
+
+bool Paint::durationsLinked() const {
+	return _scene->durationsLinked();
+}
+
+void Paint::setDurationsLinked(bool linked) {
+	_scene->setDurationsLinked(linked);
+}
+
+rpl::producer<> Paint::durationsLinkChanges() const {
+	return _scene->durationsLinkChanges();
+}
+
+std::shared_ptr<AudioTrack> Paint::audio() const {
+	return _scene->audio();
+}
+
+bool Paint::audioSelected() const {
+	return _scene->audioSelected();
+}
+
+rpl::producer<> Paint::audioChanges() const {
+	return _scene->audioChanges();
+}
+
+rpl::producer<bool> Paint::audioSelectedChanges() const {
+	return _scene->audioSelectedChanges();
 }
 
 void Paint::applyTextPrefs(const TextPrefs &prefs) {
@@ -557,6 +671,11 @@ rpl::producer<QColor> Paint::shapeItemSelections() const {
 	return _scene->shapeItemSelections();
 }
 
+auto Paint::videoClipSelections() const
+-> rpl::producer<std::shared_ptr<VideoClip>> {
+	return _scene->videoClipSelections();
+}
+
 rpl::producer<> Paint::shapeItemDeselections() const {
 	return _scene->shapeItemDeselections();
 }
@@ -566,12 +685,25 @@ rpl::producer<bool> Paint::shapeToolStates() const {
 }
 
 bool Paint::canHandleMimeData(const QMimeData *data) const {
-	return data
-		&& !_textEditing.current()
-		&& Storage::ValidatePhotoEditorMediaDragData(data, _composeAnimated);
+	if (!data || _textEditing.current()) {
+		return false;
+	} else if (session()
+		&& (IsForwardMimeData(data) || !MimeLinkUrl(data).isEmpty())) {
+		return true;
+	}
+	return Storage::ValidatePhotoEditorMediaDragData(
+		data,
+		_composeAnimated,
+		_composeSound);
 }
 
 void Paint::handleMimeData(const QMimeData *data) {
+	if (IsForwardMimeData(data)) {
+		if (const auto session = Paint::session()) {
+			addMessages(session->data().takeMimeForwardIds());
+		}
+		return;
+	}
 	const auto urls = Core::ReadMimeUrls(data);
 	if (urls.size() == 1 && urls.front().isLocalFile()) {
 		readMediaFile(
@@ -579,22 +711,168 @@ void Paint::handleMimeData(const QMimeData *data) {
 			QByteArray());
 	} else if (auto read = Core::ReadMimeImage(data)) {
 		addMedia({ .image = std::move(read.image) });
+	} else if (const auto url = MimeLinkUrl(data); !url.isEmpty()) {
+		chooseLink(url);
 	} else {
 		addMedia({});
 	}
 }
 
+Main::Session *Paint::session() const {
+	const auto &show = _controllers->sessionShow;
+	return show ? &show->session() : nullptr;
+}
+
+void Paint::addMessages(const MessageIdsList &ids) {
+	const auto session = Paint::session();
+	if (!session) {
+		return;
+	}
+	auto added = base::flat_set<not_null<HistoryItem*>>();
+	auto forbidden = (HistoryItem*)nullptr;
+	auto index = 0;
+	for (const auto &id : ids) {
+		const auto item = session->data().message(id);
+		if (!item) {
+			continue;
+		}
+		const auto render = MessageToRender(item);
+		if (!added.emplace(render).second) {
+			continue;
+		} else if (MessageForbidsRender(render)) {
+			forbidden = render;
+			continue;
+		} else if (!CanRenderMessage(render)) {
+			if (render->hasDirectLink()) {
+				addLinkItem({
+					.url = session->api().exportDirectMessageLink(
+						render,
+						false),
+					.preview = false,
+				});
+			}
+			continue;
+		}
+		addMessageItem(std::make_shared<MessageSource>(render), index++);
+	}
+	if (forbidden) {
+		_controllers->show->showBox(Ui::MakeInformBox(
+			forbidden->history()->peer->isBroadcast()
+				? tr::lng_error_noforwards_channel()
+				: tr::lng_error_noforwards_group()));
+	}
+}
+
+void Paint::addMessageItem(
+		std::shared_ptr<MessageSource> source,
+		int index,
+		std::optional<bool> dark,
+		std::optional<QPointF> position) {
+	auto renderer = std::make_unique<MessageRenderer>(source);
+	renderer->setDark(dark);
+	auto data = messageItemData(renderer->size());
+	const auto scene = _scene->sceneRect().size();
+	const auto shift = int(std::min(scene.width(), scene.height())
+		* kMessagesCascadeRatio) * index;
+	data.x = position ? int(position->x()) : (data.x + shift);
+	data.y = position ? int(position->y()) : (data.y + shift);
+	const auto item = std::make_shared<ItemMessage>(
+		std::move(source),
+		std::move(renderer),
+		std::move(data),
+		dark,
+		MessageVideoOptions{
+			.play = _composeAnimated,
+			.sound = _composeSound,
+		});
+	item->setEditCallback(crl::guard(this, [=](
+			not_null<ItemMessage*> item) {
+		const auto &link = item->source()->link();
+		chooseLink(link ? link->url : QString(), item);
+	}));
+	addMediaItem(item);
+}
+
+void Paint::addLinkItem(LinkPreview link, std::optional<QPointF> position) {
+	auto data = itemBaseData();
+	data.size = std::max(
+		int(std::ceil(ItemLink::MakePill(link, _imageSize).size().width())),
+		1);
+	if (position) {
+		data.x = int(position->x());
+		data.y = int(position->y());
+	}
+	const auto item = std::make_shared<ItemLink>(std::move(link), data);
+	item->setEditCallback(crl::guard(this, [=](not_null<ItemLink*> item) {
+		chooseLink(item->link().url, item);
+	}));
+	addMediaItem(item);
+}
+
+void Paint::chooseLink(const QString &url, ItemBase *editing) {
+	const auto &show = _controllers->sessionShow;
+	if (!show) {
+		return;
+	}
+	auto link = std::optional<LinkPreview>();
+	if (!editing) {
+	} else if (editing->type() == ItemMessage::Type) {
+		const auto item = static_cast<ItemMessage*>(editing);
+		link = item->source()->link();
+		if (link) {
+			link->dark = item->dark().value_or(
+				Window::Theme::IsNightMode());
+		}
+	} else if (editing->type() == ItemLink::Type) {
+		link = static_cast<ItemLink*>(editing)->link();
+	}
+	const auto weak = editing
+		? std::weak_ptr(_scene->itemShared(editing))
+		: std::weak_ptr<NumberedItem>();
+	_controllers->layerShow->showBox(LinkBox({
+		.show = show,
+		.url = url,
+		.editing = link,
+		.done = crl::guard(this, [=](LinkBoxResult &&result) {
+			applyLinkResult(std::move(result), weak);
+		}),
+	}));
+}
+
+void Paint::applyLinkResult(
+		LinkBoxResult &&result,
+		std::weak_ptr<NumberedItem> editing) {
+	const auto strong = editing.lock();
+	const auto raw = (strong && strong->isNormalStatus())
+		? strong.get()
+		: nullptr;
+	if (raw && result.message && raw->type() == ItemMessage::Type) {
+		const auto item = static_cast<ItemMessage*>(raw);
+		item->setSource(std::move(result.message));
+		item->setDark(result.dark);
+		return;
+	} else if (raw && result.pill && raw->type() == ItemLink::Type) {
+		static_cast<ItemLink*>(raw)->setLink(std::move(*result.pill));
+		return;
+	}
+	const auto position = raw
+		? std::make_optional(raw->scenePos())
+		: std::nullopt;
+	if (raw) {
+		_scene->removeItem(strong);
+	}
+	if (result.message) {
+		addMessageItem(std::move(result.message), 0, result.dark, position);
+	} else if (result.pill) {
+		addLinkItem(std::move(*result.pill), position);
+	}
+}
+
 void Paint::readMediaFile(const QString &path, const QByteArray &content) {
-	const auto done = crl::guard(this, [=](
+	Storage::ReadPhotoEditorMediaAsync(path, content, crl::guard(this, [=](
 			Storage::PhotoEditorMedia &&media) {
 		addMedia(std::move(media));
-	});
-	crl::async([=] {
-		auto media = Storage::ReadPhotoEditorMedia(path, content);
-		crl::on_main([=, media = std::move(media)]() mutable {
-			done(std::move(media));
-		});
-	});
+	}));
 }
 
 void Paint::choosePhotoFile() {
@@ -615,9 +893,52 @@ void Paint::choosePhotoFile() {
 		crl::guard(this, callback));
 }
 
+void Paint::chooseAudioFile() {
+	const auto callback = [=](FileDialog::OpenResult &&result) {
+		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
+			return;
+		}
+		readAudioFile(
+			result.paths.isEmpty() ? QString() : result.paths.front(),
+			result.remoteContent);
+	};
+	FileDialog::GetOpenPath(
+		this,
+		tr::lng_choose_audio(tr::now),
+		FileDialog::AudioFilesFilter(),
+		crl::guard(this, callback));
+}
+
+void Paint::readAudioFile(const QString &path, const QByteArray &content) {
+	const auto done = crl::guard(this, [=](AudioTrack &&track) {
+		addAudio(std::move(track));
+	});
+	crl::async([=] {
+		auto track = Storage::ReadPhotoEditorAudio(path, content);
+		crl::on_main([=, track = std::move(track)]() mutable {
+			done(std::move(track));
+		});
+	});
+}
+
+void Paint::addAudio(AudioTrack &&track) {
+	if (track.empty() || (track.duration <= 0)) {
+		_controllers->show->showBox(
+			Ui::MakeInformBox(tr::lng_edit_media_invalid_file()));
+		return;
+	}
+	disarmShapeTool();
+	_scene->setAudio(std::make_shared<AudioTrack>(std::move(track)));
+	_scene->setAudioSelected(true);
+}
+
 void Paint::addMedia(Storage::PhotoEditorMedia &&media) {
 	const auto &image = media.image;
-	if (!media
+	if (!media.audio.empty() && _composeSound) {
+		addAudio(std::move(media.audio));
+		return;
+	} else if (!media
+		|| !media.audio.empty()
 		|| (media.video() && !_composeAnimated)
 		|| !Ui::ValidateThumbDimensions(image.width(), image.height())) {
 		_controllers->show->showBox(
@@ -633,11 +954,12 @@ void Paint::addMedia(Storage::PhotoEditorMedia &&media) {
 void Paint::addVideoItem(Storage::PhotoEditorMedia &&media) {
 	const auto data = mediaItemData(media.image.size());
 	addMediaItem(std::make_shared<ItemVideo>(
-		std::make_shared<ItemVideo::Source>(ItemVideo::Source{
+		std::make_shared<VideoClipSource>(VideoClipSource{
 			.path = std::move(media.videoPath),
 			.content = std::move(media.videoContent),
 			.thumbnail = std::move(media.image),
 			.duration = media.videoDuration,
+			.hasAudio = media.videoHasAudio && _composeSound,
 		}),
 		data));
 }
@@ -651,7 +973,8 @@ void Paint::addImageItem(QImage &&image) {
 			Qt::KeepAspectRatio,
 			Qt::SmoothTransformation);
 	}
-	const auto data = mediaItemData(image.size());
+	auto data = mediaItemData(image.size());
+	data.maxSizeRatio = kImageMaxSizeRatio;
 	addMediaItem(std::make_shared<ItemImage>(
 		Ui::PixmapFromImage(std::move(image)),
 		data));
@@ -664,6 +987,34 @@ void Paint::addMediaItem(std::shared_ptr<ItemBase> item) {
 	item->setSelected(true);
 	item->setFocus();
 	_view->setFocus();
+}
+
+void Paint::setCanvasBackground(
+		const Media::Encode::CanvasBackground &background) {
+	_background = background;
+}
+
+void Paint::setCropRect(QRectF crop) {
+	_cropRect = crop;
+}
+
+void Paint::paintCanvas(QPainter &p) const {
+	const auto image = QRectF(Rect(_imageSize));
+	if (_view->geometry().isEmpty()
+		|| !_background.valid()
+		|| image.contains(_canvas)) {
+		return;
+	}
+	const auto transform = _view->viewportTransform();
+	const auto imageDisplay = transform.mapRect(image).toRect();
+	const auto cropDisplay = transform.mapRect(_cropRect).toAlignedRect();
+	p.save();
+	p.translate(pos());
+	p.setClipRegion(
+		QRegion(rect()) - QRegion(imageDisplay),
+		Qt::IntersectClip);
+	Media::Encode::PaintCanvasBackground(p, cropDisplay, _background);
+	p.restore();
 }
 
 void Paint::paintImage(QPainter &p, const QPixmap &image) const {
@@ -687,7 +1038,7 @@ void Paint::resetView() {
 	_transform.userZoom = kMinCanvasZoom;
 	updateViewGeometry();
 	applyViewTransform();
-	_view->centerOn(rect::center(_scene->sceneRect()));
+	_view->centerOn(rect::center(_canvas));
 	if (const auto parent = parentWidget()) {
 		parent->update(geometry());
 	}
@@ -696,18 +1047,36 @@ void Paint::resetView() {
 ItemBase::Data Paint::itemBaseData() const {
 	const auto s = _scene->sceneRect().toRect().size();
 	const auto size = std::min(s.width(), s.height()) / 2;
-	const auto x = s.width() / 2;
-	const auto y = s.height() / 2;
+	const auto center = rect::center(_scene->canvasRect().toRect());
 	return ItemBase::Data{
 		.initialZoom = _transform.zoom,
 		.zPtr = _scene->lastZ(),
 		.size = size,
-		.x = x,
-		.y = y,
+		.x = center.x(),
+		.y = center.y(),
 		.flipped = _transform.flipped,
 		.rotation = -_transform.angle,
 		.imageSize = _imageSize,
 	};
+}
+
+ItemBase::Data Paint::messageItemData(QSize bubbleSize) const {
+	auto result = itemBaseData();
+	if (bubbleSize.isEmpty()) {
+		return result;
+	}
+	const auto scene = _scene->sceneRect().size();
+	const auto scale = scene.width()
+		/ float64(st::photoEditorMessageReferenceWidth);
+	const auto width = bubbleSize.width() * scale;
+	const auto height = bubbleSize.height() * scale;
+	const auto fit = std::min({
+		1.,
+		scene.width() * kMessageMaxWidthRatio / width,
+		scene.height() * kMessageMaxHeightRatio / height,
+	});
+	result.size = std::max(int(std::ceil(width * fit)), 1);
+	return result;
 }
 
 ItemBase::Data Paint::mediaItemData(QSize mediaSize) const {

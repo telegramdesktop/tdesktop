@@ -21,6 +21,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 
 void InitElementTextPart(not_null<Element*> view, Ui::Text::String &text) {
+	if (view->context() == Context::MediaEditor) {
+		text.setSpoilerRevealed(true, anim::type::instant);
+	}
 	if (text.hasSpoilers()) {
 		text.setSpoilerLinkFilter([weak = base::make_weak(view)](
 				const ClickContext &context) {

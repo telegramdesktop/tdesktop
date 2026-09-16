@@ -21,6 +21,7 @@ public:
 		const QStyleOptionGraphicsItem *option,
 		QWidget *widget) override;
 protected:
+	[[nodiscard]] QRectF visibleRect() const override;
 	void performFlip() override;
 	std::shared_ptr<ItemBase> duplicate(ItemBase::Data data) const override;
 private:

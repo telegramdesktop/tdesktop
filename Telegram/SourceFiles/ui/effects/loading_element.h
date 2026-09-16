@@ -20,6 +20,28 @@ namespace Ui {
 
 class RpWidget;
 
+class LoadingElement {
+public:
+	virtual ~LoadingElement() = default;
+
+	[[nodiscard]] virtual int height() const = 0;
+	virtual void paint(QPainter &p, int width) = 0;
+};
+
+class LoadingLine final : public LoadingElement {
+public:
+	LoadingLine(int thickness, int skip, const QColor &color);
+
+	[[nodiscard]] int height() const override;
+	void paint(QPainter &p, int width) override;
+
+private:
+	const int _thickness;
+	const int _skip;
+	const QColor _color;
+
+};
+
 object_ptr<Ui::RpWidget> CreateLoadingTextWidget(
 	not_null<Ui::RpWidget*> parent,
 	const style::TextStyle &st,

@@ -340,7 +340,10 @@ void Loaders::loadData(AudioMsgId audio, crl::time positionMs) {
 		return;
 	}
 
-	alSourcef(track->stream.source, AL_GAIN, ComputeVolume(type));
+	alSourcef(
+		track->stream.source,
+		AL_GAIN,
+		ComputeVolume(type) * track->volume);
 	if (!internal::audioCheckError()) {
 		setStoppedState(track, State::StoppedAtError);
 		emitError(type);

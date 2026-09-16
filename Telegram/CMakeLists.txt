@@ -870,11 +870,25 @@ PRIVATE
     dialogs/suggestions/suggestion_userpic_setup.cpp
     dialogs/dialogs_widget.cpp
     dialogs/dialogs_widget.h
+    editor/audio_track_timeline.cpp
+    editor/audio_track_timeline.h
     editor/color_picker.cpp
     editor/color_picker.h
     editor/controllers/controllers.h
     editor/controllers/stickers_panel_controller.cpp
     editor/controllers/stickers_panel_controller.h
+    editor/editor_audio_timeline.cpp
+    editor/editor_audio_timeline.h
+    editor/editor_keys_legend.cpp
+    editor/editor_keys_legend.h
+    editor/editor_link_box.cpp
+    editor/editor_link_box.h
+    editor/editor_message_render.cpp
+    editor/editor_message_render.h
+    editor/editor_message_source.cpp
+    editor/editor_message_source.h
+    editor/editor_message_video.cpp
+    editor/editor_message_video.h
     editor/editor_paint.cpp
     editor/editor_paint.h
     editor/photo_editor.cpp
@@ -885,8 +899,14 @@ PRIVATE
     editor/photo_editor_controls.h
     editor/photo_editor_layer_widget.cpp
     editor/photo_editor_layer_widget.h
+    editor/scene/scene_item_message.cpp
+    editor/scene/scene_item_message.h
     editor/scene/scene_item_sticker.cpp
     editor/scene/scene_item_sticker.h
+    editor/scene/scene_item_video.cpp
+    editor/scene/scene_item_video.h
+    editor/video/video_clip.cpp
+    editor/video/video_clip.h
     editor/video/video_editor.cpp
     editor/video/video_editor.h
     editor/video/video_editor_common.cpp
@@ -897,8 +917,14 @@ PRIVATE
     editor/video/video_editor_quality.h
     editor/video/video_quality_slider.cpp
     editor/video/video_quality_slider.h
+    editor/video/video_segment_player.cpp
+    editor/video/video_segment_player.h
     editor/video/video_timeline.cpp
     editor/video/video_timeline.h
+    editor/video/video_timeline_seeker.cpp
+    editor/video/video_timeline_seeker.h
+    editor/video_item_timeline.cpp
+    editor/video_item_timeline.h
     export/export_manager.cpp
     export/export_manager.h
     export/view/export_view_content.cpp

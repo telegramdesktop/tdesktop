@@ -174,10 +174,18 @@ PRIVATE
 
     editor/controllers/undo_controller.cpp
     editor/controllers/undo_controller.h
+    editor/editor_audio_disc_button.cpp
+    editor/editor_audio_disc_button.h
+    editor/editor_audio_menu.cpp
+    editor/editor_audio_menu.h
     editor/editor_crop.cpp
     editor/editor_crop.h
+    editor/editor_link_pill.cpp
+    editor/editor_link_pill.h
     editor/editor_layer_widget.cpp
     editor/editor_layer_widget.h
+    editor/editor_trim_timeline.cpp
+    editor/editor_trim_timeline.h
     editor/photo_editor_common.cpp
     editor/photo_editor_common.h
     editor/photo_editor_inner_common.h
@@ -193,12 +201,12 @@ PRIVATE
     editor/scene/scene_item_image.h
     editor/scene/scene_item_line.cpp
     editor/scene/scene_item_line.h
+    editor/scene/scene_item_link.cpp
+    editor/scene/scene_item_link.h
     editor/scene/scene_item_shape.cpp
     editor/scene/scene_item_shape.h
     editor/scene/scene_item_text.cpp
     editor/scene/scene_item_text.h
-    editor/scene/scene_item_video.cpp
-    editor/scene/scene_item_video.h
     editor/scene/scene_emoji_document.cpp
     editor/scene/scene_emoji_document.h
     editor/scene/scene_text_editing.cpp
@@ -271,7 +279,11 @@ PRIVATE
     media/player/media_player_dropdown.cpp
     media/player/media_player_dropdown.h
 
+    media/media_audio_waveform.cpp
+    media/media_audio_waveform.h
     media/media_common.h
+    media/media_video_canvas.cpp
+    media/media_video_canvas.h
 
     menu/gift_resale_filter.cpp
     menu/gift_resale_filter.h

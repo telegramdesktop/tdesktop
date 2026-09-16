@@ -426,7 +426,7 @@ void TextEditController::createAtCenter(int rotation, bool flipped) {
 		_defaultFontSize);
 
 	const auto emojiDoc = proxy->document();
-	const auto sceneCenter = sceneRect.center();
+	const auto sceneCenter = _scene->canvasRect().center();
 	const auto adjustWidth = [=] {
 		applyAutoShrink();
 		const auto maxTextWidth = sessionWrapWidth();

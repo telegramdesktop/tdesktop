@@ -296,7 +296,8 @@ void Drag(
 		not_null<QWidget*> widget,
 		QPoint from,
 		QPoint to,
-		int steps) {
+		int steps,
+		Qt::KeyboardModifiers modifiers) {
 	const auto alive = base::make_weak(widget);
 	const auto makeEvent = [&](QEvent::Type type, QPoint local, auto button) {
 		return QMouseEvent(
@@ -307,7 +308,7 @@ void Drag(
 			(type == QEvent::MouseButtonRelease)
 				? Qt::NoButton
 				: Qt::LeftButton,
-			Qt::NoModifier);
+			modifiers);
 	};
 	auto press = makeEvent(QEvent::MouseButtonPress, from, Qt::LeftButton);
 	if (!DeliverAndSettle(alive, press)) {

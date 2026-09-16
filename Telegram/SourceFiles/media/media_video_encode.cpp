@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ffmpeg/ffmpeg_frame_generator.h"
 #include "ffmpeg/ffmpeg_utility.h"
 #include "lottie/lottie_frame_generator.h"
+#include "ui/rect.h"
 
 #include <QtCore/QFileInfo>
 #include <QtCore/QTemporaryFile>
@@ -45,6 +46,7 @@ constexpr auto kAudioBitratePerChannel = 64'000;
 constexpr auto kStaleTempTimeout = 24 * 60 * 60;
 
 constexpr auto kMp3InMp4MinFrequency = 16'000;
+constexpr auto kSkippedFrameSide = 2;
 
 // MAX_FRAME_RATE in openh264, a faster source overshoots by the ratio.
 constexpr auto kRateControlFps = 60.;
@@ -66,19 +68,8 @@ constexpr auto kSilentAudioFillMargin = crl::time(1000);
 	return QDir::tempPath() + u"/tdtranscode"_q;
 }
 
-[[nodiscard]] QString TempFileTemplate(const QString &extension) {
-	const auto directory = TempDirectory();
-	QDir().mkpath(directory);
-	QFile::setPermissions(
-		directory,
-		QFileDevice::ReadUser
-			| QFileDevice::WriteUser
-			| QFileDevice::ExeUser);
-	return directory + u"/XXXXXX."_q + extension;
-}
-
 [[nodiscard]] QString TempFileTemplate() {
-	return TempFileTemplate(u"mp4"_q);
+	return Media::Encode::TempFileTemplate(u"mp4"_q);
 }
 
 [[nodiscard]] int EvenDown(int value) {
@@ -459,11 +450,459 @@ struct AudioFifoDeleter {
 };
 using AudioFifoPointer = std::unique_ptr<AVAudioFifo, AudioFifoDeleter>;
 
+struct PacketDeleter {
+	void operator()(AVPacket *value) {
+		av_packet_free(&value);
+	}
+};
+using PacketPointer = std::unique_ptr<AVPacket, PacketDeleter>;
+
+class MusicMixer final {
+public:
+	[[nodiscard]] bool init(
+		const MusicTrack &track,
+		const AVChannelLayout &layout,
+		AVSampleFormat format,
+		int rate);
+	[[nodiscard]] bool mixInto(AVFrame *frame, int64 pts);
+
+private:
+	[[nodiscard]] bool decodeMore();
+	[[nodiscard]] bool decodeStep();
+	[[nodiscard]] bool pushDecoded(AVFrame *frame);
+	[[nodiscard]] bool pushSilence();
+	[[nodiscard]] bool skipFifo(int64 samples);
+	[[nodiscard]] bool seekToStart();
+
+	ReadBytesWrap _bytesWrap;
+	ReadFileWrap _fileWrap;
+	FormatPointer _input;
+	CodecPointer _decoder;
+	SwresamplePointer _swr;
+	AudioFifoPointer _fifo;
+	FramePointer _decoded;
+	PacketPointer _packet;
+	AVChannelLayout _layout = {};
+	AVSampleFormat _format = AV_SAMPLE_FMT_FLTP;
+	int _rate = 0;
+	int _streamIndex = -1;
+	crl::time _from = 0;
+	int64 _start = 0;
+	int64 _limit = 0;
+	int64 _consumed = 0;
+	int64 _skipDecoded = 0;
+	int64 _segment = 0;
+	int64 _segmentPushed = 0;
+	int64 _padding = 0;
+	float64 _volume = 1.;
+	bool _loop = false;
+	bool _eof = false;
+	bool _flushed = false;
+	bool _skipSeeded = false;
+
+};
+
+bool MusicMixer::init(
+		const MusicTrack &track,
+		const AVChannelLayout &layout,
+		AVSampleFormat format,
+		int rate) {
+	if (track.empty() || rate <= 0 || format != AV_SAMPLE_FMT_FLTP) {
+		return false;
+	}
+	av_channel_layout_copy(&_layout, &layout);
+	_format = format;
+	_rate = rate;
+	_volume = std::clamp(track.volume, 0., 2.);
+	if (!track.bytes.isEmpty()) {
+		_bytesWrap = ReadBytesWrap{
+			.size = int64(track.bytes.size()),
+			.data = reinterpret_cast<const uchar*>(track.bytes.constData()),
+		};
+		_input = MakeFormatPointer(
+			&_bytesWrap,
+			&ReadBytesWrap::Read,
+			nullptr,
+			&ReadBytesWrap::Seek);
+	} else {
+		_fileWrap.file.setFileName(track.path);
+		if (!_fileWrap.file.open(QIODevice::ReadOnly)) {
+			return false;
+		}
+		_input = MakeFormatPointer(
+			&_fileWrap,
+			&ReadFileWrap::Read,
+			nullptr,
+			&ReadFileWrap::Seek);
+	}
+	if (!_input) {
+		return false;
+	}
+	const auto probed = AvErrorWrap(avformat_find_stream_info(
+		_input.get(),
+		nullptr));
+	if (probed) {
+		LogError(u"avformat_find_stream_info"_q, probed, u"music"_q);
+		return false;
+	}
+	_streamIndex = av_find_best_stream(
+		_input.get(),
+		AVMEDIA_TYPE_AUDIO,
+		-1,
+		-1,
+		nullptr,
+		0);
+	if (_streamIndex < 0) {
+		LogError(u"av_find_best_stream"_q, u"music"_q);
+		return false;
+	}
+	const auto stream = _input->streams[_streamIndex];
+	_decoder = MakeCodecPointer({ .stream = stream });
+	if (!_decoder) {
+		return false;
+	}
+	_from = std::max(track.from, crl::time(0));
+	_loop = track.loop;
+	if (_from > 0 && !seekToStart()) {
+		return false;
+	}
+	_start = av_rescale(std::max(track.position, crl::time(0)), _rate, 1000);
+	_segment = (track.till > _from)
+		? av_rescale(track.till - _from, _rate, 1000)
+		: 0;
+	_limit = _loop ? 0 : _segment;
+	_skipDecoded = av_rescale(_from, _rate, 1000);
+	_fifo = AudioFifoPointer(av_audio_fifo_alloc(
+		_format,
+		_layout.nb_channels,
+		_rate));
+	_decoded = MakeFramePointer();
+	_packet = PacketPointer(av_packet_alloc());
+	return _fifo && _decoded && _packet;
+}
+
+bool MusicMixer::pushDecoded(AVFrame *frame) {
+	if (frame) {
+		_swr = MakeSwresamplePointer(
+			&frame->ch_layout,
+			AVSampleFormat(frame->format),
+			frame->sample_rate,
+			&_layout,
+			_format,
+			_rate,
+			&_swr);
+		if (!_swr) {
+			return false;
+		}
+		if (!_skipSeeded) {
+			// av_seek_frame lands on a keyframe before the trimmed start.
+			_skipSeeded = true;
+			const auto stream = _input->streams[_streamIndex];
+			const auto best = frame->best_effort_timestamp;
+			const auto raw = (best != AV_NOPTS_VALUE) ? best : frame->pts;
+			if (raw != AV_NOPTS_VALUE) {
+				const auto at = av_rescale_q(
+					raw,
+					stream->time_base,
+					AVRational{ 1, _rate });
+				_skipDecoded = std::max(_skipDecoded - at, int64(0));
+			} else {
+				_skipDecoded = 0;
+			}
+		}
+	} else if (!_swr) {
+		return true;
+	}
+	const auto in = frame ? frame->nb_samples : 0;
+	const auto upper = int(swr_get_out_samples(_swr.get(), in));
+	if (upper <= 0) {
+		return true;
+	}
+	auto converted = MakeFramePointer();
+	if (!converted) {
+		return false;
+	}
+	converted->nb_samples = upper;
+	converted->format = _format;
+	converted->sample_rate = _rate;
+	av_channel_layout_copy(&converted->ch_layout, &_layout);
+	const auto error = AvErrorWrap(av_frame_get_buffer(converted.get(), 0));
+	if (error) {
+		LogError(u"av_frame_get_buffer"_q, error, u"music"_q);
+		return false;
+	}
+	const auto samples = swr_convert(
+		_swr.get(),
+		converted->extended_data,
+		upper,
+		frame ? const_cast<const uint8_t**>(frame->extended_data) : nullptr,
+		in);
+	if (samples < 0) {
+		LogError(u"swr_convert"_q, AvErrorWrap(samples), u"music"_q);
+		return false;
+	} else if (!samples) {
+		return true;
+	}
+	const auto skip = std::min(_skipDecoded, int64(samples));
+	_skipDecoded -= skip;
+	auto count = int64(samples) - skip;
+	if (_loop && _segment > 0) {
+		count = std::min(count, _segment - _segmentPushed);
+	}
+	if (count > 0) {
+		const auto bytes = av_get_bytes_per_sample(_format) * skip;
+		auto planes = std::vector<void*>(_layout.nb_channels);
+		for (auto i = 0; i != _layout.nb_channels; ++i) {
+			planes[i] = converted->extended_data[i] + bytes;
+		}
+		const auto written = av_audio_fifo_write(
+			_fifo.get(),
+			planes.data(),
+			int(count));
+		if (written < count) {
+			LogError(u"av_audio_fifo_write"_q, u"music"_q);
+			return false;
+		}
+		_segmentPushed += count;
+	}
+	if (_loop && _segment > 0 && _segmentPushed >= _segment) {
+		return seekToStart();
+	}
+	return true;
+}
+
+bool MusicMixer::pushSilence() {
+	const auto count = std::min(_padding, int64(_rate));
+	auto silence = MakeFramePointer();
+	if (!silence) {
+		return false;
+	}
+	silence->nb_samples = int(count);
+	silence->format = _format;
+	silence->sample_rate = _rate;
+	av_channel_layout_copy(&silence->ch_layout, &_layout);
+	const auto error = AvErrorWrap(av_frame_get_buffer(silence.get(), 0));
+	if (error) {
+		LogError(u"av_frame_get_buffer"_q, error, u"music"_q);
+		return false;
+	}
+	av_samples_set_silence(
+		silence->extended_data,
+		0,
+		int(count),
+		_layout.nb_channels,
+		_format);
+	const auto written = av_audio_fifo_write(
+		_fifo.get(),
+		reinterpret_cast<void**>(silence->extended_data),
+		int(count));
+	if (written < count) {
+		LogError(u"av_audio_fifo_write"_q, u"music"_q);
+		return false;
+	}
+	_segmentPushed += count;
+	_padding -= count;
+	return (_padding > 0) || seekToStart();
+}
+
+bool MusicMixer::seekToStart() {
+	const auto stream = _input->streams[_streamIndex];
+	const auto target = av_rescale_q(
+		_from,
+		AVRational{ 1, 1000 },
+		stream->time_base);
+	const auto error = AvErrorWrap(av_seek_frame(
+		_input.get(),
+		_streamIndex,
+		target,
+		AVSEEK_FLAG_BACKWARD));
+	if (error) {
+		LogError(u"av_seek_frame"_q, error, u"music"_q);
+		return false;
+	}
+	avcodec_flush_buffers(_decoder.get());
+	_swr = nullptr;
+	_skipDecoded = av_rescale(_from, _rate, 1000);
+	_skipSeeded = false;
+	_segmentPushed = 0;
+	_padding = 0;
+	_eof = false;
+	return true;
+}
+
+bool MusicMixer::skipFifo(int64 samples) {
+	if (samples <= 0) {
+		return true;
+	}
+	auto scratch = MakeFramePointer();
+	if (!scratch) {
+		return false;
+	}
+	scratch->nb_samples = int(samples);
+	scratch->format = _format;
+	scratch->sample_rate = _rate;
+	av_channel_layout_copy(&scratch->ch_layout, &_layout);
+	const auto error = AvErrorWrap(av_frame_get_buffer(scratch.get(), 0));
+	if (error) {
+		LogError(u"av_frame_get_buffer"_q, error, u"music"_q);
+		return false;
+	}
+	const auto read = av_audio_fifo_read(
+		_fifo.get(),
+		reinterpret_cast<void**>(scratch->extended_data),
+		int(samples));
+	return (read == samples);
+}
+
+bool MusicMixer::decodeMore() {
+	if (!_flushed && !decodeStep()) {
+		_flushed = true;
+	}
+	return true;
+}
+
+bool MusicMixer::decodeStep() {
+	if (_padding > 0) {
+		return pushSilence();
+	}
+	while (true) {
+		const auto got = AvErrorWrap(avcodec_receive_frame(
+			_decoder.get(),
+			_decoded.get()));
+		if (!got) {
+			if (!pushDecoded(_decoded.get())) {
+				return false;
+			}
+			return true;
+		} else if (got.code() == AVERROR_EOF) {
+			if (_loop && _segmentPushed > 0) {
+				_padding = std::max(_segment - _segmentPushed, int64(0));
+				if (_padding > 0) {
+					return pushSilence();
+				} else if (seekToStart()) {
+					continue;
+				}
+			}
+			_flushed = true;
+			return pushDecoded(nullptr);
+		} else if (got.code() != AVERROR(EAGAIN)) {
+			LogError(u"avcodec_receive_frame"_q, got, u"music"_q);
+			return false;
+		}
+		if (_eof) {
+			const auto sent = AvErrorWrap(avcodec_send_packet(
+				_decoder.get(),
+				nullptr));
+			if (sent && sent.code() != AVERROR_EOF) {
+				LogError(u"avcodec_send_packet"_q, sent, u"music"_q);
+				return false;
+			}
+			continue;
+		}
+		av_packet_unref(_packet.get());
+		const auto read = AvErrorWrap(av_read_frame(
+			_input.get(),
+			_packet.get()));
+		if (read.code() == AVERROR_EOF) {
+			_eof = true;
+			continue;
+		} else if (read) {
+			LogError(u"av_read_frame"_q, read, u"music"_q);
+			return false;
+		} else if (_packet->stream_index != _streamIndex) {
+			continue;
+		}
+		const auto sent = AvErrorWrap(avcodec_send_packet(
+			_decoder.get(),
+			_packet.get()));
+		if (sent && sent.code() != AVERROR_INVALIDDATA) {
+			LogError(u"avcodec_send_packet"_q, sent, u"music"_q);
+			return false;
+		}
+	}
+}
+
+bool MusicMixer::mixInto(AVFrame *frame, int64 pts) {
+	const auto count = int64(frame->nb_samples);
+	const auto end = _limit
+		? (_start + _limit)
+		: std::numeric_limits<int64>::max();
+	const auto from = std::max(pts, _start);
+	const auto till = std::min(pts + count, end);
+	if (from >= till) {
+		return true;
+	}
+	const auto wanted = from - _start;
+	while (_consumed < wanted) {
+		const auto available = int64(av_audio_fifo_size(_fifo.get()));
+		if (available > 0) {
+			const auto drop = std::min(available, wanted - _consumed);
+			if (!skipFifo(drop)) {
+				return false;
+			}
+			_consumed += drop;
+		} else if (_flushed) {
+			return true;
+		} else if (!decodeMore()) {
+			return false;
+		}
+	}
+	const auto needed = till - from;
+	while (int64(av_audio_fifo_size(_fifo.get())) < needed && !_flushed) {
+		if (!decodeMore()) {
+			return false;
+		}
+	}
+	const auto take = std::min(
+		needed,
+		int64(av_audio_fifo_size(_fifo.get())));
+	if (take <= 0) {
+		return true;
+	}
+	auto mix = MakeFramePointer();
+	if (!mix) {
+		return false;
+	}
+	mix->nb_samples = int(take);
+	mix->format = _format;
+	mix->sample_rate = _rate;
+	av_channel_layout_copy(&mix->ch_layout, &_layout);
+	const auto error = AvErrorWrap(av_frame_get_buffer(mix.get(), 0));
+	if (error) {
+		LogError(u"av_frame_get_buffer"_q, error, u"music"_q);
+		return false;
+	}
+	const auto read = av_audio_fifo_read(
+		_fifo.get(),
+		reinterpret_cast<void**>(mix->extended_data),
+		int(take));
+	if (read < take) {
+		LogError(u"av_audio_fifo_read"_q, u"music"_q);
+		return false;
+	}
+	_consumed += take;
+	const auto offset = int(from - pts);
+	const auto channels = std::min(
+		_layout.nb_channels,
+		frame->ch_layout.nb_channels);
+	for (auto channel = 0; channel != channels; ++channel) {
+		const auto src = reinterpret_cast<const float*>(
+			mix->extended_data[channel]);
+		const auto dst = reinterpret_cast<float*>(
+			frame->extended_data[channel]) + offset;
+		for (auto i = 0; i != int(take); ++i) {
+			dst[i] = std::clamp(dst[i] + src[i] * float(_volume), -1.f, 1.f);
+		}
+	}
+	return true;
+}
+
 class AudioTranscoder final {
 public:
 	[[nodiscard]] bool init(
 		not_null<AVFormatContext*> output,
 		not_null<AVStream*> inStream);
+	void addMusic(const MusicTrack &track);
 	[[nodiscard]] bool process(
 		not_null<AVFormatContext*> output,
 		AVPacket *packet);
@@ -482,12 +921,24 @@ private:
 	AudioFifoPointer _fifo;
 	FramePointer _decodedFrame;
 	FramePointer _encodeFrame;
+	std::vector<std::unique_ptr<MusicMixer>> _music;
 	AVStream *_stream = nullptr;
 	AVRational _inTimeBase = AVRational{ 0, 1 };
 	int64 _pts = 0;
 	bool _ptsSeeded = false;
 
 };
+
+void AudioTranscoder::addMusic(const MusicTrack &track) {
+	auto music = std::make_unique<MusicMixer>();
+	if (music->init(
+			track,
+			_encoder->ch_layout,
+			_encoder->sample_fmt,
+			_encoder->sample_rate)) {
+		_music.push_back(std::move(music));
+	}
+}
 
 bool AudioTranscoder::init(
 		not_null<AVFormatContext*> output,
@@ -683,6 +1134,11 @@ bool AudioTranscoder::encodeFromFifo(
 				_encoder->ch_layout.nb_channels,
 				_encoder->sample_fmt);
 		}
+		for (const auto &music : _music) {
+			if (!music->mixInto(_encodeFrame.get(), _pts)) {
+				return false;
+			}
+		}
 		_encodeFrame->pts = _pts;
 		_pts += take;
 		if (!EncodeAndWrite(
@@ -715,7 +1171,8 @@ class SilentAudioWriter final {
 public:
 	[[nodiscard]] bool init(
 		not_null<AVFormatContext*> output,
-		crl::time limit);
+		crl::time limit,
+		const std::vector<MusicTrack> &music = {});
 	[[nodiscard]] bool writeUntil(
 		not_null<AVFormatContext*> output,
 		crl::time position);
@@ -724,6 +1181,7 @@ public:
 private:
 	CodecPointer _encoder;
 	FramePointer _frame;
+	std::vector<std::unique_ptr<MusicMixer>> _music;
 	AVStream *_stream = nullptr;
 	crl::time _limit = 0;
 	int64 _pts = 0;
@@ -732,7 +1190,8 @@ private:
 
 bool SilentAudioWriter::init(
 		not_null<AVFormatContext*> output,
-		crl::time limit) {
+		crl::time limit,
+		const std::vector<MusicTrack> &music) {
 	_limit = limit;
 	const auto codec = avcodec_find_encoder(AV_CODEC_ID_AAC);
 	if (!codec) {
@@ -749,12 +1208,13 @@ bool SilentAudioWriter::init(
 		LogError(u"avcodec_alloc_context3"_q, u"silent"_q);
 		return false;
 	}
-	av_channel_layout_default(&_encoder->ch_layout, 1);
+	const auto channels = music.empty() ? 1 : 2;
+	av_channel_layout_default(&_encoder->ch_layout, channels);
 	_encoder->codec_type = AVMEDIA_TYPE_AUDIO;
 	_encoder->sample_fmt = AV_SAMPLE_FMT_FLTP;
 	_encoder->sample_rate = kAudioFrequency;
 	_encoder->time_base = AVRational{ 1, kAudioFrequency };
-	_encoder->bit_rate = kAudioBitratePerChannel;
+	_encoder->bit_rate = kAudioBitratePerChannel * channels;
 	if (output->oformat->flags & AVFMT_GLOBALHEADER) {
 		_encoder->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
 	}
@@ -784,6 +1244,16 @@ bool SilentAudioWriter::init(
 		LogError(u"av_frame_get_buffer"_q, error, u"silent"_q);
 		return false;
 	}
+	for (const auto &track : music) {
+		auto mixer = std::make_unique<MusicMixer>();
+		if (mixer->init(
+				track,
+				_encoder->ch_layout,
+				_encoder->sample_fmt,
+				_encoder->sample_rate)) {
+			_music.push_back(std::move(mixer));
+		}
+	}
 	return true;
 }
 
@@ -807,6 +1277,11 @@ bool SilentAudioWriter::writeUntil(
 			size,
 			_encoder->ch_layout.nb_channels,
 			_encoder->sample_fmt);
+		for (const auto &music : _music) {
+			if (!music->mixInto(_frame.get(), _pts)) {
+				return false;
+			}
+		}
 		_frame->pts = _pts;
 		if (!EncodeAndWrite(_encoder.get(), _stream, output, _frame.get())) {
 			return false;
@@ -820,10 +1295,19 @@ bool SilentAudioWriter::finish(not_null<AVFormatContext*> output) {
 	return EncodeAndWrite(_encoder.get(), _stream, output, nullptr);
 }
 
+[[nodiscard]] QSize EntityFrameSize(const AnimatedEntity &entity) {
+	return entity.cutout
+		? entity.cutout->frames.size()
+		: entity.geometry.size().toSize();
+}
+
 class EntityPlayer final {
 public:
 	explicit EntityPlayer(const AnimatedEntity &entity)
-	: _size(entity.geometry.size().toSize()) {
+	: _size(EntityFrameSize(entity))
+	, _from(std::max(entity.from, crl::time(0)))
+	, _trimmed(entity.till > _from)
+	, _till(_trimmed ? entity.till : std::numeric_limits<crl::time>::max()) {
 		if (_size.isEmpty() || entity.bytes.isEmpty()) {
 			return;
 		}
@@ -837,34 +1321,62 @@ public:
 	}
 
 	[[nodiscard]] QImage frameAt(crl::time position) {
+		const auto skippedSize = Size(kSkippedFrameSide);
 		while (_generator && (_covered <= position)) {
-			auto frame = _generator->renderNext(std::move(_storage), _size);
+			const auto start = _sourcePosition;
+			const auto skip = (start < _from);
+			auto frame = _generator->renderNext(
+				skip ? QImage() : std::move(_storage),
+				skip ? skippedSize : _size);
 			if (frame.image.isNull()) {
-				if (std::exchange(_restarted, true)) {
-					_generator = nullptr;
-					break;
-				}
-				_generator->jumpToStart();
+				restart();
 				continue;
 			}
-			_restarted = false;
-			_storage = std::move(_current);
-			_current = std::move(frame.image);
-			_covered += std::max(frame.duration, crl::time(1));
-			if (frame.last) {
-				_generator->jumpToStart();
+			const auto end = start + std::max(frame.duration, crl::time(1));
+			_sourcePosition = end;
+			if ((end > _from) && (start < _till)) {
+				if (skip) {
+					frame.image = _generator->renderCurrent(
+						std::move(_storage),
+						_size).image;
+				}
+				_shown = true;
+				_storage = std::move(_current);
+				_current = std::move(frame.image);
+				_covered += std::min(end, _till) - std::max(start, _from);
+			} else if (!skip) {
+				_storage = std::move(frame.image);
+			}
+			if (frame.last && _shown && _trimmed && (end < _till)) {
+				_covered += _till - end;
+			}
+			if (frame.last || (end >= _till)) {
+				restart();
 			}
 		}
 		return _current;
 	}
 
 private:
+	void restart() {
+		if (!std::exchange(_shown, false)) {
+			_generator = nullptr;
+			return;
+		}
+		_generator->jumpToStart();
+		_sourcePosition = 0;
+	}
+
 	std::unique_ptr<Ui::FrameGenerator> _generator;
 	QImage _current;
 	QImage _storage;
 	QSize _size;
+	crl::time _from = 0;
+	bool _trimmed = false;
+	crl::time _till = 0;
 	crl::time _covered = 0;
-	bool _restarted = false;
+	crl::time _sourcePosition = 0;
+	bool _shown = false;
 
 };
 
@@ -914,6 +1426,17 @@ private:
 	const auto outVideoStream = video.stream;
 	auto encoder = std::move(video.codec);
 
+	auto music = std::optional<SilentAudioWriter>();
+	if (!still.music.empty()) {
+		music.emplace();
+		if (!music->init(
+				output.get(),
+				still.duration + kSilentAudioFillMargin,
+				still.music)) {
+			return {};
+		}
+	}
+
 	auto error = AvErrorWrap(avformat_write_header(output.get(), nullptr));
 	if (error) {
 		LogError(u"avformat_write_header"_q, error);
@@ -928,6 +1451,7 @@ private:
 			? std::make_unique<EntityPlayer>(*entity)
 			: nullptr);
 	}
+	auto composites = std::vector<QImage>(overlay.size());
 
 	auto encodeFrame = MakeFramePointer();
 	if (!encodeFrame) {
@@ -964,7 +1488,8 @@ private:
 					const auto &entity = std::get<AnimatedEntity>(
 						overlay[index]);
 					const auto frame = player->frameAt(position);
-					if (frame.isNull()) {
+					const auto &cutout = entity.cutout;
+					if (frame.isNull() && !cutout) {
 						continue;
 					}
 					p.save();
@@ -977,7 +1502,15 @@ private:
 						p.scale(-1., 1.);
 					}
 					p.translate(-center);
-					p.drawImage(entity.geometry, frame);
+					if (cutout && frame.isNull()) {
+						p.drawImage(entity.geometry, cutout->picture);
+					} else if (cutout) {
+						p.drawImage(
+							entity.geometry,
+							ComposeCutout(*cutout, frame, composites[index]));
+					} else {
+						p.drawImage(entity.geometry, frame);
+					}
 					p.restore();
 				} else {
 					p.drawImage(0, 0, std::get<QImage>(overlay[index]));
@@ -1013,6 +1546,9 @@ private:
 				encodeFrame.get())) {
 			return {};
 		}
+		if (music && !music->writeUntil(output.get(), position)) {
+			return {};
+		}
 		if (progress && !progress((i + 1) / float64(framesCount))) {
 			return {};
 		}
@@ -1023,6 +1559,14 @@ private:
 			output.get(),
 			nullptr)) {
 		return {};
+	}
+	if (music) {
+		const auto until = crl::time(
+			base::SafeRound(framesCount * 1000. / fps));
+		if (!music->writeUntil(output.get(), until)
+			|| !music->finish(output.get())) {
+			return {};
+		}
 	}
 	error = AvErrorWrap(av_write_trailer(output.get()));
 	if (error) {
@@ -1559,7 +2103,8 @@ struct TranscodeAttempt {
 		}
 	}
 
-	auto temp = QTemporaryFile(TempFileTemplate(webm ? u"webm"_q : u"mp4"_q));
+	auto temp = QTemporaryFile(
+		Media::Encode::TempFileTemplate(webm ? u"webm"_q : u"mp4"_q));
 	if (!temp.open()) {
 		return {};
 	}
@@ -1646,13 +2191,17 @@ struct TranscodeAttempt {
 	if (inAudioStream) {
 		const auto codecId = inAudioStream->codecpar->codec_id;
 		const auto frequency = inAudioStream->codecpar->sample_rate;
-		const auto copyCompatible = (codecId == AV_CODEC_ID_AAC)
-			|| ((codecId == AV_CODEC_ID_MP3)
-				&& (frequency >= kMp3InMp4MinFrequency));
+		const auto copyCompatible = source.music.empty()
+			&& ((codecId == AV_CODEC_ID_AAC)
+				|| ((codecId == AV_CODEC_ID_MP3)
+					&& (frequency >= kMp3InMp4MinFrequency)));
 		if (!copyCompatible) {
 			audioTranscoder.emplace();
 			if (!audioTranscoder->init(output.get(), inAudioStream)) {
 				return {};
+			}
+			for (const auto &track : source.music) {
+				audioTranscoder->addMusic(track);
 			}
 		} else {
 			outAudioStream = avformat_new_stream(output.get(), nullptr);
@@ -1676,9 +2225,11 @@ struct TranscodeAttempt {
 		? std::min(span + kSilentAudioFillMargin, kMaxSilentAudioFill)
 		: kMaxSilentAudioFill;
 	auto silentAudio = std::optional<SilentAudioWriter>();
-	if (!inAudioStream && source.silentAudio && !webm) {
+	if (!inAudioStream
+		&& (source.silentAudio || !source.music.empty())
+		&& !webm) {
 		silentAudio.emplace();
-		if (!silentAudio->init(output.get(), silentLimit)) {
+		if (!silentAudio->init(output.get(), silentLimit, source.music)) {
 			return {};
 		}
 	}
@@ -2119,6 +2670,40 @@ crl::time TranscodedDuration(
 		? std::min(source.till, duration)
 		: duration;
 	return std::max(till - from, crl::time(0));
+}
+
+QString TempFileTemplate(const QString &extension) {
+	const auto directory = TempDirectory();
+	QDir().mkpath(directory);
+	QFile::setPermissions(
+		directory,
+		QFileDevice::ReadUser
+			| QFileDevice::WriteUser
+			| QFileDevice::ExeUser);
+	return directory + u"/XXXXXX."_q + extension;
+}
+
+// Frame goes under the cut hole; picture alpha trims it to bubble shape.
+const QImage &ComposeCutout(
+		const AnimatedEntity::Cutout &cutout,
+		const QImage &frame,
+		QImage &composite) {
+	if (composite.isNull()) {
+		composite = cutout.picture.copy();
+		composite.setDevicePixelRatio(1.);
+	}
+	auto p = QPainter(&composite);
+	p.setClipRect(cutout.hole);
+	p.setRenderHint(QPainter::SmoothPixmapTransform);
+	p.setCompositionMode(QPainter::CompositionMode_Source);
+	p.drawImage(cutout.hole, cutout.picture, cutout.hole);
+	p.setCompositionMode(QPainter::CompositionMode_DestinationOut);
+	p.drawImage(cutout.hole, cutout.mask);
+	p.setCompositionMode(QPainter::CompositionMode_DestinationOver);
+	p.drawImage(cutout.frames, frame);
+	p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+	p.drawImage(cutout.hole, cutout.picture, cutout.hole);
+	return composite;
 }
 
 Result Run(Job &&job, Fn<bool(float64)> progress) {

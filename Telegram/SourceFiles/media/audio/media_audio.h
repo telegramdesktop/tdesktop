@@ -157,6 +157,7 @@ public:
 
 	// Thread: Main. Locks: AudioMutex.
 	void setSpeedFromExternal(const AudioMsgId &audioId, float64 speed);
+	void setVolumeFromExternal(const AudioMsgId &audioId, float64 volume);
 
 	Streaming::TimePoint getExternalSyncTimePoint(
 		const AudioMsgId &audio) const;
@@ -247,6 +248,7 @@ private:
 		bool loading = false;
 		bool loaded = false;
 		bool waitingForBuffer = false;
+		float64 volume = 1.;
 
 		// Speed dependent values.
 		float64 speed = 1.;

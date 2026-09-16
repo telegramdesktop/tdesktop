@@ -156,7 +156,8 @@ void Drag(
 	not_null<QWidget*> widget,
 	QPoint from,
 	QPoint to,
-	int steps = 8);
+	int steps = 8,
+	Qt::KeyboardModifiers modifiers = Qt::NoModifier);
 
 // Synthesizes a wheel event at |point| in the named widget's coordinates
 // (the widget centre by default). |angleDelta| uses Qt's native

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <array>
 
 namespace Ui {
+class LayerManager;
 class LayerWidget;
 class Show;
 } // namespace Ui
@@ -57,9 +58,12 @@ public:
 
 private:
 	void keyPressEvent(QKeyEvent *e) override;
+	void keyReleaseEvent(QKeyEvent *e) override;
+	void updateColorPickerVisibility(anim::type animated);
 
 	PhotoModifications _modifications;
 
+	const std::unique_ptr<Ui::LayerManager> _layers;
 	const std::shared_ptr<Controllers> _controllers;
 
 	base::unique_qptr<PhotoEditorContent> _content;
@@ -77,6 +81,10 @@ private:
 	bool _textItemSelected = false;
 	bool _textEditing = false;
 	bool _shapeItemSelected = false;
+	bool _videoClipSelected = false;
+	bool _audioSelected = false;
+	bool _matchingDurations = false;
+	bool _colorLineShown = false;
 	rpl::event_stream<PhotoModifications> _done;
 	rpl::event_stream<> _cancel;
 

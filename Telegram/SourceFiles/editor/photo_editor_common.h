@@ -7,11 +7,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "media/media_video_canvas.h"
 #include "media/media_video_encode.h"
 
 namespace Editor {
 
 class Scene;
+
+struct AudioTrack {
+	QString path;
+	QByteArray content;
+	QString title;
+	QString performer;
+	QImage cover;
+	crl::time duration = 0;
+	crl::time from = 0;
+	// Zero means the end of the track.
+	crl::time till = 0;
+	float64 volume = 1.;
+
+	[[nodiscard]] bool empty() const {
+		return path.isEmpty() && content.isEmpty();
+	}
+	[[nodiscard]] crl::time length() const {
+		const auto end = (till > from) ? till : duration;
+		return std::max(end - from, crl::time(0));
+	}
+};
 
 enum class RoundedCornersLevel {
 	Large,
@@ -45,6 +67,7 @@ struct EditorData {
 	bool fixedCrop = false;
 	bool forOtherUser = false;
 	bool composeAnimated = false;
+	bool composeSound = false;
 };
 
 struct PhotoModifications {

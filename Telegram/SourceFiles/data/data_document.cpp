@@ -1271,21 +1271,14 @@ void DocumentData::save(
 		status = FileReady;
 		auto reader = owner().streaming().sharedReader(this, origin, true);
 		if (reader) {
-			_loader = std::make_unique<Storage::StreamedFileDownloader>(
-				&session(),
-				id,
-				_dc,
-				origin,
-				Data::DocumentCacheKey(_dc, id),
-				mediaKey(),
+			_loader = createStreamedDownloader(
 				std::move(reader),
+				origin,
+				mediaKey(),
 				toFile,
-				size,
-				locationType(),
 				(saveToCache() ? LoadToCacheAsWell : LoadToFileOnly),
 				fromCloud,
-				autoLoading,
-				cacheTag());
+				autoLoading);
 		} else if (hasWebLocation()) {
 			_loader = std::make_unique<mtpFileLoader>(
 				&session(),
@@ -1655,6 +1648,32 @@ const VideoData *DocumentData::video() const {
 
 bool DocumentData::hasRemoteLocation() const {
 	return (_dc != 0 && _access != 0);
+}
+
+auto DocumentData::createStreamedDownloader(
+	std::shared_ptr<Media::Streaming::Reader> reader,
+	Data::FileOrigin origin,
+	std::optional<MediaKey> fileLocationKey,
+	const QString &toFile,
+	LoadToCacheSetting toCache,
+	LoadFromCloudSetting fromCloud,
+	bool autoLoading) const
+-> std::unique_ptr<Storage::StreamedFileDownloader> {
+	return std::make_unique<Storage::StreamedFileDownloader>(
+		&session(),
+		id,
+		_dc,
+		origin,
+		Data::DocumentCacheKey(_dc, id),
+		fileLocationKey,
+		std::move(reader),
+		toFile,
+		size,
+		locationType(),
+		toCache,
+		fromCloud,
+		autoLoading,
+		cacheTag());
 }
 
 bool DocumentData::useStreamingLoader() const {

@@ -93,4 +93,13 @@ enum class SaveState {
 	Keep,
 };
 
+struct VideoTrim {
+	crl::time from = 0;
+	crl::time till = 0;
+
+	friend inline bool operator==(
+		const VideoTrim &,
+		const VideoTrim &) = default;
+};
+
 } // namespace Editor
