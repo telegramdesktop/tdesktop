@@ -321,7 +321,7 @@ void Mixer::Track::reattach(AudioMsgId::Type type) {
 	if (!IsStopped(state.state)
 		&& (state.state != State::PausedAtEnd)
 		&& !state.waitingForData) {
-		alSourcef(stream.source, AL_GAIN, ComputeVolume(type));
+		alSourcef(stream.source, AL_GAIN, ComputeVolume(type) * volume);
 		alSourcePlay(stream.source);
 		if (IsPaused(state.state)) {
 			// We must always start the source if we want the AL_SAMPLE_OFFSET to be applied.
@@ -424,6 +424,7 @@ int Mixer::Track::getNotQueuedBufferIndex() {
 void Mixer::Track::setExternalData(
 		std::unique_ptr<ExternalSoundData> data) {
 	nextSpeed = speed = data ? data->speed : 1.;
+	volume = data ? data->volume : 1.;
 	externalData = std::move(data);
 }
 
@@ -759,6 +760,26 @@ void Mixer::setSpeedFromExternal(const AudioMsgId &audioId, float64 speed) {
 	}
 }
 
+// Thread: Main. Locks: AudioMutex.
+void Mixer::setVolumeFromExternal(
+		const AudioMsgId &audioId,
+		float64 volume) {
+	QMutexLocker lock(&AudioMutex);
+	const auto type = audioId.type();
+	const auto track = trackForType(type);
+	if (!track || track->state.id != audioId || track->volume == volume) {
+		return;
+	}
+	track->volume = volume;
+	if (track->isStreamCreated() && track->state.state == State::Playing) {
+		alSourcef(
+			track->stream.source,
+			AL_GAIN,
+			ComputeVolume(type) * volume);
+		checkCurrentALError(type);
+	}
+}
+
 Streaming::TimePoint Mixer::getExternalSyncTimePoint(
 		const AudioMsgId &audio) const {
 	Expects(audio.externalPlayId() != 0);
@@ -897,7 +918,10 @@ void Mixer::resume(const AudioMsgId &audio, bool fast) {
 						return;
 					}
 
-					alSourcef(track->stream.source, AL_GAIN, ComputeVolume(type));
+					alSourcef(
+						track->stream.source,
+						AL_GAIN,
+						ComputeVolume(type) * track->volume);
 					if (!checkCurrentALError(type)) return;
 
 					if (state == AL_STOPPED) {
@@ -1150,7 +1174,12 @@ void Fader::onTimer() {
 		auto track = mixer()->trackForType(type, index);
 		if (IsStopped(track->state.state) || track->state.state == State::Paused || !track->isStreamCreated()) return;
 
-		auto emitSignals = updateOnePlayback(track, hasPlaying, hasFading, volumeMultiplier, suppressGainChanged);
+		auto emitSignals = updateOnePlayback(
+			track,
+			hasPlaying,
+			hasFading,
+			volumeMultiplier * track->volume,
+			suppressGainChanged);
 		if (emitSignals & EmitError) error(track->state.id);
 		if (emitSignals & EmitStopped) audioStopped(track->state.id);
 		if (emitSignals & EmitPositionUpdated) playPositionUpdated(track->state.id);

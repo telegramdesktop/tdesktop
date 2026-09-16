@@ -25,8 +25,13 @@ class FadeWrap;
 
 namespace Editor {
 
+class AudioTrackTimeline;
 class EdgeButton;
 class ButtonBar;
+class VideoClip;
+class KeysLegendButton;
+class VideoItemTimeline;
+struct AudioTrack;
 struct Controllers;
 struct EditorData;
 
@@ -60,6 +65,16 @@ public:
 
 	void applyMode(const PhotoEditorMode &mode);
 	void setShapeToolActive(bool active);
+	void setVideoClip(std::shared_ptr<VideoClip> clip);
+	void setAudioTrack(std::shared_ptr<AudioTrack> track);
+	void setTrimShortestAvailable(bool available);
+	void setTrimShortestActive(bool active, anim::type animated);
+	void refreshTimelines();
+	void refreshAudioVolume();
+	void commitTimelineEdits();
+	[[nodiscard]] rpl::producer<> trimShortestRequests() const;
+	[[nodiscard]] rpl::producer<crl::time> trimLengthChanges() const;
+	[[nodiscard]] rpl::producer<> audioRemoveRequests() const;
 
 private:
 	void showAnimated(
@@ -67,11 +82,15 @@ private:
 		anim::type animated = anim::type::normal);
 	void showShapesMenu();
 	void updateInputMask();
+	void updateTimelinesGeometry();
+	void updateTimelineGeometry(not_null<Ui::RpWidget*> timeline);
+	void updateTrimShortest();
 
 	int bottomButtonsTop() const;
 
 	const QSize _imageSize;
 	const float64 _originalRatio = 0.;
+	const bool _fixedCrop = false;
 	const style::color &_bg;
 	const int _buttonHeight;
 	const base::unique_qptr<ButtonBar> _transformButtons;
@@ -96,6 +115,10 @@ private:
 	const base::unique_qptr<Ui::AbstractButton> _textButton;
 	const base::unique_qptr<Ui::IconButton> _shapesButton;
 	const base::unique_qptr<EdgeButton> _paintDone;
+	const base::unique_qptr<Ui::FadeWrap<VideoItemTimeline>> _videoTimeline;
+	const base::unique_qptr<Ui::FadeWrap<AudioTrackTimeline>> _audioTimeline;
+	const base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _trimShortest;
+	const base::unique_qptr<KeysLegendButton> _keysLegend;
 
 	base::unique_qptr<Ui::PopupMenu> _ratioMenu;
 	base::unique_qptr<Ui::PopupMenu> _cornersMenu;
@@ -107,6 +130,9 @@ private:
 	bool _shapesFilled = false;
 	bool _shapeToolActive = false;
 	bool _keepOriginalRatio = false;
+	bool _trimShortestAvailable = false;
+	bool _videoTimelineShown = false;
+	bool _audioTimelineShown = false;
 
 	Ui::Animations::Simple _toggledBarAnimation;
 

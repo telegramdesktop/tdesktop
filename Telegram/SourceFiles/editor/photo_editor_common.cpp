@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "editor/scene/scene.h"
 #include "editor/scene/scene_item_animated.h"
+#include "editor/video/video_clip.h"
 #include "ui/painter.h"
 #include "ui/userpic_view.h"
 
@@ -18,7 +19,36 @@ namespace {
 constexpr auto kAnimatedMaxSide = 854;
 constexpr auto kAnimatedFps = 30.;
 constexpr auto kAnimatedMinDuration = crl::time(1000);
-constexpr auto kAnimatedMaxDuration = crl::time(3000);
+
+[[nodiscard]] QImage ExpandCanvas(
+		const QImage &image,
+		QRect crop,
+		Scene *scene = nullptr) {
+	auto result = QImage(crop.size(), QImage::Format_ARGB32_Premultiplied);
+	result.fill(Qt::transparent);
+
+	auto p = Painter(&result);
+	p.setCompositionMode(QPainter::CompositionMode_Source);
+	p.drawImage(-crop.topLeft(), image);
+	if (scene) {
+		p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+		PainterHighQualityEnabler hq(p);
+		scene->render(&p, QRectF(result.rect()), QRectF(crop));
+	}
+	return result;
+}
+
+void FillCanvasBackground(
+		QImage &canvas,
+		const Media::Encode::CanvasBackground &background,
+		QRect keep = QRect()) {
+	auto p = QPainter(&canvas);
+	p.setCompositionMode(QPainter::CompositionMode_DestinationOver);
+	if (!keep.isEmpty()) {
+		p.setClipRegion(QRegion(canvas.rect()) - QRegion(keep));
+	}
+	Media::Encode::PaintCanvasBackground(p, canvas.rect(), background);
+}
 
 } // namespace
 
@@ -76,7 +106,9 @@ QImage ImageModified(QImage image, const PhotoModifications &mods) {
 	if (!mods) {
 		return image;
 	}
-	if (mods.paint) {
+	const auto expanded = mods.crop.isValid()
+		&& !image.rect().contains(mods.crop);
+	if (mods.paint && !expanded) {
 		if (image.format() != QImage::Format_ARGB32_Premultiplied) {
 			image = image.convertToFormat(
 				QImage::Format_ARGB32_Premultiplied);
@@ -87,7 +119,9 @@ QImage ImageModified(QImage image, const PhotoModifications &mods) {
 
 		mods.paint->render(&p, image.rect());
 	}
-	auto cropped = mods.crop.isValid()
+	auto cropped = expanded
+		? ExpandCanvas(image, mods.crop, mods.paint.get())
+		: mods.crop.isValid()
 		? image.copy(mods.crop)
 		: image;
 	QTransform transform;
@@ -97,7 +131,18 @@ QImage ImageModified(QImage image, const PhotoModifications &mods) {
 	if (mods.angle) {
 		transform.rotate(mods.angle);
 	}
-	return cropped.transformed(transform);
+	auto result = cropped.transformed(transform);
+	if (expanded) {
+		const auto matrix = QImage::trueMatrix(
+			transform,
+			cropped.width(),
+			cropped.height());
+		FillCanvasBackground(
+			result,
+			Media::Encode::DominantCanvasBackground(image),
+			matrix.mapRect(QRect(-mods.crop.topLeft(), image.size())));
+	}
+	return result;
 }
 
 Media::Encode::Job ComposeAnimatedJob(
@@ -141,9 +186,8 @@ Media::Encode::Job ComposeAnimatedJob(
 		target.width() / rotated.width(),
 		target.height() / rotated.height());
 
-	const auto bake = [&](const QImage &source) {
-		auto cropped = source.copy(crop);
-		return cropped.transformed(transform, Qt::SmoothTransformation)
+	const auto bake = [&](const QImage &canvas) {
+		return canvas.transformed(transform, Qt::SmoothTransformation)
 			.scaled(
 				target,
 				Qt::IgnoreAspectRatio,
@@ -171,13 +215,13 @@ Media::Encode::Job ComposeAnimatedJob(
 			item->setVisible(true);
 		}
 		auto layer = QImage(
-			image.size(),
+			crop.size(),
 			QImage::Format_ARGB32_Premultiplied);
 		layer.fill(Qt::transparent);
 		{
 			auto p = Painter(&layer);
 			PainterHighQualityEnabler hq(p);
-			scene->render(&p, layer.rect());
+			scene->render(&p, QRectF(layer.rect()), QRectF(crop));
 		}
 		for (const auto item : normal) {
 			item->setVisible(true);
@@ -187,8 +231,9 @@ Media::Encode::Job ComposeAnimatedJob(
 	};
 
 	auto longest = crl::time(0);
+	auto music = std::vector<Media::Encode::MusicTrack>();
 	for (const auto item : normal) {
-		const auto animated = dynamic_cast<ItemAnimated*>(item);
+		const auto animated = item->asAnimated();
 		if (!animated || !animated->animated()) {
 			run.push_back(item);
 			continue;
@@ -199,21 +244,47 @@ Media::Encode::Job ComposeAnimatedJob(
 			continue;
 		}
 		flushRun();
+		const auto clip = item->videoClip();
+		const auto loop = animated->loopDuration();
+		if (clip && (loop > 0)) {
+			entity.till = entity.from + loop;
+		}
+		if (clip && clip->sounding()) {
+			const auto trim = clip->trim();
+			music.push_back({
+				.bytes = entity.bytes,
+				.from = trim.from,
+				.till = trim.from + loop,
+				.volume = clip->volume(),
+				.loop = true,
+			});
+		}
 		job.overlay.push_back(std::move(entity));
-		const auto duration = animated->loopDuration();
-		longest = std::max(
-			longest,
-			duration ? duration : kAnimatedMaxDuration);
+		longest = std::max(longest, loop);
 	}
 	flushRun();
 
+	if (const auto audio = scene->audio()) {
+		if (audio->volume > 0.) {
+			music.push_back({
+				.path = audio->path,
+				.bytes = audio->content,
+				.from = audio->from,
+				.till = (audio->till > audio->from) ? audio->till : 0,
+				.volume = audio->volume,
+			});
+		}
+		longest = std::max(longest, audio->length());
+	}
+	auto base = bake(ExpandCanvas(image, crop));
+	FillCanvasBackground(
+		base,
+		Media::Encode::DominantCanvasBackground(image));
 	job.source = Media::Encode::StillSource{
-		.base = bake(image),
-		.duration = std::clamp(
-			longest,
-			kAnimatedMinDuration,
-			kAnimatedMaxDuration),
+		.base = std::move(base),
+		.duration = std::max(longest, kAnimatedMinDuration),
 		.fps = kAnimatedFps,
+		.music = std::move(music),
 	};
 	job.silentLoop = true;
 	return job;

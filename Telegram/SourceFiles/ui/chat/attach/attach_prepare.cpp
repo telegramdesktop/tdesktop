@@ -152,6 +152,14 @@ void PaintMediaBadge(
 		: AlbumType::None;
 }
 
+[[nodiscard]] bool SendsAnimationAsGif(const PreparedFile &file) {
+	const auto job = file.animationJob.get();
+	const auto still = job
+		? std::get_if<Media::Encode::StillSource>(&job->source)
+		: nullptr;
+	return job && (!still || still->music.empty());
+}
+
 [[nodiscard]] std::vector<GroupRange> GroupRanges(
 		const std::vector<PreparedFile> &files,
 		SendFilesWay way,
@@ -166,7 +174,7 @@ void PaintMediaBadge(
 	auto from = 0;
 	auto groupType = AlbumType::None;
 	for (auto i = 0; i != int(files.size()); ++i) {
-		const auto fileGroupType = (files[i].animationJob
+		const auto fileGroupType = (SendsAnimationAsGif(files[i])
 			|| files[i].sendsVideoAsGif())
 			? AlbumType::None
 			: GroupTypeForFile(
@@ -281,7 +289,16 @@ bool PreparedFile::hasAnimatedEditScene() const {
 		: nullptr;
 	return image
 		&& image->modifications.paint
-		&& image->modifications.paint->hasAnimatedItems();
+		&& image->modifications.paint->hasAnimatedResult();
+}
+
+bool PreparedFile::hasAudioEditScene() const {
+	const auto image = information
+		? std::get_if<PreparedFileInformation::Image>(&information->media)
+		: nullptr;
+	return image
+		&& image->modifications.paint
+		&& image->modifications.paint->hasSoundResult();
 }
 
 AlbumType PreparedFile::albumType(bool sendImagesAsPhotos) const {

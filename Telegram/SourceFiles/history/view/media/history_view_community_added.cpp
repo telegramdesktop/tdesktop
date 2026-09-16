@@ -230,15 +230,17 @@ auto GenerateCommunityAddedMedia(
 				st::msgServiceGiftBoxTitlePadding.bottom()),
 			st::premiumPreviewAbout.style));
 
-		push(MakeGenericButtonPart(
-			tr::lng_community_view(tr::now),
-			QMargins(
-				0,
-				st::msgServiceGiftBoxButtonMargins.top(),
-				0,
-				st::msgServiceGiftBoxButtonMargins.bottom()),
-			[=] { parent->repaint(); },
-			open));
+		if (parent->context() != Context::MediaEditor) {
+			push(MakeGenericButtonPart(
+				tr::lng_community_view(tr::now),
+				QMargins(
+					0,
+					st::msgServiceGiftBoxButtonMargins.top(),
+					0,
+					st::msgServiceGiftBoxButtonMargins.bottom()),
+				[=] { parent->repaint(); },
+				open));
+		}
 	};
 }
 

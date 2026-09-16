@@ -152,7 +152,7 @@ void MediaGeneric::draw(Painter &p, const PaintContext &context) const {
 		p.setPen(Qt::NoPen);
 		p.setBrush(context.st->msgServiceBg());
 		const auto rect = QRect(0, 0, width(), height());
-		if (parent()->data()->inlineReplyKeyboard()) {
+		if (parent()->inlineReplyKeyboard()) {
 			const auto half = rect.height() / 2;
 			p.setClipRect(rect - QMargins(0, 0, 0, half));
 			p.drawRoundedRect(rect, radius, radius);

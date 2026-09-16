@@ -8,14 +8,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 
 #include "editor/photo_editor_common.h"
 #include "editor/photo_editor_inner_common.h"
+#include "media/media_video_canvas.h"
 #include "ui/image/image.h"
 
 namespace Editor {
 
+class AudioDiscButton;
 class Crop;
+class VideoClip;
 class Paint;
 struct Controllers;
 
@@ -50,7 +54,21 @@ public:
 	[[nodiscard]] rpl::producer<> shapeItemDeselections() const;
 	[[nodiscard]] rpl::producer<bool> shapeToolStates() const;
 	[[nodiscard]] rpl::producer<> paintModeRequests() const;
+	[[nodiscard]] auto videoClipSelections() const
+		-> rpl::producer<std::shared_ptr<VideoClip>>;
+	[[nodiscard]] rpl::producer<> audioChanges() const;
+	[[nodiscard]] rpl::producer<bool> audioSelectedChanges() const;
+	[[nodiscard]] rpl::producer<> audioVolumeChanges() const;
+	[[nodiscard]] std::shared_ptr<AudioTrack> audio() const;
+	[[nodiscard]] bool audioSelected() const;
+	void removeAudio();
+	[[nodiscard]] bool canEqualizeDurations() const;
+	void matchDurations(crl::time duration);
+	[[nodiscard]] bool durationsLinked() const;
+	void setDurationsLinked(bool linked);
+	[[nodiscard]] rpl::producer<> durationsLinkChanges() const;
 	void applyAspectRatio(float64 ratio);
+	void setExpansionRoom(bool room);
 	void save(PhotoModifications &modifications);
 
 	bool handleKeyPress(not_null<QKeyEvent*> e);
@@ -64,22 +82,45 @@ public:
 	}
 
 private:
+	void updateCanvas();
+	void updateRoom();
+	[[nodiscard]] QRectF layoutTarget(
+		const PhotoModifications &mods,
+		QSize size,
+		QRect canvas,
+		bool room) const;
+	void applyLayout(QRectF imageRect);
+	bool layoutAnimationStep(crl::time now);
+	void paintCanvasFill(QPainter &p) const;
+	void updateAudioDisc();
+	void updateAudioDiscGeometry();
 
 	const QSize _photoSize;
 	const bool _fixedCrop = false;
 	const bool _composeAnimated = false;
 	const base::unique_qptr<Paint> _paint;
 	const base::unique_qptr<Crop> _crop;
+	const base::unique_qptr<AudioDiscButton> _audioDisc;
 	const std::shared_ptr<Image> _photo;
+	const Media::Encode::CanvasBackground _background;
 
 	rpl::variable<QRect> _innerRect;
 	rpl::variable<PhotoModifications> _modifications;
+	rpl::variable<QRect> _canvas;
+	rpl::variable<bool> _room;
 	rpl::event_stream<int> _keyPresses;
 	rpl::event_stream<> _paintModeRequests;
 
 	QRect _imageRect;
+	QRectF _imageRectF;
+	QRectF _layoutTarget;
+	Ui::Animations::Basic _layoutAnimation;
+	crl::time _layoutLastFrame = 0;
 	QTransform _imageMatrix;
 	PhotoEditorMode _mode;
+	bool _roomRequested = false;
+	bool _dragging = false;
+	bool _animateLayout = false;
 
 };
 

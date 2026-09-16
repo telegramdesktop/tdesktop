@@ -3176,6 +3176,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_attach_failed" = "Failed";
 "lng_attach_file" = "File";
 "lng_attach_photo" = "Photo";
+"lng_attach_audio" = "Audio";
 "lng_attach_camera" = "Camera";
 "lng_attach_document" = "Document";
 "lng_attach_photo_or_video" = "Photo or video";
@@ -5355,6 +5356,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_duration_played" = "{played} / {duration}";
 "lng_date_and_duration" = "{date}, {duration}";
 "lng_choose_image" = "Choose an image";
+"lng_choose_audio" = "Choose an audio file";
 "lng_choose_file" = "Choose a file";
 "lng_choose_files" = "Choose Files";
 "lng_music_attach_choose_from_files" = "Choose from files";
@@ -7954,6 +7956,50 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_photo_editor_shape_bubble" = "Bubble";
 "lng_photo_editor_shape_arrow" = "Arrow";
 "lng_photo_editor_shape_filled" = "Filled";
+
+"lng_photo_editor_audio_remove" = "Remove Audio";
+"lng_photo_editor_trim_shortest" = "Trim to shortest";
+
+"lng_photo_editor_keys_tooltip" = "Keyboard shortcuts";
+"lng_photo_editor_keys_gesture" = "{modifier}-{gesture}";
+"lng_photo_editor_keys_gesture_drag" = "drag";
+"lng_photo_editor_keys_gesture_drag_edge" = "drag edge";
+"lng_photo_editor_keys_gesture_drag_handle" = "drag handle";
+"lng_photo_editor_keys_gesture_click" = "click";
+"lng_photo_editor_keys_gesture_wheel" = "wheel";
+"lng_photo_editor_keys_wheel" = "Wheel";
+"lng_photo_editor_keys_middle_drag" = "Middle drag";
+"lng_photo_editor_keys_double_click" = "Double click";
+"lng_photo_editor_keys_legend" = "Show these shortcuts";
+"lng_photo_editor_keys_crop" = "Crop";
+"lng_photo_editor_keys_crop_room" = "Zoom out for room around the photo";
+"lng_photo_editor_keys_crop_expand" = "Grow canvas past the photo";
+"lng_photo_editor_keys_fixed_zoom" = "Zoom picture inside the frame";
+"lng_photo_editor_keys_fixed_zoom_fine" = "Zoom in finer steps";
+"lng_photo_editor_keys_fixed_pan" = "Move picture inside the frame";
+"lng_photo_editor_keys_canvas" = "Canvas";
+"lng_photo_editor_keys_canvas_zoom" = "Zoom canvas at cursor";
+"lng_photo_editor_keys_canvas_pan" = "Pan zoomed canvas";
+"lng_photo_editor_keys_canvas_paste" = "Paste image, sticker, file or link";
+"lng_photo_editor_keys_canvas_undo" = "Undo";
+"lng_photo_editor_keys_canvas_redo" = "Redo";
+"lng_photo_editor_keys_shapes" = "Shapes";
+"lng_photo_editor_keys_shapes_proportions" = "Keep proportions or snap arrow angle";
+"lng_photo_editor_keys_shapes_instant" = "Place shape from the menu right away";
+"lng_photo_editor_keys_objects" = "Objects";
+"lng_photo_editor_keys_objects_snap" = "Snap to canvas guides";
+"lng_photo_editor_keys_objects_rotate" = "Rotate only, in 45° steps";
+"lng_photo_editor_keys_objects_stretch" = "Stretch shape freely";
+"lng_photo_editor_keys_objects_duplicate" = "Duplicate selection";
+"lng_photo_editor_keys_objects_flip" = "Flip selection horizontally";
+"lng_photo_editor_keys_objects_delete" = "Delete selection";
+"lng_photo_editor_keys_objects_text" = "Edit text";
+"lng_photo_editor_keys_timeline" = "Timeline";
+"lng_photo_editor_keys_timeline_zoom" = "Zoom timeline";
+"lng_photo_editor_keys_timeline_scroll" = "Scroll timeline";
+"lng_photo_editor_keys_timeline_window" = "Move trimmed range";
+
+"lng_photo_editor_link_customize" = "Customize Link Text";
 
 "lng_voice_speed_slow" = "Slow";
 "lng_voice_speed_normal" = "Normal";

@@ -100,6 +100,7 @@ public:
 	void restore(SaveState state) override;
 
 protected:
+	[[nodiscard]] QRectF visibleRect() const override;
 	void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) override;
 	void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
 	void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override;

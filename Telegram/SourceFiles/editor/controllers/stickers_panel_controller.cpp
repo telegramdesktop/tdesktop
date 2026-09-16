@@ -15,10 +15,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_media_view.h"
 
 namespace Editor {
+namespace {
+
+// Works around MSVC 14.44 ICE on bitfields set in a member-init list.
+[[nodiscard]] ChatHelpers::ComposeFeatures PrepareFeatures(bool withAudio) {
+	return {
+		.megagroupSet = false,
+		.stickersSettings = false,
+		.openStickerSets = false,
+		.photoButton = true,
+		.audioButton = withAudio,
+		.linkButton = true,
+	};
+}
+
+} // namespace
 
 StickersPanelController::StickersPanelController(
 	not_null<Ui::RpWidget*> panelContainer,
-	std::shared_ptr<ChatHelpers::Show> show)
+	std::shared_ptr<ChatHelpers::Show> show,
+	bool withAudio)
 : _stickersPanel(
 	base::make_unique_q<ChatHelpers::TabbedPanel>(
 		panelContainer,
@@ -30,12 +46,7 @@ StickersPanelController::StickersPanelController(
 					.st = st::mediaviewEmojiPan,
 					.level = Window::GifPauseReason::Layer,
 					.mode = ChatHelpers::TabbedSelector::Mode::MediaEditor,
-					.features = {
-						.megagroupSet = false,
-						.stickersSettings = false,
-						.openStickerSets = false,
-						.photoButton = true,
-					},
+					.features = PrepareFeatures(withAudio),
 				}),
 		})) {
 	_stickersPanel->setDesiredHeightValues(
@@ -55,6 +66,14 @@ auto StickersPanelController::stickerChosen() const
 
 rpl::producer<> StickersPanelController::photoRequests() const {
 	return _stickersPanel->selector()->photoRequests();
+}
+
+rpl::producer<> StickersPanelController::audioRequests() const {
+	return _stickersPanel->selector()->audioRequests();
+}
+
+rpl::producer<> StickersPanelController::linkRequests() const {
+	return _stickersPanel->selector()->linkRequests();
 }
 
 rpl::producer<bool> StickersPanelController::panelShown() const {

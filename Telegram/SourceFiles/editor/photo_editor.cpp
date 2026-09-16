@@ -15,7 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_controls.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+#include "ui/layers/layer_manager.h"
 #include "ui/layers/layer_widget.h"
+#include "styles/style_calls.h"
 #include "styles/style_editor.h"
 
 namespace Editor {
@@ -24,6 +26,14 @@ namespace {
 constexpr auto kPrecision = 100000;
 constexpr auto kBrushesVersion = -2;
 constexpr auto kDefaultBrushSizeRatio = 0.9;
+
+[[nodiscard]] std::unique_ptr<Ui::LayerManager> MakeLayers(
+		not_null<Ui::RpWidget*> parent) {
+	auto result = std::make_unique<Ui::LayerManager>(parent);
+	result->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
+	result->setHideByBackgroundClick(true);
+	return result;
+}
 
 [[nodiscard]] int ToolIndex(Brush::Tool tool) {
 	switch (tool) {
@@ -274,14 +284,18 @@ PhotoEditor::PhotoEditor(
 	EditorData data)
 : RpWidget(parent)
 , _modifications(std::move(modifications))
+, _layers(MakeLayers(this))
 , _controllers(std::make_shared<Controllers>(
 	sessionShow
 		? std::make_unique<StickersPanelController>(
 			this,
-			std::move(sessionShow))
+			sessionShow,
+			data.composeSound)
 		: nullptr,
 	std::make_unique<UndoController>(),
-	show))
+	show,
+	_layers->uiShow(),
+	sessionShow))
 , _content(base::make_unique_q<PhotoEditorContent>(
 	this,
 	photo,
@@ -308,12 +322,86 @@ PhotoEditor::PhotoEditor(
 	_modifications.cropType = data.cropType;
 	_modifications.cropMode = data.cropMode;
 
+	events(
+	) | rpl::on_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::WindowDeactivate) {
+			_content->setExpansionRoom(false);
+		}
+	}, lifetime());
+
 	sizeValue(
 	) | rpl::on_next([=](const QSize &size) {
 		if (size.isEmpty()) {
 			return;
 		}
 		_content->setGeometry(rect() - st::photoEditorContentMargins);
+	}, lifetime());
+
+	_content->videoClipSelections(
+	) | rpl::on_next([=](std::shared_ptr<VideoClip> clip) {
+		_videoClipSelected = (clip != nullptr);
+		updateColorPickerVisibility(anim::type::normal);
+		_controls->setVideoClip(std::move(clip));
+		_controls->setTrimShortestAvailable(
+			_content->canEqualizeDurations());
+		_controls->setTrimShortestActive(
+			_content->durationsLinked(),
+			anim::type::instant);
+	}, lifetime());
+
+	rpl::merge(
+		_content->audioSelectedChanges(),
+		_content->audioChanges() | rpl::map([=] {
+			return _content->audioSelected();
+		})
+	) | rpl::on_next([=](bool selected) {
+		_audioSelected = selected;
+		updateColorPickerVisibility(anim::type::normal);
+		_controls->setAudioTrack(selected ? _content->audio() : nullptr);
+		_controls->setTrimShortestAvailable(
+			_content->canEqualizeDurations());
+		_controls->setTrimShortestActive(
+			_content->durationsLinked(),
+			anim::type::instant);
+	}, lifetime());
+
+	_content->audioVolumeChanges(
+	) | rpl::on_next([=] {
+		_controls->refreshAudioVolume();
+	}, lifetime());
+
+	_content->durationsLinkChanges(
+	) | rpl::on_next([=] {
+		_controls->setTrimShortestAvailable(
+			_content->canEqualizeDurations());
+		_controls->setTrimShortestActive(
+			_content->durationsLinked(),
+			anim::type::instant);
+		_controls->refreshTimelines();
+	}, lifetime());
+
+	_controls->audioRemoveRequests(
+	) | rpl::on_next([=] {
+		_content->removeAudio();
+	}, lifetime());
+
+	_controls->trimShortestRequests(
+	) | rpl::on_next([=] {
+		const auto linked = !_content->durationsLinked();
+		_content->setDurationsLinked(linked);
+		_controls->setTrimShortestActive(linked, anim::type::normal);
+		_controls->refreshTimelines();
+	}, lifetime());
+
+	_controls->trimLengthChanges(
+	) | rpl::on_next([=](crl::time length) {
+		if (!_content->durationsLinked() || _matchingDurations) {
+			return;
+		}
+		_matchingDurations = true;
+		_content->matchDurations(length);
+		_controls->refreshTimelines();
+		_matchingDurations = false;
 	}, lifetime());
 
 	_content->innerRect(
@@ -336,7 +424,8 @@ PhotoEditor::PhotoEditor(
 
 	_controls->colorLineShownValue(
 	) | rpl::on_next([=](bool shown) {
-		_colorPicker->setVisible(shown);
+		_colorLineShown = shown;
+		updateColorPickerVisibility(anim::type::instant);
 	}, _controls->lifetime());
 
 	_mode.value(
@@ -424,6 +513,7 @@ PhotoEditor::PhotoEditor(
 
 	_controls->doneRequests(
 	) | rpl::on_next([=] {
+		_controls->commitTimelineEdits();
 		const auto mode = _mode.current().mode;
 		if (mode == PhotoEditorMode::Mode::Paint) {
 			_mode = PhotoEditorMode{
@@ -560,9 +650,25 @@ PhotoEditor::PhotoEditor(
 }
 
 void PhotoEditor::keyPressEvent(QKeyEvent *e) {
+	_content->setExpansionRoom(e->modifiers().testFlag(Qt::ControlModifier));
 	if (!_colorPicker->preventHandleKeyPress()) {
 		_content->handleKeyPress(e) || _controls->handleKeyPress(e);
 	}
+}
+
+void PhotoEditor::keyReleaseEvent(QKeyEvent *e) {
+	_content->setExpansionRoom(e->modifiers().testFlag(Qt::ControlModifier));
+}
+
+void PhotoEditor::updateColorPickerVisibility(anim::type animated) {
+	const auto painting
+		= (_mode.current().mode == PhotoEditorMode::Mode::Paint);
+	_colorPicker->setVisible(
+		painting
+			&& _colorLineShown
+			&& !_videoClipSelected
+			&& !_audioSelected,
+		animated);
 }
 
 void PhotoEditor::save() {
