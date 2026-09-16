@@ -9001,6 +9001,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_restore_title" = "Restore Wallet";
 "lng_wallet_restore_text" = "Enter the recovery phrase of this wallet.";
 "lng_wallet_restore_send_text" = "Enter the recovery phrase of this wallet to send Grams from this device.";
+"lng_wallet_restoring_key" = "Restoring your wallet key from the encrypted backup...";
 "lng_wallet_restore_error" = "This recovery phrase belongs to a different wallet.";
 "lng_wallet_restore_password_description" = "Please enter your password to restore your wallet.";
 "lng_wallet_restore_explain_text" = "Enter your Two-Step Verification password to restore the key to this wallet from your encrypted backup.";

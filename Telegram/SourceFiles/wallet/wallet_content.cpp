@@ -2138,8 +2138,17 @@ void AddRowSpinner(
 	loading->showOn(std::move(shown));
 }
 
-void WalletBusyBox(not_null<Ui::GenericBox*> box) {
-	const auto &loading = st::walletListsLoading;
+// An inform box whose one button is Cancel: the label says what is being
+// waited for, the spinner under it that the wait is on, and closing it by
+// any means reports the same dismissal.
+void WalletBusyBox(
+		not_null<Ui::GenericBox*> box,
+		rpl::producer<QString> text) {
+	Ui::InformBox(box, {
+		.text = std::move(text),
+		.confirmText = tr::lng_cancel(),
+	});
+	const auto &loading = st::walletBusyBoxLoading;
 	const auto side = loading.size.height() + 2 * loading.thickness;
 	const auto content = box->addRow(
 		object_ptr<Ui::FixedHeightWidget>(box, side),
@@ -11898,8 +11907,9 @@ void ShowWalletConflict(
 
 Fn<void()> ShowWalletBusyBox(
 		std::shared_ptr<Main::SessionShow> show,
+		rpl::producer<QString> text,
 		Fn<void()> dismissed) {
-	auto box = Box(WalletBusyBox);
+	auto box = Box(WalletBusyBox, std::move(text));
 	const auto weak = base::make_weak(box.data());
 	const auto closing = std::make_shared<bool>(false);
 	box->boxClosing() | rpl::on_next([=] {
