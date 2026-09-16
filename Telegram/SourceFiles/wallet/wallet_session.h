@@ -240,7 +240,13 @@ enum class CommentDecryptError {
 	Cancelled,
 	Unavailable,
 	Locked,
+	// The host could not read the stored key at all.
+	KeyUnreadable,
+	// The key was read and does not open this comment.
 	DecryptionFailed,
+	// The engine's one resolution slot was taken. The session retries a
+	// bounded number of times and never surfaces this value itself.
+	Busy,
 	Failed,
 };
 
@@ -439,6 +445,11 @@ public:
 	[[nodiscard]] bool transferWalletIdentityCurrent(
 		const TransferWalletIdentity &identity) const;
 	[[nodiscard]] rpl::producer<> transferWalletIdentityChanges() const;
+	// A record-bound engine client that has finished recovering its send
+	// journal: the state send() requires beyond a valid authorization. A
+	// public-key-only client previews fees but never counts as ready.
+	[[nodiscard]] bool signingReady() const;
+	[[nodiscard]] rpl::producer<bool> signingReadyValue() const;
 	[[nodiscard]] bool revealsLocally();
 	[[nodiscard]] std::optional<BackupDisableApproval> backupDisableApproval();
 	[[nodiscard]] VaultRuntime &vault() const;
@@ -750,6 +761,22 @@ private:
 	void updateDeviceCustodyState(bool cachedOnly = false);
 	void syncEngineClient();
 	void stopEngineClientForReset(Fn<void()> done);
+	// The live client only while it is bound to a custody record, so every
+	// journal, rotation and comment path that needs the secret sees no
+	// client at all under a public-key-only one.
+	[[nodiscard]] auto signingClient() const
+		-> std::shared_ptr<wallet_engine::WalletClient>;
+	void updateSigningReady();
+	// Decryptions that arrived while the public-key-only client was being
+	// swapped for the signing one run once that swap has settled.
+	struct DeferredDecrypt {
+		KeyAuthorization auth;
+		std::shared_ptr<CommentScope> scope;
+		Fn<void(CommentDecryptResult)> done;
+		int attempts = 0;
+	};
+	void decryptComment(DeferredDecrypt request);
+	void settleDeferredDecrypts();
 	void removeCustodyRecord(const QString &recordId);
 	[[nodiscard]] bool parked(const CustodyRecord &record) const;
 	void establishSigningKey(
@@ -786,6 +813,9 @@ private:
 	struct PreviewRequest;
 	struct PreviewState;
 	[[nodiscard]] bool previewCurrent(const PreviewRequest &request) const;
+	[[nodiscard]] bool previewClientMatches(
+		const TransferWalletIdentity &identity,
+		const std::shared_ptr<wallet_engine::WalletClient> &client) const;
 	[[nodiscard]] bool transferClientMatches(
 		const TransferWalletIdentity &identity,
 		const std::shared_ptr<wallet_engine::WalletClient> &client) const;
@@ -881,6 +911,7 @@ private:
 	base::Timer _pollTimer;
 	base::Timer _shareFetchTimer;
 	base::Timer _gaslessTimer;
+	base::Timer _decryptRetryTimer;
 	std::weak_ptr<ShareFetch> _shareFetch;
 
 	bool _loaded = false;
@@ -901,6 +932,8 @@ private:
 	rpl::variable<DeviceCustodyState> _deviceCustody;
 	rpl::event_stream<> _custodyUpdates;
 	QString _clientRecordId;
+	std::optional<TransferWalletIdentity> _clientPreviewIdentity;
+	rpl::variable<bool> _signingReady = false;
 	bool _clientStopping = false;
 	AccountStatus _engineStatus = AccountStatus::NonExisting;
 	mtpRequestId _stateRequestId = 0;
@@ -993,6 +1026,7 @@ private:
 	Fn<void(const QString &)> _rotationFailed;
 
 	std::vector<std::weak_ptr<CommentScope>> _commentScopes;
+	std::vector<DeferredDecrypt> _deferredDecrypts;
 	rpl::lifetime _commentLifetime;
 
 	std::unique_ptr<Ui::SeparatePanel> _panel;

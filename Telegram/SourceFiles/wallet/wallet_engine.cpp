@@ -43,6 +43,7 @@ constexpr auto kRoutedSendTimeout = std::chrono::milliseconds(40000);
 
 // The open recordings of the engine call running on this thread.
 thread_local EngineSecretStores *t_recordingStores = nullptr;
+thread_local SecretReadWatch *t_secretReadWatch = nullptr;
 thread_local std::shared_ptr<TransferSubmission> t_transferSubmission;
 thread_local std::optional<QByteArray> t_transferGasless;
 
@@ -485,6 +486,24 @@ std::vector<QString> EngineSecretStores::take() {
 	return base::take(_keys);
 }
 
+SecretReadWatch::SecretReadWatch() : _previous(t_secretReadWatch) {
+	t_secretReadWatch = this;
+}
+
+SecretReadWatch::~SecretReadWatch() {
+	t_secretReadWatch = _previous;
+}
+
+bool SecretReadWatch::failed() const {
+	return _failed;
+}
+
+void SecretReadWatch::MarkFailed() {
+	if (const auto watch = t_secretReadWatch) {
+		watch->_failed = true;
+	}
+}
+
 TransferSubmission::Recording::Recording(
 	std::shared_ptr<TransferSubmission> submission,
 	std::optional<QByteArray> gasless)
@@ -877,12 +896,15 @@ public:
 			return ReadUnderKeyring(local, *vault, accountId, key, epoch);
 		});
 		if (!outcome) {
+			SecretReadWatch::MarkFailed();
 			throw HostFailed(
 				engine::ProtectedSecretHostErrorKind::kUnavailable,
 				u"wallet engine storage is unavailable"_q);
 		} else if (outcome->error) {
+			SecretReadWatch::MarkFailed();
 			throw HostFailed(*outcome->error, u"wallet keyring read refused"_q);
 		} else if (!vault->current(accountId, outcome->epoch)) {
+			SecretReadWatch::MarkFailed();
 			throw HostFailed(
 				engine::ProtectedSecretHostErrorKind::kAuthenticationFailed,
 				u"wallet authorization expired"_q);

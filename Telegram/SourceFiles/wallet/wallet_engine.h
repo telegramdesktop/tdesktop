@@ -87,6 +87,30 @@ private:
 
 };
 
+// Whether the platform host refused a protected-secret read during the
+// engine call running on this thread. The engine folds such a refusal into
+// the same typed failure as a decryption with the wrong key, so a caller
+// that must tell the two apart opens a watch around its call and reads it
+// afterwards. Same thread contract as the store recording above.
+class SecretReadWatch final {
+public:
+	SecretReadWatch();
+	SecretReadWatch(const SecretReadWatch &other) = delete;
+	SecretReadWatch &operator=(const SecretReadWatch &other) = delete;
+	~SecretReadWatch();
+
+	[[nodiscard]] bool failed() const;
+
+	// Worker thread. Called by the platform host when a read is refused.
+	// Does nothing when no watch is open on this thread.
+	static void MarkFailed();
+
+private:
+	SecretReadWatch *_previous = nullptr;
+	bool _failed = false;
+
+};
+
 enum class TransferSubmissionOutcome {
 	Accepted,
 	Rejected,

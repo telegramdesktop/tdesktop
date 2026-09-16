@@ -134,7 +134,18 @@ void TransferComment::activate(std::shared_ptr<Main::SessionShow> show) {
 	}
 	_scope = _session->wallet().createCommentScope(_target, _attempt);
 	if (!_scope) {
-		show->showToast(tr::lng_wallet_comment_unavailable(tr::now));
+		// A different wallet parked on this device blocks the scope, not
+		// the comment: the conflict box resolves it, and the same click
+		// then continues into the restore or import the comment needs.
+		if (_session->wallet().deviceCustodyState().conflict) {
+			ShowWalletConflict(show, [=] {
+				if (weak) {
+					weak->activate(show);
+				}
+			});
+		} else {
+			show->showToast(tr::lng_wallet_comment_unavailable(tr::now));
+		}
 		return;
 	}
 	_pending = true;
@@ -206,9 +217,15 @@ void TransferComment::finish(
 		show->showToast(VaultLockedText(_session.get()));
 		break;
 	case Error::Unavailable:
+	case Error::Busy:
 		show->showToast(tr::lng_wallet_comment_unavailable(tr::now));
 		break;
+	case Error::KeyUnreadable:
+		show->showToast(tr::lng_wallet_comment_key_unreadable(tr::now));
+		break;
 	case Error::DecryptionFailed:
+		show->showToast(tr::lng_wallet_comment_key_mismatch(tr::now));
+		break;
 	case Error::Failed:
 		show->showToast(tr::lng_wallet_comment_decryption_failed(tr::now));
 		break;

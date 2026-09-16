@@ -66,6 +66,12 @@ void ShowSendToUser(
 	std::shared_ptr<Main::SessionShow> show,
 	not_null<UserData*> user);
 
+// The box that lists the wallets parked on this device. Dropping one calls
+// switched, so the action that hit the conflict can run again.
+void ShowWalletConflict(
+	std::shared_ptr<Main::SessionShow> show,
+	Fn<void()> switched);
+
 [[nodiscard]] rpl::producer<bool> TransactionsShownValue(
 	not_null<Main::Session*> session);
 

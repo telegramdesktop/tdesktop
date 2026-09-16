@@ -222,6 +222,9 @@ constexpr auto kStreamResyncInterval = 30 * crl::time(1000);
 constexpr auto kClientSendValiditySeconds = uint64(300);
 constexpr auto kClientResolutionMarginSeconds = uint64(60);
 constexpr auto kClientRequestTimeoutMs = uint64(15000);
+constexpr auto kPreviewClientRecordId = "public-key-only";
+constexpr auto kDecryptBusyRetries = 5;
+constexpr auto kDecryptBusyRetryDelay = crl::time(500);
 constexpr auto kGaslessRefreshInterval = crl::time(60 * 1000);
 constexpr auto kGaslessRefreshAhead = crl::time(10 * 1000);
 constexpr auto kGaslessRetryInterval = crl::time(15 * 1000);
@@ -762,6 +765,7 @@ struct DecryptedComment {
 		const std::shared_ptr<engine::WalletClient> &client,
 		const engine::DecryptCommentRequest &request) {
 	using Error = CommentDecryptError;
+	auto watch = SecretReadWatch();
 	try {
 		auto text = client->decrypt_comment(request);
 		const auto wipe = gsl::finally([&] {
@@ -771,13 +775,17 @@ struct DecryptedComment {
 	} catch (const engine::wallet_client_error::EncryptedCommentUnavailable &error) {
 		LOG(("Wallet Error: comment decryption failed: %1"
 			).arg(QString::fromUtf8(error.what())));
-		return { .error = Error::DecryptionFailed };
+		// The engine reports a read the host refused and a decryption with
+		// the wrong key alike; only the watch tells which one this was.
+		return { .error = watch.failed()
+			? Error::KeyUnreadable
+			: Error::DecryptionFailed };
 	} catch (const engine::wallet_client_error::LocalSigningUnavailable &) {
 		return { .error = Error::Unavailable };
 	} catch (const engine::wallet_client_error::InvalidProtectedSecret &) {
 		return { .error = Error::Unavailable };
 	} catch (const engine::wallet_client_error::SendAlreadyInProgress &) {
-		return { .error = Error::Unavailable };
+		return { .error = Error::Busy };
 	} catch (const engine::wallet_client_error::StateUnavailable &) {
 		return { .error = Error::Cancelled };
 	} catch (...) {
@@ -817,6 +825,31 @@ struct DecryptedComment {
 			.value = record.secretRef.toStdString(),
 		},
 		.network = engine::Network(record.network),
+		.send_validity_seconds = kClientSendValiditySeconds,
+		.resolution_margin_seconds = kClientResolutionMarginSeconds,
+		.providers = engine::ProviderConfig{
+			.toncenter_base_url = "https://toncenter.com",
+			.dns_root_address = std::nullopt,
+			.request_timeout_ms = kClientRequestTimeoutMs,
+		},
+	};
+}
+
+// A public-key-only client for the served wallet. The engine reads state
+// and emulates transfers from the address and key alone, with a placeholder
+// signature, and answers send() with LocalSigningUnavailable. Its record id
+// names no custody record, so nothing it could journal reads back as a
+// signing record's, and the session never binds _clientRecordId to it.
+[[nodiscard]] engine::WalletClientConfig ClientConfigForPreview(
+		const TransferWalletIdentity &identity) {
+	return engine::WalletClientConfig{
+		.record_id = kPreviewClientRecordId,
+		.address = FormatFriendly(identity.address, false).toStdString(),
+		.public_key = std::vector<uint8_t>(
+			identity.publicKey.constData(),
+			identity.publicKey.constData() + identity.publicKey.size()),
+		.local_secret_ref = std::nullopt,
+		.network = engine::Network::kMainnet,
 		.send_validity_seconds = kClientSendValiditySeconds,
 		.resolution_margin_seconds = kClientResolutionMarginSeconds,
 		.providers = engine::ProviderConfig{
@@ -1689,6 +1722,7 @@ Session::Session(not_null<Main::Session*> session)
 }))
 , _pollTimer([=] { pollTick(); })
 , _gaslessTimer([=] { refreshGaslessInfo(); })
+, _decryptRetryTimer([=] { settleDeferredDecrypts(); })
 , _transferMinNanos(TransferMinNanos(session)) {
 	vault().protectionChanges() | rpl::on_next([=] {
 		updateDeviceCustodyState(true);
@@ -2440,9 +2474,11 @@ std::shared_ptr<CommentScope> Session::createCommentScope(
 		state->record = *record;
 	}
 	updateDeviceCustodyState();
-	if (state->record
-		? (!_engine->client() || _clientRecordId != state->record->recordId)
-		: bool(_engine->client())) {
+	// A signing client bound to another record refuses the scope. A record
+	// whose signing client is not up yet does not: decryptComment() starts
+	// that client, or waits for the swap that brings it up.
+	if (signingClient()
+		&& (!state->record || _clientRecordId != state->record->recordId)) {
 		return nullptr;
 	}
 	const auto scope = std::shared_ptr<CommentScope>(new CommentScope(state));
@@ -2466,7 +2502,7 @@ bool Session::commentAccessAvailable() const {
 		&& !_custodyReadFailed
 		&& _custody->records.size() <= 1
 		&& !_custody->pendingRotation
-		&& !_clientStopping
+		&& !(_clientStopping && !_clientRecordId.isEmpty())
 		&& !_pending
 		&& !_sendUnresolved
 		&& _sendState.current() == SendState::Idle
@@ -2542,7 +2578,18 @@ void Session::decryptComment(
 		KeyAuthorization auth,
 		std::shared_ptr<CommentScope> scope,
 		Fn<void(CommentDecryptResult)> done) {
+	decryptComment({
+		.auth = std::move(auth),
+		.scope = std::move(scope),
+		.done = std::move(done),
+	});
+}
+
+void Session::decryptComment(DeferredDecrypt request) {
 	using Error = CommentDecryptError;
+	auto &auth = request.auth;
+	const auto &scope = request.scope;
+	const auto &done = request.done;
 	const auto finish = [=, this](CommentDecryptResult result) {
 		if (!commentScopeCurrent(scope)) {
 			result = { .error = Error::Cancelled };
@@ -2554,26 +2601,44 @@ void Session::decryptComment(
 	if (!commentScopeCurrent(scope)) {
 		finish({ .error = Error::Cancelled });
 		return;
-	} else if (custodyBusy()
-		|| !scope->_state->record
-		|| !_engine->client()
-		|| _clientRecordId != scope->_state->record->recordId) {
+	} else if (custodyBusy() || !scope->_state->record) {
 		finish({ .error = Error::Unavailable });
 		return;
 	} else if (!ReadAuthorized(*this, auth)) {
 		finish({ .error = Error::Locked });
 		return;
 	}
+	// The record a restore under this scope has just stored gets its signing
+	// client asynchronously: the public-key-only client that served the
+	// previews stops first and the signing one starts from that stop's
+	// callback. The decryption waits that swap out, and only a client that
+	// settled on another record, or on none, refuses it.
+	const auto recordId = scope->_state->record->recordId;
+	if (!_clientStopping
+		&& (!_engine->client() || _clientRecordId != recordId)) {
+		syncEngineClient();
+	}
+	if (_clientStopping) {
+		_deferredDecrypts.push_back(std::move(request));
+		return;
+	} else if (!_engine->client() || _clientRecordId != recordId) {
+		finish({ .error = Error::Unavailable });
+		return;
+	}
 	const auto state = scope->_state;
 	const auto client = _engine->client();
-	const auto request = engine::DecryptCommentRequest{
+	const auto body = engine::DecryptCommentRequest{
 		.sender = state->sender.toStdString(),
 		.body = state->body.toStdString(),
 	};
+	// The retry keeps its own handle of the grant: the job takes the
+	// original with it and drops it when the call ends.
+	auto retry = request;
+	++retry.attempts;
 	_engine->runLocal([
 		state,
 		client,
-		request,
+		request = body,
 		grant = std::move(auth.grant)
 	]() mutable {
 		const auto authorization = base::take(grant);
@@ -2590,6 +2655,17 @@ void Session::decryptComment(
 	}, [=, this](DecryptedComment result) {
 		if (!commentScopeCurrent(scope) || client != _engine->client()) {
 			finish({ .error = Error::Cancelled });
+		} else if (result.error == Error::Busy) {
+			// The engine keeps one resolution slot, which the journal
+			// recovery following a client start, a transfer preparation or
+			// a name lookup may hold: the decryption tries again a bounded
+			// number of times before it is stated unavailable.
+			if (retry.attempts <= kDecryptBusyRetries) {
+				_deferredDecrypts.push_back(retry);
+				_decryptRetryTimer.callOnce(kDecryptBusyRetryDelay);
+			} else {
+				finish({ .error = Error::Unavailable });
+			}
 		} else if (result.error != Error::None) {
 			finish({ .error = result.error });
 		} else {
@@ -3869,7 +3945,7 @@ bool Session::rotationOffered() {
 	return (matching != nullptr)
 		&& !matching->rotatedSinceBackup
 		&& !custody().pendingRotation
-		&& (_engine->client() != nullptr)
+		&& (signingClient() != nullptr)
 		&& !_clientStopping;
 }
 
@@ -3899,7 +3975,7 @@ void Session::quoteRotationFee(
 	}
 	retireCommentScopes();
 	_rotating = true;
-	const auto client = _engine->client();
+	const auto client = signingClient();
 	const auto generation = _networkGeneration;
 	const auto finish = [=, this](FeeResult result) {
 		_rotating = false;
@@ -3994,7 +4070,7 @@ void Session::prepareRotation(
 		}
 		return;
 	}
-	const auto client = _engine->client();
+	const auto client = signingClient();
 	if (!client || _clientStopping) {
 		LOG(("Wallet Error: rotation requested without a signing client."));
 		if (fail) {
@@ -4104,7 +4180,7 @@ void Session::submitRotation(
 		refuse(u"ROTATION_FEES"_q);
 		return;
 	}
-	const auto client = _engine->client();
+	const auto client = signingClient();
 	if (!client || _clientStopping) {
 		LOG(("Wallet Error: rotation submitted without a signing client."));
 		refuse(u"ROTATION_SIGNING_UNAVAILABLE"_q);
@@ -5053,11 +5129,27 @@ void Session::syncEngineClient() {
 	const auto wanted = identity
 		? custody().current(identity->address, identity->publicKey)
 		: nullptr;
+	// Without a record that signs for the served wallet the client runs
+	// public-key-only: fees are still emulated and state still read from
+	// the address and key alone, while send() and every secret-reading path
+	// stay refused until a restore or import lands a record and this swap
+	// runs again to replace it with the signing client.
+	const auto previewOnly = !wanted
+		&& identity
+		&& (_presence.current() == Presence::Ready);
+	const auto previewMatches = previewOnly
+		&& _clientRecordId.isEmpty()
+		&& _clientPreviewIdentity
+		&& (_clientPreviewIdentity->address == identity->address)
+		&& (_clientPreviewIdentity->publicKey == identity->publicKey);
 	auto started = false;
 	if (_clientStopping || _custodyResetting) {
 		return;
 	} else if (_engine->client()) {
-		if (!wanted || _clientRecordId != wanted->recordId) {
+		const auto matches = wanted
+			? (_clientRecordId == wanted->recordId)
+			: previewMatches;
+		if (!matches) {
 			if (_submission && submissionCurrent(
 					_submission->operationId,
 					_submission->prepared)) {
@@ -5066,29 +5158,46 @@ void Session::syncEngineClient() {
 			}
 			_sendRecoveryReady = false;
 			_clientStopping = true;
-			retireCommentScopes();
+			updateSigningReady();
+			// A scope opened under the public-key-only client holds no
+			// record yet, and the record it restores is what this swap
+			// binds: it waits for the signing client instead of dying with
+			// the client that could not have served it anyway.
+			if (!_clientRecordId.isEmpty()) {
+				retireCommentScopes();
+			}
 			_engine->stopClient([this] {
 				_clientStopping = false;
 				_clientRecordId = QString();
+				_clientPreviewIdentity.reset();
 				syncEngineClient();
 			});
 			retirePreviews(SendError::SigningUnavailable);
 			return;
 		}
-	} else if (!wanted) {
+	} else if (!wanted && !previewOnly) {
+		settleDeferredDecrypts();
 		return;
 	} else {
 		try {
-			_engine->startClient(ClientConfigFromRecord(*wanted));
-			_clientRecordId = wanted->recordId;
+			_engine->startClient(wanted
+				? ClientConfigFromRecord(*wanted)
+				: ClientConfigForPreview(*identity));
+			_clientRecordId = wanted ? wanted->recordId : QString();
+			_clientPreviewIdentity = wanted
+				? std::optional<TransferWalletIdentity>()
+				: identity;
 			_sendRecoveryReady = false;
+			updateSigningReady();
 			started = true;
 		} catch (...) {
 			LOG(("Wallet Error: engine client start refused: %1"
 				).arg(ClientErrorName(std::current_exception())));
+			settleDeferredDecrypts();
 			return;
 		}
 	}
+	settleDeferredDecrypts();
 	const auto weak = base::make_weak(_engine.get());
 	const auto generation = _networkGeneration;
 	const auto client = _engine->client();
@@ -5108,6 +5217,17 @@ void Session::syncEngineClient() {
 	}
 	if (current() && started && _presence.current() == Presence::Ready) {
 		requestEngineRefresh();
+		// The collectibles cursor lives in the client, so the pages the
+		// replaced client had walked cannot be continued by this one: the
+		// walk starts over from its first page, and the scroll position
+		// that held the periodic refresh off ends with the client that
+		// owned it.
+		if (_collectiblesPaged || _collectiblesHasMore) {
+			_collectiblesPaged = false;
+			_collectiblesHasMore = false;
+			_collectiblesRefreshedAt = 0;
+			refreshCollectibles(true);
+		}
 	}
 }
 
@@ -5123,6 +5243,8 @@ void Session::stopEngineClientForReset(Fn<void()> done) {
 		if (weak) {
 			weak->wallet()._clientStopping = false;
 			weak->wallet()._clientRecordId = QString();
+			weak->wallet()._clientPreviewIdentity.reset();
+			weak->wallet().settleDeferredDecrypts();
 		}
 		if (auto done = base::take(completion->done)) {
 			done();
@@ -5130,6 +5252,7 @@ void Session::stopEngineClientForReset(Fn<void()> done) {
 	};
 	_sendRecoveryReady = false;
 	_clientStopping = true;
+	updateSigningReady();
 	retirePreviews(SendError::SigningUnavailable);
 	if (weak) {
 		_engine->stopClient(finish);
@@ -5278,13 +5401,15 @@ void Session::applyEngineUpdate(
 			generation,
 			client);
 	};
-	applySendSnapshot(update.snapshot.send, false, sendRevision);
-	if (!current()) {
-		return;
-	}
-	applyRotationSnapshot(update.snapshot.send, false);
-	if (!current()) {
-		return;
+	if (signingClient()) {
+		applySendSnapshot(update.snapshot.send, false, sendRevision);
+		if (!current()) {
+			return;
+		}
+		applyRotationSnapshot(update.snapshot.send, false);
+		if (!current()) {
+			return;
+		}
 	}
 	const auto &snapshot = update.snapshot;
 	if (snapshot.account_resource.phase != engine::ResourcePhase::kReady
@@ -5718,13 +5843,17 @@ void Session::requestCollectibles(bool more) {
 			: client->refresh_nfts();
 	}, [=, this](engine::WalletUpdate update) {
 		_collectiblesRequestPending = false;
-		if (generation != _networkGeneration || _clientStopping) {
+		if (generation != _networkGeneration
+			|| _clientStopping
+			|| client != _engine->client()) {
 			return;
 		}
 		applyCollectiblesUpdate(update, more);
 	}, [=, this](EngineError error) {
 		_collectiblesRequestPending = false;
-		if (generation != _networkGeneration || _clientStopping) {
+		if (generation != _networkGeneration
+			|| _clientStopping
+			|| client != _engine->client()) {
 			return;
 		}
 		LOG(("Wallet Error: engine nft %1 failed: %2, "
@@ -6309,6 +6438,46 @@ bool Session::transferClientMatches(
 		&& record->network == int(engine::Network::kMainnet);
 }
 
+bool Session::previewClientMatches(
+		const TransferWalletIdentity &identity,
+		const std::shared_ptr<engine::WalletClient> &client) const {
+	return transferClientMatches(identity, client)
+		|| (client
+			&& client == _engine->client()
+			&& _clientRecordId.isEmpty()
+			&& _clientPreviewIdentity
+			&& _clientPreviewIdentity->address == identity.address
+			&& _clientPreviewIdentity->publicKey == identity.publicKey);
+}
+
+auto Session::signingClient() const
+-> std::shared_ptr<engine::WalletClient> {
+	return _clientRecordId.isEmpty() ? nullptr : _engine->client();
+}
+
+bool Session::signingReady() const {
+	return _signingReady.current();
+}
+
+rpl::producer<bool> Session::signingReadyValue() const {
+	return _signingReady.value();
+}
+
+void Session::updateSigningReady() {
+	_signingReady = (signingClient() != nullptr)
+		&& !_clientStopping
+		&& _sendRecoveryReady;
+}
+
+void Session::settleDeferredDecrypts() {
+	if (_clientStopping || _deferredDecrypts.empty()) {
+		return;
+	}
+	for (auto &deferred : base::take(_deferredDecrypts)) {
+		decryptComment(std::move(deferred));
+	}
+}
+
 SendError Session::previewError(const PreviewRequest &request) {
 	const auto terms = gaslessTerms();
 	if (!previewCurrent(request)) {
@@ -6333,7 +6502,7 @@ SendError Session::previewError(const PreviewRequest &request) {
 	} else if (request.terms != terms || terms.identity != request.identity) {
 		return SendError::QuoteExpired;
 	} else if (_clientStopping
-		|| !transferClientMatches(*request.identity, request.client)) {
+		|| !previewClientMatches(*request.identity, request.client)) {
 		return SendError::SigningUnavailable;
 	} else if (_sendState.current() == SendState::Sending
 		|| _rotating
@@ -7760,19 +7929,20 @@ void Session::clearSubmittedTransfers() {
 	_sendUnresolved = false;
 	_sendRecoveryReady = false;
 	++_sendRevision;
+	updateSigningReady();
 }
 
 bool Session::sendRecoveryNeeded() const {
 	return !_sendRecoveryReady
 		&& !_clientStopping
-		&& _engine->client()
+		&& signingClient()
 		&& transferWalletIdentity().has_value();
 }
 
 void Session::restoreSubmittedTransfers() {
 	const auto identity = transferWalletIdentity();
 	const auto generation = _networkGeneration;
-	const auto client = _engine->client();
+	const auto client = signingClient();
 	if (!identity || !transferOperationCurrent(*identity, generation, client)) {
 		return;
 	}
@@ -7807,7 +7977,7 @@ void Session::restoreSubmittedTransfers() {
 
 void Session::resolvePending() {
 	const auto identity = transferWalletIdentity();
-	const auto client = _engine->client();
+	const auto client = signingClient();
 	const auto generation = _networkGeneration;
 	if (_resolveRequestPending
 		|| !identity
@@ -7855,6 +8025,7 @@ void Session::resolvePending() {
 		}
 		if (sendRevision == _sendRevision) {
 			_sendRecoveryReady = true;
+			updateSigningReady();
 		}
 		if (hadPending && !_pending) {
 			requestEngineRefresh();
@@ -7891,7 +8062,7 @@ void Session::applySendSnapshot(
 	const auto weak = base::make_weak(_engine.get());
 	const auto identity = transferWalletIdentity();
 	const auto generation = _networkGeneration;
-	const auto client = _engine->client();
+	const auto client = signingClient();
 	const auto current = [=] {
 		return weak && identity && transferOperationCurrent(
 			*identity,

@@ -8855,12 +8855,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_details_reduced" = "Full details for this transaction are unavailable. Only information from the message is shown.";
 "lng_wallet_comment_unavailable" = "This comment can't be decrypted with the wallet information currently available.";
 "lng_wallet_comment_decryption_failed" = "This comment couldn't be decrypted. Please try again.";
+"lng_wallet_comment_key_mismatch" = "This comment was encrypted for a different wallet key and can't be decrypted on this device.";
+"lng_wallet_comment_key_unreadable" = "The wallet key couldn't be read from this device. Please try again.";
 "lng_wallet_send_title" = "Send Grams";
 "lng_wallet_send_money" = "Money";
 "lng_wallet_profile_send_money" = "Send Money";
 "lng_wallet_send_user_title" = "Send Money to {user}";
 "lng_wallet_send_user_unavailable" = "This user can't receive Grams.";
 "lng_wallet_send_user_load_error" = "The recipient's wallet couldn't be loaded. Please try again.";
+"lng_wallet_send_unavailable" = "The wallet is unavailable right now ({error}). Please try again later.";
 "lng_wallet_send_recipient" = "Recipient";
 "lng_wallet_send_paste" = "Paste";
 "lng_wallet_send_invalid_address" = "Invalid address";
@@ -8989,7 +8992,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_replace_check_about" = "You can replace your wallet only if you have:";
 "lng_wallet_replace_check_wait" = "You will be able to replace your wallet in {duration}.";
 "lng_wallet_conflict_bar" = "This device holds a different wallet.";
-"lng_wallet_conflict_toast" = "This device holds a different wallet. Please resolve this first.";
 "lng_wallet_readonly_bar" = "This device can view this wallet but can't send from it.";
 "lng_wallet_conflict_text" = "Wallet for this account was changed from another device. You can export your old wallet that is held on this device before switching.";
 "lng_wallet_conflict_export" = "Export old wallet";
@@ -8997,6 +8999,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_keys_restore" = "Restore from recovery phrase";
 "lng_wallet_restore_title" = "Restore Wallet";
 "lng_wallet_restore_text" = "Enter the recovery phrase of this wallet.";
+"lng_wallet_restore_send_text" = "Enter the recovery phrase of this wallet to send Grams from this device.";
 "lng_wallet_restore_error" = "This recovery phrase belongs to a different wallet.";
 "lng_wallet_restore_password_description" = "Please enter your password to restore your wallet.";
 "lng_wallet_restore_explain_text" = "Enter your Two-Step Verification password to restore the key to this wallet from your encrypted backup.";

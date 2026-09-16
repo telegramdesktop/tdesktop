@@ -151,17 +151,18 @@ constexpr auto kMaxAmountNano = 999'999'999'999'999'999LL;
 constexpr auto kSendUserLoadTimeout = 30 * crl::time(1000);
 constexpr auto kSendRefusalRetries = 3;
 constexpr auto kCommentPasswordStateTimeout = 30 * crl::time(1000);
+constexpr auto kSigningReadyTimeout = 30 * crl::time(1000);
 constexpr auto kRowAmountPreciseBelowNano = Ui::kNanosInOne / 100;
 
 class BalanceInk;
 class Card;
 struct CardFold;
 
-class CommentKeyContext final
+class KeyContext final
 	: public Main::SessionShow
-	, public std::enable_shared_from_this<CommentKeyContext> {
+	, public std::enable_shared_from_this<KeyContext> {
 public:
-	CommentKeyContext(
+	KeyContext(
 		std::shared_ptr<Main::SessionShow> show,
 		std::shared_ptr<CommentScope> scope,
 		Fn<bool()> current,
@@ -180,6 +181,9 @@ public:
 	Main::Session &session() const override;
 
 	[[nodiscard]] std::shared_ptr<CommentScope> scope() const;
+	// The show this context wraps, for a box that must outlive a prompt
+	// closing under it instead of being read as the end of the attempt.
+	[[nodiscard]] std::shared_ptr<Main::SessionShow> plain() const;
 	[[nodiscard]] CustodyInstaller installer();
 	void acceptClosed();
 	void allowPromptRetry(base::weak_qptr<Ui::BoxContent> box);
@@ -404,7 +408,7 @@ private:
 
 };
 
-CommentKeyContext::CommentKeyContext(
+KeyContext::KeyContext(
 	std::shared_ptr<Main::SessionShow> show,
 	std::shared_ptr<CommentScope> scope,
 	Fn<bool()> current,
@@ -416,14 +420,14 @@ CommentKeyContext::CommentKeyContext(
 , _done(std::move(done)) {
 }
 
-void CommentKeyContext::showOrHideBoxOrLayer(
+void KeyContext::showOrHideBoxOrLayer(
 		std::variant<
 			v::null_t,
 			object_ptr<Ui::BoxContent>,
 			std::unique_ptr<Ui::LayerWidget>> &&layer,
 		Ui::LayerOptions,
 		anim::type animated) const {
-	const auto self = std::const_pointer_cast<CommentKeyContext>(
+	const auto self = std::const_pointer_cast<KeyContext>(
 		shared_from_this());
 	if (!valid()) {
 		self->cancel();
@@ -469,33 +473,37 @@ void CommentKeyContext::showOrHideBoxOrLayer(
 		animated);
 }
 
-not_null<QWidget*> CommentKeyContext::toastParent() const {
+not_null<QWidget*> KeyContext::toastParent() const {
 	return _show->toastParent();
 }
 
-bool CommentKeyContext::valid() const {
+bool KeyContext::valid() const {
 	return !_finished
 		&& _session
 		&& _show->valid()
 		&& _current()
-		&& _session->wallet().commentScopeCurrent(_scope);
+		&& (!_scope || _session->wallet().commentScopeCurrent(_scope));
 }
 
-CommentKeyContext::operator bool() const {
+KeyContext::operator bool() const {
 	return valid();
 }
 
-Main::Session &CommentKeyContext::session() const {
+Main::Session &KeyContext::session() const {
 	Expects(_session != nullptr);
 
 	return *_session;
 }
 
-std::shared_ptr<CommentScope> CommentKeyContext::scope() const {
+std::shared_ptr<CommentScope> KeyContext::scope() const {
 	return _scope;
 }
 
-CustodyInstaller CommentKeyContext::installer() {
+std::shared_ptr<Main::SessionShow> KeyContext::plain() const {
+	return _show;
+}
+
+CustodyInstaller KeyContext::installer() {
 	const auto self = shared_from_this();
 	const auto native = MakeCustodyInstaller(self);
 	return [=](CustodyInstallRequest request) {
@@ -527,7 +535,7 @@ CustodyInstaller CommentKeyContext::installer() {
 	};
 }
 
-void CommentKeyContext::acceptClosed() {
+void KeyContext::acceptClosed() {
 	for (const auto &prompt : _prompts) {
 		if (prompt->closing) {
 			prompt->accepted = true;
@@ -535,7 +543,7 @@ void CommentKeyContext::acceptClosed() {
 	}
 }
 
-void CommentKeyContext::allowPromptRetry(
+void KeyContext::allowPromptRetry(
 		base::weak_qptr<Ui::BoxContent> box) {
 	for (const auto &prompt : _prompts) {
 		if (prompt->box == box) {
@@ -545,7 +553,7 @@ void CommentKeyContext::allowPromptRetry(
 	}
 }
 
-void CommentKeyContext::cancelOnClose(
+void KeyContext::cancelOnClose(
 		base::weak_qptr<Ui::BoxContent> box,
 		bool allowSuccessor) {
 	if (!box) {
@@ -564,7 +572,7 @@ void CommentKeyContext::cancelOnClose(
 	}
 }
 
-void CommentKeyContext::closePrompt(base::weak_qptr<Ui::BoxContent> box) {
+void KeyContext::closePrompt(base::weak_qptr<Ui::BoxContent> box) {
 	for (const auto &prompt : _prompts) {
 		if (prompt->box == box) {
 			prompt->accepted = true;
@@ -576,7 +584,7 @@ void CommentKeyContext::closePrompt(base::weak_qptr<Ui::BoxContent> box) {
 	}
 }
 
-void CommentKeyContext::ready(KeyAuthorization auth) {
+void KeyContext::ready(KeyAuthorization auth) {
 	if (!valid() || !auth.grant) {
 		cancel();
 		return;
@@ -584,11 +592,11 @@ void CommentKeyContext::ready(KeyAuthorization auth) {
 	finish(std::move(auth));
 }
 
-void CommentKeyContext::cancel() {
+void KeyContext::cancel() {
 	finish({});
 }
 
-void CommentKeyContext::finish(KeyAuthorization auth) {
+void KeyContext::finish(KeyAuthorization auth) {
 	if (_finished) {
 		return;
 	}
@@ -597,7 +605,7 @@ void CommentKeyContext::finish(KeyAuthorization auth) {
 	auto lifetime = base::take(_lifetime);
 	const auto done = base::take(_done);
 	const auto prompts = base::take(_prompts);
-	if (!auth.grant) {
+	if (!auth.grant && scope) {
 		scope->cancel();
 	}
 	lifetime.destroy();
@@ -614,11 +622,11 @@ void CommentKeyContext::finish(KeyAuthorization auth) {
 	}
 }
 
-rpl::lifetime &CommentKeyContext::lifetime() {
+rpl::lifetime &KeyContext::lifetime() {
 	return _lifetime;
 }
 
-void CommentKeyContext::promptClosed(const std::shared_ptr<Prompt> &prompt) {
+void KeyContext::promptClosed(const std::shared_ptr<Prompt> &prompt) {
 	if (_finished || prompt->accepted) {
 		return;
 	}
@@ -3826,10 +3834,29 @@ void SendCommentBubble::setText(const QString &text) {
 	update();
 }
 
-void ShowSendWordsRecovery(
+enum class KeyActionKind {
+	Plain,
+	Reveal,
+	ResumeAfterRestore,
+};
+
+// The one ladder every key-requiring wallet action climbs: the action runs
+// at once when this device holds the key, after the backup restore and its
+// protection chooser when the key is only in the cloud, after the phrase
+// import when there is no backup, and after the conflict is resolved when a
+// different wallet is parked here. A context turns the ladder's prompts into
+// one attempt that ends when any of them closes without a key.
+void RunKeyRequiringAction(
 	std::shared_ptr<Main::SessionShow> show,
-	Fn<bool()> originValid,
-	Fn<void()> restored);
+	Fn<void()> action,
+	KeyActionKind kind = KeyActionKind::Plain,
+	std::shared_ptr<KeyContext> context = nullptr,
+	rpl::producer<QString> importAbout = nullptr);
+
+void WalletConflictBox(
+	not_null<Ui::GenericBox*> box,
+	std::shared_ptr<Main::SessionShow> show,
+	Fn<void()> switched);
 
 [[nodiscard]] std::optional<SendFlow> ParseRecipientFlow(
 		const QString &text) {
@@ -4099,8 +4126,10 @@ void WalletSendCommentBox(
 	} else if (error == u"WALLET_USER_INVALID"_q
 		|| error == u"WALLET_USER_INELIGIBLE"_q) {
 		return tr::lng_wallet_send_user_unavailable(tr::now);
+	} else if (error == u"WALLET_ADDRESS_INVALID"_q) {
+		return tr::lng_wallet_send_user_load_error(tr::now);
 	}
-	return tr::lng_wallet_send_user_load_error(tr::now);
+	return tr::lng_wallet_send_unavailable(tr::now, lt_error, error);
 }
 
 void SetButtonDisabledLook(
@@ -4626,7 +4655,9 @@ void WalletSendBox(
 		rpl::variable<SendError> previewError = SendError::None;
 		rpl::variable<bool> insufficient = false;
 		rpl::variable<bool> canSend = false;
-		rpl::variable<bool> canRecover = false;
+		std::shared_ptr<KeyContext> keyContext;
+		base::Timer signingWait;
+		bool signingTimedOut = false;
 		rpl::variable<FiatRate> rate;
 		rpl::variable<bool> entryFiat = false;
 		QString previousCurrency;
@@ -4640,10 +4671,10 @@ void WalletSendBox(
 	}
 	const auto draft = state->draft;
 	const auto previewOwner = wallet->createPreviewOwner(state->previewLifetime);
-	state->loading = user && !initial;
-	state->senderIdentity = user && !initial
+	state->senderIdentity = (user && !initial)
 		? std::nullopt
 		: wallet->transferWalletIdentity();
+	state->loading = (user && !initial) || !state->senderIdentity;
 	state->rate = FiatRateValue(session);
 	state->minTransfer = TransferMinNanos(session);
 	const auto userId = user ? peerToUser(user->id) : UserId();
@@ -4768,10 +4799,25 @@ void WalletSendBox(
 		state->sendAuthorization = {};
 		state->sendRefusals = 0;
 		state->submitted = false;
+		state->signingWait.cancel();
+		state->signingTimedOut = false;
 	};
 	const auto scheduleContinueSend = [=] {
 		Ui::PostponeCall(box, [=] { state->continueSend(); });
 	};
+	// The signing client is awaited for a bounded time only. A journal
+	// recovery that keeps failing would otherwise hold the press forever,
+	// while letting the press through after the bound has the session
+	// refuse it typed, the way it did before the wait existed.
+	const auto awaitSigning = [=] {
+		if (!state->signingWait.isActive()) {
+			state->signingWait.callOnce(kSigningReadyTimeout);
+		}
+	};
+	state->signingWait.setCallback([=] {
+		state->signingTimedOut = true;
+		scheduleContinueSend();
+	});
 	const auto failLoading = [=](const QString &error, bool silent = false) {
 		if (state->closed || state->terminal) {
 			return;
@@ -4791,12 +4837,16 @@ void WalletSendBox(
 		state->expanded = false;
 		state->loadError = error.isEmpty() ? u"WALLET_ADDRESS_INVALID"_q : error;
 		state->loading = false;
-		if (silent) {
-			box->closeBox();
+		if (!silent) {
+			show->showToast(SendUserLoadErrorText(state->loadError.current()));
 		}
+		box->closeBox();
 	};
 	box->boxClosing() | rpl::on_next([=] {
 		state->closed = true;
+		if (const auto context = base::take(state->keyContext)) {
+			context->cancel();
+		}
 		++state->loadRevision;
 		state->loadDeadline.cancel();
 		++state->previewRevision;
@@ -5037,11 +5087,21 @@ void WalletSendBox(
 		const auto dependencies = quoteDependencies();
 		state->previewDependencies = dependencies;
 		const auto revision = state->previewRevision;
+		// A key just acquired for this press is followed by the client swap
+		// to the signing one, and an estimate refused in that window is not
+		// the press failing: the press waits for the signing client and
+		// estimates again under the same authorization.
 		const auto fail = [=](SendError error) {
 			if (revision != state->previewRevision) {
 				return;
 			}
-			if (!state->submitted) {
+			const auto swapping = (error == SendError::SigningUnavailable)
+				&& state->sendAuthorization.valid()
+				&& !wallet->signingReady()
+				&& !state->signingTimedOut;
+			if (swapping) {
+				awaitSigning();
+			} else if (!state->submitted) {
 				stopSending();
 			}
 			invalidateFee();
@@ -5178,6 +5238,10 @@ void WalletSendBox(
 			estimate(KeyAuthorization());
 		} else if (authorization.valid()) {
 			estimate(std::move(authorization));
+		} else if (wallet->deviceCustodyState().mode != DeviceMode::Full) {
+			// Encrypting the comment needs the key this device does not
+			// hold, and only the send press is worth acquiring it for.
+			fail(SendError::None);
 		} else {
 			AcquireVaultUnlock({ .show = show, .done = estimate });
 		}
@@ -5262,6 +5326,14 @@ void WalletSendBox(
 		}
 		refreshFee();
 	}, box->lifetime());
+	wallet->signingReadyValue() | rpl::skip(1) | rpl::on_next([=](bool ready) {
+		if (ready) {
+			state->signingWait.cancel();
+			state->signingTimedOut = false;
+		}
+		state->previewDependencies.reset();
+		refreshFee();
+	}, box->lifetime());
 	if (!user) {
 		wallet->custodyUpdates() | rpl::on_next(refreshFee, box->lifetime());
 		wallet->balanceNanoValue() | rpl::on_next(refreshFee, box->lifetime());
@@ -5307,37 +5379,8 @@ void WalletSendBox(
 			&& loadError.isEmpty()
 			&& (error != SendError::AmountTooSmall)
 			&& (error != SendError::CommentTooLong)
-			&& (error != SendError::SigningUnavailable)
 			&& (error != SendError::AlreadySending)
 			&& (error != SendError::PreviousUnresolved);
-	});
-	state->canRecover = rpl::combine(
-		state->amount.value(),
-		state->insufficient.value(),
-		state->expanded.value(),
-		wallet->stateKnownValue(),
-		state->previewError.value(),
-		draft->preparing.value(),
-		state->loading.value(),
-		state->loadError.value()
-	) | rpl::map([=](
-			int64 amount,
-			bool insufficient,
-			bool valid,
-			bool known,
-			SendError error,
-			bool pending,
-			bool loading,
-			const QString &loadError) {
-		return user
-			&& valid
-			&& known
-			&& (amount > 0)
-			&& !insufficient
-			&& !pending
-			&& !loading
-			&& loadError.isEmpty()
-			&& (error == SendError::SigningUnavailable);
 	});
 
 	auto balanceLayout = object_ptr<Ui::VerticalLayout>(inner);
@@ -5497,6 +5540,11 @@ void WalletSendBox(
 				|| error == SendError::InsufficientBalance
 				|| error == SendError::InsufficientFees)) {
 			return QString();
+		} else if (error == SendError::SigningUnavailable) {
+			// A device without the key is not stated: the send press
+			// acquires it, and the estimate is refused only while no
+			// client can serve the preview at all.
+			return QString();
 		}
 		return SendErrorText(error, minTransfer);
 	});
@@ -5553,13 +5601,6 @@ void WalletSendBox(
 			draft->encryptable.value());
 	}
 
-	const auto restored = [=] {
-		if (originValid()) {
-			state->previewDependencies.reset();
-			refreshFee();
-			amountField->setFocusFast();
-		}
-	};
 	const auto refuse = [=](SendError error) {
 		if (!weak || state->closed) {
 			return;
@@ -5570,8 +5611,6 @@ void WalletSendBox(
 		if (error == SendError::InsufficientBalance
 			|| error == SendError::InsufficientFees) {
 			state->previewInsufficient = true;
-		} else if (user && error == SendError::SigningUnavailable) {
-			ShowSendWordsRecovery(show, originValid, restored);
 		}
 	};
 	const auto checkQuote = [=] {
@@ -5601,12 +5640,24 @@ void WalletSendBox(
 		}
 		return SendError::None;
 	};
-	const auto unlockForSend = [=] {
+	// The send press acquires the key the way every key-requiring wallet
+	// action does, through RunKeyRequiringAction: an unlock when this device
+	// holds the key, the backup restore with its protection chooser when the
+	// key is only in the cloud, the phrase import when there is no backup,
+	// and the conflict resolution first when a different wallet is parked
+	// here. The context owns every prompt of that ladder, so closing any of
+	// them without a key ends the press quietly, and closing this box ends
+	// it with them.
+	const auto acquireSendKey = [=] {
+		if (state->unlocking) {
+			return;
+		}
 		state->unlocking = true;
-		AcquireVaultUnlock({
-			.show = show,
-			.done = crl::guard(session, crl::guard(box, [=](
-					KeyAuthorization auth) {
+		const auto context = std::make_shared<KeyContext>(
+			show,
+			nullptr,
+			originValid,
+			crl::guard(session, crl::guard(box, [=](KeyAuthorization auth) {
 				state->unlocking = false;
 				if (!state->sending.current() || state->submitted) {
 					return;
@@ -5616,8 +5667,22 @@ void WalletSendBox(
 				}
 				state->sendAuthorization = std::move(auth);
 				state->continueSend();
-			})),
-		});
+			})));
+		state->keyContext = context;
+		RunKeyRequiringAction(context, [=] {
+			if (!context->valid()) {
+				context->cancel();
+				return;
+			}
+			AcquireVaultUnlock({
+				.show = context,
+				.done = [=](KeyAuthorization auth) {
+					context->ready(std::move(auth));
+				},
+			});
+		}, KeyActionKind::ResumeAfterRestore, context, (user
+			? tr::lng_wallet_restore_send_text()
+			: tr::lng_wallet_restore_text()));
 	};
 
 	// One press of the send button is one request: the amount, recipient
@@ -5664,9 +5729,23 @@ void WalletSendBox(
 		const auto isPrivate = !request.comment.text.isEmpty()
 			&& !request.comment.isPublic;
 		const auto error = checkQuote();
-		if (error == SendError::QuoteExpired) {
+		if (error == SendError::SigningUnavailable) {
+			// No client could serve the preview: the key is still to be
+			// acquired, or the client is being swapped for the signing one
+			// right after it was, and the readiness change resumes the
+			// press. A ready signing client that still refuses, or a swap
+			// that outlasts the bound, is stated as a failure.
+			if (!state->sendAuthorization.valid()) {
+				acquireSendKey();
+			} else if (wallet->signingReady() || state->signingTimedOut) {
+				refuse(SendError::Failed);
+			} else {
+				awaitSigning();
+			}
+			return;
+		} else if (error == SendError::QuoteExpired) {
 			if (isPrivate && !state->sendAuthorization.valid()) {
-				unlockForSend();
+				acquireSendKey();
 			} else {
 				prepareFee(state->sendAuthorization);
 			}
@@ -5675,7 +5754,10 @@ void WalletSendBox(
 			refuse(error);
 			return;
 		} else if (!state->sendAuthorization.valid()) {
-			unlockForSend();
+			acquireSendKey();
+			return;
+		} else if (!wallet->signingReady() && !state->signingTimedOut) {
+			awaitSigning();
 			return;
 		}
 		const auto accepted = *draft->quote.current();
@@ -5749,9 +5831,6 @@ void WalletSendBox(
 				commentField->showError();
 			}
 			return;
-		} else if (state->canRecover.current()) {
-			ShowSendWordsRecovery(show, originValid, restored);
-			return;
 		} else if (!state->canSend.current()) {
 			amountField->showError();
 			return;
@@ -5792,10 +5871,9 @@ void WalletSendBox(
 	}, button->lifetime());
 	rpl::combine(
 		state->canSend.value(),
-		state->canRecover.value(),
 		state->sending.value()
-	) | rpl::on_next([=](bool canSend, bool canRecover, bool sending) {
-		SetButtonDisabledLook(button, !canSend && !canRecover && !sending);
+	) | rpl::on_next([=](bool canSend, bool sending) {
+		SetButtonDisabledLook(button, !canSend && !sending);
 	}, button->lifetime());
 	AddBusyFooterSpinner(button, std::move(buttonBusy));
 	amountField->submits() | rpl::on_next(submit, amountField->lifetime());
@@ -5858,7 +5936,7 @@ void WalletSendBox(
 		return user || expanded;
 	}));
 	wrap->finishAnimating();
-	if (user) {
+	if (state->loading.current()) {
 		const auto recompute = [=] {
 			if (state->closed || state->terminal) {
 				return;
@@ -5866,8 +5944,12 @@ void WalletSendBox(
 				failLoading(u"WALLET_NOT_READY"_q);
 				return;
 			}
-			const auto error = userError();
 			const auto presence = wallet->presenceCurrent();
+			const auto error = user
+				? userError()
+				: (presence == Presence::Ready)
+				? QString()
+				: u"WALLET_NOT_READY"_q;
 			if (error == u"WALLET_NOT_READY"_q
 				&& !state->forceIssued
 				&& (presence == Presence::Unknown
@@ -5887,6 +5969,10 @@ void WalletSendBox(
 			state->senderIdentity = wallet->transferWalletIdentity();
 			if (!state->senderIdentity) {
 				failLoading(u"WALLET_NOT_READY"_q);
+				return;
+			} else if (!user) {
+				state->loadDeadline.cancel();
+				state->loading = false;
 				return;
 			}
 			state->forceIssued = true;
@@ -5956,21 +6042,23 @@ void WalletSendBox(
 		wallet->stateKnownValue() | rpl::on_next(schedule, box->lifetime());
 		wallet->balanceNanoValue() | rpl::on_next(schedule, box->lifetime());
 		wallet->custodyUpdates() | rpl::on_next(schedule, box->lifetime());
-		wallet->userAddresses().unavailableValue(
-		) | rpl::on_next(schedule, box->lifetime());
-		user->flagsValue() | rpl::on_next(schedule, box->lifetime());
-		session->changes().peerUpdates(
-			user,
-			Data::PeerUpdate::Flag::FullInfo
-				| Data::PeerUpdate::Flag::Name
-				| Data::PeerUpdate::Flag::SupportInfo
-		) | rpl::on_next(schedule, box->lifetime());
-		const auto error = userError();
-		if (!error.isEmpty()
-			&& error != u"WALLET_NOT_READY"_q
-			&& error != u"WALLET_BALANCE_EMPTY"_q) {
-			failLoading(error);
-			return;
+		if (user) {
+			wallet->userAddresses().unavailableValue(
+			) | rpl::on_next(schedule, box->lifetime());
+			user->flagsValue() | rpl::on_next(schedule, box->lifetime());
+			session->changes().peerUpdates(
+				user,
+				Data::PeerUpdate::Flag::FullInfo
+					| Data::PeerUpdate::Flag::Name
+					| Data::PeerUpdate::Flag::SupportInfo
+			) | rpl::on_next(schedule, box->lifetime());
+			const auto error = userError();
+			if (!error.isEmpty()
+				&& error != u"WALLET_NOT_READY"_q
+				&& error != u"WALLET_BALANCE_EMPTY"_q) {
+				failLoading(error);
+				return;
+			}
 		}
 		wallet->presenceValue() | rpl::on_next(schedule, box->lifetime());
 		wallet->transferWalletIdentityChanges(
@@ -6668,39 +6756,20 @@ enum class WalletImportMode {
 	Restore,
 };
 
+// The about text replaces the mode's default cover line, so an import that
+// serves a specific action can say what the phrase is needed for.
 void WalletImportBox(
 	not_null<Ui::GenericBox*> box,
 	std::shared_ptr<Main::SessionShow> show,
 	WalletImportMode mode,
 	Fn<void()> restored,
-	std::shared_ptr<CommentKeyContext> context);
-
-void ShowSendWordsRecovery(
-		std::shared_ptr<Main::SessionShow> show,
-		Fn<bool()> originValid,
-		Fn<void()> restored) {
-	if (!originValid()) {
-		return;
-	} else if (show->session().wallet().deviceCustodyState().conflict) {
-		show->showToast(tr::lng_wallet_conflict_toast(tr::now));
-		return;
-	}
-	show->showBox(Box(
-		WalletImportBox,
-		show,
-		WalletImportMode::Restore,
-		[=] {
-			if (originValid()) {
-				restored();
-			}
-		},
-		nullptr));
-}
+	std::shared_ptr<KeyContext> context,
+	rpl::producer<QString> about);
 
 void ShowInvalidSecretWords(
 		std::shared_ptr<Main::SessionShow> show,
 		bool foreign,
-		std::shared_ptr<CommentKeyContext> context = nullptr) {
+		std::shared_ptr<KeyContext> context = nullptr) {
 	auto args = Ui::ConfirmBoxArgs{
 		.confirmText = tr::lng_wallet_import_try_again(),
 		.title = tr::lng_wallet_import_invalid_title(),
@@ -6718,6 +6787,38 @@ void ShowInvalidSecretWords(
 	}
 }
 
+// A restore that lands a record swaps the public-key-only client for the
+// signing one asynchronously, so a continuation that reads the signing
+// client - the rotation offer of a backup disable, a send - would find it
+// missing if it ran at once. It runs once the session reports the signing
+// client ready. The wait is bounded: a recovery that never settles lets the
+// continuation run and be refused typed by the session on its own.
+void RunWhenSigningReady(
+		std::shared_ptr<Main::SessionShow> show,
+		Fn<void()> action) {
+	if (!action) {
+		return;
+	}
+	auto &wallet = show->session().wallet();
+	if (wallet.signingReady()) {
+		action();
+		return;
+	}
+	const auto weakSession = base::make_weak(&show->session());
+	const auto lifetime = std::make_shared<rpl::lifetime>();
+	const auto run = [=] {
+		const auto owned = base::take(*lifetime);
+		if (weakSession && show->valid()) {
+			action();
+		}
+	};
+	const auto timeout = lifetime->make_state<base::Timer>(run);
+	timeout->callOnce(kSigningReadyTimeout);
+	wallet.signingReadyValue() | rpl::filter([](bool ready) {
+		return ready;
+	}) | rpl::on_next(run, *lifetime);
+}
+
 void RequestCustodyRestore(
 		std::shared_ptr<Main::SessionShow> show,
 		KeyAuthorization auth,
@@ -6725,7 +6826,7 @@ void RequestCustodyRestore(
 		base::weak_qptr<PasscodeBox> passcode,
 		Fn<void()> action,
 		Fn<void()> unblock,
-		std::shared_ptr<CommentKeyContext> context = nullptr,
+		std::shared_ptr<KeyContext> context = nullptr,
 		Fn<void()> onPasswordMissing = nullptr) {
 	if (context && !context->valid()) {
 		context->cancel();
@@ -6735,7 +6836,7 @@ void RequestCustodyRestore(
 		if (passcode) {
 			passcode->closeBox();
 		}
-		action();
+		RunWhenSigningReady(show, action);
 	};
 	const auto fail = [=](const QString &error) {
 		if (context && (!context->valid()
@@ -6830,7 +6931,7 @@ void StartCustodyRestore(
 		KeyAuthorization auth,
 		Fn<void()> action,
 		Fn<void()> unblock = nullptr,
-		std::shared_ptr<CommentKeyContext> context = nullptr) {
+		std::shared_ptr<KeyContext> context = nullptr) {
 	if (context && !context->valid()) {
 		context->cancel();
 		return;
@@ -6912,27 +7013,37 @@ void StartCustodyRestore(
 		askPassword);
 }
 
-enum class KeyActionKind {
-	Plain,
-	Reveal,
-	ResumeAfterRestore,
-};
-
 void RunKeyRequiringAction(
 		std::shared_ptr<Main::SessionShow> show,
 		Fn<void()> action,
-		KeyActionKind kind = KeyActionKind::Plain,
-		std::shared_ptr<CommentKeyContext> context = nullptr) {
+		KeyActionKind kind,
+		std::shared_ptr<KeyContext> context,
+		rpl::producer<QString> importAbout) {
 	if (context && !context->valid()) {
 		context->cancel();
 		return;
 	}
 	const auto state = show->session().wallet().deviceCustodyState();
 	if (state.conflict) {
-		show->showToast(tr::lng_wallet_conflict_toast(tr::now));
-		if (context) {
-			context->cancel();
-		}
+		// Resolving the conflict lands no key: it drops the parked record
+		// or exports its phrase. The same press climbs this ladder again
+		// once the parked wallet is switched away, into whatever the served
+		// wallet then needs. The export runs over the plain show, because
+		// the context reads a closed prompt of its own as the end of the
+		// press, and the export box is closed on the way back to the list.
+		const auto plain = context ? context->plain() : show;
+		const auto retry = [=] {
+			if (context) {
+				context->acceptClosed();
+			}
+			RunKeyRequiringAction(
+				show,
+				action,
+				kind,
+				context,
+				rpl::duplicate(importAbout));
+		};
+		show->showBox(Box(WalletConflictBox, plain, retry));
 	} else if (state.mode == DeviceMode::Full) {
 		action();
 	} else if (state.mode == DeviceMode::ReadOnlyRestorable) {
@@ -6954,7 +7065,8 @@ void RunKeyRequiringAction(
 			show,
 			WalletImportMode::Restore,
 			(kind == KeyActionKind::ResumeAfterRestore) ? action : nullptr,
-			context));
+			context,
+			std::move(importAbout)));
 	} else if (context) {
 		show->showToast(tr::lng_wallet_comment_unavailable(tr::now));
 		context->cancel();
@@ -8111,7 +8223,8 @@ struct ImportCover {
 
 [[nodiscard]] ImportCover SetupImportCover(
 		not_null<Ui::GenericBox*> box,
-		WalletImportMode mode) {
+		WalletImportMode mode,
+		rpl::producer<QString> about) {
 	const auto spacer = box->verticalLayout()->add(
 		object_ptr<Ui::RpWidget>(box));
 	const auto cover = Ui::CreateChild<Ui::RpWidget>(box.get());
@@ -8135,7 +8248,9 @@ struct ImportCover {
 	});
 	state->about = Ui::CreateChild<Ui::FlatLabel>(
 		cover,
-		((mode == WalletImportMode::Restore)
+		(about
+			? std::move(about)
+			: (mode == WalletImportMode::Restore)
 			? tr::lng_wallet_restore_text()
 			: tr::lng_wallet_import_text()),
 		st::walletPhraseTextLabel);
@@ -8282,7 +8397,8 @@ void WalletImportBox(
 		std::shared_ptr<Main::SessionShow> show,
 		WalletImportMode mode,
 		Fn<void()> restored,
-		std::shared_ptr<CommentKeyContext> context) {
+		std::shared_ptr<KeyContext> context,
+		rpl::producer<QString> about) {
 	if (context) {
 		context->cancelOnClose(box);
 	}
@@ -8304,7 +8420,7 @@ void WalletImportBox(
 	};
 	const auto state = box->lifetime().make_state<State>();
 
-	const auto cover = SetupImportCover(box, mode);
+	const auto cover = SetupImportCover(box, mode, std::move(about));
 
 	const auto toggle = box->addRow(
 		object_ptr<Ui::SettingsSlider>(box, st::settingsSlider),
@@ -8468,7 +8584,7 @@ void WalletImportBox(
 			const auto done = crl::guard(box, [=] {
 				if (restored) {
 					box->closeBox();
-					restored();
+					RunWhenSigningReady(show, restored);
 				} else {
 					show->hideLayer();
 					show->showToast({
@@ -8902,6 +9018,7 @@ void WalletReplaceBox(
 			show,
 			WalletImportMode::Replace,
 			nullptr,
+			nullptr,
 			nullptr));
 	});
 	Ui::AddSkip(box->verticalLayout());
@@ -8909,11 +9026,30 @@ void WalletReplaceBox(
 
 void WalletConflictBox(
 		not_null<Ui::GenericBox*> box,
-		std::shared_ptr<Main::SessionShow> show) {
+		std::shared_ptr<Main::SessionShow> show,
+		Fn<void()> switched) {
 	struct State {
 		bool busy = false;
 	};
+	// The box closes on its own once a drop leaves no parked record, and
+	// that close continues the action that hit the conflict. Every other
+	// close, including one while a drop is still pending, is the user giving
+	// up, and the drop's completion then continues nothing. The outcome
+	// outlives the box, because the settling close can destroy it before
+	// the drop's callback runs.
+	struct Outcome {
+		bool settled = false;
+		bool cancelled = false;
+	};
 	const auto state = box->lifetime().make_state<State>();
+	const auto outcome = std::make_shared<Outcome>();
+	const auto closed = [=] {
+		if (!outcome->settled) {
+			outcome->cancelled = true;
+		}
+	};
+	box->boxClosing() | rpl::on_next(closed, box->lifetime());
+	box->lifetime().add(closed);
 	const auto wallet = &show->session().wallet();
 
 	box->setStyle(st::walletConflictBox);
@@ -8933,6 +9069,7 @@ void WalletConflictBox(
 	const auto rebuild = [=] {
 		const auto parked = wallet->parkedRecords();
 		if (parked.empty()) {
+			outcome->settled = true;
 			box->closeBox();
 			return;
 		}
@@ -8971,9 +9108,28 @@ void WalletConflictBox(
 					return;
 				}
 				state->busy = true;
-				wallet->dropParked(key, crl::guard(box, [=] {
-					state->busy = false;
-				}), crl::guard(box, [=](const QString &) {
+				// Dropping the last parked record fires the custody update
+				// that closes this emptied box from rebuild() before this
+				// callback runs, and with another box underneath that close
+				// destroys it at once, so the continuation is not guarded
+				// by the box. It runs only once no parked record is left,
+				// with more of them listed the box stays for the next one,
+				// and never after the user closed the box while the drop
+				// was still pending.
+				const auto weak = base::make_weak(box.get());
+				wallet->dropParked(key, [=] {
+					const auto resolved = !wallet->deviceCustodyState().conflict;
+					if (const auto strong = weak.get()) {
+						state->busy = false;
+						if (resolved && switched && strong->hasDelegate()) {
+							outcome->settled = true;
+							strong->closeBox();
+						}
+					}
+					if (resolved && switched && !outcome->cancelled) {
+						switched();
+					}
+				}, crl::guard(box, [=](const QString &) {
 					state->busy = false;
 					show->showToast(tr::lng_wallet_phrase_error(tr::now));
 				}));
@@ -9032,9 +9188,9 @@ void AddBackupSection(
 		if (*busy) {
 			return;
 		}
-		RunKeyRequiringAction(show, [=] {
+		RunKeyRequiringAction(show, crl::guard(box, [=] {
 			StartBackupDisable(show, box, busy);
-		}, KeyActionKind::Reveal);
+		}), KeyActionKind::Reveal);
 	});
 	const auto enable = container->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
@@ -9114,6 +9270,7 @@ void WalletKeysBackupBox(
 			WalletImportBox,
 			show,
 			WalletImportMode::Restore,
+			nullptr,
 			nullptr,
 			nullptr));
 	});
@@ -9980,14 +10137,11 @@ void Content::setupPinned() {
 		ShowWalletReceiveBox(&_show->session(), _show);
 	});
 	const auto send = addPill(tr::lng_send_button(), [=] {
-		const auto show = _show;
-		RunKeyRequiringAction(show, [=] {
-			show->showBox(Box(
-				WalletSendBox,
-				show,
-				std::optional<SendFlow>(),
-				nullptr));
-		});
+		_show->showBox(Box(
+			WalletSendBox,
+			_show,
+			std::optional<SendFlow>(),
+			nullptr));
 	});
 	buttons->widthValue(
 	) | rpl::on_next([=](int width) {
@@ -10465,12 +10619,13 @@ void Content::setupCustodyBar() {
 	const auto current = button->lifetime().make_state<Bar>(Bar::None);
 	button->setClickedCallback([=] {
 		if (*current == Bar::Conflict) {
-			_show->showBox(Box(WalletConflictBox, _show));
+			_show->showBox(Box(WalletConflictBox, _show, nullptr));
 		} else if (*current == Bar::ReadOnly) {
 			_show->showBox(Box(
 				WalletImportBox,
 				_show,
 				WalletImportMode::Restore,
+				nullptr,
 				nullptr,
 				nullptr));
 		}
@@ -11196,7 +11351,7 @@ void AcquireTransferCommentKey(
 		Fn<bool()> current,
 		rpl::lifetime &lifetime,
 		Fn<void(KeyAuthorization)> done) {
-	const auto context = std::make_shared<CommentKeyContext>(
+	const auto context = std::make_shared<KeyContext>(
 		std::move(show),
 		std::move(scope),
 		std::move(current),
@@ -11313,9 +11468,13 @@ void ShowTransferLink(
 		show->showToast(tr::lng_wallet_send_link_expired(tr::now));
 		return;
 	}
-	RunKeyRequiringAction(show, [=] {
-		show->showBox(Box(WalletSendBox, show, flow, nullptr));
-	});
+	show->showBox(Box(WalletSendBox, show, flow, nullptr));
+}
+
+void ShowWalletConflict(
+		std::shared_ptr<Main::SessionShow> show,
+		Fn<void()> switched) {
+	show->showBox(Box(WalletConflictBox, show, std::move(switched)));
 }
 
 void ShowSendToUser(
