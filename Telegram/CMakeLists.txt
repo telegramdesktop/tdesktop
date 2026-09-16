@@ -1996,6 +1996,8 @@ PRIVATE
     test/test_panel.h
     test/test_probe.cpp
     test/test_probe.h
+    test/test_rpc_fixture.cpp
+    test/test_rpc_fixture.h
     test/test_rpc_retry.cpp
     test/test_rpc_retry.h
     test/test_runner.cpp

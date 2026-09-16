@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_agent.h"
 #include "test/test_log.h"
 #include "test/test_probe.h"
+#include "test/test_rpc_fixture.h"
 #include "test/test_runner.h"
 
 #include <QtCore/QCoreApplication>
@@ -77,6 +78,9 @@ void AppendRpcRetrySelfTest(not_null<Runner*> runner) {
 		bool pendingNoneBefore = false;
 		bool done500 = false;
 		bool mainThread = false;
+		ControlledRpcDelivery delivered500;
+		ControlledRpcDelivery delivered400;
+		ControlledRpcDelivery deliveredOrphan;
 	};
 	// Leaked on purpose, the way the harness's other self-tests leak theirs:
 	// the stages outlive this call. The teardown stage releases the Sender,
@@ -102,13 +106,11 @@ void AppendRpcRetrySelfTest(not_null<Runner*> runner) {
 				= state->instance->hasCallback(state->id500);
 			state->mark500 = RpcRetryProbe().mark();
 
-			auto response = MTP::Response();
-			response.requestId = state->id500;
-			MTPRpcError(MTP_rpc_error(
-				MTP_int(500),
-				MTP_string("SELFTEST_UNAVAILABLE"))
-			).write(response.reply);
-			state->instance->processCallback(response);
+			state->delivered500 = DeliverControlledRpcError(
+				state->instance,
+				state->id500,
+				500,
+				u"SELFTEST_UNAVAILABLE"_q);
 
 			// Read in the same main-thread turn that delivered the answer:
 			// that reading is this call's thread-affinity evidence, not an
@@ -155,7 +157,10 @@ void AppendRpcRetrySelfTest(not_null<Runner*> runner) {
 				u"rpc retry self-test: the row names code 500 and the "
 				"request's own constructor id"_q);
 			Check(
-				state->pending500After,
+				state->pending500After
+					&& state->delivered500.invokedProcessCallback
+					&& (state->delivered500.route
+						== ControlledRpcDelivery::Route::Error),
 				u"rpc retry self-test: the 500'd request stays registered "
 				"for the delayed resend"_q,
 				reading);
@@ -175,13 +180,11 @@ void AppendRpcRetrySelfTest(not_null<Runner*> runner) {
 				= state->instance->hasCallback(state->id400);
 			state->mark400 = RpcRetryProbe().mark();
 
-			auto response = MTP::Response();
-			response.requestId = state->id400;
-			MTPRpcError(MTP_rpc_error(
-				MTP_int(400),
-				MTP_string("SELFTEST_BAD_REQUEST"))
-			).write(response.reply);
-			state->instance->processCallback(response);
+			state->delivered400 = DeliverControlledRpcError(
+				state->instance,
+				state->id400,
+				400,
+				u"SELFTEST_BAD_REQUEST"_q);
 
 			state->rows400 = RpcRetryProbe().rowsSince(state->mark400);
 			state->pending400After
@@ -209,7 +212,11 @@ void AppendRpcRetrySelfTest(not_null<Runner*> runner) {
 				u"rpc retry self-test: a non-500 answer records no retry "
 				"row"_q);
 			Check(
-				(state->failCode400 == 400) && !state->pending400After,
+				(state->failCode400 == 400)
+					&& !state->pending400After
+					&& state->delivered400.invokedProcessCallback
+					&& (state->delivered400.route
+						== ControlledRpcDelivery::Route::Error),
 				u"rpc retry self-test: the synthesized 400 reached the "
 				"request's .fail() and unregistered it"_q,
 				reading);
@@ -225,22 +232,31 @@ void AppendRpcRetrySelfTest(not_null<Runner*> runner) {
 			state->pendingNoneBefore
 				= state->instance->hasCallback(state->orphanId);
 
-			auto response = MTP::Response();
-			response.requestId = state->orphanId;
-			MTPRpcError(MTP_rpc_error(
-				MTP_int(500),
-				MTP_string("SELFTEST_ORPHAN"))
-			).write(response.reply);
-			state->instance->processCallback(response);
+			state->deliveredOrphan = DeliverControlledRpcError(
+				state->instance,
+				state->orphanId,
+				500,
+				u"SELFTEST_ORPHAN"_q);
 		},
 		.then = [=] {
 			Check(
-				!state->pendingNoneBefore,
+				!state->pendingNoneBefore
+					&& state->deliveredOrphan.invokedProcessCallback
+					&& !state->deliveredOrphan.registeredBefore
+					&& (state->deliveredOrphan.route
+						== ControlledRpcDelivery::Route::Error),
 				u"rpc retry self-test: the orphan request id was really "
 				"unknown to the instance"_q,
-				u"orphanId=%1 pendingBefore=%2"_q.arg(
+				u"orphanId=%1 pendingBefore=%2 invoked=%3 routeError=%4"_q.arg(
 					QString::number(state->orphanId),
-					state->pendingNoneBefore ? u"1"_q : u"0"_q));
+					state->pendingNoneBefore ? u"1"_q : u"0"_q,
+					state->deliveredOrphan.invokedProcessCallback
+						? u"1"_q
+						: u"0"_q,
+					(state->deliveredOrphan.route
+							== ControlledRpcDelivery::Route::Error)
+						? u"1"_q
+						: u"0"_q));
 			RpcRetryProbe().checkNoneSince(
 				state->markNone,
 				u"rpc retry "_q,
