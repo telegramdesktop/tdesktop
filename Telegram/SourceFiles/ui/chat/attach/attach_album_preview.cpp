@@ -128,6 +128,16 @@ void AlbumPreview::toggleSpoilers(bool enabled) {
 	}
 }
 
+void AlbumPreview::setSelectionMode(bool enabled) {
+	_selectionMode = enabled;
+}
+
+void AlbumPreview::setSelected(int index, bool selected) {
+	if (index >= 0 && index < _order.size()) {
+		_thumbs[_order[index]]->setSelected(selected);
+	}
+}
+
 std::vector<int> AlbumPreview::takeOrder() {
 	//Expects(_thumbs.size() == _order.size());
 	//Expects(_itemsShownDimensions.size() == _order.size());
@@ -184,12 +194,6 @@ void AlbumPreview::prepareThumbs(gsl::span<Ui::PreparedFile> items) {
 			this,
 			[=] { update(); },
 			[=](QRect rect) { update(rect); },
-			// Bound to the thumb that owns the button, not to whatever is
-			// under the cursor when the callback runs: editing is delayed by
-			// the ripple hide duration, and keyboard activation has no
-			// cursor over the thumb at all. Bound by pointer and not by
-			// index, because takeOrder() permutes _thumbs in place - so the
-			// slot this one was built in can hold another thumb later.
 			[=] { changeThumbByIndex(orderIndex(*self)); },
 			[=] { deleteThumbByIndex(orderIndex(*self)); }));
 		*self = _thumbs.back().get();
@@ -515,6 +519,10 @@ void AlbumPreview::mousePressEvent(QMouseEvent *e) {
 	const auto position = e->pos();
 	cancelDrag();
 	if (const auto thumb = findThumb(position)) {
+		if (selectingByClick(e, thumb)) {
+			_selectPressedThumb = thumb;
+			return;
+		}
 		_draggedStartPosition = position;
 		_pressedThumb = thumb;
 		_pressedButtonType = thumb->buttonTypeFromPoint(position);
@@ -615,6 +623,12 @@ void AlbumPreview::updateSuggestedDrag(QPoint position) {
 }
 
 void AlbumPreview::mouseReleaseEvent(QMouseEvent *e) {
+	if (const auto thumb = base::take(_selectPressedThumb)) {
+		if (e->button() == Qt::LeftButton && findThumb(e->pos()) == thumb) {
+			_thumbSelected.fire(orderIndex(thumb));
+		}
+		return;
+	}
 	if (_draggedThumb) {
 		finishDrag();
 		_shrinkAnimation.start(
@@ -633,6 +647,16 @@ void AlbumPreview::mouseReleaseEvent(QMouseEvent *e) {
 		}
 	}
 	_pressedButtonType = AttachButtonType::None;
+}
+
+bool AlbumPreview::selectingByClick(
+		QMouseEvent *e,
+		not_null<AlbumThumbnail*> thumb) const {
+	return !_sendWay.sendImagesAsPhotos()
+		&& thumb->selectable()
+		&& (e->button() == Qt::LeftButton)
+		&& (_selectionMode
+			|| e->modifiers().testFlag(Qt::ControlModifier));
 }
 
 void AlbumPreview::switchToDrag() {

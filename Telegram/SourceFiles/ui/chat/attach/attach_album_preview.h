@@ -39,6 +39,8 @@ public:
 	[[nodiscard]] base::flat_set<int> collectSpoileredIndices();
 	[[nodiscard]] bool canHaveSpoiler(int index) const;
 	void toggleSpoilers(bool enabled);
+	void setSelectionMode(bool enabled);
+	void setSelected(int index, bool selected);
 	[[nodiscard]] std::vector<int> takeOrder();
 
 	[[nodiscard]] rpl::producer<int> thumbDeleted() const {
@@ -49,6 +51,9 @@ public:
 	}
 	[[nodiscard]] rpl::producer<int> thumbModified() const {
 		return _thumbModified.events();
+	}
+	[[nodiscard]] rpl::producer<int> thumbSelected() const {
+		return _thumbSelected.events();
 	}
 	[[nodiscard]] rpl::producer<> orderUpdated() const {
 		return _orderUpdated.events();
@@ -81,6 +86,9 @@ private:
 		AttachButtonType type);
 
 	void switchToDrag();
+	[[nodiscard]] bool selectingByClick(
+		QMouseEvent *e,
+		not_null<AlbumThumbnail*> thumb) const;
 
 	void paintAlbum(Painter &p) const;
 	void paintPhotos(Painter &p, QRect clip) const;
@@ -113,6 +121,8 @@ private:
 	AlbumThumbnail *_suggestedThumb = nullptr;
 	AlbumThumbnail *_paintedAbove = nullptr;
 	AlbumThumbnail *_pressedThumb = nullptr;
+	AlbumThumbnail *_selectPressedThumb = nullptr;
+	bool _selectionMode = false;
 	QPoint _draggedStartPosition;
 
 	base::Timer _dragTimer;
@@ -121,6 +131,7 @@ private:
 	rpl::event_stream<int> _thumbDeleted;
 	rpl::event_stream<int> _thumbChanged;
 	rpl::event_stream<int> _thumbModified;
+	rpl::event_stream<int> _thumbSelected;
 	rpl::event_stream<> _orderUpdated;
 
 	mutable Animations::Simple _thumbsHeightAnimation;

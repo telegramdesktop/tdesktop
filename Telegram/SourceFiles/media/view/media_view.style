@@ -900,6 +900,14 @@ storiesComposeControls: ComposeControls(defaultComposeControls) {
 		}
 		buttonFileEdit: icon {{ "send_media/send_media_replace", storiesComposeGrayIcon }};
 		buttonFileDelete: icon {{ "send_media/send_media_delete", storiesComposeGrayIcon }};
+		selectCheck: RoundCheckbox(sendBoxFileSelectCheck) {
+			border: storiesComposeBg;
+			check: icon {{
+				"default_checkbox_check",
+				storiesComposeWhiteText,
+				point(3px, 6px)
+			}};
+		}
 		iconBg: storiesComposeBlue;
 		iconPlay: icon {{ "history_file_play", storiesComposeWhiteText }};
 		iconImage: icon {{ "history_file_image", storiesComposeWhiteText }};
