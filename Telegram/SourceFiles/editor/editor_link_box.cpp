@@ -24,6 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/abstract_button.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/effects/animations.h"
+#include "ui/effects/glare.h"
+#include "ui/effects/loading_element.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
@@ -43,6 +45,105 @@ namespace Editor {
 namespace {
 
 constexpr auto kResolveDelay = crl::time(700);
+constexpr auto kLoadingTitleRatio = 0.45;
+constexpr auto kLoadingLineRatios = std::array{ 0.32, 0.58, 0.86 };
+constexpr auto kGlareTimeout = crl::time(1000);
+constexpr auto kGlareDuration = crl::time(1000);
+
+[[nodiscard]] const style::palette &DefaultPalette(bool dark) {
+	static auto cache = std::array<std::unique_ptr<style::palette>, 2>();
+	auto &result = cache[dark ? 1 : 0];
+	if (!result) {
+		result = std::make_unique<style::palette>();
+		Window::Theme::PreparePaletteCallback(dark, std::nullopt)(*result);
+	}
+	return *result;
+}
+
+class LoadingMessage final : public Ui::LoadingElement {
+public:
+	LoadingMessage(const style::palette &palette, bool captionAbove);
+
+	[[nodiscard]] bool captionAbove() const;
+
+	[[nodiscard]] int height() const override;
+	void paint(QPainter &p, int width) override;
+
+private:
+	void paintCaption(QPainter &p, int inner);
+	void paintPreview(QPainter &p, int inner);
+
+	const style::palette &_palette;
+	Ui::LoadingLine _line;
+	bool _captionAbove = true;
+
+};
+
+LoadingMessage::LoadingMessage(
+	const style::palette &palette,
+	bool captionAbove)
+: _palette(palette)
+, _line(
+	st::photoEditorLinkLoadingLine,
+	st::photoEditorLinkLoadingSkip,
+	palette.windowBgRipple()->c)
+, _captionAbove(captionAbove) {
+}
+
+bool LoadingMessage::captionAbove() const {
+	return _captionAbove;
+}
+
+int LoadingMessage::height() const {
+	const auto padding = st::photoEditorLinkLoadingPadding;
+	const auto lines = 1 + int(kLoadingLineRatios.size());
+	return padding.top()
+		+ lines * _line.height()
+		- st::photoEditorLinkLoadingSkip
+		+ padding.bottom();
+}
+
+void LoadingMessage::paint(QPainter &p, int width) {
+	const auto radius = st::photoEditorLinkLoadingRadius;
+	p.setPen(Qt::NoPen);
+	p.setBrush(_palette.msgInBg()->c);
+	p.drawRoundedRect(QRect(0, 0, width, height()), radius, radius);
+
+	const auto padding = st::photoEditorLinkLoadingPadding;
+	const auto inner = width - padding.left() - padding.right();
+	p.translate(padding.left(), padding.top());
+	if (_captionAbove) {
+		paintCaption(p, inner);
+		paintPreview(p, inner);
+	} else {
+		paintPreview(p, inner);
+		paintCaption(p, inner);
+	}
+}
+
+void LoadingMessage::paintCaption(QPainter &p, int inner) {
+	_line.paint(p, int(inner * kLoadingTitleRatio));
+	p.translate(0, _line.height());
+}
+
+void LoadingMessage::paintPreview(QPainter &p, int inner) {
+	const auto quote = st::photoEditorLinkLoadingQuote;
+	const auto quoteSkip = quote + st::photoEditorLinkLoadingQuoteSkip;
+	const auto line = _line.height();
+	const auto lines = int(kLoadingLineRatios.size());
+	p.setPen(Qt::NoPen);
+	p.setBrush(_palette.windowBgRipple()->c);
+	p.drawRoundedRect(
+		QRect(0, 0, quote, lines * line - st::photoEditorLinkLoadingSkip),
+		quote / 2.,
+		quote / 2.);
+	p.translate(quoteSkip, 0);
+	for (const auto ratio : kLoadingLineRatios) {
+		_line.paint(p, int((inner - quoteSkip) * ratio));
+		p.translate(0, line);
+	}
+	p.translate(-quoteSkip, 0);
+}
 
 struct Resolved {
 	FullMsgId messageId;
@@ -210,6 +311,8 @@ public:
 
 	void setSource(std::shared_ptr<MessageSource> source, bool dark);
 	void setPill(const LinkPreview &link);
+	void setLoading(bool dark, bool captionAbove);
+	void clear();
 	[[nodiscard]] rpl::producer<> themeToggles() const;
 	[[nodiscard]] rpl::producer<> sourceRemovals() const;
 
@@ -218,6 +321,11 @@ private:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintFrame(QPainter &p);
 	void paintContent(QPainter &p);
+	void paintLoading(QPainter &p, QRectF plate);
+	void paintGlare(QPainter &p, QRectF plate, int radius);
+	void clearLoading();
+	void validateGlare();
+	[[nodiscard]] QSize loadingSize() const;
 	[[nodiscard]] QImage snapshot();
 	void beginTransition(bool radial, bool dark);
 	void scheduleRefresh();
@@ -235,10 +343,12 @@ private:
 	std::unique_ptr<MessageRenderer> _renderer;
 	std::optional<LinkPreview> _pillLink;
 	std::optional<LinkPill> _pill;
+	std::optional<LoadingMessage> _loading;
 	QImage _image;
 	QSize _size;
 	QImage _from;
 	Ui::Animations::Simple _progress;
+	Ui::GlareEffect _glare;
 	rpl::event_stream<> _themeToggles;
 	rpl::event_stream<> _sourceRemovals;
 	rpl::lifetime _sourceLifetime;
@@ -262,6 +372,9 @@ PreviewWidget::PreviewWidget(QWidget *parent)
 				LinkPill::DensityFor(innerWidth()),
 				innerWidth());
 			_size = _pill->size().toSize();
+		} else if (_loading) {
+			_size = loadingSize();
+			validateGlare();
 		}
 		applyHeight();
 	}, lifetime());
@@ -280,7 +393,50 @@ int PreviewWidget::innerWidth() const {
 }
 
 bool PreviewWidget::hasContent() const {
-	return !_size.isEmpty() && (!_image.isNull() || _pill.has_value());
+	return !_size.isEmpty()
+		&& (_loading || !_image.isNull() || _pill.has_value());
+}
+
+QSize PreviewWidget::loadingSize() const {
+	return QSize(innerWidth(), _loading->height());
+}
+
+void PreviewWidget::clearLoading() {
+	_loading.reset();
+	_glare.animation.stop();
+}
+
+void PreviewWidget::validateGlare() {
+	_glare.width = _size.width();
+	_glare.validate(
+		DefaultPalette(_dark).msgInBg()->c,
+		[=] { update(); },
+		kGlareTimeout,
+		kGlareDuration);
+}
+
+void PreviewWidget::setLoading(bool dark, bool captionAbove) {
+	if (_loading
+		&& (_dark == dark)
+		&& (_loading->captionAbove() == captionAbove)) {
+		return;
+	}
+	if (hasContent()) {
+		beginTransition(false, dark);
+	}
+	_dark = dark;
+	_loading.emplace(DefaultPalette(dark), captionAbove);
+	_sourceLifetime.destroy();
+	_source = nullptr;
+	_renderer = nullptr;
+	_image = QImage();
+	_pill.reset();
+	_pillLink.reset();
+	_size = loadingSize();
+	_theme->hide();
+	validateGlare();
+	applyHeight();
+	update();
 }
 
 void PreviewWidget::setSource(
@@ -290,6 +446,7 @@ void PreviewWidget::setSource(
 		beginTransition(_renderer && (_dark != dark), dark);
 	}
 	_dark = dark;
+	clearLoading();
 	_pill.reset();
 	_pillLink.reset();
 	_sourceLifetime.destroy();
@@ -311,6 +468,7 @@ void PreviewWidget::setPill(const LinkPreview &link) {
 		beginTransition(false, _dark);
 	}
 	_dark = link.dark;
+	clearLoading();
 	_sourceLifetime.destroy();
 	_source = nullptr;
 	_renderer = nullptr;
@@ -318,6 +476,23 @@ void PreviewWidget::setPill(const LinkPreview &link) {
 	_pillLink = link;
 	_pill.emplace(link, LinkPill::DensityFor(innerWidth()), innerWidth());
 	_size = _pill->size().toSize();
+	_theme->hide();
+	applyHeight();
+	update();
+}
+
+void PreviewWidget::clear() {
+	if (hasContent()) {
+		beginTransition(false, _dark);
+	}
+	clearLoading();
+	_sourceLifetime.destroy();
+	_source = nullptr;
+	_renderer = nullptr;
+	_image = QImage();
+	_pill.reset();
+	_pillLink.reset();
+	_size = QSize();
 	_theme->hide();
 	applyHeight();
 	update();
@@ -437,11 +612,44 @@ void PreviewWidget::paintContent(QPainter &p) {
 	const auto origin = QPointF(
 		(width() - size.width()) / 2.,
 		st::photoEditorLinkPreviewPadding);
-	if (_pill) {
+	if (_loading) {
+		paintLoading(p, QRectF(origin, size));
+	} else if (_pill) {
 		_pill->paint(p, origin, scale);
 	} else {
 		p.drawImage(QRectF(origin, size), _image);
 	}
+}
+
+void PreviewWidget::paintLoading(QPainter &p, QRectF plate) {
+	p.save();
+	p.translate(plate.topLeft());
+	_loading->paint(p, _size.width());
+	p.restore();
+	paintGlare(p, plate, st::photoEditorLinkLoadingRadius);
+}
+
+void PreviewWidget::paintGlare(QPainter &p, QRectF plate, int radius) {
+	if (!_glare.glare.birthTime) {
+		return;
+	}
+	const auto progress = _glare.progress(crl::now());
+	if (progress < 0. || progress > 1.) {
+		return;
+	}
+	const auto width = float64(_glare.width);
+	const auto shift = plate.x()
+		- width
+		+ (plate.width() + width * 2) * progress;
+	auto path = QPainterPath();
+	path.addRoundedRect(plate, radius, radius);
+	p.save();
+	p.setClipPath(path);
+	p.drawTiledPixmap(
+		QRectF(shift, plate.y(), width, plate.height()),
+		_glare.pixmap,
+		QPointF());
+	p.restore();
 }
 
 void PreviewWidget::paintFrame(QPainter &p) {
@@ -663,6 +871,7 @@ object_ptr<Ui::BoxContent> LinkBox(LinkBoxArgs &&args) {
 			const auto result = makeResult();
 			const auto message = result.message && !result.message->link();
 			const auto bubble = result.message && !message;
+			const auto loading = state->loading.current();
 			const auto webpage = state->resolved
 				? state->resolved->webpage
 				: nullptr;
@@ -670,10 +879,16 @@ object_ptr<Ui::BoxContent> LinkBox(LinkBoxArgs &&args) {
 				preview->entity()->setSource(result.message, result.dark);
 			} else if (result.pill) {
 				preview->entity()->setPill(*result.pill);
+			} else if (loading) {
+				preview->entity()->setLoading(
+					state->dark.current(),
+					state->captionAbove.current());
+			} else {
+				preview->entity()->clear();
 			}
-			const auto shown = result.message || result.pill;
+			const auto shown = result.message || result.pill || loading;
 			preview->toggle(shown, anim::type::normal);
-			options->toggle(shown, anim::type::normal);
+			options->toggle(shown && !loading, anim::type::normal);
 			above->toggle(bubble, anim::type::normal);
 			photo->toggle(bubble && HasPhoto(webpage), anim::type::normal);
 			previewRow->toggle(webpage != nullptr, anim::type::normal);
@@ -731,8 +946,8 @@ object_ptr<Ui::BoxContent> LinkBox(LinkBoxArgs &&args) {
 			state->resolved = std::nullopt;
 			state->resolver.cancel();
 			state->timer.cancel();
-			refreshPreview();
 			state->loading = !validated.isEmpty();
+			refreshPreview();
 			if (state->loading.current()) {
 				state->timer.callOnce(kResolveDelay);
 			}
