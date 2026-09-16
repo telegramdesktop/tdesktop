@@ -75,7 +75,7 @@ public:
 
 	bool takeThirdSectionFromLayer();
 
-	void handleStartFiles(QStringList interprets, QStringList paths);
+	void handleStartFiles(QStringList paths);
 
 	[[nodiscard]] bool contentOverlapped(const QRect &globalRect);
 	[[nodiscard]] bool contentOverlapped(QWidget *w, QPaintEvent *e) {

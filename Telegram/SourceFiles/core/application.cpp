@@ -1225,23 +1225,18 @@ void Application::checkStartUrls() {
 	if (!cRefStartUrls().isEmpty()
 		&& _lastActivePrimaryWindow
 		&& !_lastActivePrimaryWindow->locked()) {
-		auto interprets = QStringList();
 		auto paths = QStringList();
 		cRefStartUrls() = ranges::views::all(
 			cRefStartUrls()
 		) | ranges::views::filter([&](const QUrl &url) {
-			if (url.scheme() == u"interpret"_q) {
-				interprets.append(url.path());
-				return false;
-			} else if (url.isLocalFile()) {
+			if (url.isLocalFile()) {
 				paths.append(url.toLocalFile());
 				return false;
 			}
 			return true;
 		}) | ranges::to<QList<QUrl>>;
-		if (!interprets.isEmpty() || !paths.isEmpty()) {
+		if (!paths.isEmpty()) {
 			_lastActivePrimaryWindow->widget()->handleStartFiles(
-				std::move(interprets),
 				std::move(paths));
 		}
 	}
