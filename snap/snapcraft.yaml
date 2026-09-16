@@ -476,7 +476,7 @@ parts:
   tlottie:
     source: https://github.com/dkaraush/tlottie.git
     source-depth: 1
-    source-commit: 4b940c7942fbde8ee56f10f39a5224a4153bd91e
+    source-commit: 31f1b542f88e7b4be9a01e749920d857535fc715
     plugin: nil
     build-packages:
       - wget
