@@ -160,7 +160,7 @@ RUN <<EOF
 git init patches
 cd patches
 git remote add origin https://github.com/desktop-app/patches.git
-git fetch --depth=1 origin a00bc85caa2ca5decefff96ec39ed4e622d31937
+git fetch --depth=1 origin 519aaa084608fa6f9a2bfbd1959d133c44d94227
 git reset --hard FETCH_HEAD
 rm -rf .git
 EOF
@@ -1001,7 +1001,7 @@ cd ..
 rm -rf tde2e
 EOF
 
-FROM builder AS tlottie
+FROM patches AS tlottie
 RUN <<EOF
 RUST_TOOLCHAIN=1.96.1
 export RUSTUP_HOME=/usr/src/rustup
@@ -1017,6 +1017,7 @@ cd tlottie
 git remote add origin https://github.com/dkaraush/tlottie.git
 git fetch --depth=1 origin 31f1b542f88e7b4be9a01e749920d857535fc715
 git reset --hard FETCH_HEAD
+git apply ../patches/tlottie.patch
 cargo rustc --lib --release --locked \
 	--features c-api --crate-type staticlib \
 	--target x86_64-unknown-linux-gnu \

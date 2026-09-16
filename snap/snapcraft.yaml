@@ -123,7 +123,7 @@ parts:
   patches:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
-    source-commit: a00bc85caa2ca5decefff96ec39ed4e622d31937
+    source-commit: 519aaa084608fa6f9a2bfbd1959d133c44d94227
     plugin: nil
     override-pull: |
       craftctl default
@@ -480,6 +480,9 @@ parts:
     plugin: nil
     build-packages:
       - wget
+    override-pull: |
+      craftctl default
+      git apply "$CRAFT_STAGE/patches/tlottie.patch"
     override-build: |
       RUST_TOOLCHAIN=1.96.1
       export RUSTUP_HOME="$CRAFT_PART_BUILD/rustup"
@@ -498,6 +501,8 @@ parts:
       objcopy --strip-debug target/release/libtlottie.a "$LIBDIR/libtlottie.a"
       cp include/tlottie.h "$INCLUDEDIR/tlottie.h"
     prime: [-./*]
+    after:
+      - patches
 
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
