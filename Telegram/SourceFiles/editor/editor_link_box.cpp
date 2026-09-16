@@ -211,6 +211,7 @@ public:
 	void setSource(std::shared_ptr<MessageSource> source, bool dark);
 	void setPill(const LinkPreview &link);
 	[[nodiscard]] rpl::producer<> themeToggles() const;
+	[[nodiscard]] rpl::producer<> sourceRemovals() const;
 
 private:
 	void paintEvent(QPaintEvent *e) override;
@@ -239,6 +240,8 @@ private:
 	QImage _from;
 	Ui::Animations::Simple _progress;
 	rpl::event_stream<> _themeToggles;
+	rpl::event_stream<> _sourceRemovals;
+	rpl::lifetime _sourceLifetime;
 	int _heightFrom = 0;
 	int _heightTo = 0;
 	bool _radial = false;
@@ -268,6 +271,10 @@ rpl::producer<> PreviewWidget::themeToggles() const {
 	return _themeToggles.events();
 }
 
+rpl::producer<> PreviewWidget::sourceRemovals() const {
+	return _sourceRemovals.events();
+}
+
 int PreviewWidget::innerWidth() const {
 	return std::max(width() - 2 * st::photoEditorLinkPreviewPadding, 1);
 }
@@ -285,7 +292,12 @@ void PreviewWidget::setSource(
 	_dark = dark;
 	_pill.reset();
 	_pillLink.reset();
+	_sourceLifetime.destroy();
 	_source = std::move(source);
+	_source->removed(
+	) | rpl::on_next([=] {
+		_sourceRemovals.fire({});
+	}, _sourceLifetime);
 	_renderer = std::make_unique<MessageRenderer>(_source);
 	_renderer->setDark(dark);
 	_renderer->setRepaintCallback([=] { scheduleRefresh(); });
@@ -299,6 +311,7 @@ void PreviewWidget::setPill(const LinkPreview &link) {
 		beginTransition(false, _dark);
 	}
 	_dark = link.dark;
+	_sourceLifetime.destroy();
 	_source = nullptr;
 	_renderer = nullptr;
 	_image = QImage();
@@ -735,6 +748,11 @@ object_ptr<Ui::BoxContent> LinkBox(LinkBoxArgs &&args) {
 			refreshPreview();
 		}, box->lifetime());
 		url->changes() | rpl::on_next(check, url->lifetime());
+		preview->entity()->sourceRemovals(
+		) | rpl::on_next([=] {
+			state->url = QString();
+			check();
+		}, preview->lifetime());
 		check();
 
 		const auto submit = [=] {
