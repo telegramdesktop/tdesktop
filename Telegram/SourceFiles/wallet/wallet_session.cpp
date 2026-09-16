@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_onramp.h"
 #include "wallet/wallet_phrase_shares.h"
 #include "wallet/wallet_rates.h"
+#include "wallet/wallet_transfer_messages.h"
 #include "wallet/wallet_unlock.h"
 #include "wallet/wallet_user_addresses.h"
 #include "wallet/wallet_vault.h"
@@ -1178,6 +1179,14 @@ void FailShareFetch(
 	}
 }
 
+[[nodiscard]] engine::SendPhase PairedSendPhase(
+		engine::SendPhase phase,
+		bool paired) {
+	return (paired && phase == engine::SendPhase::kReplaced)
+		? engine::SendPhase::kSequenceNumberConsumed
+		: phase;
+}
+
 [[nodiscard]] SubmittedTransferProjection StoredTransferProjection(
 		const TransferItem &item) {
 	return SubmittedTransferProjection{
@@ -1731,6 +1740,7 @@ Session::Session(not_null<Main::Session*> session)
 , _rates(std::make_unique<Rates>(session))
 , _onramp(std::make_unique<Onramp>(session))
 , _userAddresses(std::make_unique<UserAddresses>(session))
+, _transferMessages(std::make_unique<TransferMessages>(session))
 , _stream(std::make_unique<Stream>(&_api, [=](StreamRefresh wanted) {
 	applyStreamRefresh(wanted);
 }))
@@ -1795,6 +1805,10 @@ Onramp &Session::onramp() {
 
 Rates &Session::rates() {
 	return *_rates;
+}
+
+TransferMessages &Session::transferMessages() {
+	return *_transferMessages;
 }
 
 UserAddresses &Session::userAddresses() {
@@ -7093,6 +7107,12 @@ void Session::send(
 				LOG(("Wallet Error: terminal transfer facts remain dirty."));
 			}
 			const auto submission = base::take(_submission);
+			if (submission
+				&& submission->rpcStarted
+				&& FailedTransferTerminal(StoredTransferTerminal(
+					PairedSendPhase(result.phase, paired)))) {
+				_transferMessages->dropSending(submission->draft);
+			}
 			// A pair refused before its broadcast started names an offer
 			// that expired under the confirmed operation, not the fee the
 			// user authorized for the normal variant.
@@ -7132,6 +7152,9 @@ void Session::send(
 			}
 		}
 		const auto submission = base::take(_submission);
+		if (submission && submission->rpcStarted) {
+			_transferMessages->dropSending(submission->draft);
+		}
 		auto failed = SendErrorFrom(error);
 		if (submission && submission->refusal) {
 			failed = *submission->refusal;
@@ -7287,6 +7310,8 @@ void Session::submitTransfer(
 	while (!randomId) {
 		randomId = base::RandomValue<uint64>();
 	}
+	const auto messageId = _transferMessages->create(prepared->args, randomId);
+	_submission->draft = messageId;
 	using Flag = MTPwallet_SendTransfer::Flag;
 	_stateApi.request(MTPwallet_SendTransfer(
 		MTP_flags(data.gasless ? Flag::f_data_gasless : Flag(0)),
@@ -7314,7 +7339,7 @@ void Session::submitTransfer(
 			return;
 		}
 		finish({ TransferSubmissionOutcome::Accepted });
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=, this](const MTP::Error &error) {
 		LOG(("Wallet Error: wallet.sendTransfer failed: %1"
 			).arg(error.type()));
 		const auto refusal = DefiniteTransferRefusal(error);
@@ -7324,6 +7349,7 @@ void Session::submitTransfer(
 		} else if (current()) {
 			_submission->refusal = *refusal;
 		}
+		_transferMessages->dropSending(messageId);
 		done({ TransferSubmissionOutcome::Rejected, error.type() });
 	}).handleAllErrors().send();
 }
@@ -8191,10 +8217,7 @@ void Session::applySendSnapshot(
 		// engine reads its own message as replaced; for a send that offered
 		// the alternative this is the ordinary outcome of the offer, and the
 		// receipt's message hash names the transaction that did execute.
-		const auto phase = (entry->paired
-			&& snapshot.phase == engine::SendPhase::kReplaced)
-			? engine::SendPhase::kSequenceNumberConsumed
-			: snapshot.phase;
+		const auto phase = PairedSendPhase(snapshot.phase, entry->paired);
 		entry->terminal = phase;
 		changed = true;
 		switch (phase) {
@@ -8256,6 +8279,12 @@ void Session::applySendSnapshot(
 	_submittedTransfersDirty = _submittedTransfersDirty || changed;
 	dropSubmittedIfListed();
 	if (settled) {
+		if (_submission
+			&& _submission->rpcStarted
+			&& FailedTransferTerminal(StoredTransferTerminal(
+				PairedSendPhase(snapshot.phase, _submission->paired)))) {
+			_transferMessages->dropSending(_submission->draft);
+		}
 		finishPending();
 	} else if (_sendUnresolved) {
 		retireCommentScopes();

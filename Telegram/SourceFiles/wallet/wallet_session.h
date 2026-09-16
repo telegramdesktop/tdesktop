@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_map.h"
 #include "base/timer.h"
 #include "core/core_cloud_password.h"
+#include "data/data_msg_id.h"
 #include "data/data_peer_id.h"
 #include "gram/api/gram_api_nft.h"
 #include "mtproto/sender.h"
@@ -46,6 +47,7 @@ class Onramp;
 class Rates;
 class Session;
 struct ShareFetch;
+class TransferMessages;
 struct TransferSubmissionAnswer;
 struct TransferSubmissionData;
 class UserAddresses;
@@ -638,6 +640,7 @@ public:
 
 	[[nodiscard]] Onramp &onramp();
 	[[nodiscard]] Rates &rates();
+	[[nodiscard]] TransferMessages &transferMessages();
 	[[nodiscard]] UserAddresses &userAddresses();
 
 	[[nodiscard]] Ui::SeparatePanel *panel() const;
@@ -927,6 +930,7 @@ private:
 	const std::unique_ptr<Rates> _rates;
 	const std::unique_ptr<Onramp> _onramp;
 	const std::unique_ptr<UserAddresses> _userAddresses;
+	const std::unique_ptr<TransferMessages> _transferMessages;
 	const std::unique_ptr<Stream> _stream;
 	base::Timer _pollTimer;
 	base::Timer _shareFetchTimer;
@@ -1025,6 +1029,7 @@ private:
 		std::shared_ptr<const PreparedSend> prepared;
 		std::optional<TransferReceipt> receipt;
 		std::optional<SendError> refusal;
+		FullMsgId draft;
 		bool paired = false;
 		bool normalFeeAuthorized = false;
 		bool rpcStarted = false;

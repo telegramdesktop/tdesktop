@@ -114,6 +114,7 @@ private:
 	};
 
 	[[nodiscard]] int resolveLayout(int outerWidth);
+	[[nodiscard]] QString tagText() const;
 	void validateMark() const;
 	void validateBadge() const;
 	void showDetails(const ClickContext &context);
@@ -123,7 +124,6 @@ private:
 	const QString _amount;
 	const QString _address;
 	const QString _identity;
-	const QString _tag;
 	Layout _layout;
 	mutable QImage _mark;
 	mutable QColor _markColor;
@@ -415,10 +415,18 @@ GramTransferCardPart::GramTransferCardPart(GramTransferOrigin origin)
 }))
 , _amount(SignedAmount(_origin.action.amount, _origin.action.outgoing))
 , _address(FriendlyAddress(_origin.action.address))
-, _identity(ReadableIdentity(_origin.view->data(), !_address.isEmpty()))
-, _tag((_origin.action.outgoing
-	? tr::lng_action_gram_transfer_sent_tag
-	: tr::lng_action_gram_transfer_received_tag)(tr::now)) {
+, _identity(ReadableIdentity(_origin.view->data(), !_address.isEmpty())) {
+}
+
+QString GramTransferCardPart::tagText() const {
+	if (!_origin.action.outgoing) {
+		return tr::lng_action_gram_transfer_received_tag(tr::now);
+	}
+	const auto view = _origin.view.get();
+	const auto sending = view && view->data()->isSending();
+	return (sending
+		? tr::lng_action_gram_transfer_sending_tag
+		: tr::lng_action_gram_transfer_sent_tag)(tr::now);
 }
 
 GramTransferCardPart::~GramTransferCardPart() {
@@ -467,7 +475,7 @@ int GramTransferCardPart::resolveLayout(int outerWidth) {
 	const auto available = std::max(cardWidth - 2 * inset, 1);
 	const auto &badgeFont = st::msgServiceGiftBoxBadgeFont;
 	const auto badgePadding = st::chatUniqueGiftBadgePadding;
-	_layout.badge = badgeFont->elided(_tag, std::max(
+	_layout.badge = badgeFont->elided(tagText(), std::max(
 		cardWidth - 2 * badgeFont->height
 			- badgePadding.left() - badgePadding.right(),
 		0));
