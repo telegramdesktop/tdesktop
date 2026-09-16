@@ -8820,5 +8820,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_folder_archive_failed" = "Failed to create archive.";
 "lng_folder_archive_status" = "ZIP archive";
+"lng_folder_archive_unpack" = "Unpack archive";
+"lng_folder_archive_pack" = "Pack into ZIP archive";
+"lng_folder_archive_pack_selected" = "Pack selected into ZIP archive";
+"lng_folder_archive_select" = "Select";
+"lng_folder_archive_deselect" = "Deselect";
 
 // Keys finished
