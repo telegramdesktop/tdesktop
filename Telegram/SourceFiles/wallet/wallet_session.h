@@ -338,6 +338,10 @@ struct SendArgs {
 	int64 amountNano = 0;
 	UserId userId;
 	SendComment comment;
+	// The recipient's Ed25519 public key, when Telegram named one for this
+	// destination. A private comment encrypts for it without the recipient's
+	// `get_public_key`, which a wallet that was never deployed cannot answer.
+	QByteArray recipientPublicKey;
 	bool bounce = true;
 
 	friend bool operator==(const SendArgs &, const SendArgs &) = default;

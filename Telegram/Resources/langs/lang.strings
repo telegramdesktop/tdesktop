@@ -8875,6 +8875,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_send_address_label" = "Address";
 "lng_wallet_send_amount_label" = "Amount";
 "lng_wallet_send_comment_placeholder" = "Comment (optional)";
+"lng_wallet_send_comment_public_placeholder" = "Public comment";
 "lng_wallet_comment_title" = "Add comment";
 "lng_wallet_comment_placeholder" = "Optional message";
 "lng_wallet_comment_make_public" = "Make comment public";

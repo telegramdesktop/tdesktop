@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/debug_log.h"
 #include "base/event_filter.h"
+#include "base/flat_set.h"
 #include "base/invoke_queued.h"
 #include "base/qthelp_url.h"
 #include "base/random.h"
@@ -3694,6 +3695,8 @@ struct SendQuoteDependencies {
 	QString destination;
 	SendComment comment;
 	DeviceCustodyState custody;
+	QByteArray recipientPublicKey;
+	UserId userId;
 	int64 amountNano = 0;
 	int64 balanceNano = 0;
 	int64 minTransferNano = 0;
@@ -3718,6 +3721,9 @@ struct SendQuote {
 
 struct SendDraft {
 	rpl::variable<SendComment> comment;
+	// False once the recipient is known to take plain comments only. It lives
+	// here because the comment editor outlives the box that opened it.
+	rpl::variable<bool> encryptable = true;
 	rpl::variable<std::optional<SendQuote>> quote;
 	rpl::variable<bool> preparing = false;
 	KeyAuthorization authorization;
@@ -3929,14 +3935,20 @@ void BindCommentField(
 void AddCommentPrivacy(
 		not_null<Ui::VerticalLayout*> container,
 		const std::shared_ptr<SendDraft> &draft,
-		const style::margins &margin) {
-	const auto checkbox = container->add(
-		object_ptr<Ui::Checkbox>(
+		const style::margins &margin,
+		rpl::producer<bool> encryptable) {
+	const auto choice = container->add(
+		object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
 			container,
-			tr::lng_wallet_comment_make_public(),
-			draft->comment.current().isPublic,
-			st::defaultBoxCheckbox),
-		margin);
+			object_ptr<Ui::Checkbox>(
+				container,
+				tr::lng_wallet_comment_make_public(),
+				draft->comment.current().isPublic,
+				st::defaultBoxCheckbox),
+			margin));
+	choice->toggleOn(std::move(encryptable));
+	choice->finishAnimating();
+	const auto checkbox = choice->entity();
 	checkbox->setAllowTextLines(0);
 	checkbox->checkedChanges() | rpl::on_next([=](bool checked) {
 		auto comment = draft->comment.current();
@@ -3989,7 +4001,8 @@ void AddCommentPrivacy(
 void WalletSendCommentBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<SendDraft> draft,
-		Fn<bool()> originValid) {
+		Fn<bool()> originValid,
+		rpl::producer<bool> encryptable) {
 	box->setWidth(st::boxWideWidth);
 	box->setTitle(tr::lng_wallet_comment_title());
 	const auto staged = std::make_shared<SendDraft>();
@@ -3999,7 +4012,8 @@ void WalletSendCommentBox(
 	AddCommentPrivacy(
 		box->verticalLayout(),
 		staged,
-		st::walletCommentPrivacyMargin);
+		st::walletCommentPrivacyMargin,
+		std::move(encryptable));
 
 	struct State {
 		bool closed = false;
@@ -4579,6 +4593,10 @@ void WalletSendBox(
 		base::unique_qptr<Ui::PopupMenu> menu;
 		base::weak_qptr<Ui::GenericBox> commentBox;
 		std::optional<TransferWalletIdentity> senderIdentity;
+		QByteArray recipientKey;
+		UserId recipientUserId;
+		base::flat_set<QString> plainOnly;
+		uint64 ownerRevision = 0;
 		uint64 previewRevision = 0;
 		uint64 loadRevision = 0;
 		base::Timer loadDeadline;
@@ -4697,7 +4715,11 @@ void WalletSendBox(
 						|| state->sending.current()) {
 						return;
 					}
-					auto editor = Box(WalletSendCommentBox, draft, originValid);
+					auto editor = Box(
+						WalletSendCommentBox,
+						draft,
+						originValid,
+						draft->encryptable.value());
 					const auto raw = editor.data();
 					state->commentBox = base::make_weak(raw);
 					raw->boxClosing() | rpl::on_next([=] {
@@ -4728,6 +4750,8 @@ void WalletSendBox(
 			.custody = validSession
 				? wallet->deviceCustodyState()
 				: DeviceCustodyState(),
+			.recipientPublicKey = state->recipientKey,
+			.userId = user ? userId : state->recipientUserId,
 			.amountNano = state->amount.current(),
 			.balanceNano = validSession ? wallet->balanceNano() : 0,
 			.minTransferNano = state->minTransfer.current(),
@@ -4982,6 +5006,29 @@ void WalletSendBox(
 			wallet->cancelFeeEstimate(previewOwner);
 		}
 	};
+	// A comment encrypts for a key Telegram named for the destination, or for
+	// the one the recipient's `get_public_key` answers. A wallet that was
+	// never deployed answers neither unless it belongs to a Telegram user, so
+	// when the engine refuses to encrypt for a destination, the box stops
+	// offering encryption for it and the comment becomes a public one. The
+	// send in flight stops there: a comment written to be private is never
+	// published by the press that was meant to encrypt it.
+	const auto switchToPlain = [=] {
+		if (!state->flow) {
+			return;
+		}
+		state->plainOnly.emplace(state->flow->destination);
+		draft->encryptable = false;
+		auto comment = draft->comment.current();
+		if (!comment.isPublic) {
+			comment.isPublic = true;
+			draft->comment = std::move(comment);
+		}
+	};
+	const auto recipientChanged = [=] {
+		draft->encryptable = !state->flow
+			|| !state->plainOnly.contains(state->flow->destination);
+	};
 	const auto prepareFee = [=](KeyAuthorization authorization) {
 		if (!originValid() || draft->preparing.current()) {
 			return;
@@ -5028,8 +5075,9 @@ void WalletSendBox(
 		const auto args = SendArgs{
 			.destination = dependencies.destination,
 			.amountNano = dependencies.amountNano,
-			.userId = userId,
+			.userId = dependencies.userId,
 			.comment = dependencies.comment,
+			.recipientPublicKey = dependencies.recipientPublicKey,
 			.bounce = dependencies.bounce,
 		};
 		const auto isPrivate = !args.comment.text.isEmpty()
@@ -5101,9 +5149,15 @@ void WalletSendBox(
 					case SendError::QuoteExpired:
 						drifted();
 						return;
+					case SendError::CommentEncryptionUnavailable:
+						if (!state->submitted) {
+							stopSending();
+						}
+						invalidateFee();
+						switchToPlain();
+						return;
 					case SendError::AmountTooSmall:
 					case SendError::CommentTooLong:
-					case SendError::CommentEncryptionUnavailable:
 					case SendError::InvalidRequest:
 					case SendError::PreviousUnresolved:
 					case SendError::AlreadySending:
@@ -5152,6 +5206,36 @@ void WalletSendBox(
 		if (state->sending.current() && !state->submitted) {
 			scheduleContinueSend();
 		}
+	};
+	// Telegram answers which user owns a typed address, with that user's
+	// public key. Such a send is a send to that user: it is attributed to
+	// them, its comment encrypts for the key they were named with, and it is
+	// never bounceable, because their wallet may not be deployed yet and a
+	// bounceable message to one is returned instead of delivered.
+	const auto resolveRecipientOwner = [=] {
+		state->recipientKey = QByteArray();
+		state->recipientUserId = UserId();
+		recipientChanged();
+		const auto revision = ++state->ownerRevision;
+		if (!state->flow) {
+			return;
+		}
+		const auto destination = state->flow->destination;
+		wallet->userAddresses().resolveOwner(
+			destination,
+			crl::guard(session, crl::guard(box, [=](AddressOwner owner) {
+				if (revision != state->ownerRevision
+					|| !state->flow
+					|| state->flow->destination != destination) {
+					return;
+				}
+				state->recipientKey = owner.publicKey;
+				state->recipientUserId = owner.userId;
+				if (owner.userId) {
+					state->flow->bounce = false;
+				}
+				refreshFee();
+			})));
 	};
 	state->fee = draft->quote.value() | rpl::map([](
 			const std::optional<SendQuote> &quote) {
@@ -5450,13 +5534,23 @@ void WalletSendBox(
 	const auto commentField = user ? nullptr : AddSendField(
 		inner,
 		st::walletSendCommentField,
-		tr::lng_wallet_send_comment_placeholder(),
+		rpl::combine(
+			draft->encryptable.value(),
+			tr::lng_wallet_send_comment_placeholder(),
+			tr::lng_wallet_send_comment_public_placeholder()
+		) | rpl::map([](bool encryptable, QString optional, QString plain) {
+			return encryptable ? optional : plain;
+		}),
 		draft->comment.current().text,
 		true).get();
 	if (commentField) {
 		ApplyCommentLimit(commentField);
 		BindCommentField(commentField, draft);
-		AddCommentPrivacy(inner, draft, st::walletSendCommentPrivacyMargin);
+		AddCommentPrivacy(
+			inner,
+			draft,
+			st::walletSendCommentPrivacyMargin,
+			draft->encryptable.value());
 	}
 
 	const auto restored = [=] {
@@ -5714,6 +5808,9 @@ void WalletSendBox(
 		state->flow->draft = draft;
 	}
 	state->expanded = initial.has_value();
+	if (!user) {
+		resolveRecipientOwner();
+	}
 	refreshFee();
 	if (recipientField) {
 		recipientField->changes() | rpl::on_next([=] {
@@ -5723,6 +5820,7 @@ void WalletSendBox(
 			const auto valid = state->flow.has_value();
 			state->invalid = !text.isEmpty() && !valid;
 			state->expanded = valid;
+			resolveRecipientOwner();
 			if (valid) {
 				const auto comment = state->flow->draft->comment.current();
 				state->flow->draft = draft;
@@ -5818,6 +5916,9 @@ void WalletSendBox(
 					}
 					flow->draft = draft;
 					state->flow = std::move(flow);
+					state->recipientKey
+						= wallet->userAddresses().publicKey(address);
+					recipientChanged();
 					state->expanded = true;
 					state->loadDeadline.cancel();
 					state->loading = false;

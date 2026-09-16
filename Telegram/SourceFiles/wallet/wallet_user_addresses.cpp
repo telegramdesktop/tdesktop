@@ -20,6 +20,7 @@ namespace Wallet {
 namespace {
 
 constexpr auto kUserAddressesPerRequest = 100;
+constexpr auto kPublicKeySize = 32;
 
 [[nodiscard]] std::vector<std::vector<UserId>> ChunkUserIds(
 		const std::vector<UserId> &ids) {
@@ -145,6 +146,7 @@ void UserAddresses::forceResolve(
 			return;
 		}
 		user->setGramAddressFromForce(address);
+		rememberKeys(reply);
 		if (done) {
 			done(address);
 		}
@@ -184,6 +186,62 @@ QString UserAddresses::forceResolveError(UserId id) const {
 	return QString();
 }
 
+void UserAddresses::resolveOwner(QString address, Fn<void(AddressOwner)> done) {
+	const auto canonical = CanonicalAddress(address);
+	if (canonical.isEmpty() || unavailable()) {
+		if (done) {
+			done({});
+		}
+		return;
+	}
+	const auto i = _owners.find(canonical);
+	if (i != end(_owners)) {
+		if (done) {
+			done(i->second);
+		}
+		return;
+	}
+	if (done) {
+		_ownerWaiting[canonical].push_back(std::move(done));
+	}
+	if (!_ownerRequested.emplace(canonical).second) {
+		return;
+	}
+	_api.request(MTPwallet_GetUserAddresses(
+		MTP_flags(0),
+		MTP_vector<MTPInputUser>(),
+		MTP_vector<MTPstring>(1, MTP_string(canonical))
+	)).done([=](const MTPVector<MTPWalletUserAddress> &result) {
+		rememberKeys(result.v);
+		auto owner = AddressOwner();
+		for (const auto &entry : result.v) {
+			const auto &data = entry.data();
+			if (CanonicalAddress(qs(data.vaddress())) != canonical) {
+				LOG(("Wallet Error: wallet.getUserAddresses answered about "
+					"an address, which was not asked about."));
+				continue;
+			}
+			owner = AddressOwner{
+				.userId = UserId(data.vuser_id()),
+				.address = canonical,
+				.publicKey = data.vpublic_key().v,
+			};
+		}
+		finishOwner(canonical, std::move(owner), true);
+	}).fail([=](const MTP::Error &error) {
+		if (error.type() == u"WALLET_UNAVAILABLE"_q) {
+			LOG(("Wallet Error: wallet.getUserAddresses is unavailable."));
+			_unavailable = true;
+		}
+		finishOwner(canonical, AddressOwner(), false);
+	}).send();
+}
+
+QByteArray UserAddresses::publicKey(const QString &address) const {
+	const auto i = _publicKeys.find(CanonicalAddress(address));
+	return (i != end(_publicKeys)) ? i->second : QByteArray();
+}
+
 UserAddress UserAddresses::known(UserId id) const {
 	const auto user = _session->data().userLoaded(id);
 	if (!user || !user->gramAddress()) {
@@ -220,6 +278,7 @@ void UserAddresses::sendChunk(
 		MTP_vector<MTPstring>()
 	)).done([=](const MTPVector<MTPWalletUserAddress> &result) {
 		applyChunk(ids, result.v);
+		rememberKeys(result.v);
 		finishChunk(job);
 	}).fail([=](const MTP::Error &error) {
 		if (error.type() == u"WALLET_UNAVAILABLE"_q) {
@@ -248,6 +307,43 @@ void UserAddresses::applyChunk(
 		if (user && !user->gramAddress()) {
 			user->setGramAddress(address);
 		}
+	}
+}
+
+// A key is public metadata about the address it comes with, and the engine
+// verifies that it derives that address before it encrypts anything with it,
+// so the newest answer simply wins for every address it names.
+void UserAddresses::rememberKeys(const QVector<MTPWalletUserAddress> &reply) {
+	for (const auto &entry : reply) {
+		const auto &data = entry.data();
+		const auto address = CanonicalAddress(qs(data.vaddress()));
+		const auto &key = data.vpublic_key().v;
+		if (address.isEmpty() || key.size() != kPublicKeySize) {
+			continue;
+		}
+		_publicKeys[address] = key;
+	}
+}
+
+void UserAddresses::finishOwner(
+		const QString &address,
+		AddressOwner owner,
+		bool cache) {
+	_ownerRequested.remove(address);
+	if (cache) {
+		_owners.emplace(address, owner);
+	}
+	const auto i = _ownerWaiting.find(address);
+	if (i == end(_ownerWaiting)) {
+		return;
+	}
+	// A failure is not remembered, so a callback may ask about the same
+	// address again and start a new request. Retire this wait list before
+	// answering, so that new one is not dropped with it.
+	auto waiting = std::move(i->second);
+	_ownerWaiting.erase(i);
+	for (const auto &done : waiting) {
+		done(owner);
 	}
 }
 

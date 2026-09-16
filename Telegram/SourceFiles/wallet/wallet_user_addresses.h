@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/flat_map.h"
+#include "base/flat_set.h"
 #include "data/data_peer_id.h"
 #include "mtproto/sender.h"
 #include "rpl/variable.h"
@@ -33,6 +35,14 @@ struct UserAddress {
 struct ForceResolveError {
 	QString type;
 	bool silent = false;
+};
+
+// The Telegram user an address belongs to. An empty |userId| means the
+// address belongs to no user this account may be told about.
+struct AddressOwner {
+	UserId userId = UserId();
+	QString address;
+	QByteArray publicKey;
 };
 
 class UserAddresses final {
@@ -67,6 +77,22 @@ public:
 		Fn<void(ForceResolveError)> fail);
 	[[nodiscard]] QString forceResolveError(UserId id) const;
 
+	// Asks Telegram which user owns |address|. |done| runs exactly once, with
+	// an empty owner when the address belongs to no user, when it cannot be
+	// asked about, or when the request fails — a caller cannot tell those
+	// apart, because none of them is an address it may treat as a user's.
+	// A named owner is remembered for the session and answers the next call
+	// for the same address before resolveOwner() returns, so a caller must
+	// tolerate a synchronous completion; a failure is not remembered.
+	// Destruction retires pending requests without running |done|.
+	void resolveOwner(QString address, Fn<void(AddressOwner)> done);
+
+	// The Ed25519 public key Telegram named for |address|, empty when no
+	// answer carried one. A comment encrypts for a key from here without the
+	// recipient's `get_public_key`, so it works for a wallet that was never
+	// deployed, and for any Telegram user's address.
+	[[nodiscard]] QByteArray publicKey(const QString &address) const;
+
 	// Unknown for an id no source has answered for, including one
 	// Data::Session cannot hand back, which is never sent. A chunk already
 	// in flight never overwrites an answer that landed after it was sent.
@@ -88,12 +114,18 @@ private:
 	void applyChunk(
 		const std::vector<UserId> &asked,
 		const QVector<MTPWalletUserAddress> &reply);
+	void rememberKeys(const QVector<MTPWalletUserAddress> &reply);
 	void finishChunk(const std::shared_ptr<Job> &job);
 	void finish(const std::shared_ptr<Job> &job);
+	void finishOwner(const QString &address, AddressOwner owner, bool cache);
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
 	rpl::variable<bool> _unavailable = false;
+	base::flat_map<QString, QByteArray> _publicKeys;
+	base::flat_map<QString, AddressOwner> _owners;
+	base::flat_map<QString, std::vector<Fn<void(AddressOwner)>>> _ownerWaiting;
+	base::flat_set<QString> _ownerRequested;
 
 };
 

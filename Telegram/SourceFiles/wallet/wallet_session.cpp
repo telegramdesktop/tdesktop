@@ -438,6 +438,16 @@ struct MergedHead {
 	};
 }
 
+[[nodiscard]] auto EngineKey(const QByteArray &key)
+-> std::optional<std::vector<uint8_t>> {
+	if (key.isEmpty()) {
+		return std::nullopt;
+	}
+	return std::vector<uint8_t>(
+		key.constData(),
+		key.constData() + key.size());
+}
+
 [[nodiscard]] engine::WalletDescriptor DescriptorFromRecord(
 		const CustodyRecord &record) {
 	return engine::WalletDescriptor{
@@ -6382,6 +6392,8 @@ void Session::startPreview() {
 					request.args.destination,
 					request.args.bounce).toStdString(),
 				.comment = request.args.comment.text.toUtf8().toStdString(),
+				.recipient_public_key = EngineKey(
+					request.args.recipientPublicKey),
 			};
 			_engine->run([client, encrypt = std::move(encrypt)] {
 				return client->create_encrypted_comment(encrypt);
