@@ -1195,6 +1195,12 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	};
 
 	_screenAudioControl = std::make_shared<Webrtc::MixingAudioControl>();
+	if (_screenWithAudio) {
+		_screenAudioControl->setLoopbackEnabled(true);
+		if (_muted.current()) {
+			_screenAudioControl->setMicrophoneMuted(true);
+		}
+	}
 	descriptor.createAudioDeviceModule
 		= Webrtc::MixingAudioDeviceModuleCreator(
 			Webrtc::AudioDeviceModuleCreator(saveSetDeviceIdCallback),
@@ -1246,8 +1252,8 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	}
 
 	const auto raw = _instance.get();
-	if (_muted.current()) {
-		raw->setMuteMicrophone(_muted.current());
+	if (_muted.current() && !_screenWithAudio) {
+		raw->setMuteMicrophone(true);
 	}
 
 	raw->setIncomingVideoOutput(_videoIncoming->sink());
