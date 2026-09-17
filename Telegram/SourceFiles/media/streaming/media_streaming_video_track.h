@@ -115,6 +115,12 @@ private:
 			crl::time addedWorldTimeDelay = 0;
 		};
 
+		explicit Shared(crl::time duration);
+
+		// Thread-safe.
+		[[nodiscard]] crl::time streamDuration() const;
+		void setStreamDuration(crl::time duration);
+
 		// Called from the wrapped object queue.
 		void init(QImage &&cover, bool hasAlpha, crl::time position);
 		[[nodiscard]] bool initialized() const;
@@ -155,6 +161,8 @@ private:
 		// (_counter % 2) == 0 crl::queue can read _delay.
 		crl::time _delay = kTimeUnknown;
 
+		std::atomic<crl::time> _streamDuration = 0;
+
 	};
 
 	static void PrepareFrameByRequests(
@@ -174,7 +182,6 @@ private:
 
 	const int _streamIndex = 0;
 	const AVRational _streamTimeBase;
-	const crl::time _streamDuration = 0;
 	const int _streamRotation = 0;
 	const AVRational _streamAspect = FFmpeg::kNormalAspect;
 	std::unique_ptr<Shared> _shared;

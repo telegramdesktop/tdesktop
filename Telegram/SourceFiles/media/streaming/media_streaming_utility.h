@@ -45,6 +45,7 @@ struct Stream {
 	FFmpeg::SwscalePointer swscale;
 };
 
+[[nodiscard]] crl::time FrameRealPosition(const Stream &stream);
 [[nodiscard]] crl::time FramePosition(const Stream &stream);
 [[nodiscard]] FFmpeg::AvErrorWrap ProcessPacket(
 	Stream &stream,

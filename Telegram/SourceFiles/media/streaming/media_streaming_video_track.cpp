@@ -160,7 +160,7 @@ private:
 	[[nodiscard]] int durationByPacket(const FFmpeg::Packet &packet);
 
 	// Force frame position to be clamped to [0, duration] and monotonic.
-	[[nodiscard]] crl::time currentFramePosition() const;
+	[[nodiscard]] crl::time currentFramePosition(crl::time real) const;
 
 	[[nodiscard]] TimePoint trackTime() const;
 
@@ -404,7 +404,17 @@ auto VideoTrackObject::readFrame(not_null<Frame*> frame) -> FrameResult {
 		fail(Error::InvalidData);
 		return FrameResult::Error;
 	}
-	const auto position = currentFramePosition();
+	// WHY: a short duration clamps every remaining frame onto one position,
+	// and inline playback keeps stale frames, so the tail plays as a burst.
+	const auto real = FrameRealPosition(_stream);
+	if (_stream.duration != kDurationUnavailable
+		&& real != kTimeUnknown
+		&& real != kFinishedPosition
+		&& real >= _stream.duration) {
+		_stream.duration = real + 1;
+		_shared->setStreamDuration(_stream.duration);
+	}
+	const auto position = currentFramePosition(real);
 	if (position == kTimeUnknown) {
 		fail(Error::InvalidData);
 		return FrameResult::Error;
@@ -760,19 +770,19 @@ bool VideoTrackObject::processFirstFrame() {
 	return true;
 }
 
-crl::time VideoTrackObject::currentFramePosition() const {
-	const auto position = FramePosition(_stream);
-	if (position == kTimeUnknown || position == kFinishedPosition) {
+crl::time VideoTrackObject::currentFramePosition(crl::time real) const {
+	if (real == kTimeUnknown || real == kFinishedPosition) {
 		return kTimeUnknown;
 	}
 	return _loopingShift + std::clamp(
-		position,
+		real,
 		crl::time(0),
 		computeDuration() - 1);
 }
 
 bool VideoTrackObject::fillStateFromFrame() {
-	const auto position = currentFramePosition();
+	const auto position = currentFramePosition(
+		FrameRealPosition(_stream));
 	if (position == kTimeUnknown) {
 		return false;
 	}
@@ -844,6 +854,18 @@ void VideoTrackObject::interrupt() {
 void VideoTrackObject::fail(Error error) {
 	interrupt();
 	_error(error);
+}
+
+VideoTrack::Shared::Shared(crl::time duration)
+: _streamDuration(duration) {
+}
+
+crl::time VideoTrack::Shared::streamDuration() const {
+	return _streamDuration.load(std::memory_order_relaxed);
+}
+
+void VideoTrack::Shared::setStreamDuration(crl::time duration) {
+	_streamDuration.store(duration, std::memory_order_relaxed);
 }
 
 void VideoTrack::Shared::init(
@@ -1149,10 +1171,9 @@ VideoTrack::VideoTrack(
 	Fn<void(Error)> error)
 : _streamIndex(stream.index)
 , _streamTimeBase(stream.timeBase)
-, _streamDuration(stream.duration)
 , _streamRotation(stream.rotation)
 , _streamAspect(stream.aspect)
-, _shared(std::make_unique<Shared>())
+, _shared(std::make_unique<Shared>(stream.duration))
 , _wrapped(
 	options,
 	_shared.get(),
@@ -1171,7 +1192,7 @@ AVRational VideoTrack::streamTimeBase() const {
 }
 
 crl::time VideoTrack::streamDuration() const {
-	return _streamDuration;
+	return _shared->streamDuration();
 }
 
 void VideoTrack::process(std::vector<FFmpeg::Packet> &&packets) {
