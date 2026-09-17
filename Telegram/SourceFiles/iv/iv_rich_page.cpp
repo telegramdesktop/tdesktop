@@ -2381,6 +2381,34 @@ std::shared_ptr<const RichPage> ParsePage(
 	return std::nullopt;
 }
 
+void CollectBlocksAudio(
+	const std::vector<Block> &blocks,
+	std::vector<not_null<DocumentData*>> &result);
+
+void CollectBlockAudio(
+		const Block &block,
+		std::vector<not_null<DocumentData*>> &result) {
+	if (RichBlockIsDocumentRow(block.kind)
+		&& RichDocumentIsAudio(block.document)) {
+		const auto document = not_null{ block.document };
+		if (!ranges::contains(result, document)) {
+			result.push_back(document);
+		}
+	}
+	CollectBlocksAudio(block.blocks, result);
+	for (const auto &item : block.listItems) {
+		CollectBlocksAudio(item.blocks, result);
+	}
+}
+
+void CollectBlocksAudio(
+		const std::vector<Block> &blocks,
+		std::vector<not_null<DocumentData*>> &result) {
+	for (const auto &block : blocks) {
+		CollectBlockAudio(block, result);
+	}
+}
+
 } // namespace
 
 std::vector<RichPage::Block> SplitGroupedMediaBlock(RichPage::Block block) {
@@ -2639,6 +2667,13 @@ TextWithEntities FlattenRichPageToSimpleText(const RichPage &page) {
 
 bool DetermineRichPageRtl(const RichPage &page) {
 	return BlocksTextRtl(page.blocks).value_or(false);
+}
+
+std::vector<not_null<DocumentData*>> CollectRichPageAudio(
+		const RichPage &page) {
+	auto result = std::vector<not_null<DocumentData*>>();
+	CollectBlocksAudio(page.blocks, result);
+	return result;
 }
 
 bool RichDocumentIsAudio(DocumentData *document) {

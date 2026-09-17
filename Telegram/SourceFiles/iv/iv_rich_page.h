@@ -358,6 +358,8 @@ inline constexpr auto kTextDiffDeletedColorIndex = 11;
 [[nodiscard]] TextWithEntities FlattenRichPageToSimpleText(
 	const RichPage &page);
 [[nodiscard]] bool DetermineRichPageRtl(const RichPage &page);
+[[nodiscard]] std::vector<not_null<DocumentData*>> CollectRichPageAudio(
+	const RichPage &page);
 [[nodiscard]] bool RichDocumentIsAudio(DocumentData *document);
 [[nodiscard]] bool RichBlockIsDocumentRow(RichPage::BlockKind kind);
 [[nodiscard]] bool RichBlockquoteIsCollapsible(const RichPage::Block &block);
