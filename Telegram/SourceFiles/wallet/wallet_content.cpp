@@ -5058,7 +5058,8 @@ void WalletSendBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
 		std::optional<SendFlow> initial,
-		UserData *user = nullptr) {
+		UserData *user = nullptr,
+		Fn<void()> sent = nullptr) {
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::giveawayGiftCodeBox);
 	if (user) {
@@ -6316,7 +6317,9 @@ void WalletSendBox(
 				if (!toast.isEmpty()) {
 					show->showToast(toast);
 				}
-				if (valid() && item) {
+				if (sent && error == SendError::None) {
+					sent();
+				} else if (valid() && item) {
 					ShowWalletTransactionBox(show, *item);
 				}
 			}));
@@ -10655,6 +10658,7 @@ void Content::setupPinned() {
 			WalletSendBox,
 			_show,
 			std::optional<SendFlow>(),
+			nullptr,
 			nullptr));
 	});
 	buttons->widthValue(
@@ -11996,7 +12000,7 @@ void ShowTransferLink(
 		show->showToast(tr::lng_wallet_send_link_expired(tr::now));
 		return;
 	}
-	show->showBox(Box(WalletSendBox, show, flow, nullptr));
+	show->showBox(Box(WalletSendBox, show, flow, nullptr, nullptr));
 }
 
 void ShowWalletConflict(
@@ -12030,7 +12034,8 @@ Fn<void()> ShowWalletBusyBox(
 
 void ShowSendToUser(
 		std::shared_ptr<Main::SessionShow> show,
-		not_null<UserData*> user) {
+		not_null<UserData*> user,
+		Fn<void()> sent) {
 	if (!show || !show->valid() || &show->session() != &user->session()) {
 		return;
 	}
@@ -12038,7 +12043,12 @@ void ShowSendToUser(
 	if (session->data().userLoaded(peerToUser(user->id)) != user) {
 		return;
 	}
-	show->showBox(Box(WalletSendBox, show, std::nullopt, user.get()));
+	show->showBox(Box(
+		WalletSendBox,
+		show,
+		std::nullopt,
+		user.get(),
+		std::move(sent)));
 }
 
 } // namespace Wallet

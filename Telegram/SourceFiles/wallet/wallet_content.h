@@ -62,9 +62,12 @@ void ShowTransferLink(
 	std::shared_ptr<Main::SessionShow> show,
 	const QString &url);
 
+// After a definite success |sent| runs in place of the transaction
+// details box; a caller that passes nothing keeps the details box.
 void ShowSendToUser(
 	std::shared_ptr<Main::SessionShow> show,
-	not_null<UserData*> user);
+	not_null<UserData*> user,
+	Fn<void()> sent = nullptr);
 
 // The box that lists the wallets parked on this device. Dropping one calls
 // switched, so the action that hit the conflict can run again.

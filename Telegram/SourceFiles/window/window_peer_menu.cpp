@@ -1724,9 +1724,20 @@ void Filler::addSendMoney() {
 		return;
 	}
 	const auto activated = std::make_shared<bool>(false);
+	const auto sent = [=] {
+		if (weakController
+			&& weakSession
+			&& &controller->session() == session
+			&& session->data().userLoaded(userId) == user) {
+			controller->showPeerHistory(
+				user,
+				SectionShow::Way::ClearStack,
+				ShowAtTheEndMsgId);
+		}
+	};
 	_addAction(tr::lng_wallet_profile_send_money(tr::now), [=] {
 		if (canOffer() && !std::exchange(*activated, true)) {
-			Wallet::ShowSendToUser(controller->uiShow(), user);
+			Wallet::ShowSendToUser(controller->uiShow(), user, sent);
 		}
 	}, &st::walletMenuIcon);
 }
