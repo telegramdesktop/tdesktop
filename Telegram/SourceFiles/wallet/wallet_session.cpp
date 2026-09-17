@@ -7169,7 +7169,7 @@ void Session::send(
 				&& submission->rpcStarted
 				&& FailedTransferTerminal(StoredTransferTerminal(
 					PairedSendPhase(result.phase, paired)))) {
-				_transferMessages->dropSending(submission->draft);
+				_transferMessages->failSending(submission->draft);
 			}
 			// A pair refused before its broadcast started names an offer
 			// that expired under the confirmed operation, not the fee the
@@ -7211,7 +7211,7 @@ void Session::send(
 		}
 		const auto submission = base::take(_submission);
 		if (submission && submission->rpcStarted) {
-			_transferMessages->dropSending(submission->draft);
+			_transferMessages->failSending(submission->draft);
 		}
 		auto failed = SendErrorFrom(error);
 		if (submission && submission->refusal) {
@@ -7418,7 +7418,7 @@ void Session::submitTransfer(
 		} else if (current()) {
 			_submission->refusal = *refusal;
 		}
-		_transferMessages->dropSending(messageId);
+		_transferMessages->failSending(messageId);
 		done({ TransferSubmissionOutcome::Rejected, error.type() });
 	}).handleAllErrors().send();
 }
@@ -8462,7 +8462,7 @@ void Session::applySendSnapshot(
 			&& _submission->rpcStarted
 			&& FailedTransferTerminal(StoredTransferTerminal(
 				PairedSendPhase(snapshot.phase, _submission->paired)))) {
-			_transferMessages->dropSending(_submission->draft);
+			_transferMessages->failSending(_submission->draft);
 		}
 		finishPending();
 	} else if (_sendUnresolved) {

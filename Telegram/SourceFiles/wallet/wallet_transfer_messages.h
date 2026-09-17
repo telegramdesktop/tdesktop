@@ -28,6 +28,7 @@ public:
 
 	[[nodiscard]] FullMsgId create(const SendArgs &args, uint64 randomId);
 	void dropSending(FullMsgId id);
+	void failSending(FullMsgId id);
 	[[nodiscard]] bool refusePairing(
 		not_null<HistoryItem*> item,
 		MsgId newId);
@@ -43,6 +44,7 @@ private:
 		MsgId floor;
 	};
 
+	[[nodiscard]] HistoryItem *forgetSending(FullMsgId id);
 	std::vector<Entry>::iterator forget(std::vector<Entry>::iterator i);
 	void settle(
 		not_null<HistoryItem*> item,

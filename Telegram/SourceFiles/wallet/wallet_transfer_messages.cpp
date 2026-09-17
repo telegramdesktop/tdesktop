@@ -143,16 +143,33 @@ void TransferMessages::settle(
 	item->addToMessagesIndex();
 }
 
-void TransferMessages::dropSending(FullMsgId id) {
+HistoryItem *TransferMessages::forgetSending(FullMsgId id) {
 	const auto i = ranges::find(_entries, id, &Entry::id);
 	if (i == end(_entries)) {
-		return;
+		return nullptr;
 	}
 	forget(i);
-	if (const auto item = _session->data().message(id)) {
-		if (item->isSending() && IsClientMsgId(item->id)) {
-			item->destroy();
-		}
+	const auto item = _session->data().message(id);
+	return (item && item->isSending() && IsClientMsgId(item->id))
+		? item
+		: nullptr;
+}
+
+void TransferMessages::dropSending(FullMsgId id) {
+	if (const auto item = forgetSending(id)) {
+		item->destroy();
+	}
+}
+
+void TransferMessages::failSending(FullMsgId id) {
+	if (const auto item = forgetSending(id)) {
+		item->sendFailed();
+		auto &owner = _session->data();
+		owner.requestItemViewRefresh(item);
+		// WHY: this verdict arrives from an MTP fail or an engine
+		// callback, not from applyUpdates, so nothing else flushes the
+		// pending refresh and the chat would stop repainting.
+		owner.sendHistoryChangeNotifications();
 	}
 }
 

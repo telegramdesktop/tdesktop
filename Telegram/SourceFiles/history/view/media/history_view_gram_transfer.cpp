@@ -73,6 +73,7 @@ struct GramTransferAction {
 	QString comment;
 	bool outgoing = false;
 	bool encrypted = false;
+	bool failed = false;
 
 	friend bool operator==(
 		const GramTransferAction &,
@@ -232,6 +233,7 @@ private:
 		.comment = transfer->comment,
 		.outgoing = item->out(),
 		.encrypted = transfer->commentEncrypted,
+		.failed = item->hasFailed(),
 	};
 }
 
@@ -334,6 +336,9 @@ private:
 	if (const auto message = session->data().message(action.itemId)) {
 		item.date = message->date();
 	}
+	if (action.failed) {
+		item.status = Wallet::TransferItem::Status::Failure;
+	}
 	if (item.id.isEmpty() || item.counterparty.isEmpty()) {
 		return result;
 	}
@@ -384,11 +389,19 @@ private:
 	};
 }
 
-[[nodiscard]] TransferTag ResolveTag(bool outgoing, bool sending) {
+[[nodiscard]] TransferTag ResolveTag(
+		bool outgoing,
+		bool sending,
+		bool failed) {
 	if (!outgoing) {
 		return {
 			.text = tr::lng_action_gram_transfer_received_tag(tr::now),
 			.bg = Wallet::CardDarkBlue(),
+		};
+	} else if (failed) {
+		return {
+			.text = tr::lng_action_gram_transfer_failed_tag(tr::now),
+			.bg = Info::PeerGifts::BurnedBadgeBg(),
 		};
 	} else if (sending) {
 		return {
@@ -525,7 +538,8 @@ int GramTransferCardPart::resolveLayout(int outerWidth) {
 	const auto view = _origin.view.get();
 	const auto tag = ResolveTag(
 		_origin.action.outgoing,
-		view && view->data()->isSending());
+		view && view->data()->isSending(),
+		_origin.action.failed);
 	_layout.badgeBg = tag.bg;
 	const auto &badgeFont = st::msgServiceGiftBoxBadgeFont;
 	const auto badgePadding = st::chatUniqueGiftBadgePadding;

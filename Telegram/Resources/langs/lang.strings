@@ -2681,6 +2681,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_gram_transfer_received_tag" = "received";
 "lng_action_gram_transfer_sent_tag" = "sent";
 "lng_action_gram_transfer_sending_tag" = "sending";
+"lng_action_gram_transfer_failed_tag" = "failed";
 "lng_action_gram_transfer_encrypted_comment" = "Encrypted comment";
 "lng_action_took_screenshot" = "{from} took a screenshot!";
 "lng_action_you_took_screenshot" = "You took a screenshot!";
