@@ -365,6 +365,9 @@ struct SendArgs {
 
 [[nodiscard]] QByteArray DecodeServerEncryptedComment(const QString &encoded);
 
+// The 32 hash bytes in base64 or hex, or nothing for another shape.
+[[nodiscard]] QByteArray TransactionHashFromServer(const QString &value);
+
 [[nodiscard]] std::vector<TransferItem> HistoryFromEngine(
 	const std::vector<wallet_engine::ActivityItem> &items,
 	std::optional<TransferWalletIdentity> identity = std::nullopt);

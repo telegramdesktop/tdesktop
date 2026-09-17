@@ -2171,6 +2171,8 @@ PRIVATE
     wallet/wallet_address.h
     wallet/wallet_api.cpp
     wallet/wallet_api.h
+    wallet/wallet_chat_show.cpp
+    wallet/wallet_chat_show.h
     wallet/wallet_collectible_media.cpp
     wallet/wallet_collectible_media.h
     wallet/wallet_collectibles.cpp

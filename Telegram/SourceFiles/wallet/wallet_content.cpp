@@ -90,6 +90,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "wallet/wallet_address.h"
+#include "wallet/wallet_chat_show.h"
 #include "wallet/wallet_collectible_media.h"
 #include "wallet/wallet_collectibles.h"
 #include "wallet/wallet_comment.h"
@@ -1996,7 +1997,7 @@ void AddFeeTableRow(
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		table,
 		std::move(value),
-		table->st().defaultValue,
+		st::walletDetailsFeeLabel,
 		st::defaultPopupMenu,
 		helper.context());
 	Ui::AddTableRow(
@@ -2011,33 +2012,66 @@ void AddFeeTableRow(
 			}).widget);
 }
 
+[[nodiscard]] bool CanOfferSendMoney(not_null<UserData*> user) {
+	const auto id = peerToUser(user->id);
+	return !user->isSelf()
+		&& user->session().wallet().userAddresses().forceResolveError(
+			id).isEmpty();
+}
+
+// Userpic and name leading to the chat, and a Send pill when they can be paid.
+[[nodiscard]] object_ptr<Ui::RpWidget> PeerCounterpartyValue(
+		not_null<Ui::GenericBox*> box,
+		not_null<Ui::TableLayout*> table,
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<PeerData*> peer) {
+	const auto chatShow = MakeChatShow(show, true);
+	const auto user = peer->asUser();
+	const auto offer = user && CanOfferSendMoney(user);
+	const auto weak = base::make_weak(box);
+	return Ui::MakePeerTableValue(
+		table,
+		chatShow,
+		peer->id,
+		offer ? tr::lng_wallet_details_send() : nullptr,
+		offer ? Fn<void()>([=] { ShowSendToUser(show, user); }) : nullptr,
+		[=] {
+			const auto window = chatShow->resolveWindow();
+			if (!window) {
+				return;
+			} else if (weak && weak->hasDelegate()) {
+				weak->closeBox();
+			}
+			window->showPeerHistory(peer);
+			window->window().activate();
+		});
+}
+
 void AddPeerCounterpartyRows(
 		not_null<Ui::GenericBox*> box,
 		not_null<Ui::TableLayout*> table,
+		std::shared_ptr<Main::SessionShow> show,
 		not_null<PeerData*> peer,
 		const TransferItem &item) {
 	const auto address = !item.counterparty.isEmpty()
 		? DetailsFriendlyAddress(item.counterparty)
 		: std::nullopt;
 	const auto domain = item.counterpartyName.trimmed();
-	const auto show = box->uiShow();
 	auto label = (item.incoming
 		? tr::lng_wallet_details_sender()
 		: tr::lng_wallet_details_recipient());
+	auto value = PeerCounterpartyValue(box, table, show, peer);
 	if (address && !domain.isEmpty()) {
-		auto value = object_ptr<Ui::VerticalLayout>(table);
-		value->add(object_ptr<Ui::FlatLabel>(
-			value.data(),
-			rpl::single(tr::marked(peer->name())),
-			table->st().defaultValue));
-		value->add(NameValueLabel(value.data(), show, domain, *address));
-		Ui::AddTableRow(table, std::move(label), std::move(value));
-	} else {
-		Ui::AddTableRow(
-			table,
-			std::move(label),
-			rpl::single(tr::marked(peer->name())));
+		auto wrap = object_ptr<Ui::VerticalLayout>(table);
+		wrap->add(std::move(value));
+		wrap->add(NameValueLabel(wrap.data(), show, domain, *address));
+		value = std::move(wrap);
 	}
+	Ui::AddTableRow(
+		table,
+		std::move(label),
+		std::move(value),
+		st::giveawayGiftCodePeerMargin);
 	if (address) {
 		Ui::AddTableRow(
 			table,
@@ -2049,9 +2083,10 @@ void AddPeerCounterpartyRows(
 void AddDetailsTable(
 		not_null<Ui::GenericBox*> box,
 		not_null<Ui::VerticalLayout*> container,
-		not_null<Main::Session*> session,
+		std::shared_ptr<Main::SessionShow> show,
 		const TransferItem &item,
 		DetailsFee fee) {
+	const auto session = &show->session();
 	const auto wrap = container->add(
 		object_ptr<Ui::PaddingWrap<Ui::TableLayout>>(
 			container,
@@ -2082,7 +2117,7 @@ void AddDetailsTable(
 			tr::lng_wallet_details_operation(),
 			tr::lng_wallet_details_key_change(tr::marked));
 	} else if (peer) {
-		AddPeerCounterpartyRows(box, table, peer, item);
+		AddPeerCounterpartyRows(box, table, show, peer, item);
 	} else if (!item.counterparty.isEmpty()) {
 		if (const auto address = DetailsFriendlyAddress(item.counterparty)) {
 			auto label = (item.incoming
@@ -3873,7 +3908,7 @@ void SetupIntroTooltip(
 
 void WalletTransactionBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Main::Session*> session,
+		std::shared_ptr<Main::SessionShow> show,
 		TransferItem item,
 		bool partial,
 		std::shared_ptr<CollectibleMedia> media,
@@ -3884,6 +3919,7 @@ void WalletTransactionBox(
 		box->closeBox();
 		return;
 	}
+	const auto session = &show->session();
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::walletDetailsBox);
 	box->setNoContentMargin(true);
@@ -3928,7 +3964,7 @@ void WalletTransactionBox(
 		style::margins());
 	const auto rebuild = [=](DetailsFee fee) {
 		details->clear();
-		AddDetailsTable(box, details, session, state->item, fee);
+		AddDetailsTable(box, details, show, state->item, fee);
 	};
 	rebuild(state->looking ? DetailsFee::Loading : DetailsFee::Known);
 	if (state->looking) {
@@ -3943,6 +3979,9 @@ void WalletTransactionBox(
 					if (originCurrent && !originCurrent()) {
 						return;
 					} else if (resolved.item) {
+						if (resolved.item->traceId.isEmpty()) {
+							resolved.item->traceId = state->item.traceId;
+						}
 						state->item = std::move(*resolved.item);
 						state->looking = false;
 						rebuild(DetailsFee::Known);
@@ -3963,7 +4002,6 @@ void WalletTransactionBox(
 	const auto toggle = box->addTopButton(st::boxTitleMenu);
 	const auto menu = box->lifetime().make_state<
 		base::unique_qptr<Ui::PopupMenu>>();
-	const auto show = box->uiShow();
 	toggle->setClickedCallback([=] {
 		if (*menu) {
 			return;
@@ -4875,8 +4913,7 @@ bool RecentMoneyRecipientsController::canOffer(
 	return active()
 		&& &user->session() == _session.get()
 		&& _session->data().userLoaded(id) == user
-		&& !user->isSelf()
-		&& _session->wallet().userAddresses().forceResolveError(id).isEmpty();
+		&& CanOfferSendMoney(user);
 }
 
 void RecentMoneyRecipientsController::watchUsers() {
@@ -11917,7 +11954,7 @@ void ShowTransactionDetails(
 	}
 	show->showBox(Box(
 		WalletTransactionBox,
-		&show->session(),
+		show,
 		std::move(item),
 		partial,
 		std::move(media),

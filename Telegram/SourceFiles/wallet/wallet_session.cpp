@@ -1311,43 +1311,6 @@ void SetDirectedAmount(
 	return result;
 }
 
-// The TL declares tx_hash as an unqualified string and states no encoding,
-// while ExplorerTransactionUrl() hexes whatever is stored here straight into
-// a URL path with no validation and no escaping. The shape is therefore
-// decided here, and a string of neither recognized shape stores nothing: an
-// empty traceId hides the explorer entry instead of pointing it at a hash
-// this client cannot be sure of. Base64 of 32 bytes is 43 or 44 characters
-// and can therefore never also be 64 hex digits, so the two tests cannot
-// collide and their order is a cheapness choice, not a correctness one.
-[[nodiscard]] QByteArray TransactionHashFromServer(const QString &value) {
-	constexpr auto kHashBytes = 32;
-	const auto latin = value.toLatin1();
-	const auto hex = (latin.size() == 2 * kHashBytes)
-		&& ranges::all_of(latin, [](char ch) {
-			return (ch >= '0' && ch <= '9')
-				|| (ch >= 'a' && ch <= 'f')
-				|| (ch >= 'A' && ch <= 'F');
-		});
-	if (hex) {
-		return QByteArray::fromHex(latin);
-	}
-	const auto decode = [&](QByteArray::Base64Option encoding) {
-		return QByteArray::fromBase64Encoding(
-			latin,
-			encoding | QByteArray::AbortOnBase64DecodingErrors);
-	};
-	auto standard = decode(QByteArray::Base64Encoding);
-	if (standard && (standard.decoded.size() == kHashBytes)) {
-		return std::move(standard.decoded);
-	}
-	auto url = decode(QByteArray::Base64UrlEncoding);
-	if (url && (url.decoded.size() == kHashBytes)) {
-		return std::move(url.decoded);
-	}
-	LOG(("Wallet Error: wallet.getTransactions sent an unusable tx_hash."));
-	return QByteArray();
-}
-
 [[nodiscard]] TransferItem HistoryItemFromServer(
 		const MTPWalletTransaction &item,
 		const std::optional<TransferWalletIdentity> &identity) {
@@ -1473,6 +1436,43 @@ void SetDirectedAmount(
 }
 
 } // namespace
+
+// The TL declares tx_hash as an unqualified string and states no encoding,
+// while ExplorerTransactionUrl() hexes whatever is stored here straight into
+// a URL path with no validation and no escaping. The shape is therefore
+// decided here, and a string of neither recognized shape stores nothing: an
+// empty traceId hides the explorer entry instead of pointing it at a hash
+// this client cannot be sure of. Base64 of 32 bytes is 43 or 44 characters
+// and can therefore never also be 64 hex digits, so the two tests cannot
+// collide and their order is a cheapness choice, not a correctness one.
+QByteArray TransactionHashFromServer(const QString &value) {
+	constexpr auto kHashBytes = 32;
+	const auto latin = value.toLatin1();
+	const auto hex = (latin.size() == 2 * kHashBytes)
+		&& ranges::all_of(latin, [](char ch) {
+			return (ch >= '0' && ch <= '9')
+				|| (ch >= 'a' && ch <= 'f')
+				|| (ch >= 'A' && ch <= 'F');
+		});
+	if (hex) {
+		return QByteArray::fromHex(latin);
+	}
+	const auto decode = [&](QByteArray::Base64Option encoding) {
+		return QByteArray::fromBase64Encoding(
+			latin,
+			encoding | QByteArray::AbortOnBase64DecodingErrors);
+	};
+	auto standard = decode(QByteArray::Base64Encoding);
+	if (standard && (standard.decoded.size() == kHashBytes)) {
+		return std::move(standard.decoded);
+	}
+	auto url = decode(QByteArray::Base64UrlEncoding);
+	if (url && (url.decoded.size() == kHashBytes)) {
+		return std::move(url.decoded);
+	}
+	LOG(("Wallet Error: Unusable transaction hash: %1").arg(value));
+	return QByteArray();
+}
 
 QByteArray DecodeServerEncryptedComment(const QString &encoded) {
 	constexpr auto kMinBytes = 64;
@@ -5626,10 +5626,12 @@ void Session::resolveTransaction(
 		_session->data().processUsers(data.vusers());
 		_session->data().processChats(data.vchats());
 		auto list = HistoryFromServer(data.vtransactions().v, identity);
-		const auto i = ranges::find(list, id, &TransferItem::id);
+		// WHY: the id a message carries is the transfer's trace id, while
+		// the served row is named by its own lt:hash, so an answer to one
+		// id is its only row, and anything else names no transaction.
 		if (done) {
-			done({ .item = (i != end(list))
-				? std::make_optional(std::move(*i))
+			done({ .item = (list.size() == 1)
+				? std::make_optional(std::move(list.front()))
 				: std::nullopt });
 		}
 	}).fail([=](const MTP::Error &error) {

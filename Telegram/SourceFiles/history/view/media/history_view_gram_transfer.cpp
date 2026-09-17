@@ -276,6 +276,11 @@ private:
 	auto &item = result.item;
 	item.source = Wallet::TransferItem::Source::Server;
 	item.id = action.transactionId;
+	// The id is the root of the transfer's trace, which the explorer shows.
+	if (!action.transactionId.isEmpty()) {
+		item.traceId = Wallet::TransactionHashFromServer(
+			action.transactionId);
+	}
 	item.incoming = !action.outgoing;
 	item.amountNano = (action.amount < 0
 		&& action.amount != std::numeric_limits<int64>::min())

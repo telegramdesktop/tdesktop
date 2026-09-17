@@ -239,10 +239,10 @@ walletConflictBox: Box(defaultBox) {
 }
 walletConflictBoxTopSkip: 14px;
 walletDetailsTable: Table(giveawayGiftCodeTable) {
-	defaultValue: FlatLabel(defaultTableValue) {
-		palette: TextPalette(defaultTextPalette) {
-			linkFg: windowSubTextFg;
-		}
+}
+walletDetailsFeeLabel: FlatLabel(defaultTableValue) {
+	palette: TextPalette(defaultTextPalette) {
+		linkFg: windowSubTextFg;
 	}
 }
 walletDetailsAmountMajorLabel: FlatLabel(defaultFlatLabel) {

@@ -148,7 +148,8 @@ object_ptr<RpWidget> MakePeerTableValue(
 		std::shared_ptr<ChatHelpers::Show> show,
 		PeerId id,
 		rpl::producer<QString> button,
-		Fn<void()> handler) {
+		Fn<void()> handler,
+		Fn<void()> clicked) {
 	auto result = object_ptr<AbstractButton>(table);
 	const auto raw = result.data();
 
@@ -182,9 +183,9 @@ object_ptr<RpWidget> MakePeerTableValue(
 			table->st().defaultValue.palette.linkFg->c);
 	}, label->lifetime());
 
-	raw->setClickedCallback([=] {
+	raw->setClickedCallback(clicked ? std::move(clicked) : Fn<void()>([=] {
 		show->showBox(PrepareShortInfoBox(peer, show));
-	});
+	}));
 
 	if (!button || !handler) {
 		return result;

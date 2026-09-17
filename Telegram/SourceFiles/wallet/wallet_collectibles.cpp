@@ -7,32 +7,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "wallet/wallet_collectibles.h"
 
-#include "chat_helpers/compose/compose_show.h"
 #include "core/local_url_handlers.h"
-#include "data/data_file_origin.h"
 #include "data/data_star_gift.h"
 #include "gram/api/gram_api_nft.h"
 #include "lang/lang_keys.h"
 #include "main/session/session_show.h"
 #include "main/main_session.h"
-#include "menu/menu_send_details.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
-#include "ui/delayed_activation.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
+#include "wallet/wallet_chat_show.h"
 #include "wallet/wallet_collectible_media.h"
 #include "wallet/wallet_session.h"
 
 #include "styles/style_giveaway.h"
 #include "styles/style_layers.h"
 #include "styles/style_wallet.h"
-
-#include <rpl/never.h>
 
 namespace Wallet {
 namespace {
@@ -60,44 +55,6 @@ protected:
 private:
 	Ui::Text::String _title;
 	Fn<void(Painter&, QRect)> _paintThumb;
-
-};
-
-class PanelChatShow final : public ChatHelpers::Show {
-public:
-	explicit PanelChatShow(std::shared_ptr<Main::SessionShow> show);
-
-	void showOrHideBoxOrLayer(
-		std::variant<
-			v::null_t,
-			object_ptr<Ui::BoxContent>,
-			std::unique_ptr<Ui::LayerWidget>> &&layer,
-		Ui::LayerOptions options,
-		anim::type animated) const override;
-	[[nodiscard]] not_null<QWidget*> toastParent() const override;
-	[[nodiscard]] bool valid() const override;
-	operator bool() const override;
-
-	[[nodiscard]] Main::Session &session() const override;
-	[[nodiscard]] Window::SessionController *resolveWindow() const override;
-	[[nodiscard]] bool canResolveWindow() const override;
-
-	void activate() override;
-	[[nodiscard]] bool paused(
-		ChatHelpers::PauseReason reason) const override;
-	[[nodiscard]] rpl::producer<> pauseChanged() const override;
-	[[nodiscard]] SendMenu::Details sendMenuDetails() const override;
-	bool showMediaPreview(
-		Data::FileOrigin origin,
-		not_null<DocumentData*> document) const override;
-	bool showMediaPreview(
-		Data::FileOrigin origin,
-		not_null<PhotoData*> photo) const override;
-	void processChosenSticker(
-		ChatHelpers::FileChosen &&chosen) const override;
-
-private:
-	const std::shared_ptr<Main::SessionShow> _show;
 
 };
 
@@ -175,77 +132,6 @@ void CollectibleRow::paintEvent(QPaintEvent *e) {
 		.palette = &st::walletCollectibleTitlePalette,
 		.elisionLines = 1,
 	});
-}
-
-PanelChatShow::PanelChatShow(std::shared_ptr<Main::SessionShow> show)
-: _show(std::move(show)) {
-}
-
-void PanelChatShow::showOrHideBoxOrLayer(
-		std::variant<
-			v::null_t,
-			object_ptr<Ui::BoxContent>,
-			std::unique_ptr<Ui::LayerWidget>> &&layer,
-		Ui::LayerOptions options,
-		anim::type animated) const {
-	_show->showOrHideBoxOrLayer(std::move(layer), options, animated);
-}
-
-not_null<QWidget*> PanelChatShow::toastParent() const {
-	return _show->toastParent();
-}
-
-bool PanelChatShow::valid() const {
-	return _show->valid();
-}
-
-PanelChatShow::operator bool() const {
-	return valid();
-}
-
-Main::Session &PanelChatShow::session() const {
-	return _show->session();
-}
-
-Window::SessionController *PanelChatShow::resolveWindow() const {
-	return nullptr;
-}
-
-bool PanelChatShow::canResolveWindow() const {
-	return false;
-}
-
-void PanelChatShow::activate() {
-	if (_show->valid()) {
-		Ui::ActivateWindow(_show->toastParent());
-	}
-}
-
-bool PanelChatShow::paused(ChatHelpers::PauseReason) const {
-	return !_show->valid();
-}
-
-rpl::producer<> PanelChatShow::pauseChanged() const {
-	return rpl::never<>();
-}
-
-SendMenu::Details PanelChatShow::sendMenuDetails() const {
-	return { SendMenu::Type::Disabled };
-}
-
-bool PanelChatShow::showMediaPreview(
-		Data::FileOrigin,
-		not_null<DocumentData*>) const {
-	return false;
-}
-
-bool PanelChatShow::showMediaPreview(
-		Data::FileOrigin,
-		not_null<PhotoData*>) const {
-	return false;
-}
-
-void PanelChatShow::processChosenSticker(ChatHelpers::FileChosen &&) const {
 }
 
 [[nodiscard]] rpl::producer<QString> CollectibleAboutText(
@@ -337,7 +223,7 @@ void Activate(
 		const auto weak = std::weak_ptr(media);
 		const auto address = item.address;
 		Core::ResolveAndShowUniqueGift(
-			std::make_shared<PanelChatShow>(show),
+			MakeChatShow(show, false),
 			item.key,
 			[=](const QString &) {
 				const auto strong = weak.lock();
