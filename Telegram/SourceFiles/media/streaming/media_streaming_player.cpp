@@ -575,8 +575,13 @@ crl::time Player::loadInAdvanceFor() const {
 }
 
 crl::time Player::computeTotalDuration() const {
+	const auto video = _video
+		? _video->streamDuration()
+		: kDurationUnavailable;
 	if (_totalDuration != kDurationUnavailable) {
-		return _totalDuration;
+		return (video == kDurationUnavailable)
+			? _totalDuration
+			: std::max(_totalDuration, video);
 	} else if (const auto byPackets = _durationByPackets.load()) {
 		return byPackets;
 	}
