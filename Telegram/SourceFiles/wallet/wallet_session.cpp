@@ -7314,6 +7314,12 @@ void Session::submitTransfer(
 	}
 	const auto messageId = _transferMessages->create(prepared->args, randomId);
 	_submission->draft = messageId;
+	DEBUG_LOG(("Wallet Info: wallet.sendTransfer data_normal: %1"
+		).arg(QString::fromLatin1(data.normal.toBase64())));
+	if (data.gasless) {
+		DEBUG_LOG(("Wallet Info: wallet.sendTransfer data_gasless: %1"
+			).arg(QString::fromLatin1(data.gasless->toBase64())));
+	}
 	using Flag = MTPwallet_SendTransfer::Flag;
 	_stateApi.request(MTPwallet_SendTransfer(
 		MTP_flags(data.gasless ? Flag::f_data_gasless : Flag(0)),
@@ -7325,6 +7331,11 @@ void Session::submitTransfer(
 		const auto finish = done;
 		const auto sent = SentUpdateFromServer(result);
 		const auto receipt = sent ? ReceiptFromServer(*sent) : std::nullopt;
+		if (receipt) {
+			DEBUG_LOG(("Wallet Info: wallet.sendTransfer accepted, gasless: %1, "
+				"msg_hash: %2").arg(Logs::b(receipt->gasless)).arg(
+					QString::fromLatin1(receipt->messageHash.toBase64())));
+		}
 		auto accepted = receipt.has_value();
 		if (accepted && weak) {
 			accepted = bindTransferReceipt(operationId, prepared, *sent);

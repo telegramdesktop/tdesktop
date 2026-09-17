@@ -2012,14 +2012,7 @@ void AddFeeTableRow(
 			}).widget);
 }
 
-[[nodiscard]] bool CanOfferSendMoney(not_null<UserData*> user) {
-	const auto id = peerToUser(user->id);
-	return !user->isSelf()
-		&& user->session().wallet().userAddresses().forceResolveError(
-			id).isEmpty();
-}
-
-// Userpic and name leading to the chat, and a Send pill when they can be paid.
+// Userpic and name leading to the chat, and a Send pill for any user.
 [[nodiscard]] object_ptr<Ui::RpWidget> PeerCounterpartyValue(
 		not_null<Ui::GenericBox*> box,
 		not_null<Ui::TableLayout*> table,
@@ -2027,7 +2020,7 @@ void AddFeeTableRow(
 		not_null<PeerData*> peer) {
 	const auto chatShow = MakeChatShow(show, true);
 	const auto user = peer->asUser();
-	const auto offer = user && CanOfferSendMoney(user);
+	const auto offer = user && !user->isSelf();
 	const auto weak = base::make_weak(box);
 	return Ui::MakePeerTableValue(
 		table,
@@ -4913,7 +4906,8 @@ bool RecentMoneyRecipientsController::canOffer(
 	return active()
 		&& &user->session() == _session.get()
 		&& _session->data().userLoaded(id) == user
-		&& CanOfferSendMoney(user);
+		&& !user->isSelf()
+		&& _session->wallet().userAddresses().forceResolveError(id).isEmpty();
 }
 
 void RecentMoneyRecipientsController::watchUsers() {

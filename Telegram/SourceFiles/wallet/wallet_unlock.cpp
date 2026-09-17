@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/button_busy.h"
 #include "ui/layers/generic_box.h"
+#include "ui/vertical_list.h"
 #include "ui/widgets/fields/password_input.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
@@ -99,9 +100,10 @@ void HardwareUnlockBox(
 		object_ptr<Ui::Checkbox>(
 			box,
 			tr::lng_wallet_passcode_remember(tr::now),
-			false,
+			true,
 			st::defaultBoxCheckbox),
 		st::walletPasscodeCheckboxMargin);
+	Ui::AddSkip(box->verticalLayout());
 	const auto report = [=](VaultAuthorization grant) {
 		state->reported = true;
 		box->closeBox();
@@ -676,10 +678,13 @@ void WalletPasscodeBox(
 			object_ptr<Ui::Checkbox>(
 				box,
 				tr::lng_wallet_passcode_remember(tr::now),
-				false,
+				true,
 				st::defaultBoxCheckbox),
 			st::walletPasscodeCheckboxMargin)
 		: nullptr;
+	if (remember) {
+		Ui::AddSkip(box->verticalLayout());
+	}
 	QObject::connect(field, &Ui::MaskedInputField::changed, [=] {
 		error->hide();
 	});
