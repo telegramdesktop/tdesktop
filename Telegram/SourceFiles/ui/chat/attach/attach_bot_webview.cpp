@@ -1903,9 +1903,9 @@ void Panel::requestExternalShellButtonEmoji(const QString &name) {
 		.customEmojiId = state->args.iconCustomEmojiId,
 		.textColor = state->textColor,
 		// Custom emoji take a logical size, rasterize them as other assets.
-		.size = qCeil(kExternalShellButtonIconSize
+		.size = int(std::ceil(kExternalShellButtonIconSize
 			* ExternalShellAssetRatio()
-			/ double(style::DevicePixelRatio())),
+			/ double(style::DevicePixelRatio()))),
 		.callback = std::move(send),
 	});
 }
