@@ -368,6 +368,12 @@ void EditPriceBox(
 		: file.isSticker();
 }
 
+[[nodiscard]] bool SkipFieldCaption(
+		const Ui::PreparedFile &captioned,
+		const Ui::SendFilesWay &way) {
+	return captioned.isSticker() && !way.sendImagesAsPhotos();
+}
+
 } // namespace
 
 SendFilesLimits DefaultLimitsForPeer(not_null<PeerData*> peer) {
@@ -2577,6 +2583,9 @@ void SendFilesBox::send(
 		&& ranges::any_of(_list.files, &Ui::PreparedFile::ttlSeconds)) {
 		showToast(tr::lng_ttl_no_schedule(tr::now));
 		return;
+	} else if (options.scheduled && hasEphemeralCommand()) {
+		showToast(tr::lng_ephemeral_cant_schedule(tr::now));
+		return;
 	}
 	if ((_sendType == Api::SendType::Scheduled
 		|| _sendType == Api::SendType::ScheduledToUser)
@@ -2672,7 +2681,7 @@ void SendFilesBox::send(
 				auto &captioned = (group.type == Ui::AlbumType::PhotoVideo)
 					? files.front()
 					: files.back();
-				if (!captioned.isSticker() || way.sendImagesAsPhotos()) {
+				if (!SkipFieldCaption(captioned, way)) {
 					captioned.caption = std::move(caption);
 				}
 			}
@@ -2681,6 +2690,20 @@ void SendFilesBox::send(
 		_confirmedCallback(std::move(bundle), options, _replyTo);
 	}
 	closeBox();
+}
+
+bool SendFilesBox::hasEphemeralCommand() const {
+	const auto way = _sendWay.current();
+	const auto &ephemeral = _show->session().ephemeralMessages();
+	const auto command = [&](const TextWithTags &caption) {
+		return ephemeral.hasEphemeralCommand(_toPeer, caption.text);
+	};
+	return (!_list.files.empty()
+			&& !SkipFieldCaption(_list.files.back(), way)
+			&& command(fieldText()))
+		|| ranges::any_of(_list.files, [&](const Ui::PreparedFile &file) {
+			return !SkipCaption(file, way) && command(file.caption);
+		});
 }
 
 Fn<void(Api::SendOptions)> SendFilesBox::sendCallback() {
