@@ -137,8 +137,10 @@ void FillListChangeMenu(
 	addOrderedTypeAction(PreparedOrderedListType::Decimal);
 	addOrderedTypeAction(PreparedOrderedListType::LowerAlpha);
 	addOrderedTypeAction(PreparedOrderedListType::UpperAlpha);
-	addOrderedTypeAction(PreparedOrderedListType::LowerRoman);
-	addOrderedTypeAction(PreparedOrderedListType::UpperRoman);
+	if (info.listRomanSupported) {
+		addOrderedTypeAction(PreparedOrderedListType::LowerRoman);
+		addOrderedTypeAction(PreparedOrderedListType::UpperRoman);
+	}
 	menu->addSeparator();
 	Menu::AddCheckedAction(
 		menu,
@@ -181,8 +183,10 @@ void FillListItemChangeMenu(
 	}
 	addOrderedTypeAction(PreparedOrderedListType::LowerAlpha);
 	addOrderedTypeAction(PreparedOrderedListType::UpperAlpha);
-	addOrderedTypeAction(PreparedOrderedListType::LowerRoman);
-	addOrderedTypeAction(PreparedOrderedListType::UpperRoman);
+	if (info.selectedRomanSupported) {
+		addOrderedTypeAction(PreparedOrderedListType::LowerRoman);
+		addOrderedTypeAction(PreparedOrderedListType::UpperRoman);
+	}
 }
 
 void FillTableChangeMenu(

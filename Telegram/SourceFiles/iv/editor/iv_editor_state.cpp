@@ -2025,6 +2025,14 @@ State::ListSelectionInfo State::listSelectionInfo(
 			return EffectiveOrderedListType(*owner, item)
 				== result.listOrderedType;
 		});
+	result.listRomanSupported = OrderedItemsSupportRoman(
+		*owner,
+		0,
+		int(owner->listItems.size()));
+	result.selectedRomanSupported = OrderedItemsSupportRoman(
+		*owner,
+		validated->from,
+		validated->till);
 	result.allOrderedDecimal = true;
 	result.allOrderedLowerAlpha = true;
 	result.allOrderedUpperAlpha = true;

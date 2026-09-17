@@ -124,6 +124,22 @@ using OrderedListData = RichPage::OrderedListData;
 	return std::nullopt;
 }
 
+[[nodiscard]] bool OrderedItemsSupportRoman(
+		const Block &block,
+		int from,
+		int till) {
+	auto next = OrderedListSequenceStart(block);
+	const auto step = OrderedListSequenceStep(block);
+	for (auto i = 0; i != till; ++i) {
+		const auto value = block.listItems[i].number.value.value_or(next);
+		if (i >= from && OrderedRomanSupported(value)) {
+			return true;
+		}
+		next = value + step;
+	}
+	return false;
+}
+
 void DropOrderedItemNumber(ListItem *item) {
 	if (item) {
 		item->number = RichPage::OrderedListItemData();

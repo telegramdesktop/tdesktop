@@ -139,6 +139,8 @@ public:
 		bool allOrderedUpperAlpha = false;
 		bool allOrderedLowerRoman = false;
 		bool allOrderedUpperRoman = false;
+		bool listRomanSupported = false;
+		bool selectedRomanSupported = false;
 		int selectedItems = 0;
 		RichPage::ListKind listKind = RichPage::ListKind::Bullet;
 		Markdown::PreparedOrderedListType listOrderedType
