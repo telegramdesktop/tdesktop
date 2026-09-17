@@ -1417,7 +1417,7 @@ void incrementRecentHashtag(RecentHashtagPack &recent, const QString &tag) {
 	}
 	if (i == e) {
 		while (recent.size() >= 64) recent.pop_back();
-		recent.push_back(std::make_pair(tag, 1));
+		recent.push_back({ tag, 1 });
 		for (i = recent.end() - 1; i != recent.begin(); --i) {
 			if ((i - 1)->second > i->second) {
 				break;

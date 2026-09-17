@@ -1005,7 +1005,7 @@ bool ReadSetting(
 				}
 				auto id = Ui::Emoji::IdFromOldKey(oldKey);
 				if (!id.isEmpty()) {
-					p.push_back(std::make_pair(id, item.second));
+					p.push_back({ id, item.second });
 				}
 			}
 			Core::App().settings().setLegacyRecentEmojiPreload(std::move(p));
@@ -1024,7 +1024,7 @@ bool ReadSetting(
 			for (auto &item : v) {
 				auto id = Ui::Emoji::IdFromOldKey(item.first);
 				if (!id.isEmpty()) {
-					p.push_back(std::make_pair(id, item.second));
+					p.push_back({ id, item.second });
 				}
 			}
 			Core::App().settings().setLegacyRecentEmojiPreload(std::move(p));
