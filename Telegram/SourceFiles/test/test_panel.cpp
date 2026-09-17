@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_runner.h"
 #include "test/test_text_reads.h"
 #include "test/test_widgets.h"
+#include "ui/platform/ui_platform_utility.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/separate_panel.h"
 
@@ -387,6 +388,7 @@ void AppendSeparatePanelWalkSelfTest(not_null<Runner*> runner) {
 		QString noPanelText;
 		QString emptyDifferenceText;
 		PanelShowState cacheState = PanelShowState::Hidden;
+		bool cacheTranslucent = false;
 		int addedCount = 0;
 	};
 	// Leaked on purpose, the way this directory's other self-tests leak
@@ -435,9 +437,19 @@ void AppendSeparatePanelWalkSelfTest(not_null<Runner*> runner) {
 			// statement after showAndActivate() already reads ShowCache
 			// whether or not anim::Disabled() is in force, and |then|
 			// asserts from these snapshots instead of re-measuring a
-			// panel that has settled since.
+			// panel that has settled since. The translucency reading
+			// beside them is that platform predicate re-read, not the
+			// panel's private _useTransparency, which Ui::SeparatePanel
+			// does not expose the way Ui::PopupMenu::useTransparency()
+			// does. It is the same value, because initGeometry latched it
+			// from the predicate at setInnerSize() time
+			// (separate_panel.cpp:1424, reached from :1367), in the
+			// statement before the show and in this same turn, and it is
+			// recorded and printed here, never branched on.
 			state->cacheGeometry = raw->geometry();
 			state->cacheState = ReadPanelShowState(raw);
+			state->cacheTranslucent
+				= Ui::Platform::TranslucentWindowsSupported();
 			auto settledScan = MakePanelScan(u"panel_walk_show_cache"_q);
 			state->cacheSettled = WalkPanels(
 				&settledScan,
@@ -470,11 +482,12 @@ void AppendSeparatePanelWalkSelfTest(not_null<Runner*> runner) {
 				state->noPanelText);
 			Check(
 				state->cacheState == PanelShowState::ShowCache,
-				u"the fixture panel is still painting its show-animation "
-				"cache in the turn it was shown, so the two liveness "
-				"notions really are read over that frame"_q,
-				u"state=%1 geometry=%2"_q.arg(
+				u"fixture gate: the fixture panel is still painting its "
+				"show-animation cache in the turn it was shown, so the two "
+				"liveness notions really are read over that frame"_q,
+				u"state=%1 translucentWindows=%2 geometry=%3"_q.arg(
 					PanelShowStateName(state->cacheState),
+					state->cacheTranslucent ? u"1"_q : u"0"_q,
 					RectText(state->cacheGeometry)));
 			Check(
 				!PanelListHolds(state->cacheSettled.panels, raw)

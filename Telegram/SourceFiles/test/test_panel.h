@@ -40,6 +40,26 @@ class Runner;
 // a blank content grab is "painted nothing"; a
 // PANEL_SHOW_SETTLE settled=0 / panel show settle FAIL is
 // "captured during the show animation".
+//
+// That cache is platform-dependent rather than universal:
+// PanelShowState::ShowCache is reachable only where
+// Ui::Platform::TranslucentWindowsSupported() answers true.
+// toggleOpacityAnimation() builds _animationCache and calls hideChildren()
+// only inside if (_useTransparency) (separate_panel.cpp:1127-1132), and
+// _useTransparency is assigned exactly once, from that platform answer, in
+// initGeometry (:1424). Outside that branch the panel is still shown
+// (:1140-1142) and hideChildren() never runs, so ReadPanelShowState
+// never sees children > 0 && shown == 0, answers Live in the turn the
+// panel was shown, and ShowCache is unreachable for a Ui::SeparatePanel
+// there. macOS and Windows answer true unconditionally - on macOS it is an
+// inline return true (ui/platform/mac/ui_utility_mac.h:16-18) - while
+// every other platform answers from the display server
+// (ui/platform/linux/ui_utility_linux.cpp:589-624): true on Wayland, the
+// _NET_WM_CM_S0 selection owner on X11, false otherwise, so a desktop with
+// no compositing manager has no cache to read. PanelShowSettled still
+// answers when that cache has stopped painting, and there it stopped
+// before it started, which is the "or the widget was never in that state"
+// arm above.
 
 enum class PanelShowState {
 	Hidden,
@@ -242,8 +262,8 @@ void LogPanelWalk(const QString &name, const PanelWalk &reading);
 // that read it - no session, account, network, chats list or wallet, and
 // no primary window, because a panel with no parent is its own top level.
 //
-// What it does ask of the process is exclusivity, and that is a real
-// precondition rather than one more thing it does without: for the stages
+// It asks the process for two things, both real preconditions rather than
+// more things it can do without. The first is exclusivity: for the stages
 // it runs it must be the only owner of a live Ui::SeparatePanel. Its
 // preamble refusal and its 1 / 2 / 1 / 0 panel counts are taken over every
 // top level in the process and not over a subtree it owns, so a foreign
@@ -255,6 +275,30 @@ void LogPanelWalk(const QString &name, const PanelWalk &reading);
 // as a fault in the instrument. For the same cross-fixture reason it must
 // not be packed beside a live Ui::PopupMenu fixture either, because
 // showAndActivate() closes every active popup in the process.
+//
+// The second is a host whose display server supports translucent windows,
+// because the first stage asserts that show cache twice. Ui::SeparatePanel
+// latches _useTransparency once from
+// Platform::TranslucentWindowsSupported() in initGeometry
+// (separate_panel.cpp:1424) and builds the cache only inside that branch,
+// so where the answer is false that branch's hideChildren() never runs and
+// ReadPanelShowState answers Live in the turn it was shown - on macOS that
+// answer is an inline return true
+// (ui/platform/mac/ui_utility_mac.h:16-18), while a desktop with no
+// compositing manager answers false. The first stage then FAILs exactly
+// twice - the premise check, which names itself a fixture gate and whose
+// details read state=live translucentWindows=0 where show_cache was
+// expected, and the settled reading, which holds the panel it was to
+// exclude - while every other row in the run passes, including the
+// !isHidden() control and the reported scan in that same stage. That is
+// deliberate: the premise is asserted as a named fixture gate rather than
+// passed over vacuously, the way test_menu.h states it for Ui::PopupMenu,
+// and no stage of this self-test is gated on a host property the run
+// cannot arrange. Read the pair as that precondition, the way the
+// exclusivity violation above is read as a packing error, and not as a
+// fault in the instrument - an instrument fault would take that control
+// and that scan report down with it. README.md's failure-diagnosis table
+// carries the same reading for a log reader.
 //
 // It emits no deliberate failure: every refusal it demonstrates is
 // observed through the pure readings above, which log nothing, and
