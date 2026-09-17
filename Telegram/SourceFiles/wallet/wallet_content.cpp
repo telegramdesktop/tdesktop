@@ -90,6 +90,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "wallet/wallet_address.h"
+#include "wallet/wallet_card_gradient.h"
 #include "wallet/wallet_chat_show.h"
 #include "wallet/wallet_collectible_media.h"
 #include "wallet/wallet_collectibles.h"
@@ -10201,21 +10202,10 @@ void Card::paintEvent(QPaintEvent *e) {
 
 void Card::paintContent(Painter &p) {
 	const auto size = restRect().size();
-	p.setPen(Qt::NoPen);
-	p.setBrush(st::activeButtonBg);
-	p.drawRoundedRect(
-		QRect(QPoint(), size),
-		st::walletCardRadius,
-		st::walletCardRadius);
+	PaintCardBackground(p, QRect(QPoint(), size));
 
 	const auto qr = CardQrRect(size.width());
-	const auto half = st::lineWidth / 2.;
-	p.setPen(QPen(st::windowActiveTextFg, st::lineWidth));
-	p.setBrush(st::windowBgOver);
-	p.drawRoundedRect(
-		QRectF(qr).marginsRemoved({ half, half, half, half }),
-		st::walletCardQrRadius,
-		st::walletCardQrRadius);
+	PaintCardQrPlate(p, qr);
 	st::walletCardQrIcon.paintInCenter(p, qr);
 
 	const auto &nameFont = _nameStyle.font;

@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "wallet/wallet_address.h"
+#include "wallet/wallet_card_gradient.h"
 #include "wallet/wallet_comment.h"
 #include "wallet/wallet_content.h"
 #include "wallet/wallet_panel.h"
@@ -589,12 +590,7 @@ void GramTransferCardPart::draw(
 	auto clip = QPainterPath();
 	clip.addRoundedRect(outer, radius, radius);
 	p.setClipPath(clip, Qt::IntersectClip);
-	p.setPen(Qt::NoPen);
-	p.setBrush(st::activeButtonBg);
-	p.drawRoundedRect(
-		_layout.card,
-		st::walletCardRadius,
-		st::walletCardRadius);
+	Wallet::PaintCardBackground(p, _layout.card);
 	p.translate(_layout.card.topLeft());
 	p.setPen(st::activeButtonFg);
 	p.setFont(st::walletCardBalanceMajorLabel.style.font);
