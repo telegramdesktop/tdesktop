@@ -20,7 +20,7 @@ constexpr auto kSkipInvalidDataPackets = 10;
 
 } // namespace
 
-crl::time FramePosition(const Stream &stream) {
+crl::time FrameRealPosition(const Stream &stream) {
 	const auto pts = !stream.decodedFrame
 		? AV_NOPTS_VALUE
 		: (stream.decodedFrame->best_effort_timestamp != AV_NOPTS_VALUE)
@@ -28,7 +28,11 @@ crl::time FramePosition(const Stream &stream) {
 		: (stream.decodedFrame->pts != AV_NOPTS_VALUE)
 		? stream.decodedFrame->pts
 		: stream.decodedFrame->pkt_dts;
-	const auto result = FFmpeg::PtsToTime(pts, stream.timeBase);
+	return FFmpeg::PtsToTime(pts, stream.timeBase);
+}
+
+crl::time FramePosition(const Stream &stream) {
+	const auto result = FrameRealPosition(stream);
 
 	// Sometimes the result here may be larger than the stream duration.
 	return (stream.duration == kDurationUnavailable)
