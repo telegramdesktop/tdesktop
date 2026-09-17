@@ -45,6 +45,19 @@ constexpr auto kSkipMs = crl::time(15 * 1000);
 	Unexpected("RepeatModeToLoopStatus in SystemMediaControlsManager");
 }
 
+[[nodiscard]] std::optional<AudioMsgId::Type> ActivePlayerType() {
+	using namespace Media::Player;
+	const auto player = instance();
+	using Type = AudioMsgId::Type;
+	for (const auto type : { Type::Voice, Type::Song }) {
+		if (player->current(type)
+			&& !IsStoppedOrStopping(player->getState(type).state)) {
+			return type;
+		}
+	}
+	return std::nullopt;
+}
+
 } // namespace
 
 bool SystemMediaControlsManager::Supported() {
@@ -175,11 +188,8 @@ void SystemMediaControlsManager::syncPlayerStateToControls() {
 		= base::Platform::SystemMediaControls::PlaybackStatus;
 	using namespace Media::Player;
 	const auto mediaPlayer = Media::Player::instance();
-	const auto type = mediaPlayer->current(AudioMsgId::Type::Song)
-		? AudioMsgId::Type::Song
-		: AudioMsgId::Type::Voice;
-	const auto current = mediaPlayer->current(type);
-	if (!current) {
+	const auto type = ActivePlayerType();
+	if (!type) {
 		_cachedMediaView = nullptr;
 		_streamed = nullptr;
 		_controls->setEnabled(false);
@@ -189,16 +199,16 @@ void SystemMediaControlsManager::syncPlayerStateToControls() {
 	_controls->setEnabled(true);
 	_controls->setIsPlayPauseEnabled(true);
 	_controls->setIsStopEnabled(true);
-	_controls->setIsNextEnabled(mediaPlayer->nextAvailable(type));
-	_controls->setIsPreviousEnabled(mediaPlayer->previousAvailable(type));
-	const auto state = mediaPlayer->getState(type);
+	_controls->setIsNextEnabled(mediaPlayer->nextAvailable(*type));
+	_controls->setIsPreviousEnabled(mediaPlayer->previousAvailable(*type));
+	const auto state = mediaPlayer->getState(*type);
 	_controls->setPlaybackStatus(IsStoppedOrStopping(state.state)
 		? PlaybackStatus::Stopped
 		: IsPausedOrPausing(state.state)
 		? PlaybackStatus::Paused
 		: PlaybackStatus::Playing);
 	_lastAudioMsgId = AudioMsgId();
-	applyPlayerTrack(type);
+	applyPlayerTrack(*type);
 	_controls->updateDisplay();
 }
 
@@ -288,12 +298,9 @@ SystemMediaControlsManager::SystemMediaControlsManager()
 
 	auto unlocked = Core::App().passcodeLockChanges(
 	) | rpl::filter([=](bool locked) {
-		return !locked && (mediaPlayer->current(AudioMsgId::Type::Song)
-			|| mediaPlayer->current(AudioMsgId::Type::Voice));
-	}) | rpl::map([=]() -> AudioMsgId::Type {
-		return mediaPlayer->current(AudioMsgId::Type::Song)
-			? AudioMsgId::Type::Song
-			: AudioMsgId::Type::Voice;
+		return !locked && ActivePlayerType().has_value();
+	}) | rpl::map([=] {
+		return *ActivePlayerType();
 	}) | rpl::before_next([=] {
 		if (_videoDelegate) {
 			return;
