@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "core/file_utilities.h"
 #include "core/launcher.h"
+#include "core/update_channel.h"
 #include "core/update_checker.h"
 #include "data/data_auto_download.h"
 #include "data/data_session.h"
@@ -1085,7 +1086,9 @@ void BuildUpdateSection(SectionBuilder &builder, bool atTop) {
 	auto install = (Ui::SettingsButton*)nullptr;
 	auto check = (Ui::SettingsButton*)nullptr;
 	builder.scope([&] {
-		install = (cAlphaVersion() || KSandbox::isInside())
+		install = (cAlphaVersion()
+			|| Core::BuildIsCanary
+			|| KSandbox::isInside())
 			? nullptr
 			: builder.addButton({
 				.id = u"advanced/install_beta"_q,
@@ -1442,7 +1445,9 @@ void SetupUpdate(not_null<Ui::VerticalLayout*> container) {
 			container,
 			object_ptr<Ui::VerticalLayout>(container)));
 	const auto inner = options->entity();
-	const auto install = (cAlphaVersion() || KSandbox::isInside())
+	const auto install = (cAlphaVersion()
+		|| Core::BuildIsCanary
+		|| KSandbox::isInside())
 		? nullptr
 		: inner->add(object_ptr<Button>(
 			inner,
