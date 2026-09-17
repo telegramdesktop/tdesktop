@@ -24,15 +24,15 @@ constexpr auto kQrPlateFrom = 0.0799;
 constexpr auto kQrPlateTill = 0.922;
 constexpr auto kQrPlateAlpha = 224; // 0.88 * 255, rounded.
 
-[[nodiscard]] QColor CardDarkBlue() {
-	return QColor(0x00, 0x79, 0xff);
-}
-
 [[nodiscard]] QColor CardLightBlue() {
 	return QColor(0x1f, 0xad, 0xff);
 }
 
 } // namespace
+
+QColor CardDarkBlue() {
+	return QColor(0x00, 0x79, 0xff);
+}
 
 void PaintCardBackground(QPainter &p, const QRect &card) {
 	auto hq = PainterHighQualityEnabler(p);

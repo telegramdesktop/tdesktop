@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <limits>
 
 #include "styles/style_chat.h"
+#include "styles/style_polls.h"
 #include "styles/style_wallet.h"
 
 namespace HistoryView {
@@ -47,6 +48,22 @@ namespace {
 
 constexpr auto kAddressGroupSize = 4;
 constexpr auto kAddressGroupsPerLine = 6;
+
+[[nodiscard]] QColor CardTickerFg() {
+	return QColor(0x0f, 0xdd, 0xff);
+}
+
+[[nodiscard]] QColor CardAddressFg() {
+	return QColor(0x00, 0x5e, 0xda);
+}
+
+[[nodiscard]] QColor SentBadgeBg() {
+	return QColor(0x5e, 0xc2, 0xff);
+}
+
+[[nodiscard]] QColor SendingBadgeBg() {
+	return QColor(0x00, 0x4c, 0x9e);
+}
 
 struct GramTransferAction {
 	FullMsgId itemId;
@@ -76,6 +93,17 @@ struct GramTransferDetails {
 	bool partial = true;
 };
 
+struct AmountParts {
+	QString whole;
+	QString minor;
+	QString ticker;
+};
+
+struct TransferTag {
+	QString text;
+	QColor bg;
+};
+
 class GramTransferCardPart final
 	: public MediaGenericPart
 	, public base::has_weak_ptr {
@@ -102,38 +130,39 @@ public:
 private:
 	struct Layout {
 		QRect card;
-		QRect info;
 		QString identity;
 		QString badge;
+		QColor badgeBg;
 		QStringList addressLines;
+		int markTop = 0;
 		int amountTop = 0;
 		int amountWidth = 0;
+		int wholeWidth = 0;
+		int minorWidth = 0;
 		int identityTop = 0;
 		int addressTop = 0;
 		float64 amountScale = 1.;
-		float64 amountShift = 0.;
 	};
 
 	[[nodiscard]] int resolveLayout(int outerWidth);
-	[[nodiscard]] QString tagText() const;
 	void validateMark() const;
 	void validateBadge() const;
 	void showDetails(const ClickContext &context);
 
 	const GramTransferOrigin _origin;
-	const ClickHandlerPtr _infoLink;
-	const QString _amount;
+	const ClickHandlerPtr _detailsLink;
+	const AmountParts _amount;
 	const QString _address;
 	const QString _identity;
 	Layout _layout;
 	mutable QImage _mark;
 	mutable QColor _markColor;
-	mutable float64 _markTop = 0.;
 	mutable QImage _badge;
 	mutable Info::PeerGifts::GiftBadge _badgeKey;
 	mutable QMargins _badgePadding;
 	mutable style::font _badgeFont;
 	mutable QPoint _lastPoint;
+	QSize _rippleSize;
 	std::unique_ptr<Ui::RippleAnimation> _ripple;
 	rpl::event_stream<> _destroyed;
 
@@ -338,13 +367,39 @@ private:
 	return result;
 }
 
-[[nodiscard]] QString SignedAmount(int64 value, bool outgoing) {
-	auto amount = Ui::FormatTonAmount(value).full;
+[[nodiscard]] AmountParts SignedAmount(int64 value, bool outgoing) {
+	const auto formatted = Ui::FormatTonAmount(value);
+	auto whole = formatted.wholeString;
 	const auto negativeSign = QString(QLocale::system().negativeSign());
-	if (value < 0 && amount.startsWith(negativeSign)) {
-		amount.remove(0, negativeSign.size());
+	if (value < 0 && whole.startsWith(negativeSign)) {
+		whole.remove(0, negativeSign.size());
 	}
-	return (outgoing ? QChar(0x2212) : QChar('+')) + amount;
+	return {
+		.whole = (outgoing ? QChar(0x2212) : QChar('+')) + whole,
+		.minor = formatted.separator + formatted.nanoString,
+		.ticker = tr::lng_action_gram_transfer_ticker(
+			tr::now,
+			lt_count,
+			std::abs(value / float64(Ui::kNanosInOne))),
+	};
+}
+
+[[nodiscard]] TransferTag ResolveTag(bool outgoing, bool sending) {
+	if (!outgoing) {
+		return {
+			.text = tr::lng_action_gram_transfer_received_tag(tr::now),
+			.bg = Wallet::CardDarkBlue(),
+		};
+	} else if (sending) {
+		return {
+			.text = tr::lng_action_gram_transfer_sending_tag(tr::now),
+			.bg = SendingBadgeBg(),
+		};
+	}
+	return {
+		.text = tr::lng_action_gram_transfer_sent_tag(tr::now),
+		.bg = SentBadgeBg(),
+	};
 }
 
 [[nodiscard]] QString FriendlyAddress(const QString &address) {
@@ -413,7 +468,7 @@ private:
 
 GramTransferCardPart::GramTransferCardPart(GramTransferOrigin origin)
 : _origin(std::move(origin))
-, _infoLink(std::make_shared<LambdaClickHandler>([
+, _detailsLink(std::make_shared<LambdaClickHandler>([
 		weak = base::make_weak(this)](ClickContext context) {
 	if (weak) {
 		weak->showDetails(context);
@@ -421,18 +476,8 @@ GramTransferCardPart::GramTransferCardPart(GramTransferOrigin origin)
 }))
 , _amount(SignedAmount(_origin.action.amount, _origin.action.outgoing))
 , _address(FriendlyAddress(_origin.action.address))
-, _identity(ReadableIdentity(_origin.view->data(), !_address.isEmpty())) {
-}
-
-QString GramTransferCardPart::tagText() const {
-	if (!_origin.action.outgoing) {
-		return tr::lng_action_gram_transfer_received_tag(tr::now);
-	}
-	const auto view = _origin.view.get();
-	const auto sending = view && view->data()->isSending();
-	return (sending
-		? tr::lng_action_gram_transfer_sending_tag
-		: tr::lng_action_gram_transfer_sent_tag)(tr::now);
+, _identity(
+	ReadableIdentity(_origin.view->data(), !_address.isEmpty()).toUpper()) {
 }
 
 GramTransferCardPart::~GramTransferCardPart() {
@@ -473,73 +518,89 @@ QSize GramTransferCardPart::countCurrentSize(int newWidth) {
 }
 
 int GramTransferCardPart::resolveLayout(int outerWidth) {
-	validateMark();
 	const auto border = st::chatUniqueGiftBorder;
 	const auto inset = st::walletCardContentLeft;
-	const auto gap = st::walletCardContentSkip;
 	const auto cardWidth = GramTransferCardWidth(outerWidth);
 	const auto available = std::max(cardWidth - 2 * inset, 1);
+	const auto view = _origin.view.get();
+	const auto tag = ResolveTag(
+		_origin.action.outgoing,
+		view && view->data()->isSending());
+	_layout.badgeBg = tag.bg;
 	const auto &badgeFont = st::msgServiceGiftBoxBadgeFont;
 	const auto badgePadding = st::chatUniqueGiftBadgePadding;
-	_layout.badge = badgeFont->elided(tagText(), std::max(
+	_layout.badge = badgeFont->elided(tag.text, std::max(
 		cardWidth - 2 * badgeFont->height
 			- badgePadding.left() - badgePadding.right(),
 		0));
 	const auto badgeTextWidth = badgeFont->width(_layout.badge)
 		+ badgePadding.left() + badgePadding.right();
-	const auto badgeSide = badgeTextWidth + 2 * badgeFont->height;
 	const auto badgeHeight = badgePadding.top()
 		+ badgeFont->height + badgePadding.bottom();
 	const auto bandReach = badgePadding.top()
 		+ int(std::ceil(badgeTextWidth / M_SQRT2))
 		+ int(std::ceil(M_SQRT2 * badgeHeight));
+	// WHY: the ribbon's painted strip is the 45-degree band
+	// W - bandReach <= x - y, so a row is clear exactly when its right
+	// edge sits above that line; this pushes a row down instead of under it.
+	const auto clearOfBand = [&](int right) {
+		return right - cardWidth + bandReach;
+	};
+
+	const auto markSize = st::walletChatCardMarkSize;
+	_layout.markTop = std::max(
+		st::walletChatCardMarkTop,
+		clearOfBand((cardWidth + markSize) / 2));
+
+	const auto &majorFont = st::walletCardBalanceMajorLabel.style.font;
+	const auto &minorFont = st::walletCardBalanceMinorLabel.style.font;
+	_layout.wholeWidth = majorFont->width(_amount.whole);
+	_layout.minorWidth = _amount.minor.isEmpty()
+		? 0
+		: minorFont->width(_amount.minor);
+	_layout.amountWidth = _layout.wholeWidth
+		+ _layout.minorWidth
+		+ st::walletCardTickerSkip
+		+ majorFont->width(_amount.ticker);
+	_layout.amountScale = std::min(
+		1.,
+		available / float64(_layout.amountWidth));
+	const auto scaledWidth = int(std::ceil(
+		_layout.amountScale * _layout.amountWidth));
+	const auto amountHeight = int(std::ceil(
+		_layout.amountScale * majorFont->height));
 	_layout.amountTop = std::max(
-		st::walletCardBalanceTop,
-		std::min(badgeSide, bandReach) + gap);
-	const auto &amountFont = st::walletCardBalanceMajorLabel.style.font;
-	_layout.amountWidth = amountFont->width(_amount);
-	const auto groupWidth = _layout.amountWidth
-		+ st::walletCardIconMargin.right() + st::walletCardMarkSize;
-	const auto infoSize = st::walletCardInfoSize;
-	const auto sameRow = groupWidth + gap + infoSize.width() <= available;
-	_layout.amountScale = std::min(1., available / float64(groupWidth));
-	_layout.amountShift = std::max(-_markTop, 0.);
-	const auto amountHeight = int(std::ceil(_layout.amountScale
-		* (_layout.amountShift + std::max(
-			float64(amountFont->height),
-			_markTop + st::walletCardMarkSize))));
-	const auto rowTop = _layout.amountTop;
-	const auto rowHeight = std::max(amountHeight, infoSize.height());
-	_layout.info = QRect(
-		QPoint(
-			cardWidth - inset - infoSize.width(),
-			sameRow
-				? (rowTop + (rowHeight - infoSize.height()) / 2)
-				: (rowTop + amountHeight + gap)),
-		infoSize);
-	if (sameRow) {
-		_layout.amountTop += (rowHeight - amountHeight) / 2;
-	}
-	_layout.identityTop = (sameRow
-		? (rowTop + rowHeight)
-		: (_layout.info.y() + infoSize.height())) + gap;
+		_layout.markTop + markSize + st::walletChatCardAmountSkip,
+		clearOfBand((cardWidth + scaledWidth) / 2));
+
 	_layout.identity = st::walletCardNameFont->elided(_identity, available);
+	const auto identityWidth = st::walletCardNameFont->width(_layout.identity);
+	_layout.identityTop = std::max(
+		_layout.amountTop + amountHeight + st::walletChatCardNameSkip,
+		clearOfBand((cardWidth + identityWidth) / 2));
 	auto bottom = _layout.identityTop + st::walletCardNameFont->height;
+
 	_layout.addressLines = AddressLines(_address, available);
 	if (!_layout.addressLines.isEmpty()) {
-		_layout.addressTop = bottom + gap;
 		const auto addressFont
 			= st::walletDetailsCollectionLabel.style.font->monospace();
+		auto widest = 0;
+		for (const auto &line : _layout.addressLines) {
+			accumulate_max(widest, addressFont->width(line));
+		}
+		_layout.addressTop = std::max(
+			bottom + st::walletChatCardAddressSkip,
+			clearOfBand((cardWidth + widest) / 2));
 		bottom = _layout.addressTop
 			+ int(_layout.addressLines.size()) * addressFont->height;
 	}
-	const auto cardHeight = bottom + inset;
+	const auto cardHeight = bottom + st::walletChatCardBottom;
 	_layout.card = QRect(border, border, cardWidth, cardHeight);
 	return cardHeight + 2 * border;
 }
 
 void GramTransferCardPart::validateMark() const {
-	const auto size = st::walletCardMarkSize;
+	const auto size = st::walletChatCardMarkSize;
 	const auto color = st::activeButtonFg->c;
 	const auto ratio = style::DevicePixelRatio();
 	if (!_mark.isNull()
@@ -550,15 +611,12 @@ void GramTransferCardPart::validateMark() const {
 	}
 	_markColor = color;
 	_mark = Ui::Earn::IconCurrencyColored(size, color);
-	_markTop = Ui::Earn::AlignedMarkTop(
-		st::walletCardBalanceMajorLabel.style.font,
-		_mark);
 }
 
 void GramTransferCardPart::validateBadge() const {
 	const auto badge = Info::PeerGifts::GiftBadge{
 		.text = _layout.badge,
-		.bg1 = st::windowActiveTextFg->c,
+		.bg1 = _layout.badgeBg,
 		.fg = st::activeButtonFg->c,
 	};
 	const auto padding = st::chatUniqueGiftBadgePadding;
@@ -592,60 +650,58 @@ void GramTransferCardPart::draw(
 	p.setClipPath(clip, Qt::IntersectClip);
 	Wallet::PaintCardBackground(p, _layout.card);
 	p.translate(_layout.card.topLeft());
-	p.setPen(st::activeButtonFg);
-	p.setFont(st::walletCardBalanceMajorLabel.style.font);
-	p.save();
-	p.translate(st::walletCardContentLeft, _layout.amountTop);
-	p.scale(_layout.amountScale, _layout.amountScale);
-	p.translate(0., _layout.amountShift);
-	p.drawText(
-		QPointF(0., st::walletCardBalanceMajorLabel.style.font->ascent),
-		_amount);
-	p.drawImage(
-		QPointF(
-			_layout.amountWidth + st::walletCardIconMargin.right(),
-			_markTop),
-		_mark);
-	p.restore();
-	p.setBrush(st::windowBgOver);
-	p.setPen(Qt::NoPen);
-	p.drawRoundedRect(
-		_layout.info,
-		st::walletCardInfoRadius,
-		st::walletCardInfoRadius);
-	p.translate(_layout.info.topLeft());
+	const auto cardWidth = _layout.card.width();
 	if (_ripple) {
-		_ripple->paint(
-			p,
-			0,
-			0,
-			_layout.info.width());
+		const auto opacity = p.opacity();
+		const auto color = st::activeButtonFg->c;
+		p.setOpacity(opacity * st::historyPollRippleOpacity);
+		_ripple->paint(p, 0, 0, cardWidth, &color);
+		p.setOpacity(opacity);
 	}
-	const auto &infoIcon = st::walletCardInfoIcon;
-	infoIcon.paint(
-		p,
-		(_layout.info.width() - infoIcon.width()) / 2,
-		(_layout.info.height() - infoIcon.height()) / 2,
-		_layout.info.width());
-	p.translate(-_layout.info.topLeft());
+	p.drawImage(
+		QPointF((cardWidth - st::walletChatCardMarkSize) / 2., _layout.markTop),
+		_mark);
+	const auto &majorFont = st::walletCardBalanceMajorLabel.style.font;
+	p.save();
+	p.translate(cardWidth / 2., _layout.amountTop);
+	p.scale(_layout.amountScale, _layout.amountScale);
+	p.translate(-_layout.amountWidth / 2., 0.);
+	const auto baseline = float64(majorFont->ascent);
 	p.setPen(st::activeButtonFg);
+	p.setFont(majorFont);
+	p.drawText(QPointF(0., baseline), _amount.whole);
+	if (!_amount.minor.isEmpty()) {
+		p.setFont(st::walletCardBalanceMinorLabel.style.font);
+		p.drawText(QPointF(_layout.wholeWidth, baseline), _amount.minor);
+	}
+	p.setFont(majorFont);
+	p.setPen(CardTickerFg());
+	p.drawText(
+		QPointF(
+			_layout.wholeWidth + _layout.minorWidth + st::walletCardTickerSkip,
+			baseline),
+		_amount.ticker);
+	p.restore();
+	p.setPen(CardTickerFg());
 	p.setFont(st::walletCardNameFont);
 	p.drawText(
-		st::walletCardContentLeft,
+		(cardWidth - st::walletCardNameFont->width(_layout.identity)) / 2,
 		_layout.identityTop + st::walletCardNameFont->ascent,
 		_layout.identity);
 	const auto addressFont
 		= st::walletDetailsCollectionLabel.style.font->monospace();
+	p.setPen(CardAddressFg());
 	p.setFont(addressFont);
 	auto top = _layout.addressTop;
 	for (const auto &line : _layout.addressLines) {
-		p.drawText(st::walletCardContentLeft, top + addressFont->ascent, line);
+		p.drawText(
+			(cardWidth - addressFont->width(line)) / 2,
+			top + addressFont->ascent,
+			line);
 		top += addressFont->height;
 	}
 	p.drawImage(
-		QPointF(
-			_layout.card.width() - _badge.width() / _badge.devicePixelRatio(),
-			0.),
+		QPointF(cardWidth - _badge.width() / _badge.devicePixelRatio(), 0.),
 		_badge);
 	p.restore();
 }
@@ -654,11 +710,10 @@ TextState GramTransferCardPart::textState(
 		QPoint point,
 		StateRequest request,
 		int outerWidth) const {
-	point -= _layout.card.topLeft() + _layout.info.topLeft();
-	if (QRect(QPoint(), _layout.info.size()).contains(point)) {
+	if (_layout.card.contains(point)) {
 		auto result = TextState();
-		result.link = _infoLink;
-		_lastPoint = point;
+		result.link = _detailsLink;
+		_lastPoint = point - _layout.card.topLeft();
 		return result;
 	}
 	return {};
@@ -667,15 +722,16 @@ TextState GramTransferCardPart::textState(
 void GramTransferCardPart::clickHandlerPressedChanged(
 		const ClickHandlerPtr &p,
 		bool pressed) {
-	if (p != _infoLink) {
+	if (p != _detailsLink) {
 		return;
 	} else if (pressed) {
-		if (!_ripple) {
+		if (!_ripple || _rippleSize != _layout.card.size()) {
+			_rippleSize = _layout.card.size();
 			_ripple = std::make_unique<Ui::RippleAnimation>(
 				st::defaultRippleAnimation,
 				Ui::RippleAnimation::RoundRectMask(
-					_layout.info.size(),
-					st::walletCardInfoRadius),
+					_rippleSize,
+					st::walletCardRadius),
 				[view = _origin.view] {
 					if (view) {
 						view->repaint();
@@ -805,7 +861,7 @@ int GramTransferCommentPart::resolveLayout(int outerWidth) {
 		_textRect = QRect();
 		return 0;
 	}
-	const auto skip = st::walletCardContentSkip;
+	const auto skip = st::walletChatCardCommentSkip;
 	const auto limit = std::max(GramTransferCardWidth(outerWidth), 1);
 	const auto size = Ui::Text::CountOptimalTextSize(_text, 0, limit);
 	_textRect = QRect(

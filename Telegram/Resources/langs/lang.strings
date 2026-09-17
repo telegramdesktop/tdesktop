@@ -2674,6 +2674,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_gram_transfer_received_unknown" = "You received {amount}";
 "lng_action_gram_transfer_amount#one" = "{amount} Gram";
 "lng_action_gram_transfer_amount#other" = "{amount} Grams";
+"lng_action_gram_transfer_ticker#one" = "Gram";
+"lng_action_gram_transfer_ticker#other" = "Grams";
 "lng_action_gram_transfer_amount_fiat" = "{amount} ({fiat})";
 "lng_action_gram_transfer_comment" = "{text}: {comment}";
 "lng_action_gram_transfer_received_tag" = "received";

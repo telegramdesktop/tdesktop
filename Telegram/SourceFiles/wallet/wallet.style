@@ -64,9 +64,14 @@ walletCardQrRadius: 10px;
 walletCardQrRight: 42px;
 walletCardQrTop: 72px;
 walletCardQrIcon: icon{{ "menu/qr_code", windowSubTextFg }};
-walletCardInfoSize: walletCardQrSize;
-walletCardInfoRadius: walletCardQrRadius;
-walletCardInfoIcon: icon{{ "menu/info", windowSubTextFg }};
+walletChatCardMarkTop: 29px;
+walletChatCardMarkSize: 42px;
+walletChatCardAmountSkip: 3px;
+walletChatCardNameSkip: 15px;
+walletChatCardAddressSkip: 5px;
+walletChatCardBottom: 11px;
+// Halves the capture's measured 12px gap: chatUniqueGiftBorder + 2 = 6.
+walletChatCardCommentSkip: 2px;
 
 walletSendButton: RoundButton(defaultActiveButton) {
 	height: 40px;
