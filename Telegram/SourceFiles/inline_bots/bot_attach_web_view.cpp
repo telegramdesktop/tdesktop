@@ -3070,7 +3070,13 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 	if (Data::CanSend(peer, ChatRestriction::SendMusic, false)) {
 		++minimal;
 		raw->addAction(tr::lng_all_music(tr::now), [=] {
-			controller->show(Box(MusicAttachBox, controller, peer, actionFactory));
+			const auto box = controller->show(
+				Box(MusicAttachBox, controller, peer, actionFactory));
+			if (const auto strong = box.get()) {
+				QObject::connect(parent, &QObject::destroyed, strong, [=] {
+					strong->closeBox();
+				});
+			}
 		}, &st::menuIconSoundOn);
 	}
 	const auto addBots = Data::CanSend(peer, ChatRestriction::SendInline, false)
