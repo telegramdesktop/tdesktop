@@ -910,6 +910,7 @@ private:
 		const std::shared_ptr<SubmittedLookup> &request);
 	void dropSubmittedIfListed();
 	void dropSubmittedLookup();
+	void retireSubmission();
 	void clearSubmittedTransfers();
 	void applyRotationSnapshot(
 		const wallet_engine::SendSnapshot &snapshot,

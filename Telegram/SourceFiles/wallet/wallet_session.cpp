@@ -1767,7 +1767,7 @@ Session::Session(not_null<Main::Session*> session)
 		const auto hadSubmission = _submission
 			|| _pending
 			|| (_sendState.current() != SendState::Idle);
-		_submission.reset();
+		retireSubmission();
 		_pending.reset();
 		_sendUnresolved = _sendUnresolved || hadSubmission;
 		_sendState = SendState::Idle;
@@ -4440,7 +4440,7 @@ void Session::resetDeviceCustody(
 					wallet._custody = CustodyStore();
 					wallet._custodyReadFailed = false;
 					wallet._preparedRotation.reset();
-					wallet._submission.reset();
+					wallet.retireSubmission();
 					wallet._pending.reset();
 					++wallet._sendRevision;
 				}
@@ -8010,11 +8010,18 @@ void Session::dropSubmittedLookup() {
 	}
 }
 
+void Session::retireSubmission() {
+	const auto retired = base::take(_submission);
+	if (retired && retired->rpcStarted) {
+		_transferMessages->dropSending(retired->draft);
+	}
+}
+
 void Session::clearSubmittedTransfers() {
 	dropSubmittedLookup();
 	_submitted.clear();
 	_pending.reset();
-	_submission.reset();
+	retireSubmission();
 	_lastReceipt.reset();
 	_lastLookupOperationId.clear();
 	_unresolvedOperationId.clear();

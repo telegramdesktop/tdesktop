@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/flat_set.h"
 #include "data/data_msg_id.h"
 
 class History;
@@ -27,6 +28,9 @@ public:
 
 	[[nodiscard]] FullMsgId create(const SendArgs &args, uint64 randomId);
 	void dropSending(FullMsgId id);
+	[[nodiscard]] bool refusePairing(
+		not_null<HistoryItem*> item,
+		MsgId newId);
 	HistoryItem *adopt(
 		not_null<History*> history,
 		MsgId id,
@@ -36,10 +40,18 @@ private:
 	struct Entry {
 		FullMsgId id;
 		uint64 randomId = 0;
+		MsgId floor;
 	};
+
+	std::vector<Entry>::iterator forget(std::vector<Entry>::iterator i);
+	void settle(
+		not_null<HistoryItem*> item,
+		MsgId id,
+		const MTPDmessageService &data);
 
 	const not_null<Main::Session*> _session;
 	std::vector<Entry> _entries;
+	base::flat_set<FullMsgId> _settled;
 	rpl::lifetime _lifetime;
 
 };

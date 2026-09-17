@@ -69,6 +69,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "wallet/wallet_session.h"
+#include "wallet/wallet_transfer_messages.h"
 #include "iv/editor/iv_editor_session.h"
 #include "ui/boxes/confirm_box.h"
 #include "apiwrap.h"
@@ -1671,11 +1672,33 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		if (const auto id = session().data().messageIdByRandomId(randomId)) {
 			const auto newId = d.vid().v;
 			const auto &owner = session().data();
+			auto &drafts = session().wallet().transferMessages();
 			if (const auto local = owner.message(id)) {
 				if (local->isScheduled()) {
 					session().scheduledMessages().apply(d, local);
 				} else if (local->isBusinessShortcut()) {
 					session().data().shortcutMessages().apply(d, local);
+				} else if (drafts.refusePairing(local, newId)) {
+					// A Gram transfer draft is refused only when some
+					// item already sits at the served id, and the wallet
+					// keeps the draft sending exactly when it settled
+					// that id from one of its own drafts: an identical
+					// draft took this one's message, so its own message
+					// is still coming and settles it later, by content,
+					// which is why its random id deliberately stays
+					// registered until then. Otherwise the served id is
+					// this draft's own message, arrived through a path
+					// that never reaches the adoption hook, and the
+					// registry retired the draft itself. The refusal is
+					// returned in both cases, because promoting here
+					// would destroy the server's settled card to make
+					// room for a draft that carries none of its content.
+					// The registry answers false for every item it does
+					// not own, so no other message changes branch, and
+					// the skipped unregisterMessageSentData is a no-op
+					// here: nothing under wallet/ ever calls
+					// registerMessageSentData.
+					return;
 				} else {
 					const auto existing = session().data().message(
 						id.peer,
