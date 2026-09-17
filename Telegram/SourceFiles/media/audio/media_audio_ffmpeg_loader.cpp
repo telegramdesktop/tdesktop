@@ -98,8 +98,8 @@ int AbstractFFMpegLoader::ReadData(void *opaque, uint8_t *buf, int buf_size) {
 	auto l = reinterpret_cast<AbstractFFMpegLoader *>(opaque);
 
 	auto nbytes = std::min(
-		l->_data.size() - l->_dataPos,
-		qsizetype(buf_size));
+		static_cast<int>(l->_data.size()) - l->_dataPos,
+		buf_size);
 	if (nbytes <= 0) {
 		return AVERROR_EOF;
 	}

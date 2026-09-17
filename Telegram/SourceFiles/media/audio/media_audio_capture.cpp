@@ -245,8 +245,8 @@ struct Instance::Inner::Private {
 		auto l = reinterpret_cast<Private*>(opaque);
 
 		int32 nbytes = std::min(
-			l->data.size() - l->dataPos,
-			qsizetype(buf_size));
+			static_cast<int32>(l->data.size()) - l->dataPos,
+			buf_size);
 		if (nbytes <= 0) {
 			return AVERROR_EOF;
 		}
