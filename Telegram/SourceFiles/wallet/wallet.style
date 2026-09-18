@@ -330,6 +330,7 @@ walletSendCommentField: InputField(walletSendField) {
 }
 walletSendFieldMargin: margins(24px, 12px, 24px, 12px);
 walletSendRecentHeaderPadding: margins(24px, 5px, 24px, 5px);
+walletSendRecentListTopSkip: 6px;
 walletSendRecentListSkip: 12px;
 walletSendCommentPrivacyMargin: margins(24px, 0px, 24px, 0px);
 walletSendCommentBubble: UniqueGiftMessageBubble(chatUniqueMessageBubble) {

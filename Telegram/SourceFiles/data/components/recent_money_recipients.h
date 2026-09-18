@@ -24,7 +24,8 @@ public:
 
 	void bump(not_null<UserData*> user);
 	void remove(not_null<UserData*> user);
-	void clear();
+	void clear(); // Leaves only self, so fillIfEmpty() won't refill it.
+	void fillIfEmpty(Fn<bool(not_null<UserData*>)> eligible);
 
 	[[nodiscard]] QByteArray serialize() const;
 	void applyLocal(QByteArray serialized);

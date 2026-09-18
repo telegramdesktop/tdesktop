@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/components/recent_money_recipients.h"
 
 #include "core/version.h"
+#include "data/components/recent_peers.h"
+#include "data/components/top_peers.h"
 #include "data/data_user.h"
 #include "main/main_session.h"
 #include "storage/serialize_common.h"
@@ -47,6 +49,9 @@ void RecentMoneyRecipients::bump(not_null<UserData*> user) {
 	if (!_list.empty() && _list.front()->id == user->id) {
 		return;
 	}
+	if (_list.size() == 1 && _list.front()->id == _session->userPeerId()) {
+		_list.clear();
+	}
 	const auto i = ranges::find(_list, user->id, &PeerData::id);
 	if (i == end(_list)) {
 		if (int(_list.size()) >= kLimit) {
@@ -74,12 +79,41 @@ void RecentMoneyRecipients::remove(not_null<UserData*> user) {
 void RecentMoneyRecipients::clear() {
 	_session->local().readSearchSuggestions();
 
-	if (_list.empty()) {
+	const auto self = _session->user();
+	if (_list.size() == 1 && _list.front() == self) {
 		return;
 	}
-	_list.clear();
+	_list = { self };
 	_session->local().writeSearchSuggestionsDelayed();
 	_updates.fire({});
+}
+
+void RecentMoneyRecipients::fillIfEmpty(
+		Fn<bool(not_null<UserData*>)> eligible) {
+	_session->local().readSearchSuggestions();
+
+	if (!_list.empty()) {
+		return;
+	}
+	const auto append = [&](const std::vector<not_null<PeerData*>> &list) {
+		for (const auto &peer : list) {
+			const auto user = peer->asUser();
+			if (int(_list.size()) == kLimit) {
+				return;
+			} else if (user
+				&& user->id != _session->userPeerId()
+				&& !ranges::contains(_list, not_null{ user })
+				&& eligible(user)) {
+				_list.push_back(user);
+			}
+		}
+	};
+	append(_session->recentPeers().list());
+	append(_session->topPeers().list());
+	if (!_list.empty()) {
+		_session->local().writeSearchSuggestionsDelayed();
+		_updates.fire({});
+	}
 }
 
 QByteArray RecentMoneyRecipients::serialize() const {
@@ -116,6 +150,7 @@ void RecentMoneyRecipients::applyLocal(QByteArray serialized) {
 	}
 	auto list = std::vector<not_null<UserData*>>();
 	list.reserve(count);
+	auto cleared = false;
 	for (auto i = quint32(); i != count; ++i) {
 		const auto device = stream.underlying().device();
 		const auto position = device->pos();
@@ -142,11 +177,14 @@ void RecentMoneyRecipients::applyLocal(QByteArray serialized) {
 		if (!user) {
 			return;
 		}
-		if (userId != _session->userId()
-			&& !user->isSelf()
-			&& ranges::find(list, user->id, &PeerData::id) == end(list)) {
+		if (userId == _session->userId() || user->isSelf()) {
+			cleared = true;
+		} else if (ranges::find(list, user->id, &PeerData::id) == end(list)) {
 			list.push_back(user);
 		}
+	}
+	if (list.empty() && cleared) {
+		list.push_back(_session->user());
 	}
 	_list = std::move(list);
 }

@@ -28,6 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/ui_integration.h"
 #include "data/components/credits.h"
 #include "data/components/recent_money_recipients.h"
+#include "data/components/recent_peers.h"
+#include "data/components/top_peers.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -4864,6 +4866,7 @@ public:
 private:
 	[[nodiscard]] bool active() const;
 	[[nodiscard]] bool canOffer(not_null<UserData*> user) const;
+	void fillIfEmpty();
 	void refresh();
 	void scheduleRefresh();
 	void watchUsers();
@@ -4903,6 +4906,12 @@ void RecentMoneyRecipientsController::prepare() {
 	_session->recentMoneyRecipients().updates() | rpl::on_next([=] {
 		refresh();
 	}, lifetime());
+	rpl::merge(
+		_session->recentPeers().updates(),
+		_session->topPeers().updates()
+	) | rpl::on_next([=] {
+		fillIfEmpty();
+	}, lifetime());
 	const auto schedule = [=] { scheduleRefresh(); };
 	const auto &wallet = _session->wallet();
 	wallet.stateKnownValue() | rpl::skip(1) | rpl::on_next(
@@ -4913,6 +4922,7 @@ void RecentMoneyRecipientsController::prepare() {
 		lifetime());
 	_session->wallet().userAddresses().unavailableValue(
 	) | rpl::skip(1) | rpl::on_next(schedule, lifetime());
+	fillIfEmpty();
 	refresh();
 }
 
@@ -4933,6 +4943,16 @@ bool RecentMoneyRecipientsController::canOffer(
 		&& _session->data().userLoaded(id) == user
 		&& !user->isSelf()
 		&& _session->wallet().userAddresses().forceResolveError(id).isEmpty();
+}
+
+void RecentMoneyRecipientsController::fillIfEmpty() {
+	if (!active()) {
+		return;
+	}
+	const auto eligible = [=](not_null<UserData*> user) {
+		return canOffer(user);
+	};
+	_session->recentMoneyRecipients().fillIfEmpty(eligible);
 }
 
 void RecentMoneyRecipientsController::watchUsers() {
@@ -5003,6 +5023,7 @@ void RecentMoneyRecipientsController::scheduleRefresh() {
 	_refreshQueued = true;
 	crl::on_main(this, [=] {
 		_refreshQueued = false;
+		fillIfEmpty();
 		refresh();
 	});
 }
@@ -5100,6 +5121,7 @@ rpl::producer<bool> RecentMoneyRecipientsController::shownValue() const {
 		QPainter(header).fillRect(clip, st::searchedBarBg);
 	}, header->lifetime());
 
+	Ui::AddSkip(container, st::walletSendRecentListTopSkip);
 	controller->setStyleOverrides(&st::peerListSingleRow);
 	const auto content = container->add(
 		object_ptr<PeerListContent>(container, controller));
