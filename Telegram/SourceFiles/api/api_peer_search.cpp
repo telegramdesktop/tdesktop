@@ -67,6 +67,8 @@ void PeerSearch::requestPeers() {
 	using Flag = MTPcontacts_Search::Flag;
 	const auto flags = (_type == Type::Channels)
 		? Flag::f_broadcasts
+		: (_type == Type::Bots)
+		? Flag::f_bots
 		: Flag();
 	const auto typed = (flags != Flag());
 	const auto requestId = _session->api().request(MTPcontacts_Search(

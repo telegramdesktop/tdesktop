@@ -672,8 +672,10 @@ private:
 class RecentAppsController final
 	: public Suggestions::ObjectListController {
 public:
-	explicit RecentAppsController(
-		not_null<Window::SessionController*> window);
+	RecentAppsController(
+		not_null<Window::SessionController*> window,
+		rpl::producer<QString> query,
+		rpl::producer<std::vector<not_null<PeerData*>>> found);
 
 	void prepare() override;
 	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
@@ -688,9 +690,13 @@ public:
 private:
 	void appendRow(not_null<UserData*> bot);
 	void fill();
+	void refilter();
 	[[nodiscard]] const std::vector<not_null<UserData*>> &bots() const;
 
+	rpl::producer<QString> _query;
+	rpl::producer<std::vector<not_null<PeerData*>>> _foundValue;
 	std::vector<not_null<UserData*>> _bots;
+	std::vector<not_null<UserData*>> _filtered;
 	rpl::event_stream<> _refreshed;
 	rpl::lifetime _lifetime;
 
@@ -1459,8 +1465,12 @@ void RecommendationsController::appendRow(not_null<ChannelData*> channel) {
 }
 
 RecentAppsController::RecentAppsController(
-	not_null<Window::SessionController*> window)
-: ObjectListController(window) {
+	not_null<Window::SessionController*> window,
+	rpl::producer<QString> query,
+	rpl::producer<std::vector<not_null<PeerData*>>> found)
+: ObjectListController(window)
+, _query(std::move(query))
+, _foundValue(std::move(found)) {
 }
 
 void RecentAppsController::prepare() {
@@ -1478,20 +1488,43 @@ void RecentAppsController::prepare() {
 				}
 			}
 		}
-		setCount(_bots.size());
-		while (delegate()->peerListFullRowsCount()) {
-			delegate()->peerListRemoveRow(delegate()->peerListRowAt(0));
-		}
-		fill();
+		refilter();
 	}, _lifetime);
 
 	expanded() | rpl::skip(1) | rpl::on_next([=] {
 		fill();
 	}, _lifetime);
+
+	setupQueryFilter(
+		std::move(_query),
+		std::move(_foundValue),
+		[=] { refilter(); });
+}
+
+void RecentAppsController::refilter() {
+	_filtered.clear();
+	if (!words().isEmpty()) {
+		for (const auto &bot : _bots) {
+			if (MatchesSearchWords(bot, words())) {
+				_filtered.push_back(bot);
+			}
+		}
+		for (const auto &peer : found()) {
+			const auto bot = peer->asUser();
+			if (bot && !ranges::contains(_filtered, not_null(bot))) {
+				_filtered.push_back(bot);
+			}
+		}
+	}
+	setCount(bots().size());
+	while (delegate()->peerListFullRowsCount()) {
+		delegate()->peerListRemoveRow(delegate()->peerListRowAt(0));
+	}
+	fill();
 }
 
 const std::vector<not_null<UserData*>> &RecentAppsController::bots() const {
-	return _bots;
+	return words().isEmpty() ? _bots : _filtered;
 }
 
 base::unique_qptr<Ui::PopupMenu> RecentAppsController::rowContextMenu(
@@ -1698,6 +1731,12 @@ Suggestions::Suggestions(
 , _postsWrap(_postsScroll->setOwnedWidget(object_ptr<Ui::RpWidget>(this)))
 , _recentApps(setupRecentApps())
 , _popularApps(setupPopularApps())
+, _globalApps(setupGlobalPeers(
+	_appsScroll.get(),
+	_appsContent,
+	_globalAppsResults.value(),
+	_recentApps.get(),
+	false))
 , _searchQueryTimer([=] { applySearchQuery(); }) {
 	setupTabs();
 	setupChats();
@@ -1942,15 +1981,55 @@ void Suggestions::setupApps() {
 		_recentApps->wrap->toggle(count > 0, anim::type::instant);
 	}, _recentApps->wrap->lifetime());
 
-	_popularApps->count.value() | rpl::on_next([=](int count) {
-		_popularApps->wrap->toggle(count > 0, anim::type::instant);
+	rpl::combine(
+		_popularApps->count.value(),
+		_appsQuery.value()
+	) | rpl::on_next([=](int count, const QString &query) {
+		_popularApps->wrap->toggle(
+			count > 0 && query.isEmpty(),
+			anim::type::instant);
 	}, _popularApps->wrap->lifetime());
+
+	_globalApps->count.value() | rpl::on_next([=](int count) {
+		_globalApps->wrap->toggle(count > 0, anim::type::instant);
+	}, _globalApps->wrap->lifetime());
+
+	const auto loadingRows = _appsContent->add(
+		object_ptr<Ui::SlideWrap<Ui::RpWidget>>(
+			_appsContent,
+			Ui::CreateLoadingPeerListItemWidget(
+				_appsContent,
+				st::recentPeersList.item,
+				2,
+				std::nullopt)));
+	loadingRows->toggleOn(_appsLoading.value(), anim::type::instant);
+
+	const auto empty = _appsContent->add(setupEmpty(
+		_appsContent,
+		_appsScroll.get(),
+		SearchEmptyIcon::NoResults,
+		_appsQuery.value() | rpl::map(NoResultsText)));
+	empty->toggleOn(
+		rpl::combine(
+			_recentApps->count.value(),
+			_globalApps->count.value(),
+			_appsQuery.value(),
+			_appsLoading.value()
+		) | rpl::map([](
+				int recent,
+				int global,
+				const QString &query,
+				bool loading) {
+			return !query.isEmpty() && !(recent + global) && !loading;
+		}),
+		anim::type::instant);
 
 	_appsScroll->setVisible(_key.current().tab == Tab::Apps);
 	_appsScroll->setCustomTouchProcess([=](not_null<QTouchEvent*> e) {
 		const auto recentApps = _recentApps->processTouch(e);
 		const auto popularApps = _popularApps->processTouch(e);
-		return recentApps || popularApps;
+		const auto globalApps = _globalApps->processTouch(e);
+		return recentApps || popularApps || globalApps;
 	});
 }
 
@@ -2154,7 +2233,7 @@ void Suggestions::selectJumpChannels(Qt::Key direction, int pageSize) {
 
 void Suggestions::selectJumpApps(Qt::Key direction, int pageSize) {
 	selectJumpSections(
-		{ _recentApps->selectJump, _popularApps->selectJump },
+		{ _recentApps->selectJump, appsSecondList()->selectJump },
 		_appsScroll.get(),
 		direction,
 		pageSize);
@@ -2183,7 +2262,7 @@ void Suggestions::chooseRow() {
 		break;
 	case Tab::Apps:
 		if (!_recentApps->choose()) {
-			_popularApps->choose();
+			appsSecondList()->choose();
 		}
 		break;
 	case Tab::Posts:
@@ -2229,6 +2308,8 @@ bool Suggestions::setTabSearchQuery(const QString &query) {
 	_persist = !_searchQuery.isEmpty();
 	if (key.tab == Tab::Channels) {
 		setChannelsSearchQuery(query.trimmed());
+	} else if (key.tab == Tab::Apps) {
+		setAppsSearchQuery(query.trimmed());
 	}
 	if (query.isEmpty() || key.tab == Tab::Downloads) {
 		_searchQueryTimer.cancel();
@@ -2617,6 +2698,49 @@ void Suggestions::requestChannelsSearch() {
 	});
 }
 
+void Suggestions::setAppsSearchQuery(const QString &query) {
+	if (_appsQuery.current() == query) {
+		return;
+	}
+	_appsScroll->scrollToY(0);
+	_usedAppsResults = std::vector<not_null<PeerData*>>();
+	_globalAppsResults = std::vector<not_null<PeerData*>>();
+	_appsLoading = !query.isEmpty();
+	_appsQuery = query;
+	if (query.isEmpty() && _appsPeerSearch) {
+		_appsPeerSearch->clear();
+	}
+}
+
+void Suggestions::requestAppsSearch() {
+	const auto query = _appsQuery.current();
+	if (query.isEmpty()) {
+		return;
+	} else if (!_appsPeerSearch) {
+		_appsPeerSearch = std::make_unique<Api::PeerSearch>(
+			&_controller->session(),
+			Api::PeerSearch::Type::Bots);
+	}
+	_appsPeerSearch->request(query, [=](Api::PeerSearchResult result) {
+		if (_appsQuery.current() != query) {
+			return;
+		}
+		const auto top = _controller->session().topBotApps().list();
+		const auto apps = [&](bool used) {
+			return [=](not_null<PeerData*> peer) {
+				const auto user = peer->asUser();
+				const auto info = user ? user->botInfo.get() : nullptr;
+				return info
+					&& info->hasMainApp
+					&& (used || !ranges::contains(top, peer));
+			};
+		};
+		_usedAppsResults = FilterPeers(result.my, apps(true));
+		_globalAppsResults = FilterPeers(result.peers, apps(false));
+		_appsLoading = false;
+	});
+}
+
 void Suggestions::requestSearchList(not_null<SearchList*> search) {
 	if (search->requestId || search->loaded || search->query.isEmpty()) {
 		return;
@@ -2726,6 +2850,9 @@ void Suggestions::applySearchQuery() {
 	if (_key.current().tab == Tab::Channels) {
 		requestChannelsSearch();
 		return;
+	} else if (_key.current().tab == Tab::Apps) {
+		requestAppsSearch();
+		return;
 	} else if (ListsSearchResults(_key.current())) {
 		setSearchListQuery(_key.current(), _searchQuery.trimmed());
 		return;
@@ -2746,6 +2873,9 @@ void Suggestions::resetTabSearchQuery(Key key) {
 		return;
 	} else if (key.tab == Tab::Channels) {
 		setChannelsSearchQuery(QString());
+		return;
+	} else if (key.tab == Tab::Apps) {
+		setAppsSearchQuery(QString());
 		return;
 	} else if (ListsSearchResults(key)) {
 		setSearchListQuery(key, QString());
@@ -2803,13 +2933,19 @@ Data::Thread *Suggestions::updateFromAppsDrag(QPoint globalPosition) {
 	if (const auto id = _recentApps->updateFromParentDrag(globalPosition)) {
 		return fromListId(id);
 	}
-	return fromListId(_popularApps->updateFromParentDrag(globalPosition));
+	return fromListId(appsSecondList()->updateFromParentDrag(globalPosition));
 }
 
 not_null<Suggestions::ObjectList*> Suggestions::channelsSecondList() const {
 	return _channelsQuery.current().isEmpty()
 		? _recommendations.get()
 		: _globalChannels.get();
+}
+
+not_null<Suggestions::ObjectList*> Suggestions::appsSecondList() const {
+	return _appsQuery.current().isEmpty()
+		? _popularApps.get()
+		: _globalApps.get();
 }
 
 Data::Thread *Suggestions::fromListId(uint64 peerListRowId) {
@@ -2826,6 +2962,7 @@ void Suggestions::dragLeft() {
 	_globalChannels->dragLeft();
 	_recentApps->dragLeft();
 	_popularApps->dragLeft();
+	_globalApps->dragLeft();
 	for (const auto &[key, search] : _searchLists) {
 		search->content->dragLeft();
 	}
@@ -3283,7 +3420,9 @@ auto Suggestions::setupGlobalPeers(
 
 auto Suggestions::setupRecentApps() -> std::unique_ptr<ObjectList> {
 	const auto controller = lifetime().make_state<RecentAppsController>(
-		_controller);
+		_controller,
+		_appsQuery.value(),
+		_usedAppsResults.value());
 	controller->setCloseCallback([=] {
 		_closeRequests.fire({});
 	});
@@ -3304,6 +3443,9 @@ auto Suggestions::setupRecentApps() -> std::unique_ptr<ObjectList> {
 	raw->chosen.events(
 	) | rpl::on_next([=] {
 		_persist = false;
+		if (!_appsQuery.current().isEmpty()) {
+			_clearSearchQueryRequests.fire({});
+		}
 	}, list->lifetime());
 
 	controller->load();
