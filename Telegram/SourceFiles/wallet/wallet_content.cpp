@@ -271,6 +271,7 @@ private:
 	void setupInfoIsland();
 	void setupWaltEntry(not_null<InfoIsland*> island);
 	void setupEarningsEntry(not_null<InfoIsland*> island);
+	void setupOldWalletEntry(not_null<InfoIsland*> island);
 	void setupProtectRow();
 	void setupBalance();
 	void setupTabs(rpl::producer<bool> collectiblesShown);
@@ -10149,8 +10150,6 @@ void WalletConflictBox(
 			tr::lng_wallet_conflict_text(),
 			st::boxLabel),
 		st::boxRowPadding);
-	Ui::AddSkip(box->verticalLayout());
-	Ui::AddSkip(box->verticalLayout());
 
 	const auto content = box->verticalLayout()->add(
 		object_ptr<Ui::VerticalLayout>(box->verticalLayout()));
@@ -10170,17 +10169,31 @@ void WalletConflictBox(
 				Ui::AddDivider(content);
 			}
 			first = false;
-			Ui::AddSkip(content);
+			const auto address = FormatFriendly(
+				CanonicalAddress(record.address),
+				false);
+			if (address.size() == kAddressLength) {
+				AddAddressPlate(
+					content,
+					address,
+					QMargins(
+						st::boxRowPadding.left(),
+						st::walletAddressPlateSkip,
+						st::boxRowPadding.right(),
+						st::walletAddressPlateSkip));
+			} else {
+				Ui::AddSkip(content);
+			}
 			const auto key = record.publicKey;
-			const auto exportOld = content->add(
+			const auto showPhrase = content->add(
 				object_ptr<Ui::RoundButton>(
 					content,
-					tr::lng_wallet_conflict_export(),
+					tr::lng_wallet_conflict_phrase(),
 					st::defaultLightButton),
 				st::boxRowPadding,
 				style::al_justify);
-			exportOld->setFullRadius(true);
-			exportOld->setClickedCallback([=] {
+			showPhrase->setFullRadius(true);
+			showPhrase->setClickedCallback([=] {
 				WalletRevealFlow(show, key);
 			});
 			Ui::AddSkip(content);
@@ -11269,6 +11282,50 @@ void Content::setupPinned() {
 	base::install_event_filter(_cardQr, forwardWheel);
 }
 
+[[nodiscard]] TextWithEntities IslandAmount(
+		const TextWithEntities &mark,
+		CreditsAmount amount) {
+	auto result = mark;
+	result.append(QChar(' '));
+	result.append(Ui::Text::Colorized(
+		Lang::FormatCreditsAmountToShort(amount).string));
+	return result;
+}
+
+void AddIslandRowLabel(
+		not_null<InfoIslandEntry*> button,
+		rpl::producer<TextWithEntities> text,
+		Ui::Text::MarkedContext context) {
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		button.get(),
+		std::move(text),
+		st::walletIslandRowLabel,
+		st::defaultPopupMenu,
+		std::move(context));
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto updateLabelGeometry = [=] {
+		const auto &padding = st::walletIslandRow.padding;
+		const auto available = button->width()
+			- padding.left()
+			- st::walletIslandLabelRightSkip;
+		if (available <= 0) {
+			return;
+		}
+		label->resizeToWidth(available);
+		button->setMinimalHeight(label->height()
+			+ padding.top()
+			+ padding.bottom());
+		label->moveToLeft(
+			padding.left(),
+			(button->height() - label->height()) / 2,
+			button->width());
+	};
+	button->widthValue(
+	) | rpl::on_next(updateLabelGeometry, button->lifetime());
+	label->heightValue(
+	) | rpl::on_next(updateLabelGeometry, label->lifetime());
+}
+
 void Content::setupInfoIsland() {
 	auto owned = object_ptr<InfoIsland>(_pinnedInner);
 	const auto island = owned.data();
@@ -11280,6 +11337,7 @@ void Content::setupInfoIsland() {
 	setupCustodyEntry(island);
 	setupWaltEntry(island);
 	setupEarningsEntry(island);
+	setupOldWalletEntry(island);
 	wrap->toggleOn(island->anyShownValue(), anim::type::normal);
 }
 
@@ -11313,45 +11371,16 @@ void Content::setupEarningsEntry(not_null<InfoIsland*> island) {
 
 	auto helper = Ui::Text::CustomEmojiHelper();
 	const auto mark = GramMark(helper, st::walletIslandRowLabel.style.font);
-	auto text = tr::lng_wallet_earnings_existing(
-		lt_amount,
-		session->credits().tonBalanceValue(
-		) | rpl::map([=](CreditsAmount value) {
-			auto result = mark;
-			result.append(QChar(' '));
-			result.append(Ui::Text::Colorized(
-				Lang::FormatCreditsAmountToShort(value).string));
-			return result;
-		}),
-		tr::marked);
-	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+	AddIslandRowLabel(
 		button,
-		std::move(text),
-		st::walletIslandRowLabel,
-		st::defaultPopupMenu,
+		tr::lng_wallet_earnings_existing(
+			lt_amount,
+			session->credits().tonBalanceValue(
+			) | rpl::map([=](CreditsAmount value) {
+				return IslandAmount(mark, value);
+			}),
+			tr::marked),
 		helper.context());
-	label->setAttribute(Qt::WA_TransparentForMouseEvents);
-	const auto updateLabelGeometry = [=] {
-		const auto &padding = st::walletIslandRow.padding;
-		const auto available = button->width()
-			- padding.left()
-			- st::walletIslandLabelRightSkip;
-		if (available <= 0) {
-			return;
-		}
-		label->resizeToWidth(available);
-		button->setMinimalHeight(label->height()
-			+ padding.top()
-			+ padding.bottom());
-		label->moveToLeft(
-			padding.left(),
-			(button->height() - label->height()) / 2,
-			button->width());
-	};
-	button->widthValue(
-	) | rpl::on_next(updateLabelGeometry, button->lifetime());
-	label->heightValue(
-	) | rpl::on_next(updateLabelGeometry, label->lifetime());
 
 	button->setClickedCallback([=] {
 		if (const auto window = session->tryResolveWindow()) {
@@ -11735,49 +11764,71 @@ void Content::setupCustodyEntry(not_null<InfoIsland*> island) {
 	button->widthValue(
 	) | rpl::on_next(updateLabelGeometry, button->lifetime());
 
-	enum class Bar {
-		None,
-		Conflict,
-		ReadOnly,
-	};
-	const auto current = button->lifetime().make_state<Bar>(Bar::None);
 	button->setClickedCallback([=] {
-		if (*current == Bar::Conflict) {
-			_show->showBox(Box(WalletConflictBox, _show, nullptr));
-		} else if (*current == Bar::ReadOnly) {
-			_show->showBox(Box(
-				WalletImportBox,
-				_show,
-				WalletImportMode::Restore,
-				nullptr,
-				nullptr,
-				nullptr));
-		}
+		_show->showBox(Box(
+			WalletImportBox,
+			_show,
+			WalletImportMode::Restore,
+			nullptr,
+			nullptr,
+			nullptr));
 	});
 
+	// The old wallet entry takes a conflict, and resolving it comes first.
 	auto &wallet = _show->session().wallet();
 	rpl::combine(
 		wallet.deviceCustodyStateValue(),
 		wallet.presenceValue()
 	) | rpl::map([](DeviceCustodyState state, Presence presence) {
-		return (presence != Presence::Ready)
-			? Bar::None
-			: state.conflict
-			? Bar::Conflict
-			: (state.mode == DeviceMode::ReadOnlyNotRestorable)
-			? Bar::ReadOnly
-			: Bar::None;
+		return (presence == Presence::Ready)
+			&& !state.conflict
+			&& (state.mode == DeviceMode::ReadOnlyNotRestorable);
 	}) | rpl::distinct_until_changed(
-	) | rpl::on_next([=](Bar bar) {
-		*current = bar;
-		if (bar != Bar::None) {
-			_custodyBarLabel->setText((bar == Bar::Conflict)
-				? tr::lng_wallet_conflict_bar(tr::now)
-				: tr::lng_wallet_readonly_bar(tr::now));
+	) | rpl::on_next([=](bool shown) {
+		if (shown) {
+			_custodyBarLabel->setText(tr::lng_wallet_readonly_bar(tr::now));
 			updateLabelGeometry();
 		}
-		wrap->toggle(bar != Bar::None, anim::type::normal);
+		wrap->toggle(shown, anim::type::normal);
 	}, lifetime());
+}
+
+void Content::setupOldWalletEntry(not_null<InfoIsland*> island) {
+	const auto wallet = &_show->session().wallet();
+	const auto wrap = island->add(
+		object_ptr<InfoIslandEntry>(island, nullptr, st::walletIslandRow));
+	wrap->toggle(false, anim::type::instant);
+	const auto button = wrap->entity();
+	AddRowChevron(button);
+
+	auto helper = Ui::Text::CustomEmojiHelper();
+	const auto mark = GramMark(helper, st::walletIslandRowLabel.style.font);
+	AddIslandRowLabel(
+		button,
+		wallet->parkedBalanceNanoValue(
+		) | rpl::map([=](std::optional<int64> nano) {
+			return (nano && *nano > 0)
+				? tr::lng_wallet_conflict_existing(
+					lt_amount,
+					rpl::single(IslandAmount(mark, CreditsAmount(
+						*nano / Ui::kNanosInOne,
+						*nano % Ui::kNanosInOne,
+						CreditsType::Ton))),
+					tr::marked)
+				: tr::lng_wallet_conflict_bar(tr::marked);
+		}) | rpl::flatten_latest(),
+		helper.context());
+
+	button->setClickedCallback([=] {
+		_show->showBox(Box(WalletConflictBox, _show, nullptr));
+	});
+
+	wrap->toggleOn(rpl::combine(
+		wallet->deviceCustodyStateValue(),
+		wallet->presenceValue()
+	) | rpl::map([](DeviceCustodyState state, Presence presence) {
+		return (presence == Presence::Ready) && state.conflict;
+	}), anim::type::normal);
 }
 
 int Content::pinnedMax() const {

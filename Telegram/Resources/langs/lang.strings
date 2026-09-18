@@ -8999,10 +8999,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_replace_password_description" = "Please enter your password to replace your wallet.";
 "lng_wallet_replace_check_about" = "You can replace your wallet only if you have:";
 "lng_wallet_replace_check_wait" = "You will be able to replace your wallet in {duration}.";
-"lng_wallet_conflict_bar" = "This device holds a different wallet.";
+"lng_wallet_conflict_bar" = "You also have an old wallet on this device";
+"lng_wallet_conflict_existing" = "You also have {amount} in old wallet";
 "lng_wallet_readonly_bar" = "This device can view this wallet but can't send from it.";
-"lng_wallet_conflict_text" = "Wallet for this account was changed from another device. You can export your old wallet that is held on this device before switching.";
-"lng_wallet_conflict_export" = "Export old wallet";
+"lng_wallet_conflict_text" = "Wallet you used before on this device. Save the secret phrase before switching to your Telegram wallet.";
+"lng_wallet_conflict_phrase" = "Show secret phrase";
 "lng_wallet_conflict_switch" = "Switch now";
 "lng_wallet_keys_restore" = "Restore from recovery phrase";
 "lng_wallet_restore_title" = "Restore Wallet";

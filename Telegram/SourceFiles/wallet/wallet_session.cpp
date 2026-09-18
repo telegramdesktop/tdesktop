@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_id.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "gram/api/gram_api_account.h"
 #include "gram/api/gram_api_emulate.h"
 #include "gram/gram_boc.h"
 #include "lang/lang_keys.h"
@@ -1915,6 +1916,13 @@ void Session::setPanel(std::unique_ptr<Ui::SeparatePanel> panel) {
 		_stateApi.request(base::take(_waltBalanceRequestId)).cancel();
 		_waltBalanceRequested = false;
 		_existingWaltBalanceUrl = QString();
+		for (const auto requestId : base::take(_parkedBalanceRequestIds)) {
+			_api.cancelRequest(requestId);
+		}
+		++_parkedBalanceBatch;
+		_parkedBalanceAddresses.clear();
+		_parkedBalanceNano = std::nullopt;
+		_parkedBalanceWanted = false;
 	}
 }
 
@@ -2288,6 +2296,71 @@ QString Session::existingWaltBalanceUrl() const {
 rpl::producer<QString> Session::existingWaltBalanceUrlValue() {
 	requestExistingWaltBalance();
 	return _existingWaltBalanceUrl.value();
+}
+
+rpl::producer<std::optional<int64>> Session::parkedBalanceNanoValue() {
+	_parkedBalanceWanted = true;
+	requestParkedBalance();
+	return _parkedBalanceNano.value();
+}
+
+void Session::requestParkedBalance() {
+	// WHY: a parked record at the served address is an older key of this
+	// same account, so its balance is the one the card already shows.
+	auto addresses = std::vector<QString>();
+	if (_presence.current() == Presence::Ready) {
+		for (const auto &record : parkedRecords()) {
+			const auto address = CanonicalAddress(record.address);
+			if (record.network == int(engine::Network::kMainnet)
+				&& !address.isEmpty()
+				&& (address != _address)
+				&& !ranges::contains(addresses, address)) {
+				addresses.push_back(address);
+			}
+		}
+		ranges::sort(addresses);
+	}
+	if (addresses == _parkedBalanceAddresses) {
+		return;
+	}
+	for (const auto requestId : base::take(_parkedBalanceRequestIds)) {
+		_api.cancelRequest(requestId);
+	}
+	_parkedBalanceAddresses = addresses;
+	_parkedBalanceNano = std::nullopt;
+	struct Sum {
+		int64 nano = 0;
+		int left = 0;
+	};
+	const auto batch = ++_parkedBalanceBatch;
+	const auto sum = std::make_shared<Sum>(Sum{
+		.left = int(addresses.size()),
+	});
+	for (const auto &address : addresses) {
+		const auto requestId = _api.request(
+			Gram::AddressInformationRequest(FormatFriendly(address, false)),
+			[=](const QByteArray &json) {
+				if (batch != _parkedBalanceBatch) {
+					return;
+				} else if (const auto nano = Gram::ParseAddressBalance(json)) {
+					sum->nano += *nano;
+					if (!--sum->left) {
+						_parkedBalanceNano = sum->nano;
+					}
+				} else {
+					LOG(("Wallet Error: parked balance parse failed."));
+				}
+			},
+			[=](const Gram::ApiError &error) {
+				if (batch == _parkedBalanceBatch) {
+					LOG(("Wallet Error: parked balance request failed: %1"
+						).arg(error.message));
+				}
+			});
+		if (requestId) {
+			_parkedBalanceRequestIds.push_back(requestId);
+		}
+	}
 }
 
 void Session::requestExistingWaltBalance() {
@@ -5364,6 +5437,9 @@ void Session::updateDeviceCustodyState(bool cachedOnly) {
 	_custodyUpdates.fire({});
 	if (!cachedOnly) {
 		syncEngineClient();
+	}
+	if (_parkedBalanceWanted) {
+		requestParkedBalance();
 	}
 }
 

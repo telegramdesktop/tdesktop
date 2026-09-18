@@ -11,6 +11,8 @@ add_library(tdesktop::td_gram ALIAS td_gram)
 target_precompile_headers(td_gram PRIVATE ${src_loc}/gram/gram_pch.h)
 nice_target_sources(td_gram ${src_loc}
 PRIVATE
+    gram/api/gram_api_account.cpp
+    gram/api/gram_api_account.h
     gram/api/gram_api_emulate.cpp
     gram/api/gram_api_emulate.h
     gram/api/gram_api_nft.cpp
