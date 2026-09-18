@@ -496,7 +496,10 @@ TabbedSelector::TabbedSelector(
 	if (hasStickersTab()) {
 		session().data().stickers().stickerSetInstalled(
 		) | rpl::on_next([=](uint64 setId) {
-			_tabsSlider->setActiveSection(indexByType(SelectorTab::Stickers));
+			if (_tabsSlider) {
+				_tabsSlider->setActiveSection(
+					indexByType(SelectorTab::Stickers));
+			}
 			stickers()->showStickerSet(setId);
 			if (_currentPeer
 				&& Data::CanSend(
