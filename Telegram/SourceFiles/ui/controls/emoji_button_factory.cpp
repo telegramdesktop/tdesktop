@@ -107,6 +107,9 @@ namespace Ui {
 
 	emojiToggle->installEventFilter(emojiPanel);
 	emojiToggle->addClickHandler([=] {
+		// The field the chosen emoji goes to is told apart by the focus,
+		// which a toggle pressed from the keyboard holds itself.
+		field->setFocus();
 		updateEmojiPanelGeometry();
 		emojiPanel->toggleAnimated();
 	});
