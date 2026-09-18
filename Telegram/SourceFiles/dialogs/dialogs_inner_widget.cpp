@@ -3863,6 +3863,10 @@ FilterId InnerWidget::filterId() const {
 	return _filterId;
 }
 
+bool InnerWidget::hasSelection() const {
+	return isSelected();
+}
+
 void InnerWidget::clearSelection() {
 	_mouseSelection = false;
 	_lastMousePosition = std::nullopt;
@@ -4562,6 +4566,10 @@ void InnerWidget::setLoadMoreCallback(Fn<void()> callback) {
 
 void InnerWidget::setLoadMoreFilteredCallback(Fn<void()> callback) {
 	_loadMoreFilteredCallback = std::move(callback);
+}
+
+void InnerWidget::setDeselectOnTopUp(bool value) {
+	_deselectOnTopUp = value;
 }
 
 auto InnerWidget::chosenRow() const -> rpl::producer<ChosenRow> {
@@ -5425,6 +5433,10 @@ void InnerWidget::selectSkip(int32 direction) {
 				: base::in_range(_previewSelected, 0, _previewResults.size())
 				? (_previewSelected + _peerSearchResults.size() + _filterResults.size() + _hashtagResults.size())
 				: (_searchedSelected + _previewResults.size() + _peerSearchResults.size() + _filterResults.size() + _hashtagResults.size());
+			if (_deselectOnTopUp && !cur && direction < 0) {
+				deselectAllRows();
+				return;
+			}
 			cur = std::clamp(
 				cur + direction,
 				0,

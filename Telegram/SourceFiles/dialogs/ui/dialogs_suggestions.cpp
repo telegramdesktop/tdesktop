@@ -147,6 +147,19 @@ struct EntryMenuDescriptor {
 	Fn<void()> closeCallback;
 };
 
+void DispatchResultsKey(
+		not_null<InnerWidget*> content,
+		Qt::Key direction,
+		int pageSize) {
+	const auto key = !pageSize
+		? direction
+		: (direction == Qt::Key_Down)
+		? Qt::Key_PageDown
+		: Qt::Key_PageUp;
+	auto event = QKeyEvent(QEvent::KeyPress, key, Qt::NoModifier);
+	content->processKeyDispatch(&event);
+}
+
 [[nodiscard]] Fn<void()> RemoveAllConfirm(
 		not_null<Window::SessionController*> controller,
 		QString removeAllConfirm,
@@ -1682,6 +1695,11 @@ void Suggestions::selectJump(Qt::Key direction, int pageSize) {
 	case Tab::Chats: selectJumpChats(direction, pageSize); return;
 	case Tab::Channels: selectJumpChannels(direction, pageSize); return;
 	case Tab::Apps: selectJumpApps(direction, pageSize); return;
+	case Tab::Posts:
+		if (_postsContent) {
+			DispatchResultsKey(_postsContent, direction, pageSize);
+		}
+		return;
 	}
 }
 
@@ -1734,127 +1752,61 @@ void Suggestions::selectJumpChats(Qt::Key direction, int pageSize) {
 }
 
 void Suggestions::selectJumpChannels(Qt::Key direction, int pageSize) {
-	const auto myChannelsHasSelection = [=] {
-		return _myChannels->selectJump({}, 0) == JumpResult::Applied;
-	};
-	const auto recommendationsHasSelection = [=] {
-		return _recommendations->selectJump({}, 0) == JumpResult::Applied;
-	};
-	if (pageSize) {
-		if (direction == Qt::Key_Down) {
-			if (recommendationsHasSelection()) {
-				_recommendations->selectJump(direction, pageSize);
-			} else if (myChannelsHasSelection()) {
-				if (_myChannels->selectJump(direction, pageSize)
-					== JumpResult::AppliedAndOut) {
-					_recommendations->selectJump(direction, 0);
-				}
-			} else if (_myChannels->count.current()) {
-				_myChannels->selectJump(direction, 0);
-				_myChannels->selectJump(direction, pageSize);
-			} else if (_recommendations->count.current()) {
-				_recommendations->selectJump(direction, 0);
-				_recommendations->selectJump(direction, pageSize);
-			}
-		} else if (direction == Qt::Key_Up) {
-			if (myChannelsHasSelection()) {
-				if (_myChannels->selectJump(direction, pageSize)
-					== JumpResult::AppliedAndOut) {
-					_channelsScroll->scrollTo(0);
-				}
-			} else if (recommendationsHasSelection()) {
-				if (_recommendations->selectJump(direction, pageSize)
-					== JumpResult::AppliedAndOut) {
-					_myChannels->selectJump(direction, -1);
-				}
-			}
-		}
-	} else if (direction == Qt::Key_Up) {
-		if (myChannelsHasSelection()) {
-			_myChannels->selectJump(direction, 0);
-		} else if (_recommendations->selectJump(direction, 0)
-			== JumpResult::AppliedAndOut) {
-			_myChannels->selectJump(direction, -1);
-		} else if (!recommendationsHasSelection()) {
-			if (_myChannels->selectJump(direction, 0)
-				== JumpResult::AppliedAndOut) {
-				_channelsScroll->scrollTo(0);
-			}
-		}
-	} else if (direction == Qt::Key_Down) {
-		if (recommendationsHasSelection()) {
-			_recommendations->selectJump(direction, 0);
-		} else if (_myChannels->selectJump(direction, 0)
-			== JumpResult::AppliedAndOut) {
-			_recommendations->selectJump(direction, 0);
-		} else if (!myChannelsHasSelection()) {
-			if (_recommendations->selectJump(direction, 0)
-				== JumpResult::AppliedAndOut) {
-				_myChannels->selectJump(direction, 0);
-			}
-		}
-	}
+	selectJumpSections(
+		{ _myChannels->selectJump, _recommendations->selectJump },
+		_channelsScroll.get(),
+		direction,
+		pageSize);
 }
 
 void Suggestions::selectJumpApps(Qt::Key direction, int pageSize) {
-	const auto recentAppsHasSelection = [=] {
-		return _recentApps->selectJump({}, 0) == JumpResult::Applied;
-	};
-	const auto popularAppsHasSelection = [=] {
-		return _popularApps->selectJump({}, 0) == JumpResult::Applied;
-	};
-	if (pageSize) {
-		if (direction == Qt::Key_Down) {
-			if (popularAppsHasSelection()) {
-				_popularApps->selectJump(direction, pageSize);
-			} else if (recentAppsHasSelection()) {
-				if (_recentApps->selectJump(direction, pageSize)
-					== JumpResult::AppliedAndOut) {
-					_popularApps->selectJump(direction, 0);
+	selectJumpSections(
+		{ _recentApps->selectJump, _popularApps->selectJump },
+		_appsScroll.get(),
+		direction,
+		pageSize);
+}
+
+void Suggestions::selectJumpSections(
+		const std::vector<Fn<JumpResult(Qt::Key, int)>> &sections,
+		not_null<Ui::ElasticScroll*> scroll,
+		Qt::Key direction,
+		int pageSize) {
+	const auto count = int(sections.size());
+	const auto selected = int(ranges::find_if(sections, [](const auto &jump) {
+		return jump(Qt::Key(), 0) == JumpResult::Applied;
+	}) - begin(sections));
+	if (direction == Qt::Key_Down) {
+		auto from = selected;
+		if (from == count) {
+			for (auto i = 0; i != count; ++i) {
+				if (sections[i](direction, 0) == JumpResult::Applied) {
+					from = i;
+					break;
 				}
-			} else if (_recentApps->count.current()) {
-				_recentApps->selectJump(direction, 0);
-				_recentApps->selectJump(direction, pageSize);
-			} else if (_popularApps->count.current()) {
-				_popularApps->selectJump(direction, 0);
-				_popularApps->selectJump(direction, pageSize);
 			}
-		} else if (direction == Qt::Key_Up) {
-			if (recentAppsHasSelection()) {
-				if (_recentApps->selectJump(direction, pageSize)
-					== JumpResult::AppliedAndOut) {
-					_channelsScroll->scrollTo(0);
-				}
-			} else if (popularAppsHasSelection()) {
-				if (_popularApps->selectJump(direction, pageSize)
-					== JumpResult::AppliedAndOut) {
-					_recentApps->selectJump(direction, -1);
-				}
+			if (from == count || !pageSize) {
+				return;
 			}
 		}
-	} else if (direction == Qt::Key_Up) {
-		if (recentAppsHasSelection()) {
-			_recentApps->selectJump(direction, 0);
-		} else if (_popularApps->selectJump(direction, 0)
+		if (sections[from](direction, pageSize)
 			== JumpResult::AppliedAndOut) {
-			_recentApps->selectJump(direction, -1);
-		} else if (!popularAppsHasSelection()) {
-			if (_recentApps->selectJump(direction, 0)
-				== JumpResult::AppliedAndOut) {
-				_channelsScroll->scrollTo(0);
+			for (auto i = from + 1; i != count; ++i) {
+				if (sections[i](direction, 0) == JumpResult::Applied) {
+					return;
+				}
 			}
+			sections[from](Qt::Key_Up, -1);
 		}
-	} else if (direction == Qt::Key_Down) {
-		if (popularAppsHasSelection()) {
-			_popularApps->selectJump(direction, 0);
-		} else if (_recentApps->selectJump(direction, 0)
+	} else if (direction == Qt::Key_Up && selected < count) {
+		if (sections[selected](direction, pageSize)
 			== JumpResult::AppliedAndOut) {
-			_popularApps->selectJump(direction, 0);
-		} else if (!recentAppsHasSelection()) {
-			if (_popularApps->selectJump(direction, 0)
-				== JumpResult::AppliedAndOut) {
-				_recentApps->selectJump(direction, 0);
+			for (auto i = selected; i != 0;) {
+				if (sections[--i](direction, -1) == JumpResult::Applied) {
+					return;
+				}
 			}
+			scroll->scrollTo(0);
 		}
 	}
 }
@@ -1874,6 +1826,11 @@ void Suggestions::chooseRow() {
 	case Tab::Apps:
 		if (!_recentApps->choose()) {
 			_popularApps->choose();
+		}
+		break;
+	case Tab::Posts:
+		if (_postsContent) {
+			_postsContent->chooseRow();
 		}
 		break;
 	}
@@ -2006,6 +1963,11 @@ void Suggestions::setupPostsResults() {
 		_postsWrap->resize(_postsWrap->width(), height);
 	}, _postsContent->lifetime());
 
+	_postsContent->mustScrollTo(
+	) | rpl::on_next([=](const Ui::ScrollToRequest &request) {
+		_postsScroll->scrollToY(request.ymin, request.ymax);
+	}, _postsContent->lifetime());
+
 	rpl::combine(
 		rpl::single(rpl::empty) | rpl::then(_postsScroll->scrolls()),
 		_postsScroll->heightValue()
@@ -2017,6 +1979,7 @@ void Suggestions::setupPostsResults() {
 		_postsSearch->requestMore();
 	});
 
+	_postsContent->setDeselectOnTopUp(true);
 	_postsContent->setNarrowRatio(0.);
 	_postsContent->show();
 	updateControlsGeometry();
@@ -2467,41 +2430,7 @@ auto Suggestions::setupMyChannels() -> std::unique_ptr<ObjectList> {
 	const auto raw = result.get();
 	const auto list = raw->wrap->entity();
 
-	raw->selectJump = [=](Qt::Key direction, int pageSize) {
-		const auto had = list->hasSelection();
-		if (direction == Qt::Key()) {
-			return had ? JumpResult::Applied : JumpResult::NotApplied;
-		} else if (direction == Qt::Key_Up && !had) {
-			if (pageSize < 0) {
-				list->selectLast();
-				return list->hasSelection()
-					? JumpResult::Applied
-					: JumpResult::NotApplied;
-			}
-			return JumpResult::NotApplied;
-		} else if (direction == Qt::Key_Down || direction == Qt::Key_Up) {
-			const auto was = list->selectedIndex();
-			const auto delta = (direction == Qt::Key_Down) ? 1 : -1;
-			if (pageSize > 0) {
-				list->selectSkipPage(pageSize, delta);
-			} else {
-				list->selectSkip(delta);
-			}
-			if (had
-				&& delta > 0
-				&& raw->count.current()
-				&& list->selectedIndex() == was) {
-				list->clearSelection();
-				return JumpResult::AppliedAndOut;
-			}
-			return list->hasSelection()
-				? JumpResult::Applied
-				: had
-				? JumpResult::AppliedAndOut
-				: JumpResult::NotApplied;
-		}
-		return JumpResult::NotApplied;
-	};
+	raw->selectJump = ListSelectJump(raw);
 
 	raw->chosen.events(
 	) | rpl::on_next([=] {
@@ -2527,27 +2456,7 @@ auto Suggestions::setupRecommendations() -> std::unique_ptr<ObjectList> {
 	const auto raw = result.get();
 	const auto list = raw->wrap->entity();
 
-	raw->selectJump = [list](Qt::Key direction, int pageSize) {
-		const auto had = list->hasSelection();
-		if (direction == Qt::Key()) {
-			return had ? JumpResult::Applied : JumpResult::NotApplied;
-		} else if (direction == Qt::Key_Up && !had) {
-			return JumpResult::NotApplied;
-		} else if (direction == Qt::Key_Down || direction == Qt::Key_Up) {
-			const auto delta = (direction == Qt::Key_Down) ? 1 : -1;
-			if (pageSize > 0) {
-				list->selectSkipPage(pageSize, delta);
-			} else {
-				list->selectSkip(delta);
-			}
-			return list->hasSelection()
-				? JumpResult::Applied
-				: had
-				? JumpResult::AppliedAndOut
-				: JumpResult::NotApplied;
-		}
-		return JumpResult::NotApplied;
-	};
+	raw->selectJump = ListSelectJump(raw);
 
 	raw->chosen.events(
 	) | rpl::on_next([=] {
@@ -2581,7 +2490,56 @@ auto Suggestions::setupRecentApps() -> std::unique_ptr<ObjectList> {
 	const auto raw = result.get();
 	const auto list = raw->wrap->entity();
 
-	raw->selectJump = [=](Qt::Key direction, int pageSize) {
+	raw->selectJump = ListSelectJump(raw);
+
+	raw->chosen.events(
+	) | rpl::on_next([=] {
+		_persist = false;
+	}, list->lifetime());
+
+	controller->load();
+
+	return result;
+}
+
+auto Suggestions::setupPopularApps() -> std::unique_ptr<ObjectList> {
+	const auto controller = lifetime().make_state<PopularAppsController>(
+		_controller,
+		_recentAppsShows,
+		rpl::duplicate(_recentAppsRefreshed));
+
+	const auto addToScroll = [=] {
+		const auto wrap = _recentApps->wrap;
+		return wrap->toggled() ? wrap->height() : 0;
+	};
+	auto result = setupObjectList(
+		_appsScroll.get(),
+		_appsContent,
+		controller,
+		addToScroll);
+	const auto raw = result.get();
+	const auto list = raw->wrap->entity();
+
+	raw->selectJump = ListSelectJump(raw);
+
+	raw->chosen.events(
+	) | rpl::on_next([=] {
+		_persist = true;
+	}, list->lifetime());
+
+	_key.value() | rpl::filter(
+		rpl::mappers::_1 == Key{ Tab::Apps }
+	) | rpl::on_next([=] {
+		controller->load();
+	}, list->lifetime());
+
+	return result;
+}
+
+auto Suggestions::ListSelectJump(not_null<ObjectList*> raw)
+-> Fn<JumpResult(Qt::Key, int)> {
+	const auto list = raw->wrap->entity();
+	return [=](Qt::Key direction, int pageSize) {
 		const auto had = list->hasSelection();
 		if (direction == Qt::Key()) {
 			return had ? JumpResult::Applied : JumpResult::NotApplied;
@@ -2616,69 +2574,6 @@ auto Suggestions::setupRecentApps() -> std::unique_ptr<ObjectList> {
 		}
 		return JumpResult::NotApplied;
 	};
-
-	raw->chosen.events(
-	) | rpl::on_next([=] {
-		_persist = false;
-	}, list->lifetime());
-
-	controller->load();
-
-	return result;
-}
-
-auto Suggestions::setupPopularApps() -> std::unique_ptr<ObjectList> {
-	const auto controller = lifetime().make_state<PopularAppsController>(
-		_controller,
-		_recentAppsShows,
-		rpl::duplicate(_recentAppsRefreshed));
-
-	const auto addToScroll = [=] {
-		const auto wrap = _recentApps->wrap;
-		return wrap->toggled() ? wrap->height() : 0;
-	};
-	auto result = setupObjectList(
-		_appsScroll.get(),
-		_appsContent,
-		controller,
-		addToScroll);
-	const auto raw = result.get();
-	const auto list = raw->wrap->entity();
-
-	raw->selectJump = [list](Qt::Key direction, int pageSize) {
-		const auto had = list->hasSelection();
-		if (direction == Qt::Key()) {
-			return had ? JumpResult::Applied : JumpResult::NotApplied;
-		} else if (direction == Qt::Key_Up && !had) {
-			return JumpResult::NotApplied;
-		} else if (direction == Qt::Key_Down || direction == Qt::Key_Up) {
-			const auto delta = (direction == Qt::Key_Down) ? 1 : -1;
-			if (pageSize > 0) {
-				list->selectSkipPage(pageSize, delta);
-			} else {
-				list->selectSkip(delta);
-			}
-			return list->hasSelection()
-				? JumpResult::Applied
-				: had
-				? JumpResult::AppliedAndOut
-				: JumpResult::NotApplied;
-		}
-		return JumpResult::NotApplied;
-	};
-
-	raw->chosen.events(
-	) | rpl::on_next([=] {
-		_persist = true;
-	}, list->lifetime());
-
-	_key.value() | rpl::filter(
-		rpl::mappers::_1 == Key{ Tab::Apps }
-	) | rpl::on_next([=] {
-		controller->load();
-	}, list->lifetime());
-
-	return result;
 }
 
 auto Suggestions::setupObjectList(
@@ -2714,7 +2609,7 @@ auto Suggestions::setupObjectList(
 	}, lifetime);
 
 	raw->choose = [=] {
-		return list->submitted();
+		return list->hasSelection() && list->submitted();
 	};
 	raw->updateFromParentDrag = [=](QPoint globalPosition) {
 		return list->updateFromParentDrag(globalPosition);
