@@ -172,7 +172,9 @@ void ChangeFilterById(
 			MTP_flags(MTPmessages_UpdateDialogFilter::Flag::f_filter),
 			MTP_int(filter.id()),
 			filter.tl()
-		)).done([=, chat = history->peer->name(), name = filter.title()] {
+		)).done([=, chat = (history->peer->isSelf()
+				? tr::lng_saved_messages(tr::now)
+				: history->peer->name()), name = filter.title()] {
 			const auto account = not_null(&history->session().account());
 			if (const auto controller = Core::App().windowFor(account)) {
 				const auto isStatic = name.isStatic;
