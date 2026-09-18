@@ -380,6 +380,21 @@ walletCommentErrorLabel: FlatLabel(walletSendErrorLabel) {
 	minWidth: 200px;
 }
 walletCommentCaptionMargin: margins(24px, 8px, 24px, 0px);
+walletSendConfirmCommentField: InputField(walletCommentField) {
+	textMargins: margins(0px, 10px, 36px, 2px);
+}
+walletSendConfirmLockOn: icon{{ "menu/lock", windowActiveTextFg }};
+walletSendConfirmLockOff: icon{{ "menu/lock", windowSubTextFg }};
+walletSendConfirmLock: IconButton(defaultIconButton) {
+	width: 28px;
+	height: 28px;
+	icon: walletSendConfirmLockOn;
+	iconOver: walletSendConfirmLockOn;
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 28px;
+	ripple: defaultRippleAnimation;
+}
+walletSendConfirmBottomSkip: 12px;
 
 walletPhraseTitleLabel: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
