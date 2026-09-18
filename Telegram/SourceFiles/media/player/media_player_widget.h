@@ -86,6 +86,9 @@ private:
 	void updateOverLabelsState(QPoint pos);
 	void updateOverLabelsState(bool over);
 	void hidePlaylistOn(not_null<Ui::RpWidget*> widget);
+	void hideDropdownsOn(not_null<Ui::RpWidget*> widget);
+	void hideDropdowns(not_null<Ui::RpWidget*> except);
+	[[nodiscard]] bool overDropdownControl(QPoint globalPosition) const;
 
 	void updatePlayPrevNextPositions();
 	void updateLabelsGeometry();

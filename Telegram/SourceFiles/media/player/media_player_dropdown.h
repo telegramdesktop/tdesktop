@@ -38,6 +38,8 @@ public:
 
 	QMargins getMargin() const;
 
+	void hideFast();
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void enterEventHook(QEnterEvent *e) override;
@@ -85,6 +87,7 @@ public:
 
 	void hideTemporarily();
 	void showBack();
+	void setOtherDropdownCheck(Fn<bool(QPoint globalPosition)> check);
 
 protected:
 	void showMenu();
@@ -92,12 +95,15 @@ protected:
 private:
 	virtual void fillMenu(not_null<Ui::DropdownMenu*> menu) = 0;
 
+	void handleMenuMove(QPoint globalPosition);
+
 	const not_null<Ui::AbstractButton*> _button;
 	const not_null<QWidget*> _menuParent;
 	const style::DropdownMenu &_menuSt;
 	const Qt::Alignment _menuAlign = Qt::AlignTop | Qt::AlignRight;
 	const QPoint _menuPosition;
 	const Fn<void(bool)> _menuOverCallback;
+	Fn<bool(QPoint globalPosition)> _otherDropdownCheck;
 	base::unique_qptr<Ui::DropdownMenu> _menu;
 	rpl::variable<bool> _menuToggled;
 	bool _temporarilyHidden = false;

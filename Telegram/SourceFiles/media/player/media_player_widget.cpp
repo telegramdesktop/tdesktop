@@ -217,6 +217,16 @@ Widget::Widget(
 	hidePlaylistOn(_close);
 	hidePlaylistOn(_rightControls);
 
+	hideDropdownsOn(_volumeToggle);
+	hideDropdownsOn(_orderToggle);
+	hideDropdownsOn(_speedToggle);
+
+	const auto otherDropdownCheck = [=](QPoint globalPosition) {
+		return overDropdownControl(globalPosition);
+	};
+	_orderController->setOtherDropdownCheck(otherDropdownCheck);
+	_speedController->setOtherDropdownCheck(otherDropdownCheck);
+
 	setType(AudioMsgId::Type::Song);
 }
 
@@ -227,6 +237,42 @@ void Widget::hidePlaylistOn(not_null<Ui::RpWidget*> widget) {
 	}) | rpl::on_next([=] {
 		updateOverLabelsState(false);
 	}, widget->lifetime());
+}
+
+void Widget::hideDropdownsOn(not_null<Ui::RpWidget*> widget) {
+	widget->events(
+	) | rpl::filter([=](not_null<QEvent*> e) {
+		return (e->type() == QEvent::Enter);
+	}) | rpl::on_next([=] {
+		hideDropdowns(widget);
+	}, widget->lifetime());
+}
+
+bool Widget::overDropdownControl(QPoint globalPosition) const {
+	const auto over = [&](not_null<Ui::RpWidget*> control) {
+		return !control->isHidden()
+			&& control->rect().contains(
+				control->mapFromGlobal(globalPosition));
+	};
+	return over(_volumeToggle)
+		|| over(_orderToggle)
+		|| over(_speedToggle);
+}
+
+void Widget::hideDropdowns(not_null<Ui::RpWidget*> except) {
+	if (except.get() != _volumeToggle.data()) {
+		_volume->hideFast();
+	}
+	if (except.get() != _orderToggle.data()) {
+		if (const auto menu = _orderController->menu()) {
+			menu->hideFast();
+		}
+	}
+	if (except.get() != _speedToggle.data()) {
+		if (const auto menu = _speedController->menu()) {
+			menu->hideFast();
+		}
+	}
 }
 
 void Widget::setupRightControls() {
