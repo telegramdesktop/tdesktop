@@ -1856,7 +1856,7 @@ void Session::setPanel(std::unique_ptr<Ui::SeparatePanel> panel) {
 		resetHiddenHistoryPages();
 		_stateApi.request(base::take(_waltBalanceRequestId)).cancel();
 		_waltBalanceRequested = false;
-		_existingWaltBalance = false;
+		_existingWaltBalanceUrl = QString();
 	}
 }
 
@@ -2223,9 +2223,13 @@ void Session::applyGaslessTerms(GaslessTerms terms) {
 	}
 }
 
-rpl::producer<bool> Session::existingWaltBalanceValue() {
+QString Session::existingWaltBalanceUrl() const {
+	return _existingWaltBalanceUrl.current();
+}
+
+rpl::producer<QString> Session::existingWaltBalanceUrlValue() {
 	requestExistingWaltBalance();
-	return _existingWaltBalance.value();
+	return _existingWaltBalanceUrl.value();
 }
 
 void Session::requestExistingWaltBalance() {
@@ -2240,10 +2244,13 @@ void Session::requestExistingWaltBalance() {
 	const auto generation = _networkGeneration;
 	_waltBalanceRequestId = _stateApi.request(
 		MTPwallet_GetExistingWaltBalance()
-	).done([=](const MTPBool &result) {
+	).done([=](const MTPwallet_ExistingBalance &result) {
 		_waltBalanceRequestId = 0;
 		if (generation == _networkGeneration) {
-			_existingWaltBalance = mtpIsTrue(result);
+			const auto &data = result.data();
+			_existingWaltBalanceUrl = data.is_has_balance()
+				? qs(data.vurl())
+				: QString();
 		}
 	}).fail([=] {
 		_waltBalanceRequestId = 0;

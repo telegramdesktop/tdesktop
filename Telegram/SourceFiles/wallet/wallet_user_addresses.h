@@ -114,6 +114,8 @@ private:
 	void applyChunk(
 		const std::vector<UserId> &asked,
 		const QVector<MTPWalletUserAddress> &reply);
+	const QVector<MTPWalletUserAddress> &processReply(
+		const MTPwallet_UserAddresses &result);
 	void rememberKeys(const QVector<MTPWalletUserAddress> &reply);
 	void finishChunk(const std::shared_ptr<Job> &job);
 	void finish(const std::shared_ptr<Job> &job);

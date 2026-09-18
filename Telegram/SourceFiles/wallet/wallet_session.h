@@ -654,7 +654,9 @@ public:
 	[[nodiscard]] rpl::producer<GaslessTerms> gaslessTermsValue();
 	void refreshGaslessInfo(bool force = false);
 
-	[[nodiscard]] rpl::producer<bool> existingWaltBalanceValue();
+	// Empty while there is no Walt balance to show, otherwise its link.
+	[[nodiscard]] QString existingWaltBalanceUrl() const;
+	[[nodiscard]] rpl::producer<QString> existingWaltBalanceUrlValue();
 
 	// One live send box owns one preview identity until its lifetime ends.
 	// Edits replace only that owner's queued request, preserving its place
@@ -988,7 +990,7 @@ private:
 	crl::time _gaslessExpiresAt = 0;
 	bool _gaslessRefreshWanted = false;
 	bool _gaslessRefreshing = false;
-	rpl::variable<bool> _existingWaltBalance = false;
+	rpl::variable<QString> _existingWaltBalanceUrl;
 	mtpRequestId _waltBalanceRequestId = 0;
 	bool _waltBalanceRequested = false;
 	std::vector<TransferItem> _history;

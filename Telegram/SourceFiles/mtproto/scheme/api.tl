@@ -2304,6 +2304,8 @@ walletState#95c5346b flags:# backup_enabled:flags.0?true can_export_phrase:flags
 
 walletUserAddress#a1b895e5 user_id:long address:string public_key:bytes = WalletUserAddress;
 
+wallet.userAddresses#928e7b55 addresses:Vector<WalletUserAddress> users:Vector<User> = wallet.UserAddresses;
+
 walletTransactionPeerUser#d4ea706d flags:# user_id:long address:string domain:flags.0?string = WalletTransactionPeer;
 walletTransactionPeerAddress#62cc1bc flags:# address:string domain:flags.0?string = WalletTransactionPeer;
 walletTransactionPeerUnsupported#728bed5a = WalletTransactionPeer;
@@ -2338,6 +2340,8 @@ tonConnectRequest#a281cb31 flags:# session_id:long msg_id:long body:bytes expire
 wallet.tonConnectPending#85c0f124 session:TonConnectSession requests:Vector<TonConnectRequest> = wallet.TonConnectPending;
 
 wallet.tonConnectSessions#e1f6896 sessions:Vector<TonConnectSession> = wallet.TonConnectSessions;
+
+wallet.existingBalance#bde90a8d flags:# has_balance:flags.0?true url:string = wallet.ExistingBalance;
 
 ---functions---
 
@@ -3192,7 +3196,7 @@ toncenter.performApiRequest#8d7bdd61 flags:# post:flags.0?true endpoint:string q
 toncenter.getStreamingUrl#cdaf63c7 = toncenter.StreamingUrl;
 
 wallet.getState#ab83b33a = WalletState;
-wallet.getUserAddresses#5a270f7 flags:# force:flags.0?true id:Vector<InputUser> addresses:Vector<string> = Vector<WalletUserAddress>;
+wallet.getUserAddresses#5275dfdd flags:# force:flags.0?true id:Vector<InputUser> addresses:Vector<string> = wallet.UserAddresses;
 wallet.getTransactions#a8830a83 flags:# inbound:flags.0?true outbound:flags.1?true offset:string limit:int = wallet.Transactions;
 wallet.getTransactionsByIDs#811ceab6 id:Vector<string> = wallet.Transactions;
 wallet.getTransactionsByMsgHash#a6bb795d msg_hash:Vector<string> = wallet.Transactions;
@@ -3205,7 +3209,7 @@ wallet.enableBackup#81a2b0f3 flags:# parts:Vector<bytes> password:flags.0?InputC
 wallet.getProofChallenge#2025e697 = wallet.ProofChallenge;
 wallet.sendTransfer#d37d8fdb flags:# data_normal:bytes data_gasless:flags.0?bytes random_id:long = Updates;
 wallet.getGaslessInfo#742df0a1 = Updates;
-wallet.getExistingWaltBalance#628746e3 = Bool;
+wallet.getExistingWaltBalance#691f4360 = wallet.ExistingBalance;
 wallet.tonConnectCreateSession#cc931046 dapp_client_id:string manifest_url:string = TonConnectSession;
 wallet.tonConnectRegisterKey#338bcf1c session_id:long client_id:string = wallet.TonConnectChallenge;
 wallet.tonConnectSubmitConnectResult#c2c00779 flags:# error:flags.0?true session_id:long challenge_answer:bytes body:bytes trace_id:flags.1?string = Bool;

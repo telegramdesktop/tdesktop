@@ -46,7 +46,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_response.h"
-#include "mtproto/sender.h"
 #include "qr/qr_generate.h"
 #include "settings/cloud_password/settings_cloud_password_common.h"
 #include "settings/sections/settings_credits.h"
@@ -2407,6 +2406,9 @@ struct OnrampMethodMapping {
 struct OldWalletAppLink {
 	QString appname;
 	QString startapp;
+	std::optional<QString> startattach;
+	bool compact = false;
+	bool fullscreen = false;
 };
 
 class OnrampRoutesController final {
@@ -2444,10 +2446,8 @@ private:
 	void hostedSessionLoaded(const Onramp::HostedSessionState &load);
 	void clearHostedExpected();
 	void failHostedSession();
-	void openOldWalletApp(const OldWalletAppLink &link, const QString &url);
 
 	const not_null<Main::Session*> _session;
-	MTP::Sender _api;
 	Rates *_rates = nullptr;
 	Onramp *_onramp = nullptr;
 	const QString _address;
@@ -2530,13 +2530,15 @@ constexpr auto kOnrampMethodMappings = std::array{
 	if (params.value(u"domain"_q).compare(configured, Qt::CaseInsensitive)) {
 		return {};
 	}
-	const auto appname = params.value(u"appname"_q);
-	if (appname.isEmpty() && !params.contains(u"startapp"_q)) {
-		return {};
-	}
+	const auto mode = params.value(u"mode"_q);
 	return OldWalletAppLink{
-		.appname = appname,
+		.appname = params.value(u"appname"_q),
 		.startapp = params.value(u"startapp"_q),
+		.startattach = (params.contains(u"startattach"_q)
+			? params.value(u"startattach"_q)
+			: std::optional<QString>()),
+		.compact = (mode == u"compact"_q),
+		.fullscreen = (mode == u"fullscreen"_q),
 	};
 }
 
@@ -2544,24 +2546,77 @@ void OpenOldWalletApp(
 		not_null<UserData*> bot,
 		std::shared_ptr<Ui::Show> show,
 		const OldWalletAppLink &link) {
-	auto source = link.appname.isEmpty()
-		? InlineBots::WebViewSource(InlineBots::WebViewSourceLinkBotProfile{
-			.token = link.startapp,
+	const auto startCommand = link.startattach.value_or(link.startapp);
+	auto source = link.startattach
+		? InlineBots::WebViewSource(InlineBots::WebViewSourceLinkAttachMenu{
+			.token = startCommand,
 		})
-		: InlineBots::WebViewSource(InlineBots::WebViewSourceLinkApp{
+		: !link.appname.isEmpty()
+		? InlineBots::WebViewSource(InlineBots::WebViewSourceLinkApp{
 			.appname = link.appname,
-			.token = link.startapp,
+			.token = startCommand,
+		})
+		: InlineBots::WebViewSource(InlineBots::WebViewSourceLinkBotProfile{
+			.token = startCommand,
+			.compact = link.compact,
 		});
 	bot->session().attachWebView().open({
 		.bot = bot,
 		.parentShow = std::move(show),
 		.context = {
 			.action = ::Api::SendAction(bot->owner().history(bot)),
+			.fullscreen = link.fullscreen,
 			.maySkipConfirmation = true,
 		},
-		.button = { .startCommand = link.startapp },
+		.button = { .startCommand = startCommand },
 		.source = std::move(source),
 	});
+}
+
+void OpenOldWalletAppLink(
+		not_null<Main::Session*> session,
+		std::shared_ptr<Ui::Show> show,
+		const OldWalletAppLink &link,
+		const QString &url) {
+	const auto username = session->appConfig().oldWalletBotUsername();
+	const auto byUsername = session->data().peerByUsername(username);
+	if (const auto bot = byUsername ? byUsername->asUser() : nullptr) {
+		if (bot->isOldWalletBot()) {
+			OpenOldWalletApp(bot, std::move(show), link);
+			return;
+		}
+	}
+	session->api().request(MTPcontacts_ResolveUsername(
+		MTP_flags(0),
+		MTP_string(username),
+		MTP_string()
+	)).done([=](const MTPcontacts_ResolvedPeer &result) {
+		const auto &data = result.data();
+		session->data().processUsers(data.vusers());
+		session->data().processChats(data.vchats());
+		const auto peerId = peerFromMTP(data.vpeer());
+		const auto bot = peerId
+			? session->data().peer(peerId)->asUser()
+			: nullptr;
+		if (bot && bot->isOldWalletBot()) {
+			OpenOldWalletApp(bot, show, link);
+		} else {
+			UrlClickHandler::Open(url);
+		}
+	}).fail([=] {
+		UrlClickHandler::Open(url);
+	}).send();
+}
+
+void OpenWalletUrl(
+		not_null<Main::Session*> session,
+		std::shared_ptr<Ui::Show> show,
+		const QString &url) {
+	if (const auto link = ParseOldWalletAppLink(session, url)) {
+		OpenOldWalletAppLink(session, std::move(show), *link, url);
+	} else {
+		UrlClickHandler::Open(url);
+	}
 }
 
 void AddOnrampCurrency(
@@ -2738,7 +2793,6 @@ OnrampRoutesController::OnrampRoutesController(
 		QString address,
 		std::shared_ptr<Ui::Show> show)
 : _session(session)
-, _api(&session->mtp())
 , _rates(&session->wallet().rates())
 , _onramp(&session->wallet().onramp())
 , _address(std::move(address))
@@ -3189,45 +3243,7 @@ void OnrampRoutesController::hostedSessionLoaded(
 	}
 	const auto url = session.url;
 	clearHostedExpected();
-	if (const auto link = ParseOldWalletAppLink(_session, url)) {
-		openOldWalletApp(*link, url);
-		return;
-	}
-	UrlClickHandler::Open(url);
-}
-
-void OnrampRoutesController::openOldWalletApp(
-		const OldWalletAppLink &link,
-		const QString &url) {
-	const auto username = _session->appConfig().oldWalletBotUsername();
-	const auto show = _show;
-	const auto byUsername = _session->data().peerByUsername(username);
-	if (const auto bot = byUsername ? byUsername->asUser() : nullptr) {
-		if (bot->isOldWalletBot()) {
-			OpenOldWalletApp(bot, show, link);
-			return;
-		}
-	}
-	_api.request(MTPcontacts_ResolveUsername(
-		MTP_flags(0),
-		MTP_string(username),
-		MTP_string()
-	)).done([=](const MTPcontacts_ResolvedPeer &result) {
-		const auto &data = result.data();
-		_session->data().processUsers(data.vusers());
-		_session->data().processChats(data.vchats());
-		const auto peerId = peerFromMTP(data.vpeer());
-		const auto bot = peerId
-			? _session->data().peer(peerId)->asUser()
-			: nullptr;
-		if (bot && bot->isOldWalletBot()) {
-			OpenOldWalletApp(bot, show, link);
-		} else {
-			UrlClickHandler::Open(url);
-		}
-	}).fail([=] {
-		UrlClickHandler::Open(url);
-	}).send();
+	OpenWalletUrl(_session, _show, url);
 }
 
 void OnrampRoutesController::clearHostedExpected() {
@@ -10357,25 +10373,6 @@ enum class EmptyFace {
 	Unreachable,
 };
 
-[[nodiscard]] UserData *OldWalletBot(not_null<Main::Session*> session) {
-	const auto &bots = session->attachWebView().attachBots();
-	const auto i = ranges::find_if(
-		bots,
-		[](const InlineBots::AttachWebViewBot &bot) {
-			return bot.user->isOldWalletBot();
-		});
-	return (i != end(bots)) ? i->user.get() : nullptr;
-}
-
-[[nodiscard]] rpl::producer<UserData*> OldWalletBotValue(
-		not_null<Main::Session*> session) {
-	return rpl::single(rpl::empty) | rpl::then(
-		session->attachWebView().attachBotsUpdates()
-	) | rpl::map([=] {
-		return OldWalletBot(session);
-	}) | rpl::distinct_until_changed();
-}
-
 void Content::setupContent() {
 	_container = _scroll->setOwnedWidget(
 		object_ptr<Ui::RpWidget>(_scroll.data()));
@@ -10782,19 +10779,14 @@ void Content::setupWaltEntry(not_null<InfoIsland*> island) {
 	const auto button = wrap->entity();
 	AddRowChevron(button);
 	button->setClickedCallback([=] {
-		if (const auto bot = OldWalletBot(session)) {
-			session->attachWebView().open({
-				.bot = bot,
-				.parentShow = _show,
-				.source = InlineBots::WebViewSourceMainMenu(),
-			});
+		const auto url = session->wallet().existingWaltBalanceUrl();
+		if (!url.isEmpty()) {
+			OpenWalletUrl(session, _show, url);
 		}
 	});
-	wrap->toggleOn(rpl::combine(
-		session->wallet().existingWaltBalanceValue(),
-		OldWalletBotValue(session)
-	) | rpl::map([](bool exists, UserData *bot) {
-		return exists && (bot != nullptr);
+	wrap->toggleOn(session->wallet().existingWaltBalanceUrlValue(
+	) | rpl::map([](const QString &url) {
+		return !url.isEmpty();
 	}), anim::type::normal);
 }
 

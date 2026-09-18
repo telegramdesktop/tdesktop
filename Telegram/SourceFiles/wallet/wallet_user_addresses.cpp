@@ -135,8 +135,8 @@ void UserAddresses::forceResolve(
 		MTP_vector<MTPInputUser>(1, user->inputUser()),
 		MTP_vector<MTPstring>()
 	)).done([=, done = std::move(done)](
-			const MTPVector<MTPWalletUserAddress> &result) {
-		const auto &reply = result.v;
+			const MTPwallet_UserAddresses &result) {
+		const auto &reply = processReply(result);
 		const auto address = (reply.size() == 1
 			&& UserId(reply.front().data().vuser_id()) == id)
 			? CanonicalAddress(qs(reply.front().data().vaddress()))
@@ -146,7 +146,6 @@ void UserAddresses::forceResolve(
 			return;
 		}
 		user->setGramAddressFromForce(address);
-		rememberKeys(reply);
 		if (done) {
 			done(address);
 		}
@@ -211,10 +210,10 @@ void UserAddresses::resolveOwner(QString address, Fn<void(AddressOwner)> done) {
 		MTP_flags(0),
 		MTP_vector<MTPInputUser>(),
 		MTP_vector<MTPstring>(1, MTP_string(canonical))
-	)).done([=](const MTPVector<MTPWalletUserAddress> &result) {
-		rememberKeys(result.v);
+	)).done([=](const MTPwallet_UserAddresses &result) {
+		const auto &reply = processReply(result);
 		auto owner = AddressOwner();
-		for (const auto &entry : result.v) {
+		for (const auto &entry : reply) {
 			const auto &data = entry.data();
 			if (CanonicalAddress(qs(data.vaddress())) != canonical) {
 				LOG(("Wallet Error: wallet.getUserAddresses answered about "
@@ -276,9 +275,8 @@ void UserAddresses::sendChunk(
 		MTP_flags(0),
 		std::move(users),
 		MTP_vector<MTPstring>()
-	)).done([=](const MTPVector<MTPWalletUserAddress> &result) {
-		applyChunk(ids, result.v);
-		rememberKeys(result.v);
+	)).done([=](const MTPwallet_UserAddresses &result) {
+		applyChunk(ids, processReply(result));
 		finishChunk(job);
 	}).fail([=](const MTP::Error &error) {
 		if (error.type() == u"WALLET_UNAVAILABLE"_q) {
@@ -308,6 +306,15 @@ void UserAddresses::applyChunk(
 			user->setGramAddress(address);
 		}
 	}
+}
+
+// The users come along so the peer an address names is showable at once.
+const QVector<MTPWalletUserAddress> &UserAddresses::processReply(
+		const MTPwallet_UserAddresses &result) {
+	const auto &data = result.data();
+	_session->data().processUsers(data.vusers());
+	rememberKeys(data.vaddresses().v);
+	return data.vaddresses().v;
 }
 
 // A key is public metadata about the address it comes with, and the engine
