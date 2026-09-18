@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace style {
 struct MediaPlayerPlayIcon;
+struct MediaPlayerPlayButton;
 struct MediaSpeedButton;
 } // namespace style
 
@@ -49,6 +50,26 @@ private:
 	bool _transformBackward = false;
 
 	Fn<void()> _callback;
+
+};
+
+class PlayButton final : public Ui::RippleButton {
+public:
+	using State = PlayButtonLayout::State;
+
+	PlayButton(QWidget *parent, const style::MediaPlayerPlayButton &st);
+
+	void setState(State state);
+	void finishTransform();
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+
+	QPoint prepareRippleStartPosition() const override;
+	QImage prepareRippleMask() const override;
+
+	const style::MediaPlayerPlayButton &_st;
+	PlayButtonLayout _layout;
 
 };
 

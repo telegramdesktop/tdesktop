@@ -237,6 +237,46 @@ void PlayButtonLayout::startTransform(float64 from, float64 to) {
 		_st.duration);
 }
 
+PlayButton::PlayButton(
+	QWidget *parent,
+	const style::MediaPlayerPlayButton &st)
+: RippleButton(parent, st.ripple)
+, _st(st)
+, _layout(st.icon, [=] { update(); }) {
+	resize(st.size);
+	setCursor(style::cur_pointer);
+}
+
+void PlayButton::setState(State state) {
+	_layout.setState(state);
+}
+
+void PlayButton::finishTransform() {
+	_layout.finishTransform();
+}
+
+void PlayButton::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+
+	paintRipple(p, _st.rippleAreaPosition);
+	p.translate(_st.iconPosition);
+	_layout.paint(p, _st.color);
+}
+
+QPoint PlayButton::prepareRippleStartPosition() const {
+	const auto result = mapFromGlobal(QCursor::pos())
+		- _st.rippleAreaPosition;
+	const auto area = QRect(0, 0, _st.rippleAreaSize, _st.rippleAreaSize);
+	return area.contains(result)
+		? result
+		: DisabledRippleStartPosition();
+}
+
+QImage PlayButton::prepareRippleMask() const {
+	return Ui::RippleAnimation::EllipseMask(
+		QSize(_st.rippleAreaSize, _st.rippleAreaSize));
+}
+
 SpeedButtonLayout::SpeedButtonLayout(
 	const style::MediaSpeedButton &st,
 	Fn<void()> callback,

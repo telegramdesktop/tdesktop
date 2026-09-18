@@ -228,6 +228,7 @@ Widget::Widget(
 	_speedController->setOtherDropdownCheck(otherDropdownCheck);
 
 	setType(AudioMsgId::Type::Song);
+	_playPause->finishTransform();
 }
 
 void Widget::hidePlaylistOn(not_null<Ui::RpWidget*> widget) {
@@ -697,11 +698,11 @@ void Widget::handleSongUpdate(const TrackState &state) {
 	if (instance()->isSeeking(_type)) {
 		showPause = true;
 	}
-	_playPause->setIconOverride(state.id.audio()->loading()
-		? &st::mediaPlayerCancelIcon
+	_playPause->setState(state.id.audio()->loading()
+		? PlayButton::State::Cancel
 		: showPause
-		? &st::mediaPlayerPauseIcon
-		: nullptr);
+		? PlayButton::State::Pause
+		: PlayButton::State::Play);
 	_playPause->setAccessibleName(showPause
 		? tr::lng_shortcuts_media_pause(tr::now)
 		: tr::lng_shortcuts_media_play(tr::now));
