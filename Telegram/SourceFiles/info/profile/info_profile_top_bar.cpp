@@ -81,6 +81,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/peer/video_userpic_player.h"
+#include "ui/power_saving.h"
 #include "ui/rect.h"
 #include "ui/effects/numbers_animation.h"
 #include "ui/text/text_utilities.h"
@@ -551,6 +552,10 @@ TopBar::TopBar(
 			[=] { update(); });
 	} else if (!_savedMessages) {
 		updateVideoUserpic();
+		PowerSaving::OnValue(PowerSaving::kAnimatedUserpics) | rpl::on_next([=] {
+			updateVideoUserpic();
+			update();
+		}, lifetime());
 	}
 	rpl::merge(
 		windowActiveValue() | rpl::to_empty,
@@ -2782,7 +2787,9 @@ void TopBar::paintUserpic(QPainter &p, const QRect &geometry) {
 		p.drawImage(geometry, _cachedUserpic);
 		return;
 	}
-	if (_videoUserpicPlayer && _videoUserpicPlayer->ready()) {
+	if (_videoUserpicPlayer
+		&& _videoUserpicPlayer->ready()
+		&& !PowerSaving::On(PowerSaving::kAnimatedUserpics)) {
 		const auto size = st::infoProfileTopBarPhotoSize;
 		const auto paused = _gifPausedChecker();
 		const auto frame = _videoUserpicPlayer->frame(
@@ -3187,6 +3194,9 @@ void TopBar::fillTopBarMenu(
 
 void TopBar::updateVideoUserpic() {
 	if (width() <= 0) {
+		return;
+	} else if (PowerSaving::On(PowerSaving::kAnimatedUserpics)) {
+		_videoUserpicPlayer = nullptr;
 		return;
 	}
 	const auto id = _peer->userpicPhotoId();
