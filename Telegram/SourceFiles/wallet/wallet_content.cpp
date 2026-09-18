@@ -141,6 +141,7 @@ constexpr auto kReceiveLines = kAddressLength
 	/ kReceiveGroupsPerLine;
 constexpr auto kQrQuietZoneModules = 4;
 constexpr auto kShortAddressChars = 4;
+constexpr auto kGaslessDailyTransfersDefault = 5;
 constexpr auto kMinus = QChar(0x2212);
 constexpr auto kImportWordCountShort = 12;
 constexpr auto kImportWordCountLong = 24;
@@ -1914,18 +1915,34 @@ void AddDetailsComment(
 		style::al_top);
 }
 
+[[nodiscard]] int GaslessDailyTransfers(not_null<Main::Session*> session) {
+	return session->appConfig().get<int>(
+		u"wallet_gasless_daily_transfers"_q,
+		kGaslessDailyTransfersDefault);
+}
+
+[[nodiscard]] rpl::producer<int> GaslessDailyTransfersValue(
+		not_null<Main::Session*> session) {
+	return session->appConfig().value() | rpl::map([=] {
+		return GaslessDailyTransfers(session);
+	}) | rpl::distinct_until_changed();
+}
+
 void ShowNetworkFeesAbout(
 		std::shared_ptr<Ui::Show> show,
 		not_null<Main::Session*> session,
 		int64 feeNano) {
 	const auto rate = session->wallet().rates().current();
+	const auto covered = GaslessDailyTransfers(session);
 	show->showBox(Ui::MakeInformBox({
 		.text = (feeNano > 0 && rate.available())
 			? tr::lng_wallet_fees_text(
 				tr::now,
+				lt_count,
+				covered,
 				lt_amount,
 				FormatFiat(feeNano, rate, kFeeFiatDecimals))
-			: tr::lng_wallet_fees_text_unknown(tr::now),
+			: tr::lng_wallet_fees_text_unknown(tr::now, lt_count, covered),
 		.title = tr::lng_wallet_fees_title(),
 	}));
 }
@@ -3713,7 +3730,9 @@ void ShowWalletReceiveBox(
 	show->showBox(Box(WalletReceiveBox, session, address));
 }
 
-void WalletHowItWorksBox(not_null<Ui::GenericBox*> box) {
+void WalletHowItWorksBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session) {
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
@@ -3759,7 +3778,11 @@ void WalletHowItWorksBox(not_null<Ui::GenericBox*> box) {
 		{
 			.icon = st::walletAboutFeesIcon,
 			.title = tr::lng_wallet_about_fees_title(tr::now),
-			.about = tr::lng_wallet_about_fees_text(tr::now, tr::marked),
+			.about = tr::lng_wallet_about_fees_text(
+				tr::now,
+				lt_count,
+				GaslessDailyTransfers(session),
+				tr::marked),
 			.similarLines = true,
 		},
 		{
@@ -4063,7 +4086,7 @@ void WalletTransactionBox(
 		raw->addAction(
 			Ui::Text::FixAmpersandInAction(
 				tr::lng_wallet_details_gram(tr::now)),
-			[=] { show->showBox(Box(WalletHowItWorksBox)); },
+			[=] { show->showBox(Box(WalletHowItWorksBox, session)); },
 			&st::menuIconFaq);
 		raw->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
 		raw->popup(toggle->mapToGlobal(QPoint(
@@ -10931,7 +10954,9 @@ void Content::setupContent() {
 	Ui::AddSkip(about, st::walletAboutRowSkip);
 	addEntry(
 		tr::lng_wallet_about_fees_title(),
-		tr::lng_wallet_about_fees_text(),
+		tr::lng_wallet_about_fees_text(
+			lt_count,
+			GaslessDailyTransfersValue(&_show->session()) | tr::to_count()),
 		st::walletAboutFeesIcon);
 	Ui::AddSkip(about, st::walletAboutRowSkip);
 	addEntry(
@@ -12505,7 +12530,7 @@ void FillMenu(
 	addAction({ .isSeparator = true });
 	addAction(
 		Ui::Text::FixAmpersandInAction(tr::lng_wallet_how_menu(tr::now)),
-		[=] { show->showBox(Box(WalletHowItWorksBox)); },
+		[=] { show->showBox(Box(WalletHowItWorksBox, &show->session())); },
 		&st::menuIconFaq);
 }
 

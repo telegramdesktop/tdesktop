@@ -8801,7 +8801,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_about_instant_title" = "Send Money Instantly";
 "lng_wallet_about_instant_text" = "Send Grams in any chat, just like sharing a photo.";
 "lng_wallet_about_fees_title" = "No Fees";
-"lng_wallet_about_fees_text" = "First 5 transfers each day are free, the rest cost almost nothing.";
+"lng_wallet_about_fees_text#one" = "First {count} transfer each day is free, the rest cost almost nothing.";
+"lng_wallet_about_fees_text#other" = "First {count} transfers each day are free, the rest cost almost nothing.";
 "lng_wallet_about_chain_title" = "Blockchain Verified";
 "lng_wallet_about_chain_text" = "All transactions are recorded and verifiable on a public ledger.";
 "lng_wallet_provisioning" = "Setting up your wallet…";
@@ -8848,8 +8849,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_details_fee" = "Fee";
 "lng_wallet_details_fee_free" = "Free (paid by Telegram)";
 "lng_wallet_fees_title" = "Network fees";
-"lng_wallet_fees_text" = "Every transfer costs a small network fee ({amount}).\n\nTelegram covers your first 5 transfers each day.";
-"lng_wallet_fees_text_unknown" = "Every transfer costs a small network fee.\n\nTelegram covers your first 5 transfers each day.";
+"lng_wallet_fees_text#one" = "Every transfer costs a small network fee ({amount}).\n\nTelegram covers your first {count} transfer each day.";
+"lng_wallet_fees_text#other" = "Every transfer costs a small network fee ({amount}).\n\nTelegram covers your first {count} transfers each day.";
+"lng_wallet_fees_text_unknown#one" = "Every transfer costs a small network fee.\n\nTelegram covers your first {count} transfer each day.";
+"lng_wallet_fees_text_unknown#other" = "Every transfer costs a small network fee.\n\nTelegram covers your first {count} transfers each day.";
 "lng_wallet_details_open_wallet" = "Open My Wallet";
 "lng_wallet_details_date" = "Date";
 "lng_wallet_details_status" = "Status";

@@ -759,6 +759,7 @@ auto filesTextProducer = tr::lng_files_selected(
 - Omit `tr::now` for reactive `rpl::producer<QString>`
 - Placeholders use `lt_tag_name, value` pattern
 - For `{count}`: immediate uses `int`, reactive uses `rpl::producer<float64>` with `| tr::to_count()`
+- Every plural form, `#one` included, keeps `{count}`: many languages put more than 1 into their "one" category (Russian: 21, 31, ...), so a `#one` phrase written for exactly 1 is wrong for them. When exactly 1 deserves different wording, add a separate non-plural key and pick it in code, so every language gets that special case
 - Move producers with `std::move` when passing to placeholders
 - Rich text projectors — these `tr::` helpers serve double duty: as the **last argument** (projector) they set the return type to `TextWithEntities`, and as **placeholder values** they wrap individual substitutions in formatting. Always prefer them over `Ui::Text::Bold()`, `Ui::Text::RichLangValue`, etc. — see REVIEW.md for the full mapping.
   - `tr::marked` — basic projection, converts `QString` to `TextWithEntities`
