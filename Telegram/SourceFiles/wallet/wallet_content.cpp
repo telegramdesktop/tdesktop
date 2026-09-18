@@ -7080,6 +7080,7 @@ void WalletPhraseBox(
 
 	AddBoxCloseButton(box);
 	box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
+	SubmitBoxOnEnter(box, [=] { box->closeBox(); });
 }
 
 [[nodiscard]] TextWithEntities EnforcementCheckAbout(
@@ -7623,6 +7624,11 @@ void WalletPhraseWarningBox(
 	});
 	base::install_event_filter(box, [=](not_null<QEvent*> e) {
 		return filterRevealKey(e);
+	});
+	SubmitBoxOnEnter(box, [=] {
+		if (const auto strong = button.data()) {
+			strong->clicked(Qt::KeyboardModifiers(), Qt::LeftButton);
+		}
 	});
 	show->session().wallet().transferWalletIdentityChanges(
 	) | rpl::on_next([=] {

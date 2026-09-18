@@ -187,6 +187,7 @@ void HardwareUnlockBox(
 	};
 	state->submit = box->addButton(tr::lng_continue(), submit);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	SubmitBoxOnEnter(box, submit);
 	box->boxClosing() | rpl::on_next([=] {
 		if (!state->reported) {
 			state->reported = true;

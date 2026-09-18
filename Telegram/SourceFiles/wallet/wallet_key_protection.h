@@ -20,6 +20,10 @@ class Account;
 class PasscodeVerification;
 } // namespace Storage
 
+namespace Ui {
+class GenericBox;
+} // namespace Ui
+
 namespace Wallet {
 
 // The generated wallet_engine::ProtectedSecretHostErrorKind is deliberately
@@ -149,6 +153,10 @@ struct KeyProtectionArgs {
 	Fn<void(std::optional<quint32>, Fn<void(bool)>)> resetUnusableVault;
 	Fn<void(KeyProtectionResult)> done;
 };
+
+// WHY: a key still held when the previous box closed repeats into this one,
+// so an auto-repeated Enter is not the deliberate press this acts on.
+void SubmitBoxOnEnter(not_null<Ui::GenericBox*> box, Fn<void()> submit);
 
 // Optional bytes already verified against key_data. Otherwise the chooser
 // acquires them lazily, only for a passcode choice or passcode change.

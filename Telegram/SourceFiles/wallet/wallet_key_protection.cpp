@@ -1387,6 +1387,7 @@ void KeyProtectionBox(
 	}
 	state->save = box->addButton(tr::lng_settings_save(), save);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	SubmitBoxOnEnter(box, save);
 	box->boxClosing(
 	) | rpl::on_next([state, done = args.done] {
 		if (state->reported) {
@@ -1475,6 +1476,21 @@ bool CurrentVaultWrap(const VaultRuntime &vault, const VaultWrap &wrap) {
 		&& current.salt == wrap.salt
 		&& current.openSecret == wrap.openSecret
 		&& current.blob == wrap.blob;
+}
+
+void SubmitBoxOnEnter(not_null<Ui::GenericBox*> box, Fn<void()> submit) {
+	box->events(
+	) | rpl::on_next([=](not_null<QEvent*> e) {
+		if (e->type() != QEvent::KeyPress) {
+			return;
+		}
+		const auto key = static_cast<QKeyEvent*>(e.get());
+		if (!key->isAutoRepeat()
+			&& (key->key() == Qt::Key_Enter
+				|| key->key() == Qt::Key_Return)) {
+			submit();
+		}
+	}, box->lifetime());
 }
 
 void ShowKeyProtectionBox(
