@@ -1975,6 +1975,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_media_song_empty_search" = "No music files found";
 "lng_media_file_empty_search" = "No files found";
 "lng_media_link_empty_search" = "No shared links found";
+"lng_media_audio_empty_search" = "No voice messages found";
 
 "lng_manage_group_title" = "Manage group";
 "lng_manage_channel_title" = "Manage Channel";
