@@ -25,3 +25,11 @@ QString FormatUnreadCounter(
 	}
 	return QString::number(unreadCounter);
 }
+
+QString FormatUnreadCounterShort(int unreadCounter) {
+	return (unreadCounter < 1'000)
+		? QString::number(unreadCounter)
+		: (unreadCounter < 1'000'000)
+		? (QString::number(unreadCounter / 1'000) + 'K')
+		: (QString::number(unreadCounter / 1'000'000) + 'M');
+}
