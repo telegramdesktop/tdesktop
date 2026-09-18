@@ -1613,6 +1613,9 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		if (!_searchResults.empty()) {
 			const auto text = showUnreadInSearchResults
 				? u"Search results"_q
+				: _searchResultsOnlyTitle
+				? _searchResultsOnlyTitle(
+					_searchedMigratedCount + _searchedCount)
 				: (_searchState.tab == ChatSearchTab::PublicPosts && !_searchIn)
 				? (_searchState.query.isEmpty()
 					? tr::lng_posts_subtitle_empty(tr::now)
@@ -4524,6 +4527,13 @@ void InnerWidget::setLoadMoreFilteredCallback(Fn<void()> callback) {
 	_loadMoreFilteredCallback = std::move(callback);
 }
 
+void InnerWidget::setSearchResultsOnly(Fn<QString(int count)> title) {
+	_searchResultsOnlyTitle = std::move(title);
+	_deselectOnTopUp = true;
+	updateSearchIn();
+	refresh();
+}
+
 void InnerWidget::setDeselectOnTopUp(bool value) {
 	_deselectOnTopUp = value;
 }
@@ -5135,10 +5145,11 @@ bool InnerWidget::communitySearchActive() const {
 }
 
 void InnerWidget::updateSearchIn() {
-	if (!_searchState.inChat
-		&& _searchHashOrCashtag == HashOrCashtag::None
-		&& !archiveSearchActive()
-		&& !communitySearchActive()) {
+	if (_searchResultsOnlyTitle
+		|| (!_searchState.inChat
+			&& _searchHashOrCashtag == HashOrCashtag::None
+			&& !archiveSearchActive()
+			&& !communitySearchActive())) {
 		_searchIn = nullptr;
 		return;
 	} else if (!_searchIn) {

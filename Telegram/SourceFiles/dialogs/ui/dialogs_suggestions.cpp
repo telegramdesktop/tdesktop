@@ -147,6 +147,14 @@ struct EntryMenuDescriptor {
 	Fn<void()> closeCallback;
 };
 
+void UpdateVisibleRange(
+		not_null<Ui::ElasticScroll*> scroll,
+		not_null<InnerWidget*> content,
+		int skipTop = 0) {
+	const auto top = scroll->scrollTop() - skipTop;
+	content->setVisibleTopBottom(top, top + scroll->height());
+}
+
 void DispatchResultsKey(
 		not_null<InnerWidget*> content,
 		Qt::Key direction,
@@ -1377,6 +1385,19 @@ void PopularAppsController::appendRow(not_null<UserData*> bot) {
 	delegate()->peerListAppendRow(std::move(row));
 }
 
+struct Suggestions::SearchList {
+	Key key;
+	std::unique_ptr<Ui::ElasticScroll> scroll;
+	not_null<Ui::RpWidget*> wrap;
+	not_null<InnerWidget*> content;
+	QString query;
+	Data::MessagePosition offset;
+	int32 offsetRate = 0;
+	mtpRequestId requestId = 0;
+	int received = 0;
+	bool loaded = false;
+};
+
 Suggestions::Suggestions(
 	not_null<QWidget*> parent,
 	not_null<Window::SessionController*> controller,
@@ -1420,7 +1441,13 @@ Suggestions::Suggestions(
 	setupApps();
 }
 
-Suggestions::~Suggestions() = default;
+Suggestions::~Suggestions() {
+	for (const auto &[key, search] : _searchLists) {
+		if (search->requestId) {
+			_controller->session().api().request(search->requestId).cancel();
+		}
+	}
+}
 
 void Suggestions::setupTabs() {
 	_tabsScroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
@@ -1691,6 +1718,10 @@ void Suggestions::reinstallSwipe(not_null<Ui::ElasticScroll*> scroll) {
 }
 
 void Suggestions::selectJump(Qt::Key direction, int pageSize) {
+	if (const auto search = shownSearchList(_key.current())) {
+		DispatchResultsKey(search->content, direction, pageSize);
+		return;
+	}
 	switch (_key.current().tab) {
 	case Tab::Chats: selectJumpChats(direction, pageSize); return;
 	case Tab::Channels: selectJumpChannels(direction, pageSize); return;
@@ -1812,6 +1843,10 @@ void Suggestions::selectJumpSections(
 }
 
 void Suggestions::chooseRow() {
+	if (const auto search = shownSearchList(_key.current())) {
+		search->content->chooseRow();
+		return;
+	}
 	switch (_key.current().tab) {
 	case Tab::Chats:
 		if (!_topPeers->chooseRow()) {
@@ -1843,6 +1878,11 @@ bool Suggestions::consumeSearchQuery(const QString &query) {
 
 bool Suggestions::TakesSearchQuery(Key key) {
 	return (key.tab != Tab::Chats);
+}
+
+bool Suggestions::ListsSearchResults(Key key) {
+	return (key == Key{ Tab::Media, MediaType::Photo })
+		|| (key == Key{ Tab::Media, MediaType::Video });
 }
 
 bool Suggestions::ownsSearchQuery(const QString &query) const {
@@ -1879,6 +1919,9 @@ void Suggestions::resetTabSearchQuery(Key key) {
 			_postsSearchQuery = QString();
 			_postsSearch->setQuery(QString());
 		}
+		return;
+	} else if (ListsSearchResults(key)) {
+		setSearchListQuery(key, QString());
 		return;
 	}
 	if (const auto search = mediaListSearch(key)) {
@@ -1967,21 +2010,7 @@ void Suggestions::setupPostsResults() {
 
 	_postsContent->chosenRow(
 	) | rpl::on_next([=](const ChosenRow &row) {
-		const auto history = row.key.history();
-		if (!history) {
-			return;
-		}
-		_persist = true;
-		const auto showAtMsgId = row.message.fullId.msg;
-		auto params = Window::SectionShow(
-			Window::SectionShow::Way::ClearStack);
-		params.highlight = Window::SearchHighlightId(_postsSearchQuery);
-		if (row.newWindow) {
-			_controller->showInNewWindow(history->peer, showAtMsgId);
-			_closeRequests.fire({});
-		} else {
-			_controller->showThread(history, showAtMsgId, params);
-		}
+		showSearchResult(row, _postsSearchQuery);
 	}, _postsContent->lifetime());
 
 	_postsContent->heightValue() | rpl::on_next([=](int height) {
@@ -2010,6 +2039,26 @@ void Suggestions::setupPostsResults() {
 	updateControlsGeometry();
 }
 
+void Suggestions::showSearchResult(
+		const ChosenRow &row,
+		const QString &query) {
+	const auto history = row.key.history();
+	if (!history) {
+		return;
+	}
+	_persist = true;
+	const auto showAtMsgId = row.message.fullId.msg;
+	auto params = Window::SectionShow(
+		Window::SectionShow::Way::ClearStack);
+	params.highlight = Window::SearchHighlightId(query);
+	if (row.newWindow) {
+		_controller->showInNewWindow(history->peer, showAtMsgId);
+		_closeRequests.fire({});
+	} else {
+		_controller->showThread(history, showAtMsgId, params);
+	}
+}
+
 void Suggestions::updatePostsSearchVisibleRange() {
 	Expects(_postsContent != nullptr);
 
@@ -2017,6 +2066,175 @@ void Suggestions::updatePostsSearchVisibleRange() {
 	const auto height = _postsScroll->height();
 	_postsContent->setVisibleTopBottom(top, top + height);
 }
+
+auto Suggestions::setupSearchList(Key key) -> std::unique_ptr<SearchList> {
+	auto scroll = std::make_unique<Ui::ElasticScroll>(this);
+	const auto wrap = scroll->setOwnedWidget(
+		object_ptr<Ui::RpWidget>(this));
+	const auto content = Ui::CreateChild<InnerWidget>(
+		wrap,
+		_controller,
+		rpl::single(InnerWidget::ChildListShown()));
+	auto result = std::make_unique<SearchList>(SearchList{
+		.key = key,
+		.scroll = std::move(scroll),
+		.wrap = wrap,
+		.content = content,
+	});
+	const auto raw = result.get();
+	setupSearchListContent(raw);
+
+	content->heightValue() | rpl::on_next([=](int height) {
+		wrap->resize(wrap->width(), height);
+	}, content->lifetime());
+
+	content->mustScrollTo(
+	) | rpl::on_next([=](const Ui::ScrollToRequest &request) {
+		raw->scroll->scrollToY(request.ymin, request.ymax);
+	}, content->lifetime());
+
+	rpl::combine(
+		rpl::single(rpl::empty) | rpl::then(raw->scroll->scrolls()),
+		raw->scroll->heightValue()
+	) | rpl::on_next([=] {
+		updateSearchListVisibleRange(raw);
+	}, content->lifetime());
+
+	content->show();
+	raw->scroll->hide();
+	return result;
+}
+
+void Suggestions::setupSearchListContent(not_null<SearchList*> search) {
+	const auto content = search->content;
+	content->setSearchResultsOnly([](int count) {
+		return tr::lng_search_found_results(tr::now, lt_count, count);
+	});
+	content->chosenRow(
+	) | rpl::on_next([=](const ChosenRow &row) {
+		showSearchResult(row, search->query);
+	}, content->lifetime());
+	content->setLoadMoreCallback([=] {
+		if (search->offset) {
+			requestSearchList(search);
+		}
+	});
+	content->setNarrowRatio(0.);
+}
+
+Suggestions::SearchList *Suggestions::shownSearchList(Key key) const {
+	const auto i = _searchLists.find(key);
+	return (i != end(_searchLists) && !i->second->query.isEmpty())
+		? i->second.get()
+		: nullptr;
+}
+
+void Suggestions::setSearchListQuery(Key key, const QString &query) {
+	auto i = _searchLists.find(key);
+	if (i == end(_searchLists)) {
+		if (query.isEmpty()) {
+			return;
+		}
+		i = _searchLists.emplace(key, setupSearchList(key)).first;
+		updateControlsGeometry();
+	}
+	const auto search = i->second.get();
+	if (search->query == query) {
+		return;
+	}
+	const auto toggled = (search->query.isEmpty() != query.isEmpty());
+	resetSearchList(search, query);
+	if (!query.isEmpty()) {
+		search->scroll->scrollToY(0);
+		requestSearchList(search);
+	}
+	if (toggled
+		&& _key.current() == key
+		&& !_slideAnimation.animating()
+		&& !_shownAnimation.animating()) {
+		finishShow();
+	}
+}
+
+void Suggestions::resetSearchList(
+		not_null<SearchList*> search,
+		const QString &query) {
+	if (search->requestId) {
+		_controller->session().api().request(
+			base::take(search->requestId)).cancel();
+	}
+	search->query = query;
+	search->offset = Data::MessagePosition();
+	search->offsetRate = 0;
+	search->received = 0;
+	search->loaded = false;
+	if (!query.isEmpty()) {
+		search->content->applySearchState(SearchState{
+			.tab = ChatSearchTab::PublicPosts,
+			.query = query,
+		});
+		search->content->searchRequested(true);
+	}
+}
+
+void Suggestions::requestSearchList(not_null<SearchList*> search) {
+	if (search->requestId || search->loaded || search->query.isEmpty()) {
+		return;
+	}
+	const auto query = search->query;
+	const auto done = crl::guard(this, [=](
+			const Api::GlobalMediaResult &result) {
+		if (search->query == query) {
+			searchListReceived(search, result);
+		}
+	});
+	search->requestId = _controller->session().api().requestGlobalMedia(
+		search->key.mediaType,
+		query,
+		search->offsetRate,
+		search->offset,
+		false,
+		done);
+}
+
+void Suggestions::searchListReceived(
+		not_null<SearchList*> search,
+		const Api::GlobalMediaResult &result) {
+	search->requestId = 0;
+
+	const auto start = !search->offset;
+	const auto owner = &_controller->session().data();
+	auto items = std::vector<not_null<HistoryItem*>>();
+	items.reserve(result.messageIds.size());
+	for (const auto &position : result.messageIds) {
+		if (const auto item = owner->message(position.fullId)) {
+			items.push_back(item);
+		}
+	}
+	search->received += int(items.size());
+	if (!result.offsetPosition || result.offsetPosition == search->offset) {
+		search->loaded = true;
+	} else {
+		search->offset = result.offsetPosition;
+		search->offsetRate = result.offsetRate;
+		search->loaded = !result.offsetRate;
+	}
+	const auto fullCount = search->loaded
+		? search->received
+		: std::max(result.fullCount, search->received);
+	search->content->searchReceived(
+		std::move(items),
+		nullptr,
+		{ .start = start },
+		fullCount);
+	updateSearchListVisibleRange(search);
+}
+
+void Suggestions::updateSearchListVisibleRange(
+		not_null<SearchList*> search) {
+	UpdateVisibleRange(search->scroll.get(), search->content);
+}
+
 
 void Suggestions::setupPostsIntro(const PostsSearchIntroState &intro) {
 	Expects(!_postsSearchIntro);
@@ -2068,6 +2286,10 @@ void Suggestions::setupPostsIntro(const PostsSearchIntroState &intro) {
 }
 
 void Suggestions::applySearchQuery() {
+	if (ListsSearchResults(_key.current())) {
+		setSearchListQuery(_key.current(), _searchQuery.trimmed());
+		return;
+	}
 	if (const auto search = mediaListSearch(_key.current())) {
 		if (search->query() != _searchQuery) {
 			search->setQuery(_searchQuery);
@@ -2091,6 +2313,9 @@ rpl::producer<> Suggestions::reapplySearchQueryRequests() const {
 }
 
 Data::Thread *Suggestions::updateFromParentDrag(QPoint globalPosition) {
+	if (const auto search = shownSearchList(_key.current())) {
+		return search->content->updateFromParentDrag(globalPosition);
+	}
 	switch (_key.current().tab) {
 	case Tab::Chats: return updateFromChatsDrag(globalPosition);
 	case Tab::Channels: return updateFromChannelsDrag(globalPosition);
@@ -2132,6 +2357,9 @@ void Suggestions::dragLeft() {
 	_recommendations->dragLeft();
 	_recentApps->dragLeft();
 	_popularApps->dragLeft();
+	for (const auto &[key, search] : _searchLists) {
+		search->content->dragLeft();
+	}
 }
 
 void Suggestions::show(anim::type animated, Fn<void()> finish) {
@@ -2207,7 +2435,7 @@ void Suggestions::ensureContent(Key key) {
 		_controller,
 		Info::Wrap::Search,
 		memento.get());
-	list.wrap->show();
+	list.wrap->setVisible(!shownSearchList(key));
 	updateControlsGeometry();
 	if (!_searchQuery.isEmpty()) {
 		applySearchQuery();
@@ -2280,6 +2508,9 @@ void Suggestions::startShownAnimation(bool shown, Fn<void()> finish) {
 	for (const auto &[key, list] : _mediaLists) {
 		list.wrap->hide();
 	}
+	for (const auto &[key, search] : _searchLists) {
+		search->scroll->hide();
+	}
 	_slideAnimation.stop();
 }
 
@@ -2297,9 +2528,14 @@ void Suggestions::finishShow() {
 	_channelsScroll->setVisible(key == Key{ Tab::Channels });
 	_appsScroll->setVisible(key == Key{ Tab::Apps });
 	_postsScroll->setVisible(key == Key{ Tab::Posts });
+	const auto shownSearch = shownSearchList(key);
+	for (const auto &[searchKey, search] : _searchLists) {
+		search->scroll->setVisible(search.get() == shownSearch);
+	}
 	for (const auto &[mediaKey, list] : _mediaLists) {
-		list.wrap->setVisible(key == mediaKey);
-		if (key == mediaKey) {
+		const auto current = (key == mediaKey) && !shownSearch;
+		list.wrap->setVisible(current);
+		if (current) {
 			_swipeLifetime.destroy();
 			auto incomplete = generateIncompleteSwipeArgs();
 			list.wrap->replaceSwipeHandler(&incomplete);
@@ -2402,6 +2638,14 @@ void Suggestions::updateControlsGeometry() {
 		_postsContent->resizeToWidth(w);
 		_postsContent->setMinimumHeight(height() - tabs);
 		_postsContent->refresh();
+	}
+
+	for (const auto &[key, search] : _searchLists) {
+		search->scroll->setGeometry(content);
+		search->wrap->resizeToWidth(w);
+		search->content->resizeToWidth(w);
+		search->content->setMinimumHeight(content.height());
+		search->content->refresh();
 	}
 
 	const auto expanding = false;

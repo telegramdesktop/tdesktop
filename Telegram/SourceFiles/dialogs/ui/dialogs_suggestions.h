@@ -16,6 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class PeerListContent;
 
+namespace Api {
+struct GlobalMediaResult;
+} // namespace Api
+
 namespace Data {
 class Thread;
 } // namespace Data
@@ -54,6 +58,7 @@ class SessionController;
 namespace Dialogs {
 
 class InnerWidget;
+struct ChosenRow;
 class PostsSearch;
 class PostsSearchIntro;
 struct PostsSearchIntroState;
@@ -167,6 +172,7 @@ private:
 		Info::WrapWidget *wrap = nullptr;
 		rpl::variable<int> count;
 	};
+	struct SearchList;
 
 	[[nodiscard]] static std::vector<Key> TabKeysFor(
 		not_null<Window::SessionController*> controller);
@@ -232,10 +238,24 @@ private:
 	void handlePressForChatPreview(PeerId id, Fn<void(bool)> callback);
 	void updateControlsGeometry();
 	[[nodiscard]] static bool TakesSearchQuery(Key key);
+	[[nodiscard]] static bool ListsSearchResults(Key key);
 	bool setTabSearchQuery(const QString &query);
 	void resetTabSearchQuery(Key key);
 	void applySearchQuery();
 	[[nodiscard]] Ui::SearchFieldController *mediaListSearch(Key key) const;
+	void showSearchResult(const ChosenRow &row, const QString &query);
+	[[nodiscard]] std::unique_ptr<SearchList> setupSearchList(Key key);
+	void setupSearchListContent(not_null<SearchList*> search);
+	[[nodiscard]] SearchList *shownSearchList(Key key) const;
+	void setSearchListQuery(Key key, const QString &query);
+	void resetSearchList(
+		not_null<SearchList*> search,
+		const QString &query);
+	void requestSearchList(not_null<SearchList*> search);
+	void searchListReceived(
+		not_null<SearchList*> search,
+		const Api::GlobalMediaResult &result);
+	void updateSearchListVisibleRange(not_null<SearchList*> search);
 
 	void setupPostsSearch();
 	void setPostsSearchQuery(const QString &query);
@@ -287,6 +307,7 @@ private:
 	const std::unique_ptr<ObjectList> _popularApps;
 
 	base::flat_map<Key, MediaList> _mediaLists;
+	base::flat_map<Key, std::unique_ptr<SearchList>> _searchLists;
 	rpl::event_stream<> _clearSearchQueryRequests;
 	rpl::event_stream<> _reapplySearchQueryRequests;
 	QString _fieldQuery;

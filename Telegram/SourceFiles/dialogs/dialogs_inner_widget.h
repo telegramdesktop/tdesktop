@@ -205,6 +205,7 @@ public:
 
 	void setLoadMoreCallback(Fn<void()> callback);
 	void setLoadMoreFilteredCallback(Fn<void()> callback);
+	void setSearchResultsOnly(Fn<QString(int count)> title);
 	void setDeselectOnTopUp(bool value);
 	[[nodiscard]] rpl::producer<> listBottomReached() const;
 	[[nodiscard]] auto changeSearchTabRequests() const
@@ -786,6 +787,7 @@ private:
 
 	Fn<void()> _loadMoreCallback;
 	Fn<void()> _loadMoreFilteredCallback;
+	Fn<QString(int count)> _searchResultsOnlyTitle;
 	bool _deselectOnTopUp = false;
 	rpl::event_stream<> _listBottomReached;
 	rpl::event_stream<ChosenRow> _chosenRow;
