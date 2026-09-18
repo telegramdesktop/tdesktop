@@ -2577,6 +2577,9 @@ void SendFilesBox::send(
 		&& ranges::any_of(_list.files, &Ui::PreparedFile::ttlSeconds)) {
 		showToast(tr::lng_ttl_no_schedule(tr::now));
 		return;
+	} else if (options.scheduled && hasEphemeralCommand()) {
+		showToast(tr::lng_ephemeral_cant_schedule(tr::now));
+		return;
 	}
 	if ((_sendType == Api::SendType::Scheduled
 		|| _sendType == Api::SendType::ScheduledToUser)
@@ -2681,6 +2684,14 @@ void SendFilesBox::send(
 		_confirmedCallback(std::move(bundle), options, _replyTo);
 	}
 	closeBox();
+}
+
+bool SendFilesBox::hasEphemeralCommand() const {
+	const auto &ephemeral = _show->session().ephemeralMessages();
+	return ephemeral.hasEphemeralCommand(_toPeer, fieldText().text)
+		|| ranges::any_of(_list.files, [&](const Ui::PreparedFile &file) {
+			return ephemeral.hasEphemeralCommand(_toPeer, file.caption.text);
+		});
 }
 
 Fn<void(Api::SendOptions)> SendFilesBox::sendCallback() {
