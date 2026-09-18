@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/chat/chat_style.h"
 #include "ui/controls/ton_common.h"
-#include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
@@ -121,9 +120,6 @@ public:
 		QPoint point,
 		StateRequest request,
 		int outerWidth) const override;
-	void clickHandlerPressedChanged(
-		const ClickHandlerPtr &p,
-		bool pressed) override;
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
@@ -162,9 +158,6 @@ private:
 	mutable Info::PeerGifts::GiftBadge _badgeKey;
 	mutable QMargins _badgePadding;
 	mutable style::font _badgeFont;
-	mutable QPoint _lastPoint;
-	QSize _rippleSize;
-	std::unique_ptr<Ui::RippleAnimation> _ripple;
 	rpl::event_stream<> _destroyed;
 
 };
@@ -665,13 +658,6 @@ void GramTransferCardPart::draw(
 	Wallet::PaintCardBackground(p, _layout.card);
 	p.translate(_layout.card.topLeft());
 	const auto cardWidth = _layout.card.width();
-	if (_ripple) {
-		const auto opacity = p.opacity();
-		const auto color = st::activeButtonFg->c;
-		p.setOpacity(opacity * st::historyPollRippleOpacity);
-		_ripple->paint(p, 0, 0, cardWidth, &color);
-		p.setOpacity(opacity);
-	}
 	p.drawImage(
 		QPointF((cardWidth - st::walletChatCardMarkSize) / 2., _layout.markTop),
 		_mark);
@@ -727,35 +713,9 @@ TextState GramTransferCardPart::textState(
 	if (_layout.card.contains(point)) {
 		auto result = TextState();
 		result.link = _detailsLink;
-		_lastPoint = point - _layout.card.topLeft();
 		return result;
 	}
 	return {};
-}
-
-void GramTransferCardPart::clickHandlerPressedChanged(
-		const ClickHandlerPtr &p,
-		bool pressed) {
-	if (p != _detailsLink) {
-		return;
-	} else if (pressed) {
-		if (!_ripple || _rippleSize != _layout.card.size()) {
-			_rippleSize = _layout.card.size();
-			_ripple = std::make_unique<Ui::RippleAnimation>(
-				st::defaultRippleAnimation,
-				Ui::RippleAnimation::RoundRectMask(
-					_rippleSize,
-					st::walletCardRadius),
-				[view = _origin.view] {
-					if (view) {
-						view->repaint();
-					}
-				});
-		}
-		_ripple->add(_lastPoint);
-	} else if (_ripple) {
-		_ripple->lastStop();
-	}
 }
 
 GramTransferCommentPart::GramTransferCommentPart(
