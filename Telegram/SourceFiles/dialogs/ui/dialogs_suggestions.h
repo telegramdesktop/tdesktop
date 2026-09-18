@@ -48,6 +48,7 @@ class SearchFieldController;
 class ScrollArea;
 class ElasticScroll;
 class SettingsSlider;
+class SlideAnimation;
 class VerticalLayout;
 template <typename Widget>
 class SlideWrap;
@@ -101,6 +102,10 @@ public:
 	void setTabsOnly(bool tabsOnly);
 	[[nodiscard]] bool tabsOnly() const;
 	[[nodiscard]] int tabsHeight() const;
+	[[nodiscard]] auto swipeTabFinishData(
+		Qt::LayoutDirection direction,
+		Fn<void()> finished)
+	-> Ui::Controls::SwipeHandlerFinishData;
 
 	[[nodiscard]] rpl::producer<not_null<PeerData*>> topPeerChosen() const {
 		return _topPeerChosen.events();
@@ -257,7 +262,7 @@ private:
 	void resetTabSearchQuery(Key key);
 	void switchTab(Key key);
 	void startShownAnimation(bool shown, Fn<void()> finish);
-	void startSlideAnimation(Key was, Key now);
+	void startSlideAnimation(Key was, Key now, bool swipe);
 	void ensureContent(Key key);
 	void finishShow();
 
@@ -362,15 +367,11 @@ private:
 	bool _tabsOnly = false;
 	QPixmap _cache;
 
-	Ui::Animations::Simple _slideAnimation;
-	QPixmap _slideLeft;
-	QPixmap _slideRight;
+	std::unique_ptr<Ui::SlideAnimation> _slideAnimation;
 
 	Ui::Controls::SwipeBackResult _swipeBackData;
 	rpl::lifetime _swipeLifetime;
-
-	int _slideLeftTop = 0;
-	int _slideRightTop = 0;
+	bool _swipeSwitch = false;
 
 };
 

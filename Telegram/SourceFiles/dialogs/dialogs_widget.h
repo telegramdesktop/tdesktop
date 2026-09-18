@@ -439,6 +439,7 @@ private:
 	bool _chatsFilterSwipeSwitch = false;
 	bool _swipeBackMirrored = false;
 	bool _swipeBackIconMirrored = false;
+	bool _swipeSearchTabs = false;
 
 	SearchProcessState _searchProcess;
 	SearchProcessState _migratedProcess;
