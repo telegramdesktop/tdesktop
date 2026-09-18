@@ -135,7 +135,6 @@ namespace {
 constexpr auto kAddressLength = 48;
 constexpr auto kAddressGroup = 4;
 constexpr auto kAddressGroupsPerLine = 6;
-constexpr auto kDetailsGroupsPerLine = 4;
 constexpr auto kReceiveGroupsPerLine = 4;
 constexpr auto kReceiveLines = kAddressLength
 	/ kAddressGroup
@@ -1007,24 +1006,14 @@ QString EncryptedCommentLabel::accessibilityName() {
 
 [[nodiscard]] TextWithEntities DetailsAddressValue(
 		const QString &address) {
-	auto result = tr::marked();
-	const auto perLine = kAddressGroup * kDetailsGroupsPerLine;
-	for (auto offset = 0; offset < address.size(); offset += perLine) {
-		auto groups = QStringList();
-		for (auto i = 0; i != kDetailsGroupsPerLine; ++i) {
-			groups.append(address.mid(
-				offset + i * kAddressGroup,
-				kAddressGroup));
-		}
-		if (!result.empty()) {
-			result.append(QChar('\n'));
-		}
-		result.append(Ui::Text::Wrapped(
-			{ groups.join(QChar(' ')) },
-			EntityType::Code,
-			{}));
+	auto groups = QStringList();
+	for (auto offset = 0; offset < address.size(); offset += kAddressGroup) {
+		groups.append(address.mid(offset, kAddressGroup));
 	}
-	return result;
+	return Ui::Text::Wrapped(
+		{ groups.join(QChar(' ')) },
+		EntityType::Code,
+		{});
 }
 
 [[nodiscard]] Fn<void()> CopyAddressCallback(
@@ -1048,6 +1037,7 @@ QString EncryptedCommentLabel::accessibilityName() {
 		table,
 		rpl::single(DetailsAddressValue(address)),
 		st::walletDetailsAddressLabel);
+	result->setTryMakeSimilarLines(true);
 	const auto copy = CopyAddressCallback(std::move(show), address);
 	result->setClickHandlerFilter([=](const auto &...) {
 		copy();
