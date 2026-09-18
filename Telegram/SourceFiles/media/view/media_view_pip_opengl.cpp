@@ -660,6 +660,16 @@ auto Pip::RendererGL::ControlMeta(OverState control, int index)
 		(index ? &st::pipPauseIcon : &st::pipPlayIcon),
 		(index ? &st::pipPauseIconOver : &st::pipPlayIconOver),
 	};
+	case OverState::Previous: Assert(index < 1); return {
+		7,
+		&st::pipPreviousIcon,
+		&st::pipPreviousIconOver,
+	};
+	case OverState::Next: Assert(index < 1); return {
+		8,
+		&st::pipNextIcon,
+		&st::pipNextIconOver,
+	};
 	}
 	Unexpected("Control value in Pip::RendererGL::ControlIndex.");
 }
@@ -676,6 +686,8 @@ void Pip::RendererGL::validateControls() {
 		ControlMeta(OverState::VolumeToggle, 2),
 		ControlMeta(OverState::Other),
 		ControlMeta(OverState::Other, 1),
+		ControlMeta(OverState::Previous),
+		ControlMeta(OverState::Next),
 	};
 	auto maxWidth = 0;
 	auto fullHeight = 0;

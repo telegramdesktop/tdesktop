@@ -114,7 +114,7 @@ private:
 	Ui::GL::Image _volumeControllerImage;
 	Ui::GL::Image _shadowImage;
 
-	static constexpr auto kControlsCount = 7;
+	static constexpr auto kControlsCount = 9;
 	[[nodiscard]] static Control ControlMeta(
 		OverState control,
 		int index = 0);
