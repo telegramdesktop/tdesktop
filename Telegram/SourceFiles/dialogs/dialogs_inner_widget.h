@@ -150,6 +150,7 @@ public:
 	void switchToFilter(FilterId filterId);
 
 	void clearSelection();
+	[[nodiscard]] bool hasSelection() const;
 
 	void changeOpenedFolder(Data::Folder *folder);
 	void changeOpenedForum(Data::Forum *forum);
@@ -204,6 +205,7 @@ public:
 
 	void setLoadMoreCallback(Fn<void()> callback);
 	void setLoadMoreFilteredCallback(Fn<void()> callback);
+	void setDeselectOnTopUp(bool value);
 	[[nodiscard]] rpl::producer<> listBottomReached() const;
 	[[nodiscard]] auto changeSearchTabRequests() const
 		-> rpl::producer<ChatSearchTab>;
@@ -784,6 +786,7 @@ private:
 
 	Fn<void()> _loadMoreCallback;
 	Fn<void()> _loadMoreFilteredCallback;
+	bool _deselectOnTopUp = false;
 	rpl::event_stream<> _listBottomReached;
 	rpl::event_stream<ChosenRow> _chosenRow;
 	rpl::event_stream<> _updated;

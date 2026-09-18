@@ -177,6 +177,11 @@ private:
 	void selectJumpChats(Qt::Key direction, int pageSize);
 	void selectJumpChannels(Qt::Key direction, int pageSize);
 	void selectJumpApps(Qt::Key direction, int pageSize);
+	void selectJumpSections(
+		const std::vector<Fn<JumpResult(Qt::Key, int)>> &sections,
+		not_null<Ui::ElasticScroll*> scroll,
+		Qt::Key direction,
+		int pageSize);
 
 	[[nodiscard]] Data::Thread *updateFromChatsDrag(QPoint globalPosition);
 	[[nodiscard]] Data::Thread *updateFromChannelsDrag(
@@ -197,6 +202,8 @@ private:
 	[[nodiscard]] std::unique_ptr<ObjectList> setupRecentApps();
 	[[nodiscard]] std::unique_ptr<ObjectList> setupPopularApps();
 
+	[[nodiscard]] static auto ListSelectJump(not_null<ObjectList*> raw)
+		-> Fn<JumpResult(Qt::Key, int)>;
 	[[nodiscard]] std::unique_ptr<ObjectList> setupObjectList(
 		not_null<Ui::ElasticScroll*> scroll,
 		not_null<Ui::VerticalLayout*> parent,
