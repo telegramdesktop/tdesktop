@@ -552,6 +552,33 @@ struct ThrowawayRotation {
 	return PhraseIdentity{ .anchor = *anchor, .signing = *signing };
 }
 
+// WHY: ton_connect_account() is the engine's only secret-free address
+// derivation, refusing a descriptor whose anchor derives another address;
+// the ref copies the engine's own form, so only the address can differ.
+[[nodiscard]] bool AnchorDerivesOtherAddress(
+		const std::shared_ptr<engine::WalletLifecycle> &lifecycle,
+		const QByteArray &anchor,
+		const QString &address) {
+	const auto recordId = std::string("phrase-check");
+	try {
+		lifecycle->ton_connect_account(engine::WalletDescriptor{
+			.record_id = recordId,
+			.address = address.toStdString(),
+			.public_key = std::vector<uint8_t>(
+				anchor.constData(),
+				anchor.constData() + anchor.size()),
+			.network = engine::Network::kMainnet,
+			.secret_ref = engine::ProtectedSecretRef{
+				.value = "wallet:" + recordId + ":mnemonic",
+			},
+		});
+	} catch (const engine::wallet_lifecycle_error::InvalidRecordId &) {
+		return true;
+	} catch (...) {
+	}
+	return false;
+}
+
 [[nodiscard]] const std::vector<QString> &Wordlist() {
 	static const auto result = [] {
 		auto list = std::vector<QString>();
@@ -3281,7 +3308,7 @@ void Session::restoreFromWords(
 			};
 			if (record.network != int(engine::Network::kMainnet)
 				|| CanonicalAddress(record.address) != targetAddress) {
-				rollback([=] { fail(u"PHRASE_KEY_MISMATCH"_q); });
+				rollback([=] { fail(u"PHRASE_OTHER_WALLET"_q); });
 				return;
 			} else if (!targetServed()) {
 				rollback([=] { fail(u"PHRASE_ORIGIN_EXPIRED"_q); });
@@ -3366,20 +3393,15 @@ void Session::restoreFromWords(
 	// half is a valid phrase of another wallet derives another address, and
 	// the signing check alone would let it cross the confirmed reset and
 	// fail only at the import, with the vault it replaced already gone.
-	// Without a held record the anchor cannot be checked here. Either way
-	// the imported descriptor's address is bound to the target address
-	// after the store, because the engine's import is the authority on what
-	// the words derive.
-	validatePhraseIdentity(words, [=, this](
-			std::optional<PhraseIdentity> identity) mutable {
-		if (!identity) {
-			fail(u"PHRASE_INVALID_PHRASE"_q);
-			return;
-		}
+	const auto verified = [=, this](
+			PhraseIdentity identity,
+			std::vector<QString> words) {
 		const auto held = custody().forAddress(targetAddress);
-		if (identity->signing != expectedKey
-			|| (held && held->publicKey != identity->anchor)) {
-			fail(u"PHRASE_KEY_MISMATCH"_q);
+		if (held && held->publicKey != identity.anchor) {
+			fail(u"PHRASE_OTHER_WALLET"_q);
+			return;
+		} else if (identity.signing != expectedKey) {
+			fail(u"PHRASE_OUTDATED"_q);
 			return;
 		}
 		// The installer resolves live policy immediately before storing.
@@ -3393,18 +3415,36 @@ void Session::restoreFromWords(
 				crossed,
 				[=, words = std::move(words)](CustodyInstall answer) mutable {
 					continueInstall(
-						*identity,
+						identity,
 						std::move(answer),
 						std::move(words));
 				}));
 		} else if (auth.grant && auth.grant->valid()) {
 			store(
-				*identity,
+				identity,
 				CustodyInstall{ .grant = auth.grant },
 				std::move(words));
 		} else {
 			fail(u"PHRASE_VAULT_LOCKED"_q);
 		}
+	};
+	validatePhraseIdentity(words, [=, this](
+			std::optional<PhraseIdentity> identity) mutable {
+		if (!identity) {
+			fail(u"PHRASE_INVALID_PHRASE"_q);
+			return;
+		}
+		_engine->runLocal([=, anchor = identity->anchor] {
+			return AnchorDerivesOtherAddress(lifecycle, anchor, targetAddress);
+		}, [=, words = std::move(words)](bool other) mutable {
+			if (other) {
+				fail(u"PHRASE_OTHER_WALLET"_q);
+			} else {
+				verified(*identity, std::move(words));
+			}
+		}, [=](EngineError) {
+			fail(u"PHRASE_IMPORT_FAILED"_q);
+		});
 	});
 }
 

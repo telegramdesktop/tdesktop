@@ -7397,6 +7397,89 @@ void ShowInvalidSecretWords(
 	}
 }
 
+void AddAddressPlate(
+		not_null<Ui::VerticalLayout*> container,
+		const QString &address,
+		const style::margins &margin) {
+	const auto font = st::walletAddressPlateFont->monospace();
+	const auto inner = st::walletAddressPlateInner;
+	const auto groups = kAddressLength / kAddressGroup;
+	const auto lines = groups / kAddressGroupsPerLine;
+	const auto plate = container->add(
+		object_ptr<Ui::FixedHeightWidget>(
+			container,
+			inner + lines * font->height + inner),
+		margin);
+	plate->paintRequest(
+	) | rpl::on_next([=] {
+		auto p = QPainter(plate);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::windowBgOver);
+		p.drawRoundedRect(
+			plate->rect(),
+			st::walletAddressPlateRadius,
+			st::walletAddressPlateRadius);
+		const auto groupWidth = font->width(address.left(kAddressGroup));
+		const auto spaceWidth = font->width(QChar(' '));
+		const auto lineWidth = kAddressGroupsPerLine * groupWidth
+			+ (kAddressGroupsPerLine - 1) * spaceWidth;
+		const auto left = (plate->width() - lineWidth) / 2;
+		p.setFont(font);
+		for (auto i = 0; i != groups; ++i) {
+			const auto line = i / kAddressGroupsPerLine;
+			const auto column = i % kAddressGroupsPerLine;
+			p.setPen((i % 2) ? st::windowSubTextFg : st::windowFg);
+			p.drawText(
+				left + column * (groupWidth + spaceWidth),
+				inner + line * font->height + font->ascent,
+				address.mid(i * kAddressGroup, kAddressGroup));
+		}
+	}, plate->lifetime());
+}
+
+void ShowWrongSecretWords(
+		std::shared_ptr<Main::SessionShow> show,
+		bool outdated,
+		std::shared_ptr<KeyContext> context) {
+	const auto address = outdated
+		? QString()
+		: show->session().wallet().addressFriendly(false);
+	const auto shown = show->show(Box([=](not_null<Ui::GenericBox*> box) {
+		const auto &padding = st::boxPadding;
+		const auto plate = (address.size() == kAddressLength);
+		box->setTitle(tr::lng_wallet_restore_wrong_title());
+		box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box,
+				(outdated
+					? tr::lng_wallet_restore_outdated_text()
+					: tr::lng_wallet_restore_other_text()),
+				st::boxLabel),
+			QMargins(
+				padding.left(),
+				0,
+				padding.right(),
+				plate ? 0 : padding.bottom()));
+		if (plate) {
+			AddAddressPlate(
+				box->verticalLayout(),
+				address,
+				QMargins(
+					padding.left(),
+					st::walletAddressPlateSkip,
+					padding.right(),
+					padding.bottom()));
+		}
+		box->addButton(tr::lng_wallet_import_try_again(), [=] {
+			box->closeBox();
+		});
+	}));
+	if (context) {
+		context->allowPromptRetry(shown);
+	}
+}
+
 // A restore that lands a record swaps the public-key-only client for the
 // signing one asynchronously, so a continuation that reads the signing
 // client - the rotation offer of a backup disable, a send - would find it
@@ -9305,6 +9388,14 @@ void WalletImportBox(
 						error == u"PHRASE_FOREIGN_PHRASE"_q,
 						context);
 					return;
+				} else if (error == u"PHRASE_OTHER_WALLET"_q
+					|| error == u"PHRASE_OUTDATED"_q) {
+					state->error = QString();
+					ShowWrongSecretWords(
+						show,
+						error == u"PHRASE_OUTDATED"_q,
+						context);
+					return;
 				}
 				// A dismissed protection chooser restored nothing and has
 				// nothing to state, so the form simply stays as it was.
@@ -9317,10 +9408,8 @@ void WalletImportBox(
 					? tr::lng_wallet_key_save_error(tr::now)
 					: (error == u"PHRASE_VAULT_LOCKED"_q)
 					? VaultLockedText(&show->session())
-					: (error == u"PHRASE_KEY_MISMATCH"_q)
-					? tr::lng_wallet_restore_error(tr::now)
 					: tr::lng_wallet_import_failed(tr::now);
-				if (context && error != u"PHRASE_KEY_MISMATCH"_q) {
+				if (context) {
 					show->showToast(state->error.current());
 					context->cancel();
 				}

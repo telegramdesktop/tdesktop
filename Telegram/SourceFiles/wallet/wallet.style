@@ -492,6 +492,10 @@ walletImportPaste: RoundButton(defaultTableSmallButton) {
 	style: semiboldTextStyle;
 }
 walletImportPasteTop: 5px;
+walletAddressPlateFont: font(14px);
+walletAddressPlateInner: 10px;
+walletAddressPlateRadius: 10px;
+walletAddressPlateSkip: 14px;
 
 walletInfoBarLabel: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;
