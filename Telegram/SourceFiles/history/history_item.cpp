@@ -923,7 +923,10 @@ HistoryItem::HistoryItem(
 , _from((fields.flags & MessageFlag::HasFromId && fields.from)
 	? history->owner().peer(fields.from)
 	: history->peer)
-, _flags(FinalizeMessageFlags(history, fields.flags))
+, _flags(FinalizeMessageFlags(history, fields.flags)
+	| (((fields.flags & MessageFlag::HasFromId) && (fields.from == history->session().userPeerId()) && !(fields.flags & MessageFlag::Post))
+		? MessageFlag::Outgoing
+		: MessageFlag(0)))
 , _date(fields.date)
 , _starsPaid(fields.starsPaid)
 , _shortcutId(fields.shortcutId)
