@@ -8857,6 +8857,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_details_date" = "Date";
 "lng_wallet_details_status" = "Status";
 "lng_wallet_details_failed" = "Failed";
+"lng_wallet_details_failed_reason" = "Failed ({reason})";
 "lng_wallet_details_explorer" = "View in explorer";
 "lng_wallet_details_gram" = "What is Gram?";
 "lng_wallet_details_operation" = "Operation";

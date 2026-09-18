@@ -1012,6 +1012,27 @@ void FailShareFetch(
 	return true;
 }
 
+[[nodiscard]] QString TransferTerminalCode(TransferTerminal terminal) {
+	switch (terminal) {
+	case TransferTerminal::Failed:
+		return u"WALLET_TRANSFER_FAILED"_q;
+	case TransferTerminal::Cancelled:
+		return u"WALLET_TRANSFER_CANCELLED"_q;
+	case TransferTerminal::Expired:
+		return u"WALLET_TRANSFER_EXPIRED"_q;
+	case TransferTerminal::Replaced:
+		return u"WALLET_TRANSFER_REPLACED"_q;
+	case TransferTerminal::SequenceNumberConsumed:
+		return u"WALLET_TRANSFER_SEQNO_CONSUMED"_q;
+	case TransferTerminal::Superseded:
+		return u"WALLET_TRANSFER_SUPERSEDED"_q;
+	case TransferTerminal::None:
+	case TransferTerminal::Confirmed:
+		return QString();
+	}
+	Unexpected("Terminal value in TransferTerminalCode.");
+}
+
 [[nodiscard]] SendError SendErrorFrom(const EngineError &error) {
 	if (!error.underlying) {
 		return SendError::Failed;
@@ -7149,7 +7170,8 @@ void Session::retirePreviews(SendError error) {
 void Session::send(
 		KeyAuthorization auth,
 		std::shared_ptr<const PreparedSend> prepared,
-		Fn<void(SendError)> done) {
+		Fn<void(SendError)> done,
+		Fn<void(FullMsgId)> drafted) {
 	const auto fail = [&](SendError error) {
 		if (done) {
 			done(error);
@@ -7357,6 +7379,7 @@ void Session::send(
 	_submission = TransferSubmissionState{
 		.operationId = operationId,
 		.prepared = prepared,
+		.drafted = std::move(drafted),
 		.paired = paired,
 		.normalFeeAuthorized = true,
 	};
@@ -7461,7 +7484,10 @@ void Session::send(
 				&& submission->rpcStarted
 				&& FailedTransferTerminal(StoredTransferTerminal(
 					PairedSendPhase(result.phase, paired)))) {
-				_transferMessages->failSending(submission->draft);
+				_transferMessages->failSending(
+					submission->draft,
+					TransferTerminalCode(StoredTransferTerminal(
+						PairedSendPhase(result.phase, paired))));
 			}
 			// A pair refused before its broadcast started names an offer
 			// that expired under the confirmed operation, not the fee the
@@ -7506,7 +7532,9 @@ void Session::send(
 		}
 		const auto submission = base::take(_submission);
 		if (submission && submission->rpcStarted) {
-			_transferMessages->failSending(submission->draft);
+			_transferMessages->failSending(
+				submission->draft,
+				error.message);
 		}
 		auto failed = SendErrorFrom(error);
 		if (submission && submission->refusal) {
@@ -7665,6 +7693,11 @@ void Session::submitTransfer(
 	}
 	const auto messageId = _transferMessages->create(prepared->args, randomId);
 	_submission->draft = messageId;
+	if (messageId) {
+		if (const auto report = _submission->drafted) {
+			crl::on_main(_session, [=] { report(messageId); });
+		}
+	}
 	DEBUG_LOG(("Wallet Info: wallet.sendTransfer data_normal: %1"
 		).arg(QString::fromLatin1(data.normal.toBase64())));
 	if (data.gasless) {
@@ -7713,7 +7746,7 @@ void Session::submitTransfer(
 		} else if (current()) {
 			_submission->refusal = *refusal;
 		}
-		_transferMessages->failSending(messageId);
+		_transferMessages->failSending(messageId, error.type());
 		done({ TransferSubmissionOutcome::Rejected, error.type() });
 	}).handleAllErrors().send();
 }
@@ -8757,7 +8790,10 @@ void Session::applySendSnapshot(
 			&& _submission->rpcStarted
 			&& FailedTransferTerminal(StoredTransferTerminal(
 				PairedSendPhase(snapshot.phase, _submission->paired)))) {
-			_transferMessages->failSending(_submission->draft);
+			_transferMessages->failSending(
+				_submission->draft,
+				TransferTerminalCode(StoredTransferTerminal(
+					PairedSendPhase(snapshot.phase, _submission->paired))));
 		}
 		finishPending();
 	} else if (_sendUnresolved) {

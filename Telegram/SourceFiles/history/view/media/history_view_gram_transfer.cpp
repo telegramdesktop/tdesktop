@@ -70,6 +70,7 @@ struct GramTransferAction {
 	QString address;
 	QString transactionId;
 	QString comment;
+	QString failReason;
 	bool outgoing = false;
 	bool encrypted = false;
 	bool failed = false;
@@ -225,6 +226,7 @@ private:
 		.address = transfer->peerAddress,
 		.transactionId = transfer->transactionId,
 		.comment = transfer->comment,
+		.failReason = transfer->failReason,
 		.outgoing = item->out(),
 		.encrypted = transfer->commentEncrypted,
 		.failed = item->hasFailed(),
@@ -340,6 +342,7 @@ private:
 	}
 	if (action.failed) {
 		item.status = Wallet::TransferItem::Status::Failure;
+		item.failureReason = action.failReason;
 	}
 	if (item.id.isEmpty() || item.counterparty.isEmpty()) {
 		return result;

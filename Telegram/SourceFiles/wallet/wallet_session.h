@@ -210,6 +210,7 @@ struct TransferItem {
 	quint64 lt = 0;
 	QByteArray traceId;
 	QByteArray externalHashNorm;
+	QString failureReason;
 	Status status = Status::Success;
 
 	friend bool operator==(
@@ -690,10 +691,14 @@ public:
 		const SendArgs &args,
 		Fn<void(FeeResult)> done);
 	void cancelFeeEstimate(uint64 owner);
+	// |drafted| names the local service message this transfer was given
+	// in the recipient's chat, the moment it exists and before anything
+	// leaves the device, so a sender can hand the user over to that chat.
 	void send(
 		KeyAuthorization auth,
 		std::shared_ptr<const PreparedSend> prepared,
-		Fn<void(SendError)> done);
+		Fn<void(SendError)> done,
+		Fn<void(FullMsgId)> drafted = nullptr);
 	[[nodiscard]] SendState sendState() const;
 	[[nodiscard]] rpl::producer<SendState> sendStateValue() const;
 	[[nodiscard]] std::optional<PendingSendInfo> pendingSend() const;
@@ -1083,6 +1088,7 @@ private:
 		std::shared_ptr<const PreparedSend> prepared;
 		std::optional<TransferReceipt> receipt;
 		std::optional<SendError> refusal;
+		Fn<void(FullMsgId)> drafted;
 		FullMsgId draft;
 		bool paired = false;
 		bool normalFeeAuthorized = false;

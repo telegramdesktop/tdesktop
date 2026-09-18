@@ -163,8 +163,13 @@ void TransferMessages::dropSending(FullMsgId id) {
 	}
 }
 
-void TransferMessages::failSending(FullMsgId id) {
+void TransferMessages::failSending(
+		FullMsgId id,
+		const QString &reason) {
 	if (const auto item = forgetSending(id)) {
+		if (const auto transfer = item->Get<HistoryServiceGramTransfer>()) {
+			transfer->failReason = reason;
+		}
 		item->sendFailed();
 		auto &owner = _session->data();
 		owner.requestItemViewRefresh(item);

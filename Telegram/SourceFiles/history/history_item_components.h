@@ -884,6 +884,7 @@ struct HistoryServiceGramTransfer
 	QString peerAddress;
 	QString transactionId;
 	QString comment;
+	QString failReason;
 	bool commentEncrypted = false;
 };
 

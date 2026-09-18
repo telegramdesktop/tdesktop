@@ -28,7 +28,7 @@ public:
 
 	[[nodiscard]] FullMsgId create(const SendArgs &args, uint64 randomId);
 	void dropSending(FullMsgId id);
-	void failSending(FullMsgId id);
+	void failSending(FullMsgId id, const QString &reason = QString());
 	[[nodiscard]] bool refusePairing(
 		not_null<HistoryItem*> item,
 		MsgId newId);

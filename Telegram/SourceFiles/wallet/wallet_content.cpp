@@ -2142,10 +2142,16 @@ void AddDetailsTable(
 	const auto session = &show->session();
 	const auto table = AddDetailsTableFrame(container);
 	if (item.status == TransferItem::Status::Failure) {
+		const auto reason = item.failureReason.trimmed();
 		Ui::AddTableRow(
 			table,
 			tr::lng_wallet_details_status(),
-			tr::lng_wallet_details_failed(tr::marked));
+			reason.isEmpty()
+				? tr::lng_wallet_details_failed(tr::marked)
+				: tr::lng_wallet_details_failed_reason(
+					lt_reason,
+					rpl::single(TextWithEntities{ reason }),
+					tr::marked));
 	}
 	const auto peer = (item.kind == TransferItem::Kind::PeerTransfer
 		&& item.counterpartyPeer)
@@ -5421,6 +5427,7 @@ void WalletSendBox(
 		int sendRefusals = 0;
 		bool unlocking = false;
 		bool submitted = false;
+		bool handedOver = false;
 		Fn<void()> continueSend;
 		rpl::variable<bool> previewInsufficient = false;
 		rpl::variable<SendError> previewError = SendError::None;
@@ -6427,6 +6434,22 @@ void WalletSendBox(
 	// does only before anything leaves the device; that retry is bounded
 	// so a refusal that keeps repeating cannot spin forever. When the
 	// user edits what is being sent, the request just stops quietly.
+	// WHY: the transfer now has a message in the recipient's chat, and
+	// that message is where it reports itself from here on, so the box
+	// hands the user over to the chat instead of reporting anything.
+	const auto handOver = [=](FullMsgId messageId) {
+		if (state->closed || !sessionValid()) {
+			return;
+		}
+		const auto window = MakeChatShow(show, true)->resolveWindow();
+		if (!window) {
+			return;
+		}
+		state->handedOver = true;
+		box->closeBox();
+		window->showPeerHistory(messageId.peer);
+		window->window().activate();
+	};
 	state->continueSend = [=] {
 		if (!state->sending.current()
 			|| state->submitted
@@ -6510,6 +6533,8 @@ void WalletSendBox(
 			crl::guard(session, [=](SendError error) {
 				if (!weak || state->closed || !valid()) {
 					return;
+				} else if (state->handedOver) {
+					return;
 				} else if (error == SendError::QuoteExpired
 					&& ++state->sendRefusals <= kSendRefusalRetries) {
 					state->submitted = false;
@@ -6549,7 +6574,8 @@ void WalletSendBox(
 				} else if (valid() && item) {
 					ShowWalletTransactionBox(show, *item);
 				}
-			}));
+			}),
+			crl::guard(session, crl::guard(box, handOver)));
 	};
 	const auto startSend = [=] {
 		if (!draft->preparing.current()
