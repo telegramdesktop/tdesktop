@@ -74,7 +74,10 @@ public:
 	[[nodiscard]] rpl::producer<int> addedCount() const;
 	[[nodiscard]] rpl::producer<not_null<QWidget*>> scrollToWidget() const;
 	[[nodiscard]] rpl::producer<> backspaceInFront() const;
-	[[nodiscard]] rpl::producer<> tabbed() const;
+	// Fired for a Tab that moves out of the tasks, so the box decides
+	// where it goes - or leaves it alone, for the default order.
+	[[nodiscard]] auto tabbed() const
+		-> rpl::producer<not_null<Ui::InputField::TabbedRequest*>>;
 
 private:
 	class Task {
@@ -173,7 +176,7 @@ private:
 	bool _isValid = false;
 	rpl::event_stream<not_null<QWidget*>> _scrollToWidget;
 	rpl::event_stream<> _backspaceInFront;
-	rpl::event_stream<> _tabbed;
+	rpl::event_stream<not_null<Ui::InputField::TabbedRequest*>> _tabbed;
 	rpl::lifetime _emojiPanelLifetime;
 
 };
@@ -361,6 +364,7 @@ void Tasks::Task::createRemove() {
 	const auto remove = Ui::CreateChild<Ui::CrossButton>(
 		field.get(),
 		st::createPollOptionRemove);
+	remove->setAccessibleName(tr::lng_box_remove(tr::now));
 	remove->show(anim::type::instant);
 
 	const auto toggle = lifetime.make_state<rpl::variable<bool>>(false);
@@ -431,7 +435,10 @@ bool Tasks::Task::isTooLong() const {
 }
 
 bool Tasks::Task::hasFocus() const {
-	return field()->hasFocus();
+	// The remove button counts: it holds the focus when it is pressed
+	// from the keyboard, and the task removed with it should pass the
+	// focus on the same way.
+	return field()->hasFocus() || (_remove && _remove->hasFocus());
 }
 
 void Tasks::Task::setFocus() const {
@@ -537,7 +544,8 @@ rpl::producer<> Tasks::backspaceInFront() const {
 	return _backspaceInFront.events();
 }
 
-rpl::producer<> Tasks::tabbed() const {
+auto Tasks::tabbed() const
+-> rpl::producer<not_null<Ui::InputField::TabbedRequest*>> {
 	return _tabbed.events();
 }
 
@@ -771,20 +779,26 @@ void Tasks::initTaskField(not_null<Task*> task, TextWithEntities text) {
 	}, field->lifetime());
 	field->tabbed(
 	) | rpl::on_next([=](not_null<Ui::InputField::TabbedRequest*> request) {
+		if (request->defaultOrder) {
+			// Left to the box, which leaves it alone as well.
+			_tabbed.fire_copy(request);
+			return;
+		}
 		const auto index = findField(field);
 		if (request->backward) {
 			const auto locked = _existingLocked ? _existingCount : 0;
 			if (index > locked) {
 				_list[index - 1]->setFocus();
+				request->handled = true;
 			} else {
-				_tabbed.fire({});
+				_tabbed.fire_copy(request);
 			}
 		} else if (index + 1 < _list.size()) {
 			_list[index + 1]->setFocus();
+			request->handled = true;
 		} else {
-			_tabbed.fire({});
+			_tabbed.fire_copy(request);
 		}
-		request->handled = true;
 	}, field->lifetime());
 	base::install_event_filter(field, [=](not_null<QEvent*> event) {
 		if (event->type() != QEvent::KeyPress
@@ -1016,6 +1030,12 @@ object_ptr<Ui::RpWidget> EditTodoListBox::setupContent() {
 	auto result = object_ptr<Ui::VerticalLayout>(this);
 	const auto container = result.data();
 
+	// The box fills itself while it is open - a task row is created for
+	// every task typed - and those rows land at the end of the focus
+	// chain, past the settings below them. Tab follows the box as it is
+	// shown instead: the title, the tasks, the settings under them.
+	container->setVisualTabOrder(true);
+
 	const auto title = setupTitle(container);
 	Ui::AddDivider(container);
 	Ui::AddSkip(container);
@@ -1054,9 +1074,14 @@ object_ptr<Ui::RpWidget> EditTodoListBox::setupContent() {
 				st::boxDividerLabel),
 			st::createPollLimitPadding));
 
+	// Tab walks the title and the tasks in a ring. A request for the
+	// default order is left alone: the settings and the buttons of the
+	// box are Tab stops then, out of reach of the ring.
 	title->tabbed(
 	) | rpl::on_next([=](not_null<Ui::InputField::TabbedRequest*> request) {
-		if (request->backward) {
+		if (request->defaultOrder) {
+			return;
+		} else if (request->backward) {
 			tasks->focusLast();
 		} else {
 			tasks->focusFirst();
@@ -1083,8 +1108,12 @@ object_ptr<Ui::RpWidget> EditTodoListBox::setupContent() {
 		st::createPollCheckboxMargin);
 
 	tasks->tabbed(
-	) | rpl::on_next([=] {
+	) | rpl::on_next([=](not_null<Ui::InputField::TabbedRequest*> request) {
+		if (request->defaultOrder) {
+			return;
+		}
 		title->setFocus();
+		request->handled = true;
 	}, title->lifetime());
 
 	const auto isValidTitle = [=] {
@@ -1237,6 +1266,10 @@ void AddTodoListTasksBox::prepare() {
 object_ptr<Ui::RpWidget> AddTodoListTasksBox::setupContent() {
 	auto result = object_ptr<Ui::VerticalLayout>(this);
 	const auto container = result.data();
+
+	// The new tasks are created as they are typed, so Tab follows the
+	// order they are shown in as well.
+	container->setVisualTabOrder(true);
 
 	if (_controller->session().premium()) {
 		_emojiPanel = MakeEmojiPanel(
