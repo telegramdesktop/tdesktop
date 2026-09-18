@@ -1835,7 +1835,8 @@ bool Application::minimizeActiveWindow() {
 		return true;
 	} else if (_iv->minimizeActive()
 		|| Iv::Editor::MinimizeActiveWindow()
-		|| calls().minimizeCurrentActiveCall()) {
+		|| calls().minimizeCurrentActiveCall()
+		|| Wallet::MinimizeActiveWindow()) {
 		return true;
 	} else if (const auto window = activeWindow()) {
 		if (window->widget()->isActive()) {

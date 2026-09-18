@@ -550,9 +550,9 @@ not_null<Ui::SlideWrap<InfoIslandEntry>*> InfoIsland::add(
 		count() - 1,
 		object_ptr<Ui::SlideWrap<InfoIslandEntry>>(this, std::move(entry)),
 		style::margins(
-			st::walletCardMargin.left(),
+			st::walletIslandMargin.left(),
 			0,
-			st::walletCardMargin.right(),
+			st::walletIslandMargin.right(),
 			0));
 	_entries.push_back(wrap);
 	_tracker.track(wrap);
@@ -605,7 +605,7 @@ void InfoIsland::refreshRounding() {
 }
 
 QRect InfoIsland::pillRect() const {
-	const auto &margin = st::walletCardMargin;
+	const auto &margin = st::walletIslandMargin;
 	return QRect(
 		margin.left(),
 		_extend.top(),

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_panel.h"
 
 #include "core/application.h"
+#include "core/shortcuts.h"
 #include "lang/lang_keys.h"
 #include "main/session/session_show.h"
 #include "main/main_account.h"
@@ -23,10 +24,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_wallet.h"
 
 namespace Wallet {
+namespace {
+
+[[nodiscard]] Ui::SeparatePanel *ActivePanel() {
+	for (const auto &[index, account] : Core::App().domain().accounts()) {
+		if (!account->sessionExists()) {
+			continue;
+		}
+		const auto panel = account->session().wallet().panel();
+		if (panel && panel->isActiveWindow()) {
+			return panel;
+		}
+	}
+	return nullptr;
+}
+
+} // namespace
 
 not_null<Ui::SeparatePanel*> ShowWallet(not_null<Main::Session*> session) {
 	auto &wallet = session->wallet();
 	if (const auto exists = wallet.panel()) {
+		const auto state = exists->windowState();
+		if (state & Qt::WindowMinimized) {
+			exists->setWindowState(state & ~Qt::WindowMinimized);
+		}
 		exists->showAndActivate();
 		return exists;
 	}
@@ -34,6 +55,7 @@ not_null<Ui::SeparatePanel*> ShowWallet(not_null<Main::Session*> session) {
 	const auto panel = owned.get();
 	const auto show = Main::MakeSessionShow(panel->uiShow(), session);
 	panel->setWindowFlag(Qt::WindowStaysOnTopHint, false);
+	Shortcuts::Listen(panel); // Main window may be hidden to tray.
 	panel->setInnerSize(st::walletPanelSize);
 	rpl::single(rpl::empty) | rpl::then(
 		style::PaletteChanged()
@@ -70,15 +92,17 @@ void CloseWallet(not_null<Main::Session*> session) {
 }
 
 bool CloseActiveWindow() {
-	for (const auto &[index, account] : Core::App().domain().accounts()) {
-		if (!account->sessionExists()) {
-			continue;
-		}
-		const auto panel = account->session().wallet().panel();
-		if (panel && panel->isActiveWindow()) {
-			panel->close();
-			return true;
-		}
+	if (const auto panel = ActivePanel()) {
+		panel->close();
+		return true;
+	}
+	return false;
+}
+
+bool MinimizeActiveWindow() {
+	if (const auto panel = ActivePanel()) {
+		panel->setWindowState(panel->windowState() | Qt::WindowMinimized);
+		return true;
 	}
 	return false;
 }

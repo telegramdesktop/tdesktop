@@ -78,8 +78,10 @@ walletSendButton: RoundButton(defaultActiveButton) {
 	textTop: 11px;
 	fullRadius: true;
 }
-walletSendButtonMargin: margins(12px, 12px, 12px, 0px);
-walletButtonsSkip: 10px;
+// Sides match walletRowIconLeft, the gap matches the card-to-buttons skip.
+walletSendButtonMargin: margins(20px, 12px, 20px, 0px);
+walletButtonsSkip: 12px;
+walletIslandMargin: margins(20px, 0px, 20px, 0px);
 walletHeaderBottomSkip: 12px;
 // Left 22px and the vertical 10/8 are settingsButtonNoIcon's own values, so
 // the row stays 38px tall. Right 50px is walletBuyRowPadding's existing

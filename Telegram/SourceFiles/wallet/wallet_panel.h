@@ -26,6 +26,7 @@ not_null<Ui::SeparatePanel*> ShowWallet(not_null<Main::Session*> session);
 void CloseWallet(not_null<Main::Session*> session);
 
 bool CloseActiveWindow();
+bool MinimizeActiveWindow();
 
 void OpenTransferLink(
 	not_null<Window::SessionController*> controller,
