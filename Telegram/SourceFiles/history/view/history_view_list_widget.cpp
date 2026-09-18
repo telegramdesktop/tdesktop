@@ -5809,6 +5809,10 @@ void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
 	if (_selectedTextItem == item) {
 		clearTextSelection();
 	}
+	const auto selected = _selected.find(item->fullId());
+	if (selected != end(_selected)) {
+		removeItemSelection(selected);
+	}
 	if (_overItemExact == item) {
 		_overItemExact = nullptr;
 	}
