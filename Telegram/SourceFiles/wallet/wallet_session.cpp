@@ -1167,6 +1167,25 @@ void FailShareFetch(
 	Unexpected("Invalid stored transfer terminal.");
 }
 
+[[nodiscard]] std::optional<TimeId> OldestHistoryDate(
+		const std::vector<TransferItem> &history) {
+	auto result = std::optional<TimeId>();
+	for (const auto &item : history) {
+		if (item.date && (!result || *item.date < *result)) {
+			result = item.date;
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] bool StaleSubmittedRecord(
+		const SubmittedTransferRecord &record,
+		TimeId now) {
+	constexpr auto kWindow = TimeId(kClientSendValiditySeconds
+		+ kClientResolutionMarginSeconds);
+	return (record.posted > 0) && (now - record.posted > kWindow);
+}
+
 [[nodiscard]] bool FailedTransferTerminal(TransferTerminal terminal) {
 	switch (terminal) {
 	case TransferTerminal::Replaced:
@@ -5524,6 +5543,9 @@ void Session::applyTransferMinNanos() {
 void Session::setHistory(std::vector<TransferItem> &&list) {
 	_history = std::move(list);
 	dropSubmittedIfListed();
+	_listedBoundary = historyCanPage()
+		? OldestHistoryDate(_history)
+		: std::nullopt;
 	_historyUpdates.fire({});
 }
 
@@ -5591,6 +5613,7 @@ void Session::requestTransactions(bool more, Fn<void()> done) {
 			}
 			_historySettled = true;
 			updateListsGate();
+			releaseDeferredRows();
 		}
 		FinishHistoryWaiters(base::take(request->done));
 		if (weak && current && historyRequestCurrent(*request)) {
@@ -5700,6 +5723,9 @@ void Session::applyTransactions(
 	const auto shown = ranges::any_of(loaded, [&](const TransferItem &i) {
 		return !historyItemHidden(i);
 	});
+	if (shown) {
+		_historyHiddenPages = 0;
+	}
 	if (more) {
 		auto fresh = UnheldHistory(_history, std::move(loaded));
 		if (!fresh.empty()) {
@@ -5749,6 +5775,9 @@ void Session::applyTransactions(
 		}
 		if (weak && historyRequestCurrent(request)) {
 			updatePollingState();
+		}
+		if (weak && historyRequestCurrent(request)) {
+			releaseDeferredRows();
 		}
 	}
 }
@@ -5814,6 +5843,18 @@ bool Session::historyHasNext() const {
 	return _historyHasNext;
 }
 
+bool Session::historyCanPage() const {
+	return _historyHasNext && (_historyHiddenPages < kMaxHiddenPagesInRow);
+}
+
+void Session::releaseDeferredRows() {
+	if (historyCanPage() || !_listedBoundary) {
+		return;
+	}
+	_listedBoundary = std::nullopt;
+	_historyUpdates.fire({});
+}
+
 bool Session::historyLoadingMore() const {
 	// The feed has nothing it can show and the server says more exists, so
 	// the walk that looks for a row worth a line is either running or owed.
@@ -5860,6 +5901,7 @@ void Session::loadMoreHistory() {
 
 void Session::resetHiddenHistoryPages() {
 	_historyHiddenPages = 0;
+	releaseDeferredRows();
 }
 
 void Session::refreshCollectibles(bool force) {
@@ -6092,6 +6134,7 @@ bool Session::pollingRequested() const {
 
 void Session::pollTick() {
 	ensureLoaded();
+	expireStaleSubmittedTransfers();
 	updatePollingState();
 	if (!_pollTimer.isActive()) {
 		return;
@@ -6293,6 +6336,19 @@ std::vector<TransferItem> Session::submittedTransactions() const {
 			result.push_back(*item);
 		}
 	}
+	return result;
+}
+
+auto Session::listedSubmittedTransactions() const
+-> std::vector<TransferItem> {
+	auto result = submittedTransactions();
+	if (!_listedBoundary) {
+		return result;
+	}
+	const auto boundary = *_listedBoundary;
+	result.erase(ranges::remove_if(result, [&](const TransferItem &item) {
+		return item.date && (*item.date < boundary);
+	}), end(result));
 	return result;
 }
 
@@ -7581,6 +7637,7 @@ bool Session::persistSubmittedTransfers() {
 	if (!size) {
 		return false;
 	}
+	const auto now = base::unixtime::now();
 	while (pruned.records.size() > kSubmittedTransferMaxRecords
 		|| *size > kSubmittedTransferMaxBytes) {
 		auto oldest = end(pruned.records);
@@ -7599,7 +7656,9 @@ bool Session::persistSubmittedTransfers() {
 					|| (_submission
 						&& _submission->operationId == i->operationId));
 			if (current
-				|| (!i->served && i->terminal == TransferTerminal::None)) {
+				|| (!i->served
+					&& i->terminal == TransferTerminal::None
+					&& !StaleSubmittedRecord(*i, now))) {
 				continue;
 			}
 			if (oldest == end(pruned.records) || i->posted < oldest->posted) {
@@ -7619,13 +7678,21 @@ bool Session::persistSubmittedTransfers() {
 		return false;
 	}
 	store = std::move(pruned);
+	auto hidden = false;
 	for (auto &entry : _submitted) {
-		if ((entry.terminal || entry.item)
-			&& !submittedTransferRecord(entry.operationId, entry.identity)) {
-			entry.lookupStopped = true;
+		if (submittedTransferRecord(entry.operationId, entry.identity)) {
+			continue;
+		}
+		entry.lookupStopped = true;
+		if (!entry.terminal && !entry.item && entry.canonicalId.isEmpty()) {
+			entry.fallback.reset();
+			hidden = true;
 		}
 	}
 	_submittedTransfersDirty = false;
+	if (hidden) {
+		_historyUpdates.fire({});
+	}
 	return true;
 }
 
@@ -8051,6 +8118,87 @@ bool Session::sendRecoveryNeeded() const {
 		&& transferWalletIdentity().has_value();
 }
 
+// WHY: past valid_until the contract refuses the signed message, so a row
+// still pending then can never execute. The verdict is inferred, so it
+// waits for the journal: a guess here would outrank the real answer.
+void Session::expireStaleSubmittedTransfers() {
+	const auto identity = transferWalletIdentity();
+	if (!_sendRecoveryReady || !identity) {
+		return;
+	}
+	const auto now = base::unixtime::now();
+	auto changed = false;
+	for (auto &record : submittedTransferStore().records) {
+		if (record.terminal != TransferTerminal::None
+			|| record.served
+			|| record.handoff != TransferHandoff::Possible
+			|| record.recordId != _clientRecordId
+			|| submittedTransferRecord(record.operationId, *identity) != &record
+			|| !StaleSubmittedRecord(record, now)
+			|| record.operationId == _unresolvedOperationId
+			|| (_submission
+				&& _submission->operationId == record.operationId)) {
+			continue;
+		}
+		record.terminal = TransferTerminal::Expired;
+		changed = true;
+		if (const auto entry = submittedTransfer(record.operationId)) {
+			if (!entry->terminal) {
+				entry->terminal = engine::SendPhase::kExpired;
+			}
+			if (entry->fallback) {
+				entry->fallback->status = TransferItem::Status::Failure;
+			}
+		}
+	}
+	if (!changed) {
+		return;
+	}
+	_submittedTransfersDirty = true;
+	if (!persistSubmittedTransfers()) {
+		LOG(("Wallet Error: expired transfer facts remain dirty."));
+	}
+	_historyUpdates.fire({});
+}
+
+void Session::dropForeignSubmittedTransfers(
+		const TransferWalletIdentity &identity) {
+	const auto custodyRecord = custody().current(
+		identity.address,
+		identity.publicKey);
+	if (!custodyRecord || _clientRecordId.isEmpty()) {
+		return;
+	}
+	const auto foreign = [&](const SubmittedTransferRecord &record) {
+		return record.recordId != _clientRecordId
+			&& record.network == custodyRecord->network
+			&& record.address == identity.address
+			&& record.publicKey == identity.publicKey;
+	};
+	auto &records = submittedTransferStore().records;
+	auto dropped = std::vector<std::string>();
+	for (const auto &record : records) {
+		if (foreign(record)) {
+			dropped.push_back(record.operationId);
+		}
+	}
+	if (dropped.empty()) {
+		return;
+	}
+	records.erase(ranges::remove_if(records, foreign), end(records));
+	_submitted.erase(ranges::remove_if(_submitted, [&](const auto &entry) {
+		return entry.identity.address == identity.address
+			&& entry.identity.publicKey == identity.publicKey
+			&& ranges::contains(dropped, entry.operationId);
+	}), end(_submitted));
+	_submittedTransfersDirty = true;
+	if (!persistSubmittedTransfers()) {
+		LOG(("Wallet Error: dropped foreign transfer facts remain dirty."));
+	}
+	_historyUpdates.fire({});
+	updateListsGate();
+}
+
 void Session::restoreSubmittedTransfers() {
 	const auto identity = transferWalletIdentity();
 	const auto generation = _networkGeneration;
@@ -8058,6 +8206,7 @@ void Session::restoreSubmittedTransfers() {
 	if (!identity || !transferOperationCurrent(*identity, generation, client)) {
 		return;
 	}
+	dropForeignSubmittedTransfers(*identity);
 	auto changed = false;
 	for (const auto &record : submittedTransferStore().records) {
 		if (record.handoff != TransferHandoff::Possible
@@ -8138,6 +8287,7 @@ void Session::resolvePending() {
 		if (sendRevision == _sendRevision) {
 			_sendRecoveryReady = true;
 			updateSigningReady();
+			expireStaleSubmittedTransfers();
 		}
 		if (hadPending && !_pending) {
 			requestEngineRefresh();
@@ -8230,20 +8380,29 @@ void Session::applySendSnapshot(
 		: nullptr;
 	const auto terminal = snapshot.phase != engine::SendPhase::kIdle
 		&& TerminalSendPhase(snapshot.phase);
-	if (entry && terminal && !entry->terminal) {
+	// Only the clock writes kExpired ahead of the journal, which outranks it.
+	const auto phase = entry
+		? PairedSendPhase(snapshot.phase, entry->paired)
+		: snapshot.phase;
+	const auto inferred = entry
+		&& (entry->terminal == engine::SendPhase::kExpired)
+		&& (phase != engine::SendPhase::kExpired);
+	if (entry && terminal && (!entry->terminal || inferred)) {
 		// The journal holds the normal delivery form of a paired send, so
 		// the server executing the fee-free alternative instead advances the
 		// sequence number without that exact message ever landing. The
 		// engine reads its own message as replaced; for a send that offered
 		// the alternative this is the ordinary outcome of the offer, and the
 		// receipt's message hash names the transaction that did execute.
-		const auto phase = PairedSendPhase(snapshot.phase, entry->paired);
 		entry->terminal = phase;
 		changed = true;
 		switch (phase) {
 		case engine::SendPhase::kConfirmed:
 		case engine::SendPhase::kSequenceNumberConsumed:
 		case engine::SendPhase::kSuperseded:
+			if (inferred && entry->fallback) {
+				entry->fallback->status = TransferItem::Status::Pending;
+			}
 			break;
 		default:
 			if (entry->fallback) {

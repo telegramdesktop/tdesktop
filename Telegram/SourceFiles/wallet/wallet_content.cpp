@@ -154,6 +154,7 @@ constexpr auto kCardFoldMinHeight = 1.;
 constexpr auto kIntroTooltipShownPref = "wallet_intro_tooltip_shown"_cs;
 constexpr auto kWalletIntroGlares = 2;
 constexpr auto kFeeFiatDecimals = 5;
+constexpr auto kUndatedRowDate = std::numeric_limits<TimeId>::max();
 constexpr auto kTransactionLookupInterval = crl::time(1000);
 constexpr auto kTransactionLookupAttempts = 10;
 constexpr auto kMaxFiatUnits = 999'999'999LL;
@@ -10300,7 +10301,7 @@ Content::~Content() {
 	const auto wallet = &session->wallet();
 	return !wallet->listsGated()
 		&& (!wallet->historyVisibleEmpty()
-			|| !wallet->submittedTransactions().empty());
+			|| !wallet->listedSubmittedTransactions().empty());
 }
 
 [[nodiscard]] rpl::producer<bool> HistoryShownValue(
@@ -10511,7 +10512,11 @@ void Content::setupContent() {
 	const auto rebuildList = [=] {
 		list->clear();
 		const auto &history = wallet->history();
-		const auto submitted = wallet->submittedTransactions();
+		auto submitted = wallet->listedSubmittedTransactions();
+		// A row sits by date, so old failures stop covering fresh history.
+		ranges::stable_sort(submitted, ranges::greater(), [](const auto &item) {
+			return item.date.value_or(kUndatedRowDate);
+		});
 		const auto addItem = [=](const TransferItem &item) {
 			const auto content = RowContentFromItem(item, &_show->session());
 			AddHistoryRow(list, content, [=] {
@@ -10524,14 +10529,23 @@ void Content::setupContent() {
 				Ui::AddSubsectionTitle(list, tr::lng_wallet_rows_title());
 				Ui::AddSkip(list);
 			}
-			for (const auto &item : submitted) {
-				addItem(item);
-			}
-			for (const auto &item : history) {
-				if (wallet->historyItemHidden(item)) {
-					continue;
+			auto next = begin(submitted);
+			const auto addNewerThan = [&](TimeId date) {
+				while (next != end(submitted)
+					&& next->date.value_or(kUndatedRowDate) >= date) {
+					addItem(*next++);
 				}
-				addItem(item);
+			};
+			for (const auto &item : history) {
+				if (item.date) {
+					addNewerThan(*item.date);
+				}
+				if (!wallet->historyItemHidden(item)) {
+					addItem(item);
+				}
+			}
+			while (next != end(submitted)) {
+				addItem(*next++);
 			}
 			Ui::AddSkip(list, st::walletRowsTopSkip);
 		}

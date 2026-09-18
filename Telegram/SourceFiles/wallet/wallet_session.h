@@ -617,6 +617,7 @@ public:
 
 	void refreshHistory(Fn<void()> done = nullptr);
 	[[nodiscard]] bool historyHasNext() const;
+	[[nodiscard]] bool historyCanPage() const;
 	[[nodiscard]] bool historyLoadingMore() const;
 	[[nodiscard]] rpl::producer<bool> historyLoadingMoreValue() const;
 	void loadMoreHistory();
@@ -677,6 +678,8 @@ public:
 	[[nodiscard]] auto lastTransferReceipt() const
 		-> const std::optional<TransferReceipt> &;
 	[[nodiscard]] std::vector<TransferItem> submittedTransactions() const;
+	[[nodiscard]] auto listedSubmittedTransactions() const
+	-> std::vector<TransferItem>;
 	[[nodiscard]] std::optional<TransferItem> submittedTransaction(
 		const std::string &operationId) const;
 
@@ -855,7 +858,10 @@ private:
 	void retirePreviewOwner(uint64 owner);
 	void retirePreviews(SendError error);
 	[[nodiscard]] bool sendRecoveryNeeded() const;
+	void releaseDeferredRows();
 	void restoreSubmittedTransfers();
+	void dropForeignSubmittedTransfers(const TransferWalletIdentity &identity);
+	void expireStaleSubmittedTransfers();
 	void resolvePending();
 	void updateListsGate();
 	[[nodiscard]] bool listsConfirmedEmpty() const;
@@ -988,6 +994,8 @@ private:
 	std::vector<TransferItem> _history;
 	rpl::event_stream<> _historyUpdates;
 	bool _historyHasNext = false;
+	// Set by new rows, cleared when paging stalls: a shown row stays shown.
+	std::optional<TimeId> _listedBoundary;
 	crl::time _historyRefreshedAt = 0;
 
 	std::vector<Gram::NftItem> _collectibles;
