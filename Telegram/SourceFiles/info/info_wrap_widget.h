@@ -219,8 +219,9 @@ private:
 	bool requireTopBarSearch() const;
 
 	void addTopBarMenuButton();
+	[[nodiscard]] bool topBarMenuHasActions() const;
 	void addProfileCallsButton();
-	void showTopBarMenu(bool check);
+	void showTopBarMenu();
 
 	const bool _isSeparatedWindow = false;
 
