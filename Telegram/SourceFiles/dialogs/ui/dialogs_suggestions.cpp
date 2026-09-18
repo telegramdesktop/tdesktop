@@ -1045,7 +1045,7 @@ void MyChannelsController::prepare() {
 		for (const auto &row : list->indexed()->all()) {
 			if (const auto history = row->history()) {
 				if (history->peer->isBroadcast()) {
-					if (ranges::contains(_channels, not_null(history))) {
+					if (!ranges::contains(_channels, not_null(history))) {
 						_channels.push_back(history);
 					}
 				}
