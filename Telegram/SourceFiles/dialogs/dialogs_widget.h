@@ -455,6 +455,7 @@ private:
 	std::unique_ptr<Ui::RpWidget> _childListShadow;
 	rpl::variable<float64> _childListShown;
 	rpl::variable<PeerId> _childListPeerId;
+	bool _childListPostponed = false;
 	std::unique_ptr<Ui::RpWidget> _hideChildListCanvas;
 	std::unique_ptr<Ui::RpWidget> _chatsFilterSlideCanvas;
 
