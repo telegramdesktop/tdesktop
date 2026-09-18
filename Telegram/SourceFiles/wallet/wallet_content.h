@@ -67,7 +67,13 @@ void ShowTransferLink(
 void ShowSendToUser(
 	std::shared_ptr<Main::SessionShow> show,
 	not_null<UserData*> user,
-	Fn<void()> sent = nullptr);
+	Fn<void()> sent = nullptr,
+	int64 amountNano = 0);
+
+void ShowSendToLinkRecipient(
+	std::shared_ptr<Main::SessionShow> show,
+	const QString &recipient,
+	int64 amountNano);
 
 // The box that lists the wallets parked on this device. Dropping one calls
 // switched, so the action that hit the conflict can run again.

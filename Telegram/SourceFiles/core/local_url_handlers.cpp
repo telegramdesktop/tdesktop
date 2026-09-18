@@ -74,6 +74,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "iv/iv_instance.h"
+#include "wallet/wallet_panel.h"
 #include "apiwrap.h"
 
 #include "styles/style_chat_helpers.h"
@@ -1697,6 +1698,23 @@ bool ResolveTonSettings(
 	return true;
 }
 
+bool ResolveSendGrams(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto params = url_parse_params(
+		match->captured(1).mid(1),
+		qthelp::UrlParamNameTransform::ToLower);
+	Wallet::OpenSendGramsLink(
+		controller,
+		params.value(u"to"_q),
+		params.value(u"amount"_q));
+	return true;
+}
+
 bool ResolveOAuth(
 		Window::SessionController *controller,
 		const Match &match,
@@ -1840,6 +1858,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			u"^(ton|grams)/?(^\\?.*)?(#|$)"_q,
 			ResolveTonSettings
+		},
+		{
+			u"^sendgrams/?(\\?.+)?(#|$)"_q,
+			ResolveSendGrams
 		},
 		{
 			u"^oauth/?\\?(.+)(#|$)"_q,
@@ -2022,6 +2044,10 @@ QString TryConvertUrlToLocal(QString url) {
 		} else if (const auto callMatch = regex_match(u"^call/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"_q, query, matchOptions)) {
 			const auto slug = callMatch->captured(1);
 			return u"tg://call?slug="_q + slug;
+		} else if (const auto sendGramsMatch = regex_match(u"^sendgrams/?(\\?(.*))?$"_q, query, matchOptions)) {
+			const auto params = sendGramsMatch->captured(2);
+			return u"tg://sendgrams"_q
+				+ (params.isEmpty() ? QString() : '?' + params);
 		} else if (const auto newbotMatch = regex_match(u"^newbot/([a-zA-Z0-9\\.\\_]+)(/([a-zA-Z0-9\\.\\_]*))?(/?\\?(.+))?$"_q, query, matchOptions)) {
 			const auto manager = newbotMatch->captured(1);
 			const auto username = newbotMatch->captured(3);

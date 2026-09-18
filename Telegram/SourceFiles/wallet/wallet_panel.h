@@ -32,4 +32,9 @@ void OpenTransferLink(
 	not_null<Window::SessionController*> controller,
 	const QString &url);
 
+void OpenSendGramsLink(
+	not_null<Window::SessionController*> controller,
+	const QString &to,
+	const QString &amount);
+
 } // namespace Wallet

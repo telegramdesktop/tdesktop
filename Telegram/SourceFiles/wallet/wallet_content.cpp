@@ -10,9 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_cloud_password.h"
 #include "api/api_common.h"
 #include "apiwrap.h"
+#include "base/call_delayed.h"
 #include "base/debug_log.h"
 #include "base/event_filter.h"
 #include "base/invoke_queued.h"
+#include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
 #include "base/random.h"
 #include "base/timer.h"
@@ -160,6 +162,7 @@ constexpr auto kTransactionLookupAttempts = 10;
 constexpr auto kMaxFiatUnits = 999'999'999LL;
 constexpr auto kMaxAmountNano = 999'999'999'999'999'999LL;
 constexpr auto kSendUserLoadTimeout = 30 * crl::time(1000);
+constexpr auto kSendOwnerLookupDelay = crl::time(500);
 constexpr auto kSendRefusalRetries = 3;
 constexpr auto kCommentPasswordStateTimeout = 30 * crl::time(1000);
 constexpr auto kSigningReadyTimeout = 30 * crl::time(1000);
@@ -5363,8 +5366,9 @@ void WalletSendBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
 		std::optional<SendFlow> initial,
-		UserData *user = nullptr,
-		Fn<void()> sent = nullptr) {
+		UserData *user,
+		Fn<void()> sent,
+		int64 amountNano) {
 	Expects(user || initial);
 
 	box->setWidth(st::boxWideWidth);
@@ -5656,7 +5660,7 @@ void WalletSendBox(
 		inner,
 		st::walletSendUserAmountField,
 		rpl::single(u"0"_q),
-		std::min(initial ? initial->amountNano : 0, kMaxAmountNano),
+		std::min(initial ? initial->amountNano : amountNano, kMaxAmountNano),
 		[=] {
 			return state->entryFiat.current()
 				? Ui::LookupCurrencyRule(
@@ -6848,6 +6852,77 @@ void WalletSendBox(
 	}
 }
 
+void OpenSendFlow(
+		std::shared_ptr<Main::SessionShow> show,
+		SendFlow flow,
+		AddressOwner owner) {
+	if (TransferLinkExpired(flow.expiresAt)) {
+		show->showToast(tr::lng_wallet_send_link_expired(tr::now));
+		return;
+	}
+	// WHY: a wallet Telegram names an owner for may not be deployed yet,
+	// and a bounceable message to one is returned instead of delivered.
+	if (owner.userId) {
+		flow.bounce = false;
+	}
+	const auto session = &show->session();
+	const auto user = SendableUser(session, owner.userId);
+	const auto toUser = user
+		&& (!user->gramAddress()
+			|| *user->gramAddress() == flow.destination);
+	show->showBox(Box(
+		WalletSendBox,
+		show,
+		std::make_optional(std::move(flow)),
+		toUser ? user : nullptr,
+		Fn<void()>(),
+		int64(0)));
+}
+
+// A transfer to a user is gasless, even when the link named a wallet.
+void ResolveOwnerAndOpenSendFlow(
+		std::shared_ptr<Main::SessionShow> show,
+		SendFlow flow) {
+	const auto session = &show->session();
+	struct State {
+		Fn<void()> closeLookup;
+		bool answered = false;
+		bool cancelled = false;
+	};
+	const auto state = std::make_shared<State>();
+	const auto answer = [=](AddressOwner owner) {
+		if (state->answered || state->cancelled) {
+			return;
+		}
+		state->answered = true;
+		if (const auto close = base::take(state->closeLookup)) {
+			close();
+		}
+		if (show->valid() && &show->session() == session) {
+			OpenSendFlow(show, flow, std::move(owner));
+		}
+	};
+	session->wallet().userAddresses().resolveOwner(
+		flow.destination,
+		crl::guard(session, answer));
+	if (state->answered) {
+		return;
+	}
+	base::call_delayed(kSendOwnerLookupDelay, session, [=] {
+		if (state->answered || state->cancelled || !show->valid()) {
+			return;
+		}
+		state->closeLookup = ShowWalletBusyBox(
+			show,
+			tr::lng_wallet_send_recipient_loading(),
+			[=] { state->cancelled = true; });
+	});
+	// resolveOwner has no deadline of its own.
+	base::call_delayed(kSendUserLoadTimeout, session, [=] {
+		answer(AddressOwner());
+	});
+}
+
 void WalletSendRecipientBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
@@ -6913,26 +6988,9 @@ void WalletSendRecipientBox(
 			|| !show->valid()
 			|| &show->session() != session) {
 			return;
-		} else if (TransferLinkExpired(flow.expiresAt)) {
-			show->showToast(tr::lng_wallet_send_link_expired(tr::now));
-			return;
 		}
-		// WHY: a wallet Telegram names an owner for may not be deployed yet,
-		// and a bounceable message to one is returned instead of delivered.
-		if (owner.userId) {
-			flow.bounce = false;
-		}
-		const auto user = SendableUser(session, owner.userId);
-		const auto toUser = user
-			&& (!user->gramAddress()
-				|| *user->gramAddress() == flow.destination);
 		box->closeBox();
-		show->showBox(Box(
-			WalletSendBox,
-			show,
-			std::make_optional(std::move(flow)),
-			toUser ? user : nullptr,
-			Fn<void()>()));
+		OpenSendFlow(show, std::move(flow), std::move(owner));
 	};
 	const auto submit = [=] {
 		if (state->closed || state->resolving.current()) {
@@ -12599,7 +12657,7 @@ void ShowTransferLink(
 		show->showToast(tr::lng_wallet_send_link_expired(tr::now));
 		return;
 	}
-	show->showBox(Box(WalletSendRecipientBox, show, url));
+	ResolveOwnerAndOpenSendFlow(show, *flow);
 }
 
 void ShowWalletConflict(
@@ -12634,7 +12692,8 @@ Fn<void()> ShowWalletBusyBox(
 void ShowSendToUser(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<UserData*> user,
-		Fn<void()> sent) {
+		Fn<void()> sent,
+		int64 amountNano) {
 	if (!show || !show->valid() || &show->session() != &user->session()) {
 		return;
 	}
@@ -12647,7 +12706,69 @@ void ShowSendToUser(
 		show,
 		std::nullopt,
 		user.get(),
-		std::move(sent)));
+		std::move(sent),
+		amountNano));
+}
+
+void ShowSendToLinkRecipient(
+		std::shared_ptr<Main::SessionShow> show,
+		const QString &recipient,
+		int64 amountNano) {
+	if (!show || !show->valid()) {
+		return;
+	}
+	const auto session = &show->session();
+	const auto invalid = [=] {
+		show->showToast(tr::lng_wallet_send_link_invalid(tr::now));
+	};
+	if (auto flow = ParseRecipientFlow(recipient)) {
+		if (!flow->amountNano) {
+			flow->amountNano = amountNano;
+		}
+		ResolveOwnerAndOpenSendFlow(show, *flow);
+		return;
+	}
+	const auto username = recipient.startsWith('@')
+		? recipient.mid(1)
+		: recipient;
+	if (!qthelp::regex_match(u"^[a-zA-Z0-9\\_]+$"_q, username, {})) {
+		invalid();
+		return;
+	}
+	const auto open = [=](PeerData *peer) {
+		if (!show->valid() || &show->session() != session) {
+			return;
+		}
+		const auto user = peer ? peer->asUser() : nullptr;
+		const auto addresses = &session->wallet().userAddresses();
+		if (!user
+			|| !addresses->forceResolveError(
+				peerToUser(user->id)).isEmpty()) {
+			show->showToast(tr::lng_wallet_send_user_unavailable(tr::now));
+			return;
+		}
+		ShowSendToUser(show, user, nullptr, amountNano);
+	};
+	if (const auto peer = session->data().peerByUsername(username)) {
+		open(peer);
+		return;
+	}
+	session->api().request(MTPcontacts_ResolveUsername(
+		MTP_flags(0),
+		MTP_string(username),
+		MTP_string()
+	)).done([=](const MTPcontacts_ResolvedPeer &result) {
+		const auto &data = result.data();
+		session->data().processUsers(data.vusers());
+		session->data().processChats(data.vchats());
+		const auto peerId = peerFromMTP(data.vpeer());
+		open(peerId ? session->data().peer(peerId).get() : nullptr);
+	}).fail([=] {
+		if (show->valid() && &show->session() == session) {
+			show->showToast(
+				tr::lng_username_not_found(tr::now, lt_user, username));
+		}
+	}).send();
 }
 
 } // namespace Wallet

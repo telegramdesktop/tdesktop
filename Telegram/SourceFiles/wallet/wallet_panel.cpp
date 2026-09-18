@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "wallet/wallet_panel.h"
 
+#include "base/qthelp_regex.h"
 #include "core/application.h"
 #include "core/shortcuts.h"
 #include "lang/lang_keys.h"
@@ -14,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
+#include "ui/controls/ton_common.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/separate_panel.h"
 #include "wallet/wallet_address.h"
@@ -37,6 +39,16 @@ namespace {
 		}
 	}
 	return nullptr;
+}
+
+// A link amount counts Grams with a dot; a comma is refused.
+[[nodiscard]] std::optional<int64> ParseLinkAmount(const QString &amount) {
+	if (amount.isEmpty()) {
+		return 0;
+	} else if (!qthelp::regex_match(u"^\\d+(\\.\\d+)?$"_q, amount, {})) {
+		return std::nullopt;
+	}
+	return Ui::ParseTonAmountString(amount, u"."_q);
 }
 
 } // namespace
@@ -122,6 +134,26 @@ void OpenTransferLink(
 	const auto session = &controller->session();
 	const auto panel = ShowWallet(session);
 	ShowTransferLink(Main::MakeSessionShow(panel->uiShow(), session), url);
+}
+
+void OpenSendGramsLink(
+		not_null<Window::SessionController*> controller,
+		const QString &to,
+		const QString &amount) {
+	const auto amountNano = ParseLinkAmount(amount);
+	if (!amountNano || (to.isEmpty() && !amount.isEmpty())) {
+		controller->showToast(tr::lng_wallet_send_link_invalid(tr::now));
+		return;
+	}
+	const auto session = &controller->session();
+	const auto panel = ShowWallet(session);
+	if (to.isEmpty()) {
+		return;
+	}
+	ShowSendToLinkRecipient(
+		Main::MakeSessionShow(panel->uiShow(), session),
+		to,
+		*amountNano);
 }
 
 } // namespace Wallet
