@@ -39,6 +39,7 @@ enum class EmojiGroupType {
 
 struct EmojiGroup {
 	QString iconId;
+	QString title; // What a screen reader calls the group.
 	std::vector<QString> emoticons;
 	EmojiGroupType type = EmojiGroupType::Normal;
 
@@ -60,6 +61,8 @@ public:
 	SearchWithGroups(QWidget *parent, SearchDescriptor descriptor);
 
 	[[nodiscard]] rpl::producer<> escapes() const;
+	// Enter or Down in the field: the results are for the keyboard now.
+	[[nodiscard]] rpl::producer<> submits() const;
 	[[nodiscard]] rpl::producer<std::vector<QString>> queryValue() const;
 	[[nodiscard]] auto debouncedQueryValue() const
 		-> rpl::producer<std::vector<QString>>;
@@ -67,7 +70,8 @@ public:
 	void cancel();
 	void setLoading(bool loading);
 	void stealFocus();
-	void returnFocus();
+	[[nodiscard]] bool groupsHaveFocus() const;
+	void returnFocus(bool force = false);
 
 	[[nodiscard]] static int IconSizeOverride();
 
@@ -114,6 +118,7 @@ private:
 	rpl::variable<QString> _chosenGroup;
 	base::Timer _debounceTimer;
 	bool _inited = false;
+	rpl::event_stream<> _downs;
 
 };
 
@@ -128,6 +133,7 @@ public:
 	[[nodiscard]] QImage grab();
 
 	[[nodiscard]] rpl::producer<> escapes() const;
+	[[nodiscard]] rpl::producer<> submits() const;
 	[[nodiscard]] rpl::producer<std::vector<QString>> queryValue() const;
 	[[nodiscard]] auto debouncedQueryValue() const
 		->rpl::producer<std::vector<QString>>;
@@ -135,7 +141,8 @@ public:
 	void cancel();
 	void setLoading(bool loading);
 	void stealFocus();
-	void returnFocus();
+	[[nodiscard]] bool groupsHaveFocus() const;
+	void returnFocus(bool force = false);
 	void setRightReserved(int value);
 
 private:
