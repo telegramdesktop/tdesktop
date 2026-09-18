@@ -1070,6 +1070,12 @@ ChatWidget::ChatWidget(
 
 	orderWidgets();
 
+	// The topic tabs strip is created only once it is needed, long after
+	// the top bar, the list and the composer, so the Tab chain has to
+	// follow the layout instead of the creation order - including the
+	// strip's moves between the left column, the top and the bottom.
+	setVisualTabOrder(true);
+
 	updateControlsVisibility();
 
 	refreshSuggestPostToggle();
