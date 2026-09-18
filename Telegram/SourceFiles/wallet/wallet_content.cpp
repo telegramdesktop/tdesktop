@@ -951,6 +951,13 @@ QString EncryptedCommentLabel::accessibilityName() {
 		st::walletCardQrSize.height());
 }
 
+// WHY: the plate under this glyph is fixed brand appearance no theme can
+// move, and windowSubTextFg over it measured 1.90:1 in the day theme;
+// this grey clears 2.0:1 over every point of the plate the glyph covers.
+[[nodiscard]] QColor CardQrIconFg() {
+	return QColor(0x73, 0x73, 0x73);
+}
+
 [[nodiscard]] QString GroupedAddressLine(
 		const QString &address,
 		int offset) {
@@ -10207,7 +10214,7 @@ void Card::paintContent(Painter &p) {
 
 	const auto qr = CardQrRect(size.width());
 	PaintCardQrPlate(p, qr);
-	st::walletCardQrIcon.paintInCenter(p, qr);
+	st::walletCardQrIcon.paintInCenter(p, qr, CardQrIconFg());
 
 	const auto &nameFont = _nameStyle.font;
 	const auto addressFont = st::walletCardAddressFont->monospace();
