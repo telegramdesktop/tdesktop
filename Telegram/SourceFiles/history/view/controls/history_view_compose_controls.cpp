@@ -1809,12 +1809,9 @@ void ComposeControls::setToggleCommentsButton(
 		_commentsShownHidden.value(
 		) | rpl::on_next([=](bool hidden) {
 			if (_commentsShown->isHidden() != hidden) {
-				if (hidden) {
-					_commentsShown->hide();
-				} else {
-					_commentsShown->show();
-					updateControlsGeometry(_wrap->size());
-				}
+				_commentsShown->setVisible(!hidden);
+				updateControlsGeometry(_wrap->size());
+				_commentsShown->parentWidget()->update();
 			}
 		}, _commentsShown->lifetime());
 		std::move(
