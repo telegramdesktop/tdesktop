@@ -216,8 +216,9 @@ private:
 [[nodiscard]] GramTransferAction SnapshotGramTransfer(
 		not_null<HistoryItem*> item) {
 	const auto transfer = item->Get<HistoryServiceGramTransfer>();
-	Expects(transfer != nullptr);
-
+	if (!transfer) {
+		return {};
+	}
 	return {
 		.itemId = item->fullId(),
 		.amount = transfer->amount,
@@ -313,15 +314,20 @@ private:
 		: action.amount;
 	item.counterparty = Wallet::CanonicalAddress(action.address);
 	item.commentEncrypted = action.encrypted;
-	if (action.encrypted) {
+	if (!action.encrypted) {
+		item.comment = action.comment;
+	} else if (IsClientMsgId(action.itemId.msg)) {
+		// The draft this device made for a transfer it is sending carries
+		// the private comment the user typed: only a served transfer
+		// carries a payload, because only the server assigns one.
+		item.comment = action.comment;
+	} else {
 		item.encryptedPayload = Wallet::DecodeServerEncryptedComment(
 			action.comment);
 		if (!item.encryptedPayload.isEmpty()) {
 			item.encryptedFormat
 				= Wallet::TransferItem::EncryptedFormat::ServerPayload;
 		}
-	} else {
-		item.comment = action.comment;
 	}
 	// The message's own date stands in for the transaction's until the
 	// served record names the moment the chain accepted it, which is the
@@ -727,7 +733,7 @@ GramTransferCommentPart::GramTransferCommentPart(
 	? Wallet::TransferCommentCover(item)
 	: tr::marked(std::move(display)))
 , _text(0) {
-	if (item.commentEncrypted) {
+	if (Wallet::EncryptedCommentRevealable(item)) {
 		createComment(std::move(item));
 		GramTransferInvalidations(_origin) | rpl::on_next([=] {
 			invalidate();
@@ -802,7 +808,9 @@ void GramTransferCommentPart::updateText() {
 
 void GramTransferCommentPart::invalidate() {
 	_retired = true;
-	_comment->reset();
+	if (_comment) {
+		_comment->reset();
+	}
 }
 
 void GramTransferCommentPart::activate(const ClickContext &context) {
@@ -815,6 +823,9 @@ void GramTransferCommentPart::activate(const ClickContext &context) {
 		}
 		auto details = ResolveGramTransfer(_origin.session.get(), _origin.action);
 		if (details.item.walletIdentity != _commentIdentity) {
+			if (!Wallet::EncryptedCommentRevealable(details.item)) {
+				return;
+			}
 			createComment(std::move(details.item));
 		}
 		_comment->activate(show);
@@ -934,7 +945,9 @@ std::unique_ptr<Media> CreateGramTransferMedia(not_null<Element*> parent) {
 				Fn<void(std::unique_ptr<MediaGenericPart>)> push) {
 			const auto item = parent->data();
 			const auto transfer = item->Get<HistoryServiceGramTransfer>();
-			Assert(transfer != nullptr);
+			if (!transfer) {
+				return;
+			}
 			const auto origin = GramTransferOrigin{
 				.session = base::make_weak(&item->history()->session()),
 				.view = base::make_weak(parent),

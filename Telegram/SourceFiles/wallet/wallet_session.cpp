@@ -740,6 +740,19 @@ struct ThrowawayRotation {
 	return offset == body.size() && ValidCommentPayloadSize(payload);
 }
 
+[[nodiscard]] QByteArray EncryptedCommentBody(const TransferItem &item) {
+	using Source = TransferItem::Source;
+	using Format = TransferItem::EncryptedFormat;
+	if (item.source == Source::Server
+		&& item.encryptedFormat == Format::ServerPayload) {
+		return ServerCommentBody(item.encryptedPayload);
+	} else if (item.source == Source::Engine
+		&& item.encryptedFormat == Format::EngineBodyBoc) {
+		return item.encryptedPayload;
+	}
+	return QByteArray();
+}
+
 [[nodiscard]] KeyAuthorization TrackCommentInstallation(
 		KeyAuthorization auth,
 		const std::shared_ptr<KeyAuthorization> &installed) {
@@ -760,6 +773,7 @@ struct ThrowawayRotation {
 struct DecryptedComment {
 	SecureBytes text;
 	CommentDecryptError error = CommentDecryptError::None;
+	SecretReadFailure secret = SecretReadFailure::None;
 };
 
 [[nodiscard]] DecryptedComment DecryptCommentBody(
@@ -778,13 +792,22 @@ struct DecryptedComment {
 			).arg(QString::fromUtf8(error.what())));
 		// The engine reports a read the host refused and a decryption with
 		// the wrong key alike; only the watch tells which one this was.
-		return { .error = watch.failed()
+		const auto secret = watch.failure();
+		return { .error = (secret != SecretReadFailure::None)
 			? Error::KeyUnreadable
-			: Error::DecryptionFailed };
+			: Error::DecryptionFailed,
+			.secret = secret };
 	} catch (const engine::wallet_client_error::LocalSigningUnavailable &) {
-		return { .error = Error::Unavailable };
+		return { .error = Error::Unavailable, .secret = watch.failure() };
 	} catch (const engine::wallet_client_error::InvalidProtectedSecret &) {
-		return { .error = Error::Unavailable };
+		// The secret this device stored is broken, which is a statement
+		// about the key, not about what is available right now.
+		return {
+			.error = Error::KeyUnreadable,
+			.secret = (watch.failure() != SecretReadFailure::None)
+				? watch.failure()
+				: SecretReadFailure::Unreadable,
+		};
 	} catch (const engine::wallet_client_error::SendAlreadyInProgress &) {
 		return { .error = Error::Busy };
 	} catch (const engine::wallet_client_error::StateUnavailable &) {
@@ -1041,20 +1064,6 @@ void FailShareFetch(
 		: (type == u"WALLET_TRANSFER_DATA_INVALID"_q)
 		? SendError::DataInvalid
 		: SendError::Failed;
-}
-
-[[nodiscard]] bool IsProtectedSecretNotFound(const EngineError &error) {
-	if (!error.underlying) {
-		return false;
-	}
-	try {
-		std::rethrow_exception(error.underlying);
-	} catch (const engine::wallet_lifecycle_error
-			::ProtectedSecretHost &hostError) {
-		return hostError.kind == engine::ProtectedSecretHostErrorKind::kNotFound;
-	} catch (...) {
-	}
-	return false;
 }
 
 [[nodiscard]] QString RotationErrorToken(const EngineError &error) {
@@ -1491,6 +1500,28 @@ QByteArray TransactionHashFromServer(const QString &value) {
 	}
 	LOG(("Wallet Error: Unusable transaction hash: %1").arg(value));
 	return QByteArray();
+}
+
+bool EncryptedCommentPending(const TransferItem &item) {
+	return item.commentEncrypted
+		&& item.id.isEmpty()
+		&& item.encryptedPayload.isEmpty();
+}
+
+bool EncryptedCommentUnusable(const TransferItem &item) {
+	if (!item.commentEncrypted || EncryptedCommentPending(item)) {
+		return false;
+	} else if (item.id.isEmpty()
+		|| (item.incoming && CanonicalAddress(item.counterparty).isEmpty())) {
+		return true;
+	}
+	return !ValidEncryptedCommentBody(EncryptedCommentBody(item));
+}
+
+bool EncryptedCommentRevealable(const TransferItem &item) {
+	return item.commentEncrypted
+		&& !EncryptedCommentPending(item)
+		&& !EncryptedCommentUnusable(item);
 }
 
 QByteArray DecodeServerEncryptedComment(const QString &encoded) {
@@ -2448,10 +2479,12 @@ void Session::setPresence(Presence presence) {
 
 bool Session::revealsLocally() {
 	ensureLoaded();
+	const auto record = currentRecord();
 	return (_presence.current() == Presence::Ready)
 		&& (_publicKey.size() == kCustodyPublicKeySize)
-		&& (currentRecord() != nullptr)
-		&& !vaultKeyUnusable();
+		&& (record != nullptr)
+		&& !vaultKeyUnusable()
+		&& !secretUnreadable(record->recordId);
 }
 
 std::optional<BackupDisableApproval> Session::backupDisableApproval() {
@@ -2462,7 +2495,9 @@ std::optional<BackupDisableApproval> Session::backupDisableApproval() {
 		return std::nullopt;
 	}
 	const auto record = currentRecord();
-	if (!record || record->recordId.isEmpty()) {
+	if (!record
+		|| record->recordId.isEmpty()
+		|| secretUnreadable(record->recordId)) {
 		return std::nullopt;
 	}
 	return BackupDisableApproval{
@@ -2490,8 +2525,7 @@ std::shared_ptr<CommentScope> Session::createCommentScope(
 	}
 	if (!target.walletIdentity
 		|| !transferWalletIdentityCurrent(*target.walletIdentity)
-		|| target.id.isEmpty()
-		|| !target.commentEncrypted
+		|| !EncryptedCommentRevealable(target)
 		|| !commentAccessAvailable()
 		|| custodyBusy()) {
 		return nullptr;
@@ -2502,14 +2536,7 @@ std::shared_ptr<CommentScope> Session::createCommentScope(
 	if (sender.isEmpty()) {
 		return nullptr;
 	}
-	auto body = QByteArray();
-	if (target.source == TransferItem::Source::Server
-		&& target.encryptedFormat == TransferItem::EncryptedFormat::ServerPayload) {
-		body = ServerCommentBody(target.encryptedPayload);
-	} else if (target.source == TransferItem::Source::Engine
-		&& target.encryptedFormat == TransferItem::EncryptedFormat::EngineBodyBoc) {
-		body = target.encryptedPayload;
-	}
+	auto body = EncryptedCommentBody(target);
 	if (!ValidEncryptedCommentBody(body)) {
 		return nullptr;
 	}
@@ -2547,6 +2574,50 @@ std::shared_ptr<CommentScope> Session::createCommentScope(
 		}
 	});
 	return scope;
+}
+
+bool Session::secretUnreadable(const QString &recordId) const {
+	return !recordId.isEmpty() && (recordId == _unreadableRecordId);
+}
+
+void Session::validateUnreadableRecord() {
+	if (_unreadableRecordId.isEmpty() || !_custody) {
+		return;
+	}
+	const auto &records = _custody->records;
+	const auto i = ranges::find(
+		records,
+		_unreadableRecordId,
+		&CustodyRecord::recordId);
+	if (i == end(records)) {
+		_unreadableRecordId = QString();
+	}
+}
+
+void Session::noteSecretReadFailure(
+		SecretReadFailure failure,
+		const QString &recordId) {
+	// A verdict names the record whose secret was read. Without one it
+	// judges nothing, and demoting the served wallet on evidence that is
+	// not about it is exactly what this subject exists to prevent.
+	if (recordId.isEmpty()) {
+		return;
+	} else if (failure == SecretReadFailure::Missing) {
+		LOG(("Wallet Error: the protected secret of a held record is "
+			"gone, dropping the record."));
+		removeCustodyRecord(recordId);
+	} else if (failure == SecretReadFailure::Unreadable
+		&& _unreadableRecordId != recordId) {
+		LOG(("Wallet Error: the protected secret of a held record could "
+			"not be read; while that record serves this wallet the device "
+			"serves read-only, until the next launch."));
+		_unreadableRecordId = recordId;
+		updateDeviceCustodyState();
+	}
+}
+
+bool Session::commentAccessReady() const {
+	return commentAccessAvailable() && !custodyBusy();
 }
 
 bool Session::commentAccessAvailable() const {
@@ -2652,11 +2723,28 @@ void Session::decryptComment(DeferredDecrypt request) {
 			done(std::move(result));
 		}
 	};
+	// WHY: every refusal below is a state that settles on its own - a
+	// custody operation in flight, a client still being swapped - so the
+	// decryption waits for it instead of telling the user that a comment
+	// which is perfectly readable cannot be read.
+	const auto wait = [&] {
+		if (request.attempts++ >= kDecryptBusyRetries) {
+			return false;
+		}
+		_deferredDecrypts.push_back(std::move(request));
+		_decryptRetryTimer.callOnce(kDecryptBusyRetryDelay);
+		return true;
+	};
 	if (!commentScopeCurrent(scope)) {
 		finish({ .error = Error::Cancelled });
 		return;
-	} else if (custodyBusy() || !scope->_state->record) {
+	} else if (!scope->_state->record) {
 		finish({ .error = Error::Unavailable });
+		return;
+	} else if (custodyBusy()) {
+		if (!wait()) {
+			finish({ .error = Error::Unavailable });
+		}
 		return;
 	} else if (!ReadAuthorized(*this, auth)) {
 		finish({ .error = Error::Locked });
@@ -2676,7 +2764,9 @@ void Session::decryptComment(DeferredDecrypt request) {
 		_deferredDecrypts.push_back(std::move(request));
 		return;
 	} else if (!_engine->client() || _clientRecordId != recordId) {
-		finish({ .error = Error::Unavailable });
+		if (!wait()) {
+			finish({ .error = Error::Unavailable });
+		}
 		return;
 	}
 	const auto state = scope->_state;
@@ -2707,6 +2797,12 @@ void Session::decryptComment(DeferredDecrypt request) {
 		}
 		return result;
 	}, [=, this](DecryptedComment result) {
+		// A secret this device holds and could not read is news about the
+		// key, not about this comment, so it settles after the comment has
+		// been answered with whatever it could be answered with.
+		const auto settle = gsl::finally([this, recordId, secret = result.secret] {
+			noteSecretReadFailure(secret, recordId);
+		});
 		if (!commentScopeCurrent(scope) || client != _engine->client()) {
 			finish({ .error = Error::Cancelled });
 		} else if (result.error == Error::Busy) {
@@ -2776,9 +2872,10 @@ void Session::revealPhrase(
 			fail(error);
 		}
 	};
-	const auto record = vaultKeyUnusable()
+	const auto held = vaultKeyUnusable() ? nullptr : currentRecord();
+	const auto record = (held && secretUnreadable(held->recordId))
 		? nullptr
-		: currentRecord();
+		: held;
 	if (record) {
 		if (!ReadAuthorized(*this, auth)) {
 			fail(u"PHRASE_VAULT_LOCKED"_q);
@@ -2821,10 +2918,10 @@ void Session::revealLocally(
 			return;
 		}
 		done(std::move(words));
-	}, [=, grant = auth.grant](EngineError error) {
-		if (IsProtectedSecretNotFound(error)) {
-			removeCustodyRecord(initiatingRecordId);
-		}
+	}, [=, this, grant = auth.grant](EngineError error) {
+		noteSecretReadFailure(
+			ProtectedSecretFailure(error),
+			initiatingRecordId);
 		LOG(("Wallet Error: local phrase reveal failed: %1"
 			).arg(LifecycleErrorName(error)));
 		fail(IsVaultLocked(error)
@@ -3061,13 +3158,22 @@ void Session::restoreFromWords(
 		fail(u"PHRASE_EMPTY"_q);
 		return;
 	}
+	// The wallet this restore is for, named once here. A scope carries it
+	// from the transaction it was opened over; every other flow takes the
+	// served one, and both are held to it for the rest of the ladder, so a
+	// wallet replaced from another device while a prompt is open cannot end
+	// with the old phrase parked on this one.
+	const auto targetIdentity = scope
+		? scope->_state->target.walletIdentity
+		: transferWalletIdentity();
+	if (!targetIdentity) {
+		LOG(("Wallet Error: restore requested with no served wallet."));
+		fail(u"PHRASE_STATE_UNKNOWN"_q);
+		return;
+	}
 	const auto lifecycle = _engine->lifecycle();
-	const auto expectedKey = scope
-		? scope->_state->target.walletIdentity->publicKey
-		: _publicKey;
-	const auto targetAddress = scope
-		? scope->_state->target.walletIdentity->address
-		: _address;
+	const auto expectedKey = targetIdentity->publicKey;
+	const auto targetAddress = targetIdentity->address;
 	const auto crossed = std::make_shared<bool>(false);
 	const auto weakSession = base::make_weak(_session);
 	done = [weakSession, crossed, done = std::move(done)](
@@ -3091,6 +3197,15 @@ void Session::restoreFromWords(
 			}
 		}
 	};
+	// WHY: a scope binds the comment attempt, never the install. Once the
+	// protection was chosen the key belongs on this device, so from here on
+	// only a served wallet that is no longer the target undoes the import -
+	// that is the one case that would park a foreign record here. An attempt
+	// that merely expired loses its reveal, and the next press finds the key
+	// held instead of restoring it all over again.
+	const auto targetServed = [=, this] {
+		return transferWalletIdentityCurrent(*targetIdentity);
+	};
 	// The resolved install travels into both continuations, which is what
 	// holds the grant across the worker call: the runtime cleanses the key
 	// as soon as the last handle goes, and the store runs on the worker.
@@ -3098,8 +3213,15 @@ void Session::restoreFromWords(
 			PhraseIdentity identity,
 			CustodyInstall install,
 			std::vector<QString> phrase) {
-		if (scope
-			&& (!commentScopeCurrent(scope) || scope->_state->record)) {
+		// A scope still carrying a record is the no-record invariant the
+		// confirmed reset re-establishes before an install - except when the
+		// record is exactly the one whose secret could not be read, which no
+		// reset touches: that record is what this restore replaces, and
+		// persistCustody() writes over its anchor rather than beside it.
+		if (!targetServed()
+			|| (scope
+				&& scope->_state->record
+				&& !secretUnreadable(scope->_state->record->recordId))) {
 			fail(u"PHRASE_ORIGIN_EXPIRED"_q);
 			return;
 		} else if (!install.grant || !install.grant->valid()) {
@@ -3117,18 +3239,18 @@ void Session::restoreFromWords(
 			.recovery_words = std::move(recoveryWords),
 		};
 		const auto stores = std::make_shared<EngineSecretStores>();
-		const auto state = scope ? scope->_state : nullptr;
 		_engine->run([
 			lifecycle,
 			request = std::move(request),
 			stores,
-			state,
 			grant = install.grant,
 			words = std::move(phrase)
 		]() mutable -> std::optional<Restored> {
-			if (state && (state->cancelled
-				|| state->epoch != state->vault->clearEpoch()
-				|| !grant->valid())) {
+			// The grant is the vault term: a clear wipes every grant, so a
+			// grant that is still valid is a vault no clear intervened on.
+			// The scope's epoch is the comment attempt's term and says
+			// nothing about whether this key may be stored.
+			if (!grant->valid()) {
 				return std::nullopt;
 			}
 			const auto recording = stores->record();
@@ -3161,7 +3283,7 @@ void Session::restoreFromWords(
 				|| CanonicalAddress(record.address) != targetAddress) {
 				rollback([=] { fail(u"PHRASE_KEY_MISMATCH"_q); });
 				return;
-			} else if (scope && !commentScopeCurrent(scope)) {
+			} else if (!targetServed()) {
 				rollback([=] { fail(u"PHRASE_ORIGIN_EXPIRED"_q); });
 				return;
 			}
@@ -3170,7 +3292,14 @@ void Session::restoreFromWords(
 				record.active = true;
 				scope->_state->record = record;
 			}
-			if (!persistCustody(record)) {
+			// The write swaps the signing client from inside, and that swap
+			// retires every scope the outgoing record served. This one is
+			// what the swap was for, so it is named across the write and
+			// nowhere else: every other retire still cancels everything.
+			_installingScope = scope;
+			const auto persisted = persistCustody(record);
+			_installingScope = nullptr;
+			if (!persisted) {
 				if (scope) {
 					scope->_state->record = std::nullopt;
 				}
@@ -3178,7 +3307,7 @@ void Session::restoreFromWords(
 					done(std::move(words), CustodyOutcome::WriteFailed);
 				});
 				return;
-			} else if (scope && !commentScopeCurrent(scope)) {
+			} else if (!targetServed()) {
 				const auto stored = custody().byAnchor(record.publicKey);
 				if (stored && stored->recordId == record.recordId) {
 					removeCustodyRecord(record.recordId);
@@ -3193,7 +3322,7 @@ void Session::restoreFromWords(
 			// stays committed even when this import failed after that write.
 			// A new orphan entry is swept by the next necessary ring write.
 			_engine->dropStoredSecrets(*stores);
-			if (scope && !commentScopeCurrent(scope)) {
+			if (!targetServed()) {
 				fail(u"PHRASE_ORIGIN_EXPIRED"_q);
 				return;
 			}
@@ -3216,7 +3345,7 @@ void Session::restoreFromWords(
 			&& answer.grant && answer.grant->valid()) {
 			scope->_state->epoch = vault().clearEpoch();
 		}
-		if (scope && !commentScopeCurrent(scope)) {
+		if (!targetServed()) {
 			fail(u"PHRASE_ORIGIN_EXPIRED"_q);
 		} else if (!answer.grant) {
 			done(std::move(phrase), CustodyOutcome::Cancelled);
@@ -3309,7 +3438,9 @@ void Session::restoreFromPhrase(
 		// comes, so restoreFromWords() re-establishes the no-record invariant
 		// before it stores, refusing a scope that still carries a record.
 		if (!commentScopeCurrent(scope)
-			|| (scope->_state->record && !vaultKeyUnusable())) {
+			|| (scope->_state->record
+				&& !vaultKeyUnusable()
+				&& !secretUnreadable(scope->_state->record->recordId))) {
 			if (fail) {
 				fail(u"PHRASE_ORIGIN_EXPIRED"_q);
 			}
@@ -3416,7 +3547,9 @@ void Session::restoreFromBackup(
 		// comes, so restoreFromWords() re-establishes the no-record invariant
 		// before it stores, refusing a scope that still carries a record.
 		if (!commentScopeCurrent(scope)
-			|| (scope->_state->record && !vaultKeyUnusable())) {
+			|| (scope->_state->record
+				&& !vaultKeyUnusable()
+				&& !secretUnreadable(scope->_state->record->recordId))) {
 			if (fail) {
 				fail(u"PHRASE_ORIGIN_EXPIRED"_q);
 			}
@@ -4030,6 +4163,9 @@ void Session::quoteRotationFee(
 	retireCommentScopes();
 	_rotating = true;
 	const auto client = signingClient();
+	// The record this client signs with, named now: a swap can rebind the
+	// session's own id before the answer comes back.
+	const auto signingRecordId = _clientRecordId;
 	const auto generation = _networkGeneration;
 	const auto finish = [=, this](FeeResult result) {
 		_rotating = false;
@@ -4080,6 +4216,7 @@ void Session::quoteRotationFee(
 	}, [=, this, grant = auth.grant](EngineError error) {
 		LOG(("Wallet Error: engine prepare_key_rotation (quote) failed: %1"
 			).arg(error.message));
+		noteSecretReadFailure(ProtectedSecretFailure(error), signingRecordId);
 		finish(FeeResult{ .error = (generation != _networkGeneration)
 			? SendError::Failed
 			: SendErrorFrom(error) });
@@ -4149,6 +4286,7 @@ void Session::prepareRotation(
 	}
 	retireCommentScopes();
 	_rotating = true;
+	const auto signingRecordId = _clientRecordId;
 	fail = [this, fail = std::move(fail)](const QString &error) {
 		_rotating = false;
 		if (fail) {
@@ -4185,9 +4323,10 @@ void Session::prepareRotation(
 		if (done) {
 			done(std::move(words));
 		}
-	}, [=, grant = auth.grant](EngineError error) {
+	}, [=, this, grant = auth.grant](EngineError error) {
 		LOG(("Wallet Error: engine prepare_key_rotation failed: %1"
 			).arg(error.message));
+		noteSecretReadFailure(ProtectedSecretFailure(error), signingRecordId);
 		fail(RotationErrorToken(error));
 	});
 }
@@ -4465,6 +4604,7 @@ void Session::resetDeviceCustody(
 					auto &wallet = weak->wallet();
 					wallet._custody = CustodyStore();
 					wallet._custodyReadFailed = false;
+					wallet._unreadableRecordId = QString();
 					wallet._preparedRotation.reset();
 					wallet.retireSubmission();
 					wallet._pending.reset();
@@ -4529,14 +4669,17 @@ CustodyInstallRequest Session::resettableInstallRequest(
 				|| epoch != quint32(previousEpoch + 1)
 				|| weak->wallet().vault().clearEpoch() != epoch) {
 				return false;
-			} else if (!scope) {
-				return true;
-			} else if (scope->cancelled()
-				|| scope->_state->epoch != previousEpoch) {
-				return false;
 			}
-			scope->_state->epoch = epoch;
-			return weak->wallet().commentScopeCurrent(scope);
+			// The handoff is what the scope needs, not what the install
+			// needs: an attempt that already lapsed loses only its reveal,
+			// so a scope that cannot be restamped is left to die and the
+			// key still lands under the protection the user just chose.
+			if (scope
+				&& !scope->cancelled()
+				&& scope->_state->epoch == previousEpoch) {
+				scope->_state->epoch = epoch;
+			}
+			return true;
 		},
 		.resetUnusableVault = [=, weak = base::make_weak(_session)](
 				std::optional<quint32> createdFromEpoch,
@@ -4617,6 +4760,7 @@ bool Session::persistCustody(const CustodyRecord &record) {
 	}
 	_custodyReadFailed = false;
 	_custody = std::move(store);
+	validateUnreadableRecord();
 	// The superseded secrets go only after the write landed, so a failed
 	// write leaves the old record and its secret exactly as before. The
 	// pending rotation is not a record and its secretRef never equals a
@@ -4955,9 +5099,12 @@ void Session::requestOwnershipProof(
 				.timestamp = timestamp,
 				.signature = std::move(proof.signature),
 			});
-		}, [=, grant = grant](EngineError error) {
+		}, [=, this, grant = grant](EngineError error) {
 			LOG(("Wallet Error: ownership proof signing failed: %1"
 				).arg(LifecycleErrorName(error)));
+			noteSecretReadFailure(
+				ProtectedSecretFailure(error),
+				QString::fromStdString(descriptor.record_id));
 			fail(IsVaultLocked(error)
 				? OwnershipProofError::VaultLocked
 				: OwnershipProofError::Failed);
@@ -5159,7 +5306,9 @@ void Session::updateDeviceCustodyState(bool cachedOnly) {
 	const auto current = store.current(
 		identity->address,
 		identity->publicKey);
-	const auto mode = (current && !vaultKeyUnusable())
+	const auto mode = (current
+		&& !vaultKeyUnusable()
+		&& !secretUnreadable(current->recordId))
 		? DeviceMode::Full
 		: _capabilities.current().canExportPhrase
 		? DeviceMode::ReadOnlyRestorable
@@ -5213,12 +5362,21 @@ void Session::syncEngineClient() {
 			_sendRecoveryReady = false;
 			_clientStopping = true;
 			updateSigningReady();
+			// WHY: the record goes before the retire, not after it and not
+			// in the stop's callback. From here nothing may sign with this
+			// client, and the retire validates every scope it keeps - so a
+			// record still named here would make comment access read as
+			// gone and cancel the very scope the exemption below spares.
+			const auto bound = !base::take(_clientRecordId).isEmpty();
 			// A scope opened under the public-key-only client holds no
 			// record yet, and the record it restores is what this swap
 			// binds: it waits for the signing client instead of dying with
-			// the client that could not have served it anyway.
-			if (!_clientRecordId.isEmpty()) {
-				retireCommentScopes();
+			// the client that could not have served it anyway. The install
+			// running right now is the same case one step later - its scope
+			// held the record this install just replaced - so it is the one
+			// scope a record-bound swap keeps.
+			if (bound) {
+				retireCommentScopes(_installingScope);
 			}
 			_engine->stopClient([this] {
 				_clientStopping = false;
@@ -5326,6 +5484,7 @@ void Session::removeCustodyRecord(const QString &recordId) {
 		return;
 	}
 	_custody = std::move(store);
+	validateUnreadableRecord();
 	updateDeviceCustodyState();
 }
 
@@ -6684,6 +6843,7 @@ void Session::startPreview() {
 			});
 		} else {
 			const auto client = request.client;
+			const auto signingRecordId = _clientRecordId;
 			auto encrypt = engine::CreateEncryptedCommentRequest{
 				.recipient = FormatFriendly(
 					request.args.destination,
@@ -6699,6 +6859,12 @@ void Session::startPreview() {
 					.boc = std::move(body),
 				});
 			}, [=, this](EngineError error) {
+				// Encrypting for the recipient reads this wallet's own key,
+				// so a refused read here says the same thing about it as a
+				// refused signature does.
+				noteSecretReadFailure(
+					ProtectedSecretFailure(error),
+					signingRecordId);
 				finishPreview(flight, FeeResult{
 					.error = SendErrorFrom(error),
 				});
@@ -6953,6 +7119,9 @@ void Session::send(
 		fail(SendError::Failed);
 		return;
 	}
+	// The record this send signs with, named now: a swap can rebind the
+	// session's own id before the engine answers.
+	const auto signingRecordId = custodyRecord->recordId;
 	submittedTransferStore().records.push_back(SubmittedTransferRecord{
 		.recordId = custodyRecord->recordId,
 		.address = identity.address,
@@ -7203,6 +7372,9 @@ void Session::send(
 		} return;
 		}
 	}, [=, this, grant = auth.grant](EngineError error) {
+		// The signing read happened before any of the bookkeeping below, so
+		// what it says about the key is recorded whatever this send becomes.
+		noteSecretReadFailure(ProtectedSecretFailure(error), signingRecordId);
 		if (!current() || _sendState.current() != SendState::Sending) {
 			return;
 		} else if (IsSubmissionUnknown(error)) {

@@ -164,6 +164,7 @@ constexpr auto kSendUserLoadTimeout = 30 * crl::time(1000);
 constexpr auto kSendRefusalRetries = 3;
 constexpr auto kCommentPasswordStateTimeout = 30 * crl::time(1000);
 constexpr auto kSigningReadyTimeout = 30 * crl::time(1000);
+constexpr auto kCustodyResolveTimeout = 20 * crl::time(1000);
 constexpr auto kRowAmountPreciseBelowNano = Ui::kNanosInOne / 100;
 
 class BalanceInk;
@@ -228,6 +229,7 @@ private:
 	Fn<void(KeyAuthorization)> _done;
 	mutable std::vector<std::shared_ptr<Prompt>> _prompts;
 	bool _finished = false;
+	bool _installing = false;
 	rpl::lifetime _lifetime;
 
 };
@@ -245,6 +247,7 @@ public:
 
 private:
 	const TextWithEntities _cover;
+	const bool _revealable = false;
 	bool _closed = false;
 	bool _revealed = false;
 	TransferComment _comment;
@@ -738,18 +741,28 @@ std::shared_ptr<Main::SessionShow> KeyContext::plain() const {
 
 CustodyInstaller KeyContext::installer() {
 	const auto self = shared_from_this();
-	const auto native = MakeCustodyInstaller(self);
+	// WHY: the ladder stores the key on this device, which is right to
+	// finish even once the action that asked for it has expired, so it is
+	// judged by the window it lives in and not by that action. Handing it
+	// this context instead made every unrelated wallet event close the
+	// chooser with nothing stored and nothing said, and the next press
+	// started the whole restore again.
+	const auto native = MakeCustodyInstaller(_show);
 	return [=](CustodyInstallRequest request) {
 		if (!self->valid()) {
 			request.ready({});
 			self->cancel();
 			return;
 		}
+		self->_installing = true;
 		request.passcodeCreated = [
 			self,
 			created = std::move(request.passcodeCreated)
 		](quint32 previousEpoch, quint32 epoch) {
-			if (!created || !created(previousEpoch, epoch) || !self->valid()) {
+			// Judged like the rest of the ladder: the vault transition has
+			// to be sound, and whether the action that asked for the key is
+			// still there decides nothing about storing it.
+			if (!created || !created(previousEpoch, epoch)) {
 				return false;
 			}
 			self->acceptClosed();
@@ -757,6 +770,7 @@ CustodyInstaller KeyContext::installer() {
 		};
 		request.ready = [=, ready = std::move(request.ready)](
 				CustodyInstall result) {
+			self->_installing = false;
 			self->acceptClosed();
 			const auto installed = result.grant != nullptr;
 			ready(std::move(result));
@@ -862,6 +876,11 @@ rpl::lifetime &KeyContext::lifetime() {
 void KeyContext::promptClosed(const std::shared_ptr<Prompt> &prompt) {
 	if (_finished || prompt->accepted) {
 		return;
+	} else if (_installing) {
+		// The install ladder is this press continuing, not the user
+		// abandoning it, and it owns no prompt of this context any more.
+		prompt->accepted = true;
+		return;
 	}
 	auto later = false;
 	for (const auto &other : _prompts) {
@@ -885,13 +904,14 @@ EncryptedCommentLabel::EncryptedCommentLabel(
 	Fn<bool()> originCurrent)
 : FlatLabel(parent, st::walletCommentLabel)
 , _cover(TransferCommentCover(item))
+, _revealable(EncryptedCommentRevealable(item))
 , _comment(&show->session(), std::move(item), [
 		this,
 		originCurrent = std::move(originCurrent)] {
 	return !_closed && (!originCurrent || originCurrent());
 }) {
 	setContextCopyText(QString());
-	setSelectable(false);
+	setSelectable(!_revealable);
 	setMarkedText(_cover);
 	setContextMenuHook([weak = base::make_weak(this)](ContextMenuRequest request) {
 		if (!weak || !weak->_comment.plaintext()) {
@@ -941,7 +961,9 @@ QString EncryptedCommentLabel::accessibilityName() {
 	const auto &text = _comment.plaintext();
 	return text
 		? *text
-		: tr::lng_action_gram_transfer_encrypted_comment(tr::now);
+		: _revealable
+		? tr::lng_action_gram_transfer_encrypted_comment(tr::now)
+		: _cover.text;
 }
 
 [[nodiscard]] QRect CardQrRect(int cardWidth) {
@@ -7601,6 +7623,78 @@ void StartCustodyRestore(
 		askPassword);
 }
 
+// The device mode is unknown only while the wallet's state has not reached
+// this client, which is the normal state of a freshly logged in account
+// outside the Wallet window: nothing else asks for it. A press asks, waits
+// for the answer and then climbs the ladder that answer names. The wait is
+// bounded, and a wallet the server will not serve is stated once.
+void ResolveDeviceCustody(
+		std::shared_ptr<Main::SessionShow> show,
+		Fn<void()> resolved,
+		std::shared_ptr<KeyContext> context) {
+	const auto weakSession = base::make_weak(&show->session());
+	auto &wallet = show->session().wallet();
+	const auto lifetime = std::make_shared<rpl::lifetime>();
+	wallet.startPolling();
+	lifetime->add([weakSession] {
+		if (weakSession) {
+			weakSession->wallet().stopPolling();
+		}
+	});
+	if (context) {
+		context->lifetime().add([lifetime] { lifetime->destroy(); });
+	}
+	const auto settled = std::make_shared<bool>(false);
+	const auto finish = [=](bool known) {
+		if (*settled) {
+			return;
+		}
+		*settled = true;
+		const auto owned = base::take(*lifetime);
+		if (!weakSession || !show->valid()) {
+			if (context) {
+				context->cancel();
+			}
+			return;
+		} else if (known) {
+			resolved();
+			return;
+		}
+		show->showToast(tr::lng_wallet_unavailable(tr::now));
+		if (context) {
+			context->cancel();
+		}
+	};
+	const auto check = [=] {
+		if (*settled || !weakSession) {
+			return;
+		} else if (context && !context->valid()) {
+			*settled = true;
+			const auto owned = base::take(*lifetime);
+			context->cancel();
+			return;
+		}
+		auto &wallet = weakSession->wallet();
+		const auto presence = wallet.presence();
+		if (wallet.deviceCustodyState().mode != DeviceMode::Unknown) {
+			finish(true);
+		} else if (presence == Presence::Unavailable
+			|| presence == Presence::Missing
+			|| presence == Presence::AddressUnreadable) {
+			finish(false);
+		}
+	};
+	const auto timeout = lifetime->make_state<base::Timer>([=] {
+		finish(false);
+	});
+	timeout->callOnce(kCustodyResolveTimeout);
+	rpl::merge(
+		wallet.transferWalletIdentityChanges(),
+		wallet.custodyUpdates()
+	) | rpl::on_next(check, *lifetime);
+	check();
+}
+
 void RunKeyRequiringAction(
 		std::shared_ptr<Main::SessionShow> show,
 		Fn<void()> action,
@@ -7655,9 +7749,15 @@ void RunKeyRequiringAction(
 			(kind == KeyActionKind::ResumeAfterRestore) ? action : nullptr,
 			context,
 			std::move(importAbout)));
-	} else if (context) {
-		show->showToast(tr::lng_wallet_comment_unavailable(tr::now));
-		context->cancel();
+	} else {
+		ResolveDeviceCustody(show, [=] {
+			RunKeyRequiringAction(
+				show,
+				action,
+				kind,
+				context,
+				rpl::duplicate(importAbout));
+		}, context);
 	}
 }
 

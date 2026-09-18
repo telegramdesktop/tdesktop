@@ -8859,7 +8859,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_details_operation" = "Operation";
 "lng_wallet_details_key_change" = "Wallet key update";
 "lng_wallet_details_fee_unknown" = "Lookup failed";
-"lng_wallet_comment_unavailable" = "This comment can't be decrypted with the wallet information currently available.";
+"lng_wallet_comment_invalid" = "Invalid data";
 "lng_wallet_comment_decryption_failed" = "This comment couldn't be decrypted. Please try again.";
 "lng_wallet_comment_key_mismatch" = "This comment was encrypted for a different wallet key and can't be decrypted on this device.";
 "lng_wallet_comment_key_unreadable" = "The wallet key couldn't be read from this device. Please try again.";

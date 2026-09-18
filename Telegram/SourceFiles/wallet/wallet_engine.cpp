@@ -216,6 +216,17 @@ struct ReadOutcome {
 	quint32 epoch = 0;
 };
 
+[[nodiscard]] SecretReadFailure SecretReadFailureFrom(
+		engine::ProtectedSecretHostErrorKind kind) {
+	using Error = engine::ProtectedSecretHostErrorKind;
+	switch (kind) {
+	case Error::kNotFound: return SecretReadFailure::Missing;
+	case Error::kAuthenticationFailed: return SecretReadFailure::Locked;
+	case Error::kCancelled: return SecretReadFailure::Locked;
+	default: return SecretReadFailure::Unreadable;
+	}
+}
+
 [[nodiscard]] ReadOutcome ReadUnderKeyring(
 		Storage::Account &local,
 		VaultRuntime &vault,
@@ -494,14 +505,38 @@ SecretReadWatch::~SecretReadWatch() {
 	t_secretReadWatch = _previous;
 }
 
-bool SecretReadWatch::failed() const {
-	return _failed;
+SecretReadFailure SecretReadWatch::failure() const {
+	return _failure;
 }
 
-void SecretReadWatch::MarkFailed() {
-	if (const auto watch = t_secretReadWatch) {
-		watch->_failed = true;
+void SecretReadWatch::MarkFailed(SecretReadFailure failure) {
+	// The refusal that stopped the call is the one every open watch keeps:
+	// a later read under the same job cannot make an earlier verdict less
+	// true, and only the first one actually ended anything.
+	for (auto watch = t_secretReadWatch; watch; watch = watch->_previous) {
+		if (watch->_failure == SecretReadFailure::None) {
+			watch->_failure = failure;
+		}
 	}
+}
+
+SecretReadFailure ProtectedSecretFailure(const EngineError &error) {
+	// What the watch recorded at the read outranks the typed error, which
+	// the engine may already have rewritten into its own taxonomy.
+	if (error.secret != SecretReadFailure::None) {
+		return error.secret;
+	} else if (!error.underlying) {
+		return SecretReadFailure::None;
+	}
+	try {
+		std::rethrow_exception(error.underlying);
+	} catch (const engine::wallet_lifecycle_error::ProtectedSecretHost &e) {
+		return SecretReadFailureFrom(e.kind);
+	} catch (const engine::protected_secret_host_error::Failed &e) {
+		return SecretReadFailureFrom(e.kind);
+	} catch (...) {
+	}
+	return SecretReadFailure::None;
 }
 
 TransferSubmission::Recording::Recording(
@@ -896,15 +931,15 @@ public:
 			return ReadUnderKeyring(local, *vault, accountId, key, epoch);
 		});
 		if (!outcome) {
-			SecretReadWatch::MarkFailed();
+			SecretReadWatch::MarkFailed(SecretReadFailure::Unreadable);
 			throw HostFailed(
 				engine::ProtectedSecretHostErrorKind::kUnavailable,
 				u"wallet engine storage is unavailable"_q);
 		} else if (outcome->error) {
-			SecretReadWatch::MarkFailed();
+			SecretReadWatch::MarkFailed(SecretReadFailureFrom(*outcome->error));
 			throw HostFailed(*outcome->error, u"wallet keyring read refused"_q);
 		} else if (!vault->current(accountId, outcome->epoch)) {
-			SecretReadWatch::MarkFailed();
+			SecretReadWatch::MarkFailed(SecretReadFailure::Locked);
 			throw HostFailed(
 				engine::ProtectedSecretHostErrorKind::kAuthenticationFailed,
 				u"wallet authorization expired"_q);
@@ -1316,6 +1351,13 @@ void Engine::Execute(
 		Fn<void(EngineError)> fail) {
 	const auto previous = std::exchange(_privateAccess, access.get());
 	const auto restore = gsl::finally([=] { _privateAccess = previous; });
+	// WHY: every protected-secret read happens under this job, on this
+	// thread, and the engine rewrites a refused read into whatever its own
+	// taxonomy calls the operation that failed - a send becomes SendFailed.
+	// The watch records the host's answer where it is still the truth, and
+	// the error carries it to main, so a caller no longer has to recognize
+	// a rewritten error to learn that the key could not be read.
+	auto watch = SecretReadWatch();
 	try {
 		job();
 	} catch (const std::exception &e) {
@@ -1331,6 +1373,7 @@ void Engine::Execute(
 				? QString::fromUtf8(typeid(e).name())
 				: what,
 			.underlying = std::current_exception(),
+			.secret = watch.failure(),
 		};
 		crl::on_main(weak, [fail = std::move(fail), error] {
 			fail(error);
@@ -1339,6 +1382,7 @@ void Engine::Execute(
 		const auto error = EngineError{
 			.message = u"unexpected wallet engine error"_q,
 			.underlying = std::current_exception(),
+			.secret = watch.failure(),
 		};
 		crl::on_main(weak, [fail = std::move(fail), error] {
 			fail(error);

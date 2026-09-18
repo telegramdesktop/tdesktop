@@ -8572,8 +8572,9 @@ PreparedServiceText HistoryItem::prepareGramTransferText(
 		bool includeComment) {
 	auto result = PreparedServiceText();
 	const auto transfer = Get<HistoryServiceGramTransfer>();
-	Assert(transfer != nullptr);
-
+	if (!transfer) {
+		return result;
+	}
 	auto amount = tr::lng_action_gram_transfer_amount(
 		tr::now,
 		lt_count,

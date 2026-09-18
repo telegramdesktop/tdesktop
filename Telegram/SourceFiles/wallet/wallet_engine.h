@@ -29,12 +29,31 @@ namespace Wallet {
 class Api;
 class VaultRuntime;
 
+// Why the platform host refused a protected-secret read. Missing is the one
+// answer a caller may act on irreversibly - the value is not in storage at
+// all - while Unreadable covers every shape of "it is there and this read
+// did not produce it", which a locked keyring, a corrupt record and a
+// momentary host error all reach alike.
+enum class SecretReadFailure : uchar {
+	None,
+	Locked,
+	Missing,
+	Unreadable,
+};
+
 struct EngineError {
 	QString message;
 
 	// The engine's typed error when one produced this failure. Rethrow it
 	// to dispatch on the generated wallet_engine error taxonomy.
 	std::exception_ptr underlying;
+
+	// What the host answered to a protected-secret read this job made, as
+	// the watch around the job recorded it. The engine rewrites such a
+	// refusal into its own client taxonomy - a send answers SendFailed -
+	// so by the time `underlying` is inspected the read's own verdict is
+	// no longer in it, and this field is what survives the rewrite.
+	SecretReadFailure secret = SecretReadFailure::None;
 };
 
 // The protected-secret storage keys one engine call caused this
@@ -91,7 +110,9 @@ private:
 // engine call running on this thread. The engine folds such a refusal into
 // the same typed failure as a decryption with the wrong key, so a caller
 // that must tell the two apart opens a watch around its call and reads it
-// afterwards. Same thread contract as the store recording above.
+// afterwards. Watches nest: a refusal is recorded by every watch open on
+// the thread, so the one Engine::Execute holds around each job sees what an
+// inner watch saw. Same thread contract as the store recording above.
 class SecretReadWatch final {
 public:
 	SecretReadWatch();
@@ -99,17 +120,23 @@ public:
 	SecretReadWatch &operator=(const SecretReadWatch &other) = delete;
 	~SecretReadWatch();
 
-	[[nodiscard]] bool failed() const;
+	[[nodiscard]] SecretReadFailure failure() const;
 
 	// Worker thread. Called by the platform host when a read is refused.
 	// Does nothing when no watch is open on this thread.
-	static void MarkFailed();
+	static void MarkFailed(SecretReadFailure failure);
 
 private:
 	SecretReadWatch *_previous = nullptr;
-	bool _failed = false;
+	SecretReadFailure _failure = SecretReadFailure::None;
 
 };
+
+// The same verdict the watch records, for a caller that holds the engine's
+// typed error instead. Answers None for every failure that is not the host
+// refusing a protected secret.
+[[nodiscard]] SecretReadFailure ProtectedSecretFailure(
+	const EngineError &error);
 
 enum class TransferSubmissionOutcome {
 	Accepted,

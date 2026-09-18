@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_address.h"
 #include "wallet/wallet_api.h"
 #include "wallet/wallet_custody.h"
+#include "wallet/wallet_engine.h"
 #include "wallet/wallet_stream.h"
 #include "wallet/wallet_transfer_store.h"
 #include "wallet/wallet_unlock.h"
@@ -365,6 +366,19 @@ struct SendArgs {
 
 [[nodiscard]] QByteArray DecodeServerEncryptedComment(const QString &encoded);
 
+// The three states a private comment is laid out in, all decided by the
+// message bytes alone, so a surface settles them while it builds the
+// comment instead of offering a reveal that no key could ever serve.
+// Pending is this device's own transfer before the server named it: it
+// carries the text the user typed and no payload, because only the served
+// transaction carries one. Unusable is a payload that cannot be decrypted
+// by anything - the sender address does not parse, the transaction is
+// named by nothing, or the body fails its structural parse. Revealable is
+// the rest, and the only one a spoiler belongs on.
+[[nodiscard]] bool EncryptedCommentPending(const TransferItem &item);
+[[nodiscard]] bool EncryptedCommentUnusable(const TransferItem &item);
+[[nodiscard]] bool EncryptedCommentRevealable(const TransferItem &item);
+
 // The 32 hash bytes in base64 or hex, or nothing for another shape.
 [[nodiscard]] QByteArray TransactionHashFromServer(const QString &value);
 
@@ -471,6 +485,11 @@ public:
 		-> rpl::producer<DeviceCustodyState>;
 	[[nodiscard]] rpl::producer<> custodyUpdates() const;
 	[[nodiscard]] bool custodyBusy() const;
+	// Everything createCommentScope() asks of the wallet, with nothing about
+	// the message it would be opened over. A surface waiting for a comment
+	// to become openable waits on this, so it waits for the same state the
+	// scope will be made in instead of one the next call disproves.
+	[[nodiscard]] bool commentAccessReady() const;
 
 	// Protection and unusable state belong to the whole domain. Every session
 	// observes the same event and updates only its already-cached device mode.
@@ -731,6 +750,19 @@ private:
 		const std::vector<QString> &words,
 		Fn<void(std::optional<PhraseIdentity>)> done);
 	[[nodiscard]] bool commentAccessAvailable() const;
+	// Runtime only, never written anywhere: a protected secret this device
+	// holds and could not read moves the device to its read-only view, so
+	// the restore and import ladder becomes reachable and a relaunch tries
+	// the secret again. The signal cannot be told apart from a keyring that
+	// is momentarily shut, so nothing irreversible follows from it; only a
+	// secret the host states is not there at all drops its record, which is
+	// the one answer that names no key any more.
+	[[nodiscard]] bool secretUnreadable(const QString &recordId) const;
+	void noteSecretReadFailure(
+		SecretReadFailure failure,
+		const QString &recordId);
+	// Drops the verdict once the record it names is no longer stored.
+	void validateUnreadableRecord();
 	void validateCommentScopes();
 	void retireCommentScopes(
 		const std::shared_ptr<CommentScope> &except = nullptr);
@@ -961,6 +993,7 @@ private:
 	rpl::variable<WalletCapabilities> _capabilities;
 	std::optional<CustodyStore> _custody;
 	bool _custodyReadFailed = false;
+	QString _unreadableRecordId;
 	bool _custodyResetting = false;
 	bool _phraseRevealing = false;
 	bool _replacing = false;
@@ -1065,6 +1098,9 @@ private:
 	Fn<void(const QString &)> _rotationFailed;
 
 	std::vector<std::weak_ptr<CommentScope>> _commentScopes;
+	// Set only across the custody write of an install, so the signing-client
+	// swap that write causes keeps the scope the install was made for.
+	std::shared_ptr<CommentScope> _installingScope;
 	std::vector<DeferredDecrypt> _deferredDecrypts;
 	rpl::lifetime _commentLifetime;
 

@@ -18,11 +18,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_unlock.h"
 
 namespace Wallet {
+namespace {
+
+constexpr auto kResolveInterval = crl::time(500);
+constexpr auto kResolveTicks = 40;
+constexpr auto kResolveAttempts = 4;
+
+} // namespace
 
 TextWithEntities TransferCommentCover(const TransferItem &item) {
 	constexpr auto kPayloadOverhead = 64;
 	constexpr auto kMinLength = 8;
 	constexpr auto kMaxLength = 128;
+	if (EncryptedCommentUnusable(item)) {
+		return tr::italic(tr::lng_wallet_comment_invalid(tr::now));
+	} else if (EncryptedCommentPending(item)) {
+		// This device's own transfer before the server named it: the text is
+		// the one the user typed, and no key is involved in showing it.
+		const auto own = item.comment.trimmed();
+		return own.isEmpty()
+			? tr::italic(
+				tr::lng_action_gram_transfer_encrypted_comment(tr::now))
+			: tr::marked(own);
+	}
 	const auto length = (item.encryptedFormat
 		== TransferItem::EncryptedFormat::ServerPayload)
 		? std::clamp(
@@ -106,6 +124,13 @@ bool TransferComment::attemptCurrent(uint64 revision) const {
 		&& _session->wallet().commentScopeCurrent(scope);
 }
 
+bool TransferComment::targetIsForeign() const {
+	auto &wallet = _session->wallet();
+	return _target.walletIdentity
+		&& !wallet.transferWalletIdentityCurrent(*_target.walletIdentity)
+		&& wallet.transferWalletIdentity().has_value();
+}
+
 void TransferComment::validate() {
 	const auto weak = base::make_weak(this);
 	const auto scope = _scope;
@@ -119,6 +144,16 @@ void TransferComment::validate() {
 }
 
 void TransferComment::activate(std::shared_ptr<Main::SessionShow> show) {
+	// A press the user made is a new attempt at this comment and starts
+	// with the whole wait budget. Nothing the ladder does to itself comes
+	// through here, so a wait that ran out once cannot outlive the press
+	// it ran out in.
+	_resolveAttempts = 0;
+	activateAttempt(std::move(show));
+}
+
+void TransferComment::activateAttempt(
+		std::shared_ptr<Main::SessionShow> show) {
 	const auto weak = base::make_weak(this);
 	validate();
 	if (!weak) {
@@ -140,14 +175,18 @@ void TransferComment::activate(std::shared_ptr<Main::SessionShow> show) {
 		if (_session->wallet().deviceCustodyState().conflict) {
 			ShowWalletConflict(show, [=] {
 				if (weak) {
-					weak->activate(show);
+					weak->activateAttempt(show);
 				}
 			});
+		} else if (targetIsForeign()) {
+			show->showToast(tr::lng_wallet_comment_key_mismatch(tr::now));
 		} else {
-			show->showToast(tr::lng_wallet_comment_unavailable(tr::now));
+			resolveWallet(show);
 		}
 		return;
 	}
+	stopResolving();
+	_resolveAttempts = 0;
 	_pending = true;
 	const auto revision = ++_revision;
 	_scope->cancelledChanges() | rpl::on_next([=] {
@@ -198,6 +237,94 @@ void TransferComment::activate(std::shared_ptr<Main::SessionShow> show) {
 	});
 }
 
+void TransferComment::stopResolving() {
+	_resolving = false;
+	auto resolve = base::take(_resolve);
+	resolve.destroy();
+}
+
+void TransferComment::resolveWallet(std::shared_ptr<Main::SessionShow> show) {
+	if (_resolving) {
+		return;
+	} else if (_resolveAttempts >= kResolveAttempts) {
+		show->showToast(tr::lng_wallet_comment_decryption_failed(tr::now));
+		return;
+	}
+	++_resolveAttempts;
+	const auto weak = base::make_weak(this);
+	const auto weakSession = _session;
+	auto &wallet = _session->wallet();
+	_resolving = true;
+	wallet.startPolling();
+	_resolve.add([weakSession] {
+		if (weakSession) {
+			weakSession->wallet().stopPolling();
+		}
+	});
+	const auto finished = [=](bool resolved) {
+		if (!weak) {
+			return;
+		}
+		const auto named = weakSession
+			&& weakSession->wallet().transferWalletIdentity().has_value();
+		weak->stopResolving();
+		if (!weak->originCurrent() || !show->valid()) {
+			return;
+		} else if (resolved) {
+			weak->activateAttempt(show);
+		} else {
+			show->showToast(named
+				? tr::lng_wallet_comment_decryption_failed(tr::now)
+				: tr::lng_wallet_unavailable(tr::now));
+		}
+	};
+	const auto check = [=] {
+		if (!weak || !weak->_resolving) {
+			return;
+		} else if (!weak->originCurrent()) {
+			weak->stopResolving();
+			return;
+		}
+		auto &wallet = weakSession->wallet();
+		const auto presence = wallet.presence();
+		if (weak->targetIsForeign()) {
+			weak->stopResolving();
+			if (show->valid()) {
+				show->showToast(tr::lng_wallet_comment_key_mismatch(tr::now));
+			}
+		} else if (wallet.deviceCustodyState().conflict) {
+			// A wallet parked here is what activate() opens the conflict box
+			// for, and no wait can clear it. The press goes back there once,
+			// and ends if the box is dismissed without switching: nothing
+			// re-arms this wait, so the conflict cannot spin it.
+			weak->stopResolving();
+			weak->activateAttempt(show);
+		} else if (wallet.commentAccessReady()) {
+			finished(true);
+		} else if (presence == Presence::Unavailable
+			|| presence == Presence::Missing
+			|| presence == Presence::AddressUnreadable) {
+			finished(false);
+		}
+	};
+	// The ticks cover the transient wallet states that settle without
+	// announcing anything the comment observes, and the same count bounds
+	// the whole wait, so a server that never answers ends the press.
+	const auto ticks = _resolve.make_state<int>(0);
+	const auto timer = _resolve.make_state<base::Timer>([=] {
+		if (++*ticks >= kResolveTicks) {
+			finished(false);
+		} else {
+			check();
+		}
+	});
+	timer->callEach(kResolveInterval);
+	rpl::merge(
+		wallet.transferWalletIdentityChanges(),
+		wallet.custodyUpdates()
+	) | rpl::on_next(check, _resolve);
+}
+
 void TransferComment::finish(
 		uint64 revision,
 		std::shared_ptr<Main::SessionShow> show,
@@ -234,7 +361,9 @@ void TransferComment::finish(
 		break;
 	case Error::Unavailable:
 	case Error::Busy:
-		show->showToast(tr::lng_wallet_comment_unavailable(tr::now));
+		// Both are wallet states the session already waited out for a
+		// bounded while, so what is left to say is that it did not settle.
+		show->showToast(tr::lng_wallet_comment_decryption_failed(tr::now));
 		break;
 	case Error::KeyUnreadable:
 		show->showToast(tr::lng_wallet_comment_key_unreadable(tr::now));
@@ -249,6 +378,8 @@ void TransferComment::finish(
 }
 
 void TransferComment::clear() {
+	stopResolving();
+	_resolveAttempts = 0;
 	++_revision;
 	_pending = false;
 	_plaintext.reset();

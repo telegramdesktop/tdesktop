@@ -86,13 +86,15 @@ FullMsgId TransferMessages::create(const SendArgs &args, uint64 randomId) {
 	const auto address = FormatFriendly(args.destination, args.bounce);
 	const auto encrypted = !args.comment.text.isEmpty()
 		&& !args.comment.isPublic;
-	const auto publicText = args.comment.isPublic
-		? args.comment.text
-		: QString();
+	// The draft carries a private comment too, which the served message
+	// never does: the payload it will carry instead is written by the
+	// chain, so until then this text is the only thing the card can show,
+	// and it is the user's own. It never leaves this device.
+	const auto commentText = args.comment.text;
 	using Flag = MTPDmessageService::Flag;
 	using ActionFlag = MTPDmessageActionGramTransfer::Flag;
 	auto actionFlags = MTPDmessageActionGramTransfer::Flags();
-	if (!publicText.isEmpty()) {
+	if (!commentText.isEmpty()) {
 		actionFlags |= ActionFlag::f_comment;
 	}
 	if (encrypted) {
@@ -111,7 +113,7 @@ FullMsgId TransferMessages::create(const SendArgs &args, uint64 randomId) {
 			MTP_long(args.amountNano),
 			MTP_string(address),
 			MTP_string(QString()), // transaction_id, only the server assigns it
-			publicText.isEmpty() ? MTPstring() : MTP_string(publicText)),
+			commentText.isEmpty() ? MTPstring() : MTP_string(commentText)),
 		MTPMessageReactions(), // reactions
 		MTPint()); // ttl_period
 	const auto item = history->makeMessage(
