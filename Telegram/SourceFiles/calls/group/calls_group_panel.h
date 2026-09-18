@@ -153,6 +153,8 @@ private:
 	void updateControlsGeometry();
 	void updateButtonsGeometry();
 	void updateTooltipGeometry();
+	[[nodiscard]] bool fullscreenForScreencast() const;
+	[[nodiscard]] bool fullscreenForScreencastOnly() const;
 	void updateButtonsStyles();
 	void updateMembersGeometry();
 	void refreshControlsBackground();
@@ -213,6 +215,7 @@ private:
 	std::shared_ptr<Window> _window;
 	rpl::variable<PanelMode> _mode;
 	rpl::variable<bool> _fullScreenOrMaximized = false;
+	bool _screencastOnlyInFullscreen = false;
 	bool _unpinnedMaximized = false;
 	bool _rtmpFull = false;
 

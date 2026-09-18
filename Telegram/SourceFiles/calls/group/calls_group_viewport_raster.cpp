@@ -186,7 +186,7 @@ void Viewport::RendererSW::paintTileOutline(
 		int width,
 		int height,
 		not_null<VideoTile*> tile) {
-	if (!tile->row()->speaking()) {
+	if (_owner->_fullscreen || !tile->row()->speaking()) {
 		return;
 	}
 	const auto outline = st::groupCallOutline;
