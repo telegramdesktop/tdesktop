@@ -321,6 +321,12 @@ private:
 	void setAccessibilityFocusedItem(int index, HistoryItem *item);
 	void announceAccessibilityFocus(int index);
 	void checkAnnounceFirstMessages();
+	// Brings the accessible focus back onto a valid message - the cached one
+	// where it is still in the list, the unread bar, or a fresh pick - and
+	// tells whether it landed on one. Silent, so it can run while a focus
+	// event the platform announces by itself is pending; the announcing
+	// variant below is for the times when there is no such event.
+	bool resolveAccessibilityFocusedChild();
 	void announceAccessibilityFocusedChild();
 	void applyAccessibilityFocus(int index, bool announceAlways);
 	[[nodiscard]] auto computeActiveColumns(int row) const
