@@ -312,39 +312,21 @@ walletSendErrorLabel: FlatLabel(defaultFlatLabel) {
 walletSendBalanceLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
-walletSendFiatLabel: FlatLabel(defaultFlatLabel) {
-	textFg: currencyFg;
-	style: semiboldTextStyle;
-}
-walletSendFiatLabelSkip: 6px;
 walletSendField: InputField(defaultInputField) {
 	textMargins: margins(0px, 28px, 0px, 8px);
 	placeholderFont: boxTextFont;
 	heightMin: 55px;
 }
-walletSendAmountField: InputField(walletSendField) {
-	textMargins: margins(18px, 28px, 0px, 8px);
-	placeholderMargins: margins(-18px, 0px, 0px, 0px);
-}
-walletSendCommentField: InputField(walletSendField) {
-	textMargins: margins(0px, 12px, 0px, 8px);
-	heightMin: 39px;
-}
 walletSendFieldMargin: margins(24px, 12px, 24px, 12px);
 walletSendRecentHeaderPadding: margins(24px, 5px, 24px, 5px);
 walletSendRecentListTopSkip: 6px;
 walletSendRecentListSkip: 12px;
-walletSendCommentPrivacyMargin: margins(24px, 0px, 24px, 0px);
 walletSendCommentBubble: UniqueGiftMessageBubble(chatUniqueMessageBubble) {
 	avatarSize: 0px;
 }
 walletSendCommentTextStyle: semiboldTextStyle;
 walletSendCommentTextFg: windowSubTextFg;
 walletSendCommentOutline: boxDividerFg;
-walletSendMarkSize: 15px;
-walletSendMarkPosition: point(0px, 31px);
-walletSendFiatTop: 29px;
-walletSendBalancePadding: margins(24px, 7px, 24px, 27px);
 walletSendUserAmountFont: font(28px semibold);
 walletSendUserAmountField: InputField(defaultInputField) {
 	textMargins: margins(0px, 0px, 0px, 0px);
