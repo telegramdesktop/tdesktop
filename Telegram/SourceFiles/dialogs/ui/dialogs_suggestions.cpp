@@ -2056,26 +2056,31 @@ Ui::Controls::SwipeHandlerArgs Suggestions::generateIncompleteSwipeArgs() {
 		}
 	};
 	auto init = [=](Ui::Controls::SwipeHandlerInitData data) {
-		if (!_tabs) {
-			return Ui::Controls::SwipeHandlerFinishData();
-		}
-		const auto activeSection = _tabs->activeSection();
-		const auto isToLeft = data.direction == Qt::RightToLeft;
-		if ((isToLeft && activeSection > 0)
-			|| (!isToLeft && activeSection < _tabKeys.size() - 1)) {
-			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
-				if (_tabs
-					&& _tabs->activeSection() == activeSection) {
-					_swipeBackData = {};
-					_tabs->setActiveSection(isToLeft
-						? activeSection - 1
-						: activeSection + 1);
-				}
-			});
-		}
-		return Ui::Controls::SwipeHandlerFinishData();
+		return swipeTabFinishData(data.direction, [=] {
+			_swipeBackData = {};
+		});
 	};
 	return { .widget = this, .update = update, .init = init };
+}
+
+auto Suggestions::swipeTabFinishData(
+	Qt::LayoutDirection direction,
+	Fn<void()> finished)
+-> Ui::Controls::SwipeHandlerFinishData {
+	const auto active = _tabs->activeSection();
+	const auto target = active
+		+ ((direction == Qt::RightToLeft) ? -1 : 1);
+	if (target < 0 || target >= int(_tabKeys.size())) {
+		return {};
+	}
+	return Ui::Controls::DefaultSwipeBackHandlerFinishData(
+		crl::guard(this, [=] {
+			if (_tabs->activeSection() == active) {
+				finished();
+				_swipeSwitch = true;
+				_tabs->setActiveSection(target);
+			}
+		}));
 }
 
 void Suggestions::reinstallSwipe(not_null<Ui::ElasticScroll*> scroll) {
@@ -2627,7 +2632,7 @@ void Suggestions::setSearchListQuery(Key key, const QString &query) {
 	}
 	if (toggled
 		&& _key.current() == key
-		&& !_slideAnimation.animating()
+		&& !_slideAnimation
 		&& !_shownAnimation.animating()) {
 		finishShow();
 	}
@@ -2991,6 +2996,7 @@ void Suggestions::hide(anim::type animated, Fn<void()> finish) {
 }
 
 void Suggestions::switchTab(Key key) {
+	const auto swipe = base::take(_swipeSwitch);
 	const auto was = _key.current();
 	if (was == key) {
 		return;
@@ -3012,7 +3018,13 @@ void Suggestions::switchTab(Key key) {
 		}
 	}
 	if (!_tabs->isHidden()) {
-		startSlideAnimation(was, key);
+		if (carry && (was.tab == Tab::Chats || key.tab == Tab::Chats)) {
+			// Such a switch changes the panel mode, no slide.
+			ensureContent(key);
+			finishShow();
+		} else {
+			startSlideAnimation(was, key, swipe);
+		}
 	}
 	if (carry) {
 		_reapplySearchQueryRequests.fire({});
@@ -3048,40 +3060,46 @@ void Suggestions::ensureContent(Key key) {
 	}
 }
 
-void Suggestions::startSlideAnimation(Key was, Key now) {
+void Suggestions::startSlideAnimation(Key was, Key now, bool swipe) {
 	ensureContent(now);
-	const auto wasIndex = ranges::find(_tabKeys, was);
-	const auto nowIndex = ranges::find(_tabKeys, now);
-	if (!_slideAnimation.animating()) {
-		const auto find = [&](Key key) -> not_null<QWidget*> {
-			switch (key.tab) {
-			case Tab::Chats: return _chatsScroll.get();
-			case Tab::Channels: return _channelsScroll.get();
-			case Tab::Apps: return _appsScroll.get();
-			case Tab::Posts: return _postsScroll.get();
-			}
-			return _mediaLists[key].wrap;
-		};
-		auto left = find(was);
-		auto right = find(now);
-		if (wasIndex > nowIndex) {
-			std::swap(left, right);
+	const auto find = [&](Key key) -> not_null<QWidget*> {
+		if (const auto search = shownSearchList(key)) {
+			return search->scroll.get();
 		}
-		_slideLeft = Ui::GrabWidget(left);
-		_slideLeftTop = left->y();
-		_slideRight = Ui::GrabWidget(right);
-		_slideRightTop = right->y();
-		left->hide();
-		right->hide();
-	}
-	const auto from = (nowIndex > wasIndex) ? 0. : 1.;
-	const auto to = (nowIndex > wasIndex) ? 1. : 0.;
-	_slideAnimation.start([=] {
-		update();
-		if (!_slideAnimation.animating() && !_shownAnimation.animating()) {
+		switch (key.tab) {
+		case Tab::Chats: return _chatsScroll.get();
+		case Tab::Channels: return _channelsScroll.get();
+		case Tab::Apps: return _appsScroll.get();
+		case Tab::Posts: return _postsScroll.get();
+		}
+		return _mediaLists[key].wrap;
+	};
+	const auto wasWidget = find(was);
+	const auto nowWidget = find(now);
+	auto wasCache = Ui::GrabWidget(wasWidget);
+	auto nowCache = Ui::GrabWidget(nowWidget);
+	if (wasCache.isNull() || nowCache.isNull()) {
+		_slideAnimation = nullptr;
+		if (!_shownAnimation.animating()) {
 			finishShow();
 		}
-	}, from, to, st::slideDuration, anim::sineInOut);
+		return;
+	}
+	wasWidget->hide();
+	nowWidget->hide();
+
+	const auto slideLeft = ranges::find(_tabKeys, now)
+		< ranges::find(_tabKeys, was);
+	_slideAnimation = std::make_unique<Ui::SlideAnimation>();
+	_slideAnimation->setSnapshots(std::move(wasCache), std::move(nowCache));
+	_slideAnimation->start(slideLeft, [=] {
+		update();
+		if (!_slideAnimation->animating() && !_shownAnimation.animating()) {
+			finishShow();
+		}
+	}, swipe
+		? st::dialogsFilterSwipeSlideDuration
+		: st::dialogsFilterSlideDuration);
 }
 
 void Suggestions::startShownAnimation(bool shown, Fn<void()> finish) {
@@ -3117,13 +3135,11 @@ void Suggestions::startShownAnimation(bool shown, Fn<void()> finish) {
 	for (const auto &[key, search] : _searchLists) {
 		search->scroll->hide();
 	}
-	_slideAnimation.stop();
+	_slideAnimation = nullptr;
 }
 
 void Suggestions::finishShow() {
-	_slideAnimation.stop();
-	_slideLeft = _slideRight = QPixmap();
-	_slideLeftTop = _slideRightTop = 0;
+	_slideAnimation = nullptr;
 
 	_shownAnimation.stop();
 	_cache = QPixmap();
@@ -3196,20 +3212,8 @@ void Suggestions::paintEvent(QPaintEvent *e) {
 		const auto slide = st::topPeers.height + st::searchedBarHeight;
 		p.setOpacity(opacity);
 		p.drawPixmap(0, (opacity - 1.) * slide, _cache);
-	} else if (!_slideLeft.isNull()) {
-		const auto slide = st::topPeers.height + st::searchedBarHeight;
-		const auto right = (_key.current().tab == Tab::Channels);
-		const auto progress = _slideAnimation.value(right ? 1. : 0.);
-		p.setOpacity(1. - progress);
-		p.drawPixmap(
-			anim::interpolate(0, -slide, progress),
-			_slideLeftTop,
-			_slideLeft);
-		p.setOpacity(progress);
-		p.drawPixmap(
-			anim::interpolate(slide, 0, progress),
-			_slideRightTop,
-			_slideRight);
+	} else if (_slideAnimation) {
+		_slideAnimation->paintFrame(p, 0, _tabs->height(), width());
 	}
 }
 

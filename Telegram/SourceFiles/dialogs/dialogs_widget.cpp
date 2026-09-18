@@ -830,6 +830,7 @@ void Widget::setupSwipeBack() {
 		if (data.translation != 0) {
 			if (data.translation < 0
 				&& _inner
+				&& !_swipeSearchTabs
 				&& (Core::App().settings().quickDialogAction()
 					!= Ui::QuickDialogAction::Disabled)) {
 				_inner->setSwipeContextData(data.msgBareId, std::move(data));
@@ -864,10 +865,18 @@ void Widget::setupSwipeBack() {
 		const auto top = data.cursorPosition.y() - _inner->y();
 		_swipeBackIconMirrored = false;
 		_swipeBackMirrored = false;
+		_swipeSearchTabs = false;
 		if (_childListShown.current()) {
 			return Ui::Controls::SwipeHandlerFinishData();
 		}
 		const auto isRightToLeft = data.direction == Qt::RightToLeft;
+		if (_suggestions && _suggestions->tabsOnly()) {
+			_swipeSearchTabs = true;
+			_swipeBackMirrored = !isRightToLeft;
+			return _suggestions->swipeTabFinishData(data.direction, [=] {
+				_swipeBackData = {};
+			});
+		}
 		const auto action = Core::App().settings().quickDialogAction();
 		const auto isDisabled = action == Ui::QuickDialogAction::Disabled;
 		if (_inner) {
