@@ -940,6 +940,9 @@ EncryptedCommentLabel::EncryptedCommentLabel(
 			: WhichAnimationsPaused::None;
 	});
 	_comment.changes() | rpl::on_next([=] {
+		if (_closed) {
+			return; // the closing reset must not flash the cover as it fades
+		}
 		const auto revealed = _comment.plaintext().has_value();
 		if (revealed == _revealed) {
 			return;
