@@ -129,6 +129,10 @@ public:
 	-> rpl::producer<not_null<PeerData*>> {
 		return _popularApps->chosen.events();
 	}
+	[[nodiscard]] auto globalAppChosen() const
+	-> rpl::producer<not_null<PeerData*>> {
+		return _globalApps->chosen.events();
+	}
 	[[nodiscard]] auto openBotMainAppRequests() const
 	-> rpl::producer<not_null<PeerData*>> {
 		return _openBotMainAppRequests.events();
@@ -209,6 +213,7 @@ private:
 	[[nodiscard]] Data::Thread *updateFromAppsDrag(QPoint globalPosition);
 	[[nodiscard]] Data::Thread *fromListId(uint64 peerListRowId);
 	[[nodiscard]] not_null<ObjectList*> channelsSecondList() const;
+	[[nodiscard]] not_null<ObjectList*> appsSecondList() const;
 	[[nodiscard]] Ui::SearchFieldController *mediaListSearch(Key key) const;
 
 
@@ -274,6 +279,8 @@ private:
 	void resetSearchList(not_null<SearchList*> search, const QString &query);
 	void setChannelsSearchQuery(const QString &query);
 	void requestChannelsSearch();
+	void setAppsSearchQuery(const QString &query);
+	void requestAppsSearch();
 	void requestSearchList(not_null<SearchList*> search);
 	void searchListReceived(
 		not_null<SearchList*> search,
@@ -328,10 +335,16 @@ private:
 	PostsSearchIntro *_postsSearchIntro = nullptr;
 	InnerWidget *_postsContent = nullptr;
 
+	rpl::variable<QString> _appsQuery;
+	rpl::variable<std::vector<not_null<PeerData*>>> _usedAppsResults;
+	rpl::variable<std::vector<not_null<PeerData*>>> _globalAppsResults;
+	rpl::variable<bool> _appsLoading = false;
+	std::unique_ptr<Api::PeerSearch> _appsPeerSearch;
 	rpl::producer<> _recentAppsRefreshed;
 	Fn<bool(not_null<PeerData*>)> _recentAppsShows;
 	const std::unique_ptr<ObjectList> _recentApps;
 	const std::unique_ptr<ObjectList> _popularApps;
+	const std::unique_ptr<ObjectList> _globalApps;
 
 	base::flat_map<Key, MediaList> _mediaLists;
 	base::flat_map<Key, std::unique_ptr<SearchList>> _searchLists;

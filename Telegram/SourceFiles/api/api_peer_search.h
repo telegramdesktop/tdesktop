@@ -33,6 +33,7 @@ public:
         WithSponsored,
         JustPeers,
         Channels,
+        Bots,
     };
     PeerSearch(not_null<Main::Session*> session, Type type);
     ~PeerSearch();

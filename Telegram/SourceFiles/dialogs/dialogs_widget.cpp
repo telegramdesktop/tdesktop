@@ -2219,7 +2219,9 @@ void Widget::updateSuggestions(anim::type animated) {
 			});
 		}, _suggestions->lifetime());
 
-		_suggestions->popularAppChosen(
+		rpl::merge(
+			_suggestions->popularAppChosen(),
+			_suggestions->globalAppChosen()
 		) | rpl::on_next([=](not_null<PeerData*> peer) {
 			controller()->showPeerInfo(peer);
 		}, _suggestions->lifetime());
