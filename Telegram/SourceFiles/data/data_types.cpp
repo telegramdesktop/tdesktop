@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/input_field.h"
 #include "storage/cache/storage_cache_types.h"
 #include "base/openssl_help.h"
+#include <cstring>
 
 namespace Data {
 namespace {
@@ -49,8 +50,10 @@ Storage::Cache::Key WebDocumentCacheKey(const WebFileLocation &location) {
 	const auto bytes = bytes::make_span(hash);
 	const auto bytes1 = bytes.subspan(0, sizeof(uint32));
 	const auto bytes2 = bytes.subspan(sizeof(uint32), sizeof(uint64));
-	const auto part1 = *reinterpret_cast<const uint32*>(bytes1.data());
-	const auto part2 = *reinterpret_cast<const uint64*>(bytes2.data());
+	uint32 part1;
+	uint64 part2;
+	std::memcpy(&part1, bytes1.data(), sizeof(uint32));
+	std::memcpy(&part2, bytes2.data(), sizeof(uint64));
 	return Storage::Cache::Key{
 		Data::kWebDocumentCacheTag | (dcId << 32) | part1,
 		part2
@@ -66,9 +69,12 @@ Storage::Cache::Key UrlCacheKey(const QString &location) {
 	const auto bytes3 = bytes.subspan(
 		sizeof(uint32) + sizeof(uint64),
 		sizeof(uint16));
-	const auto part1 = *reinterpret_cast<const uint32*>(bytes1.data());
-	const auto part2 = *reinterpret_cast<const uint64*>(bytes2.data());
-	const auto part3 = *reinterpret_cast<const uint16*>(bytes3.data());
+	uint32 part1;
+	uint64 part2;
+	uint16 part3;
+	std::memcpy(&part1, bytes1.data(), sizeof(uint32));
+	std::memcpy(&part2, bytes2.data(), sizeof(uint64));
+	std::memcpy(&part3, bytes3.data(), sizeof(uint16));
 	return Storage::Cache::Key{
 		Data::kUrlCacheTag | (uint64(part3) << 32) | part1,
 		part2
