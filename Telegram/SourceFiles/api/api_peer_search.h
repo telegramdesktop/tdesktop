@@ -32,6 +32,7 @@ public:
     enum class Type {
         WithSponsored,
         JustPeers,
+        Channels,
     };
     PeerSearch(not_null<Main::Session*> session, Type type);
     ~PeerSearch();
