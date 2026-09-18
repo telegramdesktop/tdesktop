@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/discrete_sliders.h"
 
 #include "ui/effects/ripple_animation.h"
+#include "ui/screen_reader_mode.h"
 #include "styles/style_widgets.h"
 
 namespace Ui {
@@ -86,6 +87,18 @@ void DiscreteSlider::setAdditionalContentWidthToSection(int index, int w) {
 	}
 }
 
+rpl::producer<int> DiscreteSlider::accessibilitySectionBrowsed() const {
+	return _accessibilitySectionBrowsed.events();
+}
+
+void DiscreteSlider::setAccessibilityActivateOnBrowse(bool activate) {
+	_accessibilityActivateOnBrowse = activate;
+}
+
+void DiscreteSlider::setAccessibilityMode(AccessibilityMode mode) {
+	_accessibilityMode = mode;
+}
+
 int DiscreteSlider::sectionsCount() const {
 	return int(_sections.size());
 }
@@ -154,6 +167,9 @@ void DiscreteSlider::refresh() {
 	}
 	if (_selected >= _sections.size()) {
 		_selected = 0;
+	}
+	if (_accessibilitySelected >= int(_sections.size())) {
+		_accessibilitySelected = -1;
 	}
 	resizeToWidth(width());
 	update();
@@ -257,6 +273,365 @@ int DiscreteSlider::getIndexFromPosition(QPoint pos) {
 		}
 	}
 	return count - 1;
+}
+
+void DiscreteSlider::focusInEvent(QFocusEvent *e) {
+	// On real Tab traversal always land on the active section: the
+	// accessibility SetFocus / Invoke actions leave a browse position behind,
+	// and keeping it here would move Tab focus to whatever section was last
+	// acted on instead. Those actions themselves come through with
+	// OtherFocusReason (plain setFocus()) and must keep the position they
+	// have just set.
+	const auto count = int(_sections.size());
+	const auto tab = (e->reason() == Qt::TabFocusReason)
+		|| (e->reason() == Qt::BacktabFocusReason);
+	if (count > 0
+		&& _accessibilityMode != AccessibilityMode::Value
+		&& (tab || _accessibilitySelected < 0)) {
+		setAccessibilitySelected(
+			std::clamp(_activeIndex, 0, count - 1),
+			Announce::No);
+	}
+	// Taking focus raises a focus event of its own, which the platform hands
+	// to focusChild() - the browsed section - so announcing it here as well
+	// would read it twice.
+	RpWidget::focusInEvent(e);
+}
+
+void DiscreteSlider::keyPressEvent(QKeyEvent *e) {
+	const auto count = int(_sections.size());
+	const auto key = e->key();
+	// Sections are painted mirrored in RTL, so arrows move by visual order.
+	const auto forward = style::RightToLeft() ? Qt::Key_Left : Qt::Key_Right;
+	const auto backward = style::RightToLeft() ? Qt::Key_Right : Qt::Key_Left;
+	if (_accessibilityMode == AccessibilityMode::Value && count > 0) {
+		// A native slider changes its value with the arrows right away (Up
+		// increases, like Right) and announces through the value change.
+		const auto delta = (key == forward || key == Qt::Key_Up)
+			? 1
+			: (key == backward || key == Qt::Key_Down)
+			? -1
+			: 0;
+		if (delta) {
+			changeValueTo(std::clamp(_activeIndex + delta, 0, count - 1));
+		} else if (key == Qt::Key_Home) {
+			changeValueTo(0);
+		} else if (key == Qt::Key_End) {
+			changeValueTo(count - 1);
+		} else {
+			RpWidget::keyPressEvent(e);
+		}
+		return;
+	}
+	// A radio group moves with the same arrows as the tabs: Radiobutton only
+	// accepts the arrows matching the group's layout, and this strip is
+	// horizontal - Up / Down stay free, e.g. for scrolling the page.
+	if ((key == forward || key == backward) && count > 0) {
+		const auto current = (_accessibilitySelected >= 0)
+			? _accessibilitySelected
+			: _activeIndex;
+		const auto delta = (key == forward) ? 1 : -1;
+		browseAndActivate(std::clamp(current + delta, 0, count - 1));
+	} else if (key == Qt::Key_Home && count > 0) {
+		browseAndActivate(0);
+	} else if (key == Qt::Key_End && count > 0) {
+		browseAndActivate(count - 1);
+	} else if (!e->isAutoRepeat()
+		&& !_accessibilityActivateOnBrowse
+		&& (key == Qt::Key_Space
+			|| key == Qt::Key_Return
+			|| key == Qt::Key_Enter)
+		&& _accessibilitySelected >= 0
+		&& _accessibilitySelected < count) {
+		// Only an opted-out strip needs the explicit commit step.
+		activateSectionByAccessibility(_accessibilitySelected);
+	} else {
+		RpWidget::keyPressEvent(e);
+	}
+}
+
+void DiscreteSlider::browseAndActivate(int index) {
+	// An opted-out strip (see setAccessibilityActivateOnBrowse) only moves
+	// the browse position, keeping activation on Enter / Space.
+	if (!_accessibilityActivateOnBrowse) {
+		setAccessibilitySelected(index, Announce::Always);
+		return;
+	}
+	// A native Windows tab control switches to the tab the arrows land on
+	// right away, with no separate Enter / Space step, and what the screen
+	// reader announces is the focus moving onto that tab - which by then
+	// already reports itself selected. So activate silently first, then
+	// announce through the focus move.
+	if (index != _activeIndex) {
+		setActiveSection(index);
+		accessibilityChildStateChanged(index, { .selected = true });
+		setAccessibilitySelected(index, Announce::Always);
+	} else {
+		// Nothing to switch (e.g. the edge tab again) - just keep the browse
+		// position in place, announcing only if it actually moved.
+		setAccessibilitySelected(index, Announce::OnChange);
+	}
+}
+
+void DiscreteSlider::changeValueTo(int index) {
+	if (index == _activeIndex) {
+		return;
+	}
+	setActiveSection(index);
+	accessibilityValueChanged();
+}
+
+QString DiscreteSlider::accessibilityValue() const {
+	const auto count = int(_sections.size());
+	if (_accessibilityMode != AccessibilityMode::Value || !count) {
+		return QString();
+	}
+	// A screen reader reads a slider's value from the textual Value pattern
+	// (the way the media volume slider reports "100%"), so the current label
+	// goes there as well as into the numeric range below.
+	return _sections[std::clamp(_activeIndex, 0, count - 1)].label.toString();
+}
+
+std::optional<AccessibilityValueRange> DiscreteSlider::accessibilityValueRange() const {
+	const auto count = int(_sections.size());
+	if (_accessibilityMode != AccessibilityMode::Value || !count) {
+		return std::nullopt;
+	}
+	return AccessibilityValueRange{
+		.current = sectionValue(std::clamp(_activeIndex, 0, count - 1)),
+		.minimum = sectionValue(0),
+		.maximum = sectionValue(count - 1),
+		.step = 1., // Steps between sections may be uneven; 1 is advisory.
+	};
+}
+
+void DiscreteSlider::accessibilitySetValue(double value) {
+	// UIA delivers RangeValue.SetValue on a background thread; hop to the
+	// main thread before touching any widget state.
+	crl::on_main(this, [=] {
+		if (_accessibilityMode != AccessibilityMode::Value
+			|| _sections.empty()) {
+			return;
+		}
+		changeValueTo(sectionByValue(value));
+	});
+}
+
+double DiscreteSlider::sectionValue(int index) const {
+	Expects(index >= 0 && index < _sections.size());
+
+	// A numeric scale usually labels its sections with the numbers
+	// themselves (e.g. 1..5); fall back to the ordinal position otherwise.
+	auto ok = false;
+	const auto parsed = _sections[index].label.toString().toDouble(&ok);
+	return ok ? parsed : (index + 1.);
+}
+
+int DiscreteSlider::sectionByValue(double value) const {
+	auto result = 0;
+	auto best = 0.;
+	const auto count = int(_sections.size());
+	for (auto i = 0; i != count; ++i) {
+		const auto distance = std::abs(sectionValue(i) - value);
+		if (!i || distance < best) {
+			best = distance;
+			result = i;
+		}
+	}
+	return result;
+}
+
+void DiscreteSlider::activateSectionByAccessibility(int index) {
+	const auto previous = _activeIndex;
+	setActiveSection(index);
+	accessibilityChildStateChanged(index, { .selected = true });
+	// The state change alone stays silent on Windows, where the bridge reads
+	// only the checked flag out of it - the selection events below are the
+	// ones a screen reader hears, the way SideBarButton announces the active
+	// folder of the vertical strip.
+	if (previous != index
+		&& previous >= 0
+		&& previous < int(_sections.size())) {
+		accessibilityChildSelectionChanged(previous);
+	}
+	accessibilityChildSelectionChanged(index);
+}
+
+int DiscreteSlider::accessibilityBrowsedSection() const {
+	return (_accessibilitySelected >= 0
+		&& _accessibilitySelected < int(_sections.size()))
+		? _accessibilitySelected
+		: -1;
+}
+
+void DiscreteSlider::setAccessibilitySelected(int index, Announce announce) {
+	if (index >= int(_sections.size())) {
+		return;
+	}
+	const auto changed = (_accessibilitySelected != index);
+	_accessibilitySelected = index;
+	if (changed && index >= 0) {
+		_accessibilitySectionBrowsed.fire_copy(index);
+	}
+	const auto shouldAnnounce = (announce == Announce::Always)
+		|| (announce == Announce::OnChange && changed);
+	if (shouldAnnounce && index >= 0) {
+		accessibilityChildFocused(index);
+	}
+}
+
+QAccessible::Role DiscreteSlider::accessibilityRole() {
+	switch (_accessibilityMode) {
+	case AccessibilityMode::Value: return QAccessible::Slider;
+	case AccessibilityMode::Radio: return QAccessible::Grouping;
+	}
+	return QAccessible::PageTabList;
+}
+
+bool DiscreteSlider::accessibilitySelectionList() const {
+	// Grants the sections the platform selection item pattern, which is what
+	// a screen reader reads "selected" / "not selected" from while browsing.
+	// A value slider has no child items to select.
+	return _accessibilityMode != AccessibilityMode::Value;
+}
+
+Qt::FocusPolicy DiscreteSlider::accessibilityFocusPolicy() {
+	return Qt::TabFocus;
+}
+
+std::optional<Qt::Orientation> DiscreteSlider::accessibilityOrientation() const {
+	return Qt::Horizontal;
+}
+
+QAccessible::Role DiscreteSlider::accessibilityChildRole() const {
+	return (_accessibilityMode == AccessibilityMode::Radio)
+		? QAccessible::RadioButton
+		: QAccessible::PageTab;
+}
+
+QAccessible::State DiscreteSlider::accessibilityChildState(int index) const {
+	QAccessible::State state;
+	state.selectable = true;
+	if (ScreenReaderModeActive()) {
+		state.focusable = true;
+	}
+	if (index == _activeIndex) {
+		state.selected = true;
+		if (_accessibilityMode == AccessibilityMode::Radio) {
+			// The platform reads a radio button's checked flag where other
+			// selection items report selected; keep the two in sync.
+			state.checked = true;
+		}
+	}
+	if (index == _accessibilitySelected) {
+		state.active = true;
+		if (hasFocus()) {
+			state.focused = true;
+		}
+	}
+	return state;
+}
+
+int DiscreteSlider::accessibilityChildCount() const {
+	// A value slider is a single element - its sections are points on the
+	// scale, not children to browse.
+	return (_accessibilityMode == AccessibilityMode::Value)
+		? 0
+		: int(_sections.size());
+}
+
+QString DiscreteSlider::accessibilityChildName(int index) const {
+	if (index < 0 || index >= int(_sections.size())) {
+		return {};
+	}
+	return _sections[index].label.toString();
+}
+
+QRect DiscreteSlider::accessibilityChildRect(int index) const {
+	if (index < 0 || index >= int(_sections.size())) {
+		return {};
+	}
+	const auto &section = _sections[index];
+	return myrtlrect(section.left, 0, section.width, height());
+}
+
+bool DiscreteSlider::accessibilityChildSupportsActions(int index) const {
+	// Every section can be focused and activated, and each has a stable
+	// identity below. Tying the opt-in to a valid identity keeps the action
+	// interface off invalid indices.
+	return accessibilityChildIdentity(index) != 0;
+}
+
+quintptr DiscreteSlider::accessibilityChildIdentity(int index) const {
+	// The sections are rebuilt wholesale by setSections(), so an index is
+	// not stable by the time a queued action runs. The label text names a
+	// section within one slider; hash collisions (or duplicate labels) are
+	// possible but acceptable, same as in the language and country boxes.
+	// Shift instead of masking so that small hash values keep their
+	// distinguishing low bits; the tag bit keeps the token non-zero.
+	if (index < 0 || index >= int(_sections.size())) {
+		return 0;
+	}
+	const auto value = quintptr(qHash(_sections[index].label.toString()));
+	return value ? ((value << 3) | quintptr(1)) : quintptr(0);
+}
+
+int DiscreteSlider::accessibilityChildIndexByIdentity(
+		quintptr identity) const {
+	if (!identity) {
+		return -1;
+	}
+	const auto count = accessibilityChildCount();
+	for (auto i = 0; i != count; ++i) {
+		if (accessibilityChildIdentity(i) == identity) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+void DiscreteSlider::accessibilityChildSetFocus(quintptr identity) {
+	// UIA invokes provider actions (SetFocus) on a background thread, so hop
+	// to the main thread before touching any widget state. Resolve the stable
+	// identity to its current index here (not on the background thread) so a
+	// sections rebuild does not move focus to another section.
+	crl::on_main(this, [=] {
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		if (index < 0) {
+			return;
+		}
+		// The sections are virtual (no real QWidget), so the screen reader's
+		// SetFocus can't move real keyboard focus to a section. Translate it
+		// into our browse position, then either announce it directly or grab
+		// keyboard focus (taking it announces the section by itself).
+		setAccessibilitySelected(
+			index,
+			hasFocus() ? Announce::Always : Announce::No);
+		if (!hasFocus()) {
+			setFocus();
+		}
+	});
+}
+
+void DiscreteSlider::accessibilityChildActivate(quintptr identity) {
+	// UIA invokes the press action on a background thread too; resolve the
+	// identity, move the browse position and activate the section on the
+	// main thread. Take focus onto the section first (as the SetFocus action
+	// does), so the "selected" announcement is heard from Invoke as well as
+	// from Space.
+	crl::on_main(this, [=] {
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		if (index < 0) {
+			return;
+		}
+		setAccessibilitySelected(
+			index,
+			hasFocus() ? Announce::OnChange : Announce::No);
+		if (!hasFocus()) {
+			setFocus();
+		}
+		activateSectionByAccessibility(index);
+	});
 }
 
 DiscreteSlider::Section::Section(
