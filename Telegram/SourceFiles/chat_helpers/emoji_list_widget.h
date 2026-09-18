@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/tooltip.h"
 #include "ui/round_rect.h"
 #include "base/timer.h"
+#include "base/weak_qptr.h"
 
 #include <map>
 
@@ -172,11 +173,34 @@ public:
 	[[nodiscard]] rpl::producer<std::vector<QString>> searchQueries() const;
 	[[nodiscard]] rpl::producer<int> recentShownCount() const;
 
+	// Fired when the keyboard is done with the list - an emoji chosen or
+	// Escape pressed - so the panel it is in can hide.
+	[[nodiscard]] rpl::producer<> hideRequests() const;
+
+	// The emoji as the items of a list for a screen reader, walked with
+	// the keyboard in screen reader mode.
+	QAccessible::Role accessibilityRole() override;
+	Qt::FocusPolicy accessibilityFocusPolicy() override;
+	int accessibilityChildCount() const override;
+	QAccessible::Role accessibilityChildRole() const override;
+	QString accessibilityChildName(int index) const override;
+	QString accessibilityChildDescription(int index) const override;
+	QRect accessibilityChildRect(int index) const override;
+	QAccessible::State accessibilityChildState(int index) const override;
+	bool accessibilityChildSupportsActions(int index) const override;
+	quintptr accessibilityChildIdentity(int index) const override;
+	int accessibilityChildIndexByIdentity(quintptr identity) const override;
+	void accessibilityChildSetFocus(quintptr identity) override;
+	void accessibilityChildActivate(quintptr identity) override;
+
 protected:
 	void visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) override;
 
+	void focusInEvent(QFocusEvent *e) override;
+	void focusOutEvent(QFocusEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -374,6 +398,26 @@ private:
 	void ensureLoaded(int section);
 	void updateSelected();
 	void setSelected(OverState newSelected);
+
+	// The list a screen reader sees: every cell shown, section by
+	// section - the collapsed sections contribute the rows they show,
+	// the last of those cells being the one that expands them.
+	[[nodiscard]] int shownCount(const SectionInfo &info) const;
+	[[nodiscard]] bool isExpandCell(const SectionInfo &info, int index) const;
+	[[nodiscard]] std::optional<OverEmoji> accessibleChild(int index) const;
+	[[nodiscard]] int accessibleIndex(const OverEmoji &over) const;
+	[[nodiscard]] QString accessibleEmojiText(const OverEmoji &over) const;
+	[[nodiscard]] QString sectionTitle(int section) const;
+	void keyboardSelect(const OverEmoji &over, bool announce);
+	void keyboardMoveBy(int delta);
+	void keyboardMoveRows(int rows);
+	[[nodiscard]] std::optional<OverEmoji> neighborRow(
+		const OverEmoji &over,
+		int step) const;
+	void activateKeyboardSelected();
+	void expandSection(int section);
+	void ensureCellVisible(const OverEmoji &over);
+	void returnFocus();
 	void setPressed(OverState newPressed);
 
 	void fillRecentMenu(
@@ -593,6 +637,12 @@ private:
 
 	OverState _selected;
 	OverState _pressed;
+	// The selection was made from the keyboard: the mouse leaving the
+	// list does not clear it, and the widget that had the focus before
+	// the list took it gets it back when the list is done.
+	bool _keyboardSelection = false;
+	base::weak_qptr<QWidget> _focusReturn;
+	rpl::event_stream<> _hideRequests;
 	OverState _pickerSelected;
 	QPoint _lastMousePos;
 
