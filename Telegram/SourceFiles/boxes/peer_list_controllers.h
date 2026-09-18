@@ -219,6 +219,7 @@ public:
 
 	void process(not_null<PeerListRow*> row);
 	bool handleClick(not_null<PeerData*> peer);
+	void setRowSelected(not_null<PeerListRow*> row, bool selected);
 
 private:
 	using Counts = PeerListStoriesCounts;
@@ -236,6 +237,7 @@ private:
 
 	QBrush _unreadBrush;
 	base::flat_map<uint64, Counts> _counts;
+	base::flat_set<uint64> _selected;
 	rpl::lifetime _lifetime;
 
 };
@@ -270,6 +272,7 @@ protected:
 	}
 	virtual void updateRowHook(not_null<PeerListRow*> row) {
 	}
+	void setRowSelected(not_null<PeerListRow*> row, bool selected);
 
 private:
 	void sort();
