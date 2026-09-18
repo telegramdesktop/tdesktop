@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QFontMetrics>
 
 namespace style {
-struct MediaPlayerButton;
+struct MediaPlayerPlayIcon;
 struct MediaSpeedButton;
 } // namespace style
 
@@ -28,7 +28,9 @@ public:
 		Pause,
 		Cancel,
 	};
-	PlayButtonLayout(const style::MediaPlayerButton &st, Fn<void()> callback);
+	PlayButtonLayout(
+		const style::MediaPlayerPlayIcon &st,
+		Fn<void()> callback);
 
 	void setState(State state);
 	void finishTransform();
@@ -38,12 +40,7 @@ private:
 	void animationCallback();
 	void startTransform(float64 from, float64 to);
 
-	void paintPlay(QPainter &p, const QBrush &brush);
-	void paintPlayToPause(QPainter &p, const QBrush &brush, float64 progress);
-	void paintPlayToCancel(QPainter &p, const QBrush &brush, float64 progress);
-	void paintPauseToCancel(QPainter &p, const QBrush &brush, float64 progress);
-
-	const style::MediaPlayerButton &_st;
+	const style::MediaPlayerPlayIcon &_st;
 
 	State _state = State::Play;
 	State _oldState = State::Play;

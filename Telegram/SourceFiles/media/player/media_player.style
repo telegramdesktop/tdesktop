@@ -10,19 +10,21 @@ using "ui/basic.style";
 using "ui/widgets/widgets.style";
 using "overview/overview.style";
 
-MediaPlayerButton {
-	playPosition: point;
-	playOuter: size;
-	pausePosition: point;
-	pauseOuter: size;
-	pauseStroke: pixels;
-	cancelPosition: point;
-	cancelOuter: size;
-	cancelStroke: pixels;
+MediaPlayerPlayIcon {
+	size: size;
 
-	rippleAreaPosition: point;
-	rippleAreaSize: pixels;
-	ripple: RippleAnimation;
+	playPosition: point;
+	playSize: size;
+	playRadius: double;
+
+	pausePosition: point;
+	pauseSize: size;
+	pauseBarWidth: pixels;
+	pauseRadius: double;
+
+	cancelPosition: point;
+	cancelSize: size;
+	cancelRadius: double;
 
 	duration: int;
 }
@@ -67,24 +69,6 @@ MediaSpeedButton {
 	menuPosition: point;
 }
 
-mediaPlayerButton: MediaPlayerButton {
-	playPosition: point(2px, 0px);
-	playOuter: size(17px, 15px);
-	pausePosition: point(1px, 1px);
-	pauseOuter: size(15px, 15px);
-	pauseStroke: 5px;
-	cancelPosition: point(1px, 1px);
-	cancelOuter: size(15px, 15px);
-	cancelStroke: 3px;
-
-	rippleAreaPosition: point(0px, 5px);
-	rippleAreaSize: 25px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: lightButtonBgOver;
-	}
-
-	duration: 200;
-}
 mediaPlayerWideWidth: 460px;
 mediaPlayerHeight: 35px;
 mediaPlayerPadding: 8px;
