@@ -565,6 +565,9 @@ public:
 	QString accessibilityChildName(int index) const override;
 	QAccessible::State accessibilityChildState(int index) const override;
 	QAccessible::Role accessibilityChildRole() const override;
+	QAccessible::Role accessibilityChildRoleAt(int index) const override;
+	Ui::AccessibilitySetPosition accessibilityChildSetPosition(
+		int index) const override;
 	QRect accessibilityChildRect(int index) const override;
 	int accessibilityChildColumnCount(int row) const override;
 	QAccessible::Role accessibilityChildSubItemRole() const override;
