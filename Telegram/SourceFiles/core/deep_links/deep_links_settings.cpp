@@ -221,7 +221,7 @@ Result ShowMyProfile(const Context &ctx) {
 		return Result::NeedsAuth;
 	}
 	ctx.controller->showSection(
-		Info::Stories::Make(ctx.controller->session().user()));
+		Info::Stories::MakeMyProfile(ctx.controller->session().user()));
 	return Result::Handled;
 }
 
