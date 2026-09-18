@@ -5117,13 +5117,13 @@ rpl::producer<bool> RecentMoneyRecipientsController::shownValue() const {
 			return full;
 		}
 		const auto most = (int(address.size()) - 1) / 2;
-		for (auto chars = most; chars > kShortAddressChars; --chars) {
+		for (auto chars = most; chars > 1; --chars) {
 			auto elided = title(ShortAddressForm(address, chars));
 			if (fits(elided)) {
 				return elided;
 			}
 		}
-		return title(ShortAddressForm(address));
+		return title(ShortAddressForm(address, 1));
 	});
 }
 
