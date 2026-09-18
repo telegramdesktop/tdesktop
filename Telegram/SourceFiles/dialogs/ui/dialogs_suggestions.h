@@ -38,6 +38,7 @@ struct SwipeHandlerArgs;
 
 namespace Ui {
 class BoxContent;
+class SearchFieldController;
 class ScrollArea;
 class ElasticScroll;
 class SettingsSlider;
@@ -75,7 +76,9 @@ public:
 	void chooseRow();
 
 	bool consumeSearchQuery(const QString &query);
+	[[nodiscard]] bool ownsSearchQuery(const QString &query) const;
 	[[nodiscard]] rpl::producer<> clearSearchQueryRequests() const;
+	[[nodiscard]] rpl::producer<> reapplySearchQueryRequests() const;
 
 	[[nodiscard]] Data::Thread *updateFromParentDrag(QPoint globalPosition);
 	void dragLeft();
@@ -90,6 +93,11 @@ public:
 	[[nodiscard]] rpl::producer<> persistReleased() const {
 		return _persistReleased.events();
 	}
+
+	[[nodiscard]] bool chatsTabActive() const;
+	void setTabsOnly(bool tabsOnly);
+	[[nodiscard]] bool tabsOnly() const;
+	[[nodiscard]] int tabsHeight() const;
 
 	[[nodiscard]] rpl::producer<not_null<PeerData*>> topPeerChosen() const {
 		return _topPeerChosen.events();
@@ -226,7 +234,11 @@ private:
 
 	void handlePressForChatPreview(PeerId id, Fn<void(bool)> callback);
 	void updateControlsGeometry();
+	[[nodiscard]] static bool TakesSearchQuery(Key key);
+	bool setTabSearchQuery(const QString &query);
+	void resetTabSearchQuery(Key key);
 	void applySearchQuery();
+	[[nodiscard]] Ui::SearchFieldController *mediaListSearch(Key key) const;
 
 	void setupPostsSearch();
 	void setPostsSearchQuery(const QString &query);
@@ -281,6 +293,10 @@ private:
 	rpl::event_stream<> _clearSearchQueryRequests;
 	rpl::lifetime _persistLifetime;
 	rpl::event_stream<> _persistReleased;
+	rpl::event_stream<> _reapplySearchQueryRequests;
+	QString _fieldQuery;
+	QString _postsSearchQuery;
+	bool _tabsOnly = false;
 	QString _searchQuery;
 	base::Timer _searchQueryTimer;
 

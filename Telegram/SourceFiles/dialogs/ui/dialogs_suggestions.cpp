@@ -1837,32 +1837,56 @@ void Suggestions::chooseRow() {
 }
 
 bool Suggestions::consumeSearchQuery(const QString &query) {
-	using Type = MediaType;
 	_persistLifetime.destroy();
+	_fieldQuery = query;
+	return setTabSearchQuery(query);
+}
+
+bool Suggestions::TakesSearchQuery(Key key) {
+	return (key.tab != Tab::Chats);
+}
+
+bool Suggestions::ownsSearchQuery(const QString &query) const {
+	return !query.isEmpty()
+		&& (query == _fieldQuery)
+		&& TakesSearchQuery(_key.current());
+}
+
+bool Suggestions::setTabSearchQuery(const QString &query) {
 	const auto key = _key.current();
-	const auto tab = key.tab;
-	const auto type = (key.tab == Tab::Media) ? key.mediaType : Type::kCount;
-	if (tab == Tab::Posts) {
+	if (!TakesSearchQuery(key)) {
+		return false;
+	} else if (key.tab == Tab::Posts) {
 		const auto changed = (_searchQuery != query);
 		setPostsSearchQuery(query);
 		return changed || !query.isEmpty();
-	} else if (tab != Tab::Downloads
-		&& type != Type::File
-		&& type != Type::Link
-		&& type != Type::MusicFile) {
-		return false;
 	} else if (_searchQuery == query) {
-		return false;
+		return !query.isEmpty();
 	}
 	_searchQuery = query;
 	_persist = !_searchQuery.isEmpty();
-	if (query.isEmpty() || tab == Tab::Downloads) {
+	if (query.isEmpty() || key.tab == Tab::Downloads) {
 		_searchQueryTimer.cancel();
 		applySearchQuery();
 	} else {
 		_searchQueryTimer.callOnce(kSearchQueryDelay);
 	}
 	return true;
+}
+
+void Suggestions::resetTabSearchQuery(Key key) {
+	if (key.tab == Tab::Posts) {
+		if (_postsSearch) {
+			_postsSearchQuery = QString();
+			_postsSearch->setQuery(QString());
+		}
+		return;
+	}
+	if (const auto search = mediaListSearch(key)) {
+		if (!search->query().isEmpty()) {
+			search->setQuery(QString());
+		}
+	}
 }
 
 void Suggestions::setupPostsSearch() {
@@ -1883,7 +1907,7 @@ void Suggestions::setupPostsSearch() {
 
 		_postsContent->applySearchState(SearchState{
 			.tab = ChatSearchTab::PublicPosts,
-			.query = _searchQuery,
+			.query = _postsSearchQuery,
 		});
 		if (state.loading) {
 			_postsContent->searchRequested(true);
@@ -1922,6 +1946,7 @@ void Suggestions::setPostsSearchQuery(const QString &query) {
 		_persist = true;
 	}
 	_searchQuery = query;
+	_postsSearchQuery = query;
 	_searchQueryTimer.cancel();
 	_postsSearch->setQuery(query);
 }
@@ -1937,7 +1962,7 @@ void Suggestions::setupPostsResults() {
 
 	_postsContent->applySearchState(SearchState{
 		.tab = ChatSearchTab::PublicPosts,
-		.query = _searchQuery,
+		.query = _postsSearchQuery,
 	});
 	_postsContent->searchRequested(true);
 
@@ -1951,7 +1976,7 @@ void Suggestions::setupPostsResults() {
 		const auto showAtMsgId = row.message.fullId.msg;
 		auto params = Window::SectionShow(
 			Window::SectionShow::Way::ClearStack);
-		params.highlight = Window::SearchHighlightId(_searchQuery);
+		params.highlight = Window::SearchHighlightId(_postsSearchQuery);
 		if (row.newWindow) {
 			_controller->showInNewWindow(history->peer, showAtMsgId);
 			_closeRequests.fire({});
@@ -2044,16 +2069,26 @@ void Suggestions::setupPostsIntro(const PostsSearchIntroState &intro) {
 }
 
 void Suggestions::applySearchQuery() {
-	const auto key = _key.current();
-	const auto controller = _mediaLists[key].wrap->controller();
-	const auto search = controller->searchFieldController();
-	if (search->query() != _searchQuery) {
-		search->setQuery(_searchQuery);
+	if (const auto search = mediaListSearch(_key.current())) {
+		if (search->query() != _searchQuery) {
+			search->setQuery(_searchQuery);
+		}
 	}
+}
+
+Ui::SearchFieldController *Suggestions::mediaListSearch(Key key) const {
+	const auto i = _mediaLists.find(key);
+	return (i != end(_mediaLists) && i->second.wrap)
+		? i->second.wrap->controller()->searchFieldController()
+		: nullptr;
 }
 
 rpl::producer<> Suggestions::clearSearchQueryRequests() const {
 	return _clearSearchQueryRequests.events();
+}
+
+rpl::producer<> Suggestions::reapplySearchQueryRequests() const {
+	return _reapplySearchQueryRequests.events();
 }
 
 Data::Thread *Suggestions::updateFromParentDrag(QPoint globalPosition) {
@@ -2120,19 +2155,33 @@ void Suggestions::switchTab(Key key) {
 	if (was == key) {
 		return;
 	}
-	consumeSearchQuery(QString());
+	const auto query = _fieldQuery;
 	_key = key;
 	_persist = false;
-	_clearSearchQueryRequests.fire({});
-	if (_tabs->isHidden()) {
-		return;
+	_searchQuery = QString();
+	_searchQueryTimer.cancel();
+	const auto carry = !query.isEmpty();
+	if (!carry) {
+		_clearSearchQueryRequests.fire({});
+		resetTabSearchQuery(key);
+	} else if (TakesSearchQuery(key)) {
+		setTabSearchQuery(query);
+		if (_searchQueryTimer.isActive()) {
+			_searchQueryTimer.cancel();
+			applySearchQuery();
+		}
 	}
-	startSlideAnimation(was, key);
+	if (!_tabs->isHidden()) {
+		startSlideAnimation(was, key);
+	}
+	if (carry) {
+		_reapplySearchQueryRequests.fire({});
+	}
 }
 
 void Suggestions::ensureContent(Key key) {
 	if (key.tab == Tab::Posts) {
-		setPostsSearchQuery(QString());
+		setPostsSearchQuery(_searchQuery);
 		return;
 	} else if (key.tab != Tab::Downloads && key.tab != Tab::Media) {
 		return;
@@ -2157,6 +2206,9 @@ void Suggestions::ensureContent(Key key) {
 	}));
 	list.wrap->show();
 	updateControlsGeometry();
+	if (!_searchQuery.isEmpty()) {
+		applySearchQuery();
+	}
 }
 
 void Suggestions::startSlideAnimation(Key was, Key now) {
@@ -2238,7 +2290,7 @@ void Suggestions::finishShow() {
 
 	_tabsScroll->show();
 	const auto key = _key.current();
-	_chatsScroll->setVisible(key == Key{ Tab::Chats });
+	_chatsScroll->setVisible(!_tabsOnly && key == Key{ Tab::Chats });
 	_channelsScroll->setVisible(key == Key{ Tab::Channels });
 	_appsScroll->setVisible(key == Key{ Tab::Apps });
 	_postsScroll->setVisible(key == Key{ Tab::Posts });
@@ -2324,6 +2376,9 @@ void Suggestions::updateControlsGeometry() {
 
 	const auto tabs = _tabs->height();
 	_tabsScroll->setGeometry(0, 0, w, tabs);
+	if (_tabsOnly) {
+		return;
+	}
 
 	const auto content = QRect(0, tabs, w, height() - tabs);
 
@@ -2665,7 +2720,29 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupEmpty(
 }
 
 bool Suggestions::persist() const {
-	return _persist;
+	return _persist || _tabsOnly;
+}
+
+bool Suggestions::chatsTabActive() const {
+	return (_key.current().tab == Tab::Chats);
+}
+
+void Suggestions::setTabsOnly(bool tabsOnly) {
+	if (_tabsOnly == tabsOnly) {
+		return;
+	}
+	_tabsOnly = tabsOnly;
+	if (!_hidden) {
+		finishShow();
+	}
+}
+
+bool Suggestions::tabsOnly() const {
+	return _tabsOnly;
+}
+
+int Suggestions::tabsHeight() const {
+	return _tabs->height();
 }
 
 void Suggestions::persistUntilClickOutside() {
