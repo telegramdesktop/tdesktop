@@ -874,8 +874,9 @@ void Widget::setupSwipeBack() {
 			_inner->clearQuickActions();
 			if (!isRightToLeft) {
 				if (const auto key = _inner->calcSwipeKey(top);
-						key && !isDisabled) {
-					_inner->prepareQuickAction(key, action);
+						key
+						&& !isDisabled
+						&& _inner->prepareQuickAction(key, action)) {
 					return Ui::Controls::SwipeHandlerFinishData{
 						.callback = [=, session = &session()] {
 							auto callback = [=, peerId = PeerId(key)] {
