@@ -6599,8 +6599,7 @@ void WalletSendBox(
 					.feeNano = quote->feeNano,
 					.gasless = quote->dependencies.gaslessTerms.eligible(
 						quote->args.amountNano,
-						quote->args.destination,
-						quote->args.userId),
+						quote->args.destination),
 				}
 				: SendConfirmFee{ .pending = preparing };
 		}) | rpl::distinct_until_changed();
