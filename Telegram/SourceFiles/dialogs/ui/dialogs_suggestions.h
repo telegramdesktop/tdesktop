@@ -18,6 +18,7 @@ class PeerListContent;
 
 namespace Api {
 struct GlobalMediaResult;
+class PeerSearch;
 } // namespace Api
 
 namespace Data {
@@ -38,6 +39,7 @@ enum class SharedMediaType : signed char;
 
 namespace Ui::Controls {
 struct SwipeHandlerArgs;
+struct SwipeHandlerFinishData;
 } // namespace Ui::Controls
 
 namespace Ui {
@@ -114,6 +116,10 @@ public:
 	[[nodiscard]] auto recommendationChosen() const
 	-> rpl::producer<not_null<PeerData*>> {
 		return _recommendations->chosen.events();
+	}
+	[[nodiscard]] auto globalChannelChosen() const
+	-> rpl::producer<not_null<PeerData*>> {
+		return _globalChannels->chosen.events();
 	}
 	[[nodiscard]] auto recentAppChosen() const
 	-> rpl::producer<not_null<PeerData*>> {
@@ -202,6 +208,9 @@ private:
 		QPoint globalPosition);
 	[[nodiscard]] Data::Thread *updateFromAppsDrag(QPoint globalPosition);
 	[[nodiscard]] Data::Thread *fromListId(uint64 peerListRowId);
+	[[nodiscard]] not_null<ObjectList*> channelsSecondList() const;
+	[[nodiscard]] Ui::SearchFieldController *mediaListSearch(Key key) const;
+
 
 	[[nodiscard]] std::unique_ptr<ObjectList> setupRecentPeers(
 		RecentPeersList recentPeers);
@@ -210,12 +219,15 @@ private:
 
 	[[nodiscard]] std::unique_ptr<ObjectList> setupMyChannels();
 	[[nodiscard]] std::unique_ptr<ObjectList> setupRecommendations();
+	[[nodiscard]] std::unique_ptr<SearchList> setupChannelsPosts();
 	[[nodiscard]] auto setupEmptyChannels()
 		-> object_ptr<Ui::SlideWrap<Ui::RpWidget>>;
 
 	[[nodiscard]] std::unique_ptr<ObjectList> setupRecentApps();
 	[[nodiscard]] std::unique_ptr<ObjectList> setupPopularApps();
 
+	[[nodiscard]] static bool TakesSearchQuery(Key key);
+	[[nodiscard]] static bool ListsSearchResults(Key key);
 	[[nodiscard]] static auto ListSelectJump(not_null<ObjectList*> raw)
 		-> Fn<JumpResult(Qt::Key, int)>;
 	[[nodiscard]] std::unique_ptr<ObjectList> setupObjectList(
@@ -223,12 +235,21 @@ private:
 		not_null<Ui::VerticalLayout*> parent,
 		not_null<ObjectListController*> controller,
 		Fn<int()> addToScroll = nullptr);
+	[[nodiscard]] std::unique_ptr<ObjectList> setupGlobalPeers(
+		not_null<Ui::ElasticScroll*> scroll,
+		not_null<Ui::VerticalLayout*> parent,
+		rpl::producer<std::vector<not_null<PeerData*>>> peers,
+		not_null<ObjectList*> above,
+		bool expandable);
 
 	[[nodiscard]] object_ptr<Ui::SlideWrap<Ui::RpWidget>> setupEmpty(
 		not_null<QWidget*> parent,
+		not_null<Ui::ElasticScroll*> scroll,
 		SearchEmptyIcon icon,
-		rpl::producer<QString> text);
+		rpl::producer<TextWithEntities> text);
 
+	bool setTabSearchQuery(const QString &query);
+	void resetTabSearchQuery(Key key);
 	void switchTab(Key key);
 	void startShownAnimation(bool shown, Fn<void()> finish);
 	void startSlideAnimation(Key was, Key now);
@@ -237,31 +258,28 @@ private:
 
 	void handlePressForChatPreview(PeerId id, Fn<void(bool)> callback);
 	void updateControlsGeometry();
-	[[nodiscard]] static bool TakesSearchQuery(Key key);
-	[[nodiscard]] static bool ListsSearchResults(Key key);
-	bool setTabSearchQuery(const QString &query);
-	void resetTabSearchQuery(Key key);
 	void applySearchQuery();
-	[[nodiscard]] Ui::SearchFieldController *mediaListSearch(Key key) const;
-	void showSearchResult(const ChosenRow &row, const QString &query);
-	[[nodiscard]] std::unique_ptr<SearchList> setupSearchList(Key key);
-	void setupSearchListContent(not_null<SearchList*> search);
-	[[nodiscard]] SearchList *shownSearchList(Key key) const;
-	void setSearchListQuery(Key key, const QString &query);
-	void resetSearchList(
-		not_null<SearchList*> search,
-		const QString &query);
-	void requestSearchList(not_null<SearchList*> search);
-	void searchListReceived(
-		not_null<SearchList*> search,
-		const Api::GlobalMediaResult &result);
-	void updateSearchListVisibleRange(not_null<SearchList*> search);
 
 	void setupPostsSearch();
 	void setPostsSearchQuery(const QString &query);
 	void setupPostsResults();
 	void setupPostsIntro(const PostsSearchIntroState &intro);
 	void updatePostsSearchVisibleRange();
+	void showSearchResult(const ChosenRow &row, const QString &query);
+
+	[[nodiscard]] std::unique_ptr<SearchList> setupSearchList(Key key);
+	void setupSearchListContent(not_null<SearchList*> search);
+	[[nodiscard]] SearchList *shownSearchList(Key key) const;
+	void setSearchListQuery(Key key, const QString &query);
+	void resetSearchList(not_null<SearchList*> search, const QString &query);
+	void setChannelsSearchQuery(const QString &query);
+	void requestChannelsSearch();
+	void requestSearchList(not_null<SearchList*> search);
+	void searchListReceived(
+		not_null<SearchList*> search,
+		const Api::GlobalMediaResult &result);
+	void updateChannelsPostsVisibleRange();
+	void updateSearchListVisibleRange(not_null<SearchList*> search);
 
 	const not_null<Window::SessionController*> _controller;
 
@@ -286,9 +304,18 @@ private:
 
 	const std::unique_ptr<Ui::ElasticScroll> _channelsScroll;
 	const not_null<Ui::VerticalLayout*> _channelsContent;
+	rpl::variable<QString> _channelsQuery;
+	rpl::variable<std::vector<not_null<PeerData*>>> _joinedChannelsResults;
+	rpl::variable<std::vector<not_null<PeerData*>>> _globalChannelsResults;
+	rpl::variable<bool> _channelsLoading = false;
+	rpl::variable<bool> _channelsHasPosts = false;
+	bool _channelsPostsKeyJump = false;
+	std::unique_ptr<Api::PeerSearch> _channelsPeerSearch;
 
 	const std::unique_ptr<ObjectList> _myChannels;
 	const std::unique_ptr<ObjectList> _recommendations;
+	const std::unique_ptr<ObjectList> _globalChannels;
+	const std::unique_ptr<SearchList> _channelsPosts;
 
 	const not_null<Ui::SlideWrap<Ui::RpWidget>*> _emptyChannels;
 
@@ -311,15 +338,15 @@ private:
 	rpl::event_stream<> _clearSearchQueryRequests;
 	rpl::event_stream<> _reapplySearchQueryRequests;
 	QString _fieldQuery;
-	QString _postsSearchQuery;
-	bool _tabsOnly = false;
 	QString _searchQuery;
+	QString _postsSearchQuery;
 	base::Timer _searchQueryTimer;
 
 	Ui::Animations::Simple _shownAnimation;
 	Fn<void()> _showFinished;
 	bool _hidden = false;
 	bool _persist = false;
+	bool _tabsOnly = false;
 	QPixmap _cache;
 
 	Ui::Animations::Simple _slideAnimation;

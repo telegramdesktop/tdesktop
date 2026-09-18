@@ -2184,7 +2184,8 @@ void Widget::updateSuggestions(anim::type animated) {
 			_suggestions->topPeerChosen(),
 			_suggestions->recentPeerChosen(),
 			_suggestions->myChannelChosen(),
-			_suggestions->recommendationChosen()
+			_suggestions->recommendationChosen(),
+			_suggestions->globalChannelChosen()
 		) | rpl::on_next([=](not_null<PeerData*> peer) {
 			if (_searchSuggestionsLocked
 				&& (!_suggestions || !_suggestions->persist())) {
