@@ -309,6 +309,7 @@ private:
 	void updateSuggestions(anim::type animated);
 	void processSearchFocusChange();
 	void closeSuggestions();
+	[[nodiscard]] bool suggestionsCoverList() const;
 	[[nodiscard]] bool searchActive() const;
 
 	[[nodiscard]] bool redirectToSearchPossible() const;
