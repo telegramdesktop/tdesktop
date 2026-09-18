@@ -313,6 +313,9 @@ private:
 		? -action.amount
 		: action.amount;
 	item.counterparty = Wallet::CanonicalAddress(action.address);
+	// The chat names the counterparty before the served record does.
+	item.kind = Wallet::TransferItem::Kind::PeerTransfer;
+	item.counterpartyPeer = action.itemId.peer.value;
 	item.commentEncrypted = action.encrypted;
 	if (!action.encrypted) {
 		item.comment = action.comment;
