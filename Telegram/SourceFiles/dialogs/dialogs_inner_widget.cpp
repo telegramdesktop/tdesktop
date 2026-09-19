@@ -248,6 +248,17 @@ constexpr auto kPreviewPostsLimit = 3;
 	Unexpected("Chat type filter in search results.");
 }
 
+
+[[nodiscard]] Data::CommunityInfo *CollapsedIntoCommunity(const Key &key) {
+	const auto history = key.history();
+	const auto info = history ? history->communityListInfo() : nullptr;
+	return (info
+		&& info->collapsedInChatLists()
+		&& info->channel() != history->peer)
+		? info
+		: nullptr;
+}
+
 } // namespace
 
 struct InnerWidget::CollapsedRow {
@@ -570,6 +581,15 @@ InnerWidget::InnerWidget(
 					updateDialogRow(descriptor);
 				} else {
 					updateDialogRow({ { sublist->owningHistory() }, msgId });
+				}
+			} else if (const auto community = CollapsedIntoCommunity(
+					descriptor.key)) {
+				if (_openedCommunity == community) {
+					updateDialogRow(descriptor);
+				} else {
+					const auto history = session().data().history(
+						community->channel());
+					updateDialogRow({ { history }, msgId });
 				}
 			} else {
 				updateDialogRow(descriptor);
@@ -965,6 +985,7 @@ void InnerWidget::changeOpenedCommunity(Data::CommunityInfo *community) {
 	if (_loadMoreCallback) {
 		_loadMoreCallback();
 	}
+
 }
 
 void InnerWidget::showSavedSublists() {
@@ -1825,6 +1846,9 @@ bool InnerWidget::isRowActive(
 		return false;
 	} else if (const auto sublist = entry.key.sublist()) {
 		return key.history() && key.history() == sublist->owningHistory();
+	} else if (const auto community = CollapsedIntoCommunity(entry.key)) {
+		const auto history = key.history();
+		return history && (history->peer == community->channel());
 	}
 	return false;
 }
