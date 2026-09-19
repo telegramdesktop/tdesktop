@@ -608,6 +608,8 @@ private:
 	void dragPinnedFromTouch();
 	[[nodiscard]] bool hasChatTypeFilter() const;
 
+	void restoreScrollShowingCommunity(
+		not_null<Data::CommunityInfo*> community);
 	void saveChatsFilterScrollState(FilterId filterId);
 	bool restoreChatsFilterScrollState(FilterId filterId);
 
@@ -775,6 +777,7 @@ private:
 		std::unique_ptr<Ui::VideoUserpic>> _videoUserpics;
 
 	base::flat_map<FilterId, int> _chatsFilterScrollStates;
+	int _communityScrollTop = 0;
 
 	std::unordered_map<ChatsFilterTagsKey, TagCache> _chatsFilterTags;
 	bool _waitingAllChatListEntryRefreshesForTags = false;
