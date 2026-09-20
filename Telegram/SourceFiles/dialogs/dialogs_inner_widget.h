@@ -447,7 +447,27 @@ private:
 	RowDescriptor computeJump(
 		const RowDescriptor &to,
 		JumpSkip skip) const;
-	bool jumpToDialogRow(RowDescriptor to);
+	enum class JumpDirection : uchar {
+		None,
+		Up,
+		Down,
+	};
+	bool jumpToDialogRow(
+		RowDescriptor to,
+		JumpDirection direction = JumpDirection::None);
+	[[nodiscard]] RowDescriptor jumpOrigin() const;
+	[[nodiscard]] RowDescriptor subsectionRow() const;
+	[[nodiscard]] not_null<IndexedList*> shownListFor(
+		Data::Forum *forum,
+		Data::CommunityInfo *community,
+		FilterId filterId) const;
+	[[nodiscard]] bool canCloseSubsection() const;
+	bool jumpIntoSubsection(
+		Data::Forum *forum,
+		Data::CommunityInfo *community,
+		JumpDirection direction);
+	bool jumpOutOfSubsection(JumpDirection direction);
+	bool closeSubsection();
 
 	RowDescriptor chatListEntryBefore(const RowDescriptor &which) const;
 	RowDescriptor chatListEntryAfter(const RowDescriptor &which) const;
@@ -810,6 +830,7 @@ private:
 	std::vector<QuickActionPtr> _inactiveQuickActions;
 
 	RowDescriptor _chatPreviewRow;
+	RowDescriptor _jumpFrom;
 	bool _chatPreviewScheduled = false;
 	std::optional<QPoint> _chatPreviewTouchGlobal;
 	base::Timer _touchDragPinnedTimer;
