@@ -960,6 +960,7 @@ void InnerWidget::changeOpenedForum(Data::Forum *forum) {
 
 	if (!forum) {
 		restoreChatsFilterScrollState(_filterId);
+		scrollToSubsectionCloseTarget();
 	}
 }
 
@@ -996,7 +997,7 @@ void InnerWidget::changeOpenedCommunity(Data::CommunityInfo *community) {
 	}
 	stopReorderPinned();
 	clearSelection();
-	if (community) {
+	if (community && !_openedCommunity) {
 		_communityScrollTop = _visibleTop;
 	}
 	const auto was = _openedCommunity;
@@ -1041,6 +1042,7 @@ void InnerWidget::changeOpenedCommunity(Data::CommunityInfo *community) {
 
 	if (!community && was) {
 		restoreScrollShowingCommunity(was);
+		scrollToSubsectionCloseTarget();
 	}
 }
 
@@ -1105,6 +1107,14 @@ InnerWidget::CollapseState InnerWidget::rowCollapse(PeerId peerId) const {
 			shown.shown,
 			scratch }
 		: CollapseState();
+}
+
+void InnerWidget::scrollToSubsectionCloseTarget() {
+	// Scrolling after the closing started is too late for its snapshot.
+	const auto to = base::take(_subsectionCloseScrollTo);
+	if (to.key) {
+		scrollToEntry(to);
+	}
 }
 
 void InnerWidget::paintEvent(QPaintEvent *e) {
@@ -6675,12 +6685,15 @@ bool InnerWidget::jumpOutOfSubsection(JumpDirection direction) {
 			? jumpOutOfSubsection(direction)
 			: true;
 	}
+	_subsectionCloseScrollTo = to;
+
 	const auto community = CommunityForJump(to);
 	const auto forum = community ? nullptr : ForumForJump(to, _controller);
 	const auto replacesSubsection = community || (forum && _openedForum);
 	const auto closeBeforeOpening = (forum && !_openedForum);
 	const auto weak = base::make_weak(this);
 	if (closeBeforeOpening && !closeSubsection()) {
+		_subsectionCloseScrollTo = RowDescriptor();
 		return false;
 	}
 
@@ -6712,10 +6725,14 @@ bool InnerWidget::jumpToDialogRow(RowDescriptor to, JumpDirection direction) {
 	const auto weak = base::make_weak(this);
 	if (!controller->jumpToChatListEntry(to)) {
 		return false;
-	} else if (weak
-		&& controller->activeChatEntryCurrent().key != to.key) {
+	} else if (!weak) {
+		return true;
+	} else if (controller->activeChatEntryCurrent().key != to.key) {
 		// An unavailable chat only shows an error box and is not opened.
 		_jumpFrom = to;
+	} else {
+		// Only the main chat list is scrolled by the window to the chat.
+		scrollToEntry(to);
 	}
 	return true;
 }
