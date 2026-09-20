@@ -147,6 +147,9 @@ enum class BadgeType : uchar;
 
 [[nodiscard]] rpl::producer<QString> BirthdayLabelText(
 	rpl::producer<Data::Birthday> birthday);
+[[nodiscard]] rpl::producer<TextWithEntities> BirthdayValueMarkedText(
+	not_null<UserData*> user,
+	rpl::producer<Data::Birthday> birthday);
 [[nodiscard]] rpl::producer<QString> BirthdayValueText(
 	rpl::producer<Data::Birthday> birthday,
 	bool fullMonth = false);

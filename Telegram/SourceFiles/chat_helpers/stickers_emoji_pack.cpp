@@ -35,6 +35,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Stickers {
 namespace {
 
+constexpr auto kStandardEmojiSetName = "RestrictedEmoji";
+
 constexpr auto kRefreshTimeout = 7200 * crl::time(1000);
 constexpr auto kEmojiCachesCount = 4;
 constexpr auto kPremiumCachesCount = 8;
@@ -324,6 +326,47 @@ std::unique_ptr<Lottie::SinglePlayer> EmojiPack::effectPlayer(
 	return std::make_unique<Lottie::SinglePlayer>(std::move(shared), request);
 }
 
+DocumentId EmojiPack::standardEmojiDocument(EmojiPtr emoji) {
+	if (!_standardRequested) {
+		_standardRequested = true;
+		refreshStandard();
+	}
+	const auto i = _standard.find(emoji);
+	return (i != end(_standard)) ? i->second->id : DocumentId();
+}
+
+void EmojiPack::refreshStandard() {
+	if (_standardRequestId) {
+		return;
+	}
+	_standardRequestId = _session->api().request(MTPmessages_GetStickerSet(
+		MTP_inputStickerSetShortName(MTP_string(kStandardEmojiSetName)),
+		MTP_int(0) // hash
+	)).done([=](const MTPmessages_StickerSet &result) {
+		_standardRequestId = 0;
+		result.match([&](const MTPDmessages_stickerSet &data) {
+			applyStandardSet(data);
+		}, [](const MTPDmessages_stickerSetNotModified &) {
+			LOG(("API Error: Unexpected messages.stickerSetNotModified."));
+		});
+	}).fail([=] {
+		_standardRequestId = 0;
+	}).send();
+}
+
+void EmojiPack::applyStandardSet(const MTPDmessages_stickerSet &data) {
+	const auto stickers = collectStickers(data.vdocuments().v);
+	auto were = base::take(_standard);
+	for (const auto &pack : data.vpacks().v) {
+		pack.match([&](const MTPDstickerPack &data) {
+			applyPack(data, stickers, _standard);
+		});
+	}
+	if (_standard != were) {
+		_refreshed.fire({});
+	}
+}
+
 void EmojiPack::refresh() {
 	if (_requestId) {
 		return;
@@ -372,7 +415,7 @@ void EmojiPack::applySet(const MTPDmessages_stickerSet &data) {
 
 	for (const auto &pack : data.vpacks().v) {
 		pack.match([&](const MTPDstickerPack &data) {
-			applyPack(data, stickers);
+			applyPack(data, stickers, _map);
 		});
 	}
 
@@ -495,7 +538,8 @@ void EmojiPack::refreshItems(
 
 void EmojiPack::applyPack(
 		const MTPDstickerPack &data,
-		const base::flat_map<uint64, not_null<DocumentData*>> &map) {
+		const base::flat_map<uint64, not_null<DocumentData*>> &map,
+		base::flat_map<EmojiPtr, not_null<DocumentData*>> &to) {
 	const auto emoji = [&] {
 		return Ui::Emoji::Find(qs(data.vemoticon()));
 	}();
@@ -509,7 +553,7 @@ void EmojiPack::applyPack(
 		return nullptr;
 	}();
 	if (emoji && document) {
-		_map.emplace_or_assign(emoji, document);
+		to.emplace_or_assign(emoji, document);
 	}
 }
 
