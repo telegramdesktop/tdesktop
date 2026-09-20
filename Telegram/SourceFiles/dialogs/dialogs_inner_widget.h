@@ -436,6 +436,13 @@ private:
 
 	bool addRightButtonRipple(QPoint origin, Fn<void()> updateCallback);
 
+	struct CollapseState {
+		float64 morph = 0.;
+		float64 tab = 0.;
+		bool fromScratch = false;
+	};
+	[[nodiscard]] CollapseState rowCollapse(PeerId peerId) const;
+
 	void setupShortcuts();
 	RowDescriptor computeJump(
 		const RowDescriptor &to,
@@ -811,6 +818,12 @@ private:
 	rpl::event_stream<> _touchCancelRequests;
 
 	rpl::variable<ChildListShown> _childListShown;
+	Ui::Animations::Simple _collapseAnimation;
+	PeerId _collapsePeerId = 0;
+	PeerId _collapsePreviousId = 0;
+	PeerId _collapseFromScratchId = 0;
+	PeerId _paintedActivePeerId = 0;
+	float64 _collapseShownLast = 0.;
 	base::Timer _freezeTimer;
 	float64 _narrowRatio = 0.;
 	bool _geometryInited = false;
