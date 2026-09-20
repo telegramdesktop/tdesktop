@@ -1441,9 +1441,9 @@ Section DetailsFiller::makeInfo() {
 				Qt::SkipEmptyParts).last();
 			if (!joinDate.isEmpty()) {
 				const auto weak = base::make_weak(window);
-				window->session().api().resolveJumpToDate(
+				window->session().api().resolveJumpToTime(
 					Dialogs::Key(peer->owner().history(peer)),
-					base::unixtime::parse(joinDate.toULongLong()).date(),
+					TimeId(joinDate.toULongLong()),
 					[=](not_null<PeerData*> p, MsgId m) {
 						const auto f = Window::SectionShow::Way::Forward;
 						if (const auto strong = weak.get()) {
