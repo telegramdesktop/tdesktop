@@ -79,6 +79,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 			std::optional<TopBarSuggestions::Priority> activeSpec;
 			std::optional<int> activeSpecDay;
 			Fn<void()> prepareSnapshot;
+			Ui::SlideWrap<Ui::RpWidget> *delivered = nullptr;
 			int activationId = 0;
 		};
 
@@ -112,6 +113,14 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 			.childListShown = [=]() -> rpl::producer<float64> {
 				return rpl::duplicate(childListShown);
 			},
+		};
+
+		const auto deliver = [=] {
+			const auto now = state->wrap.get();
+			if (state->delivered != now) {
+				state->delivered = now;
+				consumer.put_next_copy(now);
+			}
 		};
 
 		const auto specs = lifetime.make_state<std::vector<
@@ -184,6 +193,8 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 						}
 						state->desiredWrapToggle.force_assign(
 							Toggle{ true, anim::type::normal });
+
+						deliver();
 					},
 					.recompute = [=] {
 						if (state->activationId == activationId) {
@@ -208,7 +219,7 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 				state->content = nullptr;
 				state->wrap = nullptr;
 				state->prepareSnapshot = nullptr;
-				consumer.put_next(nullptr);
+				deliver();
 			});
 		};
 
@@ -242,9 +253,10 @@ rpl::producer<Ui::SlideWrap<Ui::RpWidget>*> TopBarSuggestionValue(
 			const auto was = state->wrap.get();
 			const auto weak = base::make_weak(was);
 			processCurrentSuggestion(processCurrentSuggestion);
-			if (was != state->wrap || (was && !weak)) {
-				consumer.put_next_copy(state->wrap.get());
+			if (was && !weak) {
+				state->delivered = nullptr;
 			}
+			deliver();
 		}, lifetime);
 
 		rpl::duplicate(prepareCollapseSnapshot) | rpl::on_next([=] {
