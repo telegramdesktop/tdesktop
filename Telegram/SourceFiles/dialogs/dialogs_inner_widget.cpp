@@ -112,6 +112,22 @@ constexpr auto kStartDragToFilterThresholdX = kStartReorderThreshold;
 constexpr auto kStartDragToFilterThresholdY = 75;
 constexpr auto kQueryPreviewLimit = 32;
 constexpr auto kPreviewPostsLimit = 3;
+constexpr auto kActiveCollapsedText = 0.75;
+constexpr auto kCollapsePart = 0.5;
+constexpr auto kDirectCollapseDuration = crl::time(120);
+
+[[nodiscard]] PeerId ActivePeerId(const RowDescriptor &entry) {
+	if (const auto topic = entry.key.topic()) {
+		return topic->channel()->id;
+	} else if (const auto history = entry.key.history()) {
+		return history->peer->id;
+	}
+	return PeerId();
+}
+
+[[nodiscard]] float64 CollapseProgress(float64 shown) {
+	return std::clamp((shown - (1. - kCollapsePart)) / kCollapsePart, 0., 1.);
+}
 
 [[nodiscard]] uint64 RowsCacheKey(Entry *entry) {
 	return uint64(reinterpret_cast<quintptr>(entry));
@@ -324,6 +340,39 @@ InnerWidget::InnerWidget(
 	setAccessibleName(tr::lng_recent_chats(tr::now));
 
 	_communityViewable.setRepaint([=] { update(); });
+
+	_childListShown.changes(
+	) | rpl::on_next([=](ChildListShown value) {
+		if (value.peerId != _collapsePeerId) {
+			const auto direct = value.peerId
+				&& (value.shown == 1.)
+				&& (_collapseShownLast == 1.);
+			_collapsePreviousId = _collapsePeerId;
+			_collapsePeerId = value.peerId;
+			_collapseFromScratchId = (value.peerId
+				&& (_paintedActivePeerId != value.peerId))
+				? value.peerId
+				: PeerId();
+			if (direct) {
+				_collapseAnimation.start(
+					[=] { update(); },
+					0.,
+					1.,
+					kDirectCollapseDuration);
+			} else {
+				_collapseAnimation.stop();
+			}
+		} else if ((value.shown == 1.)
+			|| (value.shown < _collapseShownLast)) {
+			_collapseFromScratchId = PeerId();
+			if (_collapseAnimation.animating()) {
+				_collapseAnimation.stop();
+				_collapsePreviousId = PeerId();
+				update();
+			}
+		}
+		_collapseShownLast = value.shown;
+	}, lifetime());
 
 	style::PaletteChanged(
 	) | rpl::on_next([=] {
@@ -1037,6 +1086,26 @@ void InnerWidget::showSavedSublists() {
 	}
 }
 
+InnerWidget::CollapseState InnerWidget::rowCollapse(PeerId peerId) const {
+	const auto shown = _childListShown.current();
+	// A row that was not active has no background to collapse.
+	const auto scratch = (peerId == _collapseFromScratchId);
+	if (_collapseAnimation.animating()) {
+		const auto value = _collapseAnimation.value(1.);
+		return (peerId == shown.peerId)
+			? CollapseState{ scratch ? 0. : value, value, scratch }
+			: (peerId == _collapsePreviousId)
+			? CollapseState{ 1. - value, 1. - value }
+			: CollapseState();
+	}
+	return (peerId == shown.peerId)
+		? CollapseState{
+			scratch ? 0. : CollapseProgress(shown.shown),
+			shown.shown,
+			scratch }
+		: CollapseState();
+}
+
 void InnerWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
@@ -1053,6 +1122,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	auto dialogsClip = r;
 	const auto ms = crl::now();
 	const auto childListShown = _childListShown.current();
+	_paintedActivePeerId = ActivePeerId(activeEntry);
 	auto context = Ui::PaintContext{
 		.st = _st,
 		.topicJumpCache = _topicJumpCache.get(),
@@ -1076,15 +1146,21 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			bool selected,
 			bool mayBeActive) {
 		const auto &key = row->key();
-		const auto active = mayBeActive && isRowActive(row, activeEntry);
 		const auto history = key.history();
 		const auto forum = history && history->peer->displayAsForum();
 		const auto monoforum = history && history->amMonoforumAdmin();
 		if ((forum || monoforum) && !_topicJumpCache) {
 			_topicJumpCache = std::make_unique<Ui::TopicJumpCache>();
 		}
-		const auto expanding = (forum || monoforum)
-			&& (history->peer->id == childListShown.peerId);
+		const auto collapse = (forum || monoforum)
+			? rowCollapse(history->peer->id)
+			: CollapseState();
+		const auto expanding = (collapse.tab > 0.) || (collapse.morph > 0.);
+		const auto rowActive = mayBeActive
+			&& !collapse.fromScratch
+			&& isRowActive(row, activeEntry);
+		const auto active = rowActive
+			&& (collapse.morph < kActiveCollapsedText);
 		context.rightButton = maybeCacheRightButton(row);
 		if (history) {
 			if (_activeQuickAction
@@ -1208,9 +1284,8 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			context.chatsFilterTags = nullptr;
 		}
 
-		context.topicsExpanded = (expanding && !active)
-			? childListShown.shown
-			: 0.;
+		context.topicsExpanded = (expanding && !active) ? collapse.tab : 0.;
+		context.activeCollapsed = rowActive ? collapse.morph : 0.;
 		context.active = active;
 		context.selected = _menuRow.key
 			? (row->key() == _menuRow.key)
