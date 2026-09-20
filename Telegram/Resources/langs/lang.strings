@@ -740,6 +740,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_shortcuts_chat_next" = "Next chat";
 "lng_shortcuts_chat_first" = "First chat";
 "lng_shortcuts_chat_last" = "Last chat";
+"lng_shortcuts_chat_list_back" = "Back to the chat list";
+"lng_shortcuts_chat_list_open" = "Open the community or forum";
 "lng_shortcuts_chat_self" = "Saved Messages";
 "lng_shortcuts_chat_pinned_n" = "Pinned chat #{index}";
 "lng_shortcuts_show_account_n" = "Account #{index}";
