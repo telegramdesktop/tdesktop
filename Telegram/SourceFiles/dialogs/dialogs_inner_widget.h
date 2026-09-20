@@ -465,6 +465,7 @@ private:
 		Data::CommunityInfo *community,
 		FilterId filterId) const;
 	[[nodiscard]] bool canCloseSubsection() const;
+	void scrollToSubsectionCloseTarget();
 	bool jumpIntoSubsection(
 		Data::Forum *forum,
 		Data::CommunityInfo *community,
@@ -840,6 +841,7 @@ private:
 
 	RowDescriptor _chatPreviewRow;
 	RowDescriptor _jumpFrom;
+	RowDescriptor _subsectionCloseScrollTo;
 	bool _chatPreviewScheduled = false;
 	std::optional<QPoint> _chatPreviewTouchGlobal;
 	base::Timer _touchDragPinnedTimer;
