@@ -5232,6 +5232,7 @@ void ChatWidget::listItemsAddedToEnd(
 	if (_replies || _sublist) {
 		readTill->markClientSideAsRead();
 		listMarkReadTill(readTill);
+		Core::App().notifications().clearIncomingFromItem(readTill);
 	} else {
 		_inner->clearUnreadBar();
 		session().data().histories().readInboxOnNewMessage(readTill);

@@ -636,6 +636,32 @@ void System::clearFromItem(not_null<HistoryItem*> item) {
 	}
 }
 
+void System::clearIncomingFromItem(not_null<HistoryItem*> item) {
+	clearFromItem(item);
+
+	const auto thread = item->notificationThread();
+	thread->removeNotification(item);
+	const auto i = _whenMaps.find(thread);
+	if (i == end(_whenMaps)) {
+		return;
+	}
+	const auto j = i->second.find(NotificationInHistoryKey(
+		item->id,
+		Data::ItemNotificationType::Message));
+	if (j == end(i->second)) {
+		return;
+	}
+	const auto when = j->second;
+	i->second.erase(j);
+	const auto k = _whenAlerts.find(thread);
+	if (k != end(_whenAlerts)) {
+		k->second.remove(when);
+		if (k->second.empty()) {
+			_whenAlerts.erase(k);
+		}
+	}
+}
+
 void System::clearAllFast() {
 	if (_manager) {
 		_manager->clearAllFast();

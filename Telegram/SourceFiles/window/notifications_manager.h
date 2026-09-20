@@ -119,6 +119,7 @@ public:
 	void clearIncomingFromHistory(not_null<History*> history);
 	void clearFromSession(not_null<Main::Session*> session);
 	void clearFromItem(not_null<HistoryItem*> item);
+	void clearIncomingFromItem(not_null<HistoryItem*> item);
 	void clearAll();
 	void clearAllFast();
 	void updateAll();
