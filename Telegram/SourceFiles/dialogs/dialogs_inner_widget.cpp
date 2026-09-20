@@ -6392,6 +6392,15 @@ void InnerWidget::setupShortcuts() {
 		request->check(Command::ChatLast) && request->handle([=] {
 			return jumpToDialogRow(last);
 		});
+		request->check(Command::ChatListBack) && request->handle([=] {
+			return jumpBackFromSubsection();
+		});
+		// Left to the message field when there is nothing to open.
+		canOpenSubsectionFromOrigin()
+			&& request->check(Command::ChatListOpen, 2)
+			&& request->handle([=] {
+				return openSubsectionFromOrigin();
+			});
 		request->check(Command::ChatSelf) && request->handle([=] {
 			_controller->showThread(
 				session().data().history(session().user()),
@@ -6549,6 +6558,35 @@ RowDescriptor InnerWidget::computeJump(
 	return result;
 }
 
+bool InnerWidget::canOpenSubsectionFromOrigin() const {
+	const auto row = jumpOrigin();
+	if (const auto community = CommunityForJump(row)) {
+		return (_controller->openedCommunity().current() != community);
+	} else if (const auto forum = ForumForJump(row, _controller)) {
+		return (_controller->shownForum().current() != forum);
+	}
+	return false;
+}
+
+bool InnerWidget::openSubsectionFromOrigin() {
+	const auto row = jumpOrigin();
+	if (const auto community = CommunityForJump(row)) {
+		if (_controller->openedCommunity().current() != community) {
+			_controller->openCommunity(community);
+			return true;
+		}
+	} else if (const auto forum = ForumForJump(row, _controller)) {
+		if (_controller->shownForum().current() != forum) {
+			_controller->showForum(
+				forum,
+				Window::SectionShow(
+					Window::SectionShow::Way::ClearStack).withChildColumn());
+			return true;
+		}
+	}
+	return false;
+}
+
 RowDescriptor InnerWidget::jumpOrigin() const {
 	if (_jumpFrom.key
 		&& (_state == WidgetState::Default)
@@ -6612,6 +6650,30 @@ bool InnerWidget::jumpIntoSubsection(
 		: weak
 		? jumpToDialogRow(first, direction)
 		: controller->jumpToChatListEntry(first);
+}
+
+bool InnerWidget::jumpBackFromSubsection() {
+	const auto row = subsectionRow();
+	if (!row.key) {
+		if (!_openedFolder || _controller->windowId().folder()) {
+			return false;
+		}
+		_controller->closeFolder();
+		return true;
+	}
+	_subsectionCloseScrollTo = row;
+	const auto weak = base::make_weak(this);
+	const auto closed = closeSubsection();
+	if (!weak) {
+		return true;
+	} else if (!closed) {
+		_subsectionCloseScrollTo = RowDescriptor();
+		return false;
+	}
+	_jumpFrom = row;
+	scrollToEntry(row);
+	update();
+	return true;
 }
 
 RowDescriptor InnerWidget::subsectionRow() const {
