@@ -368,7 +368,7 @@ private:
 	rpl::event_stream<> _communityAddChatRefresh;
 	rpl::event_stream<bool> _searchStateForTopBarSuggestion;
 	rpl::event_stream<> _prepareTopBarSnapshot;
-	rpl::event_stream<bool> _openedFolderOrForumChanges;
+	rpl::variable<bool> _openedFolderOrForum;
 
 	object_ptr<Ui::ElasticScroll> _scroll;
 	Ui::VerticalLayout *_innerList = nullptr;

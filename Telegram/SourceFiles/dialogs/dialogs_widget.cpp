@@ -1231,7 +1231,7 @@ void Widget::setupFrozenAccountBar() {
 }
 
 void Widget::setupTopBarSuggestions() {
-	if (_layout == Layout::Child) {
+	if (_layout == Layout::Child || !controller()->windowId().primary()) {
 		return;
 	}
 	using namespace rpl::mappers;
@@ -1247,7 +1247,7 @@ void Widget::setupTopBarSuggestions() {
 		) | rpl::filter(_1 == nullptr) | rpl::map([=] {
 			auto on = rpl::combine(
 				controller()->activeChatsFilter(),
-				_openedFolderOrForumChanges.events_starting_with(false),
+				_openedFolderOrForum.value(),
 				_searchStateForTopBarSuggestion.events_starting_with(
 					!_searchState.query.isEmpty()),
 				_jumpToDate->toggledValue()
@@ -1307,10 +1307,9 @@ void Widget::updateFrozenAccountBar() {
 }
 
 void Widget::updateTopBarSuggestions() {
-	if (_topBarSuggestion) {
-		_openedFolderOrForumChanges.fire(
-			_openedFolder || _openedForum || _openedCommunity);
-	}
+	_openedFolderOrForum = (_openedFolder
+		|| _openedForum
+		|| _openedCommunity);
 }
 
 bool Widget::communityOverlaysShown() const {
@@ -4238,7 +4237,7 @@ bool Widget::applySearchState(SearchState state) {
 			&& !searchInPeer());
 		updateControlsGeometry();
 	}
-	if (_topBarSuggestion && queryEmptyChanged) {
+	if (queryEmptyChanged) {
 		_searchStateForTopBarSuggestion.fire(!_searchState.query.isEmpty());
 	}
 	_searchWithPostsPreview = computeSearchWithPostsPreview();
