@@ -459,6 +459,9 @@ private:
 		RowDescriptor to,
 		JumpDirection direction = JumpDirection::None);
 	[[nodiscard]] RowDescriptor jumpOrigin() const;
+	bool jumpBackFromSubsection();
+	[[nodiscard]] bool canOpenSubsectionFromOrigin() const;
+	bool openSubsectionFromOrigin();
 	[[nodiscard]] RowDescriptor subsectionRow() const;
 	[[nodiscard]] not_null<IndexedList*> shownListFor(
 		Data::Forum *forum,
