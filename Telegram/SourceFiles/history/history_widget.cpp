@@ -726,6 +726,11 @@ HistoryWidget::HistoryWidget(
 		newItemAdded(item);
 	}, lifetime());
 
+	session().data().itemIdChanged(
+	) | rpl::on_next([=](Data::Session::IdChange change) {
+		playOutgoingInChatSound(change.newId, change.oldId);
+	}, lifetime());
+
 	session().data().historyChanged(
 	) | rpl::on_next([=](not_null<History*> history) {
 		handleHistoryChange(history);
@@ -4489,6 +4494,7 @@ void HistoryWidget::newItemAdded(not_null<HistoryItem*> item) {
 	if (item->showNotification()) {
 		destroyUnreadBar();
 		if (markingMessagesRead()) {
+			playIncomingInChatSound(item);
 			if (_list && item->hasUnwatchedEffect()) {
 				_list->startEffectOnRead(item);
 			}
@@ -4790,6 +4796,35 @@ bool HistoryWidget::clearMaybeSendStart() {
 
 void HistoryWidget::windowShown() {
 	updateControlsGeometry();
+}
+
+void HistoryWidget::playIncomingInChatSound(not_null<HistoryItem*> item) {
+	if (isHidden()
+		|| item->out()
+		|| item->isSilent()
+		|| isRecording()
+		|| session().data().notifySettings().isMuted(
+			item->notificationThread())) {
+		return;
+	}
+	Core::App().notifications().playInChatSound(
+		Window::Notifications::InChatSound::Incoming);
+}
+
+void HistoryWidget::playOutgoingInChatSound(FullMsgId newId, MsgId oldId) {
+	if (!_history || isHidden() || isRecording() || !IsClientMsgId(oldId)) {
+		return;
+	}
+	const auto item = session().data().message(newId);
+	if (!item
+		|| (item->history() != _history)
+		|| !item->out()
+		|| item->isSilent()
+		|| item->isScheduled()) {
+		return;
+	}
+	Core::App().notifications().playInChatSound(
+		Window::Notifications::InChatSound::Outgoing);
 }
 
 bool HistoryWidget::markingMessagesRead() const {

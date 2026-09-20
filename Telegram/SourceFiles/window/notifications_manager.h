@@ -86,6 +86,11 @@ extern const char kOptionHideReplyButton[];
 
 class Manager;
 
+enum class InChatSound : uchar {
+	Incoming,
+	Outgoing,
+};
+
 struct ActivateOptions {
 	TextWithTags draft;
 	bool allowNewWindow = false;
@@ -131,6 +136,7 @@ public:
 	[[nodiscard]] QByteArray lookupSoundBytes(
 		not_null<Data::Session*> owner,
 		DocumentId id);
+	void playInChatSound(InChatSound sound);
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -228,6 +234,10 @@ private:
 	base::flat_map<
 		DocumentId,
 		std::unique_ptr<Media::Audio::Track>> _customSoundTracks;
+	std::unique_ptr<Media::Audio::Track> _inChatIncomingTrack;
+	std::unique_ptr<Media::Audio::Track> _inChatOutgoingTrack;
+	crl::time _inChatIncomingPlayed = 0;
+	crl::time _inChatOutgoingPlayed = 0;
 
 	base::flat_map<
 		not_null<Data::ForumTopic*>,
@@ -348,6 +358,9 @@ public:
 		return doSkipToast();
 	}
 	void maybePlaySound(Fn<void()> playSound);
+	void maybePlayInChatSound(Fn<void()> playSound) {
+		doMaybePlaySound(std::move(playSound));
+	}
 	void maybeFlashBounce(Fn<void()> flashBounce) {
 		doMaybeFlashBounce(std::move(flashBounce));
 	}

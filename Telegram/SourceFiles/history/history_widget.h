@@ -514,6 +514,8 @@ private:
 	void sendButtonClicked();
 	void stopStreamedDraft();
 	void newItemAdded(not_null<HistoryItem*> item);
+	void playIncomingInChatSound(not_null<HistoryItem*> item);
+	void playOutgoingInChatSound(FullMsgId newId, MsgId oldId);
 	void maybeMarkReactionsRead(not_null<HistoryItem*> item);
 
 	bool canSendFiles(not_null<const QMimeData*> data) const;

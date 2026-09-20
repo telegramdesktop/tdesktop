@@ -62,6 +62,8 @@ namespace {
 constexpr auto kMinimalDelay = crl::time(100);
 constexpr auto kMinimalForwardDelay = crl::time(500);
 constexpr auto kMinimalAlertDelay = crl::time(500);
+constexpr auto kInChatIncomingSoundEach = crl::time(500);
+constexpr auto kInChatOutgoingSoundEach = crl::time(100);
 constexpr auto kWaitingForAllGroupedDelay = crl::time(1000);
 constexpr auto kReactionNotificationEach = 60 * 60 * crl::time(1000);
 
@@ -1080,6 +1082,37 @@ void System::playSound(
 		DocumentId id,
 		float64 volumeOverride) {
 	lookupSound(&session->data(), id)->playOnce(volumeOverride);
+}
+
+void System::playInChatSound(InChatSound sound) {
+	auto &settings = Core::App().settings();
+	if (!settings.inChatSounds() || !settings.soundNotify()) {
+		return;
+	}
+	const auto incoming = (sound == InChatSound::Incoming);
+	const auto now = crl::now();
+	auto &played = incoming
+		? _inChatIncomingPlayed
+		: _inChatOutgoingPlayed;
+	const auto each = incoming
+		? kInChatIncomingSoundEach
+		: kInChatOutgoingSoundEach;
+	if (played && (now - played <= each)) {
+		return;
+	}
+	played = now;
+
+	auto &track = incoming ? _inChatIncomingTrack : _inChatOutgoingTrack;
+	if (!track) {
+		track = Media::Audio::Current().createTrack();
+		track->fillFromFile(incoming
+			? u":/sounds/chat_incoming.wav"_q
+			: u":/sounds/chat_outgoing.wav"_q);
+	}
+	const auto raw = track.get();
+	_manager->maybePlayInChatSound([=] {
+		raw->playOnce();
+	});
 }
 
 Manager::DisplayOptions Manager::getNotificationOptions(
