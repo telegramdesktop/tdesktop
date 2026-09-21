@@ -1665,14 +1665,11 @@ void AddDetailsAmountHeader(
 		not_null<Ui::GenericBox*> box,
 		const TransferItem &item,
 		int topSkip,
+		int bottomSkip,
 		rpl::producer<FiatRate> rate = nullptr) {
 	const auto container = box->addRow(
 		object_ptr<Ui::RpWidget>(box),
-		style::margins(
-			0,
-			topSkip,
-			0,
-			st::walletDetailsAmountBottomSkip),
+		style::margins(0, topSkip, 0, bottomSkip),
 		style::al_top);
 	auto formatted = Ui::FormatTonAmount(item.amountNano);
 	const auto negativeSign = QString(QLocale::system().negativeSign());
@@ -1683,22 +1680,22 @@ void AddDetailsAmountHeader(
 		container,
 		(item.incoming ? QChar('+') : kMinus) + formatted.wholeString,
 		st::walletDetailsAmountMajorLabel);
-	auto helper = Ui::Text::CustomEmojiHelper();
-	auto minorText = formatted.nanoString.isEmpty()
-		? tr::marked()
-		: tr::marked(formatted.separator + formatted.nanoString);
-	minorText.append(helper.paletteDependent({
-		.factory = [] {
-			return Ui::Earn::IconCurrencyColored(
-				st::walletDetailsMarkSize,
-				st::windowActiveTextFg->c);
-		},
-		.margin = st::walletDetailsIconMargin,
-	}));
 	const auto minor = Ui::CreateChild<Ui::FlatLabel>(
 		container,
+		formatted.nanoString.isEmpty()
+			? QString()
+			: (formatted.separator + formatted.nanoString),
 		st::walletDetailsAmountMinorLabel);
-	minor->setMarkedText(std::move(minorText), helper.context());
+	// The unit is spelled out instead of drawn as the currency mark: the
+	// mark is the animation above the amount now, and saying it twice in
+	// one header only makes the line harder to read.
+	const auto ticker = Ui::CreateChild<Ui::FlatLabel>(
+		container,
+		tr::lng_wallet_details_ticker(
+			tr::now,
+			lt_count,
+			std::abs(item.amountNano / float64(Ui::kNanosInOne))),
+		st::walletDetailsTickerLabel);
 	const auto subdued = (item.status == TransferItem::Status::Pending)
 		|| (item.status == TransferItem::Status::Failure);
 	const auto &color = subdued
@@ -1721,10 +1718,20 @@ void AddDetailsAmountHeader(
 	const auto relayout = [=] {
 		const auto majorSize = major->size();
 		const auto minorSize = minor->size();
-		const auto amountWidth = majorSize.width() + minorSize.width();
-		const auto amountHeight = std::max(
+		const auto tickerSize = ticker->size();
+		const auto tickerSkip = st::walletDetailsTickerSkip;
+		const auto amountWidth = majorSize.width()
+			+ minorSize.width()
+			+ tickerSkip
+			+ tickerSize.width();
+		// The smaller labels are dropped by the difference in font size so
+		// that all three sit on one baseline with the whole amount.
+		const auto minorSkip = st::walletDetailsAmountMinorSkip;
+		const auto amountHeight = std::max({
 			majorSize.height(),
-			st::walletDetailsAmountMinorSkip + minorSize.height());
+			minorSkip + minorSize.height(),
+			minorSkip + tickerSize.height(),
+		});
 		const auto withFiat = (fiat != nullptr);
 		const auto width = std::max(
 			amountWidth,
@@ -1734,10 +1741,12 @@ void AddDetailsAmountHeader(
 			: 0);
 		container->resize(width, height);
 		container->setNaturalWidth(width);
-		major->moveToLeft((width - amountWidth) / 2, 0, width);
-		minor->moveToLeft(
-			(width - amountWidth) / 2 + majorSize.width(),
-			st::walletDetailsAmountMinorSkip,
+		const auto left = (width - amountWidth) / 2;
+		major->moveToLeft(left, 0, width);
+		minor->moveToLeft(left + majorSize.width(), minorSkip, width);
+		ticker->moveToLeft(
+			left + majorSize.width() + minorSize.width() + tickerSkip,
+			minorSkip,
 			width);
 		if (withFiat) {
 			fiat->moveToLeft(
@@ -1754,7 +1763,8 @@ void AddDetailsAmountHeader(
 	}
 	rpl::combine(
 		major->sizeValue(),
-		minor->sizeValue()
+		minor->sizeValue(),
+		ticker->sizeValue()
 	) | rpl::on_next(relayout, container->lifetime());
 }
 
@@ -1762,14 +1772,11 @@ void AddDetailsCollectibleHeader(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
 		std::shared_ptr<CollectibleMedia> media,
-		const TransferItem &item) {
+		const TransferItem &item,
+		int bottomSkip) {
 	const auto container = box->addRow(
 		object_ptr<Ui::RpWidget>(box),
-		style::margins(
-			0,
-			st::walletDetailsAmountTopSkip,
-			0,
-			st::walletDetailsAmountBottomSkip),
+		style::margins(0, st::walletDetailsAmountTopSkip, 0, bottomSkip),
 		style::al_top);
 	const auto address = item.collectible;
 	const auto available = st::boxWideWidth
@@ -1895,15 +1902,19 @@ void AddDetailsCollectibleHeader(
 	return result;
 }
 
+[[nodiscard]] bool HasDetailsComment(const TransferItem &item) {
+	return item.commentEncrypted || !item.comment.trimmed().isEmpty();
+}
+
 void AddDetailsComment(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
 		const TransferItem &item,
 		Fn<bool()> originCurrent) {
-	const auto comment = item.comment.trimmed();
-	if (!item.commentEncrypted && comment.isEmpty()) {
+	if (!HasDetailsComment(item)) {
 		return;
 	}
+	const auto comment = item.comment.trimmed();
 	auto label = item.commentEncrypted
 		? object_ptr<Ui::FlatLabel>(object_ptr<EncryptedCommentLabel>(
 			box,
@@ -1912,13 +1923,16 @@ void AddDetailsComment(
 			item,
 			std::move(originCurrent)))
 		: object_ptr<Ui::FlatLabel>(box, comment, st::walletCommentLabel);
+	// The bubble stands inside the gap between the amount and the table
+	// rather than under the amount: the header leaves half of that gap and
+	// the bubble takes the other half, so it reads as its own line.
 	box->addRow(
 		MakeCommentBubble(box, std::move(label), st::windowBg),
 		style::margins(
 			st::giveawayGiftCodeTableMargin.left(),
 			0,
 			st::giveawayGiftCodeTableMargin.right(),
-			st::walletDetailsAmountBottomSkip),
+			st::walletDetailsAmountBottomSkip / 2),
 		style::al_top);
 }
 
@@ -4007,17 +4021,45 @@ void WalletTransactionBox(
 	const auto state = box->lifetime().make_state<State>();
 	state->item = std::move(item);
 	state->looking = looking;
+	// The gap between the header and the table is one skip, whether or not
+	// a comment stands in it - see AddDetailsComment for the other half.
+	const auto headerBottomSkip = HasDetailsComment(state->item)
+		? (st::walletDetailsAmountBottomSkip / 2)
+		: st::walletDetailsAmountBottomSkip;
 	if (ShowsCollectible(state->item)) {
 		if (!media) {
 			media = std::make_shared<CollectibleMedia>(session);
 		}
 		media->resolve(state->item.collectible);
-		AddDetailsCollectibleHeader(box, session, std::move(media), state->item);
+		AddDetailsCollectibleHeader(
+			box,
+			session,
+			std::move(media),
+			state->item,
+			headerBottomSkip);
 	} else {
+		// The animation stands where a top skip used to, so the amount and
+		// everything under it move up by that much under the box title.
+		auto icon = Settings::CreateLottieIcon(
+			box->verticalLayout(),
+			{
+				.name = u"gram"_q,
+				.sizeOverride = {
+					st::walletDetailsLottieSize,
+					st::walletDetailsLottieSize,
+				},
+			});
+		box->verticalLayout()->add(std::move(icon.widget));
+		box->showFinishes() | rpl::on_next([
+			animate = std::move(icon.animate)
+		] {
+			animate(anim::repeat::once);
+		}, box->lifetime());
 		AddDetailsAmountHeader(
 			box,
 			state->item,
-			st::walletDetailsAmountTopSkip,
+			0,
+			headerBottomSkip,
 			FiatRateValue(session));
 	}
 	AddDetailsComment(
@@ -4163,13 +4205,53 @@ void ShowWalletTransactionBox(
 	return SendCommentFits(text);
 }
 
-void ApplyCommentLimit(not_null<Ui::InputField*> field) {
-	Ui::AddLengthLimitLabel(field, kSendCommentMaxBytes, {
+// A comment is limited in UTF-8 bytes, so a Cyrillic letter costs two and an
+// emoji four. Saying that in words explains nothing to anyone typing, so the
+// field just counts down, and it starts counting late enough that the people
+// who never approach the limit never see it. The limit is in bytes while a
+// field's own maximum is in UTF-16 units, so the field keeps no maximum of
+// its own and the count is allowed to go negative until sending refuses it.
+//
+// `rightSkip` is what already stands in the field's top right corner, which
+// the counter has to stand to the left of.
+void ApplyCommentLimit(
+		not_null<Ui::InputField*> field,
+		int rightSkip = 0) {
+	const auto &limitSt = st::defaultInputFieldLimit;
+	auto options = Ui::LengthLimitLabelOptions{
+		.customThreshold = kSendCommentWarnBytes,
 		.customCharactersCount = [=] {
 			return CommentBytes(field->getLastText());
 		},
+	};
+	if (rightSkip > 0) {
+		options.customUpdatePosition = [=](QSize parent, QSize label) {
+			const auto &st = field->st();
+			// Baseline alignment, the way the default position does it.
+			const auto top = st.textMargins.top()
+				+ st.style.font->ascent
+				- limitSt.style.font->ascent;
+			return QPoint(parent.width() - rightSkip - label.width(), top);
+		};
+	}
+	Ui::AddLengthLimitLabel(field, kSendCommentMaxBytes, std::move(options));
+
+	// A field's own maximum counts UTF-16 units, so it cannot enforce a
+	// limit that counts bytes. What it can do is keep a paste from running
+	// the counter off into the thousands. Two units per allowed byte leaves
+	// every comment that fits typeable - the densest of them, all emoji or
+	// all Cyrillic, is half that - and no single unit is worth more than
+	// three bytes, so `deepest` is as far below zero as the counter can go.
+	field->setMaxLength(kSendCommentMaxLength);
+	const auto deepest = 3 * kSendCommentMaxLength - kSendCommentMaxBytes;
+	const auto widest = limitSt.style.font->width(
+		QChar(0x2212) + QString::number(deepest));
+	field->setAdditionalMargins({
+		0,
+		0,
+		std::max(rightSkip + widest - field->st().textMargins.right(), 0),
+		0,
 	});
-	field->setMaxLength(-1);
 }
 
 struct SendQuoteDependencies {
@@ -4460,14 +4542,6 @@ void AddCommentPrivacy(
 			comment.isPublic,
 			Ui::Checkbox::NotifyAboutChange::DontNotify);
 	}, checkbox->lifetime());
-	container->add(
-		object_ptr<Ui::FlatLabel>(
-			container,
-			tr::lng_wallet_comment_limit(
-				lt_limit,
-				rpl::single(QString::number(kSendCommentMaxBytes))),
-			st::walletCommentCaptionLabel),
-		st::walletCommentCaptionMargin);
 	const auto warning = container->add(
 		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
 			container,
@@ -4481,21 +4555,6 @@ void AddCommentPrivacy(
 		return comment.isPublic;
 	}));
 	warning->finishAnimating();
-	const auto error = container->add(
-		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
-			container,
-			object_ptr<Ui::FlatLabel>(
-				container,
-				tr::lng_wallet_comment_too_long(
-					lt_limit,
-					rpl::single(QString::number(kSendCommentMaxBytes))),
-				st::walletCommentErrorLabel),
-			st::walletCommentCaptionMargin));
-	error->toggleOn(draft->comment.value() | rpl::map([](
-			const SendComment &comment) {
-		return !CommentFits(comment.text);
-	}));
-	error->finishAnimating();
 }
 
 void WalletSendCommentBox(
@@ -4556,10 +4615,7 @@ void WalletSendCommentBox(
 			lt_amount,
 			Ui::FormatTonAmount(minTransferNano).full);
 	case SendError::CommentTooLong:
-		return tr::lng_wallet_comment_too_long(
-			tr::now,
-			lt_limit,
-			QString::number(kSendCommentMaxBytes));
+		return tr::lng_wallet_comment_too_long(tr::now);
 	case SendError::CommentEncryptionUnavailable:
 		return tr::lng_wallet_comment_encryption_failed(tr::now);
 	// A balance that covers the amount but not the fee is the same problem
@@ -4705,7 +4761,7 @@ void SetButtonDisabledLook(
 	const auto pill = Ui::CreateChild<Ui::RoundButton>(
 		wrap,
 		std::move(fiat) | rpl::map([](QString text) {
-			return text + u" ⇄"_q;
+			return text + u" ↑↓"_q;
 		}),
 		st::walletSendUserFiatButton);
 	pill->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
@@ -5258,6 +5314,7 @@ void WalletSendConfirmBox(
 		box,
 		item,
 		st::boxTitleHeight + st::walletDetailsAmountTopSkip,
+		st::walletDetailsAmountBottomSkip,
 		FiatRateValue(session));
 
 	const auto details = box->addRow(
@@ -5311,6 +5368,9 @@ void WalletSendConfirmBox(
 		st::walletCommentFieldMargin);
 	BindCommentField(field, draft);
 	AddSendCommentLock(field, st::walletSendConfirmCommentField, draft);
+	ApplyCommentLimit(
+		field,
+		st::walletSendConfirmLock.width + st::walletCommentLimitSkip);
 	rpl::duplicate(args.busy) | rpl::on_next([=](bool busy) {
 		field->setDisabled(busy);
 	}, field->lifetime());

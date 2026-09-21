@@ -8842,6 +8842,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_chip_nft" = "Collectible";
 "lng_wallet_rows_hidden_below" = "Transactions under {amount} Grams are hidden.";
 "lng_wallet_details_title" = "Transaction";
+"lng_wallet_details_ticker#one" = "GRAM";
+"lng_wallet_details_ticker#other" = "GRAMS";
 "lng_wallet_details_sender" = "Sender";
 "lng_wallet_details_recipient" = "Recipient";
 "lng_wallet_details_send" = "Send";
@@ -8870,7 +8872,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_send_title" = "Send Grams";
 "lng_wallet_send_money" = "Money";
 "lng_wallet_profile_send_money" = "Send Money";
-"lng_wallet_send_user_title" = "Send Money to {user}";
+"lng_wallet_send_user_title" = "Send to {user}";
 "lng_wallet_send_user_unavailable" = "This user can't receive Grams.";
 "lng_wallet_send_user_load_error" = "The recipient's wallet couldn't be loaded. Please try again.";
 "lng_wallet_send_recipient_loading" = "Looking up the recipient's wallet...";
@@ -8893,8 +8895,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_comment_title" = "Add comment";
 "lng_wallet_comment_placeholder" = "Optional message";
 "lng_wallet_comment_make_public" = "Make comment public";
-"lng_wallet_comment_limit" = "Maximum {limit} UTF-8 bytes.";
-"lng_wallet_comment_too_long" = "This comment is too long. Use at most {limit} UTF-8 bytes.";
+"lng_wallet_comment_too_long" = "This comment is too long.";
 "lng_wallet_comment_encryption_failed" = "This comment couldn't be encrypted. Try again, make it public, edit it, or remove it.";
 "lng_wallet_comment_public" = "Public comments are written to the blockchain and permanently visible to everyone. Never include private information.";
 "lng_wallet_comment_add" = "Add";

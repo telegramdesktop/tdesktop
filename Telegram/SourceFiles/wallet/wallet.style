@@ -262,9 +262,14 @@ walletDetailsAmountMinorLabel: FlatLabel(walletDetailsAmountMajorLabel) {
 		font: font(22px semibold);
 	}
 }
+walletDetailsTickerLabel: FlatLabel(walletDetailsAmountMinorLabel) {
+	textFg: windowActiveTextFg;
+}
 walletDetailsAmountMinorSkip: 6px;
+walletDetailsTickerSkip: 6px;
 walletDetailsMarkSize: 24px;
 walletDetailsIconMargin: margins(6px, -2px, 0px, 0px);
+walletDetailsLottieSize: 52px;
 walletDetailsAmountTopSkip: 24px;
 walletDetailsAmountBottomSkip: 20px;
 walletDetailsFiatLabel: FlatLabel(defaultFlatLabel) {
@@ -365,8 +370,13 @@ walletSendUserErrorLabel: FlatLabel(walletSendErrorLabel) {
 	align: align(top);
 }
 walletSendUserFiatButton: RoundButton(defaultTableSmallButton) {
-	textFg: currencyFg;
-	textFgOver: currencyFg;
+	textFg: windowSubTextFg;
+	textFgOver: windowSubTextFg;
+	textBg: windowBgOver;
+	textBgOver: windowBgOver;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgRipple;
+	}
 }
 walletCommentField: InputField(walletSendAddressField) {
 	textMargins: margins(0px, 10px, 0px, 2px);
@@ -385,6 +395,7 @@ walletSendConfirmCommentField: InputField(walletCommentField) {
 }
 walletSendConfirmLockOn: icon{{ "menu/lock", windowActiveTextFg }};
 walletSendConfirmLockOff: icon{{ "menu/lock", windowSubTextFg }};
+walletCommentLimitSkip: 4px;
 walletSendConfirmLock: IconButton(defaultIconButton) {
 	width: 28px;
 	height: 28px;

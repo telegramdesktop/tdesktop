@@ -23,6 +23,15 @@ class Account;
 namespace Wallet {
 
 inline constexpr auto kSendCommentMaxBytes = 960;
+
+// How close to the limit a comment gets before the field starts counting
+// down. Almost no comment is long enough to ever show the counter.
+inline constexpr auto kSendCommentWarnBytes = 50;
+
+// What a comment field accepts, in UTF-16 units. It is not the limit, which
+// counts bytes and is enforced by refusing to send; it only bounds how far
+// past the limit a paste can carry a comment.
+inline constexpr auto kSendCommentMaxLength = 2 * kSendCommentMaxBytes;
 inline constexpr auto kSubmittedTransferMaxRecords = 64;
 inline constexpr auto kSubmittedTransferMaxBytes = 4 * 1024 * 1024;
 inline constexpr auto kSubmittedTransferTokenMaxBytes = 1024 * 1024;

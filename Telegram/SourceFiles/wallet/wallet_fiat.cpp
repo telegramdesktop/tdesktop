@@ -85,7 +85,9 @@ QString FormatFiat(
 	const auto rule = Ui::LookupCurrencyRule(rate.currency);
 	const auto name = Ui::CurrencyName(rate.currency);
 	const auto digits = FiatDigits(nanoAmount, rate, decimals, rule);
-	auto result = approximate ? QString(QChar('~')) : QString();
+	// U+2248 ALMOST EQUAL TO, not a plain tilde: the pill shows a converted
+	// value, and the double-stroke sign is what reads as an approximation.
+	auto result = approximate ? QString(QChar(0x2248)) : QString();
 	if (rule.left) {
 		result += name;
 		if (rule.space) {
