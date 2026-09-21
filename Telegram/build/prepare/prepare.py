@@ -1987,6 +1987,14 @@ release:
 # umbrella stage has to see them, see there.
 tlottieRevision = '31f1b542f8'
 walletEngineRevision = '12f0b49a1c0fbd6cd575bcadd9c54e5706b0f42e'
+# The engine carries a Telegram-owned change until upstream takes it: the
+# diff travels with the source tree next to this script, its digest rides
+# in the versions below and its path reaches the stage through an env var
+# that is not part of any cache key, so the checkouts sharing Libraries/
+# compute one key. Docker and snap do not apply it yet.
+walletEnginePatch = os.path.join(scriptPath, 'wallet-engine-ton-connect-sessions.diff')
+walletEnginePatchHash = computeFileHash(walletEnginePatch)
+modifiedEnv['TDESKTOP_WALLET_ENGINE_PATCH'] = walletEnginePatch
 stage('tlottie', """
 version: 2
 depends:patches/tlottie.patch
@@ -1997,7 +2005,7 @@ depends:patches/tlottie.patch
 """)
 
 stage('wallet-engine', """
-version: 2
+version: 2.""" + walletEnginePatchHash + """
 win:
     SET "GIT_LFS_SKIP_SMUDGE=1"
 mac:
@@ -2006,6 +2014,7 @@ win_mac:
     git clone https://github.com/i582/wallet-engine.git
     cd wallet-engine
     git checkout """ + walletEngineRevision + """
+    git apply "$TDESKTOP_WALLET_ENGINE_PATCH"
 """)
 
 # Every Rust library is built into one archive. A Rust staticlib carries its
@@ -2023,8 +2032,9 @@ win_mac:
 # revisions ride in the version for that, and the counter in front of them
 # flushes a cache whose generated source the CI prune had already deleted.
 # The tlottie patch rewrites those sources too, so it is a dependency here.
+# The engine diff rides in the version for the same reason.
 stage('tdesktop_rust', """
-version: 2.""" + tlottieRevision + '.' + walletEngineRevision + """
+version: 2.""" + tlottieRevision + '.' + walletEngineRevision + '.' + walletEnginePatchHash + """
 depends:patches/tlottie.patch
 win:
     SET "RUSTUP_HOME=%THIRDPARTY_DIR%\\rust\\rustup"
