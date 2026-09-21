@@ -107,6 +107,8 @@ void Rates::request() {
 		_requestId = 0;
 		applyRates(result);
 	}).fail([=](const MTP::Error &error) {
+		LOG(("Wallet Error: payments.getCurrencyRates failed: %1"
+			).arg(error.type()));
 		_requestId = 0;
 		scheduleRefresh(true);
 	}).send();

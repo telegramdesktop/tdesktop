@@ -85,6 +85,8 @@ mtpRequestId Api::request(
 			if (!requestAnswered(requestId)) {
 				return;
 			}
+			LOG(("Wallet Error: toncenter.%1 failed: %2"
+				).arg(request.endpoint, error.type()));
 			if (fail) {
 				fail(Gram::ApiError{
 					.code = error.code(),
@@ -130,7 +132,10 @@ mtpRequestId Api::requestStreamingUrl(
 	}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
 		if (!requestAnswered(requestId)) {
 			return;
-		} else if (fail) {
+		}
+		LOG(("Wallet Error: toncenter.getStreamingUrl failed: %1"
+			).arg(error.type()));
+		if (fail) {
 			fail(Gram::ApiError{
 				.code = error.code(),
 				.message = error.type(),

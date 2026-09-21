@@ -229,9 +229,10 @@ void UserAddresses::resolveOwner(QString address, Fn<void(AddressOwner)> done) {
 		finishOwner(canonical, std::move(owner), true);
 	}).fail([=](const MTP::Error &error) {
 		if (error.type() == u"WALLET_UNAVAILABLE"_q) {
-			LOG(("Wallet Error: wallet.getUserAddresses is unavailable."));
 			_unavailable = true;
 		}
+		LOG(("Wallet Error: wallet.getUserAddresses by address failed: %1"
+			).arg(error.type()));
 		finishOwner(canonical, AddressOwner(), false);
 	}).send();
 }

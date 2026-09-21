@@ -480,6 +480,48 @@ struct MergedHead {
 		|| record.unresolved(servedKey);
 }
 
+// Public keys and addresses name a wallet; the words never reach the log.
+[[nodiscard]] QString LogKey(const QByteArray &key) {
+	return key.isEmpty() ? u"(none)"_q : QString::fromLatin1(key.toHex());
+}
+
+[[nodiscard]] QString SendErrorName(SendError error) {
+	switch (error) {
+	case SendError::None: return u"None"_q;
+	case SendError::InvalidRequest: return u"InvalidRequest"_q;
+	case SendError::AmountTooSmall: return u"AmountTooSmall"_q;
+	case SendError::CommentTooLong: return u"CommentTooLong"_q;
+	case SendError::CommentEncryptionUnavailable:
+		return u"CommentEncryptionUnavailable"_q;
+	case SendError::InsufficientBalance: return u"InsufficientBalance"_q;
+	case SendError::InsufficientFees: return u"InsufficientFees"_q;
+	case SendError::PreviousUnresolved: return u"PreviousUnresolved"_q;
+	case SendError::AlreadySending: return u"AlreadySending"_q;
+	case SendError::SigningUnavailable: return u"SigningUnavailable"_q;
+	case SendError::Locked: return u"Locked"_q;
+	case SendError::Failed: return u"Failed"_q;
+	case SendError::Rejected: return u"Rejected"_q;
+	case SendError::DataInvalid: return u"DataInvalid"_q;
+	case SendError::QuoteExpired: return u"QuoteExpired"_q;
+	case SendError::LinkExpired: return u"LinkExpired"_q;
+	case SendError::Silent: return u"Silent"_q;
+	case SendError::SubmissionUnknown: return u"SubmissionUnknown"_q;
+	}
+	return u"Unknown"_q;
+}
+
+// Every custody flow names its stage and refusal code in one log.txt line.
+[[nodiscard]] Fn<void(const QString &)> LoggedFail(
+		const QString &stage,
+		Fn<void(const QString &)> fail) {
+	return [stage, fail = std::move(fail)](const QString &error) {
+		LOG(("Wallet Error: %1 refused: %2").arg(stage, error));
+		if (fail) {
+			fail(error);
+		}
+	};
+}
+
 struct Restored {
 	engine::WalletDescriptor descriptor;
 	std::vector<QString> words;
@@ -2246,10 +2288,12 @@ void Session::requestGaslessInfo() {
 		if (weak) {
 			refreshGaslessInfo();
 		}
-	}).fail([=](const MTP::Error &) {
+	}).fail([=](const MTP::Error &error) {
 		if (!current()) {
 			return;
 		}
+		LOG(("Wallet Error: the gasless request failed: %1"
+			).arg(error.type()));
 		_gaslessRequestId = 0;
 		_gaslessExpiresAt = 0;
 		refreshGaslessInfo();
@@ -2413,7 +2457,9 @@ void Session::requestExistingWaltBalance() {
 				? qs(data.vurl())
 				: QString();
 		}
-	}).fail([=] {
+	}).fail([=](const MTP::Error &error) {
+		LOG(("Wallet Error: wallet.getExistingWaltBalance failed: %1"
+			).arg(error.type()));
 		_waltBalanceRequestId = 0;
 	}).handleAllErrors().send();
 }
@@ -2966,6 +3012,7 @@ void Session::revealPhrase(
 		Fn<void(const QString &error)> fail,
 		Fn<void()> authorized) {
 	ensureLoaded();
+	fail = LoggedFail(u"phrase reveal"_q, std::move(fail));
 	if (custodyBusy() || custody().pendingRotation) {
 		LOG(("Wallet Error: reveal requested while another is in flight."));
 		if (fail) {
@@ -3107,6 +3154,8 @@ void Session::revealFromShares(
 		if (authorized) {
 			authorized();
 		}
+		LOG(("Wallet Info: wallet.exportSecretPhrase named %1 holder(s)."
+			).arg(int(dcs->size())));
 		fetchShareParts(auth, qs(data.vtoken()), *dcs, done, fail, scope);
 	}).fail([=, this](const MTP::Error &error) {
 		if (!base::take(*pending)) {
@@ -3188,6 +3237,8 @@ void Session::fetchShareParts(
 				return;
 			}
 			if (!OpenSharePart(state, i, result.data().vdata().v)) {
+				LOG(("Wallet Error: share part %1 of %2 did not open."
+					).arg(i + 1).arg(count));
 				FailShareFetch(
 					_stateApi,
 					_shareFetchTimer,
@@ -3304,6 +3355,14 @@ void Session::restoreFromWords(
 	const auto lifecycle = _engine->lifecycle();
 	const auto expectedKey = targetIdentity->publicKey;
 	const auto targetAddress = targetIdentity->address;
+	const auto heldNow = custody().forAddress(targetAddress);
+	LOG(("Wallet Info: restoring %1 word(s) for %2; served key %3, "
+		"held anchor %4, held signing key %5."
+		).arg(int(words.size())
+		).arg(targetAddress
+		).arg(LogKey(expectedKey)
+		).arg(LogKey(heldNow ? heldNow->publicKey : QByteArray())
+		).arg(LogKey(heldNow ? heldNow->signingKey : QByteArray())));
 	const auto crossed = std::make_shared<bool>(false);
 	const auto weakSession = base::make_weak(_session);
 	done = [weakSession, crossed, done = std::move(done)](
@@ -3411,6 +3470,11 @@ void Session::restoreFromWords(
 			};
 			if (record.network != int(engine::Network::kMainnet)
 				|| CanonicalAddress(record.address) != targetAddress) {
+				LOG(("Wallet Error: the import made %1 on network %2, "
+					"not %3."
+					).arg(CanonicalAddress(record.address)
+					).arg(record.network
+					).arg(targetAddress));
 				rollback([=] { fail(u"PHRASE_OTHER_WALLET"_q); });
 				return;
 			} else if (!targetServed()) {
@@ -3500,10 +3564,16 @@ void Session::restoreFromWords(
 			PhraseIdentity identity,
 			std::vector<QString> words) {
 		const auto held = custody().forAddress(targetAddress);
+		LOG(("Wallet Info: the phrase derives anchor %1, signing key %2."
+			).arg(LogKey(identity.anchor), LogKey(identity.signing)));
 		if (held && held->publicKey != identity.anchor) {
+			LOG(("Wallet Error: that anchor is not the held anchor %1."
+				).arg(LogKey(held->publicKey)));
 			fail(u"PHRASE_OTHER_WALLET"_q);
 			return;
 		} else if (identity.signing != expectedKey) {
+			LOG(("Wallet Error: that signing key is not the served key %1."
+				).arg(LogKey(expectedKey)));
 			fail(u"PHRASE_OUTDATED"_q);
 			return;
 		}
@@ -3534,6 +3604,8 @@ void Session::restoreFromWords(
 	validatePhraseIdentity(words, [=, this](
 			std::optional<PhraseIdentity> identity) mutable {
 		if (!identity) {
+			LOG(("Wallet Error: no identity derives from %1 word(s)."
+				).arg(int(words.size())));
 			fail(u"PHRASE_INVALID_PHRASE"_q);
 			return;
 		}
@@ -3541,11 +3613,16 @@ void Session::restoreFromWords(
 			return AnchorDerivesOtherAddress(lifecycle, anchor, targetAddress);
 		}, [=, words = std::move(words)](bool other) mutable {
 			if (other) {
+				LOG(("Wallet Error: anchor %1 derives an address "
+					"other than %2."
+					).arg(LogKey(identity->anchor), targetAddress));
 				fail(u"PHRASE_OTHER_WALLET"_q);
 			} else {
 				verified(*identity, std::move(words));
 			}
-		}, [=](EngineError) {
+		}, [=](EngineError error) {
+			LOG(("Wallet Error: the anchor address check failed: %1"
+				).arg(LifecycleErrorName(error)));
 			fail(u"PHRASE_IMPORT_FAILED"_q);
 		});
 	});
@@ -3574,6 +3651,7 @@ void Session::restoreFromPhrase(
 		std::shared_ptr<CommentScope> scope,
 		Fn<void(KeyAuthorization)> done,
 		Fn<void(const QString &error)> fail) {
+	fail = LoggedFail(u"phrase restore"_q, std::move(fail));
 	if (scope) {
 		// A scope over a vault this process cannot open carries that vault's
 		// record, which the confirmed reset drops before the install. The
@@ -3683,6 +3761,7 @@ void Session::restoreFromBackup(
 		std::shared_ptr<CommentScope> scope,
 		Fn<void(KeyAuthorization)> done,
 		Fn<void(const QString &error)> fail) {
+	fail = LoggedFail(u"backup restore"_q, std::move(fail));
 	if (scope) {
 		// A scope over a vault this process cannot open carries that vault's
 		// record, which the confirmed reset drops before the install. The
@@ -3764,6 +3843,7 @@ void Session::revealParked(
 		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
+	fail = LoggedFail(u"parked reveal"_q, std::move(fail));
 	if (custodyBusy()) {
 		LOG(("Wallet Error: reveal requested while another is in flight."));
 		if (fail) {
@@ -3838,6 +3918,7 @@ void Session::dropParked(
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
+	fail = LoggedFail(u"parked drop"_q, std::move(fail));
 	if (custodyBusy()) {
 		LOG(("Wallet Error: drop requested while another is in flight."));
 		if (fail) {
@@ -3894,6 +3975,7 @@ void Session::prepareBackupParts(
 		Fn<void(std::vector<QByteArray>)> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
+	fail = LoggedFail(u"backup parts"_q, std::move(fail));
 	if (custodyBusy() || custody().pendingRotation) {
 		LOG(("Wallet Error: backup requested while another is in flight."));
 		if (fail) {
@@ -3981,6 +4063,7 @@ void Session::disableBackup(
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
+	fail = LoggedFail(u"backup disable"_q, std::move(fail));
 	if (custodyBusy() || custody().pendingRotation) {
 		LOG(("Wallet Error: backup disable requested "
 			"while another is in flight."));
@@ -4043,6 +4126,7 @@ void Session::disableBackupWithProof(
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
+	fail = LoggedFail(u"backup disable"_q, std::move(fail));
 	if (custodyBusy() || custody().pendingRotation) {
 		LOG(("Wallet Error: backup disable requested "
 			"while another is in flight."));
@@ -4198,6 +4282,7 @@ void Session::enableBackup(
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
+	fail = LoggedFail(u"backup enable"_q, std::move(fail));
 	if (custodyBusy() || custody().pendingRotation) {
 		LOG(("Wallet Error: backup enable requested "
 			"while another is in flight."));
@@ -4372,6 +4457,7 @@ void Session::prepareRotation(
 		Fn<void(std::vector<QString>)> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
+	fail = LoggedFail(u"rotation prepare"_q, std::move(fail));
 	if (custodyBusy()) {
 		LOG(("Wallet Error: rotation requested while another is in flight."));
 		if (fail) {
@@ -4486,6 +4572,7 @@ void Session::submitRotation(
 		KeyAuthorization auth,
 		Fn<void()> confirmed,
 		Fn<void(const QString &error)> fail) {
+	fail = LoggedFail(u"rotation submit"_q, std::move(fail));
 	if (_rotationConfirmed) {
 		LOG(("Wallet Error: rotation submitted while another is in flight."));
 		if (fail) {
@@ -4930,6 +5017,7 @@ void Session::replaceWithNew(
 		Fn<void(CustodyOutcome)> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
+	fail = LoggedFail(u"wallet replace"_q, std::move(fail));
 	// A replace and a reveal must never overlap: a shares-restore that
 	// finished after a replace landed would write an active custody record
 	// for the replaced key and show stale words. Both flows write the same
@@ -4982,6 +5070,7 @@ void Session::replaceWithImported(
 		Fn<void(CustodyOutcome)> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
+	fail = LoggedFail(u"wallet replace"_q, std::move(fail));
 	if (custodyBusy()) {
 		LOG(("Wallet Error: replace requested while another is in flight."));
 		if (fail) {
@@ -6757,6 +6846,15 @@ void Session::estimateFee(
 	if (!_preview || !_preview->owners.contains(owner)) {
 		return;
 	}
+	done = [done = std::move(done)](FeeResult result) {
+		if (result.error != SendError::None) {
+			LOG(("Wallet Error: the fee estimate answered %1."
+				).arg(SendErrorName(result.error)));
+		}
+		if (done) {
+			done(std::move(result));
+		}
+	};
 	const auto inputError = !SendCommentFits(args.comment.text)
 		? SendError::CommentTooLong
 		: (args.amountNano <= 0
@@ -7193,6 +7291,15 @@ void Session::send(
 		std::shared_ptr<const PreparedSend> prepared,
 		Fn<void(SendError)> done,
 		Fn<void(FullMsgId)> drafted) {
+	done = [done = std::move(done)](SendError error) {
+		if (error != SendError::None) {
+			LOG(("Wallet Error: the send answered %1."
+				).arg(SendErrorName(error)));
+		}
+		if (done) {
+			done(error);
+		}
+	};
 	const auto fail = [&](SendError error) {
 		if (done) {
 			done(error);

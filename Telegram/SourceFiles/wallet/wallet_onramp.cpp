@@ -505,6 +505,8 @@ void Onramp::fail(
 	if (!active(lane, generation)) {
 		return;
 	}
+	LOG(("Wallet Error: an onramp request failed: %1 (%2)"
+		).arg(error.type).arg(error.code));
 	const auto id = base::take(lane.id);
 	lane.activeGeneration = 0;
 	if (id) {
