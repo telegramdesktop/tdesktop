@@ -2042,19 +2042,21 @@ void AddPendingFeeTableRow(
 			tr::lng_wallet_details_fee_unknown(tr::marked));
 		return;
 	}
-	const auto size = table->st().defaultValue.style.font->height;
-	auto value = object_ptr<Ui::RpWidget>(table);
-	const auto raw = value.data();
-	raw->resize(size, size);
-	const auto loading = Info::Statistics::InfiniteRadialAnimationWidget(
-		raw,
-		size);
-	Info::Statistics::AddChildToWidgetCenter(raw, loading);
-	loading->showOn(rpl::single(true));
+	const auto &font = table->st().defaultValue.style.font;
+	auto helper = Ui::Text::CustomEmojiHelper();
+	const auto diamond = GramMark(helper, font);
 	Ui::AddTableRow(
 		table,
 		tr::lng_wallet_details_fee(),
-		std::move(value));
+		tr::lng_wallet_details_fee_loading(
+			tr::italic
+		) | rpl::map([=](TextWithEntities text) {
+			auto result = diamond;
+			result.append(QChar(' '));
+			result.append(std::move(text));
+			return result;
+		}),
+		helper.context());
 }
 
 void AddFeeTableRow(
@@ -5343,6 +5345,7 @@ void WalletSendConfirmBox(
 	struct State {
 		std::optional<SendConfirmFee> built;
 		SendConfirmFee pending;
+		SendConfirmFee shown;
 		bool scheduled = false;
 	};
 	const auto state = box->lifetime().make_state<State>();
@@ -5364,17 +5367,24 @@ void WalletSendConfirmBox(
 		state->scheduled = true;
 		Ui::PostponeCall(box, [=] {
 			state->scheduled = false;
-			if (state->built == state->pending) {
+			// The counted value stands while the next one is counted.
+			auto shown = state->pending;
+			if (shown.feeNano) {
+				state->shown = shown;
+			} else if (shown.pending && state->shown.feeNano) {
+				shown = state->shown;
+			}
+			if (state->built == shown) {
 				return;
 			}
-			state->built = state->pending;
+			state->built = shown;
 			details->clear();
 			FillSendConfirmTable(
 				details,
 				box->uiShow(),
 				session,
 				address,
-				state->pending,
+				shown,
 				openedAt);
 		});
 	}, details->lifetime());
@@ -5495,12 +5505,12 @@ void WalletSendBox(
 		bool forceIssued = false;
 		bool terminal = false;
 		bool recomputeQueued = false;
+		bool feeRefreshQueued = false;
 		rpl::variable<bool> loading = false;
 		rpl::variable<QString> loadError;
 		rpl::variable<bool> silentFailure = false;
 		rpl::variable<int64> amount = 0;
 		rpl::variable<int64> fee = 0;
-		rpl::variable<int64> knownFee = 0;
 		rpl::variable<int64> minTransfer = kTransferMinNanosDefault;
 		std::shared_ptr<SendDraft> draft = std::make_shared<SendDraft>();
 		rpl::variable<bool> sending = false;
@@ -6092,6 +6102,14 @@ void WalletSendBox(
 		if (state->previewDependencies == dependencies) {
 			return;
 		}
+		// WHY: an estimate prices the whole input, so a change made while
+		// one is counting waits for it and is counted once, instead of a
+		// count queued for every letter typed into the comment.
+		if (draft->preparing.current() && !state->sending.current()) {
+			state->feeRefreshQueued = true;
+			return;
+		}
+		state->feeRefreshQueued = false;
 		state->previewDependencies = dependencies;
 		invalidateFee();
 		if (!CommentFits(dependencies.comment.text)) {
@@ -6107,15 +6125,18 @@ void WalletSendBox(
 			scheduleContinueSend();
 		}
 	};
-	state->fee = draft->quote.value() | rpl::map([](
-			const std::optional<SendQuote> &quote) {
-		return quote ? quote->feeNano : int64(0);
-	});
+	// The last counted fee stands while the next one is counted.
 	draft->quote.value() | rpl::on_next([=](
 			const std::optional<SendQuote> &quote) {
 		if (quote) {
-			state->knownFee = quote->feeNano;
+			state->fee = quote->feeNano;
 		}
+	}, box->lifetime());
+	draft->preparing.changes() | rpl::on_next([=](bool preparing) {
+		if (preparing || !base::take(state->feeRefreshQueued)) {
+			return;
+		}
+		Ui::PostponeCall(box, refreshFee);
 	}, box->lifetime());
 	state->amount.value() | rpl::on_next(refreshFee, box->lifetime());
 	draft->comment.changes() | rpl::on_next(refreshFee, box->lifetime());
@@ -6244,14 +6265,14 @@ void WalletSendBox(
 				balance,
 				tr::lng_wallet_send_network_fee(
 					lt_amount,
-					state->knownFee.value() | rpl::map([](int64 nano) {
+					state->fee.value() | rpl::map([](int64 nano) {
 						return Ui::FormatTonAmount(nano).full;
 					})),
 				st::walletSendUserBalanceLabel)),
 		style::al_justify);
 	feeWrap->toggleOn(rpl::combine(
 		state->amount.value(),
-		state->knownFee.value(),
+		state->fee.value(),
 		wallet->gaslessTermsValue(),
 		draft->quote.value(),
 		state->insufficient.value(),
