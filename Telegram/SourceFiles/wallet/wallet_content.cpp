@@ -1661,6 +1661,38 @@ void AddHistoryRow(
 	return result;
 }
 
+// WHY: it plays once when the box finishes showing and a click replays it
+// once it has stopped, with no pointer cursor or anything else saying so,
+// because finding that out is the whole of it.
+void AddWalletLottie(not_null<Ui::GenericBox*> box, int topSkip = 0) {
+	const auto size = st::walletDetailsLottieSize;
+	auto icon = Settings::CreateLottieIcon(
+		box->verticalLayout(),
+		{
+			.name = u"gram"_q,
+			.sizeOverride = { size, size },
+		},
+		style::margins(0, topSkip, 0, 0));
+	const auto raw = icon.widget.data();
+	const auto animate = icon.animate;
+	const auto animating = icon.animating;
+	box->verticalLayout()->add(std::move(icon.widget));
+	const auto replay = Ui::CreateChild<Ui::AbstractButton>(raw);
+	replay->setPointerCursor(false);
+	replay->setClickedCallback([=] {
+		if (!animating()) {
+			animate(anim::repeat::once);
+		}
+	});
+	// The same rect the icon paints into: centered in the row, under the skip.
+	raw->sizeValue() | rpl::on_next([=](QSize outer) {
+		replay->setGeometry((outer.width() - size) / 2, topSkip, size, size);
+	}, replay->lifetime());
+	box->showFinishes() | rpl::on_next([=] {
+		animate(anim::repeat::once);
+	}, box->lifetime());
+}
+
 void AddDetailsAmountHeader(
 		not_null<Ui::GenericBox*> box,
 		const TransferItem &item,
@@ -4040,21 +4072,7 @@ void WalletTransactionBox(
 	} else {
 		// The animation stands where a top skip used to, so the amount and
 		// everything under it move up by that much under the box title.
-		auto icon = Settings::CreateLottieIcon(
-			box->verticalLayout(),
-			{
-				.name = u"gram"_q,
-				.sizeOverride = {
-					st::walletDetailsLottieSize,
-					st::walletDetailsLottieSize,
-				},
-			});
-		box->verticalLayout()->add(std::move(icon.widget));
-		box->showFinishes() | rpl::on_next([
-			animate = std::move(icon.animate)
-		] {
-			animate(anim::repeat::once);
-		}, box->lifetime());
+		AddWalletLottie(box);
 		AddDetailsAmountHeader(
 			box,
 			state->item,
@@ -5307,13 +5325,16 @@ void WalletSendConfirmBox(
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
+	// An empty title keeps the band the close button stands in.
+	box->setTitle(rpl::single(QString()));
 
 	auto item = TransferItem();
 	item.amountNano = args.amountNano;
+	AddWalletLottie(box);
 	AddDetailsAmountHeader(
 		box,
 		item,
-		st::boxTitleHeight + st::walletDetailsAmountTopSkip,
+		st::walletDetailsLottieSkip,
 		st::walletDetailsAmountBottomSkip,
 		FiatRateValue(session));
 

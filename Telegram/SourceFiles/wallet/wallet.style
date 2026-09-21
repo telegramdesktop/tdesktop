@@ -270,6 +270,7 @@ walletDetailsTickerSkip: 6px;
 walletDetailsMarkSize: 24px;
 walletDetailsIconMargin: margins(6px, -2px, 0px, 0px);
 walletDetailsLottieSize: 52px;
+walletDetailsLottieSkip: 4px;
 walletDetailsAmountTopSkip: 24px;
 walletDetailsAmountBottomSkip: 20px;
 walletDetailsFiatLabel: FlatLabel(defaultFlatLabel) {

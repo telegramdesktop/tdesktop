@@ -309,6 +309,7 @@ void AddDividerTextWithLottie(
 struct LottieIcon {
 	object_ptr<Ui::RpWidget> widget;
 	Fn<void(anim::repeat repeat)> animate;
+	Fn<bool()> animating;
 };
 [[nodiscard]] LottieIcon CreateLottieIcon(
 	not_null<QWidget*> parent,
