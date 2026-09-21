@@ -521,7 +521,12 @@ parts:
     source-depth: 1
     source-commit: 12f0b49a1c0fbd6cd575bcadd9c54e5706b0f42e
     plugin: nil
+    override-pull: |
+      craftctl default
+      git apply "$CRAFT_STAGE/patches/wallet-engine.patch"
     prime: [-./*]
+    after:
+      - patches
 
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
