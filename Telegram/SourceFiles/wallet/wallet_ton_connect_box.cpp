@@ -55,6 +55,25 @@ void AddLabel(
 		st::boxRowPadding);
 }
 
+void AddApp(
+		not_null<Ui::VerticalLayout*> content,
+		const TonConnectBoxState &now) {
+	const auto named = !now.name.isEmpty() && (now.name != now.domain);
+	const auto hosted = !now.domain.isEmpty();
+	if (named) {
+		AddLabel(content, rpl::single(now.name), st::boxLabel);
+	}
+	if (hosted) {
+		AddLabel(
+			content,
+			rpl::single(now.domain),
+			st::walletCommentCaptionLabel);
+	}
+	if (named || hosted) {
+		Ui::AddSkip(content);
+	}
+}
+
 void UpdateConfirm(
 		not_null<State*> state,
 		const TonConnectBoxState &now,
@@ -92,14 +111,13 @@ void FillConfirm(
 		const TonConnectBoxState &now,
 		Fn<void()> connect) {
 	const auto content = box->verticalLayout();
-	AddLabel(content, rpl::single(now.domain), st::walletSendBalanceLabel);
-	Ui::AddSkip(content);
+	AddApp(content, now);
 	AddLabel(content, tr::lng_wallet_connect_permission(), st::boxLabel);
 	Ui::AddSkip(content);
 	AddLabel(
 		content,
 		tr::lng_wallet_connect_address(),
-		st::walletSendBalanceLabel);
+		st::walletCommentCaptionLabel);
 	AddLabel(
 		content,
 		rpl::single(now.address),
@@ -112,11 +130,11 @@ void FillConfirm(
 	AddLabel(
 		content,
 		tr::lng_wallet_connect_reassurance(),
-		st::walletSendBalanceLabel);
+		st::walletCommentCaptionLabel);
 	state->error = content->add(
 		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
 			content,
-			object_ptr<Ui::FlatLabel>(content, st::walletSendErrorLabel),
+			object_ptr<Ui::FlatLabel>(content, st::walletCommentErrorLabel),
 			style::margins(0, st::defaultVerticalListSkip, 0, 0)),
 		st::boxRowPadding);
 	Ui::AddSkip(content);
@@ -133,13 +151,7 @@ void FillNotice(
 		not_null<Ui::GenericBox*> box,
 		const TonConnectBoxState &now) {
 	const auto content = box->verticalLayout();
-	if (!now.domain.isEmpty()) {
-		AddLabel(
-			content,
-			rpl::single(now.domain),
-			st::walletSendBalanceLabel);
-		Ui::AddSkip(content);
-	}
+	AddApp(content, now);
 	AddLabel(content, rpl::single(now.notice), st::boxLabel);
 	Ui::AddSkip(content);
 	box->addButton(tr::lng_close(), [=] { box->closeBox(); });
@@ -168,6 +180,7 @@ void Rebuild(
 } // namespace
 
 void TonConnectBox(not_null<Ui::GenericBox*> box, TonConnectBoxArgs args) {
+	box->setTitle(tr::lng_wallet_connect_title());
 	box->setWidth(st::boxWidth);
 	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 
@@ -185,11 +198,6 @@ void TonConnectBox(not_null<Ui::GenericBox*> box, TonConnectBoxArgs args) {
 		args.state
 	) | rpl::on_next([=, connect = args.connect](
 			const TonConnectBoxState &now) {
-		box->setTitle(now.name.isEmpty()
-			? tr::lng_wallet_connect_title()
-			: tr::lng_wallet_connect_title_app(
-				lt_name,
-				rpl::single(now.name)));
 		if (state->built && SameStructure(*state->built, now)) {
 			UpdateConfirm(state, now, anim::type::normal);
 		} else {

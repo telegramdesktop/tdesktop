@@ -9090,7 +9090,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_buy_session_error" = "Payment page couldn't be opened. Try again.";
 "lng_wallet_buy_retry" = "Retry";
 "lng_wallet_connect_title" = "Connect Wallet";
-"lng_wallet_connect_title_app" = "Connect wallet to {name}";
 "lng_wallet_connect_loading" = "Loading app details…";
 "lng_wallet_connect_address" = "Wallet address";
 "lng_wallet_connect_permission" = "The app will be able to view your TON address, balance and activity.";
