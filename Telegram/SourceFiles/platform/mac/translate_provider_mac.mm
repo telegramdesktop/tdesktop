@@ -64,7 +64,6 @@ public:
 				auto guard = std::unique_ptr<CallbackContext>(
 					static_cast<CallbackContext*>(context));
 				auto done = std::move(guard->done);
-				const auto isAlive = (guard->provider.get() != nullptr);
 				auto result = Ui::TranslateProviderResult();
 				if (resultUtf8 != nullptr) {
 					result.text = TextWithEntities{
@@ -78,10 +77,7 @@ public:
 				} else if (!result.text.has_value()) {
 					result.error = Ui::TranslateProviderError::Unknown;
 				}
-				if (!isAlive) {
-					return;
-				}
-				crl::on_main([=,
+				crl::on_main(std::move(guard->provider), [=,
 						done = std::move(done),
 						result = std::move(result)] {
 					done(std::move(result));
