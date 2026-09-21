@@ -32,6 +32,7 @@ struct TonConnectLink {
 
 [[nodiscard]] std::optional<QString> TonConnectStartParamQuery(
 	const QString &startapp);
+[[nodiscard]] QString TonConnectStartParam(QString query);
 
 [[nodiscard]] std::optional<TonConnectLink> ParseTonConnectLink(
 	const QString &query);

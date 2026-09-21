@@ -117,6 +117,34 @@ std::optional<QString> TonConnectStartParamQuery(const QString &startapp) {
 	return result;
 }
 
+QString TonConnectStartParam(QString query) {
+	const auto fragment = query.indexOf('#');
+	if (fragment >= 0) {
+		query.truncate(fragment);
+	}
+	auto parts = QStringList();
+	query.replace('+', u"%20"_q);
+	const auto pairs = query.split('&', Qt::SkipEmptyParts);
+	for (const auto &pair : pairs) {
+		// toPercentEncoding escapes '%' even when excluded, so split on it.
+		auto chunks = pair.split('%');
+		for (auto &chunk : chunks) {
+			chunk = QString::fromLatin1(
+				QUrl::toPercentEncoding(chunk, "=", "-._~"));
+		}
+		const auto part = chunks.join('%');
+		// WHY: a pair that starts with an escaped byte would follow its
+		// separator as "---", which decodes to "%&" instead of "&%".
+		if (!part.startsWith('%')) {
+			parts.push_back(part);
+		}
+	}
+	auto result = parts.join('-');
+	result.replace(u"="_q, u"__"_q);
+	result.replace(u"%"_q, u"--"_q);
+	return u"tonconnect-"_q + result;
+}
+
 std::optional<TonConnectLink> ParseTonConnectLink(const QString &query) {
 	if (query.size() > kMaxQueryLength) {
 		return std::nullopt;

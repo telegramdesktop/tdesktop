@@ -1743,16 +1743,6 @@ bool ResolveSendGrams(
 	return true;
 }
 
-bool ResolveTonConnect(
-		Window::SessionController *controller,
-		const Match &match,
-		const QVariant &context) {
-	if (!controller) {
-		return false;
-	}
-	return OpenTonConnectQuery(controller, match->captured(1).mid(1));
-}
-
 bool ResolveOAuth(
 		Window::SessionController *controller,
 		const Match &match,
@@ -1902,10 +1892,6 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 			ResolveSendGrams
 		},
 		{
-			u"^tonconnect/?(\\?.*)?(#|$)"_q,
-			ResolveTonConnect
-		},
-		{
 			u"^oauth/?\\?(.+)(#|$)"_q,
 			ResolveOAuth
 		},
@@ -1997,8 +1983,9 @@ QString TryConvertUrlToLocal(QString url) {
 	}
 	if (url.startsWith(u"tc://"_q, Qt::CaseInsensitive)) {
 		const auto query = url.indexOf('?');
-		return u"tg://tonconnect"_q
-			+ ((query < 0) ? QString() : url.mid(query));
+		return u"tg://sendgrams?startapp="_q
+			+ Wallet::TonConnectStartParam(
+				(query < 0) ? QString() : url.mid(query + 1));
 	}
 
 	using namespace qthelp;
