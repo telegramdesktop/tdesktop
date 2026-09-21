@@ -527,6 +527,28 @@ walletAddressPlateInner: 10px;
 walletAddressPlateRadius: 10px;
 walletAddressPlateSkip: 14px;
 
+walletSendUserCardRadius: walletAddressPlateRadius;
+walletSendUserCardPadding: margins(10px, 10px, 10px, 10px);
+walletSendUserCardPhoto: 32px;
+walletSendUserCardPhotoSkip: 8px;
+walletSendUserCardNameFont: font(14px semibold);
+walletSendUserCardNameSkip: 6px;
+walletSendUserCardTextSkip: 4px;
+walletSendUserCardAboutSkip: 6px;
+walletSendUserCardTopSkip: 12px;
+walletSendUserCardAmountSkip: 12px;
+walletSendUserCardAbout: IconButton(defaultIconButton) {
+	width: 24px;
+	height: 24px;
+	icon: icon{{ "menu/faq", windowActiveTextFg }};
+	iconOver: icon{{ "menu/faq", windowActiveTextFg }};
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 24px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgRipple;
+	}
+}
+
 walletInfoBarLabel: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;
 	textFg: windowActiveTextFg;
