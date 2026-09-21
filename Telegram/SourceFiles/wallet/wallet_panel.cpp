@@ -21,6 +21,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_address.h"
 #include "wallet/wallet_content.h"
 #include "wallet/wallet_session.h"
+#include "wallet/wallet_ton_connect.h"
+#include "wallet/wallet_ton_connect_link.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 
 #include "styles/style_wallet.h"
@@ -159,7 +162,31 @@ void OpenSendGramsLink(
 void OpenTonConnectLink(
 		not_null<Window::SessionController*> controller,
 		const TonConnectLink &link) {
-	ShowWallet(&controller->session());
+	if (link.kind != TonConnectLinkKind::Connect) {
+		ShowWallet(&controller->session());
+		return;
+	}
+	controller->session().wallet().tonConnect().connect(controller, link);
+}
+
+std::shared_ptr<Main::SessionShow> TonConnectBoxShow(
+		not_null<Window::SessionController*> controller) {
+	const auto session = &controller->session();
+	if (session->wallet().panel()) {
+		ShowWallet(session);
+	} else {
+		controller->window().activate();
+	}
+	return TonConnectBoxShowNoActivate(controller);
+}
+
+std::shared_ptr<Main::SessionShow> TonConnectBoxShowNoActivate(
+		not_null<Window::SessionController*> controller) {
+	const auto session = &controller->session();
+	if (const auto panel = session->wallet().panel()) {
+		return Main::MakeSessionShow(panel->uiShow(), session);
+	}
+	return controller->uiShow();
 }
 
 } // namespace Wallet

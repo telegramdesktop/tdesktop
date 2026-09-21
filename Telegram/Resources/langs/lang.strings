@@ -9089,6 +9089,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_buy_error" = "Payment options couldn't be loaded. Try again.";
 "lng_wallet_buy_session_error" = "Payment page couldn't be opened. Try again.";
 "lng_wallet_buy_retry" = "Retry";
+"lng_wallet_connect_title" = "Connect Wallet";
+"lng_wallet_connect_title_app" = "Connect wallet to {name}";
+"lng_wallet_connect_loading" = "Loading app details…";
+"lng_wallet_connect_address" = "Wallet address";
+"lng_wallet_connect_permission" = "The app will be able to view your TON address, balance and activity.";
+"lng_wallet_connect_reassurance" = "The app won't be able to move funds without permission.";
+"lng_wallet_connect_proof" = "The app also asks you to confirm that this wallet is yours. This is a sign-in signature, not a transfer.";
+"lng_wallet_connect_button" = "Connect";
+"lng_wallet_connect_manifest_missing" = "Couldn't load this app's details, so the wallet was not connected.";
+"lng_wallet_connect_manifest_invalid" = "This app's details are invalid or belong to another domain, so the wallet was not connected.";
+"lng_wallet_connect_key_changing" = "Your wallet key is being changed. Apps can't be connected until the change is confirmed, because the connection and the sign-in signature both use that key.";
+"lng_wallet_connect_no_key" = "This device doesn't hold the current key of this wallet, so it can't connect apps.";
+"lng_wallet_connect_occupied" = "This connection is already used by another session. Start the connection again from the app.";
+"lng_wallet_connect_other_key" = "This connection was started under a different wallet key, so this device can't complete it. Start the connection again from the app.";
+"lng_wallet_connect_expired" = "This connection request is no longer valid. Start the connection again from the app.";
+"lng_wallet_connect_failed" = "Couldn't connect the wallet. Please try again.";
 
 // Wnd specific
 

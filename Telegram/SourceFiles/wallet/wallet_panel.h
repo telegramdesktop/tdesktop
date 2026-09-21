@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Main {
 class Session;
+class SessionShow;
 } // namespace Main
 
 namespace Ui {
@@ -42,5 +43,11 @@ void OpenSendGramsLink(
 void OpenTonConnectLink(
 	not_null<Window::SessionController*> controller,
 	const TonConnectLink &link);
+
+[[nodiscard]] std::shared_ptr<Main::SessionShow> TonConnectBoxShow(
+	not_null<Window::SessionController*> controller);
+
+[[nodiscard]] std::shared_ptr<Main::SessionShow> TonConnectBoxShowNoActivate(
+	not_null<Window::SessionController*> controller);
 
 } // namespace Wallet

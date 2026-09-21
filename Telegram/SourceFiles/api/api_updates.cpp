@@ -2923,6 +2923,11 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		_session->wallet().applyUpdate(data);
 	} break;
 
+	case mtpc_updateWalletTonConnectSession: {
+		const auto &data = update.c_updateWalletTonConnectSession();
+		_session->wallet().applyUpdate(data);
+	} break;
+
 	case mtpc_updatePaidReactionPrivacy: {
 		const auto &data = update.c_updatePaidReactionPrivacy();
 		_session->api().globalPrivacy().updatePaidReactionShownPeer(

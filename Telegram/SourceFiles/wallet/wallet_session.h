@@ -48,6 +48,12 @@ class Onramp;
 class Rates;
 class Session;
 struct ShareFetch;
+class TonConnect;
+enum class TonConnectAccess : uchar;
+struct TonConnectEventRequest;
+struct TonConnectKey;
+enum class TonConnectKeyError : uchar;
+struct TonConnectReply;
 class TransferMessages;
 struct TransferSubmissionAnswer;
 struct TransferSubmissionData;
@@ -529,6 +535,7 @@ public:
 	void applyUpdate(const MTPDupdateWalletState &data);
 	void applyUpdate(const MTPDupdateSentWalletTransaction &data);
 	void applyUpdate(const MTPDupdateWalletGaslessInfo &data);
+	void applyUpdate(const MTPDupdateWalletTonConnectSession &data);
 
 	[[nodiscard]] std::shared_ptr<CommentScope> createCommentScope(
 		TransferItem target,
@@ -610,6 +617,26 @@ public:
 		BackupDisableApproval approved,
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail);
+	[[nodiscard]] TonConnectAccess tonConnectAccess();
+	void deriveTonConnectSession(
+		KeyAuthorization auth,
+		const QString &dappClientId,
+		const QByteArray &nonce,
+		Fn<void(TonConnectKey)> done,
+		Fn<void(TonConnectKeyError)> fail);
+	void prepareTonConnectEvent(
+		KeyAuthorization auth,
+		TonConnectKey key,
+		TonConnectEventRequest request,
+		Fn<void(TonConnectReply)> done,
+		Fn<void(TonConnectKeyError)> fail);
+	void prepareTonConnectError(
+		TonConnectKey key,
+		QByteArray challenge,
+		uint64 eventId,
+		int code,
+		Fn<void(TonConnectReply)> done,
+		Fn<void()> fail);
 	[[nodiscard]] bool rotationOffered();
 	void quoteRotationFee(KeyAuthorization auth, Fn<void(FeeResult)> done);
 	void prepareRotation(
@@ -667,6 +694,7 @@ public:
 	[[nodiscard]] Rates &rates();
 	[[nodiscard]] TransferMessages &transferMessages();
 	[[nodiscard]] UserAddresses &userAddresses();
+	[[nodiscard]] TonConnect &tonConnect();
 
 	[[nodiscard]] Ui::SeparatePanel *panel() const;
 	void setPanel(std::unique_ptr<Ui::SeparatePanel> panel);
@@ -983,6 +1011,7 @@ private:
 	const std::unique_ptr<Onramp> _onramp;
 	const std::unique_ptr<UserAddresses> _userAddresses;
 	const std::unique_ptr<TransferMessages> _transferMessages;
+	const std::unique_ptr<TonConnect> _tonConnect;
 	const std::unique_ptr<Stream> _stream;
 	base::Timer _pollTimer;
 	base::Timer _shareFetchTimer;
