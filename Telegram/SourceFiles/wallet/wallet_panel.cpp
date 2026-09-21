@@ -156,4 +156,10 @@ void OpenSendGramsLink(
 		*amountNano);
 }
 
+void OpenTonConnectLink(
+		not_null<Window::SessionController*> controller,
+		const TonConnectLink &link) {
+	ShowWallet(&controller->session());
+}
+
 } // namespace Wallet

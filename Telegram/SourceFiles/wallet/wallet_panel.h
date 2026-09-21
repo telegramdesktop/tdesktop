@@ -21,6 +21,8 @@ class SessionController;
 
 namespace Wallet {
 
+struct TonConnectLink;
+
 not_null<Ui::SeparatePanel*> ShowWallet(not_null<Main::Session*> session);
 
 void CloseWallet(not_null<Main::Session*> session);
@@ -36,5 +38,9 @@ void OpenSendGramsLink(
 	not_null<Window::SessionController*> controller,
 	const QString &to,
 	const QString &amount);
+
+void OpenTonConnectLink(
+	not_null<Window::SessionController*> controller,
+	const TonConnectLink &link);
 
 } // namespace Wallet

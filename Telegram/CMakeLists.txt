@@ -2203,6 +2203,8 @@ PRIVATE
     wallet/wallet_session.h
     wallet/wallet_stream.cpp
     wallet/wallet_stream.h
+    wallet/wallet_ton_connect_link.cpp
+    wallet/wallet_ton_connect_link.h
     wallet/wallet_transfer_messages.cpp
     wallet/wallet_transfer_messages.h
     wallet/wallet_transfer_store.cpp
