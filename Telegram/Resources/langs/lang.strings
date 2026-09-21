@@ -8890,7 +8890,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_send_amount" = "Send {amount} Grams";
 "lng_wallet_send_pill_gram" = "{amount} GRAM";
 "lng_wallet_send_comment_optional" = "Optional comment";
-"lng_wallet_send_fee_when_sending" = "Calculated when sending";
 "lng_wallet_send_address_label" = "Address";
 "lng_wallet_comment_title" = "Add comment";
 "lng_wallet_comment_placeholder" = "Optional message";

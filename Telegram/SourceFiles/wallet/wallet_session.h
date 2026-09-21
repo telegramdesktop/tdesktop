@@ -305,6 +305,7 @@ struct PreparedSend;
 struct FeeResult {
 	int64 feeNano = 0;
 	SendError error = SendError::None;
+	// Null for a private comment priced without the key: a fee, no transfer.
 	std::shared_ptr<const PreparedSend> prepared;
 };
 

@@ -166,6 +166,7 @@ constexpr auto kSendOwnerLookupDelay = crl::time(500);
 constexpr auto kSendRefusalRetries = 3;
 constexpr auto kCommentPasswordStateTimeout = 30 * crl::time(1000);
 constexpr auto kSigningReadyTimeout = 30 * crl::time(1000);
+constexpr auto kHeldSendKeyTimeout = 60 * crl::time(1000);
 constexpr auto kCustodyResolveTimeout = 20 * crl::time(1000);
 constexpr auto kRowAmountPreciseBelowNano = Ui::kNanosInOne / 100;
 
@@ -5270,13 +5271,10 @@ void FillSendConfirmTable(
 		item.feeNano = fee.feeNano;
 		item.gasless = fee.gasless;
 		AddFeeTableRow(table, std::move(show), session, item);
-	} else if (fee.pending) {
-		AddPendingFeeTableRow(table, DetailsFee::Loading);
 	} else {
-		Ui::AddTableRow(
+		AddPendingFeeTableRow(
 			table,
-			tr::lng_wallet_details_fee(),
-			tr::lng_wallet_send_fee_when_sending(tr::marked));
+			fee.pending ? DetailsFee::Loading : DetailsFee::Failed);
 	}
 	Ui::AddTableRow(
 		table,
@@ -5357,7 +5355,9 @@ void WalletSendConfirmBox(
 		return fee;
 	}) | rpl::distinct_until_changed() | rpl::on_next([=](
 			const SendConfirmFee &fee) {
-		state->pending = fee;
+		const auto lost = !fee.feeNano && !fee.pending;
+		const auto keep = lost && state->built && state->built->feeNano;
+		state->pending = keep ? *state->built : fee;
 		if (state->scheduled) {
 			return;
 		}
@@ -5507,7 +5507,8 @@ void WalletSendBox(
 		std::optional<SendQuoteDependencies> sendRequest;
 		std::optional<uint64> sendExpiresAt;
 		KeyAuthorization sendAuthorization;
-		KeyAuthorization confirmAuthorization;
+		KeyAuthorization heldAuthorization;
+		base::Timer heldTimeout;
 		int sendRefusals = 0;
 		bool unlocking = false;
 		bool submitted = false;
@@ -5678,6 +5679,11 @@ void WalletSendBox(
 		state->signingTimedOut = true;
 		scheduleContinueSend();
 	});
+	const auto dropHeldKey = [=] {
+		state->heldAuthorization = {};
+		state->heldTimeout.cancel();
+	};
+	state->heldTimeout.setCallback(dropHeldKey);
 	const auto failLoading = [=](const QString &error, bool silent = false) {
 		if (state->closed || state->terminal) {
 			return;
@@ -5708,7 +5714,6 @@ void WalletSendBox(
 				confirm->closeBox();
 			}
 		}
-		state->confirmAuthorization = {};
 		if (const auto context = base::take(state->keyContext)) {
 			context->cancel();
 		}
@@ -5721,6 +5726,7 @@ void WalletSendBox(
 		draft->authorization = {};
 		draft->privateEpoch.reset();
 		state->sendAuthorization = {};
+		dropHeldKey();
 		state->flow.reset();
 	}, box->lifetime());
 
@@ -5920,10 +5926,6 @@ void WalletSendBox(
 			draft->comment = std::move(comment);
 		}
 	};
-	const auto confirmKeyHeld = [=] {
-		const auto &grant = state->confirmAuthorization.grant;
-		return grant && grant->valid() && wallet->vault().unlocked();
-	};
 	const auto prepareFee = [=](KeyAuthorization authorization) {
 		if (!originValid() || draft->preparing.current()) {
 			return;
@@ -5987,7 +5989,8 @@ void WalletSendBox(
 		};
 		const auto isPrivate = !args.comment.text.isEmpty()
 			&& !args.comment.isPublic;
-		const auto privateEpoch = isPrivate
+		const auto keyed = isPrivate && authorization.valid();
+		const auto privateEpoch = keyed
 			? std::make_optional(wallet->vault().clearEpoch())
 			: std::nullopt;
 		draft->preparing = true;
@@ -6002,9 +6005,6 @@ void WalletSendBox(
 				KeyAuthorization auth) {
 			if (!current()) {
 				drifted();
-				return;
-			} else if (isPrivate && !auth.valid()) {
-				fail(SendError::None);
 				return;
 			} else if (privateEpoch
 				&& *privateEpoch != wallet->vault().clearEpoch()) {
@@ -6030,7 +6030,7 @@ void WalletSendBox(
 					}
 					switch (result.error) {
 					case SendError::None:
-						if (!result.prepared) {
+						if (!result.prepared && (keyed || !isPrivate)) {
 							fail(SendError::Failed);
 							return;
 						}
@@ -6056,7 +6056,10 @@ void WalletSendBox(
 						return;
 					case SendError::CommentEncryptionUnavailable:
 						if (!state->submitted) {
+							const auto held = state->sendAuthorization;
 							stopSending();
+							state->heldAuthorization = held;
+							state->heldTimeout.callOnce(kHeldSendKeyTimeout);
 						}
 						invalidateFee();
 						switchToPlain();
@@ -6079,17 +6082,7 @@ void WalletSendBox(
 					Unexpected("Error value in the send box fee estimate.");
 				})));
 		}));
-		if (!isPrivate) {
-			estimate(KeyAuthorization());
-		} else if (authorization.valid()) {
-			estimate(std::move(authorization));
-		} else if (wallet->deviceCustodyState().mode != DeviceMode::Full) {
-			// Encrypting the comment needs the key this device does not
-			// hold, and only the send press is worth acquiring it for.
-			fail(SendError::None);
-		} else {
-			AcquireVaultUnlock({ .show = show, .done = estimate });
-		}
+		estimate(keyed ? std::move(authorization) : KeyAuthorization());
 	};
 	const auto refreshFee = [=] {
 		if (state->closed || state->terminal) {
@@ -6107,15 +6100,8 @@ void WalletSendBox(
 				dependencies.amountNano,
 				dependencies.minTransferNano)) {
 			state->previewError = SendError::AmountTooSmall;
-		} else if (dependencies.comment.text.isEmpty()
-			&& !state->sending.current()
-			&& dependencies.amountNano > 0) {
+		} else if (!state->sending.current() && dependencies.amountNano > 0) {
 			prepareFee({});
-		} else if (state->confirmBox
-			&& !state->sending.current()
-			&& dependencies.amountNano > 0
-			&& (dependencies.comment.isPublic || confirmKeyHeld())) {
-			prepareFee(state->confirmAuthorization);
 		}
 		if (state->sending.current() && !state->submitted) {
 			scheduleContinueSend();
@@ -6424,6 +6410,12 @@ void WalletSendBox(
 		}
 	}, reserve->lifetime());
 
+	const auto requote = [=] {
+		if (!draft->quote.current() && !draft->preparing.current()) {
+			state->previewDependencies.reset();
+		}
+		refreshFee();
+	};
 	const auto refuse = [=](SendError error) {
 		if (!weak || state->closed) {
 			return;
@@ -6434,6 +6426,8 @@ void WalletSendBox(
 		if (error == SendError::InsufficientBalance
 			|| error == SendError::InsufficientFees) {
 			state->previewInsufficient = true;
+		} else if (error == SendError::None) {
+			requote();
 		}
 	};
 	const auto checkQuote = [=] {
@@ -6485,7 +6479,9 @@ void WalletSendBox(
 				if (!state->sending.current() || state->submitted) {
 					return;
 				} else if (!auth.valid()) {
-					refuse(SendError::None);
+					// A declined key changes nothing the fee was quoted from.
+					stopSending();
+					requote();
 					return;
 				}
 				state->sendAuthorization = std::move(auth);
@@ -6558,11 +6554,6 @@ void WalletSendBox(
 		} else if (TransferLinkExpired(expiresAt)) {
 			refuse(SendError::LinkExpired);
 			return;
-		}
-		if (!state->sendAuthorization.valid()
-			&& draft->privateEpoch
-			&& draft->authorization.valid()) {
-			state->sendAuthorization = draft->authorization;
 		}
 		const auto isPrivate = !request.comment.text.isEmpty()
 			&& !request.comment.isPublic;
@@ -6670,6 +6661,11 @@ void WalletSendBox(
 		state->sendRequest = quoteDependencies();
 		state->sendExpiresAt = state->flow->expiresAt;
 		state->sendRefusals = 0;
+		const auto held = state->heldAuthorization;
+		dropHeldKey();
+		if (held.grant && held.grant->valid() && wallet->vault().unlocked()) {
+			state->sendAuthorization = held;
+		}
 		state->sending = true;
 		state->continueSend();
 	};
@@ -6682,25 +6678,14 @@ void WalletSendBox(
 			|| !state->canSend.current()) {
 			return;
 		}
-		if (confirmKeyHeld()) {
-			state->sendAuthorization = state->confirmAuthorization;
-		} else if (draft->privateEpoch) {
-			invalidateFee();
-		}
 		startSend();
-	};
-	const auto requoteConfirmation = [=] {
-		if (!draft->quote.current() && !draft->preparing.current()) {
-			state->previewDependencies.reset();
-		}
-		refreshFee();
 	};
 	const auto confirmationClosed = [=](not_null<Ui::GenericBox*> raw) {
 		if (!weak || state->closed || state->confirmBox.get() != raw.get()) {
 			return;
 		}
 		state->confirmBox = nullptr;
-		state->confirmAuthorization = {};
+		dropHeldKey();
 		if (state->sending.current() && !state->submitted) {
 			if (const auto context = base::take(state->keyContext)) {
 				context->cancel();
@@ -6747,27 +6732,7 @@ void WalletSendBox(
 			confirmationClosed(raw);
 		}), raw->lifetime());
 		box->uiShow()->showBox(std::move(confirm));
-		requoteConfirmation();
-		const auto custody = wallet->deviceCustodyState();
-		// WHY: the engine builds the encrypted body from the key, and its
-		// size is what prices the fee, so a private comment has no fee to
-		// show until the key is in hand; the press adopts the same one.
-		if (draft->encryptable.current()
-			&& !confirmKeyHeld()
-			&& !custody.conflict
-			&& custody.mode == DeviceMode::Full) {
-			AcquireVaultUnlock({
-				.show = show,
-				.done = crl::guard(session, crl::guard(box, [=](
-						KeyAuthorization auth) {
-					if (!auth.valid() || state->confirmBox.get() != raw) {
-						return;
-					}
-					state->confirmAuthorization = std::move(auth);
-					requoteConfirmation();
-				})),
-			});
-		}
+		requote();
 	};
 	const auto submit = [=] {
 		if (!originValid() || !state->flow) {

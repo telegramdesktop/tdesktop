@@ -141,6 +141,7 @@ struct Session::PreviewRequest {
 	KeyAuthorization auth;
 	SendArgs args;
 	Fn<void(FeeResult)> done;
+	bool feeOnly = false;
 };
 
 struct Session::PreviewState : base::has_weak_ptr {
@@ -687,6 +688,14 @@ struct ThrowawayRotation {
 		}
 	}
 	return result.toBase64();
+}
+
+// WHY: a fee counts a body's bits and cells, never what they hold, and an
+// encrypted comment is 32 bytes of key mix, 16 of message key and the text
+// padded by 16 to 31 bytes up to a multiple of 16: no key prices it.
+[[nodiscard]] QByteArray EncryptedCommentFeeBody(const QString &text) {
+	const auto bytes = int(text.toUtf8().size());
+	return ServerCommentBody(QByteArray(48 + ((bytes + 31) & ~15), char(0)));
 }
 
 [[nodiscard]] bool ValidEncryptedCommentBody(const QByteArray &encoded) {
@@ -6767,10 +6776,11 @@ void Session::estimateFee(
 	}
 	const auto isPrivate = !args.comment.text.isEmpty()
 		&& !args.comment.isPublic;
-	const auto privateEpoch = isPrivate
+	const auto keyed = isPrivate && auth.valid();
+	const auto privateEpoch = keyed
 		? std::make_optional(vault().clearEpoch())
 		: std::nullopt;
-	if (isPrivate && !ReadAuthorized(*this, auth)) {
+	if (keyed && !ReadAuthorized(*this, auth)) {
 		cancelFeeEstimate(owner);
 		if (done) {
 			done(FeeResult{ .error = SendError::Locked });
@@ -6791,9 +6801,10 @@ void Session::estimateFee(
 		.generation = _networkGeneration,
 		.privateEpoch = privateEpoch,
 		.client = _engine->client(),
-		.auth = isPrivate ? std::move(auth) : KeyAuthorization(),
+		.auth = keyed ? std::move(auth) : KeyAuthorization(),
 		.args = args,
 		.done = std::move(done),
+		.feeOnly = isPrivate && !keyed,
 	};
 	const auto queued = ranges::find(
 		_preview->queue,
@@ -6978,6 +6989,11 @@ void Session::startPreview() {
 			previewPrepared(flight, engine::SendMessageBody::kComment{
 				.text = request.args.comment.text.toUtf8().toStdString(),
 			});
+		} else if (request.feeOnly) {
+			previewPrepared(flight, engine::SendMessageBody::kRawPayload{
+				.boc = EncryptedCommentFeeBody(
+					request.args.comment.text).toStdString(),
+			});
 		} else {
 			const auto client = request.client;
 			const auto signingRecordId = _clientRecordId;
@@ -7115,6 +7131,11 @@ void Session::settlePreview() {
 			flight.result = FeeResult{ .error = error };
 		} else if (flight.result.error == SendError::None
 			&& flight.intent
+			&& !flight.cancelIssued
+			&& flight.request.feeOnly) {
+			flight.intent = nullptr;
+		} else if (flight.result.error == SendError::None
+			&& flight.intent
 			&& !flight.cancelIssued) {
 			flight.result.prepared = std::make_shared<const PreparedSend>(
 				PreparedSend{
@@ -7194,7 +7215,10 @@ void Session::send(
 		return;
 	} else if (args.amountNano <= 0
 		|| FormatFriendly(args.destination, args.bounce).isEmpty()
-		|| prepared->feeNano < 0) {
+		|| prepared->feeNano < 0
+		|| (!args.comment.text.isEmpty()
+			&& !args.comment.isPublic
+			&& !prepared->privateEpoch)) {
 		fail(SendError::InvalidRequest);
 		return;
 	} else if (TransferAmountBelowMinimum(
