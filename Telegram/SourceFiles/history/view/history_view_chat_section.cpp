@@ -86,6 +86,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "mainwidget.h"
 #include "media/player/media_player_instance.h"
 #include "menu/menu_timecode_action.h"
 #include "data/components/ephemeral_messages.h"
@@ -5372,6 +5373,7 @@ void ChatWidget::updateTypingSound() {
 			|| !_sendAction->typingShown()
 			|| _composeControls->isRecording()
 			|| !_inner->markingContentsRead()
+			|| controller()->content()->dialogsInFocus()
 			|| session().data().notifySettings().isMuted(_topic
 				? static_cast<Data::Thread*>(_topic)
 				: static_cast<Data::Thread*>(_history.get()))) {

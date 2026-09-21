@@ -28,6 +28,7 @@ constexpr auto kMinIvZoom = 25;
 constexpr auto kMaxIvZoom = 400;
 constexpr auto kTypingSoundPrivateKey = "typing-sound-private"_cs;
 constexpr auto kTypingSoundGroupsKey = "typing-sound-groups"_cs;
+constexpr auto kTypingSoundChatListKey = "typing-sound-chat-list"_cs;
 
 [[nodiscard]] int DefaultIvZoom() {
 	const auto exact = cScale() * 100 / cScreenScale();
@@ -1386,6 +1387,14 @@ bool Settings::typingSoundGroups() {
 
 void Settings::setTypingSoundGroups(bool value) {
 	writePref<bool>(kTypingSoundGroupsKey, value);
+}
+
+bool Settings::typingSoundChatList() {
+	return readPref<bool>(kTypingSoundChatListKey, true);
+}
+
+void Settings::setTypingSoundChatList(bool value) {
+	writePref<bool>(kTypingSoundChatListKey, value);
 }
 
 void Settings::setTabbedSelectorSectionEnabled(bool enabled) {

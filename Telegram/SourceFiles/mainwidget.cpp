@@ -2161,6 +2161,10 @@ bool MainWidget::isPrimary() const {
 	return _controller->isPrimary();
 }
 
+bool MainWidget::dialogsInFocus() const {
+	return _dialogs && Ui::InFocusChain(_dialogs.get());
+}
+
 bool MainWidget::isMainSectionShown() const {
 	return _mainSection || _history->peer();
 }

@@ -188,6 +188,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "main/session/send_as_peers.h"
+#include "mainwidget.h"
 #include "webrtc/webrtc_environment.h"
 #include "window/notifications_manager.h"
 #include "window/window_adaptive.h"
@@ -4813,6 +4814,7 @@ void HistoryWidget::updateTypingSound() {
 			|| isHidden()
 			|| isRecording()
 			|| !markingContentsRead()
+			|| controller()->content()->dialogsInFocus()
 			|| !_history->sendActionPainter()->typingShown()
 			|| session().data().notifySettings().isMuted(_history)) {
 			return false;

@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "core/click_handler_types.h"
 #include "core/shortcuts.h"
 #include "core/ui_integration.h"
@@ -61,6 +62,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_send_action.h"
+#include "data/notify/data_notify_settings.h"
 #include "base/unixtime.h"
 #include "base/options.h"
 #include "lang/lang_keys.h"
@@ -68,6 +70,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "storage/storage_account.h"
 #include "apiwrap.h"
+#include "mainwidget.h"
+#include "mainwindow.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "menu/menu_mark_as_read.h"
@@ -377,6 +381,16 @@ InnerWidget::InnerWidget(
 	) | rpl::on_next([=](not_null<History*> history) {
 		repaintDialogRowCornerStatus(history);
 	}, lifetime());
+
+	session().data().sendActionManager().animationUpdated(
+	) | rpl::on_next([=](const Data::SendActionManager::AnimationUpdate &) {
+		updateTypingSound();
+	}, lifetime());
+	lifetime().add([=] {
+		if (!Core::Quitting()) {
+			Core::App().notifications().updateTypingSound(this, false);
+		}
+	});
 
 	setupOnlineStatusCheck();
 
@@ -6054,6 +6068,34 @@ void InnerWidget::setupOnlineStatusCheck() {
 			}
 		}
 	}, lifetime());
+}
+
+void InnerWidget::updateTypingSound() {
+	const auto playing = [&] {
+		const auto row = (_state == WidgetState::Default)
+			? _selected
+			: ((_state == WidgetState::Filtered)
+				&& (_filteredSelected >= 0)
+				&& (_filteredSelected < int(_filterResults.size())))
+			? _filterResults[_filteredSelected].row.get()
+			: nullptr;
+		const auto thread = row ? row->thread() : nullptr;
+		if (!thread
+			|| isHidden()
+			|| !_controller->widget()->isActive()
+			|| (!_mouseSelection && !_controller->content()->dialogsInFocus())
+			|| !thread->sendActionPainter()->typingShown()
+			|| session().data().notifySettings().isMuted(thread)) {
+			return false;
+		}
+		auto &settings = Core::App().settings();
+		return settings.soundNotify()
+			&& settings.typingSoundChatList()
+			&& (thread->peer()->isUser()
+				? settings.typingSoundPrivate()
+				: settings.typingSoundGroups());
+	}();
+	Core::App().notifications().updateTypingSound(this, playing);
 }
 
 void InnerWidget::repaintDialogRowCornerStatus(not_null<History*> history) {
