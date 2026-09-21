@@ -220,6 +220,10 @@ public:
 	void setFlashBounceNotify(bool value) {
 		_flashBounceNotify = value;
 	}
+	[[nodiscard]] bool typingSoundPrivate();
+	void setTypingSoundPrivate(bool value);
+	[[nodiscard]] bool typingSoundGroups();
+	void setTypingSoundGroups(bool value);
 	[[nodiscard]] NotifyView notifyView() const {
 		return _notifyView;
 	}

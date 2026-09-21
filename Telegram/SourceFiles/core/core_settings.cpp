@@ -26,6 +26,8 @@ namespace {
 constexpr auto kInitialVideoQuality = 480; // Start with SD.
 constexpr auto kMinIvZoom = 25;
 constexpr auto kMaxIvZoom = 400;
+constexpr auto kTypingSoundPrivateKey = "typing-sound-private"_cs;
+constexpr auto kTypingSoundGroupsKey = "typing-sound-groups"_cs;
 
 [[nodiscard]] int DefaultIvZoom() {
 	const auto exact = cScale() * 100 / cScreenScale();
@@ -1368,6 +1370,22 @@ QString Settings::getSoundPath(const QString &key) const {
 		return it->second;
 	}
 	return u":/sounds/"_q + key + u".mp3"_q;
+}
+
+bool Settings::typingSoundPrivate() {
+	return readPref<bool>(kTypingSoundPrivateKey, true);
+}
+
+void Settings::setTypingSoundPrivate(bool value) {
+	writePref<bool>(kTypingSoundPrivateKey, value);
+}
+
+bool Settings::typingSoundGroups() {
+	return readPref<bool>(kTypingSoundGroupsKey, true);
+}
+
+void Settings::setTypingSoundGroups(bool value) {
+	writePref<bool>(kTypingSoundGroupsKey, value);
 }
 
 void Settings::setTabbedSelectorSectionEnabled(bool enabled) {

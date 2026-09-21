@@ -852,6 +852,7 @@ ChatWidget::ChatWidget(
 	setupTopicViewer();
 	setupComposeControls();
 	setupSwipeReplyAndBack();
+	setupTypingSound();
 
 	if (mode() != Mode::Sublist) {
 		_kbScroll = base::make_unique_q<Ui::ScrollArea>(
@@ -5350,6 +5351,39 @@ bool ChatWidget::listElementHideReply(not_null<const Element*> view) {
 		}
 	}
 	return false;
+}
+
+void ChatWidget::setupTypingSound() {
+	_history->owner().sendActionManager().animationUpdated(
+	) | rpl::on_next([=](const Data::SendActionManager::AnimationUpdate &) {
+		updateTypingSound();
+	}, lifetime());
+	lifetime().add([=] {
+		if (!Core::Quitting()) {
+			Core::App().notifications().updateTypingSound(this, false);
+		}
+	});
+}
+
+void ChatWidget::updateTypingSound() {
+	const auto playing = [&] {
+		if (isHidden()
+			|| !_sendAction
+			|| !_sendAction->typingShown()
+			|| _composeControls->isRecording()
+			|| !_inner->markingContentsRead()
+			|| session().data().notifySettings().isMuted(_topic
+				? static_cast<Data::Thread*>(_topic)
+				: static_cast<Data::Thread*>(_history.get()))) {
+			return false;
+		}
+		auto &settings = Core::App().settings();
+		return settings.soundNotify()
+			&& (_history->peer->isUser()
+				? settings.typingSoundPrivate()
+				: settings.typingSoundGroups());
+	}();
+	Core::App().notifications().updateTypingSound(this, playing);
 }
 
 bool ChatWidget::listElementShownUnread(not_null<const Element*> view) {
