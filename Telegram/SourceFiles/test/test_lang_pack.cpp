@@ -37,9 +37,11 @@ namespace {
 // identity a fixture freezes. lng_send_action_choose_sticker and
 // lng_user_action_choose_sticker re-run updateChoosingStickerReplacement()
 // from both applyValue (:740-747) and resetValue (:778-785). And every
-// TAGGED phrase is excluded, because ValueParser writes a four-character
-// kTextCommand tag replacer into the stored value (:137-141), which a
-// label read-back would surface as control characters.
+// TAGGED phrase is excluded from this list. These stages' label
+// read-back compares accessibilityName() to the raw override, and
+// ValueParser stores a four-character kTextCommand replacer (:137-141)
+// that would not match. The placeholder arm below certifies those
+// keys without that read-back.
 constexpr const char *kKeyCandidates[] = {
 	"lng_cancel",
 	"lng_continue",
@@ -302,15 +304,51 @@ void LangPackFixture::checkInstalled(const QString &what) {
 	auto details = QStringList();
 	for (auto i = 0, count = int(_frozen.size()); i != count; ++i) {
 		const auto &frozen = _frozen[i];
-		const auto &expected = _overrides[i].value;
-		const auto live = instance.getValue(frozen.index);
-		const auto isNonDefaultNow
-			= !instance.getNonDefaultValue(frozen.key).isEmpty();
-		if ((live != expected) || !isNonDefaultNow) {
+		const auto &requested = _overrides[i].value;
+		const auto stored = instance.getValue(frozen.index);
+		const auto nonDefault = instance.getNonDefaultValue(frozen.key);
+		const auto isNonDefaultNow = !nonDefault.isEmpty();
+		// WHY: ParseStrings is the product parser applyValue uses, run
+		// on the requested override alone. getNonDefaultValue is the raw
+		// text applyValue writes before that parse, so it would certify
+		// a placeholder the product refused.
+		auto one = std::vector<LangOverride>();
+		one.push_back(_overrides[i]);
+		const auto parsed = Lang::Instance::ParseStrings(
+			MTP_vector<MTPLangPackString>(MakeStrings(one)));
+		const auto parsedAt = parsed.find(frozen.index);
+		if (parsedAt == parsed.end()) {
+			ok = false;
+			const auto unchanged = (stored == frozen.value);
+			details.push_back(
+				u"key=%1 index=%2 parser refused: ParseStrings omitted "
+				"the key nonDefault=\"%3\" renderedUnchanged=%4 "
+				"requested=\"%5\" stored=\"%6\" frozen=\"%7\""_q.arg(
+					QString::fromUtf8(frozen.key),
+					QString::number(frozen.index),
+					nonDefault,
+					QString::number(unchanged ? 1 : 0),
+					requested,
+					stored,
+					frozen.value));
+			continue;
+		}
+		const auto hasPlaceholder = requested.contains(QLatin1String("{"));
+		const auto &expected = hasPlaceholder
+			? parsedAt->second
+			: requested;
+		if ((stored != expected) || !isNonDefaultNow) {
 			ok = false;
 		}
-		details.push_back(
-			FormatComparison(frozen, expected, live, isNonDefaultNow));
+		auto line = FormatComparison(
+			frozen,
+			expected,
+			stored,
+			isNonDefaultNow);
+		if (hasPlaceholder) {
+			line += u" requested=\"%1\""_q.arg(requested);
+		}
+		details.push_back(std::move(line));
 	}
 	Check(ok, what, details.join(u"; "_q));
 }
@@ -495,6 +533,10 @@ void AppendLangPackSelfTest(
 		std::shared_ptr<LangPackFixture> holder;
 		std::shared_ptr<LangPackFixture> preexisting;
 		std::shared_ptr<LangPackFixture> subject;
+		std::shared_ptr<LangPackFixture> tagged;
+		std::shared_ptr<LangPackFixture> taggedBroken;
+		QByteArray taggedKey;
+		QString taggedSkip;
 		base::unique_qptr<Ui::FlatLabel> labelA;
 		base::unique_qptr<Ui::FlatLabel> labelB;
 		QString readA;
@@ -512,9 +554,9 @@ void AppendLangPackSelfTest(
 	// consumer inside Lang::Instance::_updated for as long as it exists
 	// (lib_ui/ui/widgets/labels.cpp:239-244), which is exactly what
 	// README.md:473-481 makes the scenario own, and it takes this
-	// self-test's own three fixtures down by name, so the live cloud pack
-	// the holder froze is restored even on a run that never reaches the
-	// teardown stage.
+	// self-test's own fixtures down in reverse installation order, so
+	// the live cloud pack the holder froze is restored even on a run
+	// that never reaches the teardown stage.
 	const auto state = new State();
 
 	// finish() runs on every path that reaches it, and also when a
@@ -532,6 +574,12 @@ void AppendLangPackSelfTest(
 	runner->onFinish([=] {
 		state->labelA = nullptr;
 		state->labelB = nullptr;
+		if (state->taggedBroken) {
+			state->taggedBroken->remove();
+		}
+		if (state->tagged) {
+			state->tagged->remove();
+		}
 		if (state->subject) {
 			state->subject->remove();
 		}
@@ -558,11 +606,29 @@ void AppendLangPackSelfTest(
 		? u"fixture gate: %1"_q.arg(state->keyHolder.refusal)
 		: QString();
 
+	// Not one of kKeyCandidates: those stages compare a label to the raw
+	// override. This key is phrase<lngtag_user>, not a plural and not a
+	// wallet key, and it accepts {user} only, so {amount} is the
+	// parser's unexpected-tag refusal.
+	state->taggedKey = QByteArray("lng_dlg_search_from");
+	state->taggedSkip = (Lang::GetKeyIndex(QLatin1String(state->taggedKey))
+			== Lang::kKeysCount)
+		? u"fixture gate: lng_dlg_search_from does not resolve in the "
+			"generated table"_q
+		: QString();
+
 	const auto gate = [=] { return state->skipReason; };
+	const auto taggedGate = [=] {
+		return !state->skipReason.isEmpty()
+			? state->skipReason
+			: state->taggedSkip;
+	};
 	const auto heldByHolder = u"lang pack self-test holder override"_q;
 	const auto arrangedB = u"lang pack self-test arranged override"_q;
 	const auto installedA = u"lang pack self-test installed value A"_q;
 	const auto installedB = u"lang pack self-test installed value B"_q;
+	const auto taggedInstalled = u"Harness from {user}"_q;
+	const auto taggedRefused = u"Harness from {amount}"_q;
 
 	runner->add({
 		.name = u"lang pack self-test: hold the live pack and reset it so "
@@ -776,6 +842,62 @@ void AppendLangPackSelfTest(
 	});
 
 	runner->add({
+		.name = u"lang pack self-test: install a placeholder-key override"_q,
+		.skipReason = taggedGate,
+		.run = [=] {
+			auto overrides = std::vector<LangOverride>();
+			overrides.push_back({
+				.key = state->taggedKey,
+				.value = taggedInstalled,
+			});
+			state->tagged = LangPackFixture::Install(
+				runner,
+				std::move(overrides),
+				LangRestoreFault::None);
+		},
+		.then = [=] {
+			state->tagged->checkInstalled(
+				u"lang pack self-test: a placeholder key carries the "
+				"installed override"_q);
+		},
+	});
+
+	runner->add({
+		.name = u"lang pack self-test: a placeholder the key does not "
+			"accept"_q,
+		.skipReason = taggedGate,
+		.run = [=] {
+			auto overrides = std::vector<LangOverride>();
+			overrides.push_back({
+				.key = state->taggedKey,
+				.value = taggedRefused,
+			});
+			state->taggedBroken = LangPackFixture::Install(
+				runner,
+				std::move(overrides),
+				LangRestoreFault::None);
+		},
+		.then = [=] {
+			Note(u"lang pack self-test: the checkInstalled row below is "
+				"a deliberate falsification - {amount} is a placeholder "
+				"lng_dlg_search_from does not accept, so the row is "
+				"expected to FAIL"_q);
+			const auto before = FailureCount();
+			state->taggedBroken->checkInstalled(
+				u"lang pack self-test: a placeholder the key does not "
+				"accept is not certified installed"_q);
+			const auto after = FailureCount();
+			Check(
+				after == before + 1,
+				u"lang pack self-test: the refused placeholder failed "
+				"checkInstalled exactly once"_q,
+				u"failures before=%1 after=%2"_q.arg(before).arg(after));
+			state->taggedBroken->remove();
+			state->tagged->remove();
+		},
+	});
+
+	runner->add({
 		.name = u"lang pack self-test: teardown"_q,
 		.skipReason = gate,
 		.run = [=] {
@@ -786,7 +908,7 @@ void AppendLangPackSelfTest(
 			// destroys them. That run is covered by two Runner::onFinish
 			// backstops rather than by this stage - this self-test's own,
 			// registered at append time, releases the LABELS and takes
-			// this State's own three FIXTURES down in reverse order,
+			// this State's own fixtures down in reverse order,
 			// and the module's single registration is the generic
 			// backstop for whatever is still live after that.
 			state->labelA = nullptr;

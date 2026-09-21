@@ -202,15 +202,27 @@ public:
 	// empty string a caller would compare against.
 	[[nodiscard]] const LangFrozenValue *frozen(const QByteArray &key) const;
 
-	// Both compare the live pack against the frozen readings on two axes
-	// and print key, index, frozen, original, live, wasNonDefault and
-	// isNonDefaultNow through Test::Check's third argument, which is
-	// written on the passing verdict as well as the failing one.
+	// A value comparison prints key, index, frozen, original, live,
+	// wasNonDefault and isNonDefaultNow through Test::Check's third
+	// argument, on the passing verdict as well as the failing one. A
+	// parser refusal prints its own detail: the refusal, the raw
+	// non-default value, renderedUnchanged, the request, stored and
+	// frozen.
 	//
 	// checkInstalled is what stops an install that silently landed
-	// nothing from letting every later row pass vacuously. checkRestored
-	// asserts BOTH that the live value equals the frozen value AND that
-	// the key's non-default state equals the frozen one, so "was default
+	// nothing from letting every later row pass vacuously. Its value
+	// axis is the requested override. With no placeholder, that text is
+	// the expectation. With a placeholder, the expectation is the
+	// QString Instance::ParseStrings returns for that requested text,
+	// the encoding applyValue stores, and the reading is getValue.
+	// getNonDefaultValue is only the non-empty axis, never the value:
+	// applyValue writes the raw override before parsing, so a refused
+	// parse would otherwise look installed. When ParseStrings omits the
+	// key, checkInstalled FAILs by name and quotes the raw non-default
+	// value and whether getValue stayed at the frozen reading.
+	// checkRestored asserts BOTH that the live value equals the frozen
+	// value AND that the key's non-default state equals the frozen one,
+	// so "was default
 	// before, is default again" is proved rather than merely "reads the
 	// same string"; it also carries updatedFires=N, the Lang::Updated()
 	// emissions this fixture observed over its own lifetime, as an
@@ -275,7 +287,7 @@ private:
 // The module registers one Runner::onFinish callback of its own, on the
 // first install of the process, which unwinds the live fixtures in
 // REVERSE order; AppendLangPackSelfTest registers a second one at
-// append time (test_lang_pack.cpp:532) for its own labels and
+// append time (test_lang_pack.cpp:574) for its own labels and
 // fixtures. Runner::finish() runs its callbacks in registration
 // order (test_runner.cpp:453-456), which is FIFO and therefore the wrong
 // order for nested fixtures, so one registration unwinding LIFO replaces
@@ -284,7 +296,7 @@ private:
 	not_null<Runner*> runner,
 	std::vector<LangOverride> overrides);
 
-// The facility measuring itself, in five stages ending with its own
+// The facility measuring itself, in seven stages ending with its own
 // teardown.
 //
 // The FIRST stage ARRANGES the precondition the other four need instead
@@ -348,6 +360,15 @@ private:
 // fixture, then the holder - because remove() FAILs by name when a
 // fixture is not the top of the module's live stack.
 //
+// Before that teardown, two stages certify one placeholder key the
+// candidate list omits. lng_dlg_search_from is not a plural, not a
+// wallet key and not one of the three excluded classes. The first
+// installs "Harness from {user}" and checkInstalled must PASS. The
+// second is announced with a Note and installs "Harness from {amount}",
+// a tag that key does not accept, so checkInstalled must FAIL. The arm
+// does not bind a label. Both fixtures use LangRestoreFault::None and
+// are removed there, the broken one first.
+//
 // It asks the process for nothing: no primary window, no session, no
 // chats list, no network, no wallet and no fixture secret. Nothing is
 // shown, painted or grabbed - accessibilityName() (labels.h:131-133)
@@ -361,8 +382,11 @@ private:
 // fixture gates writing TEST_RESULT: N/A rows with every candidate's
 // reading, never a silent pass and never an opaque timeout.
 //
-// With LangRestoreFault::None it emits no deliberate failure. The other
-// two arms are deliberate falsifications a scenario must never pack:
+// With LangRestoreFault::None the restore rows emit no deliberate
+// failure. The placeholder arm's refused install is the one deliberate
+// FAIL in that run, and in the other arms as well; it does not touch
+// remove(). The other two arms are deliberate falsifications a
+// scenario must never pack:
 // LeaveOneInstalled fails checkRestored on the first key and that key's
 // read-back row, and SuppressNotification fails both read-back rows while
 // checkRestored still passes. Neither arm reaches the holder, which is
