@@ -32,6 +32,8 @@ inline constexpr auto kMinInkPixels = 24;
 // and a coloured glyph (~0.70). Neither retunes a shipped ink threshold.
 inline constexpr auto kChromaticFloor = 24;
 inline constexpr auto kChromaticDensityFloor = 0.40;
+// Not kInkMargin: retuning the attribution gap must not redefine a core.
+inline constexpr auto kGlyphCoreTolerance = 8;
 
 struct InkCandidate {
 	QString name;
@@ -286,6 +288,86 @@ struct ChromaticRaster {
 // A refused box, density or mean is the text "none", not an empty value.
 [[nodiscard]] QString FormatChromaticRaster(const ChromaticRaster &reading);
 
+// Measured means at least one solid core was read, so the modal colour,
+// its count, the core count and every pen's solid count are measurements.
+// NoPaint and NoSolidCore were scanned, so |ok| stays true and |strongest|
+// is a real distance, but they hand back no colour and no count. OutsideBand
+// looked at no pixel. Unread is the value before ReadGlyphCore. A named pen
+// is only something to count against: it is never copied into |modal|.
+enum class GlyphCoreState {
+	Unread,
+	OutsideBand,
+	NoPaint,
+	NoSolidCore,
+	Measured,
+};
+
+[[nodiscard]] QString GlyphCoreStateName(GlyphCoreState state);
+
+// |color| is the modal solid-core colour, |count| is how many cores have
+// it, and |cores| is the solid-core count. All three are unset, and
+// |refusal| is non-empty, unless the reading measured a core.
+struct GlyphCoreModal {
+	QColor color;
+	int count = -1;
+	int cores = -1;
+	QString refusal;
+
+	[[nodiscard]] bool read() const {
+		return refusal.isEmpty();
+	}
+};
+
+// One named pen's solid-core count. |count| is -1 and |refusal| is
+// non-empty on every refusing path, including an index this reading does
+// not have, so a refused ask is never a measured zero. The pen colour is
+// not a field: a count is not an echo of the query.
+struct GlyphCoreSolid {
+	int index = -1;
+	int count = -1;
+	QString refusal;
+
+	[[nodiscard]] bool read() const {
+		return refusal.isEmpty();
+	}
+};
+
+struct GlyphCore {
+	bool ok = false;
+	QRect band;
+	QColor background;
+	int total = 0;
+	int inkPixels = 0;
+	int cores = 0;
+	int strongest = -1;
+	QColor modal;
+	int modalCount = -1;
+	std::vector<InkCandidate> pens;
+	std::vector<int> solid;
+	GlyphCoreState state = GlyphCoreState::Unread;
+	QString reason;
+
+	// Refuse every state except Measured. |solid| is sized to |pens| on
+	// every path ReadGlyphCore returns, with -1 until a measured reading
+	// fills it, so the accessor does not read off the end of an empty vector.
+	[[nodiscard]] GlyphCoreModal readModal() const;
+	[[nodiscard]] GlyphCoreSolid solidAt(int index) const;
+};
+
+// Band background is the modal colour of the clip. Ink is a pixel at least
+// kInkDelta from it. A solid core is an ink pixel within kGlyphCoreTolerance
+// of the per-channel extreme away from that background. The modal colour is
+// the mode of those cores. |pens| may be empty; each entry is only counted.
+[[nodiscard]] GlyphCore ReadGlyphCore(
+	const QImage &image,
+	QRect band,
+	std::vector<InkCandidate> pens = {});
+
+// Prints the band, measured background, core tolerance, strongest distance,
+// core count, modal colour and share, and each pen's solid count on a
+// measured reading. A refused colour or count is the text "none".
+[[nodiscard]] QString FormatGlyphCore(const GlyphCore &reading);
+
 // AppendDeriveBandSelfTest is the underivable-band refusal measuring
 // itself. Three synthetic images, no widget, no window, no session, chats,
 // network, account or wallet: the same fill inside and outside the
@@ -305,7 +387,7 @@ struct ChromaticRaster {
 // The background-collinear stage and the chromatic-raster stage register
 // here too: a triple the measured background cannot separate, beside one
 // that still classifies, and a dense mark beside an equal-count smear and
-// a flat fill.
+// a flat fill. The glyph-core stage registers here too.
 void AppendDeriveBandSelfTest(not_null<Runner*> runner);
 
 } // namespace Test

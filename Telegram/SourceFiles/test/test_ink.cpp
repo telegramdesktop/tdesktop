@@ -926,6 +926,276 @@ QString FormatChromaticRaster(const ChromaticRaster &reading) {
 
 namespace {
 
+[[nodiscard]] QString GlyphReason(const GlyphCore &reading) {
+	return reading.reason.isEmpty()
+		? u"this reading was never scanned"_q
+		: reading.reason;
+}
+
+} // namespace
+
+QString GlyphCoreStateName(GlyphCoreState state) {
+	switch (state) {
+	case GlyphCoreState::Unread:
+		return u"core-unread"_q;
+	case GlyphCoreState::OutsideBand:
+		return u"core-outside-band"_q;
+	case GlyphCoreState::NoPaint:
+		return u"no-paint"_q;
+	case GlyphCoreState::NoSolidCore:
+		return u"no-solid-core"_q;
+	case GlyphCoreState::Measured:
+		return u"core-measured"_q;
+	}
+	return u"missing"_q;
+}
+
+GlyphCoreModal GlyphCore::readModal() const {
+	auto result = GlyphCoreModal();
+	if (state != GlyphCoreState::Measured) {
+		result.refusal = u"this reading ("_q
+			+ GlyphCoreStateName(state)
+			+ u") measured no solid core: "_q
+			+ GlyphReason(*this);
+		return result;
+	}
+	result.color = modal;
+	result.count = modalCount;
+	result.cores = cores;
+	return result;
+}
+
+GlyphCoreSolid GlyphCore::solidAt(int index) const {
+	auto result = GlyphCoreSolid();
+	result.index = index;
+	if (state != GlyphCoreState::Measured) {
+		result.refusal = u"index="_q
+			+ QString::number(index)
+			+ u" of "_q
+			+ QString::number(int(pens.size()))
+			+ u": this reading ("_q
+			+ GlyphCoreStateName(state)
+			+ u") measured no solid core: "_q
+			+ GlyphReason(*this);
+		return result;
+	}
+	if ((index < 0) || (index >= int(pens.size()))) {
+		result.refusal = u"index="_q
+			+ QString::number(index)
+			+ u" is outside this reading's "_q
+			+ QString::number(int(pens.size()))
+			+ u" pens"_q;
+		return result;
+	}
+	if (index >= int(solid.size())) {
+		result.refusal = u"index="_q
+			+ QString::number(index)
+			+ u" names a pen this reading filled no solid count for"_q;
+		return result;
+	}
+	result.count = solid[index];
+	return result;
+}
+
+GlyphCore ReadGlyphCore(
+		const QImage &image,
+		QRect band,
+		std::vector<InkCandidate> pens) {
+	auto result = GlyphCore();
+	result.pens = std::move(pens);
+	result.solid.assign(result.pens.size(), -1);
+	const auto clip = band.intersected(image.rect());
+	if (clip.isEmpty()) {
+		result.state = GlyphCoreState::OutsideBand;
+		result.reason = u"the requested band lies outside the image, so "
+			"no glyph pixel was read: band="_q
+			+ RectText(band)
+			+ u" image="_q
+			+ RectText(image.rect());
+		return result;
+	}
+	result.ok = true;
+	result.band = clip;
+	auto backgroundCounts = std::vector<std::pair<QRgb, int>>();
+	for (auto y = clip.top(); y <= clip.bottom(); ++y) {
+		for (auto x = clip.left(); x <= clip.right(); ++x) {
+			const auto color = image.pixelColor(x, y);
+			const auto rgb = qRgb(color.red(), color.green(), color.blue());
+			++result.total;
+			auto found = false;
+			for (auto &one : backgroundCounts) {
+				if (one.first == rgb) {
+					++one.second;
+					found = true;
+					break;
+				}
+			}
+			if (!found && (backgroundCounts.size() < 8192)) {
+				backgroundCounts.push_back({ rgb, 1 });
+			}
+		}
+	}
+	auto bestBackground = -1;
+	auto backgroundRgb = QRgb(0);
+	for (const auto &one : backgroundCounts) {
+		if (one.second > bestBackground) {
+			bestBackground = one.second;
+			backgroundRgb = one.first;
+		}
+	}
+	result.background = QColor::fromRgb(backgroundRgb);
+	auto strongest = 0;
+	auto ink = std::vector<QRgb>();
+	for (auto y = clip.top(); y <= clip.bottom(); ++y) {
+		for (auto x = clip.left(); x <= clip.right(); ++x) {
+			const auto color = image.pixelColor(x, y);
+			const auto rgb = qRgb(color.red(), color.green(), color.blue());
+			const auto delta = ChannelDelta(
+				QColor::fromRgb(rgb),
+				result.background);
+			strongest = std::max(strongest, delta);
+			if (delta >= kInkDelta) {
+				ink.push_back(rgb);
+			}
+		}
+	}
+	result.strongest = strongest;
+	result.inkPixels = int(ink.size());
+	if (ink.empty()) {
+		result.state = GlyphCoreState::NoPaint;
+		result.reason = u"the measured background fills the band, so there "
+			"is no glyph ink to read a pen from"_q;
+		return result;
+	}
+	const int base[3] = {
+		result.background.red(),
+		result.background.green(),
+		result.background.blue(),
+	};
+	int extreme[3] = { base[0], base[1], base[2] };
+	int bestAbs[3] = { -1, -1, -1 };
+	for (const auto rgb : ink) {
+		const int value[3] = { qRed(rgb), qGreen(rgb), qBlue(rgb) };
+		for (auto channel = 0; channel != 3; ++channel) {
+			const auto distance = std::abs(value[channel] - base[channel]);
+			if (distance > bestAbs[channel]) {
+				bestAbs[channel] = distance;
+				extreme[channel] = value[channel];
+			}
+		}
+	}
+	const auto extremeColor = QColor(extreme[0], extreme[1], extreme[2]);
+	auto cores = std::vector<QRgb>();
+	for (const auto rgb : ink) {
+		if (ChannelDelta(QColor::fromRgb(rgb), extremeColor)
+			<= kGlyphCoreTolerance) {
+			cores.push_back(rgb);
+		}
+	}
+	if (cores.empty()) {
+		result.state = GlyphCoreState::NoSolidCore;
+		result.reason = u"the band has glyph ink but every ink pixel is a "
+			"fringe or partial coverage, so no solid core decides the pen"_q;
+		return result;
+	}
+	auto coreCounts = std::vector<std::pair<QRgb, int>>();
+	for (const auto rgb : cores) {
+		auto found = false;
+		for (auto &one : coreCounts) {
+			if (one.first == rgb) {
+				++one.second;
+				found = true;
+				break;
+			}
+		}
+		if (!found && (coreCounts.size() < 8192)) {
+			coreCounts.push_back({ rgb, 1 });
+		}
+	}
+	auto bestCore = -1;
+	auto modalRgb = cores.front();
+	for (const auto &one : coreCounts) {
+		if (one.second > bestCore) {
+			bestCore = one.second;
+			modalRgb = one.first;
+		}
+	}
+	result.modal = QColor::fromRgb(modalRgb);
+	result.modalCount = bestCore;
+	result.cores = int(cores.size());
+	result.state = GlyphCoreState::Measured;
+	result.reason = u"none"_q;
+	for (auto i = 0; i != int(result.pens.size()); ++i) {
+		auto count = 0;
+		for (const auto rgb : cores) {
+			if (ChannelDelta(QColor::fromRgb(rgb), result.pens[i].color)
+				<= kGlyphCoreTolerance) {
+				++count;
+			}
+		}
+		result.solid[i] = count;
+	}
+	return result;
+}
+
+QString FormatGlyphCore(const GlyphCore &reading) {
+	const auto measured = (reading.state == GlyphCoreState::Measured);
+	const auto reason = GlyphReason(reading);
+	const auto background = reading.background.isValid()
+		? ColorHex(reading.background)
+		: u"none"_q;
+	const auto strongest = (reading.strongest < 0)
+		? u"none"_q
+		: QString::number(reading.strongest);
+	const auto cores = measured
+		? QString::number(reading.cores)
+		: u"none"_q;
+	const auto modal = (measured && reading.modal.isValid())
+		? ColorHex(reading.modal)
+		: u"none"_q;
+	const auto share = measured
+		? (QString::number(reading.modalCount)
+			+ u"/"_q
+			+ QString::number(reading.cores))
+		: u"none"_q;
+	auto listed = QString();
+	for (auto i = 0; i != int(reading.pens.size()); ++i) {
+		auto name = reading.pens[i].name;
+		if (name.isEmpty()) {
+			name = u"pen"_q + QString::number(i);
+		}
+		const auto solid = reading.solidAt(i);
+		if (!listed.isEmpty()) {
+			listed += u" "_q;
+		}
+		listed += name
+			+ u"="_q
+			+ (solid.read() ? QString::number(solid.count) : u"none"_q);
+	}
+	auto text = u"state="_q
+		+ GlyphCoreStateName(reading.state)
+		+ u" band="_q
+		+ RectText(reading.band)
+		+ u" bg="_q
+		+ background
+		+ u" kGlyphCoreTolerance="_q
+		+ QString::number(kGlyphCoreTolerance)
+		+ u" strongest="_q
+		+ strongest
+		+ u" cores="_q
+		+ cores
+		+ u" modal="_q
+		+ modal
+		+ u" share="_q
+		+ share;
+	if (!listed.isEmpty()) {
+		text += u" "_q + listed;
+	}
+	return text + u" reason="_q + reason;
+}
+
+namespace {
+
 void AppendBackgroundCollinearSelfTest(not_null<Runner*> runner) {
 	runner->add({
 		.name = u"ink scan self-test: a background-collinear candidate "
@@ -1291,6 +1561,325 @@ void AppendChromaticRasterSelfTest(not_null<Runner*> runner) {
 					+ flatText
 					+ u" || "_q
 					+ outsideText);
+		},
+	});
+}
+
+void AppendGlyphCoreSelfTest(not_null<Runner*> runner) {
+	runner->add({
+		.name = u"glyph-core self-test: neutral and link strokes on both "
+			"grounds"_q,
+		.run = [] {
+			const auto band = QRect(8, 8, 80, 32);
+			const auto absent = QColor(0xff, 0x00, 0x00);
+			const auto paint = [](
+					QColor ground,
+					QColor pen,
+					QColor fringeA,
+					QColor fringeB,
+					QColor fringeC) {
+				auto image = QImage(
+					QSize(96, 48),
+					QImage::Format_ARGB32_Premultiplied);
+				image.fill(ground);
+				for (auto y = 12; y < 28; ++y) {
+					for (auto x = 20; x < 36; ++x) {
+						image.setPixelColor(x, y, pen);
+					}
+					image.setPixelColor(17, y, fringeA);
+					image.setPixelColor(18, y, fringeB);
+					image.setPixelColor(36, y, fringeC);
+				}
+				return image;
+			};
+			const auto checkGround = [&](
+					const QString &ground,
+					QColor groundColor,
+					QColor neutral,
+					QColor link,
+					int neutralStrongest,
+					int linkStrongest,
+					QColor fringeA,
+					QColor fringeB,
+					QColor fringeC) {
+				const auto scanPens = std::vector<InkCandidate>{
+					{ u"neutral"_q, neutral },
+					{ u"link"_q, link },
+				};
+				const auto pens = std::vector<InkCandidate>{
+					{ u"neutral"_q, neutral },
+					{ u"link"_q, link },
+					{ u"absent"_q, absent },
+				};
+				const auto neutralImage = paint(
+					groundColor,
+					neutral,
+					fringeA,
+					fringeB,
+					fringeC);
+				const auto linkImage = paint(
+					groundColor,
+					link,
+					fringeA,
+					fringeB,
+					fringeC);
+				const auto scan = ScanInk(neutralImage, band, scanPens);
+				const auto scanNeutral = scan.countAt(0);
+				const auto scanLink = scan.countAt(1);
+				const auto neutralCore = ReadGlyphCore(
+					neutralImage,
+					band,
+					pens);
+				const auto linkCore = ReadGlyphCore(linkImage, band, pens);
+				const auto neutralModal = neutralCore.readModal();
+				const auto linkModal = linkCore.readModal();
+				const auto neutralOfNeutral = neutralCore.solidAt(0);
+				const auto linkOfNeutral = neutralCore.solidAt(1);
+				const auto absentOfNeutral = neutralCore.solidAt(2);
+				const auto neutralOfLink = linkCore.solidAt(0);
+				const auto linkOfLink = linkCore.solidAt(1);
+				const auto absentOfLink = linkCore.solidAt(2);
+				const auto neutralText = FormatGlyphCore(neutralCore);
+				const auto linkText = FormatGlyphCore(linkCore);
+				const auto quoted = neutralText
+					+ u" || "_q
+					+ linkText
+					+ u" || scan "_q
+					+ InkCountDetails(scanNeutral)
+					+ u" | "_q
+					+ InkCountDetails(scanLink);
+				Check(
+					(scan.state == InkScanState::Classified)
+						&& scanNeutral.read()
+						&& (scanNeutral.count == 256)
+						&& scanLink.read()
+						&& (scanLink.count == 48)
+						&& (neutralCore.state == GlyphCoreState::Measured)
+						&& (ColorHex(neutralCore.background)
+							== ColorHex(groundColor))
+						&& (neutralCore.strongest == neutralStrongest)
+						&& (neutralCore.cores == 256)
+						&& neutralModal.read()
+						&& (ColorHex(neutralModal.color) == ColorHex(neutral))
+						&& (neutralModal.count == 256)
+						&& (neutralModal.cores == 256)
+						&& neutralOfNeutral.read()
+						&& (neutralOfNeutral.count == 256)
+						&& linkOfNeutral.read()
+						&& (linkOfNeutral.count == 0)
+						&& absentOfNeutral.read()
+						&& (absentOfNeutral.count == 0)
+						&& (ColorHex(neutralModal.color) != ColorHex(absent))
+						&& neutralText.contains(RectText(band))
+						&& neutralText.contains(
+							u"bg="_q + ColorHex(groundColor))
+						&& neutralText.contains(u"kGlyphCoreTolerance=8"_q)
+						&& neutralText.contains(u"cores=256"_q)
+						&& neutralText.contains(
+							u"modal="_q + ColorHex(neutral))
+						&& neutralText.contains(u"share=256/256"_q)
+						&& neutralText.contains(u"neutral=256"_q)
+						&& neutralText.contains(u"link=0"_q)
+						&& neutralText.contains(u"absent=0"_q),
+					u"on the "_q
+						+ ground
+						+ u" ground a neutral stroke is classified with "
+						"link fringes, and its solid cores are the "
+						"neutral pen"_q,
+					quoted);
+				Check(
+					(linkCore.state == GlyphCoreState::Measured)
+						&& (linkCore.strongest == linkStrongest)
+						&& (linkCore.cores == 256)
+						&& linkModal.read()
+						&& (ColorHex(linkModal.color) == ColorHex(link))
+						&& (ColorHex(linkModal.color) != ColorHex(absent))
+						&& neutralOfLink.read()
+						&& (neutralOfLink.count == 0)
+						&& linkOfLink.read()
+						&& (linkOfLink.count == 256)
+						&& absentOfLink.read()
+						&& (absentOfLink.count == 0)
+						&& linkText.contains(u"kGlyphCoreTolerance=8"_q)
+						&& linkText.contains(u"cores=256"_q)
+						&& linkText.contains(u"modal="_q + ColorHex(link))
+						&& linkText.contains(u"share=256/256"_q)
+						&& linkText.contains(u"neutral=0"_q)
+						&& linkText.contains(u"link=256"_q)
+						&& linkText.contains(
+							u"bg="_q + ColorHex(groundColor)),
+					u"on the "_q
+						+ ground
+						+ u" ground the same stroke in the link pen has "
+						"that pen as its modal core"_q,
+					quoted);
+			};
+			Note(u"glyph-core self-test: no window, session, chats list, "
+				"network, account or wallet - synthetic images on two "
+				"grounds"_q);
+			checkGround(
+				u"day"_q,
+				QColor(0xff, 0xff, 0xff),
+				QColor(0x99, 0x99, 0x99),
+				QColor(0x16, 0x8a, 0xcd),
+				102,
+				233,
+				QColor(0xa1, 0xd0, 0xf5),
+				QColor(0xa1, 0xd6, 0xf2),
+				QColor(0xa1, 0xdb, 0xf0));
+			checkGround(
+				u"night"_q,
+				QColor(0x17, 0x21, 0x2b),
+				QColor(0x70, 0x84, 0x99),
+				QColor(0x6a, 0xb3, 0xf3),
+				110,
+				200,
+				QColor(0x38, 0x62, 0x8f),
+				QColor(0x34, 0x5b, 0x8b),
+				QColor(0x3c, 0x6a, 0x93));
+		},
+	});
+	runner->add({
+		.name = u"glyph-core self-test: no ink, no solid core, and refused "
+			"reads"_q,
+		.run = [] {
+			const auto band = QRect(8, 8, 80, 32);
+			const auto pens = std::vector<InkCandidate>{
+				{ u"neutral"_q, QColor(0x99, 0x99, 0x99) },
+			};
+			auto flatImage = QImage(
+				QSize(96, 48),
+				QImage::Format_ARGB32_Premultiplied);
+			flatImage.fill(QColor(0xf0, 0xf0, 0xf0));
+			const auto flat = ReadGlyphCore(flatImage, band, pens);
+			const auto flatModal = flat.readModal();
+			const auto flatSolid = flat.solidAt(0);
+			const auto flatText = FormatGlyphCore(flat);
+			auto fringeImage = QImage(
+				QSize(40, 16),
+				QImage::Format_ARGB32_Premultiplied);
+			fringeImage.fill(Qt::white);
+			for (auto x = 0; x < 40; ++x) {
+				fringeImage.setPixelColor(x, 0, QColor(80, 255, 255));
+				fringeImage.setPixelColor(x, 1, QColor(255, 80, 255));
+				fringeImage.setPixelColor(x, 2, QColor(255, 255, 80));
+				fringeImage.setPixelColor(x, 3, QColor(210, 220, 230));
+			}
+			const auto fringeBand = QRect(0, 0, 40, 16);
+			const auto fringe = ReadGlyphCore(fringeImage, fringeBand, pens);
+			const auto fringeModal = fringe.readModal();
+			const auto fringeSolid = fringe.solidAt(0);
+			const auto fringeText = FormatGlyphCore(fringe);
+			const auto outside = ReadGlyphCore(
+				flatImage,
+				QRect(200, 200, 8, 8),
+				pens);
+			const auto outsideModal = outside.readModal();
+			const auto outsideText = FormatGlyphCore(outside);
+			const auto shipped = std::vector<QString>{
+				u"not-scanned"_q,
+				u"outside-image"_q,
+				u"no-rows-in-band"_q,
+				u"candidates-collide"_q,
+				u"no-ink"_q,
+				u"classified"_q,
+				u"background-collinear"_q,
+				u"raster-outside-band"_q,
+				u"no-chromatic"_q,
+				u"below-density"_q,
+				u"found"_q,
+				u"missing"_q,
+			};
+			const auto flatName = GlyphCoreStateName(flat.state);
+			const auto fringeName = GlyphCoreStateName(fringe.state);
+			const auto outsideName = GlyphCoreStateName(outside.state);
+			auto distinct = (flatName != fringeName)
+				&& (flat.reason != fringe.reason)
+				&& (flatName != outsideName)
+				&& (fringeName != outsideName);
+			auto forbidden = QString();
+			for (const auto &one : shipped) {
+				if ((flatName == one)
+					|| (fringeName == one)
+					|| (outsideName == one)
+					|| flat.reason.contains(one)
+					|| fringe.reason.contains(one)) {
+					distinct = false;
+				}
+				if (!forbidden.isEmpty()) {
+					forbidden += u", "_q;
+				}
+				forbidden += one;
+			}
+			Note(u"glyph-core self-test: no window, session, chats list, "
+				"network, account or wallet - a flat band and a fringe "
+				"band"_q);
+			Check(
+				flat.ok
+					&& (flat.state == GlyphCoreState::NoPaint)
+					&& !flatModal.read()
+					&& !flatModal.color.isValid()
+					&& (flatModal.count == -1)
+					&& (flatModal.cores == -1)
+					&& !flatSolid.read()
+					&& (flatSolid.count == -1)
+					&& flatSolid.refusal.contains(u"no-paint"_q)
+					&& flatModal.refusal.contains(u"no-paint"_q),
+				u"asking a flat band for its modal colour or a solid "
+				"count refuses, and the count is not a measured zero"_q,
+				flatModal.refusal + u" | "_q + flatSolid.refusal);
+			Check(
+				flatText.contains(u"state=no-paint"_q)
+					&& flatText.contains(u"modal=none"_q)
+					&& flatText.contains(u"cores=none"_q)
+					&& flatText.contains(u"share=none"_q)
+					&& flatText.contains(u"neutral=none"_q)
+					&& !flatText.contains(u"modal=#"_q),
+				u"the no-paint format names the refusal and carries no "
+				"modal colour"_q,
+				flatText);
+			Check(
+				fringe.ok
+					&& (fringe.state == GlyphCoreState::NoSolidCore)
+					&& (fringe.inkPixels > 0)
+					&& !fringeModal.read()
+					&& !fringeModal.color.isValid()
+					&& (fringeModal.count == -1)
+					&& !fringeSolid.read()
+					&& (fringeSolid.count == -1)
+					&& fringeText.contains(u"state=no-solid-core"_q)
+					&& fringeText.contains(u"modal=none"_q)
+					&& !fringeText.contains(u"modal=#"_q),
+				u"a fringe band with no full-coverage core refuses by "
+				"name and does not present a fringe colour as the pen"_q,
+				fringeText + u" | "_q + fringeModal.refusal);
+			Check(
+				!outside.ok
+					&& (outside.state == GlyphCoreState::OutsideBand)
+					&& !outsideModal.read()
+					&& (outsideModal.count == -1)
+					&& outsideText.contains(u"state=core-outside-band"_q)
+					&& (outside.state != GlyphCoreState::NoPaint)
+					&& (outside.state != GlyphCoreState::NoSolidCore),
+				u"a band that misses the image is not the no-paint "
+				"refusal"_q,
+				outsideText);
+			Check(
+				distinct
+					&& flat.reason.contains(u"no glyph ink"_q)
+					&& fringe.reason.contains(u"no solid core"_q),
+				u"the no-paint and no-solid-core names and reasons differ "
+				"from each other and from every state the module already "
+				"ships"_q,
+				u"flat=%1 reason=%2 fringe=%3 reason=%4 outside=%5 "
+				"forbidden=[%6]"_q
+					.arg(
+						flatName,
+						flat.reason,
+						fringeName,
+						fringe.reason,
+						outsideName,
+						forbidden));
 		},
 	});
 }
@@ -1749,6 +2338,7 @@ void AppendDeriveBandSelfTest(not_null<Runner*> runner) {
 	});
 	AppendBackgroundCollinearSelfTest(runner);
 	AppendChromaticRasterSelfTest(runner);
+	AppendGlyphCoreSelfTest(runner);
 }
 
 } // namespace Test
