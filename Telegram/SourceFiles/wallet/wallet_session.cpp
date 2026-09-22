@@ -5300,6 +5300,12 @@ void Session::resetDeviceCustody(
 			runtime->notifyProtectionChanged();
 		} else {
 			for (const auto &weak : state->sessions) {
+				// The stopped client's handlers can no longer answer this report.
+				if (weak && weak->wallet()._submission) {
+					SettleTonConnect(
+						*weak->wallet()._submission,
+						SendError::Failed);
+				}
 				if (weak) {
 					weak->wallet().syncEngineClient();
 				}
