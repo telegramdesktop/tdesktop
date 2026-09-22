@@ -151,6 +151,48 @@ namespace {
 		&& (ChannelDelta(mode, fill) <= kBackgroundSame);
 }
 
+// Own-colour distance to its own segment is 0, so a candidate closer than
+// kInkMargin to another candidate's segment can never be the unique
+// attribution. kOnLine is wider and would also refuse pixels that still
+// attribute. The background is the scan's modal row colour: a row that is
+// mostly ink reports that ink as its own mode and would refuse a palette
+// the band still classifies.
+struct CollinearPair {
+	int swallowed = -1;
+	int swallower = -1;
+	double distance = 0.;
+};
+
+[[nodiscard]] CollinearPair CollinearAgainstBackground(
+		const std::vector<InkCandidate> &candidates,
+		QColor background) {
+	auto result = CollinearPair();
+	if (!background.isValid()) {
+		return result;
+	}
+	for (auto i = 0; i != int(candidates.size()); ++i) {
+		for (auto j = 0; j != int(candidates.size()); ++j) {
+			if (i == j) {
+				continue;
+			}
+			const auto distance = SegmentDistance(
+				candidates[i].color,
+				background,
+				candidates[j].color);
+			if (distance >= kInkMargin) {
+				continue;
+			}
+			if ((result.swallowed >= 0) && (distance >= result.distance)) {
+				continue;
+			}
+			result.swallowed = i;
+			result.swallower = j;
+			result.distance = distance;
+		}
+	}
+	return result;
+}
+
 } // namespace
 
 int ChannelDelta(QColor a, QColor b) {
@@ -177,6 +219,8 @@ QString InkScanStateName(InkScanState state) {
 		return u"no-ink"_q;
 	case InkScanState::Classified:
 		return u"classified"_q;
+	case InkScanState::BackgroundCollinear:
+		return u"background-collinear"_q;
 	}
 	return u"missing"_q;
 }
@@ -505,6 +549,9 @@ InkScan ScanInk(
 			result.classifiedInk = QColor::fromRgb(one.first);
 		}
 	}
+	const auto collinear = CollinearAgainstBackground(
+		result.candidates,
+		result.background);
 	if (!classify) {
 		result.state = InkScanState::CandidatesCollide;
 		result.reason = u"the candidates do not separate from each other, "
@@ -521,6 +568,24 @@ InkScan ScanInk(
 				ColorHex(result.background),
 				QString::number(result.total),
 				QString::number(kInkDelta));
+	} else if (collinear.swallowed >= 0) {
+		const auto &swallowed = result.candidates[collinear.swallowed];
+		const auto &swallower = result.candidates[collinear.swallower];
+		result.state = InkScanState::BackgroundCollinear;
+		result.reason = u"candidate "_q
+			+ CandidateName(swallowed)
+			+ u"("_q
+			+ ColorHex(swallowed.color)
+			+ u") lies on the segment from the measured background "_q
+			+ ColorHex(result.background)
+			+ u" to candidate "_q
+			+ CandidateName(swallower)
+			+ u"("_q
+			+ ColorHex(swallower.color)
+			+ u"), so none of its pixels can be attributed: distance="_q
+			+ QString::number(collinear.distance)
+			+ u" kInkMargin="_q
+			+ QString::number(kInkMargin);
 	} else {
 		result.state = InkScanState::Classified;
 		result.reason = u"none"_q;
@@ -622,6 +687,615 @@ InkMeasure MeasurePaintedInk(
 	}
 	return result;
 }
+
+namespace {
+
+[[nodiscard]] int ChromaticSpread(QColor color) {
+	if (!color.isValid()) {
+		return 0;
+	}
+	const auto high = std::max({ color.red(), color.green(), color.blue() });
+	const auto low = std::min({ color.red(), color.green(), color.blue() });
+	return high - low;
+}
+
+[[nodiscard]] bool ExcludedColor(QColor color, QColor excluded) {
+	return excluded.isValid()
+		&& (ChannelDelta(color, excluded) <= kSameTolerance);
+}
+
+[[nodiscard]] QString ClusterRefusal(const ChromaticRaster &reading) {
+	if (reading.state == ChromaticRasterState::Found) {
+		return {};
+	}
+	const auto reason = reading.reason.isEmpty()
+		? u"this reading was never scanned"_q
+		: reading.reason;
+	return u"this reading (%1) found no chromatic cluster: %2"_q
+		.arg(ChromaticRasterStateName(reading.state), reason);
+}
+
+} // namespace
+
+QString ChromaticRasterStateName(ChromaticRasterState state) {
+	switch (state) {
+	case ChromaticRasterState::NotScanned:
+		return u"not-scanned"_q;
+	case ChromaticRasterState::OutsideBand:
+		return u"raster-outside-band"_q;
+	case ChromaticRasterState::NoChromatic:
+		return u"no-chromatic"_q;
+	case ChromaticRasterState::BelowDensity:
+		return u"below-density"_q;
+	case ChromaticRasterState::Found:
+		return u"found"_q;
+	}
+	return u"missing"_q;
+}
+
+ChromaticBox ChromaticRaster::readBox() const {
+	auto result = ChromaticBox();
+	const auto refusal = ClusterRefusal(*this);
+	if (!refusal.isEmpty()) {
+		result.refusal = refusal;
+		return result;
+	}
+	result.box = box;
+	return result;
+}
+
+ChromaticMean ChromaticRaster::readMean() const {
+	auto result = ChromaticMean();
+	const auto refusal = ClusterRefusal(*this);
+	if (!refusal.isEmpty()) {
+		result.refusal = refusal;
+		return result;
+	}
+	result.color = mean;
+	return result;
+}
+
+ChromaticDensity ChromaticRaster::readDensity() const {
+	auto result = ChromaticDensity();
+	const auto refusal = ClusterRefusal(*this);
+	if (!refusal.isEmpty()) {
+		result.refusal = refusal;
+		return result;
+	}
+	result.density = density;
+	return result;
+}
+
+ChromaticRaster ReadChromaticRaster(
+		const QImage &image,
+		QRect band,
+		QColor pen,
+		QColor fill) {
+	auto result = ChromaticRaster();
+	const auto clip = band.intersected(image.rect());
+	if (clip.isEmpty()) {
+		result.state = ChromaticRasterState::OutsideBand;
+		result.reason = u"the requested band ["_q
+			+ RectText(band)
+			+ u"] does not intersect the image ["_q
+			+ RectText(image.rect())
+			+ u"], so no chromatic pixel was read"_q;
+		return result;
+	}
+	result.ok = true;
+	result.band = clip;
+	auto points = std::vector<QPoint>();
+	for (auto y = clip.top(); y <= clip.bottom(); ++y) {
+		for (auto x = clip.left(); x <= clip.right(); ++x) {
+			const auto color = image.pixelColor(x, y);
+			if (ChromaticSpread(color) < kChromaticFloor) {
+				continue;
+			}
+			if (ExcludedColor(color, pen) || ExcludedColor(color, fill)) {
+				continue;
+			}
+			points.push_back(QPoint(x, y));
+		}
+	}
+	result.totalChromatic = int(points.size());
+	if (points.empty()) {
+		result.state = ChromaticRasterState::NoChromatic;
+		result.reason = u"no pixel of the band ["_q
+			+ RectText(clip)
+			+ u"] cleared the chromatic floor "_q
+			+ QString::number(kChromaticFloor);
+		return result;
+	}
+	auto top = points.front().y();
+	auto bottom = top;
+	auto left = points.front().x();
+	auto right = left;
+	for (const auto &point : points) {
+		top = std::min(top, point.y());
+		bottom = std::max(bottom, point.y());
+		left = std::min(left, point.x());
+		right = std::max(right, point.x());
+	}
+	const auto origin = clip.left();
+	const auto columns = clip.width();
+	auto columnCount = std::vector<int>(columns, 0);
+	for (const auto &point : points) {
+		++columnCount[point.x() - origin];
+	}
+	auto prefix = std::vector<int>(columns + 1, 0);
+	for (auto i = 0; i != columns; ++i) {
+		prefix[i + 1] = prefix[i] + columnCount[i];
+	}
+	const auto window = std::max(bottom - top + 1, 1);
+	auto bestCount = -1;
+	auto bestX = left;
+	const auto lastStart = std::max(left, right - window + 1);
+	for (auto start = left; start <= lastStart; ++start) {
+		const auto from = start - origin;
+		const auto to = std::min(columns, from + window);
+		if ((from < 0) || (to < from)) {
+			continue;
+		}
+		const auto count = prefix[to] - prefix[from];
+		if (count > bestCount) {
+			bestCount = count;
+			bestX = start;
+		}
+	}
+	auto boxLeft = bestX + window;
+	auto boxRight = bestX - 1;
+	auto boxTop = bottom + 1;
+	auto boxBottom = top - 1;
+	auto sumR = qint64(0);
+	auto sumG = qint64(0);
+	auto sumB = qint64(0);
+	auto matched = 0;
+	for (const auto &point : points) {
+		if ((point.x() < bestX) || (point.x() >= bestX + window)) {
+			continue;
+		}
+		boxLeft = std::min(boxLeft, point.x());
+		boxRight = std::max(boxRight, point.x());
+		boxTop = std::min(boxTop, point.y());
+		boxBottom = std::max(boxBottom, point.y());
+		const auto color = image.pixelColor(point);
+		sumR += color.red();
+		sumG += color.green();
+		sumB += color.blue();
+		++matched;
+	}
+	if (matched <= 0) {
+		result.state = ChromaticRasterState::NoChromatic;
+		result.reason = u"no pixel of the band ["_q
+			+ RectText(clip)
+			+ u"] cleared the chromatic floor "_q
+			+ QString::number(kChromaticFloor);
+		return result;
+	}
+	const auto boxWidth = boxRight - boxLeft + 1;
+	const auto boxHeight = boxBottom - boxTop + 1;
+	const auto area = std::max(boxWidth * boxHeight, 1);
+	const auto density = float64(matched) / float64(area);
+	if (density >= kChromaticDensityFloor) {
+		result.state = ChromaticRasterState::Found;
+		result.reason = u"none"_q;
+		result.box = QRect(boxLeft, boxTop, boxWidth, boxHeight);
+		result.matched = matched;
+		result.density = density;
+		result.mean = QColor(
+			int(sumR / matched),
+			int(sumG / matched),
+			int(sumB / matched));
+	} else {
+		result.state = ChromaticRasterState::BelowDensity;
+		result.reason = u"the densest chromatic window stays under the "
+			"density floor: total="_q
+			+ QString::number(result.totalChromatic)
+			+ u" floor="_q
+			+ QString::number(kChromaticDensityFloor);
+	}
+	return result;
+}
+
+QString FormatChromaticRaster(const ChromaticRaster &reading) {
+	const auto box = reading.readBox();
+	const auto mean = reading.readMean();
+	const auto density = reading.readDensity();
+	const auto reason = reading.reason.isEmpty()
+		? u"this reading was never scanned"_q
+		: reading.reason;
+	return u"state="_q
+		+ ChromaticRasterStateName(reading.state)
+		+ u" band="_q
+		+ RectText(reading.band)
+		+ u" box="_q
+		+ (box.read() ? RectText(box.box) : u"none"_q)
+		+ u" matched="_q
+		+ (box.read() ? QString::number(reading.matched) : u"none"_q)
+		+ u" totalChromatic="_q
+		+ (reading.ok
+			? QString::number(reading.totalChromatic)
+			: u"none"_q)
+		+ u" density="_q
+		+ (density.read() ? QString::number(density.density) : u"none"_q)
+		+ u" mean="_q
+		+ (mean.read() ? ColorHex(mean.color) : u"none"_q)
+		+ u" reason="_q
+		+ reason;
+}
+
+namespace {
+
+void AppendBackgroundCollinearSelfTest(not_null<Runner*> runner) {
+	runner->add({
+		.name = u"ink scan self-test: a background-collinear candidate "
+			"is refused, and a separated control still classifies"_q,
+		.run = [] {
+			const auto dayFill = QColor(0xf1, 0xf1, 0xf1);
+			const auto controlFill = QColor(0x20, 0x40, 0x80);
+			const auto sub = QColor(0x99, 0x99, 0x99);
+			const auto fg = QColor(0x00, 0x00, 0x00);
+			const auto size = QSize(64, 32);
+			const auto band = QRect(8, 8, 48, 12);
+			const auto candidates = std::vector<InkCandidate>{
+				{ u"sub"_q, sub },
+				{ u"fg"_q, fg },
+			};
+			const auto colliding = std::vector<InkCandidate>{
+				{ u"mark"_q, QColor(0xff, 0xff, 0xff) },
+				{ u"mark-again"_q, QColor(0xf5, 0xf5, 0xf5) },
+			};
+			auto refusedImage = QImage(
+				size,
+				QImage::Format_ARGB32_Premultiplied);
+			refusedImage.fill(dayFill);
+			{
+				auto p = QPainter(&refusedImage);
+				p.fillRect(QRect(16, 8, 8, 12), sub);
+			}
+			auto controlImage = QImage(
+				size,
+				QImage::Format_ARGB32_Premultiplied);
+			controlImage.fill(controlFill);
+			{
+				auto p = QPainter(&controlImage);
+				p.fillRect(QRect(16, 8, 6, 12), sub);
+				p.fillRect(QRect(32, 8, 4, 12), fg);
+			}
+			const auto refused = ScanInk(refusedImage, band, candidates);
+			const auto control = ScanInk(controlImage, band, candidates);
+			const auto collided = ScanInk(refusedImage, band, colliding);
+			const auto subCount = refused.countAt(0);
+			const auto fgCount = refused.countAt(1);
+			const auto controlSub = control.countAt(0);
+			const auto controlFg = control.countAt(1);
+			const auto refusedText = FormatInkScan(refused, dayFill);
+			const auto controlText = FormatInkScan(control, controlFill);
+			const auto forbidden = std::vector<QString>{
+				u"candidates-collide"_q,
+				u"no-ink"_q,
+				u"outside-image"_q,
+				u"no-rows-in-band"_q,
+				u"the recovered box is empty or the fill is invalid"_q,
+				u"no row of the recovered box has the pill fill "
+					"as its own background"_q,
+				u"the requested fill is the image's background "
+					"outside the candidate, so no band can be derived"_q,
+				u"no row of the derived band kept the pill fill "
+					"as its own background"_q,
+				u"the candidates do not separate from each other"_q,
+				u"no pixel of the band"_q,
+				u"does not intersect the image"_q,
+			};
+			auto distinct = (InkScanStateName(refused.state)
+				== u"background-collinear"_q);
+			auto quoted = QString();
+			for (const auto &one : forbidden) {
+				if (refused.reason.contains(one)
+					|| (InkScanStateName(refused.state) == one)) {
+					distinct = false;
+				}
+				if (!quoted.isEmpty()) {
+					quoted += u"; "_q;
+				}
+				quoted += one;
+			}
+			const auto thresholds = std::vector<QString>{
+				u"kInkDelta=%1"_q.arg(kInkDelta),
+				u"kOnLine=%1"_q.arg(kOnLine),
+				u"kInkMargin=%1"_q.arg(kInkMargin),
+				u"kSameTolerance=%1"_q.arg(kSameTolerance),
+				u"kBackgroundSame=%1"_q.arg(kBackgroundSame),
+			};
+			auto thresholdsNamed = true;
+			for (const auto &one : thresholds) {
+				if (!controlText.contains(one)) {
+					thresholdsNamed = false;
+				}
+			}
+			Note(u"ink scan self-test: no window, session, chats list, "
+				"network, account or wallet - two synthetic images"_q);
+			Check(
+				refused.ok
+					&& (refused.state
+						== InkScanState::BackgroundCollinear)
+					&& (refused.state != InkScanState::Classified)
+					&& (refused.reason != u"none"_q)
+					&& refused.reason.contains(u"sub"_q)
+					&& refused.reason.contains(u"fg"_q)
+					&& refused.reason.contains(ColorHex(sub))
+					&& refused.reason.contains(ColorHex(fg))
+					&& refused.reason.contains(ColorHex(dayFill))
+					&& (refused.ambiguous == refused.inkPixels)
+					&& (refused.inkPixels > 0),
+				u"a candidate on the segment from the measured background "
+				"to another candidate is refused by name, not classified"_q,
+				refusedText);
+			Check(
+				!subCount.read()
+					&& (subCount.count == -1)
+					&& !fgCount.read()
+					&& (fgCount.count == -1)
+					&& InkCountDetails(subCount).contains(u"count=none"_q)
+					&& InkCountDetails(fgCount).contains(u"count=none"_q)
+					&& InkCountDetails(subCount).contains(
+						u"background-collinear"_q),
+				u"countAt on that reading refuses both candidates with "
+				"count=none"_q,
+				InkCountDetails(subCount)
+					+ u" | "_q
+					+ InkCountDetails(fgCount));
+			Check(
+				control.ok
+					&& (control.state == InkScanState::Classified)
+					&& (control.reason == u"none"_q)
+					&& controlSub.read()
+					&& (controlSub.count == 72)
+					&& controlFg.read()
+					&& (controlFg.count == 48),
+				u"the same two candidates against a background that does "
+				"not put one on the other's segment still classify"_q,
+				controlText
+					+ u" | "_q
+					+ InkCountDetails(controlSub)
+					+ u" | "_q
+					+ InkCountDetails(controlFg));
+			Check(
+				distinct,
+				u"the background-collinear name and reason differ from "
+				"candidates-collide, no-ink, outside-image, "
+				"no-rows-in-band and every DeriveBand reason"_q,
+				u"state=%1 reason=%2 forbidden=[%3]"_q
+					.arg(
+						InkScanStateName(refused.state),
+						refused.reason,
+						quoted));
+			Check(
+				refusedText.contains(ColorHex(sub))
+					&& refusedText.contains(ColorHex(fg))
+					&& refusedText.contains(ColorHex(dayFill))
+					&& refusedText.contains(u"sub"_q)
+					&& refusedText.contains(u"fg"_q)
+					&& controlText.startsWith(u"fill="_q)
+					&& controlText.contains(
+						u"sub(%1)=72"_q.arg(ColorHex(sub)))
+					&& controlText.contains(
+						u"fg(%1)=48"_q.arg(ColorHex(fg)))
+					&& controlText.contains(u"collision=none"_q)
+					&& !controlText.contains(u"background-collinear"_q)
+					&& thresholdsNamed,
+				u"the refusing format names both colours and the measured "
+				"background, and the control format keeps its counts and "
+				"thresholds"_q,
+				refusedText + u" || "_q + controlText);
+			Check(
+				collided.ok
+					&& (collided.state == InkScanState::CandidatesCollide)
+					&& collided.reason.contains(
+						u"the candidates do not separate from each other"_q)
+					&& (collided.state
+						!= InkScanState::BackgroundCollinear),
+				u"a pair that already collides under Separable keeps "
+				"CandidatesCollide and its existing text"_q,
+				FormatInkScan(collided, dayFill));
+		},
+	});
+}
+
+void AppendChromaticRasterSelfTest(not_null<Runner*> runner) {
+	runner->add({
+		.name = u"chromatic raster self-test: a dense mark, an equal-count "
+			"smear, and a flat fill"_q,
+		.run = [] {
+			const auto pen = QColor(0x11, 0x11, 0x11);
+			const auto fill = QColor(0xe8, 0xe4, 0xdc);
+			const auto red = QColor(0xff, 0x00, 0x00);
+			const auto blue = QColor(0x00, 0x00, 0xff);
+			const auto mark = QRect(8, 8, 16, 16);
+			const auto band = QRect(0, 0, 96, 40);
+			auto denseImage = QImage(
+				QSize(96, 40),
+				QImage::Format_ARGB32_Premultiplied);
+			denseImage.fill(fill);
+			auto reds = 0;
+			auto blues = 0;
+			for (auto y = mark.top(); y <= mark.bottom(); ++y) {
+				for (auto x = mark.left(); x <= mark.right(); ++x) {
+					const auto color = ((x + y) % 2) ? blue : red;
+					denseImage.setPixelColor(x, y, color);
+					if (color == red) {
+						++reds;
+					} else {
+						++blues;
+					}
+				}
+			}
+			const auto painted = reds + blues;
+			const auto expectedMean = QColor(
+				int((qint64(red.red()) * reds
+					+ qint64(blue.red()) * blues) / painted),
+				int((qint64(red.green()) * reds
+					+ qint64(blue.green()) * blues) / painted),
+				int((qint64(red.blue()) * reds
+					+ qint64(blue.blue()) * blues) / painted));
+			auto sparseImage = QImage(
+				QSize(96, 40),
+				QImage::Format_ARGB32_Premultiplied);
+			sparseImage.fill(fill);
+			auto sparsePainted = 0;
+			for (auto y = 8; y < 24; ++y) {
+				for (auto x = 8; x < 72; ++x) {
+					if ((x % 4) != 0) {
+						continue;
+					}
+					const auto color = ((x + y) % 2) ? blue : red;
+					sparseImage.setPixelColor(x, y, color);
+					++sparsePainted;
+				}
+			}
+			auto flatImage = QImage(
+				QSize(96, 40),
+				QImage::Format_ARGB32_Premultiplied);
+			flatImage.fill(fill);
+			const auto dense = ReadChromaticRaster(
+				denseImage,
+				band,
+				pen,
+				fill);
+			const auto sparse = ReadChromaticRaster(
+				sparseImage,
+				band,
+				pen,
+				fill);
+			const auto flat = ReadChromaticRaster(
+				flatImage,
+				band,
+				pen,
+				fill);
+			const auto outside = ReadChromaticRaster(
+				flatImage,
+				QRect(200, 200, 8, 8),
+				pen,
+				fill);
+			const auto box = dense.readBox();
+			const auto mean = dense.readMean();
+			const auto density = dense.readDensity();
+			const auto sparseBox = sparse.readBox();
+			const auto sparseMean = sparse.readMean();
+			const auto sparseDensity = sparse.readDensity();
+			const auto flatBox = flat.readBox();
+			const auto flatMean = flat.readMean();
+			const auto flatDensity = flat.readDensity();
+			const auto denseText = FormatChromaticRaster(dense);
+			const auto sparseText = FormatChromaticRaster(sparse);
+			const auto flatText = FormatChromaticRaster(flat);
+			const auto outsideText = FormatChromaticRaster(outside);
+			Note(u"chromatic raster self-test: no window, session, chats "
+				"list, network, account or wallet - three synthetic "
+				"images"_q);
+			Check(
+				dense.found()
+					&& box.read()
+					&& (box.box == mark)
+					&& (box.box != band)
+					&& band.contains(box.box)
+					&& density.read()
+					&& (density.density >= kChromaticDensityFloor)
+					&& mean.read()
+					&& (ColorHex(mean.color) == ColorHex(expectedMean))
+					&& (ColorHex(mean.color) != ColorHex(pen))
+					&& (ColorHex(mean.color) != ColorHex(fill))
+					&& (painted == 256),
+				u"a dense two-colour mark is found at its own box, with "
+				"the mean of its ink and neither colour the check passed "
+				"in"_q,
+				denseText
+					+ u" expectedMean="_q
+					+ ColorHex(expectedMean)
+					+ u" pen="_q
+					+ ColorHex(pen)
+					+ u" fill="_q
+					+ ColorHex(fill));
+			Check(
+				(dense.totalChromatic == sparse.totalChromatic)
+					&& (dense.totalChromatic == sparsePainted)
+					&& (dense.totalChromatic > 0)
+					&& (sparse.state == ChromaticRasterState::BelowDensity)
+					&& !sparse.found()
+					&& !sparseBox.read()
+					&& sparseBox.box.isEmpty(),
+				u"an equal chromatic count spread below the density floor "
+				"is refused and has no found box"_q,
+				u"denseTotal=%1 sparseTotal=%2 dense=%3 sparse=%4"_q
+					.arg(dense.totalChromatic)
+					.arg(sparse.totalChromatic)
+					.arg(denseText, sparseText));
+			Check(
+				flat.ok
+					&& (flat.state == ChromaticRasterState::NoChromatic)
+					&& (flat.totalChromatic == 0)
+					&& !flat.found()
+					&& !flatBox.read()
+					&& (ChromaticRasterStateName(flat.state)
+						!= ChromaticRasterStateName(sparse.state))
+					&& (flat.reason != sparse.reason)
+					&& flat.reason.contains(u"chromatic floor"_q)
+					&& sparse.reason.contains(u"density floor"_q),
+				u"a flat fill with no chromatic pixel refuses by the other "
+				"name and has no found box"_q,
+				flatText + u" || "_q + sparseText);
+			Check(
+				!sparseBox.read()
+					&& !sparseMean.read()
+					&& !sparseDensity.read()
+					&& !flatBox.read()
+					&& !flatMean.read()
+					&& !flatDensity.read()
+					&& sparseBox.refusal.contains(u"below-density"_q)
+					&& flatBox.refusal.contains(u"no-chromatic"_q),
+				u"asking a refusing raster for its box, mean or density "
+				"returns a refusal rather than a value"_q,
+				sparseBox.refusal
+					+ u" | "_q
+					+ sparseMean.refusal
+					+ u" | "_q
+					+ flatDensity.refusal);
+			Check(
+				denseText.contains(RectText(mark))
+					&& denseText.contains(u"matched=256"_q)
+					&& denseText.contains(u"totalChromatic=256"_q)
+					&& denseText.contains(
+						u"density="_q
+							+ QString::number(density.density)
+							+ u" mean="_q)
+					&& denseText.contains(ColorHex(expectedMean))
+					&& denseText.contains(u"state=found"_q)
+					&& !denseText.contains(ColorHex(pen))
+					&& !denseText.contains(ColorHex(fill))
+					&& sparseText.contains(u"state=below-density"_q)
+					&& sparseText.contains(u"box=none"_q)
+					&& flatText.contains(u"state=no-chromatic"_q)
+					&& flatText.contains(u"box=none"_q)
+					&& outsideText.contains(u"state=raster-outside-band"_q)
+					&& !outside.ok
+					&& (outside.state
+						!= ChromaticRasterState::NoChromatic)
+					&& (outside.state
+						!= ChromaticRasterState::BelowDensity),
+				u"the found format carries the box, both counts, the "
+				"density and the mean, and each refusal names itself"_q,
+				denseText
+					+ u" || "_q
+					+ sparseText
+					+ u" || "_q
+					+ flatText
+					+ u" || "_q
+					+ outsideText);
+		},
+	});
+}
+
+} // namespace
 
 void AppendDeriveBandSelfTest(not_null<Runner*> runner) {
 	runner->add({
@@ -1073,6 +1747,8 @@ void AppendDeriveBandSelfTest(not_null<Runner*> runner) {
 					+ InkCountDetails(refusedCount));
 		},
 	});
+	AppendBackgroundCollinearSelfTest(runner);
+	AppendChromaticRasterSelfTest(runner);
 }
 
 } // namespace Test

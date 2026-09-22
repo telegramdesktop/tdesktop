@@ -26,13 +26,20 @@ inline constexpr auto kOnLine = 10.;
 inline constexpr auto kInkMargin = 8.;
 inline constexpr auto kBackgroundSame = 6;
 inline constexpr auto kMinInkPixels = 24;
+// Chroma is max(channel) - min(channel). 24 keeps a near-neutral fringe
+// (the diagnosing run's #888988 has chroma 1) out and a saturated mark in.
+// The density floor sits in the measured gap between a fringe smear (~0.26)
+// and a coloured glyph (~0.70). Neither retunes a shipped ink threshold.
+inline constexpr auto kChromaticFloor = 24;
+inline constexpr auto kChromaticDensityFloor = 0.40;
 
 struct InkCandidate {
 	QString name;
 	QColor color;
 };
 
-// Classified, NoInk and CandidatesCollide all mean the band WAS scanned, so
+// Classified, NoInk, CandidatesCollide and BackgroundCollinear all mean the
+// band WAS scanned, so
 // every frame-level number on the reading - total, inkPixels,
 // backgroundPixels, widestRun and the measured colours - is a real
 // measurement. OutsideImage, NoRowsInBand and NotScanned mean no pixel was
@@ -40,7 +47,9 @@ struct InkCandidate {
 // Classified claims only that the ink was offered to the candidates, not
 // that any pixel was attributed: a scan whose candidates separate but sit
 // farther than kOnLine from every ink pixel answers Classified with every
-// count 0 and ambiguous == inkPixels.
+// count 0 and ambiguous == inkPixels. BackgroundCollinear is the other
+// zero: a candidate lies within kInkMargin of the segment from the measured
+// modal background to another candidate, so that zero is not a count.
 enum class InkScanState {
 	NotScanned,
 	OutsideImage,
@@ -48,6 +57,7 @@ enum class InkScanState {
 	CandidatesCollide,
 	NoInk,
 	Classified,
+	BackgroundCollinear,
 };
 
 [[nodiscard]] QString InkScanStateName(InkScanState state);
@@ -65,7 +75,8 @@ struct DerivedBand {
 // One candidate's count read out of a scan. |count| is -1 and |refusal| is
 // non-empty on every refusing path - an index the reading does not have, a
 // reading that classified nothing, candidates that do not separate - so a
-// refused ask can never be read back as a measured zero. |name| and |color|
+// refused ask can never be read back as a measured zero. A
+// background-collinear reading is one of those refusals. |name| and |color|
 // are filled whenever |index| names a real candidate, refusal or not, so
 // even a refusal says which candidate was asked about, and InkCountDetails
 // prints count=none beside that refusal.
@@ -142,8 +153,13 @@ struct InkMeasure {
 // all: OutsideImage, when |band| does not intersect the image, and
 // NoRowsInBand, when an explicit |onlyRows| list has no row inside the band.
 // CandidatesCollide - the candidates do not separate, so every ink pixel is
-// ambiguous and no count is attributed - and NoInk both keep ok = true,
-// because the band was scanned and their frame-level numbers are measured.
+// ambiguous and no count is attributed - NoInk, and BackgroundCollinear -
+// one candidate lies within kInkMargin of the segment from the measured
+// modal background to another, so a pixel of it can never be attributed -
+// all keep ok = true, because the band was scanned and their frame-level
+// numbers are measured. BackgroundCollinear is not Classified, and countAt
+// refuses it. It loses to CandidatesCollide and to NoInk, which keep their
+// texts.
 // |candidates| and |counts| are filled before either refusal returns, so the
 // two are always the same length and a refused reading still names what it
 // was asked to classify against. |reason| is never empty on a returned
@@ -190,6 +206,86 @@ struct InkMeasure {
 	QColor fill,
 	std::vector<InkCandidate> candidates);
 
+// One cluster read out of a chromatic raster. |box|, |color| and |density|
+// are filled only when |read()| is true. A refusal leaves them empty and
+// carries |refusal|, so a caller cannot treat an empty box as a measurement.
+struct ChromaticBox {
+	QRect box;
+	QString refusal;
+
+	[[nodiscard]] bool read() const {
+		return refusal.isEmpty();
+	}
+};
+
+struct ChromaticMean {
+	QColor color;
+	QString refusal;
+
+	[[nodiscard]] bool read() const {
+		return refusal.isEmpty();
+	}
+};
+
+struct ChromaticDensity {
+	float64 density = 0.;
+	QString refusal;
+
+	[[nodiscard]] bool read() const {
+		return refusal.isEmpty();
+	}
+};
+
+// Found means a square window of the chromatic bounding box's height cleared
+// kChromaticDensityFloor. NoChromatic and BelowDensity were scanned, so
+// |totalChromatic| is a real count (zero for NoChromatic) and ok stays true.
+// OutsideBand looked at no pixel. NotScanned is the unread value. The mean
+// is the average of the pixels in the densest window, never a colour the
+// caller passed as |pen| or |fill|. readBox, readMean and readDensity refuse
+// on every state except Found.
+enum class ChromaticRasterState {
+	NotScanned,
+	OutsideBand,
+	NoChromatic,
+	BelowDensity,
+	Found,
+};
+
+[[nodiscard]] QString ChromaticRasterStateName(ChromaticRasterState state);
+
+struct ChromaticRaster {
+	bool ok = false;
+	QRect band;
+	int totalChromatic = 0;
+	QRect box;
+	int matched = 0;
+	float64 density = 0.;
+	QColor mean;
+	ChromaticRasterState state = ChromaticRasterState::NotScanned;
+	QString reason;
+
+	[[nodiscard]] bool found() const {
+		return state == ChromaticRasterState::Found;
+	}
+	[[nodiscard]] ChromaticBox readBox() const;
+	[[nodiscard]] ChromaticMean readMean() const;
+	[[nodiscard]] ChromaticDensity readDensity() const;
+};
+
+// Keeps pixels in |band| whose channel spread clears kChromaticFloor and
+// that match neither |pen| nor |fill| within kSameTolerance, then reports
+// the densest square window. An invalid |pen| or |fill| is not an exclusion.
+[[nodiscard]] ChromaticRaster ReadChromaticRaster(
+	const QImage &image,
+	QRect band,
+	QColor pen,
+	QColor fill);
+
+// Prints the box, matched count, total chromatic count, density and measured
+// mean on a found reading, and names the refusal on every other reading.
+// A refused box, density or mean is the text "none", not an empty value.
+[[nodiscard]] QString FormatChromaticRaster(const ChromaticRaster &reading);
+
 // AppendDeriveBandSelfTest is the underivable-band refusal measuring
 // itself. Three synthetic images, no widget, no window, no session, chats,
 // network, account or wallet: the same fill inside and outside the
@@ -206,6 +302,10 @@ struct InkMeasure {
 // candidate pair whose reading names the collision, a scanned band with no
 // ink, the not-scanned reading a refused derivation leaves behind, and
 // FormatInkScan's candidate colours and thresholds on a passing verdict.
+// The background-collinear stage and the chromatic-raster stage register
+// here too: a triple the measured background cannot separate, beside one
+// that still classifies, and a dense mark beside an equal-count smear and
+// a flat fill.
 void AppendDeriveBandSelfTest(not_null<Runner*> runner);
 
 } // namespace Test
