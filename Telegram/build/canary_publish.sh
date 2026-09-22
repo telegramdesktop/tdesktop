@@ -25,7 +25,8 @@
 #                           universal build and share a message)
 #   BASE, COUNTER, COMMIT   the version being published
 #   VERSION_STR             the display version (7.0.9) of the archives
-#   PREVIOUS                commit of the previous run, for the changelog
+#   PREVIOUS                previous run's tip; one subject if it is not
+#                           an ancestor of HEAD
 #   SIGNED                  "true" when the platform binaries carry their
 #                           Authenticode signature / notarization (Linux
 #                           has none to carry and always passes "true")
@@ -134,9 +135,18 @@ fi
 LOG=$(
   set +e
   set +o pipefail
-  if [ -n "$PREVIOUS" ] && git cat-file -e "$PREVIOUS^{commit}" 2>/dev/null \
+  ancestor=0
+  if [ -n "$PREVIOUS" ] \
+    && git cat-file -e "$PREVIOUS^{commit}" 2>/dev/null \
+    && git merge-base --is-ancestor "$PREVIOUS" HEAD 2>/dev/null; then
+    ancestor=1
+  fi
+  if [ "$ancestor" = 1 ] \
     && [ "$(git rev-parse "$PREVIOUS" 2>/dev/null)" != "$(git rev-parse HEAD 2>/dev/null)" ]; then
     git log --no-merges --pretty=format:'• %s' -n 20 "$PREVIOUS..HEAD" 2>/dev/null
+  elif [ -n "$PREVIOUS" ] && [ "$ancestor" != 1 ]; then
+    # Not in HEAD's history: the lane was rebased, so keep one subject.
+    git log -1 --pretty=format:'• %s' 2>/dev/null
   else
     git log --no-merges --pretty=format:'• %s' -n 10 2>/dev/null
   fi

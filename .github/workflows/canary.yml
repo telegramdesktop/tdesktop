@@ -280,9 +280,9 @@ jobs:
           echo "suffix=$SUFFIX" >> $GITHUB_OUTPUT
           echo "folder=$FOLDER" >> $GITHUB_OUTPUT
 
-          # The changelog covers the commits since the previous completed
-          # run of this workflow on the branch (a platform that skipped a
-          # run misses a few lines, nothing more).
+          # Tip of the previous completed run on this branch. Publishing
+          # lists commits since an ancestor tip, or only the latest
+          # subject when that tip is no longer in HEAD's history.
           PREVIOUS=$(curl -sf \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github+json" \
