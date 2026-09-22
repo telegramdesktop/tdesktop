@@ -41,9 +41,9 @@ inline auto PreviewPath(int i) {
 
 const auto kSets = {
 	Set{ { 0,    0,         0, "Mac" },       PreviewPath(0) },
-	Set{ { 1, 2774, 8'455'034, "Android" },   PreviewPath(1) },
-	Set{ { 2, 2775, 5'713'503, "Twemoji" },   PreviewPath(2) },
-	Set{ { 3, 2776, 7'347'332, "JoyPixels" }, PreviewPath(3) },
+	Set{ { 1, 3223, 7'854'643, "Android" },   PreviewPath(1) },
+	Set{ { 2, 3224, 6'072'532, "Twemoji" },   PreviewPath(2) },
+	Set{ { 3, 3225, 7'805'861, "JoyPixels" }, PreviewPath(3) },
 };
 
 using Loading = MTP::DedicatedLoader::Progress;
