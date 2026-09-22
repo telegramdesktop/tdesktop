@@ -1254,7 +1254,7 @@ base::unique_qptr<Ui::RpWidget> CreateDisabledFieldView(
 	const auto realAscent = int(base::SafeRound(metrics.ascent()));
 	const auto ascentAdd = st.style.font->ascent - realAscent;
 	const auto customFontMarginTop = ascentAdd;
-	const auto leading = qMax(metrics.leading(), qreal(0.0));
+	const auto leading = std::max(metrics.leading(), qreal(0.0));
 	const auto adjustment = (metrics.ascent() + leading)
 		- ((st.style.font->height * 4) / 5);
 	const auto placeholderCustomFontSkip = int(base::SafeRound(-adjustment));

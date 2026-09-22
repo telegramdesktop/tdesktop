@@ -34,6 +34,7 @@ StickersPanelController::StickersPanelController(
 						.megagroupSet = false,
 						.stickersSettings = false,
 						.openStickerSets = false,
+						.photoButton = true,
 					},
 				}),
 		})) {
@@ -50,6 +51,10 @@ auto StickersPanelController::stickerChosen() const
 	) | rpl::map([](const ChatHelpers::FileChosen &data) {
 		return data.document;
 	});
+}
+
+rpl::producer<> StickersPanelController::photoRequests() const {
+	return _stickersPanel->selector()->photoRequests();
 }
 
 rpl::producer<bool> StickersPanelController::panelShown() const {

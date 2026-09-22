@@ -321,6 +321,7 @@ private:
 	QImage _thumb;
 	bool _thumbGood = false;
 	bool _sensitiveSpoiler = false;
+	bool _inlineOverCap = false;
 
 };
 

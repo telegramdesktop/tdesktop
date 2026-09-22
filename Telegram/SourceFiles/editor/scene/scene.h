@@ -7,14 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <base/unique_qptr.h>
 #include <editor/photo_editor_inner_common.h>
 #include <editor/scene/scene_item_base.h>
 
 #include <QGraphicsScene>
 
 class QGraphicsSceneMouseEvent;
-class QGraphicsTextItem;
 
 namespace Ui {
 class RpWidget;
@@ -26,6 +24,7 @@ class ItemCanvas;
 class ItemShape;
 class ItemText;
 class NumberedItem;
+class TextEditController;
 
 class Scene final : public QGraphicsScene {
 public:
@@ -45,7 +44,14 @@ public:
 	~Scene();
 	void applyBrush(const QColor &color, float64 size, Brush::Tool tool);
 	void setBlurSource(Fn<QImage(QRect)> source);
-	void setTextDefaults(const QColor &color, float64 fontSize, int style);
+	void setTextDefaults(
+		const QColor &color,
+		float64 fontSize,
+		TextStyle style,
+		TextTypeface typeface,
+		TextAlignment alignment);
+	void applyTextPrefs(const TextPrefs &prefs);
+	void noteTextItemPrefs(not_null<ItemText*> item);
 
 	void setPendingShape(std::optional<PendingShape> pending);
 	void updatePendingShapeBrush(const QColor &color, float64 strokeWidth);
@@ -63,6 +69,8 @@ public:
 	[[nodiscard]] rpl::producer<> removesItem() const;
 
 	[[nodiscard]] std::shared_ptr<float64> lastZ() const;
+	[[nodiscard]] ItemPtr itemShared(QGraphicsItem *item) const;
+	[[nodiscard]] float64 currentZoom() const;
 
 	void updateZoom(float64 zoom);
 
@@ -70,12 +78,13 @@ public:
 	void cancelTextEditing();
 
 	void startTextEditing(ItemText *item);
-	void createTextAtCenter(int rotation);
+	void createTextAtCenter(int rotation, bool flipped);
 	void setTextColor(const QColor &color);
 	void setSelectedTextColor(const QColor &color);
 	void setSelectedShapeBrush(const QColor &color, float64 strokeWidth);
 
 	[[nodiscard]] rpl::producer<QColor> textColorRequests() const;
+	[[nodiscard]] rpl::producer<TextPrefs> textPrefsUsed() const;
 	[[nodiscard]] rpl::producer<QColor> textItemSelections() const;
 	[[nodiscard]] rpl::producer<> textItemDeselections() const;
 	[[nodiscard]] rpl::producer<bool> textEditStates() const;
@@ -114,15 +123,10 @@ private:
 	[[nodiscard]] std::shared_ptr<ItemShape> createShape(
 		int size,
 		const QPointF &center) const;
-	void finishTextEditing(bool save, bool notify = true);
-	void setTextEditing(bool editing, bool notify = true);
-	void setupTextProxy(
-		QGraphicsTextItem *proxy,
-		const QColor &color,
-		float64 fontSize);
 
 	const std::shared_ptr<ItemCanvas> _canvas;
 	const std::shared_ptr<float64> _lastZ;
+	const std::unique_ptr<TextEditController> _textEdit;
 	Fn<QImage(QRect)> _blurSource;
 
 	std::vector<ItemPtr> _items;
@@ -132,16 +136,6 @@ private:
 	float64 _lastLineZ = 0.;
 	float64 _currentZoom = 1.;
 	int _itemNumber = 0;
-
-	QColor _textColor;
-	float64 _textFontSize = 0.;
-	int _textStyle = 0;
-	int _textEditStyle = 0;
-
-	struct {
-		std::weak_ptr<NumberedItem> item;
-		base::unique_qptr<QGraphicsTextItem> proxy;
-	} _textEdit;
 
 	struct {
 		std::optional<PendingShape> pending;
@@ -153,17 +147,13 @@ private:
 	} _shapeTool;
 
 	rpl::event_stream<> _addsItem, _removesItem;
-	rpl::event_stream<QColor> _textColorRequests;
 	rpl::event_stream<QColor> _textItemSelections;
 	rpl::event_stream<> _textItemDeselections;
-	rpl::event_stream<bool> _textEditStates;
 	rpl::event_stream<QColor> _shapeItemSelections;
 	rpl::event_stream<> _shapeItemDeselections;
 	rpl::event_stream<bool> _pendingShapeStates;
 	ItemText *_selectedTextItem = nullptr;
 	ItemShape *_selectedShapeItem = nullptr;
-	bool _textEditing = false;
-	int _textEditGeneration = 0;
 	rpl::lifetime _lifetime;
 
 };

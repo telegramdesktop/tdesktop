@@ -155,7 +155,7 @@ void Item::paint(Painter &p, int outerWidth) {
 		paintOnce(p, _x, _y, outerWidth);
 	} else {
 		for (auto i = _copies.begin(), e = _copies.end(); i != e;) {
-			auto x = qRound(i->x.value(_x));
+			auto x = int(base::SafeRound(i->x.value(_x)));
 			auto y = i->y;
 			auto animating = i->x.animating();
 			if (animating || (y == _y)) {
@@ -653,7 +653,7 @@ int MultiSelect::resizeGetHeight(int newWidth) {
 	if (newWidth != _inner->width()) {
 		_inner->resizeToWidth(newWidth);
 	}
-	auto newHeight = qMin(_inner->height(), _st.maxHeight);
+	auto newHeight = std::min(_inner->height(), _st.maxHeight);
 	_scroll->setGeometryToLeft(0, 0, newWidth, newHeight);
 	return newHeight;
 }
@@ -887,9 +887,9 @@ void MultiSelect::Inner::paintEvent(QPaintEvent *e) {
 
 QMargins MultiSelect::Inner::itemPaintMargins() const {
 	return {
-		qMax(_st.itemSkip, _st.padding.left()),
+		std::max(_st.itemSkip, _st.padding.left()),
 		_st.itemSkip,
-		qMax(_st.itemSkip, _st.padding.right()),
+		std::max(_st.itemSkip, _st.padding.right()),
 		_st.itemSkip,
 	};
 }
@@ -1010,7 +1010,9 @@ void MultiSelect::Inner::computeItemsGeometry(int newWidth) {
 	auto itemLeft = 0;
 	auto itemTop = 0;
 	auto widthLeft = newWidth;
-	auto maxVisiblePadding = qMax(_st.padding.left(), _st.padding.right());
+	auto maxVisiblePadding = std::max(
+		_st.padding.left(),
+		_st.padding.right());
 	for (const auto &item : _items) {
 		auto itemWidth = item->getWidth();
 		Assert(itemWidth <= newWidth);
@@ -1045,7 +1047,7 @@ void MultiSelect::Inner::updateItemsGeometry() {
 }
 
 void MultiSelect::Inner::updateHeightStep() {
-	auto newHeight = qRound(_height.value(_newHeight));
+	auto newHeight = int(base::SafeRound(_height.value(_newHeight)));
 	if (auto heightDelta = newHeight - height()) {
 		resize(width(), newHeight);
 		if (_resizedCallback) {

@@ -244,7 +244,7 @@ void Provider::checkPreload(
 				sliceKey(_universalAroundId),
 				sliceKey(universalId));
 			Assert(delta != std::nullopt);
-			preloadRequired = (qAbs(*delta) >= minUniversalIdDelta);
+			preloadRequired = (std::abs(*delta) >= minUniversalIdDelta);
 		}
 		if (preloadRequired) {
 			_idsLimit = preloadIdsLimit;

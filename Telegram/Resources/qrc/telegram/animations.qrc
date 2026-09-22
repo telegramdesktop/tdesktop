@@ -29,6 +29,7 @@
     <file alias="writing.tgs">../../animations/writing.tgs</file>
     <file alias="hours.tgs">../../animations/hours.tgs</file>
     <file alias="phone.tgs">../../animations/phone.tgs</file>
+    <file alias="call_rate.tgs">../../animations/call_rate.tgs</file>
     <file alias="chat_link.tgs">../../animations/chat_link.tgs</file>
     <file alias="diamond.tgs">../../animations/diamond.tgs</file>
     <file alias="collectible_username.tgs">../../animations/collectible_username.tgs</file>
@@ -101,6 +102,7 @@
     <file alias="photo_editor_pen.tgs">../../animations/photo_editor/pen.tgs</file>
     <file alias="photo_editor_arrow.tgs">../../animations/photo_editor/arrow.tgs</file>
     <file alias="photo_editor_marker.tgs">../../animations/photo_editor/marker.tgs</file>
+    <file alias="photo_editor_text_align.tgs">../../animations/photo_editor/text_align.tgs</file>
     <file alias="photo_editor_eraser.tgs">../../animations/photo_editor/eraser.tgs</file>
     <file alias="photo_editor_blur.tgs">../../animations/photo_editor/blur.tgs</file>
 

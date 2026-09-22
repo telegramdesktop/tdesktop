@@ -474,10 +474,9 @@ class TextToolButton final : public Ui::AbstractButton {
 public:
 	TextToolButton(not_null<QWidget*> parent)
 	: AbstractButton(parent) {
-		constexpr auto kSizeShrink = 6;
 		resize(
-			st::photoEditorStickersButton.width - kSizeShrink,
-			st::photoEditorStickersButton.height - kSizeShrink);
+			st::photoEditorTextButtonSize.width(),
+			st::photoEditorTextButtonSize.height());
 		events(
 		) | rpl::on_next([=](not_null<QEvent*> event) {
 			if (event->type() == QEvent::Enter
@@ -497,7 +496,7 @@ private:
 		p.setPen(isOver()
 			? st::photoEditorButtonIconFgOver
 			: st::photoEditorButtonIconFg);
-		p.translate(0, st::lineWidth * 3);
+		p.translate(0, st::photoEditorTextButtonGlyphSkip);
 		p.drawText(QWidget::rect(), style::al_center, u"A"_q);
 	}
 };

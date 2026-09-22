@@ -1711,6 +1711,15 @@ bool Document::updateStatusText() const {
 	if (statusSize != _statusSize) {
 		setStatusSize(statusSize, realDuration);
 	}
+	if (_data->uploading() && _data->uploadingData->preparing) {
+		const auto percent = int(base::SafeRound(
+			_data->uploadingData->prepareProgress * 100));
+		_statusText = tr::lng_send_video_preparing(
+			tr::now,
+			lt_progress,
+			QString::number(percent));
+		_statusSize = Ui::FileStatusSizeReady;
+	}
 	return showPause;
 }
 
@@ -1907,7 +1916,9 @@ bool Document::voiceProgressAnimationCallback(crl::time now) {
 				voice->playback->progressAnimation.stop();
 				voice->playback->progress.finish();
 			} else {
-				voice->playback->progress.update(qMin(dt, 1.), anim::linear);
+				voice->playback->progress.update(
+					std::min(dt, 1.),
+					anim::linear);
 			}
 			repaint();
 			return (dt < 1.);

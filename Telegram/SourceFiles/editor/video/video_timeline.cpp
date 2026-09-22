@@ -84,6 +84,7 @@ QRect VideoTimeline::stripRect() const {
 }
 
 QRect VideoTimeline::labelRect() const {
+	// Full width, so the size lines up with the quality labels below.
 	return QRect(0, 0, width(), st::videoTimelineLabelHeight);
 }
 
@@ -143,6 +144,14 @@ void VideoTimeline::setPlaybackPosition(crl::time position) {
 	update();
 }
 
+void VideoTimeline::setSizeLabel(const QString &text) {
+	if (_sizeLabel == text) {
+		return;
+	}
+	_sizeLabel = text;
+	update();
+}
+
 void VideoTimeline::reloadFrames() {
 	const auto strip = stripRect();
 	const auto height = strip.height();
@@ -183,9 +192,10 @@ void VideoTimeline::reloadFrames() {
 	_framesCancel = cancel;
 
 	const auto path = _descriptor.path;
+	const auto content = _descriptor.content;
 	const auto box = _framesBox * style::DevicePixelRatio();
 	crl::async([=, weak = base::make_weak(this)] {
-		Media::Video::ExtractFrames(path, {
+		Media::Video::ExtractFrames(path, content, {
 			.positions = positions,
 			.box = box,
 			.cover = true,
@@ -485,17 +495,36 @@ void VideoTimeline::paintDuration(QPainter &p, const QRect &strip) {
 	const auto label = labelRect();
 	const auto &font = st::videoTimelineDurationStyle.font;
 	const auto width = font->width(text);
+	p.setFont(font);
+
+	// They must never overlap, so the size goes whole or not at all.
+	const auto sizeWidth = _sizeLabel.isEmpty()
+		? 0
+		: font->width(_sizeLabel);
+	const auto skip = st::videoTimelineSizeSkip;
+	const auto sizeShown = sizeWidth
+		&& (width + skip + sizeWidth <= label.width());
+	if (sizeShown) {
+		p.setPen(st::videoTimelineSizeFg);
+		p.drawText(label, Qt::AlignVCenter | Qt::AlignRight, _sizeLabel);
+	}
+	const auto available = sizeShown
+		? (label.width() - sizeWidth - skip)
+		: label.width();
+	const auto shown = (width <= available)
+		? text
+		: font->elided(text, available);
+	const auto shownWidth = std::min(width, available);
 	const auto center = (xAt(_from) + xAt(_till)) / 2;
 	const auto x = std::clamp(
-		center - width / 2,
+		center - shownWidth / 2,
 		label.x(),
-		label.x() + std::max(label.width() - width, 0));
+		label.x() + std::max(available - shownWidth, 0));
 	p.setPen(st::videoTimelineDurationFg);
-	p.setFont(font);
 	p.drawText(
-		QRect(x, label.y(), width, label.height()),
+		QRect(x, label.y(), shownWidth, label.height()),
 		Qt::AlignVCenter | Qt::AlignLeft,
-		text);
+		shown);
 }
 
 } // namespace Editor

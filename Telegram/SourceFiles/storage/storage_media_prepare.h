@@ -30,10 +30,17 @@ namespace Storage {
 enum class MimeDataState {
 	None,
 	Files,
+	FilesArchive,
+	FilesArchiveOnly,
 	PhotoFiles,
+	PhotoFilesArchive,
 	MediaFiles,
+	MediaFilesArchive,
 	//PremiumFile,
 	Image,
+	Media,
+	Folder,
+	FolderArchiveOnly,
 };
 
 [[nodiscard]] std::optional<Ui::PreparedList> PreparedFileFromFilesDialog(
@@ -44,7 +51,25 @@ enum class MimeDataState {
 	bool premium);
 [[nodiscard]] MimeDataState ComputeMimeDataState(const QMimeData *data);
 [[nodiscard]] bool ValidatePhotoEditorMediaDragData(
-	not_null<const QMimeData*> data);
+	not_null<const QMimeData*> data,
+	bool withVideo);
+
+struct PhotoEditorMedia {
+	QImage image;
+	QString videoPath;
+	QByteArray videoContent;
+	crl::time videoDuration = 0;
+
+	[[nodiscard]] bool video() const {
+		return !videoPath.isEmpty() || !videoContent.isEmpty();
+	}
+	[[nodiscard]] explicit operator bool() const {
+		return !image.isNull();
+	}
+};
+[[nodiscard]] PhotoEditorMedia ReadPhotoEditorMedia(
+	const QString &path,
+	const QByteArray &content);
 [[nodiscard]] bool ValidateEditMediaDragData(
 	not_null<const QMimeData*> data,
 	Ui::AlbumType albumType);

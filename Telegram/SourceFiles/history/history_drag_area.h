@@ -32,11 +32,14 @@ public:
 		Fn<void(bool)> &&setAcceptDropsField = nullptr,
 		Fn<void()> &&updateControlsGeometry = nullptr,
 		CallbackComputeState &&computeState = nullptr,
+		Fn<bool()> &&archiveOnly = nullptr,
 		bool hideSubtext = false);
 
 	static void SetupProxyDropArea(
 		not_null<Ui::RpWidget*> container,
 		Fn<void(const QString &localUrl)> connectProxy);
+
+	[[nodiscard]] static int MinimalHeight();
 
 	void setText(const QString &text, const QString &subtext);
 
@@ -49,6 +52,9 @@ public:
 
 	void setDroppedCallback(Fn<void(const QMimeData *data)> callback) {
 		_droppedCallback = std::move(callback);
+	}
+	void setArchiveDroppedCallback(Fn<void(const QMimeData *data)> callback) {
+		_archiveDroppedCallback = std::move(callback);
 	}
 
 protected:
@@ -71,8 +77,10 @@ private:
 
 	bool _hiding = false;
 	bool _in = false;
+	bool _archiveDropped = false;
 	QPixmap _cache;
 	Fn<void(const QMimeData *data)> _droppedCallback;
+	Fn<void(const QMimeData *data)> _archiveDroppedCallback;
 
 	Ui::Animations::Simple _a_opacity;
 	Ui::Animations::Simple _a_in;

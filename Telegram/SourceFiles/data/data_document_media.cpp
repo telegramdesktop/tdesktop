@@ -312,7 +312,9 @@ void DocumentMedia::automaticLoad(
 		return;
 	}
 	const auto toCache = _owner->saveToCache();
-	if (!toCache && !Core::App().canSaveFileWithoutAskingForPath()) {
+	if (!toCache && _owner->forbidsFileSave()) {
+		return;
+	} else if (!toCache && !Core::App().canSaveFileWithoutAskingForPath()) {
 		// We need a filename, but we're supposed to ask user for it.
 		// No automatic download in this case.
 		return;

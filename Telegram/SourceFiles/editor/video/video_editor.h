@@ -34,6 +34,7 @@ class VideoQualitySlider;
 
 struct VideoEditorDescriptor {
 	QString path;
+	QByteArray content;
 	QSize dimensions;
 	crl::time duration = 0;
 	VideoEditorData data;
@@ -64,6 +65,8 @@ private:
 	void setupControls();
 	void setupTimeline();
 	void setupQuality();
+	void setupSizeEstimate();
+	void refreshSizeEstimate();
 	void refreshQualityLevels();
 	void handleUpdate(Media::Streaming::Update &&update);
 	void restart(crl::time position);
@@ -82,11 +85,14 @@ private:
 	void keyPressEvent(QKeyEvent *e) override;
 
 	const QString _path;
+	const QByteArray _content;
 	const QSize _dimensions;
 	const crl::time _duration = 0;
 	const VideoEditorData _data;
 
 	const VideoModifications _initial;
+
+	Media::Encode::SourceInfo _source;
 
 	PhotoModifications _geometry;
 	crl::time _from = 0;

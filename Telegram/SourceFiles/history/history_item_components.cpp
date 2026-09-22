@@ -937,7 +937,7 @@ void ReplyKeyboard::resize(int width, int height) {
 		auto widthOfText = 0;
 		auto maxMinButtonWidth = 0;
 		for (const auto &button : row) {
-			widthOfText += qMax(button.text.maxWidth(), 1);
+			widthOfText += std::max(button.text.maxWidth(), 1);
 			int minButtonWidth = _st->minButtonWidth(button.iconType);
 			widthForText -= minButtonWidth;
 			accumulate_max(maxMinButtonWidth, minButtonWidth);
@@ -948,7 +948,7 @@ void ReplyKeyboard::resize(int width, int height) {
 
 		auto x = 0.;
 		for (auto &button : row) {
-			int buttonw = qMax(button.text.maxWidth(), 1);
+			int buttonw = std::max(button.text.maxWidth(), 1);
 			float64 textw = buttonw, minw = _st->minButtonWidth(button.iconType);
 			float64 w = textw;
 			if (exact) {
@@ -966,9 +966,9 @@ void ReplyKeyboard::resize(int width, int height) {
 			const auto rectw = static_cast<int>(std::floor(x + w)) - rectx;
 			button.rect = QRect(
 				rectx,
-				qRound(y),
+				int(base::SafeRound(y)),
 				rectw,
-				qRound(buttonHeight - _st->buttonSkip()));
+				int(base::SafeRound(buttonHeight - _st->buttonSkip())));
 			if (rtl()) {
 				button.rect.setX(
 					_width - button.rect.x() - button.rect.width());
@@ -988,7 +988,7 @@ bool ReplyKeyboard::isEnoughSpace(
 		auto s = int(row.size());
 		auto widthLeft = width - ((s - 1) * st.margin + s * 2 * st.padding);
 		for (const auto &button : row) {
-			widthLeft -= qMax(button.text.maxWidth(), 1);
+			widthLeft -= std::max(button.text.maxWidth(), 1);
 			if (widthLeft < 0) {
 				if (row.size() > 3) {
 					return false;
@@ -1018,7 +1018,7 @@ int ReplyKeyboard::naturalWidth() const {
 		for (const auto &button : row) {
 			accumulate_max(
 				rowMaxButtonWidth,
-				qMax(button.text.maxWidth(), 1) + maxMinButtonWidth);
+				std::max(button.text.maxWidth(), 1) + maxMinButtonWidth);
 		}
 
 		const auto rowSize = int(row.size());
@@ -1606,7 +1606,8 @@ float64 HistoryDocumentVoice::seekingStart() const {
 }
 
 void HistoryDocumentVoice::setSeekingStart(float64 seekingStart) const {
-	_seekingStart = qRound(seekingStart * kFloatToIntMultiplier);
+	const auto value = seekingStart * kFloatToIntMultiplier;
+	_seekingStart = int(base::SafeRound(value));
 }
 
 float64 HistoryDocumentVoice::seekingCurrent() const {
@@ -1614,5 +1615,6 @@ float64 HistoryDocumentVoice::seekingCurrent() const {
 }
 
 void HistoryDocumentVoice::setSeekingCurrent(float64 seekingCurrent) {
-	_seekingCurrent = qRound(seekingCurrent * kFloatToIntMultiplier);
+	const auto value = seekingCurrent * kFloatToIntMultiplier;
+	_seekingCurrent = int(base::SafeRound(value));
 }

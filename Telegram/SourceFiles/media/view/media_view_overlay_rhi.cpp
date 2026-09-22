@@ -480,6 +480,8 @@ void OverlayWidget::RendererRhi::render(
 		QRhiRenderTarget *rt,
 		QRhiCommandBuffer *cb) {
 	if (_owner->_hideWorkaround) {
+		cb->beginPass(rt, QColor(0, 0, 0, 0), { 1.0f, 0 });
+		cb->endPass();
 		return;
 	}
 	_rhi = rhi;

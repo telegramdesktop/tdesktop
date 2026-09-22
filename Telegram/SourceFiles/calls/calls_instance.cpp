@@ -99,6 +99,9 @@ DhConfig Instance::Delegate::getDhConfig() const {
 
 void Instance::Delegate::callFinished(not_null<Call*> call) {
 	crl::on_main(call, [=] {
+		if (call->ratingInPanel()) {
+			return;
+		}
 		_instance->destroyCall(call);
 	});
 }

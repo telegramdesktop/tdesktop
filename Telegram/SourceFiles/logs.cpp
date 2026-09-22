@@ -278,7 +278,7 @@ void _logsWrite(LogDataType type, const QString &msg) {
 		if (!LogsInMemory) {
 			LogsInMemory = new LogsInMemoryList;
 		}
-		LogsInMemory->push_back(qMakePair(type, msg));
+		LogsInMemory->push_back({ type, msg });
 	} else if (!LogsBeforeSingleInstanceChecked.isEmpty() && type == LogDataMain) {
 		LogsBeforeSingleInstanceChecked += msg;
 	}

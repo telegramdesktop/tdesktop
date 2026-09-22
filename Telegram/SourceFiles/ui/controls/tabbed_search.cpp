@@ -512,7 +512,7 @@ void SearchWithGroups::initButtons() {
 }
 
 void SearchWithGroups::ensureRounding(int size, float64 ratio) {
-	const auto rounded = qRound(size * ratio);
+	const auto rounded = int(base::SafeRound(size * ratio));
 	const auto full = QSize(rounded + 4, rounded);
 	if (_rounding.size() != full) {
 		_rounding = QImage(full, QImage::Format_ARGB32_Premultiplied);

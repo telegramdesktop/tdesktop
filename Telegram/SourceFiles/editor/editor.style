@@ -89,6 +89,9 @@ photoEditorStickersButton: IconButton(photoEditorRotateButton) {
 }
 photoEditorStickersIconActive: icon {{ "settings/settings_stickers", photoEditorButtonIconFgActive }};
 
+photoEditorTextButtonSize: size(42px, 42px);
+photoEditorTextButtonGlyphSkip: 3px;
+
 photoEditorShapesButton: IconButton(photoEditorRotateButton) {
 	icon: icon {{ "photo_editor/shapes-28x28", photoEditorButtonIconFg }};
 	iconOver: icon {{ "photo_editor/shapes-28x28", photoEditorButtonIconFgOver }};
@@ -141,6 +144,7 @@ photoEditorMenuCheckLabel: FlatLabel(defaultFlatLabel) {
 }
 photoEditorShapeFillDuration: 160;
 photoEditorShapeFillRadius: 13px;
+photoEditorAlignIconSize: 24px;
 photoEditorMenuRoundCheckUntoggledFg: groupCallMemberNotJoinedStatus;
 photoEditorMenuRoundCheck: RoundCheckbox(defaultRoundCheckbox) {
 	size: 20px;
@@ -224,6 +228,8 @@ videoTimelineFg: mediaviewControlFg;
 videoTimelineDimBg: mediaviewCaptionBg;
 videoTimelinePlaceholderBg: mediaviewPipPlaybackInactive;
 videoTimelineDurationFg: mediaviewCaptionFg;
+videoTimelineSizeFg: mediaviewCaptionFg;
+videoTimelineSizeSkip: 12px;
 videoTimelineDurationStyle: TextStyle(defaultTextStyle) {
 	font: font(12px semibold);
 }

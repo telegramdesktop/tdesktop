@@ -30,6 +30,9 @@ public:
 		bool flipped,
 		const QSizeF &scaledImageSize);
 	[[nodiscard]] QRect saveCropRect();
+	[[nodiscard]] rpl::producer<> changes() const {
+		return _changes.events();
+	}
 	[[nodiscard]] QRect paintRect() const;
 	[[nodiscard]] style::margins cropMargins() const;
 	void setAspectRatio(float64 ratio);
@@ -70,6 +73,8 @@ private:
 	[[nodiscard]] Qt::Edges mouseState(const QPoint &p);
 	void performCrop(const QPoint &pos);
 	void performMove(const QPoint &pos);
+
+	rpl::event_stream<> _changes;
 
 	const int _pointSize;
 	const float _pointSizeH;

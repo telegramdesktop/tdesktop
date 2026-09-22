@@ -88,6 +88,7 @@ void ShowMenu(
 
 		MarkAsReadMenu::AddChatListAction(
 			controller,
+			MarkAsReadMenu::ChatListKind::Folder,
 			[=] { return session->data().chatsFilters().chatsList(id); },
 			addAction);
 
@@ -101,16 +102,11 @@ void ShowMenu(
 			.isAttention = true,
 		});
 	} else {
-		auto customUnreadState = [=] {
-			return Data::MainListMapUnreadState(
-				session,
-				session->data().chatsList()->unreadState());
-		};
 		MarkAsReadMenu::AddChatListAction(
 			controller,
+			MarkAsReadMenu::ChatListKind::AllChats,
 			[=] { return session->data().chatsList(); },
-			addAction,
-			std::move(customUnreadState));
+			addAction);
 
 		auto openFiltersSettings = [=] {
 			const auto filters = &session->data().chatsFilters();

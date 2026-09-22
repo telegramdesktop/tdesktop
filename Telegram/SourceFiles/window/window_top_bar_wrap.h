@@ -43,7 +43,7 @@ public:
 		this->entity()->hideShadow();
 	}
 	int contentHeight() const {
-		return qMax(this->height() - st::lineWidth, 0);
+		return std::max(this->height() - st::lineWidth, 0);
 	}
 
 private:

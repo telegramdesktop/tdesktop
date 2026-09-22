@@ -269,11 +269,11 @@ namespace {
 [[nodiscard]] QRect ScaleRect(QRect rect, qreal ratio) {
 	return QRect(
 		QPoint(
-			qRound(rect.x() * ratio),
-			qRound(rect.y() * ratio)),
+			int(base::SafeRound(rect.x() * ratio)),
+			int(base::SafeRound(rect.y() * ratio))),
 		QSize(
-			qRound(rect.width() * ratio),
-			qRound(rect.height() * ratio)));
+			int(base::SafeRound(rect.width() * ratio)),
+			int(base::SafeRound(rect.height() * ratio))));
 }
 
 class FormulaLikeObject final : public Ui::Text::CustomEmoji {
@@ -616,9 +616,9 @@ void test(not_null<Ui::RpWindow*>, not_null<Ui::RpWidget*> body) {
 		field->setText(inlineBotPrefix);
 		field->finishAnimating();
 		const auto inlinePlaceholderImage = Ui::GrabWidgetToImage(field.get());
-		const auto inlineSkipWidth = qRound(
+		const auto inlineSkipWidth = int(base::SafeRound(
 			fieldStyle.style.font->width(inlineBotPrefix)
-				* inlinePlaceholderImage.devicePixelRatio());
+				* inlinePlaceholderImage.devicePixelRatio()));
 		const auto inlineScanLeft = placeholderPoint
 			? std::min(
 				placeholderPoint->x() + inlineSkipWidth,

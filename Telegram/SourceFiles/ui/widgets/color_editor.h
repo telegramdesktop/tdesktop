@@ -64,10 +64,10 @@ private:
 	[[nodiscard]] QColor applyLimits(QColor color) const;
 
 	int percentFromByte(int byte) {
-		return std::clamp(qRound(byte * 100 / 255.), 0, 100);
+		return std::clamp(int(base::SafeRound(byte * 100 / 255.)), 0, 100);
 	}
 	int percentToByte(int percent) {
-		return std::clamp(qRound(percent * 255 / 100.), 0, 255);
+		return std::clamp(int(base::SafeRound(percent * 255 / 100.)), 0, 255);
 	}
 
 	class Picker;

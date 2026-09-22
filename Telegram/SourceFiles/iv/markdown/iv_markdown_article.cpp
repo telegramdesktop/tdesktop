@@ -4728,6 +4728,10 @@ MarkdownArticleHitTestResult MarkdownArticle::Impl::hitTest(
 		QPoint point,
 		Ui::Text::StateRequest::Flags flags) const {
 	auto result = hitTestSegments(point, flags);
+	if (result.inlineButton && result.customTooltip.isEmpty()) {
+		result.customTooltip = InlineButtonTooltip(
+			_inlineButtonPaintState->lookedUpButton);
+	}
 	if ((flags & Ui::Text::StateRequest::Flag::LookupLink)
 		&& !result.state.link
 		&& !result.preparedLink

@@ -45,6 +45,7 @@ public:
 	void unregisterLeaveSubscription(not_null<QWidget*> widget) override;
 
 	QString emojiCacheFolder() override;
+	QString fontsCacheFolder() override;
 	QString openglCheckFilePath() override;
 	QString angleBackendFilePath() override;
 

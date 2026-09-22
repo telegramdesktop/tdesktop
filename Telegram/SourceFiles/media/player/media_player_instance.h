@@ -204,6 +204,7 @@ private:
 		Storage::SharedMediaType overview;
 		AudioMsgId current;
 		AudioMsgId seeking;
+		std::vector<not_null<DocumentData*>> currentTracks;
 		std::optional<SparseIdsMergedSlice> playlistSlice;
 		std::optional<SliceKey> playlistSliceKey;
 		std::optional<SliceKey> playlistRequestedKey;
@@ -269,6 +270,10 @@ private:
 	bool validOtherPlaylist(not_null<const Data*> data) const;
 	void validateOtherPlaylist(not_null<Data*> data);
 	void playlistUpdated(not_null<Data*> data);
+	[[nodiscard]] AudioMsgId trackInItem(
+		not_null<const Data*> data,
+		int delta) const;
+	bool moveInItem(not_null<Data*> data, int delta, bool autonext);
 	bool moveInPlaylist(not_null<Data*> data, int delta, bool autonext);
 	void updatePowerSaveBlocker(
 		not_null<Data*> data,

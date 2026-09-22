@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "chat_helpers/compose/compose_show.h"
 #include "core/file_utilities.h"
+#include "core/mime_type.h"
 #include "data/data_session.h"
 #include "editor/editor_layer_widget.h"
 #include "editor/photo_editor_layer_widget.h"
@@ -52,7 +53,22 @@ VideoEditorData ProfileVideoEditorData(EditorData data) {
 		.minDuration = kProfileVideoMinDuration,
 		.fpsLimit = kProfileVideoFps,
 		.removeAudio = true,
+		.transcodeAlways = true,
 	};
+}
+
+void ShowVideoEditorLayer(
+		not_null<QWidget*> parent,
+		not_null<Window::Controller*> controller,
+		VideoEditorDescriptor &&descriptor,
+		Fn<void(VideoModifications)> &&done) {
+	auto editor = base::make_unique_q<VideoEditor>(
+		parent,
+		std::move(descriptor));
+	const auto raw = editor.get();
+	auto layer = std::make_unique<LayerWidget>(parent, std::move(editor));
+	InitVideoEditorLayer(layer.get(), raw, std::move(done));
+	controller->showLayer(std::move(layer), Ui::LayerOption::KeepOther);
 }
 
 void PrepareProfileVideo(
@@ -86,6 +102,7 @@ void PrepareProfileVideo(
 		]() mutable {
 			auto preview = ExtractCoverImage(
 				path,
+				QByteArray(),
 				mods,
 				info.dimensions,
 				kProfileVideoSide);
@@ -106,18 +123,16 @@ void PrepareProfileVideo(
 		});
 	};
 
-	auto editor = base::make_unique_q<VideoEditor>(
+	ShowVideoEditorLayer(
 		parent,
+		controller,
 		VideoEditorDescriptor{
 			.path = path,
 			.dimensions = info.dimensions,
 			.duration = info.duration,
 			.data = editorData,
-		});
-	const auto raw = editor.get();
-	auto layer = std::make_unique<LayerWidget>(parent, std::move(editor));
-	InitVideoEditorLayer(layer.get(), raw, std::move(applyModifications));
-	controller->showLayer(std::move(layer), Ui::LayerOption::KeepOther);
+		},
+		std::move(applyModifications));
 }
 
 void PrepareProfileMediaFromFile(
@@ -213,6 +228,11 @@ void OpenWithPreparedVideoFile(
 		return;
 	}
 	const auto path = file->path;
+	const auto content = file->content;
+	// Anything the server would not take as a video is re-encoded anyway.
+	const auto transcodeAlways = !Core::IsMimeSentAsVideo(
+		file->information->filemime)
+		&& (file->size < Media::Encode::MaxTranscodeSourceSize());
 	const auto dimensions = video->thumbnail.size();
 	if (!AcceptableDimensions(dimensions)) {
 		doneCallback(false);
@@ -253,6 +273,7 @@ void OpenWithPreparedVideoFile(
 		})] {
 			auto frame = Media::Video::ExtractFrame(
 				path,
+				content,
 				mods.cover,
 				dimensions);
 			auto details = Storage::ComputeVideoDetails(
@@ -274,9 +295,13 @@ void OpenWithPreparedVideoFile(
 		parent,
 		VideoEditorDescriptor{
 			.path = path,
+			.content = content,
 			.dimensions = dimensions,
 			.duration = video->duration,
-			.data = VideoEditorData{ .allowQuality = true },
+			.data = VideoEditorData{
+				.allowQuality = true,
+				.transcodeAlways = transcodeAlways,
+			},
 			.initial = video->modifications,
 		});
 	const auto raw = editor.get();

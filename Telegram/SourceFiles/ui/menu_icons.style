@@ -259,9 +259,11 @@ mediaMenuIconInfo: icon {{ "menu/info", mediaviewMenuFg }};
 mediaMenuIconBlock: icon {{ "menu/block", mediaviewMenuFg }};
 
 mediaMenuIconFlip: icon {{ "menu/flip", mediaviewMenuFg }};
+mediaMenuIconFont: icon {{ "menu/fonts", mediaviewMenuFg }};
 mediaMenuIconTextStylePlain: icon {{ "menu/text_style_plain-22x22", mediaviewMenuFg, point(0px, 2px) }};
 mediaMenuIconTextStyleFramed: icon {{ "menu/text_style_framed-22x22", mediaviewMenuFg, point(0px, 2px) }};
 mediaMenuIconTextStyleSemiTransparent: icon {{ "menu/text_style_semi-22x22", mediaviewMenuFg, point(0px, 2px) }};
+mediaMenuIconTextStyleOpaque: icon {{ "menu/text_style_opaque-22x22", mediaviewMenuFg, point(0px, 2px) }};
 
 menuIconDeleteAttention: icon {{ "menu/delete", menuIconAttentionColor }};
 menuIconLeaveAttention: icon {{ "menu/leave", menuIconAttentionColor }};

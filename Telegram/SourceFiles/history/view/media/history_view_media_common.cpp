@@ -336,7 +336,7 @@ QSize CountPhotoMediaSize(
 		QSize desired,
 		int newWidth,
 		int maxWidth) {
-	const auto media = CountMediaSize(desired, qMin(newWidth, maxWidth));
+	const auto media = CountMediaSize(desired, std::min(newWidth, maxWidth));
 	return (media.height() <= newWidth)
 		? media
 		: NonEmptySize(

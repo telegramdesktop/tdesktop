@@ -598,7 +598,8 @@ bool Options::Option::refreshMediaIfStale(crl::time threshold) {
 		&& (!threshold
 			|| (crl::now() - _media->uploadedAt > threshold))
 		&& _media->reupload) {
-		_media->reupload();
+		const auto reupload = _media->reupload;
+		reupload();
 		return true;
 	}
 	return false;
@@ -3315,7 +3316,8 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 		const auto forceRefresh = [](
 				const std::shared_ptr<PollMediaState> &m) {
 			if (m->media && m->reupload) {
-				m->reupload();
+				const auto reupload = m->reupload;
+				reupload();
 			}
 		};
 		forceRefresh(state->descriptionMedia);
@@ -3331,7 +3333,8 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 				&& m->uploadedAt > 0
 				&& (crl::now() - m->uploadedAt > kStaleTimeout)
 				&& m->reupload) {
-				m->reupload();
+				const auto reupload = m->reupload;
+				reupload();
 				refreshedAny = true;
 			}
 		};

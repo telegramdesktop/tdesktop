@@ -158,17 +158,17 @@ QByteArray EventScript(
 }
 
 QJsonObject Metrics() {
-	const auto &shellPadding = st::botWebViewShellPadding;
-	const auto &shadowPadding = st::botWebViewShellShadowPadding;
-	const auto &titlePadding = st::botWebViewShellTitlePadding;
-	const auto &menuButtonSize = st::botWebViewShellMenuButtonSize;
-	const auto fullscreenButtonSize = QSize(
+	const auto shellPadding = Unscaled(st::botWebViewShellPadding);
+	const auto shadowPadding = Unscaled(st::botWebViewShellShadowPadding);
+	const auto titlePadding = Unscaled(st::botWebViewShellTitlePadding);
+	const auto menuButtonSize = Unscaled(st::botWebViewShellMenuButtonSize);
+	const auto fullscreenButtonSize = Unscaled(QSize(
 		st::fullScreenPanelClose.width,
-		st::fullScreenPanelClose.height);
+		st::fullScreenPanelClose.height));
 	const auto fullscreenControlShift
-		= st::separatePanelClose.rippleAreaPosition;
+		= Unscaled(st::separatePanelClose.rippleAreaPosition);
 	return {
-		{ u"shellRadius"_q, st::botWebViewShellRadius },
+		{ u"shellRadius"_q, Unscaled(st::botWebViewShellRadius) },
 		{ u"shellPaddingTop"_q, shellPadding.top() },
 		{ u"shellPaddingRight"_q, shellPadding.right() },
 		{ u"shellPaddingBottom"_q, shellPadding.bottom() },
@@ -177,20 +177,23 @@ QJsonObject Metrics() {
 		{ u"shadowPaddingRight"_q, shadowPadding.right() },
 		{ u"shadowPaddingBottom"_q, shadowPadding.bottom() },
 		{ u"shadowPaddingLeft"_q, shadowPadding.left() },
-		{ u"headerHeight"_q, st::botWebViewShellHeaderHeight },
+		{ u"headerHeight"_q, Unscaled(st::botWebViewShellHeaderHeight) },
 		{ u"titlePaddingTop"_q, titlePadding.top() },
 		{ u"titlePaddingRight"_q, titlePadding.right() },
 		{ u"titlePaddingBottom"_q, titlePadding.bottom() },
 		{ u"titlePaddingLeft"_q, titlePadding.left() },
-		{ u"badgeSkip"_q, st::botWebViewShellBadgeSkip },
-		{ u"frameRadius"_q, st::botWebViewShellFrameRadius },
+		{ u"badgeSkip"_q, Unscaled(st::botWebViewShellBadgeSkip) },
+		{ u"frameRadius"_q, Unscaled(st::botWebViewShellFrameRadius) },
 		{ u"controlWidth"_q, menuButtonSize.width() },
 		{ u"controlHeight"_q, menuButtonSize.height() },
-		{ u"buttonHeight"_q, st::botWebViewBottomButton.height },
-		{ u"buttonGapX"_q, st::botWebViewBottomSkip.x() },
-		{ u"buttonGapY"_q, st::botWebViewBottomSkip.y() },
-		{ u"disclosureSkip"_q, st::botWebViewShellDisclosureSkip },
-		{ u"footerButtonSkip"_q, st::botWebViewShellFooterButtonSkip },
+		{ u"buttonHeight"_q, Unscaled(st::botWebViewBottomButton.height) },
+		{ u"buttonGapX"_q, Unscaled(st::botWebViewBottomSkip.x()) },
+		{ u"buttonGapY"_q, Unscaled(st::botWebViewBottomSkip.y()) },
+		{ u"disclosureSkip"_q, Unscaled(st::botWebViewShellDisclosureSkip) },
+		{
+			u"footerButtonSkip"_q,
+			Unscaled(st::botWebViewShellFooterButtonSkip),
+		},
 		{ u"fullscreenControlWidth"_q, fullscreenButtonSize.width() },
 		{ u"fullscreenControlHeight"_q, fullscreenButtonSize.height() },
 		{ u"fullscreenControlTop"_q, fullscreenControlShift.y() },
@@ -200,11 +203,11 @@ QJsonObject Metrics() {
 }
 
 QSize WindowSize(QSize contentSize) {
-	const auto &shadowPadding = st::botWebViewShellShadowPadding;
-	return contentSize + QSize(
+	const auto shadowPadding = Unscaled(st::botWebViewShellShadowPadding);
+	return Unscaled(contentSize) + QSize(
 		shadowPadding.left() + shadowPadding.right(),
 		shadowPadding.top()
-			+ st::botWebViewShellHeaderHeight
+			+ Unscaled(st::botWebViewShellHeaderHeight)
 			+ shadowPadding.bottom());
 }
 

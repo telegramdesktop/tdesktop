@@ -10,15 +10,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene.h"
 #include "editor/scene/scene_emoji_document.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
+#include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/popup_menu.h"
+#include "styles/style_editor.h"
+#include "styles/style_media_player.h"
 #include "styles/style_media_view.h"
 #include "styles/style_menu_icons.h"
 
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsSceneContextMenuEvent>
-#include <QtWidgets/QApplication>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -36,10 +39,9 @@ constexpr auto kBrightnessSemiTransparentThreshold = 0.25;
 constexpr auto kSemiTransparentAlpha = 0x99;
 constexpr auto kCornerRadiusFactor = 1. / 3.;
 constexpr auto kLinePadHFactor = 1. / 3.;
-constexpr auto kLinePadVFactor = 1. / 8.;
 constexpr auto kMergeRadiusFactor = 1.5;
-constexpr auto kLineShiftFactor = 1. / 7.;
-constexpr auto kTextStyleClickDelay = crl::time(120);
+
+constexpr auto kNoWrapWidth = 1e9;
 
 struct LayoutMetrics {
 	int contentWidth = 0;
@@ -48,11 +50,46 @@ struct LayoutMetrics {
 	int textMaxWidth = 0;
 };
 
-QFont TextFont(float64 fontSize) {
+constexpr auto kCondensedStretch = 78;
+
+QFont TextFont(float64 fontSize, TextTypeface typeface) {
 	auto font = QFont();
 	font.setPixelSize(std::max(int(fontSize), 1));
 	font.setWeight(QFont::DemiBold);
+	switch (typeface) {
+	case TextTypeface::Default:
+		break;
+	case TextTypeface::Italic:
+		font.setItalic(true);
+		break;
+	case TextTypeface::Serif:
+		font.setStyleHint(QFont::Serif);
+		font.setFamily(u"serif"_q);
+		break;
+	case TextTypeface::Condensed:
+		font.setStretch(kCondensedStretch);
+		break;
+	case TextTypeface::Monospace:
+		font.setStyleHint(QFont::Monospace);
+		font.setFamily(u"monospace"_q);
+		break;
+	}
 	return font;
+}
+
+[[nodiscard]] float64 AlignOffset(
+		int contentWidth,
+		float64 lineWidth,
+		TextAlignment alignment) {
+	switch (alignment) {
+	case TextAlignment::Center:
+		return (contentWidth - lineWidth) / 2.;
+	case TextAlignment::Left:
+		return 0.;
+	case TextAlignment::Right:
+		return contentWidth - lineWidth;
+	}
+	Unexpected("Alignment in AlignOffset.");
 }
 
 float64 ComputeBrightness(const QColor &color) {
@@ -61,50 +98,59 @@ float64 ComputeBrightness(const QColor &color) {
 		+ color.blue() * 0.0722) / 255.;
 }
 
-LayoutMetrics ComputeMetrics(
-		const QString &text,
+struct PreparedLayout {
+	std::unique_ptr<QTextLayout> layout;
+	LayoutMetrics metrics;
+};
+
+[[nodiscard]] PreparedLayout PrepareLayout(
+		const QString &processedText,
 		float64 fontSize,
 		const QSize &imageSize,
-		TextStyle style) {
-	const auto hasBackground = (style == TextStyle::Framed)
-		|| (style == TextStyle::SemiTransparent);
-	const auto padding = hasBackground ? int(fontSize * kPaddingFactor) : 0;
-	const auto shortSide = std::min(imageSize.width(), imageSize.height());
-	const auto textMaxWidth = std::max(
-		int(shortSide * kMaxWidthFactor) - 2 * padding,
-		kMinContentWidth);
-
-	const auto font = TextFont(fontSize);
-
-	auto processedText = text;
-	processedText.replace('\n', QChar::LineSeparator);
+		TextStyle style,
+		TextTypeface typeface,
+		const QVector<QTextLayout::FormatRange> &formats = {}) {
+	const auto spec = ComputeTextLayoutSpec(
+		fontSize,
+		imageSize,
+		style,
+		typeface);
+	const auto textMaxWidth = spec.maxTextWidth;
 
 	auto option = QTextOption();
 	option.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
 
-	auto layout = QTextLayout(processedText, font);
-	layout.setTextOption(option);
-	layout.beginLayout();
+	auto layout = std::make_unique<QTextLayout>(processedText, spec.font);
+	layout->setTextOption(option);
+	if (!formats.isEmpty()) {
+		layout->setFormats(formats);
+	}
+	layout->beginLayout();
 
 	auto totalHeight = 0.;
 	auto maxWidth = 0.;
 	while (true) {
-		auto line = layout.createLine();
+		auto line = layout->createLine();
 		if (!line.isValid()) {
 			break;
 		}
-		line.setLineWidth(textMaxWidth);
+		line.setLineWidth(kNoWrapWidth);
 		line.setPosition(QPointF(0, totalHeight));
 		totalHeight += line.height();
 		maxWidth = std::max(maxWidth, float64(line.naturalTextWidth()));
 	}
-	layout.endLayout();
+	layout->endLayout();
 
 	return {
-		.contentWidth = std::max(int(std::ceil(maxWidth)), kMinContentWidth),
-		.contentHeight = int(std::ceil(totalHeight)),
-		.padding = padding,
-		.textMaxWidth = textMaxWidth,
+		.layout = std::move(layout),
+		.metrics = {
+			.contentWidth = std::max(
+				int(std::ceil(maxWidth)),
+				kMinContentWidth),
+			.contentHeight = int(std::ceil(totalHeight)),
+			.padding = spec.padding,
+			.textMaxWidth = textMaxWidth,
+		},
 	};
 }
 
@@ -116,26 +162,139 @@ struct LineRect {
 	[[nodiscard]] float64 width() const { return right - left; }
 };
 
+[[nodiscard]] TextAlignment NextAlignment(TextAlignment alignment) {
+	switch (alignment) {
+	case TextAlignment::Left: return TextAlignment::Center;
+	case TextAlignment::Center: return TextAlignment::Right;
+	case TextAlignment::Right: return TextAlignment::Left;
+	}
+	Unexpected("Alignment in NextAlignment.");
+}
+
+[[nodiscard]] int AlignRestFrame(TextAlignment alignment) {
+	switch (alignment) {
+	case TextAlignment::Left: return 20;
+	case TextAlignment::Center: return 0;
+	case TextAlignment::Right: return 40;
+	}
+	Unexpected("Alignment in AlignRestFrame.");
+}
+
+struct AlignFrames {
+	int from = 0;
+	int to = 0;
+};
+
+[[nodiscard]] AlignFrames AlignTransitionFrames(
+		TextAlignment from,
+		TextAlignment to) {
+	if (from == TextAlignment::Left) {
+		return (to == TextAlignment::Center)
+			? AlignFrames{ 20, 0 }
+			: AlignFrames{ 20, 40 };
+	} else if (from == TextAlignment::Center) {
+		return (to == TextAlignment::Left)
+			? AlignFrames{ 0, 20 }
+			: AlignFrames{ 60, 40 };
+	}
+	return (to == TextAlignment::Left)
+		? AlignFrames{ 40, 20 }
+		: AlignFrames{ 40, 60 };
+}
+
+class AlignAction final : public Ui::Menu::Action {
+public:
+	AlignAction(
+		not_null<Ui::Menu::Menu*> parent,
+		const style::Menu &st,
+		not_null<QAction*> action,
+		TextAlignment alignment);
+
+	void cycle(TextAlignment alignment);
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+
+	const std::unique_ptr<Lottie::Icon> _icon;
+	TextAlignment _alignment;
+
+};
+
+AlignAction::AlignAction(
+	not_null<Ui::Menu::Menu*> parent,
+	const style::Menu &st,
+	not_null<QAction*> action,
+	TextAlignment alignment)
+: Ui::Menu::Action(parent, st, action, nullptr, nullptr)
+, _icon(Lottie::MakeIcon({
+	.path = u":/animations/photo_editor_text_align.tgs"_q,
+	.color = &st::mediaviewMenuFg,
+	.sizeOverride = QSize(
+		st::photoEditorAlignIconSize,
+		st::photoEditorAlignIconSize),
+	.frame = AlignRestFrame(alignment),
+}))
+, _alignment(alignment) {
+}
+
+void AlignAction::cycle(TextAlignment alignment) {
+	if (_alignment == alignment) {
+		return;
+	}
+	const auto frames = AlignTransitionFrames(_alignment, alignment);
+	_alignment = alignment;
+	_icon->animate([=] { update(); }, frames.from, frames.to);
+}
+
+void AlignAction::paintEvent(QPaintEvent *e) {
+	auto p = Painter(this);
+	const auto selected = isSelected();
+	paintBackground(p, selected);
+	paintRipple(p, 0, 0);
+	p.setPen(selected ? st().itemFgOver : st().itemFg);
+	paintText(p);
+	const auto position = st().itemIconPosition;
+	_icon->paint(p, position.x(), position.y());
+}
+
 QPainterPath BuildConnectedBackground(
 		const QTextLayout &layout,
 		int contentWidth,
 		int padding,
-		float64 fontSize) {
-	const auto linePadH = fontSize * kLinePadHFactor;
-	const auto linePadV = fontSize * kLinePadVFactor;
-	const auto cornerRadius = fontSize * kCornerRadiusFactor;
-	const auto mergeRadius = cornerRadius * kMergeRadiusFactor;
-	const auto centerX = padding + contentWidth / 2.;
-
-	auto rects = std::vector<LineRect>();
+		float64 fontSize,
+		TextAlignment alignment) {
+	auto lines = std::vector<TextBackgroundLine>();
+	lines.reserve(layout.lineCount());
 	for (auto i = 0; i < layout.lineCount(); ++i) {
 		const auto line = layout.lineAt(i);
-		const auto hw = float64(line.naturalTextWidth()) / 2. + linePadH;
+		const auto width = float64(line.naturalTextWidth());
+		const auto left = padding
+			+ AlignOffset(contentWidth, width, alignment);
+		lines.push_back({
+			.left = left,
+			.top = padding + float64(line.y()),
+			.right = left + width,
+			.bottom = padding + float64(line.y() + line.height()),
+		});
+	}
+	return BuildTextBackgroundPath(std::move(lines), fontSize);
+}
+
+[[nodiscard]] QPainterPath BuildGroupBackgroundPath(
+		std::vector<TextBackgroundLine> lines,
+		float64 fontSize) {
+	const auto linePadH = fontSize * kLinePadHFactor;
+	const auto cornerRadius = fontSize * kCornerRadiusFactor;
+	const auto mergeRadius = cornerRadius * kMergeRadiusFactor;
+
+	auto rects = std::vector<LineRect>();
+	rects.reserve(lines.size());
+	for (const auto &line : lines) {
 		rects.push_back({
-			.left = centerX - hw,
-			.top = padding + float64(line.y()) - linePadV,
-			.right = centerX + hw,
-			.bottom = padding + float64(line.y() + line.height()) + linePadV,
+			.left = line.left - linePadH,
+			.top = line.top,
+			.right = line.right + linePadH,
+			.bottom = line.bottom,
 		});
 	}
 
@@ -257,19 +416,73 @@ QPainterPath BuildConnectedBackground(
 	return path;
 }
 
-TextStyle NextTextStyle(TextStyle style) {
-	switch (style) {
-	case TextStyle::Plain:
-		return TextStyle::Framed;
-	case TextStyle::Framed:
-		return TextStyle::SemiTransparent;
-	case TextStyle::SemiTransparent:
-		return TextStyle::Plain;
+} // namespace
+
+QPainterPath BuildTextBackgroundPath(
+		std::vector<TextBackgroundLine> lines,
+		float64 fontSize) {
+	auto result = QPainterPath();
+	auto group = std::vector<TextBackgroundLine>();
+	const auto flush = [&] {
+		if (!group.empty()) {
+			result.addPath(BuildGroupBackgroundPath(
+				base::take(group),
+				fontSize));
+		}
+	};
+	for (const auto &line : lines) {
+		if ((line.right - line.left) < 1.) {
+			flush();
+		} else {
+			group.push_back(line);
+		}
 	}
-	Unexpected("Text style in NextTextStyle.");
+	flush();
+	return result;
 }
 
-} // namespace
+QColor TextBackgroundColor(const QColor &color, TextStyle style) {
+	switch (style) {
+	case TextStyle::Framed:
+		return color;
+	case TextStyle::SemiTransparent:
+		return (ComputeBrightness(color)
+				>= kBrightnessSemiTransparentThreshold)
+			? QColor(0, 0, 0, kSemiTransparentAlpha)
+			: QColor(255, 255, 255, kSemiTransparentAlpha);
+	case TextStyle::Plain:
+		return QColor(Qt::transparent);
+	case TextStyle::Opaque:
+		return (ComputeBrightness(color)
+				>= kBrightnessSemiTransparentThreshold)
+			? QColor(0, 0, 0)
+			: QColor(255, 255, 255);
+	}
+	Unexpected("Text style in TextBackgroundColor.");
+}
+
+int TextBackgroundPadding(float64 fontSize, TextStyle style) {
+	const auto hasBackground = (style == TextStyle::Framed)
+		|| (style == TextStyle::SemiTransparent)
+		|| (style == TextStyle::Opaque);
+	return hasBackground ? int(fontSize * kPaddingFactor) : 0;
+}
+
+TextLayoutSpec ComputeTextLayoutSpec(
+		float64 fontSize,
+		const QSize &imageSize,
+		TextStyle style,
+		TextTypeface typeface) {
+	const auto padding = TextBackgroundPadding(fontSize, style);
+	const auto shortSide = std::min(imageSize.width(), imageSize.height());
+	return {
+		.font = TextFont(fontSize, typeface),
+		.padding = padding,
+		.maxTextWidth = std::max(
+			int(shortSide * kMaxWidthFactor) - 2 * padding,
+			kMinContentWidth),
+	};
+}
 
 QColor EffectiveTextColor(const QColor &color, TextStyle style) {
 	if (style != TextStyle::Framed) {
@@ -285,6 +498,8 @@ ItemText::ItemText(
 	const QColor &color,
 	float64 fontSize,
 	TextStyle style,
+	TextTypeface typeface,
+	TextAlignment alignment,
 	const QSize &imageSize,
 	ItemBase::Data data)
 : ItemBase(std::move(data))
@@ -292,11 +507,9 @@ ItemText::ItemText(
 , _color(color)
 , _fontSize(fontSize)
 , _textStyle(style)
-, _imageSize(imageSize)
-, _textStyleClickTimer([=] {
-	setTextStyle(NextTextStyle(_textStyle));
-	_textStyleClickChanged = true;
-}) {
+, _typeface(typeface)
+, _alignment(alignment)
+, _imageSize(imageSize) {
 	renderContent();
 }
 
@@ -307,20 +520,10 @@ void ItemText::renderContent() {
 		return;
 	}
 
-	const auto m = ComputeMetrics(_text, _fontSize, _imageSize, _textStyle);
-	const auto pixWidth = m.contentWidth + 2 * m.padding;
-	const auto pixHeight = m.contentHeight + 2 * m.padding;
-
-	const auto font = TextFont(_fontSize);
+	const auto font = TextFont(_fontSize, _typeface);
 
 	auto processedText = _text;
 	processedText.replace('\n', QChar::LineSeparator);
-
-	auto option = QTextOption();
-	option.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
-
-	auto layout = QTextLayout(processedText, font);
-	layout.setTextOption(option);
 
 	struct EmojiPos {
 		int start = 0;
@@ -350,43 +553,22 @@ void ItemText::renderContent() {
 			}
 		}
 	}
-	layout.setFormats(emojiFormats);
 
-	layout.beginLayout();
-	auto y = 0.;
-	while (true) {
-		auto line = layout.createLine();
-		if (!line.isValid()) {
-			break;
-		}
-		line.setLineWidth(m.textMaxWidth);
-		line.setPosition(QPointF(0, y));
-		y += line.height();
-	}
-	layout.endLayout();
+	const auto prepared = PrepareLayout(
+		processedText,
+		_fontSize,
+		_imageSize,
+		_textStyle,
+		_typeface,
+		emojiFormats);
+	const auto &m = prepared.metrics;
+	const auto &layout = *prepared.layout;
+	const auto pixWidth = m.contentWidth + 2 * m.padding;
+	const auto pixHeight = m.contentHeight + 2 * m.padding;
 
-	auto textColor = _color;
-	auto bgColor = QColor(Qt::transparent);
-	const auto brightness = ComputeBrightness(_color);
-	const auto hasBackground =
-		(_textStyle == TextStyle::Framed)
-		|| (_textStyle == TextStyle::SemiTransparent);
-
-	switch (_textStyle) {
-	case TextStyle::Framed:
-		bgColor = _color;
-		textColor = (brightness >= kBrightnessFramedThreshold)
-			? QColor(0, 0, 0)
-			: QColor(255, 255, 255);
-		break;
-	case TextStyle::SemiTransparent:
-		bgColor = (brightness >= kBrightnessSemiTransparentThreshold)
-			? QColor(0, 0, 0, kSemiTransparentAlpha)
-			: QColor(255, 255, 255, kSemiTransparentAlpha);
-		break;
-	case TextStyle::Plain:
-		break;
-	}
+	const auto textColor = EffectiveTextColor(_color, _textStyle);
+	const auto bgColor = TextBackgroundColor(_color, _textStyle);
+	const auto hasBackground = (bgColor.alpha() > 0);
 
 	const auto dpr = style::DevicePixelRatio();
 	auto pixmap = QPixmap(QSize(pixWidth, pixHeight) * dpr);
@@ -402,41 +584,22 @@ void ItemText::renderContent() {
 				layout,
 				m.contentWidth,
 				m.padding,
-				_fontSize);
-			if (_textStyle == TextStyle::SemiTransparent) {
-				auto opaque = bgColor;
-				opaque.setAlpha(255);
-				auto mask = QPixmap(pixmap.size());
-				mask.setDevicePixelRatio(dpr);
-				mask.fill(Qt::transparent);
-				{
-					auto mp = QPainter(&mask);
-					auto mhq = PainterHighQualityEnabler(mp);
-					mp.setPen(Qt::NoPen);
-					mp.setBrush(opaque);
-					mp.drawPath(bgPath);
-				}
-				p.setOpacity(bgColor.alphaF());
-				p.drawPixmap(0, 0, mask);
-				p.setOpacity(1.0);
-			} else {
-				p.setPen(Qt::NoPen);
-				p.setBrush(bgColor);
-				p.drawPath(bgPath);
-			}
+				_fontSize,
+				_alignment);
+			p.setPen(Qt::NoPen);
+			p.setBrush(bgColor);
+			p.drawPath(bgPath);
 		}
 
-		const auto lineShift = _fontSize * kLineShiftFactor;
 		const auto lineCount = layout.lineCount();
 		p.setPen(textColor);
 		for (auto i = 0; i < lineCount; ++i) {
 			const auto line = layout.lineAt(i);
-			const auto xOffset =
-				(m.contentWidth - line.naturalTextWidth()) / 2.;
-			const auto yShift = (i < lineCount - 1) ? -lineShift : 0.;
-			line.draw(
-				&p,
-				QPointF(m.padding + xOffset, m.padding + yShift));
+			const auto xOffset = AlignOffset(
+				m.contentWidth,
+				line.naturalTextWidth(),
+				_alignment);
+			line.draw(&p, QPointF(m.padding + xOffset, m.padding));
 		}
 
 		p.setRenderHint(QPainter::SmoothPixmapTransform, true);
@@ -463,11 +626,10 @@ void ItemText::renderContent() {
 			const auto lineStart = line.textStart();
 			const auto lineEnd = lineStart + line.textLength();
 			const auto drawEnd = std::min(ep.start + ep.length, lineEnd);
-			const auto xOffset =
-				(m.contentWidth - line.naturalTextWidth()) / 2.;
-			const auto yShift = (lineIndex < lineCount - 1)
-				? -lineShift
-				: 0.;
+			const auto xOffset = AlignOffset(
+				m.contentWidth,
+				line.naturalTextWidth(),
+				_alignment);
 			const auto x = line.cursorToX(ep.start);
 			const auto nextX = line.cursorToX(drawEnd);
 			const auto glyphWidth = float64(nextX - x);
@@ -476,7 +638,6 @@ void ItemText::renderContent() {
 				+ x
 				+ (glyphWidth - emojiSize) / 2.;
 			const auto drawY = m.padding
-				+ yShift
 				+ line.y()
 				+ (line.height() - emojiSize) / 2.;
 			p.save();
@@ -491,21 +652,28 @@ void ItemText::renderContent() {
 	const auto handleMargin = std::max(
 		innerRect().width() - contentRect().width(),
 		0.);
-	setAspectRatio(
-		(pixHeight + handleMargin) / float64(pixWidth + handleMargin));
+	applyStretch(
+		pixWidth + handleMargin,
+		pixHeight + handleMargin);
 }
 
 QSize ItemText::computeContentSize(
 		const QString &text,
 		float64 fontSize,
 		const QSize &imageSize,
-		TextStyle style) {
+		TextStyle style,
+		TextTypeface typeface) {
 	if (text.isEmpty()) {
 		return {};
 	}
 	auto processedText = text;
 	processedText.replace('\n', QChar::LineSeparator);
-	const auto m = ComputeMetrics(processedText, fontSize, imageSize, style);
+	const auto m = PrepareLayout(
+		processedText,
+		fontSize,
+		imageSize,
+		style,
+		typeface).metrics;
 	return QSize(
 		m.contentWidth + 2 * m.padding,
 		m.contentHeight + 2 * m.padding);
@@ -526,17 +694,16 @@ void ItemText::paint(
 		).translated(
 			(rect.width() - pixmapSize.width()) / 2.,
 			(rect.height() - pixmapSize.height()) / 2.);
+		p->save();
+		p->setRenderHint(QPainter::SmoothPixmapTransform);
 		if (flipped()) {
-			p->save();
 			const auto center = resultRect.center();
 			p->translate(center);
 			p->scale(-1, 1);
 			p->translate(-center);
-			p->drawPixmap(resultRect.toRect(), _pixmap);
-			p->restore();
-		} else {
-			p->drawPixmap(resultRect.toRect(), _pixmap);
 		}
+		p->drawPixmap(resultRect, _pixmap, QRectF(_pixmap.rect()));
+		p->restore();
 	}
 	ItemBase::paint(p, option, w);
 }
@@ -550,6 +717,9 @@ const QString &ItemText::text() const {
 }
 
 void ItemText::setText(const QString &text) {
+	if (_text == text) {
+		return;
+	}
 	_text = text;
 	renderContent();
 	update();
@@ -560,6 +730,9 @@ const QColor &ItemText::color() const {
 }
 
 void ItemText::setColor(const QColor &color) {
+	if (_color == color) {
+		return;
+	}
 	_color = color;
 	renderContent();
 	update();
@@ -569,16 +742,62 @@ float64 ItemText::fontSize() const {
 	return _fontSize;
 }
 
+void ItemText::setFontSize(float64 fontSize) {
+	fontSize = std::max(fontSize, 1.);
+	if (_fontSize == fontSize) {
+		return;
+	}
+	_fontSize = fontSize;
+	renderContent();
+	update();
+}
+
 float64 ItemText::editScale() const {
 	const auto natural = computeContentSize(
 		_text,
 		_fontSize,
 		_imageSize,
-		_textStyle);
+		_textStyle,
+		_typeface);
 	if (natural.width() <= 0) {
 		return 1.;
 	}
-	return size() / natural.width();
+	const auto handleMargin = std::max(
+		innerRect().width() - contentRect().width(),
+		0.);
+	return std::max(size() - handleMargin, 1.) / natural.width();
+}
+
+void ItemText::bakeScale() {
+	const auto factor = editScale() * scale();
+	if (_text.isEmpty() || (std::abs(factor - 1.) < 0.001)) {
+		return;
+	}
+	_fontSize = std::max(_fontSize * factor, 1.);
+	setScale(1.);
+	renderContent();
+	update();
+	notifyPrefsUsed();
+}
+
+void ItemText::notifyPrefsUsed() {
+	if (const auto s = static_cast<Scene*>(scene())) {
+		s->noteTextItemPrefs(this);
+	}
+}
+
+ItemBase::Placement ItemText::placement() const {
+	auto result = ItemBase::placement();
+	result.fontSize = _fontSize;
+	return result;
+}
+
+void ItemText::applyPlacement(const Placement &placement) {
+	if ((placement.fontSize > 0.) && (placement.fontSize != _fontSize)) {
+		_fontSize = placement.fontSize;
+		renderContent();
+	}
+	ItemBase::applyPlacement(placement);
 }
 
 TextStyle ItemText::textStyle() const {
@@ -586,84 +805,54 @@ TextStyle ItemText::textStyle() const {
 }
 
 void ItemText::setTextStyle(TextStyle style) {
+	if (_textStyle == style) {
+		return;
+	}
 	_textStyle = style;
 	renderContent();
 	update();
 }
 
-void ItemText::mousePressEvent(QGraphicsSceneMouseEvent *event) {
-	_textStyleClickTimer.cancel();
-	_textStyleClickChanged = false;
-	_textStyleClickCandidate = (event->button() == Qt::LeftButton)
-		&& contentRect().contains(event->pos());
-	_textStyleClickDragging = false;
-	if (_textStyleClickCandidate) {
-		_textStyleClickItemPosition = pos();
-		_textStyleClickInitialStyle = _textStyle;
-		event->accept();
-		return;
-	}
-	ItemBase::mousePressEvent(event);
+TextTypeface ItemText::typeface() const {
+	return _typeface;
 }
 
-void ItemText::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
-	if (!_textStyleClickCandidate) {
-		ItemBase::mouseMoveEvent(event);
+void ItemText::setTypeface(TextTypeface typeface) {
+	if (_typeface == typeface) {
 		return;
 	}
-	const auto delta = event->screenPos()
-		- event->buttonDownScreenPos(Qt::LeftButton);
-	if (!_textStyleClickDragging
-		&& delta.manhattanLength() >= QApplication::startDragDistance()) {
-		_textStyleClickDragging = true;
-		if (scene()) {
-			scene()->clearSelection();
-			setSelected(true);
-		}
-		raiseToTop();
-		setCursor(Qt::ClosedHandCursor);
+	_typeface = typeface;
+	renderContent();
+	update();
+}
+
+TextAlignment ItemText::alignment() const {
+	return _alignment;
+}
+
+void ItemText::setAlignment(TextAlignment alignment) {
+	if (_alignment == alignment) {
+		return;
 	}
-	if (_textStyleClickDragging) {
-		const auto sceneDelta = event->scenePos()
-			- event->buttonDownScenePos(Qt::LeftButton);
-		setPos(_textStyleClickItemPosition + sceneDelta);
-	}
-	event->accept();
+	_alignment = alignment;
+	renderContent();
+	update();
 }
 
 void ItemText::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
-	const auto textStyleClickCandidate = _textStyleClickCandidate;
-	const auto textStyleClickDragging = _textStyleClickDragging;
-	_textStyleClickCandidate = false;
-	_textStyleClickDragging = false;
-	if (!textStyleClickCandidate) {
-		ItemBase::mouseReleaseEvent(event);
-		return;
-	}
-	if (textStyleClickDragging) {
-		unsetCursor();
-		event->accept();
-		return;
-	}
-	if (event->button() == Qt::LeftButton) {
-		const auto delta = event->screenPos()
-			- event->buttonDownScreenPos(Qt::LeftButton);
-		if (delta.manhattanLength() >= QApplication::startDragDistance()) {
-			event->accept();
-			return;
-		}
-		_textStyleClickTimer.callOnce(kTextStyleClickDelay);
-		event->accept();
+	const auto resized = isHandling()
+		&& (event->button() == Qt::LeftButton);
+	ItemBase::mouseReleaseEvent(event);
+	if (resized) {
+		bakeScale();
 	}
 }
 
 void ItemText::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) {
-	_textStyleClickCandidate = false;
-	_textStyleClickDragging = false;
-	_textStyleClickTimer.cancel();
-	if (_textStyleClickChanged) {
-		setTextStyle(_textStyleClickInitialStyle);
-		_textStyleClickChanged = false;
+	if ((event->button() != Qt::LeftButton)
+		|| !contentRect().contains(event->pos())) {
+		ItemBase::mouseDoubleClickEvent(event);
+		return;
 	}
 	if (const auto s = static_cast<Scene*>(scene())) {
 		s->startTextEditing(this);
@@ -684,13 +873,13 @@ void ItemText::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 			TextStyle style,
 			const style::icon *icon) {
 		const auto checked = (_textStyle == style);
-		auto action = _contextMenu->addAction(
+		_contextMenu->addAction(
 			text,
-			[=] { setTextStyle(style); },
-			icon);
-		if (checked) {
-			action->setChecked(true);
-		}
+			[=] {
+				setTextStyle(style);
+				notifyPrefsUsed();
+			},
+			checked ? &st::mediaPlayerMenuCheck : icon);
 	};
 	add(
 		tr::lng_photo_editor_text_style_plain(tr::now),
@@ -704,6 +893,60 @@ void ItemText::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 		tr::lng_photo_editor_text_style_semi_transparent(tr::now),
 		TextStyle::SemiTransparent,
 		&st::mediaMenuIconTextStyleSemiTransparent);
+	add(
+		tr::lng_photo_editor_text_style_opaque(tr::now),
+		TextStyle::Opaque,
+		&st::mediaMenuIconTextStyleOpaque);
+
+	auto fonts = std::make_unique<Ui::PopupMenu>(
+		_contextMenu.get(),
+		st::mediaviewPopupMenu);
+	const auto addFont = [&](
+			const QString &text,
+			TextTypeface typeface) {
+		const auto checked = (_typeface == typeface);
+		fonts->addAction(
+			text,
+			[=] {
+				setTypeface(typeface);
+				notifyPrefsUsed();
+			},
+			checked ? &st::mediaPlayerMenuCheck : nullptr);
+	};
+	addFont(
+		tr::lng_photo_editor_font_default(tr::now),
+		TextTypeface::Default);
+	addFont(
+		tr::lng_photo_editor_font_italic(tr::now),
+		TextTypeface::Italic);
+	addFont(
+		tr::lng_photo_editor_font_serif(tr::now),
+		TextTypeface::Serif);
+	addFont(
+		tr::lng_photo_editor_font_condensed(tr::now),
+		TextTypeface::Condensed);
+	addFont(
+		tr::lng_photo_editor_font_monospace(tr::now),
+		TextTypeface::Monospace);
+	_contextMenu->addAction(
+		tr::lng_photo_editor_font(tr::now),
+		std::move(fonts),
+		&st::mediaMenuIconFont);
+
+	auto align = base::make_unique_q<AlignAction>(
+		_contextMenu->menu(),
+		_contextMenu->st().menu,
+		new QAction(tr::lng_photo_editor_align(tr::now), _contextMenu.get()),
+		_alignment);
+	const auto alignRaw = align.get();
+	align->setActionTriggered([=] {
+		const auto next = NextAlignment(_alignment);
+		setAlignment(next);
+		notifyPrefsUsed();
+		alignRaw->cycle(next);
+	});
+	align->setPreventClose(true);
+	_contextMenu->addAction(std::move(align));
 
 	_contextMenu->addSeparator();
 
@@ -719,6 +962,9 @@ void ItemText::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 	_contextMenu->popup(event->screenPos());
 }
 
+void ItemText::actionFlip() {
+}
+
 void ItemText::performFlip() {
 	update();
 }
@@ -729,6 +975,8 @@ std::shared_ptr<ItemBase> ItemText::duplicate(ItemBase::Data data) const {
 		_color,
 		_fontSize,
 		_textStyle,
+		_typeface,
+		_alignment,
 		_imageSize,
 		std::move(data));
 }
@@ -741,6 +989,8 @@ void ItemText::save(SaveState state) {
 		.color = _color,
 		.fontSize = _fontSize,
 		.textStyle = _textStyle,
+		.typeface = _typeface,
+		.alignment = _alignment,
 	};
 }
 
@@ -749,11 +999,21 @@ void ItemText::restore(SaveState state) {
 		return;
 	}
 	const auto &saved = (state == SaveState::Keep) ? _keepedState : _savedState;
+	const auto changed = (_text != saved.text)
+		|| (_color != saved.color)
+		|| (_fontSize != saved.fontSize)
+		|| (_textStyle != saved.textStyle)
+		|| (_typeface != saved.typeface)
+		|| (_alignment != saved.alignment);
 	_text = saved.text;
 	_color = saved.color;
 	_fontSize = saved.fontSize;
 	_textStyle = saved.textStyle;
-	renderContent();
+	_typeface = saved.typeface;
+	_alignment = saved.alignment;
+	if (changed) {
+		renderContent();
+	}
 	ItemBase::restore(state);
 }
 

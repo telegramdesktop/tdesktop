@@ -1015,6 +1015,9 @@ void EditCaptionBox::setupDragArea() {
 			|| state == DragState::Image
 			|| state == DragState::MediaFiles)
 			? (_asFile ? DragState::Files : DragState::Image)
+			: (state == DragState::Folder
+				|| state == DragState::FilesArchive)
+			? DragState::None
 			: state;
 	};
 	const auto areas = DragArea::SetupDragAreaToContainer(

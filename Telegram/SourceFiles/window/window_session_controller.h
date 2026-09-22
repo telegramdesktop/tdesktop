@@ -525,7 +525,6 @@ public:
 	void resizeForThirdSection();
 	void closeThirdSection();
 
-	[[nodiscard]] bool canShowSeparateWindow(SeparateId id) const;
 	void showPeer(not_null<PeerData*> peer, MsgId msgId = ShowAtUnreadMsgId);
 
 	void startOrJoinGroupCall(not_null<PeerData*> peer);
@@ -808,7 +807,8 @@ private:
 
 	[[nodiscard]] bool openPhotoExternal(
 		not_null<PhotoData*> photo,
-		Data::FileOrigin origin);
+		Data::FileOrigin origin,
+		HistoryItem *item);
 	void handleDrawToReplyRequest(Data::DrawToReplyRequest request);
 	[[nodiscard]] Data::Thread *resolveDrawToReplyThread(
 		const Data::DrawToReplyRequest &request) const;

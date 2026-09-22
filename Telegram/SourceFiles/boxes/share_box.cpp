@@ -1019,7 +1019,12 @@ void ShareBox::Inner::repaintChatAtIndex(int index) {
 
 	auto row = index / _columnCount;
 	auto column = index % _columnCount;
-	update(style::rtlrect(_rowsLeft + qFloor(column * _rowWidthReal), row * _rowHeight, _rowWidth, _rowHeight, width()));
+	update(style::rtlrect(
+		_rowsLeft + int(std::floor(column * _rowWidthReal)),
+		row * _rowHeight,
+		_rowWidth,
+		_rowHeight,
+		width()));
 }
 
 ShareBox::Inner::Chat *ShareBox::Inner::getChatAtIndex(int index) {
@@ -1192,7 +1197,8 @@ void ShareBox::Inner::paintChat(
 		Painter &p,
 		not_null<Chat*> chat,
 		int index) {
-	auto x = _rowsLeft + qFloor((index % _columnCount) * _rowWidthReal);
+	auto x = _rowsLeft
+		+ int(std::floor((index % _columnCount) * _rowWidthReal));
 	auto y = _rowsTop + (index / _columnCount) * _rowHeight;
 
 	auto outerWidth = width();
@@ -1329,14 +1335,16 @@ void ShareBox::Inner::mouseMoveEvent(QMouseEvent *e) {
 void ShareBox::Inner::updateUpon(const QPoint &pos) {
 	auto x = pos.x(), y = pos.y();
 	auto row = (y - _rowsTop) / _rowHeight;
-	auto column = qFloor((x - _rowsLeft) / _rowWidthReal);
+	auto column = int(std::floor((x - _rowsLeft) / _rowWidthReal));
 
 	if (column < 0 || column >= _columnCount) {
 		_upon = -1;
 		return;
 	}
 
-	auto left = _rowsLeft + qFloor(column * _rowWidthReal) + st::shareColumnSkip / 2;
+	auto left = _rowsLeft
+		+ int(std::floor(column * _rowWidthReal))
+		+ st::shareColumnSkip / 2;
 	auto top = _rowsTop + row * _rowHeight + st::sharePhotoTop;
 	auto xupon = (x >= left) && (x < left + (_rowWidth - st::shareColumnSkip));
 	auto yupon = (y >= top) && (y < top + _st.item.checkbox.imageRadius * 2 + st::shareNameTop + _st.item.nameStyle.font->height * 2);
@@ -1361,8 +1369,8 @@ void ShareBox::Inner::selectActive() {
 void ShareBox::Inner::resizeEvent(QResizeEvent *e) {
 	_columnSkip = (width() - _columnCount * _st.item.checkbox.imageRadius * 2) / float64(_columnCount + 1);
 	_rowWidthReal = _st.item.checkbox.imageRadius * 2 + _columnSkip;
-	_rowsLeft = qFloor(_columnSkip / 2);
-	_rowWidth = qFloor(_rowWidthReal);
+	_rowsLeft = int(std::floor(_columnSkip / 2));
+	_rowWidth = int(std::floor(_rowWidthReal));
 	update();
 }
 

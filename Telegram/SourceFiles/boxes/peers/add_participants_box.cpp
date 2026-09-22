@@ -838,9 +838,9 @@ int AddParticipantsBoxController::alreadyInCount() const {
 		return 1; // self
 	}
 	if (const auto chat = _peer->asChat()) {
-		return qMax(chat->count, 1);
+		return std::max(chat->count, 1);
 	} else if (const auto channel = _peer->asChannel()) {
-		return qMax(channel->membersCount(), int(_alreadyIn.size()));
+		return std::max(channel->membersCount(), int(_alreadyIn.size()));
 	}
 	Unexpected("User in AddParticipantsBoxController::alreadyInCount");
 }

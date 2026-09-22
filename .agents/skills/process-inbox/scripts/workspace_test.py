@@ -1894,6 +1894,42 @@ class MechanicsTest(unittest.TestCase):
 			self.assertEqual(result["markers"]["screenshots"], ["/tmp/fake.png"])
 			self.assertFalse(result["crash_report_fresh"])
 
+	def test_parse_test_log_lists_skipped_rows_beside_pass_and_fail(self):
+		markers = workspace.parse_test_log("\n".join([
+			"TEST_STEP: gated stage self-test: arm",
+			"TEST_RESULT: N/A: skipped stage - applies=0",
+			"TEST_RESULT: PASS: applied stage - ran=1",
+			"TEST_RESULT: FAIL: other stage - ran=0",
+			"SCREENSHOT: /tmp/fake.png",
+		]))
+		self.assertEqual(markers["skipped"], ["skipped stage - applies=0"])
+		self.assertEqual(markers["pass"], ["applied stage - ran=1"])
+		self.assertEqual(markers["fail"], ["other stage - ran=0"])
+		self.assertEqual(markers["steps"], ["gated stage self-test: arm"])
+		self.assertEqual(markers["screenshots"], ["/tmp/fake.png"])
+
+	def test_log_marks_complete_reads_the_marker_as_a_whole_line(self):
+		for text in [
+			"TEST_COMPLETE",
+			"TEST_COMPLETE\n",
+			"TEST_COMPLETE\r\n",
+			"TEST_COMPLETE  ",
+			"TEST_STEP: open settings\nTEST_COMPLETE\n",
+			"NOTE: waiting\nTEST_COMPLETE",
+		]:
+			self.assertTrue(workspace.log_marks_complete(text), repr(text))
+		for text in [
+			"",
+			"NOTE: waiting for TEST_COMPLETE\n",
+			"NOTE: mtp: rpc retry code=500 type=TEST_COMPLETE "
+			"request=0x0000002d\n",
+			"TEST_COMPLETED\n",
+			"TEST_COMPLETE_LATER\n",
+			"  TEST_COMPLETE\n",
+			"TEST_RESULT: PASS: TEST_COMPLETE\n",
+		]:
+			self.assertFalse(workspace.log_marks_complete(text), repr(text))
+
 	def test_test_run_reports_a_death_after_complete(self):
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary)
@@ -2113,6 +2149,38 @@ class MechanicsTest(unittest.TestCase):
 			self.assertTrue(result["test_complete"])
 			self.assertIsNone(result["exit_code"])
 			self.assertEqual(result["death_signals"], [])
+
+	def test_test_run_refuses_a_line_that_only_contains_the_marker(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			line = (
+				"NOTE: mtp: rpc retry code=500 type=TEST_COMPLETE"
+				" request=0x0000002d"
+			)
+			exe = write_fake_exe(debug / "Telegram", (
+				'LOG="$TDESKTOP_TEST_EVIDENCE_DIR/test_log.txt"\n'
+				f'echo "{line}" >> "$LOG"\n'
+				"sleep 30\n"
+			), (
+				'set "LOG=%TDESKTOP_TEST_EVIDENCE_DIR%\\test_log.txt"\n'
+				f'echo {line}>>"%LOG%"\n'
+				":loop\ngoto loop\n"
+			))
+			result = run_test_run(
+				exe, root / "run1", quiet=2.0, grace=1.0,
+			)
+			self.assertEqual(result["outcome"], "quiet-killed")
+			self.assertEqual(result["verdict_hint"], "hang")
+			self.assertFalse(result["test_complete"])
+			self.assertIsNone(result["exit_code"])
+			self.assertEqual(result["death_signals"], [])
+			self.assertEqual(
+				Path(result["log_path"]).read_text(
+					encoding="utf-8", errors="replace"
+				).splitlines(),
+				[line],
+			)
 
 	def test_test_run_reports_a_grace_kill_with_a_dump(self):
 		with tempfile.TemporaryDirectory() as temporary:

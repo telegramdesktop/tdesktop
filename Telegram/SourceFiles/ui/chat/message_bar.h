@@ -19,7 +19,7 @@ struct MessageBar;
 
 namespace Ui {
 
-class SpoilerAnimation;
+class DynamicImage;
 
 struct MessageBarContent {
 	int index = 0;
@@ -27,8 +27,7 @@ struct MessageBarContent {
 	QString title;
 	TextWithEntities text;
 	Text::MarkedContext context;
-	QImage preview;
-	Fn<void()> spoilerRepaint;
+	std::shared_ptr<DynamicImage> preview;
 	style::margins margins;
 };
 
@@ -67,7 +66,6 @@ private:
 		QPixmap titleTo;
 		QPixmap imageFrom;
 		QPixmap imageTo;
-		std::unique_ptr<SpoilerAnimation> spoilerFrom;
 		BodyAnimation bodyAnimation = BodyAnimation::None;
 		RectPart movingTo = RectPart::None;
 	};
@@ -78,11 +76,11 @@ private:
 		float64 offset = 0.;
 	};
 	void setup();
+	void refreshImage();
 	void paint(Painter &p);
 	void paintLeftBar(Painter &p);
 	void tweenTo(MessageBarContent &&content);
 	void updateFromContent(MessageBarContent &&content);
-	[[nodiscard]] QPixmap prepareImage(const QImage &preview);
 
 	[[nodiscard]] QRect imageRect() const;
 	[[nodiscard]] QRect titleRangeRect(int from, int till) const;
@@ -103,14 +101,6 @@ private:
 	[[nodiscard]] BarState countBarState() const;
 	void ensureGradientsCreated(int size);
 
-	void paintImageWithSpoiler(
-		QPainter &p,
-		QRect rect,
-		const QPixmap &image,
-		SpoilerAnimation *spoiler,
-		crl::time now,
-		bool paused) const;
-
 	[[nodiscard]] static BodyAnimation DetectBodyAnimationType(
 		Animation *currentAnimation,
 		const MessageBarContent &currentContent,
@@ -124,7 +114,6 @@ private:
 	Text::String _title, _text;
 	QPixmap _image, _topBarGradient, _bottomBarGradient;
 	std::unique_ptr<Animation> _animation;
-	std::unique_ptr<SpoilerAnimation> _spoiler;
 	bool _customEmojiRepaintScheduled = false;
 
 };

@@ -139,8 +139,4 @@ private:
 
 QString ChatOccupiedString(not_null<History*> history);
 
-QString InterpretSendPath(
-	not_null<Window::SessionController*> window,
-	const QString &path);
-
 } // namespace Support

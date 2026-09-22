@@ -356,7 +356,8 @@ FormatPointer MakeFormatPointer(
 #else
 		int(*write)(void *opaque, uint8_t *buffer, int bufferSize),
 #endif
-		int64_t(*seek)(void *opaque, int64_t offset, int whence)) {
+		int64_t(*seek)(void *opaque, int64_t offset, int whence),
+		FormatSettings settings) {
 	auto io = MakeIOPointer(opaque, read, write, seek);
 	if (!io) {
 		return {};
@@ -374,6 +375,9 @@ FormatPointer MakeFormatPointer(
 	auto options = (AVDictionary*)nullptr;
 	const auto guard = gsl::finally([&] { av_dict_free(&options); });
 	av_dict_set(&options, "usetoc", "1", 0);
+	if (settings.ignoreEditList) {
+		av_dict_set(&options, "ignore_editlist", "1", 0);
+	}
 
 	const auto error = AvErrorWrap(avformat_open_input(
 		&result,

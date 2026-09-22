@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/components/welcome_messages.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_changes.h"
+#include "data/data_chat_participant_status.h"
 #include "data/data_drafts.h"
 #include "data/data_media_types.h"
 #include "data/data_web_page.h"
@@ -4253,6 +4254,7 @@ void ApiWrap::editMedia(
 		.album = nullptr,
 		.forceFile = forceFile,
 		.sendLargePhotos = file.sendLargePhotos,
+		.archive = file.archive,
 		.idOverride = 0,
 		.displayName = file.displayName,
 	}));
@@ -4279,6 +4281,9 @@ void ApiWrap::sendFiles(
 		album = nullptr;
 	}
 	const auto to = FileLoadTaskOptions(action);
+	const auto animationAsGif = !Data::RestrictionError(
+		action.history->peer,
+		ChatRestriction::SendGifs);
 	if (album) {
 		album->options = to.options;
 	}
@@ -4327,6 +4332,8 @@ void ApiWrap::sendFiles(
 			.forceFile = forceFile,
 			.sendLargePhotos = file.sendLargePhotos,
 			.animationJob = file.animationJob,
+			.animationAsGif = animationAsGif,
+			.archive = file.archive,
 			.idOverride = 0,
 			.displayName = file.displayName,
 		}));
@@ -5453,6 +5460,7 @@ void ApiWrap::sendMultiPaidMedia(
 		}
 		if (done) done(true);
 	}, [=](const MTP::Error &error, const MTP::Response &response) {
+		_sendingAlbums.remove(groupId);
 		if (done) done(false);
 		sendMessageFail(error, peer, randomId, itemId);
 	});

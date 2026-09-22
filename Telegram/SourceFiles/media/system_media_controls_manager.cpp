@@ -45,6 +45,19 @@ constexpr auto kSkipMs = crl::time(15 * 1000);
 	Unexpected("RepeatModeToLoopStatus in SystemMediaControlsManager");
 }
 
+[[nodiscard]] std::optional<AudioMsgId::Type> ActivePlayerType() {
+	using namespace Media::Player;
+	const auto player = instance();
+	using Type = AudioMsgId::Type;
+	for (const auto type : { Type::Voice, Type::Song }) {
+		if (player->current(type)
+			&& !IsStoppedOrStopping(player->getState(type).state)) {
+			return type;
+		}
+	}
+	return std::nullopt;
+}
+
 } // namespace
 
 bool SystemMediaControlsManager::Supported() {
@@ -150,7 +163,7 @@ void SystemMediaControlsManager::applyPlayerTrack(AudioMsgId::Type audioType) {
 	} else if (document && document->isSongWithCover()) {
 		const auto view = document->createMediaView();
 		view->thumbnailWanted(current.contextId());
-		_cachedMediaView.push_back(view);
+		_cachedMediaView = view;
 		if (const auto imagePtr = view->thumbnail()) {
 			_controls->setThumbnail(imagePtr->original());
 		} else {
@@ -175,12 +188,9 @@ void SystemMediaControlsManager::syncPlayerStateToControls() {
 		= base::Platform::SystemMediaControls::PlaybackStatus;
 	using namespace Media::Player;
 	const auto mediaPlayer = Media::Player::instance();
-	const auto type = mediaPlayer->current(AudioMsgId::Type::Song)
-		? AudioMsgId::Type::Song
-		: AudioMsgId::Type::Voice;
-	const auto current = mediaPlayer->current(type);
-	if (!current) {
-		_cachedMediaView.clear();
+	const auto type = ActivePlayerType();
+	if (!type) {
+		_cachedMediaView = nullptr;
 		_streamed = nullptr;
 		_controls->setEnabled(false);
 		_controls->clearMetadata();
@@ -189,16 +199,16 @@ void SystemMediaControlsManager::syncPlayerStateToControls() {
 	_controls->setEnabled(true);
 	_controls->setIsPlayPauseEnabled(true);
 	_controls->setIsStopEnabled(true);
-	_controls->setIsNextEnabled(mediaPlayer->nextAvailable(type));
-	_controls->setIsPreviousEnabled(mediaPlayer->previousAvailable(type));
-	const auto state = mediaPlayer->getState(type);
+	_controls->setIsNextEnabled(mediaPlayer->nextAvailable(*type));
+	_controls->setIsPreviousEnabled(mediaPlayer->previousAvailable(*type));
+	const auto state = mediaPlayer->getState(*type);
 	_controls->setPlaybackStatus(IsStoppedOrStopping(state.state)
 		? PlaybackStatus::Stopped
 		: IsPausedOrPausing(state.state)
 		? PlaybackStatus::Paused
 		: PlaybackStatus::Playing);
 	_lastAudioMsgId = AudioMsgId();
-	applyPlayerTrack(type);
+	applyPlayerTrack(*type);
 	_controls->updateDisplay();
 }
 
@@ -260,9 +270,7 @@ SystemMediaControlsManager::SystemMediaControlsManager()
 		if (_videoDelegate) {
 			return;
 		}
-		const auto type = mediaPlayer->current(AudioMsgId::Type::Song)
-			? AudioMsgId::Type::Song
-			: AudioMsgId::Type::Voice;
+		const auto type = mediaPlayer->getActiveType();
 		_controls->setEnabled(audio);
 		if (audio) {
 			_controls->setIsNextEnabled(mediaPlayer->nextAvailable(type));
@@ -273,7 +281,7 @@ SystemMediaControlsManager::SystemMediaControlsManager()
 			_controls->setPlaybackStatus(PlaybackStatus::Playing);
 			_controls->updateDisplay();
 		} else {
-			_cachedMediaView.clear();
+			_cachedMediaView = nullptr;
 			_streamed = nullptr;
 			_controls->clearMetadata();
 		}
@@ -288,12 +296,9 @@ SystemMediaControlsManager::SystemMediaControlsManager()
 
 	auto unlocked = Core::App().passcodeLockChanges(
 	) | rpl::filter([=](bool locked) {
-		return !locked && (mediaPlayer->current(AudioMsgId::Type::Song)
-			|| mediaPlayer->current(AudioMsgId::Type::Voice));
-	}) | rpl::map([=]() -> AudioMsgId::Type {
-		return mediaPlayer->current(AudioMsgId::Type::Song)
-			? AudioMsgId::Type::Song
-			: AudioMsgId::Type::Voice;
+		return !locked && ActivePlayerType().has_value();
+	}) | rpl::map([=] {
+		return *ActivePlayerType();
 	}) | rpl::before_next([=] {
 		if (_videoDelegate) {
 			return;

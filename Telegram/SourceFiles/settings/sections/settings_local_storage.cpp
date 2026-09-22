@@ -886,8 +886,8 @@ void LocalStorage::Chart::paintEvent(QPaintEvent *e) {
 			center.x() - segmentMid,
 			center.y() - segmentMid,
 			Size(segmentMid * 2.));
-		const auto startAngle = qRound(-from * 16.);
-		const auto spanAngle = -qRound((to - from) * 16.);
+		const auto startAngle = int(base::SafeRound(-from * 16.));
+		const auto spanAngle = -int(base::SafeRound((to - from) * 16.));
 		p.drawArc(rect, startAngle, spanAngle);
 
 		const auto innerRadius = segmentOuter - segmentThickness;

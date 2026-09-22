@@ -125,21 +125,3 @@ QString rusKeyboardLayoutSwitch(const QString &from);
 inline int rowscount(int fullCount, int countPerRow) {
 	return (fullCount + countPerRow - 1) / countPerRow;
 }
-inline int floorclamp(int value, int step, int lowest, int highest) {
-	return std::clamp(value / step, lowest, highest);
-}
-inline int floorclamp(float64 value, int step, int lowest, int highest) {
-	return std::clamp(
-		static_cast<int>(std::floor(value / step)),
-		lowest,
-		highest);
-}
-inline int ceilclamp(int value, int step, int lowest, int highest) {
-	return std::clamp((value + step - 1) / step, lowest, highest);
-}
-inline int ceilclamp(float64 value, int32 step, int32 lowest, int32 highest) {
-	return std::clamp(
-		static_cast<int>(std::ceil(value / step)),
-		lowest,
-		highest);
-}

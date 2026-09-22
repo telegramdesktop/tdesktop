@@ -1458,16 +1458,18 @@ Section DetailsFiller::makeInfo() {
 		return true;
 	};
 
-	const auto addTranslateToMenu = [&,
+	const auto setupAboutContextMenu = [&,
 			peer = _peer.get(),
 			controller = _controller->parentController()](
 			not_null<Ui::FlatLabel*> label,
 			rpl::producer<TextWithEntities> &&text) {
 		struct State {
 			rpl::variable<TextWithEntities> labelText;
+			rpl::variable<TextWithEntities> aboutText;
 		};
 		const auto state = label->lifetime().make_state<State>();
 		state->labelText = std::move(text);
+		state->aboutText = AboutValue(peer);
 		label->setContextMenuHook([=](
 				Ui::FlatLabel::ContextMenuRequest request) {
 			if (request.link) {
@@ -1484,24 +1486,49 @@ Section DetailsFiller::makeInfo() {
 					return;
 				}
 			}
-			label->fillContextMenu(request);
-			if (Ui::SkipTranslate(state->labelText.current())) {
+			const auto selected = !request.selection.empty();
+			const auto full = state->labelText.current();
+			const auto about = state->aboutText.current();
+			const auto advanced = (about.text.size() < full.text.size());
+			if (selected || !advanced) {
+				label->fillContextMenu(request);
+			} else {
+				if (!about.empty()) {
+					request.menu->addAction(
+						tr::lng_context_copy_text(tr::now),
+						[=] {
+							TextUtilities::SetClipboardText(
+								TextForMimeData::WithExpandedLinks(about));
+						});
+				}
+				if (const auto link = request.link) {
+					const auto copy = link->copyToClipboardContextItemText();
+					if (!copy.isEmpty()) {
+						request.menu->addAction(
+							copy,
+							[text = link->copyToClipboardText()] {
+								TextUtilities::SetClipboardText({ text });
+							});
+					}
+				}
+			}
+			if (Ui::SkipTranslate(selected ? full : about)) {
 				return;
 			}
-			auto item = (request.selection.empty()
-				? tr::lng_context_translate
-				: tr::lng_context_translate_selected)(tr::now);
+			auto item = (selected
+				? tr::lng_context_translate_selected
+				: tr::lng_context_translate)(tr::now);
 			request.menu->addAction(std::move(item), [=] {
 				controller->window().show(Box(
 					Ui::TranslateBox,
 					peer,
 					MsgId(),
-					request.selection.empty()
-						? state->labelText.current()
-						: Ui::Text::Mid(
-							state->labelText.current(),
+					(selected
+						? Ui::Text::Mid(
+							full,
 							request.selection.from,
-							request.selection.to - request.selection.from),
+							request.selection.to - request.selection.from)
+						: about),
 					false));
 			});
 		});
@@ -1681,7 +1708,7 @@ Section DetailsFiller::makeInfo() {
 		const auto about = addInfoLine(
 			std::move(label),
 			AboutWithAdvancedValue(user));
-		addTranslateToMenu(about.text, AboutWithAdvancedValue(user));
+		setupAboutContextMenu(about.text, AboutWithAdvancedValue(user));
 		SetupAboutPeerIdDrag(about.text, user);
 
 		const auto usernameLine = addInfoOneLine(
@@ -1846,7 +1873,7 @@ Section DetailsFiller::makeInfo() {
 			? rpl::single(TextWithEntities())
 			: AboutWithAdvancedValue(_peer));
 		if (!_topic) {
-			addTranslateToMenu(about.text, AboutWithAdvancedValue(_peer));
+			setupAboutContextMenu(about.text, AboutWithAdvancedValue(_peer));
 			SetupAboutPeerIdDrag(about.text, _peer);
 		}
 	}
@@ -2802,7 +2829,7 @@ void ActionsFiller::addAffiliateProgram(not_null<UserData*> user) {
 		bool requested = false;
 		Fn<void()> open;
 	};
-	const auto recipients = std::make_shared<StarRefRecipients>();
+	const auto recipients = inner->lifetime().make_state<StarRefRecipients>();
 	recipients->open = [=] {
 		if (!recipients->list.empty()) {
 			const auto program = user->botInfo->starRefProgram;
@@ -2812,10 +2839,11 @@ void ActionsFiller::addAffiliateProgram(not_null<UserData*> user) {
 				recipients->list));
 		} else if (!recipients->requested) {
 			recipients->requested = true;
-			const auto done = [=](std::vector<not_null<PeerData*>> list) {
+			const auto done = crl::guard(inner, [=](
+					std::vector<not_null<PeerData*>> list) {
 				recipients->list = std::move(list);
 				recipients->open();
-			};
+			});
 			Info::BotStarRef::ResolveRecipients(&user->session(), done);
 		}
 	};

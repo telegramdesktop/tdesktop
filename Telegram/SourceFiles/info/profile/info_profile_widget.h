@@ -20,6 +20,7 @@ namespace Info::Profile {
 class InnerWidget;
 class TabsHost;
 struct MembersState;
+struct TabsState;
 
 struct GroupReactionOrigin {
 	not_null<PeerData*> group;
@@ -55,12 +56,8 @@ public:
 	void setMembersState(std::unique_ptr<MembersState> state);
 	[[nodiscard]] std::unique_ptr<MembersState> membersState();
 
-	void setActiveTab(const QString &id) {
-		_activeTab = id;
-	}
-	[[nodiscard]] QString activeTab() const {
-		return _activeTab;
-	}
+	void setTabsState(std::unique_ptr<TabsState> state);
+	[[nodiscard]] std::unique_ptr<TabsState> tabsState();
 
 	~Memento();
 
@@ -73,8 +70,8 @@ private:
 		Origin origin);
 
 	std::unique_ptr<MembersState> _membersState;
+	std::unique_ptr<TabsState> _tabsState;
 	Origin _origin;
-	QString _activeTab;
 
 };
 

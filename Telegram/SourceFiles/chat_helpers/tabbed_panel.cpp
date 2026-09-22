@@ -207,8 +207,8 @@ void TabbedPanel::updateContentHeight() {
 	auto availableHeight = _dropDown
 		? (parentWidget()->height() - _top - marginsHeight)
 		: (_bottom - marginsHeight);
-	auto wantedContentHeight = qRound(_heightRatio * availableHeight)
-		- addedHeight;
+	const auto wanted = int(base::SafeRound(_heightRatio * availableHeight));
+	auto wantedContentHeight = wanted - addedHeight;
 	auto contentHeight = marginsHeight + std::clamp(
 		wantedContentHeight,
 		_minContentHeight,

@@ -15,6 +15,7 @@ namespace Editor {
 
 struct VideoTimelineDescriptor {
 	QString path;
+	QByteArray content;
 	QSize dimensions;
 	crl::time duration = 0;
 
@@ -57,6 +58,8 @@ public:
 	}
 
 	void setPlaybackPosition(crl::time position);
+
+	void setSizeLabel(const QString &text);
 
 	[[nodiscard]] QPoint coverDot() const;
 
@@ -108,6 +111,8 @@ private:
 	crl::time _cover = 0;
 	// Negative means nothing played yet; zero is a real position.
 	crl::time _playback = -1;
+
+	QString _sizeLabel;
 
 	std::vector<QImage> _frames;
 	QSize _framesBox;

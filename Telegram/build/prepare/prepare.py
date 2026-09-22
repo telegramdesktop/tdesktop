@@ -458,11 +458,11 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 73a88cdaa13995c8666c956b80e2129ee9b6b34d
+    git checkout 519aaa084608fa6f9a2bfbd1959d133c44d94227
 mac:
     git clone https://github.com/desktop-app/qt6_highsierra_patches.git qt6_highsierra
     cd qt6_highsierra
-    git checkout 4aae812a405f47553e001faf566de572d3eccd16
+    git checkout 7387476bb3b7200d3b044015696cb3c28f78593c
 """)
 
 stage('msys64', """
@@ -518,6 +518,28 @@ mac:
         --ignore-installed \\
         --target=$THIRDPARTY_DIR/gyp \\
         git+https://chromium.googlesource.com/external/gyp@master six
+""", 'ThirdParty')
+
+rustToolchain = '1.96.1'
+stage('rust', """
+win:
+    powershell -Command "iwr -OutFile ./rustup-init.exe https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe"
+    SET "RUSTUP_HOME=%THIRDPARTY_DIR%\\rust\\rustup"
+    SET "CARGO_HOME=%THIRDPARTY_DIR%\\rust\\cargo"
+    rustup-init.exe -y --no-modify-path --profile minimal ^
+        --default-toolchain """ + rustToolchain + """ ^
+        --component rust-src ^
+        --target aarch64-pc-windows-msvc
+    del rustup-init.exe
+mac:
+    wget -O rustup-init.sh https://sh.rustup.rs
+    export RUSTUP_HOME=$THIRDPARTY_DIR/rust/rustup
+    export CARGO_HOME=$THIRDPARTY_DIR/rust/cargo
+    sh rustup-init.sh -y --no-modify-path --profile minimal \\
+        --default-toolchain """ + rustToolchain + """ \\
+        --target aarch64-apple-darwin \\
+        --target x86_64-apple-darwin
+    rm rustup-init.sh
 """, 'ThirdParty')
 
 stage('lzma', """
@@ -898,7 +920,7 @@ mac:
 """)
 
 stage('libde265', """
-    git clone -b v1.1.1 https://github.com/strukturag/libde265.git
+    git clone -b v1.1.3 https://github.com/strukturag/libde265.git
     cd libde265
 win:
     cmake . ^
@@ -969,7 +991,7 @@ mac:
 """)
 
 stage('libheif', """
-    git clone -b v1.23.1 https://github.com/strukturag/libheif.git
+    git clone -b v1.23.4 https://github.com/strukturag/libheif.git
     cd libheif
 win:
     %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/LIBHEIF_EXPORTS/LIBDE265_STATIC_BUILD/g' libheif/CMakeLists.txt
@@ -1293,6 +1315,7 @@ mac:
         --enable-encoder=aac \
         --enable-encoder=libopus \
         --enable-encoder=libopenh264 \
+        --enable-encoder=libvpx_vp9 \
         --enable-encoder=pcm_s16le \
         --enable-filter=atempo \
         --enable-parser=aac \
@@ -1319,7 +1342,8 @@ mac:
         --enable-muxer=mp4 \
         --enable-muxer=ogg \
         --enable-muxer=opus \
-        --enable-muxer=wav
+        --enable-muxer=wav \
+        --enable-muxer=webm
     }
 
     configureFFmpeg arm64
@@ -1511,7 +1535,7 @@ if qt < '6':
 win:
     git clone https://github.com/desktop-app/tg_angle.git
     cd tg_angle
-    git checkout d4c3606e47
+    git checkout 48bc60bdb1
     cmake -B out ^
         -DTG_ANGLE_SPECIAL_TARGET=%SPECIAL_TARGET% ^
         -DTG_ANGLE_ZLIB_INCLUDE_PATH=%LIBS_DIR%/zlib
@@ -1899,6 +1923,56 @@ mac:
     buildTd Debug
 release:
     buildTd Release
+""")
+
+stage('tlottie', """
+depends:patches/tlottie.patch
+    git clone https://github.com/dkaraush/tlottie.git
+    cd tlottie
+    git checkout 31f1b542f8
+    git apply ../patches/tlottie.patch
+win:
+    SET "RUSTUP_HOME=%THIRDPARTY_DIR%\\rust\\rustup"
+    SET "CARGO_HOME=%THIRDPARTY_DIR%\\rust\\cargo"
+    SET RUSTUP_TOOLCHAIN=""" + rustToolchain + """
+    SET "PATH=%CARGO_HOME%\\bin;%PATH%"
+win32:
+    SET "RUST_TARGET=i686-win7-windows-msvc"
+    SET "RUST_BUILD_STD=-Z build-std=std,panic_abort"
+    SET "RUSTC_BOOTSTRAP=1"
+win64:
+    SET "RUST_TARGET=x86_64-win7-windows-msvc"
+    SET "RUST_BUILD_STD=-Z build-std=std,panic_abort"
+    SET "RUSTC_BOOTSTRAP=1"
+winarm:
+    SET "RUST_TARGET=aarch64-pc-windows-msvc"
+    SET "RUST_BUILD_STD="
+win:
+    cargo rustc --lib --release --locked ^
+        --features c-api --crate-type staticlib ^
+        %RUST_BUILD_STD% ^
+        --target %RUST_TARGET% ^
+        --config "target.%RUST_TARGET%.rustflags=['-C','target-feature=+crt-static']" ^
+        -- --print native-static-libs
+    mkdir out\\lib out\\include
+    copy target\\%RUST_TARGET%\\release\\tlottie.lib out\\lib\\tlottie.lib
+    copy include\\tlottie.h out\\include\\tlottie.h
+mac:
+    export RUSTUP_HOME=$THIRDPARTY_DIR/rust/rustup
+    export CARGO_HOME=$THIRDPARTY_DIR/rust/cargo
+    export RUSTUP_TOOLCHAIN=""" + rustToolchain + """
+    export PATH=$CARGO_HOME/bin:$PATH
+    buildOneArch() {
+        cargo rustc --lib --release --locked \\
+            --features c-api --crate-type staticlib \\
+            --target $1 \\
+            -- --print native-static-libs
+    }
+    buildOneArch aarch64-apple-darwin
+    buildOneArch x86_64-apple-darwin
+    mkdir -p $USED_PREFIX/lib $USED_PREFIX/include/tlottie
+    lipo -create target/aarch64-apple-darwin/release/libtlottie.a target/x86_64-apple-darwin/release/libtlottie.a -output $USED_PREFIX/lib/libtlottie.a
+    cp include/tlottie.h $USED_PREFIX/include/tlottie/tlottie.h
 """)
 
 if win:

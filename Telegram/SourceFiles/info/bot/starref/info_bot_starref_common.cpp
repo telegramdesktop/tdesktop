@@ -179,7 +179,7 @@ void ChooseRecipient(
 		not_null<Ui::WhoReactedEntryAction*> action;
 		std::shared_ptr<Ui::DynamicImage> userpic;
 	};
-	auto actions = std::make_shared<std::vector<Entry>>();
+	const auto actions = menu->lifetime().make_state<std::vector<Entry>>();
 	actions->reserve(list.size());
 	for (const auto &peer : list) {
 		auto view = peer->createUserpicView();

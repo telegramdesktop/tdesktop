@@ -1307,7 +1307,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_proxy_edit_share_list_button" = "Share Proxy List";
 "lng_proxy_edit_share_list_toast" = "Proxy List copied to clipboard.";
 "lng_proxy_address_label" = "Socket address";
-"lng_proxy_web_host_label" = "Web proxy hostname";
+"lng_proxy_web_server_label" = "Web proxy server";
 "lng_proxy_web_host_ph" = "proxy.example.com";
 "lng_proxy_credentials_optional" = "Credentials (optional)";
 "lng_proxy_credentials" = "Credentials";
@@ -1406,9 +1406,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passkey_cable_error" = "Couldn't connect to your phone.\nPlease try again.";
 
 "lng_settings_quick_dialog_action_title" = "Chat list quick action";
-"lng_settings_quick_dialog_action_about" = "Choose the action you want to perform when you middle-click or swipe left in the chat list.";
-"lng_settings_quick_dialog_action_both" = "Swipe left and Middle-click";
-"lng_settings_quick_dialog_action_swipe" = "Swipe left";
+"lng_settings_quick_dialog_action_about" = "Choose the action you want to perform when you middle-click or swipe in the chat list.";
+"lng_settings_quick_dialog_action_both" = "Swipe and Middle-click";
+"lng_settings_quick_dialog_action_swipe" = "Swipe";
 "lng_settings_quick_dialog_action_mute" = "Mute";
 "lng_settings_quick_dialog_action_unmute" = "Unmute";
 "lng_settings_quick_dialog_action_pin" = "Pin";
@@ -4857,7 +4857,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_emoji_create_new" = "Create a New Emoji";
 "lng_emoji_add_existing" = "Add an Existing Emoji";
 "lng_emoji_adapt_sticker" = "Adapt from a Sticker";
-"lng_emoji_adapt_no_video" = "Video stickers are not supported yet.";
 "lng_stickers_add_to_set" = "Add to Sticker Set";
 "lng_stickers_already_in_set" = "This Sticker is already in the Set.";
 "lng_stickers_set_is_full" = "This Sticker Set is full.";
@@ -5379,6 +5378,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_mark_unread" = "Mark as unread";
 "lng_context_mark_read" = "Mark as read";
 "lng_context_mark_read_sure" = "Are you sure you want to mark all chats from this folder as read?";
+"lng_context_mark_read_archive_sure" = "Are you sure you want to mark all archived chats as read?";
 "lng_context_mark_read_all" = "Mark all chats as read";
 "lng_context_mark_read_all_sure" = "Are you sure you want to mark all chats as read?";
 "lng_context_mark_read_all_sure_2" = "**This action cannot be undone.**";
@@ -5453,6 +5453,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_edit_msg" = "Edit";
 "lng_context_draw" = "Edit Image";
 "lng_context_edit_video" = "Edit Video";
+"lng_context_edit_gif" = "Edit GIF";
 "lng_context_add_factcheck" = "Add Fact Check";
 "lng_context_edit_factcheck" = "Edit Fact Check";
 "lng_context_add_offer" = "Add Offer";
@@ -5917,11 +5918,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_drag_photos_here" = "Drop photos here";
 "lng_drag_files_here" = "Drop files here";
 "lng_drag_media_here" = "Drop photos and videos";
+"lng_drag_folder_here" = "Drop folder here";
 
 "lng_drag_to_send_quick" = "to send them in a quick way";
 "lng_drag_to_send_no_compression" = "to send them without compression";
 "lng_drag_to_send_files" = "to send them as documents";
 "lng_drag_to_send_media" = "to send them as media files";
+"lng_drag_to_send_folder" = "to send it as an archive";
+"lng_drag_to_send_folder_files" = "to send all its files";
+"lng_drag_to_send_files_archive" = "to send them as one archive";
 
 "lng_drag_proxy_here" = "Connect to a proxy";
 "lng_drag_proxy_about" = "Drop the link here";
@@ -6436,6 +6441,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_call_rate_label" = "Please rate the quality of your call";
 "lng_call_rate_comment" = "Comment (optional)";
+"lng_call_rate_title" = "Rate this call";
+"lng_call_rate_description" = "Please rate the quality of this call.";
+"lng_call_ended_title" = "Call ended";
 
 "lng_call_start" = "Start Call";
 "lng_call_start_video" = "Start Video";
@@ -7919,6 +7927,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_photo_editor_text_style_plain" = "Plain";
 "lng_photo_editor_text_style_framed" = "Framed";
 "lng_photo_editor_text_style_semi_transparent" = "Semi-Transparent";
+"lng_photo_editor_text_style_opaque" = "Opaque";
+"lng_photo_editor_text_placeholder" = "Add Text";
+"lng_photo_editor_font" = "Font";
+"lng_photo_editor_font_default" = "Default";
+"lng_photo_editor_font_italic" = "Italic";
+"lng_photo_editor_font_serif" = "Serif";
+"lng_photo_editor_font_condensed" = "Condensed";
+"lng_photo_editor_font_monospace" = "Monospace";
+"lng_photo_editor_align" = "Alignment";
 
 "lng_photo_editor_crop_original" = "Original";
 "lng_photo_editor_crop_square" = "Square";
@@ -8754,5 +8771,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rich_paste_toast_open" = "Open";
 "lng_rich_paste_toast_undo" = "Undo";
 "lng_rich_paste_toast_apply" = "Apply";
+
+"lng_folder_archive_failed" = "Failed to create archive.";
+"lng_folder_archive_status" = "ZIP archive";
 
 // Keys finished

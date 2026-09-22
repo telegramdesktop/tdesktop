@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
 #include "ui/unread_badge.h"
+#include "ui/controls/button_context_menu.h"
 #include "ui/ui_utility.h"
 #include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
@@ -368,16 +369,29 @@ bool TopBarWidget::createMenu(
 			: st::defaultPopupMenu);
 	_menu->setDestroyedCallback([
 			weak = base::make_weak(this),
-			weakButton = base::make_weak(button),
 			menu = _menu.get()] {
 		if (weak && weak->_menu == menu) {
-			if (weakButton) {
-				weakButton->setForceRippled(false);
-			}
+			weak->unrippleMenuButton();
 		}
 	});
+	_menuButton = button;
 	button->setForceRippled(true);
+	Ui::KeepHoveredWhileShown(button, _menu.get());
 	return true;
+}
+
+void TopBarWidget::unrippleMenuButton() {
+	if (const auto button = _menuButton.get()) {
+		button->setForceRippled(false);
+		Ui::SendSynteticMouseEvent(button, QEvent::MouseMove, Qt::NoButton);
+	}
+}
+
+void TopBarWidget::closeMenu() {
+	if (_menu) {
+		_menu = nullptr;
+		unrippleMenuButton();
+	}
 }
 
 void TopBarWidget::showPeerMenu() {
@@ -388,7 +402,7 @@ void TopBarWidget::showPeerMenu() {
 	const auto addAction = Ui::Menu::CreateAddActionCallback(_menu);
 	Window::FillDialogsEntryMenu(_controller, _activeChat, addAction);
 	if (_menu->empty()) {
-		_menu = nullptr;
+		closeMenu();
 	} else {
 		_menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
 		_menu->popup(Ui::PopupMenu::ConstrainToParentScreen(
@@ -943,9 +957,7 @@ void TopBarWidget::setActiveChat(
 	}
 	updateUnreadBadge();
 	refreshInfoButton();
-	if (_menu) {
-		_menu = nullptr;
-	}
+	closeMenu();
 	updateOnlineDisplay();
 	updateControlsVisibility();
 	refreshUnreadBadge();
@@ -1135,8 +1147,10 @@ void TopBarWidget::updateControlsGeometry() {
 		+ _clear->width();
 	buttonsWidth += buttonsLeft + st::topBarActionSkip * 3;
 
-	auto widthLeft = qMin(width() - buttonsWidth, -2 * st::defaultActiveButton.width);
-	auto buttonFullWidth = qMin(-(widthLeft / 2), 0);
+	auto widthLeft = std::min(
+		width() - buttonsWidth,
+		-2 * st::defaultActiveButton.width);
+	auto buttonFullWidth = std::min(-(widthLeft / 2), 0);
 	_forward->setFullWidth(buttonFullWidth);
 	_sendNow->setFullWidth(buttonFullWidth);
 	_delete->setFullWidth(buttonFullWidth);

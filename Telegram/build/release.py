@@ -137,6 +137,9 @@ if len(version_parts) < 2:
 if len(version_parts) > 4:
   print('Error: bad version passed ' + version)
   sys.exit(1)
+if (int(version_parts[0]), int(version_parts[1])) < (7, 2):
+  print('Error: the v2 update format requires version 7.2 or newer.')
+  sys.exit(1)
 version_major = version_parts[0] + '.' + version_parts[1]
 if len(version_parts) == 2:
   version = version_major + '.0'
@@ -193,20 +196,9 @@ files.append({
   'label': 'Source code (tar.gz, full)',
 })
 
-# TDESKTOP_UPDATE_V2=1 renames every built and deployed artifact and moves
-# them to the arch-explicit platform folders, see the same switch in
-# build.sh, build.bat and deploy.sh. The release assets are uploaded from
-# those exact files, so they follow the same names and folders.
-update_v2 = (os.environ.get('TDESKTOP_UPDATE_V2') == '1')
-v2_suffix = '-beta' if beta == 1 else ''
-win_x86_folder = 'win-x86' if update_v2 else 'tsetup'
-win_x64_folder = 'win-x64' if update_v2 else 'tx64'
-win_arm_folder = 'win-arm' if update_v2 else 'tarm64'
-mac_folder = 'mac' if update_v2 else 'tmac'
-linux_folder = 'linux-x64' if update_v2 else 'tlinux'
+artifact_suffix = '-beta' if beta == 1 else ''
 
-def appendFile(v1_name, v2_name, backup_folder, mime, label):
-  name = v2_name if update_v2 else v1_name
+def appendFile(name, backup_folder, mime, label):
   files.append({
     'local': name,
     'remote': name,
@@ -216,51 +208,43 @@ def appendFile(v1_name, v2_name, backup_folder, mime, label):
   })
 
 appendFile(
-  'tsetup.' + version_full + '.exe',
-  'td-setup-win-x86-' + version + v2_suffix + '.exe',
-  win_x86_folder,
+  'td-setup-win-x86-' + version + artifact_suffix + '.exe',
+  'win-x86',
   'application/octet-stream',
   'Windows 32 bit: Installer')
 appendFile(
-  'tportable.' + version_full + '.zip',
-  'td-portable-win-x86-' + version + v2_suffix + '.zip',
-  win_x86_folder,
+  'td-portable-win-x86-' + version + artifact_suffix + '.zip',
+  'win-x86',
   'application/zip',
   'Windows 32 bit: Portable')
 appendFile(
-  'tsetup-x64.' + version_full + '.exe',
-  'td-setup-win-x64-' + version + v2_suffix + '.exe',
-  win_x64_folder,
+  'td-setup-win-x64-' + version + artifact_suffix + '.exe',
+  'win-x64',
   'application/octet-stream',
   'Windows 64 bit: Installer')
 appendFile(
-  'tportable-x64.' + version_full + '.zip',
-  'td-portable-win-x64-' + version + v2_suffix + '.zip',
-  win_x64_folder,
+  'td-portable-win-x64-' + version + artifact_suffix + '.zip',
+  'win-x64',
   'application/zip',
   'Windows 64 bit: Portable')
 appendFile(
-  'tsetup-arm64.' + version_full + '.exe',
-  'td-setup-win-arm-' + version + v2_suffix + '.exe',
-  win_arm_folder,
+  'td-setup-win-arm-' + version + artifact_suffix + '.exe',
+  'win-arm',
   'application/octet-stream',
   'Windows on ARM: Installer')
 appendFile(
-  'tportable-arm64.' + version_full + '.zip',
-  'td-portable-win-arm-' + version + v2_suffix + '.zip',
-  win_arm_folder,
+  'td-portable-win-arm-' + version + artifact_suffix + '.zip',
+  'win-arm',
   'application/zip',
   'Windows on ARM: Portable')
 appendFile(
-  'tsetup.' + version_full + '.dmg',
-  'td-setup-mac-' + version + v2_suffix + '.dmg',
-  mac_folder,
+  'td-setup-mac-' + version + artifact_suffix + '.dmg',
+  'mac',
   'application/octet-stream',
   'macOS 10.13+: Installer')
 appendFile(
-  'tsetup.' + version_full + '.tar.xz',
-  'td-setup-linux-x64-' + version + v2_suffix + '.tar.xz',
-  linux_folder,
+  'td-setup-linux-x64-' + version + artifact_suffix + '.tar.xz',
+  'linux-x64',
   'application/octet-stream',
   'Linux 64 bit: Binary')
 

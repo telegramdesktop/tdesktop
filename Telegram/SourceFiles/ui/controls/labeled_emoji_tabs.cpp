@@ -704,7 +704,8 @@ void LabeledEmojiScrollTabs::scrollToButton(
 		return;
 	}
 	_scrollAnimation.start([=] {
-		_scroll->scrollToX(qRound(_scrollAnimation.value(target)));
+		const auto value = _scrollAnimation.value(target);
+		_scroll->scrollToX(int(base::SafeRound(value)));
 	}, scrollLeft, target, st::slideDuration, anim::sineInOut);
 }
 

@@ -84,7 +84,9 @@ enum class TabbedSelectorMode {
 	Full,
 	EmojiOnly,
 	CustomEmojiOnly,
+	CustomEmojiAndGifs,
 	StickersOnly,
+	StickersAndGifs,
 	MediaEditor,
 	EmojiStatus,
 	ChannelStatus,
@@ -148,6 +150,7 @@ public:
 	[[nodiscard]] rpl::producer<FileChosen> fileChosen() const;
 	[[nodiscard]] rpl::producer<PhotoChosen> photoChosen() const;
 	[[nodiscard]] rpl::producer<InlineChosen> inlineResultChosen() const;
+	[[nodiscard]] rpl::producer<> photoRequests() const;
 
 	[[nodiscard]] rpl::producer<> cancelled() const;
 	[[nodiscard]] rpl::producer<> checkForHide() const;
@@ -283,6 +286,7 @@ private:
 	void createTabsSlider();
 	void fillTabsSliderSections();
 	void updateTabsSliderGeometry();
+	[[nodiscard]] int tabsSliderHeight() const;
 	void switchTab();
 
 	not_null<Tab*> getTab(int index);

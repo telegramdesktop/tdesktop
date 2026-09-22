@@ -67,8 +67,8 @@ using Data::PhotoSize;
 	return (scale == 1.)
 		? size
 		: QSize(
-			std::max(qRound(size.width() * scale), 1),
-			std::max(qRound(size.height() * scale), 1));
+			std::max(int(base::SafeRound(size.width() * scale)), 1),
+			std::max(int(base::SafeRound(size.height() * scale)), 1));
 }
 
 [[nodiscard]] QSize HostedInstantViewForcedSize(
@@ -248,15 +248,19 @@ QSize Photo::countOptimalSize() {
 			? st::historyPhotoBubbleMinWidth
 			: st::minPhotoSize),
 		maxMediaWidth);
-	const auto maxActualWidth = qMax(scaled.width(), minWidth);
-	auto maxWidth = qMax(maxActualWidth, scaled.height());
-	auto minHeight = qMax(scaled.height(), st::minPhotoSize);
+	const auto maxActualWidth = std::max(scaled.width(), minWidth);
+	auto maxWidth = std::max(maxActualWidth, scaled.height());
+	auto minHeight = std::max(scaled.height(), st::minPhotoSize);
 	if (_parent->hasBubble()) {
 		const auto botTop = _parent->Get<FakeBotAboutTop>();
 		const auto captionMaxWidth = _parent->textualMaxWidth();
 		if (botTop || !_parent->data()->isFakeAboutView()) {
-			const auto maxWithCaption = qMin(st::msgMaxWidth, captionMaxWidth);
-			maxWidth = qMin(qMax(maxWidth, maxWithCaption), st::msgMaxWidth);
+			const auto maxWithCaption = std::min(
+				st::msgMaxWidth,
+				captionMaxWidth);
+			maxWidth = std::min(
+				std::max(maxWidth, maxWithCaption),
+				st::msgMaxWidth);
 			minHeight = adjustHeightForLessCrop(
 				dimensions,
 				{ maxWidth, minHeight });
@@ -276,10 +280,10 @@ QSize Photo::countCurrentSize(int newWidth) {
 	const auto hostedInstantView = IsHostedInstantViewMedia(_parent);
 	const auto thumbMaxWidth = hostedInstantView
 		? std::max(newWidth, 1)
-		: qMin(newWidth, st::maxMediaSize);
+		: std::min(newWidth, st::maxMediaSize);
 	const auto minWidth = std::clamp(
 		_parent->minWidthForMedia(),
-		qMin(thumbMaxWidth, _parent->hasBubble()
+		std::min(thumbMaxWidth, _parent->hasBubble()
 			? st::historyPhotoBubbleMinWidth
 			: st::minPhotoSize),
 		thumbMaxWidth);
@@ -293,8 +297,8 @@ QSize Photo::countCurrentSize(int newWidth) {
 			desired,
 			newWidth,
 			hostedInstantView ? newWidth : maxWidth());
-	newWidth = qMax(pix.width(), minWidth);
-	auto newHeight = qMax(pix.height(), st::minPhotoSize);
+	newWidth = std::max(pix.width(), minWidth);
+	auto newHeight = std::max(pix.height(), st::minPhotoSize);
 	if (_parent->hasBubble()) {
 		auto captionMaxWidth = _parent->textualMaxWidth();
 		const auto botTop = _parent->Get<FakeBotAboutTop>();
@@ -302,17 +306,19 @@ QSize Photo::countCurrentSize(int newWidth) {
 			accumulate_max(captionMaxWidth, botTop->maxWidth);
 		}
 		if (botTop || !_parent->data()->isFakeAboutView()) {
-			const auto maxWithCaption = qMin(
+			const auto maxWithCaption = std::min(
 				st::msgMaxWidth,
 				captionMaxWidth);
-			newWidth = qMin(qMax(newWidth, maxWithCaption), thumbMaxWidth);
+			newWidth = std::min(
+				std::max(newWidth, maxWithCaption),
+				thumbMaxWidth);
 			newHeight = adjustHeightForLessCrop(
 				dimensions,
 				{ newWidth, newHeight });
 		}
 	}
 	if (newWidth >= maxWidth()) {
-		newHeight = qMin(newHeight, minHeight());
+		newHeight = std::min(newHeight, minHeight());
 	}
 	const auto enlargeInner = st::historyPageEnlargeSize;
 	const auto enlargeOuter = 2 * st::historyPageEnlargeSkip + enlargeInner;
@@ -332,7 +338,7 @@ int Photo::adjustHeightForLessCrop(QSize dimensions, QSize current) const {
 		|| !::Media::Streaming::FrameResizeMayExpand(current, dimensions)) {
 		return current.height();
 	}
-	return qMax(
+	return std::max(
 		current.height(),
 		current.width() * dimensions.height() / dimensions.width());
 }

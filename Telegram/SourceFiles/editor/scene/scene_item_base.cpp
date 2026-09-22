@@ -322,6 +322,8 @@ void ItemBase::handleActionKey(not_null<QKeyEvent*> e) {
 		performForSelectedItems(&ItemBase::actionDelete);
 	} else if (matches(kFlipSequence)) {
 		performForSelectedItems(&ItemBase::actionFlip);
+	} else {
+		e->ignore();
 	}
 }
 

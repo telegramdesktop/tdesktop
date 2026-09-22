@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_paint.h"
 
 #include "base/platform/base_platform_haptic.h"
+#include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "editor/controllers/controllers.h"
 #include "editor/scene/scene_item_canvas.h"
@@ -15,9 +16,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_item_shape.h"
 #include "editor/scene/scene_item_sticker.h"
 #include "editor/scene/scene_item_text.h"
+#include "editor/scene/scene_item_video.h"
 #include "editor/scene/scene.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_single_player.h"
+#include "platform/platform_file_utilities.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/attach/attach_prepare.h"
@@ -36,6 +39,7 @@ namespace {
 constexpr auto kMaxBrush = 25.;
 constexpr auto kMinBrush = 1.;
 constexpr auto kShapeSizeRatio = 2. / 5.;
+constexpr auto kMediaSizeRatio = 1. / 2.;
 
 [[nodiscard]] float64 BrushSize(const Brush &brush) {
 	return kMinBrush + float64(kMaxBrush - kMinBrush) * brush.sizeRatio;
@@ -57,6 +61,7 @@ constexpr auto kMaxItemZoom = 10.;
 constexpr auto kCanvasZoomStepFine = 1.015;
 constexpr auto kZoomSmoothTau = 60.;
 constexpr auto kZoomMaxFrameDelta = crl::time(64);
+constexpr auto kTextBakeDelay = crl::time(300);
 
 std::shared_ptr<Scene> EnsureScene(
 		PhotoModifications &mods,
@@ -77,14 +82,15 @@ Paint::Paint(
 	const QSize &imageSize,
 	std::shared_ptr<Controllers> controllers,
 	Fn<QImage(QRect)> blurSource,
-	bool fixedCrop)
+	const EditorData &data)
 : RpWidget(parent)
 , _controllers(controllers)
 , _scene(EnsureScene(modifications, imageSize))
 , _view(base::make_unique_q<QGraphicsView>(_scene.get(), this))
 , _viewport(_view->viewport())
 , _imageSize(imageSize)
-, _fixedCrop(fixedCrop) {
+, _fixedCrop(data.fixedCrop)
+, _composeAnimated(data.composeAnimated) {
 	Expects(modifications.paint != nullptr);
 
 	_scene->setBlurSource(std::move(blurSource));
@@ -97,7 +103,9 @@ Paint::Paint(
 		_scene->setTextDefaults(
 			QColor(255, 255, 255),
 			shortSide / kDefaultFontSizeDivisor,
-			int(TextStyle::Plain));
+			TextStyle::Plain,
+			TextTypeface::Default,
+			TextAlignment::Center);
 	}
 
 	keepResult();
@@ -111,11 +119,18 @@ Paint::Paint(
 	_viewport->setAutoFillBackground(false);
 	_viewport->setAttribute(Qt::WA_TranslucentBackground, true);
 	_viewport->installEventFilter(this);
+	_view->setAcceptDrops(false);
+	_viewport->setAcceptDrops(false);
 
 	_scene->textEditStates(
 	) | rpl::on_next([=](bool editing) {
 		_textEditing = editing;
+		if (editing) {
+			_textBakeTimer.cancel();
+		}
 	}, lifetime());
+
+	_textBakeTimer.setCallback([=] { bakeTextScales(); });
 
 	// Undo / Redo.
 	controllers->undoController->performRequestChanges(
@@ -157,17 +172,22 @@ Paint::Paint(
 		using ShowRequest = StickersPanelController::ShowRequest;
 
 		controllers->stickersPanelController->setShowRequestChanges(
-			controllers->stickersPanelController->stickerChosen(
-			) | rpl::map_to(ShowRequest::HideAnimated));
+			rpl::merge(
+				controllers->stickersPanelController->stickerChosen(
+				) | rpl::map_to(ShowRequest::HideAnimated),
+				controllers->stickersPanelController->photoRequests(
+				) | rpl::map_to(ShowRequest::HideAnimated)));
 
 		controllers->stickersPanelController->stickerChosen(
 		) | rpl::on_next([=](not_null<DocumentData*> document) {
-			disarmShapeTool();
-			const auto item = std::make_shared<ItemSticker>(
+			addMediaItem(std::make_shared<ItemSticker>(
 				document,
-				itemBaseData());
-			_scene->addItem(item);
-			_scene->clearSelection();
+				itemBaseData()));
+		}, lifetime());
+
+		controllers->stickersPanelController->photoRequests(
+		) | rpl::on_next([=] {
+			choosePhotoFile();
 		}, lifetime());
 	}
 
@@ -240,8 +260,19 @@ bool Paint::zoomSceneItemsByFactor(float64 factor) {
 		}
 	} else if (applied) {
 		_zoomAtLimit = false;
+		_textBakeTimer.callOnce(kTextBakeDelay);
 	}
 	return applied;
+}
+
+void Paint::bakeTextScales() {
+	for (const auto &item : _scene->items()) {
+		if (item->isNormalStatus()
+			&& (item->type() == ItemText::Type)
+			&& item->isVisible()) {
+			static_cast<ItemText*>(item.get())->bakeScale();
+		}
+	}
 }
 
 void Paint::zoomCanvas(float64 factor, QPoint viewportPoint, bool animated) {
@@ -442,7 +473,7 @@ void Paint::applyBrushToSelectedShape(const Brush &brush) {
 
 void Paint::createTextItem() {
 	disarmShapeTool();
-	_scene->createTextAtCenter(-_transform.angle);
+	_scene->createTextAtCenter(-_transform.angle, _transform.flipped);
 }
 
 void Paint::createShapeItem(ShapeType shape, const Brush &brush, bool fill) {
@@ -490,6 +521,10 @@ void Paint::clearSelection() {
 	_scene->clearSelection();
 }
 
+void Paint::applyTextPrefs(const TextPrefs &prefs) {
+	_scene->applyTextPrefs(prefs);
+}
+
 void Paint::setTextColor(const QColor &color) {
 	_scene->setTextColor(color);
 }
@@ -500,6 +535,10 @@ void Paint::setSelectedTextColor(const QColor &color) {
 
 rpl::producer<QColor> Paint::textColorRequests() const {
 	return _scene->textColorRequests();
+}
+
+rpl::producer<TextPrefs> Paint::textPrefsUsed() const {
+	return _scene->textPrefsUsed();
 }
 
 rpl::producer<QColor> Paint::textItemSelections() const {
@@ -526,38 +565,105 @@ rpl::producer<bool> Paint::shapeToolStates() const {
 	return _scene->pendingShapeStates();
 }
 
+bool Paint::canHandleMimeData(const QMimeData *data) const {
+	return data
+		&& !_textEditing.current()
+		&& Storage::ValidatePhotoEditorMediaDragData(data, _composeAnimated);
+}
+
 void Paint::handleMimeData(const QMimeData *data) {
-	const auto add = [&](QImage image) {
-		if (image.isNull()) {
-			return;
-		}
-		if (!Ui::ValidateThumbDimensions(image.width(), image.height())) {
-			_controllers->show->showBox(
-				Ui::MakeInformBox(tr::lng_edit_media_invalid_file()));
-			return;
-		}
-
-		const auto item = std::make_shared<ItemImage>(
-			Ui::PixmapFromImage(std::move(image)),
-			itemBaseData());
-		_scene->addItem(item);
-		_scene->clearSelection();
-	};
-
-	using Error = Ui::PreparedList::Error;
-	const auto premium = false; // Don't support > 2GB files here.
-	const auto list = Core::ReadMimeUrls(data);
-	auto result = !list.isEmpty()
-		? Storage::PrepareMediaList(
-			list.mid(0, 1),
-			_imageSize.width() / 2,
-			premium)
-		: Ui::PreparedList(Error::EmptyFile, QString());
-	if (result.error == Error::None) {
-		add(base::take(result.files.front().preview));
+	const auto urls = Core::ReadMimeUrls(data);
+	if (urls.size() == 1 && urls.front().isLocalFile()) {
+		readMediaFile(
+			Platform::File::UrlToLocal(urls.front()),
+			QByteArray());
 	} else if (auto read = Core::ReadMimeImage(data)) {
-		add(std::move(read.image));
+		addMedia({ .image = std::move(read.image) });
+	} else {
+		addMedia({});
 	}
+}
+
+void Paint::readMediaFile(const QString &path, const QByteArray &content) {
+	const auto done = crl::guard(this, [=](
+			Storage::PhotoEditorMedia &&media) {
+		addMedia(std::move(media));
+	});
+	crl::async([=] {
+		auto media = Storage::ReadPhotoEditorMedia(path, content);
+		crl::on_main([=, media = std::move(media)]() mutable {
+			done(std::move(media));
+		});
+	});
+}
+
+void Paint::choosePhotoFile() {
+	const auto callback = [=](FileDialog::OpenResult &&result) {
+		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
+			return;
+		}
+		readMediaFile(
+			result.paths.isEmpty() ? QString() : result.paths.front(),
+			result.remoteContent);
+	};
+	FileDialog::GetOpenPath(
+		this,
+		tr::lng_choose_image(tr::now),
+		(_composeAnimated
+			? FileDialog::PhotoVideoFilesFilter()
+			: FileDialog::ImagesFilter()),
+		crl::guard(this, callback));
+}
+
+void Paint::addMedia(Storage::PhotoEditorMedia &&media) {
+	const auto &image = media.image;
+	if (!media
+		|| (media.video() && !_composeAnimated)
+		|| !Ui::ValidateThumbDimensions(image.width(), image.height())) {
+		_controllers->show->showBox(
+			Ui::MakeInformBox(tr::lng_edit_media_invalid_file()));
+		return;
+	} else if (media.video()) {
+		addVideoItem(std::move(media));
+	} else {
+		addImageItem(std::move(media.image));
+	}
+}
+
+void Paint::addVideoItem(Storage::PhotoEditorMedia &&media) {
+	const auto data = mediaItemData(media.image.size());
+	addMediaItem(std::make_shared<ItemVideo>(
+		std::make_shared<ItemVideo::Source>(ItemVideo::Source{
+			.path = std::move(media.videoPath),
+			.content = std::move(media.videoContent),
+			.thumbnail = std::move(media.image),
+			.duration = media.videoDuration,
+		}),
+		data));
+}
+
+void Paint::addImageItem(QImage &&image) {
+	const auto maxSide = std::max(_imageSize.width(), _imageSize.height());
+	if (image.width() > maxSide || image.height() > maxSide) {
+		image = image.scaled(
+			maxSide,
+			maxSide,
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation);
+	}
+	const auto data = mediaItemData(image.size());
+	addMediaItem(std::make_shared<ItemImage>(
+		Ui::PixmapFromImage(std::move(image)),
+		data));
+}
+
+void Paint::addMediaItem(std::shared_ptr<ItemBase> item) {
+	disarmShapeTool();
+	_scene->addItem(item);
+	_scene->clearSelection();
+	item->setSelected(true);
+	item->setFocus();
+	_view->setFocus();
 }
 
 void Paint::paintImage(QPainter &p, const QPixmap &image) const {
@@ -602,6 +708,24 @@ ItemBase::Data Paint::itemBaseData() const {
 		.rotation = -_transform.angle,
 		.imageSize = _imageSize,
 	};
+}
+
+ItemBase::Data Paint::mediaItemData(QSize mediaSize) const {
+	auto result = itemBaseData();
+	if (mediaSize.isEmpty()) {
+		return result;
+	}
+	const auto scene = _scene->sceneRect().size();
+	const auto aspect = mediaSize.width() / float64(mediaSize.height());
+	const auto width = (aspect > 1.)
+		? std::floor(scene.width() * kMediaSizeRatio)
+		: std::floor(scene.height() * kMediaSizeRatio) * aspect;
+	result.size = int(std::min({
+		width,
+		scene.width(),
+		scene.height() * aspect,
+	}));
+	return result;
 }
 
 void Paint::applyViewTransform() {

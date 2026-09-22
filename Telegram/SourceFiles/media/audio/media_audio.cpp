@@ -317,7 +317,7 @@ void Mixer::Track::reattach(AudioMsgId::Type type) {
 	alSourcei(
 		stream.source,
 		AL_SAMPLE_OFFSET,
-		qMax(withSpeed.position - withSpeed.bufferedPosition, 0LL));
+		std::max(withSpeed.position - withSpeed.bufferedPosition, 0LL));
 	if (!IsStopped(state.state)
 		&& (state.state != State::PausedAtEnd)
 		&& !state.waitingForData) {
@@ -904,7 +904,10 @@ void Mixer::resume(const AudioMsgId &audio, bool fast) {
 						alSourcei(
 							track->stream.source,
 							AL_SAMPLE_OFFSET,
-							qMax(track->withSpeed.position - track->withSpeed.bufferedPosition, 0LL));
+							std::max(
+								track->withSpeed.position
+									- track->withSpeed.bufferedPosition,
+								0LL));
 						if (!checkCurrentALError(type)) return;
 					}
 					alSourcePlay(track->stream.source);
@@ -1067,7 +1070,7 @@ void Mixer::reattachTracks() {
 }
 
 void Mixer::setSongVolume(float64 volume) {
-	_volumeSong.storeRelease(qRound(volume * kVolumeRound));
+	_volumeSong.storeRelease(int(base::SafeRound(volume * kVolumeRound)));
 }
 
 float64 Mixer::getSongVolume() const {
@@ -1075,7 +1078,7 @@ float64 Mixer::getSongVolume() const {
 }
 
 void Mixer::setVideoVolume(float64 volume) {
-	_volumeVideo.storeRelease(qRound(volume * kVolumeRound));
+	_volumeVideo.storeRelease(int(base::SafeRound(volume * kVolumeRound)));
 }
 
 float64 Mixer::getVideoVolume() const {
@@ -1594,11 +1597,13 @@ public:
 		}
 
 		auto sum = std::accumulate(peaks.cbegin(), peaks.cend(), 0LL);
-		peak = qMax(int32(sum * 1.8 / peaks.size()), 2500);
+		peak = std::max(int32(sum * 1.8 / peaks.size()), 2500);
 
 		result.resize(peaks.size());
 		for (int32 i = 0, l = peaks.size(); i != l; ++i) {
-			result[i] = char(qMin(31U, uint32(qMin(peaks.at(i), peak)) * 31 / peak));
+			result[i] = char(std::min(
+				31U,
+				uint32(std::min(peaks.at(i), peak)) * 31 / peak));
 		}
 
 		return true;

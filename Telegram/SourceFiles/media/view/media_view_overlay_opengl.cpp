@@ -169,7 +169,7 @@ OverlayWidget::RendererGL::RendererGL(not_null<OverlayWidget*> owner)
 }
 
 void OverlayWidget::RendererGL::init(QOpenGLFunctions &f) {
-	constexpr auto kQuads = 9;
+	constexpr auto kQuads = 11;
 	constexpr auto kQuadVertices = kQuads * 4;
 	constexpr auto kQuadValues = kQuadVertices * 4;
 	constexpr auto kControlsValues = kControlsCount * kControlValues;

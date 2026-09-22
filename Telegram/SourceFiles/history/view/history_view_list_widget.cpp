@@ -386,16 +386,23 @@ void ListWidget::enumerateUserpics(Method method) {
 
 		// Call method on a userpic for all messages that have it and for those who are not showing it
 		// because of their attachment to the next message if they are bottom-most visible.
-		if (view->displayFromPhoto() || (view->hasFromPhoto() && itembottom >= _visibleBottom)) {
+		if (view->displayFromPhoto()
+			|| (view->hasFromPhoto()
+				&& view->isAttachedToNext()
+				&& itembottom >= _visibleBottom)) {
 			if (lowestAttachedItemTop < 0) {
 				lowestAttachedItemTop = itemtop + view->marginTop();
 			}
 			// Attach userpic to the bottom of the visible area with the same margin as the last message.
 			auto userpicMinBottomSkip = st::historyPaddingBottom + st::msgMargin.bottom();
-			auto userpicBottom = qMin(itembottom - view->marginBottom(), _visibleBottom - userpicMinBottomSkip);
+			auto userpicBottom = std::min(
+				itembottom - view->marginBottom(),
+				_visibleBottom - userpicMinBottomSkip);
 
 			// Do not let the userpic go above the attached messages pack top line.
-			userpicBottom = qMax(userpicBottom, lowestAttachedItemTop + st::msgPhotoSize);
+			userpicBottom = std::max(
+				userpicBottom,
+				lowestAttachedItemTop + st::msgPhotoSize);
 
 			// Call the template callback function that was passed
 			// and return if it finished everything it needed.
@@ -438,11 +445,14 @@ void ListWidget::enumerateDates(Method method) {
 				itemtop);
 
 			// Attach date to the top of the visible area with the same margin as it has in service message.
-			auto dateTop = qMax(itemtop - collapsed, _visibleTop) + st::msgServiceMargin.top();
+			auto dateTop = std::max(itemtop - collapsed, _visibleTop)
+				+ st::msgServiceMargin.top();
 
 			// Do not let the date go below the single-day messages pack bottom line.
 			auto dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
-			dateTop = qMin(dateTop, lowestInOneDayItemBottom - dateHeight);
+			dateTop = std::min(
+				dateTop,
+				lowestInOneDayItemBottom - dateHeight);
 
 			// Call the template callback function that was passed
 			// and return if it finished everything it needed.
@@ -494,11 +504,14 @@ void ListWidget::enumerateForumThreadBars(Method method) {
 				lowestInOneBunchItemBottom = itembottom - view->marginBottom();
 			}
 			// Attach bar to the top of the visible area with the same margin as it has in service message.
-			int barTop = qMax(itemtop + view->displayedDateHeight(), _visibleTop + skip) + st::msgServiceMargin.top();
+			int barTop = std::max(
+				itemtop + view->displayedDateHeight(),
+				_visibleTop + skip)
+				+ st::msgServiceMargin.top();
 
 			// Do not let the bar go below the single-bar messages pack bottom line.
 			int barHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
-			barTop = qMin(barTop, lowestInOneBunchItemBottom - barHeight);
+			barTop = std::min(barTop, lowestInOneBunchItemBottom - barHeight);
 
 			// Call the template callback function that was passed
 			// and return if it finished everything it needed.
@@ -3235,18 +3248,15 @@ void ListWidget::paintUserpics(
 		// paint the userpic if it intersects the painted rect
 		if (userpicTop + st::msgPhotoSize > clip.top()) {
 			const auto item = view->data();
-			const auto hasTranslation = context.gestureHorizontal.translation
-				&& (context.gestureHorizontal.msgBareId
-					== item->fullId().msg.bare);
-			if (hasTranslation) {
-				p.translate(context.gestureHorizontal.translation, 0);
+			const auto shift = context.gestureHorizontal.visualTranslationFor(
+				item->id.bare);
+			if (shift) {
+				p.translate(shift, 0);
 				update(
 					QRect(
-						st::historyPhotoLeft
-							+ context.gestureHorizontal.translation,
+						st::historyPhotoLeft + std::min(shift, 0),
 						userpicTop,
-						st::msgPhotoSize
-							- context.gestureHorizontal.translation,
+						st::msgPhotoSize + std::abs(shift),
 						st::msgPhotoSize));
 			}
 			if (const auto from = view->displayFrom()) {
@@ -3284,8 +3294,8 @@ void ListWidget::paintUserpics(
 			} else {
 				Unexpected("Corrupt forwarded information in message.");
 			}
-			if (hasTranslation) {
-				p.translate(-context.gestureHorizontal.translation, 0);
+			if (shift) {
+				p.translate(-shift, 0);
 			}
 		}
 		return true;
@@ -4279,8 +4289,14 @@ void ListWidget::touchUpdateSpeed() {
 
 			// fingers are inacurates, we ignore small changes to avoid stopping the autoscroll because
 			// of a small horizontal offset when scrolling vertically
-			const int newSpeedY = (qAbs(pixelsPerSecond.y()) > Ui::kFingerAccuracyThreshold) ? pixelsPerSecond.y() : 0;
-			const int newSpeedX = (qAbs(pixelsPerSecond.x()) > Ui::kFingerAccuracyThreshold) ? pixelsPerSecond.x() : 0;
+			const int newSpeedY = (std::abs(pixelsPerSecond.y())
+				> Ui::kFingerAccuracyThreshold)
+				? pixelsPerSecond.y()
+				: 0;
+			const int newSpeedX = (std::abs(pixelsPerSecond.x())
+				> Ui::kFingerAccuracyThreshold)
+				? pixelsPerSecond.x()
+				: 0;
 			if (_touchScrollState == Ui::TouchScrollState::Auto) {
 				const int oldSpeedY = _touchSpeed.y();
 				const int oldSpeedX = _touchSpeed.x();
@@ -4328,8 +4344,16 @@ void ListWidget::touchResetSpeed() {
 void ListWidget::touchDeaccelerate(int32 elapsed) {
 	int32 x = _touchSpeed.x();
 	int32 y = _touchSpeed.y();
-	_touchSpeed.setX((x == 0) ? x : (x > 0) ? qMax(0, x - elapsed) : qMin(0, x + elapsed));
-	_touchSpeed.setY((y == 0) ? y : (y > 0) ? qMax(0, y - elapsed) : qMin(0, y + elapsed));
+	_touchSpeed.setX((x == 0)
+		? x
+		: (x > 0)
+		? std::max(0, x - elapsed)
+		: std::min(0, x + elapsed));
+	_touchSpeed.setY((y == 0)
+		? y
+		: (y > 0)
+		? std::max(0, y - elapsed)
+		: std::min(0, y + elapsed));
 }
 
 void ListWidget::touchEvent(QTouchEvent *e) {
@@ -5153,7 +5177,11 @@ void ListWidget::mouseActionUpdate() {
 					auto dateLeft = st::msgServiceMargin.left();
 					auto maxwidth = view->width();
 					if (_isChatWide) {
-						maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
+						maxwidth = std::min(
+							maxwidth,
+							int32(st::msgMaxWidth
+								+ 2 * st::msgPhotoSkip
+								+ 2 * st::msgMargin.left()));
 					}
 					auto widthForDate = maxwidth - st::msgServiceMargin.left() - st::msgServiceMargin.left();
 
@@ -5190,7 +5218,11 @@ void ListWidget::mouseActionUpdate() {
 					auto barLeft = st::msgServiceMargin.left();
 					auto maxwidth = view->width();
 					if (_isChatWide) {
-						maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
+						maxwidth = std::min(
+							maxwidth,
+							int32(st::msgMaxWidth
+								+ 2 * st::msgPhotoSkip
+								+ 2 * st::msgMargin.left()));
 					}
 					auto widthForBar = maxwidth - st::msgServiceMargin.left() - st::msgServiceMargin.left();
 

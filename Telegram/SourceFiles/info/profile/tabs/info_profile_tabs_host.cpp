@@ -487,6 +487,35 @@ void TabsHost::ensureActiveVisible() {
 	}
 }
 
+std::unique_ptr<TabsState> TabsHost::saveState() {
+	auto result = std::make_unique<TabsState>();
+	result->activeId = _activeId;
+	result->scrollTops = _tabScrollTops;
+	if (!_activeId.isEmpty() && _visibleTop >= 0) {
+		result->scrollTops[_activeId] = _visibleTop;
+	}
+	for (auto &[id, content] : _contents) {
+		if (auto state = content->saveState()) {
+			result->contents.emplace(id, std::move(state));
+		}
+	}
+	for (auto &[id, state] : base::take(_pendingStates)) {
+		result->contents.emplace(id, std::move(state));
+	}
+	return result;
+}
+
+void TabsHost::restoreState(std::unique_ptr<TabsState> state) {
+	if (!state) {
+		return;
+	}
+	_tabScrollTops = std::move(state->scrollTops);
+	_pendingStates = std::move(state->contents);
+	if (!state->activeId.isEmpty()) {
+		restoreActiveTab(state->activeId);
+	}
+}
+
 void TabsHost::restoreActiveTab(const QString &id) {
 	const auto it = ranges::find(_tabs, id, &MediaTabDescriptor::id);
 	if (it == end(_tabs)) {
@@ -580,6 +609,12 @@ void TabsHost::activateTab(const QString &id, bool animated) {
 			});
 		};
 		cached = it->factory(std::move(context));
+		const auto pending = _pendingStates.find(id);
+		if (pending != end(_pendingStates)) {
+			auto state = std::move(pending->second);
+			_pendingStates.erase(pending);
+			cached->restoreState(std::move(state));
+		}
 	}
 	const auto previousId = _activeId;
 	const auto previousIndex = previousId.isEmpty()

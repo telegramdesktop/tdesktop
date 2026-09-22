@@ -2,6 +2,59 @@
 
 This guide defines repository-wide instructions for coding agents working with the Telegram Desktop codebase.
 
+## AI Tasks
+
+In this repository "task" is a specific term. It always means one work record in
+the sibling `ai-tdesktop` repository, never a `TODO` comment, a checklist item,
+or a unit of work invented during the current conversation. "The tasks", "the
+queue", "the board", "what's most pressing", and a bare task slug all refer to
+that queue.
+
+- The queue lives in `../ai-tdesktop`, a sibling of this checkout, with one
+  record per directory under `tasks/YYYY/MM/DD/<slug>/`. A task id is that dated
+  path, for example `2026/07/18/fix-community-forward`, and it is the only
+  durable link between a source commit and its task. Linked slot worktrees live
+  in `../ai-tdesktop-worktrees`. Read `../ai-tdesktop/AGENTS.md` before doing
+  anything inside that repository.
+- Each record holds `task.md` — one `# ` title line, then one self-contained
+  paragraph that is the task's description wherever it is summarized — and
+  `state.yaml` with `status`, `type`, `depends_on`, `claimed_by`, and dates.
+  Open statuses are `todo`, `in-progress`, `blocked`, and `split-required`;
+  `approved` is completed history, and `split.yaml` / `superseded.yaml` mark
+  retired records.
+- To browse the queue, read those files directly. Do not run `python3 ai.py`: it
+  is a full-screen browser for the user's own terminal and refuses to run in a
+  pipe. A compact open listing:
+
+```bash
+cd ../ai-tdesktop && for state in tasks/*/*/*/*/state.yaml; do
+  status=$(sed -n 's/^status: //p' "$state")
+  case "$status" in todo|in-progress|blocked|split-required)
+    dir=$(dirname "$state")
+    printf '%-14s %-70s %s\n' "$status" "${dir#tasks/}" \
+      "$(sed -n '1s/^# //p' "$dir/task.md")";;
+  esac
+done | sort
+```
+
+- When ranking open work by urgency, use `in-progress`, then `blocked`, then
+  `split-required`, then ready `todo` (no `claimed_by`, and every `depends_on`
+  already `approved`), then `todo` still waiting on a dependency. Say who owns
+  claimed work. This checkout's tag is the `Telegram/build/ai-machine-tag` value
+  plus the checkout folder name, such as `macbook-tdesktop`, and work claimed by
+  another checkout is never taken over without an explicit human reassignment.
+- Browsing is read-only. Listing, summarizing, comparing, or recommending tasks
+  never edits `state.yaml`, publishes a lifecycle commit, or starts
+  implementation, no matter how small the task looks.
+- Acting on tasks goes through the workflow skills instead of by hand:
+  `perform-task <slug or full id>` starts or resumes and performs exactly one
+  known task, `continue` processes the inbox and drains eligible shared work,
+  and new requests are written to the ignored `../ai-tdesktop/inbox/inbox.md`
+  and routed by `process-inbox`. Source commits owned by a task use the
+  three-line form described under `## Commits`.
+- Never guess between similarly named tasks. Report the matching full ids and
+  let the user choose.
+
 ## Working from Codex on Windows + WSL
 
 This checkout may be opened in Codex Desktop through the Windows UNC path `\\wsl.localhost\{distro}\home\{user}\Telegram\tdesktop`, while the real Linux path is `/home/{user}/Telegram/tdesktop`. Treat it as a WSL/Linux checkout first, not as a native Windows checkout.
@@ -240,9 +293,9 @@ Both app-level (`Core::Settings`) and session-level (`Main::SessionSettings`) us
 
 ## Coding Style
 
-**Do NOT write useless comments in code:**
+**Comments are rationed:**
 
-This is important! Do not write single-line comments that describe what the next line does - they are bloat. Comments are allowed ONLY to describe complex algorithms in detail, when the explanation requires at least 4-5 lines. Self-documenting code with clear variable and function names is preferred.
+A comment is one line; two or three only when the block opens with `// WHY:`. A commit may add two comment lines plus one such exception, and a trailing comment is a line too; only `} // namespace X` closers and `#endif // X` labels are free. Say why, never what. Hooks enforce it, and `Telegram/SourceFiles/test/` is exempt.
 
 Do not remove existing comments just to satisfy this rule. Preserve comments unless your change makes them incorrect or truly obsolete; when moving or refactoring code, move the useful comment with it. Inline comments that label positional arguments for generated or schema-driven APIs (for example TL/MTP constructors) are useful because the field names are not visible in the call itself.
 
@@ -257,12 +310,14 @@ if (user->isPremium()) {
 auto name = user->name();
 if (user->isPremium()) {
 
-// ACCEPTABLE - complex algorithm explanation (4+ lines):
-// The algorithm works by first collecting all visible messages
-// in the viewport, then calculating their intersection with
-// the clip rectangle. Messages are grouped by date headers,
-// and we need to account for sticky headers that may overlap
-// with the first message in each group.
+// ACCEPTABLE - one line, and it carries a reason:
+_limit = kDefaultLimit; // the server rejects anything larger
+
+// ACCEPTABLE - the exception: opens with WHY, three lines at most,
+// once per commit.
+// WHY: the server sends the id before the peer exists, so the row is
+// created empty and filled on the next update, or the list flickers
+// on every reconnect.
 ```
 
 **Style and formatting rules** are in `REVIEW.md` — see that file for empty-line-before-closing-brace, operator placement in multi-line expressions, if-with-initializer, and other mechanical style rules.

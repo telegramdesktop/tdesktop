@@ -46,6 +46,17 @@ constexpr auto kLoadingDisabledPollInterval = crl::time(300);
 		: nullptr;
 }
 
+[[nodiscard]] QString LookupRuntimeElidedLabel(
+		const std::weak_ptr<ButtonRowRuntime> &weak,
+		int index) {
+	const auto strong = weak.lock();
+	return (strong
+		&& (index >= 0)
+		&& (index < int(strong->elidedLabels.size())))
+		? strong->elidedLabels[index]
+		: QString();
+}
+
 class RichPageButtonClickHandler final : public ClickHandler {
 public:
 	RichPageButtonClickHandler(
@@ -54,6 +65,7 @@ public:
 
 	void onClick(ClickContext context) const override;
 
+	QString tooltip() const override;
 	QString copyToClipboardText() const override;
 	QString copyToClipboardContextItemText() const override;
 
@@ -82,6 +94,16 @@ void RichPageButtonClickHandler::onClick(ClickContext context) const {
 	}
 	const auto my = context.other.value<ClickHandlerContext>();
 	Api::ActivateRichPageBotButton(my, *button);
+}
+
+QString RichPageButtonClickHandler::tooltip() const {
+	const auto button = lookup();
+	return button
+		? RichButtonTooltip(
+			button->type,
+			button->data,
+			LookupRuntimeElidedLabel(_runtime, _index))
+		: QString();
 }
 
 QString RichPageButtonClickHandler::copyToClipboardText() const {
@@ -491,6 +513,27 @@ const style::icon *RichButtonIcon(ButtonType type) {
 	Unexpected("TypeIcon in Iv::Markdown::RichButtonIcon.");
 }
 
+QString RichButtonTooltip(
+		ButtonType type,
+		const QByteArray &data,
+		const QString &elidedLabel) {
+	if (type == ButtonType::CopyText) {
+		return tr::lng_bot_copy_text_tooltip(
+			tr::now,
+			lt_text,
+			st::wrap_rtl(QString::fromUtf8(data)));
+	}
+	const auto url = (type == ButtonType::Url || type == ButtonType::Auth)
+		? QString::fromUtf8(data)
+		: QString();
+	if (url.isEmpty()) {
+		return elidedLabel;
+	} else if (elidedLabel.isEmpty()) {
+		return url;
+	}
+	return elidedLabel + u"\n\n"_q + url;
+}
+
 int ButtonRowMinWidth(int count, const style::MarkdownButtonRow &st) {
 	return (count > 0)
 		? (count * st.height + (count - 1) * st.spacing)
@@ -598,8 +641,12 @@ void RefreshButtonRowHandlers(
 		runtime->buttons.push_back(list[i].button);
 	}
 	runtime->loadingKeys.resize(count);
+	runtime->elidedLabels.resize(count);
 	for (auto i = 0; i != count; ++i) {
 		runtime->loadingKeys[i] = RichButtonLoadingKey(runtime->buttons[i]);
+		runtime->elidedLabels[i] = buttons[i].elided
+			? buttons[i].fullLabel
+			: QString();
 	}
 	runtime->handlers.resize(count);
 	for (auto i = 0; i != count; ++i) {

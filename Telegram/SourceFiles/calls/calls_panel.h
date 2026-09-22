@@ -67,6 +67,8 @@ class Userpic;
 class SignalBars;
 class VideoBubble;
 class PanelBackground;
+class RateCall;
+class EndCloseButton;
 struct DeviceSelection;
 struct ConferencePanelMigration;
 
@@ -158,6 +160,11 @@ private:
 	void refreshIncomingGeometry();
 
 	void refreshOutgoingPreviewInBody(State state);
+	void showRateCall();
+	void finishRateCall();
+	void hideControlsForRating();
+	[[nodiscard]] QRect hangupCircleRect() const;
+	[[nodiscard]] QRect rateCloseRect() const;
 	void createPinOnTop();
 	[[nodiscard]] QRect pinOnTopRect() const;
 	void toggleFullScreen(bool fullscreen);
@@ -206,6 +213,12 @@ private:
 	bool _buttonLabelsShown = true;
 	base::unique_qptr<Ui::FlatLabel> _name;
 	base::unique_qptr<Ui::FlatLabel> _status;
+	base::unique_qptr<RateCall> _rateCall;
+	base::unique_qptr<EndCloseButton> _rateClose;
+	Ui::Animations::Simple _rateNameFade;
+	QPoint _rateEndedIconPosition;
+	int _endedDuration = 0;
+	bool _rateNameSwapped = false;
 	base::unique_qptr<Ui::RpWidget> _conferenceParticipants;
 	base::unique_qptr<Ui::RpWidget> _fingerprint;
 	base::unique_qptr<Ui::PaddingWrap<Ui::FlatLabel>> _remoteAudioMute;

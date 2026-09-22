@@ -153,6 +153,7 @@ EmojiPan {
 	searchBackIconTop: pixels;
 	searchBackTextLeft: pixels;
 	searchBackTextTop: pixels;
+	photoButtonIcon: icon;
 	colorAll: IconButton;
 	colorAllLabel: FlatLabel;
 	removeSet: IconButton;
@@ -487,6 +488,7 @@ stickersAddCellPlusThickness: 2px;
 stickersAddCellBgRadius: 28px;
 emojiSetAddCellPlusSize: 13px;
 emojiSetAddCellBgRadius: 16px;
+stickersAddPanelSkip: 8px;
 
 stickersEmojiPickerSelectedBg: windowBgActive;
 
@@ -629,6 +631,12 @@ stickerIconMove: 400;
 stickerPreviewDuration: 150;
 stickerPreviewMin: 0.1;
 stickerPanFirstAfterShortcutsSkip: 4px;
+stickersPhotoRowPadding: margins(0px, 12px, 0px, 12px);
+stickersPhotoButtonHeight: 36px;
+stickersPhotoButtonRadius: 8px;
+stickersPhotoButtonPadding: margins(6px, 0px, 12px, 0px);
+stickersPhotoButtonIconSkip: 4px;
+stickersPhotoButtonFont: font(21px bold);
 mediaPreviewPhotoSkip: 48px;
 
 emojiPanColorAll: IconButton(stickerPanRemoveSet) {
@@ -822,6 +830,7 @@ defaultEmojiPan: EmojiPan {
 	searchBackIconTop: 6px;
 	searchBackTextLeft: 40px;
 	searchBackTextTop: 10px;
+	photoButtonIcon: icon {{ "photo_editor/camera-24x24", windowFg }};
 	colorAll: emojiPanColorAll;
 	colorAllLabel: emojiPanColorAllLabel;
 	removeSet: stickerPanRemoveSet;

@@ -46,7 +46,6 @@ parts:
       - libheif-dev
       - libjxl-dev
       - liblz4-dev
-      - libssl-dev
       - libxcb-keysyms1-dev
       - libxcb-record0-dev
     cmake-generator: Ninja
@@ -92,9 +91,11 @@ parts:
       - minizip
       - mozjpeg
       - openal
+      - openssl
       - qt
       - rnnoise
       - tde2e
+      - tlottie
       - webrtc
 
   pkgs:
@@ -122,7 +123,7 @@ parts:
   patches:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
-    source-commit: 27efa67b60881c52b112cf924d705e573d03a0ab
+    source-commit: 519aaa084608fa6f9a2bfbd1959d133c44d94227
     plugin: nil
     override-pull: |
       craftctl default
@@ -363,6 +364,24 @@ parts:
       - -DALSOFT_BACKEND_PIPEWIRE=OFF
     prime: [-./*]
 
+  openssl:
+    source: https://github.com/openssl/openssl.git
+    source-depth: 1
+    source-tag: openssl-3.2.1
+    plugin: make
+    build-packages:
+      - perl
+    override-build: |
+      sed -i 's/$cmd $cmdflags -c -o/$cmd $cmdflags -g0 -c -o/' Configurations/unix-Makefile.tmpl
+      ./config \
+        --prefix=/usr \
+        --openssldir=/etc/ssl \
+        --libdir=lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR \
+        no-shared no-tests no-dso
+      make -j"${CRAFT_PARALLEL_BUILD_COUNT}"
+      make DESTDIR="$CRAFT_PART_INSTALL" install_sw
+    prime: [-./*]
+
   nv-codec-headers:
     source: https://github.com/FFmpeg/nv-codec-headers.git
     source-depth: 1
@@ -376,7 +395,7 @@ parts:
   qt:
     source: https://github.com/qt/qt5.git
     source-depth: 1
-    source-tag: v6.11.1
+    source-tag: v6.11.2
     source-submodules:
       - qtbase
       - qtdeclarative
@@ -386,7 +405,6 @@ parts:
       - qtwayland
     plugin: cmake
     build-packages:
-      - libssl-dev
       - libxcb-cursor-dev
       - libxcb-glx0-dev
       - libxcb-icccm4-dev
@@ -417,6 +435,7 @@ parts:
     prime: [-./*]
     after:
       - mozjpeg
+      - openssl
       - patches
 
   rnnoise:
@@ -444,7 +463,6 @@ parts:
     plugin: cmake
     build-packages:
       - gperf
-      - libssl-dev
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -452,6 +470,39 @@ parts:
       - -DCMAKE_INSTALL_LIBDIR=lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
       - -DTD_E2E_ONLY=ON
     prime: [-./*]
+    after:
+      - openssl
+
+  tlottie:
+    source: https://github.com/dkaraush/tlottie.git
+    source-depth: 1
+    source-commit: 31f1b542f88e7b4be9a01e749920d857535fc715
+    plugin: nil
+    build-packages:
+      - wget
+    override-pull: |
+      craftctl default
+      git apply "$CRAFT_STAGE/patches/tlottie.patch"
+    override-build: |
+      RUST_TOOLCHAIN=1.96.1
+      export RUSTUP_HOME="$CRAFT_PART_BUILD/rustup"
+      export CARGO_HOME="$CRAFT_PART_BUILD/cargo"
+      wget -O rustup-init.sh https://sh.rustup.rs
+      sh rustup-init.sh -y --no-modify-path --profile minimal --default-toolchain $RUST_TOOLCHAIN
+      rm rustup-init.sh
+      export RUSTUP_TOOLCHAIN=$RUST_TOOLCHAIN
+      export PATH="$CARGO_HOME/bin:$PATH"
+      cargo rustc --lib --release --locked \
+        --features c-api --crate-type staticlib \
+        -- --print native-static-libs
+      LIBDIR="$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR"
+      INCLUDEDIR="$CRAFT_PART_INSTALL/usr/include/tlottie"
+      mkdir -p "$LIBDIR" "$INCLUDEDIR"
+      objcopy --strip-debug target/release/libtlottie.a "$LIBDIR/libtlottie.a"
+      cp include/tlottie.h "$INCLUDEDIR/tlottie.h"
+    prime: [-./*]
+    after:
+      - patches
 
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
@@ -462,7 +513,6 @@ parts:
       - libopenh264-dev
       - libopus-dev
       - libpipewire-0.3-dev
-      - libssl-dev
       - libvpx-dev
     cmake-generator: Ninja
     cmake-parameters:
@@ -472,3 +522,4 @@ parts:
     after:
       - ffmpeg
       - mozjpeg
+      - openssl

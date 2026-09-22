@@ -350,14 +350,20 @@ DictLoader::DictLoader(
 }
 
 void DictLoader::unpack(const QString &path) {
+	const auto weak = base::make_weak(this);
+	const auto id = DictLoader::id();
 	crl::async([=] {
-		const auto success = Spellchecker::UnpackDictionary(path, id());
+		const auto success = Spellchecker::UnpackDictionary(path, id);
 		if (success) {
 			QFile(path).remove();
-			destroy();
-			return;
 		}
-		crl::on_main([=] { fail(); });
+		crl::on_main(weak, [=] {
+			if (success) {
+				destroy();
+			} else {
+				fail();
+			}
+		});
 	});
 }
 

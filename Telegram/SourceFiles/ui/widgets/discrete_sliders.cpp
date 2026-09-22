@@ -335,7 +335,7 @@ void SettingsSlider::resizeSections(int newWidth) {
 
 		section.left = std::floor(x) + skip;
 		x += *sectionWidth;
-		section.width = qRound(x) - (section.left - skip);
+		section.width = int(base::SafeRound(x)) - (section.left - skip);
 		skip += _st.barSkip;
 		++sectionWidth;
 		return true;

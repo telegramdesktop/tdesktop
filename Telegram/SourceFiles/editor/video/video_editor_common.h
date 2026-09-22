@@ -34,6 +34,9 @@ struct VideoEditorData {
 	float64 fpsLimit = 0.;
 	bool removeAudio = false;
 	bool allowQuality = false;
+	bool webmSticker = false;
+	// Set when the file is re-encoded even with no modifications at all.
+	bool transcodeAlways = false;
 };
 
 [[nodiscard]] QSize EditedFrameSize(
@@ -54,6 +57,7 @@ struct VideoEditorData {
 
 [[nodiscard]] QImage ExtractCoverImage(
 	const QString &path,
+	const QByteArray &content,
 	const VideoModifications &modifications,
 	QSize dimensions,
 	int side);

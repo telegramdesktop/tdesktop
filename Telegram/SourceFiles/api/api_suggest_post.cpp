@@ -372,8 +372,11 @@ void SendSuggest(
 		int starsApproved = 0) {
 	const auto suggestion = item->Get<HistoryMessageSuggestion>();
 	const auto id = item->fullId();
-	const auto withPaymentApproved = [=](int stars) {
-		if (const auto item = show->session().data().message(id)) {
+	const auto withPaymentApproved = [=, weak = std::weak_ptr(state)](
+			int stars) {
+		const auto state = weak.lock();
+		const auto item = show->session().data().message(id);
+		if (state && item) {
 			SendSuggest(show, item, state, modify, done, stars);
 		}
 	};

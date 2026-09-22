@@ -180,4 +180,72 @@ void Settle(Fn<void()> action);
 // bare drain, with no defer around anything.
 void SettlePostponedCalls();
 
+// Injects window activation through the QPA seam the platform plugin itself
+// reports through, so a focus-routed affordance can be driven on a console
+// where the window is never active in Qt's sense.
+//
+// QWidget::setFocus() walks the focus_child chain unconditionally, but only
+// its if (f->isActiveWindow()) branch promotes the target to
+// QApplication::focusWidget(), and isActiveWindow() ends in a fallback to
+// QPlatformWindow::isActive() (qwidget.cpp:6723-6725) - so it takes the
+// platform window not being active, on a locked or unattended console, for
+// setFocus() to "succeed" while hasFocus() and isActiveWindow() keep reading
+// false - no error, no event, just absence - and every affordance routed on
+// them silently does nothing. Clearing only the QPA focus window does not
+// reproduce that where the OS window is still active. Runs 2 and 7 of
+// 2026/08/30/replace-wallet-with-new-or-imported paid for that.
+// Window::Controller::activate() (window/window_controller.h:118) is not the
+// answer: it asks the window manager, which on a locked console does not
+// comply, which is why the injection goes through the QPA seam instead.
+//
+// Run 7 added the second half: the platform de-activates the window again
+// asynchronously, between event-loop turns. In that one run an activation
+// used in the same synchronous block as its dependent action worked, while
+// a one-shot activation read back across polled turns was already gone. So
+// a one-shot arrangement expected to survive across polled turns is a
+// forbidden technique - assert activation in the same turn as the action,
+// and re-assert it on every poll of a bounded wait.
+//
+// Calling ForceWindowActive from a stage's until is a deliberate, narrow
+// exception to the README's stage contract, which says a readiness must be
+// pure: it mutates only which window Qt considers focused, never product
+// state, it is idempotent and repeatable, and it encodes no expected
+// product result. Its note is capped to every kActivationNoteEvery-th call,
+// and |attempts| and |notes| are process-wide counts carried in every
+// reading, so the flake stays visible without flooding a 50ms-tick log.
+inline constexpr auto kActivationNoteEvery = 10;
+
+// For the values ForceWindowActive and ClearWindowActive return, |injected|
+// is true exactly when |refusal| is empty, and a refusal is returned rather
+// than logged: only the caller knows whether a window the helper could not
+// resolve is a failure of the run or an expected reading.
+// ReadWindowActivation injects nothing, so it always answers injected=false
+// and fills |refusal| only when there is no window to activate through -
+// never read its |injected| as "activation is in force".
+struct WindowActivation {
+	bool injected = false;
+	bool focusWindowSet = false;
+	bool activeWindow = false;
+	int attempts = 0;
+	int notes = 0;
+	QString identity;
+	QString refusal;
+};
+
+[[nodiscard]] WindowActivation ReadWindowActivation(
+	QWidget *widget = nullptr);
+WindowActivation ForceWindowActive(QWidget *widget = nullptr);
+
+// Deliberately clears the application's focus window through the same seam,
+// so a self-test can reach the failing shape instead of describing it. Never
+// call this from a scenario, and never leave a stage with it in force.
+WindowActivation ClearWindowActive();
+
+// The one formatter both the helper's own note and every self-test Check
+// detail print, so a pass and a refusal carry the same fields. It takes the
+// reading rather than re-reading, because |attempts| and |notes| move on
+// every call and a re-read would print numbers no verdict was made against.
+[[nodiscard]] QString WindowActivationDetails(
+	const WindowActivation &reading);
+
 } // namespace Test

@@ -87,7 +87,6 @@ PRIVATE
     desktop-app::lib_webview
     desktop-app::lib_ffmpeg
     desktop-app::lib_stripe
-    desktop-app::external_rlottie
     desktop-app::external_zlib
     desktop-app::external_minizip
     desktop-app::external_kcoreaddons
@@ -478,6 +477,8 @@ PRIVATE
     calls/calls_panel.h
     calls/calls_panel_background.cpp
     calls/calls_panel_background.h
+    calls/calls_rate_call.cpp
+    calls/calls_rate_call.h
     calls/calls_signal_bars.cpp
     calls/calls_signal_bars.h
     calls/calls_top_bar.cpp
@@ -1933,6 +1934,8 @@ PRIVATE
     storage/storage_domain.h
     storage/storage_facade.cpp
     storage/storage_facade.h
+    storage/storage_folder_archive.cpp
+    storage/storage_folder_archive.h
     storage/storage_media_prepare.cpp
     storage/storage_media_prepare.h
     storage/storage_shared_media.cpp
@@ -1955,12 +1958,18 @@ PRIVATE
     support/support_templates.h
     tde2e/tde2e_integration.cpp
     tde2e/tde2e_integration.h
+    test/test_activation.cpp
+    test/test_activation.h
     test/test_agent.cpp
     test/test_agent.h
+    test/test_box_button.cpp
+    test/test_box_button.h
     test/test_capture.cpp
     test/test_capture.h
     test/test_custom_emoji.cpp
     test/test_custom_emoji.h
+    test/test_gated_stage.cpp
+    test/test_gated_stage.h
     test/test_history_fixtures.cpp
     test/test_history_fixtures.h
     test/test_hover.cpp
@@ -1973,6 +1982,8 @@ PRIVATE
     test/test_layer_root.h
     test/test_log.cpp
     test/test_log.h
+    test/test_log_lines.cpp
+    test/test_log_lines.h
     test/test_menu.cpp
     test/test_menu.h
     test/test_messages.cpp
@@ -1983,13 +1994,19 @@ PRIVATE
     test/test_panel.h
     test/test_probe.cpp
     test/test_probe.h
+    test/test_rpc_retry.cpp
+    test/test_rpc_retry.h
     test/test_runner.cpp
     test/test_runner.h
     test/test_scenario.cpp
     test/test_style.cpp
     test/test_style.h
+    test/test_text_reads.cpp
+    test/test_text_reads.h
     test/test_transfer.cpp
     test/test_transfer.h
+    test/test_via_window.cpp
+    test/test_via_window.h
     test/test_widgets.cpp
     test/test_widgets.h
     ui/boxes/edit_invite_link_session.cpp

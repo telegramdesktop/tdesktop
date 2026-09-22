@@ -142,6 +142,12 @@ base::options::toggle OptionExternalMediaViewer({
 	.description = "Use system media viewer instead of the internal one.",
 });
 
+[[nodiscard]] bool HasSavingRestriction(HistoryItem *item) {
+	return item
+		&& (item->forbidsSaving()
+			|| !item->history()->peer->allowsForwarding());
+}
+
 class MainWindowShow final : public ChatHelpers::Show {
 public:
 	explicit MainWindowShow(not_null<SessionController*> controller);
@@ -842,17 +848,16 @@ void SessionNavigation::showPeerByLinkResolved(
 				if (peer->isUser() && !draft.isEmpty()) {
 					Data::SetChatLinkDraft(peer, { draft });
 				}
-				if (historyInNewWindow) {
-					const auto window
-						= Core::App().ensureSeparateWindowFor(peer);
-					const auto controller = window
-						? window->sessionController()
-						: nullptr;
-					if (controller) {
-						controller->showPeerHistory(peer, params, msgId);
-					} else {
-						showPeerHistory(peer, params, msgId);
-					}
+				const auto id = SeparateId(peer);
+				const auto separate = (historyInNewWindow
+					&& CanShowSeparateWindow(id))
+					? Core::App().ensureSeparateWindowFor(id).get()
+					: nullptr;
+				if (separate) {
+					separate->sessionController()->showPeerHistory(
+						peer,
+						params,
+						msgId);
 				} else {
 					showPeerHistory(peer, params, msgId);
 				}
@@ -2672,7 +2677,7 @@ int SessionController::countDialogsWidthFromRatio(int bodyWidth) const {
 	const auto nochat = !mainSectionShown();
 	const auto width = bodyWidth
 		* Core::App().settings().dialogsWidthRatio(nochat);
-	auto result = qRound(width);
+	auto result = int(base::SafeRound(width));
 	accumulate_max(result, st::columnMinimalWidthLeft);
 //	accumulate_min(result, st::columnMaximalWidthLeft);
 	return result;
@@ -2808,13 +2813,6 @@ void SessionController::closeThirdSection() {
 	} else {
 		updateColumnLayout();
 	}
-}
-
-bool SessionController::canShowSeparateWindow(SeparateId id) const {
-	if (const auto thread = id.thread) {
-		return thread->peer()->computeUnavailableReason().isEmpty();
-	}
-	return true;
 }
 
 void SessionController::showPeer(not_null<PeerData*> peer, MsgId msgId) {
@@ -3098,7 +3096,7 @@ void SessionController::clearChooseReportMessages() const {
 void SessionController::showInNewWindow(
 		SeparateId id,
 		MsgId msgId) {
-	if (!canShowSeparateWindow(id)) {
+	if (!CanShowSeparateWindow(id)) {
 		Assert(id.thread != nullptr);
 		showThread(id.thread, msgId, SectionShow::Way::ClearStack);
 		return;
@@ -3375,8 +3373,10 @@ void SessionController::hideLayer(anim::type animated) {
 
 bool SessionController::openPhotoExternal(
 		not_null<PhotoData*> photo,
-		Data::FileOrigin origin) {
-	if (!OptionExternalMediaViewer.value()) {
+		Data::FileOrigin origin,
+		HistoryItem *item) {
+	if (!OptionExternalMediaViewer.value()
+		|| HasSavingRestriction(item)) {
 		return false;
 	}
 	const auto media = photo->createMediaView();
@@ -3415,7 +3415,7 @@ void SessionController::openPhoto(
 	const auto origin = item
 		? Data::FileOrigin(item->fullId())
 		: Data::FileOrigin();
-	if (openPhotoExternal(photo, origin)) {
+	if (openPhotoExternal(photo, origin, item)) {
 		return;
 	}
 	_window->openInMediaView(Media::View::OpenRequest(
@@ -3435,7 +3435,7 @@ void SessionController::openPhoto(
 			peerToUser(peer->id),
 			photo->id))
 		: Data::FileOrigin(Data::FileOriginPeerPhoto(peer->id));
-	if (openPhotoExternal(photo, origin)) {
+	if (openPhotoExternal(photo, origin, nullptr)) {
 		return;
 	}
 	_window->openInMediaView(Media::View::OpenRequest(this, photo, peer));
@@ -3451,7 +3451,9 @@ void SessionController::openDocument(
 	if (openSharedStory(item) || openFakeItemStory(message.id, stories)) {
 		return;
 	} else if (showInMediaView) {
-		if (OptionExternalMediaViewer.value() && !document->isTheme()) {
+		if (OptionExternalMediaViewer.value()
+			&& !document->isTheme()
+			&& !HasSavingRestriction(item)) {
 			const auto filepath = document->filepath();
 			if (filepath.isEmpty()) {
 				if (document->loadedInMediaCache()) {

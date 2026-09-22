@@ -40,6 +40,10 @@ struct MediaTabContext {
 	Fn<void(int count)> onlineCountChanged;
 };
 
+struct MediaTabState {
+	virtual ~MediaTabState() = default;
+};
+
 class MediaTabContent {
 public:
 	virtual ~MediaTabContent() = default;
@@ -62,9 +66,10 @@ public:
 	virtual void paintOverflow(QPainter &p) {
 	}
 
-	virtual void saveScrollState(QByteArray &out) {
+	[[nodiscard]] virtual std::unique_ptr<MediaTabState> saveState() {
+		return nullptr;
 	}
-	virtual void restoreScrollState(const QByteArray &in) {
+	virtual void restoreState(std::unique_ptr<MediaTabState> state) {
 	}
 };
 

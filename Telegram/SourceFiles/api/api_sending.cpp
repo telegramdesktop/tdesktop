@@ -1020,11 +1020,8 @@ struct ConfirmedLocalFile {
 		const QString &caption,
 		bool isEditing) {
 	const auto welcomeTemplate = file->to.options.welcomeTemplate;
-	const auto groupId = welcomeTemplate
-		? uint64(0)
-		: file->album
-		? file->album->groupId
-		: uint64(0);
+	const auto album = welcomeTemplate ? nullptr : file->album.lock();
+	const auto groupId = album ? album->groupId : uint64(0);
 	auto flags = isEditing ? MessageFlags() : NewMessageFlags(peer);
 	if (welcomeTemplate) {
 		flags &= ~MessageFlag::Outgoing;
@@ -1148,12 +1145,12 @@ struct ConfirmedLocalFile {
 			? file->to.replaceMediaOf
 			: session->data().nextLocalMessageId()));
 	const auto welcomeTemplate = file->to.options.welcomeTemplate;
-	if (!welcomeTemplate && file->album) {
+	if (const auto album = welcomeTemplate ? nullptr : file->album.lock()) {
 		const auto it = ranges::find(
-			file->album->items,
+			album->items,
 			file->taskId,
 			&SendingAlbum::Item::taskId);
-		Assert(it != file->album->items.end());
+		Assert(it != album->items.end());
 
 		it->msgId = newId;
 	}
@@ -1224,6 +1221,9 @@ void AddConfirmedLocalPlaceholder(const ConfirmedLocalFile &local) {
 	}
 
 	const auto welcomeTemplate = local.file->to.options.welcomeTemplate;
+	const auto album = welcomeTemplate
+		? nullptr
+		: local.file->album.lock();
 	const auto item = local.history->addNewLocalMessage({
 		.id = local.newId.msg,
 		.flags = local.flags,
@@ -1234,11 +1234,7 @@ void AddConfirmedLocalPlaceholder(const ConfirmedLocalFile &local) {
 		.shortcutId = local.file->to.options.shortcutId,
 		.starsPaid = local.starsPaid,
 		.postAuthor = NewMessagePostAuthor(local.action),
-		.groupedId = welcomeTemplate
-			? uint64(0)
-			: local.file->album
-			? local.file->album->groupId
-			: uint64(0),
+		.groupedId = album ? album->groupId : uint64(0),
 		.effectId = local.file->to.options.effectId,
 		.suggest = HistoryMessageSuggestInfo(local.file->to.options),
 	}, local.caption, local.media);
@@ -1250,7 +1246,7 @@ void AddConfirmedLocalPlaceholder(const ConfirmedLocalFile &local) {
 [[nodiscard]] bool FlushPreparedMusicBatch(
 		not_null<Main::Session*> session,
 		const std::shared_ptr<FilePrepareResult> &sample) {
-	const auto album = sample->album;
+	const auto album = sample->album.lock();
 	if (!album || !album->preparedMusicBatching()) {
 		return false;
 	}

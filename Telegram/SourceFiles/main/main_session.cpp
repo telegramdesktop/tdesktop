@@ -144,16 +144,22 @@ Session::Session(
 			// base::call_delayed(5000, [=] {
 				Core::App().lockBySetupEmail();
 			});
+			const auto weak = base::make_weak(this);
 			const auto unlockLifetime = std::make_shared<rpl::lifetime>();
 			_promoSuggestions->setupEmailStateValue(
 			) | rpl::filter([](Data::SetupEmailState s) {
 				return s == Data::SetupEmailState::None;
-			}) | rpl::take(1) | rpl::on_next(crl::guard(this, [=] {
+			}) | rpl::take(1) | rpl::on_next_done([=] {
+				unlockLifetime->destroy();
+				if (!weak) {
+					return;
+				}
 				Core::App().unlockSetupEmail();
 				_settings->setSetupEmailState(State::None);
 				saveSettingsDelayed(200);
+			}, [=] {
 				unlockLifetime->destroy();
-			}), *unlockLifetime);
+			}, *unlockLifetime);
 		} else {
 			_settings->setSetupEmailState(
 				_promoSuggestions->setupEmailState());

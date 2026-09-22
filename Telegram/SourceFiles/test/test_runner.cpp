@@ -370,6 +370,9 @@ void Runner::start() {
 	});
 	_watchdog.callOnce(WatchdogTimeout());
 	beginStage();
+	if (_finished) {
+		return;
+	}
 	_ticker.setCallback([=] { tick(); });
 	_ticker.callEach(kTickInterval);
 }
@@ -396,11 +399,24 @@ void Runner::tick() {
 }
 
 void Runner::beginStage() {
-	const auto &stage = _stages[_index];
-	Step(stage.name);
-	_stageStarted = crl::now();
-	if (stage.run) {
-		stage.run();
+	while (true) {
+		const auto &stage = _stages[_index];
+		Step(stage.name);
+		_stageStarted = crl::now();
+		const auto reason = stage.skipReason
+			? stage.skipReason()
+			: QString();
+		if (reason.isEmpty()) {
+			if (stage.run) {
+				stage.run();
+			}
+			return;
+		}
+		Skipped(stage.name, reason);
+		if (++_index == int(_stages.size())) {
+			finish();
+			return;
+		}
 	}
 }
 
@@ -429,9 +445,13 @@ void Runner::finish() {
 	});
 	base::call_delayed(kFinishDrainDelay, [] {
 		const auto failures = FailureCount();
-		LogRaw(u"SCENARIO_RESULT: %1 (failures: %2)"_q.arg(
+		const auto skipped = SkippedCount();
+		LogRaw(u"SCENARIO_RESULT: %1 (failures: %2%3)"_q.arg(
 			failures ? u"FAIL"_q : u"PASS"_q,
-			QString::number(failures)));
+			QString::number(failures),
+			skipped
+				? u", skipped: %1"_q.arg(skipped)
+				: QString()));
 		Complete();
 		Core::Quit();
 	});

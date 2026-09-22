@@ -32,11 +32,13 @@ using ExtractCallback = Fn<bool(int index, QImage &&frame)>;
 
 void ExtractFrames(
 	const QString &path,
+	const QByteArray &content,
 	const ExtractRequest &request,
 	ExtractCallback callback);
 
 [[nodiscard]] QImage ExtractFrame(
 	const QString &path,
+	const QByteArray &content,
 	crl::time position,
 	QSize box = QSize());
 

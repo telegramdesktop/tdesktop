@@ -161,12 +161,6 @@ giftBoxTabStyle: semiboldTextStyle;
 giftBoxTabFg: windowSubTextFg;
 giftBoxTabFgActive: windowBoldFg;
 giftBoxTabBgActive: windowBgRipple;
-giftBoxPillTabs: PillTabs(defaultPillTabs) {
-	borderWidth: 6px;
-	fg: windowSubTextFg;
-	fgActive: windowBoldFg;
-	bgActive: windowBgRipple;
-}
 giftBoxResaleTabsMargin: margins(11px, 10px, 11px, 8px);
 giftBoxResaleTabSkip: 8px;
 giftBoxResaleTabsDropdown: IconEmoji {

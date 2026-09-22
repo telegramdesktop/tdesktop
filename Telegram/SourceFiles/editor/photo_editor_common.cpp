@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_common.h"
 
 #include "editor/scene/scene.h"
-#include "editor/scene/scene_item_sticker.h"
+#include "editor/scene/scene_item_animated.h"
 #include "ui/painter.h"
 #include "ui/userpic_view.h"
 
@@ -188,21 +188,19 @@ Media::Encode::Job ComposeAnimatedJob(
 
 	auto longest = crl::time(0);
 	for (const auto item : normal) {
-		const auto sticker = (item->type() == ItemSticker::Type)
-			? static_cast<ItemSticker*>(item)
-			: nullptr;
-		if (!sticker || !sticker->animated()) {
+		const auto animated = dynamic_cast<ItemAnimated*>(item);
+		if (!animated || !animated->animated()) {
 			run.push_back(item);
 			continue;
 		}
-		auto entity = sticker->animatedEntity(sceneToCanvas);
+		auto entity = animated->animatedEntity(sceneToCanvas);
 		if (entity.bytes.isEmpty()) {
 			run.push_back(item);
 			continue;
 		}
 		flushRun();
 		job.overlay.push_back(std::move(entity));
-		const auto duration = sticker->loopDuration();
+		const auto duration = animated->loopDuration();
 		longest = std::max(
 			longest,
 			duration ? duration : kAnimatedMaxDuration);

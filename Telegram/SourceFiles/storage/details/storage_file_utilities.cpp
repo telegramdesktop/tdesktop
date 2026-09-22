@@ -494,7 +494,7 @@ bool ReadFile(
 				QDateTime mod0 = toTry0.lastModified();
 				QDateTime mod1 = toTry1.lastModified();
 				if (mod0 < mod1) {
-					qSwap(toTry[0], toTry[1]);
+					std::swap(toTry[0], toTry[1]);
 				}
 			} else {
 				toTry[1] = QString();

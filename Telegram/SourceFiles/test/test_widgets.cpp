@@ -13,14 +13,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_qptr.h"
 #include "core/sandbox.h"
 #include "test/test_agent.h"
+#include "test/test_capture.h"
+#include "test/test_log.h"
 
 #include <QtCore/QPointer>
 #include <QtCore/QTextBoundaryFinder>
+#include <QtGui/QGuiApplication>
 #include <QtGui/QInputMethodEvent>
 #include <QtGui/QKeyEvent>
 #include <QtGui/QMouseEvent>
 #include <QtGui/QWheelEvent>
+#include <QtGui/QWindow>
 #include <QtWidgets/QApplication>
+#include <qpa/qwindowsysteminterface.h>
 
 namespace Test {
 namespace {
@@ -64,6 +69,63 @@ bool DeliverAndSettle(
 void DeliverPointerLeave(const base::weak_qptr<QWidget> &widget) {
 	auto leave = QEvent(QEvent::Leave);
 	DeliverAndSettle(widget, leave);
+}
+
+[[nodiscard]] int &ActivationAttempts() {
+	static auto result = 0;
+	return result;
+}
+
+[[nodiscard]] int &ActivationNotes() {
+	static auto result = 0;
+	return result;
+}
+
+// A non-null |widget| whose own window carries no QWindow handle is refused
+// rather than silently retargeted at some other top-level: activating a
+// window the caller never named would make every field of the returned
+// reading a claim about a widget it was not taken on. Only the no-widget
+// form may search, because it names no target to be wrong about.
+[[nodiscard]] QWindow *ResolveActivationWindow(QWidget *widget) {
+	if (widget) {
+		const auto top = widget->window();
+		return top ? top->windowHandle() : nullptr;
+	} else if (const auto active = QGuiApplication::focusWindow()) {
+		return active;
+	}
+	for (const auto window : QGuiApplication::topLevelWindows()) {
+		if (window->isVisible()) {
+			return window;
+		}
+	}
+	return nullptr;
+}
+
+void InjectActivation(QWindow *window) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 3, 0)
+	QWindowSystemInterface::handleFocusWindowChanged(
+		window,
+		Qt::ActiveWindowFocusReason);
+#else // Qt >= 6.3.0
+	QWindowSystemInterface::handleWindowActivated(
+		window,
+		Qt::ActiveWindowFocusReason);
+#endif // Qt < 6.3.0
+	QWindowSystemInterface::flushWindowSystemEvents();
+}
+
+[[nodiscard]] QString ActivationWindowIdentity(QWindow *window) {
+	if (!window) {
+		return u"no window"_q;
+	}
+	const auto name = window->objectName();
+	const auto geometry = window->geometry();
+	return u"%1 %2,%3 %4x%5"_q
+		.arg(name.isEmpty() ? u"application focus window"_q : name)
+		.arg(geometry.x())
+		.arg(geometry.y())
+		.arg(geometry.width())
+		.arg(geometry.height());
 }
 
 } // namespace
@@ -296,6 +358,70 @@ void Settle(Fn<void()> action) {
 
 void SettlePostponedCalls() {
 	Core::Sandbox::Instance().drainPostponedCalls();
+}
+
+WindowActivation ReadWindowActivation(QWidget *widget) {
+	const auto window = ResolveActivationWindow(widget);
+	auto result = WindowActivation();
+	result.focusWindowSet = (QGuiApplication::focusWindow() != nullptr);
+	result.activeWindow = (QApplication::activeWindow() != nullptr);
+	result.attempts = ActivationAttempts();
+	result.notes = ActivationNotes();
+	result.identity = widget
+		? WidgetDescription(widget)
+		: ActivationWindowIdentity(window);
+	if (window) {
+		return result;
+	} else if (!widget) {
+		result.refusal = u"no visible top-level QWindow to activate"_q;
+		return result;
+	}
+	result.refusal = u"the widget's own window carries no QWindow handle, "
+		u"so there is nothing to activate through: %1"_q
+		.arg(result.identity);
+	return result;
+}
+
+WindowActivation ForceWindowActive(QWidget *widget) {
+	++ActivationAttempts();
+	const auto window = ResolveActivationWindow(widget);
+	if (!window) {
+		return ReadWindowActivation(widget);
+	}
+	InjectActivation(window);
+	auto result = ReadWindowActivation(widget);
+	result.injected = true;
+	result.refusal = QString();
+	if (((result.attempts - 1) % kActivationNoteEvery) == 0) {
+		++ActivationNotes();
+		result.notes = ActivationNotes();
+		Note(WindowActivationDetails(result));
+	}
+	return result;
+}
+
+WindowActivation ClearWindowActive() {
+	InjectActivation(nullptr);
+	auto result = ReadWindowActivation(nullptr);
+	result.injected = true;
+	result.refusal = QString();
+	result.identity = u"none - the application focus window was cleared"_q;
+	Note(WindowActivationDetails(result));
+	return result;
+}
+
+QString WindowActivationDetails(const WindowActivation &reading) {
+	const auto line = u"window activation: injected=%1 focusWindowSet=%2 "
+		u"activeWindow=%3 attempts=%4 notes=%5 target=%6"_q
+		.arg(reading.injected ? 1 : 0)
+		.arg(reading.focusWindowSet ? 1 : 0)
+		.arg(reading.activeWindow ? 1 : 0)
+		.arg(reading.attempts)
+		.arg(reading.notes)
+		.arg(reading.identity);
+	return reading.refusal.isEmpty()
+		? line
+		: (line + u" - %1"_q.arg(reading.refusal));
 }
 
 } // namespace Test

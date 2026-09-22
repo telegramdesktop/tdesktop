@@ -209,6 +209,21 @@ constexpr auto kWalkedChainHead = 3;
 	return shown.join(u" < "_q);
 }
 
+[[nodiscard]] QString ViaWindowText(const WindowMappedCapture &reading) {
+	return u"window-mapped capture: target=%1 window=%2 mapped=%3 - a blank "
+		u"frame is a Note and never a FAIL, because the decisive oracle for a "
+		u"widget that paints no opaque background of its own is textual and "
+		u"this capture only corroborates it%4"_q
+		.arg(reading.identity.isEmpty() ? u"<none>"_q : reading.identity)
+		.arg(reading.window
+			? WidgetDescription(reading.window.data())
+			: u"<none>"_q)
+		.arg(RectText(reading.mapped))
+		.arg(reading.refusal.isEmpty()
+			? QString()
+			: u" - %1"_q.arg(reading.refusal));
+}
+
 } // namespace
 
 QString WidgetDescription(not_null<QWidget*> widget) {
@@ -423,7 +438,72 @@ bool CaptureInLayerRoot(not_null<QWidget*> box, const QString &name) {
 		Fail(u"capture %1"_q.arg(name), root.refusal);
 		return false;
 	}
-	return CaptureMappedRect(root.widget, box, box->rect(), name);
+	return CaptureMappedRect(root.widget.data(), box, box->rect(), name);
+}
+
+WindowMappedCapture ReadViaWindow(QWidget *widget) {
+	if (!widget) {
+		return {
+			.refusal = u"no widget was handed to the window-mapped "
+				u"capture"_q,
+		};
+	}
+	auto result = WindowMappedCapture{
+		.identity = WidgetDescription(widget),
+	};
+	if (!widget->isVisible()) {
+		result.refusal = u"target is not visible: %1"_q.arg(result.identity);
+		return result;
+	} else if (widget->size().isEmpty()) {
+		result.refusal = u"target has empty geometry: %1"_q.arg(
+			result.identity);
+		return result;
+	}
+	const auto window = widget->window();
+	if (window == widget) {
+		result.refusal = u"target is its own window, so there is no opaque "
+			u"window behind it to grab: %1"_q.arg(result.identity);
+		return result;
+	}
+	result.mapped = Ui::MapFrom(window, widget, widget->rect());
+	const auto misframed = MisframedDetails(window, result.mapped);
+	if (!misframed.isEmpty()) {
+		result.refusal = misframed;
+		return result;
+	}
+	result.window = window;
+	return result;
+}
+
+QImage GrabViaWindow(QWidget *widget) {
+	const auto reading = ReadViaWindow(widget);
+	return reading.resolved()
+		? GrabRect(reading.window.data(), reading.mapped)
+		: QImage();
+}
+
+bool ViaWindowReady(QWidget *widget) {
+	return !LooksBlank(GrabViaWindow(widget));
+}
+
+QString ViaWindowDetails(QWidget *widget) {
+	return ViaWindowText(ReadViaWindow(widget));
+}
+
+bool CaptureViaWindow(not_null<QWidget*> widget, const QString &name) {
+	const auto reading = ReadViaWindow(widget);
+	if (!reading.resolved()) {
+		Fail(u"capture %1"_q.arg(name), reading.refusal);
+		return false;
+	}
+	LogGeometry(name, QRect(widget->mapToGlobal(QPoint()), widget->size()));
+	const auto image = GrabRect(reading.window.data(), reading.mapped);
+	if (LooksBlank(image)) {
+		Note(u"capture %1 declined a blank frame: %2"_q
+			.arg(name, ViaWindowText(reading)));
+		return false;
+	}
+	return !SaveImage(image, name).isEmpty();
 }
 
 QImage Crop(const QImage &image, const QRect &pixelRect) {

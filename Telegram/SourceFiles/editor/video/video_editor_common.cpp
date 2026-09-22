@@ -61,6 +61,9 @@ Media::Encode::VideoSource ComposeVideoSource(
 		.flipped = geometry.flipped,
 		.from = modifications.from,
 		.till = modifications.till,
+		.mode = (data.webmSticker
+			? Media::Encode::VideoSource::Mode::WebmSticker
+			: Media::Encode::VideoSource::Mode::Mp4),
 		.removeAudio = (data.removeAudio || modifications.gif),
 		.silentAudio = (!data.removeAudio && !modifications.gif),
 		.fpsLimit = data.fpsLimit,
@@ -72,6 +75,7 @@ Media::Encode::VideoSource ComposeVideoSource(
 
 QImage ExtractCoverImage(
 		const QString &path,
+		const QByteArray &content,
 		const VideoModifications &modifications,
 		QSize dimensions,
 		int side) {
@@ -90,7 +94,11 @@ QImage ExtractCoverImage(
 	const auto box = QSize(
 		std::max(int(base::SafeRound(dimensions.width() * ratio)), 2),
 		std::max(int(base::SafeRound(dimensions.height() * ratio)), 2));
-	auto frame = Media::Video::ExtractFrame(path, modifications.cover, box);
+	auto frame = Media::Video::ExtractFrame(
+		path,
+		content,
+		modifications.cover,
+		box);
 	if (frame.isNull()) {
 		return {};
 	}

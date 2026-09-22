@@ -110,7 +110,7 @@ constexpr auto kRichDraftAutosaveTimeout = crl::time(10 * 1000);
 class ArticleSession;
 
 struct ComposeThreadKey {
-	Main::Session *session = nullptr;
+	uint64 sessionId = 0;
 	PeerId peerId = 0;
 	::Data::DraftKey draftKey = ::Data::DraftKey::None();
 
@@ -128,7 +128,7 @@ struct ComposeThreadEntry {
 		MsgId topicRootId,
 		PeerId monoforumPeerId) {
 	return {
-		.session = session.get(),
+		.sessionId = session->uniqueId(),
 		.peerId = peerId,
 		.draftKey = ::Data::DraftKey::Cloud(topicRootId, monoforumPeerId),
 	};
@@ -150,7 +150,16 @@ struct ComposeThreadEntry {
 
 [[nodiscard]] ComposeThreadEntry &ComposeThreadEntryFor(
 		const ComposeThreadKey &key) {
-	return ComposeThreads()[key];
+	auto &threads = ComposeThreads();
+	if (const auto i = threads.find(key); i != end(threads)) {
+		return i->second;
+	}
+	for (auto i = begin(threads); i != end(threads);) {
+		i = SessionByUniqueId(i->first.sessionId)
+			? (i + 1)
+			: threads.erase(i);
+	}
+	return threads[key];
 }
 
 [[nodiscard]] ComposeThreadEntry *LookupComposeThreadEntry(
@@ -4335,6 +4344,10 @@ void ArticleSession::applyInitialPaste() {
 	if (!data || !_editor) {
 		return;
 	}
+	if (const auto structured = ClipboardDataFromMimeData(data.get())) {
+		_editor->pasteStructuredClipboardData(*structured);
+		return;
+	}
 	const auto limits = _state->limits();
 	const auto used = CountRichPageBlocks(_state->richPage());
 	auto imported = BlocksFromMimeData(_session, data.get(), limits, used);
@@ -4343,6 +4356,13 @@ void ArticleSession::applyInitialPaste() {
 	}
 	if (imported && !imported->blocks.empty()) {
 		_editor->insertPreparedBlocks(std::move(imported->blocks));
+		return;
+	} else if (!data->hasText()) {
+		return;
+	}
+	auto plain = SplitTextIntoRichPage(TextWithEntities{ data->text() });
+	if (!plain.blocks.empty()) {
+		_editor->insertPreparedBlocks(std::move(plain.blocks));
 	}
 }
 

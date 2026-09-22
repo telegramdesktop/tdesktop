@@ -179,7 +179,7 @@ public:
 	void setActivePrimaryWindow(not_null<Window::Controller*> window);
 	[[nodiscard]] Window::Controller *separateWindowFor(
 		Window::SeparateId id) const;
-	Window::Controller *ensureSeparateWindowFor(
+	not_null<Window::Controller*> ensureSeparateWindowFor(
 		Window::SeparateId id,
 		MsgId showAtMsgId = 0);
 	[[nodiscard]] Window::Controller *windowFor( // Doesn't auto-switch.

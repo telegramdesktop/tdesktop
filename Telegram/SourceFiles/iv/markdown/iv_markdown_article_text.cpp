@@ -751,6 +751,31 @@ void ActivateInlineButton(QStringView data, ClickContext context) {
 	Api::ActivateRichPageBotButton(my, record);
 }
 
+class InlineButtonClickHandler final : public ClickHandler {
+public:
+	explicit InlineButtonClickHandler(QString data);
+
+	void onClick(ClickContext context) const override;
+
+	QString tooltip() const override;
+
+private:
+	const QString _data;
+
+};
+
+InlineButtonClickHandler::InlineButtonClickHandler(QString data)
+: _data(std::move(data)) {
+}
+
+void InlineButtonClickHandler::onClick(ClickContext context) const {
+	ActivateInlineButton(_data, std::move(context));
+}
+
+QString InlineButtonClickHandler::tooltip() const {
+	return InlineButtonTooltip(_data);
+}
+
 [[nodiscard]] QString InlineButtonPlainEmojiPrefix() {
 	return u"iv-markdown:inline-button-emoji:"_q;
 }
@@ -1319,10 +1344,8 @@ ClickHandlerPtr CreatePreparedLinkHandler(PreparedLink link) {
 	// ActivateClickHandler arm the inline pill already uses. That is why this
 	// one kind gets no arm in the three prepared-link routers.
 	if (link.kind == PreparedLinkKind::RichPageButton) {
-		return std::make_shared<LambdaClickHandler>(
-			[data = std::move(link.target)](ClickContext context) {
-				ActivateInlineButton(data, std::move(context));
-			});
+		return std::make_shared<InlineButtonClickHandler>(
+			std::move(link.target));
 	}
 	return std::make_shared<PreparedLinkClickHandler>(std::move(link));
 }
@@ -2316,6 +2339,13 @@ bool TextHasInlineButton(const TextWithEntities &text) {
 	});
 }
 
+QString InlineButtonTooltip(QStringView data) {
+	const auto button = ActionableInlineButtonDataFor(data);
+	return button
+		? RichButtonTooltip(button->type, button->data, QString())
+		: QString();
+}
+
 void SetTextLeaf(
 		Ui::Text::String *leaf,
 		const style::TextStyle &textStyle,
@@ -2426,9 +2456,15 @@ void SetTextLeaf(
 			return (entity.type() == EntityType::CustomEmoji)
 				&& InlineButtonActionable(entity.data());
 		})) {
-		leaf->setCustomEmojiClickHandler(
-			InlineButtonActionable,
-			ActivateInlineButton);
+		leaf->setCustomEmojiClickHandler([
+			state = inlineButtonPaintState
+		](QStringView data) {
+			if (!InlineButtonActionable(data)) {
+				return false;
+			}
+			state->lookedUpButton = data.toString();
+			return true;
+		}, ActivateInlineButton);
 	}
 }
 

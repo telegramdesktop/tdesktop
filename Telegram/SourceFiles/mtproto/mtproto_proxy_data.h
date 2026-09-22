@@ -39,6 +39,16 @@ struct ProxyData {
 	std::vector<QString> resolvedIPs;
 	crl::time resolvedExpireAt = 0;
 
+	// A WEB proxy address is a hostname with an optional base path, like
+	// `proxy.example.com` or `proxy.example.com/my-super-app`, so that a
+	// production site can keep serving everything outside that prefix. The
+	// path lives in the otherwise unused `user` field: that keeps the
+	// serialized proxy format unchanged and makes a client without this
+	// feature reject the entry instead of silently using the host root.
+	[[nodiscard]] QString webAddress() const;
+	void setWebAddress(const QString &value);
+	[[nodiscard]] QString webBasePath() const;
+
 	[[nodiscard]] bool valid() const;
 	[[nodiscard]] Status status() const;
 	[[nodiscard]] bool supportsCalls() const;
@@ -56,6 +66,12 @@ struct ProxyData {
 
 [[nodiscard]] QString NormalizeWebProxyHost(const QString &value);
 [[nodiscard]] QString WebProxyBridgeCapability(const ProxyData &proxy);
+[[nodiscard]] QString EncodeWebProxyLinkSecret(const ProxyData &proxy);
+[[nodiscard]] QString DecodeWebProxyLinkSecret(
+	const QString &value,
+	bool hasBasePath);
+[[nodiscard]] QString WebProxyBridgePath(const ProxyData &proxy);
+[[nodiscard]] QString WebProxyBridgeUrl(const ProxyData &proxy);
 [[nodiscard]] ProxyData ToDirectIpProxy(
 	const ProxyData &proxy,
 	int ipIndex = 0);

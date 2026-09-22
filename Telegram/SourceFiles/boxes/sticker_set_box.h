@@ -7,25 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/layers/box_content.h"
-#include "base/timer.h"
 #include "data/stickers/data_stickers.h"
+#include "ui/layers/box_content.h"
 #include "ui/rect_part.h"
-
-namespace Window {
-class SessionController;
-} // namespace Window
-
-namespace Ui {
-class PlainShadow;
-} // namespace Ui
 
 namespace Data {
 class StickersSet;
 } // namespace Data
 
 namespace ChatHelpers {
-struct FileChosen;
 class Show;
 } // namespace ChatHelpers
 

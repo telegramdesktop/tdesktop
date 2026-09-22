@@ -111,8 +111,8 @@ void AbstractSingleMediaPreview::preparePreview(QImage preview) {
 	if (_animated && drawBackground()) {
 		auto limitW = st::sendMediaPreviewSize;
 		auto limitH = st::confirmMaxHeight;
-		maxW = qMax(preview.width(), 1);
-		maxH = qMax(preview.height(), 1);
+		maxW = std::max(preview.width(), 1);
+		maxH = std::max(preview.height(), 1);
 		if (maxW * limitH > maxH * limitW) {
 			if (maxW < limitW) {
 				maxH = maxH * limitW / maxW;
@@ -137,16 +137,18 @@ void AbstractSingleMediaPreview::preparePreview(QImage preview) {
 	}
 	_previewWidth = st::sendMediaPreviewSize;
 	if (preview.width() < _previewWidth) {
-		_previewWidth = qMax(preview.width(), kMinPreviewWidth);
+		_previewWidth = std::max(preview.width(), kMinPreviewWidth);
 	}
-	auto maxthumbh = qMin(qRound(1.5 * _previewWidth), st::confirmMaxHeight);
-	_previewHeight = qRound(originalHeight
+	auto maxthumbh = std::min(
+		int(base::SafeRound(1.5 * _previewWidth)),
+		st::confirmMaxHeight);
+	_previewHeight = int(base::SafeRound(originalHeight
 		* float64(_previewWidth)
-		/ originalWidth);
+		/ originalWidth));
 	if (_previewHeight > maxthumbh) {
-		_previewWidth = qRound(_previewWidth
+		_previewWidth = int(base::SafeRound(_previewWidth
 			* float64(maxthumbh)
-			/ _previewHeight);
+			/ _previewHeight));
 		accumulate_max(_previewWidth, kMinPreviewWidth);
 		_previewHeight = maxthumbh;
 	}

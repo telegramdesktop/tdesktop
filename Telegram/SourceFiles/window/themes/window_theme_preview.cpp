@@ -303,7 +303,9 @@ void Generator::addTextBubble(QString text, QString date, Status status) {
 	accumulate_min(width, st::msgPadding.left() + bubble.text.maxWidth() + st::msgPadding.right());
 	accumulate_min(width, st::msgMaxWidth);
 
-	auto textWidth = qMax(width - st::msgPadding.left() - st::msgPadding.right(), 1);
+	auto textWidth = std::max(
+		width - st::msgPadding.left() - st::msgPadding.right(),
+		1);
 	auto textHeight = bubble.text.countHeight(textWidth);
 
 	auto height = st::msgPadding.top() + textHeight + st::msgPadding.bottom();
@@ -332,7 +334,9 @@ void Generator::addPhotoBubble(QString image, QString caption, QString date, Sta
 	accumulate_min(width, bubble.photoWidth);
 	accumulate_min(width, st::msgMaxWidth);
 
-	auto textWidth = qMax(width - st::msgPadding.left() - st::msgPadding.right(), 1);
+	auto textWidth = std::max(
+		width - st::msgPadding.left() - st::msgPadding.right(),
+		1);
 	auto textHeight = bubble.text.countHeight(textWidth);
 
 	auto height = st::mediaCaptionSkip + textHeight + st::msgPadding.bottom();
@@ -490,12 +494,12 @@ void Generator::paintHistoryBackground() {
 	if (tiled) {
 		auto width = background.width();
 		auto height = background.height();
-		auto repeatTimesX = qCeil(_history.width()
+		auto repeatTimesX = int(std::ceil(_history.width()
 			* style::DevicePixelRatio()
-			/ float64(width));
-		auto repeatTimesY = qCeil((_history.height() - fromy)
+			/ float64(width)));
+		auto repeatTimesY = int(std::ceil((_history.height() - fromy)
 			* style::DevicePixelRatio()
-			/ float64(height));
+			/ float64(height)));
 		auto imageForTiled = QImage(
 			width * repeatTimesX,
 			height * repeatTimesY,
@@ -940,9 +944,11 @@ void Generator::paintBubble(const Bubble &bubble) {
 		// rescale waveform by going in waveform.size * bar_count 1D grid
 		auto active = bubble.outbg ? st::msgWaveformOutActive[_palette] : st::msgWaveformInActive[_palette];
 		auto inactive = bubble.outbg ? st::msgWaveformOutInactive[_palette] : st::msgWaveformInInactive[_palette];
-		auto wf_size = bubble.waveform.size();
+		auto wf_size = int(bubble.waveform.size());
 		auto availw = namewidth + st::msgWaveformSkip;
-		auto bar_count = qMin(availw / (st::msgWaveformBar + st::msgWaveformSkip), wf_size);
+		auto bar_count = std::min(
+			availw / (st::msgWaveformBar + st::msgWaveformSkip),
+			wf_size);
 		auto max_value = 0;
 		auto max_delta = st::msgWaveformMax - st::msgWaveformMin;
 		auto wave_bottom = y + st::msgFileLayout.padding.top() + st::msgWaveformMax;

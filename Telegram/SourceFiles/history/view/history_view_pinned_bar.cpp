@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_poll.h"
 #include "data/data_web_page.h"
 #include "history/view/history_view_pinned_tracker.h"
+#include "history/view/history_view_reply.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/history.h"
@@ -22,6 +23,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/ui_integration.h"
 #include "base/weak_ptr.h"
 #include "apiwrap.h"
+#include "ui/dynamic_image.h"
+#include "ui/effects/spoiler_mess.h"
+#include "ui/power_saving.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/basic_click_handlers.h"
@@ -42,31 +46,79 @@ namespace {
 	};
 }
 
+class PreviewImage final : public Ui::DynamicImage {
+public:
+	PreviewImage(QImage source, bool spoiler);
+
+	std::shared_ptr<Ui::DynamicImage> clone() override;
+	QImage image(int size) override;
+	void subscribeToUpdates(Fn<void()> callback) override;
+
+private:
+	QImage _source;
+	QPixmap _pixmap;
+	QImage _frame;
+	QImage _spoilerCache;
+	std::unique_ptr<Ui::SpoilerAnimation> _spoiler;
+	bool _spoilered = false;
+
+};
+
+PreviewImage::PreviewImage(QImage source, bool spoiler)
+: _source(std::move(source))
+, _pixmap(QPixmap::fromImage(_source, Qt::ColorOnly))
+, _spoilered(spoiler) {
+}
+
+std::shared_ptr<Ui::DynamicImage> PreviewImage::clone() {
+	return std::make_shared<PreviewImage>(_source, _spoilered);
+}
+
+void PreviewImage::subscribeToUpdates(Fn<void()> callback) {
+	if (!callback || !_spoilered) {
+		_spoiler = nullptr;
+	} else {
+		_spoiler = std::make_unique<Ui::SpoilerAnimation>(
+			std::move(callback));
+	}
+}
+
+QImage PreviewImage::image(int size) {
+	const auto ratio = style::DevicePixelRatio();
+	const auto full = QSize(size, size) * ratio;
+	const auto to = QRect(0, 0, size, size);
+	if (_frame.size() != full) {
+		_frame = QImage(full, QImage::Format_ARGB32_Premultiplied);
+		_frame.setDevicePixelRatio(ratio);
+	}
+	_frame.fill(Qt::transparent);
+	auto p = QPainter(&_frame);
+	p.drawPixmap(to, _pixmap);
+	if (_spoiler) {
+		FillPreviewSpoiler(
+			p,
+			to,
+			_pixmap,
+			Ui::DefaultImageSpoiler().frame(_spoiler->index(
+				crl::now(),
+				On(PowerSaving::kChatSpoiler))),
+			_spoilerCache);
+	}
+	p.end();
+	return _frame;
+}
+
 [[nodiscard]] Ui::MessageBarContent ContentWithPreview(
 		not_null<HistoryItem*> item,
 		Image *preview,
 		bool spoiler,
 		Fn<void()> repaint) {
 	auto result = ContentWithoutPreview(item, repaint);
-	if (!preview) {
-		static const auto kEmpty = [&] {
-			const auto size = st::historyReplyHeight
-				* style::DevicePixelRatio();
-			auto result = QImage(
-				QSize(size, size),
-				QImage::Format_ARGB32_Premultiplied);
-			result.fill(Qt::transparent);
-			result.setDevicePixelRatio(style::DevicePixelRatio());
-			return result;
-		}();
-		result.preview = kEmpty;
-		result.spoilerRepaint = nullptr;
-	} else {
-		result.preview = Images::Round(
-			preview->original(),
-			ImageRoundRadius::Small);
-		result.spoilerRepaint = spoiler ? repaint : nullptr;
-	}
+	result.preview = std::make_shared<PreviewImage>(
+		(preview
+			? Images::Round(preview->original(), ImageRoundRadius::Small)
+			: QImage()),
+		preview && spoiler);
 	return result;
 }
 
@@ -106,7 +158,7 @@ namespace {
 			return ContentWithPreview(
 				item,
 				media->replyPreview(),
-				media->hasSpoiler(),
+				media->hasSpoilerForPreview(),
 				repaint);
 		});
 	}) | rpl::flatten_latest();

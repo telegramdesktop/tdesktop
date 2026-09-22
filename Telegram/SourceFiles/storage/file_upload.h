@@ -126,9 +126,15 @@ private:
 		DcIndexFull,
 	};
 
+	struct PrepareQueue {
+		std::deque<FullMsgId> list;
+		bool running = false;
+	};
+
 	void maybeSend();
 	void startTranscode(FullMsgId itemId);
 	void maybeStartTranscode();
+	void maybeStartTranscode(PrepareQueue &queue);
 	void runTranscode(FullMsgId itemId);
 	void updatePrepareProgress(FullMsgId itemId, float64 progress);
 	void finishTranscode(
@@ -183,8 +189,8 @@ private:
 	const not_null<ApiWrap*> _api;
 
 	std::vector<Entry> _queue;
-	std::deque<FullMsgId> _transcodeQueue;
-	bool _transcodeRunning = false;
+	PrepareQueue _transcodeQueue;
+	PrepareQueue _archiveQueue;
 
 	base::flat_map<mtpRequestId, Request> _requests;
 	std::vector<int> _sentPerDcIndex;

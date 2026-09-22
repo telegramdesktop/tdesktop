@@ -37,6 +37,12 @@ enum class MarkAsReadMuted : uchar {
 	Skip,
 };
 
+enum class ChatListKind : uchar {
+	Folder,
+	Archive,
+	AllChats,
+};
+
 [[nodiscard]] bool IsUnreadThread(not_null<Data::Thread*> thread);
 void MarkAsReadThread(
 	not_null<Data::Thread*> thread,
@@ -52,8 +58,8 @@ void AddAllChatsAction(
 
 void AddChatListAction(
 	not_null<Window::SessionController*> controller,
+	ChatListKind kind,
 	Fn<not_null<Dialogs::MainList*>()> &&list,
-	const Ui::Menu::MenuCallback &addAction,
-	Fn<Dialogs::UnreadState()> customUnreadState = nullptr);
+	const Ui::Menu::MenuCallback &addAction);
 
 } // namespace MarkAsReadMenu

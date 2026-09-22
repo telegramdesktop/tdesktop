@@ -56,7 +56,7 @@ void VideoUserpic::paintLeft(
 				_peer->userpicPhotoOrigin());
 		}
 	}
-	if (!_video) {
+	if (!_video && !_video.isBad()) {
 		if (!_videoPhotoMedia) {
 			const auto photo = _peer->owner().photo(photoId);
 			if (!photo->isNull()) {

@@ -142,7 +142,7 @@ void MusicProvider::checkPreload(
 		if (!preloadRequired) {
 			auto delta = _slice.distance(_aroundId, item);
 			Assert(delta != std::nullopt);
-			preloadRequired = (qAbs(*delta) >= minIdDelta);
+			preloadRequired = (std::abs(*delta) >= minIdDelta);
 		}
 		if (preloadRequired) {
 			_idsLimit = preloadIdsLimit;

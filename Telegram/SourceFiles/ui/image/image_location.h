@@ -651,13 +651,13 @@ inline InMemoryKey inMemoryKey(const ImageLocation &location) {
 }
 
 inline QSize shrinkToKeepAspect(int32 width, int32 height, int32 towidth, int32 toheight) {
-	int32 w = qMax(width, 1), h = qMax(height, 1);
+	int32 w = std::max(width, 1), h = std::max(height, 1);
 	if (w * toheight > h * towidth) {
-		h = qRound(h * towidth / float64(w));
+		h = int(base::SafeRound(h * towidth / float64(w)));
 		w = towidth;
 	} else {
-		w = qRound(w * toheight / float64(h));
+		w = int(base::SafeRound(w * toheight / float64(h)));
 		h = toheight;
 	}
-	return QSize(qMax(w, 1), qMax(h, 1));
+	return QSize(std::max(w, 1), std::max(h, 1));
 }

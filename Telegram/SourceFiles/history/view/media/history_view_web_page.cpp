@@ -1099,7 +1099,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		ensurePhotoMediaCreated();
 
 		auto pix = QPixmap();
-		const auto pw = qMax(_pixw, lineHeight);
+		const auto pw = std::max(_pixw, lineHeight);
 		const auto ph = _pixh;
 		auto pixw = _pixw;
 		auto pixh = ArticleThumbHeight(_photoMedia.get(), _pixw);

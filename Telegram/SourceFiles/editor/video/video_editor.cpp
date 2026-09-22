@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/painter.h"
+#include "ui/text/format_values.h"
 #include "styles/style_editor.h"
 
 #include <QtGui/QPainterPath>
@@ -170,10 +171,13 @@ void BarTextButton::paintEvent(QPaintEvent *e) {
 	return result;
 }
 
-[[nodiscard]] Media::Streaming::FrameRequest FrameRequestFor(QSize size) {
+[[nodiscard]] Media::Streaming::FrameRequest FrameRequestFor(
+		QSize size,
+		bool keepAlpha) {
 	auto result = Media::Streaming::FrameRequest();
 	result.resize = size * style::DevicePixelRatio();
 	result.outer = result.resize;
+	result.keepAlpha = keepAlpha;
 	return result;
 }
 
@@ -184,6 +188,7 @@ VideoEditor::VideoEditor(
 	VideoEditorDescriptor descriptor)
 : RpWidget(parent)
 , _path(descriptor.path)
+, _content(descriptor.content)
 , _dimensions(descriptor.dimensions)
 , _duration(std::max(descriptor.duration, crl::time(1)))
 , _data(descriptor.data)
@@ -211,15 +216,16 @@ VideoEditor::VideoEditor(
 	setupControls();
 	setupTimeline();
 	setupQuality();
+	setupSizeEstimate();
 	setupStreaming();
 	setupTapToPause();
 	refreshCoverPreview();
 
-	_crop->events(
-	) | rpl::filter([](not_null<QEvent*> e) {
-		return (e->type() == QEvent::MouseButtonRelease);
-	}) | rpl::on_next([=] {
+	// The crop only reaches its saved rect after its own release handler.
+	_crop->changes(
+	) | rpl::on_next([=] {
 		refreshQualityLevels();
+		refreshSizeEstimate();
 		invalidateCoverPreview();
 	}, _crop->lifetime());
 
@@ -245,6 +251,7 @@ void VideoEditor::setupTimeline() {
 		_controls.get(),
 		VideoTimelineDescriptor{
 			.path = _path,
+			.content = _content,
 			.dimensions = _dimensions,
 			.duration = _duration,
 			.maxDuration = _data.maxDuration,
@@ -282,6 +289,7 @@ void VideoEditor::setupTimeline() {
 		_from = _timeline->from();
 		_till = _timeline->till();
 		_cover = _timeline->cover();
+		refreshSizeEstimate();
 		seek(edge);
 	}, _timeline->lifetime());
 
@@ -326,6 +334,43 @@ void VideoEditor::setupQuality() {
 	_quality = base::make_unique_q<VideoQualitySlider>(_controls.get());
 	refreshQualityLevels();
 	_quality->setValue(_initial.quality);
+	_quality->valueChanges(
+	) | rpl::on_next([=] {
+		refreshSizeEstimate();
+	}, _quality->lifetime());
+}
+
+void VideoEditor::setupSizeEstimate() {
+	const auto path = _path;
+	crl::async([=, weak = base::make_weak(this)] {
+		auto info = Media::Encode::ProbeSource(path);
+		crl::on_main(weak, [=, info = std::move(info)]() mutable {
+			_source = std::move(info);
+			refreshSizeEstimate();
+		});
+	});
+}
+
+void VideoEditor::refreshSizeEstimate() {
+	if (!_timeline || _source.empty()) {
+		return;
+	}
+	const auto modifications = collect();
+	const auto transcoded = _data.transcodeAlways
+		|| VideoEdited(
+			modifications,
+			_dimensions,
+			_duration,
+			_source.hasAudio);
+	const auto bytes = transcoded
+		? Media::Encode::EstimateTranscodedSize(
+			ComposeVideoSource(_path, modifications, _data, false),
+			_source)
+		: _source.fileSize;
+	_timeline->setSizeLabel((bytes > 0)
+		? ((transcoded ? QString::fromUtf8("~") : QString())
+			+ Ui::FormatSizeText(bytes))
+		: QString());
 }
 
 void VideoEditor::refreshQualityLevels() {
@@ -486,11 +531,13 @@ void VideoEditor::setupControls() {
 			_geometry.angle -= 360;
 		}
 		applyGeometry();
+		refreshSizeEstimate();
 		invalidateCoverPreview();
 	});
 	_flip->setClickedCallback([=] {
 		_geometry.flipped = !_geometry.flipped;
 		applyGeometry();
+		refreshSizeEstimate();
 		invalidateCoverPreview();
 	});
 	if (_gifButton) {
@@ -504,6 +551,7 @@ void VideoEditor::setupControls() {
 		_gifButton->setClickedCallback([=] {
 			_gif = !_gif;
 			refresh();
+			refreshSizeEstimate();
 		});
 	}
 	_cancelButton->setClickedCallback([=] {
@@ -517,7 +565,9 @@ void VideoEditor::setupControls() {
 void VideoEditor::setupStreaming() {
 	using namespace Media::Streaming;
 
-	auto loader = MakeFileLoader(_path);
+	auto loader = _path.isEmpty()
+		? MakeBytesLoader(_content)
+		: MakeFileLoader(_path);
 	if (!loader) {
 		return;
 	}
@@ -570,13 +620,10 @@ void VideoEditor::setupTapToPause() {
 			}
 		} else if (type == QEvent::MouseButtonRelease) {
 			const auto tapped = state->pressed.has_value() && !state->moved;
-			const auto dragged = state->pressed.has_value() && state->moved;
 			state->pressed = std::nullopt;
 			state->moved = false;
 			if (tapped) {
 				togglePause();
-			} else if (dragged) {
-				invalidateCoverPreview();
 			}
 		}
 	}, lifetime());
@@ -609,6 +656,7 @@ void VideoEditor::refreshCoverPreview() {
 
 	const auto cover = _cover;
 	const auto path = _path;
+	const auto content = _content;
 	const auto dimensions = _dimensions;
 	const auto side = st::videoEditorBubbleSize
 		* style::DevicePixelRatio()
@@ -620,7 +668,12 @@ void VideoEditor::refreshCoverPreview() {
 	mods.geometry.crop = _crop->saveCropRect();
 
 	crl::async([=, weak = base::make_weak(this)] {
-		auto preview = ExtractCoverImage(path, mods, dimensions, side);
+		auto preview = ExtractCoverImage(
+			path,
+			content,
+			mods,
+			dimensions,
+			side);
 		crl::on_main(weak, [=, preview = std::move(preview)]() mutable {
 			_bubbleBusy = false;
 			if (!preview.isNull() && cover == _bubbleCover) {
@@ -750,8 +803,9 @@ void VideoEditor::restart(crl::time position) {
 	if (!_frameRect.isEmpty()
 		&& _instance->player().ready()
 		&& !_instance->player().videoSize().isEmpty()) {
-		_lastFrame = _instance->frame(
-			FrameRequestFor(_frameRect.size())).copy();
+		_lastFrame = _instance->frame(FrameRequestFor(
+			_frameRect.size(),
+			_data.webmSticker)).copy();
 	}
 	_position = std::clamp(position, _from, _till);
 	auto options = PlaybackOptions();
@@ -912,7 +966,9 @@ void VideoEditor::paint(QPainter &p) {
 	if (_instance
 		&& _instance->player().ready()
 		&& !_instance->player().videoSize().isEmpty()) {
-		frame = _instance->frame(FrameRequestFor(_frameRect.size()));
+		frame = _instance->frame(FrameRequestFor(
+			_frameRect.size(),
+			_data.webmSticker));
 		if (!held()) {
 			// Marking a frame shown lets the player walk past a pause.
 			_instance->markFrameShown();

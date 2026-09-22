@@ -403,11 +403,11 @@ namespace Media {
 namespace Audio {
 
 TG_FORCE_INLINE uint16 ReadOneSample(uchar data) {
-	return qAbs((static_cast<int16>(data) - 0x80) * 0x100);
+	return std::abs((static_cast<int16>(data) - 0x80) * 0x100);
 }
 
 TG_FORCE_INLINE uint16 ReadOneSample(int16 data) {
-	return qAbs(data);
+	return std::abs(data);
 }
 
 template <typename SampleType, typename Callback>

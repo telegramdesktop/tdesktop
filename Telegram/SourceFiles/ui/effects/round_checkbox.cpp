@@ -137,7 +137,7 @@ QRect WideDestRect(
 		int y,
 		float64 scale) {
 	auto iconSizeFull = kWideScale * st->size;
-	auto iconSize = qRound(iconSizeFull * scale);
+	auto iconSize = int(base::SafeRound(iconSizeFull * scale));
 	if (iconSize % 2 != iconSizeFull % 2) {
 		++iconSize;
 	}
@@ -413,9 +413,9 @@ void RoundImageCheckbox::paintFrame(
 		int outerWidth) const {
 	auto selectionLevel = _selection.value(checked() ? 1. : 0.);
 	if (_selection.animating()) {
-		auto userpicRadius = qRound(kWideScale
+		auto userpicRadius = int(base::SafeRound(kWideScale
 			* (_st.imageRadius + (_st.imageSmallRadius - _st.imageRadius)
-				* selectionLevel));
+				* selectionLevel)));
 		auto userpicShift = kWideScale * _st.imageRadius - userpicRadius;
 		auto userpicLeft = x
 			- ((kWideScale - 1) * _st.imageRadius)

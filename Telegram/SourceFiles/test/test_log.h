@@ -16,7 +16,13 @@ namespace Test {
 [[nodiscard]] QString ScreenshotsDir();
 
 // Appends one line to <EvidenceDir()>/test_log.txt and flushes immediately,
-// so evidence survives any crash or kill.
+// so evidence survives any crash or kill. Exactly one physical line per
+// call, whatever |line| carries: every character Python's str.splitlines()
+// breaks on - which is the grammar the external runner's readers use -
+// is written as a visible \uXXXX escape, so a record whose text had a
+// break stays one row rather than several, and no middle line can be
+// byte-equal to the completion marker. Text with no separator is written
+// byte for byte, and the escape adds no trailing whitespace.
 void LogRaw(const QString &line);
 
 void Step(const QString &text);
@@ -25,6 +31,14 @@ void Step(const QString &text);
 // "TEST_RESULT: <verdict>: <text>", with no separator and no empty suffix.
 void Pass(const QString &text, const QString &details = QString());
 void Fail(const QString &text, const QString &details = QString());
+
+// A stage or check that did not apply: its gate read false, so nothing was
+// measured. Same grammar as Pass and Fail - "TEST_RESULT: N/A: <what>" with
+// " - <details>" appended when details exist - counted separately from both
+// and never a failure, because a scenario's verdict stays decided by its
+// failure count alone. |details| carries the gate's reason, so a reader can
+// tell a deliberate skip from a missing measurement.
+void Skipped(const QString &what, const QString &details = QString());
 
 // |details| is an observation - the reading the verdict was made against -
 // and it is printed whether the check holds or not, so a green log says what
@@ -50,6 +64,7 @@ void CheckNear(
 void LogGeometry(const QString &name, const QRect &rect);
 
 [[nodiscard]] int FailureCount();
+[[nodiscard]] int SkippedCount();
 
 // Writes the TEST_COMPLETE marker the external runner waits for, and
 // records when it was written. CompletedAt() is crl::now() at that

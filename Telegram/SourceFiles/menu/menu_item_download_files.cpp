@@ -40,19 +40,21 @@ namespace {
 using Documents = std::vector<std::pair<not_null<DocumentData*>, FullMsgId>>;
 using Photos = std::vector<std::pair<not_null<PhotoData*>, FullMsgId>>;
 
-[[nodiscard]] bool Added(
+[[nodiscard]] bool Collected(
 		HistoryItem *item,
 		Documents &documents,
 		Photos &photos) {
-	if (item && !item->forbidsForward()) {
-		if (const auto media = item->media()) {
-			if (const auto photo = media->photo()) {
-				photos.emplace_back(photo, item->fullId());
-				return true;
-			} else if (const auto document = media->document()) {
-				documents.emplace_back(document, item->fullId());
-				return true;
-			}
+	if (!item) {
+		return false;
+	} else if (item->forbidsSaving()) {
+		return true;
+	} else if (const auto media = item->media()) {
+		if (const auto photo = media->photo()) {
+			photos.emplace_back(photo, item->fullId());
+			return true;
+		} else if (const auto document = media->document()) {
+			documents.emplace_back(document, item->fullId());
+			return true;
 		}
 	}
 	return false;
@@ -246,9 +248,12 @@ void AddDownloadFilesAction(
 		const auto &id = selectedItem.msgId;
 		const auto item = window->session().data().message(id);
 
-		if (!Added(item, docs, photos)) {
+		if (!Collected(item, docs, photos)) {
 			return;
 		}
+	}
+	if (docs.empty() && photos.empty()) {
+		return;
 	}
 	const auto done = [weak = base::make_weak(list)] {
 		if (const auto strong = weak.get()) {
@@ -269,9 +274,12 @@ void AddDownloadFilesAction(
 	auto docs = Documents();
 	auto photos = Photos();
 	for (const auto &item : items) {
-		if (!Added(item, docs, photos)) {
+		if (!Collected(item, docs, photos)) {
 			return;
 		}
+	}
+	if (docs.empty() && photos.empty()) {
+		return;
 	}
 	const auto done = [weak = base::make_weak(list)] {
 		if (const auto strong = weak.get()) {

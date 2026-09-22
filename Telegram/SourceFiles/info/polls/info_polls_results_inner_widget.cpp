@@ -744,7 +744,7 @@ int InnerWidget::desiredHeight() const {
 	//auto count = qMax(_user->commonChatsCount(), 1);
 	//desired += qMax(count, _list->fullRowsCount())
 	//	* st::infoCommonGroupsList.item.height;
-	return qMax(height(), desired);
+	return std::max(height(), desired);
 }
 
 void InnerWidget::setupContent() {

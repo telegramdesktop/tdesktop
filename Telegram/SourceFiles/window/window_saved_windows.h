@@ -117,6 +117,7 @@ private:
 	void createShell(not_null<Step*> step);
 	void queueFinishStep(int stepId);
 	void finishStep(not_null<Step*> step);
+	void finishStepWhenUnlocked(not_null<Step*> step);
 	void abortStep(not_null<Step*> step, bool intoClosed);
 	void markUnavailable(std::unique_ptr<Step> step);
 	void pushClosed(SavedWindow &&data, RestoreShell *shell);
