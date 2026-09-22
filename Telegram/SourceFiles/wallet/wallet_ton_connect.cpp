@@ -65,7 +65,7 @@ constexpr auto kBidiControls = std::array{
 	}
 	if (result.size() > kNameLimit) {
 		result.truncate(kNameLimit);
-		if (result.back().isHighSurrogate()) {
+		if (result.at(result.size() - 1).isHighSurrogate()) {
 			result.chop(1);
 		}
 	}
