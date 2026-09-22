@@ -47,4 +47,8 @@ struct TonConnectBoxArgs {
 
 void TonConnectBox(not_null<Ui::GenericBox*> box, TonConnectBoxArgs args);
 
+void TonConnectAppsBox(
+	not_null<Ui::GenericBox*> box,
+	std::shared_ptr<Main::SessionShow> show);
+
 } // namespace Wallet

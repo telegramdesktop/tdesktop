@@ -6039,6 +6039,33 @@ void Session::prepareTonConnectError(
 	});
 }
 
+void Session::prepareTonConnectDisconnect(
+		TonConnectKey key,
+		uint64 eventId,
+		Fn<void(QByteArray)> done,
+		Fn<void()> fail) {
+	if (!key || eventId > uint64(std::numeric_limits<int64>::max())) {
+		LOG(("Wallet Error: TON Connect disconnect requested "
+			"with unusable input."));
+		fail();
+		return;
+	}
+	_engine->runLocal([session = key.session, eventId] {
+		return BytesFromEngine(session->encrypt_disconnect_event(eventId));
+	}, [=](QByteArray body) {
+		if (body.isEmpty()) {
+			LOG(("Wallet Error: TON Connect disconnect prepared empty."));
+			fail();
+			return;
+		}
+		done(std::move(body));
+	}, [=](EngineError error) {
+		LOG(("Wallet Error: TON Connect disconnect preparation failed: %1"
+			).arg(LifecycleErrorName(error)));
+		fail();
+	});
+}
+
 void Session::sendReplaceWallet(
 		const MTPInputWalletReplacement &wallet,
 		std::optional<Core::CloudPasswordResult> password,

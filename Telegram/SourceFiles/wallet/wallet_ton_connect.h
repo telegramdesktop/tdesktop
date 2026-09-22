@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/flat_map.h"
+#include "base/flat_set.h"
 #include "base/weak_ptr.h"
 #include "mtproto/sender.h"
 #include "wallet/wallet_ton_connect_link.h"
@@ -111,6 +112,8 @@ struct TonConnectSessionInfo {
 [[nodiscard]] QString TonConnectHost(const QString &url);
 [[nodiscard]] QString TonConnectManifestName(
 	const TonConnectManifest &manifest);
+[[nodiscard]] bool TonConnectSessionConnected(
+	const TonConnectSessionInfo &info);
 
 class TonConnect final : public base::has_weak_ptr {
 public:
@@ -128,6 +131,7 @@ public:
 		TonConnectSessionId id) const;
 	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] rpl::producer<TonConnectSessionId> updates() const;
+	void ensureLoaded();
 
 	[[nodiscard]] TonConnectKey key(TonConnectSessionId id) const;
 	void acquireKey(
@@ -135,6 +139,10 @@ public:
 		TonConnectSessionId id,
 		bool needGrant,
 		Fn<void(TonConnectKeyResult)> done);
+	[[nodiscard]] bool disconnecting(TonConnectSessionId id) const;
+	void disconnect(
+		std::shared_ptr<Main::SessionShow> show,
+		TonConnectSessionId id);
 
 	void connect(
 		not_null<Window::SessionController*> controller,
@@ -142,6 +150,11 @@ public:
 
 private:
 	class Connect;
+	enum class DisconnectResult : uchar {
+		Closed,
+		Failed,
+		Ignored,
+	};
 
 	[[nodiscard]] static TonConnectSessionInfo Parse(
 		const MTPTonConnectSession &session);
@@ -159,6 +172,27 @@ private:
 		VaultAuthorization grant,
 		Fn<void(TonConnectKeyResult)> done);
 	void flowDone(const QString &key, not_null<Connect*> flow);
+	void disconnectKeyReady(
+		std::shared_ptr<Main::SessionShow> show,
+		TonConnectSessionId id,
+		TonConnectKeyResult result);
+	void disconnectFinished(
+		const std::shared_ptr<Main::SessionShow> &show,
+		TonConnectSessionId id,
+		const QString &error);
+	void sendDisconnect(
+		TonConnectSessionId id,
+		TonConnectKey key,
+		Fn<void(DisconnectResult)> done);
+	void closeSession(
+		TonConnectSessionId id,
+		QByteArray body,
+		Fn<void(DisconnectResult)> done);
+	void disconnectFailed(
+		TonConnectSessionId id,
+		const MTP::Error &error,
+		const Fn<void(DisconnectResult)> &done);
+	void markClosed(TonConnectSessionId id);
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
@@ -166,6 +200,7 @@ private:
 	base::flat_map<TonConnectSessionId, TonConnectKey> _keys;
 	base::flat_map<QString, std::unique_ptr<Connect>> _connects;
 	std::vector<std::pair<TonConnectSessionInfo, bool>> _changedWhileLoading;
+	base::flat_set<TonConnectSessionId> _disconnecting;
 	rpl::event_stream<TonConnectSessionId> _updates;
 	mtpRequestId _loadRequestId = 0;
 	bool _loaded = false;

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "wallet/wallet_ton_connect_box.h"
 
+#include "base/unixtime.h"
 #include "data/data_cloud_file.h"
 #include "data/data_file_origin.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h"
@@ -19,10 +20,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "wallet/wallet_content.h"
+#include "wallet/wallet_session.h"
+#include "wallet/wallet_ton_connect.h"
 
 #include "styles/style_layers.h"
 #include "styles/style_wallet.h"
@@ -32,11 +37,15 @@ namespace {
 
 using Phase = TonConnectBoxPhase;
 
+struct AppIcon {
+	QString url;
+	QImage image;
+	Data::CloudFile file;
+};
+
 struct State {
 	std::optional<TonConnectBoxState> built;
-	QString iconUrl;
-	QImage icon;
-	Data::CloudFile iconFile;
+	AppIcon icon;
 	QPointer<Ui::VerticalLayout> body;
 	QPointer<Ui::RpWidget> iconRow;
 	QPointer<Ui::FlatLabel> title;
@@ -49,20 +58,38 @@ struct State {
 	bool busy = false;
 };
 
+struct AppRow {
+	TonConnectSessionId id = 0;
+	QString name;
+	QString domain;
+	QString iconUrl;
+	TimeId date = 0;
+
+	friend bool operator==(const AppRow &, const AppRow &) = default;
+};
+
+struct AppsState {
+	std::vector<AppRow> shown;
+	base::flat_map<QString, std::unique_ptr<AppIcon>> icons;
+	base::flat_map<TonConnectSessionId, QPointer<Ui::RoundButton>> buttons;
+	bool built = false;
+	bool loaded = false;
+};
+
 [[nodiscard]] bool SameBody(
 		const TonConnectBoxState &built,
 		const TonConnectBoxState &now) {
 	return (built.phase == Phase::Notice) == (now.phase == Phase::Notice);
 }
 
-[[nodiscard]] QImage PrepareIcon(QImage image) {
+[[nodiscard]] QImage PrepareIcon(QImage image, int size) {
 	if (image.isNull()
 		|| image.width() * 20 < image.height()
 		|| image.height() * 20 < image.width()) {
 		return QImage();
 	}
 	const auto ratio = style::DevicePixelRatio();
-	const auto full = st::walletConnectIconSize * ratio;
+	const auto full = size * ratio;
 	image = image.scaled(
 		full,
 		full,
@@ -84,34 +111,47 @@ struct State {
 }
 
 void LoadIcon(
-		not_null<State*> state,
+		not_null<AppIcon*> icon,
 		not_null<Main::Session*> session,
+		int size,
 		Fn<void()> repaint) {
-	state->iconFile.clear();
-	state->icon = QImage();
-	if (state->iconUrl.isEmpty()) {
+	icon->file.clear();
+	icon->image = QImage();
+	if (icon->url.isEmpty()) {
 		repaint();
 		return;
 	}
-	state->iconFile.location = ImageLocation(
-		DownloadLocation{ PlainUrlLocation{ state->iconUrl } },
+	icon->file.location = ImageLocation(
+		DownloadLocation{ PlainUrlLocation{ icon->url } },
 		0,
 		0);
 	Data::LoadCloudFile(
 		session,
-		state->iconFile,
+		icon->file,
 		Data::FileOrigin(),
 		LoadFromCloudOrLocal,
 		false,
 		0,
 		nullptr,
 		[=](QImage image, QByteArray) {
-			state->icon = PrepareIcon(std::move(image));
+			icon->image = PrepareIcon(std::move(image), size);
 			repaint();
 		},
 		[=](bool) {
 			repaint();
 		});
+}
+
+void PaintIcon(QPainter &p, QRect disc, const QImage &image) {
+	auto hq = PainterHighQualityEnabler(p);
+	if (image.isNull()) {
+		p.setBrush(st::windowBgOver);
+		p.setPen(Qt::NoPen);
+		p.drawEllipse(disc);
+		st::walletConnectIconPlaceholder.paintInCenter(p, disc);
+	} else {
+		p.drawImage(disc, image);
+	}
 }
 
 void FillHeader(not_null<Ui::GenericBox*> box, not_null<State*> state) {
@@ -130,15 +170,7 @@ void FillHeader(not_null<Ui::GenericBox*> box, not_null<State*> state) {
 			return;
 		}
 		auto p = QPainter(row);
-		auto hq = PainterHighQualityEnabler(p);
-		if (state->icon.isNull()) {
-			p.setBrush(st::windowBgOver);
-			p.setPen(Qt::NoPen);
-			p.drawEllipse(disc);
-			st::walletConnectIconPlaceholder.paintInCenter(p, disc);
-		} else {
-			p.drawImage(disc, state->icon);
-		}
+		PaintIcon(p, disc, state->icon.image);
 	}, row->lifetime());
 
 	const auto &loading = st::walletBusyBoxLoading;
@@ -287,9 +319,9 @@ void UpdateState(
 	}
 	domain->toggle(!now.domain.isEmpty(), animated);
 	state->spinner->setVisible(loading);
-	if (state->iconUrl != now.iconUrl) {
-		state->iconUrl = now.iconUrl;
-		LoadIcon(state, session, [=] {
+	if (state->icon.url != now.iconUrl) {
+		state->icon.url = now.iconUrl;
+		LoadIcon(&state->icon, session, st::walletConnectIconSize, [=] {
 			if (const auto row = state->iconRow.data()) {
 				row->update();
 			}
@@ -309,6 +341,186 @@ void UpdateState(
 	}
 	state->busy = (now.phase != Phase::Confirm);
 	Ui::SetButtonBusy(state->connect.data(), state->busy);
+}
+
+[[nodiscard]] std::vector<AppRow> CollectApps(const TonConnect &store) {
+	auto result = std::vector<AppRow>();
+	for (const auto &[id, info] : store.sessions()) {
+		if (!TonConnectSessionConnected(info)) {
+			continue;
+		}
+		const auto &manifest = info.manifest;
+		auto name = manifest ? TonConnectManifestName(*manifest) : QString();
+		if (name.isEmpty()) {
+			name = tr::lng_wallet_apps_unknown(tr::now);
+		}
+		result.push_back({
+			.id = id,
+			.name = std::move(name),
+			.domain = manifest ? TonConnectHost(manifest->url) : QString(),
+			.iconUrl = ((manifest && ValidHttpsUrl(manifest->iconUrl))
+				? manifest->iconUrl
+				: QString()),
+			.date = info.date,
+		});
+	}
+	ranges::sort(result, [](const AppRow &a, const AppRow &b) {
+		return (a.date != b.date) ? (a.date > b.date) : (a.id > b.id);
+	});
+	return result;
+}
+
+[[nodiscard]] not_null<AppIcon*> ResolveIcon(
+		not_null<AppsState*> state,
+		not_null<Main::Session*> session,
+		not_null<Ui::VerticalLayout*> list,
+		const QString &url) {
+	auto &icon = state->icons[url];
+	if (!icon) {
+		icon = std::make_unique<AppIcon>();
+		icon->url = url;
+		LoadIcon(icon.get(), session, st::walletRowIconSize, [=] {
+			list->update();
+		});
+	}
+	return icon.get();
+}
+
+[[nodiscard]] not_null<Ui::RoundButton*> AddAppRow(
+		not_null<Ui::VerticalLayout*> list,
+		not_null<AppsState*> state,
+		not_null<Main::Session*> session,
+		const AppRow &row,
+		Fn<void()> disconnect) {
+	const auto wrap = list->add(
+		object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
+			list,
+			object_ptr<Ui::VerticalLayout>(list),
+			st::walletRowPadding));
+	const auto inner = wrap->entity();
+	inner->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto button = Ui::CreateChild<Ui::RoundButton>(
+		wrap,
+		tr::lng_wallet_apps_disconnect(),
+		st::attentionBoxButton);
+	button->setClickedCallback(std::move(disconnect));
+	const auto reserve = style::margins(
+		0,
+		0,
+		button->width() + st::walletRowSkip,
+		0);
+	const auto name = inner->add(
+		object_ptr<Ui::FlatLabel>(inner, row.name, st::walletRowTitleLabel),
+		reserve);
+	name->setBreakEverywhere(true);
+	if (!row.domain.isEmpty()) {
+		Ui::AddSkip(inner, st::walletRowSkip);
+		const auto domain = inner->add(
+			object_ptr<Ui::FlatLabel>(
+				inner,
+				row.domain,
+				st::walletRowSubtitleLabel),
+			reserve);
+		domain->setBreakEverywhere(true);
+	}
+	if (row.date) {
+		Ui::AddSkip(inner, st::walletRowSkip);
+		inner->add(
+			object_ptr<Ui::FlatLabel>(
+				inner,
+				langDateTime(base::unixtime::parse(row.date)),
+				st::walletRowDateLabel),
+			reserve);
+	}
+
+	const auto icon = row.iconUrl.isEmpty()
+		? nullptr
+		: ResolveIcon(state, session, list, row.iconUrl).get();
+	const auto circle = Ui::CreateChild<Ui::RpWidget>(wrap);
+	circle->resize(st::walletRowIconSize, st::walletRowIconSize);
+	circle->setAttribute(Qt::WA_TransparentForMouseEvents);
+	circle->paintRequest(
+	) | rpl::on_next([=] {
+		auto p = QPainter(circle);
+		PaintIcon(p, circle->rect(), icon ? icon->image : QImage());
+	}, circle->lifetime());
+	Ui::ToggleChildrenVisibility(wrap, true);
+	wrap->geometryValue(
+	) | rpl::on_next([=](const QRect &g) {
+		circle->moveToLeft(
+			st::walletRowIconLeft,
+			(g.height() - circle->height()) / 2,
+			g.width());
+		button->moveToRight(
+			st::walletRowPadding.right(),
+			(g.height() - button->height()) / 2,
+			g.width());
+	}, wrap->lifetime());
+	return button;
+}
+
+void AddAppsPlaceholder(not_null<Ui::VerticalLayout*> list, bool loading) {
+	const auto band = list->add(
+		object_ptr<Ui::FixedHeightWidget>(list, st::noContactsHeight));
+	if (loading) {
+		const auto &radial = st::walletBusyBoxLoading;
+		const auto side = radial.size.height() + 2 * radial.thickness;
+		const auto indicator = Info::Statistics::InfiniteRadialAnimationWidget(
+			band,
+			side,
+			&radial);
+		Info::Statistics::AddChildToWidgetCenter(band, indicator);
+		indicator->show();
+		return;
+	}
+	band->paintRequest(
+	) | rpl::on_next([=] {
+		auto p = QPainter(band);
+		p.setFont(st::noContactsFont);
+		p.setPen(st::noContactsColor);
+		p.drawText(
+			band->rect(),
+			tr::lng_wallet_apps_empty(tr::now),
+			style::al_center);
+	}, band->lifetime());
+}
+
+void RefreshApps(
+		not_null<Ui::VerticalLayout*> list,
+		not_null<AppsState*> state,
+		const std::shared_ptr<Main::SessionShow> &show) {
+	auto &store = show->session().wallet().tonConnect();
+	auto apps = CollectApps(store);
+	const auto loaded = store.loaded();
+	if (!state->built
+		|| apps != state->shown
+		|| (apps.empty() && loaded != state->loaded)) {
+		state->built = true;
+		state->shown = std::move(apps);
+		state->loaded = loaded;
+		list->clear();
+		state->buttons.clear();
+		if (state->shown.empty()) {
+			AddAppsPlaceholder(list, !loaded);
+		}
+		for (const auto &row : state->shown) {
+			const auto button = AddAppRow(
+				list,
+				state,
+				&show->session(),
+				row,
+				[=, id = row.id] {
+					show->session().wallet().tonConnect().disconnect(show, id);
+				});
+			state->buttons.emplace(row.id, button.get());
+		}
+		if (const auto width = list->width()) {
+			list->resizeToWidth(width);
+		}
+	}
+	for (const auto &[id, button] : state->buttons) {
+		Ui::SetButtonBusy(button.data(), store.disconnecting(id));
+	}
 }
 
 } // namespace
@@ -351,6 +563,43 @@ void TonConnectBox(not_null<Ui::GenericBox*> box, TonConnectBoxArgs args) {
 			rebuild ? anim::type::instant : anim::type::normal);
 		state->built = now;
 	}, box->lifetime());
+}
+
+void TonConnectAppsBox(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Main::SessionShow> show) {
+	auto &wallet = show->session().wallet();
+	if (wallet.presence() != Presence::Ready) {
+		box->closeBox();
+		return;
+	}
+	box->setTitle(tr::lng_wallet_apps_title());
+	box->setWidth(st::boxWideWidth);
+	box->setMaxHeight(st::boxMaxListHeight);
+	const auto container = box->verticalLayout();
+	Ui::AddSkip(container);
+	const auto list = container->add(
+		object_ptr<Ui::VerticalLayout>(container));
+	Ui::AddSkip(container);
+	Ui::AddDividerText(container, tr::lng_wallet_apps_about());
+
+	const auto state = box->lifetime().make_state<AppsState>();
+	auto &store = wallet.tonConnect();
+	store.updates(
+	) | rpl::on_next([=](TonConnectSessionId) {
+		RefreshApps(list, state, show);
+	}, box->lifetime());
+	store.ensureLoaded();
+	RefreshApps(list, state, show);
+
+	wallet.presenceValue(
+	) | rpl::filter([](Presence presence) {
+		return (presence != Presence::Ready);
+	}) | rpl::on_next([=] {
+		box->closeBox();
+	}, box->lifetime());
+
+	box->addButton(tr::lng_close(), [=] { box->closeBox(); });
 }
 
 } // namespace Wallet

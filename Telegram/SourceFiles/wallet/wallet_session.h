@@ -638,6 +638,11 @@ public:
 		int code,
 		Fn<void(TonConnectReply)> done,
 		Fn<void()> fail);
+	void prepareTonConnectDisconnect(
+		TonConnectKey key,
+		uint64 eventId,
+		Fn<void(QByteArray)> done,
+		Fn<void()> fail);
 	[[nodiscard]] bool rotationOffered();
 	void quoteRotationFee(KeyAuthorization auth, Fn<void(FeeResult)> done);
 	void prepareRotation(

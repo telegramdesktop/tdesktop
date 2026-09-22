@@ -93,6 +93,20 @@ constexpr auto kBidiControls = std::array{
 	Unexpected("Access in TON Connect AccessNotice.");
 }
 
+[[nodiscard]] QString DisconnectAccessNotice(TonConnectAccess access) {
+	switch (access) {
+	case TonConnectAccess::KeyChanging:
+		return tr::lng_wallet_apps_disconnect_key_changing(tr::now);
+	case TonConnectAccess::NoCurrentKey:
+		return tr::lng_wallet_apps_disconnect_no_key(tr::now);
+	case TonConnectAccess::Allowed:
+	case TonConnectAccess::WalletNotReady:
+	case TonConnectAccess::Busy:
+		return tr::lng_wallet_apps_disconnect_failed(tr::now);
+	}
+	Unexpected("Access in TON Connect DisconnectAccessNotice.");
+}
+
 } // namespace
 
 class TonConnect::Connect final : public base::has_weak_ptr {
@@ -190,6 +204,11 @@ QString TonConnectManifestName(const TonConnectManifest &manifest) {
 	return Sanitize(manifest.name, TonConnectHost(manifest.url));
 }
 
+bool TonConnectSessionConnected(const TonConnectSessionInfo &info) {
+	return (info.status == TonConnectSessionStatus::Active)
+		|| (info.status == TonConnectSessionStatus::Closing);
+}
+
 TonConnect::TonConnect(not_null<Main::Session*> session)
 : _session(session)
 , _api(&session->mtp()) {
@@ -242,6 +261,16 @@ rpl::producer<TonConnectSessionId> TonConnect::updates() const {
 	return _updates.events();
 }
 
+void TonConnect::ensureLoaded() {
+	if (_stopped
+		|| _loaded
+		|| _loadRequestId
+		|| _session->wallet().presenceCurrent() != Presence::Ready) {
+		return;
+	}
+	requestSessions();
+}
+
 TonConnectKey TonConnect::key(TonConnectSessionId id) const {
 	const auto i = _keys.find(id);
 	return (i != end(_keys)) ? i->second : TonConnectKey();
@@ -267,6 +296,40 @@ void TonConnect::acquireKey(
 			unlocked(id, std::move(auth), done);
 		}),
 	});
+}
+
+bool TonConnect::disconnecting(TonConnectSessionId id) const {
+	return _disconnecting.contains(id);
+}
+
+void TonConnect::disconnect(
+		std::shared_ptr<Main::SessionShow> show,
+		TonConnectSessionId id) {
+	const auto info = session(id);
+	if (_stopped
+		|| !info
+		|| !TonConnectSessionConnected(*info)
+		|| _disconnecting.contains(id)) {
+		return;
+	}
+	// WHY: a key derived before a rotation still speaks for its session,
+	// so only a device that has to derive anew is held to the access rule.
+	if (!key(id)) {
+		const auto access = _session->wallet().tonConnectAccess();
+		if (access != TonConnectAccess::Allowed) {
+			show->showToast(DisconnectAccessNotice(access));
+			return;
+		}
+	}
+	_disconnecting.emplace(id);
+	_updates.fire_copy(id);
+	acquireKey(
+		show,
+		id,
+		false,
+		crl::guard(this, [=](TonConnectKeyResult result) {
+			disconnectKeyReady(show, id, std::move(result));
+		}));
 }
 
 void TonConnect::connect(
@@ -446,6 +509,128 @@ void TonConnect::flowDone(const QString &key, not_null<Connect*> flow) {
 			_connects.erase(i);
 		}
 	});
+}
+
+void TonConnect::disconnectKeyReady(
+		std::shared_ptr<Main::SessionShow> show,
+		TonConnectSessionId id,
+		TonConnectKeyResult result) {
+	using Error = TonConnectKeyError;
+	if (result.error == Error::None) {
+		const auto finished = [=](DisconnectResult outcome) {
+			disconnectFinished(
+				show,
+				id,
+				((outcome == DisconnectResult::Failed)
+					? tr::lng_wallet_apps_disconnect_failed(tr::now)
+					: QString()));
+		};
+		sendDisconnect(id, std::move(result.key), finished);
+		return;
+	}
+	auto text = QString();
+	if (session(id)) {
+		switch (result.error) {
+		case Error::Cancelled:
+			break;
+		case Error::Locked:
+			text = VaultLockedText(_session);
+			break;
+		case Error::Blocked:
+			text = DisconnectAccessNotice(
+				_session->wallet().tonConnectAccess());
+			break;
+		case Error::OtherKey:
+			text = tr::lng_wallet_apps_disconnect_other_key(tr::now);
+			break;
+		case Error::None:
+		case Error::Failed:
+			text = tr::lng_wallet_apps_disconnect_failed(tr::now);
+			break;
+		}
+	}
+	disconnectFinished(show, id, text);
+}
+
+void TonConnect::disconnectFinished(
+		const std::shared_ptr<Main::SessionShow> &show,
+		TonConnectSessionId id,
+		const QString &error) {
+	if (_disconnecting.remove(id) && session(id)) {
+		_updates.fire_copy(id);
+	}
+	if (!error.isEmpty() && show->valid()) {
+		show->showToast(error);
+	}
+}
+
+void TonConnect::sendDisconnect(
+		TonConnectSessionId id,
+		TonConnectKey key,
+		Fn<void(DisconnectResult)> done) {
+	if (_stopped) {
+		done(DisconnectResult::Failed);
+		return;
+	}
+	_api.request(MTPwallet_TonConnectNextEventId(
+		MTP_long(id)
+	)).done([=](const MTPTonConnectNextEventId &result) {
+		_session->wallet().prepareTonConnectDisconnect(
+			key,
+			result.data().vevent_id().v,
+			crl::guard(this, [=](QByteArray body) {
+				closeSession(id, std::move(body), done);
+			}),
+			crl::guard(this, [=] {
+				done(DisconnectResult::Failed);
+			}));
+	}).fail([=](const MTP::Error &error) {
+		LOG(("Wallet Error: wallet.tonConnectNextEventId failed: %1"
+			).arg(error.type()));
+		disconnectFailed(id, error, done);
+	}).send();
+}
+
+void TonConnect::closeSession(
+		TonConnectSessionId id,
+		QByteArray body,
+		Fn<void(DisconnectResult)> done) {
+	_api.request(MTPwallet_TonConnectCloseSession(
+		MTP_long(id),
+		MTP_bytes(body)
+	)).done([=](const MTPBool &result) {
+		if (mtpIsTrue(result)) {
+			markClosed(id);
+			done(DisconnectResult::Closed);
+		} else {
+			LOG(("Wallet Error: "
+				"wallet.tonConnectCloseSession returned false."));
+			done(DisconnectResult::Failed);
+		}
+	}).fail([=](const MTP::Error &error) {
+		LOG(("Wallet Error: wallet.tonConnectCloseSession failed: %1"
+			).arg(error.type()));
+		disconnectFailed(id, error, done);
+	}).send();
+}
+
+void TonConnect::disconnectFailed(
+		TonConnectSessionId id,
+		const MTP::Error &error,
+		const Fn<void(DisconnectResult)> &done) {
+	if (SessionGone(error.type())) {
+		markClosed(id);
+		done(DisconnectResult::Closed);
+	} else {
+		done(MTP::IgnoreError(error)
+			? DisconnectResult::Ignored
+			: DisconnectResult::Failed);
+	}
+}
+
+void TonConnect::markClosed(TonConnectSessionId id) {
+	_disconnecting.remove(id);
+	store({ .id = id, .status = TonConnectSessionStatus::Closed }, false);
 }
 
 TonConnect::Connect::Connect(

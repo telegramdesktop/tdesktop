@@ -9107,6 +9107,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_connect_other_key" = "This connection was started under a different wallet key, so this device can't complete it. Start the connection again from the app.";
 "lng_wallet_connect_expired" = "This connection request is no longer valid. Start the connection again from the app.";
 "lng_wallet_connect_failed" = "Couldn't connect the wallet. Please try again.";
+"lng_wallet_apps_title" = "Connected Apps";
+"lng_wallet_apps_about" = "Apps you connected to this wallet with TON Connect. Disconnecting an app ends its connection on all your devices.";
+"lng_wallet_apps_empty" = "No connected apps";
+"lng_wallet_apps_unknown" = "Unknown app";
+"lng_wallet_apps_disconnect" = "Disconnect";
+"lng_wallet_apps_disconnect_failed" = "Couldn't disconnect the app. Please try again.";
+"lng_wallet_apps_disconnect_key_changing" = "Your wallet key is being changed. Apps can't be disconnected from this device until the change is confirmed.";
+"lng_wallet_apps_disconnect_no_key" = "This device doesn't hold the current key of this wallet, so it can't disconnect apps.";
+"lng_wallet_apps_disconnect_other_key" = "This app was connected with a different key of this wallet, so this device can't disconnect it. You can disconnect it in the app.";
 
 // Wnd specific
 
