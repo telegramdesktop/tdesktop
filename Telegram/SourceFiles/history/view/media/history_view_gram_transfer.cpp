@@ -427,7 +427,7 @@ private:
 	return parsed
 		? Wallet::FormatFriendly(
 			parsed->raw,
-			parsed->bounceable,
+			false,
 			parsed->testnet)
 		: QString();
 }

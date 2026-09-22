@@ -1010,7 +1010,7 @@ QString EncryptedCommentLabel::accessibilityName() {
 // address without saying so.
 [[nodiscard]] std::optional<QString> DetailsFriendlyAddress(
 		const QString &raw) {
-	const auto friendly = FormatFriendly(raw, true);
+	const auto friendly = FormatFriendly(raw, false);
 	if (friendly.isEmpty()) {
 		return std::nullopt;
 	}
