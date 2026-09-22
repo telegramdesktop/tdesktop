@@ -17,9 +17,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
-#include "info/channel_statistics/earn/earn_icons.h"
 #include "info/peer_gifts/info_peer_gifts_common.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "ui/chat/chat_style.h"
@@ -122,6 +122,9 @@ public:
 		StateRequest request,
 		int outerWidth) const override;
 
+	[[nodiscard]] bool hasHeavyPart() override;
+	void unloadHeavyPart() override;
+
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 
@@ -153,8 +156,8 @@ private:
 	const QString _address;
 	const QString _identity;
 	Layout _layout;
-	mutable QImage _mark;
-	mutable QColor _markColor;
+	mutable std::unique_ptr<Lottie::Icon> _mark;
+	mutable bool _markStarted = false;
 	mutable QImage _badge;
 	mutable Info::PeerGifts::GiftBadge _badgeKey;
 	mutable QMargins _badgePadding;
@@ -621,17 +624,26 @@ int GramTransferCardPart::resolveLayout(int outerWidth) {
 }
 
 void GramTransferCardPart::validateMark() const {
-	const auto size = st::walletChatCardMarkSize;
-	const auto color = st::activeButtonFg->c;
-	const auto ratio = style::DevicePixelRatio();
-	if (!_mark.isNull()
-		&& _markColor == color
-		&& _mark.size() == QSize(size, size) * ratio
-		&& _mark.devicePixelRatio() == ratio) {
+	if (_mark) {
 		return;
 	}
-	_markColor = color;
-	_mark = Ui::Earn::IconCurrencyColored(size, color);
+	const auto size = st::walletChatCardMarkPaintSize;
+	_mark = Lottie::MakeIcon({
+		.name = u"gram_light"_q,
+		.sizeOverride = { size, size },
+	});
+	if (const auto view = _origin.view.get()) {
+		view->history()->owner().registerHeavyViewPart(view);
+	}
+}
+
+bool GramTransferCardPart::hasHeavyPart() {
+	return _mark != nullptr;
+}
+
+void GramTransferCardPart::unloadHeavyPart() {
+	_mark = nullptr;
+	_markStarted = false;
 }
 
 void GramTransferCardPart::validateBadge() const {
@@ -672,9 +684,25 @@ void GramTransferCardPart::draw(
 	Wallet::PaintCardBackground(p, _layout.card);
 	p.translate(_layout.card.topLeft());
 	const auto cardWidth = _layout.card.width();
-	p.drawImage(
-		QPointF((cardWidth - st::walletChatCardMarkSize) / 2., _layout.markTop),
-		_mark);
+	if (_mark->valid() && !_markStarted) {
+		const auto last = _mark->framesCount() - 1;
+		if (!context.paused && !On(PowerSaving::kStickersChat)) {
+			_markStarted = true;
+			_mark->animate([view = _origin.view] {
+				if (const auto strong = view.get()) {
+					strong->repaint();
+				}
+			}, 0, last);
+		} else if (_mark->frameIndex() != last) {
+			_mark->jumpTo(last, nullptr);
+		}
+	}
+	const auto markPaint = st::walletChatCardMarkPaintSize;
+	const auto markShift = (markPaint - st::walletChatCardMarkSize) / 2;
+	_mark->paint(
+		p,
+		(cardWidth - markPaint) / 2,
+		_layout.markTop - markShift);
 	const auto &majorFont = st::walletCardBalanceMajorLabel.style.font;
 	p.save();
 	p.translate(cardWidth / 2., _layout.amountTop);
