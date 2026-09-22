@@ -610,7 +610,7 @@ void WithDropdownController::showMenu() {
 			_menuOverCallback(false);
 		} else if (type == QEvent::MouseMove) {
 			const auto mouse = static_cast<QMouseEvent*>(e.get());
-			handleMenuMove(mouse->globalPosition().toPoint());
+			handleMenuMove(mouse->globalPos());
 		}
 	}, _menu->lifetime());
 	_menu->setHiddenCallback([=]{
