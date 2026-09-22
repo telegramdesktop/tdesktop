@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "data/data_user.h"
+#include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "main/session/session_show.h"
@@ -24,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/button_busy.h"
 #include "ui/layers/generic_box.h"
 #include "ui/vertical_list.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/widgets/fields/password_input.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
@@ -34,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_giveaway.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 #include "styles/style_wallet.h"
 
@@ -63,23 +66,28 @@ struct HardwareUnlockArgs {
 };
 
 // Retention is a VaultRuntime property the user ticks inside the passcode
-// box before it asks; a hardware provider's system sheet has no checkbox,
-// so this box asks the same question first and Continue is what runs the
-// sheet. Every dismissal reaches boxClosing() and reports done once through
-// the latch WalletPasscodeBox keeps; a Continue that got an answer reports
-// through the answer instead. The provider answers many main-thread turns
-// later, possibly after this box or the whole panel is gone: such an answer
-// is dropped whole - no toast, no flag, no report - because the close has
+// box before it asks; a hardware provider's system sheet has no checkbox, so
+// this box keeps the same question beside the sheet it raises as it opens.
+// Every dismissal reaches boxClosing() and reports done once through the
+// latch WalletPasscodeBox keeps; an ask that got an answer reports through
+// the answer instead. The provider answers many main-thread turns later,
+// possibly after this box or the whole panel is gone: such an answer is
+// dropped whole - no toast, no flag, no report - because the close has
 // already reported, and the sheet itself is system-owned and stays up until
-// the user answers it. Nothing on the keyring's write path runs off the main
-// thread: unlockWith() and grant() run inside the marshalled answer.
+// the user answers it. That is also why a sheet the user dismissed leaves
+// this box standing with Retry instead of closing: the box is the only part
+// of the ask this side owns. Nothing on the keyring's write path runs off
+// the main thread: unlockWith() and grant() run inside the marshalled answer.
 void HardwareUnlockBox(
 		not_null<Ui::GenericBox*> box,
 		HardwareUnlockArgs args) {
 	struct State {
+		// True from the first paint, so the sheet the box is about to raise
+		// is never announced by a spinner that starts a frame later.
+		rpl::variable<bool> asking = true;
+		Fn<void()> ask;
 		bool reported = false;
 		bool busy = false;
-		QPointer<Ui::RoundButton> submit;
 	};
 	const auto state = box->lifetime().make_state<State>();
 	const auto show = args.show;
@@ -87,15 +95,8 @@ void HardwareUnlockBox(
 	const auto done = args.done;
 	const auto weak = base::make_weak(box);
 	const auto weakSession = base::make_weak(&show->session());
-	box->setTitle(provider->title());
-	box->addRow(
-		object_ptr<Ui::FlatLabel>(
-			box,
-			tr::lng_wallet_protection_hardware_prompt(
-				lt_provider,
-				provider->label()),
-			st::boxLabel),
-		st::walletProtectionIntroMargin);
+	const auto retry = [=] { state->ask(); };
+	SetupSystemPromptBox(box, provider, state->asking.value(), retry);
 	const auto remember = box->addRow(
 		object_ptr<Ui::Checkbox>(
 			box,
@@ -115,15 +116,12 @@ void HardwareUnlockBox(
 			lt_provider,
 			CurrentValue(provider->label())));
 	};
-	const auto setBusy = [=](bool busy) {
-		state->busy = busy;
-		Ui::SetButtonBusy(state->submit.data(), busy);
-	};
 	const auto answered = [=](quint32 epoch, ProtectionUnwrapResult result) {
 		if (!weak || !weakSession || !show->valid() || state->reported) {
 			return;
 		}
-		setBusy(false);
+		state->busy = false;
+		state->asking = false;
 		auto &session = show->session();
 		auto &vault = session.wallet().vault();
 		if (!vault.current(session.uniqueId(), epoch)
@@ -137,7 +135,8 @@ void HardwareUnlockBox(
 			: result.error;
 		switch (error) {
 		case ProtectionError::Cancelled:
-			report(nullptr);
+			// A dismissed sheet states nothing, so the box says it instead,
+			// by standing where it was with Retry in place of the spinner.
 			return;
 		case ProtectionError::AuthenticationFailed:
 			toast(tr::lng_wallet_protection_hardware_failed);
@@ -165,7 +164,7 @@ void HardwareUnlockBox(
 		vault.setRetention(remember->checked());
 		report(Share(vault.grant(session.uniqueId())));
 	};
-	const auto submit = [=] {
+	state->ask = [=] {
 		if (state->busy || !weakSession || !show->valid()) {
 			return;
 		}
@@ -179,15 +178,18 @@ void HardwareUnlockBox(
 		// before the ask, and the runtime refuses a key that was opened
 		// before that clear rather than undoing it.
 		const auto epoch = session.wallet().vault().clearEpoch();
-		setBusy(true);
+		state->busy = true;
+		state->asking = true;
 		provider->unwrap(&session.local(), args.wrap, [=](
 				ProtectionUnwrapResult result) {
 			answered(epoch, std::move(result));
 		});
 	};
-	state->submit = box->addButton(tr::lng_continue(), submit);
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-	SubmitBoxOnEnter(box, submit);
+	// A box shown over this one sends showFinished() again as it closes, so
+	// only the first one asks: every later ask is the user's to make.
+	box->showFinishes() | rpl::take(1) | rpl::on_next([=] {
+		state->ask();
+	}, box->lifetime());
 	box->boxClosing() | rpl::on_next([=] {
 		if (!state->reported) {
 			state->reported = true;

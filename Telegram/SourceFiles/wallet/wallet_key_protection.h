@@ -158,6 +158,16 @@ struct KeyProtectionArgs {
 // so an auto-repeated Enter is not the deliberate press this acts on.
 void SubmitBoxOnEnter(not_null<Ui::GenericBox*> box, Fn<void()> submit);
 
+// The layer a provider's system sheet is raised behind: the provider's own
+// title and mark, a spinner while the sheet is up, and Retry beside Cancel
+// once the user dismissed it. The caller drives `asking`, adds any further
+// rows after this call and owns what the answers mean.
+void SetupSystemPromptBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<ProtectionProvider*> provider,
+	rpl::producer<bool> asking,
+	Fn<void()> retry);
+
 // Optional bytes already verified against key_data. Otherwise the chooser
 // acquires them lazily, only for a passcode choice or passcode change.
 void ShowKeyProtectionBox(

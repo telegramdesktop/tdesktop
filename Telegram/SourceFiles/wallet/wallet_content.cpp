@@ -6291,6 +6291,52 @@ void WalletPhraseBox(
 		tr::lng_wallet_phrase_check_about);
 }
 
+enum class PhraseOperation {
+	Reveal,
+	Restore,
+	DropParked,
+};
+
+void ShowPhraseError(
+		std::shared_ptr<Main::SessionShow> show,
+		PhraseOperation operation,
+		const QString &error) {
+	const auto text = [&] {
+		switch (operation) {
+		case PhraseOperation::Reveal:
+			return tr::lng_wallet_phrase_error(tr::now);
+		case PhraseOperation::Restore:
+			return tr::lng_wallet_restore_error(tr::now);
+		case PhraseOperation::DropParked:
+			return tr::lng_wallet_conflict_switch_error(tr::now);
+		}
+		Unexpected("Operation in ShowPhraseError.");
+	}();
+	const auto &wallet = show->session().wallet();
+	const auto identity = wallet.transferWalletIdentity();
+	LOG(("Wallet Error: key access toast operation=%1 error=%2 "
+		"address=%3 key=%4 revision=%5 presence=%6 device_mode=%7 "
+		"conflict=%8."
+		).arg((operation == PhraseOperation::Reveal)
+			? u"reveal"_q
+			: (operation == PhraseOperation::Restore)
+			? u"restore"_q
+			: u"drop_parked"_q
+		).arg(error
+		).arg(identity ? identity->address : u"(none)"_q
+		).arg(QString::fromLatin1(wallet.publicKey().toHex())
+		).arg(identity ? identity->revision : 0
+		).arg(int(wallet.presenceCurrent())
+		).arg(int(wallet.deviceCustodyState().mode)
+		).arg(wallet.deviceCustodyState().conflict));
+	show->showToast(tr::lng_wallet_error_with_type(
+		tr::now,
+		lt_message,
+		text,
+		lt_error,
+		error));
+}
+
 [[nodiscard]] TextWithEntities ReplaceCheckAbout(const QString &error) {
 	return EnforcementCheckAbout(
 		error,
@@ -6418,7 +6464,7 @@ void RequestPhraseReveal(
 		if (passcode) {
 			passcode->closeBox();
 		}
-		show->showToast(tr::lng_wallet_phrase_error(tr::now));
+		ShowPhraseError(show, PhraseOperation::Reveal, error);
 	});
 	auto authorized = Fn<void()>();
 	if (onAuthorized) {
@@ -6474,6 +6520,10 @@ void StartPhraseReveal(
 	// box carries the first-use explanation header.
 	const auto firstKeyUse = RestoreIsFirstKeyUse(session);
 	const auto askPassword = crl::guard(warning, [=] {
+		const auto cached = session->api().cloudPassword().stateCurrent();
+		LOG(("Wallet Info: phrase reveal requires password; "
+			"cached_state=%1 cached_has_password=%2."
+			).arg(cached.has_value()).arg(cached && cached->hasPassword));
 		session->api().cloudPassword().reload();
 		session->api().cloudPassword().state(
 		) | rpl::take(
@@ -6486,7 +6536,10 @@ void StartPhraseReveal(
 				if (!onWords && !onPrepared) {
 					warning->closeBox();
 				}
-				show->showToast(tr::lng_wallet_phrase_error(tr::now));
+				ShowPhraseError(
+					show,
+					PhraseOperation::Reveal,
+					u"PHRASE_PASSWORD_STATE_MISSING"_q);
 				return;
 			}
 			auto fields = RestorePasswordFields(
@@ -6991,6 +7044,11 @@ void RequestCustodyRestore(
 		context->cancel();
 		return;
 	}
+	const auto purpose = !context
+		? u"backup_management"_q
+		: context->scope() ? u"decrypt_comment"_q : u"send"_q;
+	LOG(("Wallet Info: key restore requested purpose=%1 password_supplied=%2."
+		).arg(purpose).arg(password.has_value()));
 	const auto done = [=] {
 		if (passcode) {
 			passcode->closeBox();
@@ -6998,7 +7056,14 @@ void RequestCustodyRestore(
 		RunWhenSigningReady(show, action);
 	};
 	const auto fail = [=](const QString &error) {
-		if (context && (!context->valid()
+		const auto contextValid = !context || context->valid();
+		LOG(("Wallet Error: key restore result purpose=%1 error=%2 "
+			"context_valid=%3 password_prompt=%4."
+			).arg(purpose
+			).arg(error
+			).arg(contextValid
+			).arg(bool(passcode)));
+		if (context && (!contextValid
 			|| error == u"PHRASE_ORIGIN_EXPIRED"_q
 			|| error == u"PHRASE_SILENT_ERROR"_q)) {
 			context->cancel();
@@ -7060,7 +7125,7 @@ void RequestCustodyRestore(
 			terminal = false;
 			return;
 		}
-		show->showToast(tr::lng_wallet_phrase_error(tr::now));
+		ShowPhraseError(show, PhraseOperation::Restore, error);
 	};
 	auto &wallet = show->session().wallet();
 	if (context) {
@@ -7102,6 +7167,10 @@ void StartCustodyRestore(
 			context->cancel();
 			return;
 		}
+		const auto cached = session->api().cloudPassword().stateCurrent();
+		LOG(("Wallet Info: key restore requires password; "
+			"cached_state=%1 cached_has_password=%2."
+			).arg(cached.has_value()).arg(cached && cached->hasPassword));
 		session->api().cloudPassword().reload();
 		const auto lifetime = std::make_shared<rpl::lifetime>();
 		if (context) {
@@ -7109,7 +7178,14 @@ void StartCustodyRestore(
 			const auto timeout = lifetime->make_state<base::Timer>([=] {
 				const auto owned = base::take(*lifetime);
 				if (context->valid()) {
-					show->showToast(tr::lng_wallet_phrase_error(tr::now));
+					LOG(("Wallet Error: restore password state timed out "
+						"after %1 ms; comment_scope=%2."
+						).arg(kCommentPasswordStateTimeout
+						).arg(bool(context->scope())));
+					ShowPhraseError(
+						show,
+						PhraseOperation::Restore,
+						u"PHRASE_PASSWORD_STATE_TIMEOUT"_q);
 				}
 				context->cancel();
 			});
@@ -7127,7 +7203,10 @@ void StartCustodyRestore(
 			if (!state.hasPassword) {
 				// The server asked for a password this account does not
 				// have, so a repeat without one would only be refused again.
-				show->showToast(tr::lng_wallet_phrase_error(tr::now));
+				ShowPhraseError(
+					show,
+					PhraseOperation::Restore,
+					u"PHRASE_PASSWORD_STATE_MISSING"_q);
 				if (context) {
 					context->cancel();
 				} else if (unblock) {
@@ -9405,9 +9484,9 @@ void WalletConflictBox(
 					if (resolved && switched && !outcome->cancelled) {
 						switched();
 					}
-				}, crl::guard(box, [=](const QString &) {
+				}, crl::guard(box, [=](const QString &error) {
 					state->busy = false;
-					show->showToast(tr::lng_wallet_phrase_error(tr::now));
+					ShowPhraseError(show, PhraseOperation::DropParked, error);
 				}));
 			});
 		}

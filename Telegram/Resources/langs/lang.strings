@@ -8952,6 +8952,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_import_unconfirmed" = "Couldn't confirm the wallet import. Please try again.";
 "lng_wallet_create_error" = "Couldn't create a wallet. Please try again.";
 "lng_wallet_phrase_error" = "Couldn't show the recovery phrase. Please try again.";
+"lng_wallet_restore_error" = "Couldn't restore access to this wallet. Please try again.";
+"lng_wallet_conflict_switch_error" = "Couldn't remove the old wallet from this device. Please try again.";
+"lng_wallet_error_with_type" = "{message} (error: {error})";
 "lng_wallet_phrase_password_title" = "Two-step verification";
 "lng_wallet_phrase_password_description" = "Please enter your password to view your recovery phrase.";
 "lng_wallet_phrase_check_about" = "You can view your recovery phrase only if you have:";
@@ -8994,7 +8997,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_protection_hello" = "Unlock with Windows Hello";
 "lng_wallet_protection_hello_about" = "Confirm all spending with your Windows PIN.";
 "lng_wallet_protection_hello_label" = "Windows Hello";
-"lng_wallet_protection_hardware_prompt" = "Telegram will ask for {provider} to unlock your wallet key.";
+"lng_wallet_protection_hardware_retry" = "Retry";
 "lng_wallet_protection_hardware_failed" = "{provider} did not confirm it was you. Nothing was changed.";
 "lng_wallet_protection_hardware_unavailable" = "Your wallet key on this device is protected by {provider}, which can't be used right now. Restart Telegram to try again, or restore the wallet from Telegram's encrypted backup or with your recovery phrase to protect it another way.";
 "lng_wallet_protection_hardware_absent" = "Your wallet key on this device was protected by {provider}, but that key can no longer be used on this device. Restore the wallet from Telegram's encrypted backup or with your recovery phrase to store the key again.";

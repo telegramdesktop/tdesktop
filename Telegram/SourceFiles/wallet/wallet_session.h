@@ -784,6 +784,10 @@ private:
 		const TransferWalletIdentity &target,
 		const PhraseIdentity &phrase,
 		mtpRequestId exportRequestId);
+	[[nodiscard]] QString phraseDiagnosticState() const;
+	[[nodiscard]] Fn<void(const QString &)> loggedPhraseFail(
+		const QString &stage,
+		Fn<void(const QString &)> fail);
 	// The phrase's anchor and current signing public keys, both derived
 	// storage- and network-free on the engine's local worker; nullopt for a
 	// phrase that is not a valid Rotation mnemonic. done runs on the main

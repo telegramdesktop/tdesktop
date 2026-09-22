@@ -17,6 +17,8 @@ namespace {
 [[nodiscard]] std::optional<QByteArray> ParseDecryptedKeyPart(
 		const QByteArray &plain) {
 	if (plain.isEmpty() || (plain.size() % sizeof(mtpPrime))) {
+		LOG(("Wallet Error: decrypted share invalid TL size=%1.")
+			.arg(plain.size()));
 		return std::nullopt;
 	}
 	auto buffer = mtpBuffer();
@@ -25,10 +27,13 @@ namespace {
 	const mtpPrime *from = buffer.constData();
 	const auto end = from + buffer.size();
 	if (uint32(*from++) != kDecryptedKeyPartId) {
+		LOG(("Wallet Error: decrypted share unexpected TL constructor."));
 		return std::nullopt;
 	}
 	auto share = MTPstring();
 	if (!share.read(from, end) || from != end) {
+		LOG(("Wallet Error: decrypted share invalid TL string or trailing "
+			"data; plain_bytes=%1.").arg(plain.size()));
 		return std::nullopt;
 	}
 	return share.v;
@@ -49,12 +54,16 @@ std::optional<QByteArray> DecryptShare(
 		const TdE2E::TemporaryKeyPair &keys,
 		const QByteArray &data) {
 	if (data.size() <= kPublicKeySize) {
+		LOG(("Wallet Error: encrypted share too short bytes=%1 "
+			"public_key_bytes=%2.").arg(data.size()).arg(kPublicKeySize));
 		return std::nullopt;
 	}
 	const auto plain = keys.decryptForOne(
 		data.left(kPublicKeySize),
 		data.mid(kPublicKeySize));
 	if (!plain) {
+		LOG(("Wallet Error: share decryption failed encrypted_bytes=%1.")
+			.arg(data.size()));
 		return std::nullopt;
 	}
 	return ParseDecryptedKeyPart(*plain);
@@ -63,6 +72,10 @@ std::optional<QByteArray> DecryptShare(
 std::optional<QByteArray> CombineShares(
 		const std::vector<QByteArray> &shares) {
 	if (shares.empty() || shares.front().isEmpty()) {
+		LOG(("Wallet Error: share combine empty input count=%1 "
+			"first_bytes=%2."
+			).arg(shares.size()
+			).arg(shares.empty() ? 0 : shares.front().size()));
 		return std::nullopt;
 	}
 	const auto length = shares.front().size();
@@ -70,6 +83,9 @@ std::optional<QByteArray> CombineShares(
 	const auto to = result.data();
 	for (const auto &share : shares) {
 		if (share.size() != length) {
+			LOG(("Wallet Error: share combine length mismatch "
+				"expected_bytes=%1 actual_bytes=%2 count=%3."
+				).arg(length).arg(share.size()).arg(shares.size()));
 			return std::nullopt;
 		}
 		const auto from = share.constData();

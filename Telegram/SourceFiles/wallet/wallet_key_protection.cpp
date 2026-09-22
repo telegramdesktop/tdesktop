@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "data/data_user.h"
+#include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
 #include "lang/lang_hardcoded.h"
 #include "lang/lang_keys.h"
 #include "main/session/session_show.h"
@@ -28,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/passcode_strength_meter.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/passcode_strength.h"
 #include "ui/text/text_utilities.h"
@@ -36,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_passcode_strength_meter.h"
 #include "styles/style_settings.h"
 #include "styles/style_wallet.h"
@@ -710,6 +713,71 @@ void PreparedProtection::discard() {
 	}
 }
 
+struct HardwareEnrollArgs {
+	std::shared_ptr<Main::SessionShow> show;
+	not_null<ProtectionProvider*> provider;
+	Fn<void(ProtectionEnrollResult)> done;
+	// A wrap the provider answered with after the box reported: nothing can
+	// be enrolled any more, so it is only for the caller to retire.
+	Fn<void(ProtectionEnrollResult)> abandoned;
+};
+
+// The enrolling half of the same layer the unlock box raises: the provider
+// asks its sheet as this opens, a dismissed sheet leaves Retry standing, and
+// every other answer is the caller's to read.
+void HardwareEnrollBox(
+		not_null<Ui::GenericBox*> box,
+		HardwareEnrollArgs args) {
+	struct State {
+		rpl::variable<bool> asking = true;
+		Fn<void()> ask;
+		bool reported = false;
+		bool busy = false;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	const auto show = args.show;
+	const auto provider = args.provider;
+	const auto done = args.done;
+	const auto abandoned = args.abandoned;
+	const auto weak = base::make_weak(box);
+	const auto weakSession = base::make_weak(&show->session());
+	const auto retry = [=] { state->ask(); };
+	SetupSystemPromptBox(box, provider, state->asking.value(), retry);
+	state->ask = [=] {
+		if (state->busy || !weakSession || !show->valid()) {
+			return;
+		}
+		state->busy = true;
+		state->asking = true;
+		provider->enroll(&weakSession->local(), [=](
+				ProtectionEnrollResult result) {
+			if (!weak || state->reported) {
+				abandoned(std::move(result));
+				return;
+			}
+			state->busy = false;
+			state->asking = false;
+			if (result.error == ProtectionError::Cancelled) {
+				return;
+			}
+			state->reported = true;
+			box->closeBox();
+			done(std::move(result));
+		});
+	};
+	// A box shown over this one sends showFinished() again as it closes, so
+	// only the first one asks: every later ask is the user's to make.
+	box->showFinishes() | rpl::take(1) | rpl::on_next([=] {
+		state->ask();
+	}, box->lifetime());
+	box->boxClosing() | rpl::on_next([=] {
+		if (!state->reported) {
+			state->reported = true;
+			done({ .error = ProtectionError::Cancelled });
+		}
+	}, box->lifetime());
+}
+
 void KeyProtectionBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
@@ -1158,8 +1226,7 @@ void KeyProtectionBox(
 			refuse();
 			return;
 		}
-		provider->enroll(&weakSession->local(), [=](
-				ProtectionEnrollResult result) {
+		const auto enrolled = [=](ProtectionEnrollResult result) {
 			if (!current() || state->passcodeChanged
 				|| result.error != ProtectionError::None
 				|| !result.wrap) {
@@ -1179,7 +1246,17 @@ void KeyProtectionBox(
 				return;
 			}
 			apply(kind, std::move(*result.wrap));
-		});
+		};
+		show->showBox(Box(HardwareEnrollBox, HardwareEnrollArgs{
+			.show = show,
+			.provider = provider,
+			.done = enrolled,
+			.abandoned = [=](ProtectionEnrollResult result) {
+				if (result.wrap) {
+					RetireProtectionWrap(account, domain, result.wrap->wrap);
+				}
+			},
+		}));
 	};
 	const auto prepare = [=](VaultKind kind) {
 		if (!current() || state->passcodeChanged) {
@@ -1491,6 +1568,51 @@ void SubmitBoxOnEnter(not_null<Ui::GenericBox*> box, Fn<void()> submit) {
 			submit();
 		}
 	}, box->lifetime());
+}
+
+void SetupSystemPromptBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<ProtectionProvider*> provider,
+		rpl::producer<bool> asking,
+		Fn<void()> retry) {
+	box->setTitle(provider->title());
+
+	const auto &loading = st::walletUnlockPromptLoading;
+	const auto side = loading.size.height() + 2 * loading.thickness;
+	const auto content = box->addRow(
+		object_ptr<Ui::FixedHeightWidget>(box, side),
+		st::walletUnlockPromptPadding);
+	// The kind is what the sheet will look like, and only platform code
+	// could answer this from the provider itself.
+	const auto icon = (provider->kind() == VaultKind::WindowsHello)
+		? &st::menuIconWinHello
+		: (provider->kind() == VaultKind::TouchId)
+		? &st::menuIconTouchID
+		: nullptr;
+	if (icon) {
+		content->paintRequest() | rpl::on_next([=] {
+			auto p = QPainter(content);
+			icon->paintInCenter(p, content->rect());
+		}, content->lifetime());
+	}
+	const auto indicator = Info::Statistics::InfiniteRadialAnimationWidget(
+		content,
+		side,
+		&loading);
+	Info::Statistics::AddChildToWidgetCenter(content, indicator);
+
+	auto shared = std::move(asking) | rpl::start_spawning(box->lifetime());
+	indicator->showOn(rpl::duplicate(shared));
+	std::move(shared) | rpl::on_next([=](bool asking) {
+		box->clearButtons();
+		if (!asking) {
+			box->addButton(
+				tr::lng_wallet_protection_hardware_retry(),
+				retry);
+		}
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	}, box->lifetime());
+	SubmitBoxOnEnter(box, retry);
 }
 
 void ShowKeyProtectionBox(

@@ -56,7 +56,10 @@ struct ShareFetch {
 	std::vector<QByteArray> shares;
 	std::vector<mtpRequestId> requests;
 	std::vector<MTP::ShiftedDcId> sessions;
+	std::vector<int> dcs;
 	Fn<void(const QString &)> fail;
+	mtpRequestId exportRequestId = 0;
+	crl::time startedAt = 0;
 	int pending = 0;
 };
 
@@ -611,16 +614,22 @@ struct ThrowawayRotation {
 		const QStringList &normalized) {
 	const auto count = normalized.size();
 	if (count != 12 && count != 24) {
+		LOG(("Wallet Error: phrase validation invalid_word_count=%1.")
+			.arg(count));
 		return std::nullopt;
 	}
 	const auto anchor = RotationMnemonicKey(normalized);
 	if (!anchor) {
+		LOG(("Wallet Error: phrase validation anchor_derivation_failed "
+			"word_count=%1.").arg(count));
 		return std::nullopt;
 	}
 	const auto signing = (count == 24)
 		? RotationMnemonicKey(normalized.mid(12))
 		: anchor;
 	if (!signing) {
+		LOG(("Wallet Error: phrase validation signing_derivation_failed "
+			"word_count=%1.").arg(count));
 		return std::nullopt;
 	}
 	return PhraseIdentity{ .anchor = *anchor, .signing = *signing };
@@ -712,6 +721,24 @@ struct ThrowawayRotation {
 	} catch (...) {
 	}
 	return false;
+}
+
+[[nodiscard]] QString LifecycleErrorDetails(const EngineError &error) {
+	auto hostKind = -1;
+	if (error.underlying) {
+		try {
+			std::rethrow_exception(error.underlying);
+		} catch (const engine::wallet_lifecycle_error::ProtectedSecretHost &e) {
+			hostKind = int(e.kind);
+		} catch (const engine::protected_secret_host_error::Failed &e) {
+			hostKind = int(e.kind);
+		} catch (...) {
+		}
+	}
+	return u"%1 secret_read=%2 protected_host_kind=%3"_q
+		.arg(LifecycleErrorName(error))
+		.arg(int(ProtectedSecretFailure(error)))
+		.arg(hostKind);
 }
 
 [[nodiscard]] bool ReadAuthorized(
@@ -999,6 +1026,8 @@ struct DecryptedComment {
 		const MTPDwallet_secretPhraseParts &data) {
 	const auto &list = data.vdcs().v;
 	if (data.vtoken().v.isEmpty() || list.isEmpty()) {
+		LOG(("Wallet Error: invalid backup holders token_empty=%1 count=%2."
+			).arg(data.vtoken().v.isEmpty()).arg(list.size()));
 		return std::nullopt;
 	}
 	auto result = std::vector<int>();
@@ -1007,6 +1036,12 @@ struct DecryptedComment {
 		if (dc.v <= 0
 			|| dc.v >= MTP::kDcShift
 			|| ranges::contains(result, dc.v)) {
+			LOG(("Wallet Error: invalid backup holder index=%1 dc=%2 "
+				"duplicate=%3 count=%4."
+				).arg(result.size()
+				).arg(dc.v
+				).arg(ranges::contains(result, dc.v)
+				).arg(list.size()));
 			return std::nullopt;
 		}
 		result.push_back(dc.v);
@@ -1076,6 +1111,22 @@ void FailShareFetch(
 		base::Timer &deadline,
 		const std::shared_ptr<ShareFetch> &state,
 		const QString &error) {
+	LOG(("Wallet Error: share fetch failed error=%1 export_request=%2 "
+		"elapsed_ms=%3 pending=%4 total=%5."
+		).arg(error
+		).arg(state->exportRequestId
+		).arg(crl::now() - state->startedAt
+		).arg(state->pending
+		).arg(state->shares.size()));
+	for (auto i = 0; i != state->shares.size(); ++i) {
+		LOG(("Wallet Error: share fetch holder export_request=%1 "
+			"index=%2 dc=%3 request=%4 share_bytes=%5."
+			).arg(state->exportRequestId
+			).arg(i
+			).arg(state->dcs[i]
+			).arg(state->requests[i]
+			).arg(state->shares[i].size()));
+	}
 	FinishShareFetch(api, deadline, state);
 	if (const auto fail = base::take(state->fail)) {
 		fail(error);
@@ -1088,7 +1139,12 @@ void FailShareFetch(
 		const QByteArray &data) {
 	auto share = PhraseShares::DecryptShare(state->keys, data);
 	if (!share) {
-		LOG(("Wallet Error: share part %1 could not be opened.").arg(index));
+		LOG(("Wallet Error: share part could not be opened "
+			"export_request=%1 index=%2 dc=%3 encrypted_bytes=%4."
+			).arg(state->exportRequestId
+			).arg(index
+			).arg(state->dcs[index]
+			).arg(data.size()));
 		return false;
 	}
 	state->shares[index] = std::move(*share);
@@ -3074,6 +3130,66 @@ void Session::decryptComment(DeferredDecrypt request) {
 	});
 }
 
+QString Session::phraseDiagnosticState() const {
+	const auto now = crl::now();
+	const auto held = _custody ? _custody->forAddress(_address) : nullptr;
+	const auto capabilities = _capabilities.current();
+	return u"address=%1 key=%2 revision=%3 presence=%4 device_mode=%5 "
+		"conflict=%6 state_age_ms=%7 engine_age_ms=%8 state_request=%9 "
+		"state_failures=%10 backup_enabled=%11 can_export=%12 "
+		"can_enable_backup=%13; custody_loaded=%14 custody_read_failed=%15 "
+		"held_anchor=%16 held_signing=%17 held_unreadable=%18 "
+		"awaiting_server_key=%19 pending_rotation=%20; "
+		"busy_reveal=%21 busy_replace=%22 busy_backup=%23 busy_rotate=%24 "
+		"busy_reset=%25 vault_unlocked=%26 vault_unusable=%27"_q
+		.arg(_address)
+		.arg(LogKey(_publicKey))
+		.arg(_walletIdentityRevision)
+		.arg(int(_presence.current()))
+		.arg(int(_deviceCustody.current().mode))
+		.arg(_deviceCustody.current().conflict)
+		.arg(_stateRefreshedAt ? now - _stateRefreshedAt : -1)
+		.arg(_engineRefreshedAt ? now - _engineRefreshedAt : -1)
+		.arg(_stateRequestId)
+		.arg(_stateFailures)
+		.arg(capabilities.backupEnabled)
+		.arg(capabilities.canExportPhrase)
+		.arg(capabilities.canEnableBackup)
+		.arg(_custody.has_value())
+		.arg(_custodyReadFailed)
+		.arg(LogKey(held ? held->publicKey : QByteArray()))
+		.arg(LogKey(held ? held->signingKey : QByteArray()))
+		.arg(held && secretUnreadable(held->recordId))
+		.arg(held && held->awaitingServerKey)
+		.arg(_custody && _custody->pendingRotation.has_value())
+		.arg(_phraseRevealing)
+		.arg(_replacing)
+		.arg(_backupChanging)
+		.arg(_rotating)
+		.arg(_custodyResetting)
+		.arg(vault().unlocked())
+		.arg(vault().unusable());
+}
+
+Fn<void(const QString &)> Session::loggedPhraseFail(
+		const QString &stage,
+		Fn<void(const QString &)> fail) {
+	const auto initial = phraseDiagnosticState();
+	const auto startedAt = crl::now();
+	return [=, this, fail = std::move(fail)](const QString &error) {
+		LOG(("Wallet Error: %1 refused: %2 elapsed_ms=%3; initial: %4; "
+			"current: %5."
+			).arg(stage
+			).arg(error
+			).arg(crl::now() - startedAt
+			).arg(initial
+			).arg(phraseDiagnosticState()));
+		if (fail) {
+			fail(error);
+		}
+	};
+}
+
 void Session::revealPhrase(
 		KeyAuthorization auth,
 		std::optional<Core::CloudPasswordResult> password,
@@ -3081,7 +3197,7 @@ void Session::revealPhrase(
 		Fn<void(const QString &error)> fail,
 		Fn<void()> authorized) {
 	ensureLoaded();
-	fail = LoggedFail(u"phrase reveal"_q, std::move(fail));
+	fail = loggedPhraseFail(u"phrase reveal"_q, std::move(fail));
 	if (custodyBusy() || custody().pendingRotation) {
 		LOG(("Wallet Error: reveal requested while another is in flight."));
 		if (fail) {
@@ -3152,6 +3268,13 @@ void Session::revealLocally(
 		return;
 	}
 	const auto initiatingRecordId = record.recordId;
+	LOG(("Wallet Info: local phrase read address=%1 anchor=%2 signing=%3 "
+		"network=%4 active=%5."
+		).arg(record.address
+		).arg(LogKey(record.publicKey)
+		).arg(LogKey(record.signingKey)
+		).arg(record.network
+		).arg(record.active));
 	const auto lifecycle = _engine->lifecycle();
 	const auto descriptor = DescriptorFromRecord(record);
 	_engine->runLocal([lifecycle, descriptor] {
@@ -3159,7 +3282,8 @@ void Session::revealLocally(
 	}, [=, grant = auth.grant](engine::RecoveryPhrase phrase) {
 		auto words = SplitWords(QString::fromStdString(phrase.phrase));
 		if (words.size() < 2) {
-			LOG(("Wallet Error: local phrase reveal produced no words."));
+			LOG(("Wallet Error: local phrase reveal too short word_count=%1."
+				).arg(words.size()));
 			fail(u"PHRASE_EMPTY"_q);
 			return;
 		}
@@ -3169,7 +3293,7 @@ void Session::revealLocally(
 			ProtectedSecretFailure(error),
 			initiatingRecordId);
 		LOG(("Wallet Error: local phrase reveal failed: %1"
-			).arg(LifecycleErrorName(error)));
+			).arg(LifecycleErrorDetails(error)));
 		fail(IsVaultLocked(error)
 			? u"PHRASE_VAULT_LOCKED"_q
 			: u"PHRASE_LOCAL_FAILED"_q);
@@ -3218,8 +3342,9 @@ void Session::revealFromShares(
 		const auto &data = result.data();
 		const auto dcs = ParseHolderDcs(data);
 		if (!dcs) {
-			LOG(("Wallet Error: wallet.exportSecretPhrase answered "
-				"%1 holder(s).").arg(data.vdcs().v.size()));
+			LOG(("Wallet Error: wallet.exportSecretPhrase invalid holders "
+				"request=%1 count=%2."
+				).arg(requestId).arg(data.vdcs().v.size()));
 			fail(u"PHRASE_PARTS_INVALID"_q);
 			return;
 		}
@@ -3240,7 +3365,7 @@ void Session::revealFromShares(
 			fail,
 			scope,
 			requestId);
-	}).fail([=, this](const MTP::Error &error) {
+	}).fail([=, this](const MTP::Error &error, mtpRequestId requestId) {
 		if (!base::take(*pending)) {
 			return;
 		}
@@ -3251,8 +3376,15 @@ void Session::revealFromShares(
 			fail(u"PHRASE_ORIGIN_EXPIRED"_q);
 			return;
 		}
-		LOG(("Wallet Error: wallet.exportSecretPhrase failed: %1"
-			).arg(error.type()));
+		LOG(("Wallet Error: wallet.exportSecretPhrase failed: %1 "
+			"code=%2 request=%3 password_supplied=%4 "
+			"requested_revision=%5 current_revision=%6."
+			).arg(error.type()
+			).arg(error.code()
+			).arg(requestId
+			).arg(checked
+			).arg(revision
+			).arg(_walletIdentityRevision));
 		fail((scope && MTP::IgnoreError(error))
 			? u"PHRASE_SILENT_ERROR"_q
 			: error.type());
@@ -3289,7 +3421,9 @@ void Session::fetchShareParts(
 	}
 	auto keys = TdE2E::TemporaryKeyPair::Generate();
 	if (!keys) {
-		LOG(("Wallet Error: could not generate an ephemeral key."));
+		LOG(("Wallet Error: could not generate an ephemeral key "
+			"export_request=%1 holders=%2."
+			).arg(exportRequestId).arg(dcs.size()));
 		fail(u"PHRASE_PARTS_INVALID"_q);
 		return;
 	}
@@ -3299,12 +3433,15 @@ void Session::fetchShareParts(
 		.shares = std::vector<QByteArray>(count),
 		.requests = std::vector<mtpRequestId>(count),
 		.sessions = std::vector<MTP::ShiftedDcId>(count),
+		.dcs = dcs,
 		.fail = [=](const QString &error) {
 			if (scope) {
 				scope->_state->cancelPending = nullptr;
 			}
 			fail(error);
 		},
+		.exportRequestId = exportRequestId,
+		.startedAt = crl::now(),
 		.pending = count,
 	});
 	const auto publicKey = state->keys.publicKey();
@@ -3314,11 +3451,21 @@ void Session::fetchShareParts(
 			MTPwallet_FetchEncryptedSecretPhrasePart(
 				MTP_string(token),
 				MTP_bytes(publicKey))
-		).done([=, this](const MTPwallet_EncryptedSecretPhrasePart &result) {
+		).done([=, this](
+				const MTPwallet_EncryptedSecretPhrasePart &result,
+				mtpRequestId requestId) {
 			if (!state->fail) {
 				return;
 			}
 			state->requests[i] = 0;
+			LOG(("Wallet Info: share fetch response export_request=%1 "
+				"request=%2 index=%3 dc=%4 encrypted_bytes=%5 elapsed_ms=%6."
+				).arg(exportRequestId
+				).arg(requestId
+				).arg(i
+				).arg(dcs[i]
+				).arg(result.data().vdata().v.size()
+				).arg(crl::now() - state->startedAt));
 			if (scope && !commentScopeCurrent(scope)) {
 				FailShareFetch(
 					_stateApi,
@@ -3365,9 +3512,16 @@ void Session::fetchShareParts(
 			if (!state->fail) {
 				return;
 			}
-			state->requests[i] = 0;
 			LOG(("Wallet Error: wallet.fetchEncryptedSecretPhrasePart "
-				"failed: %1").arg(error.type()));
+				"failed: %1 code=%2 export_request=%3 request=%4 "
+				"index=%5 dc=%6."
+				).arg(error.type()
+				).arg(error.code()
+				).arg(exportRequestId
+				).arg(state->requests[i]
+				).arg(i
+				).arg(dcs[i]));
+			state->requests[i] = 0;
 			FailShareFetch(
 				_stateApi,
 				_shareFetchTimer,
@@ -3378,6 +3532,13 @@ void Session::fetchShareParts(
 					? u"PHRASE_SILENT_ERROR"_q
 					: error.type());
 		}).handleFloodErrors().toDC(state->sessions[i]).send();
+		LOG(("Wallet Info: share fetch sent export_request=%1 request=%2 "
+			"index=%3 dc=%4 total=%5."
+			).arg(exportRequestId
+			).arg(state->requests[i]
+			).arg(i
+			).arg(dcs[i]
+			).arg(count));
 	}
 	if (scope) {
 		scope->_state->cancelPending = crl::guard(_engine.get(), [=, this] {
@@ -3412,7 +3573,9 @@ void Session::validatePhraseIdentity(
 	}
 	_engine->runLocal([normalized] {
 		return DerivePhraseIdentity(normalized);
-	}, done, [done](EngineError) {
+	}, done, [done, count = words.size()](EngineError error) {
+		LOG(("Wallet Error: phrase validation worker failed word_count=%1: %2"
+			).arg(count).arg(LifecycleErrorDetails(error)));
 		done(std::nullopt);
 	});
 }
@@ -3428,7 +3591,9 @@ void Session::restoreFromWords(
 		fail(u"PHRASE_ORIGIN_EXPIRED"_q);
 		return;
 	} else if (words.size() < 2) {
-		LOG(("Wallet Error: reconstructed phrase has no words."));
+		LOG(("Wallet Error: reconstructed phrase too short "
+			"word_count=%1 export_request=%2."
+			).arg(words.size()).arg(exportRequestId));
 		fail(u"PHRASE_EMPTY"_q);
 		return;
 	}
@@ -3490,7 +3655,17 @@ void Session::restoreFromWords(
 	// that merely expired loses its reveal, and the next press finds the key
 	// held instead of restoring it all over again.
 	const auto targetServed = [=, this] {
-		return transferWalletIdentityCurrent(*targetIdentity);
+		const auto current = transferWalletIdentityCurrent(*targetIdentity);
+		if (!current) {
+			LOG(("Wallet Error: phrase target expired export_request=%1 "
+				"target_address=%2 target_key=%3 target_revision=%4; %5."
+				).arg(exportRequestId
+				).arg(targetAddress
+				).arg(LogKey(expectedKey)
+				).arg(targetIdentity->revision
+				).arg(phraseDiagnosticState()));
+		}
+		return current;
 	};
 	// The resolved install travels into both continuations, which is what
 	// holds the grant across the worker call: the runtime cleanses the key
@@ -3508,6 +3683,10 @@ void Session::restoreFromWords(
 			|| (scope
 				&& scope->_state->record
 				&& !secretUnreadable(scope->_state->record->recordId))) {
+			LOG(("Wallet Error: phrase install eligibility changed "
+				"export_request=%1 scope_has_record=%2."
+				).arg(exportRequestId
+				).arg(scope && scope->_state->record.has_value()));
 			fail(u"PHRASE_ORIGIN_EXPIRED"_q);
 			return;
 		} else if (!install.grant || !install.grant->valid()) {
@@ -3544,6 +3723,8 @@ void Session::restoreFromWords(
 			return Restored{ std::move(descriptor), std::move(words) };
 		}, [=, this](std::optional<Restored> result) {
 			if (!result) {
+				LOG(("Wallet Error: phrase import grant expired before worker "
+					"export_request=%1.").arg(exportRequestId));
 				fail(u"PHRASE_ORIGIN_EXPIRED"_q);
 				return;
 			}
@@ -3561,7 +3742,10 @@ void Session::restoreFromWords(
 				};
 				_engine->run([lifecycle, descriptor] {
 					lifecycle->delete_wallet(descriptor);
-				}, cleanup, [=](EngineError) {
+				}, cleanup, [=](EngineError error) {
+					LOG(("Wallet Error: phrase import rollback failed "
+						"export_request=%1: %2"
+						).arg(exportRequestId).arg(LifecycleErrorDetails(error)));
 					cleanup();
 				});
 			};
@@ -3591,6 +3775,12 @@ void Session::restoreFromWords(
 			const auto persisted = persistCustody(record);
 			_installingScope = nullptr;
 			if (!persisted) {
+				LOG(("Wallet Error: phrase custody write failed "
+					"export_request=%1 address=%2 anchor=%3 signing=%4."
+					).arg(exportRequestId
+					).arg(record.address
+					).arg(LogKey(record.publicKey)
+					).arg(LogKey(record.signingKey)));
 				if (scope) {
 					scope->_state->record = std::nullopt;
 				}
@@ -3613,12 +3803,18 @@ void Session::restoreFromWords(
 			// stays committed even when this import failed after that write.
 			// A new orphan entry is swept by the next necessary ring write.
 			_engine->dropStoredSecrets(*stores);
+			LOG(("Wallet Error: import_wallet failed export_request=%1 "
+				"address=%2 anchor=%3 signing=%4: %5"
+				).arg(exportRequestId
+				).arg(targetAddress
+				).arg(LogKey(identity.anchor)
+				).arg(LogKey(identity.signing)
+				).arg(LifecycleErrorDetails(error)));
 			if (!targetServed()) {
 				fail(u"PHRASE_ORIGIN_EXPIRED"_q);
 				return;
 			}
 			const auto name = LifecycleErrorName(error);
-			LOG(("Wallet Error: import_wallet failed: %1").arg(name));
 			fail(IsVaultLocked(error)
 				? u"PHRASE_VAULT_LOCKED"_q
 				: (name == u"InvalidRecoveryPhrase"_q)
@@ -3719,8 +3915,12 @@ void Session::restoreFromWords(
 				verified(*identity, std::move(words));
 			}
 		}, [=](EngineError error) {
-			LOG(("Wallet Error: the anchor address check failed: %1"
-				).arg(LifecycleErrorName(error)));
+			LOG(("Wallet Error: the anchor address check failed "
+				"export_request=%1 address=%2 anchor=%3: %4"
+				).arg(exportRequestId
+				).arg(targetAddress
+				).arg(LogKey(identity->anchor)
+				).arg(LifecycleErrorDetails(error)));
 			fail(u"PHRASE_IMPORT_FAILED"_q);
 		});
 	});
@@ -3861,7 +4061,7 @@ void Session::restoreFromPhrase(
 		std::shared_ptr<CommentScope> scope,
 		Fn<void(KeyAuthorization)> done,
 		Fn<void(const QString &error)> fail) {
-	fail = LoggedFail(u"phrase restore"_q, std::move(fail));
+	fail = loggedPhraseFail(u"phrase restore"_q, std::move(fail));
 	if (scope) {
 		// A scope over a vault this process cannot open carries that vault's
 		// record, which the confirmed reset drops before the install. The
@@ -3971,7 +4171,7 @@ void Session::restoreFromBackup(
 		std::shared_ptr<CommentScope> scope,
 		Fn<void(KeyAuthorization)> done,
 		Fn<void(const QString &error)> fail) {
-	fail = LoggedFail(u"backup restore"_q, std::move(fail));
+	fail = loggedPhraseFail(u"backup restore"_q, std::move(fail));
 	if (scope) {
 		// A scope over a vault this process cannot open carries that vault's
 		// record, which the confirmed reset drops before the install. The
@@ -4053,7 +4253,9 @@ void Session::revealParked(
 		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
-	fail = LoggedFail(u"parked reveal"_q, std::move(fail));
+	fail = loggedPhraseFail(u"parked reveal"_q, std::move(fail));
+	LOG(("Wallet Info: parked reveal requested anchor=%1.")
+		.arg(LogKey(publicKey)));
 	if (custodyBusy()) {
 		LOG(("Wallet Error: reveal requested while another is in flight."));
 		if (fail) {
@@ -4128,7 +4330,9 @@ void Session::dropParked(
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
-	fail = LoggedFail(u"parked drop"_q, std::move(fail));
+	fail = loggedPhraseFail(u"parked drop"_q, std::move(fail));
+	LOG(("Wallet Info: parked drop requested anchor=%1.")
+		.arg(LogKey(publicKey)));
 	if (custodyBusy()) {
 		LOG(("Wallet Error: drop requested while another is in flight."));
 		if (fail) {
@@ -4175,7 +4379,7 @@ void Session::dropParked(
 		done();
 	}, [=](EngineError error) {
 		LOG(("Wallet Error: parked delete_wallet failed: %1"
-			).arg(LifecycleErrorName(error)));
+			).arg(LifecycleErrorDetails(error)));
 		fail(u"PHRASE_LOCAL_FAILED"_q);
 	});
 }

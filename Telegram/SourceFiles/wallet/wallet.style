@@ -200,6 +200,11 @@ walletBusyBoxLoading: InfiniteRadialAnimation(walletListsLoading) {
 	thickness: 3px;
 }
 walletBusyBoxPadding: margins(0px, 8px, 0px, 16px);
+walletUnlockPromptLoading: InfiniteRadialAnimation(walletBusyBoxLoading) {
+	size: size(48px, 48px);
+	thickness: 2px;
+}
+walletUnlockPromptPadding: margins(0px, 12px, 0px, 4px);
 
 walletTabsSlider: SettingsSlider(defaultTabsSlider) {
 	padding: 12px;
