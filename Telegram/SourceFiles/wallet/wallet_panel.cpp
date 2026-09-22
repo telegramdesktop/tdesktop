@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_session.h"
 #include "wallet/wallet_ton_connect.h"
 #include "wallet/wallet_ton_connect_link.h"
+#include "wallet/wallet_ton_connect_request.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 
@@ -162,17 +163,22 @@ void OpenSendGramsLink(
 void OpenTonConnectLink(
 		not_null<Window::SessionController*> controller,
 		const TonConnectLink &link) {
-	if (link.kind != TonConnectLinkKind::Connect) {
+	auto &tonConnect = controller->session().wallet().tonConnect();
+	if (link.kind == TonConnectLinkKind::OpenPending) {
+		tonConnect.requests().openPending(controller, link.clientId);
+	} else if (link.kind == TonConnectLinkKind::Connect) {
+		tonConnect.connect(controller, link);
+	} else {
 		ShowWallet(&controller->session());
-		return;
 	}
-	controller->session().wallet().tonConnect().connect(controller, link);
 }
 
 void OpenTonConnectRequest(
 		not_null<Window::SessionController*> controller,
 		FullMsgId itemId) {
-	ShowWallet(&controller->session());
+	controller->session().wallet().tonConnect().requests().open(
+		controller,
+		itemId);
 }
 
 std::shared_ptr<Main::SessionShow> TonConnectBoxShow(

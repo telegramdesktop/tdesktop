@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QString>
 
+#include <optional>
+
 namespace Gram {
 
 // Replaces the request signature of a Wallet rev00 key-rotation message with
@@ -24,5 +26,9 @@ namespace Gram {
 // single signed rotation request this expects, and the caller must then send
 // nothing at all.
 [[nodiscard]] QString BreakRotationSignature(const QString &bocBase64);
+
+// A zero-opcode text comment, for display only.
+[[nodiscard]] std::optional<QString> TextCommentFromBoc(
+	const QString &bocBase64);
 
 } // namespace Gram

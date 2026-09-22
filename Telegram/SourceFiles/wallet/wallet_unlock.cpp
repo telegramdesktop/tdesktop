@@ -279,6 +279,20 @@ void UnlockByKind(
 	}
 }
 
+} // namespace
+
+bool VaultUnlockSilent(not_null<Main::Session*> session) {
+	auto &vault = session->wallet().vault();
+	if (vault.retained()) {
+		return true;
+	}
+	const auto reading = vault.reading();
+	return (reading.state == KeyringReading::State::Read)
+		&& (reading.keyring.wrap.kind == VaultKind::Open);
+}
+
+namespace {
+
 // The vault wrap the typed passcode has to open, read on the main thread for
 // the job that derives against it. It serves the Vault check alone, which
 // UnlockByKind shows only over a keyring with a passcode wrap; a

@@ -134,6 +134,7 @@ struct PreparedSend {
 	int generation = 0;
 	std::optional<quint32> privateEpoch;
 	std::shared_ptr<wallet_engine::WalletClient> client;
+	bool tonConnect = false;
 };
 
 struct Session::PreviewRequest {
@@ -147,6 +148,7 @@ struct Session::PreviewRequest {
 	KeyAuthorization auth;
 	SendArgs args;
 	Fn<void(FeeResult)> done;
+	std::shared_ptr<const wallet_engine::SendRequest> tonConnect;
 	bool feeOnly = false;
 };
 
@@ -551,6 +553,18 @@ struct MergedHead {
 		LOG(("Wallet Error: %1 refused: %2").arg(stage, error));
 		if (fail) {
 			fail(error);
+		}
+	};
+}
+
+[[nodiscard]] Fn<void(FeeResult)> LoggedFeeDone(Fn<void(FeeResult)> done) {
+	return [done = std::move(done)](FeeResult result) {
+		if (result.error != SendError::None) {
+			LOG(("Wallet Error: the fee estimate answered %1."
+				).arg(SendErrorName(result.error)));
+		}
+		if (done) {
+			done(std::move(result));
 		}
 	};
 }
@@ -1303,6 +1317,87 @@ void FailShareFetch(
 	};
 }
 
+[[nodiscard]] std::optional<TonConnectTransfer> TonConnectTransferFromEngine(
+		const engine::SendRequest &request) {
+	auto result = TonConnectTransfer{
+		.request = std::make_shared<const engine::SendRequest>(request),
+	};
+	for (const auto &message : request.intent.messages) {
+		const auto &amount = message.amount.get_variant();
+		const auto exact = std::get_if<engine::SendAmount::kExact>(&amount);
+		const auto nano = exact
+			? DecimalInt64(exact->nanograms)
+			: std::optional<int64>();
+		if (!nano
+			|| *nano < 0
+			|| *nano > std::numeric_limits<int64>::max() - result.totalNano) {
+			return std::nullopt;
+		}
+		result.totalNano += *nano;
+		auto entry = TonConnectMessage{
+			.destination = QString::fromStdString(message.destination),
+			.amountNano = *nano,
+			.deploys = message.state_init.has_value(),
+		};
+		const auto &body = message.body.get_variant();
+		const auto comment = std::get_if<
+			engine::SendMessageBody::kComment>(&body);
+		const auto raw = std::get_if<
+			engine::SendMessageBody::kRawPayload>(&body);
+		if (comment) {
+			entry.comment = QString::fromStdString(comment->text);
+		} else if (raw) {
+			const auto boc = QString::fromStdString(raw->boc);
+			if (const auto text = Gram::TextCommentFromBoc(boc)) {
+				entry.comment = *text;
+			} else {
+				entry.payload = boc;
+			}
+		}
+		result.messages.push_back(std::move(entry));
+	}
+	const auto &expiration = request.intent.expiration.get_variant();
+	const auto until = std::get_if<
+		engine::SendExpiration::kExact>(&expiration);
+	if (until) {
+		result.validUntil = TimeId(std::min<uint64>(
+			until->unix_timestamp,
+			std::numeric_limits<TimeId>::max()));
+	}
+	return result;
+}
+
+[[nodiscard]] TonConnectAppRequest TonConnectAppRequestFromEngine(
+		engine::TonConnectDerivedRequest derived) {
+	using Kind = TonConnectRequestKind;
+	using Incoming = engine::TonConnectIncomingRequest;
+	auto result = TonConnectAppRequest{ .appRequestId = derived.request_id };
+	const auto &variant = derived.request.get_variant();
+	std::visit([&](const auto &data) {
+		result.id = QString::fromStdString(data.id);
+		result.method = QString::fromStdString(data.method);
+	}, variant);
+	if (const auto send = std::get_if<Incoming::kSendTransaction>(&variant)) {
+		auto transfer = TonConnectTransferFromEngine(send->request);
+		result.kind = transfer ? Kind::SendTransaction : Kind::Invalid;
+		if (transfer) {
+			result.transfer = std::make_shared<const TonConnectTransfer>(
+				std::move(*transfer));
+		}
+	} else if (std::get_if<Incoming::kSignMessage>(&variant)) {
+		result.kind = Kind::Unsupported;
+	} else if (std::get_if<Incoming::kDisconnect>(&variant)) {
+		result.kind = Kind::Disconnect;
+	} else {
+		result.kind = (result.method == u"sendTransaction"_q)
+			? Kind::Invalid
+			: (result.method == u"disconnect"_q)
+			? Kind::Disconnect
+			: Kind::Unsupported;
+	}
+	return result;
+}
+
 [[nodiscard]] bool TerminalSendPhase(engine::SendPhase phase) {
 	switch (phase) {
 	case engine::SendPhase::kIdle:
@@ -1401,6 +1496,47 @@ void FailShareFetch(
 	return (paired && phase == engine::SendPhase::kReplaced)
 		? engine::SendPhase::kSequenceNumberConsumed
 		: phase;
+}
+
+[[nodiscard]] TonConnectSendResult TonConnectSendOutcome(
+		const engine::SendResult &result,
+		const std::string &operationId,
+		bool rpcStarted,
+		const QByteArray &normal) {
+	const auto unknown = [&] {
+		return TonConnectSendResult{
+			rpcStarted ? QString::fromLatin1(normal.toBase64()) : QString(),
+			SendError::SubmissionUnknown,
+		};
+	};
+	if (result.operation_id != operationId) {
+		return unknown();
+	}
+	const auto boc = QString::fromStdString(result.signed_boc);
+	switch (result.phase) {
+	case engine::SendPhase::kSubmitted:
+	case engine::SendPhase::kConfirmed:
+		return { boc, SendError::None };
+	case engine::SendPhase::kSubmissionUnknown:
+		return { boc, SendError::SubmissionUnknown };
+	case engine::SendPhase::kHandedOff:
+	case engine::SendPhase::kIdle:
+	case engine::SendPhase::kValidating:
+	case engine::SendPhase::kAuthorizing:
+	case engine::SendPhase::kPreparing:
+	case engine::SendPhase::kPersisting:
+	case engine::SendPhase::kReadyToSubmit:
+	case engine::SendPhase::kSubmitting:
+		return unknown();
+	case engine::SendPhase::kFailed:
+	case engine::SendPhase::kCancelled:
+	case engine::SendPhase::kReplaced:
+	case engine::SendPhase::kSequenceNumberConsumed:
+	case engine::SendPhase::kExpired:
+	case engine::SendPhase::kSuperseded:
+		break;
+	}
+	return { QString(), SendError::Failed };
 }
 
 [[nodiscard]] SubmittedTransferProjection StoredTransferProjection(
@@ -6066,6 +6202,109 @@ void Session::prepareTonConnectDisconnect(
 	});
 }
 
+void Session::decryptTonConnectRequest(
+		TonConnectKey key,
+		QByteArray body,
+		Fn<void(TonConnectAppRequest)> done,
+		Fn<void()> fail) {
+	const auto now = base::unixtime::now();
+	if (!key || now <= 0) {
+		LOG(("Wallet Error: TON Connect request decryption requested "
+			"with unusable input."));
+		fail();
+		return;
+	}
+	_engine->runLocal([
+		session = key.session,
+		body = EngineBytes(body),
+		now = uint64(now)
+	] {
+		return TonConnectAppRequestFromEngine(
+			session->decrypt_request(body, now));
+	}, std::move(done), [=](EngineError error) {
+		LOG(("Wallet Error: TON Connect request could not be decrypted: %1"
+			).arg(error.message));
+		fail();
+	});
+}
+
+void Session::answerTonConnectChallenge(
+		TonConnectKey key,
+		QByteArray challenge,
+		Fn<void(QByteArray)> done,
+		Fn<void()> fail) {
+	if (!key) {
+		LOG(("Wallet Error: TON Connect challenge answer requested "
+			"with unusable input."));
+		fail();
+		return;
+	}
+	_engine->runLocal([
+		session = key.session,
+		challenge = EngineBytes(challenge)
+	] {
+		return BytesFromEngine(session->open_challenge(challenge));
+	}, [=](QByteArray answer) {
+		if (answer.size() != kTonConnectChallengeAnswerSize) {
+			LOG(("Wallet Error: TON Connect challenge answered "
+				"with an unexpected size: %1.").arg(answer.size()));
+			fail();
+			return;
+		}
+		done(std::move(answer));
+	}, [=](EngineError error) {
+		LOG(("Wallet Error: TON Connect challenge could not be answered: %1"
+			).arg(error.message));
+		fail();
+	});
+}
+
+void Session::encryptTonConnectResponse(
+		TonConnectKey key,
+		QString requestId,
+		TonConnectResponse response,
+		Fn<void(QByteArray)> done,
+		Fn<void()> fail) {
+	if (!key) {
+		LOG(("Wallet Error: TON Connect response requested "
+			"with unusable input."));
+		fail();
+		return;
+	}
+	using Code = engine::TonConnectRpcErrorCode;
+	struct Reason {
+		Code code = Code::kUnknown;
+		std::string message;
+	};
+	auto reason = (response.error == TonConnectError::BadRequest)
+		? Reason{ Code::kBadRequest, "Bad request" }
+		: (response.error == TonConnectError::UserDeclined)
+		? Reason{ Code::kUserDeclined, "User declined the transaction" }
+		: Reason{ Code::kUnknown, "Transaction was not sent" };
+	_engine->runLocal([
+		session = key.session,
+		id = requestId.toStdString(),
+		boc = response.signedBoc.toStdString(),
+		reason = std::move(reason)
+	] {
+		return BytesFromEngine(boc.empty()
+			? session->encrypt_error(id, reason.code, reason.message)
+			: session->encrypt_send_success(id, boc));
+	}, [=](QByteArray body) {
+		if (body.isEmpty()) {
+			LOG(("Wallet Error: TON Connect response encrypted "
+				"to an empty body."));
+			fail();
+			return;
+		}
+		done(std::move(body));
+	}, [=](EngineError error) {
+		LOG(("Wallet Error: TON Connect response could not be encrypted: %1"
+			).arg(error.message));
+		fail();
+	});
+}
+
 void Session::sendReplaceWallet(
 		const MTPInputWalletReplacement &wallet,
 		std::optional<Core::CloudPasswordResult> password,
@@ -7566,15 +7805,7 @@ void Session::estimateFee(
 	if (!_preview || !_preview->owners.contains(owner)) {
 		return;
 	}
-	done = [done = std::move(done)](FeeResult result) {
-		if (result.error != SendError::None) {
-			LOG(("Wallet Error: the fee estimate answered %1."
-				).arg(SendErrorName(result.error)));
-		}
-		if (done) {
-			done(std::move(result));
-		}
-	};
+	done = LoggedFeeDone(std::move(done));
 	const auto inputError = !SendCommentFits(args.comment.text)
 		? SendError::CommentTooLong
 		: (args.amountNano <= 0
@@ -7624,6 +7855,11 @@ void Session::estimateFee(
 		.done = std::move(done),
 		.feeOnly = isPrivate && !keyed,
 	};
+	enqueuePreview(std::move(request));
+}
+
+void Session::enqueuePreview(PreviewRequest request) {
+	const auto owner = request.owner;
 	const auto queued = ranges::find(
 		_preview->queue,
 		owner,
@@ -7639,6 +7875,45 @@ void Session::estimateFee(
 		cancelPreview();
 	}
 	startPreview();
+}
+
+void Session::estimateTonConnect(
+		uint64 owner,
+		std::shared_ptr<const TonConnectTransfer> transfer,
+		Fn<void(FeeResult)> done) {
+	if (!_preview || !_preview->owners.contains(owner)) {
+		return;
+	}
+	done = LoggedFeeDone(std::move(done));
+	if (!transfer || !transfer->request || transfer->messages.empty()) {
+		cancelFeeEstimate(owner);
+		done(FeeResult{ .error = SendError::InvalidRequest });
+		return;
+	}
+	ensureLoaded();
+	const auto terms = gaslessTerms();
+	const auto i = _preview->owners.find(owner);
+	if (i == end(_preview->owners)) {
+		return;
+	}
+	const auto &first = transfer->messages.front();
+	const auto parsed = ParseAddress(first.destination);
+	auto request = PreviewRequest{
+		.identity = transferWalletIdentity(),
+		.terms = terms,
+		.owner = owner,
+		.revision = ++i->second,
+		.generation = _networkGeneration,
+		.client = _engine->client(),
+		.args = SendArgs{
+			.destination = CanonicalAddress(first.destination),
+			.amountNano = transfer->totalNano,
+			.bounce = parsed ? parsed->bounceable : true,
+		},
+		.done = std::move(done),
+		.tonConnect = transfer->request,
+	};
+	enqueuePreview(std::move(request));
 }
 
 void Session::cancelFeeEstimate(uint64 owner) {
@@ -7733,6 +8008,7 @@ void Session::settleDeferredDecrypts() {
 
 SendError Session::previewError(const PreviewRequest &request) {
 	const auto terms = gaslessTerms();
+	const auto ordinary = (request.tonConnect == nullptr);
 	if (!previewCurrent(request)) {
 		return SendError::QuoteExpired;
 	} else if (request.privateEpoch
@@ -7745,14 +8021,16 @@ SendError Session::previewError(const PreviewRequest &request) {
 		return SendError::Failed;
 	} else if (_presence.current() != Presence::Ready
 		|| request.identity->publicKey.size() != kCustodyPublicKeySize
-		|| request.args.amountNano <= 0
+		|| (ordinary && request.args.amountNano <= 0)
 		|| request.args.destination.isEmpty()) {
 		return SendError::InvalidRequest;
-	} else if (TransferAmountBelowMinimum(
+	} else if (ordinary
+		&& TransferAmountBelowMinimum(
 			request.args.amountNano,
 			TransferMinNanos(_session))) {
 		return SendError::AmountTooSmall;
-	} else if (request.terms != terms || terms.identity != request.identity) {
+	} else if (ordinary
+		&& (request.terms != terms || terms.identity != request.identity)) {
 		return SendError::QuoteExpired;
 	} else if (_clientStopping
 		|| !previewClientMatches(*request.identity, request.client)) {
@@ -7801,7 +8079,7 @@ void Session::startPreview() {
 		};
 		_previewPending = true;
 		const auto &request = _preview->active->request;
-		if (request.args.comment.text.isEmpty()) {
+		if (request.tonConnect || request.args.comment.text.isEmpty()) {
 			previewPrepared(flight, engine::SendMessageBody::kEmpty{});
 		} else if (request.args.comment.isPublic) {
 			previewPrepared(flight, engine::SendMessageBody::kComment{
@@ -7864,16 +8142,21 @@ void Session::previewPrepared(uint64 flight, engine::SendMessageBody body) {
 		finishPreview(flight, FeeResult{ .error = error });
 		return;
 	}
-	active.intent = std::make_shared<const engine::SendIntent>(
-		IntentFromArgs(active.request.args, std::move(body)));
+	const auto tonConnect = active.request.tonConnect;
+	active.intent = tonConnect
+		? std::make_shared<const engine::SendIntent>(tonConnect->intent)
+		: std::make_shared<const engine::SendIntent>(
+			IntentFromArgs(active.request.args, std::move(body)));
 	active.stage = PreviewState::Flight::Stage::Previewing;
 	const auto client = active.request.client;
-	const auto paired = active.request.terms.eligible(
+	const auto paired = !tonConnect && active.request.terms.eligible(
 		active.request.args.amountNano,
 		active.request.args.destination);
 	auto request = engine::SendPreviewRequest{ .intent = *active.intent };
-	_engine->run([client, request = std::move(request)] {
-		return client->preview_send(request);
+	_engine->run([client, tonConnect, request = std::move(request)] {
+		return tonConnect
+			? client->preview_ton_connect(*tonConnect)
+			: client->preview_send(request);
 	}, [=, this](engine::SendPreview preview) {
 		const auto fee = DecimalInt64(preview.emulation.wallet_fees_nanograms);
 		finishPreview(flight, (fee && *fee >= 0)
@@ -7967,6 +8250,7 @@ void Session::settlePreview() {
 					.generation = flight.request.generation,
 					.privateEpoch = flight.request.privateEpoch,
 					.client = flight.request.client,
+					.tonConnect = (flight.request.tonConnect != nullptr),
 				});
 		} else if (flight.result.error == SendError::None) {
 			flight.result = FeeResult{ .error = SendError::Failed };
@@ -8006,11 +8290,121 @@ void Session::retirePreviews(SendError error) {
 	}
 }
 
+SendError Session::sendRefusal(
+		const std::shared_ptr<const PreparedSend> &prepared,
+		const KeyAuthorization &auth) {
+	if (!prepared || !prepared->intent || !_preview) {
+		return SendError::InvalidRequest;
+	}
+	const auto terms = gaslessTerms();
+	const auto owner = _preview->owners.find(prepared->owner);
+	if (owner == end(_preview->owners)
+		|| owner->second != prepared->revision) {
+		return SendError::QuoteExpired;
+	}
+	const auto &args = prepared->args;
+	const auto tonConnect = prepared->tonConnect;
+	if (!SendCommentFits(args.comment.text)) {
+		return SendError::CommentTooLong;
+	}
+	if ((!tonConnect
+			&& (args.amountNano <= 0
+				|| FormatFriendly(args.destination, args.bounce).isEmpty()))
+		|| prepared->feeNano < 0
+		|| (!args.comment.text.isEmpty()
+			&& !args.comment.isPublic
+			&& !prepared->privateEpoch)) {
+		return SendError::InvalidRequest;
+	}
+	if (!tonConnect
+		&& TransferAmountBelowMinimum(
+			args.amountNano,
+			TransferMinNanos(_session))) {
+		return SendError::AmountTooSmall;
+	}
+	if (prepared->privateEpoch
+		&& *prepared->privateEpoch != vault().clearEpoch()) {
+		return SendError::Locked;
+	}
+	if (_presence.current() != Presence::Ready
+		|| prepared->generation != _networkGeneration
+		|| !transferWalletIdentityCurrent(prepared->identity)) {
+		return SendError::Failed;
+	}
+	if (!tonConnect
+		&& (prepared->terms != terms
+			|| terms.identity != prepared->identity)) {
+		return SendError::QuoteExpired;
+	}
+	if (_clientStopping
+		|| !transferClientMatches(prepared->identity, prepared->client)) {
+		return SendError::SigningUnavailable;
+	}
+	if (_sendState.current() != SendState::Idle
+		|| _rotating
+		|| custody().pendingRotation) {
+		return SendError::AlreadySending;
+	}
+	if (_pending || _sendUnresolved) {
+		return SendError::PreviousUnresolved;
+	}
+	if (!_sendRecoveryReady) {
+		return SendError::Failed;
+	}
+	if (!ReadAuthorized(*this, auth)) {
+		return SendError::Locked;
+	}
+	const auto paired = !tonConnect
+		&& terms.eligible(args.amountNano, args.destination);
+	const auto balance = _balanceNano.current();
+	if (args.amountNano > balance) {
+		return SendError::InsufficientBalance;
+	}
+	if (!paired && prepared->feeNano > balance - args.amountNano) {
+		// The relayer pays a fee-free transfer's fee, so nothing of the
+		// balance is kept back for it and the whole of it can be sent.
+		return SendError::InsufficientFees;
+	}
+	return SendError::None;
+}
+
 void Session::send(
 		KeyAuthorization auth,
 		std::shared_ptr<const PreparedSend> prepared,
 		Fn<void(SendError)> done,
 		Fn<void(FullMsgId)> drafted) {
+	startSend(
+		std::move(auth),
+		std::move(prepared),
+		std::move(done),
+		std::move(drafted),
+		nullptr);
+}
+
+void Session::sendTonConnect(
+		KeyAuthorization auth,
+		std::shared_ptr<const PreparedSend> prepared,
+		Fn<void(TonConnectSendResult)> done) {
+	if (!prepared || !prepared->tonConnect) {
+		if (done) {
+			done({ .error = SendError::InvalidRequest });
+		}
+		return;
+	}
+	startSend(
+		std::move(auth),
+		std::move(prepared),
+		nullptr,
+		nullptr,
+		std::move(done));
+}
+
+void Session::startSend(
+		KeyAuthorization auth,
+		std::shared_ptr<const PreparedSend> prepared,
+		Fn<void(SendError)> done,
+		Fn<void(FullMsgId)> drafted,
+		Fn<void(TonConnectSendResult)> tonConnect) {
 	done = [done = std::move(done)](SendError error) {
 		if (error != SendError::None) {
 			LOG(("Wallet Error: the send answered %1."
@@ -8024,79 +8418,19 @@ void Session::send(
 		if (done) {
 			done(error);
 		}
+		if (tonConnect) {
+			tonConnect({ .error = error });
+		}
 	};
-	if (!prepared || !prepared->intent || !_preview) {
-		fail(SendError::InvalidRequest);
+	const auto refusal = sendRefusal(prepared, auth);
+	if (refusal != SendError::None) {
+		fail(refusal);
 		return;
 	}
 	const auto terms = gaslessTerms();
-	const auto owner = _preview->owners.find(prepared->owner);
-	if (owner == end(_preview->owners)
-		|| owner->second != prepared->revision) {
-		fail(SendError::QuoteExpired);
-		return;
-	}
 	const auto &args = prepared->args;
-	if (!SendCommentFits(args.comment.text)) {
-		fail(SendError::CommentTooLong);
-		return;
-	} else if (args.amountNano <= 0
-		|| FormatFriendly(args.destination, args.bounce).isEmpty()
-		|| prepared->feeNano < 0
-		|| (!args.comment.text.isEmpty()
-			&& !args.comment.isPublic
-			&& !prepared->privateEpoch)) {
-		fail(SendError::InvalidRequest);
-		return;
-	} else if (TransferAmountBelowMinimum(
-			args.amountNano,
-			TransferMinNanos(_session))) {
-		fail(SendError::AmountTooSmall);
-		return;
-	}
-	if (prepared->privateEpoch
-		&& *prepared->privateEpoch != vault().clearEpoch()) {
-		fail(SendError::Locked);
-		return;
-	} else if (_presence.current() != Presence::Ready
-		|| prepared->generation != _networkGeneration
-		|| !transferWalletIdentityCurrent(prepared->identity)) {
-		fail(SendError::Failed);
-		return;
-	} else if (prepared->terms != terms
-		|| terms.identity != prepared->identity) {
-		fail(SendError::QuoteExpired);
-		return;
-	} else if (_clientStopping
-		|| !transferClientMatches(prepared->identity, prepared->client)) {
-		fail(SendError::SigningUnavailable);
-		return;
-	} else if (_sendState.current() != SendState::Idle
-		|| _rotating
-		|| custody().pendingRotation) {
-		fail(SendError::AlreadySending);
-		return;
-	} else if (_pending || _sendUnresolved) {
-		fail(SendError::PreviousUnresolved);
-		return;
-	} else if (!_sendRecoveryReady) {
-		fail(SendError::Failed);
-		return;
-	} else if (!ReadAuthorized(*this, auth)) {
-		fail(SendError::Locked);
-		return;
-	}
-	const auto paired = terms.eligible(args.amountNano, args.destination);
-	const auto balance = _balanceNano.current();
-	if (args.amountNano > balance) {
-		fail(SendError::InsufficientBalance);
-		return;
-	} else if (!paired && prepared->feeNano > balance - args.amountNano) {
-		// The relayer pays a fee-free transfer's fee, so nothing of the
-		// balance is kept back for it and the whole of it can be sent.
-		fail(SendError::InsufficientFees);
-		return;
-	}
+	const auto paired = !prepared->tonConnect
+		&& terms.eligible(args.amountNano, args.destination);
 	const auto operationId = NewRecordId();
 	const auto client = prepared->client;
 	const auto generation = prepared->generation;
@@ -8143,7 +8477,10 @@ void Session::send(
 		.destination = stored->destination,
 		.comment = stored->comment,
 	};
-	++owner->second;
+	const auto owner = _preview->owners.find(prepared->owner);
+	if (owner != end(_preview->owners)) {
+		++owner->second;
+	}
 	++_sendRevision;
 	_lastReceipt.reset();
 	const auto userId = args.userId;
@@ -8231,6 +8568,7 @@ void Session::send(
 		.operationId = operationId,
 		.prepared = prepared,
 		.drafted = std::move(drafted),
+		.tonConnect = std::move(tonConnect),
 		.paired = paired,
 		.normalFeeAuthorized = true,
 	};
@@ -8274,7 +8612,18 @@ void Session::send(
 	}, [=, this, grant = auth.grant](engine::SendResult result) {
 		if (!current() || _sendState.current() != SendState::Sending) {
 			return;
-		} else if (result.operation_id != operationId) {
+		}
+		if (auto report = base::take(_submission->tonConnect)) {
+			report(TonConnectSendOutcome(
+				result,
+				operationId,
+				_submission->rpcStarted,
+				_submission->normal));
+			if (!current()) {
+				return;
+			}
+		}
+		if (result.operation_id != operationId) {
 			LOG(("Wallet Error: engine send result names another operation."));
 			recordUnknown();
 			return;
@@ -8371,8 +8720,14 @@ void Session::send(
 		if (!current() || _sendState.current() != SendState::Sending) {
 			return;
 		} else if (IsSubmissionUnknown(error)) {
+			SettleTonConnect(*_submission, SendError::SubmissionUnknown);
 			recordUnknown();
 			return;
+		}
+		if (auto report = base::take(_submission->tonConnect)) {
+			report({
+				.error = _submission->refusal.value_or(SendErrorFrom(error)),
+			});
 		}
 		const auto record = submittedTransferRecord(operationId, identity);
 		if (record && record->handoff == TransferHandoff::Preparation) {
@@ -8472,14 +8827,16 @@ void Session::submitTransfer(
 		return;
 	}
 	const auto amount = prepared->args.amountNano;
-	if (TransferAmountBelowMinimum(amount, TransferMinNanos(_session))) {
+	if (!prepared->tonConnect
+		&& TransferAmountBelowMinimum(amount, TransferMinNanos(_session))) {
 		refuse(SendError::AmountTooSmall, u"WALLET_TRANSFER_AMOUNT_TOO_SMALL"_q);
 		return;
-	} else if (prepared->terms != terms
-		|| terms.identity != prepared->identity
-		|| _submission->paired != terms.eligible(
-			amount,
-			prepared->args.destination)
+	} else if ((!prepared->tonConnect
+			&& (prepared->terms != terms
+				|| terms.identity != prepared->identity
+				|| _submission->paired != terms.eligible(
+					amount,
+					prepared->args.destination)))
 		|| !_submission->normalFeeAuthorized
 		|| _clientStopping) {
 		refuse(SendError::QuoteExpired, u"WALLET_TRANSFER_QUOTE_EXPIRED"_q);
@@ -8536,6 +8893,7 @@ void Session::submitTransfer(
 	// never cancels it either; the sender's destructor is the one cancel,
 	// and a request still queued at that moment is recovered by the
 	// engine journal on the next launch.
+	_submission->normal = data.normal;
 	_submission->rpcStarted = true;
 	const auto weakSession = base::make_weak(_session);
 	auto randomId = base::RandomValue<uint64>();
@@ -9269,9 +9627,26 @@ void Session::dropSubmittedLookup() {
 	}
 }
 
+void Session::SettleTonConnect(
+		TransferSubmissionState &submission,
+		SendError error) {
+	if (auto report = base::take(submission.tonConnect)) {
+		report({
+			submission.rpcStarted
+				? QString::fromLatin1(submission.normal.toBase64())
+				: QString(),
+			error,
+		});
+	}
+}
+
 void Session::retireSubmission() {
-	const auto retired = base::take(_submission);
-	if (retired && retired->rpcStarted) {
+	auto retired = base::take(_submission);
+	if (!retired) {
+		return;
+	}
+	SettleTonConnect(*retired, SendError::Failed);
+	if (retired->rpcStarted) {
 		_transferMessages->dropSending(retired->draft);
 	}
 }

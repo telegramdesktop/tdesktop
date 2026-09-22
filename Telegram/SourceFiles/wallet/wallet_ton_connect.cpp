@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_panel.h"
 #include "wallet/wallet_session.h"
 #include "wallet/wallet_ton_connect_box.h"
+#include "wallet/wallet_ton_connect_request.h"
 #include "window/window_session_controller.h"
 
 #include <QtCore/QUrl>
@@ -105,6 +106,26 @@ constexpr auto kBidiControls = std::array{
 		return tr::lng_wallet_apps_disconnect_failed(tr::now);
 	}
 	Unexpected("Access in TON Connect DisconnectAccessNotice.");
+}
+
+[[nodiscard]] tr::phrase<lngtag_app> TonConnectTopicPhrase(
+		const QString &topic) {
+	const auto list = std::array{
+		std::pair{
+			u"sendTransaction"_q,
+			tr::lng_action_ton_connect_send_transaction },
+		std::pair{ u"signData"_q, tr::lng_action_ton_connect_sign_data },
+		std::pair{
+			u"signMessage"_q,
+			tr::lng_action_ton_connect_sign_message },
+		std::pair{ u"disconnect"_q, tr::lng_action_ton_connect_disconnect },
+	};
+	for (const auto &[known, phrase] : list) {
+		if (topic == known) {
+			return phrase;
+		}
+	}
+	return tr::lng_action_ton_connect_request;
 }
 
 } // namespace
@@ -209,9 +230,22 @@ bool TonConnectSessionConnected(const TonConnectSessionInfo &info) {
 		|| (info.status == TonConnectSessionStatus::Closing);
 }
 
+TextWithEntities TonConnectRequestText(
+		const QString &topic,
+		const QString &name) {
+	return name.isEmpty()
+		? tr::lng_action_ton_connect_request_unknown(tr::now, tr::marked)
+		: TonConnectTopicPhrase(topic)(
+			tr::now,
+			lt_app,
+			tr::bold(name),
+			tr::marked);
+}
+
 TonConnect::TonConnect(not_null<Main::Session*> session)
 : _session(session)
-, _api(&session->mtp()) {
+, _api(&session->mtp())
+, _requests(std::make_unique<TonConnectRequests>(session, this)) {
 }
 
 TonConnect::~TonConnect() = default;
@@ -234,6 +268,7 @@ void TonConnect::walletChanged() {
 
 void TonConnect::stop() {
 	_stopped = true;
+	_requests->stop();
 	base::take(_connects).clear();
 	_api.request(base::take(_loadRequestId)).cancel();
 }
@@ -351,6 +386,10 @@ void TonConnect::connect(
 		std::make_unique<Connect>(this, controller, std::move(link), key)
 	).first->second.get();
 	flow->start();
+}
+
+TonConnectRequests &TonConnect::requests() {
+	return *_requests;
 }
 
 TonConnectSessionInfo TonConnect::Parse(const MTPTonConnectSession &session) {

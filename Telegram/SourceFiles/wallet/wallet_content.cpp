@@ -3630,7 +3630,9 @@ void WalletSendCommentBox(
 	AddBoxCloseButton(box);
 }
 
-[[nodiscard]] QString SendErrorText(SendError error, int64 minTransferNano) {
+} // namespace
+
+QString SendErrorText(SendError error, int64 minTransferNano) {
 	switch (error) {
 	case SendError::None:
 	case SendError::Silent:
@@ -3672,6 +3674,8 @@ void WalletSendCommentBox(
 	}
 	Unexpected("Error value in SendErrorText.");
 }
+
+namespace {
 
 [[nodiscard]] QString SendUserLoadErrorText(const QString &error) {
 	if (error == u"WALLET_UNAVAILABLE"_q) {

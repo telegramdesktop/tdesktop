@@ -146,26 +146,6 @@ template <typename T>
 		: QString();
 }
 
-[[nodiscard]] tr::phrase<lngtag_app> TonConnectTopicPhrase(
-		const QString &topic) {
-	const auto list = std::array{
-		std::pair{
-			u"sendTransaction"_q,
-			tr::lng_action_ton_connect_send_transaction },
-		std::pair{ u"signData"_q, tr::lng_action_ton_connect_sign_data },
-		std::pair{
-			u"signMessage"_q,
-			tr::lng_action_ton_connect_sign_message },
-		std::pair{ u"disconnect"_q, tr::lng_action_ton_connect_disconnect },
-	};
-	for (const auto &[known, phrase] : list) {
-		if (topic == known) {
-			return phrase;
-		}
-	}
-	return tr::lng_action_ton_connect_request;
-}
-
 [[nodiscard]] bool TonConnectTopicReviewable(const QString &topic) {
 	return (topic != u"signData"_q)
 		&& (topic != u"signMessage"_q)
@@ -8751,9 +8731,7 @@ PreparedServiceText HistoryItem::prepareTonConnectRequestText() {
 			tr::lng_action_ton_connect_expired,
 			tr::lng_action_ton_connect_expired_unknown);
 	} else {
-		const auto text = pick(
-			TonConnectTopicPhrase(request->topic),
-			tr::lng_action_ton_connect_request_unknown);
+		const auto text = Wallet::TonConnectRequestText(request->topic, name);
 		if (TonConnectTopicReviewable(request->topic)) {
 			request->notificationText = text;
 			result.text = tr::lng_action_ton_connect_review(

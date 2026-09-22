@@ -28,6 +28,14 @@ constexpr auto kStateInitSignatureAt = 124;
 const auto kInternal = u"te6ccgEBAwEA6AABYEIAGeMUJOFN6KRwLiUdOcwZD/aMdNwFFlAi2cxqbZquXgiAAAAAAAAAAAAAAAAAAQEB4GjrM3YMvhbU9Hg0G1vQpJVrg5iC886zd6ZNwSAmZRCh2fClR/+rNimR/GY/gmH80A5VJ+8DDRO9q+CrtyIitA77upnHf/9//XEAAAABAgMEk6mZyJrraLyLwzObhObSS7c/VCofehNrPY77xbJQoDUCAIBWCljSrxoHWqV8hxqGgA1c/Ns5vGKNvWAKMFPRbs91WEA37cX7cP9JJc8cEsjbVg5Ue4we4AJjn4VCaU01HWQE"_q;
 constexpr auto kInternalSignatureAt = 64;
 
+// The demo dApp's real default payload ("Hello!") and stateInit.
+const auto kComment = u"te6cckEBAQEADAAAFAAAAABIZWxsbyGVgYQo"_q;
+constexpr auto kCommentOpcodeAt = 13;
+constexpr auto kCommentTextAt = 17;
+constexpr auto kCommentTextSize = 6;
+const auto kDeploy = u"te6cckEBBAEAOgACATQCAQAAART/APSkE/S88sgLAwBI0wHQ0wMBcbCRW+D6QDBwgBDIywVYzxYh+gLLagHPFsmAQPsAlxCarA=="_q;
+const auto kHashed = u"te6cckEBAwEARQARGAAAAABIZWxsbyEhIQIAZAAAAAAAAAAAAAAAAAAAAAAAAAARIjNEUVVFUllJRCEBACCAgYKDhIWGh4iJiouMjY6PAADqDvOl"_q;
+
 constexpr auto kSignatureBytes = 64;
 
 [[nodiscard]] QByteArray Decode(const QString &base64) {
@@ -86,6 +94,39 @@ constexpr auto kSignatureBytes = 64;
 	return BreakRotationSignature(boc).isEmpty()
 		? QString()
 		: (u"accepted "_q + name);
+}
+
+[[nodiscard]] QString CheckComment(
+		const QString &boc,
+		const QString &expected) {
+	const auto comment = TextCommentFromBoc(boc);
+	return !comment
+		? u"read no comment"_q
+		: (*comment != expected)
+		? (u"read \""_q + *comment + u"\" instead"_q)
+		: QString();
+}
+
+[[nodiscard]] QString CheckNotComment(
+		const QString &name,
+		const QString &boc) {
+	return TextCommentFromBoc(boc)
+		? (u"read a comment from "_q + name)
+		: QString();
+}
+
+[[nodiscard]] QString CommentWithByte(int at, uchar value) {
+	auto bytes = Decode(kComment);
+	bytes[at] = char(value);
+	return Encode(bytes);
+}
+
+[[nodiscard]] QString SnakeComment() {
+	auto bytes = QByteArray::fromHex("b5ee9c72" "01" "01" "02" "01" "00" "0f");
+	bytes.append(QByteArray::fromHex("00"));
+	bytes.append(QByteArray::fromHex("010e" "00000000" "616263" "01"));
+	bytes.append(QByteArray::fromHex("0006" "646566"));
+	return Encode(bytes);
 }
 
 } // namespace
@@ -165,6 +206,50 @@ std::vector<Check> BocChecks() {
 				}
 				return QString();
 			},
+		},
+		{
+			u"boc: the demo payload is the comment Hello!"_q,
+			[] { return CheckComment(kComment, u"Hello!"_q); },
+		},
+		{
+			u"boc: a non-zero opcode is not a comment"_q,
+			[]() -> QString {
+				const auto cases = std::vector<std::pair<QString, QString>>{
+					{ u"an empty payload"_q, QString() },
+					{ u"text that is not base64"_q, u"not base64 at all"_q },
+					{
+						u"a truncated payload"_q,
+						Encode(Decode(kComment).left(20)),
+					},
+					{ u"a state init"_q, kDeploy },
+					{ u"a cell with stored hashes"_q, kHashed },
+					{
+						u"a non-zero opcode"_q,
+						CommentWithByte(kCommentOpcodeAt, 1),
+					},
+					{
+						u"text that is not UTF-8"_q,
+						CommentWithByte(kCommentTextAt, 0xFF),
+					},
+					{
+						u"text cut inside a character"_q,
+						CommentWithByte(
+							kCommentTextAt + kCommentTextSize - 1,
+							0xC3),
+					},
+				};
+				for (const auto &[name, boc] : cases) {
+					const auto error = CheckNotComment(name, boc);
+					if (!error.isEmpty()) {
+						return error;
+					}
+				}
+				return QString();
+			},
+		},
+		{
+			u"boc: a comment continues into the referenced cell"_q,
+			[] { return CheckComment(SnakeComment(), u"abcdef"_q); },
 		},
 	};
 }

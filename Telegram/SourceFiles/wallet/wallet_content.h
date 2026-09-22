@@ -32,6 +32,7 @@ class CommentScope;
 class CollectibleMedia;
 struct KeyAuthorization;
 struct TransferItem;
+enum class SendError;
 
 void AcquireTransferCommentKey(
 	std::shared_ptr<Main::SessionShow> show,
@@ -97,5 +98,7 @@ void ShowWalletConflict(
 
 [[nodiscard]] rpl::producer<bool> TransactionsShownValue(
 	not_null<Main::Session*> session);
+
+[[nodiscard]] QString SendErrorText(SendError error, int64 minTransferNano);
 
 } // namespace Wallet

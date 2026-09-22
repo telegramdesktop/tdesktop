@@ -2209,6 +2209,10 @@ PRIVATE
     wallet/wallet_ton_connect_box.h
     wallet/wallet_ton_connect_link.cpp
     wallet/wallet_ton_connect_link.h
+    wallet/wallet_ton_connect_request.cpp
+    wallet/wallet_ton_connect_request.h
+    wallet/wallet_ton_connect_request_box.cpp
+    wallet/wallet_ton_connect_request_box.h
     wallet/wallet_transfer_messages.cpp
     wallet/wallet_transfer_messages.h
     wallet/wallet_transfer_store.cpp

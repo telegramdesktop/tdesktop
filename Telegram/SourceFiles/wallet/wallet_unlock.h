@@ -86,6 +86,8 @@ struct VaultUnlockArgs {
 // unlock box, the unavailable toast - has already been shown here.
 void AcquireVaultUnlock(VaultUnlockArgs args);
 
+[[nodiscard]] bool VaultUnlockSilent(not_null<Main::Session*> session);
+
 [[nodiscard]] CustodyInstaller MakeCustodyInstaller(
 	std::shared_ptr<Main::SessionShow> show,
 	VaultAuthorization authorization = nullptr);

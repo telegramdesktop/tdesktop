@@ -50,10 +50,13 @@ class Session;
 struct ShareFetch;
 class TonConnect;
 enum class TonConnectAccess : uchar;
+struct TonConnectAppRequest;
 struct TonConnectEventRequest;
 struct TonConnectKey;
 enum class TonConnectKeyError : uchar;
 struct TonConnectReply;
+struct TonConnectResponse;
+struct TonConnectTransfer;
 class TransferMessages;
 struct TransferSubmissionAnswer;
 struct TransferSubmissionData;
@@ -327,6 +330,11 @@ struct PendingSendInfo {
 struct TransferReceipt {
 	QByteArray messageHash;
 	bool gasless = false;
+};
+
+struct TonConnectSendResult {
+	QString signedBoc;
+	SendError error = SendError::None;
 };
 
 struct SendComment {
@@ -643,6 +651,22 @@ public:
 		uint64 eventId,
 		Fn<void(QByteArray)> done,
 		Fn<void()> fail);
+	void decryptTonConnectRequest(
+		TonConnectKey key,
+		QByteArray body,
+		Fn<void(TonConnectAppRequest)> done,
+		Fn<void()> fail);
+	void answerTonConnectChallenge(
+		TonConnectKey key,
+		QByteArray challenge,
+		Fn<void(QByteArray)> done,
+		Fn<void()> fail);
+	void encryptTonConnectResponse(
+		TonConnectKey key,
+		QString requestId,
+		TonConnectResponse response,
+		Fn<void(QByteArray)> done,
+		Fn<void()> fail);
 	[[nodiscard]] bool rotationOffered();
 	void quoteRotationFee(KeyAuthorization auth, Fn<void(FeeResult)> done);
 	void prepareRotation(
@@ -726,6 +750,10 @@ public:
 		const SendArgs &args,
 		Fn<void(FeeResult)> done);
 	void cancelFeeEstimate(uint64 owner);
+	void estimateTonConnect(
+		uint64 owner,
+		std::shared_ptr<const TonConnectTransfer> transfer,
+		Fn<void(FeeResult)> done);
 	// |drafted| names the local service message this transfer was given
 	// in the recipient's chat, the moment it exists and before anything
 	// leaves the device, so a sender can hand the user over to that chat.
@@ -734,6 +762,13 @@ public:
 		std::shared_ptr<const PreparedSend> prepared,
 		Fn<void(SendError)> done,
 		Fn<void(FullMsgId)> drafted = nullptr);
+	[[nodiscard]] SendError sendRefusal(
+		const std::shared_ptr<const PreparedSend> &prepared,
+		const KeyAuthorization &auth);
+	void sendTonConnect(
+		KeyAuthorization auth,
+		std::shared_ptr<const PreparedSend> prepared,
+		Fn<void(TonConnectSendResult)> done);
 	[[nodiscard]] SendState sendState() const;
 	[[nodiscard]] rpl::producer<SendState> sendStateValue() const;
 	[[nodiscard]] std::optional<PendingSendInfo> pendingSend() const;
@@ -934,6 +969,7 @@ private:
 		const TransferWalletIdentity &identity,
 		const std::shared_ptr<wallet_engine::WalletClient> &client) const;
 	[[nodiscard]] SendError previewError(const PreviewRequest &request);
+	void enqueuePreview(PreviewRequest request);
 	void startPreview();
 	void previewPrepared(uint64 flight, wallet_engine::SendMessageBody body);
 	void finishPreview(uint64 flight, FeeResult result);
@@ -955,6 +991,12 @@ private:
 		const wallet_engine::SendSnapshot &snapshot,
 		bool journalAuthoritative,
 		uint64 sendRevision);
+	void startSend(
+		KeyAuthorization auth,
+		std::shared_ptr<const PreparedSend> prepared,
+		Fn<void(SendError)> done,
+		Fn<void(FullMsgId)> drafted,
+		Fn<void(TonConnectSendResult)> tonConnect);
 	[[nodiscard]] bool submissionCurrent(
 		const std::string &operationId,
 		const std::shared_ptr<const PreparedSend> &prepared) const;
@@ -1135,11 +1177,16 @@ private:
 		std::optional<TransferReceipt> receipt;
 		std::optional<SendError> refusal;
 		Fn<void(FullMsgId)> drafted;
+		Fn<void(TonConnectSendResult)> tonConnect;
 		FullMsgId draft;
+		QByteArray normal;
 		bool paired = false;
 		bool normalFeeAuthorized = false;
 		bool rpcStarted = false;
 	};
+	static void SettleTonConnect(
+		TransferSubmissionState &submission,
+		SendError error);
 	std::optional<TransferSubmissionState> _submission;
 	std::optional<SubmittedTransferStore> _submittedTransferStore;
 	bool _submittedTransfersDirty = false;

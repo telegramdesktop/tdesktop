@@ -14,7 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_ton_connect_link.h"
 #include "wallet/wallet_unlock.h"
 
+struct TextWithEntities;
+
 namespace wallet_engine {
+struct SendRequest;
 struct TonConnectDerivedSession;
 } // namespace wallet_engine
 
@@ -28,6 +31,8 @@ class SessionController;
 } // namespace Window
 
 namespace Wallet {
+
+class TonConnectRequests;
 
 using TonConnectSessionId = uint64;
 
@@ -109,11 +114,55 @@ struct TonConnectSessionInfo {
 		const TonConnectSessionInfo &) = default;
 };
 
+struct TonConnectMessage {
+	QString destination;
+	int64 amountNano = 0;
+	QString comment;
+	QString payload;
+	bool deploys = false;
+};
+
+struct TonConnectTransfer {
+	std::shared_ptr<const wallet_engine::SendRequest> request;
+	std::vector<TonConnectMessage> messages;
+	int64 totalNano = 0;
+	std::optional<TimeId> validUntil;
+};
+
+enum class TonConnectRequestKind : uchar {
+	SendTransaction,
+	Invalid,
+	Disconnect,
+	Unsupported,
+};
+
+struct TonConnectAppRequest {
+	TonConnectRequestKind kind = TonConnectRequestKind::Unsupported;
+	QString id;
+	QString method;
+	std::optional<int64> appRequestId;
+	std::shared_ptr<const TonConnectTransfer> transfer;
+};
+
+enum class TonConnectError : uchar {
+	Unknown,
+	BadRequest,
+	UserDeclined,
+};
+
+struct TonConnectResponse {
+	QString signedBoc;
+	TonConnectError error = TonConnectError::Unknown;
+};
+
 [[nodiscard]] QString TonConnectHost(const QString &url);
 [[nodiscard]] QString TonConnectManifestName(
 	const TonConnectManifest &manifest);
 [[nodiscard]] bool TonConnectSessionConnected(
 	const TonConnectSessionInfo &info);
+[[nodiscard]] TextWithEntities TonConnectRequestText(
+	const QString &topic,
+	const QString &name);
 
 class TonConnect final : public base::has_weak_ptr {
 public:
@@ -147,6 +196,8 @@ public:
 	void connect(
 		not_null<Window::SessionController*> controller,
 		TonConnectLink link);
+
+	[[nodiscard]] TonConnectRequests &requests();
 
 private:
 	class Connect;
@@ -205,6 +256,7 @@ private:
 	mtpRequestId _loadRequestId = 0;
 	bool _loaded = false;
 	bool _stopped = false;
+	std::unique_ptr<TonConnectRequests> _requests;
 
 };
 

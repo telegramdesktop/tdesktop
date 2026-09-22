@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 
 #include <QtCore/QByteArray>
+#include <QtCore/QStringDecoder>
 
 namespace Gram {
 namespace {
@@ -29,8 +30,17 @@ constexpr auto kMaxBytes = 64 * 1024;
 struct Cell {
 	int dataFrom = 0;
 	int dataSize = 0;
+	int refsFrom = 0;
 	int refs = 0;
 	bool wholeBytes = false;
+};
+
+struct ParsedBoc {
+	QByteArray data;
+	std::vector<Cell> cells;
+	int refSize = 0;
+	int root = 0;
+	bool hasCrc = false;
 };
 
 [[nodiscard]] std::optional<quint64> ReadNumber(
@@ -77,14 +87,14 @@ struct Cell {
 		const auto second = uchar(data[offset + 1]);
 		offset += 2;
 		const auto refs = int(first & 0x07);
-		const auto exotic = ((first & 0x08) != 0);
 		const auto dataSize = int(second >> 1) + int(second & 0x01);
-		if (exotic || refs > 4 || till - offset < dataSize) {
+		if ((first & 0xF8) != 0 || refs > 4 || till - offset < dataSize) {
 			return {};
 		}
 		result.push_back({
 			.dataFrom = offset,
 			.dataSize = dataSize,
+			.refsFrom = offset + dataSize,
 			.refs = refs,
 			.wholeBytes = ((second & 0x01) == 0),
 		});
@@ -136,31 +146,29 @@ struct Cell {
 	return ~result;
 }
 
-} // namespace
-
-QString BreakRotationSignature(const QString &bocBase64) {
+[[nodiscard]] std::optional<ParsedBoc> ParseBoc(const QString &bocBase64) {
 	auto data = QByteArray::fromBase64(
 		bocBase64.toLatin1(),
 		QByteArray::Base64Encoding | QByteArray::AbortOnBase64DecodingErrors);
 	if (data.isEmpty() || data.size() > kMaxBytes) {
-		return QString();
+		return {};
 	}
 	auto offset = 0;
 	const auto magic = ReadNumber(data, offset, 4);
 	const auto flags = ReadNumber(data, offset, 1);
 	if (!magic || *magic != kBocMagic || !flags) {
-		return QString();
+		return {};
 	}
 	const auto hasIndex = ((*flags & 0x80) != 0);
 	const auto hasCrc = ((*flags & 0x40) != 0);
 	const auto hasCacheBits = ((*flags & 0x20) != 0);
 	const auto refSize = int(*flags & 0x07);
 	if (hasCacheBits || refSize < 1 || refSize > 4) {
-		return QString();
+		return {};
 	}
 	const auto offsetSize = ReadNumber(data, offset, 1);
 	if (!offsetSize || *offsetSize < 1 || *offsetSize > 8) {
-		return QString();
+		return {};
 	}
 	const auto cells = ReadNumber(data, offset, refSize);
 	const auto roots = ReadNumber(data, offset, refSize);
@@ -175,33 +183,55 @@ QString BreakRotationSignature(const QString &bocBase64) {
 		|| *cells < 1
 		|| *cells > kMaxCells
 		|| *size > quint64(kMaxBytes)) {
-		return QString();
+		return {};
 	}
-	const auto listed = int(*roots) * refSize
-		+ (hasIndex ? (int(*cells) * int(*offsetSize)) : 0);
+	const auto root = ReadNumber(data, offset, refSize);
+	if (!root) {
+		return {};
+	}
+	const auto listed = hasIndex ? (int(*cells) * int(*offsetSize)) : 0;
 	if (data.size() - offset < listed) {
-		return QString();
+		return {};
 	}
 	offset += listed;
 	const auto tail = hasCrc ? 4 : 0;
 	if (data.size() - offset != int(*size) + tail) {
-		return QString();
+		return {};
 	}
-	const auto parsed = ParseCells(
+	auto parsed = ParseCells(
 		data,
 		offset,
 		offset + int(*size),
 		int(*cells),
 		refSize);
 	if (!parsed) {
+		return {};
+	}
+	return ParsedBoc{
+		.data = std::move(data),
+		.cells = std::move(*parsed),
+		.refSize = refSize,
+		.root = int(*root),
+		.hasCrc = hasCrc,
+	};
+}
+
+} // namespace
+
+QString BreakRotationSignature(const QString &bocBase64) {
+	auto parsed = ParseBoc(bocBase64);
+	if (!parsed) {
 		return QString();
 	}
-	const auto index = FindRequest(data, *parsed);
+	auto &data = parsed->data;
+	const auto index = FindRequest(data, parsed->cells);
 	if (index < 0) {
 		return QString();
 	}
-	base::RandomFill(data.data() + (*parsed)[index].dataFrom, kSignatureBytes);
-	if (hasCrc) {
+	base::RandomFill(
+		data.data() + parsed->cells[index].dataFrom,
+		kSignatureBytes);
+	if (parsed->hasCrc) {
 		const auto till = int(data.size()) - 4;
 		const auto crc = Crc32c(data, till);
 		for (auto i = 0; i != 4; ++i) {
@@ -209,6 +239,55 @@ QString BreakRotationSignature(const QString &bocBase64) {
 		}
 	}
 	return QString::fromLatin1(data.toBase64());
+}
+
+std::optional<QString> TextCommentFromBoc(const QString &bocBase64) {
+	const auto parsed = ParseBoc(bocBase64);
+	if (!parsed) {
+		return std::nullopt;
+	}
+	const auto &data = parsed->data;
+	const auto &cells = parsed->cells;
+	const auto count = int(cells.size());
+	auto visited = std::vector<bool>(count, false);
+	auto bytes = QByteArray();
+	auto index = parsed->root;
+	for (auto step = 0; step != kMaxCells; ++step) {
+		if (index < 0 || index >= count || visited[index]) {
+			return std::nullopt;
+		}
+		visited[index] = true;
+		const auto &cell = cells[index];
+		if (!cell.wholeBytes || cell.refs > 1) {
+			return std::nullopt;
+		}
+		auto from = cell.dataFrom;
+		auto size = cell.dataSize;
+		if (!step) {
+			if (size < 4 || ReadOpcode(data, from) != 0) {
+				return std::nullopt;
+			}
+			from += 4;
+			size -= 4;
+		}
+		bytes.append(data.constData() + from, size);
+		if (!cell.refs) {
+			auto decoder = QStringDecoder(
+				QStringDecoder::Utf8,
+				QStringDecoder::Flag::Stateless);
+			const auto text = QString(decoder(bytes));
+			return decoder.hasError()
+				? std::nullopt
+				: std::make_optional(text);
+		}
+		auto offset = cell.refsFrom;
+		const auto next = ReadNumber(data, offset, parsed->refSize);
+		if (!next || *next >= quint64(count)) {
+			return std::nullopt;
+		}
+		index = int(*next);
+	}
+	return std::nullopt;
 }
 
 } // namespace Gram
