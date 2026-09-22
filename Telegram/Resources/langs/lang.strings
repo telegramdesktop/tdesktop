@@ -9093,8 +9093,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_buy_button" = "Buy with card or crypto";
 "lng_wallet_buy_empty" = "No payment options are available.";
 "lng_wallet_connect_title" = "Connect Wallet";
+"lng_wallet_connect_title_app" = "Connect wallet to {name}";
 "lng_wallet_connect_loading" = "Loading app details…";
-"lng_wallet_connect_address" = "Wallet address";
 "lng_wallet_connect_permission" = "The app will be able to view your TON address, balance and activity.";
 "lng_wallet_connect_reassurance" = "The app won't be able to move funds without permission.";
 "lng_wallet_connect_proof" = "The app also asks you to confirm that this wallet is yours. This is a sign-in signature, not a transfer.";

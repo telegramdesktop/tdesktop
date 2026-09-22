@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Main {
+class SessionShow;
+} // namespace Main
+
 namespace Ui {
 class GenericBox;
 } // namespace Ui
@@ -24,7 +28,7 @@ struct TonConnectBoxState {
 	TonConnectBoxPhase phase = TonConnectBoxPhase::Loading;
 	QString name;
 	QString domain;
-	QString address;
+	QString iconUrl;
 	bool proof = false;
 	QString notice;
 	QString error;
@@ -35,6 +39,7 @@ struct TonConnectBoxState {
 };
 
 struct TonConnectBoxArgs {
+	std::shared_ptr<Main::SessionShow> show;
 	rpl::producer<TonConnectBoxState> state;
 	Fn<void()> connect;
 	Fn<void()> dismissed;

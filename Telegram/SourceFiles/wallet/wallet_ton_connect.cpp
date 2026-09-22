@@ -475,6 +475,7 @@ void TonConnect::Connect::start() {
 	}
 	_show = TonConnectBoxShow(controller);
 	auto box = Box(TonConnectBox, TonConnectBoxArgs{
+		.show = _show,
 		.state = _state.value(),
 		.connect = crl::guard(this, [=] { connectPressed(); }),
 		.dismissed = crl::guard(this, [=] { dismissed(); }),
@@ -657,7 +658,9 @@ void TonConnect::Connect::sessionChanged() {
 		.phase = BoxPhase::Confirm,
 		.name = TonConnectManifestName(*info->manifest),
 		.domain = _domain,
-		.address = wallet.addressFriendly(),
+		.iconUrl = (ValidHttpsUrl(info->manifest->iconUrl)
+			? info->manifest->iconUrl
+			: QString()),
 		.proof = _link.proofPayload.has_value(),
 	};
 }
@@ -983,6 +986,7 @@ void TonConnect::Connect::notice(const QString &text) {
 		.phase = BoxPhase::Notice,
 		.name = _state.current().name,
 		.domain = _state.current().domain,
+		.iconUrl = _state.current().iconUrl,
 		.notice = text,
 	};
 	_state = std::move(state);

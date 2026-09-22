@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/object_ptr.h"
 #include "base/unique_qptr.h"
 
 class UserData;
@@ -50,6 +51,10 @@ void ShowTransactionDetails(
 
 [[nodiscard]] base::unique_qptr<Ui::RpWidget> CreateContent(
 	not_null<Ui::SeparatePanel*> panel,
+	std::shared_ptr<Main::SessionShow> show);
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeWalletCard(
+	QWidget *parent,
 	std::shared_ptr<Main::SessionShow> show);
 
 void FillMenu(

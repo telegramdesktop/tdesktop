@@ -37,4 +37,6 @@ struct TonConnectLink {
 [[nodiscard]] std::optional<TonConnectLink> ParseTonConnectLink(
 	const QString &query);
 
+[[nodiscard]] bool ValidHttpsUrl(const QString &url);
+
 } // namespace Wallet

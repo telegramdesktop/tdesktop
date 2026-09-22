@@ -57,14 +57,6 @@ constexpr auto kMaxQueryLength = 8192;
 	return result;
 }
 
-[[nodiscard]] bool ValidManifestUrl(const QString &url) {
-	const auto parsed = QUrl(url, QUrl::StrictMode);
-	return parsed.isValid()
-		&& (parsed.scheme() == u"https"_q)
-		&& !parsed.host().isEmpty()
-		&& parsed.userInfo().isEmpty();
-}
-
 [[nodiscard]] bool ParseConnectRequest(
 		const QString &json,
 		TonConnectLink &link) {
@@ -76,7 +68,7 @@ constexpr auto kMaxQueryLength = 8192;
 	const auto object = document.object();
 	const auto manifestUrl = object.value(u"manifestUrl"_q).toString();
 	const auto items = object.value(u"items"_q);
-	if (!ValidManifestUrl(manifestUrl) || !items.isArray()) {
+	if (!ValidHttpsUrl(manifestUrl) || !items.isArray()) {
 		return false;
 	}
 	auto address = false;
@@ -177,6 +169,14 @@ std::optional<TonConnectLink> ParseTonConnectLink(const QString &query) {
 		result.traceId = traceId;
 	}
 	return result;
+}
+
+bool ValidHttpsUrl(const QString &url) {
+	const auto parsed = QUrl(url, QUrl::StrictMode);
+	return parsed.isValid()
+		&& (parsed.scheme() == u"https"_q)
+		&& !parsed.host().isEmpty()
+		&& parsed.userInfo().isEmpty();
 }
 
 } // namespace Wallet

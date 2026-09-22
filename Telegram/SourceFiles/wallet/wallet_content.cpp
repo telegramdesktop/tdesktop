@@ -9895,6 +9895,34 @@ QRect BalanceInk::markRect(QRect cardRest) const {
 		st::walletCardMarkSize);
 }
 
+[[nodiscard]] rpl::producer<TextWithEntities> CardNameValue(
+		not_null<Main::Session*> session) {
+	return Info::Profile::NameValue(
+		session->user()
+	) | rpl::map([](QString name) {
+		return tr::marked(std::move(name));
+	});
+}
+
+void SetupCardBalance(
+		not_null<BalanceInk*> ink,
+		not_null<Main::Session*> session,
+		Fn<void()> repaint,
+		rpl::lifetime &lifetime) {
+	rpl::combine(
+		session->wallet().balanceNanoValue(),
+		FiatRateValue(session)
+	) | rpl::on_next([=](int64 nano, FiatRate rate) {
+		ink->setContent(
+			CreditsAmount(
+				nano / Ui::kNanosInOne,
+				nano % Ui::kNanosInOne,
+				CreditsType::Ton),
+			FormatFiat(nano, rate));
+		repaint();
+	}, lifetime);
+}
+
 Card::Card(
 	QWidget *parent,
 	std::shared_ptr<Main::SessionShow> show,
@@ -10438,12 +10466,10 @@ void Content::setupPinned() {
 			_pinnedInner,
 			st::walletCardHeight),
 		st::walletCardMargin);
-	auto name = Info::Profile::NameValue(
-		_show->session().user()
-	) | rpl::map([](QString name) {
-		return tr::marked(std::move(name));
-	});
-	_card = Ui::CreateChild<Card>(this, _show, std::move(name));
+	_card = Ui::CreateChild<Card>(
+		this,
+		_show,
+		CardNameValue(&_show->session()));
 	_card->setGeometry(Ui::MapFrom(
 		this,
 		_cardPlaceholder,
@@ -10737,18 +10763,11 @@ void Content::setupBalance() {
 		repaintBalance();
 	}, lifetime());
 
-	rpl::combine(
-		_show->session().wallet().balanceNanoValue(),
-		FiatRateValue(&_show->session())
-	) | rpl::on_next([=](int64 nano, FiatRate rate) {
-		_ink->setContent(
-			CreditsAmount(
-				nano / Ui::kNanosInOne,
-				nano % Ui::kNanosInOne,
-				CreditsType::Ton),
-			FormatFiat(nano, rate));
-		repaintBalance();
-	}, lifetime());
+	SetupCardBalance(
+		_ink.get(),
+		&_show->session(),
+		repaintBalance,
+		lifetime());
 
 	style::PaletteChanged(
 	) | rpl::on_next([=] {
@@ -11782,6 +11801,70 @@ base::unique_qptr<Ui::RpWidget> CreateContent(
 		not_null<Ui::SeparatePanel*> panel,
 		std::shared_ptr<Main::SessionShow> show) {
 	return base::make_unique_q<Content>(panel, std::move(show));
+}
+
+object_ptr<Ui::RpWidget> MakeWalletCard(
+		QWidget *parent,
+		std::shared_ptr<Main::SessionShow> show) {
+	auto result = object_ptr<Ui::FixedHeightWidget>(
+		parent,
+		st::walletCardHeight);
+	const auto raw = result.data();
+	const auto cardWidth = st::walletPanelSize.width()
+		- st::walletCardMargin.left()
+		- st::walletCardMargin.right();
+	raw->setNaturalWidth(cardWidth);
+
+	const auto card = Ui::CreateChild<Card>(
+		raw,
+		show,
+		CardNameValue(&show->session()));
+	card->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	const auto overlay = Ui::CreateChild<Ui::RpWidget>(raw);
+	overlay->setAttribute(Qt::WA_TransparentForMouseEvents);
+	overlay->show();
+	overlay->raise();
+
+	const auto ink = raw->lifetime().make_state<BalanceInk>();
+	ink->setOuterWidth(st::walletPanelSize.width());
+
+	raw->sizeValue(
+	) | rpl::on_next([=](QSize size) {
+		const auto rest = QRect(QPoint(), size);
+		card->setGeometry(rest);
+		card->setFold(ComputeCardFold(rest, 0.));
+		overlay->setGeometry(rest);
+	}, raw->lifetime());
+
+	overlay->paintRequest(
+	) | rpl::on_next([=](QRect clip) {
+		auto p = QPainter(overlay);
+		auto hq = PainterHighQualityEnabler(p);
+		ink->paint(
+			p,
+			ComputeCardFold(raw->rect(), 0.),
+			QRegion(raw->rect()),
+			clip);
+	}, overlay->lifetime());
+
+	SetupCardBalance(
+		ink,
+		&show->session(),
+		[=] { overlay->update(); },
+		raw->lifetime());
+
+	rpl::merge(
+		style::PaletteChanged(),
+		tr::lng_wallet_card_ticker() | rpl::to_empty
+	) | rpl::on_next([=] {
+		ink->refresh();
+		card->invalidateCache();
+		card->update();
+		overlay->update();
+	}, raw->lifetime());
+
+	return result;
 }
 
 void FillMenu(

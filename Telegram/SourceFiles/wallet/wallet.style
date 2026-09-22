@@ -626,6 +626,47 @@ walletHowSubtitleLabel: FlatLabel(walletPhraseTextLabel) {
 }
 walletHowSubtitleMargin: margins(24px, 8px, 24px, 14px);
 
+walletConnectBox: Box(defaultBox) {
+	buttonPadding: margins(0px, 0px, 0px, 12px);
+	buttonHeight: 0px;
+}
+walletConnectIconSize: 72px;
+walletConnectIconMargin: margins(24px, 24px, 24px, 12px);
+walletConnectIconPlaceholder: icon{{ "menu/link", windowSubTextFg }};
+// A zero minWidth would make Ui::Text::String measure the title as one line.
+walletConnectTitleLabel: FlatLabel(walletPhraseTitleLabel) {
+	minWidth: 200px;
+}
+walletConnectTitleMargin: margins(24px, 0px, 24px, 4px);
+walletConnectDomainLabel: FlatLabel(boxLabel) {
+	align: align(top);
+	textFg: windowSubTextFg;
+}
+walletConnectDomainMargin: margins(24px, 0px, 24px, 14px);
+walletConnectTextLabel: FlatLabel(boxLabel) {
+	align: align(top);
+}
+walletConnectTextMargin: margins(24px, 0px, 24px, 16px);
+walletConnectCardMargin: margins(0px, 0px, 0px, 14px);
+walletConnectCaptionLabel: FlatLabel(walletCommentCaptionLabel) {
+	align: align(top);
+}
+walletConnectCaptionMargin: margins(24px, 0px, 24px, 16px);
+walletConnectErrorLabel: FlatLabel(walletCommentErrorLabel) {
+	align: align(top);
+}
+walletConnectButtonsMargin: margins(24px, 0px, 24px, 0px);
+// defaultLightButton's textBg is windowBg, so Cancel would have no fill.
+walletConnectCancelButton: RoundButton(walletSendButton) {
+	textFg: windowActiveTextFg;
+	textFgOver: windowActiveTextFg;
+	textBg: windowBgOver;
+	textBgOver: windowBgOver;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgRipple;
+	}
+}
+
 walletIntroTooltip: ImportantTooltip(defaultImportantTooltip) {
 	padding: margins(8px, 3px, 8px, 5px);
 	margin: margins(4px, 4px, 4px, 8px);
