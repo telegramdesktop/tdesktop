@@ -31,11 +31,10 @@ class Runner;
 // queues it on _historyDone, which finishHistoryWaiters() drains when the
 // wallet.getTransactions it issued answers or fails. So on a Ready presence
 // the completion does wait for a real round trip — of the transaction
-// history lane, which stamps _historyRefreshedAt. applyState() and
-// applyEngineUpdate() both write _stateRefreshedAt, and the engine holds no
-// client for a server-owned wallet, so applyState() is the only writer that
-// ever runs. That completion therefore still carries no wallet-state
-// freshness information whatsoever.
+// history lane, which stamps _historyRefreshedAt. Only applyState() writes
+// _stateRefreshedAt; engine refreshes stamp _engineRefreshedAt instead.
+// A history completion therefore still carries no wallet-state freshness
+// information whatsoever.
 //
 // Nothing outside Wallet::Session can read the stamp: it is private and has
 // no accessor. pollTick()'s stale() cannot stand in for it either, because
@@ -63,11 +62,12 @@ class Runner;
 // condition itself is the behavior under test and a refusal is a product
 // FAIL — README.md's stage contract states the same exception.
 
-// The window pollTick()'s stale() uses (kStreamResyncInterval), so "ready"
-// means the poll itself would not call this reading stale. refreshState()
-// floors its own requests at twice that, so a stamp between one and two
-// windows old reads Stale until the next unfloored tick replaces it — which
-// is what the settle deadline below has to outlast.
+// The 30-second freshness window matches kStreamResyncInterval. The
+// predicate measures server state alone; engine polling accepts freshness
+// from either the server state or the engine. refreshState() floors its
+// requests at twice this window, so a server stamp between one and two
+// windows old reads Stale until a later state request or push replaces it.
+// The settle deadline below has to outlast that request floor.
 inline constexpr auto kWalletRefreshWindow = 30 * crl::time(1000);
 
 // Fifteen 5s poll ticks — past refreshState()'s own request floor, so a

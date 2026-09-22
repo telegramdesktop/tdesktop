@@ -771,13 +771,19 @@ private:
 		std::vector<int> dcs,
 		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
 		Fn<void(const QString &)> fail,
-		std::shared_ptr<CommentScope> scope = nullptr);
+		std::shared_ptr<CommentScope> scope,
+		mtpRequestId exportRequestId);
 	void restoreFromWords(
 		KeyAuthorization auth,
 		std::vector<QString> words,
 		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
 		Fn<void(const QString &)> fail,
-		std::shared_ptr<CommentScope> scope = nullptr);
+		std::shared_ptr<CommentScope> scope = nullptr,
+		mtpRequestId exportRequestId = 0);
+	void logPhraseKeyMismatch(
+		const TransferWalletIdentity &target,
+		const PhraseIdentity &phrase,
+		mtpRequestId exportRequestId);
 	// The phrase's anchor and current signing public keys, both derived
 	// storage- and network-free on the engine's local worker; nullopt for a
 	// phrase that is not a valid Rotation mnemonic. done runs on the main
@@ -1045,6 +1051,7 @@ private:
 	mtpRequestId _stateRequestId = 0;
 	crl::time _stateRequestedAt = 0;
 	crl::time _stateRefreshedAt = 0;
+	crl::time _engineRefreshedAt = 0;
 	int _stateFailures = 0;
 	// Set when the wallet cannot be read at all, from any of three sources:
 	// a wallet state that stayed unknown for kStateFailuresBeforeStated reads,

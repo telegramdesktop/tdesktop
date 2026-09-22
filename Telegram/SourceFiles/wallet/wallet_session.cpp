@@ -501,6 +501,20 @@ struct MergedHead {
 	return key.isEmpty() ? u"(none)"_q : QString::fromLatin1(key.toHex());
 }
 
+[[nodiscard]] QString LogWalletState(const MTPWalletState &state) {
+	return state.match([](const MTPDwalletState &data) {
+		return u"address=%1 key=%2 backup_enabled=%3 "
+			"can_export_phrase=%4 can_enable_backup=%5"_q
+			.arg(qs(data.vaddress()))
+			.arg(LogKey(data.vpublic_key().v))
+			.arg(data.is_backup_enabled())
+			.arg(data.is_can_export_phrase())
+			.arg(data.is_can_enable_backup());
+	}, [](const MTPDwalletStateEmpty &data) {
+		return u"empty creating=%1"_q.arg(data.is_creating());
+	});
+}
+
 [[nodiscard]] QString SendErrorName(SendError error) {
 	switch (error) {
 	case SendError::None: return u"None"_q;
@@ -2139,17 +2153,30 @@ void Session::requestState(
 	if (done) {
 		_stateApi.request(base::take(_stateRequestId)).cancel();
 	}
-	_stateRequestedAt = crl::now();
+	const auto startedAt = _stateRequestedAt = crl::now();
+	const auto revision = _walletIdentityRevision;
 	auto request = _stateApi.request(MTPwallet_GetState());
 	auto &policy = done ? request.handleAllErrors() : request;
-	_stateRequestId = policy.done([=](const MTPWalletState &result) {
+	_stateRequestId = policy.done([=](
+			const MTPWalletState &result,
+			mtpRequestId requestId) {
+		LOG(("Wallet Info: wallet.getState request=%1 elapsed_ms=%2 "
+			"requested_revision=%3 current_revision=%4; %5."
+			).arg(requestId
+			).arg(crl::now() - startedAt
+			).arg(revision
+			).arg(_walletIdentityRevision
+			).arg(LogWalletState(result)));
 		_stateRequestId = 0;
 		if (done) {
 			done(result);
 		} else {
 			applyState(result, false);
 		}
-	}).fail([=](const MTP::Error &error) {
+	}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
+		LOG(("Wallet Error: wallet.getState request=%1 elapsed_ms=%2 "
+			"failed: %3"
+			).arg(requestId).arg(crl::now() - startedAt).arg(error.type()));
 		_stateRequestId = 0;
 		if (fail) {
 			fail();
@@ -2160,10 +2187,14 @@ void Session::requestState(
 			setPresence(Presence::Unavailable);
 			return;
 		}
-		LOG(("Wallet Error: wallet.getState failed: %1").arg(error.type()));
 		++_stateFailures;
 		updateListsGate();
 	}).send();
+	LOG(("Wallet Info: wallet.getState sent request=%1 revision=%2 "
+		"state_age_ms=%3."
+		).arg(_stateRequestId
+		).arg(revision
+		).arg(_stateRefreshedAt ? (startedAt - _stateRefreshedAt) : -1));
 }
 
 bool GaslessTerms::eligible(int64 amountNano) const {
@@ -2492,6 +2523,13 @@ void Session::requestExistingWaltBalance() {
 }
 
 void Session::applyState(const MTPWalletState &state, bool pushed) {
+	LOG(("Wallet Info: applying state source=%1 previous_address=%2 "
+		"previous_key=%3 previous_revision=%4; %5."
+		).arg(pushed ? u"push"_q : u"response"_q
+		).arg(_address
+		).arg(LogKey(_publicKey)
+		).arg(_walletIdentityRevision
+		).arg(LogWalletState(state)));
 	_stateRefreshedAt = crl::now();
 	_stateFailures = 0;
 	const auto clear = [&] {
@@ -3159,11 +3197,14 @@ void Session::revealFromShares(
 	// that carries the password.
 	using Flag = MTPwallet_exportSecretPhrase::Flag;
 	const auto checked = password && *password;
+	const auto revision = _walletIdentityRevision;
 	const auto pending = std::make_shared<bool>(true);
 	const auto request = _stateApi.request(MTPwallet_ExportSecretPhrase(
 		MTP_flags(checked ? Flag::f_password : Flag(0)),
 		checked ? password->result : MTP_inputCheckPasswordEmpty()
-	)).done([=, this](const MTPwallet_SecretPhraseParts &result) {
+	)).done([=, this](
+			const MTPwallet_SecretPhraseParts &result,
+			mtpRequestId requestId) {
 		if (!base::take(*pending)) {
 			return;
 		}
@@ -3185,9 +3226,20 @@ void Session::revealFromShares(
 		if (authorized) {
 			authorized();
 		}
-		LOG(("Wallet Info: wallet.exportSecretPhrase named %1 holder(s)."
-			).arg(int(dcs->size())));
-		fetchShareParts(auth, qs(data.vtoken()), *dcs, done, fail, scope);
+		LOG(("Wallet Info: wallet.exportSecretPhrase request=%1 named "
+			"%2 holder(s); requested_revision=%3 current_revision=%4."
+			).arg(requestId
+			).arg(int(dcs->size())
+			).arg(revision
+			).arg(_walletIdentityRevision));
+		fetchShareParts(
+			auth,
+			qs(data.vtoken()),
+			*dcs,
+			done,
+			fail,
+			scope,
+			requestId);
 	}).fail([=, this](const MTP::Error &error) {
 		if (!base::take(*pending)) {
 			return;
@@ -3205,6 +3257,13 @@ void Session::revealFromShares(
 			? u"PHRASE_SILENT_ERROR"_q
 			: error.type());
 	}).handleFloodErrors().send();
+	LOG(("Wallet Info: wallet.exportSecretPhrase sent request=%1 "
+		"address=%2 key=%3 revision=%4 state_age_ms=%5."
+		).arg(request
+		).arg(_address
+		).arg(LogKey(_publicKey)
+		).arg(revision
+		).arg(_stateRefreshedAt ? (crl::now() - _stateRefreshedAt) : -1));
 	if (scope) {
 		scope->_state->cancelPending = crl::guard(_engine.get(), [=, this] {
 			if (!base::take(*pending)) {
@@ -3222,7 +3281,8 @@ void Session::fetchShareParts(
 		std::vector<int> dcs,
 		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
 		Fn<void(const QString &)> fail,
-		std::shared_ptr<CommentScope> scope) {
+		std::shared_ptr<CommentScope> scope,
+		mtpRequestId exportRequestId) {
 	if (scope && !commentScopeCurrent(scope)) {
 		fail(u"PHRASE_ORIGIN_EXPIRED"_q);
 		return;
@@ -3299,7 +3359,8 @@ void Session::fetchShareParts(
 				SplitWords(QString::fromUtf8(*seed)),
 				done,
 				base::take(state->fail),
-				scope);
+				scope,
+				exportRequestId);
 		}).fail([=, this](const MTP::Error &error) {
 			if (!state->fail) {
 				return;
@@ -3361,7 +3422,8 @@ void Session::restoreFromWords(
 		std::vector<QString> words,
 		Fn<void(std::vector<QString>, CustodyOutcome outcome)> done,
 		Fn<void(const QString &)> fail,
-		std::shared_ptr<CommentScope> scope) {
+		std::shared_ptr<CommentScope> scope,
+		mtpRequestId exportRequestId) {
 	if (scope && !commentScopeCurrent(scope)) {
 		fail(u"PHRASE_ORIGIN_EXPIRED"_q);
 		return;
@@ -3388,12 +3450,16 @@ void Session::restoreFromWords(
 	const auto targetAddress = targetIdentity->address;
 	const auto heldNow = custody().forAddress(targetAddress);
 	LOG(("Wallet Info: restoring %1 word(s) for %2; served key %3, "
-		"held anchor %4, held signing key %5."
+		"held anchor %4, held signing key %5; export_request=%6 "
+		"revision=%7 state_age_ms=%8."
 		).arg(int(words.size())
 		).arg(targetAddress
 		).arg(LogKey(expectedKey)
 		).arg(LogKey(heldNow ? heldNow->publicKey : QByteArray())
-		).arg(LogKey(heldNow ? heldNow->signingKey : QByteArray())));
+		).arg(LogKey(heldNow ? heldNow->signingKey : QByteArray())
+		).arg(exportRequestId
+		).arg(targetIdentity->revision
+		).arg(_stateRefreshedAt ? (crl::now() - _stateRefreshedAt) : -1));
 	const auto crossed = std::make_shared<bool>(false);
 	const auto weakSession = base::make_weak(_session);
 	done = [weakSession, crossed, done = std::move(done)](
@@ -3605,6 +3671,7 @@ void Session::restoreFromWords(
 		} else if (identity.signing != expectedKey) {
 			LOG(("Wallet Error: that signing key is not the served key %1."
 				).arg(LogKey(expectedKey)));
+			logPhraseKeyMismatch(*targetIdentity, identity, exportRequestId);
 			fail(u"PHRASE_OUTDATED"_q);
 			return;
 		}
@@ -3657,6 +3724,118 @@ void Session::restoreFromWords(
 			fail(u"PHRASE_IMPORT_FAILED"_q);
 		});
 	});
+}
+
+void Session::logPhraseKeyMismatch(
+		const TransferWalletIdentity &target,
+		const PhraseIdentity &phrase,
+		mtpRequestId exportRequestId) {
+	const auto startedAt = crl::now();
+	const auto context = u"source=%1 export_request=%2 address=%3 "
+		"rejected_key=%4 phrase_anchor=%5 phrase_signing=%6 "
+		"target_revision=%7 current_revision=%8 state_age_ms=%9 "
+		"engine_age_ms=%10 state_request=%11"_q
+		.arg(exportRequestId ? u"server_backup"_q : u"manual_import"_q)
+		.arg(exportRequestId)
+		.arg(target.address)
+		.arg(LogKey(target.publicKey))
+		.arg(LogKey(phrase.anchor))
+		.arg(LogKey(phrase.signing))
+		.arg(target.revision)
+		.arg(_walletIdentityRevision)
+		.arg(_stateRefreshedAt ? (startedAt - _stateRefreshedAt) : -1)
+		.arg(_engineRefreshedAt ? (startedAt - _engineRefreshedAt) : -1)
+		.arg(_stateRequestId);
+	const auto probeContract = [=, api = &_api](
+			mtpRequestId stateRequestId,
+			const QString &stateSummary,
+			const QByteArray &freshKey) {
+		const auto queryStartedAt = crl::now();
+		LOG(("Wallet Info: phrase contract key check via toncenter proxy "
+			"state_request=%1; %2."
+			).arg(stateRequestId).arg(context));
+		api->request(Gram::WalletPublicKeyRequest(target.address), [=](
+				const QByteArray &bytes) {
+			const auto key = Gram::ParseWalletPublicKey(bytes);
+			const auto comparison = !key
+				? u"contract_key_unavailable"_q
+				: (freshKey.size() != kCustodyPublicKeySize)
+				? u"fresh_state_unavailable_or_wallet_changed"_q
+				: (*key == phrase.signing)
+				? ((*key == freshKey)
+					? u"contract_and_fresh_state_match_phrase"_q
+					: u"state_key_differs_from_contract"_q)
+				: (*key == freshKey)
+				? (exportRequestId
+					? u"backup_signing_key_differs_from_contract"_q
+					: u"imported_signing_key_differs_from_contract"_q)
+				: u"contract_key_matches_neither_state_nor_phrase"_q;
+			LOG(("Wallet Error: phrase key comparison via toncenter proxy "
+				"state_request=%1 elapsed_ms=%2 contract_elapsed_ms=%3 "
+				"result=%4 contract_key=%5; %6; fresh_state: %7."
+				).arg(stateRequestId
+				).arg(crl::now() - startedAt
+				).arg(crl::now() - queryStartedAt
+				).arg(comparison
+				).arg(LogKey(key.value_or(QByteArray()))
+				).arg(context
+				).arg(stateSummary));
+		}, [=](const Gram::ApiError &error) {
+			LOG(("Wallet Error: phrase contract key check via toncenter "
+				"proxy state_request=%1 elapsed_ms=%2 failed=%3; %4; "
+				"fresh_state: %5."
+				).arg(stateRequestId
+				).arg(crl::now() - startedAt
+				).arg(error.message
+				).arg(context
+				).arg(stateSummary));
+		});
+	};
+	const auto request = _stateApi.request(MTPwallet_GetState()).done([=](
+			const MTPWalletState &result,
+			mtpRequestId requestId) {
+		const auto verdict = result.match([&](const MTPDwalletState &data) {
+			const auto parsed = ParseAddress(qs(data.vaddress()));
+			return !parsed
+				? u"unreadable_address"_q
+				: (parsed->raw != target.address)
+				? u"wallet_changed"_q
+				: (data.vpublic_key().v == phrase.signing)
+				? u"fresh_state_matches_phrase"_q
+				: u"fresh_state_disagrees_with_phrase"_q;
+		}, [](const MTPDwalletStateEmpty &) {
+			return u"wallet_empty"_q;
+		});
+		LOG(("Wallet Error: phrase key check request=%1 elapsed_ms=%2 "
+			"result=%3; %4; fresh_state: %5."
+			).arg(requestId
+			).arg(crl::now() - startedAt
+			).arg(verdict
+			).arg(context
+			).arg(LogWalletState(result)));
+		const auto freshKey = result.match([&](const MTPDwalletState &data) {
+			const auto parsed = ParseAddress(qs(data.vaddress()));
+			return (parsed && parsed->raw == target.address)
+				? data.vpublic_key().v
+				: QByteArray();
+		}, [](const MTPDwalletStateEmpty &) {
+			return QByteArray();
+		});
+		probeContract(requestId, LogWalletState(result), freshKey);
+	}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
+		LOG(("Wallet Error: phrase key check request=%1 elapsed_ms=%2 "
+			"failed=%3; %4."
+			).arg(requestId
+			).arg(crl::now() - startedAt
+			).arg(error.type()
+			).arg(context));
+		probeContract(
+			requestId,
+			u"unavailable: %1"_q.arg(error.type()),
+			QByteArray());
+	}).handleAllErrors().send();
+	LOG(("Wallet Info: phrase key check sent request=%1; %2."
+		).arg(request).arg(context));
 }
 
 void Session::restoreFromPhrase(
@@ -6079,6 +6258,7 @@ void Session::clearNetworkState() {
 	_stateApi.request(base::take(_stateRequestId)).cancel();
 	_stateRequestedAt = 0;
 	_stateRefreshedAt = 0;
+	_engineRefreshedAt = 0;
 	_stateFailures = 0;
 	_collectiblesRequestPending = false;
 	_pollingCount = 0;
@@ -6200,7 +6380,7 @@ void Session::applyEngineUpdate(
 		break;
 	}
 	_engineStatus = mapped;
-	_stateRefreshedAt = crl::now();
+	_engineRefreshedAt = crl::now();
 	_balanceNano = balance;
 }
 
@@ -6856,7 +7036,8 @@ void Session::pollTick() {
 	const auto stale = [&](crl::time at) {
 		return !at || (crl::now() - at >= kStreamResyncInterval);
 	};
-	if (!streaming || stale(_stateRefreshedAt)) {
+	if (!streaming
+		|| stale(std::max(_stateRefreshedAt, _engineRefreshedAt))) {
 		requestEngineRefresh();
 	}
 	// The history leg deliberately carries no !streaming disjunct. Every

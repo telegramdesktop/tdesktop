@@ -21,5 +21,8 @@ namespace Gram {
 [[nodiscard]] HttpRequest AddressInformationRequest(const QString &address);
 [[nodiscard]] std::optional<int64> ParseAddressBalance(
 	const QByteArray &json);
+[[nodiscard]] HttpRequest WalletPublicKeyRequest(const QString &address);
+[[nodiscard]] std::optional<QByteArray> ParseWalletPublicKey(
+	const QByteArray &json);
 
 } // namespace Gram
