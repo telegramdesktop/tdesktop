@@ -657,7 +657,9 @@ void TonConnect::disconnectFailed(
 		TonConnectSessionId id,
 		const MTP::Error &error,
 		const Fn<void(DisconnectResult)> &done) {
-	if (SessionGone(error.type())) {
+	const auto &type = error.type();
+	if (SessionGone(type)
+		|| (type == u"TONCONNECT_SESSION_NOT_ACTIVE"_q)) {
 		markClosed(id);
 		done(DisconnectResult::Closed);
 	} else {
