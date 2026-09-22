@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/session/session_show.h"
 #include "main/main_session.h"
 #include "storage/file_download.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/controls/button_busy.h"
 #include "ui/image/image_prepare.h"
 #include "ui/layers/generic_box.h"
@@ -418,8 +419,22 @@ void RefreshApps(
 				state,
 				&show->session(),
 				row,
-				[=, id = row.id] {
-					show->session().wallet().tonConnect().disconnect(show, id);
+				[=, id = row.id, name = row.name] {
+					show->showBox(Ui::MakeConfirmBox({
+						.text = tr::lng_wallet_apps_disconnect_sure(
+							tr::now,
+							lt_name,
+							name),
+						.confirmed = [=](Fn<void()> close) {
+							close();
+							show->session().wallet().tonConnect().disconnect(
+								show,
+								id);
+						},
+						.confirmText = tr::lng_wallet_apps_disconnect(),
+						.confirmStyle = &st::attentionBoxButton,
+						.title = tr::lng_wallet_apps_disconnect_title(),
+					}));
 				});
 			state->buttons.emplace(row.id, button.get());
 		}

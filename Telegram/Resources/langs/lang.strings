@@ -9114,6 +9114,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_apps_empty" = "No connected apps";
 "lng_wallet_apps_unknown" = "Unknown app";
 "lng_wallet_apps_disconnect" = "Disconnect";
+"lng_wallet_apps_disconnect_title" = "Disconnect app";
+"lng_wallet_apps_disconnect_sure" = "Are you sure you want to disconnect {name}?";
 "lng_wallet_apps_disconnect_failed" = "Couldn't disconnect the app. Please try again.";
 "lng_wallet_apps_disconnect_key_changing" = "Your wallet key is being changed. Apps can't be disconnected from this device until the change is confirmed.";
 "lng_wallet_apps_disconnect_no_key" = "This device doesn't hold the current key of this wallet, so it can't disconnect apps.";
