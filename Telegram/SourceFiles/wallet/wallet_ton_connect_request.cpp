@@ -1055,6 +1055,14 @@ void TonConnectRequests::Flow::claimFailed(const MTP::Error &error) {
 		closeWithToast(tr::lng_wallet_connect_request_failed(tr::now));
 		return;
 	}
+	// WHY: the server records a declined claim but answers
+	// MESSAGE_NOT_MODIFIED, its edit of the request message changing nothing;
+	// the request is ours to answer, and a refusal signs nothing.
+	if (type == u"MESSAGE_NOT_MODIFIED"_q && _decision != Decision::Confirm) {
+		_claimed = true;
+		publish();
+		return;
+	}
 	_claimSent = false;
 	if (type == u"TONCONNECT_REQUEST_ALREADY_CLAIMED"_q) {
 		closeWithToast(tr::lng_wallet_connect_request_handled(tr::now));
