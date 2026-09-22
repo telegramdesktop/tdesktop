@@ -124,19 +124,28 @@ if [ "$SIGNED" != "true" ]; then
     mac|armac) NOTE="UNSIGNED test build: not signed or notarized." ;;
   esac
 fi
-CAPTION=$({
-  echo "Canary #$COUNTER · $COMMIT"
-  if [ -n "$NOTE" ]; then
-    echo "$NOTE"
-  fi
-  echo ""
+# WHY: `git log | head` under pipefail dies with SIGPIPE (141) and
+# aborts before sendDocument. The changelog is optional; a missing
+# or huge range still has to publish the builds.
+CAPTION="Canary #$COUNTER · $COMMIT"
+if [ -n "$NOTE" ]; then
+  CAPTION=$(printf '%s\n%s' "$CAPTION" "$NOTE")
+fi
+LOG=$(
+  set +e
+  set +o pipefail
   if [ -n "$PREVIOUS" ] && git cat-file -e "$PREVIOUS^{commit}" 2>/dev/null \
-    && [ "$(git rev-parse "$PREVIOUS")" != "$(git rev-parse HEAD)" ]; then
-    git log --no-merges --pretty=format:'• %s' "$PREVIOUS..HEAD" | head -20
+    && [ "$(git rev-parse "$PREVIOUS" 2>/dev/null)" != "$(git rev-parse HEAD 2>/dev/null)" ]; then
+    git log --no-merges --pretty=format:'• %s' -n 20 "$PREVIOUS..HEAD" 2>/dev/null
   else
-    git log --no-merges --pretty=format:'• %s' -10
+    git log --no-merges --pretty=format:'• %s' -n 10 2>/dev/null
   fi
-} | head -c 1000)
+  exit 0
+) || true
+if [ -n "$LOG" ]; then
+  CAPTION=$(printf '%s\n\n%s' "$CAPTION" "$LOG")
+fi
+CAPTION=${CAPTION:0:1000}
 
 POSTS_JSON="{}"
 for PLATFORM in $PLATFORMS; do
