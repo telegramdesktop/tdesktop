@@ -2274,7 +2274,8 @@ void AddBoxCloseButton(not_null<Ui::GenericBox*> box) {
 // halves because they attach at two different moments - the label is a
 // producer handed to addButton, the spinner is a child added once the button
 // exists - so every box keeps its own label choice, its own guards and its
-// own position for the spinner. The size follows the button's own style.
+// own position for the spinner. The size and color follow the button's own
+// style.
 [[nodiscard]] rpl::producer<QString> BusyFooterLabel(
 		rpl::producer<QString> text,
 		rpl::producer<bool> busy) {
@@ -2289,9 +2290,15 @@ void AddBoxCloseButton(not_null<Ui::GenericBox*> box) {
 void AddBusyFooterSpinner(
 		not_null<Ui::RoundButton*> button,
 		rpl::producer<bool> shown) {
+	using Radial = style::InfiniteRadialAnimation;
+	const auto &buttonSt = button->st();
+	const auto radialSt = button->lifetime().make_state<Radial>(
+		st::startGiveawayButtonLoading);
+	radialSt->color = buttonSt.textFg;
 	const auto loading = Info::Statistics::InfiniteRadialAnimationWidget(
 		button,
-		button->st().height / 2);
+		buttonSt.height / 2,
+		radialSt);
 	Info::Statistics::AddChildToWidgetCenter(button, loading);
 	loading->showOn(std::move(shown));
 }
@@ -2386,14 +2393,12 @@ void WalletBusyBox(
 
 struct WalletBoxTitleBar {
 	not_null<Ui::FlatLabel*> title;
-	not_null<Ui::FadeWrapScaled<Ui::IconButton>*> back;
 	not_null<Ui::IconButton*> close;
 };
 
 [[nodiscard]] WalletBoxTitleBar AddWalletBoxTitleBar(
 		not_null<Ui::GenericBox*> box,
-		rpl::producer<QString> title,
-		rpl::producer<bool> backShown) {
+		rpl::producer<QString> title) {
 	const auto row = box->addRow(
 		object_ptr<Ui::FixedHeightWidget>(
 			box,
@@ -2405,100 +2410,20 @@ struct WalletBoxTitleBar {
 		std::move(title),
 		st::boxTitle);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
-	const auto back = Ui::CreateChild<Ui::FadeWrapScaled<Ui::IconButton>>(
-		row,
-		object_ptr<Ui::IconButton>(row, st::walletReceiveTitleBack));
 	const auto close = Ui::CreateChild<Ui::IconButton>(
 		row,
 		st::boxTitleClose);
-	struct State {
-		Ui::Animations::Simple titleLeft;
-	};
-	const auto state = row->lifetime().make_state<State>();
-	const auto updateTitleLeft = [=] {
-		const auto progress = state->titleLeft.value(
-			back->toggled() ? 1. : 0.);
-		label->moveToLeft(
-			anim::interpolate(
-				st::boxTitlePosition.x(),
-				st::walletReceiveTitleLeft,
-				progress),
-			st::boxTitlePosition.y(),
-			row->width());
-	};
-	back->toggledValue(
-	) | rpl::on_next([=](bool toggled) {
-		state->titleLeft.start(
-			updateTitleLeft,
-			toggled ? 0. : 1.,
-			toggled ? 1. : 0.,
-			st::fadeWrapDuration);
-	}, back->lifetime());
 	Ui::ToggleChildrenVisibility(row, true);
-	back->toggleOn(std::move(backShown));
-	state->titleLeft.stop();
 	row->sizeValue(
 	) | rpl::on_next([=](QSize size) {
-		back->moveToLeft(st::walletReceiveTitleButtonSkip, 0, size.width());
-		close->moveToRight(
-			st::walletReceiveTitleButtonSkip,
-			0,
+		label->moveToLeft(
+			st::boxTitlePosition.x(),
+			st::boxTitlePosition.y(),
 			size.width());
-		updateTitleLeft();
+		close->moveToRight(st::walletReceiveTitleButtonSkip, 0, size.width());
 	}, row->lifetime());
-	return { label, back, close };
+	return { label, close };
 }
-
-void AddBuySectionTitle(
-		not_null<Ui::VerticalLayout*> container,
-		rpl::producer<QString> text) {
-	container->add(
-		object_ptr<Ui::FlatLabel>(
-			container,
-			std::move(text),
-			st::defaultSubsectionTitle),
-		st::walletBuySubsectionPadding);
-}
-
-enum class OnrampRoutePresentation {
-	BankCard,
-	Cryptocurrency,
-	P2p,
-	Generic,
-};
-
-enum class OnrampRoutesViewStatus {
-	Loading,
-	Ready,
-	Empty,
-	GeographicDenied,
-	BuyingDisabled,
-	Error,
-};
-
-enum class OnrampDiscoveryPhase {
-	Inactive,
-	Providers,
-	BaseCurrencies,
-	Availability,
-	Complete,
-};
-
-struct OnrampRenderRoute {
-	OnrampRoutePresentation presentation = OnrampRoutePresentation::Generic;
-	QString providerName;
-	OnrampRouteSelection selection;
-};
-
-struct OnrampProviderDiscovery {
-	OnrampProvider provider;
-	bool eligible = false;
-};
-
-struct OnrampMethodMapping {
-	QStringView method;
-	OnrampRoutePresentation presentation = OnrampRoutePresentation::Generic;
-};
 
 struct OldWalletAppLink {
 	QString appname;
@@ -2507,100 +2432,6 @@ struct OldWalletAppLink {
 	bool compact = false;
 	bool fullscreen = false;
 };
-
-class OnrampRoutesController final {
-public:
-	OnrampRoutesController(
-		not_null<Main::Session*> session,
-		QString address,
-		std::shared_ptr<Ui::Show> show);
-
-	[[nodiscard]] OnrampRoutesViewStatus status() const;
-	[[nodiscard]] const std::vector<OnrampRenderRoute> &routes() const;
-	[[nodiscard]] bool allowedCurrenciesReady() const;
-	[[nodiscard]] std::vector<QString> allowedCurrencies() const;
-	[[nodiscard]] rpl::producer<> changes() const;
-	[[nodiscard]] rpl::producer<bool> routePendingValue(
-		OnrampRouteSelection selection) const;
-
-	void activate();
-	void activateRoute(const OnrampRouteSelection &selection);
-	void restart();
-	void invalidate();
-
-private:
-	void clearExpected();
-	void publish(OnrampRoutesViewStatus status);
-	void fail(bool currenciesReady);
-	void advanceBaseCurrencies();
-	void advanceAvailability();
-	void providersLoaded(const Onramp::ProvidersState &load);
-	void baseCurrenciesLoaded(const Onramp::BaseCurrenciesState &load);
-	void availabilityLoaded(const Onramp::AvailabilityState &load);
-	void rateChanged(const FiatRate &rate);
-	[[nodiscard]] bool isCurrentRoute(
-		const OnrampRouteSelection &selection) const;
-	void hostedSessionLoaded(const Onramp::HostedSessionState &load);
-	void clearHostedExpected();
-	void failHostedSession();
-
-	const not_null<Main::Session*> _session;
-	Rates *_rates = nullptr;
-	Onramp *_onramp = nullptr;
-	const QString _address;
-	const std::shared_ptr<Ui::Show> _show;
-	uint64 _epoch = 0;
-	uint64 _expectedEpoch = 0;
-	OnrampDiscoveryPhase _phase = OnrampDiscoveryPhase::Inactive;
-	OnrampRoutesViewStatus _status = OnrampRoutesViewStatus::Loading;
-	QString _currency;
-	QString _expectedProvider;
-	QString _expectedCurrency;
-	std::vector<QString> _knownCurrencies;
-	std::vector<QString> _allowedCurrencies;
-	std::vector<OnrampProviderDiscovery> _providers;
-	std::vector<OnrampRenderRoute> _routes;
-	std::optional<OnrampRouteSelection> _expectedHostedSelection;
-	rpl::variable<std::optional<OnrampRouteSelection>> _pendingHostedSelection;
-	int _providerIndex = 0;
-	int _resolvedProviders = 0;
-	int _geographicDeniedProviders = 0;
-	int _buyingDisabledProviders = 0;
-	bool _active = false;
-	bool _providersExpectingPending = false;
-	bool _providersPendingSeen = false;
-	bool _baseCurrenciesExpectingPending = false;
-	bool _baseCurrenciesPendingSeen = false;
-	bool _availabilityExpectingPending = false;
-	bool _availabilityPendingSeen = false;
-	bool _hostedExpectingPending = false;
-	bool _hostedPendingSeen = false;
-	bool _allowedCurrenciesReady = false;
-	rpl::event_stream<> _changes;
-	rpl::lifetime _lifetime;
-
-};
-
-constexpr auto kOnrampMethodMappings = std::array{
-	OnrampMethodMapping{
-		.method = u"p2p_express",
-		.presentation = OnrampRoutePresentation::P2p,
-	},
-	OnrampMethodMapping{
-		.method = u"credit_debit_card",
-		.presentation = OnrampRoutePresentation::BankCard,
-	},
-};
-
-[[nodiscard]] auto OnrampPresentationForMethod(const QString &method)
--> std::optional<OnrampRoutePresentation> {
-	for (const auto &mapping : kOnrampMethodMappings) {
-		if (mapping.method == QStringView(method)) {
-			return mapping.presentation;
-		}
-	}
-	return std::nullopt;
-}
 
 [[nodiscard]] bool IsValidOnrampUrl(const QString &url) {
 	const auto parsed = QUrl(url, QUrl::StrictMode);
@@ -2716,63 +2547,6 @@ void OpenWalletUrl(
 	}
 }
 
-void AddOnrampCurrency(
-		std::vector<QString> &currencies,
-		QString currency) {
-	currency = currency.toUpper();
-	if (currency.isEmpty() || ranges::contains(currencies, currency)) {
-		return;
-	}
-	currencies.push_back(std::move(currency));
-}
-
-[[nodiscard]] std::vector<QString> NormalizeOnrampCurrencies(
-		const std::vector<QString> &currencies) {
-	auto result = std::vector<QString>();
-	result.reserve(currencies.size());
-	for (const auto &currency : currencies) {
-		AddOnrampCurrency(result, currency);
-	}
-	return result;
-}
-
-[[nodiscard]] bool OnrampRouteExists(
-		const std::vector<OnrampRenderRoute> &routes,
-		const QString &provider,
-		const std::optional<QString> &paymentMethod) {
-	return ranges::find_if(routes, [&](const OnrampRenderRoute &route) {
-		return (route.selection.provider == provider)
-			&& (route.selection.paymentMethod == paymentMethod);
-	}) != end(routes);
-}
-
-[[nodiscard]] rpl::producer<QString> OnrampProviderText(
-		QString name,
-		const QString &provider) {
-	name = name.trimmed();
-	if (name.isEmpty() || name == provider) {
-		return tr::lng_wallet_buy_provider();
-	}
-	return rpl::single(std::move(name));
-}
-
-[[nodiscard]] OnrampRoutesViewStatus OnrampTerminalStatus(
-		const std::vector<OnrampRenderRoute> &routes,
-		int resolvedProviders,
-		int geographicDeniedProviders,
-		int buyingDisabledProviders) {
-	if (!routes.empty()) {
-		return OnrampRoutesViewStatus::Ready;
-	} else if (resolvedProviders > 0
-		&& geographicDeniedProviders == resolvedProviders) {
-		return OnrampRoutesViewStatus::GeographicDenied;
-	} else if (resolvedProviders > 0
-		&& buyingDisabledProviders == resolvedProviders) {
-		return OnrampRoutesViewStatus::BuyingDisabled;
-	}
-	return OnrampRoutesViewStatus::Empty;
-}
-
 not_null<Ui::IconButton*> AddRowChevron(not_null<Ui::RpWidget*> button) {
 	const auto arrow = Ui::CreateChild<Ui::IconButton>(
 		button,
@@ -2792,701 +2566,6 @@ not_null<Ui::IconButton*> AddRowChevron(not_null<Ui::RpWidget*> button) {
 	return arrow;
 }
 
-void AddBuyRow(
-		not_null<Ui::VerticalLayout*> container,
-		rpl::producer<QString> title,
-		rpl::producer<QString> subtitle,
-		const style::icon *icon,
-		const style::color *background,
-		rpl::producer<bool> pending,
-		Fn<void()> activate) {
-	const auto wrap = container->add(
-		object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
-			container,
-			object_ptr<Ui::VerticalLayout>(container),
-			st::walletBuyRowPadding));
-	const auto inner = wrap->entity();
-	inner->setAttribute(Qt::WA_TransparentForMouseEvents);
-	inner->add(object_ptr<Ui::FlatLabel>(
-		inner,
-		std::move(title),
-		st::walletBuyRowTitle));
-	Ui::AddSkip(inner, st::walletBuyRowSkip);
-	inner->add(object_ptr<Ui::FlatLabel>(
-		inner,
-		std::move(subtitle),
-		st::walletBuyRowSubtitle));
-
-	const auto button = Ui::CreateChild<Ui::SettingsButton>(
-		wrap,
-		rpl::single(QString()),
-		st::walletBuyRow);
-	if (icon && background) {
-		Settings::AddButtonIcon(button, st::walletBuyRow, {
-			.icon = icon,
-			.type = Settings::IconType::Rounded,
-			.background = background,
-		});
-	}
-	const auto arrow = AddRowChevron(button);
-	const auto loading = Info::Statistics::InfiniteRadialAnimationWidget(
-		button,
-		st::boxLoadingSize,
-		&st::boxLoadingAnimation);
-	loading->setAttribute(Qt::WA_TransparentForMouseEvents);
-	std::move(pending) | rpl::on_next([=](bool pending) {
-		button->setDisabled(pending);
-		arrow->setVisible(!pending);
-		loading->setVisible(pending);
-	}, button->lifetime());
-	button->sizeValue(
-	) | rpl::on_next([=](QSize size) {
-		const auto &shift = st::settingsPremiumArrowShift;
-		loading->moveToRight(
-			-shift.x() + (arrow->width() - loading->width()) / 2,
-			shift.y() + (size.height() - loading->height()) / 2);
-	}, arrow->lifetime());
-	button->setClickedCallback(std::move(activate));
-	Ui::ToggleChildrenVisibility(wrap, true);
-	wrap->geometryValue(
-	) | rpl::on_next([=](const QRect &g) {
-		button->resize(g.size());
-		button->lower();
-	}, wrap->lifetime());
-}
-
-void AddOnrampInformation(
-		not_null<Ui::VerticalLayout*> container,
-		rpl::producer<QString> text,
-		bool loading) {
-	const auto wrap = container->add(
-		object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
-			container,
-			object_ptr<Ui::VerticalLayout>(container),
-			st::walletBuyRowPadding));
-	const auto inner = wrap->entity();
-	if (loading) {
-		using namespace Info::Statistics;
-		const auto envelope = inner->add(
-			object_ptr<Ui::FixedHeightWidget>(
-				inner,
-				st::boxLoadingSize));
-		const auto animation = InfiniteRadialAnimationWidget(
-			envelope,
-			st::boxLoadingSize,
-			&st::boxLoadingAnimation);
-		AddChildToWidgetCenter(envelope, animation);
-		Ui::AddSkip(inner, st::walletBuyRowSkip);
-	}
-	inner->add(object_ptr<Ui::FlatLabel>(
-		inner,
-		std::move(text),
-		st::walletBuyRowSubtitle));
-	Ui::ToggleChildrenVisibility(wrap, true);
-}
-
-OnrampRoutesController::OnrampRoutesController(
-		not_null<Main::Session*> session,
-		QString address,
-		std::shared_ptr<Ui::Show> show)
-: _session(session)
-, _rates(&session->wallet().rates())
-, _onramp(&session->wallet().onramp())
-, _address(std::move(address))
-, _show(std::move(show)) {
-	_onramp->providersValue(
-	) | rpl::on_next([=](const Onramp::ProvidersState &load) {
-		providersLoaded(load);
-	}, _lifetime);
-	_onramp->baseCurrenciesValue(
-	) | rpl::on_next([=](const Onramp::BaseCurrenciesState &load) {
-		baseCurrenciesLoaded(load);
-	}, _lifetime);
-	_onramp->availabilityValue(
-	) | rpl::on_next([=](const Onramp::AvailabilityState &load) {
-		availabilityLoaded(load);
-	}, _lifetime);
-	_onramp->routeSelections(
-	) | rpl::on_next([=](const OnrampRouteSelection &) {
-		clearHostedExpected();
-	}, _lifetime);
-	_onramp->hostedSessionValue(
-	) | rpl::on_next([=](const Onramp::HostedSessionState &load) {
-		hostedSessionLoaded(load);
-	}, _lifetime);
-	_rates->value(
-	) | rpl::on_next([=](const FiatRate &rate) {
-		rateChanged(rate);
-	}, _lifetime);
-}
-
-OnrampRoutesViewStatus OnrampRoutesController::status() const {
-	return _status;
-}
-
-auto OnrampRoutesController::routes() const
--> const std::vector<OnrampRenderRoute> & {
-	return _routes;
-}
-
-bool OnrampRoutesController::allowedCurrenciesReady() const {
-	return _allowedCurrenciesReady;
-}
-
-std::vector<QString> OnrampRoutesController::allowedCurrencies() const {
-	return _allowedCurrencies;
-}
-
-rpl::producer<> OnrampRoutesController::changes() const {
-	return _changes.events();
-}
-
-rpl::producer<bool> OnrampRoutesController::routePendingValue(
-		OnrampRouteSelection selection) const {
-	return _pendingHostedSelection.value(
-	) | rpl::map([selection = std::move(selection)](
-			const std::optional<OnrampRouteSelection> &pending) {
-		return pending && (*pending == selection);
-	}) | rpl::distinct_until_changed();
-}
-
-void OnrampRoutesController::activate() {
-	_active = true;
-	restart();
-}
-
-void OnrampRoutesController::restart() {
-	clearHostedExpected();
-	if (!_active) {
-		return;
-	}
-	++_epoch;
-	clearExpected();
-	_phase = OnrampDiscoveryPhase::Providers;
-	_currency = _rates->current().currency.toUpper();
-	_knownCurrencies = NormalizeOnrampCurrencies(_rates->currencies());
-	AddOnrampCurrency(_knownCurrencies, _currency);
-	_allowedCurrencies.clear();
-	_providers.clear();
-	_routes.clear();
-	_providerIndex = 0;
-	_resolvedProviders = 0;
-	_geographicDeniedProviders = 0;
-	_buyingDisabledProviders = 0;
-	_allowedCurrenciesReady = false;
-	_expectedEpoch = _epoch;
-	_providersExpectingPending = true;
-	_providersPendingSeen = false;
-	publish(OnrampRoutesViewStatus::Loading);
-	_onramp->requestProvidersForGram();
-	if (_phase == OnrampDiscoveryPhase::Providers
-		&& _expectedEpoch == _epoch) {
-		_providersPendingSeen = _providersPendingSeen
-			|| _onramp->providersCurrent().pending;
-		_providersExpectingPending = false;
-	}
-}
-
-void OnrampRoutesController::invalidate() {
-	clearHostedExpected();
-	if (!_active && _phase == OnrampDiscoveryPhase::Inactive) {
-		return;
-	}
-	_active = false;
-	++_epoch;
-	clearExpected();
-	_phase = OnrampDiscoveryPhase::Inactive;
-	_currency.clear();
-	_knownCurrencies.clear();
-	_allowedCurrencies.clear();
-	_providers.clear();
-	_routes.clear();
-	_providerIndex = 0;
-	_resolvedProviders = 0;
-	_geographicDeniedProviders = 0;
-	_buyingDisabledProviders = 0;
-	_allowedCurrenciesReady = false;
-}
-
-void OnrampRoutesController::clearExpected() {
-	_expectedEpoch = 0;
-	_expectedProvider.clear();
-	_expectedCurrency.clear();
-	_providersExpectingPending = false;
-	_providersPendingSeen = false;
-	_baseCurrenciesExpectingPending = false;
-	_baseCurrenciesPendingSeen = false;
-	_availabilityExpectingPending = false;
-	_availabilityPendingSeen = false;
-}
-
-void OnrampRoutesController::publish(OnrampRoutesViewStatus status) {
-	_status = status;
-	_changes.fire({});
-}
-
-void OnrampRoutesController::fail(bool currenciesReady) {
-	clearHostedExpected();
-	clearExpected();
-	_phase = OnrampDiscoveryPhase::Complete;
-	_routes.clear();
-	if (!currenciesReady) {
-		_allowedCurrencies.clear();
-		_allowedCurrenciesReady = false;
-	}
-	publish(OnrampRoutesViewStatus::Error);
-}
-
-void OnrampRoutesController::advanceBaseCurrencies() {
-	if (!_active || _phase != OnrampDiscoveryPhase::BaseCurrencies) {
-		return;
-	}
-	clearExpected();
-	while (_providerIndex < int(_providers.size())) {
-		auto &entry = _providers[_providerIndex];
-		if (entry.provider.supportsBaseCurrencies) {
-			const auto providerId = entry.provider.id;
-			_expectedEpoch = _epoch;
-			_expectedProvider = providerId;
-			_baseCurrenciesExpectingPending = true;
-			_baseCurrenciesPendingSeen = false;
-			_onramp->requestBaseCurrencies(providerId);
-			if (_phase == OnrampDiscoveryPhase::BaseCurrencies
-				&& _expectedEpoch == _epoch
-				&& _expectedProvider == providerId) {
-				_baseCurrenciesPendingSeen = _baseCurrenciesPendingSeen
-					|| _onramp->baseCurrenciesCurrent().pending;
-				_baseCurrenciesExpectingPending = false;
-			}
-			return;
-		}
-		entry.eligible = true;
-		_allowedCurrencies = _knownCurrencies;
-		++_providerIndex;
-	}
-	_allowedCurrenciesReady = true;
-	_phase = OnrampDiscoveryPhase::Availability;
-	_providerIndex = 0;
-	_changes.fire({});
-	advanceAvailability();
-}
-
-void OnrampRoutesController::advanceAvailability() {
-	if (!_active || _phase != OnrampDiscoveryPhase::Availability) {
-		return;
-	}
-	clearExpected();
-	while (_providerIndex < int(_providers.size())
-		&& !_providers[_providerIndex].eligible) {
-		++_providerIndex;
-	}
-	if (_providerIndex == int(_providers.size())) {
-		_phase = OnrampDiscoveryPhase::Complete;
-		publish(OnrampTerminalStatus(
-			_routes,
-			_resolvedProviders,
-			_geographicDeniedProviders,
-			_buyingDisabledProviders));
-		return;
-	}
-	const auto providerId = _providers[_providerIndex].provider.id;
-	_expectedEpoch = _epoch;
-	_expectedProvider = providerId;
-	_expectedCurrency = _currency.toLower();
-	_availabilityExpectingPending = true;
-	_availabilityPendingSeen = false;
-	_onramp->requestAvailability(providerId, _expectedCurrency);
-	if (_phase == OnrampDiscoveryPhase::Availability
-		&& _expectedEpoch == _epoch
-		&& _expectedProvider == providerId
-		&& _expectedCurrency == _currency.toLower()) {
-		_availabilityPendingSeen = _availabilityPendingSeen
-			|| _onramp->availabilityCurrent().pending;
-		_availabilityExpectingPending = false;
-	}
-}
-
-void OnrampRoutesController::providersLoaded(
-		const Onramp::ProvidersState &load) {
-	if (!_active
-		|| _phase != OnrampDiscoveryPhase::Providers
-		|| _expectedEpoch != _epoch) {
-		return;
-	}
-	if (load.pending) {
-		_providersPendingSeen = _providersExpectingPending;
-		return;
-	} else if (!_providersPendingSeen && !_providersExpectingPending) {
-		return;
-	} else if (load.error) {
-		fail(false);
-		return;
-	} else if (!load.value) {
-		return;
-	}
-	clearExpected();
-	_providers.clear();
-	_providers.reserve(load.value->size());
-	for (const auto &provider : *load.value) {
-		if (provider.id.isEmpty()
-			|| ranges::find_if(
-				_providers,
-				[&](const OnrampProviderDiscovery &entry) {
-					return entry.provider.id == provider.id;
-				}) != end(_providers)) {
-			continue;
-		}
-		_providers.push_back({ provider });
-	}
-	_phase = OnrampDiscoveryPhase::BaseCurrencies;
-	_providerIndex = 0;
-	advanceBaseCurrencies();
-}
-
-void OnrampRoutesController::baseCurrenciesLoaded(
-		const Onramp::BaseCurrenciesState &load) {
-	if (!_active
-		|| _phase != OnrampDiscoveryPhase::BaseCurrencies
-		|| _expectedEpoch != _epoch
-		|| _providerIndex >= int(_providers.size())
-		|| _expectedProvider != _providers[_providerIndex].provider.id) {
-		return;
-	}
-	if (load.pending) {
-		_baseCurrenciesPendingSeen = _baseCurrenciesExpectingPending;
-		return;
-	} else if (!_baseCurrenciesPendingSeen
-		&& !_baseCurrenciesExpectingPending) {
-		return;
-	} else if (load.error) {
-		fail(false);
-		return;
-	} else if (!load.value) {
-		return;
-	}
-	const auto supported = NormalizeOnrampCurrencies(*load.value);
-	auto &entry = _providers[_providerIndex];
-	entry.eligible = ranges::contains(supported, _currency);
-	for (const auto &currency : _knownCurrencies) {
-		if (ranges::contains(supported, currency)) {
-			AddOnrampCurrency(_allowedCurrencies, currency);
-		}
-	}
-	++_providerIndex;
-	advanceBaseCurrencies();
-}
-
-void OnrampRoutesController::availabilityLoaded(
-		const Onramp::AvailabilityState &load) {
-	if (!_active
-		|| _phase != OnrampDiscoveryPhase::Availability
-		|| _expectedEpoch != _epoch
-		|| _providerIndex >= int(_providers.size())) {
-		return;
-	}
-	const auto &provider = _providers[_providerIndex].provider;
-	if (_expectedProvider != provider.id
-		|| _expectedCurrency != _currency.toLower()) {
-		return;
-	}
-	if (load.pending) {
-		_availabilityPendingSeen = _availabilityExpectingPending;
-		return;
-	} else if (!_availabilityPendingSeen
-		&& !_availabilityExpectingPending) {
-		return;
-	} else if (load.error) {
-		fail(true);
-		return;
-	} else if (!load.value) {
-		return;
-	}
-
-	++_resolvedProviders;
-	const auto &availability = *load.value;
-	if (!availability.allowed) {
-		++_geographicDeniedProviders;
-	} else if (!availability.buyAllowed) {
-		++_buyingDisabledProviders;
-	} else {
-		auto hasAvailableMethod = false;
-		auto hasMappedRoute = false;
-		for (const auto &method : availability.methods) {
-			if (!method.available) {
-				continue;
-			}
-			hasAvailableMethod = true;
-			const auto presentation = OnrampPresentationForMethod(
-				method.paymentMethod);
-			if (!presentation) {
-				continue;
-			}
-			hasMappedRoute = true;
-			const auto paymentMethod = std::optional<QString>(
-				method.paymentMethod);
-			if (OnrampRouteExists(_routes, provider.id, paymentMethod)) {
-				continue;
-			}
-			_routes.push_back({
-				.presentation = *presentation,
-				.providerName = provider.name,
-				.selection = {
-					.provider = provider.id,
-					.paymentMethod = paymentMethod,
-					.baseCurrency = _expectedCurrency,
-				},
-			});
-		}
-		if (hasAvailableMethod && !hasMappedRoute) {
-			const auto paymentMethod = std::optional<QString>();
-			if (!OnrampRouteExists(_routes, provider.id, paymentMethod)) {
-				_routes.push_back({
-					.presentation = OnrampRoutePresentation::Generic,
-					.providerName = provider.name,
-					.selection = {
-						.provider = provider.id,
-						.paymentMethod = std::nullopt,
-						.baseCurrency = _expectedCurrency,
-					},
-				});
-			}
-		}
-	}
-	++_providerIndex;
-	advanceAvailability();
-}
-
-void OnrampRoutesController::rateChanged(const FiatRate &rate) {
-	const auto currency = rate.currency.toUpper();
-	if (_active && currency != _currency) {
-		restart();
-	}
-}
-
-bool OnrampRoutesController::isCurrentRoute(
-		const OnrampRouteSelection &selection) const {
-	return _active
-		&& _phase == OnrampDiscoveryPhase::Complete
-		&& _status == OnrampRoutesViewStatus::Ready
-		&& ranges::find_if(
-			_routes,
-			[&](const OnrampRenderRoute &route) {
-				return route.selection == selection;
-			}) != end(_routes);
-}
-
-void OnrampRoutesController::activateRoute(
-		const OnrampRouteSelection &selection) {
-	if (!isCurrentRoute(selection)) {
-		return;
-	}
-	const auto pending = _pendingHostedSelection.current();
-	if (pending && *pending == selection) {
-		return;
-	}
-	_onramp->selectRoute(selection);
-	_expectedHostedSelection = selection;
-	_pendingHostedSelection = std::optional<OnrampRouteSelection>(selection);
-	_hostedExpectingPending = true;
-	_hostedPendingSeen = false;
-	auto args = OnrampSessionArgs{
-		.provider = selection.provider,
-		.address = _address,
-		.paymentMethod = selection.paymentMethod,
-		.baseCurrency = selection.baseCurrency.toLower(),
-	};
-	if (selection.provider == u"moonpay"_q) {
-		args.theme = Window::Theme::IsNightMode()
-			? u"dark"_q
-			: u"light"_q;
-	}
-	_onramp->createSession(args);
-	if (_expectedHostedSelection
-		&& *_expectedHostedSelection == selection) {
-		_hostedPendingSeen = _hostedPendingSeen
-			|| _onramp->hostedSessionCurrent().pending;
-		_hostedExpectingPending = false;
-	}
-}
-
-void OnrampRoutesController::hostedSessionLoaded(
-		const Onramp::HostedSessionState &load) {
-	if (!_expectedHostedSelection
-		|| !isCurrentRoute(*_expectedHostedSelection)) {
-		return;
-	}
-	const auto pending = _pendingHostedSelection.current();
-	if (!pending || *pending != *_expectedHostedSelection) {
-		return;
-	}
-	if (load.pending) {
-		_hostedPendingSeen = _hostedExpectingPending;
-		return;
-	} else if (!_hostedPendingSeen && !_hostedExpectingPending) {
-		return;
-	} else if (load.error) {
-		failHostedSession();
-		return;
-	} else if (!load.value) {
-		return;
-	}
-	const auto &session = *load.value;
-	if (session.provider != _expectedHostedSelection->provider
-		|| (session.expiresDate != 0
-			&& session.expiresDate <= base::unixtime::now())
-		|| !IsValidOnrampUrl(session.url)) {
-		failHostedSession();
-		return;
-	}
-	const auto url = session.url;
-	clearHostedExpected();
-	OpenWalletUrl(_session, _show, url);
-}
-
-void OnrampRoutesController::clearHostedExpected() {
-	_expectedHostedSelection = std::nullopt;
-	_hostedExpectingPending = false;
-	_hostedPendingSeen = false;
-	_pendingHostedSelection = std::nullopt;
-}
-
-void OnrampRoutesController::failHostedSession() {
-	clearHostedExpected();
-	_show->showToast(tr::lng_wallet_buy_session_error(tr::now));
-}
-
-[[nodiscard]] const style::color *OnrampFallbackIconBg(
-		const QString &provider) {
-	const auto colors = std::array{
-		&st::settingsIconBg1,
-		&st::settingsIconBg5,
-		&st::settingsIconBg6,
-		&st::settingsIconBg8,
-	};
-	auto hash = uint32();
-	for (const auto ch : provider) {
-		hash = hash * 31 + ch.unicode();
-	}
-	return colors[hash % colors.size()];
-}
-
-void RenderOnrampRoutes(
-		not_null<Ui::VerticalLayout*> routeList,
-		OnrampRoutesController &controller,
-		Fn<void()> retry) {
-	routeList->clear();
-	switch (controller.status()) {
-	case OnrampRoutesViewStatus::Loading:
-		AddOnrampInformation(
-			routeList,
-			tr::lng_wallet_buy_loading(),
-			true);
-		break;
-	case OnrampRoutesViewStatus::Ready:
-		for (const auto &route : controller.routes()) {
-			auto providerText = OnrampProviderText(
-				route.providerName,
-				route.selection.provider);
-			auto activate = [
-					controller = &controller,
-					selection = route.selection] {
-				controller->activateRoute(selection);
-			};
-			switch (route.presentation) {
-			case OnrampRoutePresentation::BankCard:
-				AddBuyRow(
-					routeList,
-					tr::lng_wallet_buy_card(),
-					std::move(providerText),
-					&st::walletBuyBankCardIcon,
-					&st::settingsIconBg2,
-					controller.routePendingValue(route.selection),
-					std::move(activate));
-				break;
-			case OnrampRoutePresentation::Cryptocurrency:
-				AddBuyRow(
-					routeList,
-					tr::lng_wallet_buy_crypto(),
-					std::move(providerText),
-					&st::walletBuyCryptoIcon,
-					&st::settingsIconBg3,
-					controller.routePendingValue(route.selection),
-					std::move(activate));
-				break;
-			case OnrampRoutePresentation::P2p:
-				AddBuyRow(
-					routeList,
-					tr::lng_wallet_buy_p2p(),
-					std::move(providerText),
-					&st::walletBuyP2pIcon,
-					&st::settingsIconBg4,
-					controller.routePendingValue(route.selection),
-					std::move(activate));
-				break;
-			case OnrampRoutePresentation::Generic:
-				AddBuyRow(
-					routeList,
-					tr::lng_wallet_buy_provider(),
-					std::move(providerText),
-					&st::walletBuyP2pIcon,
-					OnrampFallbackIconBg(route.selection.provider),
-					controller.routePendingValue(route.selection),
-					std::move(activate));
-				break;
-			}
-		}
-		break;
-	case OnrampRoutesViewStatus::Empty:
-		AddOnrampInformation(
-			routeList,
-			tr::lng_wallet_buy_empty(),
-			false);
-		break;
-	case OnrampRoutesViewStatus::GeographicDenied:
-		AddOnrampInformation(
-			routeList,
-			tr::lng_wallet_buy_geographic_denied(),
-			false);
-		break;
-	case OnrampRoutesViewStatus::BuyingDisabled:
-		AddOnrampInformation(
-			routeList,
-			tr::lng_wallet_buy_disabled(),
-			false);
-		break;
-	case OnrampRoutesViewStatus::Error: {
-		AddOnrampInformation(
-			routeList,
-			tr::lng_wallet_buy_error(),
-			false);
-		const auto retryButton = routeList->add(
-			object_ptr<Ui::RoundButton>(
-				routeList,
-				tr::lng_wallet_buy_retry(),
-				st::walletReceiveBuyButton),
-			st::walletReceiveBuyMargin,
-			style::al_justify);
-		retryButton->setTextTransform(
-			Ui::RoundButtonTextTransform::NoTransform);
-		retryButton->setClickedCallback(std::move(retry));
-		retryButton->widthValue(
-		) | rpl::on_next([=](int width) {
-			retryButton->setFullWidth(width);
-		}, retryButton->lifetime());
-		break;
-	}
-	}
-	Ui::AddSkip(routeList, st::walletBuySectionBottomSkip);
-	if (const auto width = routeList->width()) {
-		routeList->resizeToWidth(width);
-	}
-}
-
-void WalletChooseCurrencyBox(
-		not_null<Ui::GenericBox*> box,
-		std::shared_ptr<Main::SessionShow> show,
-		std::optional<std::vector<QString>> allowedCodes);
-
 void WalletReceiveBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
@@ -3497,89 +2576,38 @@ void WalletReceiveBox(
 	box->setCustomCornersFilling(RectPart::FullTop | RectPart::FullBottom);
 
 	struct State {
-		rpl::variable<bool> buying = false;
-		Ui::Animations::Simple buyingAnimation;
+		rpl::variable<bool> resolving = false;
 		QImage image;
 	};
 	const auto state = box->lifetime().make_state<State>();
 	const auto show = box->uiShow();
-	const auto routes = box->lifetime().make_state<OnrampRoutesController>(
-		session,
-		address,
-		show);
-	const auto sessionShow = Main::MakeSessionShow(show, session);
-	state->buying.changes(
-	) | rpl::on_next([=](bool buying) {
-		if (buying) {
-			routes->activate();
-		} else {
-			routes->invalidate();
-		}
-	}, box->lifetime());
-	box->boxClosing(
-	) | rpl::on_next([=] {
-		routes->invalidate();
-	}, box->lifetime());
 
 	box->paintRequest(
 	) | rpl::on_next([=] {
 		auto p = QPainter(box);
 		auto hq = PainterHighQualityEnabler(p);
-		const auto shown = state->buyingAnimation.value(
-			state->buying.current() ? 1. : 0.);
 		p.setPen(Qt::NoPen);
-		p.setBrush(anim::color(st::activeButtonBg, st::boxBg, shown));
+		p.setBrush(st::activeButtonBg);
 		p.drawRoundedRect(box->rect(), st::boxRadius, st::boxRadius);
 	}, box->lifetime());
-	state->buying.changes(
-	) | rpl::on_next([=](bool buying) {
-		state->buyingAnimation.start([=] {
-			box->update();
-		}, buying ? 0. : 1., buying ? 1. : 0., st::slideWrapDuration);
-	}, box->lifetime());
 
-	const auto bar = AddWalletBoxTitleBar(
-		box,
-		state->buying.value(
-		) | rpl::map([](bool buying) {
-			return buying
-				? tr::lng_wallet_buy_title()
-				: tr::lng_wallet_add_funds();
-		}) | rpl::flatten_latest(),
-		state->buying.value());
-	rpl::combine(
-		state->buying.value(),
-		rpl::single(rpl::empty) | rpl::then(style::PaletteChanged())
-	) | rpl::on_next([=](bool buying, rpl::empty_value) {
-		bar.title->setTextColorOverride(buying
-			? std::optional<QColor>()
-			: st::activeButtonFg->c);
-		bar.close->setIconOverride(
-			buying ? nullptr : &st::walletReceiveCloseIconActive,
-			buying ? nullptr : &st::walletReceiveCloseIconActiveOver);
-		const auto ripple = buying ? nullptr : &st::activeButtonBgRipple;
-		bar.close->setRippleColorOverride(ripple);
+	const auto bar = AddWalletBoxTitleBar(box, tr::lng_wallet_add_funds());
+	rpl::single(
+		rpl::empty
+	) | rpl::then(
+		style::PaletteChanged()
+	) | rpl::on_next([=] {
+		bar.title->setTextColorOverride(st::activeButtonFg->c);
 	}, box->lifetime());
+	bar.close->setIconOverride(
+		&st::walletReceiveCloseIconActive,
+		&st::walletReceiveCloseIconActiveOver);
+	bar.close->setRippleColorOverride(&st::activeButtonBgRipple);
 	bar.close->setClickedCallback([=] {
 		box->closeBox();
 	});
-	bar.back->entity()->setClickedCallback([=] {
-		state->buying = false;
-	});
 
-	const auto addFunds = box->addRow(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			box,
-			object_ptr<Ui::VerticalLayout>(box)),
-		style::margins(),
-		style::al_justify);
-	const auto inner = addFunds->entity();
-	addFunds->toggleOn(state->buying.value(
-	) | rpl::map([](bool buying) {
-		return !buying;
-	}));
-	addFunds->finishAnimating();
-
+	const auto inner = box->verticalLayout();
 	state->image = ReceiveQrImage(
 		address,
 		st::walletReceiveQrSize,
@@ -3722,63 +2750,36 @@ void WalletReceiveBox(
 	const auto buy = inner->add(
 		object_ptr<Ui::RoundButton>(
 			inner,
-			tr::lng_wallet_buy_button(),
+			BusyFooterLabel(
+				tr::lng_wallet_buy_button(),
+				state->resolving.value()),
 			st::walletReceiveBuyButton),
 		st::walletReceiveBuyMargin,
 		style::al_justify);
 	buy->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
+	AddBusyFooterSpinner(buy, state->resolving.value());
 	buy->setClickedCallback([=] {
-		state->buying = true;
+		if (state->resolving.current()) {
+			return;
+		}
+		state->resolving = true;
+		session->wallet().onramp().requestSessionUrl(
+			address,
+			session->wallet().rates().current().currency,
+			crl::guard(box, [=](QString url) {
+				state->resolving = false;
+				if (!IsValidOnrampUrl(url)) {
+					show->showToast(tr::lng_wallet_buy_empty(tr::now));
+					return;
+				}
+				OpenWalletUrl(session, show, url);
+				box->closeBox();
+			}));
 	});
 	buy->widthValue(
 	) | rpl::on_next([=](int width) {
 		buy->setFullWidth(width);
 	}, buy->lifetime());
-
-	const auto buyGrams = box->addRow(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			box,
-			object_ptr<Ui::VerticalLayout>(box)),
-		style::margins(),
-		style::al_justify);
-	const auto buyInner = buyGrams->entity();
-
-	AddBuySectionTitle(buyInner, tr::lng_wallet_buy_pay_with());
-	const auto currencyButton = Settings::AddButtonWithLabel(
-		buyInner,
-		tr::lng_wallet_menu_currency(),
-		FiatRateValue(session) | rpl::map([](const FiatRate &rate) {
-			return rate.currency;
-		}) | rpl::distinct_until_changed(),
-		st::settingsButtonNoIcon);
-	currencyButton->setClickedCallback([=] {
-		if (!routes->allowedCurrenciesReady()) {
-			return;
-		}
-		sessionShow->showBox(Box(
-			WalletChooseCurrencyBox,
-			sessionShow,
-			std::optional<std::vector<QString>>(
-				routes->allowedCurrencies())));
-	});
-	Ui::AddSkip(buyInner, st::walletBuySectionBottomSkip);
-
-	Ui::AddDivider(buyInner);
-	AddBuySectionTitle(buyInner, tr::lng_wallet_buy_buy_with());
-	const auto routeList = buyInner->add(
-		object_ptr<Ui::VerticalLayout>(buyInner));
-	const auto rebuildRoutes = [=] {
-		currencyButton->setDisabled(!routes->allowedCurrenciesReady());
-		RenderOnrampRoutes(routeList, *routes, [=] {
-			routes->restart();
-		});
-	};
-	rebuildRoutes();
-	routes->changes(
-	) | rpl::on_next(rebuildRoutes, routeList->lifetime());
-
-	buyGrams->toggleOn(state->buying.value());
-	buyGrams->finishAnimating();
 }
 
 void ShowWalletReceiveBox(
@@ -12170,8 +11171,7 @@ public:
 	CurrencyListWidget(
 		not_null<QWidget*> parent,
 		std::shared_ptr<Main::SessionShow> show,
-		Fn<void(QString)> chosen,
-		std::optional<std::vector<QString>> allowedCodes);
+		Fn<void(QString)> chosen);
 
 	void updateFilter(const QString &query);
 	void selectSkip(int direction);
@@ -12208,7 +11208,6 @@ private:
 
 	const std::shared_ptr<Main::SessionShow> _show;
 	const Fn<void(QString)> _chosen;
-	const std::optional<std::vector<QString>> _allowedCodes;
 	QString _activeCode;
 	QStringList _filter;
 	std::vector<Row> _rows;
@@ -12242,8 +11241,7 @@ private:
 
 void WalletChooseCurrencyBox(
 		not_null<Ui::GenericBox*> box,
-		std::shared_ptr<Main::SessionShow> show,
-		std::optional<std::vector<QString>> allowedCodes) {
+		std::shared_ptr<Main::SessionShow> show) {
 	box->setTitle(tr::lng_wallet_currency_title());
 	box->setWidth(st::boxWideWidth);
 	box->setMaxHeight(st::boxMaxListHeight);
@@ -12260,8 +11258,7 @@ void WalletChooseCurrencyBox(
 			[=](QString code) {
 				show->session().wallet().rates().setCurrency(code);
 				box->closeBox();
-			},
-			std::move(allowedCodes)),
+			}),
 		style::margins());
 	box->setFocusCallback([=] { select->setInnerFocus(); });
 	select->setQueryChangedCallback([=](const QString &query) {
@@ -12293,12 +11290,10 @@ void WalletChooseCurrencyBox(
 CurrencyListWidget::CurrencyListWidget(
 	not_null<QWidget*> parent,
 	std::shared_ptr<Main::SessionShow> show,
-	Fn<void(QString)> chosen,
-	std::optional<std::vector<QString>> allowedCodes)
+	Fn<void(QString)> chosen)
 : RpWidget(parent)
 , _show(std::move(show))
-, _chosen(std::move(chosen))
-, _allowedCodes(std::move(allowedCodes)) {
+, _chosen(std::move(chosen)) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	_show->session().wallet().rates().value(
 	) | rpl::on_next([=] {
@@ -12535,10 +11530,6 @@ void CurrencyListWidget::refreshRows() {
 	}
 	_rows.reserve(ordered.size());
 	for (const auto &code : ordered) {
-		if (_allowedCodes
-			&& !ranges::contains(*_allowedCodes, code.toUpper())) {
-			continue;
-		}
 		const auto names = LookupCurrencyNames(code);
 		_rows.push_back({
 			.code = code,
@@ -12705,10 +11696,7 @@ void FillMenu(
 			+ u"\t"_q
 			+ currency),
 		[=] {
-			show->showBox(Box(
-				WalletChooseCurrencyBox,
-				show,
-				std::nullopt));
+			show->showBox(Box(WalletChooseCurrencyBox, show));
 		},
 		&st::walletMenuCurrencyIcon);
 	// The menu is rebuilt on every open, so this reading is live: the entry
