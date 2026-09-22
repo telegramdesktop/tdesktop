@@ -69,6 +69,8 @@ walletChatCardMarkSize: 42px;
 // The animation paints over its layout slot, centred on it, so a larger
 // diamond leaves every row of the card where it is.
 walletChatCardMarkPaintSize: 63px;
+walletChatCardGlareWidth: 90px;
+walletChatCardGlareStroke: 2px;
 walletChatCardAmountSkip: 3px;
 walletChatCardNameSkip: 15px;
 walletChatCardAddressSkip: 5px;

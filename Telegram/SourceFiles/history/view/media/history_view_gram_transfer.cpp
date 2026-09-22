@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/chat/chat_style.h"
 #include "ui/controls/ton_common.h"
+#include "ui/effects/glare.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
@@ -47,6 +48,8 @@ namespace {
 
 constexpr auto kAddressGroupSize = 4;
 constexpr auto kAddressGroupsPerLine = 6;
+constexpr auto kGlareDuration = crl::time(1100);
+constexpr auto kGlareTimeout = crl::time(400);
 
 [[nodiscard]] QColor CardTickerFg() {
 	return QColor(0x0f, 0xdd, 0xff);
@@ -105,6 +108,12 @@ struct TransferTag {
 	QColor bg;
 };
 
+// The band the glare lights up, in card coordinates.
+struct CardGlarePass {
+	float64 from = 0.;
+	float64 till = 0.;
+};
+
 class GramTransferCardPart final
 	: public MediaGenericPart
 	, public base::has_weak_ptr {
@@ -146,8 +155,12 @@ private:
 	};
 
 	[[nodiscard]] int resolveLayout(int outerWidth);
+	[[nodiscard]] bool sending() const;
+	[[nodiscard]] std::optional<CardGlarePass> glarePass() const;
 	void validateMark() const;
+	void validateGlare() const;
 	void validateBadge() const;
+	void paintGlareBorder(QPainter &p, CardGlarePass pass) const;
 	void showDetails(const ClickContext &context);
 
 	const GramTransferOrigin _origin;
@@ -157,6 +170,8 @@ private:
 	const QString _identity;
 	Layout _layout;
 	mutable std::unique_ptr<Lottie::Icon> _mark;
+	// Lives only while the transfer is still being sent.
+	mutable std::unique_ptr<Ui::GlareEffect> _glare;
 	mutable bool _markStarted = false;
 	mutable QImage _badge;
 	mutable Info::PeerGifts::GiftBadge _badgeKey;
@@ -637,13 +652,86 @@ void GramTransferCardPart::validateMark() const {
 	}
 }
 
+bool GramTransferCardPart::sending() const {
+	const auto view = _origin.view.get();
+	return view
+		&& _origin.action.outgoing
+		&& !_origin.action.failed
+		&& view->data()->isSending();
+}
+
+// WHY: the sweep costs a frame callback and a pixmap, so it exists only
+// while the transfer does, and a pass that outlives the sending state stops
+// itself from its own callback instead of waiting for the next paint.
+void GramTransferCardPart::validateGlare() const {
+	if (!sending()) {
+		_glare = nullptr;
+		return;
+	} else if (_glare) {
+		return;
+	}
+	_glare = std::make_unique<Ui::GlareEffect>();
+	_glare->width = st::walletChatCardGlareWidth;
+	_glare->validate(CardTickerFg(), [weak = base::make_weak(this)] {
+		const auto strong = weak.get();
+		if (!strong || !strong->_glare) {
+			return;
+		} else if (!strong->sending()) {
+			strong->_glare->animation.stop();
+		}
+		if (const auto view = strong->_origin.view.get()) {
+			view->repaint();
+		}
+	}, kGlareTimeout, kGlareDuration);
+}
+
+std::optional<CardGlarePass> GramTransferCardPart::glarePass() const {
+	if (!_glare || !_glare->glare.birthTime) {
+		return {};
+	}
+	const auto progress = _glare->progress(crl::now());
+	if (progress < 0. || progress > 1.) {
+		return {};
+	}
+	const auto width = _glare->width;
+	const auto from = -width
+		+ (_layout.card.width() + 2 * width) * progress;
+	return CardGlarePass{ .from = from, .till = from + width };
+}
+
 bool GramTransferCardPart::hasHeavyPart() {
-	return _mark != nullptr;
+	return _mark || _glare;
 }
 
 void GramTransferCardPart::unloadHeavyPart() {
 	_mark = nullptr;
+	_glare = nullptr;
 	_markStarted = false;
+}
+
+// The outline has to keep the card's own gradient under it, so the fill and
+// the stroke are two passes: the background brush with no pen, then a pen
+// whose gradient fades in and out with the pass and no brush at all.
+void GramTransferCardPart::paintGlareBorder(
+		QPainter &p,
+		CardGlarePass pass) const {
+	auto middle = CardTickerFg();
+	auto edge = middle;
+	edge.setAlphaF(0.);
+	auto gradient = QLinearGradient(
+		QPointF(pass.from, 0),
+		QPointF(pass.till, 0));
+	gradient.setStops({ { 0., edge }, { 0.5, middle }, { 1., edge } });
+	const auto stroke = st::walletChatCardGlareStroke;
+	const auto half = stroke / 2.;
+	const auto radius = st::msgServiceGiftBoxRadius - half;
+	p.setBrush(Qt::NoBrush);
+	p.setPen(QPen(QBrush(gradient), stroke));
+	p.drawRoundedRect(
+		QRectF(0, 0, _layout.card.width(), _layout.card.height())
+			- QMarginsF(half, half, half, half),
+		radius,
+		radius);
 }
 
 void GramTransferCardPart::validateBadge() const {
@@ -673,6 +761,7 @@ void GramTransferCardPart::draw(
 		const PaintContext &context,
 		int outerWidth) const {
 	validateMark();
+	validateGlare();
 	validateBadge();
 	p.save();
 	auto hq = PainterHighQualityEnabler(p);
@@ -684,17 +773,27 @@ void GramTransferCardPart::draw(
 	Wallet::PaintCardBackground(p, _layout.card);
 	p.translate(_layout.card.topLeft());
 	const auto cardWidth = _layout.card.width();
-	if (_mark->valid() && !_markStarted) {
+	const auto pass = glarePass();
+	if (pass) {
+		paintGlareBorder(p, *pass);
+	}
+	if (_mark->valid()) {
 		const auto last = _mark->framesCount() - 1;
-		if (!context.paused && !On(PowerSaving::kStickersChat)) {
+		const auto paused = context.paused
+			|| anim::Disabled()
+			|| On(PowerSaving::kStickersChat);
+		const auto again = (_glare != nullptr) && !_mark->animating();
+		if (paused) {
+			if (!_markStarted && _mark->frameIndex() != last) {
+				_mark->jumpTo(last, nullptr);
+			}
+		} else if (!_markStarted || again) {
 			_markStarted = true;
 			_mark->animate([view = _origin.view] {
 				if (const auto strong = view.get()) {
 					strong->repaint();
 				}
 			}, 0, last);
-		} else if (_mark->frameIndex() != last) {
-			_mark->jumpTo(last, nullptr);
 		}
 	}
 	const auto markPaint = st::walletChatCardMarkPaintSize;
@@ -732,7 +831,19 @@ void GramTransferCardPart::draw(
 		_layout.identity);
 	const auto addressFont
 		= st::walletDetailsCollectionLabel.style.font->monospace();
-	p.setPen(CardAddressFg());
+	if (pass) {
+		auto gradient = QLinearGradient(
+			QPointF(pass->from, 0),
+			QPointF(pass->till, 0));
+		gradient.setStops({
+			{ 0., CardAddressFg() },
+			{ 0.5, CardTickerFg() },
+			{ 1., CardAddressFg() },
+		});
+		p.setPen(QPen(QBrush(gradient), 0));
+	} else {
+		p.setPen(CardAddressFg());
+	}
 	p.setFont(addressFont);
 	auto top = _layout.addressTop;
 	for (const auto &line : _layout.addressLines) {
