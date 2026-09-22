@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 
 #include <QtCore/QByteArray>
-#include <QtCore/QStringDecoder>
 
 namespace Gram {
 namespace {
@@ -272,11 +271,8 @@ std::optional<QString> TextCommentFromBoc(const QString &bocBase64) {
 		}
 		bytes.append(data.constData() + from, size);
 		if (!cell.refs) {
-			auto decoder = QStringDecoder(
-				QStringDecoder::Utf8,
-				QStringDecoder::Flag::Stateless);
-			const auto text = QString(decoder(bytes));
-			return decoder.hasError()
+			const auto text = QString::fromUtf8(bytes);
+			return (text.toUtf8() != bytes)
 				? std::nullopt
 				: std::make_optional(text);
 		}

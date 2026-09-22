@@ -60,11 +60,11 @@ constexpr auto kGlareTimeout = crl::time(400);
 }
 
 [[nodiscard]] QColor SentBadgeBg() {
-	return QColor(0x5e, 0xc2, 0xff);
+	return QColor(0x4a, 0xb4, 0x4a);
 }
 
 [[nodiscard]] QColor SendingBadgeBg() {
-	return QColor(0x00, 0x4c, 0x9e);
+	return QColor(0x5e, 0xc2, 0xff);
 }
 
 struct GramTransferAction {
