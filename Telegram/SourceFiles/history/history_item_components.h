@@ -888,6 +888,17 @@ struct HistoryServiceGramTransfer
 	bool commentEncrypted = false;
 };
 
+struct HistoryServiceTonConnectRequest
+: RuntimeComponent<HistoryServiceTonConnectRequest, HistoryItem> {
+	uint64 sessionId = 0;
+	QString topic;
+	TextWithEntities notificationText;
+	rpl::lifetime lifetime;
+	TimeId expires = 0;
+	bool accepted = false;
+	bool declined = false;
+};
+
 enum class HistorySelfDestructType {
 	Photo,
 	Video,

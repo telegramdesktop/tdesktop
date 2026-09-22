@@ -169,6 +169,12 @@ void OpenTonConnectLink(
 	controller->session().wallet().tonConnect().connect(controller, link);
 }
 
+void OpenTonConnectRequest(
+		not_null<Window::SessionController*> controller,
+		FullMsgId itemId) {
+	ShowWallet(&controller->session());
+}
+
 std::shared_ptr<Main::SessionShow> TonConnectBoxShow(
 		not_null<Window::SessionController*> controller) {
 	const auto session = &controller->session();

@@ -519,6 +519,7 @@ public:
 
 	[[nodiscard]] std::vector<CustodyRecord> parkedRecords();
 
+	void ensureLoaded();
 	void refreshState();
 
 	// Asks Telegram for one transaction by the id a message carried, for a
@@ -740,7 +741,6 @@ public:
 		const std::string &operationId) const;
 
 private:
-	void ensureLoaded();
 	void requestState(
 		Fn<void(const MTPWalletState &)> done = nullptr,
 		Fn<void()> fail = nullptr);

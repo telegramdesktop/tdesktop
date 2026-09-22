@@ -41,9 +41,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "wallet/wallet_address.h"
 #include "wallet/wallet_fiat.h"
+#include "wallet/wallet_panel.h"
+#include "wallet/wallet_session.h"
+#include "wallet/wallet_ton_connect.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "core/click_handler_types.h"
+#include "base/call_delayed.h"
 #include "base/unixtime.h"
 #include "base/timer_rpl.h"
 #include "boxes/send_credits_box.h"
@@ -84,6 +88,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_notifications_manager.h"
 #include "spellcheck/spellcheck_highlight_syntax.h"
 
+#include "styles/style_chat.h"
 #include "styles/style_credits.h"
 #include "styles/style_dialogs.h"
 
@@ -92,6 +97,7 @@ namespace {
 constexpr auto kNotificationTextLimit = 255;
 constexpr auto kPinnedMessageTextLimit = 16;
 constexpr auto kMinLoginCode = 5;
+constexpr auto kTonConnectRequestMaxDelay = 24 * 3600 * crl::time(1000);
 
 using ItemPreview = HistoryView::ItemPreview;
 
@@ -122,6 +128,57 @@ template <typename T>
 		LOG(("API Error: %1 received.").arg(name));
 	}
 	return PreparedServiceText{ { tr::lng_message_empty(tr::now) } };
+}
+
+[[nodiscard]] bool TonConnectRequestPending(
+		not_null<const HistoryServiceTonConnectRequest*> request) {
+	return !request->accepted
+		&& !request->declined
+		&& (request->expires > base::unixtime::now());
+}
+
+[[nodiscard]] QString TonConnectAppName(
+		not_null<Main::Session*> session,
+		uint64 sessionId) {
+	const auto info = session->wallet().tonConnect().session(sessionId);
+	return (info && info->manifest)
+		? Wallet::TonConnectManifestName(*info->manifest)
+		: QString();
+}
+
+[[nodiscard]] tr::phrase<lngtag_app> TonConnectTopicPhrase(
+		const QString &topic) {
+	const auto list = std::array{
+		std::pair{
+			u"sendTransaction"_q,
+			tr::lng_action_ton_connect_send_transaction },
+		std::pair{ u"signData"_q, tr::lng_action_ton_connect_sign_data },
+		std::pair{
+			u"signMessage"_q,
+			tr::lng_action_ton_connect_sign_message },
+		std::pair{ u"disconnect"_q, tr::lng_action_ton_connect_disconnect },
+	};
+	for (const auto &[known, phrase] : list) {
+		if (topic == known) {
+			return phrase;
+		}
+	}
+	return tr::lng_action_ton_connect_request;
+}
+
+[[nodiscard]] bool TonConnectTopicReviewable(const QString &topic) {
+	return (topic != u"signData"_q)
+		&& (topic != u"signMessage"_q)
+		&& (topic != u"disconnect"_q);
+}
+
+[[nodiscard]] ClickHandlerPtr TonConnectRequestLink(FullMsgId itemId) {
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto window = my.sessionWindow.get()) {
+			Wallet::OpenTonConnectRequest(window, itemId);
+		}
+	});
 }
 
 [[nodiscard]] TextWithEntities SpoilerLoginCode(
@@ -4786,6 +4843,10 @@ TextWithEntities HistoryItem::notificationText(
 	auto result = [&] {
 		if (_media && !isService()) {
 			return _media->notificationText();
+		}
+		const auto request = Get<HistoryServiceTonConnectRequest>();
+		if (request && !request->notificationText.empty()) {
+			return request->notificationText;
 		} else if (!emptyText()) {
 			return _text;
 		}
@@ -5662,6 +5723,16 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 		transfer->transactionId = qs(data.vtransaction_id());
 		transfer->comment = qs(data.vcomment().value_or_empty());
 		transfer->commentEncrypted = data.is_comment_encrypted();
+	} else if (type == mtpc_messageActionWalletTonConnectRequest) {
+		const auto &data = action.c_messageActionWalletTonConnectRequest();
+		UpdateComponents(HistoryServiceTonConnectRequest::Bit());
+		const auto request = Get<HistoryServiceTonConnectRequest>();
+		request->sessionId = uint64(data.vsession_id().v);
+		request->topic = qs(data.vtopic().value_or_empty());
+		request->expires = data.vexpires().v;
+		request->accepted = data.is_accepted();
+		request->declined = data.is_declined();
+		setupTonConnectRequest();
 	} else if (type == mtpc_messageActionGroupCall
 		|| type == mtpc_messageActionGroupCallScheduled) {
 		const auto started = (type == mtpc_messageActionGroupCall);
@@ -6214,6 +6285,10 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 
 	auto prepareGramTransfer = [&](const MTPDmessageActionGramTransfer &) {
 		return prepareGramTransferText();
+	};
+
+	auto prepareTonConnectRequest = [&](const MTPDmessageActionWalletTonConnectRequest &) {
+		return prepareTonConnectRequestText();
 	};
 
 	auto preparePaymentSentMe = [&](const MTPDmessageActionPaymentSentMe &data) {
@@ -7879,7 +7954,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		PrepareEmptyText<MTPDmessageActionRequestedPeerSentMe>,
 		prepareChangeCommunity,
 		prepareGramTransfer,
-		PrepareEmptyText<MTPDmessageActionWalletTonConnectRequest>,
+		prepareTonConnectRequest,
 		PrepareErrorText<MTPDmessageActionEmpty>));
 
 	processAction(action);
@@ -8647,6 +8722,54 @@ PreparedServiceText HistoryItem::prepareGramTransferText(
 	return result;
 }
 
+PreparedServiceText HistoryItem::prepareTonConnectRequestText() {
+	auto result = PreparedServiceText();
+	const auto request = Get<HistoryServiceTonConnectRequest>();
+	if (!request) {
+		return result;
+	}
+	request->notificationText = {};
+	const auto name = TonConnectAppName(
+		&_history->session(),
+		request->sessionId);
+	const auto app = tr::bold(name);
+	const auto pick = [&](auto &&named, auto &&unknown) {
+		return name.isEmpty()
+			? unknown(tr::now, tr::marked)
+			: named(tr::now, lt_app, app, tr::marked);
+	};
+	if (request->accepted) {
+		result.text = pick(
+			tr::lng_action_ton_connect_accepted,
+			tr::lng_action_ton_connect_accepted_unknown);
+	} else if (request->declined) {
+		result.text = pick(
+			tr::lng_action_ton_connect_declined,
+			tr::lng_action_ton_connect_declined_unknown);
+	} else if (!TonConnectRequestPending(request)) {
+		result.text = pick(
+			tr::lng_action_ton_connect_expired,
+			tr::lng_action_ton_connect_expired_unknown);
+	} else {
+		const auto text = pick(
+			TonConnectTopicPhrase(request->topic),
+			tr::lng_action_ton_connect_request_unknown);
+		if (TonConnectTopicReviewable(request->topic)) {
+			request->notificationText = text;
+			result.text = tr::lng_action_ton_connect_review(
+				tr::now,
+				lt_text,
+				text,
+				lt_arrow,
+				Ui::Text::IconEmoji(&st::textMoreIconEmoji),
+				tr::marked);
+		} else {
+			result.text = text;
+		}
+	}
+	return result;
+}
+
 PreparedServiceText HistoryItem::prepareStoryMentionText() {
 	auto result = PreparedServiceText();
 	const auto peer = history()->peer;
@@ -8932,6 +9055,56 @@ void HistoryItem::setupTTLChange() {
 
 	UpdateComponents(HistoryServiceTTLChange::Bit());
 	Get<HistoryServiceTTLChange>()->link = std::move(link);
+}
+
+void HistoryItem::setupTonConnectRequest() {
+	const auto request = Get<HistoryServiceTonConnectRequest>();
+	Assert(request != nullptr);
+
+	const auto sessionId = request->sessionId;
+	auto &wallet = _history->session().wallet();
+	if (TonConnectRequestPending(request)) {
+		setCustomServiceLink(TonConnectRequestLink(fullId()));
+		// WHY: nothing else loads the wallet for an incoming request, and
+		// the store that names the dApp fills only once the wallet is
+		// Ready, so the first pending request asks for that one load.
+		wallet.ensureLoaded();
+		armTonConnectRequestExpiry();
+	}
+	wallet.tonConnect().updates(
+	) | rpl::filter([=](uint64 id) {
+		return !id || (id == sessionId);
+	}) | rpl::on_next([=] {
+		updateTonConnectRequestText();
+	}, Get<HistoryServiceTonConnectRequest>()->lifetime);
+}
+
+void HistoryItem::armTonConnectRequestExpiry() {
+	const auto request = Get<HistoryServiceTonConnectRequest>();
+	if (!request || !TonConnectRequestPending(request)) {
+		return;
+	}
+	const auto session = &_history->session();
+	const auto delay = crl::time(request->expires - base::unixtime::now());
+	base::call_delayed(
+		std::clamp(delay * 1000, crl::time(0), kTonConnectRequestMaxDelay),
+		session,
+		[session, id = fullId()] {
+			if (const auto item = session->data().message(id)) {
+				item->updateTonConnectRequestText();
+				item->armTonConnectRequestExpiry();
+			}
+		});
+}
+
+void HistoryItem::updateTonConnectRequestText() {
+	const auto request = Get<HistoryServiceTonConnectRequest>();
+	if (!request) {
+		return;
+	} else if (!TonConnectRequestPending(request)) {
+		RemoveComponents(HistoryServiceCustomLink::Bit());
+	}
+	updateServiceText(prepareTonConnectRequestText());
 }
 
 void HistoryItem::clearDependencyMessage() {

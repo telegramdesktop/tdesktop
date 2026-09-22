@@ -186,6 +186,10 @@ QString TonConnectHost(const QString &url) {
 		: QString();
 }
 
+QString TonConnectManifestName(const TonConnectManifest &manifest) {
+	return Sanitize(manifest.name, TonConnectHost(manifest.url));
+}
+
 TonConnect::TonConnect(not_null<Main::Session*> session)
 : _session(session)
 , _api(&session->mtp()) {
@@ -651,7 +655,7 @@ void TonConnect::Connect::sessionChanged() {
 	_address = wallet.address().value_or(QString());
 	_state = TonConnectBoxState{
 		.phase = BoxPhase::Confirm,
-		.name = Sanitize(info->manifest->name, _domain),
+		.name = TonConnectManifestName(*info->manifest),
 		.domain = _domain,
 		.address = wallet.addressFriendly(),
 		.proof = _link.proofPayload.has_value(),

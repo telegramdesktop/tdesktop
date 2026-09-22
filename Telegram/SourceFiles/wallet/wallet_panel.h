@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+struct FullMsgId;
+
 namespace Main {
 class Session;
 class SessionShow;
@@ -43,6 +45,10 @@ void OpenSendGramsLink(
 void OpenTonConnectLink(
 	not_null<Window::SessionController*> controller,
 	const TonConnectLink &link);
+
+void OpenTonConnectRequest(
+	not_null<Window::SessionController*> controller,
+	FullMsgId itemId);
 
 [[nodiscard]] std::shared_ptr<Main::SessionShow> TonConnectBoxShow(
 	not_null<Window::SessionController*> controller);

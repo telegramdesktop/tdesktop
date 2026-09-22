@@ -109,6 +109,8 @@ struct TonConnectSessionInfo {
 };
 
 [[nodiscard]] QString TonConnectHost(const QString &url);
+[[nodiscard]] QString TonConnectManifestName(
+	const TonConnectManifest &manifest);
 
 class TonConnect final : public base::has_weak_ptr {
 public:
