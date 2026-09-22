@@ -7705,12 +7705,27 @@ void WalletBackupPhraseBox(
 	});
 }
 
+// WHY: a rotated phrase carries two independent keys - the first 12 words
+// restore the anchor and the last 12 the signing key - so the quiz proves
+// both halves were written down, not three words of whichever half.
 [[nodiscard]] std::vector<int> BackupQuizIndices(int count) {
 	auto result = std::vector<int>();
-	while (int(result.size()) < kBackupQuizWordCount) {
-		const auto index = base::RandomIndex(count);
-		if (!ranges::contains(result, index)) {
-			result.push_back(index);
+	result.reserve(kBackupQuizWordCount);
+	if (count >= kImportWordCountLong) {
+		const auto signing = count - kImportWordCountShort;
+		const auto first = base::RandomIndex(signing);
+		const auto second = base::RandomIndex(signing - 1);
+		result.push_back(base::RandomIndex(kImportWordCountShort));
+		result.push_back(kImportWordCountShort + first);
+		result.push_back(kImportWordCountShort
+			+ second
+			+ ((second >= first) ? 1 : 0));
+	} else {
+		while (int(result.size()) < kBackupQuizWordCount) {
+			const auto index = base::RandomIndex(count);
+			if (!ranges::contains(result, index)) {
+				result.push_back(index);
+			}
 		}
 	}
 	ranges::sort(result);
