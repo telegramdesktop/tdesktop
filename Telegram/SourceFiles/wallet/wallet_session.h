@@ -820,10 +820,6 @@ private:
 		Fn<void(const QString &)> fail,
 		std::shared_ptr<CommentScope> scope = nullptr,
 		mtpRequestId exportRequestId = 0);
-	void logPhraseKeyMismatch(
-		const TransferWalletIdentity &target,
-		const PhraseIdentity &phrase,
-		mtpRequestId exportRequestId);
 	[[nodiscard]] QString phraseDiagnosticState() const;
 	[[nodiscard]] Fn<void(const QString &)> loggedPhraseFail(
 		const QString &stage,
