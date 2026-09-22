@@ -2164,6 +2164,12 @@ Session::Session(not_null<Main::Session*> session)
 	transferWalletIdentityChanges() | rpl::on_next([=] {
 		_tonConnect->walletChanged();
 	}, _lifetime);
+	rpl::merge(
+		vault().granted(),
+		vault().protectionChanges()
+	) | rpl::on_next([=] {
+		_tonConnect->vaultChanged();
+	}, _lifetime);
 	session->appConfig().refreshed() | rpl::on_next([=, this] {
 		applyTransferMinNanos();
 		refreshGaslessInfo();
@@ -2863,6 +2869,11 @@ void Session::applyUpdate(const MTPDupdateWalletGaslessInfo &data) {
 
 void Session::applyUpdate(const MTPDupdateWalletTonConnectSession &data) {
 	_tonConnect->apply(data.vsession());
+}
+
+void Session::applyUpdate(
+		const MTPDupdateWalletTonConnectPendingDisconnect &data) {
+	_tonConnect->applyPendingDisconnect(data.vsession_ids().v);
 }
 
 void Session::setPresence(Presence presence) {
@@ -6221,9 +6232,12 @@ void Session::encryptTonConnectResponse(
 		session = key.session,
 		id = requestId.toStdString(),
 		boc = response.signedBoc.toStdString(),
-		reason = std::move(reason)
+		reason = std::move(reason),
+		disconnected = response.disconnected
 	] {
-		return BytesFromEngine(boc.empty()
+		return BytesFromEngine(disconnected
+			? session->encrypt_disconnect_success(id)
+			: boc.empty()
 			? session->encrypt_error(id, reason.code, reason.message)
 			: session->encrypt_send_success(id, boc));
 	}, [=](QByteArray body) {

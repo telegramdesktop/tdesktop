@@ -547,6 +547,7 @@ public:
 	void applyUpdate(const MTPDupdateSentWalletTransaction &data);
 	void applyUpdate(const MTPDupdateWalletGaslessInfo &data);
 	void applyUpdate(const MTPDupdateWalletTonConnectSession &data);
+	void applyUpdate(const MTPDupdateWalletTonConnectPendingDisconnect &data);
 
 	[[nodiscard]] std::shared_ptr<CommentScope> createCommentScope(
 		TransferItem target,

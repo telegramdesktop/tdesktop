@@ -197,6 +197,7 @@ public:
 	[[nodiscard]] bool unusable() const;
 	void setUnusable(bool unusable);
 	[[nodiscard]] rpl::producer<> protectionChanges() const;
+	[[nodiscard]] rpl::producer<> granted() const;
 	void notifyProtectionChanged(bool stillUnusable = false);
 
 	struct StoreAuthority {
@@ -252,6 +253,7 @@ private:
 	bool _unusable = false;
 	base::Timer _retention;
 	rpl::event_stream<> _protectionChanges;
+	rpl::event_stream<> _granted;
 	rpl::lifetime _lifetime;
 
 };

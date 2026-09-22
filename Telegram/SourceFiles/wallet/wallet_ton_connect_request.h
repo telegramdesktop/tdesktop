@@ -66,6 +66,8 @@ private:
 		Entry entry,
 		base::weak_ptr<Window::SessionController> controller,
 		std::shared_ptr<Main::SessionShow> show);
+	void startSilent(Entry entry);
+	[[nodiscard]] bool silentOwns(MsgId msgId) const;
 	void pendingLoaded(
 		base::weak_ptr<Window::SessionController> controller,
 		const MTPwallet_TonConnectPending &result);
@@ -75,6 +77,7 @@ private:
 	const not_null<TonConnect*> _store;
 	MTP::Sender _api;
 	std::unique_ptr<Flow> _active;
+	std::vector<std::unique_ptr<Flow>> _silent;
 	std::vector<Entry> _waiting;
 	base::flat_set<MsgId> _claimedIds;
 	mtpRequestId _pendingRequestId = 0;

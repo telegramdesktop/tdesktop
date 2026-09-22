@@ -92,7 +92,8 @@ public:
 		not_null<TonConnectRequests*> owner,
 		base::weak_ptr<Window::SessionController> controller,
 		std::shared_ptr<Main::SessionShow> show,
-		Entry entry);
+		Entry entry,
+		bool silent);
 	~Flow();
 
 	void start();
@@ -108,6 +109,7 @@ private:
 		Confirm,
 		Decline,
 		Invalid,
+		Disconnect,
 	};
 
 	void fetch();
@@ -117,6 +119,7 @@ private:
 	void resolveTimeout();
 	void stopResolving();
 	void keyNeeded();
+	void waitForKey();
 	void locked();
 	void unlockPressed();
 	void keyReady(TonConnectKeyResult result);
@@ -128,7 +131,8 @@ private:
 	void confirmKeyReady(TonConnectKeyResult result);
 	void declinePressed();
 	void answerInvalid();
-	void encryptRefusal(TonConnectError error);
+	void answerDisconnect();
+	void encryptAnswer(TonConnectResponse response);
 	void registerKey();
 	void registered(const QByteArray &challenge);
 	void registerFailed(const MTP::Error &error);
@@ -153,6 +157,7 @@ private:
 	void finish();
 	[[nodiscard]] bool stopped() const;
 	[[nodiscard]] bool claiming() const;
+	[[nodiscard]] bool declines() const;
 	[[nodiscard]] std::shared_ptr<Main::SessionShow> showNow() const;
 
 	const not_null<TonConnectRequests*> _owner;
@@ -176,6 +181,7 @@ private:
 	TimeId _expires = 0;
 	uint64 _previewOwner = 0;
 	Decision _decision = Decision::None;
+	bool _silent = false;
 	bool _claimSent = false;
 	bool _claimed = false;
 	bool _sendStarted = false;
@@ -190,6 +196,7 @@ private:
 	rpl::lifetime _resolveLifetime;
 	rpl::lifetime _previewLifetime;
 	rpl::lifetime _idleLifetime;
+	rpl::lifetime _keyLifetime;
 	rpl::lifetime _lifetime;
 
 };
@@ -254,10 +261,13 @@ void TonConnectRequests::arrived(not_null<HistoryItem*> item) {
 	}
 	auto entry = PendingEntry(item);
 	if (!entry
-		|| !OpensByItself(*entry)
 		|| _claimedIds.contains(entry->msgId)
 		|| (_active && _active->matches(entry->msgId))
+		|| silentOwns(entry->msgId)
 		|| ranges::contains(_waiting, entry->msgId, &Entry::msgId)) {
+		return;
+	} else if (!OpensByItself(*entry)) {
+		startSilent(std::move(*entry));
 		return;
 	}
 	entry->order = ++_order;
@@ -279,6 +289,11 @@ void TonConnectRequests::edited(not_null<HistoryItem*> item) {
 	}
 	if (_active && _active->matches(item->id)) {
 		_active->editedElsewhere();
+	}
+	for (const auto &flow : _silent) {
+		if (flow->matches(item->id)) {
+			flow->editedElsewhere();
+		}
 	}
 }
 
@@ -334,6 +349,9 @@ void TonConnectRequests::open(
 void TonConnectRequests::opened(
 		Entry entry,
 		not_null<Window::SessionController*> controller) {
+	if (silentOwns(entry.msgId)) {
+		return;
+	}
 	entry.chosen = true;
 	if (_active && _active->matches(entry.msgId)) {
 		_active->activate();
@@ -394,7 +412,9 @@ void TonConnectRequests::pendingLoaded(
 	for (const auto &request : data.vrequests().v) {
 		const auto &fields = request.data();
 		const auto msgId = MsgId(fields.vmsg_id().v);
-		if (fields.vexpires().v <= now || _claimedIds.contains(msgId)) {
+		if (fields.vexpires().v <= now
+			|| _claimedIds.contains(msgId)
+			|| silentOwns(msgId)) {
 			continue;
 		} else if (!oldest || msgId < oldest->msgId) {
 			oldest = Entry{
@@ -424,20 +444,46 @@ void TonConnectRequests::start(
 		this,
 		std::move(controller),
 		std::move(show),
-		std::move(entry));
+		std::move(entry),
+		false);
 	_active->start();
+}
+
+void TonConnectRequests::startSilent(Entry entry) {
+	_silent.push_back(std::make_unique<Flow>(
+		this,
+		nullptr,
+		nullptr,
+		std::move(entry),
+		true));
+	_silent.back()->start();
+}
+
+bool TonConnectRequests::silentOwns(MsgId msgId) const {
+	return ranges::any_of(_silent, [&](const std::unique_ptr<Flow> &flow) {
+		return flow->matches(msgId);
+	});
 }
 
 void TonConnectRequests::flowDone(not_null<Flow*> flow, bool claimed) {
 	const auto msgId = flow->_msgId;
 	crl::on_main(this, [=] {
-		if (_active.get() != flow) {
+		const auto active = (_active.get() == flow);
+		const auto i = ranges::find(
+			_silent,
+			flow.get(),
+			&std::unique_ptr<Flow>::get);
+		if (!active && i == end(_silent)) {
 			return;
 		} else if (claimed) {
 			_claimedIds.emplace(msgId);
 		}
-		_active = nullptr;
-		showNext();
+		if (active) {
+			_active = nullptr;
+			showNext();
+		} else {
+			_silent.erase(i);
+		}
 	});
 }
 
@@ -446,6 +492,7 @@ void TonConnectRequests::stop() {
 	_waiting.clear();
 	_api.request(base::take(_pendingRequestId)).cancel();
 	_active = nullptr;
+	_silent.clear();
 	_lifetime.destroy();
 }
 
@@ -453,7 +500,8 @@ TonConnectRequests::Flow::Flow(
 	not_null<TonConnectRequests*> owner,
 	base::weak_ptr<Window::SessionController> controller,
 	std::shared_ptr<Main::SessionShow> show,
-	Entry entry)
+	Entry entry,
+	bool silent)
 : _owner(owner)
 , _session(owner->_session)
 , _controller(std::move(controller))
@@ -464,6 +512,7 @@ TonConnectRequests::Flow::Flow(
 , _show(std::move(show))
 , _topic(entry.topic)
 , _expires(entry.expires)
+, _silent(silent)
 , _deadlineTimer([=] { expired(); })
 , _resolveTimer([=] { resolveTimeout(); }) {
 }
@@ -473,6 +522,11 @@ TonConnectRequests::Flow::~Flow() {
 }
 
 void TonConnectRequests::Flow::start() {
+	if (_silent) {
+		armDeadline(std::nullopt);
+		fetch();
+		return;
+	}
 	const auto info = _owner->_store->session(_sessionId);
 	_state = TonConnectRequestBoxState{
 		.phase = Phase::Loading,
@@ -655,6 +709,14 @@ void TonConnectRequests::Flow::keyNeeded() {
 			}
 		}, _lifetime);
 	}
+	if (_silent) {
+		_owner->_store->acquireSilentKey(
+			_sessionId,
+			crl::guard(this, [=](TonConnectKeyResult result) {
+				keyReady(std::move(result));
+			}));
+		return;
+	}
 	const auto access = wallet.tonConnectAccess();
 	if (access != TonConnectAccess::Allowed) {
 		accessNotice(access);
@@ -675,6 +737,21 @@ void TonConnectRequests::Flow::keyNeeded() {
 	} else {
 		locked();
 	}
+}
+
+void TonConnectRequests::Flow::waitForKey() {
+	auto &vault = _session->wallet().vault();
+	_keyLifetime.destroy();
+	rpl::merge(
+		vault.granted(),
+		vault.protectionChanges()
+	) | rpl::take(1) | rpl::on_next([=] {
+		crl::on_main(this, [=] {
+			if (!stopped()) {
+				keyNeeded();
+			}
+		});
+	}, _keyLifetime);
 }
 
 void TonConnectRequests::Flow::locked() {
@@ -707,6 +784,14 @@ void TonConnectRequests::Flow::unlockPressed() {
 void TonConnectRequests::Flow::keyReady(TonConnectKeyResult result) {
 	using Error = TonConnectKeyError;
 	if (stopped()) {
+		return;
+	} else if (_silent && result.error != Error::None) {
+		if (result.error == Error::Locked || result.error == Error::Blocked) {
+			waitForKey();
+		} else {
+			_terminal = true;
+			finish();
+		}
 		return;
 	}
 	switch (result.error) {
@@ -759,11 +844,14 @@ void TonConnectRequests::Flow::decrypted(TonConnectAppRequest request) {
 		return;
 	}
 	_request = std::move(request);
+	if (_silent && _request.kind != Kind::Disconnect) {
+		_terminal = true;
+		finish();
+		return;
+	}
 	switch (_request.kind) {
 	case Kind::Disconnect:
-		_terminal = true;
-		closeBox();
-		finish();
+		answerDisconnect();
 		return;
 	case Kind::Unsupported:
 		notice(tr::lng_wallet_connect_request_unsupported(tr::now));
@@ -922,7 +1010,7 @@ void TonConnectRequests::Flow::declinePressed() {
 		accessNotice(access);
 		return;
 	}
-	encryptRefusal(TonConnectError::UserDeclined);
+	encryptAnswer({ .error = TonConnectError::UserDeclined });
 }
 
 void TonConnectRequests::Flow::answerInvalid() {
@@ -932,14 +1020,25 @@ void TonConnectRequests::Flow::answerInvalid() {
 		accessNotice(access);
 		return;
 	}
-	encryptRefusal(TonConnectError::BadRequest);
+	encryptAnswer({ .error = TonConnectError::BadRequest });
 }
 
-void TonConnectRequests::Flow::encryptRefusal(TonConnectError error) {
+void TonConnectRequests::Flow::answerDisconnect() {
+	_silent = true;
+	closeBox();
+	_decision = Decision::Disconnect;
+	if (!TonConnectRequestIdValid(_request.id)) {
+		unavailable();
+		return;
+	}
+	encryptAnswer({ .disconnected = true });
+}
+
+void TonConnectRequests::Flow::encryptAnswer(TonConnectResponse response) {
 	_session->wallet().encryptTonConnectResponse(
 		_key,
 		_request.id,
-		{ .error = error },
+		std::move(response),
 		crl::guard(this, [=](QByteArray body) {
 			if (!stopped()) {
 				_response = std::move(body);
@@ -1009,7 +1108,10 @@ void TonConnectRequests::Flow::claim(const QByteArray &answer) {
 		return;
 	}
 	const auto access = _session->wallet().tonConnectAccess();
-	if (access != TonConnectAccess::Allowed) {
+	const auto allowed = (_decision == Decision::Disconnect)
+		? _owner->_store->participates(_sessionId)
+		: (access == TonConnectAccess::Allowed);
+	if (!allowed) {
 		accessNotice(access);
 		return;
 	} else if (!TonConnectRequestIdValid(_request.id)) {
@@ -1020,9 +1122,7 @@ void TonConnectRequests::Flow::claim(const QByteArray &answer) {
 	using Flag = MTPwallet_TonConnectClaimRequest::Flag;
 	_api.request(MTPwallet_TonConnectClaimRequest(
 		MTP_flags(Flag::f_challenge_answer
-			| ((_decision == Decision::Confirm)
-				? Flag(0)
-				: Flag::f_declined)),
+			| (declines() ? Flag::f_declined : Flag(0))),
 		MTP_long(_sessionId),
 		MTP_int(_msgId.bare),
 		MTP_string(_request.id),
@@ -1172,6 +1272,7 @@ void TonConnectRequests::Flow::published(const MTPBool &result) {
 	case Decision::Invalid:
 		notice(tr::lng_wallet_connect_request_invalid(tr::now));
 		return;
+	case Decision::Disconnect: // the server closes the session on this answer
 	case Decision::Decline:
 	case Decision::None:
 		_terminal = true;
@@ -1250,6 +1351,11 @@ void TonConnectRequests::Flow::closeWithToast(const QString &text) {
 		return;
 	}
 	_terminal = true;
+	if (_silent) {
+		closeBox();
+		finish();
+		return;
+	}
 	const auto show = showNow();
 	closeBox();
 	if (show->valid()) {
@@ -1305,6 +1411,7 @@ void TonConnectRequests::Flow::finish() {
 	_deadlineTimer.cancel();
 	_previewLifetime.destroy();
 	_idleLifetime.destroy();
+	_keyLifetime.destroy();
 	_lifetime.destroy();
 	_owner->flowDone(this, claiming());
 }
@@ -1315,6 +1422,11 @@ bool TonConnectRequests::Flow::stopped() const {
 
 bool TonConnectRequests::Flow::claiming() const {
 	return _claimSent || _claimed;
+}
+
+bool TonConnectRequests::Flow::declines() const {
+	return (_decision == Decision::Decline)
+		|| (_decision == Decision::Invalid);
 }
 
 std::shared_ptr<Main::SessionShow> TonConnectRequests::Flow::showNow() const {

@@ -284,7 +284,15 @@ void TonConnect::walletChanged() {
 	if (_stopped) {
 		return;
 	}
-	_keys.clear();
+	_closeWaiting.clear();
+	// WHY: the rotated state may land before the server's pending disconnect,
+	// and a key derived before the rotation must still close its sessions,
+	// so the keys go only with the wallet address.
+	const auto address = _session->wallet().address().value_or(QString());
+	if (address.isEmpty() || address != _keysAddress) {
+		_keys.clear();
+		_keysAddress = address;
+	}
 	if (_session->wallet().presenceCurrent() == Presence::Ready) {
 		requestSessions();
 		return;
@@ -296,8 +304,18 @@ void TonConnect::walletChanged() {
 	_updates.fire(0);
 }
 
+void TonConnect::vaultChanged() {
+	if (_stopped) {
+		return;
+	}
+	for (const auto id : base::take(_closeWaiting)) {
+		closeSilently(id);
+	}
+}
+
 void TonConnect::stop() {
 	_stopped = true;
+	_closeWaiting.clear();
 	_requests->stop();
 	base::take(_connects).clear();
 	_api.request(base::take(_loadRequestId)).cancel();
@@ -305,6 +323,33 @@ void TonConnect::stop() {
 
 void TonConnect::apply(const MTPTonConnectSession &session) {
 	store(Parse(session), false);
+}
+
+void TonConnect::applyPendingDisconnect(const QVector<MTPlong> &ids) {
+	if (_stopped) {
+		return;
+	}
+	auto reload = false;
+	for (const auto &value : ids) {
+		const auto id = TonConnectSessionId(value.v);
+		const auto info = session(id);
+		if (!info) {
+			reload = true;
+		} else if (info->status == TonConnectSessionStatus::Active) {
+			auto copy = *info;
+			copy.status = TonConnectSessionStatus::Closing;
+			store(std::move(copy), false);
+		} else if (info->status == TonConnectSessionStatus::Closing) {
+			scheduleClose(id);
+		}
+	}
+	if (!reload) {
+		return;
+	} else if (_session->wallet().presenceCurrent() == Presence::Ready) {
+		requestSessions();
+	} else {
+		_session->wallet().ensureLoaded();
+	}
 }
 
 auto TonConnect::sessions() const
@@ -341,6 +386,16 @@ TonConnectKey TonConnect::key(TonConnectSessionId id) const {
 	return (i != end(_keys)) ? i->second : TonConnectKey();
 }
 
+bool TonConnect::participates(TonConnectSessionId id) const {
+	// WHY: a key derived before a rotation still speaks for its session,
+	// so only a device that has to derive anew is held to the access rule.
+	if (key(id)) {
+		return true;
+	}
+	const auto access = _session->wallet().tonConnectAccess();
+	return (access == TonConnectAccess::Allowed);
+}
+
 void TonConnect::acquireKey(
 		std::shared_ptr<Main::SessionShow> show,
 		TonConnectSessionId id,
@@ -363,6 +418,37 @@ void TonConnect::acquireKey(
 	});
 }
 
+void TonConnect::acquireSilentKey(
+		TonConnectSessionId id,
+		Fn<void(TonConnectKeyResult)> done) {
+	using Error = TonConnectKeyError;
+	if (!session(id)) {
+		done({ .error = Error::Failed });
+		return;
+	} else if (!participates(id)) {
+		done({ .error = Error::Blocked });
+		return;
+	} else if (auto cached = key(id)) {
+		done({ .key = std::move(cached) });
+		return;
+	}
+	auto grant = AcquireSilentVaultUnlock(_session);
+	if (!grant) {
+		done({ .error = Error::Locked });
+		return;
+	}
+	unlocked(
+		id,
+		{ .grant = std::move(grant) },
+		[=](TonConnectKeyResult result) {
+			if (result.error == Error::Locked
+				|| result.error == Error::Blocked) {
+				result.error = Error::Failed;
+			}
+			done(std::move(result));
+		});
+}
+
 bool TonConnect::disconnecting(TonConnectSessionId id) const {
 	return _disconnecting.contains(id);
 }
@@ -377,14 +463,10 @@ void TonConnect::disconnect(
 		|| _disconnecting.contains(id)) {
 		return;
 	}
-	// WHY: a key derived before a rotation still speaks for its session,
-	// so only a device that has to derive anew is held to the access rule.
-	if (!key(id)) {
-		const auto access = _session->wallet().tonConnectAccess();
-		if (access != TonConnectAccess::Allowed) {
-			show->showToast(DisconnectAccessNotice(access));
-			return;
-		}
+	if (!participates(id)) {
+		show->showToast(DisconnectAccessNotice(
+			_session->wallet().tonConnectAccess()));
+		return;
 	}
 	_disconnecting.emplace(id);
 	_updates.fire_copy(id);
@@ -484,6 +566,11 @@ void TonConnect::requestSessions() {
 		}
 		_loaded = true;
 		_updates.fire(0);
+		for (const auto &[id, info] : _sessions) {
+			if (info.status == TonConnectSessionStatus::Closing) {
+				scheduleClose(id);
+			}
+		}
 	}).fail([=](const MTP::Error &error) {
 		_loadRequestId = 0;
 		_changedWhileLoading.clear();
@@ -502,6 +589,7 @@ void TonConnect::store(TonConnectSessionInfo info, bool fromCreate) {
 void TonConnect::write(TonConnectSessionInfo info, bool fromCreate) {
 	const auto id = info.id;
 	if (info.status == TonConnectSessionStatus::Closed) {
+		_closeWaiting.remove(id);
 		const auto hadSession = _sessions.remove(id);
 		const auto hadKey = _keys.remove(id);
 		if (hadSession || hadKey) {
@@ -509,10 +597,14 @@ void TonConnect::write(TonConnectSessionInfo info, bool fromCreate) {
 		}
 		return;
 	}
+	const auto closing = (info.status == TonConnectSessionStatus::Closing);
 	const auto i = _sessions.find(id);
 	if (i == end(_sessions)) {
 		_sessions.emplace(id, std::move(info));
 		_updates.fire_copy(id);
+		if (closing) {
+			scheduleClose(id);
+		}
 		return;
 	}
 	const auto &stored = i->second;
@@ -526,8 +618,12 @@ void TonConnect::write(TonConnectSessionInfo info, bool fromCreate) {
 	if (stored == info) {
 		return;
 	}
+	const auto wasClosing = (stored.status == TonConnectSessionStatus::Closing);
 	i->second = std::move(info);
 	_updates.fire_copy(id);
+	if (closing && !wasClosing) {
+		scheduleClose(id);
+	}
 }
 
 void TonConnect::unlocked(
@@ -633,11 +729,62 @@ void TonConnect::disconnectFinished(
 		const std::shared_ptr<Main::SessionShow> &show,
 		TonConnectSessionId id,
 		const QString &error) {
+	settleDisconnect(id);
+	if (!error.isEmpty() && show->valid()) {
+		show->showToast(error);
+	}
+}
+
+void TonConnect::settleDisconnect(TonConnectSessionId id) {
 	if (_disconnecting.remove(id) && session(id)) {
 		_updates.fire_copy(id);
 	}
-	if (!error.isEmpty() && show->valid()) {
-		show->showToast(error);
+}
+
+void TonConnect::scheduleClose(TonConnectSessionId id) {
+	if (!_stopped) {
+		crl::on_main(this, [=] {
+			closeSilently(id);
+		});
+	}
+}
+
+void TonConnect::closeSilently(TonConnectSessionId id) {
+	const auto info = session(id);
+	if (_stopped
+		|| !info
+		|| info->status != TonConnectSessionStatus::Closing) {
+		_closeWaiting.remove(id);
+		return;
+	} else if (_disconnecting.contains(id)) {
+		return;
+	}
+	_closeWaiting.remove(id);
+	_disconnecting.emplace(id);
+	_updates.fire_copy(id);
+	acquireSilentKey(
+		id,
+		crl::guard(this, [=](TonConnectKeyResult result) {
+			silentKeyReady(id, std::move(result));
+		}));
+}
+
+void TonConnect::silentKeyReady(
+		TonConnectSessionId id,
+		TonConnectKeyResult result) {
+	using Error = TonConnectKeyError;
+	if (result.error == Error::None) {
+		sendDisconnect(id, std::move(result.key), [=](DisconnectResult) {
+			settleDisconnect(id);
+		});
+		return;
+	}
+	settleDisconnect(id);
+	const auto info = session(id);
+	if ((result.error == Error::Locked || result.error == Error::Blocked)
+		&& info
+		&& info->status == TonConnectSessionStatus::Closing) {
+		_closeWaiting.emplace(id);
 	}
 }
 

@@ -49,6 +49,12 @@ namespace {
 		: nullptr;
 }
 
+[[nodiscard]] bool OpensWithoutPresence(const VaultRuntime &vault) {
+	const auto reading = vault.reading();
+	return (reading.state == KeyringReading::State::Read)
+		&& (reading.keyring.wrap.kind == VaultKind::Open);
+}
+
 [[nodiscard]] QString CurrentValue(rpl::producer<QString> producer) {
 	auto result = QString();
 	auto lifetime = rpl::lifetime();
@@ -282,13 +288,18 @@ void UnlockByKind(
 } // namespace
 
 bool VaultUnlockSilent(not_null<Main::Session*> session) {
+	const auto &vault = session->wallet().vault();
+	return vault.retained() || OpensWithoutPresence(vault);
+}
+
+VaultAuthorization AcquireSilentVaultUnlock(
+		not_null<Main::Session*> session) {
 	auto &vault = session->wallet().vault();
-	if (vault.retained()) {
-		return true;
+	if (vault.retained()
+		|| (OpensWithoutPresence(vault) && vault.unlockOpen())) {
+		return Share(vault.grant(session->uniqueId()));
 	}
-	const auto reading = vault.reading();
-	return (reading.state == KeyringReading::State::Read)
-		&& (reading.keyring.wrap.kind == VaultKind::Open);
+	return nullptr;
 }
 
 namespace {

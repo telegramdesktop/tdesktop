@@ -725,12 +725,20 @@ VaultGrant VaultRuntime::arm(uint64 accountId, VaultPreparedWrap policy) {
 }
 
 VaultGrant VaultRuntime::grant(uint64 accountId) {
-	auto lock = std::lock_guard(_mutex);
-	if (!_key || _unusable || !_accounts.contains(accountId)) {
-		return VaultGrant();
+	auto id = uint64();
+	{
+		auto lock = std::lock_guard(_mutex);
+		if (!_key || _unusable || !_accounts.contains(accountId)) {
+			return VaultGrant();
+		}
+		id = ++_nextGrantId;
+		_grants.emplace(id, accountId);
 	}
-	const auto id = ++_nextGrantId;
-	_grants.emplace(id, accountId);
+	crl::on_main([weak = weak_from_this()] {
+		if (const auto runtime = weak.lock()) {
+			runtime->_granted.fire({});
+		}
+	});
 	return VaultGrant(shared_from_this(), id);
 }
 
@@ -794,6 +802,10 @@ void VaultRuntime::setUnusable(bool unusable) {
 
 rpl::producer<> VaultRuntime::protectionChanges() const {
 	return _protectionChanges.events();
+}
+
+rpl::producer<> VaultRuntime::granted() const {
+	return _granted.events();
 }
 
 void VaultRuntime::notifyProtectionChanged(bool stillUnusable) {

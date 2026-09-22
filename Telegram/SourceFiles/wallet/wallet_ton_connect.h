@@ -153,6 +153,7 @@ enum class TonConnectError : uchar {
 struct TonConnectResponse {
 	QString signedBoc;
 	TonConnectError error = TonConnectError::Unknown;
+	bool disconnected = false;
 };
 
 [[nodiscard]] QString TonConnectHost(const QString &url);
@@ -175,9 +176,11 @@ public:
 	~TonConnect();
 
 	void walletChanged();
+	void vaultChanged();
 	void stop();
 
 	void apply(const MTPTonConnectSession &session);
+	void applyPendingDisconnect(const QVector<MTPlong> &ids);
 
 	[[nodiscard]] auto sessions() const
 		-> const base::flat_map<TonConnectSessionId, TonConnectSessionInfo> &;
@@ -188,10 +191,14 @@ public:
 	void ensureLoaded();
 
 	[[nodiscard]] TonConnectKey key(TonConnectSessionId id) const;
+	[[nodiscard]] bool participates(TonConnectSessionId id) const;
 	void acquireKey(
 		std::shared_ptr<Main::SessionShow> show,
 		TonConnectSessionId id,
 		bool needGrant,
+		Fn<void(TonConnectKeyResult)> done);
+	void acquireSilentKey(
+		TonConnectSessionId id,
 		Fn<void(TonConnectKeyResult)> done);
 	[[nodiscard]] bool disconnecting(TonConnectSessionId id) const;
 	void disconnect(
@@ -236,6 +243,10 @@ private:
 		const std::shared_ptr<Main::SessionShow> &show,
 		TonConnectSessionId id,
 		const QString &error);
+	void settleDisconnect(TonConnectSessionId id);
+	void scheduleClose(TonConnectSessionId id);
+	void closeSilently(TonConnectSessionId id);
+	void silentKeyReady(TonConnectSessionId id, TonConnectKeyResult result);
 	void sendDisconnect(
 		TonConnectSessionId id,
 		TonConnectKey key,
@@ -254,9 +265,11 @@ private:
 	MTP::Sender _api;
 	base::flat_map<TonConnectSessionId, TonConnectSessionInfo> _sessions;
 	base::flat_map<TonConnectSessionId, TonConnectKey> _keys;
+	QString _keysAddress;
 	base::flat_map<QString, std::unique_ptr<Connect>> _connects;
 	std::vector<std::pair<TonConnectSessionInfo, bool>> _changedWhileLoading;
 	base::flat_set<TonConnectSessionId> _disconnecting;
+	base::flat_set<TonConnectSessionId> _closeWaiting;
 	rpl::event_stream<TonConnectSessionId> _updates;
 	mtpRequestId _loadRequestId = 0;
 	bool _loaded = false;

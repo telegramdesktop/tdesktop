@@ -87,6 +87,8 @@ struct VaultUnlockArgs {
 void AcquireVaultUnlock(VaultUnlockArgs args);
 
 [[nodiscard]] bool VaultUnlockSilent(not_null<Main::Session*> session);
+[[nodiscard]] VaultAuthorization AcquireSilentVaultUnlock(
+	not_null<Main::Session*> session);
 
 [[nodiscard]] CustodyInstaller MakeCustodyInstaller(
 	std::shared_ptr<Main::SessionShow> show,
