@@ -30,6 +30,7 @@ struct TonConnectRequestBoxState {
 	TonConnectRequestPhase phase = TonConnectRequestPhase::Loading;
 	QString name;
 	QString domain;
+	QString iconUrl;
 	QString topic;
 	std::shared_ptr<const TonConnectTransfer> transfer;
 	std::optional<int64> feeNano;

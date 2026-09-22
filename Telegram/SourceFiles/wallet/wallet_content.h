@@ -18,8 +18,12 @@ class SessionShow;
 } // namespace Main
 
 namespace Ui {
+class FlatLabel;
 class RpWidget;
 class SeparatePanel;
+class Show;
+class TableLayout;
+class VerticalLayout;
 } // namespace Ui
 
 namespace Ui::Menu {
@@ -57,6 +61,31 @@ void ShowTransactionDetails(
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeWalletCard(
 	QWidget *parent,
 	std::shared_ptr<Main::SessionShow> show);
+
+struct TransferCardArgs {
+	int64 totalNano = 0;
+	QString destination;
+	int recipients = 0;
+	Fn<void()> info;
+};
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeTransferCard(
+	QWidget *parent,
+	not_null<Main::Session*> session,
+	TransferCardArgs args);
+
+[[nodiscard]] object_ptr<Ui::FlatLabel> AddressValueLabel(
+	not_null<QWidget*> parent,
+	std::shared_ptr<Ui::Show> show,
+	const QString &address);
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeCommentBubble(
+	not_null<QWidget*> parent,
+	object_ptr<Ui::FlatLabel> label,
+	const style::color &bg);
+
+[[nodiscard]] not_null<Ui::TableLayout*> AddDetailsTableFrame(
+	not_null<Ui::VerticalLayout*> container);
 
 void FillMenu(
 	std::shared_ptr<Main::SessionShow> show,

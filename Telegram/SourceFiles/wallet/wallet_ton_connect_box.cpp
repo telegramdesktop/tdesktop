@@ -45,12 +45,8 @@ struct AppIcon {
 
 struct State {
 	std::optional<TonConnectBoxState> built;
-	AppIcon icon;
+	Fn<void(const TonConnectHeaderState &, anim::type)> header;
 	QPointer<Ui::VerticalLayout> body;
-	QPointer<Ui::RpWidget> iconRow;
-	QPointer<Ui::FlatLabel> title;
-	QPointer<Ui::SlideWrap<Ui::FlatLabel>> domain;
-	QPointer<Ui::RpWidget> spinner;
 	QPointer<Ui::SlideWrap<Ui::FlatLabel>> proof;
 	QPointer<Ui::SlideWrap<Ui::FlatLabel>> error;
 	QPointer<Ui::FlatLabel> notice;
@@ -154,58 +150,6 @@ void PaintIcon(QPainter &p, QRect disc, const QImage &image) {
 	}
 }
 
-void FillHeader(not_null<Ui::GenericBox*> box, not_null<State*> state) {
-	const auto content = box->verticalLayout();
-	const auto row = content->add(
-		object_ptr<Ui::FixedHeightWidget>(
-			content,
-			st::walletConnectIconSize),
-		st::walletConnectIconMargin);
-	state->iconRow = row;
-	row->paintRequest(
-	) | rpl::on_next([=](QRect clip) {
-		const auto size = row->height();
-		const auto disc = QRect((row->width() - size) / 2, 0, size, size);
-		if (!disc.intersects(clip)) {
-			return;
-		}
-		auto p = QPainter(row);
-		PaintIcon(p, disc, state->icon.image);
-	}, row->lifetime());
-
-	const auto &loading = st::walletBusyBoxLoading;
-	const auto side = loading.size.height() + 2 * loading.thickness;
-	const auto indicator = Info::Statistics::InfiniteRadialAnimationWidget(
-		row,
-		side,
-		&loading);
-	Info::Statistics::AddChildToWidgetCenter(row, indicator);
-	state->spinner = indicator;
-
-	state->title = content->add(
-		object_ptr<Ui::FlatLabel>(content, st::walletConnectTitleLabel),
-		st::walletConnectTitleMargin,
-		style::al_top);
-	state->domain = content->add(
-		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
-			content,
-			object_ptr<Ui::FlatLabel>(
-				content,
-				st::walletConnectDomainLabel),
-			st::walletConnectDomainMargin),
-		style::margins(),
-		style::al_top);
-}
-
-[[nodiscard]] not_null<Ui::RpWidget*> AddButtonsRow(
-		not_null<Ui::VerticalLayout*> content) {
-	return content->add(
-		object_ptr<Ui::FixedHeightWidget>(
-			content,
-			st::walletSendButton.height),
-		st::walletConnectButtonsMargin);
-}
-
 void FillBody(
 		not_null<Ui::GenericBox*> box,
 		not_null<State*> state,
@@ -222,18 +166,11 @@ void FillBody(
 				st::walletConnectTextLabel),
 			st::walletConnectTextMargin,
 			style::al_top);
-		const auto row = AddButtonsRow(content);
-		const auto close = Ui::CreateChild<Ui::RoundButton>(
-			row.get(),
-			tr::lng_close(),
-			st::walletSendButton);
+		const auto close = AddTonConnectButtons(
+			content,
+			nullptr,
+			tr::lng_close()).primary;
 		close->setClickedCallback([=] { box->closeBox(); });
-		close->show();
-		row->widthValue(
-		) | rpl::on_next([=](int width) {
-			close->setFullWidth(width);
-			close->moveToLeft(0, 0, width);
-		}, row->lifetime());
 		return;
 	}
 	content->add(
@@ -274,59 +211,34 @@ void FillBody(
 			style::margins(0, st::defaultVerticalListSkip, 0, 0)),
 		st::boxRowPadding,
 		style::al_top);
-	const auto row = AddButtonsRow(content);
-	const auto cancel = Ui::CreateChild<Ui::RoundButton>(
-		row.get(),
+	const auto buttons = AddTonConnectButtons(
+		content,
 		tr::lng_cancel(),
-		st::walletConnectCancelButton);
-	cancel->setClickedCallback([=] { box->closeBox(); });
-	cancel->show();
-	const auto confirm = Ui::CreateChild<Ui::RoundButton>(
-		row.get(),
-		tr::lng_wallet_connect_button(),
-		st::walletSendButton);
-	confirm->setClickedCallback([=] {
+		tr::lng_wallet_connect_button());
+	buttons.secondary->setClickedCallback([=] { box->closeBox(); });
+	buttons.primary->setClickedCallback([=] {
 		if (!state->busy) {
 			connect();
 		}
 	});
-	confirm->show();
-	state->connect = confirm;
-	row->widthValue(
-	) | rpl::on_next([=](int width) {
-		const auto single = (width - st::walletButtonsSkip) / 2;
-		cancel->setFullWidth(single);
-		confirm->setFullWidth(single);
-		cancel->moveToLeft(0, 0, width);
-		confirm->moveToRight(0, 0, width);
-	}, row->lifetime());
+	state->connect = buttons.primary;
 }
 
 void UpdateState(
 		not_null<State*> state,
-		not_null<Main::Session*> session,
 		const TonConnectBoxState &now,
 		anim::type animated) {
 	const auto loading = (now.phase == Phase::Loading);
-	state->title->setText(loading
-		? tr::lng_wallet_connect_loading(tr::now)
-		: now.name.isEmpty()
-		? tr::lng_wallet_connect_title(tr::now)
-		: tr::lng_wallet_connect_title_app(tr::now, lt_name, now.name));
-	const auto domain = state->domain.data();
-	if (!now.domain.isEmpty()) {
-		domain->entity()->setText(now.domain);
-	}
-	domain->toggle(!now.domain.isEmpty(), animated);
-	state->spinner->setVisible(loading);
-	if (state->icon.url != now.iconUrl) {
-		state->icon.url = now.iconUrl;
-		LoadIcon(&state->icon, session, st::walletConnectIconSize, [=] {
-			if (const auto row = state->iconRow.data()) {
-				row->update();
-			}
-		});
-	}
+	state->header({
+		.title = (loading
+			? tr::lng_wallet_connect_loading(tr::now)
+			: now.name.isEmpty()
+			? tr::lng_wallet_connect_title(tr::now)
+			: tr::lng_wallet_connect_title_app(tr::now, lt_name, now.name)),
+		.domain = now.domain,
+		.iconUrl = now.iconUrl,
+		.loading = loading,
+	}, animated);
 	if (const auto proof = state->proof.data()) {
 		proof->toggle(now.proof, animated);
 	}
@@ -358,9 +270,7 @@ void UpdateState(
 			.id = id,
 			.name = std::move(name),
 			.domain = manifest ? TonConnectHost(manifest->url) : QString(),
-			.iconUrl = ((manifest && ValidHttpsUrl(manifest->iconUrl))
-				? manifest->iconUrl
-				: QString()),
+			.iconUrl = manifest ? TonConnectIconUrl(*manifest) : QString(),
 			.date = info.date,
 		});
 	}
@@ -524,6 +434,113 @@ void RefreshApps(
 
 } // namespace
 
+auto AddTonConnectHeader(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Main::Session*> session)
+-> Fn<void(const TonConnectHeaderState &, anim::type)> {
+	const auto row = container->add(
+		object_ptr<Ui::FixedHeightWidget>(
+			container,
+			st::walletConnectIconSize),
+		st::walletConnectIconMargin);
+	const auto icon = row->lifetime().make_state<AppIcon>();
+	row->paintRequest(
+	) | rpl::on_next([=](QRect clip) {
+		const auto size = row->height();
+		const auto disc = QRect((row->width() - size) / 2, 0, size, size);
+		if (!disc.intersects(clip)) {
+			return;
+		}
+		auto p = QPainter(row);
+		PaintIcon(p, disc, icon->image);
+	}, row->lifetime());
+
+	const auto &loading = st::walletBusyBoxLoading;
+	const auto side = loading.size.height() + 2 * loading.thickness;
+	const auto spinner = Info::Statistics::InfiniteRadialAnimationWidget(
+		row,
+		side,
+		&loading);
+	Info::Statistics::AddChildToWidgetCenter(row, spinner);
+
+	const auto title = container->add(
+		object_ptr<Ui::FlatLabel>(container, st::walletConnectTitleLabel),
+		st::walletConnectTitleMargin,
+		style::al_top);
+	const auto domain = container->add(
+		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+			container,
+			object_ptr<Ui::FlatLabel>(
+				container,
+				st::walletConnectDomainLabel),
+			st::walletConnectDomainMargin),
+		style::margins(),
+		style::al_top);
+	return [=](const TonConnectHeaderState &now, anim::type animated) {
+		title->setText(now.title);
+		if (!now.domain.isEmpty()) {
+			domain->entity()->setText(now.domain);
+		}
+		domain->toggle(!now.domain.isEmpty(), animated);
+		spinner->setVisible(now.loading);
+		if (icon->url != now.iconUrl) {
+			icon->url = now.iconUrl;
+			LoadIcon(icon, session, st::walletConnectIconSize, [=] {
+				row->update();
+			});
+		}
+	};
+}
+
+TonConnectButtons AddTonConnectButtons(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> secondary,
+		rpl::producer<QString> primary) {
+	Expects(secondary || primary);
+
+	const auto row = container->add(
+		object_ptr<Ui::FixedHeightWidget>(
+			container,
+			st::walletSendButton.height),
+		st::walletConnectButtonsMargin);
+	const auto create = [&](
+			rpl::producer<QString> text,
+			const style::RoundButton &st) -> Ui::RoundButton* {
+		if (!text) {
+			return nullptr;
+		}
+		const auto button = Ui::CreateChild<Ui::RoundButton>(
+			row,
+			std::move(text),
+			st);
+		button->show();
+		return button;
+	};
+	const auto result = TonConnectButtons{
+		.secondary = create(
+			std::move(secondary),
+			st::walletConnectCancelButton),
+		.primary = create(std::move(primary), st::walletSendButton),
+	};
+	row->widthValue(
+	) | rpl::on_next([=](int width) {
+		if (!result.secondary || !result.primary) {
+			const auto button = result.secondary
+				? result.secondary
+				: result.primary;
+			button->setFullWidth(width);
+			button->moveToLeft(0, 0, width);
+			return;
+		}
+		const auto single = (width - st::walletButtonsSkip) / 2;
+		result.secondary->setFullWidth(single);
+		result.primary->setFullWidth(single);
+		result.secondary->moveToLeft(0, 0, width);
+		result.primary->moveToRight(0, 0, width);
+	}, row->lifetime());
+	return result;
+}
+
 void TonConnectBox(not_null<Ui::GenericBox*> box, TonConnectBoxArgs args) {
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::walletConnectBox);
@@ -540,13 +557,15 @@ void TonConnectBox(not_null<Ui::GenericBox*> box, TonConnectBoxArgs args) {
 	box->boxClosing() | rpl::on_next(dismiss, box->lifetime());
 	box->lifetime().add(dismiss);
 
-	FillHeader(box, state);
+	const auto show = args.show;
+	state->header = AddTonConnectHeader(
+		box->verticalLayout(),
+		&show->session());
 	state->body = box->verticalLayout()->add(
 		object_ptr<Ui::VerticalLayout>(box),
 		style::margins(),
 		style::al_justify);
 
-	const auto show = args.show;
 	std::move(
 		args.state
 	) | rpl::on_next([=, connect = args.connect](
@@ -557,7 +576,6 @@ void TonConnectBox(not_null<Ui::GenericBox*> box, TonConnectBoxArgs args) {
 		}
 		UpdateState(
 			state,
-			&show->session(),
 			now,
 			rebuild ? anim::type::instant : anim::type::normal);
 		state->built = now;

@@ -225,6 +225,10 @@ QString TonConnectManifestName(const TonConnectManifest &manifest) {
 	return Sanitize(manifest.name, TonConnectHost(manifest.url));
 }
 
+QString TonConnectIconUrl(const TonConnectManifest &manifest) {
+	return ValidHttpsUrl(manifest.iconUrl) ? manifest.iconUrl : QString();
+}
+
 bool TonConnectSessionConnected(const TonConnectSessionInfo &info) {
 	return (info.status == TonConnectSessionStatus::Active)
 		|| (info.status == TonConnectSessionStatus::Closing);
@@ -884,9 +888,7 @@ void TonConnect::Connect::sessionChanged() {
 		.phase = BoxPhase::Confirm,
 		.name = TonConnectManifestName(*info->manifest),
 		.domain = _domain,
-		.iconUrl = (ValidHttpsUrl(info->manifest->iconUrl)
-			? info->manifest->iconUrl
-			: QString()),
+		.iconUrl = TonConnectIconUrl(*info->manifest),
 		.proof = _link.proofPayload.has_value(),
 	};
 }

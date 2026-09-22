@@ -7,12 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace anim {
+enum class type : uchar;
+} // namespace anim
+
 namespace Main {
+class Session;
 class SessionShow;
 } // namespace Main
 
 namespace Ui {
 class GenericBox;
+class RoundButton;
+class VerticalLayout;
 } // namespace Ui
 
 namespace Wallet {
@@ -44,6 +51,28 @@ struct TonConnectBoxArgs {
 	Fn<void()> connect;
 	Fn<void()> dismissed;
 };
+
+struct TonConnectHeaderState {
+	QString title;
+	QString domain;
+	QString iconUrl;
+	bool loading = false;
+};
+
+[[nodiscard]] auto AddTonConnectHeader(
+	not_null<Ui::VerticalLayout*> container,
+	not_null<Main::Session*> session)
+-> Fn<void(const TonConnectHeaderState &, anim::type)>;
+
+struct TonConnectButtons {
+	Ui::RoundButton *secondary = nullptr;
+	Ui::RoundButton *primary = nullptr;
+};
+
+[[nodiscard]] TonConnectButtons AddTonConnectButtons(
+	not_null<Ui::VerticalLayout*> container,
+	rpl::producer<QString> secondary,
+	rpl::producer<QString> primary);
 
 void TonConnectBox(not_null<Ui::GenericBox*> box, TonConnectBoxArgs args);
 

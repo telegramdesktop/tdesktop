@@ -64,6 +64,7 @@ walletCardQrRadius: 10px;
 walletCardQrRight: 42px;
 walletCardQrTop: 72px;
 walletCardQrIcon: icon{{ "menu/qr_code", windowSubTextFg }};
+walletCardInfoIcon: icon{{ "menu/info", windowSubTextFg }};
 walletChatCardMarkTop: 29px;
 walletChatCardMarkSize: 42px;
 // The animation paints over its layout slot, centred on it, so a larger
@@ -404,7 +405,13 @@ walletCommentCaptionMargin: margins(24px, 8px, 24px, 0px);
 walletTonConnectPayloadLabel: FlatLabel(walletDetailsAddressLabel) {
 	maxHeight: 0px;
 }
-walletTonConnectMessageSkip: 12px;
+walletTonConnectNoteLabel: FlatLabel(walletDetailsCollectionLabel) {
+	minWidth: 128px;
+}
+walletTonConnectAmountLabel: FlatLabel(walletDetailsFeeLabel) {
+	minWidth: 128px;
+	maxHeight: 0px;
+}
 walletSendConfirmCommentField: InputField(walletCommentField) {
 	textMargins: margins(0px, 10px, 36px, 2px);
 }
@@ -554,10 +561,6 @@ walletCollectiblePreviewAbout: FlatLabel(walletPhraseTextLabel) {
 walletReceiveTitleHeight: boxTitleHeight;
 walletReceiveTitleButtonSkip: 6px;
 walletReceiveTitleLeft: 60px;
-walletReceiveTitleBack: IconButton(boxTitleClose) {
-	icon: icon {{ "box_button_back", boxTitleCloseFg }};
-	iconOver: icon {{ "box_button_back", boxTitleCloseFgOver }};
-}
 walletReceiveCloseIconActive: icon {{ "box_button_close", activeButtonSecondaryFg }};
 walletReceiveCloseIconActiveOver: icon {{ "box_button_close", activeButtonSecondaryFgOver }};
 walletReceivePlateMargin: margins(0px, 18px, 0px, 0px);
@@ -633,6 +636,10 @@ walletHowSubtitleMargin: margins(24px, 8px, 24px, 14px);
 walletConnectBox: Box(defaultBox) {
 	buttonPadding: margins(0px, 0px, 0px, 12px);
 	buttonHeight: 0px;
+}
+walletConnectBack: IconButton(boxTitleClose) {
+	icon: icon {{ "box_button_back", boxTitleCloseFg }};
+	iconOver: icon {{ "box_button_back", boxTitleCloseFgOver }};
 }
 walletConnectIconSize: 72px;
 walletConnectIconMargin: margins(24px, 24px, 24px, 12px);

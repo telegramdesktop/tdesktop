@@ -156,7 +156,6 @@ constexpr auto kCoverTitleScale = 0.05;
 constexpr auto kCardFoldMinHeight = 1.;
 constexpr auto kIntroTooltipShownPref = "wallet_intro_tooltip_shown"_cs;
 constexpr auto kWalletIntroGlares = 2;
-constexpr auto kFeeFiatDecimals = 5;
 constexpr auto kUndatedRowDate = std::numeric_limits<TimeId>::max();
 constexpr auto kTransactionLookupInterval = crl::time(1000);
 constexpr auto kTransactionLookupAttempts = 10;
@@ -387,7 +386,10 @@ struct BalancePalette {
 
 class BalanceInk final {
 public:
-	void setContent(CreditsAmount amount, const QString &fiat);
+	void setContent(
+		CreditsAmount amount,
+		const QString &fiat,
+		bool outgoing = false);
 	void setOuterWidth(int outerWidth);
 	void refresh();
 
@@ -422,6 +424,7 @@ private:
 	float64 _amountWidth = 0.;
 	float64 _fiatWidth = 0.;
 	int _outerWidth = 0;
+	bool _outgoing = false;
 
 };
 
@@ -978,9 +981,23 @@ QString EncryptedCommentLabel::accessibilityName() {
 		: _cover.text;
 }
 
+[[nodiscard]] int PanelCardWidth() {
+	return st::walletPanelSize.width()
+		- st::walletCardMargin.left()
+		- st::walletCardMargin.right();
+}
+
 [[nodiscard]] QRect CardQrRect(int cardWidth) {
 	return QRect(
 		cardWidth - st::walletCardQrRight - st::walletCardQrSize.width(),
+		st::walletCardQrTop,
+		st::walletCardQrSize.width(),
+		st::walletCardQrSize.height());
+}
+
+[[nodiscard]] QRect TransferCardInfoRect(int cardWidth) {
+	return QRect(
+		cardWidth - st::walletCardContentLeft - st::walletCardQrSize.width(),
 		st::walletCardQrTop,
 		st::walletCardQrSize.width(),
 		st::walletCardQrSize.height());
@@ -1003,6 +1020,24 @@ QString EncryptedCommentLabel::accessibilityName() {
 			kAddressGroup));
 	}
 	return groups.join(QChar(' '));
+}
+
+[[nodiscard]] QStringList TransferCardLines(
+		const QString &destination,
+		int recipients) {
+	if (recipients >= 2) {
+		const auto summary = tr::lng_wallet_connect_request_recipients(
+			tr::now,
+			lt_count,
+			recipients);
+		return { summary };
+	}
+	auto result = QStringList();
+	const auto perLine = kAddressGroup * kAddressGroupsPerLine;
+	for (auto offset = 0; offset < destination.size(); offset += perLine) {
+		result.append(GroupedAddressLine(destination, offset).trimmed());
+	}
+	return result;
 }
 
 // The sheet's address presentation is the friendly form, so a raw address
@@ -1043,12 +1078,14 @@ QString EncryptedCommentLabel::accessibilityName() {
 	};
 }
 
-[[nodiscard]] object_ptr<Ui::FlatLabel> AddressValueLabel(
-		not_null<Ui::TableLayout*> table,
+} // namespace
+
+object_ptr<Ui::FlatLabel> AddressValueLabel(
+		not_null<QWidget*> parent,
 		std::shared_ptr<Ui::Show> show,
 		const QString &address) {
 	auto result = object_ptr<Ui::FlatLabel>(
-		table,
+		parent,
 		rpl::single(DetailsAddressValue(address)),
 		st::walletDetailsAddressLabel);
 	result->setTryMakeSimilarLines(true);
@@ -1059,6 +1096,8 @@ QString EncryptedCommentLabel::accessibilityName() {
 	});
 	return result;
 }
+
+namespace {
 
 [[nodiscard]] object_ptr<Ui::FlatLabel> NameValueLabel(
 		not_null<Ui::RpWidget*> parent,
@@ -1921,7 +1960,9 @@ void AddDetailsCollectibleHeader(
 	apply();
 }
 
-[[nodiscard]] object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> MakeCommentBubble(
+} // namespace
+
+object_ptr<Ui::RpWidget> MakeCommentBubble(
 		not_null<QWidget*> parent,
 		object_ptr<Ui::FlatLabel> label,
 		const style::color &bg) {
@@ -1939,6 +1980,8 @@ void AddDetailsCollectibleHeader(
 	}, raw->lifetime());
 	return result;
 }
+
+namespace {
 
 [[nodiscard]] bool HasDetailsComment(const TransferItem &item) {
 	return item.commentEncrypted || !item.comment.trimmed().isEmpty();
@@ -2172,7 +2215,9 @@ void AddPeerCounterpartyRows(
 	}
 }
 
-[[nodiscard]] not_null<Ui::TableLayout*> AddDetailsTableFrame(
+} // namespace
+
+not_null<Ui::TableLayout*> AddDetailsTableFrame(
 		not_null<Ui::VerticalLayout*> container) {
 	const auto wrap = container->add(
 		object_ptr<Ui::PaddingWrap<Ui::TableLayout>>(
@@ -2189,6 +2234,8 @@ void AddPeerCounterpartyRows(
 	}, wrap->lifetime());
 	return wrap->entity();
 }
+
+namespace {
 
 void AddDetailsTable(
 		not_null<Ui::GenericBox*> box,
@@ -9716,9 +9763,13 @@ void WalletKeysBackupBox(
 		anchor.y() + (landedTop - anchor.y()) * fold.fold);
 }
 
-void BalanceInk::setContent(CreditsAmount amount, const QString &fiat) {
+void BalanceInk::setContent(
+		CreditsAmount amount,
+		const QString &fiat,
+		bool outgoing) {
 	_balance = amount;
 	_fiatText = fiat;
+	_outgoing = outgoing;
 	refresh();
 }
 
@@ -9734,7 +9785,15 @@ void BalanceInk::refresh() {
 	const auto &majorFont = st::walletCardBalanceMajorLabel.style.font;
 	const auto &minorFont = st::walletCardBalanceMinorLabel.style.font;
 	const auto &fiatFont = st::walletCardFiatLabel.style.font;
-	const auto minor = _balance.nano()
+	const auto precise = _outgoing
+		? Ui::FormatTonAmount(
+			_balance.whole() * Ui::kNanosInOne + _balance.nano())
+		: Ui::FormattedTonAmount();
+	const auto minor = _outgoing
+		? (precise.nanoString.isEmpty()
+			? QString()
+			: (precise.separator + precise.nanoString))
+		: _balance.nano()
 		? Info::ChannelEarn::MinorPart(_balance)
 		: QString();
 	const auto ticker = tr::lng_wallet_card_ticker(tr::now);
@@ -9752,7 +9811,9 @@ void BalanceInk::refresh() {
 		- minorFont->width(minor)
 		- st::walletCardTickerSkip
 		- tickerWidth;
-	const auto full = Info::ChannelEarn::MajorPart(_balance);
+	const auto full = _outgoing
+		? (QString(kMinus) + precise.wholeString)
+		: Info::ChannelEarn::MajorPart(_balance);
 	const auto tickerShown = (availableWithTicker > 0)
 		&& (majorFont->width(full) <= availableWithTicker);
 	const auto available = tickerShown
@@ -11815,10 +11876,7 @@ object_ptr<Ui::RpWidget> MakeWalletCard(
 		parent,
 		st::walletCardHeight);
 	const auto raw = result.data();
-	const auto cardWidth = st::walletPanelSize.width()
-		- st::walletCardMargin.left()
-		- st::walletCardMargin.right();
-	raw->setNaturalWidth(cardWidth);
+	raw->setNaturalWidth(PanelCardWidth());
 
 	const auto card = Ui::CreateChild<Card>(
 		raw,
@@ -11867,6 +11925,84 @@ object_ptr<Ui::RpWidget> MakeWalletCard(
 		card->invalidateCache();
 		card->update();
 		overlay->update();
+	}, raw->lifetime());
+
+	return result;
+}
+
+object_ptr<Ui::RpWidget> MakeTransferCard(
+		QWidget *parent,
+		not_null<Main::Session*> session,
+		TransferCardArgs args) {
+	auto result = object_ptr<Ui::FixedHeightWidget>(
+		parent,
+		st::walletCardHeight);
+	const auto raw = result.data();
+	raw->setNaturalWidth(PanelCardWidth());
+
+	struct State {
+		BalanceInk ink;
+		QStringList lines;
+	};
+	const auto state = raw->lifetime().make_state<State>();
+	state->ink.setOuterWidth(st::walletPanelSize.width());
+	state->lines = TransferCardLines(args.destination, args.recipients);
+
+	const auto info = Ui::CreateChild<Ui::AbstractButton>(raw);
+	info->setClickedCallback(std::move(args.info));
+	info->show();
+	raw->sizeValue(
+	) | rpl::on_next([=](QSize size) {
+		info->setGeometry(TransferCardInfoRect(size.width()));
+	}, info->lifetime());
+
+	raw->paintRequest(
+	) | rpl::on_next([=](QRect clip) {
+		auto p = QPainter(raw);
+		auto hq = PainterHighQualityEnabler(p);
+		const auto rect = raw->rect();
+		PaintCardBackground(p, rect);
+
+		const auto plate = TransferCardInfoRect(rect.width());
+		PaintCardQrPlate(p, plate);
+		st::walletCardInfoIcon.paintInCenter(p, plate, CardQrIconFg());
+
+		const auto font
+			= st::walletDetailsCollectionLabel.style.font->monospace();
+		const auto &lines = state->lines;
+		auto baseline = rect.height()
+			- st::walletCardNameBottom
+			- (int(lines.size()) - 1) * font->height;
+		p.setPen(st::activeButtonFg);
+		p.setFont(font);
+		for (const auto &line : lines) {
+			p.drawText(st::walletCardContentLeft, baseline, line);
+			baseline += font->height;
+		}
+
+		state->ink.paint(p, ComputeCardFold(rect, 0.), QRegion(rect), clip);
+	}, raw->lifetime());
+
+	const auto total = args.totalNano;
+	FiatRateValue(
+		session
+	) | rpl::on_next([=](FiatRate rate) {
+		state->ink.setContent(
+			CreditsAmount(
+				total / Ui::kNanosInOne,
+				total % Ui::kNanosInOne,
+				CreditsType::Ton),
+			FormatFiat(total, rate),
+			true);
+		raw->update();
+	}, raw->lifetime());
+
+	rpl::merge(
+		style::PaletteChanged(),
+		tr::lng_wallet_card_ticker() | rpl::to_empty
+	) | rpl::on_next([=] {
+		state->ink.refresh();
+		raw->update();
 	}, raw->lifetime());
 
 	return result;

@@ -158,6 +158,7 @@ struct TonConnectResponse {
 [[nodiscard]] QString TonConnectHost(const QString &url);
 [[nodiscard]] QString TonConnectManifestName(
 	const TonConnectManifest &manifest);
+[[nodiscard]] QString TonConnectIconUrl(const TonConnectManifest &manifest);
 [[nodiscard]] bool TonConnectSessionConnected(
 	const TonConnectSessionInfo &info);
 [[nodiscard]] TextWithEntities TonConnectRequestText(

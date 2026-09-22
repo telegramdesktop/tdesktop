@@ -64,6 +64,12 @@ constexpr auto kDeadlineMaxDelay = 24 * 3600 * crl::time(1000);
 		: QString();
 }
 
+[[nodiscard]] QString SessionIconUrl(const TonConnectSessionInfo *info) {
+	return (info && info->manifest)
+		? TonConnectIconUrl(*info->manifest)
+		: QString();
+}
+
 [[nodiscard]] QString AccessNoticeText(TonConnectAccess access) {
 	switch (access) {
 	case TonConnectAccess::KeyChanging:
@@ -476,6 +482,7 @@ void TonConnectRequests::Flow::start() {
 		.phase = Phase::Loading,
 		.name = SessionName(info),
 		.domain = SessionDomain(info),
+		.iconUrl = SessionIconUrl(info),
 	};
 	auto box = Box(TonConnectRequestBox, TonConnectRequestBoxArgs{
 		.session = _session,
@@ -562,6 +569,7 @@ void TonConnectRequests::Flow::fetched(
 		auto state = _state.current();
 		state.name = SessionName(info);
 		state.domain = SessionDomain(info);
+		state.iconUrl = SessionIconUrl(info);
 		_state = std::move(state);
 		armDeadline(std::nullopt);
 
@@ -679,6 +687,7 @@ void TonConnectRequests::Flow::locked() {
 		.phase = Phase::Locked,
 		.name = current.name,
 		.domain = current.domain,
+		.iconUrl = current.iconUrl,
 		.topic = TonConnectRequestText(_topic, current.name).text,
 	};
 }
@@ -737,6 +746,7 @@ void TonConnectRequests::Flow::decrypt() {
 		.phase = Phase::Loading,
 		.name = current.name,
 		.domain = current.domain,
+		.iconUrl = current.iconUrl,
 	};
 	_session->wallet().decryptTonConnectRequest(
 		_key,
@@ -788,6 +798,7 @@ void TonConnectRequests::Flow::preview() {
 		.phase = Phase::Confirm,
 		.name = current.name,
 		.domain = current.domain,
+		.iconUrl = current.iconUrl,
 		.transfer = _request.transfer,
 		.feeLoading = true,
 	};
@@ -1248,6 +1259,7 @@ void TonConnectRequests::Flow::notice(const QString &text) {
 		.phase = Phase::Notice,
 		.name = current.name,
 		.domain = current.domain,
+		.iconUrl = current.iconUrl,
 		.notice = text,
 	};
 }

@@ -16,6 +16,7 @@ class Session;
 namespace Wallet {
 
 inline constexpr auto kFiatCurrencyDecimals = -1;
+inline constexpr auto kFeeFiatDecimals = 5;
 
 struct FiatRate {
 	QString currency;
