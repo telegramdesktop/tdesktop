@@ -670,6 +670,15 @@ walletConnectCancelButton: RoundButton(walletSendButton) {
 		color: windowBgRipple;
 	}
 }
+walletAppsNameLabel: FlatLabel(walletRowTitleLabel) {
+	minWidth: 20px;
+}
+walletAppsDomainLabel: FlatLabel(walletRowSubtitleLabel) {
+	minWidth: 20px;
+}
+walletAppsDateLabel: FlatLabel(walletRowDateLabel) {
+	minWidth: 20px;
+}
 
 walletIntroTooltip: ImportantTooltip(defaultImportantTooltip) {
 	padding: margins(8px, 3px, 8px, 5px);

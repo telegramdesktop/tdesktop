@@ -409,17 +409,16 @@ void UpdateState(
 		0,
 		button->width() + st::walletRowSkip,
 		0);
-	const auto name = inner->add(
-		object_ptr<Ui::FlatLabel>(inner, row.name, st::walletRowTitleLabel),
+	inner->add(
+		object_ptr<Ui::FlatLabel>(inner, row.name, st::walletAppsNameLabel),
 		reserve);
-	name->setBreakEverywhere(true);
 	if (!row.domain.isEmpty()) {
 		Ui::AddSkip(inner, st::walletRowSkip);
 		const auto domain = inner->add(
 			object_ptr<Ui::FlatLabel>(
 				inner,
 				row.domain,
-				st::walletRowSubtitleLabel),
+				st::walletAppsDomainLabel),
 			reserve);
 		domain->setBreakEverywhere(true);
 	}
@@ -429,7 +428,7 @@ void UpdateState(
 			object_ptr<Ui::FlatLabel>(
 				inner,
 				langDateTime(base::unixtime::parse(row.date)),
-				st::walletRowDateLabel),
+				st::walletAppsDateLabel),
 			reserve);
 	}
 
