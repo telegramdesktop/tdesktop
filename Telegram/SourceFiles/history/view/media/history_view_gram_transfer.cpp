@@ -183,6 +183,8 @@ public:
 		StateRequest request,
 		int outerWidth) const override;
 
+	void hideSpoilers() override;
+
 	[[nodiscard]] uint16 fullSelectionLength() const override;
 	[[nodiscard]] TextSelection adjustSelection(
 		TextSelection selection,
@@ -780,6 +782,9 @@ void GramTransferCommentPart::createComment(Wallet::TransferItem item) {
 		_revealed = revealed;
 		updateText();
 		if (const auto view = _origin.view.get()) {
+			if (revealed) {
+				view->history()->owner().registerShownSpoiler(view);
+			}
 			view->setPendingResize();
 			view->repaint();
 		}
@@ -804,11 +809,31 @@ void GramTransferCommentPart::updateText() {
 	if (_text.hasSpoilers()) {
 		const auto weak = base::make_weak(this);
 		_text.setSpoilerLinkFilter([weak](const ClickContext &context) {
-			if (weak) {
-				weak->activate(context);
+			const auto strong = weak.get();
+			if (!strong || context.button != Qt::LeftButton) {
+				return false;
+			} else if (strong->_comment) {
+				strong->activate(context);
+				return false;
 			}
-			return false;
+			// The user's own comment waits for no key, so it lifts the way
+			// a spoiler in a message text does.
+			if (const auto view = strong->_origin.view.get()) {
+				view->history()->owner().registerShownSpoiler(view);
+			}
+			return true;
 		});
+	}
+}
+
+// A revealed comment is covered again wherever a spoiler is, and dropping
+// the plaintext re-covers it through the same changes() handler.
+void GramTransferCommentPart::hideSpoilers() {
+	if (_text.hasSpoilers()) {
+		_text.setSpoilerRevealed(false, anim::type::instant);
+	}
+	if (_comment) {
+		_comment->reset();
 	}
 }
 

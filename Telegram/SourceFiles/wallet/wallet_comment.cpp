@@ -33,13 +33,17 @@ TextWithEntities TransferCommentCover(const TransferItem &item) {
 	if (EncryptedCommentUnusable(item)) {
 		return tr::italic(tr::lng_wallet_comment_invalid(tr::now));
 	} else if (EncryptedCommentPending(item)) {
-		// This device's own transfer before the server named it: the text is
-		// the one the user typed, and no key is involved in showing it.
+		// This device's own transfer before the server named it: the cover
+		// is the text the user typed, and no key is needed to lift it.
 		const auto own = item.comment.trimmed();
-		return own.isEmpty()
-			? tr::italic(
-				tr::lng_action_gram_transfer_encrypted_comment(tr::now))
-			: tr::marked(own);
+		if (own.isEmpty()) {
+			return tr::italic(
+				tr::lng_action_gram_transfer_encrypted_comment(tr::now));
+		}
+		auto result = tr::marked(own);
+		result.entities.push_back(
+			EntityInText(EntityType::Spoiler, 0, int(own.size())));
+		return result;
 	}
 	const auto length = (item.encryptedFormat
 		== TransferItem::EncryptedFormat::ServerPayload)

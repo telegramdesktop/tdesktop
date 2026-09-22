@@ -930,7 +930,11 @@ EncryptedCommentLabel::EncryptedCommentLabel(
 		});
 	});
 	setClickHandlerFilter([=](const ClickHandlerPtr &, Qt::MouseButton button) {
-		if (button == Qt::LeftButton && !_comment.plaintext()) {
+		if (button != Qt::LeftButton) {
+			return false;
+		} else if (!_revealable) {
+			return true;
+		} else if (!_comment.plaintext()) {
 			_comment.activate(show);
 		}
 		return false;

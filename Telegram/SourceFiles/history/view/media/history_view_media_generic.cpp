@@ -51,6 +51,9 @@ bool MediaGenericPart::hasHeavyPart() {
 void MediaGenericPart::unloadHeavyPart() {
 }
 
+void MediaGenericPart::hideSpoilers() {
+}
+
 auto MediaGenericPart::stickerTakePlayer(
 	not_null<DocumentData*> data,
 	const Lottie::ColorReplacements *replacements
@@ -352,6 +355,12 @@ void MediaGeneric::unloadHeavyPart() {
 	_paintBg = nullptr;
 	for (const auto &entry : _entries) {
 		entry.object->unloadHeavyPart();
+	}
+}
+
+void MediaGeneric::hideSpoilers() {
+	for (const auto &entry : _entries) {
+		entry.object->hideSpoilers();
 	}
 }
 
