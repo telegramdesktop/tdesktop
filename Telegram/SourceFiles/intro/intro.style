@@ -47,19 +47,21 @@ introCoverDescription: FlatLabel(defaultFlatLabel) {
 introCoverDescriptionTop: 174px;
 introTitle: FlatLabel(defaultFlatLabel) {
 	textFg: introTitleFg;
+	align: align(center);
 	style: TextStyle(defaultTextStyle) {
-		font: font(17px semibold);
+		font: font(22px semibold);
 	}
 }
-introTitleTop: 1px;
+introTitleTop: 112px;
 introDescription: FlatLabel(defaultFlatLabel) {
-	minWidth: 300px;
+	minWidth: 320px;
 	textFg: introDescriptionFg;
+	align: align(center);
 	style: TextStyle(defaultTextStyle) {
 		lineHeight: 20px;
 	}
 }
-introDescriptionTop: 34px;
+introDescriptionTop: 148px;
 
 introLink: defaultLinkButton;
 
@@ -77,7 +79,7 @@ introSlideDuration: 200;
 introCoverDuration: 200;
 
 introNextButton: RoundButton(defaultActiveButton) {
-	width: 300px;
+	width: 320px;
 	height: 42px;
 	radius: 6px;
 	textTop: 11px;
@@ -93,26 +95,31 @@ introFragmentButton: RoundButton(introNextButton) {
 	iconPosition: point(-10px, 9px);
 }
 
-introStepFieldTop: 96px;
-introPhoneTop: 6px;
+introStepFieldTop: 200px;
+introPhoneTop: 0px;
 introLinkTop: 24px;
+introLogoSize: 104px;
+introCardRadius: 12px;
 introCountry: InputField(defaultInputField) {
-	textMargins: margins(3px, 27px, 3px, 6px);
+	textMargins: margins(16px, 12px, 28px, 12px);
+	textBg: transparent;
+	border: 0px;
 	style: TextStyle(defaultTextStyle) {
 		font: font(16px);
 	}
-	width: 300px;
-	heightMin: 61px;
+	width: 320px;
+	heightMin: 48px;
 }
 introCountryCode: InputField(introCountry) {
 	width: 64px;
-	textAlign: align(top);
+	textMargins: margins(16px, 12px, 4px, 12px);
+	textAlign: align(topleft);
 }
 introPhone: InputField(introCountry) {
-	textMargins: margins(12px, 27px, 12px, 6px);
-	width: 225px;
+	textMargins: margins(8px, 12px, 16px, 12px);
+	width: 256px;
 }
-introQrLoginLinkTop: 368px;
+introQrLoginLinkTop: 372px;
 introName: introCountry;
 introPassword: introCountry;
 introPasswordTop: 74px;
@@ -144,7 +151,7 @@ introTermsLabel: FlatLabel(defaultFlatLabel) {
 introTermsBottom: 20px;
 
 introCountryIcon: icon {{ "intro_country_dropdown", menuIconFg }};
-introCountryIconPosition: point(8px, 37px);
+introCountryIconPosition: point(14px, 16px);
 
 introErrorTop: 235px;
 introErrorBelowLinkTop: 220px;

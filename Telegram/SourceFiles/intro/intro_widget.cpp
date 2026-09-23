@@ -849,7 +849,7 @@ void Widget::updateControlsGeometry() {
 	}
 	_back->moveToLeft(0, controlsTop);
 
-	auto nextTopTo = getStep()->contentTop() + st::introNextTop;
+	auto nextTopTo = getStep()->nextButtonTop();
 	auto nextTop = anim::interpolate(_nextTopFrom, nextTopTo, shown);
 	const auto shownAmount = _nextShownAnimation.value(_nextShown ? 1. : 0.);
 	const auto realNextTop = anim::interpolate(

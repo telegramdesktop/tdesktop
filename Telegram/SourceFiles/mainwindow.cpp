@@ -299,6 +299,17 @@ void MainWindow::setupIntro(
 	DragArea::SetupProxyDropArea(_intro.data(), [](const QString &localUrl) {
 		Core::App().openLocalUrl(localUrl, {});
 	});
+	if (!account().sessionExists()) {
+		updateMinimumSize();
+		const auto available = computeDesktopRect();
+		const auto w = st::windowIntroWidth;
+		const auto h = st::windowIntroHeight;
+		setGeometry(
+			available.x() + std::max((available.width() - w) / 2, 0),
+			available.y() + std::max((available.height() - h) / 2, 0),
+			w,
+			h);
+	}
 	if (_passcodeLock || _setupEmailLock) {
 		_intro->hide();
 	} else {
@@ -317,6 +328,18 @@ void MainWindow::setupMain(
 		MsgId singlePeerShowAtMsgId,
 		QPixmap oldContentCache) {
 	Expects(account().sessionExists());
+
+	updateMinimumSize();
+	if (width() < st::windowDefaultWidth || height() < st::windowDefaultHeight) {
+		const auto available = computeDesktopRect();
+		const auto w = st::windowDefaultWidth;
+		const auto h = st::windowDefaultHeight;
+		setGeometry(
+			available.x() + std::max((available.width() - w) / 2, 0),
+			available.y() + std::max((available.height() - h) / 2, 0),
+			w,
+			h);
+	}
 
 	const auto animated = _intro
 		|| (_passcodeLock && !Core::App().passcodeLocked())

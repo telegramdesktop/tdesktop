@@ -407,7 +407,7 @@ void Controller::setupIntro(
 		QPixmap oldContentCache) {
 	const auto point = Core::App().domain().maybeLastOrSomeAuthedAccount()
 		? Intro::EnterPoint::Qr
-		: Intro::EnterPoint::Start;
+		: Intro::EnterPoint::Phone;
 	_widget.setupIntro(point, accountBeforeIntro, std::move(oldContentCache));
 }
 

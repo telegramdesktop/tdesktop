@@ -37,12 +37,14 @@ public:
 	void finished() override;
 	void cancelled() override;
 	void submit() override;
+	int nextButtonTop() const override;
 
 	bool hasBack() const override {
-		return true;
+		return false;
 	}
 
 protected:
+	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 private:

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/widgets/fields/special_fields.h"
+#include "ui/painter.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_app_config.h"
@@ -135,7 +136,55 @@ void PhoneWidget::resizeEvent(QResizeEvent *e) {
 	_country->moveToLeft(contentLeft(), contentTop() + st::introStepFieldTop);
 	auto phoneTop = _country->y() + _country->height() + st::introPhoneTop;
 	_code->moveToLeft(contentLeft(), phoneTop);
-	_phone->moveToLeft(contentLeft() + _country->width() - st::introPhone.width, phoneTop);
+	_phone->moveToLeft(
+		contentLeft() + _country->width() - st::introPhone.width,
+		phoneTop);
+}
+
+int PhoneWidget::nextButtonTop() const {
+	return _phone->y() + _phone->height() + st::introLinkTop;
+}
+
+void PhoneWidget::paintEvent(QPaintEvent *e) {
+	Step::paintEvent(e);
+
+	auto p = QPainter(this);
+	p.setRenderHint(QPainter::Antialiasing);
+
+	const auto logo = st::introLogoSize;
+	const auto logoLeft = (width() - logo) / 2;
+	const auto logoTop = contentTop();
+	p.setPen(Qt::NoPen);
+	p.setBrush(QColor(0x2A, 0xAB, 0xEE));
+	p.drawEllipse(logoLeft, logoTop, logo, logo);
+
+	const auto iconW = st::introCoverIcon.width();
+	const auto iconH = st::introCoverIcon.height();
+	if (iconW > 0 && iconH > 0) {
+		const auto target = logo * 0.55;
+		const auto scale = target / float64(std::max(iconW, iconH));
+		p.save();
+		p.translate(logoLeft + logo / 2., logoTop + logo / 2.);
+		p.scale(scale, scale);
+		st::introCoverIcon.paint(p, -iconW / 2, -iconH / 2, iconW);
+		p.restore();
+	}
+
+	const auto card = QRect(
+		_country->x(),
+		_country->y(),
+		_country->width(),
+		_phone->y() + _phone->height() - _country->y());
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::windowBgOver);
+	p.drawRoundedRect(card, st::introCardRadius, st::introCardRadius);
+	p.setPen(st::shadowFg);
+	const auto divider = _phone->y();
+	p.drawLine(
+		card.left() + st::introCardRadius,
+		divider,
+		card.right() - st::introCardRadius,
+		divider);
 }
 
 void PhoneWidget::showPhoneError(rpl::producer<QString> text) {

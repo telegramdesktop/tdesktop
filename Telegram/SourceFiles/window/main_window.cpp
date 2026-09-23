@@ -652,6 +652,9 @@ void MainWindow::updatePalette() {
 }
 
 int MainWindow::computeMinWidth() const {
+	if (!_controller->account().sessionExists()) {
+		return st::windowIntroWidth;
+	}
 	auto result = st::windowMinWidth;
 	if (_rightColumn) {
 		result += _rightColumn->width();
@@ -660,6 +663,9 @@ int MainWindow::computeMinWidth() const {
 }
 
 int MainWindow::computeMinHeight() const {
+	if (!_controller->account().sessionExists()) {
+		return st::windowIntroHeight;
+	}
 	const auto outdated = [&] {
 		if (!_outdated) {
 			return 0;

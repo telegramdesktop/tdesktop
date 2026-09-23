@@ -11,6 +11,8 @@ using "chat_helpers/chat_helpers.style";
 using "boxes/boxes.style"; // UserpicButton
 
 windowMinWidth: 560px;
+windowIntroWidth: 400px;
+windowIntroHeight: 640px;
 windowMinHeight: 480px;
 windowDefaultWidth: 1100px;
 windowDefaultHeight: 740px;

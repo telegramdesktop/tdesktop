@@ -276,9 +276,15 @@ void Step::updateLabelsPosition() {
 		_title->moveToLeft((width() - _title->width()) / 2, contentTop() + st::introCoverTitleTop);
 		_description->moveToLeft((width() - _description->width()) / 2, contentTop() + st::introCoverDescriptionTop);
 	} else {
-		_title->moveToLeft(contentLeft() + st::buttonRadius, contentTop() + st::introTitleTop);
-		_description->resizeToWidth(st::introDescription.minWidth);
-		_description->moveToLeft(contentLeft() + st::buttonRadius, contentTop() + st::introDescriptionTop);
+		_title->moveToLeft(
+			(width() - _title->width()) / 2,
+			contentTop() + st::introTitleTop);
+		_description->resizeToWidth(std::min(
+			st::introDescription.minWidth,
+			width() - st::boxRadius * 2));
+		_description->moveToLeft(
+			(width() - _description->width()) / 2,
+			contentTop() + st::introDescriptionTop);
 	}
 	if (_error) {
 		if (_errorCentered) {
@@ -488,6 +494,10 @@ void Step::paintCover(QPainter &p, int top) {
 
 int Step::contentLeft() const {
 	return (width() - st::introNextButton.width) / 2;
+}
+
+int Step::nextButtonTop() const {
+	return contentTop() + st::introNextTop;
 }
 
 int Step::contentTop() const {
