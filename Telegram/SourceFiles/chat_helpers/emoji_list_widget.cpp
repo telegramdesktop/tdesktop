@@ -4032,10 +4032,17 @@ void EmojiListWidget::setSelected(OverState newSelected) {
 		: style::cur_default);
 
 	const auto updateSelected = [&] {
+		// _selected may be stale here: applyNextSearchQuery() and the
+		// shortcut-set refresh clear _searchSets before resetting it.
+		const auto sections = sectionsCount();
 		if (const auto sticker = std::get_if<OverEmoji>(&_selected)) {
-			rtlupdate(emojiRect(sticker->section, sticker->index));
+			if (sticker->section < sections) {
+				rtlupdate(emojiRect(sticker->section, sticker->index));
+			}
 		} else if (const auto button = std::get_if<OverButton>(&_selected)) {
-			rtlupdate(buttonRect(button->section));
+			if (button->section < sections) {
+				rtlupdate(buttonRect(button->section));
+			}
 		} else if (const auto shortcut
 				= std::get_if<OverSearchShortcut>(&_selected)) {
 			if (shortcut->index >= 0
