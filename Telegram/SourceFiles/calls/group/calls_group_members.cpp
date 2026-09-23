@@ -80,6 +80,8 @@ public:
 	}
 	[[nodiscard]] rpl::producer<MuteRequest> toggleMuteRequests() const;
 	[[nodiscard]] rpl::producer<VolumeRequest> changeVolumeRequests() const;
+	[[nodiscard]] rpl::producer<MuteRequest> toggleScreenMuteRequests() const;
+	[[nodiscard]] rpl::producer<VolumeRequest> changeScreenVolumeRequests() const;
 	[[nodiscard]] auto kickParticipantRequests() const
 		-> rpl::producer<not_null<PeerData*>>;
 	[[nodiscard]] rpl::producer<not_null<Row*>> rowRemoved() const {
@@ -191,6 +193,8 @@ private:
 
 	rpl::event_stream<MuteRequest> _toggleMuteRequests;
 	rpl::event_stream<VolumeRequest> _changeVolumeRequests;
+	rpl::event_stream<MuteRequest> _toggleScreenMuteRequests;
+	rpl::event_stream<VolumeRequest> _changeScreenVolumeRequests;
 	rpl::event_stream<not_null<PeerData*>> _kickParticipantRequests;
 	rpl::event_stream<not_null<Row*>> _rowRemoved;
 	rpl::variable<int> _fullCount = 1;
@@ -1052,6 +1056,16 @@ auto Members::Controller::changeVolumeRequests() const
 	return _changeVolumeRequests.events();
 }
 
+auto Members::Controller::toggleScreenMuteRequests() const
+-> rpl::producer<MuteRequest> {
+	return _toggleScreenMuteRequests.events();
+}
+
+auto Members::Controller::changeScreenVolumeRequests() const
+-> rpl::producer<VolumeRequest> {
+	return _changeScreenVolumeRequests.events();
+}
+
 bool Members::Controller::rowIsMe(not_null<PeerData*> participantPeer) {
 	return isMe(participantPeer);
 }
@@ -1586,11 +1600,40 @@ void Members::Controller::addMuteActionsToContextMenu(
 			.locallyOnly = local,
 		});
 	});
+	const auto toggleScreenMute = crl::guard(this, [=](bool mute) {
+		_toggleScreenMuteRequests.fire(Group::MuteRequest{
+			.peer = participantPeer,
+			.mute = mute,
+			.locallyOnly = true,
+		});
+	});
+	const auto changeScreenVolume = crl::guard(this, [=](int volume) {
+		_changeScreenVolumeRequests.fire(Group::VolumeRequest{
+			.peer = participantPeer,
+			.volume = std::clamp(volume, 1, Group::kMaxVolume),
+			.locallyOnly = true,
+		});
+	});
+	const auto addSectionLabel = [=](const QString &text) {
+		const auto action = menu->addAction(text, [] {});
+		action->setEnabled(false);
+	};
+	const auto screenMuteActionText = [=](bool muted) {
+		return tr::lng_group_call_screen_share_audio(tr::now)
+			+ u": "_q
+			+ (muted
+				? tr::lng_call_unmute_audio(tr::now)
+				: tr::lng_call_mute_audio(tr::now));
+	};
 
 	const auto muteState = row->state();
 	const auto muted = (muteState == Row::State::Muted)
 		|| (muteState == Row::State::RaisedHand);
 	const auto mutedByMe = row->mutedByMe();
+	const auto addScreenVolumeItem = !_call->rtmp()
+		&& !_call->videoStream()
+		&& !isMe(participantPeer)
+		&& _call->hasScreenShareAudio(participantPeer);
 
 	auto mutesFromVolume = rpl::never<bool>() | rpl::type_erased;
 
@@ -1648,15 +1691,69 @@ void Members::Controller::addMuteActionsToContextMenu(
 		if (menu->actions().size() > 1) { // First - cover.
 			menu->addSeparator();
 		}
+		if (addScreenVolumeItem) {
+			addSectionLabel(tr::lng_group_call_microphone(tr::now));
+		}
 
 		menu->addAction(std::move(volumeItem));
 
-		if (!_call->rtmp()
-			&& !_call->videoStream()
-			&& !isMe(participantPeer)) {
+		if (!addScreenVolumeItem && !isMe(participantPeer)) {
 			menu->addSeparator();
 		}
 	};
+
+	if (addScreenVolumeItem) {
+		auto otherParticipantScreenStateValue = rpl::merge(
+			_call->otherParticipantScreenStateValue(
+			) | rpl::filter([=](const Group::ParticipantState &data) {
+				return data.peer == participantPeer;
+			}),
+			_call->otherParticipantStateValue(
+			) | rpl::filter([=](const Group::ParticipantState &data) {
+				return data.peer == participantPeer;
+			}) | rpl::map([=](const Group::ParticipantState &) {
+				return _call->participantScreenState(participantPeer);
+			}));
+
+		const auto state = _call->participantScreenState(participantPeer);
+		auto volumeItem = base::make_unique_q<MenuVolumeItem>(
+			menu->menu(),
+			st::groupCallPopupVolumeMenu,
+			st::groupCallMenuVolumeSlider,
+			std::move(otherParticipantScreenStateValue),
+			state.volume.value_or(Group::kDefaultVolume),
+			Group::kMaxVolume,
+			state.mutedByMe,
+			st::groupCallMenuVolumePadding);
+
+		volumeItem->toggleMuteRequests(
+		) | rpl::on_next([=](bool muted) {
+			toggleScreenMute(muted);
+		}, volumeItem->lifetime());
+
+		volumeItem->toggleMuteLocallyRequests(
+		) | rpl::on_next([=](bool muted) {
+			toggleScreenMute(muted);
+		}, volumeItem->lifetime());
+
+		volumeItem->changeVolumeRequests(
+		) | rpl::on_next([=](int volume) {
+			changeScreenVolume(volume);
+		}, volumeItem->lifetime());
+
+		volumeItem->changeVolumeLocallyRequests(
+		) | rpl::on_next([=](int volume) {
+			changeScreenVolume(volume);
+		}, volumeItem->lifetime());
+
+		if (menu->actions().size() > 1) {
+			menu->addSeparator();
+		}
+		addSectionLabel(tr::lng_group_call_screen_share_audio(tr::now));
+
+		menu->addAction(std::move(volumeItem));
+		menu->addSeparator();
+	}
 
 	const auto muteAction = [&]() -> QAction* {
 		if (muteState == Row::State::Invited
@@ -1699,6 +1796,29 @@ void Members::Controller::addMuteActionsToContextMenu(
 				? false
 				: mutedFromVolume;
 			muteAction->setText(muteUnmuteString(muted, mutedByMe));
+		}, menu->lifetime());
+	}
+	if (addScreenVolumeItem) {
+		const auto initial = _call->participantScreenState(participantPeer);
+		const auto screenMuteAction = menu->addAction(
+			screenMuteActionText(initial.mutedByMe),
+			[=] {
+				const auto state = _call->participantScreenState(participantPeer);
+				toggleScreenMute(!state.mutedByMe);
+			});
+		rpl::merge(
+			_call->otherParticipantScreenStateValue(
+			) | rpl::filter([=](const Group::ParticipantState &data) {
+				return data.peer == participantPeer;
+			}),
+			_call->otherParticipantStateValue(
+			) | rpl::filter([=](const Group::ParticipantState &data) {
+				return data.peer == participantPeer;
+			}) | rpl::map([=](const Group::ParticipantState &) {
+				return _call->participantScreenState(participantPeer);
+			})
+		) | rpl::on_next([=](const Group::ParticipantState &state) {
+			screenMuteAction->setText(screenMuteActionText(state.mutedByMe));
 		}, menu->lifetime());
 	}
 }
@@ -1785,6 +1905,16 @@ auto Members::toggleMuteRequests() const
 auto Members::changeVolumeRequests() const
 -> rpl::producer<Group::VolumeRequest> {
 	return _listController->changeVolumeRequests();
+}
+
+auto Members::toggleScreenMuteRequests() const
+-> rpl::producer<Group::MuteRequest> {
+	return _listController->toggleScreenMuteRequests();
+}
+
+auto Members::changeScreenVolumeRequests() const
+-> rpl::producer<Group::VolumeRequest> {
+	return _listController->changeScreenVolumeRequests();
 }
 
 auto Members::kickParticipantRequests() const
