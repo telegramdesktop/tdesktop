@@ -292,13 +292,14 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 	Expects(!_webview);
 
 	const auto window = _window.get();
+	const auto proxySettings = Core::CurrentWebviewProxy();
 	_webview = std::make_unique<Webview::Window>(
 		_container,
 		Webview::WindowConfig{
 			.opaqueBg = st::windowBg->c,
 			.storageId = storageId,
 			.safe = true,
-			.proxySettings = Core::CurrentWebviewProxy(),
+			.proxySettings = proxySettings,
 		});
 	const auto raw = _webview.get();
 
@@ -327,6 +328,12 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 		return;
 	}
 	widget->show();
+
+	Core::WebviewProxyChangesFrom(
+		proxySettings
+	) | rpl::on_next([=] {
+		close();
+	}, _webview->lifetime());
 
 	QObject::connect(widget, &QObject::destroyed, [=] {
 		if (!_webview) {
