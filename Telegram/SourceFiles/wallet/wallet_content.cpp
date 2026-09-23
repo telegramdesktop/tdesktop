@@ -3709,17 +3709,32 @@ QString SendErrorText(SendError error, int64 minTransferNano) {
 		return tr::lng_wallet_vault_locked(tr::now);
 	case SendError::InvalidRequest:
 	case SendError::Failed:
+	case SendError::KeyMismatch:
 		return tr::lng_wallet_send_error_failed(tr::now);
 	case SendError::Rejected:
 		return tr::lng_wallet_send_error_rejected(tr::now);
 	case SendError::DataInvalid:
 		return tr::lng_wallet_send_error_data_invalid(tr::now);
+	case SendError::KeyChanged:
+		return tr::lng_wallet_send_key_changed_text(tr::now);
 	case SendError::QuoteExpired:
 		return tr::lng_wallet_send_error_quote_expired(tr::now);
 	case SendError::LinkExpired:
 		return tr::lng_wallet_send_link_expired(tr::now);
 	}
 	Unexpected("Error value in SendErrorText.");
+}
+
+void ShowWalletKeyChanged(std::shared_ptr<Main::SessionShow> show) {
+	show->showBox(Ui::MakeConfirmBox({
+		.text = tr::lng_wallet_send_key_changed_text(),
+		.confirmed = [=](Fn<void()> close) {
+			close();
+			RunKeyRequiringAction(show, [] {});
+		},
+		.confirmText = tr::lng_wallet_restore_title(),
+		.title = tr::lng_wallet_send_key_changed_title(),
+	}));
 }
 
 namespace {
@@ -5141,6 +5156,8 @@ void WalletSendBox(
 					case SendError::Failed:
 					case SendError::Rejected:
 					case SendError::DataInvalid:
+					case SendError::KeyMismatch:
+					case SendError::KeyChanged:
 					case SendError::Silent:
 					case SendError::SubmissionUnknown:
 						fail(result.error);
@@ -5684,7 +5701,22 @@ void WalletSendBox(
 			authorization,
 			accepted.prepared,
 			crl::guard(session, [=](SendError error) {
-				if (!weak || state->closed || !valid()) {
+				if (error == SendError::KeyChanged) {
+					if (weak && !state->closed && !state->handedOver) {
+						box->closeBox();
+					}
+					if (sessionValid()) {
+						ShowWalletKeyChanged(show);
+					}
+					return;
+				} else if (error == SendError::KeyMismatch
+						&& (!weak || state->closed || state->handedOver)) {
+					if (sessionValid()) {
+						show->showToast(
+							SendErrorText(error, TransferMinNanos(session)));
+					}
+					return;
+				} else if (!weak || state->closed || !valid()) {
 					return;
 				} else if (state->handedOver) {
 					return;

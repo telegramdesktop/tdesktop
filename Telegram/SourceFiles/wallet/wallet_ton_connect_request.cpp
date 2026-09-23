@@ -1082,7 +1082,12 @@ void TonConnectRequests::Flow::send() {
 		_prepared,
 		crl::guard(this, [=](TonConnectSendResult result) {
 			sent(std::move(result));
-		}));
+		}),
+		[show = showNow()](SendError error) {
+			if (error == SendError::KeyChanged && show->valid()) {
+				ShowWalletKeyChanged(show);
+			}
+		});
 }
 
 void TonConnectRequests::Flow::sent(TonConnectSendResult result) {

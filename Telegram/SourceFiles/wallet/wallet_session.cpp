@@ -537,6 +537,8 @@ struct MergedHead {
 	case SendError::Failed: return u"Failed"_q;
 	case SendError::Rejected: return u"Rejected"_q;
 	case SendError::DataInvalid: return u"DataInvalid"_q;
+	case SendError::KeyMismatch: return u"KeyMismatch"_q;
+	case SendError::KeyChanged: return u"KeyChanged"_q;
 	case SendError::QuoteExpired: return u"QuoteExpired"_q;
 	case SendError::LinkExpired: return u"LinkExpired"_q;
 	case SendError::Silent: return u"Silent"_q;
@@ -1265,6 +1267,8 @@ void FailShareFetch(
 		? SendError::Rejected
 		: (type == u"WALLET_TRANSFER_DATA_INVALID"_q)
 		? SendError::DataInvalid
+		: (type == u"WALLET_KEY_MISMATCH"_q)
+		? SendError::KeyMismatch
 		: SendError::Failed;
 }
 
@@ -8289,7 +8293,8 @@ void Session::send(
 void Session::sendTonConnect(
 		KeyAuthorization auth,
 		std::shared_ptr<const PreparedSend> prepared,
-		Fn<void(TonConnectSendResult)> done) {
+		Fn<void(TonConnectSendResult)> done,
+		Fn<void(SendError)> settled) {
 	if (!prepared || !prepared->tonConnect) {
 		if (done) {
 			done({ .error = SendError::InvalidRequest });
@@ -8299,7 +8304,7 @@ void Session::sendTonConnect(
 	startSend(
 		std::move(auth),
 		std::move(prepared),
-		nullptr,
+		std::move(settled),
 		nullptr,
 		std::move(done));
 }
@@ -8350,6 +8355,9 @@ void Session::startSend(
 	// The record this send signs with, named now: a swap can rebind the
 	// session's own id before the engine answers.
 	const auto signingRecordId = custodyRecord->recordId;
+	const auto signingKey = custodyRecord->signingKey.isEmpty()
+		? custodyRecord->publicKey
+		: custodyRecord->signingKey;
 	submittedTransferStore().records.push_back(SubmittedTransferRecord{
 		.recordId = custodyRecord->recordId,
 		.address = identity.address,
@@ -8613,7 +8621,11 @@ void Session::startSend(
 			if (weak) {
 				_historyUpdates.fire({});
 			}
-			if (weak && done) {
+			if (!weak) {
+				return;
+			} else if (refusal == SendError::KeyMismatch) {
+				settleKeyMismatch(identity, signingKey, done);
+			} else if (done) {
 				done(refusal);
 			}
 		} return;
@@ -8664,7 +8676,11 @@ void Session::startSend(
 			return;
 		}
 		syncEngineClient();
-		if (weak && done) {
+		if (!weak) {
+			return;
+		} else if (failed == SendError::KeyMismatch) {
+			settleKeyMismatch(identity, signingKey, done);
+		} else if (done) {
 			done(failed);
 		}
 	});
@@ -8863,6 +8879,22 @@ void Session::submitTransfer(
 		_transferMessages->failSending(messageId, error.type());
 		done({ TransferSubmissionOutcome::Rejected, error.type() });
 	}).handleAllErrors().send();
+}
+
+void Session::settleKeyMismatch(
+		TransferWalletIdentity identity,
+		QByteArray signingKey,
+		Fn<void(SendError)> done) {
+	requestState([=, this](const MTPWalletState &state) {
+		applyState(state, false);
+		const auto changed = (_address == identity.address)
+			&& (_publicKey != signingKey)
+			&& (deviceCustodyState().mode != DeviceMode::Full)
+			&& !custody().current(_address, _publicKey);
+		done(changed ? SendError::KeyChanged : SendError::KeyMismatch);
+	}, [=] {
+		done(SendError::KeyMismatch);
+	});
 }
 
 bool Session::bindTransferReceipt(

@@ -134,6 +134,8 @@ enum class SendError {
 	Failed,
 	Rejected,
 	DataInvalid,
+	KeyMismatch,
+	KeyChanged,
 	QuoteExpired,
 	LinkExpired,
 	Silent,
@@ -770,7 +772,8 @@ public:
 	void sendTonConnect(
 		KeyAuthorization auth,
 		std::shared_ptr<const PreparedSend> prepared,
-		Fn<void(TonConnectSendResult)> done);
+		Fn<void(TonConnectSendResult)> done,
+		Fn<void(SendError)> settled = nullptr);
 	[[nodiscard]] SendState sendState() const;
 	[[nodiscard]] rpl::producer<SendState> sendStateValue() const;
 	[[nodiscard]] std::optional<PendingSendInfo> pendingSend() const;
@@ -1003,6 +1006,10 @@ private:
 		std::shared_ptr<const PreparedSend> prepared,
 		TransferSubmissionData data,
 		Fn<void(TransferSubmissionAnswer)> done);
+	void settleKeyMismatch(
+		TransferWalletIdentity identity,
+		QByteArray signingKey,
+		Fn<void(SendError)> done);
 	[[nodiscard]] bool bindTransferReceipt(
 		const std::string &operationId,
 		const std::shared_ptr<const PreparedSend> &prepared,

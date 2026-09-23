@@ -129,5 +129,6 @@ void ShowWalletConflict(
 	not_null<Main::Session*> session);
 
 [[nodiscard]] QString SendErrorText(SendError error, int64 minTransferNano);
+void ShowWalletKeyChanged(std::shared_ptr<Main::SessionShow> show);
 
 } // namespace Wallet

@@ -9089,6 +9089,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_send_error_failed" = "The transfer could not be completed. Please try again.";
 "lng_wallet_send_error_rejected" = "The network didn't accept this transfer. Please check the details and try again.";
 "lng_wallet_send_error_data_invalid" = "The transfer couldn't be sent because its signed message is invalid. Please try again.";
+"lng_wallet_send_key_changed_title" = "Wallet Key Changed";
+"lng_wallet_send_key_changed_text" = "The key of this wallet was changed in another app, so this device can no longer send from it.\n\nRestore the wallet with its current recovery phrase to send Grams from this device again.";
 "lng_wallet_receive_copy_hint" = "Click to copy address";
 "lng_wallet_buy_button" = "Buy with card or crypto";
 "lng_wallet_buy_empty" = "No payment options are available.";
