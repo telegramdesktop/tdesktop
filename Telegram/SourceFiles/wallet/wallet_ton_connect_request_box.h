@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/image/image_location.h"
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -30,7 +32,7 @@ struct TonConnectRequestBoxState {
 	TonConnectRequestPhase phase = TonConnectRequestPhase::Loading;
 	QString name;
 	QString domain;
-	QString iconUrl;
+	WebFileLocation icon;
 	QString topic;
 	std::shared_ptr<const TonConnectTransfer> transfer;
 	std::optional<int64> feeNano;

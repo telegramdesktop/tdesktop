@@ -1371,7 +1371,7 @@ void FailShareFetch(
 		engine::TonConnectDerivedRequest derived) {
 	using Kind = TonConnectRequestKind;
 	using Incoming = engine::TonConnectIncomingRequest;
-	auto result = TonConnectAppRequest{ .appRequestId = derived.request_id };
+	auto result = TonConnectAppRequest();
 	const auto &variant = derived.request.get_variant();
 	std::visit([&](const auto &data) {
 		result.id = QString::fromStdString(data.id);
@@ -5738,6 +5738,7 @@ void Session::requestOwnershipProof(
 	_stateApi.request(MTPwallet_GetProofChallenge(
 	)).done([=, this](const MTPwallet_ProofChallenge &result) {
 		const auto &challenge = result.data();
+		_tonConnectOwnershipDomain = qs(challenge.vdomain());
 		const auto timestamp = base::unixtime::now();
 		if (timestamp <= 0) {
 			LOG(("Wallet Error: no usable timestamp for the ownership "
@@ -5816,6 +5817,10 @@ TonConnectAccess Session::tonConnectAccess() {
 	return TonConnectAccess::Allowed;
 }
 
+bool Session::tonConnectProofDomainAllowed(const QString &domain) const {
+	return TonConnectProofDomainAllowed(domain, _tonConnectOwnershipDomain);
+}
+
 void Session::deriveTonConnectSession(
 		KeyAuthorization auth,
 		const QString &dappClientId,
@@ -5891,6 +5896,13 @@ void Session::prepareTonConnectEvent(
 		TonConnectEventRequest request,
 		Fn<void(TonConnectReply)> done,
 		Fn<void(TonConnectKeyError)> fail) {
+	if (request.proofPayload
+		&& !tonConnectProofDomainAllowed(request.proofDomain)) {
+		LOG(("Wallet Error: TON Connect proof refused for a reserved "
+			"domain."));
+		fail(TonConnectKeyError::Failed);
+		return;
+	}
 	const auto record = (tonConnectAccess() == TonConnectAccess::Allowed)
 		? currentRecord()
 		: nullptr;

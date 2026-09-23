@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/image/image_location.h"
+
 namespace anim {
 enum class type : uchar;
 } // namespace anim
@@ -35,7 +37,7 @@ struct TonConnectBoxState {
 	TonConnectBoxPhase phase = TonConnectBoxPhase::Loading;
 	QString name;
 	QString domain;
-	QString iconUrl;
+	WebFileLocation icon;
 	bool proof = false;
 	QString notice;
 	QString error;
@@ -55,7 +57,7 @@ struct TonConnectBoxArgs {
 struct TonConnectHeaderState {
 	QString title;
 	QString domain;
-	QString iconUrl;
+	WebFileLocation icon;
 	bool loading = false;
 };
 

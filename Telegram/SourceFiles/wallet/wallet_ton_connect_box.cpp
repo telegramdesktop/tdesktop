@@ -38,7 +38,7 @@ namespace {
 using Phase = TonConnectBoxPhase;
 
 struct AppIcon {
-	QString url;
+	WebFileLocation location;
 	QImage image;
 	Data::CloudFile file;
 };
@@ -58,7 +58,7 @@ struct AppRow {
 	TonConnectSessionId id = 0;
 	QString name;
 	QString domain;
-	QString iconUrl;
+	WebFileLocation icon;
 	TimeId date = 0;
 
 	friend bool operator==(const AppRow &, const AppRow &) = default;
@@ -66,7 +66,7 @@ struct AppRow {
 
 struct AppsState {
 	std::vector<AppRow> shown;
-	base::flat_map<QString, std::unique_ptr<AppIcon>> icons;
+	base::flat_map<WebFileLocation, std::unique_ptr<AppIcon>> icons;
 	base::flat_map<TonConnectSessionId, QPointer<Ui::RoundButton>> buttons;
 	bool built = false;
 	bool loaded = false;
@@ -113,12 +113,12 @@ void LoadIcon(
 		Fn<void()> repaint) {
 	icon->file.clear();
 	icon->image = QImage();
-	if (icon->url.isEmpty()) {
+	if (icon->location.isNull()) {
 		repaint();
 		return;
 	}
 	icon->file.location = ImageLocation(
-		DownloadLocation{ PlainUrlLocation{ icon->url } },
+		DownloadLocation{ icon->location },
 		0,
 		0);
 	Data::LoadCloudFile(
@@ -236,7 +236,7 @@ void UpdateState(
 			? tr::lng_wallet_connect_title(tr::now)
 			: tr::lng_wallet_connect_title_app(tr::now, lt_name, now.name)),
 		.domain = now.domain,
-		.iconUrl = now.iconUrl,
+		.icon = now.icon,
 		.loading = loading,
 	}, animated);
 	if (const auto proof = state->proof.data()) {
@@ -270,7 +270,7 @@ void UpdateState(
 			.id = id,
 			.name = std::move(name),
 			.domain = manifest ? TonConnectHost(manifest->url) : QString(),
-			.iconUrl = manifest ? TonConnectIconUrl(*manifest) : QString(),
+			.icon = manifest ? manifest->icon : WebFileLocation(),
 			.date = info.date,
 		});
 	}
@@ -284,11 +284,11 @@ void UpdateState(
 		not_null<AppsState*> state,
 		not_null<Main::Session*> session,
 		not_null<Ui::VerticalLayout*> list,
-		const QString &url) {
-	auto &icon = state->icons[url];
+		const WebFileLocation &location) {
+	auto &icon = state->icons[location];
 	if (!icon) {
 		icon = std::make_unique<AppIcon>();
-		icon->url = url;
+		icon->location = location;
 		LoadIcon(icon.get(), session, st::walletRowIconSize, [=] {
 			list->update();
 		});
@@ -342,9 +342,9 @@ void UpdateState(
 			reserve);
 	}
 
-	const auto icon = row.iconUrl.isEmpty()
+	const auto icon = row.icon.isNull()
 		? nullptr
-		: ResolveIcon(state, session, list, row.iconUrl).get();
+		: ResolveIcon(state, session, list, row.icon).get();
 	const auto circle = Ui::CreateChild<Ui::RpWidget>(wrap);
 	circle->resize(st::walletRowIconSize, st::walletRowIconSize);
 	circle->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -483,8 +483,8 @@ auto AddTonConnectHeader(
 		}
 		domain->toggle(!now.domain.isEmpty(), animated);
 		spinner->setVisible(now.loading);
-		if (icon->url != now.iconUrl) {
-			icon->url = now.iconUrl;
+		if (icon->location != now.icon) {
+			icon->location = now.icon;
 			LoadIcon(icon, session, st::walletConnectIconSize, [=] {
 				row->update();
 			});

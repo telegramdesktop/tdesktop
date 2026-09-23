@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_set.h"
 #include "base/weak_ptr.h"
 #include "mtproto/sender.h"
+#include "ui/image/image_location.h"
 #include "wallet/wallet_ton_connect_link.h"
 #include "wallet/wallet_unlock.h"
 
@@ -85,7 +86,7 @@ struct TonConnectKeyResult {
 struct TonConnectManifest {
 	QString url;
 	QString name;
-	QString iconUrl;
+	WebFileLocation icon;
 
 	friend bool operator==(
 		const TonConnectManifest &,
@@ -140,7 +141,6 @@ struct TonConnectAppRequest {
 	TonConnectRequestKind kind = TonConnectRequestKind::Unsupported;
 	QString id;
 	QString method;
-	std::optional<int64> appRequestId;
 	std::shared_ptr<const TonConnectTransfer> transfer;
 };
 
@@ -158,12 +158,16 @@ struct TonConnectResponse {
 [[nodiscard]] QString TonConnectHost(const QString &url);
 [[nodiscard]] QString TonConnectManifestName(
 	const TonConnectManifest &manifest);
-[[nodiscard]] QString TonConnectIconUrl(const TonConnectManifest &manifest);
 [[nodiscard]] bool TonConnectSessionConnected(
 	const TonConnectSessionInfo &info);
 [[nodiscard]] TextWithEntities TonConnectRequestText(
 	const QString &topic,
 	const QString &name);
+[[nodiscard]] bool TonConnectRequestIdValid(const QString &id);
+[[nodiscard]] QString TonConnectDappName(const QString &name);
+[[nodiscard]] bool TonConnectProofDomainAllowed(
+	const QString &domain,
+	const QString &ownershipDomain);
 
 class TonConnect final : public base::has_weak_ptr {
 public:

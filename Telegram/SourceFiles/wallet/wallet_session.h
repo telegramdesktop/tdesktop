@@ -627,6 +627,8 @@ public:
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail);
 	[[nodiscard]] TonConnectAccess tonConnectAccess();
+	[[nodiscard]] bool tonConnectProofDomainAllowed(
+		const QString &domain) const;
 	void deriveTonConnectSession(
 		KeyAuthorization auth,
 		const QString &dappClientId,
@@ -1075,6 +1077,7 @@ private:
 	bool _loaded = false;
 	QString _address;
 	QByteArray _publicKey;
+	QString _tonConnectOwnershipDomain;
 	uint64 _walletIdentityRevision = 0;
 	rpl::event_stream<> _transferWalletIdentityChanges;
 

@@ -33,8 +33,6 @@ namespace {
 using Phase = TonConnectRequestPhase;
 
 constexpr auto kWalletResolveTimeout = 20 * crl::time(1000);
-constexpr auto kPublishAttempts = 5;
-constexpr auto kPublishRetryDelay = crl::time(1000);
 constexpr auto kDeadlineMaxDelay = 24 * 3600 * crl::time(1000);
 
 [[nodiscard]] bool SessionGone(const QString &type) {
@@ -64,10 +62,11 @@ constexpr auto kDeadlineMaxDelay = 24 * 3600 * crl::time(1000);
 		: QString();
 }
 
-[[nodiscard]] QString SessionIconUrl(const TonConnectSessionInfo *info) {
+[[nodiscard]] WebFileLocation SessionIcon(
+		const TonConnectSessionInfo *info) {
 	return (info && info->manifest)
-		? TonConnectIconUrl(*info->manifest)
-		: QString();
+		? info->manifest->icon
+		: WebFileLocation();
 }
 
 [[nodiscard]] QString AccessNoticeText(TonConnectAccess access) {
@@ -176,7 +175,6 @@ private:
 	QByteArray _response;
 	TimeId _expires = 0;
 	uint64 _previewOwner = 0;
-	int _publishAttempts = 0;
 	Decision _decision = Decision::None;
 	bool _claimSent = false;
 	bool _claimed = false;
@@ -189,7 +187,6 @@ private:
 	bool _finished = false;
 	base::Timer _deadlineTimer;
 	base::Timer _resolveTimer;
-	base::Timer _publishTimer;
 	rpl::lifetime _resolveLifetime;
 	rpl::lifetime _previewLifetime;
 	rpl::lifetime _idleLifetime;
@@ -468,8 +465,7 @@ TonConnectRequests::Flow::Flow(
 , _topic(entry.topic)
 , _expires(entry.expires)
 , _deadlineTimer([=] { expired(); })
-, _resolveTimer([=] { resolveTimeout(); })
-, _publishTimer([=] { publish(); }) {
+, _resolveTimer([=] { resolveTimeout(); }) {
 }
 
 TonConnectRequests::Flow::~Flow() {
@@ -482,7 +478,7 @@ void TonConnectRequests::Flow::start() {
 		.phase = Phase::Loading,
 		.name = SessionName(info),
 		.domain = SessionDomain(info),
-		.iconUrl = SessionIconUrl(info),
+		.icon = SessionIcon(info),
 	};
 	auto box = Box(TonConnectRequestBox, TonConnectRequestBoxArgs{
 		.session = _session,
@@ -569,7 +565,7 @@ void TonConnectRequests::Flow::fetched(
 		auto state = _state.current();
 		state.name = SessionName(info);
 		state.domain = SessionDomain(info);
-		state.iconUrl = SessionIconUrl(info);
+		state.icon = SessionIcon(info);
 		_state = std::move(state);
 		armDeadline(std::nullopt);
 
@@ -687,7 +683,7 @@ void TonConnectRequests::Flow::locked() {
 		.phase = Phase::Locked,
 		.name = current.name,
 		.domain = current.domain,
-		.iconUrl = current.iconUrl,
+		.icon = current.icon,
 		.topic = TonConnectRequestText(_topic, current.name).text,
 	};
 }
@@ -746,7 +742,7 @@ void TonConnectRequests::Flow::decrypt() {
 		.phase = Phase::Loading,
 		.name = current.name,
 		.domain = current.domain,
-		.iconUrl = current.iconUrl,
+		.icon = current.icon,
 	};
 	_session->wallet().decryptTonConnectRequest(
 		_key,
@@ -777,7 +773,7 @@ void TonConnectRequests::Flow::decrypted(TonConnectAppRequest request) {
 		break;
 	}
 	const auto transfer = _request.transfer;
-	if (!_request.appRequestId
+	if (!TonConnectRequestIdValid(_request.id)
 		|| (_request.kind == Kind::SendTransaction && !transfer)) {
 		unavailable();
 	} else if (_request.kind == Kind::Invalid) {
@@ -798,7 +794,7 @@ void TonConnectRequests::Flow::preview() {
 		.phase = Phase::Confirm,
 		.name = current.name,
 		.domain = current.domain,
-		.iconUrl = current.iconUrl,
+		.icon = current.icon,
 		.transfer = _request.transfer,
 		.feeLoading = true,
 	};
@@ -1016,7 +1012,7 @@ void TonConnectRequests::Flow::claim(const QByteArray &answer) {
 	if (access != TonConnectAccess::Allowed) {
 		accessNotice(access);
 		return;
-	} else if (!_request.appRequestId) {
+	} else if (!TonConnectRequestIdValid(_request.id)) {
 		unavailable();
 		return;
 	}
@@ -1028,14 +1024,14 @@ void TonConnectRequests::Flow::claim(const QByteArray &answer) {
 				? Flag(0)
 				: Flag::f_declined)),
 		MTP_long(_sessionId),
-		MTP_long(_msgId.bare),
-		MTP_long(*_request.appRequestId),
+		MTP_int(_msgId.bare),
+		MTP_string(_request.id),
 		MTP_bytes(answer)
 	)).done([=](const MTPBool &result) {
 		claimed(result);
 	}).fail([=](const MTP::Error &error) {
 		claimFailed(error);
-	}).handleAllErrors().send();
+	}).send();
 }
 
 void TonConnectRequests::Flow::claimed(const MTPBool &result) {
@@ -1062,18 +1058,6 @@ void TonConnectRequests::Flow::claimFailed(const MTP::Error &error) {
 	const auto code = error.code();
 	LOG(("Wallet Error: wallet.tonConnectClaimRequest failed: %1 (%2)"
 		).arg(type).arg(code));
-	if (code < 400 || code >= 500) {
-		closeWithToast(tr::lng_wallet_connect_request_failed(tr::now));
-		return;
-	}
-	// WHY: the server records a declined claim but answers
-	// MESSAGE_NOT_MODIFIED, its edit of the request message changing nothing;
-	// the request is ours to answer, and a refusal signs nothing.
-	if (type == u"MESSAGE_NOT_MODIFIED"_q && _decision != Decision::Confirm) {
-		_claimed = true;
-		publish();
-		return;
-	}
 	_claimSent = false;
 	if (type == u"TONCONNECT_REQUEST_ALREADY_CLAIMED"_q) {
 		closeWithToast(tr::lng_wallet_connect_request_handled(tr::now));
@@ -1153,12 +1137,11 @@ void TonConnectRequests::Flow::publish() {
 	if (stopped()) {
 		return;
 	}
-	++_publishAttempts;
 	using Flag = MTPwallet_TonConnectSubmitResponse::Flag;
 	_api.request(MTPwallet_TonConnectSubmitResponse(
 		MTP_flags(_traceId.isEmpty() ? Flag(0) : Flag::f_trace_id),
 		MTP_long(_sessionId),
-		MTP_long(_msgId.bare),
+		MTP_int(_msgId.bare),
 		MTP_bytes(_response),
 		MTP_string(_traceId)
 	)).done([=](const MTPBool &result) {
@@ -1200,13 +1183,7 @@ void TonConnectRequests::Flow::publishFailed(const QString &type) {
 	}
 	LOG(("Wallet Error: wallet.tonConnectSubmitResponse failed: %1"
 		).arg(type.isEmpty() ? u"FALSE"_q : type));
-	if (type == u"TONCONNECT_PUBLISH_FAILED"_q
-		&& _publishAttempts < kPublishAttempts) {
-		_publishTimer.callOnce(
-			kPublishRetryDelay * (crl::time(1) << (_publishAttempts - 1)));
-	} else {
-		closeWithToast(tr::lng_wallet_connect_request_undelivered(tr::now));
-	}
+	closeWithToast(tr::lng_wallet_connect_request_undelivered(tr::now));
 }
 
 void TonConnectRequests::Flow::decisionFailed() {
@@ -1249,7 +1226,6 @@ void TonConnectRequests::Flow::notice(const QString &text) {
 	_auth = KeyAuthorization();
 	stopResolving();
 	_deadlineTimer.cancel();
-	_publishTimer.cancel();
 	if (!_box) {
 		finish();
 		return;
@@ -1259,7 +1235,7 @@ void TonConnectRequests::Flow::notice(const QString &text) {
 		.phase = Phase::Notice,
 		.name = current.name,
 		.domain = current.domain,
-		.iconUrl = current.iconUrl,
+		.icon = current.icon,
 		.notice = text,
 	};
 }
@@ -1322,7 +1298,6 @@ void TonConnectRequests::Flow::finish() {
 	_auth = KeyAuthorization();
 	stopResolving();
 	_deadlineTimer.cancel();
-	_publishTimer.cancel();
 	_previewLifetime.destroy();
 	_idleLifetime.destroy();
 	_lifetime.destroy();

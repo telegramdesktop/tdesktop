@@ -225,10 +225,6 @@ QString TonConnectManifestName(const TonConnectManifest &manifest) {
 	return Sanitize(manifest.name, TonConnectHost(manifest.url));
 }
 
-QString TonConnectIconUrl(const TonConnectManifest &manifest) {
-	return ValidHttpsUrl(manifest.iconUrl) ? manifest.iconUrl : QString();
-}
-
 bool TonConnectSessionConnected(const TonConnectSessionInfo &info) {
 	return (info.status == TonConnectSessionStatus::Active)
 		|| (info.status == TonConnectSessionStatus::Closing);
@@ -244,6 +240,36 @@ TextWithEntities TonConnectRequestText(
 			lt_app,
 			tr::bold(name),
 			tr::marked);
+}
+
+bool TonConnectRequestIdValid(const QString &id) {
+	constexpr auto kLimit = 100;
+	return !id.isEmpty()
+		&& (id.size() <= kLimit)
+		&& ranges::all_of(id, [](QChar ch) {
+			return (ch.unicode() >= 0x20) && (ch.unicode() <= 0x7E);
+		});
+}
+
+QString TonConnectDappName(const QString &name) {
+	return Sanitize(name, QString());
+}
+
+bool TonConnectProofDomainAllowed(
+		const QString &domain,
+		const QString &ownershipDomain) {
+	const auto normalize = [](const QString &value) {
+		auto result = value.toLower();
+		while (result.endsWith('.')) {
+			result.chop(1);
+		}
+		return result;
+	};
+	const auto normalized = normalize(domain);
+	const auto ownership = normalize(ownershipDomain);
+	return !normalized.isEmpty()
+		&& (normalized != u"telegram.org"_q)
+		&& (ownership.isEmpty() || normalized != ownership);
 }
 
 TonConnect::TonConnect(not_null<Main::Session*> session)
@@ -418,8 +444,16 @@ TonConnectSessionInfo TonConnect::Parse(const MTPTonConnectSession &session) {
 		result.manifest = TonConnectManifest{
 			.url = qs(fields.vurl()),
 			.name = qs(fields.vname()),
-			.iconUrl = qs(fields.vicon_url()),
 		};
+		if (const auto icon = fields.vicon()) {
+			icon->match([&](const MTPDwebDocument &web) {
+				result.manifest->icon = WebFileLocation(
+					web.vurl().v,
+					web.vaccess_hash().v);
+			}, [](const MTPDwebDocumentNoProxy &) {
+				// A direct fetch would reveal the user's IP to the dApp.
+			});
+		}
 	}
 	return result;
 }
@@ -869,6 +903,15 @@ void TonConnect::Connect::sessionChanged() {
 	} else if (_decision != Decision::None
 		|| _state.current().phase != BoxPhase::Loading) {
 		return;
+	}
+	// WHY: a ton_proof for telegram.org (or the ownership challenge domain)
+	// is byte-for-byte the wallet ownership proof; only the domain tells the
+	// two apart, so such a dApp connect is refused before anything is signed.
+	if (_link.proofPayload
+		&& !_session->wallet().tonConnectProofDomainAllowed(
+			TonConnectHost(_link.manifestUrl))) {
+		showManifestError(kManifestContent);
+		return;
 	} else if (info->manifestError) {
 		showManifestError(info->manifestError);
 		return;
@@ -888,7 +931,7 @@ void TonConnect::Connect::sessionChanged() {
 		.phase = BoxPhase::Confirm,
 		.name = TonConnectManifestName(*info->manifest),
 		.domain = _domain,
-		.iconUrl = TonConnectIconUrl(*info->manifest),
+		.icon = info->manifest->icon,
 		.proof = _link.proofPayload.has_value(),
 	};
 }
@@ -1166,12 +1209,15 @@ void TonConnect::Connect::submitFailed(const QString &type) {
 	LOG(("Wallet Error: wallet.tonConnectSubmitConnectResult failed: %1"
 		).arg(type.isEmpty() ? u"FALSE"_q : type));
 	const auto retryable = (type == u"TONCONNECT_CHALLENGE_INVALID"_q)
-		|| (type == u"TONCONNECT_SESSION_NOT_ACTIVE"_q)
-		|| ((_decision == Decision::Reject)
-			&& (type == u"TONCONNECT_PUBLISH_FAILED"_q));
+		|| (type == u"TONCONNECT_SESSION_NOT_ACTIVE"_q);
 	if (retryable && !_retried) {
 		_retried = true;
 		registerKey();
+	} else if ((_decision == Decision::Connect)
+		&& (type == u"TONCONNECT_SESSION_NOT_FOUND"_q)) {
+		storeStatus(TonConnectSessionStatus::Closed);
+		closeBox();
+		finish();
 	} else if (SessionGone(type)) {
 		expired();
 	} else {
@@ -1214,7 +1260,7 @@ void TonConnect::Connect::notice(const QString &text) {
 		.phase = BoxPhase::Notice,
 		.name = _state.current().name,
 		.domain = _state.current().domain,
-		.iconUrl = _state.current().iconUrl,
+		.icon = _state.current().icon,
 		.notice = text,
 	};
 	_state = std::move(state);

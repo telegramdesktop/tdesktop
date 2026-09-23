@@ -892,6 +892,7 @@ struct HistoryServiceTonConnectRequest
 : RuntimeComponent<HistoryServiceTonConnectRequest, HistoryItem> {
 	uint64 sessionId = 0;
 	QString topic;
+	QString dappName;
 	TextWithEntities notificationText;
 	rpl::lifetime lifetime;
 	TimeId expires = 0;

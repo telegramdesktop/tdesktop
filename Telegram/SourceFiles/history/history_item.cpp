@@ -139,11 +139,12 @@ template <typename T>
 
 [[nodiscard]] QString TonConnectAppName(
 		not_null<Main::Session*> session,
-		uint64 sessionId) {
-	const auto info = session->wallet().tonConnect().session(sessionId);
+		not_null<const HistoryServiceTonConnectRequest*> request) {
+	const auto info = session->wallet().tonConnect().session(
+		request->sessionId);
 	return (info && info->manifest)
 		? Wallet::TonConnectManifestName(*info->manifest)
-		: QString();
+		: Wallet::TonConnectDappName(request->dappName);
 }
 
 [[nodiscard]] bool TonConnectTopicReviewable(const QString &topic) {
@@ -5709,6 +5710,7 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 		const auto request = Get<HistoryServiceTonConnectRequest>();
 		request->sessionId = uint64(data.vsession_id().v);
 		request->topic = qs(data.vtopic().value_or_empty());
+		request->dappName = qs(data.vdapp_name().value_or_empty());
 		request->expires = data.vexpires().v;
 		request->accepted = data.is_accepted();
 		request->declined = data.is_declined();
@@ -8709,9 +8711,7 @@ PreparedServiceText HistoryItem::prepareTonConnectRequestText() {
 		return result;
 	}
 	request->notificationText = {};
-	const auto name = TonConnectAppName(
-		&_history->session(),
-		request->sessionId);
+	const auto name = TonConnectAppName(&_history->session(), request);
 	const auto app = tr::bold(name);
 	const auto pick = [&](auto &&named, auto &&unknown) {
 		return name.isEmpty()

@@ -152,7 +152,7 @@ struct Destinations {
 	return {
 		.title = HeaderTitle(now),
 		.domain = now.domain,
-		.iconUrl = now.iconUrl,
+		.icon = now.icon,
 		.loading = (now.phase == Phase::Loading),
 	};
 }
