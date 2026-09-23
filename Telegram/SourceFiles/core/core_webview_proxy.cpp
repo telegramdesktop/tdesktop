@@ -18,7 +18,11 @@ std::optional<Webview::ProxySettings> CurrentWebviewProxy() {
 		return std::nullopt;
 	}
 	const auto data = proxy.selected();
+	if (data.type != MTP::ProxyData::Type::Socks5) {
+		return std::nullopt;
+	}
 	return Webview::ProxySettings{
+		.type = Webview::ProxyType::SOCKS5,
 		.host = data.host.toStdString(),
 		.port = std::to_string(data.port),
 		.username = data.user.toStdString(),
