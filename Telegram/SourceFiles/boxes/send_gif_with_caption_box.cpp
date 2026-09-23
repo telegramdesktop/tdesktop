@@ -769,8 +769,8 @@ void EditCaptionBox(
 				item,
 				std::move(text),
 				{ .invertCaption = item->invertMedia() },
-				[=] { box->closeBox(); },
-				[=](const QString &e) { box->uiShow()->showToast(e); });
+				crl::guard(box, [=] { box->closeBox(); }),
+				[=](const QString &e) { show->showToast(e); });
 		}
 	};
 
