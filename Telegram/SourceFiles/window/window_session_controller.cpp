@@ -2679,6 +2679,10 @@ int SessionController::countDialogsWidthFromRatio(int bodyWidth) const {
 		* Core::App().settings().dialogsWidthRatio(nochat);
 	auto result = int(base::SafeRound(width));
 	accumulate_max(result, st::columnMinimalWidthLeft);
+#ifdef Q_OS_WIN
+	// Telegram for macOS icon rail: avatars only, chat uses the rest.
+	result = st::columnMinimalWidthLeft;
+#endif
 //	accumulate_min(result, st::columnMaximalWidthLeft);
 	return result;
 }

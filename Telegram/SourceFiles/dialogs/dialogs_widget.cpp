@@ -4527,9 +4527,12 @@ void Widget::updateControlsGeometry() {
 		_narrowWidth,
 		_childListShown.current());
 	const auto smallw = st::columnMinimalWidthLeft - _narrowWidth;
-	const auto narrowRatio = (ratiow < smallw)
-		? ((smallw - ratiow) / float64(smallw - _narrowWidth))
-		: 0.;
+	const auto nearRail = (ratiow <= _narrowWidth + st::dialogsFilterPadding.x());
+	const auto narrowRatio = nearRail
+		? 1.
+		: ((smallw > _narrowWidth) && (ratiow < smallw))
+			? ((smallw - ratiow) / float64(smallw - _narrowWidth))
+			: 0.;
 
 	auto filterLeft = (controller()->filtersWidth()
 		? st::dialogsFilterSkip
