@@ -148,6 +148,7 @@ enum class TonConnectError : uchar {
 	Unknown,
 	BadRequest,
 	UserDeclined,
+	UnknownApp,
 };
 
 struct TonConnectResponse {
@@ -181,6 +182,8 @@ public:
 
 	void apply(const MTPTonConnectSession &session);
 	void applyPendingDisconnect(const QVector<MTPlong> &ids);
+	[[nodiscard]] static TonConnectSessionInfo Parse(
+		const MTPTonConnectSession &session);
 
 	[[nodiscard]] auto sessions() const
 		-> const base::flat_map<TonConnectSessionId, TonConnectSessionInfo> &;
@@ -199,6 +202,10 @@ public:
 		Fn<void(TonConnectKeyResult)> done);
 	void acquireSilentKey(
 		TonConnectSessionId id,
+		Fn<void(TonConnectKeyResult)> done);
+	void acquireClosedKey(
+		std::shared_ptr<Main::SessionShow> show,
+		TonConnectSessionInfo info,
 		Fn<void(TonConnectKeyResult)> done);
 	[[nodiscard]] bool disconnecting(TonConnectSessionId id) const;
 	void disconnect(
@@ -220,14 +227,15 @@ private:
 		Ignored,
 	};
 
-	[[nodiscard]] static TonConnectSessionInfo Parse(
-		const MTPTonConnectSession &session);
-
 	void requestSessions();
 	void store(TonConnectSessionInfo info, bool fromCreate);
 	void write(TonConnectSessionInfo info, bool fromCreate);
 	void unlocked(
 		TonConnectSessionId id,
+		KeyAuthorization auth,
+		Fn<void(TonConnectKeyResult)> done);
+	void closedUnlocked(
+		TonConnectSessionInfo info,
 		KeyAuthorization auth,
 		Fn<void(TonConnectKeyResult)> done);
 	void derived(

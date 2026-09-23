@@ -56,6 +56,7 @@ private:
 		not_null<HistoryItem*> item);
 	[[nodiscard]] static bool OpensByItself(const Entry &entry);
 	[[nodiscard]] Window::SessionController *autoWindow() const;
+	[[nodiscard]] bool enqueue(Entry entry);
 	void arrived(not_null<HistoryItem*> item);
 	void edited(not_null<HistoryItem*> item);
 	void showNext();
@@ -71,6 +72,8 @@ private:
 	void pendingLoaded(
 		base::weak_ptr<Window::SessionController> controller,
 		const MTPwallet_TonConnectPending &result);
+	void sessionClosed(TonConnectSessionId id);
+	void closedLoaded(const MTPwallet_TonConnectPending &result);
 	void flowDone(not_null<Flow*> flow, bool claimed);
 
 	const not_null<Main::Session*> _session;

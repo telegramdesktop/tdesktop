@@ -6227,6 +6227,8 @@ void Session::encryptTonConnectResponse(
 		? Reason{ Code::kBadRequest, "Bad request" }
 		: (response.error == TonConnectError::UserDeclined)
 		? Reason{ Code::kUserDeclined, "User declined the transaction" }
+		: (response.error == TonConnectError::UnknownApp)
+		? Reason{ Code::kUnknownApp, "Unknown app" }
 		: Reason{ Code::kUnknown, "Transaction was not sent" };
 	_engine->runLocal([
 		session = key.session,

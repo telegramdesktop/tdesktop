@@ -128,6 +128,13 @@ constexpr auto kBidiControls = std::array{
 	return tr::lng_action_ton_connect_request;
 }
 
+[[nodiscard]] bool KeyFitsSession(
+		const TonConnectSessionInfo &info,
+		const TonConnectKey &key) {
+	return info.clientId.isEmpty()
+		|| !info.clientId.compare(key.clientId, Qt::CaseInsensitive);
+}
+
 } // namespace
 
 class TonConnect::Connect final : public base::has_weak_ptr {
@@ -449,6 +456,22 @@ void TonConnect::acquireSilentKey(
 		});
 }
 
+void TonConnect::acquireClosedKey(
+		std::shared_ptr<Main::SessionShow> show,
+		TonConnectSessionInfo info,
+		Fn<void(TonConnectKeyResult)> done) {
+	if (info.status != TonConnectSessionStatus::Closed) {
+		done({ .error = TonConnectKeyError::Failed });
+		return;
+	}
+	AcquireVaultUnlock({
+		.show = std::move(show),
+		.done = crl::guard(this, [=](KeyAuthorization auth) {
+			closedUnlocked(info, std::move(auth), done);
+		}),
+	});
+}
+
 bool TonConnect::disconnecting(TonConnectSessionId id) const {
 	return _disconnecting.contains(id);
 }
@@ -668,6 +691,30 @@ void TonConnect::unlocked(
 		}));
 }
 
+void TonConnect::closedUnlocked(
+		TonConnectSessionInfo info,
+		KeyAuthorization auth,
+		Fn<void(TonConnectKeyResult)> done) {
+	if (!auth.valid()) {
+		done({ .error = TonConnectKeyError::Cancelled });
+		return;
+	}
+	_session->wallet().deriveTonConnectSession(
+		std::move(auth),
+		info.dappClientId,
+		info.nonce,
+		crl::guard(this, [=](TonConnectKey key) {
+			if (KeyFitsSession(info, key)) {
+				done({ .key = std::move(key) });
+			} else {
+				done({ .error = TonConnectKeyError::OtherKey });
+			}
+		}),
+		crl::guard(this, [=](TonConnectKeyError error) {
+			done({ .error = error });
+		}));
+}
+
 void TonConnect::derived(
 		TonConnectSessionId id,
 		TonConnectKey key,
@@ -677,8 +724,7 @@ void TonConnect::derived(
 	if (!info) {
 		done({ .error = TonConnectKeyError::Failed });
 		return;
-	} else if (!info->clientId.isEmpty()
-		&& info->clientId.compare(key.clientId, Qt::CaseInsensitive) != 0) {
+	} else if (!KeyFitsSession(*info, key)) {
 		done({ .error = TonConnectKeyError::OtherKey });
 		return;
 	}
