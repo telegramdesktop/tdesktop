@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/editor/iv_editor_clipboard.h"
 
 #include "base/random.h"
+#include "base/weak_ptr.h"
+#include "main/main_session.h"
 
 #include <QtCore/QMimeData>
 
@@ -17,8 +19,26 @@ namespace {
 struct ClipboardStorage {
 	uint64 sessionId = base::RandomValue<uint64>();
 	uint64 serial = 0;
+	base::weak_ptr<Main::Session> mediaSession;
+	bool hasMedia = false;
 	std::optional<ClipboardData> data;
 };
+
+[[nodiscard]] Main::Session *PayloadMediaSession(
+		const ClipboardBlockData &payload) {
+	return RichBlocksMediaSession(payload.blocks);
+}
+
+[[nodiscard]] Main::Session *PayloadMediaSession(
+		const ClipboardListItemsData &payload) {
+	return RichListItemsMediaSession(payload.items);
+}
+
+[[nodiscard]] Main::Session *MediaSession(const ClipboardData &data) {
+	return std::visit([](const auto &payload) {
+		return PayloadMediaSession(payload);
+	}, data);
+}
 
 [[nodiscard]] ClipboardStorage &Storage() {
 	static auto storage = ClipboardStorage();
@@ -78,6 +98,9 @@ QString ClipboardMimeType() {
 
 std::unique_ptr<QMimeData> MimeDataFromClipboardData(ClipboardData data) {
 	auto &storage = Storage();
+	const auto media = MediaSession(data);
+	storage.mediaSession = media;
+	storage.hasMedia = (media != nullptr);
 	storage.data = StampClipboardData(std::move(data));
 	auto result = std::make_unique<QMimeData>();
 	result->setData(
@@ -87,9 +110,15 @@ std::unique_ptr<QMimeData> MimeDataFromClipboardData(ClipboardData data) {
 }
 
 std::optional<ClipboardData> ClipboardDataFromMimeData(
-		const QMimeData *mimeData) {
-	const auto &storage = Storage();
+		const QMimeData *mimeData,
+		not_null<Main::Session*> session) {
+	auto &storage = Storage();
+	if (storage.hasMedia && !storage.mediaSession.get()) {
+		storage.data = std::nullopt;
+		storage.hasMedia = false;
+	}
 	if (!storage.data
+		|| (storage.hasMedia && storage.mediaSession.get() != session)
 		|| !StoredDataMatches(*storage.data, storage)
 		|| !MarkerMatches(mimeData, *storage.data)) {
 		return std::nullopt;

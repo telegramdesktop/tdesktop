@@ -4344,7 +4344,9 @@ void ArticleSession::applyInitialPaste() {
 	if (!data || !_editor) {
 		return;
 	}
-	if (const auto structured = ClipboardDataFromMimeData(data.get())) {
+	if (const auto structured = ClipboardDataFromMimeData(
+			data.get(),
+			_session)) {
 		_editor->pasteStructuredClipboardData(*structured);
 		return;
 	}
