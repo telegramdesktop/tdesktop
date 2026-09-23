@@ -1021,7 +1021,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		.now = ms,
 		.width = fullWidth,
 		.paused = videoPaused,
-		.narrow = (fullWidth < st::columnMinimalWidthLeft / 2),
+		.narrow = (fullWidth <= st::columnMinimalWidthLeft),
 		.insideCommunity = communityModeShown(),
 	};
 	const auto fillGuard = gsl::finally([&] {
@@ -1599,7 +1599,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						.selected = selected,
 						.paused = videoPaused,
 						.search = true,
-						.narrow = (fullWidth < st::columnMinimalWidthLeft / 2),
+						.narrow = (fullWidth <= st::columnMinimalWidthLeft),
 						.displayUnreadInfo = showUnreadInSearchResults,
 					});
 					p.translate(0, _st->height);
@@ -1683,7 +1683,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						.selected = selected,
 						.paused = videoPaused,
 						.search = true,
-						.narrow = (fullWidth < st::columnMinimalWidthLeft / 2),
+						.narrow = (fullWidth <= st::columnMinimalWidthLeft),
 						.displayUnreadInfo = showUnreadInSearchResults,
 					});
 					p.translate(0, _st->height);
@@ -1807,7 +1807,7 @@ void InnerWidget::paintCollapsedRow(
 		.currentBg = currentBg(),
 		.width = fullWidth,
 		.selected = selected,
-		.narrow = (fullWidth < st::columnMinimalWidthLeft / 2),
+		.narrow = (fullWidth <= st::columnMinimalWidthLeft),
 	});
 }
 
