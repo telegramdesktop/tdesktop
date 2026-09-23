@@ -338,12 +338,7 @@ StartResult Domain::start(PasscodeDerivation derived) {
 	} else if (modern == StartModernResult::IncorrectPasscode) {
 		return StartResult::IncorrectPasscode;
 	} else if (modern == StartModernResult::Failed) {
-		// startModern() may have already read the local key before failing.
-		_localKey = nullptr;
-		_passcodeKey = nullptr;
-		_passcodeKeySalt = QByteArray();
-		_passcodeKeyEncrypted = QByteArray();
-		_hasLocalPasscode = false;
+		// startFromScratch() drops a local key startModern() already read.
 		startFromScratch();
 		return StartResult::Success;
 	}
