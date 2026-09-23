@@ -810,8 +810,12 @@ void Tasks::initTaskField(not_null<Task*> task, TextWithEntities text) {
 		Ui::PostponeCall(crl::guard(field, [=] {
 			Expects(!_list.empty());
 
-			const auto item = begin(_list) + findField(field);
-			if (item == _list.end() - 1) {
+			// The task may already be removed and be animating its hide,
+			// while its remove button still receives clicks.
+			const auto item = ranges::find(_list, field, &Task::field);
+			if (item == _list.end()) {
+				return;
+			} else if (item == _list.end() - 1) {
 				(*item)->clearValue();
 				return;
 			}
