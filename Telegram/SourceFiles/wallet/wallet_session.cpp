@@ -9828,7 +9828,8 @@ void Session::finishPending() {
 	_sendUnresolved = false;
 	_unresolvedOperationId.clear();
 	const auto weak = base::make_weak(_engine.get());
-	_sendState = SendState::Idle;
+	// Waiters follow this even when an unresolved send settles while Idle.
+	_sendState.force_assign(SendState::Idle);
 	if (!weak) {
 		return;
 	}
