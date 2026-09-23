@@ -484,7 +484,23 @@ void PaintRow(
 	if (swipeTranslation) {
 		p.translate(swipeMirrored ? swipeTranslation : -swipeTranslation, 0);
 	}
-	p.fillRect(geometry, bg);
+	if (context.narrow) {
+		if (context.active || context.selected) {
+			auto hq = PainterHighQualityEnabler(p);
+			const auto photo = context.st->photoSize;
+			const auto pad = style::ConvertScale(3);
+			const auto x = context.st->padding.left() - pad;
+			const auto y = context.st->padding.top() - pad;
+			const auto side = photo + pad * 2;
+			p.setBrush(context.active ? Qt::NoBrush : st::dialogsBgOver->b);
+			p.setPen(context.active
+				? QPen(st::dialogsBgActive->c, style::ConvertScale(2))
+				: Qt::NoPen);
+			p.drawEllipse(x, y, side, side);
+		}
+	} else {
+		p.fillRect(geometry, bg);
+	}
 	if (!(flags & Flag::TopicJumpRipple)) {
 		auto ripple = context.active
 			? st::dialogsRippleBgActive
