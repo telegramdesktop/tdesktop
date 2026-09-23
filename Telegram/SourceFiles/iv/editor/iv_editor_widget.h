@@ -1081,6 +1081,7 @@ private:
 	bool _settingField = false;
 	bool _preparedContentStaleAfterCommit = false;
 	bool _trackingPointerPress = false;
+	bool _fieldBandSelecting = false;
 	bool _inlineFieldExternalInteractionActive = false;
 	bool _keyboardStructuralSelectionActive = false;
 	Markdown::MarkdownArticleEditControlHit _pressedControl;

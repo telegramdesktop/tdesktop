@@ -11486,6 +11486,11 @@ bool Widget::handleFieldMouseEvent(QEvent *event) {
 		} else {
 			_selectScroll.cancel();
 			if (bandSelectsInField) {
+				if (_fieldBandSelecting) {
+					// Nested synthetic move from the reveal scroll below.
+					mouse->accept();
+					return true;
+				}
 				const auto raw = _field->rawTextEdit();
 				const auto pointerCursor = raw->cursorForPosition(
 					raw->viewport()->mapFromGlobal(globalPoint));
@@ -11497,7 +11502,9 @@ bool Widget::handleFieldMouseEvent(QEvent *event) {
 				auto cursor = _field->textCursor();
 				if (cursor.position() != position) {
 					cursor.setPosition(position, QTextCursor::KeepAnchor);
+					_fieldBandSelecting = true;
 					_field->setTextCursor(cursor);
+					_fieldBandSelecting = false;
 				}
 				mouse->accept();
 				return true;
