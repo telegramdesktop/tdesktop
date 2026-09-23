@@ -529,6 +529,7 @@ void EmbedOverlay::ensureWebview() {
 		return;
 	}
 	const auto generation = ++_webviewGeneration;
+	const auto proxySettings = Core::CurrentWebviewProxy();
 	_webview = std::make_unique<Webview::Window>(
 		_webviewParent ? _webviewParent.data() : this,
 		makeWindowConfig());
@@ -540,6 +541,12 @@ void EmbedOverlay::ensureWebview() {
 		return;
 	}
 	widget->hide();
+
+	Core::WebviewProxyChangesFrom(
+		proxySettings
+	) | rpl::on_next([=] {
+		closeEmbed();
+	}, _webview->lifetime());
 	QObject::connect(widget, &QObject::destroyed, this, [=] {
 		if (_webviewGeneration != generation
 			|| !_webview
