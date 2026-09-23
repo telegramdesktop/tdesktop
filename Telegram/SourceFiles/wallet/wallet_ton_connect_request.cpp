@@ -791,9 +791,11 @@ bool TonConnectRequests::recoverClaim(const TonConnectClaimRecord &record) {
 	const auto fate = record.operationId.empty()
 		? Fate::Absent
 		: _session->wallet().tonConnectSendFate(record.operationId);
+	const auto handedOff = !record.signedBoc.isEmpty();
 	if (fate == Fate::Unknown) {
 		return false;
-	} else if (fate == Fate::Unresolved) {
+	} else if (fate == Fate::Sending
+		|| (fate == Fate::Unresolved && handedOff)) {
 		return true;
 	}
 	const auto queue = [&](TonConnectRecovery recovery) {
@@ -809,16 +811,18 @@ bool TonConnectRequests::recoverClaim(const TonConnectClaimRecord &record) {
 		}
 	};
 	// WHY: a BoC is stored before wallet.sendTransfer and the engine never
-	// resubmits, so an operation without one never left this device.
+	// resubmits, so an operation without one never left this device; an
+	// unresolved one still blocks a new send, so it gets no Offer.
 	const auto executed = (fate == Fate::Settled)
-		|| (fate == Fate::Absent && !record.signedBoc.isEmpty());
+		|| (fate == Fate::Absent && handedOff);
 	if (executed) {
-		if (record.signedBoc.isEmpty()) {
+		if (!handedOff) {
 			forgetClaim(record.sessionId, MsgId(record.msgId));
 		} else {
 			queue(TonConnectRecovery::Answer);
 		}
-	} else if (base::unixtime::now() >= record.expires) {
+	} else if (fate == Fate::Unresolved
+		|| base::unixtime::now() >= record.expires) {
 		submitStored(record, record.notSent);
 	} else {
 		queue(TonConnectRecovery::Offer);

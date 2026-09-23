@@ -7670,8 +7670,9 @@ TonConnectSendFate Session::tonConnectSendFate(
 	const auto identity = transferWalletIdentity();
 	if (!_sendRecoveryReady || _clientStopping || !identity) {
 		return TonConnectSendFate::Unknown;
-	} else if ((_submission && _submission->operationId == operationId)
-		|| (_pending && _pending->operationId == operationId)
+	} else if (_submission && _submission->operationId == operationId) {
+		return TonConnectSendFate::Sending;
+	} else if ((_pending && _pending->operationId == operationId)
 		|| (_sendUnresolved
 			&& (_unresolvedOperationId.empty()
 				|| _unresolvedOperationId == operationId))) {

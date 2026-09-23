@@ -350,6 +350,7 @@ enum class TonConnectSendFate : uchar {
 	Unresolved,
 	NotExecuted,
 	Settled,
+	Sending,
 };
 
 struct SendComment {
