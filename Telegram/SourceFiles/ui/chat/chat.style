@@ -322,7 +322,7 @@ historyInfoToast: Toast(defaultToast) {
 historyInfoToastIcon: icon {{ "toast/info", toastFg }};
 
 bubbleRadiusSmall: roundRadiusLarge;
-bubbleRadiusLarge: 16px;
+bubbleRadiusLarge: 18px;
 
 historyPhotoLeft: 14px;
 historyPhotoBubbleMinWidth: 200px;

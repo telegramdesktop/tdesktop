@@ -10,10 +10,10 @@ using "ui/widgets/widgets.style";
 using "chat_helpers/chat_helpers.style";
 using "boxes/boxes.style"; // UserpicButton
 
-windowMinWidth: 380px;
+windowMinWidth: 730px;
 windowMinHeight: 480px;
-windowDefaultWidth: 800px;
-windowDefaultHeight: 600px;
+windowDefaultWidth: 1100px;
+windowDefaultHeight: 740px;
 windowBigDefaultWidth: 1024px;
 windowBigDefaultHeight: 768px;
 
@@ -31,7 +31,7 @@ windowShellUnavailableLabel: FlatLabel(defaultFlatLabel) {
 }
 windowShellUnavailablePadding: margins(24px, 24px, 24px, 24px);
 
-columnMinimalWidthLeft: 260px;
+columnMinimalWidthLeft: 350px;
 columnMaximalWidthLeft: 540px;
 columnMinimalWidthMain: 380px;
 columnMinimalWidthThird: 292px;
