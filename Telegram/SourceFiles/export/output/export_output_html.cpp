@@ -355,6 +355,7 @@ QByteArray FormatText(
 		case Type::Blockquote:
 			return "<blockquote>" + text + "</blockquote>";
 		case Type::BankCard:
+		case Type::TonAddress:
 			return text;
 		case Type::Spoiler: return "<span class=\"spoiler hidden\" "
 			"onclick=\"ShowSpoiler(this)\">"
@@ -909,6 +910,7 @@ bool RichTextHasOutput(const Data::RichText &text) {
 	case Type::AutoEmail:
 	case Type::AutoPhone:
 	case Type::BankCard:
+	case Type::TonAddress:
 	case Type::MentionName:
 	case Type::FormattedDate:
 	case Type::InlineImage:
@@ -1377,6 +1379,7 @@ bool AppendPlainTarget(
 	case Type::AutoEmail:
 	case Type::AutoPhone:
 	case Type::BankCard:
+	case Type::TonAddress:
 	case Type::MentionName:
 	case Type::FormattedDate:
 		return AppendPlainTarget(result, text.children);
@@ -2267,6 +2270,7 @@ void RichHtmlRenderer::collectTextAnchors(const Data::RichText &text) {
 	case Type::AutoEmail:
 	case Type::AutoPhone:
 	case Type::BankCard:
+	case Type::TonAddress:
 	case Type::MentionName:
 	case Type::FormattedDate:
 	case Type::Button:
@@ -2736,6 +2740,10 @@ QByteArray RichHtmlRenderer::renderText(const Data::RichText &text) {
 	case Type::BankCard:
 		return wrapChildren("span", {
 			{ "class", "rich_bank_card" },
+		});
+	case Type::TonAddress:
+		return wrapChildren("span", {
+			{ "class", "rich_ton_address" },
 		});
 	case Type::MentionName:
 		return renderTextLink(text, QByteArray(), {

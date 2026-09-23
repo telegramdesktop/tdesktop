@@ -163,6 +163,7 @@ struct SerializeBlockResult {
 	case EntityType::Email: return 18;
 	case EntityType::Phone: return 19;
 	case EntityType::BankCard: return 20;
+	case EntityType::TonAddress: return 21;
 	case EntityType::Invalid:
 	case EntityType::Semibold:
 	case EntityType::MediaTimestamp:
@@ -471,12 +472,11 @@ bool CollectUser(SerializeContext *context, uint64 userId) {
 	case EntityType::Email:
 	case EntityType::Phone:
 	case EntityType::BankCard:
+	case EntityType::TonAddress:
 		return *inner;
 	case EntityType::CustomUrl: {
 		const auto data = entity.data();
-		if (IsTonAddressEntity(entity)) {
-			return *inner;
-		} else if (data.startsWith(u"mailto:"_q)) {
+		if (data.startsWith(u"mailto:"_q)) {
 			return MTP_textEmail(*inner, MTP_string(data.mid(7)));
 		} else if (data.startsWith(u"tel:"_q)) {
 			return MTP_textPhone(*inner, MTP_string(data.mid(4)));

@@ -72,6 +72,7 @@ struct TextPart {
 		Strike,
 		Blockquote,
 		BankCard,
+		TonAddress,
 		Spoiler,
 		CustomEmoji,
 	};
@@ -179,6 +180,7 @@ struct RichText {
 		AutoEmail,
 		AutoPhone,
 		BankCard,
+		TonAddress,
 		MentionName,
 		FormattedDate,
 		InlineImage,

@@ -20,8 +20,6 @@ enum class ConvertOption {
 	SkipLocal,
 };
 
-[[nodiscard]] QString TonAddressEntityUrl();
-
 [[nodiscard]] EntitiesInText EntitiesFromMTP(
 	Main::Session *session,
 	const QVector<MTPMessageEntity> &entities);

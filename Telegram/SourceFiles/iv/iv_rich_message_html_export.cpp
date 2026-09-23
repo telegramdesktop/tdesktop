@@ -358,9 +358,7 @@ struct EntityTags {
 	case EntityType::Url:
 		return LinkTags(inner.toString());
 	case EntityType::CustomUrl:
-		return IsTonAddressEntity(entity)
-			? EntityTags()
-			: LinkTags(LinkUrl(entity.data()));
+		return LinkTags(LinkUrl(entity.data()));
 	case EntityType::Email:
 		return LinkTags(u"mailto:"_q + inner.toString());
 	case EntityType::Phone:

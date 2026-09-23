@@ -4572,6 +4572,7 @@ void HistoryItem::detectTextLinks(
 			|| type == EntityType::CustomUrl
 			|| type == EntityType::Phone
 			|| type == EntityType::BankCard
+			|| type == EntityType::TonAddress
 			|| type == EntityType::Email) {
 			_flags |= MessageFlag::HasTextLinks;
 			break;

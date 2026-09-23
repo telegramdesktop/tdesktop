@@ -220,6 +220,7 @@ void AddNativeIvBlockAnchor(
 	case EntityType::Email:
 	case EntityType::Phone:
 	case EntityType::BankCard:
+	case EntityType::TonAddress:
 	case EntityType::CustomUrl:
 	case EntityType::MentionName:
 	case EntityType::FormattedDate:
@@ -294,8 +295,7 @@ void AppendCanonicalNativeIvRichText(
 			? 0
 			: std::min(entity.length(), int(source.text.size()) - offset);
 		const auto collect = takesLink && length && !buttons.empty();
-		if (entity.type() == EntityType::CustomUrl
-			&& !Iv::IsTonAddressEntity(entity)) {
+		if (entity.type() == EntityType::CustomUrl) {
 			if (!length) {
 				continue;
 			}

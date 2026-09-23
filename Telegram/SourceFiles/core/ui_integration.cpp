@@ -33,7 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "mainwindow.h"
-#include "wallet/wallet_panel.h"
 #include "base/unixtime.h"
 #include "styles/style_chat_helpers.h"
 
@@ -334,15 +333,6 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 			: Integration::createLinkHandler(data, context);
 
 	case EntityType::CustomUrl:
-		if (data.data == Api::TonAddressEntityUrl()) {
-			return std::make_shared<LambdaClickHandler>([text = data.text](
-					ClickContext context) {
-				const auto my = context.other.value<ClickHandlerContext>();
-				if (const auto controller = my.sessionWindow.get()) {
-					Wallet::OpenAddressEntity(controller, text);
-				}
-			});
-		}
 		return !data.data.isEmpty()
 			? std::make_shared<HiddenUrlClickHandler>(data.data)
 			: Integration::createLinkHandler(data, context);
@@ -410,6 +400,8 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 		return (my && my->session)
 			? std::make_shared<BankCardClickHandler>(my->session, data.text)
 			: nullptr;
+	case EntityType::TonAddress:
+		return std::make_shared<TonAddressClickHandler>(data.text);
 	case EntityType::FormattedDate: {
 		const auto [date, flags] = DeserializeFormattedDateData(data.data);
 		if (date) {

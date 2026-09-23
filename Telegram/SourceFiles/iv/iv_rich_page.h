@@ -329,7 +329,6 @@ inline constexpr auto kTextDiffDeletedColorIndex = 11;
 	uint64 webpageId);
 [[nodiscard]] std::optional<RichPageLinkUrl> DecodeRichPageLinkUrl(
 	const QString &data);
-[[nodiscard]] bool IsTonAddressEntity(const EntityInText &entity);
 [[nodiscard]] std::shared_ptr<const RichPage> ParseRichPage(
 	not_null<Main::Session*> session,
 	const MTPRichMessage &message,

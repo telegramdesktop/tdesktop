@@ -264,3 +264,15 @@ private:
 	QString _entityData;
 
 };
+
+class TonAddressClickHandler : public ClickHandler {
+public:
+	explicit TonAddressClickHandler(QString address);
+
+	void onClick(ClickContext context) const override;
+	TextEntity getTextEntity() const override;
+
+private:
+	QString _address;
+
+};

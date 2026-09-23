@@ -24,11 +24,8 @@ using RichText = RichPage::RichText;
 using TaskState = RichPage::TaskState;
 using TableCell = RichPage::TableCell;
 
-bool StripWrapperEntityInEditMode(const EntityInText &entity) {
-	if (IsTonAddressEntity(entity)) {
-		return true;
-	}
-	switch (entity.type()) {
+bool StripWrapperEntityInEditMode(EntityType type) {
+	switch (type) {
 	case EntityType::Url:
 	case EntityType::Email:
 	case EntityType::Hashtag:
@@ -37,6 +34,7 @@ bool StripWrapperEntityInEditMode(const EntityInText &entity) {
 	case EntityType::BotCommand:
 	case EntityType::Phone:
 	case EntityType::BankCard:
+	case EntityType::TonAddress:
 		return true;
 	default:
 		return false;
@@ -409,7 +407,7 @@ TextWithEntities StripEditModeWrapperEntities(TextWithEntities text) {
 	auto filtered = EntitiesInText();
 	filtered.reserve(text.entities.size());
 	for (const auto &entity : text.entities) {
-		if (!StripWrapperEntityInEditMode(entity)) {
+		if (!StripWrapperEntityInEditMode(entity.type())) {
 			filtered.push_back(entity);
 		}
 	}
@@ -421,7 +419,7 @@ void StripEditModeWrapperEntities(RichPage::RichText &text) {
 	const auto strip = ranges::any_of(
 		text.text.entities,
 		[](const EntityInText &entity) {
-			return StripWrapperEntityInEditMode(entity);
+			return StripWrapperEntityInEditMode(entity.type());
 		});
 	if (strip) {
 		text.text = StripEditModeWrapperEntities(std::move(text.text));

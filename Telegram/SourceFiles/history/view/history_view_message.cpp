@@ -485,6 +485,7 @@ struct BadgePillGeometry {
 	case EntityType::BotCommand:
 	case EntityType::Phone:
 	case EntityType::BankCard:
+	case EntityType::TonAddress:
 	case EntityType::FormattedDate:
 		return true;
 	default:

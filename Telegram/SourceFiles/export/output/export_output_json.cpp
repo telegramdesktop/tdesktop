@@ -187,6 +187,7 @@ QByteArray SerializeText(
 			case Type::Strike: return "strikethrough";
 			case Type::Blockquote: return "blockquote";
 			case Type::BankCard: return "bank_card";
+			case Type::TonAddress: return "ton_address";
 			case Type::Spoiler: return "spoiler";
 			case Type::CustomEmoji: return "custom_emoji";
 			}
@@ -445,6 +446,7 @@ QByteArray RichTextTypeToString(Data::RichText::Type type) {
 	case Type::AutoEmail: return "email";
 	case Type::AutoPhone: return "phone";
 	case Type::BankCard: return "bank_card";
+	case Type::TonAddress: return "ton_address";
 	case Type::MentionName: return "mention_name";
 	case Type::FormattedDate: return "formatted_date";
 	case Type::InlineImage: return "inline_image";
@@ -610,6 +612,7 @@ QByteArray SerializeRichText(
 		case Type::AutoEmail:
 		case Type::AutoPhone:
 		case Type::BankCard:
+		case Type::TonAddress:
 			values.emplace_back(
 				"text",
 				SerializeRichTextChild(context, data.children));
