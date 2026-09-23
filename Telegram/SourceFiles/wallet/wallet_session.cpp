@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_session.h"
 
 #include "apiwrap.h"
+#include "base/call_delayed.h"
 #include "base/platform/base_platform_info.h"
 #include "base/openssl_help.h"
 #include "base/random.h"
@@ -236,6 +237,8 @@ constexpr auto kClientRequestTimeoutMs = uint64(15000);
 constexpr auto kPreviewClientRecordId = "public-key-only";
 constexpr auto kDecryptBusyRetries = 5;
 constexpr auto kDecryptBusyRetryDelay = crl::time(500);
+constexpr auto kCommentRecipientRetries = 3;
+constexpr auto kCommentRecipientRetryDelay = crl::time(1000);
 constexpr auto kGaslessRefreshInterval = crl::time(60 * 1000);
 constexpr auto kGaslessRefreshAhead = crl::time(10 * 1000);
 constexpr auto kGaslessRetryInterval = crl::time(15 * 1000);
@@ -7914,6 +7917,68 @@ void Session::cancelFeeEstimate(uint64 owner) {
 		cancelPreview();
 	}
 	_previewPending = _preview->active.has_value() || !_preview->queue.empty();
+}
+
+void Session::resolveCommentRecipient(
+		const QString &destination,
+		bool bounce,
+		const QByteArray &recipientPublicKey,
+		Fn<void(CommentRecipient)> done) {
+	resolveCommentRecipientAttempt(
+		destination,
+		bounce,
+		recipientPublicKey,
+		std::move(done),
+		0);
+}
+
+void Session::resolveCommentRecipientAttempt(
+		const QString &destination,
+		bool bounce,
+		const QByteArray &recipientPublicKey,
+		Fn<void(CommentRecipient)> done,
+		int attempt) {
+	// WHY: only the recipient's own answer may turn a private comment into a
+	// public one, so a busy engine slot, a client swap or a provider that did
+	// not answer is asked again a few times and then stated as Unknown.
+	const auto retry = [=, this] {
+		if (attempt >= kCommentRecipientRetries) {
+			done(CommentRecipient::Unknown);
+			return;
+		}
+		base::call_delayed(kCommentRecipientRetryDelay, _session, [=, this] {
+			resolveCommentRecipientAttempt(
+				destination,
+				bounce,
+				recipientPublicKey,
+				done,
+				attempt + 1);
+		});
+	};
+	const auto recipient = FormatFriendly(destination, bounce);
+	const auto client = _engine->client();
+	if (recipient.isEmpty()) {
+		done(CommentRecipient::Unknown);
+		return;
+	} else if (!client || _clientStopping) {
+		retry();
+		return;
+	}
+	auto request = engine::EncryptedCommentRecipientRequest{
+		.recipient = recipient.toStdString(),
+		.recipient_public_key = EngineKey(recipientPublicKey),
+	};
+	_engine->run([client, request = std::move(request)] {
+		return client->resolve_encrypted_comment_recipient(request);
+	}, [=](std::vector<uint8_t>) {
+		done(CommentRecipient::Encryptable);
+	}, [=](EngineError error) {
+		if (SendErrorFrom(error) == SendError::CommentEncryptionUnavailable) {
+			done(CommentRecipient::PlainOnly);
+		} else {
+			retry();
+		}
+	});
 }
 
 void Session::retirePreviewOwner(uint64 owner) {

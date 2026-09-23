@@ -3665,7 +3665,11 @@ void WalletSendCommentBox(
 			return;
 		}
 		state->closed = true;
-		draft->comment = staged->comment.current();
+		auto comment = staged->comment.current();
+		if (!draft->encryptable.current()) {
+			comment.isPublic = true;
+		}
+		draft->comment = std::move(comment);
 		if (const auto alive = weak.get()) {
 			alive->closeBox();
 		}
@@ -4588,6 +4592,7 @@ void WalletSendBox(
 		bool forceIssued = false;
 		bool terminal = false;
 		bool recomputeQueued = false;
+		bool recipientRequested = false;
 		bool feeRefreshQueued = false;
 		rpl::variable<bool> loading = false;
 		rpl::variable<QString> loadError;
@@ -5938,6 +5943,24 @@ void WalletSendBox(
 			state->flow->destination);
 	}
 	refreshFee();
+	const auto resolveRecipient = [=] {
+		if (state->recipientRequested || !originValid() || !state->flow) {
+			return;
+		}
+		state->recipientRequested = true;
+		wallet->resolveCommentRecipient(
+			state->flow->destination,
+			state->flow->bounce,
+			state->recipientKey,
+			crl::guard(box, [=](CommentRecipient recipient) {
+				if (recipient == CommentRecipient::PlainOnly
+					&& !state->closed
+					&& !state->terminal) {
+					switchToPlain();
+				}
+			}));
+	};
+	state->loading.value() | rpl::on_next(resolveRecipient, box->lifetime());
 
 	box->setFocusCallback([=] { amountField->setFocusFast(); });
 	if (state->loading.current()) {

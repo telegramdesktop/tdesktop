@@ -147,6 +147,12 @@ enum class SendError {
 	SubmissionUnknown,
 };
 
+enum class CommentRecipient {
+	Encryptable,
+	PlainOnly,
+	Unknown,
+};
+
 enum class SendState {
 	Idle,
 	Sending,
@@ -769,6 +775,12 @@ public:
 		const SendArgs &args,
 		Fn<void(FeeResult)> done);
 	void cancelFeeEstimate(uint64 owner);
+	// Asks no key; Unknown is a provider that never answered, not a refusal.
+	void resolveCommentRecipient(
+		const QString &destination,
+		bool bounce,
+		const QByteArray &recipientPublicKey,
+		Fn<void(CommentRecipient)> done);
 	void estimateTonConnect(
 		uint64 owner,
 		std::shared_ptr<const TonConnectTransfer> transfer,
@@ -997,6 +1009,12 @@ private:
 	void settlePreview();
 	void retirePreviewOwner(uint64 owner);
 	void retirePreviews(SendError error);
+	void resolveCommentRecipientAttempt(
+		const QString &destination,
+		bool bounce,
+		const QByteArray &recipientPublicKey,
+		Fn<void(CommentRecipient)> done,
+		int attempt);
 	[[nodiscard]] bool sendRecoveryNeeded() const;
 	void releaseDeferredRows();
 	void restoreSubmittedTransfers();
