@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "base/qthelp_url.h"
 
+#include <QtCore/QtEndian>
+
 namespace MTP {
 namespace details {
 namespace {
@@ -210,7 +212,7 @@ int TcpConnection::Protocol::VersionD::readPacketLength(
 	if (bytes.size() < 4) {
 		return kUnknownSize;
 	}
-	const auto value = *reinterpret_cast<const uint32*>(bytes.data()) + 4;
+	const auto value = qFromUnaligned<uint32>(bytes.data()) + 4;
 	return (value >= 8 && value < kPacketSizeMax)
 		? int(value)
 		: kInvalidSize;
@@ -392,20 +394,19 @@ void TcpConnection::socketRead() {
 mtpBuffer TcpConnection::parsePacket(bytes::const_span bytes) {
 	const auto packet = _protocol->readPacket(bytes);
 	CONNECTION_LOG_INFO(u"Packet received, size = %1."_q.arg(packet.size()));
-	const auto ints = gsl::make_span(
-		reinterpret_cast<const mtpPrime*>(packet.data()),
-		packet.size() / sizeof(mtpPrime));
-	Assert(!ints.empty());
-	if (ints.size() < 3) {
+	const auto count = packet.size() / sizeof(mtpPrime);
+	Assert(count > 0);
+	if (count < 3) {
 		// nop or error or new quickack, latter is not yet supported.
-		if (ints[0] != 0) {
+		const auto first = qFromUnaligned<mtpPrime>(packet.data());
+		if (first != 0) {
 			CONNECTION_LOG_ERROR(u"Error packet received, code = %1"_q
-				.arg(ints[0]));
+				.arg(first));
 		}
-		return mtpBuffer(1, ints[0]);
+		return mtpBuffer(1, first);
 	}
-	auto result = mtpBuffer(ints.size());
-	memcpy(result.data(), ints.data(), ints.size() * sizeof(mtpPrime));
+	auto result = mtpBuffer(count);
+	memcpy(result.data(), packet.data(), count * sizeof(mtpPrime));
 	return result;
 }
 
@@ -482,10 +483,8 @@ bytes::const_span TcpConnection::prepareConnectionStartPrefix(
 		reversed.subspan(CTRState::KeySize, CTRState::IvecSize));
 
 	// write protocol and dc ids
-	const auto protocol = reinterpret_cast<uint32*>(nonce.data() + 56);
-	*protocol = _protocol->id();
-	const auto dcId = reinterpret_cast<int16*>(nonce.data() + 60);
-	*dcId = _protocolDcId;
+	qToUnaligned(_protocol->id(), nonce.data() + 56);
+	qToUnaligned(_protocolDcId, nonce.data() + 60);
 
 	bytes::copy(buffer, nonce.subspan(0, 56));
 	aesCtrEncrypt(nonce, _sendKey, &_sendState);

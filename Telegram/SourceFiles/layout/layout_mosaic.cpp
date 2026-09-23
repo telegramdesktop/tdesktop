@@ -123,18 +123,6 @@ QRect AbstractMosaicLayout::findRect(int index) const {
 	return QRect();
 }
 
-void AbstractMosaicLayout::addItems(
-		gsl::span<const not_null<AbstractLayoutItem*>> items) {
-	_rows.reserve(items.size());
-	auto row = Row();
-	row.items.reserve(kInlineItemsMaxPerRow);
-	auto sumWidth = 0;
-	for (const auto &item : items) {
-		addItem(item, row, sumWidth);
-	}
-	rowFinalize(row, sumWidth, true);
-}
-
 void AbstractMosaicLayout::setRightSkip(int rightSkip) {
 	_rightSkip = rightSkip;
 }
