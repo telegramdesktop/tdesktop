@@ -905,7 +905,7 @@ editPeerUsernameFieldMargins: margins(22px, 0px, 22px, 0px);
 historyTopBarBack: IconButton(infoTopBarBack) {
 	width: 52px;
 }
-topBarHeight: 54px;
+topBarHeight: 52px;
 topBarMenuPosition: point(-6px, 45px);
 topBarMenuGroupCallSkip: 20px;
 topBarBack: icon {{ "title_back", lightButtonFg }};

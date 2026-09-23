@@ -4543,8 +4543,9 @@ void Widget::updateControlsGeometry() {
 	const auto filterWidth = std::max(ratiow, smallw)
 		- filterLeft
 		- filterRight;
-	const auto filterAreaHeight = st::topBarHeight;
+	const auto filterAreaHeight = nearRail ? 0 : st::topBarHeight;
 	_searchControls->setGeometry(0, filterAreaTop, ratiow, filterAreaHeight);
+	_searchControls->setVisible(!nearRail);
 	if (_subsectionTopBar) {
 		_subsectionTopBar->setGeometryWithNarrowRatio(
 			_searchControls->geometry(),
@@ -4552,19 +4553,21 @@ void Widget::updateControlsGeometry() {
 			narrowRatio);
 	}
 
-	auto filterTop = (filterAreaHeight - _search->height()) / 2;
+	auto filterTop = (std::max(filterAreaHeight, _search->height()) - _search->height()) / 2;
 	filterLeft = anim::interpolate(filterLeft, _narrowWidth, narrowRatio);
 	_search->setGeometryToLeft(
 		filterLeft,
 		filterTop,
 		filterWidth,
 		_search->height());
+	_search->setVisible(!nearRail);
 
 	auto mainMenuLeft = anim::interpolate(
 		st::dialogsFilterPadding.x(),
 		(_narrowWidth - _mainMenu.toggle->width()) / 2,
 		narrowRatio);
 	_mainMenu.toggle->moveToLeft(mainMenuLeft, st::dialogsFilterPadding.y());
+	_mainMenu.toggle->setVisible(!nearRail);
 	_mainMenu.under->setGeometry(
 		0,
 		0,
@@ -4579,6 +4582,7 @@ void Widget::updateControlsGeometry() {
 	_searchForNarrowLayout->moveToLeft(
 		searchLeft,
 		st::dialogsFilterPadding.y());
+	_searchForNarrowLayout->setVisible(!nearRail);
 
 	auto right = filterLeft + filterWidth;
 	_cancelSearch->moveToLeft(right - _cancelSearch->width(), _search->y());

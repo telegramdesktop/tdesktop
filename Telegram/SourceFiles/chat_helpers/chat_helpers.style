@@ -1278,11 +1278,12 @@ historyTextStyle: TextStyle(defaultTextStyle) {
 }
 historyComposeField: InputField(defaultInputField) {
 	style: historyTextStyle;
-	textMargins: margins(0px, 0px, 0px, 0px);
+	textMargins: margins(14px, 10px, 14px, 10px);
 	textAlign: align(left);
 	textFg: historyComposeAreaFg;
-	textBg: historyComposeAreaBg;
-	heightMin: 36px;
+	textBg: windowBgOver;
+	textBgActive: windowBgOver;
+	heightMin: 40px;
 	heightMax: 72px;
 	placeholderFg: placeholderFg;
 	placeholderFgActive: placeholderFgActive;
@@ -1294,6 +1295,7 @@ historyComposeField: InputField(defaultInputField) {
 	placeholderShift: -50px;
 	border: 0px;
 	borderActive: 0px;
+	borderRadius: 20px;
 	duration: 100;
 }
 historyComposeFieldMaxHeight: 224px;
