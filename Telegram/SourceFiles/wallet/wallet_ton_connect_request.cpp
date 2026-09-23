@@ -1272,7 +1272,12 @@ void TonConnectRequests::Flow::published(const MTPBool &result) {
 	case Decision::Invalid:
 		notice(tr::lng_wallet_connect_request_invalid(tr::now));
 		return;
-	case Decision::Disconnect: // the server closes the session on this answer
+	case Decision::Disconnect:
+		// WHY: the server keeps the session active after the {} answer and
+		// refuses an empty close body, so the wallet's own disconnect event
+		// closes it through the pass the server-marked sessions take.
+		_owner->_store->markClosing(_sessionId);
+		[[fallthrough]];
 	case Decision::Decline:
 	case Decision::None:
 		_terminal = true;

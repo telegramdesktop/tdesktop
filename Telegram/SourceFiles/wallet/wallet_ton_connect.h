@@ -181,6 +181,7 @@ public:
 
 	void apply(const MTPTonConnectSession &session);
 	void applyPendingDisconnect(const QVector<MTPlong> &ids);
+	void markClosing(TonConnectSessionId id);
 
 	[[nodiscard]] auto sessions() const
 		-> const base::flat_map<TonConnectSessionId, TonConnectSessionInfo> &;
