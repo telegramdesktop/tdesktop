@@ -462,7 +462,6 @@ void EmojiPack::refreshAll() {
 }
 
 void EmojiPack::refreshItems(EmojiPtr emoji) {
-	const auto i = _items.find(IsolatedEmoji{ { emoji } });
 	if (!emoji->colored()) {
 		if (const auto count = emoji->variantsCount()) {
 			for (auto i = 0; i != count; ++i) {
@@ -470,6 +469,9 @@ void EmojiPack::refreshItems(EmojiPtr emoji) {
 			}
 		}
 	}
+	// Refreshing variants recreates views synchronously, which may erase
+	// keys from _items, so look up the entry only after that.
+	const auto i = _items.find(IsolatedEmoji{ { emoji } });
 	if (i == end(_items)) {
 		return;
 	}
