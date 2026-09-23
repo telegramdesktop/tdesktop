@@ -49,7 +49,7 @@ tagInfoAdminsOnlyLabel: FlatLabel(defaultFlatLabel) {
 	}
 }
 
-msgMargin: margins(16px, 6px, 56px, 2px);
+msgMargin: margins(20px, 8px, 64px, 4px);
 msgMarginTopAttached: 0px;
 msgShadow: 2px;
 msgSelectionOffset: 30px;

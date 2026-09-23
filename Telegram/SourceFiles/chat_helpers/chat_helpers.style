@@ -1300,8 +1300,8 @@ historyComposeField: InputField(defaultInputField) {
 }
 historyComposeFieldMaxHeight: 224px;
 historyComposeFieldFadeHeight: 6px;
-historySendRight: 2px;
-historySendPadding: 9px;
+historySendRight: 8px;
+historySendPadding: 12px;
 // historyMinHeight: 56px;
 
 historyAttach: IconButton(defaultIconButton) {
@@ -1496,9 +1496,10 @@ defaultRecordBar: RecordBar {
 
 historySend: SendButton {
 	sendIconPosition: point(10px, 11px);
+	sendIconFillPadding: 6px;
 	inner: IconButton(historyAttach) {
-		icon: historySendIcon;
-		iconOver: historySendIconOver;
+		icon: icon {{ "chat/input_send", windowFgActive }};
+		iconOver: icon {{ "chat/input_send", windowFgActive }};
 	}
 	stars: RoundButton(defaultActiveButton) {
 		height: 28px;
