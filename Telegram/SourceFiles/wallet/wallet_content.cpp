@@ -4325,8 +4325,17 @@ struct SendConfirmArgs {
 	rpl::producer<QString> refusal;
 	rpl::producer<bool> busy;
 	rpl::producer<bool> canSend;
-	Fn<void()> send;
+	Fn<void(SendConfirmFee shown)> send;
 };
+
+[[nodiscard]] SendConfirmFee QuoteConfirmFee(const SendQuote &quote) {
+	return {
+		.feeNano = quote.feeNano,
+		.gasless = quote.dependencies.gaslessTerms.eligible(
+			quote.args.amountNano,
+			quote.args.destination),
+	};
+}
 
 void FillSendConfirmTable(
 		not_null<Ui::VerticalLayout*> container,
@@ -4509,7 +4518,9 @@ void WalletSendConfirmBox(
 	refusal->finishAnimating();
 	box->addSkip(st::walletSendConfirmBottomSkip);
 
-	const auto send = args.send;
+	const auto send = [=, callback = args.send] {
+		callback(state->built ? *state->built : SendConfirmFee());
+	};
 	const auto button = box->addButton(
 		BusyFooterLabel(
 			tr::lng_wallet_send_amount(
@@ -4588,6 +4599,7 @@ void WalletSendBox(
 		rpl::variable<bool> sending = false;
 		std::optional<SendQuoteDependencies> sendRequest;
 		std::optional<uint64> sendExpiresAt;
+		std::optional<SendConfirmFee> heldFee;
 		KeyAuthorization sendAuthorization;
 		KeyAuthorization heldAuthorization;
 		base::Timer heldTimeout;
@@ -4739,6 +4751,7 @@ void WalletSendBox(
 		state->sending = false;
 		state->sendRequest.reset();
 		state->sendExpiresAt.reset();
+		state->heldFee.reset();
 		state->sendAuthorization = {};
 		state->sendRefusals = 0;
 		state->submitted = false;
@@ -5019,7 +5032,8 @@ void WalletSendBox(
 		// A key just acquired for this press is followed by the client swap
 		// to the signing one, and an estimate refused in that window is not
 		// the press failing: the press waits for the signing client and
-		// estimates again under the same authorization.
+		// estimates again under the same authorization; a hidden refusal
+		// during a press is the press's to state, never a silent stop.
 		const auto fail = [=](SendError error) {
 			if (revision != state->previewRevision) {
 				return;
@@ -5028,13 +5042,20 @@ void WalletSendBox(
 				&& state->sendAuthorization.valid()
 				&& !wallet->signingReady()
 				&& !state->signingTimedOut;
+			const auto handOff = !swapping
+				&& (error == SendError::SigningUnavailable)
+				&& state->sending.current()
+				&& !state->submitted;
 			if (swapping) {
 				awaitSigning();
-			} else if (!state->submitted) {
+			} else if (!state->submitted && !handOff) {
 				stopSending();
 			}
 			invalidateFee();
 			state->previewError = error;
+			if (handOff) {
+				scheduleContinueSend();
+			}
 		};
 		const auto drifted = [=] {
 			if (revision != state->previewRevision) {
@@ -5650,6 +5671,19 @@ void WalletSendBox(
 			refuse(SendError::LinkExpired);
 			return;
 		}
+		if (state->heldFee) {
+			if (const auto quote = draft->quote.current()) {
+				const auto shown = *base::take(state->heldFee);
+				if (shown != QuoteConfirmFee(*quote)) {
+					const auto held = state->sendAuthorization;
+					stopSending();
+					state->heldAuthorization = held;
+					state->heldTimeout.callOnce(kHeldSendKeyTimeout);
+					state->previewError = SendError::QuoteExpired;
+					return;
+				}
+			}
+		}
 		const auto isPrivate = !request.comment.text.isEmpty()
 			&& !request.comment.isPublic;
 		const auto error = checkQuote();
@@ -5779,14 +5813,22 @@ void WalletSendBox(
 		state->sending = true;
 		state->continueSend();
 	};
-	const auto confirmSend = [=] {
+	const auto confirmSend = [=](const SendConfirmFee &shown) {
 		if (!state->confirmBox
 			|| !state->flow
 			|| state->sending.current()
-			|| draft->preparing.current()
 			|| !CommentFits(draft->comment.current().text)
 			|| !state->canSend.current()) {
 			return;
+		}
+		// WHY: Enter reaches here whatever the button shows, so a press made
+		// while counting waits and goes on only at the fee shown; this press
+		// answers the previous held press's "review the new fee" refusal.
+		if (state->previewError.current() == SendError::QuoteExpired) {
+			state->previewError = SendError::None;
+		}
+		if (draft->preparing.current()) {
+			state->heldFee = shown;
 		}
 		startSend();
 	};
@@ -5818,12 +5860,7 @@ void WalletSendBox(
 				const std::optional<SendQuote> &quote,
 				bool preparing) {
 			return quote
-				? SendConfirmFee{
-					.feeNano = quote->feeNano,
-					.gasless = quote->dependencies.gaslessTerms.eligible(
-						quote->args.amountNano,
-						quote->args.destination),
-				}
+				? QuoteConfirmFee(*quote)
 				: SendConfirmFee{ .pending = preparing };
 		}) | rpl::distinct_until_changed();
 		auto confirm = Box(WalletSendConfirmBox, show, SendConfirmArgs{
