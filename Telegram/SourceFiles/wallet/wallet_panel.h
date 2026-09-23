@@ -42,6 +42,10 @@ void OpenSendGramsLink(
 	const QString &to,
 	const QString &amount);
 
+void OpenAddressEntity(
+	not_null<Window::SessionController*> controller,
+	const QString &text);
+
 void OpenTonConnectLink(
 	not_null<Window::SessionController*> controller,
 	const TonConnectLink &link);

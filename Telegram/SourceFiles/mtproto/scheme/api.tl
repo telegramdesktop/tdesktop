@@ -751,6 +751,7 @@ messageEntityFormattedDate#904ac7c7 flags:# relative:flags.0?true short_time:fla
 messageEntityDiffInsert#71777116 offset:int length:int = MessageEntity;
 messageEntityDiffReplace#c6c1e5a7 offset:int length:int old_text:string = MessageEntity;
 messageEntityDiffDelete#652c1c5 offset:int length:int = MessageEntity;
+messageEntityTonAddress#fdabbfcd offset:int length:int = MessageEntity;
 
 inputChannelEmpty#ee8c1e86 = InputChannel;
 inputChannel#f35aec28 channel_id:long access_hash:long = InputChannel;
@@ -2277,8 +2278,6 @@ pageButton#692a5488 flags:# text:RichText type:InlineButtonType style:flags.0?Ri
 ephemeral.welcomeMessagesNotModified#59ffdb31 = ephemeral.WelcomeMessages;
 ephemeral.welcomeMessages#104fc872 hash:long messages:Vector<EphemeralMessage> = ephemeral.WelcomeMessages;
 
-auth.firebasePnvIntent#df5ac00c nonce:string digital_credential_payload:string = auth.FirebasePnvIntent;
-
 currencyRate#30d9743c currency:string rate:double = CurrencyRate;
 
 payments.currencyRates#bbcce4c2 rates:Vector<CurrencyRate> = payments.CurrencyRates;
@@ -2342,6 +2341,8 @@ wallet.tonConnectPending#85c0f124 session:TonConnectSession requests:Vector<TonC
 wallet.tonConnectSessions#e1f6896 sessions:Vector<TonConnectSession> = wallet.TonConnectSessions;
 
 wallet.existingBalance#bde90a8d flags:# has_balance:flags.0?true url:string = wallet.ExistingBalance;
+
+auth.firebasePnvIntent#df5ac00c nonce:string digital_credential_payload:string = auth.FirebasePnvIntent;
 
 ---functions---
 
@@ -3217,7 +3218,7 @@ wallet.tonConnectGetPending#11aee065 flags:# dapp_client_id:flags.0?string sessi
 wallet.tonConnectClaimRequest#66b57b41 flags:# declined:flags.1?true session_id:long msg_id:int app_request_id:string challenge_answer:flags.0?bytes = Bool;
 wallet.tonConnectSubmitResponse#fac67d3c flags:# session_id:long msg_id:int body:bytes trace_id:flags.0?string = Bool;
 wallet.tonConnectNextEventId#775d7244 session_id:long = TonConnectNextEventId;
-wallet.tonConnectCloseSession#99c1ca3b session_id:long body:bytes = Bool;
+wallet.tonConnectCloseSession#d63f61ce flags:# session_id:long body:flags.0?bytes = Bool;
 wallet.tonConnectGetSessions#a7ffb56e = wallet.TonConnectSessions;
 
 // LAYER 230

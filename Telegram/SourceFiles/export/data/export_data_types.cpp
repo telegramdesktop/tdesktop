@@ -326,6 +326,7 @@ std::vector<TextPart> ParseText(
 			[](const MTPDmessageEntityBlockquote&) {
 				return Type::Blockquote; },
 			[](const MTPDmessageEntityBankCard&) { return Type::BankCard; },
+			[](const MTPDmessageEntityTonAddress&) { return Type::Unknown; },
 			[](const MTPDmessageEntitySpoiler&) { return Type::Spoiler; },
 			[](const MTPDmessageEntityCustomEmoji&) { return Type::CustomEmoji; },
 			[](const MTPDmessageEntityFormattedDate&) { return Type::Unknown; },

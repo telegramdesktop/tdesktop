@@ -75,6 +75,10 @@ using namespace TextUtilities;
 
 } // namespace
 
+QString TonAddressEntityUrl() {
+	return u"internal:ton_address"_q;
+}
+
 EntitiesInText EntitiesFromMTP(
 		Main::Session *session,
 		const QVector<MTPMessageEntity> &entities) {
@@ -226,6 +230,13 @@ EntitiesInText EntitiesFromMTP(
 				EntityType::BankCard,
 				d.voffset().v,
 				d.vlength().v,
+			});
+		}, [&](const MTPDmessageEntityTonAddress &d) {
+			result.push_back({
+				EntityType::CustomUrl,
+				d.voffset().v,
+				d.vlength().v,
+				TonAddressEntityUrl(),
 			});
 		}, [&](const MTPDmessageEntitySpoiler &d) {
 			result.push_back({

@@ -672,7 +672,9 @@ void TonConnect::closeSession(
 		TonConnectSessionId id,
 		QByteArray body,
 		Fn<void(DisconnectResult)> done) {
+	using Flag = MTPwallet_TonConnectCloseSession::Flag;
 	_api.request(MTPwallet_TonConnectCloseSession(
+		MTP_flags(body.isEmpty() ? Flag(0) : Flag::f_body),
 		MTP_long(id),
 		MTP_bytes(body)
 	)).done([=](const MTPBool &result) {

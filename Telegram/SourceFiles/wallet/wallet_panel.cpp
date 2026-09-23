@@ -160,6 +160,17 @@ void OpenSendGramsLink(
 		*amountNano);
 }
 
+void OpenAddressEntity(
+		not_null<Window::SessionController*> controller,
+		const QString &text) {
+	const auto address = text.trimmed();
+	if (!ParseAddress(address)) {
+		controller->showToast(tr::lng_wallet_send_link_invalid(tr::now));
+		return;
+	}
+	OpenSendGramsLink(controller, address, QString());
+}
+
 void OpenTonConnectLink(
 		not_null<Window::SessionController*> controller,
 		const TonConnectLink &link) {
