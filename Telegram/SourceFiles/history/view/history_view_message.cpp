@@ -4999,7 +4999,7 @@ TextForMimeData Message::selectedText(TextSelection selection) const {
 	auto textResult = hasVisibleText()
 		? text().toTextForMimeData(textSelection)
 		: TextForMimeData();
-	auto mediaResult = (mediaDisplayed || isHiddenByGroup())
+	auto mediaResult = (media && (mediaDisplayed || isHiddenByGroup()))
 		? media->selectedText(mediaSelection)
 		: TextForMimeData();
 	if (const auto check = factcheckBlock()) {
