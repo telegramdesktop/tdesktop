@@ -294,7 +294,8 @@ void AppendCanonicalNativeIvRichText(
 			? 0
 			: std::min(entity.length(), int(source.text.size()) - offset);
 		const auto collect = takesLink && length && !buttons.empty();
-		if (entity.type() == EntityType::CustomUrl) {
+		if (entity.type() == EntityType::CustomUrl
+			&& !Iv::IsTonAddressEntity(entity)) {
 			if (!length) {
 				continue;
 			}

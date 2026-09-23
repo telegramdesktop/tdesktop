@@ -614,6 +614,8 @@ RichText ParseRichText(const MTPRichText &text) {
 		return ParseRichTextWrapper(Type::AutoPhone, data.vtext());
 	}, [](const MTPDtextBankCard &data) {
 		return ParseRichTextWrapper(Type::BankCard, data.vtext());
+	}, [](const MTPDtextTonAddress &data) {
+		return ParseRichText(data.vtext());
 	}, [](const MTPDtextMentionName &data) {
 		auto result = ParseRichTextWrapper(Type::MentionName, data.vtext());
 		result.id = uint64(data.vuser_id().v);

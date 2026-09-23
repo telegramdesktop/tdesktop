@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/iv_rich_page.h"
 
+#include "api/api_text_entities.h"
 #include "base/algorithm.h"
 #include "base/flat_map.h"
 #include "base/qthelp_url.h"
@@ -994,6 +995,15 @@ bool AppendRichText(
 		return AppendRichText(data.vtext(), result, context, anchorId, anchorIds)
 			&& (context->dropRichTextClickHandlers
 				|| AddEntity(&result->text, from, EntityType::BankCard));
+	}, [&](const MTPDtextTonAddress &data) {
+		const auto from = result->text.text.size();
+		return AppendRichText(data.vtext(), result, context, anchorId, anchorIds)
+			&& (context->dropRichTextClickHandlers
+				|| AddEntity(
+					&result->text,
+					from,
+					EntityType::CustomUrl,
+					Api::TonAddressEntityUrl()));
 	}, [&](const MTPDtextMentionName &data) {
 		const auto from = result->text.text.size();
 		if (!AppendRichText(data.vtext(), result, context, anchorId, anchorIds)) {
@@ -2590,6 +2600,11 @@ QString EncodeRichPageLinkUrl(
 		+ qthelp::url_encode(url)
 		+ u"&context=iv&webpage_id="_q
 		+ QString::number(webpageId);
+}
+
+bool IsTonAddressEntity(const EntityInText &entity) {
+	return (entity.type() == EntityType::CustomUrl)
+		&& (entity.data() == Api::TonAddressEntityUrl());
 }
 
 std::optional<RichPageLinkUrl> DecodeRichPageLinkUrl(const QString &data) {

@@ -474,7 +474,9 @@ bool CollectUser(SerializeContext *context, uint64 userId) {
 		return *inner;
 	case EntityType::CustomUrl: {
 		const auto data = entity.data();
-		if (data.startsWith(u"mailto:"_q)) {
+		if (IsTonAddressEntity(entity)) {
+			return *inner;
+		} else if (data.startsWith(u"mailto:"_q)) {
 			return MTP_textEmail(*inner, MTP_string(data.mid(7)));
 		} else if (data.startsWith(u"tel:"_q)) {
 			return MTP_textPhone(*inner, MTP_string(data.mid(4)));
