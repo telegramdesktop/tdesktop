@@ -2207,6 +2207,8 @@ PRIVATE
     wallet/wallet_ton_connect.h
     wallet/wallet_ton_connect_box.cpp
     wallet/wallet_ton_connect_box.h
+    wallet/wallet_ton_connect_claims.cpp
+    wallet/wallet_ton_connect_claims.h
     wallet/wallet_ton_connect_link.cpp
     wallet/wallet_ton_connect_link.h
     wallet/wallet_ton_connect_request.cpp

@@ -27,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_unlock.h"
 #include "window/window_session_controller.h"
 
+#include <QtCore/QUuid>
+
 namespace Wallet {
 namespace {
 
@@ -48,6 +50,43 @@ constexpr auto kDeadlineMaxDelay = 24 * 3600 * crl::time(1000);
 		u"TONCONNECT_SESSION_NOT_ACTIVE"_q,
 	};
 	return SessionGone(type) || ranges::contains(list, type);
+}
+
+enum class SubmitResult : uchar {
+	Delivered,
+	Refused,
+	RetryLater,
+};
+
+void SubmitResponse(
+		MTP::Sender &api,
+		TonConnectSessionId sessionId,
+		MsgId msgId,
+		const QByteArray &body,
+		const QString &traceId,
+		Fn<void(SubmitResult)> done) {
+	using Flag = MTPwallet_TonConnectSubmitResponse::Flag;
+	api.request(MTPwallet_TonConnectSubmitResponse(
+		MTP_flags(traceId.isEmpty() ? Flag(0) : Flag::f_trace_id),
+		MTP_long(sessionId),
+		MTP_int(msgId.bare),
+		MTP_bytes(body),
+		MTP_string(traceId)
+	)).done([=](const MTPBool &result) {
+		if (mtpIsTrue(result)) {
+			done(SubmitResult::Delivered);
+			return;
+		}
+		LOG(("Wallet Error: wallet.tonConnectSubmitResponse failed: FALSE"));
+		done(SubmitResult::Refused);
+	}).fail([=](const MTP::Error &error) {
+		const auto &type = error.type();
+		LOG(("Wallet Error: wallet.tonConnectSubmitResponse failed: %1"
+			).arg(type));
+		done(RequestDropped(type)
+			? SubmitResult::Refused
+			: SubmitResult::RetryLater);
+	}).send();
 }
 
 [[nodiscard]] QString SessionName(const TonConnectSessionInfo *info) {
@@ -116,6 +155,7 @@ private:
 	void fetch();
 	void fetched(const MTPwallet_TonConnectPending &result);
 	void fetchFailed(const MTP::Error &error);
+	void waitWallet();
 	void resolve();
 	void resolveTimeout();
 	void stopResolving();
@@ -127,6 +167,7 @@ private:
 	void keyReady(TonConnectKeyResult result);
 	void decrypt();
 	void decrypted(TonConnectAppRequest request);
+	void answerRecovered();
 	void preview();
 	void previewed(FeeResult result);
 	void confirmPressed();
@@ -136,6 +177,7 @@ private:
 	void answerDisconnect();
 	void answerUnknownApp();
 	void encryptAnswer(TonConnectResponse response);
+	void encryptNotSent();
 	void registerKey();
 	void registered(const QByteArray &challenge);
 	void registerFailed(const MTP::Error &error);
@@ -144,9 +186,9 @@ private:
 	void claimFailed(const MTP::Error &error);
 	void send();
 	void sent(TonConnectSendResult result);
+	void answered(QByteArray body);
 	void publish();
-	void published(const MTPBool &result);
-	void publishFailed(const QString &type);
+	void published(SubmitResult result);
 	void decisionFailed();
 	void armDeadline(std::optional<TimeId> validUntil);
 	void expired();
@@ -161,6 +203,7 @@ private:
 	void closeBox();
 	void finish();
 	[[nodiscard]] bool late() const;
+	[[nodiscard]] bool recovered() const;
 	[[nodiscard]] bool stopped() const;
 	[[nodiscard]] bool claiming() const;
 	[[nodiscard]] bool declines() const;
@@ -172,6 +215,7 @@ private:
 	const TonConnectSessionId _sessionId = 0;
 	const MsgId _msgId = 0;
 	const bool _chosen = false;
+	const TonConnectRecovery _recovery = TonConnectRecovery::None;
 	MTP::Sender _api;
 	std::shared_ptr<Main::SessionShow> _show;
 	base::weak_qptr<Ui::GenericBox> _box;
@@ -185,6 +229,7 @@ private:
 	std::shared_ptr<const PreparedSend> _prepared;
 	KeyAuthorization _auth;
 	QByteArray _response;
+	QByteArray _notSent;
 	TimeId _expires = 0;
 	uint64 _previewOwner = 0;
 	Decision _decision = Decision::None;
@@ -229,6 +274,8 @@ TonConnectRequests::TonConnectRequests(
 	) | rpl::on_next([=](TonConnectSessionId id) {
 		sessionClosed(id);
 	}, _lifetime);
+
+	crl::on_main(this, [=] { loadClaims(); });
 }
 
 TonConnectRequests::~TonConnectRequests() = default;
@@ -268,8 +315,9 @@ Window::SessionController *TonConnectRequests::autoWindow() const {
 }
 
 bool TonConnectRequests::enqueue(Entry entry) {
+	const auto recovered = (entry.recovery != TonConnectRecovery::None);
 	if (!OpensByItself(entry)
-		|| _claimedIds.contains(entry.msgId)
+		|| (!recovered && _claimedIds.contains(entry.msgId))
 		|| (_active && _active->matches(entry.msgId))
 		|| silentOwns(entry.msgId)
 		|| ranges::contains(_waiting, entry.msgId, &Entry::msgId)) {
@@ -307,10 +355,10 @@ void TonConnectRequests::edited(not_null<HistoryItem*> item) {
 		return;
 	}
 	const auto i = ranges::find(_waiting, item->id, &Entry::msgId);
-	if (i != end(_waiting)) {
+	if (i != end(_waiting) && i->recovery == TonConnectRecovery::None) {
 		_waiting.erase(i);
 	}
-	if (_active && _active->matches(item->id)) {
+	if (_active && _active->matches(item->id) && !_active->recovered()) {
 		_active->editedElsewhere();
 	}
 	for (const auto &flow : _silent) {
@@ -325,9 +373,25 @@ void TonConnectRequests::showNext() {
 		return;
 	}
 	const auto now = base::unixtime::now();
+	auto offerExpired = false;
 	_waiting.erase(ranges::remove_if(_waiting, [&](const Entry &entry) {
+		switch (entry.recovery) {
+		case TonConnectRecovery::Answer:
+			return false;
+		case TonConnectRecovery::Offer:
+			if (entry.expires > now) {
+				return false;
+			}
+			offerExpired = true;
+			return true;
+		case TonConnectRecovery::None:
+			break;
+		}
 		return (entry.expires <= now) || _claimedIds.contains(entry.msgId);
 	}), end(_waiting));
+	if (offerExpired) {
+		recoverClaims();
+	}
 	if (_waiting.empty()) {
 		return;
 	}
@@ -544,7 +608,10 @@ bool TonConnectRequests::silentOwns(MsgId msgId) const {
 }
 
 void TonConnectRequests::flowDone(not_null<Flow*> flow, bool claimed) {
+	const auto sessionId = flow->_sessionId;
 	const auto msgId = flow->_msgId;
+	const auto recovery = flow->_recovery;
+	const auto sendStarted = flow->_sendStarted;
 	crl::on_main(this, [=] {
 		const auto active = (_active.get() == flow);
 		const auto i = ranges::find(
@@ -558,15 +625,243 @@ void TonConnectRequests::flowDone(not_null<Flow*> flow, bool claimed) {
 		}
 		if (active) {
 			_active = nullptr;
-			showNext();
 		} else {
 			_silent.erase(i);
+		}
+		if (recovery == TonConnectRecovery::Offer && !sendStarted) {
+			if (const auto record = claimRecord(sessionId, msgId)) {
+				const auto copy = *record;
+				submitStored(
+					copy,
+					copy.answer.isEmpty() ? copy.notSent : copy.answer);
+			}
+		} else if (recovery == TonConnectRecovery::Answer) {
+			_recoveryHeld.emplace(msgId);
+		}
+		if (recovery != TonConnectRecovery::None) {
+			recoverClaims();
+		}
+		if (active) {
+			showNext();
 		}
 	});
 }
 
+TonConnectClaimStore &TonConnectRequests::claims() {
+	if (!_claims) {
+		_claims = ReadTonConnectClaims(_session->local());
+		if (!_claims) {
+			LOG(("Wallet Error: TON Connect claims could not be read."));
+			_claims = TonConnectClaimStore();
+		}
+	}
+	return *_claims;
+}
+
+TonConnectClaimRecord *TonConnectRequests::claimRecord(
+		TonConnectSessionId sessionId,
+		MsgId msgId) {
+	auto &records = claims().records;
+	const auto i = ranges::find_if(records, [&](const auto &record) {
+		return TonConnectClaimMatches(record, sessionId, msgId.bare);
+	});
+	return (i != end(records)) ? &*i : nullptr;
+}
+
+bool TonConnectRequests::updateClaims(
+		Fn<void(TonConnectClaimStore&)> change) {
+	auto updated = claims();
+	change(updated);
+	const auto now = base::unixtime::now();
+	updated.records.erase(ranges::remove_if(updated.records, [&](
+			const TonConnectClaimRecord &record) {
+		return now > record.expires + kTonConnectClaimLifetime;
+	}), end(updated.records));
+	if (!WriteTonConnectClaims(_session->local(), updated)) {
+		return false;
+	}
+	_claims = std::move(updated);
+	return true;
+}
+
+bool TonConnectRequests::updateClaim(
+		TonConnectSessionId sessionId,
+		MsgId msgId,
+		Fn<void(TonConnectClaimRecord&)> change) {
+	if (!claimRecord(sessionId, msgId)) {
+		return false;
+	}
+	return updateClaims([&](TonConnectClaimStore &store) {
+		auto &records = store.records;
+		const auto i = ranges::find_if(records, [&](const auto &record) {
+			return TonConnectClaimMatches(record, sessionId, msgId.bare);
+		});
+		change(*i);
+	});
+}
+
+void TonConnectRequests::forgetClaim(
+		TonConnectSessionId sessionId,
+		MsgId msgId) {
+	const auto forgotten = updateClaims([&](TonConnectClaimStore &store) {
+		store.records.erase(ranges::remove_if(store.records, [&](
+				const TonConnectClaimRecord &record) {
+			return TonConnectClaimMatches(record, sessionId, msgId.bare);
+		}), end(store.records));
+	});
+	if (!forgotten) {
+		LOG(("Wallet Error: TON Connect claim could not be forgotten."));
+	}
+}
+
+void TonConnectRequests::loadClaims() {
+	if (_stopped) {
+		return;
+	}
+	const auto now = base::unixtime::now();
+	const auto stale = ranges::any_of(claims().records, [&](
+			const TonConnectClaimRecord &record) {
+		return now > record.expires + kTonConnectClaimLifetime;
+	});
+	if (stale && !updateClaims([](TonConnectClaimStore &) {})) {
+		LOG(("Wallet Error: TON Connect claims could not be pruned."));
+	}
+	const auto records = claims().records;
+	if (records.empty()) {
+		return;
+	}
+	auto confirmWaits = false;
+	for (const auto &record : records) {
+		_claimedIds.emplace(MsgId(record.msgId));
+	}
+	for (const auto &record : records) {
+		if (!record.answer.isEmpty()) {
+			submitStored(record, record.answer);
+		} else if (record.decision == TonConnectClaimDecision::Confirm) {
+			confirmWaits = true;
+		}
+	}
+	if (!confirmWaits) {
+		return;
+	}
+	auto &wallet = _session->wallet();
+	rpl::merge(
+		wallet.presenceValue() | rpl::to_empty,
+		wallet.signingReadyValue() | rpl::to_empty,
+		wallet.transferWalletIdentityChanges(),
+		wallet.historyUpdates(),
+		_store->updates() | rpl::to_empty
+	) | rpl::on_next([=] {
+		recoverClaims();
+	}, _recoveryLifetime);
+	recoverClaims();
+}
+
+void TonConnectRequests::recoverClaims() {
+	if (_stopped) {
+		return;
+	}
+	auto &wallet = _session->wallet();
+	const auto identity = (wallet.presenceCurrent() == Presence::Ready)
+		? wallet.transferWalletIdentity()
+		: std::nullopt;
+	auto journalWaits = false;
+	const auto records = claims().records;
+	for (const auto &record : records) {
+		const auto msgId = MsgId(record.msgId);
+		if (_recoveryHeld.contains(msgId)
+			|| (_active && _active->matches(msgId))
+			|| ranges::contains(_waiting, msgId, &Entry::msgId)) {
+			continue;
+		} else if (!record.answer.isEmpty()) {
+			submitStored(record, record.answer);
+		} else if (record.decision == TonConnectClaimDecision::Confirm
+			&& identity
+			&& record.address == identity->address
+			&& record.publicKey == identity->publicKey
+			&& recoverClaim(record)) {
+			journalWaits = true;
+		}
+	}
+	updateRecoveryPolling(journalWaits);
+}
+
+bool TonConnectRequests::recoverClaim(const TonConnectClaimRecord &record) {
+	using Fate = TonConnectSendFate;
+	const auto fate = record.operationId.empty()
+		? Fate::Absent
+		: _session->wallet().tonConnectSendFate(record.operationId);
+	if (fate == Fate::Unknown) {
+		return false;
+	} else if (fate == Fate::Unresolved) {
+		return true;
+	}
+	const auto queue = [&](TonConnectRecovery recovery) {
+		const auto queued = enqueue({
+			.sessionId = record.sessionId,
+			.msgId = MsgId(record.msgId),
+			.topic = u"sendTransaction"_q,
+			.expires = record.expires,
+			.recovery = recovery,
+		});
+		if (queued) {
+			crl::on_main(this, [=] { showNext(); });
+		}
+	};
+	// WHY: a BoC is stored before wallet.sendTransfer and the engine never
+	// resubmits, so an operation without one never left this device.
+	const auto executed = (fate == Fate::Settled)
+		|| (fate == Fate::Absent && !record.signedBoc.isEmpty());
+	if (executed) {
+		if (record.signedBoc.isEmpty()) {
+			forgetClaim(record.sessionId, MsgId(record.msgId));
+		} else {
+			queue(TonConnectRecovery::Answer);
+		}
+	} else if (base::unixtime::now() >= record.expires) {
+		submitStored(record, record.notSent);
+	} else {
+		queue(TonConnectRecovery::Offer);
+	}
+	return false;
+}
+
+void TonConnectRequests::submitStored(
+		const TonConnectClaimRecord &record,
+		QByteArray body) {
+	const auto sessionId = record.sessionId;
+	const auto msgId = MsgId(record.msgId);
+	_recoveryHeld.emplace(msgId);
+	SubmitResponse(
+		_api,
+		sessionId,
+		msgId,
+		body,
+		record.traceId,
+		[=](SubmitResult result) {
+			if (result != SubmitResult::RetryLater) {
+				forgetClaim(sessionId, msgId);
+				_recoveryHeld.remove(msgId);
+			}
+		});
+}
+
+void TonConnectRequests::updateRecoveryPolling(bool wanted) {
+	if (_recoveryPolling == wanted) {
+		return;
+	}
+	_recoveryPolling = wanted;
+	if (wanted) {
+		_session->wallet().startPolling();
+	} else {
+		_session->wallet().stopPolling();
+	}
+}
+
 void TonConnectRequests::stop() {
 	_stopped = true;
+	_recoveryLifetime.destroy();
+	_recoveryPolling = false;
 	_waiting.clear();
 	_api.request(base::take(_pendingRequestId)).cancel();
 	_active = nullptr;
@@ -586,6 +881,7 @@ TonConnectRequests::Flow::Flow(
 , _sessionId(entry.sessionId)
 , _msgId(entry.msgId)
 , _chosen(entry.chosen)
+, _recovery(entry.recovery)
 , _api(&_session->mtp())
 , _show(std::move(show))
 , _topic(entry.topic)
@@ -614,7 +910,10 @@ void TonConnectRequests::Flow::start() {
 	};
 	// WHY: a request of a session the store does not hold may belong to
 	// a closed session, which is answered without ever showing a box.
-	if ((_chosen || (info && TonConnectSessionConnected(*info)))
+	if (_recovery == TonConnectRecovery::Answer) {
+		fetch();
+		return;
+	} else if ((_chosen || (info && TonConnectSessionConnected(*info)))
 		&& !showBox()) {
 		return;
 	}
@@ -647,7 +946,7 @@ void TonConnectRequests::Flow::activate() {
 }
 
 void TonConnectRequests::Flow::editedElsewhere() {
-	if (claiming() || stopped()) {
+	if (recovered() || claiming() || stopped()) {
 		return;
 	}
 	closeWithToast(tr::lng_wallet_connect_request_handled(tr::now));
@@ -684,15 +983,19 @@ void TonConnectRequests::Flow::fetched(
 		_closedSession = TonConnect::Parse(data.vsession());
 	}
 	_owner->_store->apply(data.vsession());
+	const auto answer = (_recovery == TonConnectRecovery::Answer);
 	if (closed) {
 		if (_silent) {
 			_terminal = true;
 			finish();
 			return;
+		} else if (_recovery == TonConnectRecovery::Offer) {
+			lateStop();
+			return;
 		} else if (!_chosen) {
 			closeBox();
 		}
-	} else if (!_silent && !_box && !showBox()) {
+	} else if (!_silent && !answer && !_box && !showBox()) {
 		return;
 	} else if (session.is_pending()) {
 		unavailable();
@@ -718,24 +1021,16 @@ void TonConnectRequests::Flow::fetched(
 		state.domain = SessionDomain(info);
 		state.icon = SessionIcon(info);
 		_state = std::move(state);
-		armDeadline(std::nullopt);
-
-		auto &wallet = _session->wallet();
-		rpl::merge(
-			wallet.transferWalletIdentityChanges(),
-			wallet.custodyUpdates()
-		) | rpl::on_next([=] {
-			resolve();
-		}, _resolveLifetime);
-		_resolveTimer.callOnce(kWalletResolveTimeout);
-		resolve();
-		if (_resolveTimer.isActive()) {
-			_polling = true;
-			wallet.startPolling();
+		if (!answer) {
+			armDeadline(std::nullopt);
 		}
+		waitWallet();
 		return;
 	}
-	if (late()) {
+	if (answer) {
+		waitWallet();
+		return;
+	} else if (late() || recovered()) {
 		lateStop();
 		return;
 	}
@@ -753,6 +1048,22 @@ void TonConnectRequests::Flow::fetched(
 	}
 }
 
+void TonConnectRequests::Flow::waitWallet() {
+	auto &wallet = _session->wallet();
+	rpl::merge(
+		wallet.transferWalletIdentityChanges(),
+		wallet.custodyUpdates()
+	) | rpl::on_next([=] {
+		resolve();
+	}, _resolveLifetime);
+	_resolveTimer.callOnce(kWalletResolveTimeout);
+	resolve();
+	if (_resolveTimer.isActive()) {
+		_polling = true;
+		wallet.startPolling();
+	}
+}
+
 void TonConnectRequests::Flow::fetchFailed(const MTP::Error &error) {
 	if (stopped()) {
 		return;
@@ -764,7 +1075,7 @@ void TonConnectRequests::Flow::fetchFailed(const MTP::Error &error) {
 	}
 	LOG(("Wallet Error: wallet.tonConnectGetPending failed: %1"
 		).arg(type));
-	if (!_silent && !_box && !showBox()) {
+	if (!_silent && !recovered() && !_box && !showBox()) {
 		return;
 	}
 	notice(tr::lng_wallet_connect_request_failed(tr::now));
@@ -868,6 +1179,9 @@ void TonConnectRequests::Flow::requestKey() {
 }
 
 void TonConnectRequests::Flow::locked() {
+	if (_recovery == TonConnectRecovery::Answer && !_box && !showBox()) {
+		return;
+	}
 	const auto &current = _state.current();
 	_state = TonConnectRequestBoxState{
 		.phase = Phase::Locked,
@@ -939,6 +1253,10 @@ void TonConnectRequests::Flow::decrypt() {
 		.domain = current.domain,
 		.icon = current.icon,
 	};
+	if (_recovery == TonConnectRecovery::Answer) {
+		answerRecovered();
+		return;
+	}
 	_session->wallet().decryptTonConnectRequest(
 		_key,
 		_body,
@@ -961,6 +1279,14 @@ void TonConnectRequests::Flow::decrypted(TonConnectAppRequest request) {
 		_terminal = true;
 		finish();
 		return;
+	} else if (_recovery == TonConnectRecovery::Offer) {
+		const auto record = _owner->claimRecord(_sessionId, _msgId);
+		if (!record
+			|| record->requestId != _request.id
+			|| _request.kind != Kind::SendTransaction) {
+			lateStop();
+			return;
+		}
 	}
 	switch (_request.kind) {
 	case Kind::Disconnect:
@@ -983,6 +1309,34 @@ void TonConnectRequests::Flow::decrypted(TonConnectAppRequest request) {
 		armDeadline(transfer->validUntil);
 		preview();
 	}
+}
+
+void TonConnectRequests::Flow::answerRecovered() {
+	const auto record = _owner->claimRecord(_sessionId, _msgId);
+	if (!record || record->signedBoc.isEmpty()) {
+		lateStop();
+		return;
+	}
+	const auto traceId = record->traceId;
+	_session->wallet().encryptTonConnectResponse(
+		_key,
+		record->requestId,
+		{ .signedBoc = record->signedBoc },
+		crl::guard(this, [=](QByteArray body) {
+			if (stopped()) {
+				return;
+			}
+			_decision = Decision::Confirm;
+			_sentBoc = true;
+			_traceId = traceId;
+			_claimSent = _claimed = true;
+			answered(std::move(body));
+		}),
+		crl::guard(this, [=] {
+			LOG(("Wallet Error: "
+				"TON Connect recovered answer could not be encrypted."));
+			lateStop();
+		}));
 }
 
 void TonConnectRequests::Flow::preview() {
@@ -1103,7 +1457,7 @@ void TonConnectRequests::Flow::confirmKeyReady(TonConnectKeyResult result) {
 		backToConfirm(SendErrorText(refusal, TransferMinNanos(_session)));
 		return;
 	}
-	registerKey();
+	encryptNotSent();
 }
 
 void TonConnectRequests::Flow::declinePressed() {
@@ -1179,6 +1533,24 @@ void TonConnectRequests::Flow::encryptAnswer(TonConnectResponse response) {
 		}));
 }
 
+void TonConnectRequests::Flow::encryptNotSent() {
+	_session->wallet().encryptTonConnectResponse(
+		_key,
+		_request.id,
+		{ .error = TonConnectError::Unknown },
+		crl::guard(this, [=](QByteArray body) {
+			if (!stopped()) {
+				_notSent = std::move(body);
+				registerKey();
+			}
+		}),
+		crl::guard(this, [=] {
+			if (!stopped()) {
+				decisionFailed();
+			}
+		}));
+}
+
 void TonConnectRequests::Flow::registerKey() {
 	if (!_key) {
 		decisionFailed();
@@ -1245,6 +1617,43 @@ void TonConnectRequests::Flow::claim(const QByteArray &answer) {
 		unavailable();
 		return;
 	}
+	const auto identity = _session->wallet().transferWalletIdentity();
+	const auto confirm = (_decision == Decision::Confirm);
+	const auto record = TonConnectClaimRecord{
+		.sessionId = _sessionId,
+		.msgId = int32(_msgId.bare),
+		.requestId = _request.id,
+		.traceId = _traceId,
+		.expires = _expires,
+		.created = base::unixtime::now(),
+		.address = identity ? identity->address : QString(),
+		.publicKey = identity ? identity->publicKey : QByteArray(),
+		.decision = (confirm
+			? TonConnectClaimDecision::Confirm
+			: TonConnectClaimDecision::Refusal),
+		.answer = confirm ? QByteArray() : _response,
+		.notSent = confirm ? _notSent : QByteArray(),
+	};
+	const auto recorded = identity
+		&& _owner->updateClaims([&](TonConnectClaimStore &store) {
+			auto &records = store.records;
+			const auto i = ranges::find_if(records, [&](const auto &entry) {
+				return TonConnectClaimMatches(
+					entry,
+					record.sessionId,
+					record.msgId);
+			});
+			if (i != end(records)) {
+				*i = record;
+			} else {
+				records.push_back(record);
+			}
+		});
+	if (!recorded) {
+		LOG(("Wallet Error: TON Connect claim could not be recorded."));
+		decisionFailed();
+		return;
+	}
 	_claimSent = true;
 	using Flag = MTPwallet_TonConnectClaimRequest::Flag;
 	_api.request(MTPwallet_TonConnectClaimRequest(
@@ -1266,6 +1675,9 @@ void TonConnectRequests::Flow::claimed(const MTPBool &result) {
 		return;
 	} else if (!mtpIsTrue(result)) {
 		_claimSent = false;
+		if (_recovery != TonConnectRecovery::Offer) {
+			_owner->forgetClaim(_sessionId, _msgId);
+		}
 		unavailable();
 		return;
 	}
@@ -1286,15 +1698,22 @@ void TonConnectRequests::Flow::claimFailed(const MTP::Error &error) {
 	LOG(("Wallet Error: wallet.tonConnectClaimRequest failed: %1 (%2)"
 		).arg(type).arg(code));
 	_claimSent = false;
-	if (type == u"TONCONNECT_REQUEST_ALREADY_CLAIMED"_q) {
-		closeWithToast(tr::lng_wallet_connect_request_handled(tr::now));
-	} else if (RequestDropped(type)) {
-		unavailable();
-	} else if (type == u"TONCONNECT_CHALLENGE_INVALID"_q
+	if (type == u"TONCONNECT_CHALLENGE_INVALID"_q
 		&& !_retriedChallenge
 		&& !late()) {
 		_retriedChallenge = true;
 		registerKey();
+		return;
+	}
+	const auto claimedElsewhere
+		= (type == u"TONCONNECT_REQUEST_ALREADY_CLAIMED"_q);
+	if (claimedElsewhere || _recovery != TonConnectRecovery::Offer) {
+		_owner->forgetClaim(_sessionId, _msgId);
+	}
+	if (claimedElsewhere) {
+		closeWithToast(tr::lng_wallet_connect_request_handled(tr::now));
+	} else if (RequestDropped(type)) {
+		unavailable();
 	} else {
 		decisionFailed();
 	}
@@ -1305,9 +1724,42 @@ void TonConnectRequests::Flow::send() {
 		return;
 	}
 	_sendStarted = true;
+	const auto sessionId = _sessionId;
+	const auto msgId = _msgId;
+	const auto operationId = QUuid::createUuid().toString(
+		QUuid::WithoutBraces).toStdString();
+	const auto linked = _owner->updateClaim(sessionId, msgId, [&](
+			TonConnectClaimRecord &record) {
+		record.operationId = operationId;
+		record.signedBoc = QString();
+	});
+	if (!linked) {
+		LOG(("Wallet Error: TON Connect send could not be linked."));
+		sent({ .error = SendError::Failed });
+		return;
+	}
+	const auto owner = base::make_weak(_owner.get());
+	auto link = TonConnectSendLink{
+		.operationId = operationId,
+		.handoff = [=](const QString &signedBoc) {
+			const auto strong = owner.get();
+			auto current = false;
+			const auto stored = strong && strong->updateClaim(
+				sessionId,
+				msgId,
+				[&](TonConnectClaimRecord &record) {
+					current = (record.operationId == operationId);
+					if (current) {
+						record.signedBoc = signedBoc;
+					}
+				});
+			return stored && current;
+		},
+	};
 	_session->wallet().sendTonConnect(
 		base::take(_auth),
 		_prepared,
+		std::move(link),
 		crl::guard(this, [=](TonConnectSendResult result) {
 			sent(std::move(result));
 		}),
@@ -1323,72 +1775,65 @@ void TonConnectRequests::Flow::sent(TonConnectSendResult result) {
 		return;
 	}
 	_sentBoc = !result.signedBoc.isEmpty();
-	auto &wallet = _session->wallet();
-	const auto done = crl::guard(this, [=](QByteArray body) {
-		if (!stopped()) {
-			_response = std::move(body);
-			publish();
-		}
-	});
-	const auto undelivered = crl::guard(this, [=] {
-		if (stopped()) {
-			return;
-		}
-		LOG(("Wallet Error: TON Connect answer could not be encrypted."));
-		closeWithToast(tr::lng_wallet_connect_request_undelivered(tr::now));
-	});
 	if (!_sentBoc) {
-		wallet.encryptTonConnectResponse(
-			_key,
-			_request.id,
-			{ .error = TonConnectError::Unknown },
-			done,
-			undelivered);
+		answered(_notSent);
 		return;
 	}
-	wallet.encryptTonConnectResponse(
+	_session->wallet().encryptTonConnectResponse(
 		_key,
 		_request.id,
 		{ .signedBoc = result.signedBoc },
-		done,
+		crl::guard(this, [=](QByteArray body) {
+			if (!stopped()) {
+				answered(std::move(body));
+			}
+		}),
 		crl::guard(this, [=] {
 			if (stopped()) {
 				return;
 			}
 			LOG(("Wallet Error: TON Connect success answer could not "
 				"be encrypted, answering an error."));
-			_session->wallet().encryptTonConnectResponse(
-				_key,
-				_request.id,
-				{ .error = TonConnectError::Unknown },
-				done,
-				undelivered);
+			_sentBoc = false;
+			answered(_notSent);
 		}));
+}
+
+void TonConnectRequests::Flow::answered(QByteArray body) {
+	_response = std::move(body);
+	const auto sessionId = _sessionId;
+	const auto msgId = _msgId;
+	const auto stored = _owner->updateClaim(sessionId, msgId, [&](
+			TonConnectClaimRecord &record) {
+		record.answer = _response;
+	});
+	if (!stored) {
+		LOG(("Wallet Error: TON Connect answer could not be recorded."));
+	}
+	publish();
 }
 
 void TonConnectRequests::Flow::publish() {
 	if (stopped()) {
 		return;
 	}
-	using Flag = MTPwallet_TonConnectSubmitResponse::Flag;
-	_api.request(MTPwallet_TonConnectSubmitResponse(
-		MTP_flags(_traceId.isEmpty() ? Flag(0) : Flag::f_trace_id),
-		MTP_long(_sessionId),
-		MTP_int(_msgId.bare),
-		MTP_bytes(_response),
-		MTP_string(_traceId)
-	)).done([=](const MTPBool &result) {
-		published(result);
-	}).fail([=](const MTP::Error &error) {
-		publishFailed(error.type());
-	}).send();
+	SubmitResponse(
+		_api,
+		_sessionId,
+		_msgId,
+		_response,
+		_traceId,
+		[=](SubmitResult result) { published(result); });
 }
 
-void TonConnectRequests::Flow::published(const MTPBool &result) {
+void TonConnectRequests::Flow::published(SubmitResult result) {
 	if (stopped()) {
 		return;
-	} else if (!mtpIsTrue(result)) {
-		publishFailed(QString());
+	} else if (result != SubmitResult::RetryLater) {
+		_owner->forgetClaim(_sessionId, _msgId);
+	}
+	if (result != SubmitResult::Delivered) {
+		closeWithToast(tr::lng_wallet_connect_request_undelivered(tr::now));
 		return;
 	}
 	switch (_decision) {
@@ -1414,15 +1859,6 @@ void TonConnectRequests::Flow::published(const MTPBool &result) {
 		return;
 	}
 	Unexpected("Decision in TonConnectRequests::Flow::published.");
-}
-
-void TonConnectRequests::Flow::publishFailed(const QString &type) {
-	if (stopped()) {
-		return;
-	}
-	LOG(("Wallet Error: wallet.tonConnectSubmitResponse failed: %1"
-		).arg(type.isEmpty() ? u"FALSE"_q : type));
-	closeWithToast(tr::lng_wallet_connect_request_undelivered(tr::now));
 }
 
 void TonConnectRequests::Flow::decisionFailed() {
@@ -1461,7 +1897,7 @@ void TonConnectRequests::Flow::accessNotice(TonConnectAccess access) {
 }
 
 void TonConnectRequests::Flow::notice(const QString &text) {
-	if (late()) {
+	if (late() || (recovered() && !claiming())) {
 		lateStop();
 		return;
 	}
@@ -1486,7 +1922,9 @@ void TonConnectRequests::Flow::notice(const QString &text) {
 void TonConnectRequests::Flow::closeWithToast(const QString &text) {
 	if (stopped()) {
 		return;
-	} else if (late()) {
+	} else if (late()
+		|| (recovered() && !claiming())
+		|| (_recovery == TonConnectRecovery::Answer && !_box)) {
 		lateStop();
 		return;
 	}
@@ -1582,6 +2020,10 @@ void TonConnectRequests::Flow::finish() {
 
 bool TonConnectRequests::Flow::late() const {
 	return _closedSession.has_value();
+}
+
+bool TonConnectRequests::Flow::recovered() const {
+	return (_recovery != TonConnectRecovery::None);
 }
 
 bool TonConnectRequests::Flow::stopped() const {

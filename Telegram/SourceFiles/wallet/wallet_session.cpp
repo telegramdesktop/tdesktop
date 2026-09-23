@@ -241,6 +241,7 @@ constexpr auto kGaslessRefreshAhead = crl::time(10 * 1000);
 constexpr auto kGaslessRetryInterval = crl::time(15 * 1000);
 // The largest individual data field wallet.sendTransfer allows, inclusive.
 constexpr auto kTransferDataMaxBytes = 16 * 1024;
+constexpr auto kTonConnectOperationIdMaxBytes = 256;
 // The lane follows a submitted message for as long as the engine can
 // still see the message accepted (validity plus the resolution
 // margin), one attempt per tick.
@@ -7664,6 +7665,29 @@ auto Session::listedSubmittedTransactions() const
 	return result;
 }
 
+TonConnectSendFate Session::tonConnectSendFate(
+		const std::string &operationId) {
+	const auto identity = transferWalletIdentity();
+	if (!_sendRecoveryReady || _clientStopping || !identity) {
+		return TonConnectSendFate::Unknown;
+	} else if ((_submission && _submission->operationId == operationId)
+		|| (_pending && _pending->operationId == operationId)
+		|| (_sendUnresolved
+			&& (_unresolvedOperationId.empty()
+				|| _unresolvedOperationId == operationId))) {
+		return TonConnectSendFate::Unresolved;
+	}
+	const auto record = submittedTransferRecord(operationId, *identity);
+	if (!record) {
+		return TonConnectSendFate::Absent;
+	} else if (record->terminal == TransferTerminal::None) {
+		return TonConnectSendFate::Unresolved;
+	}
+	return FailedTransferTerminal(record->terminal)
+		? TonConnectSendFate::NotExecuted
+		: TonConnectSendFate::Settled;
+}
+
 std::optional<TransferItem> Session::submittedTransaction(
 		const std::string &operationId) const {
 	const auto entry = ranges::find(
@@ -8330,15 +8354,21 @@ void Session::send(
 		std::move(prepared),
 		std::move(done),
 		std::move(drafted),
-		nullptr);
+		nullptr,
+		{});
 }
 
 void Session::sendTonConnect(
 		KeyAuthorization auth,
 		std::shared_ptr<const PreparedSend> prepared,
+		TonConnectSendLink link,
 		Fn<void(TonConnectSendResult)> done,
 		Fn<void(SendError)> settled) {
-	if (!prepared || !prepared->tonConnect) {
+	if (!prepared
+		|| !prepared->tonConnect
+		|| link.operationId.empty()
+		|| link.operationId.size() > kTonConnectOperationIdMaxBytes
+		|| !link.handoff) {
 		if (done) {
 			done({ .error = SendError::InvalidRequest });
 		}
@@ -8349,7 +8379,8 @@ void Session::sendTonConnect(
 		std::move(prepared),
 		std::move(settled),
 		nullptr,
-		std::move(done));
+		std::move(done),
+		std::move(link));
 }
 
 void Session::startSend(
@@ -8357,7 +8388,8 @@ void Session::startSend(
 		std::shared_ptr<const PreparedSend> prepared,
 		Fn<void(SendError)> done,
 		Fn<void(FullMsgId)> drafted,
-		Fn<void(TonConnectSendResult)> tonConnect) {
+		Fn<void(TonConnectSendResult)> tonConnect,
+		TonConnectSendLink tonConnectLink) {
 	done = [done = std::move(done)](SendError error) {
 		if (error != SendError::None) {
 			LOG(("Wallet Error: the send answered %1."
@@ -8384,14 +8416,19 @@ void Session::startSend(
 	const auto &args = prepared->args;
 	const auto paired = !prepared->tonConnect
 		&& terms.eligible(args.amountNano, args.destination);
-	const auto operationId = NewRecordId();
+	const auto linked = !tonConnectLink.operationId.empty();
+	const auto operationId = linked
+		? tonConnectLink.operationId
+		: NewRecordId();
 	const auto client = prepared->client;
 	const auto generation = prepared->generation;
 	const auto identity = prepared->identity;
 	const auto custodyRecord = custody().current(
 		identity.address,
 		identity.publicKey);
-	if (!custodyRecord || custodyRecord->recordId != _clientRecordId) {
+	if (!custodyRecord
+		|| custodyRecord->recordId != _clientRecordId
+		|| (linked && submittedTransferRecord(operationId, identity))) {
 		fail(SendError::Failed);
 		return;
 	}
@@ -8525,6 +8562,7 @@ void Session::startSend(
 		.prepared = prepared,
 		.drafted = std::move(drafted),
 		.tonConnect = std::move(tonConnect),
+		.tonConnectHandoff = std::move(tonConnectLink.handoff),
 		.paired = paired,
 		.normalFeeAuthorized = true,
 	};
@@ -8846,6 +8884,12 @@ void Session::submitTransfer(
 		LOG(("Wallet Error: transfer handoff could not be stored."));
 		refuse(SendError::Failed, u"WALLET_TRANSFER_STORAGE_FAILED"_q);
 		return;
+	} else if (const auto handoff = _submission->tonConnectHandoff) {
+		if (!handoff(QString::fromLatin1(data.normal.toBase64()))) {
+			LOG(("Wallet Error: TON Connect transfer could not be stored."));
+			refuse(SendError::Failed, u"WALLET_TRANSFER_STORAGE_FAILED"_q);
+			return;
+		}
 	}
 	// The request id is not remembered on purpose. The broadcast must
 	// reach the server, and the transport's automatic resend of a request

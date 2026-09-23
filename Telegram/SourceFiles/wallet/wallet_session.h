@@ -339,6 +339,19 @@ struct TonConnectSendResult {
 	SendError error = SendError::None;
 };
 
+struct TonConnectSendLink {
+	std::string operationId;
+	Fn<bool(const QString &signedBoc)> handoff;
+};
+
+enum class TonConnectSendFate : uchar {
+	Unknown,
+	Absent,
+	Unresolved,
+	NotExecuted,
+	Settled,
+};
+
 struct SendComment {
 	QString text;
 	bool isPublic = false;
@@ -773,6 +786,7 @@ public:
 	void sendTonConnect(
 		KeyAuthorization auth,
 		std::shared_ptr<const PreparedSend> prepared,
+		TonConnectSendLink link,
 		Fn<void(TonConnectSendResult)> done,
 		Fn<void(SendError)> settled = nullptr);
 	[[nodiscard]] SendState sendState() const;
@@ -785,6 +799,8 @@ public:
 	-> std::vector<TransferItem>;
 	[[nodiscard]] std::optional<TransferItem> submittedTransaction(
 		const std::string &operationId) const;
+	[[nodiscard]] TonConnectSendFate tonConnectSendFate(
+		const std::string &operationId);
 
 private:
 	void requestState(
@@ -998,7 +1014,8 @@ private:
 		std::shared_ptr<const PreparedSend> prepared,
 		Fn<void(SendError)> done,
 		Fn<void(FullMsgId)> drafted,
-		Fn<void(TonConnectSendResult)> tonConnect);
+		Fn<void(TonConnectSendResult)> tonConnect,
+		TonConnectSendLink tonConnectLink);
 	[[nodiscard]] bool submissionCurrent(
 		const std::string &operationId,
 		const std::shared_ptr<const PreparedSend> &prepared) const;
@@ -1185,6 +1202,7 @@ private:
 		std::optional<SendError> refusal;
 		Fn<void(FullMsgId)> drafted;
 		Fn<void(TonConnectSendResult)> tonConnect;
+		Fn<bool(const QString &)> tonConnectHandoff;
 		FullMsgId draft;
 		QByteArray normal;
 		bool paired = false;

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_msg_id.h"
 #include "mtproto/sender.h"
 #include "wallet/wallet_ton_connect.h"
+#include "wallet/wallet_ton_connect_claims.h"
 
 class HistoryItem;
 
@@ -43,6 +44,11 @@ public:
 
 private:
 	class Flow;
+	enum class TonConnectRecovery : uchar {
+		None,
+		Offer,
+		Answer,
+	};
 	struct Entry {
 		TonConnectSessionId sessionId = 0;
 		MsgId msgId = 0;
@@ -50,6 +56,7 @@ private:
 		TimeId expires = 0;
 		uint64 order = 0;
 		bool chosen = false;
+		TonConnectRecovery recovery = TonConnectRecovery::None;
 	};
 
 	[[nodiscard]] static std::optional<Entry> PendingEntry(
@@ -75,6 +82,21 @@ private:
 	void sessionClosed(TonConnectSessionId id);
 	void closedLoaded(const MTPwallet_TonConnectPending &result);
 	void flowDone(not_null<Flow*> flow, bool claimed);
+	[[nodiscard]] TonConnectClaimStore &claims();
+	[[nodiscard]] TonConnectClaimRecord *claimRecord(
+		TonConnectSessionId sessionId,
+		MsgId msgId);
+	[[nodiscard]] bool updateClaims(Fn<void(TonConnectClaimStore&)> change);
+	[[nodiscard]] bool updateClaim(
+		TonConnectSessionId sessionId,
+		MsgId msgId,
+		Fn<void(TonConnectClaimRecord&)> change);
+	void forgetClaim(TonConnectSessionId sessionId, MsgId msgId);
+	void loadClaims();
+	void recoverClaims();
+	[[nodiscard]] bool recoverClaim(const TonConnectClaimRecord &record);
+	void submitStored(const TonConnectClaimRecord &record, QByteArray body);
+	void updateRecoveryPolling(bool wanted);
 
 	const not_null<Main::Session*> _session;
 	const not_null<TonConnect*> _store;
@@ -83,6 +105,10 @@ private:
 	std::vector<std::unique_ptr<Flow>> _silent;
 	std::vector<Entry> _waiting;
 	base::flat_set<MsgId> _claimedIds;
+	std::optional<TonConnectClaimStore> _claims;
+	base::flat_set<MsgId> _recoveryHeld;
+	rpl::lifetime _recoveryLifetime;
+	bool _recoveryPolling = false;
 	mtpRequestId _pendingRequestId = 0;
 	uint64 _order = 0;
 	bool _stopped = false;
