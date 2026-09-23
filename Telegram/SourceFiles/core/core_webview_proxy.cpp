@@ -10,6 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 
+#include <rpl/filter.h>
+#include <rpl/map.h>
+
 namespace Core {
 
 std::optional<Webview::ProxySettings> CurrentWebviewProxy() {
@@ -28,6 +31,17 @@ std::optional<Webview::ProxySettings> CurrentWebviewProxy() {
 		.username = data.user.toStdString(),
 		.password = data.password.toStdString(),
 	};
+}
+
+rpl::producer<> WebviewProxyChangesFrom(
+		std::optional<Webview::ProxySettings> was) {
+	return App().settings().proxy().connectionTypeChanges(
+	) | rpl::map([=] {
+		return CurrentWebviewProxy();
+	}) | rpl::filter([=](
+			const std::optional<Webview::ProxySettings> &now) {
+		return now != was;
+	}) | rpl::to_empty;
 }
 
 } // namespace Core
