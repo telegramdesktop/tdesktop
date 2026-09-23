@@ -670,6 +670,10 @@ Main::Session &ContactsBoxController::session() const {
 	return *_session;
 }
 
+QString ContactsBoxController::accessibilityName() const {
+	return tr::lng_contacts_header(tr::now);
+}
+
 void ContactsBoxController::prepare() {
 	setSearchNoResultsText(tr::lng_blocked_list_not_found(tr::now));
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
@@ -1039,6 +1043,10 @@ QString ChooseRecipientBoxController::savedMessagesChatStatus() const {
 	return tr::lng_saved_forward_here(tr::now);
 }
 
+QString ChooseRecipientBoxController::accessibilityName() const {
+	return tr::lng_forward_choose(tr::now);
+}
+
 auto ChooseRecipientBoxController::createRow(
 		not_null<History*> history) -> std::unique_ptr<Row> {
 	const auto peer = history->peer;
@@ -1340,6 +1348,10 @@ std::unique_ptr<PeerListRow> ChooseTopicBoxController::createSearchRow(
 	return nullptr;
 }
 
+QString ChooseTopicBoxController::accessibilityName() const {
+	return tr::lng_forward_choose(tr::now);
+}
+
 std::unique_ptr<PeerListRow> ChooseTopicBoxController::MakeRow(
 		not_null<Data::ForumTopic*> topic) {
 	return std::make_unique<Row>(topic);
@@ -1443,6 +1455,10 @@ std::unique_ptr<PeerListRow> ChooseSublistBoxController::createSearchRow(
 		return result;
 	}
 	return nullptr;
+}
+
+QString ChooseSublistBoxController::accessibilityName() const {
+	return tr::lng_forward_choose(tr::now);
 }
 
 auto ChooseSublistBoxController::createRow(
