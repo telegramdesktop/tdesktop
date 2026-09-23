@@ -332,10 +332,15 @@ void TonConnect::applyPendingDisconnect(const QVector<MTPlong> &ids) {
 	auto reload = false;
 	for (const auto &value : ids) {
 		const auto id = TonConnectSessionId(value.v);
-		if (!session(id)) {
+		const auto info = session(id);
+		if (!info) {
 			reload = true;
-		} else {
-			markClosing(id);
+		} else if (info->status == TonConnectSessionStatus::Active) {
+			auto copy = *info;
+			copy.status = TonConnectSessionStatus::Closing;
+			store(std::move(copy), false);
+		} else if (info->status == TonConnectSessionStatus::Closing) {
+			scheduleClose(id);
 		}
 	}
 	if (!reload) {
@@ -344,19 +349,6 @@ void TonConnect::applyPendingDisconnect(const QVector<MTPlong> &ids) {
 		requestSessions();
 	} else {
 		_session->wallet().ensureLoaded();
-	}
-}
-
-void TonConnect::markClosing(TonConnectSessionId id) {
-	const auto info = session(id);
-	if (_stopped || !info) {
-		return;
-	} else if (info->status == TonConnectSessionStatus::Active) {
-		auto copy = *info;
-		copy.status = TonConnectSessionStatus::Closing;
-		store(std::move(copy), false);
-	} else if (info->status == TonConnectSessionStatus::Closing) {
-		scheduleClose(id);
 	}
 }
 
@@ -485,6 +477,17 @@ void TonConnect::disconnect(
 		crl::guard(this, [=](TonConnectKeyResult result) {
 			disconnectKeyReady(show, id, std::move(result));
 		}));
+}
+
+void TonConnect::closeAnswered(TonConnectSessionId id) {
+	if (_stopped || !session(id) || _disconnecting.contains(id)) {
+		return;
+	}
+	_disconnecting.emplace(id);
+	_updates.fire_copy(id);
+	closeSession(id, QByteArray(), [=](DisconnectResult) {
+		settleDisconnect(id);
+	});
 }
 
 void TonConnect::connect(
