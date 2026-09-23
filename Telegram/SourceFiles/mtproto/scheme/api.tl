@@ -939,6 +939,7 @@ textMentionName#1a9fbfc text:RichText user_id:long = RichText;
 textDate#a5b45e2b flags:# relative:flags.0?true short_time:flags.1?true long_time:flags.2?true short_date:flags.3?true long_date:flags.4?true day_of_week:flags.5?true text:RichText date:int = RichText;
 textDiff#9686cb50 text:RichText old_text:RichText = RichText;
 textButton#afc79cd6 flags:# text:RichText type:InlineButtonType style:flags.0?RichButtonStyle = RichText;
+textTonAddress#3cd2a36a text:RichText = RichText;
 
 pageBlockUnsupported#13567e8a = PageBlock;
 pageBlockTitle#70abc3fd text:RichText = PageBlock;
