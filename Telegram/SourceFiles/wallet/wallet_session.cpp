@@ -5304,14 +5304,41 @@ void Session::resetDeviceCustody(
 			runtime->notifyProtectionChanged();
 		} else {
 			for (const auto &weak : state->sessions) {
-				// The stopped client's handlers can no longer answer this report.
-				if (weak && weak->wallet()._submission) {
-					SettleTonConnect(
-						*weak->wallet()._submission,
-						SendError::Failed);
+				if (!weak) {
+					continue;
 				}
-				if (weak) {
-					weak->wallet().syncEngineClient();
+				auto &wallet = weak->wallet();
+				const auto interrupted = wallet._submission
+					|| (wallet._sendState.current() != SendState::Idle);
+				if (interrupted) {
+					// WHY: the stopped client can't answer its send, so retire it
+					// here; a broadcast that may have landed stays unresolved.
+					const auto &submission = wallet._submission;
+					if (submission && submission->rpcStarted) {
+						wallet._sendUnresolved = true;
+						wallet._unresolvedOperationId = submission->operationId;
+					}
+					wallet.retireSubmission();
+					wallet._pending.reset();
+					++wallet._sendRevision;
+				}
+				wallet.syncEngineClient();
+				if (interrupted && weak) {
+					auto &restarted = weak->wallet();
+					const auto entry = restarted._sendUnresolved
+						? restarted.submittedTransfer(
+							restarted._unresolvedOperationId)
+						: nullptr;
+					const auto record = entry
+						? restarted.submittedTransferRecord(
+							entry->operationId,
+							entry->identity)
+						: nullptr;
+					if (record
+						&& record->recordId == restarted._clientRecordId) {
+						entry->client = restarted.signingClient();
+					}
+					restarted._sendState = SendState::Idle;
 				}
 			}
 		}
