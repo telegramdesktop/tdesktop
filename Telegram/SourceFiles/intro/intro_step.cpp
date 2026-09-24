@@ -281,7 +281,7 @@ void Step::updateLabelsPosition() {
 			contentTop() + st::introTitleTop);
 		_description->resizeToWidth(std::min(
 			st::introDescription.minWidth,
-			width() - st::boxRadius * 2));
+			std::max(width() - 48, 0)));
 		_description->moveToLeft(
 			(width() - _description->width()) / 2,
 			contentTop() + st::introDescriptionTop);
