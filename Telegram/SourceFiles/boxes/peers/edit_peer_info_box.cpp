@@ -1259,7 +1259,7 @@ void Controller::fillForumButton() {
 			changes->events_starting_with({}) | rpl::map(label),
 			[] {},
 			st::manageGroupTopicsButton,
-			{ .icon = &st::menuIconTopics, .newBadge = true }));
+			{ .icon = &st::menuIconTopics }));
 
 	button->setClickedCallback(crl::guard(this, [=] {
 		if (!*_forumSavedValue && _controls.forumToggleLocked) {
