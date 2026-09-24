@@ -6131,10 +6131,6 @@ void HistoryInner::changeAccessibilitySelection(
 	clearTextSelection();
 	repaintItem(item);
 	_widget->updateTopBarSelection();
-	accessibilityChildStateChanged(index, { .selected = true });
-	// The state change above only says which state changed, and a screen
-	// reader on Windows hears nothing of it - the selection event below is
-	// what tells it the message became selected, or stopped being.
 	accessibilityChildSelectionChanged(index);
 	accessibilityChildNameChanged(index);
 }
