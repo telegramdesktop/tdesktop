@@ -4355,7 +4355,17 @@ void ArticleSession::applyInitialPaste() {
 		imported = BlocksFromMarkdown(data->text(), limits, used);
 	}
 	if (imported && !imported->blocks.empty()) {
-		_editor->insertPreparedBlocks(std::move(imported->blocks));
+		const auto editor = _editor.data();
+		if (imported->localMedia.empty()) {
+			editor->pasteImportedBlocks(std::move(*imported));
+		} else {
+			crl::on_main(editor, [
+				editor,
+				imported = std::move(*imported)
+			]() mutable {
+				editor->pasteImportedBlocks(std::move(imported));
+			});
+		}
 		return;
 	} else if (!data->hasText()) {
 		return;
