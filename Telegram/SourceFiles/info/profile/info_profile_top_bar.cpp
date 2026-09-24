@@ -1481,7 +1481,7 @@ void TopBar::setupUserpicButton(
 						&controller->window(),
 						editorData(type),
 						choosePhotoCallback(type),
-						qvariant_cast<QImage>(data->imageData()));
+						QGuiApplication::clipboard()->image());
 				});
 				menu->addAction(
 					std::move(text)(tr::now),

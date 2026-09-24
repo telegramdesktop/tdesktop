@@ -409,7 +409,7 @@ void UserpicButton::choosePhotoLocally() {
 						_window,
 						editorData(type),
 						callback(type),
-						qvariant_cast<QImage>(data->imageData()));
+						QGuiApplication::clipboard()->image());
 				});
 				_menu->addAction(
 					std::move(text)(tr::now),
