@@ -1376,6 +1376,31 @@ void FailShareFetch(
 	return result;
 }
 
+[[nodiscard]] TonConnectSignData TonConnectSignDataFromEngine(
+		const engine::TonConnectSignDataRequest &request) {
+	using Payload = engine::TonConnectSignDataPayload;
+	using Type = TonConnectSignDataType;
+	auto result = TonConnectSignData{
+		.request = std::make_shared<const engine::TonConnectSignDataRequest>(
+			request),
+	};
+	std::visit([&](const auto &data) {
+		using T = std::decay_t<decltype(data)>;
+		if constexpr (std::is_same_v<T, Payload::kText>) {
+			result.type = Type::Text;
+			result.data = QString::fromStdString(data.text);
+		} else if constexpr (std::is_same_v<T, Payload::kBinary>) {
+			result.type = Type::Binary;
+			result.data = QString::fromStdString(data.bytes);
+		} else if constexpr (std::is_same_v<T, Payload::kCell>) {
+			result.type = Type::Cell;
+			result.data = QString::fromStdString(data.cell);
+			result.schema = QString::fromStdString(data.schema);
+		}
+	}, request.payload.get_variant());
+	return result;
+}
+
 [[nodiscard]] TonConnectAppRequest TonConnectAppRequestFromEngine(
 		engine::TonConnectDerivedRequest derived) {
 	using Kind = TonConnectRequestKind;
@@ -1393,12 +1418,17 @@ void FailShareFetch(
 			result.transfer = std::make_shared<const TonConnectTransfer>(
 				std::move(*transfer));
 		}
+	} else if (const auto sign = std::get_if<Incoming::kSignData>(&variant)) {
+		result.kind = Kind::SignData;
+		result.signData = std::make_shared<const TonConnectSignData>(
+			TonConnectSignDataFromEngine(sign->request));
 	} else if (std::get_if<Incoming::kSignMessage>(&variant)) {
 		result.kind = Kind::Unsupported;
 	} else if (std::get_if<Incoming::kDisconnect>(&variant)) {
 		result.kind = Kind::Disconnect;
 	} else {
-		result.kind = (result.method == u"sendTransaction"_q)
+		result.kind = (result.method == u"sendTransaction"_q
+				|| result.method == u"signData"_q)
 			? Kind::Invalid
 			: (result.method == u"disconnect"_q)
 			? Kind::Disconnect
@@ -6259,6 +6289,90 @@ void Session::encryptTonConnectResponse(
 		LOG(("Wallet Error: TON Connect response could not be encrypted: %1"
 			).arg(error.message));
 		fail();
+	});
+}
+
+void Session::signTonConnectData(
+		KeyAuthorization auth,
+		TonConnectKey key,
+		QString requestId,
+		std::shared_ptr<const TonConnectSignData> data,
+		QString domain,
+		Fn<void(QByteArray)> done,
+		Fn<void(TonConnectKeyError)> fail) {
+	const auto record = (tonConnectAccess() == TonConnectAccess::Allowed)
+		? currentRecord()
+		: nullptr;
+	if (!record || !key || key.signingKey != _publicKey) {
+		fail(TonConnectKeyError::Blocked);
+		return;
+	} else if (!ReadAuthorized(*this, auth)) {
+		fail(TonConnectKeyError::Locked);
+		return;
+	}
+	const auto timestamp = base::unixtime::now();
+	if (!data
+		|| !data->request
+		|| domain.isEmpty()
+		|| !TonConnectRequestIdValid(requestId)
+		|| timestamp <= 0) {
+		LOG(("Wallet Error: TON Connect data signing requested "
+			"with unusable input."));
+		fail(TonConnectKeyError::Failed);
+		return;
+	}
+	struct Signed {
+		QByteArray body;
+		QByteArray publicKey;
+	};
+	const auto address = _address;
+	const auto served = _publicKey;
+	const auto generation = _networkGeneration;
+	const auto recordId = record->recordId;
+	const auto lifecycle = _engine->lifecycle();
+	const auto session = key.session;
+	auto request = engine::TonConnectSignDataSignRequest{
+		.descriptor = DescriptorFromRecord(*record),
+		.request = *data->request,
+		.domain = domain.toStdString(),
+		.timestamp = uint64_t(timestamp),
+	};
+	_engine->runLocal([
+		=,
+		request = std::move(request),
+		id = requestId.toStdString()
+	] {
+		const auto result = lifecycle->sign_ton_connect_data(request);
+		return Signed{
+			.body = BytesFromEngine(
+				session->encrypt_sign_data_success(id, result)),
+			.publicKey = BytesFromEngine(result.public_key),
+		};
+	}, [=, this, grant = auth.grant](Signed result) {
+		const auto now = currentRecord();
+		if (generation != _networkGeneration
+			|| address != _address
+			|| served != _publicKey
+			|| !now
+			|| now->recordId != recordId) {
+			LOG(("Wallet Error: TON Connect data signed "
+				"for another wallet state."));
+			fail(TonConnectKeyError::Blocked);
+			return;
+		} else if (result.publicKey != served || result.body.isEmpty()) {
+			LOG(("Wallet Error: TON Connect data signed "
+				"with an unexpected key."));
+			fail(TonConnectKeyError::Failed);
+			return;
+		}
+		done(std::move(result.body));
+	}, [=, this, grant = auth.grant](EngineError error) {
+		LOG(("Wallet Error: TON Connect data signing failed: %1"
+			).arg(LifecycleErrorName(error)));
+		noteSecretReadFailure(ProtectedSecretFailure(error), recordId);
+		fail(IsVaultLocked(error)
+			? TonConnectKeyError::Locked
+			: TonConnectKeyError::Failed);
 	});
 }
 

@@ -107,6 +107,11 @@ struct ActionRowArgs {
 	not_null<QWidget*> parent,
 	ActionRowArgs args);
 
+[[nodiscard]] Fn<void()> CopyTextCallback(
+	std::shared_ptr<Ui::Show> show,
+	QString text,
+	QString toast);
+
 [[nodiscard]] object_ptr<Ui::FlatLabel> AddressValueLabel(
 	not_null<QWidget*> parent,
 	std::shared_ptr<Ui::Show> show,

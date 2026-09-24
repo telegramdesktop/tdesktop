@@ -57,6 +57,7 @@ struct TonConnectKey;
 enum class TonConnectKeyError : uchar;
 struct TonConnectReply;
 struct TonConnectResponse;
+struct TonConnectSignData;
 struct TonConnectTransfer;
 class TransferMessages;
 struct TransferSubmissionAnswer;
@@ -694,6 +695,14 @@ public:
 		TonConnectResponse response,
 		Fn<void(QByteArray)> done,
 		Fn<void()> fail);
+	void signTonConnectData(
+		KeyAuthorization auth,
+		TonConnectKey key,
+		QString requestId,
+		std::shared_ptr<const TonConnectSignData> data,
+		QString domain,
+		Fn<void(QByteArray)> done,
+		Fn<void(TonConnectKeyError)> fail);
 	[[nodiscard]] bool rotationOffered();
 	void quoteRotationFee(KeyAuthorization auth, Fn<void(FeeResult)> done);
 	void prepareRotation(

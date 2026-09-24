@@ -664,6 +664,12 @@ walletConnectCaptionLabel: FlatLabel(walletCommentCaptionLabel) {
 	align: align(top);
 }
 walletConnectCaptionMargin: margins(24px, 0px, 24px, 16px);
+walletConnectSignDataLabel: FlatLabel(walletCommentLabel) {
+	palette: TextPalette(defaultTextPalette) {
+		monoFg: windowFg;
+	}
+}
+walletConnectSignCaptionMargin: margins(24px, 8px, 24px, 16px);
 walletConnectActionIconLeft: 13px;
 walletConnectActionPadding: margins(71px, 11px, 20px, 11px);
 walletConnectErrorLabel: FlatLabel(walletCommentErrorLabel) {

@@ -10,8 +10,42 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/painter.h"
 #include "ui/widgets/labels.h"
+#include "styles/style_info.h"
 #include "styles/style_window.h"
 #include "styles/style_settings.h"
+
+namespace Ui {
+
+Text::PaletteDependentEmoji AttentionMarkEmoji() {
+	return {
+		.factory = [] {
+			const auto s = st::infoSecurityRiskIconSize;
+			const auto ratio = style::DevicePixelRatio();
+			const auto rect = QRect(0, 0, s, s);
+			auto result = QImage(
+				rect.size() * ratio,
+				QImage::Format_ARGB32_Premultiplied);
+			result.setDevicePixelRatio(ratio);
+			result.fill(Qt::transparent);
+
+			auto p = QPainter(&result);
+			auto hq = PainterHighQualityEnabler(p);
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::attentionButtonFg);
+			p.drawEllipse(rect);
+
+			p.setPen(st::windowFgActive);
+			p.setFont(st::semiboldFont);
+			p.drawText(rect, u"!"_q, style::al_center);
+
+			p.end();
+			return result;
+		},
+		.margin = st::infoSecurityRiskIconMargin,
+	};
+}
+
+} // namespace Ui
 
 namespace Ui::NewBadge {
 

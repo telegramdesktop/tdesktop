@@ -146,6 +146,7 @@ private:
 	enum class Decision : uchar {
 		None,
 		Confirm,
+		Sign,
 		Decline,
 		Invalid,
 		Disconnect,
@@ -173,8 +174,11 @@ private:
 	void answerRecovered();
 	void preview();
 	void previewed(FeeResult result);
+	void showSignData();
 	void confirmPressed();
 	void confirmKeyReady(TonConnectKeyResult result);
+	void decisionKeyFailed(TonConnectKeyError error);
+	void sign();
 	void declinePressed();
 	void answerInvalid();
 	void answerDisconnect();
@@ -1378,14 +1382,18 @@ void TonConnectRequests::Flow::decrypted(TonConnectAppRequest request) {
 		return;
 	case Kind::Invalid:
 	case Kind::SendTransaction:
+	case Kind::SignData:
 		break;
 	}
 	const auto transfer = _request.transfer;
 	if (!TonConnectRequestIdValid(_request.id)
-		|| (_request.kind == Kind::SendTransaction && !transfer)) {
+		|| (_request.kind == Kind::SendTransaction && !transfer)
+		|| (_request.kind == Kind::SignData && !_request.signData)) {
 		unavailable();
 	} else if (_request.kind == Kind::Invalid) {
 		answerInvalid();
+	} else if (_request.kind == Kind::SignData) {
+		showSignData();
 	} else {
 		armDeadline(transfer->validUntil);
 		preview();
@@ -1495,16 +1503,29 @@ void TonConnectRequests::Flow::previewed(FeeResult result) {
 	}
 }
 
+void TonConnectRequests::Flow::showSignData() {
+	const auto &current = _state.current();
+	_state = TonConnectRequestBoxState{
+		.phase = Phase::Confirm,
+		.name = current.name,
+		.domain = current.domain,
+		.icon = current.icon,
+		.signData = _request.signData,
+		.confirmable = true,
+	};
+}
+
 void TonConnectRequests::Flow::confirmPressed() {
+	const auto signs = (_request.kind == TonConnectRequestKind::SignData);
 	auto state = _state.current();
 	if (stopped()
 		|| _decision != Decision::None
 		|| state.phase != Phase::Confirm
-		|| !_prepared
+		|| (signs ? !_request.signData : !_prepared)
 		|| state.busy) {
 		return;
 	}
-	_decision = Decision::Confirm;
+	_decision = signs ? Decision::Sign : Decision::Confirm;
 	state.busy = true;
 	state.declining = false;
 	state.error = QString();
@@ -1519,12 +1540,34 @@ void TonConnectRequests::Flow::confirmPressed() {
 }
 
 void TonConnectRequests::Flow::confirmKeyReady(TonConnectKeyResult result) {
-	using Error = TonConnectKeyError;
 	if (stopped()) {
+		return;
+	} else if (result.error != TonConnectKeyError::None) {
+		decisionKeyFailed(result.error);
 		return;
 	}
 	auto &wallet = _session->wallet();
-	switch (result.error) {
+	_key = std::move(result.key);
+	_auth = KeyAuthorization{ .grant = std::move(result.grant) };
+	const auto access = wallet.tonConnectAccess();
+	if (access != TonConnectAccess::Allowed) {
+		accessNotice(access);
+		return;
+	} else if (_decision == Decision::Sign) {
+		sign();
+		return;
+	}
+	const auto refusal = wallet.sendRefusal(_prepared, _auth);
+	if (refusal != SendError::None) {
+		backToConfirm(SendErrorText(refusal, TransferMinNanos(_session)));
+		return;
+	}
+	encryptNotSent();
+}
+
+void TonConnectRequests::Flow::decisionKeyFailed(TonConnectKeyError error) {
+	using Error = TonConnectKeyError;
+	switch (error) {
 	case Error::None:
 		break;
 	case Error::Cancelled:
@@ -1537,7 +1580,7 @@ void TonConnectRequests::Flow::confirmKeyReady(TonConnectKeyResult result) {
 		backToConfirm(QString());
 		return;
 	case Error::Blocked:
-		accessNotice(wallet.tonConnectAccess());
+		accessNotice(_session->wallet().tonConnectAccess());
 		return;
 	case Error::OtherKey:
 		notice(tr::lng_wallet_connect_request_other_key(tr::now));
@@ -1546,19 +1589,28 @@ void TonConnectRequests::Flow::confirmKeyReady(TonConnectKeyResult result) {
 		backToConfirm(tr::lng_wallet_connect_request_failed(tr::now));
 		return;
 	}
-	_key = std::move(result.key);
-	_auth = KeyAuthorization{ .grant = std::move(result.grant) };
-	const auto access = wallet.tonConnectAccess();
-	if (access != TonConnectAccess::Allowed) {
-		accessNotice(access);
-		return;
-	}
-	const auto refusal = wallet.sendRefusal(_prepared, _auth);
-	if (refusal != SendError::None) {
-		backToConfirm(SendErrorText(refusal, TransferMinNanos(_session)));
-		return;
-	}
-	encryptNotSent();
+	Unexpected("Error in TonConnectRequests::Flow::decisionKeyFailed.");
+}
+
+void TonConnectRequests::Flow::sign() {
+	const auto domain = SessionDomain(_owner->_store->session(_sessionId));
+	_session->wallet().signTonConnectData(
+		base::take(_auth),
+		_key,
+		_request.id,
+		_request.signData,
+		domain,
+		crl::guard(this, [=](QByteArray body) {
+			if (!stopped()) {
+				_response = std::move(body);
+				registerKey();
+			}
+		}),
+		crl::guard(this, [=](TonConnectKeyError error) {
+			if (!stopped()) {
+				decisionKeyFailed(error);
+			}
+		}));
 }
 
 void TonConnectRequests::Flow::declinePressed() {
@@ -1731,7 +1783,7 @@ void TonConnectRequests::Flow::claim(const QByteArray &answer) {
 		.publicKey = identity ? identity->publicKey : QByteArray(),
 		.decision = (confirm
 			? TonConnectClaimDecision::Confirm
-			: TonConnectClaimDecision::Refusal),
+			: TonConnectClaimDecision::Answer),
 		.answer = confirm ? QByteArray() : _response,
 		.notSent = confirm ? _notSent : QByteArray(),
 	};
@@ -1942,6 +1994,9 @@ void TonConnectRequests::Flow::published(SubmitResult result) {
 		closeWithToast(_sentBoc
 			? tr::lng_wallet_connect_request_sent(tr::now)
 			: tr::lng_wallet_connect_request_not_sent(tr::now));
+		return;
+	case Decision::Sign:
+		closeWithToast(tr::lng_wallet_connect_sign_done(tr::now));
 		return;
 	case Decision::Invalid:
 		notice(tr::lng_wallet_connect_request_invalid(tr::now));

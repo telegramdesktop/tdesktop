@@ -24,7 +24,7 @@ namespace Wallet {
 
 enum class TonConnectClaimDecision : uchar {
 	Confirm = 1,
-	Refusal = 2,
+	Answer = 2,
 };
 
 struct TonConnectClaimRecord {
@@ -36,7 +36,7 @@ struct TonConnectClaimRecord {
 	TimeId created = 0;
 	QString address;
 	QByteArray publicKey;
-	TonConnectClaimDecision decision = TonConnectClaimDecision::Refusal;
+	TonConnectClaimDecision decision = TonConnectClaimDecision::Answer;
 	QByteArray answer;
 	QByteArray notSent;
 	std::string operationId;

@@ -20,6 +20,7 @@ class GenericBox;
 namespace Wallet {
 
 struct TonConnectEmulation;
+struct TonConnectSignData;
 struct TonConnectTransfer;
 
 enum class TonConnectRequestPhase : uchar {
@@ -39,6 +40,7 @@ struct TonConnectRequestBoxState {
 	std::shared_ptr<const TonConnectTransfer> transfer;
 	std::optional<int64> feeNano;
 	std::shared_ptr<const TonConnectEmulation> emulation;
+	std::shared_ptr<const TonConnectSignData> signData;
 	QString notice;
 	QString error;
 	bool feeLoading = false;

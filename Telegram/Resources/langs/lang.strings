@@ -9165,6 +9165,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_connect_request_closed" = "This app is no longer connected.";
 "lng_wallet_connect_request_failed" = "Couldn't answer the request. Please try again.";
 "lng_wallet_connect_request_undelivered" = "Couldn't deliver the answer to the app.";
+"lng_wallet_connect_sign_title" = "Sign Data";
+"lng_wallet_connect_sign_data" = "Data";
+"lng_wallet_connect_sign_text_about" = "Carefully review the message, and if you agree, sign data.";
+"lng_wallet_connect_sign_binary" = "Binary content";
+"lng_wallet_connect_sign_blind" = "You are signing blindly. Sign only from trusted sources.";
+"lng_wallet_connect_sign_button" = "Sign";
+"lng_wallet_connect_sign_copied" = "Data is copied to clipboard.";
+"lng_wallet_connect_sign_done" = "The data was signed.";
 
 // Wnd specific
 

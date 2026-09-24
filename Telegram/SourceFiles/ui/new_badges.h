@@ -7,8 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/text/custom_emoji_helper.h"
+
 namespace Ui {
+
 class RpWidget;
+
+[[nodiscard]] Text::PaletteDependentEmoji AttentionMarkEmoji();
+
 } // namespace Ui
 
 namespace Ui::NewBadge {

@@ -42,7 +42,7 @@ constexpr auto kSignedBocMaxLength = 24 * 1024;
 	switch (record.decision) {
 	case Decision::Confirm:
 		return !record.notSent.isEmpty();
-	case Decision::Refusal:
+	case Decision::Answer:
 		return !record.answer.isEmpty()
 			&& record.notSent.isEmpty()
 			&& record.operationId.empty()
@@ -98,7 +98,7 @@ constexpr auto kSignedBocMaxLength = 24 * 1024;
 		>> result.signedBoc;
 	if (!stream.ok()
 		|| (decision != quint32(TonConnectClaimDecision::Confirm)
-			&& decision != quint32(TonConnectClaimDecision::Refusal))) {
+			&& decision != quint32(TonConnectClaimDecision::Answer))) {
 		return std::nullopt;
 	}
 	result.sessionId = sessionId;

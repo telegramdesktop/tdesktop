@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/table_rows.h"
 #include "ui/controls/ton_common.h"
 #include "ui/layers/generic_box.h"
+#include "ui/text/custom_emoji_helper.h"
 #include "ui/text/text.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
@@ -19,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/table_layout.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/new_badges.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "wallet/wallet_address.h"
@@ -39,6 +41,7 @@ using Phase = TonConnectRequestPhase;
 using ActionKind = TonConnectActionKind;
 using ActionSide = TonConnectActionSide;
 using EmulationStatus = TonConnectEmulationStatus;
+using SignDataType = TonConnectSignDataType;
 
 constexpr auto kPayloadShown = 1024;
 constexpr auto kMinus = QChar(0x2212);
@@ -226,6 +229,9 @@ struct Destinations {
 	case Phase::Restore:
 		return now.topic;
 	case Phase::Confirm:
+		if (now.signData) {
+			return tr::lng_wallet_connect_sign_title(tr::now);
+		}
 		return now.name.isEmpty()
 			? tr::lng_wallet_connect_request_title(tr::now)
 			: tr::lng_wallet_connect_request_title_app(
@@ -442,7 +448,7 @@ void AddTraceWarning(
 	)->setTryMakeSimilarLines(true);
 }
 
-void AddConfirmTail(
+void AddFeeLine(
 		not_null<State*> state,
 		const Context &context,
 		const TonConnectRequestBoxState &now) {
@@ -459,6 +465,14 @@ void AddConfirmTail(
 		style::al_top);
 	state->fee->entity()->setTryMakeSimilarLines(true);
 	AddTraceWarning(body, now);
+}
+
+void AddDecisionButtons(
+		not_null<State*> state,
+		const Context &context,
+		rpl::producer<QString> secondary,
+		rpl::producer<QString> primary) {
+	const auto body = state->body.data();
 	state->error = body->add(
 		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
 			body,
@@ -468,8 +482,8 @@ void AddConfirmTail(
 		style::al_top);
 	const auto buttons = AddTonConnectButtons(
 		body,
-		tr::lng_wallet_connect_request_decline(),
-		tr::lng_wallet_connect_request_confirm());
+		std::move(secondary),
+		std::move(primary));
 	buttons.secondary->setClickedCallback([=, decline = context.decline] {
 		if (!Busy(state)) {
 			decline();
@@ -482,6 +496,18 @@ void AddConfirmTail(
 	});
 	state->decline = buttons.secondary;
 	state->confirm = buttons.primary;
+}
+
+void AddConfirmTail(
+		not_null<State*> state,
+		const Context &context,
+		const TonConnectRequestBoxState &now) {
+	AddFeeLine(state, context, now);
+	AddDecisionButtons(
+		state,
+		context,
+		tr::lng_wallet_connect_request_decline(),
+		tr::lng_wallet_connect_request_confirm());
 }
 
 void SetDetails(
@@ -618,6 +644,140 @@ void AddDetailsSkip(not_null<Ui::VerticalLayout*> body) {
 			- st::giveawayGiftCodeTableMargin.bottom()));
 }
 
+[[nodiscard]] object_ptr<Ui::FlatLabel> MakeWarningLabel(
+		not_null<QWidget*> parent,
+		TextWithEntities text,
+		const style::FlatLabel &st) {
+	auto helper = Ui::Text::CustomEmojiHelper();
+	auto marked = helper.paletteDependent(Ui::AttentionMarkEmoji());
+	marked.append(QChar(' ')).append(std::move(text));
+	auto result = object_ptr<Ui::FlatLabel>(parent, st);
+	const auto raw = result.data();
+	raw->setMarkedText(marked, helper.context([=] { raw->update(); }));
+	return result;
+}
+
+[[nodiscard]] TextWithEntities BinaryWarningText() {
+	auto result = tr::lng_wallet_connect_sign_binary(tr::now, tr::bold);
+	result.append(QChar('\n'));
+	result.append(tr::lng_wallet_connect_sign_blind(tr::now));
+	return result;
+}
+
+[[nodiscard]] object_ptr<Ui::FlatLabel> MakeSignDataLabel(
+		not_null<QWidget*> parent,
+		const QString &text) {
+	return object_ptr<Ui::FlatLabel>(
+		parent,
+		rpl::single(Ui::Text::Wrapped(tr::marked(text), EntityType::Code)),
+		st::walletConnectSignDataLabel);
+}
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeSignDataBubble(
+		not_null<QWidget*> parent,
+		object_ptr<Ui::FlatLabel> label,
+		Fn<void()> copy) {
+	auto result = MakeCommentBubble(
+		parent,
+		std::move(label),
+		st::windowBgOver);
+	const auto raw = result.data();
+	const auto button = Ui::CreateChild<Ui::AbstractButton>(raw);
+	raw->sizeValue() | rpl::on_next([=](QSize size) {
+		button->resize(size);
+	}, button->lifetime());
+	button->setPointerCursor(true);
+	button->setClickedCallback(std::move(copy));
+	button->raise();
+	return result;
+}
+
+[[nodiscard]] Fn<void()> CopySignData(
+		std::shared_ptr<Ui::Show> show,
+		const TonConnectSignData &data) {
+	return CopyTextCallback(
+		std::move(show),
+		data.data,
+		tr::lng_wallet_connect_sign_copied(tr::now));
+}
+
+void AddSignDataCell(
+		not_null<Ui::VerticalLayout*> body,
+		std::shared_ptr<Ui::Show> show,
+		const TonConnectSignData &data) {
+	body->add(
+		MakeSignDataBubble(
+			body,
+			MakeSignDataLabel(body, data.schema),
+			CopySignData(std::move(show), data)),
+		st::giveawayGiftCodeTableMargin,
+		style::al_justify);
+	body->add(
+		MakeWarningLabel(
+			body,
+			tr::marked(tr::lng_wallet_connect_sign_blind(tr::now)),
+			st::walletCommentCaptionLabel),
+		st::walletConnectSignCaptionMargin);
+}
+
+void AddSignDataContent(
+		not_null<Ui::VerticalLayout*> body,
+		std::shared_ptr<Ui::Show> show,
+		const TonConnectSignData &data) {
+	switch (data.type) {
+	case SignDataType::Text:
+		body->add(
+			MakeSignDataBubble(
+				body,
+				MakeSignDataLabel(body, data.data),
+				CopySignData(std::move(show), data)),
+			st::giveawayGiftCodeTableMargin,
+			style::al_justify);
+		body->add(
+			object_ptr<Ui::FlatLabel>(
+				body,
+				tr::lng_wallet_connect_sign_text_about(),
+				st::walletCommentCaptionLabel),
+			st::walletConnectSignCaptionMargin);
+		return;
+	case SignDataType::Binary:
+		body->add(
+			MakeSignDataBubble(
+				body,
+				MakeWarningLabel(
+					body,
+					BinaryWarningText(),
+					st::walletCommentLabel),
+				CopySignData(std::move(show), data)),
+			st::giveawayGiftCodeTableMargin,
+			style::al_justify);
+		AddDetailsSkip(body);
+		return;
+	case SignDataType::Cell:
+		AddSignDataCell(body, std::move(show), data);
+		return;
+	}
+	Unexpected("Type in TonConnectRequestBox AddSignDataContent.");
+}
+
+void FillSignData(
+		not_null<Ui::GenericBox*> box,
+		not_null<State*> state,
+		const Context &context,
+		const TonConnectRequestBoxState &now) {
+	const auto body = state->body.data();
+	Ui::AddSubsectionTitle(
+		body,
+		tr::lng_wallet_connect_sign_data(),
+		DetailsTitlePadding());
+	AddSignDataContent(body, box->uiShow(), *now.signData);
+	AddDecisionButtons(
+		state,
+		context,
+		tr::lng_cancel(),
+		tr::lng_wallet_connect_sign_button());
+}
+
 void FillDetails(
 		not_null<Ui::GenericBox*> box,
 		not_null<State*> state,
@@ -692,7 +852,9 @@ void Rebuild(
 		break;
 	case Phase::Notice: FillNotice(box, state, now); break;
 	case Phase::Confirm:
-		if (state->details) {
+		if (now.signData) {
+			FillSignData(box, state, context, now);
+		} else if (state->details) {
 			FillDetails(box, state, context, now);
 		} else {
 			FillSheet(box, state, context, now);

@@ -20,6 +20,7 @@ struct TextWithEntities;
 namespace wallet_engine {
 struct SendRequest;
 struct TonConnectDerivedSession;
+struct TonConnectSignDataRequest;
 } // namespace wallet_engine
 
 namespace Main {
@@ -130,11 +131,25 @@ struct TonConnectTransfer {
 	std::optional<TimeId> validUntil;
 };
 
+enum class TonConnectSignDataType : uchar {
+	Text,
+	Binary,
+	Cell,
+};
+
+struct TonConnectSignData {
+	std::shared_ptr<const wallet_engine::TonConnectSignDataRequest> request;
+	TonConnectSignDataType type = TonConnectSignDataType::Text;
+	QString data;
+	QString schema;
+};
+
 enum class TonConnectRequestKind : uchar {
 	SendTransaction,
 	Invalid,
 	Disconnect,
 	Unsupported,
+	SignData,
 };
 
 struct TonConnectAppRequest {
@@ -142,6 +157,7 @@ struct TonConnectAppRequest {
 	QString id;
 	QString method;
 	std::shared_ptr<const TonConnectTransfer> transfer;
+	std::shared_ptr<const TonConnectSignData> signData;
 };
 
 enum class TonConnectError : uchar {

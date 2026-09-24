@@ -1075,17 +1075,27 @@ QString EncryptedCommentLabel::accessibilityName() {
 [[nodiscard]] Fn<void()> CopyAddressCallback(
 		std::shared_ptr<Ui::Show> show,
 		const QString &address) {
+	return CopyTextCallback(
+		std::move(show),
+		address,
+		tr::lng_gift_unique_address_copied(tr::now));
+}
+
+} // namespace
+
+Fn<void()> CopyTextCallback(
+		std::shared_ptr<Ui::Show> show,
+		QString text,
+		QString toast) {
 	return [=] {
-		TextUtilities::SetClipboardText(TextForMimeData::Simple(address));
+		TextUtilities::SetClipboardText(TextForMimeData::Simple(text));
 		show->showToast({
-			.text = { tr::lng_gift_unique_address_copied(tr::now) },
+			.text = { toast },
 			.iconLottie = u"toast/copy"_q,
 			.iconLottieSize = st::toastLottieIconSize,
 		});
 	};
 }
-
-} // namespace
 
 object_ptr<Ui::FlatLabel> AddressValueLabel(
 		not_null<QWidget*> parent,
