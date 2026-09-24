@@ -50,6 +50,7 @@ constexpr auto kAddressGroupSize = 4;
 constexpr auto kAddressGroupsPerLine = 6;
 constexpr auto kGlareDuration = crl::time(1100);
 constexpr auto kGlareTimeout = crl::time(400);
+constexpr auto kTransitionDuration = crl::time(400);
 
 [[nodiscard]] QColor CardTickerFg() {
 	return QColor(0x0f, 0xdd, 0xff);
@@ -106,6 +107,7 @@ struct AmountParts {
 struct TransferTag {
 	QString text;
 	QColor bg;
+	bool sending = false;
 };
 
 // The band the glare lights up, in card coordinates.
@@ -114,12 +116,58 @@ struct CardGlarePass {
 	float64 till = 0.;
 };
 
+struct GlarePassTiming {
+	crl::time birth = 0;
+	crl::time death = 0;
+	int width = 0;
+};
+
+// The corner ribbon, laid out as ValidateRotatedBadge lays out a gift badge,
+// except that the word gets a fixed area and is centered inside it.
+struct RibbonGeometry {
+	QPoint textpos;
+	int textWidth = 0;
+	int twidth = 0;
+	int height = 0;
+	int size = 0;
+};
+
+// Lives only from the moment a sending card is replaced by its sent or
+// failed one until the ribbon settles and the last glare pass has ended.
+struct CardTransition {
+	Ui::Animations::Basic animation;
+	std::optional<GlarePassTiming> glare;
+	QString fromText;
+	QString toText;
+	QColor fromBg;
+	QImage fromWord;
+	QImage toWord;
+	crl::time started = 0;
+	int wordsTextWidth = 0;
+};
+
+// What a card being replaced by a refreshed view passes to its successor.
+struct GramTransferHandover {
+	std::unique_ptr<Lottie::Icon> mark;
+	std::unique_ptr<Ui::GlareEffect> glare;
+	std::unique_ptr<CardTransition> transition;
+	std::optional<GlarePassTiming> pass;
+	QString badge;
+	QColor badgeBg;
+	bool markStarted = false;
+	bool sending = false;
+};
+
 class GramTransferCardPart final
 	: public MediaGenericPart
 	, public base::has_weak_ptr {
 public:
-	explicit GramTransferCardPart(GramTransferOrigin origin);
+	GramTransferCardPart(
+		GramTransferOrigin origin,
+		GramTransferHandover handover);
 	~GramTransferCardPart();
+
+	[[nodiscard]] GramTransferHandover takeHandover();
 
 	void draw(
 		Painter &p,
@@ -143,6 +191,8 @@ private:
 		QString identity;
 		QString badge;
 		QColor badgeBg;
+		int badgeTextWidth = 0;
+		bool badgeSending = false;
 		QStringList addressLines;
 		int markTop = 0;
 		int amountTop = 0;
@@ -154,13 +204,31 @@ private:
 		float64 amountScale = 1.;
 	};
 
+	struct RibbonKey {
+		QString text;
+		QColor bg;
+		int textWidth = 0;
+		int ratio = 0;
+
+		friend bool operator==(const RibbonKey &, const RibbonKey &) = default;
+	};
+
 	[[nodiscard]] int resolveLayout(int outerWidth);
 	[[nodiscard]] bool sending() const;
-	[[nodiscard]] std::optional<CardGlarePass> glarePass() const;
+	[[nodiscard]] std::optional<CardGlarePass> glarePass(crl::time now) const;
+	[[nodiscard]] float64 transitionProgress(crl::time now) const;
+	[[nodiscard]] bool transitionFinished(crl::time now) const;
+	void adopt(GramTransferHandover &&handover);
+	void animateTransition();
+	void attachGlare() const;
 	void validateMark() const;
 	void validateGlare() const;
 	void validateBadge() const;
 	void paintGlareBorder(QPainter &p, CardGlarePass pass) const;
+	void paintRibbonTransition(
+		QPainter &p,
+		int cardWidth,
+		crl::time now) const;
 	void showDetails(const ClickContext &context);
 
 	const GramTransferOrigin _origin;
@@ -168,15 +236,18 @@ private:
 	const AmountParts _amount;
 	const QString _address;
 	const QString _identity;
+	// An outgoing card fixes the ribbon to its widest possible word, taken
+	// once from the language active when the card is created.
+	const int _ribbonTextWidth = 0;
 	Layout _layout;
 	mutable std::unique_ptr<Lottie::Icon> _mark;
 	// Lives only while the transfer is still being sent.
 	mutable std::unique_ptr<Ui::GlareEffect> _glare;
+	mutable std::unique_ptr<CardTransition> _transition;
 	mutable bool _markStarted = false;
+	mutable bool _heavyPending = false;
 	mutable QImage _badge;
-	mutable Info::PeerGifts::GiftBadge _badgeKey;
-	mutable QMargins _badgePadding;
-	mutable style::font _badgeFont;
+	mutable RibbonKey _badgeKey;
 	rpl::event_stream<> _destroyed;
 
 };
@@ -432,12 +503,109 @@ private:
 		return {
 			.text = tr::lng_action_gram_transfer_sending_tag(tr::now),
 			.bg = SendingBadgeBg(),
+			.sending = true,
 		};
 	}
 	return {
 		.text = tr::lng_action_gram_transfer_sent_tag(tr::now),
 		.bg = SentBadgeBg(),
 	};
+}
+
+[[nodiscard]] int OutgoingRibbonTextWidth() {
+	const auto &font = st::msgServiceGiftBoxBadgeFont;
+	return std::max({
+		font->width(tr::lng_action_gram_transfer_sending_tag(tr::now)),
+		font->width(tr::lng_action_gram_transfer_sent_tag(tr::now)),
+		font->width(tr::lng_action_gram_transfer_failed_tag(tr::now)),
+	});
+}
+
+[[nodiscard]] RibbonGeometry ComputeRibbon(int textWidth) {
+	const auto &font = st::msgServiceGiftBoxBadgeFont;
+	const auto padding = st::chatUniqueGiftBadgePadding;
+	auto result = RibbonGeometry();
+	result.textWidth = textWidth;
+	result.twidth = textWidth + padding.left() + padding.right();
+	result.height = padding.top() + font->height + padding.bottom();
+	result.size = result.twidth + font->height * 2;
+	const auto skip = int(std::ceil(result.twidth / M_SQRT2));
+	result.textpos = QPoint(result.size - skip, padding.top());
+	return result;
+}
+
+// The word alone, rotated and supersampled the way the gift badges are.
+[[nodiscard]] QImage RenderRibbonWord(
+		const RibbonGeometry &ribbon,
+		const QString &text) {
+	const auto &font = st::msgServiceGiftBoxBadgeFont;
+	const auto padding = st::chatUniqueGiftBadgePadding;
+	const auto ratio = style::DevicePixelRatio();
+	const auto multiplier = ratio * 3;
+	const auto size = QSize(ribbon.size, ribbon.size);
+	auto image = QImage(size * multiplier, QImage::Format_ARGB32_Premultiplied);
+	image.fill(Qt::transparent);
+	image.setDevicePixelRatio(multiplier);
+	{
+		auto p = QPainter(&image);
+		auto hq = PainterHighQualityEnabler(p);
+		p.translate(ribbon.textpos);
+		p.rotate(45.);
+		p.setFont(font);
+		p.setPen(st::activeButtonFg);
+		p.drawText(
+			QPoint(
+				padding.left() + (ribbon.textWidth - font->width(text)) / 2,
+				padding.top() + font->ascent),
+			text);
+	}
+	auto result = image.scaled(
+		size * ratio,
+		Qt::IgnoreAspectRatio,
+		Qt::SmoothTransformation);
+	result.setDevicePixelRatio(ratio);
+	return result;
+}
+
+void PaintRibbonBand(
+		QPainter &p,
+		const RibbonGeometry &ribbon,
+		const QColor &bg) {
+	p.save();
+	p.translate(ribbon.textpos);
+	p.rotate(45.);
+	p.setPen(Qt::NoPen);
+	p.setBrush(bg);
+	p.drawRect(QRect(-5 * ribbon.twidth, 0, ribbon.twidth * 12, ribbon.height));
+	p.restore();
+}
+
+[[nodiscard]] QImage RenderRibbon(
+		const RibbonGeometry &ribbon,
+		const QString &text,
+		const QColor &bg) {
+	const auto ratio = style::DevicePixelRatio();
+	auto result = QImage(
+		QSize(ribbon.size, ribbon.size) * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
+	result.fill(Qt::transparent);
+	{
+		auto p = QPainter(&result);
+		auto hq = PainterHighQualityEnabler(p);
+		PaintRibbonBand(p, ribbon, bg);
+		p.drawImage(0, 0, RenderRibbonWord(ribbon, text));
+	}
+	return result;
+}
+
+// The card grows at most into the service background outlining it.
+[[nodiscard]] float64 CardBumpAmplitude(QRect card) {
+	if (card.isEmpty()) {
+		return 0.;
+	}
+	const auto border = 2. * st::chatUniqueGiftBorder;
+	return std::min(border / card.width(), border / card.height());
 }
 
 [[nodiscard]] QString FriendlyAddress(const QString &address) {
@@ -504,7 +672,9 @@ private:
 	return std::max(outerWidth - 2 * st::chatUniqueGiftBorder, 0);
 }
 
-GramTransferCardPart::GramTransferCardPart(GramTransferOrigin origin)
+GramTransferCardPart::GramTransferCardPart(
+	GramTransferOrigin origin,
+	GramTransferHandover handover)
 : _origin(std::move(origin))
 , _detailsLink(std::make_shared<LambdaClickHandler>([
 		weak = base::make_weak(this)](ClickContext context) {
@@ -515,7 +685,107 @@ GramTransferCardPart::GramTransferCardPart(GramTransferOrigin origin)
 , _amount(SignedAmount(_origin.action.amount, _origin.action.outgoing))
 , _address(FriendlyAddress(_origin.action.address))
 , _identity(
-	ReadableIdentity(_origin.view->data(), !_address.isEmpty()).toUpper()) {
+	ReadableIdentity(_origin.view->data(), !_address.isEmpty()).toUpper())
+, _ribbonTextWidth(_origin.action.outgoing ? OutgoingRibbonTextWidth() : 0) {
+	adopt(std::move(handover));
+}
+
+GramTransferHandover GramTransferCardPart::takeHandover() {
+	auto result = GramTransferHandover{
+		.mark = std::move(_mark),
+		.transition = std::move(_transition),
+		.badge = _layout.badge,
+		.badgeBg = _layout.badgeBg,
+		.markStarted = std::exchange(_markStarted, false),
+		.sending = _layout.badgeSending,
+	};
+	if (_glare) {
+		const auto now = crl::now();
+		const auto &glare = _glare->glare;
+		if (glare.birthTime
+			&& now >= glare.birthTime
+			&& now < glare.deathTime) {
+			result.pass = GlarePassTiming{
+				.birth = glare.birthTime,
+				.death = glare.deathTime,
+				.width = _glare->width,
+			};
+		}
+		result.glare = std::move(_glare);
+	}
+	return result;
+}
+
+// WHY: a sent or failed transfer refreshes its view, so the card that showed
+// "sending" is replaced by a new one. The new card continues what the old one
+// was showing instead of restarting it: the mark keeps its frame, a sending
+// card keeps its glare, and a card that stopped sending plays the transition
+// with the glare pass that was on screen finishing but no new one starting.
+void GramTransferCardPart::adopt(GramTransferHandover &&handover) {
+	if (handover.mark) {
+		_mark = std::move(handover.mark);
+		_markStarted = handover.markStarted;
+		_heavyPending = true;
+		if (_mark->valid() && _mark->animating()) {
+			_mark->animate([view = _origin.view] {
+				if (const auto strong = view.get()) {
+					strong->repaint();
+				}
+			}, _mark->frameIndex(), _mark->framesCount() - 1);
+		}
+	}
+	if (sending()) {
+		if (handover.glare) {
+			_glare = std::move(handover.glare);
+			_heavyPending = true;
+			attachGlare();
+		}
+		return;
+	} else if (anim::Disabled()) {
+		return;
+	} else if (handover.transition) {
+		_transition = std::move(handover.transition);
+	} else if (handover.sending) {
+		_transition = std::make_unique<CardTransition>();
+		_transition->glare = handover.pass;
+		_transition->fromText = handover.badge;
+		_transition->fromBg = handover.badgeBg;
+		_transition->started = crl::now();
+	} else {
+		return;
+	}
+	_heavyPending = true;
+	animateTransition();
+}
+
+void GramTransferCardPart::animateTransition() {
+	_transition->animation.init([weak = base::make_weak(this)](
+			crl::time now) {
+		const auto strong = weak.get();
+		if (!strong || !strong->_transition) {
+			return false;
+		}
+		if (const auto view = strong->_origin.view.get()) {
+			view->repaint();
+		}
+		return !strong->transitionFinished(now);
+	});
+	_transition->animation.start();
+}
+
+float64 GramTransferCardPart::transitionProgress(crl::time now) const {
+	return _transition
+		? std::clamp(
+			(now - _transition->started) / float64(kTransitionDuration),
+			0.,
+			1.)
+		: 1.;
+}
+
+bool GramTransferCardPart::transitionFinished(crl::time now) const {
+	return !_transition
+		|| ((now >= _transition->started + kTransitionDuration)
+			&& (!_transition->glare || now >= _transition->glare->death));
 }
 
 GramTransferCardPart::~GramTransferCardPart() {
@@ -566,13 +836,18 @@ int GramTransferCardPart::resolveLayout(int outerWidth) {
 		view && view->data()->isSending(),
 		_origin.action.failed);
 	_layout.badgeBg = tag.bg;
+	_layout.badgeSending = tag.sending;
 	const auto &badgeFont = st::msgServiceGiftBoxBadgeFont;
 	const auto badgePadding = st::chatUniqueGiftBadgePadding;
-	_layout.badge = badgeFont->elided(tag.text, std::max(
-		cardWidth - 2 * badgeFont->height
-			- badgePadding.left() - badgePadding.right(),
-		0));
-	const auto badgeTextWidth = badgeFont->width(_layout.badge)
+	const auto badgeArea = std::min(
+		std::max(_ribbonTextWidth, badgeFont->width(tag.text)),
+		std::max(
+			cardWidth - 2 * badgeFont->height
+				- badgePadding.left() - badgePadding.right(),
+			0));
+	_layout.badge = badgeFont->elided(tag.text, badgeArea);
+	_layout.badgeTextWidth = badgeArea;
+	const auto badgeTextWidth = badgeArea
 		+ badgePadding.left() + badgePadding.right();
 	const auto badgeHeight = badgePadding.top()
 		+ badgeFont->height + badgePadding.bottom();
@@ -672,6 +947,10 @@ void GramTransferCardPart::validateGlare() const {
 	}
 	_glare = std::make_unique<Ui::GlareEffect>();
 	_glare->width = st::walletChatCardGlareWidth;
+	attachGlare();
+}
+
+void GramTransferCardPart::attachGlare() const {
 	_glare->validate(CardTickerFg(), [weak = base::make_weak(this)] {
 		const auto strong = weak.get();
 		if (!strong || !strong->_glare) {
@@ -685,27 +964,36 @@ void GramTransferCardPart::validateGlare() const {
 	}, kGlareTimeout, kGlareDuration);
 }
 
-std::optional<CardGlarePass> GramTransferCardPart::glarePass() const {
-	if (!_glare || !_glare->glare.birthTime) {
+std::optional<CardGlarePass> GramTransferCardPart::glarePass(
+		crl::time now) const {
+	auto progress = 0.;
+	auto width = 0;
+	if (_glare && _glare->glare.birthTime) {
+		progress = _glare->progress(now);
+		width = _glare->width;
+	} else if (_transition && _transition->glare) {
+		const auto &glare = *_transition->glare;
+		progress = (now - glare.birth) / float64(glare.death - glare.birth);
+		width = glare.width;
+	} else {
 		return {};
 	}
-	const auto progress = _glare->progress(crl::now());
 	if (progress < 0. || progress > 1.) {
 		return {};
 	}
-	const auto width = _glare->width;
 	const auto from = -width
 		+ (_layout.card.width() + 2 * width) * progress;
 	return CardGlarePass{ .from = from, .till = from + width };
 }
 
 bool GramTransferCardPart::hasHeavyPart() {
-	return _mark || _glare;
+	return _mark || _glare || _transition;
 }
 
 void GramTransferCardPart::unloadHeavyPart() {
 	_mark = nullptr;
 	_glare = nullptr;
+	_transition = nullptr;
 	_markStarted = false;
 }
 
@@ -735,24 +1023,51 @@ void GramTransferCardPart::paintGlareBorder(
 }
 
 void GramTransferCardPart::validateBadge() const {
-	const auto badge = Info::PeerGifts::GiftBadge{
+	const auto key = RibbonKey{
 		.text = _layout.badge,
-		.bg1 = _layout.badgeBg,
-		.fg = st::activeButtonFg->c,
+		.bg = _layout.badgeBg,
+		.textWidth = _layout.badgeTextWidth,
+		.ratio = style::DevicePixelRatio(),
 	};
-	const auto padding = st::chatUniqueGiftBadgePadding;
-	const auto &font = st::msgServiceGiftBoxBadgeFont;
-	if (!_badge.isNull()
-		&& _badgeKey == badge
-		&& _badgePadding == padding
-		&& _badgeFont == font
-		&& _badge.devicePixelRatio() == style::DevicePixelRatio()) {
+	if (!_badge.isNull() && _badgeKey == key) {
 		return;
 	}
-	_badgeKey = badge;
-	_badgePadding = padding;
-	_badgeFont = font;
-	_badge = Info::PeerGifts::ValidateRotatedBadge(badge, padding);
+	_badgeKey = key;
+	_badge = RenderRibbon(
+		ComputeRibbon(_layout.badgeTextWidth),
+		_layout.badge,
+		_layout.badgeBg);
+}
+
+// The old word slides away down the ribbon while the new one follows it in
+// from the top-left, over a band that changes its color underneath.
+void GramTransferCardPart::paintRibbonTransition(
+		QPainter &p,
+		int cardWidth,
+		crl::time now) const {
+	const auto ribbon = ComputeRibbon(_layout.badgeTextWidth);
+	auto &transition = *_transition;
+	if (transition.wordsTextWidth != ribbon.textWidth
+		|| transition.toText != _layout.badge) {
+		transition.fromWord = RenderRibbonWord(ribbon, transition.fromText);
+		transition.toWord = RenderRibbonWord(ribbon, _layout.badge);
+		transition.toText = _layout.badge;
+		transition.wordsTextWidth = ribbon.textWidth;
+	}
+	const auto progress = anim::easeOutCubic(1., transitionProgress(now));
+	p.save();
+	p.translate(cardWidth - ribbon.size, 0);
+	p.setClipRect(QRect(0, 0, ribbon.size, ribbon.size), Qt::IntersectClip);
+	PaintRibbonBand(
+		p,
+		ribbon,
+		anim::color(transition.fromBg, _layout.badgeBg, progress));
+	const auto travel = (ribbon.twidth + 2 * ribbon.height) / M_SQRT2;
+	const auto out = travel * progress;
+	p.drawImage(QPointF(out, out), transition.fromWord);
+	const auto in = travel * (progress - 1.);
+	p.drawImage(QPointF(in, in), transition.toWord);
+	p.restore();
 }
 
 void GramTransferCardPart::draw(
@@ -760,9 +1075,18 @@ void GramTransferCardPart::draw(
 		not_null<const MediaGeneric*> owner,
 		const PaintContext &context,
 		int outerWidth) const {
+	const auto now = crl::now();
+	if (_transition && transitionFinished(now)) {
+		_transition = nullptr;
+	}
 	validateMark();
 	validateGlare();
 	validateBadge();
+	if (std::exchange(_heavyPending, false)) {
+		if (const auto view = _origin.view.get()) {
+			view->history()->owner().registerHeavyViewPart(view);
+		}
+	}
 	p.save();
 	auto hq = PainterHighQualityEnabler(p);
 	const auto outer = QRect(0, 0, width(), height());
@@ -770,10 +1094,18 @@ void GramTransferCardPart::draw(
 	auto clip = QPainterPath();
 	clip.addRoundedRect(outer, radius, radius);
 	p.setClipPath(clip, Qt::IntersectClip);
+	if (_transition) {
+		const auto bump = CardBumpAmplitude(_layout.card)
+			* std::sin(M_PI * transitionProgress(now));
+		const auto center = QRectF(_layout.card).center();
+		p.translate(center);
+		p.scale(1. + bump, 1. + bump);
+		p.translate(-center);
+	}
 	Wallet::PaintCardBackground(p, _layout.card);
 	p.translate(_layout.card.topLeft());
 	const auto cardWidth = _layout.card.width();
-	const auto pass = glarePass();
+	const auto pass = glarePass(now);
 	if (pass) {
 		paintGlareBorder(p, *pass);
 	}
@@ -853,9 +1185,13 @@ void GramTransferCardPart::draw(
 			line);
 		top += addressFont->height;
 	}
-	p.drawImage(
-		QPointF(cardWidth - _badge.width() / _badge.devicePixelRatio(), 0.),
-		_badge);
+	if (_transition) {
+		paintRibbonTransition(p, cardWidth, now);
+	} else {
+		p.drawImage(
+			QPointF(cardWidth - _badge.width() / _badge.devicePixelRatio(), 0.),
+			_badge);
+	}
 	p.restore();
 }
 
@@ -1107,10 +1443,12 @@ TextForMimeData GramTransferCommentPart::selectedText(
 
 } // namespace
 
-std::unique_ptr<Media> CreateGramTransferMedia(not_null<Element*> parent) {
+std::unique_ptr<Media> CreateGramTransferMedia(
+		not_null<Element*> parent,
+		Element *replacing) {
 	return std::make_unique<MediaGeneric>(
 		parent,
-		[parent](
+		[parent, replacing](
 				not_null<MediaGeneric*> media,
 				Fn<void(std::unique_ptr<MediaGenericPart>)> push) {
 			const auto item = parent->data();
@@ -1124,7 +1462,26 @@ std::unique_ptr<Media> CreateGramTransferMedia(not_null<Element*> parent) {
 				.media = base::make_weak(media),
 				.action = SnapshotGramTransfer(item),
 			};
-			push(std::make_unique<GramTransferCardPart>(origin));
+			// WHY: the card is replaced both with the whole view, when the
+			// view is refreshed, and in place, when an edit refreshes the
+			// view's text; the media being replaced is |parent|'s own then.
+			auto handover = GramTransferHandover();
+			const auto source = replacing ? replacing : parent.get();
+			const auto previous = dynamic_cast<MediaGeneric*>(
+				source->media());
+			const auto card = previous
+				? dynamic_cast<GramTransferCardPart*>(previous->partAt(0))
+				: nullptr;
+			if (card && source->data() == item) {
+				handover = card->takeHandover();
+				if (replacing) {
+					// The replaced view no longer holds what it registered.
+					replacing->checkHeavyPart();
+				}
+			}
+			push(std::make_unique<GramTransferCardPart>(
+				origin,
+				std::move(handover)));
 			if (transfer->commentEncrypted || !transfer->comment.isEmpty()) {
 				auto details = ResolveGramTransfer(
 					origin.session.get(),

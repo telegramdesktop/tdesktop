@@ -13,6 +13,7 @@ class Element;
 class Media;
 
 [[nodiscard]] std::unique_ptr<Media> CreateGramTransferMedia(
-	not_null<Element*> parent);
+	not_null<Element*> parent,
+	Element *replacing);
 
 } // namespace HistoryView

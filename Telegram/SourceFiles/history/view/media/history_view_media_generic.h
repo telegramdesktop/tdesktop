@@ -92,6 +92,7 @@ public:
 	[[nodiscard]] bool service() const {
 		return _service;
 	}
+	[[nodiscard]] Part *partAt(int index) const;
 
 	void draw(Painter &p, const PaintContext &context) const override;
 	TextState textState(QPoint point, StateRequest request) const override;

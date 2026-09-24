@@ -99,6 +99,12 @@ MediaGeneric::MediaGeneric(
 	});
 }
 
+MediaGeneric::Part *MediaGeneric::partAt(int index) const {
+	return (index >= 0 && index < int(_entries.size()))
+		? _entries[index].object.get()
+		: nullptr;
+}
+
 MediaGeneric::~MediaGeneric() {
 	if (hasHeavyPart()) {
 		unloadHeavyPart();

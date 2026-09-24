@@ -1659,7 +1659,7 @@ void Element::refreshMedia(Element *replacing) {
 		}
 		_media = media->createView(this, replacing);
 	} else if (item->Has<HistoryServiceGramTransfer>()) {
-		_media = CreateGramTransferMedia(this);
+		_media = CreateGramTransferMedia(this, replacing);
 	} else if (item->showSimilarChannels()) {
 		_media = std::make_unique<SimilarChannels>(this);
 	} else if (isOnlyCustomEmoji()
