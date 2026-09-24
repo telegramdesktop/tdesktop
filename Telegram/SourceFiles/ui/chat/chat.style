@@ -90,7 +90,7 @@ historyReplyForward: IconEmoji {
 
 msgReplyPadding: margins(6px, 6px, 11px, 6px);
 msgReplyBarPos: point(1px, 0px);
-msgReplyBarSize: size(2px, 36px);
+msgReplyBarSize: size(3px, 36px);
 msgReplyBarSkip: 10px;
 msgServicePadding: margins(12px, 3px, 12px, 4px);
 msgServiceMargin: margins(10px, 10px, 10px, 2px);
@@ -152,8 +152,8 @@ fwdTextStyle: TextStyle(semiboldTextStyle) {
 	linkUnderline: kLinkUnderlineNever;
 }
 
-mediaCaptionSkip: 5px;
-mediaInBubbleSkip: 5px;
+mediaCaptionSkip: 7px;
+mediaInBubbleSkip: 7px;
 mediaUnreadSize: 7px;
 mediaUnreadSkip: 5px;
 mediaUnreadTop: 6px;
@@ -694,7 +694,7 @@ reactionsTabs: MultiSelect(defaultMultiSelect) {
 }
 reactionsTabIconSkip: 3px;
 
-reactionInlinePadding: margins(5px, 2px, 7px, 2px);
+reactionInlinePadding: margins(10px, 5px, 10px, 5px);
 reactionInlineSize: 18px;
 reactionInlineImage: 32px;
 reactionInlineSkip: 3px;
