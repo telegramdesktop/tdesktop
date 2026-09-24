@@ -64,6 +64,7 @@ void ShowTransactionDetails(
 
 struct TransferCardArgs {
 	int64 totalNano = 0;
+	std::optional<int64> netNano; // replaces the shown -totalNano when set
 	QString destination;
 	int recipients = 0;
 	Fn<void()> info;
@@ -73,6 +74,30 @@ struct TransferCardArgs {
 	QWidget *parent,
 	not_null<Main::Session*> session,
 	TransferCardArgs args);
+
+enum class ActionRowIcon : uchar {
+	Incoming,
+	Outgoing,
+	Gear,
+};
+
+enum class ActionRowSign : uchar {
+	None,
+	Plus,
+	Minus,
+};
+
+struct ActionRowArgs {
+	QString kind;
+	QString address;
+	std::optional<int64> amountNano;
+	ActionRowSign sign = ActionRowSign::None;
+	ActionRowIcon icon = ActionRowIcon::Gear;
+};
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeActionRow(
+	not_null<QWidget*> parent,
+	ActionRowArgs args);
 
 [[nodiscard]] object_ptr<Ui::FlatLabel> AddressValueLabel(
 	not_null<QWidget*> parent,

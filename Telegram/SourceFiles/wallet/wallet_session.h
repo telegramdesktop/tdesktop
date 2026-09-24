@@ -51,6 +51,7 @@ struct ShareFetch;
 class TonConnect;
 enum class TonConnectAccess : uchar;
 struct TonConnectAppRequest;
+struct TonConnectEmulation;
 struct TonConnectEventRequest;
 struct TonConnectKey;
 enum class TonConnectKeyError : uchar;
@@ -324,6 +325,7 @@ struct FeeResult {
 	SendError error = SendError::None;
 	// Null for a private comment priced without the key: a fee, no transfer.
 	std::shared_ptr<const PreparedSend> prepared;
+	std::shared_ptr<const TonConnectEmulation> emulation;
 };
 
 struct PendingSendInfo {

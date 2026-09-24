@@ -147,6 +147,7 @@ walletRowArrowIn: icon{{ "wallet/incoming_arrow", historyPeerUserpicFg }};
 walletRowArrowOut: icon{{ "wallet/outgoing_arrow", historyPeerUserpicFg }};
 walletRowCardIcon: icon{{ "wallet/card_topup", historyPeerUserpicFg }};
 walletRowContractIcon: icon{{ "wallet/smart_contract", historyPeerUserpicFg }};
+walletRowGearIcon: icon{{ "wallet/gear", historyPeerUserpicFg }};
 walletRowKeyIcon: icon{{ "settings/key", historyPeerUserpicFg }};
 walletRowTitleLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowBoldFg;
@@ -663,6 +664,8 @@ walletConnectCaptionLabel: FlatLabel(walletCommentCaptionLabel) {
 	align: align(top);
 }
 walletConnectCaptionMargin: margins(24px, 0px, 24px, 16px);
+walletConnectActionIconLeft: 13px;
+walletConnectActionPadding: margins(71px, 11px, 20px, 11px);
 walletConnectErrorLabel: FlatLabel(walletCommentErrorLabel) {
 	align: align(top);
 }

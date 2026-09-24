@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_phrase_shares.h"
 #include "wallet/wallet_rates.h"
 #include "wallet/wallet_ton_connect.h"
+#include "wallet/wallet_ton_connect_emulation.h"
 #include "wallet/wallet_transfer_messages.h"
 #include "wallet/wallet_unlock.h"
 #include "wallet/wallet_user_addresses.h"
@@ -8194,6 +8195,10 @@ void Session::previewPrepared(uint64 flight, engine::SendMessageBody body) {
 	const auto paired = !tonConnect && active.request.terms.eligible(
 		active.request.args.amountNano,
 		active.request.args.destination);
+	const auto own = active.request.identity
+		? active.request.identity->address
+		: QString();
+	const auto total = active.request.args.amountNano;
 	auto request = engine::SendPreviewRequest{ .intent = *active.intent };
 	_engine->run([client, tonConnect, request = std::move(request)] {
 		return tonConnect
@@ -8201,9 +8206,14 @@ void Session::previewPrepared(uint64 flight, engine::SendMessageBody body) {
 			: client->preview_send(request);
 	}, [=, this](engine::SendPreview preview) {
 		const auto fee = DecimalInt64(preview.emulation.wallet_fees_nanograms);
-		finishPreview(flight, (fee && *fee >= 0)
+		auto result = (fee && *fee >= 0)
 			? FeeResult{ .feeNano = *fee }
-			: FeeResult{ .error = SendError::Failed });
+			: FeeResult{ .error = SendError::Failed };
+		if (tonConnect && result.error == SendError::None) {
+			result.emulation = std::make_shared<const TonConnectEmulation>(
+				ParseTonConnectEmulation(preview.emulation, own, total));
+		}
+		finishPreview(flight, std::move(result));
 	}, [=, this](EngineError error) {
 		// The preview emulates the ordinary form of the transfer, so it
 		// refuses an amount that would leave the wallet without its fee.

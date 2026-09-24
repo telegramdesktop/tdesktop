@@ -9137,6 +9137,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_connect_request_fee_failed" = "Couldn't estimate the network fee.";
 "lng_wallet_connect_request_payload" = "Payload";
 "lng_wallet_connect_request_deploy" = "Deploys a contract at this address.";
+"lng_wallet_connect_request_withdraw" = "Withdraw";
+"lng_wallet_connect_request_deposit" = "Deposit";
+"lng_wallet_connect_request_excess" = "Excess";
+"lng_wallet_connect_request_call_contract" = "Call Contract";
+"lng_wallet_connect_request_deploy_contract" = "Deploy Contract";
+"lng_wallet_connect_request_unknown_operation" = "Unknown Operation";
+"lng_wallet_connect_request_messages" = "Messages";
+"lng_wallet_connect_request_message" = "Message";
+"lng_wallet_connect_request_trace_failed" = "The preview shows that part of this transaction may fail.";
+"lng_wallet_connect_request_trace_incomplete" = "The preview of this transaction is incomplete.";
 "lng_wallet_connect_request_decline" = "Decline";
 "lng_wallet_connect_request_confirm" = "Confirm";
 "lng_wallet_connect_request_sent" = "The transaction was sent.";

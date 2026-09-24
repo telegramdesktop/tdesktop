@@ -1374,12 +1374,14 @@ void TonConnectRequests::Flow::previewed(FeeResult result) {
 	if (result.error == SendError::None && result.prepared) {
 		_prepared = std::move(result.prepared);
 		state.feeNano = result.feeNano;
+		state.emulation = std::move(result.emulation);
 		state.confirmable = true;
 		state.error = QString();
 		_state = std::move(state);
 		return;
 	}
 	_prepared = nullptr;
+	state.emulation = nullptr;
 	state.confirmable = false;
 	const auto text = SendErrorText(result.error, TransferMinNanos(_session));
 	state.error = text.isEmpty()

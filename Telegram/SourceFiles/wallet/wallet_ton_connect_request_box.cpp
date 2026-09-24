@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_fiat.h"
 #include "wallet/wallet_ton_connect.h"
 #include "wallet/wallet_ton_connect_box.h"
+#include "wallet/wallet_ton_connect_emulation.h"
 
 #include "styles/style_giveaway.h"
 #include "styles/style_layers.h"
@@ -35,6 +36,9 @@ namespace Wallet {
 namespace {
 
 using Phase = TonConnectRequestPhase;
+using ActionKind = TonConnectActionKind;
+using ActionSide = TonConnectActionSide;
+using EmulationStatus = TonConnectEmulationStatus;
 
 constexpr auto kPayloadShown = 1024;
 constexpr auto kMinus = QChar(0x2212);
@@ -124,6 +128,93 @@ struct Destinations {
 		tr::now,
 		lt_amount,
 		Ui::FormatTonAmount(nano).full);
+}
+
+[[nodiscard]] const TonConnectEmulation *ShownEmulation(
+		const TonConnectRequestBoxState &now) {
+	const auto emulation = now.emulation.get();
+	return (now.transfer
+		&& emulation
+		&& emulation->status == EmulationStatus::Shown)
+		? emulation
+		: nullptr;
+}
+
+[[nodiscard]] QString ActionTitle(ActionKind kind) {
+	switch (kind) {
+	case ActionKind::Withdraw:
+		return tr::lng_wallet_connect_request_withdraw(tr::now);
+	case ActionKind::Deposit:
+		return tr::lng_wallet_connect_request_deposit(tr::now);
+	case ActionKind::Transfer:
+		return tr::lng_wallet_connect_request_transfer(tr::now);
+	case ActionKind::Excess:
+		return tr::lng_wallet_connect_request_excess(tr::now);
+	case ActionKind::CallContract:
+		return tr::lng_wallet_connect_request_call_contract(tr::now);
+	case ActionKind::DeployContract:
+		return tr::lng_wallet_connect_request_deploy_contract(tr::now);
+	case ActionKind::Unknown:
+		return tr::lng_wallet_connect_request_unknown_operation(tr::now);
+	}
+	Unexpected("Kind in TonConnectRequestBox ActionTitle.");
+}
+
+[[nodiscard]] ActionRowIcon ActionIcon(ActionKind kind) {
+	switch (kind) {
+	case ActionKind::Withdraw:
+	case ActionKind::Transfer:
+		return ActionRowIcon::Outgoing;
+	case ActionKind::Deposit:
+	case ActionKind::Excess:
+		return ActionRowIcon::Incoming;
+	case ActionKind::CallContract:
+	case ActionKind::DeployContract:
+	case ActionKind::Unknown:
+		return ActionRowIcon::Gear;
+	}
+	Unexpected("Kind in TonConnectRequestBox ActionIcon.");
+}
+
+[[nodiscard]] ActionRowSign ActionSign(ActionSide side) {
+	switch (side) {
+	case ActionSide::None: return ActionRowSign::None;
+	case ActionSide::Incoming: return ActionRowSign::Plus;
+	case ActionSide::Outgoing: return ActionRowSign::Minus;
+	}
+	Unexpected("Side in TonConnectRequestBox ActionSign.");
+}
+
+[[nodiscard]] QString ActionAddress(
+		const QString &raw,
+		const TonConnectTransfer &transfer) {
+	if (raw.isEmpty()) {
+		return QString();
+	}
+	for (const auto &message : transfer.messages) {
+		if (CanonicalAddress(message.destination) == raw) {
+			return DisplayAddress(message.destination);
+		}
+	}
+	return FormatFriendly(raw, true);
+}
+
+[[nodiscard]] ActionRowArgs ActionRowFor(
+		const TonConnectAction &action,
+		const TonConnectTransfer &transfer) {
+	return {
+		.kind = ActionTitle(action.kind),
+		.address = ActionAddress(action.counterparty, transfer),
+		.amountNano = action.amountNano,
+		.sign = ActionSign(action.side),
+		.icon = ActionIcon(action.kind),
+	};
+}
+
+[[nodiscard]] bool HasContent(const TonConnectMessage &message) {
+	return !message.comment.isEmpty()
+		|| !message.payload.isEmpty()
+		|| message.deploys;
 }
 
 [[nodiscard]] QString HeaderTitle(const TonConnectRequestBoxState &now) {
@@ -323,7 +414,34 @@ void FillNotice(
 	close->setClickedCallback([=] { box->closeBox(); });
 }
 
-void AddConfirmTail(not_null<State*> state, const Context &context) {
+void AddTraceWarning(
+		not_null<Ui::VerticalLayout*> body,
+		const TonConnectRequestBoxState &now) {
+	const auto emulation = now.emulation.get();
+	if (!emulation
+		|| (emulation->status != EmulationStatus::Failed
+			&& emulation->status != EmulationStatus::Incomplete)) {
+		return;
+	}
+	const auto failed = (emulation->status == EmulationStatus::Failed);
+	body->add(
+		object_ptr<Ui::FlatLabel>(
+			body,
+			(failed
+				? tr::lng_wallet_connect_request_trace_failed()
+				: tr::lng_wallet_connect_request_trace_incomplete()),
+			(failed
+				? st::walletConnectErrorLabel
+				: st::walletConnectCaptionLabel)),
+		st::walletConnectCaptionMargin,
+		style::al_top
+	)->setTryMakeSimilarLines(true);
+}
+
+void AddConfirmTail(
+		not_null<State*> state,
+		const Context &context,
+		const TonConnectRequestBoxState &now) {
 	const auto body = state->body.data();
 	state->fee = body->add(
 		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
@@ -336,6 +454,7 @@ void AddConfirmTail(not_null<State*> state, const Context &context) {
 		style::margins(),
 		style::al_top);
 	state->fee->entity()->setTryMakeSimilarLines(true);
+	AddTraceWarning(body, now);
 	state->error = body->add(
 		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
 			body,
@@ -376,9 +495,13 @@ void FillSheet(
 	const auto destinations = now.transfer
 		? CollectDestinations(*now.transfer)
 		: Destinations();
+	const auto shown = ShownEmulation(now);
 	body->add(
 		MakeTransferCard(body, context.session, {
 			.totalNano = now.transfer ? now.transfer->totalNano : int64(0),
+			.netNano = (shown
+				? std::make_optional(shown->netNano)
+				: std::nullopt),
 			.destination = ((destinations.distinct == 1)
 				? destinations.first
 				: QString()),
@@ -394,7 +517,101 @@ void FillSheet(
 		}),
 		st::walletConnectCardMargin,
 		style::al_top);
-	AddConfirmTail(state, context);
+	AddConfirmTail(state, context, now);
+}
+
+[[nodiscard]] style::margins DetailsTitlePadding() {
+	return style::margins(
+		(st::boxRowPadding.left()
+			- st::defaultSubsectionTitlePadding.left()),
+		0,
+		0,
+		0);
+}
+
+void FillRequestDetails(
+		not_null<Ui::VerticalLayout*> body,
+		std::shared_ptr<Ui::Show> show,
+		const Context &context,
+		const TonConnectTransfer &transfer) {
+	const auto padding = DetailsTitlePadding();
+	Ui::AddSubsectionTitle(
+		body,
+		tr::lng_wallet_connect_request_preview(),
+		padding);
+	const auto preview = AddDetailsTableFrame(body);
+	Ui::AddTableRow(
+		preview,
+		tr::lng_wallet_connect_request_total(),
+		MakeTotalValue(preview, context.session, transfer.totalNano));
+	const auto destinations = CollectDestinations(transfer);
+	if (destinations.distinct == 1) {
+		Ui::AddTableRow(
+			preview,
+			tr::lng_wallet_details_recipient(),
+			AddressValueLabel(preview, show, destinations.first));
+	} else if (destinations.distinct >= 2) {
+		Ui::AddTableRow(
+			preview,
+			tr::lng_wallet_connect_request_recipients_title(),
+			rpl::single(tr::marked(
+				QString::number(destinations.distinct))));
+	}
+	Ui::AddSubsectionTitle(
+		body,
+		tr::lng_wallet_connect_request_actions(),
+		padding);
+	const auto list = AddDetailsTableFrame(body);
+	for (const auto &message : transfer.messages) {
+		Ui::AddTableRow(
+			list,
+			tr::lng_wallet_connect_request_transfer(),
+			MakeMessageValue(list, show, message));
+	}
+}
+
+void FillEmulatedDetails(
+		not_null<Ui::VerticalLayout*> body,
+		std::shared_ptr<Ui::Show> show,
+		const TonConnectTransfer &transfer,
+		const TonConnectEmulation &emulation) {
+	const auto padding = DetailsTitlePadding();
+	Ui::AddSubsectionTitle(
+		body,
+		tr::lng_wallet_connect_request_preview(),
+		padding);
+	const auto table = AddDetailsTableFrame(body);
+	for (const auto &action : emulation.actions) {
+		table->addRow(
+			nullptr,
+			MakeActionRow(table, ActionRowFor(action, transfer)),
+			style::margins(),
+			style::margins());
+	}
+	const auto &messages = transfer.messages;
+	if (ranges::none_of(messages, HasContent)) {
+		return;
+	}
+	Ui::AddSubsectionTitle(
+		body,
+		tr::lng_wallet_connect_request_messages(),
+		padding);
+	const auto list = AddDetailsTableFrame(body);
+	for (const auto &message : messages) {
+		if (HasContent(message)) {
+			Ui::AddTableRow(
+				list,
+				tr::lng_wallet_connect_request_message(),
+				MakeMessageValue(list, show, message));
+		}
+	}
+}
+
+void AddDetailsSkip(not_null<Ui::VerticalLayout*> body) {
+	Ui::AddSkip(
+		body,
+		(st::walletConnectCardMargin.bottom()
+			- st::giveawayGiftCodeTableMargin.bottom()));
 }
 
 void FillDetails(
@@ -405,51 +622,14 @@ void FillDetails(
 	const auto body = state->body.data();
 	if (const auto transfer = now.transfer.get()) {
 		const auto show = box->uiShow();
-		const auto padding = style::margins(
-			(st::boxRowPadding.left()
-				- st::defaultSubsectionTitlePadding.left()),
-			0,
-			0,
-			0);
-		Ui::AddSubsectionTitle(
-			body,
-			tr::lng_wallet_connect_request_preview(),
-			padding);
-		const auto preview = AddDetailsTableFrame(body);
-		Ui::AddTableRow(
-			preview,
-			tr::lng_wallet_connect_request_total(),
-			MakeTotalValue(preview, context.session, transfer->totalNano));
-		const auto destinations = CollectDestinations(*transfer);
-		if (destinations.distinct == 1) {
-			Ui::AddTableRow(
-				preview,
-				tr::lng_wallet_details_recipient(),
-				AddressValueLabel(preview, show, destinations.first));
-		} else if (destinations.distinct >= 2) {
-			Ui::AddTableRow(
-				preview,
-				tr::lng_wallet_connect_request_recipients_title(),
-				rpl::single(tr::marked(
-					QString::number(destinations.distinct))));
+		if (const auto shown = ShownEmulation(now)) {
+			FillEmulatedDetails(body, show, *transfer, *shown);
+		} else {
+			FillRequestDetails(body, show, context, *transfer);
 		}
-		Ui::AddSubsectionTitle(
-			body,
-			tr::lng_wallet_connect_request_actions(),
-			padding);
-		const auto list = AddDetailsTableFrame(body);
-		for (const auto &message : transfer->messages) {
-			Ui::AddTableRow(
-				list,
-				tr::lng_wallet_connect_request_transfer(),
-				MakeMessageValue(list, show, message));
-		}
-		Ui::AddSkip(
-			body,
-			(st::walletConnectCardMargin.bottom()
-				- st::giveawayGiftCodeTableMargin.bottom()));
+		AddDetailsSkip(body);
 	}
-	AddConfirmTail(state, context);
+	AddConfirmTail(state, context, now);
 }
 
 void ToggleBack(

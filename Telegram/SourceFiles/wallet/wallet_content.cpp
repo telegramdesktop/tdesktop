@@ -384,12 +384,19 @@ struct BalancePalette {
 	QColor secondary;
 };
 
+enum class BalanceStyle : uchar {
+	Balance,
+	Minus,
+	Plus,
+	Exact,
+};
+
 class BalanceInk final {
 public:
 	void setContent(
 		CreditsAmount amount,
 		const QString &fiat,
-		bool outgoing = false);
+		BalanceStyle style = BalanceStyle::Balance);
 	void setOuterWidth(int outerWidth);
 	void refresh();
 
@@ -424,7 +431,7 @@ private:
 	float64 _amountWidth = 0.;
 	float64 _fiatWidth = 0.;
 	int _outerWidth = 0;
-	bool _outgoing = false;
+	BalanceStyle _style = BalanceStyle::Balance;
 
 };
 
@@ -1123,6 +1130,7 @@ enum class RowAvatar {
 	Card,
 	Contract,
 	KeyChange,
+	Gear,
 };
 
 struct HistoryRowContent {
@@ -1165,19 +1173,16 @@ void SetAmountColor(
 	}, major->lifetime());
 }
 
-void SetRowAmount(
+void SetRowAmountText(
 		not_null<Ui::FlatLabel*> major,
 		not_null<Ui::FlatLabel*> minor,
 		int64 amountNano,
-		bool incoming,
-		bool pending,
-		bool failed) {
+		const QString &sign) {
 	const auto amount = CreditsAmount(
 		amountNano / Ui::kNanosInOne,
 		amountNano % Ui::kNanosInOne,
 		CreditsType::Ton);
-	major->setText((incoming ? QChar('+') : kMinus)
-		+ Info::ChannelEarn::MajorPart(amount));
+	major->setText(sign + Info::ChannelEarn::MajorPart(amount));
 	auto helper = Ui::Text::CustomEmojiHelper();
 	const auto precise = !amount.whole()
 		&& (amount.nano() < kRowAmountPreciseBelowNano);
@@ -1193,6 +1198,20 @@ void SetRowAmount(
 		.margin = st::walletRowIconMargin,
 	}));
 	minor->setMarkedText(std::move(minorText), helper.context());
+}
+
+void SetRowAmount(
+		not_null<Ui::FlatLabel*> major,
+		not_null<Ui::FlatLabel*> minor,
+		int64 amountNano,
+		bool incoming,
+		bool pending,
+		bool failed) {
+	SetRowAmountText(
+		major,
+		minor,
+		amountNano,
+		incoming ? u"+"_q : QString(kMinus));
 	const auto &color = (pending || failed)
 		? st::windowSubTextFg
 		: incoming
@@ -1218,7 +1237,8 @@ void PaintRowAvatar(Painter &p, QRect rect, RowAvatar avatar) {
 	auto hq = PainterHighQualityEnabler(p);
 	const auto in = (avatar == RowAvatar::In);
 	const auto flat = (avatar == RowAvatar::Contract)
-		|| (avatar == RowAvatar::KeyChange);
+		|| (avatar == RowAvatar::KeyChange)
+		|| (avatar == RowAvatar::Gear);
 	if (flat) {
 		p.setBrush(st::historyPeerArchiveUserpicBg);
 	} else {
@@ -1244,6 +1264,8 @@ void PaintRowAvatar(Painter &p, QRect rect, RowAvatar avatar) {
 		? &st::walletRowContractIcon
 		: (avatar == RowAvatar::KeyChange)
 		? &st::walletRowKeyIcon
+		: (avatar == RowAvatar::Gear)
+		? &st::walletRowGearIcon
 		: &st::walletRowArrowOut;
 	icon->paintInCenter(p, rect);
 }
@@ -1960,7 +1982,137 @@ void AddDetailsCollectibleHeader(
 	apply();
 }
 
+class ActionRow final : public Ui::RpWidget {
+public:
+	ActionRow(QWidget *parent, ActionRowArgs &&args);
+
+protected:
+	int resizeGetHeight(int newWidth) override;
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	const RowAvatar _avatar = RowAvatar::Gear;
+	const not_null<Ui::FlatLabel*> _title;
+	Ui::FlatLabel *_subtitle = nullptr;
+	Ui::FlatLabel *_major = nullptr;
+	Ui::FlatLabel *_minor = nullptr;
+	int _circleTop = 0;
+
+};
+
+[[nodiscard]] RowAvatar ActionRowAvatar(ActionRowIcon icon) {
+	switch (icon) {
+	case ActionRowIcon::Incoming: return RowAvatar::In;
+	case ActionRowIcon::Outgoing: return RowAvatar::Out;
+	case ActionRowIcon::Gear: return RowAvatar::Gear;
+	}
+	Unexpected("Icon in ActionRowAvatar.");
+}
+
+ActionRow::ActionRow(QWidget *parent, ActionRowArgs &&args)
+: RpWidget(parent)
+, _avatar(ActionRowAvatar(args.icon))
+, _title(Ui::CreateChild<Ui::FlatLabel>(
+	this,
+	args.address.isEmpty() ? args.kind : ShortAddressForm(args.address),
+	st::walletRowTitleLabel)) {
+	_title->setBreakEverywhere(true);
+	_title->setAttribute(Qt::WA_TransparentForMouseEvents);
+	if (!args.address.isEmpty()) {
+		_subtitle = Ui::CreateChild<Ui::FlatLabel>(
+			this,
+			args.kind,
+			st::walletRowSubtitleLabel);
+		_subtitle->setBreakEverywhere(true);
+		_subtitle->setAttribute(Qt::WA_TransparentForMouseEvents);
+	}
+	if (const auto amount = args.amountNano) {
+		_major = Ui::CreateChild<Ui::FlatLabel>(
+			this,
+			st::walletRowAmountMajorLabel);
+		_major->setAttribute(Qt::WA_TransparentForMouseEvents);
+		_minor = Ui::CreateChild<Ui::FlatLabel>(
+			this,
+			st::walletRowAmountMinorLabel);
+		_minor->setAttribute(Qt::WA_TransparentForMouseEvents);
+		const auto plus = (args.sign == ActionRowSign::Plus);
+		const auto minus = (args.sign == ActionRowSign::Minus);
+		SetRowAmountText(
+			_major,
+			_minor,
+			*amount,
+			plus ? u"+"_q : minus ? QString(kMinus) : QString());
+		SetAmountColor(
+			_major,
+			_minor,
+			(plus
+				? st::boxTextFgGood
+				: minus
+				? st::windowBoldFg
+				: st::windowSubTextFg));
+	}
+}
+
+int ActionRow::resizeGetHeight(int newWidth) {
+	const auto &padding = st::walletConnectActionPadding;
+	const auto amountWidth = _major
+		? (_major->width() + _minor->width() + st::walletRowSkip)
+		: 0;
+	const auto textWidth = newWidth - padding.left() - padding.right();
+	_title->resizeToWidth(std::max(textWidth - amountWidth, 1));
+	if (_subtitle) {
+		_subtitle->resizeToWidth(std::max(textWidth, 1));
+	}
+	const auto textHeight = _title->height()
+		+ (_subtitle ? (st::walletRowSkip + _subtitle->height()) : 0);
+	const auto result = padding.top()
+		+ std::max(st::walletRowIconSize, textHeight)
+		+ padding.bottom();
+	const auto textTop = (result - textHeight) / 2;
+	_title->moveToLeft(padding.left(), textTop, newWidth);
+	if (_subtitle) {
+		_subtitle->moveToLeft(
+			padding.left(),
+			textTop + _title->height() + st::walletRowSkip,
+			newWidth);
+	}
+	if (_major) {
+		const auto lineHeight = st::walletRowTitleLabel.style.font->height;
+		const auto majorTop = textTop + (lineHeight - _major->height()) / 2;
+		_minor->moveToRight(
+			padding.right(),
+			majorTop + st::walletRowAmountMinorSkip,
+			newWidth);
+		_major->moveToRight(
+			padding.right() + _minor->width(),
+			majorTop,
+			newWidth);
+	}
+	_circleTop = (result - st::walletRowIconSize) / 2;
+	return result;
+}
+
+void ActionRow::paintEvent(QPaintEvent *e) {
+	auto p = Painter(this);
+	const auto size = st::walletRowIconSize;
+	PaintRowAvatar(
+		p,
+		style::rtlrect(
+			st::walletConnectActionIconLeft,
+			_circleTop,
+			size,
+			size,
+			width()),
+		_avatar);
+}
+
 } // namespace
+
+object_ptr<Ui::RpWidget> MakeActionRow(
+		not_null<QWidget*> parent,
+		ActionRowArgs args) {
+	return object_ptr<ActionRow>(parent, std::move(args));
+}
 
 object_ptr<Ui::RpWidget> MakeCommentBubble(
 		not_null<QWidget*> parent,
@@ -9858,10 +10010,10 @@ void WalletKeysBackupBox(
 void BalanceInk::setContent(
 		CreditsAmount amount,
 		const QString &fiat,
-		bool outgoing) {
+		BalanceStyle style) {
 	_balance = amount;
 	_fiatText = fiat;
-	_outgoing = outgoing;
+	_style = style;
 	refresh();
 }
 
@@ -9877,11 +10029,12 @@ void BalanceInk::refresh() {
 	const auto &majorFont = st::walletCardBalanceMajorLabel.style.font;
 	const auto &minorFont = st::walletCardBalanceMinorLabel.style.font;
 	const auto &fiatFont = st::walletCardFiatLabel.style.font;
-	const auto precise = _outgoing
+	const auto exact = (_style != BalanceStyle::Balance);
+	const auto precise = exact
 		? Ui::FormatTonAmount(
 			_balance.whole() * Ui::kNanosInOne + _balance.nano())
 		: Ui::FormattedTonAmount();
-	const auto minor = _outgoing
+	const auto minor = exact
 		? (precise.nanoString.isEmpty()
 			? QString()
 			: (precise.separator + precise.nanoString))
@@ -9903,8 +10056,13 @@ void BalanceInk::refresh() {
 		- minorFont->width(minor)
 		- st::walletCardTickerSkip
 		- tickerWidth;
-	const auto full = _outgoing
-		? (QString(kMinus) + precise.wholeString)
+	const auto sign = (_style == BalanceStyle::Minus)
+		? QString(kMinus)
+		: (_style == BalanceStyle::Plus)
+		? u"+"_q
+		: QString();
+	const auto full = exact
+		? (sign + precise.wholeString)
 		: Info::ChannelEarn::MajorPart(_balance);
 	const auto tickerShown = (availableWithTicker > 0)
 		&& (majorFont->width(full) <= availableWithTicker);
@@ -12075,17 +12233,23 @@ object_ptr<Ui::RpWidget> MakeTransferCard(
 		state->ink.paint(p, ComputeCardFold(rect, 0.), QRegion(rect), clip);
 	}, raw->lifetime());
 
-	const auto total = args.totalNano;
+	const auto amount = args.netNano.value_or(-args.totalNano);
+	const auto magnitude = std::abs(amount);
+	const auto style = (amount > 0)
+		? BalanceStyle::Plus
+		: ((amount < 0) || !args.netNano)
+		? BalanceStyle::Minus
+		: BalanceStyle::Exact;
 	FiatRateValue(
 		session
 	) | rpl::on_next([=](FiatRate rate) {
 		state->ink.setContent(
 			CreditsAmount(
-				total / Ui::kNanosInOne,
-				total % Ui::kNanosInOne,
+				magnitude / Ui::kNanosInOne,
+				magnitude % Ui::kNanosInOne,
 				CreditsType::Ton),
-			FormatFiat(total, rate),
-			true);
+			FormatFiat(magnitude, rate),
+			style);
 		raw->update();
 	}, raw->lifetime());
 
