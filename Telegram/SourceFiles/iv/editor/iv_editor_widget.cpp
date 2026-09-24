@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_prepare_serialize.h"
 #include "iv/markdown/iv_markdown_slideshow_chrome.h"
 #include "iv/markdown/iv_markdown_theme.h"
+#include "iv/iv_rich_message_html_export.h"
 #include "iv/iv_search_bar.h"
 #include "iv/iv_search_controller.h"
 #include "lang/lang_keys.h"
@@ -2081,6 +2082,15 @@ void Widget::copyCurrentSelectionToClipboard() {
 		if (const auto textMimeData = TextUtilities::MimeDataFromText(text)) {
 			for (const auto &format : textMimeData->formats()) {
 				mimeData->setData(format, textMimeData->data(format));
+			}
+		}
+		if (const auto page = richPageForCurrentSelection()) {
+			const auto html = RichBlocksClipboardHtml({
+				.blocks = page->blocks,
+				.rtl = _state->richPage().rtl,
+			}, _session);
+			if (!html.isEmpty()) {
+				mimeData->setHtml(QString::fromUtf8(html));
 			}
 		}
 	}
