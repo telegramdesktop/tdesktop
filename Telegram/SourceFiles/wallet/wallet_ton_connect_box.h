@@ -30,6 +30,7 @@ enum class TonConnectBoxPhase : uchar {
 	Loading,
 	Confirm,
 	Connecting,
+	Restore,
 	Notice,
 };
 
@@ -39,6 +40,7 @@ struct TonConnectBoxState {
 	QString domain;
 	WebFileLocation icon;
 	bool proof = false;
+	bool busy = false;
 	QString notice;
 	QString error;
 
@@ -51,6 +53,7 @@ struct TonConnectBoxArgs {
 	std::shared_ptr<Main::SessionShow> show;
 	rpl::producer<TonConnectBoxState> state;
 	Fn<void()> connect;
+	Fn<void()> restore;
 	Fn<void()> dismissed;
 };
 

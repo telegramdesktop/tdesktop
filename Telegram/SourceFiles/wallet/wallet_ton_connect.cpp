@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/delayed_activation.h"
+#include "wallet/wallet_content.h"
 #include "wallet/wallet_panel.h"
 #include "wallet/wallet_session.h"
 #include "wallet/wallet_ton_connect_box.h"
@@ -159,6 +160,9 @@ private:
 	void resolve();
 	void resolveTimeout();
 	void stopResolving();
+	void accessBlocked(TonConnectAccess access);
+	void restorePressed();
+	void restored(KeyAuthorization auth);
 	void leadToSetup();
 	void create();
 	void created(const MTPTonConnectSession &result);
@@ -217,6 +221,7 @@ private:
 	base::Timer _resolveTimer;
 	base::Timer _pollTimer;
 	rpl::lifetime _resolveLifetime;
+	rpl::lifetime _restoreLifetime;
 	rpl::lifetime _lifetime;
 
 };
@@ -322,6 +327,7 @@ void TonConnect::vaultChanged() {
 
 void TonConnect::stop() {
 	_stopped = true;
+	_restoreLifetime.destroy();
 	_closeWaiting.clear();
 	_requests->stop();
 	base::take(_connects).clear();
@@ -472,6 +478,13 @@ void TonConnect::acquireClosedKey(
 	});
 }
 
+void TonConnect::acquireKeyWith(
+		TonConnectSessionId id,
+		KeyAuthorization auth,
+		Fn<void(TonConnectKeyResult)> done) {
+	unlocked(id, std::move(auth), std::move(done));
+}
+
 bool TonConnect::disconnecting(TonConnectSessionId id) const {
 	return _disconnecting.contains(id);
 }
@@ -487,8 +500,31 @@ void TonConnect::disconnect(
 		return;
 	}
 	if (!participates(id)) {
-		show->showToast(DisconnectAccessNotice(
-			_session->wallet().tonConnectAccess()));
+		const auto access = _session->wallet().tonConnectAccess();
+		if (access != TonConnectAccess::NoCurrentKey) {
+			show->showToast(DisconnectAccessNotice(access));
+			return;
+		}
+		_disconnecting.emplace(id);
+		_updates.fire_copy(id);
+		_restoreLifetime.destroy();
+		const auto current = [=, weak = base::make_weak(this)] {
+			if (!weak
+				|| weak->_stopped
+				|| !weak->_disconnecting.contains(id)) {
+				return false;
+			}
+			const auto info = weak->session(id);
+			return info && TonConnectSessionConnected(*info);
+		};
+		AcquireWalletKey(
+			show,
+			current,
+			_restoreLifetime,
+			crl::guard(this, [=](KeyAuthorization auth) {
+				disconnectRestored(show, id, std::move(auth));
+			}),
+			tr::lng_wallet_restore_ton_connect_text());
 		return;
 	}
 	_disconnecting.emplace(id);
@@ -782,6 +818,29 @@ void TonConnect::disconnectKeyReady(
 	disconnectFinished(show, id, text);
 }
 
+void TonConnect::disconnectRestored(
+		std::shared_ptr<Main::SessionShow> show,
+		TonConnectSessionId id,
+		KeyAuthorization auth) {
+	if (_stopped) {
+		return;
+	} else if (!auth.grant) {
+		settleDisconnect(id);
+		return;
+	}
+	const auto access = _session->wallet().tonConnectAccess();
+	if (access != TonConnectAccess::Allowed) {
+		disconnectFinished(show, id, DisconnectAccessNotice(access));
+		return;
+	}
+	unlocked(
+		id,
+		KeyAuthorization{ .grant = std::move(auth.grant) },
+		crl::guard(this, [=](TonConnectKeyResult result) {
+			disconnectKeyReady(show, id, std::move(result));
+		}));
+}
+
 void TonConnect::disconnectFinished(
 		const std::shared_ptr<Main::SessionShow> &show,
 		TonConnectSessionId id,
@@ -934,6 +993,8 @@ TonConnect::Connect::Connect(
 }
 
 TonConnect::Connect::~Connect() {
+	_terminal = true;
+	_restoreLifetime.destroy();
 	closeBox();
 }
 
@@ -948,6 +1009,7 @@ void TonConnect::Connect::start() {
 		.show = _show,
 		.state = _state.value(),
 		.connect = crl::guard(this, [=] { connectPressed(); }),
+		.restore = crl::guard(this, [=] { restorePressed(); }),
 		.dismissed = crl::guard(this, [=] { dismissed(); }),
 	});
 	_box = box.data();
@@ -1000,7 +1062,7 @@ void TonConnect::Connect::resolve() {
 	if (access == TonConnectAccess::Allowed) {
 		create();
 	} else {
-		notice(AccessNotice(access));
+		accessBlocked(access);
 	}
 }
 
@@ -1015,6 +1077,70 @@ void TonConnect::Connect::stopResolving() {
 	_resolveLifetime.destroy();
 	if (base::take(_polling)) {
 		_session->wallet().stopPolling();
+	}
+}
+
+void TonConnect::Connect::accessBlocked(TonConnectAccess access) {
+	if (access != TonConnectAccess::NoCurrentKey || !_box) {
+		notice(AccessNotice(access));
+		return;
+	}
+	_decision = Decision::None;
+	_retried = false;
+	_grant = nullptr;
+	stopResolving();
+	_pollTimer.cancel();
+	auto state = _state.current();
+	state.phase = BoxPhase::Restore;
+	state.busy = false;
+	state.error = QString();
+	_state = std::move(state);
+}
+
+void TonConnect::Connect::restorePressed() {
+	if (stopped()
+		|| _state.current().phase != BoxPhase::Restore
+		|| _state.current().busy) {
+		return;
+	}
+	_restoreLifetime.destroy();
+	auto state = _state.current();
+	state.busy = true;
+	_state = std::move(state);
+	AcquireWalletKey(
+		showNow(),
+		[weak = base::make_weak(this)] {
+			return weak && !weak->stopped() && weak->_box;
+		},
+		_restoreLifetime,
+		crl::guard(this, [=](KeyAuthorization auth) {
+			restored(std::move(auth));
+		}),
+		tr::lng_wallet_restore_ton_connect_text());
+}
+
+void TonConnect::Connect::restored(KeyAuthorization auth) {
+	if (stopped()) {
+		return;
+	} else if (!auth.grant) {
+		auto state = _state.current();
+		if (state.phase == BoxPhase::Restore) {
+			state.busy = false;
+			_state = std::move(state);
+		}
+		return;
+	}
+	const auto access = _session->wallet().tonConnectAccess();
+	if (access != TonConnectAccess::Allowed) {
+		notice(AccessNotice(access));
+	} else if (_sessionId) {
+		auto state = _state.current();
+		state.busy = false;
+		_state = std::move(state);
+		backToConfirm(QString());
+	} else {
+		_state = TonConnectBoxState{ .phase = BoxPhase::Loading };
+		create();
 	}
 }
 
@@ -1225,7 +1351,9 @@ void TonConnect::Connect::dismissed() {
 	}
 	_box.reset();
 	_pollTimer.cancel();
-	if (_terminal || (!_sessionId && !_creating)) {
+	if (_terminal
+		|| (!_sessionId && !_creating)
+		|| _state.current().phase == BoxPhase::Restore) {
 		finish();
 	} else if (_decision == Decision::Connect) {
 		return;
@@ -1275,7 +1403,7 @@ void TonConnect::Connect::keyReady(TonConnectKeyResult result) {
 		locked();
 		return;
 	case Error::Blocked:
-		notice(AccessNotice(_session->wallet().tonConnectAccess()));
+		accessBlocked(_session->wallet().tonConnectAccess());
 		return;
 	case Error::OtherKey:
 		notice(tr::lng_wallet_connect_other_key(tr::now));
@@ -1361,7 +1489,7 @@ void TonConnect::Connect::prepareFailed(TonConnectKeyError error) {
 	if (stopped()) {
 		return;
 	} else if (error == TonConnectKeyError::Blocked) {
-		notice(AccessNotice(_session->wallet().tonConnectAccess()));
+		accessBlocked(_session->wallet().tonConnectAccess());
 	} else if (error == TonConnectKeyError::Locked) {
 		locked();
 	} else {
@@ -1517,6 +1645,7 @@ void TonConnect::Connect::finish() {
 	if (std::exchange(_finished, true)) {
 		return;
 	}
+	_restoreLifetime.destroy();
 	_grant = nullptr;
 	stopResolving();
 	_pollTimer.cancel();

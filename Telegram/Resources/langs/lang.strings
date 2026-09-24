@@ -9029,6 +9029,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_restore_title" = "Restore Wallet";
 "lng_wallet_restore_text" = "Enter the recovery phrase of this wallet.";
 "lng_wallet_restore_send_text" = "Enter the recovery phrase of this wallet to send Grams from this device.";
+"lng_wallet_restore_ton_connect_text" = "Enter the recovery phrase of this wallet to use connected apps from this device.";
 "lng_wallet_restoring_key" = "Restoring your wallet key from the encrypted backup...";
 "lng_wallet_restore_wrong_title" = "Wrong Recovery Phrase";
 "lng_wallet_restore_other_text" = "The words you entered don't match this wallet.";
@@ -9105,6 +9106,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_connect_manifest_invalid" = "This app's details are invalid or belong to another domain, so the wallet was not connected.";
 "lng_wallet_connect_key_changing" = "Your wallet key is being changed. Apps can't be connected until the change is confirmed, because the connection and the sign-in signature both use that key.";
 "lng_wallet_connect_no_key" = "This device doesn't hold the current key of this wallet, so it can't connect apps.";
+"lng_wallet_connect_restore" = "This device doesn't hold the current key of this wallet. Restore it to connect apps.";
 "lng_wallet_connect_occupied" = "This connection is already used by another session. Start the connection again from the app.";
 "lng_wallet_connect_other_key" = "This connection was started under a different wallet key, so this device can't complete it. Start the connection again from the app.";
 "lng_wallet_connect_expired" = "This connection request is no longer valid. Start the connection again from the app.";
@@ -9159,6 +9161,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_connect_request_other_key" = "This app was connected with a different wallet key, so this device can't answer its requests.";
 "lng_wallet_connect_request_key_changing" = "Your wallet key is being changed. App requests can't be answered until the change is confirmed.";
 "lng_wallet_connect_request_no_key" = "This device doesn't hold the current key of this wallet, so it can't answer app requests.";
+"lng_wallet_connect_request_restore" = "This device doesn't hold the current key of this wallet. Restore it to view and answer this request.";
 "lng_wallet_connect_request_closed" = "This app is no longer connected.";
 "lng_wallet_connect_request_failed" = "Couldn't answer the request. Please try again.";
 "lng_wallet_connect_request_undelivered" = "Couldn't deliver the answer to the app.";

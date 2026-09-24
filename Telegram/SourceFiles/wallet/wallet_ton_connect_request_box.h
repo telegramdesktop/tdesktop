@@ -25,6 +25,7 @@ struct TonConnectTransfer;
 enum class TonConnectRequestPhase : uchar {
 	Loading,
 	Locked,
+	Restore,
 	Confirm,
 	Notice,
 };
@@ -54,6 +55,7 @@ struct TonConnectRequestBoxArgs {
 	not_null<Main::Session*> session;
 	rpl::producer<TonConnectRequestBoxState> state;
 	Fn<void()> unlock;
+	Fn<void()> restore;
 	Fn<void()> confirm;
 	Fn<void()> decline;
 	Fn<void()> dismissed;

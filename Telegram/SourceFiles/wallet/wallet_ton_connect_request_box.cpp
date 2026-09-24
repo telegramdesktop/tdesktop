@@ -60,6 +60,7 @@ struct State {
 struct Context {
 	not_null<Main::Session*> session;
 	Fn<void()> unlock;
+	Fn<void()> restore;
 	Fn<void()> confirm;
 	Fn<void()> decline;
 };
@@ -222,6 +223,7 @@ struct Destinations {
 	case Phase::Loading:
 		return tr::lng_wallet_connect_request_loading(tr::now);
 	case Phase::Locked:
+	case Phase::Restore:
 		return now.topic;
 	case Phase::Confirm:
 		return now.name.isEmpty()
@@ -369,15 +371,17 @@ void FillLoading(not_null<Ui::GenericBox*> box, not_null<State*> state) {
 	cancel->setClickedCallback([=] { box->closeBox(); });
 }
 
-void FillLocked(
+void FillKeyNeeded(
 		not_null<Ui::GenericBox*> box,
 		not_null<State*> state,
-		const Context &context) {
+		rpl::producer<QString> text,
+		rpl::producer<QString> primary,
+		Fn<void()> pressed) {
 	const auto body = state->body.data();
 	body->add(
 		object_ptr<Ui::FlatLabel>(
 			body,
-			tr::lng_wallet_connect_request_locked(),
+			std::move(text),
 			st::walletConnectTextLabel),
 		st::walletConnectTextMargin,
 		style::al_top
@@ -385,11 +389,11 @@ void FillLocked(
 	const auto buttons = AddTonConnectButtons(
 		body,
 		tr::lng_cancel(),
-		tr::lng_wallet_connect_request_unlock());
+		std::move(primary));
 	buttons.secondary->setClickedCallback([=] { box->closeBox(); });
-	buttons.primary->setClickedCallback([=, unlock = context.unlock] {
+	buttons.primary->setClickedCallback([=] {
 		if (!Busy(state)) {
-			unlock();
+			pressed();
 		}
 	});
 	state->unlock = buttons.primary;
@@ -670,7 +674,22 @@ void Rebuild(
 	}
 	switch (now.phase) {
 	case Phase::Loading: FillLoading(box, state); break;
-	case Phase::Locked: FillLocked(box, state, context); break;
+	case Phase::Locked:
+		FillKeyNeeded(
+			box,
+			state,
+			tr::lng_wallet_connect_request_locked(),
+			tr::lng_wallet_connect_request_unlock(),
+			context.unlock);
+		break;
+	case Phase::Restore:
+		FillKeyNeeded(
+			box,
+			state,
+			tr::lng_wallet_connect_request_restore(),
+			tr::lng_wallet_restore_title(),
+			context.restore);
+		break;
 	case Phase::Notice: FillNotice(box, state, now); break;
 	case Phase::Confirm:
 		if (state->details) {
@@ -731,6 +750,7 @@ void TonConnectRequestBox(
 	const auto context = Context{
 		.session = args.session,
 		.unlock = args.unlock,
+		.restore = args.restore,
 		.confirm = args.confirm,
 		.decline = args.decline,
 	};

@@ -207,6 +207,10 @@ public:
 		std::shared_ptr<Main::SessionShow> show,
 		TonConnectSessionInfo info,
 		Fn<void(TonConnectKeyResult)> done);
+	void acquireKeyWith(
+		TonConnectSessionId id,
+		KeyAuthorization auth,
+		Fn<void(TonConnectKeyResult)> done);
 	[[nodiscard]] bool disconnecting(TonConnectSessionId id) const;
 	void disconnect(
 		std::shared_ptr<Main::SessionShow> show,
@@ -252,6 +256,10 @@ private:
 		const std::shared_ptr<Main::SessionShow> &show,
 		TonConnectSessionId id,
 		const QString &error);
+	void disconnectRestored(
+		std::shared_ptr<Main::SessionShow> show,
+		TonConnectSessionId id,
+		KeyAuthorization auth);
 	void settleDisconnect(TonConnectSessionId id);
 	void scheduleClose(TonConnectSessionId id);
 	void closeSilently(TonConnectSessionId id);
@@ -279,6 +287,7 @@ private:
 	std::vector<std::pair<TonConnectSessionInfo, bool>> _changedWhileLoading;
 	base::flat_set<TonConnectSessionId> _disconnecting;
 	base::flat_set<TonConnectSessionId> _closeWaiting;
+	rpl::lifetime _restoreLifetime;
 	rpl::event_stream<TonConnectSessionId> _updates;
 	mtpRequestId _loadRequestId = 0;
 	bool _loaded = false;

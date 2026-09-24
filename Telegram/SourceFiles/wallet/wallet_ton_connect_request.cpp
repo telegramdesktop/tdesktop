@@ -164,6 +164,9 @@ private:
 	void requestKey();
 	void locked();
 	void unlockPressed();
+	[[nodiscard]] bool offerRestore();
+	void restorePressed();
+	void restored(KeyAuthorization auth);
 	void keyReady(TonConnectKeyResult result);
 	void decrypt();
 	void decrypted(TonConnectAppRequest request);
@@ -896,6 +899,8 @@ TonConnectRequests::Flow::Flow(
 }
 
 TonConnectRequests::Flow::~Flow() {
+	_terminal = true;
+	_keyLifetime.destroy();
 	closeBox();
 }
 
@@ -930,6 +935,7 @@ bool TonConnectRequests::Flow::showBox() {
 		.session = _session,
 		.state = _state.value(),
 		.unlock = crl::guard(this, [=] { unlockPressed(); }),
+		.restore = crl::guard(this, [=] { restorePressed(); }),
 		.confirm = crl::guard(this, [=] { confirmPressed(); }),
 		.decline = crl::guard(this, [=] { declinePressed(); }),
 		.dismissed = crl::guard(this, [=] { dismissed(); }),
@@ -1206,6 +1212,77 @@ void TonConnectRequests::Flow::unlockPressed() {
 	requestKey();
 }
 
+bool TonConnectRequests::Flow::offerRestore() {
+	if (stopped()
+		|| _silent
+		|| late()
+		|| recovered()
+		|| !_box
+		|| claiming()) {
+		return false;
+	}
+	_decision = Decision::None;
+	_retriedChallenge = false;
+	_auth = KeyAuthorization();
+	_response = QByteArray();
+	_notSent = QByteArray();
+	_prepared = nullptr;
+	_idleLifetime.destroy();
+	const auto &current = _state.current();
+	_state = TonConnectRequestBoxState{
+		.phase = Phase::Restore,
+		.name = current.name,
+		.domain = current.domain,
+		.icon = current.icon,
+		.topic = TonConnectRequestText(_topic, current.name).text,
+	};
+	return true;
+}
+
+void TonConnectRequests::Flow::restorePressed() {
+	if (stopped()
+		|| _state.current().phase != Phase::Restore
+		|| _state.current().busy) {
+		return;
+	}
+	_keyLifetime.destroy();
+	auto state = _state.current();
+	state.busy = true;
+	_state = std::move(state);
+	AcquireWalletKey(
+		showNow(),
+		[weak = base::make_weak(this)] { return weak && !weak->stopped(); },
+		_keyLifetime,
+		crl::guard(this, [=](KeyAuthorization auth) {
+			restored(std::move(auth));
+		}),
+		tr::lng_wallet_restore_ton_connect_text());
+}
+
+void TonConnectRequests::Flow::restored(KeyAuthorization auth) {
+	if (stopped()) {
+		return;
+	} else if (!auth.grant) {
+		auto state = _state.current();
+		if (state.phase == Phase::Restore) {
+			state.busy = false;
+			_state = std::move(state);
+		}
+		return;
+	}
+	const auto access = _session->wallet().tonConnectAccess();
+	if (access != TonConnectAccess::Allowed) {
+		notice(AccessNoticeText(access));
+		return;
+	}
+	_owner->_store->acquireKeyWith(
+		_sessionId,
+		KeyAuthorization{ .grant = std::move(auth.grant) },
+		crl::guard(this, [=](TonConnectKeyResult result) {
+			keyReady(std::move(result));
+		}));
+}
+
 void TonConnectRequests::Flow::keyReady(TonConnectKeyResult result) {
 	using Error = TonConnectKeyError;
 	if (stopped()) {
@@ -1366,7 +1443,9 @@ void TonConnectRequests::Flow::preview() {
 }
 
 void TonConnectRequests::Flow::previewed(FeeResult result) {
-	if (stopped() || _decision != Decision::None) {
+	if (stopped()
+		|| _decision != Decision::None
+		|| _state.current().phase != Phase::Confirm) {
 		return;
 	}
 	auto state = _state.current();
@@ -1383,6 +1462,22 @@ void TonConnectRequests::Flow::previewed(FeeResult result) {
 	_prepared = nullptr;
 	state.emulation = nullptr;
 	state.confirmable = false;
+	if (result.error == SendError::SigningUnavailable
+		&& !_session->wallet().signingReady()) {
+		state.feeLoading = true;
+		state.error = QString();
+		_state = std::move(state);
+		_idleLifetime.destroy();
+		_session->wallet().signingReadyValue(
+		) | rpl::filter([](bool ready) {
+			return ready;
+		}) | rpl::take(1) | rpl::on_next([=](bool) {
+			if (_decision == Decision::None && !stopped()) {
+				preview();
+			}
+		}, _idleLifetime);
+		return;
+	}
 	const auto text = SendErrorText(result.error, TransferMinNanos(_session));
 	state.error = text.isEmpty()
 		? tr::lng_wallet_connect_request_fee_failed(tr::now)
@@ -1899,6 +1994,9 @@ void TonConnectRequests::Flow::unavailable() {
 }
 
 void TonConnectRequests::Flow::accessNotice(TonConnectAccess access) {
+	if (access == TonConnectAccess::NoCurrentKey && offerRestore()) {
+		return;
+	}
 	notice(AccessNoticeText(access));
 }
 

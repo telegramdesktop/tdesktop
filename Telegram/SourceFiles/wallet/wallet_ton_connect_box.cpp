@@ -52,6 +52,7 @@ struct State {
 	QPointer<Ui::SlideWrap<Ui::FlatLabel>> error;
 	QPointer<Ui::FlatLabel> notice;
 	QPointer<Ui::RoundButton> connect;
+	QPointer<Ui::RoundButton> restore;
 	bool busy = false;
 };
 
@@ -76,7 +77,12 @@ struct AppsState {
 [[nodiscard]] bool SameBody(
 		const TonConnectBoxState &built,
 		const TonConnectBoxState &now) {
-	return (built.phase == Phase::Notice) == (now.phase == Phase::Notice);
+	const auto kind = [](Phase phase) {
+		return (phase == Phase::Notice || phase == Phase::Restore)
+			? phase
+			: Phase::Confirm;
+	};
+	return (kind(built.phase) == kind(now.phase));
 }
 
 [[nodiscard]] QImage PrepareIcon(QImage image, int size) {
@@ -156,7 +162,8 @@ void FillBody(
 		not_null<State*> state,
 		const std::shared_ptr<Main::SessionShow> &show,
 		const TonConnectBoxState &now,
-		Fn<void()> connect) {
+		Fn<void()> connect,
+		Fn<void()> restore) {
 	const auto content = state->body.data();
 	content->clear();
 	if (now.phase == Phase::Notice) {
@@ -172,6 +179,27 @@ void FillBody(
 			nullptr,
 			tr::lng_close()).primary;
 		close->setClickedCallback([=] { box->closeBox(); });
+		return;
+	} else if (now.phase == Phase::Restore) {
+		content->add(
+			object_ptr<Ui::FlatLabel>(
+				content,
+				tr::lng_wallet_connect_restore(),
+				st::walletConnectTextLabel),
+			st::walletConnectTextMargin,
+			style::al_top
+		)->setTryMakeSimilarLines(true);
+		const auto buttons = AddTonConnectButtons(
+			content,
+			tr::lng_cancel(),
+			tr::lng_wallet_restore_title());
+		buttons.secondary->setClickedCallback([=] { box->closeBox(); });
+		buttons.primary->setClickedCallback([=] {
+			if (!state->busy) {
+				restore();
+			}
+		});
+		state->restore = buttons.primary;
 		return;
 	}
 	content->add(
@@ -252,8 +280,11 @@ void UpdateState(
 	if (const auto notice = state->notice.data()) {
 		notice->setText(now.notice);
 	}
-	state->busy = (now.phase != Phase::Confirm);
+	state->busy = (now.phase == Phase::Restore)
+		? now.busy
+		: (now.phase != Phase::Confirm);
 	Ui::SetButtonBusy(state->connect.data(), state->busy);
+	Ui::SetButtonBusy(state->restore.data(), now.busy);
 }
 
 [[nodiscard]] std::vector<AppRow> CollectApps(const TonConnect &store) {
@@ -581,13 +612,14 @@ void TonConnectBox(not_null<Ui::GenericBox*> box, TonConnectBoxArgs args) {
 		style::margins(),
 		style::al_justify);
 
+	const auto connect = args.connect;
+	const auto restore = args.restore;
 	std::move(
 		args.state
-	) | rpl::on_next([=, connect = args.connect](
-			const TonConnectBoxState &now) {
+	) | rpl::on_next([=](const TonConnectBoxState &now) {
 		const auto rebuild = !state->built || !SameBody(*state->built, now);
 		if (rebuild) {
-			FillBody(box, state, show, now, connect);
+			FillBody(box, state, show, now, connect, restore);
 		}
 		UpdateState(
 			state,

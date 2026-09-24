@@ -12052,14 +12052,13 @@ void CurrencyListWidget::updateRow(int index) {
 	}
 }
 
-} // namespace
-
-void AcquireTransferCommentKey(
+void AcquireKeyThroughLadder(
 		std::shared_ptr<Main::SessionShow> show,
 		std::shared_ptr<CommentScope> scope,
 		Fn<bool()> current,
 		rpl::lifetime &lifetime,
-		Fn<void(KeyAuthorization)> done) {
+		Fn<void(KeyAuthorization)> done,
+		rpl::producer<QString> importAbout) {
 	const auto context = std::make_shared<KeyContext>(
 		std::move(show),
 		std::move(scope),
@@ -12077,7 +12076,40 @@ void AcquireTransferCommentKey(
 				context->ready(std::move(auth));
 			},
 		});
-	}, KeyActionKind::ResumeAfterRestore, context);
+	}, KeyActionKind::ResumeAfterRestore, context,
+		std::move(importAbout));
+}
+
+} // namespace
+
+void AcquireTransferCommentKey(
+		std::shared_ptr<Main::SessionShow> show,
+		std::shared_ptr<CommentScope> scope,
+		Fn<bool()> current,
+		rpl::lifetime &lifetime,
+		Fn<void(KeyAuthorization)> done) {
+	AcquireKeyThroughLadder(
+		std::move(show),
+		std::move(scope),
+		std::move(current),
+		lifetime,
+		std::move(done),
+		nullptr);
+}
+
+void AcquireWalletKey(
+		std::shared_ptr<Main::SessionShow> show,
+		Fn<bool()> current,
+		rpl::lifetime &lifetime,
+		Fn<void(KeyAuthorization)> done,
+		rpl::producer<QString> importAbout) {
+	AcquireKeyThroughLadder(
+		std::move(show),
+		nullptr,
+		std::move(current),
+		lifetime,
+		std::move(done),
+		std::move(importAbout));
 }
 
 void ShowTransactionDetails(

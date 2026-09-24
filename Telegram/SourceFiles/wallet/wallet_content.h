@@ -45,6 +45,14 @@ void AcquireTransferCommentKey(
 	rpl::lifetime &lifetime,
 	Fn<void(KeyAuthorization)> done);
 
+// The wallet key ladder for a caller outside the wallet window.
+void AcquireWalletKey(
+	std::shared_ptr<Main::SessionShow> show,
+	Fn<bool()> current,
+	rpl::lifetime &lifetime,
+	Fn<void(KeyAuthorization)> done,
+	rpl::producer<QString> importAbout = nullptr);
+
 void ShowTransactionDetails(
 	std::shared_ptr<Main::SessionShow> show,
 	TransferItem item,
