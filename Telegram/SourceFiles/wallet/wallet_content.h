@@ -119,7 +119,7 @@ struct ActionRowArgs {
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeCommentBubble(
 	not_null<QWidget*> parent,
-	object_ptr<Ui::FlatLabel> label,
+	object_ptr<Ui::RpWidget> content,
 	const style::color &bg);
 
 [[nodiscard]] not_null<Ui::TableLayout*> AddDetailsTableFrame(

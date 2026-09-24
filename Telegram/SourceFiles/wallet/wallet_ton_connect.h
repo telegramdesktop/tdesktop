@@ -137,11 +137,18 @@ enum class TonConnectSignDataType : uchar {
 	Cell,
 };
 
+struct TonConnectSignDataField {
+	int depth = 0;
+	QString name;
+	QString value;
+};
+
 struct TonConnectSignData {
 	std::shared_ptr<const wallet_engine::TonConnectSignDataRequest> request;
 	TonConnectSignDataType type = TonConnectSignDataType::Text;
 	QString data;
 	QString schema;
+	std::vector<TonConnectSignDataField> fields;
 };
 
 enum class TonConnectRequestKind : uchar {

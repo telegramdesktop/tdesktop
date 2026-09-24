@@ -669,6 +669,13 @@ walletConnectSignDataLabel: FlatLabel(walletCommentLabel) {
 		monoFg: windowFg;
 	}
 }
+walletConnectSignFieldLabel: FlatLabel(walletConnectSignDataLabel) {
+	palette: TextPalette(defaultTextPalette) {
+		monoFg: windowFg;
+		linkFg: windowSubTextFg;
+	}
+}
+walletConnectSignFieldIndent: 16px;
 walletConnectSignCaptionMargin: margins(24px, 8px, 24px, 16px);
 walletConnectActionIconLeft: 13px;
 walletConnectActionPadding: margins(71px, 11px, 20px, 11px);

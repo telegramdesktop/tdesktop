@@ -2126,11 +2126,11 @@ object_ptr<Ui::RpWidget> MakeActionRow(
 
 object_ptr<Ui::RpWidget> MakeCommentBubble(
 		not_null<QWidget*> parent,
-		object_ptr<Ui::FlatLabel> label,
+		object_ptr<Ui::RpWidget> content,
 		const style::color &bg) {
-	auto result = object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
+	auto result = object_ptr<Ui::PaddingWrap<Ui::RpWidget>>(
 		parent,
-		std::move(label),
+		std::move(content),
 		st::giveawayGiftCodeValueMargin);
 	const auto raw = result.data();
 	const auto background = raw->lifetime().make_state<Ui::RoundRect>(

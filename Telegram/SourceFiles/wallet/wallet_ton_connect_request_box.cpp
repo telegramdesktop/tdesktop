@@ -44,6 +44,7 @@ using EmulationStatus = TonConnectEmulationStatus;
 using SignDataType = TonConnectSignDataType;
 
 constexpr auto kPayloadShown = 1024;
+constexpr auto kFieldDepthShown = 8;
 constexpr auto kMinus = QChar(0x2212);
 
 struct State {
@@ -675,11 +676,11 @@ void AddDetailsSkip(not_null<Ui::VerticalLayout*> body) {
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeSignDataBubble(
 		not_null<QWidget*> parent,
-		object_ptr<Ui::FlatLabel> label,
+		object_ptr<Ui::RpWidget> content,
 		Fn<void()> copy) {
 	auto result = MakeCommentBubble(
 		parent,
-		std::move(label),
+		std::move(content),
 		st::windowBgOver);
 	const auto raw = result.data();
 	const auto button = Ui::CreateChild<Ui::AbstractButton>(raw);
@@ -701,21 +702,66 @@ void AddDetailsSkip(not_null<Ui::VerticalLayout*> body) {
 		tr::lng_wallet_connect_sign_copied(tr::now));
 }
 
+void AddSignDataBubble(
+		not_null<Ui::VerticalLayout*> body,
+		object_ptr<Ui::RpWidget> content,
+		Fn<void()> copy) {
+	body->add(
+		MakeSignDataBubble(body, std::move(content), std::move(copy)),
+		st::giveawayGiftCodeTableMargin,
+		style::al_justify);
+}
+
+[[nodiscard]] TextWithEntities SignDataFieldText(
+		const TonConnectSignDataField &field) {
+	auto result = Ui::Text::Colorized(field.name + QChar(':'));
+	result.append(QChar(' ')).append(field.value);
+	return Ui::Text::Wrapped(std::move(result), EntityType::Code);
+}
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeSignDataFields(
+		not_null<QWidget*> parent,
+		const std::vector<TonConnectSignDataField> &fields) {
+	auto result = object_ptr<Ui::VerticalLayout>(parent);
+	const auto raw = result.data();
+	for (const auto &field : fields) {
+		const auto depth = std::min(field.depth, kFieldDepthShown);
+		raw->add(
+			object_ptr<Ui::FlatLabel>(
+				raw,
+				rpl::single(SignDataFieldText(field)),
+				st::walletConnectSignFieldLabel),
+			style::margins(depth * st::walletConnectSignFieldIndent, 0, 0, 0));
+	}
+	return result;
+}
+
 void AddSignDataCell(
 		not_null<Ui::VerticalLayout*> body,
 		std::shared_ptr<Ui::Show> show,
 		const TonConnectSignData &data) {
-	body->add(
-		MakeSignDataBubble(
+	auto copy = CopySignData(std::move(show), data);
+	if (data.fields.empty()) {
+		AddSignDataBubble(
 			body,
 			MakeSignDataLabel(body, data.schema),
-			CopySignData(std::move(show), data)),
-		st::giveawayGiftCodeTableMargin,
-		style::al_justify);
+			std::move(copy));
+		body->add(
+			MakeWarningLabel(
+				body,
+				tr::marked(tr::lng_wallet_connect_sign_blind(tr::now)),
+				st::walletCommentCaptionLabel),
+			st::walletConnectSignCaptionMargin);
+		return;
+	}
+	AddSignDataBubble(
+		body,
+		MakeSignDataFields(body, data.fields),
+		std::move(copy));
 	body->add(
-		MakeWarningLabel(
+		object_ptr<Ui::FlatLabel>(
 			body,
-			tr::marked(tr::lng_wallet_connect_sign_blind(tr::now)),
+			tr::lng_wallet_connect_sign_cell_about(),
 			st::walletCommentCaptionLabel),
 		st::walletConnectSignCaptionMargin);
 }
@@ -726,13 +772,10 @@ void AddSignDataContent(
 		const TonConnectSignData &data) {
 	switch (data.type) {
 	case SignDataType::Text:
-		body->add(
-			MakeSignDataBubble(
-				body,
-				MakeSignDataLabel(body, data.data),
-				CopySignData(std::move(show), data)),
-			st::giveawayGiftCodeTableMargin,
-			style::al_justify);
+		AddSignDataBubble(
+			body,
+			MakeSignDataLabel(body, data.data),
+			CopySignData(std::move(show), data));
 		body->add(
 			object_ptr<Ui::FlatLabel>(
 				body,
@@ -741,16 +784,10 @@ void AddSignDataContent(
 			st::walletConnectSignCaptionMargin);
 		return;
 	case SignDataType::Binary:
-		body->add(
-			MakeSignDataBubble(
-				body,
-				MakeWarningLabel(
-					body,
-					BinaryWarningText(),
-					st::walletCommentLabel),
-				CopySignData(std::move(show), data)),
-			st::giveawayGiftCodeTableMargin,
-			style::al_justify);
+		AddSignDataBubble(
+			body,
+			MakeWarningLabel(body, BinaryWarningText(), st::walletCommentLabel),
+			CopySignData(std::move(show), data));
 		AddDetailsSkip(body);
 		return;
 	case SignDataType::Cell:

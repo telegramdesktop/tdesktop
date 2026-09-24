@@ -9168,6 +9168,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_connect_sign_title" = "Sign Data";
 "lng_wallet_connect_sign_data" = "Data";
 "lng_wallet_connect_sign_text_about" = "Carefully review the message, and if you agree, sign data.";
+"lng_wallet_connect_sign_cell_about" = "This is a decoded code. Review it and sign if you agree.";
 "lng_wallet_connect_sign_binary" = "Binary content";
 "lng_wallet_connect_sign_blind" = "You are signing blindly. Sign only from trusted sources.";
 "lng_wallet_connect_sign_button" = "Sign";

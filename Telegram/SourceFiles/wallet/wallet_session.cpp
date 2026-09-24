@@ -1376,7 +1376,38 @@ void FailShareFetch(
 	return result;
 }
 
+[[nodiscard]] std::vector<TonConnectSignDataField> DecodedCellFields(
+		engine::TonConnectDerivedSession &session,
+		const std::string &schema,
+		const std::string &cell) {
+	using Decoding = engine::TonConnectSignDataCellDecoding;
+	auto result = std::vector<TonConnectSignDataField>();
+	try {
+		const auto decoding = session.decode_sign_data_cell(schema, cell);
+		const auto decoded = std::get_if<Decoding::kDecoded>(
+			&decoding.get_variant());
+		if (!decoded) {
+			return result;
+		}
+		result.reserve(decoded->fields.size());
+		for (const auto &field : decoded->fields) {
+			result.push_back({
+				.depth = int(std::min(
+					field.depth,
+					uint32_t(std::numeric_limits<int>::max()))),
+				.name = QString::fromStdString(field.name),
+				.value = QString::fromStdString(field.value),
+			});
+		}
+	} catch (...) {
+		// Display only: a failed decode must not cost the request its answer.
+		return {};
+	}
+	return result;
+}
+
 [[nodiscard]] TonConnectSignData TonConnectSignDataFromEngine(
+		engine::TonConnectDerivedSession &session,
 		const engine::TonConnectSignDataRequest &request) {
 	using Payload = engine::TonConnectSignDataPayload;
 	using Type = TonConnectSignDataType;
@@ -1396,12 +1427,14 @@ void FailShareFetch(
 			result.type = Type::Cell;
 			result.data = QString::fromStdString(data.cell);
 			result.schema = QString::fromStdString(data.schema);
+			result.fields = DecodedCellFields(session, data.schema, data.cell);
 		}
 	}, request.payload.get_variant());
 	return result;
 }
 
 [[nodiscard]] TonConnectAppRequest TonConnectAppRequestFromEngine(
+		engine::TonConnectDerivedSession &session,
 		engine::TonConnectDerivedRequest derived) {
 	using Kind = TonConnectRequestKind;
 	using Incoming = engine::TonConnectIncomingRequest;
@@ -1421,7 +1454,7 @@ void FailShareFetch(
 	} else if (const auto sign = std::get_if<Incoming::kSignData>(&variant)) {
 		result.kind = Kind::SignData;
 		result.signData = std::make_shared<const TonConnectSignData>(
-			TonConnectSignDataFromEngine(sign->request));
+			TonConnectSignDataFromEngine(session, sign->request));
 	} else if (std::get_if<Incoming::kSignMessage>(&variant)) {
 		result.kind = Kind::Unsupported;
 	} else if (std::get_if<Incoming::kDisconnect>(&variant)) {
@@ -6201,8 +6234,8 @@ void Session::decryptTonConnectRequest(
 		body = EngineBytes(body),
 		now = uint64(now)
 	] {
-		return TonConnectAppRequestFromEngine(
-			session->decrypt_request(body, now));
+		auto derived = session->decrypt_request(body, now);
+		return TonConnectAppRequestFromEngine(*session, std::move(derived));
 	}, std::move(done), [=](EngineError error) {
 		LOG(("Wallet Error: TON Connect request could not be decrypted: %1"
 			).arg(error.message));
