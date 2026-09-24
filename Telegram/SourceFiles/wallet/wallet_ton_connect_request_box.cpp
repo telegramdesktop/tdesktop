@@ -776,6 +776,13 @@ void FillSignData(
 		context,
 		tr::lng_cancel(),
 		tr::lng_wallet_connect_sign_button());
+
+	// WHY: a justified row gets its width only when the layout resizes, and
+	// the page is refilled after the box was laid out, so the data bubble
+	// would keep its label's natural width without this.
+	if (const auto width = body->widthNoMargins(); width > 0) {
+		body->resizeToWidth(width);
+	}
 }
 
 void FillDetails(
