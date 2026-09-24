@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "wallet_engine.hpp"
 
+#include <QtCore/QJsonArray>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QUrl>
@@ -128,6 +129,12 @@ template <typename Kind>
 	return ToByteVector(QJsonDocument(QJsonObject{
 		{ u"ok"_q, true },
 		{ u"result"_q, QJsonObject{ { u"@type"_q, u"ok"_q } } },
+	}).toJson(QJsonDocument::Compact));
+}
+
+[[nodiscard]] std::vector<uint8_t> EmptyPendingListBody() {
+	return ToByteVector(QJsonDocument(QJsonObject{
+		{ u"transactions"_q, QJsonArray() },
 	}).toJson(QJsonDocument::Compact));
 }
 
@@ -654,6 +661,8 @@ public:
 			.payload = ToByteArray(request.body),
 		};
 		const auto normalize = (gram.endpoint == u"/api/v3/nft/items"_q);
+		const auto pendingList = (gram.endpoint
+			== u"/api/v3/pendingTransactions"_q);
 		const auto submission = TransferSubmission::Current();
 		const auto routedSend = submission && IsSendBocRequest(gram);
 		if (routedSend) {
@@ -729,6 +738,14 @@ public:
 						? NormalizeNftEmptyMaps(bytes)
 						: bytes));
 				}, [=](const Gram::ApiError &error) {
+					// WHY: toncenter says "none pending" with a 404 that the
+					// proxy drops, while the engine reads only a 404 or a list
+					// as that answer, so this string becomes the empty list.
+					if (pendingList
+						&& (error.message == u"emulated traces not found"_q)) {
+						Complete(pending, EmptyPendingListBody());
+						return;
+					}
 					const auto kind = Api::IsTimeoutError(error)
 						? engine::StatuslessHostErrorKind::kTimeout
 						: engine::StatuslessHostErrorKind::kOther;
