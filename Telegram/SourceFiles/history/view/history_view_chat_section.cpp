@@ -86,6 +86,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "mainwidget.h"
 #include "media/player/media_player_instance.h"
 #include "menu/menu_timecode_action.h"
 #include "data/components/ephemeral_messages.h"
@@ -851,6 +852,7 @@ ChatWidget::ChatWidget(
 	setupTopicViewer();
 	setupComposeControls();
 	setupSwipeReplyAndBack();
+	setupTypingSound();
 
 	if (mode() != Mode::Sublist) {
 		_kbScroll = base::make_unique_q<Ui::ScrollArea>(
@@ -5349,6 +5351,40 @@ bool ChatWidget::listElementHideReply(not_null<const Element*> view) {
 		}
 	}
 	return false;
+}
+
+void ChatWidget::setupTypingSound() {
+	_history->owner().sendActionManager().animationUpdated(
+	) | rpl::on_next([=](const Data::SendActionManager::AnimationUpdate &) {
+		updateTypingSound();
+	}, lifetime());
+	lifetime().add([=] {
+		if (!Core::Quitting()) {
+			Core::App().notifications().updateTypingSound(this, false);
+		}
+	});
+}
+
+void ChatWidget::updateTypingSound() {
+	const auto playing = [&] {
+		if (isHidden()
+			|| !_sendAction
+			|| !_sendAction->typingShown()
+			|| _composeControls->isRecording()
+			|| !_inner->markingContentsRead()
+			|| controller()->content()->dialogsInFocus()
+			|| session().data().notifySettings().isMuted(_topic
+				? static_cast<Data::Thread*>(_topic)
+				: static_cast<Data::Thread*>(_history.get()))) {
+			return false;
+		}
+		auto &settings = Core::App().settings();
+		return settings.soundNotify()
+			&& (_history->peer->isUser()
+				? settings.typingSoundPrivate()
+				: settings.typingSoundGroups());
+	}();
+	Core::App().notifications().updateTypingSound(this, playing);
 }
 
 bool ChatWidget::listElementShownUnread(not_null<const Element*> view) {

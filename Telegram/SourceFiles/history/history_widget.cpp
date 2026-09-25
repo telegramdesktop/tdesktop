@@ -79,6 +79,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/notify/data_notify_settings.h"
 #include "data/data_changes.h"
 #include "data/data_drafts.h"
+#include "data/data_send_action.h"
 #include "data/data_session.h"
 #include "data/data_todo_list.h"
 #include "data/data_web_page.h"
@@ -187,6 +188,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "main/session/send_as_peers.h"
+#include "mainwidget.h"
 #include "webrtc/webrtc_environment.h"
 #include "window/notifications_manager.h"
 #include "window/window_adaptive.h"
@@ -730,6 +732,16 @@ HistoryWidget::HistoryWidget(
 	) | rpl::on_next([=](not_null<History*> history) {
 		handleHistoryChange(history);
 	}, lifetime());
+
+	session().data().sendActionManager().animationUpdated(
+	) | rpl::on_next([=](const Data::SendActionManager::AnimationUpdate &) {
+		updateTypingSound();
+	}, lifetime());
+	lifetime().add([=] {
+		if (!Core::Quitting()) {
+			Core::App().notifications().updateTypingSound(this, false);
+		}
+	});
 
 	session().data().viewResizeRequest(
 	) | rpl::on_next([=](not_null<HistoryView::Element*> view) {
@@ -4794,6 +4806,26 @@ void HistoryWidget::windowShown() {
 
 bool HistoryWidget::markingMessagesRead() const {
 	return markingContentsRead() && !session().supportMode();
+}
+
+void HistoryWidget::updateTypingSound() {
+	const auto playing = [&] {
+		if (!_history
+			|| isHidden()
+			|| isRecording()
+			|| !markingContentsRead()
+			|| controller()->content()->dialogsInFocus()
+			|| !_history->sendActionPainter()->typingShown()
+			|| session().data().notifySettings().isMuted(_history)) {
+			return false;
+		}
+		auto &settings = Core::App().settings();
+		return settings.soundNotify()
+			&& (_history->peer->isUser()
+				? settings.typingSoundPrivate()
+				: settings.typingSoundGroups());
+	}();
+	Core::App().notifications().updateTypingSound(this, playing);
 }
 
 bool HistoryWidget::markingContentsRead() const {

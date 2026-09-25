@@ -123,6 +123,7 @@ public:
 
 	[[nodiscard]] bool volumeSupported() const;
 	[[nodiscard]] rpl::producer<bool> volumeSupportedValue() const;
+	void updateTypingSound(not_null<const QWidget*> owner, bool playing);
 
 	void playSound(
 		not_null<Main::Session*> session,
@@ -235,6 +236,9 @@ private:
 	base::flat_map<
 		not_null<Data::SavedSublist*>,
 		rpl::lifetime> _watchedSublists;
+
+	std::unique_ptr<Media::Audio::Track> _typingTrack;
+	base::flat_set<not_null<const QWidget*>> _typingOwners;
 
 	int _lastForwardedCount = 0;
 	uint64 _lastHistorySessionId = 0;
@@ -350,6 +354,9 @@ public:
 	void maybePlaySound(Fn<void()> playSound);
 	void maybeFlashBounce(Fn<void()> flashBounce) {
 		doMaybeFlashBounce(std::move(flashBounce));
+	}
+	void maybePlayTypingSound(Fn<void()> playSound) {
+		doMaybePlaySound(std::move(playSound));
 	}
 
 	virtual ~Manager() = default;
