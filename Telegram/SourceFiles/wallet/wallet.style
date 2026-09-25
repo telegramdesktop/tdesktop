@@ -145,7 +145,6 @@ walletRowIconSize: 46px;
 walletRowIconLeft: 20px;
 walletRowArrowIn: icon{{ "wallet/incoming_arrow", historyPeerUserpicFg }};
 walletRowArrowOut: icon{{ "wallet/outgoing_arrow", historyPeerUserpicFg }};
-walletRowCardIcon: icon{{ "wallet/card_topup", historyPeerUserpicFg }};
 walletRowContractIcon: icon{{ "wallet/smart_contract", historyPeerUserpicFg }};
 walletRowGearIcon: icon{{ "wallet/gear", historyPeerUserpicFg }};
 walletRowKeyIcon: icon{{ "settings/key", historyPeerUserpicFg }};

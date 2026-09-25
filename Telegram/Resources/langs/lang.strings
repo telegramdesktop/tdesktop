@@ -8837,7 +8837,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_row_failed" = "Failed";
 "lng_wallet_row_withdrawal" = "Withdrawal";
 "lng_wallet_row_deposit" = "Deposit";
-"lng_wallet_row_card_topup" = "Card top-up";
+"lng_wallet_row_topup" = "Top-up";
 "lng_wallet_row_smart_contract" = "Smart contract call";
 "lng_wallet_row_key_change" = "Key update";
 "lng_wallet_row_collectible_in" = "Incoming collectible";

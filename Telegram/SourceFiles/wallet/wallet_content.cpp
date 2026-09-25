@@ -1133,11 +1133,16 @@ namespace {
 	return result;
 }
 
+[[nodiscard]] QString OnrampProvider(const TransferItem &item) {
+	return (item.kind == TransferItem::Kind::Onramp)
+		? item.provider
+		: QString();
+}
+
 enum class RowAvatar {
 	Peer,
 	In,
 	Out,
-	Card,
 	Contract,
 	KeyChange,
 	Gear,
@@ -1268,8 +1273,6 @@ void PaintRowAvatar(Painter &p, QRect rect, RowAvatar avatar) {
 	p.drawEllipse(rect);
 	const auto icon = in
 		? &st::walletRowArrowIn
-		: (avatar == RowAvatar::Card)
-		? &st::walletRowCardIcon
 		: (avatar == RowAvatar::Contract)
 		? &st::walletRowContractIcon
 		: (avatar == RowAvatar::KeyChange)
@@ -1626,28 +1629,34 @@ void AddHistoryRow(
 	const auto failed
 		= (item.status == TransferItem::Status::Failure);
 	const auto statusText = RowStatusSubtitle(item.status);
-	if (item.kind == Kind::CardTopUp) {
-		return {
-			.title = tr::lng_wallet_row_card_topup(tr::now),
-			.subtitle = (!statusText.isEmpty()
-				? statusText
-				: item.provider),
-			.date = date,
-			.amountNano = item.amountNano,
-			.incoming = item.incoming,
-			.pending = pending,
-			.failed = failed,
-			.avatar = RowAvatar::Card,
-		};
-	}
 	const auto transfer = (item.kind == Kind::Transfer)
-		|| (item.kind == Kind::PeerTransfer);
+		|| (item.kind == Kind::PeerTransfer)
+		|| (item.kind == Kind::Onramp);
 	const auto address = (transfer && !item.counterparty.isEmpty())
 		? FormatFriendly(item.counterparty, true)
 		: QString();
 	const auto domain = !address.isEmpty()
 		? item.counterpartyName.trimmed()
 		: QString();
+	const auto provider = !address.isEmpty()
+		? OnrampProvider(item)
+		: QString();
+	if (!provider.isEmpty()) {
+		return {
+			.title = provider,
+			.subtitle = (!statusText.isEmpty()
+				? statusText
+				: item.incoming
+				? tr::lng_wallet_row_topup(tr::now)
+				: tr::lng_wallet_row_withdrawal(tr::now)),
+			.date = date,
+			.amountNano = item.amountNano,
+			.incoming = item.incoming,
+			.pending = pending,
+			.failed = failed,
+			.avatar = (item.incoming ? RowAvatar::In : RowAvatar::Out),
+		};
+	}
 	if (item.kind == Kind::PeerTransfer && item.counterpartyPeer) {
 		const auto peer = session->data().peerLoaded(
 			PeerId(item.counterpartyPeer));
@@ -2435,7 +2444,10 @@ void AddDetailsTable(
 			auto label = (item.incoming
 				? tr::lng_wallet_details_sender()
 				: tr::lng_wallet_details_recipient());
-			const auto name = item.counterpartyName.trimmed();
+			const auto provider = OnrampProvider(item);
+			const auto name = !provider.isEmpty()
+				? provider
+				: item.counterpartyName.trimmed();
 			if (name.isEmpty()) {
 				Ui::AddTableRow(
 					table,

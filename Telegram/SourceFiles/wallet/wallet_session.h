@@ -197,7 +197,7 @@ struct TransferItem {
 		Transfer,
 		ContractInteraction,
 		Collectible,
-		CardTopUp,
+		Onramp,
 		PeerTransfer,
 		KeyChange,
 	};

@@ -1779,6 +1779,12 @@ void SetDirectedAmount(
 			setCounterparty(data);
 		}, [&](const MTPDwalletTransactionPeerOnramp &data) {
 			setCounterparty(data);
+			// Without a provider or an address it reads as the address peer.
+			const auto provider = qs(data.vprovider_name()).trimmed();
+			if (!provider.isEmpty() && !result.counterparty.isEmpty()) {
+				result.kind = TransferItem::Kind::Onramp;
+				result.provider = provider;
+			}
 		}, [](const MTPDwalletTransactionPeerUnsupported &) {
 			// Nothing is written, because the defaults are the row: a
 			// Kind::Transfer with no counterparty renders through
@@ -7907,7 +7913,7 @@ bool TransferAmountBelowMinimum(int64 amountNano, int64 minNanos) {
 bool HistoryTransferHidden(const TransferItem &item, int64 minNanos) {
 	using Kind = TransferItem::Kind;
 	// Only an ordinary monetary transfer is judged. A key change, a
-	// collectible, a card top-up and a contract interaction are activity
+	// collectible, an on-ramp and a contract interaction are activity
 	// the feed states for reasons of their own, and the amount threshold
 	// says nothing about whether they are worth a row.
 	const auto transfer = (item.kind == Kind::Transfer)
