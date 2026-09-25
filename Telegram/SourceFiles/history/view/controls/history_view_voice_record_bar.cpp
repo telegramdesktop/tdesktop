@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/dynamic_image.h"
 #include "ui/painter.h"
+#include "ui/screen_reader_mode.h"
 #include "ui/widgets/fields/input_field.h" // ShouldSubmit.
 #include "ui/widgets/tooltip.h"
 #include "ui/rect.h"
@@ -2464,6 +2465,8 @@ void VoiceRecordBar::init() {
 		hideAnimated();
 	});
 
+	installRecordingKeyFilter();
+
 	initLockGeometry();
 	initLevelGeometry();
 }
@@ -3269,6 +3272,54 @@ void VoiceRecordBar::orderControls() {
 	stackUnder(_send.get());
 	_lock->raise();
 	_level->raise();
+}
+
+void VoiceRecordBar::installRecordingKeyFilter() {
+	_level->setFocusPolicy(Qt::NoFocus);
+	Ui::ScreenReaderModeActiveValue(
+	) | rpl::on_next([=](bool active) {
+		_level->setFocusPolicy(active ? Qt::StrongFocus : Qt::NoFocus);
+	}, _level->lifetime());
+
+	auto keyFilterCallback = [=](not_null<QEvent*> e) {
+		using Result = base::EventFilterResult;
+		if (e->type() != QEvent::KeyPress) {
+			return Result::Continue;
+		}
+		const auto keyEvent = static_cast<QKeyEvent*>(e.get());
+		if (keyEvent->isAutoRepeat()) {
+			return Result::Continue;
+		}
+		const auto key = keyEvent->key();
+		const auto isToggle = (key == Qt::Key_Space)
+			|| (key == Qt::Key_Enter)
+			|| (key == Qt::Key_Return);
+		const auto isCancel = (key == Qt::Key_Escape);
+		if (!isToggle && !isCancel) {
+			return Result::Continue;
+		}
+		if (!Ui::ScreenReaderModeActive()) {
+			return Result::Continue;
+		}
+		if (isCancel) {
+			if (isRecording()) {
+				stop(false);
+			}
+			return Result::Cancel;
+		}
+		if (isRecording()) {
+			stop(true);
+		} else if (isTypeRecord()) {
+			startRecordingAndLock(false);
+		}
+		return Result::Cancel;
+	};
+
+	auto keyFilter = base::install_event_filter(
+		_level.get(),
+		std::move(keyFilterCallback));
+	_level->lifetime().make_state<base::unique_qptr<QObject>>(
+		std::move(keyFilter));
 }
 
 void VoiceRecordBar::installListenStateFilter() {
