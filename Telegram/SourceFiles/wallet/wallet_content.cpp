@@ -3064,20 +3064,7 @@ void WalletHowItWorksBox(
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
 
-	auto icon = Settings::CreateLottieIcon(
-		box->verticalLayout(),
-		{
-			.name = u"diamond"_q,
-			.sizeOverride = {
-				st::walletHowLottieSize,
-				st::walletHowLottieSize,
-			},
-		},
-		st::walletHowLottieMargin);
-	box->verticalLayout()->add(std::move(icon.widget));
-	box->showFinishes() | rpl::on_next([animate = std::move(icon.animate)] {
-		animate(anim::repeat::loop);
-	}, box->lifetime());
+	AddWalletLottie(box, st::walletHowLottieMargin);
 
 	const auto features = std::vector<Ui::FeatureListEntry>{
 		{
