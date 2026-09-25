@@ -4498,12 +4498,12 @@ void Session::dropParked(
 	});
 }
 
-void Session::prepareBackupParts(
+void Session::enableBackup(
 		KeyAuthorization auth,
-		Fn<void(std::vector<QByteArray>)> done,
+		Fn<void()> done,
 		Fn<void(const QString &error)> fail) {
 	ensureLoaded();
-	fail = LoggedFail(u"backup parts"_q, std::move(fail));
+	fail = LoggedFail(u"backup enable"_q, std::move(fail));
 	if (custodyBusy() || custody().pendingRotation) {
 		LOG(("Wallet Error: backup requested while another is in flight."));
 		if (fail) {
@@ -4519,8 +4519,13 @@ void Session::prepareBackupParts(
 		}
 		return;
 	}
-	const auto matching = currentRecord();
-	if (!matching) {
+	const auto matching = vaultKeyUnusable() ? nullptr : currentRecord();
+	const auto proofKey = !matching
+		? QByteArray()
+		: matching->signingKey.isEmpty()
+		? matching->publicKey
+		: matching->signingKey;
+	if (proofKey.size() != kCustodyPublicKeySize) {
 		LOG(("Wallet Error: backup requested without local custody."));
 		if (fail) {
 			fail(u"BACKUP_NO_CUSTODY"_q);
@@ -4534,17 +4539,14 @@ void Session::prepareBackupParts(
 		}
 		return;
 	}
+	const auto address = _address;
+	const auto generation = _networkGeneration;
 	retireCommentScopes();
 	_backupChanging = true;
-	// Every path below ends in exactly one of these two calls, which is
-	// what clears the guard, so none of them is fenced by _networkGeneration:
-	// a reveal owns no network-derived state, and dropping its callback
-	// would either orphan a just-stored engine secret or leave the guard
-	// set for the rest of the session.
-	done = [this, done = std::move(done)](std::vector<QByteArray> parts) {
+	done = [this, done = std::move(done)] {
 		_backupChanging = false;
 		if (done) {
-			done(std::move(parts));
+			done();
 		}
 	};
 	fail = [this, fail = std::move(fail)](const QString &error) {
@@ -4552,6 +4554,68 @@ void Session::prepareBackupParts(
 		if (fail) {
 			fail(error);
 		}
+	};
+	const auto current = [=, this] {
+		const auto now = vaultKeyUnusable() ? nullptr : currentRecord();
+		return (generation == _networkGeneration)
+			&& (address == _address)
+			&& now
+			&& (now->recordId == record.recordId);
+	};
+	const auto proofFailed = [=](OwnershipProofError error) {
+		fail(!current()
+			? u"BACKUP_WALLET_CHANGED"_q
+			: (error == OwnershipProofError::VaultLocked)
+			? u"BACKUP_VAULT_LOCKED"_q
+			: u"BACKUP_PROOF_FAILED"_q);
+	};
+	const auto send = [=, this](const MTPVector<MTPbytes> &parts) {
+		if (!current()) {
+			fail(u"BACKUP_WALLET_CHANGED"_q);
+			return;
+		}
+		const auto proofReady = [=, this](OwnershipProof proof) {
+			if (!current()) {
+				fail(u"BACKUP_WALLET_CHANGED"_q);
+				return;
+			}
+			using Flag = MTPwallet_enableBackup::Flag;
+			// One-shot proof: a refused or lost answer is settled, not resent.
+			_stateApi.request(MTPwallet_EnableBackup(
+				MTP_flags(Flag::f_new_public_key | Flag::f_proof),
+				parts,
+				MTP_bytes(proofKey),
+				MTP_walletOwnershipProof(
+					MTP_int(proof.timestamp),
+					MTP_bytes(bytes::make_span(proof.signature)))
+			)).done([=, this](const MTPWalletState &result) {
+				clearRotatedSinceBackup();
+				applyState(result, false);
+				done();
+			}).fail([=, this](const MTP::Error &error) {
+				LOG(("Wallet Error: wallet.enableBackup with a proof failed: %1"
+					).arg(error.type()));
+				settleRefusedBackupChange(
+					address,
+					proofKey,
+					true,
+					error.type(),
+					done,
+					[=, this](const QString &refused) {
+						fail(backupEnableRefusal(
+							address,
+							record.recordId,
+							proofKey,
+							refused));
+					});
+			}).handleAllErrors().send();
+		};
+		requestOwnershipProof(
+			DescriptorFromRecord(record),
+			proofKey,
+			auth.grant,
+			proofReady,
+			proofFailed);
 	};
 	_stateApi.request(MTPwallet_GetBackupHolderDcs(
 	)).done([=, this](const MTPVector<MTPwallet_HolderDc> &result) {
@@ -4562,14 +4626,35 @@ void Session::prepareBackupParts(
 			fail(u"BACKUP_HOLDERS_INVALID"_q);
 			return;
 		}
-		revealLocally(auth, record, [=](std::vector<QString> words) {
-			auto parts = SealBackupParts(*keys, words);
+		if (!current()) {
+			fail(u"BACKUP_WALLET_CHANGED"_q);
+			return;
+		}
+		revealLocally(auth, record, [=, this](std::vector<QString> words) {
+			const auto parts = SealBackupParts(*keys, words);
 			if (!parts) {
 				LOG(("Wallet Error: backup parts could not be sealed."));
 				fail(u"BACKUP_ENCRYPT_FAILED"_q);
 				return;
 			}
-			done(std::move(*parts));
+			auto list = QVector<MTPbytes>();
+			list.reserve(int(parts->size()));
+			for (const auto &part : *parts) {
+				list.push_back(MTP_bytes(part));
+			}
+			const auto sealed = MTP_vector<MTPbytes>(std::move(list));
+			validatePhraseIdentity(words, [=](
+					std::optional<PhraseIdentity> identity) {
+				if (!identity
+					|| (identity->anchor != record.publicKey)
+					|| (identity->signing != proofKey)) {
+					LOG(("Wallet Error: the revealed phrase does not derive "
+						"the key its proof names."));
+					fail(u"BACKUP_KEY_MISMATCH"_q);
+					return;
+				}
+				send(sealed);
+			});
 		}, [=](const QString &error) {
 			// revealLocally is the phrase flow's helper and refuses in its
 			// own family; a vault cleared between the holder-DC answer and
@@ -4584,6 +4669,26 @@ void Session::prepareBackupParts(
 			).arg(error.type()));
 		fail(error.type());
 	}).send();
+}
+
+QString Session::backupEnableRefusal(
+		const QString &address,
+		const QString &recordId,
+		const QByteArray &proofKey,
+		const QString &error) {
+	const auto keyRefused = (error == u"WALLET_ROTATION_NOT_FOUND"_q)
+		|| (error == u"WALLET_PROOF_INVALID"_q);
+	if (keyRefused && (_address == address) && (_publicKey != proofKey)) {
+		const auto now = custody().current(_address, _publicKey);
+		if (!now || now->recordId != recordId) {
+			return u"BACKUP_PHRASE_OUTDATED"_q;
+		} else if (error == u"WALLET_ROTATION_NOT_FOUND"_q) {
+			return u"BACKUP_KEY_UNCONFIRMED"_q;
+		}
+	}
+	return (error == u"WALLET_PROOF_INVALID"_q)
+		? u"BACKUP_NOT_VERIFIED"_q
+		: error;
 }
 
 void Session::disableBackup(
@@ -4752,9 +4857,10 @@ void Session::disableBackupWithProof(
 		}).fail([=, this](const MTP::Error &error) {
 			LOG(("Wallet Error: wallet.disableBackup with a proof failed: %1"
 				).arg(error.type()));
-			settleRefusedBackupDisable(
+			settleRefusedBackupChange(
 				address,
 				proofKey,
+				false,
 				error.type(),
 				done,
 				fail);
@@ -4775,107 +4881,46 @@ void Session::disableBackupWithProof(
 		proofFailed);
 }
 
-void Session::settleRefusedBackupDisable(
+void Session::settleRefusedBackupChange(
 		QString address,
 		QByteArray proofKey,
+		bool backupEnabled,
 		QString error,
 		Fn<void()> done,
 		Fn<void(const QString &)> fail) {
-	// Success only when the served wallet is disabled under the key whose
-	// phrase the user confirmed: a backup the scanner invalidated for
-	// another key is not this action's outcome. It applies only the served
-	// state, as a poll does, and on success clears the rotation guard
-	// exactly as an accepted disable does; it invents no capability, starts
-	// no rotation and issues no second proof.
-	requestState([=, this](const MTPWalletState &state) {
+	// WHY: only a served backup in the asked state under the proof key is
+	// this action's outcome; the read bypasses requestState, where another
+	// settle would cancel it and leave _backupChanging set until relaunch.
+	const auto startedAt = crl::now();
+	const auto generation = _networkGeneration;
+	_stateApi.request(MTPwallet_GetState(
+	)).done([=, this](const MTPWalletState &state, mtpRequestId requestId) {
+		LOG(("Wallet Info: backup settle wallet.getState request=%1 "
+			"elapsed_ms=%2; %3."
+			).arg(requestId
+			).arg(crl::now() - startedAt
+			).arg(LogWalletState(state)));
+		if (generation != _networkGeneration) {
+			fail(error);
+			return;
+		}
 		applyState(state, false);
-		const auto disabled = (state.type() == mtpc_walletState)
-			&& !state.c_walletState().is_backup_enabled()
+		const auto settled = (state.type() == mtpc_walletState)
+			&& (state.c_walletState().is_backup_enabled() == backupEnabled)
 			&& (state.c_walletState().vpublic_key().v == proofKey)
 			&& (_address == address);
-		if (disabled) {
+		if (settled) {
 			clearRotatedSinceBackup();
 			done();
 		} else {
 			fail(error);
 		}
-	}, [=] {
+	}).fail([=](const MTP::Error &refused, mtpRequestId requestId) {
+		LOG(("Wallet Error: backup settle wallet.getState request=%1 "
+			"elapsed_ms=%2 failed: %3"
+			).arg(requestId).arg(crl::now() - startedAt).arg(refused.type()));
 		fail(error);
-	});
-}
-
-void Session::enableBackup(
-		std::vector<QByteArray> parts,
-		std::optional<Core::CloudPasswordResult> password,
-		Fn<void()> done,
-		Fn<void(const QString &error)> fail) {
-	ensureLoaded();
-	fail = LoggedFail(u"backup enable"_q, std::move(fail));
-	if (custodyBusy() || custody().pendingRotation) {
-		LOG(("Wallet Error: backup enable requested "
-			"while another is in flight."));
-		if (fail) {
-			fail(u"BACKUP_BUSY"_q);
-		}
-		return;
-	}
-	if (_presence.current() != Presence::Ready
-		|| _publicKey.size() != kCustodyPublicKeySize) {
-		LOG(("Wallet Error: backup enable requested "
-			"without a settled wallet key."));
-		if (fail) {
-			fail(u"BACKUP_STATE_UNKNOWN"_q);
-		}
-		return;
-	}
-	if (!currentRecord()) {
-		LOG(("Wallet Error: backup enable requested without local custody."));
-		if (fail) {
-			fail(u"BACKUP_NO_CUSTODY"_q);
-		}
-		return;
-	}
-	if (parts.empty()) {
-		LOG(("Wallet Error: backup enable requested without parts."));
-		if (fail) {
-			fail(u"BACKUP_PARTS_EMPTY"_q);
-		}
-		return;
-	}
-	retireCommentScopes();
-	_backupChanging = true;
-	done = [this, done = std::move(done)] {
-		_backupChanging = false;
-		if (done) {
-			done();
-		}
-	};
-	fail = [this, fail = std::move(fail)](const QString &error) {
-		_backupChanging = false;
-		if (fail) {
-			fail(error);
-		}
-	};
-	auto list = QVector<MTPbytes>();
-	list.reserve(parts.size());
-	for (auto &part : parts) {
-		list.push_back(MTP_bytes(std::move(part)));
-	}
-	using Flag = MTPwallet_enableBackup::Flag;
-	const auto checked = password && *password;
-	_stateApi.request(MTPwallet_EnableBackup(
-		MTP_flags(checked ? Flag::f_password : Flag(0)),
-		MTP_vector<MTPbytes>(std::move(list)),
-		checked ? password->result : MTP_inputCheckPasswordEmpty()
-	)).done([=, this](const MTPWalletState &result) {
-		clearRotatedSinceBackup();
-		applyState(result, false);
-		done();
-	}).fail([=](const MTP::Error &error) {
-		LOG(("Wallet Error: wallet.enableBackup failed: %1"
-			).arg(error.type()));
-		fail(error.type());
-	}).handleFloodErrors().send();
+	}).handleAllErrors().send();
 }
 
 bool Session::rotationOffered() {

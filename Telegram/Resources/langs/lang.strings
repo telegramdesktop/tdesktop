@@ -9080,6 +9080,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_backup_check_wait" = "You will be able to change your backup settings in {duration}.";
 "lng_wallet_backup_unavailable_error" = "Encrypted backup is not available for this wallet.";
 "lng_wallet_backup_error" = "Couldn't change the backup settings.";
+"lng_wallet_backup_outdated_text" = "The recovery phrase on this device is out of date for this wallet, because its key was changed in another app.\n\nRestore the wallet with its current recovery phrase, then enable the backup again.";
+"lng_wallet_backup_key_confirming" = "Your wallet's key change is still being confirmed. Try enabling the backup again in a few minutes.";
+"lng_wallet_backup_not_verified" = "Telegram couldn't verify that this device holds your wallet's key, so the backup was not enabled.";
 "lng_wallet_backup_update_fee" = "Network fee: {amount} GRAM ({fiat}).";
 "lng_wallet_backup_topup_title" = "Not enough Gram";
 "lng_wallet_backup_topup_text" = "You need {amount} GRAM ({fiat}) to update your recovery phrase.";

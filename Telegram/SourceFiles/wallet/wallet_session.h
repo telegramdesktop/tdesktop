@@ -634,13 +634,8 @@ public:
 		const QByteArray &publicKey,
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail);
-	void prepareBackupParts(
-		KeyAuthorization auth,
-		Fn<void(std::vector<QByteArray>)> done,
-		Fn<void(const QString &error)> fail);
 	void enableBackup(
-		std::vector<QByteArray> parts,
-		std::optional<Core::CloudPasswordResult> password,
+		KeyAuthorization auth,
 		Fn<void()> done,
 		Fn<void(const QString &error)> fail);
 	void disableBackup(
@@ -937,12 +932,18 @@ private:
 		VaultAuthorization grant,
 		Fn<void(OwnershipProof)> done,
 		Fn<void(OwnershipProofError)> fail);
-	void settleRefusedBackupDisable(
+	void settleRefusedBackupChange(
 		QString address,
 		QByteArray proofKey,
+		bool backupEnabled,
 		QString error,
 		Fn<void()> done,
 		Fn<void(const QString &)> fail);
+	[[nodiscard]] QString backupEnableRefusal(
+		const QString &address,
+		const QString &recordId,
+		const QByteArray &proofKey,
+		const QString &error);
 	void finishConfirmedReplace(
 		QString oldAddress,
 		std::optional<CustodyRecord> newActive,

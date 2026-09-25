@@ -4132,6 +4132,20 @@ void WalletSendCommentBox(
 	AddBoxCloseButton(box);
 }
 
+void ShowKeyChangedBox(
+		std::shared_ptr<Main::SessionShow> show,
+		v::text::data text) {
+	show->showBox(Ui::MakeConfirmBox({
+		.text = std::move(text),
+		.confirmed = [=](Fn<void()> close) {
+			close();
+			RunKeyRequiringAction(show, [] {});
+		},
+		.confirmText = tr::lng_wallet_restore_title(),
+		.title = tr::lng_wallet_send_key_changed_title(),
+	}));
+}
+
 } // namespace
 
 QString SendErrorText(SendError error, int64 minTransferNano) {
@@ -4181,15 +4195,7 @@ QString SendErrorText(SendError error, int64 minTransferNano) {
 }
 
 void ShowWalletKeyChanged(std::shared_ptr<Main::SessionShow> show) {
-	show->showBox(Ui::MakeConfirmBox({
-		.text = tr::lng_wallet_send_key_changed_text(),
-		.confirmed = [=](Fn<void()> close) {
-			close();
-			RunKeyRequiringAction(show, [] {});
-		},
-		.confirmText = tr::lng_wallet_restore_title(),
-		.title = tr::lng_wallet_send_key_changed_title(),
-	}));
+	ShowKeyChangedBox(show, tr::lng_wallet_send_key_changed_text());
 }
 
 QString ErrorWithType(const QString &message, const QString &error) {
@@ -8302,21 +8308,37 @@ void StartWalletReplace(
 	}, origin->lifetime());
 }
 
-enum class BackupChange {
-	Enable,
-	Disable,
-};
-
 struct BackupDisableProof {
 	KeyAuthorization auth;
 	BackupDisableApproval approved;
 };
 
+void ShowBackupChangeError(
+		std::shared_ptr<Main::SessionShow> show,
+		const QString &error) {
+	if (error == u"BACKUP_VAULT_LOCKED"_q) {
+		show->showToast(VaultLockedText(&show->session()));
+	} else if (auto box = PrePasswordErrorBox(
+			error,
+			&show->session(),
+			BackupCheckAbout(error))) {
+		show->showBox(std::move(box));
+	} else if (error == u"BACKUP_PHRASE_OUTDATED"_q) {
+		ShowKeyChangedBox(show, tr::lng_wallet_backup_outdated_text());
+	} else if (error == u"BACKUP_KEY_UNCONFIRMED"_q) {
+		show->showToast(tr::lng_wallet_backup_key_confirming(tr::now));
+	} else if (error == u"BACKUP_NOT_VERIFIED"_q) {
+		show->showToast(tr::lng_wallet_backup_not_verified(tr::now));
+	} else {
+		show->showToast((error == u"WALLET_BACKUP_NOT_AVAILABLE"_q)
+			? tr::lng_wallet_backup_unavailable_error(tr::now)
+			: ErrorWithType(tr::lng_wallet_backup_error(tr::now), error));
+	}
+}
+
 void RequestBackupChange(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::GenericBox*> origin,
-		BackupChange change,
-		std::vector<QByteArray> parts,
 		std::optional<Core::CloudPasswordResult> password,
 		base::weak_qptr<PasscodeBox> passcode,
 		Fn<void()> unblock,
@@ -8333,54 +8355,26 @@ void RequestBackupChange(
 		unblock();
 		if (passcode && passcode->handleCustomCheckError(error)) {
 			return;
-		}
-		if (error == u"BACKUP_VAULT_LOCKED"_q) {
-			if (passcode) {
-				passcode->closeBox();
-			}
-			show->showToast(VaultLockedText(&show->session()));
-			return;
-		}
-		if (auto box = PrePasswordErrorBox(
-				error,
-				&show->session(),
-				BackupCheckAbout(error))) {
-			if (passcode) {
-				passcode->closeBox();
-			}
-			show->showBox(std::move(box));
-			return;
-		}
-		if (passcode) {
+		} else if (passcode) {
 			passcode->closeBox();
 		}
-		show->showToast((error == u"WALLET_BACKUP_NOT_AVAILABLE"_q)
-			? tr::lng_wallet_backup_unavailable_error(tr::now)
-			: ErrorWithType(tr::lng_wallet_backup_error(tr::now), error));
+		ShowBackupChangeError(show, error);
 	});
 	auto &wallet = show->session().wallet();
-	if (change == BackupChange::Disable && proof) {
+	if (proof) {
 		wallet.disableBackupWithProof(
 			std::move(proof->auth),
 			std::move(proof->approved),
 			succeeded,
 			fail);
-	} else if (change == BackupChange::Disable) {
-		wallet.disableBackup(std::move(password), succeeded, fail);
 	} else {
-		wallet.enableBackup(
-			std::move(parts),
-			std::move(password),
-			succeeded,
-			fail);
+		wallet.disableBackup(std::move(password), succeeded, fail);
 	}
 }
 
 void StartBackupRequest(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<Ui::GenericBox*> origin,
-		BackupChange change,
-		std::vector<QByteArray> parts,
 		Fn<void()> unblock,
 		Fn<void()> done) {
 	const auto session = &show->session();
@@ -8393,8 +8387,6 @@ void StartBackupRequest(
 			RequestBackupChange(
 				show,
 				origin,
-				change,
-				parts,
 				std::nullopt,
 				nullptr,
 				unblock,
@@ -8412,8 +8404,6 @@ void StartBackupRequest(
 			RequestBackupChange(
 				show,
 				origin,
-				change,
-				parts,
 				result,
 				passcode,
 				unblock,
@@ -8439,8 +8429,6 @@ void RequestBackupDisable(
 		StartBackupRequest(
 			show,
 			origin,
-			BackupChange::Disable,
-			{},
 			std::move(unblock),
 			std::move(done));
 		return;
@@ -8448,8 +8436,6 @@ void RequestBackupDisable(
 	RequestBackupChange(
 		show,
 		origin,
-		BackupChange::Disable,
-		{},
 		std::nullopt,
 		nullptr,
 		std::move(unblock),
@@ -8474,29 +8460,20 @@ void StartBackupEnable(
 			return;
 		}
 		*busy = true;
-		show->session().wallet().prepareBackupParts(
+		show->session().wallet().enableBackup(
 			std::move(auth),
-			crl::guard(origin, [=](std::vector<QByteArray> parts) {
-				StartBackupRequest(
-					show,
-					origin,
-					BackupChange::Enable,
-					std::move(parts),
-					[=] { *busy = false; },
-					[=] { ShowBackupEnabledToast(show); });
+			crl::guard(origin, [=] {
+				*busy = false;
+				ShowBackupEnabledToast(show);
 			}),
 			crl::guard(origin, [=](const QString &error) {
 				*busy = false;
-				show->showToast((error == u"BACKUP_VAULT_LOCKED"_q)
-					? VaultLockedText(&show->session())
-					: ErrorWithType(
-						tr::lng_wallet_backup_error(tr::now),
-						error));
+				ShowBackupChangeError(show, error);
 			}));
 	});
 	// The restorable and not-restorable arms install custody first and only
 	// then run this, so the acquisition sits after them and every arm reaches
-	// prepareBackupParts with a live grant.
+	// enableBackup with a live grant.
 	RunKeyRequiringAction(show, crl::guard(origin, [=] {
 		if (*busy) {
 			return;
