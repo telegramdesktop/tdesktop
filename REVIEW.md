@@ -97,6 +97,7 @@ if (const auto peer = session().data().peerLoaded(peerId)
 // GOOD - simple nested ifs when direct lookup isn't available:
 if (const auto peer = session().data().peerLoaded(peerId)) {
 	if (const auto user = peer->asUser()) {
+```
 
 ## Always initialize variables of basic types
 
