@@ -3128,6 +3128,7 @@ void MainWidget::handleHistoryBack() {
 	}
 	const auto openedFolder = _controller->openedFolder().current();
 	const auto openedForum = _controller->shownForum().current();
+	const auto openedCommunity = _controller->openedCommunity().current();
 	const auto rootPeer = !_stack.empty()
 		? _stack.front()->peer()
 		: _history->peer()
@@ -3143,6 +3144,9 @@ void MainWidget::handleHistoryBack() {
 		&& _stack.empty()
 		&& (!rootPeer || rootPeer->forum() != openedForum)) {
 		_controller->closeForum();
+	} else if (openedCommunity
+		&& !_controller->windowId().community()) {
+		_controller->closeCommunity();
 	} else if (!openedFolder
 		|| (rootFolder == openedFolder)
 		|| (!_dialogs || _dialogs->isHidden())) {
