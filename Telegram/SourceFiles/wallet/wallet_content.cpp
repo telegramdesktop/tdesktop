@@ -8785,14 +8785,6 @@ void CollectBackupPhrase(
 		showPhrase);
 }
 
-[[nodiscard]] QString RotationQuoteErrorText(
-		SendError error,
-		int64 minTransferNano) {
-	return (error == SendError::Failed || error == SendError::InvalidRequest)
-		? tr::lng_wallet_backup_update_quote_error(tr::now)
-		: SendErrorText(error, minTransferNano);
-}
-
 [[nodiscard]] QString RotationFeeText(
 		tr::phrase<lngtag_amount, lngtag_fiat> phrase,
 		int64 feeNano,
@@ -9005,9 +8997,8 @@ struct BackupDisableState {
 			|| quote->error == SendError::InsufficientFees);
 }
 
-// What a phrase update does, then its network fee: estimating while the
-// quote is out, the fee once it answers, or the top-up that fee needs when
-// the balance does not cover it.
+// What a phrase update does, then its network fee, or the top-up that fee
+// needs when the balance does not cover it.
 [[nodiscard]] rpl::producer<TextWithEntities> BackupUpdateNoteText(
 		not_null<Main::Session*> session,
 		rpl::producer<std::optional<RotationQuote>> quote) {
@@ -9018,42 +9009,28 @@ struct BackupDisableState {
 			const std::optional<RotationQuote> &quote,
 			const FiatRate &rate) {
 		auto result = tr::lng_wallet_backup_update_text(tr::now, tr::marked);
-		auto fee = TextWithEntities();
-		if (!quote) {
-			fee = tr::lng_wallet_backup_update_fee_pending(
-				tr::now,
-				lt_amount,
-				tr::italic(tr::lng_wallet_backup_update_estimating(tr::now)),
-				tr::marked);
-		} else if (quote->error == SendError::None) {
-			fee = tr::marked(RotationFeeText(
-				tr::lng_wallet_backup_update_fee,
-				quote->feeNano,
-				rate));
-		} else if (quote->error == SendError::InsufficientFees) {
-			fee = tr::marked(RotationFeeText(
-				tr::lng_wallet_backup_topup_text,
-				quote->feeNano,
-				rate));
-		}
-		if (!fee.empty()) {
-			result.append(u"\n\n"_q).append(std::move(fee));
+		if (RotationQuoteUsable(quote)) {
+			const auto phrase = (quote->error == SendError::None)
+				? tr::lng_wallet_backup_update_fee
+				: tr::lng_wallet_backup_topup_text;
+			result.append(u"\n\n"_q).append(tr::marked(
+				RotationFeeText(phrase, quote->feeNano, rate)));
 		}
 		return result;
 	});
 }
 
 void AddBackupUpdateNote(
-		not_null<Ui::GenericBox*> box,
+		not_null<Ui::VerticalLayout*> container,
 		rpl::producer<TextWithEntities> text,
 		rpl::producer<bool> shown) {
-	const auto wrap = box->addRow(
+	const auto wrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::PaddingWrap<Ui::FlatLabel>>>(
-			box,
+			container,
 			object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
-				box,
+				container,
 				object_ptr<Ui::FlatLabel>(
-					box,
+					container,
 					std::move(text),
 					st::walletBackupNoteLabel),
 				st::walletBackupNotePadding),
@@ -9079,10 +9056,11 @@ void AddBackupUpdateNote(
 
 // One confirmation for the whole disable: its checkbox decides whether the
 // key is rotated on the way, and the fee for that is quoted in the
-// background from the moment the box shows. Disable is not pressable while
-// a checked update still waits for its quote. An unchecked press waits for
-// a quote still out, because the reveal refuses to run beside it, and then
-// goes to the write-down of the current or the new words.
+// background from the moment the box shows. The checkbox slides in only
+// once the box has finished showing and the quote is usable, and a quote
+// that failed leaves no update to offer. A press before the quote waits
+// for it, because the reveal refuses to run beside it, and then goes to the
+// write-down of the current words.
 void WalletBackupDisableBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
@@ -9101,28 +9079,33 @@ void WalletBackupDisableBox(
 		QMargins(padding.left(), 0, padding.right(), padding.bottom()));
 	auto update = (Ui::Checkbox*)nullptr;
 	if (updateOffered) {
-		update = box->addRow(
-			object_ptr<Ui::Checkbox>(
+		const auto wrap = box->addRow(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 				box,
+				object_ptr<Ui::VerticalLayout>(box)),
+			QMargins());
+		const auto inner = wrap->entity();
+		update = inner->add(
+			object_ptr<Ui::Checkbox>(
+				inner,
 				tr::lng_wallet_backup_update_check(tr::now),
 				false,
 				st::defaultBoxCheckbox),
 			st::walletBackupUpdateCheckboxMargin);
 		AddBackupUpdateNote(
-			box,
+			inner,
 			BackupUpdateNoteText(session, state->quote.value()),
 			update->checkedValue());
-		// A quote that failed leaves no update to offer.
-		state->quote.value(
-		) | rpl::on_next([=](const std::optional<RotationQuote> &quote) {
-			if (!quote || RotationQuoteUsable(quote)) {
-				return;
+		wrap->hide(anim::type::instant);
+		box->showFinishes() | rpl::take(1) | rpl::map([=] {
+			return state->quote.value();
+		}) | rpl::flatten_latest(
+		) | rpl::filter([=](const std::optional<RotationQuote> &quote) {
+			return RotationQuoteUsable(quote);
+		}) | rpl::take(1) | rpl::on_next([=] {
+			if (!state->started && !state->loading.current()) {
+				wrap->show(anim::type::normal);
 			}
-			update->setChecked(false);
-			update->setDisabled(true);
-			show->showToast(RotationQuoteErrorText(
-				quote->error,
-				TransferMinNanos(session)));
 		}, box->lifetime());
 	}
 	// The continuation a press leaves for a quote still out must not own
@@ -9168,14 +9151,9 @@ void WalletBackupDisableBox(
 				quote->feeNano,
 				crl::guard(box, [=] { box->closeBox(); }));
 		}
-		// Any other quote failure has already unchecked the update and
-		// explained itself, so a press that asked for the update stops here.
-	};
-	const auto estimating = [=] {
-		return update && update->checked() && !state->quote.current();
 	};
 	const auto submit = [=] {
-		if (state->started || state->loading.current() || estimating()) {
+		if (state->started || state->loading.current()) {
 			return;
 		}
 		state->rotate = update && update->checked();
@@ -9196,18 +9174,6 @@ void WalletBackupDisableBox(
 		submit,
 		st::attentionBoxButton);
 	AddBusyFooterSpinner(button, state->loading.value());
-	if (update) {
-		rpl::combine(
-			update->checkedValue(),
-			state->quote.value()
-		) | rpl::on_next([=](
-				bool checked,
-				const std::optional<RotationQuote> &quote) {
-			if (const auto raw = button.data()) {
-				SetButtonDisabledLook(raw, checked && !quote);
-			}
-		}, box->lifetime());
-	}
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	box->events(
 	) | rpl::on_next([=](not_null<QEvent*> e) {
