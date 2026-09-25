@@ -5747,11 +5747,16 @@ void Session::replaceWithImported(
 			const auto send = [=, this](
 					TimeId timestamp,
 					const std::vector<uint8_t> &signature) {
+				using Flag = MTPDinputWalletImported::Flag;
+				const auto rotated = (record.publicKey != record.signingKey);
+				const auto anchor = rotated ? record.publicKey : QByteArray();
 				sendReplaceWallet(
 					MTP_inputWalletImported(
-						MTP_flags(0),
+						MTP_flags(rotated
+							? Flag::f_anchor_public_key
+							: Flag(0)),
 						MTP_bytes(record.signingKey),
-						MTP_bytes(), // anchor_public_key
+						MTP_bytes(anchor), // anchor_public_key
 						MTP_walletOwnershipProof(
 							MTP_int(timestamp),
 							MTP_bytes(bytes::make_span(signature)))),

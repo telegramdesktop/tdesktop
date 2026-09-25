@@ -7897,9 +7897,9 @@ void RequestWalletReplace(
 				show,
 				error == u"REPLACE_FOREIGN_PHRASE"_q);
 		} else {
-			// WHY: the server derives the address from the key it is sent,
-			// so a rotated wallet's proof is refused on every attempt; a
-			// retry cannot help, only support can.
+			// WHY: the server checks the proof against the key the chain
+			// holds for the phrase's address, so a refused phrase stays
+			// refused; a retry cannot help, only support can.
 			const auto text = (error == u"REPLACE_STATE_UNCONFIRMED"_q)
 				? tr::lng_wallet_import_unconfirmed(tr::now)
 				: (error == u"WALLET_PROOF_INVALID"_q)
