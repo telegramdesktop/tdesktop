@@ -2308,6 +2308,7 @@ wallet.userAddresses#928e7b55 addresses:Vector<WalletUserAddress> users:Vector<U
 
 walletTransactionPeerUser#d4ea706d flags:# user_id:long address:string domain:flags.0?string = WalletTransactionPeer;
 walletTransactionPeerAddress#62cc1bc flags:# address:string domain:flags.0?string = WalletTransactionPeer;
+walletTransactionPeerOnramp#e595186e flags:# address:string domain:flags.0?string provider_name:string = WalletTransactionPeer;
 walletTransactionPeerUnsupported#728bed5a = WalletTransactionPeer;
 
 walletTransaction#6f9986a1 flags:# incoming:flags.0?true gasless:flags.1?true failed:flags.2?true key_change:flags.5?true comment_encrypted:flags.6?true id:string amount:long fee:long date:int peer:WalletTransactionPeer comment:flags.3?string tx_hash:flags.4?string = WalletTransaction;
@@ -2325,7 +2326,7 @@ wallet.proofChallenge#99e41707 payload:string expires:int domain:string = wallet
 walletOwnershipProof#60bccb0d timestamp:int signature:bytes = WalletOwnershipProof;
 
 inputWalletNew#63a440dc = InputWalletReplacement;
-inputWalletImported#2959057c public_key:bytes proof:WalletOwnershipProof = InputWalletReplacement;
+inputWalletImported#66a66a3b flags:# public_key:bytes anchor_public_key:flags.0?bytes proof:WalletOwnershipProof = InputWalletReplacement;
 
 tonConnectManifest#12229264 flags:# url:string name:string icon:flags.0?WebDocument = TonConnectManifest;
 

@@ -1777,6 +1777,8 @@ void SetDirectedAmount(
 			setCounterparty(data);
 		}, [&](const MTPDwalletTransactionPeerAddress &data) {
 			setCounterparty(data);
+		}, [&](const MTPDwalletTransactionPeerOnramp &data) {
+			setCounterparty(data);
 		}, [](const MTPDwalletTransactionPeerUnsupported &) {
 			// Nothing is written, because the defaults are the row: a
 			// Kind::Transfer with no counterparty renders through
@@ -5741,7 +5743,9 @@ void Session::replaceWithImported(
 					const std::vector<uint8_t> &signature) {
 				sendReplaceWallet(
 					MTP_inputWalletImported(
+						MTP_flags(0),
 						MTP_bytes(record.signingKey),
+						MTP_bytes(), // anchor_public_key
 						MTP_walletOwnershipProof(
 							MTP_int(timestamp),
 							MTP_bytes(bytes::make_span(signature)))),
