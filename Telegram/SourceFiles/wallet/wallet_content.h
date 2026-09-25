@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/object_ptr.h"
 #include "base/unique_qptr.h"
+#include "ui/layers/layer_widget.h"
 
 class UserData;
 
@@ -60,7 +61,10 @@ void ShowTransactionDetails(
 	std::shared_ptr<CollectibleMedia> media = nullptr,
 	Fn<bool()> originCurrent = nullptr,
 	rpl::producer<> originInvalidated = nullptr,
-	Fn<void()> openWallet = nullptr);
+	Fn<void()> openWallet = nullptr,
+	Ui::LayerOptions options = Ui::LayerOption::KeepOther);
+
+bool ShowFirstGramsIfPending(std::shared_ptr<Main::SessionShow> show);
 
 [[nodiscard]] base::unique_qptr<Ui::RpWidget> CreateContent(
 	not_null<Ui::SeparatePanel*> panel,

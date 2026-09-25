@@ -632,6 +632,16 @@ walletHowSubtitleLabel: FlatLabel(walletPhraseTextLabel) {
 	minWidth: 20px;
 }
 walletHowSubtitleMargin: margins(24px, 8px, 24px, 14px);
+walletFirstSendIcon: icon{{ "menu/send", windowBoldFg }};
+walletFirstTradeIcon: icon{{ "wallet/trade-24x24", windowBoldFg }};
+walletFirstStoreIcon: icon{{ "menu/wallet-24x24", windowBoldFg }};
+walletFirstAttachEmoji: IconEmoji {
+	icon: icon{{ "poll/general/outline_poll_attach-16x16", windowSubTextFg }};
+	padding: margins(1px, 2px, 1px, 0px);
+}
+walletFirstMenuEmoji: IconEmoji(walletFirstAttachEmoji) {
+	icon: icon{{ "wallet/menu_bars-16x16", windowSubTextFg }};
+}
 
 walletConnectBox: Box(defaultBox) {
 	buttonPadding: margins(0px, 0px, 0px, 12px);

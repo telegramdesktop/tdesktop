@@ -800,6 +800,7 @@ void GramTransferCardPart::showDetails(const ClickContext &context) {
 		return;
 	}
 	auto details = ResolveGramTransfer(origin.session.get(), origin.action);
+	const auto firstGrams = Wallet::ShowFirstGramsIfPending(show);
 	Wallet::ShowTransactionDetails(
 		show,
 		std::move(details.item),
@@ -813,7 +814,10 @@ void GramTransferCardPart::showDetails(const ClickContext &context) {
 			if (const auto strong = session.get()) {
 				Wallet::ShowWallet(strong);
 			}
-		});
+		},
+		(firstGrams
+			? (Ui::LayerOption::KeepOther | Ui::LayerOption::ShowAfterOther)
+			: Ui::LayerOptions(Ui::LayerOption::KeepOther)));
 }
 
 QSize GramTransferCardPart::countOptimalSize() {

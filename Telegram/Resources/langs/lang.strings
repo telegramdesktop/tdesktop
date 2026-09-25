@@ -8826,6 +8826,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_how_subtitle" = "Only you control your funds — no one else has access.";
 "lng_wallet_how_button" = "Got it";
 "lng_wallet_how_menu" = "What is Wallet?";
+"lng_wallet_first_title" = "Your first Grams!";
+"lng_wallet_first_rate" = "1 Gram currently equals {amount}.\nYou can:";
+"lng_wallet_first_rate_none" = "With Grams, you can:";
+"lng_wallet_first_send_title" = "Send";
+"lng_wallet_first_send_text" = "Transfer Grams to anyone.\nClick {attach} → {money} in chats.";
+"lng_wallet_first_trade_title" = "Trade";
+"lng_wallet_first_trade_text" = "Convert Grams to cash or crypto on exchanges.";
+"lng_wallet_first_store_title" = "Store";
+"lng_wallet_first_store_text" = "Keep your Grams in Telegram\n({menu} → {wallet}) or other wallets.";
+"lng_wallet_first_button" = "Got it";
 "lng_wallet_menu_currency" = "Currency";
 "lng_wallet_currency_title" = "Choose Currency";
 "lng_wallet_currency_none" = "No currencies found";

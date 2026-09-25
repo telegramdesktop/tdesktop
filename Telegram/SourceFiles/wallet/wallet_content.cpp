@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/ton_explorer_url.h"
 #include "core/ui_integration.h"
 #include "data/components/credits.h"
+#include "data/components/promo_suggestions.h"
 #include "data/components/recent_money_recipients.h"
 #include "data/components/recent_peers.h"
 #include "data/components/top_peers.h"
@@ -1750,7 +1751,9 @@ void AddHistoryRow(
 // WHY: it plays once when the box finishes showing and a click replays it
 // once it has stopped, with no pointer cursor or anything else saying so,
 // because finding that out is the whole of it.
-void AddWalletLottie(not_null<Ui::GenericBox*> box, int topSkip = 0) {
+void AddWalletLottie(
+		not_null<Ui::GenericBox*> box,
+		const style::margins &margin = style::margins()) {
 	const auto size = st::walletDetailsLottieSize;
 	auto icon = Settings::CreateLottieIcon(
 		box->verticalLayout(),
@@ -1758,7 +1761,7 @@ void AddWalletLottie(not_null<Ui::GenericBox*> box, int topSkip = 0) {
 			.name = u"gram"_q,
 			.sizeOverride = { size, size },
 		},
-		style::margins(0, topSkip, 0, 0));
+		margin);
 	const auto raw = icon.widget.data();
 	const auto animate = icon.animate;
 	const auto animating = icon.animating;
@@ -1770,9 +1773,13 @@ void AddWalletLottie(not_null<Ui::GenericBox*> box, int topSkip = 0) {
 			animate(anim::repeat::once);
 		}
 	});
-	// The same rect the icon paints into: centered in the row, under the skip.
+	// The rect the icon paints into: centered in the row, under the top margin.
 	raw->sizeValue() | rpl::on_next([=](QSize outer) {
-		replay->setGeometry((outer.width() - size) / 2, topSkip, size, size);
+		replay->setGeometry(
+			(outer.width() - size) / 2,
+			margin.top(),
+			size,
+			size);
 	}, replay->lifetime());
 	box->showFinishes() | rpl::on_next([=] {
 		animate(anim::repeat::once);
@@ -3019,6 +3026,37 @@ void ShowWalletReceiveBox(
 	show->showBox(Box(WalletReceiveBox, session, address));
 }
 
+void AddWalletFeaturesBody(
+		not_null<Ui::GenericBox*> box,
+		rpl::producer<QString> title,
+		rpl::producer<QString> subtitle,
+		const std::vector<Ui::FeatureListEntry> &features,
+		rpl::producer<QString> button) {
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			std::move(title),
+			st::walletPhraseTitleLabel),
+		st::boxRowPadding,
+		style::al_top);
+	box->addRow(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			std::move(subtitle),
+			st::walletHowSubtitleLabel),
+		st::walletHowSubtitleMargin,
+		style::al_top
+	)->setTryMakeSimilarLines(true);
+
+	for (const auto &feature : features) {
+		box->addRow(Ui::MakeFeatureListEntry(box, feature));
+	}
+
+	AddBoxCloseButton(box);
+
+	box->addButton(std::move(button), [=] { box->closeBox(); });
+}
+
 void WalletHowItWorksBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session) {
@@ -3040,22 +3078,6 @@ void WalletHowItWorksBox(
 	box->showFinishes() | rpl::on_next([animate = std::move(icon.animate)] {
 		animate(anim::repeat::loop);
 	}, box->lifetime());
-
-	box->addRow(
-		object_ptr<Ui::FlatLabel>(
-			box,
-			tr::lng_wallet_how_title(),
-			st::walletPhraseTitleLabel),
-		st::boxRowPadding,
-		style::al_top);
-	box->addRow(
-		object_ptr<Ui::FlatLabel>(
-			box,
-			tr::lng_wallet_how_subtitle(),
-			st::walletHowSubtitleLabel),
-		st::walletHowSubtitleMargin,
-		style::al_top
-	)->setTryMakeSimilarLines(true);
 
 	const auto features = std::vector<Ui::FeatureListEntry>{
 		{
@@ -3081,13 +3103,102 @@ void WalletHowItWorksBox(
 			.similarLines = true,
 		},
 	};
-	for (const auto &feature : features) {
-		box->addRow(Ui::MakeFeatureListEntry(box, feature));
+	AddWalletFeaturesBody(
+		box,
+		tr::lng_wallet_how_title(),
+		tr::lng_wallet_how_subtitle(),
+		features,
+		tr::lng_wallet_how_button());
+}
+
+void CloseFirstGramsByOutsideClick(not_null<Ui::GenericBox*> box) {
+	const auto layer = box->parentWidget();
+	auto stack = (Ui::LayerStackWidget*)nullptr;
+	for (auto parent = layer; parent && !stack;) {
+		parent = parent->parentWidget();
+		stack = dynamic_cast<Ui::LayerStackWidget*>(parent);
 	}
+	if (!layer || !stack) {
+		return;
+	}
+	// WHY: a background press clears the whole stack, the Transaction box
+	// below included, so it is eaten while this box is the shown layer, and
+	// the close is postponed because it destroys this filter synchronously.
+	base::install_event_filter(box, stack, [=](not_null<QEvent*> e) {
+		if (e->type() != QEvent::MouseButtonPress || layer->isHidden()) {
+			return base::EventFilterResult::Continue;
+		}
+		Ui::PostponeCall(box, [=] { box->closeBox(); });
+		return base::EventFilterResult::Cancel;
+	});
+}
 
-	AddBoxCloseButton(box);
+void WalletFirstGramsBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session) {
+	box->setWidth(st::boxWideWidth);
+	box->setStyle(st::giveawayGiftCodeBox);
+	box->setNoContentMargin(true);
 
-	box->addButton(tr::lng_wallet_how_button(), [=] { box->closeBox(); });
+	AddWalletLottie(box, st::walletHowLottieMargin);
+
+	auto subtitle = FiatRateValue(session) | rpl::map([](const FiatRate &rate) {
+		return rate.available()
+			? tr::lng_wallet_first_rate(
+				lt_amount,
+				rpl::single(FormatFiat(Ui::kNanosInOne, rate)))
+			: tr::lng_wallet_first_rate_none();
+	}) | rpl::flatten_latest();
+
+	const auto features = std::vector<Ui::FeatureListEntry>{
+		{
+			.icon = st::walletFirstSendIcon,
+			.title = tr::lng_wallet_first_send_title(tr::now),
+			.about = tr::lng_wallet_first_send_text(
+				tr::now,
+				lt_attach,
+				Ui::Text::IconEmoji(&st::walletFirstAttachEmoji),
+				lt_money,
+				tr::marked(tr::lng_wallet_send_money(tr::now)),
+				tr::marked),
+			.similarLines = true,
+		},
+		{
+			.icon = st::walletFirstTradeIcon,
+			.title = tr::lng_wallet_first_trade_title(tr::now),
+			.about = tr::lng_wallet_first_trade_text(tr::now, tr::marked),
+			.similarLines = true,
+		},
+		{
+			.icon = st::walletFirstStoreIcon,
+			.title = tr::lng_wallet_first_store_title(tr::now),
+			.about = tr::lng_wallet_first_store_text(
+				tr::now,
+				lt_menu,
+				Ui::Text::IconEmoji(&st::walletFirstMenuEmoji),
+				lt_wallet,
+				tr::marked(tr::lng_wallet_menu(tr::now)),
+				tr::marked),
+			.similarLines = true,
+		},
+	};
+	AddWalletFeaturesBody(
+		box,
+		tr::lng_wallet_first_title(),
+		std::move(subtitle),
+		features,
+		tr::lng_wallet_first_button());
+
+	box->boxClosing() | rpl::on_next([weak = base::make_weak(session)] {
+		if (const auto strong = weak.get()) {
+			strong->promoSuggestions().dismiss(
+				Data::PromoSuggestions::SugWalletFirstIncomingTransfer());
+		}
+	}, box->lifetime());
+
+	box->showFinishes() | rpl::take(1) | rpl::on_next([=] {
+		CloseFirstGramsByOutsideClick(box);
+	}, box->lifetime());
 }
 
 void WalletCloudPasswordCreateBox(
@@ -12158,7 +12269,8 @@ void ShowTransactionDetails(
 		std::shared_ptr<CollectibleMedia> media,
 		Fn<bool()> originCurrent,
 		rpl::producer<> originInvalidated,
-		Fn<void()> openWallet) {
+		Fn<void()> openWallet,
+		Ui::LayerOptions options) {
 	if (!show || !show->valid()
 		|| (originCurrent && !originCurrent())) {
 		return;
@@ -12171,7 +12283,20 @@ void ShowTransactionDetails(
 		std::move(media),
 		std::move(originCurrent),
 		std::move(originInvalidated),
-		std::move(openWallet)));
+		std::move(openWallet)), options);
+}
+
+bool ShowFirstGramsIfPending(std::shared_ptr<Main::SessionShow> show) {
+	if (!show || !show->valid()) {
+		return false;
+	}
+	const auto session = &show->session();
+	if (!session->promoSuggestions().current(
+			Data::PromoSuggestions::SugWalletFirstIncomingTransfer())) {
+		return false;
+	}
+	show->showBox(Box(WalletFirstGramsBox, session));
+	return true;
 }
 
 rpl::producer<bool> TransactionsShownValue(

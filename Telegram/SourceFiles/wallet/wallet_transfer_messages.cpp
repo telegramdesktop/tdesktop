@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_transfer_messages.h"
 
 #include "base/unixtime.h"
+#include "data/components/promo_suggestions.h"
 #include "data/components/top_peers.h"
 #include "data/data_peer_id.h"
 #include "data/data_session.h"
@@ -50,6 +51,17 @@ TransferMessages::TransferMessages(not_null<Main::Session*> session)
 				break;
 			}
 		}
+	}, _lifetime);
+
+	// The server adds the suggestion with the first transfer, pushing nothing.
+	_session->data().newItemAdded(
+	) | rpl::filter([=](not_null<HistoryItem*> item) {
+		return item->Has<HistoryServiceGramTransfer>()
+			&& !IsClientMsgId(item->id)
+			&& !_session->promoSuggestions().current(
+				Data::PromoSuggestions::SugWalletFirstIncomingTransfer());
+	}) | rpl::on_next([=] {
+		_session->promoSuggestions().invalidate();
 	}, _lifetime);
 }
 
