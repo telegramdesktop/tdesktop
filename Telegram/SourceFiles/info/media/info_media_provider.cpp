@@ -358,11 +358,17 @@ void Provider::jumpToMessage(
 	_viewerLifetime.destroy();
 
 	const auto peer = _controller->session().data().peer(_peer->id);
-	const auto request = Api::PrepareSearchRequest(
-		peer,
+	const auto key = SharedMediaLoadableKey(peer, Storage::SharedMediaKey(
+		peer->id,
 		_topicRootId,
 		_monoforumPeerId,
 		_type,
+		messageId));
+	const auto request = Api::PrepareSearchRequest(
+		peer,
+		key.topicRootId,
+		key.monoforumPeerId,
+		key.type,
 		QString(),
 		messageId,
 		Data::LoadDirection::Around);
@@ -386,7 +392,7 @@ void Provider::jumpToMessage(
 	).done([=](const Api::SearchRequestResult &result) {
 		auto parsed = Api::ParseSearchResult(
 			peer,
-			_type,
+			key.type,
 			messageId,
 			Data::LoadDirection::Around,
 			result);
@@ -394,9 +400,9 @@ void Provider::jumpToMessage(
 		if (!parsed.messageIds.empty()) {
 			peer->session().storage().add(Storage::SharedMediaAddSlice(
 				peer->id,
-				_topicRootId,
-				_monoforumPeerId,
-				_type,
+				key.topicRootId,
+				key.monoforumPeerId,
+				key.type,
 				std::move(parsed.messageIds),
 				parsed.noSkipRange,
 				parsed.fullCount));
