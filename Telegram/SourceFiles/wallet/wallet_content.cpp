@@ -3903,6 +3903,17 @@ void ShowWalletKeyChanged(std::shared_ptr<Main::SessionShow> show) {
 	}));
 }
 
+QString ErrorWithType(const QString &message, const QString &error) {
+	return error.isEmpty()
+		? message
+		: tr::lng_wallet_error_with_type(
+			tr::now,
+			lt_message,
+			message,
+			lt_error,
+			error);
+}
+
 namespace {
 
 [[nodiscard]] QString SendUserLoadErrorText(const QString &error) {
@@ -6635,12 +6646,7 @@ void ShowPhraseError(
 		).arg(int(wallet.presenceCurrent())
 		).arg(int(wallet.deviceCustodyState().mode)
 		).arg(wallet.deviceCustodyState().conflict));
-	show->showToast(tr::lng_wallet_error_with_type(
-		tr::now,
-		lt_message,
-		text,
-		lt_error,
-		error));
+	show->showToast(ErrorWithType(text, error));
 }
 
 [[nodiscard]] TextWithEntities ReplaceCheckAbout(const QString &error) {
@@ -7772,16 +7778,23 @@ void RequestWalletReplace(
 			passcode->closeBox();
 		}
 		if (!imported) {
-			show->showToast(tr::lng_wallet_create_error(tr::now));
+			show->showToast(ErrorWithType(
+				tr::lng_wallet_create_error(tr::now),
+				error));
 		} else if (error == u"REPLACE_INVALID_PHRASE"_q
 			|| error == u"REPLACE_FOREIGN_PHRASE"_q) {
 			ShowInvalidSecretWords(
 				show,
 				error == u"REPLACE_FOREIGN_PHRASE"_q);
 		} else {
+			// WHY: the server derives the address from the key it is sent,
+			// so a rotated wallet's proof is refused on every attempt; a
+			// retry cannot help, only support can.
 			const auto text = (error == u"REPLACE_STATE_UNCONFIRMED"_q)
 				? tr::lng_wallet_import_unconfirmed(tr::now)
-				: tr::lng_wallet_import_failed(tr::now);
+				: (error == u"WALLET_PROOF_INVALID"_q)
+				? tr::lng_wallet_import_not_verified(tr::now)
+				: ErrorWithType(tr::lng_wallet_import_failed(tr::now), error);
 			if (showError) {
 				showError(text);
 			} else {
@@ -7901,7 +7914,7 @@ void RequestBackupChange(
 		}
 		show->showToast((error == u"WALLET_BACKUP_NOT_AVAILABLE"_q)
 			? tr::lng_wallet_backup_unavailable_error(tr::now)
-			: tr::lng_wallet_backup_error(tr::now));
+			: ErrorWithType(tr::lng_wallet_backup_error(tr::now), error));
 	});
 	auto &wallet = show->session().wallet();
 	if (change == BackupChange::Disable && proof) {
@@ -8034,7 +8047,9 @@ void StartBackupEnable(
 				*busy = false;
 				show->showToast((error == u"BACKUP_VAULT_LOCKED"_q)
 					? VaultLockedText(&show->session())
-					: tr::lng_wallet_backup_error(tr::now));
+					: ErrorWithType(
+						tr::lng_wallet_backup_error(tr::now),
+						error));
 			}));
 	});
 	// The restorable and not-restorable arms install custody first and only
@@ -9274,7 +9289,9 @@ void WalletImportBox(
 					? tr::lng_wallet_key_save_error(tr::now)
 					: (error == u"PHRASE_VAULT_LOCKED"_q)
 					? VaultLockedText(&show->session())
-					: tr::lng_wallet_import_failed(tr::now);
+					: ErrorWithType(
+						tr::lng_wallet_import_failed(tr::now),
+						error);
 				if (context) {
 					show->showToast(state->error.current());
 					context->cancel();

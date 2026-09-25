@@ -196,7 +196,7 @@ private:
 	void answered(QByteArray body);
 	void publish();
 	void published(SubmitResult result);
-	void decisionFailed();
+	void decisionFailed(const QString &type = QString());
 	void armDeadline(std::optional<TimeId> validUntil);
 	void expired();
 	void unavailable();
@@ -1092,7 +1092,9 @@ void TonConnectRequests::Flow::fetchFailed(const MTP::Error &error) {
 	if (!_silent && !recovered() && !_box && !showBox()) {
 		return;
 	}
-	notice(tr::lng_wallet_connect_request_failed(tr::now));
+	notice(ErrorWithType(
+		tr::lng_wallet_connect_request_failed(tr::now),
+		type));
 }
 
 void TonConnectRequests::Flow::resolve() {
@@ -1748,7 +1750,7 @@ void TonConnectRequests::Flow::registerFailed(const MTP::Error &error) {
 	} else if (SessionGone(type)) {
 		unavailable();
 	} else {
-		decisionFailed();
+		decisionFailed(type);
 	}
 }
 
@@ -1868,7 +1870,7 @@ void TonConnectRequests::Flow::claimFailed(const MTP::Error &error) {
 	} else if (RequestDropped(type)) {
 		unavailable();
 	} else {
-		decisionFailed();
+		decisionFailed(type);
 	}
 }
 
@@ -2017,11 +2019,14 @@ void TonConnectRequests::Flow::published(SubmitResult result) {
 	Unexpected("Decision in TonConnectRequests::Flow::published.");
 }
 
-void TonConnectRequests::Flow::decisionFailed() {
+void TonConnectRequests::Flow::decisionFailed(const QString &type) {
+	const auto text = ErrorWithType(
+		tr::lng_wallet_connect_request_failed(tr::now),
+		type);
 	if (_decision == Decision::Invalid) {
-		closeWithToast(tr::lng_wallet_connect_request_failed(tr::now));
+		closeWithToast(text);
 	} else {
-		backToConfirm(tr::lng_wallet_connect_request_failed(tr::now));
+		backToConfirm(text);
 	}
 }
 

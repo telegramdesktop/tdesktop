@@ -183,7 +183,7 @@ private:
 	void submit(TonConnectReply reply);
 	void submitDone(const MTPBool &result);
 	void submitFailed(const QString &type);
-	void failed();
+	void failed(const QString &type = QString());
 	void expired();
 	void locked();
 	void notice(const QString &text);
@@ -1219,7 +1219,7 @@ void TonConnect::Connect::createFailed(const MTP::Error &error) {
 		_show->showToast(tr::lng_wallet_send_link_invalid(tr::now));
 		finish();
 	} else {
-		notice(tr::lng_wallet_connect_failed(tr::now));
+		notice(ErrorWithType(tr::lng_wallet_connect_failed(tr::now), type));
 	}
 }
 
@@ -1481,7 +1481,7 @@ void TonConnect::Connect::registerFailed(const MTP::Error &error) {
 	} else if (SessionGone(type)) {
 		expired();
 	} else {
-		failed();
+		failed(type);
 	}
 }
 
@@ -1555,15 +1555,17 @@ void TonConnect::Connect::submitFailed(const QString &type) {
 	} else if (SessionGone(type)) {
 		expired();
 	} else {
-		failed();
+		failed(type);
 	}
 }
 
-void TonConnect::Connect::failed() {
+void TonConnect::Connect::failed(const QString &type) {
 	if (_decision == Decision::Reject) {
 		finish();
 	} else {
-		backToConfirm(tr::lng_wallet_connect_failed(tr::now));
+		backToConfirm(ErrorWithType(
+			tr::lng_wallet_connect_failed(tr::now),
+			type));
 	}
 }
 

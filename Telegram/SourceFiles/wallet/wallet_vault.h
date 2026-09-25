@@ -190,6 +190,8 @@ public:
 	[[nodiscard]] VaultGrant arm(uint64 accountId, VaultPreparedWrap policy);
 	[[nodiscard]] VaultGrant grant(uint64 accountId);
 	void setRetention(bool fifteenMinutes);
+	// Also drops the key at once when no grant still holds it.
+	void endRetention();
 	[[nodiscard]] bool retained() const;
 	[[nodiscard]] bool unlocked() const;
 	void clear();

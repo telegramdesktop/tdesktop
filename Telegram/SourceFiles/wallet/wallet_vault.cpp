@@ -754,6 +754,17 @@ void VaultRuntime::setRetention(bool fifteenMinutes) {
 	}
 }
 
+void VaultRuntime::endRetention() {
+	{
+		auto lock = std::lock_guard(_mutex);
+		_retainUntil = 0;
+		if (_grants.empty()) {
+			_key.reset();
+		}
+	}
+	_retention.cancel();
+}
+
 bool VaultRuntime::retained() const {
 	auto lock = std::lock_guard(_mutex);
 	return _key && !_unusable && (_retainUntil > crl::now());

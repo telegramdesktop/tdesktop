@@ -203,7 +203,7 @@ walletBusyBoxLoading: InfiniteRadialAnimation(walletListsLoading) {
 }
 walletBusyBoxPadding: margins(0px, 8px, 0px, 16px);
 walletUnlockPromptLoading: InfiniteRadialAnimation(walletBusyBoxLoading) {
-	size: size(48px, 48px);
+	size: size(32px, 32px);
 	thickness: 2px;
 }
 walletUnlockPromptPadding: margins(0px, 12px, 0px, 4px);

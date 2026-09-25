@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/button_busy.h"
 #include "ui/layers/generic_box.h"
+#include "ui/toast/toast.h"
 #include "ui/vertical_list.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/widgets/fields/password_input.h"
@@ -42,6 +43,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Wallet {
 namespace {
+
+constexpr auto kRetainedToastDuration = 4 * crl::time(1000);
 
 [[nodiscard]] VaultAuthorization Share(VaultGrant grant) {
 	return grant.valid()
@@ -70,6 +73,35 @@ struct HardwareUnlockArgs {
 	VaultWrap wrap;
 	Fn<void(VaultAuthorization)> done;
 };
+
+void ShowRetainedToast(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<ProtectionProvider*> provider) {
+	using WeakToast = base::weak_ptr<Ui::Toast::Instance>;
+	const auto toast = std::make_shared<WeakToast>();
+	const auto weakSession = base::make_weak(&show->session());
+	*toast = show->showToast({
+		.text = tr::lng_wallet_protection_retained(
+			tr::now,
+			lt_provider,
+			tr::marked(CurrentValue(provider->label())),
+			lt_link,
+			tr::link(tr::lng_wallet_protection_retained_ask(tr::now)),
+			tr::marked),
+		.filter = [=](const ClickHandlerPtr &, Qt::MouseButton button) {
+			if (button != Qt::LeftButton) {
+				return false;
+			} else if (const auto session = weakSession.get()) {
+				session->wallet().vault().endRetention();
+			}
+			if (const auto strong = toast->get()) {
+				strong->hideAnimated();
+			}
+			return true;
+		},
+		.duration = kRetainedToastDuration,
+	});
+}
 
 // Retention is a VaultRuntime property the user ticks inside the passcode
 // box before it asks; a hardware provider's system sheet has no checkbox, so
@@ -103,13 +135,18 @@ void HardwareUnlockBox(
 	const auto weakSession = base::make_weak(&show->session());
 	const auto retry = [=] { state->ask(); };
 	SetupSystemPromptBox(box, provider, state->asking.value(), retry);
-	const auto remember = box->addRow(
-		object_ptr<Ui::Checkbox>(
-			box,
-			tr::lng_wallet_passcode_remember(tr::now),
-			true,
-			st::defaultBoxCheckbox),
-		st::walletPasscodeCheckboxMargin);
+	// WHY: the Windows Hello prompt blocks the window under it, so a checkbox
+	// there cannot be unticked; the 15 minutes are granted and the toast
+	// after the unlock offers to take them back.
+	const auto remember = (provider->kind() == VaultKind::WindowsHello)
+		? nullptr
+		: box->addRow(
+			object_ptr<Ui::Checkbox>(
+				box,
+				tr::lng_wallet_passcode_remember(tr::now),
+				true,
+				st::defaultBoxCheckbox),
+			st::walletPasscodeCheckboxMargin);
 	Ui::AddSkip(box->verticalLayout());
 	const auto report = [=](VaultAuthorization grant) {
 		state->reported = true;
@@ -167,8 +204,11 @@ void HardwareUnlockBox(
 			return;
 		}
 		session.wallet().setVaultKeyUnusable(false);
-		vault.setRetention(remember->checked());
+		vault.setRetention(!remember || remember->checked());
 		report(Share(vault.grant(session.uniqueId())));
+		if (!remember && show->valid()) {
+			ShowRetainedToast(show, provider);
+		}
 	};
 	state->ask = [=] {
 		if (state->busy || !weakSession || !show->valid()) {
