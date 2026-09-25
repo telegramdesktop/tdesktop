@@ -458,7 +458,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout a30e40a7718af3a9369c7f9a59b5b7ff4ba2950c
+    git checkout a1ee20bd018120289fad07fecef605ce5b91d68b
 mac:
     git clone https://github.com/desktop-app/qt6_highsierra_patches.git qt6_highsierra
     cd qt6_highsierra
