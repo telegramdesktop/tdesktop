@@ -7896,6 +7896,11 @@ void RequestWalletReplace(
 			ShowInvalidSecretWords(
 				show,
 				error == u"REPLACE_FOREIGN_PHRASE"_q);
+		} else if (error == u"REPLACE_OUTDATED_PHRASE"_q) {
+			if (showError) {
+				showError(QString());
+			}
+			ShowWrongSecretWords(show, true, nullptr);
 		} else {
 			// WHY: the server checks the proof against the key the chain
 			// holds for the phrase's address, so a refused phrase stays

@@ -920,6 +920,7 @@ private:
 		Fn<void(const MTP::Error &)> fail);
 	void recoverImportedReplace(
 		QString canonicalAddress,
+		QByteArray signingKey,
 		Fn<void(const MTPWalletState &)> applied,
 		Fn<void(const QString &)> abandon);
 	struct OwnershipProof {

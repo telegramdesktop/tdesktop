@@ -5556,7 +5556,7 @@ bool Session::persistCustody(const CustodyRecord &record) {
 	// write leaves the old record and its secret exactly as before. The
 	// pending rotation is not a record and its secretRef never equals a
 	// record's, so it is never in this set; the new record's own secret is
-	// kept out by the secretRef comparison; and the restore precheck has
+	// kept out by the secretRef comparison; and every caller has
 	// already established that the new record signs with the served key,
 	// so a superseded same-anchor record is at best the same phrase or an
 	// obsolete one, never the sole current custody of the wallet.
@@ -5768,7 +5768,11 @@ void Session::replaceWithImported(
 							abandon(error.type());
 							return;
 						}
-						recoverImportedReplace(address, applied, abandon);
+						recoverImportedReplace(
+							address,
+							record.signingKey,
+							applied,
+							abandon);
 					});
 			};
 			// The challenge lives 300 seconds and admits one attempt, so it
@@ -6457,6 +6461,7 @@ void Session::sendReplaceWallet(
 
 void Session::recoverImportedReplace(
 		QString canonicalAddress,
+		QByteArray signingKey,
 		Fn<void(const MTPWalletState &)> applied,
 		Fn<void(const QString &)> abandon) {
 	const auto unconfirmed = [=] {
@@ -6476,6 +6481,12 @@ void Session::recoverImportedReplace(
 		if (parsed->raw != canonicalAddress) {
 			applyState(state, false);
 			abandon(u"REPLACE_KEY_MISMATCH"_q);
+			return;
+		} else if (data.vpublic_key().v != signingKey) {
+			LOG(("Wallet Error: the recovered wallet state does not serve "
+				"the imported signing key %1.").arg(LogKey(signingKey)));
+			applyState(state, false);
+			abandon(u"REPLACE_OUTDATED_PHRASE"_q);
 			return;
 		}
 		applied(state);
