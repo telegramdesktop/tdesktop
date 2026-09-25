@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="16px" height="16px" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
     <g stroke="none" fill="none" fill-rule="evenodd">
-        <path d="M2.025 3.675H13.975A0.525 0.525 0 0 1 13.975 4.725H2.025A0.525 0.525 0 0 1 2.025 3.675Z" fill="#FFFFFF"></path>
-        <path d="M2.025 7.825H13.975A0.525 0.525 0 0 1 13.975 8.875H2.025A0.525 0.525 0 0 1 2.025 7.825Z" fill="#FFFFFF"></path>
-        <path d="M2.025 11.975H13.975A0.525 0.525 0 0 1 13.975 13.025H2.025A0.525 0.525 0 0 1 2.025 11.975Z" fill="#FFFFFF"></path>
+        <path d="M2.025 4.3H13.975A0.525 0.525 0 0 1 13.975 5.35H2.025A0.525 0.525 0 0 1 2.025 4.3Z" fill="#FFFFFF"></path>
+        <path d="M2.025 8.45H13.975A0.525 0.525 0 0 1 13.975 9.5H2.025A0.525 0.525 0 0 1 2.025 8.45Z" fill="#FFFFFF"></path>
+        <path d="M2.025 12.6H13.975A0.525 0.525 0 0 1 13.975 13.65H2.025A0.525 0.525 0 0 1 2.025 12.6Z" fill="#FFFFFF"></path>
     </g>
 </svg>
