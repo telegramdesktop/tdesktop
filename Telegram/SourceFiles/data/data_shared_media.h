@@ -20,12 +20,7 @@ class Session;
 	Storage::SharedMediaType type);
 bool SharedMediaAllowSearch(Storage::SharedMediaType type);
 
-[[nodiscard]] bool SharedMediaThreadFilterSupported(
-	not_null<PeerData*> peer,
-	MsgId topicRootId,
-	Storage::SharedMediaType type);
 [[nodiscard]] Storage::SharedMediaKey SharedMediaLoadableKey(
-	not_null<PeerData*> peer,
 	Storage::SharedMediaKey key);
 
 rpl::producer<SparseIdsSlice> SharedMediaViewer(

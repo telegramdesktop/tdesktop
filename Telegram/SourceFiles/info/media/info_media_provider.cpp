@@ -358,7 +358,7 @@ void Provider::jumpToMessage(
 	_viewerLifetime.destroy();
 
 	const auto peer = _controller->session().data().peer(_peer->id);
-	const auto key = SharedMediaLoadableKey(peer, Storage::SharedMediaKey(
+	const auto key = SharedMediaLoadableKey(Storage::SharedMediaKey(
 		peer->id,
 		_topicRootId,
 		_monoforumPeerId,
