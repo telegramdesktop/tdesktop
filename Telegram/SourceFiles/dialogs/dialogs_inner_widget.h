@@ -579,6 +579,7 @@ private:
 		defaultChildAt(int index) const;
 	[[nodiscard]] int defaultChildIndexOfSelected() const;
 
+	[[nodiscard]] int selectedChildIndex() const;
 	void announceSelectedFocus();
 	void refreshFilterResults();
 	void clearSearchResults(bool alsoPeerSearchResults = true);
