@@ -2026,6 +2026,8 @@ PRIVATE
     test/test_custom_emoji.h
     test/test_gated_stage.cpp
     test/test_gated_stage.h
+    test/test_gram_reconcile.cpp
+    test/test_gram_reconcile.h
     test/test_history_fixtures.cpp
     test/test_history_fixtures.h
     test/test_hover.cpp
@@ -2063,6 +2065,8 @@ PRIVATE
     test/test_runner.cpp
     test/test_runner.h
     test/test_scenario.cpp
+    test/test_secrecy_scan.cpp
+    test/test_secrecy_scan.h
     test/test_style.cpp
     test/test_style.h
     test/test_text_reads.cpp

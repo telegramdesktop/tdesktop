@@ -50,6 +50,12 @@ struct GramAccountFixture {
 };
 [[nodiscard]] std::optional<GramAccountFixture> GramAccount();
 
+// The two copies GramAccount() reads and the writers below write: the
+// marked live copy in the portable folder and the golden sibling. Paths
+// only; nothing is opened. Empty outside a Debug build.
+[[nodiscard]] QString GramAccountLivePath();
+[[nodiscard]] QString GramAccountGoldenPath();
+
 // After a confirmed key rotation: rewrites the word lines of the live copy
 // and of the golden sibling, keeping the empty line and the address line.
 // Each copy is parsed on its own and rewritten only when its own address,
@@ -58,11 +64,31 @@ struct GramAccountFixture {
 // false. The address line written back is that copy's own. The golden
 // write is the one owner-decided exception to the read-only golden folder
 // (test/README.md, "Account fixture secrets").
+// P0 reconciliation: Test::ReconcileGramAccount (test_gram_reconcile.h).
 struct GramAccountRewrite {
 	bool live = false;
 	bool golden = false;
 };
 [[nodiscard]] GramAccountRewrite RewriteGramAccountWords(
+	const std::vector<QString> &words,
+	const QString &addressRaw);
+
+// Self-test only: rewrites the word lines of the LIVE copy alone, and
+// only with a proper prefix of that copy's own current words at its own
+// address (addressRaw), so a staged "older, shorter" fixture is always the
+// anchor half of the phrase the copy held. The golden sibling is never
+// touched. Returns whether the live copy was written.
+[[nodiscard]] bool StageGramAccountLiveWords(
+	const std::vector<QString> &prefix,
+	const QString &addressRaw);
+
+// Self-test only: undoes StageGramAccountLiveWords. Rewrites the word lines
+// of the LIVE copy alone with |words|, and only when that copy's own current
+// words are a proper prefix of |words| at its own address (addressRaw), so
+// it can only lengthen a staged copy back to the phrase it was cut from.
+// The golden sibling is never touched. Returns whether the live copy was
+// written.
+[[nodiscard]] bool RestoreGramAccountLiveWords(
 	const std::vector<QString> &words,
 	const QString &addressRaw);
 

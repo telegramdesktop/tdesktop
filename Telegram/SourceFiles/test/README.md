@@ -282,7 +282,7 @@ clicking.
 
 | Module | Facilities |
 | --- | --- |
-| `test_agent.h` | Runtime gate, startup scale override, sticky named events, scenario start, account fixture secrets (`TwoStepPassword()` reads `2svpassword.txt`, `GramAccount()` reads `test_gram_account.txt`). |
+| `test_agent.h` | Runtime gate, startup scale override, sticky named events, scenario start, account fixture secrets (`TwoStepPassword()` reads `2svpassword.txt`, `GramAccount()` reads `test_gram_account.txt`, `RewriteGramAccountWords()` rewrites the live and golden copies at the rotated wallet's address after a confirmed rotation, `StageGramAccountLiveWords()` stages a proper prefix of the live copy's own words for a self-test and `RestoreGramAccountLiveWords()` lengthens such a staged copy back to the words it was cut from, neither touching the golden sibling; `GramAccountLivePath()` / `GramAccountGoldenPath()` name the two copies for metadata-only checks). |
 | `test_runner.h` | Stages, bounded waits, exact-widget actions, prepared capture/inspection, first-class gated skips (`skipReason`), `onFinish` release hook (and its finish-release self-test), watchdog (`TDESKTOP_TEST_WATCHDOG` in seconds) and termination. |
 | `test_gated_stage.h` | The first-class gated skip's own self-test: a stage whose `skipReason` returns a reason, writing one `TEST_RESULT: N/A:` row and skipping `run`, `until` and `then` without waiting - its never-ready `until` under a one-second timeout is the falsifier - beside a stage whose gate returns an empty string and runs normally in the tick that begins it. |
 | `test_log.h` | Absolute flushed logs, steps, notes, checks whose `details` are printed on the passing verdict as well as the failing one, tolerances, geometry, completion markers, N/A rows for stages that did not apply, and their count. One `LogRaw` call always writes exactly one physical line, whatever it is handed: every character Python's `str.splitlines()` breaks on - U+000A, U+000B, U+000C, U+000D, U+001C, U+001D, U+001E, U+0085, U+2028, U+2029, and so a CRLF pair as its two code points - is written as a visible `\uXXXX` escape, so a record carrying a break stays one row the external readers' line grammar reads whole and cannot mistake for a completion, while text with no separator is passed through byte for byte and the escape adds no trailing whitespace. |
@@ -316,6 +316,8 @@ clicking.
 | `test_rpc_retry.h` | The permanent MTP resend seam: `Test::RecordRpcRetry` records one `rpc retry code=<code> type=<type> request=<constructor>` row for every code-500 or negative-code answer the transport auto-resends without calling the request's fail handler, read through the `Test::RpcRetryProbe()` accessor; with its own self-test for the recorded 500, the non-500 that reaches `.fail()` instead, and the answer for a request id this process never sent. Its synthesized `rpc_error` answers now go through `test_rpc_fixture.h` rather than a hand-rolled `processCallback`. |
 | `test_rpc_fixture.h` | Type-safe controlled RPC replies for a registered request. Successful answers take the generated request's boxed `ResponseType` (`tl::boxed`), which writes the constructor word; a bare factory such as `MTP_messages_messages(...)` omits that word and must not be `.write()`'d into the reply. `DiagnoseControlledRpcResult` requires a complete decode with no leftover primes (truncation and trailing words included) **before** `MTP::Instance::processCallback`. `DeliverControlledRpcSuccess` / `DeliverControlledRpcPrepared` also require `hasCallback` and refuse delivery on a diagnosis so the parser stays registered. `DeliverControlledRpcError` is the explicit boxed `rpc_error` route (registered or not). `DeliverControlledRpcStale` is the explicit canceled/unknown-id success route: it still calls `processCallback` after a valid boxed body. Own self-test over `messages.getMessages` (empty and nonempty boxed `messages.Messages`, bare/truncated/trailing/incompatible rejects, code-400 error, cancel-then-stale). |
 | `test_wallet_ready.h` | Judge one reading of the wallet's freshness stamp — the one `applyState()` writes when the server's wallet state reaches this client — refuse a stamp that was never written, wait for a stamped state under a bounded deadline that names what it observed, and re-run the instrument's own positive/negative/recovery self-test. |
+| `test_gram_reconcile.h` | The README's P0 fixture reconciliation ("Account fixture secrets"): `ReconcileGramAccount` / the one-stage `AppendGramReconcile` reconcile the golden `test_gram_account.txt` with the marked live copy's own custody through the product's local reveal and restore only - `NoOp`, case (b) `RewroteFromReveal`, case (a) `RestoredFromFile`, or a refusal by a named `GramReconcileGate` that writes nothing - and print one public `GRAM_RECONCILE:` row; `GramReconcileResult::phrases` and `GramCustodySecretTokens` hand the secrets to the secrecy scan in memory; `GramReconcileDrive` is the self-test seam. Its own acceptance on the marked live copy is `AppendGramReconcileSelfTest`. |
+| `test_secrecy_scan.h` | Prove that no fixture secret reached the logs: `CheckSecrecy` takes phrases, short secrets and tokens once, selects the test log, the app log (`Logs::full()`) and this launch's `DebugLogs` parts by identity (the day index in the first line, never a last-write time), counts only what the client wrote (plain lines and `Send` dump entries; `Recv` hits are reported with their schema site), refuses to certify a zero without a planted nonce, named controls and passing canaries, and prints counts only (`SECRECY_SCAN`, `SECRECY_WINDOW`, `SECRECY_CLASS`, `SECRECY_RECEIVED`). Its session-free self-test over synthetic log trees is `AppendSecrecyScanSelfTest`. |
 | `test_scenario.cpp` | The only permanent overlay slot; the repository version remains a no-op. |
 
 `Test::Check`'s third argument is an observation, not a failure excuse. It is
@@ -443,16 +445,143 @@ harness or in a campaign ever writes there.
 
 The golden `tdata` is never modified while the file is, so a later campaign's
 P0 reconciles the two before anything else — in process, after the address
-gate has already passed: (a) the local reveal has FEWER words than the file:
-the golden `tdata` predates a confirmed rotation, so restore custody from the
-file's words through the product's own import
-(`Wallet::Session::restoreFromPhrase`) before any other stage; (b) the local
-reveal differs from the file with an equal or greater count: the live copy
-was promoted after a chain-confirmed rotation but the rewrite was cut off, so
-rewrite the file from the local reveal. Never delete or reset the marked live
-copy while a campaign may have left a rotation in flight or unrewritten: SETUP
-keeps a marked live copy, and only a manual wipe or `test-account-reset`
-discards it — and with it the only copy of a not-yet-rewritten signing half.
+gate has already passed. Do not hand-roll it: call `Test::AppendGramReconcile`
+(one stage) or `Test::ReconcileGramAccount` (the flow) from
+`test_gram_reconcile.h` right after the address gate. The two cases remain the
+definition: (a) the local custody has FEWER words than the file: the golden
+`tdata` predates a confirmed rotation, so restore custody from the file's
+words through the product's own import (`Wallet::Session::restoreFromPhrase`)
+before any other stage; (b) the local reveal differs from the file with an
+equal or greater count: the live copy was promoted after a chain-confirmed
+rotation but the rewrite was cut off, so rewrite the file from the local
+reveal.
+
+A phrase *qualifies* when it signs for the served key (its signing key — words
+13-24 of a 24-word phrase, the anchor of a 12-word one — is
+`Wallet::Session::publicKey()`) and derives the served address (its anchor,
+words 1-12, derives `*wallet.address()`). The helper decides in this order,
+and each refusal is a named gate (`GramReconcileGate`) that writes nothing:
+
+1. Preconditions: `NotActive`; `ServedUnknown` (no served address or no
+   32-byte served key); `FixtureAbsent`; `FixtureOtherWallet`;
+   `CustodyUnreadable`; `CustodyBusy` (`custodyBusy()`, a pending rotation,
+   or a record still awaiting its server key — such a record "signs with" any
+   served key, so it cannot certify the file).
+2. `NoOp`: the file qualifies and a readable current record exists. Nothing is
+   written.
+3. Case (a), `RestoredFromFile`: the file qualifies, no current record exists,
+   and the local count is below the file's. The local count is 0 when no
+   record of the served wallet is held — the fresh golden copy — and otherwise
+   implied by the held obsolete record's keys: 12 words when its signing key
+   is its anchor, else 24. It is never read by a local reveal: under the
+   rotation-following custody model an obsolete record is not the current
+   record, so `revealPhrase` would fall through to the server's
+   `wallet.exportSecretPhrase`. The helper restores with the silent Open grant
+   (no chooser opens), then requires a local reveal equal to the file
+   (`RestoreFailed` / `ConfirmMismatch` otherwise).
+4. The file qualifies but (a) does not apply: `NoReadableCurrentRecord`, the
+   detail naming why — the current record is unreadable, the held obsolete
+   record is not shorter than the file, or a pre-v4 unresolved record whose
+   count is unknown (never `revealParked`, whose reveal writes custody).
+5. The file does not qualify: `NoReadableCurrentRecord` unless
+   `revealsLocally()`; `NoOpenGrant` without a silent grant; otherwise the
+   local reveal (`RevealFailed <PHRASE_*>` when it fails), then
+   `RevealedNotServedKey`, `RevealedNotServedAddress` or
+   `RevealedShorterThanFile`. Otherwise case (b), `RewroteFromReveal`:
+   `RewriteGramAccountWords(revealed, served address)`, then `GramAccount()`
+   is re-read and compared in process (`RewriteFailed` when the live copy was
+   not written, `RereadMismatch` when the re-read differs).
+
+The stage writes one public `GRAM_RECONCILE:` row (case, gate, counts,
+booleans, public keys and addresses), reports `NoOp`, (a) and (b) as `PASS`,
+and a refusal as `TEST_RESULT: N/A` with `fixture gate: P0 <gate> - <detail>`;
+a campaign's funded-wallet legs gate on `GramReconcileResult::reconciled()`.
+A fresh golden copy whose keyring is not Open refuses `NoOpenGrant` (the
+detail names the keyring kind) until the protection chooser has been driven
+once on that copy. The helper never calls `wallet.replaceWallet`,
+`wallet.exportSecretPhrase` or any other server method that mutates or
+reveals the wallet, never resets and never mints. Its `GramReconcileDrive`
+seam fakes only the served identity and the record facts it names, never
+writes a fixture file (`DrivenWriteSuppressed`), and restores only when the
+undriven facts show a same-phrase re-import. Its own acceptance is
+`Test::AppendGramReconcileSelfTest`, on the marked live copy. Every stage of it
+that reaches a reveal or a restore is a fixture gate, `NoOpenGrant
+keyringKind=<N>`, without the silent Open grant, and a live copy staged to 12
+words that case (b) did not rewrite is put back to its earlier words through
+`RestoreGramAccountLiveWords` (the `gram_reconcile_restore_staged` stage, and
+again when the scenario finishes).
+
+Never delete or reset the marked live copy while a campaign may have left a
+rotation in flight or unrewritten: SETUP keeps a marked live copy, and only a
+manual wipe or `test-account-reset` discards it — and with it the only copy of
+a not-yet-rewritten signing half.
+
+**Proving no fixture secret reached the logs.** A funded-wallet campaign proves that no recovery word, 2SV password, custody
+record id or secret ref reached the test log, the app log or `DebugLogs` by
+calling `Test::CheckSecrecy(args, what)` (`test_secrecy_scan.h`) once, from a
+late stage's `then`, instead of grepping by hand. Hand it, in
+`SecrecyScanArgs::secrets`:
+
+- `phrases`: `GramReconcileResult::phrases` (the file's words and every
+  revealed phrase), plus any rotated phrase the run produced later;
+- `shortSecrets`: `*Test::TwoStepPassword()` when the campaign used it;
+- `tokens`: `Test::GramCustodySecretTokens(session)` taken at P0 AND again at
+  the scan (a restore or rotation mints a new record id), which lists every
+  record id, secret ref and `secret/` storage key of the custody store.
+
+The values stay in memory: the helper prints counts, public file names and TL
+schema identifiers only, never a secret and never a scanned line.
+
+- **Classes and identity.** It reads five classes: `TestLog`
+  (`test_log.txt`), `AppLog` (the main log through `Logs::full()`, the text
+  the logger holds), `DebugLog` and `MtpLog` (every `DebugLogs/log_HH_MM.txt`
+  / `mtp_HH_MM.txt` part named for a quarter hour in [process start, scan]),
+  and `EarlierParts` (only parts named in `earlierParts`). A part is accepted
+  only when its first line is its own day index (`yyyyMMdd`); otherwise it is
+  `Foreign`, `Missing` or `Unreadable`. A window part is scanned from its last
+  `NEW LOGGING INSTANCE STARTED!!!` banner, so an earlier same-day launch's
+  lines are not charged to this one. No last-write time takes part anywhere.
+- **Matching.** A phrase counts as any ordered adjacent pair of its words
+  (case-insensitive). Words are letter-and-digit runs: whitespace,
+  punctuation (commas, quotes, brackets), a dump string's `\n`, `\t`,
+  `\\` and `\"` escapes, the dump's type tags (`[STRING]`) and the test
+  log's `\uXXXX` escapes all separate them, and a run carries across the
+  lines of one file. A phrase one word per line, comma-joined, escaped in a
+  dump string or dumped as a one-element-per-line vector therefore still
+  counts; a number is neutral, and any other word or an entry header ends
+  the run. A short secret counts only when bounded — no letter or
+  digit right before or after it; embedded occurrences are reported and never
+  count. A token counts on every substring occurrence; a token shorter than 16
+  characters is refused as "not a token; hand it as a short secret".
+- **Direction.** MTP dump entries are classed by the transport's own
+  `Send: ` / `Recv: ` header. Only what the client wrote — plain lines and
+  `Send` entries — decides. `Recv` hits are server-sent content (file sizes,
+  topic titles, chat text that happens to hold two adjacent BIP-39 words) and
+  are reported with their `<top>/<inner>.<field>` schema site in
+  `SECRECY_RECEIVED`, never deciding.
+- **Controls and canaries.** A zero is certified only when it can be told
+  from absence. The call plants a fresh public nonce through `Note`, `LOG` and
+  `MTP_LOG` and requires it in every non-earlier class; a named control
+  (`testLogControl`, `appLogControl`, `debugLogControl`, `mtpLogControl`, for
+  example the served key hex or `wallet_getState`) must also be hit. A class
+  is undecided with no accepted file, an unreadable part, no planted control,
+  an absent named control, or an `mtp_` part without headers of both
+  directions. In-memory canaries run every given secret through the same
+  matcher and dump walk on every call; a failing canary leaves the scan
+  undecided.
+- **Output.** One `SECRECY: <class>` `DiscriminatingScan` report per class,
+  then the rows `SECRECY_SCAN`, `SECRECY_WINDOW` (every window candidate's
+  identity), one `SECRECY_CLASS` per class and `SECRECY_RECEIVED`, then three
+  checks: `<what>: every class decided`, `<what>: no client-written fixture
+  secret`, and `<what>: the scan's own rows carry no fixture secret` (the bytes
+  it appended to `test_log.txt`, re-read). It returns `decided && clean`.
+
+`DebugLogs` must be enabled (`tdata/withdebug` = `1`), or the `DebugLog` and
+`MtpLog` classes are undecided — `MTP_LOG` writes nothing without it. The scan
+covers logs only: the post-run grep of promoted evidence, `work/` artifacts
+and receipts for 64-hex and UUID tokens stays the performer's job. The
+matcher's own acceptance is `Test::AppendSecrecyScanSelfTest`, session-free,
+over synthetic log trees and synthetic secrets.
 
 ## Media fixtures and fixture gates
 
@@ -568,6 +697,8 @@ subscriptions no wider than the stages that need them.
 | A premise fails against a row its own fixture had to create, or a check passes without ever reaching its subject | The oracle read the probe's whole history, or bracketed a slice by wall time, so rows from an earlier stage or a slow neighbouring surface answered it. | Record through `Test::Probe`, take `mark()` immediately before the action, and query only `...Since(mark)`; there is no whole-history accessor to fall back to. |
 | A sweep reports a confident `found=0` that no repair ever changes | The enumeration structurally cannot reach the subject, so the zero was guaranteed before the run started and measures nothing. | Count through `Test::DiscriminatingScan` and feed it a known-present control; `report()` refuses to certify a zero the walk cannot tell from absence. |
 | A wallet settle that "completed" while nothing was refreshed, read later as a stamp age equal to the observation's own timestamp | `Wallet::Session::refreshHistory(done)`'s callback says nothing about the server's wallet state: it runs at once when the presence is not `Ready` or the lane is paged, and otherwise queues on `_historyDone`, which `finishHistoryWaiters()` drains when the `wallet.getTransactions` it issued answers or fails — a transaction-history round trip that stamps `_historyRefreshedAt`, never `_stateRefreshedAt`, which only the state lane writes — `applyState()`, and `applyEngineUpdate()`, which cannot run while the engine holds no client. The queued callback is not even guaranteed a round trip of its own: `requestTransactions()` issues nothing while one is already in flight, so the drain then comes from that other request, and `setPresence()` drains the same queue with no round trip at all on any transition away from `Ready`. So a completion certifies no wallet-state freshness stamp; an unwritten stamp then reads `crl::now() - 0`. | Gate on the state, not the callback: `Test::WalletRefreshSettled` over `Test::ReadWalletRefresh`, which reports a never-written stamp as `unstamped` and never as ready. A refusal there is a fixture gate — a harness or environment `TEST_FLAW`, never a product `FAIL` — unless the diff under test touches the wallet state lane itself, which is exactly `refreshState()` / `requestState()` / `applyState()` / `applyUpdate()` / `clearNetworkState()` and nothing wider, in which case the readiness condition is the behavior under test and the refusal is a product `FAIL`. |
+| A funded-wallet leg gated off by `signingIsServed=0` (the fixture's phrase does not sign for the served key) while the device's current custody record signs for the served key and the address gate passed | The golden `test_gram_account.txt` predates later rotations of the golden wallet: a campaign rotated the key and was cut off before `RewriteGramAccountWords`, or the file was restored from an older copy. The fixture is stale, not the product. | Run the P0 helper right after the address gate - `Test::AppendGramReconcile` / `Test::ReconcileGramAccount` (`test_gram_reconcile.h`) - and gate the funded legs on `GramReconcileResult::reconciled()`; it rewrites the file from the local reveal (case (b)) or refuses by a named gate. Never hand-roll the reveal. |
+| A hand-rolled secrecy scan reports a confident zero while it read no app log and no `DebugLogs` part, or reports dozens of "leaks" of the 2SV password or of words that the client never wrote | Three traps, each of which cost the import-rotated-wallets campaign a run: (1) selecting logs "modified since the scenario started" picked no app log or `DebugLogs` part on Windows, because a file the running process holds open keeps its old last-write time; (2) a five-character password matched as a plain substring over about half a million MTP-dump lines gave about a hundred coincidental hits; (3) even bounded matches inside dumps were file sizes and forum-topic titles that the server sent (`Recv`), not anything the client wrote. | Call `Test::CheckSecrecy` (`test_secrecy_scan.h`): it selects by identity (the part's day index, `Logs::full()`), counts only bounded occurrences of a short secret, decides on plain lines and `Send` entries only and reports `Recv` hits by schema site, and refuses an undecided class. Confirm the instrument with `Test::AppendSecrecyScanSelfTest`. |
 | A green log that does not say what its checks were made against, so a passing run cannot be audited after the fact | The reading was handed to `Test::Check` as `details` back when `details` was written only on the failing branch, or worked around by folding it into `what` or by emitting a `Note` beside the check that a reader then has to re-correlate by position. | Pass the reading as `Check`'s third argument: it is printed on the passing verdict too, as `TEST_RESULT: PASS: <what> - <details>`. Keep only failure-only text behind `ok ? QString() : ...`, which still prints the bare passing line. |
 | A round trip reported as a negative or otherwise impossible number, or a pair count that does not match the issue count | Two lists were related by position - an issue list against an answer list, or a row list against a parallel `crl::time` vector indexed at `mark + i` - so one extra or missing element on either side paired a row with another row's time, and the reading was emitted as a `Note` that failed nothing. | Record both sides into one `Test::Probe` with `recordIssue`/`recordAnswer` and read them through `checkRoundTripSince(mark, key)`: it pairs by key, discards and names every answer not strictly later than its issue, and refuses as a FAIL carrying the tallies rather than reporting an interval it did not positively pair. Read a bare time through `timedRowsSince`, which carries each plain row's own time. |
 | A capture or `captureWidget` stage times out and its details carry `render root paints no background of its own: ... - grab N...BoxLayerWidget... instead (unpainted 0/1000)` | The render root was the box, and that box had cleared `Qt::WA_OpaquePaintEvent`. `Ui::BoxContent`'s constructor sets that attribute, so a plain box paints its own background and is accepted - but `setNoContentMargin(true)`, which 53 product call sites use, clears it again, and then the box paints no background of its own and `PreparedWidgetCapture::prepare()` refuses every frame it is offered; the poll can only end in a timeout. | Resolve the root with `Test::PaintingLayerRoot(box)` and capture the `Ui::BoxLayerWidget` it answers — `Test::CaptureBoxLayer(box, name)` is that whole-shell grab, including `_title` and the `addButton` footer row parented onto the shell — or use `Test::CaptureInLayerRoot(box, name)` for a frame cropped to the box content (it composes `CaptureMappedRect`, so a box that maps outside its layer is still a named FAIL). The refusal is naming the right widget - do not widen it. |

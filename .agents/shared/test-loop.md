@@ -264,7 +264,9 @@ The same folder carries `test_gram_account.txt`, the owner's funded golden walle
 until the first empty line, then the address as the app shows it, never a fixed count. A scenario
 reads it with `Test::GramAccount()` under the same read rule (the live copy first, then the golden
 sibling; `std::nullopt` when absent or malformed) and the words stay inside the process exactly
-like the password; only their COUNT and the address may be recorded. A campaign that declares it
+like the password; only their COUNT and the address may be recorded. `Test::CheckSecrecy`
+(`test_secrecy_scan.h`) proves in the run that neither they, the password nor a custody record
+id or secret ref reached the test log, the app log or `DebugLogs`. A campaign that declares it
 needs the funded wallet is gated on it: the file's existence (never its value) before the campaign
 is authored, its absence the same task-local `Block` naming `test_gram_account.txt`; at campaign
 start `GramAccount()->addressRaw` must equal `*wallet.address()` — a mismatch FAILS the run and is
@@ -277,7 +279,7 @@ key rotation the scenario rewrites the file's word lines through
 is the rotated wallet's, in BOTH copies — the marked live copy and the golden folder — keeping
 the empty line and each copy's own address line; that golden write is the one owner-decided
 exception to the read-only golden folder. Because the golden `tdata` is never modified while the
-file is, the next campaign's P0 reconciles them in process
+file is, the next campaign's P0 reconciles them in process through `Test::ReconcileGramAccount`
 (`Telegram/SourceFiles/test/README.md`, "Account fixture secrets"): fewer local words than the
 file restores custody from the file through the product's own import, and a differing local
 reveal with an equal or greater count rewrites the file from the local reveal. Never delete or

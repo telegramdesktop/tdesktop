@@ -167,6 +167,14 @@ std::optional<QString> TwoStepPassword() {
 	return FixtureSecret(u"2svpassword.txt"_q);
 }
 
+QString GramAccountLivePath() {
+	return LivePath(kGramAccountFile);
+}
+
+QString GramAccountGoldenPath() {
+	return GoldenPath(kGramAccountFile);
+}
+
 std::optional<GramAccountFixture> GramAccount() {
 	const auto raw = FixtureSecret(kGramAccountFile);
 	if (!raw) {
@@ -190,15 +198,62 @@ GramAccountRewrite RewriteGramAccountWords(
 		return result;
 	}
 	const auto lines = QStringList(words.begin(), words.end());
-	result.live = RewriteCopyWords(
-		LivePath(kGramAccountFile),
-		lines,
-		addressRaw);
+	result.live = RewriteCopyWords(GramAccountLivePath(), lines, addressRaw);
 	result.golden = RewriteCopyWords(
-		GoldenPath(kGramAccountFile),
+		GramAccountGoldenPath(),
 		lines,
 		addressRaw);
 	return result;
+}
+
+bool StageGramAccountLiveWords(
+		const std::vector<QString> &prefix,
+		const QString &addressRaw) {
+	if (!Active()
+		|| prefix.empty()
+		|| addressRaw.isEmpty()
+		|| !ranges::all_of(prefix, IsWordLine)) {
+		return false;
+	}
+	const auto path = GramAccountLivePath();
+	const auto raw = ReadTrimmed(path);
+	const auto current = raw ? ParseGramAccount(*raw) : std::nullopt;
+	if (!current
+		|| Wallet::CanonicalAddress(current->address) != addressRaw
+		|| prefix.size() >= current->words.size()
+		|| !std::equal(
+			prefix.begin(),
+			prefix.end(),
+			current->words.begin())) {
+		return false;
+	}
+	const auto lines = QStringList(prefix.begin(), prefix.end());
+	return RewriteCopyWords(path, lines, addressRaw);
+}
+
+bool RestoreGramAccountLiveWords(
+		const std::vector<QString> &words,
+		const QString &addressRaw) {
+	if (!Active()
+		|| words.empty()
+		|| addressRaw.isEmpty()
+		|| !ranges::all_of(words, IsWordLine)) {
+		return false;
+	}
+	const auto path = GramAccountLivePath();
+	const auto raw = ReadTrimmed(path);
+	const auto current = raw ? ParseGramAccount(*raw) : std::nullopt;
+	if (!current
+		|| Wallet::CanonicalAddress(current->address) != addressRaw
+		|| current->words.size() >= words.size()
+		|| !std::equal(
+			current->words.begin(),
+			current->words.end(),
+			words.begin())) {
+		return false;
+	}
+	const auto lines = QStringList(words.begin(), words.end());
+	return RewriteCopyWords(path, lines, addressRaw);
 }
 
 } // namespace Test
@@ -233,10 +288,30 @@ std::optional<GramAccountFixture> GramAccount() {
 	return std::nullopt;
 }
 
+QString GramAccountLivePath() {
+	return QString();
+}
+
+QString GramAccountGoldenPath() {
+	return QString();
+}
+
 GramAccountRewrite RewriteGramAccountWords(
 		const std::vector<QString> &,
 		const QString &) {
 	return {};
+}
+
+bool StageGramAccountLiveWords(
+		const std::vector<QString> &,
+		const QString &) {
+	return false;
+}
+
+bool RestoreGramAccountLiveWords(
+		const std::vector<QString> &,
+		const QString &) {
+	return false;
 }
 
 } // namespace Test
