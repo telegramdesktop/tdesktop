@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_domain.h"
 #include "ui/vertical_list.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/layers/generic_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/password_input.h"
 #include "ui/widgets/labels.h"
@@ -39,6 +40,88 @@ namespace Settings {
 namespace {
 
 using namespace Builder;
+
+[[nodiscard]] bool HasPanic(not_null<Window::SessionController*> controller) {
+	return controller->session().domain().local().hasPanicPasscode();
+}
+
+void ShowSetPanicPasscodeBox(
+		not_null<Window::SessionController*> controller,
+		bool isChange) {
+	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+		box->setTitle(isChange
+			? tr::lng_panic_passcode_change()
+			: tr::lng_panic_passcode_set());
+
+		const auto newPasscode = CloudPassword::AddPasswordField(
+			box->verticalLayout(),
+			tr::lng_panic_passcode_enter_first(),
+			QString());
+		const auto confirmPasscode = CloudPassword::AddPasswordField(
+			box->verticalLayout(),
+			tr::lng_panic_passcode_confirm(),
+			QString());
+		const auto error = CloudPassword::AddError(
+			box->verticalLayout(),
+			confirmPasscode.get());
+
+		const auto save = [=] {
+			const auto pwd = newPasscode->text();
+			const auto conf = confirmPasscode->text();
+			if (pwd.isEmpty()) {
+				newPasscode->setFocus();
+				newPasscode->showError();
+				return;
+			} else if (conf.isEmpty()) {
+				confirmPasscode->setFocus();
+				confirmPasscode->showError();
+				return;
+			} else if (pwd != conf) {
+				confirmPasscode->setFocus();
+				confirmPasscode->showError();
+				confirmPasscode->selectAll();
+				error->show();
+				error->setText(tr::lng_panic_passcode_differ(tr::now));
+				return;
+			}
+			// Panic and main passcodes must differ.
+			const auto &domain = controller->session().domain();
+			if (domain.local().checkPasscode(pwd.toUtf8())) {
+				newPasscode->setFocus();
+				newPasscode->showError();
+				error->show();
+				error->setText(
+					tr::lng_panic_passcode_same_as_main(tr::now));
+				return;
+			}
+			domain.local().setPanicPasscode(pwd.toUtf8());
+			box->closeBox();
+		};
+
+		box->addButton(
+			isChange
+				? tr::lng_panic_passcode_change_button()
+				: tr::lng_panic_passcode_create_button(),
+			save);
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+
+		box->setFocusCallback([=] { newPasscode->setFocusFast(); });
+
+		QObject::connect(newPasscode, &Ui::MaskedInputField::submitted,
+			newPasscode, [=] {
+				if (newPasscode->text().isEmpty()) {
+					newPasscode->showError();
+				} else {
+					confirmPasscode->setFocus();
+				}
+			});
+		QObject::connect(
+			confirmPasscode,
+			&Ui::MaskedInputField::submitted,
+			confirmPasscode,
+			save);
+	}));
+}
 
 void SetPasscode(
 		not_null<Window::SessionController*> controller,
@@ -556,6 +639,80 @@ void BuildManageContent(SectionBuilder &builder) {
 			.keywords = { u"disable"_q, u"remove"_q, u"turn off"_q },
 		};
 	});
+
+	// Panic passcode section.
+	builder.addSkip();
+	builder.addSubsectionTitle({
+		.id = u"passcode/panic_section"_q,
+		.title = tr::lng_panic_passcode_section(),
+		.keywords = { u"panic"_q, u"duress"_q, u"emergency"_q },
+	});
+
+	auto panicEnabledForSet = rpl::single(rpl::empty) | rpl::then(
+		controller->session().domain().local().localPasscodeChanged()
+	) | rpl::map([=] { return !HasPanic(controller); });
+
+	auto panicEnabledForChange = rpl::single(rpl::empty) | rpl::then(
+		controller->session().domain().local().localPasscodeChanged()
+	) | rpl::map([=] { return HasPanic(controller); });
+
+	auto panicEnabledForRemove = rpl::single(rpl::empty) | rpl::then(
+		controller->session().domain().local().localPasscodeChanged()
+	) | rpl::map([=] { return HasPanic(controller); });
+
+	const auto panicSetButton = builder.addButton({
+		.id = u"passcode/panic_set"_q,
+		.title = tr::lng_panic_passcode_set(),
+		.icon = { &st::menuIconBlock },
+		.keywords = { u"panic"_q, u"set"_q, u"duress"_q },
+		.shown = std::move(panicEnabledForSet),
+	});
+	if (panicSetButton) {
+		panicSetButton->addClickHandler([=] {
+			ShowSetPanicPasscodeBox(controller, false);
+		});
+	}
+
+	const auto panicChangeButton = builder.addButton({
+		.id = u"passcode/panic_change"_q,
+		.title = tr::lng_panic_passcode_change(),
+		.icon = { &st::menuIconLock },
+		.label = tr::lng_panic_passcode_enabled(),
+		.keywords = { u"panic"_q, u"change"_q },
+		.shown = std::move(panicEnabledForChange),
+	});
+	if (panicChangeButton) {
+		panicChangeButton->addClickHandler([=] {
+			ShowSetPanicPasscodeBox(controller, true);
+		});
+	}
+
+	const auto panicRemoveButton = builder.addButton({
+		.id = u"passcode/panic_remove"_q,
+		.title = tr::lng_panic_passcode_remove(),
+		.icon = { &st::menuIconBlock },
+		.keywords = { u"panic"_q, u"remove"_q, u"disable"_q },
+		.shown = std::move(panicEnabledForRemove),
+	});
+	if (panicRemoveButton) {
+		panicRemoveButton->addClickHandler([=] {
+			controller->show(Ui::MakeConfirmBox({
+				.text = tr::lng_panic_passcode_remove_sure(),
+				.confirmed = [=](Fn<void()> &&close) {
+					controller->session()
+						.domain()
+						.local()
+						.clearPanicPasscode();
+					close();
+				},
+				.confirmText = tr::lng_panic_passcode_remove(),
+				.confirmStyle = &st::attentionBoxButton,
+			}));
+		});
+	}
+
+	builder.addSkip();
+	builder.addDividerText(tr::lng_panic_passcode_about());
 }
 
 class LocalPasscodeManage : public Section<LocalPasscodeManage> {
