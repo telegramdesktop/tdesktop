@@ -81,6 +81,7 @@ public:
 	[[nodiscard]] Sticker stickerForEmoji(EmojiPtr emoji);
 	[[nodiscard]] Sticker stickerForEmoji(const IsolatedEmoji &emoji);
 	[[nodiscard]] std::shared_ptr<LargeEmojiImage> image(EmojiPtr emoji);
+	[[nodiscard]] DocumentId standardEmojiDocument(EmojiPtr emoji);
 
 	[[nodiscard]] EmojiPtr chooseInteractionEmoji(
 		not_null<HistoryItem*> item) const;
@@ -120,11 +121,14 @@ private:
 
 	void refresh();
 	void refreshDelayed();
+	void refreshStandard();
+	void applyStandardSet(const MTPDmessages_stickerSet &data);
 	void refreshAnimations();
 	void applySet(const MTPDmessages_stickerSet &data);
 	void applyPack(
 		const MTPDstickerPack &data,
-		const base::flat_map<uint64, not_null<DocumentData*>> &map);
+		const base::flat_map<uint64, not_null<DocumentData*>> &map,
+		base::flat_map<EmojiPtr, not_null<DocumentData*>> &to);
 	void applyAnimationsSet(const MTPDmessages_stickerSet &data);
 	[[nodiscard]] auto collectStickers(const QVector<MTPDocument> &list) const
 		-> base::flat_map<uint64, not_null<DocumentData*>>;
@@ -142,7 +146,10 @@ private:
 		IsolatedEmoji,
 		base::flat_set<not_null<HistoryView::Element*>>> _items;
 	base::flat_map<EmojiPtr, std::weak_ptr<LargeEmojiImage>> _images;
+	base::flat_map<EmojiPtr, not_null<DocumentData*>> _standard;
 	mtpRequestId _requestId = 0;
+	mtpRequestId _standardRequestId = 0;
+	bool _standardRequested = false;
 
 	base::flat_set<not_null<HistoryView::Element*>> _onlyCustomItems;
 
