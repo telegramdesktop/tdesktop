@@ -1428,7 +1428,7 @@ void SavedWindows::createWindow(const Step &step) {
 			return;
 		}
 		const auto controller = window->sessionController();
-		if (!controller) {
+		if (!controller || (&controller->session() != session)) {
 			return;
 		} else if (step.created && controller->activeChatCurrent()) {
 			return;
