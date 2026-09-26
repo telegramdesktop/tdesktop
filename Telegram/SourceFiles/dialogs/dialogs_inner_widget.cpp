@@ -927,6 +927,10 @@ void InnerWidget::changeOpenedCommunity(Data::CommunityInfo *community) {
 	}
 	stopReorderPinned();
 	clearSelection();
+	if (community) {
+		_communityScrollTop = _visibleTop;
+	}
+	const auto was = _openedCommunity;
 	_openedCommunity = community;
 	refreshShownList();
 	_openedCommunityLifetime.destroy();
@@ -965,6 +969,26 @@ void InnerWidget::changeOpenedCommunity(Data::CommunityInfo *community) {
 	if (_loadMoreCallback) {
 		_loadMoreCallback();
 	}
+
+	if (!community && was) {
+		restoreScrollShowingCommunity(was);
+	}
+}
+
+void InnerWidget::restoreScrollShowingCommunity(
+		not_null<Data::CommunityInfo*> community) {
+	const auto was = std::max(_communityScrollTop, 0);
+	const auto history = session().data().history(community->channel());
+	const auto row = _shownList->getRow(Key(history));
+	const auto visible = _visibleBottom - _visibleTop;
+	if (row && visible > 0) {
+		const auto top = dialogsOffset() + row->top();
+		if (top < was || top + row->height() > was + visible) {
+			scrollToItem(top, row->height());
+			return;
+		}
+	}
+	_mustScrollTo.fire({ was, -1 });
 }
 
 void InnerWidget::showSavedSublists() {
