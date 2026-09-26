@@ -40,6 +40,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QScreen>
 #include <QtGui/qpa/qplatformscreen.h>
 
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif // Q_OS_WIN
+
 namespace Core {
 namespace {
 
@@ -547,10 +551,46 @@ void Sandbox::socketDisconnected() {
 	}
 }
 
+#ifdef Q_OS_WIN
+bool Sandbox::verifyLocalClient(QLocalSocket *socket) {
+	const auto handle = reinterpret_cast<HANDLE>(socket->socketDescriptor());
+	if (!handle || handle == INVALID_HANDLE_VALUE) {
+		return false;
+	}
+	ULONG processId = 0;
+	if (!GetNamedPipeClientProcessId(handle, &processId)) {
+		return false;
+	}
+	const auto process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, processId);
+	if (!process) {
+		return false;
+	}
+	wchar_t pathBuffer[MAX_PATH] = {};
+	DWORD pathSize = MAX_PATH;
+	const auto ok = QueryFullProcessImageNameW(process, 0, pathBuffer, &pathSize);
+	CloseHandle(process);
+	if (!ok) {
+		return false;
+	}
+	const auto processPath = QString::fromWCharArray(pathBuffer);
+	// Only allow the official Telegram Desktop executable to send control
+	// commands (CMD:/CTRL:). External processes (browsers, file managers)
+	// are still allowed to send OPEN: commands for tg:// URL handling.
+	return processPath.endsWith(u"Telegram.exe"_q, Qt::CaseInsensitive);
+}
+#endif // Q_OS_WIN
+
 void Sandbox::newInstanceConnected() {
 	DEBUG_LOG(("Sandbox Info: new local socket connected"));
 	for (auto client = _localServer.nextPendingConnection(); client; client = _localServer.nextPendingConnection()) {
-		_localClients.push_back(LocalClient{ .socket = client });
+		auto authenticated = false;
+#ifdef Q_OS_WIN
+			authenticated = verifyLocalClient(client);
+			if (!authenticated) {
+				DEBUG_LOG(("Sandbox Info: unauthenticated local socket connection, OPEN: only"));
+			}
+#endif // Q_OS_WIN
+			_localClients.push_back(LocalClient{ .socket = client, .authenticated = authenticated });
 		connect(
 			client,
 			&QLocalSocket::readyRead,
@@ -588,7 +628,10 @@ void Sandbox::readClients() {
 			auto urls = QList<QUrl>();
 			for (const auto &cmd : records) {
 				if (cmd.startsWith(u"CMD:"_q)) {
-					if (hasOpen) {
+					if (hasOpen || !i->authenticated) {
+						if (!i->authenticated) {
+							LOG(("Sandbox Warning: CMD: from unauthenticated peer rejected"));
+						}
 						continue;
 					}
 					const auto processId = QApplication::applicationPid();
@@ -596,11 +639,16 @@ void Sandbox::readClients() {
 					const auto response = u"RES:%1_%2;"_q.arg(processId).arg(windowId).toLatin1();
 					i->socket->write(response.data(), response.size());
 				} else if (cmd.startsWith(u"XDG_ACTIVATION_TOKEN:"_q)) {
-					qputenv("XDG_ACTIVATION_TOKEN", QByteArray::fromBase64(cmd.mid(21).toLatin1()));
+					if (i->authenticated) {
+						qputenv("XDG_ACTIVATION_TOKEN", QByteArray::fromBase64(cmd.mid(21).toLatin1()));
+					}
 				} else if (cmd.startsWith(u"OPEN:"_q)) {
 					urls.append(EscapeFrom7bit(cmd.mid(5)).mid(0, 8192));
 				} else if (cmd.startsWith(u"CTRL:"_q)) {
-					if (hasOpen) {
+					if (hasOpen || !i->authenticated) {
+						if (!i->authenticated) {
+							LOG(("Sandbox Warning: CTRL: from unauthenticated peer rejected"));
+						}
 						continue;
 					}
 					const auto payload = HandleExternalControl(cmd.mid(5));

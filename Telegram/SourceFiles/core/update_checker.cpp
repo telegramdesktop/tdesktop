@@ -732,11 +732,13 @@ bool UnpackUpdate(const QString &filepath) {
 		// v1 path below: it accepts nothing without a valid RSA signature
 		// over these same bytes.
 		LOG(("Update Info: trying v1 unpacking for a file with v2 magic."));
-	} else if (BuildIsCanary) {
-		// The channel policy lives in the v2 envelope only, a classical
-		// RSA package has no channel and would let any official v1 file
-		// posted to the canary channel jump a canary off its lane.
-		LOG(("Update Error: canary builds accept only v2 updates."));
+	} else {
+		// v1 update packages use RSA-1024 + SHA1 signatures which are
+		// considered weak. Only the v2 format (ED25519 + SHA-256 with
+		// multi-signature channel authorization) is accepted. A v2 file
+		that fails v2 parsing may still fall through to v1 verification
+		// below, but a pure v1 file (no v2 magic) is rejected outright.
+		LOG(("Update Error: only v2 update format is supported (v1 RSA-1024+SHA1 rejected)."));
 		return false;
 	}
 

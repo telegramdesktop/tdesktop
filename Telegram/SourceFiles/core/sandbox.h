@@ -85,6 +85,7 @@ private:
 		QLocalSocket *socket = nullptr;
 		QByteArray buffer;
 		bool externalUrlReceived = false;
+		bool authenticated = false;
 	};
 	typedef QList<LocalClient> LocalClients;
 
@@ -122,6 +123,13 @@ private:
 
 	void readClients();
 	void removeClients();
+
+	// Verify the connecting process identity on Windows.
+	// Returns true if the peer is Telegram Desktop (authenticated),
+	// false otherwise. Non-authenticated peers are restricted to OPEN: only.
+#ifdef Q_OS_WIN
+	bool verifyLocalClient(QLocalSocket *socket);
+#endif // Q_OS_WIN
 
 	QEventLoopLocker _eventLoopLocker;
 	const Qt::HANDLE _mainThreadId = nullptr;
