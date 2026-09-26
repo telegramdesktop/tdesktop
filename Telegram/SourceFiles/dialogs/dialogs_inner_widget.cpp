@@ -6438,22 +6438,25 @@ int64 InnerWidget::calcSwipeKey(int top) {
 	return 0;
 }
 
-void InnerWidget::prepareQuickAction(
+bool InnerWidget::prepareQuickAction(
 		int64 key,
 		Dialogs::Ui::QuickDialogAction action) {
 	Expects(key != 0);
 
+	const auto type = ResolveQuickDialogLabel(
+		session().data().history(PeerId(key)),
+		action,
+		_filterId);
+	if (type == Dialogs::Ui::QuickDialogActionLabel::Disabled) {
+		return false;
+	}
 	const auto context = ensureQuickAction(key);
-	auto name = ResolveQuickDialogLottieIconName(
-		ResolveQuickDialogLabel(
-			session().data().history(PeerId(key)),
-			action,
-			_filterId));
 	context->icon = Lottie::MakeIcon({
-		.name = std::move(name),
+		.name = ResolveQuickDialogLottieIconName(type),
 		.sizeOverride = Size(st::dialogsQuickActionSize),
 	});
 	context->action = action;
+	return true;
 }
 
 void InnerWidget::clearQuickActions() {
