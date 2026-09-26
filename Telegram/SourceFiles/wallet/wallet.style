@@ -76,6 +76,8 @@ walletChatCardClockSize: 12px;
 walletChatCardClockStroke: 1px;
 walletChatCardClockMinuteHand: 4px;
 walletChatCardClockHourHand: 3px;
+// The settled word rises into its ribbon from this far below its rest.
+walletChatCardRevealWordShift: 8px;
 walletChatCardAmountSkip: 3px;
 walletChatCardNameSkip: 15px;
 walletChatCardAddressSkip: 5px;

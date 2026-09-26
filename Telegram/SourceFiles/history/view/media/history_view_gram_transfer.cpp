@@ -53,6 +53,17 @@ constexpr auto kGlareTimeout = crl::time(400);
 constexpr auto kTransitionDuration = crl::time(400);
 constexpr auto kClockHourTurn = crl::time(2000);
 constexpr auto kClockMinuteTurnsPerHourTurn = 3;
+constexpr auto kRevealClockDuration = crl::time(43);
+constexpr auto kRevealFillDuration = crl::time(160);
+constexpr auto kRevealColorDelay = crl::time(20);
+constexpr auto kRevealColorDuration = crl::time(200);
+constexpr auto kRevealWordDelay = crl::time(33);
+constexpr auto kRevealWordDuration = crl::time(140);
+constexpr auto kRevealDuration = std::max({
+	kRevealFillDuration,
+	kRevealColorDelay + kRevealColorDuration,
+	kRevealWordDelay + kRevealWordDuration,
+});
 
 [[nodiscard]] QColor CardTickerFg() {
 	return QColor(0x0f, 0xdd, 0xff);
@@ -129,22 +140,6 @@ struct RibbonGeometry {
 	int size = 0;
 };
 
-// Lives only from the moment a sending card is replaced by its sent or
-// failed one until the ribbon settles and the last glare pass has ended.
-struct CardTransition {
-	Ui::Animations::Basic animation;
-	std::optional<GlarePassTiming> glare;
-	QString toText;
-	QImage toWord;
-	crl::time started = 0;
-	int wordsTextWidth = 0;
-};
-
-struct SendingClock {
-	Ui::Animations::Basic animation;
-	crl::time started = 0;
-};
-
 struct ClockPose {
 	float64 minute = 0.;
 	float64 hour = 0.;
@@ -159,6 +154,24 @@ struct ClockPose {
 	};
 }
 
+// Lives only from the moment a sending card is replaced by its sent or
+// failed one until the ribbon settles and the last glare pass has ended.
+struct CardTransition {
+	Ui::Animations::Basic animation;
+	std::optional<GlarePassTiming> glare;
+	ClockPose pose;
+	QString toText;
+	QImage toWord;
+	QImage frame;
+	crl::time started = 0;
+	int wordsTextWidth = 0;
+};
+
+struct SendingClock {
+	Ui::Animations::Basic animation;
+	crl::time started = 0;
+};
+
 // What a card being replaced by a refreshed view passes to its successor.
 struct GramTransferHandover {
 	std::unique_ptr<Lottie::Icon> mark;
@@ -167,7 +180,6 @@ struct GramTransferHandover {
 	std::unique_ptr<SendingClock> clock;
 	std::optional<GlarePassTiming> pass;
 	bool markStarted = false;
-	bool sending = false;
 };
 
 class GramTransferCardPart final
@@ -229,10 +241,16 @@ private:
 	[[nodiscard]] int resolveLayout(int outerWidth);
 	[[nodiscard]] bool sending() const;
 	[[nodiscard]] std::optional<CardGlarePass> glarePass(crl::time now) const;
+	[[nodiscard]] std::optional<GlarePassTiming> glarePassTiming(
+		crl::time now) const;
 	[[nodiscard]] float64 transitionProgress(crl::time now) const;
 	[[nodiscard]] bool transitionFinished(crl::time now) const;
 	void adopt(GramTransferHandover &&handover);
-	void animateTransition();
+	void animateTransition() const;
+	void startReveal(
+		const SendingClock &clock,
+		crl::time now,
+		std::optional<GlarePassTiming> pass) const;
 	void attachGlare() const;
 	void attachClock() const;
 	void validateMark() const;
@@ -241,10 +259,7 @@ private:
 	void validateBadge() const;
 	void paintGlareBorder(QPainter &p, CardGlarePass pass) const;
 	void paintSendingClock(QPainter &p, crl::time now) const;
-	void paintRibbonTransition(
-		QPainter &p,
-		int cardWidth,
-		crl::time now) const;
+	void paintReveal(QPainter &p, int cardWidth, crl::time now) const;
 	void showDetails(const ClickContext &context);
 
 	const GramTransferOrigin _origin;
@@ -252,8 +267,7 @@ private:
 	const AmountParts _amount;
 	const QString _address;
 	const QString _identity;
-	// An outgoing card fixes the ribbon to its widest possible word, taken
-	// once from the language active when the card is created.
+	// Rows keep clear of the widest ribbon an outgoing card can settle to.
 	const int _ribbonTextWidth = 0;
 	Layout _layout;
 	mutable std::unique_ptr<Lottie::Icon> _mark;
@@ -590,6 +604,10 @@ private:
 	return result;
 }
 
+[[nodiscard]] QRect RibbonBandRect(const RibbonGeometry &ribbon) {
+	return QRect(-5 * ribbon.twidth, 0, ribbon.twidth * 12, ribbon.height);
+}
+
 void PaintRibbonBand(
 		QPainter &p,
 		const RibbonGeometry &ribbon,
@@ -599,7 +617,7 @@ void PaintRibbonBand(
 	p.rotate(45.);
 	p.setPen(Qt::NoPen);
 	p.setBrush(bg);
-	p.drawRect(QRect(-5 * ribbon.twidth, 0, ribbon.twidth * 12, ribbon.height));
+	p.drawRect(RibbonBandRect(ribbon));
 	p.restore();
 }
 
@@ -620,6 +638,58 @@ void PaintRibbonBand(
 		p.drawImage(0, 0, RenderRibbonWord(ribbon, text));
 	}
 	return result;
+}
+
+void PaintClock(
+		QPainter &p,
+		QPointF center,
+		ClockPose pose,
+		const QColor &color,
+		float64 scale) {
+	const auto stroke = float64(st::walletChatCardClockStroke);
+	const auto radius = (st::walletChatCardClockSize - stroke) / 2.;
+	p.save();
+	p.translate(center);
+	p.scale(scale, scale);
+	p.translate(-center);
+	auto pen = QPen(color, stroke);
+	pen.setCapStyle(Qt::RoundCap);
+	p.setPen(pen);
+	p.setBrush(Qt::NoBrush);
+	p.drawEllipse(center, radius, radius);
+	const auto hand = [&](float64 turns, int reach) {
+		const auto angle = 2. * M_PI * turns;
+		const auto length = reach - stroke / 2.;
+		p.drawLine(
+			center,
+			center + QPointF(std::sin(angle), -std::cos(angle)) * length);
+	};
+	hand(pose.minute, st::walletChatCardClockMinuteHand);
+	hand(pose.hour, st::walletChatCardClockHourHand);
+	p.restore();
+}
+
+[[nodiscard]] float64 RibbonReach(
+		const RibbonGeometry &ribbon,
+		QPointF center) {
+	const auto band = QTransform()
+		.translate(ribbon.textpos.x(), ribbon.textpos.y())
+		.rotate(45.)
+		.map(QPolygonF(QRectF(RibbonBandRect(ribbon))));
+	const auto inside = band.intersected(
+		QPolygonF(QRectF(0, 0, ribbon.size, ribbon.size)));
+	auto result = 0.;
+	for (const auto &point : inside) {
+		accumulate_max(result, QLineF(center, point).length());
+	}
+	return result;
+}
+
+[[nodiscard]] float64 RevealProgress(
+		crl::time elapsed,
+		crl::time delay,
+		crl::time duration) {
+	return std::clamp((elapsed - delay) / float64(duration), 0., 1.);
 }
 
 // The card grows at most into the service background outlining it.
@@ -718,24 +788,29 @@ GramTransferHandover GramTransferCardPart::takeHandover() {
 		.mark = std::move(_mark),
 		.transition = std::move(_transition),
 		.clock = std::move(_clock),
+		.pass = glarePassTiming(crl::now()),
 		.markStarted = std::exchange(_markStarted, false),
-		.sending = _layout.sending,
 	};
-	if (_glare) {
-		const auto now = crl::now();
-		const auto &glare = _glare->glare;
-		if (glare.birthTime
-			&& now >= glare.birthTime
-			&& now < glare.deathTime) {
-			result.pass = GlarePassTiming{
-				.birth = glare.birthTime,
-				.death = glare.deathTime,
-				.width = _glare->width,
-			};
-		}
-		result.glare = std::move(_glare);
-	}
+	result.glare = std::move(_glare);
 	return result;
+}
+
+std::optional<GlarePassTiming> GramTransferCardPart::glarePassTiming(
+		crl::time now) const {
+	if (!_glare) {
+		return std::nullopt;
+	}
+	const auto &glare = _glare->glare;
+	if (!glare.birthTime
+		|| now < glare.birthTime
+		|| now >= glare.deathTime) {
+		return std::nullopt;
+	}
+	return GlarePassTiming{
+		.birth = glare.birthTime,
+		.death = glare.deathTime,
+		.width = _glare->width,
+	};
 }
 
 // WHY: a sent or failed transfer refreshes its view, so the card that showed
@@ -772,18 +847,26 @@ void GramTransferCardPart::adopt(GramTransferHandover &&handover) {
 		return;
 	} else if (handover.transition) {
 		_transition = std::move(handover.transition);
-	} else if (handover.sending) {
-		_transition = std::make_unique<CardTransition>();
-		_transition->glare = handover.pass;
-		_transition->started = crl::now();
-	} else {
-		return;
+		_heavyPending = true;
+		animateTransition();
+	} else if (handover.clock) {
+		startReveal(*handover.clock, crl::now(), handover.pass);
 	}
+}
+
+void GramTransferCardPart::startReveal(
+		const SendingClock &clock,
+		crl::time now,
+		std::optional<GlarePassTiming> pass) const {
+	_transition = std::make_unique<CardTransition>();
+	_transition->glare = pass;
+	_transition->pose = SendingClockPose(now - clock.started);
+	_transition->started = now;
 	_heavyPending = true;
 	animateTransition();
 }
 
-void GramTransferCardPart::animateTransition() {
+void GramTransferCardPart::animateTransition() const {
 	_transition->animation.init([weak = base::make_weak(this)](
 			crl::time now) {
 		const auto strong = weak.get();
@@ -864,20 +947,24 @@ int GramTransferCardPart::resolveLayout(int outerWidth) {
 	_layout.sending = sending();
 	const auto &badgeFont = st::msgServiceGiftBoxBadgeFont;
 	const auto badgePadding = st::chatUniqueGiftBadgePadding;
-	const auto badgeArea = std::min(
-		std::max(_ribbonTextWidth, badgeFont->width(tag.text)),
-		std::max(
-			cardWidth - 2 * badgeFont->height
-				- badgePadding.left() - badgePadding.right(),
-			0));
+	const auto badgeLimit = std::max(
+		cardWidth - 2 * badgeFont->height
+			- badgePadding.left() - badgePadding.right(),
+		0);
+	const auto badgeArea = std::min(badgeFont->width(tag.text), badgeLimit);
 	_layout.badge = badgeFont->elided(tag.text, badgeArea);
 	_layout.badgeTextWidth = badgeArea;
-	if (_layout.sending) {
-		const auto ribbon = ComputeRibbon(badgeArea);
+	if (_origin.action.outgoing) {
+		const auto sent = ResolveTag(true, false).text;
+		const auto sentArea = std::min(badgeFont->width(sent), badgeLimit);
+		const auto ribbon = ComputeRibbon(sentArea);
 		_layout.clockCenter = QPointF(cardWidth - ribbon.size, 0.)
-			+ RibbonWordCenter(ribbon, _layout.badge);
+			+ RibbonWordCenter(ribbon, badgeFont->elided(sent, sentArea));
 	}
-	const auto badgeTextWidth = badgeArea
+	const auto reservedArea = std::min(
+		std::max(_ribbonTextWidth, badgeArea),
+		badgeLimit);
+	const auto badgeTextWidth = reservedArea
 		+ badgePadding.left() + badgePadding.right();
 	const auto badgeHeight = badgePadding.top()
 		+ badgeFont->height + badgePadding.bottom();
@@ -995,8 +1082,10 @@ void GramTransferCardPart::attachGlare() const {
 }
 
 void GramTransferCardPart::validateClock() const {
-	if (!sending()) {
+	if (!_layout.sending) {
 		_clock = nullptr;
+		return;
+	} else if (!sending()) {
 		return;
 	} else if (_clock) {
 		if (!_clock->animation.animating()) {
@@ -1108,30 +1197,14 @@ void GramTransferCardPart::validateBadge() const {
 void GramTransferCardPart::paintSendingClock(
 		QPainter &p,
 		crl::time now) const {
-	const auto stroke = float64(st::walletChatCardClockStroke);
-	const auto radius = (st::walletChatCardClockSize - stroke) / 2.;
 	const auto pose = SendingClockPose((_clock && !anim::Disabled())
 		? (now - _clock->started)
 		: 0);
-	const auto center = _layout.clockCenter;
-	auto pen = QPen(CardTickerFg(), stroke);
-	pen.setCapStyle(Qt::RoundCap);
-	p.setPen(pen);
-	p.setBrush(Qt::NoBrush);
-	p.drawEllipse(center, radius, radius);
-	const auto hand = [&](float64 turns, int reach) {
-		const auto angle = 2. * M_PI * turns;
-		const auto length = reach - stroke / 2.;
-		p.drawLine(
-			center,
-			center + QPointF(std::sin(angle), -std::cos(angle)) * length);
-	};
-	hand(pose.minute, st::walletChatCardClockMinuteHand);
-	hand(pose.hour, st::walletChatCardClockHourHand);
+	PaintClock(p, _layout.clockCenter, pose, CardTickerFg(), 1.);
 }
 
-// The settled word follows its band in from the top-left.
-void GramTransferCardPart::paintRibbonTransition(
+// The band fills the way a ripple fills its mask, from the clock out.
+void GramTransferCardPart::paintReveal(
 		QPainter &p,
 		int cardWidth,
 		crl::time now) const {
@@ -1143,15 +1216,69 @@ void GramTransferCardPart::paintRibbonTransition(
 		transition.toText = _layout.badge;
 		transition.wordsTextWidth = ribbon.textWidth;
 	}
-	const auto progress = anim::easeOutCubic(1., transitionProgress(now));
-	p.save();
-	p.translate(cardWidth - ribbon.size, 0);
-	p.setClipRect(QRect(0, 0, ribbon.size, ribbon.size), Qt::IntersectClip);
-	PaintRibbonBand(p, ribbon, _layout.badgeBg);
-	const auto travel = (ribbon.twidth + 2 * ribbon.height) / M_SQRT2;
-	const auto in = travel * (progress - 1.);
-	p.drawImage(QPointF(in, in), transition.toWord);
-	p.restore();
+	const auto elapsed = now - transition.started;
+	const auto origin = QPointF(cardWidth - ribbon.size, 0.);
+	const auto center = _layout.clockCenter - origin;
+	const auto c = RevealProgress(
+		elapsed,
+		kRevealColorDelay,
+		kRevealColorDuration);
+	const auto color = anim::color(
+		CardTickerFg(),
+		_layout.badgeBg,
+		1. - (1. - c) * (1. - c));
+	const auto outer = st::walletChatCardClockSize / 2.;
+	const auto inner = outer - st::walletChatCardClockStroke;
+	const auto reach = RibbonReach(ribbon, center);
+	const auto radius = outer
+		+ (reach - outer) * RevealProgress(elapsed, 0, kRevealFillDuration);
+	const auto scale = std::max(
+		1. - elapsed / float64(kRevealClockDuration),
+		0.);
+	const auto w = RevealProgress(
+		elapsed,
+		kRevealWordDelay,
+		kRevealWordDuration);
+	const auto word = 1. - (1. - w) * (1. - w);
+	const auto ratio = style::DevicePixelRatio();
+	const auto size = QSize(ribbon.size, ribbon.size) * ratio;
+	if (transition.frame.size() != size) {
+		transition.frame = QImage(size, QImage::Format_ARGB32_Premultiplied);
+	}
+	transition.frame.setDevicePixelRatio(ratio);
+	transition.frame.fill(Qt::transparent);
+	{
+		auto q = QPainter(&transition.frame);
+		auto hq = PainterHighQualityEnabler(q);
+		PaintRibbonBand(q, ribbon, color);
+		q.setPen(Qt::NoPen);
+		q.setCompositionMode(QPainter::CompositionMode_DestinationOut);
+		if (radius < reach) {
+			auto outside = QPainterPath();
+			outside.setFillRule(Qt::OddEvenFill);
+			outside.addRect(QRectF(0., 0., ribbon.size, ribbon.size));
+			outside.addEllipse(center, radius, radius);
+			q.fillPath(outside, QColor(0, 0, 0));
+		}
+		if (scale > 0.) {
+			q.setBrush(QColor(0, 0, 0));
+			q.drawEllipse(center, inner * scale, inner * scale);
+		}
+		if (word > 0.) {
+			const auto shift = st::walletChatCardRevealWordShift
+				* (1. - word)
+				/ M_SQRT2;
+			q.setCompositionMode(QPainter::CompositionMode_SourceAtop);
+			q.setOpacity(word);
+			q.drawImage(QPointF(-shift, shift), transition.toWord);
+			q.setOpacity(1.);
+		}
+		if (scale > 0.) {
+			q.setCompositionMode(QPainter::CompositionMode_SourceOver);
+			PaintClock(q, center, transition.pose, color, scale);
+		}
+	}
+	p.drawImage(origin, transition.frame);
 }
 
 void GramTransferCardPart::draw(
@@ -1162,6 +1289,15 @@ void GramTransferCardPart::draw(
 	const auto now = crl::now();
 	if (_transition && transitionFinished(now)) {
 		_transition = nullptr;
+	}
+	// WHY: a card relaid out as settled keeps its clock until this paint,
+	// so a stale paint shows the live pose and the reveal starts from it
+	// here; a later replacement continues this transition.
+	if (_clock
+		&& !_layout.sending
+		&& !_transition
+		&& !anim::Disabled()) {
+		startReveal(*_clock, now, glarePassTiming(now));
 	}
 	validateMark();
 	validateGlare();
@@ -1272,8 +1408,9 @@ void GramTransferCardPart::draw(
 	}
 	if (_layout.sending) {
 		paintSendingClock(p, now);
-	} else if (_transition) {
-		paintRibbonTransition(p, cardWidth, now);
+	} else if (_transition
+		&& now < _transition->started + kRevealDuration) {
+		paintReveal(p, cardWidth, now);
 	} else {
 		p.drawImage(
 			QPointF(cardWidth - _badge.width() / _badge.devicePixelRatio(), 0.),
