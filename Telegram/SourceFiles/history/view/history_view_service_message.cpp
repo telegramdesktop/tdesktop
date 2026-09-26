@@ -717,9 +717,23 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 		const auto selection = gramTransfer
 			? UnshiftItemSelection(context.selection, text())
 			: TextSelection();
+		const auto roll = media->bubbleRoll();
+		if (roll) {
+			const auto center = QRectF(
+				QRect(position, QSize(media->width(), media->height()))
+			).center();
+			p.save();
+			p.translate(center);
+			p.rotate(roll.rotate);
+			p.scale(roll.scale, roll.scale);
+			p.translate(-center);
+		}
 		p.translate(position);
 		media->draw(p, context.translated(-position).withSelection(selection));
 		p.translate(-position);
+		if (roll) {
+			p.restore();
+		}
 	}
 }
 

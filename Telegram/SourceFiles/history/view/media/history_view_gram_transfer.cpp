@@ -50,7 +50,6 @@ constexpr auto kAddressGroupSize = 4;
 constexpr auto kAddressGroupsPerLine = 6;
 constexpr auto kGlareDuration = crl::time(1100);
 constexpr auto kGlareTimeout = crl::time(400);
-constexpr auto kTransitionDuration = crl::time(400);
 constexpr auto kClockHourTurn = crl::time(2000);
 constexpr auto kClockMinuteTurnsPerHourTurn = 3;
 constexpr auto kRevealClockDuration = crl::time(43);
@@ -64,6 +63,18 @@ constexpr auto kRevealDuration = std::max({
 	kRevealColorDelay + kRevealColorDuration,
 	kRevealWordDelay + kRevealWordDuration,
 });
+constexpr auto kBumpRiseDuration = crl::time(150);
+constexpr auto kBumpHoldDuration = crl::time(33);
+constexpr auto kBumpFallDuration = crl::time(200);
+constexpr auto kBumpSettleDuration = crl::time(200);
+constexpr auto kBumpDuration = kBumpRiseDuration
+	+ kBumpHoldDuration
+	+ kBumpFallDuration
+	+ kBumpSettleDuration;
+constexpr auto kBumpAmplitude = 0.07;
+constexpr auto kBumpFallEase = 1.2;
+constexpr auto kBumpUndershoot = 0.043;
+constexpr auto kTransitionDuration = std::max(kRevealDuration, kBumpDuration);
 
 [[nodiscard]] QColor CardTickerFg() {
 	return QColor(0x0f, 0xdd, 0xff);
@@ -155,7 +166,7 @@ struct ClockPose {
 }
 
 // Lives only from the moment a sending card is replaced by its sent or
-// failed one until the ribbon settles and the last glare pass has ended.
+// failed one until the ribbon and the bump settle and the glare pass ended.
 struct CardTransition {
 	Ui::Animations::Basic animation;
 	std::optional<GlarePassTiming> glare;
@@ -205,6 +216,9 @@ public:
 
 	[[nodiscard]] bool hasHeavyPart() override;
 	void unloadHeavyPart() override;
+	[[nodiscard]] Media::BubbleRoll bubbleRoll(QSize outer) const override;
+	[[nodiscard]] QMargins bubbleRollRepaintMargins(
+		QSize outer) const override;
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
@@ -243,7 +257,6 @@ private:
 	[[nodiscard]] std::optional<CardGlarePass> glarePass(crl::time now) const;
 	[[nodiscard]] std::optional<GlarePassTiming> glarePassTiming(
 		crl::time now) const;
-	[[nodiscard]] float64 transitionProgress(crl::time now) const;
 	[[nodiscard]] bool transitionFinished(crl::time now) const;
 	void adopt(GramTransferHandover &&handover);
 	void animateTransition() const;
@@ -692,13 +705,31 @@ void PaintClock(
 	return std::clamp((elapsed - delay) / float64(duration), 0., 1.);
 }
 
-// The card grows at most into the service background outlining it.
-[[nodiscard]] float64 CardBumpAmplitude(QRect card) {
-	if (card.isEmpty()) {
+[[nodiscard]] float64 BumpShape(crl::time elapsed) {
+	if (elapsed <= 0 || elapsed >= kBumpDuration) {
 		return 0.;
+	} else if (elapsed < kBumpRiseDuration) {
+		return elapsed / float64(kBumpRiseDuration);
 	}
-	const auto border = 2. * st::chatUniqueGiftBorder;
-	return std::min(border / card.width(), border / card.height());
+	const auto fall = elapsed - kBumpRiseDuration - kBumpHoldDuration;
+	if (fall < 0) {
+		return 1.;
+	} else if (fall < kBumpFallDuration) {
+		const auto progress = fall / float64(kBumpFallDuration);
+		return std::pow(1. - progress, kBumpFallEase);
+	}
+	const auto settle = (fall - kBumpFallDuration)
+		/ float64(kBumpSettleDuration);
+	return -kBumpUndershoot * std::sin(M_PI * settle);
+}
+
+// The service sentence sits msgServiceMargin.top() above the whole block.
+[[nodiscard]] float64 BumpAmplitude(QSize outer) {
+	return outer.isEmpty()
+		? 0.
+		: std::min(
+			kBumpAmplitude,
+			2. * st::msgServiceMargin.top() / outer.height());
 }
 
 [[nodiscard]] QString FriendlyAddress(const QString &address) {
@@ -881,19 +912,29 @@ void GramTransferCardPart::animateTransition() const {
 	_transition->animation.start();
 }
 
-float64 GramTransferCardPart::transitionProgress(crl::time now) const {
-	return _transition
-		? std::clamp(
-			(now - _transition->started) / float64(kTransitionDuration),
-			0.,
-			1.)
-		: 1.;
-}
-
 bool GramTransferCardPart::transitionFinished(crl::time now) const {
 	return !_transition
 		|| ((now >= _transition->started + kTransitionDuration)
 			&& (!_transition->glare || now >= _transition->glare->death));
+}
+
+Media::BubbleRoll GramTransferCardPart::bubbleRoll(QSize outer) const {
+	if (!_transition) {
+		return {};
+	}
+	const auto elapsed = crl::now() - _transition->started;
+	return { .scale = 1. + BumpAmplitude(outer) * BumpShape(elapsed) };
+}
+
+QMargins GramTransferCardPart::bubbleRollRepaintMargins(
+		QSize outer) const {
+	if (!_transition) {
+		return {};
+	}
+	const auto amplitude = BumpAmplitude(outer);
+	const auto x = int(std::ceil(amplitude * outer.width() / 2.));
+	const auto y = int(std::ceil(amplitude * outer.height() / 2.));
+	return QMargins(x, y, x, y);
 }
 
 GramTransferCardPart::~GramTransferCardPart() {
@@ -1315,14 +1356,6 @@ void GramTransferCardPart::draw(
 	auto clip = QPainterPath();
 	clip.addRoundedRect(outer, radius, radius);
 	p.setClipPath(clip, Qt::IntersectClip);
-	if (_transition) {
-		const auto bump = CardBumpAmplitude(_layout.card)
-			* std::sin(M_PI * transitionProgress(now));
-		const auto center = QRectF(_layout.card).center();
-		p.translate(center);
-		p.scale(1. + bump, 1. + bump);
-		p.translate(-center);
-	}
 	Wallet::PaintCardBackground(p, _layout.card);
 	p.translate(_layout.card.topLeft());
 	const auto cardWidth = _layout.card.width();

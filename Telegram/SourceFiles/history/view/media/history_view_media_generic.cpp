@@ -54,6 +54,14 @@ void MediaGenericPart::unloadHeavyPart() {
 void MediaGenericPart::hideSpoilers() {
 }
 
+Media::BubbleRoll MediaGenericPart::bubbleRoll(QSize outer) const {
+	return Media::BubbleRoll();
+}
+
+QMargins MediaGenericPart::bubbleRollRepaintMargins(QSize outer) const {
+	return QMargins();
+}
+
 auto MediaGenericPart::stickerTakePlayer(
 	not_null<DocumentData*> data,
 	const Lottie::ColorReplacements *replacements
@@ -368,6 +376,30 @@ void MediaGeneric::hideSpoilers() {
 	for (const auto &entry : _entries) {
 		entry.object->hideSpoilers();
 	}
+}
+
+Media::BubbleRoll MediaGeneric::bubbleRoll() const {
+	const auto outer = QSize(width(), height());
+	for (const auto &entry : _entries) {
+		if (const auto roll = entry.object->bubbleRoll(outer)) {
+			return roll;
+		}
+	}
+	return BubbleRoll();
+}
+
+QMargins MediaGeneric::bubbleRollRepaintMargins() const {
+	const auto outer = QSize(width(), height());
+	auto result = QMargins();
+	for (const auto &entry : _entries) {
+		const auto margins = entry.object->bubbleRollRepaintMargins(outer);
+		result = QMargins(
+			std::max(result.left(), margins.left()),
+			std::max(result.top(), margins.top()),
+			std::max(result.right(), margins.right()),
+			std::max(result.bottom(), margins.bottom()));
+	}
+	return result;
 }
 
 QMargins MediaGeneric::inBubblePadding() const {

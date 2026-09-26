@@ -2838,9 +2838,11 @@ int Element::textualMaxWidth() const {
 }
 
 auto Element::verticalRepaintRange() const -> VerticalRepaintRange {
+	const auto media = this->media();
+	const auto add = media ? media->bubbleRollRepaintMargins() : QMargins();
 	return {
-		.top = 0,
-		.height = height()
+		.top = -add.top(),
+		.height = height() + add.top() + add.bottom()
 	};
 }
 

@@ -668,7 +668,7 @@ public:
 		int top = 0;
 		int height = 0;
 	};
-	[[nodiscard]] virtual VerticalRepaintRange verticalRepaintRange() const;
+	[[nodiscard]] VerticalRepaintRange verticalRepaintRange() const;
 
 	[[nodiscard]] virtual bool isSignedAuthorElided() const;
 

@@ -5614,15 +5614,6 @@ void Message::itemDataChanged() {
 	}
 }
 
-auto Message::verticalRepaintRange() const -> VerticalRepaintRange {
-	const auto media = this->media();
-	const auto add = media ? media->bubbleRollRepaintMargins() : QMargins();
-	return {
-		.top = -add.top(),
-		.height = height() + add.top() + add.bottom()
-	};
-}
-
 void Message::refreshDataIdHook() {
 	if (_rightAction && base::take(_rightAction->link)) {
 		_rightAction->link = rightActionLink(_rightAction->lastPoint);
