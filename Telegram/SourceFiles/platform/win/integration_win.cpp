@@ -173,16 +173,14 @@ bool WindowsIntegration::processEvent(
 		}
 	}
 
+	// WHY: no WM_ENDSESSION case on purpose. Quitting from this filter destroys
+	// the windows while QWindowsContext::windowsProc still uses their
+	// QWindowsWindow; Qt's session manager emits aboutToQuit after that use.
 	switch (msg) {
 	case WM_COMMAND:
 		if (HIWORD(wParam) == THBN_CLICKED && _taskbarButtons) {
 			_taskbarButtons->buttonClicked(LOWORD(wParam));
 		}
-		break;
-
-	case WM_ENDSESSION:
-		Core::Sandbox::NotifySystemShuttingDown();
-		Core::Quit();
 		break;
 
 	case WM_TIMECHANGE:

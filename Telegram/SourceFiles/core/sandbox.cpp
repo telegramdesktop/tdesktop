@@ -109,7 +109,6 @@ constexpr auto kCleanupQuitTimeout = 30 * crl::time(1000);
 const char kOptionDeadlockDetector[] = "deadlock-detector";
 
 bool Sandbox::QuitOnStartRequested = false;
-bool Sandbox::SystemShuttingDown = false;
 
 Sandbox::Sandbox(int &argc, char **argv)
 : QApplication(argc, argv)
@@ -193,27 +192,9 @@ int Sandbox::start() {
 
 	crl::on_main(this, [=] { checkForQuit(); });
 	connect(this, &QCoreApplication::aboutToQuit, [=] {
-		// On Windows, Qt emits aboutToQuit synchronously from its
-		// WM_ENDSESSION handler (QWindowsContext::windowsProc). Running
-		// closeApplication() there destroys QWindows mid-dispatch and
-		// later WM_ENDSESSION messages delivered to other top-level
-		// HWNDs crash on virtual dispatch through stale QWindow*. Detect
-		// that path and defer cleanup to the next main-loop tick so Qt
-		// finishes delivering shutdown messages on still-live windows.
-		// On a normal quit (Ctrl+Q etc.) aboutToQuit fires from the
-		// exec() epilogue after the event loop has exited and queued
-		// events would not run, so we keep the synchronous teardown.
-		if (SystemShuttingDown) {
-			QMetaObject::invokeMethod(this, [=] {
-				customEnterFromEventLoop([&] {
-					closeApplication();
-				});
-			}, Qt::QueuedConnection);
-		} else {
-			customEnterFromEventLoop([&] {
-				closeApplication();
-			});
-		}
+		customEnterFromEventLoop([&] {
+			closeApplication();
+		});
 	});
 
 	// https://github.com/telegramdesktop/tdesktop/issues/948
@@ -273,10 +254,6 @@ int Sandbox::stopRunningInstance() {
 	}
 	LOG(("Cleanup: the running instance quit."));
 	return 0;
-}
-
-void Sandbox::NotifySystemShuttingDown() {
-	SystemShuttingDown = true;
 }
 
 void Sandbox::QuitWhenStarted() {
