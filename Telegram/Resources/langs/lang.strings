@@ -8964,6 +8964,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_import_failed" = "Couldn't import the wallet.";
 "lng_wallet_import_unconfirmed" = "Couldn't confirm the wallet import.";
 "lng_wallet_import_not_verified" = "Telegram couldn't verify ownership of this wallet. Keep your recovery phrase and contact support.";
+"lng_wallet_import_key_changing" = "Your wallet key is being changed. Try again once the change is confirmed.";
 "lng_wallet_create_error" = "Couldn't create a wallet.";
 "lng_wallet_phrase_error" = "Couldn't show the recovery phrase.";
 "lng_wallet_restore_error" = "Couldn't restore access to this wallet.";

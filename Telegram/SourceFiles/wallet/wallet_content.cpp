@@ -8720,6 +8720,8 @@ void RequestWalletReplace(
 			// refused; a retry cannot help, only support can.
 			const auto text = (error == u"REPLACE_STATE_UNCONFIRMED"_q)
 				? tr::lng_wallet_import_unconfirmed(tr::now)
+				: (error == u"REPLACE_KEY_CHANGING"_q)
+				? tr::lng_wallet_import_key_changing(tr::now)
 				: (error == u"WALLET_PROOF_INVALID"_q)
 				? tr::lng_wallet_import_not_verified(tr::now)
 				: ErrorWithType(tr::lng_wallet_import_failed(tr::now), error);
@@ -10184,6 +10186,8 @@ void WalletImportBox(
 					? QString()
 					: (error == u"PHRASE_INSTALL_FAILED"_q)
 					? tr::lng_wallet_key_save_error(tr::now)
+					: (error == u"PHRASE_KEY_CHANGING"_q)
+					? tr::lng_wallet_import_key_changing(tr::now)
 					: (error == u"PHRASE_VAULT_LOCKED"_q)
 					? VaultLockedText(&show->session())
 					: ErrorWithType(

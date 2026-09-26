@@ -523,6 +523,22 @@ struct MergedHead {
 	return key.isEmpty() ? u"(none)"_q : QString::fromLatin1(key.toHex());
 }
 
+[[nodiscard]] QString AwaitingKeyRefusal(
+		const CustodyStore &store,
+		const PhraseIdentity &identity,
+		const QString &outdated,
+		const QString &changing) {
+	const auto held = store.byAnchor(identity.anchor);
+	if (!held || !held->awaitingServerKey || held->signingKey.isEmpty()) {
+		return QString();
+	}
+	LOG(("Wallet Error: the record of anchor %1 awaits the server key "
+		"for signing key %2."
+		).arg(LogKey(identity.anchor)
+		).arg(LogKey(held->signingKey)));
+	return (held->signingKey == identity.signing) ? changing : outdated;
+}
+
 [[nodiscard]] QString LogWalletState(const MTPWalletState &state) {
 	return state.match([](const MTPDwalletState &data) {
 		return u"address=%1 key=%2 backup_enabled=%3 "
@@ -3981,6 +3997,13 @@ void Session::restoreFromWords(
 		}
 		return current;
 	};
+	const auto keyChangeRefusal = [=, this](const PhraseIdentity &identity) {
+		return AwaitingKeyRefusal(
+			custody(),
+			identity,
+			u"PHRASE_OUTDATED"_q,
+			u"PHRASE_KEY_CHANGING"_q);
+	};
 	// The resolved install travels into both continuations, which is what
 	// holds the grant across the worker call: the runtime cleanses the key
 	// as soon as the last handle goes, and the store runs on the worker.
@@ -4074,6 +4097,11 @@ void Session::restoreFromWords(
 				return;
 			} else if (!targetServed()) {
 				rollback([=] { fail(u"PHRASE_ORIGIN_EXPIRED"_q); });
+				return;
+			}
+			const auto refusal = keyChangeRefusal(identity);
+			if (!refusal.isEmpty()) {
+				rollback([=] { fail(refusal); });
 				return;
 			}
 			record.signingKey = identity.signing;
@@ -4177,6 +4205,11 @@ void Session::restoreFromWords(
 			LOG(("Wallet Error: that anchor is not the held anchor %1."
 				).arg(LogKey(held->publicKey)));
 			fail(u"PHRASE_OTHER_WALLET"_q);
+			return;
+		}
+		const auto refusal = keyChangeRefusal(identity);
+		if (!refusal.isEmpty()) {
+			fail(refusal);
 			return;
 		} else if (identity.signing != expectedKey) {
 			LOG(("Wallet Error: that signing key is not the served key %1."
@@ -5688,11 +5721,11 @@ bool Session::persistCustody(const CustodyRecord &record) {
 	// write leaves the old record and its secret exactly as before. The
 	// pending rotation is not a record and its secretRef never equals a
 	// record's, so it is never in this set; the new record's own secret is
-	// kept out by the secretRef comparison; and every caller has
-	// already established that the new record signs with the served key,
-	// so a superseded same-anchor record is at best the same phrase or an
-	// obsolete one, never the sole current custody of the wallet.
+	// kept out by the secretRef comparison.
 	const auto lifecycle = _engine->lifecycle();
+	// WHY: callers install a record signing with the served key, and never
+	// while a record of its anchor awaits the server key, so what this
+	// supersedes is the same phrase or an obsolete one, never the chain's key.
 	for (const auto &each : superseded) {
 		_engine->run([lifecycle, descriptor = DescriptorFromRecord(each)] {
 			lifecycle->delete_wallet(descriptor);
@@ -5816,6 +5849,13 @@ void Session::replaceWithImported(
 	};
 	const auto oldAddress = _address;
 	const auto lifecycle = _engine->lifecycle();
+	const auto keyChangeRefusal = [=, this](const PhraseIdentity &identity) {
+		return AwaitingKeyRefusal(
+			custody(),
+			identity,
+			u"REPLACE_OUTDATED_PHRASE"_q,
+			u"REPLACE_KEY_CHANGING"_q);
+	};
 	// The store authority is resolved the way restoreFromWords resolves it,
 	// and for the same reason the install ladder runs first: a cancelled
 	// chooser has to abort before wallet.replaceWallet is sent, so nothing
@@ -5824,6 +5864,11 @@ void Session::replaceWithImported(
 			PhraseIdentity identity,
 			CustodyInstall install,
 			std::vector<QString> phrase) {
+		const auto refusal = keyChangeRefusal(identity);
+		if (!refusal.isEmpty()) {
+			fail(refusal);
+			return;
+		}
 		auto recoveryWords = std::vector<std::string>();
 		recoveryWords.reserve(phrase.size());
 		for (const auto &word : phrase) {
@@ -5867,6 +5912,11 @@ void Session::replaceWithImported(
 					LOG(("Wallet Error: wallet.replaceWallet answered "
 						"another address."));
 					abandon(u"REPLACE_KEY_MISMATCH"_q);
+					return;
+				}
+				const auto refusal = keyChangeRefusal(identity);
+				if (!refusal.isEmpty()) {
+					abandon(refusal);
 					return;
 				}
 				finishConfirmedReplace(
@@ -5948,7 +5998,7 @@ void Session::replaceWithImported(
 	// The phrase's keys are derived on the engine worker before the install
 	// ladder opens anything, as restoreFromWords does, so an invalid phrase
 	// reaches no chooser and no store; they are deliberately not compared
-	// with the current wallet - importing another wallet's phrase is what
+	// with the served key - importing another wallet's phrase is what
 	// this replace is for. The address the server's wallet.replaceWallet
 	// answer serves is what confirms the wallet it accepted; the key it
 	// serves classifies the record through reconciliation.
@@ -5956,6 +6006,11 @@ void Session::replaceWithImported(
 			std::optional<PhraseIdentity> identity) mutable {
 		if (!identity) {
 			fail(u"REPLACE_INVALID_PHRASE"_q);
+			return;
+		}
+		const auto refusal = keyChangeRefusal(*identity);
+		if (!refusal.isEmpty()) {
+			fail(refusal);
 			return;
 		}
 		if (const auto install = auth.install) {
