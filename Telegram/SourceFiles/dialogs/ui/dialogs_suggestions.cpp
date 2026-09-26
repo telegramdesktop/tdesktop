@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_suggestions.h"
 
 #include "api/api_chat_participants.h"
+#include "api/api_peer_search.h"
 #include "apiwrap.h"
 #include "base/unixtime.h"
 #include "base/qt/qt_key_modifiers.h"
@@ -24,7 +25,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_filters.h"
 #include "data/data_download_manager.h"
 #include "data/data_folder.h"
+#include "data/data_messages.h"
 #include "data/data_peer_values.h"
+#include "data/data_search_controller.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "dialogs/ui/chat_search_empty.h"
@@ -47,7 +50,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/swipe_handler.h"
+#include "ui/effects/loading_element.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/effects/slide_animation.h"
 #include "ui/toast/toast.h"
 #include "ui/text/custom_emoji_helper.h"
 #include "ui/text/custom_emoji_text_badge.h"
@@ -85,6 +90,64 @@ constexpr auto kProbablyMaxChannels = 1000;
 constexpr auto kCollapsedAppsCount = 5;
 constexpr auto kProbablyMaxApps = 100;
 constexpr auto kSearchQueryDelay = crl::time(900);
+constexpr auto kSearchPerPage = 50;
+constexpr auto kQueryPreviewLimit = 32;
+
+[[nodiscard]] bool MatchesSearchWords(
+		not_null<PeerData*> peer,
+		const QStringList &words) {
+	const auto &names = peer->nameWords();
+	return ranges::all_of(words, [&](const QString &word) {
+		return ranges::any_of(names, [&](const QString &name) {
+			return name.startsWith(word);
+		});
+	});
+}
+
+[[nodiscard]] std::vector<not_null<PeerData*>> FilterPeers(
+		const std::vector<not_null<PeerData*>> &list,
+		Fn<bool(not_null<PeerData*>)> accept) {
+	auto result = std::vector<not_null<PeerData*>>();
+	for (const auto &peer : list) {
+		if (accept(peer)) {
+			result.push_back(peer);
+		}
+	}
+	return result;
+}
+
+void UpdateVisibleRange(
+		not_null<Ui::ElasticScroll*> scroll,
+		not_null<InnerWidget*> content,
+		int skipTop = 0) {
+	const auto top = scroll->scrollTop() - skipTop;
+	content->setVisibleTopBottom(top, top + scroll->height());
+}
+
+void DispatchResultsKey(
+		not_null<InnerWidget*> content,
+		Qt::Key direction,
+		int pageSize) {
+	const auto key = !pageSize
+		? direction
+		: (direction == Qt::Key_Down)
+		? Qt::Key_PageDown
+		: Qt::Key_PageUp;
+	auto event = QKeyEvent(QEvent::KeyPress, key, Qt::NoModifier);
+	content->processKeyDispatch(&event);
+}
+
+[[nodiscard]] TextWithEntities NoResultsText(const QString &query) {
+	const auto preview = (query.size() > kQueryPreviewLimit + 3)
+		? (query.mid(0, kQueryPreviewLimit) + Ui::kQEllipsis)
+		: query;
+	auto result = tr::lng_search_tab_no_results(tr::now, tr::bold);
+	result.append('\n').append(tr::lng_search_tab_no_results_text(
+		tr::now,
+		lt_query,
+		preview));
+	return result;
+}
 
 class RecentRow final : public PeerListRow {
 public:
@@ -476,14 +539,29 @@ protected:
 
 	[[nodiscard]] bool expandedCurrent() const;
 	[[nodiscard]] rpl::producer<bool> expanded() const;
+	void collapse();
+
+	void setupActiveRows();
+	[[nodiscard]] bool isActive(not_null<PeerData*> peer) const;
 
 	void setupPlainDivider(rpl::producer<QString> title);
 	void setupExpandDivider(rpl::producer<QString> title);
+
+	void setupQueryFilter(
+		rpl::producer<QString> query,
+		rpl::producer<std::vector<not_null<PeerData*>>> found,
+		Fn<void()> refilter);
+	[[nodiscard]] const QStringList &words() const;
+	[[nodiscard]] const std::vector<not_null<PeerData*>> &found() const;
+	void removeFound(not_null<PeerData*> peer);
 
 	Fn<void()> _closeCallback;
 
 private:
 	const not_null<Window::SessionController*> _window;
+	QStringList _words;
+	std::vector<not_null<PeerData*>> _found;
+	rpl::lifetime _filterLifetime;
 
 	std::optional<QPoint> _chatPreviewTouchGlobal;
 	rpl::event_stream<> _touchCancelRequests;
@@ -491,6 +569,7 @@ private:
 	rpl::variable<int> _count;
 	rpl::variable<Ui::RpWidget*> _toggleExpanded = nullptr;
 	rpl::variable<bool> _expanded = false;
+	History *_activeHistory = nullptr;
 
 };
 
@@ -526,8 +605,10 @@ private:
 class MyChannelsController final
 	: public Suggestions::ObjectListController {
 public:
-	explicit MyChannelsController(
-		not_null<Window::SessionController*> window);
+	MyChannelsController(
+		not_null<Window::SessionController*> window,
+		rpl::producer<QString> query,
+		rpl::producer<std::vector<not_null<PeerData*>>> found);
 
 	void prepare() override;
 	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
@@ -537,8 +618,34 @@ public:
 private:
 	void appendRow(not_null<ChannelData*> channel);
 	void fill(bool force = false);
+	void refilter();
+	[[nodiscard]] const std::vector<not_null<History*>> &shown() const;
 
+	rpl::producer<QString> _query;
+	rpl::producer<std::vector<not_null<PeerData*>>> _foundValue;
 	std::vector<not_null<History*>> _channels;
+	std::vector<not_null<History*>> _filtered;
+	rpl::lifetime _lifetime;
+
+};
+
+class GlobalPeersController final
+	: public Suggestions::ObjectListController {
+public:
+	GlobalPeersController(
+		not_null<Window::SessionController*> window,
+		rpl::producer<std::vector<not_null<PeerData*>>> peers,
+		bool expandable);
+
+	void prepare() override;
+
+private:
+	void fill();
+	void appendRow(not_null<PeerData*> peer);
+
+	rpl::producer<std::vector<not_null<PeerData*>>> _results;
+	std::vector<not_null<PeerData*>> _peers;
+	const bool _expandable = false;
 	rpl::lifetime _lifetime;
 
 };
@@ -557,7 +664,6 @@ private:
 	void fill();
 	void appendRow(not_null<ChannelData*> channel);
 
-	History *_activeHistory = nullptr;
 	bool _requested = false;
 	rpl::lifetime _lifetime;
 
@@ -566,8 +672,10 @@ private:
 class RecentAppsController final
 	: public Suggestions::ObjectListController {
 public:
-	explicit RecentAppsController(
-		not_null<Window::SessionController*> window);
+	RecentAppsController(
+		not_null<Window::SessionController*> window,
+		rpl::producer<QString> query,
+		rpl::producer<std::vector<not_null<PeerData*>>> found);
 
 	void prepare() override;
 	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
@@ -582,8 +690,13 @@ public:
 private:
 	void appendRow(not_null<UserData*> bot);
 	void fill();
+	void refilter();
+	[[nodiscard]] const std::vector<not_null<UserData*>> &bots() const;
 
+	rpl::producer<QString> _query;
+	rpl::producer<std::vector<not_null<PeerData*>>> _foundValue;
 	std::vector<not_null<UserData*>> _bots;
+	std::vector<not_null<UserData*>> _filtered;
 	rpl::event_stream<> _refreshed;
 	rpl::lifetime _lifetime;
 
@@ -717,6 +830,74 @@ rpl::producer<bool> Suggestions::ObjectListController::expanded() const {
 	return _expanded.value();
 }
 
+void Suggestions::ObjectListController::collapse() {
+	_expanded = false;
+}
+
+void Suggestions::ObjectListController::setupQueryFilter(
+		rpl::producer<QString> query,
+		rpl::producer<std::vector<not_null<PeerData*>>> found,
+		Fn<void()> refilter) {
+	std::move(query) | rpl::on_next([=](const QString &query) {
+		auto words = TextUtilities::PrepareSearchWords(query);
+		if (_words != words) {
+			_words = std::move(words);
+			refilter();
+			collapse();
+		}
+	}, _filterLifetime);
+
+	std::move(
+		found
+	) | rpl::on_next([=](std::vector<not_null<PeerData*>> &&peers) {
+		_found = std::move(peers);
+		if (!_words.isEmpty()) {
+			refilter();
+		}
+	}, _filterLifetime);
+}
+
+const QStringList &Suggestions::ObjectListController::words() const {
+	return _words;
+}
+
+auto Suggestions::ObjectListController::found() const
+-> const std::vector<not_null<PeerData*>> & {
+	return _found;
+}
+
+void Suggestions::ObjectListController::removeFound(
+		not_null<PeerData*> peer) {
+	_found.erase(ranges::remove(_found, peer), end(_found));
+}
+
+void Suggestions::ObjectListController::setupActiveRows() {
+	_window->activeChatValue(
+	) | rpl::on_next([=](const Dialogs::Key &key) {
+		const auto history = key.history();
+		if (_activeHistory == history) {
+			return;
+		}
+		const auto toggle = [&](History *history, bool active) {
+			if (!history) {
+				return;
+			}
+			const auto id = history->peer->id.value;
+			if (const auto row = delegate()->peerListFindRow(id)) {
+				static_cast<ChannelRow*>(row)->setActive(active);
+				delegate()->peerListUpdateRow(row);
+			}
+		};
+		toggle(std::exchange(_activeHistory, history), false);
+		toggle(_activeHistory, true);
+	}, lifetime());
+}
+
+bool Suggestions::ObjectListController::isActive(
+		not_null<PeerData*> peer) const {
+	return _activeHistory && (_activeHistory->peer == peer);
+}
+
 void Suggestions::ObjectListController::rowClicked(
 		not_null<PeerListRow*> row) {
 	_chosen.fire(row->peer());
@@ -783,12 +964,13 @@ void Suggestions::ObjectListController::setupExpandDivider(
 			st::searchedBarLink);
 		toggle->show();
 		toggle->setClickedCallback([=] {
-			const auto expand = !_expanded.current();
-			toggle->setText(expand
+			_expanded = !_expanded.current();
+		});
+		_expanded.value() | rpl::on_next([=](bool expanded) {
+			toggle->setText(expanded
 				? tr::lng_channels_your_less(tr::now)
 				: tr::lng_channels_your_more(tr::now));
-			_expanded = expand;
-		});
+		}, toggle->lifetime());
 		rpl::combine(
 			raw->sizeValue(),
 			toggle->widthValue()
@@ -982,8 +1164,12 @@ void RecentsController::subscribeToEvents() {
 }
 
 MyChannelsController::MyChannelsController(
-	not_null<Window::SessionController*> window)
-: ObjectListController(window) {
+	not_null<Window::SessionController*> window,
+	rpl::producer<QString> query,
+	rpl::producer<std::vector<not_null<PeerData*>>> found)
+: ObjectListController(window)
+, _query(std::move(query))
+, _foundValue(std::move(found)) {
 }
 
 void MyChannelsController::prepare() {
@@ -1002,11 +1188,13 @@ void MyChannelsController::prepare() {
 			return;
 		}
 		_channels.erase(i, end(_channels));
+		_filtered.erase(ranges::remove(_filtered, history), end(_filtered));
+		removeFound(channel);
 		const auto row = delegate()->peerListFindRow(channel->id.value);
 		if (row) {
 			delegate()->peerListRemoveRow(row);
 		}
-		setCount(_channels.size());
+		setCount(shown().size());
 		fill(true);
 	}, _lifetime);
 
@@ -1045,11 +1233,15 @@ void MyChannelsController::prepare() {
 		for (const auto &row : list->indexed()->all()) {
 			if (const auto history = row->history()) {
 				if (history->peer->isBroadcast()) {
-					if (ranges::contains(_channels, not_null(history))) {
+					if (!ranges::contains(_channels, not_null(history))) {
 						_channels.push_back(history);
 					}
 				}
 			}
+		}
+		if (!words().isEmpty()) {
+			refilter();
+			return;
 		}
 		const auto was = countCurrent();
 		const auto now = int(_channels.size());
@@ -1058,6 +1250,37 @@ void MyChannelsController::prepare() {
 			fill();
 		}
 	}, _lifetime);
+
+	setupQueryFilter(
+		std::move(_query),
+		std::move(_foundValue),
+		[=] { refilter(); });
+}
+
+void MyChannelsController::refilter() {
+	_filtered.clear();
+	if (!words().isEmpty()) {
+		for (const auto &history : _channels) {
+			if (MatchesSearchWords(history->peer, words())) {
+				_filtered.push_back(history);
+			}
+		}
+		for (const auto &peer : found()) {
+			const auto history = peer->owner().history(peer);
+			if (!ranges::contains(_filtered, history)) {
+				_filtered.push_back(history);
+			}
+		}
+	}
+	for (auto i = delegate()->peerListFullRowsCount(); i != 0;) {
+		delegate()->peerListRemoveRow(delegate()->peerListRowAt(--i));
+	}
+	setCount(shown().size());
+	fill(true);
+}
+
+const std::vector<not_null<History*>> &MyChannelsController::shown() const {
+	return words().isEmpty() ? _channels : _filtered;
 }
 
 void MyChannelsController::fill(bool force) {
@@ -1071,7 +1294,7 @@ void MyChannelsController::fill(bool force) {
 		return;
 	} else if (delta > 0) {
 		for (auto i = already; i != limit; ++i) {
-			appendRow(_channels[i]->peer->asBroadcast());
+			appendRow(shown()[i]->peer->asBroadcast());
 		}
 	} else if (delta < 0) {
 		for (auto i = already; i != limit;) {
@@ -1112,6 +1335,82 @@ base::unique_qptr<Ui::PopupMenu> MyChannelsController::rowContextMenu(
 	return result;
 }
 
+GlobalPeersController::GlobalPeersController(
+	not_null<Window::SessionController*> window,
+	rpl::producer<std::vector<not_null<PeerData*>>> peers,
+	bool expandable)
+: ObjectListController(window)
+, _results(std::move(peers))
+, _expandable(expandable) {
+}
+
+void GlobalPeersController::prepare() {
+	if (_expandable) {
+		setupExpandDivider(tr::lng_search_global_results());
+	} else {
+		setupPlainDivider(tr::lng_search_global_results());
+	}
+	setupActiveRows();
+
+	expanded() | rpl::skip(1) | rpl::on_next([=] {
+		fill();
+	}, _lifetime);
+
+	std::move(
+		_results
+	) | rpl::on_next([=](std::vector<not_null<PeerData*>> &&peers) {
+		for (auto i = delegate()->peerListFullRowsCount(); i != 0;) {
+			delegate()->peerListRemoveRow(delegate()->peerListRowAt(--i));
+		}
+		_peers = std::move(peers);
+		setCount(_peers.size());
+		collapse();
+		fill();
+	}, _lifetime);
+}
+
+void GlobalPeersController::fill() {
+	const auto count = int(_peers.size());
+	const auto limit = (_expandable && !expandedCurrent())
+		? std::min(count, kCollapsedChannelsCount)
+		: count;
+	const auto already = delegate()->peerListFullRowsCount();
+	for (auto i = already; i < limit; ++i) {
+		appendRow(_peers[i]);
+	}
+	for (auto i = already; i > limit;) {
+		delegate()->peerListRemoveRow(delegate()->peerListRowAt(--i));
+	}
+	delegate()->peerListRefreshRows();
+}
+
+void GlobalPeersController::appendRow(not_null<PeerData*> peer) {
+	auto row = std::make_unique<ChannelRow>(peer);
+	row->setActive(isActive(peer));
+	auto status = QStringList();
+	if (const auto username = peer->username(); !username.isEmpty()) {
+		status.push_back('@' + username);
+	}
+	const auto channel = peer->asChannel();
+	const auto user = peer->asUser();
+	const auto info = user ? user->botInfo.get() : nullptr;
+	if (channel && channel->membersCountKnown()) {
+		status.push_back(tr::lng_chat_status_subscribers(
+			tr::now,
+			lt_count_decimal,
+			channel->membersCount()));
+	} else if (info && info->activeUsers) {
+		status.push_back(tr::lng_bot_status_users(
+			tr::now,
+			lt_count_decimal,
+			info->activeUsers));
+	}
+	if (!status.isEmpty()) {
+		row->setCustomStatus(status.join(u", "_q));
+	}
+	delegate()->peerListAppendRow(std::move(row));
+}
+
 RecommendationsController::RecommendationsController(
 	not_null<Window::SessionController*> window)
 : ObjectListController(window) {
@@ -1119,6 +1418,7 @@ RecommendationsController::RecommendationsController(
 
 void RecommendationsController::prepare() {
 	setupPlainDivider(tr::lng_channels_recommended());
+	setupActiveRows();
 	fill();
 }
 
@@ -1148,31 +1448,11 @@ void RecommendationsController::fill() {
 	}
 	delegate()->peerListRefreshRows();
 	setCount(delegate()->peerListFullRowsCount());
-
-	window()->activeChatValue() | rpl::on_next([=](const Key &key) {
-		const auto history = key.history();
-		if (_activeHistory == history) {
-			return;
-		} else if (_activeHistory) {
-			const auto id = _activeHistory->peer->id.value;
-			if (const auto row = delegate()->peerListFindRow(id)) {
-				static_cast<ChannelRow*>(row)->setActive(false);
-				delegate()->peerListUpdateRow(row);
-			}
-		}
-		_activeHistory = history;
-		if (_activeHistory) {
-			const auto id = _activeHistory->peer->id.value;
-			if (const auto row = delegate()->peerListFindRow(id)) {
-				static_cast<ChannelRow*>(row)->setActive(true);
-				delegate()->peerListUpdateRow(row);
-			}
-		}
-	}, _lifetime);
 }
 
 void RecommendationsController::appendRow(not_null<ChannelData*> channel) {
 	auto row = std::make_unique<ChannelRow>(channel);
+	row->setActive(isActive(channel));
 	if (channel->membersCountKnown()) {
 		row->setCustomStatus((channel->isBroadcast()
 			? tr::lng_chat_status_subscribers
@@ -1185,8 +1465,12 @@ void RecommendationsController::appendRow(not_null<ChannelData*> channel) {
 }
 
 RecentAppsController::RecentAppsController(
-	not_null<Window::SessionController*> window)
-: ObjectListController(window) {
+	not_null<Window::SessionController*> window,
+	rpl::producer<QString> query,
+	rpl::producer<std::vector<not_null<PeerData*>>> found)
+: ObjectListController(window)
+, _query(std::move(query))
+, _foundValue(std::move(found)) {
 }
 
 void RecentAppsController::prepare() {
@@ -1204,16 +1488,43 @@ void RecentAppsController::prepare() {
 				}
 			}
 		}
-		setCount(_bots.size());
-		while (delegate()->peerListFullRowsCount()) {
-			delegate()->peerListRemoveRow(delegate()->peerListRowAt(0));
-		}
-		fill();
+		refilter();
 	}, _lifetime);
 
 	expanded() | rpl::skip(1) | rpl::on_next([=] {
 		fill();
 	}, _lifetime);
+
+	setupQueryFilter(
+		std::move(_query),
+		std::move(_foundValue),
+		[=] { refilter(); });
+}
+
+void RecentAppsController::refilter() {
+	_filtered.clear();
+	if (!words().isEmpty()) {
+		for (const auto &bot : _bots) {
+			if (MatchesSearchWords(bot, words())) {
+				_filtered.push_back(bot);
+			}
+		}
+		for (const auto &peer : found()) {
+			const auto bot = peer->asUser();
+			if (bot && !ranges::contains(_filtered, not_null(bot))) {
+				_filtered.push_back(bot);
+			}
+		}
+	}
+	setCount(bots().size());
+	while (delegate()->peerListFullRowsCount()) {
+		delegate()->peerListRemoveRow(delegate()->peerListRowAt(0));
+	}
+	fill();
+}
+
+const std::vector<not_null<UserData*>> &RecentAppsController::bots() const {
+	return words().isEmpty() ? _bots : _filtered;
 }
 
 base::unique_qptr<Ui::PopupMenu> RecentAppsController::rowContextMenu(
@@ -1273,7 +1584,7 @@ void RecentAppsController::fill() {
 		return;
 	} else if (delta > 0) {
 		for (auto i = already; i != limit; ++i) {
-			appendRow(_bots[i]);
+			appendRow(bots()[i]);
 		}
 	} else if (delta < 0) {
 		for (auto i = already; i != limit;) {
@@ -1364,6 +1675,19 @@ void PopularAppsController::appendRow(not_null<UserData*> bot) {
 	delegate()->peerListAppendRow(std::move(row));
 }
 
+struct Suggestions::SearchList {
+	Key key;
+	std::unique_ptr<Ui::ElasticScroll> scroll;
+	not_null<Ui::RpWidget*> wrap;
+	not_null<InnerWidget*> content;
+	QString query;
+	Data::MessagePosition offset;
+	int32 offsetRate = 0;
+	mtpRequestId requestId = 0;
+	int received = 0;
+	bool loaded = false;
+};
+
 Suggestions::Suggestions(
 	not_null<QWidget*> parent,
 	not_null<Window::SessionController*> controller,
@@ -1392,6 +1716,13 @@ Suggestions::Suggestions(
 	_channelsScroll->setOwnedWidget(object_ptr<Ui::VerticalLayout>(this)))
 , _myChannels(setupMyChannels())
 , _recommendations(setupRecommendations())
+, _globalChannels(setupGlobalPeers(
+	_channelsScroll.get(),
+	_channelsContent,
+	_globalChannelsResults.value(),
+	_myChannels.get(),
+	true))
+, _channelsPosts(setupChannelsPosts())
 , _emptyChannels(_channelsContent->add(setupEmptyChannels()))
 , _appsScroll(std::make_unique<Ui::ElasticScroll>(this))
 , _appsContent(
@@ -1400,6 +1731,12 @@ Suggestions::Suggestions(
 , _postsWrap(_postsScroll->setOwnedWidget(object_ptr<Ui::RpWidget>(this)))
 , _recentApps(setupRecentApps())
 , _popularApps(setupPopularApps())
+, _globalApps(setupGlobalPeers(
+	_appsScroll.get(),
+	_appsContent,
+	_globalAppsResults.value(),
+	_recentApps.get(),
+	false))
 , _searchQueryTimer([=] { applySearchQuery(); }) {
 	setupTabs();
 	setupChats();
@@ -1407,7 +1744,17 @@ Suggestions::Suggestions(
 	setupApps();
 }
 
-Suggestions::~Suggestions() = default;
+Suggestions::~Suggestions() {
+	const auto cancel = [&](const std::unique_ptr<SearchList> &search) {
+		if (search && search->requestId) {
+			_controller->session().api().request(search->requestId).cancel();
+		}
+	};
+	cancel(_channelsPosts);
+	for (const auto &[key, search] : _searchLists) {
+		cancel(search);
+	}
+}
 
 void Suggestions::setupTabs() {
 	_tabsScroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
@@ -1586,22 +1933,46 @@ void Suggestions::setupChannels() {
 		_myChannels->wrap->toggle(count > 0, anim::type::instant);
 	}, _myChannels->wrap->lifetime());
 
-	_recommendations->count.value() | rpl::on_next([=](int count) {
-		_recommendations->wrap->toggle(count > 0, anim::type::instant);
+	rpl::combine(
+		_recommendations->count.value(),
+		_channelsQuery.value()
+	) | rpl::on_next([=](int count, const QString &query) {
+		_recommendations->wrap->toggle(
+			count > 0 && query.isEmpty(),
+			anim::type::instant);
 	}, _recommendations->wrap->lifetime());
+
+	_globalChannels->count.value() | rpl::on_next([=](int count) {
+		_globalChannels->wrap->toggle(count > 0, anim::type::instant);
+	}, _globalChannels->wrap->lifetime());
 
 	_emptyChannels->toggleOn(
 		rpl::combine(
 			_myChannels->count.value(),
 			_recommendations->count.value(),
-			rpl::mappers::_1 + rpl::mappers::_2 == 0),
+			_globalChannels->count.value(),
+			_channelsQuery.value(),
+			_channelsLoading.value(),
+			_channelsHasPosts.value()
+		) | rpl::map([](
+				int my,
+				int recommended,
+				int global,
+				const QString &query,
+				bool loading,
+				bool posts) {
+			return query.isEmpty()
+				? !(my + recommended)
+				: (!(my + global) && !loading && !posts);
+		}),
 		anim::type::instant);
 
 	_channelsScroll->setVisible(_key.current().tab == Tab::Channels);
 	_channelsScroll->setCustomTouchProcess([=](not_null<QTouchEvent*> e) {
 		const auto myChannels = _myChannels->processTouch(e);
 		const auto recommendations = _recommendations->processTouch(e);
-		return myChannels || recommendations;
+		const auto globalChannels = _globalChannels->processTouch(e);
+		return myChannels || recommendations || globalChannels;
 	});
 }
 
@@ -1610,15 +1981,55 @@ void Suggestions::setupApps() {
 		_recentApps->wrap->toggle(count > 0, anim::type::instant);
 	}, _recentApps->wrap->lifetime());
 
-	_popularApps->count.value() | rpl::on_next([=](int count) {
-		_popularApps->wrap->toggle(count > 0, anim::type::instant);
+	rpl::combine(
+		_popularApps->count.value(),
+		_appsQuery.value()
+	) | rpl::on_next([=](int count, const QString &query) {
+		_popularApps->wrap->toggle(
+			count > 0 && query.isEmpty(),
+			anim::type::instant);
 	}, _popularApps->wrap->lifetime());
+
+	_globalApps->count.value() | rpl::on_next([=](int count) {
+		_globalApps->wrap->toggle(count > 0, anim::type::instant);
+	}, _globalApps->wrap->lifetime());
+
+	const auto loadingRows = _appsContent->add(
+		object_ptr<Ui::SlideWrap<Ui::RpWidget>>(
+			_appsContent,
+			Ui::CreateLoadingPeerListItemWidget(
+				_appsContent,
+				st::recentPeersList.item,
+				2,
+				std::nullopt)));
+	loadingRows->toggleOn(_appsLoading.value(), anim::type::instant);
+
+	const auto empty = _appsContent->add(setupEmpty(
+		_appsContent,
+		_appsScroll.get(),
+		SearchEmptyIcon::NoResults,
+		_appsQuery.value() | rpl::map(NoResultsText)));
+	empty->toggleOn(
+		rpl::combine(
+			_recentApps->count.value(),
+			_globalApps->count.value(),
+			_appsQuery.value(),
+			_appsLoading.value()
+		) | rpl::map([](
+				int recent,
+				int global,
+				const QString &query,
+				bool loading) {
+			return !query.isEmpty() && !(recent + global) && !loading;
+		}),
+		anim::type::instant);
 
 	_appsScroll->setVisible(_key.current().tab == Tab::Apps);
 	_appsScroll->setCustomTouchProcess([=](not_null<QTouchEvent*> e) {
 		const auto recentApps = _recentApps->processTouch(e);
 		const auto popularApps = _popularApps->processTouch(e);
-		return recentApps || popularApps;
+		const auto globalApps = _globalApps->processTouch(e);
+		return recentApps || popularApps || globalApps;
 	});
 }
 
@@ -1645,26 +2056,31 @@ Ui::Controls::SwipeHandlerArgs Suggestions::generateIncompleteSwipeArgs() {
 		}
 	};
 	auto init = [=](Ui::Controls::SwipeHandlerInitData data) {
-		if (!_tabs) {
-			return Ui::Controls::SwipeHandlerFinishData();
-		}
-		const auto activeSection = _tabs->activeSection();
-		const auto isToLeft = data.direction == Qt::RightToLeft;
-		if ((isToLeft && activeSection > 0)
-			|| (!isToLeft && activeSection < _tabKeys.size() - 1)) {
-			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
-				if (_tabs
-					&& _tabs->activeSection() == activeSection) {
-					_swipeBackData = {};
-					_tabs->setActiveSection(isToLeft
-						? activeSection - 1
-						: activeSection + 1);
-				}
-			});
-		}
-		return Ui::Controls::SwipeHandlerFinishData();
+		return swipeTabFinishData(data.direction, [=] {
+			_swipeBackData = {};
+		});
 	};
 	return { .widget = this, .update = update, .init = init };
+}
+
+auto Suggestions::swipeTabFinishData(
+	Qt::LayoutDirection direction,
+	Fn<void()> finished)
+-> Ui::Controls::SwipeHandlerFinishData {
+	const auto active = _tabs->activeSection();
+	const auto target = active
+		+ ((direction == Qt::RightToLeft) ? -1 : 1);
+	if (target < 0 || target >= int(_tabKeys.size())) {
+		return {};
+	}
+	return Ui::Controls::DefaultSwipeBackHandlerFinishData(
+		crl::guard(this, [=] {
+			if (_tabs->activeSection() == active) {
+				finished();
+				_swipeSwitch = true;
+				_tabs->setActiveSection(target);
+			}
+		}));
 }
 
 void Suggestions::reinstallSwipe(not_null<Ui::ElasticScroll*> scroll) {
@@ -1678,10 +2094,63 @@ void Suggestions::reinstallSwipe(not_null<Ui::ElasticScroll*> scroll) {
 }
 
 void Suggestions::selectJump(Qt::Key direction, int pageSize) {
+	if (const auto search = shownSearchList(_key.current())) {
+		DispatchResultsKey(search->content, direction, pageSize);
+		return;
+	}
 	switch (_key.current().tab) {
 	case Tab::Chats: selectJumpChats(direction, pageSize); return;
 	case Tab::Channels: selectJumpChannels(direction, pageSize); return;
 	case Tab::Apps: selectJumpApps(direction, pageSize); return;
+	case Tab::Posts:
+		if (_postsContent) {
+			DispatchResultsKey(_postsContent, direction, pageSize);
+		}
+		return;
+	}
+}
+
+void Suggestions::selectJumpSections(
+		const std::vector<Fn<JumpResult(Qt::Key, int)>> &sections,
+		not_null<Ui::ElasticScroll*> scroll,
+		Qt::Key direction,
+		int pageSize) {
+	const auto count = int(sections.size());
+	const auto selected = int(ranges::find_if(sections, [](const auto &jump) {
+		return jump(Qt::Key(), 0) == JumpResult::Applied;
+	}) - begin(sections));
+	if (direction == Qt::Key_Down) {
+		auto from = selected;
+		if (from == count) {
+			for (auto i = 0; i != count; ++i) {
+				if (sections[i](direction, 0) == JumpResult::Applied) {
+					from = i;
+					break;
+				}
+			}
+			if (from == count || !pageSize) {
+				return;
+			}
+		}
+		if (sections[from](direction, pageSize)
+			== JumpResult::AppliedAndOut) {
+			for (auto i = from + 1; i != count; ++i) {
+				if (sections[i](direction, 0) == JumpResult::Applied) {
+					return;
+				}
+			}
+			sections[from](Qt::Key_Up, -1);
+		}
+	} else if (direction == Qt::Key_Up && selected < count) {
+		if (sections[selected](direction, pageSize)
+			== JumpResult::AppliedAndOut) {
+			for (auto i = selected; i != 0;) {
+				if (sections[--i](direction, -1) == JumpResult::Applied) {
+					return;
+				}
+			}
+			scroll->scrollTo(0);
+		}
 	}
 }
 
@@ -1734,132 +2203,52 @@ void Suggestions::selectJumpChats(Qt::Key direction, int pageSize) {
 }
 
 void Suggestions::selectJumpChannels(Qt::Key direction, int pageSize) {
-	const auto myChannelsHasSelection = [=] {
-		return _myChannels->selectJump({}, 0) == JumpResult::Applied;
-	};
-	const auto recommendationsHasSelection = [=] {
-		return _recommendations->selectJump({}, 0) == JumpResult::Applied;
-	};
-	if (pageSize) {
-		if (direction == Qt::Key_Down) {
-			if (recommendationsHasSelection()) {
-				_recommendations->selectJump(direction, pageSize);
-			} else if (myChannelsHasSelection()) {
-				if (_myChannels->selectJump(direction, pageSize)
-					== JumpResult::AppliedAndOut) {
-					_recommendations->selectJump(direction, 0);
-				}
-			} else if (_myChannels->count.current()) {
-				_myChannels->selectJump(direction, 0);
-				_myChannels->selectJump(direction, pageSize);
-			} else if (_recommendations->count.current()) {
-				_recommendations->selectJump(direction, 0);
-				_recommendations->selectJump(direction, pageSize);
-			}
-		} else if (direction == Qt::Key_Up) {
-			if (myChannelsHasSelection()) {
-				if (_myChannels->selectJump(direction, pageSize)
-					== JumpResult::AppliedAndOut) {
-					_channelsScroll->scrollTo(0);
-				}
-			} else if (recommendationsHasSelection()) {
-				if (_recommendations->selectJump(direction, pageSize)
-					== JumpResult::AppliedAndOut) {
-					_myChannels->selectJump(direction, -1);
-				}
-			}
-		}
-	} else if (direction == Qt::Key_Up) {
-		if (myChannelsHasSelection()) {
-			_myChannels->selectJump(direction, 0);
-		} else if (_recommendations->selectJump(direction, 0)
-			== JumpResult::AppliedAndOut) {
-			_myChannels->selectJump(direction, -1);
-		} else if (!recommendationsHasSelection()) {
-			if (_myChannels->selectJump(direction, 0)
-				== JumpResult::AppliedAndOut) {
-				_channelsScroll->scrollTo(0);
-			}
-		}
-	} else if (direction == Qt::Key_Down) {
-		if (recommendationsHasSelection()) {
-			_recommendations->selectJump(direction, 0);
-		} else if (_myChannels->selectJump(direction, 0)
-			== JumpResult::AppliedAndOut) {
-			_recommendations->selectJump(direction, 0);
-		} else if (!myChannelsHasSelection()) {
-			if (_recommendations->selectJump(direction, 0)
-				== JumpResult::AppliedAndOut) {
-				_myChannels->selectJump(direction, 0);
-			}
-		}
+	if (_channelsQuery.current().isEmpty()) {
+		selectJumpSections(
+			{ _myChannels->selectJump, _recommendations->selectJump },
+			_channelsScroll.get(),
+			direction,
+			pageSize);
+		return;
 	}
+	const auto posts = _channelsPosts->content;
+	const auto postsJump = [=](Qt::Key direction, int pageSize) {
+		const auto had = posts->hasSelection();
+		if (!_channelsHasPosts.current()) {
+			return JumpResult::NotApplied;
+		} else if (direction == Qt::Key()
+			|| (direction == Qt::Key_Up && !had)) {
+			return had ? JumpResult::Applied : JumpResult::NotApplied;
+		}
+		_channelsPostsKeyJump = true;
+		DispatchResultsKey(posts, direction, std::max(pageSize, 0));
+		_channelsPostsKeyJump = false;
+		return posts->hasSelection()
+			? JumpResult::Applied
+			: had
+			? JumpResult::AppliedAndOut
+			: JumpResult::NotApplied;
+	};
+	selectJumpSections(
+		{ _myChannels->selectJump, _globalChannels->selectJump, postsJump },
+		_channelsScroll.get(),
+		direction,
+		pageSize);
 }
 
 void Suggestions::selectJumpApps(Qt::Key direction, int pageSize) {
-	const auto recentAppsHasSelection = [=] {
-		return _recentApps->selectJump({}, 0) == JumpResult::Applied;
-	};
-	const auto popularAppsHasSelection = [=] {
-		return _popularApps->selectJump({}, 0) == JumpResult::Applied;
-	};
-	if (pageSize) {
-		if (direction == Qt::Key_Down) {
-			if (popularAppsHasSelection()) {
-				_popularApps->selectJump(direction, pageSize);
-			} else if (recentAppsHasSelection()) {
-				if (_recentApps->selectJump(direction, pageSize)
-					== JumpResult::AppliedAndOut) {
-					_popularApps->selectJump(direction, 0);
-				}
-			} else if (_recentApps->count.current()) {
-				_recentApps->selectJump(direction, 0);
-				_recentApps->selectJump(direction, pageSize);
-			} else if (_popularApps->count.current()) {
-				_popularApps->selectJump(direction, 0);
-				_popularApps->selectJump(direction, pageSize);
-			}
-		} else if (direction == Qt::Key_Up) {
-			if (recentAppsHasSelection()) {
-				if (_recentApps->selectJump(direction, pageSize)
-					== JumpResult::AppliedAndOut) {
-					_channelsScroll->scrollTo(0);
-				}
-			} else if (popularAppsHasSelection()) {
-				if (_popularApps->selectJump(direction, pageSize)
-					== JumpResult::AppliedAndOut) {
-					_recentApps->selectJump(direction, -1);
-				}
-			}
-		}
-	} else if (direction == Qt::Key_Up) {
-		if (recentAppsHasSelection()) {
-			_recentApps->selectJump(direction, 0);
-		} else if (_popularApps->selectJump(direction, 0)
-			== JumpResult::AppliedAndOut) {
-			_recentApps->selectJump(direction, -1);
-		} else if (!popularAppsHasSelection()) {
-			if (_recentApps->selectJump(direction, 0)
-				== JumpResult::AppliedAndOut) {
-				_channelsScroll->scrollTo(0);
-			}
-		}
-	} else if (direction == Qt::Key_Down) {
-		if (popularAppsHasSelection()) {
-			_popularApps->selectJump(direction, 0);
-		} else if (_recentApps->selectJump(direction, 0)
-			== JumpResult::AppliedAndOut) {
-			_popularApps->selectJump(direction, 0);
-		} else if (!recentAppsHasSelection()) {
-			if (_popularApps->selectJump(direction, 0)
-				== JumpResult::AppliedAndOut) {
-				_recentApps->selectJump(direction, 0);
-			}
-		}
-	}
+	selectJumpSections(
+		{ _recentApps->selectJump, appsSecondList()->selectJump },
+		_appsScroll.get(),
+		direction,
+		pageSize);
 }
 
 void Suggestions::chooseRow() {
+	if (const auto search = shownSearchList(_key.current())) {
+		search->content->chooseRow();
+		return;
+	}
 	switch (_key.current().tab) {
 	case Tab::Chats:
 		if (!_topPeers->chooseRow()) {
@@ -1868,37 +2257,66 @@ void Suggestions::chooseRow() {
 		break;
 	case Tab::Channels:
 		if (!_myChannels->choose()) {
-			_recommendations->choose();
+			if (_channelsQuery.current().isEmpty()) {
+				_recommendations->choose();
+			} else if (!_globalChannels->choose()
+				&& _channelsHasPosts.current()) {
+				_channelsPosts->content->chooseRow();
+			}
 		}
 		break;
 	case Tab::Apps:
 		if (!_recentApps->choose()) {
-			_popularApps->choose();
+			appsSecondList()->choose();
+		}
+		break;
+	case Tab::Posts:
+		if (_postsContent) {
+			_postsContent->chooseRow();
 		}
 		break;
 	}
 }
 
 bool Suggestions::consumeSearchQuery(const QString &query) {
-	using Type = MediaType;
+	_fieldQuery = query;
+	return setTabSearchQuery(query);
+}
+
+bool Suggestions::TakesSearchQuery(Key key) {
+	return (key.tab != Tab::Chats);
+}
+
+bool Suggestions::ListsSearchResults(Key key) {
+	return (key == Key{ Tab::Media, MediaType::Photo })
+		|| (key == Key{ Tab::Media, MediaType::Video });
+}
+
+bool Suggestions::ownsSearchQuery(const QString &query) const {
+	return !query.isEmpty()
+		&& (query == _fieldQuery)
+		&& TakesSearchQuery(_key.current());
+}
+
+bool Suggestions::setTabSearchQuery(const QString &query) {
 	const auto key = _key.current();
-	const auto tab = key.tab;
-	const auto type = (key.tab == Tab::Media) ? key.mediaType : Type::kCount;
-	if (tab == Tab::Posts) {
+	if (!TakesSearchQuery(key)) {
+		return false;
+	} else if (key.tab == Tab::Posts) {
 		const auto changed = (_searchQuery != query);
 		setPostsSearchQuery(query);
 		return changed || !query.isEmpty();
-	} else if (tab != Tab::Downloads
-		&& type != Type::File
-		&& type != Type::Link
-		&& type != Type::MusicFile) {
-		return false;
 	} else if (_searchQuery == query) {
-		return false;
+		return !query.isEmpty();
 	}
 	_searchQuery = query;
 	_persist = !_searchQuery.isEmpty();
-	if (query.isEmpty() || tab == Tab::Downloads) {
+	if (key.tab == Tab::Channels) {
+		setChannelsSearchQuery(query.trimmed());
+	} else if (key.tab == Tab::Apps) {
+		setAppsSearchQuery(query.trimmed());
+	}
+	if (query.isEmpty() || key.tab == Tab::Downloads) {
 		_searchQueryTimer.cancel();
 		applySearchQuery();
 	} else {
@@ -1925,7 +2343,7 @@ void Suggestions::setupPostsSearch() {
 
 		_postsContent->applySearchState(SearchState{
 			.tab = ChatSearchTab::PublicPosts,
-			.query = _searchQuery,
+			.query = _postsSearchQuery,
 		});
 		if (state.loading) {
 			_postsContent->searchRequested(true);
@@ -1964,6 +2382,7 @@ void Suggestions::setPostsSearchQuery(const QString &query) {
 		_persist = true;
 	}
 	_searchQuery = query;
+	_postsSearchQuery = query;
 	_searchQueryTimer.cancel();
 	_postsSearch->setQuery(query);
 }
@@ -1979,31 +2398,22 @@ void Suggestions::setupPostsResults() {
 
 	_postsContent->applySearchState(SearchState{
 		.tab = ChatSearchTab::PublicPosts,
-		.query = _searchQuery,
+		.query = _postsSearchQuery,
 	});
 	_postsContent->searchRequested(true);
 
 	_postsContent->chosenRow(
 	) | rpl::on_next([=](const ChosenRow &row) {
-		const auto history = row.key.history();
-		if (!history) {
-			return;
-		}
-		_persist = true;
-		const auto showAtMsgId = row.message.fullId.msg;
-		auto params = Window::SectionShow(
-			Window::SectionShow::Way::ClearStack);
-		params.highlight = Window::SearchHighlightId(_searchQuery);
-		if (row.newWindow) {
-			_controller->showInNewWindow(history->peer, showAtMsgId);
-			_closeRequests.fire({});
-		} else {
-			_controller->showThread(history, showAtMsgId, params);
-		}
+		showSearchResult(row, _postsSearchQuery);
 	}, _postsContent->lifetime());
 
 	_postsContent->heightValue() | rpl::on_next([=](int height) {
 		_postsWrap->resize(_postsWrap->width(), height);
+	}, _postsContent->lifetime());
+
+	_postsContent->mustScrollTo(
+	) | rpl::on_next([=](const Ui::ScrollToRequest &request) {
+		_postsScroll->scrollToY(request.ymin, request.ymax);
 	}, _postsContent->lifetime());
 
 	rpl::combine(
@@ -2017,6 +2427,7 @@ void Suggestions::setupPostsResults() {
 		_postsSearch->requestMore();
 	});
 
+	_postsContent->setDeselectOnTopUp(true);
 	_postsContent->setNarrowRatio(0.);
 	_postsContent->show();
 	updateControlsGeometry();
@@ -2025,9 +2436,27 @@ void Suggestions::setupPostsResults() {
 void Suggestions::updatePostsSearchVisibleRange() {
 	Expects(_postsContent != nullptr);
 
-	const auto top = _postsScroll->scrollTop();
-	const auto height = _postsScroll->height();
-	_postsContent->setVisibleTopBottom(top, top + height);
+	UpdateVisibleRange(_postsScroll.get(), _postsContent);
+}
+
+void Suggestions::showSearchResult(
+		const ChosenRow &row,
+		const QString &query) {
+	const auto history = row.key.history();
+	if (!history) {
+		return;
+	}
+	_persist = true;
+	const auto showAtMsgId = row.message.fullId.msg;
+	auto params = Window::SectionShow(
+		Window::SectionShow::Way::ClearStack);
+	params.highlight = Window::SearchHighlightId(query);
+	if (row.newWindow) {
+		_controller->showInNewWindow(history->peer, showAtMsgId);
+		_closeRequests.fire({});
+	} else {
+		_controller->showThread(history, showAtMsgId, params);
+	}
 }
 
 void Suggestions::setupPostsIntro(const PostsSearchIntroState &intro) {
@@ -2079,20 +2508,410 @@ void Suggestions::setupPostsIntro(const PostsSearchIntroState &intro) {
 	updateControlsGeometry();
 }
 
-void Suggestions::applySearchQuery() {
-	const auto key = _key.current();
-	const auto controller = _mediaLists[key].wrap->controller();
-	const auto search = controller->searchFieldController();
-	if (search->query() != _searchQuery) {
-		search->setQuery(_searchQuery);
+auto Suggestions::setupSearchList(Key key) -> std::unique_ptr<SearchList> {
+	auto scroll = std::make_unique<Ui::ElasticScroll>(this);
+	const auto wrap = scroll->setOwnedWidget(
+		object_ptr<Ui::RpWidget>(this));
+	const auto content = Ui::CreateChild<InnerWidget>(
+		wrap,
+		_controller,
+		rpl::single(InnerWidget::ChildListShown()));
+	auto result = std::make_unique<SearchList>(SearchList{
+		.key = key,
+		.scroll = std::move(scroll),
+		.wrap = wrap,
+		.content = content,
+	});
+	const auto raw = result.get();
+	setupSearchListContent(raw);
+
+	content->heightValue() | rpl::on_next([=](int height) {
+		wrap->resize(wrap->width(), height);
+	}, content->lifetime());
+
+	content->mustScrollTo(
+	) | rpl::on_next([=](const Ui::ScrollToRequest &request) {
+		raw->scroll->scrollToY(request.ymin, request.ymax);
+	}, content->lifetime());
+
+	rpl::combine(
+		rpl::single(rpl::empty) | rpl::then(raw->scroll->scrolls()),
+		raw->scroll->heightValue()
+	) | rpl::on_next([=] {
+		updateSearchListVisibleRange(raw);
+	}, content->lifetime());
+
+	content->show();
+	raw->scroll->hide();
+	return result;
+}
+
+auto Suggestions::setupChannelsPosts() -> std::unique_ptr<SearchList> {
+	const auto wrap = _channelsContent->add(
+		object_ptr<Ui::SlideWrap<InnerWidget>>(
+			_channelsContent,
+			object_ptr<InnerWidget>(
+				_channelsContent,
+				_controller,
+				rpl::single(InnerWidget::ChildListShown()))));
+	wrap->toggleOn(
+		rpl::combine(
+			_channelsLoading.value(),
+			_channelsHasPosts.value(),
+			rpl::mappers::_1 || rpl::mappers::_2),
+		anim::type::instant);
+	auto result = std::make_unique<SearchList>(SearchList{
+		.key = Key{ Tab::Channels },
+		.wrap = wrap,
+		.content = wrap->entity(),
+	});
+	setupSearchListContent(result.get());
+
+	rpl::combine(
+		rpl::single(rpl::empty) | rpl::then(_channelsScroll->scrolls()),
+		_channelsScroll->heightValue(),
+		wrap->geometryValue()
+	) | rpl::on_next([=] {
+		updateChannelsPostsVisibleRange();
+	}, wrap->lifetime());
+
+	result->content->mustScrollTo(
+	) | rpl::filter([=] {
+		return _channelsPostsKeyJump;
+	}) | rpl::on_next([=](const Ui::ScrollToRequest &request) {
+		const auto top = wrap->y();
+		_channelsScroll->scrollToY(
+			top + request.ymin,
+			(request.ymax >= 0) ? (top + request.ymax) : -1);
+	}, wrap->lifetime());
+	return result;
+}
+
+void Suggestions::setupSearchListContent(not_null<SearchList*> search) {
+	const auto content = search->content;
+	content->setSearchResultsOnly([](int count) {
+		return tr::lng_search_found_results(tr::now, lt_count, count);
+	});
+	content->chosenRow(
+	) | rpl::on_next([=](const ChosenRow &row) {
+		showSearchResult(row, search->query);
+	}, content->lifetime());
+	content->setLoadMoreCallback([=] {
+		if (search->offset) {
+			requestSearchList(search);
+		}
+	});
+	content->setNarrowRatio(0.);
+}
+
+Suggestions::SearchList *Suggestions::shownSearchList(Key key) const {
+	const auto i = _searchLists.find(key);
+	return (i != end(_searchLists) && !i->second->query.isEmpty())
+		? i->second.get()
+		: nullptr;
+}
+
+void Suggestions::setSearchListQuery(Key key, const QString &query) {
+	auto i = _searchLists.find(key);
+	if (i == end(_searchLists)) {
+		if (query.isEmpty()) {
+			return;
+		}
+		i = _searchLists.emplace(key, setupSearchList(key)).first;
+		updateControlsGeometry();
 	}
+	const auto search = i->second.get();
+	if (search->query == query) {
+		return;
+	}
+	const auto toggled = (search->query.isEmpty() != query.isEmpty());
+	resetSearchList(search, query);
+	if (!query.isEmpty()) {
+		search->scroll->scrollToY(0);
+		requestSearchList(search);
+	}
+	if (toggled
+		&& _key.current() == key
+		&& !_slideAnimation
+		&& !_shownAnimation.animating()) {
+		finishShow();
+	}
+}
+
+void Suggestions::resetSearchList(
+		not_null<SearchList*> search,
+		const QString &query) {
+	if (search->requestId) {
+		_controller->session().api().request(
+			base::take(search->requestId)).cancel();
+	}
+	search->query = query;
+	search->offset = Data::MessagePosition();
+	search->offsetRate = 0;
+	search->received = 0;
+	search->loaded = false;
+	if (!query.isEmpty()) {
+		search->content->applySearchState(SearchState{
+			.tab = ChatSearchTab::PublicPosts,
+			.query = query,
+		});
+		search->content->searchRequested(true);
+	}
+}
+
+void Suggestions::setChannelsSearchQuery(const QString &query) {
+	if (_channelsQuery.current() == query) {
+		return;
+	}
+	_channelsScroll->scrollToY(0);
+	resetSearchList(_channelsPosts.get(), query);
+	_joinedChannelsResults = std::vector<not_null<PeerData*>>();
+	_globalChannelsResults = std::vector<not_null<PeerData*>>();
+	_channelsLoading = !query.isEmpty();
+	_channelsHasPosts = false;
+	_channelsQuery = query;
+	if (query.isEmpty() && _channelsPeerSearch) {
+		_channelsPeerSearch->clear();
+	}
+}
+
+void Suggestions::requestChannelsSearch() {
+	const auto query = _channelsQuery.current();
+	if (query.isEmpty()) {
+		return;
+	} else if (!_channelsPeerSearch) {
+		_channelsPeerSearch = std::make_unique<Api::PeerSearch>(
+			&_controller->session(),
+			Api::PeerSearch::Type::Channels);
+	}
+	_channelsPeerSearch->request(query, [=](Api::PeerSearchResult result) {
+		if (_channelsQuery.current() != query) {
+			return;
+		}
+		const auto channels = [](bool joined) {
+			return [=](not_null<PeerData*> peer) {
+				const auto channel = peer->asBroadcast();
+				return channel && (channel->amIn() == joined);
+			};
+		};
+		_joinedChannelsResults = FilterPeers(result.my, channels(true));
+		_globalChannelsResults = FilterPeers(result.peers, channels(false));
+		const auto posts = _channelsPosts.get();
+		if (!posts->offset && !posts->loaded) {
+			requestSearchList(posts);
+		}
+	});
+}
+
+void Suggestions::setAppsSearchQuery(const QString &query) {
+	if (_appsQuery.current() == query) {
+		return;
+	}
+	_appsScroll->scrollToY(0);
+	_usedAppsResults = std::vector<not_null<PeerData*>>();
+	_globalAppsResults = std::vector<not_null<PeerData*>>();
+	_appsLoading = !query.isEmpty();
+	_appsQuery = query;
+	if (query.isEmpty() && _appsPeerSearch) {
+		_appsPeerSearch->clear();
+	}
+}
+
+void Suggestions::requestAppsSearch() {
+	const auto query = _appsQuery.current();
+	if (query.isEmpty()) {
+		return;
+	} else if (!_appsPeerSearch) {
+		_appsPeerSearch = std::make_unique<Api::PeerSearch>(
+			&_controller->session(),
+			Api::PeerSearch::Type::Bots);
+	}
+	_appsPeerSearch->request(query, [=](Api::PeerSearchResult result) {
+		if (_appsQuery.current() != query) {
+			return;
+		}
+		const auto top = _controller->session().topBotApps().list();
+		const auto apps = [&](bool used) {
+			return [=](not_null<PeerData*> peer) {
+				const auto user = peer->asUser();
+				const auto info = user ? user->botInfo.get() : nullptr;
+				return info
+					&& info->hasMainApp
+					&& (used || !ranges::contains(top, peer));
+			};
+		};
+		_usedAppsResults = FilterPeers(result.my, apps(true));
+		_globalAppsResults = FilterPeers(result.peers, apps(false));
+		_appsLoading = false;
+	});
+}
+
+void Suggestions::requestSearchList(not_null<SearchList*> search) {
+	if (search->requestId || search->loaded || search->query.isEmpty()) {
+		return;
+	}
+	const auto query = search->query;
+	const auto done = crl::guard(this, [=](
+			const Api::GlobalMediaResult &result) {
+		if (search->query == query) {
+			searchListReceived(search, result);
+		}
+	});
+	const auto session = &_controller->session();
+	if (search->key.tab != Tab::Channels) {
+		search->requestId = session->api().requestGlobalMedia(
+			search->key.mediaType,
+			query,
+			search->offsetRate,
+			search->offset,
+			false,
+			done);
+		return;
+	}
+	using Flag = MTPmessages_SearchGlobal::Flag;
+	const auto offset = search->offset;
+	search->requestId = session->api().request(MTPmessages_SearchGlobal(
+		MTP_flags(Flag::f_broadcasts_only),
+		MTP_int(0),
+		MTPInputChannel(),
+		MTP_string(query),
+		MTP_inputMessagesFilterEmpty(),
+		MTP_int(0),
+		MTP_int(0),
+		MTP_int(search->offsetRate),
+		(offset
+			? session->data().peer(offset.fullId.peer)->input()
+			: MTP_inputPeerEmpty()),
+		MTP_int(offset.fullId.msg),
+		MTP_int(kSearchPerPage)
+	)).done([=](const MTPmessages_Messages &result) {
+		done(Api::ParseGlobalMediaResult(session, result, false));
+	}).fail(crl::guard(this, [=] {
+		if (search->query != query) {
+			return;
+		}
+		search->requestId = 0;
+		if (search == _channelsPosts.get()) {
+			_channelsLoading = false;
+		}
+	})).send();
+}
+
+void Suggestions::searchListReceived(
+		not_null<SearchList*> search,
+		const Api::GlobalMediaResult &result) {
+	search->requestId = 0;
+
+	const auto start = !search->offset;
+	const auto owner = &_controller->session().data();
+	auto items = std::vector<not_null<HistoryItem*>>();
+	items.reserve(result.messageIds.size());
+	for (const auto &position : result.messageIds) {
+		if (const auto item = owner->message(position.fullId)) {
+			items.push_back(item);
+		}
+	}
+	search->received += int(items.size());
+	if (!result.offsetPosition || result.offsetPosition == search->offset) {
+		search->loaded = true;
+	} else {
+		search->offset = result.offsetPosition;
+		search->offsetRate = result.offsetRate;
+		search->loaded = !result.offsetRate;
+	}
+	const auto fullCount = search->loaded
+		? search->received
+		: std::max(result.fullCount, search->received);
+	search->content->searchReceived(
+		std::move(items),
+		nullptr,
+		{ .start = start },
+		fullCount);
+	if (search == _channelsPosts.get()) {
+		_channelsLoading = false;
+		_channelsHasPosts = (search->received > 0);
+		updateChannelsPostsVisibleRange();
+	} else {
+		updateSearchListVisibleRange(search);
+	}
+}
+
+void Suggestions::updateChannelsPostsVisibleRange() {
+	if (!_channelsPosts) {
+		return;
+	}
+	UpdateVisibleRange(
+		_channelsScroll.get(),
+		_channelsPosts->content,
+		_channelsPosts->wrap->y());
+}
+
+void Suggestions::updateSearchListVisibleRange(
+		not_null<SearchList*> search) {
+	UpdateVisibleRange(search->scroll.get(), search->content);
+}
+
+void Suggestions::applySearchQuery() {
+	if (_key.current().tab == Tab::Channels) {
+		requestChannelsSearch();
+		return;
+	} else if (_key.current().tab == Tab::Apps) {
+		requestAppsSearch();
+		return;
+	} else if (ListsSearchResults(_key.current())) {
+		setSearchListQuery(_key.current(), _searchQuery.trimmed());
+		return;
+	}
+	if (const auto search = mediaListSearch(_key.current())) {
+		if (search->query() != _searchQuery) {
+			search->setQuery(_searchQuery);
+		}
+	}
+}
+
+void Suggestions::resetTabSearchQuery(Key key) {
+	if (key.tab == Tab::Posts) {
+		if (_postsSearch) {
+			_postsSearchQuery = QString();
+			_postsSearch->setQuery(QString());
+		}
+		return;
+	} else if (key.tab == Tab::Channels) {
+		setChannelsSearchQuery(QString());
+		return;
+	} else if (key.tab == Tab::Apps) {
+		setAppsSearchQuery(QString());
+		return;
+	} else if (ListsSearchResults(key)) {
+		setSearchListQuery(key, QString());
+		return;
+	}
+	if (const auto search = mediaListSearch(key)) {
+		if (!search->query().isEmpty()) {
+			search->setQuery(QString());
+		}
+	}
+}
+
+Ui::SearchFieldController *Suggestions::mediaListSearch(Key key) const {
+	const auto i = _mediaLists.find(key);
+	return (i != end(_mediaLists) && i->second.wrap)
+		? i->second.wrap->controller()->searchFieldController()
+		: nullptr;
 }
 
 rpl::producer<> Suggestions::clearSearchQueryRequests() const {
 	return _clearSearchQueryRequests.events();
 }
 
+rpl::producer<> Suggestions::reapplySearchQueryRequests() const {
+	return _reapplySearchQueryRequests.events();
+}
+
 Data::Thread *Suggestions::updateFromParentDrag(QPoint globalPosition) {
+	if (const auto search = shownSearchList(_key.current())) {
+		return search->content->updateFromParentDrag(globalPosition);
+	}
 	switch (_key.current().tab) {
 	case Tab::Chats: return updateFromChatsDrag(globalPosition);
 	case Tab::Channels: return updateFromChannelsDrag(globalPosition);
@@ -2111,14 +2930,27 @@ Data::Thread *Suggestions::updateFromChannelsDrag(QPoint globalPosition) {
 	if (const auto id = _myChannels->updateFromParentDrag(globalPosition)) {
 		return fromListId(id);
 	}
-	return fromListId(_recommendations->updateFromParentDrag(globalPosition));
+	return fromListId(
+		channelsSecondList()->updateFromParentDrag(globalPosition));
 }
 
 Data::Thread *Suggestions::updateFromAppsDrag(QPoint globalPosition) {
 	if (const auto id = _recentApps->updateFromParentDrag(globalPosition)) {
 		return fromListId(id);
 	}
-	return fromListId(_popularApps->updateFromParentDrag(globalPosition));
+	return fromListId(appsSecondList()->updateFromParentDrag(globalPosition));
+}
+
+not_null<Suggestions::ObjectList*> Suggestions::channelsSecondList() const {
+	return _channelsQuery.current().isEmpty()
+		? _recommendations.get()
+		: _globalChannels.get();
+}
+
+not_null<Suggestions::ObjectList*> Suggestions::appsSecondList() const {
+	return _appsQuery.current().isEmpty()
+		? _popularApps.get()
+		: _globalApps.get();
 }
 
 Data::Thread *Suggestions::fromListId(uint64 peerListRowId) {
@@ -2132,8 +2964,13 @@ void Suggestions::dragLeft() {
 	_recent->dragLeft();
 	_myChannels->dragLeft();
 	_recommendations->dragLeft();
+	_globalChannels->dragLeft();
 	_recentApps->dragLeft();
 	_popularApps->dragLeft();
+	_globalApps->dragLeft();
+	for (const auto &[key, search] : _searchLists) {
+		search->content->dragLeft();
+	}
 }
 
 void Suggestions::show(anim::type animated, Fn<void()> finish) {
@@ -2159,23 +2996,44 @@ void Suggestions::hide(anim::type animated, Fn<void()> finish) {
 }
 
 void Suggestions::switchTab(Key key) {
+	const auto swipe = base::take(_swipeSwitch);
 	const auto was = _key.current();
 	if (was == key) {
 		return;
 	}
-	consumeSearchQuery(QString());
+	const auto query = _fieldQuery;
 	_key = key;
 	_persist = false;
-	_clearSearchQueryRequests.fire({});
-	if (_tabs->isHidden()) {
-		return;
+	_searchQuery = QString();
+	_searchQueryTimer.cancel();
+	const auto carry = !query.isEmpty();
+	if (!carry) {
+		_clearSearchQueryRequests.fire({});
+		resetTabSearchQuery(key);
+	} else if (TakesSearchQuery(key)) {
+		setTabSearchQuery(query);
+		if (_searchQueryTimer.isActive()) {
+			_searchQueryTimer.cancel();
+			applySearchQuery();
+		}
 	}
-	startSlideAnimation(was, key);
+	if (!_tabs->isHidden()) {
+		if (carry && (was.tab == Tab::Chats || key.tab == Tab::Chats)) {
+			// Such a switch changes the panel mode, no slide.
+			ensureContent(key);
+			finishShow();
+		} else {
+			startSlideAnimation(was, key, swipe);
+		}
+	}
+	if (carry) {
+		_reapplySearchQueryRequests.fire({});
+	}
 }
 
 void Suggestions::ensureContent(Key key) {
 	if (key.tab == Tab::Posts) {
-		setPostsSearchQuery(QString());
+		setPostsSearchQuery(_searchQuery);
 		return;
 	} else if (key.tab != Tab::Downloads && key.tab != Tab::Media) {
 		return;
@@ -2195,44 +3053,53 @@ void Suggestions::ensureContent(Key key) {
 		_controller,
 		Info::Wrap::Search,
 		memento.get());
-	list.wrap->show();
+	list.wrap->setVisible(!shownSearchList(key));
 	updateControlsGeometry();
+	if (!_searchQuery.isEmpty()) {
+		applySearchQuery();
+	}
 }
 
-void Suggestions::startSlideAnimation(Key was, Key now) {
+void Suggestions::startSlideAnimation(Key was, Key now, bool swipe) {
 	ensureContent(now);
-	const auto wasIndex = ranges::find(_tabKeys, was);
-	const auto nowIndex = ranges::find(_tabKeys, now);
-	if (!_slideAnimation.animating()) {
-		const auto find = [&](Key key) -> not_null<QWidget*> {
-			switch (key.tab) {
-			case Tab::Chats: return _chatsScroll.get();
-			case Tab::Channels: return _channelsScroll.get();
-			case Tab::Apps: return _appsScroll.get();
-			case Tab::Posts: return _postsScroll.get();
-			}
-			return _mediaLists[key].wrap;
-		};
-		auto left = find(was);
-		auto right = find(now);
-		if (wasIndex > nowIndex) {
-			std::swap(left, right);
+	const auto find = [&](Key key) -> not_null<QWidget*> {
+		if (const auto search = shownSearchList(key)) {
+			return search->scroll.get();
 		}
-		_slideLeft = Ui::GrabWidget(left);
-		_slideLeftTop = left->y();
-		_slideRight = Ui::GrabWidget(right);
-		_slideRightTop = right->y();
-		left->hide();
-		right->hide();
-	}
-	const auto from = (nowIndex > wasIndex) ? 0. : 1.;
-	const auto to = (nowIndex > wasIndex) ? 1. : 0.;
-	_slideAnimation.start([=] {
-		update();
-		if (!_slideAnimation.animating() && !_shownAnimation.animating()) {
+		switch (key.tab) {
+		case Tab::Chats: return _chatsScroll.get();
+		case Tab::Channels: return _channelsScroll.get();
+		case Tab::Apps: return _appsScroll.get();
+		case Tab::Posts: return _postsScroll.get();
+		}
+		return _mediaLists[key].wrap;
+	};
+	const auto wasWidget = find(was);
+	const auto nowWidget = find(now);
+	auto wasCache = Ui::GrabWidget(wasWidget);
+	auto nowCache = Ui::GrabWidget(nowWidget);
+	if (wasCache.isNull() || nowCache.isNull()) {
+		_slideAnimation = nullptr;
+		if (!_shownAnimation.animating()) {
 			finishShow();
 		}
-	}, from, to, st::slideDuration, anim::sineInOut);
+		return;
+	}
+	wasWidget->hide();
+	nowWidget->hide();
+
+	const auto slideLeft = ranges::find(_tabKeys, now)
+		< ranges::find(_tabKeys, was);
+	_slideAnimation = std::make_unique<Ui::SlideAnimation>();
+	_slideAnimation->setSnapshots(std::move(wasCache), std::move(nowCache));
+	_slideAnimation->start(slideLeft, [=] {
+		update();
+		if (!_slideAnimation->animating() && !_shownAnimation.animating()) {
+			finishShow();
+		}
+	}, swipe
+		? st::dialogsFilterSwipeSlideDuration
+		: st::dialogsFilterSlideDuration);
 }
 
 void Suggestions::startShownAnimation(bool shown, Fn<void()> finish) {
@@ -2265,32 +3132,40 @@ void Suggestions::startShownAnimation(bool shown, Fn<void()> finish) {
 	for (const auto &[key, list] : _mediaLists) {
 		list.wrap->hide();
 	}
-	_slideAnimation.stop();
+	for (const auto &[key, search] : _searchLists) {
+		search->scroll->hide();
+	}
+	_slideAnimation = nullptr;
 }
 
 void Suggestions::finishShow() {
-	_slideAnimation.stop();
-	_slideLeft = _slideRight = QPixmap();
-	_slideLeftTop = _slideRightTop = 0;
+	_slideAnimation = nullptr;
 
 	_shownAnimation.stop();
 	_cache = QPixmap();
 
 	_tabsScroll->show();
 	const auto key = _key.current();
-	_chatsScroll->setVisible(key == Key{ Tab::Chats });
+	_chatsScroll->setVisible(!_tabsOnly && key == Key{ Tab::Chats });
 	_channelsScroll->setVisible(key == Key{ Tab::Channels });
 	_appsScroll->setVisible(key == Key{ Tab::Apps });
 	_postsScroll->setVisible(key == Key{ Tab::Posts });
+	const auto shownSearch = shownSearchList(key);
+	for (const auto &[searchKey, search] : _searchLists) {
+		search->scroll->setVisible(search.get() == shownSearch);
+	}
 	for (const auto &[mediaKey, list] : _mediaLists) {
-		list.wrap->setVisible(key == mediaKey);
-		if (key == mediaKey) {
+		const auto current = (key == mediaKey) && !shownSearch;
+		list.wrap->setVisible(current);
+		if (current) {
 			_swipeLifetime.destroy();
 			auto incomplete = generateIncompleteSwipeArgs();
 			list.wrap->replaceSwipeHandler(&incomplete);
 		}
 	}
-	if (key == Key{ Tab::Chats }) {
+	if (shownSearch) {
+		reinstallSwipe(shownSearch->scroll.get());
+	} else if (key == Key{ Tab::Chats }) {
 		reinstallSwipe(_chatsScroll.get());
 	} else if (key == Key{ Tab::Channels }) {
 		reinstallSwipe(_channelsScroll.get());
@@ -2337,20 +3212,8 @@ void Suggestions::paintEvent(QPaintEvent *e) {
 		const auto slide = st::topPeers.height + st::searchedBarHeight;
 		p.setOpacity(opacity);
 		p.drawPixmap(0, (opacity - 1.) * slide, _cache);
-	} else if (!_slideLeft.isNull()) {
-		const auto slide = st::topPeers.height + st::searchedBarHeight;
-		const auto right = (_key.current().tab == Tab::Channels);
-		const auto progress = _slideAnimation.value(right ? 1. : 0.);
-		p.setOpacity(1. - progress);
-		p.drawPixmap(
-			anim::interpolate(0, -slide, progress),
-			_slideLeftTop,
-			_slideLeft);
-		p.setOpacity(progress);
-		p.drawPixmap(
-			anim::interpolate(slide, 0, progress),
-			_slideRightTop,
-			_slideRight);
+	} else if (_slideAnimation) {
+		_slideAnimation->paintFrame(p, 0, _tabs->height(), width());
 	}
 }
 
@@ -2364,6 +3227,9 @@ void Suggestions::updateControlsGeometry() {
 
 	const auto tabs = _tabs->height();
 	_tabsScroll->setGeometry(0, 0, w, tabs);
+	if (_tabsOnly) {
+		return;
+	}
 
 	const auto content = QRect(0, tabs, w, height() - tabs);
 
@@ -2384,6 +3250,14 @@ void Suggestions::updateControlsGeometry() {
 		_postsContent->resizeToWidth(w);
 		_postsContent->setMinimumHeight(height() - tabs);
 		_postsContent->refresh();
+	}
+
+	for (const auto &[key, search] : _searchLists) {
+		search->scroll->setGeometry(content);
+		search->wrap->resizeToWidth(w);
+		search->content->resizeToWidth(w);
+		search->content->setMinimumHeight(content.height());
+		search->content->refresh();
 	}
 
 	const auto expanding = false;
@@ -2453,12 +3327,18 @@ auto Suggestions::setupRecentPeers(RecentPeersList recentPeers)
 
 object_ptr<Ui::SlideWrap<>> Suggestions::setupEmptyRecent() {
 	const auto icon = SearchEmptyIcon::Search;
-	return setupEmpty(_chatsContent, icon, tr::lng_recent_none());
+	return setupEmpty(
+		_chatsContent,
+		_chatsScroll.get(),
+		icon,
+		tr::lng_recent_none(tr::marked));
 }
 
 auto Suggestions::setupMyChannels() -> std::unique_ptr<ObjectList> {
 	const auto controller = lifetime().make_state<MyChannelsController>(
-		_controller);
+		_controller,
+		_channelsQuery.value(),
+		_joinedChannelsResults.value());
 
 	auto result = setupObjectList(
 		_channelsScroll.get(),
@@ -2467,45 +3347,14 @@ auto Suggestions::setupMyChannels() -> std::unique_ptr<ObjectList> {
 	const auto raw = result.get();
 	const auto list = raw->wrap->entity();
 
-	raw->selectJump = [=](Qt::Key direction, int pageSize) {
-		const auto had = list->hasSelection();
-		if (direction == Qt::Key()) {
-			return had ? JumpResult::Applied : JumpResult::NotApplied;
-		} else if (direction == Qt::Key_Up && !had) {
-			if (pageSize < 0) {
-				list->selectLast();
-				return list->hasSelection()
-					? JumpResult::Applied
-					: JumpResult::NotApplied;
-			}
-			return JumpResult::NotApplied;
-		} else if (direction == Qt::Key_Down || direction == Qt::Key_Up) {
-			const auto was = list->selectedIndex();
-			const auto delta = (direction == Qt::Key_Down) ? 1 : -1;
-			if (pageSize > 0) {
-				list->selectSkipPage(pageSize, delta);
-			} else {
-				list->selectSkip(delta);
-			}
-			if (had
-				&& delta > 0
-				&& raw->count.current()
-				&& list->selectedIndex() == was) {
-				list->clearSelection();
-				return JumpResult::AppliedAndOut;
-			}
-			return list->hasSelection()
-				? JumpResult::Applied
-				: had
-				? JumpResult::AppliedAndOut
-				: JumpResult::NotApplied;
-		}
-		return JumpResult::NotApplied;
-	};
+	raw->selectJump = ListSelectJump(raw);
 
 	raw->chosen.events(
 	) | rpl::on_next([=] {
 		_persist = false;
+		if (!_channelsQuery.current().isEmpty()) {
+			_clearSearchQueryRequests.fire({});
+		}
 	}, list->lifetime());
 
 	return result;
@@ -2527,27 +3376,7 @@ auto Suggestions::setupRecommendations() -> std::unique_ptr<ObjectList> {
 	const auto raw = result.get();
 	const auto list = raw->wrap->entity();
 
-	raw->selectJump = [list](Qt::Key direction, int pageSize) {
-		const auto had = list->hasSelection();
-		if (direction == Qt::Key()) {
-			return had ? JumpResult::Applied : JumpResult::NotApplied;
-		} else if (direction == Qt::Key_Up && !had) {
-			return JumpResult::NotApplied;
-		} else if (direction == Qt::Key_Down || direction == Qt::Key_Up) {
-			const auto delta = (direction == Qt::Key_Down) ? 1 : -1;
-			if (pageSize > 0) {
-				list->selectSkipPage(pageSize, delta);
-			} else {
-				list->selectSkip(delta);
-			}
-			return list->hasSelection()
-				? JumpResult::Applied
-				: had
-				? JumpResult::AppliedAndOut
-				: JumpResult::NotApplied;
-		}
-		return JumpResult::NotApplied;
-	};
+	raw->selectJump = ListSelectJump(raw);
 
 	raw->chosen.events(
 	) | rpl::on_next([=] {
@@ -2563,9 +3392,41 @@ auto Suggestions::setupRecommendations() -> std::unique_ptr<ObjectList> {
 	return result;
 }
 
+auto Suggestions::setupGlobalPeers(
+	not_null<Ui::ElasticScroll*> scroll,
+	not_null<Ui::VerticalLayout*> parent,
+	rpl::producer<std::vector<not_null<PeerData*>>> peers,
+	not_null<ObjectList*> above,
+	bool expandable)
+-> std::unique_ptr<ObjectList> {
+	const auto controller = lifetime().make_state<GlobalPeersController>(
+		_controller,
+		std::move(peers),
+		expandable);
+
+	const auto addToScroll = [=] {
+		const auto wrap = above->wrap;
+		return wrap->toggled() ? wrap->height() : 0;
+	};
+	auto result = setupObjectList(scroll, parent, controller, addToScroll);
+	const auto raw = result.get();
+	const auto list = raw->wrap->entity();
+
+	raw->selectJump = ListSelectJump(raw);
+
+	raw->chosen.events(
+	) | rpl::on_next([=] {
+		_persist = true;
+	}, list->lifetime());
+
+	return result;
+}
+
 auto Suggestions::setupRecentApps() -> std::unique_ptr<ObjectList> {
 	const auto controller = lifetime().make_state<RecentAppsController>(
-		_controller);
+		_controller,
+		_appsQuery.value(),
+		_usedAppsResults.value());
 	controller->setCloseCallback([=] {
 		_closeRequests.fire({});
 	});
@@ -2581,45 +3442,14 @@ auto Suggestions::setupRecentApps() -> std::unique_ptr<ObjectList> {
 	const auto raw = result.get();
 	const auto list = raw->wrap->entity();
 
-	raw->selectJump = [=](Qt::Key direction, int pageSize) {
-		const auto had = list->hasSelection();
-		if (direction == Qt::Key()) {
-			return had ? JumpResult::Applied : JumpResult::NotApplied;
-		} else if (direction == Qt::Key_Up && !had) {
-			if (pageSize < 0) {
-				list->selectLast();
-				return list->hasSelection()
-					? JumpResult::Applied
-					: JumpResult::NotApplied;
-			}
-			return JumpResult::NotApplied;
-		} else if (direction == Qt::Key_Down || direction == Qt::Key_Up) {
-			const auto was = list->selectedIndex();
-			const auto delta = (direction == Qt::Key_Down) ? 1 : -1;
-			if (pageSize > 0) {
-				list->selectSkipPage(pageSize, delta);
-			} else {
-				list->selectSkip(delta);
-			}
-			if (had
-				&& delta > 0
-				&& raw->count.current()
-				&& list->selectedIndex() == was) {
-				list->clearSelection();
-				return JumpResult::AppliedAndOut;
-			}
-			return list->hasSelection()
-				? JumpResult::Applied
-				: had
-				? JumpResult::AppliedAndOut
-				: JumpResult::NotApplied;
-		}
-		return JumpResult::NotApplied;
-	};
+	raw->selectJump = ListSelectJump(raw);
 
 	raw->chosen.events(
 	) | rpl::on_next([=] {
 		_persist = false;
+		if (!_appsQuery.current().isEmpty()) {
+			_clearSearchQueryRequests.fire({});
+		}
 	}, list->lifetime());
 
 	controller->load();
@@ -2645,27 +3475,7 @@ auto Suggestions::setupPopularApps() -> std::unique_ptr<ObjectList> {
 	const auto raw = result.get();
 	const auto list = raw->wrap->entity();
 
-	raw->selectJump = [list](Qt::Key direction, int pageSize) {
-		const auto had = list->hasSelection();
-		if (direction == Qt::Key()) {
-			return had ? JumpResult::Applied : JumpResult::NotApplied;
-		} else if (direction == Qt::Key_Up && !had) {
-			return JumpResult::NotApplied;
-		} else if (direction == Qt::Key_Down || direction == Qt::Key_Up) {
-			const auto delta = (direction == Qt::Key_Down) ? 1 : -1;
-			if (pageSize > 0) {
-				list->selectSkipPage(pageSize, delta);
-			} else {
-				list->selectSkip(delta);
-			}
-			return list->hasSelection()
-				? JumpResult::Applied
-				: had
-				? JumpResult::AppliedAndOut
-				: JumpResult::NotApplied;
-		}
-		return JumpResult::NotApplied;
-	};
+	raw->selectJump = ListSelectJump(raw);
 
 	raw->chosen.events(
 	) | rpl::on_next([=] {
@@ -2679,6 +3489,46 @@ auto Suggestions::setupPopularApps() -> std::unique_ptr<ObjectList> {
 	}, list->lifetime());
 
 	return result;
+}
+
+auto Suggestions::ListSelectJump(not_null<ObjectList*> raw)
+-> Fn<JumpResult(Qt::Key, int)> {
+	const auto list = raw->wrap->entity();
+	return [=](Qt::Key direction, int pageSize) {
+		const auto had = list->hasSelection();
+		if (direction == Qt::Key()) {
+			return had ? JumpResult::Applied : JumpResult::NotApplied;
+		} else if (direction == Qt::Key_Up && !had) {
+			if (pageSize < 0) {
+				list->selectLast();
+				return list->hasSelection()
+					? JumpResult::Applied
+					: JumpResult::NotApplied;
+			}
+			return JumpResult::NotApplied;
+		} else if (direction == Qt::Key_Down || direction == Qt::Key_Up) {
+			const auto was = list->selectedIndex();
+			const auto delta = (direction == Qt::Key_Down) ? 1 : -1;
+			if (pageSize > 0) {
+				list->selectSkipPage(pageSize, delta);
+			} else {
+				list->selectSkip(delta);
+			}
+			if (had
+				&& delta > 0
+				&& raw->count.current()
+				&& list->selectedIndex() == was) {
+				list->clearSelection();
+				return JumpResult::AppliedAndOut;
+			}
+			return list->hasSelection()
+				? JumpResult::Applied
+				: had
+				? JumpResult::AppliedAndOut
+				: JumpResult::NotApplied;
+		}
+		return JumpResult::NotApplied;
+	};
 }
 
 auto Suggestions::setupObjectList(
@@ -2714,7 +3564,7 @@ auto Suggestions::setupObjectList(
 	}, lifetime);
 
 	raw->choose = [=] {
-		return list->submitted();
+		return list->hasSelection() && list->submitted();
 	};
 	raw->updateFromParentDrag = [=](QPoint globalPosition) {
 		return list->updateFromParentDrag(globalPosition);
@@ -2738,22 +3588,35 @@ auto Suggestions::setupObjectList(
 
 object_ptr<Ui::SlideWrap<>> Suggestions::setupEmptyChannels() {
 	const auto icon = SearchEmptyIcon::NoResults;
-	return setupEmpty(_channelsContent, icon, tr::lng_channels_none_about());
+	return setupEmpty(
+		_channelsContent,
+		_channelsScroll.get(),
+		icon,
+		rpl::conditional(
+			_channelsQuery.value() | rpl::map([](const QString &query) {
+				return query.isEmpty();
+			}),
+			tr::lng_channels_none_about(tr::marked),
+			_channelsQuery.value() | rpl::map(NoResultsText)));
 }
 
 object_ptr<Ui::SlideWrap<>> Suggestions::setupEmpty(
 		not_null<QWidget*> parent,
+		not_null<Ui::ElasticScroll*> scroll,
 		SearchEmptyIcon icon,
-		rpl::producer<QString> text) {
+		rpl::producer<TextWithEntities> text) {
 	auto content = object_ptr<SearchEmpty>(
 		parent,
 		icon,
-		std::move(text) | rpl::map(tr::marked));
+		std::move(text));
 
 	const auto raw = content.data();
+	auto top = (scroll == _chatsScroll.get())
+		? _topPeersWrap->heightValue()
+		: rpl::single(0);
 	rpl::combine(
-		_chatsScroll->heightValue(),
-		_topPeersWrap->heightValue()
+		scroll->heightValue(),
+		std::move(top)
 	) | rpl::on_next([=](int height, int top) {
 		raw->setMinimalHeight(height - top);
 	}, raw->lifetime());
@@ -2773,11 +3636,33 @@ object_ptr<Ui::SlideWrap<>> Suggestions::setupEmpty(
 }
 
 bool Suggestions::persist() const {
-	return _persist;
+	return _persist || _tabsOnly;
 }
 
 void Suggestions::clearPersistance() {
 	_persist = false;
+}
+
+bool Suggestions::chatsTabActive() const {
+	return (_key.current().tab == Tab::Chats);
+}
+
+void Suggestions::setTabsOnly(bool tabsOnly) {
+	if (_tabsOnly == tabsOnly) {
+		return;
+	}
+	_tabsOnly = tabsOnly;
+	if (!_hidden) {
+		finishShow();
+	}
+}
+
+bool Suggestions::tabsOnly() const {
+	return _tabsOnly;
+}
+
+int Suggestions::tabsHeight() const {
+	return _tabs->height();
 }
 
 rpl::producer<TopPeersList> TopPeersContent(
