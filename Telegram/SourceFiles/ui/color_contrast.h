@@ -12,5 +12,7 @@ class QColor;
 namespace Ui {
 
 [[nodiscard]] float64 CountContrast(const QColor &a, const QColor &b);
+[[nodiscard]] float64 CountPerceivedBrightness(const QColor &color);
+[[nodiscard]] bool IsLightBackground(const QColor &background);
 
 } // namespace Ui

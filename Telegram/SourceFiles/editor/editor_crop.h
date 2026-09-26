@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/effects/animations.h"
 
 #include "base/flat_map.h"
 #include "editor/photo_editor_common.h"
@@ -29,7 +30,13 @@ public:
 		bool flipped,
 		const QSizeF &scaledImageSize);
 	[[nodiscard]] QRect saveCropRect();
+	[[nodiscard]] rpl::producer<> changes() const {
+		return _changes.events();
+	}
+	[[nodiscard]] QRect paintRect() const;
 	[[nodiscard]] style::margins cropMargins() const;
+	void setAspectRatio(float64 ratio);
+	void setCornersLevel(RoundedCornersLevel level);
 
 protected:
 	void mousePressEvent(QMouseEvent *e) override;
@@ -51,7 +58,10 @@ private:
 		} borders;
 	};
 
-	void paintPoints(QPainter &p);
+	void paintFrame(QPainter &p);
+	void paintGrid(QPainter &p, float64 opacity);
+	void setGridVisible(bool visible, bool animated);
+	[[nodiscard]] QPainterPath cropPath() const;
 
 	void updateEdges();
 	[[nodiscard]] QPoint pointOfEdge(Qt::Edges e) const;
@@ -63,6 +73,8 @@ private:
 	[[nodiscard]] Qt::Edges mouseState(const QPoint &p);
 	void performCrop(const QPoint &pos);
 	void performMove(const QPoint &pos);
+
+	rpl::event_stream<> _changes;
 
 	const int _pointSize;
 	const float _pointSizeH;
@@ -86,11 +98,15 @@ private:
 	QPainterPath _painterPath;
 
 	InfoAtDown _down;
+	Ui::Animations::Simple _gridOpacityAnimation;
 
 	int _angle = 0;
 	bool _flipped = false;
+	bool _gridVisible = false;
 
 	bool _keepAspectRatio = false;
+
+	RoundedCornersLevel _cornersLevel = RoundedCornersLevel::Large;
 
 };
 

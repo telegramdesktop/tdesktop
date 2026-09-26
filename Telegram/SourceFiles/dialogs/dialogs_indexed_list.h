@@ -24,6 +24,8 @@ public:
 	Row *addByName(Key key);
 	void adjustByDate(const RowsByLetter &links);
 	void moveToTop(Key key);
+	void freeze();
+	void unfreeze();
 	bool updateHeight(Key key, float64 narrowRatio);
 	bool updateHeights(float64 narrowRatio);
 
@@ -47,10 +49,7 @@ public:
 	[[nodiscard]] const List &all() const {
 		return _list;
 	}
-	[[nodiscard]] const List *filtered(QChar ch) const {
-		const auto i = _index.find(ch);
-		return (i != _index.end()) ? &i->second : nullptr;
-	}
+	[[nodiscard]] const List *filtered(QChar ch) const;
 	[[nodiscard]] std::vector<not_null<Row*>> filtered(
 		const QStringList &words) const;
 
@@ -95,8 +94,9 @@ private:
 
 	SortMode _sortMode = SortMode();
 	FilterId _filterId = 0;
+	uint64 _dateVersion = 1;
 	List _list, _empty;
-	base::flat_map<QChar, List> _index;
+	mutable base::flat_map<QChar, List> _index;
 
 };
 

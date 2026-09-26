@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h" // defaultEmojiSuggestions
 #include "styles/style_dialogs.h" // dialogsSearchTabs
 #include "styles/style_filter_icons.h"
+#include "styles/style_filter_link_header.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 #include "styles/style_window.h"
@@ -495,6 +496,7 @@ object_ptr<RoundButton> FilterLinkProcessButton(
 	const auto st = &st::filterInviteBox.button;
 	const auto badgeSt = &st::filterInviteButtonBadgeStyle;
 	auto result = object_ptr<RoundButton>(parent, rpl::single(u""_q), *st);
+	result->setTextTransform(RoundButtonTextTransform::ToUpper);
 
 	struct Data {
 		TextWithEntities text;

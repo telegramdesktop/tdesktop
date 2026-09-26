@@ -28,7 +28,9 @@ constexpr auto kRadialLoadingOffset = kNotchOffset + 4;
 constexpr auto kThemePreviewOffset = kRadialLoadingOffset + 4;
 constexpr auto kDocumentBubbleOffset = kThemePreviewOffset + 4;
 constexpr auto kSaveMsgOffset = kDocumentBubbleOffset + 4;
-constexpr auto kFooterOffset = kSaveMsgOffset + 4;
+constexpr auto kChapterOffset = kSaveMsgOffset + 4;
+constexpr auto kSpeedBoostOffset = kChapterOffset + 4;
+constexpr auto kFooterOffset = kSpeedBoostOffset + 4;
 constexpr auto kCaptionOffset = kFooterOffset + 4;
 constexpr auto kGroupThumbsOffset = kCaptionOffset + 4;
 constexpr auto kControlsOffset = kGroupThumbsOffset + 4;
@@ -167,7 +169,7 @@ OverlayWidget::RendererGL::RendererGL(not_null<OverlayWidget*> owner)
 }
 
 void OverlayWidget::RendererGL::init(QOpenGLFunctions &f) {
-	constexpr auto kQuads = 9;
+	constexpr auto kQuads = 11;
 	constexpr auto kQuadVertices = kQuads * 4;
 	constexpr auto kQuadValues = kQuadVertices * 4;
 	constexpr auto kControlsValues = kControlsCount * kControlValues;
@@ -272,6 +274,16 @@ void OverlayWidget::RendererGL::init(QOpenGLFunctions &f) {
 
 void OverlayWidget::RendererGL::deinit(QOpenGLFunctions *f) {
 	_textures.destroy(f);
+	for (auto i = 0; i != 3; ++i) {
+		_rgbaSize[i] = QSize();
+		_cacheKeys[i] = 0;
+	}
+	_lumaSize = QSize();
+	_chromaSize = QSize();
+	_chromaSizeV = QSize();
+	_chromaNV12 = false;
+	_trackFrameIndex = 0;
+	_streamedIndex = 0;
 	_imageProgram = std::nullopt;
 	_texturedVertexShader = nullptr;
 	_withTransparencyProgram = std::nullopt;
@@ -384,6 +396,16 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 			data.alpha,
 			data.alpha);
 		return;
+	} else if (data.format == Streaming::FrameFormat::NativeTexture) {
+		const auto image = _owner->currentVideoFrameImage();
+		if (!image.isNull()) {
+			paintTransformedStaticContent(
+				image,
+				geometry,
+				data.alpha,
+				data.alpha);
+		}
+		return;
 	}
 	Assert(!data.yuv->size.isEmpty());
 	const auto program = (data.format == Streaming::FrameFormat::NV12)
@@ -422,8 +444,8 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 			nv12changed ? QSize() : _chromaSize,
 			yuv->u.stride / (nv12 ? 2 : 1),
 			yuv->u.data);
+		_chromaSize = yuv->chromaSize;
 		if (nv12) {
-			_chromaSize = yuv->chromaSize;
 			_f->glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 		}
 		_chromaNV12 = nv12;
@@ -441,10 +463,10 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 				GL_ALPHA,
 				GL_ALPHA,
 				yuv->chromaSize,
-				_chromaSize,
+				_chromaSizeV,
 				yuv->v.stride,
 				yuv->v.data);
-			_chromaSize = yuv->chromaSize;
+			_chromaSizeV = yuv->chromaSize;
 			_f->glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 		}
 
@@ -724,6 +746,20 @@ void OverlayWidget::RendererGL::paintSaveMsg(QRect outer) {
 	}, kSaveMsgOffset, true);
 }
 
+void OverlayWidget::RendererGL::paintChapter(QRect outer) {
+	paintUsingRaster(_chapterImage, outer, [&](Painter &&p) {
+		const auto newOuter = QRect(QPoint(), outer.size());
+		_owner->paintChapterContent(p, newOuter, newOuter);
+	}, kChapterOffset, true);
+}
+
+void OverlayWidget::RendererGL::paintSpeedBoost(QRect outer) {
+	paintUsingRaster(_speedBoostImage, outer, [&](Painter &&p) {
+		const auto newOuter = QRect(QPoint(), outer.size());
+		_owner->paintSpeedBoostContent(p, newOuter, newOuter);
+	}, kSpeedBoostOffset, true);
+}
+
 void OverlayWidget::RendererGL::paintControlsStart() {
 	validateControls();
 	_f->glActiveTexture(GL_TEXTURE0);
@@ -819,7 +855,8 @@ auto OverlayWidget::RendererGL::controlMeta(Over control) const -> Control {
 	case Over::Share: return { 3, &st::mediaviewShare };
 	case Over::Rotate: return { 4, &st::mediaviewRotate };
 	case Over::More: return { 5, &st::mediaviewMore };
-	case Over::Recognize: return { 6, &st::mediaviewRecognize };
+	case Over::Draw: return { 6, &st::mediaviewDraw };
+	case Over::Recognize: return { 7, &st::mediaviewRecognize };
 	}
 	Unexpected("Control value in OverlayWidget::RendererGL::ControlIndex.");
 }
@@ -835,6 +872,7 @@ void OverlayWidget::RendererGL::validateControls() {
 		controlMeta(Over::Share),
 		controlMeta(Over::Rotate),
 		controlMeta(Over::More),
+		controlMeta(Over::Draw),
 		controlMeta(Over::Recognize),
 	};
 	auto maxWidth = 0;
@@ -1252,6 +1290,39 @@ void OverlayWidget::RendererGL::paintRecognitionOverlay(
 	};
 	_contentBuffer->write(0, darkRect, sizeof(darkRect));
 	FillRectangle(*_f, &*_fillProgram, 0, QColor(dark, dark, dark, 255));
+
+	const auto spans = _owner->_recognition.spans();
+	if (!spans.empty()) {
+		_f->glDisable(GL_STENCIL_TEST);
+		_f->glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		const auto alpha = int(128 * opacity);
+		for (const auto &span : spans) {
+			const auto band = _owner->_recognition.bandFor(
+				span.item,
+				span.from,
+				span.till);
+			if (band.isEmpty()) {
+				continue;
+			}
+			const auto selRect = QRectF(
+				imageTopLeft.x() + band.left() * _ifactor * scale,
+				imageTopLeft.y()
+					+ (image.height() - (band.y() + band.height()) * _ifactor)
+						* scale,
+				band.width() * _ifactor * scale,
+				band.height() * _ifactor * scale);
+			const auto stl = rotated(selRect.left(), selRect.top());
+			const auto str = rotated(selRect.right(), selRect.top());
+			const auto sbr = rotated(selRect.right(), selRect.bottom());
+			const auto sbl = rotated(selRect.left(), selRect.bottom());
+			const GLfloat selCoords[] = {
+				stl[0], stl[1], str[0], str[1],
+				sbr[0], sbr[1], sbl[0], sbl[1],
+			};
+			_contentBuffer->write(0, selCoords, sizeof(selCoords));
+			FillRectangle(*_f, &*_fillProgram, 0, QColor(48, 128, 255, alpha));
+		}
+	}
 
 	_f->glDisable(GL_BLEND);
 	_f->glDisable(GL_STENCIL_TEST);

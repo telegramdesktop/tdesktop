@@ -8,12 +8,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ffmpeg/ffmpeg_frame_generator.h"
 
 #include "ffmpeg/ffmpeg_utility.h"
+#include "media/media_common.h"
 #include "base/debug_log.h"
 
 namespace FFmpeg {
 namespace {
 
 constexpr auto kMaxArea = 1920 * 1080 * 4;
+
+using ::Media::ValidFrameSize;
 
 } // namespace
 
@@ -85,6 +88,9 @@ FrameGenerator::Impl::Impl(const QByteArray &bytes)
 		nullptr,
 		&FrameGenerator::Impl::Seek);
 
+	if (!_format) {
+		return;
+	}
 	auto error = 0;
 	if ((error = avformat_find_stream_info(_format.get(), nullptr))) {
 		return;
@@ -103,7 +109,11 @@ FrameGenerator::Impl::Impl(const QByteArray &bytes)
 	const auto info = _format->streams[_streamId];
 	_rotation = ReadRotationFromMetadata(info);
 	//_aspect = ValidateAspectRatio(info->sample_aspect_ratio);
-	_codec = MakeCodecPointer({ .stream = info });
+	_codec = MakeCodecPointer({
+		.stream = info,
+		.hwAllowed = false,
+		.videoMaxArea = kMaxArea,
+	});
 }
 
 int FrameGenerator::Impl::Read(void *opaque, uint8_t *buf, int buf_size) {
@@ -157,16 +167,20 @@ FrameGenerator::Frame FrameGenerator::Impl::renderCurrent(
 	const auto width = frame->width;
 	const auto height = frame->height;
 	if (!width || !height) {
-		LOG(("Webm Error: Bad frame size: %1x%2 ").arg(width).arg(height));
+		LOG(("Webm Error: Bad frame size %1x%2").arg(width).arg(height));
 		return {};
 	}
 
-	auto scaled = QSize(width, height).scaled(size, mode);
-	if (!scaled.isEmpty() && rotationSwapWidthHeight()) {
-		scaled.transpose();
+	if (rotationSwapWidthHeight()) {
+		size.transpose();
 	}
+	const auto scaled = QSize(width, height).scaled(size, mode);
 	if (!GoodStorageForFrame(storage, size)) {
 		storage = CreateFrameStorage(size);
+		if (storage.isNull()) {
+			LOG(("Webm Error: Bad frame size %1x%2").arg(width).arg(height));
+			return {};
+		}
 	}
 	const auto dx = (size.width() - scaled.width()) / 2;
 	const auto dy = (size.height() - scaled.height()) / 2;
@@ -182,7 +196,7 @@ FrameGenerator::Frame FrameGenerator::Impl::renderCurrent(
 	const auto withAlpha = bgra || (srcFormat == AV_PIX_FMT_YUVA420P);
 	const auto dstPerLine = storage.bytesPerLine();
 	auto dst = storage.bits() + dx * sizeof(int32) + dy * dstPerLine;
-	if (srcSize == dstSize && bgra) {
+	if (bgra && srcSize == dstSize && frame->linesize[0] > 0) {
 		const auto srcPerLine = frame->linesize[0];
 		const auto perLine = std::min(srcPerLine, int(dstPerLine));
 		auto src = frame->data[0];
@@ -317,7 +331,7 @@ void FrameGenerator::Impl::readNextFrame() {
 	while (true) {
 		auto result = avcodec_receive_frame(_codec.get(), frame.get());
 		if (result >= 0) {
-			if (frame->width * frame->height > kMaxArea) {
+			if (!ValidFrameSize(frame->width, frame->height, kMaxArea)) {
 				return;
 			}
 			_next.frame = std::move(frame);

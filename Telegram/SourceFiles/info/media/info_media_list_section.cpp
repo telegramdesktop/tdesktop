@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "layout/layout_selection.h"
 #include "ui/rect.h"
 #include "ui/painter.h"
+#include "ui/rows_scroll_cache.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 
@@ -35,7 +36,7 @@ bool ListSection::empty() const {
 UniversalMsgId ListSection::minId() const {
 	Expects(!empty());
 
-	return GetUniversalId(_items.back()->getItem());
+	return _minId;
 }
 
 void ListSection::setTop(int top) {
@@ -48,6 +49,10 @@ int ListSection::top() const {
 
 void ListSection::setCanReorder(bool value) {
 	_canReorder = value;
+}
+
+void ListSection::setMinGridSize(int value) {
+	_minGridSize = value;
 }
 
 int ListSection::height() const {
@@ -100,12 +105,19 @@ bool ListSection::belongsHere(
 void ListSection::appendItem(not_null<BaseLayout*> item) {
 	_items.push_back(item);
 	_byItem.emplace(item->getItem(), item);
+	_minId = GetUniversalId(item->getItem());
 }
 
 bool ListSection::removeItem(not_null<const HistoryItem*> item) {
 	if (const auto i = _byItem.find(item); i != end(_byItem)) {
 		_items.erase(ranges::remove(_items, i->second), end(_items));
 		_byItem.erase(i);
+		if (!_mosaic.empty()) {
+			// Without touching the removed layout, see refreshMinId().
+			_mosaic.clearRows(true);
+			_mosaic.addItems(_items);
+		}
+		refreshMinId();
 		refreshHeight();
 		return true;
 	}
@@ -114,7 +126,18 @@ bool ListSection::removeItem(not_null<const HistoryItem*> item) {
 
 void ListSection::reorderItems(int oldPosition, int newPosition) {
 	base::reorder(_items, oldPosition, newPosition);
+	refreshMinId();
 	refreshHeight();
+}
+
+void ListSection::refreshMinId() {
+	// The layouts are owned by the Provider and it destroys them from its
+	// own itemRemoved() handler, which is invoked before ours. So minId()
+	// must not dereference them, it is recomputed only when all the items
+	// that are left in the section are known to be alive.
+	_minId = _items.empty()
+		? UniversalMsgId()
+		: GetUniversalId(_items.back()->getItem());
 }
 
 QRect ListSection::findItemRect(
@@ -153,9 +176,8 @@ ListFoundItem ListSection::findItemByPoint(QPoint point) const {
 	auto item = *itemIt;
 	auto rect = findItemRect(item);
 	if (point.y() >= rect.top()) {
-		auto shift = floorclamp(
-			point.x(),
-			(_itemWidth + st::infoMediaSkip),
+		auto shift = std::clamp(
+			point.x() / (_itemWidth + st::infoMediaSkip),
 			0,
 			_itemsInRow);
 		while (shift-- && itemIt != _items.end()) {
@@ -265,6 +287,11 @@ void ListSection::paint(
 	const auto tillIt = findItemAfterBottom(
 		fromIt,
 		clip.y() + clip.height());
+	const auto cache = (context.scrollCache
+		&& context.scrollCache->scrolling()
+		&& isOneColumn())
+		? context.scrollCache
+		: nullptr;
 	for (auto it = fromIt; it != tillIt; ++it) {
 		const auto item = *it;
 		if (item == context.draggedItem) {
@@ -274,12 +301,37 @@ void ListSection::paint(
 		rect.translate(item->shift());
 		localContext.skipBorder = (rect.y() <= header + _itemsTop);
 		if (rect.intersects(clip)) {
+			const auto selection = itemSelection(item, context);
+			const auto cached = cache
+				&& (selection == TextSelection())
+				&& !localContext.selecting
+				&& !localContext.skipBorder
+				&& (item != context.hoveredItem)
+				&& !item->elementsAnimating();
 			p.translate(rect.topLeft());
-			item->paint(
-				p,
-				clip.translated(-rect.topLeft()),
-				itemSelection(item, context),
-				&localContext);
+			if (cached) {
+				const auto ratio = style::DevicePixelRatio();
+				cache->paintRow(
+					p,
+					GetLayoutCacheKey(item),
+					rect.size() * ratio,
+					ratio,
+					[&](QImage &image) {
+						image.fill(context.bg->c);
+						auto q = Painter(&image);
+						item->paint(
+							q,
+							QRect(QPoint(), rect.size()),
+							selection,
+							&localContext);
+					});
+			} else {
+				item->paint(
+					p,
+					clip.translated(-rect.topLeft()),
+					selection,
+					&localContext);
+			}
 			p.translate(-rect.topLeft());
 
 			if (_canReorder && isOneColumn()) {
@@ -357,7 +409,10 @@ int ListSection::oneColumnRightPadding() const {
 }
 
 void ListSection::resizeToWidth(int newWidth) {
-	const auto minWidth = st::infoMediaMinGridSize + st::infoMediaSkip * 2;
+	const auto gridSize = _minGridSize
+		? _minGridSize
+		: st::infoMediaMinGridSize;
+	const auto minWidth = gridSize + st::infoMediaSkip * 2;
 	if (newWidth < minWidth) {
 		return;
 	}
@@ -381,7 +436,7 @@ void ListSection::resizeToWidth(int newWidth) {
 		_itemsLeft = st::infoMediaLeft;
 		_itemsTop = st::infoMediaSkip;
 		_itemsInRow = (newWidth - _itemsLeft * 2 + skip)
-			/ (st::infoMediaMinGridSize + skip);
+			/ (gridSize + skip);
 		_itemWidth = ((newWidth - _itemsLeft * 2 + skip) / _itemsInRow)
 			- st::infoMediaSkip;
 		_itemsLeft = (newWidth - (_itemWidth + skip) * _itemsInRow + skip)

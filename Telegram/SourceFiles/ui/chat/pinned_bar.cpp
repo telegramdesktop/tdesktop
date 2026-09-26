@@ -122,6 +122,10 @@ void PinnedBar::setRightButton(object_ptr<Ui::RpWidget> button) {
 			_right.button->setDuration(0);
 			_right.button->show(anim::type::instant);
 		}
+
+		// The button is created and replaced deeper in the tree than the bars
+		// container watches, so it wouldn't be placed in the visual Tab order.
+		RefreshVisualTabOrder(_right.button.data());
 	}
 	if (_bar) {
 		updateControlsGeometry(_wrap.geometry());
@@ -164,23 +168,29 @@ void PinnedBar::createControls() {
 
 	// Clicks.
 	_bar->widget()->setCursor(style::cur_pointer);
-	_bar->widget()->events(
-	) | rpl::filter([=](not_null<QEvent*> event) {
-		return (event->type() == QEvent::MouseButtonPress)
-			&& (static_cast<QMouseEvent*>(event.get())->button()
-					== Qt::LeftButton);
-	}) | rpl::map([=] {
-		return _bar->widget()->events(
-		) | rpl::filter([](not_null<QEvent*> event) {
-			return (event->type() == QEvent::MouseButtonRelease);
-		}) | rpl::take(1) | rpl::filter([=](not_null<QEvent*> event) {
-			return _bar->widget()->rect().contains(
-				static_cast<QMouseEvent*>(event.get())->pos());
-		});
-	}) | rpl::flatten_latest(
-	) | rpl::to_empty | rpl::start_to_stream(
-		_barClicks,
-		_bar->widget()->lifetime());
+	const auto fillClicks = [=](
+			Qt::MouseButton button,
+			rpl::event_stream<> &stream) {
+		_bar->widget()->events(
+		) | rpl::filter([=](not_null<QEvent*> event) {
+			return (event->type() == QEvent::MouseButtonPress)
+				&& (static_cast<QMouseEvent*>(event.get())->button()
+						== button);
+		}) | rpl::map([=] {
+			return _bar->widget()->events(
+			) | rpl::filter([](not_null<QEvent*> event) {
+				return (event->type() == QEvent::MouseButtonRelease);
+			}) | rpl::take(1) | rpl::filter([=](not_null<QEvent*> event) {
+				return _bar->widget()->rect().contains(
+					static_cast<QMouseEvent*>(event.get())->pos());
+			});
+		}) | rpl::flatten_latest(
+		) | rpl::to_empty | rpl::start_to_stream(
+			stream,
+			_bar->widget()->lifetime());
+	};
+	fillClicks(Qt::LeftButton, _barClicks);
+	fillClicks(Qt::RightButton, _barRightClicks);
 
 	_bar->widget()->move(0, 0);
 	_bar->widget()->show();
@@ -266,6 +276,10 @@ rpl::producer<int> PinnedBar::heightValue() const {
 
 rpl::producer<> PinnedBar::barClicks() const {
 	return _barClicks.events();
+}
+
+rpl::producer<> PinnedBar::barRightClicks() const {
+	return _barRightClicks.events();
 }
 
 rpl::producer<> PinnedBar::contextMenuRequested() const {

@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "info/channel_statistics/boosts/info_boosts_widget.h"
 #include "info/peer_gifts/info_peer_gifts_common.h"
+#include "info/profile/tabs/info_profile_tabs_strip.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
 #include "info/profile/info_profile_top_bar.h"
 #include "info/info_controller.h" // Key
@@ -56,7 +57,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/layers/generic_box.h"
-#include "ui/new_badges.h"
 #include "ui/peer/color_sample.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
@@ -68,9 +68,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme.h"
 #include "window/section_widget.h"
 #include "window/window_session_controller.h"
+#include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"
-#include "styles/style_info.h" // defaultSubTabs.
+#include "styles/style_info.h" // defaultSubTabs, infoProfileTabsStrip.
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
@@ -850,9 +851,11 @@ void Apply(
 	if (const auto channel = peer->asChannel()) {
 		const auto limits = Data::LevelLimits(&channel->session());
 		AddLevelBadge(
-			profileIndices
-				? limits.channelProfileBgIconLevelMin()
-				: limits.channelBgIconLevelMin(),
+			(!profileIndices
+				? limits.channelBgIconLevelMin()
+				: channel->isMegagroup()
+				? limits.groupProfileBgIconLevelMin()
+				: limits.channelProfileBgIconLevelMin()),
 			raw,
 			right,
 			channel,
@@ -1493,111 +1496,41 @@ void AddGiftSelector(
 
 Fn<void(int)> CreateTabsWidget(
 		not_null<Ui::VerticalLayout*> container,
-		const std::vector<QString> &tabs,
+		const std::vector<QString> &labels,
 		const std::vector<Fn<void()>> &callbacks) {
-	struct State {
-		int activeTab = 0;
-		Ui::Animations::Simple animation;
-		float64 animatedPosition = 0.;
-		std::vector<int> tabWidths;
-	};
-	const auto tabsContainer = container->add(
-		object_ptr<Ui::RpWidget>(container),
+	const auto tabs = container->add(
+		object_ptr<Info::Profile::TabsStrip>(
+			container,
+			st::infoProfileTabsStrip),
 		st::boxRowPadding,
 		style::al_top);
-	const auto state = tabsContainer->lifetime().make_state<State>();
-	const auto height = st::semiboldFont->height * 1.5;
 
-	auto totalWidth = 0;
-	state->tabWidths.reserve(tabs.size());
-	for (const auto &text : tabs) {
-		const auto width = st::semiboldFont->width(text) + height * 2;
-		state->tabWidths.push_back(width);
-		totalWidth += width;
+	auto list = std::vector<Info::Profile::StripTab>();
+	list.reserve(labels.size());
+	for (auto i = 0, count = int(labels.size()); i != count; ++i) {
+		list.push_back({
+			.id = QString::number(i),
+			.text = { labels[i] },
+		});
 	}
+	tabs->setTabs(std::move(list));
+	tabs->setActiveTab(u"0"_q);
 
-	tabsContainer->resize(totalWidth, height);
-	tabsContainer->setMaximumWidth(tabsContainer->width());
-
-	const auto switchTo = [=](int i) {
-		if (state->activeTab != i && i >= 0 && i < state->tabWidths.size()) {
-			auto targetPosition = 0.;
-			for (auto j = 0; j < i; ++j) {
-				targetPosition += state->tabWidths[j];
-			}
-			state->animation.stop();
-			state->animation.start(
-				[=](float64 v) {
-					state->animatedPosition = v;
-					tabsContainer->update();
-				},
-				state->animatedPosition,
-				targetPosition,
-				400,
-				anim::easeOutQuint);
-			state->activeTab = i;
-		}
-		if (i < callbacks.size() && callbacks[i]) {
-			callbacks[i]();
+	const auto invoke = [=](int index) {
+		if (index >= 0 && index < int(callbacks.size()) && callbacks[index]) {
+			callbacks[index]();
 		}
 	};
+	tabs->activated(
+	) | rpl::on_next([=](const QString &id) {
+		tabs->setActiveTab(id);
+		invoke(id.toInt());
+	}, tabs->lifetime());
 
-	auto left = 0;
-	for (auto i = 0; i < tabs.size(); ++i) {
-		const auto tabButton = Ui::CreateChild<Ui::AbstractButton>(
-			tabsContainer);
-		tabButton->setGeometry(left, 0, state->tabWidths[i], height);
-		tabButton->setClickedCallback([=] { switchTo(i); });
-		left += state->tabWidths[i];
-	}
-
-	const auto penWidth = st::lineWidth * 2;
-
-	tabsContainer->paintRequest() | rpl::on_next([=] {
-		auto p = QPainter(tabsContainer);
-		auto hq = PainterHighQualityEnabler(p);
-		const auto r = tabsContainer->rect();
-		auto pen = QPen(st::giftBoxTabBgActive);
-		pen.setWidthF(penWidth);
-		p.setPen(pen);
-		const auto halfPen = penWidth / 2;
-		p.drawRoundedRect(
-			QRectF(
-				halfPen,
-				halfPen,
-				r.width() - penWidth,
-				r.height() - penWidth),
-			height / 2,
-			height / 2);
-		p.setFont(st::semiboldFont);
-
-		const auto animatedLeft = state->animatedPosition;
-		const auto activeWidth = state->tabWidths[state->activeTab];
-		p.setBrush(st::giftBoxTabBgActive);
-		p.setPen(Qt::NoPen);
-		p.drawRoundedRect(
-			QRect(animatedLeft, 0, activeWidth, height),
-			height / 2,
-			height / 2);
-
-		auto left = 0;
-		for (auto i = 0; i < tabs.size(); ++i) {
-			auto textPen = QPen(state->activeTab == i
-				? st::giftBoxTabFgActive
-				: st::giftBoxTabFg);
-			textPen.setWidthF(penWidth);
-			p.setPen(textPen);
-			p.drawText(
-				QRect(left, 0, state->tabWidths[i], height),
-				tabs[i],
-				style::al_center);
-			left += state->tabWidths[i];
-		}
-	}, tabsContainer->lifetime());
-
-	state->animatedPosition = 0.;
-
-	return switchTo;
+	return [=](int index) {
+		tabs->setActiveTab(QString::number(index));
+		invoke(index);
+	};
 }
 
 not_null<Info::Profile::TopBar*> CreateProfilePreview(
@@ -1626,7 +1559,6 @@ not_null<Info::Profile::TopBar*> CreateProfilePreview(
 }
 
 void ProcessButton(not_null<Ui::RoundButton*> button) {
-	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	// Raise to be above right emoji from buttons.
 	crl::on_main(button, [=] { button->raise(); });
 }
@@ -2506,10 +2438,12 @@ void EditPeerColorBox(
 		buttonContainer,
 		tr::lng_settings_color_apply(),
 		box->getDelegate()->style().button);
+	profileButton->setTextTransform(Ui::RoundButtonTextTransform::ToUpper);
 	const auto nameButton = Ui::CreateChild<Ui::RoundButton>(
 		buttonContainer,
 		tr::lng_settings_color_apply(),
 		box->getDelegate()->style().button);
+	nameButton->setTextTransform(Ui::RoundButtonTextTransform::ToUpper);
 	rpl::combine(
 		buttonContainer->widthValue(),
 		profileButton->sizeValue(),
@@ -2637,7 +2571,10 @@ void SetupPeerColorSample(
 	) | rpl::map([=] {
 		return peer->emojiStatusId();
 	});
-	const auto name = peer->shortName();
+	auto name = peer->session().changes().peerFlagsValue(
+		peer,
+		Data::PeerUpdate::Flag::Name
+	) | rpl::map([=] { return peer->shortName(); });
 
 	const auto sampleSize = st::settingsColorSampleSize;
 
@@ -2648,7 +2585,7 @@ void SetupPeerColorSample(
 		style,
 		rpl::duplicate(colorIndexValue),
 		rpl::duplicate(colorCollectibleValue),
-		name);
+		rpl::duplicate(name));
 	sample->show();
 
 	struct ProfileSampleState {
@@ -2681,13 +2618,15 @@ void SetupPeerColorSample(
 		rpl::duplicate(label),
 		rpl::duplicate(colorIndexValue),
 		rpl::duplicate(colorProfileIndexValue),
-		rpl::duplicate(emojiStatusIdValue)
+		rpl::duplicate(emojiStatusIdValue),
+		rpl::duplicate(name)
 	) | rpl::on_next([=](
 			int width,
 			const QString &buttonText,
 			int colorIndex,
 			std::optional<uint8> profileIndex,
-			EmojiStatusId emojiStatusId) {
+			EmojiStatusId emojiStatusId,
+			const QString &name) {
 		const auto available = width
 			- st::settingsButton.padding.left()
 			- (st::settingsColorButton.padding.right() - sampleSize)
@@ -2817,32 +2756,6 @@ not_null<Ui::SettingsButton*> AddPeerColorButton(
 
 	if (!peer->isMegagroup()) {
 		SetupPeerColorSample(button, peer, rpl::duplicate(label), style);
-	}
-
-	{
-		const auto badge = Ui::NewBadge::CreateNewBadge(
-			button,
-			tr::lng_premium_summary_new_badge()).get();
-		rpl::combine(
-			rpl::duplicate(label),
-			button->widthValue()
-		) | rpl::on_next([=](
-				const QString &text,
-				int width) {
-			const auto space = st.style.font->spacew;
-			const auto left = st.padding.left()
-				+ st.style.font->width(text)
-				+ space;
-			const auto available = width - left - st.padding.right();
-			badge->setVisible(available >= badge->width());
-			if (!badge->isHidden()) {
-				const auto top = st.padding.top()
-					+ st.style.font->ascent
-					- st::settingsPremiumNewBadge.style.font->ascent
-					- st::settingsPremiumNewBadgePadding.top();
-				badge->moveToLeft(left, top, width);
-			}
-		}, badge->lifetime());
 	}
 
 	button->setClickedCallback([=] {

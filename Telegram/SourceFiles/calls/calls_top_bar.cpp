@@ -149,7 +149,7 @@ DebugInfoBox::DebugInfoBox(QWidget*, base::weak_ptr<Call> call)
 }
 
 void DebugInfoBox::prepare() {
-	setTitle(rpl::single(u"Call Debug"_q));
+	setTitle(u"Call Debug"_q);
 
 	addButton(tr::lng_close(), [this] { closeBox(); });
 	_text = setInnerWidget(
@@ -793,7 +793,7 @@ void TopBar::updateControlsGeometry() {
 	auto showFull = !_shortInfoLabel
 		|| (left + fullWidth + right <= width());
 	auto setInfoLabelGeometry = [this, left, right](auto &&infoLabel) {
-		auto minPadding = qMax(left, right);
+		auto minPadding = std::max(left, right);
 		auto infoWidth = infoLabel->textMaxWidth();
 		auto infoLeft = (width() - infoWidth) / 2;
 		if (infoLeft < minPadding) {

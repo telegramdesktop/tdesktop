@@ -45,6 +45,7 @@ class VideoCaptureInterface;
 
 namespace Window {
 class SessionController;
+struct UnlockPasscodeBoxStyle;
 } // namespace Window
 
 namespace Calls {
@@ -162,6 +163,10 @@ using StickedTooltips = base::flags<StickedTooltip>;
 
 [[nodiscard]] object_ptr<Ui::GenericBox> ScreenSharingPrivacyRequestBox();
 
+void ShowUniqueCaptureOptions(
+	std::shared_ptr<Ui::Show> show,
+	Fn<void(bool withAudio)> done);
+
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeRoundActiveLogo(
 	not_null<QWidget*> parent,
 	const style::icon &icon,
@@ -186,6 +191,7 @@ struct ConferenceCallLinkStyleOverrides {
 	std::shared_ptr<ShareBoxStyleOverrides> shareBox;
 };
 [[nodiscard]] ConferenceCallLinkStyleOverrides DarkConferenceCallLinkStyle();
+[[nodiscard]] ::Window::UnlockPasscodeBoxStyle DarkUnlockPasscodeBoxStyle();
 
 struct ConferenceCallLinkArgs {
 	ConferenceCallLinkStyleOverrides st;

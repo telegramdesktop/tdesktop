@@ -34,7 +34,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_custom_emoji.h"
 #include "ui/text/text_utilities.h"
 #include "styles/style_dialogs.h"
-#include "styles/style_chat_helpers.h"
 
 #include <QtSvg/QSvgRenderer>
 
@@ -431,6 +430,7 @@ void ForumTopic::applyTopic(const MTPDforumTopic &data) {
 		applyTopicTopMessage(data.vtop_message().v);
 		unreadMentions().setCount(data.vunread_mentions_count().v);
 		unreadReactions().setCount(data.vunread_reactions_count().v);
+		unreadPollVotes().setCount(data.vunread_poll_votes_count().v);
 	}
 }
 
@@ -806,7 +806,7 @@ void ForumTopic::applyIconId(DocumentId iconId) {
 	_iconId = iconId;
 	invalidateTitleWithIcon();
 	_icon = iconId
-		? std::make_unique<Ui::Text::LimitedLoopsEmoji>(
+		? MakeWrappedEmoji<Ui::Text::LimitedLoopsEmoji>(
 			owner().customEmojiManager().create(
 				_iconId,
 				[=] { updateChatListEntry(); },
@@ -987,6 +987,9 @@ void ForumTopic::hasUnreadReactionChanged(bool has) {
 		was.reactionsMuted = muted() ? was.reactions : 0;
 	}
 	notifyUnreadStateChange(was);
+}
+
+void ForumTopic::hasUnreadPollVoteChanged(bool has) {
 }
 
 const QString &ForumTopic::chatListNameSortKey() const {

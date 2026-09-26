@@ -310,7 +310,8 @@ void ConnectionState::refreshState() {
 		const auto exposed = _parent->window()->windowHandle()
 			&& _parent->window()->windowHandle()->isExposed();
 		const auto under = _widget && _widget->isOver();
-		const auto ready = (Checker().state() == Checker::State::Ready);
+		const auto ready = !Core::UpdaterDisabled()
+			&& (Checker().state() == Checker::State::Ready);
 		const auto state = _account->mtp().dcstate();
 		const auto proxy = Core::App().settings().proxy().isEnabled();
 		if (state == MTP::ConnectingState

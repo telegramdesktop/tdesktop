@@ -46,6 +46,7 @@ public:
 	State state() const;
 	int already() const;
 	int size() const;
+	bool percent() const;
 
 private:
 	const std::shared_ptr<Updater> _updater;

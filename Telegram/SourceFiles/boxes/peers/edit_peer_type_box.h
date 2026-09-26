@@ -41,6 +41,9 @@ struct EditPeerTypeData {
 	bool noForwards = false;
 	bool joinToWrite = false;
 	bool requestToJoin = false;
+	std::optional<bool> requestToJoinApplyToInvites;
+	QString guardBotUsername;
+	QString guardBotLink;
 };
 
 class EditPeerTypeBox : public Ui::BoxContent {

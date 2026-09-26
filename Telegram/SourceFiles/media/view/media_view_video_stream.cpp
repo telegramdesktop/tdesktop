@@ -284,6 +284,22 @@ void VideoStream::borrowedPaint(Painter &p, const QRegion &clip) {
 	_viewport->borrowedPaint(p, clip);
 }
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+void VideoStream::borrowedPaintOffscreen(
+		QRhi *rhi,
+		QRhiRenderTarget *rt,
+		QRhiCommandBuffer *cb) {
+	_viewport->borrowedPaintOffscreen(rhi, rt, cb);
+}
+
+void VideoStream::borrowedPaintOnscreen(
+		QRhi *rhi,
+		QRhiRenderTarget *rt,
+		QRhiCommandBuffer *cb) {
+	_viewport->borrowedPaintOnscreen(rhi, rt, cb);
+}
+#endif
+
 rpl::lifetime &VideoStream::lifetime() {
 	return _lifetime;
 }

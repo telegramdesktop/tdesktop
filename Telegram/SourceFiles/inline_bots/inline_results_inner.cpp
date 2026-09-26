@@ -35,7 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/history.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_menu_icons.h"
 
 #include <QtWidgets/QApplication>
 
@@ -455,7 +454,8 @@ ItemBase *Inner::layoutPrepareInlineResult(std::shared_ptr<Result> result) {
 		if (auto layout = ItemBase::createLayout(
 				this,
 				std::move(result),
-				_inlineWithThumb)) {
+				_inlineWithThumb,
+				_gallery)) {
 			it = _inlineLayouts.emplace(raw, std::move(layout)).first;
 			it->second->initDimensions();
 		} else {
@@ -513,7 +513,6 @@ void Inner::refreshSwitchPmButton(const CacheEntry *entry) {
 		if (!_switchPmButton) {
 			_switchPmButton.create(this, nullptr, st::switchPmButton);
 			_switchPmButton->show();
-			_switchPmButton->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 			_switchPmButton->addClickHandler([=] { switchPm(); });
 		}
 		_switchPmButton->setText(rpl::single(entry->switchPmText));
@@ -555,6 +554,8 @@ int Inner::refreshInlineRows(PeerData *queryPeer, UserData *bot, const CacheEntr
 	clearSelection();
 
 	Assert(_inlineBot != 0);
+
+	_gallery = entry->gallery;
 
 	const auto count = int(entry->results.size());
 	const auto from = validateExistingInlineRows(entry->results);

@@ -1,0 +1,53 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "window/window.style";
+
+mainMenuWidth: 274px;
+mainMenuCoverHeight: 134px;
+mainMenuUserpicLeft: 24px;
+mainMenuUserpicTop: 20px;
+mainMenuCloudButton: IconButton {
+	width: 48px;
+	height: 48px;
+
+	icon: icon {
+//		{ "menu_cloud", mainMenuCloudFg },
+	};
+	iconPosition: point(22px, 22px);
+}
+mainMenuCloudSize: 32px;
+mainMenuResetScaleFont: font(20px semibold);
+mainMenuResetScaleLeft: 36px;
+mainMenuResetScaleRight: 12px;
+mainMenuResetScaleTop: 2px;
+mainMenuResetScaleIconLeft: 5px;
+mainMenuCoverNameLeft: 26px;
+mainMenuCoverNameTop: 84px;
+mainMenuCoverStatusLeft: mainMenuCoverNameLeft;
+mainMenuCoverStatusTop: 103px;
+mainMenuSkip: 6px;
+mainMenuFooterHeightMin: 80px;
+mainMenu: Menu(defaultMenu) {
+	itemFg: windowBoldFg;
+	itemFgOver: windowBoldFgOver;
+	itemStyle: semiboldTextStyle;
+	itemIconPosition: point(26px, 8px);
+	itemPadding: margins(76px, 13px, 28px, 13px);
+	itemToggle: Toggle(defaultMenuToggle) {
+		toggledFg: mainMenuCoverBg;
+	}
+	itemToggleOver: Toggle(defaultMenuToggleOver) {
+		toggledFg: mainMenuCoverBg;
+	}
+	itemToggleShift: 11px;
+}
+mainMenuFooterLeft: 25px;
+mainMenuTelegramBottom: 38px;
+mainMenuVersionBottom: 17px;
+mainMenuToggleSize: 6px;
+mainMenuTogglePosition: point(30px, 30px);

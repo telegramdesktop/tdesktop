@@ -30,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mainwindow.h"
 #include "windows_quiethours_h.h"
-#include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 
 #include <QtCore/QOperatingSystemVersion>

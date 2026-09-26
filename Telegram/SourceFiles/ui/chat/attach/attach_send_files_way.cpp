@@ -8,6 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_send_files_way.h"
 
 namespace Ui {
+namespace {
+
+constexpr auto kSerializedSendLargePhotos = int32(4);
+
+} // namespace
 
 void SendFilesWay::setSendImagesAsPhotos(bool value) {
 	if (value) {
@@ -28,6 +33,14 @@ void SendFilesWay::setGroupFiles(bool value) {
 		}
 	} else {
 		_flags &= ~Flag::GroupFiles;
+	}
+}
+
+void SendFilesWay::setSendLargePhotos(bool value) {
+	if (value) {
+		_flags |= Flag::SendLargePhotos;
+	} else {
+		_flags &= ~Flag::SendLargePhotos;
 	}
 }
 
@@ -53,16 +66,22 @@ int32 SendFilesWay::serialize() const {
 		: groupFiles()
 		? int32(3)
 		: int32(2);
+	if (sendLargePhotos()) {
+		result |= kSerializedSendLargePhotos;
+	}
 	return result;
 }
 
 std::optional<SendFilesWay> SendFilesWay::FromSerialized(int32 value) {
-	if (value < 0 || value > 3) {
+	if (value < 0 || value > 7) {
 		return std::nullopt;
 	}
+	const auto sendLargePhotos = (value & kSerializedSendLargePhotos) != 0;
+	value &= ~kSerializedSendLargePhotos;
 	auto result = SendFilesWay();
 	result.setGroupFiles((value == 0) || (value == 3));
 	result.setSendImagesAsPhotos((value == 0) || (value == 1));
+	result.setSendLargePhotos(sendLargePhotos);
 	return result;
 }
 

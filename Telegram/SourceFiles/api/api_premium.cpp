@@ -56,6 +56,9 @@ namespace {
 			+ QChar(0x00D7)
 			+ ' '
 			+ QString::number(tlOption.vusers().v);
+		options[i].total = Ui::FillAmountAndCurrency(
+			tlOption.vamount().v,
+			currency);
 		options[i].currency = currency;
 	}
 	return options;

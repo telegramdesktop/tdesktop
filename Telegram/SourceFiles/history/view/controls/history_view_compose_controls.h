@@ -8,10 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_common.h"
+#include "base/object_ptr.h"
 #include "base/required.h"
 #include "base/unique_qptr.h"
 #include "base/timer.h"
 #include "chat_helpers/compose/compose_features.h"
+#include "chat_helpers/field_characters_count_manager.h"
 #include "dialogs/dialogs_key.h"
 #include "history/view/controls/compose_controls_common.h"
 #include "ui/round_rect.h"
@@ -22,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class History;
 class DocumentData;
 class Image;
+struct InlineBotQuery;
 
 namespace style {
 struct ComposeControls;
@@ -64,13 +67,16 @@ namespace Ui {
 class AbstractButton;
 class SendButton;
 class IconButton;
+class RoundButton;
 class EmojiButton;
 class SendAsButton;
 class SilentToggle;
 class DropdownMenu;
+struct PreparedBundle;
 struct PreparedList;
 struct SendStarButtonState;
 class ReactionFlyAnimation;
+class ChatStyle;
 } // namespace Ui
 
 namespace Ui::Emoji {
@@ -81,6 +87,10 @@ namespace Main {
 class Session;
 struct SendAsKey;
 } // namespace Main
+
+namespace Iv {
+struct RichPage;
+} // namespace Iv
 
 namespace Webrtc {
 enum class RecordAvailability : uchar;
@@ -96,10 +106,14 @@ enum class SendProgressType;
 } // namespace Api
 
 namespace HistoryView::Controls {
+class RichDraftPreview;
 class VoiceRecordBar;
 class TTLButton;
 class WebpageProcessor;
 class CharactersLimitLabel;
+class ComposeAiButton;
+class ComposeTooltipManager;
+using AiTooltipManager = ComposeTooltipManager;
 } // namespace HistoryView::Controls
 
 namespace HistoryView {
@@ -128,6 +142,15 @@ struct ComposeControlsDescriptor {
 	bool voiceLockFromBottom = false;
 	ChatHelpers::ComposeFeatures features;
 	rpl::producer<bool> scheduledToggleValue;
+	Fn<SuggestOptions()> currentSuggest;
+	Fn<void(QString)> processShortcut;
+	Fn<bool(int)> moderateKeyActivateCallback;
+
+	rpl::producer<bool> suggestPostToggleShown;
+	rpl::producer<bool> suggestPostToggleActive;
+	rpl::producer<bool> botKeyboardShownToggleShown;
+	rpl::producer<bool> botKeyboardHideToggleShown;
+	rpl::producer<bool> botCommandStartShownExtraGuard;
 };
 
 class ComposeControls final {
@@ -166,6 +189,9 @@ public:
 	void setAutocompleteBoundingRect(QRect rect);
 	[[nodiscard]] rpl::producer<int> height() const;
 	[[nodiscard]] int heightCurrent() const;
+	[[nodiscard]] int fieldHeightCurrent() const;
+	[[nodiscard]] bool fieldHeaderShownCurrent() const;
+	void setFieldMaxHeight(int height);
 
 	void setupCommentsShownNewDot();
 	void setToggleCommentsButton(rpl::producer<ToggleCommentsState> state);
@@ -187,12 +213,21 @@ public:
 	[[nodiscard]] bool focused() const;
 	[[nodiscard]] rpl::producer<bool> focusedValue() const;
 	[[nodiscard]] rpl::producer<bool> tabbedPanelShownValue() const;
+	[[nodiscard]] bool overlaps(const QRect &globalRect) const;
 	[[nodiscard]] rpl::producer<> cancelRequests() const;
+	[[nodiscard]] rpl::producer<> replyCancelled() const;
+	[[nodiscard]] rpl::producer<> replyCancelledExternal() const;
 	[[nodiscard]] rpl::producer<Api::SendOptions> sendRequests() const;
 	[[nodiscard]] rpl::producer<VoiceToSend> sendVoiceRequests() const;
 	[[nodiscard]] rpl::producer<QString> sendCommandRequests() const;
 	[[nodiscard]] rpl::producer<MessageToEdit> editRequests() const;
 	[[nodiscard]] rpl::producer<std::optional<bool>> attachRequests() const;
+	void setSendAsFileConfirmed(
+		Fn<void(
+			std::shared_ptr<Ui::PreparedBundle>,
+			Api::SendOptions)> confirmed);
+	void processChosenSticker(FileChosen &&chosen);
+	void clearFieldAfterStickerSend();
 	[[nodiscard]] rpl::producer<FileChosen> fileChosen() const;
 	[[nodiscard]] rpl::producer<PhotoChosen> photoChosen() const;
 	[[nodiscard]] rpl::producer<FullReplyTo> jumpToItemRequests() const;
@@ -208,12 +243,15 @@ public:
 	-> rpl::producer<ReplyNextRequest>;
 	[[nodiscard]] rpl::producer<> focusRequests() const;
 	[[nodiscard]] rpl::producer<> showScheduledRequests() const;
-	[[nodiscard]] rpl::producer<> scrollToMaxRequests() const;
+	[[nodiscard]] rpl::producer<> suggestPostToggleClicks() const;
+	[[nodiscard]] rpl::producer<> botKeyboardToggleClicks() const;
+	[[nodiscard]] rpl::producer<Api::SendOptions> scrollToMaxRequests() const;
 
 	using MimeDataHook = Fn<bool(
 		not_null<const QMimeData*> data,
 		Ui::InputField::MimeAction action)>;
 	void setMimeDataHook(MimeDataHook hook);
+	void setPasteToastParent(not_null<QWidget*> parent);
 	bool confirmMediaEdit(Ui::PreparedList &list);
 
 	bool pushTabbedSelectorToThirdSection(
@@ -222,9 +260,16 @@ public:
 	bool returnTabbedSelector();
 
 	[[nodiscard]] bool isEditingMessage() const;
+	[[nodiscard]] rpl::producer<FullMsgId> editMsgIdValue() const;
 	[[nodiscard]] bool readyToForward() const;
 	[[nodiscard]] const HistoryItemsList &forwardItems() const;
 	[[nodiscard]] FullReplyTo replyingToMessage() const;
+	[[nodiscard]] FullReplyTo draftReplyingToMessage() const;
+	[[nodiscard]] rpl::producer<FullReplyTo> replyingToMessageValue() const;
+	void replyToMessageExternal(FullReplyTo id);
+	void cancelReplyMessageExternal();
+	[[nodiscard]] FullReplyTo replyingToMessageExternal() const;
+	[[nodiscard]] rpl::producer<FullReplyTo> replyingToMessageExternalValue() const;
 
 	[[nodiscard]] bool preventsClose(Fn<void()> &&continueCallback) const;
 
@@ -244,12 +289,15 @@ public:
 	void cancelForward();
 
 	bool handleCancelRequest();
+	[[nodiscard]] bool fieldTextEmpty() const;
 	void tryProcessKeyInput(not_null<QKeyEvent*> e);
 
 	[[nodiscard]] TextWithTags getTextWithAppliedMarkdown() const;
 	[[nodiscard]] Data::WebPageDraft webPageDraft() const;
+	[[nodiscard]] std::shared_ptr<const Iv::RichPage> shownRichMessage() const;
 	void setText(const TextWithTags &text);
-	void clear();
+	void selectAllFieldText();
+	void clear(bool keepReply = false);
 	void hidePanelsAnimated();
 	void clearListenState();
 
@@ -276,9 +324,16 @@ public:
 	void applyDraft(
 		FieldHistoryAction fieldHistoryAction = FieldHistoryAction::Clear);
 
+	void saveFieldToHistoryLocalDraft(bool save = true);
+
 	Fn<void()> restoreTextCallback(const QString &insertTextOnCancel) const;
 
 	[[nodiscard]] Ui::InputField *fieldForMention() const;
+	[[nodiscard]] auto fieldTabbed() const
+	-> rpl::producer<not_null<Ui::InputField::TabbedRequest*>>;
+	void insertTextToField(const QString &text);
+	[[nodiscard]] QString fieldLastText() const;
+	void undoFieldChange();
 
 private:
 	struct StarEffect;
@@ -312,24 +367,56 @@ private:
 	void initKeyHandler();
 	void initLikeButton();
 	void initEditStarsButton();
+	void initAiButton();
 	void updateControlsParents();
 	void updateSubmitSettings();
 	void updateSendButtonType();
+	void updateSendLockBadge();
 	void updateMessagesTTLShown();
 	bool updateSendAsButton(std::shared_ptr<Data::GroupCall> videoStream);
 	void updateAttachBotsMenu();
 	void updateHeight();
 	void updateWrappingVisibility();
+	void refreshSendGiftToggle();
 	void updateControlsVisibility();
 	void updateControlsGeometry(QSize size);
+	void updateAiButtonVisibility();
+	void updateAiButtonGeometry();
+	void initSendAsFileButton();
+	void fireSendTextAsFile(
+		const QString &fileText,
+		Fn<void()> restoreText);
+	[[nodiscard]] bool checkLargeTextPaste(
+		not_null<const QMimeData*> data,
+		Ui::InputField::MimeAction action);
+	void updateSendAsFileVisibility();
+	void updateSendAsFileGeometry();
+	void initExpandButton();
+	void updateExpandButtonVisibility();
+	void updateExpandButtonGeometry();
+	[[nodiscard]] bool canShowRichEditor() const;
+	void showRichEditor();
+	void showRichEditorWithPaste(std::shared_ptr<QMimeData> data);
+	void offerRichPaste(not_null<const QMimeData*> data);
+	void initDiscardRichDraftButton();
+	void updateDiscardRichDraftVisibility();
+	void updateDiscardRichDraftGeometry();
+	void setupSendMenu(
+		not_null<Ui::RpWidget*> button,
+		Fn<void(Api::SendOptions)> send);
 	bool updateReplaceMediaButton();
 	void updateOuterGeometry(QRect rect);
 	void paintBackground(QPainter &p, QRect full, QRect clip);
 
+	[[nodiscard]] auto baseSendButtonType() const;
 	[[nodiscard]] auto computeSendButtonType() const;
+	[[nodiscard]] bool sendButtonSends() const;
+	[[nodiscard]] bool submitSends() const;
 	[[nodiscard]] SendMenu::Details sendMenuDetails() const;
 	[[nodiscard]] SendMenu::Details saveMenuDetails() const;
 	[[nodiscard]] SendMenu::Details sendButtonMenuDetails() const;
+	[[nodiscard]] Api::SendOptions adjustedSupportSendOptions(
+		Qt::KeyboardModifiers modifiers) const;
 
 	[[nodiscard]] auto sendContentRequests(
 		SendRequestType requestType = SendRequestType::Text) const;
@@ -342,17 +429,30 @@ private:
 
 	void escape();
 	void fieldChanged();
+	[[nodiscard]] bool suppressSendAction() const;
 	void toggleTabbedSelectorMode();
 	void createTabbedPanel();
 	void setTabbedPanel(std::unique_ptr<ChatHelpers::TabbedPanel> panel);
+	void showAiComposeBox();
+	void triggerAiApplyInPlace();
+	[[nodiscard]] bool canSendAiComposeDirect() const;
 
 	[[nodiscard]] bool showRecordButton() const;
 	[[nodiscard]] bool showEditStarsButton() const;
+	[[nodiscard]] bool showStopButton() const;
 	[[nodiscard]] int shownStarsPerMessage() const;
 	bool updateBotCommandShown();
+	bool refreshBotMenuButton();
 	bool updateLikeShown();
+	[[nodiscard]] bool hasVisibleSendText() const;
+	[[nodiscard]] bool hasSendableContent() const;
+	[[nodiscard]] bool hideExtraButtons() const;
+	[[nodiscard]] bool hasEnoughLinesForAi() const;
+	[[nodiscard]] bool hasEnoughLinesForExpand() const;
+	[[nodiscard]] bool textExceedsMaxSize() const;
 
 	void cancelInlineBot();
+	void stopStreamedDraft();
 	void clearInlineBot();
 	void inlineBotChanged();
 
@@ -364,6 +464,7 @@ private:
 	void setupStarsEffectsCanvas();
 
 	// Look in the _field for the inline bot and query string.
+	[[nodiscard]] InlineBotQuery parseInlineBotQuery() const;
 	void updateInlineBotQuery();
 
 	// Request to show results in the emoji panel.
@@ -376,6 +477,7 @@ private:
 	void saveDraftDelayed();
 	void saveDraftWithTextNow();
 	void saveCloudDraft();
+	void cancelPendingDraftSaves();
 
 	void writeDrafts();
 	void writeDraftTexts();
@@ -387,13 +489,32 @@ private:
 	void clearFieldText(
 		TextUpdateEvents events = 0,
 		FieldHistoryAction fieldHistoryAction = FieldHistoryAction::Clear);
-	void saveFieldToHistoryLocalDraft();
 
 	void unregisterDraftSources();
 	void registerDraftSource();
+	void untrackThreadFieldVisibility();
+	void trackThreadFieldVisibility();
+	void updateFieldVisibility();
+	void updateFieldDisabled();
 	void changeFocusedControl();
 
 	void checkCharsLimitation();
+	[[nodiscard]] Data::Draft *cloudDraft() const;
+	[[nodiscard]] bool isComposeBoxOpen() const;
+	[[nodiscard]] bool hasRichDraftThreadScope() const;
+	[[nodiscard]] bool isShortcutComposeEligible() const;
+	[[nodiscard]] bool isWelcomeComposeEligible() const;
+	[[nodiscard]] bool bypassNormalDraftHandling() const;
+	[[nodiscard]] bool hasEditDraft() const;
+	[[nodiscard]] bool shouldShowRichDraftPreview() const;
+	void clearRichDraft();
+	[[nodiscard]] bool fieldDisabledShown() const;
+	[[nodiscard]] int composeFieldHeight() const;
+	void migrateFieldToRichEditor();
+	void migrateScheduledFieldToRichEditor();
+	void migrateShortcutFieldToRichEditor(
+		BusinessShortcutId expectedShortcutId);
+	void migrateWelcomeFieldToRichEditor();
 
 	const style::ComposeControls &_st;
 	ChatHelpers::ComposeFeatures _features;
@@ -412,11 +533,14 @@ private:
 	PeerId _monoforumPeerId = 0;
 	BusinessShortcutId _shortcutId = 0;
 	Fn<bool()> _showSlowmodeError;
+	Fn<bool()> _showScheduleSendError;
 	Fn<Api::SendAction()> _sendActionFactory;
+	Fn<void(TextWithEntities, Api::SendOptions, Fn<void()>)> _sendWithText;
 	rpl::variable<int> _slowmodeSecondsLeft;
 	rpl::variable<bool> _sendDisabledBySlowmode;
 	rpl::variable<bool> _liked;
 	rpl::variable<Controls::WriteRestriction> _writeRestriction;
+	rpl::variable<bool> _canSendTexts = true;
 	rpl::variable<bool> _hidden;
 	Mode _mode = Mode::Normal;
 
@@ -427,6 +551,11 @@ private:
 	std::optional<Ui::RoundRect> _backgroundRect;
 
 	const std::shared_ptr<Ui::SendButton> _send;
+	rpl::event_stream<bool> _sendLockBadge;
+	Controls::ComposeAiButton * const _aiButton = nullptr;
+	Ui::IconButton * const _sendAsFile = nullptr;
+	Ui::IconButton * const _expand = nullptr;
+	Ui::IconButton * const _discardRichDraft = nullptr;
 	Ui::IconButton *_editStars = nullptr;
 	Ui::IconButton *_like = nullptr;
 	rpl::variable<int> _minStarsCount;
@@ -442,15 +571,31 @@ private:
 	std::unique_ptr<Ui::RpWidget> _starEffectsCanvas;
 	std::unique_ptr<Ui::IconButton> _replaceMedia;
 	const not_null<Ui::EmojiButton*> _tabbedSelectorToggle;
-	rpl::producer<QString> _fieldCustomPlaceholder;
+	rpl::variable<QString> _fieldCustomPlaceholder;
+	QPointer<QWidget> _pasteToastParent;
+	std::shared_ptr<QMimeData> _pendingRichPaste;
 	const not_null<Ui::InputField*> _field;
+	std::unique_ptr<Controls::RichDraftPreview> _richDraftPreview;
+	base::unique_qptr<Ui::RpWidget> _fieldDisabled;
 	Ui::IconButton * const _botCommandStart = nullptr;
+	struct {
+		object_ptr<Ui::RoundButton> button = { nullptr };
+		QString text;
+		bool small = false;
+	} _botMenu;
 	std::unique_ptr<Ui::SendAsButton> _sendAs;
 	rpl::variable<bool> _videoStreamAdmin;
 	std::unique_ptr<Ui::SilentToggle> _silent;
 	std::unique_ptr<Controls::TTLButton> _ttlInfo;
 	base::unique_qptr<Controls::CharactersLimitLabel> _charsLimitation;
+	FieldCharsCountManager _fieldCharsCountManager;
 	base::unique_qptr<Ui::IconButton> _scheduled;
+	base::unique_qptr<Ui::IconButton> _giftToUser;
+	base::unique_qptr<Ui::IconButton> _toggleSuggestPost;
+	bool _suggestPostActive = false;
+	base::unique_qptr<Ui::IconButton> _botKeyboardShow;
+	base::unique_qptr<Ui::IconButton> _botKeyboardHide;
+	rpl::variable<bool> _botCommandStartExtraGuard = true;
 
 	std::unique_ptr<InlineBots::Layout::Widget> _inlineResults;
 	std::unique_ptr<ChatHelpers::TabbedPanel> _tabbedPanel;
@@ -461,12 +606,21 @@ private:
 	friend class FieldHeader;
 	const std::unique_ptr<FieldHeader> _header;
 	const std::unique_ptr<Controls::VoiceRecordBar> _voiceRecordBar;
+	std::unique_ptr<Controls::AiTooltipManager> _aiTooltipManager;
+	std::unique_ptr<Controls::AiTooltipManager> _sendAsFileTooltipManager;
+	std::shared_ptr<Ui::ChatStyle> _chatStyle;
 
 	const Fn<SendMenu::Details()> _sendMenuDetails;
+	const Fn<SuggestOptions()> _currentSuggest;
+	const Fn<void(QString)> _processShortcut;
+	const Fn<bool(int)> _moderateKeyActivateCallback;
 	const Fn<void(not_null<DocumentData*>)> _unavailableEmojiPasted;
 
 	rpl::event_stream<Api::SendOptions> _sendCustomRequests;
+	rpl::event_stream<Qt::KeyboardModifiers> _fieldSubmits;
+	rpl::event_stream<Api::SendOptions> _scrollToMaxRequests;
 	rpl::event_stream<> _cancelRequests;
+	rpl::event_stream<> _replyCancelledExternally;
 	rpl::event_stream<FileChosen> _fileChosen;
 	rpl::event_stream<PhotoChosen> _photoChosen;
 	rpl::event_stream<InlineChosen> _inlineResultChosen;
@@ -475,10 +629,14 @@ private:
 	rpl::event_stream<not_null<QKeyEvent*>> _scrollKeyEvents;
 	rpl::event_stream<not_null<QKeyEvent*>> _editLastMessageRequests;
 	rpl::event_stream<std::optional<bool>> _attachRequests;
+	Fn<void(std::shared_ptr<Ui::PreparedBundle>, Api::SendOptions)> _sendAsFileConfirmed;
 	rpl::event_stream<> _likeToggled;
 	rpl::event_stream<ReplyNextRequest> _replyNextRequests;
+	rpl::event_stream<> _replyCancelled;
 	rpl::event_stream<> _focusRequests;
 	rpl::event_stream<> _showScheduledRequests;
+	rpl::event_stream<> _suggestPostToggleClicks;
+	rpl::event_stream<> _botKeyboardToggleClicks;
 	rpl::event_stream<> _commentsShownToggles;
 	rpl::event_stream<StarReactionIncrement> _starsReactionIncrements;
 	rpl::variable<std::vector<StarReactionTop>> _starsReactionTop;
@@ -510,8 +668,11 @@ private:
 	bool _canAddMedia = false;
 
 	std::unique_ptr<Controls::WebpageProcessor> _preview;
+	bool _previewShown = false;
+	bool _threadFieldVisible = false;
 
 	rpl::lifetime _historyLifetime;
+	rpl::lifetime _threadFieldVisibleLifetime;
 	rpl::lifetime _uploaderSubscriptions;
 
 };

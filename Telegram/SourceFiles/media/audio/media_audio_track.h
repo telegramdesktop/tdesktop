@@ -68,7 +68,6 @@ private:
 	bool _failed = false;
 	bool _active = false;
 	bool _looping = false;
-	float64 _volume = 1.;
 
 	int64 _samplesCount = 0;
 	int32 _sampleRate = 0;

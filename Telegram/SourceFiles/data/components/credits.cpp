@@ -23,6 +23,7 @@ constexpr auto kReloadThreshold = 60 * crl::time(1000);
 
 Credits::Credits(not_null<Main::Session*> session)
 : _session(session)
+, _tonBalance(CreditsAmount(0, CreditsType::Ton))
 , _reload([=] { load(true); }) {
 }
 

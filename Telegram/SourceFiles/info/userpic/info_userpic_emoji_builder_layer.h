@@ -31,7 +31,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	const Ui::CornersPixmaps _corners;
+	Ui::CornersPixmaps _corners;
 	Ui::RpWidget *_content;
 
 };

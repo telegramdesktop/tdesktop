@@ -1,0 +1,38 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/chat/chat.style";
+
+premiumRequiredWidth: 186px;
+premiumRequiredIcon: icon{{ "chat/large_lockedchat", msgServiceFg }};
+directMessagesIcon: icon{{ "chat/large_messages", msgServiceFg }};
+starsPerMessageWidth: 226px;
+chatIntroWidth: 224px;
+chatIntroTitleMargin: margins(11px, 16px, 11px, 4px);
+chatIntroMargin: margins(11px, 0px, 11px, 0px);
+chatIntroStickerPadding: margins(10px, 8px, 10px, 16px);
+newPeerTitleMargin: margins(11px, 16px, 11px, 6px);
+newPeerSubtitleMargin: margins(11px, 0px, 11px, 16px);
+newPeerNonOfficial: IconEmoji {
+	icon: icon{{ "chat/mini_info_alert", windowFg }};
+	padding: margins(0px, 2px, 0px, 0px);
+}
+newPeerUserpics: GroupCallUserpics {
+	size: 16px;
+	shift: 5px;
+	stroke: 1px;
+	align: align(left);
+}
+newPeerUserpicsPadding: margins(0px, 3px, 0px, 0px);
+newPeerWidth: 320px;
+newBotThreadDown: icon {{ "history_down_arrow", msgServiceFg }};
+newBotThreadTopSkip: 24px;
+newThreadAboutMaxWidth: 180px;
+newThreadAboutIconSkip: chatIntroTitleMargin.top;
+newThreadAboutIconOuter: 60px;
+newThreadAboutIcon: icon{{ "chat/new_thread-40x40", windowFgActive }};
+managedBotCodeIcon: icon{{ "chat/code_tags", windowFg }};

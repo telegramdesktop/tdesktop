@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/gift_premium_box.h"
 #include "boxes/edit_privacy_box.h"
 #include "boxes/premium_preview_box.h"
+#include "boxes/preview_ai_tone_box.h"
 #include "boxes/sticker_set_box.h"
 #include "boxes/star_gift_box.h"
 #include "boxes/language_box.h"
@@ -40,9 +41,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/vertical_list.h"
 #include "data/components/credits.h"
+#include "data/data_ai_compose_tones.h"
 #include "data/data_birthday.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
+#include "data/data_poll.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "media/player/media_player_instance.h"
@@ -70,7 +73,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/bot_attach_web_view.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "iv/iv_instance.h"
 #include "apiwrap.h"
+
+#include "styles/style_chat_helpers.h"
 
 #include <QtGui/QGuiApplication>
 
@@ -293,6 +299,42 @@ bool ShowTheme(
 	return true;
 }
 
+bool ShowAiStyle(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto slug = match->captured(1);
+	Core::App().hideMediaView();
+	const auto weak = base::make_weak(controller);
+	auto &tones = controller->session().data().aiComposeTones();
+	tones.resolve(slug, [=](Data::AiComposeTone tone) {
+		const auto strong = weak.get();
+		if (!strong) {
+			return;
+		}
+		strong->window().show(Box(
+			PreviewAiToneBox,
+			&strong->session(),
+			std::move(tone),
+			weak));
+	}, [=](const MTP::Error &error) {
+		const auto strong = weak.get();
+		if (!strong) {
+			return;
+		} else if (error.type() == u"AICOMPOSE_TONE_SLUG_INVALID"_q) {
+			strong->window().showToast(
+				tr::lng_ai_compose_tone_invalid(tr::now));
+		} else if (!MTP::IgnoreError(error)) {
+			strong->window().showToast(error.type());
+		}
+	});
+	controller->window().activate();
+	return true;
+}
+
 void ShowLanguagesBox(Window::SessionController *controller) {
 	static auto Guard = base::binary_guard();
 	Guard = LanguageBox::Show(controller);
@@ -387,9 +429,28 @@ bool ApplyMtprotoProxy(
 	auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
+	auto &secret = params[u"secret"_q];
+	secret.replace('+', '-').replace('/', '_');
 	ProxiesBoxController::ShowApplyConfirmation(
 		controller,
 		MTP::ProxyData::Type::Mtproto,
+		params);
+	if (controller) {
+		controller->window().activate();
+	}
+	return true;
+}
+
+bool ApplyWebProxy(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	auto params = url_parse_params(
+		match->captured(1),
+		qthelp::UrlParamNameTransform::ToLower);
+	ProxiesBoxController::ShowApplyConfirmation(
+		controller,
+		MTP::ProxyData::Type::Web,
 		params);
 	if (controller) {
 		controller->window().activate();
@@ -459,7 +520,9 @@ bool ShowWallPaper(
 		const QString &value) {
 	auto result = ChatAdminRights();
 	for (const auto &element : value.split(QRegularExpression(u"[+ ]"_q))) {
-		if (element == u"change_info"_q) {
+		if (element.isEmpty()) {
+			continue;
+		} else if (element == u"change_info"_q) {
 			result |= ChatAdminRight::ChangeInfo;
 		} else if (element == u"post_messages"_q) {
 			result |= ChatAdminRight::PostMessages;
@@ -477,16 +540,24 @@ bool ShowWallPaper(
 			result |= ChatAdminRight::PinMessages;
 		} else if (element == u"promote_members"_q) {
 			result |= ChatAdminRight::AddAdmins;
+		} else if (element == u"post_stories"_q) {
+			result |= ChatAdminRight::PostStories;
+		} else if (element == u"edit_stories"_q) {
+			result |= ChatAdminRight::EditStories;
+		} else if (element == u"delete_stories"_q) {
+			result |= ChatAdminRight::DeleteStories;
 		} else if (element == u"manage_video_chats"_q) {
 			result |= ChatAdminRight::ManageCall;
 		} else if (element == u"manage_direct_messages"_q) {
 			result |= ChatAdminRight::ManageDirect;
+		} else if (element == u"manage_welcome_messages"_q) {
+			result |= ChatAdminRight::ManageWelcomeMessages;
 		} else if (element == u"anonymous"_q) {
 			result |= ChatAdminRight::Anonymous;
 		} else if (element == u"manage_chat"_q) {
 			result |= ChatAdminRight::Other;
 		} else {
-			return {};
+			continue;
 		}
 	}
 	return result;
@@ -539,7 +610,8 @@ bool ResolveUsernameOrPhone(
 			UrlAuthBox::ActivateUrl(
 				controller->uiShow(),
 				&controller->session(),
-				u"tg://resolve?domain=oauth&startapp="_q + token,
+				u"tg://resolve?domain=oauth&startapp="_q
+					+ qthelp::url_encode(token),
 				context);
 			return true;
 		}
@@ -615,6 +687,8 @@ bool ResolveUsernameOrPhone(
 	const auto threadId = topicId ? topicId : threadParam.toInt();
 	const auto gameParam = params.value(u"game"_q);
 	const auto videot = params.value(u"t"_q);
+	const auto pollOption = PollOptionFromLink(
+		params.value(u"option"_q));
 	if (params.contains(u"direct"_q)) {
 		resolveType = ResolveType::ChannelDirect;
 	}
@@ -633,6 +707,7 @@ bool ResolveUsernameOrPhone(
 		.usernameOrId = domain,
 		.phone = phone,
 		.messageId = post,
+		.pollOption = pollOption,
 		.storyParam = storyParam,
 		.storyAlbumId = storyAlbumId,
 		.giftCollectionId = giftCollectionId,
@@ -704,6 +779,8 @@ bool ResolvePrivatePost(
 	const auto topicId = topicParam.toInt();
 	const auto threadParam = params.value(u"thread"_q);
 	const auto threadId = topicId ? topicId : threadParam.toInt();
+	const auto pollOption = PollOptionFromLink(
+		params.value(u"option"_q));
 	if (!channelId || (msgId && !IsServerMsgId(msgId))) {
 		return false;
 	}
@@ -711,6 +788,7 @@ bool ResolvePrivatePost(
 	controller->showPeerByLink(Window::PeerByLinkInfo{
 		.usernameOrId = channelId,
 		.messageId = msgId,
+		.pollOption = pollOption,
 		.repliesInfo = commentId
 			? Window::RepliesByLinkInfo{
 				Window::CommentId{ commentId }
@@ -809,7 +887,11 @@ bool ShowInviteLink(
 		return false;
 	}
 	QGuiApplication::clipboard()->setText(link);
-	controller->showToast(tr::lng_group_invite_copied(tr::now));
+	controller->showToast({
+		.text = { tr::lng_group_invite_copied(tr::now) },
+		.iconLottie = u"toast/voip_invite"_q,
+		.iconLottieSize = st::toastLottieIconSize,
+	});
 	return true;
 }
 
@@ -828,7 +910,11 @@ bool CopyPeerId(
 		const QVariant &context) {
 	TextUtilities::SetClipboardText({ match->captured(1) });
 	if (controller) {
-		controller->showToast(u"ID copied to clipboard."_q);
+		controller->showToast({
+			.text = { u"ID copied to clipboard."_q },
+			.iconLottie = u"toast/copy"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
 	}
 	return true;
 }
@@ -1101,7 +1187,11 @@ bool ShowCollectibleUsername(
 				TextUtilities::SetClipboardText({
 					strong->session().createInternalLinkFull(username)
 				});
-				strong->showToast(tr::lng_username_copied(tr::now));
+				strong->showToast({
+					.text = { tr::lng_username_copied(tr::now) },
+					.iconLottie = u"toast/voip_invite"_q,
+					.iconLottieSize = st::toastLottieIconSize,
+				});
 			}
 		}
 	});
@@ -1119,7 +1209,11 @@ bool CopyUsernameLink(
 	TextUtilities::SetClipboardText({
 		controller->session().createInternalLinkFull(username)
 	});
-	controller->showToast(tr::lng_username_copied(tr::now));
+	controller->showToast({
+		.text = { tr::lng_username_copied(tr::now) },
+		.iconLottie = u"toast/voip_invite"_q,
+		.iconLottieSize = st::toastLottieIconSize,
+	});
 	return true;
 }
 
@@ -1132,7 +1226,11 @@ bool CopyUsername(
 	}
 	const auto username = match->captured(1);
 	TextUtilities::SetClipboardText({ '@' + username });
-	controller->showToast(tr::lng_username_text_copied(tr::now));
+	controller->showToast({
+		.text = { tr::lng_username_text_copied(tr::now) },
+		.iconLottie = u"toast/copy"_q,
+		.iconLottieSize = st::toastLottieIconSize,
+	});
 	return true;
 }
 
@@ -1171,6 +1269,20 @@ bool ShowCommonGroups(
 					user,
 					Info::Section::Type::CommonGroups));
 		}
+	}
+	return true;
+}
+
+bool EditPeer(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto peerId = PeerId(match->captured(1).toULongLong());
+	if (const auto peer = controller->session().data().peerLoaded(peerId)) {
+		controller->showEditPeerBox(peer);
 	}
 	return true;
 }
@@ -1305,7 +1417,11 @@ void ExportTestChatTheme(
 		const auto slug = Data::CloudTheme::Parse(session, result, true).slug;
 		QGuiApplication::clipboard()->setText(
 			session->createInternalLinkFull("addtheme/" + slug));
-		show->showToast(tr::lng_background_link_copied(tr::now));
+		show->showToast({
+			.text = { tr::lng_background_link_copied(tr::now) },
+			.iconLottie = u"toast/voip_invite"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
 	}).fail([=](const MTP::Error &error) {
 		show->showToast(u"Error: "_q + error.type());
 	}).send();
@@ -1598,7 +1714,7 @@ bool ResolveOAuth(
 	UrlAuthBox::ActivateUrl(
 		controller->uiShow(),
 		&controller->session(),
-		u"tg://oauth?token="_q + token,
+		u"tg://oauth?token="_q + qthelp::url_encode(token),
 		context);
 	return true;
 }
@@ -1630,6 +1746,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 			ShowTheme
 		},
 		{
+			u"^addstyle/?\\?slug=([a-zA-Z0-9\\.\\_]+)(&|$)"_q,
+			ShowAiStyle
+		},
+		{
 			u"^setlanguage/?(\\?lang=([a-zA-Z0-9\\.\\_\\-]+))?(&|$)"_q,
 			SetLanguage
 		},
@@ -1648,6 +1768,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			u"^proxy/?\\?(.+)(#|$)"_q,
 			ApplyMtprotoProxy
+		},
+		{
+			u"^webproxy/?\\?(.+)(#|$)"_q,
+			ApplyWebProxy
 		},
 		{
 			u"^passport/?\\?(.+)(#|$)"_q,
@@ -1714,7 +1838,7 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 			ResolveStarsSettings
 		},
 		{
-			u"^ton/?(^\\?.*)?(#|$)"_q,
+			u"^(ton|grams)/?(^\\?.*)?(#|$)"_q,
 			ResolveTonSettings
 		},
 		{
@@ -1788,6 +1912,10 @@ const std::vector<LocalUrlHandler> &InternalUrlHandlers() {
 			ShowCommonGroups,
 		},
 		{
+			u"^edit_peer/([0-9]+)$"_q,
+			EditPeer,
+		},
+		{
 			u"^stars_examples$"_q,
 			ShowStarsExamples,
 		},
@@ -1842,6 +1970,8 @@ QString TryConvertUrlToLocal(QString url) {
 			return u"tg://"_q + stickerSetMatch->captured(1) + "?set=" + url_encode(stickerSetMatch->captured(2));
 		} else if (const auto themeMatch = regex_match(u"^addtheme/([a-zA-Z0-9\\.\\_]+)(\\?|$)"_q, query, matchOptions)) {
 			return u"tg://addtheme?slug="_q + url_encode(themeMatch->captured(1));
+		} else if (const auto addStyleMatch = regex_match(u"^addstyle/([a-zA-Z0-9\\.\\_]+)(\\?|$)"_q, query, matchOptions)) {
+			return u"tg://addstyle?slug="_q + url_encode(addStyleMatch->captured(1));
 		} else if (const auto languageMatch = regex_match(u"^setlanguage/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"_q, query, matchOptions)) {
 			return u"tg://setlanguage?lang="_q + url_encode(languageMatch->captured(1));
 		} else if (const auto shareUrlMatch = regex_match(u"^share/url/?\\?(.+)$"_q, query, matchOptions)) {
@@ -1863,6 +1993,11 @@ QString TryConvertUrlToLocal(QString url) {
 			return u"tg://socks?"_q + socksMatch->captured(1);
 		} else if (const auto proxyMatch = regex_match(u"^proxy/?\\?(.+)(#|$)"_q, query, matchOptions)) {
 			return u"tg://proxy?"_q + proxyMatch->captured(1);
+		} else if (const auto webproxyMatch = regex_match(
+				u"^webproxy/?\\?(.+)(#|$)"_q,
+				query,
+				matchOptions)) {
+			return u"tg://webproxy?"_q + webproxyMatch->captured(1);
 		} else if (const auto invoiceMatch = regex_match(u"^(invoice/|\\$)([a-zA-Z0-9_\\-]+)(\\?|#|$)"_q, query, matchOptions)) {
 			return u"tg://invoice?slug="_q + invoiceMatch->captured(2);
 		} else if (const auto bgMatch = regex_match(u"^bg/([a-zA-Z0-9\\.\\_\\-\\~]+)(\\?(.+)?)?$"_q, query, matchOptions)) {
@@ -1887,6 +2022,18 @@ QString TryConvertUrlToLocal(QString url) {
 		} else if (const auto callMatch = regex_match(u"^call/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"_q, query, matchOptions)) {
 			const auto slug = callMatch->captured(1);
 			return u"tg://call?slug="_q + slug;
+		} else if (const auto newbotMatch = regex_match(u"^newbot/([a-zA-Z0-9\\.\\_]+)(/([a-zA-Z0-9\\.\\_]*))?(/?\\?(.+))?$"_q, query, matchOptions)) {
+			const auto manager = newbotMatch->captured(1);
+			const auto username = newbotMatch->captured(3);
+			const auto params = newbotMatch->captured(5);
+			auto result = u"tg://newbot?manager="_q + url_encode(manager);
+			if (!username.isEmpty()) {
+				result += u"&username="_q + url_encode(username);
+			}
+			if (!params.isEmpty()) {
+				result += '&' + params;
+			}
+			return result;
 		} else if (const auto privateMatch = regex_match(u"^"
 			"c/(\\-?\\d+)"
 			"("
@@ -1954,36 +2101,78 @@ QString TryConvertUrlToLocal(QString url) {
 	return url;
 }
 
-bool InternalPassportLink(const QString &url) {
+bool IsMiniAppUrl(const QString &url) {
+	const auto local = TryConvertUrlToLocal(url);
+	const auto prefix = u"tg://resolve?"_q;
+	if (!local.startsWith(prefix, Qt::CaseInsensitive)) {
+		return false;
+	}
+	const auto params = qthelp::url_parse_params(
+		local.mid(prefix.size()),
+		qthelp::UrlParamNameTransform::ToLower);
+	return params.contains(u"appname"_q)
+		|| params.contains(u"startapp"_q)
+		|| params.contains(u"attach"_q);
+}
+
+struct InternalLinkCheckResult {
+	QString command;
+	QString username;
+};
+
+[[nodiscard]] InternalLinkCheckResult InternalLinkCheck(const QString &url) {
 	const auto urlTrimmed = url.trimmed();
 	if (!urlTrimmed.startsWith(u"tg://"_q, Qt::CaseInsensitive)) {
-		return false;
+		return {};
 	}
 	const auto command = base::StringViewMid(urlTrimmed, u"tg://"_q.size());
 
 	using namespace qthelp;
 	const auto matchOptions = RegExOption::CaseInsensitive;
-	const auto authMatch = regex_match(
-		u"^passport/?\\?(.+)(#|$)"_q,
-		command,
-		matchOptions);
 	const auto usernameMatch = regex_match(
 		u"^resolve/?\\?(.+)(#|$)"_q,
 		command,
 		matchOptions);
-	const auto usernameValue = usernameMatch->hasMatch()
-		? url_parse_params(
+	auto username = QString();
+	if (usernameMatch->hasMatch()) {
+		const auto params = url_parse_params(
 			usernameMatch->captured(1),
-			UrlParamNameTransform::ToLower).value(u"domain"_q)
-		: QString();
-	const auto authLegacy = (usernameValue == u"telegrampassport"_q);
+			UrlParamNameTransform::ToLower);
+		username = params.value(u"domain"_q);
+	}
+	return { .command = command.toString(), .username = username };
+}
+
+bool InternalPassportLink(const QString &url) {
+	const auto result = InternalLinkCheck(url);
+
+	using namespace qthelp;
+	const auto matchOptions = RegExOption::CaseInsensitive;
+	const auto authMatch = regex_match(
+		u"^passport/?\\?(.+)(#|$)"_q,
+		result.command,
+		matchOptions);
+	const auto authLegacy = (result.username == u"telegrampassport"_q);
 	return authMatch->hasMatch() || authLegacy;
 }
 
+bool InternalPassportOrOAuthLink(const QString &url) {
+	const auto result = InternalLinkCheck(url);
+
+	using namespace qthelp;
+	const auto matchOptions = RegExOption::CaseInsensitive;
+	const auto oauthMatch = regex_match(
+		u"^oauth/?\\?(.+)(#|$)"_q,
+		result.command,
+		matchOptions);
+	const auto oauthLegacy = (result.username == u"oauth"_q);
+	return InternalPassportLink(url)
+		|| oauthMatch->hasMatch()
+		|| oauthLegacy;
+}
+
 bool StartUrlRequiresActivate(const QString &url) {
-	return Core::App().passcodeLocked()
-		? true
-		: !InternalPassportLink(url);
+	return Core::App().passcodeLocked() || !InternalPassportLink(url);
 }
 
 void ResolveAndShowUniqueGift(
@@ -2031,7 +2220,9 @@ void ResolveAndShowUniqueGift(
 		}
 	}).fail([=](const MTP::Error &error) {
 		clear();
-		show->showToast(u"Error: "_q + error.type());
+		if (!Ui::ShowGiftErrorToast(show, error)) {
+			show->showToast(u"Error: "_q + error.type());
+		}
 	}).send();
 }
 

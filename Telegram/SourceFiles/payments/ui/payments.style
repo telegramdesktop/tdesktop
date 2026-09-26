@@ -124,7 +124,10 @@ paymentTipsErrorLabel: FlatLabel(defaultFlatLabel) {
 }
 paymentTipsErrorPadding: margins(22px, 6px, 22px, 0px);
 
-paymentsToProviderLabel: paymentsShippingPrice;
+paymentsToProviderLabel: FlatLabel(paymentsShippingPrice) {
+	// <= paymentsPanelSize.width - paymentsToProviderPadding = 392 - 28 * 2.
+	minWidth: 275px;
+}
 paymentsToProviderPadding: margins(28px, 6px, 28px, 6px);
 
 paymentsCriticalError: FlatLabel(boxLabel) {
@@ -154,3 +157,13 @@ botWebViewRadialStroke: 3px;
 botWebViewMenu: PopupMenu(popupMenuWithIcons) {
 	maxHeight: 360px;
 }
+botWebViewShellRadius: 7px;
+botWebViewShellPadding: margins(12px, 12px, 12px, 12px);
+botWebViewShellShadowPadding: margins(14px, 12px, 14px, 16px);
+botWebViewShellHeaderHeight: 60px;
+botWebViewShellTitlePadding: margins(0px, 0px, 0px, 0px);
+botWebViewShellBadgeSkip: 4px;
+botWebViewShellFrameRadius: 6px;
+botWebViewShellMenuButtonSize: size(36px, 36px);
+botWebViewShellDisclosureSkip: 12px;
+botWebViewShellFooterButtonSkip: 10px;

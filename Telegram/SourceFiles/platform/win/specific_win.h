@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Platform {
 
+inline bool CheckAppTranslocation() {
+	return true;
+}
+
 inline void IgnoreApplicationActivationRightNow() {
 }
 
@@ -38,6 +42,8 @@ void SetWindowPriority(not_null<QWidget*> window, uint32 priority);
 
 // Activate window with windowId (if found) or the largest priority.
 void ActivateOtherProcess(uint64 processId, uint64 windowId);
+
+[[nodiscard]] bool WaitForProcessExit(uint64 processId, crl::time timeout);
 
 inline QString ApplicationIconName() {
 	return {};

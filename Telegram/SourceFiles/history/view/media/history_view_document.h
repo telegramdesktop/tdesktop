@@ -71,6 +71,8 @@ public:
 
 	QSize sizeForGroupingOptimal(int maxWidth, bool last) const override;
 	QSize sizeForGrouping(int width) const override;
+	int widenGroupingMaxWidth(int current, bool last) override;
+	int contributedMaxMonospaceWidth() const override;
 	void drawGrouped(
 		Painter &p,
 		const PaintContext &context,
@@ -88,6 +90,7 @@ public:
 
 	bool voiceProgressAnimationCallback(crl::time now);
 
+	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
 	void refreshParentId(not_null<HistoryItem*> realParent) override;
@@ -146,6 +149,10 @@ private:
 		Painter &p,
 		const PaintContext &context,
 		LayoutMode mode) const;
+	void paintPlaybackBlobs(
+		Painter &p,
+		const PaintContext &context,
+		QRect inner) const;
 	[[nodiscard]] TextState cornerDownloadTextState(
 		QPoint point,
 		StateRequest request,
@@ -174,6 +181,8 @@ private:
 	mutable TooltipFilename _tooltipFilename;
 
 	TtlPaintCallback _drawTtl;
+
+	mutable float64 _voiceHoverProgress = -1;
 
 	bool _transcribedRound = false;
 

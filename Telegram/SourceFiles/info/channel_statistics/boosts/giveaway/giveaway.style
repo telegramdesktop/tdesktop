@@ -185,10 +185,6 @@ giveawayRefundedPadding: margins(8px, 10px, 8px, 10px);
 startGiveawayBox: Box(premiumGiftBox) {
 	shadowIgnoreTopSkip: true;
 }
-startGiveawayScrollArea: ScrollArea(boxScroll) {
-	deltax: 3px;
-	deltat: 50px;
-}
 startGiveawayBoxTitleClose: IconButton(boxTitleClose) {
 	ripple: universalRippleAnimation;
 }
@@ -213,12 +209,6 @@ startGiveawayButtonLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimati
 	thickness: 2px;
 }
 
-starConvertButtonLoading: InfiniteRadialAnimation(startGiveawayButtonLoading) {
-	color: windowActiveTextFg;
-	thickness: 2px;
-}
-
-starGiftSmallButton: defaultTableSmallButton;
 darkGiftCodeBox: Box(giveawayGiftCodeBox) {
 	bg: groupCallMembersBg;
 	title: FlatLabel(boxTitle) {
@@ -273,9 +263,6 @@ darkGiftTableValueMultiline: FlatLabel(giveawayGiftCodeValueMultiline) {
 darkGiftTableMessage: FlatLabel(giveawayGiftMessage) {
 	textFg: groupCallMembersFg;
 	palette: darkGiftPalette;
-}
-darkGiftCodeLink: FlatLabel(giveawayGiftCodeLink) {
-	textFg: mediaviewMenuFg;
 }
 darkGiftBoxClose: IconButton(boxTitleClose) {
 	icon: icon {{ "box_button_close", groupCallMemberInactiveIcon }};

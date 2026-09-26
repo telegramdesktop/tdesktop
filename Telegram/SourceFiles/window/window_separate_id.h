@@ -15,6 +15,7 @@ class Thread;
 class Folder;
 class Forum;
 class SavedSublist;
+class CommunityInfo;
 } // namespace Data
 
 namespace Main {
@@ -33,6 +34,7 @@ enum class SeparateType {
 	Archive,
 	Chat,
 	Forum,
+	Community,
 	SavedSublist,
 	SharedMedia,
 };
@@ -69,6 +71,7 @@ struct SeparateId {
 	[[nodiscard]] Data::Forum *forum() const;
 	[[nodiscard]] Data::Folder *folder() const;
 	[[nodiscard]] Data::SavedSublist *sublist() const;
+	[[nodiscard]] Data::CommunityInfo *community() const;
 
 	[[nodiscard]] bool hasChatsList() const;
 
@@ -79,5 +82,9 @@ struct SeparateId {
 		const SeparateId &,
 		const SeparateId &) = default;
 };
+
+[[nodiscard]] bool SeparateWindowThreadAvailable(SeparateId id);
+[[nodiscard]] bool SeparateWindowLocked(SeparateId id);
+[[nodiscard]] bool CanShowSeparateWindow(SeparateId id);
 
 } // namespace Window

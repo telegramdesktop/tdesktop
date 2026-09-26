@@ -44,6 +44,7 @@ public:
 	bool showInternal(
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) override;
+	bool showBackInternal() override;
 	std::shared_ptr<Window::SectionMemento> createMemento() override;
 
 	object_ptr<Ui::LayerWidget> moveContentToLayer(

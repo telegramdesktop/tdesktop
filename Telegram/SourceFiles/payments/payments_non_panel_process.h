@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/weak_ptr.h"
+
 class HistoryItem;
 
 namespace Main {
@@ -38,11 +40,11 @@ void ProcessCreditsReceipt(
 	Fn<void(CheckoutResult)> maybeReturnToBot = nullptr);
 
 Fn<void(NonPanelPaymentForm)> ProcessNonPanelPaymentFormFactory(
-	not_null<Window::SessionController*> controller,
+	base::weak_ptr<Window::SessionController> controller,
 	Fn<void(Payments::CheckoutResult)> maybeReturnToBot = nullptr);
 
 Fn<void(NonPanelPaymentForm)> ProcessNonPanelPaymentFormFactory(
-	not_null<Window::SessionController*> controller,
+	base::weak_ptr<Window::SessionController> controller,
 	not_null<HistoryItem*> item);
 
 } // namespace Payments

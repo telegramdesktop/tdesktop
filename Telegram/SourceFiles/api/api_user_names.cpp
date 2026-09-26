@@ -71,6 +71,11 @@ rpl::producer<Data::Usernames> Usernames::loadUsernames(
 			_session->api().request(MTPusers_GetUsers(
 				MTP_vector<MTPInputUser>(1, data)
 			)).done([=](const MTPVector<MTPUser> &result) {
+				if (result.v.isEmpty()) {
+					consumer.put_next({});
+					consumer.put_done();
+					return;
+				}
 				result.v.front().match([&](const MTPDuser &data) {
 					push(data.vusernames(), data.vusername());
 					consumer.put_done();
@@ -78,6 +83,8 @@ rpl::producer<Data::Usernames> Usernames::loadUsernames(
 					consumer.put_next({});
 					consumer.put_done();
 				});
+			}).fail([=] {
+				consumer.put_done();
 			}).send();
 		};
 		const auto requestChannel = [&](const MTPInputChannel &data) {
@@ -85,6 +92,11 @@ rpl::producer<Data::Usernames> Usernames::loadUsernames(
 				MTP_vector<MTPInputChannel>(1, data)
 			)).done([=](const MTPmessages_Chats &result) {
 				result.match([&](const auto &data) {
+					if (data.vchats().v.isEmpty()) {
+						consumer.put_next({});
+						consumer.put_done();
+						return;
+					}
 					data.vchats().v.front().match([&](const MTPDchannel &c) {
 						push(c.vusernames(), c.vusername());
 						consumer.put_done();
@@ -93,6 +105,8 @@ rpl::producer<Data::Usernames> Usernames::loadUsernames(
 						consumer.put_done();
 					});
 				});
+			}).fail([=] {
+				consumer.put_done();
 			}).send();
 		};
 		if (peer->isSelf()) {
@@ -251,8 +265,10 @@ void Usernames::requestToCache(not_null<PeerData*> peer) {
 	const auto lifetime = std::make_shared<rpl::lifetime>();
 	*lifetime = loadUsernames(
 		peer
-	) | rpl::on_next([=, id = peer->id](Data::Usernames usernames) {
+	) | rpl::on_next_done([=, id = peer->id](Data::Usernames usernames) {
 		_tinyCache = std::make_pair(id, std::move(usernames));
+		lifetime->destroy();
+	}, [=] {
 		lifetime->destroy();
 	});
 }

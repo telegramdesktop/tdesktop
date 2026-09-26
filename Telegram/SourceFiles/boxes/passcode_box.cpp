@@ -31,8 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/passport_panel_edit_contact.h"
 #include "settings/sections/settings_privacy_security.h"
 #include "styles/style_layers.h"
-#include "styles/style_passport.h"
-#include "styles/style_boxes.h"
+#include "styles/style_passcode_box.h"
 #include "base/qt/qt_common_adapters.h"
 
 namespace {
@@ -312,6 +311,9 @@ void PasscodeBox::prepare() {
 	) | rpl::on_next([=] {
 		newChanged();
 	}, _passwordHint->lifetime());
+	_recoverEmail->setInputMethodHints(Qt::ImhEmailCharactersOnly
+		| Qt::ImhNoAutoUppercase
+		| Qt::ImhNoPredictiveText);
 	_recoverEmail->changes(
 	) | rpl::on_next([=] {
 		if (!_emailError.isEmpty()) {

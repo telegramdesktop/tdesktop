@@ -19,6 +19,9 @@ namespace Profile {
 [[nodiscard]] bool IsCollectiblePhone(not_null<UserData*> user);
 
 void AddPhoneMenu(not_null<Ui::PopupMenu*> menu, not_null<UserData*> user);
+void AddPhoneSpoilerMenu(
+	not_null<Ui::PopupMenu*> menu,
+	not_null<UserData*> user);
 
 } // namespace Profile
 } // namespace Info

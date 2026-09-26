@@ -97,7 +97,10 @@ public:
 	bool customHighlight() const override {
 		return true;
 	}
+	QRect groupItemRect(int index) const override;
+	[[nodiscard]] Media *partMediaAt(QPoint point) const;
 	bool enforceBubbleWidth() const override;
+	int contributedMaxMonospaceWidth() const override;
 
 	void stopAnimation() override;
 	void checkAnimation() override;

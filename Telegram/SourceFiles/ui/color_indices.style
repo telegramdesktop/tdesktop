@@ -6,11 +6,11 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 
-colorIndexRed: 0;
-colorIndexOrange: 1;
-colorIndexGreen: 2;
-colorIndexSea: 3;
-colorIndexBlue: 4;
-colorIndexPurple: 5;
-colorIndexPink: 6;
-colorIndexYellow: 7;
+colorIndexRed: 0; // [[maybe_unused]]
+colorIndexOrange: 1; // [[maybe_unused]]
+colorIndexGreen: 2; // [[maybe_unused]]
+colorIndexSea: 3; // [[maybe_unused]]
+colorIndexBlue: 4; // [[maybe_unused]]
+colorIndexPurple: 5; // [[maybe_unused]]
+colorIndexPink: 6; // [[maybe_unused]]
+colorIndexYellow: 7; // [[maybe_unused]]

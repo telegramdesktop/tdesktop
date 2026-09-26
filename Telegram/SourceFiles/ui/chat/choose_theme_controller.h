@@ -22,6 +22,12 @@ namespace Ui {
 class RpWidget;
 class PlainShadow;
 class VerticalLayout;
+class ChatTheme;
+
+[[nodiscard]] QImage GenerateChatThemePreview(
+	not_null<ChatTheme*> theme,
+	EmojiPtr emoji,
+	QSize size);
 
 class ChooseThemeController final {
 public:

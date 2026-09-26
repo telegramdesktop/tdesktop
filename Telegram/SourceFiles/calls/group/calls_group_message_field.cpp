@@ -33,9 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/userpic_view.h"
-#include "styles/style_calls.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_chat.h"
 #include "styles/style_media_view.h"
 
 namespace Calls::Group {
@@ -56,6 +54,7 @@ public:
 	~ReactionPanel();
 
 	[[nodiscard]] rpl::producer<Chosen> chosen() const;
+	[[nodiscard]] bool ownsInputAt(QPoint globalPosition) const;
 
 	void show();
 	void hide();
@@ -107,6 +106,19 @@ ReactionPanel::~ReactionPanel() = default;
 
 auto ReactionPanel::chosen() const -> rpl::producer<Chosen> {
 	return _chosen.events();
+}
+
+bool ReactionPanel::ownsInputAt(QPoint globalPosition) const {
+	if (_selector && _parent) {
+		const auto local = _parent->mapFromGlobal(globalPosition);
+		if (_selector->geometry().contains(local)) {
+			return true;
+		}
+	}
+	const auto local = _outer->mapFromGlobal(globalPosition);
+	return ranges::any_of(_hiding, [&](const auto &hiding) {
+		return hiding->widget.geometry().contains(local);
+	});
 }
 
 void ReactionPanel::show() {
@@ -197,8 +209,10 @@ void ReactionPanel::create() {
 				_show,
 				PremiumFeature::AnimatedEmoji);
 		} else {
-			_chosen.fire(std::move(reaction));
 			hide();
+			// Fire last: a consumer may synchronously destroy the
+			// MessageField that owns this ReactionPanel.
+			_chosen.fire(std::move(reaction));
 		}
 	}, _selector->lifetime());
 
@@ -332,8 +346,9 @@ void MessageField::createControls(PeerData *peer) {
 		Ui::InputField::Mode::MultiLine,
 		tr::lng_message_ph());
 	_field->setMaxLength(_limit + kErrorLimit);
-	_field->setMinHeight(
-		st::historySendSize.height() - 2 * st::historySendPadding);
+	_field->setMinHeight(st.attach.height
+		- st.padding.top()
+		- st.padding.bottom());
 	_field->setMaxHeight(st::historyComposeFieldMaxHeight);
 	_field->setDocumentMargin(4.);
 	_field->setAdditionalMargin(style::ConvertScale(4) - 4);
@@ -361,6 +376,9 @@ void MessageField::createControls(PeerData *peer) {
 
 	_reactionPanel->chosen(
 	) | rpl::on_next([=](Chosen reaction) {
+		// Nothing may touch `this` after the fire below: a consumer of
+		// _submitted destroys this MessageField synchronously when
+		// animations are disabled. ReactionPanel hides itself first.
 		if (const auto customId = reaction.id.custom()) {
 			const auto document = _show->session().data().document(customId);
 			if (const auto sticker = document->sticker()) {
@@ -374,7 +392,6 @@ void MessageField::createControls(PeerData *peer) {
 		} else {
 			_submitted.fire({ reaction.id.emoji() });
 		}
-		_reactionPanel->hide();
 	}, _field->lifetime());
 
 	const auto show = _show;
@@ -468,15 +485,13 @@ void MessageField::createControls(PeerData *peer) {
 	) | rpl::filter(
 		rpl::mappers::_1 > 0
 	) | rpl::on_next([=](int newWidth) {
+		const auto &st = st::storiesComposeControls;
 		const auto fieldWidth = newWidth
-			- st::historySendPadding
+			- st.padding.top()
 			- _emojiToggle->width()
 			- _send->width();
 		_field->resizeToWidth(fieldWidth);
-		_field->moveToLeft(
-			st::historySendPadding,
-			st::historySendPadding,
-			newWidth);
+		_field->moveToLeft(st.padding.top(), st.padding.top(), newWidth);
 		updateWrapSize(newWidth);
 	}, _lifetime);
 
@@ -487,8 +502,10 @@ void MessageField::createControls(PeerData *peer) {
 		if (width <= 0) {
 			return;
 		}
-		const auto minHeight = st::historySendSize.height()
-			- 2 * st::historySendPadding;
+		const auto &st = st::storiesComposeControls;
+		const auto minHeight = st.attach.height
+			- st.padding.top()
+			- st.padding.bottom();
 		_send->moveToRight(0, height - minHeight, width);
 		_emojiToggle->moveToRight(_send->width(), height - minHeight, width);
 		updateWrapSize();
@@ -499,7 +516,8 @@ void MessageField::createControls(PeerData *peer) {
 	}, _lifetime);
 
 	const auto updateLimitPosition = [=](QSize parent, QSize label) {
-		const auto skip = st::historySendPadding;
+		const auto &st = st::storiesComposeControls;
+		const auto skip = st.padding.top();
 		return QPoint(parent.width() - label.width() - skip, skip);
 	};
 	Ui::AddLengthLimitLabel(_field, _limit, {
@@ -528,7 +546,8 @@ void MessageField::updateEmojiPanelGeometry() {
 
 void MessageField::setupBackground() {
 	_wrap->paintRequest() | rpl::on_next([=] {
-		const auto radius = st::historySendSize.height() / 2.;
+		const auto &st = st::storiesComposeControls;
+		const auto radius = st.attach.height / 2.;
 		auto p = QPainter(_wrap.get());
 		auto hq = PainterHighQualityEnabler(p);
 
@@ -608,9 +627,17 @@ void MessageField::raise() {
 	}
 }
 
+bool MessageField::ownsReactionPanelInput(QPoint globalPosition) const {
+	return _reactionPanel
+		&& _reactionPanel->ownsInputAt(globalPosition);
+}
+
 void MessageField::updateWrapSize(int widthOverride) {
+	const auto &st = st::storiesComposeControls;
 	const auto width = widthOverride ? widthOverride : _wrap->width();
-	const auto height = _field->height() + 2 * st::historySendPadding;
+	const auto height = _field->height()
+		+ st.padding.top()
+		+ st.padding.bottom();
 	_wrap->resize(width, height);
 	updateHeight();
 }

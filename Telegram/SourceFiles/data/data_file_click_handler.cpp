@@ -80,6 +80,9 @@ void DocumentSaveClickHandler::Save(
 		return;
 	}
 
+	if (data->forbidsFileSave()) {
+		return;
+	}
 	auto savename = QString();
 	if (mode == Mode::ToCacheOrFile && data->saveToCache()) {
 		data->save(origin, savename);
@@ -96,8 +99,7 @@ void DocumentSaveClickHandler::Save(
 			return;
 		}
 		const auto filepath = data->filepath(true);
-		const auto fileinfo = QFileInfo(
-			);
+		const auto fileinfo = QFileInfo(filepath);
 		const auto filedir = filepath.isEmpty()
 			? QDir()
 			: fileinfo.dir();

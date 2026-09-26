@@ -427,11 +427,9 @@ void BuildOtherSection(SectionBuilder &builder) {
 	builder.addSkip();
 }
 
-void BuildCallsSectionContent(SectionBuilder &builder) {
-	auto *testingMicrophone = builder.container()
-		? builder.container()->lifetime().make_state<rpl::variable<bool>>()
-		: nullptr;
-
+void BuildCallsSectionContent(
+		SectionBuilder &builder,
+		rpl::variable<bool> *testingMicrophone = nullptr) {
 	BuildOutputSection(builder);
 	BuildInputSection(builder, testingMicrophone);
 	BuildCallDevicesSection(builder);
@@ -672,7 +670,8 @@ void Calls::sectionSaveChanges(FnMut<void()> done) {
 void Calls::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	const SectionBuildMethod buildMethod = [](
+	const auto testingMicrophone = &_testingMicrophone;
+	const SectionBuildMethod buildMethod = [testingMicrophone](
 			not_null<Ui::VerticalLayout*> container,
 			not_null<Window::SessionController*> controller,
 			Fn<void(Type)> showOther,
@@ -686,7 +685,7 @@ void Calls::setupContent() {
 			.showOther = std::move(showOther),
 			.isPaused = isPaused,
 		});
-		BuildCallsSectionContent(builder);
+		BuildCallsSectionContent(builder, testingMicrophone);
 	};
 
 	build(content, buildMethod);

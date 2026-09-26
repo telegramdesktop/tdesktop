@@ -20,15 +20,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/effects/ripple_animation.h"
-#include "ui/effects/ministar_particles.h"
 #include "ui/painter.h"
-#include "ui/power_saving.h"
 #include "ui/rect.h"
-#include "ui/ui_utility.h"
 #include "api/api_transcribes.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
-#include "styles/style_media_view.h"
 #include "window/window_session_controller.h"
 
 namespace HistoryView {
@@ -36,6 +32,8 @@ namespace {
 
 constexpr auto kInNonChosenOpacity = 0.12;
 constexpr auto kOutNonChosenOpacity = 0.18;
+constexpr auto kArrowPivotNear = 0.349;
+constexpr auto kArrowPivotFar = 1. - kArrowPivotNear;
 
 void ClipPainterForLock(QPainter &p, bool roundview, const QRect &r) {
 	const auto &pos = roundview
@@ -86,7 +84,8 @@ void TranscribeButton::setLoading(bool loading) {
 						item,
 						_lastPaintedPoint.isNull()
 							? QRect()
-							: QRect(_lastPaintedPoint, size()));
+							: (QRect(_lastPaintedPoint, size()))
+								+ Margins(st::lineWidth));
 				}
 			},
 			st::historyTranscribeRadialAnimation);
@@ -125,47 +124,105 @@ void TranscribeButton::paint(
 			}
 		}
 
+		const auto state = _animation
+			? _animation->computeState()
+			: Ui::RadialState();
+		const auto staticLoading = anim::Disabled() && state.shown > 0;
+
 		auto hq = PainterHighQualityEnabler(p);
 		p.setPen(Qt::NoPen);
 		p.setBrush(context.st->msgServiceBg());
 
 		p.drawEllipse(r);
 		if (_summarize) {
-			if (!_particles) {
-				_particles = std::make_unique<Ui::StarParticles>(
-					Ui::StarParticles::Type::RadialInside,
-					7,
-					st::lineWidth * 4);
-				_particles->setColor(st::msgServiceFg->c);
-				_particles->setSpeed(0.2);
-			}
-			p.setClipRegion(QRegion(r, QRegion::Ellipse));
-			const auto paused = context.paused
-				|| (!_summarizeHovered && !_loading)
-				|| On(PowerSaving::kChatEffects);
-			_particles->paint(p, r, context.now, paused);
-			p.setClipping(false);
 			if (hasLock()) {
 				context.st->historyFastTranscribeLock().paint(
 					p,
 					r.topLeft() + st::historyFastSummaryLockPos,
 					r.width());
 			}
-			if (!paused) {
-				const auto session = &_item->history()->session();
-				Ui::PostponeCall(session, [=, itemId = _item->fullId()] {
-					if (const auto i = session->data().message(itemId)) {
-						session->data().requestItemRepaint(i, r);
+			if (!staticLoading) [[likely]] {
+				const auto shown = _item->history()
+					->session().api().transcribes().summary(_item).shown;
+				if (_summaryShown != shown) {
+					_summaryShown = shown;
+					const auto session = &_item->history()->session();
+					_openedAnimation.start(
+						[=, itemId = _item->fullId()] {
+							if (const auto i = session->data().message(
+									itemId)) {
+								session->data().requestItemRepaint(i);
+							}
+						},
+						shown ? 0. : 1.,
+						shown ? 1. : 0.,
+						st::fadeWrapDuration);
+				}
+				const auto t
+					= _openedAnimation.value(_summaryShown ? 1. : 0.);
+
+				const auto fg = context.st->msgServiceFg()->c;
+				st::historySummaryStars.paintInCenter(p, r, fg);
+
+				const auto &arrow = st::historySummaryArrows;
+				const auto sz = r.width();
+				const auto cx = r.x() + sz / 2.;
+				const auto cy = r.y() + sz / 2.;
+
+				// First arrow.
+				{
+					p.save();
+					if (t < 0.5) {
+						const auto s = std::abs(t - 0.5) + 0.5;
+						p.translate(cx, cy);
+						p.scale(s, s);
+						p.translate(-cx, -cy);
 					}
-				});
+					if (t > 0.5) {
+						const auto s = std::abs(t - 0.5) + 0.5;
+						const auto px = r.x() + sz * kArrowPivotNear;
+						const auto py = r.y() + sz * kArrowPivotFar;
+						p.translate(px, py);
+						p.scale(-s, -s);
+						p.translate(-px, -py);
+						p.translate(
+							-sz * (1. - s) * 0.4,
+							sz * (1. - s) * 0.4);
+					}
+					arrow.paintInCenter(p, QRectF(r), fg);
+					p.restore();
+				}
+
+				// Second arrow (rotated 180 degrees).
+				{
+					p.save();
+					if (t < 0.5) {
+						const auto s = std::abs(t - 0.5) + 0.5;
+						p.translate(cx, cy);
+						p.scale(s, s);
+						p.translate(-cx, -cy);
+					}
+					if (t > 0.5) {
+						const auto s = std::abs(t - 0.5) + 0.5;
+						const auto px = r.x() + sz * kArrowPivotFar;
+						const auto py = r.y() + sz * kArrowPivotNear;
+						p.translate(px, py);
+						p.scale(-s, -s);
+						p.translate(-px, -py);
+					}
+					p.translate(cx, cy);
+					p.rotate(180.);
+					p.translate(-cx, -cy);
+					if (t > 0.5) {
+						const auto s = std::abs(t - 0.5) + 0.5;
+						p.translate(
+							-sz * (1. - s) * 0.4,
+							sz * (1. - s) * 0.4);
+					}
+					arrow.paintInCenter(p, QRectF(r), fg);
+					p.restore();
+				}
 			}
-			(_item->history()->session().api().transcribes().summary(
-					_item).shown
-				? st::mediaviewFullScreenButton.icon
-				: st::mediaviewFullScreenOutIcon).paintInCenter(
-					p,
-					r,
-					st::msgServiceFg->c);
 		} else if (!_loading && hasLock()) {
 			ClipPainterForLock(p, true, r);
 			context.st->historyFastTranscribeIcon().paintInCenter(p, r);
@@ -178,14 +235,10 @@ void TranscribeButton::paint(
 			context.st->historyFastTranscribeIcon().paintInCenter(p, r);
 		}
 
-		const auto state = _animation
-			? _animation->computeState()
-			: Ui::RadialState();
-
 		auto pen = QPen(st::msgServiceFg);
 		pen.setCapStyle(Qt::RoundCap);
 		p.setPen(pen);
-		if (_animation && state.shown > 0 && anim::Disabled()) {
+		if (staticLoading) [[unlikely]] {
 			const auto _st = &st::defaultRadio;
 			anim::DrawStaticLoading(
 				p,
@@ -328,7 +381,7 @@ ClickHandlerPtr TranscribeButton::link() {
 		if (session->premium()) {
 			auto &transcribes = session->api().transcribes();
 			return summarize
-				? transcribes.toggleSummary(item, nullptr)
+				? transcribes.toggleSummary(item)
 				: transcribes.toggle(item);
 		}
 		const auto my = context.other.value<ClickHandlerContext>();
@@ -357,15 +410,7 @@ ClickHandlerPtr TranscribeButton::link() {
 				}
 			}
 			if (summarize) {
-				const auto weak = my.sessionWindow;
-				session->api().transcribes().toggleSummary(item, [=] {
-					if (const auto strong = weak.get()) {
-						Settings::ShowPremium(strong, u"summary"_q);
-						// ShowPremiumPreviewBox(
-						// 	strong,
-						// 	PremiumFeature::VoiceToText);
-					}
-				});
+				session->api().transcribes().toggleSummary(item);
 			} else {
 				session->api().transcribes().toggle(item);
 			}

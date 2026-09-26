@@ -10,13 +10,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/variant.h"
 #include "api/api_common.h"
 
+#include <memory>
+
 namespace Ui {
 struct PreparedFileInformation;
+struct PreparedFileArchive;
 } // namespace Ui
+
+namespace Media::Encode {
+struct Job;
+struct VideoSource;
+} // namespace Media::Encode
 
 namespace Main {
 class Session;
 } // namespace Main
+
+namespace Storage {
+struct ArchiveEntries;
+} // namespace Storage
+
+struct FilePrepareResult;
 
 // Load files up to 2'000 MB.
 constexpr auto kFileSizeLimit = 2'000 * int64(1024 * 1024);
@@ -24,8 +38,7 @@ constexpr auto kFileSizeLimit = 2'000 * int64(1024 * 1024);
 // Load files up to 4'000 MB.
 constexpr auto kFileSizePremiumLimit = 4'000 * int64(1024 * 1024);
 
-extern const char kOptionSendLargePhotos[];
-
+[[nodiscard]] int PhotoSideLimit(bool large);
 [[nodiscard]] int PhotoSideLimit();
 
 enum class SendMediaType {
@@ -35,6 +48,9 @@ enum class SendMediaType {
 	File,
 	ThemeFile,
 	Secure,
+
+	// Uploaded just to get an InputFile, without a document or a message.
+	SecondaryFile,
 };
 
 using TaskId = void*; // no interface, just id
@@ -114,9 +130,16 @@ struct SendingAlbum {
 		uint64 randomId = 0;
 		FullMsgId msgId;
 		std::optional<MTPInputSingleMedia> media;
+		std::shared_ptr<FilePrepareResult> prepared;
 	};
 
 	SendingAlbum();
+
+	[[nodiscard]] bool preparedMusicBatching() const;
+	[[nodiscard]] bool preparedMusicReady() const;
+	[[nodiscard]] std::shared_ptr<FilePrepareResult> preparedMusicSample() const;
+	[[nodiscard]] std::vector<std::shared_ptr<FilePrepareResult>>
+		takePreparedMusic();
 
 	void fillMedia(
 		not_null<HistoryItem*> item,
@@ -124,10 +147,12 @@ struct SendingAlbum {
 		uint64 randomId);
 	void refreshMediaCaption(not_null<HistoryItem*> item);
 	void removeItem(not_null<HistoryItem*> item);
+	void removeTask(TaskId taskId);
 
 	uint64 groupId = 0;
 	std::vector<Item> items;
 	Api::SendOptions options;
+	bool musicPreparedBatching = false;
 	bool sent = false;
 
 };
@@ -161,11 +186,12 @@ struct FilePrepareDescriptor {
 };
 struct FilePrepareResult {
 	explicit FilePrepareResult(FilePrepareDescriptor &&descriptor);
+	~FilePrepareResult();
 
 	TaskId taskId = kEmptyTaskId;
 	uint64 id = 0;
 	FileLoadTo to;
-	std::shared_ptr<SendingAlbum> album;
+	std::weak_ptr<SendingAlbum> album;
 	SendMediaType type = SendMediaType::File;
 	QString filepath;
 	QByteArray content;
@@ -194,6 +220,12 @@ struct FilePrepareResult {
 	TextWithTags caption;
 	bool spoiler = false;
 	bool forceFile = false;
+	std::shared_ptr<Media::Encode::VideoSource> videoSource;
+	crl::time videoCoverOffset = 0;
+	std::shared_ptr<Media::Encode::Job> animationJob;
+	std::shared_ptr<Ui::PreparedFileArchive> archive;
+	std::shared_ptr<Storage::ArchiveEntries> archiveEntries;
+	QString transcodedTempPath;
 
 	std::vector<MTPInputDocument> attachedStickers;
 
@@ -213,6 +245,9 @@ public:
 		const QString &filepath,
 		const QByteArray &content,
 		const QString &filemime);
+	[[nodiscard]] static bool IsVideoFile(
+		const QString &filepath,
+		const QString &filemime);
 	static bool FillImageInformation(
 		QImage &&image,
 		bool animated,
@@ -220,37 +255,48 @@ public:
 		QByteArray content = {},
 		QByteArray format = {});
 
-	FileLoadTask(
-		not_null<Main::Session*> session,
-		const QString &filepath,
-		const QByteArray &content,
-		std::unique_ptr<Ui::PreparedFileInformation> information,
-		std::unique_ptr<FileLoadTask> videoCover,
-		SendMediaType type,
-		const FileLoadTo &to,
-		const TextWithTags &caption,
-		bool spoiler,
-		std::shared_ptr<SendingAlbum> album = nullptr,
-		bool forceFile = false,
-		uint64 idOverride = 0);
-	FileLoadTask(
-		not_null<Main::Session*> session,
-		const QByteArray &voice,
-		crl::time duration,
-		const VoiceWaveform &waveform,
-		bool video,
-		const FileLoadTo &to,
-		const TextWithTags &caption);
+	struct Args {
+		not_null<Main::Session*> session;
+		QString filepath;
+		QByteArray content;
+		std::unique_ptr<Ui::PreparedFileInformation> information;
+		std::unique_ptr<FileLoadTask> videoCover;
+		SendMediaType type;
+		FileLoadTo to;
+		TextWithTags caption;
+		bool spoiler = false;
+		std::shared_ptr<SendingAlbum> album;
+		bool forceFile = false;
+		bool sendLargePhotos = false;
+		std::shared_ptr<Media::Encode::Job> animationJob;
+		bool animationAsGif = true;
+		std::shared_ptr<Ui::PreparedFileArchive> archive;
+		uint64 idOverride = 0;
+		QString displayName;
+	};
+
+	struct VoiceArgs {
+		not_null<Main::Session*> session;
+		QByteArray voice;
+		crl::time duration = 0;
+		VoiceWaveform waveform;
+		bool video = false;
+		FileLoadTo to;
+		TextWithTags caption;
+	};
+
+	explicit FileLoadTask(Args &&args);
+	explicit FileLoadTask(VoiceArgs &&args);
 	~FileLoadTask();
 
 	uint64 fileid() const {
 		return _id;
 	}
 
-	struct Args {
+	struct ProcessArgs {
 		bool generateGoodThumbnail = true;
 	};
-	void process(Args &&args);
+	void process(ProcessArgs &&args);
 
 	void process() override {
 		process({});
@@ -286,6 +332,7 @@ private:
 	FileLoadTo _to;
 	const std::shared_ptr<SendingAlbum> _album;
 	QString _filepath;
+	QString _displayName;
 	QByteArray _content;
 	std::unique_ptr<FileLoadTask> _videoCover;
 	std::unique_ptr<Ui::PreparedFileInformation> _information;
@@ -295,6 +342,10 @@ private:
 	TextWithTags _caption;
 	bool _spoiler = false;
 	bool _forceFile = false;
+	bool _sendLargePhotos = false;
+	std::shared_ptr<Media::Encode::Job> _animationJob;
+	bool _animationAsGif = true;
+	std::shared_ptr<Ui::PreparedFileArchive> _archive;
 
 	std::shared_ptr<FilePrepareResult> _result;
 

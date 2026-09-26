@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/search_field_controller.h"
 #include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
 #include "styles/style_menu_icons.h"
@@ -62,6 +63,7 @@ struct Labeled {
 		{ C::Lock, tr::lng_shortcuts_lock() },
 		{ C::Minimize, tr::lng_shortcuts_minimize() },
 		{ C::Quit, tr::lng_shortcuts_quit() },
+		{ C::ReopenClosedWindow, tr::lng_shortcuts_reopen_closed_window() },
 		separator,
 		{ C::Search, tr::lng_shortcuts_search() },
 		separator,
@@ -110,6 +112,10 @@ struct Labeled {
 		{ C::SendSilentMessage, tr::lng_shortcuts_silent_send() },
 		{ C::ScheduleMessage, tr::lng_shortcuts_schedule() },
 		separator,
+		{ C::ComposeAiApplyInPlace, tr::lng_shortcuts_ai_compose_apply() },
+		{ C::ShowRichEditor, tr::lng_shortcuts_rich_editor() },
+		{ C::ToggleWebPagePreview, tr::lng_shortcuts_toggle_link_preview() },
+		separator,
 		{ C::RecordVoice, tr::lng_shortcuts_record_voice_message() },
 		{ C::RecordRound, tr::lng_shortcuts_record_round_message() },
 		separator,
@@ -137,14 +143,30 @@ struct Labeled {
 	return result;
 }
 
+[[nodiscard]] QStringList KeyWords(const QKeySequence &key) {
+	if (key.isEmpty()) {
+		return {};
+	}
+	auto text = key.toString();
+#ifdef Q_OS_MAC
+	text.replace(u"Ctrl+"_q, u"Ctrl Cmd Command "_q);
+	text.replace(u"Meta+"_q, u"Meta Control "_q);
+	text.replace(u"Alt+"_q, u"Alt Opt Option "_q);
+#endif // Q_OS_MAC
+	return SearchWords(text);
+}
+
 struct SetupShortcutsResult {
 	Fn<void()> save;
 	QPointer<Ui::RpWidget> resetButton;
+	Fn<void(const QString &query)> applyFilter;
+	rpl::producer<> recordingStarts;
 };
 
 [[nodiscard]] SetupShortcutsResult SetupShortcutsContent(
 		not_null<Window::SessionController*> controller,
-		not_null<Ui::VerticalLayout*> content) {
+		not_null<Ui::VerticalLayout*> content,
+		HighlightRegistry *highlights) {
 	const auto &defaults = S::KeysDefaults();
 	const auto &currents = S::KeysCurrents();
 
@@ -157,14 +179,20 @@ struct SetupShortcutsResult {
 	struct Entry {
 		S::Command command;
 		rpl::producer<QString> label;
+		QStringList terms;
 		std::vector<QKeySequence> original;
 		std::vector<QKeySequence> now;
-		Ui::VerticalLayout *wrap = nullptr;
+		Ui::SlideWrap<Ui::VerticalLayout> *wrap = nullptr;
+		Ui::VerticalLayout *inner = nullptr;
 		std::vector<std::unique_ptr<Button>> buttons;
 	};
 	struct State {
 		std::vector<Entry> entries;
+		std::vector<Ui::SlideWrap<Ui::VerticalLayout>*> separators;
+		QString query;
+		QStringList resetTerms;
 		rpl::variable<bool> modified;
+		rpl::variable<bool> resetShown = true;
 		rpl::variable<Button*> recording;
 		rpl::variable<QKeySequence> lastKey;
 		Fn<void(S::Command command)> showMenuFor;
@@ -229,11 +257,20 @@ struct SetupShortcutsResult {
 					.key = now,
 				});
 				const auto raw = button.get();
-				const auto widget = entry.wrap->add(
+				const auto widget = entry.inner->add(
 					object_ptr<Ui::SettingsButton>(
-						entry.wrap,
+						entry.inner,
 						rpl::duplicate(entry.label),
 						st::settingsButtonNoIcon));
+				if (highlights && index == 0) {
+					const auto id = ShortcutsHighlightId(entry.command);
+					if (!id.isEmpty()) {
+						highlights->push_back({
+							id,
+							{ widget, { .rippleShape = true } },
+						});
+					}
+				}
 				const auto keys = Ui::CreateChild<Ui::FlatLabel>(
 					widget,
 					st::settingsButtonNoIcon.rightLabel);
@@ -298,7 +335,7 @@ struct SetupShortcutsResult {
 			}
 			++index;
 		}
-		while (entry.wrap->count() > index) {
+		while (entry.inner->count() > index) {
 			entry.buttons.pop_back();
 		}
 	};
@@ -469,23 +506,105 @@ struct SetupShortcutsResult {
 	});
 	AddSkip(modifiedInner);
 	AddDivider(modifiedInner);
-	modifiedWrap->toggleOn(state->modified.value());
+	modifiedWrap->toggleOn(rpl::combine(
+		state->modified.value(),
+		state->resetShown.value()
+	) | rpl::map([](bool modified, bool shown) {
+		return modified && shown;
+	}));
 
 	AddSkip(content);
+	const auto nothingFound = content->add(
+		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+			content,
+			object_ptr<Ui::FlatLabel>(
+				content,
+				tr::lng_search_tab_no_results(),
+				st::settingsSearchNoResults),
+			st::settingsSearchNoResultsPadding),
+		style::margins(),
+		style::al_justify);
+	nothingFound->setDuration(0);
+	nothingFound->hide(anim::type::instant);
+
+	const auto refreshFilter = [=] {
+		const auto words = SearchWords(state->query);
+		const auto reset = MatchesWords(state->resetTerms, words);
+		state->resetShown = reset;
+		auto found = reset && state->modified.current();
+		for (auto &entry : state->entries) {
+			if (!entry.wrap) {
+				continue;
+			}
+			auto terms = entry.terms;
+			for (const auto &key : entry.now) {
+				terms += KeyWords(key);
+			}
+			const auto shown = MatchesWords(terms, words);
+			entry.wrap->toggle(shown, anim::type::instant);
+			found = found || shown;
+		}
+		for (const auto separator : state->separators) {
+			separator->toggle(words.isEmpty(), anim::type::instant);
+		}
+		nothingFound->toggle(!found, anim::type::instant);
+	};
+
+	tr::lng_shortcuts_reset(
+	) | rpl::on_next([=](const QString &text) {
+		state->resetTerms = SearchWords(text);
+		if (!state->query.isEmpty()) {
+			refreshFilter();
+		}
+	}, content->lifetime());
+
 	for (auto &entry : entries) {
 		if (!entry.label) {
-			AddSkip(content);
-			AddDivider(content);
-			AddSkip(content);
+			const auto separator = content->add(
+				object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+					content,
+					object_ptr<Ui::VerticalLayout>(content)),
+				style::margins(),
+				style::al_justify);
+			separator->setDuration(0);
+			AddSkip(separator->entity());
+			AddDivider(separator->entity());
+			AddSkip(separator->entity());
+			state->separators.push_back(separator);
 			continue;
 		}
-		entry.wrap = content->add(object_ptr<Ui::VerticalLayout>(content));
+		entry.wrap = content->add(
+			object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+				content,
+				object_ptr<Ui::VerticalLayout>(content)),
+			style::margins(),
+			style::al_justify);
+		entry.wrap->setDuration(0);
+		entry.inner = entry.wrap->entity();
 		fill(entry);
+
+		const auto raw = &entry;
+		rpl::duplicate(
+			entry.label
+		) | rpl::on_next([=](const QString &text) {
+			raw->terms = SearchWords(text);
+			if (!state->query.isEmpty()) {
+				refreshFilter();
+			}
+		}, content->lifetime());
 	}
 
 	return {
 		.save = [=] {},
 		.resetButton = reset,
+		.applyFilter = [=](const QString &query) {
+			state->query = query;
+			refreshFilter();
+		},
+		.recordingStarts = state->recording.changes(
+		) | rpl::filter([](Button *button) {
+			return button != nullptr;
+		}) | rpl::to_empty,
 	};
 }
 
@@ -510,9 +629,14 @@ public:
 
 	[[nodiscard]] rpl::producer<QString> title() override;
 
+	[[nodiscard]] base::weak_qptr<Ui::RpWidget> createPinnedToTop(
+		not_null<QWidget*> parent) override;
+
 private:
 	void setupContent();
 
+	std::unique_ptr<Ui::SearchFieldController> _searchController;
+	Fn<void(const QString &query)> _applyFilter;
 	Fn<void()> _save;
 	QPointer<Ui::RpWidget> _resetButton;
 
@@ -535,10 +659,28 @@ rpl::producer<QString> Shortcuts::title() {
 	return tr::lng_settings_shortcuts();
 }
 
+base::weak_qptr<Ui::RpWidget> Shortcuts::createPinnedToTop(
+		not_null<QWidget*> parent) {
+	auto search = CreateSectionSearchRow(parent);
+	_searchController = std::move(search.controller);
+	const auto row = search.row;
+
+	_searchController->queryChanges(
+	) | rpl::on_next([=](const QString &query) {
+		if (_applyFilter) {
+			_applyFilter(query);
+		}
+	}, row->lifetime());
+
+	return base::make_weak(row);
+}
+
 void Shortcuts::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	const SectionBuildMethod buildMethod = [
+		section = this,
+		applyFilter = &_applyFilter,
 		resetButton = &_resetButton,
 		save = &_save
 	](
@@ -560,9 +702,19 @@ void Shortcuts::setupContent() {
 			.highlights = highlights,
 		});
 
-		auto result = SetupShortcutsContent(controller, container);
+		auto result = SetupShortcutsContent(
+			controller,
+			container,
+			highlights);
 		*save = std::move(result.save);
 		*resetButton = result.resetButton;
+		*applyFilter = std::move(result.applyFilter);
+
+		std::move(
+			result.recordingStarts
+		) | rpl::on_next([=] {
+			section->setFocus();
+		}, lifetime);
 
 		if (highlights && *resetButton) {
 			highlights->push_back({
@@ -605,6 +757,15 @@ const auto kMeta = BuildHelper({
 
 Type ShortcutsId() {
 	return Shortcuts::Id();
+}
+
+QString ShortcutsHighlightId(::Shortcuts::Command command) {
+	switch (command) {
+	case ::Shortcuts::Command::ComposeAiApplyInPlace:
+		return u"shortcuts/ai_compose_apply"_q;
+	default:
+		return {};
+	}
 }
 
 namespace Builder {

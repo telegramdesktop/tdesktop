@@ -59,6 +59,9 @@ public:
 		bool withCollectibles = false;
 	};
 	void show(Descriptor &&descriptor);
+	void hideFast();
+	void hideAnimated();
+	[[nodiscard]] bool shown() const;
 	void repaint();
 
 	struct CustomChosen {

@@ -28,7 +28,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/file_location.h"
+#include "core/version.h"
+#include "data/components/recent_inline_bots.h"
 #include "data/components/recent_peers.h"
+#include "settings/settings_recent_searches.h"
 #include "data/components/top_peers.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_session.h"
@@ -1035,7 +1038,7 @@ void Account::writeSessionSettings(Main::SessionSettings *stored) {
 		const auto &stickers = _owner->session().data().stickers();
 		recentStickers.reserve(stickers.getRecentPack().size());
 		for (const auto &pair : std::as_const(stickers.getRecentPack())) {
-			recentStickers.push_back(qMakePair(pair.first->id, pair.second));
+			recentStickers.push_back({ pair.first->id, pair.second });
 		}
 	}
 
@@ -1218,7 +1221,9 @@ void EnumerateDrafts(
 		const base::flat_map<Data::DraftKey, MessageDraftSource> &sources,
 		Callback &&callback) {
 	for (const auto &[key, draft] : map) {
-		if (key.isCloud() || sources.contains(key)) {
+		if (draft->hasRichMessage()) {
+			continue;
+		} else if (key.isCloud() || sources.contains(key)) {
 			continue;
 		} else if (key.isLocal()
 			&& (!supportMode || key.topicRootId())) {
@@ -2561,10 +2566,10 @@ void Account::importOldRecentStickers() {
 			custom->stickers.push_back(doc);
 			++custom->count;
 		}
-		if (qAbs(value) > 1
+		if (std::abs(value) > 1
 			&& (recent.size()
 				< _owner->session().serverConfig().stickersRecentLimit)) {
-			recent.push_back(qMakePair(doc, qAbs(value)));
+			recent.push_back({ doc, ushort(std::abs(value)) });
 		}
 	}
 	if (def->stickers.isEmpty()) {
@@ -2766,12 +2771,12 @@ void Account::readSavedGifs() {
 void Account::writeRecentHashtagsAndBots() {
 	const auto &write = cRecentWriteHashtags();
 	const auto &search = cRecentSearchHashtags();
-	const auto &bots = cRecentInlineBots();
+	const auto &bots = _owner->session().recentInlineBots().list();
 
-	if (write.isEmpty() && search.isEmpty() && bots.isEmpty()) {
+	if (write.isEmpty() && search.isEmpty() && bots.empty()) {
 		readRecentHashtagsAndBots();
 	}
-	if (write.isEmpty() && search.isEmpty() && bots.isEmpty()) {
+	if (write.isEmpty() && search.isEmpty() && bots.empty()) {
 		if (_recentHashtagsAndBotsKey) {
 			ClearKey(_recentHashtagsAndBotsKey, _basePath);
 			_recentHashtagsAndBotsKey = 0;
@@ -2783,7 +2788,7 @@ void Account::writeRecentHashtagsAndBots() {
 		_recentHashtagsAndBotsKey = GenerateKey(_basePath);
 		writeMapQueued();
 	}
-	quint32 size = sizeof(quint32) * 3, writeCnt = 0, searchCnt = 0, botsCnt = cRecentInlineBots().size();
+	quint32 size = sizeof(quint32) * 3, writeCnt = 0, searchCnt = 0, botsCnt = bots.size();
 	for (auto i = write.cbegin(), e = write.cend(); i != e; ++i) {
 		if (!i->first.isEmpty()) {
 			size += Serialize::stringSize(i->first) + sizeof(quint16);
@@ -2837,19 +2842,19 @@ void Account::readRecentHashtagsAndBots() {
 	quint16 count;
 
 	RecentHashtagPack write, search;
-	RecentInlineBots bots;
+	std::vector<not_null<UserData*>> bots;
 	if (writeCount) {
 		write.reserve(writeCount);
 		for (uint32 i = 0; i < writeCount; ++i) {
 			hashtags.stream >> tag >> count;
-			write.push_back(qMakePair(tag.trimmed(), count));
+			write.push_back({ tag.trimmed(), count });
 		}
 	}
 	if (searchCount) {
 		search.reserve(searchCount);
 		for (uint32 i = 0; i < searchCount; ++i) {
 			hashtags.stream >> tag >> count;
-			search.push_back(qMakePair(tag.trimmed(), count));
+			search.push_back({ tag.trimmed(), count });
 		}
 	}
 	cSetRecentWriteHashtags(write);
@@ -2870,11 +2875,14 @@ void Account::readRecentHashtagsAndBots() {
 					&& peer->asUser()->isBot()
 					&& !peer->asUser()->botInfo->inlinePlaceholder.isEmpty()
 					&& !peer->asUser()->username().isEmpty()) {
-					bots.push_back(peer->asUser());
+					const auto user = peer->asUser();
+					if (ranges::find(bots, not_null{ user }) == end(bots)) {
+						bots.push_back(user);
+					}
 				}
 			}
 		}
-		cSetRecentInlineBots(bots);
+		_owner->session().recentInlineBots().applyLocal(std::move(bots));
 	}
 }
 
@@ -3200,7 +3208,14 @@ void Account::writeSearchSuggestions() {
 
 	const auto top = _owner->session().topPeers().serialize();
 	const auto recent = _owner->session().recentPeers().serialize();
-	if (top.isEmpty() && recent.isEmpty()) {
+	const auto settingsSearches
+		= _owner->session().recentSettingsSearches().serialize();
+	const auto guestChatBots
+		= _owner->session().topGuestChatBots().serialize();
+	if (top.isEmpty()
+		&& recent.isEmpty()
+		&& settingsSearches.isEmpty()
+		&& guestChatBots.isEmpty()) {
 		if (_searchSuggestionsKey) {
 			ClearKey(_searchSuggestionsKey, _basePath);
 			_searchSuggestionsKey = 0;
@@ -3213,9 +3228,11 @@ void Account::writeSearchSuggestions() {
 		writeMapQueued();
 	}
 	quint32 size = Serialize::bytearraySize(top)
-		+ Serialize::bytearraySize(recent);
+		+ Serialize::bytearraySize(recent)
+		+ Serialize::bytearraySize(settingsSearches)
+		+ Serialize::bytearraySize(guestChatBots);
 	EncryptedDescriptor data(size);
-	data.stream << top << recent;
+	data.stream << top << recent << settingsSearches << guestChatBots;
 
 	FileWriteDescriptor file(_searchSuggestionsKey, _basePath);
 	file.writeEncrypted(data, _localKey);
@@ -3242,10 +3259,21 @@ void Account::readSearchSuggestions() {
 
 	auto top = QByteArray();
 	auto recent = QByteArray();
+	auto settingsSearches = QByteArray();
+	auto guestChatBots = QByteArray();
 	suggestions.stream >> top >> recent;
+	if (!suggestions.stream.atEnd()) {
+		suggestions.stream >> settingsSearches;
+	}
+	if (!suggestions.stream.atEnd()) {
+		suggestions.stream >> guestChatBots;
+	}
 	if (CheckStreamStatus(suggestions.stream)) {
 		_owner->session().topPeers().applyLocal(top);
 		_owner->session().recentPeers().applyLocal(recent);
+		_owner->session().recentSettingsSearches().applyLocal(
+			settingsSearches);
+		_owner->session().topGuestChatBots().applyLocal(guestChatBots);
 	} else {
 		DEBUG_LOG(("Suggestions: Could not read content."));
 	}

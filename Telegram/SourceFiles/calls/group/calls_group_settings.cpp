@@ -44,12 +44,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "webrtc/webrtc_audio_input_tester.h"
 #include "webrtc/webrtc_device_resolver.h"
+#include "window/window_unlock_passcode_box.h"
 #include "settings/sections/settings_calls.h"
 #include "settings/settings_common.h"
 #include "settings/settings_credits_graphics.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "api/api_invite_links.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
 #include "styles/style_calls.h"
 #include "styles/style_settings.h"
@@ -158,7 +160,11 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 	};
 	auto copyCallback = [=] {
 		QGuiApplication::clipboard()->setText(currentLink());
-		show->showToast(tr::lng_group_invite_copied(tr::now));
+		show->showToast({
+			.text = { tr::lng_group_invite_copied(tr::now) },
+			.iconLottie = u"toast/voip_invite"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
 	};
 	auto countMessagesCallback = [=](const TextWithTags &comment) {
 		return 1;
@@ -198,7 +204,7 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 			comment.text = link;
 		}
 		auto &api = peer->session().api();
-		for (const auto thread : result) {
+		for (const auto &thread : result) {
 			auto message = Api::MessageToSend(
 				Api::SendAction(thread, options));
 			message.textWithTags = comment;
@@ -620,7 +626,17 @@ void SettingsBox(
 		auto [shareLinkCallback, shareLinkLifetime] = ShareInviteLinkAction(
 			peer,
 			box->uiShow());
-		shareLink = std::move(shareLinkCallback);
+		const auto share = box->lifetime().make_state<Fn<void()>>();
+		*share = [box, share, callback = std::move(shareLinkCallback)] {
+			if (::Window::ShowUnlockPasscodeBox(
+					box->uiShow(),
+					DarkUnlockPasscodeBoxStyle(),
+					crl::guard(box, [=] { (*share)(); }))) {
+				return;
+			}
+			callback();
+		};
+		shareLink = [=] { (*share)(); };
 		box->lifetime().add(std::move(shareLinkLifetime));
 	} else {
 		const auto lookupLink = [=] {
@@ -655,8 +671,13 @@ void SettingsBox(
 				}
 				QGuiApplication::clipboard()->setText(link);
 				if (weakBox) {
-					box->showToast(
-						tr::lng_create_channel_link_copied(tr::now));
+					box->showToast({
+						.text = {
+							tr::lng_create_channel_link_copied(tr::now),
+						},
+						.iconLottie = u"toast/voip_invite"_q,
+						.iconLottieSize = st::toastLottieIconSize,
+					});
 				}
 				return true;
 			};

@@ -9,6 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class Painter;
 class QOpenGLFunctions;
+class QRhi;
+class QRhiRenderTarget;
+class QRhiCommandBuffer;
 
 namespace Calls {
 class GroupCall;
@@ -67,6 +70,11 @@ public:
 
 	void ensureBorrowedRenderer();
 	void borrowedPaint(Painter &p, const QRegion &clip);
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+	void borrowedPaintOffscreen(QRhi *rhi, QRhiRenderTarget *rt, QRhiCommandBuffer *cb);
+	void borrowedPaintOnscreen(QRhi *rhi, QRhiRenderTarget *rt, QRhiCommandBuffer *cb);
+#endif
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 

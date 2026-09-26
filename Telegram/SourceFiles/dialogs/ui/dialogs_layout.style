@@ -1,0 +1,112 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "dialogs/dialogs.style";
+
+dialogsTextPaletteDraft: TextPalette(defaultTextPalette) {
+	linkFg: dialogsDraftFg;
+	monoFg: dialogsTextFg;
+	spoilerFg: dialogsTextFg;
+}
+dialogsTextPaletteDraftOver: TextPalette(defaultTextPalette) {
+	linkFg: dialogsDraftFgOver;
+	monoFg: dialogsTextFgOver;
+	spoilerFg: dialogsTextFgOver;
+}
+dialogsTextPaletteDraftActive: TextPalette(defaultTextPalette) {
+	linkFg: dialogsDraftFgActive;
+	monoFg: dialogsTextFgActive;
+	spoilerFg: dialogsTextFgActive;
+}
+dialogsTextPaletteTaken: TextPalette(defaultTextPalette) {
+	linkFg: boxTextFgGood;
+	monoFg: dialogsTextFg;
+	spoilerFg: dialogsTextFg;
+}
+dialogsTextPaletteTakenOver: TextPalette(defaultTextPalette) {
+	linkFg: boxTextFgGood;
+	monoFg: dialogsTextFgOver;
+	spoilerFg: dialogsTextFgOver;
+}
+dialogsTextPaletteTakenActive: TextPalette(defaultTextPalette) {
+	linkFg: dialogsDraftFgActive;
+	monoFg: dialogsTextFgActive;
+	spoilerFg: dialogsTextFgActive;
+}
+dialogsBotIcon: ThreeStateIcon {
+	icon: icon {{ "dialogs/dialogs_bot", dialogsChatIconFg, point(1px, 3px) }};
+	over: icon {{ "dialogs/dialogs_bot", dialogsChatIconFgOver, point(1px, 3px) }};
+	active: icon {{ "dialogs/dialogs_bot", dialogsChatIconFgActive, point(1px, 3px) }};
+}
+dialogsForumIcon: ThreeStateIcon {
+	icon: icon {{ "dialogs/dialogs_forum", dialogsChatIconFg, point(1px, 4px) }};
+	over: icon {{ "dialogs/dialogs_forum", dialogsChatIconFgOver, point(1px, 4px) }};
+	active: icon {{ "dialogs/dialogs_forum", dialogsChatIconFgActive, point(1px, 4px) }};
+}
+dialogsSendingIcon: ThreeStateIcon {
+	icon: icon {{ "dialogs/dialogs_sending", dialogsSendingIconFg, point(8px, 4px) }};
+	over: icon {{ "dialogs/dialogs_sending", dialogsSendingIconFgOver, point(8px, 4px) }};
+	active: icon {{ "dialogs/dialogs_sending", dialogsSendingIconFgActive, point(8px, 4px) }};
+}
+dialogsLockIcon: ThreeStateIcon {
+	icon: icon {{ "emoji/premium_lock", dialogsUnreadBgMuted, point(4px, 0px) }};
+	over: icon {{ "emoji/premium_lock", dialogsUnreadBgMutedOver, point(4px, 0px) }};
+	active: icon {{ "emoji/premium_lock", dialogsUnreadBgMutedActive, point(4px, 0px) }};
+}
+dialogsVerifiedColorsActive: VerifiedBadge(dialogsVerifiedColors) {
+	color: dialogsVerifiedIconBgActive;
+}
+dialogsMiniReplyIcon: IconEmoji {
+	icon: icon {{ "mini_forward-flip_horizontal", attentionButtonFg }};
+	padding: margins(0px, 2px, 0px, 0px);
+}
+dialogsUnreadPoll: ThreeStateIcon {
+	icon: icon{{ "dialogs/dialogs_chatlist_poll-18x18", dialogsPollIconFg }};
+	over: icon{{ "dialogs/dialogs_chatlist_poll-18x18", dialogsPollIconFg }};
+	active: icon{{ "dialogs/dialogs_chatlist_poll-18x18", dialogsNameFgActive }};
+}
+dialogsUnreadPollMuted: ThreeStateIcon {
+	icon: icon{{ "dialogs/dialogs_chatlist_poll-18x18", dialogsUnreadBgMuted }};
+	over: icon{{ "dialogs/dialogs_chatlist_poll-18x18", dialogsUnreadBgMutedOver }};
+	active: icon{{ "dialogs/dialogs_chatlist_poll-18x18", dialogsUnreadBgMutedActive }};
+}
+dialogsUnreadMentionBadge: ThreeStateIcon {
+	icon: icon{{ "dialogs/dialogs_chatlist_mention-13x13", dialogsUnreadFg }};
+	over: icon{{ "dialogs/dialogs_chatlist_mention-13x13", dialogsUnreadFgOver }};
+	active: icon{{ "dialogs/dialogs_chatlist_mention-13x13", dialogsUnreadFgActive }};
+}
+dialogsUnreadMentionBadgeMuted: ThreeStateIcon {
+	icon: icon{{ "dialogs/dialogs_chatlist_mention-13x13", dialogsUnreadFg }};
+	over: icon{{ "dialogs/dialogs_chatlist_mention-13x13", dialogsUnreadFgOver }};
+	active: icon{{ "dialogs/dialogs_chatlist_mention-13x13", dialogsUnreadFgActive }};
+}
+dialogsUnreadReactionBadge: ThreeStateIcon {
+	icon: icon{{ "dialogs/dialogs_chatlist_reaction-13x13", dialogsUnreadFg }};
+	over: icon{{ "dialogs/dialogs_chatlist_reaction-13x13", dialogsUnreadFgOver }};
+	active: icon{{ "dialogs/dialogs_chatlist_reaction-13x13", dialogsUnreadFgActive }};
+}
+dialogsUnreadReactionBadgeMuted: ThreeStateIcon {
+	icon: icon{{ "dialogs/dialogs_chatlist_reaction-13x13", dialogsUnreadFg }};
+	over: icon{{ "dialogs/dialogs_chatlist_reaction-13x13", dialogsUnreadFgOver }};
+	active: icon{{ "dialogs/dialogs_chatlist_reaction-13x13", dialogsUnreadFgActive }};
+}
+dialogsUnreadPollBadge: ThreeStateIcon {
+	icon: icon{{ "dialogs/dialogs_chatlist_poll-13x13", dialogsUnreadFg }};
+	over: icon{{ "dialogs/dialogs_chatlist_poll-13x13", dialogsUnreadFgOver }};
+	active: icon{{ "dialogs/dialogs_chatlist_poll-13x13", dialogsUnreadFgActive }};
+}
+dialogsUnreadPollBadgeMuted: ThreeStateIcon {
+	icon: icon{{ "dialogs/dialogs_chatlist_poll-13x13", dialogsUnreadFg }};
+	over: icon{{ "dialogs/dialogs_chatlist_poll-13x13", dialogsUnreadFgOver }};
+	active: icon{{ "dialogs/dialogs_chatlist_poll-13x13", dialogsUnreadFgActive }};
+}
+dialogsMuteIcon: ThreeStateIcon {
+	icon: icon{{ "dialogs/dialogs_mute", dialogsUnreadBgMuted }};
+	over: icon{{ "dialogs/dialogs_mute", dialogsUnreadBgMutedOver }};
+	active: icon{{ "dialogs/dialogs_mute", dialogsUnreadBgMutedActive }};
+}
+dialogsMuteIconSkip: 4px;

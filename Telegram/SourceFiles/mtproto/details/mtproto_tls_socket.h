@@ -61,7 +61,7 @@ private:
 	QByteArray _incoming;
 	int _incomingGoodDataOffset = 0;
 	int _incomingGoodDataLimit = 0;
-	int16 _serverHelloLength = 0;
+	int _serverHelloLength = 0;
 
 };
 

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_session.h"
 #include "history/history.h"
+#include "history/view/media/history_view_ephemeral_plate.h"
 #include "history/view/media/history_view_media_common.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/history_view_element.h"
@@ -61,6 +62,7 @@ QSize UnwrappedMedia::countOptimalSize() {
 		if (forwarded) {
 			forwarded->create(via, item);
 		}
+		refreshEphemeralText();
 		maxWidth += additionalWidth(topic, reply, via, forwarded);
 		accumulate_max(maxWidth, _parent->reactionsOptimalWidth());
 		if (const auto size = _parent->rightActionSize()) {
@@ -82,13 +84,15 @@ QSize UnwrappedMedia::countCurrentSize(int newWidth) {
 		return { newWidth, newHeight };
 	}
 	if (_parent->hasRightLayout()) {
-		// Add some height to isolated emoji for the timestamp info.
-		const auto infoHeight = st::msgDateImgPadding.y() * 2
-			+ st::msgDateFont->height;
+		const auto infoHeight = bottomInfoHeight();
 		const auto minimal = std::min(
 			st::largeEmojiSize + 2 * st::largeEmojiOutline,
 			_contentSize.height());
-		accumulate_max(newHeight, minimal + st::msgDateImgDelta + infoHeight);
+		accumulate_max(
+			newHeight,
+			minimal + (infoHeight
+				? (st::msgDateImgDelta + infoHeight)
+				: 0));
 	}
 	accumulate_max(newWidth, _parent->reactionsOptimalWidth());
 	_topAdded = 0;
@@ -96,10 +100,20 @@ QSize UnwrappedMedia::countCurrentSize(int newWidth) {
 	const auto reply = _parent->Get<Reply>();
 	const auto topic = _parent->displayedTopicButton();
 	const auto forwarded = getDisplayedForwardedInfo();
-	if (topic || via || reply || forwarded) {
+	refreshEphemeralText();
+	if (topic || via || reply || forwarded || !_ephemeralText.isEmpty()) {
 		const auto additional = additionalWidth(topic, reply, via, forwarded);
 		const auto optimalw = maxWidth() - additional;
-		const auto additionalMinWidth = std::min(additional, st::msgReplyPadding.left() + st::msgMinWidth / 2);
+		auto additionalMinWidth = std::min(
+			additional,
+			st::msgReplyPadding.left() + st::msgMinWidth / 2);
+		if (!_ephemeralText.isEmpty()) {
+			const auto plateWidth = st::msgReplyPadding.left()
+				+ EphemeralPlateMaxWidth(_ephemeralText);
+			accumulate_max(
+				additionalMinWidth,
+				std::min(additional, plateWidth));
+		}
 		_additionalOnTop = (optimalw + additionalMinWidth) > newWidth;
 		const auto surroundingWidth = _additionalOnTop
 			? std::min(newWidth - st::msgReplyPadding.left(), additional)
@@ -112,11 +126,11 @@ QSize UnwrappedMedia::countCurrentSize(int newWidth) {
 			_topAdded = surrounding.height + st::msgMargin.bottom();
 			newHeight += _topAdded;
 		} else {
-			const auto infoHeight = st::msgDateImgPadding.y() * 2
-				+ st::msgDateFont->height;
+			const auto infoHeight = bottomInfoHeight();
 			const auto minimal = surrounding.height
-				+ st::msgDateImgDelta
-				+ infoHeight;
+				+ (infoHeight
+					? (st::msgDateImgDelta + infoHeight)
+					: 0);
 			newHeight = std::max(newHeight, minimal);
 		}
 		const auto availw = newWidth
@@ -151,8 +165,7 @@ void UnwrappedMedia::draw(Painter &p, const PaintContext &context) const {
 			_contentSize.height(),
 			(height()
 				- _topAdded
-				- st::msgDateImgPadding.y() * 2
-				- st::msgDateFont->height))
+				- bottomInfoHeight()))
 		: _contentSize.height();
 	const auto inner = QRect(usex, usey, usew, useh);
 	if (context.skipDrawingParts != PaintContext::SkipDrawingParts::Content) {
@@ -169,13 +182,17 @@ void UnwrappedMedia::draw(Painter &p, const PaintContext &context) const {
 	}
 }
 
+void UnwrappedMedia::refreshEphemeralText() {
+	RefreshEphemeralPlate(_parent, _ephemeralText);
+}
+
 UnwrappedMedia::SurroundingInfo UnwrappedMedia::surroundingInfo(
 		const TopicButton *topic,
 		const Reply *reply,
 		const HistoryMessageVia *via,
 		const HistoryMessageForwarded *forwarded,
 		int outerw) const {
-	if (!topic && !via && !reply && !forwarded) {
+	if (!topic && !via && !reply && !forwarded && _ephemeralText.isEmpty()) {
 		return {};
 	}
 	const auto innerw = outerw - st::msgReplyPadding.left() - st::msgReplyPadding.right();
@@ -218,14 +235,23 @@ UnwrappedMedia::SurroundingInfo UnwrappedMedia::surroundingInfo(
 		panelHeight += reply->height()
 			- ((forwarded || via) ? 0 : replyMargins.top())
 			- replyMargins.bottom();
-	} else {
+	} else if (panelHeight) {
 		panelHeight += st::msgReplyPadding.bottom();
 	}
-	const auto total = (topicSize.isEmpty() ? 0 : topicSize.height())
-		+ ((panelHeight || !topicSize.height()) ? st::topicButtonSkip : 0)
-		+ panelHeight;
+	const auto ephemeralSize = EphemeralPlateSize(_ephemeralText, outerw);
+	const auto rest = (topic || via || reply || forwarded)
+		? ((topicSize.isEmpty() ? 0 : topicSize.height())
+			+ ((panelHeight || !topicSize.height()) ? st::topicButtonSkip : 0)
+			+ panelHeight)
+		: 0;
+	const auto total = ephemeralSize.isEmpty()
+		? rest
+		: (ephemeralSize.height()
+			+ (rest ? st::topicButtonSkip : 0)
+			+ rest);
 	return {
 		.topicSize = topicSize,
+		.ephemeralSize = ephemeralSize,
 		.height = total,
 		.panelHeight = panelHeight,
 		.forwardedHeight = forwardedHeight,
@@ -263,12 +289,35 @@ void UnwrappedMedia::drawSurrounding(
 		: (width() - inner.width() - st::msgReplyPadding.left());
 	if (const auto surrounding = surroundingInfo(topic, reply, via, forwarded, rectw)) {
 		auto recth = surrounding.panelHeight;
+		if (!surrounding.ephemeralSize.isEmpty()) {
+			const auto rectw = surrounding.ephemeralSize.width();
+			int rectx = _additionalOnTop
+				? (rightAligned ? (inner.x() + inner.width() - rectw) : 0)
+				: (rightAligned
+					? 0
+					: (inner.width() + st::msgReplyPadding.left()));
+			if (rtl()) {
+				rectx = width() - rectx - rectw;
+			}
+			PaintEphemeralPlate(
+				p,
+				context,
+				_ephemeralText,
+				rectx,
+				0,
+				rectw,
+				width());
+		}
 		if (!surrounding.topicSize.isEmpty()) {
 			auto rectw = surrounding.topicSize.width();
 			int rectx = _additionalOnTop
 				? (rightAligned ? (inner.x() + inner.width() - rectw) : 0)
-				: (rightAligned ? 0 : (inner.width() + st::msgReplyPadding.left()));
-			int recty = 0;
+				: (rightAligned
+					? 0
+					: (inner.width() + st::msgReplyPadding.left()));
+			int recty = surrounding.ephemeralSize.isEmpty()
+				? 0
+				: (surrounding.ephemeralSize.height() + st::topicButtonSkip);
 			if (rtl()) rectx = width() - rectx - rectw;
 
 			{
@@ -301,7 +350,9 @@ void UnwrappedMedia::drawSurrounding(
 		if (recth) {
 			int rectx = _additionalOnTop
 				? (rightAligned ? (inner.x() + inner.width() - rectw) : 0)
-				: (rightAligned ? 0 : (inner.width() + st::msgReplyPadding.left()));
+				: (rightAligned
+					? 0
+					: (inner.width() + st::msgReplyPadding.left()));
 			int recty = surrounding.height - recth;
 			if (rtl()) rectx = width() - rectx - rectw;
 
@@ -370,16 +421,17 @@ PointState UnwrappedMedia::pointState(QPoint point) const {
 		usex = width() - usex - usew;
 	}
 
-	const auto datey = height() - st::msgDateImgPadding.y() * 2
-		- st::msgDateFont->height;
+	const auto infoHeight = bottomInfoHeight();
+	const auto datey = height() - infoHeight;
 	const auto usey = rightAligned ? _topAdded : (height() - _contentSize.height());
 	const auto useh = rightAligned
 		? std::max(_contentSize.height(), datey)
 		: _contentSize.height();
 	const auto inner = QRect(usex, usey, usew, useh);
 
-	// Rectangle of date bubble.
-	if (point.x() < calculateFullRight(inner) && point.y() > datey) {
+	if (infoHeight
+		&& point.x() < calculateFullRight(inner)
+		&& point.y() > datey) {
 		return PointState::Inside;
 	}
 
@@ -408,7 +460,7 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 	const auto useh = rightAligned
 		? std::max(
 			_contentSize.height(),
-			height() - st::msgDateImgPadding.y() * 2 - st::msgDateFont->height)
+			height() - bottomInfoHeight())
 		: _contentSize.height();
 	const auto inner = QRect(usex, usey, usew, useh);
 
@@ -424,12 +476,40 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 			: (width() - inner.width() - st::msgReplyPadding.left());
 		if (const auto surrounding = surroundingInfo(topic, reply, via, forwarded, rectw)) {
 			auto recth = surrounding.panelHeight;
+			if (!surrounding.ephemeralSize.isEmpty()) {
+				const auto rectw = surrounding.ephemeralSize.width();
+				int rectx = _additionalOnTop
+					? (rightAligned ? (inner.x() + inner.width() - rectw) : 0)
+					: (rightAligned
+						? 0
+						: (inner.width() + st::msgReplyPadding.left()));
+				if (rtl()) {
+					rectx = width() - rectx - rectw;
+				}
+				if (EphemeralPlateState(
+						_parent,
+						_ephemeralText,
+						point,
+						rectx,
+						0,
+						rectw,
+						surrounding.ephemeralSize.height(),
+						request,
+						result)) {
+					return result;
+				}
+			}
 			if (!surrounding.topicSize.isEmpty()) {
 				auto rectw = surrounding.topicSize.width();
 				int rectx = _additionalOnTop
 					? (rightAligned ? (inner.x() + inner.width() - rectw) : 0)
-					: (rightAligned ? 0 : (inner.width() + st::msgReplyPadding.left()));
-				int recty = 0;
+					: (rightAligned
+						? 0
+						: (inner.width() + st::msgReplyPadding.left()));
+				int recty = surrounding.ephemeralSize.isEmpty()
+					? 0
+					: (surrounding.ephemeralSize.height()
+						+ st::topicButtonSkip);
 				if (rtl()) rectx = width() - rectx - rectw;
 				if (QRect(QPoint(rectx, recty), surrounding.topicSize).contains(point)) {
 					result.link = topic->link;
@@ -439,7 +519,9 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 			if (recth) {
 				int rectx = _additionalOnTop
 					? (rightAligned ? (inner.x() + inner.width() - rectw) : 0)
-					: (rightAligned ? 0 : (inner.width() + st::msgReplyPadding.left()));
+					: (rightAligned
+						? 0
+						: (inner.width() + st::msgReplyPadding.left()));
 				int recty = surrounding.height - recth;
 				if (rtl()) rectx = width() - rectx - rectw;
 
@@ -560,30 +642,33 @@ QRect UnwrappedMedia::contentRectForReactions() const {
 	const auto useh = rightAligned
 		? std::max(
 			_contentSize.height(),
-			height() - st::msgDateImgPadding.y() * 2 - st::msgDateFont->height)
+			height() - bottomInfoHeight())
 		: _contentSize.height();
 	return QRect(usex, usey, usew, useh);
 }
 
 std::optional<int> UnwrappedMedia::reactionButtonCenterOverride() const {
+	if (_parent->hidesBottomInfo()) {
+		return std::nullopt;
+	}
 	const auto fullRight = calculateFullRight(contentRectForReactions());
 	const auto right = fullRight
-		- _parent->infoWidth()
-		- st::msgDateImgPadding.x() * 2
-		- st::msgReplyPadding.left();
+		- bottomInfoWidth();
 	return right - st::reactionCornerSize.width() / 2;
 }
 
 QPoint UnwrappedMedia::resolveCustomInfoRightBottom() const {
 	const auto inner = contentRectForReactions();
 	const auto fullBottom = inner.y() + inner.height();
+	if (_parent->hidesBottomInfo()) {
+		return QPoint(inner.x() + inner.width(), fullBottom);
+	}
 	const auto fullRight = calculateFullRight(inner);
 	const auto skipx = st::msgDateImgPadding.x();
 	const auto skipy = st::msgDateImgPadding.y();
-	const auto infoWidth = _parent->infoWidth()
-		+ st::msgDateImgPadding.x() * 2
-		+ st::msgReplyPadding.left();
-	return QPoint(fullRight - skipx - infoWidth, fullBottom - skipy);
+	return QPoint(
+		fullRight - skipx - bottomInfoWidth(),
+		fullBottom - skipy);
 }
 
 std::unique_ptr<StickerPlayer> UnwrappedMedia::stickerTakePlayer(
@@ -594,9 +679,7 @@ std::unique_ptr<StickerPlayer> UnwrappedMedia::stickerTakePlayer(
 
 int UnwrappedMedia::calculateFullRight(const QRect &inner) const {
 	const auto rightAligned = _parent->hasRightLayout();
-	const auto infoWidth = _parent->infoWidth()
-		+ st::msgDateImgPadding.x() * 2
-		+ st::msgReplyPadding.left();
+	const auto infoWidth = bottomInfoWidth();
 	const auto rightActionSize = _parent->rightActionSize();
 	const auto rightSkip = st::msgPadding.left()
 		+ (_parent->hasFromPhoto()
@@ -652,12 +735,27 @@ bool UnwrappedMedia::needInfoDisplay() const {
 			&& _content->alwaysShowOutTimestamp());
 }
 
+int UnwrappedMedia::bottomInfoWidth() const {
+	return _parent->hidesBottomInfo()
+		? 0
+		: (st::msgReplyPadding.left()
+			+ _parent->infoWidth()
+			+ 2 * st::msgDateImgPadding.x());
+}
+
+int UnwrappedMedia::bottomInfoHeight() const {
+	return _parent->hidesBottomInfo()
+		? 0
+		: (2 * st::msgDateImgPadding.y()
+			+ st::msgDateFont->height);
+}
+
 int UnwrappedMedia::additionalWidth(
 		const TopicButton *topic,
 		const Reply *reply,
 		const HistoryMessageVia *via,
 		const HistoryMessageForwarded *forwarded) const {
-	auto result = st::msgReplyPadding.left() + _parent->infoWidth() + 2 * st::msgDateImgPadding.x();
+	auto result = bottomInfoWidth();
 	if (topic) {
 		accumulate_max(result, 2 * st::msgReplyPadding.left() + topic->name.maxWidth() + st::topicButtonArrowSkip + st::topicButtonPadding.right());
 	}
@@ -668,6 +766,12 @@ int UnwrappedMedia::additionalWidth(
 	}
 	if (reply) {
 		accumulate_max(result, st::msgReplyPadding.left() + reply->maxWidth());
+	}
+	if (!_ephemeralText.isEmpty()) {
+		accumulate_max(
+			result,
+			st::msgReplyPadding.left()
+				+ EphemeralPlateMaxWidth(_ephemeralText));
 	}
 	return result;
 }

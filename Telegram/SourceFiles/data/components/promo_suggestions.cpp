@@ -58,6 +58,11 @@ PromoSuggestions::PromoSuggestions(
 PromoSuggestions::~PromoSuggestions() = default;
 
 void PromoSuggestions::refreshTopPromotion() {
+	if (_contactBirthdaysLastDayRequest != -1
+		&& _contactBirthdaysLastDayRequest != QDate::currentDate().day()) {
+		_refreshed.fire({});
+	}
+
 	const auto now = base::unixtime::now();
 	const auto next = (_topPromotionNextRequestTime != 0)
 		? _topPromotionNextRequestTime
@@ -71,7 +76,8 @@ void PromoSuggestions::refreshTopPromotion() {
 			return {};
 		}
 		const auto &proxy = Core::App().settings().proxy().selected();
-		if (proxy.type != MTP::ProxyData::Type::Mtproto) {
+		if (proxy.type != MTP::ProxyData::Type::Mtproto
+			&& proxy.type != MTP::ProxyData::Type::Web) {
 			return {};
 		}
 		return { proxy.host, proxy.port };

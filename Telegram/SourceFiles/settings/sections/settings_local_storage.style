@@ -1,0 +1,89 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "boxes/boxes.style";
+
+localStorageLimitLabel: LabelSimple(defaultLabelSimple) {
+	font: boxTextFont;
+}
+localStorageLimitValue: LabelSimple(localStorageLimitLabel) {
+	textFg: windowActiveTextFg;
+}
+localStorageLimitLabelMargin: margins(22px, 10px, 20px, 5px);
+localStorageChartHeight: 200px;
+localStorageChartDiameter: 172px;
+localStorageChartThickness: 38px;
+localStorageChartThicknessThin: 12px;
+localStorageChartSelectGrow: 9px;
+localStorageChartSizeFont: font(32px semibold);
+localStorageChartUnitFont: font(13px);
+localStorageChartPercentFont: font(15px semibold);
+localStorageChartParticle: 15px;
+localStorageCompleteStar1: 18px;
+localStorageCompleteStar2: 12px;
+localStorageCompleteStar3: 10px;
+localStorageCompleteExclude: 80px;
+localStorageCompleteField: 150px;
+localStorageCompleteSpeed: 4px;
+localStorageParticlePhotos: icon{{ "local_storage/photos-72x72", windowFg }};
+localStorageParticleVideos: icon{{ "local_storage/videos-72x72", windowFg }};
+localStorageParticleDocuments: icon{{ "local_storage/documents-72x72", windowFg }};
+localStorageParticleMusic: icon{{ "local_storage/music-72x72", windowFg }};
+localStorageParticleStickers: icon{{ "local_storage/stickers-72x72", windowFg }};
+localStorageIslandPadding: 6px;
+localStorageBottomSkip: 12px;
+localStorageCategoryHeight: 44px;
+localStorageCategoryPadding: margins(22px, 0px, 20px, 0px);
+localStorageCategoryCheckSkip: 14px;
+localStorageCategoryPercentSkip: 8px;
+localStorageCategoryCheck: Check(defaultCheck) {
+	diameter: 20px;
+}
+localStorageClearMargin: margins(12px, 6px, 12px, 9px);
+localStorageClearHeight: 38px;
+localStorageClearFont: font(13px semibold);
+localStorageClearSkip: 7px;
+localStorageCategoryName: FlatLabel(defaultFlatLabel) {
+	textFg: windowBoldFg;
+	maxHeight: 20px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(13px);
+	}
+}
+localStorageCategoryPercent: FlatLabel(localStorageCategoryName) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(13px semibold);
+	}
+}
+localStorageCategorySize: FlatLabel(localStorageCategoryName) {
+	textFg: windowActiveTextFg;
+}
+localStorageUsageTopSkip: 2px;
+localStorageUsageBarSkip: 9px;
+localStorageUsageBarWidth: 174px;
+localStorageUsageBarHeight: 4px;
+localStorageUsageBottomSkip: 6px;
+localStorageUsageBarMargin: margins(6px, 6px, 6px, 6px);
+localStorageUsageTooltipMaxWidth: 240px;
+localStorageUsageTooltipSkip: 8px;
+localStorageAboutMargin: margins(28px, 9px, 28px, 12px);
+localStorageAbout: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	minWidth: 240px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(13px);
+	}
+}
+localStorageUsageSubtitle: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(13px);
+	}
+}
+localStorageClearingSpinnerPadding: margins(0px, 20px, 0px, 14px);
+localStorageClearingLottieSize: size(150px, 150px);

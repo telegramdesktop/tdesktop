@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "ui/rect.h"
 #include "styles/style_info_userpic_builder.h"
-#include "styles/style_boxes.h"
+#include "styles/style_userpic_button.h"
 
 namespace UserpicBuilder {
 namespace {

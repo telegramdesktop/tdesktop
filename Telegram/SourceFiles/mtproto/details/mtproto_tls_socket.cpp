@@ -24,6 +24,7 @@ constexpr auto kMaxGrease = 8;
 constexpr auto kClientHelloLimit = 2048;
 constexpr auto kHelloDigestLength = 32;
 constexpr auto kLengthSize = sizeof(uint16);
+constexpr auto kMaxServerHelloLength = 65536;
 const auto kServerHelloPart1 = qstr("\x16\x03\x03");
 const auto kServerHelloPart3 = qstr("\x14\x03\x03\x00\x01\x01\x17\x03\x03");
 constexpr auto kServerHelloDigestPosition = 11;
@@ -164,8 +165,8 @@ using BigNumContext = openssl::Context;
 		}
 		StartPermutationElement(); {
 			S(""
-				"\x00\x0d\x00\x12\x00\x10\x04\x03\x08\x04\x04\x01\x05\x03"
-				"\x08\x05\x05\x01\x08\x06\x06\x01"_q);
+				"\x00\x0d\x00\x18\x00\x16\x09\x04\x09\x05\x09\x06\x04\x03"
+				"\x08\x04\x04\x01\x05\x03\x08\x05\x05\x01\x08\x06\x06\x01"_q);
 		}
 		StartPermutationElement(); {
 			S(""
@@ -205,12 +206,12 @@ using BigNumContext = openssl::Context;
 			S("\x44\xcd\x00\x05\x00\x03\x02\x68\x32"_q);
 		}
 		StartPermutationElement(); {
-			S("\xfe\x02"_q);
+			S("\xfe\x0d"_q);
 			OpenScope();
 			S("\x00\x00\x01\x00\x01"_q);
 			R(1);
 			S("\x00\x20"_q);
-			R(20);
+			K();
 			OpenScope();
 			E();
 			CloseScope();
@@ -246,7 +247,7 @@ using BigNumContext = openssl::Context;
 }
 
 [[nodiscard]] bytes::vector GeneratePublicKey() {
-	const auto context = EVP_PKEY_CTX_new_id(NID_ED25519, nullptr);
+	const auto context = EVP_PKEY_CTX_new_id(NID_X25519, nullptr);
 	if (!context) {
 		return {};
 	}
@@ -493,10 +494,10 @@ void Generator::Part::writeBlock(const MTPDtlsBlockM &data) {
 	bytes::set_random(random);
 
 	auto chars = reinterpret_cast<char*>(storage.data());
-	const auto ints = reinterpret_cast<const uint32*>(random.data());
 	for (auto i = 0; i < kElements; ++i) {
-		const auto a = int(ints[i * 2] % 3329);
-		const auto b = int(ints[i * 2 + 1] % 3329);
+		const auto pair = random.data() + i * 2 * sizeof(uint32);
+		const auto a = int(qFromUnaligned<uint32>(pair) % 3329);
+		const auto b = int(qFromUnaligned<uint32>(pair + sizeof(uint32)) % 3329);
 		*chars++ = (char)(a & 255);
 		*chars++ = (char)((a >> 8) + ((b & 15) << 4));
 		*chars++ = (char)(b >> 4);
@@ -590,8 +591,7 @@ ClientHello Generator::take() {
 
 [[nodiscard]] int ReadPartLength(bytes::const_span data, int offset) {
 	const auto storage = data.subspan(offset, kLengthSize);
-	return qFromBigEndian(
-		*reinterpret_cast<const uint16*>(storage.data()));
+	return qFromBigEndian<uint16>(storage.data());
 }
 
 } // namespace
@@ -711,6 +711,11 @@ void TlsSocket::checkHelloParts12(int parts1Size) {
 		+ part2Size
 		+ kServerHelloPart3.size()
 		+ kLengthSize;
+	if (parts123Size > kMaxServerHelloLength) {
+		logError(888, "Bad Server Hello size.");
+		handleError();
+		return;
+	}
 	if (_serverHelloLength == parts1Size) {
 		const auto part1Offset = parts1Size
 			- kLengthSize
@@ -735,6 +740,11 @@ void TlsSocket::checkHelloParts34(int parts123Size) {
 		parts123Size);
 	const auto part4Size = ReadPartLength(data, parts123Size - kLengthSize);
 	const auto full = parts123Size + part4Size;
+	if (full > kMaxServerHelloLength) {
+		logError(888, "Bad Server Hello size.");
+		handleError();
+		return;
+	}
 	if (_serverHelloLength == parts123Size) {
 		const auto part3Offset = parts123Size
 			- kLengthSize
@@ -754,6 +764,11 @@ void TlsSocket::checkHelloParts34(int parts123Size) {
 }
 
 void TlsSocket::checkHelloDigest() {
+	if (_serverHelloLength < kServerHelloDigestPosition + kHelloDigestLength) {
+		logError(888, "Bad Server Hello size.");
+		handleError();
+		return;
+	}
 	const auto fulldata = bytes::make_detached_span(_incoming).subspan(
 		0,
 		kHelloDigestLength + _serverHelloLength);

@@ -12,12 +12,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 class ForumTopic;
+class SavedMessages;
 } // namespace Data
 
 namespace Info::Profile {
 
 class InnerWidget;
+class TabsHost;
 struct MembersState;
+struct TabsState;
 
 struct GroupReactionOrigin {
 	not_null<PeerData*> group;
@@ -37,20 +40,24 @@ public:
 		Origin origin = { v::null });
 	explicit Memento(not_null<Data::ForumTopic*> topic);
 	explicit Memento(not_null<Data::SavedSublist*> sublist);
+	explicit Memento(not_null<Data::SavedMessages*> savedMessages);
 
 	object_ptr<ContentWidget> createWidget(
 		QWidget *parent,
 		not_null<Controller*> controller,
 		const QRect &geometry) override;
 
-	Section section() const override;
+	Info::Section section() const override;
 
 	[[nodiscard]] Origin origin() const {
 		return _origin;
 	}
 
 	void setMembersState(std::unique_ptr<MembersState> state);
-	std::unique_ptr<MembersState> membersState();
+	[[nodiscard]] std::unique_ptr<MembersState> membersState();
+
+	void setTabsState(std::unique_ptr<TabsState> state);
+	[[nodiscard]] std::unique_ptr<TabsState> tabsState();
 
 	~Memento();
 
@@ -63,6 +70,7 @@ private:
 		Origin origin);
 
 	std::unique_ptr<MembersState> _membersState;
+	std::unique_ptr<TabsState> _tabsState;
 	Origin _origin;
 
 };
@@ -81,6 +89,9 @@ public:
 	void setInnerFocus() override;
 	void enableBackButton() override;
 	void showFinished() override;
+	void checkBeforeCloseByEscape(Fn<void()> close) override;
+	bool searchAvailable() const override;
+	void showSearch() override;
 
 	rpl::producer<QString> title() override;
 	rpl::producer<Dialogs::Stories::Content> titleStories() override;
@@ -88,6 +99,11 @@ public:
 private:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
+	void setupTabsStripFloat();
+	void updateTabsStripFloatGeometry();
+	[[nodiscard]] auto swipeTabsFinishData(
+		Ui::Controls::SwipeHandlerInitData data)
+	-> Ui::Controls::SwipeHandlerFinishData;
 
 	std::shared_ptr<ContentMemento> doCreateMemento() override;
 
@@ -96,6 +112,9 @@ private:
 	base::weak_qptr<Ui::RpWidget> _pinnedToTop;
 	base::weak_qptr<Ui::RpWidget> _pinnedToBottom;
 	std::unique_ptr<FlexibleScrollHelper> _flexibleScrollHelper;
+	base::unique_qptr<Ui::RpWidget> _tabsStripFloat;
+	base::weak_qptr<TabsHost> _tabsHost;
+	base::weak_qptr<Ui::RpWidget> _tabsStrip;
 
 };
 

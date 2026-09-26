@@ -69,7 +69,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_premium.h"
-#include "styles/style_settings.h"
+#include "styles/style_widgets.h"
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>
@@ -308,7 +308,11 @@ Fn<void(not_null<Ui::PopupMenu*>)> MakeAuctionFillMenuCallback(
 
 		menu->addAction(tr::lng_auction_menu_copy_link(tr::now), [=] {
 			QApplication::clipboard()->setText(url);
-			show->showToast(tr::lng_username_copied(tr::now));
+			show->showToast({
+				.text = { tr::lng_username_copied(tr::now) },
+				.iconLottie = u"toast/voip_invite"_q,
+				.iconLottieSize = st::toastLottieIconSize,
+			});
 		}, &st::menuIconLink);
 
 		menu->addAction(tr::lng_auction_menu_share(tr::now), [=] {
@@ -892,6 +896,8 @@ void AuctionBidBox(not_null<GenericBox*> box, AuctionBidBoxArgs &&args) {
 						lt_count,
 						perRound,
 						tr::rich),
+					.icon = &st::auctionBidToastIcon,
+					.iconPadding = st::auctionBidToast.padding,
 					.st = &st::auctionBidToast,
 					.attach = RectPart::Top,
 					.duration = kBidPlacedToastDuration,
@@ -1274,9 +1280,9 @@ void AuctionGotGiftsBox(
 					}
 					return result;
 				};
-				auto &models = state->data.models;
-				auto &patterns = state->data.patterns;
-				auto &backdrops = state->data.backdrops;
+				const auto &models = state->data.models;
+				const auto &patterns = state->data.patterns;
+				const auto &backdrops = state->data.backdrops;
 				consumer.put_next(cover({
 					.title = info.resellTitle,
 					.model = models[index(state->modelIndices, models)],
@@ -1823,7 +1829,7 @@ TextWithEntities ActiveAuctionsTitle(const Data::ActiveAuctions &auctions) {
 		).append(' ').append(tr::lng_auction_bar_active(tr::now));
 	}
 	auto result = tr::marked();
-	for (const auto auction : list | ranges::views::take(3)) {
+	for (const auto &auction : list | ranges::views::take(3)) {
 		result.append(Data::SingleCustomEmoji(auction->gift->document));
 	}
 	return result.append(' ').append(
@@ -1851,7 +1857,7 @@ ManyAuctionsState ActiveAuctionsState(const Data::ActiveAuctions &auctions) {
 		return { std::move(text), !position };
 	}
 	auto outbid = 0;
-	for (const auto auction : list) {
+	for (const auto &auction : list) {
 		if (!winning(auction)) {
 			++outbid;
 		}
@@ -1982,7 +1988,6 @@ object_ptr<Ui::RpWidget> MakeActiveAuctionRow(
 			rpl::single(QString()),
 			st::auctionListRaise),
 		st::auctionListRaisePadding);
-	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 
 	auto secondsLeft = rpl::duplicate(
 		value
@@ -2036,7 +2041,7 @@ Fn<void()> ActiveAuctionsCallback(
 			.ends = state.nextRoundAt ? state.nextRoundAt : state.endDate,
 		};
 	};
-	for (const auto auction : list) {
+	for (const auto &auction : list) {
 		state->list.push_back(singleFrom(*auction));
 	}
 	return [=] {

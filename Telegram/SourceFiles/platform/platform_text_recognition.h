@@ -13,6 +13,7 @@ namespace TextRecognition {
 struct RectWithText {
 	QString text;
 	QRect rect;
+	std::vector<QRect> glyphs;
 };
 
 struct Result {

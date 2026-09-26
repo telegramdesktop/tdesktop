@@ -1240,7 +1240,7 @@ rpl::producer<EditDocumentCountry> FormController::preferredLanguage(
 		if (countryCode.isEmpty()) {
 			return QString();
 		}
-		auto &langs = _passportConfig.languagesByCountryCode;
+		const auto &langs = _passportConfig.languagesByCountryCode;
 		const auto i = langs.find(countryCode);
 		return (i == end(langs)) ? QString() : i->second;
 	};
@@ -2591,7 +2591,7 @@ bool FormController::parseForm(const MTPaccount_AuthorizationForm &result) {
 		_form.values.emplace(type, std::move(parsed));
 	}
 	if (const auto url = data.vprivacy_policy_url()) {
-		_form.privacyPolicyUrl = qs(*url);
+		_form.privacyPolicyUrl = ValidateUrl(qs(*url));
 	}
 	for (const auto &required : data.vrequired_types().v) {
 		const auto row = CollectRequestedRow(required);

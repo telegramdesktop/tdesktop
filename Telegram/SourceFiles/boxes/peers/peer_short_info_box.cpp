@@ -31,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
-#include "styles/style_menu_icons.h"
 
 namespace {
 
@@ -288,8 +287,9 @@ void PeerShortInfoCover::paintBars(QPainter &p) {
 	for (auto i = 0; i != _count; ++i) {
 		const auto left = start + i * (single + skip);
 		const auto right = left + single;
-		const auto x = qRound(left);
-		const auto small = (qRound(right) == qRound(left) + _smallWidth);
+		const auto x = int(base::SafeRound(left));
+		const auto small = (int(base::SafeRound(right))
+			== int(base::SafeRound(left)) + _smallWidth);
 		const auto width = small ? _smallWidth : _largeWidth;
 		const auto &image = small ? _barSmall : _barLarge;
 		const auto min = 2 * ((_st.line + 1) / 2);
@@ -307,7 +307,7 @@ void PeerShortInfoCover::paintBars(QPainter &p) {
 			p.setOpacity(inactiveOpacity);
 			p.drawImage(x, y, image);
 			if (progress > 0.) {
-				const auto paint = qRound(progress * width);
+				const auto paint = int(base::SafeRound(progress * width));
 				const auto right = paint / 2;
 				const auto left = paint - right;
 				p.setOpacity(masterOpacity);
@@ -809,7 +809,7 @@ void PeerShortInfoBox::prepareRows() {
 	addInfoLine(std::move(label), aboutValue(), _st.labeled);
 	addInfoOneLine(
 		tr::lng_info_username_label(),
-		usernameValue() | rpl::map(tr::marked),
+		usernameValue(),
 		tr::lng_context_copy_mention(tr::now));
 	addInfoOneLine(
 		birthdayLabel(),
@@ -899,10 +899,12 @@ rpl::producer<QString> PeerShortInfoBox::phoneValue() const {
 	}) | rpl::distinct_until_changed();
 }
 
-rpl::producer<QString> PeerShortInfoBox::usernameValue() const {
+rpl::producer<TextWithEntities> PeerShortInfoBox::usernameValue() const {
 	return _fields.value(
 	) | rpl::map([](const PeerShortInfoFields &fields) {
-		return fields.username;
+		return fields.usernameLink.isEmpty()
+			? TextWithEntities{ fields.username }
+			: tr::link(fields.username, fields.usernameLink);
 	}) | rpl::distinct_until_changed();
 }
 

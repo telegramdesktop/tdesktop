@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonArray>
 #include <QtCore/QJsonObject>
+#include <QtCore/QtEndian>
 
 namespace Passport {
 namespace {
@@ -374,6 +375,9 @@ bytes::vector DecryptData(
 	} else if (dataSecret.size() != kSecretSize) {
 		LOG(("API Error: Bad data secret size %1").arg(dataSecret.size()));
 		return {};
+	} else if ((encrypted.size() % kAlignTo) != 0) {
+		LOG(("API Error: Bad encrypted size %1").arg(encrypted.size()));
+		return {};
 	}
 
 	const auto bytesForEncryptionKey = bytes::concatenate(
@@ -424,7 +428,7 @@ bytes::vector DecryptValueSecret(
 
 uint64 CountSecureSecretId(bytes::const_span secret) {
 	const auto full = openssl::Sha256(secret);
-	return *reinterpret_cast<const uint64*>(full.data());
+	return qFromUnaligned<uint64>(full.data());
 }
 
 bytes::vector EncryptCredentialsSecret(

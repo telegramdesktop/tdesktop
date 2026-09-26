@@ -54,6 +54,9 @@ protected:
 		_width = size.width();
 		_height = size.height();
 	}
+	void adjustHeight(int delta) {
+		_height += delta;
+	}
 
 private:
 	virtual QSize countOptimalSize() = 0;

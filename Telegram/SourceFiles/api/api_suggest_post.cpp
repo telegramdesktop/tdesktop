@@ -372,8 +372,11 @@ void SendSuggest(
 		int starsApproved = 0) {
 	const auto suggestion = item->Get<HistoryMessageSuggestion>();
 	const auto id = item->fullId();
-	const auto withPaymentApproved = [=](int stars) {
-		if (const auto item = show->session().data().message(id)) {
+	const auto withPaymentApproved = [=, weak = std::weak_ptr(state)](
+			int stars) {
+		const auto state = weak.lock();
+		const auto item = show->session().data().message(id);
+		if (state && item) {
 			SendSuggest(show, item, state, modify, done, stars);
 		}
 	};
@@ -520,6 +523,40 @@ void ConfirmGiftSaleDecline(
 	ShowGiftSaleRejectBox(window, item, suggestion);
 }
 
+void RespondToNoForwardsRequest(
+		not_null<Window::SessionController*> controller,
+		not_null<HistoryItem*> item,
+		not_null<HistoryServiceNoForwardsRequest*> request,
+		bool accept) {
+	if (request->requestId) {
+		return;
+	}
+	const auto id = item->fullId();
+	const auto session = &item->history()->session();
+	const auto peer = item->history()->peer;
+	const auto msgId = item->id;
+	const auto finish = [=] {
+		if (const auto item = session->data().message(id)) {
+			if (const auto r = item->Get<HistoryServiceNoForwardsRequest>()) {
+				r->requestId = 0;
+			}
+		}
+	};
+	using Flag = MTPmessages_ToggleNoForwards::Flag;
+	request->requestId = session->api().request(MTPmessages_ToggleNoForwards(
+		MTP_flags(Flag::f_request_msg_id),
+		peer->input(),
+		MTP_bool(!accept),
+		MTP_int(msgId)
+	)).done([=](const MTPUpdates &result) {
+		session->api().applyUpdates(result);
+		finish();
+	}).fail([=](const MTP::Error &error) {
+		controller->showToast(error.type());
+		finish();
+	}).send();
+}
+
 } // namespace
 
 std::shared_ptr<ClickHandler> AcceptClickHandler(
@@ -538,7 +575,11 @@ std::shared_ptr<ClickHandler> AcceptClickHandler(
 		}
 		const auto show = controller->uiShow();
 		const auto suggestion = item->Get<HistoryMessageSuggestion>();
-		if (!suggestion) {
+		const auto nfRequest = item->Get<HistoryServiceNoForwardsRequest>();
+		if (!suggestion && !nfRequest) {
+			return;
+		} else if (nfRequest) {
+			RespondToNoForwardsRequest(controller, item, nfRequest, true);
 			return;
 		} else if (suggestion->gift) {
 			ConfirmGiftSaleAccept(controller, item, suggestion);
@@ -562,6 +603,11 @@ std::shared_ptr<ClickHandler> DeclineClickHandler(
 		}
 		const auto item = session->data().message(id);
 		if (!item) {
+			return;
+		}
+		const auto nfRequest = item->Get<HistoryServiceNoForwardsRequest>();
+		if (nfRequest) {
+			RespondToNoForwardsRequest(controller, item, nfRequest, false);
 			return;
 		}
 		const auto suggestion = item->Get<HistoryMessageSuggestion>();

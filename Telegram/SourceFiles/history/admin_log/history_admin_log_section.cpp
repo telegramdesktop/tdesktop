@@ -13,9 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/shortcuts.h"
 #include "info/profile/info_profile_values.h"
 #include "ui/chat/chat_style.h"
+#include "ui/controls/jump_down_button.h"
 #include "ui/controls/swipe_handler.h"
 #include "ui/effects/animations.h"
-#include "ui/widgets/scroll_area.h"
+#include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
 #include "ui/controls/userpic_button.h"
@@ -31,7 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_window.h"
 #include "styles/style_info.h"
 
 namespace AdminLog {
@@ -289,14 +289,15 @@ Widget::Widget(
 	not_null<Window::SessionController*> controller,
 	not_null<ChannelData*> channel)
 : Window::SectionWidget(parent, controller, rpl::single<PeerData*>(channel))
-, _scroll(this, st::historyScroll, false)
+, _scroll(this, st::historyScroll)
 , _fixedBar(this, controller, channel)
 , _fixedBarShadow(this)
 , _settingsFilter(
 	this,
 	tr::lng_menu_settings(tr::now),
 	st::historyComposeButton)
-, _whatIsThis(this, st::historyAdminLogWhatIsThis) {
+, _whatIsThis(this, st::historyAdminLogWhatIsThis)
+, _scrollDown(_scroll, st::historyToDown) {
 	_fixedBar->move(0, 0);
 	_fixedBar->resizeToWidth(width());
 	_fixedBar->searchCancelRequests(
@@ -317,8 +318,11 @@ Widget::Widget(
 		updateAdaptiveLayout();
 	}, lifetime());
 
+	_scroll->setHandleTouch(false);
+	_scroll->lockWheelDirection();
 	_inner = _scroll->setOwnedWidget(
 		object_ptr<InnerWidget>(this, controller, channel));
+	_inner->lower();
 	_inner->showSearchSignal(
 	) | rpl::on_next([=] {
 		_fixedBar->showSearch();
@@ -331,9 +335,20 @@ Widget::Widget(
 	) | rpl::on_next([=](int top) {
 		_scroll->scrollToY(top);
 	}, lifetime());
+	_inner->newEventsCountValue(
+	) | rpl::on_next([=](int count) {
+		_scrollDown->setUnreadCount(count);
+		updateScrollDownVisibility();
+	}, lifetime());
 
 	_scroll->move(0, _fixedBar->height());
 	_scroll->show();
+	_scroll->setOverscrollBg(QColor(0, 0, 0, 0));
+	_scroll->setOverscrollEdges([=] {
+		return !_inner || _inner->loadedAtTop();
+	}, [=] {
+		return !_inner || _inner->loadedAtBottom();
+	});
 	_scroll->scrolls() | rpl::on_next([=] {
 		onScroll();
 	}, lifetime());
@@ -349,6 +364,80 @@ Widget::Widget(
 
 	setupShortcuts();
 	setupSwipeReply();
+	setupScrollDownButton();
+}
+
+void Widget::setupScrollDownButton() {
+	_scrollDown->setClickedCallback([=] { scrollDownClicked(); });
+	updateScrollDownVisibility();
+}
+
+void Widget::scrollDownClicked() {
+	_inner->resetNewEventsCount();
+	const auto scrollTo = _scroll->scrollTopMax();
+	auto scrollTop = _scroll->scrollTop();
+	if (scrollTop == scrollTo) {
+		_scrollToAnimation.stop();
+		return;
+	}
+	const auto maxAnimatedDelta = _scroll->height();
+	auto transition = anim::sineInOut;
+	if (scrollTo > scrollTop + maxAnimatedDelta) {
+		scrollTop = scrollTo - maxAnimatedDelta;
+		_scroll->scrollToY(scrollTop);
+		transition = anim::easeOutCubic;
+	}
+	_scrollToAnimation.stop();
+	_scrollToAnimation.start(
+		[=] { scrollToAnimationCallback(); },
+		scrollTop,
+		scrollTo,
+		st::slideDuration,
+		transition);
+}
+
+void Widget::scrollToAnimationCallback() {
+	const auto scrollTo = _scroll->scrollTopMax();
+	const auto value = _scrollToAnimation.value(scrollTo);
+	_scroll->scrollToY(int(base::SafeRound(value)));
+}
+
+void Widget::updateScrollDownVisibility() {
+	if (_scroll->isHidden()) {
+		return;
+	}
+	const auto top = _scroll->scrollTop() + st::historyToDownShownAfter / 4;
+	const auto hasPendingEvents = _scrollDown->unreadCount() > 0;
+	startScrollDownButtonAnimation(hasPendingEvents
+		|| top < _scroll->scrollTopMax());
+}
+
+void Widget::startScrollDownButtonAnimation(bool shown) {
+	if (_scrollDownIsShown == shown) {
+		return;
+	}
+	_scrollDownIsShown = shown;
+	_scrollDownShown.start(
+		[=] { updateScrollDownPosition(); },
+		_scrollDownIsShown ? 0. : 1.,
+		_scrollDownIsShown ? 1. : 0.,
+		st::historyToDownDuration);
+}
+
+void Widget::updateScrollDownPosition() {
+	// _scrollDown is a child widget of _scroll, not me.
+	const auto top = anim::interpolate(
+		0,
+		_scrollDown->height() + st::historyToDownPosition.y(),
+		_scrollDownShown.value(_scrollDownIsShown ? 1. : 0.));
+	_scrollDown->moveToRight(
+		st::historyToDownPosition.x(),
+		_scroll->height() - top);
+	const auto shouldBeHidden
+		= !_scrollDownIsShown && !_scrollDownShown.animating();
+	if (shouldBeHidden != _scrollDown->isHidden()) {
+		_scrollDown->setVisible(!shouldBeHidden);
+	}
 }
 
 void Widget::showFilter() {
@@ -452,8 +541,8 @@ void Widget::setupSwipeReply() {
 		}
 	};
 
-	auto init = [=](int, Qt::LayoutDirection direction) {
-		if (direction == Qt::RightToLeft) {
+	auto init = [=](Ui::Controls::SwipeHandlerInitData data) {
+		if (data.direction == Qt::RightToLeft) {
 			return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
 				controller()->showBackFromStack();
 			});
@@ -475,6 +564,11 @@ std::shared_ptr<Window::SectionMemento> Widget::createMemento() {
 	return result;
 }
 
+auto Widget::createIdentityMemento()
+-> std::shared_ptr<Window::SectionMemento> {
+	return std::make_shared<SectionMemento>(channel());
+}
+
 void Widget::saveState(not_null<SectionMemento*> memento) {
 	memento->setScrollTop(_scroll->scrollTop());
 	_inner->saveState(memento);
@@ -494,7 +588,8 @@ void Widget::resizeEvent(QResizeEvent *e) {
 
 	const auto contentWidth = width();
 
-	const auto newScrollTop = _scroll->scrollTop() + topDelta();
+	const auto delta = takeTopDelta();
+	const auto newScrollTop = _scroll->scrollTop() + delta;
 	_fixedBar->resizeToWidth(contentWidth);
 	_fixedBarShadow->resize(contentWidth, st::lineWidth);
 
@@ -510,7 +605,7 @@ void Widget::resizeEvent(QResizeEvent *e) {
 	}
 
 	if (!_scroll->isHidden()) {
-		if (topDelta()) {
+		if (delta) {
 			_scroll->scrollToY(newScrollTop);
 		}
 		auto scrollTop = _scroll->scrollTop();
@@ -525,6 +620,8 @@ void Widget::resizeEvent(QResizeEvent *e) {
 	_whatIsThis->moveToRight(
 		st::historySendRight,
 		bottom - _whatIsThis->height());
+
+	updateScrollDownPosition();
 }
 
 void Widget::paintEvent(QPaintEvent *e) {
@@ -548,6 +645,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 void Widget::onScroll() {
 	int scrollTop = _scroll->scrollTop();
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
+	updateScrollDownVisibility();
 }
 
 void Widget::showAnimatedHook(

@@ -1,11 +1,14 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Platform-wide issue
+  - name: 📱🎨🌍 Mobile apps, UI/UX Design, or Missing Features
     url: https://bugs.telegram.org
-    about: Any bug report or feature request affecting more than only Telegram Desktop.
-  - name: Issue of other client
-    url: https://bugs.telegram.org
-    about: Any bug report or feature request not about Telegram Desktop.
-  - name: Question
+    about: 🛑 Not EXCLUSIVELY a Telegram Desktop app bug? UI complaint? CLICK HERE.
+  - name: 📝 I found a typo or translation error
+    url: https://translations.telegram.org
+    about: 🛑 DO NOT OPEN AN ISSUE. Translations are crowdsourced. Suggest fixes there.
+  - name: 🚫 My account is banned / I can't log in
+    url: https://telegram.org/support
+    about: 🛑 DO NOT OPEN AN ISSUE. We cannot unban you. Contact web support here.
+  - name: ❓ I just want to ask a question
     url: https://t.me/TelegramDesktopTalk
-    about: Ask a question.
+    about: Do not open an issue to ask a question. Go to the group chat.

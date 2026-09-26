@@ -10,8 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_video_track.h"
 #include "ui/image/image_prepare.h"
 #include "ui/widgets/shadow.h"
-#include "styles/style_calls.h"
-#include "styles/style_widgets.h"
 #include "styles/style_layers.h"
 
 namespace Calls {

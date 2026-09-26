@@ -126,8 +126,6 @@ SetupEmailLockWidget::SetupEmailLockWidget(
 				this,
 				tr::lng_settings_logout(),
 				st::defaultBoxButton);
-			_logoutButton->setTextTransform(
-				Ui::RoundButton::TextTransform::NoTransform);
 			if (session) {
 				session->promoSuggestions().setSetupEmailState(
 					Data::SetupEmailState::SettingUpNoSkip);
@@ -152,8 +150,6 @@ SetupEmailLockWidget::SetupEmailLockWidget(
 				this,
 				rpl::single(u"[DEBUG] Clear bio"_q),
 				st::defaultBoxButton);
-			_debugButton->setTextTransform(
-				Ui::RoundButton::TextTransform::NoTransform);
 			_debugButton->setClickedCallback([=] {
 				session->api().saveSelfBio({});
 			});
@@ -204,6 +200,9 @@ SetupEmailLockWidget::SetupEmailLockWidget(
 				tr::lng_settings_cloud_login_email_placeholder()),
 			st::boxRowPadding,
 			style::al_top);
+		emailInput->setInputMethodHints(Qt::ImhEmailCharactersOnly
+			| Qt::ImhNoAutoUppercase
+			| Qt::ImhNoPredictiveText);
 
 		Ui::AddSkip(_layout);
 		Ui::AddSkip(_layout);
@@ -230,8 +229,6 @@ SetupEmailLockWidget::SetupEmailLockWidget(
 				st::changePhoneButton),
 			st::boxRowPadding,
 			style::al_top);
-		submit->setTextTransform(
-			Ui::RoundButton::TextTransform::NoTransform);
 
 		_emailInput = emailInput;
 		_errorLabel = errorLabel;

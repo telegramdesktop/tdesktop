@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_widget.h"
 #include "history/history_item_components.h"
+#include "iv/iv_rich_page.h"
 #include "main/main_session.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
@@ -70,6 +71,33 @@ Draft::Draft(
 , webpage(webpage) {
 }
 
+bool DraftIsNull(const Draft *draft) {
+	return !draft
+		|| (!draft->hasRichMessage()
+			&& !draft->reply.messageId
+			&& !draft->suggest.exists
+			&& DraftStringIsEmpty(draft->textWithTags.text));
+}
+
+bool DraftsAreEqual(const Draft *a, const Draft *b) {
+	const auto aIsNull = DraftIsNull(a);
+	const auto bIsNull = DraftIsNull(b);
+	if (aIsNull) {
+		return bIsNull;
+	} else if (bIsNull) {
+		return false;
+	} else if (a->hasRichMessage() != b->hasRichMessage()) {
+		return false;
+	} else if (a->hasRichMessage()
+		&& !Iv::RichPagesEqual(*a->richMessage, *b->richMessage)) {
+		return false;
+	}
+	return (a->textWithTags == b->textWithTags)
+		&& (a->reply == b->reply)
+		&& (a->suggest == b->suggest)
+		&& (a->webpage == b->webpage);
+}
+
 void ApplyPeerCloudDraft(
 		not_null<Main::Session*> session,
 		PeerId peerId,
@@ -81,13 +109,18 @@ void ApplyPeerCloudDraft(
 	if (history->skipCloudDraftUpdate(topicRootId, monoforumPeerId, date)) {
 		return;
 	}
-	const auto textWithTags = TextWithTags{
-		qs(draft.vmessage()),
-		TextUtilities::ConvertEntitiesToTextTags(
-			Api::EntitiesFromMTP(
-				session,
-				draft.ventities().value_or_empty()))
-	};
+	const auto richMessage = draft.vrich_message()
+		? Iv::ParseRichPage(session, *draft.vrich_message())
+		: std::shared_ptr<const Iv::RichPage>();
+	const auto textWithTags = richMessage
+		? TextWithTags()
+		: TextWithTags{
+			qs(draft.vmessage()),
+			TextUtilities::ConvertEntitiesToTextTags(
+				Api::EntitiesFromMTP(
+					session,
+					draft.ventities().value_or_empty()))
+		};
 	auto replyTo = draft.vreply_to()
 		? ReplyToFromMTP(history, *draft.vreply_to())
 		: FullReplyTo();
@@ -97,7 +130,8 @@ void ApplyPeerCloudDraft(
 		.invert = draft.is_invert_media(),
 		.removed = draft.is_no_webpage(),
 	};
-	if (const auto media = draft.vmedia()) {
+	const auto media = draft.vmedia();
+	if (!richMessage && media) {
 		media->match([&](const MTPDmessageMediaWebPage &data) {
 			const auto parsed = session->data().processWebpage(
 				data.vwebpage());
@@ -129,6 +163,8 @@ void ApplyPeerCloudDraft(
 		MessageCursor(Ui::kQFixedMax, Ui::kQFixedMax, Ui::kQFixedMax),
 		std::move(webpage));
 	cloudDraft->date = date;
+	cloudDraft->richMessage = richMessage;
+	cloudDraft->richMessageSummary = Iv::FlattenRichPageSummary(richMessage);
 
 	history->setCloudDraft(std::move(cloudDraft));
 	history->applyCloudDraft(topicRootId, monoforumPeerId);

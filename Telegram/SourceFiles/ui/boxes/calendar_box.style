@@ -1,0 +1,21 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "boxes/boxes.style";
+
+calendarTitleFont: boxTitleFont;
+calendarDaysFont: normalFont;
+calendarDaysFontOver: semiboldFont;
+calendarDaysFg: boxTitleAdditionalFg;
+calendarScroll: ScrollArea(defaultSolidScroll) {
+	deltat: 3px;
+	deltab: 3px;
+	round: 1px;
+	width: 8px;
+	deltax: 3px;
+	hiding: 1000;
+}

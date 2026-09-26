@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "core/application.h"
 #include "core/sandbox.h"
+#include "core/version.h"
 #include "data/data_forum_topic.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_peer.h"
@@ -55,6 +56,12 @@ struct ServerInformation {
 bool ServiceRegistered = false;
 ServerInformation CurrentServerInformation;
 std::vector<std::string> CurrentCapabilities;
+
+[[nodiscard]] const auto &OptionGNotification() {
+	static const auto &result = base::options::lookup<bool>(
+		Window::Notifications::kOptionGNotification);
+	return result;
+}
 
 [[nodiscard]] bool HasCapability(const char *value) {
 	return ranges::contains(CurrentCapabilities, value);
@@ -136,7 +143,7 @@ bool UseGNotification() {
 		return false;
 	}
 
-	if (Window::Notifications::OptionGNotification.value()) {
+	if (OptionGNotification().value()) {
 		return true;
 	}
 
@@ -206,8 +213,7 @@ bool Enforced() {
 	// Wayland doesn't support positioning
 	// and custom notifications don't work here
 	return IsWayland()
-		|| (Gio::Application::get_default()
-			&& Window::Notifications::OptionGNotification.value());
+		|| (Gio::Application::get_default() && OptionGNotification().value());
 }
 
 bool ByDefault() {
@@ -331,9 +337,7 @@ void Create(Window::Notifications::System *system) {
 
 Manager::Private::Private(not_null<Manager*> manager)
 : _manager(manager)
-, _application(UseGNotification()
-		? Gio::Application::get_default()
-		: nullptr)
+, _application(Gio::Application::get_default())
 , _sounds(cWorkingDir() + u"tdata/audio_cache"_q) {
 	const auto &serverInformation = CurrentServerInformation;
 
@@ -382,10 +386,19 @@ Manager::Private::Private(not_null<Manager*> manager)
 			};
 		};
 
-		auto activate = gi::object_cast<Gio::SimpleAction>(
-			actionMap.lookup_action("notification-activate"));
+		const auto notificationIdVariantType = GLib::VariantType::new_(
+			"a{sv}");
 
-		const auto activateSig = activate.signal_activate().connect([=](
+		auto activate = Gio::SimpleAction::new_(
+			"notification-activate",
+			notificationIdVariantType);
+
+		actionMap.add_action(activate);
+		_lifetime.add([=]() mutable {
+			actionMap.remove_action("notification-activate");
+		});
+
+		activate.signal_activate().connect([=](
 				Gio::SimpleAction,
 				GLib::Variant parameter) {
 			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
@@ -394,14 +407,16 @@ Manager::Private::Private(not_null<Manager*> manager)
 			});
 		});
 
+		auto markAsRead = Gio::SimpleAction::new_(
+			"notification-mark-as-read",
+			notificationIdVariantType);
+
+		actionMap.add_action(markAsRead);
 		_lifetime.add([=]() mutable {
-			activate.disconnect(activateSig);
+			actionMap.remove_action("notification-mark-as-read");
 		});
 
-		auto markAsRead = gi::object_cast<Gio::SimpleAction>(
-			actionMap.lookup_action("notification-mark-as-read"));
-
-		const auto markAsReadSig = markAsRead.signal_activate().connect([=](
+		markAsRead.signal_activate().connect([=](
 				Gio::SimpleAction,
 				GLib::Variant parameter) {
 			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
@@ -411,8 +426,28 @@ Manager::Private::Private(not_null<Manager*> manager)
 			});
 		});
 
+		auto customAction = Gio::SimpleAction::new_(
+			"notification-action",
+			notificationIdVariantType);
+
+		actionMap.add_action(customAction);
 		_lifetime.add([=]() mutable {
-			markAsRead.disconnect(markAsReadSig);
+			actionMap.remove_action("notification-action");
+		});
+
+		customAction.signal_activate().connect([=](
+				Gio::SimpleAction,
+				GLib::Variant parameter) {
+			Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+				auto dict = GLib::VariantDict::new_(parameter);
+				auto action = dict.lookup_value("action");
+				if (!action) {
+					return;
+				}
+				_manager->notificationActionActivated(
+					dictToNotificationId(dict),
+					QString::fromUtf8(action.get_string(nullptr).c_str()));
+			});
 		});
 	}
 }
@@ -421,23 +456,27 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 	_proxy = proxy;
 	_interface = proxy;
 
-	if (_application || !_interface) {
+	if (!_interface) {
 		return;
 	}
 
-	const auto actionInvoked = _interface.signal_action_invoked().connect([=](
+	_interface.signal_action_invoked().connect([=](
 			XdgNotifications::Notifications,
 			uint id,
 			std::string actionName) {
 		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 			for (const auto &[key, notifications] : _notifications) {
 				for (const auto &[msgId, notification] : notifications) {
-					const auto &nid = notification->id;
-					if (v::is<uint>(nid) && v::get<uint>(nid) == id) {
+					const auto nid = std::get_if<uint>(&notification->id);
+					if (nid && id == *nid) {
 						if (actionName == "default") {
 							_manager->notificationActivated({ key, msgId });
 						} else if (actionName == "mail-mark-read") {
 							_manager->notificationReplied({ key, msgId }, {});
+						} else if (actionName != "inline-reply") {
+							_manager->notificationActionActivated(
+								{ key, msgId },
+								QString::fromStdString(actionName));
 						}
 						return;
 					}
@@ -446,19 +485,15 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 		});
 	});
 
-	_lifetime.add([=] {
-		_interface.disconnect(actionInvoked);
-	});
-
-	const auto replied = _interface.signal_notification_replied().connect([=](
+	_interface.signal_notification_replied().connect([=](
 			XdgNotifications::Notifications,
 			uint id,
 			std::string text) {
 		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
 			for (const auto &[key, notifications] : _notifications) {
 				for (const auto &[msgId, notification] : notifications) {
-					const auto &nid = notification->id;
-					if (v::is<uint>(nid) && v::get<uint>(nid) == id) {
+					const auto nid = std::get_if<uint>(&notification->id);
+					if (nid && id == *nid) {
 						_manager->notificationReplied(
 							{ key, msgId },
 							{ QString::fromStdString(text), {} });
@@ -469,18 +504,14 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 		});
 	});
 
-	_lifetime.add([=] {
-		_interface.disconnect(replied);
-	});
-
-	const auto tokenSignal = _interface.signal_activation_token().connect([=](
+	_interface.signal_activation_token().connect([=](
 			XdgNotifications::Notifications,
 			uint id,
 			std::string token) {
 		for (const auto &[key, notifications] : _notifications) {
 			for (const auto &[msgId, notification] : notifications) {
-				const auto &nid = notification->id;
-				if (v::is<uint>(nid) && v::get<uint>(nid) == id) {
+				const auto nid = std::get_if<uint>(&notification->id);
+				if (nid && id == *nid) {
 					GLib::setenv("XDG_ACTIVATION_TOKEN", token, true);
 					return;
 				}
@@ -488,11 +519,7 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 		}
 	});
 
-	_lifetime.add([=] {
-		_interface.disconnect(tokenSignal);
-	});
-
-	const auto closed = _interface.signal_notification_closed().connect([=](
+	_interface.signal_notification_closed().connect([=](
 			XdgNotifications::Notifications,
 			uint id,
 			uint reason) {
@@ -513,18 +540,14 @@ void Manager::Private::init(XdgNotifications::NotificationsProxy proxy) {
 					* In all other cases we keep the notification reference so that we may clear the notification later from history,
 					* if the message for that notification is read (e.g. chat is opened or read from another device).
 					*/
-					const auto &nid = notification->id;
-					if (v::is<uint>(nid) && v::get<uint>(nid) == id && reason == 2) {
+					const auto nid = std::get_if<uint>(&notification->id);
+					if (nid && id == *nid && reason == 2) {
 						clearNotification({ key, msgId });
 						return;
 					}
 				}
 			}
 		});
-	});
-
-	_lifetime.add([=] {
-		_interface.disconnect(closed);
 	});
 }
 
@@ -543,7 +566,7 @@ void Manager::Private::showNotification(
 		.contextId = key,
 		.msgId = info.itemId,
 	};
-	auto notification = _application
+	auto notification = UseGNotification()
 		? Gio::Notification::new_(info.title.toStdString())
 		: Gio::Notification();
 
@@ -618,6 +641,17 @@ void Manager::Private::showNotification(
 				"app.notification-mark-as-read",
 				notificationVariant);
 		}
+
+		for (const auto &action : info.actions) {
+			auto target = GLib::VariantDict::new_(notificationVariant);
+			target.insert_value(
+				"action",
+				GLib::Variant::new_string(action.id.toStdString()));
+			notification.add_button_with_target(
+				action.text.toStdString(),
+				"app.notification-action",
+				target.end());
+		}
 	} else {
 		if (HasCapability("actions")) {
 			actions.push_back("default");
@@ -636,11 +670,17 @@ void Manager::Private::showNotification(
 				actions.push_back(
 					tr::lng_notification_reply(tr::now).toStdString());
 			}
+
+			for (const auto &action : info.actions) {
+				actions.push_back(action.id.toStdString());
+				actions.push_back(action.text.toStdString());
+			}
 		}
 
 		actions.push_back({});
 
-		if (HasCapability("action-icons")) {
+		// Custom actions have arbitrary texts and no icons to display.
+		if (HasCapability("action-icons") && info.actions.empty()) {
 			hints.insert_value(
 				"action-icons",
 				GLib::Variant::new_boolean(true));

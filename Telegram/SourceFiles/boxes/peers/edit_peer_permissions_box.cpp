@@ -40,12 +40,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h" // megagroupSizeMax
 #include "apiwrap.h"
 #include "settings/settings_common.h"
+#include "styles/style_background_preview_box.h"
+#include "styles/style_edit_peer_members.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
-#include "styles/style_window.h"
 #include "styles/style_settings.h"
 
 namespace {
@@ -91,11 +92,15 @@ constexpr auto kDefaultChargeStars = 10;
 			| Flag::SendInline, tr::lng_rights_chat_stickers(tr::now) },
 		{ Flag::EmbedLinks, tr::lng_rights_chat_send_links(tr::now) },
 		{ Flag::SendPolls, tr::lng_rights_chat_send_polls(tr::now) },
+		{ Flag::SendReactions, tr::lng_rights_chat_send_reactions(tr::now) },
 	};
 	auto second = std::vector<RestrictionLabel>{
 		{ Flag::AddParticipants, tr::lng_rights_chat_add_members(tr::now) },
 		{ Flag::CreateTopics, tr::lng_rights_group_add_topics(tr::now) },
 		{ Flag::PinMessages, tr::lng_rights_group_pin(tr::now) },
+		{ Flag::EditRank, (options.isUserSpecific
+			? tr::lng_rights_group_edit_rank_single
+			: tr::lng_rights_group_edit_rank)(tr::now) },
 		{ Flag::ChangeInfo, tr::lng_rights_group_info(tr::now) },
 	};
 	if (!options.isForum) {
@@ -118,9 +123,26 @@ constexpr auto kDefaultChargeStars = 10;
 -> std::vector<NestedEditFlagsLabels<ChatAdminRights>> {
 	using Flag = ChatAdminRight;
 
-	if (options.isGroup) {
+	if (options.isCommunity) {
+		auto rights = std::vector<AdminRightLabel>{
+			{ Flag::ChangeInfo, tr::lng_rights_community_info(tr::now) },
+			{
+				Flag::ManageLinkedPeers,
+				tr::lng_rights_community_linked(tr::now),
+			},
+			{ Flag::BanUsers, tr::lng_rights_community_ban(tr::now) },
+			{ Flag::AddAdmins, tr::lng_rights_add_admins(tr::now) },
+		};
+		return { { std::nullopt, std::move(rights) } };
+	} else if (options.isGroup) {
 		auto first = std::vector<AdminRightLabel>{
 			{ Flag::ChangeInfo, tr::lng_rights_group_info(tr::now) },
+			{
+				Flag::ManageWelcomeMessages,
+				(options.isBot
+					? tr::lng_rights_group_send_welcome_messages
+					: tr::lng_rights_manage_welcome_messages)(tr::now),
+			},
 			{ Flag::DeleteMessages, tr::lng_rights_group_delete(tr::now) },
 			{ Flag::BanUsers, tr::lng_rights_group_ban(tr::now) },
 			{ Flag::InviteByLinkOrAdd, options.anyoneCanAddMembers
@@ -136,9 +158,16 @@ constexpr auto kDefaultChargeStars = 10;
 		};
 		auto second = std::vector<AdminRightLabel>{
 			{ Flag::ManageCall, tr::lng_rights_group_manage_calls(tr::now) },
+			{ Flag::ManageRanks, tr::lng_rights_group_manage_ranks(tr::now) },
 			{ Flag::Anonymous, tr::lng_rights_group_anonymous(tr::now) },
 			{ Flag::AddAdmins, tr::lng_rights_add_admins(tr::now) },
 		};
+		if (options.canProcessJoinRequests) {
+			second.push_back({
+				Flag::ProcessJoinRequests,
+				tr::lng_rights_group_process_join_requests(tr::now),
+			});
+		}
 		if (!options.isForum) {
 			first.erase(
 				ranges::remove(
@@ -155,6 +184,12 @@ constexpr auto kDefaultChargeStars = 10;
 	}
 	auto first = std::vector<AdminRightLabel>{
 		{ Flag::ChangeInfo, tr::lng_rights_channel_info(tr::now) },
+		{
+			Flag::ManageWelcomeMessages,
+			(options.isBot
+				? tr::lng_rights_send_welcome_messages
+				: tr::lng_rights_manage_welcome_messages)(tr::now),
+		},
 	};
 	auto messages = std::vector<AdminRightLabel>{
 		{ Flag::PostMessages, tr::lng_rights_channel_post(tr::now) },
@@ -176,6 +211,12 @@ constexpr auto kDefaultChargeStars = 10;
 		{ Flag::AddAdmins, tr::lng_rights_add_admins(tr::now) },
 		{ Flag::BanUsers, tr::lng_rights_group_ban(tr::now) },
 	};
+	if (options.canProcessJoinRequests) {
+		second.push_back({
+			Flag::ProcessJoinRequests,
+			tr::lng_rights_group_process_join_requests(tr::now),
+		});
+	}
 	return {
 		{ std::nullopt, std::move(first) },
 		{ tr::lng_rights_channel_manage(), std::move(messages) },
@@ -301,6 +342,7 @@ ChatRestrictions NegateRestrictions(ChatRestrictions value) {
 		//| Flag::ViewMessages
 		| Flag::ChangeInfo
 		| Flag::EmbedLinks
+		| Flag::SendReactions
 		| Flag::AddParticipants
 		| Flag::CreateTopics
 		| Flag::PinMessages
@@ -315,7 +357,8 @@ ChatRestrictions NegateRestrictions(ChatRestrictions value) {
 		| Flag::SendMusic
 		| Flag::SendVoiceMessages
 		| Flag::SendFiles
-		| Flag::SendOther);
+		| Flag::SendOther
+		| Flag::EditRank);
 }
 
 auto Dependencies(ChatAdminRights)
@@ -488,20 +531,28 @@ not_null<Ui::RpWidget*> AddInnerToggle(
 			icon.paint(p, 0, 0, arrow->width());
 		}, arrow->lifetime());
 	}
-	button->sizeValue(
-	) | rpl::on_next([=, &st](const QSize &s) {
+	const auto reposition = [=, &st] {
+		const auto s = button->size();
 		const auto labelLeft = st.padding.left();
 		const auto labelRight = s.width() - toggleButton->width();
 
-		label->resizeToWidth(labelRight - labelLeft - arrow->width());
+		const auto arrowSkip = st::rightsButtonArrowSkip;
+		label->resizeToWidth(
+			labelRight - labelLeft - arrow->width() - arrowSkip);
 		label->moveToLeft(
 			labelLeft,
 			(s.height() - label->height()) / 2);
 		arrow->moveToLeft(
 			std::min(
-				labelLeft + label->textMaxWidth(),
+				labelLeft + label->textMaxWidth() + arrowSkip,
 				labelRight - arrow->width()),
 			(s.height() - arrow->height()) / 2);
+	};
+	rpl::merge(
+		button->sizeValue() | rpl::to_empty,
+		state->anyChanges.events_starting_with(rpl::empty_value())
+	) | rpl::on_next([=] {
+		reposition();
 	}, button->lifetime());
 	wrap->toggledValue(
 	) | rpl::skip(1) | rpl::on_next([=](bool toggled) {
@@ -1202,6 +1253,7 @@ void ShowEditPeerPermissionsBox(
 	}
 
 	static constexpr auto kSendRestrictions = Flag::EmbedLinks
+		| Flag::SendReactions
 		| Flag::SendGames
 		| Flag::SendGifs
 		| Flag::SendInline
@@ -1459,7 +1511,9 @@ ChatAdminRights AdminRightsForOwnershipTransfer(
 		Data::AdminRightsSetOptions options) {
 	auto result = ChatAdminRights();
 	for (const auto &entry : AdminRightLabels(options)) {
-		if (!(entry.flags & ChatAdminRight::Anonymous)) {
+		if (!(entry.flags
+			& (ChatAdminRight::Anonymous
+				| ChatAdminRight::ProcessJoinRequests))) {
 			result |= entry.flags;
 		}
 	}

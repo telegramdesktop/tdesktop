@@ -622,7 +622,78 @@ crl::time Call::getDurationMs() const {
 	return _startTime ? (crl::now() - _startTime) : 0;
 }
 
+void Call::takeRatingToPanel() {
+	Expects(_ratingRequested);
+
+	_ratingInPanel = true;
+}
+
+void Call::setRating(int rating) {
+	_rating = rating;
+}
+
+void Call::finishRating() {
+	if (!_ratingInPanel) {
+		return;
+	}
+	_ratingInPanel = false;
+	_ratingRequested = false;
+	if (_rating > 0 && _id && _accessHash) {
+		const auto session = &_user->session();
+		session->api().request(MTPphone_SetCallRating(
+			MTP_flags(0),
+			MTP_inputPhoneCall(
+				MTP_long(_id),
+				MTP_long(_accessHash)),
+			MTP_int(_rating),
+			MTP_string()
+		)).done([=](const MTPUpdates &updates) {
+			session->api().applyUpdates(updates);
+		}).send();
+	}
+	_delegate->callFinished(this);
+}
+
+void Call::showRatingBox() {
+	Expects(_ratingRequested);
+
+	_ratingRequested = false;
+
+	const auto window = Core::App().windowFor(::Window::SeparateId(_user));
+	const auto session = &_user->session();
+	const auto callId = _id;
+	const auto callAccessHash = _accessHash;
+	auto owned = Box<Ui::RateCallBox>(Core::App().settings().sendSubmitWay());
+	const auto box = window
+		? window->show(std::move(owned))
+		: Ui::show(std::move(owned));
+	const auto sender = box->lifetime().make_state<MTP::Sender>(
+		&session->mtp());
+	box->sends(
+	) | rpl::take(
+		1 // Instead of keeping requestId.
+	) | rpl::on_next([=](const Ui::RateCallBox::Result &r) {
+		sender->request(MTPphone_SetCallRating(
+			MTP_flags(0),
+			MTP_inputPhoneCall(
+				MTP_long(callId),
+				MTP_long(callAccessHash)),
+			MTP_int(r.rating),
+			MTP_string(r.comment)
+		)).done([=](const MTPUpdates &updates) {
+			session->api().applyUpdates(updates);
+			box->closeBox();
+		}).fail([=] {
+			box->closeBox();
+		}).send();
+	}, box->lifetime());
+}
+
 void Call::hangup(Data::GroupCall *migrateCall, const QString &migrateSlug) {
+	if (_ratingInPanel) {
+		finishRating();
+		return;
+	}
 	const auto state = _state.current();
 	if (state == State::Busy
 		|| state == State::MigrationHangingUp) {
@@ -807,36 +878,10 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			}
 		}
 		if (data.is_need_rating() && _id && _accessHash) {
-			const auto window = Core::App().windowFor(
-				::Window::SeparateId(_user));
-			const auto session = &_user->session();
-			const auto callId = _id;
-			const auto callAccessHash = _accessHash;
-			auto owned = Box<Ui::RateCallBox>(
-				Core::App().settings().sendSubmitWay());
-			const auto box = window
-				? window->show(std::move(owned))
-				: Ui::show(std::move(owned));
-			const auto sender = box->lifetime().make_state<MTP::Sender>(
-				&session->mtp());
-			box->sends(
-			) | rpl::take(
-				1 // Instead of keeping requestId.
-			) | rpl::on_next([=](const Ui::RateCallBox::Result &r) {
-				sender->request(MTPphone_SetCallRating(
-					MTP_flags(0),
-					MTP_inputPhoneCall(
-						MTP_long(callId),
-						MTP_long(callAccessHash)),
-					MTP_int(r.rating),
-					MTP_string(r.comment)
-				)).done([=](const MTPUpdates &updates) {
-					session->api().applyUpdates(updates);
-					box->closeBox();
-				}).fail([=] {
-					box->closeBox();
-				}).send();
-			}, box->lifetime());
+			_ratingRequested = true;
+		}
+		if (const auto duration = data.vduration()) {
+			_discardedDuration = duration->v;
 		}
 		const auto reason = data.vreason();
 		if (reason
@@ -853,6 +898,9 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			setState(State::Ended);
 		} else {
 			setState(State::EndedByOtherDevice);
+		}
+		if (_ratingRequested && !_ratingInPanel) {
+			showRatingBox();
 		}
 	} return true;
 
@@ -1196,6 +1244,10 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	raw->setIncomingVideoOutput(_videoIncoming->sink());
 	raw->setAudioOutputDuckingEnabled(settings.callAudioDuckingEnabled());
 
+	_muted.value() | rpl::on_next([=](bool muted) {
+		Core::App().mediaDevices().setCaptureMuted(muted);
+	}, _instanceLifetime);
+
 	_state.value() | rpl::on_next([=](State state) {
 		const auto track = (state != State::FailedHangingUp)
 			&& (state != State::Failed)
@@ -1205,10 +1257,6 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 			&& (state != State::EndedByOtherDevice)
 			&& (state != State::Busy);
 		Core::App().mediaDevices().setCaptureMuteTracker(this, track);
-	}, _instanceLifetime);
-
-	_muted.value() | rpl::on_next([=](bool muted) {
-		Core::App().mediaDevices().setCaptureMuted(muted);
 	}, _instanceLifetime);
 
 #if 0
@@ -1433,7 +1481,9 @@ void Call::toggleCameraSharing(bool enabled) {
 	}), true);
 }
 
-void Call::toggleScreenSharing(std::optional<QString> uniqueId) {
+void Call::toggleScreenSharing(
+		std::optional<QString> uniqueId,
+		bool withAudio) {
 	if (!uniqueId) {
 		if (isSharingScreen()) {
 			if (_videoCapture) {
@@ -1443,13 +1493,20 @@ void Call::toggleScreenSharing(std::optional<QString> uniqueId) {
 		}
 		_videoCaptureDeviceId = QString();
 		_videoCaptureIsScreencast = false;
+		_screenWithAudio = false;
+		if (_systemAudioCapture) {
+			_systemAudioCapture->stop();
+			_systemAudioCapture = nullptr;
+		}
 		return;
-	} else if (screenSharingDeviceId() == *uniqueId) {
+	} else if (screenSharingDeviceId() == *uniqueId
+		&& _screenWithAudio == withAudio) {
 		return;
 	}
 	toggleCameraSharing(false);
 	_videoCaptureIsScreencast = true;
 	_videoCaptureDeviceId = *uniqueId;
+	_screenWithAudio = withAudio;
 	if (_videoCapture) {
 		_videoCapture->switchToDevice(uniqueId->toStdString(), true);
 		if (_instance) {
@@ -1457,6 +1514,29 @@ void Call::toggleScreenSharing(std::optional<QString> uniqueId) {
 		}
 	}
 	_videoOutgoing->setState(Webrtc::VideoState::Active);
+
+	if (_systemAudioCapture) {
+		_systemAudioCapture->stop();
+		_systemAudioCapture = nullptr;
+	}
+	if (withAudio && Webrtc::SystemAudioCaptureSupported()) {
+		_systemAudioCapture = Webrtc::CreateSystemAudioCapture(
+			[weak = base::make_weak(this)](std::vector<uint8_t> &&samples) {
+				crl::on_main(
+					weak,
+					[weak, samples = std::move(samples)]() mutable {
+						if (const auto strong = weak.get(); strong
+							&& strong->_instance
+							&& strong->_screenWithAudio) {
+							strong->_instance->addExternalAudioSamples(
+								std::move(samples));
+						}
+					});
+			});
+		if (_systemAudioCapture) {
+			_systemAudioCapture->start();
+		}
+	}
 }
 
 auto Call::peekVideoCapture() const
@@ -1617,6 +1697,10 @@ void Call::handleControllerError(const QString &error) {
 void Call::destroyController() {
 	_instanceLifetime.destroy();
 	Core::App().mediaDevices().setCaptureMuteTracker(this, false);
+	if (_systemAudioCapture) {
+		_systemAudioCapture->stop();
+		_systemAudioCapture = nullptr;
+	}
 
 	if (_instance) {
 		_instance->stop([](tgcalls::FinalState) {

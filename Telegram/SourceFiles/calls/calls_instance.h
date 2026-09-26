@@ -122,6 +122,7 @@ public:
 	bool minimizeCurrentActiveCall();
 	bool toggleFullScreenCurrentActiveCall();
 	bool closeCurrentActiveCall();
+	void hidePanelLayers();
 	[[nodiscard]] auto getVideoCapture(
 		std::optional<QString> deviceId = std::nullopt,
 		bool isScreenCapture = false)
@@ -188,6 +189,7 @@ private:
 	void refreshDhConfig();
 	void refreshServerConfig(not_null<Main::Session*> session);
 	bytes::const_span updateDhConfig(const MTPmessages_DhConfig &data);
+	bool activateUnconfirmedCall(not_null<UserData*> user);
 
 	void destroyCurrentCall(
 		Data::GroupCall *migrateCall = nullptr,

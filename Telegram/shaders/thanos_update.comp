@@ -1,0 +1,54 @@
+#version 450
+
+layout(local_size_x = 64) in;
+
+layout(rgba32f, binding = 0) uniform image2D particleStateImage;
+layout(rgba32f, binding = 2) uniform image2D particleVelocityImage;
+
+layout(std140, binding = 1) uniform Params {
+	uint particleCountX;
+	uint particleCountY;
+	float phase;
+	float timeStep;
+};
+
+float easeInWindow(float fraction, float t) {
+	float windowSize = 0.8;
+	float windowStart = -windowSize;
+	float windowEnd = 1.0;
+	float windowPos = (1.0 - fraction) * windowStart + fraction * windowEnd;
+	float windowT = clamp(t - windowPos, 0.0, windowSize) / windowSize;
+	return 1.0 - windowT;
+}
+
+void main() {
+	uint gid = gl_GlobalInvocationID.x;
+	uint count = particleCountX * particleCountY;
+	if (gid >= count) {
+		return;
+	}
+
+	float easeInDuration = 0.8;
+	float effectFraction = clamp(phase, 0.0, easeInDuration) / easeInDuration;
+
+	uint particleX = gid % particleCountX;
+	float particleXFraction = float(particleX) / float(particleCountX);
+	float particleFraction = easeInWindow(effectFraction, particleXFraction);
+
+	ivec2 coord = ivec2(
+		int(particleX),
+		int(gid / particleCountX));
+
+	vec4 state = imageLoad(particleStateImage, coord);
+	vec2 offset = state.xy;
+	float lifetime = state.z;
+
+	vec2 velocity = imageLoad(particleVelocityImage, coord).xy;
+
+	offset += velocity * timeStep * particleFraction;
+	velocity.y += 80.0 * timeStep * particleFraction;
+	lifetime = max(0.0, lifetime - 0.6 * timeStep * particleFraction);
+
+	imageStore(particleStateImage, coord, vec4(offset, lifetime, 0.0));
+	imageStore(particleVelocityImage, coord, vec4(velocity, 0.0, 0.0));
+}

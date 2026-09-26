@@ -495,7 +495,7 @@ ConfirmContactBox::ConfirmContactBox(
 }
 
 void ConfirmContactBox::prepare() {
-	setTitle(rpl::single(u"Confirmation"_q)); // #TODO hard_lang
+	setTitle(u"Confirmation"_q); // #TODO hard_lang
 
 	auto maxWidth = 0;
 	if (_comment) {

@@ -11,20 +11,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_linux_dbus_utilities.h"
+#include "base/platform/linux/base_linux_xcb_utilities.h"
 #include "base/platform/linux/base_linux_xdp_utilities.h"
 #include "base/platform/linux/base_linux_app_launch_context.h"
+#include "base/platform/base_platform_process.h"
 #include "lang/lang_keys.h"
 #include "core/launcher.h"
 #include "core/sandbox.h"
 #include "core/application.h"
 #include "core/update_checker.h"
+#include "core/version.h"
 #include "data/data_location.h"
 #include "window/window_controller.h"
 #include "webview/platform/linux/webview_linux_webkitgtk.h"
-
-#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
-#include "base/platform/linux/base_linux_xcb_utilities.h"
-#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QSystemTrayIcon>
@@ -470,7 +469,10 @@ void InstallLauncher() {
 		"DESKTOPINTEGRATION");
 
 	// don't update desktop file for alpha version or if updater is disabled
-	if (cAlphaVersion() || Core::UpdaterDisabled() || DisabledByEnv) {
+	if (cAlphaVersion()
+			|| Core::UpdaterDisabled()
+			|| KSandbox::isInside()
+			|| DisabledByEnv) {
 		return;
 	}
 
@@ -658,13 +660,11 @@ bool TrayIconSupported() {
 }
 
 bool SkipTaskbarSupported() {
-#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 	if (IsX11()) {
 		return base::Platform::XCB::IsSupportedByWM(
 			base::Platform::XCB::Connection(),
 			"_NET_WM_STATE_SKIP_TASKBAR");
 	}
-#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 	return false;
 }
@@ -807,9 +807,23 @@ bool OpenSystemSettings(SystemSettingsType type) {
 		add("pavucontrol");
 		add("alsamixergui");
 		return ranges::any_of(options, [](const Command &command) {
-			return QProcess::startDetached(
-				command.command,
-				command.arguments);
+			QProcess process;
+			if (KSandbox::isInside()) {
+				process.setProgram("which");
+				process.setArguments({command.command});
+				KSandbox::startHostProcess(process);
+				process.waitForFinished();
+				if (process.exitStatus() != QProcess::NormalExit
+						|| process.exitCode() != 0) {
+					return false;
+				}
+			}
+			process.setProgram(command.command);
+			process.setArguments(command.arguments);
+			const auto hostContext = KSandbox::makeHostContext(process);
+			process.setProgram(hostContext.program);
+			process.setArguments(hostContext.arguments);
+			return process.startDetached();
 		});
 	}
 	return true;
@@ -823,6 +837,16 @@ void NewVersionLaunched(int oldVersion) {
 
 QImage DefaultApplicationIcon() {
 	return Window::Logo();
+}
+
+void ActivateThisProcess() {
+	const auto window = Core::IsAppLaunched()
+		? Core::App().activeWindow()
+		: nullptr;
+	if (window) {
+		base::Platform::ActivateThisProcessWindow(
+			window->widget()->winId());
+	}
 }
 
 QString ApplicationIconName() {

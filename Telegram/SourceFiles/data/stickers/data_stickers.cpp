@@ -261,7 +261,7 @@ void Stickers::incrementSticker(not_null<DocumentData*> document) {
 				set->emoji[emoji].push_front(document);
 			}
 		} else if (!removedFromEmoji.empty()) {
-			for (const auto emoji : removedFromEmoji) {
+			for (const auto &emoji : removedFromEmoji) {
 				set->emoji[emoji].push_front(document);
 			}
 		} else {
@@ -360,7 +360,7 @@ void Stickers::checkSavedGif(not_null<HistoryItem*> item) {
 
 void Stickers::applyArchivedResult(
 		const MTPDmessages_stickerSetInstallResultArchive &d) {
-	auto &v = d.vsets().v;
+	const auto &v = d.vsets().v;
 	StickersSetsOrder archived;
 	archived.reserve(v.size());
 	QMap<uint64, uint64> setsToRequest;
@@ -636,7 +636,7 @@ void Stickers::requestSetToPushFaved(
 			auto list = std::vector<not_null<EmojiPtr>>();
 			list.reserve(data.vpacks().v.size());
 			for (const auto &mtpPack : data.vpacks().v) {
-				auto &pack = mtpPack.c_stickerPack();
+				const auto &pack = mtpPack.c_stickerPack();
 				for (const auto &documentId : pack.vdocuments().v) {
 					if (documentId.v == document->id) {
 						if (const auto emoji = Ui::Emoji::Find(qs(mtpPack.c_stickerPack().vemoticon()))) {
@@ -804,10 +804,10 @@ void Stickers::setPackAndEmoji(
 	set.emoji.clear();
 	for (const auto &mtpPack : packs) {
 		Assert(mtpPack.type() == mtpc_stickerPack);
-		auto &pack = mtpPack.c_stickerPack();
+		const auto &pack = mtpPack.c_stickerPack();
 		if (auto emoji = Ui::Emoji::Find(qs(pack.vemoticon()))) {
 			emoji = emoji->original();
-			auto &stickers = pack.vdocuments().v;
+			const auto &stickers = pack.vdocuments().v;
 
 			auto p = StickersPack();
 			p.reserve(stickers.size());
@@ -1465,7 +1465,7 @@ std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
 		const auto others = session().api().stickersByEmoji(key);
 		if (others) {
 			result.reserve(result.size() + others->size());
-			for (const auto document : *others) {
+			for (const auto &document : *others) {
 				add(document, CreateOtherSortKey(document));
 			}
 		} else if (!forceAllResults) {
@@ -1541,7 +1541,7 @@ std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
 std::optional<std::vector<not_null<EmojiPtr>>> Stickers::getEmojiListFromSet(
 		not_null<DocumentData*> document) {
 	if (auto sticker = document->sticker()) {
-		auto &inputSet = sticker->set;
+		const auto &inputSet = sticker->set;
 		if (!inputSet.id) {
 			return std::nullopt;
 		}
@@ -1609,7 +1609,8 @@ not_null<StickersSet*> Stickers::feedSet(const MTPStickerSet &info) {
 			& (SetFlag::Featured
 				| SetFlag::Unread
 				| SetFlag::NotLoaded
-				| SetFlag::Special);
+				| SetFlag::Special
+				| SetFlag::Installed);
 		set->flags = flags | clientFlags;
 		const auto installDate = data.vinstalled_date();
 		set->installDate = installDate
@@ -1657,7 +1658,12 @@ not_null<StickersSet*> Stickers::feedSet(
 	const auto set = data.match([&](const auto &data) {
 		return feedSet(data.vset());
 	});
-	data.match([](const MTPDstickerSetCovered &data) {
+	data.match([&](const MTPDstickerSetCovered &data) {
+		set->covers = StickersPack();
+		const auto cover = session().data().processDocument(data.vcover());
+		if (cover->sticker()) {
+			set->covers.push_back(cover);
+		}
 	}, [&](const MTPDstickerSetNoCovered &data) {
 	}, [&](const MTPDstickerSetMultiCovered &data) {
 		feedSetCovers(set, data.vcovers().v);
@@ -1728,7 +1734,7 @@ void Stickers::feedSetStickers(
 		const auto &pack = packs[i].data();
 		if (auto emoji = Ui::Emoji::Find(qs(pack.vemoticon()))) {
 			emoji = emoji->original();
-			auto &stickers = pack.vdocuments().v;
+			const auto &stickers = pack.vdocuments().v;
 
 			auto p = StickersPack();
 			p.reserve(stickers.size());
@@ -1835,7 +1841,7 @@ RecentStickerPack &Stickers::getRecentPack() const {
 			const auto document = owner().document(preloaded.first);
 			if (!document || !document->sticker()) continue;
 
-			recent.push_back(qMakePair(document, preloaded.second));
+			recent.push_back({ document, preloaded.second });
 		}
 	}
 	return cRefRecentStickers();

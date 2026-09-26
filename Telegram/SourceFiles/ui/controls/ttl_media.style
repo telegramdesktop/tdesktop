@@ -1,0 +1,22 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/basic.style";
+using "ui/widgets/widgets.style";
+
+ttlMediaBadgeSize: 44px;
+ttlMediaBadgeMargin: 20px;
+ttlMediaBadgeLine: 2px;
+ttlMediaOnceIcon: icon {{ "chat/audio_once", mediaviewControlFg }};
+ttlMediaTooltipIconSize: 26px;
+ttlMediaTooltipIconSkip: 8px;
+ttlMediaTooltipMaxWidth: 200px;
+ttlMediaTooltipLabel: FlatLabel(defaultImportantTooltipLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px);
+	}
+}

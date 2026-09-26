@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tests/test_main.h"
 
+#include "base/base_file_utilities.h"
 #include "base/invoke_queued.h"
 #include "base/integration.h"
 #include "ui/effects/animations.h"
@@ -19,18 +20,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QScreen>
 #include <QThread>
 #include <QDir>
+#include <QtCore/qmath.h>
 
 #include <qpa/qplatformscreen.h>
 
 namespace Test {
-
-bool App::notifyOrInvoke(QObject *receiver, QEvent *e) {
-	if (e->type() == base::InvokeQueuedEvent::Type()) {
-		static_cast<base::InvokeQueuedEvent*>(e)->invoke();
-		return true;
-	}
-	return QApplication::notify(receiver, e);
-}
 
 bool App::nativeEventFilter(
 		const QByteArray &eventType,
@@ -108,7 +102,7 @@ void App::registerEnterFromEventLoop() {
 
 bool App::notify(QObject *receiver, QEvent *e) {
 	if (QThread::currentThreadId() != _mainThreadId) {
-		return notifyOrInvoke(receiver, e);
+		return QApplication::notify(receiver, e);
 	}
 
 	const auto wrap = createEventNestingLevel();
@@ -119,7 +113,7 @@ bool App::notify(QObject *receiver, QEvent *e) {
 			return true;
 		}
 	}
-	return notifyOrInvoke(receiver, e);
+	return QApplication::notify(receiver, e);
 }
 
 rpl::producer<> App::widgetUpdateRequests() const {
@@ -154,12 +148,24 @@ QString UiIntegration::emojiCacheFolder() {
 	return QDir().currentPath() + "/tests/" + name() + "/emoji";
 }
 
+QString UiIntegration::fontsCacheFolder() {
+	return QDir().currentPath() + "/tests/" + name() + "/fonts";
+}
+
 QString UiIntegration::openglCheckFilePath() {
 	return QDir().currentPath() + "/tests/" + name() + "/opengl";
 }
 
 QString UiIntegration::angleBackendFilePath() {
 	return QDir().currentPath() + "/test/" + name() + "/angle";
+}
+
+void UiIntegration::touchCounterIncrement() {
+	++_touchCounter;
+}
+
+int UiIntegration::touchCounterNow() {
+	return _touchCounter;
 }
 
 } // namespace Test
@@ -170,8 +176,12 @@ int main(int argc, char *argv[]) {
 	auto app = App(argc, argv);
 	app.installNativeEventFilter(&app);
 
+#ifdef Q_OS_MAC
+	base::RegisterBundledResources(u"test_text.rcc"_q);
+#endif // Q_OS_MAC
+
 	const auto ratio = app.devicePixelRatio();
-	const auto useRatio = std::clamp(qCeil(ratio), 1, 3);
+	const auto useRatio = std::clamp(int(std::ceil(ratio)), 1, 3);
 	style::SetDevicePixelRatio(useRatio);
 
 	const auto screen = App::primaryScreen();

@@ -1,0 +1,17 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "boxes/boxes.style";
+
+peerListIndexWidth: 22px;
+peerListIndexApproach: 32px;
+peerListIndexSlotHeight: 15px;
+peerListIndexMinSlotHeight: 12px;
+peerListIndexVerticalInset: 10px;
+peerListIndexFont: font(bold 11px);
+peerListIndexFg: windowSubTextFg;
+peerListIndexActiveFg: windowActiveTextFg;

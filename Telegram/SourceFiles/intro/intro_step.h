@@ -72,6 +72,7 @@ public:
 
 	void setGoCallback(
 		Fn<void(Step *step, StackAction action, Animate animate)> callback);
+	void setStepBelowCallback(Fn<Step*()> callback);
 	void setShowResetCallback(Fn<void()> callback);
 	void setShowTermsCallback(Fn<void()> callback);
 	void setCancelNearestDcCallback(Fn<void()> callback);
@@ -137,6 +138,15 @@ protected:
 	}
 
 	template <typename StepType>
+	void goNextOrBack() {
+		if (dynamic_cast<StepType*>(stepBelow())) {
+			goBack();
+		} else {
+			goNext<StepType>();
+		}
+	}
+
+	template <typename StepType>
 	void goReplace(Animate animate) {
 		goReplace(new StepType(parentWidget(), _account, _data), animate);
 	}
@@ -184,6 +194,7 @@ private:
 
 	void goNext(Step *step);
 	void goReplace(Step *step, Animate animate);
+	[[nodiscard]] Step *stepBelow() const;
 
 	[[nodiscard]] CoverAnimation prepareCoverAnimation(Step *step);
 	[[nodiscard]] QPixmap prepareContentSnapshot();
@@ -199,6 +210,7 @@ private:
 
 	bool _hasCover = false;
 	Fn<void(Step *step, StackAction action, Animate animate)> _goCallback;
+	Fn<Step*()> _stepBelowCallback;
 	Fn<void()> _showResetCallback;
 	Fn<void()> _showTermsCallback;
 	Fn<void()> _cancelNearestDcCallback;

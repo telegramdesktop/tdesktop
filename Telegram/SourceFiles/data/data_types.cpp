@@ -7,10 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_types.h"
 
+#include "media/media_common.h"
 #include "ui/widgets/fields/input_field.h"
 #include "storage/cache/storage_cache_types.h"
 #include "base/openssl_help.h"
 #include <cstring>
+
+#include <QtCore/QtEndian>
 
 namespace Data {
 namespace {
@@ -49,10 +52,8 @@ Storage::Cache::Key WebDocumentCacheKey(const WebFileLocation &location) {
 	const auto bytes = bytes::make_span(hash);
 	const auto bytes1 = bytes.subspan(0, sizeof(uint32));
 	const auto bytes2 = bytes.subspan(sizeof(uint32), sizeof(uint64));
-	uint32 part1;
-	uint64 part2;
-	std::memcpy(&part1, bytes1.data(), sizeof(uint32));
-	std::memcpy(&part2, bytes2.data(), sizeof(uint64));
+	const auto part1 = qFromUnaligned<uint32>(bytes1.data());
+	const auto part2 = qFromUnaligned<uint64>(bytes2.data());
 	return Storage::Cache::Key{
 		Data::kWebDocumentCacheTag | (dcId << 32) | part1,
 		part2
@@ -68,12 +69,9 @@ Storage::Cache::Key UrlCacheKey(const QString &location) {
 	const auto bytes3 = bytes.subspan(
 		sizeof(uint32) + sizeof(uint64),
 		sizeof(uint16));
-	uint32 part1;
-	uint64 part2;
-	uint16 part3;
-	std::memcpy(&part1, bytes1.data(), sizeof(uint32));
-	std::memcpy(&part2, bytes2.data(), sizeof(uint64));
-	std::memcpy(&part3, bytes3.data(), sizeof(uint16));
+	const auto part1 = qFromUnaligned<uint32>(bytes1.data());
+	const auto part2 = qFromUnaligned<uint64>(bytes2.data());
+	const auto part3 = qFromUnaligned<uint16>(bytes3.data());
 	return Storage::Cache::Key{
 		Data::kUrlCacheTag | (uint64(part3) << 32) | part1,
 		part2
@@ -163,8 +161,9 @@ BusinessShortcutId BusinessShortcutIdFromMessage(
 bool GoodStickerDimensions(int width, int height) {
 	// Show all .webp (except very large ones) as stickers,
 	// allow to open them in media viewer to see details.
-	constexpr auto kLargetsStickerSide = 2560;
-	return (width > 0)
-		&& (height > 0)
-		&& (width * height <= kLargetsStickerSide * kLargetsStickerSide);
+	constexpr auto kLargestStickerSide = 2560;
+	return ::Media::ValidFrameSize(
+		width,
+		height,
+		kLargestStickerSide * kLargestStickerSide);
 }

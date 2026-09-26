@@ -30,11 +30,6 @@ std::vector<QBrush> PrepareBrushes() {
 	};
 }
 
-[[nodiscard]] float64 RandomFloat01() {
-	return base::RandomValue<uint32>()
-		/ float64(std::numeric_limits<uint32>::max());
-}
-
 } // namespace
 
 FireworksAnimation::FireworksAnimation(Fn<void()> repaint)
@@ -179,33 +174,43 @@ void FireworksAnimation::startFall() {
 
 void FireworksAnimation::initParticle(Particle &particle, bool falling) {
 	using Type = Particle::Type;
-	using base::RandomIndex;
 
-	particle.color = RandomIndex(_brushes.size());
-	particle.type = RandomIndex(2) ? Type::Rectangle : Type::Circle;
-	particle.right = (RandomIndex(2) == 1);
-	particle.finishedStart = 1 + RandomIndex(2);
+	constexpr auto kRandomPerParticle = 10;
+	auto random = std::array<uint32, kRandomPerParticle>();
+	base::RandomFill(random.data(), random.size() * sizeof(uint32));
+	auto index = 0;
+	const auto nextIndex = [&](int count) {
+		return int(random[index++] % count);
+	};
+	const auto nextFloat = [&] {
+		return random[index++] / float64(std::numeric_limits<uint32>::max());
+	};
+
+	particle.color = nextIndex(_brushes.size());
+	particle.type = nextIndex(2) ? Type::Rectangle : Type::Circle;
+	particle.right = (nextIndex(2) == 1);
+	particle.finishedStart = 1 + nextIndex(2);
 	if (particle.type == Type::Circle) {
-		particle.size = style::ConvertScale(6 + RandomFloat01() * 3);
+		particle.size = style::ConvertScale(6 + nextFloat() * 3);
 	} else {
-		particle.size = style::ConvertScale(6 + RandomFloat01() * 6);
-		particle.rotation = RandomIndex(360);
+		particle.size = style::ConvertScale(6 + nextFloat() * 6);
+		particle.rotation = nextIndex(360);
 	}
 	if (falling) {
-		particle.y = -RandomFloat01() * kFireworkHeight * 1.2f;
-		particle.x = 5 + RandomIndex(kFireworkWidth - 10);
+		particle.y = -nextFloat() * kFireworkHeight * 1.2f;
+		particle.x = 5 + nextIndex(kFireworkWidth - 10);
 		particle.xFinished = particle.finishedStart;
 	} else {
-		const auto xOffset = 4 + RandomIndex(10);
+		const auto xOffset = 4 + nextIndex(10);
 		const auto yOffset = kFireworkHeight / 4;
 		if (particle.right) {
 			particle.x = kFireworkWidth + xOffset;
 		} else {
 			particle.x = -xOffset;
 		}
-		particle.moveX = (particle.right ? -1 : 1) * (1.2 + RandomFloat01() * 4);
-		particle.moveY = -(4 + RandomFloat01() * 4);
-		particle.y = yOffset / 2 + RandomIndex(yOffset * 2);
+		particle.moveX = (particle.right ? -1 : 1) * (1.2 + nextFloat() * 4);
+		particle.moveY = -(4 + nextFloat() * 4);
+		particle.y = yOffset / 2 + nextIndex(yOffset * 2);
 	}
 }
 

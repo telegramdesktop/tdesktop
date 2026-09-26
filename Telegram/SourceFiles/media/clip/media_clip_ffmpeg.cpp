@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/clip/media_clip_ffmpeg.h"
 
 #include "core/file_location.h"
+#include "media/media_common.h"
 #include "logs.h"
 
 namespace Media {
@@ -19,30 +20,10 @@ constexpr auto kSkipInvalidDataPackets = 10;
 constexpr auto kMaxInlineArea = 1280 * 720;
 constexpr auto kMaxSendingArea = 3840 * 2160; // usual 4K
 
-// See https://github.com/telegramdesktop/tdesktop/issues/7225
-constexpr auto kAlignImageBy = 64;
-
-void alignedImageBufferCleanupHandler(void *data) {
-	auto buffer = static_cast<uchar*>(data);
-	delete[] buffer;
-}
-
-// Create a QImage of desired size where all the data is aligned to 16 bytes.
-QImage createAlignedImage(QSize size) {
-	auto width = size.width();
-	auto height = size.height();
-	auto widthalign = kAlignImageBy / 4;
-	auto neededwidth = width + ((width % widthalign) ? (widthalign - (width % widthalign)) : 0);
-	auto bytesperline = neededwidth * 4;
-	auto buffer = new uchar[bytesperline * height + kAlignImageBy];
-	auto cleanupdata = static_cast<void*>(buffer);
-	auto bufferval = reinterpret_cast<uintptr_t>(buffer);
-	auto alignedbuffer = buffer + ((bufferval % kAlignImageBy) ? (kAlignImageBy - (bufferval % kAlignImageBy)) : 0);
-	return QImage(alignedbuffer, width, height, bytesperline, QImage::Format_ARGB32_Premultiplied, alignedImageBufferCleanupHandler, cleanupdata);
-}
-
-bool isAlignedImage(const QImage &image) {
-	return !(reinterpret_cast<uintptr_t>(image.constBits()) % kAlignImageBy) && !(image.bytesPerLine() % kAlignImageBy);
+[[nodiscard]] auto MaxAreaForMode(ReaderImplementation::Mode mode) {
+	return (mode == ReaderImplementation::Mode::Inspecting)
+		? kMaxSendingArea
+		: kMaxInlineArea;
 }
 
 } // namespace
@@ -58,10 +39,8 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readNextFrame() {
 	do {
 		int res = avcodec_receive_frame(_codecContext, _frame.get());
 		if (res >= 0) {
-			const auto limit = (_mode == Mode::Inspecting)
-				? kMaxSendingArea
-				: kMaxInlineArea;
-			if (_frame->width * _frame->height > limit) {
+			const auto limit = MaxAreaForMode(_mode);
+			if (!::Media::ValidFrameSize(_frame->width, _frame->height, limit)) {
 				return ReadResult::Error;
 			}
 			processReadFrame();
@@ -186,7 +165,7 @@ crl::time FFMpegReaderImplementation::frameRealTime() const {
 }
 
 crl::time FFMpegReaderImplementation::framePresentationTime() const {
-	return qMax(_frameTime + _frameTimeCorrection, crl::time(0));
+	return std::max(_frameTime + _frameTimeCorrection, crl::time(0));
 }
 
 crl::time FFMpegReaderImplementation::durationMs() const {
@@ -223,29 +202,47 @@ bool FFMpegReaderImplementation::renderFrame(
 	if (!size.isEmpty() && rotationSwapWidthHeight()) {
 		toSize.transpose();
 	}
-	if (to.isNull() || to.size() != toSize || !to.isDetached() || !isAlignedImage(to)) {
-		to = createAlignedImage(toSize);
+	if (!FFmpeg::GoodStorageForFrame(to, toSize)) {
+		to = FFmpeg::CreateFrameStorage(toSize);
+		if (to.isNull()) {
+			LOG(("Gif Error: Bad storage size %1").arg(logData()));
+			return false;
+		}
 	}
 	const auto format = (_frame->format == AV_PIX_FMT_NONE)
 		? _codecContext->pix_fmt
 		: _frame->format;
 	const auto bgra = (format == AV_PIX_FMT_BGRA);
 	hasAlpha = bgra || (format == AV_PIX_FMT_YUVA420P);
-	if (_frame->width == toSize.width() && _frame->height == toSize.height() && bgra) {
-		int32 sbpl = _frame->linesize[0], dbpl = to.bytesPerLine(), bpl = qMin(sbpl, dbpl);
+	if (bgra
+		&& _frame->width == toSize.width()
+		&& _frame->height == toSize.height()
+		&& _frame->linesize[0] > 0) {
+		int32 sbpl
+			= _frame->linesize[0], dbpl
+			= to.bytesPerLine(), bpl
+			= std::min(
+			sbpl,
+			dbpl);
 		uchar *s = _frame->data[0], *d = to.bits();
 		for (int32 i = 0, l = _frame->height; i < l; ++i) {
 			memcpy(d + i * dbpl, s + i * sbpl, bpl);
 		}
 	} else {
-		if ((_swsSize != toSize) || (_frame->format != -1 && _frame->format != _codecContext->pix_fmt) || !_swsContext) {
-			_swsSize = toSize;
-			_swsContext = sws_getCachedContext(_swsContext, _frame->width, _frame->height, AVPixelFormat(_frame->format), toSize.width(), toSize.height(), AV_PIX_FMT_BGRA, 0, nullptr, nullptr, nullptr);
+		_swsContext = FFmpeg::MakeSwscalePointer(
+			QSize(_frame->width, _frame->height),
+			format,
+			toSize,
+			AV_PIX_FMT_BGRA,
+			&_swsContext);
+		if (!_swsContext) {
+			LOG(("Gif Error: Unable to create sws context %1").arg(logData()));
+			return false;
 		}
 		// AV_NUM_DATA_POINTERS defined in AVFrame struct
 		uint8_t *toData[AV_NUM_DATA_POINTERS] = { to.bits(), nullptr };
 		int toLinesize[AV_NUM_DATA_POINTERS] = { int(to.bytesPerLine()), 0 };
-		sws_scale(_swsContext, _frame->data, _frame->linesize, 0, _frame->height, toData, toLinesize);
+		sws_scale(_swsContext.get(), _frame->data, _frame->linesize, 0, _frame->height, toData, toLinesize);
 	}
 	if (hasAlpha) {
 		FFmpeg::PremultiplyInplace(to);
@@ -290,6 +287,7 @@ bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 		return false;
 	}
 	_fmtContext->pb = _ioContext;
+	FFmpeg::RestrictToCustomIO(_fmtContext);
 
 	int res = 0;
 	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
@@ -312,15 +310,8 @@ bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 		return false;
 	}
 
-	auto rotateTag = av_dict_get(_fmtContext->streams[_streamId]->metadata, "rotate", nullptr, 0);
-	if (rotateTag && *rotateTag->value) {
-		auto stringRotateTag = QString::fromUtf8(rotateTag->value);
-		auto toIntSucceeded = false;
-		auto rotateDegrees = stringRotateTag.toInt(&toIntSucceeded);
-		if (toIntSucceeded) {
-			_rotation = rotationFromDegrees(rotateDegrees);
-		}
-	}
+	_rotation = rotationFromDegrees(FFmpeg::ReadRotationFromMetadata(
+		_fmtContext->streams[_streamId]));
 
 	_codecContext = avcodec_alloc_context3(nullptr);
 	if (!_codecContext) {
@@ -343,6 +334,8 @@ bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 		const auto audioStreamId = av_find_best_stream(_fmtContext, AVMEDIA_TYPE_AUDIO, -1, -1, nullptr, 0);
 		_hasAudioStream = (audioStreamId >= 0);
 	}
+	_codecContext->max_pixels = FFmpeg::MaxPixelsForAreaLimit(
+		MaxAreaForMode(_mode));
 
 	if ((res = avcodec_open2(_codecContext, codec, nullptr)) < 0) {
 		LOG(("Gif Error: Unable to avcodec_open2 %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
@@ -400,6 +393,10 @@ bool FFMpegReaderImplementation::inspectAt(crl::time &positionMs) {
 	return true;
 }
 
+bool FFMpegReaderImplementation::hasAudio() const {
+	return _hasAudioStream;
+}
+
 bool FFMpegReaderImplementation::isGifv() const {
 	if (_hasAudioStream) {
 		return false;
@@ -432,7 +429,6 @@ QString FFMpegReaderImplementation::logData() const {
 
 FFMpegReaderImplementation::~FFMpegReaderImplementation() {
 	if (_codecContext) avcodec_free_context(&_codecContext);
-	if (_swsContext) sws_freeContext(_swsContext);
 	if (_opened) {
 		avformat_close_input(&_fmtContext);
 	}

@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_stories.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_community.h"
 #include "data/data_user.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
@@ -51,9 +52,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h" // showAddContact()
 #include "base/unixtime.h"
 #include "styles/style_boxes.h"
-#include "styles/style_profile.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_menu_icons.h"
+#include "styles/style_premium.h"
 
 namespace {
 
@@ -61,6 +63,14 @@ constexpr auto kSortByOnlineThrottle = 3 * crl::time(1000);
 constexpr auto kSearchPerPage = 50;
 
 } // namespace
+
+Data::CommunityInfo *JoinedCommunityChats(not_null<PeerData*> peer) {
+	const auto channel = peer->asChannel();
+	const auto info = (channel && channel->isCommunity())
+		? channel->communityInfo()
+		: nullptr;
+	return (info && !info->histories().empty()) ? info : nullptr;
+}
 
 object_ptr<Ui::BoxContent> PrepareContactsBox(
 		not_null<Window::SessionController*> window) {
@@ -94,6 +104,7 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 		&window->session());
 	controller->setStyleOverrides(&st::contactsWithStories);
 	controller->setStoriesShown(true);
+	controller->setSectionHeadersShown(true);
 	const auto raw = controller.get();
 	auto init = [=](not_null<PeerListBox*> box) {
 		struct State {
@@ -244,6 +255,7 @@ bool PeerListGlobalSearchController::searchInCache() {
 
 void PeerListGlobalSearchController::searchOnServer() {
 	_requestId = _api.request(MTPcontacts_Search(
+		MTP_flags(0),
 		MTP_string(_query),
 		MTP_int(SearchPeopleLimit)
 	)).done([=](const MTPcontacts_Found &result, mtpRequestId requestId) {
@@ -262,7 +274,7 @@ void PeerListGlobalSearchController::searchDone(
 		mtpRequestId requestId) {
 	Expects(result.type() == mtpc_contacts_found);
 
-	auto &contacts = result.c_contacts_found();
+	const auto &contacts = result.c_contacts_found();
 	auto query = _query;
 	if (requestId) {
 		_session->data().processUsers(contacts.vusers());
@@ -741,15 +753,41 @@ void ContactsBoxController::setSortMode(SortMode mode) {
 	}
 }
 
+void ContactsBoxController::setSectionHeadersShown(bool shown) {
+	_sectionHeadersShown = shown;
+}
+
 void ContactsBoxController::setStoriesShown(bool shown) {
 	_stories = std::make_unique<PeerListStories>(this, _session);
 }
 
 void ContactsBoxController::sort() {
 	switch (_sortMode) {
-	case SortMode::Alphabet: sortByName(); break;
-	case SortMode::Online: sortByOnline(); break;
+	case SortMode::Alphabet:
+		sortByName();
+		if (_sectionHeadersShown) {
+			applySectionHeaders();
+		}
+		delegate()->peerListSetShowSectionHeaders(_sectionHeadersShown);
+		break;
+	case SortMode::Online:
+		sortByOnline();
+		delegate()->peerListSetShowSectionHeaders(false);
+		break;
 	default: Unexpected("SortMode in ContactsBoxController.");
+	}
+}
+
+void ContactsBoxController::applySectionHeaders() {
+	const auto count = delegate()->peerListFullRowsCount();
+	for (auto i = 0; i != count; ++i) {
+		const auto row = delegate()->peerListRowAt(i);
+		const auto peer = row->peer();
+		const auto &key = peer->owner().history(peer)->chatListNameSortKey();
+		const auto first = key.isEmpty() ? QChar() : key[0];
+		row->setSection(first.isLetter()
+			? QString(first.toUpper())
+			: u"#"_q);
 	}
 }
 
@@ -852,7 +890,7 @@ void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
 	const auto peer = row->peer();
 	if (const auto forum = peer->forum()) {
 		const auto weak = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
-		auto callback = [=](not_null<Data::ForumTopic*> topic) {
+		auto callback = [=](not_null<Data::Thread*> thread) {
 			const auto exists = guard.get();
 			if (!exists) {
 				if (*weak) {
@@ -861,15 +899,15 @@ void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
 				return;
 			}
 			auto onstack = std::move(_callback);
-			onstack(topic);
+			onstack(thread);
 			if (guard) {
 				_callback = std::move(onstack);
 			} else if (*weak) {
 				(*weak)->closeBox();
 			}
 		};
-		const auto filter = [=](not_null<Data::ForumTopic*> topic) {
-			return guard && (!_filter || _filter(topic));
+		const auto filter = [=](not_null<Data::Thread*> thread) {
+			return guard && (!_filter || _filter(thread));
 		};
 		auto owned = Box<PeerListBox>(
 			std::make_unique<ChooseTopicBoxController>(
@@ -928,6 +966,50 @@ void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
 		*weak = owned.data();
 		delegate()->peerListUiShow()->showBox(std::move(owned));
 		return;
+	} else if (const auto community = JoinedCommunityChats(peer)) {
+		const auto weak = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
+		auto callback = [=](not_null<Data::Thread*> thread) {
+			const auto exists = guard.get();
+			if (!exists) {
+				if (*weak) {
+					(*weak)->closeBox();
+				}
+				return;
+			}
+			auto onstack = std::move(_callback);
+			onstack(thread);
+			if (guard) {
+				_callback = std::move(onstack);
+			} else if (*weak) {
+				(*weak)->closeBox();
+			}
+		};
+		const auto filter = [=](not_null<Data::Thread*> thread) {
+			return guard && (!_filter || _filter(thread));
+		};
+		const auto channel = community->channel();
+		auto owned = Box<PeerListBox>(
+			std::make_unique<ChooseCommunityChatBoxController>(
+				community,
+				std::move(callback),
+				filter),
+			[=](not_null<PeerListBox*> box) {
+				box->addButton(tr::lng_cancel(), [=] {
+					box->closeBox();
+				});
+
+				channel->flagsValue(
+				) | rpl::filter([=](const ChannelData::Flags::Change &update) {
+					using Flag = ChannelData::Flag;
+					return (update.diff & Flag::Community)
+						&& !(update.value & Flag::Community);
+				}) | rpl::on_next([=] {
+					box->closeBox();
+				}, box->lifetime());
+			});
+		*weak = owned.data();
+		delegate()->peerListUiShow()->showBox(std::move(owned));
+		return;
 	}
 	const auto history = peer->owner().history(peer);
 	auto callback = std::move(_callback);
@@ -974,6 +1056,12 @@ auto ChooseRecipientBoxController::createRow(
 	auto result = std::make_unique<Row>(
 		history,
 		_moneyRestrictionError ? &computeListSt().item : nullptr);
+	if (const auto info = JoinedCommunityChats(peer)) {
+		result->setCustomStatus(tr::lng_community_chats(
+			tr::now,
+			lt_count,
+			int(info->histories().size())));
+	}
 	return result;
 }
 
@@ -1095,10 +1183,62 @@ auto ChooseTopicBoxController::Row::generateNameWords() const
 	return _topic->chatListNameWords();
 }
 
+QString ChooseTopicBoxController::AllMessagesRow::name() const {
+	return _userCreatesTopics
+		? tr::lng_forum_create_new_topic(tr::now)
+		: tr::lng_forum_all_messages(tr::now);
+}
+
+ChooseTopicBoxController::AllMessagesRow::AllMessagesRow(bool userCreatesTopics)
+: PeerListRow(PeerListRowId(0))
+, _userCreatesTopics(userCreatesTopics) {
+	const auto words = TextUtilities::PrepareSearchWords(name());
+	for (const auto &word : words) {
+		_nameWords.emplace(word);
+		_nameFirstLetters.emplace(word[0]);
+	}
+}
+
+QString ChooseTopicBoxController::AllMessagesRow::generateName() {
+	return name();
+}
+
+QString ChooseTopicBoxController::AllMessagesRow::generateShortName() {
+	return name();
+}
+
+auto ChooseTopicBoxController::AllMessagesRow::generatePaintUserpicCallback(
+	bool forceRound)
+-> PaintRoundImageCallback {
+	return [userCreatesTopics = _userCreatesTopics](
+			Painter &p,
+			int x,
+			int y,
+			int outerWidth,
+			int size) {
+		const auto &icon = userCreatesTopics
+			? st::menuIconDiscussion
+			: st::menuIconChats;
+		icon.paintInCenter(
+			p,
+			QRect(x, y - st::lineWidth, size, size));
+	};
+}
+
+auto ChooseTopicBoxController::AllMessagesRow::generateNameFirstLetters() const
+-> const base::flat_set<QChar> & {
+	return _nameFirstLetters;
+}
+
+auto ChooseTopicBoxController::AllMessagesRow::generateNameWords() const
+-> const base::flat_set<QString> & {
+	return _nameWords;
+}
+
 ChooseTopicBoxController::ChooseTopicBoxController(
 	not_null<Data::Forum*> forum,
-	FnMut<void(not_null<Data::ForumTopic*>)> callback,
-	Fn<bool(not_null<Data::ForumTopic*>)> filter)
+	FnMut<void(not_null<Data::Thread*>)> callback,
+	Fn<bool(not_null<Data::Thread*>)> filter)
 : PeerListController(std::make_unique<ChooseTopicSearchController>(forum))
 , _forum(forum)
 , _callback(std::move(callback))
@@ -1127,7 +1267,11 @@ Main::Session &ChooseTopicBoxController::session() const {
 void ChooseTopicBoxController::rowClicked(not_null<PeerListRow*> row) {
 	const auto weak = base::make_weak(this);
 	auto onstack = base::take(_callback);
-	onstack(static_cast<Row*>(row.get())->topic());
+	if (row->id() == PeerListRowId(0)) {
+		onstack(_forum->history());
+	} else {
+		onstack(static_cast<Row*>(row.get())->topic());
+	}
 	if (weak) {
 		_callback = std::move(onstack);
 	}
@@ -1155,6 +1299,15 @@ void ChooseTopicBoxController::prepare() {
 
 void ChooseTopicBoxController::refreshRows(bool initial) {
 	auto added = false;
+	if (_forum->bot()
+		&& !delegate()->peerListFindRow(PeerListRowId(0))
+		&& (!_filter || _filter(_forum->history()))) {
+		const auto userCreatesTopics = Data::IsBotUserCreatesTopics(
+			_forum->peer());
+		delegate()->peerListAppendRow(
+			std::make_unique<AllMessagesRow>(userCreatesTopics));
+		added = true;
+	}
 	for (const auto &row : _forum->topicsList()->indexed()->all()) {
 		if (const auto topic = row->topic()) {
 			const auto id = topic->rootId().bare;
@@ -1303,6 +1456,141 @@ auto ChooseSublistBoxController::createRow(
 	return result;
 };
 
+ChooseCommunityChatBoxController::ChooseCommunityChatBoxController(
+	not_null<Data::CommunityInfo*> community,
+	FnMut<void(not_null<Data::Thread*>)> callback,
+	Fn<bool(not_null<Data::Thread*>)> filter)
+: _community(community)
+, _callback(std::move(callback))
+, _filter(std::move(filter)) {
+	_community->linkedPeersValue(
+	) | rpl::skip(1) | rpl::on_next([=] {
+		refreshRows();
+	}, lifetime());
+}
+
+Main::Session &ChooseCommunityChatBoxController::session() const {
+	return _community->channel()->session();
+}
+
+void ChooseCommunityChatBoxController::rowClicked(not_null<PeerListRow*> row) {
+	auto guard = base::make_weak(this);
+	const auto peer = row->peer();
+	if (const auto forum = peer->forum()) {
+		const auto weak = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
+		auto callback = [=](not_null<Data::Thread*> thread) {
+			const auto exists = guard.get();
+			if (!exists) {
+				if (*weak) {
+					(*weak)->closeBox();
+				}
+				return;
+			}
+			auto onstack = std::move(_callback);
+			onstack(thread);
+			if (guard) {
+				_callback = std::move(onstack);
+			} else if (*weak) {
+				(*weak)->closeBox();
+			}
+		};
+		const auto filter = [=](not_null<Data::Thread*> thread) {
+			return guard && (!_filter || _filter(thread));
+		};
+		auto owned = Box<PeerListBox>(
+			std::make_unique<ChooseTopicBoxController>(
+				forum,
+				std::move(callback),
+				filter),
+			[=](not_null<PeerListBox*> box) {
+				box->addButton(tr::lng_cancel(), [=] {
+					box->closeBox();
+				});
+
+				forum->destroyed(
+				) | rpl::on_next([=] {
+					box->closeBox();
+				}, box->lifetime());
+			});
+		*weak = owned.data();
+		delegate()->peerListUiShow()->showBox(std::move(owned));
+		return;
+	}
+	auto onstack = base::take(_callback);
+	onstack(peer->owner().history(peer));
+	if (guard) {
+		_callback = std::move(onstack);
+	}
+}
+
+void ChooseCommunityChatBoxController::prepare() {
+	delegate()->peerListSetTitle(tr::lng_forward_choose());
+	setSearchNoResultsText(tr::lng_blocked_list_not_found(tr::now));
+	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
+	refreshRows(true);
+}
+
+void ChooseCommunityChatBoxController::refreshRows(bool initial) {
+	auto changed = false;
+	const auto &histories = _community->histories();
+	const auto owner = &session().data();
+	for (auto i = 0; i != delegate()->peerListFullRowsCount();) {
+		const auto row = delegate()->peerListRowAt(i);
+		const auto history = owner->history(row->peer());
+		if (histories.contains(history)) {
+			++i;
+		} else {
+			delegate()->peerListRemoveRow(row);
+			changed = true;
+		}
+	}
+	auto sorted = std::vector<not_null<History*>>(
+		begin(histories),
+		end(histories));
+	ranges::sort(sorted, [](not_null<History*> a, not_null<History*> b) {
+		const auto aDate = a->chatListTimeId();
+		const auto bDate = b->chatListTimeId();
+		return (aDate != bDate)
+			? (aDate > bDate)
+			: (a->peer->name() < b->peer->name());
+	});
+	for (const auto &history : sorted) {
+		const auto id = history->peer->id.value;
+		auto already = delegate()->peerListFindRow(id);
+		if (initial || !already) {
+			if (auto created = createRow(history)) {
+				delegate()->peerListAppendRow(std::move(created));
+				changed = true;
+			}
+		} else if (already->isSearchResult()) {
+			delegate()->peerListAppendFoundRow(already);
+			changed = true;
+		}
+	}
+	if (changed) {
+		delegate()->peerListRefreshRows();
+	}
+}
+
+std::unique_ptr<PeerListRow> ChooseCommunityChatBoxController::createSearchRow(
+		PeerListRowId id) {
+	const auto peer = session().data().peer(PeerId(id));
+	const auto history = peer->owner().historyLoaded(peer);
+	if (history && _community->histories().contains(history)) {
+		return createRow(history);
+	}
+	return nullptr;
+}
+
+auto ChooseCommunityChatBoxController::createRow(not_null<History*> history)
+-> std::unique_ptr<PeerListRow> {
+	if (_filter && !_filter(history)) {
+		return nullptr;
+	}
+	auto result = std::make_unique<PeerListRow>(history->peer);
+	return result;
+}
+
 void PaintRestrictionBadge(
 		Painter &p,
 		not_null<const style::PeerListItem*> st,
@@ -1332,7 +1620,6 @@ void PaintRestrictionBadge(
 				st::premiumButtonFg->c,
 				&check);
 		} else {
-			auto hq = PainterHighQualityEnabler(p);
 			const auto &icon = st::stickersPremiumLock;
 			const auto width = icon.width();
 			const auto height = icon.height();
@@ -1348,6 +1635,7 @@ void PaintRestrictionBadge(
 			cache.badge.fill(Qt::transparent);
 			const auto inner = QRect(add, add, rect.width(), rect.height());
 			auto q = QPainter(&cache.badge);
+			auto hq = PainterHighQualityEnabler(q);
 			auto pen = check.border->p;
 			pen.setWidthF(check.width);
 			q.setPen(pen);

@@ -104,6 +104,7 @@ Blocked::Blocked(
 
 	controller->session().api().blockedPeers().slice(
 	) | rpl::on_next([=](const Api::BlockedPeers::Slice &slice) {
+		_countBlocked = slice.total;
 		checkTotal(slice.total);
 	}, lifetime());
 
@@ -198,13 +199,6 @@ void Blocked::setupContent() {
 
 		state->delegate->setContent(content);
 		state->controller->setDelegate(state->delegate.get());
-
-		state->controller->rowsCountChanges(
-		) | rpl::on_next([=](int total) {
-			_countBlocked = total;
-			checkTotal(total);
-		}, content->lifetime());
-		_countBlocked = content->fullRowsCount();
 	}
 
 	const auto emptyWrap = _container->add(

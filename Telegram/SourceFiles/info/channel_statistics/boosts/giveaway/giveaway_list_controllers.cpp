@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/channel_statistics/boosts/giveaway/giveaway_list_controllers.h"
 
 #include "apiwrap.h"
+#include "boxes/peer_list_controllers.h"
 #include "data/data_channel.h"
 #include "data/data_folder.h"
 #include "data/data_peer.h"
@@ -138,7 +139,11 @@ std::unique_ptr<PeerListRow> AwardMembersListController::createRow(
 	if (!user || user->isInaccessible() || user->isBot() || user->isSelf()) {
 		return nullptr;
 	}
-	return std::make_unique<PeerListRow>(participant);
+	auto type = Type{
+		.chatStyle = _chatStyle.get(),
+		.circleCache = &_pillCircleCache,
+	};
+	return std::make_unique<Row>(participant, type);
 }
 
 base::unique_qptr<Ui::PopupMenu> AwardMembersListController::rowContextMenu(

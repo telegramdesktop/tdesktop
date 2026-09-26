@@ -31,6 +31,7 @@ public:
 private:
 	class RendererGL;
 	class RendererSW;
+	class RendererRhi;
 
 	[[nodiscard]] Ui::GL::ChosenRenderer chooseRenderer(
 		Ui::GL::Backend backend);

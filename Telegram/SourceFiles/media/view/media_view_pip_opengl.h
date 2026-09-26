@@ -102,7 +102,8 @@ private:
 	Ui::GL::Textures<4> _textures;
 	QSize _rgbaSize;
 	QSize _lumaSize;
-	QSize _chromaSize;
+	QSize _chromaSize; // size of texture 2 (UV for NV12, U for YUV420)
+	QSize _chromaSizeV; // size of texture 3 (V for YUV420 only)
 	quint64 _cacheKey = 0;
 	int _trackFrameIndex = 0;
 	bool _chromaNV12 = false;

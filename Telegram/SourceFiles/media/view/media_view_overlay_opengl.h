@@ -59,6 +59,8 @@ private:
 	void paintThemePreview(QRect outer) override;
 	void paintDocumentBubble(QRect outer, QRect icon) override;
 	void paintSaveMsg(QRect outer) override;
+	void paintChapter(QRect outer) override;
+	void paintSpeedBoost(QRect outer) override;
 	void paintControlsStart() override;
 	void paintControl(
 		Over control,
@@ -133,7 +135,8 @@ private:
 	Ui::GL::Textures<6> _textures; // image, sibling, right sibling, y, u, v
 	QSize _rgbaSize[3];
 	QSize _lumaSize;
-	QSize _chromaSize;
+	QSize _chromaSize; // size of texture 4 (UV for NV12, U for YUV420)
+	QSize _chromaSizeV; // size of texture 5 (V for YUV420 only)
 	qint64 _cacheKeys[3] = { 0 }; // image, sibling, right sibling
 	int _trackFrameIndex = 0;
 	int _streamedIndex = 0;
@@ -144,6 +147,8 @@ private:
 	Ui::GL::Image _documentBubbleImage;
 	Ui::GL::Image _themePreviewImage;
 	Ui::GL::Image _saveMsgImage;
+	Ui::GL::Image _chapterImage;
+	Ui::GL::Image _speedBoostImage;
 	Ui::GL::Image _footerImage;
 	Ui::GL::Image _captionImage;
 	Ui::GL::Image _groupThumbsImage;
@@ -152,7 +157,7 @@ private:
 	static constexpr auto kStoriesSiblingPartsCount = 4;
 	Ui::GL::Image _storiesSiblingParts[kStoriesSiblingPartsCount];
 
-	static constexpr auto kControlsCount = 7;
+	static constexpr auto kControlsCount = 8;
 	[[nodiscard]] Control controlMeta(Over control) const;
 
 	// Last one is for the over circle image.

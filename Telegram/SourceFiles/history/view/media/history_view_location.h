@@ -14,6 +14,11 @@ namespace Data {
 class CloudImage;
 } // namespace Data
 
+namespace Ui {
+class BoxShadow;
+class DynamicImage;
+} // namespace Ui
+
 namespace HistoryView {
 
 class Location : public Media {
@@ -23,7 +28,8 @@ public:
 		not_null<Data::CloudImage*> data,
 		Data::LocationPoint point,
 		Element *replacing = nullptr,
-		TimeId livePeriod = 0);
+		TimeId livePeriod = 0,
+		QSize sizeOverride = QSize());
 	Location(
 		not_null<Element*> parent,
 		not_null<Data::CloudImage*> data,
@@ -56,12 +62,14 @@ public:
 
 	bool needsBubble() const override;
 	bool customInfoLayout() const override {
-		return true;
+		return _live || (_title.isEmpty() && _description.isEmpty());
 	}
 	QPoint resolveCustomInfoRightBottom() const override;
 
 	bool skipBubbleTail() const override {
-		return isRoundedInBubbleBottom();
+		return _title.isEmpty()
+			&& _description.isEmpty()
+			&& isRoundedInBubbleBottom();
 	}
 
 	QImage locationTakeImage() override;
@@ -76,6 +84,7 @@ private:
 		TimeId period);
 
 	void ensureMediaCreated() const;
+	void ensureUserpicCreated() const;
 
 	void validateImageCache(
 		QSize outer,
@@ -110,9 +119,14 @@ private:
 	const not_null<Data::CloudImage*> _data;
 	mutable std::unique_ptr<Live> _live;
 	mutable std::shared_ptr<QImage> _media;
+	mutable std::shared_ptr<Ui::DynamicImage> _userpic;
+	mutable std::unique_ptr<Ui::BoxShadow> _pinShadow;
 	Ui::Text::String _title, _description;
 	ClickHandlerPtr _link;
+	QSize _sizeOverride;
+	bool _liveLocation = false;
 
+	int _thumbnailHeight = 0;
 	mutable QImage _imageCache;
 	mutable Ui::BubbleRounding _imageCacheRounding;
 

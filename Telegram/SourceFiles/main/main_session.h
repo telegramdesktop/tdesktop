@@ -33,9 +33,12 @@ namespace Data {
 class Session;
 class Changes;
 class GiftAuctions;
+class RecentInlineBots;
 class RecentPeers;
 class RecentSharedMediaGifts;
 class ScheduledMessages;
+class WelcomeMessages;
+class EphemeralMessages;
 class SponsoredMessages;
 class TopPeers;
 class Factchecks;
@@ -47,6 +50,7 @@ class Passkeys;
 
 namespace Settings {
 class FaqSuggestions;
+class RecentSearches;
 } // namespace Settings
 
 namespace HistoryView::Reactions {
@@ -118,6 +122,9 @@ public:
 	[[nodiscard]] Storage::Domain &domainLocal() const;
 
 	[[nodiscard]] AppConfig &appConfig() const;
+	[[nodiscard]] bool messagePrimaryEditedDate() const {
+		return _messagePrimaryEditedDate;
+	}
 
 	[[nodiscard]] bool premium() const;
 	[[nodiscard]] bool premiumPossible() const;
@@ -152,11 +159,23 @@ public:
 	[[nodiscard]] Data::ScheduledMessages &scheduledMessages() const {
 		return *_scheduledMessages;
 	}
+	[[nodiscard]] Data::WelcomeMessages &welcomeMessages() const {
+		return *_welcomeMessages;
+	}
+	[[nodiscard]] Data::EphemeralMessages &ephemeralMessages() const {
+		return *_ephemeralMessages;
+	}
 	[[nodiscard]] Data::TopPeers &topPeers() const {
 		return *_topPeers;
 	}
 	[[nodiscard]] Data::TopPeers &topBotApps() const {
 		return *_topBotApps;
+	}
+	[[nodiscard]] Data::TopPeers &topGuestChatBots() const {
+		return *_topGuestChatBots;
+	}
+	[[nodiscard]] Data::RecentInlineBots &recentInlineBots() const {
+		return *_recentInlineBots;
 	}
 	[[nodiscard]] Data::Factchecks &factchecks() const {
 		return *_factchecks;
@@ -211,6 +230,9 @@ public:
 	}
 	[[nodiscard]] Settings::FaqSuggestions &faqSuggestions() const {
 		return *_faqSuggestions;
+	}
+	[[nodiscard]] Settings::RecentSearches &recentSettingsSearches() const {
+		return *_recentSettingsSearches;
 	}
 	[[nodiscard]] auto cachedReactionIconFactory() const
 	-> HistoryView::Reactions::CachedIconFactory & {
@@ -309,15 +331,20 @@ private:
 	const std::unique_ptr<Data::RecentSharedMediaGifts> _recentSharedGifts;
 	const std::unique_ptr<Data::GiftAuctions> _giftAuctions;
 	const std::unique_ptr<Data::ScheduledMessages> _scheduledMessages;
+	const std::unique_ptr<Data::WelcomeMessages> _welcomeMessages;
+	const std::unique_ptr<Data::EphemeralMessages> _ephemeralMessages;
 	const std::unique_ptr<Data::SponsoredMessages> _sponsoredMessages;
 	const std::unique_ptr<Data::TopPeers> _topPeers;
 	const std::unique_ptr<Data::TopPeers> _topBotApps;
+	const std::unique_ptr<Data::TopPeers> _topGuestChatBots;
+	const std::unique_ptr<Data::RecentInlineBots> _recentInlineBots;
 	const std::unique_ptr<Data::Factchecks> _factchecks;
 	const std::unique_ptr<Data::LocationPickers> _locationPickers;
 	const std::unique_ptr<Data::Credits> _credits;
 	const std::unique_ptr<Data::PromoSuggestions> _promoSuggestions;
 	const std::unique_ptr<Data::Passkeys> _passkeys;
 	const std::unique_ptr<Settings::FaqSuggestions> _faqSuggestions;
+	const std::unique_ptr<Settings::RecentSearches> _recentSettingsSearches;
 
 	using ReactionIconFactory = HistoryView::Reactions::CachedIconFactory;
 	const std::unique_ptr<ReactionIconFactory> _cachedReactionIconFactory;
@@ -327,6 +354,7 @@ private:
 
 	std::shared_ptr<QImage> _selfUserpicView;
 	rpl::variable<bool> _premiumPossible = false;
+	bool _messagePrimaryEditedDate = false;
 
 	rpl::event_stream<bool> _termsLockChanges;
 	std::unique_ptr<Window::TermsLock> _termsLock;

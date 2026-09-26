@@ -51,10 +51,15 @@ bool UnpackBlob(
 	if (zip.goToFirstFile() != UNZ_OK) {
 		return false;
 	}
+	const auto cleanFolder = QDir::cleanPath(folder);
 	do {
 		const auto name = zip.getCurrentFileName();
 		const auto path = folder + '/' + name;
-		if (checkNameCallback(name) && !ExtractZipFile(zip, path)) {
+		const auto cleanPath = QDir::cleanPath(path);
+		const auto inside = (cleanPath == cleanFolder)
+			|| cleanPath.startsWith(cleanFolder + '/');
+		if (checkNameCallback(name)
+			&& (!inside || !ExtractZipFile(zip, path))) {
 			return false;
 		}
 

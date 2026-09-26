@@ -35,13 +35,27 @@ public:
 			return index < other.index;
 		}
 	};
+	struct InstantViewKey {
+		int index = 0;
+
+		inline bool operator<(const InstantViewKey &other) const {
+			return index < other.index;
+		}
+	};
 	struct CollageSlice {
 		FullMsgId context;
 		not_null<const WebPageCollage*> data;
 
 		int size() const;
 	};
-	using Key = std::variant<PhotoId, FullMsgId, CollageKey>;
+	using InstantViewItems = std::vector<HistoryMessageMediaForInstantView::Item>;
+	struct InstantViewSlice {
+		FullMsgId context;
+		not_null<const InstantViewItems*> data;
+
+		int size() const;
+	};
+	using Key = std::variant<PhotoId, FullMsgId, CollageKey, InstantViewKey>;
 
 	static void Refresh(
 		not_null<Main::Session*> session,
@@ -59,6 +73,12 @@ public:
 		not_null<Main::Session*> session,
 		std::unique_ptr<GroupThumbs> &instance,
 		const CollageSlice &slice,
+		int index,
+		int availableWidth);
+	static void Refresh(
+		not_null<Main::Session*> session,
+		std::unique_ptr<GroupThumbs> &instance,
+		const InstantViewSlice &slice,
 		int index,
 		int availableWidth);
 	void clear();
@@ -106,12 +126,17 @@ private:
 	template <typename Slice>
 	void fillItems(const Slice &slice, int from, int index, int till);
 	void updateContext(Context context);
+	void updateInstantViewItems(const InstantViewItems *items);
 	void markCacheStale();
 	not_null<Thumb*> validateCacheEntry(Key key);
 	std::unique_ptr<Thumb> createThumb(Key key);
 	std::unique_ptr<Thumb> createThumb(
 		Key key,
 		const WebPageCollage &collage,
+		int index);
+	std::unique_ptr<Thumb> createThumb(
+		Key key,
+		const InstantViewItems &items,
 		int index);
 	std::unique_ptr<Thumb> createThumb(
 		Key key,
@@ -139,6 +164,7 @@ private:
 	std::vector<not_null<Thumb*>> _items;
 	std::vector<not_null<Thumb*>> _dying;
 	base::flat_map<Key, std::unique_ptr<Thumb>> _cache;
+	const InstantViewItems *_instantViewItems = nullptr;
 	int _width = 0;
 	QRect _updatedRect;
 

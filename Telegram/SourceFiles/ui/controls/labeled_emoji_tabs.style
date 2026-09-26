@@ -1,0 +1,24 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "boxes/boxes.style";
+
+aiComposeStyleTabsBg: boxBg;
+aiComposeStyleTabsHeight: 64px;
+aiComposeStyleTabsRadius: 14px;
+aiComposeStyleTabsSkip: 4px;
+aiComposeStyleButtonBgActive: aiComposeButtonBgActive;
+aiComposeStyleLabelFg: aiComposeButtonFg;
+aiComposeStyleLabelFgActive: aiComposeButtonFgActive;
+aiComposeStyleEmojiTop: 5px;
+aiComposeStyleLabelTop: 30px;
+aiComposeStyleLabelFont: font(12px semibold);
+aiComposeStyleTabsScroll: ScrollArea(defaultScrollArea) {
+	barHidden: true;
+}
+aiComposeStyleButtonPadding: margins(12px, 0px, 12px, 0px);
+aiComposeStyleFadeWidth: 24px;

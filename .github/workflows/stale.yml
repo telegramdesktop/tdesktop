@@ -7,7 +7,7 @@ jobs:
   stale:
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/stale@v10
+      - uses: actions/stale@v11
         with:
           stale-issue-message: |
             Hey there!

@@ -42,3 +42,14 @@ set_target_properties(test_text PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINA
 add_dependencies(Telegram test_text)
 
 target_prepare_qrc(test_text)
+
+if (APPLE)
+    add_custom_command(TARGET test_text POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+            "$<TARGET_FILE_DIR:test_text>/Contents/Resources"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_BINARY_DIR}/test_text.rcc"
+            "${CMAKE_BINARY_DIR}/lib_ui.rcc"
+            "$<TARGET_FILE_DIR:test_text>/Contents/Resources/"
+    )
+endif()

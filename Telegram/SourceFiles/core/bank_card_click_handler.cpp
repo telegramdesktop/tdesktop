@@ -16,15 +16,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/menu/menu_multiline_action.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_calls.h"
 #include "styles/style_chat.h" // popupMenuExpandedSeparator.
+#include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 
 namespace {
+
+constexpr auto kMaxStatusLines = 2;
 
 struct State final {
 	State(not_null<Main::Session*> session) : sender(&session->mtp()) {
@@ -87,13 +91,16 @@ protected:
 
 private:
 	void paint(Painter &p);
+	void resizeToMenuWidth(int width);
 
 	const not_null<QAction*> _dummyAction;
 	const style::Menu &_st;
-	const int _height = 0;
 	Status _status = Status::Loading;
 
-	Ui::Text::String _text;
+	Ui::Text::String _text = { 1 };
+	int _textWidth = 0;
+	int _textHeight = 0;
+	int _height = 0;
 
 };
 
@@ -102,22 +109,41 @@ ResolveBankCardAction::ResolveBankCardAction(
 	const style::Menu &st)
 : ItemBase(parent, st)
 , _dummyAction(Ui::CreateChild<QAction>(parent))
-, _st(st)
-, _height(st::groupCallJoinAsPhotoSize) {
+, _st(st) {
 	setAcceptBoth(true);
-	fitToMenuWidth();
+
+	parent->widthValue(
+	) | rpl::on_next([=](int width) {
+		resizeToMenuWidth(width);
+	}, lifetime());
+
 	setStatus(Status::Loading);
 }
 
 void ResolveBankCardAction::setStatus(Status status) {
 	_status = status;
-	if (status == Status::Resolved) {
-		resize(width(), 0);
-	} else if (status == Status::Failed) {
+	if (status == Status::Failed) {
 		_text.setText(_st.itemStyle, tr::lng_attach_failed(tr::now));
 	} else if (status == Status::Loading) {
 		_text.setText(_st.itemStyle, tr::lng_contacts_loading(tr::now));
 	}
+	resizeToMenuWidth(width());
+}
+
+void ResolveBankCardAction::resizeToMenuWidth(int width) {
+	if (width <= 0) {
+		return;
+	}
+	const auto &padding = st::groupCallJoinAsPadding;
+	_textWidth = std::max(width - padding.left() - padding.right(), 1);
+	const auto lineHeight = _st.itemStyle.font->height;
+	_textHeight = std::min(
+		_text.countHeight(_textWidth),
+		lineHeight * kMaxStatusLines);
+	_height = st::groupCallJoinAsPhotoSize
+		+ std::max(_textHeight, lineHeight)
+		- lineHeight;
+	resize(width, contentHeight());
 	update();
 }
 
@@ -131,18 +157,16 @@ void ResolveBankCardAction::paintEvent(QPaintEvent *e) {
 	}
 	p.fillRect(0, 0, width(), height, selected ? _st.itemBgOver : _st.itemBg);
 
-	const auto &padding = st::groupCallJoinAsPadding;
 	{
 		p.setPen(selected ? _st.itemFgShortcutOver : _st.itemFgShortcut);
-		const auto w = width() - padding.left() - padding.right();
 		_text.draw(p, Ui::Text::PaintContext{
 			.position = QPoint(
-				(width() - w) / 2,
-				(height - _text.countHeight(w)) / 2),
-			.outerWidth = w,
-			.availableWidth = w,
+				(width() - _textWidth) / 2,
+				(height - _textHeight) / 2),
+			.outerWidth = _textWidth,
+			.availableWidth = _textWidth,
 			.align = style::al_center,
-			.elisionLines = 2,
+			.elisionLines = kMaxStatusLines,
 		});
 	}
 }
@@ -190,7 +214,11 @@ void BankCardClickHandler::onClick(ClickContext context) const {
 	const auto copy = [bankCard, show = controller->uiShow()] {
 		TextUtilities::SetClipboardText(
 			TextForMimeData::Simple(bankCard));
-		show->showToast(tr::lng_context_bank_card_copied(tr::now));
+		show->showToast({
+			.text = { tr::lng_context_bank_card_copied(tr::now) },
+			.iconLottie = u"toast/copy"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
 	};
 
 	menu->addAction(

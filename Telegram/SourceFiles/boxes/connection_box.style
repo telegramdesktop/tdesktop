@@ -1,0 +1,89 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "boxes/boxes.style";
+
+connectionHostInputField: InputField(defaultInputField) {
+	width: 160px;
+}
+connectionPortInputField: InputField(defaultInputField) {
+	width: 55px;
+}
+connectionUserInputField: InputField(defaultInputField) {
+}
+connectionPasswordInputField: InputField(defaultInputField) {
+}
+proxyUsePadding: margins(22px, 6px, 22px, 5px);
+proxyTryIPv6Padding: margins(22px, 8px, 22px, 5px);
+proxyRowPadding: margins(22px, 8px, 8px, 8px);
+proxyRowIconSkip: 32px;
+proxyRowSkip: 2px;
+proxyRowRipple: defaultRippleAnimationBgOver;
+proxyRowTitleFg: windowFg;
+proxyRowTitlePalette: TextPalette(defaultTextPalette) {
+	linkFg: windowSubTextFg;
+}
+proxyRowTitleStyle: TextStyle(defaultTextStyle) {
+	font: semiboldFont;
+}
+proxyRowStatusFg: windowSubTextFg;
+proxyRowStatusFgOnline: windowActiveTextFg;
+proxyRowStatusFgOffline: boxTextFgError;
+proxyRowStatusFgAvailable: boxTextFgGood;
+proxyEditTitle: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: autoDownloadTitleFont;
+	}
+	textFg: boxTitleFg;
+}
+proxyEditTitlePadding: margins(22px, 16px, 22px, 0px);
+proxyEditTypePadding: margins(22px, 4px, 22px, 8px);
+proxyEditInputPadding: margins(22px, 0px, 22px, 0px);
+proxyEditSkip: 16px;
+proxyEmptyListLabel: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	textFg: windowSubTextFg;
+}
+proxyEmptyListPadding: margins(22px, 48px, 22px, 0px);
+proxyCheckingPosition: point(2px, 5px);
+proxyCheckingSkip: 6px;
+proxyCheckingAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	color: windowSubTextFg;
+	thickness: 1px;
+	size: size(8px, 8px);
+}
+proxyAboutSponsorPadding: margins(22px, 7px, 22px, 0px);
+proxyApplyBoxTable: Table(defaultTable) {
+	labelMinWidth: 91px;
+}
+proxyApplyBoxTableMargin: margins(24px, 4px, 24px, 4px);
+proxyApplyBoxTableLabelMargin: margins(13px, 10px, 13px, 10px);
+proxyApplyBoxTableValueMargin: margins(13px, 9px, 13px, 9px);
+proxyApplyBoxValueMultiline: FlatLabel(defaultTableValue) {
+	minWidth: 128px;
+	maxHeight: 100px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(10px);
+		linkUnderline: kLinkUnderlineNever;
+	}
+}
+proxyApplyBoxSponsorLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowBoldFg;
+	minWidth: 100px;
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px);
+	}
+}
+proxyApplyBoxSponsorMargin: margins(13px, 8px, 13px, 8px);
+proxyApplyBox: Box(defaultBox) {
+	buttonPadding: margins(22px, 11px, 22px, 22px);
+	buttonHeight: 38px;
+	buttonWide: true;
+	button: proxyApplyBoxButton;
+	shadowIgnoreTopSkip: true;
+}

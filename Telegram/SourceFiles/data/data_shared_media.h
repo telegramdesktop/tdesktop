@@ -20,6 +20,9 @@ class Session;
 	Storage::SharedMediaType type);
 bool SharedMediaAllowSearch(Storage::SharedMediaType type);
 
+[[nodiscard]] Storage::SharedMediaKey SharedMediaLoadableKey(
+	Storage::SharedMediaKey key);
+
 rpl::producer<SparseIdsSlice> SharedMediaViewer(
 	not_null<Main::Session*> session,
 	Storage::SharedMediaKey key,

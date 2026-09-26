@@ -14,6 +14,7 @@ BotCommand BotCommandFromTL(const MTPBotCommand &result) {
 		return BotCommand {
 			.command = qs(data.vcommand().v),
 			.description = qs(data.vdescription().v),
+			.ephemeral = data.is_ephemeral(),
 		};
 	});
 }

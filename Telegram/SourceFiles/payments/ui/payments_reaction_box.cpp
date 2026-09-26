@@ -30,12 +30,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_credits.h"
-#include "styles/style_info.h"
 #include "styles/style_info_levels.h"
 #include "styles/style_layers.h"
-#include "styles/style_media_player.h"
 #include "styles/style_premium.h"
-#include "styles/style_settings.h"
 
 namespace Settings {
 [[nodiscard]] not_null<Ui::RpWidget*> AddBalanceWidget(
@@ -58,9 +55,6 @@ struct TopReactorKey {
 	QString name;
 
 	friend inline auto operator<=>(
-		const TopReactorKey &,
-		const TopReactorKey &) = default;
-	friend inline bool operator==(
 		const TopReactorKey &,
 		const TopReactorKey &) = default;
 };
@@ -215,7 +209,8 @@ void SelectShownPeer(
 		not_null<Ui::WhoReactedEntryAction*> action;
 		std::shared_ptr<Ui::DynamicImage> userpic;
 	};
-	auto actions = std::make_shared<std::vector<Entry>>();
+	const auto actions = (*menu)->lifetime().make_state<
+		std::vector<Entry>>();
 	actions->reserve(mine.size());
 	for (const auto &entry : mine) {
 		auto action = base::make_unique_q<WhoReactedEntryAction>(

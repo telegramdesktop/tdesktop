@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/sections/settings_main.h"
 #include "settings/sections/settings_information.h"
 #include "settings/settings_common_session.h"
+#include "menu/menu_send.h"
 #include "ui/ui_utility.h"
 
 namespace Info {
@@ -185,6 +186,14 @@ void Widget::setInternalState(
 
 void Widget::saveChanges(FnMut<void()> done) {
 	_inner->sectionSaveChanges(std::move(done));
+}
+
+SendMenu::Details Widget::sendMenuDetails() const {
+	return _inner->sendMenuDetails();
+}
+
+bool Widget::processChosenSticker(ChatHelpers::FileChosen &&chosen) {
+	return _inner->processChosenSticker(std::move(chosen));
 }
 
 void Widget::showFinished() {

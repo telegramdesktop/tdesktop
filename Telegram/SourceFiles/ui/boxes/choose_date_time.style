@@ -1,0 +1,58 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "boxes/boxes.style";
+
+defaultCalendarColors: CalendarColors {
+	dayTextColor: boxTextFg;
+	dayTextGrayedOutColor: windowSubTextFg;
+
+	iconButtonNext: calendarNext;
+	iconButtonNextDisabled: calendarNextDisabled;
+	iconButtonPrevious: calendarPrevious;
+	iconButtonPreviousDisabled: calendarPreviousDisabled;
+
+	iconButtonRippleColorDisabled: boxBg;
+
+	rippleColor: windowBgOver;
+	rippleColorHighlighted: dialogsRippleBgActive;
+	rippleGrayedOutColor: windowBgRipple;
+
+	titleTextColor: boxTitleFg;
+}
+scheduleHeight: 95px;
+scheduleDateTop: 38px;
+scheduleTimeField: InputField(scheduleDateField) {
+	border: 0px;
+	borderActive: 0px;
+	heightMin: 28px;
+	placeholderFont: font(14px);
+	placeholderFgActive: placeholderFgActive;
+}
+scheduleDateWidth: 136px;
+scheduleTimeWidth: 72px;
+scheduleAtSkip: 24px;
+scheduleAtTop: 42px;
+scheduleAtLabel: FlatLabel(defaultFlatLabel) {
+}
+scheduleRepeatDropdownLock: IconEmoji {
+	icon: icon {{ "emoji/premium_lock", windowSubTextFg }};
+	padding: margins(1px, 1px, 0px, 0px);
+}
+scheduleRepeatDropdownArrow: IconEmoji {
+	icon: icon {{ "arrows_select", windowSubTextFg }};
+	padding: margins(6px, 5px, 0px, 0px);
+}
+scheduleRepeatHeight: 28px;
+scheduleRepeatRadius: 14px;
+scheduleRepeatTextPadding: 12px;
+scheduleRepeatLabel: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(13px);
+	}
+	textFg: windowBoldFg;
+}

@@ -209,6 +209,9 @@ private:
 			add(QLocale().toString(time, QLocale::LongFormat));
 		}
 	}
+	if (link.requestApproval) {
+		add(tr::lng_group_invite_approval_required(tr::now));
+	}
 	return result;
 }
 

@@ -21,6 +21,10 @@ public:
 
 	void add(const QString &section, Entry entry);
 
+	[[nodiscard]] std::optional<QString> findPath(
+		const QString &section,
+		Fn<bool(const Action &action)> matches) const;
+
 private:
 	struct DispatchResult {
 		Result result = Result::NotFound;

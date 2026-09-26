@@ -101,7 +101,6 @@ private:
 	rpl::variable<bool> _isGroupConnecting = false;
 
 	std::vector<not_null<PeerData*>> _conferenceFirstUsers;
-	int _conferenceUsersCount = 0;
 
 	QBrush _groupBrush;
 	anim::linear_gradients<BarState> _gradients;

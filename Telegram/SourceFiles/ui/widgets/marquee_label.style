@@ -1,0 +1,15 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/basic.style";
+
+marqueeLabelGap: 16px;
+marqueeLabelFade: 6px;
+marqueeLabelFadeRamp: 10px;
+marqueeLabelSlowdown: 100px;
+marqueeLabelSpeed: 50px;
+marqueeLabelSpeedSlow: 30px;

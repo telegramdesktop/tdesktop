@@ -8,9 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_album_thumbnail.h"
 
 #include "core/mime_type.h" // Core::IsMimeSticker.
+#include "lang/lang_keys.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/image/image_prepare.h"
 #include "ui/text/format_values.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/effects/spoiler_mess.h"
 #include "ui/ui_utility.h"
@@ -20,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat_style.h"
 
 #include <QtCore/QFileInfo>
 
@@ -28,9 +31,11 @@ namespace Ui {
 AlbumThumbnail::AlbumThumbnail(
 	const style::ComposeControls &st,
 	const PreparedFile &file,
+	const Text::MarkedContext &captionContext,
 	const GroupMediaLayout &layout,
 	QWidget *parent,
 	Fn<void()> repaint,
+	Fn<void(QRect)> repaintRect,
 	Fn<void()> editCallback,
 	Fn<void()> deleteCallback)
 : _st(st)
@@ -39,8 +44,14 @@ AlbumThumbnail::AlbumThumbnail(
 , _shrinkSize(int(std::ceil(st::roundRadiusLarge / 1.4)))
 , _isPhoto(file.type == PreparedFile::Type::Photo)
 , _isVideo(file.type == PreparedFile::Type::Video)
+, _canEditVideo(file.canEditVideo())
+, _canShowHighQualityBadge(file.canUseHighQualityPhoto())
+, _canShowAnimatedBadge(file.hasAnimatedEditScene())
+, _videoQuality(file.videoQuality())
+, _ttlSeconds(file.ttlSeconds)
 , _isCompressedSticker(Core::IsMimeSticker(file.information->filemime))
-, _repaint(std::move(repaint)) {
+, _repaint(std::move(repaint))
+, _repaintRect(std::move(repaintRect)) {
 	Expects(!_fullPreview.isNull());
 
 	moveToLayout(layout);
@@ -82,13 +93,25 @@ AlbumThumbnail::AlbumThumbnail(
 		- st::sendBoxAlbumGroupButtonFile.width * 2
 		- st::sendBoxAlbumGroupEditInternalSkip * 2
 		- st::sendBoxAlbumGroupSkipRight;
+	const auto availableCaptionWidth = st::sendMediaPreviewSize
+		- st::sendBoxAlbumGroupButtonFile.width * 2
+		- st::sendBoxAlbumGroupEditInternalSkip * 2
+		- st::sendBoxAlbumGroupSkipRight;
+	_captionAvailableWidth = availableCaptionWidth;
 	const auto filepath = file.path;
-	if (filepath.isEmpty()) {
-		_name = "image.png";
+	if (file.archive) {
+		_name = file.displayName;
+		_status = tr::lng_folder_archive_status(tr::now);
+	} else if (filepath.isEmpty()) {
+		_name = file.displayName.isEmpty()
+			? "image.png"
+			: file.displayName;
 		_status = FormatImageSizeText(file.originalDimensions);
 	} else {
 		auto fileinfo = QFileInfo(filepath);
-		_name = fileinfo.fileName();
+		_name = file.displayName.isEmpty()
+			? fileinfo.fileName()
+			: file.displayName;
 		_status = FormatSizeText(fileinfo.size());
 	}
 	_nameWidth = st::semiboldFont->width(_name);
@@ -100,13 +123,38 @@ AlbumThumbnail::AlbumThumbnail(
 		_nameWidth = st::semiboldFont->width(_name);
 	}
 	_statusWidth = st::normalFont->width(_status);
+	auto caption = TextWithEntities{
+		file.caption.text,
+		TextUtilities::ConvertTextTagsToEntities(file.caption.tags),
+	};
+	caption = TextUtilities::SingleLine(caption);
+	auto context = captionContext;
+	const auto repaintCaption = context.repaint;
+	context.repaint = [=] {
+		if (repaintCaption) {
+			repaintCaption();
+		}
+		if (!_lastRectOfCaption.isEmpty() && _repaintRect) {
+			_repaintRect(_lastRectOfCaption);
+		} else {
+			_repaint();
+		}
+	};
+	_captionContext = context;
+	_caption.setMarkedText(
+		st::defaultTextStyle,
+		caption,
+		kMarkupTextOptions,
+		_captionContext);
 
 	_editMedia.create(parent, _st.files.buttonFile);
 	_deleteMedia.create(parent, _st.files.buttonFile);
 
 	const auto duration = st::historyAttach.ripple.hideDuration;
 	_editMedia->setClickedCallback([=] {
-		base::call_delayed(duration, parent, editCallback);
+		// Guarded by the button, which dies with this thumbnail, so the
+		// delayed edit is dropped instead of firing for a thumb that is gone.
+		base::call_delayed(duration, _editMedia.data(), editCallback);
 	});
 	_deleteMedia->setClickedCallback(deleteCallback);
 
@@ -123,6 +171,20 @@ void AlbumThumbnail::setSpoiler(bool spoiler) {
 	_spoiler = spoiler
 		? std::make_unique<SpoilerAnimation>(_repaint)
 		: nullptr;
+	_repaint();
+}
+
+void AlbumThumbnail::setCaption(const TextWithTags &caption) {
+	auto marked = TextWithEntities{
+		caption.text,
+		TextUtilities::ConvertTextTagsToEntities(caption.tags),
+	};
+	marked = TextUtilities::SingleLine(marked);
+	_caption.setMarkedText(
+		st::defaultTextStyle,
+		marked,
+		kMarkupTextOptions,
+		_captionContext);
 	_repaint();
 }
 
@@ -186,11 +248,25 @@ int AlbumThumbnail::photoHeight() const {
 int AlbumThumbnail::fileHeight() const {
 	return _isCompressedSticker
 		? photoHeight()
-		: st::attachPreviewThumbLayout.thumbSize;
+		: st::attachPreviewThumbLayout.thumbSize + (_caption.isEmpty()
+			? 0
+			: (st::attachPreviewCaptionTopOffset + _caption.lineHeight()));
 }
 
 bool AlbumThumbnail::isCompressedSticker() const {
 	return _isCompressedSticker;
+}
+
+bool AlbumThumbnail::canEditVideo() const {
+	return _canEditVideo;
+}
+
+void AlbumThumbnail::setModifyAllowed(bool value) {
+	_modifyAllowed = value;
+}
+
+bool AlbumThumbnail::canModify() const {
+	return !_isCompressedSticker && (_isPhoto || _modifyAllowed);
 }
 
 void AlbumThumbnail::paintInAlbum(
@@ -198,7 +274,8 @@ void AlbumThumbnail::paintInAlbum(
 		int left,
 		int top,
 		float64 shrinkProgress,
-		float64 moveProgress) {
+		float64 moveProgress,
+		bool showHighQualityBadge) {
 	const auto shrink = anim::interpolate(0, _shrinkSize, shrinkProgress);
 	_lastShrinkValue = shrink;
 	const auto geometry = countCurrentGeometry(
@@ -262,6 +339,18 @@ void AlbumThumbnail::paintInAlbum(
 		geometry,
 		shrinkProgress);
 	_lastRectOfModify = geometry;
+	if (showHighQualityBadge && _canShowHighQualityBadge) {
+		PaintHighQualityBadge(p, _st, paintedTo);
+	}
+	if (_canShowAnimatedBadge) {
+		PaintAnimatedBadge(p, _st, paintedTo);
+	}
+	if (_videoQuality && !shrinkProgress) {
+		PaintVideoQualityBadge(p, paintedTo, _videoQuality);
+	}
+	if (_ttlSeconds && !shrinkProgress) {
+		PaintMediaTtlBadge(p, paintedTo, _ttlSeconds);
+	}
 }
 
 void AlbumThumbnail::paintPlayVideo(QPainter &p, QRect geometry) {
@@ -424,7 +513,12 @@ void AlbumThumbnail::drawSimpleFrame(QPainter &p, QRect to, QSize size) const {
 	}
 }
 
-void AlbumThumbnail::paintPhoto(Painter &p, int left, int top, int outerWidth) {
+void AlbumThumbnail::paintPhoto(
+		Painter &p,
+		int left,
+		int top,
+		int outerWidth,
+		bool showHighQualityBadge) {
 	const auto size = _photo.size() / style::DevicePixelRatio();
 	if (_spoiler && _photoBlurred.isNull()) {
 		_photoBlurred = BlurredPreviewFromPixmap(
@@ -463,6 +557,15 @@ void AlbumThumbnail::paintPhoto(Painter &p, int left, int top, int outerWidth) {
 		0);
 
 	_lastRectOfModify = QRect(topLeft, size);
+	if (showHighQualityBadge && _canShowHighQualityBadge) {
+		PaintHighQualityBadge(p, _st, rect);
+	}
+	if (_canShowAnimatedBadge) {
+		PaintAnimatedBadge(p, _st, rect);
+	}
+	if (_videoQuality) {
+		PaintVideoQualityBadge(p, rect, _videoQuality);
+	}
 }
 
 void AlbumThumbnail::paintFile(
@@ -473,7 +576,7 @@ void AlbumThumbnail::paintFile(
 
 	if (isCompressedSticker()) {
 		auto spoiler = base::take(_spoiler);
-		paintPhoto(p, left, top, outerWidth);
+		paintPhoto(p, left, top, outerWidth, false);
 		_spoiler = base::take(spoiler);
 		return;
 	}
@@ -497,6 +600,28 @@ void AlbumThumbnail::paintFile(
 		outerWidth,
 		_status,
 		_statusWidth);
+	if (!_caption.isEmpty()) {
+		p.setPen(_st.files.nameFg);
+		const auto captionLineHeight = _caption.lineHeight();
+		const auto captionTop = top
+			+ st.thumbSize
+			+ st::attachPreviewCaptionTopOffset;
+		_lastRectOfCaption = QRect(
+			left,
+			captionTop,
+			_captionAvailableWidth,
+			captionLineHeight) + st::attachPreviewCaptionRepaintMargin;
+		_caption.draw(p, {
+			.position = { left, captionTop },
+			.outerWidth = outerWidth,
+			.availableWidth = _captionAvailableWidth,
+			.align = style::al_left,
+			.elisionLines = 1,
+			.elisionBreakEverywhere = true,
+		});
+	} else {
+		_lastRectOfCaption = {};
+	}
 
 	_lastRectOfModify = QRect(
 		QPoint(left, top),
@@ -512,7 +637,7 @@ bool AlbumThumbnail::containsPoint(QPoint position) const {
 }
 
 bool AlbumThumbnail::buttonsContainPoint(QPoint position) const {
-	return ((_isPhoto && !_isCompressedSticker)
+	return (canModify()
 		? _lastRectOfModify
 		: _lastRectOfButtons).contains(position);
 }
@@ -521,7 +646,7 @@ AttachButtonType AlbumThumbnail::buttonTypeFromPoint(QPoint position) const {
 	if (!buttonsContainPoint(position)) {
 		return AttachButtonType::None;
 	}
-	return (!_lastRectOfButtons.contains(position) && !_isCompressedSticker)
+	return (!_lastRectOfButtons.contains(position) && canModify())
 		? AttachButtonType::Modify
 		: (_buttons.vertical()
 			? (position.y() < _lastRectOfButtons.center().y())

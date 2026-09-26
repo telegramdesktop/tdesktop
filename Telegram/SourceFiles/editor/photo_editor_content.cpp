@@ -13,6 +13,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_view_pip.h"
 #include "storage/storage_media_prepare.h"
 
+#include <QtGui/QClipboard>
+#include <QtGui/QGuiApplication>
+#include <QtGui/QKeyEvent>
+#include <QtGui/QMouseEvent>
+#include <QtGui/QWheelEvent>
+
 namespace Editor {
 
 using Media::View::FlipSizeByRotation;
@@ -26,11 +32,26 @@ PhotoEditorContent::PhotoEditorContent(
 	EditorData data)
 : RpWidget(parent)
 , _photoSize(photo->size())
+, _fixedCrop(data.fixedCrop)
+, _composeAnimated(data.composeAnimated)
 , _paint(base::make_unique_q<Paint>(
 	this,
 	modifications,
 	_photoSize,
-	std::move(controllers)))
+	std::move(controllers),
+	[photo](QRect rect) {
+		const auto &img = photo->original();
+		const auto dpr = img.devicePixelRatio();
+		const auto pixelRect = QRect(
+			int(rect.x() * dpr),
+			int(rect.y() * dpr),
+			int(rect.width() * dpr),
+			int(rect.height() * dpr));
+		auto result = img.copy(pixelRect.intersected(img.rect()));
+		result.setDevicePixelRatio(dpr);
+		return result;
+	},
+	data))
 , _crop(base::make_unique_q<Crop>(
 	this,
 	modifications,
@@ -79,6 +100,7 @@ PhotoEditorContent::PhotoEditorContent(
 			geometry + _crop->cropMargins(),
 			mods.angle,
 			mods.flipped, imageSizeF);
+		_crop->setCornersLevel(mods.cornersLevel);
 		_paint->applyTransform(geometry, mods.angle, mods.flipped);
 
 		_innerRect = geometry;
@@ -89,11 +111,57 @@ PhotoEditorContent::PhotoEditorContent(
 		auto p = QPainter(this);
 
 		p.fillRect(clip, Qt::transparent);
-		p.setTransform(_imageMatrix);
-		p.drawPixmap(_imageRect, _photo->pix(_imageRect.size()));
+		if (_mode.mode == PhotoEditorMode::Mode::Paint) {
+			_paint->paintImage(p, _photo->pix(_photoSize));
+		} else {
+			p.setTransform(_imageMatrix);
+			p.drawPixmap(_imageRect, _photo->pix(_imageRect.size()));
+		}
 	}, lifetime());
 
 	setupDragArea();
+
+	if (_fixedCrop) {
+		const auto pan = _crop->lifetime().make_state<
+			std::optional<QPoint>
+		>();
+		_crop->events(
+		) | rpl::on_next([=](not_null<QEvent*> e) {
+			const auto type = e->type();
+			if (type == QEvent::Wheel) {
+				const auto wheel = static_cast<QWheelEvent*>(e.get());
+				const auto raw = wheel->angleDelta();
+				_paint->zoomSceneItems(
+					raw.y() ? raw.y() : raw.x(),
+					wheel->modifiers().testFlag(Qt::ShiftModifier));
+				e->accept();
+			} else if (type == QEvent::MouseButtonPress) {
+				const auto mouse = static_cast<QMouseEvent*>(e.get());
+				if (mouse->button() == Qt::MiddleButton) {
+					*pan = mouse->pos();
+					_crop->setCursor(Qt::ClosedHandCursor);
+					e->accept();
+				}
+			} else if (type == QEvent::MouseMove) {
+				if (pan->has_value()) {
+					const auto mouse = static_cast<QMouseEvent*>(e.get());
+					const auto point = mouse->pos();
+					const auto delta = point - **pan;
+					*pan = point;
+					_paint->panSceneItems(
+						_paint->mapWidgetDeltaToScene(delta));
+					e->accept();
+				}
+			} else if (type == QEvent::MouseButtonRelease) {
+				const auto mouse = static_cast<QMouseEvent*>(e.get());
+				if (mouse->button() == Qt::MiddleButton && pan->has_value()) {
+					pan->reset();
+					_crop->unsetCursor();
+					e->accept();
+				}
+			}
+		}, _crop->lifetime());
+	}
 }
 
 void PhotoEditorContent::applyModifications(
@@ -113,6 +181,9 @@ void PhotoEditorContent::save(PhotoModifications &modifications) {
 }
 
 void PhotoEditorContent::applyMode(const PhotoEditorMode &mode) {
+	if (mode.mode != PhotoEditorMode::Mode::Paint) {
+		_paint->disarmShapeTool();
+	}
 	if (mode.mode == PhotoEditorMode::Mode::Out) {
 		if (mode.action == PhotoEditorMode::Action::Discard) {
 			_paint->restoreScene();
@@ -125,6 +196,8 @@ void PhotoEditorContent::applyMode(const PhotoEditorMode &mode) {
 	_paint->setAttribute(Qt::WA_TransparentForMouseEvents, isTransform);
 	if (!isTransform) {
 		_paint->updateUndoState();
+	} else {
+		_paint->resetView();
 	}
 
 	if (mode.action == PhotoEditorMode::Action::Discard) {
@@ -133,21 +206,121 @@ void PhotoEditorContent::applyMode(const PhotoEditorMode &mode) {
 		_paint->keepResult();
 	}
 	_mode = mode;
+	update();
+}
+
+void PhotoEditorContent::applyAspectRatio(float64 ratio) {
+	_crop->setAspectRatio(ratio);
 }
 
 void PhotoEditorContent::applyBrush(const Brush &brush) {
 	_paint->applyBrush(brush);
 }
 
-bool PhotoEditorContent::handleKeyPress(not_null<QKeyEvent*> e) const {
-	return false;
+void PhotoEditorContent::createTextItem() {
+	_paint->createTextItem();
+}
+
+void PhotoEditorContent::createShapeItem(
+		ShapeType shape,
+		const Brush &brush,
+		bool fill) {
+	_paint->createShapeItem(shape, brush, fill);
+}
+
+void PhotoEditorContent::armShapeTool(
+		ShapeType shape,
+		const Brush &brush,
+		bool fill) {
+	_paint->armShapeTool(shape, brush, fill);
+}
+
+void PhotoEditorContent::disarmShapeTool() {
+	_paint->disarmShapeTool();
+}
+
+void PhotoEditorContent::applyBrushToSelectedShape(const Brush &brush) {
+	_paint->applyBrushToSelectedShape(brush);
+}
+
+void PhotoEditorContent::clearSelection() {
+	_paint->clearSelection();
+}
+
+void PhotoEditorContent::applyTextPrefs(const TextPrefs &prefs) {
+	_paint->applyTextPrefs(prefs);
+}
+
+void PhotoEditorContent::setTextColor(const QColor &color) {
+	_paint->setTextColor(color);
+}
+
+void PhotoEditorContent::setSelectedTextColor(const QColor &color) {
+	_paint->setSelectedTextColor(color);
+}
+
+rpl::producer<QColor> PhotoEditorContent::textColorRequests() const {
+	return _paint->textColorRequests();
+}
+
+rpl::producer<TextPrefs> PhotoEditorContent::textPrefsUsed() const {
+	return _paint->textPrefsUsed();
+}
+
+rpl::producer<QColor> PhotoEditorContent::textItemSelections() const {
+	return _paint->textItemSelections();
+}
+
+rpl::producer<> PhotoEditorContent::textItemDeselections() const {
+	return _paint->textItemDeselections();
+}
+
+rpl::producer<bool> PhotoEditorContent::textEditStates() const {
+	return _paint->textEditStates();
+}
+
+rpl::producer<QColor> PhotoEditorContent::shapeItemSelections() const {
+	return _paint->shapeItemSelections();
+}
+
+rpl::producer<> PhotoEditorContent::shapeItemDeselections() const {
+	return _paint->shapeItemDeselections();
+}
+
+rpl::producer<bool> PhotoEditorContent::shapeToolStates() const {
+	return _paint->shapeToolStates();
+}
+
+rpl::producer<> PhotoEditorContent::paintModeRequests() const {
+	return _paintModeRequests.events();
+}
+
+bool PhotoEditorContent::handleKeyPress(not_null<QKeyEvent*> e) {
+	if (e->matches(QKeySequence::Paste)) {
+		return pasteFromClipboard();
+	}
+	return _paint->handleKeyPress(e);
+}
+
+bool PhotoEditorContent::pasteFromClipboard() {
+	const auto data = QGuiApplication::clipboard()->mimeData();
+	if (!_paint->canHandleMimeData(data)) {
+		return false;
+	}
+	addMimeData(data);
+	return true;
+}
+
+void PhotoEditorContent::addMimeData(not_null<const QMimeData*> data) {
+	if (_mode.mode != PhotoEditorMode::Mode::Paint) {
+		_paintModeRequests.fire({});
+	}
+	_paint->handleMimeData(data);
 }
 
 void PhotoEditorContent::setupDragArea() {
 	auto dragEnterFilter = [=](const QMimeData *data) {
-		return (_mode.mode == PhotoEditorMode::Mode::Paint)
-			? Storage::ValidatePhotoEditorMediaDragData(data)
-			: false;
+		return _paint->canHandleMimeData(data);
 	};
 
 	const auto areas = DragArea::SetupDragAreaToContainer(
@@ -155,11 +328,16 @@ void PhotoEditorContent::setupDragArea() {
 		std::move(dragEnterFilter),
 		nullptr,
 		nullptr,
-		[](const QMimeData *d) { return Storage::MimeDataState::Image; },
+		[=](const QMimeData *data) {
+			return _composeAnimated
+				? Storage::MimeDataState::Media
+				: Storage::MimeDataState::Image;
+		},
+		nullptr,
 		true);
 
 	areas.photo->setDroppedCallback([=](const QMimeData *data) {
-		_paint->handleMimeData(data);
+		addMimeData(data);
 	});
 }
 

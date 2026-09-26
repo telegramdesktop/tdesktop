@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/ton_common.h"
 #include "ui/text/custom_emoji_helper.h"
 #include "ui/text/custom_emoji_text_badge.h"
+#include "ui/text/text_custom_emoji.h"
 #include "ui/text/text_lottie_custom_emoji.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/fields/input_field.h"
@@ -387,6 +388,7 @@ void AddStakePresets(
 				wrap,
 				rpl::single(FormatTonAmount(nanoTon).full + diamond),
 				st::stakePresetButton);
+			button->setTextTransform(RoundButtonTextTransform::ToUpper);
 			button->setClickedCallback([=] {
 				callback(nanoTon);
 			});
@@ -402,7 +404,7 @@ void AddStakePresets(
 			const auto cols = int(row.size());
 			const auto singlew = (width - (cols - 1) * xskip) / cols;
 			auto x = 0;
-			for (const auto button : row) {
+			for (const auto &button : row) {
 				button->setFullWidth(singlew);
 				button->move(x, y);
 				x += singlew + xskip;
@@ -474,14 +476,15 @@ void EmojiGameStakeBox(
 	const auto sixContext = helper.context();
 	const auto factory = [=](
 			QStringView data,
-			const Text::MarkedContext &context) {
+			const Text::MarkedContext &context)
+	-> std::unique_ptr<Text::CustomEmoji> {
 		if (auto result = sixContext.customEmojiFactory(data, context)) {
-			return std::make_unique<Text::LimitedLoopsEmoji>(
+			return MakeWrappedEmoji<Text::LimitedLoopsEmoji>(
 				std::move(result),
 				0,
 				true);
 		}
-		return std::unique_ptr<Text::LimitedLoopsEmoji>();
+		return nullptr;
 	};
 	const auto context = Text::MarkedContext{
 		.customEmojiFactory = factory,

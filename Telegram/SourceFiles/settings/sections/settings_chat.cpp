@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer_rpl.h"
 #include "settings/settings_builder.h"
 #include "settings/sections/settings_advanced.h"
+#include "settings/sections/settings_local_storage.h"
 #include "settings/sections/settings_main.h"
 #include "settings/sections/settings_privacy_security.h"
 #include "settings/settings_experimental.h"
@@ -26,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/background_box.h"
 #include "boxes/background_preview_box.h"
 #include "boxes/download_path_box.h"
-#include "boxes/local_storage_box.h"
 #include "dialogs/ui/dialogs_quick_action_context.h"
 #include "dialogs/dialogs_quick_action.h"
 #include "ui/boxes/choose_font_box.h"
@@ -97,6 +97,10 @@ using namespace Builder;
 
 const auto kSchemesList = Window::Theme::EmbeddedThemes();
 constexpr auto kCustomColorButtonParts = 7;
+
+[[nodiscard]] bool IsSystemAccentColorSupported() {
+	return Window::Theme::SystemAccentColor().has_value();
+}
 
 class ColorsPalette final {
 public:
@@ -186,6 +190,7 @@ ColorsPalette::Button::Button(
 , _colors(std::move(colors))
 , _selected(selected) {
 	_widget.show();
+	_widget.setIsListItem(true);
 	_widget.resize(st::settingsAccentColorSize, st::settingsAccentColorSize);
 	_widget.paintRequest(
 	) | rpl::on_next([=] {
@@ -277,8 +282,12 @@ void ColorsPalette::show(Type type) {
 		return;
 	}
 	list.insert(list.begin(), scheme->accentColor);
-	const auto color = Core::App().settings().themesAccentColors().get(type);
-	const auto current = color.value_or(scheme->accentColor);
+	const auto &settings = Core::App().settings();
+	const auto color = settings.themesAccentColors().get(type);
+	const auto current = (settings.systemAccentColorEnabled()
+		? Window::Theme::SystemAccentColor()
+		: std::optional<QColor>()).value_or(
+			color.value_or(scheme->accentColor));
 	const auto i = ranges::find(list, current);
 	if (i == end(list)) {
 		list.back() = current;
@@ -532,9 +541,9 @@ int BackgroundRow::resizeGetHeight(int newWidth) {
 	auto linkLeft = st::settingsBackgroundThumb + st::settingsThumbSkip;
 	auto linkWidth = newWidth - linkLeft;
 	_chooseFromGallery->resizeToWidth(
-		qMin(linkWidth, _chooseFromGallery->naturalWidth()));
+		std::min(linkWidth, _chooseFromGallery->naturalWidth()));
 	_chooseFromFile->resizeToWidth(
-		qMin(linkWidth, _chooseFromFile->naturalWidth()));
+		std::min(linkWidth, _chooseFromFile->naturalWidth()));
 	_chooseFromGallery->moveToLeft(linkLeft, linkTop, newWidth);
 	linkTop += _chooseFromGallery->height() + st::settingsFromFileTop;
 	_chooseFromFile->moveToLeft(linkLeft, linkTop, newWidth);
@@ -804,6 +813,22 @@ void BuildThemeOptionsSection(SectionBuilder &builder) {
 			.keywords = { u"accent"_q, u"color"_q, u"customize"_q },
 		};
 	});
+
+	if (IsSystemAccentColorSupported()) {
+		builder.add(nullptr, [] {
+			return SearchEntry{
+				.id = u"chat/themes-system-accent"_q,
+				.title = tr::lng_settings_theme_system_accent_color(tr::now),
+				.keywords = {
+					u"system"_q,
+					u"accent"_q,
+					u"color"_q,
+					u"theme"_q,
+					u"os"_q,
+				},
+			};
+		});
+	}
 }
 
 void BuildThemeSettingsSection(SectionBuilder &builder) {
@@ -1044,6 +1069,17 @@ void BuildMessagesSection(SectionBuilder &builder) {
 			.id = u"chat/quick-reaction"_q,
 			.title = tr::lng_settings_chat_quick_action_react(tr::now),
 			.keywords = { u"quick"_q, u"reaction"_q, u"double"_q, u"click"_q },
+		};
+	});
+
+	builder.add(nullptr, [] {
+		return SearchEntry{
+			.id = u"chat/corner-reply"_q,
+			.title = tr::lng_settings_chat_corner_reply(tr::now),
+			.keywords = { u"corner"_q, u"reply"_q },
+			.checkIcon = Core::App().settings().cornerReply()
+				? SearchEntryCheckIcon::Checked
+				: SearchEntryCheckIcon::Unchecked,
 		};
 	});
 
@@ -1729,6 +1765,25 @@ void SetupMessages(
 
 	Ui::AddSkip(inner, st::settingsSendTypeSkip);
 
+	const auto cornerReply = inner->add(
+		object_ptr<Ui::Checkbox>(
+			inner,
+			tr::lng_settings_chat_corner_reply(tr::now),
+			Core::App().settings().cornerReply(),
+			st::settingsCheckbox),
+		st::settingsCheckboxPadding);
+	cornerReply->checkedChanges(
+	) | rpl::on_next([=](bool checked) {
+		Core::App().settings().setCornerReply(checked);
+		Core::App().saveSettingsDelayed();
+	}, inner->lifetime());
+	if (highlights) {
+		highlights->push_back({ u"chat/corner-reply"_q, {
+			cornerReply,
+			{ .radius = st::boxRadius },
+		} });
+	}
+
 	const auto cornerReaction = inner->add(
 		object_ptr<Ui::Checkbox>(
 			inner,
@@ -1747,6 +1802,19 @@ void SetupMessages(
 			{ .radius = st::boxRadius },
 		} });
 	}
+
+	const auto pullToNext = inner->add(
+		object_ptr<Ui::Checkbox>(
+			inner,
+			tr::lng_settings_pull_to_next_channel(tr::now),
+			Core::App().settings().pullToNextChannel(),
+			st::settingsCheckbox),
+		st::settingsCheckboxPadding);
+	pullToNext->checkedChanges(
+	) | rpl::on_next([=](bool checked) {
+		Core::App().settings().setPullToNextChannel(checked);
+		Core::App().saveSettingsDelayed();
+	}, inner->lifetime());
 
 	Ui::AddSkip(inner);
 }
@@ -1813,7 +1881,9 @@ void SetupLocalStorage(
 		tr::lng_settings_manage_local_storage(),
 		st::settingsButton,
 		{ &st::menuIconStorage }
-	)->addClickHandler([=] { LocalStorageBox::Show(controller); });
+	)->addClickHandler([=] {
+		controller->showSettings(LocalStorageId());
+	});
 }
 
 void SetupDataStorage(
@@ -2196,6 +2266,8 @@ void SetupChatListQuickAction(
 					? tr::lng_settings_quick_dialog_action_pin
 					: (value == Dialogs::Ui::QuickDialogAction::Read)
 					? tr::lng_settings_quick_dialog_action_read
+					: (value == Dialogs::Ui::QuickDialogAction::Delete)
+					? tr::lng_settings_quick_dialog_action_delete
 					: (value == Dialogs::Ui::QuickDialogAction::Archive)
 					? tr::lng_settings_quick_dialog_action_archive
 					: tr::lng_settings_quick_dialog_action_disabled)();
@@ -2290,6 +2362,16 @@ void SetupDefaultThemes(
 	const auto palette = Ui::CreateChild<ColorsPalette>(
 		container.get(),
 		container.get());
+	const auto systemAccentWrap = container->add(
+		object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
+			container,
+			object_ptr<Ui::Checkbox>(
+				container,
+				tr::lng_settings_theme_system_accent_color(tr::now),
+				Core::App().settings().systemAccentColorEnabled(),
+				st::settingsCheckbox)),
+		st::settingsCheckboxPadding);
+	systemAccentWrap->setDuration(0);
 
 	const auto chosen = [] {
 		const auto &object = Background()->themeObject();
@@ -2365,14 +2447,17 @@ void SetupDefaultThemes(
 			palette->show(type);
 		}
 
-		const auto &colors = Core::App().settings().themesAccentColors();
+		const auto &settings = Core::App().settings();
 		const auto i = checks.find(type);
 		const auto scheme = ranges::find(kSchemesList, type, &Scheme::type);
 		if (scheme == end(kSchemesList)) {
 			return;
 		}
+		const auto color = settings.systemAccentColorEnabled()
+			? Window::Theme::SystemAccentColor()
+			: settings.themesAccentColors().get(type);
 		if (i != end(checks)) {
-			if (const auto color = colors.get(type)) {
+			if (color) {
 				const auto colorizer = ColorizerFrom(*scheme, *color);
 				i->second->setColors(ColorsFromScheme(*scheme, colorizer));
 			} else {
@@ -2380,7 +2465,12 @@ void SetupDefaultThemes(
 			}
 		}
 	};
-	group->setChangedCallback([=](Type type) {
+	const auto refreshSystemAccentVisibility = [=](Type type) {
+		systemAccentWrap->toggle(
+			IsSystemAccentColorSupported() && (type != Type(-1)),
+			anim::type::instant);
+	};
+	group->setChangedCallback([=, raw = group.get()](Type type) {
 		const auto scheme = ranges::find(
 			kSchemesList,
 			type,
@@ -2388,12 +2478,28 @@ void SetupDefaultThemes(
 		if (scheme != end(kSchemesList)) {
 			apply(*scheme);
 		} else {
-			group->setValue(chosen());
+			raw->setValue(chosen());
 		}
 	});
 	for (const auto &scheme : kSchemesList) {
 		refreshColorizer(scheme.type);
 	}
+	refreshSystemAccentVisibility(chosen());
+	systemAccentWrap->entity()->checkedChanges(
+	) | rpl::on_next([=](bool checked) {
+		auto &settings = Core::App().settings();
+		if (settings.systemAccentColorEnabled() == checked) {
+			return;
+		}
+		settings.setSystemAccentColorEnabled(checked);
+		Local::writeSettings();
+
+		const auto type = chosen();
+		const auto scheme = ranges::find(kSchemesList, type, &Scheme::type);
+		if (scheme != end(kSchemesList)) {
+			apply(*scheme);
+		}
+	}, container->lifetime());
 
 	if (highlights) {
 		const auto add = st::roundRadiusSmall;
@@ -2404,6 +2510,12 @@ void SetupDefaultThemes(
 				.shape = HighlightShape::Ellipse,
 			},
 		} });
+		if (IsSystemAccentColorSupported()) {
+			highlights->push_back({ u"chat/themes-system-accent"_q, {
+				systemAccentWrap->entity(),
+				{ .radius = st::boxRadius }
+			} });
+		}
 	}
 
 	Background()->updates(
@@ -2413,6 +2525,7 @@ void SetupDefaultThemes(
 		return chosen();
 	}) | rpl::on_next([=](Type type) {
 		refreshColorizer(type);
+		refreshSystemAccentVisibility(type);
 		group->setValue(type);
 	}, container->lifetime());
 
@@ -2462,9 +2575,19 @@ void SetupDefaultThemes(
 		if (scheme == end(kSchemesList)) {
 			return;
 		}
-		auto &colors = Core::App().settings().themesAccentColors();
+		auto &settings = Core::App().settings();
+		auto changed = false;
+		if (settings.systemAccentColorEnabled()) {
+			settings.setSystemAccentColorEnabled(false);
+			systemAccentWrap->entity()->setChecked(false);
+			changed = true;
+		}
+		auto &colors = settings.themesAccentColors();
 		if (colors.get(type) != color) {
 			colors.set(type, color);
+			changed = true;
+		}
+		if (changed) {
 			Local::writeSettings();
 		}
 		apply(*scheme);
@@ -2666,6 +2789,9 @@ void SetupThemeSettings(
 		std::move(label),
 		st::settingsButton,
 		{ &st::menuIconFont });
+	const auto themeLifetime = container->lifetime().make_state<
+		rpl::lifetime
+	>();
 	fontButton->setClickedCallback([=] {
 		const auto save = [=](QString chosen) {
 			*family = chosen;
@@ -2674,8 +2800,11 @@ void SetupThemeSettings(
 			Core::Restart();
 		};
 
+		// Not container->lifetime(): that outlives the box, so every tap
+		// left another dead background subscription behind in it.
+		themeLifetime->destroy();
 		const auto theme = std::shared_ptr<Ui::ChatTheme>(
-			Window::Theme::DefaultChatThemeOn(container->lifetime()));
+			Window::Theme::DefaultChatThemeOn(*themeLifetime));
 		const auto generateBg = [=] {
 			const auto size = st::boxWidth;
 			const auto ratio = style::DevicePixelRatio();

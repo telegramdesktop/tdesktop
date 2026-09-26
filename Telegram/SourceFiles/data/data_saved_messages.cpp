@@ -27,8 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 namespace {
 
-constexpr auto kPerPage = 50;
-constexpr auto kFirstPerPage = 10;
 constexpr auto kListPerPage = 100;
 constexpr auto kListFirstPerPage = 20;
 constexpr auto kLoadedSublistsMinCount = 20;
@@ -239,6 +237,17 @@ void SavedMessages::requestSublist(
 	}
 }
 
+void SavedMessages::refreshPinned() {
+	if (parentChat()) {
+		return;
+	}
+	if (_pinnedRequestId) {
+		_refreshPinnedAfterRequest = true;
+		return;
+	}
+	loadPinned();
+}
+
 rpl::producer<> SavedMessages::chatsListChanges() const {
 	return _chatsListChanges.events();
 }
@@ -266,10 +275,14 @@ void SavedMessages::clearAllUnreadReactions() {
 }
 
 void SavedMessages::sendLoadMore() {
-	if (_loadMoreRequestId || _chatsList.loaded()) {
+	if (_loadMoreRequestId) {
 		return;
-	} else if (!_pinnedLoaded) {
+	}
+	if (!_pinnedLoaded) {
 		loadPinned();
+	}
+	if (_chatsList.loaded()) {
+		return;
 	}
 	using Flag = MTPmessages_GetSavedDialogs::Flag;
 	_loadMoreRequestId = _owner->session().api().request(
@@ -319,6 +332,10 @@ void SavedMessages::loadPinned() {
 		_pinnedLoaded = true;
 		applyReceivedSublists(result, true);
 		_chatsListChanges.fire({});
+		if (_refreshPinnedAfterRequest) {
+			_refreshPinnedAfterRequest = false;
+			loadPinned();
+		}
 	}).fail([=](const MTP::Error &error) {
 		if (error.type() == u"SAVED_DIALOGS_UNSUPPORTED"_q) {
 			markUnsupported();
@@ -326,6 +343,10 @@ void SavedMessages::loadPinned() {
 			_pinnedLoaded = true;
 		}
 		_pinnedRequestId = 0;
+		if (_refreshPinnedAfterRequest) {
+			_refreshPinnedAfterRequest = false;
+			loadPinned();
+		}
 	}).send();
 }
 
@@ -348,20 +369,32 @@ SavedMessages::ApplyResult SavedMessages::applyReceivedSublists(
 	}
 	auto lastValid = false;
 	auto result = ApplyResult();
+	auto serverPinnedPeers = base::flat_set<not_null<PeerData*>>();
 	const auto parentPeerId = _parentChat
 		? _parentChat->id
 		: _owner->session().userPeerId();
 	for (const auto &dialog : *list) {
 		dialog.match([&](const MTPDsavedDialog &data) {
 			const auto peer = _owner->peer(peerFromMTP(data.vpeer()));
+			const auto entryPinned = pinned || data.is_pinned();
 			const auto topId = MsgId(data.vtop_message().v);
-			if (const auto item = _owner->message(parentPeerId, topId)) {
+			if (entryPinned) {
+				serverPinnedPeers.emplace(peer);
+			}
+			if (entryPinned) {
+				if (const auto loaded = sublistLoaded(peer)) {
+					_owner->setPinnedFromEntryList(loaded, true);
+				}
+			}
+			if (const auto item = _owner->message(parentPeerId, topId);
+				item
+				&& item->isRegular()
+				&& !item->isService()) {
 				result.offset.peer = peer;
 				result.offset.date = item->date();
 				result.offset.id = topId;
 				lastValid = true;
 				const auto entry = sublist(peer);
-				const auto entryPinned = pinned || data.is_pinned();
 				entry->applyMaybeLast(item);
 				_owner->setPinnedFromEntryList(entry, entryPinned);
 			} else {
@@ -369,8 +402,14 @@ SavedMessages::ApplyResult SavedMessages::applyReceivedSublists(
 			}
 		}, [&](const MTPDmonoForumDialog &data) {
 			const auto peer = _owner->peer(peerFromMTP(data.vpeer()));
+			if (pinned) {
+				serverPinnedPeers.emplace(peer);
+			}
 			const auto topId = MsgId(data.vtop_message().v);
-			if (const auto item = _owner->message(parentPeerId, topId)) {
+			if (const auto item = _owner->message(parentPeerId, topId);
+				item
+				&& item->isRegular()
+				&& !item->isService()) {
 				result.offset.peer = peer;
 				result.offset.date = item->date();
 				result.offset.id = topId;
@@ -382,6 +421,17 @@ SavedMessages::ApplyResult SavedMessages::applyReceivedSublists(
 		});
 	}
 	if (pinned) {
+		for (const auto &[peer, holder] : _sublists) {
+			const auto entry = holder.get();
+			if (entry->isPinnedDialog(FilterId())
+				&& !serverPinnedPeers.contains(peer)) {
+				if (!entry->parentChat() && !entry->chatListMessage()) {
+					entry->setRestorePinnedWhenNonEmpty(true);
+				}
+				_owner->setChatPinned(entry, FilterId(), false);
+			}
+			entry->updateChatListExistence();
+		}
 	} else if (!lastValid) {
 		LOG(("API Error: Unknown message in the end of a slice."));
 		result.allLoaded = true;
@@ -417,6 +467,10 @@ void SavedMessages::apply(const MTPDupdatePinnedSavedDialogs &update) {
 			LOG(("API Error: "
 				"updatePinnedSavedDialogs has folders."));
 			return false;
+		}, [&](const MTPDdialogPeerCommunity &data) {
+			LOG(("API Error: "
+				"updatePinnedSavedDialogs has communities."));
+			return false;
 		});
 	};
 	if (!ranges::none_of(order, notLoaded)) {
@@ -441,6 +495,8 @@ void SavedMessages::apply(const MTPDupdateSavedDialogPinned &update) {
 		}
 	}, [&](const MTPDdialogPeerFolder &data) {
 		DEBUG_LOG(("API Error: Folder in updateSavedDialogPinned."));
+	}, [&](const MTPDdialogPeerCommunity &data) {
+		DEBUG_LOG(("API Error: Community in updateSavedDialogPinned."));
 	});
 }
 
@@ -468,10 +524,11 @@ void SavedMessages::applySublistDeleted(not_null<PeerData*> sublistPeer) {
 	session().changes().entryUpdated(
 		raw,
 		Data::EntryUpdate::Flag::Destroyed);
-	_sublists.erase(i);
-
 	const auto history = owningHistory();
 	history->destroyMessagesBySublist(sublistPeer);
+	session().changes().sublistRemoved(raw);
+	_sublists.erase(i);
+
 	session().storage().unload(Storage::SharedMediaUnloadThread(
 		_owningHistory->peer->id,
 		MsgId(),

@@ -22,12 +22,12 @@ ResolveWindow ResolveWindowDefault() {
 	return [](not_null<Main::Session*> session)
 	-> Window::SessionController* {
 		const auto check = [&](Window::Controller *window) {
-			if (const auto controller = window->sessionController()) {
-				if (&controller->session() == session) {
-					return controller;
-				}
-			}
-			return (Window::SessionController*)nullptr;
+			const auto controller = window
+				? window->sessionController()
+				: nullptr;
+			return (controller && (&controller->session() == session))
+				? controller
+				: nullptr;
 		};
 		auto &app = Core::App();
 		const auto account = not_null(&session->account());
@@ -37,6 +37,8 @@ ResolveWindow ResolveWindowDefault() {
 			return b;
 		} else if (const auto c = check(app.windowFor(account))) {
 			return c;
+		} else if (Core::Quitting()) {
+			return nullptr;
 		} else if (const auto d = check(app.ensureSeparateWindowFor(
 				account))) {
 			return d;

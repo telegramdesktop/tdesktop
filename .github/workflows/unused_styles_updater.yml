@@ -1,0 +1,16 @@
+name: Unused styles updater.
+
+on:
+  repository_dispatch:
+    types: ["Restart unused_styles_updater workflow."]
+  schedule:
+    - cron: "0 3 1 * *"
+  workflow_dispatch:
+
+jobs:
+  Unused-styles:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: desktop-app/action_code_updater@master
+        with:
+          type: "unused-styles"

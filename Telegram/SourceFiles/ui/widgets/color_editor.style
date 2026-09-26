@@ -1,0 +1,28 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "boxes/boxes.style";
+
+colorEditWidth: 390px;
+colorEditSkip: 10px;
+colorPickerSize: 256px;
+colorPickerMarkRadius: 6px;
+colorPickerMarkLine: 1px;
+colorSliderSkip: 8px;
+colorSliderArrowLeft: icon {{ "color_slider_arrow", sliderBgActive }};
+colorSliderArrowRight: icon {{ "color_slider_arrow-flip_horizontal", sliderBgActive }};
+colorSliderArrowTop: icon {{ "color_slider_arrow_vertical", sliderBgActive }};
+colorSliderArrowBottom: icon {{ "color_slider_arrow_vertical-flip_vertical", sliderBgActive }};
+colorSliderWidth: 19px;
+colorSampleSize: size(60px, 34px);
+colorFieldSkip: 13px;
+colorValueInput: InputField(defaultInputField) {
+	textMargins: margins(16px, 3px, 0px, 2px);
+	heightMin: 27px;
+}
+colorResultInput: InputField(colorValueInput) {
+}

@@ -29,6 +29,8 @@ public:
 
 	bool refresh();
 
+	void setDisplayedEmptyOverride(Fn<bool()> value);
+
 	void make(Data::ChatIntro data, bool preview = false);
 
 	[[nodiscard]] auto sendIntroSticker() const
@@ -53,6 +55,8 @@ private:
 		not_null<UserData*> user);
 	[[nodiscard]] AdminLog::OwnedItem makeBlocked();
 	[[nodiscard]] AdminLog::OwnedItem makeNewBotThread();
+	[[nodiscard]] AdminLog::OwnedItem makeManagedBotInfo(
+		not_null<UserData*> user);
 	void makeIntro(not_null<UserData*> user);
 	void setItem(AdminLog::OwnedItem item, DocumentData *sticker);
 	void setHelloChosen(not_null<DocumentData*> sticker);
@@ -60,8 +64,11 @@ private:
 
 	void loadCommonGroups();
 
+	[[nodiscard]] bool displayedEmpty() const;
+
 	const not_null<History*> _history;
 	const not_null<ElementDelegate*> _delegate;
+	Fn<bool()> _displayedEmptyOverride;
 	AdminLog::OwnedItem _item;
 
 	DocumentData *_helloChosen = nullptr;

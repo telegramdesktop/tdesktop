@@ -131,6 +131,8 @@ private:
 	struct OtherDataProcess;
 	struct FileProcess;
 	struct FileProgress;
+	struct FilePolicy;
+	struct MessageFileWork;
 	struct ChatsProcess;
 	struct LeftChannelsProcess;
 	struct DialogsProcess;
@@ -213,6 +215,13 @@ private:
 		int addOffset,
 		int limit,
 		FnMut<void(MTPmessages_Messages&&)> done);
+	void startMessagesSlice(Data::MessagesSlice &&slice);
+	void resumeMessagesSlice();
+	void hydrateMessageDone(
+		bool topic,
+		int index,
+		int32 rawId,
+		const MTPmessages_Messages &result);
 	void requestTopicMessagesSlice();
 	void requestTopicReplies(
 		int offsetId,
@@ -221,14 +230,19 @@ private:
 		FnMut<void(MTPmessages_Messages&&)> done);
 	void collectMessagesCustomEmoji(const Data::MessagesSlice &slice);
 	void resolveCustomEmoji();
-	void loadMessagesFiles(Data::MessagesSlice &&slice);
+	void buildMessageFileWork(
+		AbstractMessagesProcess &process,
+		Data::Message &message);
 	void loadNextMessageFile();
-	[[nodiscard]] std::optional<QByteArray> getCustomEmoji(QByteArray &data);
+	[[nodiscard]] std::optional<QByteArray> getCustomEmoji(
+		Data::Message &message,
+		QByteArray &data);
 	bool messageCustomEmojiReady(Data::Message &message);
-	bool loadMessageFileProgress(FileProgress value);
-	void loadMessageFileDone(const QString &relativePath);
-	bool loadMessageThumbProgress(FileProgress value);
-	void loadMessageThumbDone(const QString &relativePath);
+	bool loadMessageFileProgress(int index, FileProgress value);
+	void loadMessageFileDone(
+		int index,
+		Data::File *file,
+		const QString &relativePath);
 	bool loadMessageEmojiProgress(FileProgress progress);
 	void loadMessageEmojiDone(uint64 id, const QString &relativePath);
 	void finishMessagesSlice();
@@ -237,17 +251,25 @@ private:
 	void loadTopicMessagesFiles(Data::MessagesSlice &&slice);
 	void resolveTopicCustomEmoji();
 	void loadNextTopicMessageFile();
+	bool loadTopicMessageFileProgress(int index, FileProgress value);
+	void loadTopicMessageFileDone(
+		int index,
+		Data::File *file,
+		const QString &relativePath);
 	bool loadTopicEmojiProgress(FileProgress progress);
 	void loadCustomEmojiDone(uint64 id, const QString &relativePath);
-	void loadTopicMessageFileOrThumbDone(
-		Data::File &file,
-		const QString &relativePath);
 	void finishTopicMessagesSlice();
 	void finishTopicMessages();
 
 	[[nodiscard]] Data::Message *currentFileMessage() const;
 	[[nodiscard]] Data::FileOrigin currentFileMessageOrigin() const;
 
+	bool processFileLoad(
+		Data::File &file,
+		const Data::FileOrigin &origin,
+		Fn<bool(FileProgress)> progress,
+		FnMut<void(QString)> done,
+		const FilePolicy &policy);
 	bool processFileLoad(
 		Data::File &file,
 		const Data::FileOrigin &origin,
@@ -269,7 +291,21 @@ private:
 	void loadFilePart();
 	void filePartDone(int64 offset, const MTPupload_File &result);
 	void filePartUnavailable();
+	[[nodiscard]] QString filePartMediaFolder() const;
+	void filePartRetryReference(
+		int64 offset,
+		Data::FileLocation location);
 	void filePartRefreshReference(int64 offset);
+	void filePartExtractCustomEmojiReference(
+		int64 offset,
+		uint64 customEmojiId,
+		const QString &folder,
+		const MTPVector<MTPDocument> &result);
+	void filePartExtractRichReference(
+		int64 offset,
+		const Data::FileOrigin &origin,
+		const QString &folder,
+		const MTPmessages_Messages &result);
 	void filePartExtractReference(
 		int64 offset,
 		const MTPmessages_Messages &result);

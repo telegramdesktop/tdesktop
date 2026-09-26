@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/input_field.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat_helpers.h" // defaultComposeFiles.
-#include "styles/style_settings.h"
 
 namespace Ui {
 
@@ -53,12 +52,9 @@ namespace Ui {
 				field->focusedChanges()
 			) | rpl::on_next([=](bool shown) {
 				crl::on_main(emojiToggle, [=] {
-					if (!emojiToggle->isVisible()) {
-						return;
-					}
 					if (shown) {
 						fade->fadeIn(st::universalDuration);
-					} else {
+					} else if (emojiToggle->isVisible()) {
 						fade->fadeOut(st::universalDuration);
 					}
 				});

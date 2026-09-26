@@ -27,6 +27,7 @@ public:
 	void setTop(int top);
 	[[nodiscard]] int top() const;
 	void setCanReorder(bool);
+	void setMinGridSize(int value);
 	void resizeToWidth(int newWidth);
 	[[nodiscard]] int height() const;
 
@@ -73,9 +74,11 @@ private:
 
 	int recountHeight();
 	void refreshHeight();
+	void refreshMinId();
 
 	Type _type = Type{};
 	not_null<ListSectionDelegate*> _delegate;
+	UniversalMsgId _minId = 0;
 
 	bool _hasFloatingHeader = false;
 	Ui::Text::String _header;
@@ -91,6 +94,7 @@ private:
 	mutable int _rowsCount = 0;
 	int _top = 0;
 	int _height = 0;
+	int _minGridSize = 0;
 	bool _canReorder = false;
 
 	Mosaic::Layout::MosaicLayout<BaseLayout> _mosaic;

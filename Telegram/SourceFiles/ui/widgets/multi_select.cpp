@@ -155,7 +155,7 @@ void Item::paint(Painter &p, int outerWidth) {
 		paintOnce(p, _x, _y, outerWidth);
 	} else {
 		for (auto i = _copies.begin(), e = _copies.end(); i != e;) {
-			auto x = qRound(i->x.value(_x));
+			auto x = int(base::SafeRound(i->x.value(_x)));
 			auto y = i->y;
 			auto animating = i->x.animating();
 			if (animating || (y == _y)) {
@@ -427,6 +427,8 @@ public:
 	void setQueryChangedCallback(Fn<void(const QString &query)> callback);
 	void setSubmittedCallback(Fn<void(Qt::KeyboardModifiers)> callback);
 	void setCancelledCallback(Fn<void()> callback);
+	void setFocusedChangedCallback(Fn<void(bool focused)> callback);
+	void setCancelButtonShown(bool shown);
 
 	void addItemInBunch(std::unique_ptr<Item> item);
 	void finishItemsBunch(AddItemWay way);
@@ -497,6 +499,7 @@ private:
 	int _fieldWidth = 0;
 	object_ptr<Ui::InputField> _field;
 	object_ptr<Ui::CrossButton> _cancel;
+	bool _cancelShown = true;
 
 	int _newHeight = 0;
 	Ui::Animations::Simple _height;
@@ -504,6 +507,7 @@ private:
 	Fn<void(const QString &query)> _queryChangedCallback;
 	Fn<void(Qt::KeyboardModifiers)> _submittedCallback;
 	Fn<void()> _cancelledCallback;
+	Fn<void(bool focused)> _focusedChangedCallback;
 	Fn<void(uint64 itemId)> _itemRemovedCallback;
 	Fn<void(int heightDelta)> _resizedCallback;
 
@@ -546,7 +550,7 @@ MultiSelect::MultiSelect(
 		}
 	});
 
-	setAttribute(Qt::WA_OpaquePaintEvent);
+	setAttribute(Qt::WA_OpaquePaintEvent, _st.bg->c.alpha() == 255);
 	auto defaultWidth = _st.item.maxWidth + _st.fieldMinWidth + _st.fieldCancelSkip;
 	resizeToWidth(_st.padding.left() + defaultWidth + _st.padding.right());
 }
@@ -582,8 +586,16 @@ void MultiSelect::setCancelledCallback(Fn<void()> callback) {
 	_inner->setCancelledCallback(std::move(callback));
 }
 
+void MultiSelect::setFocusedChangedCallback(Fn<void(bool focused)> callback) {
+	_inner->setFocusedChangedCallback(std::move(callback));
+}
+
 void MultiSelect::setResizedCallback(Fn<void()> callback) {
 	_resizedCallback = std::move(callback);
+}
+
+void MultiSelect::setCancelButtonShown(bool shown) {
+	_inner->setCancelButtonShown(shown);
 }
 
 void MultiSelect::setInnerFocus() {
@@ -641,7 +653,7 @@ int MultiSelect::resizeGetHeight(int newWidth) {
 	if (newWidth != _inner->width()) {
 		_inner->resizeToWidth(newWidth);
 	}
-	auto newHeight = qMin(_inner->height(), _st.maxHeight);
+	auto newHeight = std::min(_inner->height(), _st.maxHeight);
 	_scroll->setGeometryToLeft(0, 0, newWidth, newHeight);
 	return newHeight;
 }
@@ -661,6 +673,12 @@ MultiSelect::Inner::Inner(
 	_field->focusedChanges(
 	) | rpl::filter(rpl::mappers::_1) | rpl::on_next([=] {
 		fieldFocused();
+	}, _field->lifetime());
+	_field->focusedChanges(
+	) | rpl::on_next([=](bool focused) {
+		if (_focusedChangedCallback) {
+			_focusedChangedCallback(focused);
+		}
 	}, _field->lifetime());
 	_field->changes(
 	) | rpl::on_next([=] {
@@ -685,7 +703,7 @@ MultiSelect::Inner::Inner(
 
 void MultiSelect::Inner::queryChanged() {
 	auto query = getQuery();
-	_cancel->toggle(!query.isEmpty(), anim::type::normal);
+	_cancel->toggle(_cancelShown && !query.isEmpty(), anim::type::normal);
 	updateFieldGeometry();
 	if (_queryChangedCallback) {
 		_queryChangedCallback(query);
@@ -728,6 +746,23 @@ void MultiSelect::Inner::setSubmittedCallback(
 
 void MultiSelect::Inner::setCancelledCallback(Fn<void()> callback) {
 	_cancelledCallback = std::move(callback);
+}
+
+void MultiSelect::Inner::setFocusedChangedCallback(
+		Fn<void(bool focused)> callback) {
+	_focusedChangedCallback = std::move(callback);
+}
+
+void MultiSelect::Inner::setCancelButtonShown(bool shown) {
+	if (_cancelShown == shown) {
+		return;
+	}
+	_cancelShown = shown;
+	const auto toggled = _cancelShown && !getQuery().isEmpty();
+	if (_cancel->toggled() != toggled) {
+		_cancel->toggle(toggled, anim::type::instant);
+		updateFieldGeometry();
+	}
 }
 
 void MultiSelect::Inner::updateFieldGeometry() {
@@ -852,9 +887,9 @@ void MultiSelect::Inner::paintEvent(QPaintEvent *e) {
 
 QMargins MultiSelect::Inner::itemPaintMargins() const {
 	return {
-		qMax(_st.itemSkip, _st.padding.left()),
+		std::max(_st.itemSkip, _st.padding.left()),
 		_st.itemSkip,
-		qMax(_st.itemSkip, _st.padding.right()),
+		std::max(_st.itemSkip, _st.padding.right()),
 		_st.itemSkip,
 	};
 }
@@ -975,7 +1010,9 @@ void MultiSelect::Inner::computeItemsGeometry(int newWidth) {
 	auto itemLeft = 0;
 	auto itemTop = 0;
 	auto widthLeft = newWidth;
-	auto maxVisiblePadding = qMax(_st.padding.left(), _st.padding.right());
+	auto maxVisiblePadding = std::max(
+		_st.padding.left(),
+		_st.padding.right());
 	for (const auto &item : _items) {
 		auto itemWidth = item->getWidth();
 		Assert(itemWidth <= newWidth);
@@ -1010,7 +1047,7 @@ void MultiSelect::Inner::updateItemsGeometry() {
 }
 
 void MultiSelect::Inner::updateHeightStep() {
-	auto newHeight = qRound(_height.value(_newHeight));
+	auto newHeight = int(base::SafeRound(_height.value(_newHeight)));
 	if (auto heightDelta = newHeight - height()) {
 		resize(width(), newHeight);
 		if (_resizedCallback) {

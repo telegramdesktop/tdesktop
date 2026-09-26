@@ -18,8 +18,6 @@ public:
 	[[nodiscard]] virtual rpl::producer<> deleteRequests() const = 0;
 	[[nodiscard]] virtual rpl::producer<> editRequests() const = 0;
 	[[nodiscard]] virtual rpl::producer<> modifyRequests() const = 0;
-	[[nodiscard]] virtual rpl::producer<> editCoverRequests() const = 0;
-	[[nodiscard]] virtual rpl::producer<> clearCoverRequests() const = 0;
 
 };
 

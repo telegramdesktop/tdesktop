@@ -7,13 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "storage/storage_databases.h"
-#include "dialogs/dialogs_main_list.h"
-#include "data/data_groups.h"
-#include "data/data_cloud_file.h"
-#include "data/data_star_gift.h"
-#include "history/history_location_manager.h"
+#include "base/invoke_queued.h"
 #include "base/timer.h"
+#include "data/data_cloud_file.h"
+#include "data/data_groups.h"
+#include "data/data_star_gift.h"
+#include "dialogs/dialogs_main_list.h"
+#include "history/history_location_manager.h"
+#include "storage/storage_databases.h"
 
 class Image;
 class HistoryItem;
@@ -59,6 +60,7 @@ class SendActionManager;
 class Reactions;
 class EmojiStatuses;
 class ForumIcons;
+class AiComposeTones;
 class ChatFilters;
 class CloudThemes;
 class Streaming;
@@ -141,9 +143,26 @@ struct RecentJoinChat {
 	PeerId joinedPeerId = 0;
 };
 
+struct DrawToReplyRequest {
+	FullMsgId messageId;
+	uint64 photoId = 0;
+	uint64 documentId = 0;
+};
+
+struct ReactionsRemoved {
+	not_null<PeerData*> peer;
+	MsgId msgId = 0;
+	not_null<PeerData*> participant;
+};
+
 struct RequestViewRepaint {
 	not_null<const HistoryView::Element*> view;
 	QRect rect;
+};
+
+struct ViewRemoval {
+	not_null<const HistoryView::Element*> view;
+	ViewRemovalReason reason = ViewRemovalReason::Removed;
 };
 
 class Session final {
@@ -167,6 +186,9 @@ public:
 	}
 	[[nodiscard]] const Groups &groups() const {
 		return _groups;
+	}
+	[[nodiscard]] AiComposeTones &aiComposeTones() const {
+		return *_aiComposeTones;
 	}
 	[[nodiscard]] ChatFilters &chatsFilters() const {
 		return *_chatsFilters;
@@ -286,6 +308,11 @@ public:
 	void watchForOffline(not_null<UserData*> user, TimeId now = 0);
 	void maybeStopWatchForOffline(not_null<UserData*> user);
 
+	void recordSharingDisabledTime(not_null<UserData*> user);
+	[[nodiscard]] bool sharingRecentlyDisabledByMe(
+		not_null<UserData*> user) const;
+	void clearSharingDisabledTime(not_null<UserData*> user);
+
 	[[nodiscard]] auto invitedToCallUsers(CallId callId) const
 		-> const base::flat_map<not_null<UserData*>, bool> &;
 	void registerInvitedToCallUser(
@@ -376,12 +403,20 @@ public:
 	[[nodiscard]] rpl::producer<GiftAuctionGot> giftAuctionGots() const;
 	void requestItemRepaint(not_null<const HistoryItem*> item, QRect r = QRect());
 	[[nodiscard]] rpl::producer<not_null<const HistoryItem*>> itemRepaintRequest() const;
+	void requestDrawToReply(DrawToReplyRequest request);
+	[[nodiscard]] rpl::producer<DrawToReplyRequest> drawToReplyRequests() const;
 	void requestViewRepaint(not_null<const ViewElement*> view, QRect r = QRect());
 	[[nodiscard]] rpl::producer<RequestViewRepaint> viewRepaintRequest() const;
 	void requestItemResize(not_null<const HistoryItem*> item);
 	[[nodiscard]] rpl::producer<not_null<const HistoryItem*>> itemResizeRequest() const;
 	void requestViewResize(not_null<ViewElement*> view);
 	[[nodiscard]] rpl::producer<not_null<ViewElement*>> viewResizeRequest() const;
+	struct ViewHeightAdjusted {
+		not_null<ViewElement*> view;
+		int delta = 0;
+	};
+	void notifyViewHeightAdjusted(not_null<ViewElement*> view, int delta);
+	[[nodiscard]] rpl::producer<ViewHeightAdjusted> viewHeightAdjusted() const;
 	void requestItemShowHighlight(not_null<HistoryItem*> item);
 	[[nodiscard]] rpl::producer<not_null<HistoryItem*>> itemShowHighlightRequest() const;
 	void requestItemViewRefresh(not_null<const HistoryItem*> item);
@@ -392,14 +427,32 @@ public:
 	[[nodiscard]] rpl::producer<not_null<const History*>> historyUnloaded() const;
 	void notifyItemDataChange(not_null<HistoryItem*> item);
 	[[nodiscard]] rpl::producer<not_null<HistoryItem*>> itemDataChanges() const;
+	void notifyReactionsRemoved(ReactionsRemoved update);
+	[[nodiscard]] rpl::producer<ReactionsRemoved> reactionsRemoved() const;
 
 	[[nodiscard]] rpl::producer<not_null<const HistoryItem*>> itemRemoved() const;
 	[[nodiscard]] rpl::producer<not_null<const HistoryItem*>> itemRemoved(
 		FullMsgId itemId) const;
+	[[nodiscard]] rpl::producer<> sessionDataAboutToBeCleared() const;
+	void notifyItemsAboutToBeDestroyed(
+		const std::vector<not_null<HistoryItem*>> &items);
+	void destroyMessagesWithCacheCleanup(
+		const std::vector<not_null<HistoryItem*>> &items);
+	void destroyMessageWithCacheCleanup(not_null<HistoryItem*> item);
+	void scheduleItemPhotoCacheClear(not_null<HistoryItem*> item);
+	void clearPhotoCache(not_null<PhotoData*> photo);
+	[[nodiscard]] auto itemsAboutToBeDestroyed() const
+		-> rpl::producer<std::vector<not_null<HistoryItem*>>>;
+	void notifyViewAboutToBeRemoved(
+		not_null<const ViewElement*> view,
+		ViewRemovalReason reason);
+	[[nodiscard]] rpl::producer<ViewRemoval> viewAboutToBeRemoved() const;
 	void notifyViewRemoved(not_null<const ViewElement*> view);
 	[[nodiscard]] rpl::producer<not_null<const ViewElement*>> viewRemoved() const;
 	void notifyHistoryCleared(not_null<const History*> history);
 	[[nodiscard]] rpl::producer<not_null<const History*>> historyCleared() const;
+	void notifyHistoryAccessLost(not_null<History*> history);
+	[[nodiscard]] rpl::producer<not_null<History*>> historyAccessLost() const;
 	void notifyHistoryChangeDelayed(not_null<History*> history);
 	[[nodiscard]] rpl::producer<not_null<History*>> historyChanged() const;
 	void notifyViewPaidReactionSent(not_null<const ViewElement*> view);
@@ -469,6 +522,7 @@ public:
 	void applyUpdate(const MTPDupdateChatParticipantAdd &update);
 	void applyUpdate(const MTPDupdateChatParticipantDelete &update);
 	void applyUpdate(const MTPDupdateChatParticipantAdmin &update);
+	void applyUpdate(const MTPDupdateChatParticipantRank &update);
 	void applyUpdate(const MTPDupdateChatDefaultBannedRights &update);
 
 	void applyDialogs(
@@ -527,6 +581,13 @@ public:
 	void registerMessageTTL(TimeId when, not_null<HistoryItem*> item);
 	void unregisterMessageTTL(TimeId when, not_null<HistoryItem*> item);
 
+	void registerMediaDestroy(TimeId when, not_null<HistoryItem*> item);
+	void unregisterMediaDestroy(TimeId when, not_null<HistoryItem*> item);
+
+	void registerFormattedDateUpdate(
+		TimeId when,
+		not_null<HistoryView::Element*> view);
+
 	// Returns true if item found and it is not detached.
 	bool updateExistingMessage(const MTPDmessage &data);
 	void updateEditedMessage(const MTPMessage &data);
@@ -543,6 +604,13 @@ public:
 	void processMessagesDeleted(
 		PeerId peerId,
 		const QVector<MTPint> &data);
+
+	void removeReactionsFromParticipant(
+		not_null<PeerData*> peer,
+		MsgId msgId,
+		not_null<PeerData*> participant,
+		const ReactionId &reaction,
+		MsgId originMsgId);
 
 	[[nodiscard]] MsgId nextLocalMessageId();
 	[[nodiscard]] HistoryItem *message(
@@ -595,6 +663,10 @@ public:
 	void documentLoadDone(not_null<DocumentData*> document);
 	void documentLoadFail(not_null<DocumentData*> document, bool started);
 
+	[[nodiscard]] auto photoLoadProgress() const
+	-> rpl::producer<not_null<PhotoData*>> {
+		return _photoLoadProgress.events();
+	}
 	[[nodiscard]] auto documentLoadProgress() const
 	-> rpl::producer<not_null<DocumentData*>> {
 		return _documentLoadProgress.events();
@@ -627,8 +699,6 @@ public:
 	void updateSublistReadTill(SublistReadTillUpdate update);
 	[[nodiscard]] auto sublistReadTillUpdates() const
 		-> rpl::producer<SublistReadTillUpdate>;
-
-	void selfDestructIn(not_null<HistoryItem*> item, crl::time delay);
 
 	[[nodiscard]] not_null<PhotoData*> photo(PhotoId id);
 	not_null<PhotoData*> processPhoto(const MTPPhoto &data);
@@ -697,7 +767,9 @@ public:
 	[[nodiscard]] not_null<WebPageData*> webpage(
 		WebPageId id,
 		const QString &siteName,
-		const TextWithEntities &content);
+		const TextWithEntities &content,
+		PhotoData *photo = nullptr,
+		DocumentData *document = nullptr);
 	[[nodiscard]] not_null<WebPageData*> webpage(
 		WebPageId id,
 		WebPageType type,
@@ -739,6 +811,17 @@ public:
 		const MTPBotApp &data);
 
 	[[nodiscard]] not_null<PollData*> poll(PollId id);
+	// Picks the item a poll update should notify against: the message the
+	// update names, when it is loaded and still carries this poll, else the
+	// oldest regular item among the poll's registered views. Returns null
+	// when only local, fake, scheduled or admin-log copies are registered -
+	// Manager::openNotificationMessage can open none of them, so notifying
+	// against one can only name a chat the vote did not happen in.
+	[[nodiscard]] HistoryItem *findItemForPoll(
+		PollId id,
+		FullMsgId namedId) const;
+	[[nodiscard]] std::vector<not_null<PeerData*>> pollRecentVoters(
+		PollId id) const;
 	not_null<PollData*> processPoll(const MTPPoll &data);
 	not_null<PollData*> processPoll(const MTPDmessageMediaPoll &data);
 
@@ -831,9 +914,13 @@ public:
 	[[nodiscard]] bool hasPendingWebPageGamePollTodoListNotification() const;
 	void sendWebPageGamePollTodoListNotifications();
 	[[nodiscard]] rpl::producer<not_null<WebPageData*>> webPageUpdates() const;
+	[[nodiscard]] rpl::producer<not_null<PollData*>> pollUpdates() const;
 
 	void channelDifferenceTooLong(not_null<ChannelData*> channel);
 	[[nodiscard]] rpl::producer<not_null<ChannelData*>> channelDifferenceTooLong() const;
+
+	[[nodiscard]] auto communityAdminPromotions() const
+	-> rpl::producer<not_null<ChannelData*>>;
 
 	void registerItemView(not_null<ViewElement*> view);
 	void unregisterItemView(not_null<ViewElement*> view);
@@ -864,6 +951,10 @@ public:
 	};
 	void refreshChatListEntry(Dialogs::Key key);
 	void removeChatListEntry(Dialogs::Key key);
+	void refreshChatListUnreadOnTop();
+	[[nodiscard]] bool dialogsUnreadOnTop() const {
+		return _dialogsUnreadOnTop;
+	}
 	[[nodiscard]] auto chatListEntryRefreshes() const
 		-> rpl::producer<ChatListEntryRefresh>;
 
@@ -892,6 +983,14 @@ public:
 	};
 	void webViewResultSent(WebViewResultSent &&sent);
 	[[nodiscard]] rpl::producer<WebViewResultSent> webViewResultSent() const;
+
+	struct JoinChatWebViewDecision {
+		PeerId peerId;
+		uint64 queryId = 0;
+		MTPJoinChatBotResult result;
+	};
+	void joinChatWebViewDecision(JoinChatWebViewDecision &&decision);
+	[[nodiscard]] rpl::producer<JoinChatWebViewDecision> joinChatWebViewDecision() const;
 
 	void saveViewAsMessages(not_null<Forum*> forum, bool viewAsMessages);
 
@@ -951,11 +1050,16 @@ private:
 	void setupPeerNameViewer();
 	void setupUserIsContactViewer();
 
-	void checkSelfDestructItems();
 	void checkLocalUsersWentOffline();
 
 	void scheduleNextTTLs();
 	void checkTTLs();
+
+	void scheduleNextMediaDestroys();
+	void checkMediaDestroys();
+
+	void scheduleNextFormattedDateUpdate();
+	void checkFormattedDateUpdates();
 
 	int computeUnreadBadge(const Dialogs::UnreadState &state) const;
 	bool computeUnreadBadgeMuted(const Dialogs::UnreadState &state) const;
@@ -964,6 +1068,10 @@ private:
 	void applyDialog(
 		Folder *requestFolder,
 		const MTPDdialogFolder &data);
+	void applyDialog(
+		Folder *requestFolder,
+		const MTPDdialogCommunity &data);
+	void checkPinnedCommunityLoaded(not_null<ChannelData*> channel);
 
 	const Messages *messagesList(PeerId peerId) const;
 	not_null<Messages*> messagesListForInsert(PeerId peerId);
@@ -1040,6 +1148,7 @@ private:
 		std::unique_ptr<WebPageStickerSet> stickerSet,
 		std::shared_ptr<UniqueGift> uniqueGift,
 		std::unique_ptr<WebPageAuction> auction,
+		DocumentId composeToneEmojiId,
 		int duration,
 		const QString &author,
 		bool hasLargeMedia,
@@ -1068,6 +1177,14 @@ private:
 		const MTPMessageMedia &media,
 		TimeId date,
 		bool invertMedia);
+	[[nodiscard]] bool photoHasItemReferences(
+		not_null<const PhotoData*> photo) const;
+	void schedulePhotoCacheClear(
+		const std::vector<not_null<HistoryItem*>> &items);
+	void updateWebPagePhotoItems(
+		not_null<const WebPageData*> page,
+		const base::flat_set<PhotoData*> &previous);
+	void clearScheduledPhotoCache();
 
 	void setWallpapers(const QVector<MTPWallPaper> &data, uint64 hash);
 	void highlightProcessDone(uint64 processId);
@@ -1093,6 +1210,7 @@ private:
 
 	TimeId _exportAvailableAt = 0;
 	base::weak_qptr<Ui::BoxContent> _exportSuggestion;
+	rpl::lifetime _exportUnlockLifetime;
 
 	rpl::variable<bool> _contactsLoaded = false;
 	rpl::variable<int> _groupFreeTranscribeLevel;
@@ -1112,16 +1230,23 @@ private:
 	rpl::event_stream<RequestViewRepaint> _viewRepaintRequest;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemResizeRequest;
 	rpl::event_stream<not_null<ViewElement*>> _viewResizeRequest;
+	rpl::event_stream<ViewHeightAdjusted> _viewHeightAdjusted;
 	rpl::event_stream<not_null<HistoryItem*>> _itemShowHighlightRequest;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemViewRefreshRequest;
 	rpl::event_stream<not_null<HistoryItem*>> _itemTextRefreshRequest;
+	rpl::event_stream<DrawToReplyRequest> _drawToReplyRequests;
 	rpl::event_stream<not_null<HistoryItem*>> _itemDataChanges;
+	rpl::event_stream<ReactionsRemoved> _reactionsRemoved;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemRemoved;
+	rpl::event_stream<> _sessionDataAboutToBeCleared;
+	rpl::event_stream<std::vector<not_null<HistoryItem*>>> _itemsAboutToBeDestroyed;
+	rpl::event_stream<ViewRemoval> _viewAboutToBeRemoved;
 	rpl::event_stream<not_null<const ViewElement*>> _viewRemoved;
 	rpl::event_stream<not_null<const ViewElement*>> _viewPaidReactionSent;
 	rpl::event_stream<not_null<Calls::GroupCall*>> _callPaidReactionSent;
 	rpl::event_stream<not_null<const History*>> _historyUnloaded;
 	rpl::event_stream<not_null<const History*>> _historyCleared;
+	rpl::event_stream<not_null<History*>> _historyAccessLost;
 	base::flat_set<not_null<History*>> _historiesChanged;
 	rpl::event_stream<not_null<History*>> _historyChanged;
 	rpl::event_stream<MegagroupParticipant> _megagroupParticipantRemoved;
@@ -1137,6 +1262,7 @@ private:
 	Dialogs::MainList _chatsList;
 	Dialogs::IndexedList _contactsList;
 	Dialogs::IndexedList _contactsNoChatsList;
+	bool _dialogsUnreadOnTop = false;
 
 	MsgId _localMessageIdCounter = StartClientMsgId;
 	std::unordered_map<PeerId, Messages> _messages;
@@ -1146,20 +1272,27 @@ private:
 	std::map<TimeId, base::flat_set<not_null<HistoryItem*>>> _ttlMessages;
 	base::Timer _ttlCheckTimer;
 
+	std::map<
+		TimeId,
+		base::flat_set<not_null<HistoryItem*>>> _mediaDestroyMessages;
+	base::Timer _mediaDestroyCheckTimer;
+
+	std::map<TimeId, std::vector<base::weak_ptr<HistoryView::Element>>> _formattedDateUpdates;
+	base::Timer _formattedDateTimer;
+
 	std::unordered_map<MsgId, not_null<HistoryItem*>> _nonChannelMessages;
 
 	base::flat_map<uint64, FullMsgId> _messageByRandomId;
 	base::flat_map<uint64, SentData> _sentMessagesData;
-
-	base::Timer _selfDestructTimer;
-	std::vector<FullMsgId> _selfDestructItems;
 
 	std::unordered_map<
 		PhotoId,
 		std::unique_ptr<PhotoData>> _photos;
 	std::unordered_map<
 		not_null<const PhotoData*>,
-		base::flat_set<not_null<HistoryItem*>>> _photoItems;
+		base::flat_map<not_null<HistoryItem*>, int>> _photoItems;
+	SingleQueuedInvokation _clearPhotoCacheDelayed;
+	std::unordered_set<PhotoData*> _photosScheduledForCacheClear;
 	std::unordered_map<
 		DocumentId,
 		std::unique_ptr<DocumentData>> _documents;
@@ -1171,7 +1304,7 @@ private:
 		std::unique_ptr<WebPageData>> _webpages;
 	std::unordered_map<
 		not_null<const WebPageData*>,
-		base::flat_set<not_null<HistoryItem*>>> _webpageItems;
+		base::flat_map<not_null<HistoryItem*>, int>> _webpageItems;
 	std::unordered_map<
 		not_null<const WebPageData*>,
 		base::flat_set<not_null<ViewElement*>>> _webpageViews;
@@ -1218,7 +1351,10 @@ private:
 	base::flat_set<not_null<TodoListData*>> _todoListsUpdated;
 
 	rpl::event_stream<not_null<WebPageData*>> _webpageUpdates;
+	rpl::event_stream<not_null<PollData*>> _pollUpdates;
 	rpl::event_stream<not_null<ChannelData*>> _channelDifferenceTooLong;
+	rpl::event_stream<not_null<ChannelData*>> _communityAdminPromotions;
+	rpl::event_stream<not_null<PhotoData*>> _photoLoadProgress;
 	rpl::event_stream<not_null<DocumentData*>> _documentLoadProgress;
 	base::flat_set<not_null<ChannelData*>> _suggestToGigagroup;
 
@@ -1257,6 +1393,8 @@ private:
 		not_null<ChannelData*>,
 		ChannelId>> _postponedMonoforumLinkedIds;
 
+	base::flat_set<ChannelId> _pinnedCommunitiesNotLoaded;
+
 	// This one from `channel`, not `channelFull`.
 	base::flat_map<not_null<const ChannelData*>, int> _commonStarsPerMessage;
 
@@ -1274,10 +1412,12 @@ private:
 
 	base::flat_map<not_null<UserData*>, TimeId> _watchingForOffline;
 	base::Timer _watchForOfflineTimer;
+	base::flat_map<not_null<UserData*>, TimeId> _sharingDisabledTimes;
 
 	base::flat_map<not_null<PeerData*>, MTP::DcId> _peerStatsDcIds;
 
 	rpl::event_stream<WebViewResultSent> _webViewResultSent;
+	rpl::event_stream<JoinChatWebViewDecision> _joinChatWebViewDecision;
 
 	rpl::event_stream<not_null<PeerData*>> _peerDecorationsUpdated;
 	base::flat_map<
@@ -1287,6 +1427,7 @@ private:
 	mutable base::flat_map<PeerId, std::vector<FullMsgId>> _messagesWithPeer;
 
 	Groups _groups;
+	const std::unique_ptr<AiComposeTones> _aiComposeTones;
 	const std::unique_ptr<ChatFilters> _chatsFilters;
 	const std::unique_ptr<CloudThemes> _cloudThemes;
 	const std::unique_ptr<SendActionManager> _sendActionManager;
@@ -1306,7 +1447,7 @@ private:
 	const std::unique_ptr<BusinessInfo> _businessInfo;
 	std::unique_ptr<ShortcutMessages> _shortcutMessages;
 
-	MsgId _nonHistoryEntryId = ShortcutMaxMsgId;
+	MsgId _nonHistoryEntryId = WelcomeMaxMsgId;
 
 	std::unique_ptr<StarsRatingPending> _pendingStarsRating;
 

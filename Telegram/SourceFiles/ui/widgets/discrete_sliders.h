@@ -45,6 +45,7 @@ public:
 	void setActiveSection(int index);
 	void setActiveSectionFast(int index);
 	void finishAnimating();
+	void selectSection(int index);
 
 	void setAdditionalContentWidthToSection(int index, int width);
 

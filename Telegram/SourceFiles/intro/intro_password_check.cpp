@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "base/random.h"
 #include "styles/style_intro.h"
-#include "styles/style_boxes.h"
+#include "styles/style_widgets.h"
 
 namespace Intro {
 namespace details {
@@ -156,12 +156,8 @@ void PasswordCheckWidget::pwdSubmitFail(const MTP::Error &error) {
 		goBack();
 	} else if (type == u"SRP_ID_INVALID"_q) {
 		handleSrpIdInvalid();
-	} else {
-		if (Logs::DebugEnabled()) { // internal server error
-			showError(rpl::single(type + ": " + error.description()));
-		} else {
-			showError(rpl::single(Lang::Hard::ServerError()));
-		}
+	} else if (!MTP::IgnoreError(error)) {
+		showError(rpl::single(type));
 		_pwdField->setFocus();
 	}
 }
@@ -201,6 +197,15 @@ void PasswordCheckWidget::requestPasswordData() {
 }
 
 void PasswordCheckWidget::passwordChecked() {
+	if (!_passwordState.mtp.request) {
+		if (_passwordState.mtp.unknownAlgorithm) {
+			// Switched to an algorithm this build cannot compute.
+			return serverError();
+		}
+		// The password was removed after this step was created, which is the
+		// same situation the PASSWORD_EMPTY error reports.
+		return goBack();
+	}
 	const auto check = Core::ComputeCloudPasswordCheck(
 		_passwordState.mtp.request,
 		_passwordHash);
@@ -264,12 +269,8 @@ void PasswordCheckWidget::codeSubmitFail(const MTP::Error &error) {
 		showError(tr::lng_signin_wrong_code());
 		_codeField->selectAll();
 		_codeField->showError();
-	} else {
-		if (Logs::DebugEnabled()) { // internal server error
-			showError(rpl::single(type + ": " + error.description()));
-		} else {
-			showError(rpl::single(Lang::Hard::ServerError()));
-		}
+	} else if (!MTP::IgnoreError(error)) {
+		showError(rpl::single(type));
 		_codeField->setFocus();
 	}
 }
@@ -394,6 +395,9 @@ void PasswordCheckWidget::submit() {
 	} else {
 		hideError();
 
+		if (!_passwordState.mtp.request) {
+			return serverError();
+		}
 		const auto password = _pwdField->getLastText().toUtf8();
 		_passwordHash = Core::ComputeCloudPasswordHash(
 			_passwordState.mtp.request.algo,

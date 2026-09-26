@@ -381,13 +381,19 @@ MTPInputInvoice Form::inputInvoice() const {
 						MTP_long(credits->amount)));
 			}
 		}
+		const auto spendPeer = credits->spendPurposePeerId
+			? _session->data().peerLoaded(credits->spendPurposePeerId)
+			: nullptr;
+		using Flag = MTPDinputStorePaymentStarsTopup::Flag;
 		return MTP_inputInvoiceStars(
 			MTP_inputStorePaymentStarsTopup(
-				MTP_flags(0),
+				MTP_flags(spendPeer
+					? Flag::f_spend_purpose_peer
+					: Flag()),
 				MTP_long(credits->credits),
 				MTP_string(credits->currency),
 				MTP_long(credits->amount),
-				MTPInputPeer()));
+				spendPeer ? spendPeer->input() : MTPInputPeer()));
 	} else if (const auto gift = std::get_if<InvoiceStarGift>(&_id.value)) {
 		using Flag = MTPDinputInvoiceStarGift::Flag;
 		return MTP_inputInvoiceStarGift(

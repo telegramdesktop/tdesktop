@@ -179,7 +179,7 @@ object_ptr<Ui::RpWidget> CreateLoadingElementWidget(
 		}
 		p.resetTransform();
 
-		auto &_glare = state->glare;
+		const auto &_glare = state->glare;
 		if (_glare.glare.birthTime) {
 			const auto progress = _glare.progress(crl::now());
 			const auto x = (-_glare.width)

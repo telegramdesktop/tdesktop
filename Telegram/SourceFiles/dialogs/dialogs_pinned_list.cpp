@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "dialogs/dialogs_entry.h"
 #include "history/history.h"
+#include "data/data_channel.h"
 #include "data/data_session.h"
 #include "data/data_forum.h"
 
@@ -66,7 +67,10 @@ void PinnedList::setPinned(Key key, bool pinned) {
 		const auto index = int(it - begin(_data));
 		_data.erase(it);
 		key.entry()->cachePinnedIndex(_filterId, 0);
-		for (auto i = index, count = int(size(_data)); i != count; ++i) {
+		// cachePinnedIndex() may re-enter and erase from _data (for example
+		// while a filter is being removed), so re-check the size each
+		// iteration instead of caching it to avoid an out-of-bounds access.
+		for (auto i = index; i < int(size(_data)); ++i) {
 			_data[i].entry()->cachePinnedIndex(_filterId, i + 1);
 		}
 	}
@@ -97,6 +101,15 @@ void PinnedList::applyList(
 			}
 		}, [&](const MTPDdialogPeerFolder &data) {
 			addPinned(owner->folder(data.vfolder_id().v));
+		}, [&](const MTPDdialogPeerCommunity &data) {
+			const auto channelId = ChannelId(data.vcommunity_id().v);
+			if (const auto channel = owner->channelLoaded(channelId)) {
+				const auto history = owner->history(channel);
+				if (!history->folderKnown()) {
+					history->clearFolder();
+				}
+				addPinned(history);
+			}
 		});
 	}
 }
@@ -114,6 +127,7 @@ void PinnedList::applyList(
 				addPinned(sublistsOwner->sublist(peer));
 			}
 		}, [](const MTPDdialogPeerFolder &data) {
+		}, [](const MTPDdialogPeerCommunity &data) {
 		});
 	}
 }

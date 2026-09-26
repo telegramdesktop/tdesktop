@@ -32,6 +32,7 @@ public:
 
 	enum class Type {
 		Send,
+		Stop,
 		Schedule,
 		Save,
 		Record,
@@ -45,6 +46,7 @@ public:
 		QColor fillBgOverride;
 		int slowmodeDelay = 0;
 		int starsToSend = 0;
+		bool forbidden = false;
 
 		friend inline bool operator==(State, State) = default;
 	};
@@ -69,16 +71,28 @@ private:
 		QRect rounded;
 		QRect outer;
 	};
+	enum class RippleShape : uchar {
+		InnerEllipse,
+		SendEllipse,
+		StarsRoundRect,
+		ScheduleEllipse,
+	};
+
 	[[nodiscard]] QPixmap grabContent();
 	void updateSize();
 
 	[[nodiscard]] StarsGeometry starsGeometry() const;
+
+	[[nodiscard]] RippleShape currentRippleShape() const;
+	[[nodiscard]] QRect sendEllipseRect() const;
+	[[nodiscard]] QRect scheduleEllipseRect() const;
 
 	void paintRecord(QPainter &p, bool over);
 	void paintRound(QPainter &p, bool over);
 	void paintSave(QPainter &p, bool over);
 	void paintCancel(QPainter &p, bool over);
 	void paintSend(QPainter &p, bool over);
+	void paintStop(QPainter &p, bool over);
 	void paintSchedule(QPainter &p, bool over);
 	void paintSlowmode(QPainter &p);
 	void paintStarsToSend(QPainter &p, bool over);
@@ -101,6 +115,7 @@ private:
 
 	std::array<std::unique_ptr<Lottie::Icon>, 2> _voiceRoundIcons;
 	bool _voiceRoundAnimating = false;
+	RippleShape _lastRippleShape = RippleShape::SendEllipse;
 
 };
 

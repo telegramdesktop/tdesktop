@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h" // Account::sessionChanges.
 #include "main/main_session.h" // Session::account.
 #include "core/application.h"
+#include "base/base_file_utilities.h"
 #include "base/call_delayed.h"
 
 namespace MTP {
@@ -35,8 +36,9 @@ std::optional<MTPInputChannel> ExtractChannel(
 }
 
 std::optional<DedicatedLoader::File> ParseFile(
-		const MTPmessages_Messages &result) {
-	const auto message = GetMessagesElement(result);
+		const MTPmessages_Messages &result,
+		int postId) {
+	const auto message = GetMessagesElement(result, postId);
 	if (!message || message->type() != mtpc_message) {
 		LOG(("Update Error: MTP file message not found."));
 		return std::nullopt;
@@ -68,8 +70,8 @@ std::optional<DedicatedLoader::File> ParseFile(
 		return std::nullopt;
 	}
 	const auto size = int64(fields.vsize().v);
-	if (size <= 0) {
-		LOG(("Update Error: MTP file size is invalid."));
+	if (size <= 0 || size > AbstractDedicatedLoader::kMaxFileSize) {
+		LOG(("Update Error: MTP file size is invalid: %1.").arg(size));
 		return std::nullopt;
 	}
 	const auto location = MTP_inputDocumentFileLocation(
@@ -155,14 +157,22 @@ AbstractDedicatedLoader::AbstractDedicatedLoader(
 	int chunkSize)
 : _filepath(filepath)
 , _chunkSize(chunkSize) {
+	progress() | rpl::on_next([=](Progress progress) {
+		QMutexLocker lock(&_sizesMutex);
+		_alreadySize = progress.already;
+		_totalSize = progress.size;
+		_preferPercent = progress.percent;
+	}, lifetime());
 }
 
 void AbstractDedicatedLoader::start() {
-	if (!validateOutput()
-		|| (!_output.isOpen() && !_output.open(QIODevice::Append))) {
-		QFile(_filepath).remove();
-		threadSafeFailed();
-		return;
+	if (!_filepath.isEmpty()) {
+		if (!validateOutput()
+			|| (!_output.isOpen() && !_output.open(QIODevice::Append))) {
+			QFile(_filepath).remove();
+			threadSafeFailed();
+			return;
+		}
 	}
 
 	LOG(("Update Info: Starting loading '%1' from %2 offset."
@@ -181,6 +191,10 @@ int64 AbstractDedicatedLoader::totalSize() const {
 	return _totalSize;
 }
 
+bool AbstractDedicatedLoader::preferPercent() const {
+	return _preferPercent;
+}
+
 rpl::producer<QString> AbstractDedicatedLoader::ready() const {
 	return _ready.events();
 }
@@ -194,6 +208,9 @@ rpl::producer<> AbstractDedicatedLoader::failed() const {
 }
 
 void AbstractDedicatedLoader::wipeFolder() {
+	if (_filepath.isEmpty()) {
+		return;
+	}
 	QFileInfo info(_filepath);
 	const auto dir = info.dir();
 	const auto all = dir.entryInfoList(QDir::Files);
@@ -251,8 +268,15 @@ void AbstractDedicatedLoader::threadSafeFailed() {
 	});
 }
 
-void AbstractDedicatedLoader::writeChunk(bytes::const_span data, int totalSize) {
-	const auto size = data.size();
+void AbstractDedicatedLoader::writeChunk(bytes::const_span data, int64 totalSize) {
+	const auto size = int64(data.size());
+	if (totalSize > kMaxFileSize || alreadySize() + size > kMaxFileSize) {
+		LOG(("Update Error: Download exceeds the size limit: %1 / %2."
+			).arg(alreadySize() + size
+			).arg(totalSize));
+		threadSafeFailed();
+		return;
+	}
 	if (size > 0) {
 		const auto written = _output.write(QByteArray::fromRawData(
 			reinterpret_cast<const char*>(data.data()),
@@ -288,7 +312,9 @@ DedicatedLoader::DedicatedLoader(
 	base::weak_ptr<Main::Session> session,
 	const QString &folder,
 	const File &file)
-: AbstractDedicatedLoader(folder + '/' + file.name, kChunkSize)
+: AbstractDedicatedLoader(
+	folder + '/' + base::FileNameFromUserString(file.name),
+	kChunkSize)
 , _size(file.size)
 , _dcId(file.dcId)
 , _location(file.location)
@@ -424,13 +450,20 @@ void ResolveChannel(
 }
 
 std::optional<MTPMessage> GetMessagesElement(
-		const MTPmessages_Messages &list) {
+		const MTPmessages_Messages &list,
+		int messageId) {
 	return list.match([&](const MTPDmessages_messagesNotModified &) {
 		return std::optional<MTPMessage>(std::nullopt);
-	}, [&](const auto &data) {
-		return data.vmessages().v.isEmpty()
-			? std::nullopt
-			: std::make_optional(data.vmessages().v[0]);
+	}, [&](const auto &data) -> std::optional<MTPMessage> {
+		for (const auto &message : data.vmessages().v) {
+			const auto id = message.match([](const auto &data) {
+				return data.vid().v;
+			});
+			if (!messageId || id == messageId) {
+				return message;
+			}
+		}
+		return std::nullopt;
 	});
 }
 
@@ -439,8 +472,9 @@ void StartDedicatedLoader(
 		const DedicatedLoader::Location &location,
 		const QString &folder,
 		Fn<void(std::unique_ptr<DedicatedLoader>)> ready) {
+	const auto postId = location.postId;
 	const auto doneHandler = [=](const MTPmessages_Messages &result) {
-		const auto file = ParseFile(result);
+		const auto file = ParseFile(result, postId);
 		ready(file
 			? std::make_unique<MTP::DedicatedLoader>(
 				mtp->session(),
@@ -454,9 +488,7 @@ void StartDedicatedLoader(
 		ready(nullptr);
 	};
 
-	const auto &[username, postId] = location;
-	ResolveChannel(mtp, username, [=, postId = postId](
-			const MTPInputChannel &channel) {
+	const auto request = [=](const MTPInputChannel &channel) {
 		mtp->send(
 			MTPchannels_GetMessages(
 				channel,
@@ -465,7 +497,16 @@ void StartDedicatedLoader(
 					MTP_inputMessageID(MTP_int(postId)))),
 			doneHandler,
 			failHandler);
-	}, [=] { ready(nullptr); });
+	};
+	if (location.channelId) {
+		request(MTP_inputChannel(
+			MTP_long(location.channelId),
+			MTP_long(location.accessHash)));
+	} else {
+		ResolveChannel(mtp, location.username, request, [=] {
+			ready(nullptr);
+		});
+	}
 }
 
 } // namespace MTP

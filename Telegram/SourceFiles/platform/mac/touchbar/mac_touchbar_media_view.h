@@ -14,6 +14,7 @@ namespace TouchBar {
 
 void SetupMediaViewTouchBar(
 	WId winId,
+	const QString &matchTitle,
 	not_null<Media::View::PlaybackControls::Delegate*> controlsDelegate,
 	rpl::producer<Media::Player::TrackState> trackState,
 	rpl::producer<Media::View::OverlayWidget::TouchBarItemType> display,

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webview/platform/linux/webview_linux_webkitgtk.h"
 
 #include <QtWidgets/QApplication>
+#include <ksandbox.h>
 #include <glib/glib.hpp>
 
 #ifdef __GLIBC__
@@ -45,24 +46,23 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 		return false;
 	}
 
-	const auto justRelaunch = action == UpdaterLaunch::JustRelaunch;
+	const auto justRelaunch = action == UpdaterLaunch::JustRelaunch
+		|| KSandbox::isInside();
+
 	if (action == UpdaterLaunch::PerformUpdate) {
 		_updating = true;
 	}
 
 	std::vector<std::string> argumentsList;
 
-	// What we are launching.
-	const auto launching = justRelaunch
-		? (cExeDir() + cExeName())
-		: cWriteProtected()
-		? GLib::find_program_in_path("run0")
-		? u"run0"_q
-		: u"pkexec"_q
-		: (cExeDir() + u"Updater"_q);
-	argumentsList.push_back(launching.toStdString());
-
-	if (justRelaunch) {
+	if (KSandbox::isFlatpak() && _updating) {
+		argumentsList.push_back("flatpak-spawn");
+		argumentsList.push_back("--latest-version");
+		argumentsList.push_back((cExeDir() + cExeName()).toStdString());
+	} else if (justRelaunch) {
+		// What we are launching.
+		const auto launching = (cExeDir() + cExeName());
+		argumentsList.push_back(launching.toStdString());
 		// argv[0] that is passed to what we are launching.
 		// It should be added explicitly in case of FILE_AND_ARGV_ZERO_.
 		const auto argv0 = !arguments().isEmpty()
@@ -70,9 +70,13 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 			: launching;
 		argumentsList.push_back(argv0.toStdString());
 	} else if (cWriteProtected()) {
-		// Elevated process that run0/pkexec should launch.
-		const auto elevated = cWorkingDir() + u"tupdates/temp/Updater"_q;
-		argumentsList.push_back(elevated.toStdString());
+		argumentsList.push_back(GLib::find_program_in_path("run0")
+			? "run0"
+			: "pkexec");
+		argumentsList.push_back(
+			cWorkingDir().toStdString() + "tupdates/temp/Updater");
+	} else {
+		argumentsList.push_back(cExeDir().toStdString() + "Updater");
 	}
 
 	if (Logs::DebugEnabled()) {
@@ -122,7 +126,9 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 			initialWorkingDir().toStdString(),
 			argumentsList,
 			{},
-			GLib::SpawnFlags::FILE_AND_ARGV_ZERO_,
+			KSandbox::isFlatpak() && _updating
+				? GLib::SpawnFlags::SEARCH_PATH_
+				: GLib::SpawnFlags::FILE_AND_ARGV_ZERO_,
 			nullptr,
 			nullptr,
 			nullptr);

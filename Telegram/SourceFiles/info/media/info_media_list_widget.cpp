@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_common.h"
 #include "info/media/info_media_provider.h"
 #include "info/media/info_media_list_section.h"
+#include "info/media/info_media_grid_zoom.h"
 #include "info/downloads/info_downloads_provider.h"
 #include "info/saved/info_saved_music_provider.h"
 #include "info/stories/info_stories_provider.h"
@@ -21,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
+#include "data/data_chat_participant_status.h"
 #include "data/data_peer_values.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
@@ -41,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/stories/media_stories_stealth.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
+#include "lang/lang_numbers_animation.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/popup_menu.h"
@@ -52,6 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
 #include "ui/inactive_press.h"
+#include "ui/text/text_utilities.h"
 #include "lang/lang_keys.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
@@ -65,18 +69,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/delete_messages_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/sticker_set_box.h" // StickerPremiumMark
+#include "core/click_handler_types.h"
 #include "core/file_utilities.h"
 #include "core/application.h"
 #include "ui/toast/toast.h"
-#include "styles/style_overview.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_chat.h"
 #include "styles/style_credits.h" // giftBoxHiddenMark
 #include "styles/style_chat_helpers.h"
-#include "styles/style_media_stories.h"
 
+#include <QtCore/QMimeData>
 #include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>
 
@@ -160,6 +164,10 @@ ListWidget::ListWidget(
 : RpWidget(parent)
 , _controller(controller)
 , _provider(MakeProvider(_controller))
+, _sectionsSortedById(!controller->isDownloads()
+	&& !controller->isGlobalMedia())
+, _checkMoveToOtherViewer([=] { checkMoveToOtherViewer(); })
+, _rowsScrollCache([=] { update(); })
 , _dateBadge(std::make_unique<DateBadge>(
 	_provider->type(),
 	[=] { scrollDateCheck(); },
@@ -170,6 +178,7 @@ ListWidget::ListWidget(
 		&_controller->session(),
 		st::giftBoxHiddenMark,
 		RectPart::Center)) {
+	_zoom = std::make_unique<ListZoom>(this);
 	start();
 }
 
@@ -182,12 +191,29 @@ void ListWidget::start() {
 
 	_controller->setSearchEnabledByContent(false);
 
+	style::PaletteChanged(
+	) | rpl::on_next([=] {
+		_rowsScrollCache.clear();
+	}, lifetime());
+
 	_provider->layoutRemoved(
 	) | rpl::on_next([=](not_null<BaseLayout*> layout) {
 		if (_overLayout == layout) {
 			_overLayout = nullptr;
 		}
+		if (_reorderState.item == layout) {
+			dropReorderState();
+		}
+		if (!_shiftAnimations.empty()) {
+			// Shift animation callbacks capture layout pointers, so
+			// they must be dropped while all the layouts are alive.
+			_shiftAnimations.clear();
+			_activeShiftAnimations = 0;
+			resetAllItemShifts();
+		}
 		_heavyLayouts.remove(layout);
+		_rowsScrollCache.invalidate(GetLayoutCacheKey(layout));
+		removeLayoutFromSections(layout);
 	}, lifetime());
 
 	_provider->refreshed(
@@ -245,6 +271,7 @@ void ListWidget::subscribeToSession(
 		rpl::lifetime &lifetime) {
 	session->downloaderTaskFinished(
 	) | rpl::on_next([=] {
+		_rowsScrollCache.clear();
 		update();
 	}, lifetime);
 
@@ -350,9 +377,88 @@ rpl::producer<int> ListWidget::scrollToRequests() const {
 	return _scrollToRequests.events();
 }
 
+std::optional<int> ListWidget::fullCount() const {
+	return _provider->fullCount();
+}
+
+rpl::producer<std::optional<int>> ListWidget::fullCountValue() const {
+	return _fullCountUpdates.events_starting_with(fullCount());
+}
+
+auto ListWidget::globalMediaSliceView() const
+-> const std::optional<GlobalMediaSliceView> & {
+	return _globalMediaSliceView;
+}
+
+auto ListWidget::globalMediaSliceViewValue() const
+-> rpl::producer<std::optional<GlobalMediaSliceView>> {
+	return _globalMediaSliceViewChanges.events_starting_with_copy(
+		_globalMediaSliceView);
+}
+
+rpl::producer<> ListWidget::globalMediaSliceRefreshStarts() const {
+	return _globalMediaSliceRefreshStarts.events();
+}
+
+bool ListWidget::globalMediaSliceRefreshInProgress() const {
+	return _globalMediaSliceRefreshInProgress;
+}
+
+void ListWidget::setGlobalMediaEmbeddedViewport() {
+	_globalMediaEmbeddedViewport = true;
+}
+
 rpl::producer<SelectedItems> ListWidget::selectedListValue() const {
 	return _selectedListStream.events_starting_with(
 		collectSelectedItems());
+}
+
+int ListWidget::heightForFirstRows(int count) const {
+	if (count <= 0) {
+		return 0;
+	} else if (_sections.empty()) {
+		return heightNoMargins();
+	}
+	for (const auto &section : _sections) {
+		if (!section.isOneColumn()) {
+			return heightNoMargins();
+		}
+	}
+	auto result = padding().top();
+	auto remaining = count;
+	for (const auto &section : _sections) {
+		const auto &items = section.items();
+		const auto rows = int(items.size());
+		if (rows <= remaining) {
+			result += section.height();
+			remaining -= rows;
+			if (!remaining) {
+				return result;
+			}
+			continue;
+		}
+		const auto item = items[remaining - 1];
+		return result + item->position() + item->height();
+	}
+	return result;
+}
+
+bool ListWidget::allRowsDisplayed() const {
+	const auto count = fullCount();
+	if (!count) {
+		return false;
+	}
+	const auto displayed = ranges::accumulate(
+		_sections,
+		0,
+		[](int result, const ListSection &section) {
+			return result + int(section.items().size());
+		});
+	return (displayed == *count);
+}
+
+bool ListWidget::hasRows() const {
+	return !_sections.empty();
 }
 
 void ListWidget::selectionAction(SelectionAction action) {
@@ -367,6 +473,24 @@ void ListWidget::selectionAction(SelectionAction action) {
 		toggleStoryInProfileSelected(false);
 		return;
 	case SelectionAction::ToggleStoryPin: toggleStoryPinSelected(); return;
+	}
+}
+
+void ListWidget::setSelectOnClick(bool enabled) {
+	_selectOnClick = enabled;
+}
+
+void ListWidget::setSelectedLimit(int limit) {
+	_selectedLimit = std::max(limit, 0);
+}
+
+void ListWidget::setPreloadEnabled(bool enabled) {
+	if (_preloadEnabled == enabled) {
+		return;
+	}
+	_preloadEnabled = enabled;
+	if (_preloadEnabled) {
+		checkMoveToOtherViewer();
 	}
 }
 
@@ -397,6 +521,8 @@ void ListWidget::restart() {
 	_overLayout = nullptr;
 	_sections.clear();
 	_heavyLayouts.clear();
+	_rowsScrollCache.clear();
+	invalidateGlobalMediaSliceView();
 
 	_provider->restart();
 
@@ -404,27 +530,15 @@ void ListWidget::restart() {
 }
 
 void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
-	if (!_provider->isMyItem(item)) {
-		return;
-	}
-
+	// The provider may handle this removal first and stop counting the
+	// item as its own (downloads), so the item pointers must be dropped
+	// before the membership check, only the sections work depends on it.
 	if (_contextItem == item) {
 		_contextItem = nullptr;
 	}
 
 	if (_reorderState.item && _reorderState.item->getItem() == item) {
-		_reorderState = {};
-	}
-
-	auto needHeightRefresh = false;
-	const auto sectionIt = findSectionByItem(item);
-	if (sectionIt != _sections.end()) {
-		if (sectionIt->removeItem(item)) {
-			if (sectionIt->empty()) {
-				_sections.erase(sectionIt);
-			}
-			needHeightRefresh = true;
-		}
+		dropReorderState();
 	}
 
 	if (isItemLayout(item, _overLayout)) {
@@ -444,10 +558,66 @@ void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
 		removeItemSelection(i);
 	}
 
-	if (needHeightRefresh) {
-		refreshHeight();
+	if (!_provider->isMyItem(item)) {
+		return;
+	}
+
+	const auto sectionIt = findSectionByItem(item);
+	if (sectionIt != _sections.end()
+		&& removeItemFromSection(item, sectionIt)) {
+		refreshHeightAfterRemoval();
 	}
 	mouseActionUpdate(_mousePosition);
+}
+
+void ListWidget::refreshHeightAfterRemoval() {
+	const auto provider = globalMediaProvider();
+	const auto globalMediaMusic = provider
+		&& (provider->type() == Type::MusicFile);
+	if (globalMediaMusic) {
+		_globalMediaSliceRefreshInProgress = true;
+		_globalMediaSliceView = std::nullopt;
+	}
+	refreshHeight();
+	if (globalMediaMusic) {
+		_globalMediaSliceRefreshInProgress = false;
+		_globalMediaSliceViewChanges.fire_copy(
+			_globalMediaSliceView);
+	}
+}
+
+void ListWidget::removeLayoutFromSections(not_null<BaseLayout*> layout) {
+	// Providers destroy layouts before any sections refresh reaches us,
+	// sometimes with only a postponed refresh scheduled (downloads), so
+	// the sections must forget the layout right away, otherwise a paint
+	// before that refresh would use the destroyed layout.
+	const auto item = layout->getItem();
+	for (auto i = begin(_sections); i != end(_sections); ++i) {
+		if (removeItemFromSection(item, i)) {
+			refreshHeightAfterRemoval();
+			return;
+		}
+	}
+}
+
+bool ListWidget::removeItemFromSection(
+		not_null<const HistoryItem*> item,
+		std::vector<Section>::iterator i) {
+	if (!i->removeItem(item)) {
+		return false;
+	}
+	if (_reorderState.section == &*i) {
+		// The reorder indices into this section just became stale.
+		dropReorderState();
+	}
+	if (i->empty()) {
+		if (_reorderState.section) {
+			// Erasing shifts the sections the pointer points into.
+			dropReorderState();
+		}
+		_sections.erase(i);
+	}
+	return true;
 }
 
 auto ListWidget::collectSelectedItems() const -> SelectedItems {
@@ -466,6 +636,16 @@ auto ListWidget::collectSelectedItems() const -> SelectedItems {
 		return convert(item.first, item.second);
 	};
 	auto items = SelectedItems(_provider->type());
+	if (_provider->type() == Type::PhotoVideo
+		&& !_controller->storiesPeer()) {
+		items.title = [](int count) {
+			return tr::lng_media_selected_media(
+				tr::now,
+				lt_count,
+				count,
+				Ui::StringWithNumbers::FromString);
+		};
+	}
 	if (hasSelectedItems()) {
 		items.list.reserve(_selected.size());
 		std::transform(
@@ -544,6 +724,7 @@ void ListWidget::itemLayoutChanged(
 
 void ListWidget::repaintItem(const HistoryItem *item) {
 	if (const auto found = findItemByItem(item)) {
+		_rowsScrollCache.invalidate(GetLayoutCacheKey(found->layout));
 		repaintItem(found->geometry);
 	}
 }
@@ -620,7 +801,7 @@ void ListWidget::openPhoto(not_null<PhotoData*> photo, FullMsgId id) {
 	};
 	_controller->parentController()->openPhoto(
 		photo,
-		{ id, topicRootId(), monoforumPeerId() },
+		{ id, topicRootId(), monoforumPeerId(), showDrawButton() },
 		_controller->storiesPeer() ? &context : nullptr);
 }
 
@@ -635,8 +816,19 @@ void ListWidget::openDocument(
 	_controller->parentController()->openDocument(
 		document,
 		showInMediaView,
-		{ id, topicRootId(), monoforumPeerId() },
+		{ id, topicRootId(), monoforumPeerId(), showDrawButton() },
 		_controller->storiesPeer() ? &context : nullptr);
+}
+
+bool ListWidget::showDrawButton() const {
+	if (const auto topic = _controller->key().topic()) {
+		return Data::CanSendAnyOf(topic, Data::FilesSendRestrictions());
+	} else if (const auto sublist = _controller->key().sublist()) {
+		return Data::CanSendAnyOf(sublist, Data::FilesSendRestrictions());
+	} else if (const auto peer = _controller->key().peer()) {
+		return Data::CanSendAnyOf(peer, Data::FilesSendRestrictions());
+	}
+	return false;
 }
 
 void ListWidget::trackSession(not_null<Main::Session*> session) {
@@ -680,7 +872,71 @@ void ListWidget::markStoryMsgsSelected() {
 	}
 }
 
+GlobalMedia::Provider *ListWidget::globalMediaProvider() const {
+	return dynamic_cast<GlobalMedia::Provider*>(_provider.get());
+}
+
+auto ListWidget::computeGlobalMediaSliceView() const
+-> std::optional<GlobalMediaSliceView> {
+	const auto provider = globalMediaProvider();
+	if (!provider || provider->type() != Type::MusicFile) {
+		return std::nullopt;
+	}
+	const auto &snapshot = provider->sliceSnapshot();
+	if (!snapshot) {
+		return std::nullopt;
+	}
+	auto result = GlobalMediaSliceView{ .slice = *snapshot };
+	if (_sections.size() != 1 || !_sections.front().isOneColumn()) {
+		return result;
+	}
+
+	const auto count = int(_sections.front().items().size());
+	result.rows.reserve(count);
+	auto ids = base::flat_set<FullMsgId>();
+	const auto &section = _sections.front();
+	for (auto i = 0; i != count; ++i) {
+		const auto item = section.items()[i];
+		const auto position = item->getItem()->position();
+		auto geometry = section.findItemDetails(item).geometry;
+		geometry.translate(0, section.top());
+		if (ids.contains(position.fullId)
+			|| (i > 0 && !(result.rows.back().position > position))
+			|| geometry.height() <= 0
+			|| (i > 0
+				&& result.rows.back().geometry.y()
+					+ result.rows.back().geometry.height()
+					!= geometry.y())) {
+			result.rows.clear();
+			return result;
+		}
+		ids.emplace(position.fullId);
+		result.rows.push_back({ position, geometry });
+	}
+	return result;
+}
+
+void ListWidget::invalidateGlobalMediaSliceView() {
+	const auto provider = globalMediaProvider();
+	if (!provider
+		|| provider->type() != Type::MusicFile
+		|| !_globalMediaSliceView) {
+		return;
+	}
+	_globalMediaSliceView = std::nullopt;
+	_globalMediaSliceViewChanges.fire_copy(_globalMediaSliceView);
+}
+
 void ListWidget::refreshRows() {
+	const auto globalMedia = globalMediaProvider();
+	const auto globalMediaMusic = globalMedia
+		&& (globalMedia->type() == Type::MusicFile);
+	const auto embedded = _globalMediaEmbeddedViewport;
+	const auto embeddedGlobalMedia = globalMediaMusic && embedded;
+	_globalMediaSliceRefreshInProgress = embeddedGlobalMedia;
+	if (embedded) {
+		_globalMediaSliceRefreshStarts.fire({});
+	}
 	saveScrollState();
 
 	_reorderState = {};
@@ -695,14 +951,29 @@ void ListWidget::refreshRows() {
 		markStoryMsgsSelected();
 	}
 
-	if (const auto count = _provider->fullCount()) {
-		if (*count > kMediaCountForSearch) {
-			_controller->setSearchEnabledByContent(true);
-		}
+	const auto count = _provider->fullCount();
+	if (count && *count > kMediaCountForSearch) {
+		_controller->setSearchEnabledByContent(true);
+	}
+	if (!embeddedGlobalMedia) {
+		_fullCountUpdates.fire_copy(count);
 	}
 
 	resizeToWidth(width());
+	_globalMediaSliceView = globalMediaMusic
+		? computeGlobalMediaSliceView()
+		: std::nullopt;
 	restoreScrollState();
+	if (embeddedGlobalMedia) {
+		_fullCountUpdates.fire_copy(count);
+	}
+	if (globalMediaMusic) {
+		_globalMediaSliceViewChanges.fire_copy(_globalMediaSliceView);
+	}
+	if (embeddedGlobalMedia) {
+		_globalMediaSliceRefreshInProgress = false;
+		_checkMoveToOtherViewer.call();
+	}
 	mouseActionUpdate();
 	update();
 }
@@ -724,8 +995,10 @@ void ListWidget::restoreState(not_null<Memento*> memento) {
 
 int ListWidget::resizeGetHeight(int newWidth) {
 	if (newWidth > 0) {
+		const auto gridSize = _zoom->minGridSize();
 		for (auto &section : _sections) {
 			section.setCanReorder(canReorder());
+			section.setMinGridSize(gridSize);
 			section.resizeToWidth(newWidth);
 		}
 	}
@@ -794,6 +1067,9 @@ auto ListWidget::foundItemInSection(
 void ListWidget::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
+	if (_visibleTop != visibleTop || _visibleBottom != visibleBottom) {
+		_rowsScrollCache.markScrolling();
+	}
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;
 
@@ -801,8 +1077,9 @@ void ListWidget::visibleTopBottomUpdated(
 	clearHeavyItems();
 
 	if (_dateBadge->goodType) {
-		updateDateBadgeFor(_visibleTop);
-		if (!_visibleTop) {
+		const auto badgeTop = _visibleTop + _topOverlayHeight;
+		updateDateBadgeFor(badgeTop);
+		if (badgeTop <= 0) {
 			if (_dateBadge->shown) {
 				scrollDateHide();
 			} else {
@@ -854,7 +1131,12 @@ void ListWidget::toggleScrollDateShown() {
 }
 
 void ListWidget::checkMoveToOtherViewer() {
-	const auto visibleHeight = (_visibleBottom - _visibleTop);
+	if (!_preloadEnabled || _globalMediaSliceRefreshInProgress) {
+		return;
+	}
+	const auto visibleHeight = std::max(
+		_visibleBottom - _visibleTop,
+		_externalViewportHeight);
 	if (width() <= 0
 		|| visibleHeight <= 0
 		|| _sections.empty()
@@ -904,15 +1186,22 @@ void ListWidget::clearHeavyItems() {
 }
 
 ListScrollTopState ListWidget::countScrollState() const {
-	if (_sections.empty() || _visibleTop <= 0) {
+	return countScrollState({ st::infoMediaSkip, _visibleTop });
+}
+
+ListScrollTopState ListWidget::countScrollState(QPoint anchor) const {
+	const auto stickToTop = _globalMediaEmbeddedViewport
+		|| !_externalViewportHeight
+		|| !_provider->anchorWhileAtTop();
+	if (_sections.empty() || (_visibleTop <= 0 && stickToTop)) {
 		return {};
 	}
-	const auto topItem = findItemByPoint({ st::infoMediaSkip, _visibleTop });
-	const auto item = topItem.layout->getItem();
+	const auto anchorItem = findItemByPoint(anchor);
+	const auto item = anchorItem.layout->getItem();
 	return {
 		.position = _provider->scrollTopStatePosition(item),
 		.item = item,
-		.shift = _visibleTop - topItem.geometry.y(),
+		.shift = _visibleTop - anchorItem.geometry.y(),
 	};
 }
 
@@ -940,10 +1229,35 @@ void ListWidget::restoreScrollState() {
 	}
 	const auto item = foundItemInSection(*found, *sectionIt);
 	const auto newVisibleTop = item.geometry.y() + _scrollTopState.shift;
-	if (_visibleTop != newVisibleTop) {
+	if (_visibleTop != newVisibleTop
+		|| _globalMediaSliceRefreshInProgress) {
 		_scrollToRequests.fire_copy(newVisibleTop);
 	}
 	_scrollTopState = ListScrollTopState();
+}
+
+bool ListWidget::keepPhotoMediaLoaded() {
+	return _zoom->isZoomable();
+}
+
+void ListWidget::zoomIn() {
+	_zoom->zoomIn();
+}
+
+void ListWidget::zoomOut() {
+	_zoom->zoomOut();
+}
+
+bool ListWidget::canZoomIn() const {
+	return _zoom->canZoomIn();
+}
+
+bool ListWidget::canZoomOut() const {
+	return _zoom->canZoomOut();
+}
+
+bool ListWidget::processZoomWheel(not_null<QWheelEvent*> e) {
+	return _zoom->processWheel(e);
 }
 
 MsgId ListWidget::topicRootId() const {
@@ -960,8 +1274,22 @@ QMargins ListWidget::padding() const {
 	return st::infoMediaMargin;
 }
 
+bool ListWidget::eventHook(QEvent *e) {
+	if (e->type() == QEvent::NativeGesture) {
+		const auto gesture = static_cast<QNativeGestureEvent*>(e);
+		if (_zoom->handleNativeGesture(gesture)) {
+			return true;
+		}
+	}
+	return RpWidget::eventHook(e);
+}
+
 void ListWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
+
+	if (_zoom->paint(p)) {
+		return;
+	}
 
 	const auto outerWidth = width();
 	const auto clip = e->rect();
@@ -981,6 +1309,9 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		&_dragSelected,
 		_dragSelectAction
 	};
+	context.scrollCache = &_rowsScrollCache;
+	context.hoveredItem = _overLayout;
+	context.bg = _controller->listBackground();
 	if (_mouseAction == MouseAction::Reordering && _reorderState.item) {
 		context.draggedItem = _reorderState.item;
 	}
@@ -1038,7 +1369,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 				st::roundedFg,
 				_dateBadge->text,
 				_dateBadge->textWidth,
-				_visibleTop,
+				_visibleTop + _topOverlayHeight,
 				outerWidth,
 				false);
 		}
@@ -1110,7 +1441,7 @@ void ListWidget::showContextMenu(
 		}
 	} else if (hasSelectedText()) {
 		// #TODO text selection
-	} else if (hasSelectedItems()) {
+	} else if (hasSelectedItems() && !_selectOnClick) {
 		auto it = _selected.find(_overState.item);
 		if (isSelectedItem(it) && _overState.inside) {
 			overSelected = SelectionState::OverSelectedItems;
@@ -1169,53 +1500,56 @@ void ListWidget::showContextMenu(
 		? reinterpret_cast<DocumentData*>(
 			link->property(kDocumentLinkMediaProperty).toULongLong())
 		: nullptr;
-	if (lnkPhoto || lnkDocument) {
-		if (lnkPhoto) {
-		} else {
-			if (lnkDocument->loading()) {
-				_contextMenu->addAction(
-					tr::lng_context_cancel_download(tr::now),
-					[lnkDocument] {
-						lnkDocument->cancel();
-					},
-					&st::menuIconCancel);
-			} else {
-				const auto filepath = _provider->showInFolderPath(
-					item,
-					lnkDocument);
-				if (!filepath.isEmpty()) {
-					const auto handler = base::fn_delayed(
-						st::defaultDropdownMenu.menu.ripple.hideDuration,
-						this,
-						[filepath] {
-							File::ShowInFolder(filepath);
-						});
-					_contextMenu->addAction(
-						(Platform::IsMac()
-							? tr::lng_context_show_in_finder(tr::now)
-							: tr::lng_context_show_in_folder(tr::now)),
-						std::move(handler),
-						&st::menuIconShowInFolder);
+	const auto rowDocument = _overLayout
+		? _overLayout->getDocument()
+		: nullptr;
+	const auto document = rowDocument ? rowDocument : lnkDocument;
+	using ExternalState = Data::DownloadManager::ExternalLoadingState;
+	const auto externalState = _controller->isDownloads()
+		? Core::App().downloadManager().loadingExternalState(item)
+		: std::optional<ExternalState>();
+	if (externalState && !externalState->done) {
+		_contextMenu->addAction(
+			tr::lng_context_cancel_download(tr::now),
+			[globalId] {
+				if (const auto item = MessageByGlobalId(globalId)) {
+					Core::App().downloadManager().cancelLoadingExternal(item);
 				}
+			},
+			&st::menuIconCancel);
+	} else if (document) {
+		if (document->loading()) {
+			_contextMenu->addAction(
+				tr::lng_context_cancel_download(tr::now),
+				[document] {
+					document->cancel();
+				},
+				&st::menuIconCancel);
+		} else {
+			const auto filepath = _provider->showInFolderPath(item, document);
+			if (!filepath.isEmpty()) {
 				const auto handler = base::fn_delayed(
 					st::defaultDropdownMenu.menu.ripple.hideDuration,
 					this,
-					[=] {
-						DocumentSaveClickHandler::SaveAndTrack(
-							globalId.itemId,
-							lnkDocument,
-							DocumentSaveClickHandler::Mode::ToNewFile);
+					[filepath] {
+						File::ShowInFolder(filepath);
 					});
-				if (_provider->allowSaveFileAs(item, lnkDocument)) {
-					HistoryView::AddSaveDocumentAction(
-						Ui::Menu::CreateAddActionCallback(_contextMenu),
-						item,
-						lnkDocument,
-						_controller->parentController());
-				}
+				_contextMenu->addAction(
+					(Platform::IsMac()
+						? tr::lng_context_show_in_finder(tr::now)
+						: tr::lng_context_show_in_folder(tr::now)),
+					std::move(handler),
+					&st::menuIconShowInFolder);
+			}
+			if (_provider->allowSaveFileAs(item, document)) {
+				HistoryView::AddSaveDocumentAction(
+					Ui::Menu::CreateAddActionCallback(_contextMenu),
+					item,
+					document,
+					_controller->parentController());
 			}
 		}
-	} else if (link) {
+	} else if (link && !lnkPhoto) {
 		const auto actionText = link->copyToClipboardContextItemText();
 		if (!actionText.isEmpty()) {
 			_contextMenu->addAction(
@@ -1329,14 +1663,21 @@ void ListWidget::showContextMenu(
 		}
 		if (const auto peer = _controller->key().storiesPeer()) {
 			if (!peer->isSelf() && IsStoryMsgId(globalId.itemId.msg)) {
-				::Media::Stories::AddStealthModeMenu(
-					Ui::Menu::CreateAddActionCallback(_contextMenu),
-					peer,
-					_controller->parentController());
 				const auto storyId = FullStoryId{
 					globalId.itemId.peer,
 					StoryIdFromMsgId(globalId.itemId.msg),
 				};
+				const auto albumId = _controller->storiesAlbumId();
+				::Media::Stories::AddStealthModeMenu(
+					Ui::Menu::CreateAddActionCallback(_contextMenu),
+					peer,
+					_controller->parentController(),
+					crl::guard(this, [=] {
+						_controller->parentController()->openPeerStory(
+							peer,
+							storyId.story,
+							{ Data::StoriesContextAlbum{ albumId } });
+					}));
 				_contextMenu->addAction(
 					tr::lng_profile_report(tr::now),
 					[=] { ::Media::Stories::ReportRequested(
@@ -1345,22 +1686,37 @@ void ListWidget::showContextMenu(
 					&st::menuIconReport);
 			}
 		}
-		if (!_provider->hasSelectRestriction()) {
-			_contextMenu->addAction(
-				tr::lng_context_select_msg(tr::now),
-				crl::guard(this, [=] {
-					if (hasSelectedText()) {
-						clearSelected();
-					} else if (_selected.size() == _selectedLimit) {
-						return;
-					} else if (_selected.empty()) {
-						update();
-					}
-					applyItemSelection(
-						MessageByGlobalId(globalId),
-						FullSelection);
-				}),
-				&st::menuIconSelect);
+		if (_selectOnClick || !_provider->hasSelectRestriction()) {
+			if (isSelectedItem(_selected.find(item))) {
+				_contextMenu->addAction(
+					tr::lng_context_deselect_msg(tr::now),
+					crl::guard(this, [=] {
+						if (const auto item = MessageByGlobalId(globalId)) {
+							const auto i = _selected.find(item);
+							if (isSelectedItem(i)) {
+								removeItemSelection(i);
+								repaintItem(item);
+							}
+						}
+					}),
+					&st::menuIconSelect);
+			} else {
+				_contextMenu->addAction(
+					tr::lng_context_select_msg(tr::now),
+					crl::guard(this, [=] {
+						if (hasSelectedText()) {
+							clearSelected();
+						} else if (_selected.size() == _selectedLimit) {
+							return;
+						} else if (_selected.empty()) {
+							update();
+						}
+						applyItemSelection(
+							MessageByGlobalId(globalId),
+							FullSelection);
+					}),
+					&st::menuIconSelect);
+			}
 		}
 	}
 
@@ -1781,7 +2137,7 @@ void ListWidget::leaveEventHook(QEvent *e) {
 
 QPoint ListWidget::clampMousePosition(QPoint position) const {
 	return {
-		std::clamp(position.x(), 0, qMax(0, width() - 1)),
+		std::clamp(position.x(), 0, std::max(0, width() - 1)),
 		std::clamp(position.y(), _visibleTop, _visibleBottom - 1)
 	};
 }
@@ -1885,8 +2241,8 @@ void ListWidget::mouseActionUpdate(const QPoint &globalPosition) {
 				++second;
 			}
 			auto selState = TextSelection {
-				qMin(second, _mouseTextSymbol),
-				qMax(second, _mouseTextSymbol)
+				std::min(second, _mouseTextSymbol),
+				std::max(second, _mouseTextSymbol)
 			};
 			if (_mouseSelectType != TextSelectType::Letters) {
 				selState = _overLayout->adjustSelection(selState, _mouseSelectType);
@@ -1918,6 +2274,8 @@ style::cursor ListWidget::computeMouseCursor() const {
 	if (_inDragArea && canReorder()) {
 		return style::cur_sizeall;
 	} else if (ClickHandler::getPressed() || ClickHandler::getActive()) {
+		return style::cur_pointer;
+	} else if (selectionConsumesClick(_overState)) {
 		return style::cur_pointer;
 	} else if (!hasSelectedItems()
 		&& (_mouseCursorState == CursorState::Text)) {
@@ -2009,7 +2367,11 @@ void ListWidget::mouseActionStart(
 		}
 	}
 
-	if (ClickHandler::getPressed() && !hasSelected()) {
+	if (_selectOnClick
+		&& !_pressWasInactive
+		&& selectionConsumesClick(_pressState)) {
+		_mouseAction = MouseAction::PrepareSelect;
+	} else if (ClickHandler::getPressed() && !hasSelected()) {
 		_mouseAction = MouseAction::PrepareDrag;
 		if (canReorder()) {
 			startReorder(globalPosition);
@@ -2082,13 +2444,16 @@ void ListWidget::mouseActionStart(
 								selStatus);
 							_mouseAction = MouseAction::Selecting;
 							repaintItem(pressLayout);
-						} else if (!_provider->hasSelectRestriction()) {
+						} else if (
+							!_provider->hasSelectRestriction()
+							|| _selectOnClick) {
 							_mouseAction = MouseAction::PrepareSelect;
 						}
 					}
 				}
 			} else if (!_pressWasInactive
-				&& !_provider->hasSelectRestriction()) {
+				&& (!_provider->hasSelectRestriction()
+					|| _selectOnClick)) {
 				_mouseAction = MouseAction::PrepareSelect; // start items select
 			}
 		}
@@ -2111,87 +2476,59 @@ void ListWidget::mouseActionCancel() {
 }
 
 void ListWidget::performDrag() {
-	if (_mouseAction != MouseAction::Dragging) return;
-
-	auto uponSelected = false;
-	if (_pressState.item && _pressState.inside) {
-		if (hasSelectedItems()) {
-			uponSelected = isItemUnderPressSelected();
-		} else if (const auto pressLayout = _provider->lookupLayout(
-				_pressState.item)) {
-			StateRequest request;
-			request.flags |= Ui::Text::StateRequest::Flag::LookupSymbol;
-			const auto dragState = pressLayout->getState(
-				_pressState.cursor,
-				request);
-			uponSelected = isPressInSelectedText(dragState);
-		}
-	}
-	auto pressedHandler = ClickHandler::getPressed();
-
-	if (dynamic_cast<VoiceSeekClickHandler*>(pressedHandler.get())) {
+	if (_mouseAction != MouseAction::Dragging) {
+		return;
+	} else if (_provider->hasSelectRestriction()) {
 		return;
 	}
-
-	TextWithEntities sel;
-	//QList<QUrl> urls;
-	if (uponSelected) {
-//		sel = getSelectedText();
-	} else if (pressedHandler) {
-		sel = { pressedHandler->dragText(), EntitiesInText() };
-		//if (!sel.isEmpty() && sel.at(0) != '/' && sel.at(0) != '@' && sel.at(0) != '#') {
-		//	urls.push_back(QUrl::fromEncoded(sel.toUtf8())); // Google Chrome crashes in Mac OS X O_o
-		//}
+	const auto pressedHandler = ClickHandler::getPressed();
+	if (!pressedHandler
+		|| dynamic_cast<VoiceSeekClickHandler*>(pressedHandler.get())) {
+		return;
 	}
-	//if (auto mimeData = MimeDataFromText(sel)) {
-	//	clearDragSelection();
-	//	_widget->noSelectingScroll();
+	auto mimeData = std::unique_ptr<QMimeData>();
+	auto pixmap = QPixmap();
+	const auto document = reinterpret_cast<DocumentData*>(
+		pressedHandler->property(
+			kDocumentLinkMediaProperty).toULongLong());
+	if (document) {
+		const auto filepath = document->filepath(true);
+		if (filepath.isEmpty()) {
+			return;
+		}
+		mimeData = std::make_unique<QMimeData>();
+		mimeData->setUrls({ QUrl::fromLocalFile(filepath) });
+		if (const auto layout = _provider->lookupLayout(_pressState.item)) {
+			if (const auto file = dynamic_cast<Overview::Layout::Document*>(
+					layout)) {
+				pixmap = Ui::PixmapFromImage(file->dragPreviewImage());
+			}
+		}
+	} else {
+		const auto text = pressedHandler->dragText();
+		if (text.isEmpty()) {
+			return;
+		}
+		mimeData = TextUtilities::MimeDataFromText(
+			TextForMimeData::Simple(text));
+		if (!mimeData) {
+			return;
+		}
+	}
 
-	//	if (!urls.isEmpty()) mimeData->setUrls(urls);
-	//	if (uponSelected && !Adaptive::OneColumn()) {
-	//		auto selectedState = getSelectionState();
-	//		if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
-	//			session().data().setMimeForwardIds(collectSelectedIds());
-	//			mimeData->setData(u"application/x-td-forward"_q, "1");
-	//		}
-	//	}
-	//	_controller->parentController()->window()->launchDrag(std::move(mimeData));
-	//	return;
-	//} else {
-	//	auto forwardMimeType = QString();
-	//	auto pressedMedia = static_cast<HistoryView::Media*>(nullptr);
-	//	if (auto pressedItem = _pressState.layout) {
-	//		pressedMedia = pressedItem->getMedia();
-	//		if (_mouseCursorState == CursorState::Date) {
-	//			session().data().setMimeForwardIds(session().data().itemOrItsGroup(pressedItem));
-	//			forwardMimeType = u"application/x-td-forward"_q;
-	//		}
-	//	}
-	//	if (auto pressedLnkItem = App::pressedLinkItem()) {
-	//		if ((pressedMedia = pressedLnkItem->getMedia())) {
-	//			if (forwardMimeType.isEmpty() && pressedMedia->dragItemByHandler(pressedHandler)) {
-	//				session().data().setMimeForwardIds({ 1, pressedLnkItem->fullId() });
-	//				forwardMimeType = u"application/x-td-forward"_q;
-	//			}
-	//		}
-	//	}
-	//	if (!forwardMimeType.isEmpty()) {
-	//		auto mimeData = std::make_unique<QMimeData>();
-	//		mimeData->setData(forwardMimeType, "1");
-	//		if (auto document = (pressedMedia ? pressedMedia->getDocument() : nullptr)) {
-	//			auto filepath = document->filepath(true);
-	//			if (!filepath.isEmpty()) {
-	//				QList<QUrl> urls;
-	//				urls.push_back(QUrl::fromLocalFile(filepath));
-	//				mimeData->setUrls(urls);
-	//			}
-	//		}
+	// This call enters event loop and can destroy any QObject.
+	_controller->parentController()->widget()->launchDrag(
+		std::move(mimeData),
+		crl::guard(this, [=] { mouseActionUpdate(QCursor::pos()); }),
+		std::move(pixmap));
+}
 
-	//		// This call enters event loop and can destroy any QObject.
-	//		_controller->parentController()->window()->launchDrag(std::move(mimeData));
-	//		return;
-	//	}
-	//}
+bool ListWidget::selectionConsumesClick(const MouseState &state) const {
+	if (!_selectOnClick || !state.item || !state.inside) {
+		return false;
+	}
+	const auto layout = _provider->lookupLayout(state.item);
+	return layout ? layout->selectionConsumesClick(state.cursor) : true;
 }
 
 void ListWidget::mouseActionFinish(
@@ -2203,18 +2540,26 @@ void ListWidget::mouseActionFinish(
 	repaintItem(pressState.item);
 
 	const auto selectionMode = hasSelectedItems() || _storiesAddToAlbumId;
+	const auto clickStartsSelection = selectionConsumesClick(pressState);
 	const auto simpleSelectionChange = pressState.item
 		&& pressState.inside
 		&& !_pressWasInactive
 		&& (button != Qt::RightButton)
 		&& (_mouseAction == MouseAction::PrepareDrag
 			|| _mouseAction == MouseAction::PrepareSelect);
-	if (_mouseAction == MouseAction::Reordering
-		|| _mouseAction == MouseAction::PrepareReorder) {
+	if (_mouseAction == MouseAction::Reordering) {
 		finishReorder();
 		return;
 	}
-	const auto needSelectionToggle = simpleSelectionChange && selectionMode;
+	if (_mouseAction == MouseAction::PrepareReorder) {
+		_reorderState = {};
+		_mouseAction = MouseAction::PrepareDrag;
+	}
+	const auto needSelectionToggle = simpleSelectionChange
+		&& ((
+			selectionMode
+			&& (!_selectOnClick || clickStartsSelection))
+			|| (_selectOnClick && clickStartsSelection));
 	const auto needSelectionClear = simpleSelectionChange
 		&& hasSelectedText();
 
@@ -2325,7 +2670,7 @@ std::vector<ListSection>::iterator ListWidget::findSectionByItem(
 	if (_sections.size() < 2) {
 		return _sections.begin();
 	}
-	Assert(!_controller->isDownloads() && !_controller->isGlobalMedia());
+	Assert(_sectionsSortedById);
 	return ranges::lower_bound(
 		_sections,
 		GetUniversalId(item),
@@ -2495,6 +2840,18 @@ void ListWidget::cancelReorder() {
 	finishShiftAnimations();
 	_mouseAction = MouseAction::None;
 	update();
+}
+
+void ListWidget::dropReorderState() {
+	// Unlike cancelReorder(), this must not use finishShiftAnimations(),
+	// which starts callbacks capturing layout pointers that may be about
+	// to be destroyed.
+	_reorderState = {};
+	_returnAnimation.stop();
+	if (_mouseAction == MouseAction::PrepareReorder
+		|| _mouseAction == MouseAction::Reordering) {
+		_mouseAction = MouseAction::None;
+	}
 }
 
 void ListWidget::updateShiftAnimations() {
@@ -2711,6 +3068,31 @@ ListWidget::~ListWidget() {
 		// We don't want it to be called after ListWidget is destroyed.
 		_contextMenu->setDestroyedCallback(nullptr);
 	}
+}
+
+void ListWidget::jumpToMessage(MsgId msgId) {
+	_provider->jumpToMessage(msgId, [=](FullMsgId fullId) {
+		if (const auto i = session().data().message(fullId)) {
+			_scrollTopState.position = _provider->scrollTopStatePosition(i);
+			_scrollTopState.item = i;
+		}
+	});
+}
+
+void ListWidget::setTopOverlayHeight(int height) {
+	if (_topOverlayHeight != height) {
+		_topOverlayHeight = height;
+		update(_dateBadge->rect);
+	}
+}
+
+void ListWidget::setExternalViewportHeight(int height) {
+	height = std::max(height, 0);
+	if (_externalViewportHeight == height) {
+		return;
+	}
+	_externalViewportHeight = height;
+	checkMoveToOtherViewer();
 }
 
 } // namespace Media

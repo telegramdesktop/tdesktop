@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "media/media_common.h"
 #include "ui/effects/animations.h"
 #include "ui/widgets/buttons.h"
 #include "ui/rect_part.h"
@@ -14,7 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QFontMetrics>
 
 namespace style {
-struct MediaPlayerButton;
+struct MediaPlayerPlayIcon;
+struct MediaPlayerPlayButton;
 struct MediaSpeedButton;
 } // namespace style
 
@@ -27,7 +29,9 @@ public:
 		Pause,
 		Cancel,
 	};
-	PlayButtonLayout(const style::MediaPlayerButton &st, Fn<void()> callback);
+	PlayButtonLayout(
+		const style::MediaPlayerPlayIcon &st,
+		Fn<void()> callback);
 
 	void setState(State state);
 	void finishTransform();
@@ -37,12 +41,7 @@ private:
 	void animationCallback();
 	void startTransform(float64 from, float64 to);
 
-	void paintPlay(QPainter &p, const QBrush &brush);
-	void paintPlayToPause(QPainter &p, const QBrush &brush, float64 progress);
-	void paintPlayToCancel(QPainter &p, const QBrush &brush, float64 progress);
-	void paintPauseToCancel(QPainter &p, const QBrush &brush, float64 progress);
-
-	const style::MediaPlayerButton &_st;
+	const style::MediaPlayerPlayIcon &_st;
 
 	State _state = State::Play;
 	State _oldState = State::Play;
@@ -51,6 +50,26 @@ private:
 	bool _transformBackward = false;
 
 	Fn<void()> _callback;
+
+};
+
+class PlayButton final : public Ui::RippleButton {
+public:
+	using State = PlayButtonLayout::State;
+
+	PlayButton(QWidget *parent, const style::MediaPlayerPlayButton &st);
+
+	void setState(State state);
+	void finishTransform();
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+
+	QPoint prepareRippleStartPosition() const override;
+	QImage prepareRippleMask() const override;
+
+	const style::MediaPlayerPlayButton &_st;
+	PlayButtonLayout _layout;
 
 };
 
@@ -111,7 +130,7 @@ public:
 	}
 
 	void setSpeed(float64 speed);
-	void setQuality(int quality);
+	void setQuality(Media::VideoQuality quality);
 	void setActive(bool active);
 
 private:
@@ -134,7 +153,7 @@ private:
 	Ui::Animations::Simple _overAnimation;
 	QImage _frameCache;
 	float _speed = 1.;
-	int _quality = 0;
+	Media::VideoQuality _quality;
 	bool _isDefaultSpeed = false;
 	bool _active = false;
 

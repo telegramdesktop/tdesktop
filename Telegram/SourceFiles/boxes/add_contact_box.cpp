@@ -42,6 +42,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_peer_photo.h"
 #include "api/api_self_destruct.h"
 #include "main/main_session.h"
+#include "styles/style_add_contact_box.h"
+#include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -130,16 +133,6 @@ void MustBePublicDestroy(not_null<ChannelData*> channel) {
 	)).done([=](const MTPUpdates &result) {
 		session->api().applyUpdates(result);
 	}).send();
-}
-
-void MustBePublicFailed(
-		not_null<Window::SessionNavigation*> navigation,
-		not_null<ChannelData*> channel) {
-	const auto text = channel->isMegagroup()
-		? "Can't create a public group :("
-		: "Can't create a public channel :(";
-	navigation->showToast(text);
-	MustBePublicDestroy(channel);
 }
 
 [[nodiscard]] Fn<void(not_null<PeerData*>)> WrapPeerDoneFromChannelDone(
@@ -245,7 +238,7 @@ void ShowAddParticipantsError(
 			? PeerFloodType::InviteGroup
 			: PeerFloodType::InviteChannel;
 		const auto text = PeerFloodErrorText(&chat->session(), type);
-		Ui::show(Ui::MakeInformBox(text), Ui::LayerOption::KeepOther);
+		show->showBox(Ui::MakeInformBox(text), Ui::LayerOption::KeepOther);
 		return;
 	} else if (error == u"USER_PRIVACY_RESTRICTED"_q) {
 		ChatInviteForbidden(show, chat, forbidden);
@@ -276,6 +269,10 @@ void ShowAddParticipantsError(
 			return (chat->isChannel()
 				? tr::lng_error_channel_bots_too_much
 				: tr::lng_error_group_bots_too_much)(tr::now);
+		} else if (error == u"ADMINS_TOO_MUCH"_q) {
+			return (chat->isBroadcast()
+				? tr::lng_error_admin_limit_channel
+				: tr::lng_error_admin_limit)(tr::now);
 		}
 		return tr::lng_failed_add_participant(tr::now);
 	}();
@@ -577,7 +574,8 @@ void GroupInfoBox::prepare() {
 	_title->setMaxLength(Ui::EditPeer::kMaxGroupChannelTitle);
 	_title->setInstantReplaces(Ui::InstantReplaces::Default());
 	_title->setInstantReplacesEnabled(
-		Core::App().settings().replaceEmojiValue());
+		Core::App().settings().replaceEmojiValue(),
+		Core::App().settings().systemTextReplaceValue());
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
 		_title,
@@ -593,7 +591,8 @@ void GroupInfoBox::prepare() {
 		_description->setMaxLength(Ui::EditPeer::kMaxChannelDescription);
 		_description->setInstantReplaces(Ui::InstantReplaces::Default());
 		_description->setInstantReplacesEnabled(
-			Core::App().settings().replaceEmojiValue());
+			Core::App().settings().replaceEmojiValue(),
+			Core::App().settings().systemTextReplaceValue());
 		_description->setSubmitSettings(
 			Core::App().settings().sendSubmitWay());
 
@@ -754,7 +753,7 @@ void GroupInfoBox::createGroup(
 	}).fail([=](const MTP::Error &error) {
 		const auto &type = error.type();
 		_creationRequestId = 0;
-		const auto controller = _navigation->parentController();
+		const auto show = uiShow();
 		if (type == u"NO_CHAT_TITLE"_q) {
 			const auto weak = base::make_weak(this);
 			if (const auto strong = selectUsersBox.get()) {
@@ -764,15 +763,15 @@ void GroupInfoBox::createGroup(
 				_title->showError();
 			}
 		} else if (type == u"USERS_TOO_FEW"_q) {
-			controller->show(
+			show->showBox(
 				Ui::MakeInformBox(tr::lng_cant_invite_privacy()));
 		} else if (type == u"PEER_FLOOD"_q) {
-			controller->show(Ui::MakeInformBox(
+			show->showBox(Ui::MakeInformBox(
 				PeerFloodErrorText(
 					&_navigation->session(),
 					PeerFloodType::InviteGroup)));
 		} else if (type == u"USER_RESTRICTED"_q) {
-			controller->show(Ui::MakeInformBox(tr::lng_cant_do_this()));
+			show->showBox(Ui::MakeInformBox(tr::lng_cant_do_this()));
 		}
 	}).send();
 }
@@ -811,7 +810,7 @@ void GroupInfoBox::submit() {
 			box->addButton(tr::lng_create_group_create(), std::move(create));
 			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 		};
-		Ui::show(
+		uiShow()->showBox(
 			Box<PeerListBox>(
 				std::make_unique<AddParticipantsBoxController>(
 					&_navigation->session()),
@@ -879,7 +878,11 @@ void GroupInfoBox::createChannel(
 				}
 				channel->session().api().requestFullPeer(channel);
 				_createdChannel = channel;
-				checkInviteLink();
+				if (_done && !_mustBePublic) {
+					channelReady();
+				} else {
+					checkInviteLink();
+				}
 			};
 		if (!success) {
 			LOG(("API Error: channel not found in updates "
@@ -889,18 +892,14 @@ void GroupInfoBox::createChannel(
 	}).fail([this](const MTP::Error &error) {
 		const auto &type = error.type();
 		_creationRequestId = 0;
-		const auto controller = _navigation->parentController();
+		const auto show = uiShow();
 		if (type == u"NO_CHAT_TITLE"_q) {
 			_title->setFocus();
 			_title->showError();
 		} else if (type == u"USER_RESTRICTED"_q) {
-			controller->show(
-				Ui::MakeInformBox(tr::lng_cant_do_this()),
-				Ui::LayerOption::CloseOther);
+			show->showBox(Ui::MakeInformBox(tr::lng_cant_do_this()));
 		} else if (type == u"CHANNELS_TOO_MUCH"_q) {
-			controller->show(
-				Box(ChannelsLimitBox, &controller->session()),
-				Ui::LayerOption::CloseOther); // TODO
+			show->showBox(Box(ChannelsLimitBox, &_navigation->session()));
 		}
 	}).send();
 }
@@ -933,13 +932,14 @@ void GroupInfoBox::channelReady() {
 		closeBox();
 		callback(argument);
 	} else {
-		_navigation->parentController()->show(
+		uiShow()->showBox(
 			Box<SetupChannelBox>(
 				_navigation,
 				_createdChannel,
 				_mustBePublic,
 				_done),
-			Ui::LayerOption::CloseOther);
+			Ui::LayerOption::KeepOther);
+		closeBox();
 	}
 }
 
@@ -1255,7 +1255,11 @@ void SetupChannelBox::mousePressEvent(QMouseEvent *e) {
 		return;
 	} else if (!_channel->inviteLink().isEmpty()) {
 		QGuiApplication::clipboard()->setText(_channel->inviteLink());
-		showToast(tr::lng_create_channel_link_copied(tr::now));
+		showToast({
+			.text = { tr::lng_create_channel_link_copied(tr::now) },
+			.iconLottie = u"toast/voip_invite"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
 	} else if (_channel->isFullLoaded() && !_creatingInviteLink) {
 		_creatingInviteLink = true;
 		_channel->session().api().inviteLinks().create({ _channel });
@@ -1393,7 +1397,7 @@ void SetupChannelBox::privacyChanged(Privacy value) {
 				_privacyGroup->setValue(Privacy::Public);
 				check();
 			});
-			Ui::show(
+			uiShow()->showBox(
 				Box(PublicLinksLimitBox, _navigation, callback),
 				Ui::LayerOption::KeepOther);
 			return;
@@ -1485,13 +1489,14 @@ void SetupChannelBox::showRevokePublicLinkBoxForEdit() {
 	const auto mustBePublic = _mustBePublic;
 	const auto done = _done;
 	const auto navigation = _navigation;
+	const auto show = uiShow();
 	const auto revoked = std::make_shared<bool>(false);
 	const auto callback = [=] {
 		*revoked = true;
-		navigation->parentController()->show(
+		show->showBox(
 			Box<SetupChannelBox>(navigation, channel, mustBePublic, done));
 	};
-	const auto revoker = navigation->parentController()->show(
+	const auto revoker = show->show(
 		Box(PublicLinksLimitBox, navigation, callback));
 	const auto session = &navigation->session();
 	revoker->boxClosing(
@@ -1507,7 +1512,10 @@ void SetupChannelBox::showRevokePublicLinkBoxForEdit() {
 }
 
 void SetupChannelBox::mustBePublicFailed() {
-	MustBePublicFailed(_navigation, _channel);
+	showToast(_channel->isMegagroup()
+		? "Can't create a public group :("
+		: "Can't create a public channel :(");
+	MustBePublicDestroy(_channel);
 }
 
 void SetupChannelBox::firstCheckFail(UsernameResult result) {
@@ -1571,15 +1579,16 @@ void EditNameBox::prepare() {
 	_last->submits(
 	) | rpl::on_next([=] { submit(); }, _last->lifetime());
 
+	using TabbedRequest = Ui::InputField::TabbedRequest;
 	_first->tabbed(
-	) | rpl::on_next([=](not_null<bool*> handled) {
+	) | rpl::on_next([=](not_null<TabbedRequest*> request) {
 		_last->setFocus();
-		*handled = true;
+		request->handled = true;
 	}, _first->lifetime());
 	_last->tabbed(
-	) | rpl::on_next([=](not_null<bool*> handled) {
+	) | rpl::on_next([=](not_null<TabbedRequest*> request) {
 		_first->setFocus();
-		*handled = true;
+		request->handled = true;
 	}, _last->lifetime());
 }
 

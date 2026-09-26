@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/text/format_values.h"
+#include "ui/text/text_custom_emoji.h"
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
@@ -51,7 +52,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 #include "styles/style_statistics.h"
-#include "styles/style_window.h"
 #include "styles/style_chat.h"
 
 namespace Info::Statistics {
@@ -65,7 +65,8 @@ using BoostCallback = Fn<void(const Data::Boost &)>;
 		+ (entry.refunded ? '1' : '0')
 		+ (entry.pending ? '1' : '0')
 		+ (entry.failed ? '1' : '0')
-		+ (entry.in ? '1' : '0'));
+		+ (entry.in ? '1' : '0')
+		+ (entry.giftOffer ? '1' : '0'));
 }
 
 void AddSubtitle(
@@ -123,7 +124,7 @@ struct PublicForwardsDescriptor final {
 struct MembersDescriptor final {
 	not_null<Main::Session*> session;
 	Fn<void(not_null<PeerData*>)> showPeerInfo;
-	Data::SupergroupStatistics data;
+	Data::StatisticsLists data;
 };
 
 struct BoostsDescriptor final {
@@ -139,6 +140,7 @@ struct CreditsDescriptor final {
 	bool in = false;
 	bool out = false;
 	bool subscription = false;
+	bool currency = false;
 };
 
 class PeerListRowWithFullId : public PeerListRow {
@@ -215,7 +217,7 @@ private:
 
 	const not_null<Main::Session*> _session;
 	Fn<void(not_null<PeerData*>)> _showPeerInfo;
-	Data::SupergroupStatistics _data;
+	Data::StatisticsLists _data;
 	int _limit = 0;
 
 };
@@ -459,6 +461,17 @@ public:
 		int outerWidth,
 		bool selected) override;
 
+	int paintNameIconGetLeadingWidth(
+		Painter &p,
+		Fn<void()> repaint,
+		crl::time now,
+		int nameLeft,
+		int nameTop,
+		int outerWidth,
+		bool selected) override {
+		return 0;
+	}
+
 	QSize rightActionSize() const override;
 	QMargins rightActionMargins() const override;
 	bool rightActionDisabled() const override;
@@ -485,7 +498,7 @@ private:
 BoostRow::BoostRow(not_null<PeerData*> peer, const Data::Boost &boost)
 : PeerListRow(peer, UniqueRowIdFromString(boost.id))
 , _boost(boost)
-, _userpic(Ui::EmptyUserpic::UserpicColor(0), QString()) {
+, _userpic(Ui::EmptyUserpic::UserpicColor(st::colorIndexRed), QString()) {
 	init();
 }
 
@@ -891,6 +904,7 @@ void CreditsRow::init() {
 		? u"%1 #%2"_q.arg(_entry.uniqueGift->title).arg(Lang::FormatCountDecimal(_entry.uniqueGift->number))
 		: ((!_entry.subscriptionUntil.isNull() && !isSpecial)
 			|| (_entry.giftResale && !isSpecial)
+			|| (_entry.giftOffer && !isSpecial)
 			|| _entry.title.isEmpty())
 		? name
 		: _entry.title;
@@ -1169,6 +1183,9 @@ const style::PeerListItem &CreditsRow::computeSt(
 		: st::boostsListBox.item;
 }
 
+constexpr auto kCreditsAutoLoadThreshold = 100;
+constexpr auto kCreditsAutoLoadBatchSize = 20;
+
 class CreditsController final : public PeerListController {
 public:
 	explicit CreditsController(CreditsDescriptor d);
@@ -1179,11 +1196,17 @@ public:
 	void loadMoreRows() override;
 
 	[[nodiscard]] bool skipRequest() const;
-	void requestNext();
+	void requestNext(int limit = 0);
 
-	[[nodiscard]] rpl::producer<bool> allLoadedValue() const;
+	[[nodiscard]] rpl::producer<bool> showMoreShownValue() const;
 
 private:
+	struct IconCache {
+		QImage credits;
+		QImage tonIn;
+		QImage tonOut;
+	};
+
 	void applySlice(const Data::CreditsStatusSlice &slice);
 
 	const not_null<Main::Session*> _session;
@@ -1193,11 +1216,13 @@ private:
 	Api::CreditsHistory _api;
 	Data::CreditsStatusSlice _firstSlice;
 	Data::CreditsStatusSlice::OffsetToken _apiToken;
+	IconCache _iconCache;
 	Ui::Text::MarkedContext _context;
 
 	base::flat_map<PeerListRowId, not_null<PeerListRow*>> _rowsById;
 
 	rpl::variable<bool> _allLoaded = false;
+	rpl::variable<int> _loadedCount = 0;
 	bool _requesting = false;
 
 };
@@ -1206,7 +1231,7 @@ CreditsController::CreditsController(CreditsDescriptor d)
 : _session(&d.peer->session())
 , _subscription(d.subscription)
 , _entryClickedCallback(std::move(d.entryClickedCallback))
-, _api(d.peer, d.in, d.out)
+, _api(d.peer, d.in, d.out, d.currency)
 , _firstSlice(std::move(d.firstSlice))
 , _context([&]() -> Ui::Text::MarkedContext {
 	const auto height = st::creditsHistoryRowRightStyle.font->height
@@ -1216,20 +1241,29 @@ CreditsController::CreditsController(CreditsDescriptor d)
 			const Ui::Text::MarkedContext &context
 		) -> std::unique_ptr<Ui::Text::CustomEmoji> {
 		if (data == Ui::kCreditsCurrency) {
-			return std::make_unique<Ui::Text::ShiftedEmoji>(
-				Ui::MakeCreditsIconEmoji(height, 1),
+			if (_iconCache.credits.isNull()) {
+				_iconCache.credits = Ui::GenerateStars(height, 1);
+			}
+			return MakeWrappedEmoji<Ui::Text::ShiftedEmoji>(
+				std::make_unique<Ui::CustomEmoji::Internal>(
+					u"credits_icon:%1:1"_q.arg(height),
+					_iconCache.credits),
 				QPoint(-st::lineWidth, st::lineWidth));
 		}
 		if (data.startsWith(u"ton"_q)) {
 			const auto in = data.split(u":"_q)[1].startsWith(u"in"_q);
-			return std::make_unique<Ui::Text::ShiftedEmoji>(
+			auto &slot = in ? _iconCache.tonIn : _iconCache.tonOut;
+			if (slot.isNull()) {
+				slot = Ui::Earn::IconCurrencyColored(
+					st::tonFieldIconSize,
+					(in
+						? st::boxTextFgGood->c
+						: st::menuIconAttentionColor->c));
+			}
+			return MakeWrappedEmoji<Ui::Text::ShiftedEmoji>(
 				std::make_unique<Ui::CustomEmoji::Internal>(
 					data.toString(),
-					Ui::Earn::IconCurrencyColored(
-						st::tonFieldIconSize,
-						in
-							? st::boxTextFgGood->c
-							: st::menuIconAttentionColor->c)),
+					slot),
 				QPoint(0, st::lineWidth));
 		}
 		const auto desc = DeserializeCreditsRowDescriptionData(
@@ -1259,7 +1293,7 @@ bool CreditsController::skipRequest() const {
 	return _requesting || _allLoaded.current();
 }
 
-void CreditsController::requestNext() {
+void CreditsController::requestNext(int limit) {
 	_requesting = true;
 	const auto done = [=](const Data::CreditsStatusSlice &s) {
 		_requesting = false;
@@ -1268,7 +1302,7 @@ void CreditsController::requestNext() {
 	if (_subscription) {
 		return _api.requestSubscriptions(_apiToken, done);
 	}
-	_api.request(_apiToken, done);
+	_api.request(_apiToken, done, limit);
 }
 
 void CreditsController::prepare() {
@@ -1277,11 +1311,20 @@ void CreditsController::prepare() {
 }
 
 void CreditsController::loadMoreRows() {
+	if (_subscription
+		|| skipRequest()
+		|| _loadedCount.current() >= kCreditsAutoLoadThreshold) {
+		return;
+	}
+	requestNext(kCreditsAutoLoadBatchSize);
 }
 
 void CreditsController::applySlice(const Data::CreditsStatusSlice &slice) {
 	_allLoaded = slice.allLoaded;
 	_apiToken = _subscription ? slice.tokenSubscriptions : slice.token;
+	_loadedCount = _loadedCount.current()
+		+ int(slice.list.size())
+		+ int(slice.subscriptions.size());
 
 	auto create = [&](
 			const Data::CreditsHistoryEntry &i,
@@ -1334,8 +1377,16 @@ void CreditsController::rowClicked(not_null<PeerListRow*> row) {
 	}
 }
 
-rpl::producer<bool> CreditsController::allLoadedValue() const {
-	return _allLoaded.value();
+rpl::producer<bool> CreditsController::showMoreShownValue() const {
+	if (_subscription) {
+		return _allLoaded.value() | rpl::map(!rpl::mappers::_1);
+	}
+	return rpl::combine(
+		_allLoaded.value(),
+		_loadedCount.value()
+	) | rpl::map([](bool allLoaded, int count) {
+		return !allLoaded && (count >= kCreditsAutoLoadThreshold);
+	});
 }
 
 } // namespace
@@ -1378,7 +1429,7 @@ void AddPublicForwards(
 }
 
 void AddMembersList(
-		Data::SupergroupStatistics data,
+		Data::StatisticsLists data,
 		not_null<Ui::VerticalLayout*> container,
 		Fn<void(not_null<PeerData*>)> showPeerInfo,
 		not_null<PeerData*> peer,
@@ -1484,7 +1535,8 @@ void AddCreditsHistoryList(
 		not_null<PeerData*> bot,
 		bool in,
 		bool out,
-		bool subs) {
+		bool subs,
+		bool currency) {
 	struct State final {
 		State(CreditsDescriptor d) : controller(std::move(d)) {
 		}
@@ -1493,7 +1545,15 @@ void AddCreditsHistoryList(
 		CreditsController controller;
 	};
 	const auto state = container->lifetime().make_state<State>(
-		CreditsDescriptor{ firstSlice, callback, bot, in, out, subs });
+		CreditsDescriptor{
+			firstSlice,
+			callback,
+			bot,
+			in,
+			out,
+			subs,
+			currency,
+		});
 	if (subs) {
 		state->subscriptionDelegate.emplace();
 		state->subscriptionDelegate->setUiShow(show);
@@ -1522,7 +1582,7 @@ void AddCreditsHistoryList(
 		}
 	};
 	wrap->toggleOn(
-		state->controller.allLoadedValue() | rpl::map(!rpl::mappers::_1),
+		state->controller.showMoreShownValue(),
 		anim::type::instant);
 	wrap->entity()->setClickedCallback(showMore);
 }

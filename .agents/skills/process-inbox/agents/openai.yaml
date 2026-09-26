@@ -1,0 +1,4 @@
+interface:
+  display_name: "Process AI Inbox"
+  short_description: "Route inbox notes into project-aware AI tasks"
+  default_prompt: "Use $process-inbox to route and plan the local AI inbox while preserving existing project lineage."

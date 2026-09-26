@@ -26,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/sections/settings_premium.h"
 #include "window/window_session_controller.h"
 #include "styles/style_info.h"
-#include "styles/style_widgets.h"
 
 namespace Info::SimilarPeers {
 namespace {
@@ -34,7 +33,7 @@ namespace {
 class ListController final : public PeerListController {
 public:
 	ListController(
-		not_null<Controller*> controller,
+		not_null<AbstractController*> controller,
 		not_null<PeerData*> peer);
 
 	Main::Session &session() const override;
@@ -60,7 +59,7 @@ private:
 
 	struct SavedState : SavedStateBase {
 	};
-	const not_null<Controller*> _controller;
+	const not_null<AbstractController*> _controller;
 	const not_null<PeerData*> _peer;
 	Ui::RpWidget *_content = nullptr;
 	Ui::RpWidget *_unlock = nullptr;
@@ -69,7 +68,7 @@ private:
 };
 
 ListController::ListController(
-	not_null<Controller*> controller,
+	not_null<AbstractController*> controller,
 	not_null<PeerData*> peer)
 : PeerListController()
 , _controller(controller)
@@ -128,7 +127,7 @@ rpl::producer<int> ListController::unlockHeightValue() const {
 void ListController::rebuild() {
 	const auto participants = &_peer->session().api().chatParticipants();
 	const auto &list = participants->similar(_peer);
-	for (const auto peer : list.list) {
+	for (const auto &peer : list.list) {
 		if (!delegate()->peerListFindRow(peer->id.value)) {
 			delegate()->peerListAppendRow(createRow(peer));
 		}
@@ -157,6 +156,7 @@ void ListController::setupUnlock() {
 			: tr::lng_similar_bots_show_more()),
 		st::similarChannelsLock,
 		rpl::single(true));
+	button->setTextTransform(Ui::RoundButtonTextTransform::ToUpper);
 	button->setClickedCallback([=] {
 		const auto window = _controller->parentController();
 		::Settings::ShowPremium(window, u"similar_channels"_q);
@@ -272,7 +272,7 @@ class InnerWidget final
 public:
 	InnerWidget(
 		QWidget *parent,
-		not_null<Controller*> controller,
+		not_null<AbstractController*> controller,
 		not_null<PeerData*> peer);
 
 	[[nodiscard]] not_null<PeerData*> peer() const {
@@ -314,7 +314,7 @@ private:
 		not_null<ListController*> controller);
 
 	const std::shared_ptr<Main::SessionShow> _show;
-	not_null<Controller*> _controller;
+	not_null<AbstractController*> _controller;
 	const not_null<PeerData*> _peer;
 	std::unique_ptr<ListController> _listController;
 	object_ptr<ListWidget> _list;
@@ -325,7 +325,7 @@ private:
 
 InnerWidget::InnerWidget(
 	QWidget *parent,
-	not_null<Controller*> controller,
+	not_null<AbstractController*> controller,
 	not_null<PeerData*> peer)
 : RpWidget(parent)
 , _show(controller->uiShow())
@@ -358,7 +358,7 @@ rpl::producer<Ui::ScrollToRequest> InnerWidget::scrollToRequests() const {
 int InnerWidget::desiredHeight() const {
 	auto desired = 0;
 	desired += _list->fullRowsCount() * st::infoMembersList.item.height;
-	return qMax(height(), desired);
+	return std::max(height(), desired);
 }
 
 object_ptr<InnerWidget::ListWidget> InnerWidget::setupList(
@@ -436,6 +436,13 @@ void InnerWidget::peerListSetDescription(
 
 std::shared_ptr<Main::SessionShow> InnerWidget::peerListUiShow() {
 	return _show;
+}
+
+object_ptr<Ui::RpWidget> MakeSimilarPeersInner(
+		QWidget *parent,
+		not_null<AbstractController*> controller,
+		not_null<PeerData*> peer) {
+	return object_ptr<InnerWidget>(parent, controller, peer);
 }
 
 Memento::Memento(not_null<PeerData*> peer)

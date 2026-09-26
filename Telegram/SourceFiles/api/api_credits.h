@@ -83,7 +83,8 @@ public:
 
 	void request(
 		const Data::CreditsStatusSlice::OffsetToken &token,
-		Fn<void(Data::CreditsStatusSlice)> done);
+		Fn<void(Data::CreditsStatusSlice)> done,
+		int limit = 0);
 	void requestSubscriptions(
 		const Data::CreditsStatusSlice::OffsetToken &token,
 		Fn<void(Data::CreditsStatusSlice)> done,
@@ -110,8 +111,6 @@ public:
 private:
 	const bool _isUser = false;
 	Data::CreditsEarnStatistics _data;
-
-	mtpRequestId _requestId = 0;
 
 };
 

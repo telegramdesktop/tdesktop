@@ -10,8 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "lang/lang_keys.h"
-#include "styles/style_layers.h"
-#include "styles/style_boxes.h"
 
 namespace Ui {
 

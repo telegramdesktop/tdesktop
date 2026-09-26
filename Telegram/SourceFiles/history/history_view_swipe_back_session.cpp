@@ -17,7 +17,7 @@ namespace Window {
 
 void SetupSwipeBackSection(
 		not_null<Ui::RpWidget*> parent,
-		not_null<Ui::ScrollArea*> scroll,
+		not_null<Ui::ElasticScroll*> scroll,
 		not_null<HistoryView::ListWidget*> list) {
 	const auto swipeBackData
 		= list->lifetime().make_state<Ui::Controls::SwipeBackResult>();
@@ -43,8 +43,8 @@ void SetupSwipeBackSection(
 			(*swipeBackData) = {};
 		}
 	};
-	auto init = [=](int, Qt::LayoutDirection direction) {
-		if (direction != Qt::RightToLeft) {
+	auto init = [=](Ui::Controls::SwipeHandlerInitData data) {
+		if (data.direction != Qt::RightToLeft) {
 			return Ui::Controls::SwipeHandlerFinishData();
 		}
 		return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {

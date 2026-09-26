@@ -34,6 +34,7 @@ EditFlagsDescriptor<FilterValue::Flags> FilterValueLabels(bool isChannel) {
 
 	auto members = std::vector<Label>{
 		{ adminRights, tr::lng_admin_log_filter_admins_new(tr::now) },
+		{ Flag::EditRank, tr::lng_admin_log_filter_edit_rank(tr::now) },
 		{ restrictions, tr::lng_admin_log_filter_restrictions(tr::now) },
 		{ membersNew, std::move(membersNewText) },
 		{ membersRemoved, std::move(membersRemovedText) },

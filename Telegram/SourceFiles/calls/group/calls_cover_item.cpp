@@ -66,13 +66,28 @@ AboutItem::AboutItem(
 , _dummyAction(new QAction(parent)) {
 	setPointerCursor(false);
 
+	_text->setSelectable(true);
+
+	const auto added = st.itemPadding.left() + st.itemPadding.right();
+
+	sizeValue(
+	) | rpl::on_next([=](const QSize &s) {
+		if (s.width() <= added) {
+			return;
+		}
+		_text->resizeToWidth(s.width() - added);
+		_text->moveToLeft(st.itemPadding.left(), st.itemPadding.top());
+	}, lifetime());
+
+	_text->heightValue(
+	) | rpl::on_next([=] {
+		resize(width(), contentHeight());
+	}, lifetime());
+
+	_text->resizeToWidth(parent->width() - added);
 	fitToMenuWidth();
 	enableMouseSelecting();
 	enableMouseSelecting(_text.get());
-
-	_text->setSelectable(true);
-	_text->resizeToWidth(st::groupCallMenuAbout.minWidth);
-	_text->moveToLeft(st.itemPadding.left(), st.itemPadding.top());
 }
 
 not_null<QAction*> AboutItem::action() const {

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="72px" height="72px" viewBox="0 0 72 72" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Filled / Page / page_table_striped</title>
+    <g id="Filled-/-Page-/-page_table_striped" stroke="none" fill="none" fill-rule="evenodd" stroke-width="1">
+        <g id="Group" transform="translate(9.65, 11.65)" fill="#FFFFFF">
+            <path d="M0,32 L52.7,32 C52.8648066,41.1742324 45.4730181,48.7 36.2973056,48.7 L16.7,48.7 C7.47684468,48.7 0,41.2231553 0,32 Z" id="Rectangle-2" fill-opacity="0.3"></path>
+            <path d="M19,0 L33.9976317,0 C44.4434683,0 52.8649137,8.55546532 52.7,19 L0,19 C0,8.50658975 8.50658975,0 19,0 Z" id="Rectangle-3" fill-opacity="0.3"></path>
+            <path d="M52.7,12.5748521 L52.7,36.1251479 C52.7,43.070047 47.070047,48.7 40.1251479,48.7 L12.5748521,48.7 C5.62995304,48.7 0,43.070047 0,36.1251479 L0,12.5748521 C0,5.62995304 5.62995304,0 12.5748521,0 L40.1251479,0 C47.070047,0 52.7,5.62995304 52.7,12.5748521 Z M12.5748521,4.7 C8.22569137,4.7 4.7,8.22569137 4.7,12.5748521 L4.7,36.1251479 C4.7,40.4743086 8.22569137,44 12.5748521,44 L40.1251479,44 C44.4743086,44 48,40.4743086 48,36.1251479 L48,12.5748521 C48,8.22569137 44.4743086,4.7 40.1251479,4.7 L12.5748521,4.7 Z" id="Rectangle" fill-rule="nonzero"></path>
+        </g>
+    </g>
+</svg>

@@ -98,6 +98,7 @@ private:
 	QPointer<QWidget> _focusTakenFrom;
 	not_null<FadeWrap<RpWidget>*> _groups;
 	not_null<RpWidget*> _fade;
+	QPointer<RpWidget> _rightEdge;
 	rpl::variable<float64> _fadeOpacity = 0.;
 	int _fadeLeftStart = 0;
 
@@ -135,10 +136,15 @@ public:
 	void setLoading(bool loading);
 	void stealFocus();
 	void returnFocus();
+	void setRightReserved(int value);
 
 private:
+	void updateSearchGeometry();
+
 	const style::EmojiPan &_st;
 	SearchWithGroups _search;
+	int _outerWidth = 0;
+	int _rightReserved = 0;
 
 };
 

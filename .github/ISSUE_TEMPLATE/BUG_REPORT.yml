@@ -1,13 +1,7 @@
-name: Bug report
+name: 🐞 Bug report
 description: Report errors or unexpected behavior.
 labels: [bug]
 body:
-  - type: markdown
-    attributes:
-      value: |
-        Thanks for reporting issues of Telegram Desktop!
-
-        To make it easier for us to help you please enter detailed information below.
   - type: textarea
     attributes:
       label: Steps to reproduce
@@ -32,19 +26,18 @@ body:
   - type: input
     attributes:
       label: Operating system
-      description: >
-        Your operating system name, version and desktop environment.
-        **Don't use kernel version (uname), it's useless.**
+      description: |
+        Write exact OS (e.g. Windows 11, macOS 14, Ubuntu 24.04 GNOME).
+        * 🛑 NO KERNEL VERSIONS (uname)
     validations:
       required: true
   - type: input
     attributes:
       label: Version of Telegram Desktop
-      description: >
-        Please note we don't support versions from Linux distro repositories.
-        If you need support for these versions, **please contact your distro maintainer**
-        or your distro bugtracker.
-        **Don't use 'latest'**, specify actual version, **that's a reason to close your issue**.
+      description: |
+        Write EXACT version number (e.g. 5.1.2).
+        * 🛑 DO NOT WRITE "LATEST". We will instantly close the issue.
+        * 🛑 LINUX REPO VERSIONS ARE NOT SUPPORTED. Go to your distro's tracker (unless you are the distro maintainer).
     validations:
       required: true
   - type: dropdown
@@ -52,27 +45,30 @@ body:
       label: Installation source
       multiple: false
       options:
-        - Static binary from official website
+        - Downloaded from desktop.telegram.org or GitHub
         - Microsoft Store
         - Mac App Store
         - Flatpak
         - Snap
-        - Other (unofficial) source
+        - Linux package manager (apt, dnf, pacman, etc)
+        - Other source
     validations:
       required: true
   - type: input
     attributes:
       label: Crash ID
-      description: >
-        If you're reporting a crash, please enter the crash ID from the crash reporter
-        opening on the next launch after crash. **You have to enable beta versions
-        installation in Settings -> Advanced for the reporter to appear.**
-        You don't have to wait for a beta version to arrive.
+      description: |
+        If the app crashed, we need a Crash ID.
+        1. Go to Settings -> Advanced
+        2. Enable "Install beta versions"
+        3. Reproduce the crash
+        4. Copy the Crash ID on next launch
   - type: textarea
     attributes:
       label: Logs
       description: >
-        You can find log.txt using the `viewlogs`
-        [cheat code](https://github.com/telegramdesktop/tdesktop/wiki/Cheat-Codes).
-      placeholder: Insert log.txt here (if necessary)
+        Type the word `viewlogs`
+        [directly into your settings menu](https://github.com/telegramdesktop/tdesktop/wiki/Cheat-Codes)
+        to open the logs folder.
+      placeholder: Insert log.txt here
       render: shell

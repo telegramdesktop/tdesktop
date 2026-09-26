@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/win/base_windows_shlobj_h.h"
 #include "base/platform/win/base_windows_winrt.h"
 #include "base/call_delayed.h"
+#include "core/version.h"
 #include "ui/boxes/confirm_box.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -26,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "window/window_controller.h"
 #include "core/crash_reports.h"
+#include "core/version.h"
 
 #include <QtCore/QOperatingSystemVersion>
 #include <QtWidgets/QApplication>
@@ -68,6 +70,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #define WM_NCPOINTERUPDATE 0x0241
 #define WM_NCPOINTERDOWN 0x0242
 #define WM_NCPOINTERUP 0x0243
+#endif
+
+// Windows 10 version 2004 and later. Older systems only have WDA_MONITOR,
+// which leaves the window in the capture but paints it black.
+#ifndef WDA_EXCLUDEFROMCAPTURE
+#define WDA_EXCLUDEFROMCAPTURE 0x00000011
 #endif
 
 using namespace ::Platform;
@@ -515,6 +523,28 @@ void WriteCrashDumpDetails() {
 #endif // TDESKTOP_DISABLE_CRASH_REPORTS
 }
 
+bool ScreenshotProtectionSupported() {
+	return true;
+}
+
+bool AmbientScreenshotProtectionSupported() {
+	// Display affinity hides the window from the viewer, not just captures.
+	return false;
+}
+
+void SetWindowScreenshotProtection(not_null<QWidget*> window, bool enabled) {
+	const auto handle = window->internalWinId();
+	if (!handle) {
+		return;
+	}
+	const auto hwnd = reinterpret_cast<HWND>(handle);
+	if (!enabled) {
+		SetWindowDisplayAffinity(hwnd, WDA_NONE);
+	} else if (!SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)) {
+		SetWindowDisplayAffinity(hwnd, WDA_MONITOR);
+	}
+}
+
 void SetWindowPriority(not_null<QWidget*> window, uint32 priority) {
 	const auto hwnd = reinterpret_cast<HWND>(window->winId());
 	Assert(hwnd != nullptr);
@@ -536,6 +566,18 @@ void ActivateOtherProcess(uint64 processId, uint64 windowId) {
 		::SetForegroundWindow(hwnd);
 		::SetFocus(hwnd);
 	}
+}
+
+bool WaitForProcessExit(uint64 processId, crl::time timeout) {
+	const auto process = ::OpenProcess(
+		SYNCHRONIZE,
+		FALSE,
+		DWORD(processId));
+	if (!process) {
+		return (::GetLastError() == ERROR_INVALID_PARAMETER);
+	}
+	const auto guard = gsl::finally([&] { ::CloseHandle(process); });
+	return (::WaitForSingleObject(process, DWORD(timeout)) == WAIT_OBJECT_0);
 }
 
 } // namespace Platform
@@ -681,19 +723,19 @@ void LaunchMaps(const Data::LocationPoint &point, Fn<void()> fail) {
 
 	auto handler = base::CoTaskMemString();
 	const auto result = aar->QueryCurrentDefault(
-		L"bingmaps",
+		L"geo",
 		AT_URLPROTOCOL,
 		AL_EFFECTIVE,
 		handler.put());
 	if (FAILED(result)
 		|| !handler
 		|| !handler.data()
-		|| std::wstring(handler.data()) == L"bingmaps") {
+		|| std::wstring(handler.data()) == L"geo") {
 		fail();
 		return;
 	}
 
-	const auto url = u"bingmaps:?lvl=16&collection=point.%1_%2_Point"_q;
+	const auto url = u"geo:%1,%2"_q;
 	if (!QDesktopServices::openUrl(
 		url.arg(point.latAsString(), point.lonAsString()))) {
 		fail();

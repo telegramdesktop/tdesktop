@@ -38,7 +38,6 @@ void AboutSponsoredBox(not_null<Ui::GenericBox*> box) {
 			st);
 		button->setBrushOverride(Qt::NoBrush);
 		button->setPenOverride(QPen(st::historyLinkInFg));
-		button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 		rpl::combine(
 			row->sizeValue(),
 			button->sizeValue()

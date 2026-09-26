@@ -39,6 +39,7 @@ public:
 	void move(int x, int y);
 	void toggle(bool shown);
 	void raise();
+	[[nodiscard]] bool ownsReactionPanelInput(QPoint globalPosition) const;
 
 	[[nodiscard]] int height() const;
 	[[nodiscard]] rpl::producer<int> heightValue() const;

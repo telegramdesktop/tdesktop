@@ -272,6 +272,8 @@ ChooseSourceProcess::ChooseSourceProcess(
 		tr::lng_group_call_screen_share_audio(tr::now),
 		false,
 		st::desktopCaptureWithAudio)) {
+	_submit->setTextTransform(RoundButtonTextTransform::ToUpper);
+	_finish->setTextTransform(RoundButtonTextTransform::ToUpper);
 	setupPanel();
 	setupSources();
 	activate();
@@ -313,11 +315,6 @@ void ChooseSourceProcess::activate() {
 }
 
 void ChooseSourceProcess::setupPanel() {
-#ifndef Q_OS_LINUX
-	//_window->setAttribute(Qt::WA_OpaquePaintEvent);
-#endif // Q_OS_LINUX
-	//_window->setAttribute(Qt::WA_NoSystemBackground);
-
 	_window->setWindowIcon(QIcon(
 		QPixmap::fromImage(Image::Empty()->original(), Qt::ColorOnly)));
 	_window->setTitleStyle(st::desktopCaptureSourceTitle);
@@ -370,6 +367,7 @@ void ChooseSourceProcess::setupPanel() {
 		_bottom.get(),
 		tr::lng_cancel(),
 		st::desktopCaptureCancel);
+	cancel->setTextTransform(RoundButtonTextTransform::ToUpper);
 	cancel->setClickedCallback([=] {
 		_window->close();
 	});

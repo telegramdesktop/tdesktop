@@ -116,19 +116,14 @@ void Transcribes::toggle(not_null<HistoryItem*> item) {
 	}
 }
 
-void Transcribes::toggleSummary(
-		not_null<HistoryItem*> item,
-		Fn<void()> onPremiumRequired) {
+void Transcribes::toggleSummary(not_null<HistoryItem*> item) {
 	const auto id = item->fullId();
 	auto i = _summaries.find(id);
 	if (i == _summaries.end()) {
-		auto &entry = _summaries.emplace(id).first->second;
-		entry.onPremiumRequired = std::move(onPremiumRequired);
 		summarize(item);
 	} else if (!i->second.loading) {
 		auto &entry = i->second;
 		if (entry.result.empty()) {
-			entry.onPremiumRequired = std::move(onPremiumRequired);
 			summarize(item);
 		} else {
 			entry.shown = entry.premiumRequired ? false : !entry.shown;
@@ -257,14 +252,14 @@ void Transcribes::summarize(not_null<HistoryItem*> item) {
 			: MTP_flags(MTPmessages_summarizeText::Flag::f_to_lang),
 		item->history()->peer->input(),
 		MTP_int(item->id),
-		langCode.isEmpty() ? MTPstring() : MTP_string(langCode)
+		langCode.isEmpty() ? MTPstring() : MTP_string(langCode),
+		MTPstring() // tone
 	)).done([=](const MTPTextWithEntities &result) {
 		const auto &data = result.data();
 		auto &entry = _summaries[id];
 		entry.requestId = 0;
 		entry.loading = false;
 		entry.premiumRequired = false;
-		entry.onPremiumRequired = nullptr;
 		entry.languageId = translatedTo;
 		entry.result = TextWithEntities(
 			qs(data.vtext()),
@@ -276,15 +271,11 @@ void Transcribes::summarize(not_null<HistoryItem*> item) {
 	}).fail([=](const MTP::Error &error) {
 		auto &entry = _summaries[id];
 		if (error.type() == u"SUMMARY_FLOOD_PREMIUM"_q) {
-			if (!entry.premiumRequired && entry.onPremiumRequired) {
-				entry.onPremiumRequired();
-			}
 			entry.premiumRequired = true;
 		}
 		entry.requestId = 0;
 		entry.shown = false;
 		entry.loading = false;
-		entry.onPremiumRequired = nullptr;
 		if (const auto item = _session->data().message(id)) {
 			_session->data().requestItemTextRefresh(item);
 		}

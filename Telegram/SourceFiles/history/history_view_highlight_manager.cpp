@@ -66,6 +66,7 @@ Ui::ChatPaintHighlight ElementHighlighter::state(
 		auto result = _animation.state();
 		result.range = _highlighted.part;
 		result.todoItemId = _highlighted.todoListId;
+		result.pollOption = _highlighted.pollOption;
 		return result;
 	}
 	return {};
@@ -90,20 +91,37 @@ ElementHighlighter::Highlight ElementHighlighter::computeHighlight(
 					leaderId,
 					leaderView->selectionFromQuote(quote),
 					quote.highlight.todoItemId,
+					quote.highlight.pollOption,
 				};
 			}
 		}
-		return { leaderId, {}, quote.highlight.todoItemId };
+		return {
+			leaderId,
+			{},
+			quote.highlight.todoItemId,
+			quote.highlight.pollOption,
+		};
 	} else if (quote.highlight.quote.empty()) {
-		return { item->fullId(), {}, quote.highlight.todoItemId };
+		return {
+			item->fullId(),
+			{},
+			quote.highlight.todoItemId,
+			quote.highlight.pollOption,
+		};
 	} else if (const auto view = _viewForItem(item)) {
 		return {
 			item->fullId(),
 			view->selectionFromQuote(quote),
 			quote.highlight.todoItemId,
+			quote.highlight.pollOption,
 		};
 	}
-	return { item->fullId(), {}, quote.highlight.todoItemId };
+	return {
+		item->fullId(),
+		{},
+		quote.highlight.todoItemId,
+		quote.highlight.pollOption,
+	};
 }
 
 void ElementHighlighter::highlight(Highlight data) {
@@ -117,7 +135,9 @@ void ElementHighlighter::highlight(Highlight data) {
 				}
 			}
 			_highlighted = data;
-			_animation.start((!data.part.empty() || data.todoListId)
+			_animation.start((!data.part.empty()
+					|| data.todoListId
+					|| !data.pollOption.isEmpty())
 				&& !IsSubGroupSelection(data.part));
 
 			repaintHighlightedItem(view);

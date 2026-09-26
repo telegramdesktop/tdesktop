@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/widgets/color_editor.h"
 #include "ui/widgets/shadow.h"
-#include "styles/style_layers.h"
+#include "styles/style_widgets.h"
 #include "styles/style_window.h"
 
 namespace Window {
@@ -63,15 +63,15 @@ public:
 	}
 	bool searchWordsContain(const QString &needle) const {
 		for (const auto &word : _searchWords) {
-			if (word.startsWith(needle)) {
+			if (word.contains(needle)) {
 				return true;
 			}
 		}
 		return false;
 	}
 
-	const base::flat_set<QChar> &searchStartChars() const {
-		return _searchStartChars;
+	const base::flat_set<QChar> &searchChars() const {
+		return _searchChars;
 	}
 
 	void setTop(int top) {
@@ -110,7 +110,7 @@ private:
 	Ui::Text::String _description = { st::windowMinWidth / 2 };
 
 	base::flat_set<QString> _searchWords;
-	base::flat_set<QChar> _searchStartChars;
+	base::flat_set<QChar> _searchChars;
 
 	int _top = 0;
 	int _height = 0;
@@ -156,7 +156,7 @@ void EditorBlock::Row::fillValueString() {
 
 void EditorBlock::Row::fillSearchIndex() {
 	_searchWords.clear();
-	_searchStartChars.clear();
+	_searchChars.clear();
 	const auto toIndex = _name
 		+ ' ' + _copyOf
 		+ ' ' + TextUtilities::RemoveAccents(_description.toString())
@@ -166,7 +166,9 @@ void EditorBlock::Row::fillSearchIndex() {
 		Qt::SkipEmptyParts);
 	for (const auto &word : words) {
 		_searchWords.emplace(word);
-		_searchStartChars.emplace(word[0]);
+		for (const auto &ch : word) {
+			_searchChars.emplace(ch);
+		}
 	}
 }
 
@@ -274,7 +276,7 @@ void EditorBlock::addToSearch(const Row &row) {
 	if (!query.isEmpty()) resetSearch();
 
 	auto index = findRowIndex(&row);
-	for (const auto &ch : row.searchStartChars()) {
+	for (const auto &ch : row.searchChars()) {
 		_searchIndex[ch].insert(index);
 	}
 
@@ -286,7 +288,7 @@ void EditorBlock::removeFromSearch(const Row &row) {
 	if (!query.isEmpty()) resetSearch();
 
 	auto index = findRowIndex(&row);
-	for (const auto &ch : row.searchStartChars()) {
+	for (const auto &ch : row.searchChars()) {
 		const auto i = _searchIndex.find(ch);
 		if (i != end(_searchIndex)) {
 			i->second.remove(index);
@@ -346,7 +348,7 @@ void EditorBlock::activateRow(const Row &row) {
 			});
 			box->addButton(tr::lng_settings_save(), save);
 			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
-			box->setTitle(rpl::single(name));
+			box->setTitle(name);
 			box->setWidth(editor->width());
 
 			_context->colorEditor.box = box;
@@ -637,7 +639,10 @@ void EditorBlock::checkCopiesChanged(int startIndex, QStringList names, QColor v
 }
 
 void EditorBlock::cancelEditing() {
-	if (_editing >= 0) {
+	// The only place we need to check for _editing < _data.size(),
+	// because we could remove the row that was edited in New block,
+	// and it could be the last row, making _editing inconsistent.
+	if (_editing >= 0 && _editing < _data.size()) {
 		updateRow(_data[_editing]);
 	}
 	_editing = -1;
@@ -794,7 +799,7 @@ void EditorBlock::addRowRipple(int index) {
 }
 
 void EditorBlock::stopLastRipple(int index) {
-	auto &row = rowAtIndex(index);
+	const auto &row = rowAtIndex(index);
 	if (row.ripple()) {
 		row.ripple()->lastStop();
 	}

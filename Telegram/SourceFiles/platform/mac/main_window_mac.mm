@@ -21,6 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+#include "platform/mac/global_menu_mac.h"
+#include "platform/mac/native_event_mac.h"
 #include "platform/mac/touchbar/mac_touchbar_manager.h"
 #include "platform/platform_specific.h"
 #include "platform/platform_notifications_manager.h"
@@ -34,10 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtWidgets/QLineEdit>
 #include <QtWidgets/QTextEdit>
 
-#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
-#include <qpa/qwindowsysteminterface.h>
-#endif // Qt < 6.6.0
-
 #include <Cocoa/Cocoa.h>
 #include <CoreFoundation/CFURL.h>
 #include <IOKit/IOKitLib.h>
@@ -48,41 +46,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 - (id) init:(MainWindow::Private*)window;
 - (void) activeSpaceDidChange:(NSNotification *)aNotification;
-#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
+#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
 - (void) darkModeChanged:(NSNotification *)aNotification;
-#endif // Qt < 6.6.0
+#endif // Qt < 6.5.0
 - (void) screenIsLocked:(NSNotification *)aNotification;
 - (void) screenIsUnlocked:(NSNotification *)aNotification;
 
 @end // @interface MainWindowObserver
 
 namespace Platform {
+
 namespace {
 
 // When we close a window that is fullscreen we first leave the fullscreen
 // mode and after that hide the window. This is a timeout for elaving the
 // fullscreen mode, after that we'll hide the window no matter what.
 constexpr auto kHideAfterFullscreenTimeoutMs = 3000;
-
-[[nodiscard]] bool PossiblyTextTypingEvent(NSEvent *e) {
-	if ([e type] != NSEventTypeKeyDown) {
-		return false;
-	}
-	NSEventModifierFlags flags = [e modifierFlags]
-		& NSEventModifierFlagDeviceIndependentFlagsMask;
-	if ((flags & ~NSEventModifierFlagShift) != 0) {
-		return false;
-	}
-	NSString *text = [e characters];
-	const auto length = int([text length]);
-	for (auto i = 0; i != length; ++i) {
-		const auto utf16 = [text characterAtIndex:i];
-		if (utf16 >= 32) {
-			return true;
-		}
-	}
-	return false;
-}
 
 } // namespace
 
@@ -96,9 +75,10 @@ public:
 		not_null<Window::Controller*> controller);
 	void setWindowBadge(const QString &str);
 
-	void setMarkdownEnabledState(Ui::MarkdownEnabledState state);
+	void updateMarkdownState(Ui::MarkdownEnabledState state) {
+		_markdownState = state;
+	}
 
-	bool clipboardHasText();
 	~Private();
 
 private:
@@ -111,9 +91,7 @@ private:
 	NSView * __weak _nativeView = nil;
 
 	MainWindowObserver *_observer = nullptr;
-	NSPasteboard *_generalPasteboard = nullptr;
-	int _generalPasteboardChangeCount = -1;
-	bool _generalPasteboardHasText = false;
+	RootTouchBar *_touchBar = nil;
 
 };
 
@@ -134,17 +112,13 @@ private:
 - (void) activeSpaceDidChange:(NSNotification *)aNotification {
 }
 
-#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
+#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
 - (void) darkModeChanged:(NSNotification *)aNotification {
 	Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-		QWindowSystemInterface::handleThemeChange();
-#else // Qt >= 6.5.0
 		Core::App().settings().setSystemDarkMode(Platform::IsDarkMode());
-#endif // Qt < 6.5.0
 	});
 }
-#endif // Qt < 6.6.0
+#endif // Qt < 6.5.0
 
 - (void) screenIsLocked:(NSNotification *)aNotification {
 	Core::App().setScreenIsLocked(true);
@@ -159,36 +133,12 @@ private:
 namespace Platform {
 namespace {
 
-void SendKeySequence(
-		Qt::Key key,
-		Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
-	const auto focused = QApplication::focusWidget();
-	if (qobject_cast<QLineEdit*>(focused)
-		|| qobject_cast<QTextEdit*>(focused)
-		|| dynamic_cast<HistoryInner*>(focused)) {
-		QApplication::postEvent(
-			focused,
-			new QKeyEvent(QEvent::KeyPress, key, modifiers));
-		QApplication::postEvent(
-			focused,
-			new QKeyEvent(QEvent::KeyRelease, key, modifiers));
-	}
-}
-
-void ForceDisabled(QAction *action, bool disabled) {
-	if (action->isEnabled()) {
-		if (disabled) action->setDisabled(true);
-	} else if (!disabled) {
-		action->setDisabled(false);
-	}
-}
-
-#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
+#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
 QString strNotificationAboutThemeChange() {
 	const uint32 letters[] = { 0x75E86256, 0xD03E11B1, 0x4D92201D, 0xA2144987, 0x99D5B34F, 0x037589C3, 0x38ED2A7C, 0xD2371ABC, 0xDC98BB02, 0x27964E1B, 0x01748AED, 0xE06679F8, 0x761C9580, 0x4F2595BF, 0x6B5FCBF4, 0xE4D9C24E, 0xBA2F6AB5, 0xE6E3FA71, 0xF2CFC255, 0x56A50C19, 0x43AE1239, 0x77CA4254, 0x7D189A89, 0xEA7663EE, 0x84CEB554, 0xA0ADF236, 0x886512D4, 0x7D3FBDAF, 0x85C4BE4F, 0x12C8255E, 0x9AD8BD41, 0xAC154683, 0xB117598B, 0xDFD9F947, 0x63F06C7B, 0x6340DCD6, 0x3AAE6B3E, 0x26CB125A };
 	return Platform::MakeFromLetters(letters);
 }
-#endif // Qt < 6.6.0
+#endif // Qt < 6.5.0
 
 QString strNotificationAboutScreenLocked() {
 	const uint32 letters[] = { 0x34B47F28, 0x47E95179, 0x73D05C42, 0xB4E2A933, 0x924F22D1, 0x4265D8EA, 0x9E4D2CC2, 0x02E8157B, 0x35BF7525, 0x75901A41, 0xB0400FCC, 0xE801169D, 0x4E04B589, 0xC1CEF054, 0xAB2A7EB0, 0x5C67C4F6, 0xA4E2B954, 0xB35E12D2, 0xD598B22B, 0x4E3B8AAB, 0xBEA5E439, 0xFDA8AA3C, 0x1632DBA8, 0x88FE8965 };
@@ -205,14 +155,12 @@ QString strNotificationAboutScreenUnlocked() {
 MainWindow::Private::Private(not_null<MainWindow*> window)
 : _public(window)
 , _observer([[MainWindowObserver alloc] init:this]) {
-	_generalPasteboard = [NSPasteboard generalPasteboard];
-
 	@autoreleasepool {
 
 	[[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:_observer selector:@selector(activeSpaceDidChange:) name:NSWorkspaceActiveSpaceDidChangeNotification object:nil];
-#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
+#if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
 	[[NSDistributedNotificationCenter defaultCenter] addObserver:_observer selector:@selector(darkModeChanged:) name:Q2NSString(strNotificationAboutThemeChange()) object:nil];
-#endif // Qt < 6.6.0
+#endif // Qt < 6.5.0
 	[[NSDistributedNotificationCenter defaultCenter] addObserver:_observer selector:@selector(screenIsLocked:) name:Q2NSString(strNotificationAboutScreenLocked()) object:nil];
 	[[NSDistributedNotificationCenter defaultCenter] addObserver:_observer selector:@selector(screenIsUnlocked:) name:Q2NSString(strNotificationAboutScreenUnlocked()) object:nil];
 
@@ -232,7 +180,9 @@ void MainWindow::Private::setNativeWindow(NSWindow *window, NSView *view) {
 	_nativeView = view;
 	auto inner = [_nativeWindow contentLayoutRect];
 	auto full = [_nativeView frame];
-	_public->_customTitleHeight = qMax(qRound(full.size.height - inner.size.height), 0);
+	_public->_customTitleHeight = std::max(
+		int(base::SafeRound(full.size.height - inner.size.height)),
+		0);
 }
 
 void MainWindow::Private::initTouchBar(
@@ -244,37 +194,35 @@ void MainWindow::Private::initTouchBar(
 	[NSApplication sharedApplication]
 		.automaticCustomizeTouchBarMenuItemEnabled = true;
 
+	_touchBar = [[RootTouchBar alloc]
+		init:_markdownState.value()
+		controller:controller
+		domain:(&Core::App().domain())];
 	[window
 		performSelectorOnMainThread:@selector(setTouchBar:)
-		withObject:[[[RootTouchBar alloc]
-			init:_markdownState.value()
-			controller:controller
-			domain:(&Core::App().domain())] autorelease]
+		withObject:_touchBar
 		waitUntilDone:true];
 }
 
-void MainWindow::Private::setMarkdownEnabledState(
-		Ui::MarkdownEnabledState state) {
-	_markdownState = state;
-}
-
-bool MainWindow::Private::clipboardHasText() {
-	auto currentChangeCount = static_cast<int>([_generalPasteboard changeCount]);
-	if (_generalPasteboardChangeCount != currentChangeCount) {
-		_generalPasteboardChangeCount = currentChangeCount;
-		_generalPasteboardHasText = !QGuiApplication::clipboard()->text().isEmpty();
-	}
-	return _generalPasteboardHasText;
-}
-
 MainWindow::Private::~Private() {
+	[_touchBar invalidate];
+	[_touchBar release];
+	_touchBar = nil;
+	if (_nativeWindow) {
+		[_nativeWindow setTouchBar:nil];
+	}
+	@autoreleasepool {
+		[[[NSWorkspace sharedWorkspace] notificationCenter]
+			removeObserver:_observer];
+		[[NSDistributedNotificationCenter defaultCenter]
+			removeObserver:_observer];
+	}
 	[_observer release];
 }
 
 MainWindow::MainWindow(not_null<Window::Controller*> controller)
 : Window::MainWindow(controller)
-, _private(std::make_unique<Private>(this))
-, psMainMenu(this) {
+, _private(std::make_unique<Private>(this)) {
 	_hideAfterFullScreenTimer.setCallback([this] { hideAndDeactivate(); });
 }
 
@@ -309,6 +257,11 @@ void MainWindow::initHook() {
 			}
 		}
 	}
+
+	Platform::GlobalMenuMarkdownState(
+	) | rpl::on_next([this](Ui::MarkdownEnabledState state) {
+		_private->updateMarkdownState(state);
+	}, lifetime());
 }
 
 void MainWindow::updateWindowIcon() {
@@ -356,314 +309,6 @@ void MainWindow::updateDockCounter() {
 		? QString("%1").arg(counter)
 		: QString("..%1").arg(counter % 100, 2, 10, QChar('0'));
 	_private->setWindowBadge(string);
-}
-
-void MainWindow::createGlobalMenu() {
-	const auto ensureWindowShown = [=] {
-		if (isHidden()) {
-			showFromTray();
-		}
-	};
-
-	auto main = psMainMenu.addMenu(u"Telegram"_q);
-	{
-		auto callback = [=] {
-			ensureWindowShown();
-			controller().show(Box(AboutBox));
-		};
-		main->addAction(
-			tr::lng_mac_menu_about_telegram(
-				tr::now,
-				lt_telegram,
-				u"Telegram"_q),
-			std::move(callback))
-		->setMenuRole(QAction::AboutQtRole);
-	}
-
-	main->addSeparator();
-	{
-		auto callback = [=] {
-			ensureWindowShown();
-			controller().showSettings();
-		};
-		auto prefs = main->addAction(
-			tr::lng_mac_menu_preferences(tr::now),
-			this,
-			std::move(callback),
-			QKeySequence(Qt::ControlModifier | Qt::Key_Comma));
-		prefs->setMenuRole(QAction::PreferencesRole);
-		prefs->setShortcutContext(Qt::WidgetShortcut);
-	}
-
-	QMenu *file = psMainMenu.addMenu(tr::lng_mac_menu_file(tr::now));
-	{
-		auto callback = [=] {
-			ensureWindowShown();
-			controller().showLogoutConfirmation();
-		};
-		psLogout = file->addAction(
-			tr::lng_mac_menu_logout(tr::now),
-			this,
-			std::move(callback));
-	}
-
-	QMenu *edit = psMainMenu.addMenu(tr::lng_mac_menu_edit(tr::now));
-	psUndo = edit->addAction(
-		tr::lng_mac_menu_undo(tr::now),
-		this,
-		[] { SendKeySequence(Qt::Key_Z, Qt::ControlModifier); },
-		QKeySequence::Undo);
-	psUndo->setShortcutContext(Qt::WidgetShortcut);
-	psRedo = edit->addAction(
-		tr::lng_mac_menu_redo(tr::now),
-		this,
-		[] {
-			SendKeySequence(
-				Qt::Key_Z,
-				Qt::ControlModifier | Qt::ShiftModifier);
-		},
-		QKeySequence::Redo);
-	psRedo->setShortcutContext(Qt::WidgetShortcut);
-	edit->addSeparator();
-	psCut = edit->addAction(
-		tr::lng_mac_menu_cut(tr::now),
-		this,
-		[] { SendKeySequence(Qt::Key_X, Qt::ControlModifier); },
-		QKeySequence::Cut);
-	psCut->setShortcutContext(Qt::WidgetShortcut);
-	psCopy = edit->addAction(
-		tr::lng_mac_menu_copy(tr::now),
-		this,
-		[] { SendKeySequence(Qt::Key_C, Qt::ControlModifier); },
-		QKeySequence::Copy);
-	psCopy->setShortcutContext(Qt::WidgetShortcut);
-	psPaste = edit->addAction(
-		tr::lng_mac_menu_paste(tr::now),
-		this,
-		[] { SendKeySequence(Qt::Key_V, Qt::ControlModifier); },
-		QKeySequence::Paste);
-	psPaste->setShortcutContext(Qt::WidgetShortcut);
-	psDelete = edit->addAction(
-		tr::lng_mac_menu_delete(tr::now),
-		this,
-		[] { SendKeySequence(Qt::Key_Delete); },
-		QKeySequence(Qt::ControlModifier | Qt::Key_Backspace));
-	psDelete->setShortcutContext(Qt::WidgetShortcut);
-
-	edit->addSeparator();
-	psBold = edit->addAction(
-		tr::lng_menu_formatting_bold(tr::now),
-		this,
-		[] { SendKeySequence(Qt::Key_B, Qt::ControlModifier); },
-		QKeySequence::Bold);
-	psBold->setShortcutContext(Qt::WidgetShortcut);
-	psItalic = edit->addAction(
-		tr::lng_menu_formatting_italic(tr::now),
-		this,
-		[] { SendKeySequence(Qt::Key_I, Qt::ControlModifier); },
-		QKeySequence::Italic);
-	psItalic->setShortcutContext(Qt::WidgetShortcut);
-	psUnderline = edit->addAction(
-		tr::lng_menu_formatting_underline(tr::now),
-		this,
-		[] { SendKeySequence(Qt::Key_U, Qt::ControlModifier); },
-		QKeySequence::Underline);
-	psUnderline->setShortcutContext(Qt::WidgetShortcut);
-	psStrikeOut = edit->addAction(
-		tr::lng_menu_formatting_strike_out(tr::now),
-		this,
-		[] {
-			SendKeySequence(
-				Qt::Key_X,
-				Qt::ControlModifier | Qt::ShiftModifier);
-		},
-		Ui::kStrikeOutSequence);
-	psStrikeOut->setShortcutContext(Qt::WidgetShortcut);
-	psBlockquote = edit->addAction(
-		tr::lng_menu_formatting_blockquote(tr::now),
-		this,
-		[] {
-			SendKeySequence(
-				Qt::Key_Period,
-				Qt::ControlModifier | Qt::ShiftModifier);
-		},
-		Ui::kBlockquoteSequence);
-	psBlockquote->setShortcutContext(Qt::WidgetShortcut);
-	psMonospace = edit->addAction(
-		tr::lng_menu_formatting_monospace(tr::now),
-		this,
-		[] {
-			SendKeySequence(
-				Qt::Key_M,
-				Qt::ControlModifier | Qt::ShiftModifier);
-		},
-		Ui::kMonospaceSequence);
-	psMonospace->setShortcutContext(Qt::WidgetShortcut);
-	psClearFormat = edit->addAction(
-		tr::lng_menu_formatting_clear(tr::now),
-		this,
-		[] {
-			SendKeySequence(
-				Qt::Key_N,
-				Qt::ControlModifier | Qt::ShiftModifier);
-		},
-		Ui::kClearFormatSequence);
-	psClearFormat->setShortcutContext(Qt::WidgetShortcut);
-
-	edit->addSeparator();
-	psSelectAll = edit->addAction(
-		tr::lng_mac_menu_select_all(tr::now),
-		this,
-		[] { SendKeySequence(Qt::Key_A, Qt::ControlModifier); },
-		QKeySequence::SelectAll);
-	psSelectAll->setShortcutContext(Qt::WidgetShortcut);
-
-	if (!Platform::IsMac26_0OrGreater()) {
-		edit->addSeparator();
-		edit->addAction(
-			tr::lng_mac_menu_emoji_and_symbols(
-				tr::now,
-				Ui::Text::FixAmpersandInAction),
-			this,
-			[] { [NSApp orderFrontCharacterPalette:nil]; },
-			QKeySequence(Qt::MetaModifier
-				| Qt::ControlModifier
-				| Qt::Key_Space)
-		)->setShortcutContext(Qt::WidgetShortcut);
-	}
-
-	QMenu *window = psMainMenu.addMenu(tr::lng_mac_menu_window(tr::now));
-
-	window->addAction(
-		tr::lng_mac_menu_fullscreen(tr::now),
-		this,
-		[=] {
-			NSWindow *nsWindow = [reinterpret_cast<NSView*>(winId()) window];
-			[nsWindow toggleFullScreen:nsWindow];
-		},
-		QKeySequence(Qt::MetaModifier | Qt::ControlModifier | Qt::Key_F)
-	)->setShortcutContext(Qt::WidgetShortcut);
-	window->addSeparator();
-
-	psContacts = window->addAction(tr::lng_mac_menu_contacts(tr::now));
-	connect(psContacts, &QAction::triggered, psContacts, crl::guard(this, [=] {
-		Expects(sessionController() != nullptr && !controller().locked());
-
-		ensureWindowShown();
-		sessionController()->show(PrepareContactsBox(sessionController()));
-	}));
-	{
-		auto callback = [=] {
-			Expects(sessionController() != nullptr && !controller().locked());
-
-			ensureWindowShown();
-			sessionController()->showAddContact();
-		};
-		psAddContact = window->addAction(
-			tr::lng_mac_menu_add_contact(tr::now),
-			this,
-			std::move(callback));
-	}
-	window->addSeparator();
-	{
-		auto callback = [=] {
-			Expects(sessionController() != nullptr && !controller().locked());
-
-			ensureWindowShown();
-			sessionController()->showNewGroup();
-		};
-		psNewGroup = window->addAction(
-			tr::lng_mac_menu_new_group(tr::now),
-			this,
-			std::move(callback));
-	}
-	{
-		auto callback = [=] {
-			Expects(sessionController() != nullptr && !controller().locked());
-
-			ensureWindowShown();
-			sessionController()->showNewChannel();
-		};
-		psNewChannel = window->addAction(
-			tr::lng_mac_menu_new_channel(tr::now),
-			this,
-			std::move(callback));
-	}
-	window->addSeparator();
-	psShowTelegram = window->addAction(
-		tr::lng_mac_menu_show(tr::now),
-		this,
-		[=] { showFromTray(); });
-
-	updateGlobalMenu();
-}
-
-void MainWindow::updateGlobalMenuHook() {
-	if (!positionInited()) {
-		return;
-	}
-
-	auto focused = QApplication::focusWidget();
-	bool canUndo = false, canRedo = false, canCut = false, canCopy = false, canPaste = false, canDelete = false, canSelectAll = false;
-	auto clipboardHasText = _private->clipboardHasText();
-	auto markdownState = Ui::MarkdownEnabledState();
-	if (auto edit = qobject_cast<QLineEdit*>(focused)) {
-		canCut = canCopy = canDelete = edit->hasSelectedText();
-		canSelectAll = !edit->text().isEmpty();
-		canUndo = edit->isUndoAvailable();
-		canRedo = edit->isRedoAvailable();
-		canPaste = clipboardHasText;
-	} else if (auto edit = qobject_cast<QTextEdit*>(focused)) {
-		canCut = canCopy = canDelete = edit->textCursor().hasSelection();
-		canSelectAll = !edit->document()->isEmpty();
-		canUndo = edit->document()->isUndoAvailable();
-		canRedo = edit->document()->isRedoAvailable();
-		canPaste = clipboardHasText;
-		if (canCopy) {
-			if (const auto inputField = dynamic_cast<Ui::InputField*>(
-					focused->parentWidget())) {
-				markdownState = inputField->markdownEnabledState();
-			}
-		}
-	} else if (auto list = dynamic_cast<HistoryInner*>(focused)) {
-		canCopy = list->canCopySelected();
-		canDelete = list->canDeleteSelected();
-	}
-
-	_private->setMarkdownEnabledState(markdownState);
-
-	updateIsActive();
-	const auto logged = (sessionController() != nullptr);
-	const auto inactive = !logged || controller().locked();
-	const auto support = logged
-		&& sessionController()->session().supportMode();
-	ForceDisabled(psLogout, !logged && !Core::App().passcodeLocked());
-	ForceDisabled(psUndo, !canUndo);
-	ForceDisabled(psRedo, !canRedo);
-	ForceDisabled(psCut, !canCut);
-	ForceDisabled(psCopy, !canCopy);
-	ForceDisabled(psPaste, !canPaste);
-	ForceDisabled(psDelete, !canDelete);
-	ForceDisabled(psSelectAll, !canSelectAll);
-	ForceDisabled(psContacts, inactive || support);
-	ForceDisabled(psAddContact, inactive);
-	ForceDisabled(psNewGroup, inactive || support);
-	ForceDisabled(psNewChannel, inactive || support);
-	ForceDisabled(psShowTelegram, isActive());
-
-	const auto diabled = [=](const QString &tag) {
-		return !markdownState.enabledForTag(tag);
-	};
-	using Field = Ui::InputField;
-	ForceDisabled(psBold, diabled(Field::kTagBold));
-	ForceDisabled(psItalic, diabled(Field::kTagItalic));
-	ForceDisabled(psUnderline, diabled(Field::kTagUnderline));
-	ForceDisabled(psStrikeOut, diabled(Field::kTagStrikeOut));
-	ForceDisabled(psBlockquote, diabled(Field::kTagBlockquote));
-	ForceDisabled(
-		psMonospace,
-		diabled(Field::kTagPre) || diabled(Field::kTagCode));
-	ForceDisabled(psClearFormat, markdownState.disabled());
 }
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {

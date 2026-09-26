@@ -52,6 +52,17 @@ struct UpdateForLoader {
 	Update data;
 };
 
+// Only http(s) requests are ever performed by this loader. Otherwise a
+// web content URL (or a redirect target chosen by some server) could be
+// a file: URL, which on Windows opens UNC paths like \\host\share\file
+// and discloses the user's NTLM credentials to that host.
+[[nodiscard]] bool IsSupportedWebUrl(const QUrl &url) {
+	const auto scheme = url.scheme();
+	return url.isValid()
+		&& (scheme == QLatin1String("http")
+			|| scheme == QLatin1String("https"));
+}
+
 } // namespace
 
 class WebLoadManager final : public base::has_weak_ptr {
@@ -143,6 +154,10 @@ private:
 WebLoadManager::WebLoadManager()
 : _network(std::make_unique<QNetworkAccessManager>())
 , _resetGenerationTimer(&_thread, [=] { resetGeneration(); }) {
+	// Follow redirects in Qt itself (the default in Qt 6, but not in Qt 5),
+	// so that unsafe targets (scheme changes or https -> http downgrades)
+	// are rejected by the HTTP layer, not re-issued by redirect() below.
+	_network->setRedirectPolicy(QNetworkRequest::NoLessSafeRedirectPolicy);
 	handleNetworkErrors();
 
 	_network->moveToThread(&_thread);
@@ -216,6 +231,13 @@ void WebLoadManager::remove(not_null<webFileLoader*> loader) {
 void WebLoadManager::enqueue(int id, const QString &url, bool stream) {
 	const auto i = ranges::find(_queue, id, &Enqueued::id);
 	if (i != end(_queue)) {
+		return;
+	}
+	if (!IsSupportedWebUrl(QUrl(url))) {
+		LOG(("Network Error: "
+			"Bad url requested in WebLoadManager::enqueue(): '%1'"
+			).arg(url));
+		queueFailedUpdate(id);
 		return;
 	}
 	_previousGeneration.erase(
@@ -326,23 +348,33 @@ void WebLoadManager::progress(
 }
 
 void WebLoadManager::redirect(int id, not_null<QNetworkReply*> reply) {
-	const auto header = reply->header(QNetworkRequest::LocationHeader);
-	const auto url = header.toString();
-	if (url.isEmpty()) {
-		return;
+	// The cooked LocationHeader value is empty for relative targets,
+	// because Qt parses it into a QUrl only when it carries a scheme.
+	const auto raw = reply->rawHeader("Location");
+	auto url = QUrl(QString::fromUtf8(raw));
+	if (!url.isValid()) {
+		url = QUrl(QString::fromLatin1(raw));
 	}
 
 	if (const auto sent = findSent(id, reply)) {
-		if (!sent->redirectsLeft--) {
+		const auto next = reply->url().resolved(url);
+		if (raw.isEmpty() || !IsSupportedWebUrl(next)) {
+			LOG(("Network Error: "
+				"Bad redirect target in WebLoadManager::redirect() "
+				"for web file loader: %1").arg(QString::fromUtf8(raw)));
+			failed(id, reply);
+			return;
+		} else if (!sent->redirectsLeft--) {
 			LOG(("Network Error: "
 				"Too many HTTP redirects in onFinished() "
-				"for web file loader: %1").arg(url));
+				"for web file loader: %1").arg(next.toString()));
 			failed(id, reply);
 			return;
 		}
+		const auto target = next.toString();
 		deleteDeferred(reply);
-		sent->url = url;
-		sent->reply = send(id, url);
+		sent->url = target;
+		sent->reply = send(id, target);
 	}
 }
 

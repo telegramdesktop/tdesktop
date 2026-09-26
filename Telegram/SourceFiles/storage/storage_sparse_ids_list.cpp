@@ -23,10 +23,18 @@ void SparseIdsList::Slice::merge(
 	Expects(moreNoSkipRange.from <= range.till);
 	Expects(range.from <= moreNoSkipRange.till);
 
-	messages.merge(std::begin(moreMessages), std::end(moreMessages));
+	const auto begin = std::begin(moreMessages);
+	const auto end = std::end(moreMessages);
+	if (begin != end) {
+		if (std::next(begin) == end) {
+			messages.insert(*begin);
+		} else {
+			messages.merge(begin, end);
+		}
+	}
 	range = {
-		qMin(range.from, moreNoSkipRange.from),
-		qMax(range.till, moreNoSkipRange.till)
+		std::min(range.from, moreNoSkipRange.from),
+		std::max(range.till, moreNoSkipRange.till)
 	};
 }
 
@@ -136,9 +144,10 @@ void SparseIdsList::addNew(MsgId messageId) {
 
 void SparseIdsList::addExisting(
 		MsgId messageId,
-		MsgRange noSkipRange) {
+		MsgRange noSkipRange,
+		bool incrementCount) {
 	auto range = { messageId };
-	addRange(range, noSkipRange, std::nullopt);
+	addRange(range, noSkipRange, std::nullopt, incrementCount);
 }
 
 void SparseIdsList::addSlice(
@@ -148,18 +157,27 @@ void SparseIdsList::addSlice(
 	addRange(messageIds, noSkipRange, count);
 }
 
-void SparseIdsList::removeOne(MsgId messageId) {
+void SparseIdsList::removeOne(MsgId messageId, bool onlyMatched) {
+	auto removed = false;
 	auto slice = ranges::lower_bound(
 		_slices,
 		messageId,
 		std::less<>(),
 		[](const Slice &slice) { return slice.range.till; });
 	if (slice != _slices.end() && slice->range.from <= messageId) {
-		_slices.modify(slice, [messageId](Slice &slice) {
-			return slice.messages.remove(messageId);
+		_slices.modify(slice, [&removed, messageId](Slice &slice) {
+			removed = slice.messages.remove(messageId);
 		});
 	}
-	if (_count) {
+	// _count is a server total while _slices hold only the ranges this
+	// client fetched, so an id that no slice covers can still be inside
+	// _count and a real deletion of it must lower that total. Only a
+	// caller undoing an index entry it wrote itself, not one reporting
+	// the id really leaving the list, may ask for onlyMatched.
+	if (onlyMatched && !removed) {
+		return;
+	}
+	if (_count && *_count > 0) {
 		--*_count;
 	}
 }
@@ -168,6 +186,33 @@ void SparseIdsList::removeAll() {
 	_slices.clear();
 	_slices.emplace(base::flat_set<MsgId>{}, MsgRange { 0, ServerMaxMsgId });
 	_count = 0;
+}
+
+std::optional<int> SparseIdsList::countAfter(
+		MsgId tillId,
+		int limit,
+		Fn<bool(MsgId)> counts) const {
+	if (_slices.empty()) {
+		return std::nullopt;
+	}
+	const auto &bottom = *(_slices.end() - 1);
+	if (bottom.range.till != ServerMaxMsgId) {
+		return std::nullopt;
+	} else if ((bottom.range.from > tillId) && (bottom.range.from != 0)) {
+		return std::nullopt;
+	}
+	const auto from = bottom.messages.upper_bound(tillId);
+	const auto till = bottom.messages.end();
+	if (std::distance(from, till) > limit) {
+		return std::nullopt;
+	}
+	auto result = 0;
+	for (auto i = from; i != till; ++i) {
+		if (counts(*i)) {
+			++result;
+		}
+	}
+	return result;
 }
 
 void SparseIdsList::invalidateBottom() {
@@ -236,8 +281,8 @@ SparseIdsListResult SparseIdsList::queryFromSlice(
 	auto position = ranges::lower_bound(slice.messages, query.aroundId);
 	auto haveBefore = int(position - slice.messages.begin());
 	auto haveEqualOrAfter = int(slice.messages.end() - position);
-	auto before = qMin(haveBefore, query.limitBefore);
-	auto equalOrAfter = qMin(haveEqualOrAfter, query.limitAfter + 1);
+	auto before = std::min(haveBefore, query.limitBefore);
+	auto equalOrAfter = std::min(haveEqualOrAfter, query.limitAfter + 1);
 	auto ids = std::vector<MsgId>(position - before, position + equalOrAfter);
 	result.messageIds.merge(ids.begin(), ids.end());
 	if (slice.range.from == 0) {

@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_chat_preview.h"
 
+#include "menu/menu_mark_as_read.h"
+#include "data/data_channel.h"
 #include "data/data_forum_topic.h"
 #include "data/data_histories.h"
 #include "data/data_peer.h"
@@ -22,6 +24,12 @@ namespace Window {
 namespace {
 
 constexpr auto kChatPreviewDelay = crl::time(1000);
+
+[[nodiscard]] bool SkipChatPreviewFor(Dialogs::Key key) {
+	const auto peer = key.peer();
+	const auto channel = peer ? peer->asChannel() : nullptr;
+	return channel && channel->isCommunity();
+}
 
 } // namespace
 
@@ -45,6 +53,9 @@ bool ChatPreviewManager::show(
 	} else if (!row.key) {
 		return false;
 	}
+	if (SkipChatPreviewFor(row.key)) {
+		return false;
+	}
 
 	const auto parent = parentOverride
 		? parentOverride
@@ -66,7 +77,7 @@ bool ChatPreviewManager::show(
 				const auto owner = &thread->owner();
 				if (action.cancel) {
 				} else if (action.markRead) {
-					MarkAsReadThread(thread);
+					MarkAsReadMenu::MarkAsReadThread(thread);
 				} else if (action.markUnread) {
 					if (const auto history = thread->asHistory()) {
 						history->owner().histories().changeDialogUnreadMark(
@@ -114,6 +125,9 @@ bool ChatPreviewManager::schedule(
 			_menu = nullptr;
 		});
 	} else if (!row.key.history()) {
+		return false;
+	}
+	if (SkipChatPreviewFor(row.key)) {
 		return false;
 	}
 	_scheduled = std::move(row);

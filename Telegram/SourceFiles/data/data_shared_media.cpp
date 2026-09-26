@@ -66,7 +66,7 @@ bool IsItemGoodForType(const not_null<HistoryItem*> item, Type type) {
 		|| ((videoType || photoVideoType) && videoDoc)
 		|| (fileType && (document->isTheme()
 			|| document->isImage()
-			|| !document->canBeStreamed(item)));
+			|| !document->canBeStreamed()));
 }
 
 } // namespace
@@ -79,7 +79,8 @@ std::optional<Storage::SharedMediaType> SharedMediaOverviewType(
 	case Type::MusicFile:
 	case Type::File:
 	case Type::RoundVoiceFile:
-	case Type::Link: return type;
+	case Type::Link:
+	case Type::Poll: return type;
 	}
 	return std::nullopt;
 }
@@ -88,9 +89,17 @@ bool SharedMediaAllowSearch(Storage::SharedMediaType type) {
 	switch (type) {
 	case Type::MusicFile:
 	case Type::File:
-	case Type::Link: return true;
+	case Type::Link:
+	case Type::Poll: return true;
 	default: return false;
 	}
+}
+
+Storage::SharedMediaKey SharedMediaLoadableKey(Storage::SharedMediaKey key) {
+	if (key.type == Type::ChatPhoto) {
+		key.topicRootId = MsgId(); // messages.search rejects it in threads.
+	}
+	return key;
 }
 
 rpl::producer<SparseIdsSlice> SharedMediaViewer(
@@ -101,6 +110,7 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 	Expects(IsServerMsgId(key.messageId) || (key.messageId == 0));
 	Expects((key.messageId != 0) || (limitBefore == 0 && limitAfter == 0));
 
+	key = SharedMediaLoadableKey(key);
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 		auto builder = lifetime.make_state<SparseIdsSliceBuilder>(
@@ -143,6 +153,10 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 		session->storage().sharedMediaOneRemoved(
 		) | rpl::filter([=](const OneRemoved &update) {
 			return (update.peerId == key.peerId)
+				&& (!key.topicRootId
+					|| key.topicRootId == update.topicRootId)
+				&& (!key.monoforumPeerId
+					|| key.monoforumPeerId == update.monoforumPeerId)
 				&& update.types.test(key.type);
 		}) | rpl::filter([=](const OneRemoved &update) {
 			return builder->removeOne(update.messageId);

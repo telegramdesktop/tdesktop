@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-class ChannelData;
 class UserData;
 
 namespace Ui {
@@ -36,7 +35,6 @@ private:
 	void sendRequest(
 		base::weak_qptr<PasscodeBox> box,
 		const Core::CloudPasswordResult &result);
-	void startTransfer(not_null<ChannelData*> channel);
 
 	const not_null<PeerData*> _peer;
 	const not_null<UserData*> _selectedUser;

@@ -70,7 +70,8 @@ TabbedPanel::TabbedPanel(
 	: _ownedSelector.data())
 , _heightRatio(st::emojiPanHeightRatio)
 , _minContentHeight(st::emojiPanMinHeight)
-, _maxContentHeight(st::emojiPanMaxHeight) {
+, _maxContentHeight(st::emojiPanMaxHeight)
+, _shadow(_selector->st().showAnimation.shadow) {
 	Expects(_selector != nullptr);
 
 	_selector->setParent(this);
@@ -191,6 +192,10 @@ void TabbedPanel::setDesiredHeightValues(
 	updateContentHeight();
 }
 
+void TabbedPanel::setShowAnimationOrigin(Ui::PanelAnimation::Origin origin) {
+	_showAnimationOrigin = origin;
+}
+
 void TabbedPanel::setDropDown(bool dropDown) {
 	selector()->setDropDown(dropDown);
 	_dropDown = dropDown;
@@ -202,8 +207,8 @@ void TabbedPanel::updateContentHeight() {
 	auto availableHeight = _dropDown
 		? (parentWidget()->height() - _top - marginsHeight)
 		: (_bottom - marginsHeight);
-	auto wantedContentHeight = qRound(_heightRatio * availableHeight)
-		- addedHeight;
+	const auto wanted = int(base::SafeRound(_heightRatio * availableHeight));
+	auto wantedContentHeight = wanted - addedHeight;
 	auto contentHeight = marginsHeight + std::clamp(
 		wantedContentHeight,
 		_minContentHeight,
@@ -253,7 +258,7 @@ void TabbedPanel::paintEvent(QPaintEvent *e) {
 		hideFinished();
 	} else {
 		if (!_cache.isNull()) _cache = QPixmap();
-		Ui::Shadow::paint(p, innerRect(), width(), _selector->st().showAnimation.shadow);
+		_shadow.paint(p, innerRect(), st::emojiPanRadius);
 	}
 }
 
@@ -379,17 +384,19 @@ void TabbedPanel::startShowAnimation() {
 	if (!_a_show.animating()) {
 		auto image = grabForAnimation();
 
+		const auto origin = _showAnimationOrigin.value_or(_dropDown
+			? Ui::PanelAnimation::Origin::TopRight
+			: Ui::PanelAnimation::Origin::BottomRight);
 		_showAnimation = std::make_unique<Ui::PanelAnimation>(
 			_selector->st().showAnimation,
-			(_dropDown
-				? Ui::PanelAnimation::Origin::TopRight
-				: Ui::PanelAnimation::Origin::BottomRight));
+			origin);
 		auto inner = rect().marginsRemoved(st::emojiPanMargins);
 		_showAnimation->setFinalImage(
 			std::move(image),
 			QRect(
 				inner.topLeft() * style::DevicePixelRatio(),
-				inner.size() * style::DevicePixelRatio()));
+				inner.size() * style::DevicePixelRatio()),
+			st::emojiPanRadius);
 		_showAnimation->setCornerMasks(Images::CornersMask(st::emojiPanRadius));
 		_showAnimation->start();
 	}

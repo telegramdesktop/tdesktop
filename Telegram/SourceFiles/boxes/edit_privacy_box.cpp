@@ -40,7 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/wrap/slide_wrap.h"
 #include "window/window_session_controller.h"
-#include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -585,7 +585,7 @@ void EditNoPaidMessagesExceptions(
 			setTo.premiums = false;
 			setTo.miniapps = false;
 			auto &removeFrom = copy.never;
-			for (const auto peer : setTo.peers) {
+			for (const auto &peer : setTo.peers) {
 				removeFrom.peers.erase(
 					ranges::remove(removeFrom.peers, peer),
 					end(removeFrom.peers));
@@ -671,7 +671,7 @@ void EditPrivacyBox::editExceptions(
 				Unexpected("Invalid exception value.");
 			}();
 			auto &removeFrom = exceptions(type);
-			for (const auto peer : exceptions(exception).peers) {
+			for (const auto &peer : exceptions(exception).peers) {
 				removeFrom.peers.erase(
 					ranges::remove(removeFrom.peers, peer),
 					end(removeFrom.peers));
@@ -1146,6 +1146,9 @@ void EditMessagesPrivacyBox(
 				showToast();
 			}
 		});
+		box->lifetime().add([=] {
+			group->setChangedCallback(nullptr);
+		});
 
 		Ui::AddSkip(inner);
 		Settings::AddButtonWithIcon(
@@ -1355,7 +1358,11 @@ void EditDirectMessagesPriceBox(
 			+ kDirectParam.utf8();
 		const auto copyLink = [=] {
 			TextUtilities::SetClipboardText(TextForMimeData::Simple(link));
-			box->uiShow()->showToast(tr::lng_group_invite_copied(tr::now));
+			box->uiShow()->showToast({
+				.text = { tr::lng_group_invite_copied(tr::now) },
+				.iconLottie = u"toast/voip_invite"_q,
+				.iconLottieSize = st::toastLottieIconSize,
+			});
 		};
 		const auto shareLink = [=] {
 			box->uiShow()->showBox(ShareInviteLinkBox(channel, link));

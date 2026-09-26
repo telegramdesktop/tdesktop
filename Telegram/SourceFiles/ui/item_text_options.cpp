@@ -24,11 +24,11 @@ bool UseBotTextOptions(
 			return true;
 		}
 	} else if (const auto chat = history->peer->asChat()) {
-		if (chat->botStatus >= 0) {
+		if (chat->botStatus != Data::BotStatus::NoBots) {
 			return true;
 		}
 	} else if (const auto group = history->peer->asMegagroup()) {
-		if (group->mgInfo->botStatus >= 0) {
+		if (group->mgInfo->botStatus != Data::BotStatus::NoBots) {
 			return true;
 		}
 	}

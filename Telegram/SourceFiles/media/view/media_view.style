@@ -29,6 +29,7 @@ mediaviewPlayback: MediaSlider {
 	seekSize: size(12px, 12px);
 	duration: mediaviewOverDuration;
 }
+mediaviewPlaybackTimestamp: size(2px, 10px);
 mediaviewPlaybackTop: 49px;
 mediaviewPlayProgressTop: 46px;
 
@@ -41,6 +42,12 @@ mediaviewControlsButton: IconButton {
 }
 
 mediaviewControllerSize: size(480px, 72px);
+mediaviewTimestampLabelTop: 63px;
+mediaviewTimestampLabelHeight: 10px;
+mediaviewTimestampLabel: LabelSimple(defaultLabelSimple) {
+	font: font(12px);
+	textFg: mediaviewPlaybackProgressFg;
+}
 mediaviewPlayProgressLabel: LabelSimple(defaultLabelSimple) {
 	font: font(12px semibold);
 	textFg: mediaviewPlaybackProgressFg;
@@ -73,7 +80,6 @@ mediaviewPipButton: IconButton(mediaviewControlsButton) {
 	iconPosition: point(4px, 4px);
 }
 
-mediaviewPipMargins: callShadowExtend;
 mediaviewPipShadow: callShadow;
 
 mediaviewFullScreenButtonSkip: 4px;
@@ -119,6 +125,22 @@ mediaviewShare: icon {{ "mediaview/viewer_share", mediaviewControlFg }};
 mediaviewRotate: icon {{ "mediaview/rotate", mediaviewControlFg }};
 mediaviewMore: icon {{ "title_menu_dots", mediaviewControlFg }};
 mediaviewRecognize: icon {{ "mediaview/recognize", mediaviewControlFg }};
+mediaviewDraw: icon {{ "mediaview/draw", mediaviewControlFg }};
+
+mediaviewVoteButton: RoundButton(defaultActiveButton) {
+	height: 36px;
+	radius: 18px;
+}
+mediaviewVoteButtonMargin: 8px;
+
+mediaviewPollVotersUserpics: GroupCallUserpics {
+	size: 24px;
+	shift: 8px;
+	stroke: 2px;
+	align: align(left);
+}
+mediaviewPollVotersPadding: margins(12px, 0px, 14px, 0px);
+mediaviewPollVotersSpacing: 6px;
 
 mediaviewFileRed: icon {
 	{ size(25px, 25px), mediaviewFileBg },
@@ -175,12 +197,14 @@ mediaviewMenuShadow: Shadow(defaultEmptyShadow) {
 }
 mediaviewPanelAnimation: PanelAnimation(defaultPanelAnimation) {
 	fadeBg: groupCallMenuBg;
-	shadow: mediaviewMenuShadow;
 }
 mediaviewPopupMenu: PopupMenu(defaultPopupMenu) {
-	shadow: mediaviewMenuShadow;
+	shadowFallback: groupCallMenuBg;
 	menu: mediaviewMenu;
 	animation: mediaviewPanelAnimation;
+}
+mediaviewSponsorInfoMenu: PopupMenu(mediaviewPopupMenu) {
+	maxHeight: 420px;
 }
 mediaviewDropdownMenu: DropdownMenu(defaultDropdownMenu) {
 	menu: mediaviewMenu;
@@ -201,13 +225,39 @@ mediaviewSaveMsgHiding: 2500;
 mediaviewSaveMsgStyle: TextStyle(defaultTextStyle) {
 	font: font(16px);
 }
+mediaviewChapterPadding: margins(20px, 12px, 20px, 12px);
+mediaviewChapterFont: font(15px semibold);
+mediaviewChapterShowing: 200;
+mediaviewChapterShown: 1500;
+mediaviewChapterHiding: 400;
+mediaviewChapterArrowSize: 10px;
+mediaviewChapterArrowWidth: 6px;
+mediaviewChapterArrowShift: 16px;
+mediaviewChapterArrowGap: 12px;
+mediaviewChapterArrowSlide: 350;
+mediaviewChapterArrowPause: 1500;
+mediaviewChapterArrowFade: 300;
+
+mediaviewSpeedBoostPadding: margins(12px, 6px, 12px, 6px);
+mediaviewSpeedBoostFont: font(16px semibold);
+mediaviewSpeedBoostShowing: 150;
+mediaviewSpeedBoostHiding: 200;
+mediaviewSpeedBoostArrowHeight: 9px;
+mediaviewSpeedBoostArrowWidth: 7px;
+mediaviewSpeedBoostArrowGap: 2px;
+mediaviewSpeedBoostArrowOverlap: 2px;
+mediaviewSpeedBoostTextRight: 8px;
+mediaviewSpeedBoostTop: 12px;
+mediaviewSpeedBoostHoldDelay: 200;
+mediaviewSpeedBoostDragPerUnit: 300px;
+
 mediaviewTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: mediaviewTextLinkFg;
 	monoFg: mediaviewCaptionFg;
 	spoilerFg: mediaviewCaptionFg;
 }
 
-mediaviewCaptionStyle: defaultTextStyle;
+mediaviewCaptionStyle: historyTextStyle;
 
 mediaviewThickFont: semiboldFont;
 mediaviewFont: normalFont;
@@ -223,8 +273,11 @@ mediaviewControlSize: 90px;
 mediaviewIconSize: size(46px, 54px);
 mediaviewIconOver: 36px;
 
-mediaviewWaitHide: 2000;
-mediaviewHideDuration: 1000;
+mediaviewTtlSkip: 16px;
+mediaviewTtlTooltipSkip: 8px;
+
+mediaviewWaitHide: 1100;
+mediaviewHideDuration: 600;
 mediaviewShowDuration: 200;
 mediaviewFadeDuration: 150;
 
@@ -422,8 +475,6 @@ pipVolumeIcon1Over: icon {{ "player/player_volume_small", mediaviewPipControlsFg
 pipVolumeIcon2: icon {{ "player/player_volume_on", mediaviewPipControlsFg }};
 pipVolumeIcon2Over: icon {{ "player/player_volume_on", mediaviewPipControlsFgOver }};
 
-speedSliderDividerSize: size(2px, 8px);
-
 storiesMaxSize: size(540px, 960px);
 storiesSiblingWidthMin: 200px; // Try making sibling not less than this.
 storiesMaxNameFontSize: 17px;
@@ -529,10 +580,9 @@ storiesMenu: Menu(defaultMenu) {
 		color: groupCallMenuBgRipple;
 	}
 }
-storiesMenuShadow: mediaviewMenuShadow;
 storiesMenuAnimation: mediaviewPanelAnimation;
 storiesPopupMenu: PopupMenu(defaultPopupMenu) {
-	shadow: storiesMenuShadow;
+	shadowFallback: groupCallMenuBg;
 	menu: storiesMenu;
 	animation: storiesMenuAnimation;
 }
@@ -540,6 +590,10 @@ storiesMenuWithIcons: mediaviewMenu;
 storiesPopupMenuWithIcons: PopupMenu(storiesPopupMenu) {
 	scrollPadding: margins(0px, 5px, 0px, 5px);
 	menu: storiesMenuWithIcons;
+}
+storiesMenuWithIconsAttention: Menu(storiesMenuWithIcons) {
+	itemFg: attentionButtonFg;
+	itemFgOver: attentionButtonFgOver;
 }
 
 storiesBoxLabel: FlatLabel(boxLabel) {
@@ -607,8 +661,14 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 	categoriesBgOver: storiesComposeBgOver;
 	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", storiesComposeBg }};
 	fadeRight: icon {{ "fade_horizontal", storiesComposeBg }};
+	photoButtonIcon: icon {{
+		"photo_editor/camera-24x24",
+		storiesComposeWhiteText
+	}};
 	menu: storiesPopupMenuWithIcons;
+	menuAttention: storiesMenuWithIconsAttention;
 	expandedSeparator: mediaviewWideMenuSeparator;
+	searchPackRipple: storiesComposeRippleLight;
 	tabs: SettingsSlider(emojiTabs) {
 		barFgActive: storiesComposeBlue;
 		labelFg: storiesComposeGrayText;
@@ -651,13 +711,24 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 		menuRecentRemove: icon {{ "menu/delete", storiesComposeWhiteText }};
 		menuGifAdd: icon {{ "menu/gif", storiesComposeWhiteText }};
 		menuGifRemove: icon {{ "menu/delete", storiesComposeWhiteText }};
+		menuGifCaption: icon {{ "menu/edit", storiesComposeWhiteText }};
+		menuSetAdd: icon {{ "menu/add", storiesComposeWhiteText }};
+		menuSetShare: icon {{ "menu/share", storiesComposeWhiteText }};
+		menuSetCopyLink: icon {{ "menu/link", storiesComposeWhiteText }};
+		menuSetRemove: icon {{ "menu/delete", storiesComposeWhiteText }};
+		menuEmojiStatus: icon {{ "menu/emoji", storiesComposeWhiteText }};
+		menuEmojiCopy: icon {{ "menu/copy", storiesComposeWhiteText }};
+		menuEmojiViewPack: icon {{ "menu/all_media", storiesComposeWhiteText }};
+		menuEmojiRemoveRecent: icon {{ "menu/cancel", storiesComposeWhiteText }};
 		menuMute: icon {{ "menu/mute", storiesComposeWhiteText }};
 		menuSchedule: icon {{ "menu/calendar", storiesComposeWhiteText }};
 		menuWhenOnline: icon {{ "menu/send_when_online", storiesComposeWhiteText }};
 		menuSpoiler: icon {{ "menu/spoiler_on", storiesComposeWhiteText }};
-		menuSpoilerOff: icon {{ "menu/spoiler_off", storiesComposeWhiteText }};
 		menuBelow: icon {{ "menu/link_below", storiesComposeWhiteText }};
 		menuAbove: icon {{ "menu/link_above", storiesComposeWhiteText }};
+		menuQualityHigh: icon {{ "menu/quality_hd", storiesComposeWhiteText }};
+		menuCover: icon {{ "menu/edit", storiesComposeWhiteText }};
+		menuCoverRemove: icon {{ "menu/cancel", storiesComposeWhiteText }};
 		menuPrice: icon {{ "menu/earn", storiesComposeWhiteText }};
 		menuEditStars: icon {{ "chat/input_paid", storiesComposeWhiteText, point(-8px, -8px) }};
 
@@ -699,9 +770,10 @@ storiesChooseSendAs: ChooseSendAs(defaultChooseSendAs) {
 storiesCommentSentAt: Menu(storiesMenu, whoSentItem) {
 	itemFgDisabled: groupCallMembersFg;
 }
+storiesComposeRadius: 21px;
 storiesComposeControls: ComposeControls(defaultComposeControls) {
 	bg: storiesComposeBg;
-	radius: 21px;
+	radius: storiesComposeRadius;
 	padding: margins(1px, 8px, 1px, 6px);
 	field: InputField(historyComposeField) {
 		textMargins: margins(2px, 0px, 2px, 0px);
@@ -725,6 +797,7 @@ storiesComposeControls: ComposeControls(defaultComposeControls) {
 			rippleAreaPosition: point(1px, 1px);
 		}
 		sendDisabledFg: storiesComposeGrayText;
+		sendIconFg: windowFgActive;
 	}
 	attach: storiesAttach;
 	emoji: storiesAttachEmoji;
@@ -758,7 +831,6 @@ storiesComposeControls: ComposeControls(defaultComposeControls) {
 		dropdown: InnerDropdown(emojiSuggestionsDropdown) {
 			animation: PanelAnimation(defaultPanelAnimation) {
 				fadeBg: storiesComposeBg;
-				shadow: defaultRoundShadow;
 			}
 			bg: storiesComposeBg;
 		}
@@ -774,7 +846,7 @@ storiesComposeControls: ComposeControls(defaultComposeControls) {
 	record: RecordBar(defaultRecordBar) {
 		bg: storiesComposeBg;
 		durationFg: storiesComposeWhiteText;
-		radius: storiesRadius;
+		radius: storiesComposeRadius;
 		cancel: storiesComposeGrayText;
 		cancelActive: storiesComposeBlue;
 		cancelRipple: storiesComposeRippleLight;
@@ -894,6 +966,37 @@ storiesWhoViewed: WhoRead(defaultWhoRead) {
 		align: align(left);
 	}
 }
+mediaviewEmojiPan: EmojiPan(storiesEmojiPan) {
+	showAnimation: PanelAnimation(emojiPanAnimation) {
+		fadeBg: groupCallMenuBg;
+	}
+	bg: groupCallMenuBg;
+	overBg: groupCallMenuBgOver;
+	pathBg: groupCallMenuBgRipple;
+	pathFg: groupCallMenuBgOver;
+	categoriesBg: groupCallMenuBg;
+	categoriesBgOver: groupCallMenuBgOver;
+	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", groupCallMenuBg }};
+	fadeRight: icon {{ "fade_horizontal", groupCallMenuBg }};
+	tabs: SettingsSlider(emojiTabs) {
+		barFgActive: storiesComposeBlue;
+		labelFg: storiesComposeGrayText;
+		labelFgActive: storiesComposeBlue;
+		rippleBg: groupCallMenuBgOver;
+		rippleBgActive: groupCallMenuBgOver;
+	}
+	search: TabbedSearch(storiesEmojiTabbedSearch) {
+		outer: groupCallMenuBg;
+		bg: groupCallMenuBgOver;
+		bgActive: groupCallMenuBgRipple;
+		fadeLeft: icon {{
+			"fade_horizontal-flip_horizontal",
+			groupCallMenuBgOver
+		}};
+		fadeRight: icon {{ "fade_horizontal", groupCallMenuBgOver }};
+	}
+}
+
 storiesReactionsPan: EmojiPan(storiesEmojiPan) {
 	margin: margins(reactStripSkip, 0px, reactStripSkip, 0px);
 	padding: margins(reactStripSkip, 0px, reactStripSkip, reactStripSkip);
@@ -1103,10 +1206,12 @@ storiesStealthStyle: StealthBoxStyle {
 
 storiesViewsPosition: point(4px, 29px);
 storiesViewsIcon: icon{{ "mediaview/views", storiesComposeGrayText }};
+storiesViewsIconTop: 11px;
 storiesViewsText: FlatLabel(defaultFlatLabel) {
 	textFg: storiesComposeGrayText;
 }
 storiesViewsTextPosition: point(26px, 14px);
+storiesChannelReactionsTextTop: 16px;
 
 storiesLikesPosition: point(0px, 29px);
 storiesLikesIcon: icon {{ "chat/input_like", storiesComposeWhiteText }};

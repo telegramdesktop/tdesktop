@@ -10,7 +10,7 @@ add_library(tdesktop::td_lang ALIAS td_lang)
 
 include(cmake/generate_lang.cmake)
 
-generate_lang(td_lang ${res_loc}/langs/lang.strings)
+generate_lang(td_lang ${res_loc}/langs/lang.strings ${src_loc})
 
 target_precompile_headers(td_lang PRIVATE ${src_loc}/lang/lang_pch.h)
 nice_target_sources(td_lang ${src_loc}

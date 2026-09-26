@@ -12,11 +12,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_dbus_utilities.h"
 #include "core/application.h"
 #include "core/sandbox.h"
+#include "core/version.h"
 #include "platform/platform_specific.h"
+#include "tray.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
-#include "styles/style_window.h"
 
 #include <QtCore/QCoreApplication>
 #include <QtWidgets/QMenu>
@@ -292,7 +293,7 @@ void Tray::createIcon() {
 
 		_icon = base::make_unique_q<QSystemTrayIcon>(nullptr);
 		_icon->setIcon(_iconGraphic->trayIcon());
-		_icon->setToolTip(AppName.utf16());
+		_icon->setToolTip(Core::TrayIconToolTip());
 
 		using Reason = QSystemTrayIcon::ActivationReason;
 		base::qt_signal_producer(
@@ -335,6 +336,7 @@ void Tray::updateIcon() {
 	if (_iconGraphic->isRefreshNeeded()) {
 		_icon->setIcon(_iconGraphic->trayIcon());
 	}
+	_icon->setToolTip(Core::TrayIconToolTip());
 }
 
 void Tray::createMenu() {

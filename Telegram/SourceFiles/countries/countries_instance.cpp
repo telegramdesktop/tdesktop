@@ -302,7 +302,13 @@ QString CountriesInstance::validPhoneCode(QString fullCode) const {
 	return QString();
 }
 
-QString CountriesInstance::countryNameByISO2(const QString &iso) const {
+QString CountriesInstance::countryNameByISO2(
+		const QString &iso,
+		Naming naming) const {
+	if (naming == Naming::Polls
+		&& !iso.compare(u"FT"_q, Qt::CaseInsensitive)) {
+		return u"Fragment"_q;
+	}
 	const auto &listByISO2 = byISO2();
 	const auto i = listByISO2.constFind(iso);
 	return (i != listByISO2.cend()) ? (*i)->name : QString();

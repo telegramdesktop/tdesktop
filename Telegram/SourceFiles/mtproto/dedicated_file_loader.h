@@ -54,6 +54,7 @@ public:
 	struct Progress {
 		int64 already = 0;
 		int64 size = 0;
+		bool percent = false;
 
 		inline bool operator<(const Progress &other) const {
 			return (already < other.already)
@@ -70,6 +71,7 @@ public:
 
 	int64 alreadySize() const;
 	int64 totalSize() const;
+	bool preferPercent() const;
 
 	rpl::producer<Progress> progress() const;
 	rpl::producer<QString> ready() const;
@@ -81,16 +83,16 @@ public:
 
 protected:
 	void threadSafeFailed();
+	void threadSafeProgress(Progress progress);
+	void threadSafeReady();
 
 	// Single threaded.
-	void writeChunk(bytes::const_span data, int totalSize);
+	void writeChunk(bytes::const_span data, int64 totalSize);
 
 private:
 	virtual void startLoading() = 0;
 
 	bool validateOutput();
-	void threadSafeProgress(Progress progress);
-	void threadSafeReady();
 
 	QString _filepath;
 	int _chunkSize = 0;
@@ -98,6 +100,7 @@ private:
 	QFile _output;
 	int64 _alreadySize = 0;
 	int64 _totalSize = 0;
+	bool _preferPercent = false;
 	mutable QMutex _sizesMutex;
 	rpl::event_stream<Progress> _progress;
 	rpl::event_stream<QString> _ready;
@@ -111,6 +114,12 @@ class DedicatedLoader : public AbstractDedicatedLoader {
 public:
 	struct Location {
 		QString username;
+
+		// When channelId is set the channel is used directly with the
+		// cached accessHash instead of resolving username.
+		uint64 channelId = 0;
+		uint64 accessHash = 0;
+
 		int32 postId = 0;
 	};
 	struct File {
@@ -153,8 +162,11 @@ void ResolveChannel(
 	Fn<void(const MTPInputChannel &channel)> done,
 	Fn<void()> fail);
 
+// With a non-zero messageId only the message with that exact id counts,
+// the server may answer a getMessages request with a different message.
 std::optional<MTPMessage> GetMessagesElement(
-	const MTPmessages_Messages &list);
+	const MTPmessages_Messages &list,
+	int messageId = 0);
 
 void StartDedicatedLoader(
 	not_null<MTP::WeakInstance*> mtp,

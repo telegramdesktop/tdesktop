@@ -81,6 +81,7 @@ private:
 	QString _additionalPlaceholder;
 	rpl::event_stream<not_null<QKeyEvent*>> _frontBackspaceEvent;
 	GroupsCallback _groupsCallback;
+	bool _addingToNumber = false;
 
 };
 
@@ -94,6 +95,7 @@ public:
 		const QString &linkPlaceholder);
 
 	void setLinkPlaceholder(const QString &placeholder);
+	void setMaxLength(int maxLength);
 
 protected:
 	void correctValue(
@@ -105,6 +107,7 @@ protected:
 
 private:
 	QString _linkPlaceholder;
+	int _maxLength = 0;
 
 };
 

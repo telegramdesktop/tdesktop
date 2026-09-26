@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/menu/menu_add_action_callback.h"
 
 class History;
+class HistoryItem;
 
 namespace Api {
 struct SendOptions;
@@ -55,6 +56,7 @@ using PeerTypes = base::flags<PeerType>;
 } // namespace InlineBots
 
 namespace Main {
+class Session;
 class SessionShow;
 } // namespace Main
 
@@ -80,20 +82,15 @@ bool FillVideoChatMenu(
 void FillSenderUserpicMenu(
 	not_null<SessionController*> controller,
 	not_null<PeerData*> peer,
+	PeerData *groupPeer,
 	Ui::InputField *fieldForMention,
 	Dialogs::Key searchInEntry,
 	const PeerMenuCallback &addAction);
 
-void MenuAddMarkAsReadAllChatsAction(
-	not_null<Main::Session*> session,
-	std::shared_ptr<Ui::Show> show,
+void AddSenderUserpicModerateAction(
+	not_null<SessionController*> controller,
+	HistoryItem *moderateItem,
 	const PeerMenuCallback &addAction);
-
-void MenuAddMarkAsReadChatListAction(
-	not_null<Window::SessionController*> controller,
-	Fn<not_null<Dialogs::MainList*>()> &&list,
-	const PeerMenuCallback &addAction,
-	Fn<Dialogs::UnreadState()> customUnreadState = nullptr);
 
 void PeerMenuExportChat(
 	not_null<Window::SessionController*> controller,
@@ -111,12 +108,15 @@ void PeerMenuShareContactBox(
 void PeerMenuAddChannelMembers(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<ChannelData*> channel);
+void PeerMenuUngroupCommunity(
+	not_null<Window::SessionController*> controller,
+	not_null<ChannelData*> channel);
 void PeerMenuCreatePoll(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
 	FullReplyTo replyTo = FullReplyTo(),
 	SuggestOptions suggest = SuggestOptions(),
-	PollData::Flags chosen = PollData::Flags(),
+	PollData::Flags chosen = kDefaultPollCreateFlags,
 	PollData::Flags disabled = PollData::Flags(),
 	Api::SendType sendType = Api::SendType::Normal,
 	SendMenu::Details sendMenuDetails = SendMenu::Details());
@@ -238,6 +238,13 @@ void ToggleMessagePinned(
 	not_null<Window::SessionNavigation*> navigation,
 	FullMsgId itemId,
 	bool pin);
+[[nodiscard]] MessageIdsList MessagesToUnpin(
+	not_null<Main::Session*> session,
+	const MessageIdsList &items);
+void UnpinMessages(
+	not_null<Window::SessionNavigation*> navigation,
+	MessageIdsList items,
+	Fn<void()> onConfirmed = nullptr);
 void TogglePinnedThread(
 	not_null<Window::SessionController*> controller,
 	not_null<Dialogs::Entry*> entry,
@@ -252,9 +259,6 @@ void HidePinnedBar(
 void UnpinAllMessages(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<Data::Thread*> thread);
-
-[[nodiscard]] bool IsUnreadThread(not_null<Data::Thread*> thread);
-void MarkAsReadThread(not_null<Data::Thread*> thread);
 
 void AddSeparatorAndShiftUp(const PeerMenuCallback &addAction);
 

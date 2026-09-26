@@ -387,7 +387,11 @@ Dialogs::BadgesState Folder::chatListBadgesState() const {
 		chatListUnreadState(),
 		Dialogs::CountInBadge::Chats,
 		Dialogs::IncludeInBadge::All);
-	result.unreadMuted = result.mentionMuted = result.reactionMuted = true;
+	result.unreadMuted
+		= result.mentionMuted
+		= result.reactionMuted
+		= result.pollMuted
+		= true;
 	if (result.unread && !result.unreadCounter) {
 		result.unreadCounter = 1;
 	}

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/effects/animations.h"
+#include "ui/rp_widget.h"
 #include "base/object_ptr.h"
 
 class History;
@@ -42,6 +43,7 @@ enum class CornerButtonType {
 	Down,
 	Mentions,
 	Reactions,
+	PollVotes,
 };
 
 class CornerButtonsDelegate {
@@ -72,6 +74,7 @@ public:
 	void downClick();
 	void mentionsClick();
 	void reactionsClick();
+	void pollVotesClick();
 
 	void clearReplyReturns();
 	[[nodiscard]] QVector<FullMsgId> replyReturns() const;
@@ -110,15 +113,27 @@ private:
 	[[nodiscard]] History *lookupHistory() const;
 	void showAt(MsgId id);
 
+	// The unread counter is painted as a badge, so a screen reader should
+	// have it too - as the description, next to the unchanging name.
+	void updateAccessibleDescription(CornerButton &button);
+
 	const not_null<QWidget*> _parent;
 	const Fn<bool(QEvent*)> _scrollViewportEvent;
 	const not_null<CornerButtonsDelegate*> _delegate;
 
 	rpl::lifetime _stLifetime;
 
+	// The buttons stack upwards from the corner, so they are created in the
+	// reverse of their visual order. Keeping them in a column of their own
+	// lets that column sort them by position, and lets the parent place the
+	// whole group after the list instead of before it.
+	Ui::RpWidget _column;
+	QRegion _columnMask;
+
 	CornerButton _down;
 	CornerButton _mentions;
 	CornerButton _reactions;
+	CornerButton _pollVotes;
 
 	HistoryItem *_replyReturn = nullptr;
 	QVector<FullMsgId> _replyReturns;

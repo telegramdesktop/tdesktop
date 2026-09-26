@@ -73,6 +73,9 @@ EmailWidget::EmailWidget(
 		content,
 		tr::lng_settings_cloud_login_email_placeholder(),
 		QString());
+	newInput->setInputMethodHints(Qt::ImhEmailCharactersOnly
+		| Qt::ImhNoAutoUppercase
+		| Qt::ImhNoPredictiveText);
 	Ui::AddSkip(content);
 	const auto error = Settings::CloudPassword::AddError(content, nullptr);
 	newInput->changes() | rpl::on_next([=] {
@@ -118,7 +121,7 @@ EmailWidget::EmailWidget(
 					// Show box?
 					error->setText(Lang::Hard::EmailConfirmationExpired());
 				} else {
-					error->setText(Lang::Hard::ServerError());
+					error->setText(type);
 				}
 			};
 

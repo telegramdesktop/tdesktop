@@ -80,6 +80,8 @@ public:
 		not_null<Memento*> memento);
 
 	void saveChanges(FnMut<void()> done) override;
+	[[nodiscard]] SendMenu::Details sendMenuDetails() const override;
+	bool processChosenSticker(ChatHelpers::FileChosen &&chosen) override;
 
 	void showFinished() override;
 	void setInnerFocus() override;

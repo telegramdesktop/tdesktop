@@ -33,7 +33,7 @@ private:
 
 	const style::margins &_padding;
 	const not_null<const Ui::ChatStyle*> _st;
-	Ui::Text::String _text;
+	Ui::Text::String _text = { 1 };
 	int _innerWidth = 0;
 	int _forceWidth = 0;
 

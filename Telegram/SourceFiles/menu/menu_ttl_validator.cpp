@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/text/format_values.h"
-#include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
 
 namespace TTLMenu {

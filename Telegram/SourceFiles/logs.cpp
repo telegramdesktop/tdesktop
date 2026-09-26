@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "core/crash_reports.h"
 #include "core/launcher.h"
+#include "core/update_channel.h"
+#include "core/version.h"
 #include "mtproto/facade.h"
 
 namespace {
@@ -144,36 +146,48 @@ private:
 			if (postfix.isEmpty()) { // instance checked, need to move to log.txt
 				Assert(!files[type]->fileName().isEmpty()); // one of log_startXX.txt should've been opened already
 
-				auto to = std::make_unique<QFile>(_logsFilePath(type, postfix));
-				if (to->exists() && !to->remove()) {
-					LOG(("Could not delete '%1' file to start new logging: %2").arg(to->fileName(), to->errorString()));
+				const auto startName = files[type]->fileName();
+				const auto targetName = _logsFilePath(type, postfix);
+
+				auto target = QFile(targetName);
+				if (target.exists() && !target.remove()) {
+					LOG(("Could not delete '%1' file to start new logging: %2").arg(targetName, target.errorString()));
 					return false;
 				}
-				if (auto from = QFile(files[type]->fileName()); !from.copy(to->fileName())) { // don't close files[type] yet
-					LOG(("Could not copy '%1' to '%2' to start new logging: %3").arg(files[type]->fileName(), to->fileName(), from.errorString()));
-					return false;
-				}
-				if (to->open(mode | QIODevice::Append)) {
-					std::swap(files[type], to);
-					LOG(("Moved logging from '%1' to '%2'!").arg(to->fileName(), files[type]->fileName()));
-					to->remove();
 
-					LogsStartIndexChosen = -1;
+				files[type]->close();
 
-					QDir working(cWorkingDir()); // delete all other log_startXX.txt that we can
-					QStringList oldlogs = working.entryList(QStringList("log_start*.txt"), QDir::Files);
-					for (QStringList::const_iterator i = oldlogs.cbegin(), e = oldlogs.cend(); i != e; ++i) {
-						QString oldlog = cWorkingDir() + *i, oldlogend = i->mid(u"log_start"_q.size());
-						if (oldlogend.size() == 1 + u".txt"_q.size() && oldlogend.at(0).isDigit() && base::StringViewMid(oldlogend, 1) == u".txt"_q) {
-							bool removed = QFile(oldlog).remove();
-							LOG(("Old start log '%1' found, deleted: %2").arg(*i, Logs::b(removed)));
-						}
+				const auto reopenStart = [&](const QString &name) {
+					files[type]->setFileName(name);
+					return files[type]->open(mode | QIODevice::Append);
+				};
+
+				auto source = QFile(startName);
+				if (!source.rename(targetName)) {
+					if (reopenStart(startName)) {
+						LOG(("Could not rename '%1' to '%2' to start new logging: %3").arg(startName, targetName, source.errorString()));
 					}
-
-					return true;
+					return false;
 				}
-				LOG(("Could not open '%1' file to start new logging: %2").arg(to->fileName(), to->errorString()));
-				return false;
+				if (!reopenStart(targetName)) {
+					LOG(("Could not open '%1' file to start new logging: %2").arg(targetName, files[type]->errorString()));
+					return false;
+				}
+				LOG(("Moved logging from '%1' to '%2'!").arg(startName, files[type]->fileName()));
+
+				LogsStartIndexChosen = -1;
+
+				QDir working(cWorkingDir()); // delete all other log_startXX.txt that we can
+				QStringList oldlogs = working.entryList(QStringList("log_start*.txt"), QDir::Files);
+				for (QStringList::const_iterator i = oldlogs.cbegin(), e = oldlogs.cend(); i != e; ++i) {
+					QString oldlog = cWorkingDir() + *i, oldlogend = i->mid(u"log_start"_q.size());
+					if (oldlogend.size() == 1 + u".txt"_q.size() && oldlogend.at(0).isDigit() && base::StringViewMid(oldlogend, 1) == u".txt"_q) {
+						bool removed = QFile(oldlog).remove();
+						LOG(("Old start log '%1' found, deleted: %2").arg(*i, Logs::b(removed)));
+					}
+				}
+
+				return true;
 			} else {
 				bool found = false;
 				int32 oldest = -1; // find not existing log_startX.txt or pick the oldest one (by lastModified)
@@ -265,7 +279,7 @@ void _logsWrite(LogDataType type, const QString &msg) {
 		if (!LogsInMemory) {
 			LogsInMemory = new LogsInMemoryList;
 		}
-		LogsInMemory->push_back(qMakePair(type, msg));
+		LogsInMemory->push_back({ type, msg });
 	} else if (!LogsBeforeSingleInstanceChecked.isEmpty() && type == LogDataMain) {
 		LogsBeforeSingleInstanceChecked += msg;
 	}
@@ -379,10 +393,13 @@ void start() {
 		LogsData = nullptr;
 	}
 
-	LOG(("Launched version: %1, install beta: %2, alpha: %3, debug mode: %4"
+	const auto canary = Core::BuildIsCanary
+		? u", canary: #%1"_q.arg(Core::CanaryBuildCounter)
+		: QString();
+	LOG(("Launched version: %1, install beta: %2%3, debug mode: %4"
 		).arg(AppVersion
 		).arg(Logs::b(cInstallBetaVersion())
-		).arg(cAlphaVersion()
+		).arg(canary
 		).arg(Logs::b(DebugEnabled())));
 	LOG(("Executable dir: %1, name: %2").arg(cExeDir(), cExeName()));
 	LOG(("Initial working dir: %1").arg(launcher.initialWorkingDir()));

@@ -33,6 +33,18 @@ namespace Window {
 class Controller;
 class SlideAnimation;
 
+enum class PasscodeAttempt : uchar {
+	Empty,
+	Flood,
+	Wrong,
+	Correct,
+};
+
+// Bumps the bad tries counters on a wrong passcode. Does not unlock:
+// Core::App().unlockPasscode() destroys the main lock screen widget, so
+// the caller runs it as its own last statement.
+[[nodiscard]] PasscodeAttempt TryPasscode(const QString &passcode);
+
 class LockWidget : public Ui::RpWidget {
 public:
 	LockWidget(QWidget *parent, not_null<Controller*> window);

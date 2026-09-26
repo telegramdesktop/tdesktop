@@ -10,6 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 #include "info/info_controller.h" // Key
 #include "info/profile/info_profile_badge.h"
+#include "info/profile/tabs/info_profile_tab_top_bar_bindings.h"
+#include "ui/controls/swipe_handler_data.h"
+#include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 #include "ui/userpic_view.h"
 
@@ -32,6 +35,7 @@ class MultiPlayer;
 } // namespace Lottie
 
 namespace Ui {
+class UploadProgressOverlay;
 class VideoUserpicPlayer;
 struct OutlineSegment;
 namespace Text {
@@ -51,11 +55,13 @@ struct InfoPeerBadge;
 struct FlatLabel;
 } //namespace style
 
-class QGraphicsOpacityEffect;
-
 namespace Ui {
+class AnimatedString;
 class FlatLabel;
 class IconButton;
+class InputField;
+class LabelWithNumbers;
+class MarqueeLabel;
 class PopupMenu;
 class RoundButton;
 class StarsRating;
@@ -81,6 +87,7 @@ namespace Info::Profile {
 
 class Badge;
 class StatusLabel;
+class TopBarActionButton;
 
 struct TopBarActionButtonStyle;
 
@@ -90,6 +97,7 @@ public:
 		Profile,
 		Stories,
 		Preview,
+		Community,
 	};
 
 	struct Descriptor {
@@ -100,6 +108,7 @@ public:
 		PeerData *peer = nullptr;
 		rpl::producer<bool> backToggles;
 		rpl::producer<> showFinished;
+		rpl::producer<TextWithEntities> customStatus;
 	};
 
 	struct AnimatedPatternPoint {
@@ -115,6 +124,18 @@ public:
 	[[nodiscard]] rpl::producer<> backRequest() const;
 
 	void setOnlineCount(rpl::producer<int> &&count);
+	void bindActiveTab(
+		rpl::producer<TabTopBarBindings> bindings,
+		rpl::producer<bool> docked);
+	void setupStandaloneGroupControl(
+		rpl::producer<bool> state,
+		rpl::producer<bool> available,
+		rpl::producer<bool> reached,
+		Fn<void(bool)> toggle);
+
+	void checkBeforeCloseByEscape(Fn<void()> close);
+	[[nodiscard]] bool searchAvailable() const;
+	void showSearch();
 
 	void setRoundEdges(bool value);
 	void setLottieSingleLoop(bool value);
@@ -123,8 +144,7 @@ public:
 	void setLocalEmojiStatusId(EmojiStatusId emojiStatusId);
 	void addTopBarEditButton(
 		not_null<Window::SessionController*> controller,
-		Wrap wrap,
-		bool shouldUseColored);
+		Wrap wrap);
 
 	rpl::producer<std::optional<QColor>> edgeColor() const;
 
@@ -133,8 +153,12 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	void paintEdges(QPainter &p, const QBrush &brush) const;
-	void paintEdges(QPainter &p) const;
+	[[nodiscard]] bool clipTouchesRoundedCorners(const QRect &clip) const;
+	void paintEdges(
+		QPainter &p,
+		const QRect &clip,
+		const QBrush &brush) const;
+	void paintEdges(QPainter &p, const QRect &clip) const;
 	void updateLabelsPosition();
 	[[nodiscard]] int titleMostLeft() const;
 	[[nodiscard]] int statusMostLeft() const;
@@ -151,17 +175,23 @@ private:
 		not_null<Window::SessionController*> controller,
 		const Ui::Menu::MenuCallback &addAction);
 	void setupUserpicButton(not_null<Window::SessionController*> controller);
+	void setupBirthdayEffect();
+	void startUploadOverlay();
 	void setupActions(not_null<Window::SessionController*> controller);
+	void searchInCommunity(not_null<Window::SessionController*> controller);
+	void finalizeActions(
+		const std::vector<not_null<TopBarActionButton*>> &buttons);
 	void setupButtons(
 		not_null<Window::SessionController*> controller,
 		Source source);
+	void setupSwipeBack(not_null<Window::SessionController*> controller);
 	void setupShowLastSeen(not_null<Window::SessionController*> controller);
 	void setupUniqueBadgeTooltip();
 	void hideBadgeTooltip();
 	void setupAnimatedPattern(const QRect &userpicGeometry = QRect());
 	void paintAnimatedPattern(
 		QPainter &p,
-		const QRect &rect,
+		const QRect &clip,
 		const QRect &userpicGeometry);
 	void setupPinnedToTopGifts(
 		not_null<Window::SessionController*> controller);
@@ -170,7 +200,7 @@ private:
 		const std::vector<Data::SavedStarGift> &gifts);
 	void paintPinnedToTopGifts(
 		QPainter &p,
-		const QRect &rect,
+		const QRect &clip,
 		const QRect &userpicGeometry);
 	[[nodiscard]] QPointF calculateGiftPosition(
 		int position,
@@ -181,12 +211,35 @@ private:
 	void setupStoryOutline(const QRect &geometry = QRect());
 	void updateStoryOutline(std::optional<QColor> edgeColor);
 	void paintStoryOutline(QPainter &p, const QRect &geometry);
+	void updateTitlePosition(float64 progressCurrent);
 	void updateStatusPosition(float64 progressCurrent);
+	void applyTabBindings(TabTopBarBindings &&bindings);
+	void updateTabSwapVisibility();
+	void applyTabSwapProgress(float64 progress);
+	void refreshTabSubtitle();
+	void paintTabSubtitle(QPainter &p);
+	void updateRightButtonsPosition();
+	void updateTabGroupActive();
+	[[nodiscard]] bool tabSwapActive() const;
+	void setTabSelectedItems(SelectedItems &&items);
+	void createTabSelectionBar();
+	void updateTabSelectionState();
+	void updateTabSelectionGeometry();
+	void raiseTabSelectionOverlay();
+	[[nodiscard]] bool tabSelectionMode() const;
+	void showTabSearch();
+	void hideTabSearch();
+	bool cancelTabSearch();
+	void raiseTabSearchOverlay();
+	void updateTabSearchGeometry();
 	[[nodiscard]] int calculateRightButtonsWidth() const;
 	[[nodiscard]] const style::FlatLabel &statusStyle() const;
 	void setupStatusWithRating();
+	void bindStatus();
 	[[nodiscard]] TopBarActionButtonStyle mapActionStyle(
 		std::optional<QColor> c) const;
+	[[nodiscard]] std::optional<QColor> buttonsColorOverride() const;
+	void updateButtonsColorOverride();
 
 	[[nodiscard]] rpl::producer<QString> nameValue() const;
 
@@ -201,6 +254,7 @@ private:
 	rpl::variable<Wrap> _wrap;
 	const style::InfoTopBar &_st;
 	const Source _source;
+	const bool _savedMessages = false;
 
 	std::unique_ptr<base::Timer> _badgeTooltipHide;
 	const std::unique_ptr<Badge> _botVerify;
@@ -216,14 +270,44 @@ private:
 	std::vector<std::unique_ptr<BadgeTooltip>> _badgeOldTooltips;
 	uint64 _badgeCollectibleId = 0;
 
-	object_ptr<Ui::FlatLabel> _title;
+	object_ptr<Ui::MarqueeLabel> _title;
 	std::unique_ptr<Ui::StarsRating> _starsRating;
+	std::unique_ptr<Ui::AnimatedString> _tabSubtitle;
+	QString _tabSubtitleText;
+	std::optional<QColor> _tabSubtitleOverride;
+	bool _tabBindingsActive = false;
+	bool _tabSwapShown = false;
+	Ui::Animations::Simple _tabSwapAnimation;
+	rpl::variable<bool> _tabsDocked = false;
+	rpl::lifetime _tabBindingsLifetime;
+
+	object_ptr<Ui::FadeWrap<Ui::RpWidget>> _tabSelectionBar = { nullptr };
+	Ui::IconButton *_tabSelectionCancel = nullptr;
+	Ui::LabelWithNumbers *_tabSelectionText = nullptr;
+	Ui::IconButton *_tabSelectionForward = nullptr;
+	Ui::IconButton *_tabSelectionDelete = nullptr;
+	Ui::IconButton *_tabSelectionStoryInProfile = nullptr;
+	Ui::IconButton *_tabSelectionStoryPin = nullptr;
+	SelectedItems _tabSelectedItems;
+	Fn<void(SelectionAction)> _tabSelectionAction;
+	Fn<void(const Ui::Menu::MenuCallback&)> _tabFillMenu;
+
+	object_ptr<Ui::FadeWrap<Ui::RpWidget>> _tabSearchBar = { nullptr };
+	Ui::InputField *_tabSearchField = nullptr;
+	bool _tabSearchAvailable = false;
+	bool _tabSearchShown = false;
+	Fn<void(QString)> _tabApplySearch;
+	Fn<void(bool)> _tabSetGroup;
+	bool _tabGroupActive = false;
+	bool _tabGroupAvailable = false;
+	bool _standaloneGroup = false;
+	bool _standaloneGroupReached = false;
 	object_ptr<Ui::FlatLabel> _status;
 	std::unique_ptr<StatusLabel> _statusLabel;
 	rpl::variable<int> _statusShift = 0;
-	object_ptr<Ui::RoundButton> _showLastSeen = { nullptr };
+	rpl::producer<TextWithEntities> _customStatus;
+	object_ptr<Ui::FadeWrap<Ui::RoundButton>> _showLastSeen = { nullptr };
 	object_ptr<Ui::RoundButton> _forumButton = { nullptr };
-	QGraphicsOpacityEffect *_showLastSeenOpacity = nullptr;
 
 	std::shared_ptr<style::FlatLabel> _statusSt;
 	std::shared_ptr<style::InfoPeerBadge> _botVerifySt;
@@ -249,9 +333,14 @@ private:
 	Ui::PeerUserpicView _userpicView;
 	InMemoryKey _userpicUniqueKey;
 	QImage _cachedUserpic;
+	Ui::CommunityUserpicEffect _communityUserpicEffect;
+	bool _communityEffect = false;
 	QImage _monoforumMask;
 	std::unique_ptr<Ui::VideoUserpicPlayer> _videoUserpicPlayer;
 	std::unique_ptr<TopicIconView> _topicIconView;
+	std::unique_ptr<Ui::UploadProgressOverlay> _uploadOverlay;
+	rpl::lifetime _uploadLifetime;
+	bool _waitingUserpicCloudLoad = false;
 	rpl::lifetime _userpicLoadingLifetime;
 
 	base::unique_qptr<Ui::IconButton> _close;
@@ -259,13 +348,18 @@ private:
 	rpl::variable<bool> _backToggles;
 
 	rpl::event_stream<> _backClicks;
+	Ui::Controls::SwipeBackResult _swipeBackData;
 
 	base::unique_qptr<Ui::IconButton> _topBarButton;
+	base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _tabMenuToggle;
+	base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _tabSearchToggle;
+	base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _tabGroupToggle;
 	base::unique_qptr<Ui::PopupMenu> _peerMenu;
 
 	Ui::RpWidget *_actionMore = nullptr;
 
 	base::unique_qptr<Ui::HorizontalFitContainer> _actions;
+	base::unique_qptr<Ui::RpWidget> _actionsShadow;
 
 	std::unique_ptr<Lottie::MultiPlayer> _lottiePlayer;
 	bool _lottieSingleLoop = false;

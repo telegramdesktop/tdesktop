@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/tooltip.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/panel_animation.h"
+#include "ui/widgets/shadow.h"
 #include "base/timer.h"
 #include "mtproto/sender.h"
 #include "inline_bots/inline_bot_layout_item.h"
@@ -140,6 +141,7 @@ private:
 	QPixmap _cache;
 	Ui::Animations::Simple _a_opacity;
 	bool _inPanelGrab = false;
+	Ui::BoxShadow _shadow;
 
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<Inner> _inner;

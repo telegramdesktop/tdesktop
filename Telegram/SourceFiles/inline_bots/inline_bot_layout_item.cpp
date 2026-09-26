@@ -93,8 +93,43 @@ void ItemBase::layoutChanged() {
 std::unique_ptr<ItemBase> ItemBase::createLayout(
 		not_null<Context*> context,
 		std::shared_ptr<Result> result,
-		bool forceThumb) {
+		bool forceThumb,
+		std::optional<bool> gallery) {
 	using Type = Result::Type;
+
+	if (gallery.has_value()) {
+		if (!*gallery) {
+			// Force list mode: render gallery types as Article.
+			switch (result->_type) {
+			case Type::Photo:
+			case Type::Sticker:
+			case Type::Gif:
+				return std::make_unique<internal::Article>(
+					context,
+					std::move(result),
+					forceThumb);
+			default:
+				break;
+			}
+		} else {
+			// Force gallery mode: render list types as Thumbnail.
+			switch (result->_type) {
+			case Type::Article:
+			case Type::Geo:
+			case Type::Venue:
+			case Type::Video:
+			case Type::Audio:
+			case Type::File:
+			case Type::Contact:
+			case Type::Game:
+				return std::make_unique<internal::Thumbnail>(
+					context,
+					std::move(result));
+			default:
+				break;
+			}
+		}
+	}
 
 	switch (result->_type) {
 	case Type::Photo:
@@ -201,7 +236,7 @@ ClickHandlerPtr ItemBase::getResultPreviewHandler() const {
 			_result->_content_url,
 			false);
 	} else if (const auto document = _result->_document
-		; document && document->createMediaView()->canBePlayed(nullptr)) {
+		; document && document->createMediaView()->canBePlayed()) {
 		return std::make_shared<OpenFileClickHandler>();
 	} else if (_result->_photo) {
 		return std::make_shared<OpenFileClickHandler>();

@@ -80,22 +80,31 @@ SubsectionTabs::SubsectionTabs(
 SubsectionTabs::~SubsectionTabs() {
 	delete base::take(_horizontal);
 	delete base::take(_vertical);
+	delete base::take(_bottom);
 	delete base::take(_shadow);
 }
 
 void SubsectionTabs::setup(not_null<Ui::RpWidget*> parent) {
 	const auto peerId = _history->peer->id;
-	if (session().settings().verticalSubsectionTabs(peerId)) {
+	const auto mode = session().settings().subsectionTabsMode(peerId);
+	if (mode == qint32(SubsectionTabsMode::Left)) {
 		setupVertical(parent);
+	} else if (mode == qint32(SubsectionTabsMode::Bottom)) {
+		setupHorizontal(parent, true);
 	} else {
-		setupHorizontal(parent);
+		setupHorizontal(parent, false);
 	}
 }
 
-void SubsectionTabs::setupHorizontal(not_null<QWidget*> parent) {
+void SubsectionTabs::setupHorizontal(
+		not_null<QWidget*> parent,
+		bool bottom) {
 	delete base::take(_vertical);
-	_horizontal = Ui::CreateChild<Ui::RpWidget>(parent);
-	_horizontal->show();
+	delete base::take(bottom ? _horizontal : _bottom);
+	auto &widgetRef = bottom ? _bottom : _horizontal;
+	widgetRef = Ui::CreateChild<Ui::RpWidget>(parent);
+	widgetRef->show();
+	const auto widget = widgetRef;
 
 	if (!_shadow) {
 		_shadow = Ui::CreateChild<Ui::PlainShadow>(parent);
@@ -105,19 +114,24 @@ void SubsectionTabs::setupHorizontal(not_null<QWidget*> parent) {
 	}
 
 	const auto toggle = Ui::CreateChild<Ui::IconButton>(
-		_horizontal,
+		widget,
 		st::chatTabsToggle);
 	toggle->show();
+	toggle->setIconOverride(
+		bottom ? &st::chatTabsToggleIconBottom : &st::chatTabsToggleIconTop,
+		(bottom
+			? &st::chatTabsToggleIconBottomOver
+			: &st::chatTabsToggleIconTopOver));
 	toggle->setClickedCallback([=] {
 		toggleModes();
 	});
 	toggle->move(0, 0);
 	const auto scroll = Ui::CreateChild<Ui::ScrollArea>(
-		_horizontal,
+		widget,
 		st::chatTabsScroll,
 		true);
 	scroll->show();
-	const auto shadow = Ui::CreateChild<Ui::PlainShadow>(_horizontal);
+	const auto shadow = Ui::CreateChild<Ui::PlainShadow>(widget);
 	const auto slider = scroll->setOwnedWidget(
 		object_ptr<Ui::HorizontalSlider>(scroll));
 	_reorder = std::make_unique<Ui::SubsectionSliderReorder>(slider, scroll);
@@ -130,8 +144,8 @@ void SubsectionTabs::setupHorizontal(not_null<QWidget*> parent) {
 	) | rpl::map([=] { return scroll->scrollLeft() > 0; }));
 	shadow->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	_horizontal->resize(
-		_horizontal->width(),
+	widget->resize(
+		widget->width(),
 		std::max(toggle->height(), slider->height()));
 
 	scroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
@@ -145,7 +159,7 @@ void SubsectionTabs::setupHorizontal(not_null<QWidget*> parent) {
 		return true;
 	});
 
-	_horizontal->sizeValue(
+	widget->sizeValue(
 	) | rpl::on_next([=](QSize size) {
 		const auto togglew = toggle->width();
 		const auto height = size.height();
@@ -153,13 +167,26 @@ void SubsectionTabs::setupHorizontal(not_null<QWidget*> parent) {
 		shadow->setGeometry(togglew, 0, st::lineWidth, height);
 	}, scroll->lifetime());
 
-	_horizontal->paintRequest() | rpl::on_next([=](QRect clip) {
-		QPainter(_horizontal).fillRect(
+	widget->paintRequest() | rpl::on_next([=](QRect clip) {
+		auto p = QPainter(widget);
+
+		const auto line = st::lineWidth;
+		p.fillRect(
 			clip.intersected(
-				_horizontal->rect().marginsRemoved(
-					{ 0, 0, 0, st::lineWidth })),
+				widget->rect().marginsRemoved(
+					{ 0, bottom ? line : 0, 0, bottom ? 0 : line })),
 			st::windowBg);
-	}, _horizontal->lifetime());
+		if (bottom) {
+			const auto shadow = QRect(
+				0,
+				widget->height() - line,
+				widget->width(),
+				line);
+			if (clip.intersects(shadow)) {
+				p.fillRect(clip.intersected(shadow), st::shadowFg);
+			}
+		}
+	}, widget->lifetime());
 
 	_layoutRequests.fire({});
 
@@ -168,6 +195,7 @@ void SubsectionTabs::setupHorizontal(not_null<QWidget*> parent) {
 
 void SubsectionTabs::setupVertical(not_null<QWidget*> parent) {
 	delete base::take(_horizontal);
+	delete base::take(_bottom);
 	_vertical = Ui::CreateChild<Ui::RpWidget>(parent);
 	_vertical->show();
 
@@ -180,8 +208,9 @@ void SubsectionTabs::setupVertical(not_null<QWidget*> parent) {
 		_vertical,
 		st::chatTabsToggle);
 	toggle->show();
-	const auto active = &st::chatTabsToggleActive;
-	toggle->setIconOverride(active, active);
+	toggle->setIconOverride(
+		&st::chatTabsToggleIconLeft,
+		&st::chatTabsToggleIconLeftOver);
 	toggle->setClickedCallback([=] {
 		toggleModes();
 	});
@@ -232,14 +261,16 @@ void SubsectionTabs::setupSlider(
 		if (_reordering) {
 			return;
 		}
+		const auto guard = base::make_weak(slider);
 		const auto newWindow = base::IsCtrlPressed();
-		if (active >= 0
-			&& active < _slice.size()
-			&& (newWindow || _active != _slice[active].thread)) {
+		if (active >= 0 && active < _slice.size()) {
 			const auto thread = _slice[active].thread;
 			if (newWindow) {
 				_controller->showInNewWindow(Window::SeparateId(thread));
-				_refreshed.fire({}); // This should activate current section.
+				if (guard) {
+					// This should activate current section.
+					_refreshed.fire({});
+				}
 			} else {
 				auto params = Window::SectionShow();
 				params.way = Window::SectionShow::Way::ClearStack;
@@ -247,7 +278,9 @@ void SubsectionTabs::setupSlider(
 				_controller->showThread(thread, ShowAtUnreadMsgId, params);
 			}
 		}
-		_reorder->finishReordering();
+		if (guard) {
+			_reorder->finishReordering();
+		}
 	}, slider->lifetime());
 
 	_reorder->updates(
@@ -453,7 +486,7 @@ void SubsectionTabs::startFillingSlider(
 						).append(' ').append(peer->shortName()),
 					});
 				}
-			// } else if (Data::IsBotCanManageTopics(item.thread->peer())) {
+			// } else if (Data::IsBotUserCreatesTopics(item.thread->peer())) {
 			// 	sections.push_back({
 			// 		.text = { tr::lng_bot_new_chat(tr::now) },
 			// 	});
@@ -566,7 +599,7 @@ void SubsectionTabs::startFillingSlider(
 void SubsectionTabs::showThreadContextMenu(not_null<Data::Thread*> thread) {
 	_menu = nullptr;
 	_menu = base::make_unique_q<Ui::PopupMenu>(
-		_horizontal ? _horizontal : _vertical,
+		activeWidget(),
 		st::popupMenuExpandedSeparator);
 
 	const auto addAction = Ui::Menu::CreateAddActionCallback(_menu);
@@ -605,17 +638,27 @@ rpl::producer<> SubsectionTabs::dataChanged() const {
 }
 
 void SubsectionTabs::toggleModes() {
-	Expects((_horizontal || _vertical) && _shadow);
+	Expects((_horizontal || _vertical || _bottom) && _shadow);
 
 	const auto peerId = _history->peer->id;
-	const auto nowVertical = (_horizontal != nullptr);
-	session().settings().setVerticalSubsectionTabs(peerId, nowVertical);
+	const auto parent = activeWidget()->parentWidget();
+	const auto current = session().settings().subsectionTabsMode(peerId);
+	const auto next = (current == qint32(SubsectionTabsMode::Top))
+		? SubsectionTabsMode::Bottom
+		: (current == qint32(SubsectionTabsMode::Bottom))
+		? SubsectionTabsMode::Left
+		: SubsectionTabsMode::Top;
+	session().settings().setSubsectionTabsMode(
+		peerId,
+		qint32(next));
 	session().saveSettingsDelayed();
 
-	if (_horizontal) {
-		setupVertical(_horizontal->parentWidget());
+	if (next == SubsectionTabsMode::Left) {
+		setupVertical(parent);
+	} else if (next == SubsectionTabsMode::Bottom) {
+		setupHorizontal(parent, true);
 	} else {
-		setupHorizontal(_vertical->parentWidget());
+		setupHorizontal(parent, false);
 	}
 }
 
@@ -634,21 +677,17 @@ rpl::producer<> SubsectionTabs::removeRequests() const {
 }
 
 void SubsectionTabs::extractToParent(not_null<Ui::RpWidget*> parent) {
-	Expects((_horizontal || _vertical) && _shadow);
+	Expects((_horizontal || _vertical || _bottom) && _shadow);
 
-	if (_vertical) {
-		_vertical->hide();
-		_vertical->setParent(parent);
-	} else {
-		_horizontal->hide();
-		_horizontal->setParent(parent);
-	}
+	const auto widget = activeWidget();
+	widget->hide();
+	widget->setParent(parent);
 	_shadow->hide();
 	_shadow->setParent(parent);
 }
 
 void SubsectionTabs::setBoundingRect(QRect boundingRect) {
-	Expects((_horizontal || _vertical) && _shadow);
+	Expects((_horizontal || _vertical || _bottom) && _shadow);
 
 	if (_horizontal) {
 		_horizontal->setGeometry(
@@ -661,7 +700,7 @@ void SubsectionTabs::setBoundingRect(QRect boundingRect) {
 			_horizontal->y() + _horizontal->height() - st::lineWidth,
 			boundingRect.width(),
 			st::lineWidth);
-	} else {
+	} else if (_vertical) {
 		_vertical->setGeometry(
 			boundingRect.x(),
 			boundingRect.y(),
@@ -672,6 +711,18 @@ void SubsectionTabs::setBoundingRect(QRect boundingRect) {
 			boundingRect.y(),
 			st::lineWidth,
 			boundingRect.height());
+	} else {
+		_bottom->setGeometry(
+			boundingRect.x(),
+			boundingRect.y() + boundingRect.height()
+				- _bottom->height(),
+			boundingRect.width(),
+			_bottom->height());
+		_shadow->setGeometry(
+			boundingRect.x(),
+			_bottom->y(),
+			boundingRect.width(),
+			st::lineWidth);
 	}
 }
 
@@ -687,14 +738,14 @@ int SubsectionTabs::topSkip() const {
 	return _horizontal ? (_horizontal->height() - st::lineWidth) : 0;
 }
 
-void SubsectionTabs::raise() {
-	Expects((_horizontal || _vertical) && _shadow);
+int SubsectionTabs::bottomSkip() const {
+	return _bottom ? (_bottom->height() - st::lineWidth) : 0;
+}
 
-	if (_horizontal) {
-		_horizontal->raise();
-	} else {
-		_vertical->raise();
-	}
+void SubsectionTabs::raise() {
+	Expects((_horizontal || _vertical || _bottom) && _shadow);
+
+	activeWidget()->raise();
 	_shadow->raise();
 }
 
@@ -707,13 +758,9 @@ void SubsectionTabs::hide() {
 }
 
 void SubsectionTabs::setVisible(bool shown) {
-	Expects((_horizontal || _vertical) && _shadow);
+	Expects((_horizontal || _vertical || _bottom) && _shadow);
 
-	if (_horizontal) {
-		_horizontal->setVisible(shown);
-	} else {
-		_vertical->setVisible(shown);
-	}
+	activeWidget()->setVisible(shown);
 	_shadow->setVisible(shown);
 }
 
@@ -829,7 +876,7 @@ void SubsectionTabs::refreshSlice() {
 		if (_slice != slice) {
 			_slice = std::move(slice);
 			_refreshed.fire({});
-			Assert((!_horizontal && !_vertical)
+			Assert((!_horizontal && !_vertical && !_bottom)
 				|| (_slice.size() == _sectionsSlice.size()));
 		}
 	});
@@ -908,22 +955,22 @@ Main::Session &SubsectionTabs::session() {
 	return _history->session();
 }
 
+Ui::RpWidget *SubsectionTabs::activeWidget() const {
+	return _horizontal ? _horizontal : _vertical ? _vertical : _bottom;
+}
+
 bool SubsectionTabs::switchTo(
 		not_null<Data::Thread*> thread,
 		not_null<Ui::RpWidget*> parent) {
-	Expects((_horizontal || _vertical) && _shadow);
+	Expects((_horizontal || _vertical || _bottom) && _shadow);
 
 	if (thread->owningHistory() != _history) {
 		return false;
 	}
 	_active = thread;
-	if (_vertical) {
-		_vertical->setParent(parent);
-		_vertical->show();
-	} else {
-		_horizontal->setParent(parent);
-		_horizontal->show();
-	}
+	const auto widget = activeWidget();
+	widget->setParent(parent);
+	widget->show();
 	_shadow->setParent(parent);
 	_shadow->show();
 	_refreshed.fire({});
@@ -933,7 +980,7 @@ bool SubsectionTabs::switchTo(
 bool SubsectionTabs::UsedFor(not_null<Data::Thread*> thread) {
 	const auto history = thread->owningHistory();
 	return history->amMonoforumAdmin()
-		|| history->peer->useSubsectionTabs();
+		|| history->peer->displaySubsectionTabs();
 }
 
 void SubsectionTabs::applyReorder(

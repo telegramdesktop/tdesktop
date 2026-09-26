@@ -26,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_chat.h"
-#include "styles/style_layers.h"
 
 namespace Window {
 namespace {
@@ -62,7 +61,7 @@ QRect MediaPreviewWidget::updateArea() const {
 	const auto size = currentDimensions();
 	const auto position = QPoint(
 		(width() - size.width()) / 2,
-		(height() - size.height()) / 2);
+		(height() - size.height()) / 2 + _contentShiftY);
 	const auto premium = _document && _document->isPremiumSticker();
 	const auto adjusted = position
 		- (premium
@@ -128,10 +127,11 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 //			+ ((1. - st::stickerPreviewMin) * shown)) / 2.) * 2
 //			+ int(h % 2), 1);
 	}
-	if (_backgroundMargins.isNull()) {
-		p.fillRect(r, st::stickerPreviewBg);
-	} else {
-		p.fillRect(rect() - _backgroundMargins, st::stickerPreviewBg);
+	if (_paintBackground) {
+		const auto bg = _backgroundMargins.isNull()
+			? r
+			: (rect() - _backgroundMargins);
+		p.fillRect(bg, st::stickerPreviewBg);
 	}
 	if (!_customPadding.isNull()) {
 		p.translate(0, _customPadding.top());
@@ -153,7 +153,7 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 			+ (emojiCount - 1) * st::stickerEmojiSkip;
 		auto emojiLeft = (width() - emojiWidth) / 2;
 		const auto esize = Ui::Emoji::GetSizeLarge();
-		for (const auto emoji : _emojiList) {
+		for (const auto &emoji : _emojiList) {
 			Ui::Emoji::Draw(
 				p,
 				emoji,
@@ -181,7 +181,7 @@ QPoint MediaPreviewWidget::innerPosition(QSize size) const {
 	if (!_document || !_document->isPremiumSticker()) {
 		return QPoint(
 			(width() - size.width()) / 2,
-			(height() - size.height()) / 2);
+			(height() - size.height()) / 2 + _contentShiftY);
 	}
 	const auto outer = size * kPremiumMultiplier;
 	const auto shift = size.width() * kPremiumShift;
@@ -195,7 +195,7 @@ QPoint MediaPreviewWidget::outerPosition(QSize size) const {
 	const auto outer = size * kPremiumMultiplier;
 	return QPoint(
 		(width() - outer.width()) / 2,
-		(height() - outer.height()) / 2);
+		(height() - outer.height()) / 2 + _contentShiftY);
 }
 
 void MediaPreviewWidget::showPreview(
@@ -273,7 +273,7 @@ void MediaPreviewWidget::hidePreview() {
 
 void MediaPreviewWidget::fillEmojiString() {
 	_emojiList.clear();
-	if (_photo) {
+	if (_photo || _hideEmoji) {
 		return;
 	}
 	if (const auto sticker = _document->sticker()) {
@@ -315,8 +315,37 @@ void MediaPreviewWidget::setCustomRadius(int radius) {
 	update();
 }
 
+void MediaPreviewWidget::setMaxContentSize(int size) {
+	_maxContentSize = size;
+	_cachedSize = QSize();
+	update();
+}
+
+void MediaPreviewWidget::setPaintBackground(bool paint) {
+	_paintBackground = paint;
+	update();
+}
+
 void MediaPreviewWidget::setCustomDuration(crl::time duration) {
 	_customDuration = duration;
+}
+
+void MediaPreviewWidget::setHideEmoji(bool hide) {
+	_hideEmoji = hide;
+	if (hide) {
+		_emojiList.clear();
+	}
+}
+
+void MediaPreviewWidget::setContentShift(int y) {
+	_contentShiftY = y;
+	_cachedSize = QSize();
+	update();
+}
+
+int MediaPreviewWidget::contentBottom() const {
+	const auto s = currentDimensions();
+	return (height() + s.height()) / 2 + _contentShiftY;
 }
 
 QSize MediaPreviewWidget::currentDimensions() const {
@@ -332,8 +361,9 @@ QSize MediaPreviewWidget::currentDimensions() const {
 	auto box = QSize();
 	if (_photo) {
 		result = QSize(_photo->width(), _photo->height());
-		const auto skip = st::defaultBox.margin.top();
-		box = QSize(width() - 2 * skip, height() - 2 * skip);
+		const auto skip = st::mediaPreviewPhotoSkip;
+		const auto shiftSkip = 2 * std::abs(_contentShiftY);
+		box = QSize(width() - 2 * skip, height() - 2 * skip - shiftSkip);
 	} else {
 		result = _document->dimensions;
 		if (result.isEmpty()) {
@@ -344,13 +374,16 @@ QSize MediaPreviewWidget::currentDimensions() const {
 				result = QSize(gif->width(), gif->height());
 			}
 		}
+		const auto max = _maxContentSize
+			? _maxContentSize
+			: st::maxStickerSize;
 		if (_document->sticker()) {
-			box = QSize(st::maxStickerSize, st::maxStickerSize);
+			box = QSize(max, max);
 			if (_document->isPremiumSticker()) {
 				result = (box /= kPremiumDownscale);
 			}
 		} else {
-			box = QSize(2 * st::maxStickerSize, 2 * st::maxStickerSize);
+			box = QSize(2 * max, 2 * max);
 		}
 	}
 	result = QSize(
@@ -610,6 +643,10 @@ void MediaPreviewWidget::clipCallback(
 }
 
 MediaPreviewWidget::~MediaPreviewWidget() {
+	if (!isHidden()) {
+		_controller->disableGifPauseReason(
+			Window::GifPauseReason::MediaPreview);
+	}
 }
 
 } // namespace Window

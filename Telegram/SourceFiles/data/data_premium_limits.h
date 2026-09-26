@@ -70,6 +70,9 @@ public:
 	[[nodiscard]] int captionLengthDefault() const;
 	[[nodiscard]] int captionLengthPremium() const;
 	[[nodiscard]] int captionLengthCurrent() const;
+	[[nodiscard]] int messageLengthDefault() const;
+	[[nodiscard]] int messageLengthPremium() const;
+	[[nodiscard]] int messageLengthCurrent() const;
 
 	[[nodiscard]] int uploadMaxDefault() const;
 	[[nodiscard]] int uploadMaxPremium() const;
@@ -82,6 +85,12 @@ public:
 	[[nodiscard]] int contactNoteLengthCurrent() const;
 
 	[[nodiscard]] int maxBoostLevel() const;
+
+	[[nodiscard]] int botsCreateDefault() const;
+	[[nodiscard]] int botsCreatePremium() const;
+
+	[[nodiscard]] int aiComposeSavedTonesDefault() const;
+	[[nodiscard]] int aiComposeSavedTonesPremium() const;
 
 private:
 	[[nodiscard]] int appConfigLimit(

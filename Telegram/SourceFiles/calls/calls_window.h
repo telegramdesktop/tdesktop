@@ -55,11 +55,16 @@ public:
 	void setControlsStyle(const style::WindowTitle &st);
 	void setControlsShown(float64 shown);
 	[[nodiscard]] int controlsWrapTop() const;
+	[[nodiscard]] Ui::RpWidget *controlsWrap() const;
 	[[nodiscard]] QRect controlsGeometry() const;
 	[[nodiscard]] auto controlsLayoutChanges() const
 		-> rpl::producer<Ui::Platform::TitleLayout>;
 	[[nodiscard]] bool controlsHasHitTest(QPoint widgetPoint) const;
 	[[nodiscard]] rpl::producer<bool> maximizeRequests() const;
+
+	[[nodiscard]] bool pinnedOnTop() const;
+	void setPinnedOnTop(bool pinned);
+	[[nodiscard]] bool unpinFromTopMaximized();
 
 	void raiseLayers();
 	[[nodiscard]] const Ui::LayerWidget *topShownLayer() const;

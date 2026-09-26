@@ -51,40 +51,47 @@ std::vector<ChatParticipant> ParseList(
 void ApplyMegagroupAdmins(not_null<ChannelData*> channel, Members list) {
 	Expects(channel->isMegagroup());
 
-	const auto i = ranges::find_if(list, &Api::ChatParticipant::isCreator);
-	if (i != list.end()) {
-		i->tryApplyCreatorTo(channel);
-	} else {
-		channel->mgInfo->creator = nullptr;
-		channel->mgInfo->creatorRank = QString();
-	}
+	const auto creatorIt = ranges::find_if(
+		list,
+		&Api::ChatParticipant::isCreator);
 
-	auto adding = base::flat_map<UserId, QString>();
+	auto adding = base::flat_set<UserId>();
+	auto addingRanks = base::flat_map<UserId, QString>();
 	for (const auto &p : list) {
 		if (p.isUser()) {
-			adding.emplace(p.userId(), p.rank());
+			adding.emplace(p.userId());
+			if (!p.rank().isEmpty()) {
+				addingRanks.emplace(p.userId(), p.rank());
+			}
 		}
 	}
-	if (channel->mgInfo->creator) {
-		adding.emplace(
-			peerToUser(channel->mgInfo->creator->id),
-			channel->mgInfo->creatorRank);
+	if (creatorIt != list.end() && creatorIt->isUser()) {
+		adding.emplace(creatorIt->userId());
+		if (!creatorIt->rank().isEmpty()) {
+			addingRanks.emplace(creatorIt->userId(), creatorIt->rank());
+		}
 	}
 	auto removing = channel->mgInfo->admins;
 	if (removing.empty() && adding.empty()) {
-		// Add some admin-placeholder so we don't DDOS
-		// server with admins list requests.
 		LOG(("API Error: Got empty admins list from server."));
-		adding.emplace(0, QString());
+		adding.emplace(UserId(0));
 	}
 
 	Data::ChannelAdminChanges changes(channel);
-	for (const auto &[addingId, rank] : adding) {
-		if (!removing.remove(addingId)) {
-			changes.add(addingId, rank);
-		}
+	if (creatorIt != list.end()) {
+		creatorIt->tryApplyCreatorTo(channel);
+	} else {
+		channel->mgInfo->creator = nullptr;
 	}
-	for (const auto &[removingId, rank] : removing) {
+	for (const auto &addingId : adding) {
+		const auto r = addingRanks.find(addingId);
+		const auto rank = (r != end(addingRanks))
+			? r->second
+			: QString();
+		removing.remove(addingId);
+		changes.add(addingId, rank);
+	}
+	for (const auto &removingId : removing) {
 		changes.remove(removingId);
 	}
 }
@@ -112,6 +119,7 @@ void ApplyLastList(
 	channel->mgInfo->lastAdmins.clear();
 	channel->mgInfo->lastRestricted.clear();
 	channel->mgInfo->lastParticipants.clear();
+	channel->mgInfo->memberRanks.clear();
 	channel->mgInfo->lastParticipantsStatus
 		= MegagroupInfo::LastParticipantsUpToDate
 			| MegagroupInfo::LastParticipantsOnceReceived;
@@ -143,10 +151,12 @@ void ApplyLastList(
 			}
 			if (user->isBot()) {
 				channel->mgInfo->bots.insert(user);
-				if ((channel->mgInfo->botStatus != 0)
-					&& (channel->mgInfo->botStatus < 2)) {
-					channel->mgInfo->botStatus = 2;
+				if (channel->mgInfo->botStatus == Data::BotStatus::NoBots) {
+					channel->mgInfo->botStatus = Data::BotStatus::HasBots;
 				}
+			}
+			if (!p.rank().isEmpty()) {
+				channel->mgInfo->memberRanks[p.userId()] = p.rank();
 			}
 		}
 	}
@@ -178,7 +188,7 @@ void ApplyBotsList(
 		Members list) {
 	const auto history = channel->owner().historyLoaded(channel);
 	channel->mgInfo->bots.clear();
-	channel->mgInfo->botStatus = -1;
+	channel->mgInfo->botStatus = Data::BotStatus::NoBots;
 
 	auto needBotsInfos = false;
 	auto botStatus = channel->mgInfo->botStatus;
@@ -188,7 +198,7 @@ void ApplyBotsList(
 		const auto user = participant->asUser();
 		if (user && user->isBot()) {
 			channel->mgInfo->bots.insert(user);
-			botStatus = 2;// (botStatus > 0/* || !i.key()->botInfo->readsAllHistory*/) ? 2 : 1;
+			botStatus = Data::BotStatus::HasBots;
 			if (!user->botInfo->inited) {
 				needBotsInfos = true;
 			}
@@ -287,12 +297,14 @@ ChatParticipant::ChatParticipant(
 		_type = Type::Member;
 		_date = data.vdate().v;
 		_by = peerToUser(peerFromUser(data.vinviter_id()));
+		_rank = qs(data.vrank().value_or_empty());
 		if (data.vsubscription_until_date()) {
 			_subscriptionDate = data.vsubscription_until_date()->v;
 		}
 	}, [&](const MTPDchannelParticipant &data) {
 		_type = Type::Member;
 		_date = data.vdate().v;
+		_rank = qs(data.vrank().value_or_empty());
 		if (data.vsubscription_until_date()) {
 			_subscriptionDate = data.vsubscription_until_date()->v;
 		}
@@ -300,6 +312,7 @@ ChatParticipant::ChatParticipant(
 		_restrictions = ChatRestrictionsInfo(data.vbanned_rights());
 		_by = peerToUser(peerFromUser(data.vkicked_by()));
 		_date = data.vdate().v;
+		_rank = qs(data.vrank().value_or_empty());
 
 		_type = (_restrictions.flags & ChatRestriction::ViewMessages)
 			? Type::Banned
@@ -331,7 +344,11 @@ void ChatParticipant::tryApplyCreatorTo(
 	if (isCreator() && isUser()) {
 		if (const auto info = channel->mgInfo.get()) {
 			info->creator = channel->owner().userLoaded(userId());
-			info->creatorRank = rank();
+			if (!rank().isEmpty()) {
+				info->memberRanks[userId()] = rank();
+			} else {
+				info->memberRanks.remove(userId());
+			}
 		}
 	}
 }
@@ -498,7 +515,7 @@ void ChatParticipants::requestBots(not_null<ChannelData*> channel) {
 		_botsRequests.remove(channel);
 		if (error.type() == u"CHANNEL_MONOFORUM_UNSUPPORTED"_q) {
 			channel->mgInfo->bots.clear();
-			channel->mgInfo->botStatus = -1;
+			channel->mgInfo->botStatus = Data::BotStatus::NoBots;
 			channel->session().changes().peerUpdated(
 				channel,
 				Data::PeerUpdate::Flag::FullInfo);
@@ -651,7 +668,7 @@ void ChatParticipants::Restrict(
 		ChatRestrictionsInfo oldRights,
 		ChatRestrictionsInfo newRights,
 		Fn<void()> onDone,
-		Fn<void()> onFail) {
+		Fn<void(const QString&)> onFail) {
 	channel->session().api().request(MTPchannels_EditBanned(
 		channel->inputChannel(),
 		participant->input(),
@@ -662,9 +679,9 @@ void ChatParticipants::Restrict(
 		if (onDone) {
 			onDone();
 		}
-	}).fail([=] {
+	}).fail([=](const MTP::Error &error) {
 		if (onFail) {
-			onFail();
+			onFail(error.type());
 		}
 	}).send();
 }
@@ -728,7 +745,8 @@ void ChatParticipants::requestSelf(not_null<ChannelData*> channel) {
 		});
 	}).fail([=](const MTP::Error &error) {
 		_selfParticipantRequests.erase(channel);
-		if (error.type() == u"CHANNEL_PRIVATE"_q) {
+		if (error.type() == u"CHANNEL_PRIVATE"_q
+			|| error.type() == u"USER_BANNED_IN_CHANNEL"_q) {
 			channel->privateErrorReceived();
 		}
 		finalize();
@@ -766,6 +784,7 @@ void ChatParticipants::kick(
 
 		_kickRequests.remove(KickRequest(channel, participant));
 		channel->applyEditBanned(participant, currentRights, rights);
+		applyKicked(channel, participant, true);
 	}).fail([this, kick] {
 		_kickRequests.remove(kick);
 	}).send();
@@ -794,11 +813,49 @@ void ChatParticipants::unblock(
 		} else {
 			channel->updateFullForced();
 		}
+		applyKicked(channel, participant, false);
 	}).fail([=] {
 		_kickRequests.remove(kick);
 	}).send();
 
 	_kickRequests.emplace(kick, requestId);
+}
+
+rpl::producer<bool> ChatParticipants::kickedValue(
+		not_null<ChannelData*> channel,
+		not_null<PeerData*> participant) {
+	const auto key = KickRequest(channel, participant);
+	auto i = _kicked.find(key);
+	if (i == end(_kicked)) {
+		i = _kicked.emplace(key, std::make_unique<Kicked>()).first;
+		const auto raw = i->second.get();
+		raw->requestId = _api.request(MTPchannels_GetParticipant(
+			channel->inputChannel(),
+			participant->input()
+		)).done([=](const MTPchannels_ChannelParticipant &result) {
+			raw->requestId = 0;
+			raw->value = ChatParticipant(
+				result.data().vparticipant(),
+				channel).isKicked();
+		}).fail([=] {
+			raw->requestId = 0;
+		}).send();
+	}
+	return i->second->value.value();
+}
+
+void ChatParticipants::applyKicked(
+		not_null<ChannelData*> channel,
+		not_null<PeerData*> participant,
+		bool kicked) {
+	const auto key = KickRequest(channel, participant);
+	auto i = _kicked.find(key);
+	if (i == end(_kicked)) {
+		i = _kicked.emplace(key, std::make_unique<Kicked>()).first;
+	} else if (const auto requestId = base::take(i->second->requestId)) {
+		_api.request(requestId).cancel();
+	}
+	i->second->value = kicked;
 }
 
 void ChatParticipants::loadSimilarPeers(not_null<PeerData*> peer) {

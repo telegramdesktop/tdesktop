@@ -132,6 +132,11 @@ linksBorderFg: shadowFg;
 linksPhotoSize: 46px;
 linksPhotoPadding: 12px;
 
+overviewLinkIvIcon: IconEmoji {
+	icon: icon {{ "info/info_iv_mini-12x12", windowActiveTextFg }};
+	padding: margins(0px, 5px, 2px, 0px);
+}
+
 overviewVideoStatusMargin: 3px;
 overviewVideoStatusPadding: point(6px, 0px);
 overviewVideoStatusRadius: 4px;

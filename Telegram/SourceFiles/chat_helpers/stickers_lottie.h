@@ -137,6 +137,7 @@ bool PaintStickerThumbnailPath(
 
 [[nodiscard]] not_null<DocumentData*> GenerateLocalTgsSticker(
 	not_null<Main::Session*> session,
-	const QString &name);
+	const QString &name,
+	bool useTextColor = false);
 
 } // namespace ChatHelpers

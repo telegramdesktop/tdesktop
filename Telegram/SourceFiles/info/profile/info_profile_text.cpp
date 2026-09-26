@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "styles/style_boxes.h"
 #include "styles/style_info.h"
 
 namespace Info {
@@ -24,7 +25,8 @@ TextWithLabel CreateTextWithLabel(
 		rpl::producer<TextWithEntities> &&text,
 		const style::FlatLabel &labelSt,
 		const style::FlatLabel &textSt,
-		const style::margins &padding) {
+		const style::margins &padding,
+		const style::PopupMenu &stMenu) {
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		parent,
 		object_ptr<Ui::VerticalLayout>(parent),
@@ -47,9 +49,10 @@ TextWithLabel CreateTextWithLabel(
 	const auto labeled = layout->add(object_ptr<Ui::FlatLabel>(
 		layout,
 		std::move(nonEmptyText),
-		textSt));
+		textSt,
+		stMenu));
 	std::move(text) | rpl::on_next([=] {
-		labeled->resizeToWidth(layout->width());
+		labeled->resizeToWidth(layout->widthNoMargins());
 	}, labeled->lifetime());
 	labeled->setSelectable(true);
 	layout->add(Ui::CreateSkipWidget(layout, st::infoLabelSkip));

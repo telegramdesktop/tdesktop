@@ -24,8 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "window/window_separate_id.h"
 #include "window/window_session_controller.h"
-#include "styles/style_boxes.h"
 #include "styles/style_layers.h"
+#include "styles/style_userpic_button.h"
 #include "styles/style_window.h"
 
 namespace Window {
@@ -62,7 +62,7 @@ void CloseInWindows(not_null<Data::Thread*> thread) {
 	using WindowPointer = base::weak_ptr<Window::SessionController>;
 	auto closing = std::vector<WindowPointer>();
 	auto clearing = std::vector<WindowPointer>();
-	for (const auto window : thread->session().windows()) {
+	for (const auto &window : thread->session().windows()) {
 		if (window->windowId().chat() == thread) {
 			closing.push_back(base::make_weak(window));
 		} else if (window->activeChatCurrent().thread() == thread) {
@@ -474,7 +474,7 @@ void ChatSwitchProcess::layout(QSize size) {
 	for (auto row = 0; row != _shownRows; ++row) {
 		auto left = padding.left();
 		for (auto column = 0; column != _shownPerRow; ++column) {
-			auto &entry = _entries[index++];
+			const auto &entry = _entries[index++];
 			entry.button->moveToLeft(left, top, _inner.width());
 			entry.button->show();
 			left += st::chatSwitchSize.width();

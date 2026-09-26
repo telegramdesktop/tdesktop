@@ -25,6 +25,7 @@ struct MessageMoneyRestriction;
 
 namespace Data {
 class Thread;
+class CommunityInfo;
 class Forum;
 class ForumTopic;
 class SavedSublist;
@@ -260,6 +261,7 @@ public:
 		Online,
 	};
 	void setSortMode(SortMode mode);
+	void setSectionHeadersShown(bool shown);
 	void setStoriesShown(bool shown);
 
 protected:
@@ -272,12 +274,14 @@ protected:
 private:
 	void sort();
 	void sortByOnline();
+	void applySectionHeaders();
 	void rebuildRows();
 	void checkForEmptyRows();
 	bool appendRow(not_null<UserData*> user);
 
 	const not_null<Main::Session*> _session;
 	SortMode _sortMode = SortMode::Alphabet;
+	bool _sectionHeadersShown = false;
 	base::Timer _sortByOnlineTimer;
 	rpl::lifetime _sortByOnlineLifetime;
 
@@ -354,8 +358,8 @@ class ChooseTopicBoxController final
 public:
 	ChooseTopicBoxController(
 		not_null<Data::Forum*> forum,
-		FnMut<void(not_null<Data::ForumTopic*>)> callback,
-		Fn<bool(not_null<Data::ForumTopic*>)> filter = nullptr);
+		FnMut<void(not_null<Data::Thread*>)> callback,
+		Fn<bool(not_null<Data::Thread*>)> filter = nullptr);
 
 	Main::Session &session() const override;
 	void rowClicked(not_null<PeerListRow*> row) override;
@@ -391,13 +395,36 @@ private:
 
 	};
 
+	class AllMessagesRow final : public PeerListRow {
+	public:
+		explicit AllMessagesRow(bool userCreatesTopics);
+
+		QString generateName() override;
+		QString generateShortName() override;
+		PaintRoundImageCallback generatePaintUserpicCallback(
+			bool forceRound) override;
+
+		auto generateNameFirstLetters() const
+			-> const base::flat_set<QChar> & override;
+		auto generateNameWords() const
+			-> const base::flat_set<QString> & override;
+
+	private:
+		[[nodiscard]] QString name() const;
+
+		base::flat_set<QChar> _nameFirstLetters;
+		base::flat_set<QString> _nameWords;
+		bool _userCreatesTopics = false;
+
+	};
+
 	void refreshRows(bool initial = false);
 	[[nodiscard]] std::unique_ptr<Row> createRow(
 		not_null<Data::ForumTopic*> topic);
 
 	const not_null<Data::Forum*> _forum;
-	FnMut<void(not_null<Data::ForumTopic*>)> _callback;
-	Fn<bool(not_null<Data::ForumTopic*>)> _filter;
+	FnMut<void(not_null<Data::Thread*>)> _callback;
+	Fn<bool(not_null<Data::Thread*>)> _filter;
 
 };
 
@@ -425,5 +452,34 @@ private:
 	const not_null<Data::SavedMessages*> _monoforum;
 	FnMut<void(not_null<Data::SavedSublist*>)> _callback;
 	Fn<bool(not_null<Data::SavedSublist*>)> _filter;
+
+};
+
+[[nodiscard]] Data::CommunityInfo *JoinedCommunityChats(
+	not_null<PeerData*> peer);
+
+class ChooseCommunityChatBoxController final
+	: public PeerListController
+	, public base::has_weak_ptr {
+public:
+	ChooseCommunityChatBoxController(
+		not_null<Data::CommunityInfo*> community,
+		FnMut<void(not_null<Data::Thread*>)> callback,
+		Fn<bool(not_null<Data::Thread*>)> filter = nullptr);
+
+	Main::Session &session() const override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+
+	void prepare() override;
+	std::unique_ptr<PeerListRow> createSearchRow(PeerListRowId id) override;
+
+private:
+	void refreshRows(bool initial = false);
+	[[nodiscard]] std::unique_ptr<PeerListRow> createRow(
+		not_null<History*> history);
+
+	const not_null<Data::CommunityInfo*> _community;
+	FnMut<void(not_null<Data::Thread*>)> _callback;
+	Fn<bool(not_null<Data::Thread*>)> _filter;
 
 };

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/object_ptr.h"
+#include "styles/style_widgets.h"
 
 #include <rpl/producer.h>
 
@@ -37,7 +38,8 @@ TextWithLabel CreateTextWithLabel(
 	rpl::producer<TextWithEntities> &&text,
 	const style::FlatLabel &labelSt,
 	const style::FlatLabel &textSt,
-	const style::margins &padding);
+	const style::margins &padding,
+	const style::PopupMenu &stMenu = st::defaultPopupMenu);
 
 } // namespace Profile
 } // namespace Info

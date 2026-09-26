@@ -1,0 +1,66 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "dialogs/dialogs.style";
+
+dialogsMenuToggleUnread: icon {
+	{ "dialogs/dialogs_menu_unread", dialogsMenuIconFg },
+	{ "dialogs/dialogs_menu_unread_dot", dialogsUnreadBg },
+};
+dialogsMenuToggleUnreadMuted: icon {
+	{ "dialogs/dialogs_menu_unread", dialogsMenuIconFg },
+	{ "dialogs/dialogs_menu_unread_dot", dialogsMenuIconFg },
+};
+dialogsLock: IconButton {
+	width: 36px;
+	height: 38px;
+
+	icon: icon {{ "dialogs/dialogs_lock_off", dialogsMenuIconFg }};
+	iconOver: icon {{ "dialogs/dialogs_lock_off", dialogsMenuIconFgOver }};
+	iconPosition: point(-1px, -1px);
+
+	ripple: emptyRippleAnimation;
+}
+dialogsUnlockIcon: icon {{ "dialogs/dialogs_lock_on", dialogsMenuIconFg }};
+dialogsUnlockIconOver: icon {{ "dialogs/dialogs_lock_on", dialogsMenuIconFgOver }};
+dialogsSearchForNarrowFilters: IconButton(dialogsMenuToggle) {
+	icon: icon {{ "top_bar_search", menuIconFg }};
+	iconOver: icon {{ "top_bar_search", menuIconFgOver }};
+	iconPosition: point(4px, 4px);
+}
+dialogsInstallUpdate: icon {{ "install_update", activeButtonFg }};
+dialogsInstallUpdateOver: icon {{ "install_update", activeButtonFgOver }};
+dialogsInstallUpdateIconSkip: 7px;
+dialogsInstallUpdateIconSize: 20px;
+dialogsInstallUpdateIconInnerMargin: 5px;
+dialogsInstallUpdateIconSide1: 5px;
+dialogsInstallUpdateIconSide2: 3px;
+dialogsLoadMoreButton: FlatButton(dialogsUpdateButton) {
+	color: lightButtonFg;
+	overColor: lightButtonFg;
+	bgColor: lightButtonBg;
+	overBgColor: lightButtonBgOver;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgRipple;
+	}
+
+	height: 36px;
+	textTop: 9px;
+	font: semiboldFont;
+	overFont: semiboldFont;
+}
+dialogsLoadMore: icon {{ "install_update-flip_vertical", lightButtonFg }};
+dialogsLoadMoreLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	color: lightButtonFg;
+	thickness: 3px;
+	size: size(12px, 12px);
+}
+dialogsCommunityRequestsBubbleHeight: 44px;
+dialogsCommunityRequestsBubbleIconMargin: 9px;
+dialogsCommunityRequestsBubbleTextSkip: 48px;
+dialogsCommunityRequestsBubbleRightInset: 9px;
+dialogsCommunityRequestsBubbleRadius: 11px;

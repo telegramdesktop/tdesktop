@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "main/main_session.h"
+#include "ui/basic_click_handlers.h"
 
 namespace Api {
 namespace {
@@ -66,6 +67,10 @@ using namespace TextUtilities;
 			MTP_long(parsed.userId),
 			MTP_long(parsed.accessHash));
 	return MTP_inputMessageEntityMentionName(offset, length, input);
+}
+
+[[nodiscard]] bool IsInternalUrl(const QString &url) {
+	return url.startsWith(u"internal:"_q, Qt::CaseInsensitive);
 }
 
 } // namespace
@@ -137,11 +142,15 @@ EntitiesInText EntitiesFromMTP(
 				qs(d.vlanguage()),
 			});
 		}, [&](const MTPDmessageEntityTextUrl &d) {
+			const auto url = qs(d.vurl());
+			if (IsInternalUrl(url)) {
+				return;
+			}
 			result.push_back({
 				EntityType::CustomUrl,
 				d.voffset().v,
 				d.vlength().v,
-				qs(d.vurl()),
+				url,
 			});
 		}, [&](const MTPDmessageEntityMentionName &d) {
 			if (!session) {
@@ -238,6 +247,35 @@ EntitiesInText EntitiesFromMTP(
 				d.vlength().v,
 				d.is_collapsed() ? u"1"_q : QString(),
 			});
+		}, [&](const MTPDmessageEntityFormattedDate &d) {
+			auto flags = FormattedDateFlags();
+			if (d.is_relative()) {
+				flags |= FormattedDateFlag::Relative;
+			}
+			if (d.is_short_time()) {
+				flags |= FormattedDateFlag::ShortTime;
+			}
+			if (d.is_long_time()) {
+				flags |= FormattedDateFlag::LongTime;
+			}
+			if (d.is_short_date()) {
+				flags |= FormattedDateFlag::ShortDate;
+			}
+			if (d.is_long_date()) {
+				flags |= FormattedDateFlag::LongDate;
+			}
+			if (d.is_day_of_week()) {
+				flags |= FormattedDateFlag::DayOfWeek;
+			}
+			result.push_back({
+				EntityType::FormattedDate,
+				d.voffset().v,
+				d.vlength().v,
+				SerializeFormattedDateData(d.vdate().v, flags),
+			});
+		}, [&](const MTPDmessageEntityDiffInsert &) {
+		}, [&](const MTPDmessageEntityDiffReplace &) {
+		}, [&](const MTPDmessageEntityDiffDelete &) {
 		});
 	}
 	return result;
@@ -265,7 +303,8 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 			&& entity.type() != EntityType::Spoiler
 			&& entity.type() != EntityType::MentionName
 			&& entity.type() != EntityType::CustomUrl
-			&& entity.type() != EntityType::CustomEmoji) {
+			&& entity.type() != EntityType::CustomEmoji
+			&& entity.type() != EntityType::FormattedDate) {
 			continue;
 		}
 
@@ -276,11 +315,15 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 			v.push_back(MTP_messageEntityUrl(offset, length));
 		} break;
 		case EntityType::CustomUrl: {
-			v.push_back(
-				MTP_messageEntityTextUrl(
+			const auto external = UrlClickHandler::ExternalUrlFromInternalUrl(
+				entity.data());
+			const auto url = external.isEmpty() ? entity.data() : external;
+			if (!IsInternalUrl(url)) {
+				v.push_back(MTP_messageEntityTextUrl(
 					offset,
 					length,
-					MTP_string(entity.data())));
+					MTP_string(url)));
+			}
 		} break;
 		case EntityType::Email: {
 			v.push_back(MTP_messageEntityEmail(offset, length));
@@ -356,6 +399,37 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 				entity.data());
 			if (valid) {
 				v.push_back(*valid);
+			}
+		} break;
+		case EntityType::FormattedDate: {
+			const auto [date, dateFlags] = DeserializeFormattedDateData(
+				entity.data());
+			if (date) {
+				using Flag = MTPDmessageEntityFormattedDate::Flag;
+				auto mtpFlags = MTPDmessageEntityFormattedDate::Flags();
+				if (dateFlags & FormattedDateFlag::Relative) {
+					mtpFlags |= Flag::f_relative;
+				}
+				if (dateFlags & FormattedDateFlag::ShortTime) {
+					mtpFlags |= Flag::f_short_time;
+				}
+				if (dateFlags & FormattedDateFlag::LongTime) {
+					mtpFlags |= Flag::f_long_time;
+				}
+				if (dateFlags & FormattedDateFlag::ShortDate) {
+					mtpFlags |= Flag::f_short_date;
+				}
+				if (dateFlags & FormattedDateFlag::LongDate) {
+					mtpFlags |= Flag::f_long_date;
+				}
+				if (dateFlags & FormattedDateFlag::DayOfWeek) {
+					mtpFlags |= Flag::f_day_of_week;
+				}
+				v.push_back(MTP_messageEntityFormattedDate(
+					MTP_flags(mtpFlags),
+					offset,
+					length,
+					MTP_int(date)));
 			}
 		} break;
 		}

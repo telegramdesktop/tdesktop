@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="72px" height="72px" viewBox="0 0 72 72" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Input / input_discard</title>
+    <g id="Input-/-input_discard" fill="none" stroke="#FFFFFF" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14,16.094 L60,16.094"></path>
+        <path d="M27.816,13.594 L27.816,12.751 Q27.816,7 34.148,7 L39.689,7 Q46.02,7 46.02,12.751 L46.02,13.594"></path>
+        <path d="M17.755,25.71 L21.056,57.826 Q21.59,63 26.79,63 L47.05,63 Q52.25,63 52.78,57.826 L56.08,25.71"></path>
+        <path d="M30.652,29.29 L31.984,51.307"></path>
+        <path d="M43.48,29.29 L42.148,51.307"></path>
+    </g>
+</svg>

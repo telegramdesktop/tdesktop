@@ -12,9 +12,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class PeerData;
 struct PeerListState;
 
+namespace Info {
+class AbstractController;
+} // namespace Info
+
 namespace Info::SimilarPeers {
 
 class InnerWidget;
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeSimilarPeersInner(
+	QWidget *parent,
+	not_null<AbstractController*> controller,
+	not_null<PeerData*> peer);
 
 class Memento final : public ContentMemento {
 public:

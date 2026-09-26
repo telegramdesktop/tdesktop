@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 
 #include <QtCore/QFile>
+#include <QtCore/QtEndian>
 
 namespace Ui {
 namespace {
@@ -110,7 +111,7 @@ void Bar::paintEvent(QPaintEvent *e) {
 	if (content.size() != sizeof(qint32)) {
 		return false;
 	}
-	const auto value = *reinterpret_cast<const qint32*>(content.constData());
+	const auto value = qFromUnaligned<qint32>(content.constData());
 	const auto year = (value / 10000);
 	const auto month = (value % 10000) / 100;
 	const auto day = (value % 100);

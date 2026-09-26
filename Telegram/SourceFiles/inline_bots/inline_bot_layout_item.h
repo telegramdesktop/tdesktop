@@ -113,7 +113,8 @@ public:
 	static std::unique_ptr<ItemBase> createLayout(
 		not_null<Context*> context,
 		std::shared_ptr<Result> result,
-		bool forceThumb);
+		bool forceThumb,
+		std::optional<bool> gallery = std::nullopt);
 	static std::unique_ptr<ItemBase> createLayoutGif(
 		not_null<Context*> context,
 		not_null<DocumentData*> document);

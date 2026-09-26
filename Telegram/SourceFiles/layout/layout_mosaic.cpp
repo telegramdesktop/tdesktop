@@ -93,7 +93,7 @@ QRect AbstractMosaicLayout::findRect(int index) const {
 	const auto rows = _rows.size();
 	auto top = 0;
 	for (auto row = 0; row != rows; ++row) {
-		auto &inlineRow = _rows[row];
+		const auto &inlineRow = _rows[row];
 		// if ((top + inlineRow.height) > clip.top()) {
 			auto left = 0;
 			if (row == (rows - 1)) {
@@ -121,18 +121,6 @@ QRect AbstractMosaicLayout::findRect(int index) const {
 		top += inlineRow.height;
 	}
 	return QRect();
-}
-
-void AbstractMosaicLayout::addItems(
-		gsl::span<const not_null<AbstractLayoutItem*>> items) {
-	_rows.reserve(items.size());
-	auto row = Row();
-	row.items.reserve(kInlineItemsMaxPerRow);
-	auto sumWidth = 0;
-	for (const auto &item : items) {
-		addItem(item, row, sumWidth);
-	}
-	rowFinalize(row, sumWidth, true);
 }
 
 void AbstractMosaicLayout::setRightSkip(int rightSkip) {
@@ -223,7 +211,7 @@ void AbstractMosaicLayout::paint(
 		if (top >= clip.top() + clip.height()) {
 			break;
 		}
-		auto &inlineRow = _rows[row];
+		const auto &inlineRow = _rows[row];
 		if ((top + inlineRow.height) > clip.top()) {
 			auto left = _padding.left();
 			if (row == (rows - 1)) {

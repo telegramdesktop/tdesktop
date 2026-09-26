@@ -58,27 +58,41 @@ not_null<Ui::RpWidget*> AddBubbleWrap(
 	bubble->resize(size);
 	bubble->setNaturalWidth(size.width());
 
-	auto cached = QImage(
-		size * style::DevicePixelRatio(),
-		QImage::Format_ARGB32_Premultiplied);
-	cached.setDevicePixelRatio(style::DevicePixelRatio());
-	cached.fill(Qt::transparent);
-	{
-		auto p = QPainter(&cached);
-		const auto innerRect = BubbleWrapInnerRect(bubble->rect());
-		auto hq = PainterHighQualityEnabler(p);
-		const auto radius = st::bubbleRadiusSmall;
-		p.setPen(Qt::NoPen);
-		p.setBrush(st::shadowFg);
-		PaintExcludeTopShadow(p, radius, innerRect);
-		p.setBrush(st::boxBg);
-		p.drawRoundedRect(innerRect, radius, radius);
-	}
+	struct State {
+		QImage cached;
+	};
+	const auto state = bubble->lifetime().make_state<State>();
+	const auto generate = [=] {
+		auto cached = QImage(
+			size * style::DevicePixelRatio(),
+			QImage::Format_ARGB32_Premultiplied);
+		cached.setDevicePixelRatio(style::DevicePixelRatio());
+		cached.fill(Qt::transparent);
+		{
+			auto p = QPainter(&cached);
+			const auto innerRect = BubbleWrapInnerRect(bubble->rect());
+			auto hq = PainterHighQualityEnabler(p);
+			const auto radius = st::bubbleRadiusSmall;
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::shadowFg);
+			PaintExcludeTopShadow(p, radius, innerRect);
+			p.setBrush(st::boxBg);
+			p.drawRoundedRect(innerRect, radius, radius);
+		}
+		state->cached = std::move(cached);
+	};
+	generate();
+
+	style::PaletteChanged(
+	) | rpl::on_next([=] {
+		generate();
+		bubble->update();
+	}, bubble->lifetime());
 
 	bubble->paintRequest(
-	) | rpl::on_next([bubble, cached = std::move(cached)] {
+	) | rpl::on_next([=] {
 		auto p = QPainter(bubble);
-		p.drawImage(0, 0, cached);
+		p.drawImage(0, 0, state->cached);
 	}, bubble->lifetime());
 
 	return bubble;

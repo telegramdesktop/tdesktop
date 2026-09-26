@@ -34,9 +34,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "apiwrap.h"
 #include "styles/style_premium.h"
+#include "styles/style_premium_limits.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
-#include "styles/style_info.h"
 #include "styles/style_settings.h"
 
 namespace {
@@ -1115,18 +1115,20 @@ void AccountsLimitBox(
 		(!premiumPossible
 			? (current * 2)
 			: (current > defaultLimit)
-			? (current + 1)
+			? std::min(current + 1, premiumLimit)
 			: (defaultLimit * 2)),
 		ChooseBubbleType(premiumPossible),
 		std::nullopt,
 		&st::premiumIconAccounts);
 	Ui::AddSkip(top, st::premiumLineTextSkip);
 	if (premiumPossible) {
+		const auto nextMax = std::max(current, defaultLimit) + 1;
 		Ui::Premium::AddLimitRow(
 			top,
 			st::defaultPremiumLimits,
-			(QString::number(std::max(current, defaultLimit) + 1)
-				+ ((current + 1 == premiumLimit) ? "" : "+")),
+			((nextMax >= premiumLimit)
+				? QString::number(premiumLimit)
+				: (QString::number(nextMax) + QChar('+'))),
 			QString::number(defaultLimit));
 		Ui::AddSkip(top, st::premiumInfographicPadding.bottom());
 	}

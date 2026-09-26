@@ -93,6 +93,7 @@ private:
 			UnarchiveOrReport,
 			SharePhoneNumber,
 			RequestChatInfo,
+			SetBotPhoto,
 		};
 		Type type = Type::None;
 		int starsPerMessage = 0;
@@ -111,6 +112,7 @@ private:
 	void setupCloseHandler(not_null<PeerData*> peer);
 	void setupRequestInfoHandler(not_null<PeerData*> peer);
 	void setupEmojiStatusHandler(not_null<PeerData*> peer);
+	void setupSetBotPhotoHandler(not_null<UserData*> user);
 
 	static rpl::producer<State> PeerState(not_null<PeerData*> peer);
 

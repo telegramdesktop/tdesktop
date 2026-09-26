@@ -17,6 +17,7 @@ apps:
     plugs:
       - audio-playback
       - audio-record
+      - bluez
       - camera
       - hardware-observe
       - home
@@ -24,6 +25,7 @@ apps:
       - network-bind
       - network-status
       - removable-media
+      - u2f-devices
     slots:
       - mpris
 
@@ -38,16 +40,14 @@ parts:
     source-type: git
     parse-info: [usr/share/metainfo/org.telegram.desktop.metainfo.xml]
     build-environment:
-      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -Wl,--push-state,--no-as-needed,-ldav1d,-lhwy,--pop-state -s
+      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -Wl,--push-state,--no-as-needed,-ldav1d,--pop-state
     build-packages:
-      - clang
       - libboost-regex-dev
       - libheif-dev
       - libjxl-dev
-      - libssl-dev
+      - liblz4-dev
       - libxcb-keysyms1-dev
       - libxcb-record0-dev
-      - libxcb-screensaver0-dev
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -70,6 +70,7 @@ parts:
       craftctl set version="$version"
     override-build: |
       craftctl default
+      "$CRAFT_PART_SRC/Telegram/build/minidebug.sh" "$CRAFT_PART_INSTALL/usr/bin/Telegram"
       mv "$CRAFT_PART_INSTALL"/usr/bin/{Telegram,telegram-desktop}
 
       APP_ID=org.telegram.desktop
@@ -87,12 +88,14 @@ parts:
       - ada
       - avif
       - ffmpeg
-      - jpegli
+      - minizip
+      - mozjpeg
       - openal
-      - protobuf
+      - openssl
       - qt
       - rnnoise
       - tde2e
+      - tlottie
       - webrtc
 
   pkgs:
@@ -104,7 +107,6 @@ parts:
       - libopenh264-7
       - libxcb-cursor0
       - libxcb-record0
-      - libxcb-screensaver0
     stage:
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gstreamer-1.0/libgstde265.so
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gstreamer-1.0/libgstfdkaac.so
@@ -117,12 +119,11 @@ parts:
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libopenh264.so*
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-cursor.so*
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-record.so*
-      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-screensaver.so*
 
   patches:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
-    source-commit: b8c3a8ffc1514861837b9213383133c63023e0de
+    source-commit: c6b2868d527e2d00a2438e95225a22ce9346d79f
     plugin: nil
     override-pull: |
       craftctl default
@@ -163,7 +164,7 @@ parts:
   ffmpeg:
     source: https://github.com/FFmpeg/FFmpeg.git
     source-depth: 1
-    source-branch: n6.1.1
+    source-branch: n6.1.6
     plugin: autotools
     build-packages:
       - nasm
@@ -317,46 +318,31 @@ parts:
     after:
       - nv-codec-headers
 
-  jpegli:
-    source: https://github.com/libjxl/libjxl.git
+  minizip:
+    source: https://github.com/madler/zlib.git
     source-depth: 1
-    source-tag: v0.11.1
+    source-commit: e3dc0a85b7032e98380dec011bc8f2c2ee0d8fca
+    source-subdir: contrib/minizip
+    plugin: autotools
+    autotools-configure-parameters:
+      - --prefix=/usr
+      - --libdir=\${exec_prefix}/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
+      - --disable-shared
+    prime: [-./*]
+
+  mozjpeg:
+    source: https://github.com/mozilla/mozjpeg.git
+    source-depth: 1
+    source-tag: v4.1.5
     plugin: cmake
-    build-packages:
-      - curl
-      - libhwy-dev
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DBUILD_SHARED_LIBS=OFF
-      - -DBUILD_TESTING=OFF
-      - -DJPEGXL_ENABLE_DEVTOOLS=OFF
-      - -DJPEGXL_ENABLE_TOOLS=OFF
-      - -DJPEGXL_INSTALL_JPEGLI_LIBJPEG=ON
-      - -DJPEGXL_ENABLE_DOXYGEN=OFF
-      - -DJPEGXL_ENABLE_MANPAGES=OFF
-      - -DJPEGXL_ENABLE_BENCHMARK=OFF
-      - -DJPEGXL_ENABLE_EXAMPLES=OFF
-      - -DJPEGXL_ENABLE_JNI=OFF
-      - -DJPEGXL_ENABLE_SJPEG=OFF
-      - -DJPEGXL_ENABLE_OPENEXR=OFF
-      - -DJPEGXL_ENABLE_SKCMS=OFF
-      - -DJPEGXL_FORCE_SYSTEM_BROTLI=ON
-      - -DJPEGXL_FORCE_SYSTEM_LCMS2=ON
-      - -DJPEGXL_FORCE_SYSTEM_HWY=ON
-    override-pull: |
-      craftctl default
-      curl -sSL https://github.com/libjxl/libjxl/commit/ee3955b1553bcc10304d45b85dfef9afa9349d72.patch | sed 's/offset + t/offset + i/' | git apply
-    override-build: |
-      craftctl default
-      cp lib/libjpegli-static.a "$CRAFT_PART_INSTALL"/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.a
-      ar rcs "$CRAFT_PART_INSTALL"/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.a lib/CMakeFiles/jpegli-libjpeg-obj.dir/jpegli/libjpeg_wrapper.cc.o
-    stage:
-      - ./usr/include/jconfig.h
-      - ./usr/include/jmorecfg.h
-      - ./usr/include/jpeglib.h
-      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libjpeg.a
+      - -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+      - -DENABLE_SHARED=OFF
+      - -DWITH_JPEG8=ON
+      - -DPNG_SUPPORTED=OFF
     prime: [-./*]
 
   openal:
@@ -378,6 +364,24 @@ parts:
       - -DALSOFT_BACKEND_PIPEWIRE=OFF
     prime: [-./*]
 
+  openssl:
+    source: https://github.com/openssl/openssl.git
+    source-depth: 1
+    source-tag: openssl-3.2.1
+    plugin: make
+    build-packages:
+      - perl
+    override-build: |
+      sed -i 's/$cmd $cmdflags -c -o/$cmd $cmdflags -g0 -c -o/' Configurations/unix-Makefile.tmpl
+      ./config \
+        --prefix=/usr \
+        --openssldir=/etc/ssl \
+        --libdir=lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR \
+        no-shared no-tests no-dso
+      make -j"${CRAFT_PARALLEL_BUILD_COUNT}"
+      make DESTDIR="$CRAFT_PART_INSTALL" install_sw
+    prime: [-./*]
+
   nv-codec-headers:
     source: https://github.com/FFmpeg/nv-codec-headers.git
     source-depth: 1
@@ -388,22 +392,10 @@ parts:
       - LIBDIR=lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
     prime: [-./*]
 
-  protobuf:
-    source: https://github.com/protocolbuffers/protobuf.git
-    source-depth: 1
-    source-tag: v30.2
-    plugin: cmake
-    cmake-generator: Ninja
-    cmake-parameters:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DCMAKE_INSTALL_PREFIX=/usr
-      - -Dprotobuf_BUILD_TESTS=OFF
-    prime: [-./*]
-
   qt:
     source: https://github.com/qt/qt5.git
     source-depth: 1
-    source-tag: v6.10.2
+    source-tag: v6.11.2
     source-submodules:
       - qtbase
       - qtdeclarative
@@ -412,10 +404,7 @@ parts:
       - qtsvg
       - qtwayland
     plugin: cmake
-    build-environment:
-      - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -Wl,--push-state,--no-as-needed,-lhwy,--pop-state
     build-packages:
-      - libssl-dev
       - libxcb-cursor-dev
       - libxcb-glx0-dev
       - libxcb-icccm4-dev
@@ -441,14 +430,12 @@ parts:
     override-pull: |
       craftctl default
       QT="$(grep 'set(QT_REPO_MODULE_VERSION' qtbase/.cmake.conf | sed -r 's/.*"(.*)".*/\1/')"
-      cd qtbase
-      find $CRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
-      cd ../qtwayland
-      find $CRAFT_STAGE/patches/qtwayland_${QT} -type f -print0 | sort -z | xargs -r0 git apply
-      cd ..
+      find $CRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git -C qtbase apply
+      find $CRAFT_STAGE/patches/qtwayland_${QT} -type f -print0 | sort -z | xargs -r0 git -C qtwayland apply
     prime: [-./*]
     after:
-      - jpegli
+      - mozjpeg
+      - openssl
       - patches
 
   rnnoise:
@@ -476,7 +463,6 @@ parts:
     plugin: cmake
     build-packages:
       - gperf
-      - libssl-dev
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -484,17 +470,49 @@ parts:
       - -DCMAKE_INSTALL_LIBDIR=lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
       - -DTD_E2E_ONLY=ON
     prime: [-./*]
+    after:
+      - openssl
+
+  tlottie:
+    source: https://github.com/dkaraush/tlottie.git
+    source-depth: 1
+    source-commit: 31f1b542f88e7b4be9a01e749920d857535fc715
+    plugin: nil
+    build-packages:
+      - wget
+    override-pull: |
+      craftctl default
+      git apply "$CRAFT_STAGE/patches/tlottie.patch"
+    override-build: |
+      RUST_TOOLCHAIN=1.96.1
+      export RUSTUP_HOME="$CRAFT_PART_BUILD/rustup"
+      export CARGO_HOME="$CRAFT_PART_BUILD/cargo"
+      wget -O rustup-init.sh https://sh.rustup.rs
+      sh rustup-init.sh -y --no-modify-path --profile minimal --default-toolchain $RUST_TOOLCHAIN
+      rm rustup-init.sh
+      export RUSTUP_TOOLCHAIN=$RUST_TOOLCHAIN
+      export PATH="$CARGO_HOME/bin:$PATH"
+      cargo rustc --lib --release --locked \
+        --features c-api --crate-type staticlib \
+        -- --print native-static-libs
+      LIBDIR="$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR"
+      INCLUDEDIR="$CRAFT_PART_INSTALL/usr/include/tlottie"
+      mkdir -p "$LIBDIR" "$INCLUDEDIR"
+      objcopy --strip-debug target/release/libtlottie.a "$LIBDIR/libtlottie.a"
+      cp include/tlottie.h "$INCLUDEDIR/tlottie.h"
+    prime: [-./*]
+    after:
+      - patches
 
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-commit: 5c5c71258777d0196dbb3a09cc37d2f56ead28ab
+    source-commit: 9826d0e27894a575a63d4b15b2acf8e749e3da67
     plugin: cmake
     build-packages:
       - libopenh264-dev
       - libopus-dev
       - libpipewire-0.3-dev
-      - libssl-dev
       - libvpx-dev
     cmake-generator: Ninja
     cmake-parameters:
@@ -503,4 +521,5 @@ parts:
     prime: [-./*]
     after:
       - ffmpeg
-      - jpegli
+      - mozjpeg
+      - openssl

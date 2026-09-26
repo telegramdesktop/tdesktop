@@ -7,7 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/storage_media_prepare.h"
 
+#include "data/data_document.h"
 #include "editor/photo_editor_common.h"
+#include "editor/scene/scene.h"
+#include "editor/scene/scene_item_sticker.h"
 #include "platform/platform_file_utilities.h"
 #include "lang/lang_keys.h"
 #include "storage/localimageloader.h"
@@ -74,7 +77,9 @@ void PrepareDetailsInParallel(PreparedList &result, int previewWidth) {
 
 } // namespace
 
-bool ValidatePhotoEditorMediaDragData(not_null<const QMimeData*> data) {
+bool ValidatePhotoEditorMediaDragData(
+		not_null<const QMimeData*> data,
+		bool withVideo) {
 	const auto urls = Core::ReadMimeUrls(data);
 	if (urls.size() > 1) {
 		return false;
@@ -87,13 +92,44 @@ bool ValidatePhotoEditorMediaDragData(not_null<const QMimeData*> data) {
 		if (url.isLocalFile()) {
 			using namespace Core;
 			const auto file = Platform::File::UrlToLocal(url);
-			const auto info = QFileInfo(file);
-			return FileIsImage(file, MimeTypeForFile(info).name())
-				&& QImageReader(file).canRead();
+			const auto mime = MimeTypeForFile(QFileInfo(file)).name();
+			return (withVideo && FileLoadTask::IsVideoFile(file, mime))
+				|| (FileIsImage(file, mime) && QImageReader(file).canRead());
 		}
 	}
 
 	return false;
+}
+
+PhotoEditorMedia ReadPhotoEditorMedia(
+		const QString &path,
+		const QByteArray &content) {
+	if (path.isEmpty() && content.size() > Images::kReadBytesLimit) {
+		return {};
+	}
+	const auto information = FileLoadTask::ReadMediaInformation(
+		path,
+		content,
+		path.isEmpty()
+			? Core::MimeTypeForData(content).name()
+			: Core::MimeTypeForFile(QFileInfo(path)).name());
+	if (const auto image = std::get_if<Image>(&information->media)) {
+		return { .image = std::move(image->data) };
+	}
+	using Video = PreparedFileInformation::Video;
+	if (const auto video = std::get_if<Video>(&information->media)) {
+		if (!path.isEmpty()
+			&& QFileInfo(path).size() > Images::kReadBytesLimit) {
+			return {};
+		}
+		return {
+			.image = std::move(video->thumbnail),
+			.videoPath = path,
+			.videoContent = content,
+			.videoDuration = video->duration,
+		};
+	}
+	return {};
 }
 
 bool ValidateEditMediaDragData(
@@ -142,7 +178,9 @@ MimeDataState ComputeMimeDataState(const QMimeData *data) {
 
 		const auto info = QFileInfo(file);
 		if (info.isDir()) {
-			return MimeDataState::None;
+			return (urls.size() == 1)
+				? MimeDataState::Folder
+				: MimeDataState::None;
 		}
 
 		using namespace Core;
@@ -174,61 +212,88 @@ MimeDataState ComputeMimeDataState(const QMimeData *data) {
 		? MimeDataState::PhotoFiles
 		: allAreMedia
 		? MimeDataState::MediaFiles
+		: (urls.size() > 1)
+		? MimeDataState::FilesArchive
 		: MimeDataState::Files;
 }
 
 PreparedList PrepareMediaList(
 		const QList<QUrl> &files,
 		int previewWidth,
-		bool premium) {
+		bool premium,
+		Fn<void(const PreparedList &)> errorCallback) {
 	auto locals = QStringList();
 	locals.reserve(files.size());
 	for (const auto &url : files) {
 		if (!url.isLocalFile()) {
-			return {
+			auto errorResult = PreparedList(
 				PreparedList::Error::NonLocalUrl,
-				url.toDisplayString()
-			};
+				url.toDisplayString());
+			if (!errorCallback) {
+				return errorResult;
+			}
+			errorCallback(errorResult);
+			continue;
 		}
 		locals.push_back(Platform::File::UrlToLocal(url));
 	}
-	return PrepareMediaList(locals, previewWidth, premium);
+	return PrepareMediaList(
+		locals,
+		previewWidth,
+		premium,
+		std::move(errorCallback));
 }
 
 PreparedList PrepareMediaList(
 		const QStringList &files,
 		int previewWidth,
-		bool premium) {
+		bool premium,
+		Fn<void(const PreparedList &)> errorCallback) {
 	auto result = PreparedList();
 	result.files.reserve(files.size());
 	for (const auto &file : files) {
 		const auto fileinfo = QFileInfo(file);
 		const auto filesize = fileinfo.size();
 		if (fileinfo.isDir()) {
-			return {
+			auto errorResult = PreparedList(
 				PreparedList::Error::Directory,
-				file
-			};
-		} else if (filesize <= 0) {
-			return {
+				file);
+			if (!errorCallback) {
+				return errorResult;
+			}
+			errorCallback(errorResult);
+			continue;
+		} else if (!fileinfo.exists()
+			|| !fileinfo.isFile()
+			|| !fileinfo.isReadable()
+			|| filesize <= 0) {
+			auto errorResult = PreparedList(
 				PreparedList::Error::EmptyFile,
-				file
-			};
+				file);
+			if (!errorCallback) {
+				return errorResult;
+			}
+			errorCallback(errorResult);
+			continue;
 		} else if (filesize > kFileSizePremiumLimit
 			|| (filesize > kFileSizeLimit && !premium)) {
 			auto errorResult = PreparedList(
 				PreparedList::Error::TooLargeFile,
-				QString());
+				file);
 			errorResult.files.emplace_back(file);
 			errorResult.files.back().size = filesize;
-			return errorResult;
+			if (!errorCallback) {
+				return errorResult;
+			}
+			errorCallback(errorResult);
+			continue;
 		}
 		if (result.files.size() < Ui::MaxAlbumItems()) {
 			result.files.emplace_back(file);
 			result.files.back().size = filesize;
 		} else {
 			result.filesToProcess.emplace_back(file);
-			result.files.back().size = filesize;
+			result.filesToProcess.back().size = filesize;
 		}
 	}
 	PrepareDetailsInParallel(result, previewWidth);
@@ -315,22 +380,74 @@ void PrepareDetails(PreparedFile &file, int previewWidth, int sideLimit) {
 	} else if (const auto video = std::get_if<Video>(
 			&file.information->media)) {
 		if (ValidVideoForAlbum(*video)) {
-			auto blurred = Images::Blur(
-				Images::Opaque(base::duplicate(video->thumbnail)));
-			file.originalDimensions = video->thumbnail.size();
-			file.shownDimensions = PrepareShownDimensions(
-				video->thumbnail,
-				sideLimit);
-			file.preview = std::move(blurred).scaledToWidth(
-				previewWidth * style::DevicePixelRatio(),
-				Qt::SmoothTransformation);
-			Assert(!file.preview.isNull());
-			file.preview.setDevicePixelRatio(style::DevicePixelRatio());
+			video->modifications.gif = !video->hasAudio;
+			UpdateVideoDetails(file, previewWidth, sideLimit);
 			file.type = PreparedFile::Type::Video;
 		}
 	} else if (v::is<Song>(file.information->media)) {
 		file.type = PreparedFile::Type::Music;
 	}
+}
+
+VideoDetails ComputeVideoDetails(
+		const QImage &thumbnail,
+		const Editor::PhotoModifications &geometry,
+		int previewWidth,
+		int sideLimit) {
+	if (thumbnail.isNull()) {
+		return {};
+	}
+	// The thumbnail stays raw, the modifications are applied on read.
+	auto preview = geometry
+		? Editor::ImageModified(base::duplicate(thumbnail), geometry)
+		: base::duplicate(thumbnail);
+	Assert(!preview.isNull());
+	auto result = VideoDetails{
+		.originalDimensions = preview.size(),
+		.shownDimensions = PrepareShownDimensions(preview, sideLimit),
+	};
+	// Blur whichever of the source and the result has fewer pixels. Blurring
+	// a full resolution frame allocates and works by the source pixel count,
+	// and washes the blur out in proportion to how much is scaled away, so a
+	// 4K video ended up with a far sharper preview than a small one.
+	const auto width = previewWidth * style::DevicePixelRatio();
+	auto opaque = Images::Opaque(std::move(preview));
+	result.preview = (opaque.width() > width)
+		? Images::Blur(
+			opaque.scaledToWidth(width, Qt::SmoothTransformation))
+		: Images::Blur(std::move(opaque)).scaledToWidth(
+			width,
+			Qt::SmoothTransformation);
+	Assert(!result.preview.isNull());
+	result.preview.setDevicePixelRatio(style::DevicePixelRatio());
+	return result;
+}
+
+void ApplyVideoDetails(PreparedFile &file, VideoDetails &&details) {
+	if (details.preview.isNull()) {
+		return;
+	}
+	file.originalDimensions = details.originalDimensions;
+	file.shownDimensions = details.shownDimensions;
+	file.preview = std::move(details.preview);
+}
+
+void UpdateVideoDetails(
+		PreparedFile &file,
+		int previewWidth,
+		int sideLimit) {
+	using Video = PreparedFileInformation::Video;
+	const auto video = std::get_if<Video>(&file.information->media);
+	if (!video) {
+		return;
+	}
+	ApplyVideoDetails(
+		file,
+		ComputeVideoDetails(
+			video->thumbnail,
+			video->modifications.geometry,
+			previewWidth,
+			sideLimit));
 }
 
 void UpdateImageDetails(
@@ -369,7 +486,7 @@ void UpdateImageDetails(
 	file.preview.setDevicePixelRatio(style::DevicePixelRatio());
 }
 
-bool ApplyModifications(PreparedList &list) {
+bool ApplyModifications(PreparedList &list, bool composeAnimated) {
 	auto applied = false;
 	const auto apply = [&](PreparedFile &file, QSize strictSize = {}) {
 		const auto image = std::get_if<Image>(&file.information->media);
@@ -391,9 +508,39 @@ bool ApplyModifications(PreparedList &list) {
 		applied = true;
 		file.path = QString();
 		file.content = QByteArray();
+		const auto &scene = image->modifications.paint;
+		if (composeAnimated && scene && scene->hasAnimatedItems()) {
+			auto job = Editor::ComposeAnimatedJob(
+				image->data,
+				image->modifications);
+			const auto animated = ranges::any_of(
+				job.overlay,
+				[](const Media::Encode::Layer &layer) {
+					const auto entity
+						= std::get_if<Media::Encode::AnimatedEntity>(
+							&layer);
+					return entity && !entity->bytes.isEmpty();
+				});
+			if (animated) {
+				file.animationJob = std::make_shared<Media::Encode::Job>(
+					std::move(job));
+			}
+		}
 		image->data = Editor::ImageModified(
 			std::move(image->data),
 			image->modifications);
+		if (file.animationJob) {
+			auto &ids = file.animationJob->attachedStickerIds;
+			for (const auto &item : scene->items()) {
+				if (item->isVisible()
+					&& (item->type() == Editor::ItemSticker::Type)) {
+					const auto sticker
+						= static_cast<Editor::ItemSticker*>(item.get());
+					ids.push_back(sticker->sticker()->id);
+				}
+			}
+			image->modifications = Editor::PhotoModifications();
+		}
 	};
 	for (auto &file : list.files) {
 		apply(file);

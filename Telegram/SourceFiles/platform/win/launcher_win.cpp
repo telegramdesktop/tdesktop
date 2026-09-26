@@ -14,10 +14,112 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <shellapi.h>
 #include <VersionHelpers.h>
 
+#include <crtdbg.h>
+#include <cstdlib>
+
 namespace Platform {
+namespace {
+
+// Turn a CRT/STL assertion (or pure-virtual / invalid-parameter) into a real,
+// crash-reported failure instead of a modal Abort/Retry/Ignore dialog that
+// would block a headless test agent forever.
+[[noreturn]] void TestAgentReportCrash(
+		const char *kind,
+		const QString &message) {
+	if (!message.isEmpty()) {
+		CrashReports::SetAnnotation("CrtAssert", message);
+	}
+	// Be loud on stderr too (captured when the launch redirects it to a file).
+	fprintf(stderr,
+		"\n[testagent] %s: %s\n",
+		kind,
+		message.toLocal8Bit().constData());
+	fflush(stderr);
+
+	// Crashes with an access violation -> caught by the crash reporter, dumped
+	// to tdata/working + tdata/dumps, and the process exits non-zero. No dialog.
+	Unexpected("Test agent: CRT/STL assertion violation.");
+}
+
+#ifdef _DEBUG
+int TestAgentReportHook(int reportType, char *message, int *returnValue) {
+	if (returnValue) {
+		*returnValue = 0; // Do not break into the (absent) debugger.
+	}
+	if (reportType == _CRT_ASSERT || reportType == _CRT_ERROR) {
+		TestAgentReportCrash(
+			"assert",
+			QString::fromLocal8Bit(message ? message : ""));
+	} else if (message) {
+		fputs(message, stderr);
+		fflush(stderr);
+	}
+	return TRUE; // Handled -> suppress the default message box.
+}
+
+int TestAgentReportHookW(int reportType, wchar_t *message, int *returnValue) {
+	if (returnValue) {
+		*returnValue = 0;
+	}
+	if (reportType == _CRT_ASSERT || reportType == _CRT_ERROR) {
+		TestAgentReportCrash(
+			"assert",
+			QString::fromWCharArray(message ? message : L""));
+	} else if (message) {
+		fputws(message, stderr);
+		fflush(stderr);
+	}
+	return TRUE;
+}
+#endif // _DEBUG
+
+void InstallTestAgentCrashHandling() {
+	// No Windows Error Reporting / general-protection / abort() message boxes —
+	// each would block the test agent waiting on a button it cannot press.
+	SetErrorMode(SEM_FAILCRITICALERRORS
+		| SEM_NOGPFAULTERRORBOX
+		| SEM_NOOPENFILEERRORBOX);
+	_set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+
+	// Pure-virtual call / invalid CRT parameter -> reported crash, not a dialog.
+	_set_purecall_handler([] {
+		TestAgentReportCrash("purecall", u"Pure virtual function call"_q);
+	});
+	_set_invalid_parameter_handler([](
+			const wchar_t *expression,
+			const wchar_t *,
+			const wchar_t *,
+			unsigned int,
+			uintptr_t) {
+		TestAgentReportCrash(
+			"invalid-parameter",
+			QString::fromWCharArray(
+				expression ? expression : L"CRT invalid parameter"));
+	});
+
+#ifdef _DEBUG
+	// assert()/_ASSERTE and STL bounds/iterator checks (_STL_VERIFY) report via
+	// _CrtDbgReport[W]; route them to stderr (never a window) and convert any
+	// assertion into a reported crash through the hooks above.
+	for (const auto type : { _CRT_WARN, _CRT_ERROR, _CRT_ASSERT }) {
+		_CrtSetReportMode(type, _CRTDBG_MODE_FILE);
+		_CrtSetReportFile(type, _CRTDBG_FILE_STDERR);
+	}
+	_CrtSetReportHook2(_CRT_RPTHOOK_INSTALL, TestAgentReportHook);
+	_CrtSetReportHookW2(_CRT_RPTHOOK_INSTALL, TestAgentReportHookW);
+#endif // _DEBUG
+}
+
+} // namespace
 
 Launcher::Launcher(int argc, char *argv[])
 : Core::Launcher(argc, argv) {
+}
+
+void Launcher::initHook() {
+	if (cTestAgent()) {
+		InstallTestAgentCrashHandling();
+	}
 }
 
 std::optional<QStringList> Launcher::readArgumentsHook(

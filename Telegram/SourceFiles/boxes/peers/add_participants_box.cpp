@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_icon.h"
 #include "apiwrap.h"
 #include "styles/style_boxes.h"
+#include "styles/style_edit_peer_members.h"
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
 
@@ -837,9 +838,9 @@ int AddParticipantsBoxController::alreadyInCount() const {
 		return 1; // self
 	}
 	if (const auto chat = _peer->asChat()) {
-		return qMax(chat->count, 1);
+		return std::max(chat->count, 1);
 	} else if (const auto channel = _peer->asChannel()) {
-		return qMax(channel->membersCount(), int(_alreadyIn.size()));
+		return std::max(channel->membersCount(), int(_alreadyIn.size()));
 	}
 	Unexpected("User in AddParticipantsBoxController::alreadyInCount");
 }
@@ -1250,8 +1251,11 @@ void AddSpecialBoxController::prepare() {
 	setDescriptionText(tr::lng_contacts_loading(tr::now));
 	setSearchNoResultsText(tr::lng_blocked_list_not_found(tr::now));
 
+	const auto channel = _peer->asChannel();
 	if (const auto chat = _peer->asChat()) {
 		prepareChatRows(chat);
+	} else if (channel && channel->isCommunity()) {
+		prepareCommunityRows();
 	} else {
 		loadMoreRows();
 	}
@@ -1291,7 +1295,7 @@ void AddSpecialBoxController::rebuildChatRows(not_null<ChatData*> chat) {
 		return;
 	}
 
-	auto &participants = chat->participants;
+	const auto &participants = chat->participants;
 	auto count = delegate()->peerListFullRowsCount();
 	for (auto i = 0; i != count;) {
 		auto row = delegate()->peerListRowAt(i);
@@ -1315,10 +1319,39 @@ void AddSpecialBoxController::rebuildChatRows(not_null<ChatData*> chat) {
 	setDescriptionText(QString());
 }
 
+void AddSpecialBoxController::prepareCommunityRows() {
+	// Communities have no participants list, suggest contacts instead.
+	session().data().contactsLoaded().value(
+	) | rpl::on_next([=] {
+		rebuildCommunityRows();
+	}, lifetime());
+}
+
+void AddSpecialBoxController::rebuildCommunityRows() {
+	for (const auto &row : session().data().contactsList()->all()) {
+		if (const auto history = row->history()) {
+			if (const auto user = history->peer->asUser()) {
+				appendRow(user);
+			}
+		}
+	}
+	sortByName();
+	setDescriptionText(delegate()->peerListFullRowsCount()
+		? QString()
+		: session().data().contactsLoaded().current()
+		? tr::lng_contacts_not_found(tr::now)
+		: tr::lng_contacts_loading(tr::now));
+	delegate()->peerListRefreshRows();
+}
+
 void AddSpecialBoxController::loadMoreRows() {
+	const auto channel = _peer->asChannel();
 	if (searchController() && searchController()->loadMoreRows()) {
 		return;
-	} else if (!_peer->isChannel() || _loadRequestId || _allLoaded) {
+	} else if (!channel
+		|| channel->isCommunity()
+		|| _loadRequestId
+		|| _allLoaded) {
 		return;
 	}
 
@@ -1327,7 +1360,6 @@ void AddSpecialBoxController::loadMoreRows() {
 		? kParticipantsPerPage
 		: kParticipantsFirstPageCount;
 	const auto participantsHash = uint64(0);
-	const auto channel = _peer->asChannel();
 
 	_loadRequestId = _api.request(MTPchannels_GetParticipants(
 		channel->inputChannel(),
@@ -1472,7 +1504,8 @@ void AddSpecialBoxController::showAdmin(
 			showBox(Ui::MakeInformBox(tr::lng_error_cant_add_admin_unban()));
 			return;
 		}
-	} else if (_additional.isExternal(user)) {
+	} else if (_additional.isExternal(user)
+		&& !(channel && channel->isCommunity())) {
 		// The user is not in the group yet.
 		if (canAddMembers) {
 			if (!sure) {
@@ -1500,14 +1533,14 @@ void AddSpecialBoxController::showAdmin(
 		_peer,
 		user,
 		currentRights,
-		_additional.adminRank(user),
+		_additional.memberRank(user),
 		_additional.adminPromotedSince(user),
 		_additional.adminPromotedBy(user));
 	const auto show = delegate()->peerListUiShow();
 	if (_additional.canAddOrEditAdmin(user)) {
 		const auto done = crl::guard(this, [=](
 				ChatAdminRightsInfo newRights,
-				const QString &rank) {
+				const std::optional<QString> &rank) {
 			editAdminDone(user, newRights, rank);
 		});
 		const auto fail = crl::guard(this, [=] {
@@ -1524,12 +1557,15 @@ void AddSpecialBoxController::showAdmin(
 void AddSpecialBoxController::editAdminDone(
 		not_null<UserData*> user,
 		ChatAdminRightsInfo rights,
-		const QString &rank) {
+		const std::optional<QString> &rank) {
 	if (_editParticipantBox) {
 		_editParticipantBox->closeBox();
 	}
 
-	_additional.applyAdminLocally(user, rights, rank);
+	_additional.applyAdminLocally(
+		user,
+		rights,
+		rank.value_or(_additional.memberRank(user)));
 	// _adminDoneCallback should call changes().chatAdminUpdated.
 	if (const auto callback = _adminDoneCallback) {
 		callback(user, rights, rank);
@@ -1582,6 +1618,7 @@ void AddSpecialBoxController::showRestricted(
 		user,
 		_additional.adminRights(user).has_value(),
 		currentRights,
+		_additional.memberRank(user),
 		_additional.restrictedBy(user),
 		_additional.restrictedSince(user));
 	if (_additional.canRestrictParticipant(user)) {
@@ -1594,8 +1631,9 @@ void AddSpecialBoxController::showRestricted(
 				_editParticipantBox->closeBox();
 			}
 		});
+		const auto show = delegate()->peerListUiShow();
 		box->setSaveCallback(
-			SaveRestrictedCallback(_peer, user, done, fail));
+			SaveRestrictedCallback(show, _peer, user, done, fail));
 	}
 	_editParticipantBox = showBox(std::move(box));
 }
@@ -1668,7 +1706,9 @@ void AddSpecialBoxController::kickUser(
 	const auto fail = crl::guard(this, [=] {
 		_editBox = nullptr;
 	});
+	const auto show = delegate()->peerListUiShow();
 	const auto callback = SaveRestrictedCallback(
+		show,
 		_peer,
 		participant,
 		done,
@@ -1771,6 +1811,11 @@ bool AddSpecialBoxSearchController::loadMoreRows() {
 	}
 	if (_globalLoaded) {
 		return true;
+	}
+	const auto channel = _peer->asChannel();
+	if (channel && channel->isCommunity()) {
+		// Communities have no participants list to search in.
+		_participantsLoaded = true;
 	}
 	if (_participantsLoaded || _chatMembersAdded) {
 		if (!_chatsContactsAdded) {
@@ -1892,6 +1937,7 @@ void AddSpecialBoxSearchController::requestGlobal() {
 
 	auto perPage = SearchPeopleLimit;
 	_requestId = _api.request(MTPcontacts_Search(
+		MTP_flags(0),
 		MTP_string(_query),
 		MTP_int(perPage)
 	)).done([=](const MTPcontacts_Found &result, mtpRequestId requestId) {

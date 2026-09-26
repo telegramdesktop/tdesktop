@@ -98,8 +98,28 @@ HistoryUnreadThings::ConstProxy Thread::unreadReactions() const {
 	};
 }
 
+HistoryUnreadThings::Proxy Thread::unreadPollVotes() {
+	return {
+		this,
+		_unreadThings,
+		HistoryUnreadThings::Type::PollVotes,
+		!!(_flags & Flag::UnreadThingsKnown),
+	};
+}
+
+HistoryUnreadThings::ConstProxy Thread::unreadPollVotes() const {
+	return {
+		_unreadThings ? &_unreadThings->pollVotes : nullptr,
+		!!(_flags & Flag::UnreadThingsKnown),
+	};
+}
+
 bool Thread::canToggleUnread(bool nowUnread) const {
 	if ((asTopic() || asForum()) && !nowUnread) {
+		return false;
+	} else if (const auto channel = asHistory() ? peer()->asChannel() : nullptr
+		; channel && channel->isCommunity() && !nowUnread) {
+		// Communities support "mark as read" but not "mark as unread".
 		return false;
 	} else if (asSublist() && owningHistory()->peer->isSelf()) {
 		return false;
@@ -123,6 +143,14 @@ const base::flat_set<MsgId> &Thread::unreadReactionsIds() const {
 		return Result;
 	}
 	return _unreadThings->reactions.ids();
+}
+
+const base::flat_set<MsgId> &Thread::unreadPollVotesIds() const {
+	if (!_unreadThings) {
+		static const auto Result = base::flat_set<MsgId>();
+		return Result;
+	}
+	return _unreadThings->pollVotes.ids();
 }
 
 void Thread::clearNotifications() {

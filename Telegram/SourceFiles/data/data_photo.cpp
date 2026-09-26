@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_photo.h"
 
+#include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_reply_preview.h"
 #include "data/data_photo_media.h"
@@ -15,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "media/streaming/media_streaming_loader_local.h"
 #include "media/streaming/media_streaming_loader_mtproto.h"
+#include "storage/storage_account.h"
 #include "storage/file_download.h"
 #include "core/application.h"
 
@@ -203,6 +205,21 @@ void PhotoData::cancel() {
 	}
 }
 
+void PhotoData::clearLocalCache() {
+	auto keys = base::flat_set<Storage::Cache::Key>();
+	for (auto &file : _images) {
+		if (const auto key = file.location.file().cacheKey()) {
+			keys.emplace(key);
+		}
+		if (file.loader) {
+			file.loader->cancel();
+		}
+	}
+	for (const auto &key : keys) {
+		_owner->cache().remove(key);
+	}
+}
+
 float64 PhotoData::progress() const {
 	if (uploading()) {
 		if (uploadingData->size > 0) {
@@ -252,7 +269,7 @@ Image *PhotoData::getReplyPreview(
 
 Image *PhotoData::getReplyPreview(not_null<HistoryItem*> item) {
 	const auto media = item->media();
-	const auto spoiler = (media && media->hasSpoiler());
+	const auto spoiler = (media && media->hasSpoilerForPreview());
 	return getReplyPreview(item->fullId(), item->history()->peer, spoiler);
 }
 
@@ -473,6 +490,28 @@ int PhotoData::width() const {
 
 int PhotoData::height() const {
 	return _images[PhotoSizeIndex(PhotoSize::Large)].location.height();
+}
+
+MediaKey PhotoData::mediaKey() const {
+	return ::mediaKey(UnknownFileLocation, _dc, id);
+}
+
+const Core::FileLocation &PhotoData::location(bool check) const {
+	if (check && !_location.check()) {
+		const auto location = session().local().readFileLocation(mediaKey());
+		const auto that = const_cast<PhotoData*>(this);
+		if (!location.inMediaCache()) {
+			that->_location = location;
+		}
+	}
+	return _location;
+}
+
+void PhotoData::setLocation(const Core::FileLocation &loc) {
+	if (!loc.inMediaCache() && loc.check()) {
+		_location = loc;
+		session().local().writeFileLocation(mediaKey(), _location);
+	}
 }
 
 Data::CloudFile &PhotoData::videoFile(PhotoSize size) {

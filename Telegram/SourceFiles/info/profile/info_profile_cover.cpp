@@ -68,10 +68,10 @@ void TopicIconView::paintInRect(QPainter &p, QRect rect, QColor textColor) {
 			image);
 	};
 	if (_player && _player->ready()) {
-		const auto colored = (textColor.alpha() > 0)
-			? textColor
-			: _playerUsesTextColor
-			? st::windowFg->c
+		const auto colored = _playerUsesTextColor
+			? (textColor.alpha() > 0)
+				? textColor
+				: st::windowFg->c
 			: QColor(0, 0, 0, 0);
 		paint(_player->frame(
 			st::infoTopicCover.photo.size,

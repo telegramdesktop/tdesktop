@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 class PeerData;
+class ChannelData;
 
 namespace Data {
 
@@ -68,6 +69,7 @@ public:
 	void resetToDefault(not_null<PeerData*> peer);
 
 	void forumParentMuteUpdated(not_null<Forum*> forum);
+	void communityParentMuteUpdated(not_null<ChannelData*> community);
 
 	void cacheSound(DocumentId id);
 	void cacheSound(not_null<DocumentData*> document);

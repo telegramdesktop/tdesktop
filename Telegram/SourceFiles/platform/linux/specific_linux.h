@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Platform {
 
+inline bool CheckAppTranslocation() {
+	return true;
+}
+
 inline void IgnoreApplicationActivationRightNow() {
 }
 
@@ -24,14 +28,30 @@ inline bool PreventsQuit(Core::QuitReason reason) {
 	return false;
 }
 
-inline void ActivateThisProcess() {
-}
+void ActivateThisProcess();
 
 inline uint64 ActivationWindowId(not_null<QWidget*> window) {
 	return 1;
 }
 
 inline void ActivateOtherProcess(uint64 processId, uint64 windowId) {
+}
+
+inline bool WaitForProcessExit(uint64 processId, crl::time timeout) {
+	return true;
+}
+
+inline bool ScreenshotProtectionSupported() {
+	return false;
+}
+
+inline bool AmbientScreenshotProtectionSupported() {
+	return false;
+}
+
+inline void SetWindowScreenshotProtection(
+		not_null<QWidget*> window,
+		bool enabled) {
 }
 
 } // namespace Platform

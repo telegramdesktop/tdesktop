@@ -32,6 +32,10 @@ public:
 
 	[[nodiscard]] Storage::SparseIdsListResult snapshot(
 		const Storage::SparseIdsListQuery &query) const;
+	[[nodiscard]] std::optional<int> countAfter(
+		MsgId tillId,
+		int limit,
+		Fn<bool(MsgId)> counts) const;
 	[[nodiscard]] auto sliceUpdated() const
 		-> rpl::producer<Storage::SparseIdsSliceUpdate>;
 	[[nodiscard]] rpl::producer<MsgId> oneRemoved() const;

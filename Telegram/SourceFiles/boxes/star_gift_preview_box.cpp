@@ -120,7 +120,6 @@ private:
 	QColor _patternColor;
 	Ui::Animations::Simple _selectedAnimation;
 	bool _selected : 1 = false;
-	bool _patterned : 1 = false;
 
 	QMargins _extend;
 
@@ -1556,10 +1555,12 @@ void StarGiftPreviewBox(
 			const style::RoundButton &st,
 			const style::icon &active,
 			Tab tab) {
-		auto owned = object_ptr<RoundButton>(buttonsParent, text(), st);
+		auto owned = object_ptr<RoundButton>(
+			buttonsParent,
+			text(),
+			st);
 		const auto raw = owned.data();
 
-		raw->setTextTransform(RoundButton::TextTransform::NoTransform);
 		raw->setClickedCallback([=] {
 			state->tab = tab;
 		});

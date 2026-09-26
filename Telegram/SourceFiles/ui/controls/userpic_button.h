@@ -28,6 +28,9 @@ struct Update;
 enum class Error;
 struct Information;
 } // namespace Streaming
+namespace Encode {
+struct VideoSource;
+} // namespace Encode
 } // namespace Media
 
 namespace style {
@@ -39,6 +42,8 @@ class ItemBase;
 } // namespace Ui::Menu
 
 namespace Ui {
+
+class UploadProgressOverlay;
 
 class PopupMenu;
 
@@ -89,7 +94,11 @@ public:
 			DocumentId documentId = 0;
 			std::vector<QColor> colors;
 		} markup;
+
+		std::shared_ptr<Media::Encode::VideoSource> video;
 	};
+
+	void setVideoAllowed(bool allowed);
 
 	// Role::OpenPhoto
 	void switchChangePhotoOverlay(
@@ -106,10 +115,16 @@ public:
 	[[nodiscard]] QImage takeResultImage() {
 		return std::move(_result);
 	}
+	[[nodiscard]] auto takeResultVideo()
+	-> std::shared_ptr<Media::Encode::VideoSource> {
+		return std::move(_resultVideo);
+	}
 
 	void showCustom(QImage &&image);
 	void showSource(Source source);
 	void showCustomOnChosen();
+
+	void showUploadProgress();
 
 	[[nodiscard]] PopupMenu *showChangePhotoMenu();
 
@@ -181,6 +196,7 @@ private:
 	InMemoryKey _userpicUniqueKey;
 	Animations::Simple _a_appearance;
 	QImage _result;
+	std::shared_ptr<Media::Encode::VideoSource> _resultVideo;
 	QImage _ellipseMask;
 	std::array<QImage, 4> _roundingCorners;
 	std::unique_ptr<Media::Streaming::Instance> _streamed;
@@ -191,6 +207,7 @@ private:
 	bool _showSavedMessagesOnSelf = false;
 	bool _showMyNotesOnSelf = false;
 	bool _canOpenPhoto = false;
+	bool _videoAllowed = false;
 	bool _cursorInChangeOverlay = false;
 	bool _changeOverlayEnabled = false;
 	Animations::Simple _changeOverlayShown;
@@ -201,6 +218,9 @@ private:
 	std::optional<bool> _overrideHasPersonalPhoto;
 	rpl::event_stream<> _resetPersonalRequests;
 	rpl::lifetime _sourceLifetime;
+
+	std::unique_ptr<UploadProgressOverlay> _uploadOverlay;
+	rpl::lifetime _uploadLifetime;
 
 };
 

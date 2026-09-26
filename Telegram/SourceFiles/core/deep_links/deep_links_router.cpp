@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/deep_links/deep_links_router.h"
 
+#include "base/qthelp_url.h"
 #include "core/deep_links/deep_links_chats.h"
 #include "core/deep_links/deep_links_contacts.h"
 #include "core/deep_links/deep_links_new.h"
@@ -33,7 +34,7 @@ Context ParseCommand(
 		for (const auto &pair : query.split('&')) {
 			const auto eq = pair.indexOf('=');
 			if (eq > 0) {
-				result.params[pair.left(eq).toLower()] = pair.mid(eq + 1);
+				result.params[pair.left(eq).toLower()] = qthelp::url_decode(pair.mid(eq + 1));
 			} else if (!pair.isEmpty()) {
 				result.params[pair.toLower()] = QString();
 			}
@@ -75,6 +76,20 @@ Router::Router() {
 
 void Router::add(const QString &section, Entry entry) {
 	_handlers[section].push_back(std::move(entry));
+}
+
+std::optional<QString> Router::findPath(
+		const QString &section,
+		Fn<bool(const Action &)> matches) const {
+	const auto i = _handlers.find(section);
+	if (i != _handlers.end()) {
+		for (const auto &entry : i->second) {
+			if (matches(entry.action)) {
+				return entry.path;
+			}
+		}
+	}
+	return std::nullopt;
 }
 
 bool Router::tryHandle(
@@ -149,6 +164,10 @@ Result Router::executeAction(const Action &action, const Context &ctx) {
 	return v::match(action, [&](const SettingsSection &s) {
 		if (!ctx.controller) {
 			return Result::NeedsAuth;
+		}
+		const auto highlight = ctx.params.value(u"highlight"_q);
+		if (!highlight.isEmpty()) {
+			ctx.controller->setHighlightControlId(highlight);
 		}
 		ctx.controller->showSettings(s.sectionId);
 		return Result::Handled;

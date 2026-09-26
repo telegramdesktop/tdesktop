@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 
 namespace Ui {
+class DynamicImage;
 class GenericBox;
 class VerticalLayout;
 } // namespace Ui
@@ -20,13 +21,16 @@ struct Result {
 	bool auth : 1 = false;
 	bool allowWrite : 1 = false;
 	bool sharePhone : 1 = false;
+	QString matchCode;
 };
 
 class SwitchableUserpicButton final : public Ui::RippleButton {
 public:
-	SwitchableUserpicButton(
-		not_null<Ui::RpWidget*> parent,
-		int size);
+	[[nodiscard]] static int Size();
+	[[nodiscard]] static int MaxWidth();
+	[[nodiscard]] static int Skip();
+
+	explicit SwitchableUserpicButton(not_null<Ui::RpWidget*> parent);
 
 	void setExpanded(bool expanded);
 	void setUserpic(not_null<Ui::RpWidget*>);
@@ -51,6 +55,14 @@ void AddAuthInfoRow(
 	const QString &leftText,
 	const style::icon &icon);
 
+void ShowMatchCodesBox(
+	not_null<Ui::GenericBox*> box,
+	Fn<std::shared_ptr<Ui::DynamicImage>(QString)> emojiImageFactory,
+	const QString &domain,
+	const QStringList &codes,
+	Fn<void(QString)> callback,
+	bool isApp = false);
+
 void Show(
 	not_null<Ui::GenericBox*> box,
 	const QString &url,
@@ -63,12 +75,15 @@ void ShowDetails(
 	not_null<Ui::GenericBox*> box,
 	const QString &url,
 	const QString &domain,
+	Fn<std::shared_ptr<Ui::DynamicImage>(QString)> emojiImageFactory,
 	Fn<void(Result)> callback,
 	object_ptr<Ui::RpWidget> userpicOwned,
 	rpl::producer<QString> botName,
 	const QString &browser,
 	const QString &platform,
 	const QString &ip,
-	const QString &region);
+	const QString &region,
+	rpl::producer<QStringList> matchCodes = rpl::single(QStringList()),
+	bool isApp = false);
 
 } // namespace UrlAuthBox

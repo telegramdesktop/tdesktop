@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/table_layout.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/new_badges.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
@@ -93,9 +94,9 @@ void ConnectStarRef(
 	const auto state = raw->lifetime().make_state<State>(State{
 		.icon = ChatHelpers::GenerateLocalTgsSticker(
 			session,
-			u"starref_link"_q),
+			u"starref_link"_q,
+			true),
 	});
-	state->icon->overrideEmojiUsesTextColor(true);
 	state->media = state->icon->createMediaView();
 	state->player = std::make_unique<HistoryView::LottiePlayer>(
 		ChatHelpers::LottiePlayerFromDocument(
@@ -178,7 +179,7 @@ void ChooseRecipient(
 		not_null<Ui::WhoReactedEntryAction*> action;
 		std::shared_ptr<Ui::DynamicImage> userpic;
 	};
-	auto actions = std::make_shared<std::vector<Entry>>();
+	const auto actions = menu->lifetime().make_state<std::vector<Entry>>();
 	actions->reserve(list.size());
 	for (const auto &peer : list) {
 		auto view = peer->createUserpicView();
@@ -459,7 +460,11 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 		const auto copy = [=](bool close) {
 			return [=] {
 				QApplication::clipboard()->setText(row.state.link);
-				box->uiShow()->showToast(tr::lng_username_copied(tr::now));
+				box->uiShow()->showToast({
+					.text = { tr::lng_username_copied(tr::now) },
+					.iconLottie = u"toast/voip_invite"_q,
+					.iconLottieSize = st::toastLottieIconSize,
+				});
 				if (close) {
 					box->closeBox();
 				}
@@ -468,7 +473,7 @@ object_ptr<Ui::BoxContent> StarRefLinkBox(
 		preview->setClickedCallback(copy(false));
 		const auto button = box->addButton(
 			tr::lng_star_ref_link_copy(),
-			[=] { copy(true); },
+			copy(true),
 			st::starrefCopyButton);
 
 		const auto name = TextWithEntities{ bot->name() };

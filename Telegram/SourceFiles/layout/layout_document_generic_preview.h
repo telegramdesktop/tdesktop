@@ -11,6 +11,7 @@ namespace Layout {
 
 struct DocumentGenericPreview final {
 	static DocumentGenericPreview Create(DocumentData *document);
+	static DocumentGenericPreview Create(const QString &filename);
 	const style::icon *icon() const;
 	const int index;
 	const style::color &color;

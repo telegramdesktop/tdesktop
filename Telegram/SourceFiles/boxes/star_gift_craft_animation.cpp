@@ -36,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/top_background_gradient.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
-#include "styles/style_boxes.h"
 #include "styles/style_credits.h"
 #include "styles/style_layers.h"
 
@@ -55,7 +54,6 @@ constexpr auto kSuccessFadeInDuration = crl::time(300);
 constexpr auto kSuccessExpandDuration = crl::time(400);
 constexpr auto kSuccessExpandStart = crl::time(100);
 constexpr auto kProgressFadeInDuration = crl::time(300);
-constexpr auto kFailureFadeInDuration = crl::time(300);
 
 [[nodiscard]] QString FormatPercent(int permille) {
 	const auto rounded = (permille + 5) / 10;

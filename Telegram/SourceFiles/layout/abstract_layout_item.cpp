@@ -18,7 +18,7 @@ int AbstractLayoutItem::minHeight() const {
 }
 
 int AbstractLayoutItem::resizeGetHeight(int width) {
-	_width = qMin(width, _maxw);
+	_width = std::min(width, _maxw);
 	_height = _minh;
 	return _height;
 }

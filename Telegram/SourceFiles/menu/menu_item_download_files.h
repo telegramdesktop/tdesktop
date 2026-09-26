@@ -34,8 +34,7 @@ void AddDownloadFilesAction(
 void AddDownloadFilesAction(
 	not_null<Ui::PopupMenu*> menu,
 	not_null<Window::SessionController*> window,
-	// From the legacy history inner widget.
-	const base::flat_map<HistoryItem*, TextSelection, std::less<>> &items,
+	const std::vector<not_null<HistoryItem*>> &items,
 	not_null<HistoryInner*> list);
 
 } // namespace Menu

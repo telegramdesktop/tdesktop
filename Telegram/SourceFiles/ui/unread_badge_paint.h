@@ -17,6 +17,7 @@ enum class UnreadBadgeSize {
 	StickersBox,
 	TouchBar,
 	ReactionInDialogs,
+	PollInDialogs,
 
 	kCount,
 };

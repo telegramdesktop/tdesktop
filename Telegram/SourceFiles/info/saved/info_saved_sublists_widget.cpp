@@ -113,7 +113,7 @@ void SublistsWidget::setupOtherTypes() {
 			controller(),
 			peer,
 			MsgId(), // topicRootId
-			PeerId(), // monoforumPeerId
+			nullptr, // sublist
 			nullptr, // migrated
 			buttonType,
 			tracker);
@@ -128,6 +128,7 @@ void SublistsWidget::setupOtherTypes() {
 	addMediaButton(Type::File, st::infoIconMediaFile);
 	addMediaButton(Type::MusicFile, st::infoIconMediaAudio);
 	addMediaButton(Type::Link, st::infoIconMediaLink);
+	addMediaButton(Type::Poll, st::infoIconMediaPoll);
 	addMediaButton(Type::RoundVoiceFile, st::infoIconMediaVoice);
 	addMediaButton(Type::GIF, st::infoIconMediaGif);
 

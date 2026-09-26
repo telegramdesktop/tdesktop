@@ -25,6 +25,8 @@ using base::Platform::XdgActivationToken;
 
 } // namespace
 
+namespace Unfused {
+
 bool UnsafeShowOpenWith(const QString &filepath) {
 	auto proxy = XdpOpenURI::OpenURIProxy::new_for_bus_sync(
 		Gio::BusType::SESSION_,
@@ -122,5 +124,6 @@ bool UnsafeShowOpenWith(const QString &filepath) {
 	return true;
 }
 
+} // namespace Unfused
 } // namespace File
 } // namespace Platform

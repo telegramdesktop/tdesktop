@@ -727,6 +727,7 @@ private:
 	rpl::variable<bool> _emptyRtmp = false;
 	rpl::variable<bool> _messagesEnabled = false;
 	bool _initialMuteStateSent = false;
+	bool _systemMuteReconciled = false;
 	bool _acceptFields = false;
 
 	rpl::event_stream<Group::ParticipantState> _otherParticipantStateValue;

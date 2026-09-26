@@ -533,7 +533,10 @@ void Editor::Inner::selectSkipPage(int delta, int direction) {
 		+ st::themeEditorDescriptionSkip
 		+ st::defaultTextStyle.font->height
 		+ st::themeEditorMargin.bottom();
-	for (auto i = 0, count = ceilclamp(delta, defaultRowHeight, 1, delta); i != count; ++i) {
+	const auto count = std::max(
+		(delta + defaultRowHeight - 1) / defaultRowHeight,
+		1);
+	for (auto i = 0; i != count; ++i) {
 		selectSkip(direction);
 	}
 }

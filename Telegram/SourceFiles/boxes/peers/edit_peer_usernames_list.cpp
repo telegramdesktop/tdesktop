@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/vertical_layout_reorder.h"
 #include "styles/style_boxes.h" // contactsStatusFont.
+#include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -121,8 +122,13 @@ UsernamesList::Row::Row(
 			tr::lng_group_invite_context_copy(tr::now),
 			[=] {
 				QGuiApplication::clipboard()->setText(link);
-				show->showToast(
-					tr::lng_create_channel_link_copied(tr::now));
+				show->showToast({
+					.text = {
+						tr::lng_create_channel_link_copied(tr::now),
+					},
+					.iconLottie = u"toast/voip_invite"_q,
+					.iconLottieSize = st::toastLottieIconSize,
+				});
 			},
 			&st::menuIconCopy);
 		_menu->popup(QCursor::pos());

@@ -976,7 +976,7 @@ void GroupCall::checkFinishSpeakingByActive() {
 			++i;
 		}
 	}
-	for (const auto participantPeer : stop) {
+	for (const auto &participantPeer : stop) {
 		const auto participant = findParticipant(participantPeer);
 		Assert(participant != nullptr);
 		if (participant->speaking) {

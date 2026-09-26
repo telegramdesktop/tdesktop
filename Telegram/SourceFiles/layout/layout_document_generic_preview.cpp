@@ -12,47 +12,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_media_view.h"
 
 namespace Layout {
+namespace {
 
-const style::icon *DocumentGenericPreview::icon() const {
-	switch (index) {
-	case 0: return &st::mediaviewFileBlue;
-	case 1: return &st::mediaviewFileGreen;
-	case 2: return &st::mediaviewFileRed;
-	case 3: return &st::mediaviewFileYellow;
-	}
-	Unexpected("Color index in DocumentGenericPreview::icon.");
-}
-
-DocumentGenericPreview DocumentGenericPreview::Create(
-		DocumentData *document) {
-	auto colorIndex = 0;
-
-	const auto name = (document
-		? (document->filename().isEmpty()
-			? (document->sticker()
-				? tr::lng_in_dlg_sticker(tr::now)
-				: u"Unknown File"_q)
-			: document->filename())
-		: tr::lng_message_empty(tr::now)).toLower();
-	auto lastDot = name.lastIndexOf('.');
-	const auto mime = document ? document->mimeString() : QString();
+[[nodiscard]] int ColorIndexForName(
+		const QString &name,
+		const QString &mime = QString()) {
+	const auto lastDot = name.lastIndexOf('.');
 	if (name.endsWith(u".doc"_q) ||
 		name.endsWith(u".docx"_q) ||
 		name.endsWith(u".txt"_q) ||
 		name.endsWith(u".psd"_q) ||
 		mime.startsWith(u"text/"_q)) {
-		colorIndex = 0;
+		return 0;
 	} else if (
 		name.endsWith(u".xls"_q) ||
 		name.endsWith(u".xlsx"_q) ||
 		name.endsWith(u".csv"_q)) {
-		colorIndex = 1;
+		return 1;
 	} else if (
 		name.endsWith(u".pdf"_q) ||
 		name.endsWith(u".ppt"_q) ||
 		name.endsWith(u".pptx"_q) ||
 		name.endsWith(u".key"_q)) {
-		colorIndex = 2;
+		return 2;
 	} else if (
 		name.endsWith(u".zip"_q) ||
 		name.endsWith(u".rar"_q) ||
@@ -60,22 +42,19 @@ DocumentGenericPreview DocumentGenericPreview::Create(
 		name.endsWith(u".mp3"_q) ||
 		name.endsWith(u".mov"_q) ||
 		name.endsWith(u".avi"_q)) {
-		colorIndex = 3;
-	} else {
-		auto ch = (lastDot >= 0 && lastDot + 1 < name.size())
-			? name.at(lastDot + 1)
-			: (name.isEmpty()
-				? (mime.isEmpty() ? '0' : mime.at(0))
-				: name.at(0));
-		colorIndex = (ch.unicode() % 4) & 3;
+		return 3;
 	}
+	const auto ch = (lastDot >= 0 && lastDot + 1 < name.size())
+		? name.at(lastDot + 1)
+		: (name.isEmpty()
+			? (mime.isEmpty() ? QChar('0') : mime.at(0))
+			: name.at(0));
+	return (ch.unicode() % 4) & 3;
+}
 
-	const auto ext = document
-		? ((lastDot < 0 || lastDot + 2 > name.size())
-			? name
-			: name.mid(lastDot + 1))
-		: QString();
-
+[[nodiscard]] DocumentGenericPreview BuildFromColorIndex(
+		int colorIndex,
+		const QString &ext) {
 	switch (colorIndex) {
 	case 0: return {
 		.index = colorIndex,
@@ -110,7 +89,52 @@ DocumentGenericPreview DocumentGenericPreview::Create(
 		.ext = ext,
 	};
 	}
-	Unexpected("Color index in CreateDocumentGenericPreview.");
+	Unexpected("Color index in BuildFromColorIndex.");
+}
+
+} // namespace
+
+const style::icon *DocumentGenericPreview::icon() const {
+	switch (index) {
+	case 0: return &st::mediaviewFileBlue;
+	case 1: return &st::mediaviewFileGreen;
+	case 2: return &st::mediaviewFileRed;
+	case 3: return &st::mediaviewFileYellow;
+	}
+	Unexpected("Color index in DocumentGenericPreview::icon.");
+}
+
+DocumentGenericPreview DocumentGenericPreview::Create(
+		DocumentData *document) {
+	const auto name = (document
+		? (document->filename().isEmpty()
+			? (document->sticker()
+				? tr::lng_in_dlg_sticker(tr::now)
+				: u"Unknown File"_q)
+			: document->filename())
+		: tr::lng_message_empty(tr::now)).toLower();
+	const auto mime = document ? document->mimeString() : QString();
+	const auto colorIndex = ColorIndexForName(name, mime);
+	const auto lastDot = name.lastIndexOf('.');
+	const auto ext = document
+		? ((lastDot < 0 || lastDot + 2 > name.size())
+			? name
+			: name.mid(lastDot + 1))
+		: QString();
+
+	return BuildFromColorIndex(colorIndex, ext);
+}
+
+DocumentGenericPreview DocumentGenericPreview::Create(
+		const QString &filename) {
+	const auto name = filename.toLower();
+	const auto colorIndex = ColorIndexForName(name);
+	const auto lastDot = name.lastIndexOf('.');
+	const auto ext = (lastDot < 0 || lastDot + 2 > name.size())
+		? name
+		: name.mid(lastDot + 1);
+
+	return BuildFromColorIndex(colorIndex, ext);
 }
 
 // Ui::CachedRoundCorners DocumentCorners(int32 colorIndex) {

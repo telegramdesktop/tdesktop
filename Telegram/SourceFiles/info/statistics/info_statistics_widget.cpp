@@ -121,6 +121,14 @@ void Widget::showFinished() {
 	_inner->showFinished();
 }
 
+void Widget::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
+	_inner->fillMenu(addAction);
+}
+
+rpl::producer<> Widget::topBarMenuFilledChanges() const {
+	return _inner->menuFilledChanges();
+}
+
 std::shared_ptr<ContentMemento> Widget::doCreateMemento() {
 	auto result = std::make_shared<Memento>(controller());
 	saveState(result.get());

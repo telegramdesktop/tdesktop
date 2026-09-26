@@ -58,6 +58,27 @@ void DiscreteSlider::finishAnimating() {
 	}
 }
 
+void DiscreteSlider::selectSection(int index) {
+	if (index < 0 || index >= _sections.size()) {
+		for (auto &other : _sections) {
+			if (other.ripple) {
+				other.ripple->lastStop();
+			}
+		}
+		return;
+	}
+	const auto &section = _sections[index];
+	if (section.ripple && !section.ripple->empty()) {
+		return;
+	}
+	for (auto &other : _sections) {
+		if (other.ripple) {
+			other.ripple->lastStop();
+		}
+	}
+	startRipple(index);
+}
+
 void DiscreteSlider::setAdditionalContentWidthToSection(int index, int w) {
 	if (index >= 0 && index < _sections.size()) {
 		auto &section = _sections[index];
@@ -270,14 +291,15 @@ const style::SettingsSlider &SettingsSlider::st() const {
 }
 
 int SettingsSlider::centerOfSection(int section) const {
-	const auto widths = countSectionsWidths(0);
 	auto result = 0;
-	if (section >= 0 && section < widths.size()) {
-		for (auto i = 0; i < section; i++) {
-			result += widths[i];
+	auto index = 0;
+	enumerateSections([&](const Section &data) {
+		if (index++ == section) {
+			result = data.left + (data.width / 2);
+			return false;
 		}
-		result += widths[section] / 2;
-	}
+		return true;
+	});
 	return result;
 }
 
@@ -314,7 +336,7 @@ void SettingsSlider::resizeSections(int newWidth) {
 
 		section.left = std::floor(x) + skip;
 		x += *sectionWidth;
-		section.width = qRound(x) - (section.left - skip);
+		section.width = int(base::SafeRound(x)) - (section.left - skip);
 		skip += _st.barSkip;
 		++sectionWidth;
 		return true;

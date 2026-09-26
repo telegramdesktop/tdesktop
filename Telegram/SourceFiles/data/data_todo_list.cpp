@@ -18,8 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kShortPollTimeout = 30 * crl::time(1000);
-
 const TodoListItem *ItemById(const std::vector<TodoListItem> &list, int id) {
 	const auto i = ranges::find(list, id, &TodoListItem::id);
 	return (i != end(list)) ? &*i : nullptr;

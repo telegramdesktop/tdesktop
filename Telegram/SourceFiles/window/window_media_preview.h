@@ -41,7 +41,12 @@ public:
 	void setCustomPadding(const QMargins &padding = QMargins());
 	void setBackgroundMargins(const QMargins &margins = QMargins());
 	void setCustomRadius(int radius);
+	void setMaxContentSize(int size);
+	void setPaintBackground(bool paint);
 	void setCustomDuration(crl::time duration);
+	void setHideEmoji(bool hide);
+	void setContentShift(int y);
+	[[nodiscard]] int contentBottom() const;
 
 	~MediaPreviewWidget();
 
@@ -94,7 +99,11 @@ private:
 	QMargins _customPadding;
 	QMargins _backgroundMargins;
 	int _customRadius = 0;
+	int _maxContentSize = 0;
+	bool _paintBackground = true;
 	crl::time _customDuration = 0;
+	bool _hideEmoji = false;
+	int _contentShiftY = 0;
 
 };
 

@@ -57,6 +57,17 @@ inline bool IsDefaultHandledError(const Error &error) {
 	return IsTemporaryError(error);
 }
 
+inline bool IgnoreError(const Error &error) {
+	return error.code() == 406;
+}
+
+template <typename ShowPtr>
+void ShowErrorFallback(const ShowPtr &show, const Error &error) {
+	if (!IgnoreError(error)) {
+		show->showToast(error.type());
+	}
+}
+
 struct Response {
 	mtpBuffer reply;
 	mtpMsgId outerMsgId = 0;

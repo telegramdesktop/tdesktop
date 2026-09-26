@@ -40,7 +40,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
-#include "styles/style_chat_helpers.h"
 
 namespace Data {
 namespace {
@@ -507,9 +506,16 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 			i->second->updatePreview(std::move(preview));
 		}
 	}
+	const auto defaultWidth = st::emojiSize + 2 * st::emojiPadding;
+	const auto width = (tag == SizeTag::Normal && !sizeOverride)
+		? std::max(
+			defaultWidth,
+			Ui::Emoji::GetCustomSizeNormal())
+		: defaultWidth;
 	return std::make_unique<Ui::CustomEmoji::Object>(
 		i->second.get(),
-		std::move(update));
+		std::move(update),
+		width);
 }
 
 Ui::Text::CustomEmojiFactory CustomEmojiManager::factory(
@@ -563,7 +569,7 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 			create(original, std::move(update), SizeTag::Large));
 	} else if (data.startsWith(ForceStaticPrefix())) {
 		const auto original = data.mid(ForceStaticPrefix().size());
-		return std::make_unique<Ui::Text::FirstFrameEmoji>(
+		return MakeWrappedEmoji<Ui::Text::FirstFrameEmoji>(
 			create(original, std::move(update), tag, sizeOverride));
 	} else if (data.startsWith(UserpicEmojiPrefix())) {
 		const auto ratio = style::DevicePixelRatio();
@@ -1089,8 +1095,8 @@ Ui::Text::CustomEmojiFactory ReactedMenuFactory(
 				const auto tag = Data::CustomEmojiManager::SizeTag::Normal;
 				const auto ratio = style::DevicePixelRatio();
 				const auto skip = (Data::FrameSizeFromTag(tag) / ratio - size) / 2;
-				return std::make_unique<Ui::Text::FirstFrameEmoji>(
-					std::make_unique<Ui::Text::ShiftedEmoji>(
+				return MakeWrappedEmoji<Ui::Text::FirstFrameEmoji>(
+					MakeWrappedEmoji<Ui::Text::ShiftedEmoji>(
 						owner->customEmojiManager().create(
 							document,
 							context.repaint,

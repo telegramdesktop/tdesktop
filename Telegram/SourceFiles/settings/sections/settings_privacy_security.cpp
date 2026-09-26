@@ -371,6 +371,9 @@ void OpenFileConfirmationsBox(not_null<Ui::GenericBox*> box) {
 			tr::lng_settings_edit_extensions(),
 			TextWithTags{ text }),
 		st::boxRowPadding + QMargins(0, 0, 0, st::settingsPrivacySkip));
+	extensions->setInputMethodHints(Qt::ImhLatinOnly
+		| Qt::ImhNoAutoUppercase
+		| Qt::ImhNoPredictiveText);
 	Ui::AddDividerText(layout, tr::lng_settings_edit_extensions_about());
 	Ui::AddSkip(layout);
 	const auto ip = layout->add(object_ptr<Ui::SettingsButton>(

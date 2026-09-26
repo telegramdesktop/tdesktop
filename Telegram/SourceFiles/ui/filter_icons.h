@@ -65,6 +65,8 @@ enum class FilterIcon : uchar {
 struct FilterIcons {
 	not_null<const style::internal::Icon*> normal;
 	not_null<const style::internal::Icon*> active;
+	not_null<const style::internal::Icon*> tabs;
+	not_null<const style::internal::Icon*> userpic;
 	QString emoji;
 };
 

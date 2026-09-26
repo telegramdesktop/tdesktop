@@ -1,0 +1,226 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/chat/chat.style";
+
+serviceTextPalette: TextPalette(defaultTextPalette) {
+	linkFg: msgServiceFg;
+	monoFg: msgServiceFg;
+	spoilerFg: msgServiceFg;
+	selectBg: msgServiceBgSelected;
+	selectFg: msgServiceFg;
+	selectLinkFg: msgServiceFg;
+	selectMonoFg: msgServiceFg;
+	selectSpoilerFg: msgServiceFg;
+	selectOverlay: msgServiceBgSelected;
+}
+priceTagTextPalette: TextPalette(defaultTextPalette) {
+	linkFg: creditsBg1;
+}
+inFwdTextPalette: TextPalette(defaultTextPalette) {
+	linkFg: msgInServiceFg;
+}
+outFwdTextPalette: TextPalette(defaultTextPalette) {
+	linkFg: msgOutServiceFg;
+}
+inFwdTextPaletteSelected: TextPalette(defaultTextPalette) {
+	linkFg: msgInServiceFgSelected;
+}
+outFwdTextPaletteSelected: TextPalette(defaultTextPalette) {
+	linkFg: msgOutServiceFgSelected;
+}
+inReplyTextPalette: TextPalette(inTextPalette) {
+	linkFg: msgInDateFg;
+}
+inReplyTextPaletteSelected: TextPalette(inTextPaletteSelected) {
+	linkFg: msgInDateFgSelected;
+}
+outReplyTextPalette: TextPalette(outTextPalette) {
+	linkFg: msgOutDateFg;
+}
+outReplyTextPaletteSelected: TextPalette(outTextPaletteSelected) {
+	linkFg: msgOutDateFgSelected;
+}
+imgReplyTextPalette: TextPalette(defaultTextPalette) {
+	linkFg: msgImgReplyBarColor;
+	monoFg: msgImgReplyBarColor;
+}
+inSemiboldPalette: TextPalette(inTextPalette) {
+	linkFg: msgInServiceFg;
+	selectFg: msgInServiceFgSelected;
+	selectLinkFg: msgInServiceFgSelected;
+}
+outSemiboldPalette: TextPalette(outTextPalette) {
+	linkFg: msgOutServiceFg;
+	selectFg: msgOutServiceFgSelected;
+	selectLinkFg: msgOutServiceFgSelected;
+}
+historyFileOutImage: icon {{ "history_file_image", historyFileOutIconFg }};
+historyFileOutImageSelected: icon {{ "history_file_image", historyFileOutIconFgSelected }};
+historyFileInImageSelected: icon {{ "history_file_image", historyFileInIconFgSelected }};
+historyFileOutDocument: icon {{ "history_file_document", historyFileOutIconFg }};
+historyFileOutDocumentSelected: icon {{ "history_file_document", historyFileOutIconFgSelected }};
+historyFileInDocumentSelected: icon {{ "history_file_document", historyFileInIconFgSelected }};
+historyFileOutDownload: icon {{ "history_file_download", historyFileOutIconFg }};
+historyFileOutDownloadSelected: icon {{ "history_file_download", historyFileOutIconFgSelected }};
+historyFileInDownloadSelected: icon {{ "history_file_download", historyFileInIconFgSelected }};
+historyFileOutCancel: icon {{ "history_file_cancel", historyFileOutIconFg }};
+historyFileOutCancelSelected: icon {{ "history_file_cancel", historyFileOutIconFgSelected }};
+historyFileInCancelSelected: icon {{ "history_file_cancel", historyFileInIconFgSelected }};
+historyFileOutPause: icon {{ "history_file_pause", historyFileOutIconFg }};
+historyFileOutPauseSelected: icon {{ "history_file_pause", historyFileOutIconFgSelected }};
+historyFileInPauseSelected: icon {{ "history_file_pause", historyFileInIconFgSelected }};
+historyFileOutPlaySelected: icon {{ "history_file_play", historyFileOutIconFgSelected }};
+historyFileInPlaySelected: icon {{ "history_file_play", historyFileInIconFgSelected }};
+historyFileOutWaiting: icon {{ "mediaview/save_check", historyFileOutIconFg }};
+historyFileOutWaitingSelected: icon {{ "mediaview/save_check", historyFileOutIconFgSelected }};
+historyFileInWaiting: icon {{ "mediaview/save_check", historyFileInIconFg }};
+historyFileInWaitingSelected: icon {{ "mediaview/save_check", historyFileInIconFgSelected }};
+historyFileThumbPause: icon {{ "history_file_pause", historyFileThumbIconFg }};
+historyFileThumbPauseSelected: icon {{ "history_file_pause", historyFileThumbIconFgSelected }};
+historyFileThumbPlaySelected: icon {{ "history_file_play", historyFileThumbIconFgSelected }};
+historyFileThumbWaiting: icon {{ "mediaview/save_check", historyFileThumbIconFg }};
+historyFileThumbWaitingSelected: icon {{ "mediaview/save_check", historyFileThumbIconFgSelected }};
+historySentSelectedIcon: icon {{ "history_sent", historyOutIconFgSelected, point(2px, 4px) }};
+historySentInvertedIcon: icon {{ "history_sent", historyIconFgInverted, point(2px, 4px) }};
+historyReceivedSelectedIcon: icon {{ "history_received", historyOutIconFgSelected, point(2px, 4px) }};
+historyReceivedInvertedIcon: icon {{ "history_received", historyIconFgInverted, point(2px, 4px) }};
+historyViewsInIcon: icon {{ "history_views", msgInDateFg }};
+historyViewsInSelectedIcon: icon {{ "history_views", msgInDateFgSelected }};
+historyViewsOutIcon: icon {{ "history_views", historyOutIconFg }};
+historyViewsOutSelectedIcon: icon {{ "history_views", historyOutIconFgSelected }};
+historyViewsInvertedIcon: icon {{ "history_views", historySendingInvertedIconFg }};
+historyRepliesInIcon: icon {{ "history_replies", msgInDateFg }};
+historyRepliesInSelectedIcon: icon {{ "history_replies", msgInDateFgSelected }};
+historyRepliesOutIcon: icon {{ "history_replies", historyOutIconFg }};
+historyRepliesOutSelectedIcon: icon {{ "history_replies", historyOutIconFgSelected }};
+historyRepliesInvertedIcon: icon {{ "history_replies", historySendingInvertedIconFg }};
+historyPinInIcon: icon {{ "history_pin", msgInDateFg }};
+historyPinInSelectedIcon: icon {{ "history_pin", msgInDateFgSelected }};
+historyPinOutIcon: icon {{ "history_pin", historyOutIconFg }};
+historyPinOutSelectedIcon: icon {{ "history_pin", historyOutIconFgSelected }};
+historyPinInvertedIcon: icon {{ "history_pin", historySendingInvertedIconFg }};
+historySilentInIcon: icon {{ "dialogs/dialogs_mute", msgInDateFg }};
+historySilentInSelectedIcon: icon {{ "dialogs/dialogs_mute", msgInDateFgSelected }};
+historySilentOutIcon: icon {{ "dialogs/dialogs_mute", historyOutIconFg }};
+historySilentOutSelectedIcon: icon {{ "dialogs/dialogs_mute", historyOutIconFgSelected }};
+historySilentInvertedIcon: icon {{ "dialogs/dialogs_mute", historySendingInvertedIconFg }};
+historyBubbleTailInLeftSelected: icon {{ "bubble_tail", msgInBgSelected }};
+historyBubbleTailOutLeftSelected: icon {{ "bubble_tail", msgOutBgSelected }};
+historyBubbleTailInRightSelected: icon {{ "bubble_tail-flip_horizontal", msgInBgSelected }};
+historyBubbleTailOutRightSelected: icon {{ "bubble_tail-flip_horizontal", msgOutBgSelected }};
+historyPsaIconInSelected: icon {{ "message_psa_tooltip", msgFileThumbLinkInFgSelected }};
+historyPsaIconOut: icon {{ "message_psa_tooltip", msgFileThumbLinkOutFg }};
+historyPsaIconOutSelected: icon {{ "message_psa_tooltip", msgFileThumbLinkOutFgSelected }};
+historyEphemeralIconInSelected: icon {{ "chat/ephemeral_badge", msgInServiceFgSelected }};
+historyEphemeralIconOut: icon {{ "chat/ephemeral_badge", msgOutServiceFg }};
+historyEphemeralIconOutSelected: icon {{ "chat/ephemeral_badge", msgOutServiceFgSelected }};
+historyEphemeralInvertedIcon: icon {{ "chat/ephemeral_badge", historySendingInvertedIconFg }};
+historyCallArrowIn: icon {{ "calls/call_arrow_in", historyCallArrowInFg }};
+historyCallArrowInSelected: icon {{ "calls/call_arrow_in", historyCallArrowInFgSelected }};
+historyCallArrowMissedIn: icon {{ "calls/call_arrow_in", historyCallArrowMissedInFg }};
+historyCallArrowMissedInSelected: icon {{ "calls/call_arrow_in", historyCallArrowMissedInFgSelected }};
+historyCallArrowOut: icon {{ "calls/call_arrow_out", historyCallArrowOutFg }};
+historyCallArrowOutSelected: icon {{ "calls/call_arrow_out", historyCallArrowOutFgSelected }};
+historyCallInIcon: icon {{ "calls/call_answer", msgFileInBg }};
+historyCallInIconSelected: icon {{ "calls/call_answer", msgFileInBgSelected }};
+historyCallOutIcon: icon {{ "calls/call_answer", msgFileOutBg }};
+historyCallOutIconSelected: icon {{ "calls/call_answer", msgFileOutBgSelected }};
+historyCallCameraInIcon: icon {{ "calls/call_camera_active", msgFileInBg }};
+historyCallCameraInIconSelected: icon {{ "calls/call_camera_active", msgFileInBgSelected }};
+historyCallCameraOutIcon: icon {{ "calls/call_camera_active", msgFileOutBg }};
+historyCallCameraOutIconSelected: icon {{ "calls/call_camera_active", msgFileOutBgSelected }};
+historyCallGroupInIcon: icon {{ "calls/call_group", msgFileInBg }};
+historyCallGroupInIconSelected: icon {{ "calls/call_group", msgFileInBgSelected }};
+historyCallGroupOutIcon: icon {{ "calls/call_group", msgFileOutBg }};
+historyCallGroupOutIconSelected: icon {{ "calls/call_group", msgFileOutBgSelected }};
+historyVoiceMessageInTTL: icon {{ "chat/mini_media_once", historyFileInIconFg }};
+historyVoiceMessageInTTLSelected: icon {{ "chat/mini_media_once", historyFileInIconFgSelected }};
+historyVoiceMessageOutTTL: icon {{ "chat/mini_media_once", historyFileOutIconFg }};
+historyVoiceMessageOutTTLSelected: icon {{ "chat/mini_media_once", historyFileOutIconFgSelected }};
+historyTranscribeInIcon: icon {{ "chat/voice_to_text", msgFileInBg }};
+historyTranscribeInIconSelected: icon {{ "chat/voice_to_text", msgFileInBgSelected }};
+historyTranscribeOutIcon: icon {{ "chat/voice_to_text", msgFileOutBg }};
+historyTranscribeOutIconSelected: icon {{ "chat/voice_to_text", msgFileOutBgSelected }};
+historyTranscribeInHide: icon {{ "chat/voice_to_text_collapse", msgFileInBg }};
+historyTranscribeInHideSelected: icon {{ "chat/voice_to_text_collapse", msgFileInBgSelected }};
+historyTranscribeOutHide: icon {{ "chat/voice_to_text_collapse", msgFileOutBg }};
+historyTranscribeOutHideSelected: icon {{ "chat/voice_to_text_collapse", msgFileOutBgSelected }};
+historyTranscribeInLock: icon {{ "chat/mini_lock", msgFileInBg }};
+historyTranscribeInLockSelected: icon {{ "chat/mini_lock", msgFileInBgSelected }};
+historyTranscribeOutLock: icon {{ "chat/mini_lock", msgFileOutBg }};
+historyTranscribeOutLockSelected: icon {{ "chat/mini_lock", msgFileOutBgSelected }};
+historyVideoMessageMuteSelected: icon {{ "volume_mute", historyFileThumbIconFgSelected }};
+historyVideoMessageTtlIcon: icon {{ "chat/audio_once", historyFileThumbIconFg }};
+historyVideoMessageTtlIconSelected: icon {{ "chat/audio_once", historyFileThumbIconFgSelected }};
+historyFastShareIcon: icon {{ "fast_share", msgServiceFg }};
+historyGoToOriginalIcon: icon {{ "filled_go_to_message", msgServiceFg, point(0px, 0px) }};
+historyFastCommentsIcon: icon {{ "fast_comments", msgServiceFg }};
+historyFastCloseIcon: icon {{ "box_button_close", msgServiceFg }};
+historyFastMoreIcon: icon {{ "title_menu_dots", msgServiceFg, point(0px, -2px) }};
+historyFastTranscribeIcon: icon {{ "chat/voice_to_text", msgServiceFg }};
+historyFastTranscribeLock: icon {{ "chat/mini_lock", msgServiceFg }};
+historyPsaForwardPalette: TextPalette(defaultTextPalette) {
+	linkFg: boxTextFgGood;
+}
+historyPageEnlarge: icon{{ "chat/link_photo_enlarge", historyFileThumbRadialFg }};
+historyPageEnlargeSelected: icon{{ "chat/link_photo_enlarge", historyFileThumbRadialFgSelected }};
+historyVideoCancel: icon {{ "player/playlist_cancel", historyFileThumbIconFg }};
+historyVideoCancelSelected: icon {{ "player/playlist_cancel", historyFileThumbIconFgSelected }};
+historyVideoDownload: icon {{ "player/playlist_download", historyFileThumbIconFg }};
+historyVideoDownloadSelected: icon {{ "player/playlist_download", historyFileThumbIconFgSelected }};
+historyAudioInCancel: icon {{ "history_audio_cancel", historyFileInIconFg }};
+historyAudioInCancelSelected: icon {{ "history_audio_cancel", historyFileInIconFgSelected }};
+historyAudioOutCancel: icon {{ "history_audio_cancel", historyFileOutIconFg }};
+historyAudioOutCancelSelected: icon {{ "history_audio_cancel", historyFileOutIconFgSelected }};
+historyAudioInDownload: icon {{ "history_audio_download", historyFileInIconFg }};
+historyAudioInDownloadSelected: icon {{ "history_audio_download", historyFileInIconFgSelected }};
+historyAudioOutDownload: icon {{ "history_audio_download", historyFileOutIconFg }};
+historyAudioOutDownloadSelected: icon {{ "history_audio_download", historyFileOutIconFgSelected }};
+historyQuizExplainInSelected: icon {{ "quiz_explain", msgFileThumbLinkInFgSelected }};
+historyQuizExplainOut: icon {{ "quiz_explain", msgFileThumbLinkOutFg }};
+historyQuizExplainOutSelected: icon {{ "quiz_explain", msgFileThumbLinkOutFgSelected }};
+historyQuizTimerIn: icon {{ "quiz_timer", msgFileThumbLinkInFg }};
+historyQuizTimerInSelected: icon {{ "quiz_timer", msgFileThumbLinkInFgSelected }};
+historyQuizTimerOut: icon {{ "quiz_timer", msgFileThumbLinkOutFg }};
+historyQuizTimerOutSelected: icon {{ "quiz_timer", msgFileThumbLinkOutFgSelected }};
+historyCommentsInSelected: icon {{ "history_comments", msgFileThumbLinkInFgSelected }};
+historyCommentsOut: icon {{ "history_comments", msgFileThumbLinkOutFg }};
+historyCommentsOutSelected: icon {{ "history_comments", msgFileThumbLinkOutFgSelected }};
+historyCommentsOpenIn: icon {{ "history_comments_open", msgFileThumbLinkInFg }};
+historyCommentsOpenInSelected: icon {{ "history_comments_open", msgFileThumbLinkInFgSelected }};
+historyCommentsOpenOut: icon {{ "history_comments_open", msgFileThumbLinkOutFg }};
+liveLocationLongInIcon: icon {{ "chat/live_location_long", msgInServiceFg }};
+liveLocationLongInIconSelected: icon {{ "chat/live_location_long", msgInServiceFgSelected }};
+liveLocationLongOutIcon: icon {{ "chat/live_location_long", msgOutServiceFg }};
+liveLocationLongOutIconSelected: icon {{ "chat/live_location_long", msgOutServiceFgSelected }};
+
+historyFileInImage: icon {{ "history_file_image", historyFileInIconFg }};
+historyFileInDocument: icon {{ "history_file_document", historyFileInIconFg }};
+historyFileInDownload: icon {{ "history_file_download", historyFileInIconFg }};
+historyFileInCancel: icon {{ "history_file_cancel", historyFileInIconFg }};
+historyFileInPause: icon {{ "history_file_pause", historyFileInIconFg }};
+historyFileOutPlay: icon {{ "history_file_play", historyFileOutIconFg }};
+historyFileInPlay: icon {{ "history_file_play", historyFileInIconFg }};
+historyFileThumbDownload: icon {{ "history_file_download", historyFileThumbIconFg }};
+historyFileThumbDownloadSelected: icon {{ "history_file_download", historyFileThumbIconFgSelected }};
+historyFileThumbCancel: icon {{ "history_file_cancel", historyFileThumbIconFg }};
+historyFileThumbCancelSelected: icon {{ "history_file_cancel", historyFileThumbIconFgSelected }};
+historyFileThumbPlay: icon {{ "history_file_play", historyFileThumbIconFg }};
+historySentIcon: icon {{ "history_sent", historyOutIconFg, point(2px, 4px) }};
+historyReceivedIcon: icon {{ "history_received", historyOutIconFg, point(2px, 4px) }};
+historyBubbleTailInLeft: icon {{ "bubble_tail", msgInBg }};
+historyBubbleTailOutLeft: icon {{ "bubble_tail", msgOutBg }};
+historyBubbleTailInRight: icon {{ "bubble_tail-flip_horizontal", msgInBg }};
+historyBubbleTailOutRight: icon {{ "bubble_tail-flip_horizontal", msgOutBg }};
+historyPsaIconIn: icon {{ "message_psa_tooltip", msgFileThumbLinkInFg }};
+historyEphemeralIconIn: icon {{ "chat/ephemeral_badge", msgInServiceFg }};
+historyVideoMessageMute: icon {{ "volume_mute", historyFileThumbIconFg }};
+historyQuizExplainIn: icon {{ "quiz_explain", msgFileThumbLinkInFg }};
+historyCommentsIn: icon {{ "history_comments", msgFileThumbLinkInFg }};
+historyCommentsOpenOutSelected: icon {{ "history_comments_open", msgFileThumbLinkOutFgSelected }};
+chatSimilarLockedIcon: icon{{ "chat/mini_lock", premiumButtonFg }};

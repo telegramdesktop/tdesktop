@@ -10,11 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common_session.h"
 
 #include "api/api_authorizations.h"
+#include "api/api_reactions_notify_settings.h"
 #include "api/api_ringtones.h"
 #include "apiwrap.h"
 #include "base/platform/base_platform_info.h"
 #include "boxes/ringtones_box.h"
 #include "core/application.h"
+#include "core/version.h"
 #include "data/data_chat_filters.h"
 #include "data/data_session.h"
 #include "data/notify/data_notify_settings.h"
@@ -29,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_builder.h"
 #include "settings/sections/settings_main.h"
 #include "settings/settings_notifications_common.h"
+#include "settings/sections/settings_notifications_reactions.h"
 #include "settings/sections/settings_notifications_type.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/chat_theme.h"
@@ -47,12 +50,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_widget.h"
 #include "window/themes/window_theme.h"
 #include "window/window_session_controller.h"
-#include "styles/style_boxes.h"
+#include "styles/style_background_preview_box.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_edit_peer_members.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
+#include "styles/style_settings_notifications.h"
 #include "styles/style_window.h"
 
 #include <QtGui/QGuiApplication>
@@ -92,6 +97,78 @@ private:
 
 };
 
+SplitToggle SetupSplitToggle(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> title,
+		const style::icon *icon,
+		bool checked,
+		rpl::producer<QString> details) {
+	const auto button = AddButtonWithIcon(
+		container,
+		std::move(title),
+		st::settingsNotificationType,
+		{ icon });
+
+	const auto &st = st::settingsNotificationType;
+
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		button.get(),
+		std::move(details),
+		st::settingsNotificationTypeDetails);
+	label->show();
+	label->moveToLeft(
+		st.padding.left(),
+		st.padding.top() + st.height - label->height());
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	const auto toggle = Ui::CreateChild<Ui::SettingsButton>(
+		container.get(),
+		nullptr,
+		st);
+	const auto checkView = button->lifetime().make_state<Ui::ToggleView>(
+		st.toggle,
+		checked,
+		[=] { toggle->update(); });
+
+	const auto separator = Ui::CreateChild<Ui::RpWidget>(container.get());
+	separator->paintRequest(
+	) | rpl::on_next([=, bg = st.textBgOver] {
+		auto p = QPainter(separator);
+		p.fillRect(separator->rect(), bg);
+	}, separator->lifetime());
+	const auto separatorHeight = st.height - 2 * st.toggle.border;
+	button->geometryValue(
+	) | rpl::on_next([=](const QRect &r) {
+		const auto w = st::rightsButtonToggleWidth;
+		toggle->setGeometry(
+			r.x() + r.width() - w,
+			r.y(),
+			w,
+			r.height());
+		separator->setGeometry(
+			toggle->x() - st::lineWidth,
+			r.y() + (r.height() - separatorHeight) / 2,
+			st::lineWidth,
+			separatorHeight);
+	}, toggle->lifetime());
+
+	const auto checkWidget = Ui::CreateChild<Ui::RpWidget>(toggle);
+	checkWidget->resize(checkView->getSize());
+	checkWidget->paintRequest(
+	) | rpl::on_next([=] {
+		auto p = QPainter(checkWidget);
+		checkView->paint(p, 0, 0, checkWidget->width());
+	}, checkWidget->lifetime());
+	toggle->sizeValue(
+	) | rpl::on_next([=](const QSize &s) {
+		checkWidget->moveToRight(
+			st.toggleSkip,
+			(s.height() - checkWidget->height()) / 2);
+	}, toggle->lifetime());
+
+	return { button, toggle, checkView };
+}
+
 [[nodiscard]] not_null<Ui::SettingsButton*> AddTypeButton(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Window::SessionController*> controller,
@@ -114,18 +191,9 @@ private:
 		}
 		Unexpected("Type value in AddTypeButton.");
 	}();
-	const auto button = AddButtonWithIcon(
-		container,
-		std::move(label),
-		st::settingsNotificationType,
-		{ icon });
-	button->setClickedCallback([=] {
-		showOther(NotificationsType::Id(type));
-	});
 
 	const auto session = &controller->session();
 	const auto settings = &session->data().notifySettings();
-	const auto &st = st::settingsNotificationType;
 	auto status = rpl::combine(
 		NotificationsEnabledForTypeValue(session, type),
 		rpl::single(
@@ -144,60 +212,16 @@ private:
 						lt_count,
 						rpl::single(float64(count))));
 	}) | rpl::flatten_latest();
-	const auto details = Ui::CreateChild<Ui::FlatLabel>(
-		button.get(),
-		std::move(status),
-		st::settingsNotificationTypeDetails);
-	details->show();
-	details->moveToLeft(
-		st.padding.left(),
-		st.padding.top() + st.height - details->height());
-	details->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	const auto toggleButton = Ui::CreateChild<Ui::SettingsButton>(
-		container.get(),
-		nullptr,
-		st);
-	const auto checkView = button->lifetime().make_state<Ui::ToggleView>(
-		st.toggle,
+	const auto [button, toggleButton, checkView] = SetupSplitToggle(
+		container,
+		std::move(label),
+		icon,
 		NotificationsEnabledForType(session, type),
-		[=] { toggleButton->update(); });
-
-	const auto separator = Ui::CreateChild<Ui::RpWidget>(container.get());
-	separator->paintRequest(
-	) | rpl::on_next([=, bg = st.textBgOver] {
-		auto p = QPainter(separator);
-		p.fillRect(separator->rect(), bg);
-	}, separator->lifetime());
-	const auto separatorHeight = st.height - 2 * st.toggle.border;
-	button->geometryValue(
-	) | rpl::on_next([=](const QRect &r) {
-		const auto w = st::rightsButtonToggleWidth;
-		toggleButton->setGeometry(
-			r.x() + r.width() - w,
-			r.y(),
-			w,
-			r.height());
-		separator->setGeometry(
-			toggleButton->x() - st::lineWidth,
-			r.y() + (r.height() - separatorHeight) / 2,
-			st::lineWidth,
-			separatorHeight);
-	}, toggleButton->lifetime());
-
-	const auto checkWidget = Ui::CreateChild<Ui::RpWidget>(toggleButton);
-	checkWidget->resize(checkView->getSize());
-	checkWidget->paintRequest(
-	) | rpl::on_next([=] {
-		auto p = QPainter(checkWidget);
-		checkView->paint(p, 0, 0, checkWidget->width());
-	}, checkWidget->lifetime());
-	toggleButton->sizeValue(
-	) | rpl::on_next([=](const QSize &s) {
-		checkWidget->moveToRight(
-			st.toggleSkip,
-			(s.height() - checkWidget->height()) / 2);
-	}, toggleButton->lifetime());
+		std::move(status));
+	button->setClickedCallback([=] {
+		showOther(NotificationsType::Id(type));
+	});
 
 	const auto toggle = crl::guard(toggleButton, [=] {
 		const auto enabled = !checkView->checked();
@@ -243,6 +267,57 @@ private:
 					});
 			}));
 		}
+	}, toggleButton->lifetime());
+	return button;
+}
+
+[[nodiscard]] not_null<Ui::SettingsButton*> AddReactionsButton(
+		not_null<Ui::VerticalLayout*> container,
+		not_null<Window::SessionController*> controller,
+		Fn<void(Type)> showOther) {
+	const auto session = &controller->session();
+	auto &rs = session->api().reactionsNotifySettings();
+	rs.reload();
+
+	using From = Api::ReactionsNotifyFrom;
+	auto status = rpl::combine(
+		rs.messagesFrom(),
+		rs.pollVotesFrom()
+	) | rpl::map([](From messages, From pollVotes) {
+		auto parts = QStringList();
+		if (messages != From::None) {
+			parts.push_back(
+				tr::lng_notification_reactions_messages(tr::now));
+		}
+		if (pollVotes != From::None) {
+			parts.push_back(
+				tr::lng_notification_reactions_poll_votes(tr::now));
+		}
+		return parts.isEmpty()
+			? tr::lng_notification_click_to_change(tr::now)
+			: parts.join(u", "_q);
+	});
+
+	const auto [button, toggleButton, checkView] = SetupSplitToggle(
+		container,
+		tr::lng_notification_reactions(),
+		&st::menuIconGroupReactions,
+		rs.enabledCurrent(),
+		std::move(status));
+	button->setClickedCallback([=] {
+		showOther(NotificationsReactions::Id());
+	});
+
+	rs.enabled(
+	) | rpl::on_next([=](bool enabled) {
+		checkView->setChecked(enabled, anim::type::normal);
+	}, button->lifetime());
+
+	toggleButton->clicks(
+	) | rpl::on_next([=] {
+		const auto enabled = !checkView->checked();
+		const auto from = enabled ? From::All : From::None;
+		session->api().reactionsNotifySettings().setAllFrom(from);
 	}, toggleButton->lifetime());
 	return button;
 }
@@ -488,7 +563,7 @@ void NotificationsCount::setOverCorner(ScreenCorner corner) {
 	auto &samples = _cornerSamples[static_cast<int>(_overCorner)];
 	auto samplesAlready = int(samples.size());
 	auto samplesNeeded = _oldCount;
-	auto samplesLeave = qMin(samplesAlready, samplesNeeded);
+	auto samplesLeave = std::min(samplesAlready, samplesNeeded);
 	for (int i = 0; i != samplesLeave; ++i) {
 		samples[i]->showFast();
 	}
@@ -1104,6 +1179,10 @@ void BuildNotifyTypeSection(SectionBuilder &builder) {
 			controller,
 			Data::DefaultNotify::Broadcast,
 			showOther);
+		const auto reactions = AddReactionsButton(
+			ctx.container,
+			controller,
+			showOther);
 		if (ctx.highlights) {
 			ctx.highlights->push_back({
 				u"notifications/private"_q,
@@ -1116,6 +1195,10 @@ void BuildNotifyTypeSection(SectionBuilder &builder) {
 			ctx.highlights->push_back({
 				u"notifications/channels"_q,
 				{ channels.get(), { .rippleShape = true } },
+			});
+			ctx.highlights->push_back({
+				u"notifications/reactions"_q,
+				{ reactions.get(), { .rippleShape = true } },
 			});
 		}
 		return SectionBuilder::WidgetToAdd{};
@@ -1141,6 +1224,14 @@ void BuildNotifyTypeSection(SectionBuilder &builder) {
 			.title = tr::lng_notification_channels(tr::now),
 			.keywords = { u"channels"_q, u"broadcast"_q },
 			.icon = { &st::menuIconChannel },
+		};
+	});
+	builder.add(nullptr, [] {
+		return SearchEntry{
+			.id = u"notifications/reactions"_q,
+			.title = tr::lng_notification_reactions(tr::now),
+			.keywords = { u"reactions"_q },
+			.icon = { &st::menuIconGroupReactions },
 		};
 	});
 }

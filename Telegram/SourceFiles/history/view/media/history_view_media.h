@@ -141,6 +141,9 @@ public:
 		const PaintContext &context,
 		int top) const {
 	}
+	[[nodiscard]] virtual QRect groupItemRect(int index) const {
+		return {};
+	}
 	virtual void draw(Painter &p, const PaintContext &context) const = 0;
 	[[nodiscard]] virtual PointState pointState(QPoint point) const;
 	[[nodiscard]] virtual TextState textState(
@@ -182,6 +185,12 @@ public:
 	virtual void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 	}
 	virtual void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
+	}
+
+	[[nodiscard]] virtual QRect addOptionRect(int innerWidth) const {
+		return {};
+	}
+	virtual void setAddOptionActive(bool active) {
 	}
 
 	[[nodiscard]] virtual bool uploading() const {
@@ -269,6 +278,9 @@ public:
 	[[nodiscard]] virtual bool unwrapped() const {
 		return false;
 	}
+	[[nodiscard]] virtual bool drawsOwnEphemeralBadge() const {
+		return false;
+	}
 	[[nodiscard]] virtual bool customInfoLayout() const = 0;
 	[[nodiscard]] virtual QRect contentRectForReactions() const {
 		return QRect(0, 0, width(), height());
@@ -329,6 +341,24 @@ public:
 	// allowing message text to be as wide as possible (like wallpapers).
 	[[nodiscard]] virtual bool enforceBubbleWidth() const {
 		return false;
+	}
+
+	[[nodiscard]] virtual int bubbleWidthLimit() const {
+		return 0;
+	}
+	[[nodiscard]] virtual bool allowsNarrowBubble() const {
+		return false;
+	}
+	[[nodiscard]] virtual int minBubbleWidthForNarrowBubble() const {
+		return 0;
+	}
+
+	[[nodiscard]] virtual int contributedMaxMonospaceWidth() const {
+		return 0;
+	}
+
+	virtual int widenGroupingMaxWidth(int current, bool last) {
+		return current;
 	}
 
 	// Sometimes click on media in message is overloaded by the message:

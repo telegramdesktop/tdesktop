@@ -16,7 +16,6 @@ struct TrackState;
 @class NSButton;
 @class NSCustomTouchBarItem;
 @class NSImage;
-@class NSSliderTouchBarItem;
 
 namespace TouchBar {
 
@@ -51,7 +50,7 @@ NSButton *CreateTouchBarButtonWithTwoStates(
 	rpl::producer<bool> stateChanged = rpl::never<bool>());
 
 [[nodiscard]] API_AVAILABLE(macos(10.12.2))
-NSSliderTouchBarItem *CreateTouchBarSlider(
+NSCustomTouchBarItem *CreateTouchBarSlider(
 	NSString *itemId,
 	rpl::lifetime &lifetime,
 	Fn<void(bool, double, double)> callback,

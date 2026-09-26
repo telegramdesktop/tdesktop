@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/choose_filter_box.h"
 
 #include "apiwrap.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "boxes/filters/edit_filter_box.h"
 #include "boxes/premium_limits_box.h"
 #include "core/application.h" // primaryWindow
@@ -32,10 +33,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "main/main_session_settings.h"
-#include "styles/style_dialogs.h"
 #include "styles/style_media_player.h" // mediaPlayerMenuCheck
 #include "styles/style_menu_icons.h"
-#include "styles/style_settings.h"
 
 namespace {
 
@@ -118,11 +117,13 @@ Data::ChatFilter ChangedFilter(
 		not_null<History*> history,
 		bool add) {
 	auto always = base::duplicate(filter.always());
+	auto pinned = filter.pinned();
 	auto never = base::duplicate(filter.never());
 	if (add) {
 		never.remove(history);
 	} else {
 		always.remove(history);
+		pinned.erase(ranges::remove(pinned, history), end(pinned));
 	}
 	const auto result = Data::ChatFilter(
 		filter.id(),
@@ -131,7 +132,7 @@ Data::ChatFilter ChangedFilter(
 		filter.colorIndex(),
 		filter.flags(),
 		std::move(always),
-		filter.pinned(),
+		pinned,
 		std::move(never));
 	const auto in = result.contains(history);
 	if (in == add) {
@@ -151,7 +152,7 @@ Data::ChatFilter ChangedFilter(
 		filter.colorIndex(),
 		filter.flags(),
 		std::move(always),
-		filter.pinned(),
+		std::move(pinned),
 		std::move(never));
 }
 
@@ -207,7 +208,17 @@ ChooseFilterValidator::ChooseFilterValidator(not_null<History*> history)
 : _history(history) {
 }
 
+bool ChooseFilterValidator::communityAddBlocked() const {
+	const auto channel = _history->peer->asChannel();
+	return channel
+		&& channel->isCommunity()
+		&& !channel->collapsedInDialogs();
+}
+
 bool ChooseFilterValidator::canAdd() const {
+	if (communityAddBlocked()) {
+		return false;
+	}
 	for (const auto &filter : _history->owner().chatsFilters().list()) {
 		if (filter.id() && !filter.contains(_history)) {
 			return true;
@@ -219,6 +230,9 @@ bool ChooseFilterValidator::canAdd() const {
 bool ChooseFilterValidator::canAdd(FilterId filterId) const {
 	Expects(filterId != 0);
 
+	if (communityAddBlocked()) {
+		return false;
+	}
 	const auto list = _history->owner().chatsFilters().list();
 	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
 	if (i != end(list)) {
@@ -271,16 +285,38 @@ void FillChooseFilterMenu(
 	const auto validator = ChooseFilterValidator(history);
 	const auto &list = history->owner().chatsFilters().list();
 	const auto showColors = history->owner().chatsFilters().tagsEnabled();
+	const auto suppressClose = menu->lifetime().make_state<bool>(false);
 	for (const auto &filter : list) {
 		const auto id = filter.id();
 		if (!id) {
 			continue;
 		}
 
-		auto callback = [=] {
-			const auto toAdd = !filter.contains(history);
+		const auto contains = menu->lifetime().make_state<bool>(
+			filter.contains(history));
+		const auto title = filter.title();
+		auto item = base::make_unique_q<FilterAction>(
+			menu->menu(),
+			menu->st().menu,
+			new QAction(
+				Ui::Text::FixAmpersandInAction(title.text.text),
+				menu.get()),
+			*contains ? &st::mediaPlayerMenuCheck : nullptr,
+			*contains ? &st::mediaPlayerMenuCheck : nullptr);
+		const auto raw = item.get();
+		const auto refresh = [=] {
+			raw->Ui::Menu::Action::setIcon(
+				*contains ? &st::mediaPlayerMenuCheck : nullptr,
+				*contains ? &st::mediaPlayerMenuCheck : nullptr);
+			raw->action()->setEnabled(*contains
+				? validator.canRemove(id)
+				: validator.canAdd());
+		};
+		item->setActionTriggered([=] {
+			const auto toAdd = !*contains;
 			const auto r = validator.limitReached(id, toAdd);
 			if (r.reached) {
+				menu->hideMenu();
 				controller->show(Box(
 					FilterChatsLimitBox,
 					&controller->session(),
@@ -288,34 +324,30 @@ void FillChooseFilterMenu(
 					toAdd));
 				return;
 			} else if (toAdd ? validator.canAdd() : validator.canRemove(id)) {
+				*suppressClose = true;
 				if (toAdd) {
 					validator.add(id);
 				} else {
 					validator.remove(id);
 				}
+				*suppressClose = false;
+				*contains = toAdd;
+				refresh();
 			}
-		};
-
-		const auto contains = filter.contains(history);
-		const auto title = filter.title();
-		auto item = base::make_unique_q<FilterAction>(
-			menu->menu(),
-			menu->st().menu,
-			Ui::Menu::CreateAction(
-				menu.get(),
-				Ui::Text::FixAmpersandInAction(title.text.text),
-				std::move(callback)),
-			contains ? &st::mediaPlayerMenuCheck : nullptr,
-			contains ? &st::mediaPlayerMenuCheck : nullptr);
+			if (!base::IsShiftPressed() && !base::IsCtrlPressed()) {
+				menu->hideMenu();
+			}
+		});
+		item->setPreventClose(true);
 		item->setMarkedText(title.text, QString(), Core::TextContext({
 			.session = &history->session(),
-			.repaint = [raw = item.get()] { raw->update(); },
+			.repaint = [raw] { raw->update(); },
 			.customEmojiLoopLimit = title.isStatic ? -1 : 0,
 		}));
 
 		item->setIcon(Icon(showColors ? filter : filter.withColorIndex({})));
 		const auto action = menu->addAction(std::move(item));
-		action->setEnabled(contains
+		action->setEnabled(*contains
 			? validator.canRemove(id)
 			: validator.canAdd());
 	}
@@ -359,6 +391,9 @@ void FillChooseFilterMenu(
 
 	history->owner().chatsFilters().changed(
 	) | rpl::on_next([=] {
+		if (*suppressClose) {
+			return;
+		}
 		menu->hideMenu();
 	}, menu->lifetime());
 }
@@ -470,28 +505,43 @@ bool FillChooseFilterWithAdminedGroupsMenu(
 	return added;
 }
 
+History *HistoryFromMimeData(
+		const QMimeData *mime,
+		not_null<Main::Session*> session) {
+	const auto mimeFormat = u"application/x-telegram-dialog"_q;
+	if (mime->hasFormat(mimeFormat)) {
+		auto peerId = int64(-1);
+		auto isTestMode = false;
+		auto stream = QDataStream(mime->data(mimeFormat));
+		stream >> peerId;
+		stream >> isTestMode;
+		if (isTestMode != session->isTestMode()) {
+			return nullptr;
+		}
+		return session->data().historyLoaded(PeerId(peerId));
+	}
+	if (mime->hasText()) {
+		auto text = mime->text().trimmed();
+		if (text.startsWith('@')) {
+			text = text.mid(1);
+		} else if (text.startsWith(u"https://t.me/"_q)) {
+			text = text.mid(13);
+		} else {
+			return nullptr;
+		}
+		if (const auto peer = session->data().peerByUsername(text)) {
+			return session->data().historyLoaded(peer->id);
+		}
+	}
+	return nullptr;
+}
+
 void SetupFilterDragAndDrop(
 		not_null<Ui::RpWidget*> outer,
 		not_null<Main::Session*> session,
 		Fn<std::optional<FilterId>(QPoint)> filterIdAtPosition,
-		Fn<FilterId()> activeFilterId) {
-	const auto mimeFormat = u"application/x-telegram-dialog"_q;
-	const auto peerIdFromMime = [=](const QMimeData *mimeData) {
-		auto peerId = int64(-1);
-		auto isTestMode = false;
-		if (mimeData->hasFormat(mimeFormat)) {
-			auto stream = QDataStream(mimeData->data(mimeFormat));
-			stream >> peerId;
-			stream >> isTestMode;
-			if (isTestMode != session->isTestMode()) {
-				return int64(-1);
-			}
-		}
-		return peerId;
-	};
-	const auto historyFromMime = [=](const QMimeData *mime) {
-		return session->data().historyLoaded(PeerId(peerIdFromMime(mime)));
-	};
+		Fn<FilterId()> activeFilterId,
+		Fn<void(FilterId)> selectByFilterId) {
 	const auto hasAction = [=](not_null<QDropEvent*> drop, bool perform) {
 		const auto mimeData = drop->mimeData();
 		const auto filterId = filterIdAtPosition(
@@ -500,7 +550,7 @@ void SetupFilterDragAndDrop(
 			return false;
 		}
 		const auto id = *filterId;
-		if (const auto h = historyFromMime(mimeData)) {
+		if (const auto h = HistoryFromMimeData(mimeData, session)) {
 			auto v = ChooseFilterValidator(h);
 			if (id) {
 				if (v.canAdd(id)) {
@@ -508,6 +558,7 @@ void SetupFilterDragAndDrop(
 						if (perform) {
 							v.add(id);
 						}
+						selectByFilterId(perform ? FilterId(-1) : id);
 						return true;
 					}
 				}
@@ -517,10 +568,12 @@ void SetupFilterDragAndDrop(
 					if (perform) {
 						v.remove(active);
 					}
+					selectByFilterId(perform ? FilterId(-1) : active);
 					return true;
 				}
 			}
 		}
+		selectByFilterId(-1);
 		return false;
 	};
 	outer->setAcceptDrops(true);
@@ -546,6 +599,7 @@ void SetupFilterDragAndDrop(
 				dm->ignore();
 			}
 		} else if (e->type() == QEvent::DragLeave) {
+			selectByFilterId(-1);
 		} else if (e->type() == QEvent::Drop) {
 			const auto drop = static_cast<QDropEvent*>(e.get());
 			if (hasAction(drop, true)) {

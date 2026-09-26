@@ -148,6 +148,13 @@ private:
 
 	void startRecording();
 	void prepareOnSendPress();
+	void applyListenTrimForResume();
+	void clearResumePrefix();
+	void clearResumeState();
+	void setupResumePrefixFromCurrentData();
+	[[nodiscard]] int samplesFromDuration(crl::time duration) const;
+	[[nodiscard]] Ui::RoundVideoResult mergeWithResumePrefix(
+		Ui::RoundVideoResult data);
 
 	[[nodiscard]] bool isTypeRecord() const;
 	[[nodiscard]] bool hasDuration() const;
@@ -178,6 +185,12 @@ private:
 	std::unique_ptr<ListenWrap> _listen;
 
 	Ui::RoundVideoResult _data;
+	Ui::RoundVideoResult _resumePrefixData;
+	int _resumePrefixSamples = 0;
+	int _resumeRawSamples = 0;
+	crl::time _pausedRawDuration = 0;
+	crl::time _resumeRawDuration = 0;
+	bool _resumeFromTrimmedListen = false;
 	rpl::variable<bool> _paused;
 
 	base::Timer _startTimer;

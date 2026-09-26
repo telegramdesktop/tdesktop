@@ -126,7 +126,7 @@ void PhoneWidget::setupQrLogin() {
 	}, qrLogin->lifetime());
 
 	qrLogin->setClickedCallback([=] {
-		goReplace<QrWidget>(Animate::Forward);
+		goNextOrBack<QrWidget>();
 	});
 }
 
@@ -274,17 +274,15 @@ void PhoneWidget::phoneSubmitFail(const MTP::Error &error) {
 
 	stopCheck();
 	_sentRequest = 0;
-	auto &err = error.type();
+	const auto &err = error.type();
 	if (err == u"PHONE_NUMBER_FLOOD"_q) {
 		Ui::show(Ui::MakeInformBox(tr::lng_error_phone_flood()));
 	} else if (err == u"PHONE_NUMBER_INVALID"_q) { // show error
 		showPhoneError(tr::lng_bad_phone());
 	} else if (err == u"PHONE_NUMBER_BANNED"_q) {
 		Ui::ShowPhoneBannedError(getData()->controller, _sentPhone);
-	} else if (Logs::DebugEnabled()) { // internal server error
-		showPhoneError(rpl::single(err + ": " + error.description()));
-	} else {
-		showPhoneError(rpl::single(Lang::Hard::ServerError()));
+	} else if (!MTP::IgnoreError(error)) {
+		showPhoneError(rpl::single(err));
 	}
 }
 

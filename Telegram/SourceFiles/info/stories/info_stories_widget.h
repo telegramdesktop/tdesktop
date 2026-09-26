@@ -43,7 +43,6 @@ public:
 
 private:
 	Media::Memento _media;
-	int _addingToAlbumId = 0;
 
 };
 

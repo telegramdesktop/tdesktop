@@ -73,7 +73,7 @@ void SummaryHeader::update(not_null<Element*> view) {
 			}
 		}
 		if (const auto item = session->data().message(itemId)) {
-			session->api().transcribes().toggleSummary(item, nullptr);
+			session->api().transcribes().toggleSummary(item);
 		}
 	});
 }

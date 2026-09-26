@@ -210,9 +210,11 @@ bool PhotoMedia::saveToFile(const QString &path) {
 		QFile f(path);
 		return f.open(QIODevice::WriteOnly)
 			&& (f.write(photo) == photo.size());
-	} else if (const auto fallback = image(large)->original()
-		; !fallback.isNull()) {
-		return fallback.save(path, "JPG");
+	} else if (const auto loaded = image(large)) {
+		const auto fallback = loaded->original();
+		if (!fallback.isNull()) {
+			return fallback.save(path, "JPG");
+		}
 	}
 	return false;
 }
@@ -222,7 +224,11 @@ bool PhotoMedia::setToClipboard() {
 	if (const auto video = videoContent(large); !video.isEmpty()) {
 		return false;
 	}
-	auto fallback = image(large)->original();
+	const auto loaded = image(large);
+	if (!loaded) {
+		return false;
+	}
+	auto fallback = loaded->original();
 	if (fallback.isNull()) {
 		return false;
 	}

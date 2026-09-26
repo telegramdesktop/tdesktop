@@ -7,20 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_document_resolver.h"
 
-#include "base/options.h"
 #include "base/platform/base_platform_info.h"
 #include "boxes/abstract_box.h" // Ui::show().
 #include "chat_helpers/ttl_media_layer_widget.h"
 #include "core/application.h"
+#include "core/click_handler_types.h"
 #include "core/core_settings.h"
 #include "core/mime_type.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_file_click_handler.h"
 #include "data/data_session.h"
+#include "history/view/media/history_view_gif.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/view/media/history_view_gif.h"
+#include "iv/iv_instance.h"
 #include "lang/lang_keys.h"
 #include "media/player/media_player_instance.h"
 #include "platform/platform_file_utilities.h"
@@ -30,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/slide_wrap.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_layers.h"
 
 #include <QtCore/QBuffer>
@@ -38,13 +40,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 namespace {
-
-base::options::toggle OptionExternalVideoPlayer({
-	.id = kOptionExternalVideoPlayer,
-	.name = "External video player",
-	.description = "Use system video player instead of the internal one. "
-		"This disabes video playback in messages.",
-});
 
 void ConfirmDontWarnBox(
 		not_null<Ui::GenericBox*> box,
@@ -91,15 +86,12 @@ void LaunchWithWarning(
 
 	auto &app = Core::App();
 	auto &settings = app.settings();
-	const auto warn = [&] {
-		if (item && item->history()->peer->isVerified()) {
-			return false;
-		}
-		return (isIpReveal && settings.ipRevealWarning())
-			|| ((nameType == Core::NameType::Executable
-				|| nameType == Core::NameType::Unknown)
-				&& !settings.noWarningExtensions().contains(extension));
-	}();
+	const auto warn = LauncherWouldWarn(
+		settings,
+		nameType,
+		isIpReveal,
+		extension,
+		item);
 	if (extension.isEmpty()) {
 		// If you launch a file without extension, like "test", in case
 		// there is an executable file with the same name in this folder,
@@ -153,7 +145,57 @@ void LaunchWithWarning(
 
 } // namespace
 
-const char kOptionExternalVideoPlayer[] = "external-video-player";
+ImageOpenCheck CheckImageOpenInApp(
+		not_null<DocumentData*> document,
+		const std::shared_ptr<DocumentMedia> &media) {
+	auto result = ImageOpenCheck();
+	if (document->size >= Images::kReadBytesLimit) {
+		result.sizeOverLimit = true;
+		return result;
+	}
+	const auto &location = document->location(true);
+	const auto mime = u"image/"_q;
+	if (!location.isEmpty() && location.accessEnable()) {
+		result.accessGuard.emplace(gsl::finally(Fn<void()>(
+			[location = Core::FileLocation(location)] {
+				location.accessDisable();
+			})));
+		const auto path = location.name();
+		result.source = ImageOpenSource::Location;
+		result.mime = Core::MimeTypeForFile(QFileInfo(path)).name();
+		if (result.mime.startsWith(mime)) {
+			result.readable = QImageReader(path).canRead();
+			result.openInApp = result.readable;
+		}
+		if (!result.openInApp) {
+			result.accessGuard.reset();
+		}
+	} else if (document->mimeString().startsWith(mime)
+		&& !media->bytes().isEmpty()) {
+		auto bytes = media->bytes();
+		auto buffer = QBuffer(&bytes);
+		result.source = ImageOpenSource::Bytes;
+		result.mime = document->mimeString();
+		result.readable = QImageReader(&buffer).canRead();
+		result.openInApp = result.readable;
+	}
+	return result;
+}
+
+bool LauncherWouldWarn(
+		const Core::Settings &settings,
+		Core::NameType nameType,
+		bool isIpReveal,
+		const QString &extension,
+		HistoryItem *item) {
+	if (item && item->history()->peer->isVerified()) {
+		return false;
+	}
+	return (isIpReveal && settings.ipRevealWarning())
+		|| ((nameType == Core::NameType::Executable
+			|| nameType == Core::NameType::Unknown)
+			&& !settings.noWarningExtensions().contains(extension));
+}
 
 base::binary_guard ReadBackgroundImageAsync(
 		not_null<Data::DocumentMedia*> media,
@@ -192,62 +234,37 @@ void ResolveDocument(
 		not_null<DocumentData*> document,
 		HistoryItem *item,
 		MsgId topicRootId,
-		PeerId monoforumPeerId) {
+		PeerId monoforumPeerId,
+		bool showDrawButton) {
 	if (document->isNull()) {
 		return;
 	}
 	const auto msgId = item ? item->fullId() : FullMsgId();
 
 	const auto showDocument = [&] {
-		if (OptionExternalVideoPlayer.value()
-			&& document->isVideoFile()
-			&& !document->filepath().isEmpty()) {
-			File::Launch(document->location(false).fname);
-		} else if (controller) {
+		if (controller) {
 			controller->openDocument(
 				document,
 				true,
-				{ msgId, topicRootId, monoforumPeerId });
+				{ msgId, topicRootId, monoforumPeerId, showDrawButton });
 		}
 	};
 
 	const auto media = document->createMediaView();
-	const auto openImageInApp = [&] {
-		if (document->size >= Images::kReadBytesLimit) {
-			return false;
-		}
-		const auto &location = document->location(true);
-		const auto mime = u"image/"_q;
-		if (!location.isEmpty() && location.accessEnable()) {
-			const auto guard = gsl::finally([&] {
-				location.accessDisable();
-			});
-			const auto path = location.name();
-			if (Core::MimeTypeForFile(QFileInfo(path)).name().startsWith(mime)
-				&& QImageReader(path).canRead()) {
-				showDocument();
-				return true;
-			}
-		} else if (document->mimeString().startsWith(mime)
-			&& !media->bytes().isEmpty()) {
-			auto bytes = media->bytes();
-			auto buffer = QBuffer(&bytes);
-			if (QImageReader(&buffer).canRead()) {
-				showDocument();
-				return true;
-			}
-		}
-		return false;
-	};
 	const auto &location = document->location(true);
 	if (document->isTheme() && media->loaded(true)) {
 		showDocument();
 		location.accessDisable();
-	} else if (media->canBePlayed(item)) {
+	} else if (media->canBePlayed()) {
 		if (document->isAudioFile()
 			|| document->isVoiceMessage()
 			|| document->isVideoMessage()) {
-			::Media::Player::instance()->playPause({ document, msgId });
+			::Media::Player::instance()->playPause(
+				{ document, msgId },
+				::Media::Player::PlaylistContext{
+					topicRootId,
+					monoforumPeerId,
+				});
 			if (controller
 				&& item
 				&& item->media()
@@ -259,15 +276,33 @@ void ResolveDocument(
 		}
 	} else {
 		document->saveFromDataSilent();
-		if (!openImageInApp()) {
-			if (!document->filepath(true).isEmpty()) {
-				LaunchWithWarning(location.name(), item);
-			} else if (document->status == FileReady
-				|| document->status == FileDownloadFailed) {
-				DocumentSaveClickHandler::Save(
-					item ? item->fullId() : Data::FileOrigin(),
-					document);
+		const auto image = CheckImageOpenInApp(
+			document,
+			media);
+		if (image.openInApp) {
+			showDocument();
+			return;
+		}
+		const auto path = document->filepath(true);
+		if (!path.isEmpty()) {
+			auto context = QVariant();
+			if (item) {
+				auto clickHandlerContext = ClickHandlerContext();
+				clickHandlerContext.itemId = item->fullId();
+				if (controller) {
+					clickHandlerContext.sessionWindow = controller;
+					clickHandlerContext.show = controller->uiShow();
+				}
+				context = QVariant::fromValue(clickHandlerContext);
 			}
+			if (!Core::App().iv().showMarkdown(path, context)) {
+				LaunchWithWarning(path, item);
+			}
+		} else if (document->status == FileReady
+			|| document->status == FileDownloadFailed) {
+			DocumentSaveClickHandler::Save(
+				item ? item->fullId() : Data::FileOrigin(),
+				document);
 		}
 	}
 }

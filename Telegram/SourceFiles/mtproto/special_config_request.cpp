@@ -213,7 +213,6 @@ SpecialConfigRequest::SpecialConfigRequest(
 	_attempts = {};
 	_attempts.push_back({ Type::Google, "dns.google.com" });
 	_attempts.push_back({ Type::Mozilla, "mozilla.cloudflare-dns.com" });
-	_attempts.push_back({ Type::RemoteConfig, "firebaseremoteconfig" });
 	if (!_timeDoneCallback) {
 		_attempts.push_back({ Type::FireStore, "firestore" });
 		for (const auto &domain : DnsDomains()) {

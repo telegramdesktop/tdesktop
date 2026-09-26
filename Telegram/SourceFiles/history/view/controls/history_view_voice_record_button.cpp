@@ -10,9 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_icon.h"
 #include "ui/paint/blobs.h"
 #include "ui/painter.h"
-#include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_layers.h"
 #include "lang/lang_keys.h"
 
 #include <QtMath>
@@ -152,7 +150,7 @@ void VoiceRecordButton::init() {
 				const auto index = (state == Type::Record)
 					? kVoiceIconIndex
 					: kRoundIconIndex;
-				auto &icon = _voiceRoundIcons[index];
+				const auto &icon = _voiceRoundIcons[index];
 				if (!icon) {
 					initVoiceRoundIcon(index);
 				}

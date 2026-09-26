@@ -27,7 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/vertical_list.h"
 #include "ui/ui_utility.h"
 #include "window/window_session_controller.h"
-#include "styles/style_boxes.h"
+#include "styles/style_edit_peer_members.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 
@@ -35,7 +35,6 @@ namespace Settings {
 namespace {
 
 constexpr auto kDay = Data::WorkingInterval::kDay;
-constexpr auto kWeek = Data::WorkingInterval::kWeek;
 constexpr auto kInNextDayMax = Data::WorkingInterval::kInNextDayMax;
 
 class WorkingHours : public Section<WorkingHours> {

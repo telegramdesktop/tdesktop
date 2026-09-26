@@ -16,6 +16,10 @@ namespace Info {
 class Controller;
 } // namespace Info
 
+namespace Ui::Menu {
+struct MenuCallback;
+} // namespace Ui::Menu
+
 namespace Info::Statistics {
 
 class Memento;
@@ -55,6 +59,9 @@ public:
 
 	void showFinished();
 
+	void fillMenu(const Ui::Menu::MenuCallback &addAction);
+	[[nodiscard]] rpl::producer<> menuFilledChanges() const;
+
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
 
@@ -62,6 +69,7 @@ private:
 	void load();
 	void fill();
 	void fillRecentPosts(not_null<Ui::VerticalLayout*> container);
+	void fillPollVotesGraph(not_null<Ui::VerticalLayout*> container);
 
 	not_null<Controller*> _controller;
 	not_null<PeerData*> _peer;

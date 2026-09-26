@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "info/profile/info_profile_inner_widget.h"
 #include "info/profile/info_profile_members.h"
+#include "info/profile/tabs/info_profile_tabs_host.h"
 #include "info/settings/info_settings_widget.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/ui_utility.h"
@@ -21,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "info/info_controller.h"
-#include "styles/style_info.h"
+#include "base/event_filter.h"
 
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QScrollBar>
@@ -68,8 +69,12 @@ Memento::Memento(not_null<Data::SavedSublist*> sublist)
 : ContentMemento(sublist->owningHistory()->peer, nullptr, sublist, 0) {
 }
 
-Section Memento::section() const {
-	return Section(Section::Type::Profile);
+Memento::Memento(not_null<Data::SavedMessages*> savedMessages)
+: ContentMemento(savedMessages) {
+}
+
+Info::Section Memento::section() const {
+	return Info::Section(Info::Section::Type::Profile);
 }
 
 object_ptr<ContentWidget> Memento::createWidget(
@@ -89,6 +94,14 @@ std::unique_ptr<MembersState> Memento::membersState() {
 	return std::move(_membersState);
 }
 
+void Memento::setTabsState(std::unique_ptr<TabsState> state) {
+	_tabsState = std::move(state);
+}
+
+std::unique_ptr<TabsState> Memento::tabsState() {
+	return std::move(_tabsState);
+}
+
 Memento::~Memento() = default;
 
 Widget::Widget(
@@ -96,22 +109,36 @@ Widget::Widget(
 	not_null<Controller*> controller,
 	Origin origin)
 : ContentWidget(parent, controller)
-, _inner(
-	setupFlexibleInnerWidget(
+, _inner(UseClassicProfileScroll()
+	? setupFlexibleInnerWidget(
 		object_ptr<InnerWidget>(this, controller, origin),
-		_flexibleScroll))
+		_flexibleScroll)
+	: setInnerWidget(
+		object_ptr<InnerWidget>(this, controller, origin)))
 , _pinnedToTop(_inner->createPinnedToTop(this))
 , _pinnedToBottom(_inner->createPinnedToBottom(this)) {
 	controller->setSearchEnabledByContent(false);
 
-	_inner->move(0, 0);
+	const auto classic = UseClassicProfileScroll();
+	const auto tabs = (_inner->tabsHost() != nullptr);
+	const auto flexible = _pinnedToTop
+		&& _pinnedToTop->minimumHeight()
+		&& _inner->hasFlexibleTopBar();
+	if (classic) {
+		_inner->move(0, 0);
+	}
+
 	_inner->scrollToRequests(
 	) | rpl::on_next([this](Ui::ScrollToRequest request) {
+		const auto reserve = innerTopReserve();
 		if (request.ymin < 0) {
 			scrollTopRestore(
-				qMin(scrollTopSave(), request.ymax));
+				std::min(scrollTopSave(), request.ymax + reserve));
 		} else {
-			scrollTo(request);
+			scrollTo({
+				request.ymin + reserve,
+				(request.ymax < 0) ? -1 : (request.ymax + reserve),
+			});
 		}
 	}, lifetime());
 
@@ -119,7 +146,13 @@ Widget::Widget(
 		checkBeforeClose([=] { controller->showBackFromStack(); });
 	}, _inner->lifetime());
 
-	if (_pinnedToTop) {
+	setSwipeInterceptor([this](Ui::Controls::SwipeHandlerInitData data) {
+		return swipeTabsFinishData(data);
+	});
+
+	if (!classic && flexible) {
+		setupFlexibleRegularScroll(_inner, _pinnedToTop.get(), tabs);
+	} else if (_pinnedToTop) {
 		_inner->widthValue(
 		) | rpl::on_next([=](int w) {
 			_pinnedToTop->resizeToWidth(w);
@@ -130,6 +163,21 @@ Widget::Widget(
 		) | rpl::on_next([=](int h) {
 			setScrollTopSkip(h);
 		}, _pinnedToTop->lifetime());
+	}
+
+	if (classic && flexible) {
+		_flexibleScrollHelper = std::make_unique<FlexibleScrollHelper>(
+			scroll(),
+			_inner,
+			_pinnedToTop.get(),
+			[=](QMargins margins) {
+				ContentWidget::setPaintPadding(std::move(margins));
+			},
+			[=](rpl::producer<not_null<QEvent*>> &&events) {
+				ContentWidget::setViewport(std::move(events));
+			},
+			_flexibleScroll,
+			tabs);
 	}
 
 	if (_pinnedToBottom) {
@@ -151,21 +199,106 @@ Widget::Widget(
 		) | rpl::on_next(processHeight, _pinnedToBottom->lifetime());
 	}
 
-	if (_pinnedToTop
-		&& _pinnedToTop->minimumHeight()
-		&& _inner->hasFlexibleTopBar()) {
-		_flexibleScrollHelper = std::make_unique<FlexibleScrollHelper>(
-			scroll(),
-			_inner,
-			_pinnedToTop.get(),
-			[=](QMargins margins) {
-				ContentWidget::setPaintPadding(std::move(margins));
-			},
-			[=](rpl::producer<not_null<QEvent*>> &&events) {
-				ContentWidget::setViewport(std::move(events));
-			},
-			_flexibleScroll);
+	if (const auto host = _inner->tabsHost()) {
+		const auto wheels = lifetime().make_state<rpl::event_stream<>>();
+		base::install_event_filter(scroll()->viewport(), [=](
+				not_null<QEvent*> e) {
+			if (e->type() == QEvent::Wheel) {
+				wheels->fire({});
+			}
+			return base::EventFilterResult::Continue;
+		});
+		host->trackVerticalScroll(rpl::merge(
+			scroll()->scrollTopChanges() | rpl::to_empty,
+			wheels->events()));
+		scroll()->scrollTopValue(
+		) | rpl::on_next([=](int scrollTop) {
+			host->setScrolledToTop(scrollTop <= 0);
+		}, lifetime());
 	}
+
+	setupTabsStripFloat();
+}
+
+void Widget::setupTabsStripFloat() {
+	const auto host = _inner->tabsHost();
+	if (!host || !_pinnedToTop) {
+		return;
+	}
+	_tabsHost = base::make_weak(host);
+	_tabsStrip = base::make_weak(host->stripWidget().get());
+	_inner->tabsDockedValue(
+	) | rpl::distinct_until_changed(
+	) | rpl::on_next([=](bool docked) {
+		const auto host = _tabsHost.get();
+		const auto strip = _tabsStrip.get();
+		if (!host || !strip) {
+			return;
+		}
+		if (docked) {
+			if (!_tabsStripFloat) {
+				_tabsStripFloat = base::make_unique_q<Ui::RpWidget>(this);
+				ContentWidget::setViewport(_tabsStripFloat->events(
+				) | rpl::filter([](not_null<QEvent*> e) {
+					return (e->type() == QEvent::Wheel);
+				}));
+			}
+			strip->setParent(_tabsStripFloat.get());
+			strip->moveToLeft(0, 0);
+			strip->show();
+			_tabsStripFloat->show();
+			_tabsStripFloat->raise();
+			updateTabsStripFloatGeometry();
+		} else if (_tabsStripFloat) {
+			_tabsStripFloat->hide();
+			host->returnStrip();
+		}
+	}, lifetime());
+
+	rpl::combine(
+		widthValue(),
+		host->stripWidget()->heightValue(),
+		host->stripWidget()->naturalWidthValue()
+	) | rpl::on_next([=] {
+		updateTabsStripFloatGeometry();
+	}, lifetime());
+}
+
+void Widget::updateTabsStripFloatGeometry() {
+	const auto strip = _tabsStrip.get();
+	if (!strip
+		|| !_tabsStripFloat
+		|| _tabsStripFloat->isHidden()
+		|| !_pinnedToTop) {
+		return;
+	}
+	const auto stripWidth = std::min(strip->naturalWidth(), width());
+	strip->resizeToWidth(stripWidth);
+	strip->moveToLeft(0, 0);
+	_tabsStripFloat->setGeometry(
+		(width() - stripWidth) / 2,
+		_pinnedToTop->minimumHeight(),
+		stripWidth,
+		strip->height());
+}
+
+auto Widget::swipeTabsFinishData(Ui::Controls::SwipeHandlerInitData data)
+-> Ui::Controls::SwipeHandlerFinishData {
+	const auto host = _inner->tabsHost();
+	if (!host) {
+		return {};
+	}
+	const auto shift = Ui::MapFrom(_inner, host, QPoint());
+	const auto body = host->bodyGeometry().translated(shift);
+	if (!body.contains(data.cursorPosition)) {
+		return {};
+	}
+	const auto toNextTab = (data.direction == Qt::LeftToRight);
+	auto callback = host->prepareSwitch(toNextTab);
+	return callback
+		? Ui::Controls::DefaultSwipeBackHandlerFinishData(
+			std::move(callback))
+		: Ui::Controls::SwipeHandlerFinishData();
 }
 
 void Widget::setInnerFocus() {
@@ -180,6 +313,20 @@ void Widget::showFinished() {
 	_inner->showFinished();
 }
 
+void Widget::checkBeforeCloseByEscape(Fn<void()> close) {
+	_inner->checkBeforeCloseByEscape([=] {
+		ContentWidget::checkBeforeCloseByEscape(close);
+	});
+}
+
+bool Widget::searchAvailable() const {
+	return _inner->searchAvailable();
+}
+
+void Widget::showSearch() {
+	_inner->showSearch();
+}
+
 rpl::producer<QString> Widget::title() {
 	if (const auto topic = controller()->key().topic()) {
 		return topic->peer()->isBot()
@@ -190,7 +337,9 @@ rpl::producer<QString> Widget::title() {
 		return tr::lng_profile_direct_messages();
 	}
 	const auto peer = controller()->key().peer();
-	if (const auto user = peer->asUser()) {
+	if (controller()->key().savedMessages()) {
+		return tr::lng_saved_messages();
+	} else if (const auto user = peer->asUser()) {
 		return (user->isBot() && !user->isSupport())
 			? tr::lng_info_bot_title()
 			: tr::lng_info_user_title();
@@ -219,6 +368,12 @@ bool Widget::showInternal(not_null<ContentMemento*> memento) {
 		return false;
 	}
 	if (auto profileMemento = dynamic_cast<Memento*>(memento.get())) {
+		if (profileMemento->savedMessages()
+			!= controller()->key().savedMessages()) {
+			// The Saved Messages page and the self profile page
+			// are built differently, so a new content is required.
+			return false;
+		}
 		restoreState(profileMemento);
 		return true;
 	}
@@ -234,7 +389,10 @@ void Widget::setInternalState(
 }
 
 std::shared_ptr<ContentMemento> Widget::doCreateMemento() {
-	auto result = std::make_shared<Memento>(controller());
+	const auto savedMessages = controller()->key().savedMessages();
+	auto result = savedMessages
+		? std::make_shared<Memento>(savedMessages)
+		: std::make_shared<Memento>(controller());
 	saveState(result.get());
 	return result;
 }

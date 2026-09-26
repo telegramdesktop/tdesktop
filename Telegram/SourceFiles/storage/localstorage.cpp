@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_location.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "core/version.h"
 #include "media/audio/media_audio.h"
 #include "mtproto/mtproto_config.h"
 #include "mtproto/mtproto_dc_options.h"
@@ -31,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_instance.h"
 
 #include <QtCore/QDirIterator>
+#include <QtCore/QSaveFile>
 
 #ifndef Q_OS_WIN
 #include <unistd.h>
@@ -584,6 +586,55 @@ QString readAutoupdatePrefix() {
 	return result.replace(RegExp, QString());
 }
 
+QString updateManifestFile() {
+	Expects(!Core::UpdaterDisabled());
+
+	return cWorkingDir() + "tdata/update-manifest";
+}
+
+// The file holds the detached 64-byte root Ed25519 signature followed by
+// the manifest JSON verbatim. The content is attacker-reachable bytes as
+// far as readers are concerned: the caller verifies it against the pinned
+// root key after reading.
+void writeUpdateManifest(
+		const QByteArray &manifest,
+		const QByteArray &signature) {
+	if (Core::UpdaterDisabled()
+		|| signature.size() != 64
+		|| manifest.isEmpty()) {
+		return;
+	}
+	QSaveFile f(updateManifestFile());
+	if (!f.open(QIODevice::WriteOnly)
+		|| f.write(signature) != signature.size()
+		|| f.write(manifest) != manifest.size()
+		|| !f.commit()) {
+		LOG(("Storage Error: Could not write the update manifest."));
+	}
+}
+
+bool readUpdateManifest(QByteArray *manifest, QByteArray *signature) {
+	Expects(manifest != nullptr && signature != nullptr);
+
+	if (Core::UpdaterDisabled()) {
+		return false;
+	}
+	QFile f(updateManifestFile());
+	if (!f.open(QIODevice::ReadOnly)) {
+		return false;
+	}
+	constexpr auto kSignatureSize = 64;
+	constexpr auto kMaxManifestSize = 256 * 1024;
+	const auto content = f.readAll();
+	if (content.size() <= kSignatureSize
+		|| content.size() > kSignatureSize + kMaxManifestSize) {
+		return false;
+	}
+	*signature = content.left(kSignatureSize);
+	*manifest = content.mid(kSignatureSize);
+	return true;
+}
+
 void writeBackground(const Data::WallPaper &paper, const QImage &image) {
 	Expects(_settingsWriteAllowed);
 
@@ -960,6 +1011,60 @@ Window::Theme::Saved readThemeUsingKey(FileKey key) {
 		object.cloud.createdBy = UserId(
 			((quint64(field2) >> 8) << 32) | quint64(quint32(field1)));
 	}
+	auto chatTheme = QByteArray();
+	if (!theme.stream.atEnd()) {
+		theme.stream >> chatTheme;
+	}
+	if (theme.stream.status() == QDataStream::Ok && !chatTheme.isEmpty()) {
+		auto stream = QDataStream(&chatTheme, QIODevice::ReadOnly);
+		stream.setVersion(QDataStream::Qt_5_1);
+		auto emoticon = QString();
+		auto count = qint32();
+		stream >> emoticon >> count;
+		auto settings = base::flat_map<
+			Data::CloudThemeType,
+			Data::CloudTheme::Settings>();
+		if (count < 0 || count > 4) {
+			return result;
+		}
+		for (auto i = 0; i != count; ++i) {
+			auto type = qint32();
+			stream >> type;
+			auto entry = Data::CloudTheme::Settings();
+			entry.accentColor = Serialize::readColor(stream);
+			auto hasOutgoingAccent = qint32();
+			stream >> hasOutgoingAccent;
+			if (hasOutgoingAccent) {
+				entry.outgoingAccentColor = Serialize::readColor(stream);
+			}
+			auto colorsCount = qint32();
+			stream >> colorsCount;
+			if (colorsCount < 0 || colorsCount > 8) {
+				return result;
+			}
+			for (auto j = 0; j != colorsCount; ++j) {
+				entry.outgoingMessagesColors.push_back(
+					Serialize::readColor(stream));
+			}
+			auto paper = QByteArray();
+			stream >> paper;
+			if (!paper.isEmpty()) {
+				entry.paper = Data::WallPaper::FromSerialized(paper);
+			}
+			const auto uncheckedType = static_cast<Data::CloudThemeType>(
+				type);
+			switch (uncheckedType) {
+			case Data::CloudThemeType::Dark:
+			case Data::CloudThemeType::Light:
+				settings.emplace(uncheckedType, std::move(entry));
+				break;
+			}
+		}
+		if (stream.status() == QDataStream::Ok) {
+			object.cloud.emoticon = emoticon;
+			object.cloud.settings = std::move(settings);
+		}
+	}
 	return result;
 }
 
@@ -1013,6 +1118,29 @@ void writeTheme(const Window::Theme::Saved &saved) {
 	const auto &object = saved.object;
 	const auto &cache = saved.cache;
 	const auto tag = QString(kThemeNewPathRelativeTag);
+	auto chatTheme = QByteArray();
+	if (!object.cloud.settings.empty()) {
+		auto stream = QDataStream(&chatTheme, QIODevice::WriteOnly);
+		stream.setVersion(QDataStream::Qt_5_1);
+		stream
+			<< object.cloud.emoticon
+			<< qint32(object.cloud.settings.size());
+		for (const auto &[type, settings] : object.cloud.settings) {
+			stream << qint32(type);
+			Serialize::writeColor(stream, settings.accentColor);
+			stream << qint32(settings.outgoingAccentColor ? 1 : 0);
+			if (settings.outgoingAccentColor) {
+				Serialize::writeColor(stream, *settings.outgoingAccentColor);
+			}
+			stream << qint32(settings.outgoingMessagesColors.size());
+			for (const auto &color : settings.outgoingMessagesColors) {
+				Serialize::writeColor(stream, color);
+			}
+			stream << (settings.paper
+				? settings.paper->serialize()
+				: QByteArray());
+		}
+	}
 	quint32 size = Serialize::bytearraySize(object.content)
 		+ Serialize::stringSize(tag)
 		+ Serialize::stringSize(object.pathAbsolute)
@@ -1024,7 +1152,8 @@ void writeTheme(const Window::Theme::Saved &saved) {
 		+ sizeof(qint32) * 2
 		+ Serialize::bytearraySize(cache.colors)
 		+ Serialize::bytearraySize(cache.background)
-		+ sizeof(quint32);
+		+ sizeof(quint32)
+		+ Serialize::bytearraySize(chatTheme);
 	const auto bareCreatedById = object.cloud.createdBy.bare;
 	Assert((bareCreatedById & PeerId::kChatTypeMask) == bareCreatedById);
 	const auto field1 = qint32(quint32(bareCreatedById & 0xFFFFFFFFULL));
@@ -1046,7 +1175,8 @@ void writeTheme(const Window::Theme::Saved &saved) {
 		<< cache.contentChecksum
 		<< cache.colors
 		<< cache.background
-		<< field2;
+		<< field2
+		<< chatTheme;
 
 	FileWriteDescriptor file(themeKey, _basePath);
 	file.writeEncrypted(data, SettingsKey);
@@ -1239,7 +1369,7 @@ std::vector<Lang::Language> readRecentLanguages() {
 Window::Theme::Object ReadThemeContent() {
 	using namespace Window::Theme;
 
-	auto &themeKey = IsNightMode() ? _themeKeyNight : _themeKeyDay;
+	const auto &themeKey = IsNightMode() ? _themeKeyNight : _themeKeyDay;
 	if (!themeKey) {
 		return Object();
 	}
@@ -1267,7 +1397,7 @@ void incrementRecentHashtag(RecentHashtagPack &recent, const QString &tag) {
 	for (; i != e; ++i) {
 		if (i->first == tag) {
 			++i->second;
-			if (qAbs(i->second) > 0x4000) {
+			if (i->second > 0x4000) {
 				for (auto j = recent.begin(); j != e; ++j) {
 					if (j->second > 1) {
 						j->second /= 2;
@@ -1277,22 +1407,22 @@ void incrementRecentHashtag(RecentHashtagPack &recent, const QString &tag) {
 				}
 			}
 			for (; i != recent.begin(); --i) {
-				if (qAbs((i - 1)->second) > qAbs(i->second)) {
+				if ((i - 1)->second > i->second) {
 					break;
 				}
-				qSwap(*i, *(i - 1));
+				std::swap(*i, *(i - 1));
 			}
 			break;
 		}
 	}
 	if (i == e) {
 		while (recent.size() >= 64) recent.pop_back();
-		recent.push_back(qMakePair(tag, 1));
+		recent.push_back({ tag, 1 });
 		for (i = recent.end() - 1; i != recent.begin(); --i) {
 			if ((i - 1)->second > i->second) {
 				break;
 			}
-			qSwap(*i, *(i - 1));
+			std::swap(*i, *(i - 1));
 		}
 	}
 }

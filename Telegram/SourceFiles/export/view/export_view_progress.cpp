@@ -13,8 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "lang/lang_keys.h"
-#include "styles/style_boxes.h"
 #include "styles/style_export.h"
+#include "styles/style_widgets.h"
 
 namespace Export {
 namespace View {
@@ -208,7 +208,8 @@ void ProgressWidget::Row::paintInstance(QPainter &p, const Instance &data) {
 
 	const auto thickness = st::exportProgressWidth;
 	const auto top = height() - thickness;
-	const auto till = qRound(data.progress.value(data.value) * width());
+	const auto progress = data.progress.value(data.value);
+	const auto till = int(base::SafeRound(progress * width()));
 	if (till > 0) {
 		p.fillRect(0, top, till, thickness, st::exportProgressFg);
 	}
@@ -297,7 +298,6 @@ rpl::producer<> ProgressWidget::doneClicks() const {
 }
 
 void ProgressWidget::setupBottomButton(not_null<Ui::RoundButton*> button) {
-	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	button->show();
 
 	sizeValue(

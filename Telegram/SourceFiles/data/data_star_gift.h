@@ -397,6 +397,7 @@ struct ResaleGiftsFilter {
 	base::flat_set<GiftAttributeId> attributes;
 	ResaleGiftsSort sort = ResaleGiftsSort::Price;
 	bool forCraft = false;
+	bool starsOnly = false;
 
 	friend inline bool operator==(
 		const ResaleGiftsFilter &,

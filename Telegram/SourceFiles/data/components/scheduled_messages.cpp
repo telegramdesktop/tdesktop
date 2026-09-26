@@ -71,11 +71,13 @@ constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 			data.vid(),
 			data.vfrom_id() ? *data.vfrom_id() : MTPPeer(),
 			MTPint(), // from_boosts_applied
+			MTPstring(), // from_rank
 			data.vpeer_id(),
 			data.vsaved_peer_id() ? *data.vsaved_peer_id() : MTPPeer(),
 			data.vfwd_from() ? *data.vfwd_from() : MTPMessageFwdHeader(),
 			MTP_long(data.vvia_bot_id().value_or_empty()),
 			MTP_long(data.vvia_business_bot_id().value_or_empty()),
+			data.vguestchat_via_from() ? *data.vguestchat_via_from() : MTPPeer(),
 			data.vreply_to() ? *data.vreply_to() : MTPMessageReplyHeader(),
 			data.vdate(),
 			data.vmessage(),
@@ -102,7 +104,10 @@ constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 				? *data.vsuggested_post()
 				: MTPSuggestedPost()),
 			MTP_int(data.vschedule_repeat_period().value_or_empty()),
-			MTP_string(qs(data.vsummary_from_language().value_or_empty())));
+			MTP_string(qs(data.vsummary_from_language().value_or_empty())),
+			(data.vrich_message()
+				? *data.vrich_message()
+				: MTPRichMessage()));
 	});
 }
 
@@ -244,18 +249,20 @@ void ScheduledMessages::sendNowSimpleMessage(
 			: MTPDmessage::Flag(0));
 	const auto views = 1;
 	const auto forwards = 0;
-	history->addNewMessage(
+	const auto sent = history->addNewMessage(
 		update.vid().v,
 		MTP_message(
 			MTP_flags(flags),
 			update.vid(),
 			peerToMTP(local->from()->id),
 			MTPint(), // from_boosts_applied
+			MTPstring(), // from_rank
 			peerToMTP(history->peer->id),
 			MTPPeer(), // saved_peer_id
 			MTPMessageFwdHeader(),
 			MTPlong(), // via_bot_id
 			MTPlong(), // via_business_bot_id
+			MTPPeer(), // guestchat_via_from
 			replyHeader,
 			update.vdate(),
 			MTP_string(local->originalText().text),
@@ -280,11 +287,20 @@ void ScheduledMessages::sendNowSimpleMessage(
 			MTPlong(), // paid_message_stars
 			MTPSuggestedPost(),
 			MTPint(), // schedule_repeat_period
-			MTPstring()), // summary_from_language
+			MTPstring(), // summary_from_language
+			MTPRichMessage()),
 		localFlags,
 		NewMessageType::Unread);
 
-	local->destroy();
+	if (const auto page = local->richPage()) {
+		sent->setRichPage(page);
+		if (const auto full = local->fullRichPage()) {
+			sent->setFullRichPage(full);
+		}
+		_session->data().requestItemTextRefresh(sent);
+	}
+
+	_session->data().destroyMessageWithCacheCleanup(local);
 }
 
 void ScheduledMessages::apply(const MTPDupdateNewScheduledMessage &update) {
@@ -330,16 +346,13 @@ void ScheduledMessages::checkEntitiesAndUpdate(const MTPDmessage &data) {
 	const auto existing = j->second;
 	if (!HasScheduledDate(existing)) {
 		// Destroy a local message, that should be in history.
-		existing->updateSentContent({
-			qs(data.vmessage()),
-			Api::EntitiesFromMTP(_session, data.ventities().value_or_empty())
-		}, data.vmedia());
+		existing->updateSentContent(data);
 		existing->updateReplyMarkup(
 			HistoryMessageMarkupData(data.vreply_markup()));
 		existing->updateForwardedInfo(data.vfwd_from());
 		_session->data().requestItemTextRefresh(existing);
 
-		existing->destroy();
+		_session->data().destroyMessageWithCacheCleanup(existing);
 	}
 }
 
@@ -359,6 +372,8 @@ void ScheduledMessages::apply(
 	}
 	const auto sent = update.vsent_messages();
 	const auto &ids = update.vmessages().v;
+	auto items = std::vector<not_null<HistoryItem*>>();
+	items.reserve(ids.size());
 	for (auto k = 0, count = int(ids.size()); k != count; ++k) {
 		const auto id = ids[k].v;
 		const auto &list = i->second;
@@ -371,13 +386,10 @@ void ScheduledMessages::apply(
 					.sentId = sentId.v,
 				});
 			}
-			j->second->destroy();
-			i = _data.find(history);
-			if (i == end(_data)) {
-				break;
-			}
+			items.push_back(j->second);
 		}
 	}
+	_session->data().destroyMessagesWithCacheCleanup(items);
 	_updates.fire_copy(history);
 }
 
@@ -390,7 +402,7 @@ void ScheduledMessages::apply(
 	auto &list = i->second;
 	const auto j = list.itemById.find(id);
 	if (j != end(list.itemById) || !IsServerMsgId(id)) {
-		local->destroy();
+		_session->data().destroyMessageWithCacheCleanup(local);
 	} else {
 		Assert(!list.itemById.contains(local->id));
 		local->setRealId(localMessageId(id));
@@ -413,7 +425,7 @@ void ScheduledMessages::removeSending(not_null<HistoryItem*> item) {
 	Expects(item->isSending() || item->hasFailed());
 	Expects(item->isScheduled());
 
-	item->destroy();
+	_session->data().destroyMessageWithCacheCleanup(item);
 }
 
 rpl::producer<> ScheduledMessages::updates(not_null<History*> history) {
@@ -550,12 +562,7 @@ HistoryItem *ScheduledMessages::append(
 			if (data.is_edit_hide()) {
 				existing->applyEdition(HistoryMessageEdition(_session, data));
 			} else {
-				existing->updateSentContent({
-					qs(data.vmessage()),
-					Api::EntitiesFromMTP(
-						_session,
-						data.ventities().value_or_empty())
-				}, data.vmedia());
+				existing->updateSentContent(data);
 				existing->updateReplyMarkup(
 					HistoryMessageMarkupData(data.vreply_markup()));
 				existing->updateForwardedInfo(data.vfwd_from());
@@ -602,11 +609,10 @@ void ScheduledMessages::updated(
 		not_null<History*> history,
 		const base::flat_set<not_null<HistoryItem*>> &added,
 		const base::flat_set<not_null<HistoryItem*>> &clear) {
-	if (!clear.empty()) {
-		for (const auto &item : clear) {
-			item->destroy();
-		}
-	}
+	_session->data().destroyMessagesWithCacheCleanup(
+		std::vector<not_null<HistoryItem*>>(
+			begin(clear),
+			end(clear)));
 	const auto i = _data.find(history);
 	if (i != end(_data)) {
 		sort(i->second);

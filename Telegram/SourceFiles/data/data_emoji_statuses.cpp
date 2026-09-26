@@ -177,6 +177,11 @@ void EmojiStatuses::registerAutomaticClear(
 	}
 }
 
+TimeId EmojiStatuses::automaticClearAt(not_null<PeerData*> peer) const {
+	const auto i = _clearing.find(peer);
+	return (i != end(_clearing)) ? i->second : TimeId();
+}
+
 auto EmojiStatuses::emojiGroupsValue() const -> rpl::producer<Groups> {
 	const_cast<EmojiStatuses*>(this)->requestEmojiGroups();
 	return _emojiGroups.data.value();

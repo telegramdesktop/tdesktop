@@ -49,6 +49,14 @@ public:
 	rpl::producer<SelectedItems> selectedListValue() const;
 	void selectionAction(SelectionAction action);
 
+	void jumpToMessage(MsgId msgId);
+
+	bool processZoomWheel(not_null<QWheelEvent*> e);
+	void zoomIn();
+	void zoomOut();
+	[[nodiscard]] bool canZoomIn() const;
+	[[nodiscard]] bool canZoomOut() const;
+
 	~InnerWidget();
 
 protected:
@@ -82,6 +90,9 @@ private:
 	rpl::event_stream<Ui::ScrollToRequest> _scrollToRequests;
 	rpl::event_stream<rpl::producer<SelectedItems>> _selectedLists;
 	rpl::event_stream<rpl::producer<int>> _listTops;
+
+	int _emptyHeightThreshold = 0;
+	rpl::lifetime _emptyLoadingLifetime;
 
 };
 

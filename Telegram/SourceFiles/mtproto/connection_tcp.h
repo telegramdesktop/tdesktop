@@ -63,22 +63,6 @@ private:
 
 	mtpBuffer parsePacket(bytes::const_span bytes);
 	void ensureAvailableInBuffer(int amount);
-	static uint32 fourCharsToUInt(char ch1, char ch2, char ch3, char ch4) {
-#warning "need to select one of the options"
-#if 0
-		char ch[4] = { ch1, ch2, ch3, ch4 };
-		uint32 value;
-		std::memcpy(&value, ch, 4);
-		return value;
-#else
-		const uint32 part1 = ch1;
-		const uint32 part2 = ch2;
-		const uint32 part3 = ch3;
-		const uint32 part4 = ch4;
-		// What should be the byte order in the value representation?
-		return uint32((part1 << 24) | (part2 << 16) | (part3 << 8) | part4);
-#endif
-	}
 
 	const not_null<Instance*> _instance;
 	std::unique_ptr<AbstractSocket> _socket;

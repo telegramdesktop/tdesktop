@@ -126,6 +126,7 @@ private:
 
 	void invalidateMainReactionImage();
 	void resolveMainReactionIcon();
+	void waitMainReactionIcon();
 	void setMainReactionIcon();
 
 	const style::EmojiPan &_st;

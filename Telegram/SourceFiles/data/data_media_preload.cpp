@@ -151,7 +151,7 @@ VideoPreload::~VideoPreload() {
 }
 
 bool VideoPreload::Can(not_null<DocumentData*> video) {
-	return video->canBeStreamed(nullptr)
+	return video->canBeStreamed()
 		&& video->videoPreloadLocation().valid()
 		&& video->bigFileBaseCacheKey();
 }

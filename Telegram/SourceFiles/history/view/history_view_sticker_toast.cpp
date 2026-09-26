@@ -202,7 +202,6 @@ void StickerToast::showWithTitle(const QString &title) {
 		widget.get(),
 		rpl::single(view),
 		st::historyPremiumViewSet);
-	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	button->show();
 	rpl::combine(
 		widget->sizeValue(),
@@ -279,7 +278,7 @@ void StickerToast::setupEmojiPreview(
 				std::move(loader),
 				Ui::CustomEmoji::Preview()),
 			std::move(repaintLater))
-		, object(&emoji, repaint)
+		, object(&emoji, repaint, st::emojiSize + 2 * st::emojiPadding)
 		, timer(repaint) {
 		}
 

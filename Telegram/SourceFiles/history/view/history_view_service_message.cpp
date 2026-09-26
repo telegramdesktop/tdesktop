@@ -373,7 +373,7 @@ void ServiceMessagePainter::PaintComplexBubble(
 std::vector<int> ServiceMessagePainter::CountLineWidths(
 		const Ui::Text::String &text,
 		const QRect &textRect) {
-	const auto linesCount = qMax(
+	const auto linesCount = std::max(
 		textRect.height() / st::msgServiceFont->height,
 		1);
 	auto result = text.countLineWidths(textRect.width(), {
@@ -384,7 +384,7 @@ std::vector<int> ServiceMessagePainter::CountLineWidths(
 		+ Ui::HistoryServiceMsgInvertedRadius()
 		- Ui::HistoryServiceMsgInvertedShrink());
 	for (int i = 0, count = result.size(); i != count; ++i) {
-		auto width = qMax(result[i], 0);
+		auto width = std::max(result[i], 0);
 		if (i > 0) {
 			const auto widthBefore = result[i - 1];
 			if (width < widthBefore && width + minDelta > widthBefore) {
@@ -438,7 +438,10 @@ QRect Service::innerGeometry() const {
 	return countGeometry();
 }
 
-bool Service::consumeHorizontalScroll(QPoint position, int delta) {
+bool Service::consumeHorizontalScroll(
+		QPoint position,
+		int delta,
+		Qt::ScrollPhase phase) {
 	if (const auto media = this->media()) {
 		return media->consumeHorizontalScroll(position, delta);
 	}
@@ -448,7 +451,11 @@ bool Service::consumeHorizontalScroll(QPoint position, int delta) {
 QRect Service::countGeometry() const {
 	auto result = QRect(0, 0, width(), height());
 	if (delegate()->elementChatMode() == ElementChatMode::Wide) {
-		result.setWidth(qMin(result.width(), st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
+		result.setWidth(std::min(
+			result.width(),
+			st::msgMaxWidth
+				+ 2 * st::msgPhotoSkip
+				+ 2 * st::msgMargin.left()));
 	}
 	auto margins = st::msgServiceMargin;
 	margins.setTop(marginTop());
@@ -496,7 +503,11 @@ QSize Service::performCountCurrentSize(int newWidth) {
 	if (mediaDisplayed && media->hideServiceText()) {
 		newHeight += media->resizeGetHeight(newWidth) + marginBottom();
 	} else if (!text().isEmpty()) {
-		auto nwidth = qMax(contentWidth - st::msgServicePadding.left() - st::msgServicePadding.right(), 0);
+		auto nwidth = std::max(
+			contentWidth
+				- st::msgServicePadding.left()
+				- st::msgServicePadding.right(),
+			0);
 		newHeight += (contentWidth >= maxWidth())
 			? minHeight()
 			: textHeightFor(nwidth);
@@ -823,6 +834,10 @@ TextState Service::textState(QPoint point, StateRequest request) const {
 				result.link = done->lnk;
 			} else if (const auto append = item->Get<HistoryServiceTodoAppendTasks>()) {
 				result.link = append->lnk;
+			} else if (const auto pollAppend = item->Get<HistoryServicePollAppendAnswer>()) {
+				result.link = pollAppend->lnk;
+			} else if (const auto pollDelete = item->Get<HistoryServicePollDeleteAnswer>()) {
+				result.link = pollDelete->lnk;
 			} else if (const auto finish = item->Get<HistoryServiceSuggestFinish>()) {
 				result.link = finish->lnk;
 			} else if (media && data()->showSimilarChannels()) {

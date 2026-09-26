@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 #include "ui/widgets/menu/menu_item_base.h"
 #include "ui/text/text_custom_emoji.h"
+#include "data/data_message_reaction_id.h"
 
 namespace Ui {
 
@@ -19,7 +20,9 @@ struct WhoReadParticipant {
 	QString name;
 	QString date;
 	bool dateReacted = false;
+	bool self = false;
 	QString customEntityData;
+	Data::ReactionId reaction;
 	QImage userpicSmall;
 	QImage userpicLarge;
 	std::pair<uint64, uint64> userpicKey = {};
@@ -62,7 +65,8 @@ struct WhoReadContent {
 	rpl::producer<WhoReadContent> content,
 	Text::CustomEmojiFactory factory,
 	Fn<void(WhoReadParticipant)> participantChosen,
-	Fn<void()> showAllChosen);
+	Fn<void()> showAllChosen,
+	Fn<void(WhoReadParticipant)> moderateReactionChosen = nullptr);
 
 [[nodiscard]] base::unique_qptr<Menu::ItemBase> WhenReadContextAction(
 	not_null<PopupMenu*> menu,
@@ -86,6 +90,7 @@ struct WhoReactedEntryData {
 	QString customEntityData;
 	QImage userpic;
 	Fn<void()> callback;
+	Fn<void()> closeCallback;
 };
 
 class WhoReactedEntryAction final : public Menu::ItemBase {
@@ -100,13 +105,28 @@ public:
 
 	void setData(Data &&data);
 
+	void setScrollBarSkip(int skip);
+
 	not_null<QAction*> action() const override;
 	bool isEnabled() const override;
 
 private:
 	int contentHeight() const override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	QPoint prepareRippleStartPosition() const override;
+	QImage prepareRippleMask() const override;
 
 	void paint(Painter &&p);
+	void refreshDimensions();
+	[[nodiscard]] bool closeAffordanceActive() const;
+	void refreshCloseMouseTracking();
+	void refreshCloseGeometry();
+	void updateCloseHovered(QPoint globalPosition);
+	void clearCloseState();
+	void invalidateCloseCache();
 
 	const not_null<QAction*> _dummyAction;
 	const Text::CustomEmojiFactory _customEmojiFactory;
@@ -119,7 +139,15 @@ private:
 	QImage _userpic;
 	int _textWidth = 0;
 	int _customSize = 0;
+	int _scrollBarSkip = 0;
 	WhoReactedType _type = WhoReactedType::Viewed;
+	Fn<void()> _closeCallback;
+	QRect _closeRect;
+	bool _closeHovered = false;
+	bool _closePressed = false;
+	bool _closeRippleActive = false;
+	mutable QImage _closeBadge;
+	mutable QImage _closeBadgeMask;
 
 };
 
@@ -128,7 +156,8 @@ public:
 	WhoReactedListMenu(
 		Text::CustomEmojiFactory factory,
 		Fn<void(WhoReadParticipant)> participantChosen,
-		Fn<void()> showAllChosen);
+		Fn<void()> showAllChosen,
+		Fn<void(WhoReadParticipant)> moderateReactionChosen = nullptr);
 
 	void clear();
 	void populate(
@@ -139,11 +168,16 @@ public:
 		Fn<void()> appendBottomActions = nullptr);
 
 private:
+	void applyScrollBarSkip(not_null<PopupMenu*> menu);
+	void applyMinimalWidth();
+
 	const Text::CustomEmojiFactory _customEmojiFactory;
 	const Fn<void(WhoReadParticipant)> _participantChosen;
 	const Fn<void()> _showAllChosen;
+	const Fn<void(WhoReadParticipant)> _moderateReactionChosen;
 
 	std::vector<not_null<WhoReactedEntryAction*>> _actions;
+	int _minimalWidth = 0;
 
 };
 

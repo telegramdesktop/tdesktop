@@ -37,8 +37,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "styles/style_media_player.h"
-#include "styles/style_media_view.h"
-#include "styles/style_chat.h" // expandedMenuSeparator.
 
 namespace Media {
 namespace Player {
@@ -81,6 +79,10 @@ Widget::Widget(
 	_speedController->realtimeValue(
 	) | rpl::on_next([=](float64 speed) {
 		_speedToggle->setSpeed(speed);
+		_speedToggle->setAccessibleName(tr::lng_mediaview_playback_speed(
+			tr::now,
+			lt_speed,
+			QString::number(base::SafeRound(speed * 10) / 10.) + "x"));
 	}, _speedToggle->lifetime());
 	_speedToggle->finishAnimating();
 
@@ -89,6 +91,11 @@ Widget::Widget(
 	resize(width(), st::mediaPlayerHeight + st::lineWidth);
 
 	setupRightControls();
+
+	_volumeToggle->setAccessibleName(tr::lng_ringtones_box_volume(tr::now));
+	_repeatToggle->setAccessibleName(tr::lng_schedule_repeat_label(tr::now));
+	_orderToggle->setAccessibleName(tr::lng_sr_playback_order(tr::now));
+	_close->setAccessibleName(tr::lng_sr_player_close(tr::now));
 
 	_nameLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_timeLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -151,7 +158,14 @@ Widget::Widget(
 
 	_speedController->saved(
 	) | rpl::on_next([=] {
-		instance()->updateVoicePlaybackSpeed();
+		instance()->updatePlaybackSpeed();
+	}, lifetime());
+
+	rpl::merge(
+		Core::App().settings().voicePlaybackSpeedChanges() | rpl::to_empty,
+		Core::App().settings().audioPlaybackSpeedChanges() | rpl::to_empty
+	) | rpl::on_next([=] {
+		_speedController->reloadFromLookup();
 	}, lifetime());
 
 	instance()->trackChanged(
@@ -203,7 +217,18 @@ Widget::Widget(
 	hidePlaylistOn(_close);
 	hidePlaylistOn(_rightControls);
 
+	hideDropdownsOn(_volumeToggle);
+	hideDropdownsOn(_orderToggle);
+	hideDropdownsOn(_speedToggle);
+
+	const auto otherDropdownCheck = [=](QPoint globalPosition) {
+		return overDropdownControl(globalPosition);
+	};
+	_orderController->setOtherDropdownCheck(otherDropdownCheck);
+	_speedController->setOtherDropdownCheck(otherDropdownCheck);
+
 	setType(AudioMsgId::Type::Song);
+	_playPause->finishTransform();
 }
 
 void Widget::hidePlaylistOn(not_null<Ui::RpWidget*> widget) {
@@ -213,6 +238,42 @@ void Widget::hidePlaylistOn(not_null<Ui::RpWidget*> widget) {
 	}) | rpl::on_next([=] {
 		updateOverLabelsState(false);
 	}, widget->lifetime());
+}
+
+void Widget::hideDropdownsOn(not_null<Ui::RpWidget*> widget) {
+	widget->events(
+	) | rpl::filter([=](not_null<QEvent*> e) {
+		return (e->type() == QEvent::Enter);
+	}) | rpl::on_next([=] {
+		hideDropdowns(widget);
+	}, widget->lifetime());
+}
+
+bool Widget::overDropdownControl(QPoint globalPosition) const {
+	const auto over = [&](not_null<Ui::RpWidget*> control) {
+		return !control->isHidden()
+			&& control->rect().contains(
+				control->mapFromGlobal(globalPosition));
+	};
+	return over(_volumeToggle)
+		|| over(_orderToggle)
+		|| over(_speedToggle);
+}
+
+void Widget::hideDropdowns(not_null<Ui::RpWidget*> except) {
+	if (except.get() != _volumeToggle.data()) {
+		_volume->hideFast();
+	}
+	if (except.get() != _orderToggle.data()) {
+		if (const auto menu = _orderController->menu()) {
+			menu->hideFast();
+		}
+	}
+	if (except.get() != _speedToggle.data()) {
+		if (const auto menu = _speedController->menu()) {
+			menu->hideFast();
+		}
+	}
 }
 
 void Widget::setupRightControls() {
@@ -392,7 +453,8 @@ void Widget::updateControlsWrapVisibility() {
 
 void Widget::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
-	auto fill = e->rect().intersected(QRect(0, 0, width(), st::mediaPlayerHeight));
+	auto fill = e->rect().intersected(
+		QRect(0, 0, width(), st::mediaPlayerHeight + st::lineWidth));
 	if (!fill.isEmpty()) {
 		p.fillRect(fill, st::mediaPlayerBg);
 	}
@@ -433,11 +495,19 @@ void Widget::saveOrder(OrderMode mode) {
 }
 
 float64 Widget::speedLookup(bool lastNonDefault) const {
-	return Core::App().settings().voicePlaybackSpeed(lastNonDefault);
+	const auto &settings = Core::App().settings();
+	return (_type == AudioMsgId::Type::Song)
+		? settings.audioPlaybackSpeed(lastNonDefault)
+		: settings.voicePlaybackSpeed(lastNonDefault);
 }
 
 void Widget::saveSpeed(float64 speed) {
-	Core::App().settings().setVoicePlaybackSpeed(speed);
+	auto &settings = Core::App().settings();
+	if (_type == AudioMsgId::Type::Song) {
+		settings.setAudioPlaybackSpeed(speed);
+	} else {
+		settings.setVoicePlaybackSpeed(speed);
+	}
 	Core::App().saveSettingsDelayed();
 }
 
@@ -628,11 +698,14 @@ void Widget::handleSongUpdate(const TrackState &state) {
 	if (instance()->isSeeking(_type)) {
 		showPause = true;
 	}
-	_playPause->setIconOverride(state.id.audio()->loading()
-		? &st::mediaPlayerCancelIcon
+	_playPause->setState(state.id.audio()->loading()
+		? PlayButton::State::Cancel
 		: showPause
-		? &st::mediaPlayerPauseIcon
-		: nullptr);
+		? PlayButton::State::Pause
+		: PlayButton::State::Play);
+	_playPause->setAccessibleName(showPause
+		? tr::lng_shortcuts_media_pause(tr::now)
+		: tr::lng_shortcuts_media_play(tr::now));
 
 	updateTimeText(state);
 }
@@ -652,7 +725,8 @@ void Widget::updateTimeText(const TrackState &state) {
 	_lastDurationMs = (state.length * 1000LL) / frequency;
 
 	if (document->loading()) {
-		_time = QString::number(qRound(document->progress() * 100)) + '%';
+		const auto progress = document->progress() * 100;
+		_time = QString::number(int(base::SafeRound(progress))) + '%';
 		_playbackSlider->setDisabled(true);
 	} else {
 		display = display / frequency;
@@ -690,6 +764,7 @@ void Widget::handleSongChange() {
 		return;
 	}
 	_lastSongId = current;
+	_speedController->reloadFromLookup();
 
 	auto textWithEntities = TextWithEntities();
 	if (document->isVoiceMessage() || document->isVideoMessage()) {
@@ -728,11 +803,13 @@ void Widget::createPrevNextButtons() {
 		_previousTrack->setClickedCallback([=]() {
 			instance()->previous(_type);
 		});
+		_previousTrack->setAccessibleName(tr::lng_shortcuts_media_previous(tr::now));
 		_nextTrack.create(this, st::mediaPlayerNextButton);
 		_nextTrack->show();
 		_nextTrack->setClickedCallback([=]() {
 			instance()->next(_type);
 		});
+		_nextTrack->setAccessibleName(tr::lng_shortcuts_media_next(tr::now));
 		hidePlaylistOn(_previousTrack);
 		hidePlaylistOn(_nextTrack);
 		updatePlayPrevNextPositions();

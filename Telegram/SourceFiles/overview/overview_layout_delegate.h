@@ -19,6 +19,9 @@ public:
 	virtual void unregisterHeavyItem(not_null<const ItemBase*> item) = 0;
 	virtual void repaintItem(not_null<const ItemBase*> item) = 0;
 	virtual bool itemVisible(not_null<const ItemBase*> item) = 0;
+	[[nodiscard]] virtual bool keepPhotoMediaLoaded() {
+		return false;
+	}
 
 	[[nodiscard]] virtual not_null<StickerPremiumMark*> hiddenMark() = 0;
 

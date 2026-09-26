@@ -9,7 +9,6 @@
 #include "ui/dynamic_image.h"
 #include "ui/painter.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_widgets.h"
 
 namespace Ui {
 namespace {

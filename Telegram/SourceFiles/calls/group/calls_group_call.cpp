@@ -1606,6 +1606,7 @@ void GroupCall::rejoin(not_null<PeerData*> as) {
 	_joinState.action = JoinAction::Joining;
 	_joinState.ssrc = 0;
 	_initialMuteStateSent = false;
+	_systemMuteReconciled = false;
 	setState(State::Joining);
 	if (!tryCreateController()) {
 		setInstanceMode(InstanceMode::None);
@@ -1794,6 +1795,13 @@ void GroupCall::joinDone(
 		: State::Joined);
 	applyMeInCallLocally();
 	maybeSendMutedUpdate(wasMuteState);
+	_systemMuteReconciled = true;
+	if (!_rtmp) {
+		const auto state = muted();
+		const auto nowMuted = (state != MuteState::Active)
+			&& (state != MuteState::PushToTalk);
+		Core::App().mediaDevices().setCaptureMuted(nowMuted);
+	}
 
 	for (auto &state : _subchains) {
 		// Accept initial join blocks.
@@ -2583,7 +2591,7 @@ void GroupCall::applySubChainUpdate(
 		int next) {
 	Expects(subchain >= 0 && subchain < kSubChainsCount);
 
-	auto &entry = _subchains[subchain];
+	const auto &entry = _subchains[subchain];
 	auto raw = std::vector<TdE2E::Block>();
 	raw.reserve(blocks.size());
 	for (const auto &block : blocks) {
@@ -2699,8 +2707,8 @@ void GroupCall::setupMediaDevices() {
 			const auto muted = (state != MuteState::Active)
 				&& (state != MuteState::PushToTalk);
 			const auto track = !muted || (state == MuteState::Muted);
-			devices->setCaptureMuteTracker(this, track);
 			devices->setCaptureMuted(muted);
+			devices->setCaptureMuteTracker(this, track);
 		}, _lifetime);
 	}
 }
@@ -2712,7 +2720,19 @@ void GroupCall::captureMuteChanged(bool mute) {
 			|| oldState == MuteState::RaisedHand
 			|| oldState == MuteState::Muted)) {
 		return;
+	} else if (!mute
+		&& (oldState == MuteState::ForceMuted
+			|| oldState == MuteState::RaisedHand)) {
+		crl::on_main(this, [] {
+			Core::App().mediaDevices().setCaptureMuted(true);
+		});
+		return;
 	} else if (!mute && oldState != MuteState::Muted) {
+		return;
+	} else if (!mute && !_systemMuteReconciled) {
+		crl::on_main(this, [] {
+			Core::App().mediaDevices().setCaptureMuted(true);
+		});
 		return;
 	}
 	setMutedAndUpdate(mute ? MuteState::Muted : MuteState::Active);

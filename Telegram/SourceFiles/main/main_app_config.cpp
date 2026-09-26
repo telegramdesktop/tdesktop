@@ -66,6 +66,12 @@ int AppConfig::stargiftConvertPeriodMax() const {
 		_account->mtp().isTestMode() ? 300 : (90 * 86400));
 }
 
+int AppConfig::noForwardsRequestExpirePeriod() const {
+	return get<int>(
+		u"no_forwards_request_expire_period"_q,
+		_account->mtp().isTestMode() ? 300 : 86400);
+}
+
 const std::vector<QString> &AppConfig::startRefPrefixes() {
 	if (_startRefPrefixes.empty()) {
 		_startRefPrefixes = get<std::vector<QString>>(
@@ -109,6 +115,10 @@ float64 AppConfig::starsSellRate() const {
 
 float64 AppConfig::currencySellRate() const {
 	return get<float64>(u"ton_usd_rate"_q, 1);
+}
+
+bool AppConfig::starsSpendTopupInvoiceDisabled() const {
+	return get<bool>(u"stars_spend_topup_invoice_disabled"_q, false);
 }
 
 bool AppConfig::paidMessagesAvailable() const {
@@ -186,6 +196,18 @@ int AppConfig::giftResaleNanoTonThousandths() const {
 
 int AppConfig::pollOptionsLimit() const {
 	return get<int>(u"poll_answers_max"_q, 12);
+}
+
+int AppConfig::pollAnswerDeletePeriod() const {
+	return get<int>(u"poll_answer_delete_period"_q, 300);
+}
+
+int AppConfig::pollCountriesMax() const {
+	return get<int>(u"poll_countries_max"_q, 12);
+}
+
+QString AppConfig::phoneCountryIso2() const {
+	return get<QString>(u"phone_country_iso2"_q, QString());
 }
 
 int AppConfig::todoListItemsLimit() const {

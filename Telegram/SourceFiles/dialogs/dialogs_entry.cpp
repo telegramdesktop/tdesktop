@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_key.h"
 #include "dialogs/dialogs_indexed_list.h"
+#include "base/options.h"
+#include "base/unixtime.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
@@ -20,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "ui/text/format_values.h"
 #include "ui/text/text_options.h"
 #include "ui/ui_utility.h"
 #include "history/history.h"
@@ -46,7 +49,20 @@ uint64 PinnedDialogPos(int pinnedIndex) {
 	return 0xFFFFFFFF000000FFULL - pinnedIndex;
 }
 
+uint64 UnreadOnTopDialogPos(uint64 sortKeyByDate) {
+	return sortKeyByDate | 0x8000000000000000ULL;
+}
+
+base::options::toggle OptionUnreadOnTop({
+	.id = kOptionDialogsUnreadOnTop,
+	.name = "Keep unmuted unread chats on top",
+	.description = "Sort chats with new unmuted messages right below the "
+		"pinned ones and keep them there until you read them.",
+});
+
 } // namespace
+
+const char kOptionDialogsUnreadOnTop[] = "dialogs-unread-on-top";
 
 BadgesState BadgesForUnread(
 		const UnreadState &state,
@@ -76,6 +92,8 @@ BadgesState BadgesForUnread(
 		.mention = (state.mentions > 0),
 		.reaction = (state.reactions > 0),
 		.reactionMuted = (state.reactions <= state.reactionsMuted),
+		.poll = (state.polls > 0),
+		.pollMuted = (state.polls <= state.pollsMuted),
 	};
 }
 
@@ -199,7 +217,11 @@ void Entry::updateChatListSortPosition() {
 		updateChatListEntry();
 		return;
 	}
-	_sortKeyByDate = DialogPosFromDate(adjustedChatListTimeId());
+	const auto sortKeyByDate = DialogPosFromDate(adjustedChatListTimeId());
+	_sortKeyByDate = (owner().dialogsUnreadOnTop()
+		&& hasUnreadUnmutedForSort())
+		? UnreadOnTopDialogPos(sortKeyByDate)
+		: sortKeyByDate;
 	const auto fixedIndex = fixedOnTopIndex();
 	_sortKeyInChatList = fixedIndex
 		? FixedOnTopDialogPos(fixedIndex)
@@ -226,6 +248,14 @@ int Entry::lookupPinnedIndex(FilterId filterId) const {
 uint64 Entry::computeSortPosition(FilterId filterId) const {
 	const auto index = lookupPinnedIndex(filterId);
 	return index ? PinnedDialogPos(index) : _sortKeyByDate;
+}
+
+bool Entry::hasUnreadUnmutedForSort() const {
+	const auto state = chatListUnreadState();
+	return (state.messages > state.messagesMuted)
+		|| (state.marks > state.marksMuted)
+		|| (state.reactions > state.reactionsMuted)
+		|| (state.mentions > 0);
 }
 
 void Entry::updateChatListExistence() {
@@ -292,6 +322,9 @@ void Entry::notifyUnreadStateChange(const UnreadState &wasState) {
 			sublist,
 			Data::SublistUpdate::Flag::UnreadView);
 	}
+	if (owner().dialogsUnreadOnTop()) {
+		updateChatListSortPosition();
+	}
 	updateChatListEntryPostponed();
 }
 
@@ -305,6 +338,33 @@ const Ui::Text::String &Entry::chatListNameText() const {
 			Ui::NameTextOptions());
 	}
 	return _chatListNameText;
+}
+
+DateText ResolveDateText(
+		DateTextCache &cache,
+		TimeId date,
+		crl::time now) {
+	static crl::time LastNow = 0;
+	static int LastTodaySerial = 0;
+	if (!now || LastNow != now) {
+		LastNow = now;
+		LastTodaySerial = int(QDate::currentDate().toJulianDay());
+	}
+	if (cache.messageTimeId != date
+		|| cache.todaySerial != LastTodaySerial) {
+		const auto qdt = base::unixtime::parse(date);
+		cache.text = Ui::FormatDialogsDate(qdt);
+		cache.width = st::dialogsDateFont->width(cache.text);
+		cache.messageTimeId = date;
+		cache.todaySerial = LastTodaySerial;
+	}
+	return { cache.text, cache.width };
+}
+
+DateText Entry::chatListTimestampText(
+		TimeId date,
+		crl::time now) const {
+	return ResolveDateText(_chatListDateCache, date, now);
 }
 
 void Entry::setChatListExistence(bool exists) {
@@ -356,10 +416,15 @@ PositionChange Entry::adjustByPosInChatList(
 }
 
 void Entry::setChatListTimeId(TimeId date) {
-	_timeId = date;
+	const auto was = std::exchange(_timeId, date);
 	updateChatListSortPosition();
 	if (const auto folder = this->folder()) {
 		folder->updateChatListSortPosition();
+	}
+	if (was != date) {
+		if (const auto history = asHistory()) {
+			history->communityChatsListDateChanged(was);
+		}
 	}
 }
 
@@ -403,7 +468,8 @@ void Entry::removeFromChatList(
 		FilterId filterId,
 		not_null<MainList*> list) {
 	if (isPinnedDialog(filterId)) {
-		owner().setChatPinned(this, filterId, false);
+		list->pinned()->setPinned(this, false);
+		owner().notifyPinnedDialogsOrderUpdated();
 	}
 	if (filterId) {
 		const auto it = _tagColors.find(filterId);

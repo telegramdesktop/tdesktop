@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/random.h"
 
+#include <QtCore/QtEndian>
+
 namespace MTP {
 namespace details {
 namespace {
@@ -99,8 +101,8 @@ mtpBuffer AbstractConnection::prepareSecurePacket(
 	constexpr auto kTcpPostfixInts = 4;
 	result.reserve(kPrefixInts + size + kTcpPostfixInts);
 	result.resize(kPrefixInts);
-	*reinterpret_cast<uint64*>(&result[kAuthKeyIdPosition]) = keyId;
-	*reinterpret_cast<MTPint128*>(&result[kMessageKeyPosition]) = msgKey;
+	qToUnaligned(keyId, &result[kAuthKeyIdPosition]);
+	qToUnaligned(msgKey, &result[kMessageKeyPosition]);
 	return result;
 }
 
@@ -130,7 +132,9 @@ gsl::span<const mtpPrime> AbstractConnection::parseNotSecureResponse(
 		return {};
 	}
 	const auto answerLen = (uint32)answer[4];
-	if (answerLen < 1 || answerLen > (len - 5) * sizeof(mtpPrime)) {
+	if (answerLen < 1
+		|| (answerLen % sizeof(mtpPrime))
+		|| answerLen > (len - 5) * sizeof(mtpPrime)) {
 		LOG(("Not Secure Error: bad request answer 1 <= %1 <= %2"
 			).arg(answerLen
 			).arg((len - 5) * sizeof(mtpPrime)));
@@ -138,7 +142,7 @@ gsl::span<const mtpPrime> AbstractConnection::parseNotSecureResponse(
 			).arg(Logs::mb(answer, len * sizeof(mtpPrime)).str()));
 		return {};
 	}
-	return gsl::make_span(answer + 5, answerLen);
+	return gsl::make_span(answer + 5, answerLen / sizeof(mtpPrime));
 }
 
 mtpBuffer AbstractConnection::preparePQFake(const MTPint128 &nonce) const {

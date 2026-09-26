@@ -222,6 +222,7 @@ PanelEditDocument::PanelEditDocument(
 		this,
 		tr::lng_passport_save_value(),
 		st::passportPanelSaveValue) {
+	_done->setTextTransform(Ui::RoundButtonTextTransform::ToUpper);
 	setupControls(
 		&error,
 		&data,
@@ -248,6 +249,7 @@ PanelEditDocument::PanelEditDocument(
 		this,
 		tr::lng_passport_save_value(),
 		st::passportPanelSaveValue) {
+	_done->setTextTransform(Ui::RoundButtonTextTransform::ToUpper);
 	setupControls(
 		nullptr,
 		nullptr,
@@ -271,6 +273,7 @@ PanelEditDocument::PanelEditDocument(
 		this,
 		tr::lng_passport_save_value(),
 		st::passportPanelSaveValue) {
+	_done->setTextTransform(Ui::RoundButtonTextTransform::ToUpper);
 	setupControls(&error, &data, nullptr, nullptr, {}, {}, {});
 }
 

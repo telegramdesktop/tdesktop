@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 class Checkbox;
 class SettingsButton;
+class ToggleView;
 class VerticalLayout;
 template <typename Widget>
 class SlideWrap;
@@ -101,6 +102,19 @@ struct NotifyViewCheckboxes {
 	not_null<Ui::VerticalLayout*> container,
 	bool nameShown,
 	bool previewShown);
+
+struct SplitToggle {
+	not_null<Ui::SettingsButton*> button;
+	not_null<Ui::SettingsButton*> toggle;
+	not_null<Ui::ToggleView*> checkView;
+};
+
+[[nodiscard]] SplitToggle SetupSplitToggle(
+	not_null<Ui::VerticalLayout*> container,
+	rpl::producer<QString> title,
+	const style::icon *icon,
+	bool checked,
+	rpl::producer<QString> details);
 
 [[nodiscard]] not_null<Ui::SettingsButton*> AddTypeButton(
 	not_null<Ui::VerticalLayout*> container,

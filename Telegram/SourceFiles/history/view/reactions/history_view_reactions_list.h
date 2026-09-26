@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 
 class HistoryItem;
+class PeerData;
 class PeerListController;
 
 namespace Data {
@@ -52,6 +53,30 @@ struct PreparedFullList {
 	std::unique_ptr<PeerListController> controller;
 	Fn<void(Data::ReactionId)> switchTab;
 };
+
+[[nodiscard]] bool CanModerateReactionByDeleteMessages(
+	not_null<PeerData*> originPeer);
+
+void ShowModerateReactionBox(
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> originPeer,
+	MsgId originMsgId,
+	not_null<PeerData*> participant);
+
+void ShowModerateReactionBox(
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> originPeer,
+	MsgId originMsgId,
+	not_null<PeerData*> participant,
+	Data::ReactionId reaction);
+
+void ShowReactionParticipantInfo(
+	not_null<Window::SessionNavigation*> window,
+	not_null<PeerData*> participant,
+	not_null<PeerData*> originPeer,
+	MsgId originMsgId,
+	bool reactionRow);
+
 [[nodiscard]] PreparedFullList FullListController(
 	not_null<Window::SessionNavigation*> window,
 	FullMsgId itemId,

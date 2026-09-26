@@ -1,0 +1,44 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "boxes/boxes.style";
+
+confirmInviteTitle: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	minWidth: 320px;
+	maxHeight: 24px;
+	textFg: windowBoldFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(18px semibold);
+	}
+}
+confirmInviteAbout: FlatLabel(boxLabel) {
+	align: align(top);
+	minWidth: 320px;
+	style: TextStyle(boxLabelStyle) {
+		lineHeight: 19px;
+	}
+}
+confirmInviteStatus: FlatLabel(confirmInviteAbout) {
+	textFg: windowSubTextFg;
+	style: boxLabelStyle;
+	maxHeight: 0px;
+}
+confirmInviteAboutPadding: margins(36px, 4px, 36px, 10px);
+confirmInviteAboutRequestsPadding: margins(36px, 9px, 36px, 15px);
+confirmInvitePhotoSize: 96px;
+confirmInvitePhotoTop: 33px;
+confirmInviteUserHeight: 100px;
+confirmInviteUserPhotoSize: 50px;
+confirmInviteUserPhotoTop: 210px;
+confirmInviteUsersWidth: 320px;
+confirmInviteUserName: FlatLabel(defaultFlatLabel) {
+	align: align(center);
+	minWidth: 66px;
+	maxHeight: 20px;
+}
+confirmInviteUserNameTop: 264px;

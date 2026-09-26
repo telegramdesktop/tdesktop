@@ -13,7 +13,6 @@ namespace Ui {
 struct ChatPaintContext;
 class InfiniteRadialAnimation;
 class RippleAnimation;
-class StarParticles;
 } // namespace Ui
 
 namespace HistoryView {
@@ -50,7 +49,6 @@ private:
 
 	ClickHandlerPtr _link;
 	std::unique_ptr<Ui::InfiniteRadialAnimation> _animation;
-	std::unique_ptr<Ui::StarParticles> _particles;
 	std::unique_ptr<Ui::RippleAnimation> _ripple;
 	Ui::Animations::Simple _openedAnimation;
 	QString _text;
@@ -59,6 +57,7 @@ private:
 	bool _summarizeHovered = false;
 	bool _loading = false;
 	bool _opened = false;
+	bool _summaryShown = false;
 
 };
 

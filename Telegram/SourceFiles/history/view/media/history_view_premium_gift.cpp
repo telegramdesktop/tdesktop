@@ -473,7 +473,7 @@ void PremiumGift::ensureStickerCreated() const {
 		return;
 	} else if (tonGift()) {
 		const auto &session = _parent->history()->session();
-		auto &packs = session.giftBoxStickersPacks();
+		const auto &packs = session.giftBoxStickersPacks();
 		const auto count = _data.count / Ui::kNanosInOne;
 		if (const auto document = packs.tonLookup(count)) {
 			if (document->sticker()) {
@@ -494,7 +494,7 @@ void PremiumGift::ensureStickerCreated() const {
 		return;
 	}
 	const auto &session = _parent->history()->session();
-	auto &packs = session.giftBoxStickersPacks();
+	const auto &packs = session.giftBoxStickersPacks();
 	const auto count = credits();
 	const auto months = count
 		? packs.monthsForStars(count)
@@ -570,8 +570,10 @@ ClickHandlerPtr OpenStarGiftLink(not_null<HistoryItem*> item) {
 			}).fail([=](const MTP::Error &error) {
 				*requesting = false;
 				if (const auto window = weak.get()) {
-					window->showToast(error.type());
-					quick(window);
+					if (!Ui::ShowGiftErrorToast(window->uiShow(), error)) {
+						window->showToast(error.type());
+						quick(window);
+					}
 				}
 			}).send();
 		};

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/menu/menu_multiline_action.h"
@@ -26,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_widgets.h"
 
@@ -66,7 +68,11 @@ void AddSaveDocumentAction(
 		if (!inProfile) {
 			const auto saved = [=] {
 				savedMusic->save(document, contextId);
-				show->showToast(tr::lng_saved_music_added(tr::now));
+				show->showToast({
+					.text = { tr::lng_saved_music_added(tr::now) },
+					.iconLottie = u"toast/save_to_music"_q,
+					.iconLottieSize = st::toastLottieIconSize,
+				});
 			};
 			menu->addAction(
 				tr::lng_context_save_music_profile(tr::now),

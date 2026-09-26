@@ -74,6 +74,9 @@ public:
 	void activate(not_null<Main::Account*> account);
 	void addActivated(MTP::Environment environment, bool newWindow = false);
 
+	// Drops session-less accounts that have no window open for them.
+	void removeRedundantAccounts();
+
 	// Interface for Storage::Domain.
 	void accountAddedInStorage(AccountWithIndex accountWithIndex);
 	void activateFromStorage(int index);
@@ -83,7 +86,6 @@ private:
 	void activateAfterStarting();
 	void closeAccountWindows(not_null<Main::Account*> account);
 	bool removePasscodeIfEmpty();
-	void removeRedundantAccounts();
 	void watchSession(not_null<Account*> account);
 	void scheduleWriteAccounts();
 	void checkForLastProductionConfig(not_null<Main::Account*> account);

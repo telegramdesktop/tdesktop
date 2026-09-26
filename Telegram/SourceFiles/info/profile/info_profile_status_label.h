@@ -24,6 +24,8 @@ public:
 	void refresh();
 	void setMembersLinkCallback(Fn<void()> callback);
 	[[nodiscard]] Fn<void()> membersLinkCallback() const;
+	void setHiddenLinkCallback(Fn<void()> callback);
+	[[nodiscard]] Fn<void()> hiddenLinkCallback() const;
 	void setOnlineCount(int count);
 	void setColorized(bool enabled);
 
@@ -33,7 +35,9 @@ private:
 	int _onlineCount = 0;
 	bool _colorized = true;
 	Fn<void()> _membersLinkCallback;
+	Fn<void()> _hiddenLinkCallback;
 	base::Timer _refreshTimer;
+	rpl::lifetime _lifetime;
 
 };
 

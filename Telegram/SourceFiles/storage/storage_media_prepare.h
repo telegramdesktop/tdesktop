@@ -21,15 +21,26 @@ struct PreparedList;
 enum class AlbumType;
 } // namespace Ui
 
+namespace Editor {
+struct PhotoModifications;
+} // namespace Editor
+
 namespace Storage {
 
 enum class MimeDataState {
 	None,
 	Files,
+	FilesArchive,
+	FilesArchiveOnly,
 	PhotoFiles,
+	PhotoFilesArchive,
 	MediaFiles,
+	MediaFilesArchive,
 	//PremiumFile,
 	Image,
+	Media,
+	Folder,
+	FolderArchiveOnly,
 };
 
 [[nodiscard]] std::optional<Ui::PreparedList> PreparedFileFromFilesDialog(
@@ -40,28 +51,64 @@ enum class MimeDataState {
 	bool premium);
 [[nodiscard]] MimeDataState ComputeMimeDataState(const QMimeData *data);
 [[nodiscard]] bool ValidatePhotoEditorMediaDragData(
-	not_null<const QMimeData*> data);
+	not_null<const QMimeData*> data,
+	bool withVideo);
+
+struct PhotoEditorMedia {
+	QImage image;
+	QString videoPath;
+	QByteArray videoContent;
+	crl::time videoDuration = 0;
+
+	[[nodiscard]] bool video() const {
+		return !videoPath.isEmpty() || !videoContent.isEmpty();
+	}
+	[[nodiscard]] explicit operator bool() const {
+		return !image.isNull();
+	}
+};
+[[nodiscard]] PhotoEditorMedia ReadPhotoEditorMedia(
+	const QString &path,
+	const QByteArray &content);
 [[nodiscard]] bool ValidateEditMediaDragData(
 	not_null<const QMimeData*> data,
 	Ui::AlbumType albumType);
 [[nodiscard]] Ui::PreparedList PrepareMediaList(
 	const QList<QUrl> &files,
 	int previewWidth,
-	bool premium);
+	bool premium,
+	Fn<void(const Ui::PreparedList &)> errorCallback = nullptr);
 [[nodiscard]] Ui::PreparedList PrepareMediaList(
 	const QStringList &files,
 	int previewWidth,
-	bool premium);
+	bool premium,
+	Fn<void(const Ui::PreparedList &)> errorCallback = nullptr);
 [[nodiscard]] Ui::PreparedList PrepareMediaFromImage(
 	QImage &&image,
 	QByteArray &&content,
 	int previewWidth);
 void PrepareDetails(Ui::PreparedFile &file, int previewWidth, int sideLimit);
+struct VideoDetails {
+	QSize originalDimensions;
+	QSize shownDimensions;
+	QImage preview;
+};
+
+[[nodiscard]] VideoDetails ComputeVideoDetails(
+	const QImage &thumbnail,
+	const Editor::PhotoModifications &geometry,
+	int previewWidth,
+	int sideLimit);
+void ApplyVideoDetails(Ui::PreparedFile &file, VideoDetails &&details);
+void UpdateVideoDetails(
+	Ui::PreparedFile &file,
+	int previewWidth,
+	int sideLimit);
 void UpdateImageDetails(
 	Ui::PreparedFile &file,
 	int previewWidth,
 	int sideLimit);
 
-bool ApplyModifications(Ui::PreparedList &list);
+bool ApplyModifications(Ui::PreparedList &list, bool composeAnimated = false);
 
 } // namespace Storage

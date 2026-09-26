@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/search_field_controller.h"
 #include "lang/lang_keys.h"
-#include "styles/style_info.h"
 
 namespace Info::GlobalMedia {
 

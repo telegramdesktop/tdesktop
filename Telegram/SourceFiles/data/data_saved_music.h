@@ -27,6 +27,7 @@ public:
 
 	[[nodiscard]] bool countKnown(PeerId peerId) const;
 	[[nodiscard]] int count(PeerId peerId) const;
+	[[nodiscard]] bool fullyLoaded(PeerId peerId) const;
 	[[nodiscard]] const std::vector<not_null<HistoryItem*>> &list(
 		PeerId peerId) const;
 	void loadMore(PeerId peerId);

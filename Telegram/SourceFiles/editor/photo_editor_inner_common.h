@@ -26,8 +26,66 @@ struct PhotoEditorMode {
 };
 
 struct Brush {
-	float sizeRatio = 0.;
+	enum class Tool : uchar {
+		Pen,
+		Arrow,
+		Marker,
+		Eraser,
+		Blur,
+	};
+	float64 sizeRatio = 0.;
 	QColor color;
+	Tool tool = Tool::Pen;
+};
+
+enum class TextStyle : uchar {
+	Framed,
+	SemiTransparent,
+	Plain,
+	Opaque,
+};
+
+enum class TextTypeface : uchar {
+	Default,
+	Italic,
+	Serif,
+	Condensed,
+	Monospace,
+};
+
+enum class TextAlignment : uchar {
+	Center,
+	Left,
+	Right,
+};
+
+struct TextPrefs {
+	TextStyle style = TextStyle::Plain;
+	TextTypeface typeface = TextTypeface::Default;
+	TextAlignment alignment = TextAlignment::Center;
+	float64 sizeRatio = 0.;
+
+	friend inline bool operator==(
+		const TextPrefs &,
+		const TextPrefs &) = default;
+};
+
+enum class ShapeType : uchar {
+	Circle,
+	Rectangle,
+	Star,
+	Bubble,
+	Arrow,
+};
+
+struct ShapeRequest {
+	enum class Action : uchar {
+		Arm,
+		Immediate,
+		Cancel,
+	};
+	ShapeType shape = ShapeType::Circle;
+	Action action = Action::Arm;
 };
 
 enum class SaveState {

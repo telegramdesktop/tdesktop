@@ -19,7 +19,6 @@ SingleMediaPreview *SingleMediaPreview::Create(
 		const style::ComposeControls &st,
 		Fn<bool()> gifPaused,
 		const PreparedFile &file,
-		Fn<bool(AttachActionType)> actionAllowed,
 		AttachControls::Type type) {
 	auto preview = QImage();
 	auto animated = false;
@@ -34,9 +33,16 @@ SingleMediaPreview *SingleMediaPreview::Create(
 			&file.information->media)) {
 		preview = file.videoCover
 			? file.videoCover->preview
-			: video->thumbnail;
+			: (video->thumbnail.isNull()
+				|| !video->modifications.geometry)
+			? video->thumbnail
+			: Editor::ImageModified(
+				video->thumbnail,
+				video->modifications.geometry);
 		animated = true;
-		animationPreview = video->isGifv;
+		// The animated preview plays the file itself, which knows nothing
+		// about the crop or the rotation, so show the edited frame instead.
+		animationPreview = video->isGifv && !video->modifications.geometry;
 	}
 	if (preview.isNull()) {
 		return nullptr;
@@ -45,7 +51,7 @@ SingleMediaPreview *SingleMediaPreview::Create(
 		&& !hasModifications) {
 		return nullptr;
 	}
-	return CreateChild<SingleMediaPreview>(
+	const auto result = CreateChild<SingleMediaPreview>(
 		parent,
 		st,
 		std::move(gifPaused),
@@ -54,8 +60,12 @@ SingleMediaPreview *SingleMediaPreview::Create(
 		Core::IsMimeSticker(file.information->filemime),
 		file.spoiler,
 		animationPreview ? file.path : QString(),
-		type,
-		std::move(actionAllowed));
+		type);
+	result->setModifyAllowed(file.canEditVideo());
+	result->setCanShowHighQualityBadge(file.canUseHighQualityPhoto());
+	result->setCanShowAnimatedBadge(file.hasAnimatedEditScene());
+	result->setVideoQuality(file.videoQuality());
+	return result;
 }
 
 SingleMediaPreview::SingleMediaPreview(
@@ -67,9 +77,8 @@ SingleMediaPreview::SingleMediaPreview(
 	bool sticker,
 	bool spoiler,
 	const QString &animatedPreviewPath,
-	AttachControls::Type type,
-	Fn<bool(AttachActionType)> actionAllowed)
-: AbstractSingleMediaPreview(parent, st, type, std::move(actionAllowed))
+	AttachControls::Type type)
+: AbstractSingleMediaPreview(parent, st, type)
 , _gifPaused(std::move(gifPaused))
 , _sticker(sticker) {
 	Expects(!preview.isNull());

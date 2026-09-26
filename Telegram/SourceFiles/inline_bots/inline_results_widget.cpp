@@ -36,6 +36,7 @@ Widget::Widget(
 , _api(&_controller->session().mtp())
 , _contentMaxHeight(st::emojiPanMaxHeight)
 , _contentHeight(_contentMaxHeight)
+, _shadow(st::emojiPanAnimation.shadow)
 , _scroll(this, st::inlineBotsScroll)
 , _innerRounding(Ui::PrepareCornerPixmaps(
 	ImageRoundRadius::Small,
@@ -96,7 +97,9 @@ void Widget::moveBottom(int bottom) {
 
 void Widget::updateContentHeight() {
 	auto addedHeight = innerPadding().top() + innerPadding().bottom();
-	auto wantedContentHeight = qRound(st::emojiPanHeightRatio * _bottom) - addedHeight;
+	const auto wanted
+		= int(base::SafeRound(st::emojiPanHeightRatio * _bottom));
+	auto wantedContentHeight = wanted - addedHeight;
 	auto contentHeight = std::clamp(
 		wantedContentHeight,
 		st::inlineResultsMinHeight,
@@ -154,7 +157,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 		hideFinished();
 	} else {
 		if (!_cache.isNull()) _cache = QPixmap();
-		if (!_inPanelGrab) Ui::Shadow::paint(p, innerRect(), width(), st::emojiPanAnimation.shadow);
+		if (!_inPanelGrab) _shadow.paint(p, innerRect(), st::roundRadiusSmall);
 		paintContent(p);
 	}
 }
@@ -241,7 +244,8 @@ void Widget::startShowAnimation() {
 			std::move(image),
 			QRect(
 				inner.topLeft() * style::DevicePixelRatio(),
-				inner.size() * style::DevicePixelRatio()));
+				inner.size() * style::DevicePixelRatio()),
+			st::emojiPanRadius);
 		_showAnimation->setCornerMasks(Images::CornersMask(ImageRoundRadius::Small));
 		_showAnimation->start();
 	}
@@ -373,10 +377,10 @@ void Widget::inlineResultsDone(const MTPmessages_BotResults &result) {
 	auto it = _inlineCache.find(_inlineQuery);
 	auto adding = (it != _inlineCache.cend());
 	if (result.type() == mtpc_messages_botResults) {
-		auto &d = result.c_messages_botResults();
+		const auto &d = result.c_messages_botResults();
 		_controller->session().data().processUsers(d.vusers());
 
-		auto &v = d.vresults().v;
+		const auto &v = d.vresults().v;
 		auto queryId = d.vquery_id().v;
 
 		if (it == _inlineCache.cend()) {
@@ -395,6 +399,7 @@ void Widget::inlineResultsDone(const MTPmessages_BotResults &result) {
 			entry->switchPmStartToken = QString();
 			entry->switchPmUrl = switchWebView->data().vurl().v;
 		}
+		entry->gallery = d.is_gallery();
 
 		if (const auto count = v.size()) {
 			entry->results.reserve(entry->results.size() + count);

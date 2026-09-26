@@ -41,8 +41,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/vertical_list.h"
-#include "styles/style_boxes.h"
-#include "styles/style_channel_earn.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_credits.h"
@@ -797,6 +795,9 @@ void ChooseSuggestPriceBox(
 }
 
 bool CanEditSuggestedMessage(not_null<HistoryItem*> item) {
+	if (item->richPage()) {
+		return false;
+	}
 	const auto media = item->media();
 	return !media || media->allowsEditCaption();
 }

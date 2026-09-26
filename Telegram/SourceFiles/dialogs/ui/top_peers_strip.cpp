@@ -220,7 +220,7 @@ void TopPeersStrip::stripWheelEvent(QWheelEvent *e) {
 			return;
 		}
 	}
-	const auto vertical = qAbs(fullDelta.x()) < qAbs(fullDelta.y());
+	const auto vertical = std::abs(fullDelta.x()) < std::abs(fullDelta.y());
 	if (_scrollingLock == Qt::Orientation() && phase != Qt::NoScrollPhase) {
 		_scrollingLock = vertical ? Qt::Vertical : Qt::Horizontal;
 	}
@@ -397,7 +397,7 @@ int TopPeersStrip::clearPressed() {
 	const auto pressed = std::exchange(_pressed, -1);
 	if (pressed >= 0) {
 		Assert(pressed < _entries.size());
-		auto &entry = _entries[pressed];
+		const auto &entry = _entries[pressed];
 		if (entry.ripple) {
 			entry.ripple->lastStop();
 		}

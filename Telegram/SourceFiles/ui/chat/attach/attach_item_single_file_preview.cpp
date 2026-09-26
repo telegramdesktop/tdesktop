@@ -40,7 +40,7 @@ ItemSingleFilePreview::ItemSingleFilePreview(
 	const style::ComposeControls &st,
 	not_null<HistoryItem*> item,
 	AttachControls::Type type)
-: AbstractSingleFilePreview(parent, st, CheckControlsType(item, type)) {
+: AbstractSingleFilePreview(parent, st, CheckControlsType(item, type), {}) {
 	const auto media = item->media();
 	Assert(media != nullptr);
 	const auto document = media->document();
@@ -109,7 +109,7 @@ void ItemSingleFilePreview::preparePreview(not_null<DocumentData*> document) {
 	}
 	data.statusText = FormatSizeText(document->size);
 
-	setData(data);
+	setData(std::move(data));
 }
 
 } // namespace Ui

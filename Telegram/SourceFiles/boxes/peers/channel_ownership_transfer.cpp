@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "boxes/passcode_box.h"
 #include "core/core_cloud_password.h"
-#include "data/data_channel.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -47,21 +46,10 @@ bool ChannelOwnershipTransfer::handleTransferPasswordError(
 }
 
 void ChannelOwnershipTransfer::start() {
-	if (const auto chat = _peer->asChatNotMigrated()) {
-		_peer->session().api().migrateChat(chat, [=](
-				not_null<ChannelData*> channel) {
-			startTransfer(channel);
-		});
-	} else if (const auto channel = _peer->asChannelOrMigrated()) {
-		startTransfer(channel);
-	}
-}
-
-void ChannelOwnershipTransfer::startTransfer(not_null<ChannelData*> channel) {
-	const auto api = &channel->session().api();
+	const auto api = &_peer->session().api();
 	api->cloudPassword().reload();
-	api->request(MTPchannels_EditCreator(
-		channel->inputChannel(),
+	api->request(MTPmessages_EditChatCreator(
+		_peer->input(),
 		MTP_inputUserEmpty(),
 		MTP_inputCheckPasswordEmpty()
 	)).fail([=](const MTP::Error &error) {
@@ -78,7 +66,7 @@ void ChannelOwnershipTransfer::startTransfer(not_null<ChannelData*> channel) {
 			.text = tr::lng_rights_transfer_about(
 				tr::now,
 				lt_group,
-				tr::bold(channel->name()),
+				tr::bold(_peer->name()),
 				lt_user,
 				tr::bold(_selectedUser->shortName()),
 				tr::rich),
@@ -110,20 +98,16 @@ void ChannelOwnershipTransfer::requestPassword() {
 void ChannelOwnershipTransfer::sendRequest(
 		base::weak_qptr<PasscodeBox> box,
 		const Core::CloudPasswordResult &result) {
-	const auto channel = _peer->asChannelOrMigrated();
-	if (!channel) {
-		return;
-	}
-	const auto api = &channel->session().api();
-	api->request(MTPchannels_EditCreator(
-		channel->inputChannel(),
+	const auto api = &_peer->session().api();
+	api->request(MTPmessages_EditChatCreator(
+		_peer->input(),
 		_selectedUser->inputUser(),
 		result.result
 	)).done([=](const MTPUpdates &result) {
 		api->applyUpdates(result);
 		const auto currentShow = box ? box->uiShow() : _show;
 		currentShow->showToast(
-			(channel->isBroadcast()
+			(_peer->isBroadcast()
 				? tr::lng_rights_transfer_done_channel
 				: tr::lng_rights_transfer_done_group)(
 					tr::now,
@@ -143,11 +127,13 @@ void ChannelOwnershipTransfer::sendRequest(
 			} else if (type == u"CHANNELS_ADMIN_LOCATED_TOO_MUCH"_q) {
 				return tr::lng_channels_too_much_located_other(tr::now);
 			} else if (type == u"ADMINS_TOO_MUCH"_q) {
-				return (channel->isBroadcast()
+				return (_peer->isBroadcast()
 					? tr::lng_error_admin_limit_channel
 					: tr::lng_error_admin_limit)(tr::now);
-			} else if (type == u"CHANNEL_INVALID"_q) {
-				return (channel->isBroadcast()
+			} else if (type == u"CHANNEL_INVALID"_q
+				|| type == u"CHAT_CREATOR_REQUIRED"_q
+				|| type == u"PARTICIPANT_MISSING"_q) {
+				return (_peer->isBroadcast()
 					? tr::lng_channel_not_accessible
 					: tr::lng_group_not_accessible)(tr::now);
 			}

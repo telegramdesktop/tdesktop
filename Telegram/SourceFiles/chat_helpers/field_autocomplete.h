@@ -7,39 +7,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "api/api_common.h"
-#include "ui/effects/animations.h"
-#include "ui/effects/message_sending_animation_common.h"
-#include "ui/rp_widget.h"
-#include "base/timer.h"
 #include "base/object_ptr.h"
+#include "base/timer.h"
+#include "base/unique_qptr.h"
+#include "ui/effects/animations.h"
+#include "ui/rp_widget.h"
 
 namespace style {
 struct EmojiPan;
 } // namespace style
 
 namespace Ui {
-class PopupMenu;
 class ScrollArea;
 class InputField;
+class ImportantTooltip;
 } // namespace Ui
-
-namespace Lottie {
-class SinglePlayer;
-class FrameRenderer;
-} // namespace Lottie;
 
 namespace Main {
 class Session;
 } // namespace Main
-
-namespace Window {
-class SessionController;
-} // namespace Window
-
-namespace Data {
-class DocumentMedia;
-} // namespace Data
 
 namespace SendMenu {
 struct Details;
@@ -83,8 +69,8 @@ public:
 	[[nodiscard]] ChannelData *channel() const;
 	[[nodiscard]] UserData *user() const;
 
-	[[nodiscard]] int32 innerTop();
-	[[nodiscard]] int32 innerBottom();
+	[[nodiscard]] int innerTop() const;
+	[[nodiscard]] int innerBottom() const;
 
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
@@ -121,7 +107,8 @@ public:
 		if (isHidden() || !testAttribute(Qt::WA_OpaquePaintEvent)) {
 			return false;
 		}
-		return rect().contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
+		const auto local = mapFromGlobal(globalRect.topLeft());
+		return rect().contains(QRect(local, globalRect.size()));
 	}
 
 	void setModerateKeyActivateCallback(Fn<bool(int)> callback) {
@@ -164,7 +151,11 @@ private:
 
 	void updateFiltered(bool resetScroll = false);
 	void recount(bool resetScroll = false);
-	StickerRows getStickerSuggestions();
+	[[nodiscard]] StickerRows getStickerSuggestions();
+	void createEphemeralHint(QRect rect);
+	void ephemeralIconHovered(QRect iconRect);
+	void showPendingEphemeralHint();
+	void hideEphemeralHint();
 
 	const std::shared_ptr<Show> _show;
 	const not_null<Main::Session*> _session;
@@ -193,11 +184,15 @@ private:
 	Type _type = Type::Mentions;
 	QString _filter;
 	QRect _boundings;
-	bool _addInlineBots;
+	bool _addInlineBots = false;
 
 	bool _hiding = false;
 
-	Ui::Animations::Simple _a_opacity;
+	base::unique_qptr<Ui::ImportantTooltip> _ephemeralHint;
+	base::Timer _ephemeralHintTimer;
+	QRect _ephemeralHintRect;
+
+	Ui::Animations::Simple _opacityAnimation;
 	rpl::event_stream<> _refreshRequests;
 	rpl::event_stream<> _stickersUpdateRequests;
 

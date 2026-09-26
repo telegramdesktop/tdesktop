@@ -205,6 +205,10 @@ std::shared_ptr<Result> Result::Create(
 			qs(data.vmessage()),
 			Api::EntitiesFromMTP(session, data.ventities().value_or_empty()),
 			data.is_no_webpage());
+	}, [&](const MTPDbotInlineMessageRichMessage &data) {
+		result->sendData = std::make_unique<internal::SendRichMessage>(
+			session,
+			data.vrich_message());
 	}, [&](const MTPDbotInlineMessageMediaGeo &data) {
 		data.vgeo().match([&](const MTPDgeoPoint &geo) {
 			if (const auto period = data.vperiod()) {

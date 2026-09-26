@@ -63,6 +63,24 @@ void UpdateAnimated(
 
 } // namespace
 
+bool MatchAllPreparedSearchWords(
+		const QStringList &titleWords,
+		const QStringList &searchWords) {
+	for (const auto &searchWord : searchWords) {
+		auto found = false;
+		for (const auto &titleWord : titleWords) {
+			if (titleWord.startsWith(searchWord)) {
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			return false;
+		}
+	}
+	return true;
+}
+
 uint64 EmojiSectionSetId(EmojiSection section) {
 	Expects(section >= EmojiSection::Recent
 		&& section <= EmojiSection::Symbols);
@@ -146,7 +164,8 @@ rpl::producer<std::vector<GifSection>> GifSectionsValue(
 
 [[nodiscard]] std::vector<EmojiPtr> SearchEmoji(
 		const std::vector<QString> &query,
-		base::flat_set<EmojiPtr> &outResultSet) {
+		base::flat_set<EmojiPtr> &outResultSet,
+		bool exact) {
 	auto result = std::vector<EmojiPtr>();
 	const auto pushPlain = [&](EmojiPtr emoji) {
 		if (result.size() < kEmojiSearchLimit
@@ -170,7 +189,7 @@ rpl::producer<std::vector<GifSection>> GifSectionsValue(
 				refreshed = true;
 				keywords.refresh();
 			}
-			const auto list = keywords.queryMine(entry);
+			const auto list = keywords.queryMine(entry, exact);
 			for (const auto &entry : list) {
 				pushPlain(entry.emoji);
 				if (result.size() >= kEmojiSearchLimit) {
@@ -368,7 +387,7 @@ void StickersListFooter::enumerateIcons(
 	const auto emojiId = AllEmojiSectionSetId();
 	const auto right = width();
 	for (auto i = 0, count = int(_icons.size()); i != count; ++i) {
-		auto &icon = _icons[i];
+		const auto &icon = _icons[i];
 		const auto width = (icon.setId == emojiId)
 			? _subiconsWidthAnimation.value(_subiconsExpanded
 				? _subiconsWidth
@@ -660,9 +679,12 @@ void StickersListFooter::paint(
 void StickersListFooter::paintSelectionBg(
 		QPainter &p,
 		const ExpandingContext &context) const {
-	auto selxrel = _iconsLeft + qRound(_iconState.selectionX.current());
-	auto selx = selxrel - qRound(_iconState.x.current());
-	const auto selw = qRound(_iconState.selectionWidth.current());
+	const auto selectionX
+		= int(base::SafeRound(_iconState.selectionX.current()));
+	auto selxrel = _iconsLeft + selectionX;
+	auto selx = selxrel - int(base::SafeRound(_iconState.x.current()));
+	const auto selw
+		= int(base::SafeRound(_iconState.selectionWidth.current()));
 	if (rtl()) {
 		selx = width() - selx - selw;
 	}
@@ -830,8 +852,10 @@ void StickersListFooter::mousePressEvent(QMouseEvent *e) {
 	} else {
 		_pressed = _selected;
 		_iconsMouseDown = _iconsMousePos;
-		_iconState.draggingStartX = qRound(_iconState.x.current());
-		_subiconState.draggingStartX = qRound(_subiconState.x.current());
+		const auto iconX = int(base::SafeRound(_iconState.x.current()));
+		const auto subiconX = int(base::SafeRound(_subiconState.x.current()));
+		_iconState.draggingStartX = iconX;
+		_subiconState.draggingStartX = subiconX;
 	}
 }
 
@@ -860,7 +884,7 @@ void StickersListFooter::checkDragging(ScrollState &state) {
 				+ state.draggingStartX,
 			0,
 			state.max);
-		if (newX != qRound(state.x.current())) {
+		if (newX != int(base::SafeRound(state.x.current()))) {
 			state.x = anim::value(newX, newX);
 			state.animationStart = 0;
 			state.animation.stop();
@@ -910,7 +934,7 @@ bool StickersListFooter::finishDragging(ScrollState &state) {
 		state.draggingStartX + _iconsMouseDown.x() - _iconsMousePos.x(),
 		0,
 		state.max);
-	if (newX != qRound(state.x.current())) {
+	if (newX != int(base::SafeRound(state.x.current()))) {
 		state.x = anim::value(newX, newX);
 		state.animationStart = 0;
 		state.animation.stop();
@@ -948,7 +972,7 @@ void StickersListFooter::scrollByWheelEvent(
 			? e->pixelDelta().y()
 			: e->angleDelta().y());
 	const auto use = [&](ScrollState &state) {
-		const auto now = qRound(state.x.current());
+		const auto now = int(base::SafeRound(state.x.current()));
 		const auto used = now - delta;
 		const auto next = std::clamp(used, 0, state.max);
 		delta = next - used;
@@ -1208,6 +1232,7 @@ void StickersListFooter::validateIconWebmAnimation(
 		const StickerIcon &icon) {
 	icon.ensureMediaCreated();
 	if (icon.webm
+		|| icon.webm.isBad()
 		|| !icon.sticker
 		|| !HasWebmThumbnail(
 			icon.set ? icon.set->thumbnailType() : StickerType(),

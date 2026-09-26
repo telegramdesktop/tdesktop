@@ -16,9 +16,12 @@ inline QString UrlToLocal(const QUrl &url) {
 	return ::File::internal::UrlToLocalDefault(url);
 }
 
+namespace Unfused {
+
 inline void UnsafeOpenUrl(const QString &url) {
 	return ::File::internal::UnsafeOpenUrlDefault(url);
 }
 
+} // namespace Unfused
 } // namespace File
 } // namespace Platform

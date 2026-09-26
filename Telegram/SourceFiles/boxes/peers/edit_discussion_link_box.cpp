@@ -25,9 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
-#include "styles/style_boxes.h"
 #include "styles/style_info.h"
-#include "styles/style_settings.h"
 
 namespace {
 
@@ -111,7 +109,7 @@ void Controller::prepare() {
 	if (_chat) {
 		appendRow(_chat);
 	} else {
-		for (const auto chat : _chats) {
+		for (const auto &chat : _chats) {
 			appendRow(chat);
 		}
 		if (_chats.size() >= kEnableSearchRowsCount) {

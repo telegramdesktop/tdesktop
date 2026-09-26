@@ -85,6 +85,7 @@ private:
 		FFmpeg::FramePointer transferred;
 		QImage original;
 		FrameYUV yuv;
+		NativeFrame nativeFrame;
 		crl::time position = kTimeUnknown;
 		crl::time displayed = kTimeUnknown;
 		crl::time display = kTimeUnknown;
@@ -120,6 +121,7 @@ private:
 
 		[[nodiscard]] PrepareState prepareState(
 			crl::time trackTime,
+			float64 playbackSpeed,
 			bool dropStaleFrames);
 
 		[[nodiscard]] PresentFrame presentFrame(

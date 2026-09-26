@@ -47,10 +47,29 @@ class Row;
 class IndexedList;
 class MainList;
 
+extern const char kOptionDialogsUnreadOnTop[];
+
 [[nodiscard]] BadgesState BadgesForUnread(
 	const UnreadState &state,
 	CountInBadge count = CountInBadge::Default,
 	IncludeInBadge include = IncludeInBadge::Default);
+
+struct DateTextCache {
+	QString text;
+	TimeId messageTimeId = 0;
+	int todaySerial = 0;
+	int width = 0;
+};
+
+struct DateText {
+	const QString &text;
+	int width = 0;
+};
+
+[[nodiscard]] DateText ResolveDateText(
+	DateTextCache &cache,
+	TimeId date,
+	crl::time now);
 
 class Entry : public base::has_weak_ptr {
 public:
@@ -154,6 +173,9 @@ public:
 	}
 
 	[[nodiscard]] const Ui::Text::String &chatListNameText() const;
+	[[nodiscard]] DateText chatListTimestampText(
+		TimeId date,
+		crl::time now) const;
 	[[nodiscard]] Ui::PeerBadge &chatListPeerBadge() const {
 		return _chatListPeerBadge;
 	}
@@ -180,6 +202,7 @@ private:
 	virtual void changedChatListPinHook();
 	void pinnedIndexChanged(FilterId filterId, int was, int now);
 	[[nodiscard]] uint64 computeSortPosition(FilterId filterId) const;
+	[[nodiscard]] bool hasUnreadUnmutedForSort() const;
 
 	void setChatListExistence(bool exists);
 	not_null<Row*> mainChatListLink(FilterId filterId) const;
@@ -194,6 +217,7 @@ private:
 	mutable Ui::PeerBadge _chatListPeerBadge;
 	mutable Ui::Text::String _chatListNameText;
 	mutable int _chatListNameVersion = 0;
+	mutable DateTextCache _chatListDateCache;
 	TimeId _timeId = 0;
 	Flags _flags;
 

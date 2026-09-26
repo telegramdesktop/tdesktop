@@ -42,6 +42,9 @@ public:
 	PreLaunchLabel(QWidget *parent);
 	void setText(const QString &text);
 
+protected:
+	void contextMenuEvent(QContextMenuEvent *e) override;
+
 };
 
 class PreLaunchInput : public QLineEdit {
