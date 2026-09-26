@@ -9076,6 +9076,9 @@ bool Widget::handleTabNavigation(QKeyEvent *e) {
 		& ~(Qt::KeypadModifier | Qt::GroupSwitchModifier);
 	if (modifiers != Qt::NoModifier && modifiers != Qt::ShiftModifier) {
 		return false;
+	} else if (_insertSuggestions->handleKeyPress(e)) {
+		e->accept();
+		return true;
 	}
 	const auto forward = (key != Qt::Key_Backtab)
 		&& (modifiers != Qt::ShiftModifier);
