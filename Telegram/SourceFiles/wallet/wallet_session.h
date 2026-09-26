@@ -787,6 +787,11 @@ public:
 		bool bounce,
 		const QByteArray &recipientPublicKey,
 		Fn<void(CommentRecipient)> done);
+	// Asks no key; |done| gets nullopt when the name has no wallet.
+	void resolveDnsName(
+		const QString &name,
+		Fn<void(std::optional<QString>)> done,
+		Fn<void()> fail);
 	void estimateTonConnect(
 		uint64 owner,
 		std::shared_ptr<const TonConnectTransfer> transfer,

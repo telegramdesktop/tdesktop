@@ -4009,6 +4009,7 @@ void WalletConflictBox(
 enum class RecipientInputKind : uchar {
 	Empty,
 	Address,
+	Name,
 	Invalid,
 	Search,
 };
@@ -4018,12 +4019,60 @@ struct RecipientInput {
 	std::optional<SendFlow> flow;
 };
 
+enum class RecipientError : uchar {
+	Invalid,
+	NameNotFound,
+	NameFailed,
+};
+
+[[nodiscard]] rpl::producer<QString> RecipientErrorText(
+		RecipientError error) {
+	switch (error) {
+	case RecipientError::Invalid:
+		return tr::lng_wallet_send_invalid_address();
+	case RecipientError::NameNotFound:
+		return tr::lng_wallet_send_name_not_found();
+	case RecipientError::NameFailed:
+		return tr::lng_wallet_send_name_failed();
+	}
+	Unexpected("RecipientError in RecipientErrorText.");
+}
+
+[[nodiscard]] bool IsTonDnsName(const QString &text) {
+	if (text.isEmpty() || text.size() > 126) {
+		return false;
+	}
+	const auto parts = text.split(QChar('.'));
+	if (parts.size() < 2
+		|| parts.back().compare(u"ton"_q, Qt::CaseInsensitive) != 0) {
+		return false;
+	}
+	for (const auto &part : parts) {
+		if (part.isEmpty()) {
+			return false;
+		}
+		for (const auto ch : part) {
+			const auto code = ch.unicode();
+			const auto good = (code >= 'a' && code <= 'z')
+				|| (code >= 'A' && code <= 'Z')
+				|| (code >= '0' && code <= '9')
+				|| (code == '-');
+			if (!good) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 [[nodiscard]] RecipientInput ClassifyRecipientInput(const QString &text) {
 	using Kind = RecipientInputKind;
 	if (text.isEmpty()) {
 		return {};
 	} else if (auto flow = ParseRecipientFlow(text)) {
 		return { .kind = Kind::Address, .flow = std::move(flow) };
+	} else if (IsTonDnsName(text)) {
+		return { .kind = Kind::Name };
 	} else if (text.contains(u"://"_q)
 		|| text.startsWith(u"ton:"_q, Qt::CaseInsensitive)
 		|| ParseAddress(text)
@@ -7013,8 +7062,10 @@ void WalletSendRecipientBox(
 
 	struct State {
 		std::optional<SendFlow> flow;
+		QString name;
 		rpl::variable<bool> valid = false;
 		rpl::variable<bool> invalid = false;
+		rpl::variable<RecipientError> error = RecipientError::Invalid;
 		rpl::variable<bool> resolving = false;
 		rpl::variable<QString> search;
 		base::Timer deadline;
@@ -7038,7 +7089,9 @@ void WalletSendRecipientBox(
 			recipient,
 			object_ptr<Ui::FlatLabel>(
 				recipient,
-				tr::lng_wallet_send_invalid_address(),
+				(state->error.value()
+					| rpl::map(RecipientErrorText)
+					| rpl::flatten_latest()),
 				st::walletSendErrorLabel)),
 		style::margins(
 			st::walletSendFieldMargin.left(),
@@ -7064,8 +7117,14 @@ void WalletSendRecipientBox(
 		const auto trimmed = field->getLastText().trimmed();
 		auto input = ClassifyRecipientInput(trimmed);
 		state->flow = std::move(input.flow);
-		state->valid = state->flow.has_value();
+		state->name = (input.kind == RecipientInputKind::Name)
+			? trimmed
+			: QString();
+		state->valid = state->flow.has_value() || !state->name.isEmpty();
 		state->invalid = (input.kind == RecipientInputKind::Invalid);
+		if (state->invalid.current()) {
+			state->error = RecipientError::Invalid;
+		}
 		const auto searching = (input.kind == RecipientInputKind::Search);
 		if (searching && !state->searchCreated) {
 			state->searchCreated = true;
@@ -7087,17 +7146,7 @@ void WalletSendRecipientBox(
 		box->closeBox();
 		OpenSendFlow(show, std::move(flow), std::move(owner));
 	};
-	const auto submit = [=] {
-		if (state->closed || state->resolving.current()) {
-			return;
-		} else if (!state->flow) {
-			field->showError();
-			return;
-		} else if (TransferLinkExpired(state->flow->expiresAt)) {
-			show->showToast(tr::lng_wallet_send_link_expired(tr::now));
-			return;
-		}
-		const auto flow = *state->flow;
+	const auto lookupOwner = [=](SendFlow flow) {
 		if (SendsToOwnWallet(session, flow.destination)) {
 			proceed(flow, AddressOwner());
 			return;
@@ -7115,6 +7164,58 @@ void WalletSendRecipientBox(
 		session->wallet().userAddresses().resolveOwner(
 			flow.destination,
 			crl::guard(session, crl::guard(box, answer)));
+	};
+	const auto failName = [=](RecipientError error) {
+		stop();
+		state->error = error;
+		state->invalid = true;
+	};
+	const auto resolveName = [=] {
+		const auto revision = ++state->revision;
+		state->invalid = false;
+		state->resolving = true;
+		state->deadline.setCallback([=] {
+			if (revision == state->revision) {
+				failName(RecipientError::NameFailed);
+			}
+		});
+		state->deadline.callOnce(kSendUserLoadTimeout);
+		const auto done = [=](std::optional<QString> address) {
+			if (revision != state->revision) {
+				return;
+			} else if (!address) {
+				failName(RecipientError::NameNotFound);
+			} else if (auto flow = ParseRecipientFlow(*address)) {
+				state->deadline.cancel();
+				lookupOwner(std::move(*flow));
+			} else {
+				failName(RecipientError::NameFailed);
+			}
+		};
+		const auto fail = [=] {
+			if (revision == state->revision) {
+				failName(RecipientError::NameFailed);
+			}
+		};
+		session->wallet().resolveDnsName(
+			state->name,
+			crl::guard(box, done),
+			crl::guard(box, fail));
+	};
+	const auto submit = [=] {
+		if (state->closed || state->resolving.current()) {
+			return;
+		} else if (!state->name.isEmpty()) {
+			resolveName();
+			return;
+		} else if (!state->flow) {
+			field->showError();
+			return;
+		} else if (TransferLinkExpired(state->flow->expiresAt)) {
+			show->showToast(tr::lng_wallet_send_link_expired(tr::now));
+			return;
+		}
+		lookupOwner(*state->flow);
 	};
 
 	const auto button = box->addButton(

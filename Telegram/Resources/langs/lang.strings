@@ -8906,6 +8906,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_send_recipient" = "Recipient";
 "lng_wallet_send_paste" = "Paste";
 "lng_wallet_send_invalid_address" = "Invalid address";
+"lng_wallet_send_name_not_found" = "No wallet is linked to this name.";
+"lng_wallet_send_name_failed" = "Couldn't look up this name. Please try again.";
 "lng_wallet_send_link_expired" = "This payment link has expired.";
 "lng_wallet_send_link_invalid" = "This link is invalid.";
 "lng_wallet_send_error_quote_expired" = "Transfer details changed or couldn't be prepared. Review the details and try again.";

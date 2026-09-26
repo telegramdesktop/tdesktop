@@ -8200,6 +8200,27 @@ void Session::resolveCommentRecipientAttempt(
 	});
 }
 
+void Session::resolveDnsName(
+		const QString &name,
+		Fn<void(std::optional<QString>)> done,
+		Fn<void()> fail) {
+	const auto client = _engine->client();
+	if (!client || _clientStopping) {
+		fail();
+		return;
+	}
+	_engine->run([client, name = name.toStdString()] {
+		return client->resolve_dns(name);
+	}, [=](std::optional<std::string> address) {
+		done(address
+			? std::make_optional(QString::fromStdString(*address))
+			: std::nullopt);
+	}, [=](EngineError error) {
+		LOG(("Wallet Error: dns lookup failed: %1").arg(error.message));
+		fail();
+	});
+}
+
 void Session::retirePreviewOwner(uint64 owner) {
 	cancelFeeEstimate(owner);
 	_preview->owners.remove(owner);
