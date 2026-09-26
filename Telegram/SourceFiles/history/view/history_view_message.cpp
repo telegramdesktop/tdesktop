@@ -4644,6 +4644,14 @@ bool Message::getStateText(
 			; task && item->history()->session().api().richTasks()
 				.togglingAllowed(item)) {
 			*outResult = TextState(item);
+			rich->handlerCodeHeaderSegmentIndex = -1;
+			clearHorizontalScrollHandler();
+			rich->handlerPreparedLink = std::nullopt;
+			rich->handlerMediaActivation = {};
+			rich->handlerPlaceholderId = {};
+			rich->handlerPlaceholderPoint = {};
+			clearButtonRowHandler();
+			clearInlineButtonHandler();
 			if (!rich->handlerTaskItem || (*rich->handlerTaskItem != *task)) {
 				rich->handlerTaskItem = task;
 				rich->handler = std::make_shared<RichPageActionClickHandler>(
