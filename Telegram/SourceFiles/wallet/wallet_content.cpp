@@ -329,7 +329,7 @@ private:
 	Ui::FlatLabel *_custodyBarLabel = nullptr;
 	Ui::FixedHeightWidget *_cardPlaceholder = nullptr;
 	Card *_card = nullptr;
-	Ui::AbstractButton *_cardQr = nullptr;
+	Ui::AbstractButton *_cardButton = nullptr;
 	QRect _paintedInk;
 	int _reserve = 0;
 	int _paintedHeight = -1;
@@ -355,7 +355,7 @@ struct CardFold {
 // as, and `transform` maps the first onto the second. A Card paints with
 // a widget-local painter, so it reconciles with p.translate(-x(), -y())
 // before applying `transform` and draws into `rest`; paintedQuad() and
-// paintedQrQuad() return Content coordinates for the same reason.
+// paintedOutline() return Content coordinates for the same reason.
 [[nodiscard]] CardFold ComputeCardFold(QRect cardRest, float64 fold);
 
 class Card final : public Ui::RpWidget {
@@ -368,7 +368,7 @@ public:
 	void setFold(const CardFold &fold);
 	[[nodiscard]] const CardFold &fold() const;
 	[[nodiscard]] QPolygonF paintedQuad() const;
-	[[nodiscard]] QPolygonF paintedQrQuad() const;
+	[[nodiscard]] QPolygonF paintedOutline() const;
 	void invalidateCache();
 
 protected:
@@ -3330,6 +3330,7 @@ void SetupIntroTooltip(
 			.rim = st::activeButtonFg->c,
 			.text = st::activeButtonFg->c,
 		});
+	state->tooltip->setAttribute(Qt::WA_TransparentForMouseEvents);
 	state->tooltip->finishAnimating();
 	const auto finish = [=] {
 		if (state->finished) {
@@ -11192,18 +11193,16 @@ QPolygonF Card::paintedQuad() const {
 	return _fold.quad;
 }
 
-QPolygonF Card::paintedQrQuad() const {
+QPolygonF Card::paintedOutline() const {
 	if (!_fold.valid) {
 		return QPolygonF();
 	}
-	const auto plate = QRectF(
-		CardQrRect(_fold.rest.width()).translated(_fold.rest.topLeft()));
-	return _fold.transform.map(QPolygonF({
-		plate.topLeft(),
-		plate.topRight(),
-		plate.bottomRight(),
-		plate.bottomLeft(),
-	}));
+	auto path = QPainterPath();
+	path.addRoundedRect(
+		QRectF(_fold.rest),
+		st::walletCardRadius,
+		st::walletCardRadius);
+	return _fold.transform.map(path.toFillPolygon());
 }
 
 void Card::invalidateCache() {
@@ -11658,7 +11657,7 @@ void Content::setupContent() {
 	_pinnedBackground->raise();
 	_card->raise();
 	_pinned->raise();
-	_cardQr->raise();
+	_cardButton->raise();
 	_tabsShadow->raise();
 	_headerShadow->raise();
 	_stripShadow->raise();
@@ -11704,11 +11703,11 @@ void Content::setupPinned() {
 		_cardPlaceholder->rect()));
 	_card->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_card->show();
-	_cardQr = Ui::CreateChild<Ui::AbstractButton>(this);
-	_cardQr->setClickedCallback([=] {
+	_cardButton = Ui::CreateChild<Ui::AbstractButton>(this);
+	_cardButton->setClickedCallback([=] {
 		ShowWalletReceiveBox(&_show->session(), _show);
 	});
-	_cardQr->show();
+	_cardButton->show();
 
 	const auto buttons = _pinnedInner->add(
 		object_ptr<Ui::FixedHeightWidget>(
@@ -11786,7 +11785,7 @@ void Content::setupPinned() {
 		return base::EventFilterResult::Cancel;
 	};
 	base::install_event_filter(_pinned, forwardWheel);
-	base::install_event_filter(_cardQr, forwardWheel);
+	base::install_event_filter(_cardButton, forwardWheel);
 }
 
 [[nodiscard]] TextWithEntities IslandAmount(
@@ -12432,16 +12431,15 @@ void Content::updatePinned() {
 		rest.bottomRight());
 	_card->setGeometry(cardWidget);
 	_card->setFold(fold);
-	const auto plate = _card->paintedQrQuad();
-	const auto plateBounds = plate.boundingRect().toAlignedRect();
-	_cardQr->setGeometry(plateBounds);
-	if (fold.fold > 0.) {
-		_cardQr->setMask(QRegion(
-			plate.translated(-plateBounds.topLeft()).toPolygon()));
-	} else {
-		_cardQr->clearMask();
+	const auto shown = fold.valid && fold.opacity > 0.;
+	if (shown) {
+		const auto outline = _card->paintedOutline();
+		const auto bounds = outline.boundingRect().toAlignedRect();
+		_cardButton->setGeometry(bounds);
+		_cardButton->setMask(QRegion(
+			outline.translated(-bounds.topLeft()).toPolygon()));
 	}
-	_cardQr->setVisible(fold.valid && fold.opacity > 0.);
+	_cardButton->setVisible(shown);
 	_scroll->setVerticalBarTopSkip(height - min);
 	_tabsShadow->setGeometry(0, height, width(), st::lineWidth);
 	_headerShadow->setVisible(height == min);
