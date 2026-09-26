@@ -53,13 +53,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Window {
 namespace {
 
-// The folder tabs container, exposed as a list to screen readers.
+// The folder tabs container, exposed as a tab control to screen readers.
 class TabListLayout final : public Ui::VerticalLayout {
 public:
 	using Ui::VerticalLayout::VerticalLayout;
 
 	QAccessible::Role accessibilityRole() override {
-		return QAccessible::List;
+		return QAccessible::PageTabList;
 	}
 	Qt::FocusPolicy accessibilityFocusPolicy() override {
 		// Let the accessibility layer decide focusability (like PopupMenu),
@@ -240,6 +240,14 @@ void FiltersMenu::setupMainMenuIcon() {
 			? &st::windowFiltersMainMenuUnread
 			: &st::windowFiltersMainMenuUnreadMuted;
 		_menu.setIconOverride(icon, icon);
+		// The unread dot is only painted - surface it to a screen reader
+		// through the button's description.
+		const auto description = state.count
+			? tr::lng_sr_menu_unread_other_accounts(tr::now)
+			: QString();
+		if (_menu.accessibleDescription() != description) {
+			_menu.setAccessibleDescription(description);
+		}
 	}, _outer.lifetime());
 }
 
@@ -343,6 +351,26 @@ bool FiltersMenu::listFocused() const {
 		}
 	}
 	return false;
+}
+
+void FiltersMenu::parkListTabStop() {
+	// Once focus leaves the list, park the roving Tab-stop back on the
+	// active folder, so the next Tab from outside enters the list on it and
+	// not on the folder the arrows last browsed. Deferred, because focus
+	// may be merely moving to another folder - by the time this runs that
+	// folder holds focus and has taken the stop already.
+	crl::on_main(&_outer, [=] {
+		// Checked here rather than when scheduling: the reader may have
+		// been stopped in between, and then the folders stay out of the
+		// Tab chain.
+		if (listFocused() || !Ui::ScreenReaderModeActive()) {
+			return;
+		}
+		const auto i = _filters.find(_activeFilterId);
+		if (i != end(_filters)) {
+			setListTabStop(i->second.get());
+		}
+	});
 }
 
 void FiltersMenu::refresh() {
@@ -562,8 +590,8 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		return On(PowerSaving::kEmojiChat)
 			|| _session->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
 	};
-	// A real folder (id >= 0), locked or not, is a selectable list item; only
-	// the "Edit" button (id < 0) stays a plain button. Establish this before
+	// A real folder (id >= 0), locked or not, is a selectable tab; only the
+	// "Edit" button (id < 0) stays a plain button. Establish this before
 	// inserting the widget - insertion shows the child immediately, so
 	// configuring the role up front avoids a transient or separately-announced
 	// role change.
@@ -579,7 +607,7 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		}),
 		paused);
 	prepared->setLocked(locked);
-	prepared->setIsListItem(listItem);
+	prepared->setIsPageTab(listItem);
 	prepared->setShowIcon(mode != Ui::ChatsFiltersTabsMode::TextOnly);
 	prepared->setShowText(mode != Ui::ChatsFiltersTabsMode::IconsOnly);
 	auto added = toBeginning
@@ -666,6 +694,9 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 			if (event->type() == QEvent::FocusIn) {
 				setListTabStop(raw);
 				return base::EventFilterResult::Continue;
+			} else if (event->type() == QEvent::FocusOut) {
+				parkListTabStop();
+				return base::EventFilterResult::Continue;
 			} else if (event->type() != QEvent::KeyPress) {
 				return base::EventFilterResult::Continue;
 			}
@@ -707,7 +738,8 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 				return;
 			}
 			if (e->type() == QEvent::ContextMenu) {
-				showMenu(QCursor::pos(), id);
+				const auto event = static_cast<QContextMenuEvent*>(e.get());
+				showMenu(Ui::ContextMenuPosition(raw, event), id);
 			} else if (e->type() == QEvent::DragEnter) {
 				using namespace Storage;
 				const auto d = static_cast<QDragEnterEvent*>(e.get());
