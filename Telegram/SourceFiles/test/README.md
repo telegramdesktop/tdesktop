@@ -371,8 +371,11 @@ shared one accumulated. One overlay rebuilt grab-check-save by hand after
 The golden `test_TelegramForcePortable` folder may carry secrets beside
 `tdata`. Today those are `2svpassword.txt` and `test_gram_account.txt`.
 `2svpassword.txt` is the test account's two-step verification (cloud)
-password, which the server demands on every destructive wallet method
-(`PASSWORD_MISSING` without it, `SRP_ID_INVALID` for a fabricated proof). A
+password, which the server demands on `wallet.exportSecretPhrase`,
+`wallet.replaceWallet` and the password route of `wallet.disableBackup`
+(`PASSWORD_MISSING` without it, `SRP_ID_INVALID` for a fabricated proof).
+`wallet.enableBackup`, which has no password field, and the proof route of
+`wallet.disableBackup` prove key ownership instead of sending the password. A
 scenario reads it at runtime through
 `Test::TwoStepPassword()` — whitespace-trimmed, `std::nullopt` when the file
 is absent or blank, always `std::nullopt` outside test-agent mode — and the

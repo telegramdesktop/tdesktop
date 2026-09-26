@@ -247,9 +247,10 @@ nothing changes: the same `-testagent -noupdate` vector and the same `out/Debug`
 
 Fixture secrets ride in the golden folder beside `tdata`: `2svpassword.txt` and
 `test_gram_account.txt` (below). `2svpassword.txt` is the test account's two-step-verification
-(cloud) password, which the server requires on every destructive wallet method
-(`wallet.exportSecretPhrase`, `wallet.replaceWallet`, `wallet.enableBackup`,
-`wallet.disableBackup`). A scenario reads it at runtime with
+(cloud) password, which the server requires on `wallet.exportSecretPhrase`, `wallet.replaceWallet`
+and the password route of `wallet.disableBackup` (`Session::disableBackup`). `wallet.enableBackup`,
+which has no password field, and the proof route (`Session::disableBackupWithProof`) prove key
+ownership instead of sending the password. A scenario reads it at runtime with
 `Test::TwoStepPassword()` (trimmed; `std::nullopt` when absent; the live copy is read first, then
 the golden sibling) and types it into the product's own `PasscodeBox`, so the real SRP path
 computes the proof. The value stays inside the process: never in overlay code, `work/`,
