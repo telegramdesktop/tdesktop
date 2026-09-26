@@ -122,6 +122,10 @@ void StatusLabel::setOnlineCount(int count) {
 	refresh();
 }
 
+int StatusLabel::onlineCount() const {
+	return _onlineCount;
+}
+
 void StatusLabel::refresh() {
 	const auto hidden = PeerHiddenInCommunity(_peer);
 	auto hasMembersLink = [&] {
