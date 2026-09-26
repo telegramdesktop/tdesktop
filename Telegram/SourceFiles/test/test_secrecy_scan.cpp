@@ -1272,15 +1272,15 @@ struct SelfFixture {
 
 [[nodiscard]] SelfFixture CleanFixture() {
 	auto result = SelfFixture();
-	result.testLog = {
+	result.testLog = QStringList{
 		u"NOTE: "_q + kSelfFiller + u" a harness row"_q,
 		u"NOTE: SECRECY_CONTROL: "_q + kSelfNonce,
 	};
-	result.appLog = {
+	result.appLog = QStringList{
 		u"[2026.01.15 10:05:00] "_q + kSelfFiller + u" app line"_q,
 		u"[2026.01.15 10:05:01] "_q + PlantedEntry(),
 	};
-	result.parts[u"log_10_00.txt"_q] = {
+	result.parts[u"log_10_00.txt"_q] = QStringList{
 		kSelfToday,
 		Entry(kSelfFiller + u" debug line"_q),
 		Entry(PlantedEntry()),
@@ -1886,7 +1886,7 @@ void SelfIdentity(const std::shared_ptr<SelfState> &state) {
 	};
 	const auto earlierFixture = [&](bool withForeign) {
 		auto result = CleanFixture();
-		result.parts[u"log_09_00.txt"_q] = {
+		result.parts[u"log_09_00.txt"_q] = QStringList{
 			kSelfToday,
 			Entry(kSelfFiller + u" earlier launch"_q),
 			Entry(kSelfEarlierControl),
