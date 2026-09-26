@@ -8729,6 +8729,11 @@ bool OverlayWidget::filterApplicationEvent(
 		if (key == Qt::Key_F && ctrl && _streamed) {
 			playbackToggleFullScreen();
 			return true;
+		} else if (_streamed
+			&& (key == Qt::Key_Enter || key == Qt::Key_Return)
+			&& (ctrl || event->modifiers().testFlag(Qt::AltModifier))) {
+			playbackToggleFullScreen();
+			return true;
 		} else if (key == Qt::Key_0 && ctrl) {
 			zoomReset();
 			return true;

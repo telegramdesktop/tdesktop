@@ -2674,6 +2674,17 @@ void HistoryWidget::setupShortcuts() {
 			controller()->searchInChat(_history);
 			return true;
 		});
+		_canSendMessages
+			&& _field
+			&& !_field->isHidden()
+			&& Ui::InputField::ShouldSubmit(
+				Core::App().settings().sendSubmitWay(),
+				Qt::AltModifier)
+			&& request->check(Command::ChatListOpen, 1)
+			&& request->handle([=] {
+				sendWithModifiers(Qt::AltModifier);
+				return true;
+			});
 		request->check(Command::ShowChatMenu, 1) && request->handle([=] {
 			Window::ActivateWindow(controller());
 			_topBar->showPeerMenu();

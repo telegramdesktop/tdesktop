@@ -353,6 +353,7 @@ private:
 	friend inline constexpr bool is_flag_type(TextUpdateEvent) { return true; };
 
 	void init();
+	void submitField(Qt::KeyboardModifiers modifiers);
 	void initField();
 	void initFieldAutocomplete();
 	void initTabbedSelector();

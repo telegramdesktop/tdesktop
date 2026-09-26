@@ -3093,22 +3093,26 @@ void ComposeControls::initKeyHandler() {
 	});
 }
 
+void ComposeControls::submitField(Qt::KeyboardModifiers modifiers) {
+	// Classify each submit once, before anyone handles it: a send
+	// clears the field, so checking emptiness later would see an
+	// empty field and send once more (marking as read).
+	if (_mode == Mode::Normal
+		&& !isEditingMessage()
+		&& !_voiceRecordBar->isListenState()
+		&& getTextWithAppliedMarkdown().text.isEmpty()) {
+		_scrollToMaxRequests.fire(adjustedSupportSendOptions(modifiers));
+	} else {
+		_fieldSubmits.fire_copy(modifiers);
+	}
+}
+
 void ComposeControls::initField() {
 	_field->setMaxHeight(st::historyComposeFieldMaxHeight);
 	updateSubmitSettings();
 	_field->submits(
 	) | rpl::on_next([=](Qt::KeyboardModifiers modifiers) {
-		// Classify each submit once, before anyone handles it: a send
-		// clears the field, so checking emptiness later would see an
-		// empty field and send once more (marking as read).
-		if (_mode == Mode::Normal
-			&& !isEditingMessage()
-			&& !_voiceRecordBar->isListenState()
-			&& getTextWithAppliedMarkdown().text.isEmpty()) {
-			_scrollToMaxRequests.fire(adjustedSupportSendOptions(modifiers));
-		} else {
-			_fieldSubmits.fire_copy(modifiers);
-		}
+		submitField(modifiers);
 	}, _field->lifetime());
 	_field->cancelled(
 	) | rpl::on_next([=] {
@@ -4436,6 +4440,21 @@ void ComposeControls::initVoiceRecordBar() {
 				return false;
 			});
 		}
+		_field
+			&& !_field->isHidden()
+			&& Ui::InFocusChain(_field)
+			&& _wrap->window()->isActiveWindow()
+			&& Data::CanSendTexts(_history->peer)
+			&& Ui::InputField::ShouldSubmit(
+				_isInlineBot
+					? Ui::InputField::SubmitSettings::None
+					: Core::App().settings().sendSubmitWay(),
+				Qt::AltModifier)
+			&& request->check(Command::ChatListOpen, 1)
+			&& request->handle([=] {
+				submitField(Qt::AltModifier);
+				return true;
+			});
 		_field
 			&& _field->isVisible()
 			&& Data::CanSendTexts(_history->peer)

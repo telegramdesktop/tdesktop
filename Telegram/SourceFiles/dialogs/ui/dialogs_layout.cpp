@@ -285,6 +285,28 @@ int PaintBadges(
 	return (initial - right);
 }
 
+void PaintCollapsingActiveBg(
+		QPainter &p,
+		QRect geometry,
+		float64 progress) {
+	auto hq = PainterHighQualityEnabler(p);
+	const auto radius = st::roundRadiusLarge;
+	const auto width = st::forumDialogRow.padding.left() / 2;
+	const auto lerp = [&](float64 from, float64 to) {
+		return from + (to - from) * progress;
+	};
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::dialogsBgActive);
+	p.drawRoundedRect(
+		QRectF(
+			lerp(geometry.x(), -3. * radius),
+			lerp(geometry.y(), st::forumDialogRow.padding.top()),
+			lerp(geometry.width(), 3. * radius + width),
+			lerp(geometry.height(), st::forumDialogRow.photoSize)),
+		radius * progress,
+		radius * progress);
+}
+
 void PaintExpandedTopicsBar(QPainter &p, float64 progress) {
 	auto hq = PainterHighQualityEnabler(p);
 	const auto radius = st::roundRadiusLarge;
@@ -465,7 +487,7 @@ void PaintRow(
 	const auto thread = entry->asThread();
 	const auto sublist = entry->asSublist();
 
-	auto bg = context.active
+	auto bg = (context.active && !context.activeCollapsed)
 		? st::dialogsBgActive
 		: context.selected
 		? st::dialogsBgOver
@@ -485,6 +507,9 @@ void PaintRow(
 		p.translate(swipeMirrored ? swipeTranslation : -swipeTranslation, 0);
 	}
 	p.fillRect(geometry, bg);
+	if (context.activeCollapsed > 0.) {
+		PaintCollapsingActiveBg(p, geometry, context.activeCollapsed);
+	}
 	if (!(flags & Flag::TopicJumpRipple)) {
 		auto ripple = context.active
 			? st::dialogsRippleBgActive
@@ -550,7 +575,7 @@ void PaintRow(
 	}
 
 	const auto nameleft = context.st->nameLeft;
-	if (context.topicsExpanded > 0.) {
+	if (context.topicsExpanded > 0. && !context.activeCollapsed) {
 		PaintExpandedTopicsBar(p, context.topicsExpanded);
 	}
 	if (context.narrow) {

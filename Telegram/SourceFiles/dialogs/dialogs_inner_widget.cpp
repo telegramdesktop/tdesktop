@@ -112,6 +112,22 @@ constexpr auto kStartDragToFilterThresholdX = kStartReorderThreshold;
 constexpr auto kStartDragToFilterThresholdY = 75;
 constexpr auto kQueryPreviewLimit = 32;
 constexpr auto kPreviewPostsLimit = 3;
+constexpr auto kActiveCollapsedText = 0.75;
+constexpr auto kCollapsePart = 0.5;
+constexpr auto kDirectCollapseDuration = crl::time(120);
+
+[[nodiscard]] PeerId ActivePeerId(const RowDescriptor &entry) {
+	if (const auto topic = entry.key.topic()) {
+		return topic->channel()->id;
+	} else if (const auto history = entry.key.history()) {
+		return history->peer->id;
+	}
+	return PeerId();
+}
+
+[[nodiscard]] float64 CollapseProgress(float64 shown) {
+	return std::clamp((shown - (1. - kCollapsePart)) / kCollapsePart, 0., 1.);
+}
 
 [[nodiscard]] uint64 RowsCacheKey(Entry *entry) {
 	return uint64(reinterpret_cast<quintptr>(entry));
@@ -248,6 +264,16 @@ constexpr auto kPreviewPostsLimit = 3;
 	Unexpected("Chat type filter in search results.");
 }
 
+[[nodiscard]] Data::CommunityInfo *CollapsedIntoCommunity(const Key &key) {
+	const auto history = key.history();
+	const auto info = history ? history->communityListInfo() : nullptr;
+	return (info
+		&& info->collapsedInChatLists()
+		&& info->channel() != history->peer)
+		? info
+		: nullptr;
+}
+
 } // namespace
 
 struct InnerWidget::CollapsedRow {
@@ -314,6 +340,39 @@ InnerWidget::InnerWidget(
 	setAccessibleName(tr::lng_recent_chats(tr::now));
 
 	_communityViewable.setRepaint([=] { update(); });
+
+	_childListShown.changes(
+	) | rpl::on_next([=](ChildListShown value) {
+		if (value.peerId != _collapsePeerId) {
+			const auto direct = value.peerId
+				&& (value.shown == 1.)
+				&& (_collapseShownLast == 1.);
+			_collapsePreviousId = _collapsePeerId;
+			_collapsePeerId = value.peerId;
+			_collapseFromScratchId = (value.peerId
+				&& (_paintedActivePeerId != value.peerId))
+				? value.peerId
+				: PeerId();
+			if (direct) {
+				_collapseAnimation.start(
+					[=] { update(); },
+					0.,
+					1.,
+					kDirectCollapseDuration);
+			} else {
+				_collapseAnimation.stop();
+			}
+		} else if ((value.shown == 1.)
+			|| (value.shown < _collapseShownLast)) {
+			_collapseFromScratchId = PeerId();
+			if (_collapseAnimation.animating()) {
+				_collapseAnimation.stop();
+				_collapsePreviousId = PeerId();
+				update();
+			}
+		}
+		_collapseShownLast = value.shown;
+	}, lifetime());
 
 	style::PaletteChanged(
 	) | rpl::on_next([=] {
@@ -557,6 +616,7 @@ InnerWidget::InnerWidget(
 	) | rpl::on_next([=](
 			RowDescriptor previous,
 			RowDescriptor next) {
+		_jumpFrom = RowDescriptor();
 		const auto update = [&](const RowDescriptor &descriptor) {
 			const auto msgId = descriptor.fullId;
 			if (const auto topic = descriptor.key.topic()) {
@@ -570,6 +630,15 @@ InnerWidget::InnerWidget(
 					updateDialogRow(descriptor);
 				} else {
 					updateDialogRow({ { sublist->owningHistory() }, msgId });
+				}
+			} else if (const auto community = CollapsedIntoCommunity(
+					descriptor.key)) {
+				if (_openedCommunity == community) {
+					updateDialogRow(descriptor);
+				} else {
+					const auto history = session().data().history(
+						community->channel());
+					updateDialogRow({ { history }, msgId });
 				}
 			} else {
 				updateDialogRow(descriptor);
@@ -891,6 +960,7 @@ void InnerWidget::changeOpenedForum(Data::Forum *forum) {
 
 	if (!forum) {
 		restoreChatsFilterScrollState(_filterId);
+		scrollToSubsectionCloseTarget();
 	}
 }
 
@@ -927,6 +997,10 @@ void InnerWidget::changeOpenedCommunity(Data::CommunityInfo *community) {
 	}
 	stopReorderPinned();
 	clearSelection();
+	if (community && !_openedCommunity) {
+		_communityScrollTop = _visibleTop;
+	}
+	const auto was = _openedCommunity;
 	_openedCommunity = community;
 	refreshShownList();
 	_openedCommunityLifetime.destroy();
@@ -965,6 +1039,27 @@ void InnerWidget::changeOpenedCommunity(Data::CommunityInfo *community) {
 	if (_loadMoreCallback) {
 		_loadMoreCallback();
 	}
+
+	if (!community && was) {
+		restoreScrollShowingCommunity(was);
+		scrollToSubsectionCloseTarget();
+	}
+}
+
+void InnerWidget::restoreScrollShowingCommunity(
+		not_null<Data::CommunityInfo*> community) {
+	const auto was = std::max(_communityScrollTop, 0);
+	const auto history = session().data().history(community->channel());
+	const auto row = _shownList->getRow(Key(history));
+	const auto visible = _visibleBottom - _visibleTop;
+	if (row && visible > 0) {
+		const auto top = dialogsOffset() + row->top();
+		if (top < was || top + row->height() > was + visible) {
+			scrollToItem(top, row->height());
+			return;
+		}
+	}
+	_mustScrollTo.fire({ was, -1 });
 }
 
 void InnerWidget::showSavedSublists() {
@@ -994,6 +1089,34 @@ void InnerWidget::showSavedSublists() {
 	}
 }
 
+InnerWidget::CollapseState InnerWidget::rowCollapse(PeerId peerId) const {
+	const auto shown = _childListShown.current();
+	// A row that was not active has no background to collapse.
+	const auto scratch = (peerId == _collapseFromScratchId);
+	if (_collapseAnimation.animating()) {
+		const auto value = _collapseAnimation.value(1.);
+		return (peerId == shown.peerId)
+			? CollapseState{ scratch ? 0. : value, value, scratch }
+			: (peerId == _collapsePreviousId)
+			? CollapseState{ 1. - value, 1. - value }
+			: CollapseState();
+	}
+	return (peerId == shown.peerId)
+		? CollapseState{
+			scratch ? 0. : CollapseProgress(shown.shown),
+			shown.shown,
+			scratch }
+		: CollapseState();
+}
+
+void InnerWidget::scrollToSubsectionCloseTarget() {
+	// Scrolling after the closing started is too late for its snapshot.
+	const auto to = base::take(_subsectionCloseScrollTo);
+	if (to.key) {
+		scrollToEntry(to);
+	}
+}
+
 void InnerWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
@@ -1010,6 +1133,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	auto dialogsClip = r;
 	const auto ms = crl::now();
 	const auto childListShown = _childListShown.current();
+	_paintedActivePeerId = ActivePeerId(activeEntry);
 	auto context = Ui::PaintContext{
 		.st = _st,
 		.topicJumpCache = _topicJumpCache.get(),
@@ -1033,15 +1157,21 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			bool selected,
 			bool mayBeActive) {
 		const auto &key = row->key();
-		const auto active = mayBeActive && isRowActive(row, activeEntry);
 		const auto history = key.history();
 		const auto forum = history && history->peer->displayAsForum();
 		const auto monoforum = history && history->amMonoforumAdmin();
 		if ((forum || monoforum) && !_topicJumpCache) {
 			_topicJumpCache = std::make_unique<Ui::TopicJumpCache>();
 		}
-		const auto expanding = (forum || monoforum)
-			&& (history->peer->id == childListShown.peerId);
+		const auto collapse = (forum || monoforum)
+			? rowCollapse(history->peer->id)
+			: CollapseState();
+		const auto expanding = (collapse.tab > 0.) || (collapse.morph > 0.);
+		const auto rowActive = mayBeActive
+			&& !collapse.fromScratch
+			&& isRowActive(row, activeEntry);
+		const auto active = rowActive
+			&& (collapse.morph < kActiveCollapsedText);
 		context.rightButton = maybeCacheRightButton(row);
 		if (history) {
 			if (_activeQuickAction
@@ -1165,9 +1295,8 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			context.chatsFilterTags = nullptr;
 		}
 
-		context.topicsExpanded = (expanding && !active)
-			? childListShown.shown
-			: 0.;
+		context.topicsExpanded = (expanding && !active) ? collapse.tab : 0.;
+		context.activeCollapsed = rowActive ? collapse.morph : 0.;
 		context.active = active;
 		context.selected = _menuRow.key
 			? (row->key() == _menuRow.key)
@@ -1818,13 +1947,13 @@ bool InnerWidget::isRowActive(
 	if (entry.key == key) {
 		return true;
 	} else if (const auto topic = entry.key.topic()) {
-		if (const auto history = key.history()) {
-			return (history->peer == topic->peer())
-				&& HistoryView::SubsectionTabs::UsedFor(history);
-		}
-		return false;
+		const auto history = key.history();
+		return history && (history->peer == topic->peer());
 	} else if (const auto sublist = entry.key.sublist()) {
 		return key.history() && key.history() == sublist->owningHistory();
+	} else if (const auto community = CollapsedIntoCommunity(entry.key)) {
+		const auto history = key.history();
+		return history && (history->peer == community->channel());
 	}
 	return false;
 }
@@ -3785,16 +3914,23 @@ void InnerWidget::updateSelectedRow(Key key) {
 	}
 }
 
-void InnerWidget::refreshShownList() {
-	const auto list = _savedSublists
+not_null<IndexedList*> InnerWidget::shownListFor(
+		Data::Forum *forum,
+		Data::CommunityInfo *community,
+		FilterId filterId) const {
+	return _savedSublists
 		? _savedSublists->chatsList()->indexed()
-		: _openedForum
-		? _openedForum->topicsList()->indexed()
-		: _openedCommunity
-		? _openedCommunity->chatsList()->indexed()
-		: _filterId
-		? session().data().chatsFilters().chatsList(_filterId)->indexed()
+		: forum
+		? forum->topicsList()->indexed()
+		: community
+		? community->chatsList()->indexed()
+		: filterId
+		? session().data().chatsFilters().chatsList(filterId)->indexed()
 		: session().data().chatsList(_openedFolder)->indexed();
+}
+
+void InnerWidget::refreshShownList() {
+	const auto list = shownListFor(_openedForum, _openedCommunity, _filterId);
 	if (_shownList != list) {
 		_shownList->unfreeze();
 		_shownList = list;
@@ -6122,6 +6258,69 @@ void InnerWidget::updateRowCornerStatusShown(not_null<History*> history) {
 	}
 }
 
+[[nodiscard]] not_null<IndexedList*> SubsectionList(
+		Data::Forum *forum,
+		Data::CommunityInfo *community) {
+	Expects(forum || community);
+
+	return forum
+		? forum->topicsList()->indexed()
+		: community->chatsList()->indexed();
+}
+
+[[nodiscard]] RowDescriptor FirstIn(not_null<IndexedList*> list) {
+	const auto i = list->cbegin();
+	return (i != list->cend())
+		? RowDescriptor(
+			(*i)->key(),
+			FullMsgId(PeerId(), ShowAtUnreadMsgId))
+		: RowDescriptor();
+}
+
+[[nodiscard]] RowDescriptor NeighbourIn(
+		not_null<IndexedList*> list,
+		const RowDescriptor &which,
+		bool after) {
+	const auto row = which.key ? list->getRow(which.key) : nullptr;
+	if (!row) {
+		return RowDescriptor();
+	}
+	const auto i = list->cfind(row);
+	if (after ? (i + 1 == list->cend()) : (i == list->cbegin())) {
+		return RowDescriptor();
+	}
+	const auto j = after ? (i + 1) : (i - 1);
+	return RowDescriptor((*j)->key(), FullMsgId(PeerId(), ShowAtUnreadMsgId));
+}
+
+[[nodiscard]] Data::CommunityInfo *CommunityForJump(
+		const RowDescriptor &to) {
+	const auto history = to.key.history();
+	const auto channel = (history && !to.fullId)
+		? history->peer->asChannel()
+		: nullptr;
+	return (channel && channel->isCommunity())
+		? channel->communityInfo()
+		: nullptr;
+}
+
+[[nodiscard]] Data::Forum *ForumForJump(
+		const RowDescriptor &to,
+		not_null<Window::SessionController*> controller) {
+	const auto history = to.key.history();
+	if (!history || to.fullId || !history->isForum()) {
+		return nullptr;
+	}
+	const auto peer = history->peer;
+	if (peer->useSubsectionTabs()) {
+		return nullptr;
+	}
+	return (!controller->adaptive().isOneColumn()
+		|| !peer->viewForumAsMessages())
+		? peer->forum()
+		: nullptr;
+}
+
 RowDescriptor InnerWidget::resolveChatNext(RowDescriptor from) const {
 	const auto row = from.key ? from : _controller->activeChatEntryCurrent();
 	return row.key
@@ -6151,7 +6350,7 @@ void InnerWidget::setupShortcuts() {
 	}) | rpl::on_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 
-		const auto row = _controller->activeChatEntryCurrent();
+		const auto row = jumpOrigin();
 		// Those should be computed before the call to request->handle.
 		const auto previous = row.key
 			? computeJump(
@@ -6175,16 +6374,16 @@ void InnerWidget::setupShortcuts() {
 		}();
 		if (row.key) {
 			request->check(Command::ChatPrevious) && request->handle([=] {
-				return jumpToDialogRow(previous);
+				return jumpToDialogRow(previous, JumpDirection::Up);
 			});
 			request->check(Command::ChatNext) && request->handle([=] {
-				return jumpToDialogRow(next);
+				return jumpToDialogRow(next, JumpDirection::Down);
 			});
 		} else if (_state == WidgetState::Default
 			? !_shownList->empty()
 			: !_filterResults.empty()) {
 			request->check(Command::ChatNext) && request->handle([=] {
-				return jumpToDialogRow(first);
+				return jumpToDialogRow(first, JumpDirection::Down);
 			});
 		}
 		request->check(Command::ChatFirst) && request->handle([=] {
@@ -6193,6 +6392,15 @@ void InnerWidget::setupShortcuts() {
 		request->check(Command::ChatLast) && request->handle([=] {
 			return jumpToDialogRow(last);
 		});
+		request->check(Command::ChatListBack) && request->handle([=] {
+			return jumpBackFromSubsection();
+		});
+		// Left to the message field when there is nothing to open.
+		canOpenSubsectionFromOrigin()
+			&& request->check(Command::ChatListOpen, 2)
+			&& request->handle([=] {
+				return openSubsectionFromOrigin();
+			});
 		request->check(Command::ChatSelf) && request->handle([=] {
 			_controller->showThread(
 				session().data().history(session().user()),
@@ -6350,14 +6558,245 @@ RowDescriptor InnerWidget::computeJump(
 	return result;
 }
 
-bool InnerWidget::jumpToDialogRow(RowDescriptor to) {
+bool InnerWidget::canOpenSubsectionFromOrigin() const {
+	const auto row = jumpOrigin();
+	if (const auto community = CommunityForJump(row)) {
+		return (_controller->openedCommunity().current() != community);
+	} else if (const auto forum = ForumForJump(row, _controller)) {
+		return (_controller->shownForum().current() != forum);
+	}
+	return false;
+}
+
+bool InnerWidget::openSubsectionFromOrigin() {
+	const auto row = jumpOrigin();
+	if (const auto community = CommunityForJump(row)) {
+		if (_controller->openedCommunity().current() != community) {
+			_controller->openCommunity(community);
+			return true;
+		}
+	} else if (const auto forum = ForumForJump(row, _controller)) {
+		if (_controller->shownForum().current() != forum) {
+			_controller->showForum(
+				forum,
+				Window::SectionShow(
+					Window::SectionShow::Way::ClearStack).withChildColumn());
+			return true;
+		}
+	}
+	return false;
+}
+
+RowDescriptor InnerWidget::jumpOrigin() const {
+	if (_jumpFrom.key
+		&& (_state == WidgetState::Default)
+		&& _shownList->getRow(_jumpFrom.key)) {
+		return _jumpFrom;
+	}
+	const auto active = _controller->activeChatEntryCurrent();
+	if (!active.key
+		|| _state != WidgetState::Default
+		|| _shownList->getRow(active.key)) {
+		return active;
+	}
+	const auto shown = [&]() -> History* {
+		if (const auto topic = active.key.topic()) {
+			return topic->owningHistory();
+		} else if (const auto info = CollapsedIntoCommunity(active.key)) {
+			return session().data().history(info->channel()).get();
+		}
+		return nullptr;
+	}();
+	return (shown && _shownList->getRow(Key(shown)))
+		? RowDescriptor(shown, FullMsgId(PeerId(), ShowAtUnreadMsgId))
+		: RowDescriptor();
+}
+
+bool InnerWidget::jumpIntoSubsection(
+		Data::Forum *forum,
+		Data::CommunityInfo *community,
+		JumpDirection direction) {
+	const auto controller = _controller;
+	const auto wasForum = controller->shownForum().current();
+	const auto wasCommunity = controller->openedCommunity().current();
+	const auto wasActive = controller->activeChatEntryCurrent();
+	auto first = FirstIn(SubsectionList(forum, community));
+	const auto nested = CommunityForJump(first)
+		|| ForumForJump(first, controller);
+	const auto preselected = (first.key && !nested);
+	if (preselected) {
+		controller->setActiveChatEntry(first);
+	}
+	const auto weak = base::make_weak(this);
+	if (forum) {
+		controller->showForum(
+			forum,
+			Window::SectionShow(
+				Window::SectionShow::Way::ClearStack).withChildColumn());
+	} else {
+		controller->openCommunity(community);
+	}
+	if (controller->shownForum().current() == wasForum
+		&& controller->openedCommunity().current() == wasCommunity) {
+		if (preselected) {
+			controller->setActiveChatEntry(wasActive);
+		}
+		return false;
+	} else if (!first.key) {
+		first = FirstIn(SubsectionList(forum, community));
+	}
+	return !first.key
+		? true
+		: weak
+		? jumpToDialogRow(first, direction)
+		: controller->jumpToChatListEntry(first);
+}
+
+bool InnerWidget::jumpBackFromSubsection() {
+	const auto row = subsectionRow();
+	if (!row.key) {
+		if (!_openedFolder || _controller->windowId().folder()) {
+			return false;
+		}
+		_controller->closeFolder();
+		return true;
+	}
+	_subsectionCloseScrollTo = row;
+	const auto weak = base::make_weak(this);
+	const auto closed = closeSubsection();
+	if (!weak) {
+		return true;
+	} else if (!closed) {
+		_subsectionCloseScrollTo = RowDescriptor();
+		return false;
+	}
+	_jumpFrom = row;
+	scrollToEntry(row);
+	update();
+	return true;
+}
+
+RowDescriptor InnerWidget::subsectionRow() const {
+	const auto history = _openedForum
+		? _openedForum->history().get()
+		: _openedCommunity
+		? session().data().history(_openedCommunity->channel()).get()
+		: nullptr;
+	return history
+		? RowDescriptor(history, FullMsgId(PeerId(), ShowAtUnreadMsgId))
+		: RowDescriptor();
+}
+
+bool InnerWidget::canCloseSubsection() const {
+	using Type = Window::SeparateType;
+	const auto id = _controller->windowId().type;
+	return _openedForum
+		? (id != Type::Forum)
+		: _openedCommunity
+		? (id != Type::Community)
+		: false;
+}
+
+bool InnerWidget::closeSubsection() {
+	if (!canCloseSubsection()) {
+		return false;
+	}
+	const auto forum = _openedForum;
+	const auto community = _openedCommunity;
+	const auto weak = base::make_weak(this);
+	if (forum) {
+		_controller->closeForum();
+	} else {
+		_controller->closeCommunity();
+	}
+	return weak
+		&& (forum
+			? (_openedForum != forum)
+			: (_openedCommunity != community));
+}
+
+bool InnerWidget::jumpOutOfSubsection(JumpDirection direction) {
+	const auto from = subsectionRow();
+	if (!from.key || !canCloseSubsection()) {
+		return false;
+	}
+	const auto down = (direction == JumpDirection::Down);
+	auto to = down
+		? _controller->resolveChatNext(from)
+		: _controller->resolveChatPrevious(from);
+	if (!to.key) {
+		const auto list = shownListFor(
+			nullptr,
+			_openedForum ? _openedCommunity : nullptr,
+			_openedForum
+				? _controller->activeChatsFilterCurrent()
+				: _filterId);
+		to = NeighbourIn(list, from, down);
+		while (to.key && to.key.folder()) {
+			to = NeighbourIn(list, to, down);
+		}
+	}
+	if (!to.key) {
+		const auto weak = base::make_weak(this);
+		const auto closed = closeSubsection();
+		return !weak
+			? true
+			: !closed
+			? false
+			: (_openedForum || _openedCommunity)
+			? jumpOutOfSubsection(direction)
+			: true;
+	}
+	_subsectionCloseScrollTo = to;
+
+	const auto community = CommunityForJump(to);
+	const auto forum = community ? nullptr : ForumForJump(to, _controller);
+	const auto replacesSubsection = community || (forum && _openedForum);
+	const auto closeBeforeOpening = (forum && !_openedForum);
+	const auto weak = base::make_weak(this);
+	if (closeBeforeOpening && !closeSubsection()) {
+		_subsectionCloseScrollTo = RowDescriptor();
+		return false;
+	}
+
+	// The jump is made first, closing a column destroys this chat list.
+	const auto result = jumpToDialogRow(to, direction);
+	if (!replacesSubsection && !closeBeforeOpening && weak) {
+		closeSubsection();
+	}
+	return result;
+}
+
+bool InnerWidget::jumpToDialogRow(RowDescriptor to, JumpDirection direction) {
+	if (direction != JumpDirection::None) {
+		if (const auto community = CommunityForJump(to)) {
+			return jumpIntoSubsection(nullptr, community, direction);
+		} else if (const auto forum = ForumForJump(to, _controller)) {
+			return jumpIntoSubsection(forum, nullptr, direction);
+		} else if (!to.key && (_openedForum || _openedCommunity)) {
+			return jumpOutOfSubsection(direction);
+		}
+	}
 	if (to == chatListEntryLast()) {
 		_listBottomReached.fire({});
 	}
 	if (uniqueSearchResults()) {
 		to.fullId = FullMsgId();
 	}
-	return _controller->jumpToChatListEntry(to);
+	const auto controller = _controller;
+	const auto weak = base::make_weak(this);
+	if (!controller->jumpToChatListEntry(to)) {
+		return false;
+	} else if (!weak) {
+		return true;
+	} else if (controller->activeChatEntryCurrent().key != to.key) {
+		// An unavailable chat only shows an error box and is not opened.
+		_jumpFrom = to;
+	} else {
+		// Only the main chat list is scrolled by the window to the chat.
+		scrollToEntry(to);
+	}
+	return true;
 }
 
 rpl::producer<UserId> InnerWidget::openBotMainAppRequests() const {
