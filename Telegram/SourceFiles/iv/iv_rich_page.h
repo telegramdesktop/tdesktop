@@ -363,5 +363,6 @@ inline constexpr auto kTextDiffDeletedColorIndex = 11;
 [[nodiscard]] bool RichDocumentIsAudio(DocumentData *document);
 [[nodiscard]] bool RichBlockIsDocumentRow(RichPage::BlockKind kind);
 [[nodiscard]] bool RichBlockquoteIsCollapsible(const RichPage::Block &block);
+[[nodiscard]] bool OrderedRomanSupported(int value);
 
 } // namespace Iv

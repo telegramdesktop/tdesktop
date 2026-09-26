@@ -37,6 +37,10 @@ enum class ListStyle : uchar {
 [[nodiscard]] std::optional<int> EffectiveOrderedItemValue(
 	const RichPage::Block &block,
 	int itemIndex);
+[[nodiscard]] bool OrderedItemsSupportRoman(
+	const RichPage::Block &block,
+	int from,
+	int till);
 
 void DropOrderedItemNumber(RichPage::ListItem *item);
 void AdoptListItemMarkers(

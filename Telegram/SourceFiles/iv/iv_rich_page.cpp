@@ -108,7 +108,7 @@ enum class OrderedMarkerType {
 }
 
 [[nodiscard]] QString OrderedRomanText(int value, bool upper) {
-	if (value <= 0) {
+	if (!OrderedRomanSupported(value)) {
 		return QString::number(value);
 	}
 	struct RomanPart {
@@ -2726,6 +2726,10 @@ bool RichBlockquoteIsCollapsible(const RichPage::Block &block) {
 	return (block.kind == BlockKind::Quote)
 		&& !block.pullquote
 		&& block.blocks.empty();
+}
+
+bool OrderedRomanSupported(int value) {
+	return (value > 0) && (value <= 9999);
 }
 
 std::optional<TextWithEntities> SerializeAsSimple(
