@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_entry.h"
 #include "dialogs/dialogs_widget.h"
 #include "dialogs/ui/dialogs_layout.h"
+#include "export/export_api_wrap.h"
 #include "ffmpeg/ffmpeg_utility.h"
 #include "history/history_item_components.h"
 #include "history/view/controls/compose_controls_common.h"
@@ -428,6 +429,7 @@ void SetupExperimental(
 				Media::Player::kOptionDisableAutoplayNext,
 				Window::kOptionExternalMediaViewer,
 				FFmpeg::kOptionFFmpegMultiThread,
+				Export::kOptionExportFasterDownload,
 			}
 		},
 		{
