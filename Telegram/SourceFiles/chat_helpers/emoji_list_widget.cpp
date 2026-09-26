@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
+#include "ui/screen_reader_mode.h"
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
 #include "boxes/share_box.h"
@@ -84,6 +85,10 @@ public:
 	EmojiColorPicker(QWidget *parent, const style::EmojiPan &st);
 
 	void showEmoji(EmojiPtr emoji, bool allLabel = false);
+	// Shown for an emoji from the keyboard: takes the focus, with the
+	// variant shown in the list selected, and gives it back to the list
+	// that opened it when hidden.
+	void focusFromKeyboard(EmojiPtr shown, not_null<QWidget*> returnTo);
 
 	void clearSelection();
 	void handleMouseMove(QPoint globalPos);
@@ -97,31 +102,58 @@ public:
 	[[nodiscard]] rpl::producer<EmojiChosen> chosen() const;
 	[[nodiscard]] rpl::producer<> hidden() const;
 
+	// The variants as the items of a list for a screen reader.
+	QAccessible::Role accessibilityRole() override;
+	Qt::FocusPolicy accessibilityFocusPolicy() override;
+	QString accessibilityName() override;
+	int accessibilityChildCount() const override;
+	QAccessible::Role accessibilityChildRole() const override;
+	QString accessibilityChildName(int index) const override;
+	QRect accessibilityChildRect(int index) const override;
+	QAccessible::State accessibilityChildState(int index) const override;
+	bool accessibilityChildSupportsActions(int index) const override;
+	quintptr accessibilityChildIdentity(int index) const override;
+	int accessibilityChildIndexByIdentity(quintptr identity) const override;
+	void accessibilityChildSetFocus(quintptr identity) override;
+	void accessibilityChildActivate(quintptr identity) override;
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+	void focusInEvent(QFocusEvent *e) override;
 
 private:
 	void createAllLabel();
 	void animationCallback();
 	void updateSize();
 	[[nodiscard]] int topColorAllSkip() const;
+	[[nodiscard]] QRect variantRect(int variant) const;
 
 	void drawVariant(QPainter &p, int variant);
 
 	void updateSelected();
 	void setSelected(int newSelected);
+	void keyboardSelect(int index);
+	void chooseSelected();
+	void returnFocus();
 
 	const style::EmojiPan &_st;
 
 	bool _ignoreShow = false;
+	bool _keyboard = false;
+	base::weak_qptr<QWidget> _focusReturn;
 
+	EmojiPtr _emoji = nullptr;
 	QVector<EmojiPtr> _variants;
 
 	int _selected = -1;
 	int _pressedSel = -1;
+	// Bumped on every show and hide, so that an action queued against a
+	// picker since dismissed, or shown for another emoji, does nothing.
+	quint32 _generation = 0;
 	QPoint _lastMousePos;
 	QSize _singleSize;
 	QPoint _areaPosition;
@@ -175,6 +207,9 @@ void EmojiColorPicker::showEmoji(EmojiPtr emoji, bool allLabel) {
 		createAllLabel();
 	}
 	_ignoreShow = false;
+	_keyboard = false;
+	_emoji = emoji;
+	++_generation;
 
 	_variants.resize(emoji->variantsCount() + 1);
 	for (auto i = 0, size = int(_variants.size()); i != size; ++i) {
@@ -187,6 +222,31 @@ void EmojiColorPicker::showEmoji(EmojiPtr emoji, bool allLabel) {
 		_cache = QPixmap();
 	}
 	showAnimated();
+}
+
+void EmojiColorPicker::focusFromKeyboard(
+		EmojiPtr shown,
+		not_null<QWidget*> returnTo) {
+	if (_variants.isEmpty() || isHidden()) {
+		return;
+	}
+	// The focus arriving announces the selected variant. The list that
+	// opened the picker is the one to give the focus back to - not
+	// whatever holds it now, which is this picker when it is reopened
+	// for another emoji.
+	_keyboard = true;
+	_focusReturn = returnTo;
+	setSelected(std::max(int(_variants.indexOf(shown)), 0));
+	setFocus();
+}
+
+void EmojiColorPicker::returnFocus() {
+	// Before hiding: a hidden widget holding the focus makes Qt move it
+	// wherever the focus chain leads, not back to the list.
+	const auto was = base::take(_focusReturn);
+	if (was && Ui::InFocusChain(this)) {
+		was->setFocus();
+	}
 }
 
 void EmojiColorPicker::createAllLabel() {
@@ -317,9 +377,10 @@ void EmojiColorPicker::animationCallback() {
 			_allLabel->show();
 		}
 		if (_hiding) {
+			returnFocus();
 			hide();
 			_hidden.fire({});
-		} else {
+		} else if (!_keyboard) {
 			_lastMousePos = QCursor::pos();
 			updateSelected();
 		}
@@ -327,9 +388,11 @@ void EmojiColorPicker::animationCallback() {
 }
 
 void EmojiColorPicker::hideFast() {
+	++_generation;
 	clearSelection();
 	_a_opacity.stop();
 	_cache = QPixmap();
+	returnFocus();
 	hide();
 	_hidden.fire({});
 }
@@ -343,6 +406,7 @@ rpl::producer<> EmojiColorPicker::hidden() const {
 }
 
 void EmojiColorPicker::hideAnimated() {
+	++_generation;
 	if (_cache.isNull()) {
 		if (_allLabel) {
 			_allLabel->show();
@@ -437,6 +501,186 @@ void EmojiColorPicker::setSelected(int newSelected) {
 	setCursor((_selected >= 0) ? style::cur_pointer : style::cur_default);
 }
 
+QRect EmojiColorPicker::variantRect(int variant) const {
+	const auto addedSkip = (variant > 0)
+		? (2 * st::emojiColorsPadding + st::emojiColorsSep)
+		: 0;
+	const auto left = st::emojiPanMargins.left()
+		+ st::emojiColorsPadding
+		+ variant * _singleSize.width()
+		+ addedSkip;
+	const auto top = st::emojiPanMargins.top()
+		+ st::emojiColorsPadding
+		+ topColorAllSkip();
+	return myrtlrect(left, top, _singleSize.width(), _singleSize.height());
+}
+
+void EmojiColorPicker::keyboardSelect(int index) {
+	if (index < 0 || index >= _variants.size()) {
+		return;
+	}
+	_keyboard = true;
+	setSelected(index);
+	accessibilityChildFocused(index);
+}
+
+void EmojiColorPicker::chooseSelected() {
+	if (_selected < 0 || _selected >= _variants.size()) {
+		return;
+	}
+	// As a click does: the choice, then away.
+	_chosen.fire_copy({ .emoji = _variants[_selected] });
+	_ignoreShow = true;
+	hideAnimated();
+}
+
+void EmojiColorPicker::keyPressEvent(QKeyEvent *e) {
+	// The keys are for a screen reader only, as in the list.
+	if (!Ui::ScreenReaderModeActive()) {
+		RpWidget::keyPressEvent(e);
+		return;
+	}
+	const auto key = e->key();
+	const auto count = int(_variants.size());
+	if (key == Qt::Key_Left || key == Qt::Key_Right) {
+		const auto forward = (key == Qt::Key_Right) != rtl();
+		const auto index = (_selected < 0)
+			? (forward ? 0 : count - 1)
+			: std::clamp(_selected + (forward ? 1 : -1), 0, count - 1);
+		keyboardSelect(index);
+	} else if (key == Qt::Key_Home) {
+		keyboardSelect(0);
+	} else if (key == Qt::Key_End) {
+		keyboardSelect(count - 1);
+	} else if (!e->isAutoRepeat()
+		&& (key == Qt::Key_Space
+			|| key == Qt::Key_Return
+			|| key == Qt::Key_Enter)) {
+		chooseSelected();
+	} else if (key == Qt::Key_Escape) {
+		_ignoreShow = true;
+		hideAnimated();
+	} else {
+		RpWidget::keyPressEvent(e);
+		return;
+	}
+	e->accept();
+}
+
+void EmojiColorPicker::focusInEvent(QFocusEvent *e) {
+	RpWidget::focusInEvent(e);
+	if (_variants.isEmpty()) {
+		return;
+	}
+	const auto index = (_selected >= 0) ? _selected : 0;
+	InvokeQueued(this, [=] {
+		if (hasFocus() && index < _variants.size()) {
+			keyboardSelect(index);
+		}
+	});
+}
+
+QAccessible::Role EmojiColorPicker::accessibilityRole() {
+	return QAccessible::List;
+}
+
+Qt::FocusPolicy EmojiColorPicker::accessibilityFocusPolicy() {
+	return Qt::TabFocus;
+}
+
+QString EmojiColorPicker::accessibilityName() {
+	// The emoji the variants are of.
+	return _emoji ? _emoji->original()->text() : QString();
+}
+
+int EmojiColorPicker::accessibilityChildCount() const {
+	return int(_variants.size());
+}
+
+QAccessible::Role EmojiColorPicker::accessibilityChildRole() const {
+	return QAccessible::ListItem;
+}
+
+QString EmojiColorPicker::accessibilityChildName(int index) const {
+	return (index >= 0 && index < _variants.size())
+		? _variants[index]->text()
+		: QString();
+}
+
+QRect EmojiColorPicker::accessibilityChildRect(int index) const {
+	return (index >= 0 && index < _variants.size())
+		? variantRect(index)
+		: QRect();
+}
+
+QAccessible::State EmojiColorPicker::accessibilityChildState(
+		int index) const {
+	auto state = QAccessible::State();
+	if (Ui::ScreenReaderModeActive()) {
+		state.focusable = true;
+		state.selectable = true;
+	}
+	if (index == _selected) {
+		state.active = true;
+		// The item the keyboard is on is the selection of the list - or a
+		// screen reader reports every item as "not selected".
+		state.selected = true;
+		if (hasFocus()) {
+			state.focused = true;
+		}
+	}
+	return state;
+}
+
+bool EmojiColorPicker::accessibilityChildSupportsActions(int index) const {
+	return accessibilityChildIdentity(index) != 0;
+}
+
+quintptr EmojiColorPicker::accessibilityChildIdentity(int index) const {
+	// The variant within the generation of the picker showing it: the
+	// same slot names another variant once the picker is shown again.
+	return (index >= 0 && index < _variants.size() && !isHidden() && !_hiding)
+		? ((quintptr(_generation) << 8) | quintptr(index + 1))
+		: quintptr(0);
+}
+
+int EmojiColorPicker::accessibilityChildIndexByIdentity(
+		quintptr identity) const {
+	if (!identity
+		|| quint32(identity >> 8) != _generation
+		|| isHidden()
+		|| _hiding) {
+		return -1;
+	}
+	const auto index = int(identity & 0xFF) - 1;
+	return (index < _variants.size()) ? index : -1;
+}
+
+void EmojiColorPicker::accessibilityChildSetFocus(quintptr identity) {
+	crl::on_main(this, [=] {
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		if (index < 0) {
+			return;
+		}
+		keyboardSelect(index);
+		// The keyboard focus is for a screen reader only.
+		if (!hasFocus() && Ui::ScreenReaderModeActive()) {
+			setFocus();
+		}
+	});
+}
+
+void EmojiColorPicker::accessibilityChildActivate(quintptr identity) {
+	crl::on_main(this, [=] {
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		if (index < 0) {
+			return;
+		}
+		setSelected(index);
+		chooseSelected();
+	});
+}
+
 void EmojiColorPicker::drawVariant(QPainter &p, int variant) {
 	const auto w = QPoint(
 		st::emojiPanMargins.left(),
@@ -516,8 +760,10 @@ EmojiListWidget::EmojiListWidget(
 , _searchRequestTimer([=] { sendSearchRequest(); })
 , _picker(this, st())
 , _showPickerTimer([=] { showPicker(); })
+, _keyPickerTimer([=] { keyPickerTimeout(); })
 , _previewTimer([=] { showPreview(); }) {
 	setMouseTracking(true);
+	setAccessibleName(tr::lng_switch_emoji(tr::now));
 	if (st().bg->c.alpha() > 0) {
 		setAttribute(Qt::WA_OpaquePaintEvent);
 	}
@@ -565,6 +811,29 @@ EmojiListWidget::EmojiListWidget(
 	_picker->hidden(
 	) | rpl::on_next([=] {
 		pickerHidden();
+	}, lifetime());
+
+	Ui::ScreenReaderModeActiveValue(
+	) | rpl::filter([](bool active) {
+		return !active;
+	}) | rpl::on_next([=] {
+		// The reader is gone, the keys are ordinary again: the focus the
+		// list took for it goes back where it came from, and the keyboard
+		// selection is over. A picker it opened for the keyboard goes
+		// first, giving the focus back to the list.
+		_keyPickerTimer.cancel();
+		_keyPressPending = false;
+		if (_picker->hasFocus()) {
+			_picker->hideFast();
+		}
+		if (hasFocus()) {
+			if (_focusReturn) {
+				returnFocus();
+			} else {
+				clearFocus();
+			}
+		}
+		_keyboardSelection = false;
 	}, lifetime());
 
 	session().changes().peerUpdates(
@@ -643,11 +912,30 @@ void EmojiListWidget::setupSearch() {
 		: TabbedSearchType::Emoji;
 	_search = MakeSearch(this, st(), [=](std::vector<QString> &&query) {
 		_nextSearchQuery = std::move(query);
+		if (_pendingResultsFocus && *_pendingResultsFocus != _nextSearchQuery) {
+			// Typed over: the results asked for are not coming any more.
+			_pendingResultsFocus = std::nullopt;
+		}
 		InvokeQueued(this, [=] {
 			applyNextSearchQuery();
 		});
 		_searchQueries.fire_copy(_nextSearchQuery);
 	}, session, type);
+
+	// Enter or Down in the field, or a group chosen from the keyboard: the
+	// first of the results takes the focus once the results of that query
+	// are shown - right away when they are the ones shown already.
+	_search->activations(
+	) | rpl::on_next([=](std::vector<QString> &&query) {
+		_pendingResultsFocus = std::move(query);
+		if (_searchMode && _searchQuery == *_pendingResultsFocus) {
+			focusPendingResults();
+		}
+	}, lifetime());
+	_search->escapes(
+	) | rpl::on_next([=] {
+		_pendingResultsFocus = std::nullopt;
+	}, lifetime());
 }
 
 void EmojiListWidget::setSearchRightReserved(int value) {
@@ -677,6 +965,7 @@ void EmojiListWidget::applyNextSearchQuery() {
 		}
 		const auto modeChanged = (_searchMode != searching);
 		clearSelection();
+		childrenChanged();
 		if (modeChanged) {
 			if (_picker) {
 				_picker->hideAnimated();
@@ -706,6 +995,12 @@ void EmojiListWidget::applyNextSearchQuery() {
 			visibleTopBottomUpdated(getVisibleTop(), getVisibleBottom());
 		}
 		updateSelected();
+		if (searching
+			&& _pendingResultsFocus
+			&& *_pendingResultsFocus == _searchQuery
+			&& accessibilityChildCount() > 0) {
+			focusPendingResults();
+		}
 	};
 	if (_searchQuery.empty()) {
 		cancelSearchRequest();
@@ -1106,6 +1401,15 @@ void EmojiListWidget::searchSetsResultsDone(
 }
 
 void EmojiListWidget::showSearchResults() {
+	// The keyboard keeps its place through a refill of the results - they
+	// come in more than once, the cloud ones after the local - and the
+	// results the keyboard asked for take the focus when they are here.
+	const auto keyboard = hasFocus();
+	const auto selected = std::get_if<OverEmoji>(&_selected);
+	const auto wasIndex = (keyboard && selected)
+		? accessibleIndex(*selected)
+		: -1;
+
 	clearSelection();
 
 	_searchResults.clear();
@@ -1146,6 +1450,21 @@ void EmojiListWidget::showSearchResults() {
 	_recentShownCount = _searchResults.size();
 	update();
 	updateSelected();
+
+	const auto count = accessibilityChildCount();
+	if (_pendingResultsFocus && *_pendingResultsFocus == _searchQuery) {
+		// Served with whatever came, so that nothing waits for results
+		// that will not come.
+		focusPendingResults();
+		return;
+	} else if (!count) {
+		return;
+	} else if (keyboard) {
+		const auto index = std::clamp(std::max(wasIndex, 0), 0, count - 1);
+		if (const auto over = accessibleChild(index)) {
+			keyboardSelect(*over, true);
+		}
+	}
 }
 
 void EmojiListWidget::fillCloudSearchResults() {
@@ -1684,7 +2003,23 @@ object_ptr<TabbedSelector::InnerFooter> EmojiListWidget::createFooter() {
 
 	_footer->setChosen(
 	) | rpl::on_next([=](uint64 setId) {
+		const auto keyboard = _footer->hasFocus();
 		showSet(setId);
+		if (keyboard) {
+			// Chosen from the keyboard: on to the first emoji of the
+			// section, as the mouse would go on to click one.
+			enumerateSections([&](const SectionInfo &info) {
+				if (setId != sectionSetId(info.section)) {
+					return true;
+				} else if (shownCount(info) > 0) {
+					keyboardSelect(
+						{ .section = info.section, .index = 0 },
+						false);
+					setFocus();
+				}
+				return false;
+			});
+		}
 	}, _footer->lifetime());
 
 	return result;
@@ -1694,14 +2029,50 @@ void EmojiListWidget::afterShown() {
 	const auto steal = (_mode == Mode::EmojiStatus)
 		|| (_mode == Mode::FullReactions)
 		|| (_mode == Mode::UserpicBuilder);
-	if (_search && steal) {
+	if (keepsFocusOnShow()) {
+		return;
+	} else if (_search && steal) {
 		_search->stealFocus();
+	} else if (Ui::ScreenReaderModeActive() && !hasFocus()) {
+		// The panel is opened from the keyboard and has no one to talk
+		// to: take the focus into the list, so the emoji are announced
+		// and walked with the arrows, and remember where it came from.
+		_focusReturn = window()->focusWidget();
+		setFocus();
 	}
 }
 
 void EmojiListWidget::beforeHiding() {
+	_pendingResultsFocus = std::nullopt;
 	if (_search) {
 		_search->returnFocus();
+	}
+	returnFocus();
+}
+
+void EmojiListWidget::focusPendingResults() {
+	// The results of the query the keyboard asked for are the ones shown:
+	// the first of them takes the focus, and the place to give it back to
+	// comes over from the search, which took it on entry, unless the list
+	// has one of its own already.
+	_pendingResultsFocus = std::nullopt;
+	const auto first = accessibleChild(0);
+	if (!first) {
+		return;
+	}
+	if (!_focusReturn) {
+		_focusReturn = _search->takeFocusReturn();
+	}
+	keyboardSelect(*first, false);
+	setFocus();
+}
+
+void EmojiListWidget::returnFocus() {
+	// The picker of variants is raised above the list, not inside it,
+	// but the focus in it is still ours to give back.
+	const auto was = base::take(_focusReturn);
+	if (was && (Ui::InFocusChain(this) || _picker->hasFocus())) {
+		was->setFocus();
 	}
 }
 
@@ -1889,7 +2260,17 @@ void EmojiListWidget::ensureLoaded(int section) {
 			fillRecent();
 		}
 		return;
-	} else if (section >= _staticCount || !_emoji[section].empty()) {
+	}
+	ensureStaticLoaded(section);
+}
+
+void EmojiListWidget::ensureStaticLoaded(int section) const {
+	// A static category loads lazily, from the paint of its rows; a screen
+	// reader asks for a cell of a category not painted yet, so the lookup
+	// runs the same load - the cache is all that changes.
+	if (section <= int(Section::Recent)
+		|| section >= _staticCount
+		|| !_emoji[section].empty()) {
 		return;
 	}
 	_emoji[section] = Ui::Emoji::GetSection(static_cast<Section>(section));
@@ -1927,6 +2308,7 @@ void EmojiListWidget::fillRecent() {
 			break;
 		}
 	}
+	childrenChanged();
 }
 
 void EmojiListWidget::fillRecentFrom(
@@ -1961,6 +2343,7 @@ void EmojiListWidget::fillRecentFrom(
 				: id.documentId);
 		}
 	}
+	childrenChanged();
 }
 
 base::unique_qptr<Ui::PopupMenu> EmojiListWidget::fillContextMenu(
@@ -2789,6 +3172,9 @@ bool EmojiListWidget::customMarked(int section, int index) const {
 EmojiPtr EmojiListWidget::lookupOverEmoji(const OverEmoji *over) const {
 	const auto section = over ? over->section : -1;
 	const auto index = over ? over->index : -1;
+	if (!_searchMode) {
+		ensureStaticLoaded(section);
+	}
 	return (_searchMode && section == 0)
 		? ((index < _searchResults.size()
 			&& v::is<EmojiPtr>(_searchResults[index].id.data))
@@ -2947,8 +3333,13 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 			if (emoji->hasVariants() && !_picker->isHidden()) {
 				return;
 			}
+			// The field the emoji goes to tells itself apart by the focus:
+			// if the list took it for a screen reader, it goes back first.
+			// The panel stays, a click may be followed by another.
+			returnFocus();
 			selectEmoji(lookupChosen(emoji, over));
 		} else if (const auto custom = lookupCustomEmoji(over)) {
+			returnFocus();
 			selectCustom(lookupChosen(custom, over));
 		}
 	} else if (const auto set = std::get_if<OverSet>(&pressed)) {
@@ -3122,8 +3513,11 @@ void EmojiListWidget::pickerHidden() {
 	disableScroll(false);
 	setColorAllForceRippled(false);
 
-	_lastMousePos = QCursor::pos();
-	updateSelected();
+	// Opened from the keyboard, the list keeps the emoji it was on.
+	if (!_keyboardSelection) {
+		_lastMousePos = QCursor::pos();
+		updateSelected();
+	}
 }
 
 bool EmojiListWidget::hasColorButton(int index) const {
@@ -3340,7 +3734,16 @@ void EmojiListWidget::colorChosen(EmojiChosen data) {
 			_emoji[over->section][over->index] = emoji;
 			rtlupdate(emojiRect(over->section, over->index));
 		}
+		// Chosen from the keyboard, as Enter on the emoji would, or with
+		// the mouse after the list took the focus for a screen reader:
+		// the focus goes back before the choice either way; only the
+		// keyboard is done with the panel.
+		const auto keyboard = _picker->hasFocus();
+		returnFocus();
 		selectEmoji(data);
+		if (keyboard) {
+			_hideRequests.fire({});
+		}
 	}
 	_picker->hideAnimated();
 }
@@ -3391,15 +3794,21 @@ void EmojiListWidget::mouseMoveEvent(QMouseEvent *e) {
 			_picker->clearSelection();
 		}
 	}
+	_keyboardSelection = false;
 	updateSelected();
 }
 
 void EmojiListWidget::leaveEventHook(QEvent *e) {
-	clearSelection();
+	// A selection made from the keyboard stays where the mouse is not.
+	if (!_keyboardSelection) {
+		clearSelection();
+	}
 }
 
 void EmojiListWidget::leaveToChildEvent(QEvent *e, QWidget *child) {
-	clearSelection();
+	if (!_keyboardSelection) {
+		clearSelection();
+	}
 }
 
 void EmojiListWidget::enterFromChildEvent(QEvent *e, QWidget *child) {
@@ -3410,7 +3819,535 @@ void EmojiListWidget::enterFromChildEvent(QEvent *e, QWidget *child) {
 void EmojiListWidget::clearSelection() {
 	setPressed(v::null);
 	setSelected(v::null);
+	_keyboardSelection = false;
 	_lastMousePos = mapToGlobal(QPoint(-10, -10));
+}
+
+rpl::producer<> EmojiListWidget::hideRequests() const {
+	return _hideRequests.events();
+}
+
+int EmojiListWidget::shownCount(const SectionInfo &info) const {
+	return info.collapsed
+		? std::min(info.count, _columnCount * kCollapsedRows)
+		: info.count;
+}
+
+bool EmojiListWidget::isExpandCell(
+		const SectionInfo &info,
+		int index) const {
+	return info.collapsed && (index + 1 == _columnCount * kCollapsedRows);
+}
+
+std::optional<EmojiListWidget::OverEmoji> EmojiListWidget::accessibleChild(
+		int index) const {
+	if (index < 0 || _columnCount <= 0) {
+		return std::nullopt;
+	}
+	auto result = std::optional<OverEmoji>();
+	enumerateSections([&](const SectionInfo &info) {
+		const auto count = shownCount(info);
+		if (index < count) {
+			result = OverEmoji{ .section = info.section, .index = index };
+			return false;
+		}
+		index -= count;
+		return true;
+	});
+	return result;
+}
+
+int EmojiListWidget::accessibleIndex(const OverEmoji &over) const {
+	if (_columnCount <= 0) {
+		return -1;
+	}
+	auto result = -1;
+	auto before = 0;
+	enumerateSections([&](const SectionInfo &info) {
+		if (info.section == over.section) {
+			if (over.index >= 0 && over.index < shownCount(info)) {
+				result = before + over.index;
+			}
+			return false;
+		}
+		before += shownCount(info);
+		return true;
+	});
+	return result;
+}
+
+QString EmojiListWidget::accessibleEmojiText(const OverEmoji &over) const {
+	const auto info = sectionInfo(over.section);
+	if (isExpandCell(info, over.index)) {
+		// The last cell of a collapsed section shows how many more there
+		// are, and opens the section.
+		return u"+%1"_q.arg(info.count - _columnCount * kCollapsedRows + 1);
+	} else if (const auto emoji = lookupOverEmoji(&over)) {
+		// The emoji itself: the screen reader names it in its own words.
+		return emoji->text();
+	} else if (const auto custom = lookupCustomEmoji(&over)) {
+		const auto sticker = custom.document->sticker();
+		return sticker ? sticker->alt : QString();
+	}
+	return QString();
+}
+
+QString EmojiListWidget::sectionTitle(int section) const {
+	if (_searchMode) {
+		return (section > 0) ? searchSetBySection(section).title : QString();
+	} else if (section == int(Section::Recent)) {
+		return tr::lng_recent_stickers(tr::now);
+	} else if (section < _staticCount) {
+		return EmojiCategoryTitle(section)(tr::now);
+	} else if (section - _staticCount < int(_custom.size())) {
+		return _custom[section - _staticCount].title;
+	}
+	return QString();
+}
+
+QAccessible::Role EmojiListWidget::accessibilityRole() {
+	return QAccessible::List;
+}
+
+Qt::FocusPolicy EmojiListWidget::accessibilityFocusPolicy() {
+	return Qt::TabFocus;
+}
+
+int EmojiListWidget::accessibilityChildCount() const {
+	if (_columnCount <= 0) {
+		return 0;
+	}
+	auto result = 0;
+	enumerateSections([&](const SectionInfo &info) {
+		result += shownCount(info);
+		return true;
+	});
+	return result;
+}
+
+QAccessible::Role EmojiListWidget::accessibilityChildRole() const {
+	return QAccessible::ListItem;
+}
+
+QString EmojiListWidget::accessibilityChildName(int index) const {
+	const auto over = accessibleChild(index);
+	return over ? accessibleEmojiText(*over) : QString();
+}
+
+QString EmojiListWidget::accessibilityChildDescription(int index) const {
+	// The section the emoji is in, heard on landing in it.
+	const auto over = accessibleChild(index);
+	return over ? sectionTitle(over->section) : QString();
+}
+
+QRect EmojiListWidget::accessibilityChildRect(int index) const {
+	const auto over = accessibleChild(index);
+	return over ? myrtlrect(emojiRect(over->section, over->index)) : QRect();
+}
+
+QAccessible::State EmojiListWidget::accessibilityChildState(
+		int index) const {
+	auto state = QAccessible::State();
+	if (Ui::ScreenReaderModeActive()) {
+		state.focusable = true;
+		state.selectable = true;
+	}
+	const auto over = accessibleChild(index);
+	const auto selected = std::get_if<OverEmoji>(&_selected);
+	if (over && selected && *selected == *over) {
+		state.active = true;
+		// The item the keyboard is on is the selection of the list - or a
+		// screen reader reports every item as "not selected".
+		state.selected = true;
+		if (hasFocus()) {
+			state.focused = true;
+		}
+	}
+	// An emoji with variants opens the picker of its skin tones: a
+	// screen reader hears it as collapsed, and expanded while the picker
+	// is up for it.
+	if (over) {
+		const auto emoji = lookupOverEmoji(&*over);
+		if (emoji && emoji->hasVariants()) {
+			state.expandable = true;
+			const auto picked = std::get_if<OverEmoji>(&_pickerSelected);
+			state.expanded = picked
+				&& (*picked == *over)
+				&& !_picker->isHidden();
+		}
+	}
+	return state;
+}
+
+void EmojiListWidget::accessibilityChildShowMenu(quintptr identity) {
+	// Expand opens the picker of variants for the item, Collapse closes
+	// it - the bridge calls this for either, by the state it sees.
+	crl::on_main(this, [=] {
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		const auto over = accessibleChild(index);
+		if (!over) {
+			return;
+		}
+		const auto picked = std::get_if<OverEmoji>(&_pickerSelected);
+		if (picked && *picked == *over && !_picker->isHidden()) {
+			_picker->hideAnimated();
+			return;
+		}
+		// Checked when the action runs, not when it was queued: the cell
+		// may hold another emoji by now, or the reader may be gone.
+		const auto emoji = lookupOverEmoji(&*over);
+		if (!emoji
+			|| !emoji->hasVariants()
+			|| !Ui::ScreenReaderModeActive()) {
+			return;
+		}
+		keyboardSelect(*over, false);
+		// The place to give the focus back to is captured on entry from
+		// outside only: with the focus in the list or in its picker (a
+		// picker reopened for another emoji) the field is already known.
+		if (!hasFocus() && !_picker->hasFocus()) {
+			_focusReturn = window()->focusWidget();
+		}
+		if (!hasFocus()) {
+			setFocus();
+		}
+		[[maybe_unused]] const auto opened = openKeyboardPicker();
+	});
+}
+
+bool EmojiListWidget::accessibilityChildSupportsActions(int index) const {
+	return accessibilityChildIdentity(index) != 0;
+}
+
+quintptr EmojiListWidget::accessibilityChildIdentity(int index) const {
+	// The cell names the item - its section and its place in it - within
+	// the generation of the cells it belongs to, see childrenChanged().
+	// The tag bit keeps the token non-zero.
+	const auto over = accessibleChild(index);
+	return over
+		? ((quintptr(_childrenGeneration) << 32)
+			| (quintptr(over->section + 1) << 24)
+			| (quintptr(over->index + 1) << 1)
+			| quintptr(1))
+		: quintptr(0);
+}
+
+int EmojiListWidget::accessibilityChildIndexByIdentity(
+		quintptr identity) const {
+	if (!identity || quint32(identity >> 32) != _childrenGeneration) {
+		return -1;
+	}
+	return accessibleIndex(OverEmoji{
+		.section = int((identity >> 24) & 0xFF) - 1,
+		.index = int((identity >> 1) & 0x7FFFFF) - 1,
+	});
+}
+
+void EmojiListWidget::accessibilityChildSetFocus(quintptr identity) {
+	// UIA invokes the action on a background thread: resolve and touch
+	// the widget on the main one, like the other painted lists do.
+	crl::on_main(this, [=] {
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		const auto over = accessibleChild(index);
+		if (!over) {
+			return;
+		}
+		keyboardSelect(*over, hasFocus());
+		// The keyboard focus is for a screen reader only; the action itself
+		// is available regardless.
+		if (!hasFocus() && Ui::ScreenReaderModeActive()) {
+			_focusReturn = window()->focusWidget();
+			setFocus();
+		}
+	});
+}
+
+void EmojiListWidget::accessibilityChildActivate(quintptr identity) {
+	crl::on_main(this, [=] {
+		const auto index = accessibilityChildIndexByIdentity(identity);
+		const auto over = accessibleChild(index);
+		if (!over) {
+			return;
+		}
+		keyboardSelect(*over, false);
+		activateKeyboardSelected();
+	});
+}
+
+void EmojiListWidget::childrenChanged() {
+	// The cells were rebuilt: an action queued against the old ones would
+	// land on whatever took their place, and so would the keyboard
+	// selection - it starts over from the first cell instead.
+	++_childrenGeneration;
+	if (_keyboardSelection) {
+		_keyboardSelection = false;
+		setSelected(v::null);
+	}
+}
+
+void EmojiListWidget::keyboardSelect(const OverEmoji &over, bool announce) {
+	_keyboardSelection = true;
+	setSelected(over);
+	ensureCellVisible(over);
+	if (announce) {
+		const auto index = accessibleIndex(over);
+		if (index >= 0) {
+			accessibilityChildFocused(index);
+		}
+	}
+}
+
+void EmojiListWidget::ensureCellVisible(const OverEmoji &over) {
+	const auto rect = emojiRect(over.section, over.index);
+	const auto top = getVisibleTop();
+	const auto bottom = getVisibleBottom();
+	if (bottom <= top) {
+		return;
+	} else if (rect.y() < top) {
+		// Show the header of the section the cell opens.
+		const auto info = sectionInfo(over.section);
+		scrollTo((rect.y() < info.rowsTop + _singleSize.height())
+			? info.top
+			: rect.y());
+	} else if (rect.y() + rect.height() > bottom) {
+		scrollTo(rect.y() + rect.height() - (bottom - top));
+	}
+}
+
+void EmojiListWidget::keyboardMoveBy(int delta) {
+	const auto count = accessibilityChildCount();
+	if (!count) {
+		return;
+	}
+	const auto selected = std::get_if<OverEmoji>(&_selected);
+	const auto current = selected ? accessibleIndex(*selected) : -1;
+	const auto index = (current < 0)
+		? ((delta > 0) ? 0 : count - 1)
+		: std::clamp(current + delta, 0, count - 1);
+	if (const auto over = accessibleChild(index)) {
+		keyboardSelect(*over, true);
+	}
+}
+
+std::optional<EmojiListWidget::OverEmoji> EmojiListWidget::neighborRow(
+		const OverEmoji &over,
+		int step) const {
+	// The same column one row up or down, on into the next section
+	// that has anything to show - its first or its last row.
+	const auto info = sectionInfo(over.section);
+	const auto column = over.index % _columnCount;
+	const auto row = over.index / _columnCount;
+	const auto rows = (shownCount(info) + _columnCount - 1) / _columnCount;
+	if (row + step >= 0 && row + step < rows) {
+		const auto index = std::min(
+			(row + step) * _columnCount + column,
+			shownCount(info) - 1);
+		return OverEmoji{ .section = over.section, .index = index };
+	}
+	const auto sections = sectionsCount();
+	auto section = over.section + step;
+	while (section >= 0 && section < sections) {
+		const auto count = shownCount(sectionInfo(section));
+		if (count > 0) {
+			const auto lastRow = (count + _columnCount - 1) / _columnCount - 1;
+			const auto index = std::min(
+				((step > 0) ? 0 : lastRow) * _columnCount + column,
+				count - 1);
+			return OverEmoji{ .section = section, .index = index };
+		}
+		section += step;
+	}
+	return std::nullopt;
+}
+
+void EmojiListWidget::keyboardMoveRows(int rows) {
+	const auto selected = std::get_if<OverEmoji>(&_selected);
+	if (!selected || accessibleIndex(*selected) < 0) {
+		keyboardMoveBy(rows > 0 ? 1 : -1);
+		return;
+	}
+	auto over = *selected;
+	const auto step = (rows > 0) ? 1 : -1;
+	for (auto i = 0; i != std::abs(rows); ++i) {
+		const auto next = neighborRow(over, step);
+		if (!next) {
+			break;
+		}
+		over = *next;
+	}
+	keyboardSelect(over, true);
+}
+
+void EmojiListWidget::expandSection(int section) {
+	if (_searchMode && section > 0) {
+		searchSetBySection(section).expanded = true;
+	} else if (section >= _staticCount) {
+		_custom[section - _staticCount].expanded = true;
+	}
+	++_childrenGeneration;
+	resizeToWidth(width());
+	update();
+}
+
+void EmojiListWidget::activateKeyboardSelected() {
+	const auto selected = std::get_if<OverEmoji>(&_selected);
+	if (!selected || accessibleIndex(*selected) < 0) {
+		return;
+	}
+	const auto over = *selected;
+	if (isExpandCell(sectionInfo(over.section), over.index)) {
+		expandSection(over.section);
+		keyboardSelect(over, true);
+		return;
+	}
+	// The field the emoji goes to tells itself apart by the focus, so
+	// the focus goes back before the choice is made - and the panel is
+	// done: hide it, as Escape would.
+	returnFocus();
+	if (const auto emoji = lookupOverEmoji(&over)) {
+		selectEmoji(lookupChosen(emoji, &over));
+	} else if (const auto custom = lookupCustomEmoji(&over)) {
+		selectCustom(lookupChosen(custom, &over));
+	} else {
+		return;
+	}
+	_hideRequests.fire({});
+}
+
+void EmojiListWidget::focusInEvent(QFocusEvent *e) {
+	RpWidget::focusInEvent(e);
+	// Land on the emoji last walked to, or the first one there is.
+	const auto selected = std::get_if<OverEmoji>(&_selected);
+	auto over = (selected && accessibleIndex(*selected) >= 0)
+		? std::optional<OverEmoji>(*selected)
+		: accessibleChild(0);
+	if (!over) {
+		return;
+	}
+	keyboardSelect(*over, false);
+	const auto index = accessibleIndex(*over);
+	InvokeQueued(this, [=] {
+		const auto now = std::get_if<OverEmoji>(&_selected);
+		if (hasFocus() && now && accessibleIndex(*now) == index) {
+			accessibilityChildFocused(index);
+		}
+	});
+}
+
+void EmojiListWidget::focusOutEvent(QFocusEvent *e) {
+	RpWidget::focusOutEvent(e);
+	// The focus in the picker of variants is still ours.
+	if (!_picker->hasFocus()) {
+		_keyboardSelection = false;
+	}
+	// A key held while the focus left is nothing to act on.
+	_keyPressPending = false;
+	_keyPickerTimer.cancel();
+}
+
+void EmojiListWidget::keyPressEvent(QKeyEvent *e) {
+	// The keys walk the cells for a screen reader only: without one the
+	// list is not focusable, and a focus it kept from before the reader
+	// was stopped must not keep the keys either.
+	if (!Ui::ScreenReaderModeActive()) {
+		RpWidget::keyPressEvent(e);
+		return;
+	}
+	const auto key = e->key();
+	const auto rowHeight = std::max(_singleSize.height(), 1);
+	const auto rowsOnPage = std::max(
+		(getVisibleBottom() - getVisibleTop()) / rowHeight,
+		1);
+	if (key == Qt::Key_Left || key == Qt::Key_Right) {
+		const auto forward = (key == Qt::Key_Right) != rtl();
+		keyboardMoveBy(forward ? 1 : -1);
+	} else if (key == Qt::Key_Up || key == Qt::Key_Down) {
+		keyboardMoveRows((key == Qt::Key_Down) ? 1 : -1);
+	} else if (key == Qt::Key_PageUp || key == Qt::Key_PageDown) {
+		keyboardMoveRows((key == Qt::Key_PageDown)
+			? rowsOnPage
+			: -rowsOnPage);
+	} else if (key == Qt::Key_Home) {
+		keyboardMoveBy(-accessibilityChildCount());
+	} else if (key == Qt::Key_End) {
+		keyboardMoveBy(accessibilityChildCount());
+	} else if (key == Qt::Key_Space
+		|| key == Qt::Key_Return
+		|| key == Qt::Key_Enter) {
+		// As the mouse does on an emoji with variants: none of them ever
+		// chosen, the press asks for one right away; else the picker
+		// comes up under the key held for a long press, and the key let
+		// go before that chooses.
+		if (!e->isAutoRepeat() && !_keyPressPending) {
+			_keyPressPending = true;
+			const auto selected = std::get_if<OverEmoji>(&_selected);
+			const auto emoji = lookupOverEmoji(selected);
+			if (emoji && emoji->hasVariants()) {
+				if (!Core::App().settings().hasChosenEmojiVariant(emoji)) {
+					keyPickerTimeout();
+				} else {
+					_keyPickerTimer.callOnce(kColorPickerDelay);
+				}
+			}
+		}
+	} else if (key == Qt::Key_Escape) {
+		// An owner that hides on the request takes it from here; the key
+		// itself goes on up, so that a box the list sits in closes on it.
+		returnFocus();
+		_hideRequests.fire({});
+		RpWidget::keyPressEvent(e);
+		return;
+	} else {
+		RpWidget::keyPressEvent(e);
+		return;
+	}
+	e->accept();
+}
+
+void EmojiListWidget::keyReleaseEvent(QKeyEvent *e) {
+	const auto key = e->key();
+	if (key == Qt::Key_Space
+		|| key == Qt::Key_Return
+		|| key == Qt::Key_Enter) {
+		if (_keyPressPending && !e->isAutoRepeat()) {
+			_keyPressPending = false;
+			_keyPickerTimer.cancel();
+			activateKeyboardSelected();
+		}
+		e->accept();
+		return;
+	}
+	RpWidget::keyReleaseEvent(e);
+}
+
+void EmojiListWidget::keyPickerTimeout() {
+	if (!_keyPressPending || !Ui::ScreenReaderModeActive()) {
+		return;
+	}
+	// The picker takes the focus, and the key let go later is its own.
+	_keyPressPending = false;
+	[[maybe_unused]] const auto opened = openKeyboardPicker();
+}
+
+bool EmojiListWidget::openKeyboardPicker() {
+	// The variants of the emoji - its skin tones - in the picker a long
+	// press shows, with the focus in it.
+	const auto selected = std::get_if<OverEmoji>(&_selected);
+	if (!selected || accessibleIndex(*selected) < 0) {
+		return false;
+	}
+	const auto emoji = lookupOverEmoji(selected);
+	if (!emoji || !emoji->hasVariants()) {
+		return false;
+	}
+	_pickerSelected = _selected;
+	showPicker();
+	if (_picker->isHidden()) {
+		_pickerSelected = v::null;
+		return false;
+	}
+	_picker->focusFromKeyboard(emoji, this);
+	return true;
 }
 
 uint64 EmojiListWidget::currentSet(int yOffset) const {
@@ -3646,6 +4583,7 @@ void EmojiListWidget::refreshCustom() {
 	if (found && newSectionTop != wasSectionTop) {
 		scrollTo(newSectionTop + (wasTop - wasSectionTop));
 	}
+	childrenChanged();
 }
 
 Fn<void()> EmojiListWidget::repaintCallback(
