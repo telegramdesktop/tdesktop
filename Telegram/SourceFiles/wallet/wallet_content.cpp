@@ -4460,6 +4460,15 @@ void SetButtonDisabledLook(
 	return user;
 }
 
+[[nodiscard]] bool SendsToOwnWallet(
+		not_null<Main::Session*> session,
+		const QString &destination) {
+	const auto identity = session->wallet().transferWalletIdentity();
+	return identity
+		&& !destination.isEmpty()
+		&& (CanonicalAddress(destination) == identity->address);
+}
+
 class RecentMoneyRecipientsController final
 	: public PeerListController
 	, public base::has_weak_ptr {
@@ -5033,17 +5042,23 @@ void WalletSendBox(
 		int64 amountNano) {
 	Expects(user || initial);
 
+	const auto self = (!user
+			&& SendsToOwnWallet(&show->session(), initial->destination))
+		? show->session().user().get()
+		: nullptr;
+	const auto recipient = user ? user : self;
+
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::giveawayGiftCodeBox);
 
 	const auto weak = base::make_weak(box.get());
-	const auto openProfile = user
+	const auto openProfile = recipient
 		? Fn<void()>([=] {
 			const auto window = MakeChatShow(show, true)->resolveWindow();
 			if (!window) {
 				return;
 			}
-			const auto peer = user;
+			const auto peer = recipient;
 			if (weak
 				&& weak->hasDelegate()
 				&& window->widget()->window() == weak->window()) {
@@ -5053,7 +5068,7 @@ void WalletSendBox(
 			window->window().activate();
 		})
 		: nullptr;
-	if (user) {
+	if (recipient) {
 		// WHY: the box title label is private inside lib_ui and takes no
 		// click filter, so the name is clickable only while this file owns
 		// the label itself.
@@ -5065,7 +5080,7 @@ void WalletSendBox(
 			wrap,
 			tr::lng_wallet_send_user_title(
 				lt_user,
-				Info::Profile::NameValue(user) | rpl::map([](QString name) {
+				Info::Profile::NameValue(recipient) | rpl::map([](QString name) {
 					return tr::link(name);
 				}),
 				tr::marked),
@@ -5360,23 +5375,27 @@ void WalletSendBox(
 	};
 
 	const auto inner = box->verticalLayout();
-	if (user) {
+	if (recipient) {
+		auto address = user
+			? rpl::producer<QString>(state->loading.value(
+			) | rpl::map([=](bool loading) {
+				return (!loading && state->flow)
+					? state->flow->displayForm
+					: QString();
+			}))
+			: rpl::producer<QString>(rpl::single(initial->displayForm));
 		inner->add(
 			object_ptr<SendRecipientCard>(
 				inner,
-				user,
-				state->loading.value() | rpl::map([=](bool loading) {
-					return (!loading && state->flow)
-						? state->flow->displayForm
-						: QString();
-				}),
+				recipient,
+				std::move(address),
 				[=] {
 					if (!state->flow) {
 						return;
 					}
 					ShowSendRecipientWallet(
 						box->uiShow(),
-						user,
+						recipient,
 						state->flow->displayForm,
 						openProfile);
 				}),
@@ -5402,7 +5421,7 @@ void WalletSendBox(
 	});
 	const auto amountField = AddAmountField(
 		inner,
-		(user
+		(recipient
 			? st::walletSendUserCardAmountSkip
 			: st::walletDetailsAmountTopSkip),
 		st::walletSendUserAmountField,
@@ -6489,8 +6508,11 @@ void WalletSendBox(
 	if (!user) {
 		state->flow = initial;
 		state->flow->draft = draft;
-		state->recipientKey = wallet->userAddresses().publicKey(
+		const auto cached = wallet->userAddresses().publicKey(
 			state->flow->destination);
+		state->recipientKey = (self && cached.isEmpty())
+			? state->senderIdentity->publicKey
+			: cached;
 	}
 	refreshFee();
 	const auto resolveRecipient = [=] {
@@ -6679,6 +6701,10 @@ void ResolveOwnerAndOpenSendFlow(
 		std::shared_ptr<Main::SessionShow> show,
 		SendFlow flow) {
 	const auto session = &show->session();
+	if (SendsToOwnWallet(session, flow.destination)) {
+		OpenSendFlow(show, std::move(flow), AddressOwner());
+		return;
+	}
 	struct State {
 		Fn<void()> closeLookup;
 		bool answered = false;
@@ -6798,6 +6824,10 @@ void WalletSendRecipientBox(
 			return;
 		}
 		const auto flow = *state->flow;
+		if (SendsToOwnWallet(session, flow.destination)) {
+			proceed(flow, AddressOwner());
+			return;
+		}
 		const auto revision = ++state->revision;
 		const auto answer = [=](AddressOwner owner) {
 			if (revision == state->revision) {
