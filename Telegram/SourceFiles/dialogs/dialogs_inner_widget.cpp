@@ -5618,7 +5618,7 @@ void InnerWidget::jumpToTop() {
 }
 
 void InnerWidget::saveChatsFilterScrollState(FilterId filterId) {
-	_chatsFilterScrollStates[filterId] = -y();
+	_chatsFilterScrollStates[filterId] = _visibleTop;
 }
 
 bool InnerWidget::restoreChatsFilterScrollState(FilterId filterId) {
