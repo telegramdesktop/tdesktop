@@ -5302,6 +5302,7 @@ void WalletSendBox(
 		std::optional<SendFlow> initial,
 		UserData *user,
 		Fn<void()> sent,
+		Fn<void()> notReady,
 		int64 amountNano) {
 	Expects(user || initial);
 
@@ -5414,6 +5415,7 @@ void WalletSendBox(
 		rpl::variable<bool> previewInsufficient = false;
 		rpl::variable<SendError> previewError = SendError::None;
 		rpl::variable<bool> insufficient = false;
+		rpl::variable<bool> unfunded = false;
 		rpl::variable<bool> canSend = false;
 		rpl::variable<bool> raisable = false;
 		std::shared_ptr<KeyContext> keyContext;
@@ -5475,7 +5477,11 @@ void WalletSendBox(
 			&& (!user || (state->flow && userError().isEmpty()));
 	};
 	const auto receive = [=] {
-		if (originValid()) {
+		if (originValid()
+			|| (state->unfunded.current()
+				&& !state->closed
+				&& !state->terminal
+				&& sessionValid())) {
 			ShowWalletReceiveBox(session, box->uiShow());
 		}
 	};
@@ -6064,6 +6070,10 @@ void WalletSendBox(
 	const auto refreshFee = [=] {
 		if (state->closed || state->terminal) {
 			return;
+		} else if (state->unfunded.current()) {
+			state->previewDependencies.reset();
+			invalidateFee();
+			return;
 		}
 		const auto dependencies = quoteDependencies();
 		if (state->previewDependencies == dependencies) {
@@ -6108,6 +6118,7 @@ void WalletSendBox(
 	state->amount.value() | rpl::on_next(refreshFee, box->lifetime());
 	draft->comment.changes() | rpl::on_next(refreshFee, box->lifetime());
 	state->loading.changes() | rpl::on_next(refreshFee, box->lifetime());
+	state->unfunded.changes() | rpl::on_next(refreshFee, box->lifetime());
 	state->loadError.changes() | rpl::on_next(refreshFee, box->lifetime());
 	session->appConfig().refreshed() | rpl::on_next([=] {
 		state->minTransfer = TransferMinNanos(session);
@@ -6140,22 +6151,25 @@ void WalletSendBox(
 		state->previewInsufficient.value(),
 		wallet->balanceNanoValue(),
 		wallet->stateKnownValue(),
-		wallet->gaslessTermsValue()
+		wallet->gaslessTermsValue(),
+		state->unfunded.value()
 	) | rpl::map([=](
 			int64 amount,
 			int64 fee,
 			bool preview,
 			int64 balance,
 			bool known,
-			const GaslessTerms &terms) {
+			const GaslessTerms &terms,
+			bool unfunded) {
 		// A fee-free transfer keeps nothing back for the fee, so the whole
 		// balance is sendable when the offer covers this one.
 		const auto destination = state->flow
 			? state->flow->destination
 			: QString();
 		const auto reserve = terms.eligible(amount, destination) ? 0 : fee;
-		return (amount > 0)
-			&& (preview || (known && amount > balance - reserve));
+		return unfunded
+			|| ((amount > 0)
+				&& (preview || (known && amount > balance - reserve)));
 	});
 	state->canSend = rpl::combine(
 		state->amount.value(),
@@ -6186,15 +6200,18 @@ void WalletSendBox(
 		state->minTransfer.value(),
 		state->loading.value(),
 		state->loadError.value(),
-		draft->comment.value()
+		draft->comment.value(),
+		state->unfunded.value()
 	) | rpl::map([](
 			int64 amount,
 			int64 minimum,
 			bool loading,
 			const QString &loadError,
-			const SendComment &comment) {
+			const SendComment &comment,
+			bool unfunded) {
 		return TransferAmountBelowMinimum(amount, minimum)
 			&& !loading
+			&& !unfunded
 			&& loadError.isEmpty()
 			&& CommentFits(comment.text);
 	});
@@ -6771,7 +6788,10 @@ void WalletSendBox(
 		requote();
 	};
 	const auto submit = [=] {
-		if (!originValid() || !state->flow) {
+		if (state->unfunded.current()) {
+			amountField->showError();
+			return;
+		} else if (!originValid() || !state->flow) {
 			if (user && !state->loading.current()) {
 				failLoading(userError());
 			}
@@ -6871,16 +6891,46 @@ void WalletSendBox(
 				: (presence == Presence::Ready)
 				? QString()
 				: u"WALLET_NOT_READY"_q;
-			if (error == u"WALLET_NOT_READY"_q
+			if (notReady
+				&& user
+				&& !state->forceIssued
+				&& !state->senderIdentity
+				&& error == u"WALLET_NOT_READY"_q
+				&& presence != Presence::Unknown
+				&& presence != Presence::Unavailable) {
+				const auto onstack = notReady;
+				failLoading(error, true);
+				onstack();
+				return;
+			} else if (error == u"WALLET_NOT_READY"_q
 				&& !state->forceIssued
 				&& (presence == Presence::Unknown
 					|| presence == Presence::Provisioning)) {
+				return;
+			} else if (user
+				&& !state->forceIssued
+				&& error == u"WALLET_BALANCE_EMPTY"_q) {
+				if (!state->unfunded.current()) {
+					state->senderIdentity = wallet->transferWalletIdentity();
+					if (!state->senderIdentity) {
+						failLoading(u"WALLET_NOT_READY"_q);
+						return;
+					}
+					state->loadDeadline.cancel();
+					state->unfunded = true;
+					state->loading = false;
+				}
 				return;
 			} else if (!error.isEmpty()) {
 				failLoading(presence == Presence::Unavailable
 					? u"WALLET_UNAVAILABLE"_q
 					: error);
 				return;
+			}
+			if (state->unfunded.current()) {
+				state->loading = true;
+				state->unfunded = false;
+				state->loadDeadline.callOnce(kSendUserLoadTimeout);
 			} else if (!state->loading.current()) {
 				refreshFee();
 				return;
@@ -7014,6 +7064,7 @@ void OpenSendFlow(
 		show,
 		std::make_optional(std::move(flow)),
 		toUser ? user : nullptr,
+		Fn<void()>(),
 		Fn<void()>(),
 		int64(0)));
 }
@@ -13267,7 +13318,8 @@ void ShowSendToUser(
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<UserData*> user,
 		Fn<void()> sent,
-		int64 amountNano) {
+		int64 amountNano,
+		Fn<void()> notReady) {
 	if (!show || !show->valid() || &show->session() != &user->session()) {
 		return;
 	}
@@ -13281,6 +13333,7 @@ void ShowSendToUser(
 		std::nullopt,
 		user.get(),
 		std::move(sent),
+		std::move(notReady),
 		amountNano));
 }
 

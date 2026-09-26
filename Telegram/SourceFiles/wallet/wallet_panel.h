@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 struct FullMsgId;
+class UserData;
 
 namespace Main {
 class Session;
@@ -45,6 +46,14 @@ void OpenSendGramsLink(
 void OpenAddressEntity(
 	not_null<Window::SessionController*> controller,
 	const QString &text);
+
+[[nodiscard]] bool CanOfferSendMoney(not_null<UserData*> user);
+
+// Without a ready wallet to send from this opens the wallet panel instead.
+void OpenSendMoney(
+	not_null<Window::SessionController*> controller,
+	not_null<UserData*> user,
+	Fn<void()> sent = nullptr);
 
 void OpenTonConnectLink(
 	not_null<Window::SessionController*> controller,

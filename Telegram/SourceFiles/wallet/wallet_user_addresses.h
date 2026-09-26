@@ -76,6 +76,7 @@ public:
 		Fn<void(QString)> done,
 		Fn<void(ForceResolveError)> fail);
 	[[nodiscard]] QString forceResolveError(UserId id) const;
+	[[nodiscard]] QString recipientError(UserId id) const;
 
 	// Asks Telegram which user owns |address|. |done| runs exactly once, with
 	// an empty owner when the address belongs to no user, when it cannot be

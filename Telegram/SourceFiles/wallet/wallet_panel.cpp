@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_regex.h"
 #include "core/application.h"
 #include "core/shortcuts.h"
+#include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/session/session_show.h"
 #include "main/main_account.h"
@@ -24,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_ton_connect.h"
 #include "wallet/wallet_ton_connect_link.h"
 #include "wallet/wallet_ton_connect_request.h"
+#include "wallet/wallet_user_addresses.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 
@@ -169,6 +171,42 @@ void OpenAddressEntity(
 		return;
 	}
 	OpenSendGramsLink(controller, address, QString());
+}
+
+bool CanOfferSendMoney(not_null<UserData*> user) {
+	const auto session = &user->session();
+	auto &wallet = session->wallet();
+	return !session->supportMode()
+		&& !user->isSelf()
+		&& (wallet.presenceCurrent() != Presence::Unavailable)
+		&& wallet.userAddresses().recipientError(
+			peerToUser(user->id)).isEmpty();
+}
+
+void OpenSendMoney(
+		not_null<Window::SessionController*> controller,
+		not_null<UserData*> user,
+		Fn<void()> sent) {
+	const auto session = &controller->session();
+	if (&user->session() != session || !CanOfferSendMoney(user)) {
+		return;
+	}
+	const auto presence = session->wallet().presenceCurrent();
+	if (presence != Presence::Ready && presence != Presence::Unknown) {
+		ShowWallet(session);
+		return;
+	}
+	const auto weak = base::make_weak(session);
+	ShowSendToUser(
+		controller->uiShow(),
+		user,
+		std::move(sent),
+		0,
+		[=] {
+			if (const auto strong = weak.get()) {
+				ShowWallet(strong);
+			}
+		});
 }
 
 void OpenTonConnectLink(

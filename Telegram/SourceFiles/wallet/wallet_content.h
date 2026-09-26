@@ -141,11 +141,13 @@ void ShowTransferLink(
 
 // After a definite success |sent| runs in place of the transaction
 // details box; a caller that passes nothing keeps the details box.
+// Without a ready wallet |notReady| runs in place of the error.
 void ShowSendToUser(
 	std::shared_ptr<Main::SessionShow> show,
 	not_null<UserData*> user,
 	Fn<void()> sent = nullptr,
-	int64 amountNano = 0);
+	int64 amountNano = 0,
+	Fn<void()> notReady = nullptr);
 
 void ShowSendToLinkRecipient(
 	std::shared_ptr<Main::SessionShow> show,

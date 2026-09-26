@@ -112,10 +112,7 @@ void UserAddresses::forceResolve(
 			fail(std::move(error));
 		}
 	};
-	const auto error = forceResolveError(id);
-	if (!error.isEmpty()
-		&& error != u"WALLET_NOT_READY"_q
-		&& error != u"WALLET_BALANCE_EMPTY"_q) {
+	if (const auto error = recipientError(id); !error.isEmpty()) {
 		refuse({ .type = error });
 		return;
 	}
@@ -161,6 +158,20 @@ void UserAddresses::forceResolve(
 }
 
 QString UserAddresses::forceResolveError(UserId id) const {
+	if (const auto error = recipientError(id); !error.isEmpty()) {
+		return error;
+	}
+	const auto &wallet = _session->wallet();
+	if (wallet.presenceCurrent() != Presence::Ready) {
+		return u"WALLET_NOT_READY"_q;
+	}
+	if (wallet.balanceNano() <= 0) {
+		return u"WALLET_BALANCE_EMPTY"_q;
+	}
+	return QString();
+}
+
+QString UserAddresses::recipientError(UserId id) const {
 	if (unavailable()) {
 		return u"WALLET_UNAVAILABLE"_q;
 	}
@@ -174,13 +185,6 @@ QString UserAddresses::forceResolveError(UserId id) const {
 		|| user->isRepliesChat()
 		|| user->isVerifyCodes()) {
 		return u"WALLET_USER_INELIGIBLE"_q;
-	}
-	const auto &wallet = _session->wallet();
-	if (wallet.presenceCurrent() != Presence::Ready) {
-		return u"WALLET_NOT_READY"_q;
-	}
-	if (wallet.balanceNano() <= 0) {
-		return u"WALLET_BALANCE_EMPTY"_q;
 	}
 	return QString();
 }

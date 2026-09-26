@@ -85,7 +85,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/menu/menu_item_base.h"
 #include "ui/widgets/popup_menu.h"
-#include "wallet/wallet_content.h"
+#include "wallet/wallet_panel.h"
 #include "wallet/wallet_session.h"
 #include "wallet/wallet_user_addresses.h"
 #include "webview/webview_dialog.h"
@@ -3153,10 +3153,7 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 				|| session->data().userLoaded(userId) != user) {
 				return false;
 			}
-			const auto error = wallet->userAddresses().forceResolveError(userId);
-			return error.isEmpty()
-				|| (error == u"WALLET_NOT_READY"_q
-					&& wallet->presenceCurrent() == Wallet::Presence::Unknown);
+			return Wallet::CanOfferSendMoney(user);
 		};
 		struct MoneyState {
 			QAction *action = nullptr;
@@ -3178,7 +3175,7 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 					tr::lng_wallet_send_money(tr::now),
 					crl::guard(controller, crl::guard(session, [=] {
 						if (canOffer()) {
-							Wallet::ShowSendToUser(controller->uiShow(), user);
+							Wallet::OpenSendMoney(controller, user);
 						}
 					})));
 				state->action = menu->insertAction(
@@ -3209,8 +3206,6 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 			});
 		};
 		wallet->stateKnownValue() | rpl::on_next(schedule, raw->lifetime());
-		wallet->balanceNanoValue() | rpl::on_next(schedule, raw->lifetime());
-		wallet->custodyUpdates() | rpl::on_next(schedule, raw->lifetime());
 		wallet->userAddresses().unavailableValue(
 		) | rpl::on_next(schedule, raw->lifetime());
 		user->flagsValue() | rpl::on_next(schedule, raw->lifetime());
