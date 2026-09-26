@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/passcode_box.h"
 #include "boxes/peer_list_box.h"
+#include "boxes/peer_list_controllers.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/credits_amount.h"
@@ -172,6 +173,7 @@ constexpr auto kGramDiamondRight = 426. / 512.;
 constexpr auto kGramDiamondBottom = 426. / 512.;
 constexpr auto kMaxAmountNano = 999'999'999'999'999'999LL;
 constexpr auto kSendUserLoadTimeout = 30 * crl::time(1000);
+constexpr auto kRecipientSearchLimit = 64;
 constexpr auto kSendOwnerLookupDelay = crl::time(500);
 constexpr auto kSendRefusalRetries = 3;
 constexpr auto kCommentPasswordStateTimeout = 30 * crl::time(1000);
@@ -4000,6 +4002,42 @@ void WalletConflictBox(
 	};
 }
 
+[[nodiscard]] QStringList SplitPhraseWords(const QString &text) {
+	return text.simplified().split(QChar(' '), Qt::SkipEmptyParts);
+}
+
+enum class RecipientInputKind : uchar {
+	Empty,
+	Address,
+	Invalid,
+	Search,
+};
+
+struct RecipientInput {
+	RecipientInputKind kind = RecipientInputKind::Empty;
+	std::optional<SendFlow> flow;
+};
+
+[[nodiscard]] RecipientInput ClassifyRecipientInput(const QString &text) {
+	using Kind = RecipientInputKind;
+	if (text.isEmpty()) {
+		return {};
+	} else if (auto flow = ParseRecipientFlow(text)) {
+		return { .kind = Kind::Address, .flow = std::move(flow) };
+	} else if (text.contains(u"://"_q)
+		|| text.startsWith(u"ton:"_q, Qt::CaseInsensitive)
+		|| ParseAddress(text)
+		|| ParseTransferLink(text)
+		|| (text.size() > kRecipientSearchLimit)
+		|| (SplitPhraseWords(text).size() >= kImportWordCountShort)) {
+		// Rejected addresses and pasted secrets never reach contacts.search.
+		return { .kind = Kind::Invalid };
+	} else if (TextUtilities::PrepareSearchWords(text).isEmpty()) {
+		return {};
+	}
+	return { .kind = Kind::Search };
+}
+
 [[nodiscard]] not_null<Ui::InputField*> AddCommentField(
 		not_null<Ui::GenericBox*> box,
 		const QString &comment) {
@@ -4497,6 +4535,20 @@ void SetButtonDisabledLook(
 		&& (CanonicalAddress(destination) == identity->address);
 }
 
+void ChooseMoneyRecipient(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<UserData*> user) {
+	const auto session = &show->session();
+	const auto userId = peerToUser(user->id);
+	box->closeBox();
+	if (show->valid()
+		&& &show->session() == session
+		&& session->data().userLoaded(userId) == user) {
+		ShowSendToUser(show, user);
+	}
+}
+
 class RecentMoneyRecipientsController final
 	: public PeerListController
 	, public base::has_weak_ptr {
@@ -4684,19 +4736,9 @@ void RecentMoneyRecipientsController::rowClicked(
 	if (!user || !canOffer(user)) {
 		return;
 	}
-	const auto show = _show;
-	const auto box = _box;
-	const auto session = _session;
-	const auto userId = peerToUser(user->id);
 	_choosing = true;
 	_shown = false;
-	box->closeBox();
-	if (session
-		&& show->valid()
-		&& &show->session() == session.get()
-		&& session->data().userLoaded(userId) == user) {
-		ShowSendToUser(show, user);
-	}
+	ChooseMoneyRecipient(_box.get(), _show, user);
 }
 
 Main::Session &RecentMoneyRecipientsController::session() const {
@@ -4720,7 +4762,8 @@ rpl::producer<bool> RecentMoneyRecipientsController::shownValue() const {
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeRecentMoneyRecipientsList(
 		not_null<Ui::GenericBox*> box,
-		std::shared_ptr<Main::SessionShow> show) {
+		std::shared_ptr<Main::SessionShow> show,
+		rpl::producer<bool> hidden) {
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		box,
 		object_ptr<Ui::VerticalLayout>(box));
@@ -4774,7 +4817,133 @@ rpl::producer<bool> RecentMoneyRecipientsController::shownValue() const {
 		object_ptr<PeerListContent>(container, controller));
 	controller->setContent(content);
 	Ui::AddSkip(container, st::walletSendRecentListSkip);
-	wrap->toggleOn(controller->shownValue());
+	const auto wasHidden = wrap->lifetime().make_state<bool>(false);
+	rpl::combine(
+		controller->shownValue(),
+		std::move(hidden)
+	) | rpl::on_next([=](bool shown, bool hide) {
+		const auto animated = (hide != *wasHidden)
+			? anim::type::instant
+			: anim::type::normal;
+		*wasHidden = hide;
+		wrap->toggle(shown && !hide, animated);
+	}, wrap->lifetime());
+	wrap->finishAnimating();
+	return result;
+}
+
+class MoneyRecipientSearchController final
+	: public ChatsListBoxController {
+public:
+	MoneyRecipientSearchController(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Main::SessionShow> show);
+
+	Main::Session &session() const override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+	void setContent(not_null<PeerListContent*> content);
+
+protected:
+	std::unique_ptr<Row> createRow(not_null<History*> history) override;
+	void prepareViewHook() override;
+
+private:
+	[[nodiscard]] UserData *offered(not_null<PeerData*> peer) const;
+
+	const base::weak_qptr<Ui::GenericBox> _box;
+	const std::shared_ptr<Main::SessionShow> _show;
+	const not_null<Main::Session*> _session;
+	PeerListContentDelegateShow _delegate;
+	bool _closed = false;
+	bool _choosing = false;
+
+};
+
+MoneyRecipientSearchController::MoneyRecipientSearchController(
+	not_null<Ui::GenericBox*> box,
+	std::shared_ptr<Main::SessionShow> show)
+: ChatsListBoxController(&show->session())
+, _box(box)
+, _show(std::move(show))
+, _session(&_show->session())
+, _delegate(_show) {
+}
+
+Main::Session &MoneyRecipientSearchController::session() const {
+	return *_session;
+}
+
+void MoneyRecipientSearchController::setContent(
+		not_null<PeerListContent*> content) {
+	_delegate.setContent(content);
+	setDelegate(&_delegate);
+}
+
+void MoneyRecipientSearchController::prepareViewHook() {
+	_box->boxClosing() | rpl::on_next([=] {
+		_closed = true;
+		// WHY: the list outlives boxClosing by the close animation, so drop
+		// the pending global search now or its late answer fills the list.
+		search(QString());
+	}, lifetime());
+}
+
+UserData *MoneyRecipientSearchController::offered(
+		not_null<PeerData*> peer) const {
+	const auto user = peer->asUser();
+	return (user
+		&& &user->session() == _session
+		&& SendableUser(_session, peerToUser(user->id)) == user)
+		? user
+		: nullptr;
+}
+
+auto MoneyRecipientSearchController::createRow(not_null<History*> history)
+-> std::unique_ptr<Row> {
+	return offered(history->peer)
+		? std::make_unique<Row>(history)
+		: nullptr;
+}
+
+void MoneyRecipientSearchController::rowClicked(
+		not_null<PeerListRow*> row) {
+	if (!_box
+		|| _closed
+		|| _choosing
+		|| !_show->valid()
+		|| &_show->session() != _session) {
+		return;
+	}
+	const auto user = offered(row->peer());
+	if (!user) {
+		return;
+	}
+	_choosing = true;
+	ChooseMoneyRecipient(_box.get(), _show, user);
+}
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeMoneyRecipientSearchList(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Main::SessionShow> show,
+		rpl::producer<QString> query) {
+	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		box,
+		object_ptr<Ui::VerticalLayout>(box));
+	const auto wrap = result.data();
+	const auto container = wrap->entity();
+	const auto controller = container->lifetime().make_state<
+		MoneyRecipientSearchController>(box, std::move(show));
+
+	Ui::AddSkip(container, st::walletSendRecentListTopSkip);
+	controller->setStyleOverrides(&st::peerListSingleRow);
+	const auto content = container->add(
+		object_ptr<PeerListContent>(container, controller));
+	controller->setContent(content);
+	Ui::AddSkip(container, st::walletSendRecentListSkip);
+	std::move(query) | rpl::on_next([=](const QString &text) {
+		wrap->toggle(!text.isEmpty(), anim::type::instant);
+		content->searchQueryChanged(text);
+	}, wrap->lifetime());
 	wrap->finishAnimating();
 	return result;
 }
@@ -6847,9 +7016,11 @@ void WalletSendRecipientBox(
 		rpl::variable<bool> valid = false;
 		rpl::variable<bool> invalid = false;
 		rpl::variable<bool> resolving = false;
+		rpl::variable<QString> search;
 		base::Timer deadline;
 		uint64 revision = 0;
 		bool closed = false;
+		bool searchCreated = false;
 	};
 	const auto state = box->lifetime().make_state<State>();
 
@@ -6876,7 +7047,12 @@ void WalletSendRecipientBox(
 			0));
 	errorWrap->toggleOn(state->invalid.value());
 	errorWrap->finishAnimating();
-	recipient->add(MakeRecentMoneyRecipientsList(box, show));
+	recipient->add(MakeRecentMoneyRecipientsList(
+		box,
+		show,
+		state->search.value() | rpl::map([](const QString &query) {
+			return !query.isEmpty();
+		})));
 
 	const auto stop = [=] {
 		++state->revision;
@@ -6886,9 +7062,20 @@ void WalletSendRecipientBox(
 	const auto parse = [=] {
 		stop();
 		const auto trimmed = field->getLastText().trimmed();
-		state->flow = ParseRecipientFlow(trimmed);
+		auto input = ClassifyRecipientInput(trimmed);
+		state->flow = std::move(input.flow);
 		state->valid = state->flow.has_value();
-		state->invalid = !trimmed.isEmpty() && !state->flow;
+		state->invalid = (input.kind == RecipientInputKind::Invalid);
+		const auto searching = (input.kind == RecipientInputKind::Search);
+		if (searching && !state->searchCreated) {
+			state->searchCreated = true;
+			recipient->add(MakeMoneyRecipientSearchList(
+				box,
+				show,
+				state->search.value()));
+			recipient->resizeToWidth(recipient->width());
+		}
+		state->search = searching ? trimmed : QString();
 	};
 	const auto proceed = [=](SendFlow flow, AddressOwner owner) {
 		stop();
@@ -9369,10 +9556,6 @@ void StartBackupDisable(
 			*busy = false;
 			*restoring = false;
 		}));
-}
-
-[[nodiscard]] QStringList SplitPhraseWords(const QString &text) {
-	return text.simplified().split(QChar(' '), Qt::SkipEmptyParts);
 }
 
 struct ImportCover {
