@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_chat_participants.h"
 #include "apiwrap.h"
+#include "base/event_filter.h"
 #include "base/unixtime.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "boxes/choose_filter_box.h"
@@ -76,6 +77,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_window.h"
+
+#include <QtWidgets/QApplication>
 
 namespace Dialogs {
 namespace {
@@ -1881,6 +1884,7 @@ void Suggestions::chooseRow() {
 
 bool Suggestions::consumeSearchQuery(const QString &query) {
 	using Type = MediaType;
+	_persistLifetime.destroy();
 	const auto key = _key.current();
 	const auto tab = key.tab;
 	const auto type = (key.tab == Tab::Media) ? key.mediaType : Type::kCount;
@@ -2195,6 +2199,9 @@ void Suggestions::ensureContent(Key key) {
 		_controller,
 		Info::Wrap::Search,
 		memento.get());
+	list.wrap->controller()->setJumpToMessageCallback(crl::guard(this, [=] {
+		persistUntilClickOutside();
+	}));
 	list.wrap->show();
 	updateControlsGeometry();
 }
@@ -2776,7 +2783,28 @@ bool Suggestions::persist() const {
 	return _persist;
 }
 
+void Suggestions::persistUntilClickOutside() {
+	if (_persist) {
+		return;
+	}
+	_persist = true;
+	base::install_event_filter(QCoreApplication::instance(), [=](
+			not_null<QEvent*> e) {
+		if (e->type() == QEvent::MouseButtonPress
+			&& !QApplication::activePopupWidget()
+			&& !rect().contains(mapFromGlobal(QCursor::pos()))) {
+			_persist = false;
+			crl::on_main(this, [=] {
+				_persistLifetime.destroy();
+				_closeRequests.fire({});
+			});
+		}
+		return base::EventFilterResult::Continue;
+	}, _persistLifetime);
+}
+
 void Suggestions::clearPersistance() {
+	_persistLifetime.destroy();
 	_persist = false;
 }
 
