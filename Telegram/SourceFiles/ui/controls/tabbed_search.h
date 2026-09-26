@@ -39,6 +39,7 @@ enum class EmojiGroupType {
 
 struct EmojiGroup {
 	QString iconId;
+	QString title; // What a screen reader calls the group.
 	std::vector<QString> emoticons;
 	EmojiGroupType type = EmojiGroupType::Normal;
 
@@ -60,6 +61,11 @@ public:
 	SearchWithGroups(QWidget *parent, SearchDescriptor descriptor);
 
 	[[nodiscard]] rpl::producer<> escapes() const;
+	// Enter or Down in the field, or a group chosen from the keyboard:
+	// the results are for the keyboard now, with the query they are of.
+	// For a screen reader only: without one the results are not focusable.
+	[[nodiscard]] auto activations() const
+	-> rpl::producer<std::vector<QString>>;
 	[[nodiscard]] rpl::producer<std::vector<QString>> queryValue() const;
 	[[nodiscard]] auto debouncedQueryValue() const
 		-> rpl::producer<std::vector<QString>>;
@@ -67,7 +73,11 @@ public:
 	void cancel();
 	void setLoading(bool loading);
 	void stealFocus();
+	[[nodiscard]] bool groupsHaveFocus() const;
 	void returnFocus();
+	// The control the focus was taken from, handed over to whoever takes
+	// the focus on from the search - the results - and forgotten here.
+	[[nodiscard]] QWidget *takeFocusReturn();
 
 	[[nodiscard]] static int IconSizeOverride();
 
@@ -114,6 +124,8 @@ private:
 	rpl::variable<QString> _chosenGroup;
 	base::Timer _debounceTimer;
 	bool _inited = false;
+	rpl::event_stream<> _downs;
+	rpl::event_stream<std::vector<QString>> _activations;
 
 };
 
@@ -128,6 +140,8 @@ public:
 	[[nodiscard]] QImage grab();
 
 	[[nodiscard]] rpl::producer<> escapes() const;
+	[[nodiscard]] auto activations() const
+	-> rpl::producer<std::vector<QString>>;
 	[[nodiscard]] rpl::producer<std::vector<QString>> queryValue() const;
 	[[nodiscard]] auto debouncedQueryValue() const
 		->rpl::producer<std::vector<QString>>;
@@ -135,7 +149,9 @@ public:
 	void cancel();
 	void setLoading(bool loading);
 	void stealFocus();
+	[[nodiscard]] bool groupsHaveFocus() const;
 	void returnFocus();
+	[[nodiscard]] QWidget *takeFocusReturn();
 	void setRightReserved(int value);
 
 private:

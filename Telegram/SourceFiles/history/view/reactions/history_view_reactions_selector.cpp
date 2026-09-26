@@ -1157,7 +1157,10 @@ void Selector::createList() {
 				}));
 	}
 
-	_list->escapes() | rpl::start_to_stream(_escapes, _list->lifetime());
+	rpl::merge(
+		_list->escapes(),
+		_list->hideRequests()
+	) | rpl::start_to_stream(_escapes, _list->lifetime());
 
 	rpl::merge(
 		_list->customChosen(),
