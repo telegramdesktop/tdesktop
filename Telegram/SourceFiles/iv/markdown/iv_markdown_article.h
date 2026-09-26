@@ -149,6 +149,14 @@ struct MarkdownArticleSearchSource {
 	QString detailsAnchorId;
 };
 
+using MarkdownArticleCollapsed = base::flat_map<
+	std::pair<PreparedBlockKind, QString>,
+	bool>;
+
+void RestoreCollapsed(
+	MarkdownArticleContent *content,
+	const MarkdownArticleCollapsed &collapsed);
+
 struct PaintSearchState {
 	const std::vector<MarkdownArticleSearchMatch> *matches = nullptr;
 	int current = -1;
@@ -470,6 +478,7 @@ public:
 		const QString &anchorId);
 	[[nodiscard]] bool toggleDetails(const QString &anchorId);
 	[[nodiscard]] bool toggleBlockquote(const QString &toggleId);
+	[[nodiscard]] MarkdownArticleCollapsed collapsed() const;
 	[[nodiscard]] bool segmentIsText(int index) const;
 	[[nodiscard]] bool segmentIsDisplayMath(int index) const;
 	[[nodiscard]] bool segmentIsEditable(int index) const;

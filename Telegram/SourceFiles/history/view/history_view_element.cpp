@@ -1978,6 +1978,11 @@ void Element::validateText() {
 			clearRichPage();
 			return;
 		}
+		auto collapsed = Iv::Markdown::MarkdownArticleCollapsed();
+		if (const auto carried = Get<HistoryMessageRichPageCollapsed>()) {
+			collapsed = std::move(carried->collapsed);
+			RemoveComponents(HistoryMessageRichPageCollapsed::Bit());
+		}
 		if (!Has<HistoryMessageRichPage>()) {
 			AddComponents(0
 				| HistoryMessageRichPage::Bit()
@@ -2055,6 +2060,10 @@ void Element::validateText() {
 			return;
 		}
 		ClickHandler::clearActive(this);
+		if (collapsed.empty()) {
+			collapsed = runtime->article.collapsed();
+		}
+		Iv::Markdown::RestoreCollapsed(&prepared.content, collapsed);
 		runtime->article.setContent(std::move(prepared.content));
 		runtime->hasUnsupportedBlocks
 			= runtime->article.hasUnsupportedNotices();
