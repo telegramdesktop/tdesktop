@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
+#include "core/core_webview_proxy.h"
 #include "core/file_utilities.h"
 #include "webview/webview_embed.h"
 #include "webview/webview_dialog.h"
@@ -2167,6 +2168,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 		container->show();
 	}
 	_externalWindowCloseRequested = false;
+	const auto proxySettings = Core::CurrentWebviewProxy();
 	_webview = std::make_unique<WebviewWithLifetime>(
 		container,
 		Webview::WindowConfig{
@@ -2188,6 +2190,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			.shellMessageToken = _externalShell
 				? _externalShellToken
 				: QString(),
+			.proxySettings = proxySettings,
 		});
 	const auto raw = &_webview->window;
 
@@ -2217,6 +2220,12 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 	if (!raw->widget()) {
 		return false;
 	}
+
+	Core::WebviewProxyChangesFrom(
+		proxySettings
+	) | rpl::on_next([=] {
+		requestClose();
+	}, _webview->lifetime);
 
 #if !defined Q_OS_WIN && !defined Q_OS_MAC
 	if (!_externalShell) {
