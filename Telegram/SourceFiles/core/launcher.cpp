@@ -28,6 +28,10 @@ extern "C" {
 #include <libavutil/log.h>
 } // extern "C"
 
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif // Q_OS_WIN
+
 namespace Core {
 namespace {
 
@@ -381,6 +385,10 @@ void Launcher::initHighDpi() {
 }
 
 int Launcher::exec() {
+#ifdef Q_OS_WIN
+	// Prevent DLL hijacking: restrict DLL search to System32 only.
+	SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32);
+#endif // Q_OS_WIN
 	init();
 
 	if (cLaunchMode() == LaunchModeFixPrevious) {

@@ -1372,6 +1372,7 @@ void SessionPrivate::handleReceived() {
 			|| (serverTime + 300 < clientTime);
 		if (badTime) {
 			DEBUG_LOG(("MTP Info: bad server time from msg_id: %1, my time: %2").arg(serverTime).arg(clientTime));
+			return restart();
 		}
 
 		bool wasConnected = (getState() == ConnectedState);
