@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/connection_abstract.h"
 #include "mtproto/mtproto_auth_key.h"
-#include <cstring>
 
 namespace MTP {
 namespace details {
