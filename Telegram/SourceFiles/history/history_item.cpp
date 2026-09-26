@@ -2570,6 +2570,7 @@ void HistoryItem::applyEdition(const MTPDmessageService &message) {
 			reply->clearData(this);
 		}
 		clearDependencyMessage();
+		unarmMediaDestroy();
 		UpdateComponents(0);
 		createServiceFromMtp(message);
 		applyServiceDateEdition(message);
@@ -2603,6 +2604,7 @@ void HistoryItem::applyEdition(const MTPDmessageService &message) {
 			reply->clearData(this);
 		}
 		clearDependencyMessage();
+		unarmMediaDestroy();
 		UpdateComponents(0);
 		createServiceFromMtp(message);
 		applyServiceDateEdition(message);
