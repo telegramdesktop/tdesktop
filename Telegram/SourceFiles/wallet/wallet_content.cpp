@@ -9973,15 +9973,34 @@ void WalletImportBox(
 	const auto wordAt = [=](int index) {
 		return state->fields[index]->getLastText().trimmed().toLower();
 	};
-	const auto formValid = [=] {
+	const auto requiredCount = [=] {
 		const auto count = state->count.current();
-		for (auto i = 0; i != count; ++i) {
-			const auto word = wordAt(i);
-			if (word.isEmpty() || !IsWordlistWord(word)) {
-				return false;
+		for (auto i = kImportWordCountShort; i != count; ++i) {
+			if (!wordAt(i).isEmpty()) {
+				return count;
 			}
 		}
-		return true;
+		return kImportWordCountShort;
+	};
+	const auto markWord = [=](int index, bool typing) {
+		const auto field = state->fields[index];
+		const auto word = wordAt(index);
+		if (word.isEmpty()
+			|| (typing
+				? !WordlistSuggestions(word, 1).empty()
+				: IsWordlistWord(word))) {
+			return;
+		}
+		field->showErrorNoFocus();
+		if (typing) {
+			field->finishAnimating();
+		}
+	};
+	const auto revealField = [=](not_null<Ui::InputField*> field) {
+		const auto top = field->mapTo(box, QPoint()).y();
+		if (top < cover.height()) {
+			box->scrollToY(box->scrollTop() - (cover.height() - top));
+		}
 	};
 	const auto refreshAccessories = [=](int index) {
 		const auto field = state->fields[index];
@@ -10025,14 +10044,31 @@ void WalletImportBox(
 			context->cancel();
 			return;
 		}
-		if (state->importing || !formValid()) {
+		if (state->importing) {
 			return;
 		}
-		const auto count = state->count.current();
+		const auto count = requiredCount();
 		auto words = std::vector<QString>();
 		words.reserve(count);
 		for (auto i = 0; i != count; ++i) {
 			words.push_back(wordAt(i));
+		}
+		const auto empty = ranges::find(words, QString());
+		const auto wrong = (empty != end(words))
+			? empty
+			: ranges::find_if(words, [](const QString &word) {
+				return !IsWordlistWord(word);
+			});
+		if (wrong != end(words)) {
+			const auto field = state->fields[wrong - begin(words)];
+			box->scrollToWidget(field);
+			revealField(field);
+			if (wrong->isEmpty()) {
+				field->setFocus();
+			} else {
+				field->showError();
+			}
+			return;
 		}
 		const auto match = DetectPhraseMatch(words);
 		if (match != PhraseMatch::Rotation) {
@@ -10124,13 +10160,7 @@ void WalletImportBox(
 			});
 		}
 	};
-	const auto button = box->addButton(
-		tr::lng_wallet_import_button(),
-		submit);
-	const auto updateButton = [=] {
-		SetButtonDisabledLook(button.data(), !formValid());
-	};
-	SetButtonDisabledLook(button.data(), true);
+	box->addButton(tr::lng_wallet_import_button(), submit);
 
 	box->setFocusCallback([=] {
 		state->fields.front()->setFocusFast();
@@ -10322,7 +10352,6 @@ void WalletImportBox(
 	}, toggle->lifetime());
 	state->count.changes() | rpl::on_next([=] {
 		state->error = QString();
-		updateButton();
 		hideSuggestions();
 	}, box->lifetime());
 
@@ -10414,17 +10443,19 @@ void WalletImportBox(
 			state->error = QString();
 			refreshAccessories(i);
 			refreshSuggestions(i);
-			updateButton();
+			// WHY: every content-change pass starts by clearing the error,
+			// including the one forceProcessContentsChanges() postpones after
+			// setText(), so marking is postponed to land after it.
+			Ui::PostponeCall(field, [=] {
+				markWord(i, field->hasFocus());
+			});
 		}, field->lifetime());
 		field->focusedChanges() | rpl::on_next([=](bool focused) {
+			markWord(i, false);
 			refreshAccessories(i);
 			if (focused) {
 				refreshSuggestions(i);
-				const auto top = field->mapTo(box, QPoint()).y();
-				if (top < cover.height()) {
-					box->scrollToY(
-						box->scrollTop() - (cover.height() - top));
-				}
+				revealField(field);
 			} else if (state->suggestionField == i) {
 				hideSuggestions();
 			}
