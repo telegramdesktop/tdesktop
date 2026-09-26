@@ -278,7 +278,6 @@ walletDetailsTickerLabel: FlatLabel(walletDetailsAmountMinorLabel) {
 }
 walletDetailsAmountMinorSkip: 6px;
 walletDetailsTickerSkip: 6px;
-walletDetailsMarkSize: 24px;
 walletDetailsIconMargin: margins(6px, -2px, 0px, 0px);
 walletDetailsLottieSize: 52px;
 walletDetailsLottieSkip: 4px;
@@ -344,6 +343,7 @@ walletSendCommentBubble: UniqueGiftMessageBubble(chatUniqueMessageBubble) {
 walletSendCommentTextStyle: semiboldTextStyle;
 walletSendCommentTextFg: windowSubTextFg;
 walletSendCommentOutline: boxDividerFg;
+walletSendCommentBgOver: windowBgOver;
 walletSendUserAmountFont: font(28px semibold);
 walletSendUserAmountField: InputField(defaultInputField) {
 	textMargins: margins(0px, 0px, 0px, 0px);

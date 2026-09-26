@@ -163,6 +163,13 @@ constexpr auto kUndatedRowDate = std::numeric_limits<TimeId>::max();
 constexpr auto kTransactionLookupInterval = crl::time(1000);
 constexpr auto kTransactionLookupAttempts = 10;
 constexpr auto kMaxFiatUnits = 999'999'999LL;
+// WHY: gram.tgs draws its diamond inside a larger canvas, with a faint glow
+// above the top edge, so the amount row sizes and places the canvas by the
+// drawn edges of the resting frame, the glow excluded.
+constexpr auto kGramDiamondLeft = 89. / 512.;
+constexpr auto kGramDiamondTop = 141. / 512.;
+constexpr auto kGramDiamondRight = 426. / 512.;
+constexpr auto kGramDiamondBottom = 426. / 512.;
 constexpr auto kMaxAmountNano = 999'999'999'999'999'999LL;
 constexpr auto kSendUserLoadTimeout = 30 * crl::time(1000);
 constexpr auto kSendOwnerLookupDelay = crl::time(500);
@@ -3656,7 +3663,9 @@ class SendCommentBubble final : public Ui::RpWidget {
 public:
 	SendCommentBubble(
 		QWidget *parent,
-		rpl::producer<SendComment> comment);
+		rpl::producer<SendComment> comment,
+		rpl::producer<bool> clickable,
+		Fn<void()> clicked);
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -3665,9 +3674,11 @@ protected:
 private:
 	void setText(const QString &text);
 
+	const not_null<Ui::AbstractButton*> _button;
 	Ui::Text::String _text = { 1 };
 	Ui::UniqueGiftMessageBubble::Layout _layout;
 	QPainterPath _path;
+	bool _clickable = false;
 
 };
 
@@ -3712,8 +3723,18 @@ private:
 
 SendCommentBubble::SendCommentBubble(
 	QWidget *parent,
-	rpl::producer<SendComment> comment)
-: RpWidget(parent) {
+	rpl::producer<SendComment> comment,
+	rpl::producer<bool> clickable,
+	Fn<void()> clicked)
+: RpWidget(parent)
+, _button(Ui::CreateChild<Ui::AbstractButton>(this)) {
+	_button->setClickedCallback(std::move(clicked));
+	_button->setPointerCursor(false);
+	std::move(clickable) | rpl::on_next([=](bool value) {
+		_clickable = value;
+		_button->setPointerCursor(value);
+		update();
+	}, lifetime());
 	std::move(comment) | rpl::map([](const SendComment &value) {
 		return value.text;
 	}) | rpl::distinct_until_changed() | rpl::on_next([this](
@@ -3724,6 +3745,7 @@ SendCommentBubble::SendCommentBubble(
 
 int SendCommentBubble::resizeGetHeight(int newWidth) {
 	if (!newWidth) {
+		_button->setGeometry(QRect());
 		return 0;
 	}
 	_layout = Ui::UniqueGiftMessageBubble::ResolveLayout(
@@ -3741,6 +3763,9 @@ int SendCommentBubble::resizeGetHeight(int newWidth) {
 	_path = mirror.map(Ui::UniqueGiftMessageBubble::Path(
 		st::walletSendCommentBubble,
 		_layout));
+	const auto stroke = st::lineWidth;
+	_button->setGeometry(_path.boundingRect().toAlignedRect().marginsAdded(
+		{ stroke, stroke, stroke, stroke }));
 	const auto shift = -st::walletSendCommentBubble.tailSize.width();
 	_layout.body.translate(shift, 0);
 	_layout.text.translate(shift, 0);
@@ -3751,6 +3776,9 @@ void SendCommentBubble::paintEvent(QPaintEvent *e) {
 	auto p = Painter(this);
 	{
 		auto hq = PainterHighQualityEnabler(p);
+		if (_clickable && _button->isOver()) {
+			p.fillPath(_path, st::walletSendCommentBgOver);
+		}
 		p.setBrush(Qt::NoBrush);
 		p.setPen(QPen(
 			st::walletSendCommentOutline,
@@ -4274,24 +4302,30 @@ void SetButtonDisabledLook(
 		value,
 		std::move(fractionDigits),
 		std::move(separator));
-	// The mark is painted directly instead of riding inside a label: a
-	// custom emoji sits where its line puts it, while here it has to sit
-	// on the optical center of a digit, which AlignedMarkTop computes.
+	const auto &font = st.style.font;
+	const auto figure = int(base::SafeRound(
+		-font->metrics().tightBoundingRect(u"0123456789"_q).top()));
+	const auto canvas = int(base::SafeRound(
+		figure / (kGramDiamondBottom - kGramDiamondTop)));
+	const auto diamondLeft = int(base::SafeRound(canvas * kGramDiamondLeft));
+	const auto diamondWidth = int(base::SafeRound(
+		canvas * (kGramDiamondRight - kGramDiamondLeft)));
+	const auto diamondBottom = int(base::SafeRound(
+		canvas * kGramDiamondBottom));
 	const auto mark = Ui::CreateChild<Ui::RpWidget>(wrap);
-	const auto image = mark->lifetime().make_state<QImage>();
-	const auto refreshMark = [=] {
-		*image = Ui::Earn::IconCurrencyColored(
-			st::walletDetailsMarkSize,
-			st::windowActiveTextFg->c);
-		mark->resize(
-			image->size() / image->devicePixelRatio());
-		mark->update();
-	};
-	refreshMark();
-	style::PaletteChanged(
-	) | rpl::on_next(refreshMark, mark->lifetime());
+	mark->resize(canvas, canvas);
+	// Not CreateLottieIcon: it replays any icon resting past its first frame.
+	const auto icon = mark->lifetime().make_state<
+		std::unique_ptr<Lottie::Icon>
+	>(Lottie::MakeIcon({
+		.name = u"gram"_q,
+		.sizeOverride = { canvas, canvas },
+		.frame = -1,
+		.limitFps = true,
+	}))->get();
 	mark->paintRequest() | rpl::on_next([=] {
-		QPainter(mark).drawImage(0, 0, *image);
+		auto p = QPainter(mark);
+		icon->paint(p, 0, 0);
 	}, mark->lifetime());
 	mark->setAttribute(Qt::WA_TransparentForMouseEvents);
 	// The field paints no placeholder of its own: a centered placeholder
@@ -4354,7 +4388,7 @@ void SetButtonDisabledLook(
 		const auto fiat = !fiatIcon->isHidden();
 		const auto prefixWidth = fiat
 			? fiatIcon->naturalWidth()
-			: mark->width();
+			: diamondWidth;
 		const auto tickerWidth = ticker->naturalWidth();
 		const auto zeroWidth = empty ? zero->naturalWidth() : 0;
 		const auto gap = st::walletDetailsAmountMinorSkip;
@@ -4382,15 +4416,9 @@ void SetButtonDisabledLook(
 			fiatIcon->resizeToWidth(prefixWidth);
 			fiatIcon->moveToLeft(left, labelTop(fiatIcon), width);
 		} else {
-			// The mark is a peer of the ticker beside it, so it sits on
-			// the optical center of that smaller text, not of the digits.
 			mark->moveToLeft(
-				left,
-				(baseline
-					- ticker->st().style.font->ascent
-					+ int(base::SafeRound(Ui::Earn::AlignedMarkTop(
-						ticker->st().style.font,
-						*image)))),
+				left - diamondLeft,
+				baseline - diamondBottom,
 				width);
 		}
 		const auto textLeft = left + prefixWidth + gap + zeroWidth;
@@ -5152,6 +5180,7 @@ void WalletSendBox(
 		rpl::variable<SendError> previewError = SendError::None;
 		rpl::variable<bool> insufficient = false;
 		rpl::variable<bool> canSend = false;
+		rpl::variable<bool> raisable = false;
 		std::shared_ptr<KeyContext> keyContext;
 		base::Timer signingWait;
 		bool signingTimedOut = false;
@@ -5215,6 +5244,26 @@ void WalletSendBox(
 			ShowWalletReceiveBox(session, box->uiShow());
 		}
 	};
+	const auto editComment = [=] {
+		if (!originValid()
+			|| state->commentBox
+			|| state->sending.current()) {
+			return;
+		}
+		auto editor = Box(
+			WalletSendCommentBox,
+			draft,
+			originValid,
+			draft->encryptable.value());
+		const auto raw = editor.data();
+		state->commentBox = base::make_weak(raw);
+		raw->boxClosing() | rpl::on_next([=] {
+			if (weak && state->commentBox.get() == raw) {
+				state->commentBox = nullptr;
+			}
+		}, raw->lifetime());
+		box->uiShow()->showBox(std::move(editor));
+	};
 	const auto toggle = box->addTopButton(st::boxTitleMenu);
 	toggle->setClickedCallback([=] {
 		if (!originValid() || state->menu) {
@@ -5236,26 +5285,7 @@ void WalletSendBox(
 		raw->addAction(
 			Ui::Text::FixAmpersandInAction(
 				tr::lng_wallet_comment_title(tr::now)),
-			[=] {
-				if (!originValid()
-					|| state->commentBox
-					|| state->sending.current()) {
-					return;
-				}
-				auto editor = Box(
-					WalletSendCommentBox,
-					draft,
-					originValid,
-					draft->encryptable.value());
-				const auto raw = editor.data();
-				state->commentBox = base::make_weak(raw);
-				raw->boxClosing() | rpl::on_next([=] {
-					if (weak && state->commentBox.get() == raw) {
-						state->commentBox = nullptr;
-					}
-				}, raw->lifetime());
-				box->uiShow()->showBox(std::move(editor));
-			},
+			editComment,
 			&st::menuIconChatBubble);
 		raw->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
 		raw->popup(toggle->mapToGlobal(QPoint(
@@ -5449,7 +5479,17 @@ void WalletSendBox(
 	const auto comment = inner->add(
 		object_ptr<Ui::SlideWrap<SendCommentBubble>>(
 			inner,
-			object_ptr<SendCommentBubble>(inner, draft->comment.value())),
+			object_ptr<SendCommentBubble>(
+				inner,
+				draft->comment.value(),
+				rpl::combine(
+					state->sending.value(),
+					state->loading.value(),
+					state->loadError.value()
+				) | rpl::map([=](bool sending, bool, const QString &) {
+					return !sending && originValid();
+				}),
+				editComment)),
 		style::margins(),
 		style::al_justify);
 	comment->toggleOn(draft->comment.value() | rpl::map([](
@@ -5502,6 +5542,16 @@ void WalletSendBox(
 	) | rpl::on_next(updateAmount, amountField->lifetime());
 	updateAmount();
 
+	const auto fiatUnitsText = [=](int64 units, int64 quantum) {
+		const auto formatted = Ui::FormatTonAmount(
+			units * quantum,
+			Ui::TonFormatFlag::Simple);
+		auto result = formatted.wholeString;
+		if (!formatted.nanoString.isEmpty()) {
+			result += entrySeparator() + formatted.nanoString;
+		}
+		return result;
+	};
 	const auto renderUnitText = [=] {
 		const auto amount = state->amount.current();
 		if (!state->entryFiat.current()) {
@@ -5520,14 +5570,7 @@ void WalletSendBox(
 		if (!units) {
 			return QString();
 		}
-		const auto formatted = Ui::FormatTonAmount(
-			units * quantum,
-			Ui::TonFormatFlag::Simple);
-		auto result = formatted.wholeString;
-		if (!formatted.nanoString.isEmpty()) {
-			result += entrySeparator() + formatted.nanoString;
-		}
-		return result;
+		return fiatUnitsText(units, quantum);
 	};
 	const auto setUnitText = [=] {
 		state->settingUnitText = true;
@@ -5544,6 +5587,26 @@ void WalletSendBox(
 		}
 		state->entryFiat = fiat;
 		setUnitText();
+	};
+	const auto raiseToMinimum = [=] {
+		const auto minimum = state->minTransfer.current();
+		if (!state->entryFiat.current()) {
+			amountField->setText(Ui::FormatTonAmount(
+				minimum,
+				Ui::TonFormatFlag::Simple).full);
+		} else {
+			const auto rate = state->rate.current();
+			if (!rate.available()) {
+				return;
+			}
+			const auto quantum = FiatMinorUnitNanos(rate.currency);
+			const auto maxUnits = kMaxFiatUnits * (Ui::kNanosInOne / quantum);
+			const auto units = int64(std::min(
+				std::ceil(double(minimum) * rate.perGram / double(quantum)),
+				double(maxUnits)));
+			amountField->setText(fiatUnitsText(units, quantum));
+		}
+		amountField->setFocusFast();
 	};
 	state->swapUnit = [=] { switchEntryUnit(!state->entryFiat.current()); };
 	state->previousCurrency = state->rate.current().currency;
@@ -5882,6 +5945,23 @@ void WalletSendBox(
 			&& (error != SendError::CommentTooLong)
 			&& (error != SendError::AlreadySending)
 			&& (error != SendError::PreviousUnresolved);
+	});
+	state->raisable = rpl::combine(
+		state->amount.value(),
+		state->minTransfer.value(),
+		state->loading.value(),
+		state->loadError.value(),
+		draft->comment.value()
+	) | rpl::map([](
+			int64 amount,
+			int64 minimum,
+			bool loading,
+			const QString &loadError,
+			const SendComment &comment) {
+		return TransferAmountBelowMinimum(amount, minimum)
+			&& !loading
+			&& loadError.isEmpty()
+			&& CommentFits(comment.text);
 	});
 
 	const auto balance = inner->add(
@@ -6466,6 +6546,12 @@ void WalletSendBox(
 			|| state->confirmBox
 			|| !CommentFits(draft->comment.current().text)) {
 			return;
+		} else if (TransferAmountBelowMinimum(
+				state->amount.current(),
+				state->minTransfer.current())) {
+			// A press below the minimum only corrects the amount.
+			raiseToMinimum();
+			return;
 		} else if (!state->canSend.current()) {
 			amountField->showError();
 			return;
@@ -6498,9 +6584,10 @@ void WalletSendBox(
 	const auto button = box->addButton(std::move(buttonText), submit).data();
 	rpl::combine(
 		state->canSend.value(),
+		state->raisable.value(),
 		state->sending.value()
-	) | rpl::on_next([=](bool canSend, bool sending) {
-		SetButtonDisabledLook(button, !canSend && !sending);
+	) | rpl::on_next([=](bool canSend, bool raisable, bool sending) {
+		SetButtonDisabledLook(button, !canSend && !raisable && !sending);
 	}, button->lifetime());
 	AddBusyFooterSpinner(button, std::move(buttonBusy));
 	amountField->submits() | rpl::on_next(submit, amountField->lifetime());
