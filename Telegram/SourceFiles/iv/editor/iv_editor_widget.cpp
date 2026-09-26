@@ -2693,7 +2693,7 @@ bool Widget::handleClipboardKey(QKeyEvent *e) {
 		return true;
 	} else if ((e == QKeySequence::Paste) && _field->isHidden()) {
 		const auto mimeData = QApplication::clipboard()->mimeData();
-		if (const auto data = ClipboardDataFromMimeData(mimeData)) {
+		if (const auto data = ClipboardDataFromMimeData(mimeData, _session)) {
 			pasteStructuredClipboardData(*data);
 			e->accept();
 			return true;
@@ -7555,7 +7555,9 @@ bool Widget::handleIvClipboardMime(
 	}
 	const auto insertContext = ClipboardPasteInsertContext(
 		activeTextInsertContext());
-	const auto clipboardData = ClipboardDataFromMimeData(data.get());
+	const auto clipboardData = ClipboardDataFromMimeData(
+		data.get(),
+		_session);
 	if (clipboardData && insertContext) {
 		if (action == Ui::InputField::MimeAction::Check) {
 			return true;

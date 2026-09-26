@@ -2535,6 +2535,47 @@ std::optional<RichMessageLimitError> ValidateRichMessage(
 	return std::nullopt;
 }
 
+Main::Session *RichBlocksMediaSession(
+		const std::vector<RichPage::Block> &blocks) {
+	for (const auto &block : blocks) {
+		if (block.photo) {
+			return &block.photo->session();
+		} else if (block.document) {
+			return &block.document->session();
+		} else if (block.peer) {
+			return &block.peer->session();
+		}
+		for (const auto &item : block.mediaItems) {
+			if (item.photo) {
+				return &item.photo->session();
+			} else if (item.document) {
+				return &item.document->session();
+			}
+		}
+		for (const auto &article : block.relatedArticles) {
+			if (article.photo) {
+				return &article.photo->session();
+			}
+		}
+		if (const auto session = RichListItemsMediaSession(block.listItems)) {
+			return session;
+		} else if (const auto nested = RichBlocksMediaSession(block.blocks)) {
+			return nested;
+		}
+	}
+	return nullptr;
+}
+
+Main::Session *RichListItemsMediaSession(
+		const std::vector<RichPage::ListItem> &items) {
+	for (const auto &item : items) {
+		if (const auto session = RichBlocksMediaSession(item.blocks)) {
+			return session;
+		}
+	}
+	return nullptr;
+}
+
 int CountRichPageBlocks(const RichPage &page) {
 	auto metrics = RichMessageMetrics();
 	metrics.tableColumnMeasurementLimit = TableColumnMeasurementLimit(0);

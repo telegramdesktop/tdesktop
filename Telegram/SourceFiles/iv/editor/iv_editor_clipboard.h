@@ -16,6 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class QMimeData;
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Iv::Editor {
 
 struct ClipboardOrigin {
@@ -42,6 +46,7 @@ using ClipboardData = std::variant<ClipboardBlockData, ClipboardListItemsData>;
 [[nodiscard]] std::unique_ptr<QMimeData> MimeDataFromClipboardData(
 	ClipboardData data);
 [[nodiscard]] std::optional<ClipboardData> ClipboardDataFromMimeData(
-	const QMimeData *mimeData);
+	const QMimeData *mimeData,
+	not_null<Main::Session*> session);
 
 } // namespace Iv::Editor
