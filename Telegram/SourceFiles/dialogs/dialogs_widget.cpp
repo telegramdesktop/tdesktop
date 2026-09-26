@@ -735,6 +735,11 @@ Widget::Widget(
 
 	_search->customUpDown(true);
 
+	// The bars above the list and the folder tabs are created only once they
+	// are needed, long after the list and the buttons below it, so the Tab
+	// chain has to follow the column instead of the creation order.
+	setVisualTabOrder(true);
+
 	updateJumpToDateVisibility(true);
 	updateSearchFromVisibility(true);
 	setupSupportMode();
@@ -2669,6 +2674,12 @@ void Widget::setInnerFocus(bool unfocusSearch) {
 			|| _searchSuggestionsLocked)) {
 		_search->setFocus();
 	} else if (Ui::ScreenReaderModeActive()) {
+		// A folder chosen from the tabs in one column clears the section
+		// stack, and the history shown asks for the focus back here: the
+		// tabs keep it, the user goes on to the list with Tab when done.
+		if (_chatFilters && Ui::InFocusChain(_chatFilters.get())) {
+			return;
+		}
 		// Focus the chat list itself, so the screen reader announces the list
 		// and its selected chat, instead of the unnamed dialogs container.
 		_inner->setFocus();
