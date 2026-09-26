@@ -180,7 +180,7 @@ constexpr auto kCommentPasswordStateTimeout = 30 * crl::time(1000);
 constexpr auto kSigningReadyTimeout = 30 * crl::time(1000);
 constexpr auto kHeldSendKeyTimeout = 60 * crl::time(1000);
 constexpr auto kCustodyResolveTimeout = 20 * crl::time(1000);
-constexpr auto kRowAmountPreciseBelowNano = Ui::kNanosInOne / 100;
+constexpr auto kGramDigits = 9;
 
 class BalanceInk;
 class Card;
@@ -1200,6 +1200,16 @@ void SetAmountColor(
 	}, major->lifetime());
 }
 
+[[nodiscard]] QString GramMinorPart(int64 amountNano) {
+	const auto tiny = TinyAmountFraction(amountNano, kGramDigits);
+	return tiny.isEmpty()
+		? Info::ChannelEarn::MinorPart(CreditsAmount(
+			amountNano / Ui::kNanosInOne,
+			amountNano % Ui::kNanosInOne,
+			CreditsType::Ton))
+		: (QString(QLocale().decimalPoint()) + tiny);
+}
+
 void SetRowAmountText(
 		not_null<Ui::FlatLabel*> major,
 		not_null<Ui::FlatLabel*> minor,
@@ -1209,13 +1219,10 @@ void SetRowAmountText(
 		amountNano / Ui::kNanosInOne,
 		amountNano % Ui::kNanosInOne,
 		CreditsType::Ton);
-	major->setText(sign + Info::ChannelEarn::MajorPart(amount));
+	major->setText((amountNano ? sign : QString())
+		+ Info::ChannelEarn::MajorPart(amount));
 	auto helper = Ui::Text::CustomEmojiHelper();
-	const auto precise = !amount.whole()
-		&& (amount.nano() < kRowAmountPreciseBelowNano);
-	auto minorText = tr::marked(precise
-		? Info::ChannelEarn::MinorPart(Data::EarnInt(amount.nano()))
-		: Info::ChannelEarn::MinorPart(amount));
+	auto minorText = tr::marked(GramMinorPart(amountNano));
 	minorText.append(helper.paletteDependent({
 		.factory = [] {
 			return Ui::Earn::IconCurrencyColored(
@@ -1693,11 +1700,17 @@ void AddHistoryRow(
 		}
 	}
 	if (item.kind == Kind::KeyChange) {
+		// A zero served amount leaves the paid fee as the wallet's outflow.
+		const auto outflow = (!item.amountNano
+			&& item.feeNano
+			&& *item.feeNano > 0)
+			? *item.feeNano
+			: item.amountNano;
 		return {
 			.title = tr::lng_wallet_row_key_change(tr::now),
 			.subtitle = statusText,
 			.date = date,
-			.amountNano = item.amountNano,
+			.amountNano = outflow,
 			.incoming = item.incoming,
 			.pending = pending,
 			.failed = failed,
@@ -1814,7 +1827,11 @@ void AddDetailsAmountHeader(
 	}
 	const auto major = Ui::CreateChild<Ui::FlatLabel>(
 		container,
-		(item.incoming ? QChar('+') : kMinus) + formatted.wholeString,
+		(!item.amountNano
+			? QString()
+			: item.incoming
+			? u"+"_q
+			: QString(kMinus)) + formatted.wholeString,
 		st::walletDetailsAmountMajorLabel);
 	const auto minor = Ui::CreateChild<Ui::FlatLabel>(
 		container,
@@ -10852,7 +10869,7 @@ void BalanceInk::refresh() {
 			? QString()
 			: (precise.separator + precise.nanoString))
 		: _balance.nano()
-		? Info::ChannelEarn::MinorPart(_balance)
+		? GramMinorPart(_balance.whole() * Ui::kNanosInOne + _balance.nano())
 		: QString();
 	const auto ticker = tr::lng_wallet_card_ticker(tr::now);
 	const auto majorLeft = st::walletCardMarkSize

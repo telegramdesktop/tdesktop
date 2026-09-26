@@ -25,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Wallet {
 namespace {
 
+constexpr auto kTinyFiatScale = 15;
+
 [[nodiscard]] QString FiatDigits(
 		int64 nanoAmount,
 		const FiatRate &rate,
@@ -34,9 +36,25 @@ namespace {
 		return QString(QChar(0x2026));
 	}
 	const auto value = (double(nanoAmount) / Ui::kNanosInOne) * rate.perGram;
+	const auto precision = (decimals == kFiatCurrencyDecimals)
+		? rule.exponent
+		: decimals;
+	if (decimals == kFiatCurrencyDecimals
+		&& precision > 0
+		&& value > 0.
+		&& value < std::pow(10., -precision)) {
+		const auto units = int64(std::llround(value * 1e15));
+		const auto fraction = TinyAmountFraction(
+			units,
+			kTinyFiatScale,
+			precision);
+		if (!fraction.isEmpty()) {
+			return QString(QChar('0')) + QChar(rule.decimal) + fraction;
+		}
+	}
 	return Ui::FormatWithSeparators(
 		value,
-		(decimals == kFiatCurrencyDecimals) ? rule.exponent : decimals,
+		precision,
 		rule.decimal,
 		rule.thousands);
 }
@@ -150,6 +168,36 @@ int64 FiatMinorUnitNanos(const QString &currency) {
 		int64(std::llround(std::pow(10., exponent))),
 		int64(1));
 	return std::max(Ui::kNanosInOne / units, int64(1));
+}
+
+QString TinyAmountFraction(int64 units, int scale, int decimals) {
+	if (units <= 0 || decimals < 0 || scale <= decimals) {
+		return QString();
+	}
+	auto limit = int64(1);
+	for (auto i = decimals; i != scale; ++i) {
+		limit *= 10;
+	}
+	if (units >= limit) {
+		return QString();
+	}
+	auto position = decimals + 1;
+	auto step = limit / 10;
+	while (units < step) {
+		++position;
+		step /= 10;
+	}
+	auto digit = units / step;
+	if ((units % step) * 2 >= step) {
+		++digit;
+	}
+	if (digit == 10) {
+		digit = 1;
+		if (--position == 0) {
+			return QString();
+		}
+	}
+	return QString(position - 1, QChar('0')) + QChar('0' + int(digit));
 }
 
 rpl::producer<FiatRate> FiatRateValue(not_null<Main::Session*> session) {

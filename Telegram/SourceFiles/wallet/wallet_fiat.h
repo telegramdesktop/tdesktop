@@ -50,6 +50,10 @@ struct CurrencyNames {
 	not_null<Main::Session*> session);
 
 [[nodiscard]] int64 FiatMinorUnitNanos(const QString &currency);
+[[nodiscard]] QString TinyAmountFraction(
+	int64 units,
+	int scale,
+	int decimals = 2);
 
 [[nodiscard]] rpl::producer<FiatRate> FiatRateValue(
 	not_null<Main::Session*> session);
