@@ -88,6 +88,10 @@ constexpr auto kTransitionDuration = std::max(kRevealDuration, kBumpDuration);
 	return QColor(0x4a, 0xb4, 0x4a);
 }
 
+[[nodiscard]] QColor ReceivedBadgeBg() {
+	return QColor(0x5e, 0xc2, 0xff);
+}
+
 struct GramTransferAction {
 	FullMsgId itemId;
 	int64 amount = 0;
@@ -533,7 +537,7 @@ private:
 	if (!outgoing) {
 		return {
 			.text = tr::lng_action_gram_transfer_received_tag(tr::now),
-			.bg = Wallet::CardDarkBlue(),
+			.bg = ReceivedBadgeBg(),
 		};
 	} else if (failed) {
 		return {
