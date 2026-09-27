@@ -94,7 +94,7 @@ public:
 	// follows naturalWidthValue() for the next one.
 	[[nodiscard]] int textLeft() const;
 
-	// How much of the field the digits themselves span, starting at
+	// How much of the field the digits (or placeholder) span, starting at
 	// textLeft(). naturalWidth() reserves more, because a line edit also
 	// wants room for the font's widest overhangs and for the caret.
 	[[nodiscard]] int textWidth() const;
@@ -113,6 +113,7 @@ private:
 
 	const Fn<int()> _fractionDigits;
 	const Fn<QString()> _separator;
+	QString _placeholderText;
 	rpl::event_stream<> _changes;
 	rpl::event_stream<> _submits;
 	int _textLeft = 0;

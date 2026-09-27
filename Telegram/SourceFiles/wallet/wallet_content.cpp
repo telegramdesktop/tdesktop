@@ -4399,7 +4399,6 @@ void SetButtonDisabledLook(
 			topSkip,
 			st::walletSendFieldMargin.right(),
 			st::walletSendFieldMargin.bottom()));
-	auto zeroText = rpl::duplicate(placeholder);
 	const auto field = Ui::CreateChild<Ui::TonAmountInput>(
 		wrap,
 		st,
@@ -4433,15 +4432,6 @@ void SetButtonDisabledLook(
 		icon->paint(p, 0, 0);
 	}, mark->lifetime());
 	mark->setAttribute(Qt::WA_TransparentForMouseEvents);
-	// The field paints no placeholder of its own: a centered placeholder
-	// and a centered caret occupy the same pixels. The zero is a part of
-	// the row instead, with the caret-wide empty field right after it.
-	field->setPlaceholderHidden(true);
-	const auto zero = Ui::CreateChild<Ui::FlatLabel>(
-		wrap,
-		std::move(zeroText),
-		st::walletSendUserAmountLabel);
-	zero->setAttribute(Qt::WA_TransparentForMouseEvents);
 	const auto catcher = Ui::CreateChild<Ui::AbstractButton>(wrap);
 	catcher->setClickedCallback([=] { field->setFocusFast(); });
 	catcher->lower();
@@ -4487,15 +4477,11 @@ void SetButtonDisabledLook(
 				- label->st().style.font->ascent
 				- label->st().margin.top();
 		};
-		const auto text = field->getLastText();
-		const auto empty = text.isEmpty();
-		zero->setVisible(empty);
 		const auto fiat = !fiatIcon->isHidden();
 		const auto prefixWidth = fiat
 			? fiatIcon->naturalWidth()
 			: diamondWidth;
 		const auto tickerWidth = ticker->naturalWidth();
-		const auto zeroWidth = empty ? zero->naturalWidth() : 0;
 		const auto gap = st::walletDetailsAmountMinorSkip;
 		// The field knows the width its value needs and insets its text
 		// from both edges, so it is moved back by one inset to put the
@@ -4503,7 +4489,7 @@ void SetButtonDisabledLook(
 		// is that width without the two insets.
 		const auto inset = field->textLeft();
 		const auto available = std::max(
-			width - prefixWidth - tickerWidth - zeroWidth - 2 * gap,
+			width - prefixWidth - tickerWidth - 2 * gap,
 			2 * inset);
 		const auto fieldWidth = std::min(
 			field->naturalWidth(),
@@ -4514,7 +4500,7 @@ void SetButtonDisabledLook(
 		const auto shownWidth = std::min(
 			field->textWidth(),
 			std::max(fieldWidth - 2 * inset, 0));
-		const auto groupWidth = prefixWidth + gap + zeroWidth + shownWidth
+		const auto groupWidth = prefixWidth + gap + shownWidth
 			+ gap + tickerWidth;
 		const auto left = (width - groupWidth) / 2;
 		if (fiat) {
@@ -4526,9 +4512,7 @@ void SetButtonDisabledLook(
 				baseline - diamondBottom,
 				width);
 		}
-		const auto textLeft = left + prefixWidth + gap + zeroWidth;
-		zero->resizeToWidth(zeroWidth);
-		zero->moveToLeft(left + prefixWidth + gap, labelTop(zero), width);
+		const auto textLeft = left + prefixWidth + gap;
 		field->resize(fieldWidth, fieldHeight);
 		field->moveToLeft(textLeft - inset, fieldTop, width);
 		ticker->resizeToWidth(tickerWidth);
@@ -4544,7 +4528,7 @@ void SetButtonDisabledLook(
 		catcher->setGeometry(0, 0, width, band);
 		wrap->resize(width, pill->y() + pill->height());
 	};
-	// Showing the zero and resizing the labels makes them republish their
+	// Resizing the labels makes them republish their
 	// natural width, which arrives back here. Without this the nested pass
 	// would lay the row out correctly and the outer one would then finish
 	// with the values it captured before the text was corrected.
@@ -4574,7 +4558,6 @@ void SetButtonDisabledLook(
 		wrap->widthValue(),
 		fiatIcon->naturalWidthValue(),
 		ticker->naturalWidthValue(),
-		zero->naturalWidthValue(),
 		pill->naturalWidthValue()
 	) | rpl::on_next(relayout, wrap->lifetime());
 	field->changes() | rpl::on_next(relayout, wrap->lifetime());

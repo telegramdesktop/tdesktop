@@ -354,7 +354,7 @@ walletSendUserAmountFont: font(28px semibold);
 walletSendUserAmountField: InputField(defaultInputField) {
 	textMargins: margins(0px, 0px, 0px, 0px);
 	textAlign: align(center);
-	placeholderAlign: align(center);
+	placeholderAlign: align(left);
 	placeholderFg: windowSubTextFg;
 	placeholderFgActive: windowSubTextFg;
 	placeholderFgError: windowSubTextFg;
@@ -368,6 +368,7 @@ walletSendUserAmountField: InputField(defaultInputField) {
 	borderActive: 0px;
 	heightMin: boxTitleHeight;
 	widthMin: 0px;
+	duration: 0;
 }
 walletSendUserTickerLabel: FlatLabel(walletDetailsAmountMinorLabel) {
 	textFg: windowSubTextFg;

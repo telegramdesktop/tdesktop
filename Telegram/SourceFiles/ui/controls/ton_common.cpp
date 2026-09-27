@@ -289,7 +289,7 @@ TonAmountInput::TonAmountInput(
 : MaskedInputField(
 	parent,
 	st,
-	std::move(placeholder),
+	rpl::duplicate(placeholder),
 	(amount > 0
 		? FormatTonAmount(amount, TonFormatFlag::Simple).full
 		: QString()))
@@ -322,6 +322,10 @@ TonAmountInput::TonAmountInput(
 	connect(this, &MaskedInputField::submitted, [=] {
 		_submits.fire({});
 	});
+	std::move(placeholder) | rpl::on_next([=](const QString &text) {
+		_placeholderText = text;
+		refreshNaturalWidth();
+	}, lifetime());
 	refreshNaturalWidth();
 }
 
@@ -348,8 +352,10 @@ void TonAmountInput::refreshNaturalWidth() {
 	const auto caret = std::max(
 		style()->pixelMetric(QStyle::PM_TextCursorWidth, nullptr, this),
 		1);
-	_textWidth = int(std::ceil(
-		QFontMetricsF(font()).horizontalAdvance(getLastText())));
+	const auto &text = getLastText();
+	_textWidth = text.isEmpty()
+		? _st.placeholderFont->width(_placeholderText)
+		: int(std::ceil(QFontMetricsF(font()).horizontalAdvance(text)));
 	setNaturalWidth(2 * _textLeft + left + _textWidth + caret + right);
 }
 
