@@ -11836,6 +11836,7 @@ void AddIslandRowLabel(
 		st::defaultPopupMenu,
 		std::move(context));
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	label->setTryMakeSimilarLines(true);
 	const auto updateLabelGeometry = [=] {
 		const auto &padding = st::walletIslandRow.padding;
 		const auto available = button->width()
@@ -12270,6 +12271,7 @@ void Content::setupCustodyEntry(not_null<InfoIsland*> island) {
 		button,
 		st::walletInfoBarLabel);
 	_custodyBarLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+	_custodyBarLabel->setTryMakeSimilarLines(true);
 	const auto updateLabelGeometry = [=] {
 		const auto available = button->width()
 			- 2 * st::walletInfoBarLabelSkip;
