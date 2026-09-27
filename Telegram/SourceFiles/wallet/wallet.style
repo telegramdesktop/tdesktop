@@ -539,6 +539,7 @@ walletSendUserCardPadding: margins(10px, 10px, 10px, 10px);
 walletSendUserCardPhoto: 32px;
 walletSendUserCardPhotoSkip: 8px;
 walletSendUserCardNameFont: font(14px semibold);
+walletSendUserCardAddressFont: font(12px);
 walletSendUserCardNameSkip: 6px;
 walletSendUserCardTextSkip: 4px;
 walletSendUserCardAboutSkip: 6px;

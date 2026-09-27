@@ -145,7 +145,7 @@ constexpr auto kReceiveGroupsPerLine = 4;
 constexpr auto kReceiveLines = kAddressLength
 	/ kAddressGroup
 	/ kReceiveGroupsPerLine;
-constexpr auto kSendUserCardGroupsPerLine = 4;
+constexpr auto kSendUserCardGroupsPerLine = 6;
 constexpr auto kQrQuietZoneModules = 4;
 constexpr auto kShortAddressChars = 4;
 constexpr auto kGaslessDailyTransfersDefault = 5;
@@ -3718,6 +3718,7 @@ class SendRecipientCard final : public Ui::RpWidget {
 public:
 	SendRecipientCard(
 		QWidget *parent,
+		std::shared_ptr<Ui::Show> show,
 		not_null<UserData*> user,
 		rpl::producer<QString> address,
 		Fn<void()> about);
@@ -3728,10 +3729,12 @@ protected:
 
 private:
 	[[nodiscard]] int nameHeight() const;
+	[[nodiscard]] QRect addressRect(int outerWidth) const;
 	void setAddress(const QString &address);
 
 	const not_null<UserData*> _user;
 	const not_null<Ui::IconButton*> _about;
+	const not_null<Ui::AbstractButton*> _copy;
 	style::TextStyle _nameStyle;
 	style::TextStyle _usernameStyle;
 	Ui::PeerUserpicView _userpic;
@@ -3828,12 +3831,14 @@ void SendCommentBubble::setText(const QString &text) {
 
 SendRecipientCard::SendRecipientCard(
 	QWidget *parent,
+	std::shared_ptr<Ui::Show> show,
 	not_null<UserData*> user,
 	rpl::producer<QString> address,
 	Fn<void()> about)
 : RpWidget(parent)
 , _user(user)
 , _about(Ui::CreateChild<Ui::IconButton>(this, st::walletSendUserCardAbout))
+, _copy(Ui::CreateChild<Ui::AbstractButton>(this))
 , _nameStyle(st::defaultTextStyle)
 , _usernameStyle(st::defaultTextStyle)
 , _userpic(user->createUserpicView()) {
@@ -3841,6 +3846,10 @@ SendRecipientCard::SendRecipientCard(
 	_usernameStyle.font = st::boxTextFont;
 	_about->setClickedCallback(std::move(about));
 	_about->hide();
+	_copy->setClickedCallback([this, show = std::move(show)] {
+		CopyAddressCallback(show, _address)();
+	});
+	_copy->hide();
 
 	Info::Profile::NameValue(user) | rpl::on_next([this](
 			const QString &name) {
@@ -3868,7 +3877,7 @@ SendRecipientCard::SendRecipientCard(
 
 int SendRecipientCard::resizeGetHeight(int newWidth) {
 	const auto &padding = st::walletSendUserCardPadding;
-	const auto font = st::walletAddressPlateFont->monospace();
+	const auto font = st::walletSendUserCardAddressFont->monospace();
 	const auto lines = kAddressLength
 		/ (kAddressGroup * kSendUserCardGroupsPerLine);
 	const auto text = nameHeight()
@@ -3879,6 +3888,7 @@ int SendRecipientCard::resizeGetHeight(int newWidth) {
 		padding.right(),
 		(padding.top() + inner + padding.bottom() - _about->height()) / 2,
 		newWidth);
+	_copy->setGeometry(addressRect(newWidth));
 	return padding.top() + inner + padding.bottom();
 }
 
@@ -3931,22 +3941,11 @@ void SendRecipientCard::paintEvent(QPaintEvent *e) {
 			1);
 	}
 	if (!_address.isEmpty()) {
-		const auto font = st::walletAddressPlateFont->monospace();
-		const auto addressTop = padding.top()
-			+ nameHeight()
-			+ st::walletSendUserCardTextSkip;
-		const auto blockWidth = AddressGroupsWidth(
-			font,
-			_address,
-			kSendUserCardGroupsPerLine);
-		const auto originX = style::RightToLeft()
-			? (width() - left - blockWidth)
-			: left;
 		PaintAddressGroups(
 			p,
-			font,
+			st::walletSendUserCardAddressFont->monospace(),
 			_address,
-			{ originX, addressTop },
+			addressRect(width()).topLeft(),
 			kSendUserCardGroupsPerLine);
 	}
 }
@@ -3958,9 +3957,32 @@ int SendRecipientCard::nameHeight() const {
 	return std::max(line(_nameStyle), line(_usernameStyle));
 }
 
+QRect SendRecipientCard::addressRect(int outerWidth) const {
+	const auto &padding = st::walletSendUserCardPadding;
+	const auto font = st::walletSendUserCardAddressFont->monospace();
+	const auto left = padding.left()
+		+ st::walletSendUserCardPhoto
+		+ st::walletSendUserCardPhotoSkip;
+	const auto top = padding.top()
+		+ nameHeight()
+		+ st::walletSendUserCardTextSkip;
+	const auto blockWidth = AddressGroupsWidth(
+		font,
+		_address,
+		kSendUserCardGroupsPerLine);
+	const auto lines = kAddressLength
+		/ (kAddressGroup * kSendUserCardGroupsPerLine);
+	const auto x = style::RightToLeft()
+		? (outerWidth - left - blockWidth)
+		: left;
+	return QRect(x, top, blockWidth, lines * font->height);
+}
+
 void SendRecipientCard::setAddress(const QString &address) {
 	_address = address;
 	_about->setVisible(!_address.isEmpty());
+	_copy->setGeometry(addressRect(width()));
+	_copy->setVisible(!_address.isEmpty());
 	update();
 }
 
@@ -5648,6 +5670,7 @@ void WalletSendBox(
 		inner->add(
 			object_ptr<SendRecipientCard>(
 				inner,
+				box->uiShow(),
 				recipient,
 				std::move(address),
 				[=] {
@@ -8100,7 +8123,8 @@ void PaintAddressGroups(
 void AddAddressPlate(
 		not_null<Ui::VerticalLayout*> container,
 		const QString &address,
-		const style::margins &margin) {
+		const style::margins &margin,
+		std::shared_ptr<Ui::Show> show = nullptr) {
 	const auto font = st::walletAddressPlateFont->monospace();
 	const auto inner = st::walletAddressPlateInner;
 	const auto groups = kAddressLength / kAddressGroup;
@@ -8132,6 +8156,15 @@ void AddAddressPlate(
 			{ left, inner },
 			kAddressGroupsPerLine);
 	}, plate->lifetime());
+	if (show) {
+		const auto copy = Ui::CreateChild<Ui::AbstractButton>(plate);
+		copy->setClickedCallback(
+			CopyAddressCallback(std::move(show), address));
+		plate->sizeValue(
+		) | rpl::on_next([=](QSize size) {
+			copy->setGeometry(QRect(QPoint(), size));
+		}, copy->lifetime());
+	}
 }
 
 void ShowWrongSecretWords(
@@ -8210,7 +8243,8 @@ void ShowSendRecipientWallet(
 				padding.left(),
 				st::walletAddressPlateSkip,
 				padding.right(),
-				padding.bottom()));
+				padding.bottom()),
+			box->uiShow());
 		box->addButton(tr::lng_box_ok(), [=] {
 			box->closeBox();
 		});
