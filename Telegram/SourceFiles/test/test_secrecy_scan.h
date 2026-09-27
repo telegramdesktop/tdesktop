@@ -33,12 +33,14 @@ class Runner;
 //   open, and each DebugLogs quarter-hour part named for a quarter in
 //   [process start, scan] whose first line is its own day index. No
 //   last-write time takes part anywhere.
-// - A five-character password matched as a plain substring over about half
-//   a million MTP-dump lines gave about a hundred coincidental hits. A short
-//   secret's occurrence is therefore classed as bounded (no letter or digit
-//   right before or after it) or embedded, and only bounded ones count.
-// - Even bounded matches inside dumps were file sizes and forum-topic titles
-//   the server sent. MTP dump entries are therefore classed by the
+// - Matching a short secret as a plain substring over a campaign's MTP
+//   dumps, which run to a very large number of lines, gives coincidental
+//   hits inside longer, unrelated values. A short secret's occurrence is
+//   therefore classed as bounded (no letter or digit right before or after
+//   it) or embedded, and only bounded ones count.
+// - Even a bounded match inside a dump can be content the server sent: a
+//   received value that happens to hold a short secret says nothing about
+//   what the client wrote. MTP dump entries are therefore classed by the
 //   transport's own header ("Send: " / "Recv: ", session_private.cpp), and
 //   only what the client wrote - plain lines and Send entries - decides.
 //   Recv hits are reported with their "<top>/<inner>.<field>" schema site
