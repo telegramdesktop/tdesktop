@@ -19,8 +19,9 @@ class Runner;
 // its secrets once - recovery phrases, short secrets such as the 2SV
 // password, custody record ids and secret refs - and gets back a decided
 // verdict on whether any of them reached the test log, this launch's app
-// log or this launch's DebugLogs parts. It prints counts, public file names
-// and TL schema identifiers only, never a secret and never a scanned line.
+// log or this launch's DebugLogs parts. It prints counts, public file names,
+// TL schema identifiers and the message heads and field names of plain-line
+// hits only, never a secret, a field's value or a whole scanned line.
 //
 // It exists because every hand-rolled version fell into the same three
 // traps (2026/09/25/import-rotated-wallets-with-the-revised-layer-230-scheme
@@ -42,6 +43,15 @@ class Runner;
 //   only what the client wrote - plain lines and Send entries - decides.
 //   Recv hits are reported with their "<top>/<inner>.<field>" schema site
 //   and never decide.
+//
+// A fourth trap is the scan's own: a value the product computes and logs
+// itself can equal a short secret. It cost
+// 2026/09/25/refuse-a-custody-superseding-install-while-the-served-key-lags
+// a run. Every bounded short-secret hit in a plain line is therefore
+// reported at its "<file>|<head>|<field>" site, and a campaign may declare
+// (head, field) pairs the product source shows it formats from values it
+// computes: a hit that is exactly such a field's value is reported in
+// SECRECY_COMPUTED and never decides, like a Recv hit.
 //
 // A zero is certified only when it can be told from absence: every class
 // must hold at least one accepted file and a known-present control (a fresh
@@ -150,6 +160,7 @@ struct SecrecyClassReading {
 	int boundedOther = 0;
 	int boundedSend = 0;
 	int boundedRecv = 0;
+	int boundedComputed = 0; // exactly a declared computed field's value
 	int boundedQuoted = 0;
 	int boundedUnquoted = 0;
 	int tokensOther = 0;
@@ -163,6 +174,11 @@ struct SecrecyClassReading {
 	bool fromLogger = false;
 	std::map<QString, int> sendSites; // schema identifiers only
 	std::map<QString, int> recvSites;
+	// Plain-line bounded short-secret hits by "<file>|<head>|<field>"
+	// ("<file>|?|?" withheld, "-" not exactly one field's value): the
+	// deciding ones, and exact values of a declared computed field.
+	std::map<QString, int> plainSites;
+	std::map<QString, int> computedSites;
 	QStringList names; // public file names of the scanned files
 	// Per name: the 1-based line of the last banner the scan started
 	// from, 0 when the file was scanned whole.
@@ -213,6 +229,16 @@ struct SecrecyReading {
 	[[nodiscard]] const SecrecyClassReading *find(SecrecyClass cls) const;
 	[[nodiscard]] int clientWritten() const;
 	[[nodiscard]] int received() const;
+	[[nodiscard]] int computed() const;
+};
+
+// A field the product formats from a value it computes itself, never from
+// fixture input, spelled exactly as a plain-line site prints it: the
+// message head of its line (the text after the timestamp or entry prefix
+// and before the first name= field) and the field name.
+struct SecrecyComputedField {
+	QString head;
+	QString field;
 };
 
 struct SecrecyScanArgs {
@@ -225,18 +251,27 @@ struct SecrecyScanArgs {
 	QString appLogControl;
 	QString debugLogControl;
 	QString mtpLogControl;
+	// A bounded short-secret hit that is exactly such a field's value on a
+	// line with that head is reported in SECRECY_COMPUTED and does not
+	// decide. Declare a field only when the product source shows it is
+	// formatted from a value the product computes, never from fixture
+	// input. No declaration exempts a word run, a token or a Send entry.
+	std::vector<SecrecyComputedField> computedFields;
 };
 
 // Pure: reads the selected files and text and prints nothing.
 // |plantedControl| is the nonce every non-earlier class must contain.
+// |computedFields| are the declared computed fields.
 [[nodiscard]] SecrecyReading ReadSecrecy(
 	const SecrecySecrets &secrets,
 	const SecrecyLaunchLogs &logs,
-	const QString &plantedControl);
+	const QString &plantedControl,
+	const std::vector<SecrecyComputedField> &computedFields = {});
 
 // Public-only rows of a reading: SECRECY_SCAN, SECRECY_WINDOW, one
-// SECRECY_CLASS per class and SECRECY_RECEIVED. Never a secret, never a
-// scanned line.
+// SECRECY_CLASS per class (with its plain-line sites), SECRECY_RECEIVED and
+// SECRECY_COMPUTED. Never a secret, a field's value or a whole scanned
+// line.
 [[nodiscard]] QStringList SecrecyRows(const SecrecyReading &reading);
 
 // Campaign entry point. Plants a fresh public nonce through Note (the test
@@ -247,17 +282,22 @@ struct SecrecyScanArgs {
 // then re-reads the bytes it appended to test_log.txt and Checks that they
 // carry no secret either. Returns decided && clean. DebugLogs must be
 // enabled (tdata/withdebug = 1), or the DebugLog and MtpLog classes are
-// undecided.
+// undecided. Hits on declared computed fields (args.computedFields) are
+// reported and do not decide.
 bool CheckSecrecy(const SecrecyScanArgs &args, const QString &what);
 
-// Seven session-free stages over synthetic log trees in a QTemporaryDir,
+// Eight session-free stages over synthetic log trees in a QTemporaryDir,
 // with synthetic secrets only: canaries, embedded vs bounded, a Recv hit
 // that is reported but does not decide, ten client-written leaks (among
 // them words joined by line breaks, escapes and commas, and a vector
-// dumped one element per line), the undecided refusals, identity selection
-// (a same-name part of another day and an earlier launch's lines before
-// the banner are not counted), and the rows printing no secret. Emits no
-// deliberate FAIL.
+// dumped one element per line), the plain-line site report and declared
+// computed fields (an undeclared field's value fails and is named with its
+// class, file, head and field; a declared one is reported and does not
+// decide; another field, free text, part of the value, a word run, a token
+// and a Send entry still decide; a site that would print a secret is
+// withheld), the undecided refusals, identity selection (a same-name part
+// of another day and an earlier launch's lines before the banner are not
+// counted), and the rows printing no secret. Emits no deliberate FAIL.
 void AppendSecrecyScanSelfTest(not_null<Runner*> runner);
 
 } // namespace Test

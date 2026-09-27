@@ -28,8 +28,12 @@ constexpr auto kMaxWindowSteps = 200;
 constexpr auto kControlDetails = 3;
 constexpr auto kMaxTypeTag = 24;
 constexpr auto kWordRunCanaries = 7; // per phrase, see ReadCanaries
+constexpr auto kMaxHeadLength = 64;
+constexpr auto kMainLogStart = 22; // "[yyyy.MM.dd hh:mm:ss] "
 
 const auto kBanner = u"NEW LOGGING INSTANCE STARTED!!!"_q;
+const auto kSiteWithheld = u"?|?"_q;
+const auto kSiteNoField = u"-"_q;
 
 // Where a line sits: outside any transport dump, or inside a dump entry the
 // client sent or received (session_private.cpp logs "Send: " + DumpToText
@@ -327,6 +331,7 @@ struct LineContext {
 	DumpDirection direction = DumpDirection::None;
 	const std::vector<QString> *stack = nullptr;
 	int dumpFrom = 0;
+	const QString *file = nullptr; // the public name of the scanned file
 };
 
 // Per file: a dump entry runs from its header to the next entry header;
@@ -381,6 +386,138 @@ void DumpTracker::end(const QString &line) {
 	return SiteText(chain, walk.field);
 }
 
+// The app log's "[yyyy.MM.dd hh:mm:ss] " (logs.cpp writeMain).
+[[nodiscard]] bool IsMainLogStart(const QString &line) {
+	if (line.size() < kMainLogStart
+		|| line[0] != QChar('[')
+		|| line[20] != QChar(']')
+		|| line[21] != QChar(' ')) {
+		return false;
+	}
+	for (const auto index : {
+		1, 2, 3, 4, 6, 7, 9, 10, 12, 13, 15, 16, 18, 19,
+	}) {
+		if (!line[index].isDigit()) {
+			return false;
+		}
+	}
+	return (line[5] == QChar('.'))
+		&& (line[8] == QChar('.'))
+		&& (line[11] == QChar(' '))
+		&& (line[14] == QChar(':'))
+		&& (line[17] == QChar(':'));
+}
+
+// Where the message of a plain line starts, per writer (logs.cpp): after
+// the app log's timestamp (writeMain), after a DebugLogs entry start
+// (writeDebug) and, in an mtp_ part, also after its "(dc:<dc>) "
+// (writeMtp). 0 for a test-log row, which has no prefix, and for a
+// continuation line of a multi-line entry.
+[[nodiscard]] int MessageFrom(const QString &line) {
+	if (IsMainLogStart(line)) {
+		return kMainLogStart;
+	} else if (!IsEntryHeader(line)) {
+		return 0;
+	}
+	const auto close = int(line.indexOf(u"] "_q, 14));
+	if (close < 0) {
+		return 0;
+	}
+	auto result = close + 2;
+	if (line.mid(result, 4) == u"(dc:"_q) {
+		const auto dc = int(line.indexOf(u") "_q, result));
+		if (dc > 0) {
+			result = dc + 2;
+		}
+	}
+	return result;
+}
+
+// A "name=value" field of a plain line. The name is an ASCII identifier
+// (SafeIdentifier) at the message start or right after a blank, outside a
+// double-quoted segment; the value runs to the next blank, less a trailing
+// run of ";,.:" and then one enclosing pair of quotes.
+struct PlainField {
+	QString name;
+	int nameFrom = 0;
+	int valueFrom = 0;
+	int valueTill = 0;
+};
+
+[[nodiscard]] bool IsBlank(QChar ch) {
+	return (ch == QChar(' ')) || (ch == QChar('\t'));
+}
+
+// One left-to-right pass over the message from |from|. Scanning resumes at
+// the blank that ended a value, so a "name=" inside a value, quoted or not,
+// is never a field.
+[[nodiscard]] std::vector<PlainField> PlainFields(
+		const QString &text,
+		int from) {
+	static const auto trailing = u";,.:"_q;
+	auto result = std::vector<PlainField>();
+	const auto size = int(text.size());
+	auto i = from;
+	while (i < size) {
+		if (IsBlank(text[i]) || (i > from && !IsBlank(text[i - 1]))) {
+			++i;
+			continue;
+		}
+		auto end = i;
+		while (end < size && IdentifierChar(text[end])) {
+			++end;
+		}
+		const auto name = text.mid(i, end - i);
+		if (end == i
+			|| end >= size
+			|| text[end] != QChar('=')
+			|| SafeIdentifier(name) != name
+			|| InsideQuotes(text, i)) {
+			i = std::max(end, i + 1);
+			continue;
+		}
+		auto till = end + 1;
+		while (till < size && !IsBlank(text[till])) {
+			++till;
+		}
+		auto valueFrom = end + 1;
+		auto valueTill = till;
+		while (valueTill > valueFrom && trailing.contains(text[valueTill - 1])) {
+			--valueTill;
+		}
+		if (valueTill - valueFrom >= 2
+			&& text[valueFrom] == QChar('"')
+			&& text[valueTill - 1] == QChar('"')) {
+			++valueFrom;
+			--valueTill;
+		}
+		result.push_back({
+			.name = name,
+			.nameFrom = i,
+			.valueFrom = valueFrom,
+			.valueTill = valueTill,
+		});
+		i = till;
+	}
+	return result;
+}
+
+// A message head prints only in this identifier-like shape, so no quote,
+// bracket, "=", "|" or escape can make it carry more than product text.
+[[nodiscard]] bool HeadShaped(const QString &head) {
+	static const auto extra = u" _.:-/"_q;
+	if (head.isEmpty() || head.size() > kMaxHeadLength) {
+		return false;
+	}
+	for (const auto ch : head) {
+		if ((ch.unicode() > 0x7F)
+			|| !(ch.isLetterOrNumber() || extra.contains(ch))) {
+			return false;
+		}
+	}
+	return true;
+}
+
 // The secrets a reading can decide on: phrases of at least two normalized
 // words, non-empty short secrets and tokens of at least kMinTokenLength
 // characters, each once. What was refused is counted into |reading|.
@@ -433,9 +570,18 @@ void DumpTracker::end(const QString &line) {
 	return result;
 }
 
+// A plain-line bounded short-secret hit: its public site, and whether it is
+// exactly the value of a declared computed field.
+struct PlainHit {
+	QString site;
+	bool computed = false;
+};
+
 class SecrecyMatcher final {
 public:
-	explicit SecrecyMatcher(const SecrecySecrets &usable);
+	explicit SecrecyMatcher(
+		const SecrecySecrets &usable,
+		std::vector<SecrecyComputedField> computed = {});
 
 	// |run| is the last phrase word of the current run, carried from line
 	// to line of one file or text by the caller.
@@ -462,6 +608,12 @@ private:
 		const QString &token,
 		const LineContext &context,
 		SecrecyClassReading &reading) const;
+	[[nodiscard]] PlainHit plainHit(
+		const QString &text,
+		const LineContext &context,
+		int at,
+		int till) const;
+	[[nodiscard]] bool holds(const QString &text) const;
 
 	QSet<QString> _words;
 	QSet<QString> _pairs;
@@ -469,6 +621,7 @@ private:
 	std::vector<QString> _shortSecrets;
 	std::vector<QString> _escaped; // empty where it equals the raw form
 	std::vector<QString> _tokens;
+	std::vector<SecrecyComputedField> _computed;
 
 };
 
@@ -480,7 +633,8 @@ public:
 		const SecrecyMatcher &matcher,
 		const QString &planted,
 		const QString &control,
-		SecrecyClassReading &reading);
+		SecrecyClassReading &reading,
+		const QString &file);
 
 	void feed(const QString &line);
 
@@ -488,15 +642,19 @@ private:
 	const SecrecyMatcher &_matcher;
 	const QString _planted;
 	const QString _control;
+	const QString _file; // public name, printed in plain-line sites
 	SecrecyClassReading &_reading;
 	DumpTracker _dump;
 	QString _run;
 
 };
 
-SecrecyMatcher::SecrecyMatcher(const SecrecySecrets &usable)
+SecrecyMatcher::SecrecyMatcher(
+	const SecrecySecrets &usable,
+	std::vector<SecrecyComputedField> computed)
 : _shortSecrets(usable.shortSecrets)
-, _tokens(usable.tokens) {
+, _tokens(usable.tokens)
+, _computed(std::move(computed)) {
 	for (const auto &words : usable.phrases) {
 		auto previous = QString();
 		for (const auto &word : words) {
@@ -589,7 +747,9 @@ void SecrecyMatcher::countWordRuns(
 // embedded otherwise. A bounded one sits in a line the client composed
 // (Other), in a dump entry the client sent (Send) or in one it received
 // (Recv); only Other and Send decide. |dumpOnly| is the escaped form, which
-// only a dump can carry.
+// only a dump can carry. A plain-line hit is reported at its
+// "<file>|<head>|<field>" site (plainHit), and one that is exactly the
+// value of a declared computed field is reported and does not decide.
 void SecrecyMatcher::countShort(
 		const QString &text,
 		const QString &needle,
@@ -618,10 +778,17 @@ void SecrecyMatcher::countShort(
 		}
 		++reading.bounded;
 		if (!inDump) {
-			++reading.boundedOther;
 			++(InsideQuotes(text, at)
 				? reading.boundedQuoted
 				: reading.boundedUnquoted);
+			const auto hit = plainHit(text, context, at, till);
+			if (hit.computed) {
+				++reading.boundedComputed;
+				++reading.computedSites[hit.site];
+			} else {
+				++reading.boundedOther;
+				++reading.plainSites[hit.site];
+			}
 			continue;
 		}
 		auto quoted = false;
@@ -666,14 +833,86 @@ void SecrecyMatcher::countToken(
 	}
 }
 
+// The site of a plain-line hit over text[at, till): the file, the message
+// head (the text from the message start to the first field's name) and the
+// name of the field whose whole value the hit is, or "-". The whole site is
+// withheld as "<file>|?|?", for every reason alike, when the line has no
+// field, the hit lies in the head, the head is not HeadShaped, or the head
+// (with the printed field name) holds any given secret. Only a hit whose
+// printed head and field equal a declaration is computed, so a declaration
+// never matches a withheld site.
+PlainHit SecrecyMatcher::plainHit(
+		const QString &text,
+		const LineContext &context,
+		int at,
+		int till) const {
+	const auto file = context.file ? *context.file : QString();
+	const auto withheld = PlainHit{ .site = file + QChar('|') + kSiteWithheld };
+	const auto from = MessageFrom(text);
+	const auto fields = PlainFields(text, from);
+	if (fields.empty()) {
+		return withheld;
+	}
+	const auto headTill = fields.front().nameFrom;
+	if (at < headTill && till > from) {
+		return withheld;
+	}
+	const auto head = text.mid(from, headTill - from).trimmed();
+	auto name = QString();
+	for (const auto &field : fields) {
+		if (field.valueFrom == at && field.valueTill == till) {
+			name = field.name;
+			break;
+		}
+	}
+	const auto shown = name.isEmpty() ? head : (head + QChar(' ') + name);
+	if (!HeadShaped(head) || holds(shown)) {
+		return withheld;
+	}
+	const auto computed = !name.isEmpty()
+		&& ranges::any_of(_computed, [&](const SecrecyComputedField &field) {
+			return (field.head == head) && (field.field == name);
+		});
+	return {
+		.site = file
+			+ QChar('|')
+			+ head
+			+ QChar('|')
+			+ (name.isEmpty() ? kSiteNoField : name),
+		.computed = computed,
+	};
+}
+
+// Whether printed text would carry secret material: any given short secret
+// or token, case-insensitively (stricter than the case-sensitive match, so
+// no case variant prints), or an adjacent pair of one phrase's words.
+bool SecrecyMatcher::holds(const QString &text) const {
+	const auto contains = [&](const std::vector<QString> &list) {
+		return ranges::any_of(list, [&](const QString &secret) {
+			return text.contains(secret, Qt::CaseInsensitive);
+		});
+	};
+	if (contains(_shortSecrets) || contains(_tokens)) {
+		return true;
+	} else if (_pairs.isEmpty()) {
+		return false;
+	}
+	auto run = QString();
+	auto reading = SecrecyClassReading();
+	countWordRuns(text, LineContext(), run, reading);
+	return (reading.wordRunsOther > 0);
+}
+
 LineFeed::LineFeed(
 	const SecrecyMatcher &matcher,
 	const QString &planted,
 	const QString &control,
-	SecrecyClassReading &reading)
+	SecrecyClassReading &reading,
+	const QString &file)
 : _matcher(matcher)
 , _planted(planted)
 , _control(control)
+, _file(file)
 , _reading(reading) {
 }
 
@@ -682,7 +921,8 @@ void LineFeed::feed(const QString &line) {
 	if (IsEntryHeader(line)) {
 		_run.clear();
 	}
-	const auto context = _dump.begin(line, _reading);
+	auto context = _dump.begin(line, _reading);
+	context.file = &_file;
 	_matcher.line(line, context, _run, _reading);
 	if (!_planted.isEmpty() && line.contains(_planted)) {
 		++_reading.plantedHits;
@@ -706,8 +946,9 @@ void ScanText(
 		const SecrecyMatcher &matcher,
 		const QString &planted,
 		const QString &control,
-		SecrecyClassReading &reading) {
-	auto feed = LineFeed(matcher, planted, control, reading);
+		SecrecyClassReading &reading,
+		const QString &file = QString()) {
+	auto feed = LineFeed(matcher, planted, control, reading, file);
 	const auto size = int(text.size());
 	auto from = 0;
 	while (from < size) {
@@ -729,13 +970,15 @@ struct FileScan {
 // large. With |slice| a first pass finds the last banner reopen() wrote
 // when this launch appended to a same-day part (logs.cpp), and the second
 // pass scans from it, so an earlier launch's lines are not charged here.
+// |name| is the file's public name, printed in plain-line sites.
 FileScan ScanFile(
 		const QString &path,
 		bool slice,
 		const SecrecyMatcher &matcher,
 		const QString &planted,
 		const QString &control,
-		SecrecyClassReading &reading) {
+		SecrecyClassReading &reading,
+		const QString &name) {
 	auto result = FileScan();
 	auto file = QFile(path);
 	if (!file.open(QIODevice::ReadOnly)) {
@@ -753,7 +996,7 @@ FileScan ScanFile(
 		}
 		file.seek(0);
 	}
-	auto feed = LineFeed(matcher, planted, control, reading);
+	auto feed = LineFeed(matcher, planted, control, reading, name);
 	auto index = 0;
 	while (!file.atEnd()) {
 		++index;
@@ -960,7 +1203,13 @@ void ReadSource(
 			return;
 		}
 		reading.fromLogger = true;
-		ScanText(source.text, matcher, planted, source.control, reading);
+		ScanText(
+			source.text,
+			matcher,
+			planted,
+			source.control,
+			reading,
+			source.name);
 	} else {
 		const auto scan = ScanFile(
 			source.path,
@@ -968,7 +1217,8 @@ void ReadSource(
 			matcher,
 			planted,
 			source.control,
-			reading);
+			reading,
+			source.name);
 		if (!scan.opened) {
 			++reading.unreadable;
 			return;
@@ -1069,6 +1319,7 @@ void DecideClass(SecrecyClassReading &reading) {
 		{ u"boundedOther"_q, c.boundedOther },
 		{ u"boundedSend"_q, c.boundedSend },
 		{ u"boundedRecv"_q, c.boundedRecv },
+		{ u"boundedComputed"_q, c.boundedComputed },
 		{ u"boundedQuoted"_q, c.boundedQuoted },
 		{ u"boundedUnquoted"_q, c.boundedUnquoted },
 		{ u"tokensOther"_q, c.tokensOther },
@@ -1092,6 +1343,7 @@ void DecideClass(SecrecyClassReading &reading) {
 	}
 	parts.push_back(u"namedControl="_q + B(c.namedControl));
 	parts.push_back(u"sendSites=["_q + SitesText(c.sendSites) + u"]"_q);
+	parts.push_back(u"plainSites=["_q + SitesText(c.plainSites) + u"]"_q);
 	parts.push_back(u"names=["_q + c.names.join(u", "_q) + u"]"_q);
 	parts.push_back(u"slicedFrom=["_q + IntsText(c.slicedFrom) + u"]"_q);
 	return parts.join(QChar(' '));
@@ -1129,12 +1381,16 @@ void ReportClass(const SecrecyClassReading &c) {
 	const auto subjects = std::vector<std::pair<QString, int>>{
 		{ u"word-run/plain"_q, c.wordRunsOther },
 		{ u"word-run/Send"_q, c.wordRunsSend },
-		{ u"bounded/plain"_q, c.boundedOther },
 		{ u"token/plain"_q, c.tokensOther },
 	};
 	for (const auto &[detail, count] : subjects) {
 		for (auto i = 0; i != count; ++i) {
 			scan.matchedSubject(detail);
+		}
+	}
+	for (const auto &[site, count] : c.plainSites) {
+		for (auto i = 0; i != count; ++i) {
+			scan.matchedSubject(u"bounded/plain:"_q + site);
 		}
 	}
 	for (const auto &[site, count] : c.sendSites) {
@@ -1169,6 +1425,9 @@ const auto kSelfDay = QDate(2026, 1, 15);
 const auto kSelfToday = u"20260115"_q;
 const auto kSelfYesterday = u"20260114"_q;
 const auto kSelfBannerRule = QString(64, QChar('-'));
+const auto kSelfComputedHead = u"Selftest Info: computed state"_q;
+const auto kSelfComputedField = u"digest"_q;
+const auto kSelfOtherValue = u"OTHER_VALUE_MARKER"_q;
 
 [[nodiscard]] std::vector<QString> SelfPhraseA() {
 	return {
@@ -1195,13 +1454,15 @@ const auto kSelfBannerRule = QString(64, QChar('-'));
 }
 
 // Every string a row of a synthetic reading must never contain: the
-// secrets, the words, their adjacent pairs and a scanned line's filler.
+// secrets, the words, their adjacent pairs, a scanned line's filler and
+// the value of a field other than the one a hit is.
 [[nodiscard]] QStringList SelfForbidden() {
 	auto result = QStringList{
 		kSelfPassword,
 		kSelfToken,
 		kSelfShortToken,
 		kSelfFiller,
+		kSelfOtherValue,
 	};
 	for (const auto &phrase : { SelfPhraseA(), SelfPhraseB() }) {
 		for (auto i = 0; i != int(phrase.size()); ++i) {
@@ -1261,6 +1522,36 @@ const auto kSelfBannerRule = QString(64, QChar('-'));
 	return u"Test Info: secrecy control "_q + kSelfNonce;
 }
 
+// A product-shaped diagnostic line with the synthetic head: "<head>
+// span=<span> digest=<digest>; mode=<other value>.<tail>", so one value is
+// followed by ";" and one by ".".
+[[nodiscard]] QString ComputedLine(
+		const QString &span,
+		const QString &digest,
+		const QString &tail = QString()) {
+	return kSelfComputedHead
+		+ u" span="_q
+		+ span
+		+ u" digest="_q
+		+ digest
+		+ u"; mode="_q
+		+ kSelfOtherValue
+		+ u"."_q
+		+ tail;
+}
+
+[[nodiscard]] SecrecyComputedField SelfDeclaration() {
+	return { .head = kSelfComputedHead, .field = kSelfComputedField };
+}
+
+// Keeps a part's planted control its last line.
+void InsertBeforePlanted(QStringList &lines, const QStringList &add) {
+	const auto planted = lines.back();
+	lines.pop_back();
+	lines += add;
+	lines.push_back(planted);
+}
+
 struct SelfFixture {
 	bool testLogFile = true;
 	QStringList testLog;
@@ -1268,6 +1559,7 @@ struct SelfFixture {
 	std::map<QString, QStringList> parts; // DebugLogs file name -> lines
 	std::vector<SecrecyEarlierPart> earlier;
 	SecrecySecrets secrets;
+	std::vector<SecrecyComputedField> computed; // declared computed fields
 };
 
 [[nodiscard]] SelfFixture CleanFixture() {
@@ -1297,6 +1589,47 @@ struct SelfFixture {
 	mtp.push_back(MtpEntry(PlantedEntry()));
 	result.parts[u"mtp_10_00.txt"_q] = mtp;
 	result.secrets = SelfSecrets();
+	return result;
+}
+
+// The computed-field trap: one product-shaped line whose "digest" value is
+// the synthetic password, mirrored into the app log and its DebugLogs part
+// as LOG writes it, with or without the declaration of that field.
+[[nodiscard]] SelfFixture MirroredFixture(bool declared) {
+	auto result = CleanFixture();
+	const auto line = ComputedLine(u"17"_q, kSelfPassword);
+	result.appLog.push_back(u"[2026.01.15 10:05:02] "_q + line);
+	result.parts[u"log_10_00.txt"_q].push_back(Entry(line));
+	if (declared) {
+		result.computed.push_back(SelfDeclaration());
+	}
+	return result;
+}
+
+// The declared mirrored line plus six log_ lines whose sites must each be
+// withheld: the hit in the head, a line with no field, a head whose last
+// word and the field name form a phrase pair, a field name that is the
+// password itself (its value's site is withheld; the name's own hit is no
+// field's value and prints the head with "-"), a head holding the token,
+// and a head holding the password upper-cased, which the case-sensitive
+// match does not count but the case-insensitive print rule withholds.
+[[nodiscard]] SelfFixture SitesFixture() {
+	auto result = MirroredFixture(true);
+	const auto a = SelfPhraseA();
+	const auto pw = kSelfPassword;
+	result.parts[u"log_10_00.txt"_q] += QStringList{
+		Entry(u"Selftest Info: computed "_q + pw + u" digest=7"_q),
+		Entry(kSelfComputedHead + QChar(' ') + pw),
+		Entry(u"Selftest Info: "_q
+			+ a[6]
+			+ QChar(' ')
+			+ a[7]
+			+ QChar('=')
+			+ pw),
+		Entry(kSelfComputedHead + QChar(' ') + pw + QChar('=') + pw),
+		Entry(u"Selftest Info: "_q + kSelfToken + u" digest="_q + pw),
+		Entry(u"Selftest Info: "_q + pw.toUpper() + u" digest="_q + pw),
+	};
 	return result;
 }
 
@@ -1349,7 +1682,11 @@ struct SelfRun {
 		QDateTime(kSelfDay, QTime(10, 5)),
 		QDateTime(kSelfDay, QTime(10, 20)),
 		fixture.earlier);
-	result.reading = ReadSecrecy(fixture.secrets, result.logs, kSelfNonce);
+	result.reading = ReadSecrecy(
+		fixture.secrets,
+		result.logs,
+		kSelfNonce,
+		fixture.computed);
 	result.prepared = true;
 	return result;
 }
@@ -1404,6 +1741,19 @@ struct SelfRun {
 		.arg(B(c.decided))
 		.arg(c.undecidedReason)
 		.arg(IntsText(c.slicedFrom));
+}
+
+[[nodiscard]] QString SiteDetails(const SecrecyClassReading &c) {
+	return Counts(c)
+		+ u" boundedComputed="_q
+		+ QString::number(c.boundedComputed)
+		+ u" plainSites=["_q
+		+ SitesText(c.plainSites)
+		+ u"] computedSites=["_q
+		+ SitesText(c.computedSites)
+		+ u"] sendSites=["_q
+		+ SitesText(c.sendSites)
+		+ u"]"_q;
 }
 
 struct SelfState {
@@ -1523,18 +1873,12 @@ void SelfClientWritten(const std::shared_ptr<SelfState> &state) {
 	const auto pw = kSelfPassword;
 	const auto a = SelfPhraseA();
 	const auto b = SelfPhraseB();
-	const auto insertBeforePlanted = [](QStringList &lines, QStringList add) {
-		const auto planted = lines.back();
-		lines.pop_back();
-		lines += add;
-		lines.push_back(planted);
-	};
 	const auto leaks = std::vector<Leak>{
 		{
 			u"a bounded short secret in a Send entry"_q,
 			SecrecyClass::MtpLog,
 			[=](SelfFixture &f) {
-				insertBeforePlanted(f.parts[u"mtp_10_00.txt"_q], SendEntry({
+				InsertBeforePlanted(f.parts[u"mtp_10_00.txt"_q], SendEntry({
 					u"    query: { account_password"_q,
 					u"      hint: \""_q + pw + u"\" [STRING]"_q,
 					u"    }"_q,
@@ -1566,7 +1910,7 @@ void SelfClientWritten(const std::shared_ptr<SelfState> &state) {
 			u"a word run in a Send entry"_q,
 			SecrecyClass::MtpLog,
 			[=](SelfFixture &f) {
-				insertBeforePlanted(f.parts[u"mtp_10_00.txt"_q], SendEntry({
+				InsertBeforePlanted(f.parts[u"mtp_10_00.txt"_q], SendEntry({
 					u"    query: { messages_sendMessage"_q,
 					u"      message: \""_q
 						+ a[3]
@@ -1624,7 +1968,7 @@ void SelfClientWritten(const std::shared_ptr<SelfState> &state) {
 			u"words joined by an escaped line break in a Send string"_q,
 			SecrecyClass::MtpLog,
 			[=](SelfFixture &f) {
-				insertBeforePlanted(f.parts[u"mtp_10_00.txt"_q], SendEntry({
+				InsertBeforePlanted(f.parts[u"mtp_10_00.txt"_q], SendEntry({
 					u"    query: { messages_sendMessage"_q,
 					u"      message: \""_q
 						+ DumpEscaped(a[10] + QChar('\n') + a[11])
@@ -1639,7 +1983,7 @@ void SelfClientWritten(const std::shared_ptr<SelfState> &state) {
 				"entry"_q,
 			SecrecyClass::MtpLog,
 			[=](SelfFixture &f) {
-				insertBeforePlanted(f.parts[u"mtp_10_00.txt"_q], SendEntry({
+				InsertBeforePlanted(f.parts[u"mtp_10_00.txt"_q], SendEntry({
 					u"    query: { messages_sendMessage"_q,
 					u"      entities: [ vector<0x1cb5c415> (2)"_q,
 					u"        \""_q + a[1] + u"\" [STRING],"_q,
@@ -1670,6 +2014,215 @@ void SelfClientWritten(const std::shared_ptr<SelfState> &state) {
 				&& (run.reading.clientWritten() == leak.expected),
 			what,
 			Counts(c) + u" | "_q + Summary(run.reading));
+	}
+}
+
+// The plain-line site report and declared computed fields, over the one
+// synthetic head and its declared "digest" field.
+void SelfSites(const std::shared_ptr<SelfState> &state) {
+	using Sites = std::map<QString, int>;
+	const auto pw = kSelfPassword;
+	const auto a = SelfPhraseA();
+	const auto head = u"|"_q + kSelfComputedHead + u"|"_q;
+	const auto part = u"DebugLogs/log_10_00.txt"_q;
+	const auto appSite = u"log.txt"_q + head + kSelfComputedField;
+	const auto partSite = part + head + kSelfComputedField;
+	const auto runKept = [&](const QString &what, const SelfFixture &fixture) {
+		const auto result = RunFixture(fixture);
+		CheckPrepared(what, result);
+		Keep(state, result);
+		return result;
+	};
+	const auto tail = [](const SecrecyReading &r) {
+		return u" | "_q
+			+ Summary(r)
+			+ u" computed="_q
+			+ QString::number(r.computed());
+	};
+	{
+		const auto what = u"secrecy self-test: a bounded short secret that "
+			"is an undeclared field's value fails the scan, and its site row "
+			"names the class, the file, the message head and the field"_q;
+		const auto result = runKept(what, MirroredFixture(false));
+		const auto &r = result.reading;
+		const auto &app = ClassOf(r, SecrecyClass::AppLog);
+		const auto &debug = ClassOf(r, SecrecyClass::DebugLog);
+		const auto rows = SecrecyRows(r).join(QChar('\n'));
+		Check(
+			result.prepared
+				&& r.decided
+				&& !r.clean
+				&& (r.clientWritten() == 2)
+				&& (r.computed() == 0)
+				&& (app.boundedOther == 1)
+				&& (app.plainSites == Sites{ { appSite, 1 } })
+				&& (debug.boundedOther == 1)
+				&& (debug.plainSites == Sites{ { partSite, 1 } })
+				&& rows.contains(u"plainSites=["_q + appSite + u" x1]"_q)
+				&& rows.contains(u"plainSites=["_q + partSite + u" x1]"_q),
+			what,
+			SiteDetails(app) + u" | "_q + SiteDetails(debug) + tail(r));
+	}
+	{
+		const auto what = u"secrecy self-test: the same value as a declared "
+			"computed field's value is reported and does not decide, so a "
+			"scan whose only hit is that one is clean"_q;
+		const auto result = runKept(what, MirroredFixture(true));
+		const auto &r = result.reading;
+		const auto &app = ClassOf(r, SecrecyClass::AppLog);
+		const auto &debug = ClassOf(r, SecrecyClass::DebugLog);
+		const auto reported = [](
+				const SecrecyClassReading &c,
+				const QString &site) {
+			return (c.boundedOther == 0)
+				&& (c.boundedComputed == 1)
+				&& c.plainSites.empty()
+				&& (c.computedSites == Sites{ { site, 1 } });
+		};
+		const auto row = u"SECRECY_COMPUTED: total=2 sites=[AppLog|"_q
+			+ appSite
+			+ u" x1, DebugLog|"_q
+			+ partSite
+			+ u" x1] (reported, non-deciding)"_q;
+		Check(
+			result.prepared
+				&& r.decided
+				&& r.clean
+				&& (r.clientWritten() == 0)
+				&& (r.computed() == 2)
+				&& reported(app, appSite)
+				&& reported(debug, partSite)
+				&& SecrecyRows(r).contains(row),
+			what,
+			SiteDetails(app) + u" | "_q + SiteDetails(debug) + tail(r));
+	}
+	{
+		const auto what = u"secrecy self-test: on the declared line the same "
+			"value in another, undeclared field, in free text or in part of "
+			"the declared field's value still fails the scan"_q;
+		auto fixture = CleanFixture();
+		fixture.computed.push_back(SelfDeclaration());
+		fixture.parts[u"log_10_00.txt"_q] += QStringList{
+			Entry(ComputedLine(pw, pw)),
+			Entry(ComputedLine(u"17"_q, pw, u" retry "_q + pw)),
+			Entry(ComputedLine(u"17"_q, u"v-"_q + pw)),
+		};
+		const auto result = runKept(what, fixture);
+		const auto &r = result.reading;
+		const auto &debug = ClassOf(r, SecrecyClass::DebugLog);
+		const auto plain = Sites{
+			{ part + head + kSiteNoField, 2 },
+			{ part + head + u"span"_q, 1 },
+		};
+		Check(
+			result.prepared
+				&& r.decided
+				&& !r.clean
+				&& (r.clientWritten() == 3)
+				&& (r.computed() == 2)
+				&& (debug.plainSites == plain)
+				&& (debug.computedSites == Sites{ { partSite, 2 } }),
+			what,
+			SiteDetails(debug) + tail(r));
+	}
+	{
+		const auto what = u"secrecy self-test: a site that would print the "
+			"hit or another secret, or a line with no field, is withheld and "
+			"still fails the scan"_q;
+		const auto result = runKept(what, SitesFixture());
+		const auto &r = result.reading;
+		const auto &app = ClassOf(r, SecrecyClass::AppLog);
+		const auto &debug = ClassOf(r, SecrecyClass::DebugLog);
+		const auto plain = Sites{
+			{ part + u"|"_q + kSiteWithheld, 6 },
+			{ part + head + kSiteNoField, 1 },
+		};
+		const auto leaks = SelfLeaksIn(SecrecyRows(r));
+		Check(
+			result.prepared
+				&& r.decided
+				&& !r.clean
+				&& (r.computed() == 2)
+				&& (r.clientWritten() == 9)
+				&& (debug.boundedOther == 7)
+				&& (debug.boundedComputed == 1)
+				&& (debug.wordRunsOther == 1)
+				&& (debug.tokensOther == 1)
+				&& (debug.plainSites == plain)
+				&& leaks.isEmpty(),
+			what,
+			SiteDetails(app)
+				+ u" | "_q
+				+ SiteDetails(debug)
+				+ tail(r)
+				+ u" hits=["_q
+				+ leaks.join(u", "_q)
+				+ u"]"_q);
+	}
+	struct Exempt {
+		QString name;
+		SecrecyClass cls = SecrecyClass::TestLog;
+		Fn<void(SelfFixture&)> plant;
+		Fn<int(const SecrecyClassReading&)> counter;
+		QString sendSite; // the Send site the hit must be reported at
+	};
+	const auto exempts = std::vector<Exempt>{
+		{
+			u"word run"_q,
+			SecrecyClass::DebugLog,
+			[=](SelfFixture &f) {
+				f.parts[u"log_10_00.txt"_q].push_back(Entry(ComputedLine(
+					u"17"_q,
+					a[4] + QChar(',') + a[5])));
+			},
+			[](const SecrecyClassReading &c) { return c.wordRunsOther; },
+		},
+		{
+			u"token"_q,
+			SecrecyClass::DebugLog,
+			[=](SelfFixture &f) {
+				f.parts[u"log_10_00.txt"_q].push_back(
+					Entry(ComputedLine(u"17"_q, kSelfToken)));
+			},
+			[](const SecrecyClassReading &c) { return c.tokensOther; },
+		},
+		{
+			u"Send-entry hit"_q,
+			SecrecyClass::MtpLog,
+			[=](SelfFixture &f) {
+				InsertBeforePlanted(f.parts[u"mtp_10_00.txt"_q], SendEntry({
+					u"    query: { messages_sendMessage"_q,
+					u"      message: \""_q
+						+ ComputedLine(u"17"_q, pw)
+						+ u"\" [STRING]"_q,
+					u"    }"_q,
+				}));
+			},
+			[](const SecrecyClassReading &c) { return c.boundedSend; },
+			u"messages_sendMessage/messages_sendMessage.message"_q,
+		},
+	};
+	for (const auto &entry : exempts) {
+		const auto what = u"secrecy self-test: a declaration exempts no "_q
+			+ entry.name
+			+ u", even in the declared field"_q;
+		auto fixture = CleanFixture();
+		fixture.computed.push_back(SelfDeclaration());
+		entry.plant(fixture);
+		const auto result = runKept(what, fixture);
+		const auto &r = result.reading;
+		const auto &c = ClassOf(r, entry.cls);
+		Check(
+			result.prepared
+				&& r.decided
+				&& !r.clean
+				&& (r.clientWritten() == 1)
+				&& (r.computed() == 0)
+				&& (entry.counter(c) == 1)
+				&& (entry.sendSite.isEmpty()
+					|| c.sendSites.contains(entry.sendSite)),
+			what,
+			SiteDetails(c) + tail(r));
 	}
 }
 
@@ -1949,20 +2502,36 @@ void SelfPrintsNothing(const std::shared_ptr<SelfState> &state) {
 		++readings;
 	}
 	const auto memoryLeaks = SelfLeaksIn(rows);
+	// The leak check must have examined rows that do print sites: the
+	// computed row, the withheld sites and a printed head with "-".
+	const auto joined = rows.join(QChar('\n'));
+	const auto computedRow = u"SECRECY_COMPUTED: total=2 "
+		"sites=[AppLog|log.txt|"_q;
+	const auto sitesPrinted = joined.contains(computedRow)
+		&& joined.contains(u"|?|? x6"_q)
+		&& joined.contains(u"|"_q + kSelfComputedHead + u"|- x1"_q);
 	Check(
-		(readings >= 15) && !rows.isEmpty() && memoryLeaks.isEmpty(),
+		(readings >= 15)
+			&& !rows.isEmpty()
+			&& memoryLeaks.isEmpty()
+			&& sitesPrinted,
 		u"secrecy self-test: no row of a clean, dirty or undecided reading "
 		"carries a synthetic secret, word, pair, token or scanned line"_q,
-		u"readings=%1 rows=%2 hits=[%3]"_q
+		u"readings=%1 rows=%2 sitesPrinted=%3 hits=[%4]"_q
 			.arg(readings)
 			.arg(rows.size())
+			.arg(B(sitesPrinted))
 			.arg(memoryLeaks.join(u", "_q)));
 
+	const auto prepared = u"secrecy self-test: rows written to the test log"_q;
 	const auto run = RunFixture(CleanFixture());
-	CheckPrepared(u"secrecy self-test: rows written to the test log"_q, run);
+	CheckPrepared(prepared, run);
+	const auto sites = RunFixture(SitesFixture());
+	CheckPrepared(prepared, sites);
 	const auto path = TestLogPath();
 	const auto mark = QFileInfo(path).size();
-	const auto written = SecrecyRows(run.reading);
+	auto written = SecrecyRows(run.reading);
+	written += SecrecyRows(sites.reading);
 	for (const auto &row : written) {
 		Note(row);
 	}
@@ -1970,8 +2539,11 @@ void SelfPrintsNothing(const std::shared_ptr<SelfState> &state) {
 	const auto fileLeaks = SelfLeaksIn({ appended });
 	Check(
 		run.prepared
+			&& sites.prepared
 			&& !appended.isEmpty()
 			&& appended.contains(u"SECRECY_SCAN:"_q)
+			&& appended.contains(u"SECRECY_COMPUTED: total=2 "_q)
+			&& appended.contains(u"|?|? x6"_q)
 			&& fileLeaks.isEmpty(),
 		u"secrecy self-test: the rows as written to test_log.txt carry no "
 		"synthetic secret either"_q,
@@ -2038,6 +2610,14 @@ int SecrecyReading::received() const {
 	auto result = 0;
 	for (const auto &reading : classes) {
 		result += reading.received();
+	}
+	return result;
+}
+
+int SecrecyReading::computed() const {
+	auto result = 0;
+	for (const auto &reading : classes) {
+		result += reading.boundedComputed;
 	}
 	return result;
 }
@@ -2145,14 +2725,15 @@ SecrecyLaunchLogs SelectThisLaunchLogs(
 SecrecyReading ReadSecrecy(
 		const SecrecySecrets &secrets,
 		const SecrecyLaunchLogs &logs,
-		const QString &plantedControl) {
+		const QString &plantedControl,
+		const std::vector<SecrecyComputedField> &computedFields) {
 	auto result = SecrecyReading();
 	result.launchStart = logs.launchStart;
 	result.scanAt = logs.scanAt;
 	result.candidates = logs.candidates;
 
 	const auto usable = UsableSecrets(secrets, &result);
-	const auto matcher = SecrecyMatcher(usable);
+	const auto matcher = SecrecyMatcher(usable, computedFields);
 	ReadCanaries(usable, result);
 
 	auto order = std::vector<SecrecyClass>{
@@ -2266,6 +2847,7 @@ QStringList SecrecyRows(const SecrecyReading &reading) {
 		+ reading.candidateIdentities.join(u", "_q)
 		+ u"]"_q);
 	auto recvSites = std::map<QString, int>();
+	auto computedSites = std::map<QString, int>();
 	auto wordRunsRecv = 0;
 	auto boundedRecv = 0;
 	auto tokensRecv = 0;
@@ -2273,6 +2855,9 @@ QStringList SecrecyRows(const SecrecyReading &reading) {
 		result.push_back(ClassRow(c));
 		for (const auto &[site, hits] : c.recvSites) {
 			recvSites[site] += hits;
+		}
+		for (const auto &[site, hits] : c.computedSites) {
+			computedSites[SecrecyClassName(c.cls) + QChar('|') + site] += hits;
 		}
 		wordRunsRecv += c.wordRunsRecv;
 		boundedRecv += c.boundedRecv;
@@ -2286,6 +2871,10 @@ QStringList SecrecyRows(const SecrecyReading &reading) {
 		.arg(boundedRecv)
 		.arg(tokensRecv)
 		.arg(SitesText(recvSites)));
+	result.push_back(u"SECRECY_COMPUTED: total=%1 sites=[%2] (reported, "
+		"non-deciding)"_q
+		.arg(reading.computed())
+		.arg(SitesText(computedSites)));
 	return result;
 }
 
@@ -2316,7 +2905,8 @@ bool CheckSecrecy(const SecrecyScanArgs &args, const QString &what) {
 			return source.control;
 		}();
 	}
-	const auto reading = ReadSecrecy(args.secrets, logs, nonce);
+	const auto reading
+		= ReadSecrecy(args.secrets, logs, nonce, args.computedFields);
 	for (const auto &c : reading.classes) {
 		ReportClass(c);
 	}
@@ -2334,9 +2924,10 @@ bool CheckSecrecy(const SecrecyScanArgs &args, const QString &what) {
 	Check(
 		reading.clean,
 		what + u": no client-written fixture secret"_q,
-		u"clientWritten=%1 received=%2 decided=%3"_q
+		u"clientWritten=%1 received=%2 computed=%3 decided=%4"_q
 			.arg(reading.clientWritten())
 			.arg(reading.received())
+			.arg(reading.computed())
 			.arg(B(reading.decided)));
 
 	// The same matcher over exactly the bytes this call appended, raw, so
@@ -2367,6 +2958,7 @@ void AppendSecrecyScanSelfTest(not_null<Runner*> runner) {
 			u"secrecy_self_client_written"_q,
 			[=] { SelfClientWritten(state); },
 		},
+		{ u"secrecy_self_sites"_q, [=] { SelfSites(state); } },
 		{ u"secrecy_self_undecided"_q, [=] { SelfUndecided(state); } },
 		{ u"secrecy_self_identity"_q, [=] { SelfIdentity(state); } },
 		{
