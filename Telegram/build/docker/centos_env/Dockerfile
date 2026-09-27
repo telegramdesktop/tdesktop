@@ -1012,7 +1012,7 @@ cd ..
 git init wallet-engine
 cd wallet-engine
 git remote add origin https://github.com/i582/wallet-engine.git
-git fetch --depth=1 origin 12f0b49a1c0fbd6cd575bcadd9c54e5706b0f42e
+git fetch --depth=1 origin 20adadc9401519819ace972f5c246adca582d04d
 git reset --hard FETCH_HEAD
 git apply ../patches/wallet-engine.patch
 cd ..
