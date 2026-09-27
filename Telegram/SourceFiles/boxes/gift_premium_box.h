@@ -71,7 +71,8 @@ void ResolveGiveawayInfo(
 
 [[nodiscard]] QString TonAddressUrl(
 	not_null<Main::Session*> session,
-	const QString &address);
+	const QString &address,
+	bool nft = false);
 
 void AddStarGiftTable(
 	std::shared_ptr<ChatHelpers::Show> show,
