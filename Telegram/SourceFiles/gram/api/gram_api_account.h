@@ -17,9 +17,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Gram {
 
+struct AddressFunds {
+	int64 balanceNano = 0;
+	bool neverUsed = false;
+};
+
 // The same read the engine refreshes its own account with.
 [[nodiscard]] HttpRequest AddressInformationRequest(const QString &address);
-[[nodiscard]] std::optional<int64> ParseAddressBalance(
+[[nodiscard]] std::optional<AddressFunds> ParseAddressFunds(
 	const QByteArray &json);
 
 } // namespace Gram

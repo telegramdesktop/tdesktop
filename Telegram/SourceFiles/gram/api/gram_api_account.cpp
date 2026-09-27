@@ -14,6 +14,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <cmath>
 
 namespace Gram {
+namespace {
+
+[[nodiscard]] std::optional<int64> ParseNonNegative(const QJsonValue &value) {
+	if (value.isString()) {
+		auto ok = false;
+		const auto result = value.toString().toLongLong(&ok);
+		return (ok && result >= 0) ? std::make_optional(result) : std::nullopt;
+	} else if (value.isDouble()) {
+		const auto result = value.toDouble();
+		const auto exact = (result >= 0.)
+			&& (result <= float64(int64(1) << 53))
+			&& (result == std::floor(result));
+		return exact ? std::make_optional(int64(result)) : std::nullopt;
+	}
+	return std::nullopt;
+}
+
+} // namespace
 
 HttpRequest AddressInformationRequest(const QString &address) {
 	return {
@@ -23,7 +41,7 @@ HttpRequest AddressInformationRequest(const QString &address) {
 	};
 }
 
-std::optional<int64> ParseAddressBalance(const QByteArray &json) {
+std::optional<AddressFunds> ParseAddressFunds(const QByteArray &json) {
 	const auto document = QJsonDocument::fromJson(json);
 	if (document.isNull() || !document.isObject()) {
 		return std::nullopt;
@@ -33,19 +51,17 @@ std::optional<int64> ParseAddressBalance(const QByteArray &json) {
 	if (!object.value(u"ok"_q).toBool() || !result.isObject()) {
 		return std::nullopt;
 	}
-	const auto balance = result.toObject().value(u"balance"_q);
-	if (balance.isString()) {
-		auto ok = false;
-		const auto value = balance.toString().toLongLong(&ok);
-		return (ok && value >= 0) ? std::make_optional(value) : std::nullopt;
-	} else if (balance.isDouble()) {
-		const auto value = balance.toDouble();
-		const auto exact = (value >= 0.)
-			&& (value <= float64(int64(1) << 53))
-			&& (value == std::floor(value));
-		return exact ? std::make_optional(int64(value)) : std::nullopt;
+	const auto account = result.toObject();
+	const auto balance = ParseNonNegative(account.value(u"balance"_q));
+	if (!balance) {
+		return std::nullopt;
 	}
-	return std::nullopt;
+	const auto last = account.value(u"last_transaction_id"_q).toObject();
+	const auto lt = ParseNonNegative(last.value(u"lt"_q));
+	return AddressFunds{
+		.balanceNano = *balance,
+		.neverUsed = (lt == int64(0)),
+	};
 }
 
 } // namespace Gram

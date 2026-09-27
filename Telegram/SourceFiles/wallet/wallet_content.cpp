@@ -4581,13 +4581,19 @@ void SetButtonDisabledLook(
 	return field;
 }
 
+// The send box offers to fund an empty wallet, so the balance never hides one.
+[[nodiscard]] bool CanSendToUser(
+		not_null<Main::Session*> session,
+		UserId id) {
+	const auto error = session->wallet().userAddresses().forceResolveError(id);
+	return error.isEmpty() || (error == u"WALLET_BALANCE_EMPTY"_q);
+}
+
 [[nodiscard]] UserData *SendableUser(
 		not_null<Main::Session*> session,
 		UserId id) {
 	const auto user = id ? session->data().userLoaded(id) : nullptr;
-	if (!user
-		|| user->isSelf()
-		|| !session->wallet().userAddresses().forceResolveError(id).isEmpty()) {
+	if (!user || user->isSelf() || !CanSendToUser(session, id)) {
 		return nullptr;
 	}
 	return user;
@@ -13365,10 +13371,7 @@ void ShowSendToLinkRecipient(
 			return;
 		}
 		const auto user = peer ? peer->asUser() : nullptr;
-		const auto addresses = &session->wallet().userAddresses();
-		if (!user
-			|| !addresses->forceResolveError(
-				peerToUser(user->id)).isEmpty()) {
+		if (!user || !CanSendToUser(session, peerToUser(user->id))) {
 			show->showToast(tr::lng_wallet_send_user_unavailable(tr::now));
 			return;
 		}

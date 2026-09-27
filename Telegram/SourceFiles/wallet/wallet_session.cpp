@@ -506,6 +506,18 @@ struct MergedHead {
 		|| record.unresolved(servedKey);
 }
 
+// WHY: a parked record at the served address is an older key of this
+// same account, so its balance is the one the card already shows.
+[[nodiscard]] QString CheckableParkedAddress(
+		const CustodyRecord &record,
+		const QString &servedAddress) {
+	const auto address = CanonicalAddress(record.address);
+	return (record.network == int(engine::Network::kMainnet)
+		&& address != servedAddress)
+		? address
+		: QString();
+}
+
 // Public keys and addresses name a wallet; the words never reach the log.
 [[nodiscard]] QString LogKey(const QByteArray &key) {
 	return key.isEmpty() ? u"(none)"_q : QString::fromLatin1(key.toHex());
@@ -2307,13 +2319,6 @@ void Session::setPanel(std::unique_ptr<Ui::SeparatePanel> panel) {
 		_stateApi.request(base::take(_waltBalanceRequestId)).cancel();
 		_waltBalanceRequested = false;
 		_existingWaltBalanceUrl = QString();
-		for (const auto requestId : base::take(_parkedBalanceRequestIds)) {
-			_api.cancelRequest(requestId);
-		}
-		++_parkedBalanceBatch;
-		_parkedBalanceAddresses.clear();
-		_parkedBalanceNano = std::nullopt;
-		_parkedBalanceWanted = false;
 	}
 }
 
@@ -2709,68 +2714,150 @@ rpl::producer<QString> Session::existingWaltBalanceUrlValue() {
 }
 
 rpl::producer<std::optional<int64>> Session::parkedBalanceNanoValue() {
-	_parkedBalanceWanted = true;
-	requestParkedBalance();
+	requestParkedChecks(true);
 	return _parkedBalanceNano.value();
 }
 
-void Session::requestParkedBalance() {
-	// WHY: a parked record at the served address is an older key of this
-	// same account, so its balance is the one the card already shows.
+void Session::syncParkedChecks(
+		const CustodyStore &store,
+		const QString &servedAddress) {
 	auto addresses = std::vector<QString>();
-	if (_presence.current() == Presence::Ready) {
-		for (const auto &record : parkedRecords()) {
-			const auto address = CanonicalAddress(record.address);
-			if (record.network == int(engine::Network::kMainnet)
-				&& !address.isEmpty()
-				&& (address != _address)
-				&& !ranges::contains(addresses, address)) {
-				addresses.push_back(address);
-			}
+	for (const auto &record : store.records) {
+		const auto address = CheckableParkedAddress(record, servedAddress);
+		if (!address.isEmpty() && !ranges::contains(addresses, address)) {
+			addresses.push_back(address);
 		}
-		ranges::sort(addresses);
 	}
-	if (addresses == _parkedBalanceAddresses) {
+	for (auto i = begin(_parkedChecks); i != end(_parkedChecks);) {
+		if (ranges::contains(addresses, i->first)) {
+			++i;
+			continue;
+		} else if (i->second.requestId) {
+			_api.cancelRequest(i->second.requestId);
+		}
+		i = _parkedChecks.erase(i);
+	}
+	for (const auto &address : addresses) {
+		_parkedChecks.emplace(address, ParkedCheck());
+	}
+}
+
+void Session::requestParkedFunds(const QString &address) {
+	const auto i = _parkedChecks.find(address);
+	if (i == end(_parkedChecks)
+		|| i->second.requestId
+		|| _presence.current() != Presence::Ready) {
 		return;
 	}
-	for (const auto requestId : base::take(_parkedBalanceRequestIds)) {
-		_api.cancelRequest(requestId);
+	const auto revision = i->second.revision = ++_parkedCheckRevision;
+	const auto requestId = _api.request(
+		Gram::AddressInformationRequest(FormatFriendly(address, false)),
+		[=](const QByteArray &json) {
+			const auto funds = Gram::ParseAddressFunds(json);
+			if (!funds) {
+				LOG(("Wallet Error: parked balance parse failed."));
+			}
+			finishParkedCheck(address, revision, funds);
+		},
+		[=](const Gram::ApiError &error) {
+			LOG(("Wallet Error: parked balance request failed: %1"
+				).arg(error.message));
+			finishParkedCheck(address, revision, std::nullopt);
+		});
+	const auto j = _parkedChecks.find(address);
+	if (j != end(_parkedChecks) && j->second.revision == revision) {
+		j->second.requestId = requestId;
 	}
-	_parkedBalanceAddresses = addresses;
-	_parkedBalanceNano = std::nullopt;
-	struct Sum {
-		int64 nano = 0;
-		int left = 0;
-	};
-	const auto batch = ++_parkedBalanceBatch;
-	const auto sum = std::make_shared<Sum>(Sum{
-		.left = int(addresses.size()),
-	});
-	for (const auto &address : addresses) {
-		const auto requestId = _api.request(
-			Gram::AddressInformationRequest(FormatFriendly(address, false)),
-			[=](const QByteArray &json) {
-				if (batch != _parkedBalanceBatch) {
-					return;
-				} else if (const auto nano = Gram::ParseAddressBalance(json)) {
-					sum->nano += *nano;
-					if (!--sum->left) {
-						_parkedBalanceNano = sum->nano;
-					}
-				} else {
-					LOG(("Wallet Error: parked balance parse failed."));
-				}
-			},
-			[=](const Gram::ApiError &error) {
-				if (batch == _parkedBalanceBatch) {
-					LOG(("Wallet Error: parked balance request failed: %1"
-						).arg(error.message));
-				}
-			});
-		if (requestId) {
-			_parkedBalanceRequestIds.push_back(requestId);
+}
+
+void Session::finishParkedCheck(
+		const QString &address,
+		uint64 revision,
+		std::optional<Gram::AddressFunds> funds) {
+	const auto i = _parkedChecks.find(address);
+	if (i == end(_parkedChecks) || i->second.revision != revision) {
+		return;
+	}
+	auto &check = i->second;
+	check.requestId = 0;
+	if (!funds) {
+		check.funds = ParkedFunds::Unknown;
+	} else if (!funds->balanceNano && funds->neverUsed) {
+		check.funds = ParkedFunds::Empty;
+	} else {
+		check.funds = ParkedFunds::Funded;
+		check.nano = funds->balanceNano;
+	}
+	updateDeviceCustodyState();
+}
+
+void Session::requestParkedChecks(bool refresh) {
+	auto addresses = std::vector<QString>();
+	for (const auto &[address, check] : _parkedChecks) {
+		if ((check.funds == ParkedFunds::Checking)
+			|| (refresh
+				&& (check.funds == ParkedFunds::Funded
+					|| check.funds == ParkedFunds::Unknown))) {
+			addresses.push_back(address);
 		}
 	}
+	for (const auto &address : addresses) {
+		requestParkedFunds(address);
+	}
+}
+
+void Session::dropEmptyParked() {
+	if (_parkedDropping
+		|| custodyBusy()
+		|| _presence.current() != Presence::Ready) {
+		return;
+	}
+	for (const auto &record : custody().records) {
+		const auto address = CheckableParkedAddress(record, _address);
+		const auto i = _parkedChecks.find(address);
+		if (i == end(_parkedChecks) || i->second.funds != ParkedFunds::Empty) {
+			continue;
+		}
+		const auto key = record.publicKey;
+		_parkedDropping = true;
+		LOG(("Wallet Info: dropping an empty unused parked wallet."));
+		dropParked(key, [=] {
+			_parkedDropping = false;
+			dropEmptyParked();
+		}, [=](const QString &error) {
+			_parkedDropping = false;
+			const auto j = _parkedChecks.find(address);
+			if (j != end(_parkedChecks)
+				&& j->second.funds == ParkedFunds::Empty) {
+				j->second.funds = ParkedFunds::Unknown;
+			}
+			updateDeviceCustodyState();
+		});
+		return;
+	}
+}
+
+void Session::publishParkedBalance() {
+	auto sum = int64(0);
+	for (const auto &[address, check] : _parkedChecks) {
+		if (check.funds == ParkedFunds::Unknown) {
+			_parkedBalanceNano = std::nullopt;
+			return;
+		} else if (check.funds == ParkedFunds::Funded) {
+			sum += check.nano;
+		}
+	}
+	_parkedBalanceNano = sum;
+}
+
+bool Session::parkedHidden(
+		const CustodyRecord &record,
+		const QString &servedAddress) const {
+	const auto i = _parkedChecks.find(
+		CheckableParkedAddress(record, servedAddress));
+	return (i != end(_parkedChecks))
+		&& (i->second.funds == ParkedFunds::Checking
+			|| i->second.funds == ParkedFunds::Empty);
 }
 
 void Session::requestExistingWaltBalance() {
@@ -5263,7 +5350,7 @@ void Session::submitRotation(
 std::vector<CustodyRecord> Session::parkedRecords() {
 	auto result = std::vector<CustodyRecord>();
 	for (const auto &record : custody().records) {
-		if (parked(record)) {
+		if (parked(record) && !parkedHidden(record, _address)) {
 			result.push_back(record);
 		}
 	}
@@ -6659,13 +6746,16 @@ void Session::updateDeviceCustodyState(bool cachedOnly) {
 	if (!identity) {
 		return;
 	}
+	syncParkedChecks(store, identity->address);
+	publishParkedBalance();
 	const auto conflict = ranges::any_of(
 		store.records,
 		[&](const CustodyRecord &record) {
 			return RecordParked(
 				record,
 				identity->address,
-				identity->publicKey);
+				identity->publicKey)
+				&& !parkedHidden(record, identity->address);
 		});
 	const auto current = store.current(
 		identity->address,
@@ -6689,9 +6779,8 @@ void Session::updateDeviceCustodyState(bool cachedOnly) {
 	if (!cachedOnly) {
 		syncEngineClient();
 	}
-	if (_parkedBalanceWanted) {
-		requestParkedBalance();
-	}
+	requestParkedChecks(false);
+	dropEmptyParked();
 }
 
 void Session::syncEngineClient() {

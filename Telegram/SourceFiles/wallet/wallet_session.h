@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_cloud_password.h"
 #include "data/data_msg_id.h"
 #include "data/data_peer_id.h"
+#include "gram/api/gram_api_account.h"
 #include "gram/api/gram_api_nft.h"
 #include "mtproto/sender.h"
 #include "wallet/wallet_address.h"
@@ -836,7 +837,20 @@ private:
 	void applyGaslessInfo(GaslessInfo info, bool refreshed);
 	void applyGaslessTerms(GaslessTerms terms);
 	void requestExistingWaltBalance();
-	void requestParkedBalance();
+	void syncParkedChecks(
+		const CustodyStore &store,
+		const QString &servedAddress);
+	void requestParkedFunds(const QString &address);
+	void finishParkedCheck(
+		const QString &address,
+		uint64 revision,
+		std::optional<Gram::AddressFunds> funds);
+	void requestParkedChecks(bool refresh);
+	void dropEmptyParked();
+	void publishParkedBalance();
+	[[nodiscard]] bool parkedHidden(
+		const CustodyRecord &record,
+		const QString &servedAddress) const;
 	void applyState(const MTPWalletState &state, bool pushed);
 	void setPresence(Presence presence);
 	void revealLocally(
@@ -1182,11 +1196,23 @@ private:
 	rpl::variable<QString> _existingWaltBalanceUrl;
 	mtpRequestId _waltBalanceRequestId = 0;
 	bool _waltBalanceRequested = false;
+	// Checking and Empty hide a record: an empty unused one is dropped silently.
+	enum class ParkedFunds : uchar {
+		Checking,
+		Empty,
+		Funded,
+		Unknown,
+	};
+	struct ParkedCheck {
+		ParkedFunds funds = ParkedFunds::Checking;
+		int64 nano = 0;
+		uint64 revision = 0;
+		mtpRequestId requestId = 0;
+	};
+	base::flat_map<QString, ParkedCheck> _parkedChecks;
+	uint64 _parkedCheckRevision = 0;
+	bool _parkedDropping = false;
 	rpl::variable<std::optional<int64>> _parkedBalanceNano;
-	std::vector<QString> _parkedBalanceAddresses;
-	std::vector<mtpRequestId> _parkedBalanceRequestIds;
-	int _parkedBalanceBatch = 0;
-	bool _parkedBalanceWanted = false;
 	std::vector<TransferItem> _history;
 	rpl::event_stream<> _historyUpdates;
 	bool _historyHasNext = false;
