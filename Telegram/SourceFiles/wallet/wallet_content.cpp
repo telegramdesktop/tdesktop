@@ -104,6 +104,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_fiat.h"
 #include "wallet/wallet_key_protection.h"
 #include "wallet/wallet_onramp.h"
+#include "wallet/wallet_palette.h"
 #include "wallet/wallet_rates.h"
 #include "wallet/wallet_session.h"
 #include "wallet/wallet_ton_connect_box.h"
@@ -1195,6 +1196,7 @@ void SetAmountColor(
 	rpl::single(rpl::empty) | rpl::then(
 		style::PaletteChanged()
 	) | rpl::on_next([=] {
+		const auto scope = WindowPaletteScope(major);
 		major->setTextColorOverride(color->c);
 		minor->setTextColorOverride(color->c);
 	}, major->lifetime());
@@ -1859,6 +1861,7 @@ void AddDetailsAmountHeader(
 	rpl::single(rpl::empty) | rpl::then(
 		style::PaletteChanged()
 	) | rpl::on_next([=] {
+		const auto scope = WindowPaletteScope(container);
 		major->setTextColorOverride(color->c);
 		minor->setTextColorOverride(color->c);
 	}, container->lifetime());
@@ -2858,6 +2861,7 @@ void WalletReceiveBox(
 	) | rpl::then(
 		style::PaletteChanged()
 	) | rpl::on_next([=] {
+		const auto scope = WindowPaletteScope(box);
 		bar.title->setTextColorOverride(st::activeButtonFg->c);
 	}, box->lifetime());
 	bar.close->setIconOverride(
@@ -2869,10 +2873,13 @@ void WalletReceiveBox(
 	});
 
 	const auto inner = box->verticalLayout();
-	state->image = ReceiveQrImage(
-		address,
-		st::walletReceiveQrSize,
-		style::DevicePixelRatio());
+	{
+		const auto scope = WindowPaletteScope(box);
+		state->image = ReceiveQrImage(
+			address,
+			st::walletReceiveQrSize,
+			style::DevicePixelRatio());
+	}
 	const auto qrSide = state->image.width() / style::DevicePixelRatio();
 	const auto &padding = st::walletReceivePlatePadding;
 	const auto font = st::walletReceiveAddressFont->monospace();
@@ -2937,6 +2944,7 @@ void WalletReceiveBox(
 	}, plate->lifetime());
 	style::PaletteChanged(
 	) | rpl::on_next([=] {
+		const auto scope = WindowPaletteScope(plate);
 		state->image = ReceiveQrImage(
 			address,
 			st::walletReceiveQrSize,
@@ -2946,6 +2954,7 @@ void WalletReceiveBox(
 
 	const auto qrTarget = Ui::CreateChild<Ui::AbstractButton>(plate);
 	qrTarget->setClickedCallback([=] {
+		const auto scope = WindowPaletteScope(plate);
 		QGuiApplication::clipboard()->setImage(ReceiveQrImage(
 			address,
 			st::walletReceiveQrCopySize,
@@ -3316,12 +3325,9 @@ void SetupIntroTooltip(
 		bool finished = false;
 	};
 	const auto state = parent->lifetime().make_state<State>();
-	state->tooltip = Ui::CreateChild<Ui::GlareTooltip>(
-		parent.get(),
-		st::walletIntroTooltip,
-		st::walletIntroTooltipFont,
-		tr::lng_wallet_intro_text(tr::now),
-		Ui::GlareTooltipColors{
+	const auto colors = [=] {
+		const auto scope = WindowPaletteScope(parent);
+		return Ui::GlareTooltipColors{
 			.edge = st::windowActiveTextFg->c,
 			.center = anim::color(
 				st::windowActiveTextFg,
@@ -3329,9 +3335,21 @@ void SetupIntroTooltip(
 				0.35),
 			.rim = st::activeButtonFg->c,
 			.text = st::activeButtonFg->c,
-		});
+		};
+	};
+	state->tooltip = Ui::CreateChild<Ui::GlareTooltip>(
+		parent.get(),
+		st::walletIntroTooltip,
+		st::walletIntroTooltipFont,
+		tr::lng_wallet_intro_text(tr::now),
+		colors());
 	state->tooltip->setAttribute(Qt::WA_TransparentForMouseEvents);
 	state->tooltip->finishAnimating();
+	style::PaletteChanged() | rpl::on_next([=] {
+		if (!state->finished) {
+			state->tooltip->setColors(colors());
+		}
+	}, parent->lifetime());
 	const auto finish = [=] {
 		if (state->finished) {
 			return;
@@ -3519,6 +3537,7 @@ void WalletTransactionBox(
 			[=] { show->showBox(Box(WalletHowItWorksBox, session)); },
 			&st::menuIconFaq);
 		raw->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
+		const auto scope = WindowPaletteScope(box);
 		raw->popup(toggle->mapToGlobal(QPoint(
 			toggle->width(),
 			toggle->height())));
@@ -4387,18 +4406,33 @@ namespace {
 // rest of the app shows a disabled button. The colors come from the button's
 // own style, so an attention or light button fades into its own background
 // instead of an active button's.
+void ApplyButtonDisabledLook(not_null<Ui::RoundButton*> button) {
+	const auto color = [&]() -> std::optional<QColor> {
+		if (!button->isDisabled()) {
+			return std::nullopt;
+		}
+		const auto scope = WindowPaletteScope(button);
+		const auto &buttonStyle = button->st();
+		return anim::color(buttonStyle.textBg, buttonStyle.textFg, 0.5);
+	}();
+	button->setTextFgOverride(color);
+}
+
 void SetButtonDisabledLook(
 		not_null<Ui::RoundButton*> button,
 		bool disabled) {
 	if (disabled) {
 		button->clearState();
 	}
-	const auto &buttonStyle = button->st();
 	button->setDisabled(disabled);
 	button->setAttribute(Qt::WA_TransparentForMouseEvents, disabled);
-	button->setTextFgOverride(disabled
-		? anim::color(buttonStyle.textBg, buttonStyle.textFg, 0.5)
-		: std::optional<QColor>());
+	ApplyButtonDisabledLook(button);
+	if (!button->property("walletDisabledLook").toBool()) {
+		button->setProperty("walletDisabledLook", true);
+		style::PaletteChanged() | rpl::on_next([=] {
+			ApplyButtonDisabledLook(button);
+		}, button->lifetime());
+	}
 }
 
 [[nodiscard]] not_null<Ui::TonAmountInput*> AddAmountField(
@@ -5541,6 +5575,7 @@ void WalletSendBox(
 			editComment,
 			&st::menuIconChatBubble);
 		raw->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
+		const auto scope = WindowPaletteScope(box);
 		raw->popup(toggle->mapToGlobal(QPoint(
 			toggle->width(),
 			toggle->height())));
@@ -11164,11 +11199,12 @@ void SetupCardBalance(
 		not_null<BalanceInk*> ink,
 		not_null<Main::Session*> session,
 		Fn<void()> repaint,
-		rpl::lifetime &lifetime) {
+		not_null<Ui::RpWidget*> owner) {
 	rpl::combine(
 		session->wallet().balanceNanoValue(),
 		FiatRateValue(session)
 	) | rpl::on_next([=](int64 nano, FiatRate rate) {
+		const auto scope = WindowPaletteScope(owner);
 		ink->setContent(
 			CreditsAmount(
 				nano / Ui::kNanosInOne,
@@ -11176,7 +11212,7 @@ void SetupCardBalance(
 				CreditsType::Ton),
 			FormatFiat(nano, rate));
 		repaint();
-	}, lifetime);
+	}, owner->lifetime());
 }
 
 Card::Card(
@@ -12014,6 +12050,7 @@ void Content::setupBalance() {
 
 	widthValue(
 	) | rpl::on_next([=](int width) {
+		const auto scope = WindowPaletteScope(this);
 		_ink->setOuterWidth(width);
 		repaintBalance();
 	}, lifetime());
@@ -12022,10 +12059,11 @@ void Content::setupBalance() {
 		_ink.get(),
 		&_show->session(),
 		repaintBalance,
-		lifetime());
+		this);
 
 	style::PaletteChanged(
 	) | rpl::on_next([=] {
+		const auto scope = WindowPaletteScope(this);
 		_ink->refresh();
 		_card->invalidateCache();
 		_card->update();
@@ -12041,6 +12079,7 @@ void Content::setupBalance() {
 			st::separatePanelTitle.style,
 			title,
 			kPlainTextOptions);
+		const auto scope = WindowPaletteScope(this);
 		_ink->refresh();
 		repaintBalance();
 	}, lifetime());
@@ -13125,7 +13164,10 @@ object_ptr<Ui::RpWidget> MakeWalletCard(
 	overlay->raise();
 
 	const auto ink = raw->lifetime().make_state<BalanceInk>();
-	ink->setOuterWidth(st::walletPanelSize.width());
+	{
+		const auto scope = WindowPaletteScope(raw);
+		ink->setOuterWidth(st::walletPanelSize.width());
+	}
 
 	raw->sizeValue(
 	) | rpl::on_next([=](QSize size) {
@@ -13150,12 +13192,13 @@ object_ptr<Ui::RpWidget> MakeWalletCard(
 		ink,
 		&show->session(),
 		[=] { overlay->update(); },
-		raw->lifetime());
+		raw);
 
 	rpl::merge(
 		style::PaletteChanged(),
 		tr::lng_wallet_card_ticker() | rpl::to_empty
 	) | rpl::on_next([=] {
+		const auto scope = WindowPaletteScope(raw);
 		ink->refresh();
 		card->invalidateCache();
 		card->update();
@@ -13180,7 +13223,10 @@ object_ptr<Ui::RpWidget> MakeTransferCard(
 		QStringList lines;
 	};
 	const auto state = raw->lifetime().make_state<State>();
-	state->ink.setOuterWidth(st::walletPanelSize.width());
+	{
+		const auto scope = WindowPaletteScope(raw);
+		state->ink.setOuterWidth(st::walletPanelSize.width());
+	}
 	state->lines = TransferCardLines(args.destination, args.recipients);
 
 	const auto info = Ui::CreateChild<Ui::AbstractButton>(raw);
@@ -13228,6 +13274,7 @@ object_ptr<Ui::RpWidget> MakeTransferCard(
 	FiatRateValue(
 		session
 	) | rpl::on_next([=](FiatRate rate) {
+		const auto scope = WindowPaletteScope(raw);
 		state->ink.setContent(
 			CreditsAmount(
 				magnitude / Ui::kNanosInOne,
@@ -13242,6 +13289,7 @@ object_ptr<Ui::RpWidget> MakeTransferCard(
 		style::PaletteChanged(),
 		tr::lng_wallet_card_ticker() | rpl::to_empty
 	) | rpl::on_next([=] {
+		const auto scope = WindowPaletteScope(raw);
 		state->ink.refresh();
 		raw->update();
 	}, raw->lifetime());

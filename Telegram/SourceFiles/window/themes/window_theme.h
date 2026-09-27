@@ -42,6 +42,7 @@ inline constexpr auto kThemeSchemeSizeLimit = 1024 * 1024;
 inline constexpr auto kThemeBackgroundSizeLimit = 4 * 1024 * 1024;
 
 struct ParsedTheme;
+enum class EmbeddedType;
 
 [[nodiscard]] bool IsEmbeddedTheme(const QString &path);
 
@@ -103,6 +104,8 @@ void ToggleNightModeWithConfirmation(
 	Fn<void()> toggle);
 void ResetToSomeDefault();
 [[nodiscard]] bool IsNonDefaultBackground();
+// Counts a theme being applied but not kept yet.
+[[nodiscard]] std::optional<EmbeddedType> CurrentEmbeddedType();
 void Revert();
 
 [[nodiscard]] rpl::producer<bool> IsThemeDarkValue();

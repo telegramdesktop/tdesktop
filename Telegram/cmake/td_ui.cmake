@@ -715,6 +715,8 @@ PRIVATE
     ui/userpic_view.h
     ui/webview_helpers.cpp
     ui/webview_helpers.h
+    ui/window_palette.cpp
+    ui/window_palette.h
 
     window/window_slide_animation.cpp
     window/window_slide_animation.h

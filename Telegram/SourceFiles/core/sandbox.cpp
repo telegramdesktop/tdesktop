@@ -29,7 +29,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "base/qthelp_regex.h"
 #include "ui/ui_utility.h"
+#include "ui/window_palette.h"
 #include "ui/effects/animations.h"
+#include "ui/style/style_core_palette.h"
 
 #ifdef Q_OS_MAC
 #include "platform/mac/global_menu_mac.h"
@@ -779,6 +781,16 @@ bool Sandbox::notify(QObject *receiver, QEvent *e) {
 		if (!weak) {
 			return true;
 		}
+	}
+	if (e->type() == QEvent::Paint
+		&& Ui::HasWindowPalettes()
+		&& receiver->isWidgetType()) {
+		// WHY: stock widgets read the one main palette at paint, so a window
+		// with its own palette gets it swapped into the main palette's slots
+		// for exactly the duration of each of its widgets' paint events.
+		const auto scope = style::main_palette::Override(
+			Ui::WindowPaletteFor(static_cast<QWidget*>(receiver)));
+		return QApplication::notify(receiver, e);
 	}
 	return QApplication::notify(receiver, e);
 }

@@ -49,6 +49,15 @@ void PaintCardBackground(QPainter &p, const QRect &card) {
 	p.drawRoundedRect(card, st::walletCardRadius, st::walletCardRadius);
 }
 
+QColor CardReferenceColor() {
+	const auto dark = CardDarkBlue();
+	const auto light = CardLightBlue();
+	return QColor::fromRgbF(
+		(dark.redF() + light.redF()) / 2.,
+		(dark.greenF() + light.greenF()) / 2.,
+		(dark.blueF() + light.blueF()) / 2.);
+}
+
 void PaintCardQrPlate(QPainter &p, const QRect &plate) {
 	auto hq = PainterHighQualityEnabler(p);
 	const auto radians = kQrPlateAngle * M_PI / 180.;

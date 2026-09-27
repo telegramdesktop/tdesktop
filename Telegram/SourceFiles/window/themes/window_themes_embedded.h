@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace style {
 struct colorizer;
+class palette;
 } // namespace style
 
 namespace Ui {
@@ -68,6 +69,9 @@ void Colorize(
 	bool dark,
 	std::optional<QColor> accent);
 [[nodiscard]] Fn<void(style::palette&)> PrepareCurrentPaletteCallback();
+[[nodiscard]] std::unique_ptr<style::palette> PrepareEmbeddedPalette(
+	EmbeddedType type,
+	std::optional<QColor> accent);
 
 // Chat background paired with the PreparePaletteCallback palette.
 [[nodiscard]] Ui::ChatThemeBackground PrepareDefaultBackground(bool dark);

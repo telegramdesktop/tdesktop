@@ -39,6 +39,7 @@ public:
 	void fade(bool shown);
 	void finishAnimating();
 	void setOpacity(float64 opacity);
+	void setColors(GlareTooltipColors colors);
 	void stopGlare();
 
 	[[nodiscard]] crl::time glarePeriod() const;

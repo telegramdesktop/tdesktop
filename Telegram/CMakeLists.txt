@@ -2197,6 +2197,8 @@ PRIVATE
     wallet/wallet_key_protection.h
     wallet/wallet_onramp.cpp
     wallet/wallet_onramp.h
+    wallet/wallet_palette.cpp
+    wallet/wallet_palette.h
     wallet/wallet_panel.cpp
     wallet/wallet_panel.h
     wallet/wallet_phrase_shares.cpp

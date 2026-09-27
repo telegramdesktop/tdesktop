@@ -1334,6 +1334,24 @@ bool IsEmbeddedTheme(const QString &path) {
 	return path.isEmpty() || path.startsWith(u":/gui/"_q);
 }
 
+std::optional<EmbeddedType> CurrentEmbeddedType() {
+	if (Background()->editingTheme().has_value()) {
+		return std::nullopt;
+	}
+	const auto &object = AreTestingTheme()
+		? GlobalApplying.data.object
+		: Background()->themeObject();
+	if (object.cloud.id) {
+		return std::nullopt;
+	}
+	const auto schemes = EmbeddedThemes();
+	const auto i = ranges::find(
+		schemes,
+		object.pathAbsolute,
+		&EmbeddedScheme::path);
+	return (i != end(schemes)) ? std::make_optional(i->type) : std::nullopt;
+}
+
 bool Initialize(Saved &&saved) {
 	if (InitializeFromSaved(std::move(saved))) {
 		Background()->setThemeObject(saved.object);

@@ -88,6 +88,12 @@ void GlareTooltip::setOpacity(float64 opacity) {
 	update();
 }
 
+void GlareTooltip::setColors(GlareTooltipColors colors) {
+	_colors = std::move(colors);
+	_image = QImage();
+	update();
+}
+
 crl::time GlareTooltip::glarePeriod() const {
 	return _glareDuration + kGlareTimeout;
 }

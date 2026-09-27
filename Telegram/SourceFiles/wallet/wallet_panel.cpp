@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/separate_panel.h"
 #include "wallet/wallet_address.h"
 #include "wallet/wallet_content.h"
+#include "wallet/wallet_palette.h"
 #include "wallet/wallet_session.h"
 #include "wallet/wallet_ton_connect.h"
 #include "wallet/wallet_ton_connect_link.h"
@@ -72,6 +73,7 @@ not_null<Ui::SeparatePanel*> ShowWallet(not_null<Main::Session*> session) {
 	}
 	auto owned = std::make_unique<Ui::SeparatePanel>();
 	const auto panel = owned.get();
+	UseWindowPalette(panel);
 	const auto show = Main::MakeSessionShow(panel->uiShow(), session);
 	panel->setWindowFlag(Qt::WindowStaysOnTopHint, false);
 	Shortcuts::Listen(panel); // Main window may be hidden to tray.
@@ -79,8 +81,12 @@ not_null<Ui::SeparatePanel*> ShowWallet(not_null<Main::Session*> session) {
 	rpl::single(rpl::empty) | rpl::then(
 		style::PaletteChanged()
 	) | rpl::on_next([=] {
+		const auto scope = WindowPaletteScope(panel);
 		panel->overrideTitleColor(st::windowBgOver->c);
 		panel->overrideBottomBarColor(st::windowBgOver->c);
+		panel->overrideBodyColor(WindowPalette()
+			? std::make_optional(st::windowBg->c)
+			: std::nullopt);
 	}, panel->lifetime());
 	TransactionsShownValue(
 		session

@@ -373,6 +373,34 @@ Fn<void(style::palette&)> PrepareCurrentPaletteCallback() {
 	};
 }
 
+std::unique_ptr<style::palette> PrepareEmbeddedPalette(
+		EmbeddedType type,
+		std::optional<QColor> accent) {
+	const auto embedded = EmbeddedThemes();
+	const auto i = ranges::find(embedded, type, &EmbeddedScheme::type);
+	Assert(i != end(embedded));
+	const auto colorizer = accent
+		? ColorizerFrom(*i, *accent)
+		: style::colorizer();
+
+	auto result = std::make_unique<style::palette>();
+	if (i->path.isEmpty()) {
+		result->reset(colorizer);
+		return result;
+	}
+	auto instance = Instance();
+	const auto loaded = LoadFromFile(
+		i->path,
+		&instance,
+		nullptr,
+		nullptr,
+		colorizer);
+	Assert(loaded);
+	result->finalize();
+	*result = instance.palette;
+	return result;
+}
+
 Ui::ChatThemeBackground PrepareDefaultBackground(bool dark) {
 	if (!dark) {
 		const auto paper = Data::DefaultWallPaper();

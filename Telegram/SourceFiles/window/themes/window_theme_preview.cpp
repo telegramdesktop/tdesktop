@@ -422,7 +422,10 @@ QImage Generator::generate() {
 		_rect.size() * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(style::DevicePixelRatio());
-	result.fill(st::themePreviewBg->c);
+	const auto bg = _current.previewBg.isValid()
+		? _current.previewBg
+		: st::themePreviewBg[_palette]->c;
+	result.fill(bg);
 
 	{
 		Painter p(&result);
@@ -439,7 +442,7 @@ QImage Generator::generate() {
 		paintHistoryShadows();
 	}
 	if (extended()) {
-		Platform::PreviewWindowFramePaint(result, _palette, _body, _rect.width());
+		Platform::PreviewWindowFramePaint(result, _palette, bg, _body, _rect.width());
 	}
 
 	return result;

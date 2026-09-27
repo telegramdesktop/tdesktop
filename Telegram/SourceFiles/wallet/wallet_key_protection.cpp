@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/passcode_strength.h"
 #include "ui/text/text_utilities.h"
+#include "wallet/wallet_palette.h"
 #include "wallet/wallet_session.h"
 #include "wallet/wallet_unlock.h"
 
@@ -990,6 +991,7 @@ void KeyProtectionBox(
 			band->value(),
 			rpl::single(rpl::empty) | rpl::then(style::PaletteChanged())
 		) | rpl::on_next([=](Band value, rpl::empty_value) {
+			const auto scope = WindowPaletteScope(strength);
 			strength->setTextColorOverride(
 				Ui::PasscodeStrengthBandColor(value)->c);
 		}, strength->lifetime());
