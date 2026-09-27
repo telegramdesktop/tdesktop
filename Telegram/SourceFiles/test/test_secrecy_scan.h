@@ -23,9 +23,7 @@ class Runner;
 // TL schema identifiers and the message heads and field names of plain-line
 // hits only, never a secret, a field's value or a whole scanned line.
 //
-// It exists because every hand-rolled version fell into the same three
-// traps (2026/09/25/import-rotated-wallets-with-the-revised-layer-230-scheme
-// spent three of its four runs on them, check "S2"):
+// It exists because a hand-rolled scan is open to three traps:
 // - Selecting "modified since the scenario started" picked no app log and
 //   no DebugLogs part on Windows: a file the running process holds open
 //   keeps its old last-write time. Logs are therefore selected by identity
@@ -47,9 +45,9 @@ class Runner;
 //   and never decide.
 //
 // A fourth trap is the scan's own: a value the product computes and logs
-// itself can equal a short secret. It cost
-// 2026/09/25/refuse-a-custody-superseding-install-while-the-served-key-lags
-// a run. Every bounded short-secret hit in a plain line is therefore
+// itself can equal a short secret. The checks for it come from
+// 2026/09/27/report-the-site-of-short-secret-hits-in-the-secrecy-scan.
+// Every bounded short-secret hit in a plain line is therefore
 // reported at its "<file>|<head>|<field>" site, and a campaign may declare
 // (head, field) pairs the product source shows it formats from values it
 // computes: a hit that is exactly such a field's value is reported in
