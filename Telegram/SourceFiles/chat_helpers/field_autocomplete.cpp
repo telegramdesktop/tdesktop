@@ -1960,8 +1960,13 @@ void InitFieldAutocomplete(
 
 	field->tabbed(
 	) | rpl::on_next([=](not_null<Ui::InputField::TabbedRequest*> request) {
-		if (!raw->isHidden()) {
-			raw->chooseSelected(FieldAutocomplete::ChooseMethod::ByTab);
+		// Tab completes the suggestion, and is the field's to give away
+		// when there is nothing selected to complete - the stickers shown
+		// for an emoji select nothing on their own, so Tab was lost in a
+		// field holding one. Shift+Tab never completes.
+		if (!raw->isHidden()
+			&& !request->backward
+			&& raw->chooseSelected(FieldAutocomplete::ChooseMethod::ByTab)) {
 			request->handled = true;
 		}
 	}, raw->lifetime());
