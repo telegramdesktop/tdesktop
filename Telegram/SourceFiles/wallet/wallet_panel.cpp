@@ -252,4 +252,12 @@ std::shared_ptr<Main::SessionShow> TonConnectBoxShowNoActivate(
 	return controller->uiShow();
 }
 
+std::shared_ptr<Main::SessionShow> ActiveWindowShow(
+		not_null<Main::Session*> session) {
+	const auto panel = session->wallet().panel();
+	return (panel && panel->isActiveWindow())
+		? Main::MakeSessionShow(panel->uiShow(), session)
+		: nullptr;
+}
+
 } // namespace Wallet

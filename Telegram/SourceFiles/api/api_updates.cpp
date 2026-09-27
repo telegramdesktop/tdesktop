@@ -69,6 +69,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
+#include "wallet/wallet_panel.h"
 #include "wallet/wallet_session.h"
 #include "wallet/wallet_transfer_messages.h"
 #include "iv/editor/iv_editor_session.h"
@@ -2354,6 +2355,8 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			return;
 		} else if (d.is_popup()) {
 			if (const auto show = Iv::Editor::ActiveWindowShow(&session())) {
+				show->showBox(Ui::MakeInformBox(text));
+			} else if (const auto show = Wallet::ActiveWindowShow(&session())) {
 				show->showBox(Ui::MakeInformBox(text));
 			} else {
 				const auto &windows = session().windows();

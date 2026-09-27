@@ -69,4 +69,9 @@ void OpenTonConnectRequest(
 [[nodiscard]] std::shared_ptr<Main::SessionShow> TonConnectBoxShowNoActivate(
 	not_null<Window::SessionController*> controller);
 
+// The wallet window while it is the active one, so that a server popup
+// answering something done there is seen there.
+[[nodiscard]] std::shared_ptr<Main::SessionShow> ActiveWindowShow(
+	not_null<Main::Session*> session);
+
 } // namespace Wallet
