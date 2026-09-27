@@ -5644,7 +5644,24 @@ void ComposeControls::setTabbedPanel(
 	if (const auto raw = _tabbedPanel.get()) {
 		_tabbedSelectorToggle->installEventFilter(raw);
 		_tabbedSelectorToggle->setColorOverrides(nullptr, nullptr, nullptr);
+		// The button shows and hides the panel: a screen reader hears
+		// whether it is open, and toggles it through the button.
+		raw->shownValue(
+		) | rpl::on_next([=](bool shown) {
+			_tabbedSelectorToggle->setAccessibilityExpanded(shown);
+		}, raw->lifetime());
+		// Closed while the focus is elsewhere - after a send, say - nothing
+		// tells a screen reader; the button, which says "collapsed" when
+		// it holds the focus, says so then.
+		raw->shownValue(
+		) | rpl::skip(1) | rpl::filter([=](bool shown) {
+			return !shown && !_tabbedSelectorToggle->hasFocus();
+		}) | rpl::on_next([=] {
+			_tabbedSelectorToggle->accessibilityAnnounce(
+				tr::lng_emoji_panel_closed(tr::now));
+		}, raw->lifetime());
 	} else {
+		_tabbedSelectorToggle->setAccessibilityExpanded(std::nullopt);
 		_tabbedSelectorToggle->setColorOverrides(
 			&st::historyAttachEmojiActive,
 			&st::historyRecordVoiceFgActive,
