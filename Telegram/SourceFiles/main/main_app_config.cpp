@@ -282,6 +282,10 @@ QString AppConfig::oldWalletBotUsername() const {
 	return get<QString>(u"old_wallet_bot_username"_q, u"wallet"_q);
 }
 
+bool AppConfig::walletAvailable() const {
+	return get<bool>(u"wallet_available"_q, true);
+}
+
 int AppConfig::storiesAlbumsLimit() const {
 	return get<int>(u"stories_albums_limit"_q, 100);
 }

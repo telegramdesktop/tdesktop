@@ -3206,6 +3206,8 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 			});
 		};
 		wallet->stateKnownValue() | rpl::on_next(schedule, raw->lifetime());
+		session->appConfig().refreshed(
+		) | rpl::on_next(schedule, raw->lifetime());
 		wallet->userAddresses().unavailableValue(
 		) | rpl::on_next(schedule, raw->lifetime());
 		user->flagsValue() | rpl::on_next(schedule, raw->lifetime());

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/session/session_show.h"
 #include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "ui/controls/ton_common.h"
@@ -177,6 +178,7 @@ bool CanOfferSendMoney(not_null<UserData*> user) {
 	const auto session = &user->session();
 	auto &wallet = session->wallet();
 	return !session->supportMode()
+		&& session->appConfig().walletAvailable()
 		&& !user->isSelf()
 		&& (wallet.presenceCurrent() != Presence::Unavailable)
 		&& wallet.userAddresses().recipientError(

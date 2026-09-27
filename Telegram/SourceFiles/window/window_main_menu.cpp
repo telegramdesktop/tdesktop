@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/stories/info_stories_widget.h"
 #include "lang/lang_keys.h"
 #include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -719,12 +720,23 @@ void MainMenu::setupMenu() {
 		)->setClickedCallback([=] {
 			controller->showPeerHistory(controller->session().user());
 		});
-		addAction(
-			tr::lng_wallet_menu(),
-			{ &st::walletMenuIcon }
-		)->setClickedCallback([=] {
+		const auto session = &controller->session();
+		const auto wallet = _menu->add(
+			object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+				_menu,
+				CreateButtonWithIcon(
+					_menu,
+					tr::lng_wallet_menu(),
+					st::mainMenuButton,
+					{ &st::walletMenuIcon })));
+		wallet->toggleOn(session->appConfig().value(
+		) | rpl::map([=] {
+			return session->appConfig().walletAvailable();
+		}) | rpl::distinct_until_changed());
+		wallet->finishAnimating();
+		wallet->entity()->setClickedCallback([=] {
 			controller->window().hideSettingsAndLayer();
-			Wallet::ShowWallet(&controller->session());
+			Wallet::ShowWallet(session);
 		});
 	} else {
 		addAction(

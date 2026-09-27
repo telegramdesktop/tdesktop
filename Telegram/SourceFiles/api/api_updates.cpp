@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_transcribes.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "mtproto/mtp_instance.h"
 #include "mtproto/mtproto_config.h"
 #include "mtproto/mtproto_dc_options.h"
@@ -2182,6 +2183,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateConfig: {
 		session().mtp().requestConfig();
+		session().appConfig().refresh(true);
 		session().promoSuggestions().invalidate();
 	} break;
 

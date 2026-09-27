@@ -2230,6 +2230,7 @@ Session::Session(not_null<Main::Session*> session)
 , _pollTimer([=] { pollTick(); })
 , _gaslessTimer([=] { refreshGaslessInfo(); })
 , _decryptRetryTimer([=] { settleDeferredDecrypts(); })
+, _walletAvailable(session->appConfig().walletAvailable())
 , _transferMinNanos(TransferMinNanos(session)) {
 	vault().protectionChanges() | rpl::on_next([=] {
 		updateDeviceCustodyState(true);
@@ -2275,6 +2276,7 @@ Session::Session(not_null<Main::Session*> session)
 		_tonConnect->vaultChanged();
 	}, _lifetime);
 	session->appConfig().refreshed() | rpl::on_next([=, this] {
+		applyWalletAvailable();
 		applyTransferMinNanos();
 		refreshGaslessInfo();
 	}, _lifetime);
@@ -7216,6 +7218,30 @@ void Session::applyTransferMinNanos() {
 	_historyUpdates.fire({});
 	resetHiddenHistoryPages();
 	continueHiddenHistory(!historyVisibleEmpty());
+}
+
+void Session::applyWalletAvailable() {
+	const auto now = _session->appConfig().walletAvailable();
+	if (_walletAvailable == now) {
+		return;
+	}
+	_walletAvailable = now;
+	if (!now) {
+		return;
+	}
+	// WHY: WALLET_UNAVAILABLE answers latched before the server made the
+	// wallet available describe the old state, so both lanes ask again.
+	_userAddresses->resetUnavailable();
+	if (_presence.current() != Presence::Unavailable) {
+		return;
+	}
+	_stateFailures = 0;
+	_stateRequestedAt = 0;
+	_stateRefreshedAt = 0;
+	setPresence(Presence::Unknown);
+	if (_loaded) {
+		refreshState();
+	}
 }
 
 void Session::setHistory(std::vector<TransferItem> &&list) {

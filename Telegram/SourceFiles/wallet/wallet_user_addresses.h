@@ -101,9 +101,10 @@ public:
 
 	// True once the API refused this account. That is a fact about the
 	// account, not an answer about any user, so no id is recorded Absent
-	// because of it and nothing is asked again this session.
+	// because of it and nothing is asked again until resetUnavailable().
 	[[nodiscard]] bool unavailable() const;
 	[[nodiscard]] rpl::producer<bool> unavailableValue() const;
+	void resetUnavailable();
 
 private:
 	struct Job {

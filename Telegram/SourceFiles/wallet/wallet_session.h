@@ -1013,6 +1013,7 @@ private:
 		const HistoryRequest &request);
 	void refreshStaleHistory();
 	void applyTransferMinNanos();
+	void applyWalletAvailable();
 	void continueHiddenHistory(bool progressed);
 	void clearHistory();
 	void clearCollectibles();
@@ -1151,6 +1152,7 @@ private:
 	std::weak_ptr<ShareFetch> _shareFetch;
 
 	bool _loaded = false;
+	bool _walletAvailable = true;
 	QString _address;
 	QByteArray _publicKey;
 	QString _tonConnectOwnershipDomain;

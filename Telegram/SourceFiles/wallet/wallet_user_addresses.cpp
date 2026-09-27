@@ -269,6 +269,10 @@ rpl::producer<bool> UserAddresses::unavailableValue() const {
 	return _unavailable.value();
 }
 
+void UserAddresses::resetUnavailable() {
+	_unavailable = false;
+}
+
 void UserAddresses::sendChunk(
 		const std::shared_ptr<Job> &job,
 		std::vector<UserId> ids) {
