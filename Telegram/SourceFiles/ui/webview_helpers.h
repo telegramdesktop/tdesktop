@@ -8,6 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/flat_map.h"
+#include "base/bytes.h"
+#include "mtproto/mtproto_proxy_data.h"
+#include "webview/webview_interface.h"
 
 namespace tr {
 template <typename ...Tags>

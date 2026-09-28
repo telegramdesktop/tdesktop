@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "base/qt_signal_producer.h"
+#include "core/core_webview_proxy.h"
 #include "core/file_utilities.h"
 #include "lang/lang_keys.h"
 #include "ui/chat/attach/attach_bot_webview.h"
@@ -291,12 +292,14 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 	Expects(!_webview);
 
 	const auto window = _window.get();
+	const auto proxySettings = Core::CurrentWebviewProxy();
 	_webview = std::make_unique<Webview::Window>(
 		_container,
 		Webview::WindowConfig{
 			.opaqueBg = st::windowBg->c,
 			.storageId = storageId,
 			.safe = true,
+			.proxySettings = proxySettings,
 		});
 	const auto raw = _webview.get();
 
@@ -325,6 +328,12 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 		return;
 	}
 	widget->show();
+
+	Core::WebviewProxyChangesFrom(
+		proxySettings
+	) | rpl::on_next([=] {
+		close();
+	}, _webview->lifetime());
 
 	QObject::connect(widget, &QObject::destroyed, [=] {
 		if (!_webview) {

@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/radial_animation.h"
 #include "ui/click_handler.h"
 #include "lang/lang_keys.h"
+#include "core/core_webview_proxy.h"
 #include "webview/webview_embed.h"
 #include "webview/webview_interface.h"
 #include "styles/style_payments.h"
@@ -551,11 +552,13 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 	}, bottom->lifetime());
 	container->show();
 
+	const auto proxySettings = Core::CurrentWebviewProxy();
 	_webview = std::make_unique<WebviewWithLifetime>(
 		container,
 		Webview::WindowConfig{
 			.opaqueBg = params.bodyBg,
 			.storageId = _delegate->panelWebviewStorageId(),
+			.proxySettings = proxySettings,
 		});
 
 	const auto raw = &_webview->window;
@@ -576,6 +579,12 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 	if (!raw->widget()) {
 		return false;
 	}
+
+	Core::WebviewProxyChangesFrom(
+		proxySettings
+	) | rpl::on_next([=] {
+		_delegate->panelRequestClose();
+	}, _webview->lifetime);
 	QObject::connect(raw->widget(), &QObject::destroyed, [=] {
 		const auto parent = webviewParent.data();
 		if (!_webview
