@@ -2529,8 +2529,16 @@ void AddDetailsTable(
 	}
 }
 
-void AddBoxCloseButton(not_null<Ui::GenericBox*> box) {
-	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
+void AddBoxCloseButton(
+		not_null<Ui::GenericBox*> box,
+		Fn<void()> close = nullptr) {
+	box->addTopButton(st::boxTitleClose, [=] {
+		if (close) {
+			close();
+		} else {
+			box->closeBox();
+		}
+	});
 }
 
 // The wallet's box footers share one "working" appearance: the label goes
@@ -3135,13 +3143,19 @@ void WalletHowItWorksBox(
 		tr::lng_wallet_how_button());
 }
 
-void CloseFirstGramsByOutsideClick(not_null<Ui::GenericBox*> box) {
-	const auto layer = box->parentWidget();
+[[nodiscard]] Ui::LayerStackWidget *BoxLayerStack(
+		not_null<Ui::GenericBox*> box) {
 	auto stack = (Ui::LayerStackWidget*)nullptr;
-	for (auto parent = layer; parent && !stack;) {
+	for (auto parent = box->parentWidget(); parent && !stack;) {
 		parent = parent->parentWidget();
 		stack = dynamic_cast<Ui::LayerStackWidget*>(parent);
 	}
+	return stack;
+}
+
+void CloseFirstGramsByOutsideClick(not_null<Ui::GenericBox*> box) {
+	const auto layer = box->parentWidget();
+	const auto stack = BoxLayerStack(box);
 	if (!layer || !stack) {
 		return;
 	}
@@ -9023,6 +9037,75 @@ void StartBackupEnable(
 	}), KeyActionKind::ResumeAfterRestore);
 }
 
+// WHY: dismissing the write-down or its quiz silently drops the disable,
+// so while it still would, the dismissal asks first; no abandons = always.
+void GuardBackupDisableDismiss(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Main::SessionShow> show,
+		Fn<bool()> abandons) {
+	struct State {
+		base::weak_qptr<Ui::GenericBox> confirmation;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	const auto abandoning = [=] {
+		return !abandons || abandons();
+	};
+	const auto confirm = [=] {
+		if (state->confirmation) {
+			return;
+		}
+		state->confirmation = show->show(Ui::MakeConfirmBox({
+			.text = tr::lng_wallet_backup_cancel_text(),
+			.confirmed = crl::guard(box, [=](Fn<void()> close) {
+				close();
+				box->closeBox();
+			}),
+			.confirmText = tr::lng_box_yes(),
+			.cancelText = tr::lng_box_no(),
+			.title = tr::lng_wallet_backup_cancel_title(),
+		}));
+	};
+	box->boxClosing() | rpl::on_next([=] {
+		if (const auto strong = state->confirmation.get()) {
+			strong->closeBox();
+		}
+	}, box->lifetime());
+	AddBoxCloseButton(box, [=] {
+		if (abandoning()) {
+			confirm();
+		} else {
+			box->closeBox();
+		}
+	});
+	const auto isEscape = [](not_null<QEvent*> e) {
+		return (e->type() == QEvent::KeyPress)
+			&& (static_cast<QKeyEvent*>(e.get())->key() == Qt::Key_Escape);
+	};
+	base::install_event_filter(box, [=](not_null<QEvent*> e) {
+		if (!isEscape(e) || !abandoning()) {
+			return base::EventFilterResult::Continue;
+		}
+		confirm();
+		return base::EventFilterResult::Cancel;
+	});
+	box->showFinishes() | rpl::take(1) | rpl::on_next([=] {
+		const auto layer = box->parentWidget();
+		const auto stack = BoxLayerStack(box);
+		if (!layer || !stack) {
+			return;
+		}
+		base::install_event_filter(box, stack, [=](not_null<QEvent*> e) {
+			const auto dismissal = (e->type() == QEvent::MouseButtonPress)
+				|| isEscape(e);
+			if (!dismissal || layer->isHidden() || !abandoning()) {
+				return base::EventFilterResult::Continue;
+			}
+			Ui::PostponeCall(box, confirm);
+			return base::EventFilterResult::Cancel;
+		});
+	}, box->lifetime());
+}
+
 void WalletBackupPhraseBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
@@ -9046,7 +9129,7 @@ void WalletBackupPhraseBox(
 
 	AddPhraseGrid(box, words);
 
-	AddBoxCloseButton(box);
+	GuardBackupDisableDismiss(box, show, nullptr);
 	const auto shownAt = crl::now();
 	box->addButton(tr::lng_continue(), [=] {
 		if (crl::now() - shownAt < kBackupWriteDownDelay) {
@@ -9140,7 +9223,8 @@ void WalletBackupQuizBox(
 		std::shared_ptr<Main::SessionShow> show,
 		std::vector<QString> words,
 		Fn<void()> passed,
-		Fn<void(Fn<void()> lock)> publishLock) {
+		Fn<void(Fn<void()> lock)> publishLock,
+		Fn<bool()> abandons) {
 	Expects(int(words.size()) >= kBackupQuizWordCount);
 
 	box->setWidth(st::boxWideWidth);
@@ -9173,7 +9257,7 @@ void WalletBackupQuizBox(
 	}
 	Ui::AddSkip(container, st::walletBackupQuizFieldsBottomSkip);
 
-	AddBoxCloseButton(box);
+	GuardBackupDisableDismiss(box, show, std::move(abandons));
 	const auto button = box->addButton(tr::lng_continue());
 	const auto allFilled = [=] {
 		return ranges::all_of(state->fields, [](Ui::InputField *field) {
@@ -9276,7 +9360,9 @@ void CollectBackupPhrase(
 					}
 					ShowBackupDisabledToast(show);
 				});
-		}, nullptr));
+		}, nullptr, [=] {
+			return !*requesting;
+		}));
 	};
 	const auto showPhrase = [=](std::vector<QString> words) {
 		show->showBox(Box(
@@ -9409,6 +9495,8 @@ void ShowRotationPhrase(
 			SubmitRotation(show, weak, busy, state);
 		}, [=](Fn<void()> lock) {
 			state->lockQuiz = std::move(lock);
+		}, [=] {
+			return !state->submitted;
 		}));
 		state->quiz = quiz;
 		quiz->boxClosing() | rpl::on_next([=] {

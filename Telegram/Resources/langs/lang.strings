@@ -9071,6 +9071,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_backup_sure_title" = "Sure done?";
 "lng_wallet_backup_sure_text" = "You didn't have enough time to write these words down.";
 "lng_wallet_backup_sure_ok" = "OK, sorry";
+"lng_wallet_backup_cancel_title" = "Cancel Disabling Backups?";
+"lng_wallet_backup_cancel_text" = "Your secret phrase will not be updated.";
 "lng_wallet_backup_test_title" = "Test Time";
 "lng_wallet_backup_test_text" = "Make sure you wrote your recovery phrase down correctly. Enter words {index1}, {index2} and {index3}.";
 "lng_wallet_backup_disabled_title" = "Backup Disabled";
