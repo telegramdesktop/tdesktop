@@ -195,7 +195,7 @@ void EmojiInteractions::startIncoming(
 		}
 		const auto listSize = int(list.size());
 		const auto index = (single.index - 1);
-		if (index < listSize) {
+		if (index >= 0 && index < listSize) {
 			const auto document = (begin(list) + index)->second;
 			const auto media = document->createMediaView();
 			media->checkStickerLarge();
@@ -511,7 +511,7 @@ EmojiInteractionsBunch EmojiInteractions::Parse(const QByteArray &json) {
 	for (const auto interaction : actions) {
 		const auto object = interaction.toObject();
 		const auto index = object.value("i").toInt();
-		if (index < 0 || index > 10) {
+		if (index < 1 || index > 10) {
 			LOG(("API Error: Bad interaction index: %1").arg(index));
 			return {};
 		}
