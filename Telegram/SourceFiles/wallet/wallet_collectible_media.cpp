@@ -56,18 +56,28 @@ constexpr auto kChainTimeout = 60 * crl::time(1000);
 		: slug;
 }
 
-// The four members startArtwork()'s branches read. A record change that
-// leaves all four alone cannot change which gift or which descriptor the
-// entry would fetch, so re-queueing it could only re-issue a request that
-// already answered. This list exists to mirror the branch bodies below and
-// must be extended together with them.
+[[nodiscard]] const std::optional<Gram::NftWebDocument> &ArtworkDocument(
+		const Gram::NftItem &item) {
+	return item.imageSmall ? item.imageSmall : item.image;
+}
+
+// WHY: artwork bytes follow the document URL, so a new access hash alone
+// matters only to a load that failed. The members compared here mirror what
+// startArtwork() reads and must be extended together with it.
 [[nodiscard]] bool SameArtworkSource(
 		const Gram::NftItem &was,
-		const Gram::NftItem &now) {
-	return (was.kind == now.kind)
-		&& (was.key == now.key)
-		&& (was.contentUri == now.contentUri)
-		&& (was.contentUriHttps == now.contentUriHttps);
+		const Gram::NftItem &now,
+		bool exact) {
+	if (was.kind != now.kind || was.key != now.key) {
+		return false;
+	}
+	const auto &before = ArtworkDocument(was);
+	const auto &after = ArtworkDocument(now);
+	if (!before || !after) {
+		return !before && !after;
+	}
+	return (before->url == after->url)
+		&& (!exact || before->accessHash == after->accessHash);
 }
 
 [[nodiscard]] std::pair<QString, QString> SplitNumberTail(
@@ -167,8 +177,7 @@ CollectibleMedia::CollectibleMedia(not_null<Main::Session*> session)
 }
 
 CollectibleMedia::~CollectibleMedia() {
-	// A loader still running self-cancels in ~webFileLoader and delivers its
-	// `done` synchronously, so the chain handlers must not reach the lanes.
+	// Cancelling a loader delivers its `done` synchronously; keep lanes shut.
 	_starting = true;
 	for (const auto &[raw, entry] : _map) {
 		if (const auto loader = base::take(entry->loader)) {
@@ -411,7 +420,10 @@ bool CollectibleMedia::applyRecord(
 	if (record == entry->record) {
 		return false;
 	}
-	const auto artwork = !SameArtworkSource(entry->record, record);
+	const auto artwork = !SameArtworkSource(
+		entry->record,
+		record,
+		entry->state == State::Failed);
 	entry->record = record;
 	entry->fallback = FallbackTitle(record);
 	entry->collectionName = record.collectionName;
@@ -430,8 +442,8 @@ void CollectibleMedia::startArtwork(not_null<Entry*> entry) {
 	const auto generation = entry->artworkGeneration;
 	if (record.kind == Gram::NftKind::TelegramGift && !record.key.isEmpty()) {
 		requestGift(entry, record.key, generation);
-	} else if (record.contentUriHttps) {
-		startDescriptorLoad(entry, record.contentUri, generation);
+	} else if (const auto &document = ArtworkDocument(record)) {
+		startImageLoad(entry, *document, generation);
 	} else {
 		finishChain(entry, State::Done);
 	}
@@ -467,8 +479,8 @@ void CollectibleMedia::requestGift(
 		finishChain(entry, State::Done);
 	};
 	const auto fallback = [=] {
-		if (entry->record.contentUriHttps) {
-			startDescriptorLoad(entry, entry->record.contentUri, generation);
+		if (const auto &document = ArtworkDocument(entry->record)) {
+			startImageLoad(entry, *document, generation);
 		} else {
 			finishChain(entry, State::Done);
 		}
@@ -497,17 +509,19 @@ void CollectibleMedia::requestGift(
 	})).send();
 }
 
-void CollectibleMedia::startLoad(
+void CollectibleMedia::startImageLoad(
 		not_null<Entry*> entry,
-		const QString &url,
-		int generation,
-		Fn<void(QByteArray)> done) {
-	if (entry->artworkGeneration != generation) {
+		const Gram::NftWebDocument &document,
+		int generation) {
+	if (entry->state != State::Flight
+		|| entry->artworkGeneration != generation) {
 		return;
 	}
 	entry->loader = CreateFileLoader(
 		_session,
-		DownloadLocation{ PlainUrlLocation{ url } },
+		DownloadLocation{
+			WebFileLocation(document.url, document.accessHash),
+		},
 		Data::FileOrigin(),
 		QString(),
 		0,
@@ -527,7 +541,15 @@ void CollectibleMedia::startLoad(
 				entry->loader = nullptr;
 			}
 		});
-		done(bytes);
+		if (bytes.isEmpty()) {
+			finishChain(entry, State::Failed);
+			return;
+		}
+		entry->imageBytes = std::move(bytes);
+		entry->prepared.clear();
+		_changed.fire_copy(entry->address);
+		_repaint.fire_copy(entry->address);
+		finishChain(entry, State::Done);
 	};
 	raw->updates() | rpl::on_next_error_done([] {
 	}, [=](FileLoader::Error error) {
@@ -542,52 +564,6 @@ void CollectibleMedia::startLoad(
 			: QByteArray(loaded.constData(), loaded.size()));
 	}, raw->lifetime());
 	raw->start();
-}
-
-void CollectibleMedia::startImageLoad(
-		not_null<Entry*> entry,
-		const QString &url,
-		int generation) {
-	if (entry->state != State::Flight) {
-		return;
-	}
-	startLoad(entry, url, generation, [=](QByteArray bytes) {
-		if (bytes.isEmpty()) {
-			finishChain(entry, State::Failed);
-			return;
-		}
-		entry->imageBytes = std::move(bytes);
-		entry->prepared.clear();
-		_changed.fire_copy(entry->address);
-		_repaint.fire_copy(entry->address);
-		finishChain(entry, State::Done);
-	});
-}
-
-void CollectibleMedia::startDescriptorLoad(
-		not_null<Entry*> entry,
-		const QString &url,
-		int generation) {
-	if (entry->state != State::Flight) {
-		return;
-	}
-	startLoad(entry, url, generation, [=](QByteArray bytes) {
-		const auto descriptor = Gram::ParseNftDescriptor(bytes);
-		if (!descriptor) {
-			finishChain(entry, State::Failed);
-			return;
-		}
-		entry->name = descriptor->name;
-		_changed.fire_copy(entry->address);
-		const auto image = descriptor->imageUrl;
-		if (!image.startsWith(u"https://"_q)) {
-			finishChain(entry, State::Done);
-			return;
-		}
-		crl::on_main(this, [=] {
-			startImageLoad(entry, image, generation);
-		});
-	});
 }
 
 CollectibleView CollectibleMedia::view(const QString &item) const {

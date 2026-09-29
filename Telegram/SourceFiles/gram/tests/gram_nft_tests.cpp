@@ -9,8 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "gram/api/gram_api_nft.h"
 
-#include <QtCore/QUrl>
-
 #include <vector>
 
 namespace Gram::Tests {
@@ -78,8 +76,6 @@ std::vector<Check> NftChecks() {
 					+ item.contentUri
 					+ u", expected "_q
 					+ uri;
-			} else if (item.contentUriHttps) {
-				return u"contentUriHttps: got true for a plain http uri"_q;
 			} else if (item.onSale) {
 				return u"onSale: got true, expected false"_q;
 			} else if (item.kind != NftKind::Generic) {
@@ -203,7 +199,6 @@ std::vector<Check> NftChecks() {
 			auto http = 0;
 			auto ipfs = 0;
 			auto tonstorage = 0;
-			auto flagged = 0;
 			auto domains = 0;
 			auto ipfsUri = QString();
 			auto storageUri = QString();
@@ -227,23 +222,6 @@ std::vector<Check> NftChecks() {
 						storageUri = item.contentUri;
 					}
 				}
-				if (item.contentUriHttps) {
-					++flagged;
-				}
-				const auto scheme = QUrl(item.contentUri).scheme();
-				const auto fetchable = (scheme == u"https"_q);
-				if (item.contentUriHttps != fetchable) {
-					return u"contentUriHttps pairing: got "_q
-						+ (item.contentUriHttps ? u"true"_q : u"false"_q)
-						+ u" for "_q
-						+ item.address.toUpper()
-						+ u" with uri "_q
-						+ item.contentUri
-						+ u", expected "_q
-						+ (fetchable ? u"true"_q : u"false"_q)
-						+ u" from QUrl scheme "_q
-						+ scheme;
-				}
 			}
 			if (withUri != 57 || withoutUri != 13) {
 				return u"uri spread: got "_q
@@ -263,10 +241,6 @@ std::vector<Check> NftChecks() {
 					+ u" ipfs and "_q
 					+ QString::number(tonstorage)
 					+ u" tonstorage, expected 1 and 1"_q;
-			} else if (flagged != 50) {
-				return u"contentUriHttps: got "_q
-					+ QString::number(flagged)
-					+ u" flagged, expected 50"_q;
 			} else if (domains != 12) {
 				return u"uriless domains: got "_q
 					+ QString::number(domains)
@@ -766,63 +740,6 @@ std::vector<Check> NftChecks() {
 			check(u"bare generic"_q, bare, NftKind::Generic, QString());
 			return result;
 		} },
-		{ u"nft_descriptor_fixtures"_q, [] {
-			const auto name = u"fragment-gift-deskcalendar-45754.json"_q;
-			const auto bytes = ReadFixture(name);
-			if (bytes.isEmpty()) {
-				return u"fixture read failed: "_q + name;
-			}
-			const auto gift = ParseNftDescriptor(bytes);
-			if (!gift) {
-				return u"gift: parse failed"_q;
-			} else if (gift->name != u"Desk Calendar #45754"_q) {
-				return u"gift name: got "_q
-					+ gift->name
-					+ u", expected Desk Calendar #45754"_q;
-			} else if (!gift->name.contains(u"#45754"_q)) {
-				return u"gift name: the number must already be inside the "
-					u"string, so nothing composes one from the index"_q;
-			}
-			const auto giftImage =
-				u"https://nft.fragment.com/gift/deskcalendar-45754.webp"_q;
-			if (gift->imageUrl != giftImage) {
-				return u"gift image: got "_q
-					+ gift->imageUrl
-					+ u", expected "_q
-					+ giftImage;
-			}
-			return QString();
-		} },
-		{ u"nft_descriptor_missing_control"_q, [] {
-			const auto name = u"fragment-missing-control.json"_q;
-			const auto bytes = ReadFixture(name);
-			if (bytes.isEmpty()) {
-				return u"fixture read failed: "_q + name;
-			}
-			const auto parsed = ParseNftDescriptor(bytes);
-			if (!parsed) {
-				return u"parse failed; nft.fragment.com answered HTTP 200 "
-					u"with 468 bytes for a slug that does not exist, so this "
-					u"body must parse - a successful descriptor parse is "
-					u"never evidence that an item exists"_q;
-			} else if (parsed->name != u"Desk Calendar #45754"_q) {
-				return u"name: got "_q
-					+ parsed->name
-					+ u", expected Desk Calendar #45754, byte-identical to "
-					u"the real item's - existence comes from the "
-					u"/api/v3/nft/items response only"_q;
-			}
-			const auto image = u"https://nft.fragment.com/gift/"
-				u"deskcalendar-45754-notanitem.webp"_q;
-			if (parsed->imageUrl != image) {
-				return u"image: got "_q
-					+ parsed->imageUrl
-					+ u", expected "_q
-					+ image
-					+ u"; only the bogus slug is echoed into the image url"_q;
-			}
-			return QString();
-		} },
 		{ u"nft_items_negative"_q, [] {
 			const auto name = u"api-nft-items-camel.json"_q;
 			const auto bytes = ReadFixture(name);
@@ -846,19 +763,6 @@ std::vector<Check> NftChecks() {
 			for (const auto &json : bad) {
 				if (ParseNftItems(json, 100)) {
 					return u"expected nullopt for: "_q
-						+ QString::fromUtf8(json);
-				}
-			}
-			const auto descriptors = std::vector<QByteArray>{
-				QByteArray(""),
-				QByteArray("{}"),
-				QByteArray("[]"),
-				QByteArray("{\"name\":42}"),
-				QByteArray("{\"name\":\"\"}"),
-			};
-			for (const auto &json : descriptors) {
-				if (ParseNftDescriptor(json)) {
-					return u"descriptor: expected nullopt for: "_q
 						+ QString::fromUtf8(json);
 				}
 			}

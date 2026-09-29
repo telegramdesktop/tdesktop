@@ -92,18 +92,9 @@ private:
 		not_null<Entry*> entry,
 		const QString &slug,
 		int generation);
-	void startLoad(
-		not_null<Entry*> entry,
-		const QString &url,
-		int generation,
-		Fn<void(QByteArray)> done);
 	void startImageLoad(
 		not_null<Entry*> entry,
-		const QString &url,
-		int generation);
-	void startDescriptorLoad(
-		not_null<Entry*> entry,
-		const QString &url,
+		const Gram::NftWebDocument &document,
 		int generation);
 	[[nodiscard]] Entry *find(const QString &item) const;
 	[[nodiscard]] const QImage &preparedFor(

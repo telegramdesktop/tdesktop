@@ -214,7 +214,6 @@ constexpr auto kFragmentCollections = std::array{
 	if (domain.isString()) {
 		result.domain = domain.toString();
 	}
-	result.contentUriHttps = result.contentUri.startsWith(u"https://"_q);
 	result.onSale = object.value(u"on_sale"_q).toBool();
 	ClassifyNftKind(result);
 	return result;
@@ -285,25 +284,6 @@ std::optional<NftPage> ParseNftItems(const QByteArray &json, int limit) {
 	}
 	page.hasNext = int(items.size()) >= limit;
 	return page;
-}
-
-std::optional<NftDescriptor> ParseNftDescriptor(const QByteArray &json) {
-	const auto document = QJsonDocument::fromJson(json);
-	if (document.isNull() || !document.isObject()) {
-		return std::nullopt;
-	}
-	const auto object = document.object();
-	const auto name = object.value(u"name"_q);
-	if (!name.isString() || name.toString().isEmpty()) {
-		return std::nullopt;
-	}
-	auto result = NftDescriptor();
-	result.name = name.toString();
-	const auto image = object.value(u"image"_q);
-	if (image.isString()) {
-		result.imageUrl = image.toString();
-	}
-	return result;
 }
 
 } // namespace Gram

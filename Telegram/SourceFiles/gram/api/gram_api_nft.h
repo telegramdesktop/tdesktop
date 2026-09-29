@@ -51,7 +51,6 @@ struct NftItem {
 	std::optional<NftWebDocument> contentUrl;
 	std::optional<NftWebDocument> lottie;
 	NftKind kind = NftKind::Generic;
-	bool contentUriHttps = false;
 	bool onSale = false;
 
 	friend bool operator==(
@@ -64,17 +63,10 @@ struct NftPage {
 	bool hasNext = false;
 };
 
-struct NftDescriptor {
-	QString name;
-	QString imageUrl;
-};
-
 [[nodiscard]] HttpRequest NftItemByAddressRequest(const QString &item);
 [[nodiscard]] std::optional<NftPage> ParseNftItems(
 	const QByteArray &json,
 	int limit);
-[[nodiscard]] std::optional<NftDescriptor> ParseNftDescriptor(
-	const QByteArray &json);
 void ClassifyNftKind(NftItem &item);
 
 } // namespace Gram
