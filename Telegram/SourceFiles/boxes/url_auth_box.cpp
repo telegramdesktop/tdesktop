@@ -196,6 +196,13 @@ struct SwitchAccountResult {
 	};
 }
 
+// The server put a web login token into this url for the current user.
+[[nodiscard]] QVariant AcceptedUrlContext(QVariant context) {
+	auto result = context.value<ClickHandlerContext>();
+	result.keepWebAuthTokens = true;
+	return QVariant::fromValue(result);
+}
+
 } // namespace
 
 void RequestButton(
@@ -241,7 +248,7 @@ void ActivateButton(
 		button->requestId = 0;
 		result.match([&](const MTPDurlAuthResultAccepted &data) {
 			if (const auto url = data.vurl()) {
-				UrlClickHandler::Open(qs(url->v));
+				UrlClickHandler::Open(qs(url->v), AcceptedUrlContext({}));
 			}
 		}, [&](const MTPDurlAuthResultDefault &data) {
 			HiddenUrlClickHandler::Open(url);
@@ -282,7 +289,9 @@ void ActivateUrl(
 		MTPstring() // in_app_origin
 	)).done([=](const MTPUrlAuthResult &result) {
 		result.match([&](const MTPDurlAuthResultAccepted &data) {
-			UrlClickHandler::Open(qs(data.vurl().value_or_empty()), context);
+			UrlClickHandler::Open(
+				qs(data.vurl().value_or_empty()),
+				AcceptedUrlContext(context));
 		}, [&](const MTPDurlAuthResultDefault &data) {
 			HiddenUrlClickHandler::Open(url, context);
 		}, [&](const MTPDurlAuthResultRequest &data) {
@@ -324,7 +333,9 @@ void RequestButton(
 		if (url.isEmpty() && accepted) {
 			show->showToast(tr::lng_passport_success(tr::now));
 		} else {
-			UrlClickHandler::Open(url);
+			UrlClickHandler::Open(
+				url,
+				accepted ? AcceptedUrlContext({}) : QVariant());
 		}
 	};
 	const auto callback = [=](Result result) {
@@ -433,7 +444,9 @@ void RequestUrl(
 
 		if ((to.isEmpty() && accepted) || (to == url)) {
 		} else {
-			UrlClickHandler::Open(to, context);
+			UrlClickHandler::Open(
+				to,
+				accepted ? AcceptedUrlContext(context) : context);
 		}
 	};
 	const auto resolveSession = [=] {
