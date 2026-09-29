@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/popup_menu.h"
 #include "base/qthelp_regex.h"
@@ -45,9 +46,52 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QDateTime>
 #include <QtCore/QLocale>
 
+#include <ada.h>
+
 namespace {
 
 constexpr auto kReminderSetToastDuration = 4 * crl::time(1000);
+
+// QUrl keeps punycode for hosts outside its IDN whitelist.
+[[nodiscard]] QString DisplayUrlWithUnicodeHost(const QUrl &url) {
+	const auto result = url.toDisplayString();
+	const auto shown = url.host();
+	const auto ace = url.host(QUrl::FullyEncoded).toStdString();
+	const auto unicode = ada::idna::to_unicode(ace);
+	const auto host = QString::fromStdString(unicode);
+	if (host == shown || ada::idna::to_ascii(unicode) != ace) {
+		return result;
+	}
+	const auto authority = result.indexOf(u"://"_q);
+	const auto from = (authority < 0)
+		? -1
+		: url.userName().isEmpty()
+		? (authority + 3)
+		: (result.indexOf('@', authority + 3) + 1);
+	return (from > 0 && result.mid(from, shown.size()) == shown)
+		? QString(result).replace(from, shown.size(), host)
+		: result;
+}
+
+[[nodiscard]] bool IsVisibleCodePoint(uint ch) {
+	return QChar::isPrint(ch) && !QChar::isMark(ch) && !QChar::isSpace(ch);
+}
+
+[[nodiscard]] TextWithEntities HighlightSuspicious(
+		const QString &url,
+		const std::vector<UrlClickHandler::SuspiciousRange> &suspicious) {
+	auto result = TextWithEntities();
+	auto from = 0;
+	for (const auto &range : suspicious) {
+		result.append(url.mid(from, range.from - from));
+		result.append(tr::bold(Ui::Text::Colorized(
+			url.mid(range.from, range.length),
+			1)));
+		from = range.from + range.length;
+	}
+	result.append(url.mid(from));
+	return result;
+}
 
 [[nodiscard]] TextWithEntities BoldDomainInUrl(const QString &url) {
 	auto result = TextWithEntities{ .text = url };
@@ -315,13 +359,21 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 				Core::App().hideMediaView();
 			}
 			const auto displayed = parsedUrl.isValid()
-				? parsedUrl.toDisplayString()
+				? DisplayUrlWithUnicodeHost(parsedUrl)
 				: url;
-			const auto displayUrl = !IsSuspicious(displayed)
+			const auto suspicious = SuspiciousRanges(displayed);
+			const auto visible = ranges::all_of(suspicious, [&](
+					const SuspiciousRange &range) {
+				return ranges::all_of(
+					displayed.mid(range.from, range.length).toUcs4(),
+					IsVisibleCodePoint);
+			});
+			const auto displayUrl = visible
 				? displayed
 				: parsedUrl.isValid()
 				? QString::fromUtf8(parsedUrl.toEncoded())
 				: ShowEncoded(displayed);
+			const auto marked = visible && !suspicious.empty();
 			const auto controller = my.sessionWindow.get();
 			const auto use = controller
 				? &controller->window()
@@ -340,8 +392,19 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 				const auto url = box->addRow(
 					object_ptr<Ui::FlatLabel>(
 						box,
-						rpl::single(BoldDomainInUrl(displayUrl)),
+						rpl::single(marked
+							? HighlightSuspicious(displayUrl, suspicious)
+							: BoldDomainInUrl(displayUrl)),
 						st));
+				if (marked) {
+					const auto colors = url->lifetime().make_state<
+						std::array<Ui::Text::SpecialColor, 1>>();
+					colors->front() = {
+						.pen = &st::attentionButtonFg->p,
+						.penSelected = &st::attentionButtonFg->p,
+					};
+					url->setColors(*colors);
+				}
 				url->setContextMenuHook([=](
 						Ui::FlatLabel::ContextMenuRequest request) {
 					const auto copyContextText = [=] {
@@ -373,6 +436,13 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 				});
 				url->setSelectable(true);
 				url->setContextCopyText(tr::lng_context_copy_link(tr::now));
+				if (marked) {
+					box->addSkip(st.style.lineHeight);
+					box->addRow(object_ptr<Ui::FlatLabel>(
+						box,
+						tr::lng_open_link_suspicious_chars(),
+						st));
+				}
 			});
 			if (my.show) {
 				my.show->showBox(std::move(box));
