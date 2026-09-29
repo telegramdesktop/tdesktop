@@ -10074,7 +10074,9 @@ void WalletImportBox(
 		std::vector<QString> suggestionWords;
 		int suggestionField = -1;
 		int suggestionSelected = 0;
+		int lastFocusedField = -1;
 		bool importing = false;
+		bool focusRestored = false;
 	};
 	const auto state = box->lifetime().make_state<State>();
 
@@ -10194,10 +10196,8 @@ void WalletImportBox(
 		}
 	};
 	const auto revealField = [=](not_null<Ui::InputField*> field) {
-		const auto top = field->mapTo(box, QPoint()).y();
-		if (top < cover.height()) {
-			box->scrollToY(box->scrollTop() - (cover.height() - top));
-		}
+		const auto top = field->mapTo(box, QPoint()).y() + box->scrollTop();
+		box->scrollToY(top - st::boxTitleHeight, top + field->height());
 	};
 	const auto refreshAccessories = [=](int index) {
 		const auto field = state->fields[index];
@@ -10258,7 +10258,6 @@ void WalletImportBox(
 			});
 		if (wrong != end(words)) {
 			const auto field = state->fields[wrong - begin(words)];
-			box->scrollToWidget(field);
 			revealField(field);
 			if (wrong->isEmpty()) {
 				field->setFocus();
@@ -10615,6 +10614,16 @@ void WalletImportBox(
 		}, field->lifetime());
 		base::install_event_filter(field->rawTextEdit(), [=](
 				not_null<QEvent*> event) {
+			if (event->type() == QEvent::FocusIn) {
+				const auto focus = static_cast<QFocusEvent*>(event.get());
+				const auto reason = focus->reason();
+				// Focus given back to the same field keeps a manual scroll.
+				state->focusRestored = (state->lastFocusedField == i)
+					&& (reason == Qt::ActiveWindowFocusReason
+						|| reason == Qt::PopupFocusReason);
+				state->lastFocusedField = i;
+				return base::EventFilterResult::Continue;
+			}
 			if (event->type() != QEvent::KeyPress) {
 				return base::EventFilterResult::Continue;
 			}
@@ -10642,6 +10651,9 @@ void WalletImportBox(
 			state->error = QString();
 			refreshAccessories(i);
 			refreshSuggestions(i);
+			if (field->hasFocus()) {
+				revealField(field);
+			}
 			// WHY: every content-change pass starts by clearing the error,
 			// including the one forceProcessContentsChanges() postpones after
 			// setText(), so marking is postponed to land after it.
@@ -10654,13 +10666,29 @@ void WalletImportBox(
 			refreshAccessories(i);
 			if (focused) {
 				refreshSuggestions(i);
-				revealField(field);
+				if (!base::take(state->focusRestored)) {
+					revealField(field);
+				}
 			} else if (state->suggestionField == i) {
 				hideSuggestions();
 			}
 		}, field->lifetime());
 		refreshAccessories(i);
 	}
+
+	// A pasted 24-word phrase focuses its last field while this still opens.
+	extraWrap->heightValue(
+	) | rpl::skip(1) | rpl::on_next([=] {
+		if (!extraWrap->toggled()) {
+			return;
+		}
+		for (auto i = kImportWordCountShort; i != kImportWordCountLong; ++i) {
+			if (state->fields[i]->hasFocus()) {
+				revealField(state->fields[i]);
+				return;
+			}
+		}
+	}, extraWrap->lifetime());
 
 	box->widthValue() | rpl::skip(1) | rpl::on_next([=] {
 		repositionSuggestions();
