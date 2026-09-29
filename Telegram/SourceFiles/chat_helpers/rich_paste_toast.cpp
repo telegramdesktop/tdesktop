@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/premium_preview_box.h"
 #include "chat_helpers/message_field.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "iv/editor/iv_editor_clipboard_import.h"
 #include "iv/editor/iv_editor_session.h"
 #include "iv/iv_rich_page.h"
@@ -104,8 +106,14 @@ void ShowRichPasteToast(RichPasteToastArgs &&args) {
 	const auto locked = !undo
 		&& !field
 		&& !Iv::Editor::SessionPremium(session);
+	if (locked
+		&& Core::App().settings().readPref<bool>(
+			"rich_paste_toast_hidden",
+			false)) {
+		return;
+	}
 	const auto button = locked
-		? QString()
+		? tr::lng_archive_hint_button(tr::now)
 		: undo
 		? tr::lng_rich_paste_toast_undo(tr::now)
 		: field
@@ -179,12 +187,20 @@ void ShowRichPasteToast(RichPasteToastArgs &&args) {
 	if (button.isEmpty()) {
 		return;
 	}
+	Fn<void()> action = std::move(args.action);
+	if (locked) {
+		action = [=] {
+			Core::App().settings().writePref<bool>(
+				"rich_paste_toast_hidden",
+				true);
+		};
+	}
 	const auto activate = Ui::CreateChild<Ui::RoundButton>(
 		widget.get(),
 		rpl::single(button),
 		st::historyPremiumViewSet);
 	activate->show();
-	activate->setClickedCallback([=, action = std::move(args.action)] {
+	activate->setClickedCallback([=, action = std::move(action)] {
 		if (const auto strong = weak.get()) {
 			strong->hideAnimated();
 		}
