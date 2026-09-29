@@ -1329,6 +1329,7 @@ mac:
         -D BUILD_DOCUMENTATION=OFF \\
         -D BUILD_TESTING=OFF \\
         -D ENABLE_PLUGIN_LOADING=OFF \\
+        -D WITH_GDK_PIXBUF=OFF \\
         -D WITH_AOM_ENCODER=OFF \\
         -D WITH_AOM_DECODER=OFF \\
         -D WITH_X265=OFF \\
