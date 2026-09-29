@@ -2659,6 +2659,11 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 	} else {
 		_flags &= ~MessageFlag::InvertMedia;
 	}
+	if (data.is_noforwards()) {
+		_flags |= MessageFlag::NoForwards;
+	} else {
+		_flags &= ~MessageFlag::NoForwards;
+	}
 
 	const auto wasTypes = sharedMediaTypes();
 	const auto wasTopicRootId = topicRootId();
