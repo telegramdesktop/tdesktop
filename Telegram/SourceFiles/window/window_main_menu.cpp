@@ -53,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/userpic_button.h"
 #include "ui/effects/snowflakes.h"
 #include "ui/effects/toggle_arrow.h"
+#include "ui/new_badges.h"
 #include "ui/painter.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
@@ -729,6 +730,10 @@ void MainMenu::setupMenu() {
 					tr::lng_wallet_menu(),
 					st::mainMenuButton,
 					{ &st::walletMenuIcon })));
+		Ui::NewBadge::AddAfterButtonText(
+			wallet->entity(),
+			tr::lng_wallet_menu(),
+			st::mainMenuButton);
 		wallet->toggleOn(session->appConfig().value(
 		) | rpl::map([=] {
 			return session->appConfig().walletAvailable();

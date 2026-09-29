@@ -98,4 +98,31 @@ void AddAfterLabel(
 	}, badge->lifetime());
 }
 
+void AddAfterButtonText(
+		not_null<Ui::RpWidget*> button,
+		rpl::producer<QString> text,
+		const style::SettingsButton &st) {
+	const auto badge = CreateNewBadge(
+		button,
+		tr::lng_premium_summary_new_badge());
+	rpl::combine(
+		std::move(text),
+		button->widthValue()
+	) | rpl::on_next([=, &st](const QString &text, int width) {
+		const auto space = st.style.font->spacew;
+		const auto left = st.padding.left()
+			+ st.style.font->width(text)
+			+ space;
+		const auto available = width - left - st.padding.right();
+		badge->setVisible(available >= badge->width());
+		if (!badge->isHidden()) {
+			const auto top = st.padding.top()
+				+ st.style.font->ascent
+				- st::settingsPremiumNewBadge.style.font->ascent
+				- st::settingsPremiumNewBadgePadding.top();
+			badge->moveToLeft(left, top, width);
+		}
+	}, badge->lifetime());
+}
+
 } // namespace Ui::NewBadge
