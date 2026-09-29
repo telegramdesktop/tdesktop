@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/object_ptr.h"
 #include "base/unique_qptr.h"
+#include "base/weak_qptr.h"
 #include "ui/layers/layer_widget.h"
 
 class UserData;
@@ -142,12 +143,14 @@ void ShowTransferLink(
 // After a definite success |sent| runs in place of the transaction
 // details box; a caller that passes nothing keeps the details box.
 // Without a ready wallet |notReady| runs in place of the error.
+// The |origin| box stays below and is closed only once the user leaves.
 void ShowSendToUser(
 	std::shared_ptr<Main::SessionShow> show,
 	not_null<UserData*> user,
 	Fn<void()> sent = nullptr,
 	int64 amountNano = 0,
-	Fn<void()> notReady = nullptr);
+	Fn<void()> notReady = nullptr,
+	base::weak_qptr<Ui::BoxContent> origin = nullptr);
 
 void ShowSendToLinkRecipient(
 	std::shared_ptr<Main::SessionShow> show,

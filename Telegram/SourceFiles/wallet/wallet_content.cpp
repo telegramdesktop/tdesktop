@@ -4665,14 +4665,7 @@ void ChooseMoneyRecipient(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
 		not_null<UserData*> user) {
-	const auto session = &show->session();
-	const auto userId = peerToUser(user->id);
-	box->closeBox();
-	if (show->valid()
-		&& &show->session() == session
-		&& session->data().userLoaded(userId) == user) {
-		ShowSendToUser(show, user);
-	}
+	ShowSendToUser(show, user, nullptr, 0, nullptr, box.get());
 }
 
 class RecentMoneyRecipientsController final
@@ -4707,7 +4700,6 @@ private:
 	rpl::lifetime _userLifetime;
 	rpl::variable<bool> _shown = false;
 	bool _closed = false;
-	bool _choosing = false;
 	bool _refreshQueued = false;
 
 };
@@ -4757,7 +4749,6 @@ void RecentMoneyRecipientsController::prepare() {
 bool RecentMoneyRecipientsController::active() const {
 	return _box
 		&& !_closed
-		&& !_choosing
 		&& _session
 		&& _show->valid()
 		&& &_show->session() == _session.get();
@@ -4862,8 +4853,6 @@ void RecentMoneyRecipientsController::rowClicked(
 	if (!user || !canOffer(user)) {
 		return;
 	}
-	_choosing = true;
-	_shown = false;
 	ChooseMoneyRecipient(_box.get(), _show, user);
 }
 
@@ -4981,7 +4970,6 @@ private:
 	const not_null<Main::Session*> _session;
 	PeerListContentDelegateShow _delegate;
 	bool _closed = false;
-	bool _choosing = false;
 
 };
 
@@ -5035,7 +5023,6 @@ void MoneyRecipientSearchController::rowClicked(
 		not_null<PeerListRow*> row) {
 	if (!_box
 		|| _closed
-		|| _choosing
 		|| !_show->valid()
 		|| &_show->session() != _session) {
 		return;
@@ -5044,7 +5031,6 @@ void MoneyRecipientSearchController::rowClicked(
 	if (!user) {
 		return;
 	}
-	_choosing = true;
 	ChooseMoneyRecipient(_box.get(), _show, user);
 }
 
@@ -5363,9 +5349,16 @@ void WalletSendBox(
 		UserData *user,
 		Fn<void()> sent,
 		Fn<void()> notReady,
-		int64 amountNano) {
+		int64 amountNano,
+		base::weak_qptr<Ui::BoxContent> origin) {
 	Expects(user || initial);
 
+	// The box this one was opened over comes back unless the user leaves.
+	const auto discardOrigin = [=] {
+		if (const auto strong = origin.get()) {
+			strong->closeBox();
+		}
+	};
 	const auto self = (!user
 			&& SendsToOwnWallet(&show->session(), initial->destination))
 		? show->session().user().get()
@@ -5386,6 +5379,7 @@ void WalletSendBox(
 			if (weak
 				&& weak->hasDelegate()
 				&& window->widget()->window() == weak->window()) {
+				discardOrigin();
 				weak->closeBox();
 			}
 			window->showPeerInfo(peer);
@@ -6610,6 +6604,7 @@ void WalletSendBox(
 			return;
 		}
 		state->handedOver = true;
+		discardOrigin();
 		box->closeBox();
 		window->showPeerHistory(messageId.peer);
 		window->window().activate();
@@ -6749,6 +6744,7 @@ void WalletSendBox(
 						lt_address,
 						ShortAddressForm(displayForm))
 					: QString();
+				discardOrigin();
 				show->hideLayer();
 				if (!valid()) {
 					return;
@@ -7106,7 +7102,8 @@ void WalletSendBox(
 void OpenSendFlow(
 		std::shared_ptr<Main::SessionShow> show,
 		SendFlow flow,
-		AddressOwner owner) {
+		AddressOwner owner,
+		base::weak_qptr<Ui::BoxContent> origin = nullptr) {
 	if (TransferLinkExpired(flow.expiresAt)) {
 		show->showToast(tr::lng_wallet_send_link_expired(tr::now));
 		return;
@@ -7128,7 +7125,8 @@ void OpenSendFlow(
 		toUser ? user : nullptr,
 		Fn<void()>(),
 		Fn<void()>(),
-		int64(0)));
+		int64(0),
+		origin));
 }
 
 // A transfer to a user is gasless, even when the link named a wallet.
@@ -7273,8 +7271,7 @@ void WalletSendRecipientBox(
 			|| &show->session() != session) {
 			return;
 		}
-		box->closeBox();
-		OpenSendFlow(show, std::move(flow), std::move(owner));
+		OpenSendFlow(show, std::move(flow), std::move(owner), box.get());
 	};
 	const auto lookupOwner = [=](SendFlow flow) {
 		if (SendsToOwnWallet(session, flow.destination)) {
@@ -13482,7 +13479,8 @@ void ShowSendToUser(
 		not_null<UserData*> user,
 		Fn<void()> sent,
 		int64 amountNano,
-		Fn<void()> notReady) {
+		Fn<void()> notReady,
+		base::weak_qptr<Ui::BoxContent> origin) {
 	if (!show || !show->valid() || &show->session() != &user->session()) {
 		return;
 	}
@@ -13497,7 +13495,8 @@ void ShowSendToUser(
 		user.get(),
 		std::move(sent),
 		std::move(notReady),
-		amountNano));
+		amountNano,
+		origin));
 }
 
 void ShowSendToLinkRecipient(
