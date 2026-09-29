@@ -1365,7 +1365,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_faq_link" = "https://telegram.org/faq#general-questions";
 "lng_settings_features" = "Telegram Features";
 "lng_settings_credits" = "My Stars";
-"lng_settings_currency" = "My Grams";
+"lng_settings_currency" = "Gram Earnings";
 "lng_settings_logout" = "Log out";
 "lng_sure_logout" = "Are you sure you want to log out?";
 "lng_sure_logout_wallet" = "Warning! Your Gram wallet is stored only on this device and you haven't viewed its recovery phrase. If you log out, the wallet will be lost forever.";
@@ -8798,8 +8798,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_send_as_file_tooltip" = "Send text as a file.";
 
-"lng_wallet_menu" = "Wallet";
-"lng_wallet_title" = "Wallet";
+"lng_wallet_menu" = "Money";
+"lng_wallet_title" = "Money";
 "lng_wallet_card_ticker" = "GRAM";
 "lng_wallet_add_funds" = "Add Funds";
 "lng_wallet_walt_existing" = "You also have money in Walt";
