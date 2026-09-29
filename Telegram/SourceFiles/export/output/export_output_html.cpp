@@ -301,7 +301,7 @@ QByteArray FormatCustomEmoji(
 		: (custom_emoji == Data::TextPart::UnavailableEmoji())
 		? "<a href=\"\" onclick=\"return ShowNotAvailableEmoji();\">"
 		: ("<a href = \""
-			+ (relativeLinkBase + custom_emoji).toUtf8()
+			+ SerializeString((relativeLinkBase + custom_emoji).toUtf8())
 			+ "\">"))
 		+ text
 		+ "</a>";
@@ -4012,7 +4012,7 @@ auto HtmlWriter::Wrap::pushMessage(
 	}, [&](const ActionScreenshotTaken &data) {
 		return serviceFrom + " took a screenshot";
 	}, [&](const ActionCustomAction &data) {
-		return data.message;
+		return SerializeString(data.message);
 	}, [&](const ActionBotAllowed &data) {
 		return data.attachMenu
 			? "You allowed this bot to message you "
@@ -4118,8 +4118,11 @@ auto HtmlWriter::Wrap::pushMessage(
 				: (serviceFrom + " disabled chat theme");
 		}
 		return isChannel
-			? ("Channel theme was changed to " + data.emoji).toUtf8()
-			: (serviceFrom + " changed chat theme to " + data.emoji).toUtf8();
+			? ("Channel theme was changed to "
+				+ SerializeString(data.emoji.toUtf8()))
+			: (serviceFrom
+				+ " changed chat theme to "
+				+ SerializeString(data.emoji.toUtf8()));
 	}, [&](const ActionChatJoinedByRequest &data) {
 		return serviceFrom
 			+ " joined group by request";
@@ -4136,7 +4139,7 @@ auto HtmlWriter::Wrap::pushMessage(
 		}
 		return serviceFrom
 			+ " sent you a gift for "
-			+ data.cost
+			+ SerializeString(data.cost)
 			+ ": Telegram Premium for "
 			+ QString::number(data.days).toUtf8()
 			+ " days.";
@@ -4219,7 +4222,7 @@ auto HtmlWriter::Wrap::pushMessage(
 		}
 		return serviceFrom
 			+ " sent you a gift for "
-			+ data.cost
+			+ SerializeString(data.cost)
 			+ ": "
 			+ QString::number(data.amount.value()).toUtf8()
 			+ (data.amount.ton() ? " TON." : " Telegram Stars.");
@@ -4308,11 +4311,11 @@ auto HtmlWriter::Wrap::pushMessage(
 		return serviceFrom + " added tasks: " + tasks.join(", ");
 	}, [&](const ActionPollAppendAnswer &data) {
 		return serviceFrom + " added &quot;"
-			+ data.option
+			+ SerializeString(data.option)
 			+ "&quot; to the poll.";
 	}, [&](const ActionPollDeleteAnswer &data) {
 		return serviceFrom + " removed &quot;"
-			+ data.option
+			+ SerializeString(data.option)
 			+ "&quot; from the poll.";
 	}, [&](const ActionSuggestedPostApproval &data) {
 		return serviceFrom
@@ -4572,8 +4575,9 @@ auto HtmlWriter::Wrap::pushMessage(
 						: QString())
 					+ (u"Type: "_q
 						+ HistoryMessageMarkupButton::TypeToString(button));
+				// A bot chooses this url, so only safe schemes get linked.
 				const auto link = (button.type == Type::Url)
-					? button.data
+					? SafeMessageHref(button.data).value_or(QByteArray())
 					: QByteArray();
 				const auto onclick = (button.type != Type::Url)
 					? ("return ShowTextCopied('"
