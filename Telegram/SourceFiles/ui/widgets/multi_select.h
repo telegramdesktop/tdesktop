@@ -44,7 +44,7 @@ public:
 	};
 	using PaintRoundImage = Fn<void(Painter &p, int x, int y, int outerWidth, int size)>;
 	void addItem(uint64 itemId, const QString &text, style::color color, PaintRoundImage paintRoundImage, AddItemWay way = AddItemWay::Default);
-	void addItemInBunch(uint64 itemId, const QString &text, style::color color, PaintRoundImage paintRoundImage);
+	bool addItemInBunch(uint64 itemId, const QString &text, style::color color, PaintRoundImage paintRoundImage);
 	void finishItemsBunch();
 	void setItemText(uint64 itemId, const QString &text);
 
