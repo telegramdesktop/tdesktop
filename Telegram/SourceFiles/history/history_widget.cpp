@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "history/view/history_view_draw_to_reply.h"
 #include "history/view/controls/history_view_compose_stash.h"
+#include "history/view/controls/history_view_compose_stash_hint.h"
 #include "history/view/controls/history_view_rich_draft_preview.h"
 #include "ui/emoji_config.h"
 #include "ui/chat/attach/attach_prepare.h"
@@ -492,6 +493,16 @@ HistoryWidget::HistoryWidget(
 	) | rpl::filter(rpl::mappers::_1) | rpl::on_next([=] {
 		fieldFocused();
 	}, _field->lifetime());
+	if (session().settings().shouldShowStashHint()) {
+		using StashHintManager = HistoryView::Controls::StashHintManager;
+		_stashHintManager = std::make_unique<StashHintManager>(
+			HistoryView::Controls::StashHintDescriptor{
+				.session = &session(),
+				.toastParent = [=]() -> QWidget* { return _scroll.data(); },
+				.fieldText = [=] { return _field->getTextWithTags().text; },
+				.canUse = [=] { return canUseComposeStash(); },
+			});
+	}
 	_field->changes(
 	) | rpl::on_next([=] {
 		fieldChanged();
@@ -2269,6 +2280,13 @@ bool HistoryWidget::suppressSendAction() const {
 }
 
 void HistoryWidget::fieldChanged() {
+	if (_stashHintManager) {
+		const auto save = bool(
+			_textUpdateEvents & TextUpdateEvent::SaveDraft);
+		const auto sendTyping = bool(
+			_textUpdateEvents & TextUpdateEvent::SendTyping);
+		_stashHintManager->trackChange(save && sendTyping);
+	}
 	const auto updateTyping = (_textUpdateEvents
 		& TextUpdateEvent::SendTyping);
 
@@ -2855,6 +2873,9 @@ std::unique_ptr<Data::ComposeStash> HistoryWidget::takeComposeStash() {
 	}
 	saveDraftWithTextNow();
 	saveCloudDraft();
+	if (_stashHintManager) {
+		_stashHintManager->markUsed();
+	}
 	return result;
 }
 
@@ -2888,6 +2909,9 @@ void HistoryWidget::applyComposeStash(Data::ComposeStash &&stash) {
 			PeerId(),
 			std::move(stash.forward));
 		updateForwarding();
+	}
+	if (_stashHintManager) {
+		_stashHintManager->markUsed();
 	}
 }
 

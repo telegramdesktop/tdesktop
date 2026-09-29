@@ -83,6 +83,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/controls/history_view_compose_ai_button.h"
 #include "history/view/controls/history_view_compose_ai_tooltip.h"
 #include "history/view/controls/history_view_compose_media_edit_manager.h"
+#include "history/view/controls/history_view_compose_stash_hint.h"
 #include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/controls/history_view_rich_draft_preview.h"
 #include "history/view/controls/history_view_draft_options.h"
@@ -2706,6 +2707,9 @@ std::unique_ptr<Data::ComposeStash> ComposeControls::takeComposeStash() {
 	if (!result->forward.ids.empty()) {
 		cancelForward();
 	}
+	if (_stashHintManager) {
+		_stashHintManager->markUsed();
+	}
 	return result;
 }
 
@@ -2744,6 +2748,9 @@ void ComposeControls::applyComposeStash(Data::ComposeStash &&stash) {
 			_monoforumPeerId,
 			std::move(stash.forward));
 		updateForwarding();
+	}
+	if (_stashHintManager) {
+		_stashHintManager->markUsed();
 	}
 	focus();
 }
@@ -2804,6 +2811,9 @@ void ComposeControls::hidePanelsAnimated() {
 void ComposeControls::hide() {
 	showStarted();
 	_hidden = true;
+	if (_stashHintManager) {
+		_stashHintManager->hide();
+	}
 }
 
 void ComposeControls::show() {
@@ -2817,6 +2827,17 @@ void ComposeControls::show() {
 }
 
 void ComposeControls::init() {
+	if (session().settings().shouldShowStashHint()) {
+		_stashHintManager = std::make_unique<Controls::StashHintManager>(
+			Controls::StashHintDescriptor{
+				.session = _session,
+				.toastParent = [=]() -> QWidget* {
+					return _pasteToastParent.data();
+				},
+				.fieldText = [=] { return _field->getTextWithTags().text; },
+				.canUse = [=] { return canUseComposeStash(); },
+			});
+	}
 	if (_attachToggle) {
 		_attachToggle->setAccessibleName(tr::lng_attach(tr::now));
 	}
@@ -3444,6 +3465,12 @@ bool ComposeControls::suppressSendAction() const {
 }
 
 void ComposeControls::fieldChanged() {
+	if (_stashHintManager) {
+		const auto save = bool(_textUpdateEvents & TextUpdateEvent::SaveDraft);
+		const auto sendTyping = bool(
+			_textUpdateEvents & TextUpdateEvent::SendTyping);
+		_stashHintManager->trackChange(save && sendTyping);
+	}
 	const auto typing = (!_inlineBot
 		&& !_header->isEditingMessage()
 		&& (_textUpdateEvents & TextUpdateEvent::SendTyping)

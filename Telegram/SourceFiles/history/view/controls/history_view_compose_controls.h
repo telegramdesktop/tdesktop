@@ -115,6 +115,7 @@ class CharactersLimitLabel;
 class ComposeAiButton;
 class ComposeTooltipManager;
 using AiTooltipManager = ComposeTooltipManager;
+class StashHintManager;
 } // namespace HistoryView::Controls
 
 namespace HistoryView {
@@ -616,6 +617,7 @@ private:
 	const std::unique_ptr<Controls::VoiceRecordBar> _voiceRecordBar;
 	std::unique_ptr<Controls::AiTooltipManager> _aiTooltipManager;
 	std::unique_ptr<Controls::AiTooltipManager> _sendAsFileTooltipManager;
+	std::unique_ptr<Controls::StashHintManager> _stashHintManager;
 	std::shared_ptr<Ui::ChatStyle> _chatStyle;
 
 	const Fn<SendMenu::Details()> _sendMenuDetails;

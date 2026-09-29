@@ -946,6 +946,8 @@ PRIVATE
     history/view/controls/history_view_compose_search.h
     history/view/controls/history_view_compose_stash.cpp
     history/view/controls/history_view_compose_stash.h
+    history/view/controls/history_view_compose_stash_hint.cpp
+    history/view/controls/history_view_compose_stash_hint.h
     history/view/controls/history_view_draft_options.cpp
     history/view/controls/history_view_draft_options.h
     history/view/controls/history_view_forward_panel.cpp

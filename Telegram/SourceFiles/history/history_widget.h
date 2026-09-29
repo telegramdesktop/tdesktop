@@ -138,6 +138,7 @@ class ComposeAiButton;
 class ComposeTooltipManager;
 class RichDraftPreview;
 class StashManager;
+class StashHintManager;
 using AiTooltipManager = ComposeTooltipManager;
 struct VoiceToSend;
 } // namespace HistoryView::Controls
@@ -959,6 +960,7 @@ private:
 	rpl::lifetime _subsectionTopicsLifetime;
 	std::unique_ptr<HistoryView::Controls::AiTooltipManager> _aiTooltipManager;
 	std::unique_ptr<HistoryView::Controls::AiTooltipManager> _sendAsFileTooltipManager;
+	std::unique_ptr<HistoryView::Controls::StashHintManager> _stashHintManager;
 	std::shared_ptr<Ui::ChatStyle> _fieldChatStyle;
 	bool _cmdStartShown = false;
 	object_ptr<Ui::InputField> _field;
