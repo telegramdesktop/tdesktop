@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "core/update_channel.h"
 #include "core/update_keys.h"
+#include "core/update_unpack.h"
 #include "core/update_verify.h"
 #include "core/version.h"
 #include "data/data_channel.h"
@@ -53,14 +54,6 @@ extern "C" {
 #include <openssl/bio.h>
 #include <openssl/err.h>
 } // extern "C"
-
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-#if defined Q_OS_WIN && !defined TDESKTOP_USE_PACKAGED // use Lzma SDK for win
-#include <LzmaLib.h>
-#else // Q_OS_WIN && !TDESKTOP_USE_PACKAGED
-#include <lzma.h>
-#endif // else of Q_OS_WIN && !TDESKTOP_USE_PACKAGED
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 #ifndef Q_OS_WIN
 #include <unistd.h>
@@ -402,138 +395,6 @@ QString ExtractFilename(const QString &url) {
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 
-// WHY: Callers authenticate bytes before this parser reads the payload:
-// [lzma props on Windows,] original size, compressed bytes.
-[[nodiscard]] std::optional<QByteArray> DecompressUpdatePayload(
-		const char *data,
-		int32 size) {
-#if defined Q_OS_WIN && !defined TDESKTOP_USE_PACKAGED // use Lzma SDK for win
-	const int32 hPropsLen = LZMA_PROPS_SIZE;
-#else // Q_OS_WIN && !TDESKTOP_USE_PACKAGED
-	const int32 hPropsLen = 0;
-#endif // Q_OS_WIN && !TDESKTOP_USE_PACKAGED
-	const int32 hOriginalSizeLen = sizeof(int32);
-	const int32 hSize = hPropsLen + hOriginalSizeLen;
-	const int32 compressedLen = size - hSize;
-	if (compressedLen <= 0) {
-		LOG(("Update Error: bad compressed size: %1").arg(size));
-		return std::nullopt;
-	}
-
-	QByteArray uncompressed;
-
-	int32 uncompressedLen;
-	memcpy(&uncompressedLen, data + hPropsLen, hOriginalSizeLen);
-	if (uncompressedLen <= 0 || uncompressedLen > 1024 * 1024 * 1024) {
-		LOG(("Update Error: bad uncompressed size: %1").arg(uncompressedLen));
-		return std::nullopt;
-	}
-	uncompressed.resize(uncompressedLen);
-
-	size_t resultLen = uncompressed.size();
-#if defined Q_OS_WIN && !defined TDESKTOP_USE_PACKAGED // use Lzma SDK for win
-	SizeT srcLen = compressedLen;
-	int uncompressRes = LzmaUncompress((uchar*)uncompressed.data(), &resultLen, (const uchar*)(data + hSize), &srcLen, (const uchar*)data, LZMA_PROPS_SIZE);
-	if (uncompressRes != SZ_OK) {
-		LOG(("Update Error: could not uncompress lzma, code: %1").arg(uncompressRes));
-		return std::nullopt;
-	}
-#else // Q_OS_WIN && !TDESKTOP_USE_PACKAGED
-	lzma_stream stream = LZMA_STREAM_INIT;
-
-	lzma_ret ret = lzma_stream_decoder(&stream, UINT64_MAX, LZMA_CONCATENATED);
-	if (ret != LZMA_OK) {
-		const char *msg;
-		switch (ret) {
-		case LZMA_MEM_ERROR: msg = "Memory allocation failed"; break;
-		case LZMA_OPTIONS_ERROR: msg = "Specified preset is not supported"; break;
-		case LZMA_UNSUPPORTED_CHECK: msg = "Specified integrity check is not supported"; break;
-		default: msg = "Unknown error, possibly a bug"; break;
-		}
-		LOG(("Error initializing the decoder: %1 (error code %2)").arg(msg).arg(ret));
-		return std::nullopt;
-	}
-
-	stream.avail_in = compressedLen;
-	stream.next_in = (uint8_t*)(data + hSize);
-	stream.avail_out = resultLen;
-	stream.next_out = (uint8_t*)uncompressed.data();
-
-	lzma_ret res = lzma_code(&stream, LZMA_FINISH);
-	if (stream.avail_in) {
-		LOG(("Error in decompression, %1 bytes left in _in of %2 whole.").arg(stream.avail_in).arg(compressedLen));
-		return std::nullopt;
-	} else if (stream.avail_out) {
-		LOG(("Error in decompression, %1 bytes free left in _out of %2 whole.").arg(stream.avail_out).arg(resultLen));
-		return std::nullopt;
-	}
-	lzma_end(&stream);
-	if (res != LZMA_OK && res != LZMA_STREAM_END) {
-		const char *msg;
-		switch (res) {
-		case LZMA_MEM_ERROR: msg = "Memory allocation failed"; break;
-		case LZMA_FORMAT_ERROR: msg = "The input data is not in the .xz format"; break;
-		case LZMA_OPTIONS_ERROR: msg = "Unsupported compression options"; break;
-		case LZMA_DATA_ERROR: msg = "Compressed file is corrupt"; break;
-		case LZMA_BUF_ERROR: msg = "Compressed data is truncated or otherwise corrupt"; break;
-		default: msg = "Unknown error, possibly a bug"; break;
-		}
-		LOG(("Error in decompression: %1 (error code %2)").arg(msg).arg(res));
-		return std::nullopt;
-	}
-#endif // Q_OS_WIN && !TDESKTOP_USE_PACKAGED
-
-	return uncompressed;
-}
-
-[[nodiscard]] bool ExtractUpdateFiles(
-		QDataStream &stream,
-		quint32 filesCount,
-		const QString &tempDirPath) {
-	for (uint32 i = 0; i < filesCount; ++i) {
-		QString relativeName;
-		quint32 fileSize;
-		QByteArray fileInnerData;
-		bool executable = false;
-
-		stream >> relativeName >> fileSize >> fileInnerData;
-#ifndef Q_OS_WIN
-		stream >> executable;
-#endif // !Q_OS_WIN
-		if (stream.status() != QDataStream::Ok) {
-			LOG(("Update Error: cant read file from downloaded stream, status: %1").arg(stream.status()));
-			return false;
-		}
-		if (fileSize != quint32(fileInnerData.size())) {
-			LOG(("Update Error: bad file size %1 not matching data size %2").arg(fileSize).arg(fileInnerData.size()));
-			return false;
-		}
-
-		QFile f(tempDirPath + '/' + relativeName);
-		if (!QDir().mkpath(QFileInfo(f).absolutePath())) {
-			LOG(("Update Error: cant mkpath for file '%1'").arg(tempDirPath + '/' + relativeName));
-			return false;
-		}
-		if (!f.open(QIODevice::WriteOnly)) {
-			LOG(("Update Error: cant open file '%1' for writing").arg(tempDirPath + '/' + relativeName));
-			return false;
-		}
-		auto writtenBytes = f.write(fileInnerData);
-		if (writtenBytes != fileSize) {
-			f.close();
-			LOG(("Update Error: cant write file '%1', desiredSize: %2, write result: %3").arg(tempDirPath + '/' + relativeName).arg(fileSize).arg(writtenBytes));
-			return false;
-		}
-		f.close();
-		if (executable) {
-			QFileDevice::Permissions p = f.permissions();
-			p |= QFileDevice::ExeOwner | QFileDevice::ExeUser | QFileDevice::ExeGroup | QFileDevice::ExeOther;
-			f.setPermissions(p);
-		}
-	}
-	return true;
-}
-
 [[nodiscard]] bool WriteUpdateVersionFile(
 		QDir &tempDir,
 		const QString &tempDirPath,
@@ -628,11 +489,11 @@ QString ExtractFilename(const QString &url) {
 		return false;
 	}
 
-	const auto &payload = verified->envelope.payload;
-	const auto uncompressed = DecompressUpdatePayload(
-		payload.constData(),
-		payload.size());
+	const auto uncompressed = Updates::DecompressUpdatePayload(
+		*verified,
+		&error);
 	if (!uncompressed) {
+		LOG(("Update Error: %1").arg(error));
 		return false;
 	}
 
@@ -641,33 +502,20 @@ QString ExtractFilename(const QString &url) {
 	const auto canary
 		= (verified->envelope.channel == Updates::Channel::CanaryPublic)
 		|| (verified->envelope.channel == Updates::Channel::CanaryPrivate);
-	{
-		QDataStream stream(*uncompressed);
-		stream.setVersion(QDataStream::Qt_5_1);
-
-		quint32 version;
-		stream >> version;
-		if (stream.status() != QDataStream::Ok
-			|| version != Updates::UpdateVersionBase(
-				verified->envelope.version)) {
-			LOG(("Update Error: v2 inner version does not match envelope."));
-			return false;
-		}
-
-		quint32 filesCount;
-		stream >> filesCount;
-		if (stream.status() != QDataStream::Ok || !filesCount) {
-			LOG(("Update Error: cant read v2 files count."));
-			return false;
-		}
-		if (!ExtractUpdateFiles(stream, filesCount, tempDirPath)
-			|| !WriteUpdateVersionFile(
-				tempDir,
-				tempDirPath,
-				version,
-				canary ? verified->envelope.version : 0)) {
-			return false;
-		}
+	if (!Updates::ExtractUpdateFiles(
+			*uncompressed,
+			verified->envelope.version,
+			tempDirPath,
+			&error)) {
+		LOG(("Update Error: %1").arg(error));
+		return false;
+	}
+	if (!WriteUpdateVersionFile(
+			tempDir,
+			tempDirPath,
+			Updates::UpdateVersionBase(verified->envelope.version),
+			canary ? verified->envelope.version : 0)) {
+		return false;
 	}
 
 	if (!WriteUpdateReadyFile(readyFilePath)) {

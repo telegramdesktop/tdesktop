@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
+#include "platform/linux/update_install_linux.h"
 #include "webview/platform/linux/webview_linux_webkitgtk.h"
 
 #include <QtWidgets/QApplication>
@@ -31,6 +32,9 @@ Launcher::Launcher(int argc, char *argv[])
 }
 
 int Launcher::exec() {
+	if (const auto result = InstallUpdateIfRequested(arguments())) {
+		return *result;
+	}
 	for (auto i = arguments().begin(), e = arguments().end(); i != e; ++i) {
 		if (*i == u"-webviewhelper"_q && std::distance(i, e) > 1) {
 			Webview::WebKitGTK::SetSocketPath((i + 1)->toStdString());
