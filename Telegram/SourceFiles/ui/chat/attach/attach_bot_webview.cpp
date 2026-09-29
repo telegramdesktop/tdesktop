@@ -64,6 +64,7 @@ namespace Ui::BotWebView {
 namespace {
 
 constexpr auto kClipboardReadTimeout = crl::time(10000);
+constexpr auto kOpenLinkTimeout = crl::time(3000);
 constexpr auto kProgressDuration = crl::time(200);
 constexpr auto kProgressOpacity = 0.3;
 constexpr auto kLightnessThreshold = 128;
@@ -1303,6 +1304,7 @@ Panel::Panel(Args &&args)
 
 	_widget->backRequests(
 	) | rpl::on_next([=] {
+		_lastUserInteraction = crl::now();
 		postEvent("back_button_pressed");
 	}, _widget->lifetime());
 
@@ -1632,6 +1634,7 @@ bool Panel::showWebview(Args &&args, const Webview::ThemeParams &params) {
 
 	const auto dispatch = SharedPanelMenuDispatchArgs{
 		.settings = [=] {
+			_lastUserInteraction = crl::now();
 			postEvent("settings_button_pressed");
 		},
 		.reload = [=] {
@@ -1944,6 +1947,7 @@ void Panel::sendExternalShellAssets() {
 void Panel::handleExternalShellMenuAction(const QString &id) {
 	DispatchSharedPanelMenuAction(id, {
 		.settings = [=] {
+			_lastUserInteraction = crl::now();
 			postEvent("settings_button_pressed");
 		},
 		.reload = [=] {
@@ -2225,7 +2229,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 #endif // !Q_OS_WIN && !Q_OS_MAC
 
 	raw->setInteractionHandler([=] {
-		_lastWebviewInteraction = crl::now();
+		_lastUserInteraction = crl::now();
 	});
 	raw->setExternalWindowCloseHandler([=] {
 		if (!_externalShell
@@ -2872,13 +2876,43 @@ void Panel::openExternalLink(const QJsonObject &args) {
 		LOG(("BotWebView Error: Bad url in openExternalLink."));
 		requestClose();
 		return;
-	} else if (!allowOpenLink()) {
-		return;
-	} else if (iv) {
-		_delegate->botOpenIvLink(url);
-	} else {
-		File::OpenUrl(url);
 	}
+	const auto open = [=] {
+		if (iv) {
+			_delegate->botOpenIvLink(url);
+		} else {
+			File::OpenUrl(url);
+		}
+	};
+	if (allowOpenLink()) {
+		open();
+	} else {
+		confirmExternalLink(url, open);
+	}
+}
+
+void Panel::confirmExternalLink(const QString &url, Fn<void()> open) {
+	if (!_webview) {
+		return;
+	}
+	using Button = Webview::PopupArgs::Button;
+	const auto parsed = QUrl(url);
+	const auto weak = base::make_weak(this);
+	showPopup({
+		.parent = webviewWindowForPopup(),
+		.title = tr::lng_open_this_link(tr::now),
+		.text = (parsed.isValid()
+			? QString::fromUtf8(parsed.toEncoded())
+			: url),
+		.buttons = {
+			{ .id = "open", .text = tr::lng_open_link(tr::now) },
+			{ .id = "cancel", .type = Button::Type::Cancel },
+		},
+	}, [=](Webview::PopupResult result) {
+		if (weak && result.id == "open") {
+			open();
+		}
+	});
 }
 
 void Panel::openInvoice(const QJsonObject &args) {
@@ -2944,6 +2978,8 @@ void Panel::openPopup(const QJsonObject &args) {
 	}, [=](Webview::PopupResult result) {
 		if (!weak) {
 			return;
+		} else if (result.id) {
+			_lastUserInteraction = crl::now();
 		}
 		postEvent("popup_closed", result.id
 			? QJsonObject{ { u"button_id"_q, *result.id } }
@@ -3126,13 +3162,13 @@ void Panel::requestClipboardText(const QJsonObject &args) {
 	postEvent(u"clipboard_text_received"_q, result);
 }
 
-bool Panel::allowOpenLink() const {
-	//const auto now = crl::now();
-	//if (_mainButtonLastClick
-	//	&& _mainButtonLastClick + kProcessClickTimeout >= now) {
-	//	_mainButtonLastClick = 0;
-	//	return true;
-	//}
+bool Panel::allowOpenLink() {
+	if (!_lastUserInteraction
+		|| _lastUserInteraction == _openLinkInteraction
+		|| _lastUserInteraction + kOpenLinkTimeout < crl::now()) {
+		return false;
+	}
+	_openLinkInteraction = _lastUserInteraction;
 	return true;
 }
 
@@ -3141,8 +3177,8 @@ bool Panel::allowClipboardQuery() const {
 		return false;
 	}
 	const auto now = crl::now();
-	return _lastWebviewInteraction
-		&& (_lastWebviewInteraction + kClipboardReadTimeout >= now);
+	return _lastUserInteraction
+		&& (_lastUserInteraction + kClipboardReadTimeout >= now);
 }
 
 void Panel::scheduleCloseWithConfirmation() {
@@ -3455,6 +3491,7 @@ void Panel::createButton(std::unique_ptr<Button> &button) {
 
 	raw->setClickedCallback([=] {
 		if (!raw->isDisabled()) {
+			_lastUserInteraction = crl::now();
 			if (raw == _mainButton.get()) {
 				postEvent("main_button_pressed");
 			} else if (raw == _secondaryButton.get()) {
