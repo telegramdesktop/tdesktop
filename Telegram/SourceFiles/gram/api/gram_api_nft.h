@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/basic_types.h"
 #include "gram/api/gram_api_request.h"
 
+#include <QtCore/QByteArray>
 #include <QtCore/QString>
 
 #include <optional>
@@ -24,6 +25,16 @@ enum class NftKind {
 	TelegramUsername,
 };
 
+struct NftWebDocument {
+	QByteArray url;
+	uint64 accessHash = 0;
+	QString mimeType;
+
+	friend bool operator==(
+		const NftWebDocument &,
+		const NftWebDocument &) = default;
+};
+
 struct NftItem {
 	// Canonical raw addresses, lowercase `workchain:64-hex`.
 	QString address;
@@ -34,6 +45,11 @@ struct NftItem {
 	QString domain;
 	QString key;
 	QString collectionName;
+	QString name;
+	std::optional<NftWebDocument> image;
+	std::optional<NftWebDocument> imageSmall;
+	std::optional<NftWebDocument> contentUrl;
+	std::optional<NftWebDocument> lottie;
 	NftKind kind = NftKind::Generic;
 	bool contentUriHttps = false;
 	bool onSale = false;

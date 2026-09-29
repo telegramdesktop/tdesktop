@@ -45,7 +45,9 @@ constexpr auto kChainTimeout = 60 * crl::time(1000);
 }
 
 [[nodiscard]] QString FallbackTitle(const Gram::NftItem &item) {
-	if (!item.domain.isEmpty()) {
+	if (!item.name.isEmpty()) {
+		return item.name;
+	} else if (!item.domain.isEmpty()) {
 		return item.domain;
 	}
 	const auto slug = UriSlug(item.contentUri);

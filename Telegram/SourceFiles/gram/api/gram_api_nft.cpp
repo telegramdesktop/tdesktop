@@ -86,6 +86,12 @@ constexpr auto kFragmentCollections = std::array{
 	return nullptr;
 }
 
+[[nodiscard]] bool IsSlugChar(QChar ch) {
+	return (ch == QChar('_'))
+		|| (ch == QChar('-'))
+		|| (ch.isLetterOrNumber() && ch.unicode() < 128);
+}
+
 [[nodiscard]] QString FragmentSlug(
 		const QString &uri,
 		QStringView segment) {
@@ -104,15 +110,85 @@ constexpr auto kFragmentCollections = std::array{
 		return QString();
 	}
 	for (const auto ch : slug) {
-		const auto allowed = (ch == QChar('.'))
-			|| (ch == QChar('_'))
-			|| (ch == QChar('-'))
-			|| (ch.isLetterOrNumber() && ch.unicode() < 128);
-		if (!allowed) {
+		if (ch != QChar('.') && !IsSlugChar(ch)) {
 			return QString();
 		}
 	}
 	return slug;
+}
+
+[[nodiscard]] QString FragmentMediaSlug(
+		const QByteArray &url,
+		QStringView segment) {
+	const auto prefix = u"https://nft.fragment.com/"_q
+		+ segment.toString()
+		+ u"/"_q;
+	const auto text = QString::fromUtf8(url);
+	if (!text.startsWith(prefix)) {
+		return QString();
+	}
+	auto slug = text.mid(prefix.size());
+	const auto dot = slug.indexOf(QChar('.'));
+	if (dot >= 0) {
+		slug.truncate(dot);
+	}
+	if (slug.isEmpty()) {
+		return QString();
+	}
+	for (const auto ch : slug) {
+		if (!IsSlugChar(ch)) {
+			return QString();
+		}
+	}
+	return slug;
+}
+
+[[nodiscard]] QString MediaSlug(const NftItem &item, QStringView segment) {
+	const auto documents = {
+		&item.image,
+		&item.lottie,
+		&item.imageSmall,
+		&item.contentUrl,
+	};
+	for (const auto document : documents) {
+		if (*document) {
+			auto slug = FragmentMediaSlug((*document)->url, segment);
+			if (!slug.isEmpty()) {
+				return slug;
+			}
+		}
+	}
+	return QString();
+}
+
+[[nodiscard]] QString KeyFromName(const QString &name, NftKind kind) {
+	if (kind == NftKind::TelegramUsername) {
+		const auto key = name.startsWith(QChar('@')) ? name.mid(1) : name;
+		if (key.isEmpty()) {
+			return QString();
+		}
+		for (const auto ch : key) {
+			if (ch != QChar('_')
+				&& !(ch.isLetterOrNumber() && ch.unicode() < 128)) {
+				return QString();
+			}
+		}
+		return key;
+	} else if (kind == NftKind::TelegramNumber) {
+		if (!name.startsWith(QChar('+'))) {
+			return QString();
+		}
+		auto result = QString();
+		for (const auto ch : QStringView(name).mid(1)) {
+			if (ch >= QChar('0') && ch <= QChar('9')) {
+				result.append(ch);
+			} else if (ch != QChar(' ')) {
+				return QString();
+			}
+		}
+		return result;
+	}
+	return QString();
 }
 
 [[nodiscard]] std::optional<NftItem> ParseNftItem(const QJsonObject &object) {
@@ -156,8 +232,17 @@ void ClassifyNftKind(NftItem &item) {
 	if (const auto entry = FragmentEntry(item.collection)) {
 		item.kind = entry->kind;
 		item.key = FragmentSlug(item.contentUri, entry->segment);
+		if (item.key.isEmpty()) {
+			item.key = MediaSlug(item, entry->segment);
+		}
+		if (item.key.isEmpty()) {
+			item.key = KeyFromName(item.name, entry->kind);
+		}
 	} else {
 		auto slug = FragmentSlug(item.contentUri, u"gift");
+		if (slug.isEmpty()) {
+			slug = MediaSlug(item, u"gift");
+		}
 		if (!slug.isEmpty()) {
 			item.kind = NftKind::TelegramGift;
 			item.key = std::move(slug);

@@ -626,6 +626,146 @@ std::vector<Check> NftChecks() {
 			}
 			return QString();
 		} },
+		{ u"nft_classify_kind_media"_q, [] {
+			const auto foreignRaw = u"0:0c8f3fcc4abd589206a2cdf1469e3709"
+				u"2c1adad272fbe7db97104569c16f0ff2"_q;
+			const auto numberRaw = u"0:0e41dc1dc3c9067ed24248580e12b335"
+				u"9818d83dee0304fabcf80845eafafdb2"_q;
+			const auto usernameRaw = u"0:80d78a35f955a14b679faa887ff4cd5b"
+				u"fc0f43b4a4eea2a7e6927f3701b273c2"_q;
+			const auto document = [](const char *url) {
+				return NftWebDocument{ .url = QByteArray(url) };
+			};
+			const auto expect = [](
+					const QString &label,
+					const NftItem &item,
+					NftKind kind,
+					const QString &key) {
+				if (item.kind == kind && item.key == key) {
+					return QString();
+				}
+				return label
+					+ u": got kind "_q
+					+ QString::number(int(item.kind))
+					+ u" key '"_q
+					+ item.key
+					+ u"', expected kind "_q
+					+ QString::number(int(kind))
+					+ u" key '"_q
+					+ key
+					+ u"'"_q;
+			};
+			auto result = QString();
+			const auto check = [&](
+					const QString &label,
+					NftItem item,
+					NftKind kind,
+					const QString &key) {
+				ClassifyNftKind(item);
+				if (result.isEmpty()) {
+					result = expect(label, item, kind, key);
+				}
+			};
+
+			auto giftImage = NftItem();
+			giftImage.collection = foreignRaw;
+			giftImage.image = document(
+				"https://nft.fragment.com/gift/deskcalendar-45754.webp");
+			check(
+				u"gift from image"_q,
+				giftImage,
+				NftKind::TelegramGift,
+				u"deskcalendar-45754"_q);
+
+			auto giftLottie = NftItem();
+			giftLottie.collection = foreignRaw;
+			giftLottie.imageSmall = document(
+				"https://imgproxy.toncenter.com/CLisjZYndcPa0HF7lUeL2LkBthE4"
+				"L7OJ04Gp8GEDknE/pr:small/aHR0cHM6Ly9uZnQuZnJhZ21lbnQuY29tL"
+				"2dpZnQvZGVza2NhbGVuZGFyLTQ1NzU0LndlYnA");
+			giftLottie.lottie = document(
+				"https://nft.fragment.com/gift/deskcalendar-45754.lottie.json");
+			check(
+				u"gift from lottie"_q,
+				giftLottie,
+				NftKind::TelegramGift,
+				u"deskcalendar-45754"_q);
+
+			auto numberImage = NftItem();
+			numberImage.collection = numberRaw;
+			numberImage.name = u"+888 0768 4929"_q;
+			numberImage.image = document(
+				"https://nft.fragment.com/number/88807684929.webp");
+			check(
+				u"number from image"_q,
+				numberImage,
+				NftKind::TelegramNumber,
+				u"88807684929"_q);
+
+			auto numberName = NftItem();
+			numberName.collection = numberRaw;
+			numberName.name = u"+888 0768 4929"_q;
+			check(
+				u"number from name"_q,
+				numberName,
+				NftKind::TelegramNumber,
+				u"88807684929"_q);
+
+			auto usernameName = NftItem();
+			usernameName.collection = usernameRaw;
+			usernameName.name = u"@tolya"_q;
+			check(
+				u"username from name"_q,
+				usernameName,
+				NftKind::TelegramUsername,
+				u"tolya"_q);
+
+			auto forged = NftItem();
+			forged.collection = foreignRaw;
+			forged.name = u"+888 0768 4929"_q;
+			forged.image = document(
+				"https://nft.fragment.com/number/88807684929.webp");
+			check(
+				u"forged number media"_q,
+				forged,
+				NftKind::Generic,
+				QString());
+
+			auto foreignHost = NftItem();
+			foreignHost.collection = foreignRaw;
+			foreignHost.image = document("https://example.com/gift/x.webp");
+			check(
+				u"foreign host"_q,
+				foreignHost,
+				NftKind::Generic,
+				QString());
+
+			auto traversal = NftItem();
+			traversal.collection = foreignRaw;
+			traversal.image = document(
+				"https://nft.fragment.com/gift/../x.webp");
+			check(
+				u"dot segment"_q,
+				traversal,
+				NftKind::Generic,
+				QString());
+
+			auto encoded = NftItem();
+			encoded.collection = foreignRaw;
+			encoded.image = document(
+				"https://nft.fragment.com/gift/x%2Fy.webp");
+			check(
+				u"encoded slash"_q,
+				encoded,
+				NftKind::Generic,
+				QString());
+
+			auto bare = NftItem();
+			bare.collection = foreignRaw;
+			bare.name = u"Some Item #1"_q;
+			check(u"bare generic"_q, bare, NftKind::Generic, QString());
+			return result;
+		} },
 		{ u"nft_descriptor_fixtures"_q, [] {
 			const auto name = u"fragment-gift-deskcalendar-45754.json"_q;
 			const auto bytes = ReadFixture(name);

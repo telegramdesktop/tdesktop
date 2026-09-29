@@ -92,6 +92,15 @@ struct Session::HistoryRequest {
 	std::vector<Fn<void()>> done;
 };
 
+struct Session::CollectiblesRequest {
+	std::optional<TransferWalletIdentity> identity;
+	uint64 identityRevision = 0;
+	int generation = 0;
+	QString offset;
+	bool more = false;
+	mtpRequestId id = 0;
+};
+
 struct Session::SubmittedTransfer {
 	std::string operationId;
 	TransferWalletIdentity identity;
@@ -231,6 +240,8 @@ constexpr auto kTransactionsPerPage = 50;
 // walk is paced by this client's clock, and no eligible row is walled off.
 constexpr auto kMaxHiddenPagesInRow = 20;
 constexpr auto kForcedCollectiblesInterval = 10 * crl::time(1000);
+// The largest limit wallet.getNfts accepts.
+constexpr auto kCollectiblesPerPage = 20;
 constexpr auto kStreamResyncInterval = 30 * crl::time(1000);
 constexpr auto kClientSendValiditySeconds = uint64(300);
 constexpr auto kClientResolutionMarginSeconds = uint64(60);
@@ -429,6 +440,24 @@ struct MergedHead {
 	result.reserve(page.size());
 	for (auto &item : page) {
 		if (item.id.isEmpty() || !held.contains(item.id)) {
+			result.push_back(std::move(item));
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] std::vector<Gram::NftItem> UnheldCollectibles(
+		const std::vector<Gram::NftItem> &was,
+		std::vector<Gram::NftItem> &&page) {
+	auto held = base::flat_set<QString>();
+	held.reserve(was.size());
+	for (const auto &item : was) {
+		held.emplace(item.address);
+	}
+	auto result = std::vector<Gram::NftItem>();
+	result.reserve(page.size());
+	for (auto &item : page) {
+		if (!held.contains(item.address)) {
 			result.push_back(std::move(item));
 		}
 	}
@@ -1657,38 +1686,44 @@ void FailShareFetch(
 	};
 }
 
-[[nodiscard]] std::optional<Gram::NftItem> CollectibleFromEngine(
-		const engine::NftItem &item) {
-	const auto address = CanonicalAddress(
-		QString::fromStdString(item.address));
-	if (address.isEmpty()) {
-		LOG(("Wallet Error: engine nft address is not parseable."));
+[[nodiscard]] std::optional<Gram::NftWebDocument> WebDocumentFromServer(
+		const tl::conditional<MTPWebDocument> &document) {
+	if (!document) {
 		return std::nullopt;
 	}
-	const auto addressOrEmpty = [](const std::optional<std::string> &value) {
-		return value
-			? CanonicalAddress(QString::fromStdString(*value))
-			: QString();
-	};
-	const auto contentValue = [&](const std::string &key) {
-		const auto i = item.content.find(key);
-		return (i != item.content.end())
-			? QString::fromStdString(i->second)
-			: QString();
-	};
+	return document->match([](const MTPDwebDocument &web) {
+		return std::make_optional(Gram::NftWebDocument{
+			.url = web.vurl().v,
+			.accessHash = web.vaccess_hash().v,
+			.mimeType = qs(web.vmime_type()),
+		});
+	}, [](const MTPDwebDocumentNoProxy &) {
+		// A direct fetch would reveal the user's IP to the media host.
+		return std::optional<Gram::NftWebDocument>();
+	});
+}
+
+[[nodiscard]] std::optional<Gram::NftItem> CollectibleFromServer(
+		const MTPwallet_NftItem &item) {
+	const auto &data = item.data();
+	const auto address = CanonicalAddress(qs(data.vaddress()));
+	if (address.isEmpty()) {
+		LOG(("Wallet Error: wallet.getNfts item address is not parseable."));
+		return std::nullopt;
+	}
 	auto result = Gram::NftItem();
 	result.address = address;
-	result.collection = addressOrEmpty(item.collection_address);
-	result.realOwner = addressOrEmpty(item.real_owner);
-	result.index = QString::fromStdString(item.index);
-	result.contentUri = contentValue("uri");
-	result.domain = contentValue("domain");
-	result.contentUriHttps = result.contentUri.startsWith(u"https://"_q);
-	result.onSale = item.on_sale;
-	if (item.collection && item.collection->name) {
-		result.collectionName = QString::fromStdString(
-			*item.collection->name);
+	if (const auto collection = data.vcollection_address()) {
+		result.collection = CanonicalAddress(qs(*collection));
 	}
+	result.index = qs(data.vindex());
+	if (const auto name = data.vname()) {
+		result.name = qs(*name);
+	}
+	result.image = WebDocumentFromServer(data.vimage());
+	result.imageSmall = WebDocumentFromServer(data.vimage_small());
+	result.contentUrl = WebDocumentFromServer(data.vcontent_url());
+	result.lottie = WebDocumentFromServer(data.vlottie());
 	Gram::ClassifyNftKind(result);
 	return result;
 }
@@ -2005,13 +2040,16 @@ std::vector<TransferItem> HistoryFromServer(
 	return result;
 }
 
-std::vector<Gram::NftItem> CollectiblesFromEngine(
-		const engine::NftList &list) {
+std::vector<Gram::NftItem> CollectiblesFromServer(
+		const QVector<MTPwallet_NftItem> &list) {
 	auto result = std::vector<Gram::NftItem>();
-	result.reserve(list.items.size());
-	for (const auto &item : list.items) {
-		if (auto mapped = CollectibleFromEngine(item)) {
-			result.push_back(std::move(*mapped));
+	result.reserve(list.size());
+	auto seen = base::flat_set<QString>();
+	for (const auto &item : list) {
+		if (auto mapped = CollectibleFromServer(item)) {
+			if (seen.emplace(mapped->address).second) {
+				result.push_back(std::move(*mapped));
+			}
 		}
 	}
 	return result;
@@ -6942,17 +6980,6 @@ void Session::syncEngineClient() {
 	}
 	if (current() && started && _presence.current() == Presence::Ready) {
 		requestEngineRefresh();
-		// The collectibles cursor lives in the client, so the pages the
-		// replaced client had walked cannot be continued by this one: the
-		// walk starts over from its first page, and the scroll position
-		// that held the periodic refresh off ends with the client that
-		// owned it.
-		if (_collectiblesPaged || _collectiblesHasMore) {
-			_collectiblesPaged = false;
-			_collectiblesHasMore = false;
-			_collectiblesRefreshedAt = 0;
-			refreshCollectibles(true);
-		}
 	}
 }
 
@@ -7051,7 +7078,9 @@ void Session::clearNetworkState() {
 	_stateRefreshedAt = 0;
 	_engineRefreshedAt = 0;
 	_stateFailures = 0;
-	_collectiblesRequestPending = false;
+	if (const auto request = base::take(_collectiblesRequest)) {
+		_stateApi.request(request->id).cancel();
+	}
 	_pollingCount = 0;
 	_pollTimer.cancel();
 	_stream->stop();
@@ -7326,11 +7355,21 @@ void Session::requestTransactions(bool more, Fn<void()> done) {
 	}).handleAllErrors().send();
 }
 
-bool Session::historyRequestCurrent(const HistoryRequest &request) const {
-	return request.generation == _networkGeneration
-		&& request.identityRevision == _walletIdentityRevision
+bool Session::listRequestCurrent(
+		const std::optional<TransferWalletIdentity> &identity,
+		uint64 identityRevision,
+		int generation) const {
+	return generation == _networkGeneration
+		&& identityRevision == _walletIdentityRevision
 		&& _presence.current() == Presence::Ready
-		&& request.identity == transferWalletIdentity();
+		&& identity == transferWalletIdentity();
+}
+
+bool Session::historyRequestCurrent(const HistoryRequest &request) const {
+	return listRequestCurrent(
+		request.identity,
+		request.identityRevision,
+		request.generation);
 }
 
 void Session::resolveTransaction(
@@ -7534,10 +7573,14 @@ void Session::clearHistory() {
 }
 
 void Session::clearCollectibles() {
+	if (const auto request = base::take(_collectiblesRequest)) {
+		_stateApi.request(request->id).cancel();
+	}
 	_collectibles.clear();
 	_collectiblesRefreshedAt = 0;
 	_collectiblesCompletedAt = 0;
 	_collectiblesHasMore = false;
+	_collectiblesNextOffset = QString();
 	_collectiblesPaged = false;
 	_collectiblesTab = false;
 	_collectiblesUpdates.fire({});
@@ -7614,13 +7657,10 @@ void Session::refreshCollectibles(bool force) {
 		? kForcedCollectiblesInterval
 		: kCollectiblesPollInterval;
 	if (_presence.current() != Presence::Ready
-		|| _collectiblesRequestPending
+		|| _collectiblesRequest
 		|| _collectiblesPaged
 		|| (_collectiblesRefreshedAt
 			&& (crl::now() - _collectiblesRefreshedAt < interval))) {
-		return;
-	}
-	if (!_engine->client()) {
 		return;
 	}
 	_collectiblesRefreshedAt = crl::now();
@@ -7634,7 +7674,7 @@ bool Session::collectiblesHasNext() const {
 void Session::loadMoreCollectibles() {
 	ensureLoaded();
 	if (_presence.current() != Presence::Ready
-		|| _collectiblesRequestPending
+		|| _collectiblesRequest
 		|| !_collectiblesHasMore) {
 		return;
 	}
@@ -7642,62 +7682,81 @@ void Session::loadMoreCollectibles() {
 }
 
 void Session::requestCollectibles(bool more) {
-	const auto client = _engine->client();
-	if (!client) {
+	if (_collectiblesRequest
+		|| (more && _collectiblesNextOffset.isEmpty())) {
 		return;
 	}
-	_collectiblesRequestPending = true;
-	const auto generation = _networkGeneration;
-	_engine->run([client, more] {
-		return more
-			? client->load_more_nfts()
-			: client->refresh_nfts();
-	}, [=, this](engine::WalletUpdate update) {
-		_collectiblesRequestPending = false;
-		if (generation != _networkGeneration
-			|| _clientStopping
-			|| client != _engine->client()) {
-			return;
+	const auto request = std::make_shared<CollectiblesRequest>(
+		CollectiblesRequest{
+			.identity = transferWalletIdentity(),
+			.identityRevision = _walletIdentityRevision,
+			.generation = _networkGeneration,
+			.offset = more ? _collectiblesNextOffset : QString(),
+			.more = more,
+		});
+	_collectiblesRequest = request;
+	request->id = _stateApi.request(MTPwallet_GetNfts(
+		MTP_string(request->offset),
+		MTP_int(kCollectiblesPerPage)
+	)).done([=](const MTPwallet_NftItems &result) {
+		const auto current = (_collectiblesRequest == request)
+			&& listRequestCurrent(
+				request->identity,
+				request->identityRevision,
+				request->generation);
+		if (_collectiblesRequest == request) {
+			_collectiblesRequest = nullptr;
 		}
-		applyCollectiblesUpdate(update, more);
-	}, [=, this](EngineError error) {
-		_collectiblesRequestPending = false;
-		if (generation != _networkGeneration
-			|| _clientStopping
-			|| client != _engine->client()) {
-			return;
+		if (current) {
+			applyCollectibles(result, *request);
 		}
-		LOG(("Wallet Error: engine nft %1 failed: %2, "
-			"keeping last-good collectibles."
-			).arg(more ? u"load_more"_q : u"refresh"_q
-			).arg(error.message));
-	});
+	}).fail([=](const MTP::Error &error) {
+		const auto current = (_collectiblesRequest == request)
+			&& listRequestCurrent(
+				request->identity,
+				request->identityRevision,
+				request->generation);
+		if (_collectiblesRequest == request) {
+			_collectiblesRequest = nullptr;
+		}
+		if (current) {
+			LOG(("Wallet Error: wallet.getNfts failed: %1, "
+				"keeping last-good collectibles."
+				).arg(error.type()));
+		}
+	}).handleAllErrors().send();
 }
 
-void Session::applyCollectiblesUpdate(
-		const engine::WalletUpdate &update,
-		bool more) {
-	if (_presence.current() != Presence::Ready) {
-		return;
+void Session::applyCollectibles(
+		const MTPwallet_NftItems &result,
+		const CollectiblesRequest &request) {
+	const auto &data = result.data();
+	const auto served = data.vnext_offset();
+	auto next = served ? qs(*served) : QString();
+	if (!next.isEmpty() && (next == request.offset)) {
+		LOG(("Wallet Error: wallet.getNfts repeated its offset."));
+		next = QString();
 	}
-	const auto &nfts = update.snapshot.nfts;
-	if (update.outcome == engine::WalletOperationOutcome::kSkipped) {
-		_collectiblesHasMore = nfts.has_more;
-		return;
-	}
-	const auto &resource = more ? nfts.pagination_resource : nfts.resource;
-	if ((update.outcome != engine::WalletOperationOutcome::kCompleted)
-		|| (resource.phase != engine::ResourcePhase::kReady)) {
-		LOG(("Wallet: engine nft outcome %1, keeping last-good collectibles."
-			).arg(int(update.outcome)));
-		return;
-	}
-	_collectiblesHasMore = nfts.has_more;
-	_collectiblesPaged = more && (_panel != nullptr);
+	auto loaded = CollectiblesFromServer(data.vitems().v);
+	_collectiblesNextOffset = next;
+	_collectiblesHasMore = !next.isEmpty();
 	_collectiblesCompletedAt = crl::now();
-	auto loaded = CollectiblesFromEngine(nfts);
-	if (!SameCollectibles(_collectibles, loaded)) {
-		setCollectibles(std::move(loaded));
+	_collectiblesPaged = request.more
+		&& (_panel != nullptr)
+		&& collectiblesTab();
+	auto list = std::vector<Gram::NftItem>();
+	if (request.more) {
+		auto fresh = UnheldCollectibles(_collectibles, std::move(loaded));
+		list = _collectibles;
+		list.insert(
+			end(list),
+			std::make_move_iterator(begin(fresh)),
+			std::make_move_iterator(end(fresh)));
+	} else {
+		list = std::move(loaded);
+	}
+	if (!SameCollectibles(_collectibles, list)) {
+		setCollectibles(std::move(list));
 	}
 }
 

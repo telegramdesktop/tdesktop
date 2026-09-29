@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace wallet_engine {
 struct ActivityItem;
-struct NftList;
 struct SendMessageBody;
 struct SendSnapshot;
 struct WalletClient;
@@ -432,8 +431,8 @@ struct SendArgs {
 	const QVector<MTPWalletTransaction> &list,
 	std::optional<TransferWalletIdentity> identity = std::nullopt);
 
-[[nodiscard]] std::vector<Gram::NftItem> CollectiblesFromEngine(
-	const wallet_engine::NftList &list);
+[[nodiscard]] std::vector<Gram::NftItem> CollectiblesFromServer(
+	const QVector<MTPwallet_NftItem> &list);
 
 [[nodiscard]] bool IsWordlistWord(const QString &word);
 [[nodiscard]] std::vector<QString> WordlistSuggestions(
@@ -1003,6 +1002,10 @@ private:
 		const wallet_engine::WalletUpdate &update,
 		uint64 sendRevision);
 	void setHistory(std::vector<TransferItem> &&list);
+	[[nodiscard]] bool listRequestCurrent(
+		const std::optional<TransferWalletIdentity> &identity,
+		uint64 identityRevision,
+		int generation) const;
 	struct HistoryRequest;
 	void requestTransactions(bool more, Fn<void()> done = nullptr);
 	[[nodiscard]] bool historyRequestCurrent(
@@ -1019,9 +1022,10 @@ private:
 	void clearCollectibles();
 	void refreshCollectibles(bool force = false);
 	void requestCollectibles(bool more);
-	void applyCollectiblesUpdate(
-		const wallet_engine::WalletUpdate &update,
-		bool more);
+	struct CollectiblesRequest;
+	void applyCollectibles(
+		const MTPwallet_NftItems &result,
+		const CollectiblesRequest &request);
 	void setCollectibles(std::vector<Gram::NftItem> &&list);
 	struct PreviewRequest;
 	struct PreviewState;
@@ -1227,8 +1231,9 @@ private:
 	rpl::variable<bool> _collectiblesTab = false;
 	crl::time _collectiblesRefreshedAt = 0;
 	crl::time _collectiblesCompletedAt = 0;
-	bool _collectiblesRequestPending = false;
+	std::shared_ptr<CollectiblesRequest> _collectiblesRequest;
 	bool _collectiblesHasMore = false;
+	QString _collectiblesNextOffset;
 	bool _collectiblesPaged = false;
 	base::flat_map<QString, Gram::NftItem> _collectibleInfo;
 	base::flat_map<
