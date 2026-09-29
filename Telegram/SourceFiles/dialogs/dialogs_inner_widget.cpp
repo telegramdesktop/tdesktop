@@ -1314,13 +1314,21 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		}
 		if (communityModeShown()) {
 			p.restore();
-			const auto paintBar = [&](const QString &text) {
+			const auto paintBar = [&](
+					const QString &text,
+					const style::icon &icon) {
 				p.fillRect(
 					0,
 					0,
 					fullWidth,
 					st::searchedBarHeight,
 					currentBg());
+				if (context.narrow) {
+					icon.paintInCenter(
+						p,
+						QRect(0, 0, fullWidth, st::searchedBarHeight));
+					return;
+				}
 				p.setFont(st::defaultSubsectionTitle.style.font);
 				p.setPen(st::windowActiveTextFg);
 				p.drawTextLeft(
@@ -1333,13 +1341,14 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 					int sectionTop,
 					const CommunityRowsView &view,
 					const QString &text,
+					const style::icon &icon,
 					int flatBase) {
 				if (view.empty()) {
 					return;
 				}
 				p.save();
 				p.translate(0, sectionTop);
-				paintBar(text);
+				paintBar(text, icon);
 				const auto rowsTop = st::searchedBarHeight;
 				p.translate(0, rowsTop);
 				const auto localClip = r.translated(
@@ -1361,19 +1370,24 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			if (!_shownList->empty()) {
 				p.save();
 				p.translate(0, dialogsOffset() - st::searchedBarHeight);
-				paintBar(tr::lng_community_chats_joined(tr::now));
+				paintBar(
+					tr::lng_community_chats_joined(tr::now),
+					st::dialogsCommunityJoinedIcon);
 				p.restore();
 			}
 			paintSection(
 				communityViewableTop(),
 				_communityViewable,
 				tr::lng_community_chats_viewable(tr::now),
+				st::dialogsCommunityViewableIcon,
 				0);
 			if (_communityRequestableList
 				&& (_communityRequestableCount > 0)) {
 				p.save();
 				p.translate(0, communityRequestableTop());
-				paintBar(tr::lng_community_chats_requestable(tr::now));
+				paintBar(
+					tr::lng_community_chats_requestable(tr::now),
+					st::dialogsCommunityRequestableIcon);
 				p.restore();
 			}
 			p.translate(0, communitySectionsBottom());
