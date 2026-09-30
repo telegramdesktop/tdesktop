@@ -40,6 +40,11 @@ void ReportLaunchError(const QString &error) {
 	fprintf(stderr, "Update Error: %s\n", error.toUtf8().constData());
 }
 
+// cppgir drops the wrapper as deprecated on GLib 2.70+, older lack the new.
+[[nodiscard]] bool ExitedSuccessfully(int waitStatus) {
+	return g_spawn_check_exit_status(waitStatus, nullptr);
+}
+
 [[nodiscard]] bool WriteUpdateLog(
 		const SpawnOutput &output,
 		const SpawnOutput &errors,
@@ -247,7 +252,7 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 			nullptr,
 			nullptr,
 			&waitStatus,
-			nullptr) || !GLib::spawn_check_exit_status(waitStatus, nullptr)) {
+			nullptr) || !ExitedSuccessfully(waitStatus)) {
 		ReportLaunchError(u"The ordinary update helper failed (status %1)."_q
 			.arg(waitStatus));
 		return relaunchAfterUpdate(false);
@@ -305,8 +310,7 @@ bool Launcher::installProtectedUpdate() {
 	if (!WriteUpdateLog(output, errors, spawned, status, description)) {
 		ReportLaunchError(u"Could not write a fresh user update log."_q);
 	}
-	const auto installed = spawned
-		&& GLib::spawn_check_exit_status(status, nullptr);
+	const auto installed = spawned && ExitedSuccessfully(status);
 	if (!installed) {
 		ReportLaunchError(u"Protected update failed (wait status %1): %2"_q
 			.arg(status)
