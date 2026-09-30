@@ -97,6 +97,11 @@ For Linux Debug execution copies, use the shared [bounded ELF identity
 guide](evidence/elf-copies.md) for exact digests, strip-debug equivalence and
 independent positive/negative controls.
 
+Object, PCH, link-membership and compiler-definition claims about a Ninja-built
+target come from `.agents/shared/evidence/ninja_target.py` resolving the exact
+consuming output; a glob, a basename or a `compdb`/`compdb-targets` listing is
+not proof of consumption. See [ninja-target-evidence.md](ninja-target-evidence.md).
+
 Use Telegram only when it adds causal coverage. App behavior that lives in the
 client normally requires the Debug binary and instrumented execution. Visible
 claims additionally require captures. Isolated library or build behavior may be
