@@ -893,43 +893,49 @@ void psSendToMenu(bool send, bool silent) {
 }
 
 bool linuxMoveFile(const char *from, const char *to) {
-	FILE *ffrom = fopen(from, "rb"), *fto = fopen(to, "wb");
+	auto ffrom = std::unique_ptr<FILE, int(*)(FILE*)>(
+		fopen(from, "rb"),
+		fclose);
 	if (!ffrom) {
-		if (fto) fclose(fto);
 		return false;
 	}
+	auto fto = std::unique_ptr<FILE, int(*)(FILE*)>(
+		fopen(to, "wb"),
+		fclose);
 	if (!fto) {
-		fclose(ffrom);
 		return false;
 	}
 	static const int BufSize = 65536;
 	char buf[BufSize];
-	while (size_t size = fread(buf, 1, BufSize, ffrom)) {
-		fwrite(buf, 1, size, fto);
+	while (const auto size = fread(buf, 1, BufSize, ffrom.get())) {
+		if (fwrite(buf, 1, size, fto.get()) != size) {
+			return false;
+		}
+	}
+	if (ferror(ffrom.get())
+		|| ferror(fto.get())
+		|| fflush(fto.get()) != 0) {
+		return false;
 	}
 
-	struct stat fst; // from http://stackoverflow.com/questions/5486774/keeping-fileowner-and-permissions-after-copying-file-in-c
-	//let's say this wont fail since you already worked OK on that fp
-	if (fstat(fileno(ffrom), &fst) != 0) {
-		fclose(ffrom);
-		fclose(fto);
+	struct stat fst = {}; // from http://stackoverflow.com/questions/5486774/keeping-fileowner-and-permissions-after-copying-file-in-c
+	if (fstat(fileno(ffrom.get()), &fst) != 0) {
 		return false;
 	}
 	//update to the same uid/gid
-	if (fchown(fileno(fto), fst.st_uid, fst.st_gid) != 0) {
-		fclose(ffrom);
-		fclose(fto);
+	if (fchown(fileno(fto.get()), fst.st_uid, fst.st_gid) != 0) {
 		return false;
 	}
 	//update the permissions
-	if (fchmod(fileno(fto), fst.st_mode) != 0) {
-		fclose(ffrom);
-		fclose(fto);
+	if (fchmod(fileno(fto.get()), fst.st_mode) != 0) {
 		return false;
 	}
 
-	fclose(ffrom);
-	fclose(fto);
+	const auto fromClosed = (fclose(ffrom.release()) == 0);
+	const auto toClosed = (fclose(fto.release()) == 0);
+	if (!fromClosed || !toClosed) {
+		return false;
+	}
 
 	if (unlink(from)) {
 		return false;
