@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "wallet/wallet_address.h"
+#include "wallet/wallet_amount_painter.h"
 #include "wallet/wallet_card_gradient.h"
 #include "wallet/wallet_comment.h"
 #include "wallet/wallet_content.h"
@@ -120,12 +121,6 @@ struct GramTransferDetails {
 	// True while the box has only what the message said, and the
 	// transaction it names has not been served yet.
 	bool partial = true;
-};
-
-struct AmountParts {
-	QString whole;
-	QString minor;
-	QString ticker;
 };
 
 struct TransferTag {
@@ -239,12 +234,8 @@ private:
 		QStringList addressLines;
 		int markTop = 0;
 		int amountTop = 0;
-		int amountWidth = 0;
-		int wholeWidth = 0;
-		int minorWidth = 0;
 		int identityTop = 0;
 		int addressTop = 0;
-		float64 amountScale = 1.;
 	};
 
 	struct RibbonKey {
@@ -281,7 +272,7 @@ private:
 
 	const GramTransferOrigin _origin;
 	const ClickHandlerPtr _detailsLink;
-	const AmountParts _amount;
+	Wallet::AmountPainter _amount;
 	const QString _address;
 	const QString _identity;
 	// Rows keep clear of the widest ribbon an outgoing card can settle to.
@@ -516,7 +507,15 @@ private:
 	return result;
 }
 
-[[nodiscard]] AmountParts SignedAmount(int64 value, bool outgoing) {
+[[nodiscard]] Wallet::AmountStyle CardAmountStyle() {
+	return {
+		.big = st::walletCardBalanceMajorLabel.style.font,
+		.small = st::walletCardBalanceMinorLabel.style.font,
+		.tickerSkip = st::walletCardTickerSkip,
+	};
+}
+
+[[nodiscard]] Wallet::AmountParts SignedAmount(int64 value, bool outgoing) {
 	const auto formatted = Ui::FormatTonAmount(value);
 	auto whole = formatted.wholeString;
 	const auto negativeSign = QString(QLocale::system().negativeSign());
@@ -525,7 +524,7 @@ private:
 	}
 	return {
 		.whole = (outgoing ? QChar(0x2212) : QChar('+')) + whole,
-		.minor = formatted.separator + formatted.nanoString,
+		.fraction = formatted.separator + formatted.nanoString,
 		.ticker = tr::lng_action_gram_transfer_ticker(
 			tr::now,
 			lt_count,
@@ -810,7 +809,9 @@ GramTransferCardPart::GramTransferCardPart(
 		weak->showDetails(context);
 	}
 }))
-, _amount(SignedAmount(_origin.action.amount, _origin.action.outgoing))
+, _amount(
+	CardAmountStyle(),
+	SignedAmount(_origin.action.amount, _origin.action.outgoing))
 , _address(FriendlyAddress(_origin.action.address))
 , _identity(
 	ReadableIdentity(_origin.view->data(), !_address.isEmpty()).toUpper())
@@ -1028,23 +1029,10 @@ int GramTransferCardPart::resolveLayout(int outerWidth) {
 		st::walletChatCardMarkTop,
 		clearOfBand((cardWidth + markSize) / 2));
 
-	const auto &majorFont = st::walletCardBalanceMajorLabel.style.font;
-	const auto &minorFont = st::walletCardBalanceMinorLabel.style.font;
-	_layout.wholeWidth = majorFont->width(_amount.whole);
-	_layout.minorWidth = _amount.minor.isEmpty()
-		? 0
-		: minorFont->width(_amount.minor);
-	_layout.amountWidth = _layout.wholeWidth
-		+ _layout.minorWidth
-		+ st::walletCardTickerSkip
-		+ majorFont->width(_amount.ticker);
-	_layout.amountScale = std::min(
-		1.,
-		available / float64(_layout.amountWidth));
-	const auto scaledWidth = int(std::ceil(
-		_layout.amountScale * _layout.amountWidth));
-	const auto amountHeight = int(std::ceil(
-		_layout.amountScale * majorFont->height));
+	_amount.setAvailableWidth(available);
+	const auto amountSize = _amount.size();
+	const auto scaledWidth = int(std::ceil(amountSize.width()));
+	const auto amountHeight = int(std::ceil(amountSize.height()));
 	_layout.amountTop = std::max(
 		_layout.markTop + markSize + st::walletChatCardAmountSkip,
 		clearOfBand((cardWidth + scaledWidth) / 2));
@@ -1392,27 +1380,12 @@ void GramTransferCardPart::draw(
 		p,
 		(cardWidth - markPaint) / 2,
 		_layout.markTop - markShift);
-	const auto &majorFont = st::walletCardBalanceMajorLabel.style.font;
-	p.save();
-	p.translate(cardWidth / 2., _layout.amountTop);
-	p.scale(_layout.amountScale, _layout.amountScale);
-	p.translate(-_layout.amountWidth / 2., 0.);
-	const auto baseline = float64(majorFont->ascent);
-	p.setPen(st::activeButtonFg);
-	p.setFont(majorFont);
-	p.drawText(QPointF(0., baseline), _amount.whole);
-	if (!_amount.minor.isEmpty()) {
-		p.setFont(st::walletCardBalanceMinorLabel.style.font);
-		p.drawText(QPointF(_layout.wholeWidth, baseline), _amount.minor);
-	}
-	p.setFont(majorFont);
-	p.setPen(CardTickerFg());
-	p.drawText(
+	_amount.paint(
+		p,
 		QPointF(
-			_layout.wholeWidth + _layout.minorWidth + st::walletCardTickerSkip,
-			baseline),
-		_amount.ticker);
-	p.restore();
+			(cardWidth - _amount.size().width()) / 2.,
+			_layout.amountTop),
+		{ .digits = st::activeButtonFg->c, .ticker = CardTickerFg() });
 	p.setPen(CardTickerFg());
 	p.setFont(st::walletCardNameFont);
 	p.drawText(

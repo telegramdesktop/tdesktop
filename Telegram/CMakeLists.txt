@@ -2177,6 +2177,8 @@ PRIVATE
     ui/peer/video_userpic_player.h
     wallet/wallet_address.cpp
     wallet/wallet_address.h
+    wallet/wallet_amount_painter.cpp
+    wallet/wallet_amount_painter.h
     wallet/wallet_api.cpp
     wallet/wallet_api.h
     wallet/wallet_card_gradient.cpp

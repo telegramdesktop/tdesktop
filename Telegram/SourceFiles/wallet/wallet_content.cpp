@@ -95,6 +95,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "wallet/wallet_address.h"
+#include "wallet/wallet_amount_painter.h"
 #include "wallet/wallet_card_gradient.h"
 #include "wallet/wallet_chat_show.h"
 #include "wallet/wallet_collectible_media.h"
@@ -452,10 +453,10 @@ private:
 		const QImage &mark,
 		bool card,
 		float64 secondaryOpacity) const;
+	[[nodiscard]] QTransform groupTransform(const CardFold &fold) const;
 
 	std::unique_ptr<Lottie::Icon> _markLottie;
-	QPainterPath _amount;
-	QPainterPath _ticker;
+	Wallet::AmountPainter _painter;
 	QPainterPath _fiat;
 	QImage _markCard;
 	QImage _markSettled;
@@ -465,8 +466,6 @@ private:
 	CreditsAmount _balance;
 	QString _fiatText;
 	float64 _markTop = 0.;
-	float64 _tickerLeft = 0.;
-	float64 _amountWidth = 0.;
 	float64 _fiatWidth = 0.;
 	int _outerWidth = 0;
 	BalanceStyle _style = BalanceStyle::Balance;
@@ -11105,6 +11104,16 @@ void WalletKeysBackupBox(
 	};
 }
 
+[[nodiscard]] Wallet::AmountStyle MoneyAmountStyle() {
+	return {
+		.big = st::walletCardBalanceMajorLabel.style.font,
+		.small = st::walletCardBalanceMinorLabel.style.font,
+		.additionWidth = st::walletCardMarkSize,
+		.additionSkip = st::walletCardIconMargin.right(),
+		.tickerSkip = st::walletCardTickerSkip,
+	};
+}
+
 [[nodiscard]] float64 BalanceAmountScale(float64 progress) {
 	const auto settled = st::walletBalanceHeaderMajorFont->height
 		/ float64(st::walletCardBalanceMajorLabel.style.font->height);
@@ -11219,8 +11228,6 @@ void BalanceInk::playMark(Fn<void()> repaint) {
 }
 
 void BalanceInk::refresh() {
-	const auto &majorFont = st::walletCardBalanceMajorLabel.style.font;
-	const auto &minorFont = st::walletCardBalanceMinorLabel.style.font;
 	const auto &fiatFont = st::walletCardFiatLabel.style.font;
 	const auto exact = (_style != BalanceStyle::Balance);
 	const auto precise = exact
@@ -11235,20 +11242,10 @@ void BalanceInk::refresh() {
 		? GramMinorPart(_balance.whole() * Ui::kNanosInOne + _balance.nano())
 		: QString();
 	const auto ticker = tr::lng_wallet_card_ticker(tr::now);
-	const auto majorLeft = st::walletCardMarkSize
-		+ st::walletCardIconMargin.right();
 	const auto cardWidth = _outerWidth
 		- st::walletCardMargin.left()
 		- st::walletCardMargin.right();
 	const auto qrLeft = CardQrRect(cardWidth).x();
-	const auto tickerWidth = majorFont->width(ticker);
-	const auto availableWithTicker = qrLeft
-		- st::walletCardContentSkip
-		- st::walletCardContentLeft
-		- majorLeft
-		- minorFont->width(minor)
-		- st::walletCardTickerSkip
-		- tickerWidth;
 	const auto sign = (_style == BalanceStyle::Minus)
 		? QString(kMinus)
 		: (_style == BalanceStyle::Plus)
@@ -11257,32 +11254,14 @@ void BalanceInk::refresh() {
 	const auto full = exact
 		? (sign + precise.wholeString)
 		: Info::ChannelEarn::MajorPart(_balance);
-	const auto tickerShown = (availableWithTicker > 0)
-		&& (majorFont->width(full) <= availableWithTicker);
-	const auto available = tickerShown
-		? availableWithTicker
-		: (availableWithTicker + st::walletCardTickerSkip + tickerWidth);
-	const auto major = (available > 0)
-		? majorFont->elided(full, available)
-		: full;
-	const auto minorLeft = majorLeft + majorFont->width(major);
-
-	_amount = QPainterPath();
-	_amount.addText(majorLeft, majorFont->ascent, majorFont, major);
-	_amount.addText(
-		minorLeft,
-		st::walletCardBalanceMinorSkip + minorFont->ascent,
-		minorFont,
-		minor);
-
-	_tickerLeft = minorLeft
-		+ minorFont->width(minor)
-		+ (tickerShown ? st::walletCardTickerSkip : 0);
-	_ticker = QPainterPath();
-	if (tickerShown) {
-		_ticker.addText(0, majorFont->ascent, majorFont, ticker);
-	}
-	_amountWidth = _tickerLeft + (tickerShown ? tickerWidth : 0);
+	_painter.setContent(MoneyAmountStyle(), {
+		.whole = full,
+		.fraction = minor,
+		.ticker = ticker,
+	});
+	_painter.setAvailableWidth(_outerWidth
+		? (qrLeft - st::walletCardContentSkip - st::walletCardContentLeft)
+		: 0);
 
 	_fiat = QPainterPath();
 	_fiat.addText(0, fiatFont->ascent, fiatFont, _fiatText);
@@ -11302,7 +11281,7 @@ void BalanceInk::refresh() {
 
 QRectF BalanceInk::amountRect(const CardFold &fold) const {
 	const auto scale = BalanceAmountScale(fold.fold);
-	const auto width = _amountWidth * scale;
+	const auto width = _painter.size().width() * scale;
 	const auto height = st::walletCardBalanceMajorLabel.style.font->height
 		* scale;
 	const auto position = BalanceRowPosition(
@@ -11386,16 +11365,14 @@ void BalanceInk::paintPass(
 		const QImage &mark,
 		bool card,
 		float64 secondaryOpacity) const {
-	const auto amount = amountRect(fold);
-	const auto amountScale = BalanceAmountScale(fold.fold);
 	p.save();
-	p.translate(amount.x(), amount.y());
-	p.scale(amountScale, amountScale);
+	p.setTransform(groupTransform(fold), true);
 	paintMark(p, fold.fold, mark, card);
-	p.fillPath(_amount, palette.amount);
-	p.setOpacity(p.opacity() * secondaryOpacity);
-	p.translate(_tickerLeft, 0.);
-	p.fillPath(_ticker, palette.secondary);
+	_painter.paint(p, {
+		.digits = palette.amount,
+		.ticker = palette.secondary,
+		.tickerOpacity = secondaryOpacity,
+	});
 	p.restore();
 
 	const auto fiat = fiatRect(fold);
@@ -11406,6 +11383,18 @@ void BalanceInk::paintPass(
 	p.scale(fiatScale, fiatScale);
 	p.fillPath(_fiat, palette.secondary);
 	p.restore();
+}
+
+QTransform BalanceInk::groupTransform(const CardFold &fold) const {
+	const auto amount = amountRect(fold);
+	const auto foldScale = BalanceAmountScale(fold.fold);
+	const auto fit = _painter.scale();
+	auto result = QTransform();
+	result.translate(amount.x(), amount.y());
+	result.scale(foldScale, foldScale);
+	result.translate(0., (1. - fit) * _painter.naturalHeight() / 2.);
+	result.scale(fit, fit);
+	return result;
 }
 
 void BalanceInk::paint(
@@ -11449,23 +11438,25 @@ QRect BalanceInk::boundingRect(const CardFold &fold) const {
 }
 
 QRect BalanceInk::markRect(QRect cardRest) const {
-	return QRect(
+	const auto fit = _painter.scale();
+	const auto origin = QPointF(
 		cardRest.x() + st::walletCardContentLeft,
-		cardRest.y() + st::walletCardBalanceTop + int(base::SafeRound(_markTop)),
-		st::walletCardMarkSize,
-		st::walletCardMarkSize);
+		cardRest.y()
+			+ st::walletCardBalanceTop
+			+ (1. - fit) * _painter.naturalHeight() / 2.);
+	const auto top = int(base::SafeRound(_markTop));
+	return QRectF(
+		origin + QPointF(0., top * fit),
+		QSizeF(st::walletCardMarkSize, st::walletCardMarkSize) * fit
+	).toAlignedRect();
 }
 
 QRect BalanceInk::markPaintRect(const CardFold &fold) const {
 	if (!_markLottie || _markLottieVisible.height() <= 0.) {
 		return QRect();
 	}
-	const auto amount = amountRect(fold);
-	const auto scale = BalanceAmountScale(fold.fold);
-	const auto rect = markDrawRect(fold.fold, _markFrame, _markLottieVisible);
-	return QRectF(
-		amount.topLeft() + rect.topLeft() * scale,
-		rect.size() * scale
+	return groupTransform(fold).mapRect(
+		markDrawRect(fold.fold, _markFrame, _markLottieVisible)
 	).toAlignedRect().marginsAdded({ 1, 1, 1, 1 });
 }
 

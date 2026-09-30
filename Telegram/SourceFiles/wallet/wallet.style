@@ -38,7 +38,6 @@ walletCardBalanceMinorLabel: FlatLabel(walletCardBalanceMajorLabel) {
 		font: font(16px semibold);
 	}
 }
-walletCardBalanceMinorSkip: 6px;
 walletCardTickerSkip: 7px;
 walletCardFiatLabel: FlatLabel(defaultFlatLabel) {
 	textFg: activeButtonFg;
