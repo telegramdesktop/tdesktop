@@ -1321,13 +1321,16 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 					fullWidth,
 					st::searchedBarHeight,
 					currentBg());
-				p.setFont(st::defaultSubsectionTitle.style.font);
+				const auto &font = st::defaultSubsectionTitle.style.font;
+				p.setFont(font);
 				p.setPen(st::windowActiveTextFg);
 				p.drawTextLeft(
 					st::searchedBarPosition.x(),
 					st::searchedBarPosition.y(),
 					fullWidth,
-					text);
+					font->elided(
+						text,
+						fullWidth - 2 * st::searchedBarPosition.x()));
 			};
 			const auto paintSection = [&](
 					int sectionTop,
