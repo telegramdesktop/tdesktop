@@ -96,6 +96,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_address.h"
 #include "wallet/wallet_amount_field.h"
 #include "wallet/wallet_amount_painter.h"
+#include "wallet/wallet_card_angle.h"
 #include "wallet/wallet_card_gradient.h"
 #include "wallet/wallet_chat_show.h"
 #include "wallet/wallet_collectible_media.h"
@@ -365,14 +366,17 @@ public:
 	[[nodiscard]] QPolygonF paintedQuad() const;
 	[[nodiscard]] QPolygonF paintedOutline() const;
 	void invalidateCache();
+	void followCursor();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
 	[[nodiscard]] QRect restRect() const;
-	void paintContent(Painter &p);
-	void validateCache();
+	[[nodiscard]] QRectF paintedRect() const;
+	[[nodiscard]] float64 paintAngle();
+	void paintContent(Painter &p, float64 angle);
+	void validateCache(float64 angle);
 	void refreshAddress();
 
 	const std::shared_ptr<Main::SessionShow> _show;
@@ -382,6 +386,8 @@ private:
 	QString _addressLine2;
 	CardFold _fold;
 	QImage _cache;
+	float64 _cacheAngle = 0.;
+	std::unique_ptr<CardAngle> _angle;
 
 };
 
@@ -11370,6 +11376,26 @@ void Card::invalidateCache() {
 	_cache = QImage();
 }
 
+void Card::followCursor() {
+	if (!_angle) {
+		_angle = std::make_unique<CardAngle>([=] {
+			update(paintedRect().toAlignedRect());
+		});
+	}
+}
+
+QRectF Card::paintedRect() const {
+	return _fold.quad.boundingRect().translated(-QPointF(pos()));
+}
+
+float64 Card::paintAngle() {
+	if (!_angle) {
+		return 0.;
+	}
+	_angle->track(this, paintedRect());
+	return _angle->value(crl::now());
+}
+
 QRect Card::restRect() const {
 	return QRect(
 		0,
@@ -11390,32 +11416,36 @@ void Card::refreshAddress() {
 	update();
 }
 
-void Card::validateCache() {
+void Card::validateCache(float64 angle) {
 	const auto ratio = style::DevicePixelRatio();
 	const auto size = restRect().size() * ratio;
-	if (!_cache.isNull() && _cache.size() == size) {
+	// WHY: the cached fold image carries the sweep, so it is keyed by the
+	// angle it was painted at.
+	if (!_cache.isNull() && _cache.size() == size && _cacheAngle == angle) {
 		return;
 	}
+	_cacheAngle = angle;
 	_cache = QImage(size, QImage::Format_ARGB32_Premultiplied);
 	_cache.setDevicePixelRatio(ratio);
 	_cache.fill(Qt::transparent);
 	auto q = Painter(&_cache);
 	auto hq = PainterHighQualityEnabler(q);
-	paintContent(q);
+	paintContent(q, angle);
 }
 
 void Card::paintEvent(QPaintEvent *e) {
 	if (!_fold.valid || _fold.opacity <= 0.) {
 		return;
 	}
+	const auto angle = paintAngle();
 	auto p = Painter(this);
 	if (!_fold.fold) {
 		auto hq = PainterHighQualityEnabler(p);
 		p.translate(restRect().topLeft());
-		paintContent(p);
+		paintContent(p, angle);
 		return;
 	}
-	validateCache();
+	validateCache(angle);
 	auto hq = PainterHighQualityEnabler(p);
 	p.setOpacity(_fold.opacity);
 	p.translate(-x(), -y());
@@ -11423,9 +11453,9 @@ void Card::paintEvent(QPaintEvent *e) {
 	p.drawImage(QRectF(_fold.rest), _cache);
 }
 
-void Card::paintContent(Painter &p) {
+void Card::paintContent(Painter &p, float64 angle) {
 	const auto size = restRect().size();
-	PaintCardBackground(p, QRect(QPoint(), size));
+	PaintCardBackground(p, QRect(QPoint(), size), angle);
 
 	const auto qr = CardQrRect(size.width());
 	PaintCardQrPlate(p, qr);
@@ -11864,6 +11894,7 @@ void Content::setupPinned() {
 		_cardPlaceholder->rect()));
 	_card->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_card->show();
+	_card->followCursor();
 	_cardButton = Ui::CreateChild<Ui::AbstractButton>(this);
 	_cardButton->setClickedCallback([=] {
 		ShowWalletReceiveBox(&_show->session(), _show);
