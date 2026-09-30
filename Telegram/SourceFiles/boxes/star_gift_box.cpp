@@ -2498,6 +2498,24 @@ void ChooseStarGiftRecipient(
 	});
 }
 
+bool CanSendStarGiftTo(not_null<PeerData*> peer) {
+	if (const auto user = peer->asUser()) {
+		return !user->isInaccessible()
+			&& !user->isSelf()
+			&& !user->isBot()
+			&& !user->isServiceUser()
+			&& !user->isNotificationsUser()
+			&& !user->isRepliesChat()
+			&& !user->isVerifyCodes()
+			&& user->session().premiumCanBuy();
+	} else if (const auto channel = peer->asBroadcast()) {
+		return !channel->isForbidden()
+			&& channel->stargiftsAvailable()
+			&& !channel->amCreator();
+	}
+	return false;
+}
+
 void ShowStarGiftBox(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer) {

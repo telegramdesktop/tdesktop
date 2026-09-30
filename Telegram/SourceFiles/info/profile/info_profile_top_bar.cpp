@@ -1185,34 +1185,17 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 	if (chechMax()) {
 		return;
 	}
-	{
-		const auto channel = peer->asBroadcast();
-		if (!user && !channel) {
-		} else if (user
-			&& (user->isInaccessible()
-				|| user->isSelf()
-				|| user->isBot()
-				|| user->isServiceUser()
-				|| user->isNotificationsUser()
-				|| user->isRepliesChat()
-				|| user->isVerifyCodes()
-				|| !user->session().premiumCanBuy())) {
-		} else if (channel
-			&& (channel->isForbidden()
-				|| !channel->stargiftsAvailable()
-				|| channel->amCreator())) {
-		} else {
-			const auto giftButton = Ui::CreateChild<TopBarActionButton>(
-				this,
-				tr::lng_profile_action_short_gift(tr::now),
-				st::infoProfileTopBarActionGift);
-			giftButton->setClickedCallback([=] {
-				Ui::ShowStarGiftBox(controller, peer);
-			});
-			giftButton->setAccessibleName(tr::lng_profile_action_short_gift(tr::now));
-			_actions->add(giftButton);
-			buttons.push_back(giftButton);
-		}
+	if (Ui::CanSendStarGiftTo(peer)) {
+		const auto giftButton = Ui::CreateChild<TopBarActionButton>(
+			this,
+			tr::lng_profile_action_short_gift(tr::now),
+			st::infoProfileTopBarActionGift);
+		giftButton->setClickedCallback([=] {
+			Ui::ShowStarGiftBox(controller, peer);
+		});
+		giftButton->setAccessibleName(tr::lng_profile_action_short_gift(tr::now));
+		_actions->add(giftButton);
+		buttons.push_back(giftButton);
 	}
 	if (chechMax()) {
 		return;
