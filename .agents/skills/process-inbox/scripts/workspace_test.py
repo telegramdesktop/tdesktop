@@ -244,6 +244,122 @@ inbox_receipt: receipts/2026/07/18/seed.md
 	}
 
 
+APPROVAL_TASK = "2026/07/18/active-task"
+OTHER_APPROVAL_TASK = "2026/07/20/other-task"
+
+
+def set_origin_url(main, url):
+	git(main, "remote", "set-url", "origin", str(url))
+
+
+def task_refs(source, task_id):
+	return {
+		name: workspace.resolved_ref(
+			source, workspace.source_task_ref(task_id, name),
+		)
+		for name in ("base", "green", "run")
+	}
+
+
+def approval_recovery_fixture(root, outcome="changed"):
+	config = inbox_worktrees(root)
+	main = Path(config["ai_main"])
+	slot = Path(config["slot_worktree"])
+	origin = root / "origin.git"
+	git(root, "init", "--bare", "--initial-branch=master", str(origin))
+	git(main, "remote", "add", "origin", str(origin))
+	git(main, "push", "origin", "master")
+	git(main, "fetch", "origin")
+	state = main / "tasks" / APPROVAL_TASK / "state.yaml"
+	state.write_text(
+		state.read_text(encoding="utf-8")
+		.replace("status: todo", "status: in-progress")
+		.replace("claimed_by: null", "claimed_by: macbook-twork")
+		.replace("claimed_at: null", "claimed_at: 2026-07-18T10:00:00+04:00")
+		.replace("claim_order: null", "claim_order: 1")
+		.replace("phase: null", "phase: setup"),
+		encoding="utf-8",
+	)
+	git(main, "add", "tasks")
+	git(main, "commit", "-m", f"Start {APPROVAL_TASK}")
+	git(main, "push", "origin", "master")
+	git(main, "fetch", "origin")
+	git(slot, "merge", "--ff-only", "master")
+
+	source = root / "source"
+	git_repo(source)
+	(source / "Telegram" / "build").mkdir(parents=True)
+	(source / "tracked.txt").write_text("base\n", encoding="utf-8")
+	git(source, "add", "tracked.txt")
+	git(source, "commit", "-m", "Create baseline")
+	baseline = git(source, "rev-parse", "HEAD")
+	git(source, "update-ref", workspace.source_task_ref(APPROVAL_TASK, "base"), "HEAD")
+	if outcome == "changed":
+		(source / "tracked.txt").write_text("changed\n", encoding="utf-8")
+		git(
+			source, "commit", "-am",
+			f"Change tracked file\n\nTask: {APPROVAL_TASK}",
+		)
+		git(source, "update-ref", workspace.source_task_ref(APPROVAL_TASK, "green"), "HEAD")
+	git(source, "update-ref", workspace.source_task_ref(APPROVAL_TASK, "run"), "HEAD")
+	for name in ("base", "green", "run"):
+		git(
+			source, "update-ref",
+			workspace.source_task_ref(OTHER_APPROVAL_TASK, name), baseline,
+		)
+	config["source_root"] = str(source)
+
+	work = slot / "tasks" / APPROVAL_TASK / "work"
+	work.mkdir(parents=True)
+	(work / "result.md").write_text(
+		f"""STATUS: DONE
+Outcome: {outcome}
+Touched: {"tracked.txt" if outcome == "changed" else "none"}
+Verdict: APPROVED
+Test-Report: work/test.md
+Checkout: clean-buildable
+""",
+		encoding="utf-8",
+	)
+	(work / "test.md").write_text("# Test report\n\nPassed.\n", encoding="utf-8")
+	return {
+		"config": config,
+		"main": main,
+		"slot": slot,
+		"origin": origin,
+		"source": source,
+		"head": git(source, "rev-parse", "HEAD"),
+		"refs": task_refs(source, APPROVAL_TASK),
+		"other_refs": task_refs(source, OTHER_APPROVAL_TASK),
+	}
+
+
+def finish_approval(fixture):
+	with mock.patch.object(
+		workspace, "worktree_config", return_value=fixture["config"],
+	):
+		return run_command(
+			workspace.command_finish,
+			task=APPROVAL_TASK,
+			status="approved",
+			model="claude-opus-5",
+		)
+
+
+def publish_approval(fixture, stderr=None):
+	with (
+		mock.patch.object(
+			workspace, "worktree_config", return_value=fixture["config"],
+		),
+		contextlib.redirect_stderr(stderr or io.StringIO()),
+	):
+		return run_command(workspace.command_publish)
+
+
+def head_subject(repo, revision="HEAD"):
+	return git(repo, "show", "-s", "--format=%s", revision)
+
+
 class WorkspaceTest(unittest.TestCase):
 	def test_inbox_publication_paths_must_be_specific(self):
 		for value in (
@@ -3943,6 +4059,241 @@ inbox_receipt: {receipt}
 				source,
 				workspace.source_task_ref(source_task, "base"),
 			))
+
+	def test_publish_recovers_approval_refs_after_fetch_failure(self):
+		for outcome in ("changed", "already-satisfied"):
+			with (
+				self.subTest(outcome=outcome),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				root = Path(temporary)
+				fixture = approval_recovery_fixture(root, outcome)
+				config = fixture["config"]
+				main = fixture["main"]
+				slot = fixture["slot"]
+				origin = fixture["origin"]
+				source = fixture["source"]
+				approve = f"Approve {APPROVAL_TASK}"
+
+				set_origin_url(main, root / "missing.git")
+				with self.assertRaises(workspace.WorkspaceError):
+					finish_approval(fixture)
+				self.assertEqual(head_subject(slot), approve)
+				self.assertEqual(workspace.unpublished_counts(config)["slot_only"], 1)
+				self.assertEqual(workspace.load_state(
+					main, workspace.state_path(main, APPROVAL_TASK),
+				)["status"], "in-progress")
+				self.assertEqual(
+					head_subject(origin, "master"), f"Start {APPROVAL_TASK}",
+				)
+				self.assertEqual(task_refs(source, APPROVAL_TASK), fixture["refs"])
+
+				with self.assertRaises(workspace.WorkspaceError):
+					publish_approval(fixture)
+				self.assertEqual(workspace.unpublished_counts(config)["slot_only"], 1)
+				self.assertEqual(task_refs(source, APPROVAL_TASK), fixture["refs"])
+
+				set_origin_url(main, origin)
+				result = publish_approval(fixture)
+				self.assertTrue(result["published"])
+				self.assertEqual(result["approval_refs"], {
+					"task": APPROVAL_TASK,
+					"action": "deleted",
+					"reason": None,
+				})
+				self.assertEqual(
+					git(main, "rev-parse", "master"),
+					git(origin, "rev-parse", "master"),
+				)
+				self.assertEqual(head_subject(main, "master"), approve)
+				self.assertEqual(workspace.load_state(
+					main, workspace.state_path(main, APPROVAL_TASK),
+				)["status"], "approved")
+				self.assertEqual(
+					task_refs(source, APPROVAL_TASK),
+					{"base": None, "green": None, "run": None},
+				)
+				self.assertEqual(
+					task_refs(source, OTHER_APPROVAL_TASK), fixture["other_refs"],
+				)
+				self.assertEqual(git(source, "rev-parse", "HEAD"), fixture["head"])
+
+				rerun = publish_approval(fixture)
+				self.assertTrue(rerun["published"])
+				self.assertEqual(rerun["approval_refs"]["action"], "absent")
+				self.assertEqual(
+					task_refs(source, OTHER_APPROVAL_TASK), fixture["other_refs"],
+				)
+
+	def test_publish_preserves_approval_refs_for_unsafe_source(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			fixture = approval_recovery_fixture(root)
+			config = fixture["config"]
+			main = fixture["main"]
+			source = fixture["source"]
+			set_origin_url(main, root / "missing.git")
+			with self.assertRaises(workspace.WorkspaceError):
+				finish_approval(fixture)
+			set_origin_url(main, fixture["origin"])
+
+			(source / "tracked.txt").write_text("dirty\n", encoding="utf-8")
+			stderr = io.StringIO()
+			result = publish_approval(fixture, stderr)
+			self.assertTrue(result["published"])
+			self.assertEqual(result["approval_refs"]["action"], "retained")
+			self.assertIn("not clean", result["approval_refs"]["reason"])
+			self.assertIn(APPROVAL_TASK, stderr.getvalue())
+			self.assertEqual(workspace.unpublished_counts(config)["slot_only"], 0)
+			self.assertEqual(task_refs(source, APPROVAL_TASK), fixture["refs"])
+
+			(source / "tracked.txt").write_text("changed\n", encoding="utf-8")
+			(source / "extra.txt").write_text("extra\n", encoding="utf-8")
+			git(source, "add", "extra.txt")
+			git(source, "commit", "-m", "Record unrelated change")
+			result = publish_approval(fixture)
+			self.assertEqual(result["approval_refs"]["action"], "retained")
+			self.assertIn("run ref", result["approval_refs"]["reason"])
+			self.assertEqual(task_refs(source, APPROVAL_TASK), fixture["refs"])
+
+			git(source, "reset", "--hard", fixture["refs"]["run"])
+			result = publish_approval(fixture)
+			self.assertEqual(result["approval_refs"]["action"], "deleted")
+			self.assertEqual(
+				task_refs(source, APPROVAL_TASK),
+				{"base": None, "green": None, "run": None},
+			)
+			self.assertEqual(
+				task_refs(source, OTHER_APPROVAL_TASK), fixture["other_refs"],
+			)
+
+	def test_publish_cleans_refs_when_approval_landed_before_interruption(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			fixture = approval_recovery_fixture(root)
+			config = fixture["config"]
+			main = fixture["main"]
+			slot = fixture["slot"]
+			origin = fixture["origin"]
+			source = fixture["source"]
+			approve = f"Approve {APPROVAL_TASK}"
+			with (
+				mock.patch.object(
+					workspace,
+					"delete_source_refs",
+					side_effect=workspace.WorkspaceError("interrupted"),
+				),
+				self.assertRaises(workspace.WorkspaceError),
+			):
+				finish_approval(fixture)
+			self.assertEqual(task_refs(source, APPROVAL_TASK), fixture["refs"])
+			self.assertEqual(workspace.unpublished_counts(config)["slot_only"], 0)
+			self.assertEqual(head_subject(origin, "master"), approve)
+
+			clone = root / "clone"
+			git(root, "clone", str(origin), str(clone))
+			git(clone, "config", "user.name", "Workflow Test")
+			git(clone, "config", "user.email", "workflow@example.invalid")
+			(clone / "unrelated.txt").write_text("later\n", encoding="utf-8")
+			git(clone, "add", "unrelated.txt")
+			git(clone, "commit", "-m", "Record unrelated change")
+			git(clone, "push", "origin", "HEAD:master")
+
+			result = publish_approval(fixture)
+			self.assertTrue(result["published"])
+			self.assertEqual(result["approval_refs"]["action"], "deleted")
+			self.assertEqual(head_subject(slot), "Record unrelated change")
+			self.assertEqual(
+				git(main, "rev-parse", "master"),
+				git(origin, "rev-parse", "master"),
+			)
+			self.assertEqual(
+				task_refs(source, APPROVAL_TASK),
+				{"base": None, "green": None, "run": None},
+			)
+			self.assertEqual(
+				task_refs(source, OTHER_APPROVAL_TASK), fixture["other_refs"],
+			)
+
+			rerun = publish_approval(fixture)
+			self.assertTrue(rerun["published"])
+			self.assertNotIn("approval_refs", rerun)
+			self.assertEqual(
+				task_refs(source, OTHER_APPROVAL_TASK), fixture["other_refs"],
+			)
+			self.assertEqual(git(source, "rev-parse", "HEAD"), fixture["head"])
+
+	def test_publish_never_cleans_refs_without_owned_approval(self):
+		def replace_state(slot, *pairs):
+			path = slot / "tasks" / APPROVAL_TASK / "state.yaml"
+			text = path.read_text(encoding="utf-8")
+			for old, new in pairs:
+				text = text.replace(old, new)
+			path.write_text(text, encoding="utf-8")
+
+		cases = {
+			"block": (
+				f"Block {APPROVAL_TASK}",
+				(("status: in-progress", "status: blocked"),
+					("phase: setup", "phase: blocked")),
+				None,
+			),
+			"split-required": (
+				f"Split-required {APPROVAL_TASK}",
+				(("status: in-progress", "status: split-required"),
+					("phase: setup", "phase: split-required")),
+				None,
+			),
+			"foreign-owner": (
+				f"Approve {APPROVAL_TASK}",
+				(("status: in-progress", "status: approved"),
+					("phase: setup", "phase: complete"),
+					("claimed_by: macbook-twork", "claimed_by: macbook-other")),
+				(APPROVAL_TASK, "macbook-other"),
+			),
+			"not-approved": (
+				f"Approve {APPROVAL_TASK}",
+				(),
+				(APPROVAL_TASK, "in-progress"),
+			),
+			"other-task": (
+				f"Approve {OTHER_APPROVAL_TASK}",
+				None,
+				(OTHER_APPROVAL_TASK, "does not exist"),
+			),
+		}
+		for name, (subject, pairs, candidate) in cases.items():
+			with (
+				self.subTest(case=name),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				root = Path(temporary)
+				fixture = approval_recovery_fixture(root)
+				slot = fixture["slot"]
+				source = fixture["source"]
+				if pairs is None:
+					(slot / "notes.txt").write_text("other\n", encoding="utf-8")
+				else:
+					replace_state(slot, *pairs)
+				git(slot, "add", "-A")
+				git(slot, "commit", "-m", subject)
+
+				result = publish_approval(fixture)
+				self.assertTrue(result["published"])
+				self.assertEqual(head_subject(fixture["main"], "master"), subject)
+				if candidate is None:
+					self.assertNotIn("approval_refs", result)
+				else:
+					task_id, reason = candidate
+					self.assertEqual(result["approval_refs"]["task"], task_id)
+					self.assertEqual(
+						result["approval_refs"]["action"], "retained",
+					)
+					self.assertIn(reason, result["approval_refs"]["reason"])
+				self.assertEqual(task_refs(source, APPROVAL_TASK), fixture["refs"])
+				self.assertEqual(
+					task_refs(source, OTHER_APPROVAL_TASK), fixture["other_refs"],
+				)
 
 
 if __name__ == "__main__":

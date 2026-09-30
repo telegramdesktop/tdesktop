@@ -3612,9 +3612,47 @@ def command_finish(args):
 	}, indent=2, sort_keys=True))
 
 
+def recover_approval_source_refs(config, task_id):
+	source = Path(config["source_root"])
+	refs = [
+		resolved_ref(source, source_task_ref(task_id, name))
+		for name in ("base", "green", "run")
+	]
+	if all(value is None for value in refs):
+		return {"task": task_id, "action": "absent", "reason": None}
+	try:
+		main = Path(config["ai_main"])
+		state = load_state(main, state_path(main, task_id))
+		if state["status"] != "approved":
+			raise WorkspaceError(
+				f"Canonical task status is {state['status']!r}, not 'approved'"
+			)
+		if state["claimed_by"] != config["checkout_tag"]:
+			raise WorkspaceError(
+				f"Canonical task is claimed by {state['claimed_by']!r}, "
+				f"not {config['checkout_tag']!r}"
+			)
+		if state["type"] != DEFAULT_TASK_TYPE:
+			raise WorkspaceError(
+				f"Canonical task type is {state['type']!r}, not {DEFAULT_TASK_TYPE!r}"
+			)
+		result_path = main / task_relative_dir(task_id) / "work" / "result.md"
+		if not result_path.is_file():
+			raise WorkspaceError(f"Task result is missing: {result_path}")
+		lines = result_path.read_text(encoding="utf-8-sig").splitlines()
+		outcome = validate_outcome_result(lines, result_path, True)
+		ensure_source_clean(source)
+		validate_source_state(config, task_id, outcome == "changed")
+	except WorkspaceError as error:
+		return {"task": task_id, "action": "retained", "reason": str(error)}
+	delete_source_refs(config, task_id)
+	return {"task": task_id, "action": "deleted", "reason": None}
+
+
 def command_publish(args):
 	config = worktree_config(args, create=True)
 	slot = Path(config["slot_worktree"])
+	approval_task = approval_task_for_head(slot)
 	consolidation_validate = consolidation_validation_for_head(slot)
 	split_validate = split_validation_for_head(slot)
 	validate = consolidation_validate or split_validate
@@ -3625,7 +3663,16 @@ def command_publish(args):
 		).stdout.strip()[len("Split "):]
 		if load_splits(slot)[source_task]["implementation_carrier"] is None:
 			delete_source_refs(config, source_task)
-	print(json.dumps({"published": bool(published)}, indent=2, sort_keys=True))
+	output = {"published": bool(published)}
+	if published and approval_task is not None:
+		report = recover_approval_source_refs(config, approval_task)
+		if report["action"] == "retained":
+			print(
+				f"warning: kept source refs of {approval_task}: {report['reason']}",
+				file=sys.stderr,
+			)
+		output["approval_refs"] = report
+	print(json.dumps(output, indent=2, sort_keys=True))
 
 
 def normalized_publish_path(value):
@@ -3832,6 +3879,15 @@ def validate_split_tree(root, source_task, replacements, receipt, carrier):
 			raise WorkspaceError(
 				f"Project index omits split replacement {task_id}: {project_path}"
 			)
+
+
+def approval_task_for_head(slot):
+	subject = run_git(slot, "show", "-s", "--format=%s", "HEAD").stdout.strip()
+	prefix = "Approve "
+	if not subject.startswith(prefix):
+		return None
+	task_id = subject[len(prefix):]
+	return task_id if TASK_ID_PATTERN.fullmatch(task_id) else None
 
 
 def split_validation_for_head(slot):
