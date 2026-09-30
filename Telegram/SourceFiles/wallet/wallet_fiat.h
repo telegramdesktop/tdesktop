@@ -40,6 +40,11 @@ struct FiatRate {
 	int decimals = kFiatCurrencyDecimals,
 	bool approximate = false);
 
+[[nodiscard]] QString FormatFiatAmount(
+	int64 nanoAmount,
+	const FiatRate &rate,
+	int decimals = kFiatCurrencyDecimals);
+
 struct CurrencyNames {
 	QString english;
 	QString localized;

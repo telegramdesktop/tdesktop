@@ -14,18 +14,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 //#include "styles/style_wallet.h"
 
 #include <QtCore/QLocale>
-#include <QtWidgets/QStyle>
-#include <QtWidgets/QStyleOption>
 
 namespace Ui {
 namespace {
 
 constexpr auto kOneTon = kNanosInOne;
 constexpr auto kNanoDigits = 9;
-
-// QLineEditPrivate::horizontalMargin: the margin a line edit keeps between
-// its contents rect and its text, on both sides.
-constexpr auto kLineEditMargin = 2;
 
 std::optional<int64> ParseAmountTons(const QString &trimmed) {
 	auto ok = false;
@@ -142,6 +136,54 @@ FixedAmount FixTonAmountInput(
 		// A zero alone is not an amount, it only starts a fractional one.
 		result.text += separator;
 		result.position += separator.size();
+	}
+	return result;
+}
+
+FixedAmount FixTonAmountValue(
+		const QString &was,
+		int wasCursor,
+		const QString &text,
+		int position,
+		int fractionDigits,
+		const QString &separator) {
+	const auto zero = u"0"_q;
+	auto mapped = text;
+	for (auto &ch : mapped) {
+		const auto code = ch.unicode();
+		if (code >= 0xFF10 && code <= 0xFF19) {
+			ch = QChar('0' + (code - 0xFF10));
+		} else if (code == 0xFF0E) {
+			ch = QChar('.');
+		} else if (code == 0xFF0C) {
+			ch = QChar(',');
+		}
+	}
+	if (was == zero && mapped.size() > 1) {
+		const auto size = int(mapped.size());
+		if (mapped.endsWith(QChar('0')) && position == size - 1) {
+			mapped.chop(1);
+		} else if (mapped.startsWith(QChar('0')) && position == size) {
+			mapped.remove(0, 1);
+			--position;
+		}
+	}
+	const auto typedSeparator = mapped.contains(separator)
+		|| mapped.contains(QChar('.'))
+		|| mapped.contains(QChar(','));
+	const auto result = FixTonAmountInput(
+		QString(),
+		mapped,
+		position,
+		fractionDigits,
+		separator);
+	if (result.text.isEmpty()) {
+		return { zero, std::clamp(wasCursor, 0, 1) };
+	} else if (result.text == zero + separator && !typedSeparator) {
+		return {
+			zero,
+			std::clamp(result.position - int(separator.size()), 0, 1),
+		};
 	}
 	return result;
 }
@@ -282,81 +324,33 @@ not_null<Ui::InputField*> CreateTonAmountInput(
 TonAmountInput::TonAmountInput(
 	QWidget *parent,
 	const style::InputField &st,
-	rpl::producer<QString> placeholder,
 	int64 amount,
 	Fn<int()> fractionDigits,
 	Fn<QString()> separator)
 : MaskedInputField(
 	parent,
 	st,
-	rpl::duplicate(placeholder),
+	nullptr,
 	(amount > 0
 		? FormatTonAmount(amount, TonFormatFlag::Simple).full
-		: QString()))
+		: u"0"_q))
 , _fractionDigits(std::move(fractionDigits))
 , _separator(std::move(separator)) {
 	setInputMethodHints(Qt::ImhFormattedNumbersOnly
 		| Qt::ImhNoPredictiveText);
-
-	// The field is sized to its own text and placed by its owner, so it lays
-	// the text out from the left: a centered line edit would put the text in
-	// the middle of whatever width it happens to have, and the caret with it.
-	setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-
-	// A line edit lays its text out inside the contents rect its style gives
-	// it, less the text margins, less a horizontal margin of its own. It is
-	// taken from the style rather than from cursorRect(), which is padded for
-	// repainting and reports five pixels left of the caret it draws.
-	auto option = QStyleOptionFrame();
-	initStyleOption(&option);
-	const auto contents = style()->subElementRect(
-		QStyle::SE_LineEditContents,
-		&option,
-		this);
-	_textLeft = contents.x() + textMargins().left() + kLineEditMargin;
+	setAttribute(Qt::WA_OpaquePaintEvent, false);
 
 	connect(this, &MaskedInputField::changed, [=] {
-		refreshNaturalWidth();
 		_changes.fire({});
 	});
 	connect(this, &MaskedInputField::submitted, [=] {
 		_submits.fire({});
 	});
-	std::move(placeholder) | rpl::on_next([=](const QString &text) {
-		_placeholderText = text;
-		refreshNaturalWidth();
-	}, lifetime());
-	refreshNaturalWidth();
 }
 
 void TonAmountInput::setText(const QString &text) {
-	MaskedInputField::setText(text);
-	refreshNaturalWidth();
+	MaskedInputField::setText(text.isEmpty() ? u"0"_q : text);
 	_changes.fire({});
-}
-
-int TonAmountInput::textWidth() const {
-	return _textWidth;
-}
-
-// QLineEdit shows its text whole only while the bearings around it, the text
-// itself and the caret fit inside its contents rect deflated by its own
-// margin on both sides; anything narrower scrolls the text and clips it. The
-// bearings are the font's widest overhangs rather than this value's, so the
-// width reserved here can exceed the digits - textWidth() is what the digits
-// actually span, and what a row places its neighbours by.
-void TonAmountInput::refreshNaturalWidth() {
-	const auto metrics = fontMetrics();
-	const auto left = std::max(0, -metrics.minLeftBearing());
-	const auto right = std::max(0, -metrics.minRightBearing());
-	const auto caret = std::max(
-		style()->pixelMetric(QStyle::PM_TextCursorWidth, nullptr, this),
-		1);
-	const auto &text = getLastText();
-	_textWidth = text.isEmpty()
-		? _st.placeholderFont->width(_placeholderText)
-		: int(std::ceil(QFontMetricsF(font()).horizontalAdvance(text)));
-	setNaturalWidth(2 * _textLeft + left + _textWidth + caret + right);
 }
 
 rpl::producer<> TonAmountInput::changes() const {
@@ -367,12 +361,20 @@ rpl::producer<> TonAmountInput::submits() const {
 	return _submits.events();
 }
 
-int TonAmountInput::textLeft() const {
-	return _textLeft;
+void TonAmountInput::setCaretRectCallback(Fn<QRect()> callback) {
+	_caretRect = std::move(callback);
 }
 
-void TonAmountInput::setExtraMargins(QMargins margins) {
-	setTextMargins(_st.textMargins + margins);
+QVariant TonAmountInput::inputMethodQuery(Qt::InputMethodQuery query) const {
+	if (_caretRect
+		&& (query == Qt::ImCursorRectangle
+			|| query == Qt::ImAnchorRectangle)) {
+		return _caretRect();
+	}
+	return MaskedInputField::inputMethodQuery(query);
+}
+
+void TonAmountInput::paintEvent(QPaintEvent *e) {
 }
 
 void TonAmountInput::correctValue(
@@ -380,8 +382,9 @@ void TonAmountInput::correctValue(
 		int wasCursor,
 		QString &now,
 		int &nowCursor) {
-	const auto fixed = FixTonAmountInput(
+	const auto fixed = FixTonAmountValue(
 		was,
+		wasCursor,
 		now,
 		nowCursor,
 		_fractionDigits ? _fractionDigits() : kNanoDigits,

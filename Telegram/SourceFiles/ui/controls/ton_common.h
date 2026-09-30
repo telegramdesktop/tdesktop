@@ -60,15 +60,21 @@ struct FixedAmount {
 	int fractionDigits,
 	const QString &separator);
 
-// An amount entry that corrects itself inside the edit that changed it: the
-// text is canonical by the time changes() fires, so a width measurement or an
-// amount parser downstream never sees an intermediate value.
+// FixTonAmountInput for an amount that never empties below "0".
+[[nodiscard]] FixedAmount FixTonAmountValue(
+	const QString &was,
+	int wasCursor,
+	const QString &text,
+	int position,
+	int fractionDigits,
+	const QString &separator);
+
+// An amount entry that paints nothing: its owner paints what it holds.
 class TonAmountInput final : public MaskedInputField {
 public:
 	TonAmountInput(
 		QWidget *parent,
 		const style::InputField &st,
-		rpl::producer<QString> placeholder,
 		int64 amount,
 		Fn<int()> fractionDigits,
 		Fn<QString()> separator);
@@ -83,25 +89,12 @@ public:
 		return _st;
 	}
 
-	// The x of the first text pixel, which QLineEdit insets by a margin of
-	// its own, so a caller placing the row can put the digits exactly where
-	// it means to. naturalWidth() keeps the same inset on the right, so the
-	// digits span naturalWidth() - 2 * textLeft() of the field.
-	//
-	// naturalWidth() is the width the current value needs to be shown whole
-	// with its caret. A narrower field makes QLineEdit scroll its text and
-	// clip it, so a caller that sizes the field to its value uses this and
-	// follows naturalWidthValue() for the next one.
-	[[nodiscard]] int textLeft() const;
+	void setCaretRectCallback(Fn<QRect()> callback);
 
-	// How much of the field the digits (or placeholder) span, starting at
-	// textLeft(). naturalWidth() reserves more, because a line edit also
-	// wants room for the font's widest overhangs and for the caret.
-	[[nodiscard]] int textWidth() const;
-
-	void setExtraMargins(QMargins margins);
+	QVariant inputMethodQuery(Qt::InputMethodQuery query) const override;
 
 protected:
+	void paintEvent(QPaintEvent *e) override;
 	void correctValue(
 		const QString &was,
 		int wasCursor,
@@ -109,15 +102,11 @@ protected:
 		int &nowCursor) override;
 
 private:
-	void refreshNaturalWidth();
-
 	const Fn<int()> _fractionDigits;
 	const Fn<QString()> _separator;
-	QString _placeholderText;
+	Fn<QRect()> _caretRect;
 	rpl::event_stream<> _changes;
 	rpl::event_stream<> _submits;
-	int _textLeft = 0;
-	int _textWidth = 0;
 
 };
 

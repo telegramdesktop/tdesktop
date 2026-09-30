@@ -122,6 +122,17 @@ QString FormatFiat(
 	return result;
 }
 
+QString FormatFiatAmount(
+		int64 nanoAmount,
+		const FiatRate &rate,
+		int decimals) {
+	return FiatDigits(
+		nanoAmount,
+		rate,
+		decimals,
+		Ui::LookupCurrencyRule(rate.currency));
+}
+
 CurrencyNames LookupCurrencyNames(const QString &currency) {
 	auto result = CurrencyNames{
 		.english = Ui::CurrencyEnglishName(currency),

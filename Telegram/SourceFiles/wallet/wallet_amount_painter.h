@@ -9,6 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Wallet {
 
+// WHY: gram(_light).tgs draw the diamond in a larger canvas, with a faint glow
+// above the top edge, so the amount row sizes and places the canvas by the
+// drawn edges of the resting frame, the glow excluded.
+inline constexpr auto kGramDiamondLeft = 89. / 512.;
+inline constexpr auto kGramDiamondTop = 141. / 512.;
+inline constexpr auto kGramDiamondRight = 426. / 512.;
+inline constexpr auto kGramDiamondBottom = 426. / 512.;
+
+[[nodiscard]] int GramDiamondCanvas(const style::font &font);
+
 struct AmountParts {
 	QString whole;
 	QString fraction;
@@ -18,6 +28,7 @@ struct AmountParts {
 struct AmountStyle {
 	style::font big;
 	style::font small;
+	style::font ticker;
 	int additionWidth = 0;
 	int additionSkip = 0;
 	int tickerSkip = 0;

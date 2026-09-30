@@ -9,6 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Wallet {
 
+int GramDiamondCanvas(const style::font &font) {
+	const auto figure = int(base::SafeRound(
+		-font->metrics().tightBoundingRect(u"0123456789"_q).top()));
+	return int(base::SafeRound(
+		figure / (kGramDiamondBottom - kGramDiamondTop)));
+}
+
 AmountPainter::AmountPainter(const AmountStyle &st, AmountParts parts) {
 	setContent(st, std::move(parts));
 }
@@ -18,6 +25,7 @@ void AmountPainter::setContent(const AmountStyle &st, AmountParts parts) {
 	_parts = std::move(parts);
 	const auto &big = _st.big;
 	const auto &small = _st.small;
+	const auto &tickerFont = _st.ticker ? _st.ticker : _st.big;
 	const auto &whole = _parts.whole;
 	const auto &fraction = _parts.fraction;
 	const auto &ticker = _parts.ticker;
@@ -29,7 +37,8 @@ void AmountPainter::setContent(const AmountStyle &st, AmountParts parts) {
 	_tickerLeft = _fractionLeft
 		+ fractionWidth
 		+ (ticker.isEmpty() ? 0 : _st.tickerSkip);
-	_naturalWidth = _tickerLeft + (ticker.isEmpty() ? 0 : big->width(ticker));
+	_naturalWidth = _tickerLeft
+		+ (ticker.isEmpty() ? 0 : tickerFont->width(ticker));
 
 	_digits = QPainterPath();
 	_ticker = QPainterPath();
@@ -40,7 +49,7 @@ void AmountPainter::setContent(const AmountStyle &st, AmountParts parts) {
 		_digits.addText(_fractionLeft, big->ascent, small, fraction);
 	}
 	if (!ticker.isEmpty()) {
-		_ticker.addText(_tickerLeft, big->ascent, big, ticker);
+		_ticker.addText(_tickerLeft, big->ascent, tickerFont, ticker);
 	}
 	refreshScale();
 }

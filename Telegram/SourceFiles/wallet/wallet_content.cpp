@@ -95,6 +95,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "wallet/wallet_address.h"
+#include "wallet/wallet_amount_field.h"
 #include "wallet/wallet_amount_painter.h"
 #include "wallet/wallet_card_gradient.h"
 #include "wallet/wallet_chat_show.h"
@@ -166,13 +167,6 @@ constexpr auto kUndatedRowDate = std::numeric_limits<TimeId>::max();
 constexpr auto kTransactionLookupInterval = crl::time(1000);
 constexpr auto kTransactionLookupAttempts = 10;
 constexpr auto kMaxFiatUnits = 999'999'999LL;
-// WHY: gram(_light).tgs draw the diamond in a larger canvas, with a faint glow
-// above the top edge, so the amount row sizes and places the canvas by the
-// drawn edges of the resting frame, the glow excluded.
-constexpr auto kGramDiamondLeft = 89. / 512.;
-constexpr auto kGramDiamondTop = 141. / 512.;
-constexpr auto kGramDiamondRight = 426. / 512.;
-constexpr auto kGramDiamondBottom = 426. / 512.;
 constexpr auto kMaxAmountNano = 999'999'999'999'999'999LL;
 constexpr auto kSendUserLoadTimeout = 30 * crl::time(1000);
 constexpr auto kRecipientSearchLimit = 64;
@@ -183,13 +177,6 @@ constexpr auto kSigningReadyTimeout = 30 * crl::time(1000);
 constexpr auto kHeldSendKeyTimeout = 60 * crl::time(1000);
 constexpr auto kCustodyResolveTimeout = 20 * crl::time(1000);
 constexpr auto kGramDigits = 9;
-
-[[nodiscard]] int GramDiamondCanvas(const style::font &font) {
-	const auto figure = int(base::SafeRound(
-		-font->metrics().tightBoundingRect(u"0123456789"_q).top()));
-	return int(base::SafeRound(
-		figure / (kGramDiamondBottom - kGramDiamondTop)));
-}
 
 class BalanceInk;
 class Card;
@@ -4500,188 +4487,6 @@ void SetButtonDisabledLook(
 	}
 }
 
-[[nodiscard]] not_null<Ui::TonAmountInput*> AddAmountField(
-		not_null<Ui::VerticalLayout*> container,
-		int topSkip,
-		const style::InputField &st,
-		rpl::producer<QString> placeholder,
-		int64 value,
-		Fn<int()> fractionDigits,
-		Fn<QString()> separator,
-		rpl::producer<bool> entryFiat,
-		rpl::producer<QString> currency,
-		rpl::producer<QString> fiat,
-		Fn<void()> swap,
-		rpl::producer<bool> equivalentShown) {
-	const auto wrap = container->add(
-		object_ptr<Ui::RpWidget>(container),
-		style::margins(
-			st::walletSendFieldMargin.left(),
-			topSkip,
-			st::walletSendFieldMargin.right(),
-			st::walletSendFieldMargin.bottom()));
-	const auto field = Ui::CreateChild<Ui::TonAmountInput>(
-		wrap,
-		st,
-		std::move(placeholder),
-		value,
-		std::move(fractionDigits),
-		std::move(separator));
-	const auto &font = st.style.font;
-	const auto canvas = GramDiamondCanvas(font);
-	const auto diamondLeft = int(base::SafeRound(canvas * kGramDiamondLeft));
-	const auto diamondWidth = int(base::SafeRound(
-		canvas * (kGramDiamondRight - kGramDiamondLeft)));
-	const auto diamondBottom = int(base::SafeRound(
-		canvas * kGramDiamondBottom));
-	const auto mark = Ui::CreateChild<Ui::RpWidget>(wrap);
-	mark->resize(canvas, canvas);
-	// Not CreateLottieIcon: it replays any icon resting past its first frame.
-	const auto icon = mark->lifetime().make_state<
-		std::unique_ptr<Lottie::Icon>
-	>(Lottie::MakeIcon({
-		.name = u"gram"_q,
-		.sizeOverride = { canvas, canvas },
-		.frame = -1,
-		.limitFps = true,
-	}))->get();
-	mark->paintRequest() | rpl::on_next([=] {
-		auto p = QPainter(mark);
-		icon->paint(p, 0, 0);
-	}, mark->lifetime());
-	mark->setAttribute(Qt::WA_TransparentForMouseEvents);
-	const auto catcher = Ui::CreateChild<Ui::AbstractButton>(wrap);
-	catcher->setClickedCallback([=] { field->setFocusFast(); });
-	catcher->lower();
-	const auto fiatIcon = Ui::CreateChild<Ui::FlatLabel>(
-		wrap,
-		rpl::duplicate(currency) | rpl::map([](const QString &code) {
-			return Ui::CurrencyName(code);
-		}),
-		st::walletSendUserAmountLabel);
-	fiatIcon->setAttribute(Qt::WA_TransparentForMouseEvents);
-	const auto ticker = Ui::CreateChild<Ui::FlatLabel>(
-		wrap,
-		rpl::combine(
-			rpl::duplicate(entryFiat),
-			std::move(currency),
-			tr::lng_wallet_card_ticker()
-		) | rpl::map([](bool fiat, QString code, QString gram) {
-			return fiat ? code : gram;
-		}),
-		st::walletSendUserTickerLabel);
-	ticker->setAttribute(Qt::WA_TransparentForMouseEvents);
-	const auto pill = Ui::CreateChild<Ui::RoundButton>(
-		wrap,
-		std::move(fiat) | rpl::map([](QString text) {
-			return text + u" ↑↓"_q;
-		}),
-		st::walletSendUserFiatButton);
-	pill->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
-	pill->setClickedCallback(std::move(swap));
-	std::move(equivalentShown) | rpl::on_next([=](bool shown) {
-		pill->setVisible(shown);
-	}, pill->lifetime());
-	const auto layout = [=] {
-		const auto width = wrap->width();
-		const auto fieldHeight = st.style.font->height;
-		const auto band = std::max(st.heightMin, fieldHeight);
-		const auto fieldTop = (band - fieldHeight) / 2;
-		// A line edit centers its text in its own height and draws it
-		// from its font ascent, so this is where the digits stand.
-		const auto baseline = fieldTop + st.style.font->ascent;
-		const auto labelTop = [&](not_null<Ui::FlatLabel*> label) {
-			return baseline
-				- label->st().style.font->ascent
-				- label->st().margin.top();
-		};
-		const auto fiat = !fiatIcon->isHidden();
-		const auto prefixWidth = fiat
-			? fiatIcon->naturalWidth()
-			: diamondWidth;
-		const auto tickerWidth = ticker->naturalWidth();
-		const auto gap = st::walletDetailsAmountMinorSkip;
-		// The field knows the width its value needs and insets its text
-		// from both edges, so it is moved back by one inset to put the
-		// digits where the row wants them, and what the row sees of it
-		// is that width without the two insets.
-		const auto inset = field->textLeft();
-		const auto available = std::max(
-			width - prefixWidth - tickerWidth - 2 * gap,
-			2 * inset);
-		const auto fieldWidth = std::min(
-			field->naturalWidth(),
-			available);
-		// What the row gives the field is what its digits span; the
-		// rest of its width is the slack a line edit needs around them,
-		// and it stays under the gap before the ticker.
-		const auto shownWidth = std::min(
-			field->textWidth(),
-			std::max(fieldWidth - 2 * inset, 0));
-		const auto groupWidth = prefixWidth + gap + shownWidth
-			+ gap + tickerWidth;
-		const auto left = (width - groupWidth) / 2;
-		if (fiat) {
-			fiatIcon->resizeToWidth(prefixWidth);
-			fiatIcon->moveToLeft(left, labelTop(fiatIcon), width);
-		} else {
-			mark->moveToLeft(
-				left - diamondLeft,
-				baseline - diamondBottom,
-				width);
-		}
-		const auto textLeft = left + prefixWidth + gap;
-		field->resize(fieldWidth, fieldHeight);
-		field->moveToLeft(textLeft - inset, fieldTop, width);
-		ticker->resizeToWidth(tickerWidth);
-		ticker->moveToLeft(
-			textLeft + shownWidth + gap,
-			labelTop(ticker),
-			width);
-		pill->resize(std::min(pill->naturalWidth(), width), pill->height());
-		pill->moveToLeft(
-			(width - pill->width()) / 2,
-			band + st::walletSendFieldMargin.top(),
-			width);
-		catcher->setGeometry(0, 0, width, band);
-		wrap->resize(width, pill->y() + pill->height());
-	};
-	// Resizing the labels makes them republish their
-	// natural width, which arrives back here. Without this the nested pass
-	// would lay the row out correctly and the outer one would then finish
-	// with the values it captured before the text was corrected.
-	struct LayoutState {
-		bool running = false;
-		bool again = false;
-	};
-	const auto layoutState = wrap->lifetime().make_state<LayoutState>();
-	const auto relayout = [=] {
-		if (layoutState->running) {
-			layoutState->again = true;
-			return;
-		}
-		layoutState->running = true;
-		do {
-			layoutState->again = false;
-			layout();
-		} while (layoutState->again);
-		layoutState->running = false;
-	};
-	std::move(entryFiat) | rpl::on_next([=](bool fiat) {
-		mark->setVisible(!fiat);
-		fiatIcon->setVisible(fiat);
-		relayout();
-	}, wrap->lifetime());
-	rpl::combine(
-		wrap->widthValue(),
-		fiatIcon->naturalWidthValue(),
-		ticker->naturalWidthValue(),
-		pill->naturalWidthValue()
-	) | rpl::on_next(relayout, wrap->lifetime());
-	field->changes() | rpl::on_next(relayout, wrap->lifetime());
-	return field;
-}
-
 // The send box offers to fund an empty wallet, so the balance never hides one.
 [[nodiscard]] bool CanSendToUser(
 		not_null<Main::Session*> session,
@@ -5782,45 +5587,54 @@ void WalletSendBox(
 			style::al_justify);
 	}
 
-	auto fiatText = rpl::combine(
+	auto helper = Ui::Text::CustomEmojiHelper();
+	const auto gramMark = GramMark(
+		helper,
+		st::walletSendUserFiatButton.style.font);
+	auto equivalent = rpl::combine(
 		state->amount.value(),
 		state->entryFiat.value(),
 		state->rate.value()
-	) | rpl::map([](int64 amount, bool fiat, const FiatRate &rate) {
+	) | rpl::map([=](int64 amount, bool fiat, const FiatRate &rate) {
 		return fiat
-			? tr::lng_wallet_send_pill_gram(
-				tr::now,
-				lt_amount,
-				Ui::FormatTonAmount(amount).full)
-			: FormatFiat(amount, rate, kFiatCurrencyDecimals, true);
+			? TextWithEntities(gramMark).append(
+				u" "_q + Ui::FormatTonAmount(amount).full)
+			: tr::marked(QChar('~')
+				+ FormatFiatAmount(amount, rate)
+				+ u" "_q
+				+ rate.currency);
 	});
 	const auto amountField = AddAmountField(
 		inner,
 		(recipient
 			? st::walletSendUserCardAmountSkip
 			: st::walletDetailsAmountTopSkip),
-		st::walletSendUserAmountField,
-		rpl::single(u"0"_q),
-		std::min(initial ? initial->amountNano : amountNano, kMaxAmountNano),
-		[=] {
-			return state->entryFiat.current()
-				? Ui::LookupCurrencyRule(
-					state->rate.current().currency).exponent
-				: 9;
-		},
-		entrySeparator,
-		state->entryFiat.value(),
-		state->rate.value() | rpl::map([](const FiatRate &rate) {
-			return rate.currency;
-		}) | rpl::distinct_until_changed(),
-		std::move(fiatText),
-		[=] { state->swapUnit(); },
-		rpl::combine(
-			state->loading.value(),
-			state->loadError.value()
-		) | rpl::map([](bool loading, const QString &error) {
-			return !loading && error.isEmpty();
-		}));
+		{
+			.value = std::min(
+				initial ? initial->amountNano : amountNano,
+				kMaxAmountNano),
+			.fractionDigits = [=] {
+				return state->entryFiat.current()
+					? Ui::LookupCurrencyRule(
+						state->rate.current().currency).exponent
+					: 9;
+			},
+			.separator = entrySeparator,
+			.entryFiat = state->entryFiat.value(),
+			.currency = state->rate.value(
+			) | rpl::map([](const FiatRate &rate) {
+				return rate.currency;
+			}) | rpl::distinct_until_changed(),
+			.equivalent = std::move(equivalent),
+			.equivalentContext = helper.context(),
+			.swap = [=] { state->swapUnit(); },
+			.equivalentShown = rpl::combine(
+				state->loading.value(),
+				state->loadError.value()
+			) | rpl::map([](bool loading, const QString &error) {
+				return !loading && error.isEmpty();
+			}),
+		});
 	const auto comment = inner->add(
 		object_ptr<Ui::SlideWrap<SendCommentBubble>>(
 			inner,
