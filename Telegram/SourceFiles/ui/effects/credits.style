@@ -27,6 +27,8 @@ creditsPremiumCover: PremiumCover(defaultPremiumCover) {
 	aboutMaxWidth: 236px;
 	additionalShadowForDarkThemes: false;
 }
+creditsCurrencyCoverLottieSize: size(104px, 104px);
+creditsCurrencyCoverLottieTop: -17px;
 creditsLowBalancePremiumCover: PremiumCover(creditsPremiumCover) {
 	starSize: size(64px, 62px);
 	starTopSkip: 30px;

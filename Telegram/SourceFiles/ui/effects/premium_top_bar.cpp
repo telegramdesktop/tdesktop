@@ -119,6 +119,7 @@ TopBar::TopBar(
 , _titleFont(st.titleFont)
 , _titlePadding(st.titlePadding)
 , _aboutMaxWidth(st.aboutMaxWidth)
+, _lottieTop(descriptor.lottieTop)
 , _about(this, std::move(descriptor.about), st.about)
 , _ministars(
 		this,
@@ -203,8 +204,12 @@ TopBar::TopBar(
 		} else if (_logo == u"diamond"_q) {
 			if (!_diamond3d) {
 				_lottie = Lottie::MakeIcon({
-					.name = u"diamond"_q,
-					.sizeOverride = starSize,
+					.name = (descriptor.lottie.isEmpty()
+						? u"diamond"_q
+						: descriptor.lottie),
+					.sizeOverride = (descriptor.lottieSize.isEmpty()
+						? starSize
+						: descriptor.lottieSize),
 				});
 				_lottie->animate(
 					[=] {
@@ -408,7 +413,7 @@ void TopBar::paintEvent(QPaintEvent *e) {
 				_starRect.left()
 					+ (_starRect.width() - _lottie->width()) / 2
 					- st::lineWidth * 6,
-				_starRect.top());
+				_starRect.top() + _lottieTop);
 			if (!_lottie->animating() && _lottie->frameIndex() > 0) {
 				_lottie->animate(
 					[=] {

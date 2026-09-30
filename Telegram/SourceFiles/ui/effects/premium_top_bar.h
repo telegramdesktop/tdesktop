@@ -82,6 +82,9 @@ struct TopBarDescriptor {
 	bool use3dCoin = false;
 	std::optional<QGradientStops> gradientStops;
 	rpl::producer<> showFinished;
+	QString lottie;
+	QSize lottieSize;
+	int lottieTop = 0;
 };
 
 class TopBar final : public TopBarAbstract {
@@ -107,6 +110,7 @@ private:
 	const style::font &_titleFont;
 	const style::margins &_titlePadding;
 	const int _aboutMaxWidth = 0;
+	const int _lottieTop = 0;
 	object_ptr<FlatLabel> _about;
 	ColoredMiniStars _ministars;
 	QSvgRenderer _star;

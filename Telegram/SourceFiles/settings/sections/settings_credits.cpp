@@ -700,6 +700,11 @@ base::weak_qptr<Ui::RpWidget> Credits::createPinnedToTop(
 				.use3dDiamond = isCurrency,
 				.gradientStops = Ui::Premium::CreditsIconGradientStops(),
 				.showFinished = _showFinished.events(),
+				.lottie = isCurrency ? u"gram"_q : QString(),
+				.lottieSize = (isCurrency
+					? st::creditsCurrencyCoverLottieSize
+					: QSize()),
+				.lottieTop = isCurrency ? st::creditsCurrencyCoverLottieTop : 0,
 			});
 	}();
 	controller()->boxShownValue(
