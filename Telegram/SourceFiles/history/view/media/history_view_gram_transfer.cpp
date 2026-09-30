@@ -76,7 +76,15 @@ constexpr auto kBumpDuration = kBumpRiseDuration
 constexpr auto kBumpAmplitude = 0.07;
 constexpr auto kBumpFallEase = 1.2;
 constexpr auto kBumpUndershoot = 0.043;
-constexpr auto kTransitionDuration = std::max(kRevealDuration, kBumpDuration);
+constexpr auto kSendingSpeed = 90.;
+constexpr auto kSpinTurn = 540.;
+constexpr auto kSpinDuration = crl::time(1700);
+constexpr auto kSweepPeriod = 180.;
+constexpr auto kTransitionDuration = std::max({
+	kRevealDuration,
+	kBumpDuration,
+	kSpinDuration,
+});
 
 [[nodiscard]] QColor CardTickerFg() {
 	return QColor(0x0f, 0xdd, 0xff);
@@ -172,12 +180,19 @@ struct ClockPose {
 	};
 }
 
+struct SettleSpin {
+	float64 from = 0.;
+	float64 turn = 0.;
+	float64 target = 0.;
+};
+
 // Lives only from the moment a sending card is replaced by its sent or
-// failed one until the ribbon and the bump settle and the glare pass ended.
+// failed one until all the settle started is over and the glare pass ended.
 struct CardTransition {
 	Ui::Animations::Basic animation;
 	std::optional<GlarePassTiming> glare;
 	ClockPose pose;
+	SettleSpin spin;
 	QString toText;
 	QImage toWord;
 	QImage frame;
@@ -188,7 +203,39 @@ struct CardTransition {
 struct SendingClock {
 	Ui::Animations::Basic animation;
 	crl::time started = 0;
+	float64 angle = 0.;
 };
+
+[[nodiscard]] float64 SendingAngle(const SendingClock &clock, crl::time now) {
+	return clock.angle + kSendingSpeed * (now - clock.started) / 1000.;
+}
+
+[[nodiscard]] float64 ClockwiseRemainder(float64 degrees) {
+	return degrees - kSweepPeriod * std::floor(degrees / kSweepPeriod);
+}
+
+[[nodiscard]] SettleSpin StartSpin(float64 from, float64 target) {
+	return {
+		.from = from,
+		.turn = kSpinTurn + ClockwiseRemainder(target - from),
+		.target = target,
+	};
+}
+
+// WHY: the live target's drift since the settle is added scaled by the
+// eased progress, so the spin lands exactly where the mouse rule points now
+// while a moving cursor never makes the sweep jump.
+[[nodiscard]] float64 SpinAngle(
+		const SettleSpin &spin,
+		float64 target,
+		crl::time elapsed) {
+	const auto progress = std::clamp(
+		elapsed / float64(kSpinDuration),
+		0.,
+		1.);
+	return spin.from
+		+ (spin.turn + target - spin.target) * anim::easeOutCubic(1., progress);
+}
 
 // What a card being replaced by a refreshed view passes to its successor.
 struct GramTransferHandover {
@@ -261,6 +308,7 @@ private:
 	[[nodiscard]] std::optional<CardGlarePass> glarePass(crl::time now) const;
 	[[nodiscard]] std::optional<GlarePassTiming> glarePassTiming(
 		crl::time now) const;
+	[[nodiscard]] float64 sweepAngle(crl::time now, bool still) const;
 	[[nodiscard]] bool transitionFinished(crl::time now) const;
 	void adopt(GramTransferHandover &&handover);
 	void animateTransition() const;
@@ -915,6 +963,9 @@ void GramTransferCardPart::startReveal(
 	_transition->glare = pass;
 	_transition->pose = SendingClockPose(now - clock.started);
 	_transition->started = now;
+	_transition->spin = StartSpin(
+		SendingAngle(clock, now),
+		_angle ? _angle->value(now) : 0.);
 	_heavyPending = true;
 	animateTransition();
 }
@@ -1145,6 +1196,7 @@ void GramTransferCardPart::validateClock() const {
 	}
 	_clock = std::make_unique<SendingClock>();
 	_clock->started = crl::now();
+	_clock->angle = _angle ? _angle->value(_clock->started) : 0.;
 	attachClock();
 }
 
@@ -1185,6 +1237,18 @@ std::optional<CardGlarePass> GramTransferCardPart::glarePass(
 	const auto from = -width
 		+ (_layout.card.width() + 2 * width) * progress;
 	return CardGlarePass{ .from = from, .till = from + width };
+}
+
+float64 GramTransferCardPart::sweepAngle(crl::time now, bool still) const {
+	const auto target = _angle->value(now);
+	if (still) {
+		return target;
+	} else if (_layout.sending && _clock) {
+		return SendingAngle(*_clock, now);
+	} else if (_transition) {
+		return SpinAngle(_transition->spin, target, now - _transition->started);
+	}
+	return target;
 }
 
 bool GramTransferCardPart::hasHeavyPart() {
@@ -1369,16 +1433,17 @@ void GramTransferCardPart::draw(
 		&& !anim::Disabled()) {
 		startReveal(*_clock, now, glarePassTiming(now));
 	}
+	validateAngle(p);
 	validateMark();
 	validateGlare();
 	validateClock();
 	validateBadge();
-	validateAngle(p);
 	if (std::exchange(_heavyPending, false)) {
 		if (const auto view = _origin.view.get()) {
 			view->history()->owner().registerHeavyViewPart(view);
 		}
 	}
+	const auto still = context.paused || anim::Disabled();
 	p.save();
 	auto hq = PainterHighQualityEnabler(p);
 	const auto outer = QRect(0, 0, width(), height());
@@ -1386,7 +1451,7 @@ void GramTransferCardPart::draw(
 	auto clip = QPainterPath();
 	clip.addRoundedRect(outer, radius, radius);
 	p.setClipPath(clip, Qt::IntersectClip);
-	Wallet::PaintCardBackground(p, _layout.card, _angle->value(now));
+	Wallet::PaintCardBackground(p, _layout.card, sweepAngle(now, still));
 	p.translate(_layout.card.topLeft());
 	const auto cardWidth = _layout.card.width();
 	const auto pass = glarePass(now);
