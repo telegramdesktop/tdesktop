@@ -633,6 +633,7 @@ private:
 	void setupPinnedTracker();
 	void checkPinnedBarState();
 	void clearHidingPinnedBar();
+	[[nodiscard]] Ui::PinnedBar *visiblePinnedBar() const;
 	void refreshPinnedBarButton(bool many, HistoryItem *item);
 	void checkLastPinnedClickedIdReset(
 		int wasScrollTop,
