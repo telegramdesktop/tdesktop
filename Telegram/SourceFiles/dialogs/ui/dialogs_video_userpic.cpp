@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_entry.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "styles/style_dialogs.h"
 
 namespace Dialogs::Ui {
@@ -165,7 +166,7 @@ void PaintUserpic(
 		int outerWidth,
 		int size,
 		bool paused) {
-	if (videoUserpic) {
+	if (videoUserpic && !PowerSaving::On(PowerSaving::kAnimatedUserpics)) {
 		videoUserpic->paintLeft(p, view, x, y, outerWidth, size, paused);
 	} else {
 		peer->paintUserpicLeft(p, view, x, y, outerWidth, size);

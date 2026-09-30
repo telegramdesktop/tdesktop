@@ -179,6 +179,11 @@ EditFlagsDescriptor<PowerSaving::Flags> PowerSavingLabels() {
 			tr::lng_settings_power_ui(tr::now),
 			&st::menuIconStartStream,
 		},
+		{
+			kAnimatedUserpics,
+			tr::lng_settings_power_animated_avatars(tr::now),
+			&st::menuIconProfile,
+		},
 	};
 	return { .labels = {
 		{ tr::lng_settings_power_stickers(), std::move(stickers) },
