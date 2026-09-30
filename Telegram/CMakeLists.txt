@@ -2069,6 +2069,8 @@ PRIVATE
     test/test_secrecy_scan.h
     test/test_style.cpp
     test/test_style.h
+    test/test_text_drop.cpp
+    test/test_text_drop.h
     test/test_text_reads.cpp
     test/test_text_reads.h
     test/test_toast_capture.cpp
