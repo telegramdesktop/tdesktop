@@ -165,7 +165,7 @@ constexpr auto kUndatedRowDate = std::numeric_limits<TimeId>::max();
 constexpr auto kTransactionLookupInterval = crl::time(1000);
 constexpr auto kTransactionLookupAttempts = 10;
 constexpr auto kMaxFiatUnits = 999'999'999LL;
-// WHY: gram.tgs draws its diamond inside a larger canvas, with a faint glow
+// WHY: gram(_light).tgs draw the diamond in a larger canvas, with a faint glow
 // above the top edge, so the amount row sizes and places the canvas by the
 // drawn edges of the resting frame, the glow excluded.
 constexpr auto kGramDiamondLeft = 89. / 512.;
@@ -182,6 +182,13 @@ constexpr auto kSigningReadyTimeout = 30 * crl::time(1000);
 constexpr auto kHeldSendKeyTimeout = 60 * crl::time(1000);
 constexpr auto kCustodyResolveTimeout = 20 * crl::time(1000);
 constexpr auto kGramDigits = 9;
+
+[[nodiscard]] int GramDiamondCanvas(const style::font &font) {
+	const auto figure = int(base::SafeRound(
+		-font->metrics().tightBoundingRect(u"0123456789"_q).top()));
+	return int(base::SafeRound(
+		figure / (kGramDiamondBottom - kGramDiamondTop)));
+}
 
 class BalanceInk;
 class Card;
@@ -411,6 +418,8 @@ public:
 		const QString &fiat,
 		BalanceStyle style = BalanceStyle::Balance);
 	void setOuterWidth(int outerWidth);
+	void setAnimatedMark();
+	void playMark(Fn<void()> repaint);
 	void refresh();
 
 	void paint(
@@ -421,22 +430,38 @@ public:
 
 	[[nodiscard]] QRect boundingRect(const CardFold &fold) const;
 	[[nodiscard]] QRect markRect(QRect cardRest) const;
+	[[nodiscard]] QRect markPaintRect(const CardFold &fold) const;
 
 private:
 	[[nodiscard]] QRectF amountRect(const CardFold &fold) const;
 	[[nodiscard]] QRectF fiatRect(const CardFold &fold) const;
+	[[nodiscard]] QRectF markVisible(float64 fold) const;
+	[[nodiscard]] QRectF markDrawRect(
+		float64 fold,
+		const QRectF &box,
+		const QRectF &visible) const;
+	void paintMark(
+		QPainter &p,
+		float64 fold,
+		const QImage &mono,
+		bool card) const;
 	void paintPass(
 		QPainter &p,
 		const CardFold &fold,
 		const BalancePalette &palette,
 		const QImage &mark,
+		bool card,
 		float64 secondaryOpacity) const;
 
+	std::unique_ptr<Lottie::Icon> _markLottie;
 	QPainterPath _amount;
 	QPainterPath _ticker;
 	QPainterPath _fiat;
 	QImage _markCard;
 	QImage _markSettled;
+	QRectF _markFrame;
+	QRectF _markLottieVisible;
+	QRectF _markMonoVisible;
 	CreditsAmount _balance;
 	QString _fiatText;
 	float64 _markTop = 0.;
@@ -4504,10 +4529,7 @@ void SetButtonDisabledLook(
 		std::move(fractionDigits),
 		std::move(separator));
 	const auto &font = st.style.font;
-	const auto figure = int(base::SafeRound(
-		-font->metrics().tightBoundingRect(u"0123456789"_q).top()));
-	const auto canvas = int(base::SafeRound(
-		figure / (kGramDiamondBottom - kGramDiamondTop)));
+	const auto canvas = GramDiamondCanvas(font);
 	const auto diamondLeft = int(base::SafeRound(canvas * kGramDiamondLeft));
 	const auto diamondWidth = int(base::SafeRound(
 		canvas * (kGramDiamondRight - kGramDiamondLeft)));
@@ -11122,6 +11144,32 @@ void WalletKeysBackupBox(
 		anchor.y() + (landedTop - anchor.y()) * fold.fold);
 }
 
+[[nodiscard]] QRectF MarkInkBounds(const QImage &image) {
+	auto left = image.width();
+	auto top = image.height();
+	auto right = -1;
+	auto bottom = -1;
+	for (auto y = 0; y != image.height(); ++y) {
+		for (auto x = 0; x != image.width(); ++x) {
+			if (qAlpha(image.pixel(x, y))) {
+				left = std::min(left, x);
+				top = std::min(top, y);
+				right = std::max(right, x);
+				bottom = std::max(bottom, y);
+			}
+		}
+	}
+	if (right < 0) {
+		return QRectF();
+	}
+	const auto ratio = image.devicePixelRatio();
+	return QRectF(
+		left / ratio,
+		top / ratio,
+		(right - left + 1) / ratio,
+		(bottom - top + 1) / ratio);
+}
+
 void BalanceInk::setContent(
 		CreditsAmount amount,
 		const QString &fiat,
@@ -11138,6 +11186,36 @@ void BalanceInk::setOuterWidth(int outerWidth) {
 	}
 	_outerWidth = outerWidth;
 	refresh();
+}
+
+void BalanceInk::setAnimatedMark() {
+	const auto &font = st::walletCardBalanceMajorLabel.style.font;
+	const auto canvas = GramDiamondCanvas(font);
+	_markFrame = QRectF(
+		-int(base::SafeRound(canvas * kGramDiamondLeft)),
+		font->ascent - int(base::SafeRound(canvas * kGramDiamondBottom)),
+		canvas,
+		canvas);
+	_markLottieVisible = QRectF(
+		_markFrame.x() + canvas * kGramDiamondLeft,
+		_markFrame.y() + canvas * kGramDiamondTop,
+		canvas * (kGramDiamondRight - kGramDiamondLeft),
+		canvas * (kGramDiamondBottom - kGramDiamondTop));
+	_markLottie = Lottie::MakeIcon({
+		.name = u"gram_light"_q,
+		.sizeOverride = { canvas, canvas },
+		.frame = -1,
+	});
+}
+
+void BalanceInk::playMark(Fn<void()> repaint) {
+	if (!_markLottie || !_markLottie->valid()) {
+		return;
+	}
+	_markLottie->animate(
+		std::move(repaint),
+		0,
+		_markLottie->framesCount() - 1);
 }
 
 void BalanceInk::refresh() {
@@ -11219,6 +11297,7 @@ void BalanceInk::refresh() {
 	_markTop = Ui::Earn::AlignedMarkTop(
 		st::walletCardBalanceMajorLabel.style.font,
 		_markCard);
+	_markMonoVisible = MarkInkBounds(_markCard).translated(0., _markTop);
 }
 
 QRectF BalanceInk::amountRect(const CardFold &fold) const {
@@ -11246,24 +11325,73 @@ QRectF BalanceInk::fiatRect(const CardFold &fold) const {
 	return QRectF(position.x(), position.y(), width, height);
 }
 
+QRectF BalanceInk::markVisible(float64 fold) const {
+	if (!_markLottie) {
+		return _markMonoVisible;
+	}
+	const auto &from = _markLottieVisible;
+	const auto &to = _markMonoVisible;
+	return QRectF(
+		from.x() + (to.x() - from.x()) * fold,
+		from.y() + (to.y() - from.y()) * fold,
+		from.width() + (to.width() - from.width()) * fold,
+		from.height() + (to.height() - from.height()) * fold);
+}
+
+QRectF BalanceInk::markDrawRect(
+		float64 fold,
+		const QRectF &box,
+		const QRectF &visible) const {
+	const auto target = markVisible(fold);
+	const auto k = target.height() / visible.height();
+	return QRectF(
+		target.center().x() - (visible.center().x() - box.x()) * k,
+		target.y() - (visible.y() - box.y()) * k,
+		box.width() * k,
+		box.height() * k);
+}
+
+void BalanceInk::paintMark(
+		QPainter &p,
+		float64 fold,
+		const QImage &mono,
+		bool card) const {
+	const auto monoBox = QRectF(
+		0.,
+		_markTop,
+		st::walletCardMarkSize,
+		st::walletCardMarkSize);
+	if (!_markLottie
+		|| _markLottieVisible.height() <= 0.
+		|| _markMonoVisible.height() <= 0.) {
+		p.drawImage(monoBox, mono);
+		return;
+	}
+	// WHY: both passes map their own diamond onto one shared box, so the
+	// diamond crossing the folding card's edge stays one shape, lottie
+	// inside and mono outside, with no step at the seam.
+	if (card && _markLottie->valid()) {
+		p.drawImage(
+			markDrawRect(fold, _markFrame, _markLottieVisible),
+			_markLottie->frame());
+	} else {
+		p.drawImage(markDrawRect(fold, monoBox, _markMonoVisible), mono);
+	}
+}
+
 void BalanceInk::paintPass(
 		QPainter &p,
 		const CardFold &fold,
 		const BalancePalette &palette,
 		const QImage &mark,
+		bool card,
 		float64 secondaryOpacity) const {
 	const auto amount = amountRect(fold);
 	const auto amountScale = BalanceAmountScale(fold.fold);
 	p.save();
 	p.translate(amount.x(), amount.y());
 	p.scale(amountScale, amountScale);
-	p.drawImage(
-		QRectF(
-			0.,
-			_markTop,
-			st::walletCardMarkSize,
-			st::walletCardMarkSize),
-		mark);
+	paintMark(p, fold.fold, mark, card);
 	p.fillPath(_amount, palette.amount);
 	p.setOpacity(p.opacity() * secondaryOpacity);
 	p.translate(_tickerLeft, 0.);
@@ -11295,6 +11423,7 @@ void BalanceInk::paint(
 			fold,
 			CardBalancePalette(),
 			_markCard,
+			true,
 			st::walletCardSecondaryOpacity);
 		p.restore();
 	}
@@ -11307,6 +11436,7 @@ void BalanceInk::paint(
 			fold,
 			SettledBalancePalette(),
 			_markSettled,
+			false,
 			1.);
 		p.restore();
 	}
@@ -11324,6 +11454,19 @@ QRect BalanceInk::markRect(QRect cardRest) const {
 		cardRest.y() + st::walletCardBalanceTop + int(base::SafeRound(_markTop)),
 		st::walletCardMarkSize,
 		st::walletCardMarkSize);
+}
+
+QRect BalanceInk::markPaintRect(const CardFold &fold) const {
+	if (!_markLottie || _markLottieVisible.height() <= 0.) {
+		return QRect();
+	}
+	const auto amount = amountRect(fold);
+	const auto scale = BalanceAmountScale(fold.fold);
+	const auto rect = markDrawRect(fold.fold, _markFrame, _markLottieVisible);
+	return QRectF(
+		amount.topLeft() + rect.topLeft() * scale,
+		rect.size() * scale
+	).toAlignedRect().marginsAdded({ 1, 1, 1, 1 });
 }
 
 [[nodiscard]] rpl::producer<TextWithEntities> CardNameValue(
@@ -12222,6 +12365,27 @@ void Content::setupBalance() {
 		const auto scope = WindowPaletteScope(this);
 		_ink->refresh();
 		repaintBalance();
+	}, lifetime());
+
+	_ink->setAnimatedMark();
+	auto shown = events(
+	) | rpl::filter([](not_null<QEvent*> e) {
+		return (e->type() == QEvent::Show);
+	}) | rpl::take(1) | rpl::map_to(true);
+	rpl::combine(
+		rpl::single(false) | rpl::then(std::move(shown)),
+		_panel->windowActiveValue(),
+		PowerSaving::OnValue(PowerSaving::kStickersChat),
+		anim::Disables()
+	) | rpl::filter([](bool shown, bool active, bool saving, bool off) {
+		return shown && active && !saving && !off;
+	}) | rpl::take(1) | rpl::on_next([=] {
+		_ink->playMark([=] {
+			const auto mark = _ink->markPaintRect(cardFold());
+			_pinnedBalance->update(mark);
+			_titleBalance->update(
+				mark.translated(0, st::separatePanelTitleHeight));
+		});
 	}, lifetime());
 }
 
