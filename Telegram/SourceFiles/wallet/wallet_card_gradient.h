@@ -13,7 +13,7 @@ class QPainter;
 
 namespace Wallet {
 
-void PaintCardBackground(QPainter &p, const QRect &card);
+void PaintCardBackground(QPainter &p, const QRect &card, float64 angle = 0.);
 void PaintCardQrPlate(QPainter &p, const QRect &plate);
 
 // The sweep's average, the colour surfaces next to the card match.

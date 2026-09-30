@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/power_saving.h"
 #include "wallet/wallet_address.h"
 #include "wallet/wallet_amount_painter.h"
+#include "wallet/wallet_card_angle.h"
 #include "wallet/wallet_card_gradient.h"
 #include "wallet/wallet_comment.h"
 #include "wallet/wallet_content.h"
@@ -91,6 +92,13 @@ constexpr auto kTransitionDuration = std::max(kRevealDuration, kBumpDuration);
 
 [[nodiscard]] QColor ReceivedBadgeBg() {
 	return QColor(0x5e, 0xc2, 0xff);
+}
+
+[[nodiscard]] QWidget *PaintWidget(const QPainter &p) {
+	const auto device = p.device();
+	return (device && device->devType() == QInternal::Widget)
+		? static_cast<QWidget*>(device)
+		: nullptr;
 }
 
 struct GramTransferAction {
@@ -188,6 +196,7 @@ struct GramTransferHandover {
 	std::unique_ptr<Ui::GlareEffect> glare;
 	std::unique_ptr<CardTransition> transition;
 	std::unique_ptr<SendingClock> clock;
+	std::unique_ptr<Wallet::CardAngle> angle;
 	std::optional<GlarePassTiming> pass;
 	bool markStarted = false;
 };
@@ -265,6 +274,8 @@ private:
 	void validateGlare() const;
 	void validateClock() const;
 	void validateBadge() const;
+	void validateAngle(QPainter &p) const;
+	[[nodiscard]] Fn<void()> repaintView() const;
 	void paintGlareBorder(QPainter &p, CardGlarePass pass) const;
 	void paintSendingClock(QPainter &p, crl::time now) const;
 	void paintReveal(QPainter &p, int cardWidth, crl::time now) const;
@@ -283,6 +294,7 @@ private:
 	mutable std::unique_ptr<Ui::GlareEffect> _glare;
 	mutable std::unique_ptr<SendingClock> _clock;
 	mutable std::unique_ptr<CardTransition> _transition;
+	mutable std::unique_ptr<Wallet::CardAngle> _angle;
 	mutable bool _markStarted = false;
 	mutable bool _heavyPending = false;
 	mutable QImage _badge;
@@ -824,6 +836,7 @@ GramTransferHandover GramTransferCardPart::takeHandover() {
 		.mark = std::move(_mark),
 		.transition = std::move(_transition),
 		.clock = std::move(_clock),
+		.angle = std::move(_angle),
 		.pass = glarePassTiming(crl::now()),
 		.markStarted = std::exchange(_markStarted, false),
 	};
@@ -855,6 +868,10 @@ std::optional<GlarePassTiming> GramTransferCardPart::glarePassTiming(
 // card keeps its glare, and a card that stopped sending plays the transition
 // with the glare pass that was on screen finishing but no new one starting.
 void GramTransferCardPart::adopt(GramTransferHandover &&handover) {
+	if (handover.angle) {
+		_angle = std::move(handover.angle);
+		_angle->setRepaint(repaintView());
+	}
 	if (handover.mark) {
 		_mark = std::move(handover.mark);
 		_markStarted = handover.markStarted;
@@ -1180,6 +1197,9 @@ void GramTransferCardPart::unloadHeavyPart() {
 	_clock = nullptr;
 	_transition = nullptr;
 	_markStarted = false;
+	if (_angle) {
+		_angle->stopTracking();
+	}
 }
 
 // The outline has to keep the card's own gradient under it, so the fill and
@@ -1205,6 +1225,23 @@ void GramTransferCardPart::paintGlareBorder(
 			- QMarginsF(half, half, half, half),
 		radius,
 		radius);
+}
+
+void GramTransferCardPart::validateAngle(QPainter &p) const {
+	if (!_angle) {
+		_angle = std::make_unique<Wallet::CardAngle>(repaintView());
+	}
+	if (const auto widget = PaintWidget(p)) {
+		_angle->track(widget, p.transform().mapRect(QRectF(_layout.card)));
+	}
+}
+
+Fn<void()> GramTransferCardPart::repaintView() const {
+	return [view = _origin.view] {
+		if (const auto strong = view.get()) {
+			strong->repaint();
+		}
+	};
 }
 
 void GramTransferCardPart::validateBadge() const {
@@ -1336,6 +1373,7 @@ void GramTransferCardPart::draw(
 	validateGlare();
 	validateClock();
 	validateBadge();
+	validateAngle(p);
 	if (std::exchange(_heavyPending, false)) {
 		if (const auto view = _origin.view.get()) {
 			view->history()->owner().registerHeavyViewPart(view);
@@ -1348,7 +1386,7 @@ void GramTransferCardPart::draw(
 	auto clip = QPainterPath();
 	clip.addRoundedRect(outer, radius, radius);
 	p.setClipPath(clip, Qt::IntersectClip);
-	Wallet::PaintCardBackground(p, _layout.card);
+	Wallet::PaintCardBackground(p, _layout.card, _angle->value(now));
 	p.translate(_layout.card.topLeft());
 	const auto cardWidth = _layout.card.width();
 	const auto pass = glarePass(now);

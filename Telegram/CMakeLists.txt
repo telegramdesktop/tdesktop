@@ -2183,6 +2183,8 @@ PRIVATE
     wallet/wallet_amount_painter.h
     wallet/wallet_api.cpp
     wallet/wallet_api.h
+    wallet/wallet_card_angle.cpp
+    wallet/wallet_card_angle.h
     wallet/wallet_card_gradient.cpp
     wallet/wallet_card_gradient.h
     wallet/wallet_chat_show.cpp
