@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/chat/chat_style.h"
 #include "ui/controls/ton_common.h"
+#include "ui/effects/drifting_particles.h"
 #include "ui/effects/glare.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
@@ -38,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 
 #include <QtCore/QLocale>
+#include <QtSvg/QSvgRenderer>
 
 #include <limits>
 
@@ -80,10 +82,20 @@ constexpr auto kSendingSpeed = 90.;
 constexpr auto kSpinTurn = 540.;
 constexpr auto kSpinDuration = crl::time(1700);
 constexpr auto kSweepPeriod = 180.;
+constexpr auto kBurstDelay = crl::time(90);
+constexpr auto kBurstSpread = crl::time(250);
+constexpr auto kBurstLifeMin = crl::time(850);
+constexpr auto kBurstLifeMax = crl::time(1100);
+constexpr auto kBurstDuration = kBurstDelay + kBurstSpread + kBurstLifeMax;
+constexpr auto kBurstStarsPerSide = 48;
+constexpr auto kBurstAppearTill = 0.2;
+constexpr auto kBurstFadeAfter = 0.8;
+constexpr auto kBurstDeformation = 0.1;
 constexpr auto kTransitionDuration = std::max({
 	kRevealDuration,
 	kBumpDuration,
 	kSpinDuration,
+	kBurstDuration,
 });
 
 [[nodiscard]] QColor CardTickerFg() {
@@ -186,6 +198,24 @@ struct SettleSpin {
 	float64 target = 0.;
 };
 
+struct BurstStar {
+	crl::time birth = 0;
+	crl::time life = 0;
+	float64 side = 1.;
+	float64 angle = 0.;
+	float64 reach = 0.;
+	float64 fall = 0.;
+	QPointF startInMarks;
+	float64 size = 0.;
+	float64 alpha = 0.;
+	float64 sinFactor = 0.;
+};
+
+struct CardBurst {
+	std::vector<BurstStar> stars;
+	QSvgRenderer sprite;
+};
+
 // Lives only from the moment a sending card is replaced by its sent or
 // failed one until all the settle started is over and the glare pass ended.
 struct CardTransition {
@@ -193,6 +223,7 @@ struct CardTransition {
 	std::optional<GlarePassTiming> glare;
 	ClockPose pose;
 	SettleSpin spin;
+	std::unique_ptr<CardBurst> burst;
 	QString toText;
 	QImage toWord;
 	QImage frame;
@@ -235,6 +266,37 @@ struct SendingClock {
 		1.);
 	return spin.from
 		+ (spin.turn + target - spin.target) * anim::easeOutCubic(1., progress);
+}
+
+[[nodiscard]] std::unique_ptr<CardBurst> MakeCardBurst() {
+	auto result = std::make_unique<CardBurst>();
+	result->sprite.load(u":/gui/icons/settings/starmini.svg"_q);
+	if (!result->sprite.isValid()) {
+		return nullptr;
+	}
+	auto random = Ui::ParticlesRandom();
+	result->stars.reserve(2 * kBurstStarsPerSide);
+	for (const auto side : { -1., 1. }) {
+		for (auto i = 0; i != kBurstStarsPerSide; ++i) {
+			result->stars.push_back({
+				.birth = kBurstDelay
+					+ crl::time(random.value(0., kBurstSpread)),
+				.life = crl::time(random.value(kBurstLifeMin, kBurstLifeMax)),
+				.side = side,
+				.angle = random.value(-40., 12.),
+				.reach = random.value(0.25, 0.65),
+				.fall = random.value(0.20, 0.40),
+				.startInMarks = QPointF(
+					side * random.value(0.35, 0.65),
+					random.value(-0.25, 0.20)),
+				.size = random.value(0.010, 0.034),
+				.alpha = random.value(0.40, 0.70),
+				.sinFactor = random.value(0.1, 1.9)
+					* (random.chance(2) ? -1. : 1.),
+			});
+		}
+	}
+	return result;
 }
 
 // What a card being replaced by a refreshed view passes to its successor.
@@ -309,6 +371,7 @@ private:
 	[[nodiscard]] std::optional<GlarePassTiming> glarePassTiming(
 		crl::time now) const;
 	[[nodiscard]] float64 sweepAngle(crl::time now, bool still) const;
+	void paintBurst(QPainter &p, crl::time now) const;
 	[[nodiscard]] bool transitionFinished(crl::time now) const;
 	void adopt(GramTransferHandover &&handover);
 	void animateTransition() const;
@@ -966,6 +1029,10 @@ void GramTransferCardPart::startReveal(
 	_transition->spin = StartSpin(
 		SendingAngle(clock, now),
 		_angle ? _angle->value(now) : 0.);
+	const auto view = _origin.view.get();
+	if (view && !view->data()->hasFailed()) {
+		_transition->burst = MakeCardBurst();
+	}
 	_heavyPending = true;
 	animateTransition();
 }
@@ -976,6 +1043,11 @@ void GramTransferCardPart::animateTransition() const {
 		const auto strong = weak.get();
 		if (!strong || !strong->_transition) {
 			return false;
+		}
+		auto &transition = *strong->_transition;
+		// Frees the stars even while the card is not painted.
+		if (transition.burst && now >= transition.started + kBurstDuration) {
+			transition.burst = nullptr;
 		}
 		if (const auto view = strong->_origin.view.get()) {
 			view->repaint();
@@ -1251,6 +1323,55 @@ float64 GramTransferCardPart::sweepAngle(crl::time now, bool still) const {
 	return target;
 }
 
+void GramTransferCardPart::paintBurst(QPainter &p, crl::time now) const {
+	auto &sprite = _transition->burst->sprite;
+	const auto cardWidth = float64(_layout.card.width());
+	const auto cardHeight = float64(_layout.card.height());
+	const auto mark = float64(st::walletChatCardMarkSize);
+	const auto origin = QPointF(cardWidth / 2., _layout.markTop + mark / 2.);
+	const auto radius = st::walletCardRadius;
+	p.save();
+	auto clip = QPainterPath();
+	clip.addRoundedRect(QRectF(0, 0, cardWidth, cardHeight), radius, radius);
+	p.setClipPath(clip, Qt::IntersectClip);
+	const auto opacity = p.opacity();
+	for (const auto &star : _transition->burst->stars) {
+		const auto elapsed = now - _transition->started - star.birth;
+		if (elapsed < 0 || elapsed >= star.life) {
+			continue;
+		}
+		const auto progress = elapsed / float64(star.life);
+		const auto appear = std::clamp(progress / kBurstAppearTill, 0., 1.);
+		const auto fade = 1. - std::clamp(
+			(progress - kBurstFadeAfter) / (1. - kBurstFadeAfter),
+			0.,
+			1.);
+		const auto travel = anim::easeOutCubic(1., progress);
+		const auto radians = star.angle * M_PI / 180.;
+		const auto centre = origin
+			+ star.startInMarks * mark
+			+ QPointF(star.side * std::cos(radians), std::sin(radians))
+				* (star.reach * cardWidth * travel)
+			+ QPointF(0., star.fall * cardWidth * progress * progress);
+		const auto deformH = 1. + kBurstDeformation
+			* std::sin(star.sinFactor * progress * 2. * M_PI);
+		const auto deformW = 1. / deformH;
+		const auto side = star.size * cardWidth * appear;
+		const auto width = side * fade * deformW;
+		const auto height = side * deformH;
+		p.setOpacity(opacity * star.alpha * appear * fade);
+		sprite.render(
+			&p,
+			QRectF(
+				centre.x() - width / 2.,
+				centre.y() - height / 2.,
+				width,
+				height));
+	}
+	p.setOpacity(opacity);
+	p.restore();
+}
+
 bool GramTransferCardPart::hasHeavyPart() {
 	return _mark || _glare || _clock || _transition;
 }
@@ -1457,6 +1578,9 @@ void GramTransferCardPart::draw(
 	const auto pass = glarePass(now);
 	if (pass) {
 		paintGlareBorder(p, *pass);
+	}
+	if (_transition && _transition->burst && !still) {
+		paintBurst(p, now);
 	}
 	if (_mark->valid()) {
 		const auto last = _mark->framesCount() - 1;
