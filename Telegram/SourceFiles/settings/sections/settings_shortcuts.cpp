@@ -428,6 +428,7 @@ struct SetupShortcutsResult {
 			S::Change(was, now, command);
 		}
 	};
+	content->lifetime().add(S::Unpause);
 	base::install_event_filter(content, qApp, [=](not_null<QEvent*> e) {
 		const auto type = e->type();
 		if (type == QEvent::ShortcutOverride && state->recording.current()) {
