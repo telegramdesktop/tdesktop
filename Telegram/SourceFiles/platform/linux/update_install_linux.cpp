@@ -23,10 +23,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QDateTime>
 #include <QtCore/QDir>
 #include <QtCore/QFile>
+#include <QtCore/QFileInfo>
 #include <QtCore/QSet>
 
 #include <sys/file.h>
 #include <sys/stat.h>
+#include <sys/statvfs.h>
 #include <sys/wait.h>
 
 #include <algorithm>
@@ -50,6 +52,19 @@ namespace {
 	return 1;
 }
 
+[[nodiscard]] bool RootModeSupported(QString &error) {
+#ifdef TDESKTOP_DISABLE_AUTOUPDATE
+	error = u"Automatic updates are disabled in this build."_q;
+	return false;
+#else // TDESKTOP_DISABLE_AUTOUPDATE
+	if (Core::BuildUpdateChannel == Core::Updates::Channel::CanaryPrivate) {
+		error = u"Private-canary builds do not support this mode."_q;
+		return false;
+	}
+	return true;
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
+}
+
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 
 constexpr auto kDirectoryFlags
@@ -58,6 +73,7 @@ constexpr auto kUpdaterPathLimit = 1024;
 constexpr auto kCopyBufferSize = 64 * 1024;
 constexpr auto kMaxDiagnosticBytes = 1024 * 1024;
 constexpr auto kMaxDiagnosticFiles = 64;
+constexpr auto kMaxUpdateCleanupDepth = 64;
 
 struct DirectoryCloser {
 	void operator()(DIR *stream) const {
@@ -486,6 +502,82 @@ const QString &PrivateDirectory::path() const {
 		error = u"Could not enumerate a protected update directory."_q;
 	}
 	return DirectoryStream(stream);
+}
+
+[[nodiscard]] bool RemoveUpdateEntry(
+		int directory,
+		const QByteArray &name,
+		int depth,
+		QString &error) {
+	struct stat info = {};
+	if (fstatat(directory, name.constData(), &info, AT_SYMLINK_NOFOLLOW)) {
+		return errno == ENOENT
+			|| Fail(error, "Could not inspect pending update data.");
+	}
+	if (S_ISDIR(info.st_mode)) {
+		if (depth >= kMaxUpdateCleanupDepth) {
+			return Fail(error, "Pending update data exceeds the cleanup depth limit.");
+		}
+		const auto child = FileDescriptor(openat(
+			directory,
+			name.constData(),
+			kDirectoryFlags));
+		if (!child) {
+			return Fail(error, "Could not open pending update data safely.");
+		}
+		const auto stream = OpenDirectoryStream(child.get(), error);
+		if (!stream) {
+			return false;
+		}
+		while (true) {
+			errno = 0;
+			const auto entry = readdir(stream.get());
+			if (!entry) {
+				if (errno) {
+					return Fail(error, "Could not enumerate pending update data.");
+				}
+				break;
+			}
+			const auto childName = QByteArray(entry->d_name);
+			if (childName != "." && childName != ".."
+				&& !RemoveUpdateEntry(
+					child.get(),
+					childName,
+					depth + 1,
+					error)) {
+				return false;
+			}
+		}
+	}
+	if (unlinkat(
+			directory,
+			name.constData(),
+			S_ISDIR(info.st_mode) ? AT_REMOVEDIR : 0)) {
+		return Fail(error, "Could not remove pending update data.");
+	}
+	return true;
+}
+
+[[nodiscard]] bool RemoveOtherUpdates(
+		int directory,
+		const QByteArray &keep,
+		QString &error) {
+	const auto stream = OpenDirectoryStream(directory, error);
+	if (!stream) {
+		return false;
+	}
+	while (true) {
+		errno = 0;
+		const auto entry = readdir(stream.get());
+		if (!entry) {
+			return !errno || Fail(error, "Could not enumerate pending updates.");
+		}
+		const auto name = QByteArray(entry->d_name);
+		if (name != "." && name != ".." && name != keep
+			&& !RemoveUpdateEntry(directory, name, 1, error)) {
+			return false;
+		}
+	}
 }
 
 [[nodiscard]] bool TrustedFile(const struct stat &info) {
@@ -986,6 +1078,191 @@ const QString &PrivateDirectory::path() const {
 
 } // namespace
 
+UpdateInstallMode GetUpdateInstallMode(
+		const QString &executablePath,
+		QString &error) {
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	const auto native = QFile::encodeName(executablePath);
+	const auto slash = native.lastIndexOf('/');
+	if (!native.startsWith('/')
+		|| native.contains('\0')
+		|| QFile::decodeName(native) != executablePath
+		|| !SafeExecutableName(native.mid(slash + 1))) {
+		error = u"The update destination path is invalid."_q;
+		return UpdateInstallMode::Refused;
+	}
+	const auto directory = native.left(slash + 1);
+	struct stat parent = {};
+	struct statvfs filesystem = {};
+	if (stat(directory.constData(), &parent)
+		|| !S_ISDIR(parent.st_mode)
+		|| statvfs(directory.constData(), &filesystem)
+		|| (filesystem.f_flag & ST_RDONLY)) {
+		error = u"The update destination is unavailable or read-only."_q;
+		return UpdateInstallMode::Refused;
+	}
+	auto writable = faccessat(
+		AT_FDCWD,
+		directory.constData(),
+		W_OK | X_OK,
+		AT_EACCESS) == 0;
+	if (!writable && errno != EACCES) {
+		error = u"Could not check update replacement permissions."_q;
+		return UpdateInstallMode::Refused;
+	}
+	const auto user = geteuid();
+	const auto names = { native.mid(slash + 1), QByteArray("Updater") };
+	for (const auto &name : names) {
+		struct stat target = {};
+		if (lstat((directory + name).constData(), &target)) {
+			if (errno == ENOENT && name == "Updater") {
+				continue;
+			}
+			error = u"Could not inspect an update replacement target."_q;
+			return UpdateInstallMode::Refused;
+		} else if (!S_ISREG(target.st_mode)) {
+			error = u"Update replacement targets must be regular files."_q;
+			return UpdateInstallMode::Refused;
+		}
+		if ((parent.st_mode & S_ISVTX)
+			&& user != 0
+			&& user != parent.st_uid
+			&& user != target.st_uid) {
+			writable = false;
+		}
+	}
+	if (writable) {
+		return UpdateInstallMode::Writable;
+	} else if (!RootModeSupported(error)) {
+		return UpdateInstallMode::Refused;
+	}
+	const auto installation = OpenInstallation(error);
+	if (!installation
+		|| !PreflightDestination(installation->directory.get(), "Updater", error)) {
+		return UpdateInstallMode::Refused;
+	} else if (installation->directoryPath + installation->executableName
+			!= native) {
+		error = u"The update destination is not the running installed image."_q;
+		return UpdateInstallMode::Refused;
+	}
+	return UpdateInstallMode::Protected;
+#else // !TDESKTOP_DISABLE_AUTOUPDATE
+	error = u"Automatic updates are disabled in this build."_q;
+	return UpdateInstallMode::Refused;
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
+}
+
+QString ReadyUpdatePackagePath(const QString &workingDirectory) {
+	return QDir(workingDirectory).absoluteFilePath(u"tupdates/ready-package"_q);
+}
+
+bool ReadyUpdatePackagePresent(const QString &workingDirectory) {
+	struct stat info = {};
+	return !lstat(
+		QFile::encodeName(ReadyUpdatePackagePath(workingDirectory)).constData(),
+		&info) || errno != ENOENT;
+}
+
+std::optional<QByteArray> ReadUpdatePackage(
+		const QString &path,
+		QString &error) {
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	return ReadPackage(path, error);
+#else // !TDESKTOP_DISABLE_AUTOUPDATE
+	error = u"Automatic updates are disabled in this build."_q;
+	return std::nullopt;
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
+}
+
+std::optional<QString> ValidateProtectedUpdate(
+		const QByteArray &bytes,
+		bool beta,
+		QString &error) {
+	if (!RootModeSupported(error)) {
+		return std::nullopt;
+	}
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	if (!VerifyPackage(bytes, beta, error)) {
+		return std::nullopt;
+	}
+	const auto installation = OpenInstallation(error);
+	if (!installation
+		|| !PreflightDestination(installation->directory.get(), "Updater", error)) {
+		return std::nullopt;
+	}
+	return QFile::decodeName(
+		installation->directoryPath + installation->executableName);
+#else // !TDESKTOP_DISABLE_AUTOUPDATE
+	return std::nullopt;
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
+}
+
+bool PrepareProtectedUpdate(
+		const QString &workingDirectory,
+		const QString &path,
+		const QByteArray &bytes,
+		bool beta,
+		QString &error) {
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	if (!ValidateProtectedUpdate(bytes, beta, error)) {
+		return false;
+	}
+	const auto ready = ReadyUpdatePackagePath(workingDirectory);
+	const auto parent = QFileInfo(ready).absolutePath();
+	const auto name = QFile::encodeName(QFileInfo(path).fileName());
+	if (QFileInfo(path).absolutePath() != parent
+		|| !SafePathComponent(name)
+		|| QFile::decodeName(name) != QFileInfo(path).fileName()) {
+		return Fail(error, "The downloaded package is outside pending updates.");
+	}
+	const auto directory = FileDescriptor(open(
+		QFile::encodeName(parent).constData(),
+		kDirectoryFlags));
+	if (!directory) {
+		return Fail(error, "Could not open the pending updates directory safely.");
+	} else if (!RemoveOtherUpdates(directory.get(), name, error)) {
+		return false;
+	} else if (renameat(
+			directory.get(),
+			name.constData(),
+			directory.get(),
+			"ready-package")) {
+		return Fail(error, "Could not publish the verified update package.");
+	}
+	return true;
+#else // !TDESKTOP_DISABLE_AUTOUPDATE
+	error = u"Automatic updates are disabled in this build."_q;
+	return false;
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
+}
+
+bool ClearUpdateData(
+		const QString &workingDirectory,
+		QString &error,
+		bool keepPackage) {
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	const auto parent = FileDescriptor(open(
+		QFile::encodeName(workingDirectory).constData(),
+		O_RDONLY | O_DIRECTORY | O_CLOEXEC));
+	if (!parent) {
+		return Fail(error, "Could not open the update working directory.");
+	} else if (!keepPackage) {
+		return RemoveUpdateEntry(parent.get(), "tupdates", 0, error);
+	}
+	const auto directory = FileDescriptor(openat(
+		parent.get(),
+		"tupdates",
+		kDirectoryFlags));
+	if (!directory) {
+		return Fail(error, "Could not open the pending updates directory safely.");
+	}
+	return RemoveOtherUpdates(directory.get(), "ready-package", error);
+#else // !TDESKTOP_DISABLE_AUTOUPDATE
+	error = u"Automatic updates are disabled in this build."_q;
+	return false;
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
+}
+
 std::optional<int> InstallUpdateIfRequested(const QStringList &arguments) {
 	auto requested = false;
 	for (auto i = 1; i < arguments.size(); ++i) {
@@ -1005,15 +1282,17 @@ std::optional<int> InstallUpdateIfRequested(const QStringList &arguments) {
 		return ReportError(u"Usage: -installupdate <absolute-package-path> "
 			u"[-beta]. No other arguments are accepted."_q);
 	}
-#ifdef TDESKTOP_DISABLE_AUTOUPDATE
-	return ReportError(u"Automatic updates are disabled in this build."_q);
-#else // TDESKTOP_DISABLE_AUTOUPDATE
+	auto error = QString();
+	if (!RootModeSupported(error)) {
+		return ReportError(error);
+	}
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	if (getuid() != 0 || geteuid() != 0) {
 		return ReportError(u"Update installation requires root."_q);
-	} else if (Core::BuildUpdateChannel == Core::Updates::Channel::CanaryPrivate) {
-		return ReportError(u"Private-canary builds do not support this mode."_q);
 	}
 	return InstallUpdate(arguments[2], arguments.size() == 4);
+#else // !TDESKTOP_DISABLE_AUTOUPDATE
+	return ReportError(error);
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
 }
 

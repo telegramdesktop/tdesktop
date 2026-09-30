@@ -19,8 +19,11 @@ public:
 
 private:
 	bool launchUpdater(UpdaterLaunch action) override;
+	bool installProtectedUpdate();
+	bool relaunchAfterUpdate(bool installed);
 
 	bool _updating = false;
+	bool _updateFailed = false;
 
 };
 
