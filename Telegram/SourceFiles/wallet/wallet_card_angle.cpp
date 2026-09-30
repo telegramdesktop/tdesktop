@@ -114,6 +114,10 @@ void CardAngle::follow(QPointF cursor, bool repaint) {
 
 void CardAngle::turnTo(float64 target, bool repaint) {
 	const auto now = crl::now();
+	if (_animation.animating()
+		&& std::abs(std::remainder(target - _to, kSweepPeriod)) < 1e-6) {
+		return;
+	}
 	const auto shown = value(now);
 	const auto goal = shown + std::remainder(target - shown, kSweepPeriod);
 	if (goal == shown) {

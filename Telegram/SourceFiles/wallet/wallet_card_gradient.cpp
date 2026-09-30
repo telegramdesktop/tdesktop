@@ -36,9 +36,11 @@ constexpr auto kQrPlateAlpha = 224; // 0.88 * 255, rounded.
 
 void PaintCardBackground(QPainter &p, const QRect &card, float64 angle) {
 	auto hq = PainterHighQualityEnabler(p);
-	auto gradient = QConicalGradient(
-		QRectF(card).center(),
-		90. - kCardConicFrom - angle);
+	auto start = std::fmod(90. - kCardConicFrom - angle, 360.);
+	if (start < 0.) {
+		start += 360.;
+	}
+	auto gradient = QConicalGradient(QRectF(card).center(), start);
 	gradient.setColorAt(0., CardDarkBlue());
 	gradient.setColorAt(0.25, CardLightBlue());
 	gradient.setColorAt(0.5, CardDarkBlue());
