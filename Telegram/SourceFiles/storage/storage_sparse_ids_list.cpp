@@ -118,7 +118,10 @@ void SparseIdsList::addRange(
 	if (count) {
 		_count = count;
 	} else if (incrementCount && _count && result.added > 0) {
-		*_count += result.added;
+		// The server may report INT_MAX even for a partial history.
+		*_count = int(std::min(
+			int64(*_count) + result.added,
+			int64(std::numeric_limits<int>::max())));
 	}
 	if (_slices.size() == 1) {
 		if (_count && _slices.front().messages.size() >= *_count) {
