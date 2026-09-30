@@ -1259,13 +1259,18 @@ void SetRowAmount(
 void SetRowItemAmount(
 		not_null<Ui::FlatLabel*> major,
 		not_null<Ui::FlatLabel*> minor,
-		bool incoming) {
+		bool incoming,
+		bool failed) {
 	major->setText((incoming ? QChar('+') : kMinus)
 		+ tr::lng_wallet_row_items(tr::now, lt_count, 1));
 	minor->setMarkedText(Ui::Text::IconEmoji(incoming
 		? &st::walletRowItemMarkIn
 		: &st::walletRowItemMarkOut));
-	const auto &color = incoming ? st::boxTextFgGood : st::windowBoldFg;
+	const auto &color = failed
+		? st::windowSubTextFg
+		: incoming
+		? st::boxTextFgGood
+		: st::windowBoldFg;
 	SetAmountColor(major, minor, color);
 }
 
@@ -1508,7 +1513,7 @@ void AddHistoryRow(
 		st::walletRowAmountMinorLabel);
 	minor->setAttribute(Qt::WA_TransparentForMouseEvents);
 	if (content.itemAmount) {
-		SetRowItemAmount(major, minor, content.incoming);
+		SetRowItemAmount(major, minor, content.incoming, content.failed);
 	} else {
 		SetRowAmount(
 			major,
@@ -1604,7 +1609,6 @@ void AddHistoryRow(
 
 [[nodiscard]] bool ShowsCollectible(const TransferItem &item) {
 	return (item.kind == TransferItem::Kind::Collectible)
-		&& (item.status == TransferItem::Status::Success)
 		&& !item.collectible.isEmpty();
 }
 
@@ -1629,18 +1633,40 @@ void AddHistoryRow(
 		? langDateTime(base::unixtime::parse(*item.date))
 		: QString();
 	if (ShowsCollectible(item)) {
+		const auto peer = item.counterpartyPeer
+			? session->data().peerLoaded(PeerId(item.counterpartyPeer))
+			: nullptr;
 		const auto hasCounterparty = !item.counterparty.isEmpty();
+		const auto domain = hasCounterparty
+			? item.counterpartyName.trimmed()
+			: QString();
 		const auto kindText = item.incoming
 			? tr::lng_wallet_row_collectible_in(tr::now)
 			: tr::lng_wallet_row_collectible_out(tr::now);
+		const auto titleIsKind = !peer && !hasCounterparty;
+		const auto statusText = RowStatusSubtitle(item.status);
 		return {
-			.title = (hasCounterparty
+			.title = (peer
+				? peer->name()
+				: !domain.isEmpty()
+				? domain
+				: hasCounterparty
 				? ShortAddress(item.counterparty)
 				: kindText),
-			.subtitle = (hasCounterparty ? kindText : QString()),
+			.subtitle = (!statusText.isEmpty()
+				? statusText
+				: titleIsKind
+				? QString()
+				: kindText),
 			.date = date,
 			.incoming = item.incoming,
-			.avatar = (item.incoming ? RowAvatar::In : RowAvatar::Out),
+			.failed = (item.status == TransferItem::Status::Failure),
+			.avatar = (peer
+				? RowAvatar::Peer
+				: item.incoming
+				? RowAvatar::In
+				: RowAvatar::Out),
+			.peer = peer,
 			.itemAmount = true,
 			.collectible = item.collectible,
 		};
@@ -2466,8 +2492,9 @@ void AddDetailsTable(
 					rpl::single(TextWithEntities{ reason }),
 					tr::marked));
 	}
-	const auto peer = (item.kind == TransferItem::Kind::PeerTransfer
-		&& item.counterpartyPeer)
+	const auto peerKind = (item.kind == TransferItem::Kind::PeerTransfer)
+		|| (item.kind == TransferItem::Kind::Collectible);
+	const auto peer = (peerKind && item.counterpartyPeer)
 		? session->data().peerLoaded(PeerId(item.counterpartyPeer))
 		: nullptr;
 	if (item.kind == TransferItem::Kind::KeyChange) {

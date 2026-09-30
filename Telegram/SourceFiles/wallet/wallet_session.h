@@ -211,8 +211,7 @@ struct TransferItem {
 	QString counterpartyName;
 	quint64 counterpartyPeer = 0;
 	QString collectible;
-	QString collectibleName;
-	QString collectibleImageUrl;
+	std::optional<Gram::NftItem> collectibleRecord;
 	QString provider;
 	// Always a magnitude. The mappings fold a source's signed amount into
 	// this field and `incoming`, because every surface that paints a
@@ -1027,6 +1026,7 @@ private:
 		const MTPwallet_NftItems &result,
 		const CollectiblesRequest &request);
 	void setCollectibles(std::vector<Gram::NftItem> &&list);
+	void rememberCollectibles(const std::vector<TransferItem> &items);
 	struct PreviewRequest;
 	struct PreviewState;
 	[[nodiscard]] bool previewCurrent(const PreviewRequest &request) const;

@@ -1675,7 +1675,9 @@ void FailShareFetch(
 		.counterparty = item.counterparty,
 		.counterpartyName = item.counterpartyName,
 		.comment = item.commentEncrypted ? QString() : item.comment,
-		.counterpartyPeer = item.counterpartyPeer,
+		.counterpartyPeer = ((item.kind == TransferItem::Kind::PeerTransfer)
+			? item.counterpartyPeer
+			: 0),
 		.amountNano = item.amountNano,
 		.feeNano = item.feeNano,
 		.date = item.date,
@@ -1708,7 +1710,7 @@ void FailShareFetch(
 	const auto &data = item.data();
 	const auto address = CanonicalAddress(qs(data.vaddress()));
 	if (address.isEmpty()) {
-		LOG(("Wallet Error: wallet.getNfts item address is not parseable."));
+		LOG(("Wallet Error: wallet.NftItem address is not parseable."));
 		return std::nullopt;
 	}
 	auto result = Gram::NftItem();
@@ -1856,6 +1858,14 @@ void SetDirectedAmount(
 			// is exactly the graceful degradation this constructor exists
 			// for, so no lang key is invented for it.
 		});
+		if (const auto nft = data.vnft()) {
+			if (auto record = CollectibleFromServer(*nft)) {
+				result.kind = TransferItem::Kind::Collectible;
+				result.collectible = record->address;
+				result.collectibleRecord = std::move(*record);
+				result.provider = QString();
+			}
+		}
 	}
 	result.commentEncrypted = data.is_comment_encrypted();
 	if (const auto comment = data.vcomment()) {
@@ -7392,6 +7402,7 @@ void Session::resolveTransaction(
 		_session->data().processUsers(data.vusers());
 		_session->data().processChats(data.vchats());
 		auto list = HistoryFromServer(data.vtransactions().v, identity);
+		rememberCollectibles(list);
 		// WHY: the id a message carries is the transfer's trace id, while
 		// the served row is named by its own lt:hash, so an answer to one
 		// id is its only row, and anything else names no transaction.
@@ -7463,6 +7474,7 @@ void Session::applyTransactions(
 		&& !collectiblesTab();
 	_historySettled = true;
 	auto loaded = HistoryFromServer(data.vtransactions().v, request.identity);
+	rememberCollectibles(loaded);
 	const auto shown = ranges::any_of(loaded, [&](const TransferItem &i) {
 		return !historyItemHidden(i);
 	});
@@ -7772,6 +7784,14 @@ void Session::setCollectibles(std::vector<Gram::NftItem> &&list) {
 	_collectiblesUpdates.fire({});
 }
 
+void Session::rememberCollectibles(const std::vector<TransferItem> &items) {
+	for (const auto &item : items) {
+		if (const auto &record = item.collectibleRecord) {
+			_collectibleInfo.emplace(record->address, *record);
+		}
+	}
+}
+
 void Session::updateListsGate() {
 	const auto weak = base::make_weak(_engine.get());
 	const auto revision = _walletIdentityRevision;
@@ -7813,8 +7833,11 @@ void Session::resolveCollectibleInfo(
 		return;
 	}
 	const auto finish = [=](Gram::NftItem found, bool remember) {
-		if (remember) {
-			_collectibleInfo[item] = found;
+		const auto i = _collectibleInfo.find(item);
+		if (i != end(_collectibleInfo)) {
+			found = i->second;
+		} else if (remember) {
+			_collectibleInfo.emplace(item, found);
 		}
 		auto &waiting = _collectibleInfoWaiters[item];
 		for (const auto &callback : base::take(waiting)) {
@@ -9619,9 +9642,13 @@ bool Session::applySubmittedUpdate(
 		if (const auto transaction = data.vtransaction()) {
 			changed = !entry->lookupStopped || changed;
 			entry->lookupStopped = true;
+			auto items = std::vector{
+				HistoryItemFromServer(*transaction, identity),
+			};
+			rememberCollectibles(items);
 			changed = adoptSubmittedTransaction(
 				operationId,
-				HistoryItemFromServer(*transaction, identity)) || changed;
+				std::move(items.front())) || changed;
 		}
 	}
 	if (!persistSubmittedTransfers()) {
@@ -10037,6 +10064,7 @@ void Session::applySubmittedLookup(
 	// the balance authority, and a by-message answer is not the paged
 	// feed, so its offset would page a list that nobody renders.
 	auto loaded = HistoryFromServer(data.vtransactions().v, request->identity);
+	rememberCollectibles(loaded);
 	// wallet.transactions echoes neither the requested message hash nor
 	// any per-row link to it, so the attribution is made by the request:
 	// one hash per lookup, and the whole answer belongs to it. Within the
