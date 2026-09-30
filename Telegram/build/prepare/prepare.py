@@ -1,4 +1,4 @@
-import os, sys, pprint, re, json, pathlib, hashlib, subprocess, glob, tempfile
+import os, sys, pprint, re, json, pathlib, hashlib, subprocess, glob, tempfile, plistlib
 
 executePath = os.getcwd()
 sys.dont_write_bytecode = True
@@ -117,12 +117,22 @@ elif (winarm):
         'X8664': 'ARM64',
     })
 elif (mac):
+    macSdk = subprocess.check_output(
+        ['xcrun', '--sdk', 'macosx', '--show-sdk-path'], text=True).strip()
+    with open(os.path.join(macSdk, 'SDKSettings.plist'), 'rb') as file:
+        macSdkSettings = plistlib.load(file)
+    macMinimum = macSdkSettings['SupportedTargets']['macosx']['MinimumDeploymentTarget']
+    macDeployment = os.environ.get('MACOSX_DEPLOYMENT_TARGET', macMinimum)
+    if tuple(map(int, macDeployment.split('.'))) < tuple(map(int, macMinimum.split('.'))):
+        error('The selected macOS SDK requires deployment target ' + macMinimum
+            + ' or newer; select the older toolchain to build for ' + macDeployment + '.')
     environment.update({
         'SPECIAL_TARGET': 'mac',
         'MAKE_THREADS_CNT': '-j' + str(os.cpu_count()),
-        'MACOSX_DEPLOYMENT_TARGET': '10.13',
+        'SDKROOT': macSdk,
+        'MACOSX_DEPLOYMENT_TARGET': macDeployment,
         'UNGUARDED': '-Werror=unguarded-availability-new',
-        'MIN_VER': '-mmacosx-version-min=10.13',
+        'MIN_VER': '-mmacosx-version-min=' + macDeployment,
         'CMAKE_GENERATOR': 'Ninja',
     })
 
@@ -140,6 +150,10 @@ for key in environment:
     environmentKeyString += part
     if not key in ignoreInCacheForThirdParty:
         envForThirdPartyKeyString += part
+if mac:
+    environmentKeyString += subprocess.check_output(
+        ['xcrun', '--sdk', 'macosx', 'clang', '--version'], text=True)
+    environmentKeyString += json.dumps(macSdkSettings, sort_keys=True)
 environmentKey = hashlib.sha1(environmentKeyString.encode('utf-8')).hexdigest()
 envForThirdPartyKey = hashlib.sha1(envForThirdPartyKeyString.encode('utf-8')).hexdigest()
 
@@ -460,6 +474,7 @@ stage('patches', """
     cd patches
     git checkout c97ff78de632c72e35f9e3205e2447efeb58b986
 mac:
+    sed -i '' "s/10.13/$MACOSX_DEPLOYMENT_TARGET/g" macos_meson_*.txt
     git clone https://github.com/desktop-app/qt6_highsierra_patches.git qt6_highsierra
     cd qt6_highsierra
     git checkout 7387476bb3b7200d3b044015696cb3c28f78593c
@@ -1393,7 +1408,7 @@ depends:patches/breakpad.diff
     cd ../../build
     PYTHONPATH=$THIRDPARTY_DIR/gyp python3 gyp_breakpad
     cd ../processor
-    xcodebuild -project processor.xcodeproj -target minidump_stackwalk -configuration Release build
+    xcodebuild -project processor.xcodeproj -target minidump_stackwalk -configuration Release MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET build
 """)
 
 stage('breakpad', """
@@ -1432,11 +1447,11 @@ mac:
     git checkout e1e7b0ad8e
     cd ../../..
     cd src/client/mac
-    xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Debug build
+    xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Debug MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET build
 release:
-    xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Release build
+    xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Release MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET build
     cd ../../tools/mac/dump_syms
-    xcodebuild -project dump_syms.xcodeproj -target dump_syms -configuration Release build
+    xcodebuild -project dump_syms.xcodeproj -target dump_syms -configuration Release MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET build
 """)
 
 stage('crashpad', """
@@ -1620,6 +1635,7 @@ mac:
         -no-feature-cxx17_filesystem \
         -platform macx-clang -- \
         -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+        -DCMAKE_OSX_DEPLOYMENT_TARGET="$MACOSX_DEPLOYMENT_TARGET" \
         -DCMAKE_PREFIX_PATH="$USED_PREFIX" \
         -DQT_NO_HANDLE_APPLE_SINGLE_ARCH_CROSS_COMPILING=ON \
         -DQT_SYNC_HEADERS_AT_CONFIGURE_TIME=ON

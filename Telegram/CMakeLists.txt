@@ -2577,6 +2577,8 @@ if (NOT DESKTOP_APP_DISABLE_AUTOUPDATE AND NOT build_macstore AND NOT build_wins
             target_link_options(Updater PRIVATE -municode)
         endif()
     elseif (APPLE)
+        # Keep the launch API available to macOS 10.13 release builds.
+        target_compile_options(Updater PRIVATE -Wno-error=deprecated-declarations)
         add_custom_command(TARGET Updater
         POST_BUILD
             COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Frameworks

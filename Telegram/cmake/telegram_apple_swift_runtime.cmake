@@ -9,14 +9,19 @@ function(telegram_add_apple_swift_runtime target_name)
         return()
     endif()
 
-    execute_process(
-        COMMAND xcode-select -p
-        OUTPUT_VARIABLE DEVELOPER_DIR
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
+    if (CMAKE_Swift_COMPILER)
+        set(swift_compiler "${CMAKE_Swift_COMPILER}")
+    else()
+        execute_process(
+            COMMAND xcrun --find swiftc
+            OUTPUT_VARIABLE swift_compiler
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            COMMAND_ERROR_IS_FATAL ANY
+        )
+    endif()
 
-    set(SWIFT_LIB_DIR
-        "${DEVELOPER_DIR}/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/macosx")
+    get_filename_component(swift_bin_dir "${swift_compiler}" DIRECTORY)
+    set(SWIFT_LIB_DIR "${swift_bin_dir}/../lib/swift/macosx")
 
     target_link_options(${target_name}
     PRIVATE
@@ -27,7 +32,7 @@ function(telegram_add_apple_swift_runtime target_name)
 
     add_custom_command(TARGET ${target_name} POST_BUILD
         COMMAND mkdir -p $<TARGET_FILE_DIR:${target_name}>/../Frameworks
-        COMMAND xcrun swift-stdlib-tool
+        COMMAND "${swift_bin_dir}/swift-stdlib-tool"
             --copy
             --platform macosx
             --scan-executable $<TARGET_FILE:${target_name}>

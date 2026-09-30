@@ -31,6 +31,10 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
   BuildTarget="$line"
 done < "$FullScriptPath/target"
 
+if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
+  python3 "$FullScriptPath/build_mac.py" --check
+fi
+
 UpdateKeysLoc="$FullScriptPath/../Resources/update"
 
 # Update signing settings. Edit these directly when rotating keys, they are
@@ -337,10 +341,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
       rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
       rm -rf "$ReleasePath/Updater"
 
-      ./configure.sh -D DESKTOP_APP_MAC_ARCH="arm64;x86_64" -DDESKTOP_APP_ENABLE_LTO=ON
-
-      cd $ProjectPath
-      cmake --build . --config Release --target Telegram
+      python3 "$FullScriptPath/build_mac.py" --configuration Release --output "$ReleasePath"
     fi
 
     if [ ! -d "$ReleasePath/$BinaryName.app" ]; then
