@@ -376,6 +376,12 @@ SavedMessages::ApplyResult SavedMessages::applyReceivedSublists(
 	for (const auto &dialog : *list) {
 		dialog.match([&](const MTPDsavedDialog &data) {
 			const auto peer = _owner->peer(peerFromMTP(data.vpeer()));
+			if (const auto channel = peer->asChannel()) {
+				if (channel->isForbidden()) {
+					lastValid = false;
+					return;
+				}
+			}
 			const auto entryPinned = pinned || data.is_pinned();
 			const auto topId = MsgId(data.vtop_message().v);
 			if (entryPinned) {
@@ -402,6 +408,12 @@ SavedMessages::ApplyResult SavedMessages::applyReceivedSublists(
 			}
 		}, [&](const MTPDmonoForumDialog &data) {
 			const auto peer = _owner->peer(peerFromMTP(data.vpeer()));
+			if (const auto channel = peer->asChannel()) {
+				if (channel->isForbidden()) {
+					lastValid = false;
+					return;
+				}
+			}
 			if (pinned) {
 				serverPinnedPeers.emplace(peer);
 			}
