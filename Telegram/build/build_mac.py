@@ -18,13 +18,27 @@ def output(command):
 
 
 def toolchain_environment(toolchain):
-    receipt = plistlib.loads((toolchain / 'installation-receipt.plist').read_bytes())
-    if not receipt['pkg-version'].startswith('26.6.'):
+    if not toolchain.is_dir():
+        raise RuntimeError('Preserved Command Line Tools 26.6 not found: ' + str(toolchain))
+    receipt_path = toolchain / 'installation-receipt.plist'
+    if not receipt_path.is_file():
+        raise RuntimeError('Command Line Tools 26.6 installation receipt not found: ' + str(receipt_path))
+    receipt = plistlib.loads(receipt_path.read_bytes())
+    if not receipt.get('pkg-version', '').startswith('26.6.'):
         raise RuntimeError('The release toolchain must be Command Line Tools 26.6.')
     sdk = toolchain / 'SDKs/MacOSX26.5.sdk'
-    settings = plistlib.loads((sdk / 'SDKSettings.plist').read_bytes())
+    settings_path = sdk / 'SDKSettings.plist'
+    if not settings_path.is_file():
+        raise RuntimeError('Preserved macOS SDK 26.5 not found: ' + str(sdk))
+    settings = plistlib.loads(settings_path.read_bytes())
+    if settings.get('Version') != '26.5':
+        raise RuntimeError('The release SDK must be macOS SDK 26.5: ' + str(sdk))
     if settings['SupportedTargets']['macosx']['MinimumDeploymentTarget'] != '10.13':
         raise RuntimeError('The release SDK must support deployment target 10.13.')
+    for name in ('clang', 'clang++', 'swiftc', 'ar', 'ranlib', 'ld', 'otool', 'lipo', 'dsymutil', 'swift-stdlib-tool'):
+        program = toolchain / 'usr/bin' / name
+        if not program.is_file() or not os.access(program, os.X_OK):
+            raise RuntimeError('Required Command Line Tools 26.6 executable not found: ' + str(program))
     compiler = output([toolchain / 'usr/bin/clang', '--version']).splitlines()[0]
     if 'clang-2100.1.1.101' not in compiler:
         raise RuntimeError('The preserved 26.6 compiler does not match its receipt.')
@@ -127,7 +141,7 @@ def resource_content(path):
     return data
 
 
-def assemble(builds, destination, toolchain, target):
+def assemble(builds, destination, toolchain, target, configuration):
     binary_name = 'Telegram Lite' if target == 'macstore' else 'Telegram'
     app_name = binary_name + '.app'
     apps = {arch: folder / app_name for arch, folder in builds.items()}
@@ -197,6 +211,12 @@ def assemble(builds, destination, toolchain, target):
         if target == 'mac':
             merge_binary(lipo, {arch: folder / 'Packer' for arch, folder in builds.items()},
                 temporary / 'Packer', temporary)
+        if configuration == 'Debug':
+            if target == 'macstore':
+                run(['codesign', '--force', '--sign', '-', bundle
+                    / 'Contents/Frameworks/Breakpad.framework/Versions/A/Resources/breakpadUtilities.dylib'])
+            run(['codesign', '--force', '--deep', '--sign', '-', bundle])
+            run(['codesign', '--verify', '--deep', '--strict', bundle])
         result = destination / app_name
         if result.exists():
             shutil.rmtree(result)
@@ -249,7 +269,7 @@ def main():
             run(['cmake', '--build', folder, '--target', 'Telegram', '--parallel', args.jobs],
                 cwd=root, env=environment)
     if not args.configure_only:
-        assemble(builds, destination.resolve(), toolchain, target)
+        assemble(builds, destination.resolve(), toolchain, target, args.configuration)
 
 
 if __name__ == '__main__':

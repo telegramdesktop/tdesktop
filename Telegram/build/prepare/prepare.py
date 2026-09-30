@@ -5,6 +5,7 @@ sys.dont_write_bytecode = True
 scriptPath = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(scriptPath + '/..')
 import qt_version
+import build_mac
 
 def finish(code):
     global executePath
@@ -77,11 +78,6 @@ for arg in sys.argv[1:]:
         customRunCommand = True
         runCommand.append('shell')
 
-if not os.path.isdir(os.path.join(libsDir, keysLoc)):
-    pathlib.Path(os.path.join(libsDir, keysLoc)).mkdir(parents=True, exist_ok=True)
-if not os.path.isdir(os.path.join(thirdPartyDir, keysLoc)):
-    pathlib.Path(os.path.join(thirdPartyDir, keysLoc)).mkdir(parents=True, exist_ok=True)
-
 pathPrefixes = [
     'ThirdParty\\msys64\\ucrt64\\bin',
     'ThirdParty\\jom',
@@ -117,12 +113,42 @@ elif (winarm):
         'X8664': 'ARM64',
     })
 elif (mac):
-    macSdk = subprocess.check_output(
-        ['xcrun', '--sdk', 'macosx', '--show-sdk-path'], text=True).strip()
+    macToolchain = pathlib.Path(rootDir) / 'Toolchains/CommandLineTools-26.6'
+    macToolchainChoice = os.environ.get('TDESKTOP_MAC_TOOLCHAIN', 'auto')
+    if macToolchainChoice not in ('auto', '26.6', 'system'):
+        error('TDESKTOP_MAC_TOOLCHAIN must be auto, 26.6, or system.')
+    macRelease = macToolchainChoice == '26.6' or (macToolchainChoice == 'auto'
+        and (pathlib.Path(rootDir) / 'DesktopPrivate').is_dir())
+    if macRelease:
+        if os.environ.get('MACOSX_DEPLOYMENT_TARGET', '10.13') != '10.13':
+            error('Official dependency preparation requires deployment target 10.13.')
+        try:
+            macEnvironment, macSdk = build_mac.toolchain_environment(macToolchain)
+        except (OSError, RuntimeError, subprocess.CalledProcessError) as exception:
+            error(str(exception))
+        macSdk = str(macSdk)
+        macDeployment = '10.13'
+        environment['PATH_PREFIX'] = str(macToolchain / 'usr/bin') + pathSep + pathPrefix
+        for variable, program in (('CC', 'clang'), ('CXX', 'clang++'),
+                ('OBJC', 'clang'), ('OBJCXX', 'clang++'),
+                ('AR', 'ar'), ('RANLIB', 'ranlib'), ('LD', 'ld')):
+            environment[variable] = str(macToolchain / 'usr/bin' / program)
+        macCompiler = environment['CC']
+        for target in ('AARCH64_APPLE_DARWIN', 'X86_64_APPLE_DARWIN'):
+            environment['CARGO_TARGET_' + target + '_LINKER'] = macCompiler
+            for variable in ('CC', 'CXX', 'AR'):
+                environment[variable + '_' + target.lower()] = environment[variable]
+        if 'build-stackwalk' in options:
+            error('Legacy stackwalk preparation still requires full Xcode 26.6.')
+    else:
+        macSdk = subprocess.check_output(
+            ['xcrun', '--sdk', 'macosx', '--show-sdk-path'], text=True).strip()
+        macCompiler = subprocess.check_output(['xcrun', '--find', 'clang'], text=True).strip()
     with open(os.path.join(macSdk, 'SDKSettings.plist'), 'rb') as file:
         macSdkSettings = plistlib.load(file)
     macMinimum = macSdkSettings['SupportedTargets']['macosx']['MinimumDeploymentTarget']
-    macDeployment = os.environ.get('MACOSX_DEPLOYMENT_TARGET', macMinimum)
+    if not macRelease:
+        macDeployment = os.environ.get('MACOSX_DEPLOYMENT_TARGET', macMinimum)
     if tuple(map(int, macDeployment.split('.'))) < tuple(map(int, macMinimum.split('.'))):
         error('The selected macOS SDK requires deployment target ' + macMinimum
             + ' or newer; select the older toolchain to build for ' + macDeployment + '.')
@@ -152,18 +178,40 @@ for key in environment:
         envForThirdPartyKeyString += part
 if mac:
     environmentKeyString += subprocess.check_output(
-        ['xcrun', '--sdk', 'macosx', 'clang', '--version'], text=True)
+        [macCompiler, '--version'], text=True)
     environmentKeyString += json.dumps(macSdkSettings, sort_keys=True)
 environmentKey = hashlib.sha1(environmentKeyString.encode('utf-8')).hexdigest()
 envForThirdPartyKey = hashlib.sha1(envForThirdPartyKeyString.encode('utf-8')).hexdigest()
 
 modifiedEnv = os.environ.copy()
+if mac and macRelease:
+    modifiedEnv.pop('TOOLCHAINS', None)
+    modifiedEnv['PREPARE_DIR'] = scriptPath
 for key in environment:
     modifiedEnv[key] = environment[key]
 if win and 'NoDefaultCurrentDirectoryInExePath' in modifiedEnv:
     del modifiedEnv['NoDefaultCurrentDirectoryInExePath']
 
 modifiedEnv['PATH'] = environment['PATH_PREFIX'] + modifiedEnv['PATH']
+
+if mac:
+    toolchainState = pathlib.Path(libsDir) / 'macos_toolchain.json'
+    purpose = 'release' if macRelease else 'development'
+    if toolchainState.is_file():
+        previous = json.loads(toolchainState.read_text())
+        if previous['purpose'] != purpose:
+            error('Libraries was prepared for ' + previous['purpose']
+                + ' builds. Use a separate dependency directory for ' + purpose + ' builds.')
+    pathlib.Path(libsDir).mkdir(parents=True, exist_ok=True)
+    toolchainState.write_text(json.dumps({
+        'purpose': purpose,
+        'compiler': macCompiler,
+        'sdk': macSdk,
+        'deployment_target': macDeployment,
+    }, indent=2) + '\n')
+
+pathlib.Path(os.path.join(libsDir, keysLoc)).mkdir(parents=True, exist_ok=True)
+pathlib.Path(os.path.join(thirdPartyDir, keysLoc)).mkdir(parents=True, exist_ok=True)
 
 def computeFileHash(path):
     sha1 = hashlib.sha1()
@@ -472,7 +520,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout c97ff78de632c72e35f9e3205e2447efeb58b986
+    git checkout 4ca9e1e9d86cc87b78c2480f41ba61871c76f2fa
 mac:
     sed -i '' "s/10.13/$MACOSX_DEPLOYMENT_TARGET/g" macos_meson_*.txt
     git clone https://github.com/desktop-app/qt6_highsierra_patches.git qt6_highsierra
@@ -1411,6 +1459,30 @@ depends:patches/breakpad.diff
     xcodebuild -project processor.xcodeproj -target minidump_stackwalk -configuration Release MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET build
 """)
 
+macBreakpadBuild = """
+mac:
+    cd src/client/mac
+    xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Debug MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET build
+release:
+    xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Release MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET build
+    cd ../../tools/mac/dump_syms
+    xcodebuild -project dump_syms.xcodeproj -target dump_syms -configuration Release MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET build
+"""
+if mac and macRelease:
+    macBreakpadBuild = """
+version: """ + computeFileHash(os.path.join(scriptPath, 'breakpad/CMakeLists.txt')) + """
+mac:
+    cmake -S "$PREPARE_DIR/breakpad" -B out -G "Ninja Multi-Config" \\
+        -DBREAKPAD_SOURCE_DIR="$PWD" \\
+        -DCMAKE_INSTALL_PREFIX="$PWD" \\
+        -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+    cmake --build out --config Debug --parallel
+    cmake --install out --config Debug
+release:
+    cmake --build out --config Release --parallel
+    cmake --install out --config Release
+"""
+
 stage('breakpad', """
     git clone https://chromium.googlesource.com/breakpad/breakpad
     cd breakpad
@@ -1446,13 +1518,7 @@ mac:
     cd src/third_party/lss
     git checkout e1e7b0ad8e
     cd ../../..
-    cd src/client/mac
-    xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Debug MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET build
-release:
-    xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Release MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET build
-    cd ../../tools/mac/dump_syms
-    xcodebuild -project dump_syms.xcodeproj -target dump_syms -configuration Release MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET build
-""")
+""" + macBreakpadBuild)
 
 stage('crashpad', """
 mac:
@@ -1635,6 +1701,7 @@ mac:
         -no-feature-cxx17_filesystem \
         -platform macx-clang -- \
         -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+        -DCMAKE_OSX_SYSROOT="$SDKROOT" \
         -DCMAKE_OSX_DEPLOYMENT_TARGET="$MACOSX_DEPLOYMENT_TARGET" \
         -DCMAKE_PREFIX_PATH="$USED_PREFIX" \
         -DQT_NO_HANDLE_APPLE_SINGLE_ARCH_CROSS_COMPILING=ON \

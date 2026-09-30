@@ -750,7 +750,8 @@ jobs:
         arch: [x86_64, arm64]
 
     env:
-      PREPARE_PATH: "Telegram/build/prepare/prepare.py"
+      TDESKTOP_MAC_TOOLCHAIN: system
+      DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
 
     steps:
       - name: Get repository name.
@@ -786,6 +787,24 @@ jobs:
 
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 
+      - name: Record macOS toolchain.
+        run: |
+          SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
+          MACOSX_DEPLOYMENT_TARGET=$(/usr/libexec/PlistBuddy -c 'Print :SupportedTargets:macosx:MinimumDeploymentTarget' "$SDKROOT/SDKSettings.plist")
+          {
+            echo "SDKROOT=$SDKROOT"
+            echo "MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET"
+          } >> "$GITHUB_ENV"
+          {
+            xcodebuild -version
+            xcrun clang --version
+            xcrun swiftc --version
+            plutil -convert xml1 -o - "$SDKROOT/SDKSettings.plist"
+            echo "MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET"
+          } > MACOS_TOOLCHAIN.txt
+          echo "MACOS_TOOLCHAIN_KEY=$(shasum -a 256 MACOS_TOOLCHAIN.txt | awk '{ print $1 }')" >> "$GITHUB_ENV"
+          echo "Canary toolchain: $(xcodebuild -version | tr '\n' ' '), SDK $(xcrun --sdk macosx --show-sdk-version), minimum macOS $MACOSX_DEPLOYMENT_TARGET"
+
       # Restore/save is explicit (not the combined actions/cache): the
       # combined action saves in a post step gated on job success, so
       # every failed signing or packing attempt was discarding the full
@@ -800,8 +819,8 @@ jobs:
           path: |
             Libraries
             ThirdParty
-          key: ${{ runner.OS }}-libsrel-${{ hashFiles(format('{0}/{1}', env.REPO_NAME, env.PREPARE_PATH)) }}
-          restore-keys: ${{ runner.OS }}-libsrel-
+          key: ${{ runner.OS }}-canary-libs-${{ env.MACOS_TOOLCHAIN_KEY }}-${{ hashFiles(format('{0}/Telegram/build/prepare/**', env.REPO_NAME), format('{0}/Telegram/build/qt_version.py', env.REPO_NAME), format('{0}/Telegram/build/build_mac.py', env.REPO_NAME)) }}
+          restore-keys: ${{ runner.OS }}-canary-libs-${{ env.MACOS_TOOLCHAIN_KEY }}-
 
       - name: Libraries.
         run: |
@@ -820,7 +839,7 @@ jobs:
             "$(random_key)" > DesktopPrivate/alpha_private.h
 
       - name: Free up some disk space.
-        run: find Libraries '(' '(' ! '(' -name '*.a' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -perm +111 ')' -type f ')' -o -empty ')' -delete
+        run: find Libraries '(' '(' ! '(' -name '*.a' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -name 'macos_toolchain.json' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -perm +111 ')' -type f ')' -o -empty ')' -delete
 
       - name: Save Libraries cache.
         if: steps.cache-libs.outputs.cache-hit != 'true'
@@ -848,6 +867,8 @@ jobs:
           ./configure.sh \
           -D CMAKE_CONFIGURATION_TYPES=Release \
           -D CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO \
+          -D CMAKE_OSX_SYSROOT="$SDKROOT" \
+          -D CMAKE_OSX_DEPLOYMENT_TARGET="$MACOSX_DEPLOYMENT_TARGET" \
           -D CMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} \
           -D DESKTOP_APP_MAC_ARCH=${{ matrix.arch }} \
           -D TDESKTOP_API_ID=${{ secrets.CANARY_API_ID }} \
@@ -896,7 +917,8 @@ jobs:
           # A tar, because upload-artifact resolves symlinks and drops
           # the executable bit, and an .app bundle survives neither.
           mkdir -p transport
-          tar -cf transport/mac-${{ matrix.arch }}.tar Telegram.app Packer
+          cp ../../../MACOS_TOOLCHAIN.txt macos-toolchain.txt
+          tar -cf transport/mac-${{ matrix.arch }}.tar Telegram.app Packer macos-toolchain.txt
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         name: Upload the half.
@@ -974,14 +996,18 @@ jobs:
             tar -xf transport/mac-$ARCH.tar -C unpack.$ARCH
             mv unpack.$ARCH/Telegram.app Telegram.$ARCH.app
           done
+          if ! cmp -s unpack.arm64/macos-toolchain.txt unpack.x86_64/macos-toolchain.txt; then
+            echo "::error::The architecture builds used different Xcode/SDK versions or deployment targets."
+            exit 1
+          fi
 
           # Packer runs here, so do not bet on the runner architecture.
           lipo -create unpack.arm64/Packer unpack.x86_64/Packer -output Packer
           chmod +x Packer
           rm -rf unpack.x86_64 unpack.arm64 transport
 
-          # Same Mach-O list as build.sh, everything else is the same in
-          # both halves, so the arm64 bundle is the template.
+          # Use the arm64 bundle as the template and include Intel-only
+          # Swift runtimes below for older macOS versions.
           BINARIES="MacOS/Telegram Frameworks/Updater Helpers/crashpad_handler"
           rm -rf Telegram.app
           cp -R Telegram.arm64.app Telegram.app
@@ -989,6 +1015,18 @@ jobs:
             lipo -create Telegram.arm64.app/Contents/$BINARY \
               Telegram.x86_64.app/Contents/$BINARY \
               -output Telegram.app/Contents/$BINARY
+          done
+          for FILE in Telegram.x86_64.app/Contents/Frameworks/libswift*.dylib; do
+            [ -f "$FILE" ] || continue
+            DESTINATION="Telegram.app/Contents/Frameworks/${FILE##*/}"
+            if [ -f "$DESTINATION" ]; then
+              if ! cmp -s "$FILE" "$DESTINATION"; then
+                echo "::error::Swift runtime differs between architecture builds: ${FILE##*/}"
+                exit 1
+              fi
+            else
+              cp -p "$FILE" "$DESTINATION"
+            fi
           done
 
           # A new Mach-O outside that list would silently stay arm64-only
