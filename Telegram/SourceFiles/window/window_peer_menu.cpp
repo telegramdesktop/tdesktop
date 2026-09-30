@@ -1699,43 +1699,9 @@ void Filler::addSendGift() {
 }
 
 void Filler::addSendMoney() {
-	const auto user = _peer->asUser();
-	if (!user) {
-		return;
+	if (const auto user = _peer->asUser()) {
+		AddSendMoneyAction(_controller, user, _addAction);
 	}
-	const auto controller = _controller;
-	const auto session = &controller->session();
-	const auto userId = peerToUser(user->id);
-	const auto weakController = base::make_weak(controller);
-	const auto weakSession = base::make_weak(session);
-	const auto canOffer = [=] {
-		return weakController
-			&& weakSession
-			&& &controller->session() == session
-			&& &user->session() == session
-			&& session->data().userLoaded(userId) == user
-			&& Wallet::CanOfferSendMoney(user);
-	};
-	if (!canOffer()) {
-		return;
-	}
-	const auto activated = std::make_shared<bool>(false);
-	const auto sent = [=] {
-		if (weakController
-			&& weakSession
-			&& &controller->session() == session
-			&& session->data().userLoaded(userId) == user) {
-			controller->showPeerHistory(
-				user,
-				SectionShow::Way::ClearStack,
-				ShowAtTheEndMsgId);
-		}
-	};
-	_addAction(tr::lng_wallet_profile_send_money(tr::now), [=] {
-		if (canOffer() && !std::exchange(*activated, true)) {
-			Wallet::OpenSendMoney(controller, user, sent);
-		}
-	}, &st::walletMenuIcon);
 }
 
 void Filler::fill() {
@@ -4600,6 +4566,44 @@ void AddSenderUserpicModerateAction(
 			.isAttention = true,
 		});
 	}
+}
+
+void AddSendMoneyAction(
+		not_null<SessionController*> controller,
+		not_null<UserData*> user,
+		const PeerMenuCallback &addAction) {
+	const auto session = &controller->session();
+	const auto userId = peerToUser(user->id);
+	const auto weakController = base::make_weak(controller);
+	const auto weakSession = base::make_weak(session);
+	const auto canOffer = [=] {
+		return weakController
+			&& weakSession
+			&& &controller->session() == session
+			&& &user->session() == session
+			&& session->data().userLoaded(userId) == user
+			&& Wallet::CanOfferSendMoney(user);
+	};
+	if (!canOffer()) {
+		return;
+	}
+	const auto activated = std::make_shared<bool>(false);
+	const auto sent = [=] {
+		if (weakController
+			&& weakSession
+			&& &controller->session() == session
+			&& session->data().userLoaded(userId) == user) {
+			controller->showPeerHistory(
+				user,
+				SectionShow::Way::ClearStack,
+				ShowAtTheEndMsgId);
+		}
+	};
+	addAction(tr::lng_wallet_profile_send_money(tr::now), [=] {
+		if (canOffer() && !std::exchange(*activated, true)) {
+			Wallet::OpenSendMoney(controller, user, sent);
+		}
+	}, &st::walletMenuIcon);
 }
 
 void AddSeparatorAndShiftUp(const PeerMenuCallback &addAction) {

@@ -92,6 +92,11 @@ void AddSenderUserpicModerateAction(
 	HistoryItem *moderateItem,
 	const PeerMenuCallback &addAction);
 
+void AddSendMoneyAction(
+	not_null<SessionController*> controller,
+	not_null<UserData*> user,
+	const PeerMenuCallback &addAction);
+
 void PeerMenuExportChat(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer);
