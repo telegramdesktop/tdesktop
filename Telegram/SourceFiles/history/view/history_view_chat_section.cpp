@@ -1894,7 +1894,8 @@ void ChatWidget::setupSwipeReplyAndBack() {
 				&& (!view->data()->isEphemeral()
 					|| view->data()->out()))
 			|| view->data()->showSimilarChannels()
-			|| view->data()->isService()) {
+			|| (view->data()->isService()
+				&& !ServiceAllowsSwipeReply(view->data()))) {
 			return result;
 		}
 		const auto item = _inner->lookupItemByPoint(

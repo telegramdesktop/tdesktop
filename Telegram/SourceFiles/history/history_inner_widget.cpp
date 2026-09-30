@@ -741,7 +741,9 @@ void HistoryInner::setupSwipeReplyAndBack() {
 					&& (!view->data()->isEphemeral()
 						|| view->data()->out()))
 				|| view->data()->showSimilarChannels()
-				|| view->data()->isService()) {
+				|| (view->data()->isService()
+					&& !HistoryView::ServiceAllowsSwipeReply(
+						view->data()))) {
 				return true;
 			}
 			const auto item = lookupItemByPoint(

@@ -776,6 +776,10 @@ protected:
 		Painter &p,
 		const PaintContext &context,
 		int geometryHeight) const;
+	void paintSwipeReplyIcon(
+		Painter &p,
+		const PaintContext &context,
+		QRect g) const;
 
 	[[nodiscard]] ClickHandlerPtr fromLink() const;
 
