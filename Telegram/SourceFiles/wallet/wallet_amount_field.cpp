@@ -1046,10 +1046,18 @@ void GlyphFlow::changeGlyph(
 		.mode = change.mode,
 		.side = change.side,
 	};
-	const auto revived = ranges::find(slot.leaving, target.ch, &GlyphLayer::ch);
+	const auto same = [&](const GlyphLayer &layer) {
+		return (layer.ch == target.ch) && (layer.mode == change.mode);
+	};
+	const auto revived = ranges::find_if(slot.leaving, same);
 	if (revived != end(slot.leaving)) {
 		entering = std::move(*revived);
 		slot.leaving.erase(revived);
+	}
+	for (auto &layer : slot.leaving) {
+		// Restart on this change's clock, so the slot never sums above 1.
+		layer.v.jump(layer.v.value(now));
+		layer.v.retarget(0., now, duration, change.ease);
 	}
 	entering.width = target.width;
 	entering.v.retarget(1., now, duration, change.ease);
