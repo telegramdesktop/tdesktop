@@ -218,8 +218,10 @@ into `input/`; never reference the ignored inbox or its backup from a task.
 ### Supplied videos
 
 A supplied video, usually an animation to reproduce, is analysed once here, by
-the planner, because its timings decide the task split. Performers work from
-the measurements and frames this step commits, not from the video. Use the
+the planner, because its timings decide the task split. The video itself is
+never tracked: it stays in the transaction, which `finalize` keeps in the
+ignored local `inbox/backup/`. Performers, possibly on another machine, work
+only from the measurements and frames this step commits. Use the
 bundled helper; it needs `ffmpeg`/`ffprobe`, and `sheet` also needs Pillow:
 
 ```bash
@@ -248,18 +250,20 @@ python3 .agents/skills/process-inbox/scripts/video.py sheet "$V" --frames 118-14
   on-screen feature, easing and colour at sampled frames. Say which aspects are
   the design and which are reference only (the recording's own colours, fonts
   or geometry), and record every owner override the measurement contradicts.
-- **Commit curated frames.** A task's `input/frames/` gets only the frames its
-  own phase needs: the key poses, tight crops of the animated region
-  (enlarged with `--scale` when the detail is small), and at least one
-  labelled `sheet` covering the phase at every frame or at a stated step.
-  Link each from `Inputs` with its frame and time. Acceptance compares the
-  app's captures with these named frames.
-- **One copy of the video.** Keep the original file, unmodified, for
-  re-measurement. When a video feeds several tasks, copy it only into the
-  `input/` of the earliest task in the chain. The others link to it with a
-  relative path such as `../<task-slug>/input/<file>.mp4` (retained superseded
-  and split directories keep their `input/`). Map it in the receipt once, with
-  its `probe` digest.
+- **Commit complete frames per phase.** The committed frames are the whole
+  reference, so a performer must be able to re-measure anything from them.
+  For every animated phase a task owns, commit every frame of that phase as
+  tight crops of the animated region in labelled `sheet`s (enlarged with
+  `--scale` when the detail is small), plus the key poses as single frames
+  and a few full frames for context. Keep crops tight; a sheet of one
+  transition costs far less than the recording. Link each from `Inputs` with
+  its frame and time, and say in the design basis that the reference video is
+  not in the repository. Acceptance compares the app's captures with these
+  named frames.
+- **Video stays local.** Never copy a supplied video into `input/` or link to
+  it from a task. Map it in the receipt as kept in the local backup only, with
+  its `probe` facts and digest, so the original can be found again. A later
+  question the frames cannot answer goes to the owner, not to the video.
 - **Revisions.** When a video revises a reference an existing task already
   holds, compare the `probe` output and the frames with the committed ones,
   and record in the receipt whether it replaces the reference, and why.
@@ -354,8 +358,7 @@ Before committing, verify:
 - every new task has `task.md`, valid `state.yaml`, and a falsifiable
   acceptance result;
 - every task link, dependency, and copied input exists;
-- a supplied video is tracked at most once, and no full frame extraction is
-  tracked;
+- no supplied video and no full frame extraction is tracked;
 - no task or project reference points into `projects/archive/`;
 - no raw inbox path, `.local/`, browser profile, portable account, credential,
   complete run directory, or complete build log is tracked;
