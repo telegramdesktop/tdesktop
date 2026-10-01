@@ -1721,7 +1721,12 @@ void GramTransferCommentPart::createComment(Wallet::TransferItem item) {
 			if (revealed) {
 				view->history()->owner().registerShownSpoiler(view);
 			}
-			view->setPendingResize();
+			if (_retired) {
+				// The list may be mid-removal and re-lays the view out anyway.
+				view->setPendingResize();
+			} else {
+				view->history()->owner().requestViewResize(view);
+			}
 			view->repaint();
 		}
 	}, _commentLifetime);
