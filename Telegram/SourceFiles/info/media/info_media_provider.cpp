@@ -389,7 +389,7 @@ void Provider::jumpToMessage(
 
 	_controller->session().api().request(
 		std::move(*request)
-	).done([=](const Api::SearchRequestResult &result) {
+	).done(crl::guard(this, [=](const Api::SearchRequestResult &result) {
 		auto parsed = Api::ParseSearchResult(
 			peer,
 			key.type,
@@ -408,9 +408,9 @@ void Provider::jumpToMessage(
 				parsed.fullCount));
 		}
 		finish();
-	}).fail([=] {
+	})).fail(crl::guard(this, [=] {
 		finish();
-	}).send();
+	})).send();
 }
 
 bool Provider::anchorWhileAtTop() {
