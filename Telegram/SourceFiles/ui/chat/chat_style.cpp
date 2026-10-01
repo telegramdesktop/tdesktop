@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/color_contrast.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
+#include "wallet/wallet_card_angle.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_style.h"
 #include "styles/style_dialogs.h"
@@ -997,6 +998,13 @@ not_null<BackgroundEmojiData*> ChatStyle::backgroundEmojiData(
 		const std::shared_ptr<ColorCollectible> &collectible) const {
 	const auto id = collectible ? collectible->collectibleId : emojiId;
 	return &_backgroundEmojis[id];
+}
+
+not_null<Wallet::CardAngle*> ChatStyle::gramCardAngle() const {
+	if (!_gramCardAngle) {
+		_gramCardAngle = std::make_unique<Wallet::CardAngle>();
+	}
+	return _gramCardAngle.get();
 }
 
 not_null<Text::QuotePaintCache*> ChatStyle::coloredQuoteCache(

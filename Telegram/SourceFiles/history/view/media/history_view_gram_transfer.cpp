@@ -305,7 +305,7 @@ struct GramTransferHandover {
 	std::unique_ptr<Ui::GlareEffect> glare;
 	std::unique_ptr<CardTransition> transition;
 	std::unique_ptr<SendingClock> clock;
-	std::unique_ptr<Wallet::CardAngle> angle;
+	base::weak_ptr<Wallet::CardAngle> angle;
 	std::optional<GlarePassTiming> pass;
 	bool markStarted = false;
 };
@@ -385,8 +385,7 @@ private:
 	void validateGlare() const;
 	void validateClock() const;
 	void validateBadge() const;
-	void validateAngle(QPainter &p) const;
-	[[nodiscard]] Fn<void()> repaintView() const;
+	void validateAngle(QPainter &p, const PaintContext &context) const;
 	void paintGlareBorder(QPainter &p, CardGlarePass pass) const;
 	void paintSendingClock(QPainter &p, crl::time now) const;
 	void paintReveal(QPainter &p, int cardWidth, crl::time now) const;
@@ -405,7 +404,7 @@ private:
 	mutable std::unique_ptr<Ui::GlareEffect> _glare;
 	mutable std::unique_ptr<SendingClock> _clock;
 	mutable std::unique_ptr<CardTransition> _transition;
-	mutable std::unique_ptr<Wallet::CardAngle> _angle;
+	mutable base::weak_ptr<Wallet::CardAngle> _angle;
 	mutable bool _markStarted = false;
 	mutable bool _heavyPending = false;
 	mutable QImage _badge;
@@ -947,7 +946,7 @@ GramTransferHandover GramTransferCardPart::takeHandover() {
 		.mark = std::move(_mark),
 		.transition = std::move(_transition),
 		.clock = std::move(_clock),
-		.angle = std::move(_angle),
+		.angle = _angle,
 		.pass = glarePassTiming(crl::now()),
 		.markStarted = std::exchange(_markStarted, false),
 	};
@@ -979,10 +978,7 @@ std::optional<GlarePassTiming> GramTransferCardPart::glarePassTiming(
 // card keeps its glare, and a card that stopped sending plays the transition
 // with the glare pass that was on screen finishing but no new one starting.
 void GramTransferCardPart::adopt(GramTransferHandover &&handover) {
-	if (handover.angle) {
-		_angle = std::move(handover.angle);
-		_angle->setRepaint(repaintView());
-	}
+	_angle = handover.angle;
 	if (handover.mark) {
 		_mark = std::move(handover.mark);
 		_markStarted = handover.markStarted;
@@ -1083,6 +1079,9 @@ QMargins GramTransferCardPart::bubbleRollRepaintMargins(
 }
 
 GramTransferCardPart::~GramTransferCardPart() {
+	if (const auto angle = _angle.get()) {
+		angle->forget(this);
+	}
 	invalidate_weak_ptrs(this);
 	_destroyed.fire({});
 }
@@ -1312,7 +1311,7 @@ std::optional<CardGlarePass> GramTransferCardPart::glarePass(
 }
 
 float64 GramTransferCardPart::sweepAngle(crl::time now, bool still) const {
-	const auto target = _angle->value(now);
+	const auto target = _angle ? _angle->value(now) : 0.;
 	if (still) {
 		return target;
 	} else if (_layout.sending && _clock) {
@@ -1382,8 +1381,8 @@ void GramTransferCardPart::unloadHeavyPart() {
 	_clock = nullptr;
 	_transition = nullptr;
 	_markStarted = false;
-	if (_angle) {
-		_angle->stopTracking();
+	if (const auto angle = _angle.get()) {
+		angle->forget(this);
 	}
 }
 
@@ -1412,21 +1411,19 @@ void GramTransferCardPart::paintGlareBorder(
 		radius);
 }
 
-void GramTransferCardPart::validateAngle(QPainter &p) const {
-	if (!_angle) {
-		_angle = std::make_unique<Wallet::CardAngle>(repaintView());
+void GramTransferCardPart::validateAngle(
+		QPainter &p,
+		const PaintContext &context) const {
+	const auto angle = context.st->gramCardAngle();
+	if (_angle.get() != angle.get()) {
+		if (const auto previous = _angle.get()) {
+			previous->forget(this);
+		}
+		_angle = angle;
 	}
 	if (const auto widget = PaintWidget(p)) {
-		_angle->track(widget, p.transform().mapRect(QRectF(_layout.card)));
+		angle->track(this, widget, p.transform().mapRect(QRectF(_layout.card)));
 	}
-}
-
-Fn<void()> GramTransferCardPart::repaintView() const {
-	return [view = _origin.view] {
-		if (const auto strong = view.get()) {
-			strong->repaint();
-		}
-	};
 }
 
 void GramTransferCardPart::validateBadge() const {
@@ -1545,6 +1542,7 @@ void GramTransferCardPart::draw(
 	if (_transition && transitionFinished(now)) {
 		_transition = nullptr;
 	}
+	validateAngle(p, context);
 	// WHY: a card relaid out as settled keeps its clock until this paint,
 	// so a stale paint shows the live pose and the reveal starts from it
 	// here; a later replacement continues this transition.
@@ -1554,7 +1552,6 @@ void GramTransferCardPart::draw(
 		&& !anim::Disabled()) {
 		startReveal(*_clock, now, glarePassTiming(now));
 	}
-	validateAngle(p);
 	validateMark();
 	validateGlare();
 	validateClock();

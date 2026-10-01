@@ -49,6 +49,7 @@ walletCardFiatTop: 98px;
 walletCardFoldTopScale: 0.80;
 walletCardFoldBottomScale: 0.92;
 walletCardFoldFadePower: 4.0;
+walletCardAngleReach: 320px;
 walletTitleFoldScale: 0.95;
 walletBalanceHeaderMajorFont: font(15px semibold);
 walletBalanceHeaderFiatFont: font(12px semibold);

@@ -19,36 +19,49 @@ namespace Wallet {
 
 class CardAngle final : public base::has_weak_ptr {
 public:
-	explicit CardAngle(Fn<void()> repaint);
-
-	void setRepaint(Fn<void()> repaint);
+	CardAngle();
 
 	// Degrees clockwise, following the cursor in the card's active window.
-	void track(not_null<QWidget*> widget, QRectF card);
-	void stopTracking();
+	void track(
+		not_null<const void*> card,
+		not_null<QWidget*> widget,
+		QRectF rect);
+	void forget(not_null<const void*> card);
 
 	[[nodiscard]] float64 value(crl::time now) const;
 
 private:
+	struct Card {
+		const void *key = nullptr;
+		QPointer<QWidget> widget;
+		QRect rect;
+		float64 center = 0.;
+	};
+
 	[[nodiscard]] float64 progress(crl::time now) const;
-	void follow(QPointF cursor, bool repaint);
-	void turnTo(float64 target, bool repaint);
+	void follow(bool repaint, bool immediate = false);
+	void turnTo(float64 target, bool repaint, bool immediate);
+	void repaintCards();
+	[[nodiscard]] bool pruneCards();
 	void cursorEvent(QPointF cursor);
 	void windowActivated();
-	[[nodiscard]] std::optional<QPointF> cursorInWindow() const;
+	[[nodiscard]] std::optional<float64> cursorInWindow() const;
+	void scheduleFollow();
 	void scheduleStop();
-	[[nodiscard]] bool onScreen() const;
+	void stopTracking();
 	[[nodiscard]] bool windowActive() const;
-	void subscribe(not_null<QWidget*> widget);
+	void subscribe(not_null<QWidget*> window);
 
-	Fn<void()> _repaint;
-	QPointer<QWidget> _widget;
-	QRectF _card;
-	std::optional<QPointF> _cursor;
+	std::vector<Card> _cards;
+	QPointer<QWidget> _window;
+	std::optional<float64> _cursor;
 	Ui::Animations::Basic _animation;
 	float64 _from = 0.;
 	float64 _to = 0.;
+	float64 _ramp = 0.;
+	float64 _center = 0.;
 	rpl::lifetime _tracking;
+	bool _followScheduled = false;
 	bool _stopScheduled = false;
 	bool _shown = false;
 

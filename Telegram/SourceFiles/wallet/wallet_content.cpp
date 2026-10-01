@@ -11378,9 +11378,7 @@ void Card::invalidateCache() {
 
 void Card::followCursor() {
 	if (!_angle) {
-		_angle = std::make_unique<CardAngle>([=] {
-			update(paintedRect().toAlignedRect());
-		});
+		_angle = std::make_unique<CardAngle>();
 	}
 }
 
@@ -11392,7 +11390,7 @@ float64 Card::paintAngle() {
 	if (!_angle) {
 		return 0.;
 	}
-	_angle->track(this, paintedRect());
+	_angle->track(this, this, paintedRect());
 	return _angle->value(crl::now());
 }
 

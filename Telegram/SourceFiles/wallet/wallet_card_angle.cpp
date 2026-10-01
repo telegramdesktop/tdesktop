@@ -13,79 +13,92 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QCursor>
 #include <QtGui/QWindow>
 
+#include "styles/style_wallet.h"
+
 namespace Wallet {
 namespace {
 
 constexpr auto kFollowJump = 6.;
-constexpr auto kFollowDuration = crl::time(330);
+constexpr auto kFollowDuration = crl::time(340);
 constexpr auto kFollowRamp = 0.2;
-constexpr auto kSweepPeriod = 180.;
+constexpr auto kAngleLimit = 60.;
+constexpr auto kCenterSlack = 1.;
 
-[[nodiscard]] float64 FollowEase(float64 progress) {
+[[nodiscard]] float64 FollowEase(float64 progress, float64 ramp) {
 	if (progress > 0.5) {
-		return 1. - FollowEase(1. - progress);
+		return 1. - FollowEase(1. - progress, ramp);
 	}
-	constexpr auto kSpeed = 1. / (1. - kFollowRamp);
-	return (progress < kFollowRamp)
-		? (kSpeed * progress * progress / (2. * kFollowRamp))
-		: (kSpeed * (progress - kFollowRamp / 2.));
+	const auto speed = 1. / (1. - ramp);
+	return (progress < ramp)
+		? (speed * progress * progress / (2. * ramp))
+		: (speed * (progress - ramp / 2.));
 }
 
-[[nodiscard]] std::optional<float64> CursorBearing(
-		QPointF center,
-		QPointF cursor) {
-	const auto d = cursor - center;
-	if (std::abs(d.x()) + std::abs(d.y()) < 0.5) {
-		return std::nullopt;
-	}
-	return std::atan2(d.x(), -d.y()) * 180. / M_PI;
+// 60 * sign(dx) * dx^2 / (dx^2 + D^2): flat at 0, 30 at D, never 60.
+[[nodiscard]] float64 CursorAngle(float64 dx) {
+	const auto reach = float64(st::walletCardAngleReach);
+	const auto squared = dx * dx;
+	return ((dx < 0.) ? -kAngleLimit : kAngleLimit)
+		* squared
+		/ (squared + reach * reach);
 }
 
 } // namespace
 
-CardAngle::CardAngle(Fn<void()> repaint)
-: _repaint(std::move(repaint)) {
+CardAngle::CardAngle() {
 	_animation.init([=](crl::time now) {
-		if (_repaint) {
-			_repaint();
-		}
+		repaintCards();
 		return now < _animation.started() + kFollowDuration;
 	});
 }
 
-void CardAngle::setRepaint(Fn<void()> repaint) {
-	_repaint = std::move(repaint);
-}
-
-void CardAngle::track(not_null<QWidget*> widget, QRectF card) {
+void CardAngle::track(
+		not_null<const void*> card,
+		not_null<QWidget*> widget,
+		QRectF rect) {
 	_stopScheduled = false;
-	if (_widget != widget.get()) {
+	const auto window = widget->window();
+	const auto aligned = rect.toAlignedRect();
+	const auto center = rect.center().x()
+		+ widget->mapTo(window, QPoint()).x();
+	if (_window != window) {
 		if (!widget->isVisible()) {
 			_shown = true;
 			return;
-		}
-		if (!widget->visibleRegion().intersects(card.toAlignedRect())) {
+		} else if (!widget->visibleRegion().intersects(aligned)) {
 			return;
 		}
 		stopTracking();
-		_widget = widget.get();
-		subscribe(widget);
-		if (windowActive()) {
-			_cursor = cursorInWindow();
-		}
+		_window = window;
+		subscribe(window);
+		_cards.push_back({ card.get(), widget.get(), aligned, center });
+		_center = center;
+		_cursor = windowActive() ? cursorInWindow() : std::nullopt;
+		follow(false, !std::exchange(_shown, true));
+		return;
 	}
-	_card = card;
-	if (_cursor && windowActive()) {
-		follow(*_cursor, false);
+	const auto i = ranges::find(_cards, card.get(), &Card::key);
+	if (i != end(_cards)) {
+		i->widget = widget.get();
+		i->rect = aligned;
+		i->center = center;
+	} else {
+		_cards.push_back({ card.get(), widget.get(), aligned, center });
 	}
-	_shown = true;
+	if (std::abs(center - _center) >= kCenterSlack) {
+		scheduleFollow();
+	}
 }
 
-void CardAngle::stopTracking() {
-	_tracking.destroy();
-	_widget = nullptr;
-	_cursor = std::nullopt;
-	_stopScheduled = false;
+void CardAngle::forget(not_null<const void*> card) {
+	const auto i = ranges::find(_cards, card.get(), &Card::key);
+	if (i == end(_cards)) {
+		return;
+	}
+	_cards.erase(i);
+	if (_cards.empty()) {
+		scheduleStop();
+	}
 }
 
 float64 CardAngle::progress(crl::time now) const {
@@ -99,85 +112,131 @@ float64 CardAngle::value(crl::time now) const {
 	if (!_animation.animating()) {
 		return _to;
 	}
-	return _from + (_to - _from) * FollowEase(progress(now));
+	return _from + (_to - _from) * FollowEase(progress(now), _ramp);
 }
 
-void CardAngle::follow(QPointF cursor, bool repaint) {
-	if (!_widget) {
+void CardAngle::follow(bool repaint, bool immediate) {
+	if (_cards.empty()) {
 		return;
 	}
-	const auto center = _card.center()
-		+ QPointF(_widget->mapTo(_widget->window(), QPoint()));
-	if (const auto bearing = CursorBearing(center, cursor)) {
-		turnTo(*bearing, repaint);
+	auto centers = std::vector<float64>();
+	centers.reserve(_cards.size());
+	for (const auto &card : _cards) {
+		centers.push_back(card.center);
 	}
+	const auto middle = begin(centers) + centers.size() / 2;
+	std::nth_element(begin(centers), middle, end(centers));
+	_center = *middle;
+	if (!_cursor || !windowActive()) {
+		return;
+	}
+	turnTo(CursorAngle(*_cursor - _center), repaint, immediate);
 }
 
-void CardAngle::turnTo(float64 target, bool repaint) {
+void CardAngle::turnTo(float64 target, bool repaint, bool immediate) {
 	const auto now = crl::now();
-	if (_animation.animating()
-		&& std::abs(std::remainder(target - _to, kSweepPeriod)) < 1e-6) {
+	if (_animation.animating() && target == _to) {
 		return;
 	}
 	const auto shown = value(now);
-	const auto goal = shown + std::remainder(target - shown, kSweepPeriod);
-	if (goal == shown) {
+	if (target == shown) {
 		return;
 	}
-	if (!_shown
+	if (immediate
 		|| anim::Disabled()
-		|| std::abs(goal - shown) <= kFollowJump) {
+		|| std::abs(target - shown) <= kFollowJump) {
 		_animation.stop();
-		_from = _to = goal;
+		_from = _to = target;
 	} else if (_animation.animating()
-		&& (std::abs(goal - _to) * FollowEase(progress(now))
+		&& (std::abs(target - _to) * FollowEase(progress(now), _ramp)
 			<= kFollowJump)) {
 		// WHY: restarting the ease-in on every move of a fast cursor would
 		// keep the sweep crawling, so a target whose on-screen step stays
 		// within the jump retargets the running turn in place.
-		_to = goal;
+		_to = target;
 	} else {
 		_from = shown;
-		_to = goal;
+		_to = target;
+		// Peak speed never exceeds the full range over the duration.
+		_ramp = std::clamp(
+			1. - std::abs(_to - _from) / (2. * kAngleLimit),
+			0.,
+			kFollowRamp);
 		_animation.start();
 	}
-	if (repaint && _repaint) {
-		_repaint();
+	if (repaint) {
+		repaintCards();
 	}
+}
+
+void CardAngle::repaintCards() {
+	for (const auto &card : _cards) {
+		if (const auto widget = card.widget.data()) {
+			widget->update(card.rect);
+		}
+	}
+}
+
+bool CardAngle::pruneCards() {
+	auto widget = static_cast<QWidget*>(nullptr);
+	auto region = QRegion();
+	const auto hidden = [&](const Card &card) {
+		const auto strong = card.widget.data();
+		if (!strong || !strong->isVisible()) {
+			return true;
+		} else if (strong != widget) {
+			widget = strong;
+			region = strong->visibleRegion();
+		}
+		return !region.intersects(card.rect);
+	};
+	_cards.erase(
+		std::remove_if(begin(_cards), end(_cards), hidden),
+		end(_cards));
+	return !_cards.empty();
 }
 
 void CardAngle::cursorEvent(QPointF cursor) {
-	if (!onScreen()) {
+	if (!pruneCards()) {
 		scheduleStop();
 		return;
-	}
-	const auto window = _widget->window();
-	if (!windowActive()
-		|| !QRectF(QPointF(), window->size()).contains(cursor)) {
+	} else if (!windowActive()
+		|| !QRectF(QPointF(), _window->size()).contains(cursor)) {
 		_cursor = std::nullopt;
 		return;
 	}
-	_cursor = cursor;
-	follow(cursor, true);
+	_cursor = cursor.x();
+	follow(true);
 }
 
 void CardAngle::windowActivated() {
-	if (!onScreen()) {
+	if (!pruneCards()) {
 		scheduleStop();
 		return;
 	}
-	if (const auto local = cursorInWindow()) {
-		_cursor = local;
-		follow(*local, true);
+	if (const auto x = cursorInWindow()) {
+		_cursor = x;
+		follow(true);
 	}
 }
 
-std::optional<QPointF> CardAngle::cursorInWindow() const {
-	const auto window = _widget->window();
-	const auto local = QPointF(window->mapFromGlobal(QCursor::pos()));
-	return QRectF(QPointF(), window->size()).contains(local)
-		? std::make_optional(local)
+std::optional<float64> CardAngle::cursorInWindow() const {
+	if (!_window) {
+		return std::nullopt;
+	}
+	const auto local = QPointF(_window->mapFromGlobal(QCursor::pos()));
+	return QRectF(QPointF(), _window->size()).contains(local)
+		? std::make_optional(local.x())
 		: std::nullopt;
+}
+
+void CardAngle::scheduleFollow() {
+	if (!std::exchange(_followScheduled, true)) {
+		crl::on_main(this, [=] {
+			_followScheduled = false;
+			follow(true);
+		});
+	}
 }
 
 void CardAngle::scheduleStop() {
@@ -190,18 +249,23 @@ void CardAngle::scheduleStop() {
 	}
 }
 
-bool CardAngle::onScreen() const {
-	return _widget
-		&& _widget->isVisible()
-		&& _widget->visibleRegion().intersects(_card.toAlignedRect());
+void CardAngle::stopTracking() {
+	_tracking.destroy();
+	_cards.clear();
+	_window = nullptr;
+	_cursor = std::nullopt;
+	_stopScheduled = false;
+	if (_animation.animating()) {
+		_from = _to = value(crl::now());
+		_animation.stop();
+	}
 }
 
 bool CardAngle::windowActive() const {
-	return _widget && _widget->window()->isActiveWindow();
+	return _window && _window->isActiveWindow();
 }
 
-void CardAngle::subscribe(not_null<QWidget*> widget) {
-	const auto window = widget->window();
+void CardAngle::subscribe(not_null<QWidget*> window) {
 	const auto handle = window->windowHandle();
 	if (!handle) {
 		return;

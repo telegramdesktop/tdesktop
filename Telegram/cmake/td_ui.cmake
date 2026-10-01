@@ -718,6 +718,9 @@ PRIVATE
     ui/window_palette.cpp
     ui/window_palette.h
 
+    wallet/wallet_card_angle.cpp
+    wallet/wallet_card_angle.h
+
     window/window_slide_animation.cpp
     window/window_slide_animation.h
 
