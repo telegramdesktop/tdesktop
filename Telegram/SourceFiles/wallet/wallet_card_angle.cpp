@@ -106,7 +106,8 @@ void CardAngle::follow(QPointF cursor, bool repaint) {
 	if (!_widget) {
 		return;
 	}
-	const auto center = _widget->mapTo(_widget->window(), _card.center());
+	const auto center = _card.center()
+		+ QPointF(_widget->mapTo(_widget->window(), QPoint()));
 	if (const auto bearing = CursorBearing(center, cursor)) {
 		turnTo(*bearing, repaint);
 	}
@@ -173,7 +174,7 @@ void CardAngle::windowActivated() {
 
 std::optional<QPointF> CardAngle::cursorInWindow() const {
 	const auto window = _widget->window();
-	const auto local = window->mapFromGlobal(QPointF(QCursor::pos()));
+	const auto local = QPointF(window->mapFromGlobal(QCursor::pos()));
 	return QRectF(QPointF(), window->size()).contains(local)
 		? std::make_optional(local)
 		: std::nullopt;
@@ -209,10 +210,10 @@ void CardAngle::subscribe(not_null<QWidget*> widget) {
 		switch (e->type()) {
 		case QEvent::MouseMove:
 		case QEvent::NonClientAreaMouseMove:
-			cursorEvent(static_cast<QMouseEvent*>(e.get())->position());
+			cursorEvent(static_cast<QMouseEvent*>(e.get())->windowPos());
 			break;
 		case QEvent::Enter:
-			cursorEvent(static_cast<QEnterEvent*>(e.get())->position());
+			cursorEvent(static_cast<QEnterEvent*>(e.get())->windowPos());
 			break;
 		case QEvent::Leave:
 			_cursor = std::nullopt;
