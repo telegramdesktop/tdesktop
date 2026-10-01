@@ -39,7 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_pill.h"
 #include "history/history.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
-#include "info/channel_statistics/earn/earn_format.h"
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "info/profile/info_profile_values.h"
 #include "inline_bots/bot_attach_web_view.h"
@@ -1213,14 +1212,19 @@ void SetAmountColor(
 	}, major->lifetime());
 }
 
+[[nodiscard]] QString GramMajorPart(int64 amountNano) {
+	return QString::number(amountNano / Ui::kNanosInOne);
+}
+
 [[nodiscard]] QString GramMinorPart(int64 amountNano) {
 	const auto tiny = TinyAmountFraction(amountNano, kGramDigits);
-	return tiny.isEmpty()
-		? Info::ChannelEarn::MinorPart(CreditsAmount(
-			amountNano / Ui::kNanosInOne,
-			amountNano % Ui::kNanosInOne,
-			CreditsType::Ton))
-		: (QString(QLocale().decimalPoint()) + tiny);
+	if (!tiny.isEmpty()) {
+		return QString(QLocale().decimalPoint()) + tiny;
+	}
+	const auto cents = std::abs(amountNano % Ui::kNanosInOne)
+		/ (Ui::kNanosInOne / 100);
+	return QString(QLocale().decimalPoint())
+		+ u"%1"_q.arg(cents, 2, 10, QChar('0'));
 }
 
 void SetRowAmountText(
@@ -1228,12 +1232,8 @@ void SetRowAmountText(
 		not_null<Ui::FlatLabel*> minor,
 		int64 amountNano,
 		const QString &sign) {
-	const auto amount = CreditsAmount(
-		amountNano / Ui::kNanosInOne,
-		amountNano % Ui::kNanosInOne,
-		CreditsType::Ton);
 	major->setText((amountNano ? sign : QString())
-		+ Info::ChannelEarn::MajorPart(amount));
+		+ GramMajorPart(amountNano));
 	auto helper = Ui::Text::CustomEmojiHelper();
 	auto minorText = tr::marked(GramMinorPart(amountNano));
 	minorText.append(helper.paletteDependent({
@@ -11053,16 +11053,17 @@ void BalanceInk::playMark(Fn<void()> repaint) {
 void BalanceInk::refresh() {
 	const auto &fiatFont = st::walletCardFiatLabel.style.font;
 	const auto exact = (_style != BalanceStyle::Balance);
+	const auto amountNano = _balance.whole() * Ui::kNanosInOne
+		+ _balance.nano();
 	const auto precise = exact
-		? Ui::FormatTonAmount(
-			_balance.whole() * Ui::kNanosInOne + _balance.nano())
+		? Ui::FormatTonAmount(amountNano)
 		: Ui::FormattedTonAmount();
 	const auto minor = exact
 		? (precise.nanoString.isEmpty()
 			? QString()
 			: (precise.separator + precise.nanoString))
 		: _balance.nano()
-		? GramMinorPart(_balance.whole() * Ui::kNanosInOne + _balance.nano())
+		? GramMinorPart(amountNano)
 		: QString();
 	const auto ticker = tr::lng_wallet_card_ticker(tr::now);
 	const auto cardWidth = _outerWidth
@@ -11076,7 +11077,7 @@ void BalanceInk::refresh() {
 		: QString();
 	const auto full = exact
 		? (sign + precise.wholeString)
-		: Info::ChannelEarn::MajorPart(_balance);
+		: GramMajorPart(amountNano);
 	_painter.setContent(MoneyAmountStyle(), {
 		.whole = full,
 		.fraction = minor,
