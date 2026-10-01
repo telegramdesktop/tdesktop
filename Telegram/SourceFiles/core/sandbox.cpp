@@ -564,11 +564,28 @@ void Sandbox::newInstanceConnected() {
 
 void Sandbox::readClients() {
 	// This method can be called before Application is constructed.
+
+	// execExternal() may run a nested event loop (X11 window activation),
+	// where _localClients is changed, so iterate a copy of the sockets.
+	const auto sockets = _localClients
+		| ranges::views::transform(&LocalClient::socket)
+		| ranges::to_vector;
+	const auto findClient = [&](QLocalSocket *socket) -> LocalClient* {
+		const auto i = ranges::find(
+			_localClients,
+			socket,
+			&LocalClient::socket);
+		return (i != _localClients.end()) ? &*i : nullptr;
+	};
 	QList<QUrl> startUrls;
-	for (auto i = _localClients.begin(), e = _localClients.end(); i != e; ++i) {
-		i->buffer.append(i->socket->readAll());
-		if (i->buffer.size()) {
-			QString cmds(QString::fromLatin1(i->buffer));
+	for (const auto socket : sockets) {
+		const auto client = findClient(socket);
+		if (!client) {
+			continue;
+		}
+		client->buffer.append(socket->readAll());
+		if (client->buffer.size()) {
+			QString cmds(QString::fromLatin1(client->buffer));
 			int32 from = 0, l = cmds.length();
 			auto records = QStringList();
 			for (int32 to = cmds.indexOf(QChar(';'), from); to >= from; to = (from < l) ? cmds.indexOf(QChar(';'), from) : -1) {
@@ -576,8 +593,9 @@ void Sandbox::readClients() {
 				from = to + 1;
 			}
 			if (from > 0) {
-				i->buffer = i->buffer.mid(from);
+				client->buffer = client->buffer.mid(from);
 			}
+			const auto externalUrlWas = client->externalUrlReceived;
 			auto hasOpen = false;
 			for (const auto &cmd : records) {
 				if (cmd.startsWith(u"OPEN:"_q)) {
@@ -594,7 +612,7 @@ void Sandbox::readClients() {
 					const auto processId = QApplication::applicationPid();
 					const auto windowId = execExternal(cmd.mid(4));
 					const auto response = u"RES:%1_%2;"_q.arg(processId).arg(windowId).toLatin1();
-					i->socket->write(response.data(), response.size());
+					socket->write(response.data(), response.size());
 				} else if (cmd.startsWith(u"XDG_ACTIVATION_TOKEN:"_q)) {
 					qputenv("XDG_ACTIVATION_TOKEN", QByteArray::fromBase64(cmd.mid(21).toLatin1()));
 				} else if (cmd.startsWith(u"OPEN:"_q)) {
@@ -607,7 +625,7 @@ void Sandbox::readClients() {
 					const auto response = QByteArray("DATA:")
 						+ payload.toBase64()
 						+ ';';
-					i->socket->write(response);
+					socket->write(response);
 				} else {
 					LOG(("Sandbox Error: unknown command %1 passed in local socket").arg(cmd));
 				}
@@ -617,14 +635,21 @@ void Sandbox::readClients() {
 			// means the sender failed to escape the record separator and a
 			// crafted url smuggled extra records. Once such a connection
 			// shows a non-file url its local paths are dropped for good.
+			// A nested readClients() could have set the flag meanwhile.
+			const auto alive = findClient(socket);
+			auto externalUrlReceived = externalUrlWas
+				|| (alive && alive->externalUrlReceived);
 			for (const auto &url : urls) {
 				if (!url.isLocalFile()) {
-					i->externalUrlReceived = true;
+					externalUrlReceived = true;
 				}
+			}
+			if (alive) {
+				alive->externalUrlReceived = externalUrlReceived;
 			}
 			auto activationRequired = false;
 			for (const auto &url : urls) {
-				if (i->externalUrlReceived && url.isLocalFile()) {
+				if (externalUrlReceived && url.isLocalFile()) {
 					LOG(("Sandbox Warning: local file dropped, "
 						"the same launch carries an external url: %1"
 						).arg(url.toString()));
@@ -640,7 +665,7 @@ void Sandbox::readClients() {
 				? execExternal("show")
 				: 0;
 			const auto response = u"RES:%1_%2;"_q.arg(processId).arg(windowId).toLatin1();
-			i->socket->write(response.data(), response.size());
+			socket->write(response.data(), response.size());
 		}
 	}
 	cRefStartUrls() << base::take(startUrls);
