@@ -7250,6 +7250,11 @@ void Widget::revealActiveInlineField() {
 				localRect.y() + localRect.height());
 		}
 	};
+	// Scroll's synthetic mouse move extends a drag-selection and re-enters.
+	beginInlineFieldRevealSuppression();
+	const auto revealGuard = gsl::finally([&] {
+		endInlineFieldRevealSuppression();
+	});
 	for (auto parent = parentWidget(); parent; parent = parent->parentWidget()) {
 		if (const auto scroll = dynamic_cast<Ui::ScrollArea*>(parent)) {
 			scrollIn(scroll);
