@@ -79,9 +79,9 @@ constexpr auto kBumpAmplitude = 0.07;
 constexpr auto kBumpFallEase = 1.2;
 constexpr auto kBumpUndershoot = 0.043;
 constexpr auto kSendingSpeed = 90.;
-constexpr auto kSpinTurn = 540.;
+constexpr auto kSpinTurn = 360.;
 constexpr auto kSpinDuration = crl::time(1700);
-constexpr auto kSweepPeriod = 180.;
+constexpr auto kSweepPeriod = 360.;
 constexpr auto kBurstDelay = crl::time(90);
 constexpr auto kBurstSpread = crl::time(250);
 constexpr auto kBurstLifeMin = crl::time(850);
@@ -227,12 +227,14 @@ struct CardTransition {
 	QString toText;
 	QImage toWord;
 	QImage frame;
+	Wallet::CardBackground background;
 	crl::time started = 0;
 	int wordsTextWidth = 0;
 };
 
 struct SendingClock {
 	Ui::Animations::Basic animation;
+	Wallet::CardBackground background;
 	crl::time started = 0;
 	float64 angle = 0.;
 };
@@ -370,7 +372,14 @@ private:
 	[[nodiscard]] std::optional<CardGlarePass> glarePass(crl::time now) const;
 	[[nodiscard]] std::optional<GlarePassTiming> glarePassTiming(
 		crl::time now) const;
-	[[nodiscard]] float64 sweepAngle(crl::time now, bool still) const;
+	struct Sweep {
+		float64 angle = 0.;
+		Wallet::CardBackground *own = nullptr;
+	};
+	[[nodiscard]] Sweep sweep(
+		crl::time now,
+		crl::time frame,
+		bool still) const;
 	void paintBurst(QPainter &p, crl::time now) const;
 	[[nodiscard]] bool transitionFinished(crl::time now) const;
 	void adopt(GramTransferHandover &&handover);
@@ -1310,16 +1319,25 @@ std::optional<CardGlarePass> GramTransferCardPart::glarePass(
 	return CardGlarePass{ .from = from, .till = from + width };
 }
 
-float64 GramTransferCardPart::sweepAngle(crl::time now, bool still) const {
-	const auto target = _angle ? _angle->value(now) : 0.;
+GramTransferCardPart::Sweep GramTransferCardPart::sweep(
+		crl::time now,
+		crl::time frame,
+		bool still) const {
+	const auto shared = _angle->value(frame);
 	if (still) {
-		return target;
+		return { shared };
 	} else if (_layout.sending && _clock) {
-		return SendingAngle(*_clock, now);
+		return { SendingAngle(*_clock, now), &_clock->background };
 	} else if (_transition) {
-		return SpinAngle(_transition->spin, target, now - _transition->started);
+		const auto elapsed = now - _transition->started;
+		if (elapsed < kSpinDuration) {
+			return {
+				SpinAngle(_transition->spin, shared, elapsed),
+				&_transition->background,
+			};
+		}
 	}
-	return target;
+	return { shared };
 }
 
 void GramTransferCardPart::paintBurst(QPainter &p, crl::time now) const {
@@ -1539,6 +1557,7 @@ void GramTransferCardPart::draw(
 		const PaintContext &context,
 		int outerWidth) const {
 	const auto now = crl::now();
+	const auto frame = context.now ? context.now : now;
 	if (_transition && transitionFinished(now)) {
 		_transition = nullptr;
 	}
@@ -1569,7 +1588,11 @@ void GramTransferCardPart::draw(
 	auto clip = QPainterPath();
 	clip.addRoundedRect(outer, radius, radius);
 	p.setClipPath(clip, Qt::IntersectClip);
-	Wallet::PaintCardBackground(p, _layout.card, sweepAngle(now, still));
+	const auto sweep = this->sweep(now, frame, still);
+	(sweep.own ? *sweep.own : _angle->background()).paint(
+		p,
+		_layout.card,
+		sweep.angle);
 	p.translate(_layout.card.topLeft());
 	const auto cardWidth = _layout.card.width();
 	const auto pass = glarePass(now);

@@ -19,6 +19,8 @@ walletPanelSize: size(392px, 620px);
 walletCardHeight: 190px;
 walletCardMargin: margins(40px, 0px, 40px, 0px);
 walletCardRadius: 16px;
+walletCardSoftness: 55px;
+walletCardFieldStep: 4px;
 walletCardTopSkip: 6px;
 walletCardContentLeft: 20px;
 walletCardContentSkip: 8px;

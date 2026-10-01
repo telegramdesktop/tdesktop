@@ -385,6 +385,7 @@ private:
 	QString _addressLine1;
 	QString _addressLine2;
 	CardFold _fold;
+	CardBackground _background;
 	QImage _cache;
 	float64 _cacheAngle = 0.;
 	std::unique_ptr<CardAngle> _angle;
@@ -11453,7 +11454,7 @@ void Card::paintEvent(QPaintEvent *e) {
 
 void Card::paintContent(Painter &p, float64 angle) {
 	const auto size = restRect().size();
-	PaintCardBackground(p, QRect(QPoint(), size), angle);
+	_background.paint(p, QRect(QPoint(), size), angle);
 
 	const auto qr = CardQrRect(size.width());
 	PaintCardQrPlate(p, qr);
@@ -13368,6 +13369,7 @@ object_ptr<Ui::RpWidget> MakeTransferCard(
 
 	struct State {
 		BalanceInk ink;
+		CardBackground background;
 		QStringList lines;
 	};
 	const auto state = raw->lifetime().make_state<State>();
@@ -13390,7 +13392,7 @@ object_ptr<Ui::RpWidget> MakeTransferCard(
 		auto p = QPainter(raw);
 		auto hq = PainterHighQualityEnabler(p);
 		const auto rect = raw->rect();
-		PaintCardBackground(p, rect);
+		state->background.paint(p, rect, 0.);
 
 		const auto plate = TransferCardInfoRect(rect.width());
 		PaintCardQrPlate(p, plate);

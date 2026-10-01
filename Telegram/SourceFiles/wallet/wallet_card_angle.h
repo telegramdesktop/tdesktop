@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/weak_ptr.h"
 #include "ui/effects/animations.h"
+#include "wallet/wallet_card_gradient.h"
 
 #include <QtCore/QPointer>
 #include <QtCore/QRectF>
@@ -29,6 +30,7 @@ public:
 	void forget(not_null<const void*> card);
 
 	[[nodiscard]] float64 value(crl::time now) const;
+	[[nodiscard]] CardBackground &background();
 
 private:
 	struct Card {
@@ -56,6 +58,7 @@ private:
 	QPointer<QWidget> _window;
 	std::optional<float64> _cursor;
 	Ui::Animations::Basic _animation;
+	CardBackground _background;
 	float64 _from = 0.;
 	float64 _to = 0.;
 	float64 _ramp = 0.;

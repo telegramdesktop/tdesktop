@@ -115,6 +115,10 @@ float64 CardAngle::value(crl::time now) const {
 	return _from + (_to - _from) * FollowEase(progress(now), _ramp);
 }
 
+CardBackground &CardAngle::background() {
+	return _background;
+}
+
 void CardAngle::follow(bool repaint, bool immediate) {
 	if (_cards.empty()) {
 		return;
@@ -252,6 +256,7 @@ void CardAngle::scheduleStop() {
 void CardAngle::stopTracking() {
 	_tracking.destroy();
 	_cards.clear();
+	_background.clear();
 	_window = nullptr;
 	_cursor = std::nullopt;
 	_stopScheduled = false;

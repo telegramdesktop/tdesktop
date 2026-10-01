@@ -720,6 +720,8 @@ PRIVATE
 
     wallet/wallet_card_angle.cpp
     wallet/wallet_card_angle.h
+    wallet/wallet_card_gradient.cpp
+    wallet/wallet_card_gradient.h
 
     window/window_slide_animation.cpp
     window/window_slide_animation.h
