@@ -337,6 +337,16 @@ struct PendingSendInfo {
 	QString comment;
 };
 
+struct SendStarted {
+	std::string operationId;
+	FullMsgId message;
+};
+
+struct ListedSubmittedTransfer {
+	std::string operationId;
+	TransferItem item;
+};
+
 struct TransferReceipt {
 	QByteArray messageHash;
 	bool gasless = false;
@@ -795,14 +805,12 @@ public:
 		uint64 owner,
 		std::shared_ptr<const TonConnectTransfer> transfer,
 		Fn<void(FeeResult)> done);
-	// |drafted| names the local service message this transfer was given
-	// in the recipient's chat, the moment it exists and before anything
-	// leaves the device, so a sender can hand the user over to that chat.
+	// |started| fires as the transfer leaves, with its chat message if any.
 	void send(
 		KeyAuthorization auth,
 		std::shared_ptr<const PreparedSend> prepared,
 		Fn<void(SendError)> done,
-		Fn<void(FullMsgId)> drafted = nullptr);
+		Fn<void(SendStarted)> started = nullptr);
 	[[nodiscard]] SendError sendRefusal(
 		const std::shared_ptr<const PreparedSend> &prepared,
 		const KeyAuthorization &auth);
@@ -819,9 +827,14 @@ public:
 		-> const std::optional<TransferReceipt> &;
 	[[nodiscard]] std::vector<TransferItem> submittedTransactions() const;
 	[[nodiscard]] auto listedSubmittedTransactions() const
-	-> std::vector<TransferItem>;
+	-> std::vector<ListedSubmittedTransfer>;
 	[[nodiscard]] std::optional<TransferItem> submittedTransaction(
 		const std::string &operationId) const;
+	[[nodiscard]] std::optional<TransferItem> sendingTransaction(
+		const std::string &operationId) const;
+	// The send the wallet window started, which its list shows as sending.
+	void setWindowSend(std::string operationId);
+	[[nodiscard]] const std::string &windowSend() const;
 	[[nodiscard]] TonConnectSendFate tonConnectSendFate(
 		const std::string &operationId);
 
@@ -1069,7 +1082,7 @@ private:
 		KeyAuthorization auth,
 		std::shared_ptr<const PreparedSend> prepared,
 		Fn<void(SendError)> done,
-		Fn<void(FullMsgId)> drafted,
+		Fn<void(SendStarted)> started,
 		Fn<void(TonConnectSendResult)> tonConnect,
 		TonConnectSendLink tonConnectLink);
 	[[nodiscard]] bool submissionCurrent(
@@ -1115,6 +1128,8 @@ private:
 		const std::shared_ptr<wallet_engine::WalletClient> &client);
 	[[nodiscard]] SubmittedTransfer *submittedTransfer(
 		const std::string &operationId);
+	[[nodiscard]] const TransferItem *submittedShown(
+		const SubmittedTransfer &entry) const;
 	[[nodiscard]] bool submittedLookupNeeded() const;
 	[[nodiscard]] bool submittedLookupCurrent(
 		const std::shared_ptr<SubmittedLookup> &request) const;
@@ -1264,17 +1279,19 @@ private:
 	std::optional<PendingSendInfo> _pending;
 	bool _sendUnresolved = false;
 	std::string _unresolvedOperationId;
+	std::string _windowSend;
 	uint64 _sendRevision = 0;
 	struct TransferSubmissionState {
 		std::string operationId;
 		std::shared_ptr<const PreparedSend> prepared;
 		std::optional<TransferReceipt> receipt;
 		std::optional<SendError> refusal;
-		Fn<void(FullMsgId)> drafted;
+		Fn<void(SendStarted)> started;
 		Fn<void(TonConnectSendResult)> tonConnect;
 		Fn<bool(const QString &)> tonConnectHandoff;
 		FullMsgId draft;
 		QByteArray normal;
+		TimeId posted = 0;
 		bool paired = false;
 		bool normalFeeAuthorized = false;
 		bool rpcStarted = false;

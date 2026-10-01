@@ -8844,6 +8844,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_row_contract" = "Contract interaction";
 "lng_wallet_row_pending" = "Pending";
 "lng_wallet_row_failed" = "Failed";
+"lng_wallet_row_sending" = "Sending";
 "lng_wallet_row_withdrawal" = "Withdrawal";
 "lng_wallet_row_deposit" = "Deposit";
 "lng_wallet_row_topup" = "Top-up";

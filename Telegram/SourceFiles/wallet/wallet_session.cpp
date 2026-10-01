@@ -246,6 +246,7 @@ constexpr auto kStreamResyncInterval = 30 * crl::time(1000);
 constexpr auto kClientSendValiditySeconds = uint64(300);
 constexpr auto kClientResolutionMarginSeconds = uint64(60);
 constexpr auto kClientRequestTimeoutMs = uint64(15000);
+constexpr auto kSendingMatchSkew = TimeId(30);
 constexpr auto kPreviewClientRecordId = "public-key-only";
 constexpr auto kDecryptBusyRetries = 5;
 constexpr auto kDecryptBusyRetryDelay = crl::time(500);
@@ -2385,6 +2386,7 @@ void Session::setPanel(std::unique_ptr<Ui::SeparatePanel> panel) {
 		_stateApi.request(base::take(_waltBalanceRequestId)).cancel();
 		_waltBalanceRequested = false;
 		_existingWaltBalanceUrl = QString();
+		_windowSend.clear();
 	}
 }
 
@@ -8087,6 +8089,15 @@ void Session::setCollectiblesTab(bool value) {
 	refreshStaleHistory();
 }
 
+void Session::setWindowSend(std::string operationId) {
+	_windowSend = std::move(operationId);
+	_historyUpdates.fire({});
+}
+
+const std::string &Session::windowSend() const {
+	return _windowSend;
+}
+
 SendState Session::sendState() const {
 	return _sendState.current();
 }
@@ -8107,19 +8118,24 @@ auto Session::lastTransferReceipt() const
 	return _lastReceipt;
 }
 
+const TransferItem *Session::submittedShown(
+		const SubmittedTransfer &entry) const {
+	if (entry.generation != _networkGeneration
+		|| !transferWalletIdentityCurrent(entry.identity)
+		|| (!entry.canonicalId.isEmpty()
+			&& ranges::contains(
+				_history,
+				entry.canonicalId,
+				&TransferItem::id))) {
+		return nullptr;
+	}
+	return entry.item ? entry.item.get() : entry.fallback.get();
+}
+
 std::vector<TransferItem> Session::submittedTransactions() const {
 	auto result = std::vector<TransferItem>();
 	for (const auto &entry : _submitted) {
-		if (entry.generation != _networkGeneration
-			|| !transferWalletIdentityCurrent(entry.identity)
-			|| (!entry.canonicalId.isEmpty()
-				&& ranges::contains(
-					_history,
-					entry.canonicalId,
-					&TransferItem::id))) {
-			continue;
-		}
-		if (const auto &item = entry.item ? entry.item : entry.fallback) {
+		if (const auto item = submittedShown(entry)) {
 			result.push_back(*item);
 		}
 	}
@@ -8127,15 +8143,18 @@ std::vector<TransferItem> Session::submittedTransactions() const {
 }
 
 auto Session::listedSubmittedTransactions() const
--> std::vector<TransferItem> {
-	auto result = submittedTransactions();
-	if (!_listedBoundary) {
-		return result;
+-> std::vector<ListedSubmittedTransfer> {
+	auto result = std::vector<ListedSubmittedTransfer>();
+	for (const auto &entry : _submitted) {
+		const auto item = submittedShown(entry);
+		if (!item
+			|| (_listedBoundary
+				&& item->date
+				&& (*item->date < *_listedBoundary))) {
+			continue;
+		}
+		result.push_back({ entry.operationId, *item });
 	}
-	const auto boundary = *_listedBoundary;
-	result.erase(ranges::remove_if(result, [&](const TransferItem &item) {
-		return item.date && (*item.date < boundary);
-	}), end(result));
 	return result;
 }
 
@@ -8184,6 +8203,82 @@ std::optional<TransferItem> Session::submittedTransaction(
 		}
 	}
 	return entry->item ? std::make_optional(*entry->item) : std::nullopt;
+}
+
+std::optional<TransferItem> Session::sendingTransaction(
+		const std::string &operationId) const {
+	if (operationId.empty()
+		|| _sendState.current() != SendState::Sending
+		|| !_submission
+		|| _submission->operationId != operationId
+		|| !_submission->rpcStarted
+		|| !transferWalletIdentityCurrent(_submission->prepared->identity)) {
+		return std::nullopt;
+	}
+	const auto &args = _submission->prepared->args;
+	auto result = TransferItem{
+		.walletIdentity = _submission->prepared->identity,
+		.kind = (args.userId
+			? TransferItem::Kind::PeerTransfer
+			: TransferItem::Kind::Transfer),
+		.incoming = false,
+		.counterparty = CanonicalAddress(args.destination),
+		.counterpartyPeer = (args.userId
+			? peerFromUser(args.userId).value
+			: quint64()),
+		.amountNano = args.amountNano,
+		.comment = args.comment.isPublic ? args.comment.text : QString(),
+		.date = _submission->posted,
+		.status = TransferItem::Status::Pending,
+	};
+	const auto entry = ranges::find(
+		_submitted,
+		operationId,
+		&SubmittedTransfer::operationId);
+	if (entry != end(_submitted)
+		&& entry->generation == _networkGeneration
+		&& transferWalletIdentityCurrent(entry->identity)) {
+		result.id = entry->canonicalId;
+	}
+	if (!result.id.isEmpty() || result.counterparty.isEmpty()) {
+		return result;
+	}
+	const auto same = [&](const TransferItem &item) {
+		return item.counterparty == result.counterparty
+			&& item.amountNano == result.amountNano;
+	};
+	const auto ambiguous = ranges::any_of(_submitted, [&](const auto &other) {
+		return other.operationId != operationId
+			&& other.generation == _networkGeneration
+			&& other.canonicalId.isEmpty()
+			&& (other.item || other.fallback)
+			&& same(other.item ? *other.item : *other.fallback);
+	});
+	if (ambiguous) {
+		return result;
+	}
+	const auto from = _submission->posted - kSendingMatchSkew;
+	auto found = (const TransferItem*)nullptr;
+	for (const auto &item : _history) {
+		if (!item.incoming
+			&& item.kind != TransferItem::Kind::KeyChange
+			&& !item.id.isEmpty()
+			&& item.walletIdentity == result.walletIdentity
+			&& same(item)
+			&& item.date
+			&& *item.date >= from
+			&& (!found || *item.date > *found->date)
+			&& !ranges::contains(
+				_submitted,
+				item.id,
+				&SubmittedTransfer::canonicalId)) {
+			found = &item;
+		}
+	}
+	if (found) {
+		result.id = found->id;
+	}
+	return result;
 }
 
 int SendCommentBytes(const QString &text) {
@@ -8915,12 +9010,12 @@ void Session::send(
 		KeyAuthorization auth,
 		std::shared_ptr<const PreparedSend> prepared,
 		Fn<void(SendError)> done,
-		Fn<void(FullMsgId)> drafted) {
+		Fn<void(SendStarted)> started) {
 	startSend(
 		std::move(auth),
 		std::move(prepared),
 		std::move(done),
-		std::move(drafted),
+		std::move(started),
 		nullptr,
 		{});
 }
@@ -8954,7 +9049,7 @@ void Session::startSend(
 		KeyAuthorization auth,
 		std::shared_ptr<const PreparedSend> prepared,
 		Fn<void(SendError)> done,
-		Fn<void(FullMsgId)> drafted,
+		Fn<void(SendStarted)> started,
 		Fn<void(TonConnectSendResult)> tonConnect,
 		TonConnectSendLink tonConnectLink) {
 	done = [done = std::move(done)](SendError error) {
@@ -9127,9 +9222,10 @@ void Session::startSend(
 	_submission = TransferSubmissionState{
 		.operationId = operationId,
 		.prepared = prepared,
-		.drafted = std::move(drafted),
+		.started = std::move(started),
 		.tonConnect = std::move(tonConnect),
 		.tonConnectHandoff = std::move(tonConnectLink.handoff),
+		.posted = stored->posted,
 		.paired = paired,
 		.normalFeeAuthorized = true,
 	};
@@ -9301,6 +9397,26 @@ void Session::startSend(
 				LOG(("Wallet Error: unused transfer preparation remains dirty."));
 			}
 		}
+		auto listed = false;
+		if (_submission
+			&& _submission->rpcStarted
+			&& record
+			&& record->handoff == TransferHandoff::Possible) {
+			const auto entry = upsertSubmittedTransfer(
+				operationId,
+				identity,
+				generation,
+				client);
+			if (entry) {
+				if (entry->fallback) {
+					entry->fallback->status = TransferItem::Status::Failure;
+				}
+				listed = true;
+			}
+			if (!persistSubmittedTransfers()) {
+				LOG(("Wallet Error: failed transfer facts remain dirty."));
+			}
+		}
 		const auto submission = base::take(_submission);
 		if (submission && submission->rpcStarted) {
 			_transferMessages->failSending(
@@ -9324,6 +9440,9 @@ void Session::startSend(
 			return;
 		}
 		syncEngineClient();
+		if (weak && listed) {
+			_historyUpdates.fire({});
+		}
 		if (!weak) {
 			return;
 		} else if (failed == SendError::KeyMismatch) {
@@ -9477,10 +9596,12 @@ void Session::submitTransfer(
 	}
 	const auto messageId = _transferMessages->create(prepared->args, randomId);
 	_submission->draft = messageId;
-	if (messageId) {
-		if (const auto report = _submission->drafted) {
-			crl::on_main(_session, [=] { report(messageId); });
-		}
+	if (const auto report = _submission->started) {
+		const auto started = SendStarted{
+			.operationId = operationId,
+			.message = messageId,
+		};
+		crl::on_main(_session, [=] { report(started); });
 	}
 	DEBUG_LOG(("Wallet Info: wallet.sendTransfer data_normal: %1"
 		).arg(QString::fromLatin1(data.normal.toBase64())));
@@ -10255,6 +10376,7 @@ void Session::clearSubmittedTransfers() {
 	_lastReceipt.reset();
 	_lastLookupOperationId.clear();
 	_unresolvedOperationId.clear();
+	_windowSend.clear();
 	_sendUnresolved = false;
 	_sendRecoveryReady = false;
 	++_sendRevision;

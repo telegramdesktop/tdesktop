@@ -183,6 +183,7 @@ class Card;
 struct CardFold;
 class InfoIsland;
 class InfoIslandEntry;
+struct SendingRow;
 
 class KeyContext final
 	: public Main::SessionShow
@@ -295,6 +296,7 @@ private:
 	void updatePinned();
 	void updateVisibleArea();
 	void checkLoadMore();
+	void revealSendingRow();
 	[[nodiscard]] int pinnedMax() const;
 	[[nodiscard]] int pinnedMin() const;
 	[[nodiscard]] QRect cardRest() const;
@@ -326,6 +328,7 @@ private:
 	Ui::FixedHeightWidget *_cardPlaceholder = nullptr;
 	Card *_card = nullptr;
 	Ui::AbstractButton *_cardButton = nullptr;
+	std::unique_ptr<SendingRow> _sendingRow;
 	QRect _paintedInk;
 	int _reserve = 0;
 	int _paintedHeight = -1;
@@ -1190,6 +1193,17 @@ struct HistoryRowContent {
 	PeerData *peer = nullptr;
 	bool itemAmount = false;
 	QString collectible;
+
+	friend bool operator==(
+		const HistoryRowContent &,
+		const HistoryRowContent &) = default;
+};
+
+struct SendingRow {
+	std::string operationId;
+	Ui::VerticalLayout *slot = nullptr;
+	TransferItem item;
+	HistoryRowContent content;
 };
 
 [[nodiscard]] QString ShortAddressForm(
@@ -6470,11 +6484,21 @@ void WalletSendBox(
 	// does only before anything leaves the device; that retry is bounded
 	// so a refusal that keeps repeating cannot spin forever. When the
 	// user edits what is being sent, the request just stops quietly.
-	// WHY: the transfer now has a message in the recipient's chat, and
-	// that message is where it reports itself from here on, so the box
-	// hands the user over to the chat instead of reporting anything.
-	const auto handOver = [=](FullMsgId messageId) {
+	// WHY: the transfer now reports itself where the user is: in the wallet
+	// window's list when the box is there, otherwise in the recipient's
+	// chat, so the box closes instead of reporting anything.
+	const auto handOver = [=](SendStarted started) {
 		if (state->closed || !sessionValid()) {
+			return;
+		}
+		const auto panel = wallet->panel();
+		if (panel && box->window() == panel->window()) {
+			state->handedOver = true;
+			wallet->setWindowSend(started.operationId);
+			discardOrigin();
+			show->hideLayer();
+			return;
+		} else if (!started.message) {
 			return;
 		}
 		const auto window = MakeChatShow(show, true)->resolveWindow();
@@ -6484,7 +6508,7 @@ void WalletSendBox(
 		state->handedOver = true;
 		discardOrigin();
 		box->closeBox();
-		window->showPeerHistory(messageId.peer);
+		window->showPeerHistory(started.message.peer);
 		window->window().activate();
 	};
 	state->continueSend = [=] {
@@ -11552,7 +11576,8 @@ Content::~Content() {
 	const auto wallet = &session->wallet();
 	return !wallet->listsGated()
 		&& (!wallet->historyVisibleEmpty()
-			|| !wallet->listedSubmittedTransactions().empty());
+			|| !wallet->listedSubmittedTransactions().empty()
+			|| wallet->sendingTransaction(wallet->windowSend()));
 }
 
 [[nodiscard]] rpl::producer<bool> HistoryShownValue(
@@ -11742,14 +11767,60 @@ void Content::setupContent() {
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			column,
 			object_ptr<Ui::VerticalLayout>(column)));
-	const auto list = listWrap->entity();
+	const auto rows = listWrap->entity();
+	const auto head = rows->add(object_ptr<Ui::VerticalLayout>(rows));
+	const auto list = rows->add(object_ptr<Ui::VerticalLayout>(rows));
+	const auto releaseSending = [=] {
+		if (_sendingRow) {
+			delete _sendingRow->slot;
+			_sendingRow = nullptr;
+		}
+	};
+	const auto holdSending = [=](
+			const std::string &operationId,
+			const TransferItem &item,
+			bool sending) {
+		auto created = false;
+		if (!_sendingRow || _sendingRow->operationId != operationId) {
+			releaseSending();
+			_sendingRow = std::make_unique<SendingRow>(SendingRow{
+				.operationId = operationId,
+				.slot = rows->insert(
+					1,
+					object_ptr<Ui::VerticalLayout>(rows)),
+			});
+			created = true;
+		}
+		auto content = HistoryRowContent();
+		if (sending) {
+			auto shown = item;
+			shown.status = TransferItem::Status::Success;
+			content = RowContentFromItem(shown, &_show->session());
+			content.date = tr::lng_wallet_row_sending(tr::now);
+		} else {
+			content = RowContentFromItem(item, &_show->session());
+		}
+		_sendingRow->item = item;
+		const auto slot = _sendingRow->slot;
+		if (!slot->count() || content != _sendingRow->content) {
+			slot->clear();
+			AddHistoryRow(slot, content, [=] {
+				if (_sendingRow) {
+					ShowWalletTransactionBox(_show, _sendingRow->item, media);
+				}
+			}, media);
+			_sendingRow->content = std::move(content);
+		}
+		return created;
+	};
 	const auto rebuildList = [=] {
+		head->clear();
 		list->clear();
 		const auto &history = wallet->history();
 		auto submitted = wallet->listedSubmittedTransactions();
 		// A row sits by date, so old failures stop covering fresh history.
-		ranges::stable_sort(submitted, ranges::greater(), [](const auto &item) {
-			return item.date.value_or(kUndatedRowDate);
+		ranges::stable_sort(submitted, ranges::greater(), [](const auto &entry) {
+			return entry.item.date.value_or(kUndatedRowDate);
 		});
 		const auto addItem = [=](const TransferItem &item) {
 			const auto content = RowContentFromItem(item, &_show->session());
@@ -11757,34 +11828,87 @@ void Content::setupContent() {
 				ShowWalletTransactionBox(_show, item, media);
 			}, media);
 		};
+		auto created = false;
 		if (HistoryShown(&_show->session())) {
+			const auto &op = wallet->windowSend();
+			const auto sending = wallet->sendingTransaction(op);
+			const auto settled = (op.empty() || sending)
+				? end(submitted)
+				: ranges::find(
+					submitted,
+					op,
+					&ListedSubmittedTransfer::operationId);
+			const auto newest = [&] {
+				auto result = TimeId();
+				for (const auto &item : history) {
+					if (item.date && !wallet->historyItemHidden(item)) {
+						result = std::max(result, *item.date);
+					}
+				}
+				for (auto i = begin(submitted); i != end(submitted); ++i) {
+					if (i != settled) {
+						result = std::max(
+							result,
+							i->item.date.value_or(kUndatedRowDate));
+					}
+				}
+				return result;
+			};
+			const auto held = sending
+				|| (settled != end(submitted)
+					&& _sendingRow
+					&& _sendingRow->operationId == op
+					&& (settled->item.date.value_or(kUndatedRowDate)
+						>= newest()));
+			if (!held) {
+				releaseSending();
+			} else if (sending) {
+				created = holdSending(op, *sending, true);
+			} else {
+				created = holdSending(op, settled->item, false);
+			}
+			const auto skipId = (held && sending)
+				? sending->id
+				: QString();
 			if (wallet->collectibles().empty()) {
-				Ui::AddSkip(list, st::walletRowsTopSkip);
-				Ui::AddSubsectionTitle(list, tr::lng_wallet_rows_title());
-				Ui::AddSkip(list);
+				Ui::AddSkip(head, st::walletRowsTopSkip);
+				Ui::AddSubsectionTitle(head, tr::lng_wallet_rows_title());
+				Ui::AddSkip(head);
 			}
 			auto next = begin(submitted);
+			const auto addNext = [&] {
+				const auto &entry = *(next++);
+				if (!held || entry.operationId != op) {
+					addItem(entry.item);
+				}
+			};
 			const auto addNewerThan = [&](TimeId date) {
 				while (next != end(submitted)
-					&& next->date.value_or(kUndatedRowDate) >= date) {
-					addItem(*next++);
+					&& next->item.date.value_or(kUndatedRowDate) >= date) {
+					addNext();
 				}
 			};
 			for (const auto &item : history) {
 				if (item.date) {
 					addNewerThan(*item.date);
 				}
-				if (!wallet->historyItemHidden(item)) {
+				if (!wallet->historyItemHidden(item)
+					&& (skipId.isEmpty() || item.id != skipId)) {
 					addItem(item);
 				}
 			}
 			while (next != end(submitted)) {
-				addItem(*next++);
+				addNext();
 			}
 			Ui::AddSkip(list, st::walletRowsTopSkip);
+		} else {
+			releaseSending();
 		}
-		if (const auto width = list->width()) {
-			list->resizeToWidth(width);
+		if (const auto width = rows->width()) {
+			rows->resizeToWidth(width);
+		}
+		if (created) {
+			Ui::PostponeCall(this, [=] { revealSendingRow(); });
 		}
 	};
 	rpl::merge(
@@ -12623,6 +12747,27 @@ void Content::updateRegions() {
 	}
 	_headerShadow->setGeometry(0, 0, width(), st::lineWidth);
 	updateVisibleArea();
+}
+
+void Content::revealSendingRow() {
+	if (!_sendingRow) {
+		return;
+	}
+	auto &wallet = _show->session().wallet();
+	if (wallet.collectiblesTab()) {
+		wallet.setCollectiblesTab(false);
+		_scroll->scrollToY(0);
+		return;
+	}
+	const auto slot = _sendingRow->slot;
+	const auto top = Ui::MapFrom(_container, slot, QPoint()).y();
+	const auto bottom = top + slot->height();
+	const auto scrollTop = _scroll->scrollTop();
+	if (top < std::max(scrollTop, _reserve)) {
+		_scroll->scrollToY(top);
+	} else if (bottom > scrollTop + _scroll->height()) {
+		_scroll->scrollToY(bottom - _scroll->height());
+	}
 }
 
 void Content::updateVisibleArea() {
