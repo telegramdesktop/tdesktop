@@ -379,6 +379,8 @@ walletSendUserAmountLabel: FlatLabel(defaultFlatLabel) {
 		font: walletSendUserAmountFont;
 	}
 }
+walletSendUserGramFg: windowActiveTextFg;
+walletSendUserFiatFg: boxTextFgGood;
 walletSendUserBalanceLabel: FlatLabel(walletSendBalanceLabel) {
 	minWidth: 200px;
 	align: align(top);

@@ -5596,13 +5596,22 @@ void WalletSendBox(
 		state->entryFiat.value(),
 		state->rate.value()
 	) | rpl::map([=](int64 amount, bool fiat, const FiatRate &rate) {
-		return fiat
-			? TextWithEntities(gramMark).append(
-				u" "_q + Ui::FormatTonAmount(amount).full)
-			: tr::marked(QChar('~')
-				+ FormatFiatAmount(amount, rate)
-				+ u" "_q
-				+ rate.currency);
+		if (fiat) {
+			const auto formatted = Ui::FormatTonAmount(amount);
+			return AmountLabel{
+				.prefix = TextWithEntities(gramMark).append(u" "_q),
+				.amount = formatted.full,
+				.decimal = formatted.separator,
+			};
+		}
+		const auto rule = Ui::LookupCurrencyRule(rate.currency);
+		return AmountLabel{
+			.prefix = tr::marked(QChar('~')),
+			.amount = FormatFiatAmount(amount, rate),
+			.decimal = QString(QChar(rule.decimal)),
+			.suffix = u" "_q + rate.currency,
+			.unit = rate.currency,
+		};
 	});
 	const auto amountField = AddAmountField(
 		inner,

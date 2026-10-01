@@ -16,13 +16,25 @@ class VerticalLayout;
 
 namespace Wallet {
 
+struct AmountLabel {
+	TextWithEntities prefix;
+	QString amount;
+	QString decimal;
+	QString suffix;
+	QString unit;
+
+	friend inline bool operator==(
+		const AmountLabel &,
+		const AmountLabel &) = default;
+};
+
 struct AmountFieldArgs {
 	int64 value = 0;
 	Fn<int()> fractionDigits;
 	Fn<QString()> separator;
 	rpl::producer<bool> entryFiat;
 	rpl::producer<QString> currency;
-	rpl::producer<TextWithEntities> equivalent;
+	rpl::producer<AmountLabel> equivalent;
 	Ui::Text::MarkedContext equivalentContext;
 	Fn<void()> swap;
 	rpl::producer<bool> equivalentShown;
