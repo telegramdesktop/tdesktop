@@ -1265,7 +1265,6 @@ Panel::Panel(Args &&args)
 			if (!_webview) {
 				return;
 			}
-			applyExternalShellFullscreen(fullscreen);
 			sendFullScreen();
 			sendSafeArea();
 			sendContentSafeArea();
@@ -2238,6 +2237,11 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 		invalidateExternalShellSession();
 		requestClose();
 	});
+	raw->setFullscreenChangedHandler([=](bool fullscreen) {
+		if (_externalShell && _webview && &_webview->window == raw) {
+			_fullscreen = fullscreen;
+		}
+	});
 
 	QObject::connect(raw->widget(), &QObject::destroyed, [=] {
 		const auto parent = _webviewParent.data();
@@ -2366,18 +2370,22 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 		} else if (command == "web_app_request_content_safe_area") {
 			sendContentSafeArea();
 		} else if (command == "web_app_request_fullscreen") {
-			if (!_fullscreen.current()) {
-				_fullscreen = true;
-			} else {
+			if (_fullscreen.current()) {
 				sendFullScreen();
+			} else if (_externalShell) {
+				applyExternalShellFullscreen(true);
+			} else {
+				_fullscreen = true;
 			}
 		} else if (command == "web_app_request_file_download") {
 			processDownloadRequest(arguments);
 		} else if (command == "web_app_exit_fullscreen") {
-			if (_fullscreen.current()) {
-				_fullscreen = false;
-			} else {
+			if (!_fullscreen.current()) {
 				sendFullScreen();
+			} else if (_externalShell) {
+				applyExternalShellFullscreen(false);
+			} else {
+				_fullscreen = false;
 			}
 		} else if (command == "web_app_check_home_screen") {
 			postEvent("home_screen_checked", QJsonObject{

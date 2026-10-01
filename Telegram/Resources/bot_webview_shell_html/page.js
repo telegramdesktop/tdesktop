@@ -1010,6 +1010,7 @@
 				shellState.isFullscreen = !!eventData.is_fullscreen;
 				root.classList.toggle('fullscreen', shellState.isFullscreen);
 				updateFooter();
+				scheduleDragRegions();
 			}
 			postToFrame(eventType, eventData || {});
 		},
