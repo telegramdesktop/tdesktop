@@ -14,8 +14,6 @@
 	const menu = document.getElementById('menu');
 	const menuList = document.getElementById('menu-list');
 	const blocker = document.getElementById('blocker');
-	const resizeHandles = Array.prototype.slice.call(
-		document.querySelectorAll('.resize-handle'));
 	const title = document.getElementById('title');
 	const controls = {
 		back: document.getElementById('back'),
@@ -66,6 +64,8 @@
 	let reloadSupported = false;
 	let reloadTimeout = null;
 	let viewportScheduled = false;
+	let dragRegionsScheduled = false;
+	let sentDragRegions = '';
 	let resizeObserver = null;
 	const pendingEvents = [];
 
@@ -165,49 +165,39 @@
 		sendToFrame(eventType, eventData, generation);
 	}
 
-	function shellPointerPayload(event, extra) {
-		const payload = {
-			button: event.button,
-			x: event.clientX,
-			y: event.clientY,
-			rootX: event.screenX,
-			rootY: event.screenY,
-			timeStamp: Math.round(event.timeStamp || 0)
+	function regionOf(element) {
+		const rect = element.getBoundingClientRect();
+		return (rect.width > 0 && rect.height > 0)
+			? [rect.left, rect.top, rect.width, rect.height]
+			: null;
+	}
+
+	function sendDragRegions() {
+		const draggable = !shellState.isFullscreen && !shellState.menuOpen;
+		const titleControls = header.querySelectorAll('.title-control');
+		const regions = {
+			drag: draggable ? [regionOf(header)].filter(Boolean) : [],
+			noDrag: draggable
+				? Array.prototype.map.call(titleControls, regionOf)
+					.filter(Boolean)
+				: []
 		};
-		if (extra && typeof extra === 'object') {
-			for (const key in extra) {
-				payload[key] = extra[key];
-			}
-		}
-		return payload;
-	}
-
-	function beginShellControl(command, event, extra) {
-		if (shellState.blocked
-			|| shellState.isFullscreen
-			|| event.defaultPrevented
-			|| !event.isTrusted
-			|| event.button !== 0) {
+		const serialized = JSON.stringify(regions);
+		if (serialized === sentDragRegions) {
 			return;
 		}
-		closeMenu();
-		invokeShell(command, shellPointerPayload(event, extra));
-		event.preventDefault();
+		sentDragRegions = serialized;
+		invokeShell('shell_set_drag_regions', regions);
 	}
 
-	function beginShellMove(event) {
-		const target = event.target;
-		if (target
-			&& target.closest
-			&& target.closest('.title-control, #menu')) {
+	function scheduleDragRegions() {
+		if (dragRegionsScheduled) {
 			return;
 		}
-		beginShellControl('shell_begin_move', event);
-	}
-
-	function beginShellResize(edge, event) {
-		beginShellControl('shell_begin_resize', event, {
-			edge: edge
+		dragRegionsScheduled = true;
+		window.requestAnimationFrame(function() {
+			dragRegionsScheduled = false;
+			sendDragRegions();
 		});
 	}
 
@@ -235,6 +225,7 @@
 	}
 
 	function scheduleViewport() {
+		scheduleDragRegions();
 		if (viewportScheduled) {
 			return;
 		}
@@ -538,6 +529,7 @@
 		if (controls.menu.disabled) {
 			closeMenu();
 		}
+		scheduleDragRegions();
 	}
 
 	function visibleButtons() {
@@ -770,6 +762,7 @@
 		controls.menu.classList.toggle(
 			'active',
 			menu.classList.contains('visible'));
+		scheduleDragRegions();
 	}
 	function closeMenu() {
 		if (!shellState.menuOpen) {
@@ -934,12 +927,6 @@
 	header.addEventListener('selectstart', function(event) {
 		event.preventDefault();
 	});
-	header.addEventListener('mousedown', beginShellMove);
-	for (const handle of resizeHandles) {
-		handle.addEventListener('mousedown', function(event) {
-			beginShellResize(handle.getAttribute('data-resize-edge'), event);
-		});
-	}
 
 	function createIframe(url) {
 		closeMenu();
