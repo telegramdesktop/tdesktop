@@ -3702,7 +3702,7 @@ void InnerWidget::paintCachedRowOverlays(
 		not_null<Row*> row,
 		uint64 rowId,
 		const Ui::PaintContext &context) {
-	const auto i = _cachedRows.find(rowId);
+	auto i = _cachedRows.find(rowId);
 	if (i == end(_cachedRows)) {
 		return;
 	}
@@ -3716,6 +3716,12 @@ void InnerWidget::paintCachedRowOverlays(
 				videoUserpic,
 				context,
 				false);
+
+			// Starting the video may synchronously erase the cached row.
+			i = _cachedRows.find(rowId);
+			if (i == end(_cachedRows)) {
+				return;
+			}
 		}
 	}
 	if (!i->second.badge.isEmpty()) {
