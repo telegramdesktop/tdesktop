@@ -1027,6 +1027,18 @@ void GlyphFlow::applySeparators(
 		added.presence = gap.presence;
 		_separators.push_back(std::move(added));
 	}
+	const auto rolls = [&](const GlyphLayer &layer) {
+		return (layer.mode == GlyphMode::Roll) && layer.v.running(now);
+	};
+	const auto rolling = ranges::any_of(_slots, [&](const Slot &slot) {
+		return rolls(slot.current) || ranges::any_of(slot.leaving, rolls);
+	});
+	if (rolling) {
+		// Rolling digits cross the dip lane, so slides land in their gaps.
+		for (auto &separator : _separators) {
+			separator.slide.jump(1.);
+		}
+	}
 }
 
 void GlyphFlow::changeGlyph(
