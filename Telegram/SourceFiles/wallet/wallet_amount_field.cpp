@@ -274,7 +274,9 @@ void AmountRow::refreshContent() {
 void AmountRow::refreshGeometry() {
 	_painter.setAvailableWidth(width());
 	const auto k = _painter.scale();
-	_left = std::floor((width() - k * _painter.naturalWidth()) / 2.);
+	_left = std::max(
+		std::floor((width() - k * _painter.naturalWidth()) / 2.),
+		0.);
 	_top = std::floor((height() - k * _painter.naturalHeight()) / 2.);
 	const auto gap = st::walletDetailsAmountMinorSkip;
 	const auto wholeLeft = _painter.wholeLeft();
