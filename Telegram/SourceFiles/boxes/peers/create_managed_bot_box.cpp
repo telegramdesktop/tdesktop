@@ -323,6 +323,7 @@ void CreateManagedBotBox(
 		}
 		state->checkUsername = value;
 		state->checkRequestId = api->request(MTPbots_CheckUsername(
+			MTP_flags(0),
 			MTP_string(value)
 		)).done([=](const MTPBool &result) {
 			state->checkRequestId = 0;

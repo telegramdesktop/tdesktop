@@ -38,7 +38,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_peer_photo.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
-#include "wallet/wallet_address.h"
 #include "window/notifications_manager.h"
 
 namespace {
@@ -248,15 +247,6 @@ const std::optional<QString> &UserData::gramAddress() const {
 
 void UserData::setGramAddress(QString address) {
 	_gramAddress = std::move(address);
-}
-
-uint64 UserData::gramAddressForceRevision() const {
-	return _gramAddressForceRevision;
-}
-
-void UserData::setGramAddressFromForce(QString address) {
-	++_gramAddressForceRevision;
-	setGramAddress(std::move(address));
 }
 
 bool UserData::hasActiveStories() const {
@@ -891,8 +881,7 @@ namespace Data {
 
 void ApplyUserUpdate(
 		not_null<UserData*> user,
-		const MTPDuserFull &update,
-		uint64 gramAddressForceRevision) {
+		const MTPDuserFull &update) {
 	const auto profilePhoto = update.vprofile_photo()
 		? user->owner().processPhoto(*update.vprofile_photo()).get()
 		: nullptr;
@@ -991,12 +980,6 @@ void ApplyUserUpdate(
 	user->setTranslationDisabled(update.is_translations_disabled());
 	user->setPrivateForwardName(
 		update.vprivate_forward_name().value_or_empty());
-	if (user->gramAddressForceRevision() == gramAddressForceRevision) {
-		const auto gram = update.vgram_address();
-		user->setGramAddress(gram
-			? Wallet::CanonicalAddress(qs(*gram))
-			: QString());
-	}
 
 	if (const auto info = user->botInfo.get()) {
 		const auto group = update.vbot_group_admin_rights()

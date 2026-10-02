@@ -67,8 +67,7 @@ public:
 	// WALLET_BALANCE_EMPTY. Invalid replies fail with WALLET_ADDRESS_INVALID;
 	// RPC failures retain their type and silent disposition and are terminal.
 	// Only a validated nonempty canonical address reaches |done|, after it
-	// is published through known(). Earlier passive lookups and full-user
-	// requests cannot overwrite it; later full-user requests can update it.
+	// is published through known(). Earlier passive lookups cannot overwrite it.
 	// Failure preserves the store and carries no destination.
 	// Destruction retires pending requests without running either callback.
 	void forceResolve(
@@ -78,13 +77,10 @@ public:
 	[[nodiscard]] QString forceResolveError(UserId id) const;
 	[[nodiscard]] QString recipientError(UserId id) const;
 
-	// Asks Telegram which user owns |address|. |done| runs exactly once, with
-	// an empty owner when the address belongs to no user, when it cannot be
-	// asked about, or when the request fails — a caller cannot tell those
-	// apart, because none of them is an address it may treat as a user's.
-	// A named owner is remembered for the session and answers the next call
-	// for the same address before resolveOwner() returns, so a caller must
-	// tolerate a synchronous completion; a failure is not remembered.
+	// WHY: Telegram may withhold the owner while returning usable metadata.
+	// Successful replies, even empty ones, are cached and may answer |done|
+	// synchronously; RPC failures are not cached. |done| runs exactly once.
+
 	// Destruction retires pending requests without running |done|.
 	void resolveOwner(QString address, Fn<void(AddressOwner)> done);
 

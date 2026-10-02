@@ -49,7 +49,7 @@ constexpr auto kPublicKeySize = 32;
 	}
 	for (const auto &entry : reply) {
 		const auto &data = entry.data();
-		const auto id = UserId(data.vuser_id());
+		const auto id = UserId(data.vuser_id().value_or_empty());
 		const auto i = result.find(id);
 		if (i == end(result)) {
 			LOG(("Wallet Error: wallet.getUserAddresses answered about "
@@ -135,14 +135,14 @@ void UserAddresses::forceResolve(
 			const MTPwallet_UserAddresses &result) {
 		const auto &reply = processReply(result);
 		const auto address = (reply.size() == 1
-			&& UserId(reply.front().data().vuser_id()) == id)
+			&& UserId(reply.front().data().vuser_id().value_or_empty()) == id)
 			? CanonicalAddress(qs(reply.front().data().vaddress()))
 			: QString();
 		if (address.isEmpty()) {
 			refuse({ .type = u"WALLET_ADDRESS_INVALID"_q });
 			return;
 		}
-		user->setGramAddressFromForce(address);
+		user->setGramAddress(address);
 		if (done) {
 			done(address);
 		}
@@ -225,7 +225,7 @@ void UserAddresses::resolveOwner(QString address, Fn<void(AddressOwner)> done) {
 				continue;
 			}
 			owner = AddressOwner{
-				.userId = UserId(data.vuser_id()),
+				.userId = UserId(data.vuser_id().value_or_empty()),
 				.address = canonical,
 				.publicKey = data.vpublic_key().v,
 			};

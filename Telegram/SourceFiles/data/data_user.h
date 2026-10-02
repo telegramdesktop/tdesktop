@@ -293,12 +293,9 @@ public:
 	// Disengaged means no source has answered about this user yet; engaged
 	// and empty means a source answered and this user has no wallet; engaged
 	// and non-empty is the canonical raw address. Every write is an answer,
-	// never a nullopt: Data::ApplyUserUpdate() writes userFull.gram_address,
-	// Wallet::UserAddresses the wallet.getUserAddresses batch.
+	// never a nullopt: answers come from wallet.getUserAddresses.
 	[[nodiscard]] const std::optional<QString> &gramAddress() const;
 	void setGramAddress(QString address);
-	[[nodiscard]] uint64 gramAddressForceRevision() const;
-	void setGramAddressFromForce(QString address);
 
 	[[nodiscard]] bool hasActiveStories() const;
 	[[nodiscard]] bool hasUnreadStories() const;
@@ -363,7 +360,6 @@ private:
 	QString _phone;
 	QString _privateForwardName;
 	std::optional<QString> _gramAddress;
-	uint64 _gramAddressForceRevision = 0;
 	std::unique_ptr<Ui::BotVerifyDetails> _botVerifyDetails;
 	Data::StarsRating _starsRating;
 
@@ -385,8 +381,7 @@ namespace Data {
 
 void ApplyUserUpdate(
 	not_null<UserData*> user,
-	const MTPDuserFull &update,
-	uint64 gramAddressForceRevision);
+	const MTPDuserFull &update);
 
 [[nodiscard]] StarRefProgram ParseStarRefProgram(
 	const MTPStarRefProgram *program);
