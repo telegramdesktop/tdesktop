@@ -1311,7 +1311,7 @@ struct RowAmountText {
 	auto minor = tr::marked(GramMinorPart(amountNano));
 	minor.append(helper.paletteDependent({
 		.factory = [] {
-			return Ui::Earn::IconCurrencyColored(
+			return Ui::Earn::IconCurrencyTwoTone(
 				st::walletRowMarkSize,
 				st::windowActiveTextFg->c);
 		},
@@ -3460,7 +3460,7 @@ void ShowNetworkFeesAbout(
 		const style::font &font) {
 	auto descriptor = Ui::Text::PaletteDependentEmoji{
 		.factory = [=] {
-			return Ui::Earn::IconCurrencyColored(
+			return Ui::Earn::IconCurrencyTwoTone(
 				font,
 				st::windowActiveTextFg->c);
 		},
@@ -3824,7 +3824,7 @@ void WalletBusyBox(
 	auto p = QPainter(&result);
 	auto hq = PainterHighQualityEnabler(p);
 	auto svg = QSvgRenderer(
-		Ui::Earn::CurrencySvgColored(st::activeButtonBg->c));
+		Ui::Earn::CurrencySvgTwoTone(st::activeButtonBg->c));
 	const auto skip = (side - markSide) / 2;
 	svg.render(&p, QRectF(skip, skip, markSide, markSide));
 	return result;
@@ -12264,10 +12264,10 @@ void BalanceInk::refresh() {
 	_fiat.addText(0, fiatFont->ascent, fiatFont, _fiatText);
 	_fiatWidth = fiatFont->width(_fiatText);
 
-	_markCard = Ui::Earn::IconCurrencyColored(
+	_markCard = Ui::Earn::IconCurrencyMono(
 		st::walletCardMarkSize,
 		CardBalancePalette().mark);
-	_markSettled = Ui::Earn::IconCurrencyColored(
+	_markSettled = Ui::Earn::IconCurrencyTwoTone(
 		st::walletCardMarkSize,
 		SettledBalancePalette().mark);
 	_markTop = Ui::Earn::AlignedMarkTop(

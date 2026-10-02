@@ -1254,7 +1254,7 @@ CreditsController::CreditsController(CreditsDescriptor d)
 			const auto in = data.split(u":"_q)[1].startsWith(u"in"_q);
 			auto &slot = in ? _iconCache.tonIn : _iconCache.tonOut;
 			if (slot.isNull()) {
-				slot = Ui::Earn::IconCurrencyColored(
+				slot = Ui::Earn::IconCurrencyTwoTone(
 					st::tonFieldIconSize,
 					(in
 						? st::boxTextFgGood->c

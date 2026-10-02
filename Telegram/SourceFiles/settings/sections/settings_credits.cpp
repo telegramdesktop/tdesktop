@@ -158,7 +158,7 @@ Credits::Credits(
 , _creditsType(type)
 , _star(Ui::GenerateStars(st::creditsTopupButton.height, 1))
 , _balanceStar((_creditsType == CreditsType::Ton)
-		? Ui::Earn::IconCurrencyColored(
+		? Ui::Earn::IconCurrencyTwoTone(
 			st::tonFieldIconSize,
 			st::currencyFg->c)
 		: Ui::GenerateStars(st::creditsBalanceStarHeight, 1)) {
@@ -573,7 +573,7 @@ void Credits::setupContent() {
 				isCurrency
 					? std::make_unique<Ui::CustomEmoji::Internal>(
 						u"currency_icon:%1"_q.arg(height),
-						Ui::Earn::IconCurrencyColored(
+						Ui::Earn::IconCurrencyTwoTone(
 							st::tonFieldIconSize,
 							st::currencyFg->c))
 					: Ui::MakeCreditsIconEmoji(height, 1),
