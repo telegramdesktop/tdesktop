@@ -1672,18 +1672,23 @@ void FailShareFetch(
 
 [[nodiscard]] SubmittedTransferProjection StoredTransferProjection(
 		const TransferItem &item) {
+	const auto peer = (item.kind == TransferItem::Kind::PeerTransfer);
+	const auto collectible = (item.kind == TransferItem::Kind::Collectible)
+		? item.collectible
+		: QString();
 	return SubmittedTransferProjection{
 		.id = item.id,
 		.counterparty = item.counterparty,
 		.counterpartyName = item.counterpartyName,
 		.comment = item.commentEncrypted ? QString() : item.comment,
-		.counterpartyPeer = ((item.kind == TransferItem::Kind::PeerTransfer)
+		.collectible = collectible,
+		.counterpartyPeer = ((peer || !collectible.isEmpty())
 			? item.counterpartyPeer
 			: 0),
 		.amountNano = item.amountNano,
 		.feeNano = item.feeNano,
 		.date = item.date,
-		.peerTransfer = (item.kind == TransferItem::Kind::PeerTransfer),
+		.peerTransfer = peer,
 		.failed = (item.status == TransferItem::Status::Failure),
 		.commentEncrypted = item.commentEncrypted,
 		.gasless = item.gasless,
@@ -8217,21 +8222,14 @@ std::optional<TransferItem> Session::sendingTransaction(
 		return std::nullopt;
 	}
 	const auto &args = _submission->prepared->args;
-	auto result = TransferItem{
+	auto result = ItemFromPending({
 		.walletIdentity = _submission->prepared->identity,
-		.kind = (args.userId
-			? TransferItem::Kind::PeerTransfer
-			: TransferItem::Kind::Transfer),
-		.incoming = false,
-		.counterparty = CanonicalAddress(args.destination),
-		.counterpartyPeer = (args.userId
-			? peerFromUser(args.userId).value
-			: quint64()),
+		.posted = _submission->posted,
 		.amountNano = args.amountNano,
-		.comment = args.comment.isPublic ? args.comment.text : QString(),
-		.date = _submission->posted,
-		.status = TransferItem::Status::Pending,
-	};
+		.destination = CanonicalAddress(args.destination),
+		.comment = (args.comment.isPublic ? args.comment.text : QString()),
+		.recipient = args.userId,
+	});
 	const auto entry = ranges::find(
 		_submitted,
 		operationId,
@@ -8284,6 +8282,24 @@ std::optional<TransferItem> Session::sendingTransaction(
 		result.id = found->id;
 	}
 	return result;
+}
+
+TransferItem ItemFromPending(const PendingSendInfo &pending) {
+	return TransferItem{
+		.walletIdentity = pending.walletIdentity,
+		.kind = (pending.recipient
+			? TransferItem::Kind::PeerTransfer
+			: TransferItem::Kind::Transfer),
+		.incoming = false,
+		.counterparty = pending.destination,
+		.counterpartyPeer = (pending.recipient
+			? peerFromUser(pending.recipient).value
+			: quint64()),
+		.amountNano = pending.amountNano,
+		.comment = pending.comment,
+		.date = pending.posted,
+		.status = TransferItem::Status::Pending,
+	};
 }
 
 int SendCommentBytes(const QString &text) {
@@ -9113,6 +9129,7 @@ void Session::startSend(
 		.destination = CanonicalAddress(args.destination),
 		.comment = args.comment.isPublic ? args.comment.text : QString(),
 		.amountNano = args.amountNano,
+		.recipient = args.userId,
 		.posted = base::unixtime::now(),
 		.network = custodyRecord->network,
 		.paired = paired,
@@ -9136,6 +9153,7 @@ void Session::startSend(
 		.amountNano = stored->amountNano,
 		.destination = stored->destination,
 		.comment = stored->comment,
+		.recipient = stored->recipient,
 	};
 	const auto owner = _preview->owners.find(prepared->owner);
 	if (owner != end(_preview->owners)) {
@@ -9395,18 +9413,18 @@ void Session::startSend(
 				.error = _submission->refusal.value_or(SendErrorFrom(error)),
 			});
 		}
-		const auto record = submittedTransferRecord(operationId, identity);
-		if (record && record->handoff == TransferHandoff::Preparation) {
-			retireSubmittedTransferRecord(operationId, identity);
-			if (!persistSubmittedTransfers()) {
-				LOG(("Wallet Error: unused transfer preparation remains dirty."));
+		auto possible = false;
+		if (const auto record = submittedTransferRecord(operationId, identity)) {
+			possible = (record->handoff == TransferHandoff::Possible);
+			if (!possible) {
+				retireSubmittedTransferRecord(operationId, identity);
+				if (!persistSubmittedTransfers()) {
+					LOG(("Wallet Error: unused transfer preparation remains dirty."));
+				}
 			}
 		}
 		auto listed = false;
-		if (_submission
-			&& _submission->rpcStarted
-			&& record
-			&& record->handoff == TransferHandoff::Possible) {
+		if (_submission && _submission->rpcStarted && possible) {
 			const auto entry = upsertSubmittedTransfer(
 				operationId,
 				identity,
@@ -9993,15 +10011,18 @@ Session::SubmittedTransfer *Session::upsertSubmittedTransfer(
 	if (_submitted.size() >= kSubmittedTransferMaxRecords) {
 		return nullptr;
 	}
-	auto fallback = std::make_unique<TransferItem>();
-	fallback->walletIdentity = identity;
-	fallback->counterparty = record->destination;
-	fallback->amountNano = record->amountNano;
-	fallback->comment = record->comment;
-	fallback->date = record->posted;
-	fallback->status = FailedTransferTerminal(record->terminal)
-		? TransferItem::Status::Failure
-		: TransferItem::Status::Pending;
+	auto fallback = std::make_unique<TransferItem>(ItemFromPending({
+		.operationId = operationId,
+		.walletIdentity = identity,
+		.posted = record->posted,
+		.amountNano = record->amountNano,
+		.destination = record->destination,
+		.comment = record->comment,
+		.recipient = record->recipient,
+	}));
+	if (FailedTransferTerminal(record->terminal)) {
+		fallback->status = TransferItem::Status::Failure;
+	}
 	auto item = std::unique_ptr<TransferItem>();
 	if (record->served) {
 		const auto &stored = *record->served;
@@ -10009,12 +10030,15 @@ Session::SubmittedTransfer *Session::upsertSubmittedTransfer(
 		item->source = TransferItem::Source::Server;
 		item->id = stored.id;
 		item->walletIdentity = identity;
-		item->kind = stored.peerTransfer
+		item->kind = !stored.collectible.isEmpty()
+			? TransferItem::Kind::Collectible
+			: stored.peerTransfer
 			? TransferItem::Kind::PeerTransfer
 			: TransferItem::Kind::Transfer;
 		item->counterparty = stored.counterparty;
 		item->counterpartyName = stored.counterpartyName;
 		item->counterpartyPeer = stored.counterpartyPeer;
+		item->collectible = stored.collectible;
 		item->amountNano = stored.amountNano;
 		item->feeNano = stored.feeNano;
 		item->gasless = stored.gasless;

@@ -18,7 +18,7 @@ namespace Wallet {
 namespace {
 
 const auto kStorageKey = u"presentation/submitted-transfers"_q;
-constexpr auto kFormatVersion = quint32(1);
+constexpr auto kFormatVersion = quint32(2);
 constexpr auto kIdentityMaxBytes = 256;
 constexpr auto kAddressMaxBytes = 128;
 constexpr auto kServerIdMaxBytes = 1024;
@@ -117,7 +117,11 @@ void WriteText(Serialize::ByteArrayWriter &stream, const QString &text) {
 		&& ValidText(item.counterpartyName, kDomainMaxBytes)
 		&& ValidText(item.comment, kServerCommentMaxBytes)
 		&& (!item.commentEncrypted || item.comment.isEmpty())
-		&& (item.peerTransfer || !item.counterpartyPeer)
+		&& (item.peerTransfer
+			|| !item.collectible.isEmpty()
+			|| !item.counterpartyPeer)
+		&& (item.collectible.isEmpty()
+			|| (!item.peerTransfer && ValidAddress(item.collectible)))
 		&& item.amountNano >= 0;
 }
 
@@ -165,7 +169,8 @@ void WriteText(Serialize::ByteArrayWriter &stream, const QString &text) {
 }
 
 [[nodiscard]] SubmittedTransferProjection ReadProjection(
-		Serialize::ByteArrayReader &stream) {
+		Serialize::ByteArrayReader &stream,
+		quint32 version) {
 	auto result = SubmittedTransferProjection();
 	auto flags = quint32();
 	stream >> flags;
@@ -187,6 +192,9 @@ void WriteText(Serialize::ByteArrayWriter &stream, const QString &text) {
 		auto date = qint32();
 		stream >> date;
 		result.date = date;
+	}
+	if (version >= 2) {
+		result.collectible = ReadText(stream, kAddressMaxBytes);
 	}
 	result.peerTransfer = (flags & kPeerFlag);
 	result.failed = (flags & kFailedFlag);
@@ -215,10 +223,12 @@ void WriteProjection(
 	if (item.date) {
 		stream << qint32(*item.date);
 	}
+	WriteText(stream, item.collectible);
 }
 
 [[nodiscard]] std::optional<SubmittedTransferRecord> ReadRecord(
-		Serialize::ByteArrayReader &stream) {
+		Serialize::ByteArrayReader &stream,
+		quint32 version) {
 	auto result = SubmittedTransferRecord();
 	auto network = qint32();
 	auto posted = qint32();
@@ -257,7 +267,12 @@ void WriteProjection(
 	stream >> attempts;
 	result.lookupAttempts = attempts;
 	if (flags & kServedFlag) {
-		result.served = ReadProjection(stream);
+		result.served = ReadProjection(stream, version);
+	}
+	if (version >= 2) {
+		auto recipient = quint64();
+		stream >> recipient;
+		result.recipient = UserId(recipient);
 	}
 	return (stream.ok() && ValidRecord(result))
 		? std::make_optional(std::move(result))
@@ -295,6 +310,7 @@ void WriteRecord(
 	if (record.served) {
 		WriteProjection(stream, *record.served);
 	}
+	stream << quint64(record.recipient.bare);
 }
 
 } // namespace
@@ -314,13 +330,14 @@ std::optional<SubmittedTransferStore> ReadSubmittedTransferStore(
 	auto count = quint32();
 	stream >> version >> count;
 	if (!stream.ok()
-		|| version != kFormatVersion
+		|| !version
+		|| version > kFormatVersion
 		|| count > kSubmittedTransferMaxRecords) {
 		return std::nullopt;
 	}
 	auto result = SubmittedTransferStore();
 	for (auto i = quint32(0); i != count; ++i) {
-		auto record = ReadRecord(stream);
+		auto record = ReadRecord(stream, version);
 		if (!record || ranges::any_of(result.records, [&](const auto &other) {
 				return SameIdentity(other, *record);
 			})) {

@@ -3201,19 +3201,6 @@ not_null<SendingHistoryRow*> AddSendingHistoryRow(
 	};
 }
 
-[[nodiscard]] TransferItem ItemFromPending(
-		const PendingSendInfo &pending) {
-	auto result = TransferItem();
-	result.walletIdentity = pending.walletIdentity;
-	result.incoming = false;
-	result.counterparty = pending.destination;
-	result.amountNano = pending.amountNano;
-	result.comment = pending.comment;
-	result.date = pending.posted;
-	result.status = TransferItem::Status::Pending;
-	return result;
-}
-
 // WHY: it plays once when the box finishes showing and a click replays it
 // once it has stopped, with no pointer cursor or anything else saying so,
 // because finding that out is the whole of it.

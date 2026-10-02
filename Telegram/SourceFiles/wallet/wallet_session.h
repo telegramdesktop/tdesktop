@@ -335,7 +335,10 @@ struct PendingSendInfo {
 	int64 amountNano = 0;
 	QString destination;
 	QString comment;
+	UserId recipient;
 };
+
+[[nodiscard]] TransferItem ItemFromPending(const PendingSendInfo &pending);
 
 struct SendStarted {
 	std::string operationId;

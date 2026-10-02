@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/basic_types.h"
+#include "data/data_peer_id.h"
 
 #include <QtCore/QByteArray>
 #include <QtCore/QString>
@@ -58,6 +59,7 @@ struct SubmittedTransferProjection {
 	QString counterparty;
 	QString counterpartyName;
 	QString comment;
+	QString collectible;
 	quint64 counterpartyPeer = 0;
 	int64 amountNano = 0;
 	std::optional<int64> feeNano;
@@ -83,6 +85,7 @@ struct SubmittedTransferRecord {
 	QByteArray confirmedHash;
 	std::optional<SubmittedTransferProjection> served;
 	int64 amountNano = 0;
+	UserId recipient;
 	TimeId posted = 0;
 	int network = 1;
 	TransferHandoff handoff = TransferHandoff::Preparation;
