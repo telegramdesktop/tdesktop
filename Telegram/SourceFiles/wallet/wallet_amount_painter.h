@@ -67,6 +67,7 @@ public:
 
 private:
 	void refreshScale();
+	void paintText(QPainter &p, const AmountColors &colors) const;
 
 	AmountStyle _st;
 	AmountParts _parts;

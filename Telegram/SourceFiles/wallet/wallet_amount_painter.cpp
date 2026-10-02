@@ -102,6 +102,11 @@ QSizeF AmountPainter::size() const {
 }
 
 void AmountPainter::paint(QPainter &p, const AmountColors &colors) const {
+	// Only glyphs that land on the device grid unscaled can be hinted.
+	if (p.deviceTransform().type() <= QTransform::TxTranslate) {
+		paintText(p, colors);
+		return;
+	}
 	p.fillPath(_digits, colors.digits);
 	if (_ticker.isEmpty()) {
 		return;
@@ -110,6 +115,31 @@ void AmountPainter::paint(QPainter &p, const AmountColors &colors) const {
 	p.setOpacity(opacity * colors.tickerOpacity);
 	p.fillPath(_ticker, colors.ticker);
 	p.setOpacity(opacity);
+}
+
+void AmountPainter::paintText(QPainter &p, const AmountColors &colors) const {
+	const auto pen = p.pen();
+	const auto font = p.font();
+	const auto y = float64(baseline());
+	p.setPen(colors.digits);
+	if (!_parts.whole.isEmpty()) {
+		p.setFont(_st.big);
+		p.drawText(QPointF(_wholeLeft, y), _parts.whole);
+	}
+	if (!_parts.fraction.isEmpty()) {
+		p.setFont(_st.small);
+		p.drawText(QPointF(_fractionLeft, y), _parts.fraction);
+	}
+	if (!_parts.ticker.isEmpty()) {
+		const auto opacity = p.opacity();
+		p.setOpacity(opacity * colors.tickerOpacity);
+		p.setPen(colors.ticker);
+		p.setFont(_st.ticker ? _st.ticker : _st.big);
+		p.drawText(QPointF(_tickerLeft, y), _parts.ticker);
+		p.setOpacity(opacity);
+	}
+	p.setFont(font);
+	p.setPen(pen);
 }
 
 void AmountPainter::paint(
