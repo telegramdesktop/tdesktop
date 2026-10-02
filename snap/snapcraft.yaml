@@ -519,7 +519,7 @@ parts:
   wallet-engine:
     source: https://github.com/i582/wallet-engine.git
     source-depth: 1
-    source-commit: 0fa5d3027de09d5b58bc3a498e7fb5f645b41d7d
+    source-commit: e59e0d89d7ee90c388bf36e3334c5b276f396697
     plugin: nil
     override-pull: |
       craftctl default

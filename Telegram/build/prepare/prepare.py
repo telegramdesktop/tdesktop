@@ -1986,7 +1986,7 @@ release:
 # them once over such a cache. The revisions are named here because the
 # umbrella stage has to see them, see there.
 tlottieRevision = '31f1b542f8'
-walletEngineRevision = '0fa5d3027de09d5b58bc3a498e7fb5f645b41d7d'
+walletEngineRevision = 'e59e0d89d7ee90c388bf36e3334c5b276f396697'
 stage('tlottie', """
 version: 2
 depends:patches/tlottie.patch
