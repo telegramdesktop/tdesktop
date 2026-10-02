@@ -708,10 +708,16 @@ object_ptr<Ui::RpWidget> LastSeenPrivacyController::setupBelowWidget(
 		_hideReadTime = value;
 	}, content->lifetime());
 
+	auto aboutText = Data::AmPremiumValue(&controller->session()) | rpl::map([=](bool premium) {
+		return premium
+			? tr::lng_edit_lastseen_hide_read_time_about_premium(tr::now)
+			: tr::lng_edit_lastseen_hide_read_time_about(tr::now);
+	});
+	
 	Ui::AddSkip(content);
 	Ui::AddDividerText(
 		content,
-		tr::lng_edit_lastseen_hide_read_time_about());
+		std::move(aboutText));
 	if (!controller->session().premium()) {
 		Ui::AddSkip(content);
 		content->add(object_ptr<Ui::SettingsButton>(
