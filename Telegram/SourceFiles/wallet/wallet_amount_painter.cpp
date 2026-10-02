@@ -106,7 +106,8 @@ QSizeF AmountPainter::size() const {
 void AmountPainter::paint(QPainter &p, const AmountColors &colors) const {
 	// WHY: glyphs are hinted only under an unscaled device transform, and
 	// CoreText never hints while its smoothing draws text heavier than paths.
-	if (!Platform::IsMac()
+	if (_st.hinted
+		&& !Platform::IsMac()
 		&& p.deviceTransform().type() <= QTransform::TxTranslate) {
 		paintText(p, colors);
 		return;

@@ -32,6 +32,8 @@ struct AmountStyle {
 	int additionWidth = 0;
 	int additionSkip = 0;
 	int tickerSkip = 0;
+	// Hinting snaps figure heights, so only amounts once drawn as text opt in.
+	bool hinted = false;
 };
 
 struct AmountColors {

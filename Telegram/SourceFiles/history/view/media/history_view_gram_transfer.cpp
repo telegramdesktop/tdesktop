@@ -605,6 +605,7 @@ private:
 		.big = st::walletCardBalanceMajorLabel.style.font,
 		.small = st::walletCardBalanceMinorLabel.style.font,
 		.tickerSkip = st::walletCardTickerSkip,
+		.hinted = true,
 	};
 }
 
