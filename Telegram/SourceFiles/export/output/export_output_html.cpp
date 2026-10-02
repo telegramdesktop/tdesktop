@@ -5693,7 +5693,7 @@ Result HtmlWriter::start(
 		}
 	}
 
-	if (_settings.onlySinglePeer()) {
+	if (_settings.onlySinglePeer() && !_settings.splitTopics) {
 		return Result::Success();
 	}
 	_summary = fileWithRelativePath(mainFileRelativePath());
@@ -6334,7 +6334,7 @@ Result HtmlWriter::writeDialogsStart(const Data::DialogsInfo &data) {
 
 	if (data.chats.empty() && data.left.empty()) {
 		return Result::Success();
-	} else if (_settings.onlySinglePeer()) {
+	} else if (_settings.onlySinglePeer() && !_settings.splitTopics) {
 		return Result::Success();
 	}
 
@@ -6443,7 +6443,8 @@ Result HtmlWriter::writeDialogSlice(const Data::MessagesSlice &data) {
 Result HtmlWriter::writeEmptySinglePeer() {
 	Expects(_chat != nullptr);
 
-	if (!_settings.onlySinglePeer() || _messagesCount != 0) {
+	if ((!_settings.onlySinglePeer() && !_dialog.isForum)
+		|| _messagesCount != 0) {
 		return Result::Success();
 	}
 	Assert(_chatFileEmpty);
@@ -6458,7 +6459,8 @@ Result HtmlWriter::writeEmptySinglePeer() {
 }
 
 Result HtmlWriter::writeDialogEnd() {
-	Expects(_settings.onlySinglePeer() || _chats != nullptr);
+	Expects((_settings.onlySinglePeer() && !_settings.splitTopics)
+		|| _chats != nullptr);
 	Expects(_chat != nullptr);
 
 	if (const auto result = writeEmptySinglePeer(); !result) {
@@ -6467,7 +6469,7 @@ Result HtmlWriter::writeDialogEnd() {
 
 	if (const auto closed = base::take(_chat)->close(); !closed) {
 		return closed;
-	} else if (_settings.onlySinglePeer()) {
+	} else if (_settings.onlySinglePeer() && !_settings.splitTopics) {
 		return Result::Success();
 	}
 
@@ -6547,12 +6549,17 @@ Result HtmlWriter::writeDialogEnd() {
 		return result;
 	}
 
+	const auto count = CountString(_messagesCount, _dialog.onlyMyMessages);
+	const auto details = (_dialog.isForum
+		&& !_dialog.topicChatName.isEmpty())
+		? ("Topic in " + _dialog.topicChatName + "; " + count)
+		: count;
 	return _chats->writeBlock(_chats->pushListEntry(
 		userpic,
 		ComposeName(userpic, DeletedString(_dialog.type)),
-		CountString(_messagesCount, _dialog.onlyMyMessages),
+		details,
 		TypeString(_dialog.type),
-		(_messagesCount > 0
+		(_messagesCount > 0 || _dialog.isForum
 			? (_dialog.relativePath + "messages.html")
 			: QString())));
 }
@@ -6591,7 +6598,9 @@ Result HtmlWriter::writeDialogOpening(int index) {
 		: (_dialog.name + ' ' + _dialog.lastName);
 	auto block = _chat->pushHeader(
 		name,
-		_settings.onlySinglePeer() ? QString() : _dialogsRelativePath);
+		(_settings.onlySinglePeer() && !_settings.splitTopics)
+			? QString()
+			: _dialogsRelativePath);
 	block.append(_chat->pushDiv("page_body chat_page"));
 	block.append(_chat->pushDiv("history"));
 	if (index > 0) {
@@ -6693,9 +6702,10 @@ Result HtmlWriter::switchToNextChatFile(int index) {
 }
 
 Result HtmlWriter::finish() {
-	Expects(_settings.onlySinglePeer() || _summary != nullptr);
+	Expects((_settings.onlySinglePeer() && !_settings.splitTopics)
+		|| _summary != nullptr);
 
-	if (_settings.onlySinglePeer()) {
+	if (_settings.onlySinglePeer() && !_settings.splitTopics) {
 		return Result::Success();
 	}
 
@@ -6727,7 +6737,8 @@ Result HtmlWriter::copyFile(
 }
 
 QString HtmlWriter::mainFilePath() {
-	return pathWithRelativePath(_settings.onlySinglePeer()
+	return pathWithRelativePath((_settings.onlySinglePeer()
+		&& !_settings.splitTopics)
 		? messagesFile(0)
 		: mainFileRelativePath());
 }

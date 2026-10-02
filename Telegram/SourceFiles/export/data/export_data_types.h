@@ -655,6 +655,7 @@ struct Chat {
 	Utf8String username;
 	uint8 colorIndex = 0;
 	bool isMonoforum = false;
+	bool isForum = false;
 	bool isBroadcast = false;
 	bool isSupergroup = false;
 	bool isMonoforumAdmin = false;
@@ -1368,6 +1369,9 @@ struct DialogInfo {
 	bool onlyMyMessages = false;
 	bool isLeftChannel = false;
 	bool isMonoforum = false;
+	bool isForum = false;
+	int32 topicRootId = 0;
+	Utf8String topicChatName;
 	QString relativePath;
 
 	// Filled when requesting dialog messages.
@@ -1399,6 +1403,23 @@ bool AddMigrateFromSlice(
 	int splitsCount);
 void FinalizeDialogsInfo(DialogsInfo &info, const Settings &settings);
 
+struct ForumTopic {
+	int32 rootId = 0;
+	Utf8String title;
+	int32 topMessageId = 0;
+	TimeId topMessageDate = 0;
+};
+
+struct ForumTopicsSlice {
+	std::vector<ForumTopic> list;
+	TimeId offsetDate = 0;
+	int32 offsetId = 0;
+	int32 offsetTopicId = 0;
+};
+
+ForumTopicsSlice ParseForumTopicsSlice(const MTPmessages_ForumTopics &data);
+DialogInfo DialogInfoFromTopic(const DialogInfo &chat, const ForumTopic &topic);
+
 struct MessagesSlice {
 	std::vector<Message> list;
 	std::map<PeerId, Peer> peers;
@@ -1411,6 +1432,8 @@ MessagesSlice ParseMessagesSlice(
 	const MTPVector<MTPChat> &chats,
 	const QString &mediaFolder);
 MessagesSlice AdjustMigrateMessageIds(MessagesSlice slice);
+MessagesSlice FilterTopicRootSlice(MessagesSlice slice, bool onlyMyMessages);
+MessagesSlice FilterTopicMessagesSlice(MessagesSlice slice, int32 afterId);
 
 bool SingleMessageBefore(
 	const MTPmessages_Messages &data,

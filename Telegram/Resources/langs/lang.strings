@@ -7419,6 +7419,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_export_option_other_about" = "Other types of data not mentioned above (beta).";
 "lng_export_header_chats" = "Chat export settings";
 "lng_export_header_topic" = "Topic export settings";
+"lng_export_choose_topics" = "Choose forum topics";
+"lng_export_all_topics" = "All topics";
+"lng_export_topics_about" = "Each selected topic is saved in a separate folder. All topics includes topics created before the export starts.";
+"lng_export_topics_loading" = "Loading topics…";
+"lng_export_forums_loading" = "Loading forum groups…";
+"lng_export_forums_empty" = "No forum groups in the selected chat categories.";
+"lng_export_topics_failed" = "Could not load the list. Please try again.";
 "lng_export_option_personal_chats" = "Personal chats";
 "lng_export_option_bot_chats" = "Bot chats";
 "lng_export_option_private_groups" = "Private groups";
