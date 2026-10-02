@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/dynamic_image.h"
 #include "ui/painter.h"
 #include "ui/unread_badge_paint.h"
+#include "ui/unread_counter_format.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
 
@@ -850,9 +851,7 @@ void TopPeersStrip::paintUserpic(
 		if (entry.badgeString.isEmpty()) {
 			entry.badgeString = !entry.badge
 				? u" "_q
-				: (entry.badge < 1000)
-				? QString::number(entry.badge)
-				: (QString::number(entry.badge / 1000) + 'K');
+				: FormatUnreadCounterShort(entry.badge);
 		}
 		auto st = Ui::UnreadBadgeStyle();
 		st.selected = selected;
