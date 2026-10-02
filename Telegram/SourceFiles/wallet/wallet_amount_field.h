@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/text/text.h"
 
+namespace Lottie {
+class Icon;
+} // namespace Lottie
+
 namespace Ui {
 class TonAmountInput;
 class VerticalLayout;
@@ -44,5 +48,12 @@ struct AmountFieldArgs {
 	not_null<Ui::VerticalLayout*> container,
 	int topSkip,
 	AmountFieldArgs &&args);
+
+struct AmountDiamond {
+	std::unique_ptr<Lottie::Icon> icon;
+	QRectF global;
+};
+[[nodiscard]] AmountDiamond TakeAmountDiamond(
+	not_null<Ui::TonAmountInput*> field);
 
 } // namespace Wallet

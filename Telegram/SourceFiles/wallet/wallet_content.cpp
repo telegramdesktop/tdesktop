@@ -104,6 +104,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_collectibles.h"
 #include "wallet/wallet_comment.h"
 #include "wallet/wallet_custody.h"
+#include "wallet/wallet_diamond_flight.h"
 #include "wallet/wallet_fiat.h"
 #include "wallet/wallet_key_protection.h"
 #include "wallet/wallet_onramp.h"
@@ -189,7 +190,15 @@ constexpr auto kSendingRowEntranceDuration = crl::time(370);
 constexpr auto kSendingRowEntrancePeak = crl::time(180);
 constexpr auto kSendingRowEntranceDamping = 0.57;
 constexpr auto kSendingRowEntranceScale = 0.93;
-constexpr auto kSendingRowDiamondLoop = crl::time(3000);
+constexpr auto kSendingRowFlightDuration = crl::time(480);
+constexpr auto kSendingRowBumpPress = crl::time(115);
+constexpr auto kSendingRowBumpRelease = crl::time(220);
+constexpr auto kSendingRowBumpRebound = 0.35;
+constexpr auto kSendingRowBumpTaper = crl::time(460);
+constexpr auto kSendingRowBumpDuration = crl::time(560);
+constexpr auto kSendingRowBumpDrop = 0.04;
+constexpr auto kSendingRowBumpShrink = 0.012;
+constexpr auto kSendingRowBumpSwell = 0.15;
 
 class BalanceInk;
 class Card;
@@ -287,6 +296,10 @@ public:
 		std::shared_ptr<Main::SessionShow> show);
 	~Content();
 
+	void flySendDiamond(
+		const std::string &operationId,
+		not_null<Ui::TonAmountInput*> amount);
+
 protected:
 	void focusInEvent(QFocusEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
@@ -310,7 +323,7 @@ private:
 	void updatePinned();
 	void updateVisibleArea();
 	void checkLoadMore();
-	void revealSendingRow();
+	bool revealSendingRow();
 	[[nodiscard]] int pinnedMax() const;
 	[[nodiscard]] int pinnedMin() const;
 	[[nodiscard]] QRect cardRest() const;
@@ -343,6 +356,7 @@ private:
 	Card *_card = nullptr;
 	Ui::AbstractButton *_cardButton = nullptr;
 	std::unique_ptr<SendingRow> _sendingRow;
+	std::unique_ptr<DiamondFlight> _diamondFlight;
 	QRect _paintedInk;
 	int _reserve = 0;
 	int _paintedHeight = -1;
@@ -1672,6 +1686,13 @@ public:
 		HistoryRowContent content);
 
 	void setContent(HistoryRowContent content);
+	void awaitDiamond();
+	void landDiamond(std::unique_ptr<Lottie::Icon> icon, crl::time loopStarted);
+	void cancelDiamondAwait();
+	void scheduleBump(crl::time at);
+
+	[[nodiscard]] bool surfaceShown() const;
+	[[nodiscard]] QRectF diamondTarget(crl::time now) const;
 
 	QString accessibilityName() override;
 
@@ -1681,6 +1702,7 @@ protected:
 
 private:
 	[[nodiscard]] SendingRowLayout layout() const;
+	[[nodiscard]] QTransform surfaceTransform(crl::time now) const;
 	void paintSurface();
 	void paintAvatar(Painter &p, const SendingRowLayout &layout);
 	void paintTexts(Painter &p, const SendingRowLayout &layout);
@@ -1700,8 +1722,11 @@ private:
 	Ui::Animations::Basic _animation;
 	base::unique_qptr<Ui::RpWidget> _surface;
 	crl::time _started = 0;
+	crl::time _diamondStarted = 0;
+	crl::time _bumpAt = 0;
 	int _digitsHeight = 0;
 	bool _inView = true;
+	bool _diamondAway = false;
 
 };
 
@@ -1720,8 +1745,7 @@ private:
 }
 
 [[nodiscard]] int SendingRowDiamondCanvas() {
-	return int(base::SafeRound(st::walletSendingRowDiamondHeight
-		/ (kGramDiamondBottom - kGramDiamondTop)));
+	return GramDiamondCanvas(st::walletSendingRowAmountFont);
 }
 
 [[nodiscard]] int SendingRowDiamondLeft(int width) {
@@ -1746,6 +1770,28 @@ private:
 		* (std::cos(wd * t) + (z * wn / wd) * std::sin(wd * t));
 }
 
+[[nodiscard]] float64 SendingRowBump(crl::time elapsed) {
+	if (elapsed < 0 || elapsed >= kSendingRowBumpDuration) {
+		return 0.;
+	}
+	const auto t = float64(elapsed);
+	if (elapsed <= kSendingRowBumpPress) {
+		return std::sin(M_PI / 2. * t / kSendingRowBumpPress);
+	}
+	const auto u = t - kSendingRowBumpPress;
+	const auto w = M_PI / kSendingRowBumpRelease;
+	const auto sigma = -std::log(kSendingRowBumpRebound)
+		/ kSendingRowBumpRelease;
+	const auto bump = std::exp(-sigma * u)
+		* (std::cos(w * u) + (sigma / w) * std::sin(w * u));
+	if (elapsed <= kSendingRowBumpTaper) {
+		return bump;
+	}
+	const auto x = (t - kSendingRowBumpTaper)
+		/ (kSendingRowBumpDuration - kSendingRowBumpTaper);
+	return bump * (1. - x * x * (3. - 2. * x));
+}
+
 [[nodiscard]] ClockStyle SendingRowClockStyle() {
 	return {
 		.size = st::walletSendingRowClockSize,
@@ -1753,10 +1799,6 @@ private:
 		.minuteHand = st::walletSendingRowClockMinuteHand,
 		.hourHand = st::walletSendingRowClockHourHand,
 	};
-}
-
-[[nodiscard]] bool SendingRowDiamondLoops() {
-	return !anim::Disabled() && !On(PowerSaving::kStickersChat);
 }
 
 // WHY: the surface paints outside the row, so it lives in `layer`, an
@@ -1855,6 +1897,44 @@ void SendingHistoryRow::setContent(HistoryRowContent content) {
 	_surface->update();
 }
 
+void SendingHistoryRow::awaitDiamond() {
+	_diamondAway = true;
+	_surface->update();
+}
+
+void SendingHistoryRow::landDiamond(
+		std::unique_ptr<Lottie::Icon> icon,
+		crl::time loopStarted) {
+	if (icon) {
+		_diamond = std::move(icon);
+		_diamondStarted = loopStarted;
+	}
+	_diamondAway = false;
+	_bumpAt = anim::Disabled() ? 0 : crl::now();
+	startAnimation();
+	_surface->update();
+}
+
+void SendingHistoryRow::cancelDiamondAwait() {
+	_diamondAway = false;
+	_surface->update();
+}
+
+void SendingHistoryRow::scheduleBump(crl::time at) {
+	_bumpAt = anim::Disabled() ? 0 : at;
+	startAnimation();
+}
+
+bool SendingHistoryRow::surfaceShown() const {
+	return _surface && !_surface->isHidden();
+}
+
+QRectF SendingHistoryRow::diamondTarget(crl::time now) const {
+	const auto canvas = SendingRowDiamondCanvas();
+	return surfaceTransform(now).mapRect(
+		QRectF(layout().diamond, QSizeF(canvas, canvas)));
+}
+
 int SendingHistoryRow::resizeGetHeight(int newWidth) {
 	_amount.setAvailableWidth(int(SendingRowAmountRight(newWidth))
 		- st::walletRowPadding.left()
@@ -1947,6 +2027,37 @@ SendingRowLayout SendingHistoryRow::layout() const {
 	return result;
 }
 
+QTransform SendingHistoryRow::surfaceTransform(crl::time now) const {
+	auto result = QTransform();
+	if (anim::Disabled()) {
+		return result;
+	}
+	const auto pill = QRectF(layout().pill);
+	const auto center = pill.center();
+	const auto elapsed = _started ? (now - _started) : crl::time(0);
+	if (elapsed < kSendingRowEntranceDuration) {
+		const auto progress = SendingRowEntrance(elapsed);
+		const auto scale = kSendingRowEntranceScale
+			+ (1. - kSendingRowEntranceScale) * progress;
+		const auto offset = st::walletSendingRowEntranceShift
+			* (1. - progress);
+		result.translate(center.x(), center.y() + offset);
+		result.scale(scale, scale);
+		result.translate(-center.x(), -center.y());
+	}
+	const auto bump = _bumpAt ? SendingRowBump(now - _bumpAt) : 0.;
+	if (bump != 0.) {
+		const auto scale = 1. - kSendingRowBumpShrink * bump;
+		const auto drop = (kSendingRowBumpDrop - kSendingRowBumpShrink / 2.)
+			* pill.height()
+			* bump;
+		result.translate(center.x(), center.y() + drop);
+		result.scale(scale, scale);
+		result.translate(-center.x(), -center.y());
+	}
+	return result;
+}
+
 void SendingHistoryRow::paintSurface() {
 	auto p = Painter(_surface.get());
 	const auto now = crl::now();
@@ -1954,25 +2065,18 @@ void SendingHistoryRow::paintSurface() {
 		_started = now;
 		_glare.death = now + kSendingRowEntranceDuration;
 	}
+	if (!_diamondStarted) {
+		_diamondStarted = _started;
+	}
 	startAnimation();
 	auto hq = PainterHighQualityEnabler(p);
 	const auto layout = this->layout();
 	p.translate(
 		0,
 		st::walletSendingRowEntranceShift + _shadow.extend().top());
+	p.setTransform(surfaceTransform(now), true);
 	const auto disabled = anim::Disabled();
 	const auto elapsed = now - _started;
-	if (!disabled && elapsed < kSendingRowEntranceDuration) {
-		const auto progress = SendingRowEntrance(elapsed);
-		const auto scale = kSendingRowEntranceScale
-			+ (1. - kSendingRowEntranceScale) * progress;
-		const auto offset = st::walletSendingRowEntranceShift
-			* (1. - progress);
-		const auto center = QRectF(layout.pill).center();
-		p.translate(center + QPointF(0., offset));
-		p.scale(scale, scale);
-		p.translate(-center);
-	}
 
 	Dialogs::PaintPillBackground(p, _shadow, layout.pill, layout.radius);
 	const auto accent = st::windowActiveTextFg->c;
@@ -2063,21 +2167,23 @@ void SendingHistoryRow::paintDiamond(
 		QPainter &p,
 		QPoint position,
 		crl::time now) {
-	if (!_diamond || !_diamond->valid()) {
+	if (_diamondAway || !_diamond || !_diamond->valid()) {
 		return;
 	}
-	if (SendingRowDiamondLoops()) {
-		const auto frames = _diamond->framesCount();
-		const auto index = std::min(
-			int(((now - _started) % kSendingRowDiamondLoop)
-				* frames
-				/ kSendingRowDiamondLoop),
-			frames - 1);
-		if (index != _diamond->frameIndex()) {
-			_diamond->jumpTo(index, nullptr);
-		}
-	}
-	_diamond->paint(p, position.x(), position.y());
+	AdvanceSendingDiamond(_diamond.get(), _diamondStarted, now);
+	const auto canvas = SendingRowDiamondCanvas();
+	const auto bump = (_bumpAt && !anim::Disabled())
+		? SendingRowBump(now - _bumpAt)
+		: 0.;
+	const auto swell = 1. + kSendingRowBumpSwell * std::max(bump, 0.);
+	const auto centre = QPointF(position) + QPointF(
+		canvas * (kGramDiamondLeft + kGramDiamondRight) / 2.,
+		canvas * (kGramDiamondTop + kGramDiamondBottom) / 2.);
+	const auto side = canvas * swell;
+	const auto target = QRectF(
+		centre + (QPointF(position) - centre) * swell,
+		QSizeF(side, side));
+	p.drawImage(target, _diamond->frame(QSize(canvas, canvas), nullptr).image);
 }
 
 void SendingHistoryRow::startAnimation() {
@@ -6955,6 +7061,9 @@ void WalletSendBox(
 		if (panel && box->window() == panel->window()) {
 			state->handedOver = true;
 			wallet->setWindowSend(started.operationId);
+			if (const auto content = dynamic_cast<Content*>(panel->inner())) {
+				content->flySendDiamond(started.operationId, amountField);
+			}
 			discardOrigin();
 			show->hideLayer();
 			return;
@@ -13228,15 +13337,15 @@ void Content::updateRegions() {
 	updateVisibleArea();
 }
 
-void Content::revealSendingRow() {
+bool Content::revealSendingRow() {
 	if (!_sendingRow) {
-		return;
+		return false;
 	}
 	auto &wallet = _show->session().wallet();
 	if (wallet.collectiblesTab()) {
 		wallet.setCollectiblesTab(false);
 		_scroll->scrollToY(0);
-		return;
+		return false;
 	}
 	const auto slot = _sendingRow->slot;
 	const auto top = Ui::MapFrom(_container, slot, QPoint()).y();
@@ -13247,6 +13356,77 @@ void Content::revealSendingRow() {
 	} else if (bottom > scrollTop + _scroll->height()) {
 		_scroll->scrollToY(bottom - _scroll->height());
 	}
+	return true;
+}
+
+void Content::flySendDiamond(
+		const std::string &operationId,
+		not_null<Ui::TonAmountInput*> amount) {
+	if (!_sendingRow
+		|| _sendingRow->operationId != operationId
+		|| !_sendingRow->look
+		|| anim::Disabled()) {
+		return;
+	}
+	const auto look = _sendingRow->look;
+	const auto body = dynamic_cast<Ui::RpWidget*>(parentWidget());
+	const auto now = crl::now();
+	const auto revealed = body
+		&& revealSendingRow()
+		&& look->surfaceShown();
+	const auto slot = look->diamondTarget(now).translated(
+		QPointF(Ui::MapFrom(_scroll.data(), look, QPoint())));
+	const auto occluded = _reserve
+		- std::clamp(_scroll->scrollTop(), 0, _reserve);
+	auto diamond = (revealed
+		&& slot.top() >= occluded
+		&& slot.bottom() <= _scroll->height())
+		? TakeAmountDiamond(amount)
+		: AmountDiamond();
+	if (!diamond.icon) {
+		look->scheduleBump(now + kSendingRowFlightDuration);
+		return;
+	}
+	look->awaitDiamond();
+	struct State {
+		DiamondFlight *flight = nullptr;
+		bool landed = false;
+	};
+	const auto state = std::make_shared<State>();
+	const auto weak = base::make_weak(look);
+	const auto loopStarted = SendingDiamondLoopStart(diamond.icon.get(), now);
+	_diamondFlight = std::make_unique<DiamondFlight>(DiamondFlightArgs{
+		.body = body,
+		.icon = std::move(diamond.icon),
+		.from = diamond.global,
+		.loopStarted = loopStarted,
+		.duration = kSendingRowFlightDuration,
+		.target = [=](crl::time at) -> std::optional<QRectF> {
+			const auto row = weak.get();
+			if (!row || !row->surfaceShown()) {
+				return std::nullopt;
+			}
+			return row->diamondTarget(at).translated(
+				QPointF(Ui::MapFrom(body, row, QPoint())));
+		},
+		.landed = [=](std::unique_ptr<Lottie::Icon> icon, crl::time loop) {
+			if (const auto row = weak.get()) {
+				state->landed = true;
+				row->landDiamond(std::move(icon), loop);
+			}
+		},
+		.finished = [=] {
+			if (const auto row = state->landed ? nullptr : weak.get()) {
+				row->cancelDiamondAwait();
+			}
+			crl::on_main(this, [=] {
+				if (_diamondFlight.get() == state->flight) {
+					_diamondFlight = nullptr;
+				}
+			});
+		},
+	});
+	state->flight = _diamondFlight.get();
 }
 
 void Content::updateVisibleArea() {

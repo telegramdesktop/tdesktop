@@ -189,7 +189,6 @@ walletRowsHintHeight: 44px;
 walletSendingRowOutset: 7px;
 walletSendingRowAmountFont: font(19px semibold);
 walletSendingRowTextMinWidth: 96px;
-walletSendingRowDiamondHeight: 25px;
 walletSendingRowDiamondSkip: 8px;
 walletSendingRowClockSize: 14px;
 walletSendingRowClockStroke: 1px;

@@ -276,6 +276,7 @@ public:
 	AmountRow(QWidget *parent, AmountFieldArgs &args);
 
 	[[nodiscard]] not_null<Ui::TonAmountInput*> field() const;
+	[[nodiscard]] AmountDiamond takeDiamond();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -309,6 +310,7 @@ private:
 	[[nodiscard]] bool contentAnimating(crl::time now) const;
 	[[nodiscard]] RowGeometry animatedGeometry(crl::time now) const;
 	[[nodiscard]] QRect additionRect() const;
+	[[nodiscard]] std::optional<QRectF> diamondCanvas(crl::time now) const;
 	[[nodiscard]] QRect caretRect() const;
 	[[nodiscard]] QRect caretRect(
 		float64 k,
@@ -1670,7 +1672,8 @@ bool AmountRow::contentAnimating(crl::time now) const {
 }
 
 void AmountRow::playDiamond() {
-	if (_diamond->animating()
+	if (!_diamond
+		|| _diamond->animating()
 		|| !_diamond->valid()
 		|| anim::Disabled()
 		|| PowerSaving::On(PowerSaving::kStickersChat)) {
@@ -1695,6 +1698,57 @@ QRect AmountRow::additionRect() const {
 		_top + k * y,
 		k * _diamondCanvas,
 		k * _diamondCanvas).toAlignedRect();
+}
+
+std::optional<QRectF> AmountRow::diamondCanvas(crl::time now) const {
+	if (_fiat || !_diamond || !_diamond->valid()) {
+		return std::nullopt;
+	}
+	const auto diamond = ranges::find(
+		_additions,
+		LayerKind::Diamond,
+		&Layer::kind);
+	if (diamond == end(_additions)
+		|| diamond->v.to != 1.
+		|| diamond->v.value(now) < 1.) {
+		return std::nullopt;
+	}
+	const auto animated = _animation.animating();
+	const auto geometry = animated ? animatedGeometry(now) : RowGeometry();
+	const auto k = animated ? geometry.k : _painter.scale();
+	const auto left = animated ? geometry.left : _left;
+	const auto top = animated ? geometry.top : _top;
+	const auto allotted = animated
+		? geometry.additions
+		: float64(_painter.wholeLeft());
+	const auto full = diamond->width + st::walletDetailsAmountMinorSkip;
+	const auto scale = (allotted < full) ? (allotted / full) : 1.;
+	if (scale <= 0.) {
+		return std::nullopt;
+	}
+	const auto baseline = float64(_painter.baseline());
+	const auto middle = baseline - _figureBig / 2.;
+	const auto x = -DiamondPart(_diamondCanvas, kGramDiamondLeft);
+	const auto y = baseline - DiamondPart(_diamondCanvas, kGramDiamondBottom);
+	return QRectF(
+		left + k * scale * x,
+		top + k * (middle + scale * (y - middle)),
+		k * scale * _diamondCanvas,
+		k * scale * _diamondCanvas);
+}
+
+AmountDiamond AmountRow::takeDiamond() {
+	const auto canvas = diamondCanvas(crl::now());
+	if (!canvas) {
+		return {};
+	}
+	_diamond->jumpTo(_diamond->frameIndex(), nullptr);
+	auto result = AmountDiamond{
+		.icon = std::move(_diamond),
+		.global = canvas->translated(QPointF(mapToGlobal(QPoint()))),
+	};
+	update();
+	return result;
 }
 
 RowGeometry AmountRow::animatedGeometry(crl::time now) const {
@@ -1894,10 +1948,12 @@ void AmountRow::paintAddition(
 		p.scale(scale, scale);
 		p.translate(0., -middle);
 		if (layer.kind == LayerKind::Diamond) {
-			_diamond->paint(
-				p,
-				-DiamondPart(_diamondCanvas, kGramDiamondLeft),
-				baseline - DiamondPart(_diamondCanvas, kGramDiamondBottom));
+			if (_diamond) {
+				_diamond->paint(
+					p,
+					-DiamondPart(_diamondCanvas, kGramDiamondLeft),
+					baseline - DiamondPart(_diamondCanvas, kGramDiamondBottom));
+			}
 		} else {
 			p.setFont(st::walletSendUserAmountLabel.style.font);
 			p.setPen(LayerColor(layer));
@@ -2384,6 +2440,13 @@ not_null<Ui::TonAmountInput*> AddAmountField(
 		wrap->resize(width, pill->y() + pill->height());
 	}, wrap->lifetime());
 	return row->field();
+}
+
+AmountDiamond TakeAmountDiamond(not_null<Ui::TonAmountInput*> field) {
+	if (const auto row = dynamic_cast<AmountRow*>(field->parentWidget())) {
+		return row->takeDiamond();
+	}
+	return {};
 }
 
 } // namespace Wallet

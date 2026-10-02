@@ -2195,6 +2195,8 @@ PRIVATE
     wallet/wallet_content.h
     wallet/wallet_custody.cpp
     wallet/wallet_custody.h
+    wallet/wallet_diamond_flight.cpp
+    wallet/wallet_diamond_flight.h
     wallet/wallet_engine.cpp
     wallet/wallet_engine.h
     wallet/wallet_fiat.cpp
