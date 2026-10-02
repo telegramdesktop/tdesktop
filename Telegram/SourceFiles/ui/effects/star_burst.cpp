@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/drifting_particles.h"
 
 #include <QtCore/QFile>
+#include <QtCore/QtMath>
 
 namespace Ui {
 namespace {
