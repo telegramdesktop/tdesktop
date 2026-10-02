@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 //#include "styles/style_wallet.h"
 
 #include <QtCore/QLocale>
+#include <QtCore/QTextBoundaryFinder>
+#include <QtGui/QGuiApplication>
+#include <QtGui/QInputMethod>
+#include <QtGui/QInputMethodEvent>
 
 namespace Ui {
 namespace {
@@ -361,6 +365,23 @@ rpl::producer<> TonAmountInput::submits() const {
 	return _submits.events();
 }
 
+const QString &TonAmountInput::composition() const {
+	return _composition;
+}
+
+rpl::producer<> TonAmountInput::compositionChanges() const {
+	return _compositionChanges.events();
+}
+
+void TonAmountInput::commitComposition() {
+	if (_composition.isEmpty()) {
+		return;
+	} else if (hasFocus()) {
+		QGuiApplication::inputMethod()->commit();
+	}
+	setComposition(QString());
+}
+
 void TonAmountInput::setCaretRectCallback(Fn<QRect()> callback) {
 	_caretRect = std::move(callback);
 }
@@ -375,6 +396,50 @@ QVariant TonAmountInput::inputMethodQuery(Qt::InputMethodQuery query) const {
 }
 
 void TonAmountInput::paintEvent(QPaintEvent *e) {
+}
+
+void TonAmountInput::inputMethodEvent(QInputMethodEvent *e) {
+	const auto commit = e->commitString();
+	if (commit.isEmpty()
+		|| e->replacementStart() != 0
+		|| e->replacementLength() != 0) {
+		setComposition(e->preeditString());
+		MaskedInputField::inputMethodEvent(e);
+		return;
+	}
+	// WHY: a commit enters as the same characters typed one by one, so it
+	// gets typing's correction, value, label and edit animation instead of
+	// one multi-digit edit that the row would change at once.
+	setComposition(QString());
+	auto finish = QInputMethodEvent();
+	MaskedInputField::inputMethodEvent(&finish);
+	insertTyped(commit);
+	const auto preedit = e->preeditString();
+	if (!preedit.isEmpty()) {
+		setComposition(preedit);
+		auto rest = QInputMethodEvent(preedit, e->attributes());
+		MaskedInputField::inputMethodEvent(&rest);
+	}
+}
+
+void TonAmountInput::setComposition(const QString &text) {
+	if (_composition != text) {
+		_composition = text;
+		_compositionChanges.fire({});
+	}
+}
+
+void TonAmountInput::insertTyped(const QString &text) {
+	auto finder = QTextBoundaryFinder(QTextBoundaryFinder::Grapheme, text);
+	auto from = 0;
+	while (from < text.size()) {
+		const auto till = finder.toNextBoundary();
+		if (till <= from) {
+			break;
+		}
+		insert(text.mid(from, till - from));
+		from = till;
+	}
 }
 
 void TonAmountInput::correctValue(

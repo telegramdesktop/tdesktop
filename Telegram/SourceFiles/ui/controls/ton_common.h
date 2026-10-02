@@ -90,11 +90,16 @@ public:
 	}
 
 	void setCaretRectCallback(Fn<QRect()> callback);
+	// The input method's preedit, kept outside the text until a commit.
+	[[nodiscard]] const QString &composition() const;
+	[[nodiscard]] rpl::producer<> compositionChanges() const;
+	void commitComposition();
 
 	QVariant inputMethodQuery(Qt::InputMethodQuery query) const override;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
+	void inputMethodEvent(QInputMethodEvent *e) override;
 	void correctValue(
 		const QString &was,
 		int wasCursor,
@@ -102,11 +107,16 @@ protected:
 		int &nowCursor) override;
 
 private:
+	void setComposition(const QString &text);
+	void insertTyped(const QString &text);
+
 	const Fn<int()> _fractionDigits;
 	const Fn<QString()> _separator;
 	Fn<QRect()> _caretRect;
+	QString _composition;
 	rpl::event_stream<> _changes;
 	rpl::event_stream<> _submits;
+	rpl::event_stream<> _compositionChanges;
 
 };
 

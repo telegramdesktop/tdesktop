@@ -143,6 +143,11 @@ struct InkRange {
 	float64 right = 0.;
 };
 
+struct FlowGap {
+	int position = -1;
+	float64 width = 0.;
+};
+
 struct Layer {
 	LayerKind kind = LayerKind::Ticker;
 	QString text;
@@ -165,6 +170,7 @@ struct RowGeometry {
 	float64 top = 0.;
 	float64 additions = 0.;
 	float64 flow = 0.;
+	float64 composition = 0.;
 	float64 tickerSkip = 0.;
 };
 
@@ -200,7 +206,8 @@ public:
 		QPointF origin,
 		float64 baseline,
 		const QColor &color,
-		crl::time now) const;
+		crl::time now,
+		FlowGap gap = FlowGap()) const;
 
 private:
 	struct Shape {
@@ -244,6 +251,7 @@ private:
 	[[nodiscard]] std::vector<float64> lefts(crl::time now) const;
 	[[nodiscard]] std::vector<float64> restLefts() const;
 	[[nodiscard]] int slotIndex(uint32 id) const;
+	[[nodiscard]] int gapIndex(int position) const;
 	[[nodiscard]] float64 separatorX(
 		const Separator &separator,
 		const std::vector<float64> &lefts,
@@ -303,11 +311,13 @@ private:
 	void restartBlink();
 	void paintAddition(QPainter &p, float64 allotted, crl::time now) const;
 	void paintTickers(QPainter &p, float64 left, crl::time now) const;
+	void paintComposition(QPainter &p, float64 left, float64 baseline) const;
 	void paintAnimated(QPainter &p, crl::time now) const;
 	void select(int anchor, int position);
 
 	[[nodiscard]] bool animationCallback(crl::time now);
 	[[nodiscard]] bool contentAnimating(crl::time now) const;
+	[[nodiscard]] bool flowPainted() const;
 	[[nodiscard]] RowGeometry animatedGeometry(crl::time now) const;
 	[[nodiscard]] QRect additionRect() const;
 	[[nodiscard]] std::optional<QRectF> diamondCanvas(crl::time now) const;
@@ -317,7 +327,12 @@ private:
 		float64 left,
 		float64 top,
 		float64 x) const;
+	[[nodiscard]] QRect flowCaretRect(
+		const RowGeometry &geometry,
+		crl::time now) const;
 	[[nodiscard]] int caretPosition() const;
+	[[nodiscard]] bool caretInFraction() const;
+	[[nodiscard]] const style::font &compositionFont() const;
 	[[nodiscard]] std::array<QRectF, 2> selectionRects() const;
 	[[nodiscard]] int positionAt(int x) const;
 	[[nodiscard]] bool inDigitsZone(int x) const;
@@ -1230,16 +1245,21 @@ int GlyphFlow::slotIndex(uint32 id) const {
 
 float64 GlyphFlow::caretX(int position, crl::time now) const {
 	const auto lefts = this->lefts(now);
-	auto result = 0.;
+	const auto index = gapIndex(position);
+	return (index < int(lefts.size())) ? lefts[index] : width(now);
+}
+
+int GlyphFlow::gapIndex(int position) const {
 	auto index = 0;
+	auto result = 0;
 	for (auto i = 0; i != int(_slots.size()); ++i) {
 		const auto &slot = _slots[i];
 		if (slot.dying || slot.kind == GlyphKind::Group) {
 			continue;
 		} else if (index++ == position) {
-			return lefts[i];
+			return i;
 		}
-		result = lefts[i] + slot.width.value(now) * slot.presence.value(now);
+		result = i + 1;
 	}
 	return result;
 }
@@ -1382,8 +1402,14 @@ void GlyphFlow::paint(
 		QPointF origin,
 		float64 baseline,
 		const QColor &color,
-		crl::time now) const {
-	const auto lefts = this->lefts(now);
+		crl::time now,
+		FlowGap gap) const {
+	auto lefts = this->lefts(now);
+	if (gap.width > 0.) {
+		for (auto i = gapIndex(gap.position); i < int(lefts.size()); ++i) {
+			lefts[i] += gap.width;
+		}
+	}
 	for (auto i = 0; i != int(_slots.size()); ++i) {
 		const auto &slot = _slots[i];
 		if (slot.kind == GlyphKind::Group) {
@@ -1497,6 +1523,7 @@ AmountRow::AmountRow(QWidget *parent, AmountFieldArgs &args)
 	};
 	connect(_field, &QLineEdit::cursorPositionChanged, this, moved);
 	connect(_field, &QLineEdit::selectionChanged, this, moved);
+	_field->compositionChanges() | rpl::on_next(moved, lifetime());
 	connect(_field, &Ui::MaskedInputField::focused, this, [=] {
 		restartBlink();
 	});
@@ -1671,6 +1698,10 @@ bool AmountRow::contentAnimating(crl::time now) const {
 		|| ranges::any_of(_tickers, running);
 }
 
+bool AmountRow::flowPainted() const {
+	return _animation.animating() || !_field->composition().isEmpty();
+}
+
 void AmountRow::playDiamond() {
 	if (!_diamond
 		|| _diamond->animating()
@@ -1686,7 +1717,7 @@ void AmountRow::playDiamond() {
 }
 
 QRect AmountRow::additionRect() const {
-	if (_animation.animating()) {
+	if (flowPainted()) {
 		return rect();
 	}
 	const auto k = _painter.scale();
@@ -1713,7 +1744,7 @@ std::optional<QRectF> AmountRow::diamondCanvas(crl::time now) const {
 		|| diamond->v.value(now) < 1.) {
 		return std::nullopt;
 	}
-	const auto animated = _animation.animating();
+	const auto animated = flowPainted();
 	const auto geometry = animated ? animatedGeometry(now) : RowGeometry();
 	const auto k = animated ? geometry.k : _painter.scale();
 	const auto left = animated ? geometry.left : _left;
@@ -1753,7 +1784,11 @@ AmountDiamond AmountRow::takeDiamond() {
 
 RowGeometry AmountRow::animatedGeometry(crl::time now) const {
 	const auto gap = float64(st::walletDetailsAmountMinorSkip);
-	auto result = RowGeometry{ .flow = _flow.width(now) };
+	auto result = RowGeometry{
+		.flow = _flow.width(now),
+		.composition = compositionFont()->metrics().horizontalAdvance(
+			_field->composition()),
+	};
 	for (const auto &layer : _additions) {
 		if (layer.width > 0.) {
 			result.additions += layer.v.value(now) * (layer.width + gap);
@@ -1765,7 +1800,10 @@ RowGeometry AmountRow::animatedGeometry(crl::time now) const {
 		result.tickerSkip += v * gap;
 		tail += v * (gap + layer.width);
 	}
-	const auto natural = result.additions + result.flow + tail;
+	const auto natural = result.additions
+		+ result.flow
+		+ result.composition
+		+ tail;
 	const auto available = width();
 	result.k = (available > 0 && natural > available)
 		? (available / natural)
@@ -1814,9 +1852,24 @@ int AmountRow::caretPosition() const {
 		std::max(int(_layout.caret.size()) - 1, 0));
 }
 
+bool AmountRow::caretInFraction() const {
+	return (_layout.separatorAt >= 0)
+		&& (caretPosition() > _layout.separatorAt);
+}
+
+const style::font &AmountRow::compositionFont() const {
+	return caretInFraction()
+		? st::walletSendUserTickerLabel.style.font
+		: st::walletSendUserAmountField.style.font;
+}
+
 QRect AmountRow::caretRect() const {
 	if (_layout.caret.empty()) {
 		return QRect();
+	}
+	if (!_field->composition().isEmpty()) {
+		const auto now = crl::now();
+		return flowCaretRect(animatedGeometry(now), now);
 	}
 	return caretRect(
 		_painter.scale(),
@@ -1830,10 +1883,7 @@ QRect AmountRow::caretRect(
 		float64 left,
 		float64 top,
 		float64 x) const {
-	const auto position = caretPosition();
-	const auto whole = (_layout.separatorAt < 0)
-		|| (position <= _layout.separatorAt);
-	const auto figure = whole ? _figureBig : _figureSmall;
+	const auto figure = caretInFraction() ? _figureSmall : _figureBig;
 	const auto baseline = _painter.baseline();
 	const auto from = base::SafeRound(left + k * x);
 	const auto upper = base::SafeRound(top + k * (baseline - figure));
@@ -1845,6 +1895,18 @@ QRect AmountRow::caretRect(
 			_field),
 		1);
 	return QRect(int(from), int(upper), width, int(lower - upper));
+}
+
+QRect AmountRow::flowCaretRect(
+		const RowGeometry &geometry,
+		crl::time now) const {
+	return caretRect(
+		geometry.k,
+		geometry.left,
+		geometry.top,
+		(geometry.additions
+			+ _flow.caretX(caretPosition(), now)
+			+ geometry.composition));
 }
 
 std::array<QRectF, 2> AmountRow::selectionRects() const {
@@ -1994,6 +2056,19 @@ void AmountRow::paintTickers(
 	}
 }
 
+void AmountRow::paintComposition(
+		QPainter &p,
+		float64 left,
+		float64 baseline) const {
+	auto path = QPainterPath();
+	path.addText(
+		left,
+		baseline,
+		compositionFont()->underline()->f,
+		_field->composition());
+	p.fillPath(path, st::walletSendUserAmountField.textFg->c);
+}
+
 void AmountRow::paintAnimated(QPainter &p, crl::time now) const {
 	const auto geometry = animatedGeometry(now);
 	const auto baseline = float64(_painter.baseline());
@@ -2001,19 +2076,30 @@ void AmountRow::paintAnimated(QPainter &p, crl::time now) const {
 	p.translate(geometry.left, geometry.top);
 	p.scale(geometry.k, geometry.k);
 	paintAddition(p, geometry.additions, now);
-	_flow.paint(p, QPointF(geometry.additions, 0.), baseline, fg->c, now);
+	const auto position = caretPosition();
+	_flow.paint(
+		p,
+		QPointF(geometry.additions, 0.),
+		baseline,
+		fg->c,
+		now,
+		{ .position = position, .width = geometry.composition });
+	if (geometry.composition > 0.) {
+		paintComposition(
+			p,
+			geometry.additions + _flow.caretX(position, now),
+			baseline);
+	}
 	paintTickers(
 		p,
-		geometry.additions + geometry.flow + geometry.tickerSkip,
+		(geometry.additions
+			+ geometry.flow
+			+ geometry.composition
+			+ geometry.tickerSkip),
 		now);
 	p.resetTransform();
 	if (_caretShown && _field->hasFocus()) {
-		const auto caret = caretRect(
-			geometry.k,
-			geometry.left,
-			geometry.top,
-			geometry.additions + _flow.caretX(caretPosition(), now));
-		p.fillRect(caret, fg);
+		p.fillRect(flowCaretRect(geometry, now), fg);
 	}
 }
 
@@ -2021,7 +2107,7 @@ void AmountRow::paintEvent(QPaintEvent *e) {
 	auto p = Painter(this);
 	auto hq = PainterHighQualityEnabler(p);
 	const auto now = crl::now();
-	if (_animation.animating()) {
+	if (flowPainted()) {
 		paintAnimated(p, now);
 		return;
 	}
@@ -2062,6 +2148,7 @@ void AmountRow::mousePressEvent(QMouseEvent *e) {
 		return;
 	}
 	_field->setFocusFast();
+	_field->commitComposition();
 	const auto x = e->pos().x();
 	if (!inDigitsZone(x)) {
 		return;
@@ -2101,6 +2188,7 @@ void AmountRow::mouseDoubleClickEvent(QMouseEvent *e) {
 		return;
 	}
 	_field->setFocusFast();
+	_field->commitComposition();
 	_selecting = false;
 	if (inDigitsZone(e->pos().x())) {
 		_field->selectAll();
