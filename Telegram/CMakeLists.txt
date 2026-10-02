@@ -2079,6 +2079,8 @@ PRIVATE
     test/test_transfer.h
     test/test_via_window.cpp
     test/test_via_window.h
+    test/test_wallet_intercept.cpp
+    test/test_wallet_intercept.h
     test/test_wallet_ready.cpp
     test/test_wallet_ready.h
     test/test_web_cache.cpp
