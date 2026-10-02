@@ -2050,7 +2050,8 @@ void GenericCreditsEntryBody(
 		if (!uniqueGift) {
 			return;
 		}
-		const auto address = !uniqueGift->giftAddress.isEmpty()
+		const auto nft = !uniqueGift->giftAddress.isEmpty();
+		const auto address = nft
 			? uniqueGift->giftAddress
 			: uniqueGift->ownerAddress;
 		if (address.isEmpty()) {
@@ -2069,7 +2070,7 @@ void GenericCreditsEntryBody(
 				st::creditsBoxAboutDivider),
 			style::al_top);
 		label->setClickHandlerFilter([=](const auto &...) {
-			UrlClickHandler::Open(TonAddressUrl(session, address));
+			UrlClickHandler::Open(TonAddressUrl(session, address, nft));
 			return false;
 		});
 	};
