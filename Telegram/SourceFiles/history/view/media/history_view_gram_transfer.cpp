@@ -153,12 +153,6 @@ struct TransferTag {
 	QColor bg;
 };
 
-struct GlarePassTiming {
-	crl::time birth = 0;
-	crl::time death = 0;
-	int width = 0;
-};
-
 // The corner ribbon, laid out as ValidateRotatedBadge lays out a gift badge,
 // except that the word gets a fixed area and is centered inside it.
 struct RibbonGeometry {
@@ -184,11 +178,9 @@ struct SettleSpin {
 	float64 target = 0.;
 };
 
-// Lives only from the moment a sending card is replaced by its sent or
-// failed one until all the settle started is over and the glare pass ended.
+// Lives from the end of the sending look until all the settle started is over.
 struct CardTransition {
 	Ui::Animations::Basic animation;
-	std::optional<GlarePassTiming> glare;
 	Wallet::ClockPose pose;
 	SettleSpin spin;
 	std::unique_ptr<Ui::StarBurst> burst;
@@ -272,7 +264,6 @@ struct GramTransferHandover {
 	std::unique_ptr<CardTransition> transition;
 	std::unique_ptr<SendingClock> clock;
 	base::weak_ptr<Wallet::CardAngle> angle;
-	std::optional<GlarePassTiming> pass;
 	bool markStarted = false;
 };
 
@@ -333,9 +324,9 @@ private:
 
 	[[nodiscard]] int resolveLayout(int outerWidth);
 	[[nodiscard]] bool sending() const;
+	[[nodiscard]] bool waitingForPass(crl::time now) const;
+	[[nodiscard]] bool sendingLook(crl::time now) const;
 	[[nodiscard]] std::optional<Wallet::GlareBand> glarePass(
-		crl::time now) const;
-	[[nodiscard]] std::optional<GlarePassTiming> glarePassTiming(
 		crl::time now) const;
 	struct Sweep {
 		float64 angle = 0.;
@@ -349,13 +340,11 @@ private:
 	[[nodiscard]] bool transitionFinished(crl::time now) const;
 	void adopt(GramTransferHandover &&handover);
 	void animateTransition() const;
-	void startReveal(
-		const SendingClock &clock,
-		crl::time now,
-		std::optional<GlarePassTiming> pass) const;
+	void startReveal(const SendingClock &clock, crl::time now) const;
 	void attachClock() const;
+	void validateReveal(crl::time now) const;
 	void validateMark() const;
-	void validateClock() const;
+	void validateClock(crl::time now) const;
 	void validateBadge() const;
 	void validateAngle(
 		QPainter &p,
@@ -375,7 +364,6 @@ private:
 	const int _ribbonTextWidth = 0;
 	Layout _layout;
 	mutable std::unique_ptr<Lottie::Icon> _mark;
-	// Lives only while the transfer is still being sent.
 	mutable std::unique_ptr<SendingClock> _clock;
 	mutable std::unique_ptr<CardTransition> _transition;
 	mutable base::weak_ptr<Wallet::CardAngle> _angle;
@@ -888,38 +876,19 @@ GramTransferCardPart::GramTransferCardPart(
 }
 
 GramTransferHandover GramTransferCardPart::takeHandover() {
-	const auto pass = glarePassTiming(crl::now());
 	return {
 		.mark = std::move(_mark),
 		.transition = std::move(_transition),
 		.clock = std::move(_clock),
 		.angle = _angle,
-		.pass = pass,
 		.markStarted = std::exchange(_markStarted, false),
-	};
-}
-
-std::optional<GlarePassTiming> GramTransferCardPart::glarePassTiming(
-		crl::time now) const {
-	if (!_clock) {
-		return std::nullopt;
-	}
-	const auto &glare = _clock->glare;
-	if (!glare.birth || now < glare.birth || now >= glare.death) {
-		return std::nullopt;
-	}
-	return GlarePassTiming{
-		.birth = glare.birth,
-		.death = glare.death,
-		.width = st::walletChatCardGlareWidth,
 	};
 }
 
 // WHY: a sent or failed transfer refreshes its view, so the card that showed
 // the clock is replaced by a new one. The new card continues what the old one
 // was showing instead of restarting it: the mark keeps its frame, a sending
-// card keeps its glare, and a card that stopped sending plays the transition
-// with the glare pass that was on screen finishing but no new one starting.
+// or waiting card keeps its glare, and a settling card keeps its transition.
 void GramTransferCardPart::adopt(GramTransferHandover &&handover) {
 	_angle = handover.angle;
 	if (handover.mark) {
@@ -948,16 +917,19 @@ void GramTransferCardPart::adopt(GramTransferHandover &&handover) {
 		_heavyPending = true;
 		animateTransition();
 	} else if (handover.clock) {
-		startReveal(*handover.clock, crl::now(), handover.pass);
+		_clock = std::move(handover.clock);
+		validateReveal(crl::now());
+		if (_clock) {
+			_heavyPending = true;
+			attachClock();
+		}
 	}
 }
 
 void GramTransferCardPart::startReveal(
 		const SendingClock &clock,
-		crl::time now,
-		std::optional<GlarePassTiming> pass) const {
+		crl::time now) const {
 	_transition = std::make_unique<CardTransition>();
-	_transition->glare = pass;
 	_transition->pose = Wallet::SendingClockPose(now - clock.started);
 	_transition->started = now;
 	_transition->spin = StartSpin(
@@ -969,6 +941,15 @@ void GramTransferCardPart::startReveal(
 	}
 	_heavyPending = true;
 	animateTransition();
+}
+
+void GramTransferCardPart::validateReveal(crl::time now) const {
+	if (!_clock || _layout.sending || sending() || waitingForPass(now)) {
+		return;
+	} else if (!_transition && !anim::Disabled()) {
+		startReveal(*_clock, now);
+	}
+	_clock = nullptr;
 }
 
 void GramTransferCardPart::animateTransition() const {
@@ -992,9 +973,7 @@ void GramTransferCardPart::animateTransition() const {
 }
 
 bool GramTransferCardPart::transitionFinished(crl::time now) const {
-	return !_transition
-		|| ((now >= _transition->started + kTransitionDuration)
-			&& (!_transition->glare || now >= _transition->glare->death));
+	return !_transition || (now >= _transition->started + kTransitionDuration);
 }
 
 Media::BubbleRoll GramTransferCardPart::bubbleRoll(QSize outer) const {
@@ -1162,8 +1141,23 @@ bool GramTransferCardPart::sending() const {
 		&& view->data()->isSending();
 }
 
-void GramTransferCardPart::validateClock() const {
-	if (!_layout.sending) {
+bool GramTransferCardPart::waitingForPass(crl::time now) const {
+	return _clock
+		&& !_transition
+		&& !sending()
+		&& !anim::Disabled()
+		&& _clock->animation.animating()
+		&& _clock->glare.progress(now).has_value();
+}
+
+bool GramTransferCardPart::sendingLook(crl::time now) const {
+	return _layout.sending || waitingForPass(now);
+}
+
+void GramTransferCardPart::validateClock(crl::time now) const {
+	if (waitingForPass(now)) {
+		return;
+	} else if (!_layout.sending) {
 		_clock = nullptr;
 		return;
 	} else if (!sending()) {
@@ -1194,37 +1188,38 @@ void GramTransferCardPart::attachClock() const {
 		if (!strong || !strong->_clock) {
 			return false;
 		}
-		strong->_clock->glare.tick(now, kGlareDuration, kGlareTimeout);
+		const auto sendingNow = strong->sending();
+		if (sendingNow) {
+			strong->_clock->glare.tick(now, kGlareDuration, kGlareTimeout);
+		}
 		if (const auto view = strong->_origin.view.get()) {
 			view->repaint();
 		}
-		return strong->sending() && !anim::Disabled();
+		if (sendingNow || strong->waitingForPass(now)) {
+			return !anim::Disabled();
+		}
+		// WHY: settling drops the clock and this animation with it;
+		// Basic::call runs a copy of this callback, so returning is safe
+		// but nothing below may touch the clock.
+		strong->validateReveal(now);
+		return false;
 	});
 	_clock->animation.start();
 }
 
 std::optional<Wallet::GlareBand> GramTransferCardPart::glarePass(
 		crl::time now) const {
-	auto progress = 0.;
-	auto width = 0;
-	if (_clock && sending() && _clock->glare.birth) {
-		const auto live = _clock->glare.progress(now);
-		if (!live) {
-			return {};
-		}
-		progress = *live;
-		width = st::walletChatCardGlareWidth;
-	} else if (_transition && _transition->glare) {
-		const auto &glare = *_transition->glare;
-		progress = (now - glare.birth) / float64(glare.death - glare.birth);
-		width = glare.width;
-	} else {
+	if (!_clock || !sendingLook(now)) {
 		return {};
 	}
-	if (progress < 0. || progress > 1.) {
+	const auto progress = _clock->glare.progress(now);
+	if (!progress) {
 		return {};
 	}
-	return Wallet::ComputeGlareBand(progress, _layout.card.width(), width);
+	return Wallet::ComputeGlareBand(
+		*progress,
+		_layout.card.width(),
+		st::walletChatCardGlareWidth);
 }
 
 GramTransferCardPart::Sweep GramTransferCardPart::sweep(
@@ -1234,7 +1229,7 @@ GramTransferCardPart::Sweep GramTransferCardPart::sweep(
 	const auto shared = _angle->value(frame);
 	if (still) {
 		return { shared };
-	} else if (_layout.sending && _clock) {
+	} else if (_clock && sendingLook(now)) {
 		return { SendingAngle(*_clock, now), &_clock->background };
 	} else if (_transition) {
 		const auto elapsed = now - _transition->started;
@@ -1451,14 +1446,9 @@ void GramTransferCardPart::draw(
 	// WHY: a card relaid out as settled keeps its clock until this paint,
 	// so a stale paint shows the live pose and the reveal starts from it
 	// here; a later replacement continues this transition.
-	if (_clock
-		&& !_layout.sending
-		&& !_transition
-		&& !anim::Disabled()) {
-		startReveal(*_clock, now, glarePassTiming(now));
-	}
+	validateReveal(now);
 	validateMark();
-	validateClock();
+	validateClock(now);
 	validateBadge();
 	if (std::exchange(_heavyPending, false)) {
 		if (const auto view = _origin.view.get()) {
@@ -1548,7 +1538,7 @@ void GramTransferCardPart::draw(
 			line);
 		top += addressFont->height;
 	}
-	if (_layout.sending) {
+	if (sendingLook(now)) {
 		paintSendingClock(p, now);
 	} else if (_transition
 		&& now < _transition->started + kRevealDuration) {
