@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/controls/ton_common.h"
 #include "ui/effects/drifting_particles.h"
-#include "ui/effects/glare.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
@@ -36,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_comment.h"
 #include "wallet/wallet_content.h"
 #include "wallet/wallet_panel.h"
+#include "wallet/wallet_sending_effects.h"
 #include "window/window_session_controller.h"
 
 #include <QtCore/QLocale>
@@ -54,8 +54,6 @@ constexpr auto kAddressGroupSize = 4;
 constexpr auto kAddressGroupsPerLine = 6;
 constexpr auto kGlareDuration = crl::time(1100);
 constexpr auto kGlareTimeout = crl::time(400);
-constexpr auto kClockHourTurn = crl::time(2000);
-constexpr auto kClockMinuteTurnsPerHourTurn = 3;
 constexpr auto kRevealClockDuration = crl::time(43);
 constexpr auto kRevealFillDuration = crl::time(160);
 constexpr auto kRevealColorDelay = crl::time(20);
@@ -156,12 +154,6 @@ struct TransferTag {
 	QColor bg;
 };
 
-// The band the glare lights up, in card coordinates.
-struct CardGlarePass {
-	float64 from = 0.;
-	float64 till = 0.;
-};
-
 struct GlarePassTiming {
 	crl::time birth = 0;
 	crl::time death = 0;
@@ -178,17 +170,12 @@ struct RibbonGeometry {
 	int size = 0;
 };
 
-struct ClockPose {
-	float64 minute = 0.;
-	float64 hour = 0.;
-};
-
-[[nodiscard]] ClockPose SendingClockPose(crl::time elapsed) {
-	const auto progress = (elapsed % kClockHourTurn)
-		/ float64(kClockHourTurn);
+[[nodiscard]] Wallet::ClockStyle CardClockStyle() {
 	return {
-		.minute = kClockMinuteTurnsPerHourTurn * progress,
-		.hour = 0.25 + progress,
+		.size = st::walletChatCardClockSize,
+		.stroke = st::walletChatCardClockStroke,
+		.minuteHand = st::walletChatCardClockMinuteHand,
+		.hourHand = st::walletChatCardClockHourHand,
 	};
 }
 
@@ -221,7 +208,7 @@ struct CardBurst {
 struct CardTransition {
 	Ui::Animations::Basic animation;
 	std::optional<GlarePassTiming> glare;
-	ClockPose pose;
+	Wallet::ClockPose pose;
 	SettleSpin spin;
 	std::unique_ptr<CardBurst> burst;
 	QString toText;
@@ -234,6 +221,7 @@ struct CardTransition {
 
 struct SendingClock {
 	Ui::Animations::Basic animation;
+	Wallet::GlareCycle glare;
 	Wallet::CardBackground background;
 	crl::time started = 0;
 	float64 angle = 0.;
@@ -304,7 +292,6 @@ struct SendingClock {
 // What a card being replaced by a refreshed view passes to its successor.
 struct GramTransferHandover {
 	std::unique_ptr<Lottie::Icon> mark;
-	std::unique_ptr<Ui::GlareEffect> glare;
 	std::unique_ptr<CardTransition> transition;
 	std::unique_ptr<SendingClock> clock;
 	base::weak_ptr<Wallet::CardAngle> angle;
@@ -369,7 +356,8 @@ private:
 
 	[[nodiscard]] int resolveLayout(int outerWidth);
 	[[nodiscard]] bool sending() const;
-	[[nodiscard]] std::optional<CardGlarePass> glarePass(crl::time now) const;
+	[[nodiscard]] std::optional<Wallet::GlareBand> glarePass(
+		crl::time now) const;
 	[[nodiscard]] std::optional<GlarePassTiming> glarePassTiming(
 		crl::time now) const;
 	struct Sweep {
@@ -388,14 +376,12 @@ private:
 		const SendingClock &clock,
 		crl::time now,
 		std::optional<GlarePassTiming> pass) const;
-	void attachGlare() const;
 	void attachClock() const;
 	void validateMark() const;
-	void validateGlare() const;
 	void validateClock() const;
 	void validateBadge() const;
 	void validateAngle(QPainter &p, const PaintContext &context) const;
-	void paintGlareBorder(QPainter &p, CardGlarePass pass) const;
+	void paintGlareBorder(QPainter &p, Wallet::GlareBand band) const;
 	void paintSendingClock(QPainter &p, crl::time now) const;
 	void paintReveal(QPainter &p, int cardWidth, crl::time now) const;
 	void showDetails(const ClickContext &context);
@@ -410,7 +396,6 @@ private:
 	Layout _layout;
 	mutable std::unique_ptr<Lottie::Icon> _mark;
 	// Lives only while the transfer is still being sent.
-	mutable std::unique_ptr<Ui::GlareEffect> _glare;
 	mutable std::unique_ptr<SendingClock> _clock;
 	mutable std::unique_ptr<CardTransition> _transition;
 	mutable base::weak_ptr<Wallet::CardAngle> _angle;
@@ -787,35 +772,6 @@ void PaintRibbonBand(
 	return result;
 }
 
-void PaintClock(
-		QPainter &p,
-		QPointF center,
-		ClockPose pose,
-		const QColor &color,
-		float64 scale) {
-	const auto stroke = float64(st::walletChatCardClockStroke);
-	const auto radius = (st::walletChatCardClockSize - stroke) / 2.;
-	p.save();
-	p.translate(center);
-	p.scale(scale, scale);
-	p.translate(-center);
-	auto pen = QPen(color, stroke);
-	pen.setCapStyle(Qt::RoundCap);
-	p.setPen(pen);
-	p.setBrush(Qt::NoBrush);
-	p.drawEllipse(center, radius, radius);
-	const auto hand = [&](float64 turns, int reach) {
-		const auto angle = 2. * M_PI * turns;
-		const auto length = reach - stroke / 2.;
-		p.drawLine(
-			center,
-			center + QPointF(std::sin(angle), -std::cos(angle)) * length);
-	};
-	hand(pose.minute, st::walletChatCardClockMinuteHand);
-	hand(pose.hour, st::walletChatCardClockHourHand);
-	p.restore();
-}
-
 [[nodiscard]] float64 RibbonReach(
 		const RibbonGeometry &ribbon,
 		QPointF center) {
@@ -951,33 +907,30 @@ GramTransferCardPart::GramTransferCardPart(
 }
 
 GramTransferHandover GramTransferCardPart::takeHandover() {
-	auto result = GramTransferHandover{
+	const auto pass = glarePassTiming(crl::now());
+	return {
 		.mark = std::move(_mark),
 		.transition = std::move(_transition),
 		.clock = std::move(_clock),
 		.angle = _angle,
-		.pass = glarePassTiming(crl::now()),
+		.pass = pass,
 		.markStarted = std::exchange(_markStarted, false),
 	};
-	result.glare = std::move(_glare);
-	return result;
 }
 
 std::optional<GlarePassTiming> GramTransferCardPart::glarePassTiming(
 		crl::time now) const {
-	if (!_glare) {
+	if (!_clock) {
 		return std::nullopt;
 	}
-	const auto &glare = _glare->glare;
-	if (!glare.birthTime
-		|| now < glare.birthTime
-		|| now >= glare.deathTime) {
+	const auto &glare = _clock->glare;
+	if (!glare.birth || now < glare.birth || now >= glare.death) {
 		return std::nullopt;
 	}
 	return GlarePassTiming{
-		.birth = glare.birthTime,
-		.death = glare.deathTime,
-		.width = _glare->width,
+		.birth = glare.birth,
+		.death = glare.death,
+		.width = st::walletChatCardGlareWidth,
 	};
 }
 
@@ -1001,11 +954,6 @@ void GramTransferCardPart::adopt(GramTransferHandover &&handover) {
 		}
 	}
 	if (sending()) {
-		if (handover.glare) {
-			_glare = std::move(handover.glare);
-			_heavyPending = true;
-			attachGlare();
-		}
 		if (handover.clock) {
 			_clock = std::move(handover.clock);
 			_heavyPending = true;
@@ -1029,7 +977,7 @@ void GramTransferCardPart::startReveal(
 		std::optional<GlarePassTiming> pass) const {
 	_transition = std::make_unique<CardTransition>();
 	_transition->glare = pass;
-	_transition->pose = SendingClockPose(now - clock.started);
+	_transition->pose = Wallet::SendingClockPose(now - clock.started);
 	_transition->started = now;
 	_transition->spin = StartSpin(
 		SendingAngle(clock, now),
@@ -1233,40 +1181,16 @@ bool GramTransferCardPart::sending() const {
 		&& view->data()->isSending();
 }
 
-// WHY: the sweep costs a frame callback and a pixmap, so it exists only
-// while the transfer does, and a pass that outlives the sending state stops
-// itself from its own callback instead of waiting for the next paint.
-void GramTransferCardPart::validateGlare() const {
-	if (!sending()) {
-		_glare = nullptr;
-		return;
-	} else if (_glare) {
-		return;
-	}
-	_glare = std::make_unique<Ui::GlareEffect>();
-	_glare->width = st::walletChatCardGlareWidth;
-	attachGlare();
-}
-
-void GramTransferCardPart::attachGlare() const {
-	_glare->validate(CardTickerFg(), [weak = base::make_weak(this)] {
-		const auto strong = weak.get();
-		if (!strong || !strong->_glare) {
-			return;
-		} else if (!strong->sending()) {
-			strong->_glare->animation.stop();
-		}
-		if (const auto view = strong->_origin.view.get()) {
-			view->repaint();
-		}
-	}, kGlareTimeout, kGlareDuration);
-}
-
 void GramTransferCardPart::validateClock() const {
 	if (!_layout.sending) {
 		_clock = nullptr;
 		return;
 	} else if (!sending()) {
+		// A card that stopped sending must not resume its glare pass later.
+		if (_clock) {
+			_clock->animation.stop();
+			_clock->glare = {};
+		}
 		return;
 	} else if (_clock) {
 		if (!_clock->animation.animating()) {
@@ -1284,11 +1208,12 @@ void GramTransferCardPart::attachClock() const {
 	if (anim::Disabled()) {
 		return;
 	}
-	_clock->animation.init([weak = base::make_weak(this)] {
+	_clock->animation.init([weak = base::make_weak(this)](crl::time now) {
 		const auto strong = weak.get();
 		if (!strong || !strong->_clock) {
 			return false;
 		}
+		strong->_clock->glare.tick(now, kGlareDuration, kGlareTimeout);
 		if (const auto view = strong->_origin.view.get()) {
 			view->repaint();
 		}
@@ -1297,13 +1222,17 @@ void GramTransferCardPart::attachClock() const {
 	_clock->animation.start();
 }
 
-std::optional<CardGlarePass> GramTransferCardPart::glarePass(
+std::optional<Wallet::GlareBand> GramTransferCardPart::glarePass(
 		crl::time now) const {
 	auto progress = 0.;
 	auto width = 0;
-	if (_glare && _glare->glare.birthTime) {
-		progress = _glare->progress(now);
-		width = _glare->width;
+	if (_clock && sending() && _clock->glare.birth) {
+		const auto live = _clock->glare.progress(now);
+		if (!live) {
+			return {};
+		}
+		progress = *live;
+		width = st::walletChatCardGlareWidth;
 	} else if (_transition && _transition->glare) {
 		const auto &glare = *_transition->glare;
 		progress = (now - glare.birth) / float64(glare.death - glare.birth);
@@ -1314,9 +1243,7 @@ std::optional<CardGlarePass> GramTransferCardPart::glarePass(
 	if (progress < 0. || progress > 1.) {
 		return {};
 	}
-	const auto from = -width
-		+ (_layout.card.width() + 2 * width) * progress;
-	return CardGlarePass{ .from = from, .till = from + width };
+	return Wallet::ComputeGlareBand(progress, _layout.card.width(), width);
 }
 
 GramTransferCardPart::Sweep GramTransferCardPart::sweep(
@@ -1390,12 +1317,11 @@ void GramTransferCardPart::paintBurst(QPainter &p, crl::time now) const {
 }
 
 bool GramTransferCardPart::hasHeavyPart() {
-	return _mark || _glare || _clock || _transition;
+	return _mark || _clock || _transition;
 }
 
 void GramTransferCardPart::unloadHeavyPart() {
 	_mark = nullptr;
-	_glare = nullptr;
 	_clock = nullptr;
 	_transition = nullptr;
 	_markStarted = false;
@@ -1409,24 +1335,19 @@ void GramTransferCardPart::unloadHeavyPart() {
 // whose gradient fades in and out with the pass and no brush at all.
 void GramTransferCardPart::paintGlareBorder(
 		QPainter &p,
-		CardGlarePass pass) const {
-	auto middle = CardTickerFg();
-	auto edge = middle;
-	edge.setAlphaF(0.);
-	auto gradient = QLinearGradient(
-		QPointF(pass.from, 0),
-		QPointF(pass.till, 0));
-	gradient.setStops({ { 0., edge }, { 0.5, middle }, { 1., edge } });
-	const auto stroke = st::walletChatCardGlareStroke;
-	const auto half = stroke / 2.;
-	const auto radius = st::msgServiceGiftBoxRadius - half;
-	p.setBrush(Qt::NoBrush);
-	p.setPen(QPen(QBrush(gradient), stroke));
-	p.drawRoundedRect(
-		QRectF(0, 0, _layout.card.width(), _layout.card.height())
-			- QMarginsF(half, half, half, half),
-		radius,
-		radius);
+		Wallet::GlareBand band) const {
+	Wallet::PaintGlare(
+		p,
+		QRectF(0, 0, _layout.card.width(), _layout.card.height()),
+		st::msgServiceGiftBoxRadius,
+		band,
+		{
+			.stroke = float64(st::walletChatCardGlareStroke),
+			.slope = 0.,
+			.border = 1.,
+			.background = 0.,
+		},
+		CardTickerFg());
 }
 
 void GramTransferCardPart::validateAngle(
@@ -1467,10 +1388,16 @@ void GramTransferCardPart::validateBadge() const {
 void GramTransferCardPart::paintSendingClock(
 		QPainter &p,
 		crl::time now) const {
-	const auto pose = SendingClockPose((_clock && !anim::Disabled())
+	const auto pose = Wallet::SendingClockPose((_clock && !anim::Disabled())
 		? (now - _clock->started)
 		: 0);
-	PaintClock(p, _layout.clockCenter, pose, CardTickerFg(), 1.);
+	Wallet::PaintClock(
+		p,
+		CardClockStyle(),
+		_layout.clockCenter,
+		pose,
+		CardTickerFg(),
+		1.);
 }
 
 // The band fills the way a ripple fills its mask, from the clock out.
@@ -1545,7 +1472,13 @@ void GramTransferCardPart::paintReveal(
 		}
 		if (scale > 0.) {
 			q.setCompositionMode(QPainter::CompositionMode_SourceOver);
-			PaintClock(q, center, transition.pose, color, scale);
+			Wallet::PaintClock(
+				q,
+				CardClockStyle(),
+				center,
+				transition.pose,
+				color,
+				scale);
 		}
 	}
 	p.drawImage(origin, transition.frame);
@@ -1572,7 +1505,6 @@ void GramTransferCardPart::draw(
 		startReveal(*_clock, now, glarePassTiming(now));
 	}
 	validateMark();
-	validateGlare();
 	validateClock();
 	validateBadge();
 	if (std::exchange(_heavyPending, false)) {
@@ -1607,7 +1539,7 @@ void GramTransferCardPart::draw(
 		const auto paused = context.paused
 			|| anim::Disabled()
 			|| On(PowerSaving::kStickersChat);
-		const auto again = (_glare != nullptr) && !_mark->animating();
+		const auto again = sending() && !_mark->animating();
 		if (paused) {
 			if (!_markStarted && _mark->frameIndex() != last) {
 				_mark->jumpTo(last, nullptr);

@@ -186,6 +186,20 @@ walletRowAmountMinorSkip: 0px;
 walletRowMarkSize: 15px;
 walletRowIconMargin: margins(5px, 3px, 0px, 0px);
 walletRowsHintHeight: 44px;
+walletSendingRowOutset: 7px;
+walletSendingRowAmountFont: font(19px semibold);
+walletSendingRowTextMinWidth: 96px;
+walletSendingRowDiamondHeight: 25px;
+walletSendingRowDiamondSkip: 8px;
+walletSendingRowClockSize: 14px;
+walletSendingRowClockStroke: 1px;
+walletSendingRowClockMinuteHand: 5px;
+walletSendingRowClockHourHand: 4px;
+walletSendingRowClockShift: 16px;
+walletSendingRowClockCutout: 2px;
+walletSendingRowGlareWidth: 168px;
+walletSendingRowGlareStroke: 2px;
+walletSendingRowEntranceShift: 13px;
 // Text left is walletRowPadding.left, so the row's text lines up with the
 // transaction titles; iconLeft centres the 24px icon on the 46px avatar
 // column at walletRowIconLeft (20 + (46 - 24) / 2). Right 50px is the same

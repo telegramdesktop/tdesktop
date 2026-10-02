@@ -722,6 +722,8 @@ PRIVATE
     wallet/wallet_card_angle.h
     wallet/wallet_card_gradient.cpp
     wallet/wallet_card_gradient.h
+    wallet/wallet_sending_effects.cpp
+    wallet/wallet_sending_effects.h
 
     window/window_slide_animation.cpp
     window/window_slide_animation.h

@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "base/random.h"
 #include "base/timer.h"
+#include "base/unique_qptr.h"
 #include "base/unixtime.h"
 #include "boxes/passcode_box.h"
 #include "boxes/peer_list_box.h"
@@ -108,6 +109,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_onramp.h"
 #include "wallet/wallet_palette.h"
 #include "wallet/wallet_rates.h"
+#include "wallet/wallet_sending_effects.h"
 #include "wallet/wallet_session.h"
 #include "wallet/wallet_ton_connect_box.h"
 #include "wallet/wallet_unlock.h"
@@ -118,6 +120,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QLocale>
 #include <QtCore/QUrl>
+#include <QtCore/QtMath>
 #include <QtGui/QClipboard>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QKeyEvent>
@@ -177,12 +180,23 @@ constexpr auto kSigningReadyTimeout = 30 * crl::time(1000);
 constexpr auto kHeldSendKeyTimeout = 60 * crl::time(1000);
 constexpr auto kCustodyResolveTimeout = 20 * crl::time(1000);
 constexpr auto kGramDigits = 9;
+constexpr auto kSendingRowGlareDuration = crl::time(1450);
+constexpr auto kSendingRowGlarePause = crl::time(1040);
+constexpr auto kSendingRowGlareLag = 0.4;
+constexpr auto kSendingRowGlareBorder = 0.5;
+constexpr auto kSendingRowGlareBackground = 0.12;
+constexpr auto kSendingRowEntranceDuration = crl::time(370);
+constexpr auto kSendingRowEntrancePeak = crl::time(180);
+constexpr auto kSendingRowEntranceDamping = 0.57;
+constexpr auto kSendingRowEntranceScale = 0.93;
+constexpr auto kSendingRowDiamondLoop = crl::time(3000);
 
 class BalanceInk;
 class Card;
 struct CardFold;
 class InfoIsland;
 class InfoIslandEntry;
+class SendingHistoryRow;
 struct SendingRow;
 
 class KeyContext final
@@ -508,7 +522,6 @@ private:
 	void refreshRounding();
 	void paintPill(QPainter &p);
 	[[nodiscard]] QRect pillRect() const;
-	[[nodiscard]] int cornerRadius(QRect pill) const;
 
 	std::vector<Ui::SlideWrap<InfoIslandEntry>*> _entries;
 	Ui::MultiSlideTracker _tracker;
@@ -516,6 +529,14 @@ private:
 	QMargins _extend;
 
 };
+
+[[nodiscard]] int PillRadius(QRect pill) {
+	return std::min({
+		st::walletCardRadius,
+		pill.width() / 2,
+		pill.height() / 2,
+	});
+}
 
 InfoIslandEntry::InfoIslandEntry(
 	QWidget *parent,
@@ -637,7 +658,7 @@ void InfoIsland::refreshRounding() {
 		}
 	}
 	const auto shown = int(visible.size());
-	const auto radius = cornerRadius(pillRect());
+	const auto radius = PillRadius(pillRect());
 	for (auto i = 0; i != shown; ++i) {
 		const auto first = !i;
 		const auto last = (i == shown - 1);
@@ -661,20 +682,12 @@ QRect InfoIsland::pillRect() const {
 		height() - _extend.top() - _extend.bottom());
 }
 
-int InfoIsland::cornerRadius(QRect pill) const {
-	return std::min({
-		st::walletCardRadius,
-		pill.width() / 2,
-		pill.height() / 2,
-	});
-}
-
 void InfoIsland::paintPill(QPainter &p) {
 	const auto pill = pillRect();
 	if (pill.isEmpty()) {
 		return;
 	}
-	Dialogs::PaintPillBackground(p, _shadow, pill, cornerRadius(pill));
+	Dialogs::PaintPillBackground(p, _shadow, pill, PillRadius(pill));
 	auto first = true;
 	for (const auto &wrap : _entries) {
 		if (wrap->height() <= 0) {
@@ -1204,6 +1217,7 @@ struct SendingRow {
 	Ui::VerticalLayout *slot = nullptr;
 	TransferItem item;
 	HistoryRowContent content;
+	SendingHistoryRow *look = nullptr;
 };
 
 [[nodiscard]] QString ShortAddressForm(
@@ -1637,6 +1651,452 @@ void AddHistoryRow(
 		button->resize(g.size());
 		button->lower();
 	}, wrap->lifetime());
+}
+
+struct SendingRowLayout {
+	QRect pill;
+	int radius = 0;
+	QRect avatar;
+	QPointF badge;
+	QPoint diamond;
+	QPointF amount;
+	int textWidth = 0;
+};
+
+class SendingHistoryRow final : public Ui::AbstractButton {
+public:
+	SendingHistoryRow(
+		not_null<Ui::RpWidget*> parent,
+		not_null<Ui::RpWidget*> layer,
+		not_null<Ui::RpWidget*> bounds,
+		HistoryRowContent content);
+
+	void setContent(HistoryRowContent content);
+
+	QString accessibilityName() override;
+
+protected:
+	int resizeGetHeight(int newWidth) override;
+	void visibleTopBottomUpdated(int visibleTop, int visibleBottom) override;
+
+private:
+	[[nodiscard]] SendingRowLayout layout() const;
+	void paintSurface();
+	void paintAvatar(Painter &p, const SendingRowLayout &layout);
+	void paintTexts(Painter &p, const SendingRowLayout &layout);
+	void paintDiamond(QPainter &p, QPoint position, crl::time now);
+	void startAnimation();
+
+	HistoryRowContent _content;
+	Ui::Text::String _title;
+	Ui::Text::String _subtitle;
+	Ui::Text::String _date;
+	AmountPainter _amount;
+	std::unique_ptr<Lottie::Icon> _diamond;
+	std::unique_ptr<Ui::PeerUserpicView> _userpic;
+	rpl::lifetime _userpicLifetime;
+	Ui::BoxShadow _shadow;
+	GlareCycle _glare;
+	Ui::Animations::Basic _animation;
+	base::unique_qptr<Ui::RpWidget> _surface;
+	crl::time _started = 0;
+	int _digitsHeight = 0;
+	bool _inView = true;
+
+};
+
+[[nodiscard]] int LabelLineHeight(const style::FlatLabel &st) {
+	return std::max(st.style.font->height, st.style.lineHeight);
+}
+
+[[nodiscard]] int SendingRowHeight() {
+	return st::walletRowPadding.top()
+		+ LabelLineHeight(st::walletRowTitleLabel)
+		+ st::walletRowSkip
+		+ LabelLineHeight(st::walletRowSubtitleLabel)
+		+ st::walletRowSkip
+		+ LabelLineHeight(st::walletRowDateLabel)
+		+ st::walletRowPadding.bottom();
+}
+
+[[nodiscard]] int SendingRowDiamondCanvas() {
+	return int(base::SafeRound(st::walletSendingRowDiamondHeight
+		/ (kGramDiamondBottom - kGramDiamondTop)));
+}
+
+[[nodiscard]] int SendingRowDiamondLeft(int width) {
+	const auto canvas = SendingRowDiamondCanvas();
+	const auto drawnRight = width - st::walletRowPadding.right();
+	return int(base::SafeRound(drawnRight - canvas * kGramDiamondRight));
+}
+
+[[nodiscard]] float64 SendingRowAmountRight(int width) {
+	const auto canvas = SendingRowDiamondCanvas();
+	return SendingRowDiamondLeft(width)
+		+ canvas * kGramDiamondLeft
+		- st::walletSendingRowDiamondSkip;
+}
+
+[[nodiscard]] float64 SendingRowEntrance(crl::time elapsed) {
+	const auto z = kSendingRowEntranceDamping;
+	const auto wd = M_PI / kSendingRowEntrancePeak;
+	const auto wn = wd / std::sqrt(1. - z * z);
+	const auto t = float64(elapsed);
+	return 1. - std::exp(-z * wn * t)
+		* (std::cos(wd * t) + (z * wn / wd) * std::sin(wd * t));
+}
+
+[[nodiscard]] ClockStyle SendingRowClockStyle() {
+	return {
+		.size = st::walletSendingRowClockSize,
+		.stroke = st::walletSendingRowClockStroke,
+		.minuteHand = st::walletSendingRowClockMinuteHand,
+		.hourHand = st::walletSendingRowClockHourHand,
+	};
+}
+
+[[nodiscard]] bool SendingRowDiamondLoops() {
+	return !anim::Disabled() && !On(PowerSaving::kStickersChat);
+}
+
+// WHY: the surface paints outside the row, so it lives in `layer`, an
+// unclipped ancestor of `bounds` (the list's wrap), and follows `bounds`:
+// hidden with it and cut at its bottom edge, so a collapsing list hides it.
+SendingHistoryRow::SendingHistoryRow(
+	not_null<Ui::RpWidget*> parent,
+	not_null<Ui::RpWidget*> layer,
+	not_null<Ui::RpWidget*> bounds,
+	HistoryRowContent content)
+: Ui::AbstractButton(parent.get())
+, _shadow(st::walletInfoIslandShadow)
+, _surface(Ui::CreateChild<Ui::RpWidget>(layer.get())) {
+	const auto &font = st::walletSendingRowAmountFont;
+	_digitsHeight = int(base::SafeRound(
+		-font->metrics().tightBoundingRect(u"0123456789"_q).top()));
+	const auto canvas = SendingRowDiamondCanvas();
+	_diamond = Lottie::MakeIcon({
+		.name = u"gram"_q,
+		.sizeOverride = { canvas, canvas },
+		.frame = -1,
+	});
+	_animation.init([=](crl::time now) {
+		if (!_inView || !isVisible() || anim::Disabled()) {
+			return false;
+		}
+		_glare.tick(now, kSendingRowGlareDuration, kSendingRowGlarePause);
+		_surface->update();
+		return true;
+	});
+
+	_surface->setAttribute(Qt::WA_TransparentForMouseEvents);
+	_surface->raise();
+	_surface->show();
+	_surface->paintRequest(
+	) | rpl::on_next([=] {
+		paintSurface();
+	}, _surface->lifetime());
+	rpl::combine(
+		geometryValue(),
+		parent->geometryValue(),
+		bounds->geometryValue()
+	) | rpl::on_next([=] {
+		const auto extend = _shadow.extend();
+		const auto shift = st::walletSendingRowEntranceShift;
+		auto geometry = Ui::MapFrom(layer, this, rect()).marginsAdded({
+			0,
+			shift + extend.top(),
+			0,
+			shift + extend.bottom(),
+		});
+		const auto limit = Ui::MapFrom(layer, bounds, bounds->rect());
+		geometry.setHeight(std::clamp(
+			limit.y() + limit.height() - geometry.y(),
+			0,
+			geometry.height()));
+		_surface->setGeometry(geometry);
+	}, lifetime());
+	rpl::combine(
+		shownValue(),
+		bounds->shownValue()
+	) | rpl::on_next([=](bool shown, bool boundsShown) {
+		_surface->setVisible(shown && boundsShown);
+	}, lifetime());
+
+	setContent(std::move(content));
+}
+
+void SendingHistoryRow::setContent(HistoryRowContent content) {
+	const auto peerChanged = !_userpic || (_content.peer != content.peer);
+	_content = std::move(content);
+	_title.setText(st::walletRowTitleLabel.style, _content.title);
+	_subtitle.setText(st::walletRowSubtitleLabel.style, _content.subtitle);
+	_date.setText(st::walletRowDateLabel.style, _content.date);
+	const auto amountNano = _content.amountNano;
+	const auto sign = _content.incoming ? u"+"_q : QString(kMinus);
+	const auto &font = st::walletSendingRowAmountFont;
+	_amount.setContent({ .big = font, .small = font }, {
+		.whole = (amountNano ? sign : QString()) + GramMajorPart(amountNano),
+		.fraction = GramMinorPart(amountNano),
+	});
+	if (peerChanged) {
+		_userpicLifetime.destroy();
+		if (const auto peer = _content.peer) {
+			_userpic = std::make_unique<Ui::PeerUserpicView>(
+				peer->createUserpicView());
+			peer->session().downloaderTaskFinished(
+			) | rpl::on_next([=] {
+				_surface->update();
+			}, _userpicLifetime);
+		} else {
+			_userpic = nullptr;
+		}
+	}
+	accessibilityNameChanged();
+	_surface->update();
+}
+
+int SendingHistoryRow::resizeGetHeight(int newWidth) {
+	_amount.setAvailableWidth(int(SendingRowAmountRight(newWidth))
+		- st::walletRowPadding.left()
+		- st::walletSendingRowTextMinWidth);
+	return SendingRowHeight();
+}
+
+void SendingHistoryRow::visibleTopBottomUpdated(
+		int visibleTop,
+		int visibleBottom) {
+	const auto inView = (visibleBottom > visibleTop);
+	if (_inView == inView) {
+		return;
+	}
+	_inView = inView;
+	if (_inView && !_animation.animating()) {
+		_surface->update();
+	}
+}
+
+QString SendingHistoryRow::accessibilityName() {
+	const auto &amount = _amount.parts();
+	auto parts = QStringList();
+	for (const auto &text : {
+		_content.title,
+		_content.subtitle,
+		_content.date,
+		QString(amount.whole + amount.fraction),
+	}) {
+		if (!text.isEmpty()) {
+			parts.push_back(text);
+		}
+	}
+	return parts.join(u", "_q);
+}
+
+SendingRowLayout SendingHistoryRow::layout() const {
+	const auto w = width();
+	const auto h = height();
+	const auto rtl = style::RightToLeft();
+	const auto mirror = [&](float64 left, float64 width) {
+		return rtl ? (w - left - width) : left;
+	};
+	const auto &padding = st::walletRowPadding;
+	const auto outset = st::walletSendingRowOutset;
+	const auto pillLeft = st::walletRowIconLeft - outset;
+	const auto pillRight = w - padding.right() + outset;
+	auto result = SendingRowLayout();
+	result.pill = QRect(
+		int(mirror(pillLeft, pillRight - pillLeft)),
+		0,
+		pillRight - pillLeft,
+		h);
+	result.radius = PillRadius(result.pill);
+
+	const auto size = st::walletRowIconSize;
+	const auto center = padding.top()
+		+ (LabelLineHeight(st::walletRowTitleLabel)
+			+ st::walletRowSkip
+			+ LabelLineHeight(st::walletRowSubtitleLabel)) / 2;
+	result.avatar = QRect(
+		int(mirror(st::walletRowIconLeft, size)),
+		center - size / 2,
+		size,
+		size);
+	const auto shift = st::walletSendingRowClockShift;
+	result.badge = QRectF(result.avatar).center()
+		+ QPointF(rtl ? -shift : shift, shift);
+
+	const auto canvas = SendingRowDiamondCanvas();
+	const auto drawnLeft = SendingRowDiamondLeft(w)
+		+ canvas * kGramDiamondLeft;
+	const auto drawnWidth = canvas * (kGramDiamondRight - kGramDiamondLeft);
+	result.diamond = QPoint(
+		int(base::SafeRound(mirror(drawnLeft, drawnWidth)
+			- canvas * kGramDiamondLeft)),
+		int(base::SafeRound(h / 2.
+			- canvas * (kGramDiamondTop + kGramDiamondBottom) / 2.)));
+
+	const auto amountWidth = _amount.size().width();
+	const auto amountLeft = SendingRowAmountRight(w) - amountWidth;
+	const auto digitsCenter = (_amount.baseline() - _digitsHeight / 2.)
+		* _amount.scale();
+	result.amount = QPointF(
+		mirror(amountLeft, amountWidth),
+		h / 2. - digitsCenter);
+	result.textWidth = std::max(
+		int(amountLeft) - st::walletRowSkip - padding.left(),
+		0);
+	return result;
+}
+
+void SendingHistoryRow::paintSurface() {
+	auto p = Painter(_surface.get());
+	const auto now = crl::now();
+	if (!_started) {
+		_started = now;
+		_glare.death = now + kSendingRowEntranceDuration;
+	}
+	startAnimation();
+	auto hq = PainterHighQualityEnabler(p);
+	const auto layout = this->layout();
+	p.translate(
+		0,
+		st::walletSendingRowEntranceShift + _shadow.extend().top());
+	const auto disabled = anim::Disabled();
+	const auto elapsed = now - _started;
+	if (!disabled && elapsed < kSendingRowEntranceDuration) {
+		const auto progress = SendingRowEntrance(elapsed);
+		const auto scale = kSendingRowEntranceScale
+			+ (1. - kSendingRowEntranceScale) * progress;
+		const auto offset = st::walletSendingRowEntranceShift
+			* (1. - progress);
+		const auto center = QRectF(layout.pill).center();
+		p.translate(center + QPointF(0., offset));
+		p.scale(scale, scale);
+		p.translate(-center);
+	}
+
+	Dialogs::PaintPillBackground(p, _shadow, layout.pill, layout.radius);
+	const auto accent = st::windowActiveTextFg->c;
+	if (const auto progress = disabled
+			? std::optional<float64>()
+			: _glare.progress(now)) {
+		const auto stroke = float64(st::walletSendingRowGlareStroke);
+		const auto half = stroke / 2.;
+		const auto pillWidth = float64(layout.pill.width());
+		const auto pillHeight = float64(layout.pill.height());
+		const auto slope = kSendingRowGlareLag * pillWidth / pillHeight;
+		PaintGlare(
+			p,
+			QRectF(layout.pill).marginsAdded({ half, half, half, half }),
+			layout.radius + half,
+			ComputeGlareBand(
+				*progress,
+				pillWidth + slope * pillHeight,
+				st::walletSendingRowGlareWidth),
+			{
+				.stroke = stroke,
+				.slope = slope,
+				.border = kSendingRowGlareBorder,
+				.background = kSendingRowGlareBackground,
+			},
+			accent);
+	}
+	paintAvatar(p, layout);
+	PaintClock(
+		p,
+		SendingRowClockStyle(),
+		layout.badge,
+		SendingClockPose(disabled ? 0 : elapsed),
+		accent);
+	paintTexts(p, layout);
+	_amount.paint(p, layout.amount, { .digits = st::windowBoldFg->c });
+	paintDiamond(p, layout.diamond, now);
+}
+
+void SendingHistoryRow::paintAvatar(
+		Painter &p,
+		const SendingRowLayout &layout) {
+	const auto radius = st::walletSendingRowClockSize / 2.
+		+ st::walletSendingRowClockCutout;
+	auto clip = QPainterPath();
+	clip.addRect(QRectF(layout.avatar));
+	auto cut = QPainterPath();
+	cut.addEllipse(layout.badge, radius, radius);
+	p.save();
+	p.setClipPath(clip.subtracted(cut));
+	const auto peer = _content.peer;
+	if (peer && _userpic) {
+		peer->paintUserpic(
+			p,
+			*_userpic,
+			layout.avatar.x(),
+			layout.avatar.y(),
+			layout.avatar.width());
+	} else {
+		PaintRowAvatar(p, layout.avatar, _content.avatar);
+	}
+	p.restore();
+}
+
+void SendingHistoryRow::paintTexts(
+		Painter &p,
+		const SendingRowLayout &layout) {
+	const auto left = st::walletRowPadding.left();
+	auto top = st::walletRowPadding.top();
+	const auto line = [&](
+			const Ui::Text::String &text,
+			const style::FlatLabel &st) {
+		p.setPen(st.textFg);
+		text.draw(p, {
+			.position = { left, top },
+			.outerWidth = width(),
+			.availableWidth = layout.textWidth,
+			.elisionLines = 1,
+		});
+		top += LabelLineHeight(st) + st::walletRowSkip;
+	};
+	line(_title, st::walletRowTitleLabel);
+	line(_subtitle, st::walletRowSubtitleLabel);
+	line(_date, st::walletRowDateLabel);
+}
+
+void SendingHistoryRow::paintDiamond(
+		QPainter &p,
+		QPoint position,
+		crl::time now) {
+	if (!_diamond || !_diamond->valid()) {
+		return;
+	}
+	if (SendingRowDiamondLoops()) {
+		const auto frames = _diamond->framesCount();
+		const auto index = std::min(
+			int(((now - _started) % kSendingRowDiamondLoop)
+				* frames
+				/ kSendingRowDiamondLoop),
+			frames - 1);
+		if (index != _diamond->frameIndex()) {
+			_diamond->jumpTo(index, nullptr);
+		}
+	}
+	_diamond->paint(p, position.x(), position.y());
+}
+
+void SendingHistoryRow::startAnimation() {
+	if (anim::Disabled() || _animation.animating()) {
+		return;
+	}
+	_animation.start();
+}
+
+not_null<SendingHistoryRow*> AddSendingHistoryRow(
+		not_null<Ui::VerticalLayout*> slot,
+		not_null<Ui::RpWidget*> layer,
+		not_null<Ui::RpWidget*> bounds,
+		const HistoryRowContent &content,
+		Fn<void()> clicked) {
+	const auto result = slot->add(
+		object_ptr<SendingHistoryRow>(slot, layer, bounds, content));
+	result->setClickedCallback(std::move(clicked));
+	return result;
 }
 
 [[nodiscard]] bool ShowsCollectible(const TransferItem &item) {
@@ -11802,13 +12262,32 @@ void Content::setupContent() {
 		}
 		_sendingRow->item = item;
 		const auto slot = _sendingRow->slot;
-		if (!slot->count() || content != _sendingRow->content) {
+		if (const auto look = sending ? _sendingRow->look : nullptr) {
+			if (content != _sendingRow->content) {
+				look->setContent(content);
+				_sendingRow->content = std::move(content);
+			}
+			return created;
+		} else if (!slot->count()
+			|| _sendingRow->look
+			|| content != _sendingRow->content) {
 			slot->clear();
-			AddHistoryRow(slot, content, [=] {
+			_sendingRow->look = nullptr;
+			const auto click = [=] {
 				if (_sendingRow) {
 					ShowWalletTransactionBox(_show, _sendingRow->item, media);
 				}
-			}, media);
+			};
+			if (sending) {
+				_sendingRow->look = AddSendingHistoryRow(
+					slot,
+					column,
+					listWrap,
+					content,
+					click);
+			} else {
+				AddHistoryRow(slot, content, click, media);
+			}
 			_sendingRow->content = std::move(content);
 		}
 		return created;
