@@ -20,7 +20,6 @@ namespace {
 
 constexpr auto kFlightRise = 0.06;
 constexpr auto kApexLatest = 0.4;
-constexpr auto kDiamondLoop = crl::time(3000);
 constexpr auto kDiamondCentre = QPointF(
 	(kGramDiamondLeft + kGramDiamondRight) / 2.,
 	(kGramDiamondTop + kGramDiamondBottom) / 2.);
@@ -57,14 +56,22 @@ constexpr auto kDiamondCentre = QPointF(
 		canvas.height() * kDiamondCentre.y());
 }
 
+[[nodiscard]] crl::time DiamondLoop(not_null<Lottie::Icon*> icon) {
+	const auto frames = icon->framesCount();
+	const auto rate = icon->frameRate();
+	return (frames > 0 && rate > 0.)
+		? crl::time(base::SafeRound(frames * 1000. / rate))
+		: crl::time(0);
+}
+
 } // namespace
 
 crl::time SendingDiamondLoopStart(
 		not_null<Lottie::Icon*> icon,
 		crl::time now) {
-	const auto frames = icon->framesCount();
-	return (frames > 0)
-		? (now - icon->frameIndex() * kDiamondLoop / frames)
+	const auto loop = DiamondLoop(icon);
+	return (loop > 0)
+		? (now - icon->frameIndex() * loop / icon->framesCount())
 		: now;
 }
 
@@ -77,9 +84,13 @@ void AdvanceSendingDiamond(
 		|| !icon->valid()) {
 		return;
 	}
+	const auto loop = DiamondLoop(icon);
+	if (loop <= 0) {
+		return;
+	}
 	const auto frames = icon->framesCount();
 	const auto index = std::min(
-		int(((now - loopStarted) % kDiamondLoop) * frames / kDiamondLoop),
+		int(((now - loopStarted) % loop) * frames / loop),
 		frames - 1);
 	if (index != icon->frameIndex()) {
 		icon->jumpTo(index, nullptr);
