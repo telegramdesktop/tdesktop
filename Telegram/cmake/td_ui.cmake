@@ -615,6 +615,8 @@ PRIVATE
     ui/effects/shake_animation.h
     ui/effects/snowflakes.cpp
     ui/effects/snowflakes.h
+    ui/effects/star_burst.cpp
+    ui/effects/star_burst.h
     ui/effects/toggle_arrow.cpp
     ui/effects/toggle_arrow.h
     ui/effects/ttl_icon.cpp

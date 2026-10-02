@@ -199,6 +199,7 @@ walletSendingRowClockCutout: 2px;
 walletSendingRowGlareWidth: 168px;
 walletSendingRowGlareStroke: 2px;
 walletSendingRowEntranceShift: 13px;
+walletSendingRowBurstOutset: 24px;
 // Text left is walletRowPadding.left, so the row's text lines up with the
 // transaction titles; iconLeft centres the 24px icon on the 46px avatar
 // column at walletRowIconLeft (20 + (46 - 24) / 2). Right 50px is the same
