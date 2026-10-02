@@ -1908,6 +1908,12 @@ struct SendingRowSettleProgress {
 	float64 emoji = 0.;
 };
 
+struct SendingRowSettleRequest {
+	HistoryRowContent content;
+	Fn<void()> done;
+	bool burst = false;
+};
+
 class SendingHistoryRow final : public Ui::AbstractButton {
 public:
 	SendingHistoryRow(
@@ -1972,6 +1978,10 @@ private:
 		crl::time now);
 	void paintDiamond(QPainter &p, QRectF canvas, crl::time now);
 	void startAnimation();
+	void startSettle(HistoryRowContent content, bool burst, Fn<void()> done);
+	[[nodiscard]] bool glareOwed(crl::time now) const;
+	void tickGlare(crl::time now);
+	void releaseSettleWait();
 
 	const not_null<Ui::RpWidget*> _layer;
 	const not_null<Ui::RpWidget*> _bounds;
@@ -1987,12 +1997,14 @@ private:
 	Ui::Animations::Basic _animation;
 	base::unique_qptr<Ui::RpWidget> _surface;
 	std::unique_ptr<Settle> _settle;
+	std::optional<SendingRowSettleRequest> _waiting;
 	crl::time _started = 0;
 	crl::time _diamondStarted = 0;
 	crl::time _bumpAt = 0;
 	int _digitsHeight = 0;
 	bool _inView = true;
 	bool _diamondAway = false;
+	bool _glareSeen = false;
 
 };
 
@@ -2135,9 +2147,17 @@ SendingHistoryRow::SendingHistoryRow(
 	});
 	_animation.init([=](crl::time now) {
 		if (!_inView || !isVisible() || anim::Disabled()) {
+			releaseSettleWait();
 			return false;
 		}
-		_glare.tick(now, kSendingRowGlareDuration, kSendingRowGlarePause);
+		tickGlare(now);
+		if (_waiting && !glareOwed(now)) {
+			auto waiting = *base::take(_waiting);
+			startSettle(
+				std::move(waiting.content),
+				waiting.burst,
+				std::move(waiting.done));
+		}
 		_surface->update();
 		return true;
 	});
@@ -2248,6 +2268,22 @@ void SendingHistoryRow::settle(
 		HistoryRowContent content,
 		bool burst,
 		Fn<void()> done) {
+	if (!_settle && (_waiting || glareOwed(crl::now()))) {
+		_waiting = SendingRowSettleRequest{
+			.content = std::move(content),
+			.done = std::move(done),
+			.burst = burst,
+		};
+		startAnimation();
+		return;
+	}
+	startSettle(std::move(content), burst, std::move(done));
+}
+
+void SendingHistoryRow::startSettle(
+		HistoryRowContent content,
+		bool burst,
+		Fn<void()> done) {
 	if (!_settle) {
 		_settle = std::make_unique<Settle>();
 		_settle->finish.setCallback([=] {
@@ -2295,6 +2331,41 @@ void SendingHistoryRow::settle(
 	_surface->update();
 }
 
+bool SendingHistoryRow::glareOwed(crl::time now) const {
+	return _started
+		&& !anim::Disabled()
+		&& _inView
+		&& isVisible()
+		&& (!_glareSeen || _glare.progress(now).has_value());
+}
+
+// WHY: a pass counts only when this run of the frame callback, which stops
+// out of view, in a hidden window and with animations off, saw it whole after
+// the first paint; none is born under a settle, so no pass is cut by one.
+void SendingHistoryRow::tickGlare(crl::time now) {
+	if (_settle) {
+		return;
+	}
+	if (_started
+		&& (_glare.birth > _started)
+		&& (_glare.birth >= _animation.started())
+		&& (now > _glare.death)) {
+		_glareSeen = true;
+	}
+	_glare.tick(now, kSendingRowGlareDuration, kSendingRowGlarePause);
+}
+
+// The list decides again, as when a result finds the row in this state.
+void SendingHistoryRow::releaseSettleWait() {
+	if (auto waiting = base::take(_waiting)) {
+		crl::on_main(this, [done = std::move(waiting->done)] {
+			if (done) {
+				done();
+			}
+		});
+	}
+}
+
 bool SendingHistoryRow::surfaceShown() const {
 	return _surface && !_surface->isHidden();
 }
@@ -2304,7 +2375,7 @@ bool SendingHistoryRow::inView() const {
 }
 
 bool SendingHistoryRow::settling() const {
-	return _settle && !_settle->finished;
+	return (_settle && !_settle->finished) || _waiting.has_value();
 }
 
 bool SendingHistoryRow::settled() const {
