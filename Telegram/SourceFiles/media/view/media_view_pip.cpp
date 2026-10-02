@@ -944,6 +944,7 @@ Pip::Pip(
 	setupPanel();
 	setupButtons();
 	setupStreaming();
+	syncHoverWithCursor();
 
 	_data->session().account().sessionChanges(
 	) | rpl::on_next([=] {
@@ -1026,6 +1027,27 @@ void Pip::handleLeave() {
 	setOverState(OverState::None);
 }
 
+void Pip::syncHoverWithCursor() {
+	const auto widget = _panel.widget();
+	const auto position = widget->mapFromGlobal(QCursor::pos());
+	if (!widget->rect().contains(position)) {
+		return;
+	}
+	handleMouseMove(position);
+	_controlsShown.stop();
+	for (const auto button : {
+			&_close,
+			&_enlarge,
+			&_previous,
+			&_next,
+			&_play,
+			&_playback,
+			&_volumeToggle,
+			&_volumeController }) {
+		button->active.stop();
+	}
+}
+
 void Pip::handleMouseMove(QPoint position) {
 	const auto weak = base::make_weak(_panel.widget());
 	const auto guard = gsl::finally([&] {
@@ -1092,6 +1114,8 @@ void Pip::updateActiveState(OverState wasShown) {
 	};
 	check(_close);
 	check(_enlarge);
+	check(_previous);
+	check(_next);
 	check(_play);
 	check(_playback);
 	check(_volumeToggle);
@@ -1150,6 +1174,8 @@ void Pip::handleMouseRelease(QPoint position, Qt::MouseButton button) {
 		switch (_over) {
 		case OverState::Close: _panel.widget()->close(); break;
 		case OverState::Enlarge: _closeAndContinue(); break;
+		case OverState::Previous: _delegate->pipNavigate(-1); break;
+		case OverState::Next: _delegate->pipNavigate(1); break;
 		case OverState::VolumeToggle: volumeToggled(); break;
 		case OverState::Other: playbackPauseResume(); break;
 		}
@@ -1244,6 +1270,8 @@ void Pip::setupButtons() {
 	_playback.state = OverState::Playback;
 	_volumeToggle.state = OverState::VolumeToggle;
 	_volumeController.state = OverState::VolumeController;
+	_previous.state = OverState::Previous;
+	_next.state = OverState::Next;
 	_play.state = OverState::Other;
 	_panel.rp()->sizeValue(
 	) | rpl::map([=] {
@@ -1324,6 +1352,19 @@ void Pip::setupButtons() {
 			playbackHeight);
 		_playback.icon = _playback.area.marginsRemoved(
 			{ playbackSkip, playbackSkip, playbackSkip, playbackSkip });
+
+		const auto navWidth = st::pipNextIcon.width() + 2 * skip;
+		const auto navHeight = st::pipNextIcon.height() + 2 * skip;
+		const auto navTop = rect.y() + (rect.height() - navHeight) / 2;
+		_previous.area = QRect(rect.x(), navTop, navWidth, navHeight);
+		_next.area = QRect(
+			rect.x() + rect.width() - navWidth,
+			navTop,
+			navWidth,
+			navHeight);
+		_previous.icon = _previous.area.marginsRemoved(
+			{ skip, skip, skip, skip });
+		_next.icon = _next.area.marginsRemoved({ skip, skip, skip, skip });
 	}, _panel.rp()->lifetime());
 
 	_playbackProgress->setValueChangedCallback([=](
@@ -1496,6 +1537,12 @@ void Pip::paintButtons(not_null<Renderer*> renderer, float64 shown) const {
 		_showPause ? st::pipPauseIconOver : st::pipPlayIconOver);
 	drawOne(_close, st::pipCloseIcon, st::pipCloseIconOver);
 	drawOne(_enlarge, st::pipEnlargeIcon, st::pipEnlargeIconOver);
+	if (_delegate->pipCanNavigate(-1)) {
+		drawOne(_previous, st::pipPreviousIcon, st::pipPreviousIconOver);
+	}
+	if (_delegate->pipCanNavigate(1)) {
+		drawOne(_next, st::pipNextIcon, st::pipNextIconOver);
+	}
 	const auto volume = Core::App().settings().videoVolume();
 	if (volume <= 0.) {
 		drawOne(
@@ -1885,6 +1932,12 @@ Pip::OverState Pip::computeState(QPoint position) const {
 		return OverState::VolumeToggle;
 	} else if (_volumeController.area.contains(position)) {
 		return OverState::VolumeController;
+	} else if (_delegate->pipCanNavigate(-1)
+		&& _previous.area.contains(position)) {
+		return OverState::Previous;
+	} else if (_delegate->pipCanNavigate(1)
+		&& _next.area.contains(position)) {
+		return OverState::Next;
 	} else {
 		return OverState::Other;
 	}

@@ -142,6 +142,8 @@ public:
 		[[nodiscard]] virtual QByteArray pipLoadGeometry() = 0;
 		[[nodiscard]] virtual float64 pipPlaybackSpeed() = 0;
 		[[nodiscard]] virtual QWidget *pipParentWidget() = 0;
+		[[nodiscard]] virtual bool pipCanNavigate(int delta) = 0;
+		virtual void pipNavigate(int delta) = 0;
 	};
 
 	Pip(
@@ -163,6 +165,8 @@ private:
 		None,
 		Close,
 		Enlarge,
+		Previous,
+		Next,
 		Playback,
 		VolumeToggle,
 		VolumeController,
@@ -236,6 +240,7 @@ private:
 	void paint(not_null<Renderer*> renderer) const;
 
 	void handleMouseMove(QPoint position);
+	void syncHoverWithCursor();
 	void handleMousePress(QPoint position, Qt::MouseButton button);
 	void handleMouseRelease(QPoint position, Qt::MouseButton button);
 	void handleDoubleClick(Qt::MouseButton button);
@@ -304,6 +309,8 @@ private:
 	std::optional<OverState> _lastHandledPress;
 	Button _close;
 	Button _enlarge;
+	Button _previous;
+	Button _next;
 	Button _playback;
 	Button _play;
 	Button _volumeToggle;
