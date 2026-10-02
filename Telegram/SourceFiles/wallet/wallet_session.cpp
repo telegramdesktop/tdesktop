@@ -246,7 +246,8 @@ constexpr auto kStreamResyncInterval = 30 * crl::time(1000);
 constexpr auto kClientSendValiditySeconds = uint64(300);
 constexpr auto kClientResolutionMarginSeconds = uint64(60);
 constexpr auto kClientRequestTimeoutMs = uint64(15000);
-constexpr auto kSendingMatchSkew = TimeId(30);
+// Clock error only: unixtime leads the server by under 3 s, plus rounding.
+constexpr auto kSendingMatchSkew = TimeId(5);
 constexpr auto kPreviewClientRecordId = "public-key-only";
 constexpr auto kDecryptBusyRetries = 5;
 constexpr auto kDecryptBusyRetryDelay = crl::time(500);
@@ -8258,24 +8259,28 @@ std::optional<TransferItem> Session::sendingTransaction(
 		return result;
 	}
 	const auto from = _submission->posted - kSendingMatchSkew;
-	auto found = (const TransferItem*)nullptr;
-	for (const auto &item : _history) {
-		if (!item.incoming
+	const auto candidate = [&](const TransferItem &item) {
+		return !item.incoming
 			&& item.kind != TransferItem::Kind::KeyChange
 			&& !item.id.isEmpty()
 			&& item.walletIdentity == result.walletIdentity
 			&& same(item)
 			&& item.date
 			&& *item.date >= from
-			&& (!found || *item.date > *found->date)
 			&& !ranges::contains(
 				_submitted,
 				item.id,
-				&SubmittedTransfer::canonicalId)) {
-			found = &item;
-		}
+				&SubmittedTransfer::canonicalId);
+	};
+	const auto found = ranges::find_if(_history, candidate);
+	if (found == end(_history)) {
+		return result;
 	}
-	if (found) {
+	// Identical transfers cannot be told apart, so none of them is hidden.
+	const auto single = ranges::none_of(_history, [&](const auto &item) {
+		return candidate(item) && (item.id != found->id);
+	});
+	if (single) {
 		result.id = found->id;
 	}
 	return result;
