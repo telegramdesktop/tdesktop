@@ -11,11 +11,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_premium.h" // MessageMoneyRestriction.
 #include "base/random.h"
 #include "boxes/filters/edit_filter_chats_list.h"
+#include "calls/calls_instance.h"
+#include "core/application.h"
 #include "settings/settings_common.h"
 #include "settings/sections/settings_premium.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/delayed_activation.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/text/text_utilities.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/popup_menu.h"
@@ -23,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "main/main_session.h"
+#include "main/session/session_show.h"
 #include "data/data_peer_values.h"
 #include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
@@ -52,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h" // showAddContact()
 #include "base/unixtime.h"
 #include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"
@@ -61,6 +67,49 @@ namespace {
 
 constexpr auto kSortByOnlineThrottle = 3 * crl::time(1000);
 constexpr auto kSearchPerPage = 50;
+
+void DeleteContactsWithConfirmation(
+		std::shared_ptr<Main::SessionShow> show,
+		std::vector<not_null<UserData*>> users,
+		Fn<void()> done) {
+	if (users.empty() || show->showFrozenError()) {
+		return;
+	}
+	const auto session = &show->session();
+	const auto text = (users.size() == 1)
+		? tr::lng_sure_delete_contact(
+			tr::now,
+			lt_contact,
+			users.front()->name())
+		: tr::lng_sure_delete_contacts(
+			tr::now,
+			lt_count,
+			int(users.size()));
+	const auto deleteSure = [=](Fn<void()> &&close) {
+		close();
+		auto inputs = QVector<MTPInputUser>();
+		inputs.reserve(users.size());
+		for (const auto &user : users) {
+			inputs.push_back(user->inputUser());
+		}
+		session->api().request(MTPcontacts_DeleteContacts(
+			MTP_vector<MTPInputUser>(std::move(inputs))
+		)).done([=](const MTPUpdates &result) {
+			if (done) {
+				done();
+			}
+			session->api().applyUpdates(result);
+		}).fail([=](const MTP::Error &error) {
+			show->showToast(error.type());
+		}).send();
+	};
+	show->showBox(Ui::MakeConfirmBox({
+		.text = text,
+		.confirmed = deleteSure,
+		.confirmText = tr::lng_box_delete(),
+		.confirmStyle = &st::attentionBoxButton,
+	}));
+}
 
 } // namespace
 
@@ -75,20 +124,104 @@ Data::CommunityInfo *JoinedCommunityChats(not_null<PeerData*> peer) {
 object_ptr<Ui::BoxContent> PrepareContactsBox(
 		not_null<Window::SessionController*> window) {
 	using Mode = ContactsBoxController::SortMode;
+	class Row final : public PeerListRow {
+	public:
+		Row(
+			not_null<UserData*> user,
+			not_null<PeerListDelegate*> delegate)
+		: PeerListRow(user)
+		, _check(st::defaultPeerListCheck, [=] {
+			delegate->peerListUpdateRow(this);
+		}) {
+		}
+
+		void setSelected(bool selected) {
+			_check.setChecked(selected);
+		}
+
+		void paintUserpicOverlay(
+				Painter &p,
+				const style::PeerListItem &st,
+				int x,
+				int y,
+				int outerWidth) override {
+			const auto shift = st.checkbox.imageRadius * 2
+				+ st.checkbox.selectWidth
+				- st::defaultPeerListCheck.size;
+			_check.paint(p, x + shift, y + shift, outerWidth);
+		}
+
+	private:
+		Ui::RoundCheckbox _check;
+
+	};
 	class Controller final : public ContactsBoxController {
 	public:
-		using ContactsBoxController::ContactsBoxController;
+		explicit Controller(not_null<Window::SessionController*> window)
+		: ContactsBoxController(&window->session())
+		, _window(window) {
+		}
 
 		[[nodiscard]] rpl::producer<not_null<PeerData*>> wheelClicks() const {
 			return _wheelClicks.events();
+		}
+		[[nodiscard]] rpl::producer<> selectionChanges() const {
+			return _selectionChanges.events();
+		}
+
+		[[nodiscard]] std::vector<not_null<UserData*>> selected() const {
+			return { begin(_selected), end(_selected) };
+		}
+		void clearSelection() {
+			deselect(selected());
+		}
+		void deselect(const std::vector<not_null<UserData*>> &users) {
+			for (const auto &user : users) {
+				if (!_selected.remove(user)) {
+					continue;
+				}
+				const auto id = PeerListRowId(user->id.value);
+				if (const auto row = delegate()->peerListFindRow(id)) {
+					applySelected(row, false);
+				}
+			}
+			_selectionChanges.fire({});
 		}
 
 	protected:
 		std::unique_ptr<PeerListRow> createRow(
 				not_null<UserData*> user) override {
 			return !user->isSelf()
-				? ContactsBoxController::createRow(user)
+				? std::make_unique<Row>(user, delegate())
 				: nullptr;
+		}
+
+		void prepareViewHook() override {
+			session().changes().peerUpdates(
+				Data::PeerUpdate::Flag::IsContact
+			) | rpl::on_next([=](const Data::PeerUpdate &update) {
+				const auto user = update.peer->asUser();
+				if (!user || user->isContact()) {
+					return;
+				}
+				const auto id = PeerListRowId(user->id.value);
+				if (const auto row = delegate()->peerListFindRow(id)) {
+					if (_selected.contains(user)) {
+						setSelected(row, false);
+					}
+					delegate()->peerListRemoveRow(row);
+					delegate()->peerListRefreshRows();
+				}
+			}, lifetime());
+		}
+
+		void rowClicked(not_null<PeerListRow*> row) override {
+			const auto user = row->peer()->asUser();
+			if (_selected.empty()) {
+				ContactsBoxController::rowClicked(row);
+			} else if (user && user->isContact()) {
+				setSelected(row, !_selected.contains(user));
+			}
 		}
 
 		void rowMiddleClicked(
@@ -96,12 +229,76 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 			_wheelClicks.fire(row->peer());
 		}
 
+		base::unique_qptr<Ui::PopupMenu> rowContextMenu(
+				QWidget *parent,
+				not_null<PeerListRow*> row) override {
+			const auto user = row->peer()->asUser();
+			if (!user || _selected.contains(user)) {
+				return nullptr;
+			}
+			auto result = base::make_unique_q<Ui::PopupMenu>(
+				parent,
+				st::popupMenuWithIcons);
+			const auto addAction = Ui::Menu::CreateAddActionCallback(result);
+			addAction(tr::lng_context_send_message(tr::now), [=] {
+				_window->showPeerHistory(user);
+			}, &st::menuIconChatBubble);
+			if (!user->isBot()
+				&& !user->isInaccessible()
+				&& !user->isServiceUser()
+				&& !user->isSupport()
+				&& user->callsStatus() != UserData::CallsStatus::Disabled) {
+				addAction(tr::lng_profile_action_short_call(tr::now), [=] {
+					Ui::PreventDelayedActivation();
+					Core::App().calls().startOutgoingCall(user, {});
+				}, &st::menuIconPhone);
+			}
+			if (!user->isContact()) {
+				return result;
+			}
+			addAction(tr::lng_context_select_msg(tr::now), [=] {
+				const auto id = PeerListRowId(user->id.value);
+				if (const auto row = delegate()->peerListFindRow(id)) {
+					setSelected(row, true);
+				}
+			}, &st::menuIconSelect);
+			addAction({
+				.text = tr::lng_info_delete_contact(tr::now),
+				.handler = [=] {
+					DeleteContactsWithConfirmation(
+						delegate()->peerListUiShow(),
+						{ user },
+						nullptr);
+				},
+				.icon = &st::menuIconDeleteAttention,
+				.isAttention = true,
+			});
+			return result;
+		}
+
 	private:
+		void setSelected(not_null<PeerListRow*> row, bool selected) {
+			const auto user = row->peer()->asUser();
+			if (selected) {
+				_selected.emplace(user);
+			} else {
+				_selected.remove(user);
+			}
+			applySelected(row, selected);
+			_selectionChanges.fire({});
+		}
+		void applySelected(not_null<PeerListRow*> row, bool selected) {
+			static_cast<Row*>(row.get())->setSelected(selected);
+			setRowSelected(row, selected);
+		}
+
+		const not_null<Window::SessionController*> _window;
+		base::flat_set<not_null<UserData*>> _selected;
 		rpl::event_stream<not_null<PeerData*>> _wheelClicks;
+		rpl::event_stream<> _selectionChanges;
 
 	};
-	auto controller = std::make_unique<Controller>(
-		&window->session());
+	auto controller = std::make_unique<Controller>(window);
 	controller->setStyleOverrides(&st::contactsWithStories);
 	controller->setStoriesShown(true);
 	controller->setSectionHeadersShown(true);
@@ -114,20 +311,50 @@ object_ptr<Ui::BoxContent> PrepareContactsBox(
 		};
 
 		const auto state = box->lifetime().make_state<State>();
-		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
-		box->addLeftButton(
-			tr::lng_profile_add_contact(),
-			[=] { window->showAddContact(); });
-		state->toggleSort = box->addTopButton(st::contactsSortButton, [=] {
-			const auto online = (state->mode.current() == Mode::Online);
-			const auto mode = online ? Mode::Alphabet : Mode::Online;
-			state->mode = mode;
-			raw->setSortMode(mode);
+		const auto refreshButtons = [=] {
+			box->clearButtons();
+			if (const auto count = int(raw->selected().size())) {
+				box->setTitle(
+					rpl::single(tr::lng_contacts_selected(
+						tr::now,
+						lt_count,
+						count)));
+				box->addButton(tr::lng_selected_delete(), [=] {
+					const auto users = raw->selected();
+					DeleteContactsWithConfirmation(
+						box->peerListUiShow(),
+						users,
+						crl::guard(box, [=] { raw->deselect(users); }));
+				}, st::attentionBoxButton);
+				box->addButton(tr::lng_cancel(), [=] {
+					raw->clearSelection();
+				});
+			} else {
+				box->setTitle(tr::lng_contacts_header());
+				box->addButton(tr::lng_close(), [=] { box->closeBox(); });
+				box->addLeftButton(
+					tr::lng_profile_add_contact(),
+					[=] { window->showAddContact(); });
+			}
+			const auto alphabet = (state->mode.current() == Mode::Alphabet);
+			state->toggleSort = box->addTopButton(st::contactsSortButton, [=] {
+				const auto online = (state->mode.current() == Mode::Online);
+				const auto mode = online ? Mode::Alphabet : Mode::Online;
+				state->mode = mode;
+				raw->setSortMode(mode);
+				state->toggleSort->setIconOverride(
+					online ? &st::contactsSortOnlineIcon : nullptr,
+					online ? &st::contactsSortOnlineIconOver : nullptr);
+			});
 			state->toggleSort->setIconOverride(
-				online ? &st::contactsSortOnlineIcon : nullptr,
-				online ? &st::contactsSortOnlineIconOver : nullptr);
-		});
+				alphabet ? &st::contactsSortOnlineIcon : nullptr,
+				alphabet ? &st::contactsSortOnlineIconOver : nullptr);
+		};
+		refreshButtons();
 		raw->setSortMode(Mode::Online);
+
+		raw->selectionChanges(
+		) | rpl::on_next(refreshButtons, box->lifetime());
 
 		raw->wheelClicks() | rpl::on_next([=](not_null<PeerData*> p) {
 			window->showInNewWindow(p);
@@ -602,6 +829,19 @@ bool PeerListStories::handleClick(not_null<PeerData*> peer) {
 	return false;
 }
 
+void PeerListStories::setRowSelected(
+		not_null<PeerListRow*> row,
+		bool selected) {
+	const auto id = row->id();
+	if (selected) {
+		_selected.emplace(id);
+		_delegate->peerListSetRowChecked(row, true);
+		row->setCustomizedCheckSegments({}, false);
+	} else if (_selected.remove(id)) {
+		applyForRow(row, _counts[id], true);
+	}
+}
+
 void PeerListStories::prepare(not_null<PeerListDelegate*> delegate) {
 	_delegate = delegate;
 
@@ -643,6 +883,9 @@ void PeerListStories::applyForRow(
 		return;
 	}
 	existing = counts;
+	if (_selected.contains(row->id())) {
+		return;
+	}
 	_delegate->peerListSetRowChecked(row, counts.count > 0);
 	if (counts.count > 0) {
 		row->setCustomizedCheckSegments(
@@ -759,6 +1002,16 @@ void ContactsBoxController::setSectionHeadersShown(bool shown) {
 
 void ContactsBoxController::setStoriesShown(bool shown) {
 	_stories = std::make_unique<PeerListStories>(this, _session);
+}
+
+void ContactsBoxController::setRowSelected(
+		not_null<PeerListRow*> row,
+		bool selected) {
+	if (_stories) {
+		_stories->setRowSelected(row, selected);
+	} else {
+		delegate()->peerListSetRowChecked(row, selected);
+	}
 }
 
 void ContactsBoxController::sort() {
