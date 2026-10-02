@@ -212,6 +212,7 @@ constexpr auto kSendingRowSettleDiamondSwellTill = crl::time(100);
 constexpr auto kSendingRowSettleDiamondSwell = 1.1;
 constexpr auto kSendingRowSettleDiamond = crl::time(370);
 constexpr auto kSendingRowSettleDiamondFadeFrom = crl::time(230);
+constexpr auto kSendingRowSettlePaintWait = crl::time(1000);
 constexpr auto kSendingRowBurstDelay = crl::time(50);
 constexpr auto kSendingRowBurstSpread = crl::time(160);
 constexpr auto kSendingRowBurstLifeMin = crl::time(450);
@@ -1772,6 +1773,8 @@ private:
 
 	[[nodiscard]] SendingRowLayout layout() const;
 	[[nodiscard]] SendingRowSettleTarget settleTarget() const;
+	[[nodiscard]] crl::time settleDuration() const;
+	[[nodiscard]] crl::time settleElapsed(crl::time now) const;
 	[[nodiscard]] SendingRowSettleProgress settleProgress(
 		crl::time now) const;
 	[[nodiscard]] QRectF diamondCanvas(
@@ -1785,7 +1788,8 @@ private:
 	void paintAvatar(
 		Painter &p,
 		const SendingRowLayout &layout,
-		float64 cutout);
+		float64 cutout,
+		float64 swap);
 	void paintTexts(
 		Painter &p,
 		const SendingRowLayout &layout,
@@ -1947,6 +1951,8 @@ struct SendingHistoryRow::Settle {
 	Ui::Text::String major;
 	Ui::Text::String minor;
 	std::unique_ptr<Ui::StarBurst> burst;
+	std::unique_ptr<Ui::PeerUserpicView> userpic;
+	rpl::lifetime userpicLifetime;
 	crl::time started = 0;
 	base::Timer finish;
 	Fn<void()> done;
@@ -2094,7 +2100,6 @@ void SendingHistoryRow::settle(
 		Fn<void()> done) {
 	if (!_settle) {
 		_settle = std::make_unique<Settle>();
-		_settle->started = crl::now();
 		_settle->finish.setCallback([=] {
 			_settle->finished = true;
 			crl::on_main(this, [=] {
@@ -2108,10 +2113,21 @@ void SendingHistoryRow::settle(
 			_settle->burst = Ui::StarBurst::Make(
 				SendingRowBurstDescriptor(st::windowActiveTextFg->c));
 		}
-		_settle->finish.callOnce(_settle->burst
-			? _settle->burst->duration()
-			: kSendingRowSettleDiamond);
+		_settle->finish.callOnce(settleDuration() + kSendingRowSettlePaintWait);
 		updateSurfaceGeometry();
+	}
+	const auto peer = content.peer;
+	if (!peer || peer == _content.peer) {
+		_settle->userpicLifetime.destroy();
+		_settle->userpic = nullptr;
+	} else if (!_settle->userpic || _settle->content.peer != peer) {
+		_settle->userpicLifetime.destroy();
+		_settle->userpic = std::make_unique<Ui::PeerUserpicView>(
+			peer->createUserpicView());
+		peer->session().downloaderTaskFinished(
+		) | rpl::on_next([=] {
+			_surface->update();
+		}, _settle->userpicLifetime);
 	}
 	_settle->done = std::move(done);
 	_settle->content = std::move(content);
@@ -2307,6 +2323,22 @@ SendingRowSettleTarget SendingHistoryRow::settleTarget() const {
 	return result;
 }
 
+crl::time SendingHistoryRow::settleDuration() const {
+	return (_settle && _settle->burst)
+		? _settle->burst->duration()
+		: kSendingRowSettleDiamond;
+}
+
+crl::time SendingHistoryRow::settleElapsed(crl::time now) const {
+	return !_settle
+		? crl::time(0)
+		: _settle->finished
+		? settleDuration()
+		: _settle->started
+		? (now - _settle->started)
+		: crl::time(0);
+}
+
 SendingRowSettleProgress SendingHistoryRow::settleProgress(
 		crl::time now) const {
 	auto result = SendingRowSettleProgress();
@@ -2315,7 +2347,7 @@ SendingRowSettleProgress SendingHistoryRow::settleProgress(
 	}
 	const auto t = anim::Disabled()
 		? kSendingRowSettleDiamond
-		: (now - _settle->started);
+		: settleElapsed(now);
 	const auto out = [](float64 x) {
 		return anim::easeOutCubic(1., x);
 	};
@@ -2417,6 +2449,10 @@ void SendingHistoryRow::paintSurface() {
 	if (!_diamondStarted) {
 		_diamondStarted = _started;
 	}
+	if (_settle && !_settle->started && !_settle->finished) {
+		_settle->started = now;
+		_settle->finish.callOnce(settleDuration());
+	}
 	startAnimation();
 	auto hq = PainterHighQualityEnabler(p);
 	const auto layout = this->layout();
@@ -2470,7 +2506,8 @@ void SendingHistoryRow::paintSurface() {
 		p,
 		layout,
 		(st::walletSendingRowClockSize / 2. + st::walletSendingRowClockCutout)
-			* progress.badge);
+			* progress.badge,
+		progress.label);
 	if (progress.badge > 0.) {
 		p.setOpacity(progress.badge);
 		PaintClock(
@@ -2495,7 +2532,7 @@ void SendingHistoryRow::paintSurface() {
 			.origin = target.diamond.center(),
 			.emitter = canvas * (kGramDiamondRight - kGramDiamondLeft),
 			.extent = float64(width()),
-			.elapsed = now - _settle->started,
+			.elapsed = progress.elapsed,
 		});
 	}
 	if (progress.emoji < 1.) {
@@ -2511,7 +2548,8 @@ void SendingHistoryRow::paintSurface() {
 void SendingHistoryRow::paintAvatar(
 		Painter &p,
 		const SendingRowLayout &layout,
-		float64 cutout) {
+		float64 cutout,
+		float64 swap) {
 	p.save();
 	if (cutout > 0.) {
 		auto clip = QPainterPath();
@@ -2520,16 +2558,35 @@ void SendingHistoryRow::paintAvatar(
 		cut.addEllipse(layout.badge, cutout, cutout);
 		p.setClipPath(clip.subtracted(cut));
 	}
-	const auto peer = _content.peer;
-	if (peer && _userpic) {
-		peer->paintUserpic(
-			p,
-			*_userpic,
-			layout.avatar.x(),
-			layout.avatar.y(),
-			layout.avatar.width());
+	const auto paint = [&](
+			const HistoryRowContent &content,
+			Ui::PeerUserpicView *userpic) {
+		if (content.peer && userpic) {
+			content.peer->paintUserpic(
+				p,
+				*userpic,
+				layout.avatar.x(),
+				layout.avatar.y(),
+				layout.avatar.width());
+		} else {
+			PaintRowAvatar(p, layout.avatar, content.avatar);
+		}
+	};
+	const auto next = _settle ? &_settle->content : nullptr;
+	const auto same = !next
+		|| (next->peer
+			? (next->peer == _content.peer)
+			: (!_content.peer && next->avatar == _content.avatar));
+	if (same) {
+		paint(_content, _userpic.get());
 	} else {
-		PaintRowAvatar(p, layout.avatar, _content.avatar);
+		if (swap < 1.) {
+			paint(_content, _userpic.get());
+		}
+		if (swap > 0.) {
+			p.setOpacity(swap);
+			paint(*next, _settle->userpic.get());
+		}
 	}
 	p.restore();
 }
