@@ -59,12 +59,15 @@ constexpr auto kSoftness = std::array<SoftnessStop, 12>{ {
 	return (distance + step - 1) / step + 1;
 }
 
-[[nodiscard]] QImage RenderField(
+void RenderField(
+		QImage &field,
 		QSize cells,
 		QPoint center,
 		float64 angle) {
-	auto result = QImage(cells, QImage::Format_ARGB32_Premultiplied);
-	auto p = QPainter(&result);
+	if (field.size() != cells) {
+		field = QImage(cells, QImage::Format_ARGB32_Premultiplied);
+	}
+	auto p = QPainter(&field);
 	auto hq = PainterHighQualityEnabler(p);
 	auto start = std::fmod(90. - angle, 360.);
 	if (start < 0.) {
@@ -77,7 +80,7 @@ constexpr auto kSoftness = std::array<SoftnessStop, 12>{ {
 	}
 	sweep.setColorAt(1., QColor(kSweep[0]));
 	p.setCompositionMode(QPainter::CompositionMode_Source);
-	p.fillRect(result.rect(), sweep);
+	p.fillRect(field.rect(), sweep);
 	p.setCompositionMode(QPainter::CompositionMode_SourceOver);
 	auto soft = QRadialGradient(
 		QPointF(center),
@@ -87,11 +90,15 @@ constexpr auto kSoftness = std::array<SoftnessStop, 12>{ {
 		color.setAlphaF(stop.alpha);
 		soft.setColorAt(stop.at, color);
 	}
-	p.fillRect(result.rect(), soft);
-	return result;
+	p.fillRect(field.rect(), soft);
 }
 
-[[nodiscard]] QImage RenderBackground(QSize size, int ratio, float64 angle) {
+void RenderBackground(
+		QImage &image,
+		QImage &field,
+		QSize size,
+		int ratio,
+		float64 angle) {
 	const auto step = st::walletCardFieldStep * ratio;
 	const auto anchor = QPoint(size.width() / 2, size.height() / 2);
 	const auto before = QPoint(
@@ -100,17 +107,19 @@ constexpr auto kSoftness = std::array<SoftnessStop, 12>{ {
 	const auto cells = QSize(
 		before.x() + CellsTill(size.width() - anchor.x(), step),
 		before.y() + CellsTill(size.height() - anchor.y(), step));
-	auto field = QBrush(RenderField(cells, before, angle));
-	field.setTransform(QTransform::fromTranslate(
+	RenderField(field, cells, before, angle);
+	auto brush = QBrush(field);
+	brush.setTransform(QTransform::fromTranslate(
 		anchor.x() - before.x() * step,
 		anchor.y() - before.y() * step).scale(step, step));
-	auto result = QImage(size, QImage::Format_ARGB32_Premultiplied);
-	auto p = QPainter(&result);
+	if (image.size() != size) {
+		image = QImage(size, QImage::Format_ARGB32_Premultiplied);
+	}
+	auto p = QPainter(&image);
 	p.setRenderHint(QPainter::SmoothPixmapTransform);
 	p.setCompositionMode(QPainter::CompositionMode_Source);
-	p.fillRect(result.rect(), field);
+	p.fillRect(image.rect(), brush);
 	p.end();
-	return result;
 }
 
 } // namespace
@@ -128,7 +137,9 @@ void CardBackground::paint(QPainter &p, const QRect &card, float64 angle) {
 		|| _image.height() < device.height() + 2) {
 		const auto drawn = (_ratio == ratio) ? _drawn : QSize();
 		const auto covered = drawn.expandedTo(card.size());
-		_image = RenderBackground(
+		RenderBackground(
+			_image,
+			_field,
 			covered * ratio + QSize(2, 2),
 			ratio,
 			angle);
@@ -154,6 +165,7 @@ void CardBackground::paint(QPainter &p, const QRect &card, float64 angle) {
 
 void CardBackground::clear() {
 	_image = QImage();
+	_field = QImage();
 	_drawn = QSize();
 	_ratio = 0;
 }

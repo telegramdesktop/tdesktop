@@ -22,6 +22,7 @@ constexpr auto kFollowJump = 6.;
 constexpr auto kFollowDuration = crl::time(340);
 constexpr auto kFollowRamp = 0.2;
 constexpr auto kAngleLimit = 60.;
+constexpr auto kAngleStep = 0.25; // one colour level of the card background
 constexpr auto kCenterSlack = 1.;
 
 [[nodiscard]] float64 FollowEase(float64 progress, float64 ramp) {
@@ -134,7 +135,8 @@ void CardAngle::follow(bool repaint, bool immediate) {
 	if (!_cursor || !windowActive()) {
 		return;
 	}
-	turnTo(CursorAngle(*_cursor - _center), repaint, immediate);
+	const auto law = CursorAngle(*_cursor - _center);
+	turnTo(std::trunc(law / kAngleStep) * kAngleStep, repaint, immediate);
 }
 
 void CardAngle::turnTo(float64 target, bool repaint, bool immediate) {

@@ -22,6 +22,7 @@ public:
 
 private:
 	QImage _image;
+	QImage _field;
 	QSize _drawn;
 	float64 _angle = 0.;
 	int _ratio = 0;

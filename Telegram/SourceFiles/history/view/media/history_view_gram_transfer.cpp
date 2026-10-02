@@ -357,7 +357,10 @@ private:
 	void validateMark() const;
 	void validateClock() const;
 	void validateBadge() const;
-	void validateAngle(QPainter &p, const PaintContext &context) const;
+	void validateAngle(
+		QPainter &p,
+		not_null<const MediaGeneric*> owner,
+		const PaintContext &context) const;
 	void paintGlareBorder(QPainter &p, Wallet::GlareBand band) const;
 	void paintSendingClock(QPainter &p, crl::time now) const;
 	void paintReveal(QPainter &p, int cardWidth, crl::time now) const;
@@ -1297,6 +1300,7 @@ void GramTransferCardPart::paintGlareBorder(
 
 void GramTransferCardPart::validateAngle(
 		QPainter &p,
+		not_null<const MediaGeneric*> owner,
 		const PaintContext &context) const {
 	const auto angle = context.st->gramCardAngle();
 	if (_angle.get() != angle.get()) {
@@ -1306,7 +1310,11 @@ void GramTransferCardPart::validateAngle(
 		_angle = angle;
 	}
 	if (const auto widget = PaintWidget(p)) {
-		angle->track(this, widget, p.transform().mapRect(QRectF(_layout.card)));
+		// A swipe moves the card on screen, not the angle it is turned from.
+		const auto shift = context.gestureHorizontal.visualTranslationFor(
+			owner->parent()->data()->id.bare);
+		const auto rect = p.transform().mapRect(QRectF(_layout.card));
+		angle->track(this, widget, rect.translated(-shift, 0.));
 	}
 }
 
@@ -1439,7 +1447,7 @@ void GramTransferCardPart::draw(
 	if (_transition && transitionFinished(now)) {
 		_transition = nullptr;
 	}
-	validateAngle(p, context);
+	validateAngle(p, owner, context);
 	// WHY: a card relaid out as settled keeps its clock until this paint,
 	// so a stale paint shows the live pose and the reveal starts from it
 	// here; a later replacement continues this transition.
