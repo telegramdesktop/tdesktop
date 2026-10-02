@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/tabbed_search.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/discrete_sliders.h"
@@ -443,6 +444,9 @@ TabbedSelector::TabbedSelector(
 		createTabsSlider();
 	}
 	setWidgetToScrollArea();
+	// The tab strip, created last, comes first for Tab, as it is laid
+	// out: the tabs, the list with its search, the footer.
+	setVisualTabOrder(true);
 
 	for (auto &tab : _tabs) {
 		const auto widget = tab.widget();
@@ -721,6 +725,38 @@ bool TabbedSelector::hasEmojiTab() const {
 	return _hasEmojiTab;
 }
 
+QString EraseBeforeCursor(not_null<Ui::InputField*> field) {
+	auto cursor = field->textCursor();
+	if (!cursor.hasSelection()) {
+		cursor.movePosition(
+			QTextCursor::PreviousCharacter,
+			QTextCursor::KeepAnchor);
+	}
+	if (!cursor.hasSelection()) {
+		return QString();
+	}
+	const auto erased = field->getTextWithTagsPart(
+		cursor.selectionStart(),
+		cursor.selectionEnd()).text;
+	cursor.removeSelectedText();
+	return erased;
+}
+
+bool TabbedSelector::emojiChosenFor(not_null<QWidget*> field) const {
+	if (field->hasFocus()) {
+		return true;
+	}
+	const auto from = hasEmojiTab() ? emoji()->focusReturnWidget() : nullptr;
+	return from && (from == field || field->isAncestorOf(from));
+}
+
+auto TabbedSelector::backspaces() const
+-> rpl::producer<not_null<BackspaceRequest*>> {
+	return hasEmojiTab()
+		? emoji()->backspaces()
+		: rpl::never<not_null<BackspaceRequest*>>();
+}
+
 bool TabbedSelector::hasStickersTab() const {
 	return _hasStickersTab;
 }
@@ -771,7 +807,18 @@ auto TabbedSelector::choosingStickerUpdated() const
 }
 
 rpl::producer<> TabbedSelector::cancelled() const {
-	return hasGifsTab() ? gifs()->cancelRequests() : nullptr;
+	// The emoji list asks to hide as well, once the keyboard is done with
+	// it - an emoji chosen or Escape pressed.
+	auto result = rpl::producer<>();
+	if (hasGifsTab()) {
+		result = gifs()->cancelRequests();
+	}
+	if (hasEmojiTab()) {
+		result = result
+			? rpl::merge(std::move(result), emoji()->hideRequests())
+			: emoji()->hideRequests();
+	}
+	return result;
 }
 
 rpl::producer<> TabbedSelector::checkForHide() const {
