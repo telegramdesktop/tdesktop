@@ -58,6 +58,9 @@ jobs:
       CMAKE_BUILD_PARALLEL_LEVEL: ""
       CMAKE_PREFIX_PATH: "/opt/homebrew/opt/ffmpeg@6:/opt/homebrew/opt/openal-soft"
       TDE2E: "51743dfd01dff6179e2d8f7095729caa4e2222e9"
+      TLOTTIE: "31f1b542f88e7b4be9a01e749920d857535fc715"
+      TLOTTIE_PATCHES: "4e985907d09a2f0cf231946b946afa3266830a10"
+      RUST_TOOLCHAIN: "1.96.1"
       UPLOAD_ARTIFACT: "true"
       ONLY_CACHE: "false"
       MANUAL_CACHING: "1"
@@ -97,6 +100,43 @@ jobs:
 
           echo "RNNOISE=`curl -sSL --header 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' https://api.github.com/repos/xiph/rnnoise/git/refs/heads/master | jq -r .object.sha`" >> $GITHUB_ENV
           echo "WEBRTC=`curl -sSL --header 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' https://api.github.com/repos/desktop-app/tg_owt/git/refs/heads/master | jq -r .object.sha`" >> $GITHUB_ENV
+
+      - name: TLottie cache.
+        id: cache-tlottie
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.LibrariesPath }}/local/tlottie
+          key: ${{ runner.OS }}-tlottie-${{ env.TLOTTIE }}-${{ env.TLOTTIE_PATCHES }}-${{ env.RUST_TOOLCHAIN }}-${{ env.CACHE_KEY }}
+      - name: TLottie.
+        if: steps.cache-tlottie.outputs.cache-hit != 'true'
+        run: |
+          cd "$LibrariesPath"
+          export RUSTUP_HOME="$LibrariesPath/rustup"
+          export CARGO_HOME="$LibrariesPath/cargo"
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o rustup-init.sh
+          sh rustup-init.sh -y --no-modify-path --profile minimal --default-toolchain "$RUST_TOOLCHAIN"
+          export PATH="$CARGO_HOME/bin:$PATH"
+
+          git init tlottie-patches
+          cd tlottie-patches
+          git remote add origin "$GIT/desktop-app/patches.git"
+          git fetch --depth=1 origin "$TLOTTIE_PATCHES"
+          git reset --hard FETCH_HEAD
+          cd "$LibrariesPath"
+
+          git init tlottie
+          cd tlottie
+          git remote add origin "$GIT/dkaraush/tlottie.git"
+          git fetch --depth=1 origin "$TLOTTIE"
+          git reset --hard FETCH_HEAD
+          git apply ../tlottie-patches/tlottie.patch
+
+          cargo +"$RUST_TOOLCHAIN" rustc --lib --release --locked \
+            --features c-api --crate-type staticlib \
+            -- --print native-static-libs
+          install -d "$LibrariesPath/local/tlottie/lib" "$LibrariesPath/local/tlottie/include/tlottie"
+          install -m 644 target/release/libtlottie.a "$LibrariesPath/local/tlottie/lib/libtlottie.a"
+          install -m 644 include/tlottie.h "$LibrariesPath/local/tlottie/include/tlottie/tlottie.h"
 
       - name: RNNoise cache.
         id: cache-rnnoise
