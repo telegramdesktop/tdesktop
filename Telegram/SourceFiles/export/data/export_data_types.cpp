@@ -2087,6 +2087,7 @@ Chat ParseChat(const MTPChat &data) {
 			});
 		}
 		result.isMonoforum = data.is_monoforum();
+		result.isForum = data.is_forum();
 		result.isBroadcast = data.is_broadcast();
 		result.isSupergroup = data.is_megagroup();
 		result.hasMonoforumAdminRights = data.is_broadcast()
@@ -3261,6 +3262,7 @@ DialogsInfo ParseDialogsInfo(const MTPmessages_Dialogs &data) {
 					: 0;
 				info.isMonoforum = peer.chat()
 					&& peer.chat()->isMonoforum;
+				info.isForum = peer.chat() && peer.chat()->isForum;
 				info.monoforumBroadcastInput = peer.chat()
 					? peer.chat()->monoforumBroadcastInput
 					: MTPInputPeer(MTP_inputPeerEmpty());
@@ -3303,8 +3305,63 @@ DialogInfo DialogInfoFromChat(const Chat &data) {
 	result.type = DialogTypeFromChat(data);
 	result.migratedToChannelId = data.migratedToChannelId;
 	result.isMonoforum = data.isMonoforum;
+	result.isForum = data.isForum;
 	if (data.isMonoforumAdmin) {
 		result.monoforumBroadcastInput = data.monoforumBroadcastInput;
+	}
+	return result;
+}
+
+ForumTopicsSlice ParseForumTopicsSlice(const MTPmessages_ForumTopics &data) {
+	const auto &fields = data.data();
+	auto dates = base::flat_map<int32, TimeId>();
+	dates.reserve(fields.vmessages().v.size());
+	for (const auto &message : fields.vmessages().v) {
+		message.match([](const MTPDmessageEmpty &) {
+		}, [&](const auto &fields) {
+			dates.emplace(fields.vid().v, fields.vdate().v);
+		});
+	}
+	auto result = ForumTopicsSlice();
+	result.list.reserve(fields.vtopics().v.size());
+	for (const auto &topic : fields.vtopics().v) {
+		topic.match([&](const MTPDforumTopic &fields) {
+			auto parsed = ForumTopic();
+			parsed.rootId = fields.vid().v;
+			parsed.title = ParseString(fields.vtitle());
+			parsed.topMessageId = fields.vtop_message().v;
+			if (const auto i = dates.find(parsed.topMessageId)
+				; i != end(dates)) {
+				parsed.topMessageDate = i->second;
+			}
+			result.offsetDate = data.data().is_order_by_create_date()
+				? fields.vdate().v
+				: parsed.topMessageDate;
+			result.offsetId = parsed.topMessageId;
+			result.offsetTopicId = parsed.rootId;
+			result.list.push_back(std::move(parsed));
+		}, [](const MTPDforumTopicDeleted &) {
+		});
+	}
+	return result;
+}
+
+DialogInfo DialogInfoFromTopic(
+		const DialogInfo &chat,
+		const ForumTopic &topic) {
+	Expects(!chat.splits.empty());
+
+	auto result = chat;
+	result.topicRootId = topic.rootId;
+	result.topicChatName = chat.name;
+	result.name = topic.title;
+	result.topMessageId = topic.topMessageId;
+	result.topMessageDate = topic.topMessageDate;
+	result.relativePath += u"topic_%1/"_q.arg(topic.rootId);
+	if (topic.rootId != 1) {
+		result.splits = { chat.splits.back() };
+		result.messagesCountPerSplit = { 0 };
+		result.migratedFromInput = MTP_inputPeerEmpty();
 	}
 	return result;
 }
@@ -3473,6 +3530,20 @@ MessagesSlice ParseMessagesSlice(
 	}
 	result.peers = ParsePeersLists(users, chats);
 	return result;
+}
+
+MessagesSlice FilterTopicRootSlice(MessagesSlice slice, bool onlyMyMessages) {
+	std::erase_if(slice.list, [&](const Message &message) {
+		return !message.date || (onlyMyMessages && !message.out);
+	});
+	return slice;
+}
+
+MessagesSlice FilterTopicMessagesSlice(MessagesSlice slice, int32 afterId) {
+	std::erase_if(slice.list, [&](const Message &message) {
+		return message.id <= afterId;
+	});
+	return slice;
 }
 
 MessagesSlice AdjustMigrateMessageIds(MessagesSlice slice) {
