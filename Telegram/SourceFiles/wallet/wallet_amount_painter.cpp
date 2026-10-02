@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "wallet/wallet_amount_painter.h"
 
+#include "base/platform/base_platform_info.h"
+
 namespace Wallet {
 
 int GramDiamondCanvas(const style::font &font) {
@@ -102,8 +104,10 @@ QSizeF AmountPainter::size() const {
 }
 
 void AmountPainter::paint(QPainter &p, const AmountColors &colors) const {
-	// Only glyphs that land on the device grid unscaled can be hinted.
-	if (p.deviceTransform().type() <= QTransform::TxTranslate) {
+	// WHY: glyphs are hinted only under an unscaled device transform, and
+	// CoreText never hints while its smoothing draws text heavier than paths.
+	if (!Platform::IsMac()
+		&& p.deviceTransform().type() <= QTransform::TxTranslate) {
 		paintText(p, colors);
 		return;
 	}
