@@ -240,6 +240,7 @@ private:
 	void sendExternalShellChrome();
 	void setExternalShellBlocked(bool blocked);
 	void closeExternalShellLayer();
+	void closeExternalShellPopup();
 	[[nodiscard]] ExternalShellAnchor externalShellAnchor() const;
 	void showPopup(
 		Webview::PopupArgs &&args,
@@ -344,6 +345,7 @@ private:
 	std::unique_ptr<SeparatePanel> _widget;
 	std::unique_ptr<WebviewWithLifetime> _webview;
 	std::unique_ptr<StandaloneLayerStack> _externalLayer;
+	Fn<void()> _closeExternalShellPopup;
 	std::unique_ptr<RpWidget> _externalWebviewParent;
 	std::unique_ptr<RpWidget> _webviewBottom;
 	QPointer<FlatLabel> _webviewBottomLabel;

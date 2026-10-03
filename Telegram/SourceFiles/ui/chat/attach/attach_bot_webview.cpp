@@ -1353,6 +1353,7 @@ Panel::Panel(Args &&args)
 }
 
 Panel::~Panel() {
+	closeExternalShellPopup();
 	base::take(_webview);
 	_progress = nullptr;
 	_externalLayer = nullptr;
@@ -2010,7 +2011,13 @@ void Panel::closeExternalShellLayer() {
 	if (_externalLayer) {
 		_externalLayer->hideLayers(anim::type::normal);
 	}
-	Webview::CloseBlockingPopup();
+	closeExternalShellPopup();
+}
+
+void Panel::closeExternalShellPopup() {
+	if (const auto close = base::take(_closeExternalShellPopup)) {
+		close();
+	}
 }
 
 void Panel::showExternalShellError(TextWithEntities text) {
@@ -2021,7 +2028,7 @@ void Panel::showExternalShellError(TextWithEntities text) {
 	base::take(_webview);
 	_externalWebviewParent = nullptr;
 	_webviewParent = nullptr;
-	Webview::CloseBlockingPopup();
+	closeExternalShellPopup();
 	if (!_externalLayer) {
 		showCriticalError(text);
 		return;
@@ -2089,7 +2096,7 @@ void Panel::showPopup(
 	args.parent = nullptr;
 	setExternalShellBlocked(true);
 	const auto weak = base::make_weak(this);
-	Webview::ShowPopupAsync(
+	_closeExternalShellPopup = Webview::ShowPopupAsync(
 		std::move(args),
 		[=, done = std::move(done)](
 				Webview::PopupResult result) mutable {
@@ -2528,7 +2535,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			args.parent = nullptr;
 			setExternalShellBlocked(true);
 			const auto weak = base::make_weak(this);
-			Webview::DefaultDialogHandlerAsync(
+			_closeExternalShellPopup = Webview::DefaultDialogHandlerAsync(
 				std::move(args),
 				[=, done = std::move(done)](
 						Webview::DialogResult result) mutable {
