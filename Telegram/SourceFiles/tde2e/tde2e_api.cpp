@@ -337,9 +337,11 @@ void Call::checkForOutboundMessages() {
 	if (!result.is_ok()) {
 		LOG_AND_FAIL(result.error(), CallFailure::Unknown);
 		return;
-	} else if (!result.value().empty()) {
+	}
+
+	for (const auto &message : result.value()) {
 		_outboundBlocks.fire(
-			QByteArray::fromStdString(result.value().back()));
+			QByteArray::fromStdString(message));
 	}
 }
 
