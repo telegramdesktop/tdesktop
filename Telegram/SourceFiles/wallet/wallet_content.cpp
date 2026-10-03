@@ -328,6 +328,12 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	struct Regions {
+		int reserve = 0;
+		int scrollTop = 0;
+		int scrollHeight = 0;
+	};
+
 	void setupContent();
 	void setupPinned();
 	void setupInfoIsland();
@@ -348,6 +354,7 @@ private:
 	bool revealSendingRow();
 	[[nodiscard]] int pinnedMax() const;
 	[[nodiscard]] int pinnedMin() const;
+	[[nodiscard]] Regions countRegions(int columnHeight) const;
 	[[nodiscard]] QRect cardRest() const;
 	[[nodiscard]] float64 foldProgress() const;
 	[[nodiscard]] const CardFold &cardFold() const;
@@ -1763,7 +1770,7 @@ void AddHistoryRowChip(
 	refresh();
 }
 
-void AddHistoryRow(
+not_null<Ui::RpWidget*> AddHistoryRow(
 		not_null<Ui::VerticalLayout*> list,
 		const HistoryRowContent &content,
 		Fn<void()> clicked,
@@ -1876,6 +1883,7 @@ void AddHistoryRow(
 		button->resize(g.size());
 		button->lower();
 	}, wrap->lifetime());
+	return wrap;
 }
 
 struct SendingRowLayout {
@@ -13003,6 +13011,85 @@ enum class EmptyFace {
 	Unreachable,
 };
 
+struct ListRowKey {
+	std::string operationId;
+	QString id;
+
+	friend bool operator==(
+		const ListRowKey &,
+		const ListRowKey &) = default;
+};
+
+struct ListedRow {
+	ListRowKey key;
+	not_null<Ui::RpWidget*> widget;
+};
+
+struct ListAnchorRow {
+	ListRowKey key;
+	int top = 0;
+};
+
+[[nodiscard]] std::vector<ListAnchorRow> CountListAnchor(
+		const std::vector<ListedRow> &rows,
+		not_null<QWidget*> column,
+		int visibleTop) {
+	if (rows.empty() || visibleTop <= 0) {
+		return {};
+	}
+	auto tops = std::vector<int>();
+	tops.reserve(rows.size());
+	for (const auto &row : rows) {
+		tops.push_back(Ui::MapFrom(column, row.widget, QPoint()).y());
+	}
+	if (visibleTop < tops.front()) {
+		return {};
+	}
+	const auto count = int(rows.size());
+	auto index = count - 1;
+	for (auto i = 0; i != count; ++i) {
+		if (tops[i] + rows[i].widget->height() > visibleTop) {
+			index = i;
+			break;
+		}
+	}
+	auto result = std::vector<ListAnchorRow>();
+	result.reserve(count);
+	const auto add = [&](int i) {
+		const auto &key = rows[i].key;
+		if (!key.operationId.empty() || !key.id.isEmpty()) {
+			result.push_back({ .key = key, .top = tops[i] });
+		}
+	};
+	for (auto i = index; i != count; ++i) {
+		add(i);
+	}
+	for (auto i = index - 1; i >= 0; --i) {
+		add(i);
+	}
+	return result;
+}
+
+[[nodiscard]] int CountKeptScrollTop(
+		const std::vector<ListAnchorRow> &anchor,
+		const std::vector<ListedRow> &rows,
+		not_null<QWidget*> column,
+		int scrollTop,
+		int reserve,
+		int maxTop) {
+	auto shift = 0;
+	for (const auto &entry : anchor) {
+		const auto found = ranges::find(rows, entry.key, &ListedRow::key);
+		if (found != end(rows)) {
+			shift = Ui::MapFrom(column, found->widget, QPoint()).y()
+				- entry.top;
+			break;
+		}
+	}
+	const auto lower = anchor.empty() ? 0 : std::min(reserve, maxTop);
+	return std::clamp(scrollTop + shift, lower, maxTop);
+}
+
 void Content::setupContent() {
 	_container = _scroll->setOwnedWidget(
 		object_ptr<Ui::RpWidget>(_scroll.data()));
@@ -13147,6 +13234,33 @@ void Content::setupContent() {
 	const auto rows = listWrap->entity();
 	const auto head = rows->add(object_ptr<Ui::VerticalLayout>(rows));
 	const auto list = rows->add(object_ptr<Ui::VerticalLayout>(rows));
+	struct ListPlace {
+		std::vector<ListedRow> rows;
+		int lastTop = 0;
+		bool rebuilding = false;
+	};
+	const auto place = lifetime().make_state<ListPlace>();
+	place->lastTop = _scroll->scrollTop();
+	const auto listedRows = [=] {
+		auto result = std::vector<ListedRow>();
+		result.reserve(place->rows.size() + 1);
+		if (_sendingRow) {
+			result.push_back({
+				.key = { .operationId = _sendingRow->operationId },
+				.widget = _sendingRow->slot,
+			});
+		}
+		result.insert(end(result), begin(place->rows), end(place->rows));
+		return result;
+	};
+	const auto fitContainer = [=] {
+		const auto height = _column->height();
+		_container->resize(
+			_container->width(),
+			(place->rebuilding
+				? std::max(height, _container->height())
+				: height));
+	};
 	const auto releaseSending = [=] {
 		if (_sendingRow) {
 			delete _sendingRow->slot;
@@ -13230,6 +13344,15 @@ void Content::setupContent() {
 		return created;
 	};
 	const auto rebuildList = [=] {
+		const auto scrollTop = _scroll->scrollTop();
+		const auto anchor = listWrap->toggled()
+			? CountListAnchor(listedRows(), column, scrollTop - _reserve)
+			: std::vector<ListAnchorRow>();
+		place->rows.clear();
+		// WHY: clear() collapses the column and the scroll area clamps to it
+		// at once, so the geometry readers wait for the rebuilt rows, which
+		// then keep their place on screen in one move.
+		place->rebuilding = true;
 		head->clear();
 		list->clear();
 		const auto &history = wallet->history();
@@ -13238,11 +13361,14 @@ void Content::setupContent() {
 		ranges::stable_sort(submitted, ranges::greater(), [](const auto &entry) {
 			return entry.item.date.value_or(kUndatedRowDate);
 		});
-		const auto addItem = [=](const TransferItem &item) {
+		const auto addItem = [=](const TransferItem &item, ListRowKey key) {
 			const auto content = RowContentFromItem(item, &_show->session());
-			AddHistoryRow(list, content, [=] {
-				ShowWalletTransactionBox(_show, item, media);
-			}, media);
+			place->rows.push_back({
+				.key = std::move(key),
+				.widget = AddHistoryRow(list, content, [=] {
+					ShowWalletTransactionBox(_show, item, media);
+				}, media),
+			});
 		};
 		auto created = false;
 		if (HistoryShown(&_show->session())) {
@@ -13313,7 +13439,7 @@ void Content::setupContent() {
 			const auto addNext = [&] {
 				const auto &entry = *(next++);
 				if (!held || entry.operationId != op) {
-					addItem(entry.item);
+					addItem(entry.item, { .operationId = entry.operationId });
 				}
 			};
 			const auto addNewerThan = [&](TimeId date) {
@@ -13328,7 +13454,7 @@ void Content::setupContent() {
 				}
 				if (!wallet->historyItemHidden(item)
 					&& (skipId.isEmpty() || item.id != skipId)) {
-					addItem(item);
+					addItem(item, { .id = item.id });
 				}
 			}
 			while (next != end(submitted)) {
@@ -13341,6 +13467,22 @@ void Content::setupContent() {
 		if (const auto width = rows->width()) {
 			rows->resizeToWidth(width);
 		}
+		if (width() && height()) {
+			const auto columnHeight = column->height();
+			const auto regions = countRegions(columnHeight);
+			_scroll->scrollToY(CountKeptScrollTop(
+				anchor,
+				listedRows(),
+				column,
+				scrollTop,
+				_reserve,
+				std::max(
+					columnHeight + regions.reserve - regions.scrollHeight,
+					0)));
+		}
+		place->rebuilding = false;
+		fitContainer();
+		updateRegions();
 		if (created) {
 			Ui::PostponeCall(this, [=] { revealSendingRow(); });
 		}
@@ -13363,21 +13505,21 @@ void Content::setupContent() {
 	collectiblesWrap->toggleOn(wallet->collectiblesTabValue());
 	collectiblesWrap->finishAnimating();
 
-	const auto lastTop = lifetime().make_state<int>(_scroll->scrollTop());
 	_scroll->scrolls(
 	) | rpl::on_next([=] {
 		// A reader who moved the list down is asking for more of it, so
 		// the bound the session spends on hidden transaction pages is
 		// re-armed here, and only for that. Every other way this fires is
-		// a clamp nobody made - a rebuild dipping the list's height, a
+		// a clamp nobody made - a section sliding shut, a
 		// resize growing the viewport - and a clamp can only lower the
 		// position, so requiring it to grow rejects all of them. The last
 		// seen position is kept beside the handler and not inside it,
 		// because rpl invokes a copy of the handler on every emission and
 		// a value captured in it would never carry to the next one.
 		const auto top = _scroll->scrollTop();
-		const auto moved = (top > *lastTop);
-		*lastTop = top;
+		// A rebuild's anchored move grows it too, and is no reader's scroll.
+		const auto moved = !place->rebuilding && (top > place->lastTop);
+		place->lastTop = top;
 		if (moved) {
 			wallet->resetHiddenHistoryPages();
 		}
@@ -13386,11 +13528,21 @@ void Content::setupContent() {
 
 	_scroll->scrollTopValue(
 	) | rpl::on_next([=](int) {
+		if (place->rebuilding) {
+			return;
+		}
 		updatePinned();
 		updateVisibleArea();
 	}, lifetime());
 
-	Ui::ResizeFitChild(_container, _column);
+	_container->widthValue(
+	) | rpl::on_next([=](int width) {
+		_column->resizeToWidth(width);
+	}, _column->lifetime());
+	_column->heightValue(
+	) | rpl::on_next([=] {
+		fitContainer();
+	}, _column->lifetime());
 
 	_pinnedInner->heightValue(
 	) | rpl::on_next([=] {
@@ -13399,7 +13551,9 @@ void Content::setupContent() {
 
 	_column->entity()->heightValue(
 	) | rpl::on_next([=] {
-		updateRegions();
+		if (!place->rebuilding) {
+			updateRegions();
+		}
 		_loadMoreCheck.call();
 	}, lifetime());
 
@@ -14122,6 +14276,22 @@ QRect Content::cardRest() const {
 		st::walletCardHeight);
 }
 
+Content::Regions Content::countRegions(int columnHeight) const {
+	const auto max = pinnedMax();
+	const auto min = pinnedMin();
+	const auto stripHeight = _stripShown
+		? (st::walletRowsHintHeight + st::lineWidth)
+		: 0;
+	const auto open = height() - max - stripHeight;
+	const auto reserve = (columnHeight > open) ? (max - min) : 0;
+	const auto scrollTop = max - reserve;
+	return {
+		.reserve = reserve,
+		.scrollTop = scrollTop,
+		.scrollHeight = std::max(0, height() - scrollTop - stripHeight),
+	};
+}
+
 float64 Content::foldProgress() const {
 	// The card's rest bottom, measured down from the pinned top, is the
 	// placeholder's own bottom inside _pinnedInner, because that layout's
@@ -14142,19 +14312,14 @@ void Content::updateRegions() {
 		_pinnedInner->resizeToWidth(width());
 	}
 	const auto max = pinnedMax();
-	const auto min = pinnedMin();
-	const auto stripHeight = _stripShown
-		? (st::walletRowsHintHeight + st::lineWidth)
-		: 0;
-	const auto open = height() - max - stripHeight;
-	_reserve = (_column->entity()->height() > open) ? (max - min) : 0;
+	const auto regions = countRegions(_column->entity()->height());
+	_reserve = regions.reserve;
 	_column->setPadding({ 0, _reserve, 0, 0 });
-	const auto scrollTop = max - _reserve;
 	_scroll->setGeometry(
 		0,
-		scrollTop,
+		regions.scrollTop,
 		width(),
-		std::max(0, height() - scrollTop - stripHeight));
+		regions.scrollHeight);
 	if (_listsLoading && !_listsLoading->isHidden()) {
 		_listsLoading->setGeometry(0, max, width(), height() - max);
 	}
@@ -14171,7 +14336,7 @@ void Content::updateRegions() {
 	updatePinned();
 	if (_stripShown) {
 		const auto stripTop = std::max(
-			scrollTop,
+			regions.scrollTop,
 			height() - st::walletRowsHintHeight);
 		_stripShadow->setGeometry(
 			0,
