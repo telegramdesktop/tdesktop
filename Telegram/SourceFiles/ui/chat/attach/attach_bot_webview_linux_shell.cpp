@@ -208,9 +208,7 @@ QSize WindowSize(QSize contentSize) {
 	const auto shadowPadding = Unscaled(st::botWebViewShellShadowPadding);
 	return Unscaled(contentSize) + QSize(
 		shadowPadding.left() + shadowPadding.right(),
-		shadowPadding.top()
-			+ Unscaled(st::botWebViewShellHeaderHeight)
-			+ shadowPadding.bottom());
+		shadowPadding.top() + shadowPadding.bottom());
 }
 
 QJsonObject MenuPalette() {
