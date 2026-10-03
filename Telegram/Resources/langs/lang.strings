@@ -559,6 +559,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_notifications_display" = "Display for notifications";
 "lng_settings_notifications_display_default" = "Default";
 "lng_settings_sound_allowed" = "Allow sound";
+"lng_settings_in_chat_sounds" = "In-chat sounds";
 "lng_settings_alert_windows" = "Flash the taskbar icon";
 "lng_settings_alert_mac" = "Bounce the Dock icon";
 "lng_settings_alert_linux" = "Draw attention to the window";

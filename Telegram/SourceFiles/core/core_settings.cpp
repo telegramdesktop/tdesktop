@@ -1362,6 +1362,14 @@ void Settings::writePrefImpl<QByteArray>(
 	writePrefGeneric(key, value);
 }
 
+bool Settings::inChatSounds() {
+	return readPref<bool>(kInChatSoundsKey, true);
+}
+
+void Settings::setInChatSounds(bool value) {
+	writePref<bool>(kInChatSoundsKey, value);
+}
+
 QString Settings::getSoundPath(const QString &key) const {
 	auto it = _soundOverrides.find(key);
 	if (it != _soundOverrides.end()) {

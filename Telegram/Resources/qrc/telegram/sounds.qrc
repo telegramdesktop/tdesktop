@@ -1,6 +1,8 @@
 <RCC>
   <qresource prefix="/sounds">
     <file alias="msg_incoming.mp3">../../sounds/msg_incoming.mp3</file>
+    <file alias="chat_incoming.wav">../../sounds/chat_incoming.wav</file>
+    <file alias="chat_outgoing.wav">../../sounds/chat_outgoing.wav</file>
     <file alias="call_busy.mp3">../../sounds/call_busy.mp3</file>
     <file alias="call_connect.mp3">../../sounds/call_connect.mp3</file>
     <file alias="call_end.mp3">../../sounds/call_end.mp3</file>
