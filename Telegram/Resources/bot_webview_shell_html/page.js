@@ -656,7 +656,7 @@
 	}
 
 	function createMenuNode(item, className) {
-		const clickable = !!item.id && item.enabled !== false;
+		const clickable = !!item.id;
 		const node = document.createElement(clickable ? 'button' : 'div');
 		node.className = className
 			+ (item.attention ? ' attention' : '')

@@ -431,7 +431,6 @@ struct SharedPanelMenuItem {
 	const style::icon *icon = nullptr;
 	bool isSeparator = false;
 	bool isAttention = false;
-	bool isEnabled = true;
 	std::vector<SharedPanelMenuItem> children;
 };
 
@@ -646,7 +645,6 @@ void DispatchSharedPanelMenuAction(
 			tr::lng_bot_download_retry(tr::now));
 		item.actionLabel = tr::lng_bot_download_retry(tr::now);
 	}
-	item.isEnabled = !item.id.isEmpty();
 	return item;
 }
 
@@ -876,7 +874,6 @@ void CollectSharedPanelMenuIcons(
 		{ u"id"_q, item.id },
 		{ u"text"_q, item.text },
 		{ u"attention"_q, item.isAttention },
-		{ u"enabled"_q, item.isEnabled },
 	};
 	if (!item.subtitle.isEmpty()) {
 		result.insert(u"subtitle"_q, item.subtitle);
@@ -1322,16 +1319,11 @@ Panel::Panel(Args &&args)
 	}, _widget->lifetime());
 
 	setTitle(std::move(args.title));
-	_bottomText.value() | rpl::on_next([=](const QString &text) {
-		if (_externalShell) {
-			return;
-		}
-	}, _widget->lifetime());
 	_externalTitleBadgeVisible = (args.titleBadge.paint != nullptr);
 	_widget->setTitleBadge(std::move(args.titleBadge));
 
 	if (!showWebview(std::move(args), params)) {
-		if (_externalShell && _externalLayer) {
+		if (_externalLayer) {
 			const auto available = Webview::Availability();
 			if (available.error != Webview::Available::Error::None) {
 				showExternalShellError(WebviewErrorText(
@@ -1341,7 +1333,6 @@ Panel::Panel(Args &&args)
 				showExternalShellError({ tr::lng_bot_webview_failed(tr::now) });
 			}
 		} else {
-			_externalShell = false;
 			const auto available = Webview::Availability();
 			if (available.error != Webview::Available::Error::None) {
 				showWebviewError(tr::lng_bot_no_webview(tr::now), available);
@@ -1762,7 +1753,6 @@ void Panel::sendExternalShellBootstrap() {
 	sendExternalShellMethod("bootstrap", {
 		{ u"url"_q, _externalUrl },
 		{ u"sameOrigin"_q, bool(_sameOrigin) },
-		{ u"initialOrigin"_q, _initialOrigin },
 		{ u"title"_q, _externalTitle },
 		{ u"metrics"_q, LinuxShell::Metrics() },
 		{ u"colors"_q, LinuxShell::ColorPayload(externalShellColors(params)) },
@@ -3678,7 +3668,7 @@ not_null<QWidget*> Panel::toastParent() const {
 }
 
 void Panel::hideLayer(anim::type animated) {
-	if (_externalShell && _externalLayer) {
+	if (_externalLayer) {
 		_externalLayer->hideLayers(animated);
 		return;
 	}
