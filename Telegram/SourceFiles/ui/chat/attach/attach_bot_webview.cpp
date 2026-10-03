@@ -2026,10 +2026,7 @@ void Panel::showExternalShellError(TextWithEntities text) {
 		showCriticalError(text);
 		return;
 	}
-	_externalLayer->setAnchor(
-		anchor.anchorGeometry,
-		anchor.outerSize,
-		anchor.transientParent);
+	_externalLayer->setAnchor(anchor.outerSize, anchor.transientParent);
 	const auto weak = base::make_weak(this);
 	const auto botClosed = std::make_shared<bool>(false);
 	const auto closeBot = [=] {
@@ -2061,14 +2058,11 @@ Panel::ExternalShellAnchor Panel::externalShellAnchor() const {
 	}
 	auto popupAnchor = _webview->window.popupAnchor();
 	auto result = ExternalShellAnchor{
-		.anchorGeometry = std::move(popupAnchor.geometry),
 		.outerSize = std::move(popupAnchor.outerSize),
 		.transientParent = CompatibleForeignParent(
 			std::move(popupAnchor.transientParent)),
 	};
-	if (!result.transientParent
-		&& !result.anchorGeometry
-		&& !result.outerSize) {
+	if (!result.transientParent && !result.outerSize) {
 		return {};
 	}
 	return result;
@@ -2091,7 +2085,6 @@ void Panel::showPopup(
 		return;
 	}
 	const auto anchor = externalShellAnchor();
-	args.anchorGeometry = anchor.anchorGeometry;
 	args.transientParent = anchor.transientParent;
 	args.parent = nullptr;
 	setExternalShellBlocked(true);
@@ -2516,7 +2509,6 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 	if (_externalShell) {
 		raw->setDialogHandler([=](Webview::DialogArgs args) {
 			const auto anchor = externalShellAnchor();
-			args.anchorGeometry = anchor.anchorGeometry;
 			args.transientParent = anchor.transientParent;
 			args.parent = nullptr;
 			setExternalShellBlocked(true);
@@ -2532,7 +2524,6 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 				Webview::DialogArgs args,
 				std::function<void(Webview::DialogResult)> done) {
 			const auto anchor = externalShellAnchor();
-			args.anchorGeometry = anchor.anchorGeometry;
 			args.transientParent = anchor.transientParent;
 			args.parent = nullptr;
 			setExternalShellBlocked(true);
@@ -3609,10 +3600,7 @@ void Panel::showBox(
 		anim::type animated) {
 	if (_externalShell) {
 		const auto anchor = externalShellAnchor();
-		_externalLayer->setAnchor(
-			anchor.anchorGeometry,
-			anchor.outerSize,
-			anchor.transientParent);
+		_externalLayer->setAnchor(anchor.outerSize, anchor.transientParent);
 		_externalLayer->showBox(std::move(box), options, animated);
 		return;
 	}

@@ -207,7 +207,6 @@ private:
 		std::optional<QColor> bottom;
 	};
 	struct ExternalShellAnchor {
-		std::optional<QRect> anchorGeometry;
 		std::optional<QSize> outerSize;
 		Platform::ForeignParent transientParent;
 	};
