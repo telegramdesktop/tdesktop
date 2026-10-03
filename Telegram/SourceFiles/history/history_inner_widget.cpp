@@ -2768,6 +2768,50 @@ HistoryView::SelectedQuote HistoryInner::selectedQuote(
 }
 
 void HistoryInner::contextMenuEvent(QContextMenuEvent *e) {
+	// A keyboard-invoked event carries the center of an empty input method
+	// rect for a position, which may sit nowhere near the focused message -
+	// rebuild the event anchored on it, so everything in showContextMenu
+	// reading the event position (the menu, the reactions selector) lands
+	// on the message.
+	if (e->reason() == QContextMenuEvent::Keyboard
+		&& _accessibilityFocusedItem) {
+		const auto top = itemTop(_accessibilityFocusedItem);
+		const auto view = _accessibilityFocusedItem->mainView();
+		if (top >= 0 && view) {
+			auto rect = QRect(0, top, width(), view->height());
+			const auto visibleArea = [&] {
+				return QRect(
+					0,
+					_visibleAreaTop,
+					width(),
+					_visibleAreaBottom - _visibleAreaTop);
+			};
+			auto visible = visibleArea();
+			if (!rect.intersects(visible)) {
+				// A message scrolled wholly out of view is brought back first:
+				// the menu is placed by the event position, which everything
+				// in showContextMenu reads to find the message, so it has to
+				// be on the message and within the visible list.
+				_scroll->scrollToY((rect.top() < _visibleAreaTop)
+					? rect.top()
+					: (rect.bottom() - visible.height()));
+				visible = visibleArea();
+			}
+			if (rect.intersects(visible)) {
+				rect = rect.intersected(visible);
+			}
+			const auto global = Ui::ContextMenuPosition(this, e, rect);
+			auto adjusted = QContextMenuEvent(
+				QContextMenuEvent::Keyboard,
+				mapFromGlobal(global),
+				global);
+			showContextMenu(&adjusted);
+			if (adjusted.isAccepted()) {
+				e->accept();
+			}
+			return;
+		}
+	}
 	showContextMenu(e);
 }
 
