@@ -484,6 +484,7 @@ private:
 	bool updateCanSendMessage();
 	void setMembersShowAreaActive(bool active);
 	void handleHistoryChange(not_null<const History*> history);
+	void updateTypingSound();
 	void showAboutTopPromotion();
 	void hideFieldIfVisible();
 	void unreadCountUpdated();

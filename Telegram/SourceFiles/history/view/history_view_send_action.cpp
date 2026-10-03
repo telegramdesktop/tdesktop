@@ -406,6 +406,10 @@ bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 	return sendActionResult || speakingResult;
 }
 
+bool SendActionPainter::typingShown() const {
+	return !_typing.empty();
+}
+
 void SendActionPainter::clear(not_null<UserData*> from) {
 	auto updateAtMs = crl::time(0);
 	auto i = _typing.find(from);

@@ -11,5 +11,6 @@
     <file alias="group_call_end.mp3">../../sounds/group_call_end.mp3</file>
     <file alias="group_call_allowed.mp3">../../sounds/group_call_allowed.mp3</file>
     <file alias="group_call_recording_start.mp3">../../sounds/group_call_recording_start.mp3</file>
+    <file alias="chat_typing.wav">../../sounds/chat_typing.wav</file>
   </qresource>
 </RCC>

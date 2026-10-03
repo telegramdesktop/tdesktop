@@ -418,6 +418,7 @@ private:
 
 	void updateRowCornerStatusShown(not_null<History*> history);
 	void repaintDialogRowCornerStatus(not_null<History*> history);
+	void updateTypingSound();
 
 	[[nodiscard]] bool animatedPreviewCached(not_null<Row*> row);
 	void invalidateCachedRow(uint64 rowId);
