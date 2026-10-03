@@ -2950,6 +2950,7 @@ void Account::writeExportSettings(const Export::Settings &settings) {
 		&& settings.path == check.path
 		&& settings.format == check.format
 		&& settings.availableAt == check.availableAt
+		&& !settings.hasDateLimits()
 		&& !settings.onlySinglePeer()) {
 		if (_exportSettingsKey) {
 			ClearKey(_exportSettingsKey, _basePath);
