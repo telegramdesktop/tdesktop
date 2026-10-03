@@ -926,10 +926,15 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 
 	pruneAccessibilityIdentities();
 
-	if (scrolledTillEnd && addedToEndCount > 0) {
+	// With a screen reader an arrival is read only once the focus reaches
+	// it: being at the end advances nothing, and the bar is created above
+	// the new messages instead of consumed.
+	const auto readingAtEnd = scrolledTillEnd
+		&& !Ui::ScreenReaderModeActive();
+	if (readingAtEnd && addedToEndCount > 0) {
 		_delegate->listItemsAddedToEnd(_items, addedToEndCount);
 	}
-	const auto markLastAsRead = (scrolledTillEnd && markingMessagesRead());
+	const auto markLastAsRead = (readingAtEnd && markingMessagesRead());
 	checkUnreadBarCreation(markLastAsRead);
 	restoreScrollState();
 	if (!_itemsRevealHeight) {
@@ -2984,7 +2989,8 @@ void ListWidget::showFinished() {
 void ListWidget::checkActivation() {
 	if (_resizePending
 		|| _visibleTop >= _visibleBottom
-		|| !markingMessagesRead()) {
+		|| !markingMessagesRead()
+		|| Ui::ScreenReaderModeActive()) {
 		return;
 	}
 	for (const auto &view : ranges::views::reverse(_items)) {
@@ -3041,7 +3047,9 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 				interactionsWindow->emojiInteractions().startAutoplay(view);
 			}
 		}
-		if (markingAsViewed && readTill) {
+		if (markingAsViewed
+			&& readTill
+			&& !Ui::ScreenReaderModeActive()) {
 			_delegate->listMarkReadTill(readTill);
 		}
 		if (!readContents.empty() && markingContentRead) {
@@ -6485,15 +6493,25 @@ void ListWidget::announceAccessibilityFocusedChild() {
 		announceAccessibilityFocus(_accessibilityFocusedIndex);
 		return;
 	}
-	const auto barIndex = accessibilityUnreadBarIndex();
-	const auto index = (barIndex >= 0 && barIndex + 1 < count)
-		? (barIndex + 1)
-		: accessibilityNewestIndex(count);
 	const auto elements = accessibleElements();
-	const auto item = accessibilityItemAtIndex(
-		index,
-		elements,
-		barIndex);
+	const auto barIndex = accessibilityUnreadBarIndex();
+	auto index = barIndex;
+	if (index < 0 && _bar.element) {
+		// The bar element marks the first unread message even while the
+		// bar itself is hidden: land on it, so that every visit starts
+		// at the reading edge and the first arrow press marks one heard
+		// message, not everything above the newest row.
+		for (auto i = 0, n = int(elements.size()); i != n; ++i) {
+			if (elements[i] == _bar.element) {
+				index = i;
+				break;
+			}
+		}
+	}
+	if (index < 0) {
+		index = accessibilityNewestIndex(count);
+	}
+	const auto item = accessibilityItemAtIndex(index, elements, barIndex);
 	setAccessibilityFocusedItem(index, item);
 }
 
