@@ -1701,17 +1701,22 @@ void Panel::setExternalShellBottomColor(std::optional<QColor> color) {
 
 LinuxShell::ResolvedColors Panel::externalShellColors(
 		const Webview::ThemeParams &params) const {
+	const auto title = _externalShellColorState.titleUsesTheme
+		? ResolveExternalShellThemeColor(params.titleBg)
+		: _externalShellColorState.title.value_or(params.titleBg);
 	const auto body = _externalShellColorState.bodyUsesTheme
 		? ResolveExternalShellThemeColor(params.bodyBg)
 		: _externalShellColorState.body.value_or(params.bodyBg);
+	const auto titleContrast = ComputeContrastColors(title);
 	return {
-		.titleBg = _externalShellColorState.titleUsesTheme
-			? ResolveExternalShellThemeColor(params.titleBg)
-			: _externalShellColorState.title.value_or(params.titleBg),
+		.titleBg = title,
 		.bodyBg = body,
 		.bottomBg = _externalShellColorState.bottomUsesTheme
 			? body
 			: _externalShellColorState.bottom.value_or(body),
+		.titleFg = titleContrast.text,
+		.titleControlFg = titleContrast.control,
+		.titleControlRipple = titleContrast.ripple,
 	};
 }
 
@@ -3356,20 +3361,7 @@ void Panel::overrideBodyColor(std::optional<QColor> color) {
 		raw->setTextColorOverride(std::nullopt);
 		return;
 	}
-	const auto contrast = 2.5;
-	const auto luminance = 0.2126 * color->redF()
-		+ 0.7152 * color->greenF()
-		+ 0.0722 * color->blueF();
-	const auto textColor = (luminance > 0.5)
-		? QColor(0, 0, 0)
-		: QColor(255, 255, 255);
-	const auto textLuminance = (luminance > 0.5) ? 0 : 1;
-	const auto adaptiveOpacity = (luminance - textLuminance + contrast)
-		/ contrast;
-	const auto opacity = std::clamp(adaptiveOpacity, 0.5, 0.64);
-	auto buttonColor = textColor;
-	buttonColor.setAlphaF(opacity);
-	raw->setTextColorOverride(buttonColor);
+	raw->setTextColorOverride(ComputeContrastColors(*color).control);
 }
 
 void Panel::processBackgroundColor(const QJsonObject &args) {

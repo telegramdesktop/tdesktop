@@ -21,6 +21,9 @@ struct ResolvedColors {
 	QColor titleBg;
 	QColor bodyBg;
 	QColor bottomBg;
+	QColor titleFg;
+	QColor titleControlFg;
+	QColor titleControlRipple;
 };
 
 // WebKit applies the system scale to CSS pixels by itself,

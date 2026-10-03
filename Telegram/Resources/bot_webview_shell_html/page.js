@@ -281,64 +281,6 @@
 		setMetric('--fullscreen-control-gap', data.fullscreenControlGap);
 	}
 
-	function colorForBackground(value) {
-		if (!/^#[0-9a-f]{6}$/i.test(value || '')) {
-			return null;
-		}
-		const red = parseInt(value.slice(1, 3), 16) / 255;
-		const green = parseInt(value.slice(3, 5), 16) / 255;
-		const blue = parseInt(value.slice(5, 7), 16) / 255;
-		const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
-		return luminance > 0.5 ? '#000000' : '#ffffff';
-	}
-
-	function footerColorForBackground(value) {
-		if (!/^#[0-9a-f]{6}$/i.test(value || '')) {
-			return null;
-		}
-		const red = parseInt(value.slice(1, 3), 16) / 255;
-		const green = parseInt(value.slice(3, 5), 16) / 255;
-		const blue = parseInt(value.slice(5, 7), 16) / 255;
-		const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
-		const contrast = 2.5;
-		const textLuminance = (luminance > 0.5) ? 0 : 1;
-		const adaptiveOpacity = (luminance - textLuminance + contrast) / contrast;
-		const opacity = Math.max(0.5, Math.min(0.64, adaptiveOpacity));
-		const channel = (luminance > 0.5) ? 0 : 255;
-		return 'rgba('
-			+ String(channel) + ', '
-			+ String(channel) + ', '
-			+ String(channel) + ', '
-			+ String(opacity) + ')';
-	}
-
-	function titleControlColorsForBackground(value) {
-		if (!/^#[0-9a-f]{6}$/i.test(value || '')) {
-			return null;
-		}
-		const red = parseInt(value.slice(1, 3), 16) / 255;
-		const green = parseInt(value.slice(3, 5), 16) / 255;
-		const blue = parseInt(value.slice(5, 7), 16) / 255;
-		const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
-		const contrast = 2.5;
-		const textLuminance = (luminance > 0.5) ? 0 : 1;
-		const adaptiveOpacity = (luminance - textLuminance + contrast) / contrast;
-		const opacity = Math.max(0.5, Math.min(0.64, adaptiveOpacity));
-		const channel = (luminance > 0.5) ? 0 : 255;
-		return {
-			fg: 'rgba('
-				+ String(channel) + ', '
-				+ String(channel) + ', '
-				+ String(channel) + ', '
-				+ String(opacity) + ')',
-			ripple: 'rgba('
-				+ String(channel) + ', '
-				+ String(channel) + ', '
-				+ String(channel) + ', '
-				+ String(opacity * 0.1) + ')'
-		};
-	}
-
 	function hexByte(value) {
 		const text = Math.max(
 			0,
@@ -407,29 +349,18 @@
 		if (!next || typeof next !== 'object') {
 			return;
 		}
-		if (next.bodyBg) {
-			root.style.setProperty('--body-bg', next.bodyBg);
-			const footerFg = footerColorForBackground(next.bodyBg);
-			if (footerFg) {
-				root.style.setProperty('--footer-fg', footerFg);
+		const properties = {
+			bodyBg: '--body-bg',
+			titleBg: '--title-bg',
+			titleFg: '--title-fg',
+			titleControlFg: '--title-control-fg',
+			titleControlRipple: '--title-control-ripple',
+			bottomBg: '--bottom-bg'
+		};
+		for (const key in properties) {
+			if (next[key]) {
+				root.style.setProperty(properties[key], next[key]);
 			}
-		}
-		if (next.titleBg) {
-			root.style.setProperty('--title-bg', next.titleBg);
-			const titleFg = colorForBackground(next.titleBg);
-			if (titleFg) {
-				root.style.setProperty('--title-fg', titleFg);
-			}
-			const titleControl = titleControlColorsForBackground(next.titleBg);
-			if (titleControl) {
-				root.style.setProperty('--title-control-fg', titleControl.fg);
-				root.style.setProperty(
-					'--title-control-ripple',
-					titleControl.ripple);
-			}
-		}
-		if (next.bottomBg) {
-			root.style.setProperty('--bottom-bg', next.bottomBg);
 		}
 	}
 
