@@ -1615,7 +1615,6 @@ bool Panel::showWebview(Args &&args, const Webview::ThemeParams &params) {
 	rpl::duplicate(args.downloadsProgress) | rpl::on_next([=] {
 		_downloadsUpdated.fire({});
 		if (_externalShell && _externalShellBootstrapped) {
-			sendExternalShellAssets();
 			sendExternalShellMenu();
 		}
 	}, lifetime());
