@@ -49,8 +49,6 @@ select {
 	--button-height: 40px;
 	--button-gap-x: 12px;
 	--button-gap-y: 8px;
-	--footer-button-skip: 10px;
-	--footer-gap: var(--footer-button-skip);
 	--fullscreen-control-width: 44px;
 	--fullscreen-control-height: 44px;
 	--fullscreen-control-top: 8px;
@@ -215,7 +213,6 @@ select {
 	min-height: 0;
 	display: flex;
 	flex-direction: column;
-	gap: var(--footer-gap);
 	padding: 0;
 	background: var(--body-bg, #ffffff);
 }
@@ -238,7 +235,7 @@ select {
 #footer {
 	display: none;
 	flex: 0 0 auto;
-	padding: max(0px, calc(var(--shell-pad-bottom) - var(--footer-gap)))
+	padding: var(--shell-pad-bottom)
 		var(--shell-pad-right)
 		var(--shell-pad-bottom)
 		var(--shell-pad-left);
@@ -391,9 +388,6 @@ select {
 	background: rgba(0, 0, 0, 0.35);
 	--title-control-ripple: rgba(0, 0, 0, 0.094);
 	pointer-events: auto;
-}
-#root.fullscreen #body {
-	gap: 0;
 }
 #root.fullscreen #menu {
 	top: calc(

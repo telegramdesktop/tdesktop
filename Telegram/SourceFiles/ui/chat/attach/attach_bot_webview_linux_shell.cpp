@@ -196,10 +196,6 @@ QJsonObject Metrics() {
 		{ u"buttonHeight"_q, Unscaled(st::botWebViewBottomButton.height) },
 		{ u"buttonGapX"_q, Unscaled(st::botWebViewBottomSkip.x()) },
 		{ u"buttonGapY"_q, Unscaled(st::botWebViewBottomSkip.y()) },
-		{
-			u"footerButtonSkip"_q,
-			Unscaled(st::botWebViewShellFooterButtonSkip),
-		},
 		{ u"fullscreenControlWidth"_q, fullscreenButtonSize.width() },
 		{ u"fullscreenControlHeight"_q, fullscreenButtonSize.height() },
 		{ u"fullscreenControlTop"_q, fullscreenControlShift.y() },
