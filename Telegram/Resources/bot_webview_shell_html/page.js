@@ -693,6 +693,7 @@
 		}
 		shellState.menuOpen = false;
 		renderMenu();
+		releaseRipple(controls.menu);
 	}
 
 	function toggleMenu(event) {
@@ -709,6 +710,7 @@
 		invokeShell('shell_menu_request', {});
 		shellState.menuOpen = true;
 		renderMenu();
+		holdRipple(controls.menu);
 	}
 
 	function parseFrameMessage(data) {
@@ -749,10 +751,29 @@
 			button.querySelectorAll('.ripple:not(.hiding)'));
 		for (const ripple of ripples) {
 			ripple.classList.add('hiding');
-			window.setTimeout(function() {
+			ripple.removeTimeout = window.setTimeout(function() {
 				ripple.remove();
 			}, 200);
 		}
+	}
+
+	// Like RippleButton::setForceRippled in the native panel.
+	function holdRipple(button) {
+		button.rippleHeld = true;
+		const ripples = button.querySelectorAll('.ripple');
+		const last = ripples.length ? ripples[ripples.length - 1] : null;
+		if (last) {
+			window.clearTimeout(last.removeTimeout);
+			last.classList.remove('hiding');
+		} else {
+			const rect = button.getBoundingClientRect();
+			addRipple(button, rect.width / 2, rect.height / 2);
+		}
+	}
+
+	function releaseRipple(button) {
+		button.rippleHeld = false;
+		stopRipples(button);
 	}
 
 	function setupRipple(button) {
@@ -764,10 +785,14 @@
 			addRipple(button, event.clientX - rect.left, event.clientY - rect.top);
 		});
 		button.addEventListener('mouseup', function() {
-			stopRipples(button);
+			if (!button.rippleHeld) {
+				stopRipples(button);
+			}
 		});
 		button.addEventListener('mouseleave', function() {
-			stopRipples(button);
+			if (!button.rippleHeld) {
+				stopRipples(button);
+			}
 		});
 	}
 
