@@ -17,6 +17,7 @@ namespace Api {
 namespace {
 
 constexpr auto kMinSponsoredQueryLength = 4;
+constexpr auto kTypedLimit = 50;
 
 } // namespace
 
@@ -53,19 +54,27 @@ void PeerSearch::request(
 	}
 	cache.requested = true;
 	cache.result.query = _query;
-	if (_query.size() < kMinSponsoredQueryLength) {
+	if (_type != Type::WithSponsored
+		|| _query.size() < kMinSponsoredQueryLength) {
 		cache.sponsoredReady = true;
-	} else if (_type == Type::WithSponsored) {
+	} else {
 		requestSponsored();
 	}
 	requestPeers();
 }
 
 void PeerSearch::requestPeers() {
+	using Flag = MTPcontacts_Search::Flag;
+	const auto flags = (_type == Type::Channels)
+		? Flag::f_broadcasts
+		: (_type == Type::Bots)
+		? Flag::f_bots
+		: Flag();
+	const auto typed = (flags != Flag());
 	const auto requestId = _session->api().request(MTPcontacts_Search(
-		MTP_flags(0),
+		MTP_flags(flags),
 		MTP_string(_query),
-		MTP_int(SearchPeopleLimit)
+		MTP_int(typed ? kTypedLimit : SearchPeopleLimit)
 	)).done([=](const MTPcontacts_Found &result, mtpRequestId requestId) {
 		const auto &data = result.data();
 		_session->data().processUsers(data.vusers());
