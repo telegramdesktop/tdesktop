@@ -529,9 +529,11 @@ private:
 		? -action.amount
 		: action.amount;
 	item.counterparty = Wallet::CanonicalAddress(action.address);
-	// The chat names the counterparty before the served record does.
-	item.kind = Wallet::TransferItem::Kind::PeerTransfer;
-	item.counterpartyPeer = action.itemId.peer.value;
+	if (!session->data().peer(action.itemId.peer)->isNotificationsUser()) {
+		// The chat names the counterparty before the served record does.
+		item.kind = Wallet::TransferItem::Kind::PeerTransfer;
+		item.counterpartyPeer = action.itemId.peer.value;
+	}
 	item.commentEncrypted = action.encrypted;
 	if (!action.encrypted) {
 		item.comment = action.comment;
@@ -804,6 +806,9 @@ void PaintRibbonBand(
 [[nodiscard]] QString ReadableIdentity(
 		not_null<HistoryItem*> item,
 		bool hasAddress) {
+	if (item->history()->peer->isNotificationsUser()) {
+		return tr::lng_credits_box_history_entry_anonymous(tr::now);
+	}
 	const auto peer = item->out() ? item->history()->peer : item->from();
 	const auto user = item->history()->owner().userLoaded(peerToUser(peer->id));
 	if (user) {

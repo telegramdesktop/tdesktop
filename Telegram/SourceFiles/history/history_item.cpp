@@ -4834,7 +4834,10 @@ TextWithEntities HistoryItem::notificationText(
 		}
 		return TextWithEntities();
 	}();
-	if (options.spoilerLoginCode && !out()) {
+	// A transfer's amount and comment are never a login code.
+	if (options.spoilerLoginCode
+		&& !out()
+		&& !Has<HistoryServiceGramTransfer>()) {
 		const auto peer = history()->peer;
 		if (peer->isNotificationsUser()) {
 			result = SpoilerLoginCode(std::move(result), kMinLoginCode);
@@ -8654,20 +8657,30 @@ PreparedServiceText HistoryItem::prepareGramTransferText(
 				Wallet::FiatRate{ u"USD"_q, usdPerGram })),
 			tr::marked);
 	}
-	const auto counterparty = out() ? history()->peer : from();
-	const auto user = history()->owner().userLoaded(
-		peerToUser(counterparty->id));
+	const auto hidden = history()->peer->isNotificationsUser();
 	auto name = tr::marked();
-	if (user && !user->shortName().isEmpty()) {
-		name = tr::link(user->shortName(), 1);
-		result.links.push_back(user->createOpenLink());
-	} else if (const auto address = Wallet::ParseAddress(transfer->peerAddress)) {
-		name = tr::marked(Wallet::FormatFriendly(
-			address->raw,
-			address->bounceable,
-			address->testnet));
+	if (!hidden) {
+		const auto counterparty = out() ? history()->peer : from();
+		const auto user = history()->owner().userLoaded(
+			peerToUser(counterparty->id));
+		if (user && !user->shortName().isEmpty()) {
+			name = tr::link(user->shortName(), 1);
+			result.links.push_back(user->createOpenLink());
+		} else if (const auto address = Wallet::ParseAddress(
+				transfer->peerAddress)) {
+			name = tr::marked(Wallet::FormatFriendly(
+				address->raw,
+				address->bounceable,
+				address->testnet));
+		}
 	}
-	if (name.empty()) {
+	if (hidden && !out()) {
+		result.text = tr::lng_action_gram_transfer_received_someone(
+			tr::now,
+			lt_amount,
+			amount,
+			tr::marked);
+	} else if (name.empty()) {
 		result.text = (out()
 			? tr::lng_action_gram_transfer_sent_unknown
 			: tr::lng_action_gram_transfer_received_unknown)(

@@ -183,7 +183,8 @@ QString UserAddresses::recipientError(UserId id) const {
 		|| user->isSupport()
 		|| user->isInaccessible()
 		|| user->isRepliesChat()
-		|| user->isVerifyCodes()) {
+		|| user->isVerifyCodes()
+		|| user->isNotificationsUser()) {
 		return u"WALLET_USER_INELIGIBLE"_q;
 	}
 	return QString();
