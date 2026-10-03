@@ -380,7 +380,7 @@ void LogNativeMessageRejected(
 }
 
 [[nodiscard]] bool UseExternalBotWebApps() {
-	return ::Platform::IsLinux();
+	return ::Platform::IsWayland();
 }
 
 [[nodiscard]] QColor ResolveExternalShellThemeColor(QColor color) {
