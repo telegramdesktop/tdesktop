@@ -1658,6 +1658,12 @@ void HistoryWidget::initTabbedSelector() {
 	}) | rpl::on_next([=](ChatHelpers::EmojiChosen data) {
 		Ui::InsertEmojiAtCursor(_field->textCursor(), data.emoji);
 	}, lifetime());
+	selector->backspaces(
+	) | rpl::filter([=] {
+		return !isHidden() && !_field->isHidden();
+	}) | rpl::on_next([=](not_null<ChatHelpers::BackspaceRequest*> request) {
+		request->erased = ChatHelpers::EraseBeforeCursor(_field);
+	}, lifetime());
 
 	rpl::merge(
 		selector->fileChosen() | filter,
