@@ -130,10 +130,11 @@ QSizeF AmountPainter::size() const {
 }
 
 void AmountPainter::paint(QPainter &p, const AmountColors &colors) const {
-	// WHY: glyphs are hinted only under an unscaled device transform, and
-	// CoreText never hints while its smoothing draws text heavier than paths.
+	// WHY: glyphs are hinted only under an unscaled device transform; CoreText
+	// draws text heavier than the paths, and Windows ClearType text differs in
+	// weight and shape from the grayscale paths, so switching at a bump jumps.
 	if (_st.hinted
-		&& !Platform::IsMac()
+		&& Platform::IsLinux()
 		&& p.deviceTransform().type() <= QTransform::TxTranslate) {
 		paintText(p, colors);
 		return;
