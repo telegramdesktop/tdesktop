@@ -75,7 +75,6 @@ private:
 
 	void closeEntry(SeparatePanel *panel);
 	void hidePanel(base::unique_qptr<SeparatePanel> panel);
-	void hideAllPanels();
 
 	std::vector<Entry> _entries;
 	std::optional<QSize> _anchorOuterSize;
