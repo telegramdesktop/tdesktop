@@ -92,6 +92,8 @@ const auto CommandByName = base::flat_map<QString, Command>{
 	{ u"next_chat"_q                     , Command::ChatNext },
 	{ u"first_chat"_q                    , Command::ChatFirst },
 	{ u"last_chat"_q                     , Command::ChatLast },
+	{ u"chat_list_back"_q                , Command::ChatListBack },
+	{ u"chat_list_open"_q                , Command::ChatListOpen },
 	{ u"self_chat"_q                     , Command::ChatSelf },
 	{ u"pinned_chat1"_q                  , Command::ChatPinned1 },
 	{ u"pinned_chat2"_q                  , Command::ChatPinned2 },
@@ -503,6 +505,9 @@ void Manager::fillDefaults() {
 
 	set(u"ctrl+alt+home"_q           , Command::ChatFirst);
 	set(u"ctrl+alt+end"_q            , Command::ChatLast);
+	set(u"shift+esc"_q               , Command::ChatListBack);
+	set(u"alt+return"_q              , Command::ChatListOpen);
+	set(u"alt+enter"_q               , Command::ChatListOpen);
 
 	set(u"f5"_q                      , Command::SupportReloadTemplates);
 	set(u"ctrl+delete"_q             , Command::SupportToggleMuted);

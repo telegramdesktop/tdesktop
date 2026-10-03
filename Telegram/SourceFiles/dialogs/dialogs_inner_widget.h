@@ -438,11 +438,42 @@ private:
 
 	bool addRightButtonRipple(QPoint origin, Fn<void()> updateCallback);
 
+	struct CollapseState {
+		float64 morph = 0.;
+		float64 tab = 0.;
+		bool fromScratch = false;
+	};
+	[[nodiscard]] CollapseState rowCollapse(PeerId peerId) const;
+
 	void setupShortcuts();
 	RowDescriptor computeJump(
 		const RowDescriptor &to,
 		JumpSkip skip) const;
-	bool jumpToDialogRow(RowDescriptor to);
+	enum class JumpDirection : uchar {
+		None,
+		Up,
+		Down,
+	};
+	bool jumpToDialogRow(
+		RowDescriptor to,
+		JumpDirection direction = JumpDirection::None);
+	[[nodiscard]] RowDescriptor jumpOrigin() const;
+	bool jumpBackFromSubsection();
+	[[nodiscard]] bool canOpenSubsectionFromOrigin() const;
+	bool openSubsectionFromOrigin();
+	[[nodiscard]] RowDescriptor subsectionRow() const;
+	[[nodiscard]] not_null<IndexedList*> shownListFor(
+		Data::Forum *forum,
+		Data::CommunityInfo *community,
+		FilterId filterId) const;
+	[[nodiscard]] bool canCloseSubsection() const;
+	void scrollToSubsectionCloseTarget();
+	bool jumpIntoSubsection(
+		Data::Forum *forum,
+		Data::CommunityInfo *community,
+		JumpDirection direction);
+	bool jumpOutOfSubsection(JumpDirection direction);
+	bool closeSubsection();
 
 	RowDescriptor chatListEntryBefore(const RowDescriptor &which) const;
 	RowDescriptor chatListEntryAfter(const RowDescriptor &which) const;
@@ -805,6 +836,8 @@ private:
 	std::vector<QuickActionPtr> _inactiveQuickActions;
 
 	RowDescriptor _chatPreviewRow;
+	RowDescriptor _jumpFrom;
+	RowDescriptor _subsectionCloseScrollTo;
 	bool _chatPreviewScheduled = false;
 	std::optional<QPoint> _chatPreviewTouchGlobal;
 	base::Timer _touchDragPinnedTimer;
@@ -813,6 +846,12 @@ private:
 	rpl::event_stream<> _touchCancelRequests;
 
 	rpl::variable<ChildListShown> _childListShown;
+	Ui::Animations::Simple _collapseAnimation;
+	PeerId _collapsePeerId = 0;
+	PeerId _collapsePreviousId = 0;
+	PeerId _collapseFromScratchId = 0;
+	PeerId _paintedActivePeerId = 0;
+	float64 _collapseShownLast = 0.;
 	base::Timer _freezeTimer;
 	float64 _narrowRatio = 0.;
 	bool _geometryInited = false;
