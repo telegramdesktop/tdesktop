@@ -5,7 +5,6 @@
 	const header = document.getElementById('header');
 	const frameShell = document.getElementById('frame-shell');
 	const frameWrap = document.getElementById('frame-wrap');
-	const disclosure = document.getElementById('disclosure');
 	const footer = document.getElementById('footer');
 	const buttonsWrap = document.getElementById('buttons-wrap');
 	const buttons = document.getElementById('buttons');
@@ -25,7 +24,6 @@
 		backVisible: false,
 		menuVisible: false,
 		badgeVisible: false,
-		bottomText: '',
 		isFullscreen: false,
 		blocked: false,
 		menuOpen: false,
@@ -272,7 +270,6 @@
 		setMetric('--button-height', data.buttonHeight);
 		setMetric('--button-gap-x', data.buttonGapX);
 		setMetric('--button-gap-y', data.buttonGapY);
-		setMetric('--disclosure-skip', data.disclosureSkip);
 		setMetric('--footer-button-skip', data.footerButtonSkip);
 		setMetric('--fullscreen-control-width', data.fullscreenControlWidth);
 		setMetric('--fullscreen-control-height', data.fullscreenControlHeight);
@@ -520,17 +517,11 @@
 	function updateFooter() {
 		const visible = visibleButtons();
 		const hasButtons = !!visible.buttons.length;
-		disclosure.textContent = '';
-		disclosure.classList.remove('visible');
 		buttonsWrap.classList.toggle('visible', hasButtons);
 		footer.classList.toggle('visible', hasButtons);
 		root.style.setProperty(
 			'--footer-gap',
-			shellState.isFullscreen
-				? '0px'
-				: hasButtons
-				? 'var(--footer-button-skip)'
-				: 'var(--disclosure-skip)');
+			shellState.isFullscreen ? '0px' : 'var(--footer-button-skip)');
 		scheduleViewport();
 	}
 
@@ -929,7 +920,6 @@
 			applyMetrics(data && data.metrics);
 			applyColors(data && data.colors);
 			applyChrome(data || {});
-			shellState.bottomText = '';
 			title.textContent = (data && data.title) || '';
 			document.title = (data && data.title) || 'Telegram';
 			sameOrigin = !!(data && data.sameOrigin);
@@ -985,13 +975,6 @@
 				: [];
 			applyChrome({});
 			renderMenu();
-		},
-		setBottomText: function(data, token) {
-			if (!isNativeToken(token)) {
-				return;
-			}
-			shellState.bottomText = '';
-			updateFooter();
 		},
 		setButton: function(data, token) {
 			if (!isNativeToken(token)) {

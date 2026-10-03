@@ -49,9 +49,8 @@ select {
 	--button-height: 40px;
 	--button-gap-x: 12px;
 	--button-gap-y: 8px;
-	--disclosure-skip: 12px;
 	--footer-button-skip: 10px;
-	--footer-gap: var(--disclosure-skip);
+	--footer-gap: var(--footer-button-skip);
 	--fullscreen-control-width: 44px;
 	--fullscreen-control-height: 44px;
 	--fullscreen-control-top: 8px;
@@ -64,7 +63,6 @@ select {
 	--title-fg: #000000;
 	--title-control-fg: rgba(0, 0, 0, 0.64);
 	--title-control-ripple: rgba(0, 0, 0, 0.064);
-	--footer-fg: rgba(0, 0, 0, 0.55);
 	--button-ripple: rgba(0, 0, 0, 0.14);
 	--menu-bg: #ffffff;
 	--menu-fg: #000000;
@@ -240,7 +238,6 @@ select {
 #footer {
 	display: none;
 	flex: 0 0 auto;
-	color: var(--footer-fg);
 	padding: max(0px, calc(var(--shell-pad-bottom) - var(--footer-gap)))
 		var(--shell-pad-right)
 		var(--shell-pad-bottom)
@@ -250,17 +247,6 @@ select {
 #footer.visible {
 	display: flex;
 	flex-direction: column;
-}
-#disclosure {
-	display: none;
-	text-align: center;
-	font-size: 12px;
-	line-height: 16px;
-	padding: 0 4px;
-	word-break: break-word;
-}
-#disclosure.visible {
-	display: block;
 }
 #buttons-wrap {
 	display: none;

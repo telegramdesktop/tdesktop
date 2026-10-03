@@ -1760,7 +1760,6 @@ void Panel::sendExternalShellBootstrap() {
 		{ u"title"_q, _externalTitle },
 		{ u"metrics"_q, LinuxShell::Metrics() },
 		{ u"colors"_q, LinuxShell::ColorPayload(externalShellColors(params)) },
-		{ u"bottomText"_q, QString() },
 		{ u"backVisible"_q, _externalBackVisible },
 		{ u"menuVisible"_q, true },
 		{ u"badgeVisible"_q, _externalTitleBadgeVisible },
