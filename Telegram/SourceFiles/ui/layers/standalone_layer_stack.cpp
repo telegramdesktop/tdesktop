@@ -140,6 +140,14 @@ void StandaloneLayerStack::showBox(
 	rawPanel->closeEvents(
 	) | rpl::on_next([=] {
 		closeEntry(rawPanel);
+		crl::on_main(this, [=] {
+			_closing.erase(
+				ranges::remove(
+					_closing,
+					rawPanel,
+					&base::unique_qptr<SeparatePanel>::get),
+				end(_closing));
+		});
 	}, rawPanel->lifetime());
 
 	rawPanel->showInner(std::move(layerWidget));
@@ -155,9 +163,18 @@ void StandaloneLayerStack::hideLayers(anim::type animated) {
 		if (entry.box) {
 			entry.box->setClosing();
 		}
-		entry.panel->hideGetDuration();
+		if (animated == anim::type::normal) {
+			hidePanel(std::move(entry.panel));
+		}
 		_boxClosed.fire({});
 	}
+}
+
+void StandaloneLayerStack::hidePanel(
+		base::unique_qptr<SeparatePanel> panel) {
+	const auto raw = panel.get();
+	_closing.push_back(std::move(panel));
+	raw->hideGetDuration();
 }
 
 void StandaloneLayerStack::setAnchor(
@@ -204,7 +221,7 @@ void StandaloneLayerStack::closeEntry(SeparatePanel *panel) {
 	if (entry.box) {
 		entry.box->setClosing();
 	}
-	entry.panel->hideGetDuration();
+	hidePanel(std::move(entry.panel));
 	_boxClosed.fire({});
 	if (wasTop && !_entries.empty()) {
 		_entries.back().panel->setAnchorData(_transientParent);
