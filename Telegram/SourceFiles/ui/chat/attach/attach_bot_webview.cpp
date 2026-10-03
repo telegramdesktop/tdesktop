@@ -3339,9 +3339,7 @@ void Panel::processHeaderColor(const QJsonObject &args) {
 
 void Panel::overrideBodyColor(std::optional<QColor> color) {
 	if (_externalShell) {
-		if (_bodyColorReceived) {
-			setExternalShellBodyColor(color);
-		}
+		setExternalShellBodyColor(color);
 		sendExternalShellColors(_delegate->botThemeParams());
 		return;
 	}
@@ -3733,12 +3731,11 @@ void Panel::updateThemeParams(const Webview::ThemeParams &params) {
 }
 
 void Panel::updateColorOverrides(const Webview::ThemeParams &params) {
+	if (_externalShell) {
+		return;
+	}
 	if (!_headerColorReceived && params.titleBg.alpha() == 255) {
-		if (_externalShell) {
-			sendExternalShellColors(params);
-		} else {
-			_widget->overrideTitleColor(params.titleBg);
-		}
+		_widget->overrideTitleColor(params.titleBg);
 	}
 	if (!_bodyColorReceived && params.bodyBg.alpha() == 255) {
 		overrideBodyColor(params.bodyBg);
