@@ -4404,13 +4404,17 @@ auto HtmlWriter::Wrap::pushMessage(
 		const auto address = data.peerAddress.isEmpty()
 			? QByteArray()
 			: (" (" + SerializeString(data.peerAddress) + ")");
+		// td_export can't see PeerData::isNotificationsUser(), same ids.
+		const auto hidden = (dialog.peerId == peerFromUser(333000))
+			|| (dialog.peerId == peerFromUser(777000));
+		const auto sender = hidden ? QByteArray("Someone") : serviceFrom;
 		auto result = message.out
 			? ("You sent "
 				+ amount
 				+ " to "
 				+ peers.wrapPeerName(dialog.peerId)
 				+ address)
-			: (serviceFrom + address + " sent you " + amount);
+			: (sender + address + " sent you " + amount);
 		if (!data.transactionId.isEmpty()) {
 			result += ", transaction "
 				+ SerializeString(data.transactionId);
