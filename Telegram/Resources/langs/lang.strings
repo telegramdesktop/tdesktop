@@ -769,6 +769,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_attach" = "Add attachment";
 "lng_attach_replace" = "Replace attachment";
 "lng_emoji_sticker_gif" = "Choose emoji, sticker or gif";
+"lng_emoji_panel_closed" = "Panel closed";
 "lng_bot_keyboard_show" = "Show bot keyboard";
 "lng_bot_keyboard_hide" = "Hide bot keyboard";
 "lng_bot_commands_start" = "Bot commands start";
