@@ -335,33 +335,7 @@ void ForEachRowChunk(int width, int height, Method method) {
 	if (!swscale) {
 		return false;
 	}
-	auto inverse = (int*)nullptr;
-	auto table = (int*)nullptr;
-	auto srcRange = 0;
-	auto dstRange = 0;
-	auto brightness = 0;
-	auto contrast = 0;
-	auto saturation = 0;
-	const auto details = sws_getColorspaceDetails(
-		swscale.get(),
-		&inverse,
-		&srcRange,
-		&table,
-		&dstRange,
-		&brightness,
-		&contrast,
-		&saturation);
-	if (details >= 0 && srcRange != dstRange) {
-		sws_setColorspaceDetails(
-			swscale.get(),
-			inverse,
-			srcRange,
-			table,
-			srcRange,
-			brightness,
-			contrast,
-			saturation);
-	}
+	ApplyFrameColor(swscale.get(), color);
 	sws_scale(
 		swscale.get(),
 		frame->data,
@@ -389,8 +363,47 @@ bool WideGamutPrimaries(AVColorPrimaries primaries) {
 		|| (primaries == AVCOL_PRI_UNSPECIFIED);
 }
 
+FrameColor::Matrix ReadColorMatrix(
+		AVColorSpace space,
+		bool hdr,
+		int width,
+		int height) {
+	switch (space) {
+	case AVCOL_SPC_BT709: return FrameColor::Matrix::BT709;
+	case AVCOL_SPC_BT470BG:
+	case AVCOL_SPC_SMPTE170M: return FrameColor::Matrix::BT601;
+	case AVCOL_SPC_BT2020_NCL:
+	case AVCOL_SPC_BT2020_CL: return FrameColor::Matrix::BT2020;
+	}
+	return hdr
+		? FrameColor::Matrix::BT2020
+		: ((width >= 1280) || (height > 576))
+		? FrameColor::Matrix::BT709
+		: FrameColor::Matrix::BT601;
+}
+
+bool FullColorRange(AVColorRange range, int format) {
+	const auto jpeg = std::array{
+		AV_PIX_FMT_YUVJ420P,
+		AV_PIX_FMT_YUVJ411P,
+		AV_PIX_FMT_YUVJ422P,
+		AV_PIX_FMT_YUVJ440P,
+		AV_PIX_FMT_YUVJ444P,
+	};
+	return (range == AVCOL_RANGE_JPEG) || ranges::contains(jpeg, format);
+}
+
+bool RgbFormat(int format) {
+	const auto descriptor = av_pix_fmt_desc_get(AVPixelFormat(format));
+	return descriptor
+		&& (descriptor->flags & (AV_PIX_FMT_FLAG_RGB | AV_PIX_FMT_FLAG_PAL));
+}
+
 FrameColor ReadFrameColor(not_null<const AVFrame*> frame, int &peak) {
 	auto result = FrameColor();
+	if (RgbFormat(frame->format)) {
+		return result;
+	}
 	switch (frame->color_trc) {
 	case AVCOL_TRC_SMPTE2084:
 		result.transfer = FrameColor::Transfer::PQ;
@@ -399,16 +412,18 @@ FrameColor ReadFrameColor(not_null<const AVFrame*> frame, int &peak) {
 		result.transfer = FrameColor::Transfer::HLG;
 		break;
 	default:
+		break;
+	}
+	result.matrix = ReadColorMatrix(
+		frame->colorspace,
+		result.hdr(),
+		frame->width,
+		frame->height);
+	result.fullRange = FullColorRange(frame->color_range, frame->format);
+	if (!result.hdr()) {
 		return result;
 	}
-	result.matrix = (frame->colorspace == AVCOL_SPC_BT709)
-		? FrameColor::Matrix::BT709
-		: (frame->colorspace == AVCOL_SPC_BT470BG
-			|| frame->colorspace == AVCOL_SPC_SMPTE170M)
-		? FrameColor::Matrix::BT601
-		: FrameColor::Matrix::BT2020;
 	result.wideGamut = WideGamutPrimaries(frame->color_primaries);
-	result.fullRange = (frame->color_range == AVCOL_RANGE_JPEG);
 	if (result.transfer != FrameColor::Transfer::PQ) {
 		return result;
 	}
@@ -518,6 +533,46 @@ ColorUniforms PrepareColorUniforms(
 	return result;
 }
 
+void ApplyFrameColor(
+		not_null<SwsContext*> context,
+		const FrameColor &color) {
+	auto inverse = (int*)nullptr;
+	auto table = (int*)nullptr;
+	auto srcRange = 0;
+	auto dstRange = 0;
+	auto brightness = 0;
+	auto contrast = 0;
+	auto saturation = 0;
+	const auto details = sws_getColorspaceDetails(
+		context,
+		&inverse,
+		&srcRange,
+		&table,
+		&dstRange,
+		&brightness,
+		&contrast,
+		&saturation);
+	if (details < 0) {
+		return;
+	}
+	const auto coefficients = sws_getCoefficients(
+		(color.matrix == FrameColor::Matrix::BT709)
+			? SWS_CS_ITU709
+			: (color.matrix == FrameColor::Matrix::BT2020)
+			? SWS_CS_BT2020
+			: SWS_CS_ITU601);
+	const auto range = color.fullRange ? 1 : 0;
+	sws_setColorspaceDetails(
+		context,
+		coefficients,
+		range,
+		coefficients,
+		range,
+		brightness,
+		contrast,
+		saturation);
+}
+
 bool NeedsToneMapping(AVColorTransferCharacteristic transfer, int format) {
 	return (transfer == AVCOL_TRC_SMPTE2084
 			|| transfer == AVCOL_TRC_ARIB_STD_B67)
@@ -542,6 +597,7 @@ bool ConvertFrameToARGB32(
 	if (!swscale) {
 		return false;
 	}
+	ApplyFrameColor(swscale.get(), color);
 	uint8_t *data[AV_NUM_DATA_POINTERS] = { storage.bits(), nullptr };
 	int linesize[AV_NUM_DATA_POINTERS] = { int(storage.bytesPerLine()), 0 };
 	sws_scale(
@@ -581,6 +637,7 @@ QImage ConvertYUVToARGB32(
 	if (!swscale) {
 		return QImage();
 	}
+	ApplyFrameColor(swscale.get(), color);
 	const uint8_t *srcData[AV_NUM_DATA_POINTERS] = {
 		static_cast<const uint8_t*>(yuv.y.data),
 		static_cast<const uint8_t*>(yuv.u.data),

@@ -37,6 +37,13 @@ struct FrameColor {
 };
 
 [[nodiscard]] bool WideGamutPrimaries(AVColorPrimaries primaries);
+[[nodiscard]] FrameColor::Matrix ReadColorMatrix(
+	AVColorSpace space,
+	bool hdr,
+	int width,
+	int height);
+[[nodiscard]] bool FullColorRange(AVColorRange range, int format);
+[[nodiscard]] bool RgbFormat(int format);
 [[nodiscard]] FrameColor ReadFrameColor(
 	not_null<const AVFrame*> frame,
 	int &peak);
@@ -51,6 +58,9 @@ struct ColorUniforms {
 	bool nv12,
 	bool highBitDepth);
 
+void ApplyFrameColor(
+	not_null<SwsContext*> context,
+	const FrameColor &color);
 [[nodiscard]] bool NeedsToneMapping(
 	AVColorTransferCharacteristic transfer,
 	int format);

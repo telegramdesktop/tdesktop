@@ -151,6 +151,14 @@ constexpr auto kSdrFromRgb = ColorDescription{
 	.space = AVCOL_SPC_SMPTE170M,
 };
 
+[[nodiscard]] AVColorSpace ColorSpace(Streaming::FrameColor::Matrix matrix) {
+	switch (matrix) {
+	case Streaming::FrameColor::Matrix::BT709: return AVCOL_SPC_BT709;
+	case Streaming::FrameColor::Matrix::BT2020: return AVCOL_SPC_BT2020_NCL;
+	}
+	return AVCOL_SPC_SMPTE170M;
+}
+
 [[nodiscard]] ColorDescription ReadColorDescription(
 		not_null<AVCodecParameters*> from,
 		bool baked) {
@@ -161,13 +169,20 @@ constexpr auto kSdrFromRgb = ColorDescription{
 		}
 		return result;
 	}
+	const auto fromRgb = baked || Streaming::RgbFormat(from->format);
+	const auto full = Streaming::FullColorRange(
+		from->color_range,
+		from->format);
+	const auto matrix = Streaming::ReadColorMatrix(
+		from->color_space,
+		false,
+		from->width,
+		from->height);
 	return {
-		.range = (!baked && from->color_range == AVCOL_RANGE_JPEG)
-			? AVCOL_RANGE_JPEG
-			: AVCOL_RANGE_MPEG,
+		.range = (!fromRgb && full) ? AVCOL_RANGE_JPEG : AVCOL_RANGE_MPEG,
 		.primaries = from->color_primaries,
 		.transfer = from->color_trc,
-		.space = from->color_space,
+		.space = fromRgb ? kSdrFromRgb.space : ColorSpace(matrix),
 	};
 }
 
@@ -922,7 +937,7 @@ private:
 		target,
 		bitrate ? int64(bitrate) : int64(TargetBitrate(target, fps)),
 		fps,
-		ColorDescription());
+		kSdrFromRgb);
 	if (!video.codec) {
 		return {};
 	}
@@ -1906,6 +1921,7 @@ struct TranscodeAttempt {
 					failed = true;
 					return false;
 				}
+				Streaming::ApplyFrameColor(swscale.get(), color);
 				sws_scale(
 					swscale.get(),
 					decodedFrame->data,
