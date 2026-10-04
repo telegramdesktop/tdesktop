@@ -196,7 +196,7 @@ ShowFactory StandaloneLayerStack::showFactory() {
 
 std::optional<QSize> StandaloneLayerStack::layerOuterSize() {
 	if (_anchorOuterSize) {
-		return _anchorOuterSize;
+		return style::ConvertScale(*_anchorOuterSize);
 	}
 	if (const auto screen = QGuiApplication::primaryScreen()) {
 		return screen->availableGeometry().size();
