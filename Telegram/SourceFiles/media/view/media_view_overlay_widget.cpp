@@ -1506,11 +1506,11 @@ QImage OverlayWidget::videoFrame() const {
 		: _streamed->instance.info().video.cover;
 }
 
-Streaming::FrameWithInfo OverlayWidget::videoFrameWithInfo() const {
+Streaming::FrameWithInfo OverlayWidget::videoFrameWithInfo(bool hdr) const {
 	Expects(videoShown());
 
 	return _streamed->instance.player().ready()
-		? _streamed->instance.frameWithInfo()
+		? _streamed->instance.frameWithInfo(hdr)
 		: Streaming::FrameWithInfo{
 			.image = _streamed->instance.info().video.cover,
 			.format = Streaming::FrameFormat::ARGB32,

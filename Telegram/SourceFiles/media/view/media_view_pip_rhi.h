@@ -26,6 +26,10 @@ class QRhiGraphicsPipeline;
 class QRhiShaderResourceBindings;
 class QRhiResourceUpdateBatch;
 
+namespace Media::Streaming {
+struct ColorUniforms;
+} // namespace Media::Streaming
+
 namespace Media::View {
 
 class Pip::RendererRhi final
@@ -82,7 +86,8 @@ private:
 		QRhiGraphicsPipeline *pipeline,
 		QRhiShaderResourceBindings *srb,
 		ContentGeometry geometry,
-		int slot);
+		int slot,
+		const Streaming::ColorUniforms &color);
 	void paintUsingRaster(
 		Ui::Rhi::Image &image,
 		QRect rect,
@@ -133,6 +138,8 @@ private:
 	quint64 _cacheKey = 0;
 	int _trackFrameIndex = -1;
 	bool _chromaNV12 = false;
+	bool _videoHighBitDepth = false;
+	bool _hdrSupported = false;
 	bool _usingExternalVideoTextures = false;
 
 	QRhiTexture *_yTexture = nullptr;
