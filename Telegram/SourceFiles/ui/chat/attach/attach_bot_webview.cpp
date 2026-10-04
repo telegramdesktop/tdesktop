@@ -383,6 +383,12 @@ void LogNativeMessageRejected(
 	return ::Platform::IsWayland();
 }
 
+[[nodiscard]] QString MiniAppWindowTitle(const QString &title) {
+	return tr::lng_credits_box_history_entry_miniapp(tr::now)
+		+ u": "_q
+		+ title;
+}
+
 [[nodiscard]] QColor ResolveExternalShellThemeColor(QColor color) {
 	return (color.alpha() == 255) ? color : st::windowBg->c;
 }
@@ -1248,10 +1254,7 @@ Panel::Panel(Args &&args)
 	rpl::duplicate(
 		args.title
 	) | rpl::on_next([=](const QString &title) {
-		const auto value = tr::lng_credits_box_history_entry_miniapp(tr::now)
-			+ u": "_q
-			+ title;
-		panel->window()->setWindowTitle(value);
+		panel->window()->setWindowTitle(MiniAppWindowTitle(title));
 	}, panel->lifetime());
 
 	const auto params = _delegate->botThemeParams();
@@ -1758,6 +1761,7 @@ void Panel::sendExternalShellBootstrap() {
 		{ u"url"_q, _externalUrl },
 		{ u"sameOrigin"_q, bool(_sameOrigin) },
 		{ u"title"_q, _externalTitle },
+		{ u"windowTitle"_q, MiniAppWindowTitle(_externalTitle) },
 		{ u"metrics"_q, LinuxShell::Metrics() },
 		{ u"colors"_q, LinuxShell::ColorPayload(externalShellColors(params)) },
 		{ u"backVisible"_q, _externalBackVisible },
@@ -2648,7 +2652,10 @@ void Panel::setTitle(rpl::producer<QString> title) {
 	}
 	std::move(title) | rpl::on_next([=](const QString &title) {
 		_externalTitle = title;
-		sendExternalShellMethod("setTitle", { { u"title"_q, title } });
+		sendExternalShellMethod("setTitle", {
+			{ u"title"_q, title },
+			{ u"windowTitle"_q, MiniAppWindowTitle(title) },
+		});
 	}, _widget->lifetime());
 }
 
