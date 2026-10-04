@@ -136,6 +136,7 @@ struct FrameRequest {
 	QColor colored = QColor(0, 0, 0, 0);
 	bool blurredBackground = false;
 	bool requireARGB32 = true;
+	bool hdr = false;
 	bool keepAlpha = false;
 	bool strict = true;
 
@@ -157,6 +158,7 @@ struct FrameRequest {
 			&& (colored == other.colored)
 			&& (keepAlpha == other.keepAlpha)
 			&& (requireARGB32 == other.requireARGB32)
+			&& (hdr == other.hdr)
 			&& (blurredBackground == other.blurredBackground);
 	}
 	[[nodiscard]] bool operator!=(const FrameRequest &other) const {
@@ -166,6 +168,7 @@ struct FrameRequest {
 	[[nodiscard]] bool goodFor(const FrameRequest &other) const {
 		return (blurredBackground == other.blurredBackground)
 			&& (requireARGB32 == other.requireARGB32)
+			&& (hdr == other.hdr)
 			&& (keepAlpha == other.keepAlpha)
 			&& (colored == other.colored)
 			&& ((strict && !other.strict) || (*this == other));
@@ -191,18 +194,23 @@ struct FrameYUV {
 	FrameChannel y;
 	FrameChannel u;
 	FrameChannel v;
+	bool highBitDepth = false;
 };
 
 struct NativeFrame {
 	void *pixelBuffer = nullptr;
 	QSize size;
 	QSize chromaSize;
+	bool highBitDepth = false;
 };
+
+struct FrameColor;
 
 struct FrameWithInfo {
 	QImage image;
 	FrameYUV *yuv = nullptr;
 	NativeFrame *nativeFrame = nullptr;
+	FrameColor *color = nullptr;
 	FrameFormat format = FrameFormat::None;
 	int index = -1;
 	bool alpha = false;

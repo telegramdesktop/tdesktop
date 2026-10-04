@@ -385,7 +385,7 @@ void OverlayWidget::RendererGL::paintVideoStream() {
 
 void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 		ContentGeometry geometry) {
-	const auto data = _owner->videoFrameWithInfo();
+	const auto data = _owner->videoFrameWithInfo(false);
 	if (data.format == Streaming::FrameFormat::None) {
 		return;
 	} else if (data.format == Streaming::FrameFormat::ARGB32) {
