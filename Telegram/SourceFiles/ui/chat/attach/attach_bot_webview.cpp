@@ -1764,7 +1764,6 @@ void Panel::sendExternalShellBootstrap() {
 		{ u"metrics"_q, LinuxShell::Metrics() },
 		{ u"colors"_q, LinuxShell::ColorPayload(externalShellColors(params)) },
 		{ u"backVisible"_q, _externalBackVisible },
-		{ u"menuVisible"_q, true },
 		{ u"badgeVisible"_q, _externalTitleBadgeVisible },
 	});
 	sendExternalShellAssets();
@@ -1979,7 +1978,6 @@ void Panel::handleExternalShellMenuAction(const QString &id) {
 void Panel::sendExternalShellChrome() {
 	sendExternalShellMethod("setChrome", {
 		{ u"backVisible"_q, _externalBackVisible },
-		{ u"menuVisible"_q, true },
 		{ u"badgeVisible"_q, _externalTitleBadgeVisible },
 	});
 }

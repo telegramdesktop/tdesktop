@@ -22,7 +22,6 @@
 	};
 	const shellState = {
 		backVisible: false,
-		menuVisible: false,
 		badgeVisible: false,
 		isFullscreen: false,
 		blocked: false,
@@ -441,16 +440,11 @@
 		if (Object.prototype.hasOwnProperty.call(data, 'backVisible')) {
 			shellState.backVisible = !!data.backVisible;
 		}
-		if (Object.prototype.hasOwnProperty.call(data, 'menuVisible')) {
-			shellState.menuVisible = !!data.menuVisible;
-		}
 		if (Object.prototype.hasOwnProperty.call(data, 'badgeVisible')) {
 			shellState.badgeVisible = !!data.badgeVisible;
 		}
 		controls.back.classList.toggle('hidden', !shellState.backVisible);
-		controls.menu.classList.toggle('hidden', !shellState.menuVisible);
-		controls.menu.disabled = !shellState.menuVisible
-			|| !shellState.menuItems.length;
+		controls.menu.disabled = !shellState.menuItems.length;
 		badge.classList.toggle(
 			'hidden',
 			!shellState.badgeVisible
@@ -676,9 +670,7 @@
 		}
 		menu.classList.toggle(
 			'visible',
-			shellState.menuOpen
-				&& shellState.menuVisible
-				&& !!shellState.menuItems.length);
+			shellState.menuOpen && !!shellState.menuItems.length);
 		menuBackdrop.classList.toggle(
 			'visible',
 			menu.classList.contains('visible'));
