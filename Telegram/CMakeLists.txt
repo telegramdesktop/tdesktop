@@ -2052,6 +2052,8 @@ PRIVATE
     test/test_menu.h
     test/test_messages.cpp
     test/test_messages.h
+    test/test_notify_override.cpp
+    test/test_notify_override.h
     test/test_open_handoff.cpp
     test/test_open_handoff.h
     test/test_panel.cpp
