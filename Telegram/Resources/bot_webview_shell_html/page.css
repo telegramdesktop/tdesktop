@@ -208,6 +208,24 @@ select {
 	background-repeat: no-repeat;
 	background-size: contain;
 }
+#loading {
+	margin-left: var(--badge-skip);
+	width: 14px;
+	height: 14px;
+	flex: 0 0 auto;
+	border: 2px solid var(--title-control-fg);
+	border-right-color: transparent;
+	border-radius: 50%;
+	animation: spin 0.8s linear infinite;
+	opacity: 0;
+	visibility: hidden;
+	transition: opacity 200ms linear, visibility 0s linear 200ms;
+}
+#root.loading #loading {
+	opacity: 1;
+	visibility: visible;
+	transition: opacity 200ms linear;
+}
 #body {
 	flex: 1 1 auto;
 	min-height: 0;

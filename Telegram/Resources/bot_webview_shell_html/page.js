@@ -817,7 +817,7 @@
 				window.clearTimeout(reloadTimeout);
 				reloadTimeout = null;
 			}
-			frameLoaded = false;
+			setFrameLoaded(false);
 			return;
 		}
 		invokeWebApp(message.eventType, message.eventData, event.origin);
@@ -876,6 +876,11 @@
 		event.preventDefault();
 	});
 
+	function setFrameLoaded(loaded) {
+		frameLoaded = loaded;
+		root.classList.toggle('loading', !loaded);
+	}
+
 	function createIframe(url) {
 		closeMenu();
 		if (reloadTimeout) {
@@ -892,12 +897,12 @@
 			if (iframe !== next || generation !== frameGeneration) {
 				return;
 			}
-			frameLoaded = true;
+			setFrameLoaded(true);
 			flushPendingEvents();
 			sentViewportHeight = -1;
 			scheduleViewport();
 		});
-		frameLoaded = false;
+		setFrameLoaded(false);
 		reloadSupported = false;
 		if (iframe) {
 			iframe.remove();
@@ -1048,12 +1053,6 @@
 			if (shellState.blocked) {
 				closeMenu();
 			}
-		},
-		setProgress: function(data, token) {
-			if (!isNativeToken(token)) {
-				return;
-			}
-			root.classList.toggle('loading', !!(data && data.shown));
 		},
 		reloadFrame: function(data, token) {
 			if (!isNativeToken(token)) {
