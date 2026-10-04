@@ -64,8 +64,8 @@ struct Stream {
 	Stream &stream,
 	not_null<AVFrame*> frame,
 	QSize resize,
-	QImage storage);
-[[nodiscard]] FrameYUV ExtractYUV(Stream &stream, AVFrame *frame);
+	QImage storage,
+	const FrameColor &color);
 
 struct ExpandDecision {
 	QSize result;
