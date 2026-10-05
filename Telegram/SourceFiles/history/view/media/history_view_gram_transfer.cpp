@@ -91,6 +91,7 @@ constexpr auto kReadRollFirst = crl::time(467);
 constexpr auto kReadRollDuration = crl::time(533);
 constexpr auto kReadRollEase = 1.5;
 constexpr auto kReadRollCycle = 10;
+constexpr auto kReadSpacing = crl::time(933);
 constexpr auto kReadPopAmplitude = 0.03;
 constexpr auto kReadPressDepth = 0.025;
 constexpr auto kReadPress = BumpCurve{
@@ -207,6 +208,7 @@ struct SettleSpin {
 
 struct ReadRoll {
 	Wallet::GlareCycle glare;
+	GramReadLine::Turn turn;
 	crl::time started = 0;
 	float64 angle = 0.;
 	bool settled = false;
@@ -1030,7 +1032,7 @@ void GramTransferCardPart::watchRead() {
 }
 
 // WHY: a read covers the messages above the shown one too, so only a card on
-// screen takes the start state, and it starts at its next paint: the first
+// screen takes the start state, and it waits for its next paint: the first
 // frame shows zeros even when the chat read it before painting it.
 void GramTransferCardPart::markRead(bool shown) {
 	const auto view = _origin.view.get();
@@ -1059,13 +1061,27 @@ void GramTransferCardPart::validateRead(
 		if (anim::Disabled()) {
 			_transition = nullptr;
 			return;
+		} else if (!read.turn.at) {
+			const auto view = _origin.view.get();
+			const auto line = view
+				? view->delegate()->elementGramReadLine()
+				: nullptr;
+			read.turn = line
+				? line->join(now)
+				: GramReadLine::Turn{ .at = now };
 		}
-		read.started = now;
+		if (now < read.turn.at) {
+			return;
+		}
+		// WHY: a card painted after its turn starts from the turn, so the
+		// line keeps its order and spacing for a card off screen then.
+		read.started = read.turn.at;
 		read.angle = _angle->value(frame);
-		read.glare.tick(now, kGlareDuration, kGlareTimeout);
-		_transition->started = now + kReadRollDuration;
+		read.glare.tick(read.started, kGlareDuration, kGlareTimeout);
+		_transition->started = read.started + kReadRollDuration;
 		animateTransition();
-	} else if (!read.settled && now >= _transition->started) {
+	}
+	if (!read.settled && now >= _transition->started) {
 		read.settled = true;
 		_transition->spin = StartSpin(
 			SendingAngle(read.angle, _transition->started - read.started),
@@ -2010,6 +2026,55 @@ TextForMimeData GramTransferCommentPart::selectedText(
 }
 
 } // namespace
+
+GramReadLine::GramReadLine(Fn<void()> repaint)
+: _repaint(std::move(repaint))
+, _timer([=] {
+	schedule(crl::now());
+	_repaint();
+}) {
+}
+
+GramReadLine::Turn GramReadLine::join(crl::time now) {
+	if (!_turns.empty() && now >= _turns.back() + kReadSpacing) {
+		_turns.clear();
+	}
+	const auto at = _turns.empty()
+		? now
+		: (_turns.back() + kReadSpacing);
+	_turns.push_back(at);
+	auto result = Turn{ .at = at };
+	if (at > now) {
+		schedule(now);
+		result.waiting.add([weak = base::make_weak(this), at] {
+			if (const auto strong = weak.get()) {
+				strong->leave(at);
+			}
+		});
+	}
+	return result;
+}
+
+void GramReadLine::leave(crl::time at) {
+	const auto now = crl::now();
+	if (at <= now) {
+		return; // a turn that came still spaces the cards after it
+	}
+	_turns.erase(ranges::remove(_turns, at), end(_turns));
+	schedule(now);
+}
+
+void GramReadLine::schedule(crl::time now) {
+	if (_timer.isActive() && !_timer.remainingTime()) {
+		return;
+	}
+	const auto next = ranges::upper_bound(_turns, now);
+	if (next == end(_turns)) {
+		_timer.cancel();
+	} else {
+		_timer.callOnce(*next - now, Qt::PreciseTimer);
+	}
+}
 
 std::unique_ptr<Media> CreateGramTransferMedia(
 		not_null<Element*> parent,
