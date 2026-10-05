@@ -1060,6 +1060,9 @@ void GramTransferCardPart::validateRead(
 	if (!read.started) {
 		if (anim::Disabled()) {
 			_transition = nullptr;
+			if (const auto view = _origin.view.get()) {
+				view->repaint();
+			}
 			return;
 		} else if (!read.turn.at) {
 			const auto view = _origin.view.get();
