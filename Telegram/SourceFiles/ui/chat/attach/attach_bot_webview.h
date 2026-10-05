@@ -239,7 +239,6 @@ private:
 	void applyExternalShellFullscreen(bool fullscreen);
 	void sendExternalShellChrome();
 	void setExternalShellBlocked(bool blocked);
-	void closeExternalShellLayer();
 	void closeExternalShellPopup();
 	[[nodiscard]] ExternalShellAnchor externalShellAnchor() const;
 	void showPopup(
