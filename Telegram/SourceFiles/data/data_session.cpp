@@ -3299,8 +3299,14 @@ void Session::checkMediaDestroys() {
 void Session::registerFormattedDateUpdate(
 		TimeId when,
 		not_null<HistoryView::Element*> view) {
-	_formattedDateUpdates[when].push_back(
-		base::make_weak(view.get()));
+	auto &list = _formattedDateUpdates[when];
+	const auto already = ranges::any_of(list, [&](const auto &weak) {
+		return (weak.get() == view.get());
+	});
+	if (already) {
+		return;
+	}
+	list.push_back(base::make_weak(view.get()));
 	const auto nearest = _formattedDateUpdates.begin()->first;
 	if (nearest < when && _formattedDateTimer.isActive()) {
 		return;
