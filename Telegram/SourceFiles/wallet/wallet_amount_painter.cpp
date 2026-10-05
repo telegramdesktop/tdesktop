@@ -9,7 +9,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/platform/base_platform_info.h"
 
+#include <QtGui/QTextLayout>
+
 namespace Wallet {
+namespace {
+
+[[nodiscard]] std::vector<float64> GlyphLefts(
+		const style::font &font,
+		const QString &text) {
+	auto result = std::vector<float64>();
+	if (text.isEmpty()) {
+		return result;
+	}
+	auto layout = QTextLayout(text, font->f);
+	auto option = layout.textOption();
+	option.setUseDesignMetrics(true);
+	layout.setTextOption(option);
+	layout.beginLayout();
+	const auto line = layout.createLine();
+	layout.endLayout();
+	result.reserve(text.size());
+	for (auto i = 0; i != int(text.size()); ++i) {
+		result.push_back(line.cursorToX(i));
+	}
+	return result;
+}
+
+} // namespace
 
 int GramDiamondCanvas(const style::font &font) {
 	const auto figure = int(base::SafeRound(
@@ -155,6 +181,72 @@ void AmountPainter::paint(
 	p.translate(topLeft);
 	p.scale(_scale, _scale);
 	paint(p, colors);
+	p.restore();
+}
+
+void AmountPainter::paintRolling(
+		QPainter &p,
+		QPointF topLeft,
+		const AmountColors &colors,
+		const std::vector<float64> &digits) const {
+	p.save();
+	p.translate(topLeft);
+	p.scale(_scale, _scale);
+	const auto opacity = p.opacity();
+	const auto y = float64(baseline());
+	auto still = QPainterPath();
+	const auto add = [&](
+			const style::font &font,
+			QPointF position,
+			QChar ch,
+			float64 alpha) {
+		if (alpha >= 1.) {
+			still.addText(position, font, QString(ch));
+		} else if (alpha > 0.) {
+			auto path = QPainterPath();
+			path.addText(position, font, QString(ch));
+			p.setOpacity(opacity * alpha);
+			p.fillPath(path, colors.digits);
+		}
+	};
+	auto index = 0;
+	const auto part = [&](
+			const style::font &font,
+			const QString &text,
+			int left) {
+		const auto lefts = GlyphLefts(font, text);
+		const auto &metrics = font->metrics();
+		for (auto i = 0; i != int(text.size()); ++i) {
+			const auto ch = text[i];
+			const auto x = left + lefts[i];
+			if (!ch.isDigit() || index >= int(digits.size())) {
+				add(font, QPointF(x, y), ch, 1.);
+				continue;
+			}
+			const auto rolled = digits[index++];
+			const auto shown = int(std::floor(rolled));
+			const auto v = rolled - shown;
+			const auto zero = ch.unicode() - ch.digitValue();
+			const auto width = metrics.horizontalAdvance(ch);
+			for (const auto layer : { 0, 1 }) {
+				const auto face = QChar(zero + (shown + layer) % 10);
+				const auto skip = (width - metrics.horizontalAdvance(face)) / 2.;
+				add(
+					font,
+					QPointF(x + skip, y + (layer - v) * font->height),
+					face,
+					layer ? v : (1. - v));
+			}
+		}
+	};
+	part(_st.big, _parts.whole, _wholeLeft);
+	part(_st.small, _parts.fraction, _fractionLeft);
+	p.setOpacity(opacity);
+	p.fillPath(still, colors.digits);
+	if (!_ticker.isEmpty()) {
+		p.setOpacity(opacity * colors.tickerOpacity);
+		p.fillPath(_ticker, colors.ticker);
+	}
 	p.restore();
 }
 

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "chat_helpers/compose/compose_show.h"
 #include "core/click_handler_types.h"
+#include "data/data_histories.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "history/view/media/history_view_media_generic.h"
@@ -49,6 +50,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
+struct BumpCurve {
+	crl::time rise = 0;
+	crl::time hold = 0;
+	crl::time fall = 0;
+	crl::time settle = 0;
+	float64 fallEase = 1.;
+	float64 undershoot = 0.;
+};
+
+[[nodiscard]] constexpr crl::time BumpDuration(const BumpCurve &curve) {
+	return curve.rise + curve.hold + curve.fall + curve.settle;
+}
+
 constexpr auto kAddressGroupSize = 4;
 constexpr auto kAddressGroupsPerLine = 6;
 constexpr auto kGlareDuration = crl::time(1100);
@@ -64,17 +78,28 @@ constexpr auto kRevealDuration = std::max({
 	kRevealColorDelay + kRevealColorDuration,
 	kRevealWordDelay + kRevealWordDuration,
 });
-constexpr auto kBumpRiseDuration = crl::time(150);
-constexpr auto kBumpHoldDuration = crl::time(33);
-constexpr auto kBumpFallDuration = crl::time(200);
-constexpr auto kBumpSettleDuration = crl::time(200);
-constexpr auto kBumpDuration = kBumpRiseDuration
-	+ kBumpHoldDuration
-	+ kBumpFallDuration
-	+ kBumpSettleDuration;
+constexpr auto kSettleBump = BumpCurve{
+	.rise = crl::time(150),
+	.hold = crl::time(33),
+	.fall = crl::time(200),
+	.settle = crl::time(200),
+	.fallEase = 1.2,
+	.undershoot = 0.043,
+};
 constexpr auto kBumpAmplitude = 0.07;
-constexpr auto kBumpFallEase = 1.2;
-constexpr auto kBumpUndershoot = 0.043;
+constexpr auto kReadRollFirst = crl::time(467);
+constexpr auto kReadRollDuration = crl::time(533);
+constexpr auto kReadRollEase = 1.5;
+constexpr auto kReadRollCycle = 10;
+constexpr auto kReadPopAmplitude = 0.03;
+constexpr auto kReadPressDepth = 0.025;
+constexpr auto kReadPress = BumpCurve{
+	.rise = crl::time(33),
+	.fall = crl::time(167),
+	.settle = crl::time(300),
+	.fallEase = 1.2,
+	.undershoot = 0.64,
+};
 constexpr auto kSendingSpeed = 90.;
 constexpr auto kSpinTurn = 360.;
 constexpr auto kSpinDuration = crl::time(1700);
@@ -90,7 +115,9 @@ constexpr auto kBurstFadeAfter = 0.8;
 constexpr auto kBurstDeformation = 0.1;
 constexpr auto kTransitionDuration = std::max({
 	kRevealDuration,
-	kBumpDuration,
+	BumpDuration(kSettleBump),
+	BumpDuration(kReadPress),
+	kGlareDuration - kReadRollDuration,
 	kSpinDuration,
 	kBurstDuration,
 });
@@ -178,12 +205,20 @@ struct SettleSpin {
 	float64 target = 0.;
 };
 
-// Lives from the end of the sending look until all the settle started is over.
+struct ReadRoll {
+	Wallet::GlareCycle glare;
+	crl::time started = 0;
+	float64 angle = 0.;
+	bool settled = false;
+};
+
+// Lives from a read or the end of the sending look until its settle is over.
 struct CardTransition {
 	Ui::Animations::Basic animation;
 	Wallet::ClockPose pose;
 	SettleSpin spin;
 	std::unique_ptr<Ui::StarBurst> burst;
+	std::optional<ReadRoll> read;
 	QString toText;
 	QImage toWord;
 	QImage frame;
@@ -200,8 +235,8 @@ struct SendingClock {
 	float64 angle = 0.;
 };
 
-[[nodiscard]] float64 SendingAngle(const SendingClock &clock, crl::time now) {
-	return clock.angle + kSendingSpeed * (now - clock.started) / 1000.;
+[[nodiscard]] float64 SendingAngle(float64 from, crl::time elapsed) {
+	return from + kSendingSpeed * elapsed / 1000.;
 }
 
 [[nodiscard]] float64 ClockwiseRemainder(float64 degrees) {
@@ -339,6 +374,11 @@ private:
 	void paintBurst(QPainter &p, crl::time now) const;
 	[[nodiscard]] bool transitionFinished(crl::time now) const;
 	void adopt(GramTransferHandover &&handover);
+	void watchRead();
+	void markRead(bool shown);
+	void validateRead(crl::time now, crl::time frame) const;
+	[[nodiscard]] bool holding() const;
+	[[nodiscard]] bool rolling(crl::time now) const;
 	void animateTransition() const;
 	void startReveal(const SendingClock &clock, crl::time now) const;
 	void attachClock() const;
@@ -372,6 +412,7 @@ private:
 	mutable QImage _badge;
 	mutable RibbonKey _badgeKey;
 	rpl::event_stream<> _destroyed;
+	rpl::lifetime _readLifetime;
 
 };
 
@@ -766,31 +807,68 @@ void PaintRibbonBand(
 	return std::clamp((elapsed - delay) / float64(duration), 0., 1.);
 }
 
-[[nodiscard]] float64 BumpShape(crl::time elapsed) {
-	if (elapsed <= 0 || elapsed >= kBumpDuration) {
+[[nodiscard]] float64 BumpShape(const BumpCurve &curve, crl::time elapsed) {
+	if (elapsed <= 0 || elapsed >= BumpDuration(curve)) {
 		return 0.;
-	} else if (elapsed < kBumpRiseDuration) {
-		return elapsed / float64(kBumpRiseDuration);
+	} else if (elapsed < curve.rise) {
+		return elapsed / float64(curve.rise);
 	}
-	const auto fall = elapsed - kBumpRiseDuration - kBumpHoldDuration;
+	const auto fall = elapsed - curve.rise - curve.hold;
 	if (fall < 0) {
 		return 1.;
-	} else if (fall < kBumpFallDuration) {
-		const auto progress = fall / float64(kBumpFallDuration);
-		return std::pow(1. - progress, kBumpFallEase);
+	} else if (fall < curve.fall) {
+		const auto progress = fall / float64(curve.fall);
+		return std::pow(1. - progress, curve.fallEase);
 	}
-	const auto settle = (fall - kBumpFallDuration)
-		/ float64(kBumpSettleDuration);
-	return -kBumpUndershoot * std::sin(M_PI * settle);
+	const auto settle = (fall - curve.fall) / float64(curve.settle);
+	return -curve.undershoot * std::sin(M_PI * settle);
 }
 
 // The service sentence sits msgServiceMargin.top() above the whole block.
-[[nodiscard]] float64 BumpAmplitude(QSize outer) {
+[[nodiscard]] float64 BumpAmplitude(QSize outer, float64 amplitude) {
 	return outer.isEmpty()
 		? 0.
 		: std::min(
-			kBumpAmplitude,
+			amplitude,
 			2. * st::msgServiceMargin.top() / outer.height());
+}
+
+[[nodiscard]] std::vector<float64> ReadRollPositions(
+		const Wallet::AmountParts &parts,
+		crl::time elapsed) {
+	auto steps = std::vector<int>();
+	auto rolling = 0;
+	for (const auto &text : { parts.whole, parts.fraction }) {
+		for (const auto &ch : text) {
+			if (!ch.isDigit()) {
+				continue;
+			}
+			const auto digit = ch.digitValue();
+			if (!digit && !rolling) {
+				steps.push_back(0);
+			} else {
+				steps.push_back(kReadRollCycle + digit);
+				++rolling;
+			}
+		}
+	}
+	auto result = std::vector<float64>();
+	result.reserve(steps.size());
+	auto index = 0;
+	for (const auto count : steps) {
+		if (!count) {
+			result.push_back(0.);
+			continue;
+		}
+		const auto early = (rolling - 1 - index++)
+			/ float64(std::max(rolling - 1, 1));
+		const auto lands = kReadRollDuration
+			- (kReadRollDuration - kReadRollFirst) * early;
+		const auto progress = std::clamp(elapsed / lands, 0., 1.);
+		result.push_back(
+			count * (1. - std::pow(1. - progress, kReadRollEase)));
+	}
+	return result;
 }
 
 [[nodiscard]] QString FriendlyAddress(const QString &address) {
@@ -878,6 +956,7 @@ GramTransferCardPart::GramTransferCardPart(
 	ReadableIdentity(_origin.view->data(), !_address.isEmpty()).toUpper())
 , _ribbonTextWidth(_origin.action.outgoing ? OutgoingRibbonTextWidth() : 0) {
 	adopt(std::move(handover));
+	watchRead();
 }
 
 GramTransferHandover GramTransferCardPart::takeHandover() {
@@ -920,7 +999,9 @@ void GramTransferCardPart::adopt(GramTransferHandover &&handover) {
 	} else if (handover.transition) {
 		_transition = std::move(handover.transition);
 		_heavyPending = true;
-		animateTransition();
+		if (!holding()) {
+			animateTransition();
+		}
 	} else if (handover.clock) {
 		_clock = std::move(handover.clock);
 		validateReveal(crl::now());
@@ -931,6 +1012,80 @@ void GramTransferCardPart::adopt(GramTransferHandover &&handover) {
 	}
 }
 
+void GramTransferCardPart::watchRead() {
+	const auto item = _origin.view->data();
+	if (_origin.action.outgoing || !item->unread(item->history())) {
+		return;
+	}
+	const auto id = _origin.action.itemId;
+	_origin.session->data().histories().shownReads(
+	) | rpl::filter([=](const Data::Histories::ShownRead &read) {
+		return (read.shown->history()->peer->id == id.peer)
+			&& (read.wasReadTill < id.msg)
+			&& (id.msg <= read.readTill);
+	}) | rpl::take(1) | rpl::on_next([=](
+			const Data::Histories::ShownRead &read) {
+		markRead(read.shown->fullId() == id);
+	}, _readLifetime);
+}
+
+// WHY: a read covers the messages above the shown one too, so only a card on
+// screen takes the start state, and it starts at its next paint: the first
+// frame shows zeros even when the chat read it before painting it.
+void GramTransferCardPart::markRead(bool shown) {
+	const auto view = _origin.view.get();
+	if (!view
+		|| _transition
+		|| anim::Disabled()
+		|| (!shown
+			&& !view->history()->owner().queryItemVisibility(view->data()))) {
+		return;
+	}
+	_transition = std::make_unique<CardTransition>();
+	_transition->read.emplace();
+	validateMark();
+	view->history()->owner().registerHeavyViewPart(view);
+	view->repaint();
+}
+
+void GramTransferCardPart::validateRead(
+		crl::time now,
+		crl::time frame) const {
+	if (!_transition || !_transition->read) {
+		return;
+	}
+	auto &read = *_transition->read;
+	if (!read.started) {
+		if (anim::Disabled()) {
+			_transition = nullptr;
+			return;
+		}
+		read.started = now;
+		read.angle = _angle->value(frame);
+		read.glare.tick(now, kGlareDuration, kGlareTimeout);
+		_transition->started = now + kReadRollDuration;
+		animateTransition();
+	} else if (!read.settled && now >= _transition->started) {
+		read.settled = true;
+		_transition->spin = StartSpin(
+			SendingAngle(read.angle, _transition->started - read.started),
+			_angle->value(frame));
+		if (now < _transition->started + kBurstDuration) {
+			_transition->burst = Ui::StarBurst::Make(CardBurstDescriptor());
+		}
+	}
+}
+
+bool GramTransferCardPart::holding() const {
+	return _transition && _transition->read && !_transition->read->started;
+}
+
+bool GramTransferCardPart::rolling(crl::time now) const {
+	return _transition
+		&& _transition->read
+		&& (holding() || now < _transition->started);
+}
+
 void GramTransferCardPart::startReveal(
 		const SendingClock &clock,
 		crl::time now) const {
@@ -938,7 +1093,7 @@ void GramTransferCardPart::startReveal(
 	_transition->pose = Wallet::SendingClockPose(now - clock.started);
 	_transition->started = now;
 	_transition->spin = StartSpin(
-		SendingAngle(clock, now),
+		SendingAngle(clock.angle, now - clock.started),
 		_angle ? _angle->value(now) : 0.);
 	const auto view = _origin.view.get();
 	if (view && !view->data()->hasFailed()) {
@@ -978,15 +1133,30 @@ void GramTransferCardPart::animateTransition() const {
 }
 
 bool GramTransferCardPart::transitionFinished(crl::time now) const {
-	return !_transition || (now >= _transition->started + kTransitionDuration);
+	return !_transition
+		|| (!holding()
+			&& now >= _transition->started + kTransitionDuration);
 }
 
 Media::BubbleRoll GramTransferCardPart::bubbleRoll(QSize outer) const {
 	if (!_transition) {
 		return {};
 	}
-	const auto elapsed = crl::now() - _transition->started;
-	return { .scale = 1. + BumpAmplitude(outer) * BumpShape(elapsed) };
+	const auto now = crl::now();
+	const auto elapsed = now - _transition->started;
+	if (const auto &read = _transition->read) {
+		if (!read->started) {
+			return {};
+		}
+		return { .scale = 1.
+			+ BumpAmplitude(outer, kReadPopAmplitude)
+				* BumpShape(kSettleBump, now - read->started)
+			- BumpAmplitude(outer, kReadPressDepth)
+				* BumpShape(kReadPress, elapsed) };
+	}
+	return { .scale = 1.
+		+ BumpAmplitude(outer, kBumpAmplitude)
+			* BumpShape(kSettleBump, elapsed) };
 }
 
 QMargins GramTransferCardPart::bubbleRollRepaintMargins(
@@ -994,7 +1164,7 @@ QMargins GramTransferCardPart::bubbleRollRepaintMargins(
 	if (!_transition) {
 		return {};
 	}
-	const auto amplitude = BumpAmplitude(outer);
+	const auto amplitude = BumpAmplitude(outer, kBumpAmplitude);
 	const auto x = int(std::ceil(amplitude * outer.width() / 2.));
 	const auto y = int(std::ceil(amplitude * outer.height() / 2.));
 	return QMargins(x, y, x, y);
@@ -1061,13 +1231,13 @@ int GramTransferCardPart::resolveLayout(int outerWidth) {
 	const auto badgeArea = std::min(badgeFont->width(tag.text), badgeLimit);
 	_layout.badge = badgeFont->elided(tag.text, badgeArea);
 	_layout.badgeTextWidth = badgeArea;
-	if (_origin.action.outgoing) {
-		const auto sent = ResolveTag(true, false).text;
-		const auto sentArea = std::min(badgeFont->width(sent), badgeLimit);
-		const auto ribbon = ComputeRibbon(sentArea);
-		_layout.clockCenter = QPointF(cardWidth - ribbon.size, 0.)
-			+ RibbonWordCenter(ribbon, badgeFont->elided(sent, sentArea));
-	}
+	const auto settled = _origin.action.outgoing
+		? ResolveTag(true, false).text
+		: tag.text;
+	const auto settledArea = std::min(badgeFont->width(settled), badgeLimit);
+	const auto ribbon = ComputeRibbon(settledArea);
+	_layout.clockCenter = QPointF(cardWidth - ribbon.size, 0.)
+		+ RibbonWordCenter(ribbon, badgeFont->elided(settled, settledArea));
 	const auto reservedArea = std::min(
 		std::max(_ribbonTextWidth, badgeArea),
 		badgeLimit);
@@ -1214,10 +1384,14 @@ void GramTransferCardPart::attachClock() const {
 
 std::optional<Wallet::GlareBand> GramTransferCardPart::glarePass(
 		crl::time now) const {
-	if (!_clock || !sendingLook(now)) {
-		return {};
-	}
-	const auto progress = _clock->glare.progress(now);
+	const auto cycle = (_transition && _transition->read)
+		? &_transition->read->glare
+		: (_clock && sendingLook(now))
+		? &_clock->glare
+		: nullptr;
+	const auto progress = cycle
+		? cycle->progress(now)
+		: std::optional<float64>();
 	if (!progress) {
 		return {};
 	}
@@ -1235,7 +1409,18 @@ GramTransferCardPart::Sweep GramTransferCardPart::sweep(
 	if (still) {
 		return { shared };
 	} else if (_clock && sendingLook(now)) {
-		return { SendingAngle(*_clock, now), &_clock->background };
+		return {
+			SendingAngle(_clock->angle, now - _clock->started),
+			&_clock->background,
+		};
+	} else if (rolling(now)) {
+		const auto &read = *_transition->read;
+		if (read.started) {
+			return {
+				SendingAngle(read.angle, now - read.started),
+				&_transition->background,
+			};
+		}
 	} else if (_transition) {
 		const auto elapsed = now - _transition->started;
 		if (elapsed < kSpinDuration) {
@@ -1382,9 +1567,9 @@ void GramTransferCardPart::paintReveal(
 	const auto reach = RibbonReach(ribbon, center);
 	const auto radius = outer
 		+ (reach - outer) * RevealProgress(elapsed, 0, kRevealFillDuration);
-	const auto scale = std::max(
-		1. - elapsed / float64(kRevealClockDuration),
-		0.);
+	const auto scale = transition.read
+		? 0.
+		: std::max(1. - elapsed / float64(kRevealClockDuration), 0.);
 	const auto w = RevealProgress(
 		elapsed,
 		kRevealWordDelay,
@@ -1448,6 +1633,7 @@ void GramTransferCardPart::draw(
 		_transition = nullptr;
 	}
 	validateAngle(p, owner, context);
+	validateRead(now, frame);
 	// WHY: a card relaid out as settled keeps its clock until this paint,
 	// so a stale paint shows the live pose and the reveal starts from it
 	// here; a later replacement continues this transition.
@@ -1507,12 +1693,25 @@ void GramTransferCardPart::draw(
 		p,
 		(cardWidth - markPaint) / 2,
 		_layout.markTop - markShift);
-	_amount.paint(
-		p,
-		QPointF(
-			(cardWidth - _amount.size().width()) / 2.,
-			_layout.amountTop),
-		{ .digits = st::activeButtonFg->c, .ticker = CardTickerFg() });
+	const auto amountTopLeft = QPointF(
+		(cardWidth - _amount.size().width()) / 2.,
+		_layout.amountTop);
+	const auto amountColors = Wallet::AmountColors{
+		.digits = st::activeButtonFg->c,
+		.ticker = CardTickerFg(),
+	};
+	if (rolling(now)) {
+		const auto &read = *_transition->read;
+		_amount.paintRolling(
+			p,
+			amountTopLeft,
+			amountColors,
+			ReadRollPositions(
+				_amount.parts(),
+				read.started ? (now - read.started) : crl::time()));
+	} else {
+		_amount.paint(p, amountTopLeft, amountColors);
+	}
 	p.setPen(CardTickerFg());
 	p.setFont(st::walletCardNameFont);
 	p.drawText(
@@ -1545,13 +1744,16 @@ void GramTransferCardPart::draw(
 	}
 	if (sendingLook(now)) {
 		paintSendingClock(p, now);
-	} else if (_transition
-		&& now < _transition->started + kRevealDuration) {
-		paintReveal(p, cardWidth, now);
-	} else {
-		p.drawImage(
-			QPointF(cardWidth - _badge.width() / _badge.devicePixelRatio(), 0.),
-			_badge);
+	} else if (!rolling(now)) {
+		if (_transition && now < _transition->started + kRevealDuration) {
+			paintReveal(p, cardWidth, now);
+		} else {
+			p.drawImage(
+				QPointF(
+					cardWidth - _badge.width() / _badge.devicePixelRatio(),
+					0.),
+				_badge);
+		}
 	}
 	p.restore();
 }

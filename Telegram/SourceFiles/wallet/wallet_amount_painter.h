@@ -66,6 +66,12 @@ public:
 		QPainter &p,
 		QPointF topLeft,
 		const AmountColors &colors) const;
+	// |digits| are how far each digit, left to right, has rolled up from 0.
+	void paintRolling(
+		QPainter &p,
+		QPointF topLeft,
+		const AmountColors &colors,
+		const std::vector<float64> &digits) const;
 
 private:
 	void refreshScale();
