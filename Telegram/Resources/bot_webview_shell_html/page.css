@@ -619,16 +619,6 @@ button.menu-download .ripple .inner {
 	position: relative;
 	z-index: 1;
 }
-#blocker {
-	position: absolute;
-	inset: 0;
-	display: none;
-	background: rgba(0, 0, 0, 0.12);
-	z-index: 20;
-}
-#root.blocked #blocker {
-	display: block;
-}
 @keyframes spin {
 	to { transform: rotate(360deg); }
 }

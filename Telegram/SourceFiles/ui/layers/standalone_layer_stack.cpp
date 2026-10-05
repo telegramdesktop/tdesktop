@@ -109,6 +109,7 @@ void StandaloneLayerStack::showBox(
 	});
 	panel->setWindowFlag(Qt::WindowStaysOnTopHint, false);
 	panel->setAttribute(Qt::WA_DeleteOnClose, false);
+	panel->setAttribute(Qt::WA_ShowModal);
 	panel->setTitleHeight(0);
 	panel->setCloseAllowed(false);
 

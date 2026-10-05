@@ -1240,11 +1240,11 @@ Panel::Panel(Args &&args)
 		_widget->setAttribute(Qt::WA_DontShowOnScreen);
 		_externalLayer->boxAdded(
 		) | rpl::on_next([=] {
-			setExternalShellBlocked(true);
+			setWebviewBlocked(true);
 		}, _widget->lifetime());
 		_externalLayer->boxClosed(
 		) | rpl::on_next([=] {
-			setExternalShellBlocked(false);
+			setWebviewBlocked(false);
 		}, _widget->lifetime());
 	}
 	_widget->setWindowFlag(Qt::WindowStaysOnTopHint, false);
@@ -1982,19 +1982,16 @@ void Panel::sendExternalShellChrome() {
 	});
 }
 
-void Panel::setExternalShellBlocked(bool blocked) {
-	if (!_externalShell) {
-		return;
-	}
-	const auto was = (_externalBlockCount > 0);
+void Panel::setWebviewBlocked(bool blocked) {
+	const auto was = (_webviewBlockCount > 0);
 	if (blocked) {
-		++_externalBlockCount;
-	} else if (_externalBlockCount > 0) {
-		--_externalBlockCount;
+		++_webviewBlockCount;
+	} else if (_webviewBlockCount > 0) {
+		--_webviewBlockCount;
 	}
-	const auto now = (_externalBlockCount > 0);
-	if (was != now) {
-		sendExternalShellMethod("setBlocked", { { u"blocked"_q, now } });
+	const auto now = (_webviewBlockCount > 0);
+	if (was != now && _webview) {
+		_webview->window.setInputBlocked(now);
 	}
 }
 
@@ -2067,31 +2064,30 @@ QWidget *Panel::webviewWindowForPopup() const {
 void Panel::showPopup(
 		Webview::PopupArgs &&args,
 		Fn<void(Webview::PopupResult)> done) {
-	if (!_externalShell) {
-		// Never block here: a nested event loop started from inside a
-		// webview callback would run queued main thread work, including
-		// the deferred close of this very panel, and the whole object
-		// graph under the running callback would be destroyed.
-		Webview::ShowPopupAsync(std::move(args), std::move(done), true);
-		return;
+	if (_externalShell) {
+		const auto anchor = externalShellAnchor();
+		args.transientParent = anchor.transientParent;
+		args.parent = nullptr;
 	}
-	const auto anchor = externalShellAnchor();
-	args.transientParent = anchor.transientParent;
-	args.parent = nullptr;
-	setExternalShellBlocked(true);
+	setWebviewBlocked(true);
 	const auto weak = base::make_weak(this);
-	_closeExternalShellPopup = Webview::ShowPopupAsync(
+	// WHY: never block here, a nested event loop would run the deferred
+	// close of this panel under the running webview callback.
+	auto close = Webview::ShowPopupAsync(
 		std::move(args),
 		[=, done = std::move(done)](
 				Webview::PopupResult result) mutable {
 			if (weak) {
-				weak->setExternalShellBlocked(false);
+				weak->setWebviewBlocked(false);
 			}
 			if (done) {
 				done(std::move(result));
 			}
 		},
-		false);
+		true);
+	if (_externalShell) {
+		_closeExternalShellPopup = std::move(close);
+	}
 }
 
 void Panel::createWebviewBottom() {
@@ -2323,12 +2319,12 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 					requestClose();
 				}
 			} else if (command == "shell_menu_request") {
-				if (_externalBlockCount <= 0) {
+				if (_webviewBlockCount <= 0) {
 					sendExternalShellAssets();
 					sendExternalShellMenu();
 				}
 			} else if (command == "shell_menu_action") {
-				if (_externalBlockCount <= 0) {
+				if (_webviewBlockCount <= 0) {
 					handleExternalShellMenuAction(arguments["id"].toString());
 				}
 			} else if (command == "shell_request_button_icon") {
@@ -2506,11 +2502,11 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			const auto anchor = externalShellAnchor();
 			args.transientParent = anchor.transientParent;
 			args.parent = nullptr;
-			setExternalShellBlocked(true);
+			setWebviewBlocked(true);
 			const auto weak = base::make_weak(this);
 			const auto guard = gsl::finally([=] {
 				if (weak) {
-					weak->setExternalShellBlocked(false);
+					weak->setWebviewBlocked(false);
 				}
 			});
 			return Webview::DefaultDialogHandler(std::move(args));
@@ -2521,25 +2517,33 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			const auto anchor = externalShellAnchor();
 			args.transientParent = anchor.transientParent;
 			args.parent = nullptr;
-			setExternalShellBlocked(true);
+			setWebviewBlocked(true);
 			const auto weak = base::make_weak(this);
 			_closeExternalShellPopup = Webview::DefaultDialogHandlerAsync(
 				std::move(args),
 				[=, done = std::move(done)](
 						Webview::DialogResult result) mutable {
 					if (weak) {
-						weak->setExternalShellBlocked(false);
+						weak->setWebviewBlocked(false);
 					}
 					done(std::move(result));
 				},
-				false);
+				true);
 			return true;
 		});
 	} else {
 		raw->setDialogHandler([=](Webview::DialogArgs args) {
-			return _closeRequested
-				? Webview::DialogResult()
-				: Webview::DefaultDialogHandler(std::move(args));
+			if (_closeRequested) {
+				return Webview::DialogResult();
+			}
+			setWebviewBlocked(true);
+			const auto weak = base::make_weak(this);
+			const auto guard = gsl::finally([=] {
+				if (weak) {
+					weak->setWebviewBlocked(false);
+				}
+			});
+			return Webview::DefaultDialogHandler(std::move(args));
 		});
 	}
 
@@ -3741,7 +3745,7 @@ void Panel::invoiceClosed(const QString &slug, const QString &status) {
 	if (_hiddenForPayment) {
 		_hiddenForPayment = false;
 		if (_externalShell) {
-			setExternalShellBlocked(false);
+			setWebviewBlocked(false);
 		} else {
 			_widget->showAndActivate();
 		}
@@ -3751,7 +3755,7 @@ void Panel::invoiceClosed(const QString &slug, const QString &status) {
 void Panel::hideForPayment() {
 	_hiddenForPayment = true;
 	if (_externalShell) {
-		setExternalShellBlocked(true);
+		setWebviewBlocked(true);
 	} else {
 		_widget->hideGetDuration();
 	}
