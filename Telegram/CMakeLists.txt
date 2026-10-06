@@ -2058,6 +2058,8 @@ PRIVATE
     test/test_open_handoff.h
     test/test_panel.cpp
     test/test_panel.h
+    test/test_post_paint.cpp
+    test/test_post_paint.h
     test/test_probe.cpp
     test/test_probe.h
     test/test_rpc_fixture.cpp
