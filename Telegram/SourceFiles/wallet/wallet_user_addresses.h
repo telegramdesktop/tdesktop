@@ -114,11 +114,14 @@ private:
 	void sendChunk(const std::shared_ptr<Job> &job, std::vector<UserId> ids);
 	void applyChunk(
 		const std::vector<UserId> &asked,
-		const QVector<MTPWalletUserAddress> &reply);
+		const QVector<MTPWalletUserAddress> &reply,
+		uint64 serial);
 	const QVector<MTPWalletUserAddress> &processReply(
 		const MTPwallet_UserAddresses &result);
 	void rememberKeys(const QVector<MTPWalletUserAddress> &reply);
 	void finishChunk(const std::shared_ptr<Job> &job);
+	[[nodiscard]] bool answerIsNewest(UserId id, uint64 serial) const;
+	void noteAnswer(UserId id, uint64 serial);
 	void finish(const std::shared_ptr<Job> &job);
 	void finishOwner(
 		const QString &address,
@@ -137,6 +140,8 @@ private:
 	};
 	base::flat_map<QString, std::vector<OwnerWaiter>> _ownerWaiting;
 	base::flat_set<QString> _ownerRequested;
+	base::flat_map<UserId, uint64> _answeredBy; // newest request that wrote
+	uint64 _requestSerial = 0;
 
 };
 

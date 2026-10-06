@@ -127,6 +127,7 @@ void UserAddresses::forceResolve(
 		return;
 	}
 	const auto user = _session->data().userLoaded(id);
+	const auto serial = ++_requestSerial;
 	_api.request(MTPwallet_GetUserAddresses(
 		MTP_flags(MTPwallet_GetUserAddresses::Flag::f_force),
 		MTP_vector<MTPInputUser>(1, user->inputUser()),
@@ -143,6 +144,7 @@ void UserAddresses::forceResolve(
 			return;
 		}
 		user->setGramAddress(address);
+		noteAnswer(id, serial);
 		if (done) {
 			done(address);
 		}
@@ -215,6 +217,7 @@ void UserAddresses::resolveOwner(
 	if (!_ownerRequested.emplace(canonical).second) {
 		return;
 	}
+	const auto serial = ++_requestSerial;
 	_api.request(MTPwallet_GetUserAddresses(
 		MTP_flags(0),
 		MTP_vector<MTPInputUser>(),
@@ -238,8 +241,9 @@ void UserAddresses::resolveOwner(
 		const auto user = owner.userId
 			? _session->data().userLoaded(owner.userId)
 			: nullptr;
-		if (user && user->gramAddress() != canonical) {
+		if (user && answerIsNewest(owner.userId, serial)) {
 			user->setGramAddress(canonical);
+			noteAnswer(owner.userId, serial);
 		}
 		finishOwner(canonical, std::move(owner), true, false);
 	}).fail([=](const MTP::Error &error) {
@@ -296,12 +300,13 @@ void UserAddresses::sendChunk(
 		| ranges::views::transform([&](UserId id) {
 			return _session->data().userLoaded(id)->inputUser();
 		}));
+	const auto serial = ++_requestSerial;
 	_api.request(MTPwallet_GetUserAddresses(
 		MTP_flags(0),
 		std::move(users),
 		MTP_vector<MTPstring>()
 	)).done([=](const MTPwallet_UserAddresses &result) {
-		applyChunk(ids, processReply(result));
+		applyChunk(ids, processReply(result), serial);
 		finishChunk(job);
 	}).fail([=](const MTP::Error &error) {
 		if (error.type() == u"WALLET_UNAVAILABLE"_q) {
@@ -324,13 +329,25 @@ void UserAddresses::sendChunk(
 // is still unanswered when the reply lands.
 void UserAddresses::applyChunk(
 		const std::vector<UserId> &asked,
-		const QVector<MTPWalletUserAddress> &reply) {
+		const QVector<MTPWalletUserAddress> &reply,
+		uint64 serial) {
 	for (const auto &[id, address] : ChunkAnswer(asked, reply)) {
 		const auto user = _session->data().userLoaded(id);
 		if (user && !user->gramAddress()) {
 			user->setGramAddress(address);
+			noteAnswer(id, serial);
 		}
 	}
+}
+
+bool UserAddresses::answerIsNewest(UserId id, uint64 serial) const {
+	const auto i = _answeredBy.find(id);
+	return (i == end(_answeredBy)) || (i->second < serial);
+}
+
+void UserAddresses::noteAnswer(UserId id, uint64 serial) {
+	auto &answered = _answeredBy[id];
+	answered = std::max(answered, serial);
 }
 
 // The users come along so the peer an address names is showable at once.
