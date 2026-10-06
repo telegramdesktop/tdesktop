@@ -105,6 +105,8 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	[[nodiscard]] QRect lottieRect() const;
+
 	const bool _light = false;
 	const QString _logo;
 	const style::font &_titleFont;

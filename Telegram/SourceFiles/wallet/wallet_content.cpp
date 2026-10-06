@@ -509,6 +509,7 @@ private:
 	[[nodiscard]] QTransform groupTransform(const CardFold &fold) const;
 
 	std::unique_ptr<Lottie::Icon> _markLottie;
+	Fn<void()> _markRepaint;
 	Wallet::AmountPainter _painter;
 	QPainterPath _fiat;
 	QImage _markCard;
@@ -12559,9 +12560,8 @@ void BalanceInk::setAnimatedMark() {
 		canvas * (kGramDiamondRight - kGramDiamondLeft),
 		canvas * (kGramDiamondBottom - kGramDiamondTop));
 	_markLottie = Lottie::MakeIcon({
-		.name = u"gram_light"_q,
+		.name = u"gram_white"_q,
 		.sizeOverride = { canvas, canvas },
-		.frame = -1,
 	});
 }
 
@@ -12569,6 +12569,7 @@ void BalanceInk::playMark(Fn<void()> repaint) {
 	if (!_markLottie || !_markLottie->valid()) {
 		return;
 	}
+	_markRepaint = repaint;
 	_markLottie->animate(
 		std::move(repaint),
 		0,
@@ -12699,6 +12700,9 @@ void BalanceInk::paintMark(
 	// diamond crossing the folding card's edge stays one shape, lottie
 	// inside and mono outside, with no step at the seam.
 	if (card && _markLottie->valid()) {
+		if (!_markLottie->animating() && _markLottie->frameIndex() != 0) {
+			_markLottie->jumpTo(0, _markRepaint);
+		}
 		p.drawImage(
 			markDrawRect(fold, _markFrame, _markLottieVisible),
 			_markLottie->frame());

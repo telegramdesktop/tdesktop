@@ -34,7 +34,7 @@
     <file alias="chat_link.tgs">../../animations/chat_link.tgs</file>
     <file alias="diamond.tgs">../../animations/diamond.tgs</file>
     <file alias="gram.tgs">../../animations/gram.tgs</file>
-    <file alias="gram_light.tgs">../../animations/gram_light.tgs</file>
+    <file alias="gram_white.tgs">../../animations/gram_white.tgs</file>
     <file alias="collectible_username.tgs">../../animations/collectible_username.tgs</file>
     <file alias="collectible_phone.tgs">../../animations/collectible_phone.tgs</file>
     <file alias="search.tgs">../../animations/search.tgs</file>

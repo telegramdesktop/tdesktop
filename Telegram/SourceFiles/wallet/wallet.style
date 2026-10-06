@@ -69,9 +69,10 @@ walletCardQrIcon: icon{{ "menu/qr_code", windowSubTextFg }};
 walletCardInfoIcon: icon{{ "menu/info", windowSubTextFg }};
 walletChatCardMarkTop: 29px;
 walletChatCardMarkSize: 42px;
-// The animation paints over its layout slot, centred on it, so a larger
-// diamond leaves every row of the card where it is.
+// The animation paints over its layout slot, centred on it, so rows stay put.
 walletChatCardMarkPaintSize: 63px;
+// Lifts the larger diamond enough to keep today's gap above the amount.
+walletChatCardMarkRaise: 8px;
 walletChatCardGlareWidth: 90px;
 walletChatCardGlareStroke: 2px;
 walletChatCardClockSize: 12px;

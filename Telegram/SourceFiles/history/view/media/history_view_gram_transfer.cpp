@@ -386,6 +386,7 @@ private:
 	void attachClock() const;
 	void validateReveal(crl::time now) const;
 	void validateMark() const;
+	[[nodiscard]] QRect markPaintRect() const;
 	void validateClock(crl::time now) const;
 	void validateBadge() const;
 	void validateAngle(
@@ -1322,12 +1323,22 @@ void GramTransferCardPart::validateMark() const {
 	}
 	const auto size = st::walletChatCardMarkPaintSize;
 	_mark = Lottie::MakeIcon({
-		.name = u"gram_light"_q,
+		.name = u"gram_white"_q,
 		.sizeOverride = { size, size },
 	});
 	if (const auto view = _origin.view.get()) {
 		view->history()->owner().registerHeavyViewPart(view);
 	}
+}
+
+QRect GramTransferCardPart::markPaintRect() const {
+	const auto size = st::walletChatCardMarkPaintSize;
+	const auto shift = (size - st::walletChatCardMarkSize) / 2;
+	return QRect(
+		(_layout.card.width() - size) / 2,
+		_layout.markTop - shift - st::walletChatCardMarkRaise,
+		size,
+		size);
 }
 
 bool GramTransferCardPart::sending() const {
@@ -1458,13 +1469,17 @@ GramTransferCardPart::Sweep GramTransferCardPart::sweep(
 void GramTransferCardPart::paintBurst(QPainter &p, crl::time now) const {
 	const auto cardWidth = float64(_layout.card.width());
 	const auto cardHeight = float64(_layout.card.height());
-	const auto mark = float64(st::walletChatCardMarkSize);
+	const auto mark = markPaintRect();
 	const auto radius = st::walletCardRadius;
 	auto clip = QPainterPath();
 	clip.addRoundedRect(QRectF(0, 0, cardWidth, cardHeight), radius, radius);
 	_transition->burst->paint(p, {
-		.origin = QPointF(cardWidth / 2., _layout.markTop + mark / 2.),
-		.emitter = mark,
+		.origin = QPointF(
+			cardWidth / 2.,
+			mark.y() + mark.height()
+				* (Wallet::kGramDiamondTop + Wallet::kGramDiamondBottom)
+				/ 2.),
+		.emitter = float64(st::walletChatCardMarkSize),
 		.extent = cardWidth,
 		.elapsed = now - _transition->started,
 		.clip = std::move(clip),
@@ -1691,30 +1706,25 @@ void GramTransferCardPart::draw(
 		paintBurst(p, now);
 	}
 	if (_mark->valid()) {
-		const auto last = _mark->framesCount() - 1;
 		const auto paused = context.paused
 			|| anim::Disabled()
 			|| On(PowerSaving::kStickersChat);
 		const auto again = sending() && !_mark->animating();
-		if (paused) {
-			if (!_markStarted && _mark->frameIndex() != last) {
-				_mark->jumpTo(last, nullptr);
+		const auto repaint = [view = _origin.view] {
+			if (const auto strong = view.get()) {
+				strong->repaint();
 			}
-		} else if (!_markStarted || again) {
+		};
+		if (!paused && (!_markStarted || again)) {
 			_markStarted = true;
-			_mark->animate([view = _origin.view] {
-				if (const auto strong = view.get()) {
-					strong->repaint();
-				}
-			}, 0, last);
+			_mark->animate(repaint, 0, _mark->framesCount() - 1);
+		} else if (!_mark->animating() && _mark->frameIndex() != 0) {
+			// The white diamond's last frame leads into frame 0, its rest.
+			_mark->jumpTo(0, repaint);
 		}
 	}
-	const auto markPaint = st::walletChatCardMarkPaintSize;
-	const auto markShift = (markPaint - st::walletChatCardMarkSize) / 2;
-	_mark->paint(
-		p,
-		(cardWidth - markPaint) / 2,
-		_layout.markTop - markShift);
+	const auto mark = markPaintRect();
+	_mark->paint(p, mark.x(), mark.y());
 	const auto amountTopLeft = QPointF(
 		(cardWidth - _amount.size().width()) / 2.,
 		_layout.amountTop);

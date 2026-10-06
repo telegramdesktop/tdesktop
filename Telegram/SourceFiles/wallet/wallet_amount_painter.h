@@ -9,13 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Wallet {
 
-// WHY: gram(_light).tgs draw the diamond in a larger canvas, with a faint glow
+// WHY: the Gram lotties draw the diamond in a larger canvas, with a faint glow
 // above the top edge, so the amount row sizes and places the canvas by the
 // drawn edges of the resting frame, the glow excluded.
-inline constexpr auto kGramDiamondLeft = 89. / 512.;
-inline constexpr auto kGramDiamondTop = 141. / 512.;
-inline constexpr auto kGramDiamondRight = 426. / 512.;
-inline constexpr auto kGramDiamondBottom = 426. / 512.;
+inline constexpr auto kGramDiamondLeft = 35. / 512.;
+inline constexpr auto kGramDiamondTop = 107. / 512.;
+inline constexpr auto kGramDiamondRight = 477. / 512.;
+inline constexpr auto kGramDiamondBottom = 489. / 512.;
 
 [[nodiscard]] int GramDiamondCanvas(const style::font &font);
 
