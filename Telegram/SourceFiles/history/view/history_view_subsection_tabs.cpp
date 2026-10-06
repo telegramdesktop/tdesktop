@@ -99,6 +99,7 @@ void SubsectionTabs::setup(not_null<Ui::RpWidget*> parent) {
 void SubsectionTabs::setupHorizontal(
 		not_null<QWidget*> parent,
 		bool bottom) {
+	detachToggle();
 	delete base::take(_vertical);
 	delete base::take(bottom ? _horizontal : _bottom);
 	auto &widgetRef = bottom ? _bottom : _horizontal;
@@ -113,19 +114,15 @@ void SubsectionTabs::setupHorizontal(
 		_shadow->raise();
 	}
 
-	const auto toggle = Ui::CreateChild<Ui::IconButton>(
-		widget,
-		st::chatTabsToggle);
-	toggle->show();
+	const auto toggle = ensureToggle(widget);
 	toggle->setIconOverride(
 		bottom ? &st::chatTabsToggleIconBottom : &st::chatTabsToggleIconTop,
 		(bottom
 			? &st::chatTabsToggleIconBottomOver
 			: &st::chatTabsToggleIconTopOver));
-	toggle->setClickedCallback([=] {
-		toggleModes();
-	});
-	toggle->move(0, 0);
+	setToggleAccessibleState(bottom
+		? SubsectionTabsMode::Bottom
+		: SubsectionTabsMode::Top);
 	const auto scroll = Ui::CreateChild<Ui::ScrollArea>(
 		widget,
 		st::chatTabsScroll,
@@ -194,6 +191,7 @@ void SubsectionTabs::setupHorizontal(
 }
 
 void SubsectionTabs::setupVertical(not_null<QWidget*> parent) {
+	detachToggle();
 	delete base::take(_horizontal);
 	delete base::take(_bottom);
 	_vertical = Ui::CreateChild<Ui::RpWidget>(parent);
@@ -204,17 +202,11 @@ void SubsectionTabs::setupVertical(not_null<QWidget*> parent) {
 		_shadow->show();
 	}
 
-	const auto toggle = Ui::CreateChild<Ui::IconButton>(
-		_vertical,
-		st::chatTabsToggle);
-	toggle->show();
+	const auto toggle = ensureToggle(_vertical);
 	toggle->setIconOverride(
 		&st::chatTabsToggleIconLeft,
 		&st::chatTabsToggleIconLeftOver);
-	toggle->setClickedCallback([=] {
-		toggleModes();
-	});
-	toggle->move(0, 0);
+	setToggleAccessibleState(SubsectionTabsMode::Left);
 	const auto scroll = Ui::CreateChild<Ui::ScrollArea>(
 		_vertical,
 		st::chatTabsScroll);
@@ -253,10 +245,57 @@ void SubsectionTabs::setupVertical(not_null<QWidget*> parent) {
 	startFillingSlider(scroll, slider, true);
 }
 
+void SubsectionTabs::detachToggle() {
+	// The same toggle button object survives mode switches (the rest of the
+	// strip is recreated): detach it before the old strip is deleted, so
+	// keyboard focus - and the screen reader's focus - can stay on it
+	// without the button being re-announced after every press.
+	if (_toggle) {
+		_toggle->setParent(nullptr);
+	}
+}
+
+not_null<Ui::IconButton*> SubsectionTabs::ensureToggle(
+		not_null<QWidget*> widget) {
+	if (_toggle) {
+		_toggle->setParent(widget);
+	} else {
+		_toggle = Ui::CreateChild<Ui::IconButton>(widget, st::chatTabsToggle);
+		_toggle->setAccessibleName(tr::lng_sr_tabs_position(tr::now));
+		_toggle->setClickedCallback([=] {
+			toggleModes();
+		});
+	}
+	_toggle->show();
+	_toggle->move(0, 0);
+	return _toggle;
+}
+
+void SubsectionTabs::setToggleAccessibleState(SubsectionTabsMode mode) {
+	Expects(_toggle != nullptr);
+
+	// The button keeps its action name; the description carries the current
+	// position, so it is read after the name on focus and updated on every
+	// mode switch (the button object survives switches and stays focused).
+	const auto description = (mode == SubsectionTabsMode::Left)
+		? tr::lng_sr_tabs_position_left(tr::now)
+		: (mode == SubsectionTabsMode::Bottom)
+		? tr::lng_sr_tabs_position_bottom(tr::now)
+		: tr::lng_sr_tabs_position_top(tr::now);
+	if (_toggle->accessibleDescription() != description) {
+		_toggle->setAccessibleDescription(description);
+		_toggle->accessibilityDescriptionChanged();
+	}
+}
+
 void SubsectionTabs::setupSlider(
 		not_null<Ui::ScrollArea*> scroll,
 		not_null<Ui::SubsectionSlider*> slider,
 		bool vertical) {
+	slider->setAccessibleName(_history->amMonoforumAdmin()
+		? tr::lng_manage_monoforum(tr::now)
+		: tr::lng_forum_topics_switch(tr::now));
+
 	slider->sectionActivated() | rpl::on_next([=](int active) {
 		if (_reordering) {
 			return;
@@ -303,9 +342,12 @@ void SubsectionTabs::setupSlider(
 		return _reordering > 0;
 	});
 
-	slider->sectionContextMenu() | rpl::on_next([=](int index) {
-		if (index >= 0 && index < _slice.size()) {
-			showThreadContextMenu(_slice[index].thread);
+	slider->sectionContextMenu() | rpl::on_next([=](
+			Ui::SubsectionTabMenuRequest request) {
+		if (request.index >= 0 && request.index < _slice.size()) {
+			showThreadContextMenu(
+				_slice[request.index].thread,
+				request.position);
 		}
 	}, slider->lifetime());
 
@@ -574,6 +616,40 @@ void SubsectionTabs::startFillingSlider(
 		_sectionsSlice = _slice;
 		Assert(slider->sectionsCount() == _slice.size());
 
+		const auto sectionsCount = slider->sectionsCount();
+		for (auto i = 0; i != sectionsCount; ++i) {
+			// Compose an accessible name from the data the visual tab
+			// shows: title, unread count and mention mark.
+			auto parts = QStringList();
+			const auto &item = _slice[i];
+			if (const auto sublist = item.thread->asSublist()) {
+				parts.push_back(sublist->sublistPeer()->shortName());
+			} else if (item.thread->asTopic()) {
+				parts.push_back(item.name);
+			} else {
+				parts.push_back(tr::lng_filters_all_short(tr::now));
+			}
+			const auto &badges = item.badges;
+			if (badges.unreadCounter > 0) {
+				parts.push_back(tr::lng_sr_chat_unread(
+					tr::now,
+					lt_count,
+					badges.unreadCounter));
+			}
+			if (badges.mention) {
+				parts.push_back(tr::lng_sr_chat_mention(tr::now));
+			}
+			if (i >= fixedCount && i < fixedCount + pinnedCount) {
+				parts.push_back(tr::lng_sr_chat_pinned(tr::now));
+			}
+			const auto name = parts.join(u", "_q);
+			const auto tab = slider->buttonAt(i);
+			if (tab->accessibleName() != name) {
+				tab->setAccessibleName(name);
+				tab->accessibilityNameChanged();
+			}
+		}
+
 		_reorder->cancel();
 		if ((pinnedCount > 1) && _history->peer->canManageTopics()) {
 			_reorder->start();
@@ -596,7 +672,9 @@ void SubsectionTabs::startFillingSlider(
 	startScrollChecking(scroll, slider, vertical);
 }
 
-void SubsectionTabs::showThreadContextMenu(not_null<Data::Thread*> thread) {
+void SubsectionTabs::showThreadContextMenu(
+		not_null<Data::Thread*> thread,
+		QPoint position) {
 	_menu = nullptr;
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		activeWidget(),
@@ -613,7 +691,7 @@ void SubsectionTabs::showThreadContextMenu(not_null<Data::Thread*> thread) {
 	if (_menu->empty()) {
 		_menu = nullptr;
 	} else {
-		_menu->popup(QCursor::pos());
+		_menu->popup(position);
 	}
 }
 
@@ -653,12 +731,25 @@ void SubsectionTabs::toggleModes() {
 		qint32(next));
 	session().saveSettingsDelayed();
 
+	// The strip is recreated in the new position, but the toggle button
+	// object itself survives (the setup detaches and reparents it). Clear
+	// focus for the duration of the rebuild - so hiding it can't hand focus
+	// to another widget - and put it back on the very same button after:
+	// with no intermediate focus changes and an unchanged focus target, the
+	// screen reader stays silent instead of re-announcing the button.
+	const auto hadFocus = _toggle && _toggle->hasFocus();
+	if (hadFocus) {
+		_toggle->clearFocus();
+	}
 	if (next == SubsectionTabsMode::Left) {
 		setupVertical(parent);
 	} else if (next == SubsectionTabsMode::Bottom) {
 		setupHorizontal(parent, true);
 	} else {
 		setupHorizontal(parent, false);
+	}
+	if (hadFocus && _toggle) {
+		_toggle->setFocus();
 	}
 }
 
