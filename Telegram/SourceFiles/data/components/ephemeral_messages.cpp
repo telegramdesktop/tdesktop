@@ -786,6 +786,18 @@ bool EphemeralMessages::sendMedia(
 	const auto history = item->history();
 	const auto replyTo = item->replyTo();
 	const auto target = _session->data().message(replyTo.messageId);
+	if (item->isScheduled() || item->shortcutId()) {
+		if ((target && target->isEphemeral())
+			|| findCommandBot(
+				history->peer,
+				item->originalText().text.trimmed())) {
+			LOG(("API Error: "
+				"Dropping a scheduled ephemeral media send."));
+			_session->data().destroyMessageWithCacheCleanup(item);
+			return true;
+		}
+		return false;
+	}
 	if (!target || !target->isEphemeral()) {
 		const auto bot = findCommandBot(
 			history->peer,
