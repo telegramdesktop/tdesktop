@@ -3745,7 +3745,8 @@ void Panel::invoiceClosed(const QString &slug, const QString &status) {
 	if (_hiddenForPayment) {
 		_hiddenForPayment = false;
 		if (_externalShell) {
-			setWebviewBlocked(false);
+			_webview->window.setVisible(true);
+			_webview->window.focus();
 		} else {
 			_widget->showAndActivate();
 		}
@@ -3755,7 +3756,9 @@ void Panel::invoiceClosed(const QString &slug, const QString &status) {
 void Panel::hideForPayment() {
 	_hiddenForPayment = true;
 	if (_externalShell) {
-		setWebviewBlocked(true);
+		if (_webview) {
+			_webview->window.setVisible(false);
+		}
 	} else {
 		_widget->hideGetDuration();
 	}
