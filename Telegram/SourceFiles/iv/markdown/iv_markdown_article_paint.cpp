@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/integration.h"
 #include "ui/style/style_core_scale.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/round_rect.h"
 
 #include "styles/palette.h"
 #include "styles/style_chat.h"
@@ -2300,6 +2301,22 @@ void PaintPlaceholderBlock(
 	return path;
 }
 
+[[nodiscard]] QPainterPath MediaRoundedRectPath(
+		QRect rect,
+		Ui::BubbleRounding rounding,
+		int radius) {
+	const auto corner = [&](Ui::BubbleCornerRounding value) {
+		const auto bubble = Ui::BubbleCornerRadius(value);
+		return bubble ? bubble : radius;
+	};
+	return Ui::ComplexRoundedRectPath(
+		rect,
+		corner(rounding.topLeft),
+		corner(rounding.topRight),
+		corner(rounding.bottomLeft),
+		corner(rounding.bottomRight));
+}
+
 void PaintEmbedPostBlock(
 		Painter &p,
 		const LaidOutBlock &block,
@@ -2509,7 +2526,19 @@ void PaintPersistentMediaBlock(
 				&& WholeSegmentSelected(
 					mediaContext.selectionState,
 					block.segmentIndex)) {
-				p.fillRect(block.mediaRect, p.textPalette().selectOverlay);
+				const auto rounding = block.mediaBlock
+					? block.mediaBlock->bubbleRounding()
+					: Ui::BubbleRounding();
+				if (rounding == Ui::BubbleRounding()) {
+					p.fillRect(
+						block.mediaRect,
+						p.textPalette().selectOverlay);
+				} else {
+					auto hq = PainterHighQualityEnabler(p);
+					p.fillPath(
+						MediaRoundedRectPath(block.mediaRect, rounding, 0),
+						p.textPalette().selectOverlay);
+				}
 			}
 		});
 }
@@ -2725,9 +2754,20 @@ void PaintGroupedMediaBlock(
 						style.overlayOpacity,
 						0.,
 						1.));
-					p.fillPath(
-						RoundedRectPath(block.mediaRect, style.radius),
-						overlay);
+					const auto rounding = block.mediaBlock->bubbleRounding();
+					if (rounding == Ui::BubbleRounding()) {
+						p.fillPath(
+							RoundedRectPath(block.mediaRect, style.radius),
+							overlay);
+					} else {
+						auto hq = PainterHighQualityEnabler(p);
+						p.fillPath(
+							MediaRoundedRectPath(
+								block.mediaRect,
+								rounding,
+								style.radius),
+							overlay);
+					}
 				}
 			}
 		});

@@ -437,9 +437,7 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 		&& !IsSubGroupSelection(selection);
 	const auto inWebPage = (_parent->media() != this);
 	constexpr auto kSmall = Ui::BubbleCornerRounding::Small;
-	const auto rounding = IsHostedInstantViewMedia(_parent)
-		? Ui::BubbleRounding()
-		: inWebPage
+	const auto rounding = (inWebPage && !IsHostedInstantViewMedia(_parent))
 		? Ui::BubbleRounding{ kSmall, kSmall, kSmall, kSmall }
 		: adjustedBubbleRounding();
 	auto highlight = context.highlight.range;

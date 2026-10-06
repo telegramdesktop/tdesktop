@@ -447,6 +447,8 @@ private:
 
 	void updateMediaInBubbleState();
 	void updateRichPageInBubbleState();
+	[[nodiscard]] auto countRichPageBubbleEdges() const
+	-> Iv::Markdown::MarkdownArticleBubbleEdges;
 	QRect countGeometry() const;
 	[[nodiscard]] Ui::BubbleRounding countMessageRounding() const;
 	[[nodiscard]] Ui::BubbleRounding countBubbleRounding(

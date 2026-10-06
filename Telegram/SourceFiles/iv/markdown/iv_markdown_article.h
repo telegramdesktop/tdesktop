@@ -376,6 +376,13 @@ struct MarkdownArticleMediaGeometry {
 struct MarkdownArticleBubbleEdges {
 	bool top = false;
 	bool bottom = false;
+	bool mediaAbove = false;
+	bool infoBelow = false;
+	Ui::BubbleRounding corners;
+
+	friend inline bool operator==(
+		const MarkdownArticleBubbleEdges &,
+		const MarkdownArticleBubbleEdges &) = default;
 };
 
 enum class MarkdownArticleEdgeBlock : uchar {

@@ -647,11 +647,9 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 
 	const auto inWebPageWithoutOwnRounding = inWebPage
 		&& bubbleRounding() == Ui::BubbleRounding();
-	const auto rounding = hostedInstantView
-		? std::optional<Ui::BubbleRounding>(Ui::BubbleRounding())
-		: inWebPageWithoutOwnRounding
+	const auto rounding = (inWebPageWithoutOwnRounding && !hostedInstantView)
 		? std::optional<Ui::BubbleRounding>()
-		: adjustedBubbleRounding();
+		: std::optional<Ui::BubbleRounding>(adjustedBubbleRounding());
 
 	auto usex = 0, usew = paintw;
 	const auto unwrapped = isUnwrapped();

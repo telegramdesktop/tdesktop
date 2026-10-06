@@ -469,6 +469,7 @@ void IvHistoryViewBlock::paint(
 	p.translate(_geometry.topLeft());
 	auto local = context.translated(-_geometry.topLeft());
 	local.clip = visible.translated(-_geometry.topLeft());
+	_media->setBubbleRounding(bubbleRounding());
 	_media->draw(p, local);
 	p.restore();
 }
@@ -884,6 +885,19 @@ private:
 		not_null<HistoryView::Media*> media,
 		int shift) const;
 
+	void paintFrame(
+		Painter &p,
+		const MarkdownArticlePaintContext &context,
+		QRect visible,
+		const style::MarkdownGroupedMedia &st) const;
+
+	void paintRoundedFrame(
+		Painter &p,
+		const MarkdownArticlePaintContext &context,
+		QRect visible,
+		const style::MarkdownGroupedMedia &st,
+		Images::CornersMaskRef mask) const;
+
 	[[nodiscard]] bool probeSupport();
 
 	void mediaPixelScaleUpdated() override;
@@ -927,6 +941,7 @@ private:
 	bool _supported = false;
 	MediaBlockHost *_registeredBridgeHost = nullptr;
 	mutable SlideshowDotsBackdrop _dotsBackdrop;
+	mutable QImage _frameCache;
 	base::flat_map<int, SlidePreload> _preloads;
 	rpl::lifetime _downloadLifetime;
 	int _residencyIndex = -1;
@@ -1116,6 +1131,7 @@ bool IvHistoryViewSlideshowBlock::hasHeavyPart() const {
 }
 
 void IvHistoryViewSlideshowBlock::unloadHeavyPart() {
+	_frameCache = QImage();
 	if (!alive()) {
 		return;
 	}
@@ -1716,24 +1732,12 @@ void IvHistoryViewSlideshowBlock::paintSlide(
 	p.restore();
 }
 
-void IvHistoryViewSlideshowBlock::paint(
+void IvHistoryViewSlideshowBlock::paintFrame(
 		Painter &p,
-		const MarkdownArticlePaintContext &context) const {
+		const MarkdownArticlePaintContext &context,
+		QRect visible,
+		const style::MarkdownGroupedMedia &st) const {
 	const auto media = activeMedia();
-	if (!media || _geometry.isEmpty()) {
-		return;
-	}
-	const auto visible = context.clip.intersected(_geometry);
-	if (visible.isEmpty()) {
-		return;
-	}
-	const auto &st = context.paintMarkdownStyle(layoutStyle()).groupedMedia;
-	p.save();
-	p.setClipRect(visible);
-	p.setClipPath(
-		RoundedRectPath(_geometry, st.radius),
-		Qt::IntersectClip);
-
 	const auto count = int(_slides.size());
 	const auto transition = _slideAnimation.animating()
 		&& (_transitionFrom >= 0)
@@ -1819,7 +1823,60 @@ void IvHistoryViewSlideshowBlock::paint(
 			st,
 			_dotsBackdrop);
 	}
-	p.restore();
+}
+
+void IvHistoryViewSlideshowBlock::paintRoundedFrame(
+		Painter &p,
+		const MarkdownArticlePaintContext &context,
+		QRect visible,
+		const style::MarkdownGroupedMedia &st,
+		Images::CornersMaskRef mask) const {
+	const auto ratio = style::DevicePixelRatio();
+	const auto size = _geometry.size() * ratio;
+	if (_frameCache.size() != size) {
+		_frameCache = QImage(size, QImage::Format_ARGB32_Premultiplied);
+	}
+	_frameCache.setDevicePixelRatio(ratio);
+	_frameCache.fill(Qt::transparent);
+	auto q = Painter(&_frameCache);
+	q.setFont(p.font());
+	q.setPen(p.pen());
+	q.setBrush(p.brush());
+	q.setRenderHints(p.renderHints());
+	q.setInactive(p.inactive());
+	q.setTextPalette(p.textPalette());
+	q.translate(-_geometry.topLeft());
+	q.setClipRect(visible);
+	paintFrame(q, context, visible, st);
+	q.end();
+	_frameCache = Images::Round(std::move(_frameCache), mask);
+	p.drawImage(_geometry, _frameCache);
+}
+
+void IvHistoryViewSlideshowBlock::paint(
+		Painter &p,
+		const MarkdownArticlePaintContext &context) const {
+	const auto media = activeMedia();
+	if (!media || _geometry.isEmpty()) {
+		return;
+	}
+	const auto visible = context.clip.intersected(_geometry);
+	if (visible.isEmpty()) {
+		return;
+	}
+	const auto &st = context.paintMarkdownStyle(layoutStyle()).groupedMedia;
+	const auto mask = HistoryView::MediaRoundingMask(bubbleRounding());
+	if (mask.empty()) {
+		p.save();
+		p.setClipRect(visible);
+		p.setClipPath(
+			RoundedRectPath(_geometry, st.radius),
+			Qt::IntersectClip);
+		paintFrame(p, context, visible, st);
+		p.restore();
+	} else {
+		paintRoundedFrame(p, context, visible, st, mask);
+	}
 	const auto that = const_cast<IvHistoryViewSlideshowBlock*>(this);
 	that->_painted = true;
 	that->updatePreloads();

@@ -2088,6 +2088,25 @@ void CollectUnsupportedNoticeRects(
 	return false;
 }
 
+[[nodiscard]] bool ExpectsMediaBlock(const PreparedBlock &prepared) {
+	switch (prepared.kind) {
+	case PreparedBlockKind::Photo:
+		return prepared.photo.id
+			&& prepared.photo.viewerOpen
+			&& prepared.photo.urlOverride.isEmpty();
+	case PreparedBlockKind::Video:
+		return bool(prepared.video.id);
+	case PreparedBlockKind::Map:
+		return bool(prepared.map.id);
+	case PreparedBlockKind::Document:
+		return bool(prepared.document.id);
+	case PreparedBlockKind::GroupedMedia:
+		return bool(prepared.groupedMedia.id);
+	default:
+		return false;
+	}
+}
+
 [[nodiscard]] MarkdownArticleEdgeBlock EdgeBlockOf(
 		const PreparedBlock &block,
 		bool top) {
@@ -2095,8 +2114,13 @@ void CollectUnsupportedNoticeRects(
 	case PreparedBlockKind::Photo:
 	case PreparedBlockKind::Video:
 	case PreparedBlockKind::Map:
-	case PreparedBlockKind::GroupedMedia:
-		return MarkdownArticleEdgeBlock::VisualMedia;
+	case PreparedBlockKind::GroupedMedia: {
+		const auto caption = !block.text.text.isEmpty()
+			|| block.forceTextSegment;
+		return (!ExpectsMediaBlock(block) || (!top && caption))
+			? MarkdownArticleEdgeBlock::Line
+			: MarkdownArticleEdgeBlock::VisualMedia;
+	}
 	case PreparedBlockKind::CodeBlock:
 		return MarkdownArticleEdgeBlock::CodeFrame;
 	case PreparedBlockKind::Quote:
@@ -2129,22 +2153,54 @@ void CollectUnsupportedNoticeRects(
 	Unexpected("Block kind in EdgeBlockOf.");
 }
 
+struct EdgeBlockIndices {
+	int first = -1;
+	int last = -1;
+};
+
+[[nodiscard]] EdgeBlockIndices FindEdgeBlockIndices(
+		const std::vector<PreparedBlock> &blocks) {
+	auto result = EdgeBlockIndices();
+	for (auto i = 0, count = int(blocks.size()); i != count; ++i) {
+		if (!IsAnchorOnlyBlock(blocks[i])) {
+			if (result.first < 0) {
+				result.first = i;
+			}
+			result.last = i;
+		}
+	}
+	return result;
+}
+
 [[nodiscard]] MarkdownArticleEdgeBlocks CollectEdgeBlocks(
 		const std::vector<PreparedBlock> &blocks) {
-	const auto visible = [](const PreparedBlock &block) {
-		return !IsAnchorOnlyBlock(block);
-	};
-	const auto first = ranges::find_if(blocks, visible);
-	if (first == blocks.end()) {
+	const auto indices = FindEdgeBlockIndices(blocks);
+	if (indices.first < 0) {
 		return {};
 	}
-	const auto last = ranges::find_if(
-		blocks.rbegin(),
-		blocks.rend(),
-		visible);
 	return {
-		.top = EdgeBlockOf(*first, true),
-		.bottom = EdgeBlockOf(*last, false),
+		.top = EdgeBlockOf(blocks[indices.first], true),
+		.bottom = EdgeBlockOf(blocks[indices.last], false),
+	};
+}
+
+[[nodiscard]] Ui::BubbleRounding EdgeMediaRounding(
+		Ui::BubbleRounding corners,
+		QRect media,
+		int articleWidth) {
+	using Corner = Ui::BubbleCornerRounding;
+	const auto keep = [](Corner corner, int gap) {
+		return (gap < Ui::BubbleCornerRadius(corner))
+			? corner
+			: Corner::None;
+	};
+	const auto left = media.x();
+	const auto right = articleWidth - (media.x() + media.width());
+	return {
+		.topLeft = keep(corners.topLeft, left),
+		.topRight = keep(corners.topRight, right),
+		.bottomLeft = keep(corners.bottomLeft, left),
+		.bottomRight = keep(corners.bottomRight, right),
 	};
 }
 
@@ -3811,25 +3867,6 @@ void CollectCodeBlockHighlightKeys(
 	}
 }
 
-[[nodiscard]] bool ExpectsMediaBlock(const PreparedBlock &prepared) {
-	switch (prepared.kind) {
-	case PreparedBlockKind::Photo:
-		return prepared.photo.id
-			&& prepared.photo.viewerOpen
-			&& prepared.photo.urlOverride.isEmpty();
-	case PreparedBlockKind::Video:
-		return bool(prepared.video.id);
-	case PreparedBlockKind::Map:
-		return bool(prepared.map.id);
-	case PreparedBlockKind::Document:
-		return bool(prepared.document.id);
-	case PreparedBlockKind::GroupedMedia:
-		return bool(prepared.groupedMedia.id);
-	default:
-		return false;
-	}
-}
-
 } // namespace
 
 PlaceholderBlockRuntime::PlaceholderBlockRuntime(Fn<void()> repaint)
@@ -4106,6 +4143,7 @@ private:
 	void releasePressedHandler();
 
 	void refreshMediaBlockHosts();
+	void refreshMediaBlockBubbleRounding();
 
 	void clearPlaceholderRuntimes();
 
@@ -4840,7 +4878,11 @@ bool MarkdownArticle::Impl::hasUnsupportedNotices() const {
 
 void MarkdownArticle::Impl::setBubbleEdges(
 		MarkdownArticleBubbleEdges edges) {
+	if (_bubbleEdges == edges) {
+		return;
+	}
 	_bubbleEdges = edges;
+	refreshMediaBlockBubbleRounding();
 }
 
 MarkdownArticleBubbleEdges MarkdownArticle::Impl::bubbleEdges() const {
@@ -5773,6 +5815,45 @@ void MarkdownArticle::Impl::refreshMediaBlockHosts() {
 	}
 }
 
+void MarkdownArticle::Impl::refreshMediaBlockBubbleRounding() {
+	for (const auto &[id, block] : _mediaBlocks) {
+		if (block) {
+			block->setBubbleRounding({});
+		}
+	}
+	const auto &prepared = _content.blocks.blocks;
+	if (_blocks.empty() || (_blocks.size() != prepared.size())) {
+		return;
+	}
+	const auto apply = [&](int index, bool top) {
+		const auto &laidOut = _blocks[index];
+		const auto &block = laidOut.mediaBlock;
+		if (!block
+			|| (EdgeBlockOf(prepared[index], top)
+				!= MarkdownArticleEdgeBlock::VisualMedia)) {
+			return;
+		}
+		const auto edge = EdgeMediaRounding(
+			_bubbleEdges.corners,
+			laidOut.mediaRect,
+			_width);
+		auto rounding = block->bubbleRounding();
+		if (top) {
+			rounding.topLeft = edge.topLeft;
+			rounding.topRight = edge.topRight;
+		} else {
+			rounding.bottomLeft = edge.bottomLeft;
+			rounding.bottomRight = edge.bottomRight;
+		}
+		block->setBubbleRounding(rounding);
+	};
+	const auto indices = FindEdgeBlockIndices(prepared);
+	if (indices.first >= 0) {
+		apply(indices.first, true);
+		apply(indices.last, false);
+	}
+}
+
 auto MarkdownArticle::Impl::getOrCreateTaskMarkerRippleRuntime(
 		const PreparedEditListItemSource &source)
 -> std::shared_ptr<TaskMarkerRippleRuntime> {
@@ -6697,6 +6778,7 @@ void MarkdownArticle::Impl::finalizeRelayout(int heightBottom) {
 	RefreshScrollableSegmentRects(_blocks, &_segments);
 	rebuildVisibleSegmentLookup();
 	_nextFormattedDateUpdate = CountBlocksFormattedDateUpdate(_blocks);
+	refreshMediaBlockBubbleRounding();
 }
 
 int MarkdownArticle::Impl::inlineButtonWidthCap() const {

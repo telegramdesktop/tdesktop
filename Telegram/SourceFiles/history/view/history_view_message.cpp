@@ -97,10 +97,29 @@ constexpr auto kMinWidthAppearDuration = crl::time(160);
 	return line.left + line.width;
 }
 
+[[nodiscard]] int RichPageMediaEdgeSkip(
+		const Iv::Markdown::MarkdownArticleBubbleEdges &edges,
+		bool top) {
+	if (top) {
+		return edges.top
+			? -st::msgPadding.top()
+			: edges.mediaAbove
+			? 0
+			: st::mediaInBubbleSkip;
+	}
+	return edges.infoBelow
+		? st::mediaInBubbleSkip
+		: edges.bottom
+		? -st::msgPadding.bottom()
+		: 0;
+}
+
 // WHY: plain text keeps the quote verticalSkip between its text rect and a
-// pre / blockquote frame, and visual media keep the media skip above them.
+// pre / blockquote frame; visual media sit where ordinary bubble media sit,
+// and an info row below them starts mediaInBubbleSkip lower, like content.
 [[nodiscard]] int RichPageEdgeSkip(
 		Iv::Markdown::MarkdownArticleEdgeBlock block,
+		const Iv::Markdown::MarkdownArticleBubbleEdges &edges,
 		bool top) {
 	using Block = Iv::Markdown::MarkdownArticleEdgeBlock;
 	switch (block) {
@@ -112,7 +131,7 @@ constexpr auto kMinWidthAppearDuration = crl::time(160);
 	case Block::QuoteFrame:
 		return st::messageTextStyle.blockquote.verticalSkip;
 	case Block::VisualMedia:
-		return top ? st::mediaInBubbleSkip : 0;
+		return RichPageMediaEdgeSkip(edges, top);
 	}
 	Unexpected("Edge block in RichPageEdgeSkip.");
 }
@@ -635,12 +654,13 @@ HistoryMessageRichPage::HistoryMessageRichPage()
 }
 
 QMargins HistoryMessageRichPage::edgeSkips() const {
-	const auto edges = article.edgeBlocks();
+	const auto blocks = article.edgeBlocks();
+	const auto edges = article.bubbleEdges();
 	return {
 		0,
-		RichPageEdgeSkip(edges.top, true),
+		RichPageEdgeSkip(blocks.top, edges, true),
 		0,
-		RichPageEdgeSkip(edges.bottom, false),
+		RichPageEdgeSkip(blocks.bottom, edges, false),
 	};
 }
 
@@ -791,7 +811,11 @@ void Message::activateRichPagePreparedLink(
 QRect Message::richPageRect(QRect trect) const {
 	Expects(hasRichPage());
 
-	trect.setTop(trect.top() + richpage()->edgeSkips().top());
+	const auto skips = richpage()->edgeSkips();
+	trect.setTop(trect.top() + skips.top());
+	if (skips.bottom() < 0) {
+		trect.setHeight(trect.height() - skips.bottom());
+	}
 	return trect.marginsAdded(
 		{ st::msgPadding.left(), 0, st::msgPadding.right(), 0 });
 }
@@ -6387,6 +6411,24 @@ void Message::updateRichPageInBubbleState() {
 	if (!rich) {
 		return;
 	}
+	auto edges = countRichPageBubbleEdges();
+	using Corner = Ui::BubbleCornerRounding;
+	auto corners = countBubbleRounding();
+	if (!edges.top) {
+		corners.topLeft = corners.topRight = Corner::None;
+	}
+	if (!edges.bottom || edges.infoBelow) {
+		corners.bottomLeft = corners.bottomRight = Corner::None;
+	}
+	edges.corners = corners;
+	if (rich->article.bubbleEdges() != edges) {
+		rich->article.setBubbleEdges(edges);
+		invalidateTextSizeCache();
+	}
+}
+
+auto Message::countRichPageBubbleEdges() const
+-> Iv::Markdown::MarkdownArticleBubbleEdges {
 	const auto item = data();
 	const auto media = this->media();
 	const auto mediaDisplayed = media && media->isDisplayed();
@@ -6408,10 +6450,12 @@ void Message::updateRichPageInBubbleState() {
 		|| logEntryOriginal()
 		|| (mediaDisplayed && !_invertMedia);
 	const auto bubble = drawBubble();
-	rich->article.setBubbleEdges({
+	return {
 		.top = bubble && !somethingAbove,
 		.bottom = bubble && !somethingBelow,
-	});
+		.mediaAbove = bubble && mediaDisplayed && _invertMedia,
+		.infoBelow = bubble && text().hasSkipBlock() && !_viewButton,
+	};
 }
 
 void Message::fromNameUpdated(int width) const {
@@ -6598,10 +6642,19 @@ Ui::BubbleRounding Message::countMessageRounding() const {
 	const auto smallTop = isBubbleAttachedToPrevious();
 	const auto smallBottom = isBubbleAttachedToNext();
 	const auto media = smallBottom ? nullptr : this->media();
+	const auto rich = smallBottom ? nullptr : richpage();
 	const auto item = data();
 	const auto keyboard = item->inlineReplyKeyboard();
+	const auto richMediaAtBottom = [&] {
+		using Block = Iv::Markdown::MarkdownArticleEdgeBlock;
+		const auto edges = countRichPageBubbleEdges();
+		return edges.bottom
+			&& !edges.infoBelow
+			&& (rich->article.edgeBlocks().bottom == Block::VisualMedia);
+	};
 	const auto skipTail = smallBottom
 		|| (media && media->skipBubbleTail())
+		|| (rich && richMediaAtBottom())
 		|| (keyboard != nullptr)
 		|| item->isFakeAboutView()
 		|| isCommentsRootView();

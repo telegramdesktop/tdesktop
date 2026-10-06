@@ -375,11 +375,9 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 	if (_serviceWidth > 0) {
 		paintUserpicFrame(p, context, rthumb.topLeft());
 	} else {
-		const auto rounding = hostedInstantView
-			? std::optional<Ui::BubbleRounding>(Ui::BubbleRounding())
-			: inWebPage
+		const auto rounding = (inWebPage && !hostedInstantView)
 			? std::optional<Ui::BubbleRounding>()
-			: adjustedBubbleRounding();
+			: std::optional<Ui::BubbleRounding>(adjustedBubbleRounding());
 		if (!bubble && !hostedInstantView) {
 			Assert(rounding.has_value());
 			fillImageShadow(p, rthumb, *rounding, context);
