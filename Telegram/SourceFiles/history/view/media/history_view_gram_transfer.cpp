@@ -571,7 +571,10 @@ private:
 		&& action.amount != std::numeric_limits<int64>::min())
 		? -action.amount
 		: action.amount;
-	item.counterparty = Wallet::CanonicalAddress(action.address);
+	if (const auto parsed = Wallet::ParseAddress(action.address)) {
+		item.counterparty = parsed->raw;
+		item.counterpartyBounceable = parsed->friendly && parsed->bounceable;
+	}
 	if (!session->data().peer(action.itemId.peer)->isNotificationsUser()) {
 		// The chat names the counterparty before the served record does.
 		item.kind = Wallet::TransferItem::Kind::PeerTransfer;

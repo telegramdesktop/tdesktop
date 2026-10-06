@@ -68,6 +68,7 @@ struct SubmittedTransferProjection {
 	bool failed = false;
 	bool commentEncrypted = false;
 	bool gasless = false;
+	bool counterpartyBounceable = false;
 
 	friend bool operator==(
 		const SubmittedTransferProjection &,
@@ -96,6 +97,7 @@ struct SubmittedTransferRecord {
 	// transfer, so the sequence number can be consumed by a message other
 	// than the one the engine journaled.
 	bool paired = false;
+	bool bounce = false;
 
 	friend bool operator==(
 		const SubmittedTransferRecord &,

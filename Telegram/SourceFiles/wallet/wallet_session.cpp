@@ -1692,6 +1692,7 @@ void FailShareFetch(
 		.failed = (item.status == TransferItem::Status::Failure),
 		.commentEncrypted = item.commentEncrypted,
 		.gasless = item.gasless,
+		.counterpartyBounceable = item.counterpartyBounceable,
 	};
 }
 
@@ -1834,7 +1835,11 @@ void SetDirectedAmount(
 		result.incoming = false;
 	} else {
 		const auto setCounterparty = [&](const auto &data) {
-			result.counterparty = CanonicalAddress(qs(data.vaddress()));
+			const auto parsed = ParseAddress(qs(data.vaddress()));
+			result.counterparty = parsed ? parsed->raw : QString();
+			result.counterpartyBounceable = parsed
+				&& parsed->friendly
+				&& parsed->bounceable;
 			if (const auto domain = data.vdomain()) {
 				result.counterpartyName = qs(*domain);
 			}
@@ -8229,6 +8234,7 @@ std::optional<TransferItem> Session::sendingTransaction(
 		.destination = CanonicalAddress(args.destination),
 		.comment = (args.comment.isPublic ? args.comment.text : QString()),
 		.recipient = args.userId,
+		.bounce = args.bounce,
 	});
 	const auto entry = ranges::find(
 		_submitted,
@@ -8292,6 +8298,7 @@ TransferItem ItemFromPending(const PendingSendInfo &pending) {
 			: TransferItem::Kind::Transfer),
 		.incoming = false,
 		.counterparty = pending.destination,
+		.counterpartyBounceable = pending.bounce,
 		.counterpartyPeer = (pending.recipient
 			? peerFromUser(pending.recipient).value
 			: quint64()),
@@ -9133,6 +9140,7 @@ void Session::startSend(
 		.posted = base::unixtime::now(),
 		.network = custodyRecord->network,
 		.paired = paired,
+		.bounce = args.bounce,
 	});
 	_submittedTransfersDirty = true;
 	if (!persistSubmittedTransfers()) {
@@ -9154,6 +9162,7 @@ void Session::startSend(
 		.destination = stored->destination,
 		.comment = stored->comment,
 		.recipient = stored->recipient,
+		.bounce = stored->bounce,
 	};
 	const auto owner = _preview->owners.find(prepared->owner);
 	if (owner != end(_preview->owners)) {
@@ -10019,6 +10028,7 @@ Session::SubmittedTransfer *Session::upsertSubmittedTransfer(
 		.destination = record->destination,
 		.comment = record->comment,
 		.recipient = record->recipient,
+		.bounce = record->bounce,
 	}));
 	if (FailedTransferTerminal(record->terminal)) {
 		fallback->status = TransferItem::Status::Failure;
@@ -10036,6 +10046,7 @@ Session::SubmittedTransfer *Session::upsertSubmittedTransfer(
 			? TransferItem::Kind::PeerTransfer
 			: TransferItem::Kind::Transfer;
 		item->counterparty = stored.counterparty;
+		item->counterpartyBounceable = stored.counterpartyBounceable;
 		item->counterpartyName = stored.counterpartyName;
 		item->counterpartyPeer = stored.counterpartyPeer;
 		item->collectible = stored.collectible;

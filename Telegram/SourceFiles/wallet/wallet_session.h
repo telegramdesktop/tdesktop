@@ -208,6 +208,7 @@ struct TransferItem {
 	Kind kind = Kind::Transfer;
 	bool incoming = false;
 	QString counterparty;
+	bool counterpartyBounceable = false; // as served or as sent, raw is UQ
 	QString counterpartyName;
 	quint64 counterpartyPeer = 0;
 	QString collectible;
@@ -336,6 +337,7 @@ struct PendingSendInfo {
 	QString destination;
 	QString comment;
 	UserId recipient;
+	bool bounce = false;
 };
 
 [[nodiscard]] TransferItem ItemFromPending(const PendingSendInfo &pending);

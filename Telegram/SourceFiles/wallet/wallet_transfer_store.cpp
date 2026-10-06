@@ -31,16 +31,20 @@ constexpr auto kConfirmedHashFlag = quint32(1U << 2);
 constexpr auto kServedFlag = quint32(1U << 3);
 constexpr auto kStoppedFlag = quint32(1U << 4);
 constexpr auto kPairedFlag = quint32(1U << 5);
+constexpr auto kBounceFlag = quint32(1U << 6);
 constexpr auto kRecordFlags = kHandoffFlag | kReceiptFlag
-	| kConfirmedHashFlag | kServedFlag | kStoppedFlag | kPairedFlag;
+	| kConfirmedHashFlag | kServedFlag | kStoppedFlag | kPairedFlag
+	| kBounceFlag;
 constexpr auto kDateFlag = quint32(1U << 0);
 constexpr auto kFeeFlag = quint32(1U << 1);
 constexpr auto kPeerFlag = quint32(1U << 2);
 constexpr auto kFailedFlag = quint32(1U << 3);
 constexpr auto kPrivateFlag = quint32(1U << 4);
 constexpr auto kGaslessFlag = quint32(1U << 5);
+constexpr auto kBounceableFlag = quint32(1U << 6);
 constexpr auto kProjectionFlags = kDateFlag | kFeeFlag
-	| kPeerFlag | kFailedFlag | kPrivateFlag | kGaslessFlag;
+	| kPeerFlag | kFailedFlag | kPrivateFlag | kGaslessFlag
+	| kBounceableFlag;
 
 [[nodiscard]] QByteArray ReadBytes(
 		Serialize::ByteArrayReader &stream,
@@ -200,6 +204,7 @@ void WriteText(Serialize::ByteArrayWriter &stream, const QString &text) {
 	result.failed = (flags & kFailedFlag);
 	result.commentEncrypted = (flags & kPrivateFlag);
 	result.gasless = (flags & kGaslessFlag);
+	result.counterpartyBounceable = (flags & kBounceableFlag);
 	return result;
 }
 
@@ -211,7 +216,8 @@ void WriteProjection(
 		| (item.peerTransfer ? kPeerFlag : 0)
 		| (item.failed ? kFailedFlag : 0)
 		| (item.commentEncrypted ? kPrivateFlag : 0)
-		| (item.gasless ? kGaslessFlag : 0));
+		| (item.gasless ? kGaslessFlag : 0)
+		| (item.counterpartyBounceable ? kBounceableFlag : 0));
 	WriteText(stream, item.id);
 	WriteText(stream, item.counterparty);
 	WriteText(stream, item.counterpartyName);
@@ -253,6 +259,7 @@ void WriteProjection(
 	result.terminal = TransferTerminal(terminal);
 	result.lookupStopped = (flags & kStoppedFlag);
 	result.paired = (flags & kPairedFlag);
+	result.bounce = (flags & kBounceFlag);
 	result.destination = ReadText(stream, kAddressMaxBytes);
 	result.comment = ReadText(stream, kSendCommentMaxBytes);
 	if (flags & kReceiptFlag) {
@@ -296,7 +303,8 @@ void WriteRecord(
 			| (!record.confirmedHash.isEmpty() ? kConfirmedHashFlag : 0)
 			| (record.served ? kServedFlag : 0)
 			| (record.lookupStopped ? kStoppedFlag : 0)
-			| (record.paired ? kPairedFlag : 0))
+			| (record.paired ? kPairedFlag : 0)
+			| (record.bounce ? kBounceFlag : 0))
 		<< quint32(record.terminal);
 	WriteText(stream, record.destination);
 	WriteText(stream, record.comment);

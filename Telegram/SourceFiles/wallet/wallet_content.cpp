@@ -1141,8 +1141,10 @@ QString EncryptedCommentLabel::accessibilityName() {
 // builds no row. Substituting the raw form would show a different kind of
 // address without saying so.
 [[nodiscard]] std::optional<QString> DetailsFriendlyAddress(
-		const QString &raw) {
-	const auto friendly = FormatFriendly(raw, false);
+		const TransferItem &item) {
+	const auto friendly = FormatFriendly(
+		item.counterparty,
+		item.counterpartyBounceable);
 	if (friendly.isEmpty()) {
 		return std::nullopt;
 	}
@@ -1277,6 +1279,12 @@ struct SendingRow {
 	}
 	const auto full = FormatFriendly(address, true);
 	return ShortAddressForm(full);
+}
+
+[[nodiscard]] QString CounterpartyAddress(const TransferItem &item) {
+	return item.counterparty.isEmpty()
+		? QString()
+		: FormatFriendly(item.counterparty, item.counterpartyBounceable);
 }
 
 void SetAmountColor(
@@ -3065,7 +3073,7 @@ not_null<SendingHistoryRow*> AddSendingHistoryRow(
 				: !domain.isEmpty()
 				? domain
 				: hasCounterparty
-				? ShortAddress(item.counterparty)
+				? ShortAddressForm(CounterpartyAddress(item))
 				: kindText),
 			.subtitle = (!statusText.isEmpty()
 				? statusText
@@ -3093,8 +3101,8 @@ not_null<SendingHistoryRow*> AddSendingHistoryRow(
 	const auto transfer = (item.kind == Kind::Transfer)
 		|| (item.kind == Kind::PeerTransfer)
 		|| (item.kind == Kind::Onramp);
-	const auto address = (transfer && !item.counterparty.isEmpty())
-		? FormatFriendly(item.counterparty, true)
+	const auto address = transfer
+		? CounterpartyAddress(item)
 		: QString();
 	const auto domain = !address.isEmpty()
 		? item.counterpartyName.trimmed()
@@ -3177,9 +3185,9 @@ not_null<SendingHistoryRow*> AddSendingHistoryRow(
 		.title = (hasCounterparty
 			? (!domain.isEmpty()
 				? domain
-				: transfer
-				? ShortAddressForm(address)
-				: ShortAddress(item.counterparty))
+				: ShortAddressForm(transfer
+					? address
+					: CounterpartyAddress(item)))
 			: contract
 			? tr::lng_wallet_row_contract(tr::now)
 			: kindText),
@@ -3825,7 +3833,7 @@ void AddPeerCounterpartyRows(
 		not_null<PeerData*> peer,
 		const TransferItem &item) {
 	const auto address = !item.counterparty.isEmpty()
-		? DetailsFriendlyAddress(item.counterparty)
+		? DetailsFriendlyAddress(item)
 		: std::nullopt;
 	const auto domain = item.counterpartyName.trimmed();
 	auto label = (item.incoming
@@ -3906,7 +3914,7 @@ void AddDetailsTable(
 	} else if (peer) {
 		AddPeerCounterpartyRows(box, table, show, peer, item);
 	} else if (!item.counterparty.isEmpty()) {
-		if (const auto address = DetailsFriendlyAddress(item.counterparty)) {
+		if (const auto address = DetailsFriendlyAddress(item)) {
 			auto label = (item.incoming
 				? tr::lng_wallet_details_sender()
 				: tr::lng_wallet_details_recipient());
