@@ -74,8 +74,8 @@ struct TonConnectButtons {
 	Ui::RoundButton *primary = nullptr;
 };
 
-[[nodiscard]] TonConnectButtons AddTonConnectButtons(
-	not_null<Ui::VerticalLayout*> container,
+[[nodiscard]] TonConnectButtons SetTonConnectButtons(
+	not_null<Ui::GenericBox*> box,
 	rpl::producer<QString> secondary,
 	rpl::producer<QString> primary);
 

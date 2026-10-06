@@ -692,9 +692,10 @@ walletFirstMenuEmoji: IconEmoji(walletFirstAttachEmoji) {
 	icon: icon{{ "wallet/menu_bars-16x16", windowSubTextFg }};
 }
 
+// Fits walletSendButton; the layer insets both edge buttons by right().
 walletConnectBox: Box(defaultBox) {
-	buttonPadding: margins(0px, 0px, 0px, 12px);
-	buttonHeight: 0px;
+	buttonPadding: margins(24px, 12px, 24px, 12px);
+	buttonHeight: 40px;
 }
 walletConnectBack: IconButton(boxTitleClose) {
 	icon: icon {{ "box_button_back", boxTitleCloseFg }};
@@ -740,7 +741,6 @@ walletConnectActionPadding: margins(71px, 11px, 20px, 11px);
 walletConnectErrorLabel: FlatLabel(walletCommentErrorLabel) {
 	align: align(top);
 }
-walletConnectButtonsMargin: margins(24px, 0px, 24px, 0px);
 // defaultLightButton's textBg is windowBg, so Cancel would have no fill.
 walletConnectCancelButton: RoundButton(walletSendButton) {
 	textFg: windowActiveTextFg;

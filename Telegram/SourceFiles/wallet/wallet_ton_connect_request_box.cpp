@@ -371,9 +371,9 @@ void Update(
 	}
 }
 
-void FillLoading(not_null<Ui::GenericBox*> box, not_null<State*> state) {
-	const auto cancel = AddTonConnectButtons(
-		state->body.data(),
+void FillLoading(not_null<Ui::GenericBox*> box) {
+	const auto cancel = SetTonConnectButtons(
+		box,
 		tr::lng_cancel(),
 		nullptr).secondary;
 	cancel->setClickedCallback([=] { box->closeBox(); });
@@ -394,8 +394,8 @@ void FillKeyNeeded(
 		st::walletConnectTextMargin,
 		style::al_top
 	)->setTryMakeSimilarLines(true);
-	const auto buttons = AddTonConnectButtons(
-		body,
+	const auto buttons = SetTonConnectButtons(
+		box,
 		tr::lng_cancel(),
 		std::move(primary));
 	buttons.secondary->setClickedCallback([=] { box->closeBox(); });
@@ -419,8 +419,8 @@ void FillNotice(
 			st::walletConnectTextLabel),
 		st::walletConnectTextMargin,
 		style::al_top);
-	const auto close = AddTonConnectButtons(
-		body,
+	const auto close = SetTonConnectButtons(
+		box,
 		nullptr,
 		tr::lng_close()).primary;
 	close->setClickedCallback([=] { box->closeBox(); });
@@ -460,8 +460,8 @@ void FillUnhandled(
 		style::al_top
 	)->setTryMakeSimilarLines(true);
 	AddErrorLine(state);
-	const auto buttons = AddTonConnectButtons(
-		body,
+	const auto buttons = SetTonConnectButtons(
+		box,
 		tr::lng_cancel(),
 		tr::lng_wallet_connect_request_reject());
 	buttons.secondary->setClickedCallback([=] { box->closeBox(); });
@@ -517,13 +517,14 @@ void AddFeeLine(
 }
 
 void AddDecisionButtons(
+		not_null<Ui::GenericBox*> box,
 		not_null<State*> state,
 		const Context &context,
 		rpl::producer<QString> secondary,
 		rpl::producer<QString> primary) {
 	AddErrorLine(state);
-	const auto buttons = AddTonConnectButtons(
-		state->body.data(),
+	const auto buttons = SetTonConnectButtons(
+		box,
 		std::move(secondary),
 		std::move(primary));
 	buttons.secondary->setClickedCallback([=, decline = context.decline] {
@@ -541,11 +542,13 @@ void AddDecisionButtons(
 }
 
 void AddConfirmTail(
+		not_null<Ui::GenericBox*> box,
 		not_null<State*> state,
 		const Context &context,
 		const TonConnectRequestBoxState &now) {
 	AddFeeLine(state, context, now);
 	AddDecisionButtons(
+		box,
 		state,
 		context,
 		tr::lng_wallet_connect_request_decline(),
@@ -589,7 +592,7 @@ void FillSheet(
 		}),
 		st::walletConnectCardMargin,
 		style::al_top);
-	AddConfirmTail(state, context, now);
+	AddConfirmTail(box, state, context, now);
 }
 
 [[nodiscard]] style::margins DetailsTitlePadding() {
@@ -850,6 +853,7 @@ void FillSignData(
 		DetailsTitlePadding());
 	AddSignDataContent(body, box->uiShow(), *now.signData);
 	AddDecisionButtons(
+		box,
 		state,
 		context,
 		tr::lng_cancel(),
@@ -878,7 +882,7 @@ void FillDetails(
 		}
 		AddDetailsSkip(body);
 	}
-	AddConfirmTail(state, context, now);
+	AddConfirmTail(box, state, context, now);
 }
 
 void ToggleBack(
@@ -918,7 +922,7 @@ void Rebuild(
 		state->details = false;
 	}
 	switch (now.phase) {
-	case Phase::Loading: FillLoading(box, state); break;
+	case Phase::Loading: FillLoading(box); break;
 	case Phase::Locked:
 		FillKeyNeeded(
 			box,
@@ -977,7 +981,6 @@ void TonConnectRequestBox(
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::walletConnectBox);
 	box->setNoContentMargin(true);
-	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 
 	const auto state = box->lifetime().make_state<State>();
 	const auto reported = std::make_shared<bool>(false);

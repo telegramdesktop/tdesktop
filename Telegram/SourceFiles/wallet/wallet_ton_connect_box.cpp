@@ -174,8 +174,8 @@ void FillBody(
 				st::walletConnectTextLabel),
 			st::walletConnectTextMargin,
 			style::al_top);
-		const auto close = AddTonConnectButtons(
-			content,
+		const auto close = SetTonConnectButtons(
+			box,
 			nullptr,
 			tr::lng_close()).primary;
 		close->setClickedCallback([=] { box->closeBox(); });
@@ -189,8 +189,8 @@ void FillBody(
 			st::walletConnectTextMargin,
 			style::al_top
 		)->setTryMakeSimilarLines(true);
-		const auto buttons = AddTonConnectButtons(
-			content,
+		const auto buttons = SetTonConnectButtons(
+			box,
 			tr::lng_cancel(),
 			tr::lng_wallet_restore_title());
 		buttons.secondary->setClickedCallback([=] { box->closeBox(); });
@@ -240,8 +240,8 @@ void FillBody(
 			style::margins(0, st::defaultVerticalListSkip, 0, 0)),
 		st::boxRowPadding,
 		style::al_top);
-	const auto buttons = AddTonConnectButtons(
-		content,
+	const auto buttons = SetTonConnectButtons(
+		box,
 		tr::lng_cancel(),
 		tr::lng_wallet_connect_button());
 	buttons.secondary->setClickedCallback([=] { box->closeBox(); });
@@ -538,60 +538,46 @@ auto AddTonConnectHeader(
 	};
 }
 
-TonConnectButtons AddTonConnectButtons(
-		not_null<Ui::VerticalLayout*> container,
+TonConnectButtons SetTonConnectButtons(
+		not_null<Ui::GenericBox*> box,
 		rpl::producer<QString> secondary,
 		rpl::producer<QString> primary) {
 	Expects(secondary || primary);
 
-	const auto row = container->add(
-		object_ptr<Ui::FixedHeightWidget>(
-			container,
-			st::walletSendButton.height),
-		st::walletConnectButtonsMargin);
-	const auto create = [&](
+	box->clearButtons();
+	// clearButtons() drops the close button too.
+	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
+
+	const auto pair = (secondary && primary);
+	const auto edge = box->getDelegate()->style().buttonPadding.right();
+	const auto row = box->width() - 2 * edge;
+	const auto width = pair ? ((row - st::walletButtonsSkip) / 2) : row;
+	const auto add = [&](
 			rpl::producer<QString> text,
-			const style::RoundButton &st) -> Ui::RoundButton* {
+			const style::RoundButton &st,
+			bool left) -> Ui::RoundButton* {
 		if (!text) {
 			return nullptr;
 		}
-		const auto button = Ui::CreateChild<Ui::RoundButton>(
-			row,
-			std::move(text),
-			st);
-		button->show();
-		return button;
+		const auto button = left
+			? box->addLeftButton(std::move(text), nullptr, st)
+			: box->addButton(std::move(text), st);
+		button->setFullWidth(width);
+		return button.data();
 	};
-	const auto result = TonConnectButtons{
-		.secondary = create(
+	return {
+		.secondary = add(
 			std::move(secondary),
-			st::walletConnectCancelButton),
-		.primary = create(std::move(primary), st::walletSendButton),
+			st::walletConnectCancelButton,
+			pair),
+		.primary = add(std::move(primary), st::walletSendButton, false),
 	};
-	row->widthValue(
-	) | rpl::on_next([=](int width) {
-		if (!result.secondary || !result.primary) {
-			const auto button = result.secondary
-				? result.secondary
-				: result.primary;
-			button->setFullWidth(width);
-			button->moveToLeft(0, 0, width);
-			return;
-		}
-		const auto single = (width - st::walletButtonsSkip) / 2;
-		result.secondary->setFullWidth(single);
-		result.primary->setFullWidth(single);
-		result.secondary->moveToLeft(0, 0, width);
-		result.primary->moveToRight(0, 0, width);
-	}, row->lifetime());
-	return result;
 }
 
 void TonConnectBox(not_null<Ui::GenericBox*> box, TonConnectBoxArgs args) {
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::walletConnectBox);
 	box->setNoContentMargin(true);
-	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
 
 	const auto state = box->lifetime().make_state<State>();
 	const auto reported = std::make_shared<bool>(false);
