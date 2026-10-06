@@ -148,7 +148,7 @@ private:
 		Confirm,
 		Sign,
 		Decline,
-		Invalid,
+		Reject,
 		Disconnect,
 	};
 
@@ -180,7 +180,7 @@ private:
 	void decisionKeyFailed(TonConnectKeyError error);
 	void sign();
 	void declinePressed();
-	void answerInvalid();
+	void showUnhandled(const QString &text);
 	void answerDisconnect();
 	void answerUnknownApp();
 	void encryptAnswer(TonConnectResponse response);
@@ -1380,8 +1380,6 @@ void TonConnectRequests::Flow::decrypted(TonConnectAppRequest request) {
 		answerDisconnect();
 		return;
 	case Kind::Unsupported:
-		notice(tr::lng_wallet_connect_request_unsupported(tr::now));
-		return;
 	case Kind::Invalid:
 	case Kind::SendTransaction:
 	case Kind::SignData:
@@ -1392,8 +1390,10 @@ void TonConnectRequests::Flow::decrypted(TonConnectAppRequest request) {
 		|| (_request.kind == Kind::SendTransaction && !transfer)
 		|| (_request.kind == Kind::SignData && !_request.signData)) {
 		unavailable();
+	} else if (_request.kind == Kind::Unsupported) {
+		showUnhandled(tr::lng_wallet_connect_request_unsupported(tr::now));
 	} else if (_request.kind == Kind::Invalid) {
-		answerInvalid();
+		showUnhandled(tr::lng_wallet_connect_request_invalid(tr::now));
 	} else if (_request.kind == Kind::SignData) {
 		showSignData();
 	} else {
@@ -1617,32 +1617,43 @@ void TonConnectRequests::Flow::sign() {
 
 void TonConnectRequests::Flow::declinePressed() {
 	auto state = _state.current();
+	const auto unhandled = (state.phase == Phase::Unhandled);
 	if (stopped()
 		|| _decision != Decision::None
-		|| state.phase != Phase::Confirm
+		|| (state.phase != Phase::Confirm && !unhandled)
 		|| state.busy) {
 		return;
 	}
-	_decision = Decision::Decline;
+	_decision = unhandled ? Decision::Reject : Decision::Decline;
 	state.busy = true;
 	state.declining = true;
+	state.error = QString();
 	_state = std::move(state);
 	const auto access = _session->wallet().tonConnectAccess();
 	if (access != TonConnectAccess::Allowed) {
 		accessNotice(access);
 		return;
 	}
-	encryptAnswer({ .error = TonConnectError::UserDeclined });
+	encryptAnswer({
+		.error = (unhandled
+			? _request.rejection
+			: TonConnectError::UserDeclined),
+	});
 }
 
-void TonConnectRequests::Flow::answerInvalid() {
-	_decision = Decision::Invalid;
-	const auto access = _session->wallet().tonConnectAccess();
-	if (access != TonConnectAccess::Allowed) {
-		accessNotice(access);
+void TonConnectRequests::Flow::showUnhandled(const QString &text) {
+	if (!_box) {
+		finish();
 		return;
 	}
-	encryptAnswer({ .error = TonConnectError::BadRequest });
+	const auto &current = _state.current();
+	_state = TonConnectRequestBoxState{
+		.phase = Phase::Unhandled,
+		.name = current.name,
+		.domain = current.domain,
+		.icon = current.icon,
+		.notice = text,
+	};
 }
 
 void TonConnectRequests::Flow::answerDisconnect() {
@@ -2000,9 +2011,6 @@ void TonConnectRequests::Flow::published(SubmitResult result) {
 	case Decision::Sign:
 		closeWithToast(tr::lng_wallet_connect_sign_done(tr::now));
 		return;
-	case Decision::Invalid:
-		notice(tr::lng_wallet_connect_request_invalid(tr::now));
-		return;
 	case Decision::Disconnect:
 		// WHY: the server keeps the session active after the {} answer, and
 		// it accepts a close without a body after a dApp's disconnect, which
@@ -2010,6 +2018,7 @@ void TonConnectRequests::Flow::published(SubmitResult result) {
 		_owner->_store->closeAnswered(_sessionId);
 		[[fallthrough]];
 	case Decision::Decline:
+	case Decision::Reject:
 	case Decision::None:
 		_terminal = true;
 		closeBox();
@@ -2020,14 +2029,9 @@ void TonConnectRequests::Flow::published(SubmitResult result) {
 }
 
 void TonConnectRequests::Flow::decisionFailed(const QString &type) {
-	const auto text = ErrorWithType(
+	backToConfirm(ErrorWithType(
 		tr::lng_wallet_connect_request_failed(tr::now),
-		type);
-	if (_decision == Decision::Invalid) {
-		closeWithToast(text);
-	} else {
-		backToConfirm(text);
-	}
+		type));
 }
 
 void TonConnectRequests::Flow::armDeadline(std::optional<TimeId> validUntil) {
@@ -2111,6 +2115,7 @@ void TonConnectRequests::Flow::backToConfirm(const QString &error) {
 		lateStop();
 		return;
 	}
+	const auto rejecting = (_decision == Decision::Reject);
 	_decision = Decision::None;
 	_retriedChallenge = false;
 	_auth = KeyAuthorization();
@@ -2120,7 +2125,7 @@ void TonConnectRequests::Flow::backToConfirm(const QString &error) {
 		return;
 	}
 	auto state = _state.current();
-	state.phase = Phase::Confirm;
+	state.phase = rejecting ? Phase::Unhandled : Phase::Confirm;
 	state.busy = false;
 	state.declining = false;
 	state.error = error;
@@ -2200,7 +2205,7 @@ bool TonConnectRequests::Flow::claiming() const {
 
 bool TonConnectRequests::Flow::declines() const {
 	return (_decision == Decision::Decline)
-		|| (_decision == Decision::Invalid)
+		|| (_decision == Decision::Reject)
 		|| late();
 }
 

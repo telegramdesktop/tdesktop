@@ -1525,15 +1525,30 @@ void FailShareFetch(
 			TonConnectSignDataFromEngine(session, sign->request));
 	} else if (std::get_if<Incoming::kSignMessage>(&variant)) {
 		result.kind = Kind::Unsupported;
+		result.rejection = TonConnectError::MethodNotSupported;
 	} else if (std::get_if<Incoming::kDisconnect>(&variant)) {
 		result.kind = Kind::Disconnect;
 	} else {
-		result.kind = (result.method == u"sendTransaction"_q
-				|| result.method == u"signData"_q)
+		using Code = engine::TonConnectRpcErrorCode;
+		const auto bad = std::get_if<Incoming::kUnsupported>(&variant);
+		if (bad) {
+			LOG(("Wallet Error: TON Connect %1 request not handled, "
+				"code %2: %3"
+				).arg(result.method
+				).arg(int(bad->error_code)
+				).arg(QString::fromStdString(bad->error_message)));
+		}
+		const auto known = (result.method == u"sendTransaction"_q)
+			|| (result.method == u"signData"_q);
+		result.kind = known
 			? Kind::Invalid
 			: (result.method == u"disconnect"_q)
 			? Kind::Disconnect
 			: Kind::Unsupported;
+		if (!known
+			|| (bad && bad->error_code == Code::kMethodNotSupported)) {
+			result.rejection = TonConnectError::MethodNotSupported;
+		}
 	}
 	return result;
 }
@@ -6575,6 +6590,8 @@ void Session::encryptTonConnectResponse(
 		? Reason{ Code::kUserDeclined, "User declined the transaction" }
 		: (response.error == TonConnectError::UnknownApp)
 		? Reason{ Code::kUnknownApp, "Unknown app" }
+		: (response.error == TonConnectError::MethodNotSupported)
+		? Reason{ Code::kMethodNotSupported, "Method not supported" }
 		: Reason{ Code::kUnknown, "Transaction was not sent" };
 	_engine->runLocal([
 		session = key.session,

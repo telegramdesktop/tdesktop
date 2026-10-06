@@ -159,19 +159,21 @@ enum class TonConnectRequestKind : uchar {
 	SignData,
 };
 
+enum class TonConnectError : uchar {
+	Unknown,
+	BadRequest,
+	UserDeclined,
+	UnknownApp,
+	MethodNotSupported,
+};
+
 struct TonConnectAppRequest {
 	TonConnectRequestKind kind = TonConnectRequestKind::Unsupported;
 	QString id;
 	QString method;
 	std::shared_ptr<const TonConnectTransfer> transfer;
 	std::shared_ptr<const TonConnectSignData> signData;
-};
-
-enum class TonConnectError : uchar {
-	Unknown,
-	BadRequest,
-	UserDeclined,
-	UnknownApp,
+	TonConnectError rejection = TonConnectError::BadRequest;
 };
 
 struct TonConnectResponse {

@@ -29,6 +29,7 @@ enum class TonConnectRequestPhase : uchar {
 	Restore,
 	Confirm,
 	Notice,
+	Unhandled,
 };
 
 struct TonConnectRequestBoxState {

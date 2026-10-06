@@ -240,6 +240,7 @@ struct Destinations {
 				lt_name,
 				now.name);
 	case Phase::Notice:
+	case Phase::Unhandled:
 		return now.name.isEmpty()
 			? tr::lng_wallet_connect_request_title(tr::now)
 			: now.name;
@@ -425,6 +426,53 @@ void FillNotice(
 	close->setClickedCallback([=] { box->closeBox(); });
 }
 
+void AddErrorLine(not_null<State*> state) {
+	const auto body = state->body.data();
+	state->error = body->add(
+		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+			body,
+			object_ptr<Ui::FlatLabel>(body, st::walletConnectErrorLabel),
+			style::margins(0, st::defaultVerticalListSkip, 0, 0)),
+		st::boxRowPadding,
+		style::al_top);
+}
+
+void FillUnhandled(
+		not_null<Ui::GenericBox*> box,
+		not_null<State*> state,
+		const Context &context,
+		const TonConnectRequestBoxState &now) {
+	const auto body = state->body.data();
+	body->add(
+		object_ptr<Ui::FlatLabel>(
+			body,
+			now.notice,
+			st::walletConnectTextLabel),
+		st::walletConnectTextMargin,
+		style::al_top
+	)->setTryMakeSimilarLines(true);
+	body->add(
+		object_ptr<Ui::FlatLabel>(
+			body,
+			tr::lng_wallet_connect_request_unhandled_about(),
+			st::walletConnectCaptionLabel),
+		st::walletConnectCaptionMargin,
+		style::al_top
+	)->setTryMakeSimilarLines(true);
+	AddErrorLine(state);
+	const auto buttons = AddTonConnectButtons(
+		body,
+		tr::lng_cancel(),
+		tr::lng_wallet_connect_request_reject());
+	buttons.secondary->setClickedCallback([=] { box->closeBox(); });
+	buttons.primary->setClickedCallback([=, decline = context.decline] {
+		if (!Busy(state)) {
+			decline();
+		}
+	});
+	state->decline = buttons.primary;
+}
+
 void AddTraceWarning(
 		not_null<Ui::VerticalLayout*> body,
 		const TonConnectRequestBoxState &now) {
@@ -473,16 +521,9 @@ void AddDecisionButtons(
 		const Context &context,
 		rpl::producer<QString> secondary,
 		rpl::producer<QString> primary) {
-	const auto body = state->body.data();
-	state->error = body->add(
-		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
-			body,
-			object_ptr<Ui::FlatLabel>(body, st::walletConnectErrorLabel),
-			style::margins(0, st::defaultVerticalListSkip, 0, 0)),
-		st::boxRowPadding,
-		style::al_top);
+	AddErrorLine(state);
 	const auto buttons = AddTonConnectButtons(
-		body,
+		state->body.data(),
 		std::move(secondary),
 		std::move(primary));
 	buttons.secondary->setClickedCallback([=, decline = context.decline] {
@@ -895,6 +936,7 @@ void Rebuild(
 			context.restore);
 		break;
 	case Phase::Notice: FillNotice(box, state, now); break;
+	case Phase::Unhandled: FillUnhandled(box, state, context, now); break;
 	case Phase::Confirm:
 		if (now.signData) {
 			FillSignData(box, state, context, now);

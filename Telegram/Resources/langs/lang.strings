@@ -9173,6 +9173,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_connect_request_trace_failed" = "The preview shows that part of this transaction may fail.";
 "lng_wallet_connect_request_trace_incomplete" = "The preview of this transaction is incomplete.";
 "lng_wallet_connect_request_decline" = "Decline";
+"lng_wallet_connect_request_reject" = "Reject";
 "lng_wallet_connect_request_confirm" = "Confirm";
 "lng_wallet_connect_request_sent" = "The transaction was sent.";
 "lng_wallet_connect_request_not_sent" = "The transaction wasn't sent. The app was told it failed.";
@@ -9180,7 +9181,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_connect_request_handled" = "This request was handled on another device.";
 "lng_wallet_connect_request_unavailable" = "This request is no longer available.";
 "lng_wallet_connect_request_unsupported" = "This request is not supported on this device.";
-"lng_wallet_connect_request_invalid" = "The app sent an invalid request, so it was rejected.";
+"lng_wallet_connect_request_invalid" = "This device can't process the request from this app.";
+"lng_wallet_connect_request_unhandled_about" = "You can reject it now or answer it on another device.";
 "lng_wallet_connect_request_other_key" = "This app was connected with a different wallet key, so this device can't answer its requests.";
 "lng_wallet_connect_request_key_changing" = "Your wallet key is being changed. App requests can't be answered until the change is confirmed.";
 "lng_wallet_connect_request_no_key" = "This device doesn't hold the current key of this wallet, so it can't answer app requests.";
