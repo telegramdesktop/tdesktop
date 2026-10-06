@@ -8451,10 +8451,13 @@ void AwaitWalletReady(
 		const std::shared_ptr<SendEntryWait> &wait,
 		Fn<void()> ready,
 		Fn<void()> notReady = nullptr) {
-	const auto wallet = &wait->show->session().wallet();
-	if (wallet->presence() != Presence::Ready) {
-		wallet->refreshState();
+	const auto session = &wait->show->session();
+	const auto wallet = &session->wallet();
+	if (wallet->presence() == Presence::Ready) {
+		ready();
+		return;
 	}
+	wallet->refreshState();
 	// A caller with its own answer shows a wallet still being created.
 	const auto waitCreated = !notReady;
 	wallet->presenceValue(
@@ -8463,7 +8466,14 @@ void AwaitWalletReady(
 			&& (!waitCreated || presence != Presence::Provisioning);
 	}) | rpl::take(1) | rpl::on_next([=](Presence presence) {
 		if (presence == Presence::Ready) {
-			ready();
+			// The update that made the wallet Ready finishes first.
+			crl::on_main(session, [=] {
+				if (!wait->show->valid()) {
+					EndSendEntryWait(wait);
+				} else if (!wait->ended) {
+					ready();
+				}
+			});
 		} else if (notReady) {
 			if (EndSendEntryWait(wait)) {
 				notReady();
