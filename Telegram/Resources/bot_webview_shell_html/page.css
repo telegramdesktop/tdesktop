@@ -343,15 +343,19 @@ select {
 .button-spinner.visible {
 	display: block;
 }
-#menu-backdrop {
+#pointer-shield {
 	position: absolute;
 	inset: 0;
 	display: none;
 	background: transparent;
 	z-index: 11;
 }
-#menu-backdrop.visible {
+#pointer-shield.visible,
+#pointer-shield.held {
 	display: block;
+}
+.pressed {
+	z-index: 12;
 }
 #menu {
 	position: absolute;
