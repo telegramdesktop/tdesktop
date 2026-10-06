@@ -862,6 +862,9 @@
 	header.addEventListener('selectstart', function(event) {
 		event.preventDefault();
 	});
+	document.addEventListener('contextmenu', function(event) {
+		event.preventDefault();
+	});
 
 	function setFrameLoaded(loaded) {
 		frameLoaded = loaded;
