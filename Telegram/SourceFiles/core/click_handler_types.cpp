@@ -422,7 +422,8 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 		|| url.startsWith(u"internal:"_q, Qt::CaseInsensitive)) {
 		UrlClickHandler::Open(url, QVariant::fromValue([&] {
 			auto result = context.value<ClickHandlerContext>();
-			result.mayShowConfirmation = !base::IsCtrlPressed();
+			result.mayShowConfirmation = result.ctrlRequired
+				|| !base::IsCtrlPressed();
 			return result;
 		}()));
 	} else {
@@ -433,16 +434,17 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 		auto openContext = context;
 		const auto forceConfirmation = my.forceExternalUrlConfirmation
 			&& my.ignoreIv;
-		const auto skipConfirmation = base::IsCtrlPressed();
+		const auto skipConfirmation = !my.ctrlRequired
+			&& base::IsCtrlPressed();
 		if (forceConfirmation) {
 			my.forceExternalUrlConfirmation = false;
 			openContext = QVariant::fromValue(my);
 		}
 		const auto confirmAfterIvFallback
 			= RequiresConfirmationAfterIvFallback(parsedUrl)
-			&& !my.ignoreIv
 			&& !skipConfirmation;
-		const auto canTryIv = (my.sessionWindow.get() != nullptr);
+		const auto canTryIv = !my.ignoreIv
+			&& (my.sessionWindow.get() != nullptr);
 		if (confirmAfterIvFallback && canTryIv) {
 			my.forceExternalUrlConfirmation = true;
 			openContext = QVariant::fromValue(my);

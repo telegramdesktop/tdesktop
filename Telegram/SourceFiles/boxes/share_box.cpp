@@ -264,6 +264,7 @@ void ShareBox::prepareCommentField() {
 			.show = Main::MakeSessionShow(show, _descriptor.session),
 			.field = field,
 			.fieldStyle = _descriptor.st.label,
+			.openLinks = { .dark = _descriptor.st.dark },
 		});
 	}
 	field->setSubmitSettings(Core::App().settings().sendSubmitWay());
@@ -2089,6 +2090,7 @@ ShareBoxStyleOverrides DarkShareBoxStyle() {
 		.label = &st::groupCallField,
 		.checkbox = &st::groupCallCheckbox,
 		.scheduleBox = std::make_shared<ScheduleBoxStyleArgs>(schedule()),
+		.dark = true,
 	};
 }
 

@@ -3276,6 +3276,12 @@ void ComposeControls::initField() {
 	_field->setEditLinkCallback(
 		DefaultEditLinkCallback(_show, _field, &_st.boxField));
 	_field->setEditLanguageCallback(DefaultEditLanguageCallback(_show));
+	_field->setOpenLinkCallback(DefaultOpenLinkCallback(
+		_show,
+		_field,
+		_regularWindow
+			? OpenLinkOptions{ .inAppLinks = true }
+			: OpenLinkOptions{ .dark = true }));
 
 	const auto rawTextEdit = _field->rawTextEdit().get();
 	rpl::merge(
@@ -4828,6 +4834,7 @@ void ComposeControls::fireSendTextAsFile(
 		.sendType = sendType,
 		.sendMenuDetails = _sendMenuDetails,
 		.stOverride = &_st,
+		.dark = !_regularWindow,
 		.confirmed = std::move(confirmed),
 		.cancelled = std::move(restoreText),
 		.replyTo = replyingToMessage(),
