@@ -2779,13 +2779,15 @@ void AttachGiftSenderBadge(
 		const auto margin = st::msgServiceMargin;
 		const auto padding = st::msgServicePadding;
 		const auto available = outer.marginsRemoved(margin).width();
+		const auto minTop = margin.top() * 2;
 		badge->resizeToWidth(std::min(
 			available - padding.left() - padding.right(),
 			badge->textMaxWidth()));
+		box->setMinimalTopSkip(minTop + badge->height() + margin.top());
 		const auto inner = Ui::MapFrom(parent, box, box->rect());
 		const auto top = std::max(
 			inner.y() - badge->height() - margin.top(),
-			outer.y() + (margin.top() * 2));
+			outer.y() + minTop);
 		const auto left = margin.left() + (available - badge->width()) / 2;
 		badge->move(left, top);
 	};
