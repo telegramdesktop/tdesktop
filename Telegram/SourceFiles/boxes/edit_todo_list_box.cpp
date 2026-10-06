@@ -728,13 +728,20 @@ void Tasks::initTaskField(not_null<Task*> task, TextWithEntities text) {
 			_emojiPanelLifetime.destroy();
 			emojiPanel->selector()->emojiChosen(
 			) | rpl::on_next([=](ChatHelpers::EmojiChosen data) {
-				if (field->hasFocus()) {
+				if (emojiPanel->selector()->emojiChosenFor(field)) {
 					Ui::InsertEmojiAtCursor(field->textCursor(), data.emoji);
+				}
+			}, _emojiPanelLifetime);
+			emojiPanel->selector()->backspaces(
+			) | rpl::on_next([=](
+					not_null<ChatHelpers::BackspaceRequest*> request) {
+				if (emojiPanel->selector()->emojiChosenFor(field)) {
+					request->erased = ChatHelpers::EraseBeforeCursor(field);
 				}
 			}, _emojiPanelLifetime);
 			emojiPanel->selector()->customEmojiChosen(
 			) | rpl::on_next([=](ChatHelpers::FileChosen data) {
-				if (field->hasFocus()) {
+				if (emojiPanel->selector()->emojiChosenFor(field)) {
 					Data::InsertCustomEmoji(field, data.document);
 				}
 			}, _emojiPanelLifetime);
@@ -962,13 +969,20 @@ not_null<Ui::InputField*> EditTodoListBox::setupTitle(
 			st::createTodoOptionFieldEmojiPosition);
 		_emojiPanel->selector()->emojiChosen(
 		) | rpl::on_next([=](ChatHelpers::EmojiChosen data) {
-			if (title->hasFocus()) {
+			if (_emojiPanel->selector()->emojiChosenFor(title)) {
 				Ui::InsertEmojiAtCursor(title->textCursor(), data.emoji);
+			}
+		}, emojiToggle->lifetime());
+		_emojiPanel->selector()->backspaces(
+		) | rpl::on_next([=](
+				not_null<ChatHelpers::BackspaceRequest*> request) {
+			if (_emojiPanel->selector()->emojiChosenFor(title)) {
+				request->erased = ChatHelpers::EraseBeforeCursor(title);
 			}
 		}, emojiToggle->lifetime());
 		_emojiPanel->selector()->customEmojiChosen(
 		) | rpl::on_next([=](ChatHelpers::FileChosen data) {
-			if (title->hasFocus()) {
+			if (_emojiPanel->selector()->emojiChosenFor(title)) {
 				Data::InsertCustomEmoji(title, data.document);
 			}
 		}, emojiToggle->lifetime());
