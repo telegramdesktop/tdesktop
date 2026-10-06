@@ -240,6 +240,12 @@ void UserAddresses::resolveOwner(
 				.publicKey = data.vpublic_key().v,
 			};
 		}
+		const auto user = owner.userId
+			? _session->data().userLoaded(owner.userId)
+			: nullptr;
+		if (user && user->gramAddress() != canonical) {
+			user->setGramAddress(canonical);
+		}
 		finishOwner(canonical, std::move(owner));
 	}).fail([=](const MTP::Error &error) {
 		if (error.type() == u"WALLET_UNAVAILABLE"_q) {
