@@ -1,3 +1,4 @@
+// Astra UI — Sound Glass design system.
 /*
 Astra UI — design tokens ("Sound Glass").
 Part of the Astra UI redesign for this Telegram Desktop fork.
