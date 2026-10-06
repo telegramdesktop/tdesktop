@@ -115,6 +115,7 @@ void SignupWidget::nameSubmitDone(const MTPauth_Authorization &result) {
 }
 
 void SignupWidget::nameSubmitFail(const MTP::Error &error) {
+	_sentRequest = 0;
 	if (MTP::IsFloodError(error)) {
 		showError(tr::lng_flood_error());
 		if (_invertOrder) {
