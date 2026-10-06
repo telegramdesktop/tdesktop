@@ -414,8 +414,7 @@ select {
 #root.fullscreen #menu {
 	top: calc(
 		var(--fullscreen-control-top)
-			+ var(--fullscreen-control-height)
-			- 8px);
+			+ var(--fullscreen-control-height));
 	right: calc(var(--fullscreen-control-right) + var(--fullscreen-control-width));
 }
 #root.fullscreen #resize-handles {
