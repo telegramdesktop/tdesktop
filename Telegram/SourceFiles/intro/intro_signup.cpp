@@ -42,6 +42,12 @@ SignupWidget::SignupWidget(
 		refreshLang();
 	}, lifetime());
 
+	const auto submitted = [=] { submit(); };
+	_first->submits(
+	) | rpl::on_next(submitted, _first->lifetime());
+	_last->submits(
+	) | rpl::on_next(submitted, _last->lifetime());
+
 	if (_invertOrder) {
 		setTabOrder(_last, _first);
 	} else {
