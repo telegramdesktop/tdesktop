@@ -3806,7 +3806,7 @@ void AddFeeTableRow(
 		not_null<PeerData*> peer) {
 	const auto chatShow = MakeChatShow(show, true);
 	const auto user = peer->asUser();
-	const auto offer = user && !user->isSelf();
+	const auto offer = (user != nullptr);
 	const auto weak = base::make_weak(box);
 	return Ui::MakePeerTableValue(
 		table,
@@ -5900,7 +5900,7 @@ void SetButtonDisabledLook(
 		not_null<Main::Session*> session,
 		UserId id) {
 	const auto user = id ? session->data().userLoaded(id) : nullptr;
-	if (!user || user->isSelf() || !CanSendToUser(session, id)) {
+	if (!user || !CanSendToUser(session, id)) {
 		return nullptr;
 	}
 	return user;
@@ -8503,6 +8503,7 @@ void OpenSendFlow(
 	const auto session = &show->session();
 	const auto user = SendableUser(session, owner.userId);
 	const auto toUser = user
+		&& !user->isSelf()
 		&& (!user->gramAddress()
 			|| *user->gramAddress() == flow.destination);
 	show->showBox(Box(
@@ -15467,6 +15468,26 @@ void ShowSendToUser(
 		).forceResolveError(userId);
 		if (!error.isEmpty() && error != u"WALLET_BALANCE_EMPTY"_q) {
 			show->showToast(SendUserLoadErrorText(error));
+			return;
+		} else if (user->isSelf()) {
+			const auto identity = session->wallet().transferWalletIdentity();
+			auto flow = identity
+				? ParseRecipientFlow(FormatFriendly(identity->address, false))
+				: std::nullopt;
+			if (!flow) {
+				show->showToast(SendUserLoadErrorText(u"WALLET_NOT_READY"_q));
+				return;
+			}
+			flow->amountNano = amountNano;
+			show->showBox(Box(
+				WalletSendBox,
+				show,
+				std::move(flow),
+				static_cast<UserData*>(nullptr),
+				sent,
+				notReady,
+				amountNano,
+				origin));
 			return;
 		}
 		show->showBox(Box(

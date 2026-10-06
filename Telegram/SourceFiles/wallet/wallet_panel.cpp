@@ -185,7 +185,6 @@ bool CanOfferSendMoney(not_null<UserData*> user) {
 	auto &wallet = session->wallet();
 	return !session->supportMode()
 		&& session->appConfig().walletAvailable()
-		&& !user->isSelf()
 		&& (wallet.presenceCurrent() != Presence::Unavailable)
 		&& wallet.userAddresses().recipientError(
 			peerToUser(user->id)).isEmpty();
