@@ -8455,10 +8455,12 @@ void AwaitWalletReady(
 	if (wallet->presence() != Presence::Ready) {
 		wallet->refreshState();
 	}
+	// A caller with its own answer shows a wallet still being created.
+	const auto waitCreated = !notReady;
 	wallet->presenceValue(
-	) | rpl::filter([](Presence presence) {
+	) | rpl::filter([=](Presence presence) {
 		return (presence != Presence::Unknown)
-			&& (presence != Presence::Provisioning);
+			&& (!waitCreated || presence != Presence::Provisioning);
 	}) | rpl::take(1) | rpl::on_next([=](Presence presence) {
 		if (presence == Presence::Ready) {
 			ready();
