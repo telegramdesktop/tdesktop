@@ -135,6 +135,9 @@ PRIVATE
     api/api_cloud_password.h
     api/api_communities.cpp
     api/api_communities.h
+    astra/astra_design.h
+    astra/astra_waveform.cpp
+    astra/astra_waveform.h
     data/data_search_calendar.h
     data/data_search_calendar.cpp
     api/api_common.cpp
