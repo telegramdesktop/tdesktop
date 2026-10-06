@@ -8499,6 +8499,7 @@ void OpenSendFlow(
 	// and a bounceable message to one is returned instead of delivered.
 	if (owner.userId) {
 		flow.bounce = false;
+		flow.displayForm = FormatFriendly(flow.destination, false);
 	}
 	const auto session = &show->session();
 	const auto user = SendableUser(session, owner.userId);
