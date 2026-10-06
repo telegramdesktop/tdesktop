@@ -87,11 +87,11 @@ constexpr auto kSettleBump = BumpCurve{
 	.undershoot = 0.043,
 };
 constexpr auto kBumpAmplitude = 0.07;
-constexpr auto kReadRollFirst = crl::time(467);
-constexpr auto kReadRollDuration = crl::time(533);
+constexpr auto kReadRollFirst = crl::time(876);
+constexpr auto kReadRollDuration = crl::time(1000);
 constexpr auto kReadRollEase = 1.5;
 constexpr auto kReadRollCycle = 10;
-constexpr auto kReadSpacing = crl::time(933);
+constexpr auto kReadSpacing = crl::time(1400);
 constexpr auto kReadPopAmplitude = 0.03;
 constexpr auto kReadPressDepth = 0.025;
 constexpr auto kReadPress = BumpCurve{
@@ -217,6 +217,7 @@ struct SettleSpin {
 
 struct ReadRoll {
 	GramReadLine::Turn turn;
+	std::unique_ptr<Lottie::Icon> fast;
 	crl::time started = 0;
 	float64 angle = 0.;
 	bool settled = false;
@@ -421,9 +422,11 @@ private:
 	void adopt(GramTransferHandover &&handover);
 	void watchRead();
 	void markRead(bool shown);
-	void validateRead(crl::time now, crl::time frame) const;
+	void validateRead(crl::time now, crl::time frame, bool paused) const;
 	[[nodiscard]] bool holding() const;
 	[[nodiscard]] bool rolling(crl::time now) const;
+	[[nodiscard]] bool awaitingRead() const;
+	[[nodiscard]] bool playingRead(crl::time now) const;
 	void animateTransition() const;
 	void startReveal(const SendingClock &clock, crl::time now) const;
 	void attachClock() const;
@@ -433,6 +436,7 @@ private:
 	void validateClock(crl::time now) const;
 	void validateLoop(crl::time now, bool paused) const;
 	void advanceLoop(crl::time now) const;
+	void advanceRead(crl::time now) const;
 	void startFastMark() const;
 	void validateBadge() const;
 	void validateAngle(
@@ -1094,7 +1098,7 @@ void GramTransferCardPart::markRead(bool shown) {
 		return;
 	}
 	_transition = std::make_unique<CardTransition>();
-	_transition->read.emplace();
+	_transition->read.emplace().fast = MakeCardMark(u"gram_white_fast"_q);
 	validateMark();
 	view->history()->owner().registerHeavyViewPart(view);
 	view->repaint();
@@ -1102,7 +1106,8 @@ void GramTransferCardPart::markRead(bool shown) {
 
 void GramTransferCardPart::validateRead(
 		crl::time now,
-		crl::time frame) const {
+		crl::time frame,
+		bool paused) const {
 	if (!_transition || !_transition->read) {
 		return;
 	}
@@ -1132,10 +1137,19 @@ void GramTransferCardPart::validateRead(
 		read.angle = _angle->value(frame);
 		_transition->glare.tick(read.started, kGlareDuration, kGlareTimeout);
 		_transition->started = read.started + kReadRollDuration;
+		_markStarted = true;
 		animateTransition();
+	}
+	// As a paused sending wait does, a paused read gives both diamond plays up.
+	if (paused) {
+		read.fast = nullptr;
 	}
 	if (!read.settled && now >= _transition->started) {
 		read.settled = true;
+		if (now < _transition->started + kTransitionDuration) {
+			_transition->fast = base::take(read.fast);
+			startFastMark();
+		}
 		_transition->spin = StartSpin(
 			SendingAngle(read.angle, _transition->started - read.started),
 			_angle->value(frame));
@@ -1153,6 +1167,25 @@ bool GramTransferCardPart::rolling(crl::time now) const {
 	return _transition
 		&& _transition->read
 		&& (holding() || now < _transition->started);
+}
+
+// The read plays an unread card's diamond, so its first play waits.
+bool GramTransferCardPart::awaitingRead() const {
+	if (holding()) {
+		return true;
+	}
+	const auto view = _origin.view.get();
+	return view
+		&& !_origin.action.outgoing
+		&& view->data()->unread(view->history());
+}
+
+bool GramTransferCardPart::playingRead(crl::time now) const {
+	return _mark
+		&& _transition
+		&& _transition->read
+		&& _transition->read->fast
+		&& (now < _transition->started);
 }
 
 void GramTransferCardPart::startReveal(
@@ -1215,6 +1248,7 @@ void GramTransferCardPart::animateTransition() const {
 		if (transition.burst && now >= transition.started + kBurstDuration) {
 			transition.burst = nullptr;
 		}
+		strong->advanceRead(now);
 		if (const auto view = strong->_origin.view.get()) {
 			view->repaint();
 		}
@@ -1526,6 +1560,21 @@ void GramTransferCardPart::advanceLoop(crl::time now) const {
 	}
 }
 
+// WHY: the read plays the diamond by the time since its start, so a card
+// painted late or handed over keeps the roll's clock, and it holds the
+// last frame until the settle shows white-fast frame 0 in its place.
+void GramTransferCardPart::advanceRead(crl::time now) const {
+	if (!playingRead(now) || !_mark->valid()) {
+		return;
+	}
+	const auto last = int64(_mark->framesCount() - 1);
+	const auto position = LoopPosition(
+		_mark.get(),
+		_transition->read->started,
+		now);
+	_mark->jumpTo(int(std::min(position, last)), nullptr);
+}
+
 std::optional<Wallet::GlareBand> GramTransferCardPart::glarePass(
 		crl::time now) const {
 	const auto cycle = _transition
@@ -1777,11 +1826,14 @@ void GramTransferCardPart::draw(
 		int outerWidth) const {
 	const auto now = crl::now();
 	const auto frame = context.now ? context.now : now;
+	const auto paused = context.paused
+		|| anim::Disabled()
+		|| On(PowerSaving::kStickersChat);
 	if (_transition && transitionFinished(now)) {
 		_transition = nullptr;
 	}
 	validateAngle(p, owner, context);
-	validateRead(now, frame);
+	validateRead(now, frame, paused);
 	// WHY: a card relaid out as settled keeps its clock until this paint,
 	// so a stale paint shows the live pose and the reveal starts from it
 	// here; a later replacement continues this transition.
@@ -1818,9 +1870,6 @@ void GramTransferCardPart::draw(
 		paintBurst(p, now);
 	}
 	if (_mark->valid()) {
-		const auto paused = context.paused
-			|| anim::Disabled()
-			|| On(PowerSaving::kStickersChat);
 		const auto repaint = [view = _origin.view] {
 			if (const auto strong = view.get()) {
 				strong->repaint();
@@ -1828,11 +1877,16 @@ void GramTransferCardPart::draw(
 		};
 		if (_clock) {
 			validateLoop(now, paused);
-		} else if (!paused && !_markStarted) {
+		} else if (playingRead(now)) {
+			advanceRead(now);
+		} else if (!paused && !_markStarted && !awaitingRead()) {
 			_markStarted = true;
 			_mark->animate(repaint, 0, _mark->framesCount() - 1);
 		}
-		if (!looping() && !_mark->animating() && _mark->frameIndex() != 0) {
+		if (!looping()
+			&& !playingRead(now)
+			&& !_mark->animating()
+			&& _mark->frameIndex() != 0) {
 			// The white diamond's last frame leads into frame 0, its rest.
 			_mark->jumpTo(0, repaint);
 		}
