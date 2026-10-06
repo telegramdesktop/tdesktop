@@ -34,6 +34,7 @@ class SettingsSlider;
 class FlatLabel;
 class BoxContent;
 class TabbedSearch;
+class InputField;
 } // namespace Ui
 
 namespace SendMenu {
@@ -77,6 +78,17 @@ struct EmojiChosen {
 	EmojiPtr emoji;
 	Ui::MessageSendingAnimationFrom messageSendingFrom;
 };
+
+// Backspace in the emoji list, while the keyboard keeps the focus in the
+// panel: the host erases what is before the caret of its field and says
+// what it was, so that the list can have it announced.
+struct BackspaceRequest {
+	QString erased;
+};
+
+// Erases the selection of the field, or the character before its caret,
+// and returns the text erased - an emoji as its text, an image as none.
+[[nodiscard]] QString EraseBeforeCursor(not_null<Ui::InputField*> field);
 
 using InlineChosen = InlineBots::ResultSelected;
 
@@ -153,6 +165,12 @@ public:
 	[[nodiscard]] rpl::producer<> photoRequests() const;
 
 	[[nodiscard]] rpl::producer<> cancelled() const;
+	// Whether a chosen emoji goes to this field: the focused one, or the
+	// one the panel was opened from while the keyboard keeps the focus
+	// in the panel.
+	[[nodiscard]] bool emojiChosenFor(not_null<QWidget*> field) const;
+	[[nodiscard]] auto backspaces() const
+		-> rpl::producer<not_null<BackspaceRequest*>>;
 	[[nodiscard]] rpl::producer<> checkForHide() const;
 	[[nodiscard]] rpl::producer<> slideFinished() const;
 	[[nodiscard]] rpl::producer<> contextMenuRequested() const;
@@ -208,6 +226,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 private:
 	class Tab {
@@ -344,6 +363,7 @@ private:
 	Fn<void(SelectorTab)> _beforeHidingCallback;
 
 	rpl::event_stream<> _showRequests;
+	rpl::event_stream<> _escapes;
 	rpl::event_stream<> _slideFinished;
 
 	rpl::lifetime _swipeLifetime;
@@ -416,6 +436,12 @@ public:
 
 	virtual object_ptr<InnerFooter> createFooter() = 0;
 
+	// Set around afterShown() for a tab switched to from the keyboard,
+	// with a screen reader: the keyboard stays on the tab strip, so the
+	// tab shown must not take the focus into its search.
+	void setKeepsFocusOnShow(bool keeps);
+	[[nodiscard]] bool keepsFocusOnShow() const;
+
 protected:
 	void visibleTopBottomUpdated(
 		int visibleTop,
@@ -452,6 +478,7 @@ private:
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
 	std::optional<int> _minimalHeight;
+	bool _keepsFocusOnShow = false;
 
 	rpl::event_stream<int> _scrollToRequests;
 	rpl::event_stream<bool> _disableScrollRequests;
