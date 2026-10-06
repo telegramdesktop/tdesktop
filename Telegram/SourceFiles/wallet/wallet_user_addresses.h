@@ -85,7 +85,7 @@ public:
 	void resolveOwner(
 		QString address,
 		Fn<void(AddressOwner)> done,
-		Fn<void()> fail);
+		Fn<void(bool silent)> fail);
 
 	// The Ed25519 public key Telegram named for |address|, empty when no
 	// answer carried one. A comment encrypts for a key from here without the
@@ -123,7 +123,8 @@ private:
 	void finishOwner(
 		const QString &address,
 		std::optional<AddressOwner> owner,
-		bool cache);
+		bool cache,
+		bool silent);
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
@@ -132,7 +133,7 @@ private:
 	base::flat_map<QString, AddressOwner> _owners;
 	struct OwnerWaiter {
 		Fn<void(AddressOwner)> done;
-		Fn<void()> fail;
+		Fn<void(bool silent)> fail;
 	};
 	base::flat_map<QString, std::vector<OwnerWaiter>> _ownerWaiting;
 	base::flat_set<QString> _ownerRequested;

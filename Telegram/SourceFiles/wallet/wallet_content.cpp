@@ -8553,8 +8553,12 @@ void ResolveOwnerAndOpenSendFlow(
 					OpenSendFlow(show, flow, std::move(owner));
 				}
 			}),
-			crl::guard(session, [=] {
-				FailSendEntryWait(wait, u"WALLET_ADDRESS_INVALID"_q);
+			crl::guard(session, [=](bool silent) {
+				if (silent) {
+					EndSendEntryWait(wait);
+				} else {
+					FailSendEntryWait(wait, u"WALLET_ADDRESS_INVALID"_q);
+				}
 			}));
 	});
 }
@@ -8671,13 +8675,17 @@ void WalletSendRecipientBox(
 				proceed(flow, std::move(owner));
 			}
 		};
-		const auto fail = [=] {
-			if (revision == state->revision) {
+		const auto fail = [=](bool silent) {
+			if (revision != state->revision) {
+				return;
+			} else if (silent) {
+				stop();
+			} else {
 				failName(RecipientError::LookupFailed);
 			}
 		};
 		state->resolving = true;
-		state->deadline.setCallback(fail);
+		state->deadline.setCallback([=] { fail(false); });
 		// resolveOwner has no deadline of its own.
 		state->deadline.callOnce(kSendUserLoadTimeout);
 		session->wallet().userAddresses().resolveOwner(

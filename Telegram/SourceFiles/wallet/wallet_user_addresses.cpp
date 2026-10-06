@@ -193,7 +193,7 @@ QString UserAddresses::recipientError(UserId id) const {
 void UserAddresses::resolveOwner(
 		QString address,
 		Fn<void(AddressOwner)> done,
-		Fn<void()> fail) {
+		Fn<void(bool silent)> fail) {
 	const auto canonical = CanonicalAddress(address);
 	if (canonical.isEmpty() || unavailable()) {
 		if (done) {
@@ -241,7 +241,7 @@ void UserAddresses::resolveOwner(
 		if (user && user->gramAddress() != canonical) {
 			user->setGramAddress(canonical);
 		}
-		finishOwner(canonical, std::move(owner), true);
+		finishOwner(canonical, std::move(owner), true, false);
 	}).fail([=](const MTP::Error &error) {
 		const auto unavailable = (error.type() == u"WALLET_UNAVAILABLE"_q);
 		if (unavailable) {
@@ -252,7 +252,8 @@ void UserAddresses::resolveOwner(
 		finishOwner(
 			canonical,
 			unavailable ? std::make_optional(AddressOwner()) : std::nullopt,
-			false);
+			false,
+			MTP::IgnoreError(error));
 	}).send();
 }
 
@@ -359,7 +360,8 @@ void UserAddresses::rememberKeys(const QVector<MTPWalletUserAddress> &reply) {
 void UserAddresses::finishOwner(
 		const QString &address,
 		std::optional<AddressOwner> owner,
-		bool cache) {
+		bool cache,
+		bool silent) {
 	_ownerRequested.remove(address);
 	if (owner && cache) {
 		_owners.emplace(address, *owner);
@@ -377,7 +379,7 @@ void UserAddresses::finishOwner(
 		if (owner && waiter.done) {
 			waiter.done(*owner);
 		} else if (!owner && waiter.fail) {
-			waiter.fail();
+			waiter.fail(silent);
 		}
 	}
 }
