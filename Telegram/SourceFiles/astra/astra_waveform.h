@@ -1,3 +1,4 @@
+// Astra UI module.
 /*
 Astra UI — waveform scrubber widget ("Sound Glass" player).
 Part of the Astra UI redesign for this Telegram Desktop fork.
