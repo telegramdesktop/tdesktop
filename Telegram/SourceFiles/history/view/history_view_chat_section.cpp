@@ -75,6 +75,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/send_files_box.h"
 #include "boxes/premium_limits_box.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
+#include "window/notifications_manager.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
@@ -849,6 +850,7 @@ ChatWidget::ChatWidget(
 	}
 
 	setupTopicViewer();
+	setupInChatSounds();
 	setupComposeControls();
 	setupSwipeReplyAndBack();
 
@@ -5160,6 +5162,44 @@ void ChatWidget::listMarkReadTill(not_null<HistoryItem*> item) {
 	}
 }
 
+void ChatWidget::setupInChatSounds() {
+	_history->owner().itemIdChanged(
+	) | rpl::on_next([=](const Data::Session::IdChange &change) {
+		playOutgoingInChatSound(change.newId, change.oldId);
+	}, lifetime());
+}
+
+void ChatWidget::playIncomingInChatSound(not_null<HistoryItem*> item) {
+	if (item->isSilent()
+		|| _composeControls->isRecording()
+		|| session().data().notifySettings().isMuted(
+			item->notificationThread())) {
+		return;
+	}
+	Core::App().notifications().playInChatSound(
+		Window::Notifications::InChatSound::Incoming);
+}
+
+void ChatWidget::playOutgoingInChatSound(FullMsgId newId, MsgId oldId) {
+	if (isHidden()
+		|| _composeControls->isRecording()
+		|| !IsClientMsgId(oldId)) {
+		return;
+	}
+	const auto item = _history->owner().message(newId);
+	if (!item
+		|| (item->history() != _history)
+		|| !item->out()
+		|| item->isSilent()
+		|| item->isScheduled()
+		|| (_repliesRootId && !item->inThread(_repliesRootId))
+		|| (_sublist && item->savedSublist() != _sublist)) {
+		return;
+	}
+	Core::App().notifications().playInChatSound(
+		Window::Notifications::InChatSound::Outgoing);
+}
+
 void ChatWidget::listItemsAddedToEnd(
 		const std::vector<not_null<Element*>> &items,
 		int addedCount) {
@@ -5184,12 +5224,14 @@ void ChatWidget::listItemsAddedToEnd(
 	if (!readTill) {
 		return;
 	}
+	playIncomingInChatSound(readTill);
 	if (readTill->isUnreadMention() && !readTill->isUnreadMedia()) {
 		session().api().markContentsRead(readTill);
 	}
 	if (_replies || _sublist) {
 		readTill->markClientSideAsRead();
 		listMarkReadTill(readTill);
+		Core::App().notifications().clearIncomingFromItem(readTill);
 	} else {
 		_inner->clearUnreadBar();
 		session().data().histories().readInboxOnNewMessage(readTill);
