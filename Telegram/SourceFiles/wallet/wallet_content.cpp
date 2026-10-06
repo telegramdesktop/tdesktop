@@ -6012,6 +6012,7 @@ bool RecentMoneyRecipientsController::canOffer(
 		not_null<UserData*> user) const {
 	return active()
 		&& &user->session() == _session.get()
+		&& !user->isSelf() // the list a Clear leaves behind
 		&& SendableUser(_session.get(), peerToUser(user->id)) == user;
 }
 
