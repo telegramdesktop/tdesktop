@@ -237,6 +237,7 @@ struct CardTransition {
 	Wallet::CardBackground background;
 	crl::time started = 0;
 	int wordsTextWidth = 0;
+	bool fastStarted = false;
 };
 
 struct SendingClock {
@@ -1178,7 +1179,6 @@ void GramTransferCardPart::startFastMark() const {
 		_transition->fast = nullptr;
 		return;
 	}
-	fast->animate(nullptr, 0, fast->framesCount() - 1);
 	_mark->jumpTo(0, nullptr);
 }
 
@@ -1836,6 +1836,12 @@ void GramTransferCardPart::draw(
 			// The white diamond's last frame leads into frame 0, its rest.
 			_mark->jumpTo(0, repaint);
 		}
+	}
+	if (_transition && _transition->fast && !_transition->fastStarted) {
+		// Started by its first paint, so no tick can render frame 1 first.
+		_transition->fastStarted = true;
+		const auto fast = _transition->fast.get();
+		fast->animate(nullptr, 0, fast->framesCount() - 1);
 	}
 	const auto mark = markPaintRect();
 	const auto icon = (_transition && PlayingFast(*_transition))
