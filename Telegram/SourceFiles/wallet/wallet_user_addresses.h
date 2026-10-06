@@ -67,7 +67,7 @@ public:
 	// WALLET_BALANCE_EMPTY. Invalid replies fail with WALLET_ADDRESS_INVALID;
 	// RPC failures retain their type and silent disposition and are terminal.
 	// Only a validated nonempty canonical address reaches |done|, after it
-	// is published through known(). Earlier passive lookups cannot overwrite it.
+	// is published through known(); no older reply overwrites a newer one.
 	// Failure preserves the store and carries no destination.
 	// Destruction retires pending requests without running either callback.
 	void forceResolve(

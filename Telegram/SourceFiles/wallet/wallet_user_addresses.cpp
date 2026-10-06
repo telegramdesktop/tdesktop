@@ -142,11 +142,17 @@ void UserAddresses::forceResolve(
 		if (address.isEmpty()) {
 			refuse({ .type = u"WALLET_ADDRESS_INVALID"_q });
 			return;
+		} else if (answerIsNewest(id, serial)) {
+			user->setGramAddress(address);
+			noteAnswer(id, serial);
 		}
-		user->setGramAddress(address);
-		noteAnswer(id, serial);
-		if (done) {
-			done(address);
+		// A stale reply answers with the newer address it lost to.
+		const auto current = user->gramAddress().value_or(QString());
+		if (current.isEmpty()) {
+			refuse({ .type = u"WALLET_ADDRESS_INVALID"_q });
+			return;
+		} else if (done) {
+			done(current);
 		}
 	}).fail([=](const MTP::Error &error) {
 		if (error.type() == u"WALLET_UNAVAILABLE"_q) {
