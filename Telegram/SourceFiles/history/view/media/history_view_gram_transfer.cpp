@@ -200,6 +200,15 @@ struct RibbonGeometry {
 	};
 }
 
+[[nodiscard]] std::unique_ptr<Lottie::Icon> MakeCardMark(
+		const QString &name) {
+	const auto size = st::walletChatCardMarkPaintSize;
+	return Lottie::MakeIcon({
+		.name = name,
+		.sizeOverride = { size, size },
+	});
+}
+
 struct SettleSpin {
 	float64 from = 0.;
 	float64 turn = 0.;
@@ -207,7 +216,6 @@ struct SettleSpin {
 };
 
 struct ReadRoll {
-	Wallet::GlareCycle glare;
 	GramReadLine::Turn turn;
 	crl::time started = 0;
 	float64 angle = 0.;
@@ -217,9 +225,11 @@ struct ReadRoll {
 // Lives from a read or the end of the sending look until its settle is over.
 struct CardTransition {
 	Ui::Animations::Basic animation;
+	Wallet::GlareCycle glare;
 	Wallet::ClockPose pose;
 	SettleSpin spin;
 	std::unique_ptr<Ui::StarBurst> burst;
+	std::unique_ptr<Lottie::Icon> fast;
 	std::optional<ReadRoll> read;
 	QString toText;
 	QImage toWord;
@@ -233,9 +243,18 @@ struct SendingClock {
 	Ui::Animations::Basic animation;
 	Wallet::GlareCycle glare;
 	Wallet::CardBackground background;
+	std::unique_ptr<Lottie::Icon> spare;
+	std::unique_ptr<Lottie::Icon> fast;
 	crl::time started = 0;
+	crl::time loopStarted = 0;
+	crl::time settleAt = 0;
 	float64 angle = 0.;
+	int loop = 0;
 };
+
+[[nodiscard]] bool PlayingFast(const CardTransition &transition) {
+	return transition.fast && transition.fast->animating();
+}
 
 [[nodiscard]] float64 SendingAngle(float64 from, crl::time elapsed) {
 	return from + kSendingSpeed * elapsed / 1000.;
@@ -266,6 +285,28 @@ struct SendingClock {
 		1.);
 	return spin.from
 		+ (spin.turn + target - spin.target) * anim::easeOutCubic(1., progress);
+}
+
+[[nodiscard]] int64 LoopPosition(
+		not_null<Lottie::Icon*> icon,
+		crl::time started,
+		crl::time now) {
+	const auto elapsed = std::max(now - started, crl::time(0));
+	return int64(base::SafeRound(elapsed * icon->frameRate() / 1000.));
+}
+
+[[nodiscard]] crl::time NextLoopStart(
+		not_null<Lottie::Icon*> icon,
+		crl::time started,
+		crl::time now) {
+	const auto frames = icon->framesCount();
+	const auto rate = icon->frameRate();
+	const auto position = LoopPosition(icon, started, now);
+	if (frames < 1 || rate < 1. || !(position % frames)) {
+		return now;
+	}
+	const auto next = (position / frames + 1) * frames;
+	return started + crl::time(std::ceil((next - 0.5) * 1000. / rate));
 }
 
 [[nodiscard]] Ui::StarBurstDescriptor CardBurstDescriptor() {
@@ -361,7 +402,8 @@ private:
 
 	[[nodiscard]] int resolveLayout(int outerWidth);
 	[[nodiscard]] bool sending() const;
-	[[nodiscard]] bool waitingForPass(crl::time now) const;
+	[[nodiscard]] bool looping() const;
+	[[nodiscard]] bool waitingForLoop(crl::time now) const;
 	[[nodiscard]] bool sendingLook(crl::time now) const;
 	[[nodiscard]] std::optional<Wallet::GlareBand> glarePass(
 		crl::time now) const;
@@ -388,6 +430,9 @@ private:
 	void validateMark() const;
 	[[nodiscard]] QRect markPaintRect() const;
 	void validateClock(crl::time now) const;
+	void validateLoop(crl::time now, bool paused) const;
+	void advanceLoop(crl::time now) const;
+	void startFastMark() const;
 	void validateBadge() const;
 	void validateAngle(
 		QPainter &p,
@@ -1084,7 +1129,7 @@ void GramTransferCardPart::validateRead(
 		// line keeps its order and spacing for a card off screen then.
 		read.started = read.turn.at;
 		read.angle = _angle->value(frame);
-		read.glare.tick(read.started, kGlareDuration, kGlareTimeout);
+		_transition->glare.tick(read.started, kGlareDuration, kGlareTimeout);
 		_transition->started = read.started + kReadRollDuration;
 		animateTransition();
 	}
@@ -1115,6 +1160,7 @@ void GramTransferCardPart::startReveal(
 	_transition = std::make_unique<CardTransition>();
 	_transition->pose = Wallet::SendingClockPose(now - clock.started);
 	_transition->started = now;
+	_transition->glare = clock.glare; // never ticked: the pass ends, none starts
 	_transition->spin = StartSpin(
 		SendingAngle(clock.angle, now - clock.started),
 		_angle ? _angle->value(now) : 0.);
@@ -1126,11 +1172,33 @@ void GramTransferCardPart::startReveal(
 	animateTransition();
 }
 
+void GramTransferCardPart::startFastMark() const {
+	const auto fast = _transition->fast.get();
+	if (!fast || !fast->valid()) {
+		_transition->fast = nullptr;
+		return;
+	}
+	fast->animate(nullptr, 0, fast->framesCount() - 1);
+	_mark->jumpTo(0, nullptr);
+}
+
 void GramTransferCardPart::validateReveal(crl::time now) const {
-	if (!_clock || _layout.sending || sending() || waitingForPass(now)) {
+	if (!_clock || sending()) {
+		return;
+	} else if (!_clock->settleAt) {
+		_clock->settleAt = looping()
+			? NextLoopStart(_mark.get(), _clock->loopStarted, now)
+			: now;
+	}
+	if (_layout.sending || waitingForLoop(now)) {
 		return;
 	} else if (!_transition && !anim::Disabled()) {
+		const auto boundary = looping();
 		startReveal(*_clock, now);
+		if (boundary) {
+			_transition->fast = std::move(_clock->fast);
+			startFastMark();
+		}
 	}
 	_clock = nullptr;
 }
@@ -1158,7 +1226,8 @@ void GramTransferCardPart::animateTransition() const {
 bool GramTransferCardPart::transitionFinished(crl::time now) const {
 	return !_transition
 		|| (!holding()
-			&& now >= _transition->started + kTransitionDuration);
+			&& now >= _transition->started + kTransitionDuration
+			&& !PlayingFast(*_transition));
 }
 
 Media::BubbleRoll GramTransferCardPart::bubbleRoll(QSize outer) const {
@@ -1321,11 +1390,7 @@ void GramTransferCardPart::validateMark() const {
 	if (_mark) {
 		return;
 	}
-	const auto size = st::walletChatCardMarkPaintSize;
-	_mark = Lottie::MakeIcon({
-		.name = u"gram_white"_q,
-		.sizeOverride = { size, size },
-	});
+	_mark = MakeCardMark(u"gram_white"_q);
 	if (const auto view = _origin.view.get()) {
 		view->history()->owner().registerHeavyViewPart(view);
 	}
@@ -1349,30 +1414,35 @@ bool GramTransferCardPart::sending() const {
 		&& view->data()->isSending();
 }
 
-bool GramTransferCardPart::waitingForPass(crl::time now) const {
-	return _clock
-		&& !_transition
-		&& !sending()
-		&& !anim::Disabled()
+bool GramTransferCardPart::looping() const {
+	return _mark
+		&& _clock
+		&& _clock->loopStarted
 		&& _clock->animation.animating()
-		&& _clock->glare.progress(now).has_value();
+		&& !anim::Disabled()
+		&& !On(PowerSaving::kStickersChat);
+}
+
+bool GramTransferCardPart::waitingForLoop(crl::time now) const {
+	return !_transition
+		&& !sending()
+		&& looping()
+		&& (now < _clock->settleAt);
 }
 
 bool GramTransferCardPart::sendingLook(crl::time now) const {
-	return _layout.sending || waitingForPass(now);
+	return _layout.sending || waitingForLoop(now);
 }
 
 void GramTransferCardPart::validateClock(crl::time now) const {
-	if (waitingForPass(now)) {
+	if (waitingForLoop(now)) {
 		return;
 	} else if (!_layout.sending) {
 		_clock = nullptr;
 		return;
 	} else if (!sending()) {
-		// A card that stopped sending must not resume its glare pass later.
 		if (_clock) {
 			_clock->animation.stop();
-			_clock->glare = {};
 		}
 		return;
 	} else if (_clock) {
@@ -1396,29 +1466,70 @@ void GramTransferCardPart::attachClock() const {
 		if (!strong || !strong->_clock) {
 			return false;
 		}
-		const auto sendingNow = strong->sending();
-		if (sendingNow) {
-			strong->_clock->glare.tick(now, kGlareDuration, kGlareTimeout);
-		}
-		if (const auto view = strong->_origin.view.get()) {
-			view->repaint();
-		}
-		if (sendingNow || strong->waitingForPass(now)) {
-			return !anim::Disabled();
-		}
 		// WHY: settling drops the clock and this animation with it;
 		// Basic::call runs a copy of this callback, so returning is safe
 		// but nothing below may touch the clock.
 		strong->validateReveal(now);
-		return false;
+		const auto clock = strong->_clock.get();
+		if (clock) {
+			clock->glare.tick(now, kGlareDuration, kGlareTimeout);
+			strong->advanceLoop(now);
+		}
+		if (const auto view = strong->_origin.view.get()) {
+			view->repaint();
+		}
+		return clock && !anim::Disabled();
 	});
 	_clock->animation.start();
 }
 
+void GramTransferCardPart::validateLoop(
+		crl::time now,
+		bool paused) const {
+	auto &clock = *_clock;
+	if (paused) {
+		clock.loopStarted = 0;
+	} else if (!clock.loopStarted
+		&& sending()
+		&& clock.animation.animating()) {
+		clock.loopStarted = now;
+		clock.loop = 0;
+		_markStarted = true;
+		if (!clock.spare) {
+			clock.spare = MakeCardMark(u"gram_white"_q);
+		}
+		if (!clock.fast) {
+			clock.fast = MakeCardMark(u"gram_white_fast"_q);
+		}
+	}
+	advanceLoop(now);
+}
+
+// WHY: the loop is the frame of the time since it started, so a card that
+// replaces this one keeps its phase; each wrap paints the spare already on
+// frame 0, as one icon jumped back from its last frame repaints a stale one.
+void GramTransferCardPart::advanceLoop(crl::time now) const {
+	if (!looping()) {
+		return;
+	}
+	auto &clock = *_clock;
+	const auto frames = _mark->framesCount();
+	const auto position = LoopPosition(_mark.get(), clock.loopStarted, now);
+	const auto loop = int(position / frames);
+	if (loop != clock.loop) {
+		clock.loop = loop;
+		std::swap(_mark, clock.spare);
+	}
+	_mark->jumpTo(int(position % frames), nullptr);
+	if (loop > 0) {
+		clock.spare->jumpTo(0, nullptr);
+	}
+}
+
 std::optional<Wallet::GlareBand> GramTransferCardPart::glarePass(
 		crl::time now) const {
-	const auto cycle = (_transition && _transition->read)
-		? &_transition->read->glare
+	const auto cycle = _transition
+		? &_transition->glare
 		: (_clock && sendingLook(now))
 		? &_clock->glare
 		: nullptr;
@@ -1684,6 +1795,7 @@ void GramTransferCardPart::draw(
 		}
 	}
 	const auto still = context.paused || anim::Disabled();
+	const auto look = sendingLook(now);
 	p.save();
 	auto hq = PainterHighQualityEnabler(p);
 	const auto outer = QRect(0, 0, width(), height());
@@ -1709,22 +1821,27 @@ void GramTransferCardPart::draw(
 		const auto paused = context.paused
 			|| anim::Disabled()
 			|| On(PowerSaving::kStickersChat);
-		const auto again = sending() && !_mark->animating();
 		const auto repaint = [view = _origin.view] {
 			if (const auto strong = view.get()) {
 				strong->repaint();
 			}
 		};
-		if (!paused && (!_markStarted || again)) {
+		if (_clock) {
+			validateLoop(now, paused);
+		} else if (!paused && !_markStarted) {
 			_markStarted = true;
 			_mark->animate(repaint, 0, _mark->framesCount() - 1);
-		} else if (!_mark->animating() && _mark->frameIndex() != 0) {
+		}
+		if (!looping() && !_mark->animating() && _mark->frameIndex() != 0) {
 			// The white diamond's last frame leads into frame 0, its rest.
 			_mark->jumpTo(0, repaint);
 		}
 	}
 	const auto mark = markPaintRect();
-	_mark->paint(p, mark.x(), mark.y());
+	const auto icon = (_transition && PlayingFast(*_transition))
+		? _transition->fast.get()
+		: _mark.get();
+	icon->paint(p, mark.x(), mark.y());
 	const auto amountTopLeft = QPointF(
 		(cardWidth - _amount.size().width()) / 2.,
 		_layout.amountTop);
@@ -1774,7 +1891,7 @@ void GramTransferCardPart::draw(
 			line);
 		top += addressFont->height;
 	}
-	if (sendingLook(now)) {
+	if (look) {
 		paintSendingClock(p, now);
 	} else if (!rolling(now)) {
 		if (_transition && now < _transition->started + kRevealDuration) {
