@@ -97,6 +97,26 @@ constexpr auto kMinWidthAppearDuration = crl::time(160);
 	return line.left + line.width;
 }
 
+// WHY: plain text keeps the quote verticalSkip between its text rect and a
+// pre / blockquote frame, and visual media keep the media skip above them.
+[[nodiscard]] int RichPageEdgeSkip(
+		Iv::Markdown::MarkdownArticleEdgeBlock block,
+		bool top) {
+	using Block = Iv::Markdown::MarkdownArticleEdgeBlock;
+	switch (block) {
+	case Block::None:
+	case Block::Line:
+		return 0;
+	case Block::CodeFrame:
+		return st::messageTextStyle.pre.verticalSkip;
+	case Block::QuoteFrame:
+		return st::messageTextStyle.blockquote.verticalSkip;
+	case Block::VisualMedia:
+		return top ? st::mediaInBubbleSkip : 0;
+	}
+	Unexpected("Edge block in RichPageEdgeSkip.");
+}
+
 using PreparedLink = Iv::Markdown::PreparedLink;
 using PreparedLinkKind = Iv::Markdown::PreparedLinkKind;
 using MediaActivation = Iv::Markdown::MediaActivation;
@@ -614,6 +634,16 @@ HistoryMessageRichPage::HistoryMessageRichPage()
 , article(st::messageMarkdown) {
 }
 
+QMargins HistoryMessageRichPage::edgeSkips() const {
+	const auto edges = article.edgeBlocks();
+	return {
+		0,
+		RichPageEdgeSkip(edges.top, true),
+		0,
+		RichPageEdgeSkip(edges.bottom, false),
+	};
+}
+
 void Message::setInstantViewMediaRuntime(QString pageUrl) {
 	Expects(Has<InstantViewMediaRuntime>()
 		|| !Has<HistoryMessageRichPage>());
@@ -759,7 +789,9 @@ void Message::activateRichPagePreparedLink(
 }
 
 QRect Message::richPageRect(QRect trect) const {
-	trect.setTop(trect.top() + st::mediaInBubbleSkip);
+	Expects(hasRichPage());
+
+	trect.setTop(trect.top() + richpage()->edgeSkips().top());
 	return trect.marginsAdded(
 		{ st::msgPadding.left(), 0, st::msgPadding.right(), 0 });
 }
@@ -1403,6 +1435,7 @@ QSize Message::performCountOptimalSize() {
 	if (ephemeralBadge) {
 		ephemeralBadge->init(this);
 	}
+	updateRichPageInBubbleState();
 
 	auto maxWidth = 0;
 	auto minHeight = 0;
@@ -3158,7 +3191,7 @@ void Message::paintRichText(
 			0,
 			0,
 			rect.width(),
-			shownHeight));
+			std::max(shownHeight - rich->edgeSkips().top(), 0)));
 	}
 	rich->article.setVisibleTopBottom(
 		std::clamp(viewportClip.top(), 0, rect.height()),
@@ -6349,6 +6382,38 @@ void Message::updateMediaInBubbleState() {
 	media->setInBubbleState(state);
 }
 
+void Message::updateRichPageInBubbleState() {
+	const auto rich = richpage();
+	if (!rich) {
+		return;
+	}
+	const auto item = data();
+	const auto media = this->media();
+	const auto mediaDisplayed = media && media->isDisplayed();
+	const auto badge = Get<EphemeralBadge>();
+	const auto somethingAbove = displayFromName()
+		|| (badge && badge->height > 0)
+		|| displayedTopicButton()
+		|| displayForwardedFrom()
+		|| item->Has<HistoryMessageVia>()
+		|| Has<Reply>()
+		|| Has<SummaryHeader>()
+		|| Has<FakeBotAboutTop>()
+		|| (mediaDisplayed && _invertMedia);
+	const auto somethingBelow = (_reactions && embedReactionsInBubble())
+		|| item->repliesAreComments()
+		|| item->externalReply()
+		|| (_viewButton != nullptr)
+		|| factcheckBlock()
+		|| logEntryOriginal()
+		|| (mediaDisplayed && !_invertMedia);
+	const auto bubble = drawBubble();
+	rich->article.setBubbleEdges({
+		.top = bubble && !somethingAbove,
+		.bottom = bubble && !somethingBelow,
+	});
+}
+
 void Message::fromNameUpdated(int width) const {
 	const auto item = data();
 	if (Has<RightBadge>()) {
@@ -6903,6 +6968,18 @@ bool Message::textAppearCheckLine() {
 						.baseline = height,
 					});
 				}
+			} else {
+				// Reveal heights are text-area based, article lines are not.
+				const auto skips = rich->edgeSkips();
+				for (auto &line : appearing->lines) {
+					line.bottom += skips.top();
+				}
+				auto &last = appearing->lines.back();
+				last.bottom = std::max(
+					last.bottom,
+					(skips.top()
+						+ rich->article.resizeGetHeight(articleWidth)
+						+ skips.bottom()));
 			}
 		} else {
 			appearing->lines = text().countLinesGeometry(

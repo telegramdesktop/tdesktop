@@ -373,6 +373,24 @@ struct MarkdownArticleMediaGeometry {
 	int activeItemIndex = -1;
 };
 
+struct MarkdownArticleBubbleEdges {
+	bool top = false;
+	bool bottom = false;
+};
+
+enum class MarkdownArticleEdgeBlock : uchar {
+	None,
+	Line,
+	CodeFrame,
+	QuoteFrame,
+	VisualMedia,
+};
+
+struct MarkdownArticleEdgeBlocks {
+	MarkdownArticleEdgeBlock top = MarkdownArticleEdgeBlock::None;
+	MarkdownArticleEdgeBlock bottom = MarkdownArticleEdgeBlock::None;
+};
+
 class MarkdownArticle {
 public:
 	MarkdownArticle(
@@ -492,6 +510,9 @@ public:
 	[[nodiscard]] std::vector<QRect> buttonRowControlRects() const;
 	[[nodiscard]] std::vector<QRect> unsupportedNoticeRects() const;
 	[[nodiscard]] bool hasUnsupportedNotices() const;
+	void setBubbleEdges(MarkdownArticleBubbleEdges edges);
+	[[nodiscard]] MarkdownArticleBubbleEdges bubbleEdges() const;
+	[[nodiscard]] MarkdownArticleEdgeBlocks edgeBlocks() const;
 	void setGroupedActiveIndex(
 		const PreparedEditBlockSource &source,
 		int index);

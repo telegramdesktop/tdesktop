@@ -2088,6 +2088,66 @@ void CollectUnsupportedNoticeRects(
 	return false;
 }
 
+[[nodiscard]] MarkdownArticleEdgeBlock EdgeBlockOf(
+		const PreparedBlock &block,
+		bool top) {
+	switch (block.kind) {
+	case PreparedBlockKind::Photo:
+	case PreparedBlockKind::Video:
+	case PreparedBlockKind::Map:
+	case PreparedBlockKind::GroupedMedia:
+		return MarkdownArticleEdgeBlock::VisualMedia;
+	case PreparedBlockKind::CodeBlock:
+		return MarkdownArticleEdgeBlock::CodeFrame;
+	case PreparedBlockKind::Quote:
+		return MarkdownArticleEdgeBlock::QuoteFrame;
+	case PreparedBlockKind::Table: {
+		const auto captionOnly = block.tableRows.empty()
+			|| (block.tableColumnCount <= 0);
+		const auto hasTitle = !block.text.text.isEmpty()
+			|| block.forceTextSegment;
+		return (captionOnly || (top && hasTitle))
+			? MarkdownArticleEdgeBlock::Line
+			: MarkdownArticleEdgeBlock::QuoteFrame;
+	}
+	case PreparedBlockKind::Paragraph:
+	case PreparedBlockKind::Thinking:
+	case PreparedBlockKind::Heading:
+	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
+	case PreparedBlockKind::List:
+	case PreparedBlockKind::ListItem:
+	case PreparedBlockKind::DisplayMath:
+	case PreparedBlockKind::Details:
+	case PreparedBlockKind::Document:
+	case PreparedBlockKind::Channel:
+	case PreparedBlockKind::RelatedArticle:
+	case PreparedBlockKind::EmbedPost:
+	case PreparedBlockKind::Placeholder:
+		return MarkdownArticleEdgeBlock::Line;
+	}
+	Unexpected("Block kind in EdgeBlockOf.");
+}
+
+[[nodiscard]] MarkdownArticleEdgeBlocks CollectEdgeBlocks(
+		const std::vector<PreparedBlock> &blocks) {
+	const auto visible = [](const PreparedBlock &block) {
+		return !IsAnchorOnlyBlock(block);
+	};
+	const auto first = ranges::find_if(blocks, visible);
+	if (first == blocks.end()) {
+		return {};
+	}
+	const auto last = ranges::find_if(
+		blocks.rbegin(),
+		blocks.rend(),
+		visible);
+	return {
+		.top = EdgeBlockOf(*first, true),
+		.bottom = EdgeBlockOf(*last, false),
+	};
+}
+
 [[nodiscard]] PreparedEditHit EditFallbackHitForBlock(
 		const LaidOutBlock &block) {
 	if (block.editListItem) {
@@ -3861,6 +3921,9 @@ public:
 	[[nodiscard]] std::vector<QRect> buttonRowControlRects() const;
 	[[nodiscard]] std::vector<QRect> unsupportedNoticeRects() const;
 	[[nodiscard]] bool hasUnsupportedNotices() const;
+	void setBubbleEdges(MarkdownArticleBubbleEdges edges);
+	[[nodiscard]] MarkdownArticleBubbleEdges bubbleEdges() const;
+	[[nodiscard]] MarkdownArticleEdgeBlocks edgeBlocks() const;
 	void setGroupedActiveIndex(
 		const PreparedEditBlockSource &source,
 		int index);
@@ -4231,6 +4294,7 @@ private:
 	bool _editableTextEmptyOverride = true;
 	int _editableHeightOverrideIndex = -1;
 	int _editableHeightOverride = 0;
+	MarkdownArticleBubbleEdges _bubbleEdges;
 	bool _blocksPainted = false;
 
 };
@@ -4772,6 +4836,19 @@ std::vector<QRect> MarkdownArticle::Impl::unsupportedNoticeRects() const {
 
 bool MarkdownArticle::Impl::hasUnsupportedNotices() const {
 	return PreparedBlocksHaveUnsupportedNotices(_content.blocks.blocks);
+}
+
+void MarkdownArticle::Impl::setBubbleEdges(
+		MarkdownArticleBubbleEdges edges) {
+	_bubbleEdges = edges;
+}
+
+MarkdownArticleBubbleEdges MarkdownArticle::Impl::bubbleEdges() const {
+	return _bubbleEdges;
+}
+
+MarkdownArticleEdgeBlocks MarkdownArticle::Impl::edgeBlocks() const {
+	return CollectEdgeBlocks(_content.blocks.blocks);
 }
 
 void MarkdownArticle::Impl::setGroupedActiveIndex(
@@ -7164,6 +7241,18 @@ std::vector<QRect> MarkdownArticle::unsupportedNoticeRects() const {
 
 bool MarkdownArticle::hasUnsupportedNotices() const {
 	return _impl->hasUnsupportedNotices();
+}
+
+void MarkdownArticle::setBubbleEdges(MarkdownArticleBubbleEdges edges) {
+	_impl->setBubbleEdges(edges);
+}
+
+MarkdownArticleBubbleEdges MarkdownArticle::bubbleEdges() const {
+	return _impl->bubbleEdges();
+}
+
+MarkdownArticleEdgeBlocks MarkdownArticle::edgeBlocks() const {
+	return _impl->edgeBlocks();
 }
 
 void MarkdownArticle::setGroupedActiveIndex(

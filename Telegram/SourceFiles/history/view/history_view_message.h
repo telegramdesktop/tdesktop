@@ -83,6 +83,7 @@ struct InstantViewMediaRuntime
 struct HistoryMessageRichPage
 : RuntimeComponent<HistoryMessageRichPage, Element> {
 	HistoryMessageRichPage();
+	[[nodiscard]] QMargins edgeSkips() const;
 
 	struct Host final : Iv::Markdown::MediaBlockHost {
 		base::weak_ptr<Message> owner;
@@ -445,6 +446,7 @@ private:
 		StateRequest request) const;
 
 	void updateMediaInBubbleState();
+	void updateRichPageInBubbleState();
 	QRect countGeometry() const;
 	[[nodiscard]] Ui::BubbleRounding countMessageRounding() const;
 	[[nodiscard]] Ui::BubbleRounding countBubbleRounding(
