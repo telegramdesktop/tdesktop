@@ -4004,6 +4004,50 @@ void ListWidget::validateTrippleClickStartTime() {
 }
 
 void ListWidget::contextMenuEvent(QContextMenuEvent *e) {
+	// A keyboard-invoked event carries the center of an empty input method
+	// rect for a position, which may sit nowhere near the focused message -
+	// rebuild the event anchored on it, so everything in showContextMenu
+	// reading the event position (the menu, the reactions selector) lands
+	// on the message.
+	if (e->reason() == QContextMenuEvent::Keyboard
+		&& _accessibilityFocusedItem) {
+		const auto view = viewForItem(_accessibilityFocusedItem);
+		const auto top = view ? itemTop(view) : -1;
+		if (view && top >= 0) {
+			auto rect = QRect(0, top, width(), view->height());
+			const auto visibleArea = [&] {
+				return QRect(
+					0,
+					_visibleTop,
+					width(),
+					_visibleBottom - _visibleTop);
+			};
+			auto visible = visibleArea();
+			if (!rect.intersects(visible)) {
+				// A message scrolled wholly out of view is brought back first:
+				// the menu is placed by the event position, which everything
+				// in showContextMenu reads to find the message, so it has to
+				// be on the message and within the visible list.
+				_delegate->listScrollTo((rect.top() < _visibleTop)
+					? rect.top()
+					: (rect.bottom() - visible.height()));
+				visible = visibleArea();
+			}
+			if (rect.intersects(visible)) {
+				rect = rect.intersected(visible);
+			}
+			const auto global = Ui::ContextMenuPosition(this, e, rect);
+			auto adjusted = QContextMenuEvent(
+				QContextMenuEvent::Keyboard,
+				mapFromGlobal(global),
+				global);
+			showContextMenu(&adjusted);
+			if (adjusted.isAccepted()) {
+				e->accept();
+			}
+			return;
+		}
+	}
 	showContextMenu(e);
 }
 
