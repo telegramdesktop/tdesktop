@@ -257,6 +257,7 @@ struct QuiesceView {
 			MTP_flags(0),
 			MTP_bytes(QByteArray::fromBase64(QByteArray("AQIDBA=="))),
 			MTP_bytes(),
+			MTP_inputUserEmpty(),
 			MTP_long(0x5E1F7E57ULL))),
 		id);
 }

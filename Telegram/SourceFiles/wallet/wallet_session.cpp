@@ -1336,6 +1336,15 @@ void FailShareFetch(
 		: SendError::Failed;
 }
 
+[[nodiscard]] MTPInputUser TransferRecipientInput(
+		not_null<Main::Session*> session,
+		UserId id) {
+	const auto user = id ? session->data().userLoaded(id) : nullptr;
+	return (user && !user->isSelf() && user->accessHash())
+		? MTP_inputUser(MTP_long(id.bare), MTP_long(user->accessHash()))
+		: MTP_inputUserEmpty();
+}
+
 [[nodiscard]] QString RotationErrorToken(const EngineError &error) {
 	if (!error.underlying) {
 		return u"ROTATION_FAILED"_q;
@@ -9646,6 +9655,7 @@ void Session::submitTransfer(
 		MTP_flags(data.gasless ? Flag::f_data_gasless : Flag(0)),
 		MTP_bytes(data.normal),
 		data.gasless ? MTP_bytes(*data.gasless) : MTPbytes(),
+		TransferRecipientInput(_session, prepared->args.userId),
 		MTP_long(randomId)
 	)).done([=, this](const MTPUpdates &result) {
 		const auto account = weakSession;
