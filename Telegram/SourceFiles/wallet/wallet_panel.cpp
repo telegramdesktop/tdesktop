@@ -199,11 +199,6 @@ void OpenSendMoney(
 	if (&user->session() != session || !CanOfferSendMoney(user)) {
 		return;
 	}
-	const auto presence = session->wallet().presenceCurrent();
-	if (presence != Presence::Ready && presence != Presence::Unknown) {
-		ShowWallet(session);
-		return;
-	}
 	const auto weak = base::make_weak(session);
 	ShowSendToUser(
 		controller->uiShow(),

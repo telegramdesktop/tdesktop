@@ -79,10 +79,13 @@ public:
 
 	// WHY: Telegram may withhold the owner while returning usable metadata.
 	// Successful replies, even empty ones, are cached and may answer |done|
-	// synchronously; RPC failures are not cached. |done| runs exactly once.
+	// synchronously; failures are not cached and answer |fail| instead.
 
-	// Destruction retires pending requests without running |done|.
-	void resolveOwner(QString address, Fn<void(AddressOwner)> done);
+	// Destruction retires pending requests without running either.
+	void resolveOwner(
+		QString address,
+		Fn<void(AddressOwner)> done,
+		Fn<void()> fail);
 
 	// The Ed25519 public key Telegram named for |address|, empty when no
 	// answer carried one. A comment encrypts for a key from here without the
@@ -117,14 +120,20 @@ private:
 	void rememberKeys(const QVector<MTPWalletUserAddress> &reply);
 	void finishChunk(const std::shared_ptr<Job> &job);
 	void finish(const std::shared_ptr<Job> &job);
-	void finishOwner(const QString &address, AddressOwner owner, bool cache);
+	void finishOwner(
+		const QString &address,
+		std::optional<AddressOwner> owner);
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
 	rpl::variable<bool> _unavailable = false;
 	base::flat_map<QString, QByteArray> _publicKeys;
 	base::flat_map<QString, AddressOwner> _owners;
-	base::flat_map<QString, std::vector<Fn<void(AddressOwner)>>> _ownerWaiting;
+	struct OwnerWaiter {
+		Fn<void(AddressOwner)> done;
+		Fn<void()> fail;
+	};
+	base::flat_map<QString, std::vector<OwnerWaiter>> _ownerWaiting;
 	base::flat_set<QString> _ownerRequested;
 
 };

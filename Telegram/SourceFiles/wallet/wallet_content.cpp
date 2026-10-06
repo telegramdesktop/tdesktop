@@ -5532,6 +5532,7 @@ enum class RecipientError : uchar {
 	Invalid,
 	NameNotFound,
 	NameFailed,
+	LookupFailed,
 };
 
 [[nodiscard]] rpl::producer<QString> RecipientErrorText(
@@ -5543,6 +5544,8 @@ enum class RecipientError : uchar {
 		return tr::lng_wallet_send_name_not_found();
 	case RecipientError::NameFailed:
 		return tr::lng_wallet_send_name_failed();
+	case RecipientError::LookupFailed:
+		return tr::lng_wallet_send_user_load_error();
 	}
 	Unexpected("RecipientError in RecipientErrorText.");
 }
@@ -8381,6 +8384,108 @@ void WalletSendBox(
 	}
 }
 
+// WHY: an entry point decides about the recipient only from the served
+// wallet state, and only the call that ends the wait acts, so an answer
+// landing after a timeout or a dismissed busy box changes nothing.
+struct SendEntryWait {
+	std::shared_ptr<Main::SessionShow> show;
+	rpl::variable<QString> text;
+	QString timeoutError;
+	Fn<void()> closeBusy;
+	rpl::lifetime lifetime;
+	bool ended = false;
+};
+
+bool EndSendEntryWait(const std::shared_ptr<SendEntryWait> &wait) {
+	if (wait->ended) {
+		return false;
+	}
+	wait->ended = true;
+	wait->lifetime.destroy();
+	if (const auto close = base::take(wait->closeBusy)) {
+		close();
+	}
+	return wait->show->valid();
+}
+
+void FailSendEntryWait(
+		const std::shared_ptr<SendEntryWait> &wait,
+		const QString &error) {
+	if (EndSendEntryWait(wait)) {
+		wait->show->showToast(SendUserLoadErrorText(error));
+	}
+}
+
+[[nodiscard]] std::shared_ptr<SendEntryWait> StartSendEntryWait(
+		std::shared_ptr<Main::SessionShow> show) {
+	const auto session = &show->session();
+	const auto wait = std::make_shared<SendEntryWait>();
+	wait->show = show;
+	wait->text = tr::lng_wallet_send_wallet_loading(tr::now);
+	wait->timeoutError = u"WALLET_NOT_READY"_q;
+	const auto weak = std::weak_ptr<SendEntryWait>(wait);
+	base::call_delayed(kSendOwnerLookupDelay, session, [=] {
+		const auto strong = weak.lock();
+		if (!strong || strong->ended || !show->valid()) {
+			return;
+		}
+		strong->closeBusy = ShowWalletBusyBox(
+			show,
+			strong->text.value(),
+			[=] {
+				if (const auto strong = weak.lock()) {
+					strong->closeBusy = nullptr;
+					EndSendEntryWait(strong);
+				}
+			});
+	});
+	base::call_delayed(kSendUserLoadTimeout, session, [=] {
+		if (const auto strong = weak.lock()) {
+			FailSendEntryWait(strong, strong->timeoutError);
+		}
+	});
+	return wait;
+}
+
+void AwaitWalletReady(
+		const std::shared_ptr<SendEntryWait> &wait,
+		Fn<void()> ready,
+		Fn<void()> notReady = nullptr) {
+	const auto wallet = &wait->show->session().wallet();
+	if (wallet->presence() != Presence::Ready) {
+		wallet->refreshState();
+	}
+	wallet->presenceValue(
+	) | rpl::filter([](Presence presence) {
+		return (presence != Presence::Unknown)
+			&& (presence != Presence::Provisioning);
+	}) | rpl::take(1) | rpl::on_next([=](Presence presence) {
+		if (presence == Presence::Ready) {
+			ready();
+		} else if (notReady) {
+			if (EndSendEntryWait(wait)) {
+				notReady();
+			}
+		} else {
+			FailSendEntryWait(wait, (presence == Presence::Unavailable)
+				? u"WALLET_UNAVAILABLE"_q
+				: u"WALLET_NOT_READY"_q);
+		}
+	}, wait->lifetime);
+}
+
+void WhenWalletReady(
+		std::shared_ptr<Main::SessionShow> show,
+		Fn<void()> ready,
+		Fn<void()> notReady = nullptr) {
+	const auto wait = StartSendEntryWait(std::move(show));
+	AwaitWalletReady(wait, [=] {
+		if (EndSendEntryWait(wait)) {
+			ready();
+		}
+	}, std::move(notReady));
+}
+
 void OpenSendFlow(
 		std::shared_ptr<Main::SessionShow> show,
 		SendFlow flow,
@@ -8416,46 +8521,26 @@ void ResolveOwnerAndOpenSendFlow(
 		std::shared_ptr<Main::SessionShow> show,
 		SendFlow flow) {
 	const auto session = &show->session();
-	if (SendsToOwnWallet(session, flow.destination)) {
-		OpenSendFlow(show, std::move(flow), AddressOwner());
-		return;
-	}
-	struct State {
-		Fn<void()> closeLookup;
-		bool answered = false;
-		bool cancelled = false;
-	};
-	const auto state = std::make_shared<State>();
-	const auto answer = [=](AddressOwner owner) {
-		if (state->answered || state->cancelled) {
+	const auto wait = StartSendEntryWait(show);
+	AwaitWalletReady(wait, [=] {
+		if (SendsToOwnWallet(session, flow.destination)) {
+			if (EndSendEntryWait(wait)) {
+				OpenSendFlow(show, flow, AddressOwner());
+			}
 			return;
 		}
-		state->answered = true;
-		if (const auto close = base::take(state->closeLookup)) {
-			close();
-		}
-		if (show->valid() && &show->session() == session) {
-			OpenSendFlow(show, flow, std::move(owner));
-		}
-	};
-	session->wallet().userAddresses().resolveOwner(
-		flow.destination,
-		crl::guard(session, answer));
-	if (state->answered) {
-		return;
-	}
-	base::call_delayed(kSendOwnerLookupDelay, session, [=] {
-		if (state->answered || state->cancelled || !show->valid()) {
-			return;
-		}
-		state->closeLookup = ShowWalletBusyBox(
-			show,
-			tr::lng_wallet_send_recipient_loading(),
-			[=] { state->cancelled = true; });
-	});
-	// resolveOwner has no deadline of its own.
-	base::call_delayed(kSendUserLoadTimeout, session, [=] {
-		answer(AddressOwner());
+		wait->text = tr::lng_wallet_send_recipient_loading(tr::now);
+		wait->timeoutError = u"WALLET_ADDRESS_INVALID"_q;
+		session->wallet().userAddresses().resolveOwner(
+			flow.destination,
+			crl::guard(session, [=](AddressOwner owner) {
+				if (EndSendEntryWait(wait)) {
+					OpenSendFlow(show, flow, std::move(owner));
+				}
+			}),
+			crl::guard(session, [=] {
+				FailSendEntryWait(wait, u"WALLET_ADDRESS_INVALID"_q);
+			}));
 	});
 }
 
@@ -8555,6 +8640,11 @@ void WalletSendRecipientBox(
 		}
 		OpenSendFlow(show, std::move(flow), std::move(owner), box.get());
 	};
+	const auto failName = [=](RecipientError error) {
+		stop();
+		state->error = error;
+		state->invalid = true;
+	};
 	const auto lookupOwner = [=](SendFlow flow) {
 		if (SendsToOwnWallet(session, flow.destination)) {
 			proceed(flow, AddressOwner());
@@ -8566,18 +8656,19 @@ void WalletSendRecipientBox(
 				proceed(flow, std::move(owner));
 			}
 		};
+		const auto fail = [=] {
+			if (revision == state->revision) {
+				failName(RecipientError::LookupFailed);
+			}
+		};
 		state->resolving = true;
-		state->deadline.setCallback([=] { answer(AddressOwner()); });
+		state->deadline.setCallback(fail);
 		// resolveOwner has no deadline of its own.
 		state->deadline.callOnce(kSendUserLoadTimeout);
 		session->wallet().userAddresses().resolveOwner(
 			flow.destination,
-			crl::guard(session, crl::guard(box, answer)));
-	};
-	const auto failName = [=](RecipientError error) {
-		stop();
-		state->error = error;
-		state->invalid = true;
+			crl::guard(session, crl::guard(box, answer)),
+			crl::guard(session, crl::guard(box, fail)));
 	};
 	const auto resolveName = [=] {
 		const auto revision = ++state->revision;
@@ -13629,8 +13720,10 @@ void Content::setupPinned() {
 	const auto addFunds = addPill(tr::lng_wallet_add_funds(), [=] {
 		ShowWalletReceiveBox(&_show->session(), _show);
 	});
-	const auto send = addPill(tr::lng_send_button(), [=] {
-		_show->showBox(Box(WalletSendRecipientBox, _show, QString()));
+	const auto send = addPill(tr::lng_send_button(), [show = _show] {
+		WhenWalletReady(show, [=] {
+			show->showBox(Box(WalletSendRecipientBox, show, QString()));
+		});
 	});
 	buttons->widthValue(
 	) | rpl::on_next([=](int width) {
@@ -15365,18 +15458,27 @@ void ShowSendToUser(
 		return;
 	}
 	const auto session = &show->session();
-	if (session->data().userLoaded(peerToUser(user->id)) != user) {
+	const auto userId = peerToUser(user->id);
+	if (session->data().userLoaded(userId) != user) {
 		return;
 	}
-	show->showBox(Box(
-		WalletSendBox,
-		show,
-		std::nullopt,
-		user.get(),
-		std::move(sent),
-		std::move(notReady),
-		amountNano,
-		origin));
+	WhenWalletReady(show, [=] {
+		const auto error = session->wallet().userAddresses(
+		).forceResolveError(userId);
+		if (!error.isEmpty() && error != u"WALLET_BALANCE_EMPTY"_q) {
+			show->showToast(SendUserLoadErrorText(error));
+			return;
+		}
+		show->showBox(Box(
+			WalletSendBox,
+			show,
+			std::nullopt,
+			user.get(),
+			sent,
+			notReady,
+			amountNano,
+			origin));
+	}, notReady);
 }
 
 void ShowSendToLinkRecipient(
@@ -15409,7 +15511,7 @@ void ShowSendToLinkRecipient(
 			return;
 		}
 		const auto user = peer ? peer->asUser() : nullptr;
-		if (!user || !CanSendToUser(session, peerToUser(user->id))) {
+		if (!user) {
 			show->showToast(tr::lng_wallet_send_user_unavailable(tr::now));
 			return;
 		}

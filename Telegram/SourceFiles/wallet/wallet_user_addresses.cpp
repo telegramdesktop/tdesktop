@@ -190,11 +190,19 @@ QString UserAddresses::recipientError(UserId id) const {
 	return QString();
 }
 
-void UserAddresses::resolveOwner(QString address, Fn<void(AddressOwner)> done) {
+void UserAddresses::resolveOwner(
+		QString address,
+		Fn<void(AddressOwner)> done,
+		Fn<void()> fail) {
 	const auto canonical = CanonicalAddress(address);
-	if (canonical.isEmpty() || unavailable()) {
+	if (canonical.isEmpty()) {
 		if (done) {
 			done({});
+		}
+		return;
+	} else if (unavailable()) {
+		if (fail) {
+			fail();
 		}
 		return;
 	}
@@ -205,9 +213,10 @@ void UserAddresses::resolveOwner(QString address, Fn<void(AddressOwner)> done) {
 		}
 		return;
 	}
-	if (done) {
-		_ownerWaiting[canonical].push_back(std::move(done));
-	}
+	_ownerWaiting[canonical].push_back({
+		.done = std::move(done),
+		.fail = std::move(fail),
+	});
 	if (!_ownerRequested.emplace(canonical).second) {
 		return;
 	}
@@ -231,14 +240,14 @@ void UserAddresses::resolveOwner(QString address, Fn<void(AddressOwner)> done) {
 				.publicKey = data.vpublic_key().v,
 			};
 		}
-		finishOwner(canonical, std::move(owner), true);
+		finishOwner(canonical, std::move(owner));
 	}).fail([=](const MTP::Error &error) {
 		if (error.type() == u"WALLET_UNAVAILABLE"_q) {
 			_unavailable = true;
 		}
 		LOG(("Wallet Error: wallet.getUserAddresses by address failed: %1"
 			).arg(error.type()));
-		finishOwner(canonical, AddressOwner(), false);
+		finishOwner(canonical, std::nullopt);
 	}).send();
 }
 
@@ -344,11 +353,10 @@ void UserAddresses::rememberKeys(const QVector<MTPWalletUserAddress> &reply) {
 
 void UserAddresses::finishOwner(
 		const QString &address,
-		AddressOwner owner,
-		bool cache) {
+		std::optional<AddressOwner> owner) {
 	_ownerRequested.remove(address);
-	if (cache) {
-		_owners.emplace(address, owner);
+	if (owner) {
+		_owners.emplace(address, *owner);
 	}
 	const auto i = _ownerWaiting.find(address);
 	if (i == end(_ownerWaiting)) {
@@ -359,8 +367,12 @@ void UserAddresses::finishOwner(
 	// answering, so that new one is not dropped with it.
 	auto waiting = std::move(i->second);
 	_ownerWaiting.erase(i);
-	for (const auto &done : waiting) {
-		done(owner);
+	for (const auto &waiter : waiting) {
+		if (owner && waiter.done) {
+			waiter.done(*owner);
+		} else if (!owner && waiter.fail) {
+			waiter.fail();
+		}
 	}
 }
 
