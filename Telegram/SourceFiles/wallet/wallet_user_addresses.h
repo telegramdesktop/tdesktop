@@ -79,7 +79,7 @@ public:
 
 	// WHY: Telegram may withhold the owner while returning usable metadata.
 	// Successful replies, even empty ones, are cached and may answer |done|
-	// synchronously; failures are not cached and answer |fail| instead.
+	// synchronously; an unavailable API answers no owner, a failure |fail|.
 
 	// Destruction retires pending requests without running either.
 	void resolveOwner(
@@ -122,7 +122,8 @@ private:
 	void finish(const std::shared_ptr<Job> &job);
 	void finishOwner(
 		const QString &address,
-		std::optional<AddressOwner> owner);
+		std::optional<AddressOwner> owner,
+		bool cache);
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;

@@ -195,14 +195,9 @@ void UserAddresses::resolveOwner(
 		Fn<void(AddressOwner)> done,
 		Fn<void()> fail) {
 	const auto canonical = CanonicalAddress(address);
-	if (canonical.isEmpty()) {
+	if (canonical.isEmpty() || unavailable()) {
 		if (done) {
 			done({});
-		}
-		return;
-	} else if (unavailable()) {
-		if (fail) {
-			fail();
 		}
 		return;
 	}
@@ -246,14 +241,18 @@ void UserAddresses::resolveOwner(
 		if (user && user->gramAddress() != canonical) {
 			user->setGramAddress(canonical);
 		}
-		finishOwner(canonical, std::move(owner));
+		finishOwner(canonical, std::move(owner), true);
 	}).fail([=](const MTP::Error &error) {
-		if (error.type() == u"WALLET_UNAVAILABLE"_q) {
+		const auto unavailable = (error.type() == u"WALLET_UNAVAILABLE"_q);
+		if (unavailable) {
 			_unavailable = true;
 		}
 		LOG(("Wallet Error: wallet.getUserAddresses by address failed: %1"
 			).arg(error.type()));
-		finishOwner(canonical, std::nullopt);
+		finishOwner(
+			canonical,
+			unavailable ? std::make_optional(AddressOwner()) : std::nullopt,
+			false);
 	}).send();
 }
 
@@ -359,9 +358,10 @@ void UserAddresses::rememberKeys(const QVector<MTPWalletUserAddress> &reply) {
 
 void UserAddresses::finishOwner(
 		const QString &address,
-		std::optional<AddressOwner> owner) {
+		std::optional<AddressOwner> owner,
+		bool cache) {
 	_ownerRequested.remove(address);
-	if (owner) {
+	if (owner && cache) {
 		_owners.emplace(address, *owner);
 	}
 	const auto i = _ownerWaiting.find(address);
