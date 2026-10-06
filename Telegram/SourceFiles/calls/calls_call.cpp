@@ -288,25 +288,6 @@ Call::Call(
 	setupOutgoingVideo();
 }
 
-void Call::generateModExpFirst(bytes::const_span randomSeed) {
-	Expects(!conferenceInvite());
-
-	auto first = MTP::CreateModExp(_dhConfig.g, _dhConfig.p, randomSeed);
-	if (first.modexp.empty()) {
-		LOG(("Call Error: Could not compute mod-exp first."));
-		finish(FinishType::Failed);
-		return;
-	}
-
-	_randomPower = std::move(first.randomPower);
-	if (_type == Type::Incoming) {
-		_gb = std::move(first.modexp);
-	} else {
-		_ga = std::move(first.modexp);
-		_gaHash = openssl::Sha256(_ga);
-	}
-}
-
 bool Call::isIncomingWaiting() const {
 	if (type() != Call::Type::Incoming) {
 		return false;
@@ -324,18 +305,38 @@ void Call::start(bytes::const_span random) {
 	Assert(_dhConfig.g != 0);
 	Assert(!_dhConfig.p.empty());
 
-	generateModExpFirst(random);
-	const auto state = _state.current();
-	if (state == State::Starting || state == State::Requesting) {
-		if (_type == Type::Outgoing) {
-			startOutgoing();
-		} else {
-			startIncoming();
-		}
-	} else if (state == State::ExchangingKeys
-		&& _answerAfterDhConfigReceived) {
-		answer();
-	}
+	const auto g = _dhConfig.g;
+	const auto p = _dhConfig.p;
+	auto randomCopy = bytes::vector(random.begin(), random.end());
+	const auto weak = base::make_weak(this);
+	crl::async([=, randomCopy = std::move(randomCopy)]() mutable {
+		auto first = MTP::CreateModExp(g, p, randomCopy);
+		crl::on_main(weak, [=, first = std::move(first)]() mutable {
+			if (first.modexp.empty()) {
+				LOG(("Call Error: Could not compute mod-exp first."));
+				finish(FinishType::Failed);
+				return;
+			}
+			_randomPower = std::move(first.randomPower);
+			if (_type == Type::Incoming) {
+				_gb = std::move(first.modexp);
+			} else {
+				_ga = std::move(first.modexp);
+				_gaHash = openssl::Sha256(_ga);
+			}
+			const auto state = _state.current();
+			if (state == State::Starting || state == State::Requesting) {
+				if (_type == Type::Outgoing) {
+					startOutgoing();
+				} else {
+					startIncoming();
+				}
+			} else if (state == State::ExchangingKeys
+				&& _answerAfterDhConfigReceived) {
+				answer();
+			}
+		});
+	});
 }
 
 void Call::startOutgoing() {
@@ -855,7 +856,7 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 		if (_type == Type::Incoming
 			&& _state.current() == State::ExchangingKeys
 			&& !_instance) {
-			startConfirmedCall(data);
+			startConfirmedCall(call);
 		}
 	} return true;
 
@@ -999,53 +1000,58 @@ void Call::confirmAcceptedCall(const MTPDphoneCallAccepted &call) {
 		return;
 	}
 
-	const auto firstBytes = bytes::make_span(call.vg_b().v);
-	const auto computedAuthKey = MTP::CreateAuthKey(
-		firstBytes,
-		_randomPower,
-		_dhConfig.p);
-	if (computedAuthKey.empty()) {
-		LOG(("Call Error: Could not compute mod-exp final."));
-		finish(FinishType::Failed);
-		return;
-	}
-
-	MTP::AuthKey::FillData(_authKey, computedAuthKey);
-	_keyFingerprint = ComputeFingerprint(_authKey);
-
 	setState(State::ExchangingKeys);
-	_api.request(MTPphone_ConfirmCall(
-		MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)),
-		MTP_bytes(_ga),
-		MTP_long(_keyFingerprint),
-		MTP_phoneCallProtocol(
-			MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p
-				| MTPDphoneCallProtocol::Flag::f_udp_reflector),
-			MTP_int(kMinLayer),
-			MTP_int(tgcalls::Meta::MaxLayer()),
-			MTP_vector(CollectVersionsForApi()))
-	)).done([=](const MTPphone_PhoneCall &result) {
-		Expects(result.type() == mtpc_phone_phoneCall);
+	auto firstBytesData = bytes::vector(
+		call.vg_b().v.begin(),
+		call.vg_b().v.end());
+	const auto randomPower = _randomPower;
+	const auto prime = _dhConfig.p;
+	const auto weak = base::make_weak(this);
+	crl::async([=, firstBytesData = std::move(firstBytesData)]() mutable {
+		auto key = MTP::CreateAuthKey(firstBytesData, randomPower, prime);
+		crl::on_main(weak, [=, key = std::move(key)]() mutable {
+			if (key.empty()) {
+				LOG(("Call Error: Could not compute mod-exp final."));
+				finish(FinishType::Failed);
+				return;
+			}
+			MTP::AuthKey::FillData(_authKey, key);
+			_keyFingerprint = ComputeFingerprint(_authKey);
+			_api.request(MTPphone_ConfirmCall(
+				MTP_inputPhoneCall(MTP_long(_id), MTP_long(_accessHash)),
+				MTP_bytes(_ga),
+				MTP_long(_keyFingerprint),
+				MTP_phoneCallProtocol(
+					MTP_flags(MTPDphoneCallProtocol::Flag::f_udp_p2p
+						| MTPDphoneCallProtocol::Flag::f_udp_reflector),
+					MTP_int(kMinLayer),
+					MTP_int(tgcalls::Meta::MaxLayer()),
+					MTP_vector(CollectVersionsForApi()))
+			)).done([=](const MTPphone_PhoneCall &result) {
+				Expects(result.type() == mtpc_phone_phoneCall);
 
-		const auto &call = result.c_phone_phoneCall();
-		_user->session().data().processUsers(call.vusers());
-		if (call.vphone_call().type() != mtpc_phoneCall) {
-			LOG(("Call Error: Expected phoneCall in response to "
-				"phone.confirmCall()"));
-			finish(FinishType::Failed);
-			return;
-		}
+				const auto &call = result.c_phone_phoneCall();
+				_user->session().data().processUsers(call.vusers());
+				if (call.vphone_call().type() != mtpc_phoneCall) {
+					LOG(("Call Error: Expected phoneCall in response to "
+						"phone.confirmCall()"));
+					finish(FinishType::Failed);
+					return;
+				}
 
-		createAndStartController(call.vphone_call().c_phoneCall());
-	}).fail([=](const MTP::Error &error) {
-		handleRequestError(error.type());
-	}).send();
+				createAndStartController(call.vphone_call().c_phoneCall());
+			}).fail([=](const MTP::Error &error) {
+				handleRequestError(error.type());
+			}).send();
+		});
+	});
 }
 
-void Call::startConfirmedCall(const MTPDphoneCall &call) {
+void Call::startConfirmedCall(MTPPhoneCall phoneCall) {
 	Expects(_type == Type::Incoming);
 	Expects(!conferenceInvite());
 
+	const auto &call = phoneCall.c_phoneCall();
 	const auto firstBytes = bytes::make_span(call.vg_a_or_b().v);
 	if (_gaHash != openssl::Sha256(firstBytes)) {
 		LOG(("Call Error: Wrong g_a hash received."));
@@ -1054,20 +1060,27 @@ void Call::startConfirmedCall(const MTPDphoneCall &call) {
 	}
 	_ga = bytes::vector(firstBytes.begin(), firstBytes.end());
 
-	const auto computedAuthKey = MTP::CreateAuthKey(
-		firstBytes,
-		_randomPower,
-		_dhConfig.p);
-	if (computedAuthKey.empty()) {
-		LOG(("Call Error: Could not compute mod-exp final."));
-		finish(FinishType::Failed);
-		return;
-	}
-
-	MTP::AuthKey::FillData(_authKey, computedAuthKey);
-	_keyFingerprint = ComputeFingerprint(_authKey);
-
-	createAndStartController(call);
+	auto firstBytesData = bytes::vector(firstBytes.begin(), firstBytes.end());
+	const auto randomPower = _randomPower;
+	const auto prime = _dhConfig.p;
+	const auto weak = base::make_weak(this);
+	crl::async([=,
+			firstBytesData = std::move(firstBytesData),
+			phoneCall = std::move(phoneCall)]() mutable {
+		auto key = MTP::CreateAuthKey(firstBytesData, randomPower, prime);
+		crl::on_main(weak, [=,
+				key = std::move(key),
+				phoneCall = std::move(phoneCall)]() mutable {
+			if (key.empty()) {
+				LOG(("Call Error: Could not compute mod-exp final."));
+				finish(FinishType::Failed);
+				return;
+			}
+			MTP::AuthKey::FillData(_authKey, key);
+			_keyFingerprint = ComputeFingerprint(_authKey);
+			createAndStartController(phoneCall.c_phoneCall());
+		});
+	});
 }
 
 void Call::createAndStartController(const MTPDphoneCall &call) {
