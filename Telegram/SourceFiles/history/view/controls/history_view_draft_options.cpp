@@ -787,6 +787,8 @@ void DraftOptionsBox(
 				object_ptr<Ui::SettingsSlider>(
 					box.get(),
 					st::defaultTabsSlider));
+			state->tabs->setAccessibleName(
+				tr::lng_sr_message_options(tr::now));
 			state->tabs->resizeToWidth(st::boxWideWidth);
 			state->tabs->move(0, 0);
 			state->tabs->setRippleTopRoundRadius(st::boxRadius);

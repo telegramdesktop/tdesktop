@@ -315,6 +315,8 @@ void Credits::setupHistory(not_null<Ui::VerticalLayout*> container) {
 					inner,
 					st::creditsHistoryTabsSlider)),
 			st::creditsHistoryTabsSliderPadding);
+		slider->entity()->setAccessibleName(
+			tr::lng_channel_earn_history_title(tr::now));
 		slider->toggle(!hasOneTab, anim::type::instant);
 		if (!hasOneTab) {
 			const auto shadow = Ui::CreateChild<Ui::RpWidget>(inner);
