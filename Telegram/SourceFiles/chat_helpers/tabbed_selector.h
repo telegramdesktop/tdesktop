@@ -34,6 +34,7 @@ class SettingsSlider;
 class FlatLabel;
 class BoxContent;
 class TabbedSearch;
+class InputField;
 } // namespace Ui
 
 namespace SendMenu {
@@ -77,6 +78,17 @@ struct EmojiChosen {
 	EmojiPtr emoji;
 	Ui::MessageSendingAnimationFrom messageSendingFrom;
 };
+
+// Backspace in the emoji list, while the keyboard keeps the focus in the
+// panel: the host erases what is before the caret of its field and says
+// what it was, so that the list can have it announced.
+struct BackspaceRequest {
+	QString erased;
+};
+
+// Erases the selection of the field, or the character before its caret,
+// and returns the text erased - an emoji as its text, an image as none.
+[[nodiscard]] QString EraseBeforeCursor(not_null<Ui::InputField*> field);
 
 using InlineChosen = InlineBots::ResultSelected;
 
@@ -153,6 +165,12 @@ public:
 	[[nodiscard]] rpl::producer<> photoRequests() const;
 
 	[[nodiscard]] rpl::producer<> cancelled() const;
+	// Whether a chosen emoji goes to this field: the focused one, or the
+	// one the panel was opened from while the keyboard keeps the focus
+	// in the panel.
+	[[nodiscard]] bool emojiChosenFor(not_null<QWidget*> field) const;
+	[[nodiscard]] auto backspaces() const
+		-> rpl::producer<not_null<BackspaceRequest*>>;
 	[[nodiscard]] rpl::producer<> checkForHide() const;
 	[[nodiscard]] rpl::producer<> slideFinished() const;
 	[[nodiscard]] rpl::producer<> contextMenuRequested() const;
