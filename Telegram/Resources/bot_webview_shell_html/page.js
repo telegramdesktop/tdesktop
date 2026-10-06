@@ -811,6 +811,7 @@
 	});
 
 	menuBackdrop.addEventListener('mousedown', closeMenu);
+	window.addEventListener('blur', closeMenu);
 
 	document.addEventListener('mousedown', function(event) {
 		if (!shellState.menuOpen) {
