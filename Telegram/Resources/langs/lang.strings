@@ -148,6 +148,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_status_bot_agent" = "agent";
 "lng_status_bot_ai" = "ai";
 "lng_status_bot_game" = "game";
+"lng_status_bot_gay" = "non-binary";
 "lng_status_bot_reads_all" = "has access to messages";
 "lng_status_bot_not_reads_all" = "has no access to messages";
 "lng_status_offline" = "last seen a long time ago";

@@ -443,6 +443,7 @@ QString BotStatusText(not_null<UserData*> user) {
 		Suffix{ u"agent", tr::lng_status_bot_agent },
 		Suffix{ u"ai", tr::lng_status_bot_ai },
 		Suffix{ u"game", tr::lng_status_bot_game },
+		Suffix{ u"gay", tr::lng_status_bot_gay },
 	};
 	const auto &usernames = user->usernames();
 	if (!usernames.empty()) {
