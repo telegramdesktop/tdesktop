@@ -50,6 +50,7 @@ using Wallet::ProtectionError;
 using namespace winrt::Windows::Security::Credentials;
 
 using winrt::Windows::Foundation::IAsyncAction;
+using winrt::Windows::Foundation::IAsyncInfo;
 using winrt::Windows::Foundation::IAsyncOperation;
 using AsyncStatus = winrt::Windows::Foundation::AsyncStatus;
 using winrt::Windows::Storage::Streams::IBuffer;
@@ -331,9 +332,16 @@ void FocusUnownedPrompt(int attemptsLeft = kPromptFocusAttempts) {
 	return ProtectionError::Unavailable;
 }
 
-[[nodiscard]] ProtectionError ClassifyFailure(AsyncStatus status) {
-	LOG(("Wallet Error: Windows Hello operation ended with async status %1."
-		).arg(int(status)));
+[[nodiscard]] ProtectionError ClassifyFailure(
+		const IAsyncInfo &info,
+		AsyncStatus status) {
+	const auto code = base::WinRT::Try([&] {
+		return uint32(info.ErrorCode().value);
+	}).value_or(0);
+	LOG(("Wallet Error: Windows Hello operation ended with async status %1, "
+		"code 0x%2."
+		).arg(int(status)
+		).arg(code, 8, 16, QChar('0')));
 	return ProtectionError::Unavailable;
 }
 
@@ -362,7 +370,7 @@ void FocusUnownedPrompt(int attemptsLeft = kPromptFocusAttempts) {
 		const IAsyncOperation<KeyCredentialRetrievalResult> &that,
 		AsyncStatus status) {
 	if (status != AsyncStatus::Completed) {
-		return { .error = ClassifyFailure(status) };
+		return { .error = ClassifyFailure(that, status) };
 	}
 	auto read = base::WinRT::Try([&] {
 		const auto result = that.GetResults();
@@ -382,7 +390,7 @@ void FocusUnownedPrompt(int attemptsLeft = kPromptFocusAttempts) {
 		const IAsyncOperation<KeyCredentialOperationResult> &that,
 		AsyncStatus status) {
 	if (status != AsyncStatus::Completed) {
-		return { .error = ClassifyFailure(status) };
+		return { .error = ClassifyFailure(that, status) };
 	}
 	auto read = base::WinRT::Try([&] {
 		const auto result = that.GetResults();

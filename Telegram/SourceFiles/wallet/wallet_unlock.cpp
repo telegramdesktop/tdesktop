@@ -45,6 +45,7 @@ namespace Wallet {
 namespace {
 
 constexpr auto kRetainedToastDuration = 4 * crl::time(1000);
+constexpr auto kProblemToastDuration = 8 * crl::time(1000);
 
 [[nodiscard]] VaultAuthorization Share(VaultGrant grant) {
 	return grant.valid()
@@ -154,10 +155,9 @@ void HardwareUnlockBox(
 		done(std::move(grant));
 	};
 	const auto toast = [=](tr::phrase<lngtag_provider> phrase) {
-		show->showToast(phrase(
-			tr::now,
-			lt_provider,
-			CurrentValue(provider->label())));
+		show->showToast(
+			phrase(tr::now, lt_provider, CurrentValue(provider->label())),
+			kProblemToastDuration);
 	};
 	const auto answered = [=](quint32 epoch, ProtectionUnwrapResult result) {
 		if (!weak || !weakSession || !show->valid() || state->reported) {
@@ -167,7 +167,9 @@ void HardwareUnlockBox(
 		state->asking = false;
 		auto &session = show->session();
 		auto &vault = session.wallet().vault();
-		if (!vault.current(session.uniqueId(), epoch)
+		// Not current(): it refuses while unusable, which this answer clears.
+		if (vault.clearEpoch() != epoch
+			|| session.account().maybeSession() != &session
 			|| !CurrentVaultWrap(vault, args.wrap)) {
 			report(nullptr);
 			return;
