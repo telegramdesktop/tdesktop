@@ -881,7 +881,14 @@
 		pendingEvents.splice(0);
 		const next = document.createElement('iframe');
 		next.setAttribute('sandbox', frameSandbox);
-		next.setAttribute('allow', 'clipboard-read; clipboard-write; fullscreen');
+		next.setAttribute('allow', [
+			'clipboard-read',
+			'clipboard-write',
+			'fullscreen',
+			'camera',
+			'microphone',
+			'geolocation'
+		].join('; '));
 		next.referrerPolicy = 'no-referrer';
 		next.addEventListener('load', function() {
 			if (iframe !== next || generation !== frameGeneration) {

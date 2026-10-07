@@ -2548,6 +2548,11 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			return Webview::DefaultDialogHandler(std::move(args));
 		});
 	}
+	raw->setPermissionHandler([=](
+			Webview::PermissionType type,
+			Fn<void(bool)> done) {
+		requestPermission(type, std::move(done));
+	});
 
 	auto initScript = QByteArray(R"(
 window.TelegramWebviewProxy = {
@@ -3102,6 +3107,45 @@ void Panel::replyRequestPhone(bool shared) {
 	postEvent("phone_requested", QJsonObject{
 		{ u"status"_q, shared ? u"sent"_q : u"cancelled"_q }
 	});
+}
+
+void Panel::requestPermission(
+		Webview::PermissionType type,
+		Fn<void(bool)> done) {
+	if (_inBlockingRequest) {
+		done(false);
+		return;
+	}
+	_inBlockingRequest = true;
+	using Type = Webview::PermissionType;
+	using Button = Webview::PopupArgs::Button;
+	const auto text = [&] {
+		switch (type) {
+		case Type::Microphone:
+			return tr::lng_bot_allow_microphone(tr::now);
+		case Type::Camera:
+			return tr::lng_bot_allow_camera(tr::now);
+		case Type::CameraAndMicrophone:
+			return tr::lng_bot_allow_camera_microphone(tr::now);
+		case Type::Geolocation:
+			return tr::lng_bot_allow_location(tr::now);
+		}
+		Unexpected("Type in Panel::requestPermission.");
+	}();
+	showPopup({
+		.parent = webviewWindowForPopup(),
+		.text = text,
+		.buttons = {
+			{
+				.id = "allow",
+				.text = tr::lng_bot_allow_permission_confirm(tr::now),
+			},
+			{ .id = "cancel", .type = Button::Type::Cancel },
+		},
+	}, crl::guard(this, [=](Webview::PopupResult result) {
+		_inBlockingRequest = false;
+		done(result.id == "allow");
+	}));
 }
 
 void Panel::invokeCustomMethod(const QJsonObject &args) {
