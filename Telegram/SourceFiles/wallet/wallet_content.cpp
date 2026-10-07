@@ -1750,13 +1750,7 @@ void AddHistoryRowChip(
 				: CollectibleTitleText(view)));
 		state->subtitle.setText(
 			st::walletRowDateLabel.style,
-			((view.kind == Kind::TelegramGift)
-				? tr::lng_wallet_chip_gift(tr::now)
-				: (view.kind == Kind::TelegramUsername)
-				? tr::lng_wallet_chip_username(tr::now)
-				: (view.kind == Kind::TelegramNumber)
-				? tr::lng_wallet_chip_number(tr::now)
-				: tr::lng_wallet_chip_nft(tr::now)));
+			CollectibleKindText(view.kind));
 		state->natural = st::walletRowIconSize
 			+ st::walletChipTextSkip
 			+ std::max(state->title.maxWidth(), state->subtitle.maxWidth())

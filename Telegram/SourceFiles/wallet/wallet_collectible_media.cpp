@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
 #include "data/data_star_gift.h"
+#include "lang/lang_keys.h"
 #include "lang/lang_tag.h"
 #include "main/main_session.h"
 #include "storage/file_download.h"
@@ -150,12 +151,45 @@ TextWithEntities CollectibleTitleText(const CollectibleView &view) {
 	return result;
 }
 
+QString CollectibleKindText(Gram::NftKind kind) {
+	using Kind = Gram::NftKind;
+	return (kind == Kind::TelegramGift)
+		? tr::lng_wallet_chip_gift(tr::now)
+		: (kind == Kind::TelegramUsername)
+		? tr::lng_wallet_chip_username(tr::now)
+		: (kind == Kind::TelegramNumber)
+		? tr::lng_wallet_chip_number(tr::now)
+		: tr::lng_wallet_chip_nft(tr::now);
+}
+
+QString CollectibleSubtitleText(const CollectibleView &view) {
+	using Kind = Gram::NftKind;
+	if (view.kind == Kind::TelegramUsername
+		|| view.kind == Kind::TelegramNumber) {
+		return CollectibleKindText(view.kind);
+	} else if (view.kind == Kind::TelegramGift
+		&& !view.model.isEmpty()
+		&& !view.backdrop.isEmpty()) {
+		return tr::lng_wallet_collectible_gift_attributes(
+			tr::now,
+			lt_model,
+			view.model,
+			lt_backdrop,
+			view.backdrop);
+	} else if (!view.collectionName.isEmpty()) {
+		return view.collectionName;
+	}
+	return tr::lng_wallet_chip_nft(tr::now);
+}
+
 struct CollectibleMedia::Entry {
 	QString address;
 	Gram::NftItem record;
 	QString fallback;
 	QString name;
 	QString number;
+	QString model;
+	QString backdrop;
 	QString collectionName;
 	QByteArray imageBytes;
 	int artworkGeneration = 0;
@@ -454,6 +488,8 @@ void CollectibleMedia::clearArtwork(not_null<Entry*> entry) {
 	entry->loader = nullptr;
 	entry->name.clear();
 	entry->number.clear();
+	entry->model.clear();
+	entry->backdrop.clear();
 	entry->giftPaint = nullptr;
 	entry->imageBytes.clear();
 	entry->prepared.clear();
@@ -474,6 +510,8 @@ void CollectibleMedia::requestGift(
 			entry->number = u" #"_q
 				+ Lang::FormatCountDecimal(unique->number);
 		}
+		entry->model = unique->model.name;
+		entry->backdrop = unique->backdrop.name;
 		_changed.fire_copy(entry->address);
 		_repaint.fire_copy(entry->address);
 		finishChain(entry, State::Done);
@@ -578,6 +616,8 @@ CollectibleView CollectibleMedia::view(const QString &item) const {
 			entry->collectionName,
 			entry->record.kind,
 			entry->record.key,
+			entry->model,
+			entry->backdrop,
 		};
 	}
 	const auto title = SplitNumberTail(entry->name.isEmpty()
@@ -589,6 +629,8 @@ CollectibleView CollectibleMedia::view(const QString &item) const {
 		entry->collectionName,
 		entry->record.kind,
 		entry->record.key,
+		entry->model,
+		entry->backdrop,
 	};
 }
 

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
+#include "ui/text/text_options.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/padding_wrap.h"
@@ -51,6 +52,7 @@ public:
 	explicit CollectibleRow(QWidget *parent);
 
 	void setTitle(TextWithEntities text);
+	void setSubtitle(const QString &text);
 	void setPaintThumb(Fn<void(Painter&, QRect)> paint);
 
 protected:
@@ -59,6 +61,7 @@ protected:
 
 private:
 	Ui::Text::String _title;
+	Ui::Text::String _subtitle;
 	Fn<void(Painter&, QRect)> _paintThumb;
 
 };
@@ -119,6 +122,14 @@ void CollectibleRow::setTitle(TextWithEntities text) {
 	update();
 }
 
+void CollectibleRow::setSubtitle(const QString &text) {
+	_subtitle.setText(
+		st::walletRowDateLabel.style,
+		text,
+		Ui::NameTextOptions());
+	update();
+}
+
 void CollectibleRow::setPaintThumb(Fn<void(Painter&, QRect)> paint) {
 	_paintThumb = std::move(paint);
 	update();
@@ -140,18 +151,27 @@ void CollectibleRow::paintEvent(QPaintEvent *e) {
 			st::walletRowIconSize));
 	}
 
-	const auto font = st::walletCollectibleTitleStyle.font;
+	const auto titleHeight = st::walletCollectibleTitleStyle.font->height;
+	const auto subtitleHeight = st::walletRowDateLabel.style.font->height;
+	const auto top = (st::walletCollectibleRowHeight
+		- titleHeight
+		- st::walletRowSkip
+		- subtitleHeight) / 2;
+	const auto left = st::walletRowPadding.left();
+	const auto available = width() - left - st::walletRowPadding.right();
 	p.setPen(st::windowBoldFg);
 	_title.draw(p, {
-		.position = {
-			st::walletRowPadding.left(),
-			(st::walletCollectibleRowHeight - font->height) / 2,
-		},
+		.position = { left, top },
 		.outerWidth = width(),
-		.availableWidth = (width()
-			- st::walletRowPadding.left()
-			- st::walletRowPadding.right()),
+		.availableWidth = available,
 		.palette = &st::walletCollectibleTitlePalette,
+		.elisionLines = 1,
+	});
+	p.setPen(st::windowSubTextFg);
+	_subtitle.draw(p, {
+		.position = { left, top + titleHeight + st::walletRowSkip },
+		.outerWidth = width(),
+		.availableWidth = available,
 		.elisionLines = 1,
 	});
 }
@@ -426,7 +446,9 @@ void AddRow(
 			st::walletCollectibleThumbRadius);
 	});
 	const auto apply = [=] {
-		row->setTitle(CollectibleTitleText(media->view(address)));
+		const auto view = media->view(address);
+		row->setTitle(CollectibleTitleText(view));
+		row->setSubtitle(CollectibleSubtitleText(view));
 	};
 	apply();
 
