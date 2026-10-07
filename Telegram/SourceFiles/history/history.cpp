@@ -1204,53 +1204,7 @@ not_null<HistoryItem*> History::addNewToBack(
 			}
 		}
 	}
-	if (item->definesReplyKeyboard()) {
-		const auto markupFlags = item->replyKeyboardFlags();
-		if (!(markupFlags & ReplyMarkupFlag::Selective)
-			|| item->mentionsMe()) {
-			const auto markupSenders = [&]() -> base::flat_set<not_null<PeerData*>>* {
-				if (const auto chat = peer->asChat()) {
-					return &chat->markupSenders;
-				} else if (const auto channel = peer->asMegagroup()) {
-					return &channel->mgInfo->markupSenders;
-				}
-				return nullptr;
-			}();
-			if (markupSenders) {
-				markupSenders->insert(from);
-			}
-			if (markupFlags & ReplyMarkupFlag::None) {
-				// None markup means replyKeyboardHide.
-				if (lastKeyboardFrom == from->id
-					|| (!lastKeyboardInited
-						&& !peer->isChat()
-						&& !peer->isMegagroup()
-						&& !item->out())) {
-					clearLastKeyboard();
-				}
-			} else {
-				bool botNotInChat = false;
-				if (peer->isChat()) {
-					botNotInChat = from->isUser()
-						&& (!peer->asChat()->participants.empty()
-							|| !Data::CanSendAnything(peer))
-						&& !peer->asChat()->participants.contains(
-							from->asUser());
-				} else if (peer->isMegagroup()) {
-					botNotInChat = from->isUser()
-						&& (peer->asChannel()->mgInfo->botStatus != Data::BotStatus::Unknown
-							|| !Data::CanSendAnything(peer))
-						&& !peer->asChannel()->mgInfo->bots.contains(
-							from->asUser());
-				}
-				if (botNotInChat) {
-					clearLastKeyboard();
-				} else {
-					setLastKeyboard(item->id, from->id);
-				}
-			}
-		}
-	}
+	applyReplyKeyboard(item);
 
 	setLastMessage(item);
 	if (unread) {
@@ -1262,6 +1216,58 @@ not_null<HistoryItem*> History::addNewToBack(
 
 	owner().notifyHistoryChangeDelayed(this);
 	return item;
+}
+
+void History::applyReplyKeyboard(not_null<HistoryItem*> item) {
+	if (!item->definesReplyKeyboard()) {
+		return;
+	}
+	const auto markupFlags = item->replyKeyboardFlags();
+	if ((markupFlags & ReplyMarkupFlag::Selective) && !item->mentionsMe()) {
+		return;
+	}
+	const auto from = item->from();
+	const auto markupSenders = [&]() -> base::flat_set<not_null<PeerData*>>* {
+		if (const auto chat = peer->asChat()) {
+			return &chat->markupSenders;
+		} else if (const auto channel = peer->asMegagroup()) {
+			return &channel->mgInfo->markupSenders;
+		}
+		return nullptr;
+	}();
+	if (markupSenders) {
+		markupSenders->insert(from);
+	}
+	if (markupFlags & ReplyMarkupFlag::None) {
+		// None markup means replyKeyboardHide.
+		if (lastKeyboardFrom == from->id
+			|| (!lastKeyboardInited
+				&& !peer->isChat()
+				&& !peer->isMegagroup()
+				&& !item->out())) {
+			clearLastKeyboard();
+		}
+	} else {
+		bool botNotInChat = false;
+		if (peer->isChat()) {
+			botNotInChat = from->isUser()
+				&& (!peer->asChat()->participants.empty()
+					|| !Data::CanSendAnything(peer))
+				&& !peer->asChat()->participants.contains(
+					from->asUser());
+		} else if (peer->isMegagroup()) {
+			botNotInChat = from->isUser()
+				&& (peer->asChannel()->mgInfo->botStatus != Data::BotStatus::Unknown
+					|| !Data::CanSendAnything(peer))
+				&& !peer->asChannel()->mgInfo->bots.contains(
+					from->asUser());
+		}
+		if (botNotInChat) {
+			clearLastKeyboard();
+		} else {
+			setLastKeyboard(item->id, from->id);
+		}
+	}
 }
 
 void History::applyMessageChanges(
@@ -1673,6 +1679,9 @@ void History::mainViewRemoved(
 }
 
 void History::newItemAdded(not_null<HistoryItem*> item, NewAddType type) {
+	if (type == NewAddType::StreamedDraftFinish) {
+		applyStreamedDraftFinish(item);
+	}
 	item->indexAsNewItem();
 	item->addToMessagesIndex();
 	if (const auto from = item->from() ? item->from()->asUser() : nullptr) {
@@ -1749,6 +1758,44 @@ void History::newItemAdded(not_null<HistoryItem*> item, NewAddType type) {
 			&& media->diceGameOutcome().stakeNanoTon > 0) {
 			session().credits().tonLoad(true);
 		}
+	}
+}
+
+void History::applyStreamedDraftFinish(not_null<HistoryItem*> item) {
+	session().changes().messageUpdated(
+		item,
+		Data::MessageUpdate::Flag::NewAdded);
+	if (const auto bot = GuestChatBotForCurrentUser(item)) {
+		session().topGuestChatBots().increment(bot, item->date());
+	}
+	applyReplyKeyboard(item);
+	if (lastMessage() == item) {
+		_lastServerMessage = item;
+	} else {
+		setLastMessage(item);
+	}
+	const auto dateChanged = [&](Dialogs::Entry *entry) {
+		if (!entry
+			|| entry->chatListMessage() != item
+			|| entry->chatListTimeId() == item->date()) {
+			return false;
+		}
+		entry->setChatListTimeId(item->date());
+		return true;
+	};
+	if (dateChanged(this)) {
+		if (const auto folder = this->folder()) {
+			folder->oneListMessageChanged(item, item);
+		}
+		if (isLinkedCommunityMember()) {
+			_communityInfo->oneListMessageChanged();
+		}
+	}
+	if (const auto topic = item->topic(); dateChanged(topic)) {
+		topic->forum()->listMessageChanged(item, item);
+	}
+	if (const auto sublist = item->savedSublist(); dateChanged(sublist)) {
+		sublist->parent()->listMessageChanged(item, item);
 	}
 }
 

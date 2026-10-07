@@ -1382,6 +1382,7 @@ void HistoryItem::setReplyMarkup(
 			this,
 			Data::MessageUpdate::Flag::ReplyMarkup);
 	};
+	_flags &= ~MessageFlag::HasSwitchInlineButton;
 	if (markup.isNull()) {
 		if (_flags & MessageFlag::HasReplyMarkup) {
 			_flags &= ~MessageFlag::HasReplyMarkup;
@@ -1415,7 +1416,11 @@ void HistoryItem::setReplyMarkup(
 		if (!Has<HistoryMessageReplyMarkup>()) {
 			AddComponents(HistoryMessageReplyMarkup::Bit());
 		}
-		Get<HistoryMessageReplyMarkup>()->updateData(std::move(markup));
+		const auto component = Get<HistoryMessageReplyMarkup>();
+		component->updateData(std::move(markup));
+		if (component->data.flags & ReplyMarkupFlag::HasSwitchInlineButton) {
+			_flags |= MessageFlag::HasSwitchInlineButton;
+		}
 		requestUpdate();
 	}
 }
@@ -2692,6 +2697,95 @@ void HistoryItem::applyEdition(
 		if (existing->updateExtendedMedia(this, media)) {
 			checkBuyButton();
 			finishEdition(-1);
+		}
+	}
+}
+
+void HistoryItem::applyStreamedDraftFinish(const MTPDmessage &data) {
+	using Flag = MessageFlag;
+	const auto synced = Flag::MentionsMe
+		| Flag::MediaIsUnread
+		| Flag::Silent
+		| Flag::HideEdited
+		| Flag::IsOrWasScheduled
+		| Flag::HasViews
+		| Flag::EstimatedDate
+		| Flag::TonPaidSuggested
+		| Flag::StarsPaidSuggested
+		| Flag::CanBeSummarized
+		| Flag::GuestChatViaFrom;
+	_flags = (_flags & ~synced)
+		| (FlagsFromMTP(id, data.vflags().v, MessageFlags()) & synced);
+	_date = data.vdate().v;
+	_starsPaid = int(data.vpaid_message_stars().value_or_empty());
+	_boostsApplied = data.vfrom_boosts_applied().value_or_empty();
+	_effectId = data.veffect().value_or_empty();
+	if (_effectId) {
+		_history->owner().reactions().preloadEffectImageFor(_effectId);
+	}
+	if (isGuestChatBotMessage()) {
+		_history->setHasGuestChatBotMessages();
+	}
+	applyInitialEffectWatched();
+
+	if (const auto header = data.vreply_to()) {
+		auto fields = ReplyFieldsFromMTP(this, *header);
+		const auto was = Get<HistoryMessageReply>();
+		// applySentMessage() moves the thread, see setReplyFields().
+		fields.topMessageId = was ? was->topMessageId() : MsgId();
+		fields.topicPost = (was && was->topicPost()) ? 1 : 0;
+		if (was) {
+			was->clearData(this);
+			RemoveComponents(HistoryMessageReply::Bit());
+		}
+		AddComponents(HistoryMessageReply::Bit());
+		const auto reply = Get<HistoryMessageReply>();
+		reply->set(std::move(fields));
+		reply->updateData(this);
+	}
+	if (const auto viaBotId = data.vvia_bot_id().value_or_empty()) {
+		AddComponents(HistoryMessageVia::Bit());
+		Get<HistoryMessageVia>()->create(&_history->owner(), viaBotId);
+	}
+	if (const auto visitor = data.vguestchat_via_from()) {
+		AddComponents(HistoryMessageGuestChat::Bit());
+		Get<HistoryMessageGuestChat>()->create(
+			&_history->owner(),
+			peerFromMTP(*visitor));
+	}
+	if (const auto botId = data.vvia_business_bot_id().value_or_empty()) {
+		AddComponents(HistoryMessageSigned::Bit());
+		const auto msgsigned = Get<HistoryMessageSigned>();
+		msgsigned->viaBusinessBot = _history->owner().user(botId);
+		msgsigned->author = msgsigned->viaBusinessBot->name();
+	}
+	if (const auto editDate = data.vedit_date().value_or_empty()) {
+		AddComponents(HistoryMessageEdited::Bit());
+		Get<HistoryMessageEdited>()->date = editDate;
+	}
+	if (const auto rank = data.vfrom_rank(); rank && !rank->v.isEmpty()) {
+		AddComponents(HistoryMessageFromRank::Bit());
+		Get<HistoryMessageFromRank>()->rank = qs(*rank);
+	}
+	auto reasons = Data::UnavailableReason::Extract(
+		data.vrestriction_reason());
+	const auto sensitive = ranges::find(
+		reasons,
+		true,
+		&Data::UnavailableReason::sensitive);
+	if (sensitive != end(reasons)) {
+		reasons.erase(sensitive);
+		flagSensitiveContent();
+	}
+	if (!reasons.empty()) {
+		AddComponents(HistoryMessageRestrictions::Bit());
+		Get<HistoryMessageRestrictions>()->reasons = std::move(reasons);
+	}
+	setReactions(data.vreactions());
+	setFactcheck(FromMTP(this, data.vfactcheck()));
+	if (const auto until = data.vreport_delivery_until_date()) {
+		if (base::unixtime::now() < TimeId(until->v)) {
+			_history->owner().histories().reportDelivery(this);
 		}
 	}
 }

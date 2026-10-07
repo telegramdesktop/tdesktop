@@ -569,6 +569,8 @@ private:
 	not_null<HistoryItem*> addNewToBack(
 		not_null<HistoryItem*> item,
 		bool unread);
+	void applyReplyKeyboard(not_null<HistoryItem*> item);
+	void applyStreamedDraftFinish(not_null<HistoryItem*> item);
 
 	friend class Data::SponsoredMessages;
 	not_null<HistoryItem*> addNewInTheMiddle(

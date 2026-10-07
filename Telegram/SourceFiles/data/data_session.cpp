@@ -3610,6 +3610,7 @@ HistoryItem *Session::addNewMessage(
 			if (const auto streamed = h->streamedDraftsIfExists()) {
 				if (const auto adopted = streamed->adoptIncoming(
 						data.c_message())) {
+					fillMessagePeers(peerId, data);
 					CheckForSwitchInlineButton(adopted);
 					return adopted;
 				}
