@@ -382,6 +382,7 @@ void HarvestCachedTextLeafs(
 		const auto &placeholderStyle = EditPlaceholderTextStyleFor(
 			prepared,
 			st);
+		block->leaf.removeSkipBlock();
 		storeBlockLeaf(
 			CachedTextLeafSlot::Leaf,
 			MarkedTextLeafSourceSignature(
@@ -3961,6 +3962,9 @@ public:
 	void setBubbleEdges(MarkdownArticleBubbleEdges edges);
 	[[nodiscard]] MarkdownArticleBubbleEdges bubbleEdges() const;
 	[[nodiscard]] MarkdownArticleEdgeBlocks edgeBlocks() const;
+	bool updateSkipBlock(int width, int height);
+	bool removeSkipBlock();
+	[[nodiscard]] bool hasSkipBlock() const;
 	void setGroupedActiveIndex(
 		const PreparedEditBlockSource &source,
 		int index);
@@ -4333,6 +4337,7 @@ private:
 	int _editableHeightOverrideIndex = -1;
 	int _editableHeightOverride = 0;
 	MarkdownArticleBubbleEdges _bubbleEdges;
+	QSize _skipBlock;
 	bool _blocksPainted = false;
 
 };
@@ -4893,6 +4898,36 @@ MarkdownArticleEdgeBlocks MarkdownArticle::Impl::edgeBlocks() const {
 	return CollectEdgeBlocks(_content.blocks.blocks);
 }
 
+bool MarkdownArticle::Impl::updateSkipBlock(int width, int height) {
+	const auto size = QSize(width, height);
+	if (size.isEmpty()) {
+		return removeSkipBlock();
+	} else if (_skipBlock == size) {
+		return false;
+	}
+	_skipBlock = size;
+	invalidateLayout();
+	return true;
+}
+
+bool MarkdownArticle::Impl::removeSkipBlock() {
+	if (_skipBlock.isEmpty()) {
+		return false;
+	}
+	_skipBlock = QSize();
+	invalidateLayout();
+	return true;
+}
+
+bool MarkdownArticle::Impl::hasSkipBlock() const {
+	if (_skipBlock.isEmpty()) {
+		return false;
+	}
+	const auto &blocks = _content.blocks.blocks;
+	const auto last = FindEdgeBlockIndices(blocks).last;
+	return (last >= 0) && TakesMessageSkipBlock(blocks[last]);
+}
+
 void MarkdownArticle::Impl::setGroupedActiveIndex(
 		const PreparedEditBlockSource &source,
 		int index) {
@@ -5369,7 +5404,16 @@ TextSelection MarkdownArticle::Impl::adjustSelection(
 	if (!segment || !segment->isTextLeaf()) {
 		return selection;
 	}
-	return segment->leaf->adjustSelection(selection, selectionType);
+	const auto adjusted = segment->leaf->adjustSelection(
+		selection,
+		selectionType);
+	const auto length = SegmentLength(*segment);
+	if (length == segment->leaf->length()) {
+		return adjusted;
+	}
+	return TextSelection(
+		uint16(std::min(int(adjusted.from), length)),
+		uint16(std::min(int(adjusted.to), length)));
 }
 
 bool MarkdownArticle::Impl::selectionContains(
@@ -6838,6 +6882,7 @@ void MarkdownArticle::Impl::relayout(int width) {
 		.spoilerLinkFilter = _textSpoilerLinkFilter,
 		.inlineButtonPaintState = _inlineButtonPaintState,
 	};
+	context.skipBlock = _skipBlock;
 	if (_editableMaxLineWidthOverrideLeaf
 		&& (_editableMaxLineWidthOverride > 0)) {
 		context.editableMaxLineWidthOverride
@@ -6932,6 +6977,7 @@ void MarkdownArticle::Impl::relayoutRetained(int width) {
 		.spoilerLinkFilter = _textSpoilerLinkFilter,
 		.inlineButtonPaintState = _inlineButtonPaintState,
 	};
+	context.skipBlock = _skipBlock;
 	if (_editableMaxLineWidthOverrideLeaf
 		&& (_editableMaxLineWidthOverride > 0)) {
 		context.editableMaxLineWidthOverride
@@ -7335,6 +7381,18 @@ MarkdownArticleBubbleEdges MarkdownArticle::bubbleEdges() const {
 
 MarkdownArticleEdgeBlocks MarkdownArticle::edgeBlocks() const {
 	return _impl->edgeBlocks();
+}
+
+bool MarkdownArticle::updateSkipBlock(int width, int height) {
+	return _impl->updateSkipBlock(width, height);
+}
+
+bool MarkdownArticle::removeSkipBlock() {
+	return _impl->removeSkipBlock();
+}
+
+bool MarkdownArticle::hasSkipBlock() const {
+	return _impl->hasSkipBlock();
 }
 
 void MarkdownArticle::setGroupedActiveIndex(

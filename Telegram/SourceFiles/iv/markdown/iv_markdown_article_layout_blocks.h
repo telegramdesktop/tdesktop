@@ -151,6 +151,7 @@ struct LaidOutBlock {
 	QString collapseToggleId;
 	std::vector<QString> anchorIds;
 	int textWidth = 0;
+	int skipBlockLength = 0;
 	int labelWidth = 0;
 	int subtitleWidth = 0;
 	int actionWidth = 0;
@@ -183,6 +184,7 @@ struct LaidOutBlock {
 	int horizontalScrollLeft = 0;
 	int horizontalScrollMax = 0;
 	int horizontalScrollAncestorShift = 0;
+	int centeredShift = 0;
 	int segmentIndex = -1;
 	int secondarySegmentIndex = -1;
 	int tertiarySegmentIndex = -1;
@@ -334,6 +336,7 @@ struct LayoutContext {
 	int articleWidth = 0;
 	int inlineButtonWidthCap = 0;
 	int collapsibleQuoteLines = 0;
+	QSize skipBlock;
 	double mediaPixelScale = 1.;
 	bool tightList = false;
 	bool useArticleBands = false;
@@ -379,6 +382,7 @@ private:
 	const QString &text,
 	const Ui::Text::String &leaf);
 [[nodiscard]] bool IsAnchorOnlyBlock(const PreparedBlock &block);
+[[nodiscard]] bool TakesMessageSkipBlock(const PreparedBlock &block);
 [[nodiscard]] bool PreparedBlockHasInlineButton(const PreparedBlock &prepared);
 [[nodiscard]] bool IsFlowKind(PreparedBlockKind kind);
 [[nodiscard]] bool QuoteHasCollapseControl(const LaidOutBlock &block);

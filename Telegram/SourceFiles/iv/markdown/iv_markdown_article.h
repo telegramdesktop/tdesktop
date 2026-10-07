@@ -520,6 +520,9 @@ public:
 	void setBubbleEdges(MarkdownArticleBubbleEdges edges);
 	[[nodiscard]] MarkdownArticleBubbleEdges bubbleEdges() const;
 	[[nodiscard]] MarkdownArticleEdgeBlocks edgeBlocks() const;
+	bool updateSkipBlock(int width, int height);
+	bool removeSkipBlock();
+	[[nodiscard]] bool hasSkipBlock() const;
 	void setGroupedActiveIndex(
 		const PreparedEditBlockSource &source,
 		int index);

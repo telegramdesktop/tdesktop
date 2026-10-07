@@ -106,6 +106,9 @@ struct HistoryMessageRichPage
 	rpl::lifetime highlightReadyLifetime;
 	int paletteVersion = -1;
 	TimeId registeredFormattedDateUpdate = 0;
+	// Probing at the max width again would undo the final bubble layout.
+	mutable int textualWidth = 0;
+	mutable uint16 demandedTextWidth = 0;
 	bool hasUnsupportedBlocks = false;
 	mutable ClickHandlerPtr handler;
 	mutable std::optional<Iv::Markdown::MarkdownArticleHorizontalScrollHit> handlerHorizontalScrollHit;
@@ -449,6 +452,7 @@ private:
 	void updateRichPageInBubbleState();
 	[[nodiscard]] auto countRichPageBubbleEdges() const
 	-> Iv::Markdown::MarkdownArticleBubbleEdges;
+	[[nodiscard]] bool richPageInfoRow() const;
 	QRect countGeometry() const;
 	[[nodiscard]] Ui::BubbleRounding countMessageRounding() const;
 	[[nodiscard]] Ui::BubbleRounding countBubbleRounding(

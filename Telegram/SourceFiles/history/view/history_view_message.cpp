@@ -97,6 +97,22 @@ constexpr auto kMinWidthAppearDuration = crl::time(160);
 	return line.left + line.width;
 }
 
+void MergeTrailingSkipOnlyLine(
+		std::vector<Ui::Text::LineLayoutInfo> &lines,
+		int skipWidth,
+		int skipHeight) {
+	if (lines.size() < 2) {
+		return;
+	}
+	const auto &last = lines.back();
+	const auto &prev = lines[lines.size() - 2];
+	if (last.width == skipWidth && last.bottom - prev.bottom == skipHeight) {
+		const auto bottom = last.bottom;
+		lines.pop_back();
+		lines.back().bottom = bottom;
+	}
+}
+
 [[nodiscard]] int RichPageMediaEdgeSkip(
 		const Iv::Markdown::MarkdownArticleBubbleEdges &edges,
 		bool top) {
@@ -1680,7 +1696,9 @@ QSize Message::performCountOptimalSize() {
 			}
 		}
 	}
-	if (bubble && withVisibleText && maxWidth < fullTextualWidth) {
+	if (bubble
+		&& withVisibleText
+		&& (maxWidth < fullTextualWidth || hasRichPage())) {
 		minHeight -= hasRichPage()
 			? textHeightFor(bubbleTextWidth(bubbleTextualWidth()))
 			: text().minHeight();
@@ -5616,13 +5634,14 @@ void Message::refreshDataIdHook() {
 }
 
 int Message::monospaceMaxWidth() const {
+	const auto textual = hasRichPage() ? bubbleTextualWidth() : 0;
 	const auto fromText = hasRichPage()
 		? std::max({
 			textualMaxWidth()
 				- st::msgPadding.left()
 				- st::msgPadding.right(),
-			richpage()->article.lastLayoutWidth(),
-			richPageDemandedTextWidth(),
+			textual - st::msgPadding.left() - st::msgPadding.right(),
+			int(richpage()->demandedTextWidth),
 		})
 		: hasVisibleText()
 		? text().countMaxMonospaceWidth()
@@ -5661,6 +5680,9 @@ int Message::richPageDemandedTextWidth() const {
 int Message::bubbleTextualWidth() const {
 	const auto full = textualMaxWidth();
 	if (hasRichPage()) {
+		if (const auto cached = richpage()->textualWidth) {
+			return cached;
+		}
 		auto innerWidth = bubbleTextWidth(full);
 		[[maybe_unused]] auto laidOutHeight = textHeightFor(innerWidth);
 		// Horizontally scrolled blocks never fit at readable width.
@@ -5669,10 +5691,12 @@ int Message::bubbleTextualWidth() const {
 			innerWidth = demanded;
 			laidOutHeight = textHeightFor(innerWidth);
 		}
-		const auto laidOutWidth = richpage()->article.lastLayoutWidth();
-		return st::msgPadding.left()
-			+ std::max(laidOutWidth, 1)
+		const auto rich = richpage();
+		rich->textualWidth = st::msgPadding.left()
+			+ std::max(rich->article.lastLayoutWidth(), 1)
 			+ st::msgPadding.right();
+		rich->demandedTextWidth = richPageDemandedTextWidth();
+		return rich->textualWidth;
 	}
 	const auto media = this->media();
 	if (!hasVisibleText()
@@ -6454,8 +6478,15 @@ auto Message::countRichPageBubbleEdges() const
 		.top = bubble && !somethingAbove,
 		.bottom = bubble && !somethingBelow,
 		.mediaAbove = bubble && mediaDisplayed && _invertMedia,
-		.infoBelow = bubble && text().hasSkipBlock() && !_viewButton,
+		.infoBelow = bubble && richPageInfoRow() && !_viewButton,
 	};
+}
+
+bool Message::richPageInfoRow() const {
+	const auto rich = richpage();
+	return rich
+		&& text().hasSkipBlock()
+		&& !rich->article.hasSkipBlock();
 }
 
 void Message::fromNameUpdated(int width) const {
@@ -6759,7 +6790,7 @@ int Message::resizeContentGetHeight(int newWidth) {
 	if (!mediaDisplayed && bubble && hasVisibleText()) {
 		const auto probeTextWidth = bubbleTextWidth(contentWidth);
 		[[maybe_unused]] const auto probe = textHeightFor(probeTextWidth);
-		if (!Get<TextAppearing>()) {
+		if (hasRichPage() || !Get<TextAppearing>()) {
 			const auto use = textRealWidth();
 			if (use > 0) {
 				const auto shrunk = std::max(
@@ -6775,6 +6806,9 @@ int Message::resizeContentGetHeight(int newWidth) {
 	const auto textWidth = bubble
 		? bubbleTextWidth(contentWidth)
 		: bottomInfoWidth;
+	if (bubble && hasRichPage() && hasVisibleText()) {
+		[[maybe_unused]] const auto laidOut = textHeightFor(textWidth);
+	}
 
 	auto appearing = Get<TextAppearing>();
 	if (appearing) {
@@ -6960,6 +6994,10 @@ int Message::resizeContentGetHeight(int newWidth) {
 void Message::invalidateTextDependentCache() {
 	_bubbleTextualWidthMinimum = -1;
 	_bubbleTextualWidthCache = 0;
+	if (const auto rich = richpage()) {
+		rich->textualWidth = 0;
+		rich->demandedTextWidth = 0;
+	}
 }
 
 bool Message::textAppearValidate() {
@@ -7027,6 +7065,12 @@ bool Message::textAppearCheckLine() {
 				for (auto &line : appearing->lines) {
 					line.bottom += skips.top();
 				}
+				if (rich->article.hasSkipBlock()) {
+					MergeTrailingSkipOnlyLine(
+						appearing->lines,
+						skipBlockWidth(),
+						skipBlockHeight());
+				}
 				auto &last = appearing->lines.back();
 				last.bottom = std::max(
 					last.bottom,
@@ -7037,16 +7081,11 @@ bool Message::textAppearCheckLine() {
 		} else {
 			appearing->lines = text().countLinesGeometry(
 				appearing->textWidth);
-			auto &lines = appearing->lines;
-			if (lines.size() > 1 && text().hasSkipBlock()) {
-				const auto &last = lines.back();
-				const auto &prev = lines[lines.size() - 2];
-				if (last.width == skipBlockWidth()
-					&& last.bottom - prev.bottom == skipBlockHeight()) {
-					const auto bottom = last.bottom;
-					lines.pop_back();
-					lines.back().bottom = bottom;
-				}
+			if (text().hasSkipBlock()) {
+				MergeTrailingSkipOnlyLine(
+					appearing->lines,
+					skipBlockWidth(),
+					skipBlockHeight());
 			}
 		}
 	}
@@ -7054,7 +7093,7 @@ bool Message::textAppearCheckLine() {
 	const auto shown = appearing->shownLine;
 	const auto line = (shown < lines) ? &appearing->lines[shown] : nullptr;
 	const auto finalLineHeight = line
-		? (hasRichPage() && text().hasSkipBlock() && (shown + 1 == lines)
+		? (richPageInfoRow() && (shown + 1 == lines)
 			? line->bottom + skipBlockHeight()
 			: line->bottom)
 		: 0;
@@ -7079,9 +7118,7 @@ bool Message::textAppearCheckLine() {
 			appearing->revealedLineWidth = line.width;
 			appearing->shownWidth = textRealWidth();
 			appearing->shownHeight = line.bottom
-				+ ((hasRichPage() && text().hasSkipBlock())
-					? skipBlockHeight()
-					: 0);
+				+ (richPageInfoRow() ? skipBlockHeight() : 0);
 			appearing->widthAnimation.stop();
 			appearing->heightAnimation.stop();
 		}
@@ -7178,9 +7215,7 @@ int Message::textAppearTargetHeight(
 	const auto lines = int(appearing->lines.size());
 	if (next + 1 >= lines) {
 		return appearing->lines.back().bottom
-			+ ((hasRichPage() && text().hasSkipBlock())
-				? skipBlockHeight()
-				: 0);
+			+ (richPageInfoRow() ? skipBlockHeight() : 0);
 	}
 	const auto &line = appearing->lines[next];
 	const auto bottom = line.bottom;
@@ -7327,10 +7362,17 @@ void Message::refreshInfoSkipBlock(HistoryItem *textItem) {
 			_reactions->removeSkipBlock();
 		}
 	}
-	validateTextSkipBlock(
-		!hidesBottomInfo() && hasTextSkipBlock,
-		skipWidth,
-		skipHeight);
+	const auto has = !hidesBottomInfo() && hasTextSkipBlock;
+	validateTextSkipBlock(has, skipWidth, skipHeight);
+	if (const auto rich = richpage()) {
+		// The view button is placed above the info, so the info keeps its row.
+		const auto changed = (has && !_viewButton)
+			? rich->article.updateSkipBlock(skipWidth, skipHeight)
+			: rich->article.removeSkipBlock();
+		if (changed) {
+			invalidateTextSizeCache();
+		}
+	}
 }
 
 TimeId Message::displayedEditDate() const {

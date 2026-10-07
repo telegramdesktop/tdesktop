@@ -1793,7 +1793,9 @@ int Element::textHeightFor(int textWidth) const {
 			_textHeight = skips.top()
 				+ articleHeight
 				+ skips.bottom()
-				+ (_text.hasSkipBlock() ? skipBlockHeight() : 0);
+				+ ((_text.hasSkipBlock() && !rich->article.hasSkipBlock())
+					? skipBlockHeight()
+					: 0);
 			rich->article.setVisibleTopBottom(0, articleHeight);
 			_textRealWidth = std::clamp(
 				rich->article.lastLayoutWidth(),
