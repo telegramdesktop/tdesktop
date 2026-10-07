@@ -99,6 +99,9 @@ struct RichButtonLoadingCoverage {
 
 [[nodiscard]] const style::icon *RichButtonIcon(
 	HistoryMessageMarkupButton::Type type);
+[[nodiscard]] QString RichButtonUrl(
+	HistoryMessageMarkupButton::Type type,
+	const QByteArray &data);
 [[nodiscard]] QString RichButtonTooltip(
 	HistoryMessageMarkupButton::Type type,
 	const QByteArray &data,

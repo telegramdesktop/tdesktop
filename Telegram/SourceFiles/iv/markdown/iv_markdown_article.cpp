@@ -1401,10 +1401,12 @@ void RebuildVisibleSegmentLookup(
 		result.state.link = nullptr;
 	}
 	result.preparedLink = ExtractPreparedLink(result.state.link);
-	if (!result.preparedLink
-		&& dynamic_cast<Ui::Text::CustomEmojiClickHandler*>(
-			result.state.link.get())) {
-		result.inlineButton = point;
+	if (!result.preparedLink) {
+		if (const auto custom = dynamic_cast<Ui::Text::CustomEmojiClickHandler*>(
+				result.state.link.get())) {
+			result.inlineButton = point;
+			result.buttonUrl = InlineButtonUrl(custom->entityData());
+		}
 	}
 	if (!result.preparedLink
 		&& !result.inlineButton
@@ -1471,6 +1473,8 @@ void RebuildVisibleSegmentLookup(
 				const auto &runtime = segment.block->buttonRowRuntime;
 				if (runtime && (index < int(runtime->handlers.size()))) {
 					result.state.link = runtime->handlers[index];
+					const auto &record = runtime->buttons[index];
+					result.buttonUrl = RichButtonUrl(record.type, record.data);
 				}
 				result.buttonRow = {
 					.id = segment.block->buttonRowId,
@@ -4835,10 +4839,6 @@ MarkdownArticleHitTestResult MarkdownArticle::Impl::hitTest(
 		QPoint point,
 		Ui::Text::StateRequest::Flags flags) const {
 	auto result = hitTestSegments(point, flags);
-	if (result.inlineButton && result.customTooltip.isEmpty()) {
-		result.customTooltip = InlineButtonTooltip(
-			_inlineButtonPaintState->lookedUpButton);
-	}
 	if ((flags & Ui::Text::StateRequest::Flag::LookupLink)
 		&& !result.state.link
 		&& !result.preparedLink

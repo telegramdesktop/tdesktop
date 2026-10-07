@@ -245,6 +245,7 @@ struct MarkdownArticleHitTestResult {
 	MarkdownArticleButtonRowHit buttonRow;
 	std::optional<QPoint> inlineButton;
 	QString customTooltip;
+	QString buttonUrl;
 	int forcedOffset = -1;
 	bool direct = false;
 	bool codeHeaderCopy = false;

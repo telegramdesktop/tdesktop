@@ -776,6 +776,18 @@ QString InlineButtonClickHandler::tooltip() const {
 	return InlineButtonTooltip(_data);
 }
 
+[[nodiscard]] Ui::Text::CustomEmojiLinkTexts InlineButtonLinkTexts(
+		QStringView data) {
+	const auto url = InlineButtonUrl(data);
+	return {
+		.tooltip = InlineButtonTooltip(data),
+		.copyText = url,
+		.copyContextItemText = (url.isEmpty()
+			? QString()
+			: tr::lng_context_copy_link(tr::now)),
+	};
+}
+
 [[nodiscard]] QString InlineButtonPlainEmojiPrefix() {
 	return u"iv-markdown:inline-button-emoji:"_q;
 }
@@ -2346,6 +2358,11 @@ QString InlineButtonTooltip(QStringView data) {
 		: QString();
 }
 
+QString InlineButtonUrl(QStringView data) {
+	const auto button = ActionableInlineButtonDataFor(data);
+	return button ? RichButtonUrl(button->type, button->data) : QString();
+}
+
 void SetTextLeaf(
 		Ui::Text::String *leaf,
 		const style::TextStyle &textStyle,
@@ -2456,15 +2473,10 @@ void SetTextLeaf(
 			return (entity.type() == EntityType::CustomEmoji)
 				&& InlineButtonActionable(entity.data());
 		})) {
-		leaf->setCustomEmojiClickHandler([
-			state = inlineButtonPaintState
-		](QStringView data) {
-			if (!InlineButtonActionable(data)) {
-				return false;
-			}
-			state->lookedUpButton = data.toString();
-			return true;
-		}, ActivateInlineButton);
+		leaf->setCustomEmojiClickHandler(
+			InlineButtonActionable,
+			ActivateInlineButton,
+			InlineButtonLinkTexts);
 	}
 }
 
