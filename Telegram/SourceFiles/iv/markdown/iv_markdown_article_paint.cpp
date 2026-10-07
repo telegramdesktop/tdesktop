@@ -3143,7 +3143,7 @@ void PaintBlock(
 					block.marker,
 					markerContext,
 					block.markerRect,
-					block.markerWidth);
+					block.markerRect.width());
 			} else if (block.listKind == ListKind::Bullet) {
 				PaintBulletMarker(p, block, st, markerContext);
 			}
