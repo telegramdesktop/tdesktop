@@ -2250,46 +2250,6 @@ QString WalletLossWarning(WalletLoss loss) {
 	return result;
 }
 
-// The forgot-passcode twin of WalletLossWarning(), and it lives here beside
-// it on purpose. The model is shared and correct - both actions destroy the
-// same keys - but the statements are not: the logout renderer's strings say
-// that logging out is what destroys them, and the forgot box has just
-// promised the reader they will not be logged out. So the two say the same
-// facts about the same WalletLoss in their own words, in the same order, and
-// a term added to one is missing from the other unless they are read
-// together - which is why they are written together.
-QString ForgottenPasscodeLoss(WalletLoss loss) {
-	auto result = QString();
-	const auto append = [&](const QString &line) {
-		if (!result.isEmpty()) {
-			result += u"\n\n"_q;
-		}
-		result += line;
-	};
-	if (loss.unbacked > 0) {
-		append(tr::lng_wallet_passcode_forgot_local(
-			tr::now,
-			lt_count,
-			loss.unbacked));
-	}
-	if (loss.parked > 0) {
-		append(tr::lng_wallet_passcode_forgot_parked(
-			tr::now,
-			lt_count,
-			loss.parked));
-	}
-	if (loss.rotating > 0) {
-		append(tr::lng_wallet_passcode_forgot_rotating(
-			tr::now,
-			lt_count,
-			loss.rotating));
-	}
-	if (loss.unknown) {
-		append(tr::lng_wallet_passcode_forgot_unknown(tr::now));
-	}
-	return result;
-}
-
 CommentScope::CommentScope(std::shared_ptr<State> state)
 : _state(std::move(state)) {
 }

@@ -3172,7 +3172,7 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 			if (wanted) {
 				const auto action = Ui::Menu::CreateAction(
 					menu,
-					tr::lng_wallet_send_money(tr::now),
+					tr::lng_wallet_menu(tr::now),
 					crl::guard(controller, crl::guard(session, [=] {
 						if (canOffer()) {
 							Wallet::OpenSendMoney(controller, user);

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "main/main_app_config.h"
 #include "media/view/media_view_open_common.h"
+#include "lang/lang_hardcoded.h"
 #include "lang/lang_keys.h"
 #include "intro/intro_widget.h"
 #include "mtproto/mtproto_config.h"
@@ -579,26 +580,14 @@ QString LogoutConfirmationText(Main::Account *account) {
 	};
 	const auto &domain = Core::App().domain();
 	if (account) {
-		if (account->local().hasWalletWithUnviewedPhrase()) {
-			append(tr::lng_sure_logout_wallet(tr::now));
-		}
 		append(Wallet::WalletLossWarning(
 			Wallet::WalletLossOnLogout(account)));
 	} else if (!domain.started()) {
 		append(tr::lng_sure_logout_wallet_unknown(tr::now));
 	} else {
-		auto legacy = false;
 		auto loss = Wallet::WalletLoss();
 		for (const auto &[index, one] : domain.accounts()) {
-			// hasWalletWithUnviewedPhrase() may clear a broken record as
-			// a side effect, so it must run for every account and may not
-			// be short-circuited away.
-			legacy = one->local().hasWalletWithUnviewedPhrase() || legacy;
-			const auto part = Wallet::WalletLossOnLogout(one.get());
-			loss.add(part);
-		}
-		if (legacy) {
-			append(tr::lng_sure_logout_wallet(tr::now));
+			loss.add(Wallet::WalletLossOnLogout(one.get()));
 		}
 		append(Wallet::WalletLossWarning(loss));
 	}
@@ -633,16 +622,15 @@ void Controller::showPasscodeClearFailed(Fn<bool()> retry) {
 		return;
 	}
 	_passcodeClearFailedBox = show(Ui::MakeConfirmBox({
-		.text = tr::lng_passcode_reset_failed_text(),
+		.text = Lang::Hard::SecureSaveError(),
 		.confirmed = [=](Fn<void()> close) {
 			if (retry && retry()) {
 				close();
-				showToast(tr::lng_passcode_reset_done(tr::now));
 			}
 		},
-		.confirmText = tr::lng_passcode_reset_failed_retry(),
+		.confirmText = tr::lng_bot_download_retry(),
 		.cancelText = tr::lng_close(),
-		.title = tr::lng_passcode_reset_failed_title(),
+		.title = tr::lng_passcode_remove(),
 	}));
 }
 

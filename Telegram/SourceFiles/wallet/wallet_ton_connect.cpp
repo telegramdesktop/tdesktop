@@ -83,11 +83,10 @@ constexpr auto kBidiControls = std::array{
 [[nodiscard]] QString AccessNotice(TonConnectAccess access) {
 	switch (access) {
 	case TonConnectAccess::KeyChanging:
-		return tr::lng_wallet_connect_key_changing(tr::now);
-	case TonConnectAccess::NoCurrentKey:
-		return tr::lng_wallet_connect_no_key(tr::now);
+		return tr::lng_wallet_import_key_changing(tr::now);
 	case TonConnectAccess::Allowed:
 		return tr::lng_wallet_connect_expired(tr::now);
+	case TonConnectAccess::NoCurrentKey:
 	case TonConnectAccess::WalletNotReady:
 	case TonConnectAccess::Busy:
 		return tr::lng_wallet_connect_failed(tr::now);
@@ -98,9 +97,8 @@ constexpr auto kBidiControls = std::array{
 [[nodiscard]] QString DisconnectAccessNotice(TonConnectAccess access) {
 	switch (access) {
 	case TonConnectAccess::KeyChanging:
-		return tr::lng_wallet_apps_disconnect_key_changing(tr::now);
+		return tr::lng_wallet_import_key_changing(tr::now);
 	case TonConnectAccess::NoCurrentKey:
-		return tr::lng_wallet_apps_disconnect_no_key(tr::now);
 	case TonConnectAccess::Allowed:
 	case TonConnectAccess::WalletNotReady:
 	case TonConnectAccess::Busy:
@@ -800,14 +798,14 @@ void TonConnect::disconnectKeyReady(
 		case Error::Cancelled:
 			break;
 		case Error::Locked:
-			text = VaultLockedText(_session);
+			text = tr::lng_wallet_vault_locked(tr::now);
 			break;
 		case Error::Blocked:
 			text = DisconnectAccessNotice(
 				_session->wallet().tonConnectAccess());
 			break;
 		case Error::OtherKey:
-			text = tr::lng_wallet_apps_disconnect_other_key(tr::now);
+			text = tr::lng_wallet_connect_request_other_key(tr::now);
 			break;
 		case Error::None:
 		case Error::Failed:
@@ -1406,7 +1404,7 @@ void TonConnect::Connect::keyReady(TonConnectKeyResult result) {
 		accessBlocked(_session->wallet().tonConnectAccess());
 		return;
 	case Error::OtherKey:
-		notice(tr::lng_wallet_connect_other_key(tr::now));
+		notice(tr::lng_wallet_connect_expired(tr::now));
 		return;
 	case Error::None:
 	case Error::Failed:
@@ -1477,7 +1475,7 @@ void TonConnect::Connect::registerFailed(const MTP::Error &error) {
 	LOG(("Wallet Error: wallet.tonConnectRegisterKey failed: %1"
 		).arg(type));
 	if (type == u"TONCONNECT_CLIENT_ID_OCCUPIED"_q) {
-		notice(tr::lng_wallet_connect_occupied(tr::now));
+		notice(tr::lng_wallet_connect_expired(tr::now));
 	} else if (SessionGone(type)) {
 		expired();
 	} else {
@@ -1577,7 +1575,7 @@ void TonConnect::Connect::expired() {
 
 void TonConnect::Connect::locked() {
 	if (_box) {
-		_show->showToast(VaultLockedText(_session));
+		_show->showToast(tr::lng_wallet_vault_locked(tr::now));
 	}
 	backToConfirm(QString());
 }

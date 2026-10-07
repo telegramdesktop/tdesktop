@@ -417,7 +417,7 @@ void GateDerivation::run() {
 			continue;
 		}
 		const auto loss = WalletLossOnLogout(account.get());
-		auto paragraph = ForgottenPasscodeLoss(loss);
+		auto paragraph = WalletLossWarning(loss);
 		if (paragraph.isEmpty()) {
 			if (!loss.holdsRecords) {
 				continue;
@@ -445,9 +445,7 @@ void DropForgottenPasscode(std::shared_ptr<Main::SessionShow> show) {
 			show->showToast(tr::lng_wallet_passcode_forgot_failed(tr::now));
 			return;
 		}
-		show->showToast(Core::App().domain().local().hasPasscode()
-			? tr::lng_wallet_passcode_forgot_later(tr::now)
-			: tr::lng_wallet_passcode_forgot_done(tr::now));
+		show->showToast(tr::lng_wallet_passcode_forgot_done(tr::now));
 	});
 }
 
@@ -476,7 +474,7 @@ void ConfirmForgottenPasscode(
 		},
 		.confirmText = tr::lng_wallet_passcode_forgot_confirm(),
 		.confirmStyle = &st::attentionBoxButton,
-		.title = tr::lng_wallet_passcode_forgot_title(),
+		.title = tr::lng_wallet_passcode_forgot(),
 	}));
 }
 
@@ -531,7 +529,7 @@ void AcquireVaultUnlock(VaultUnlockArgs args) {
 				.install = MakeCustodyInstaller(show),
 			});
 		} else {
-			show->showToast(VaultLockedText(&session));
+			show->showToast(tr::lng_wallet_vault_locked(tr::now));
 			answer({});
 		}
 		return;
@@ -625,12 +623,6 @@ CustodyInstaller MakeCustodyInstaller(
 			});
 		}
 	};
-}
-
-QString VaultLockedText(not_null<Main::Session*> session) {
-	return session->domain().local().hasPasscode()
-		? tr::lng_wallet_vault_locked(tr::now)
-		: tr::lng_wallet_vault_no_passcode(tr::now);
 }
 
 void DropUnusedPasscode() {

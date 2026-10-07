@@ -113,12 +113,11 @@ void SubmitResponse(
 [[nodiscard]] QString AccessNoticeText(TonConnectAccess access) {
 	switch (access) {
 	case TonConnectAccess::KeyChanging:
-		return tr::lng_wallet_connect_request_key_changing(tr::now);
-	case TonConnectAccess::NoCurrentKey:
-		return tr::lng_wallet_connect_request_no_key(tr::now);
+		return tr::lng_wallet_import_key_changing(tr::now);
 	case TonConnectAccess::WalletNotReady:
 	case TonConnectAccess::Busy:
 		return tr::lng_wallet_state_error(tr::now);
+	case TonConnectAccess::NoCurrentKey:
 	case TonConnectAccess::Allowed:
 		return tr::lng_wallet_connect_request_failed(tr::now);
 	}
@@ -1319,7 +1318,7 @@ void TonConnectRequests::Flow::keyReady(TonConnectKeyResult result) {
 		return;
 	case Error::Locked:
 		if (_box) {
-			showNow()->showToast(VaultLockedText(_session));
+			showNow()->showToast(tr::lng_wallet_vault_locked(tr::now));
 		}
 		locked();
 		return;
@@ -1397,7 +1396,7 @@ void TonConnectRequests::Flow::decrypted(TonConnectAppRequest request) {
 	} else if (_request.kind == Kind::Unsupported) {
 		showUnhandled(tr::lng_wallet_connect_request_unsupported(tr::now));
 	} else if (_request.kind == Kind::Invalid) {
-		showUnhandled(tr::lng_wallet_connect_request_invalid(tr::now));
+		showUnhandled(tr::lng_wallet_connect_request_unsupported(tr::now));
 	} else if (_request.kind == Kind::SignData) {
 		showSignData();
 	} else {
@@ -1581,7 +1580,7 @@ void TonConnectRequests::Flow::decisionKeyFailed(TonConnectKeyError error) {
 		return;
 	case Error::Locked:
 		if (_box) {
-			showNow()->showToast(VaultLockedText(_session));
+			showNow()->showToast(tr::lng_wallet_vault_locked(tr::now));
 		}
 		backToConfirm(QString());
 		return;

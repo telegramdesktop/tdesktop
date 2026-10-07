@@ -37,6 +37,10 @@ namespace {
 
 } // namespace
 
+QString GramTicker() {
+	return u"GRAM"_q;
+}
+
 int GramDiamondCanvas(const style::font &font) {
 	const auto figure = int(base::SafeRound(
 		-font->metrics().tightBoundingRect(u"0123456789"_q).top()));

@@ -19,6 +19,9 @@ inline constexpr auto kGramDiamondBottom = 489. / 512.;
 
 [[nodiscard]] int GramDiamondCanvas(const style::font &font);
 
+// A currency code like the fiat codes shown in its place, so not translated.
+[[nodiscard]] QString GramTicker();
+
 struct AmountParts {
 	QString whole;
 	QString fraction;

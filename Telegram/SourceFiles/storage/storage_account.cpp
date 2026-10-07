@@ -72,8 +72,6 @@ constexpr auto kMultiDraftTag = quint64(0xFFFF'FFFF'FFFF'FF03ULL);
 constexpr auto kMultiDraftCursorsTag = quint64(0xFFFF'FFFF'FFFF'FF04ULL);
 constexpr auto kRichDraftsTag = quint64(0xFFFF'FFFF'FFFF'FF05ULL);
 constexpr auto kDraftsTag2 = quint64(0xFFFF'FFFF'FFFF'FF06ULL);
-constexpr auto kWalletFormatVersion = quint32(2);
-constexpr auto kWalletPublicKeySize = 32;
 constexpr auto kWalletEngineFormatVersion = quint32(1);
 
 enum { // Local Storage Keys
@@ -108,7 +106,7 @@ enum { // Local Storage Keys
 	lskMediaLastPlaybackPositions = 0x1c, // no data
 	lskBotStorages = 0x1d, // data: PeerId botId
 	lskPrefs = 0x1e, // no data
-	lskWalletKey = 0x1f, // no data
+	lskWalletKey = 0x1f, // no data, legacy wallet record
 	lskWalletEngineKey = 0x20, // no data, legacy single-file storage
 	lskWalletEngineStorages = 0x21, // data: QString key
 };
@@ -278,7 +276,6 @@ base::flat_set<QString> Account::collectGoodNames() const {
 		_roundPlaceholderKey,
 		_inlineBotsDownloadsKey,
 		_mediaLastPlaybackPositionsKey,
-		_walletKey,
 	};
 	auto result = base::flat_set<QString>{
 		"map0",
@@ -376,7 +373,7 @@ Account::ReadMapResult Account::readMapWith(
 	quint64 roundPlaceholderKey = 0;
 	quint64 inlineBotsDownloadsKey = 0;
 	quint64 mediaLastPlaybackPositionsKey = 0;
-	quint64 walletKey = 0;
+	quint64 walletLegacyKey = 0;
 	quint64 walletEngineLegacyKey = 0;
 	base::flat_map<QString, FileKey> walletEngineStoragesMap;
 	QByteArray webviewStorageTokenBots, webviewStorageTokenOther;
@@ -501,7 +498,7 @@ Account::ReadMapResult Account::readMapWith(
 			map.stream >> mediaLastPlaybackPositionsKey;
 		} break;
 		case lskWalletKey: {
-			map.stream >> walletKey;
+			map.stream >> walletLegacyKey;
 		} break;
 		case lskWalletEngineKey: {
 			map.stream >> walletEngineLegacyKey;
@@ -578,7 +575,6 @@ Account::ReadMapResult Account::readMapWith(
 	_roundPlaceholderKey = roundPlaceholderKey;
 	_inlineBotsDownloadsKey = inlineBotsDownloadsKey;
 	_mediaLastPlaybackPositionsKey = mediaLastPlaybackPositionsKey;
-	_walletKey = walletKey;
 	_walletEngineStoragesMap = walletEngineStoragesMap;
 	_oldMapVersion = mapData.version;
 	_webviewStorageIdBots.token = webviewStorageTokenBots;
@@ -588,6 +584,10 @@ Account::ReadMapResult Account::readMapWith(
 		writeMapDelayed();
 	} else {
 		_mapChanged = false;
+	}
+	if (walletLegacyKey) {
+		ClearKey(walletLegacyKey, _basePath);
+		writeMapDelayed();
 	}
 	if (walletEngineLegacyKey) {
 		ClearKey(walletEngineLegacyKey, _basePath);
@@ -705,7 +705,6 @@ void Account::writeMap() {
 	if (_roundPlaceholderKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_inlineBotsDownloadsKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (_mediaLastPlaybackPositionsKey) mapSize += sizeof(quint32) + sizeof(quint64);
-	if (_walletKey) mapSize += sizeof(quint32) + sizeof(quint64);
 	if (!_botStoragesMap.empty()) mapSize += sizeof(quint32) * 2 + _botStoragesMap.size() * sizeof(quint64) * 2;
 	if (!_walletEngineStoragesMap.empty()) {
 		mapSize += sizeof(quint32) * 2;
@@ -798,10 +797,6 @@ void Account::writeMap() {
 		mapData.stream << quint32(lskMediaLastPlaybackPositions);
 		mapData.stream << quint64(_mediaLastPlaybackPositionsKey);
 	}
-	if (_walletKey) {
-		mapData.stream << quint32(lskWalletKey);
-		mapData.stream << quint64(_walletKey);
-	}
 	if (!_walletEngineStoragesMap.empty()) {
 		mapData.stream
 			<< quint32(lskWalletEngineStorages)
@@ -850,7 +845,6 @@ void Account::reset() {
 	_roundPlaceholderKey = 0;
 	_inlineBotsDownloadsKey = 0;
 	_mediaLastPlaybackPositionsKey = 0;
-	_walletKey = 0;
 	_walletEngineStoragesMap.clear();
 	_oldMapVersion = 0;
 	_fileLocations.clear();
@@ -3762,61 +3756,6 @@ QByteArray Account::readBotStorage(PeerId botId) {
 		return {};
 	}
 	return result;
-}
-
-std::optional<WalletStored> Account::readWallet() {
-	if (!_walletKey) {
-		return std::nullopt;
-	}
-	const auto broken = [&] {
-		ClearKey(_walletKey, _basePath);
-		_walletKey = 0;
-		writeMapDelayed();
-		return std::nullopt;
-	};
-	FileReadDescriptor wallet;
-	if (!ReadEncryptedFile(wallet, _walletKey, _basePath, _localKey)) {
-		return broken();
-	}
-	quint32 formatVersion = 0;
-	wallet.stream >> formatVersion;
-	if (!CheckStreamStatus(wallet.stream)) {
-		return broken();
-	} else if (formatVersion > kWalletFormatVersion) {
-		return std::nullopt;
-	} else if (formatVersion < kWalletFormatVersion) {
-		LOG(("Wallet: dropping the legacy recovery-words wallet record."));
-		return broken();
-	}
-	auto result = WalletStored();
-	auto network = qint32(0);
-	auto phraseViewed = qint32(0);
-	wallet.stream
-		>> result.recordId
-		>> result.address
-		>> result.publicKey
-		>> network
-		>> result.secretRef
-		>> phraseViewed;
-	if (!CheckStreamStatus(wallet.stream)
-		|| result.recordId.isEmpty()
-		|| result.address.isEmpty()
-		|| result.secretRef.isEmpty()
-		|| result.publicKey.size() != kWalletPublicKeySize
-		|| (network != 1 && network != 2)) {
-		return broken();
-	}
-	result.network = network;
-	result.phraseViewed = (phraseViewed == 1);
-	return result;
-}
-
-bool Account::hasWalletWithUnviewedPhrase() {
-	if (!_walletKey) {
-		return false;
-	}
-	const auto wallet = readWallet();
-	return wallet && !wallet->phraseViewed;
 }
 
 WalletEngineValue Account::readWalletEngineValue(const QString &key) {

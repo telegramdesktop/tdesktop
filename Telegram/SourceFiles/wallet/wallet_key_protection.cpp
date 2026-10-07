@@ -31,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
-#include "ui/passcode_strength.h"
 #include "ui/text/text_utilities.h"
 #include "wallet/wallet_palette.h"
 #include "wallet/wallet_session.h"
@@ -208,19 +207,6 @@ namespace {
 		result = value;
 	}, lifetime);
 	return result;
-}
-
-[[nodiscard]] Ui::PasscodeStrengthBand PasscodeBand(
-		const SecureBytes &passcode) {
-	auto text = QString::fromUtf8(
-		reinterpret_cast<const char*>(passcode.span().data()),
-		passcode.size());
-	const auto cleanse = gsl::finally([&] {
-		if (!text.isEmpty()) {
-			OPENSSL_cleanse(text.data(), text.size() * sizeof(QChar));
-		}
-	});
-	return Ui::EstimatePasscodeStrength(text).band;
 }
 
 [[nodiscard]] QString RemovalWalletNames(
@@ -451,7 +437,7 @@ void WalletPasscodeCreateBox(
 	const auto weakSession = base::make_weak(&show->session());
 	const auto runtime = show->session().wallet().vault().shared_from_this();
 
-	box->setTitle(tr::lng_wallet_protection_create_title());
+	box->setTitle(tr::lng_passcode_create_title());
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
@@ -461,8 +447,8 @@ void WalletPasscodeCreateBox(
 
 	const auto fields = AddPasscodeFields(
 		box,
-		tr::lng_wallet_protection_create_enter(),
-		tr::lng_wallet_protection_create_confirm());
+		tr::lng_passcode_enter_first(),
+		tr::lng_passcode_confirm_new());
 	const auto first = fields.first;
 	const auto setBusy = [=](bool busy) {
 		state->busy = busy;
@@ -582,7 +568,7 @@ void WalletPasscodeChangeBox(
 	const auto state = box->lifetime().make_state<State>();
 	state->current = std::move(current);
 
-	box->setTitle(tr::lng_wallet_protection_change_title());
+	box->setTitle(tr::lng_passcode_change());
 	box->addSkip(st::walletProtectionRowSkip);
 	const auto fields = AddPasscodeFields(
 		box,
@@ -963,39 +949,8 @@ void KeyProtectionBox(
 		(removal
 			? tr::lng_wallet_protection_passcode_keep
 			: tr::lng_wallet_protection_passcode)(),
-		(removal
-			? tr::lng_wallet_protection_passcode_keep_about
-			: tr::lng_wallet_protection_passcode_about)(),
+		tr::lng_wallet_protection_passcode_about(),
 		st::defaultBoxCheckbox);
-	// The band lives in the box's lifetime: nothing derived from the typed
-	// passcode reaches a member of anything that outlives the box. It moves
-	// when the passcode is changed from here.
-	using Band = Ui::PasscodeStrengthBand;
-	const auto band = state->passcode.empty()
-		? nullptr
-		: box->lifetime().make_state<rpl::variable<Band>>(
-			PasscodeBand(state->passcode));
-	if (band) {
-		const auto strength = passcodeRow->add(
-			object_ptr<Ui::FlatLabel>(
-				box,
-				tr::lng_wallet_protection_passcode_current(
-					lt_band,
-					band->value(
-					) | rpl::map(
-						Ui::PasscodeStrengthBandName
-					) | rpl::flatten_latest()),
-				st::walletProtectionAboutLabel),
-			st::walletProtectionStrengthMargin);
-		rpl::combine(
-			band->value(),
-			rpl::single(rpl::empty) | rpl::then(style::PaletteChanged())
-		) | rpl::on_next([=](Band value, rpl::empty_value) {
-			const auto scope = WindowPaletteScope(strength);
-			strength->setTextColorOverride(
-				Ui::PasscodeStrengthBandColor(value)->c);
-		}, strength->lifetime());
-	}
 	makeClickable(passcodeRow, VaultKind::Passcode);
 	// The passcode exists independently of whether this box already holds
 	// verified bytes. The link remains available before lazy verification,
@@ -1103,7 +1058,7 @@ void KeyProtectionBox(
 						box->closeBox();
 					}
 				}),
-				.confirmText = tr::lng_wallet_vault_reset_confirm(),
+				.confirmText = tr::lng_wallet_passcode_forgot_confirm(),
 				.confirmStyle = &st::attentionBoxButton,
 				.title = tr::lng_wallet_vault_reset_title(),
 			}));
@@ -1454,9 +1409,6 @@ void KeyProtectionBox(
 						state->wrap = std::move(reading.keyring.wrap);
 						state->epoch = vault.clearEpoch();
 						state->passcode = std::move(result.passcode);
-						if (band) {
-							*band = PasscodeBand(state->passcode);
-						}
 						state->passcodeChanged = false;
 						setBusy(false);
 						save();
@@ -1609,7 +1561,7 @@ void SetupSystemPromptBox(
 		box->clearButtons();
 		if (!asking) {
 			box->addButton(
-				tr::lng_wallet_protection_hardware_retry(),
+				tr::lng_bot_download_retry(),
 				retry);
 		}
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });

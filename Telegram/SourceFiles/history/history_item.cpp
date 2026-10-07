@@ -8769,7 +8769,7 @@ PreparedServiceText HistoryItem::prepareGramTransferText(
 		}
 	}
 	if (hidden && !out()) {
-		result.text = tr::lng_action_gram_transfer_received_someone(
+		result.text = tr::lng_action_gram_transfer_received_unknown(
 			tr::now,
 			lt_amount,
 			amount,

@@ -1486,14 +1486,13 @@ AmountRow::AmountRow(QWidget *parent, AmountFieldArgs &args)
 
 	rpl::combine(
 		std::move(args.entryFiat),
-		std::move(args.currency),
-		tr::lng_wallet_card_ticker()
-	) | rpl::on_next([=](bool fiat, QString code, QString gram) {
+		std::move(args.currency)
+	) | rpl::on_next([=](bool fiat, QString code) {
 		const auto name = Ui::CurrencyName(code);
 		const auto switched = _initialized
 			&& ((fiat != _fiat) || (fiat && code != _currency));
 		_fiat = fiat;
-		_ticker = fiat ? code : gram;
+		_ticker = fiat ? code : GramTicker();
 		_symbol = (fiat && name != code) ? name : QString();
 		_currency = std::move(code);
 		if (!switched) {

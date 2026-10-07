@@ -122,22 +122,4 @@ void PasscodeStrengthMeter::paintEvent(QPaintEvent *e) {
 	}
 }
 
-rpl::producer<QString> PasscodeStrengthBandName(PasscodeStrengthBand band) {
-	switch (band) {
-	case PasscodeStrengthBand::VeryWeak:
-		return tr::lng_passcode_strength_very_weak();
-	case PasscodeStrengthBand::Weak:
-		return tr::lng_passcode_strength_weak();
-	case PasscodeStrengthBand::Good:
-		return tr::lng_passcode_strength_good();
-	case PasscodeStrengthBand::Strong:
-		return tr::lng_passcode_strength_strong();
-	}
-	Unexpected("Band in PasscodeStrengthBandName.");
-}
-
-const style::color &PasscodeStrengthBandColor(PasscodeStrengthBand band) {
-	return BandColor(st::defaultPasscodeStrengthMeter, band);
-}
-
 } // namespace Ui

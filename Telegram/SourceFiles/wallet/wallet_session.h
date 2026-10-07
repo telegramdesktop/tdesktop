@@ -200,7 +200,6 @@ struct TransferItem {
 	};
 	enum class Kind {
 		Transfer,
-		ContractInteraction,
 		Collectible,
 		Onramp,
 		PeerTransfer,
@@ -511,7 +510,6 @@ struct WalletLoss {
 [[nodiscard]] WalletLoss WalletLossOnLogout(
 	not_null<Main::Account*> account);
 [[nodiscard]] QString WalletLossWarning(WalletLoss loss);
-[[nodiscard]] QString ForgottenPasscodeLoss(WalletLoss loss);
 
 class Session final {
 public:

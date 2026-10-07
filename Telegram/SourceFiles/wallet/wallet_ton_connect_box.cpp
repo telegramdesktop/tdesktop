@@ -260,7 +260,7 @@ void UpdateState(
 	const auto loading = (now.phase == Phase::Loading);
 	state->header({
 		.title = (loading
-			? tr::lng_wallet_connect_loading(tr::now)
+			? tr::lng_contacts_loading(tr::now)
 			: now.name.isEmpty()
 			? tr::lng_wallet_connect_title(tr::now)
 			: tr::lng_wallet_connect_title_app(tr::now, lt_name, now.name)),
@@ -343,7 +343,7 @@ void UpdateState(
 	inner->setAttribute(Qt::WA_TransparentForMouseEvents);
 	const auto button = Ui::CreateChild<Ui::RoundButton>(
 		wrap,
-		tr::lng_wallet_apps_disconnect(),
+		tr::lng_settings_disconnect(),
 		st::attentionBoxButton);
 	button->setClickedCallback(std::move(disconnect));
 	const auto reserve = style::margins(
@@ -462,7 +462,7 @@ void RefreshApps(
 								show,
 								id);
 						},
-						.confirmText = tr::lng_wallet_apps_disconnect(),
+						.confirmText = tr::lng_settings_disconnect(),
 						.confirmStyle = &st::attentionBoxButton,
 						.title = tr::lng_wallet_apps_disconnect_title(),
 					}));

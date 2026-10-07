@@ -63,15 +63,6 @@ struct MessageDraftSource {
 	Fn<MessageCursor()> cursor;
 };
 
-struct WalletStored {
-	QString recordId;
-	QString address;
-	QByteArray publicKey;
-	qint32 network = 1;
-	QString secretRef;
-	bool phraseViewed = false;
-};
-
 struct WalletEngineValue {
 	enum class State : uchar {
 		Read,
@@ -227,9 +218,6 @@ public:
 
 	void writeBotStorage(PeerId botId, const QByteArray &serialized);
 	[[nodiscard]] QByteArray readBotStorage(PeerId botId);
-
-	[[nodiscard]] std::optional<WalletStored> readWallet();
-	[[nodiscard]] bool hasWalletWithUnviewedPhrase();
 
 	// Per-key encrypted records owned by the wallet engine bridge
 	// (protected secrets and the send journal). Broken reports a record
@@ -396,7 +384,6 @@ private:
 	FileKey _roundPlaceholderKey = 0;
 	FileKey _inlineBotsDownloadsKey = 0;
 	FileKey _mediaLastPlaybackPositionsKey = 0;
-	FileKey _walletKey = 0;
 	base::flat_map<QString, FileKey> _walletEngineStoragesMap;
 
 	qint64 _cacheTotalSizeLimit = 0;

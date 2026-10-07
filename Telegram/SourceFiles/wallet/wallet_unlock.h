@@ -94,8 +94,6 @@ void AcquireVaultUnlock(VaultUnlockArgs args);
 	std::shared_ptr<Main::SessionShow> show,
 	VaultAuthorization authorization = nullptr);
 
-[[nodiscard]] QString VaultLockedText(not_null<Main::Session*> session);
-
 // The app lock and the shared live Passcode policy are the only dependencies.
 // Reconciliation runs at startup, logout and completed protection/install
 // operations. It never runs from localPasscodeChanged: a wallet-only passcode

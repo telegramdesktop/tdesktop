@@ -458,7 +458,7 @@ rpl::producer<bool> TouchIdProtection::available() const {
 }
 
 rpl::producer<QString> TouchIdProtection::title() const {
-	return tr::lng_wallet_protection_touchid();
+	return tr::lng_settings_use_touchid();
 }
 
 rpl::producer<QString> TouchIdProtection::description() const {

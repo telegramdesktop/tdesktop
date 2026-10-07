@@ -1237,7 +1237,6 @@ enum class RowAvatar {
 	Peer,
 	In,
 	Out,
-	Contract,
 	KeyChange,
 	Gear,
 };
@@ -1409,8 +1408,7 @@ void SetRowItemAmount(
 void PaintRowAvatar(Painter &p, QRect rect, RowAvatar avatar) {
 	auto hq = PainterHighQualityEnabler(p);
 	const auto in = (avatar == RowAvatar::In);
-	const auto flat = (avatar == RowAvatar::Contract)
-		|| (avatar == RowAvatar::KeyChange)
+	const auto flat = (avatar == RowAvatar::KeyChange)
 		|| (avatar == RowAvatar::Gear);
 	if (flat) {
 		p.setBrush(st::historyPeerArchiveUserpicBg);
@@ -1431,8 +1429,6 @@ void PaintRowAvatar(Painter &p, QRect rect, RowAvatar avatar) {
 	p.drawEllipse(rect);
 	const auto icon = in
 		? &st::walletRowArrowIn
-		: (avatar == RowAvatar::Contract)
-		? &st::walletRowContractIcon
 		: (avatar == RowAvatar::KeyChange)
 		? &st::walletRowKeyIcon
 		: (avatar == RowAvatar::Gear)
@@ -3041,9 +3037,9 @@ not_null<SendingHistoryRow*> AddSendingHistoryRow(
 	using Status = TransferItem::Status;
 	switch (status) {
 	case Status::Pending:
-		return tr::lng_wallet_row_pending(tr::now);
+		return tr::lng_channel_earn_history_pending(tr::now);
 	case Status::Failure:
-		return tr::lng_wallet_row_failed(tr::now);
+		return tr::lng_channel_earn_history_failed(tr::now);
 	case Status::Success:
 		return QString();
 	}
@@ -3170,14 +3166,11 @@ not_null<SendingHistoryRow*> AddSendingHistoryRow(
 			.avatar = RowAvatar::KeyChange,
 		};
 	}
-	const auto contract = (item.kind == Kind::ContractInteraction);
 	const auto collectible = (item.kind == Kind::Collectible);
 	const auto hasCounterparty = transfer
 		? !address.isEmpty()
 		: !item.counterparty.isEmpty();
-	const auto kindText = contract
-		? tr::lng_wallet_row_smart_contract(tr::now)
-		: collectible
+	const auto kindText = collectible
 		? (item.incoming
 			? tr::lng_wallet_row_collectible_in(tr::now)
 			: tr::lng_wallet_row_collectible_out(tr::now))
@@ -3191,8 +3184,6 @@ not_null<SendingHistoryRow*> AddSendingHistoryRow(
 				: ShortAddressForm(transfer
 					? address
 					: CounterpartyAddress(item)))
-			: contract
-			? tr::lng_wallet_row_contract(tr::now)
 			: kindText),
 		.subtitle = (!statusText.isEmpty()
 			? statusText
@@ -3204,11 +3195,7 @@ not_null<SendingHistoryRow*> AddSendingHistoryRow(
 		.incoming = item.incoming,
 		.pending = pending,
 		.failed = failed,
-		.avatar = (contract
-			? RowAvatar::Contract
-			: item.incoming
-			? RowAvatar::In
-			: RowAvatar::Out),
+		.avatar = (item.incoming ? RowAvatar::In : RowAvatar::Out),
 	};
 }
 
@@ -3286,10 +3273,10 @@ void AddDetailsAmountHeader(
 	// one header only makes the line harder to read.
 	const auto ticker = Ui::CreateChild<Ui::FlatLabel>(
 		container,
-		tr::lng_wallet_details_ticker(
+		tr::lng_action_gram_transfer_ticker(
 			tr::now,
 			lt_count,
-			std::abs(item.amountNano / float64(Ui::kNanosInOne))),
+			std::abs(item.amountNano / float64(Ui::kNanosInOne))).toUpper(),
 		st::walletDetailsTickerLabel);
 	const auto subdued = (item.status == TransferItem::Status::Pending)
 		|| (item.status == TransferItem::Status::Failure);
@@ -3694,21 +3681,15 @@ void AddDetailsComment(
 	}) | rpl::distinct_until_changed();
 }
 
+// The fee itself is shown in the row that opens this box.
 void ShowNetworkFeesAbout(
 		std::shared_ptr<Ui::Show> show,
-		not_null<Main::Session*> session,
-		int64 feeNano) {
-	const auto rate = session->wallet().rates().current();
-	const auto covered = GaslessDailyTransfers(session);
+		not_null<Main::Session*> session) {
 	show->showBox(Ui::MakeInformBox({
-		.text = (feeNano > 0 && rate.available())
-			? tr::lng_wallet_fees_text(
-				tr::now,
-				lt_count,
-				covered,
-				lt_amount,
-				FormatFiat(feeNano, rate, kFeeFiatDecimals))
-			: tr::lng_wallet_fees_text_unknown(tr::now, lt_count, covered),
+		.text = tr::lng_wallet_fees_text(
+			tr::now,
+			lt_count,
+			GaslessDailyTransfers(session)),
 		.title = tr::lng_wallet_fees_title(),
 	}));
 }
@@ -3760,7 +3741,7 @@ void AddPendingFeeTableRow(
 	Ui::AddTableRow(
 		table,
 		tr::lng_wallet_details_fee(),
-		tr::lng_wallet_details_fee_loading(
+		tr::lng_contacts_loading(
 			tr::italic
 		) | rpl::map([=](TextWithEntities text) {
 			auto result = diamond;
@@ -3814,7 +3795,7 @@ void AddFeeTableRow(
 			label,
 			rpl::single(u"?"_q),
 			[=](not_null<Ui::RpWidget*>) {
-				ShowNetworkFeesAbout(show, session, feeNano);
+				ShowNetworkFeesAbout(show, session);
 			}).widget);
 }
 
@@ -3832,7 +3813,7 @@ void AddFeeTableRow(
 		table,
 		chatShow,
 		peer->id,
-		offer ? tr::lng_wallet_details_send() : nullptr,
+		offer ? tr::lng_send_button() : nullptr,
 		offer ? Fn<void()>([=] { ShowSendToUser(show, user); }) : nullptr,
 		[=] {
 			const auto window = chatShow->resolveWindow();
@@ -3915,7 +3896,7 @@ void AddDetailsTable(
 			table,
 			tr::lng_wallet_details_status(),
 			reason.isEmpty()
-				? tr::lng_wallet_details_failed(tr::marked)
+				? tr::lng_channel_earn_history_failed(tr::marked)
 				: tr::lng_wallet_details_failed_reason(
 					lt_reason,
 					rpl::single(TextWithEntities{ reason }),
@@ -3930,7 +3911,7 @@ void AddDetailsTable(
 		Ui::AddTableRow(
 			table,
 			tr::lng_wallet_details_operation(),
-			tr::lng_wallet_details_key_change(tr::marked));
+			tr::lng_wallet_row_key_change(tr::marked));
 	} else if (peer) {
 		AddPeerCounterpartyRows(box, table, show, peer, item);
 	} else if (!item.counterparty.isEmpty()) {
@@ -4596,7 +4577,7 @@ void WalletHowItWorksBox(
 		tr::lng_wallet_how_title(),
 		tr::lng_wallet_how_subtitle(),
 		features,
-		tr::lng_wallet_how_button());
+		tr::lng_archive_hint_button());
 }
 
 [[nodiscard]] Ui::LayerStackWidget *BoxLayerStack(
@@ -4653,7 +4634,7 @@ void WalletFirstGramsBox(
 				lt_attach,
 				Ui::Text::IconEmoji(&st::walletFirstAttachEmoji),
 				lt_money,
-				tr::marked(tr::lng_wallet_send_money(tr::now)),
+				tr::marked(tr::lng_wallet_menu(tr::now)),
 				tr::marked),
 			.similarLines = true,
 		},
@@ -4681,7 +4662,7 @@ void WalletFirstGramsBox(
 		tr::lng_wallet_first_title(),
 		std::move(subtitle),
 		features,
-		tr::lng_wallet_first_button());
+		tr::lng_archive_hint_button());
 
 	box->boxClosing() | rpl::on_next([weak = base::make_weak(session)] {
 		if (const auto strong = weak.get()) {
@@ -4743,8 +4724,7 @@ void WalletCloudPasswordCreateBox(
 			state->request.destroy();
 			box->closeBox();
 			show->showToast({
-				.title = tr::lng_wallet_protect_done_title(tr::now),
-				.text = { tr::lng_wallet_protect_done_text(tr::now) },
+				.text = { tr::lng_cloud_password_was_set(tr::now) },
 				.icon = &st::toastCheckIcon,
 			});
 		});
@@ -4777,7 +4757,7 @@ void WalletCloudPasswordIntroBox(
 
 	AddBoxCloseButton(box);
 
-	box->addButton(tr::lng_wallet_protect_set_password(), [=] {
+	box->addButton(tr::lng_settings_cloud_password_password_subtitle(), [=] {
 		box->closeBox();
 		show->showBox(Box(WalletCloudPasswordCreateBox, show));
 	});
@@ -5034,13 +5014,13 @@ void WalletTransactionBox(
 		if (!url.isEmpty()) {
 			raw->addAction(
 				Ui::Text::FixAmpersandInAction(
-					tr::lng_wallet_details_explorer(tr::now)),
+					tr::lng_channel_earn_history_out_button(tr::now)),
 				[=] { UrlClickHandler::Open(url); },
 				&st::menuIconSearch);
 		}
 		raw->addAction(
 			Ui::Text::FixAmpersandInAction(
-				tr::lng_wallet_details_gram(tr::now)),
+				tr::lng_wallet_how_menu(tr::now)),
 			[=] { show->showBox(Box(WalletHowItWorksBox, session)); },
 			&st::menuIconFaq);
 		raw->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
@@ -5604,7 +5584,6 @@ enum class RecipientError : uchar {
 	case RecipientError::NameNotFound:
 		return tr::lng_wallet_send_name_not_found();
 	case RecipientError::NameFailed:
-		return tr::lng_wallet_send_name_failed();
 	case RecipientError::LookupFailed:
 		return tr::lng_wallet_send_user_load_error();
 	}
@@ -5668,7 +5647,7 @@ enum class RecipientError : uchar {
 			box,
 			st::walletCommentField,
 			Ui::InputField::Mode::NoNewlines,
-			tr::lng_wallet_comment_placeholder(),
+			tr::lng_wallet_send_comment_optional(),
 			comment),
 		st::walletCommentFieldMargin);
 	ApplyCommentLimit(field);
@@ -5690,7 +5669,7 @@ enum class RecipientError : uchar {
 		st::walletSendFieldMargin);
 	const auto paste = Ui::CreateChild<Ui::RoundButton>(
 		field,
-		tr::lng_wallet_send_paste(),
+		tr::lng_mac_menu_paste(),
 		st::defaultTableSmallButton);
 	paste->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
 	paste->setClickedCallback([=] {
@@ -5857,21 +5836,18 @@ QString SendErrorText(SendError error, int64 minTransferNano) {
 	case SendError::InsufficientFees:
 		return tr::lng_wallet_send_error_insufficient(tr::now);
 	case SendError::PreviousUnresolved:
-		return tr::lng_wallet_send_error_unresolved(tr::now);
 	case SendError::AlreadySending:
 		return tr::lng_wallet_send_error_in_progress(tr::now);
 	case SendError::SigningUnavailable:
-		return tr::lng_wallet_send_error_signing(tr::now);
+		return tr::lng_wallet_readonly_bar(tr::now);
 	case SendError::Locked:
 		return tr::lng_wallet_vault_locked(tr::now);
 	case SendError::InvalidRequest:
 	case SendError::Failed:
 	case SendError::KeyMismatch:
-		return tr::lng_wallet_send_error_failed(tr::now);
 	case SendError::Rejected:
-		return tr::lng_wallet_send_error_rejected(tr::now);
 	case SendError::DataInvalid:
-		return tr::lng_wallet_send_error_data_invalid(tr::now);
+		return tr::lng_wallet_send_error_failed(tr::now);
 	case SendError::KeyChanged:
 		return tr::lng_wallet_send_key_changed_text(tr::now);
 	case SendError::QuoteExpired:
@@ -5912,7 +5888,7 @@ namespace {
 	} else if (error == u"WALLET_ADDRESS_INVALID"_q) {
 		return tr::lng_wallet_send_user_load_error(tr::now);
 	}
-	return tr::lng_wallet_send_unavailable(tr::now, lt_error, error);
+	return ErrorWithType(tr::lng_wallet_state_error(tr::now), error);
 }
 
 // A button that cannot be pressed yet keeps the background its own style
@@ -7228,7 +7204,7 @@ void WalletSendBox(
 		toggle->setForceRippled(true);
 		raw->addAction(
 			Ui::Text::FixAmpersandInAction(
-				tr::lng_wallet_send_deposit(tr::now)),
+				tr::lng_wallet_add_funds(tr::now)),
 			receive,
 			&st::menuIconAdd);
 		raw->addAction(
@@ -8049,15 +8025,7 @@ void WalletSendBox(
 			balance,
 			object_ptr<Ui::FlatLabel>(
 				balance,
-				rpl::combine(
-					state->previewError.value(),
-					tr::lng_wallet_send_insufficient()
-				) | rpl::map([=](SendError error, QString generic) {
-					return (error == SendError::InsufficientBalance
-						|| error == SendError::InsufficientFees)
-						? SendErrorText(error, state->minTransfer.current())
-						: generic;
-				}),
+				tr::lng_wallet_send_error_insufficient(),
 				st::walletSendUserErrorLabel)),
 		style::al_justify);
 	// An error that does not fit one line reads better split evenly than
@@ -8126,7 +8094,7 @@ void WalletSendBox(
 	const auto deposit = depositInner->add(
 		object_ptr<Ui::RoundButton>(
 			depositInner,
-			tr::lng_wallet_send_deposit(),
+			tr::lng_wallet_add_funds(),
 			st::defaultTableSmallButton),
 		style::margins(0, st::walletDetailsAmountMinorSkip, 0, 0),
 		style::al_top);
@@ -8250,7 +8218,7 @@ void WalletSendBox(
 				},
 			});
 		}, KeyActionKind::ResumeAfterRestore, context,
-			tr::lng_wallet_restore_send_text());
+			tr::lng_wallet_restore_text());
 	};
 
 	// One press of the send button is one request: the amount, recipient
@@ -8998,7 +8966,7 @@ void WalletSendRecipientBox(
 	const auto field = AddSendField(
 		recipient,
 		st::walletSendField,
-		tr::lng_wallet_send_recipient(),
+		tr::lng_wallet_details_recipient(),
 		text);
 	const auto errorWrap = recipient->add(
 		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
@@ -9284,10 +9252,7 @@ void WalletPhraseBox(
 	SubmitBoxOnEnter(box, [=] { box->closeBox(); });
 }
 
-[[nodiscard]] TextWithEntities EnforcementCheckAbout(
-		const QString &error,
-		tr::phrase<lngtag_duration> wait,
-		tr::phrase<> about) {
+[[nodiscard]] TextWithEntities EnforcementCheckAbout(const QString &error) {
 	auto result = tr::marked();
 	const auto prefixes = {
 		u"PASSWORD_TOO_FRESH_"_q,
@@ -9299,7 +9264,7 @@ void WalletPhraseBox(
 		}
 		const auto seconds = error.mid(prefix.size()).toInt();
 		if (seconds > 0) {
-			result.append(wait(
+			result.append(tr::lng_wallet_phrase_check_wait(
 				tr::now,
 				lt_duration,
 				tr::marked(Ui::FormatResetCloudPasswordIn(seconds)),
@@ -9308,15 +9273,10 @@ void WalletPhraseBox(
 		}
 		break;
 	}
-	result.append(about(tr::now, tr::marked));
+	result.append(tr::lng_bots_password_confirm_check_about(
+		tr::now,
+		tr::marked));
 	return result;
-}
-
-[[nodiscard]] TextWithEntities PhraseCheckAbout(const QString &error) {
-	return EnforcementCheckAbout(
-		error,
-		tr::lng_wallet_phrase_check_wait,
-		tr::lng_wallet_phrase_check_about);
 }
 
 enum class PhraseOperation {
@@ -9360,20 +9320,6 @@ void ShowPhraseError(
 	show->showToast(ErrorWithType(text, error));
 }
 
-[[nodiscard]] TextWithEntities ReplaceCheckAbout(const QString &error) {
-	return EnforcementCheckAbout(
-		error,
-		tr::lng_wallet_replace_check_wait,
-		tr::lng_wallet_replace_check_about);
-}
-
-[[nodiscard]] TextWithEntities BackupCheckAbout(const QString &error) {
-	return EnforcementCheckAbout(
-		error,
-		tr::lng_wallet_backup_check_wait,
-		tr::lng_wallet_backup_check_about);
-}
-
 // ReadOnlyRestorable ends as soon as custody is installed, so an entry that
 // reaches the cloud password box in that mode is by construction the first
 // key use on this device: that box then carries the lock-and-key header
@@ -9399,7 +9345,7 @@ void ShowPhraseError(
 			.description = tr::lng_wallet_restore_explain_text(),
 		};
 	} else {
-		result.customTitle = tr::lng_wallet_phrase_password_title();
+		result.customTitle = tr::lng_bots_password_confirm_title();
 		result.customDescription = description;
 	}
 	return result;
@@ -9471,13 +9417,13 @@ void RequestPhraseReveal(
 			if (passcode) {
 				passcode->closeBox();
 			}
-			show->showToast(VaultLockedText(&show->session()));
+			show->showToast(tr::lng_wallet_vault_locked(tr::now));
 			return;
 		}
 		if (auto box = PrePasswordErrorBox(
 				error,
 				&show->session(),
-				PhraseCheckAbout(error))) {
+				EnforcementCheckAbout(error))) {
 			if (passcode) {
 				passcode->closeBox();
 			}
@@ -9923,7 +9869,7 @@ void ShowInvalidSecretWords(
 		bool foreign,
 		std::shared_ptr<KeyContext> context = nullptr) {
 	auto args = Ui::ConfirmBoxArgs{
-		.confirmText = tr::lng_wallet_import_try_again(),
+		.confirmText = tr::lng_bot_download_retry(),
 		.title = tr::lng_wallet_import_invalid_title(),
 	};
 	if (foreign) {
@@ -10048,7 +9994,7 @@ void ShowWrongSecretWords(
 					padding.right(),
 					padding.bottom()));
 		}
-		box->addButton(tr::lng_wallet_import_try_again(), [=] {
+		box->addButton(tr::lng_bot_download_retry(), [=] {
 			box->closeBox();
 		});
 	}));
@@ -10206,13 +10152,13 @@ void RequestCustodyRestore(
 			if (passcode) {
 				passcode->closeBox();
 			}
-			show->showToast(VaultLockedText(&show->session()));
+			show->showToast(tr::lng_wallet_vault_locked(tr::now));
 			return;
 		}
 		if (auto box = PrePasswordErrorBox(
 				error,
 				&show->session(),
-				PhraseCheckAbout(error),
+				EnforcementCheckAbout(error),
 				context)) {
 			if (passcode) {
 				if (context) {
@@ -10317,7 +10263,7 @@ void StartCustodyRestore(
 			auto fields = RestorePasswordFields(
 				state,
 				firstKeyUse,
-				tr::lng_wallet_restore_password_description(tr::now));
+				tr::lng_bots_password_confirm_description(tr::now));
 			fields.customShow = context;
 			fields.customCheckCallback = [=](
 					const Core::CloudPasswordResult &result,
@@ -10508,13 +10454,9 @@ void RequestWalletReplace(
 		// states the half that failed instead of a failure, and closes the
 		// import box with the same layer operation rather than racing a hide.
 		if (outcome == CustodyOutcome::WriteFailed) {
-			const auto held = (show->session().wallet().deviceCustodyState().mode
-				== DeviceMode::Full);
 			show->showBox(
 				Ui::MakeInformBox({
-					.text = held
-						? tr::lng_wallet_imported_key_retained(tr::now)
-						: tr::lng_wallet_imported_not_stored(tr::now),
+					.text = tr::lng_wallet_imported_not_stored(tr::now),
 					.title = tr::lng_wallet_imported_title(),
 				}),
 				Ui::LayerOption::CloseOther);
@@ -10549,13 +10491,13 @@ void RequestWalletReplace(
 			if (passcode) {
 				passcode->closeBox();
 			}
-			show->showToast(VaultLockedText(&show->session()));
+			show->showToast(tr::lng_wallet_vault_locked(tr::now));
 			return;
 		}
 		if (auto box = PrePasswordErrorBox(
 				error,
 				&show->session(),
-				ReplaceCheckAbout(error))) {
+				EnforcementCheckAbout(error))) {
 			if (passcode) {
 				passcode->closeBox();
 			}
@@ -10583,9 +10525,7 @@ void RequestWalletReplace(
 			// WHY: the server checks the proof against the key the chain
 			// holds for the phrase's address, so a refused phrase stays
 			// refused; a retry cannot help, only support can.
-			const auto text = (error == u"REPLACE_STATE_UNCONFIRMED"_q)
-				? tr::lng_wallet_import_unconfirmed(tr::now)
-				: (error == u"REPLACE_KEY_CHANGING"_q)
+			const auto text = (error == u"REPLACE_KEY_CHANGING"_q)
 				? tr::lng_wallet_import_key_changing(tr::now)
 				: (error == u"WALLET_PROOF_INVALID"_q)
 				? tr::lng_wallet_import_not_verified(tr::now)
@@ -10634,8 +10574,8 @@ void StartWalletReplace(
 			return;
 		}
 		auto fields = PasscodeBox::CloudFields::From(state);
-		fields.customTitle = tr::lng_wallet_phrase_password_title();
-		fields.customDescription = tr::lng_wallet_replace_password_description(
+		fields.customTitle = tr::lng_bots_password_confirm_title();
+		fields.customDescription = tr::lng_bots_password_confirm_description(
 			tr::now);
 		fields.customSubmitButton = tr::lng_passcode_submit();
 		fields.customCheckCallback = [=](
@@ -10664,21 +10604,21 @@ void ShowBackupChangeError(
 		std::shared_ptr<Main::SessionShow> show,
 		const QString &error) {
 	if (error == u"BACKUP_VAULT_LOCKED"_q) {
-		show->showToast(VaultLockedText(&show->session()));
+		show->showToast(tr::lng_wallet_vault_locked(tr::now));
 	} else if (auto box = PrePasswordErrorBox(
 			error,
 			&show->session(),
-			BackupCheckAbout(error))) {
+			EnforcementCheckAbout(error))) {
 		show->showBox(std::move(box));
 	} else if (error == u"BACKUP_PHRASE_OUTDATED"_q) {
-		ShowKeyChangedBox(show, tr::lng_wallet_backup_outdated_text());
+		ShowKeyChangedBox(show, tr::lng_wallet_send_key_changed_text());
 	} else if (error == u"BACKUP_KEY_UNCONFIRMED"_q) {
-		show->showToast(tr::lng_wallet_backup_key_confirming(tr::now));
+		show->showToast(tr::lng_wallet_import_key_changing(tr::now));
 	} else if (error == u"BACKUP_NOT_VERIFIED"_q) {
-		show->showToast(tr::lng_wallet_backup_not_verified(tr::now));
+		show->showToast(tr::lng_wallet_import_not_verified(tr::now));
 	} else {
 		show->showToast((error == u"WALLET_BACKUP_NOT_AVAILABLE"_q)
-			? tr::lng_wallet_backup_unavailable_error(tr::now)
+			? tr::lng_wallet_backup_about_unavailable(tr::now)
 			: ErrorWithType(tr::lng_wallet_backup_error(tr::now), error));
 	}
 }
@@ -10741,8 +10681,8 @@ void StartBackupRequest(
 			return;
 		}
 		auto fields = PasscodeBox::CloudFields::From(state);
-		fields.customTitle = tr::lng_wallet_phrase_password_title();
-		fields.customDescription = tr::lng_wallet_backup_password_description(
+		fields.customTitle = tr::lng_bots_password_confirm_title();
+		fields.customDescription = tr::lng_bots_password_confirm_description(
 			tr::now);
 		fields.customSubmitButton = tr::lng_passcode_submit();
 		fields.customCheckCallback = [=](
@@ -10934,7 +10874,7 @@ void WalletBackupPhraseBox(
 		if (crl::now() - shownAt < kBackupWriteDownDelay) {
 			show->showBox(Ui::MakeInformBox({
 				.text = tr::lng_wallet_backup_sure_text(tr::now),
-				.confirmText = tr::lng_wallet_backup_sure_ok(),
+				.confirmText = tr::lng_box_ok(),
 				.title = tr::lng_wallet_backup_sure_title(),
 			}));
 			return;
@@ -11164,13 +11104,17 @@ void CollectBackupPhrase(
 		}));
 	};
 	const auto showPhrase = [=](std::vector<QString> words) {
+		const auto count = int(words.size());
 		show->showBox(Box(
 			WalletBackupPhraseBox,
 			show,
 			words,
 			showQuiz,
-			tr::lng_wallet_backup_phrase_title(),
-			tr::lng_wallet_backup_phrase_text(tr::marked)));
+			tr::lng_wallet_phrase_title(),
+			tr::lng_wallet_phrase_text(
+				lt_count,
+				rpl::single(count * 1.) | tr::to_count(),
+				tr::marked)));
 	};
 	StartPhraseReveal(
 		show,
@@ -11195,17 +11139,11 @@ void CollectBackupPhrase(
 
 [[nodiscard]] QString RotationFailureReason(const QString &error) {
 	if (error == u"ROTATION_FEES"_q) {
-		return tr::lng_wallet_backup_rotate_reason_fees(tr::now);
-	} else if (error == u"ROTATION_EXPIRED"_q) {
-		return tr::lng_wallet_backup_rotate_reason_expired(tr::now);
+		return tr::lng_wallet_send_error_insufficient(tr::now);
 	} else if (error == u"ROTATION_ALREADY_SENDING"_q) {
-		return tr::lng_wallet_backup_rotate_reason_busy(tr::now);
+		return tr::lng_wallet_send_error_in_progress(tr::now);
 	} else if (error == u"ROTATION_VAULT_LOCKED"_q) {
-		return tr::lng_wallet_backup_rotate_reason_locked(tr::now);
-	} else if (error == u"ROTATION_REFUSED"_q
-		|| error == u"ROTATION_REPLACED"_q
-		|| error == u"ROTATION_FAILED"_q) {
-		return tr::lng_wallet_backup_rotate_reason_unconfirmed(tr::now);
+		return tr::lng_wallet_vault_locked(tr::now);
 	}
 	return tr::lng_wallet_backup_rotate_reason_failed(tr::now);
 }
@@ -11364,8 +11302,8 @@ void ShowBackupTopUpAlert(
 			topUp();
 			ShowWalletReceiveBox(&show->session(), show);
 		},
-		.confirmText = tr::lng_wallet_backup_topup_confirm(),
-		.cancelText = tr::lng_wallet_backup_update_later(),
+		.confirmText = tr::lng_credits_buy_button_short(),
+		.cancelText = tr::lng_export_suggest_cancel(),
 		.title = tr::lng_wallet_backup_topup_title(),
 	}));
 }
@@ -11567,7 +11505,7 @@ void WalletBackupDisableBox(
 	};
 	const auto button = box->addButton(
 		BusyFooterLabel(
-			tr::lng_wallet_backup_disable_confirm(),
+			tr::lng_screen_reader_confirm_disable(),
 			state->loading.value()),
 		submit,
 		st::attentionBoxButton);
@@ -11915,7 +11853,7 @@ void WalletImportBox(
 		number->setAttribute(Qt::WA_TransparentForMouseEvents);
 		const auto paste = Ui::CreateChild<Ui::RoundButton>(
 			field,
-			tr::lng_wallet_send_paste(),
+			tr::lng_mac_menu_paste(),
 			st::walletImportPaste);
 		paste->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
 		paste->hide();
@@ -12127,7 +12065,7 @@ void WalletImportBox(
 					: (error == u"PHRASE_KEY_CHANGING"_q)
 					? tr::lng_wallet_import_key_changing(tr::now)
 					: (error == u"PHRASE_VAULT_LOCKED"_q)
-					? VaultLockedText(&show->session())
+					? tr::lng_wallet_vault_locked(tr::now)
 					: ErrorWithType(
 						tr::lng_wallet_import_failed(tr::now),
 						error);
@@ -12627,7 +12565,7 @@ void WalletConflictBox(
 			const auto showPhrase = content->add(
 				object_ptr<Ui::RoundButton>(
 					content,
-					tr::lng_wallet_conflict_phrase(),
+					tr::lng_wallet_keys_show_phrase(),
 					st::defaultLightButton),
 				st::boxRowPadding,
 				style::al_justify);
@@ -12754,10 +12692,8 @@ void AddBackupSection(
 	Ui::AddSkip(container);
 	Ui::AddDividerText(container, wallet.capabilitiesValue(
 	) | rpl::map([](const WalletCapabilities &capabilities) {
-		return capabilities.backupEnabled
+		return (capabilities.backupEnabled || capabilities.canEnableBackup)
 			? tr::lng_wallet_backup_about_on()
-			: capabilities.canEnableBackup
-			? tr::lng_wallet_backup_about_off()
 			: tr::lng_wallet_backup_about_unavailable();
 	}) | rpl::flatten_latest());
 	Ui::AddSkip(container);
@@ -12774,7 +12710,7 @@ void WalletKeysBackupBox(
 	box->setTitle(tr::lng_wallet_keys_title());
 	const auto container = box->verticalLayout();
 	Ui::AddSkip(container);
-	Ui::AddSubsectionTitle(container, tr::lng_wallet_keys_phrase_section());
+	Ui::AddSubsectionTitle(container, tr::lng_wallet_phrase_intro_title());
 	const auto phrase = container->add(
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 			container,
@@ -12833,7 +12769,7 @@ void WalletKeysBackupBox(
 				close();
 				show->showBox(Box(WalletReplaceBox, show));
 			},
-			.confirmText = tr::lng_wallet_delete_confirm(),
+			.confirmText = tr::lng_suggest_warn_delete_anyway(),
 			.confirmStyle = &st::attentionBoxButton,
 			.title = tr::lng_wallet_delete_title(),
 		}));
@@ -12996,7 +12932,7 @@ void BalanceInk::refresh() {
 		: _balance.nano()
 		? GramMinorPart(amountNano)
 		: QString();
-	const auto ticker = tr::lng_wallet_card_ticker(tr::now);
+	const auto ticker = GramTicker();
 	const auto cardWidth = _outerWidth
 		- st::walletCardMargin.left()
 		- st::walletCardMargin.right();
@@ -14432,10 +14368,8 @@ void Content::setupBalance() {
 		repaintBalance();
 	}, lifetime());
 
-	rpl::combine(
-		tr::lng_wallet_title(),
-		tr::lng_wallet_card_ticker()
-	) | rpl::on_next([=](const QString &title, const QString &) {
+	tr::lng_wallet_menu(
+	) | rpl::on_next([=](const QString &title) {
 		_title.setText(
 			st::separatePanelTitle.style,
 			title,
@@ -15709,9 +15643,8 @@ object_ptr<Ui::RpWidget> MakeWalletCard(
 		[=] { overlay->update(); },
 		raw);
 
-	rpl::merge(
-		style::PaletteChanged(),
-		tr::lng_wallet_card_ticker() | rpl::to_empty
+	rpl::single(rpl::empty) | rpl::then(
+		style::PaletteChanged()
 	) | rpl::on_next([=] {
 		const auto scope = WindowPaletteScope(raw);
 		ink->refresh();
@@ -15801,9 +15734,8 @@ object_ptr<Ui::RpWidget> MakeTransferCard(
 		raw->update();
 	}, raw->lifetime());
 
-	rpl::merge(
-		style::PaletteChanged(),
-		tr::lng_wallet_card_ticker() | rpl::to_empty
+	rpl::single(rpl::empty) | rpl::then(
+		style::PaletteChanged()
 	) | rpl::on_next([=] {
 		const auto scope = WindowPaletteScope(raw);
 		state->ink.refresh();

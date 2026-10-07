@@ -478,7 +478,7 @@ void LocalPasscodeEnter::setupContent() {
 		Ui::AddSkip(content);
 		addDescription(tr::lng_passcode_about2());
 	} else {
-		addDescription(tr::lng_passcode_wallet_about_unnamed());
+		addDescription(tr::lng_settings_passcode_wallet_about());
 	}
 
 	Ui::AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
@@ -1219,7 +1219,7 @@ void LocalPasscodeManage::disableAfterRemoval(
 		return;
 	} else if (result.kind == Wallet::VaultKind::Passcode) {
 		controller()->showToast(
-			tr::lng_settings_passcode_disable_kept(tr::now));
+			tr::lng_settings_passcode_lock_off_wallet(tr::now));
 		setBusy(false);
 		return;
 	}
@@ -1236,7 +1236,7 @@ void LocalPasscodeManage::removeVerifiedAndLeave() {
 	mintVerification([=](Storage::PasscodeVerification verification) {
 		if (Wallet::LiveKeyProtection() == Wallet::VaultKind::Passcode) {
 			weakController->showToast(
-				tr::lng_settings_passcode_disable_dependent(tr::now));
+				tr::lng_wallet_protection_error(tr::now));
 			setBusy(false);
 			return;
 		}
@@ -1479,34 +1479,11 @@ void BuildManageContent(
 		}) | rpl::on_next([=](bool value) {
 			if (value) {
 				lockOn();
-				return;
+			} else {
+				// The row is shown only while the wallet policy is Passcode.
+				lockOff(Wallet::LiveKeyProtection()
+					== Wallet::VaultKind::Passcode);
 			}
-			const auto policy = Wallet::LiveKeyProtection();
-			if (policy != Wallet::VaultKind::Open) {
-				lockOff(policy == Wallet::VaultKind::Passcode);
-				return;
-			}
-			section->setBusy(true);
-			controller->show(Ui::MakeConfirmBox({
-				.text = tr::lng_wallet_protection_open_warning_nolock(),
-				.confirmed = [=](Fn<void()> &&close) {
-					if (weak) {
-						lockOff(false);
-					}
-					close();
-				},
-				.cancelled = [=](Fn<void()> &&close) {
-					if (weak) {
-						state->appLockToggles.fire_copy(true);
-						section->setBusy(false);
-					}
-					close();
-				},
-				.confirmText = (
-					tr::lng_settings_passcode_lock_off_open_confirm()),
-				.confirmStyle = &st::attentionBoxButton,
-				.title = tr::lng_settings_passcode_lock_off_open_title(),
-			}));
 		}, lockApp->lifetime());
 	}
 

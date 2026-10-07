@@ -41,9 +41,4 @@ private:
 
 };
 
-[[nodiscard]] rpl::producer<QString> PasscodeStrengthBandName(
-	PasscodeStrengthBand band);
-[[nodiscard]] const style::color &PasscodeStrengthBandColor(
-	PasscodeStrengthBand band);
-
 } // namespace Ui

@@ -31,7 +31,7 @@ TextWithEntities TransferCommentCover(const TransferItem &item) {
 	constexpr auto kMinLength = 8;
 	constexpr auto kMaxLength = 128;
 	if (EncryptedCommentUnusable(item)) {
-		return tr::italic(tr::lng_wallet_comment_invalid(tr::now));
+		return tr::italic(tr::lng_wallet_comment_decryption_failed(tr::now));
 	} else if (EncryptedCommentPending(item)) {
 		// This device's own transfer before the server named it: the cover
 		// is the text the user typed, and no key is needed to lift it.
@@ -361,7 +361,7 @@ void TransferComment::finish(
 	case Error::Cancelled:
 		break;
 	case Error::Locked:
-		show->showToast(VaultLockedText(_session.get()));
+		show->showToast(tr::lng_wallet_vault_locked(tr::now));
 		break;
 	case Error::Unavailable:
 	case Error::Busy:
@@ -370,7 +370,7 @@ void TransferComment::finish(
 		show->showToast(tr::lng_wallet_comment_decryption_failed(tr::now));
 		break;
 	case Error::KeyUnreadable:
-		show->showToast(tr::lng_wallet_comment_key_unreadable(tr::now));
+		show->showToast(tr::lng_wallet_vault_unavailable(tr::now));
 		break;
 	case Error::DecryptionFailed:
 		show->showToast(tr::lng_wallet_comment_key_mismatch(tr::now));

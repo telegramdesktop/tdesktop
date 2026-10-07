@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "wallet/wallet_address.h"
+#include "wallet/wallet_amount_painter.h"
 #include "wallet/wallet_content.h"
 #include "wallet/wallet_fiat.h"
 #include "wallet/wallet_ton_connect.h"
@@ -130,10 +131,7 @@ struct Destinations {
 }
 
 [[nodiscard]] QString OutgoingGram(int64 nano) {
-	return kMinus + tr::lng_wallet_send_pill_gram(
-		tr::now,
-		lt_amount,
-		Ui::FormatTonAmount(nano).full);
+	return kMinus + Ui::FormatTonAmount(nano).full + ' ' + GramTicker();
 }
 
 [[nodiscard]] const TonConnectEmulation *ShownEmulation(
@@ -149,9 +147,9 @@ struct Destinations {
 [[nodiscard]] QString ActionTitle(ActionKind kind) {
 	switch (kind) {
 	case ActionKind::Withdraw:
-		return tr::lng_wallet_connect_request_withdraw(tr::now);
+		return tr::lng_wallet_row_withdrawal(tr::now);
 	case ActionKind::Deposit:
-		return tr::lng_wallet_connect_request_deposit(tr::now);
+		return tr::lng_wallet_row_deposit(tr::now);
 	case ActionKind::Transfer:
 		return tr::lng_wallet_connect_request_transfer(tr::now);
 	case ActionKind::Excess:
@@ -226,7 +224,7 @@ struct Destinations {
 [[nodiscard]] QString HeaderTitle(const TonConnectRequestBoxState &now) {
 	switch (now.phase) {
 	case Phase::Loading:
-		return tr::lng_wallet_connect_request_loading(tr::now);
+		return tr::lng_contacts_loading(tr::now);
 	case Phase::Locked:
 	case Phase::Restore:
 		return now.topic;
@@ -267,7 +265,7 @@ struct Destinations {
 		FiatRateValue(session)
 	) | rpl::map([](std::optional<int64> fee, const FiatRate &rate) {
 		return fee
-			? tr::lng_wallet_connect_request_fee(
+			? tr::lng_wallet_backup_update_fee(
 				tr::now,
 				lt_amount,
 				Ui::FormatTonAmount(*fee).full,
@@ -465,7 +463,7 @@ void FillUnhandled(
 	const auto buttons = SetTonConnectButtons(
 		box,
 		tr::lng_cancel(),
-		tr::lng_wallet_connect_request_reject());
+		tr::lng_wallet_connect_request_decline());
 	buttons.secondary->setClickedCallback([=] {
 		if (!Busy(state)) {
 			box->closeBox();
@@ -750,7 +748,7 @@ void AddDetailsSkip(not_null<Ui::VerticalLayout*> body) {
 	return CopyTextCallback(
 		std::move(show),
 		data.data,
-		tr::lng_wallet_connect_sign_copied(tr::now));
+		tr::lng_text_copied(tr::now));
 }
 
 void AddSignDataBubble(
@@ -812,7 +810,7 @@ void AddSignDataCell(
 	body->add(
 		object_ptr<Ui::FlatLabel>(
 			body,
-			tr::lng_wallet_connect_sign_cell_about(),
+			tr::lng_wallet_connect_sign_text_about(),
 			st::walletCommentCaptionLabel),
 		st::walletConnectSignCaptionMargin);
 }
@@ -943,7 +941,7 @@ void Rebuild(
 		FillKeyNeeded(
 			box,
 			state,
-			tr::lng_wallet_connect_request_restore(),
+			tr::lng_wallet_connect_restore(),
 			tr::lng_wallet_restore_title(),
 			context.restore);
 		break;

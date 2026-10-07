@@ -467,7 +467,7 @@ rpl::producer<bool> WindowsHelloProtection::available() const {
 }
 
 rpl::producer<QString> WindowsHelloProtection::title() const {
-	return tr::lng_wallet_protection_hello();
+	return tr::lng_settings_use_winhello();
 }
 
 rpl::producer<QString> WindowsHelloProtection::description() const {

@@ -154,7 +154,6 @@ walletRowIconSize: 46px;
 walletRowIconLeft: 20px;
 walletRowArrowIn: icon{{ "wallet/incoming_arrow", historyPeerUserpicFg }};
 walletRowArrowOut: icon{{ "wallet/outgoing_arrow", historyPeerUserpicFg }};
-walletRowContractIcon: icon{{ "wallet/smart_contract", historyPeerUserpicFg }};
 walletRowGearIcon: icon{{ "wallet/gear", historyPeerUserpicFg }};
 walletRowKeyIcon: icon{{ "settings/key", historyPeerUserpicFg }};
 walletRowTitleLabel: FlatLabel(defaultFlatLabel) {
@@ -787,7 +786,6 @@ walletProtectionAboutLabel: FlatLabel(defaultFlatLabel) {
 walletProtectionIntroMargin: margins(22px, 4px, 22px, 4px);
 walletProtectionRowSkip: 12px;
 walletProtectionAboutMargin: margins(34px, 0px, 22px, 0px);
-walletProtectionStrengthMargin: margins(34px, 4px, 22px, 0px);
 walletProtectionChangeMargin: margins(34px, 6px, 22px, 0px);
 walletProtectionCreateFieldMargin: margins(22px, 12px, 22px, 0px);
 walletProtectionMeterMargin: margins(22px, 8px, 22px, 0px);
