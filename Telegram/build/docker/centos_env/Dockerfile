@@ -189,7 +189,7 @@ EOF
 
 FROM builder AS xz
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b v5.8.1 --depth=1 https://github.com/tukaani-project/xz.git
+git clone -b v5.8.4 --depth=1 https://github.com/tukaani-project/xz.git
 cd xz
 cmake -B build .
 cmake --build build
