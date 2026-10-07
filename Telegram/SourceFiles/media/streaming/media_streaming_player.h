@@ -69,7 +69,8 @@ public:
 		const FrameRequest &request,
 		const Instance *instance = nullptr) const;
 	[[nodiscard]] FrameWithInfo frameWithInfo(
-		const Instance *instance = nullptr) const; // !requireARGB32
+		const Instance *instance,
+		bool hdr) const; // !requireARGB32
 
 	[[nodiscard]] QImage currentFrameImage() const; // Converts if needed.
 
