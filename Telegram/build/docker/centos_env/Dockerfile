@@ -395,7 +395,7 @@ FROM builder AS xcb
 COPY --link --from=xcb-proto /usr/src/xcb-proto-cache /
 
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b libxcb-1.16 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxcb.git
+git clone -b libxcb-1.16.1 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxcb.git
 cd libxcb
 ./autogen.sh --enable-static --disable-shared
 make -j$(nproc)
