@@ -2298,7 +2298,9 @@ void ComposeControls::offerRichPaste(not_null<const QMimeData*> data) {
 	crl::on_main(_wrap.get(), [=] {
 		const auto now = _field->getTextWithTags();
 		const auto parent = _pasteToastParent.data();
-		if ((now == was) || !parent) {
+		if ((now == was)
+			|| !parent
+			|| !_richPasteOfferThrottle.take()) {
 			return;
 		}
 		ChatHelpers::ShowRichPasteToast({

@@ -30,6 +30,7 @@ namespace ChatHelpers {
 namespace {
 
 constexpr auto kToastDuration = 9 * crl::time(1000);
+constexpr auto kOfferTimeout = 30 * crl::time(1000);
 
 } // namespace
 
@@ -96,6 +97,15 @@ std::shared_ptr<QMimeData> CloneMimeData(not_null<const QMimeData*> data) {
 		result->setData(format, data->data(format));
 	}
 	return result;
+}
+
+bool RichPasteOfferThrottle::take() {
+	const auto now = crl::now();
+	if (_lastShown && (now - _lastShown) < kOfferTimeout) {
+		return false;
+	}
+	_lastShown = now;
+	return true;
 }
 
 void ShowRichPasteToast(RichPasteToastArgs &&args) {

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "chat_helpers/compose/compose_features.h"
 #include "chat_helpers/field_characters_count_manager.h"
+#include "chat_helpers/rich_paste_toast.h"
 #include "dialogs/dialogs_key.h"
 #include "history/view/controls/compose_controls_common.h"
 #include "ui/round_rect.h"
@@ -582,6 +583,7 @@ private:
 	const not_null<Ui::EmojiButton*> _tabbedSelectorToggle;
 	rpl::variable<QString> _fieldCustomPlaceholder;
 	QPointer<QWidget> _pasteToastParent;
+	ChatHelpers::RichPasteOfferThrottle _richPasteOfferThrottle;
 	std::shared_ptr<QMimeData> _pendingRichPaste;
 	const not_null<Ui::InputField*> _field;
 	std::unique_ptr<Controls::RichDraftPreview> _richDraftPreview;
