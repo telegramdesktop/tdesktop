@@ -6,8 +6,10 @@ import io
 import json
 import os
 from pathlib import Path
+import plistlib
 import subprocess
 import tempfile
+import time
 from types import SimpleNamespace
 import unittest
 from unittest import mock
@@ -1882,10 +1884,111 @@ def run_test_run(exe, run_dir, **overrides):
 		"deadline": 20.0,
 		"quiet": 10.0,
 		"grace": 5.0,
+		"wait_idle": None,
+		"wait_idle_max": workspace.WAIT_IDLE_MAX_DEFAULT,
 		"env": None,
 	}
 	arguments.update(overrides)
 	return run_command(workspace.command_test_run, **arguments)
+
+
+LSAPPINFO_FRONT = b"ASN:0x0-0x55e55e:\n"
+
+
+def lsappinfo_name_output(name):
+	return (
+		f'"{name}" ASN:0x0-0x55e55e: (in front) \n'
+		"    bundleID=[ NULL ] \n"
+		"    bundle path=[ NULL ] \n"
+		"    executable path=[ NULL ] \n"
+		" !cgsConnection !signalled type=[ NULL ]  flavor=[ NULL ]"
+		"  Version=[ NULL ]  Arch=!!none \n"
+	).encode("utf-8")
+
+
+def hid_system_plist(idle_seconds):
+	return plistlib.dumps([{
+		"IOClass": "IOHIDSystem",
+		"IOObjectClass": "IOHIDSystem",
+		"HIDIdleTime": round(idle_seconds * 1e9),
+	}])
+
+
+def console_root_plist(locked):
+	away = {
+		"kCGSSessionOnConsoleKey": False,
+		"kCGSSessionUserNameKey": "telegramdesktop",
+		"CGSSessionScreenIsLocked": True,
+	}
+	here = {
+		"kCGSSessionOnConsoleKey": True,
+		"kCGSSessionUserIDKey": 501,
+		"kCGSSessionUserNameKey": "preston",
+		"kCGSessionLoginDoneKey": True,
+	}
+	if locked:
+		here["CGSSessionScreenIsLocked"] = True
+	return plistlib.dumps({
+		"IOConsoleLocked": False,
+		"IOConsoleUsers": [away, here],
+	})
+
+
+class FakeConsole:
+	def __init__(self, idle, locked=False, app="cmux", on_sleep=None):
+		self.idle = idle
+		self.locked = locked
+		self.app = app
+		self.on_sleep = on_sleep
+		self.now = 0.0
+		self.sleeps = []
+
+	def clock(self):
+		return self.now
+
+	def sleep(self, seconds):
+		if not seconds >= 0:
+			raise ValueError(f"time.sleep would refuse {seconds}")
+		self.sleeps.append(seconds)
+		self.now += seconds
+		if self.on_sleep:
+			self.on_sleep(seconds)
+
+	def output(self, argv):
+		if argv == ["ioreg", "-r", "-c", "IOHIDSystem", "-d", "1", "-a"]:
+			idle = self.idle(self.now)
+			if idle is None:
+				return None, "ioreg timed out after 2 s"
+			return hid_system_plist(idle), None
+		if argv == ["ioreg", "-n", "Root", "-d", "1", "-a"]:
+			return console_root_plist(self.locked), None
+		if argv == ["lsappinfo", "front"]:
+			return LSAPPINFO_FRONT, None
+		if argv == ["lsappinfo", "info", "-only", "name", "ASN:0x0-0x55e55e:"]:
+			return lsappinfo_name_output(self.app), None
+		raise AssertionError(f"unexpected argv {argv}")
+
+	@contextlib.contextmanager
+	def installed(self):
+		real_wait = workspace.wait_for_console_idle
+
+		def wait(required, bound):
+			return real_wait(
+				required, bound, clock=self.clock, sleep=self.sleep,
+			)
+
+		with (
+			mock.patch.object(
+				workspace, "console_unsupported_reason", return_value=None,
+			),
+			mock.patch.object(
+				workspace, "console_command_output", side_effect=self.output,
+			),
+			mock.patch.object(
+				workspace, "wait_for_console_idle", side_effect=wait,
+			),
+		):
+			yield self
 
 
 class SourcePreparationTest(unittest.TestCase):
@@ -2971,6 +3074,298 @@ class MechanicsTest(unittest.TestCase):
 			self.assertTrue(dump.is_file())
 			self.assertEqual(list(stale.iterdir()), [])
 			self.assertFalse((run_dir / "app_stdout.txt").exists())
+
+	def test_test_run_reports_input_during_the_run(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			values = iter([3600.0, 0.0])
+			console = FakeConsole(lambda now: next(values), app="Google Chrome")
+			with console.installed():
+				result = run_test_run(exe, root / "run1")
+			before = result["input_before"]
+			after = result["input_after"]
+			self.assertIs(result["input_during_run"], True)
+			self.assertEqual(before["idle_seconds"], 3600.0)
+			self.assertEqual(before["frontmost_app"], "Google Chrome")
+			self.assertIs(before["screen_locked"], False)
+			for name in ("idle_seconds", "frontmost_app", "screen_locked"):
+				self.assertIsNone(before[f"{name}_error"])
+				self.assertIsNone(after[f"{name}_error"])
+			self.assertIsNotNone(
+				datetime.datetime.fromisoformat(before["time"]).tzinfo
+			)
+			self.assertEqual(after["idle_seconds"], 0.0)
+			self.assertGreater(after["seconds_since_launch"], 0)
+			self.assertGreaterEqual(
+				after["seconds_since_launch"],
+				result["duration_seconds"] - 0.05,
+			)
+			self.assertIsNone(result["wait_idle"])
+			self.assertEqual(console.sleeps, [])
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "complete")
+			self.assertTrue(result["test_complete"])
+
+	def test_test_run_reports_no_input_when_idle_covers_the_run(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			console = FakeConsole(lambda now: 3600.0)
+			with console.installed():
+				result = run_test_run(exe, root / "run1")
+			self.assertIs(result["input_during_run"], False)
+			self.assertEqual(result["input_before"]["idle_seconds"], 3600.0)
+			self.assertEqual(result["input_after"]["idle_seconds"], 3600.0)
+			self.assertEqual(result["input_after"]["frontmost_app"], "cmux")
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "complete")
+			self.assertTrue(result["test_complete"])
+
+	def test_test_run_leaves_input_unknown_when_a_reading_fails(self):
+		timeout = "ioreg timed out after 2 s"
+		for case, idles in (
+			("before fails", [None, 0.0]),
+			("after fails", [3600.0, None]),
+		):
+			with (
+				self.subTest(case=case),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				root = Path(temporary)
+				debug = make_portable_root(root)
+				exe = write_complete_markers_exe(debug / "Telegram")
+				values = iter(idles)
+				console = FakeConsole(lambda now: next(values))
+				with console.installed():
+					result = run_test_run(exe, root / "run1")
+				self.assertIsNone(result["input_during_run"])
+				readings = (result["input_before"], result["input_after"])
+				for reading, idle in zip(readings, idles):
+					self.assertEqual(reading["idle_seconds"], idle)
+					self.assertEqual(
+						reading["idle_seconds_error"],
+						timeout if idle is None else None,
+					)
+					self.assertEqual(reading["frontmost_app"], "cmux")
+					self.assertIsNone(reading["frontmost_app_error"])
+					self.assertIs(reading["screen_locked"], False)
+					self.assertIsNone(reading["screen_locked_error"])
+				self.assertEqual(result["outcome"], "exited")
+				self.assertEqual(result["verdict_hint"], "complete")
+
+		with (
+			self.subTest(case="gate read fails"),
+			tempfile.TemporaryDirectory() as temporary,
+		):
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			console = FakeConsole(lambda now: None)
+			with console.installed():
+				result = run_test_run(
+					exe, root / "run1", wait_idle=5.0, wait_idle_max=10.0,
+				)
+			self.assertIsNone(result["wait_idle"]["met"])
+			self.assertEqual(result["wait_idle"]["idle_seconds_error"], timeout)
+			self.assertEqual(result["wait_idle"]["waited_seconds"], 0.0)
+			self.assertEqual(console.sleeps, [])
+			self.assertIsNone(result["input_during_run"])
+			self.assertTrue(result["test_complete"])
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "complete")
+
+		with (
+			self.subTest(case="unparseable output"),
+			tempfile.TemporaryDirectory() as temporary,
+		):
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			with (
+				mock.patch.object(
+					workspace, "console_unsupported_reason", return_value=None,
+				),
+				mock.patch.object(
+					workspace,
+					"console_command_output",
+					return_value=(b"<plist><dict>", None),
+				),
+			):
+				result = run_test_run(exe, root / "run1")
+			for key in ("input_before", "input_after"):
+				reading = result[key]
+				for name in ("idle_seconds", "screen_locked", "frontmost_app"):
+					self.assertIsNone(reading[name])
+				self.assertRegex(reading["idle_seconds_error"], "^ExpatError: ")
+				self.assertRegex(reading["screen_locked_error"], "^ExpatError: ")
+				self.assertRegex(
+					reading["frontmost_app_error"],
+					"^lsappinfo front named no application: ",
+				)
+			self.assertIsNone(result["input_during_run"])
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "complete")
+
+	def test_test_run_gate_launches_once_the_console_is_idle(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			late = (
+				debug / workspace.PORTABLE_LIVE / "tdata" / "dumps"
+				/ workspace.CRASHPAD_COMPLETED_DIR / "late.dmp"
+			)
+
+			def pause(seconds):
+				time.sleep(seconds)
+				late.parent.mkdir(parents=True, exist_ok=True)
+				late.write_bytes(b"MDMP late minidump\n")
+
+			self.assertEqual(workspace.setup_test_account(debug), "fresh-copy")
+			console = FakeConsole(lambda now: now + 0.5, on_sleep=pause)
+			with console.installed():
+				result = run_test_run(
+					exe, root / "run1", wait_idle=2.5, wait_idle_max=10.0,
+				)
+			self.assertEqual(result["wait_idle"], {
+				"idle_seconds": 2.5,
+				"idle_seconds_error": None,
+				"max_seconds": 10.0,
+				"met": True,
+				"required_seconds": 2.5,
+				"skipped": None,
+				"waited_seconds": 2.0,
+			})
+			self.assertEqual(console.sleeps, [2.0])
+			self.assertEqual(result["input_before"]["idle_seconds"], 2.5)
+			self.assertTrue(late.is_file())
+			self.assertTrue(result["test_complete"])
+			self.assertEqual(result["crashpad_dumps_added"], [])
+			self.assertEqual(result["death_signals"], [])
+			self.assertEqual(result["verdict_hint"], "complete")
+			self.assertLess(
+				result["duration_seconds"],
+				result["wait_idle"]["waited_seconds"],
+			)
+
+	def test_test_run_gate_launches_after_its_bound_when_never_idle(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			live_during_wait = []
+			console = FakeConsole(
+				lambda now: 0.5,
+				on_sleep=lambda seconds: live_during_wait.append(
+					(debug / workspace.PORTABLE_LIVE).exists()
+				),
+			)
+			with console.installed():
+				result = run_test_run(
+					exe, root / "run1", wait_idle=5.0, wait_idle_max=10.0,
+				)
+			self.assertEqual(live_during_wait, [False, False, False])
+			gate = result["wait_idle"]
+			self.assertIs(gate["met"], False)
+			self.assertEqual(gate["waited_seconds"], 10.0)
+			self.assertEqual(gate["idle_seconds"], 0.5)
+			self.assertEqual(console.sleeps, [4.5, 4.5, 1.0])
+			self.assertLessEqual(sum(console.sleeps), 10.0)
+			self.assertTrue(result["test_complete"])
+			self.assertEqual(result["verdict_hint"], "complete")
+
+	def test_test_run_skips_readings_and_gate_off_macos(self):
+		reason = "console readings need macOS, this host is linux"
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			with (
+				mock.patch.object(
+					workspace, "console_unsupported_reason", return_value=reason,
+				),
+				mock.patch.object(
+					workspace, "console_command_output",
+				) as command_output,
+			):
+				result = run_test_run(exe, root / "run1", wait_idle=60.0)
+			command_output.assert_not_called()
+			self.assertEqual(result["wait_idle"], {
+				"idle_seconds": None,
+				"idle_seconds_error": None,
+				"max_seconds": 600.0,
+				"met": None,
+				"required_seconds": 60.0,
+				"skipped": reason,
+				"waited_seconds": 0.0,
+			})
+			for key in ("input_before", "input_after"):
+				reading = result[key]
+				datetime.datetime.fromisoformat(reading["time"])
+				for name in ("idle_seconds", "screen_locked", "frontmost_app"):
+					self.assertIsNone(reading[name])
+					self.assertEqual(reading[f"{name}_error"], reason)
+			self.assertIsNone(result["input_during_run"])
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "complete")
+
+	def test_test_run_parses_the_screen_lock_state(self):
+		for locked in (True, False):
+			with (
+				self.subTest(locked=locked),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				root = Path(temporary)
+				debug = make_portable_root(root)
+				exe = write_complete_markers_exe(debug / "Telegram")
+				console = FakeConsole(lambda now: 3600.0, locked=locked)
+				with console.installed():
+					result = run_test_run(exe, root / "run1")
+				for key in ("input_before", "input_after"):
+					self.assertIs(result[key]["screen_locked"], locked)
+					self.assertIsNone(result[key]["screen_locked_error"])
+
+	def test_test_run_rejects_a_bad_idle_gate(self):
+		for overrides in (
+			{"wait_idle": 0.0},
+			{"wait_idle": -1.0},
+			{"wait_idle": float("nan")},
+			{"wait_idle": 5.0, "wait_idle_max": -1.0},
+		):
+			with (
+				self.subTest(overrides=overrides),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				root = Path(temporary)
+				debug = make_portable_root(root)
+				exe = write_complete_markers_exe(debug / "Telegram")
+				run_dir = root / "run1"
+				with (
+					FakeConsole(lambda now: 3600.0).installed(),
+					self.assertRaisesRegex(workspace.WorkspaceError, "--wait-idle"),
+				):
+					run_test_run(exe, run_dir, **overrides)
+				self.assertFalse(run_dir.exists())
+				self.assertFalse((debug / workspace.PORTABLE_LIVE).exists())
+
+	def test_test_run_gate_fails_before_waiting_without_a_golden(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = root / "out" / "Debug"
+			exe = write_complete_markers_exe(debug / "Telegram")
+			console = FakeConsole(lambda now: 0.5)
+			with (
+				console.installed(),
+				self.assertRaisesRegex(workspace.WorkspaceError, "golden"),
+			):
+				run_test_run(
+					exe, root / "run1", wait_idle=5.0, wait_idle_max=10.0,
+				)
+			self.assertEqual(console.sleeps, [])
+			self.assertFalse((debug / workspace.PORTABLE_LIVE).exists())
 
 	def test_portable_root_for_prefers_app_bundle_parent(self):
 		with tempfile.TemporaryDirectory() as temporary:

@@ -727,6 +727,36 @@ command, environment, exit-code, log, artifact and control evidence.
   image and judge it, save the binary overlay patch, and restore only inventoried overlay paths
   (`overlay-save` — the patch must be saved before that restore). The runner only gathers evidence;
   ASSESS below stays the agent's own adversarial judgement.
+  - **Console input (macOS).** `input_before` and `input_after` are console readings taken right
+    before the launch and after the process ends; `input_after` comes after the post-run straggler
+    kill and the crash/log collection, just before the report prints. Each holds `time` (local
+    ISO 8601), `idle_seconds` (the console's HID idle time, `HIDIdleTime` of `IOHIDSystem`),
+    `frontmost_app` (the frontmost application's name, from `lsappinfo`) and `screen_locked` (the
+    on-console session's `CGSSessionScreenIsLocked`, `false` when absent), each beside a
+    `<name>_error` that says why the value is `null`; `input_after` adds `seconds_since_launch`.
+    `input_during_run` is `true` when `input_after.idle_seconds` is below
+    `input_after.seconds_since_launch`, `false` when it covers it, and `null` when either reading
+    lacks its idle time — always off macOS, where every value is `null` with its reason. It says
+    only that keyboard, pointer or other HID input reached the console between the launch and the
+    after reading: not which stage it disturbed, whether the app received it, or that it caused a
+    failure; `false` rules out HID input only, not other desktop events. A reading never prompts
+    for a permission, waits at most 2 s per host command, and never fails the command. The
+    readings never change `outcome`, `verdict_hint` or any other field; classifying a disturbed
+    run stays the assessor's judgement.
+  - **Idle gate.** `--wait-idle <seconds>` re-reads the idle time before the launch until the
+    console has been idle that long or `--wait-idle-max <seconds>` (default 600) elapses, then
+    launches either way. `wait_idle` records `required_seconds`, `max_seconds`, `waited_seconds`,
+    `met` and the last `idle_seconds` (with `idle_seconds_error`); `met` is `true` when the
+    requirement was observed, `false` when the bound elapsed first, and `null` when the idle
+    reading failed (the gate stops there and launches) or the gate was skipped — off macOS it
+    records `skipped` with the reason and launches at once; `wait_idle` is `null` without the
+    flag. The wait runs before the account setup, the straggler kill and the crash snapshots, and
+    counts toward none of `--deadline`, `--quiet` or `duration_seconds`; a missing executable,
+    portable root or golden folder fails before any wait. Use it when the console is unlocked and
+    someone may be using it, especially for a packed harness run whose focus- or paint-sensitive
+    stages (a menu that closes on an outside press, a paint sampler) a stray click or keystroke can
+    abort; pick a requirement at least as long as the expected run and still read
+    `input_during_run` afterwards — the gate makes input less likely, it does not prevent it.
 
 ### Crashes & assertions (always launch the test binary with `-testagent`)
 

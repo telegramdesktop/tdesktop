@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
+import plistlib
 import re
 import shutil
 import signal
@@ -68,6 +69,10 @@ TEST_LOG_FILE = "test_log.txt"
 TEST_COMPLETE_MARKER = "TEST_COMPLETE"
 STALE_CRASH_DIR = "stale-crash"
 CRASHPAD_COMPLETED_DIR = "completed"
+CONSOLE_COMMAND_TIMEOUT = 2.0
+WAIT_IDLE_MAX_DEFAULT = 600.0
+LSAPPINFO_ASN_PATTERN = re.compile(r"ASN:0x[0-9a-fA-F]+-0x[0-9a-fA-F]+:")
+LSAPPINFO_NAME_PATTERN = re.compile(r'"(.*)"\s+ASN:')
 BUILD_LOCK_PROCESS_NAMES = {
 	"cl.exe",
 	"cmake.exe",
@@ -2021,12 +2026,17 @@ def clear_stale_crash_state(live, destination):
 	return cleared
 
 
-def setup_test_account(root):
+def golden_test_account(root):
 	golden = root / PORTABLE_GOLDEN
-	live = root / PORTABLE_LIVE
-	real = root / PORTABLE_REAL
 	if not golden.is_dir():
 		raise WorkspaceError(f"Missing golden test account: {golden}")
+	return golden
+
+
+def setup_test_account(root):
+	golden = golden_test_account(root)
+	live = root / PORTABLE_LIVE
+	real = root / PORTABLE_REAL
 	if (live / PORTABLE_MARKER).exists():
 		return "reused-marked-live"
 	if live.exists():
@@ -2521,12 +2531,175 @@ def parse_env_values(values):
 	return environment
 
 
+def console_unsupported_reason():
+	if sys.platform == "darwin":
+		return None
+	return f"console readings need macOS, this host is {sys.platform}"
+
+
+def console_command_output(argv):
+	try:
+		result = subprocess.run(
+			argv,
+			stdin=subprocess.DEVNULL,
+			stdout=subprocess.PIPE,
+			stderr=subprocess.PIPE,
+			timeout=CONSOLE_COMMAND_TIMEOUT,
+		)
+	except subprocess.TimeoutExpired:
+		return None, f"{argv[0]} timed out after {CONSOLE_COMMAND_TIMEOUT:g} s"
+	except OSError as error:
+		return None, f"{argv[0]} could not run: {error}"
+	if result.returncode:
+		detail = result.stderr.decode("utf-8", "replace").strip() or "no stderr"
+		return None, f"{argv[0]} exited with {result.returncode}: {detail}"
+	return result.stdout, None
+
+
+def plist_dicts(output):
+	data = plistlib.loads(output)
+	entries = data if isinstance(data, list) else [data]
+	return [entry for entry in entries if isinstance(entry, dict)]
+
+
+def console_idle_seconds():
+	output, error = console_command_output(
+		["ioreg", "-r", "-c", "IOHIDSystem", "-d", "1", "-a"]
+	)
+	if output is None:
+		return None, error
+	values = [
+		entry["HIDIdleTime"]
+		for entry in plist_dicts(output)
+		if type(entry.get("HIDIdleTime")) is int
+	]
+	if not values:
+		return None, "ioreg listed no IOHIDSystem HIDIdleTime"
+	return round(min(values) / 1e9, 3), None
+
+
+def console_screen_locked():
+	output, error = console_command_output(["ioreg", "-n", "Root", "-d", "1", "-a"])
+	if output is None:
+		return None, error
+	sessions = [
+		session
+		for root in plist_dicts(output)
+		for session in root.get("IOConsoleUsers") or []
+		if isinstance(session, dict)
+		and session.get("kCGSSessionOnConsoleKey") is True
+	]
+	if not sessions:
+		return None, "ioreg lists no session on the console"
+	locked = any(
+		session.get("CGSSessionScreenIsLocked") is True
+		for session in sessions
+	)
+	return locked, None
+
+
+def console_frontmost_app():
+	output, error = console_command_output(["lsappinfo", "front"])
+	if output is None:
+		return None, error
+	asn = output.decode("utf-8", "replace").strip()
+	if not LSAPPINFO_ASN_PATTERN.fullmatch(asn):
+		return None, f"lsappinfo front named no application: {asn!r}"
+	output, error = console_command_output(
+		["lsappinfo", "info", "-only", "name", asn]
+	)
+	if output is None:
+		return None, error
+	lines = output.decode("utf-8", "replace").splitlines()
+	first = lines[0] if lines else ""
+	match = LSAPPINFO_NAME_PATTERN.match(first)
+	if not match:
+		return None, f"lsappinfo info printed no name: {first!r}"
+	return match.group(1), None
+
+
+def console_value(reader):
+	# a reading never fails the run, and plistlib raises ExpatError, not only ValueError
+	try:
+		return reader()
+	except Exception as error:
+		return None, f"{type(error).__name__}: {error}"
+
+
+def console_input_reading():
+	taken_at = time.time()
+	stamp = datetime.datetime.fromtimestamp(taken_at).astimezone()
+	reading = {"time": stamp.isoformat(timespec="milliseconds")}
+	unsupported = console_unsupported_reason()
+	for key, reader in (
+		("idle_seconds", console_idle_seconds),
+		("screen_locked", console_screen_locked),
+		("frontmost_app", console_frontmost_app),
+	):
+		value, error = (
+			(None, unsupported) if unsupported else console_value(reader)
+		)
+		reading[key] = value
+		reading[f"{key}_error"] = error
+	return taken_at, reading
+
+
+def wait_for_console_idle(required, bound, clock=time.monotonic, sleep=time.sleep):
+	result = {
+		"idle_seconds": None,
+		"idle_seconds_error": None,
+		"max_seconds": bound,
+		"met": None,
+		"required_seconds": required,
+		"skipped": console_unsupported_reason(),
+		"waited_seconds": 0.0,
+	}
+	if result["skipped"]:
+		return result
+	start = clock()
+	while True:
+		polled = clock()
+		idle, error = console_value(console_idle_seconds)
+		now = clock()
+		result["idle_seconds"] = idle
+		result["idle_seconds_error"] = error
+		if idle is None:
+			break
+		if idle >= required:
+			result["met"] = True
+			break
+		# a floor so a rounding-sized deficit still advances the clock
+		pause = max(required - idle, 0.01)
+		remaining = bound - (now - start)
+		if pause + (now - polled) >= remaining:
+			# WHY: idle time grows no faster than the clock, so the bound
+			# passes before the requirement can be met; sleep it out.
+			sleep(max(remaining, 0.0))
+			result["met"] = False
+			break
+		sleep(pause)
+	result["waited_seconds"] = round(clock() - start, 3)
+	return result
+
+
 def command_test_run(args):
+	if args.wait_idle is not None:
+		if not 0 < args.wait_idle < float("inf"):
+			raise WorkspaceError("--wait-idle must be a positive number of seconds")
+		if not 0 <= args.wait_idle_max < float("inf"):
+			raise WorkspaceError("--wait-idle-max must be zero or more seconds")
 	exe = resolved_exe(args.exe)
 	run_dir = Path(args.run_dir).expanduser().resolve()
 	run_dir.mkdir(parents=True, exist_ok=True)
 	(run_dir / "screenshots").mkdir(exist_ok=True)
 	portable = portable_root_for(exe, args.portable_root)
+	if args.wait_idle is not None:
+		golden_test_account(portable)
+	wait_idle = (
+		wait_for_console_idle(args.wait_idle, args.wait_idle_max)
+		if args.wait_idle is not None
+		else None
+	)
 	account = setup_test_account(portable)
 	stragglers = kill_processes_with_executable(exe)
 
@@ -2560,6 +2733,7 @@ def command_test_run(args):
 	if workdir is not None:
 		launch += ["-workdir", str(workdir)]
 
+	_, input_before = console_input_reading()
 	launched_at = time.time()
 	with stdout_path.open("wb") as out, stderr_path.open("wb") as err:
 		process = subprocess.Popen(
@@ -2647,6 +2821,15 @@ def command_test_run(args):
 	else:
 		verdict_hint = "hang"
 
+	after_at, input_after = console_input_reading()
+	input_after["seconds_since_launch"] = round(after_at - launched_at, 3)
+	input_during_run = (
+		input_after["idle_seconds"] < input_after["seconds_since_launch"]
+		if input_before["idle_seconds"] is not None
+		and input_after["idle_seconds"] is not None
+		else None
+	)
+
 	print(json.dumps({
 		"account": account,
 		"crash_report": str(working) if working.is_file() else None,
@@ -2663,6 +2846,9 @@ def command_test_run(args):
 		"exe": str(exe),
 		"exit_code": exit_code,
 		"golden_root": str(portable_root_for(exe, None) / PORTABLE_GOLDEN),
+		"input_after": input_after,
+		"input_before": input_before,
+		"input_during_run": input_during_run,
 		"log_path": str(log_path) if log_path.is_file() else None,
 		"markers": parse_test_log(log_text),
 		"outcome": outcome,
@@ -2673,6 +2859,7 @@ def command_test_run(args):
 		"stragglers_killed": stragglers,
 		"test_complete": test_complete,
 		"verdict_hint": verdict_hint,
+		"wait_idle": wait_idle,
 		"workdir": str(workdir) if workdir is not None else None,
 	}, indent=2, sort_keys=True))
 
@@ -5010,6 +5197,8 @@ def parse_args():
 	test_run.add_argument("--deadline", type=float, default=120.0)
 	test_run.add_argument("--quiet", type=float, default=60.0)
 	test_run.add_argument("--grace", type=float, default=15.0)
+	test_run.add_argument("--wait-idle", type=float)
+	test_run.add_argument("--wait-idle-max", type=float, default=WAIT_IDLE_MAX_DEFAULT)
 	test_run.add_argument("--env", action="append")
 	test_run.set_defaults(handler=command_test_run)
 
