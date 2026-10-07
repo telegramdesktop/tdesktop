@@ -59,6 +59,12 @@ public:
 		QRect rect,
 		int outerWidth,
 		int radius);
+	bool paintArtwork(
+		Painter &p,
+		const QString &item,
+		QRect rect,
+		int outerWidth,
+		int radius);
 
 	[[nodiscard]] rpl::producer<QString> changed() const;
 	[[nodiscard]] rpl::producer<QString> repaint() const;

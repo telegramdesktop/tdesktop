@@ -1637,7 +1637,24 @@ void HistoryRowButton::paintEvent(QPaintEvent *e) {
 	paintToggle(p, outerw);
 }
 
-void PaintHistoryRowChipSurface(
+void PaintHistoryRowChipPlate(
+		Painter &p,
+		int outerWidth,
+		const HistoryRowChipState &state) {
+	const auto side = st::walletRowIconSize;
+	const auto radius = st::walletCollectibleThumbRadius;
+	const auto plate = std::min(state.natural, outerWidth);
+	const auto plateLeft = style::RightToLeft() ? (outerWidth - plate) : 0;
+	auto hq = PainterHighQualityEnabler(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::windowBgOver);
+	p.drawRoundedRect(
+		QRect(plateLeft, 0, plate, side),
+		radius,
+		radius);
+}
+
+void PaintHistoryRowChipArtwork(
 		Painter &p,
 		int outerWidth,
 		const HistoryRowChipState &state,
@@ -1645,31 +1662,22 @@ void PaintHistoryRowChipSurface(
 		const QString &address) {
 	const auto side = st::walletRowIconSize;
 	const auto radius = st::walletCollectibleThumbRadius;
-	const auto plate = std::min(state.natural, outerWidth);
 	const auto rtl = style::RightToLeft();
-	const auto plateLeft = rtl ? (outerWidth - plate) : 0;
 	const auto square = QRect(rtl ? (outerWidth - side) : 0, 0, side, side);
 	const auto dark = (state.kind == Gram::NftKind::TelegramUsername)
 		|| (state.kind == Gram::NftKind::TelegramNumber);
-	{
+	if (dark) {
 		auto hq = PainterHighQualityEnabler(p);
 		p.setPen(Qt::NoPen);
-		p.setBrush(st::windowBgOver);
-		p.drawRoundedRect(
-			QRect(plateLeft, 0, plate, side),
-			radius,
-			radius);
-		if (dark) {
-			p.setBrush(st::callBgOpaque);
-			p.drawRoundedRect(square, radius, radius);
-		}
+		p.setBrush(st::callBgOpaque);
+		p.drawRoundedRect(square, radius, radius);
 	}
 	if (state.kind == Gram::NftKind::TelegramUsername) {
 		st::walletChipUsernameIcon.paintInCenter(p, square);
 	} else if (state.kind == Gram::NftKind::TelegramNumber) {
 		st::walletChipNumberIcon.paintInCenter(p, square);
 	} else {
-		media->paint(p, address, square, outerWidth, radius);
+		media->paintArtwork(p, address, square, outerWidth, radius);
 	}
 }
 
@@ -1758,12 +1766,13 @@ void AddHistoryRowChip(
 	chip->paintRequest(
 	) | rpl::on_next([=] {
 		auto p = Painter(chip);
+		PaintHistoryRowChipArtwork(p, chip->width(), *state, media, address);
 		PaintHistoryRowChipText(p, chip->width(), *state);
 	}, chip->lifetime());
 	button->setPaintUnderRipple([=](Painter &p) {
 		const auto origin = Ui::MapFrom(button, chip, QPoint());
 		p.translate(origin);
-		PaintHistoryRowChipSurface(p, chip->width(), *state, media, address);
+		PaintHistoryRowChipPlate(p, chip->width(), *state);
 		p.translate(-origin);
 	});
 	const auto mine = [=](const QString &changed) {

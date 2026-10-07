@@ -603,26 +603,41 @@ void CollectibleMedia::paint(
 		QRect rect,
 		int outerWidth,
 		int radius) {
-	const auto entry = find(item);
+	if (paintArtwork(p, item, rect, outerWidth, radius)) {
+		return;
+	}
 	auto hq = PainterHighQualityEnabler(p);
-	if (entry && entry->giftPaint) {
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::windowBgOver);
+	p.drawRoundedRect(rect, radius, radius);
+}
+
+bool CollectibleMedia::paintArtwork(
+		Painter &p,
+		const QString &item,
+		QRect rect,
+		int outerWidth,
+		int radius) {
+	const auto entry = find(item);
+	if (!entry) {
+		return false;
+	}
+	auto hq = PainterHighQualityEnabler(p);
+	if (entry->giftPaint) {
 		auto path = QPainterPath();
 		path.addRoundedRect(rect, radius, radius);
 		p.save();
 		p.setClipPath(path);
 		entry->giftPaint(p, rect.x(), rect.y(), outerWidth, rect.width());
 		p.restore();
-		return;
-	} else if (entry) {
-		const auto &image = preparedFor(entry, rect.width(), radius);
-		if (!image.isNull()) {
-			p.drawImage(rect, image);
-			return;
-		}
+		return true;
 	}
-	p.setPen(Qt::NoPen);
-	p.setBrush(st::windowBgOver);
-	p.drawRoundedRect(rect, radius, radius);
+	const auto &image = preparedFor(entry, rect.width(), radius);
+	if (image.isNull()) {
+		return false;
+	}
+	p.drawImage(rect, image);
+	return true;
 }
 
 rpl::producer<QString> CollectibleMedia::changed() const {
