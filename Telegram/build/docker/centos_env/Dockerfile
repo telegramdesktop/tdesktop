@@ -963,7 +963,7 @@ EOF
 
 FROM builder AS ada
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b v3.2.4 --depth=1 https://github.com/ada-url/ada.git
+git clone -b v3.2.9 --depth=1 https://github.com/ada-url/ada.git
 cd ada
 cmake -B build . -DADA_TESTING=OFF -DADA_TOOLS=OFF -DADA_INCLUDE_URL_PATTERN=OFF
 cmake --build build

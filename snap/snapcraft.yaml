@@ -134,7 +134,7 @@ parts:
   ada:
     source: https://github.com/ada-url/ada.git
     source-depth: 1
-    source-tag: v3.2.4
+    source-tag: v3.2.9
     plugin: cmake
     cmake-generator: Ninja
     cmake-parameters:
