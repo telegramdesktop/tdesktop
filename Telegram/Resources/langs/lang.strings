@@ -8868,6 +8868,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_send_user_load_error" = "The recipient's wallet couldn't be loaded.";
 "lng_wallet_send_user_wallet_title" = "{name}'s wallet";
 "lng_wallet_send_user_wallet_about" = "This TON Blockchain address is linked to {name} on Telegram.";
+"lng_wallet_send_gram_wallet" = "Gram Wallet";
 "lng_wallet_send_recipient_loading" = "Looking up the recipient's wallet...";
 "lng_wallet_send_wallet_loading" = "Loading your wallet...";
 "lng_wallet_send_invalid_address" = "Invalid address";

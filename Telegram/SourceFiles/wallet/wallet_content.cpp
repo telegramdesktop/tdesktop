@@ -5187,6 +5187,7 @@ struct SendFlow {
 	int64 amountNano = 0;
 	std::optional<uint64> expiresAt;
 	std::shared_ptr<SendDraft> draft;
+	QString tonName;
 };
 
 class SendCommentBubble final : public Ui::RpWidget {
@@ -5229,7 +5230,7 @@ public:
 	SendRecipientCard(
 		QWidget *parent,
 		std::shared_ptr<Ui::Show> show,
-		not_null<UserData*> user,
+		UserData *user,
 		rpl::producer<QString> address,
 		Fn<void()> about);
 
@@ -5242,8 +5243,8 @@ private:
 	[[nodiscard]] QRect addressRect(int outerWidth) const;
 	void setAddress(const QString &address);
 
-	const not_null<UserData*> _user;
-	const not_null<Ui::IconButton*> _about;
+	UserData * const _user = nullptr;
+	Ui::IconButton * const _about = nullptr;
 	const not_null<Ui::AbstractButton*> _copy;
 	style::TextStyle _nameStyle;
 	style::TextStyle _usernameStyle;
@@ -5342,46 +5343,54 @@ void SendCommentBubble::setText(const QString &text) {
 SendRecipientCard::SendRecipientCard(
 	QWidget *parent,
 	std::shared_ptr<Ui::Show> show,
-	not_null<UserData*> user,
+	UserData *user,
 	rpl::producer<QString> address,
 	Fn<void()> about)
 : RpWidget(parent)
 , _user(user)
-, _about(Ui::CreateChild<Ui::IconButton>(this, st::walletSendUserCardAbout))
+, _about(user
+	? Ui::CreateChild<Ui::IconButton>(this, st::walletSendUserCardAbout)
+	: nullptr)
 , _copy(Ui::CreateChild<Ui::AbstractButton>(this))
 , _nameStyle(st::defaultTextStyle)
 , _usernameStyle(st::defaultTextStyle)
-, _userpic(user->createUserpicView()) {
+, _userpic(user ? user->createUserpicView() : Ui::PeerUserpicView()) {
 	_nameStyle.font = st::walletSendUserCardNameFont;
 	_usernameStyle.font = st::boxTextFont;
-	_about->setClickedCallback(std::move(about));
-	_about->hide();
+	if (_about) {
+		_about->setClickedCallback(std::move(about));
+		_about->hide();
+	}
 	_copy->setClickedCallback([this, show = std::move(show)] {
 		CopyAddressCallback(show, _address)();
 	});
 	_copy->hide();
 
-	Info::Profile::NameValue(user) | rpl::on_next([this](
-			const QString &name) {
-		_name.setText(_nameStyle, name, Ui::NameTextOptions());
+	auto name = user
+		? Info::Profile::NameValue(user)
+		: tr::lng_wallet_send_gram_wallet();
+	std::move(name) | rpl::on_next([this](const QString &value) {
+		_name.setText(_nameStyle, value, Ui::NameTextOptions());
 		update();
 	}, lifetime());
 
-	Info::Profile::UsernameValue(user) | rpl::on_next([this](
-			const TextWithEntities &username) {
-		_username.setText(
-			_usernameStyle,
-			username.text,
-			Ui::NameTextOptions());
-		update();
-	}, lifetime());
+	if (user) {
+		Info::Profile::UsernameValue(user) | rpl::on_next([this](
+				const TextWithEntities &username) {
+			_username.setText(
+				_usernameStyle,
+				username.text,
+				Ui::NameTextOptions());
+			update();
+		}, lifetime());
+
+		user->session().downloaderTaskFinished() | rpl::on_next([this] {
+			update();
+		}, lifetime());
+	}
 
 	std::move(address) | rpl::on_next([this](const QString &value) {
 		setAddress(value);
-	}, lifetime());
-
-	user->session().downloaderTaskFinished() | rpl::on_next([this] {
-		update();
 	}, lifetime());
 }
 
@@ -5394,10 +5403,12 @@ int SendRecipientCard::resizeGetHeight(int newWidth) {
 		+ st::walletSendUserCardTextSkip
 		+ lines * font->height;
 	const auto inner = std::max(st::walletSendUserCardPhoto, text);
-	_about->moveToRight(
-		padding.right(),
-		(padding.top() + inner + padding.bottom() - _about->height()) / 2,
-		newWidth);
+	if (_about) {
+		_about->moveToRight(
+			padding.right(),
+			(padding.top() + inner + padding.bottom() - _about->height()) / 2,
+			newWidth);
+	}
 	_copy->setGeometry(addressRect(newWidth));
 	return padding.top() + inner + padding.bottom();
 }
@@ -5415,22 +5426,31 @@ void SendRecipientCard::paintEvent(QPaintEvent *e) {
 	const auto &padding = st::walletSendUserCardPadding;
 	const auto photo = st::walletSendUserCardPhoto;
 	const auto inner = height() - padding.top() - padding.bottom();
-	_user->paintUserpicLeft(
-		p,
-		_userpic,
-		padding.left(),
-		padding.top() + (inner - photo) / 2,
-		width(),
-		photo);
+	const auto photoTop = padding.top() + (inner - photo) / 2;
+	if (_user) {
+		_user->paintUserpicLeft(
+			p,
+			_userpic,
+			padding.left(),
+			photoTop,
+			width(),
+			photo);
+	} else {
+		Ui::EmptyUserpic::PaintCurrency(
+			p,
+			padding.left(),
+			photoTop,
+			width(),
+			photo);
+	}
 
 	const auto left = padding.left()
 		+ photo
 		+ st::walletSendUserCardPhotoSkip;
-	const auto available = width()
-		- left
-		- padding.right()
-		- _about->width()
-		- st::walletSendUserCardAboutSkip;
+	const auto about = _about
+		? (_about->width() + st::walletSendUserCardAboutSkip)
+		: 0;
+	const auto available = width() - left - padding.right() - about;
 	const auto skip = st::walletSendUserCardNameSkip;
 	const auto handle = _username.isEmpty()
 		? 0
@@ -5490,7 +5510,9 @@ QRect SendRecipientCard::addressRect(int outerWidth) const {
 
 void SendRecipientCard::setAddress(const QString &address) {
 	_address = address;
-	_about->setVisible(!_address.isEmpty());
+	if (_about) {
+		_about->setVisible(!_address.isEmpty());
+	}
 	_copy->setGeometry(addressRect(width()));
 	_copy->setVisible(!_address.isEmpty());
 	update();
@@ -6690,9 +6712,10 @@ void TonNameLookup::finish(TonNameStatus status) {
 	return result;
 }
 
-[[nodiscard]] rpl::producer<TextWithEntities> SendAddressTitle(
+[[nodiscard]] rpl::producer<TextWithEntities> SendRecipientTitle(
 		not_null<Ui::GenericBox*> box,
-		const QString &address) {
+		const QString &recipient,
+		Qt::TextElideMode mode) {
 	return rpl::combine(
 		box->widthValue(),
 		rpl::single(rpl::empty) | rpl::then(Lang::Updated())
@@ -6713,18 +6736,26 @@ void TonNameLookup::finish(TonNameStatus status) {
 			measure.setMarkedText(st::giveawayGiftCodeBox.title.style, text);
 			return measure.maxWidth() <= available;
 		};
-		auto full = title(address);
+		auto full = title(recipient);
 		if (fits(full)) {
 			return full;
 		}
-		const auto most = (int(address.size()) - 1) / 2;
+		const auto middle = (mode == Qt::ElideMiddle);
+		const auto shortened = [&](int chars) {
+			return middle
+				? ShortAddressForm(recipient, chars)
+				: (recipient.left(chars) + QChar(0x2026));
+		};
+		const auto most = middle
+			? ((int(recipient.size()) - 1) / 2)
+			: (int(recipient.size()) - 1);
 		for (auto chars = most; chars > 1; --chars) {
-			auto elided = title(ShortAddressForm(address, chars));
+			auto elided = title(shortened(chars));
 			if (fits(elided)) {
 				return elided;
 			}
 		}
-		return title(ShortAddressForm(address, 1));
+		return title(shortened(1));
 	});
 }
 
@@ -7052,7 +7083,9 @@ void WalletSendBox(
 				width);
 		}, title->lifetime());
 	} else {
-		box->setTitle(SendAddressTitle(box, initial->displayForm));
+		box->setTitle(initial->tonName.isEmpty()
+			? SendRecipientTitle(box, initial->displayForm, Qt::ElideMiddle)
+			: SendRecipientTitle(box, initial->tonName, Qt::ElideRight));
 	}
 	AddBoxCloseButton(box);
 
@@ -7331,22 +7364,22 @@ void WalletSendBox(
 	};
 
 	const auto inner = box->verticalLayout();
-	if (recipient) {
-		auto address = user
-			? rpl::producer<QString>(state->loading.value(
-			) | rpl::map([=](bool loading) {
-				return (!loading && state->flow)
-					? state->flow->displayForm
-					: QString();
-			}))
-			: rpl::producer<QString>(rpl::single(initial->displayForm));
-		inner->add(
-			object_ptr<SendRecipientCard>(
-				inner,
-				box->uiShow(),
-				recipient,
-				std::move(address),
-				[=] {
+	auto address = user
+		? rpl::producer<QString>(state->loading.value(
+		) | rpl::map([=](bool loading) {
+			return (!loading && state->flow)
+				? state->flow->displayForm
+				: QString();
+		}))
+		: rpl::producer<QString>(rpl::single(initial->displayForm));
+	inner->add(
+		object_ptr<SendRecipientCard>(
+			inner,
+			box->uiShow(),
+			recipient,
+			std::move(address),
+			(recipient
+				? Fn<void()>([=] {
 					if (!state->flow) {
 						return;
 					}
@@ -7355,14 +7388,14 @@ void WalletSendBox(
 						recipient,
 						state->flow->displayForm,
 						openProfile);
-				}),
-			style::margins(
-				st::boxRowPadding.left(),
-				st::walletSendUserCardTopSkip,
-				st::boxRowPadding.right(),
-				0),
-			style::al_justify);
-	}
+				})
+				: nullptr)),
+		style::margins(
+			st::boxRowPadding.left(),
+			st::walletSendUserCardTopSkip,
+			st::boxRowPadding.right(),
+			0),
+		style::al_justify);
 
 	auto helper = Ui::Text::CustomEmojiHelper();
 	const auto gramMark = GramMark(
@@ -7392,9 +7425,7 @@ void WalletSendBox(
 	});
 	const auto amountField = AddAmountField(
 		inner,
-		(recipient
-			? st::walletSendUserCardAmountSkip
-			: st::walletDetailsAmountTopSkip),
+		st::walletSendUserCardAmountSkip,
 		{
 			.value = std::min(
 				initial ? initial->amountNano : amountNano,
@@ -9064,8 +9095,9 @@ void WalletSendRecipientBox(
 			crl::guard(session, crl::guard(box, answer)),
 			crl::guard(session, crl::guard(box, fail)));
 	};
-	const auto proceedName = [=](const QString &address) {
-		if (auto flow = ParseRecipientFlow(address)) {
+	const auto proceedName = [=](const TonNameState &value) {
+		if (auto flow = ParseRecipientFlow(value.address)) {
+			flow->tonName = value.name;
 			lookupOwner(std::move(*flow));
 		} else {
 			failName(RecipientError::NameFailed);
@@ -9076,8 +9108,7 @@ void WalletSendRecipientBox(
 			return;
 		} else if (!state->name.isEmpty()) {
 			if (lookup->current().status == TonNameStatus::Resolved) {
-				const auto address = lookup->current().address;
-				proceedName(address);
+				proceedName(lookup->current());
 			} else {
 				state->proceedOnName = true;
 				state->resolving = true;
@@ -9110,7 +9141,7 @@ void WalletSendRecipientBox(
 				: RecipientError::NameFailed);
 		} else if ((status == TonNameStatus::Resolved)
 			&& base::take(state->proceedOnName)) {
-			proceedName(value.address);
+			proceedName(value);
 		}
 	}, box->lifetime());
 
