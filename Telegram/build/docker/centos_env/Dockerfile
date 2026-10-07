@@ -544,7 +544,7 @@ EOF
 
 FROM builder AS xrandr
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b libXrandr-1.5.3 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxrandr.git
+git clone -b libXrandr-1.5.4 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxrandr.git
 cd libxrandr
 ./autogen.sh --enable-static --disable-shared
 make -j$(nproc)
