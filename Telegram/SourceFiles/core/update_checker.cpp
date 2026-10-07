@@ -2130,7 +2130,9 @@ bool checkReadyUpdate() {
 	}
 #ifdef Q_OS_WIN
 	if (CopyFile(updater.absoluteFilePath().toStdWString().c_str(), curUpdater.toStdWString().c_str(), FALSE) == FALSE) {
-		DWORD errorCode = GetLastError();
+		const auto errorCode = GetLastError();
+		LOG(("Update Error: could not copy '%1' to '%2', error code: %3"
+			).arg(updater.absoluteFilePath()).arg(curUpdater).arg(errorCode));
 		if (errorCode == ERROR_ACCESS_DENIED) { // we are in write-protected dir, like Program Files
 			cSetWriteProtected(true);
 			return true;
