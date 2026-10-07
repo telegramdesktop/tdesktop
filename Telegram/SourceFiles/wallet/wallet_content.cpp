@@ -5869,6 +5869,8 @@ QString SendErrorText(SendError error, int64 minTransferNano) {
 	case SendError::KeyMismatch:
 	case SendError::Rejected:
 	case SendError::DataInvalid:
+	case SendError::CollectibleUnavailable:
+	case SendError::CollectibleRejected:
 		return tr::lng_wallet_send_error_failed(tr::now);
 	case SendError::KeyChanged:
 		return tr::lng_wallet_send_key_changed_text(tr::now);
@@ -7792,6 +7794,8 @@ void WalletSendBox(
 					case SendError::DataInvalid:
 					case SendError::KeyMismatch:
 					case SendError::KeyChanged:
+					case SendError::CollectibleUnavailable:
+					case SendError::CollectibleRejected:
 					case SendError::Silent:
 					case SendError::SubmissionUnknown:
 						fail(result.error);
@@ -13814,7 +13818,7 @@ void Content::setupContent() {
 					ShowWalletTransactionBox(_show, _sendingRow->item, media);
 				}
 			};
-			if (sending) {
+			if (sending && !content.itemAmount) {
 				_sendingRow->look = AddSendingHistoryRow(
 					slot,
 					column,

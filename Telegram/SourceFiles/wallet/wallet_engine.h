@@ -173,7 +173,7 @@ struct TransferSubmissionData {
 // runQuick()'s contract forbids network, so no other engine call of this
 // Engine can be routed while a recording is open; the rotation's send_boc
 // opens none and keeps the proxy transport. A recording wraps exactly one
-// client->send or client->send_boc call.
+// client->send, client->send_boc or client->send_nft_transfer call.
 //
 // Lifetime: Current() hands the host a copy of the thread-local, and the
 // host's queued main-thread work holds that reference itself, so a job that

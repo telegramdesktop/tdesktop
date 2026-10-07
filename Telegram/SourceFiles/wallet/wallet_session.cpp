@@ -108,6 +108,7 @@ struct Session::SubmittedTransfer {
 	std::unique_ptr<TransferItem> fallback;
 	std::unique_ptr<TransferItem> item;
 	QString canonicalId;
+	QString collectible;
 	QByteArray confirmedHash;
 	std::optional<TransferReceipt> receipt;
 	std::optional<wallet_engine::SendPhase> terminal;
@@ -115,6 +116,7 @@ struct Session::SubmittedTransfer {
 	int lookupAttempts = 0;
 	bool lookupStopped = false;
 	bool paired = false;
+	bool leaving = false;
 };
 
 struct Session::SubmittedLookup {
@@ -139,6 +141,8 @@ struct PreparedSend {
 	TransferWalletIdentity identity;
 	GaslessTerms terms;
 	std::shared_ptr<const wallet_engine::SendIntent> intent;
+	std::shared_ptr<const wallet_engine::NftTransferIntent> nft;
+	std::string operationId;
 	int64 feeNano = 0;
 	uint64 owner = 0;
 	uint64 revision = 0;
@@ -158,6 +162,7 @@ struct Session::PreviewRequest {
 	std::shared_ptr<wallet_engine::WalletClient> client;
 	KeyAuthorization auth;
 	SendArgs args;
+	std::string operationId;
 	Fn<void(FeeResult)> done;
 	std::shared_ptr<const wallet_engine::SendRequest> tonConnect;
 	bool feeOnly = false;
@@ -173,6 +178,7 @@ struct Session::PreviewState : base::has_weak_ptr {
 		uint64 id = 0;
 		PreviewRequest request;
 		std::shared_ptr<const wallet_engine::SendIntent> intent;
+		std::shared_ptr<const wallet_engine::NftTransferIntent> nft;
 		FeeResult result;
 		Stage stage = Stage::Encrypting;
 		bool finished = false;
@@ -240,6 +246,9 @@ constexpr auto kTransactionsPerPage = 50;
 // walk is paced by this client's clock, and no eligible row is walled off.
 constexpr auto kMaxHiddenPagesInRow = 20;
 constexpr auto kForcedCollectiblesInterval = 10 * crl::time(1000);
+constexpr auto kCollectibleTransferAttachedNanos = int64(50'000'000);
+constexpr auto kCollectibleTransferForwardNanos = int64(1);
+constexpr auto kLeavingCollectibleRefreshes = 6;
 // The largest limit wallet.getNfts accepts.
 constexpr auto kCollectiblesPerPage = 20;
 constexpr auto kStreamResyncInterval = 30 * crl::time(1000);
@@ -605,6 +614,9 @@ struct MergedHead {
 	case SendError::KeyChanged: return u"KeyChanged"_q;
 	case SendError::QuoteExpired: return u"QuoteExpired"_q;
 	case SendError::LinkExpired: return u"LinkExpired"_q;
+	case SendError::CollectibleUnavailable:
+		return u"CollectibleUnavailable"_q;
+	case SendError::CollectibleRejected: return u"CollectibleRejected"_q;
 	case SendError::Silent: return u"Silent"_q;
 	case SendError::SubmissionUnknown: return u"SubmissionUnknown"_q;
 	}
@@ -1279,6 +1291,11 @@ void FailShareFetch(
 	} catch (const engine::wallet_client_error
 			::EncryptedCommentUnavailable &) {
 		return SendError::CommentEncryptionUnavailable;
+	} catch (const engine::wallet_client_error::NftTransferUnavailable &) {
+		return SendError::CollectibleUnavailable;
+	} catch (const engine::wallet_client_error
+			::NftTransferEmulationRejected &) {
+		return SendError::CollectibleRejected;
 	} catch (...) {
 	}
 	return SendError::Failed;
@@ -1391,6 +1408,31 @@ void FailShareFetch(
 		.expiration = engine::SendExpiration(
 			engine::SendExpiration::kEngineDefault{}),
 		.messages = { std::move(message) },
+	};
+}
+
+[[nodiscard]] engine::NftTransferIntent CollectibleTransferIntent(
+		const SendArgs &args) {
+	auto payload = args.comment.text.isEmpty()
+		? engine::NftTransferPayload(engine::NftTransferPayload::kEmpty{})
+		: engine::NftTransferPayload(engine::NftTransferPayload::kComment{
+			.text = args.comment.text.toUtf8().toStdString(),
+		});
+	return engine::NftTransferIntent{
+		.nft_address = FormatFriendly(args.collectible, true).toStdString(),
+		.recipient = FormatFriendly(
+			args.destination,
+			args.bounce).toStdString(),
+		.funding = engine::NftTransferFunding(
+			engine::NftTransferFunding::kExact{
+				.attached_nanograms = QString::number(
+					args.amountNano).toStdString(),
+				.forward_nanograms = QString::number(
+					kCollectibleTransferForwardNanos).toStdString(),
+			}),
+		.payload = std::move(payload),
+		.expiration = engine::SendExpiration(
+			engine::SendExpiration::kEngineDefault{}),
 	};
 }
 
@@ -7601,6 +7643,7 @@ void Session::clearCollectibles() {
 		_stateApi.request(request->id).cancel();
 	}
 	_collectibles.clear();
+	_leavingCollectibles.clear();
 	_collectiblesRefreshedAt = 0;
 	_collectiblesCompletedAt = 0;
 	_collectiblesHasMore = false;
@@ -7778,6 +7821,18 @@ void Session::applyCollectibles(
 			std::make_move_iterator(end(fresh)));
 	} else {
 		list = std::move(loaded);
+		auto &leaving = _leavingCollectibles;
+		for (auto i = begin(leaving); i != end(leaving);) {
+			const auto listed = ranges::contains(
+				list,
+				i->first,
+				&Gram::NftItem::address);
+			if (listed && (--i->second > 0)) {
+				++i;
+			} else {
+				i = leaving.erase(i);
+			}
+		}
 	}
 	if (!SameCollectibles(_collectibles, list)) {
 		setCollectibles(std::move(list));
@@ -7980,7 +8035,7 @@ void Session::pollTick() {
 		resetHiddenHistoryPages();
 		loadMoreHistory();
 	}
-	refreshCollectibles();
+	refreshCollectibles(!_leavingCollectibles.empty());
 	if ((_pending
 			|| _sendUnresolved
 			|| sendRecoveryNeeded()
@@ -8246,6 +8301,7 @@ std::optional<TransferItem> Session::sendingTransaction(
 		.posted = _submission->posted,
 		.amountNano = args.amountNano,
 		.destination = CanonicalAddress(args.destination),
+		.collectible = args.collectible,
 		.comment = (args.comment.isPublic ? args.comment.text : QString()),
 		.recipient = args.userId,
 		.bounce = args.bounce,
@@ -8263,8 +8319,11 @@ std::optional<TransferItem> Session::sendingTransaction(
 		return result;
 	}
 	const auto same = [&](const TransferItem &item) {
-		return item.counterparty == result.counterparty
-			&& item.amountNano == result.amountNano;
+		return result.collectible.isEmpty()
+			? (item.counterparty == result.counterparty
+				&& item.amountNano == result.amountNano)
+			: (item.kind == TransferItem::Kind::Collectible
+				&& item.collectible == result.collectible);
 	};
 	const auto ambiguous = ranges::any_of(_submitted, [&](const auto &other) {
 		return other.operationId != operationId
@@ -8307,7 +8366,9 @@ std::optional<TransferItem> Session::sendingTransaction(
 TransferItem ItemFromPending(const PendingSendInfo &pending) {
 	return TransferItem{
 		.walletIdentity = pending.walletIdentity,
-		.kind = (pending.recipient
+		.kind = (!pending.collectible.isEmpty()
+			? TransferItem::Kind::Collectible
+			: pending.recipient
 			? TransferItem::Kind::PeerTransfer
 			: TransferItem::Kind::Transfer),
 		.incoming = false,
@@ -8316,6 +8377,7 @@ TransferItem ItemFromPending(const PendingSendInfo &pending) {
 		.counterpartyPeer = (pending.recipient
 			? peerFromUser(pending.recipient).value
 			: quint64()),
+		.collectible = pending.collectible,
 		.amountNano = pending.amountNano,
 		.comment = pending.comment,
 		.date = pending.posted,
@@ -8394,8 +8456,25 @@ void Session::estimateFee(
 		return;
 	}
 	done = LoggedFeeDone(std::move(done));
+	const auto transfersCollectible = !args.collectible.isEmpty();
+	const auto collectible = transfersCollectible
+		? CanonicalAddress(args.collectible)
+		: QString();
+	const auto recipient = transfersCollectible
+		? CanonicalAddress(args.destination)
+		: QString();
+	const auto collectibleInvalid = transfersCollectible
+		&& (collectible.isEmpty()
+			|| recipient.isEmpty()
+			|| (recipient == _address)
+			|| (recipient == collectible)
+			|| (!args.comment.text.isEmpty() && !args.comment.isPublic));
 	const auto inputError = !SendCommentFits(args.comment.text)
 		? SendError::CommentTooLong
+		: collectibleInvalid
+		? SendError::InvalidRequest
+		: transfersCollectible
+		? SendError::None
 		: (args.amountNano <= 0
 			|| FormatFriendly(args.destination, args.bounce).isEmpty())
 		? SendError::InvalidRequest
@@ -8440,9 +8519,14 @@ void Session::estimateFee(
 		.client = _engine->client(),
 		.auth = keyed ? std::move(auth) : KeyAuthorization(),
 		.args = args,
+		.operationId = transfersCollectible ? NewRecordId() : std::string(),
 		.done = std::move(done),
 		.feeOnly = isPrivate && !keyed,
 	};
+	if (transfersCollectible) {
+		request.args.collectible = collectible;
+		request.args.amountNano = kCollectibleTransferAttachedNanos;
+	}
 	enqueuePreview(std::move(request));
 }
 
@@ -8682,7 +8766,8 @@ void Session::settleDeferredDecrypts() {
 
 SendError Session::previewError(const PreviewRequest &request) {
 	const auto terms = gaslessTerms();
-	const auto ordinary = (request.tonConnect == nullptr);
+	const auto ordinary = !request.tonConnect
+		&& request.args.collectible.isEmpty();
 	if (!previewCurrent(request)) {
 		return SendError::QuoteExpired;
 	} else if (request.privateEpoch
@@ -8695,7 +8780,7 @@ SendError Session::previewError(const PreviewRequest &request) {
 		return SendError::Failed;
 	} else if (_presence.current() != Presence::Ready
 		|| request.identity->publicKey.size() != kCustodyPublicKeySize
-		|| (ordinary && request.args.amountNano <= 0)
+		|| (!request.tonConnect && request.args.amountNano <= 0)
 		|| request.args.destination.isEmpty()) {
 		return SendError::InvalidRequest;
 	} else if (ordinary
@@ -8753,7 +8838,9 @@ void Session::startPreview() {
 		};
 		_previewPending = true;
 		const auto &request = _preview->active->request;
-		if (request.tonConnect || request.args.comment.text.isEmpty()) {
+		if (!request.args.collectible.isEmpty()) {
+			previewCollectible(flight);
+		} else if (request.tonConnect || request.args.comment.text.isEmpty()) {
 			previewPrepared(flight, engine::SendMessageBody::kEmpty{});
 		} else if (request.args.comment.isPublic) {
 			previewPrepared(flight, engine::SendMessageBody::kComment{
@@ -8859,6 +8946,41 @@ void Session::previewPrepared(uint64 flight, engine::SendMessageBody body) {
 	});
 }
 
+void Session::previewCollectible(uint64 flight) {
+	if (!_preview->active || _preview->active->id != flight) {
+		return;
+	}
+	auto &active = *_preview->active;
+	if (!active.request.done || !previewCurrent(active.request)) {
+		finishPreview(flight, FeeResult{ .error = SendError::Failed });
+		return;
+	}
+	const auto error = previewError(active.request);
+	if (error != SendError::None) {
+		finishPreview(flight, FeeResult{ .error = error });
+		return;
+	}
+	active.nft = std::make_shared<const engine::NftTransferIntent>(
+		CollectibleTransferIntent(active.request.args));
+	active.stage = PreviewState::Flight::Stage::Previewing;
+	const auto client = active.request.client;
+	auto request = engine::NftTransferPreviewRequest{
+		.operation_id = active.request.operationId,
+		.intent = *active.nft,
+	};
+	_engine->run([client, request = std::move(request)] {
+		return client->preview_nft_transfer(request);
+	}, [=, this](engine::SendPreview preview) {
+		const auto fee = DecimalInt64(
+			preview.emulation.trace_fees_nanograms);
+		finishPreview(flight, (fee && *fee >= 0)
+			? FeeResult{ .feeNano = *fee }
+			: FeeResult{ .error = SendError::Failed });
+	}, [=, this](EngineError error) {
+		finishPreview(flight, FeeResult{ .error = SendErrorFrom(error) });
+	});
+}
+
 void Session::finishPreview(uint64 flight, FeeResult result) {
 	if (!_preview->active || _preview->active->id != flight) {
 		return;
@@ -8919,7 +9041,7 @@ void Session::settlePreview() {
 			&& flight.request.feeOnly) {
 			flight.intent = nullptr;
 		} else if (flight.result.error == SendError::None
-			&& flight.intent
+			&& (flight.intent || flight.nft)
 			&& !flight.cancelIssued) {
 			flight.result.prepared = std::make_shared<const PreparedSend>(
 				PreparedSend{
@@ -8927,6 +9049,8 @@ void Session::settlePreview() {
 					.identity = *flight.request.identity,
 					.terms = flight.request.terms,
 					.intent = std::move(flight.intent),
+					.nft = std::move(flight.nft),
+					.operationId = flight.request.operationId,
 					.feeNano = flight.result.feeNano,
 					.owner = flight.request.owner,
 					.revision = flight.request.revision,
@@ -8976,7 +9100,7 @@ void Session::retirePreviews(SendError error) {
 SendError Session::sendRefusal(
 		const std::shared_ptr<const PreparedSend> &prepared,
 		const KeyAuthorization &auth) {
-	if (!prepared || !prepared->intent || !_preview) {
+	if (!prepared || (!prepared->intent && !prepared->nft) || !_preview) {
 		return SendError::InvalidRequest;
 	}
 	const auto terms = gaslessTerms();
@@ -8987,6 +9111,7 @@ SendError Session::sendRefusal(
 	}
 	const auto &args = prepared->args;
 	const auto tonConnect = prepared->tonConnect;
+	const auto ordinary = !tonConnect && !prepared->nft;
 	if (!SendCommentFits(args.comment.text)) {
 		return SendError::CommentTooLong;
 	}
@@ -8996,10 +9121,11 @@ SendError Session::sendRefusal(
 		|| prepared->feeNano < 0
 		|| (!args.comment.text.isEmpty()
 			&& !args.comment.isPublic
-			&& !prepared->privateEpoch)) {
+			&& !prepared->privateEpoch)
+		|| (prepared->nft && prepared->operationId.empty())) {
 		return SendError::InvalidRequest;
 	}
-	if (!tonConnect
+	if (ordinary
 		&& TransferAmountBelowMinimum(
 			args.amountNano,
 			TransferMinNanos(_session))) {
@@ -9014,7 +9140,7 @@ SendError Session::sendRefusal(
 		|| !transferWalletIdentityCurrent(prepared->identity)) {
 		return SendError::Failed;
 	}
-	if (!tonConnect
+	if (ordinary
 		&& (prepared->terms != terms
 			|| terms.identity != prepared->identity)) {
 		return SendError::QuoteExpired;
@@ -9037,7 +9163,7 @@ SendError Session::sendRefusal(
 	if (!ReadAuthorized(*this, auth)) {
 		return SendError::Locked;
 	}
-	const auto paired = !tonConnect
+	const auto paired = ordinary
 		&& terms.eligible(args.amountNano, args.destination);
 	const auto balance = _balanceNano.current();
 	if (args.amountNano > balance) {
@@ -9121,11 +9247,15 @@ void Session::startSend(
 	}
 	const auto terms = gaslessTerms();
 	const auto &args = prepared->args;
-	const auto paired = !prepared->tonConnect
+	const auto ordinary = !prepared->tonConnect && !prepared->nft;
+	const auto paired = ordinary
 		&& terms.eligible(args.amountNano, args.destination);
 	const auto linked = !tonConnectLink.operationId.empty();
+	const auto preset = linked || !prepared->operationId.empty();
 	const auto operationId = linked
 		? tonConnectLink.operationId
+		: preset
+		? prepared->operationId
 		: NewRecordId();
 	const auto client = prepared->client;
 	const auto generation = prepared->generation;
@@ -9135,7 +9265,7 @@ void Session::startSend(
 		identity.publicKey);
 	if (!custodyRecord
 		|| custodyRecord->recordId != _clientRecordId
-		|| (linked && submittedTransferRecord(operationId, identity))) {
+		|| (preset && submittedTransferRecord(operationId, identity))) {
 		fail(SendError::Failed);
 		return;
 	}
@@ -9152,6 +9282,7 @@ void Session::startSend(
 		.operationId = operationId,
 		.destination = CanonicalAddress(args.destination),
 		.comment = args.comment.isPublic ? args.comment.text : QString(),
+		.collectible = args.collectible,
 		.amountNano = args.amountNano,
 		.recipient = args.userId,
 		.posted = base::unixtime::now(),
@@ -9177,6 +9308,7 @@ void Session::startSend(
 		.posted = stored->posted,
 		.amountNano = stored->amountNano,
 		.destination = stored->destination,
+		.collectible = stored->collectible,
 		.comment = stored->comment,
 		.recipient = stored->recipient,
 		.bounce = stored->bounce,
@@ -9250,11 +9382,14 @@ void Session::startSend(
 	const auto recordUnknown = [=] {
 		recordPending(SendError::SubmissionUnknown);
 	};
-	auto request = engine::SendRequest{
-		.operation_id = operationId,
-		.force = false,
-		.intent = *prepared->intent,
-	};
+	auto request = std::optional<engine::SendRequest>();
+	if (prepared->intent) {
+		request = engine::SendRequest{
+			.operation_id = operationId,
+			.force = false,
+			.intent = *prepared->intent,
+		};
+	}
 	const auto route = std::make_shared<TransferSubmission>([=, this](
 			TransferSubmissionData data,
 			Fn<void(TransferSubmissionAnswer)> answer) {
@@ -9278,10 +9413,24 @@ void Session::startSend(
 		.paired = paired,
 		.normalFeeAuthorized = true,
 	};
-	_engine->run([client, request = std::move(request), route, paired] {
-		if (!paired) {
+	_engine->run([
+		client,
+		request = std::move(request),
+		nft = prepared->nft,
+		operationId,
+		route,
+		paired
+	] {
+		if (nft) {
 			const auto recording = route->record();
-			return client->send(request);
+			return client->send_nft_transfer(engine::NftTransferRequest{
+				.operation_id = operationId,
+				.force = false,
+				.intent = *nft,
+			});
+		} else if (!paired) {
+			const auto recording = route->record();
+			return client->send(*request);
 		}
 		// A fee-free offer needs both delivery forms of the same transfer.
 		// prepare_transfer() reads the account once, so the pair it signs
@@ -9294,8 +9443,8 @@ void Session::startSend(
 		// carries both and the server picks the form it will execute.
 		const auto pair = client->prepare_transfer(
 			engine::PrepareTransferRequest{
-				.operation_id = request.operation_id,
-				.intent = request.intent,
+				.operation_id = request->operation_id,
+				.intent = request->intent,
 			});
 		// A Boc crosses the engine boundary as its standard padded Base64
 		// text: send_boc() takes the external form back as it came, while
@@ -9310,7 +9459,7 @@ void Session::startSend(
 			: QByteArray());
 		return client->send_boc(engine::SendBocRequest{
 			.operation_id = pair.operation_id,
-			.force = request.force,
+			.force = request->force,
 			.signed_boc = pair.external_boc,
 			.seqno = pair.seqno,
 			.valid_until = pair.valid_until,
@@ -9564,11 +9713,12 @@ void Session::submitTransfer(
 		return;
 	}
 	const auto amount = prepared->args.amountNano;
-	if (!prepared->tonConnect
+	const auto ordinary = !prepared->tonConnect && !prepared->nft;
+	if (ordinary
 		&& TransferAmountBelowMinimum(amount, TransferMinNanos(_session))) {
 		refuse(SendError::AmountTooSmall, u"WALLET_TRANSFER_AMOUNT_TOO_SMALL"_q);
 		return;
-	} else if ((!prepared->tonConnect
+	} else if ((ordinary
 			&& (prepared->terms != terms
 				|| terms.identity != prepared->identity
 				|| _submission->paired != terms.eligible(
@@ -9643,7 +9793,9 @@ void Session::submitTransfer(
 	while (!randomId) {
 		randomId = base::RandomValue<uint64>();
 	}
-	const auto messageId = _transferMessages->create(prepared->args, randomId);
+	const auto messageId = prepared->nft
+		? FullMsgId()
+		: _transferMessages->create(prepared->args, randomId);
 	_submission->draft = messageId;
 	if (const auto report = _submission->started) {
 		const auto started = SendStarted{
@@ -10044,6 +10196,7 @@ Session::SubmittedTransfer *Session::upsertSubmittedTransfer(
 		.posted = record->posted,
 		.amountNano = record->amountNano,
 		.destination = record->destination,
+		.collectible = record->collectible,
 		.comment = record->comment,
 		.recipient = record->recipient,
 		.bounce = record->bounce,
@@ -10091,6 +10244,7 @@ Session::SubmittedTransfer *Session::upsertSubmittedTransfer(
 		.fallback = std::move(fallback),
 		.item = std::move(item),
 		.canonicalId = canonicalId,
+		.collectible = record->collectible,
 		.confirmedHash = record->confirmedHash,
 		.receipt = std::move(receipt),
 		.terminal = RestoredTransferTerminal(record->terminal),
@@ -10344,11 +10498,27 @@ bool Session::adoptSubmittedTransaction(
 
 void Session::dropSubmittedIfListed() {
 	auto changed = false;
+	auto leaving = false;
 	for (auto &entry : _submitted) {
 		if (entry.generation != _networkGeneration
 			|| !transferWalletIdentityCurrent(entry.identity)
 			|| (!entry.fallback && !entry.item)) {
 			continue;
+		}
+		// WHY: the engine confirms only the wallet's own message; the item
+		// changes owner in a later transaction and wallet.getNfts follows the
+		// chain with a lag, so the forced cadence runs until the item is gone.
+		if (!entry.leaving
+			&& !entry.collectible.isEmpty()
+			&& ((entry.terminal == engine::SendPhase::kConfirmed)
+				|| (entry.item
+					&& !entry.item->incoming
+					&& (entry.item->status
+						== TransferItem::Status::Success)))) {
+			entry.leaving = true;
+			_leavingCollectibles[entry.collectible]
+				= kLeavingCollectibleRefreshes;
+			leaving = true;
 		}
 		if (entry.canonicalId.isEmpty() && !entry.confirmedHash.isEmpty()) {
 			const auto candidate = [&](const TransferItem &item) {
@@ -10393,6 +10563,9 @@ void Session::dropSubmittedIfListed() {
 	}
 	if ((changed || _submittedTransfersDirty) && !persistSubmittedTransfers()) {
 		LOG(("Wallet Error: reconciled transfer facts remain dirty."));
+	}
+	if (leaving) {
+		refreshCollectibles(true);
 	}
 }
 

@@ -140,6 +140,8 @@ enum class SendError {
 	KeyChanged,
 	QuoteExpired,
 	LinkExpired,
+	CollectibleUnavailable,
+	CollectibleRejected,
 	Silent,
 	// The send callback's third outcome beside None and a refusal:
 	// the signed message is journaled and may already be on the
@@ -339,6 +341,7 @@ struct PendingSendInfo {
 	TimeId posted = 0;
 	int64 amountNano = 0;
 	QString destination;
+	QString collectible;
 	QString comment;
 	UserId recipient;
 	bool bounce = false;
@@ -411,6 +414,8 @@ struct SendComment {
 
 struct SendArgs {
 	QString destination;
+	// An owned collectible's item address; the session picks amountNano then.
+	QString collectible;
 	int64 amountNano = 0;
 	UserId userId;
 	SendComment comment;
@@ -1064,6 +1069,7 @@ private:
 	void enqueuePreview(PreviewRequest request);
 	void startPreview();
 	void previewPrepared(uint64 flight, wallet_engine::SendMessageBody body);
+	void previewCollectible(uint64 flight);
 	void finishPreview(uint64 flight, FeeResult result);
 	void cancelPreview();
 	void finishPreviewCancel(uint64 flight);
@@ -1265,6 +1271,7 @@ private:
 	base::flat_map<
 		QString,
 		std::vector<Fn<void(const Gram::NftItem &)>>> _collectibleInfoWaiters;
+	base::flat_map<QString, int> _leavingCollectibles;
 
 	rpl::variable<bool> _listsGated = true;
 	rpl::event_stream<> _listsStateUpdates;

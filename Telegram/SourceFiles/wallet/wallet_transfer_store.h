@@ -82,6 +82,7 @@ struct SubmittedTransferRecord {
 	std::string operationId;
 	QString destination;
 	QString comment;
+	QString collectible;
 	std::optional<QByteArray> messageHash;
 	QByteArray confirmedHash;
 	std::optional<SubmittedTransferProjection> served;

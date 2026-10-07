@@ -18,7 +18,7 @@ namespace Wallet {
 namespace {
 
 const auto kStorageKey = u"presentation/submitted-transfers"_q;
-constexpr auto kFormatVersion = quint32(2);
+constexpr auto kFormatVersion = quint32(3);
 constexpr auto kIdentityMaxBytes = 256;
 constexpr auto kAddressMaxBytes = 128;
 constexpr auto kServerIdMaxBytes = 1024;
@@ -138,6 +138,7 @@ void WriteText(Serialize::ByteArrayWriter &stream, const QString &text) {
 		&& ValidAddress(record.address)
 		&& record.publicKey.size() == kCustodyPublicKeySize
 		&& ValidAddress(record.destination)
+		&& (record.collectible.isEmpty() || ValidAddress(record.collectible))
 		&& ValidText(record.comment, kSendCommentMaxBytes)
 		&& record.amountNano > 0
 		&& record.posted > 0
@@ -281,6 +282,9 @@ void WriteProjection(
 		stream >> recipient;
 		result.recipient = UserId(recipient);
 	}
+	if (version >= 3) {
+		result.collectible = ReadText(stream, kAddressMaxBytes);
+	}
 	return (stream.ok() && ValidRecord(result))
 		? std::make_optional(std::move(result))
 		: std::nullopt;
@@ -319,6 +323,7 @@ void WriteRecord(
 		WriteProjection(stream, *record.served);
 	}
 	stream << quint64(record.recipient.bare);
+	WriteText(stream, record.collectible);
 }
 
 } // namespace
