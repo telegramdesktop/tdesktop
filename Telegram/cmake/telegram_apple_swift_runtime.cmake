@@ -11,7 +11,9 @@ function(telegram_add_apple_swift_runtime target_name)
 
     if (CMAKE_Swift_COMPILER)
         set(swift_compiler "${CMAKE_Swift_COMPILER}")
-    else()
+    endif()
+    get_filename_component(swift_bin_dir "${swift_compiler}" DIRECTORY)
+    if (NOT swift_compiler OR NOT EXISTS "${swift_bin_dir}/swift-stdlib-tool")
         execute_process(
             COMMAND xcrun --find swiftc
             OUTPUT_VARIABLE swift_compiler
