@@ -555,7 +555,7 @@ EOF
 
 FROM builder AS xrender
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b libXrender-0.9.11 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxrender.git
+git clone -b libXrender-0.9.12 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxrender.git
 cd libxrender
 ./autogen.sh --enable-static --disable-shared
 make -j$(nproc)
