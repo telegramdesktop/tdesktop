@@ -509,7 +509,7 @@ EOF
 
 FROM builder AS xtst
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b libXtst-1.2.4 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxtst.git
+git clone -b libXtst-1.2.5 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxtst.git
 cd libxtst
 ./autogen.sh --enable-static --disable-shared
 make -j$(nproc)
