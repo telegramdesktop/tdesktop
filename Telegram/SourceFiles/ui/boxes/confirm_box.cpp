@@ -85,7 +85,8 @@ void ConfirmBox(not_null<Ui::GenericBox*> box, ConfirmBoxArgs &&args) {
 			return;
 		}
 		const auto k = static_cast<QKeyEvent*>(e.get());
-		if (k->key() == Qt::Key_Enter || k->key() == Qt::Key_Return) {
+		if (!k->isAutoRepeat()
+			&& (k->key() == Qt::Key_Enter || k->key() == Qt::Key_Return)) {
 			confirmButton->clicked(Qt::KeyboardModifiers(), Qt::LeftButton);
 		}
 	}, box->lifetime());
