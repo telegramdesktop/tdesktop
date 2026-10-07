@@ -502,7 +502,9 @@ void TermsBox::prepare() {
 
 void TermsBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-		_agreeClicks.fire({});
+		if (!e->isAutoRepeat()) {
+			triggerButton(0);
+		}
 	} else {
 		BoxContent::keyPressEvent(e);
 	}
