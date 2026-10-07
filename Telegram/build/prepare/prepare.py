@@ -1784,7 +1784,7 @@ win:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout b857c260eecec44e02f9831439582c6a08e2b0ee
+    git checkout d1cf250ea73de26c4c1f0a3c8173eb2648efbb04
     git submodule update --init --recursive
 win:
     SET MOZJPEG_PATH=$LIBS_DIR/mozjpeg

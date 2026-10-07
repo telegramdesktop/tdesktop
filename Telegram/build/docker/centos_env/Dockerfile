@@ -951,7 +951,7 @@ RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git init tg_owt
 cd tg_owt
 git remote add origin https://github.com/desktop-app/tg_owt.git
-git fetch --depth=1 origin b857c260eecec44e02f9831439582c6a08e2b0ee
+git fetch --depth=1 origin d1cf250ea73de26c4c1f0a3c8173eb2648efbb04
 git reset --hard FETCH_HEAD
 git submodule update --init --recursive --depth=1
 cmake -B build . -DTG_OWT_DLOPEN_PIPEWIRE=ON
