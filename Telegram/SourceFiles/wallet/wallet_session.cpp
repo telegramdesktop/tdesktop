@@ -8632,10 +8632,10 @@ void Session::resolveCommentRecipientAttempt(
 void Session::resolveDnsName(
 		const QString &name,
 		Fn<void(std::optional<QString>)> done,
-		Fn<void()> fail) {
+		Fn<void(DnsLookupError)> fail) {
 	const auto client = _engine->client();
 	if (!client || _clientStopping) {
-		fail();
+		fail(DnsLookupError::Failed);
 		return;
 	}
 	_engine->run([client, name = name.toStdString()] {
@@ -8644,9 +8644,12 @@ void Session::resolveDnsName(
 		done(address
 			? std::make_optional(QString::fromStdString(*address))
 			: std::nullopt);
-	}, [=](EngineError error) {
+	}, [=, this](EngineError error) {
 		LOG(("Wallet Error: dns lookup failed: %1").arg(error.message));
-		fail();
+		// A comment decryption may hold the slot; mid-transfer it is final.
+		const auto busy = (SendErrorFrom(error) == SendError::AlreadySending)
+			&& (_sendState.current() != SendState::Sending);
+		fail(busy ? DnsLookupError::Busy : DnsLookupError::Failed);
 	});
 }
 

@@ -155,6 +155,11 @@ enum class CommentRecipient {
 	Unknown,
 };
 
+enum class DnsLookupError {
+	Busy,
+	Failed,
+};
+
 enum class SendState {
 	Idle,
 	Sending,
@@ -805,7 +810,7 @@ public:
 	void resolveDnsName(
 		const QString &name,
 		Fn<void(std::optional<QString>)> done,
-		Fn<void()> fail);
+		Fn<void(DnsLookupError)> fail);
 	void estimateTonConnect(
 		uint64 owner,
 		std::shared_ptr<const TonConnectTransfer> transfer,

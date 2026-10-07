@@ -90,6 +90,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/table_layout.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/basic_click_handlers.h"
+#include "ui/empty_userpic.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "ui/round_rect.h"
@@ -175,6 +176,7 @@ constexpr auto kMaxFiatUnits = 999'999'999LL;
 constexpr auto kMaxAmountNano = 999'999'999'999'999'999LL;
 constexpr auto kSendUserLoadTimeout = 30 * crl::time(1000);
 constexpr auto kRecipientSearchLimit = 64;
+constexpr auto kNameBusyRetryDelay = crl::time(500);
 constexpr auto kSendOwnerLookupDelay = crl::time(500);
 constexpr auto kSendRefusalRetries = 3;
 constexpr auto kCommentPasswordStateTimeout = 30 * crl::time(1000);
@@ -6374,6 +6376,344 @@ void MoneyRecipientSearchController::rowClicked(
 	return result;
 }
 
+enum class TonNameStatus : uchar {
+	None,
+	Pending,
+	Resolved,
+	NotFound,
+	Failed,
+};
+
+struct TonNameState {
+	QString name;
+	QString address;
+	QString displayForm;
+	TonNameStatus status = TonNameStatus::None;
+
+	friend bool operator==(
+		const TonNameState &,
+		const TonNameState &) = default;
+};
+
+[[nodiscard]] bool TonNameRowShown(const TonNameState &state) {
+	return (state.status == TonNameStatus::Pending)
+		|| (state.status == TonNameStatus::Resolved);
+}
+
+class TonNameResultRow final : public PeerListRow {
+public:
+	TonNameResultRow(const QString &name, const QString &address);
+
+	QString generateName() override;
+	QString generateShortName() override;
+	PaintRoundImageCallback generatePaintUserpicCallback(
+		bool forceRound) override;
+	void paintStatusText(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int availableWidth,
+		int outerWidth,
+		bool selected) override;
+
+private:
+	const QString _name;
+	const QString _address;
+
+};
+
+class TonNameResultController final : public PeerListController {
+public:
+	TonNameResultController(
+		not_null<Main::Session*> session,
+		Fn<void()> chosen);
+
+	void prepare() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+	Main::Session &session() const override;
+
+	void setContent(not_null<PeerListContent*> content);
+	void showState(const TonNameState &state);
+
+private:
+	const not_null<Main::Session*> _session;
+	const Fn<void()> _chosen;
+	PeerListContentDelegateSimple _delegate;
+
+};
+
+// WHY: engine jobs run one at a time and never coalesce, so one lookup
+// stays out and the latest name is asked as soon as it returns.
+class TonNameLookup final : public base::has_weak_ptr {
+public:
+	explicit TonNameLookup(not_null<Main::Session*> session);
+
+	void setName(const QString &name);
+	void request();
+	void close();
+
+	[[nodiscard]] const TonNameState &current() const;
+	[[nodiscard]] rpl::producer<TonNameState> value() const;
+
+private:
+	void start();
+	void issue();
+	[[nodiscard]] bool settle(uint64 revision, bool busy);
+	void resolved(uint64 revision, std::optional<QString> address);
+	void failed(uint64 revision, DnsLookupError error);
+	void finish(TonNameStatus status);
+
+	const base::weak_ptr<Main::Session> _session;
+	rpl::variable<TonNameState> _state;
+	base::Timer _timer;
+	base::Timer _deadline;
+	uint64 _revision = 0;
+	bool _waiting = false;
+	bool _inFlight = false;
+	bool _closed = false;
+
+};
+
+TonNameResultRow::TonNameResultRow(
+	const QString &name,
+	const QString &address)
+: PeerListRow(PeerListRowId(1))
+, _name(name)
+, _address(address) {
+	if (_address.isEmpty()) {
+		setDisabledState(State::Disabled);
+	}
+}
+
+QString TonNameResultRow::generateName() {
+	return _name;
+}
+
+QString TonNameResultRow::generateShortName() {
+	return _name;
+}
+
+PaintRoundImageCallback TonNameResultRow::generatePaintUserpicCallback(
+		bool forceRound) {
+	return [](Painter &p, int x, int y, int outerWidth, int size) {
+		Ui::EmptyUserpic::PaintCurrency(p, x, y, outerWidth, size);
+	};
+}
+
+void TonNameResultRow::paintStatusText(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int availableWidth,
+		int outerWidth,
+		bool selected) {
+	const auto &font = st::contactsStatusFont;
+	const auto text = _address.isEmpty()
+		? font->elided(tr::lng_contacts_loading(tr::now), availableWidth)
+		: font->elided(_address, availableWidth, Qt::ElideMiddle);
+	p.setFont(font);
+	p.setPen(selected ? st.statusFgOver : st.statusFg);
+	p.drawTextLeft(x, y, outerWidth, text);
+}
+
+TonNameResultController::TonNameResultController(
+	not_null<Main::Session*> session,
+	Fn<void()> chosen)
+: _session(session)
+, _chosen(std::move(chosen)) {
+}
+
+void TonNameResultController::prepare() {
+}
+
+void TonNameResultController::rowClicked(not_null<PeerListRow*> row) {
+	if (_chosen) {
+		_chosen();
+	}
+}
+
+Main::Session &TonNameResultController::session() const {
+	return *_session;
+}
+
+void TonNameResultController::setContent(
+		not_null<PeerListContent*> content) {
+	_delegate.setContent(content);
+	setDelegate(&_delegate);
+}
+
+void TonNameResultController::showState(const TonNameState &state) {
+	while (delegate()->peerListFullRowsCount()) {
+		delegate()->peerListRemoveRow(delegate()->peerListRowAt(0));
+	}
+	if (TonNameRowShown(state)) {
+		const auto resolved = (state.status == TonNameStatus::Resolved);
+		delegate()->peerListAppendRow(std::make_unique<TonNameResultRow>(
+			state.name,
+			resolved ? state.displayForm : QString()));
+	}
+	delegate()->peerListRefreshRows();
+}
+
+TonNameLookup::TonNameLookup(not_null<Main::Session*> session)
+: _session(session)
+, _timer([this] { start(); })
+, _deadline([this] {
+	if (_waiting) {
+		finish(TonNameStatus::Failed);
+	}
+}) {
+}
+
+void TonNameLookup::setName(const QString &name) {
+	++_revision;
+	_waiting = false;
+	_timer.cancel();
+	_deadline.cancel();
+	if (name.isEmpty()) {
+		_state = TonNameState();
+		return;
+	}
+	_timer.callOnce(AutoSearchTimeout);
+	_state = TonNameState{ .name = name, .status = TonNameStatus::Pending };
+}
+
+void TonNameLookup::request() {
+	_timer.cancel();
+	start();
+}
+
+void TonNameLookup::close() {
+	_closed = true;
+	++_revision;
+	_waiting = false;
+	_timer.cancel();
+	_deadline.cancel();
+}
+
+const TonNameState &TonNameLookup::current() const {
+	return _state.current();
+}
+
+rpl::producer<TonNameState> TonNameLookup::value() const {
+	return _state.value();
+}
+
+void TonNameLookup::start() {
+	const auto name = _state.current().name;
+	if (_closed || name.isEmpty()) {
+		return;
+	}
+	if (!_waiting) {
+		_waiting = true;
+		_deadline.callOnce(kSendUserLoadTimeout);
+		_state = TonNameState{
+			.name = name,
+			.status = TonNameStatus::Pending,
+		};
+	}
+	issue();
+}
+
+void TonNameLookup::issue() {
+	const auto session = _session.get();
+	if (_closed || !_waiting || _inFlight || !session) {
+		return;
+	}
+	_timer.cancel();
+	_inFlight = true;
+	const auto revision = _revision;
+	session->wallet().resolveDnsName(
+		_state.current().name,
+		crl::guard(this, [=, this](std::optional<QString> address) {
+			resolved(revision, std::move(address));
+		}),
+		crl::guard(this, [=, this](DnsLookupError error) {
+			failed(revision, error);
+		}));
+}
+
+bool TonNameLookup::settle(uint64 revision, bool busy) {
+	_inFlight = false;
+	if (_closed || !_waiting) {
+		return false;
+	} else if (busy) {
+		_timer.callOnce(kNameBusyRetryDelay);
+		return false;
+	} else if (revision != _revision) {
+		issue();
+		return false;
+	}
+	return true;
+}
+
+void TonNameLookup::resolved(
+		uint64 revision,
+		std::optional<QString> address) {
+	if (!settle(revision, false)) {
+		return;
+	} else if (!address) {
+		finish(TonNameStatus::NotFound);
+		return;
+	}
+	const auto flow = ParseRecipientFlow(*address);
+	if (!flow) {
+		finish(TonNameStatus::Failed);
+		return;
+	}
+	_waiting = false;
+	_timer.cancel();
+	_deadline.cancel();
+	_state = TonNameState{
+		.name = _state.current().name,
+		.address = *address,
+		.displayForm = flow->displayForm,
+		.status = TonNameStatus::Resolved,
+	};
+}
+
+void TonNameLookup::failed(uint64 revision, DnsLookupError error) {
+	if (settle(revision, (error == DnsLookupError::Busy))) {
+		finish(TonNameStatus::Failed);
+	}
+}
+
+void TonNameLookup::finish(TonNameStatus status) {
+	_waiting = false;
+	_timer.cancel();
+	_deadline.cancel();
+	_state = TonNameState{ .name = _state.current().name, .status = status };
+}
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeTonNameResultList(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session,
+		rpl::producer<TonNameState> state,
+		Fn<void()> chosen) {
+	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		box,
+		object_ptr<Ui::VerticalLayout>(box));
+	const auto wrap = result.data();
+	const auto container = wrap->entity();
+	const auto controller = container->lifetime().make_state<
+		TonNameResultController>(session, std::move(chosen));
+
+	Ui::AddSkip(container, st::walletSendRecentListTopSkip);
+	controller->setStyleOverrides(&st::peerListSingleRow);
+	const auto content = container->add(
+		object_ptr<PeerListContent>(container, controller));
+	controller->setContent(content);
+	Ui::AddSkip(container, st::walletSendRecentListSkip);
+	std::move(state) | rpl::on_next([=](const TonNameState &value) {
+		controller->showState(value);
+		wrap->toggle(TonNameRowShown(value), anim::type::instant);
+	}, wrap->lifetime());
+	wrap->finishAnimating();
+	return result;
+}
+
 [[nodiscard]] rpl::producer<TextWithEntities> SendAddressTitle(
 		not_null<Ui::GenericBox*> box,
 		const QString &address) {
@@ -8641,12 +8981,15 @@ void WalletSendRecipientBox(
 		rpl::variable<RecipientError> error = RecipientError::Invalid;
 		rpl::variable<bool> resolving = false;
 		rpl::variable<QString> search;
+		rpl::variable<bool> recentHidden = false;
 		base::Timer deadline;
 		uint64 revision = 0;
 		bool closed = false;
 		bool searchCreated = false;
+		bool proceedOnName = false;
 	};
 	const auto state = box->lifetime().make_state<State>();
+	const auto lookup = box->lifetime().make_state<TonNameLookup>(session);
 
 	const auto recipient = box->addRow(
 		object_ptr<Ui::VerticalLayout>(box),
@@ -8676,9 +9019,7 @@ void WalletSendRecipientBox(
 	recipient->add(MakeRecentMoneyRecipientsList(
 		box,
 		show,
-		state->search.value() | rpl::map([](const QString &query) {
-			return !query.isEmpty();
-		})));
+		state->recentHidden.value()));
 
 	const auto stop = [=] {
 		++state->revision;
@@ -8687,6 +9028,7 @@ void WalletSendRecipientBox(
 	};
 	const auto parse = [=] {
 		stop();
+		state->proceedOnName = false;
 		const auto trimmed = field->getLastText().trimmed();
 		auto input = ClassifyRecipientInput(trimmed);
 		state->flow = std::move(input.flow);
@@ -8708,6 +9050,8 @@ void WalletSendRecipientBox(
 			recipient->resizeToWidth(recipient->width());
 		}
 		state->search = searching ? trimmed : QString();
+		state->recentHidden = searching || !state->name.isEmpty();
+		lookup->setName(state->name);
 	};
 	const auto proceed = [=](SendFlow flow, AddressOwner owner) {
 		stop();
@@ -8752,43 +9096,25 @@ void WalletSendRecipientBox(
 			crl::guard(session, crl::guard(box, answer)),
 			crl::guard(session, crl::guard(box, fail)));
 	};
-	const auto resolveName = [=] {
-		const auto revision = ++state->revision;
-		state->invalid = false;
-		state->resolving = true;
-		state->deadline.setCallback([=] {
-			if (revision == state->revision) {
-				failName(RecipientError::NameFailed);
-			}
-		});
-		state->deadline.callOnce(kSendUserLoadTimeout);
-		const auto done = [=](std::optional<QString> address) {
-			if (revision != state->revision) {
-				return;
-			} else if (!address) {
-				failName(RecipientError::NameNotFound);
-			} else if (auto flow = ParseRecipientFlow(*address)) {
-				state->deadline.cancel();
-				lookupOwner(std::move(*flow));
-			} else {
-				failName(RecipientError::NameFailed);
-			}
-		};
-		const auto fail = [=] {
-			if (revision == state->revision) {
-				failName(RecipientError::NameFailed);
-			}
-		};
-		session->wallet().resolveDnsName(
-			state->name,
-			crl::guard(box, done),
-			crl::guard(box, fail));
+	const auto proceedName = [=](const QString &address) {
+		if (auto flow = ParseRecipientFlow(address)) {
+			lookupOwner(std::move(*flow));
+		} else {
+			failName(RecipientError::NameFailed);
+		}
 	};
 	const auto submit = [=] {
 		if (state->closed || state->resolving.current()) {
 			return;
 		} else if (!state->name.isEmpty()) {
-			resolveName();
+			if (lookup->current().status == TonNameStatus::Resolved) {
+				const auto address = lookup->current().address;
+				proceedName(address);
+			} else {
+				state->proceedOnName = true;
+				state->resolving = true;
+				lookup->request();
+			}
 			return;
 		} else if (!state->flow) {
 			field->showError();
@@ -8799,6 +9125,26 @@ void WalletSendRecipientBox(
 		}
 		lookupOwner(*state->flow);
 	};
+	recipient->add(MakeTonNameResultList(
+		box,
+		session,
+		lookup->value(),
+		submit));
+	lookup->value() | rpl::on_next([=](const TonNameState &value) {
+		const auto status = value.status;
+		if (status == TonNameStatus::Pending) {
+			state->invalid = false;
+		} else if ((status == TonNameStatus::NotFound)
+			|| (status == TonNameStatus::Failed)) {
+			state->proceedOnName = false;
+			failName((status == TonNameStatus::NotFound)
+				? RecipientError::NameNotFound
+				: RecipientError::NameFailed);
+		} else if ((status == TonNameStatus::Resolved)
+			&& base::take(state->proceedOnName)) {
+			proceedName(value.address);
+		}
+	}, box->lifetime());
 
 	const auto button = box->addButton(
 		BusyFooterLabel(tr::lng_continue(), state->resolving.value()),
@@ -8813,6 +9159,7 @@ void WalletSendRecipientBox(
 	box->boxClosing() | rpl::on_next([=] {
 		state->closed = true;
 		stop();
+		lookup->close();
 	}, box->lifetime());
 	box->setFocusCallback([=] { field->setFocusFast(); });
 	parse();
