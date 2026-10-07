@@ -367,7 +367,7 @@ parts:
   openssl:
     source: https://github.com/openssl/openssl.git
     source-depth: 1
-    source-tag: openssl-3.2.1
+    source-tag: openssl-3.5.9
     plugin: make
     build-packages:
       - perl
