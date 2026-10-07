@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ffmpeg/ffmpeg_frame_generator.h"
 #include "ffmpeg/ffmpeg_utility.h"
 #include "lottie/lottie_frame_generator.h"
+#include "media/streaming/media_streaming_color.h"
 
 #include <QtCore/QFileInfo>
 #include <QtCore/QTemporaryFile>
@@ -143,16 +144,45 @@ struct ColorDescription {
 	AVColorSpace space = AVCOL_SPC_UNSPECIFIED;
 };
 
+constexpr auto kSdrFromRgb = ColorDescription{
+	.range = AVCOL_RANGE_MPEG,
+	.primaries = AVCOL_PRI_BT709,
+	.transfer = AVCOL_TRC_BT709,
+	.space = AVCOL_SPC_SMPTE170M,
+};
+
+[[nodiscard]] AVColorSpace ColorSpace(Streaming::FrameColor::Matrix matrix) {
+	switch (matrix) {
+	case Streaming::FrameColor::Matrix::BT709: return AVCOL_SPC_BT709;
+	case Streaming::FrameColor::Matrix::BT2020: return AVCOL_SPC_BT2020_NCL;
+	}
+	return AVCOL_SPC_SMPTE170M;
+}
+
 [[nodiscard]] ColorDescription ReadColorDescription(
 		not_null<AVCodecParameters*> from,
 		bool baked) {
+	if (Streaming::NeedsToneMapping(from->color_trc, from->format)) {
+		auto result = kSdrFromRgb;
+		if (!Streaming::WideGamutPrimaries(from->color_primaries)) {
+			result.primaries = from->color_primaries;
+		}
+		return result;
+	}
+	const auto fromRgb = baked || Streaming::RgbFormat(from->format);
+	const auto full = Streaming::FullColorRange(
+		from->color_range,
+		from->format);
+	const auto matrix = Streaming::ReadColorMatrix(
+		from->color_space,
+		false,
+		from->width,
+		from->height);
 	return {
-		.range = (!baked && from->color_range == AVCOL_RANGE_JPEG)
-			? AVCOL_RANGE_JPEG
-			: AVCOL_RANGE_MPEG,
+		.range = (!fromRgb && full) ? AVCOL_RANGE_JPEG : AVCOL_RANGE_MPEG,
 		.primaries = from->color_primaries,
 		.transfer = from->color_trc,
-		.space = from->color_space,
+		.space = fromRgb ? kSdrFromRgb.space : ColorSpace(matrix),
 	};
 }
 
@@ -907,7 +937,7 @@ private:
 		target,
 		bitrate ? int64(bitrate) : int64(TargetBitrate(target, fps)),
 		fps,
-		ColorDescription());
+		kSdrFromRgb);
 	if (!video.codec) {
 		return {};
 	}
@@ -1138,6 +1168,7 @@ struct GeometryPlan {
 
 [[nodiscard]] QImage ComposeFrame(
 		not_null<AVFrame*> frame,
+		const Streaming::FrameColor &color,
 		const GeometryPlan &plan,
 		SwscalePointer &toRgb,
 		QImage &storage) {
@@ -1155,25 +1186,9 @@ struct GeometryPlan {
 	const auto srcFormat = (frame->format == AV_PIX_FMT_NONE)
 		? AV_PIX_FMT_YUV420P
 		: AVPixelFormat(frame->format);
-	toRgb = MakeSwscalePointer(
-		coded,
-		srcFormat,
-		coded,
-		AV_PIX_FMT_BGRA,
-		&toRgb);
-	if (!toRgb) {
+	if (!Streaming::ConvertFrameToARGB32(frame, srcFormat, color, rgb, toRgb)) {
 		return {};
 	}
-	uint8_t *dstData[AV_NUM_DATA_POINTERS] = { rgb.bits(), nullptr };
-	int dstLinesize[AV_NUM_DATA_POINTERS] = { int(rgb.bytesPerLine()), 0 };
-	sws_scale(
-		toRgb.get(),
-		frame->data,
-		frame->linesize,
-		0,
-		frame->height,
-		dstData,
-		dstLinesize);
 	if (srcFormat == AV_PIX_FMT_BGRA || srcFormat == AV_PIX_FMT_YUVA420P) {
 		PremultiplyInplace(rgb);
 	}
@@ -1239,6 +1254,36 @@ struct GeometryPlan {
 			QImage::Format_ARGB32_Premultiplied);
 	}
 	return image;
+}
+
+[[nodiscard]] bool ConvertFromRgb(
+		const QImage &image,
+		QSize target,
+		not_null<AVFrame*> encodeFrame,
+		SwscalePointer &fromRgb) {
+	fromRgb = MakeSwscalePointer(
+		target,
+		AV_PIX_FMT_BGRA,
+		target,
+		AVPixelFormat(encodeFrame->format),
+		&fromRgb);
+	if (!fromRgb) {
+		return false;
+	}
+	const uint8_t *srcData[AV_NUM_DATA_POINTERS] = {
+		image.constBits(),
+		nullptr,
+	};
+	int srcLinesize[AV_NUM_DATA_POINTERS] = { int(image.bytesPerLine()), 0 };
+	sws_scale(
+		fromRgb.get(),
+		srcData,
+		srcLinesize,
+		0,
+		target.height(),
+		encodeFrame->data,
+		encodeFrame->linesize);
+	return true;
 }
 
 } // namespace
@@ -1739,6 +1784,8 @@ struct TranscodeAttempt {
 	auto lastComposed = QImage();
 	auto lastComposedPts = int64(AV_NOPTS_VALUE);
 	auto composeStorage = QImage();
+	auto toneMapStorage = QImage();
+	auto colorPeak = 0;
 
 	auto packet = av_packet_alloc();
 	const auto packetGuard = gsl::finally([&] {
@@ -1791,10 +1838,14 @@ struct TranscodeAttempt {
 				continue;
 			}
 
+			const auto color = Streaming::ReadFrameColor(
+				decodedFrame.get(),
+				colorPeak);
 			auto composed = QImage();
 			if (plan.bake) {
 				composed = ComposeFrame(
 					decodedFrame.get(),
+					color,
 					plan,
 					toRgb,
 					composeStorage);
@@ -1830,32 +1881,35 @@ struct TranscodeAttempt {
 						return false;
 					}
 				}
-				fromRgb = MakeSwscalePointer(
-					target,
-					AV_PIX_FMT_BGRA,
-					target,
-					AVPixelFormat(encodeFrame->format),
-					&fromRgb);
-				if (!fromRgb) {
+				if (!ConvertFromRgb(
+						composed,
+						target,
+						encodeFrame.get(),
+						fromRgb)) {
 					failed = true;
 					return false;
 				}
-				const uint8_t *srcData[AV_NUM_DATA_POINTERS] = {
-					composed.constBits(),
-					nullptr,
-				};
-				int srcLinesize[AV_NUM_DATA_POINTERS] = {
-					int(composed.bytesPerLine()),
-					0,
-				};
-				sws_scale(
-					fromRgb.get(),
-					srcData,
-					srcLinesize,
-					0,
-					target.height(),
-					encodeFrame->data,
-					encodeFrame->linesize);
+			} else if (Streaming::NeedsToneMapping(
+					decodedFrame->color_trc,
+					decodedFrame->format)) {
+				if (!GoodStorageForFrame(toneMapStorage, target)) {
+					toneMapStorage = CreateFrameStorage(target);
+				}
+				if (toneMapStorage.isNull()
+					|| !Streaming::ConvertFrameToARGB32(
+						decodedFrame.get(),
+						decodedFrame->format,
+						color,
+						toneMapStorage,
+						swscale)
+					|| !ConvertFromRgb(
+						toneMapStorage,
+						target,
+						encodeFrame.get(),
+						fromRgb)) {
+					failed = true;
+					return false;
+				}
 			} else {
 				swscale = MakeSwscalePointer(
 					QSize(decodedFrame->width, decodedFrame->height),
@@ -1867,6 +1921,7 @@ struct TranscodeAttempt {
 					failed = true;
 					return false;
 				}
+				Streaming::ApplyFrameColor(swscale.get(), color);
 				sws_scale(
 					swscale.get(),
 					decodedFrame->data,

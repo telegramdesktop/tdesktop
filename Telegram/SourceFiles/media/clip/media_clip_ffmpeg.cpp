@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/clip/media_clip_ffmpeg.h"
 
 #include "core/file_location.h"
+#include "media/streaming/media_streaming_color.h"
 #include "media/media_common.h"
 #include "logs.h"
 
@@ -228,21 +229,14 @@ bool FFMpegReaderImplementation::renderFrame(
 		for (int32 i = 0, l = _frame->height; i < l; ++i) {
 			memcpy(d + i * dbpl, s + i * sbpl, bpl);
 		}
-	} else {
-		_swsContext = FFmpeg::MakeSwscalePointer(
-			QSize(_frame->width, _frame->height),
+	} else if (!Streaming::ConvertFrameToARGB32(
+			_frame.get(),
 			format,
-			toSize,
-			AV_PIX_FMT_BGRA,
-			&_swsContext);
-		if (!_swsContext) {
-			LOG(("Gif Error: Unable to create sws context %1").arg(logData()));
-			return false;
-		}
-		// AV_NUM_DATA_POINTERS defined in AVFrame struct
-		uint8_t *toData[AV_NUM_DATA_POINTERS] = { to.bits(), nullptr };
-		int toLinesize[AV_NUM_DATA_POINTERS] = { int(to.bytesPerLine()), 0 };
-		sws_scale(_swsContext.get(), _frame->data, _frame->linesize, 0, _frame->height, toData, toLinesize);
+			Streaming::ReadFrameColor(_frame.get(), _colorPeak),
+			to,
+			_swsContext)) {
+		LOG(("Gif Error: Unable to convert frame %1").arg(logData()));
+		return false;
 	}
 	if (hasAlpha) {
 		FFmpeg::PremultiplyInplace(to);

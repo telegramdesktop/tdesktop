@@ -79,7 +79,7 @@ public:
 	[[nodiscard]] QImage frame(const FrameRequest &request) const;
 	[[nodiscard]] FrameWithInfo frameWithInfo(
 		const FrameRequest &request) const;
-	[[nodiscard]] FrameWithInfo frameWithInfo() const;
+	[[nodiscard]] FrameWithInfo frameWithInfo(bool hdr) const;
 	bool markFrameShown() const;
 
 	void lockPlayer();

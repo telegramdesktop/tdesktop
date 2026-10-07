@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/gl/gl_shader.h"
 #include "ui/gl/gl_primitives.h"
 #include "ui/widgets/shadow.h"
+#include "media/streaming/media_streaming_color.h"
 #include "media/streaming/media_streaming_common.h"
 #include "base/platform/base_platform_info.h"
 #include "styles/style_basic.h"
@@ -189,7 +190,7 @@ void Pip::RendererGL::init(QOpenGLFunctions &f) {
 		&*_yuv420Program,
 		_texturedVertexShader,
 		FragmentShader({
-			FragmentSampleYUV420Texture(),
+			FragmentSampleYUV420Texture(true),
 			FragmentApplyFade(),
 			FragmentRoundToShadow(),
 		}));
@@ -199,7 +200,7 @@ void Pip::RendererGL::init(QOpenGLFunctions &f) {
 		&*_nv12Program,
 		_texturedVertexShader,
 		FragmentShader({
-			FragmentSampleNV12Texture(),
+			FragmentSampleNV12Texture(true),
 			FragmentApplyFade(),
 			FragmentRoundToShadow(),
 		}));
@@ -300,7 +301,7 @@ std::optional<QColor> Pip::RendererGL::clearColor() {
 
 void Pip::RendererGL::paintTransformedVideoFrame(
 		ContentGeometry geometry) {
-	const auto data = _owner->videoFrameWithInfo();
+	const auto data = _owner->videoFrameWithInfo(false);
 	if (data.format == Streaming::FrameFormat::None) {
 		return;
 	}
@@ -379,6 +380,13 @@ void Pip::RendererGL::paintTransformedVideoFrame(
 		program->setUniformValue("u_texture", GLint(1));
 		program->setUniformValue("v_texture", GLint(2));
 	}
+	const auto color = Streaming::PrepareColorUniforms(
+		data.color ? *data.color : Streaming::FrameColor(),
+		nv12,
+		false);
+	program->setUniformValue(
+		"yuvToRgb",
+		QMatrix4x4(color.yuvToRgb.data()).transposed());
 
 	paintTransformedContent(program, geometry);
 }

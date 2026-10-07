@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifdef Q_OS_MAC
 
+#include "media/streaming/media_streaming_color.h"
 #include "media/streaming/media_streaming_common.h"
-#include "ffmpeg/ffmpeg_utility.h"
 
 #include <CoreVideo/CoreVideo.h>
 
@@ -49,14 +49,26 @@ private:
 
 } // namespace
 
-QImage ConvertNativeFrameToARGB32(const NativeFrame &frame) {
+bool SupportedPixelBufferFormat(uint32 format) {
+	return (format == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange)
+		|| (format == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange)
+		|| HighBitDepthPixelBufferFormat(format);
+}
+
+bool HighBitDepthPixelBufferFormat(uint32 format) {
+	return (format == kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange)
+		|| (format == kCVPixelFormatType_420YpCbCr10BiPlanarFullRange);
+}
+
+QImage ConvertNativeFrameToARGB32(
+		const NativeFrame &frame,
+		const FrameColor &color) {
 	if (!frame.pixelBuffer || frame.size.isEmpty()) {
 		return QImage();
 	}
 	const auto pixelBuffer = static_cast<CVPixelBufferRef>(frame.pixelBuffer);
 	const auto format = CVPixelBufferGetPixelFormatType(pixelBuffer);
-	if (format != kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
-		&& format != kCVPixelFormatType_420YpCbCr8BiPlanarFullRange) {
+	if (!SupportedPixelBufferFormat(format)) {
 		return QImage();
 	}
 	const auto lock = PixelBufferLock(
@@ -78,50 +90,14 @@ QImage ConvertNativeFrameToARGB32(const NativeFrame &frame) {
 	if (yStride <= 0 || uvStride <= 0) {
 		return QImage();
 	}
-
-	auto storage = FFmpeg::CreateFrameStorage(frame.size);
-	if (storage.isNull() || !storage.bits()) {
-		return QImage();
-	}
-	const auto swscale = FFmpeg::MakeSwscalePointer(
-		frame.size,
-		AV_PIX_FMT_NV12,
-		frame.size,
-		AV_PIX_FMT_BGRA);
-	if (!swscale) {
-		return QImage();
-	}
-
-	const uint8_t *srcData[AV_NUM_DATA_POINTERS] = {
-		static_cast<const uint8_t*>(y),
-		static_cast<const uint8_t*>(uv),
-		nullptr,
-		nullptr,
+	const auto yuv = FrameYUV{
+		.size = frame.size,
+		.chromaSize = frame.chromaSize,
+		.y = { .data = y, .stride = yStride },
+		.u = { .data = uv, .stride = uvStride },
+		.highBitDepth = HighBitDepthPixelBufferFormat(format),
 	};
-	int srcLinesize[AV_NUM_DATA_POINTERS] = {
-		yStride,
-		uvStride,
-		0,
-		0,
-	};
-	uint8_t *dstData[AV_NUM_DATA_POINTERS] = {
-		storage.bits(),
-		nullptr,
-	};
-	int dstLinesize[AV_NUM_DATA_POINTERS] = {
-		int(storage.bytesPerLine()),
-		0,
-	};
-	sws_scale(
-		swscale.get(),
-		srcData,
-		srcLinesize,
-		0,
-		frame.size.height(),
-		dstData,
-		dstLinesize);
-
-	return storage;
+	return ConvertYUVToARGB32(yuv, true, color);
 }
 
 } // namespace Media::Streaming
