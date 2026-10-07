@@ -3215,10 +3215,12 @@ not_null<SendingHistoryRow*> AddSendingHistoryRow(
 // because finding that out is the whole of it.
 void AddWalletLottie(
 		not_null<Ui::GenericBox*> box,
-		const style::margins &margin = style::margins()) {
+		const style::margins &margin = style::margins(),
+		Ui::VerticalLayout *container = nullptr) {
+	const auto into = container ? container : box->verticalLayout().get();
 	const auto size = st::walletDetailsLottieSize;
 	auto icon = Settings::CreateLottieIcon(
-		box->verticalLayout(),
+		into,
 		{
 			.name = u"gram"_q,
 			.sizeOverride = { size, size },
@@ -3227,7 +3229,7 @@ void AddWalletLottie(
 	const auto raw = icon.widget.data();
 	const auto animate = icon.animate;
 	const auto animating = icon.animating;
-	box->verticalLayout()->add(std::move(icon.widget));
+	into->add(std::move(icon.widget));
 	const auto replay = Ui::CreateChild<Ui::AbstractButton>(raw);
 	replay->setPointerCursor(false);
 	replay->setClickedCallback([=] {
@@ -3245,17 +3247,17 @@ void AddWalletLottie(
 	}, replay->lifetime());
 	box->showFinishes() | rpl::on_next([=] {
 		animate(anim::repeat::once);
-	}, box->lifetime());
+	}, raw->lifetime());
 }
 
 void AddDetailsAmountHeader(
-		not_null<Ui::GenericBox*> box,
+		not_null<Ui::VerticalLayout*> layout,
 		const TransferItem &item,
 		int topSkip,
 		int bottomSkip,
 		rpl::producer<FiatRate> rate = nullptr) {
-	const auto container = box->addRow(
-		object_ptr<Ui::RpWidget>(box),
+	const auto container = layout->add(
+		object_ptr<Ui::RpWidget>(layout),
 		style::margins(0, topSkip, 0, bottomSkip),
 		style::al_top);
 	auto formatted = Ui::FormatTonAmount(item.amountNano);
@@ -3361,13 +3363,13 @@ void AddDetailsAmountHeader(
 }
 
 void AddDetailsCollectibleHeader(
-		not_null<Ui::GenericBox*> box,
+		not_null<Ui::VerticalLayout*> layout,
 		not_null<Main::Session*> session,
 		std::shared_ptr<CollectibleMedia> media,
 		const TransferItem &item,
 		int bottomSkip) {
-	const auto container = box->addRow(
-		object_ptr<Ui::RpWidget>(box),
+	const auto container = layout->add(
+		object_ptr<Ui::RpWidget>(layout),
 		style::margins(0, st::walletDetailsAmountTopSkip, 0, bottomSkip),
 		style::al_top);
 	const auto address = item.collectible;
@@ -3632,8 +3634,23 @@ namespace {
 	return item.commentEncrypted || !item.comment.trimmed().isEmpty();
 }
 
+[[nodiscard]] bool SameDetailsHeader(
+		const TransferItem &a,
+		const TransferItem &b) {
+	return (ShowsCollectible(a) == ShowsCollectible(b))
+		&& (a.collectible == b.collectible)
+		&& (a.amountNano == b.amountNano)
+		&& (a.incoming == b.incoming)
+		&& (a.status == b.status)
+		&& (a.comment == b.comment)
+		&& (a.commentEncrypted == b.commentEncrypted)
+		&& (a.encryptedFormat == b.encryptedFormat)
+		&& (a.encryptedPayload == b.encryptedPayload);
+}
+
 void AddDetailsComment(
 		not_null<Ui::GenericBox*> box,
+		not_null<Ui::VerticalLayout*> layout,
 		std::shared_ptr<Main::SessionShow> show,
 		const TransferItem &item,
 		Fn<bool()> originCurrent) {
@@ -3643,17 +3660,17 @@ void AddDetailsComment(
 	const auto comment = item.comment.trimmed();
 	auto label = item.commentEncrypted
 		? object_ptr<Ui::FlatLabel>(object_ptr<EncryptedCommentLabel>(
-			box,
+			layout,
 			box,
 			std::move(show),
 			item,
 			std::move(originCurrent)))
-		: object_ptr<Ui::FlatLabel>(box, comment, st::walletCommentLabel);
+		: object_ptr<Ui::FlatLabel>(layout, comment, st::walletCommentLabel);
 	// The bubble stands inside the gap between the amount and the table
 	// rather than under the amount: the header leaves half of that gap and
 	// the bubble takes the other half, so it reads as its own line.
-	box->addRow(
-		MakeCommentBubble(box, std::move(label), st::windowBg),
+	layout->add(
+		MakeCommentBubble(layout, std::move(label), st::windowBg),
 		style::margins(
 			st::giveawayGiftCodeTableMargin.left(),
 			0,
@@ -4858,7 +4875,8 @@ void WalletTransactionBox(
 		std::shared_ptr<CollectibleMedia> media,
 		Fn<bool()> originCurrent,
 		rpl::producer<> originInvalidated,
-		Fn<void()> openWallet) {
+		Fn<void()> openWallet,
+		rpl::producer<TransferItem> updates) {
 	if (originCurrent && !originCurrent()) {
 		box->closeBox();
 		return;
@@ -4871,6 +4889,7 @@ void WalletTransactionBox(
 
 	struct State {
 		TransferItem item;
+		std::shared_ptr<CollectibleMedia> media;
 		base::Timer retry;
 		int attempts = 0;
 		bool looking = false;
@@ -4878,39 +4897,59 @@ void WalletTransactionBox(
 	const auto looking = partial && !item.id.isEmpty();
 	const auto state = box->lifetime().make_state<State>();
 	state->item = std::move(item);
+	state->media = std::move(media);
 	state->looking = looking;
-	// The gap between the header and the table is one skip, whether or not
-	// a comment stands in it - see AddDetailsComment for the other half.
-	const auto headerBottomSkip = HasDetailsComment(state->item)
-		? (st::walletDetailsAmountBottomSkip / 2)
-		: st::walletDetailsAmountBottomSkip;
-	if (ShowsCollectible(state->item)) {
-		if (!media) {
-			media = std::make_shared<CollectibleMedia>(session);
+	const auto art = box->addRow(
+		object_ptr<Ui::VerticalLayout>(box),
+		style::margins(),
+		style::al_justify);
+	const auto header = box->addRow(
+		object_ptr<Ui::VerticalLayout>(box),
+		style::margins(),
+		style::al_justify);
+	const auto fillArt = [=] {
+		art->clear();
+		if (!ShowsCollectible(state->item)) {
+			// The animation stands where a top skip used to, so the amount and
+			// everything under it move up by that much under the box title.
+			AddWalletLottie(box, style::margins(), art);
 		}
-		media->resolve(state->item.collectible);
-		AddDetailsCollectibleHeader(
+	};
+	const auto fillHeader = [=] {
+		header->clear();
+		// The gap between the header and the table is one skip, whether or not
+		// a comment stands in it - see AddDetailsComment for the other half.
+		const auto headerBottomSkip = HasDetailsComment(state->item)
+			? (st::walletDetailsAmountBottomSkip / 2)
+			: st::walletDetailsAmountBottomSkip;
+		if (ShowsCollectible(state->item)) {
+			if (!state->media) {
+				state->media = std::make_shared<CollectibleMedia>(session);
+			}
+			state->media->resolve(state->item.collectible);
+			AddDetailsCollectibleHeader(
+				header,
+				session,
+				state->media,
+				state->item,
+				headerBottomSkip);
+		} else {
+			AddDetailsAmountHeader(
+				header,
+				state->item,
+				0,
+				headerBottomSkip,
+				FiatRateValue(session));
+		}
+		AddDetailsComment(
 			box,
-			session,
-			std::move(media),
+			header,
+			Main::MakeSessionShow(box->uiShow(), session),
 			state->item,
-			headerBottomSkip);
-	} else {
-		// The animation stands where a top skip used to, so the amount and
-		// everything under it move up by that much under the box title.
-		AddWalletLottie(box);
-		AddDetailsAmountHeader(
-			box,
-			state->item,
-			0,
-			headerBottomSkip,
-			FiatRateValue(session));
-	}
-	AddDetailsComment(
-		box,
-		Main::MakeSessionShow(box->uiShow(), session),
-		state->item,
-		originCurrent);
+			originCurrent);
+	};
+	fillArt();
+	fillHeader();
 
 	// The amount and the comment are what the message itself said, while the
 	// rows below are the transaction's own record: who it went to under their
@@ -4925,6 +4964,21 @@ void WalletTransactionBox(
 		AddDetailsTable(box, details, show, state->item, fee);
 	};
 	rebuild(state->looking ? DetailsFee::Loading : DetailsFee::Known);
+	if (updates) {
+		std::move(updates) | rpl::on_next([=](TransferItem updated) {
+			if (state->looking || updated == state->item) {
+				return;
+			}
+			const auto was = std::exchange(state->item, std::move(updated));
+			if (ShowsCollectible(was) != ShowsCollectible(state->item)) {
+				fillArt();
+			}
+			if (!SameDetailsHeader(was, state->item)) {
+				fillHeader();
+			}
+			rebuild(DetailsFee::Known);
+		}, box->lifetime());
+	}
 	if (state->looking) {
 		// The message can arrive before the transaction it names is served,
 		// which is what a transfer just sent looks like, so an answer that
@@ -5021,7 +5075,8 @@ void WalletTransactionBox(
 void ShowWalletTransactionBox(
 		std::shared_ptr<Main::SessionShow> show,
 		const TransferItem &item,
-		std::shared_ptr<CollectibleMedia> media = nullptr) {
+		std::shared_ptr<CollectibleMedia> media = nullptr,
+		rpl::producer<TransferItem> updates = nullptr) {
 	const auto current = [show, identity = item.walletIdentity] {
 		if (!show || !show->valid()) {
 			return false;
@@ -5032,14 +5087,17 @@ void ShowWalletTransactionBox(
 	if (!current()) {
 		return;
 	}
-	ShowTransactionDetails(
+	show->showBox(Box(
+		WalletTransactionBox,
 		show,
 		item,
 		false,
 		std::move(media),
 		current,
 		show->session().wallet().transferWalletIdentityChanges()
-			| rpl::filter([=] { return !current(); }));
+			| rpl::filter([=] { return !current(); }),
+		Fn<void()>(),
+		std::move(updates)), Ui::LayerOption::KeepOther);
 }
 
 [[nodiscard]] int CommentBytes(const QString &text) {
@@ -6460,7 +6518,7 @@ void WalletSendConfirmBox(
 	item.amountNano = args.amountNano;
 	AddWalletLottie(box);
 	AddDetailsAmountHeader(
-		box,
+		box->verticalLayout(),
 		item,
 		st::walletDetailsLottieSkip,
 		st::walletDetailsAmountBottomSkip,
@@ -15195,7 +15253,33 @@ void ShowTransactionDetails(
 		std::move(media),
 		std::move(originCurrent),
 		std::move(originInvalidated),
-		std::move(openWallet)), options);
+		std::move(openWallet),
+		rpl::producer<TransferItem>()), options);
+}
+
+void ShowSubmittedTransfer(
+		std::shared_ptr<Main::SessionShow> show,
+		const std::string &operationId) {
+	if (!show || !show->valid()) {
+		return;
+	}
+	const auto wallet = &show->session().wallet();
+	const auto find = [=]() -> std::optional<TransferItem> {
+		if (auto item = wallet->trackedTransaction(operationId)) {
+			return item;
+		}
+		const auto pending = wallet->pendingSend();
+		return (pending && pending->operationId == operationId)
+			? std::make_optional(ItemFromPending(*pending))
+			: std::nullopt;
+	};
+	if (const auto item = find()) {
+		ShowWalletTransactionBox(
+			show,
+			*item,
+			nullptr,
+			wallet->historyUpdates() | rpl::map(find) | rpl::filter_optional());
+	}
 }
 
 bool ShowFirstGramsIfPending(std::shared_ptr<Main::SessionShow> show) {

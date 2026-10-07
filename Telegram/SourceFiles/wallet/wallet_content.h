@@ -65,6 +65,10 @@ void ShowTransactionDetails(
 	Fn<void()> openWallet = nullptr,
 	Ui::LayerOptions options = Ui::LayerOption::KeepOther);
 
+void ShowSubmittedTransfer(
+	std::shared_ptr<Main::SessionShow> show,
+	const std::string &operationId);
+
 bool ShowFirstGramsIfPending(std::shared_ptr<Main::SessionShow> show);
 
 [[nodiscard]] base::unique_qptr<Ui::RpWidget> CreateContent(

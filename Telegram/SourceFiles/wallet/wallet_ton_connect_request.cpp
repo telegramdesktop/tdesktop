@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "base/unixtime.h"
+#include "core/application.h"
 #include "data/data_changes.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
@@ -20,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/layers/generic_box.h"
 #include "ui/delayed_activation.h"
+#include "ui/widgets/separate_panel.h"
 #include "wallet/wallet_content.h"
 #include "wallet/wallet_panel.h"
 #include "wallet/wallet_session.h"
@@ -203,6 +205,7 @@ private:
 	void accessNotice(TonConnectAccess access);
 	void notice(const QString &text);
 	void closeWithToast(const QString &text);
+	void closeWithTransfer();
 	void backToConfirm(const QString &error);
 	void dismissed();
 	void lateStop();
@@ -237,6 +240,7 @@ private:
 	KeyAuthorization _auth;
 	QByteArray _response;
 	QByteArray _notSent;
+	std::string _operationId;
 	TimeId _expires = 0;
 	uint64 _previewOwner = 0;
 	Decision _decision = Decision::None;
@@ -1894,6 +1898,7 @@ void TonConnectRequests::Flow::send() {
 	const auto msgId = _msgId;
 	const auto operationId = QUuid::createUuid().toString(
 		QUuid::WithoutBraces).toStdString();
+	_operationId = operationId;
 	const auto linked = _owner->updateClaim(sessionId, msgId, [&](
 			TonConnectClaimRecord &record) {
 		record.operationId = operationId;
@@ -2004,9 +2009,11 @@ void TonConnectRequests::Flow::published(SubmitResult result) {
 	}
 	switch (_decision) {
 	case Decision::Confirm:
-		closeWithToast(_sentBoc
-			? tr::lng_wallet_connect_request_sent(tr::now)
-			: tr::lng_wallet_connect_request_not_sent(tr::now));
+		if (_sentBoc) {
+			closeWithTransfer();
+		} else {
+			closeWithToast(tr::lng_wallet_connect_request_not_sent(tr::now));
+		}
 		return;
 	case Decision::Sign:
 		closeWithToast(tr::lng_wallet_connect_sign_done(tr::now));
@@ -2108,6 +2115,32 @@ void TonConnectRequests::Flow::closeWithToast(const QString &text) {
 		show->showToast(text);
 	}
 	finish();
+}
+
+void TonConnectRequests::Flow::closeWithTransfer() {
+	if (late()
+		|| _silent
+		|| !_box
+		|| _operationId.empty()
+		|| Core::App().passcodeLocked()) {
+		closeWithToast(tr::lng_wallet_connect_request_sent(tr::now));
+		return;
+	} else if (stopped()) {
+		return;
+	}
+	_terminal = true;
+	closeBox();
+	const auto session = _session;
+	const auto operationId = _operationId;
+	const auto transfer = _request.transfer;
+	const auto single = transfer && (transfer->messages.size() == 1);
+	finish();
+	const auto panel = ShowWallet(session);
+	if (single) {
+		ShowSubmittedTransfer(
+			Main::MakeSessionShow(panel->uiShow(), session),
+			operationId);
+	}
 }
 
 void TonConnectRequests::Flow::backToConfirm(const QString &error) {

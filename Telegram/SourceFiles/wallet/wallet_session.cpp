@@ -1501,6 +1501,19 @@ void FailShareFetch(
 	return result;
 }
 
+[[nodiscard]] int TonConnectProtocolCode(
+		engine::TonConnectRpcErrorCode code) {
+	using Code = engine::TonConnectRpcErrorCode;
+	switch (code) {
+	case Code::kUnknown: return 0;
+	case Code::kBadRequest: return 1;
+	case Code::kUnknownApp: return 100;
+	case Code::kUserDeclined: return 300;
+	case Code::kMethodNotSupported: return 400;
+	}
+	return -1;
+}
+
 [[nodiscard]] TonConnectAppRequest TonConnectAppRequestFromEngine(
 		engine::TonConnectDerivedSession &session,
 		engine::TonConnectDerivedRequest derived) {
@@ -1535,7 +1548,7 @@ void FailShareFetch(
 			LOG(("Wallet Error: TON Connect %1 request not handled, "
 				"code %2: %3"
 				).arg(result.method
-				).arg(int(bad->error_code)
+				).arg(TonConnectProtocolCode(bad->error_code)
 				).arg(QString::fromStdString(bad->error_message)));
 		}
 		const auto known = (result.method == u"sendTransaction"_q)
@@ -8240,6 +8253,21 @@ std::optional<TransferItem> Session::submittedTransaction(
 		}
 	}
 	return entry->item ? std::make_optional(*entry->item) : std::nullopt;
+}
+
+std::optional<TransferItem> Session::trackedTransaction(
+		const std::string &operationId) const {
+	if (auto result = submittedTransaction(operationId)) {
+		return result;
+	}
+	const auto entry = ranges::find(
+		_submitted,
+		operationId,
+		&SubmittedTransfer::operationId);
+	const auto shown = (entry != end(_submitted))
+		? submittedShown(*entry)
+		: nullptr;
+	return shown ? std::make_optional(*shown) : std::nullopt;
 }
 
 std::optional<TransferItem> Session::sendingTransaction(

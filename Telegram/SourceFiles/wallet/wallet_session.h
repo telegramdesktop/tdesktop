@@ -835,6 +835,9 @@ public:
 	-> std::vector<ListedSubmittedTransfer>;
 	[[nodiscard]] std::optional<TransferItem> submittedTransaction(
 		const std::string &operationId) const;
+	// Includes the fallback record, wherever the history pages end.
+	[[nodiscard]] std::optional<TransferItem> trackedTransaction(
+		const std::string &operationId) const;
 	[[nodiscard]] std::optional<TransferItem> sendingTransaction(
 		const std::string &operationId) const;
 	// The send the wallet window started, which its list shows as sending.

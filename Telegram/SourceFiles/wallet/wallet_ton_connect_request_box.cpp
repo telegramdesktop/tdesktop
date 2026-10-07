@@ -55,6 +55,7 @@ struct State {
 	QPointer<Ui::IconButton> back;
 	QPointer<Ui::RoundButton> confirm;
 	QPointer<Ui::RoundButton> decline;
+	QPointer<Ui::RoundButton> cancel;
 	QPointer<Ui::RoundButton> unlock;
 	QPointer<Ui::SlideWrap<Ui::FlatLabel>> fee;
 	QPointer<Ui::SlideWrap<Ui::FlatLabel>> error;
@@ -358,6 +359,7 @@ void Update(
 		state->confirm.data(),
 		confirming || !now.confirmable);
 	Ui::SetButtonBusy(state->decline.data(), now.busy && now.declining);
+	Ui::SetButtonDimmed(state->cancel.data(), now.busy);
 	Ui::SetButtonBusy(state->unlock.data(), now.busy);
 	state->feeNano = now.feeNano;
 	if (const auto fee = state->fee.data()) {
@@ -464,12 +466,17 @@ void FillUnhandled(
 		box,
 		tr::lng_cancel(),
 		tr::lng_wallet_connect_request_reject());
-	buttons.secondary->setClickedCallback([=] { box->closeBox(); });
+	buttons.secondary->setClickedCallback([=] {
+		if (!Busy(state)) {
+			box->closeBox();
+		}
+	});
 	buttons.primary->setClickedCallback([=, decline = context.decline] {
 		if (!Busy(state)) {
 			decline();
 		}
 	});
+	state->cancel = buttons.secondary;
 	state->decline = buttons.primary;
 }
 
@@ -914,6 +921,7 @@ void Rebuild(
 		const TonConnectRequestBoxState &now) {
 	state->confirm = nullptr;
 	state->decline = nullptr;
+	state->cancel = nullptr;
 	state->unlock = nullptr;
 	state->fee = nullptr;
 	state->error = nullptr;
