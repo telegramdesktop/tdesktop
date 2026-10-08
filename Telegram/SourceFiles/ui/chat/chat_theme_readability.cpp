@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/style/style_core_palette.h"
 #include "ui/color_contrast.h"
 
+#include <QtCore/QtMath>
+
 namespace Ui {
 namespace {
 
