@@ -1350,6 +1350,16 @@ struct RowAmountText {
 	};
 }
 
+[[nodiscard]] RowAmountText PrepareRowItemAmountText(bool incoming) {
+	return {
+		.major = ((incoming ? QChar('+') : kMinus)
+			+ tr::lng_wallet_row_items(tr::now, lt_count, 1)),
+		.minor = Ui::Text::IconEmoji(incoming
+			? &st::walletRowItemMarkIn
+			: &st::walletRowItemMarkOut),
+	};
+}
+
 [[nodiscard]] const style::color &RowAmountColor(
 		bool incoming,
 		bool pending,
@@ -1391,17 +1401,10 @@ void SetRowItemAmount(
 		not_null<Ui::FlatLabel*> minor,
 		bool incoming,
 		bool failed) {
-	major->setText((incoming ? QChar('+') : kMinus)
-		+ tr::lng_wallet_row_items(tr::now, lt_count, 1));
-	minor->setMarkedText(Ui::Text::IconEmoji(incoming
-		? &st::walletRowItemMarkIn
-		: &st::walletRowItemMarkOut));
-	const auto &color = failed
-		? st::windowSubTextFg
-		: incoming
-		? st::boxTextFgGood
-		: st::windowBoldFg;
-	SetAmountColor(major, minor, color);
+	auto text = PrepareRowItemAmountText(incoming);
+	major->setText(text.major);
+	minor->setMarkedText(std::move(text.minor), std::move(text.context));
+	SetAmountColor(major, minor, RowAmountColor(incoming, false, failed));
 }
 
 void PaintRowAvatar(Painter &p, QRect rect, RowAvatar avatar) {
@@ -1461,6 +1464,7 @@ struct HistoryRowLayout {
 	int amountTop = 0;
 	int titleWidth = 0;
 	int textWidth = 0;
+	int chipTop = 0;
 };
 
 [[nodiscard]] int HistoryRowTitleSkip(int amountWidth) {
@@ -1507,6 +1511,7 @@ struct HistoryRowText {
 	Ui::Text::String major;
 	Ui::Text::String minor;
 	bool subtitleShown = false;
+	bool chip = false;
 };
 
 // Built as Ui::FlatLabel builds its text, so it measures as the label does.
@@ -1532,9 +1537,11 @@ struct HistoryRowText {
 [[nodiscard]] HistoryRowText PrepareHistoryRowText(
 		const HistoryRowContent &content,
 		Fn<void()> repaint = nullptr) {
-	auto amount = PrepareRowAmountText(
-		content.amountNano,
-		RowAmountSign(content.incoming));
+	auto amount = content.itemAmount
+		? PrepareRowItemAmountText(content.incoming)
+		: PrepareRowAmountText(
+			content.amountNano,
+			RowAmountSign(content.incoming));
 	if (repaint) {
 		amount.context.repaint = std::move(repaint);
 	}
@@ -1548,6 +1555,7 @@ struct HistoryRowText {
 			st::walletRowAmountMajorLabel,
 			amount.major),
 		.subtitleShown = !content.subtitle.isEmpty(),
+		.chip = content.itemAmount,
 	};
 	result.minor.setMarkedText(
 		st::walletRowAmountMinorLabel.style,
@@ -1594,7 +1602,39 @@ struct HistoryRowText {
 	});
 	result.titleWidth = titleWidth;
 	result.textWidth = textWidth;
+	if (text.chip) {
+		result.chipTop = result.height
+			- padding.bottom()
+			+ st::walletChipTopSkip;
+		result.height += st::walletChipTopSkip + st::walletRowIconSize;
+	}
 	return result;
+}
+
+struct RowAmountPlacement {
+	QPoint major;
+	QPoint minor;
+};
+
+[[nodiscard]] RowAmountPlacement PlaceRowAmount(
+		const HistoryRowText &text,
+		int amountTop,
+		int width) {
+	const auto rtl = style::RightToLeft();
+	const auto mirror = [&](int left, int size) {
+		return rtl ? (width - left - size) : left;
+	};
+	const auto majorWidth = text.major.maxWidth();
+	const auto minorWidth = text.minor.maxWidth();
+	const auto minorLeft = width - st::walletRowPadding.right() - minorWidth;
+	return {
+		.major = QPoint(
+			mirror(minorLeft - majorWidth, majorWidth),
+			amountTop),
+		.minor = QPoint(
+			mirror(minorLeft, minorWidth),
+			amountTop + st::walletRowAmountMinorSkip),
+	};
 }
 
 struct HistoryRowChipState {
@@ -1721,21 +1761,12 @@ void PaintHistoryRowChipText(
 	});
 }
 
-void AddHistoryRowChip(
-		not_null<Ui::VerticalLayout*> inner,
-		not_null<HistoryRowButton*> button,
+void TrackHistoryRowChip(
+		not_null<HistoryRowChipState*> state,
 		std::shared_ptr<CollectibleMedia> media,
-		QString address) {
-	Ui::AddSkip(inner, st::walletChipTopSkip);
-	const auto chip = inner->add(object_ptr<Ui::FixedHeightWidget>(
-		inner,
-		st::walletRowIconSize));
-	chip->setAttribute(Qt::WA_TransparentForMouseEvents);
-	const auto state = chip->lifetime().make_state<HistoryRowChipState>();
-	const auto repaint = [=] {
-		chip->update();
-		button->update(Ui::MapFrom(button, chip, chip->rect()));
-	};
+		QString address,
+		Fn<void()> repaint,
+		rpl::lifetime &lifetime) {
 	const auto refresh = [=] {
 		const auto view = media->view(address);
 		state->kind = view.kind;
@@ -1756,6 +1787,32 @@ void AddHistoryRowChip(
 			+ st::walletChipPadding.right();
 		repaint();
 	};
+	const auto mine = [=](const QString &changed) {
+		return (changed == address);
+	};
+	media->changed(
+	) | rpl::filter(mine) | rpl::on_next(refresh, lifetime);
+	media->repaint(
+	) | rpl::filter(mine) | rpl::on_next(repaint, lifetime);
+	media->resolveBackground(address);
+	refresh();
+}
+
+void AddHistoryRowChip(
+		not_null<Ui::VerticalLayout*> inner,
+		not_null<HistoryRowButton*> button,
+		std::shared_ptr<CollectibleMedia> media,
+		QString address) {
+	Ui::AddSkip(inner, st::walletChipTopSkip);
+	const auto chip = inner->add(object_ptr<Ui::FixedHeightWidget>(
+		inner,
+		st::walletRowIconSize));
+	chip->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto state = chip->lifetime().make_state<HistoryRowChipState>();
+	const auto repaint = [=] {
+		chip->update();
+		button->update(Ui::MapFrom(button, chip, chip->rect()));
+	};
 	chip->paintRequest(
 	) | rpl::on_next([=] {
 		auto p = Painter(chip);
@@ -1768,15 +1825,7 @@ void AddHistoryRowChip(
 		PaintHistoryRowChipPlate(p, chip->width(), *state);
 		p.translate(-origin);
 	});
-	const auto mine = [=](const QString &changed) {
-		return (changed == address);
-	};
-	media->changed(
-	) | rpl::filter(mine) | rpl::on_next(refresh, chip->lifetime());
-	media->repaint(
-	) | rpl::filter(mine) | rpl::on_next(repaint, chip->lifetime());
-	media->resolveBackground(address);
-	refresh();
+	TrackHistoryRowChip(state, media, address, repaint, chip->lifetime());
 }
 
 not_null<Ui::RpWidget*> AddHistoryRow(
@@ -1902,6 +1951,7 @@ struct SendingRowLayout {
 	QPointF badge;
 	QPoint diamond;
 	QPointF amount;
+	int titleWidth = 0;
 	int textWidth = 0;
 };
 
@@ -1937,7 +1987,8 @@ public:
 		not_null<Ui::RpWidget*> parent,
 		not_null<Ui::RpWidget*> layer,
 		not_null<Ui::RpWidget*> bounds,
-		HistoryRowContent content);
+		HistoryRowContent content,
+		std::shared_ptr<CollectibleMedia> media);
 
 	void setContent(HistoryRowContent content);
 	void awaitDiamond();
@@ -1993,6 +2044,11 @@ private:
 		const SendingRowSettleTarget &target,
 		const SendingRowSettleProgress &progress,
 		crl::time now);
+	void paintItemAmount(
+		Painter &p,
+		const SendingRowSettleProgress &progress,
+		crl::time now);
+	void paintChip(Painter &p);
 	void paintDiamond(QPainter &p, QRectF canvas, crl::time now);
 	void startAnimation();
 	void startSettle(HistoryRowContent content, bool burst, Fn<void()> done);
@@ -2002,9 +2058,11 @@ private:
 
 	const not_null<Ui::RpWidget*> _layer;
 	const not_null<Ui::RpWidget*> _bounds;
+	const std::shared_ptr<CollectibleMedia> _media;
 	HistoryRowContent _content;
 	HistoryRowText _text;
 	HistoryRowLayout _layout;
+	HistoryRowChipState _chip;
 	AmountPainter _amount;
 	std::unique_ptr<Lottie::Icon> _diamond;
 	std::unique_ptr<Ui::PeerUserpicView> _userpic;
@@ -2013,6 +2071,7 @@ private:
 	GlareCycle _glare;
 	Ui::Animations::Basic _animation;
 	base::unique_qptr<Ui::RpWidget> _surface;
+	rpl::lifetime _chipLifetime;
 	std::unique_ptr<Settle> _settle;
 	std::optional<SendingRowSettleRequest> _waiting;
 	crl::time _started = 0;
@@ -2148,20 +2207,26 @@ SendingHistoryRow::SendingHistoryRow(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Ui::RpWidget*> layer,
 	not_null<Ui::RpWidget*> bounds,
-	HistoryRowContent content)
+	HistoryRowContent content,
+	std::shared_ptr<CollectibleMedia> media)
 : Ui::AbstractButton(parent.get())
 , _layer(layer)
 , _bounds(bounds)
+, _media(std::move(media))
 , _shadow(st::walletInfoIslandShadow)
 , _surface(Ui::CreateChild<Ui::RpWidget>(layer.get())) {
+	Expects(_media || !content.itemAmount);
+
 	_digitsHeight = DigitsHeight(st::walletSendingRowAmountFont);
-	const auto canvas = SendingRowDiamondCanvas();
-	_diamond = Lottie::MakeIcon({
-		.name = u"gram"_q,
-		.sizeOverride = { canvas, canvas },
-		.frame = -1,
-		.limitFps = true,
-	});
+	if (!content.itemAmount) {
+		const auto canvas = SendingRowDiamondCanvas();
+		_diamond = Lottie::MakeIcon({
+			.name = u"gram"_q,
+			.sizeOverride = { canvas, canvas },
+			.frame = -1,
+			.limitFps = true,
+		});
+	}
 	_animation.init([=](crl::time now) {
 		if (!_inView || !isVisible() || anim::Disabled()) {
 			releaseSettleWait();
@@ -2227,14 +2292,31 @@ void SendingHistoryRow::updateSurfaceGeometry() {
 
 void SendingHistoryRow::setContent(HistoryRowContent content) {
 	const auto peerChanged = !_userpic || (_content.peer != content.peer);
+	const auto chipChanged = (_content.collectible != content.collectible);
 	_content = std::move(content);
 	_text = PrepareHistoryRowText(_content);
-	const auto amountNano = _content.amountNano;
-	const auto &font = st::walletSendingRowAmountFont;
-	_amount.setContent({ .big = font, .small = font }, {
-		.whole = RowAmountWhole(amountNano, RowAmountSign(_content.incoming)),
-		.fraction = GramMinorPart(amountNano),
-	});
+	if (!_content.itemAmount) {
+		const auto amountNano = _content.amountNano;
+		const auto &font = st::walletSendingRowAmountFont;
+		_amount.setContent({ .big = font, .small = font }, {
+			.whole = RowAmountWhole(
+				amountNano,
+				RowAmountSign(_content.incoming)),
+			.fraction = GramMinorPart(amountNano),
+		});
+	}
+	if (chipChanged) {
+		_chipLifetime.destroy();
+		_chip = HistoryRowChipState();
+		if (_content.itemAmount) {
+			TrackHistoryRowChip(
+				&_chip,
+				_media,
+				_content.collectible,
+				[=] { _surface->update(); },
+				_chipLifetime);
+		}
+	}
 	if (peerChanged) {
 		_userpicLifetime.destroy();
 		if (const auto peer = _content.peer) {
@@ -2448,7 +2530,9 @@ QString SendingHistoryRow::accessibilityName() {
 		content.title,
 		content.subtitle,
 		content.date,
-		(_settle
+		(_content.itemAmount
+			? (_settle ? _settle->text : _text).major.toString()
+			: _settle
 			? (_settle->text.major.toString()
 				+ GramMinorPart(content.amountNano))
 			: QString(amount.whole + amount.fraction)),
@@ -2489,6 +2573,11 @@ SendingRowLayout SendingHistoryRow::layout() const {
 	const auto shift = st::walletSendingRowClockShift;
 	result.badge = QRectF(result.avatar).center()
 		+ QPointF(rtl ? -shift : shift, shift);
+	if (_content.itemAmount) {
+		result.titleWidth = _layout.titleWidth;
+		result.textWidth = _layout.textWidth;
+		return result;
+	}
 
 	const auto canvas = SendingRowDiamondCanvas();
 	const auto drawnLeft = SendingRowDiamondLeft(w)
@@ -2510,6 +2599,7 @@ SendingRowLayout SendingHistoryRow::layout() const {
 	result.textWidth = std::max(
 		int(amountLeft) - st::walletRowSkip - padding.left(),
 		0);
+	result.titleWidth = result.textWidth;
 	return result;
 }
 
@@ -2518,22 +2608,12 @@ SendingRowSettleTarget SendingHistoryRow::settleTarget() const {
 	if (!_settle) {
 		return result;
 	}
-	const auto w = width();
-	const auto rtl = style::RightToLeft();
-	const auto mirror = [&](int left, int width) {
-		return rtl ? (w - left - width) : left;
-	};
-	const auto &padding = st::walletRowPadding;
-	const auto majorWidth = _settle->text.major.maxWidth();
-	const auto minorWidth = _settle->text.minor.maxWidth();
-	const auto minorLeft = w - padding.right() - minorWidth;
-	const auto majorTop = _settle->layout.amountTop;
-	result.major = QPoint(
-		mirror(minorLeft - majorWidth, majorWidth),
-		majorTop);
-	result.minor = QPoint(
-		mirror(minorLeft, minorWidth),
-		majorTop + st::walletRowAmountMinorSkip);
+	const auto place = PlaceRowAmount(
+		_settle->text,
+		_settle->layout.amountTop,
+		width());
+	result.major = place.major;
+	result.minor = place.minor;
 	result.boundary = result.minor.x() + _settle->fraction;
 	const auto &font = st::walletRowAmountMinorLabel.style.font;
 	result.anchor = QPointF(result.boundary, result.minor.y() + font->ascent);
@@ -2750,6 +2830,11 @@ void SendingHistoryRow::paintSurface() {
 		p.setOpacity(1.);
 	}
 	paintTexts(p, layout, target, progress);
+	if (_content.itemAmount) {
+		paintItemAmount(p, progress, now);
+		paintChip(p);
+		return;
+	}
 	if (_settle) {
 		paintSettleAmount(p, layout, target, progress, now);
 	} else {
@@ -2880,9 +2965,9 @@ void SendingHistoryRow::paintTexts(
 		}
 	};
 	const auto titleWidth = settle
-		? int(base::SafeRound(layout.textWidth
-			+ (target.titleWidth - layout.textWidth) * progress.amount))
-		: layout.textWidth;
+		? int(base::SafeRound(layout.titleWidth
+			+ (target.titleWidth - layout.titleWidth) * progress.amount))
+		: layout.titleWidth;
 	const auto textWidth = settle
 		? int(base::SafeRound(layout.textWidth
 			+ (target.textWidth - layout.textWidth) * progress.amount))
@@ -2988,6 +3073,44 @@ void SendingHistoryRow::paintSettleAmount(
 		progress.emoji);
 }
 
+void SendingHistoryRow::paintItemAmount(
+		Painter &p,
+		const SendingRowSettleProgress &progress,
+		crl::time now) {
+	const auto &text = _settle ? _settle->text : _text;
+	const auto &next = _settle ? _settle->content : _content;
+	const auto place = PlaceRowAmount(text, rowLayout().amountTop, width());
+	p.setPen(anim::color(
+		RowAmountColor(_content.incoming, false, _content.failed),
+		RowAmountColor(next.incoming, false, next.failed),
+		progress.label));
+	const auto draw = [&](
+			const Ui::Text::String &string,
+			QPoint position,
+			const style::FlatLabel &st) {
+		string.draw(p, {
+			.position = position,
+			.availableWidth = string.maxWidth(),
+			.palette = &st.palette,
+			.now = now,
+		});
+	};
+	draw(text.major, place.major, st::walletRowAmountMajorLabel);
+	draw(text.minor, place.minor, st::walletRowAmountMinorLabel);
+}
+
+void SendingHistoryRow::paintChip(Painter &p) {
+	const auto &padding = st::walletRowPadding;
+	const auto outer = std::max(width() - padding.left() - padding.right(), 0);
+	const auto origin = QPoint(
+		style::RightToLeft() ? padding.right() : padding.left(),
+		rowLayout().chipTop);
+	p.translate(origin);
+	PaintHistoryRowChipSurface(p, outer, _chip, _media, _content.collectible);
+	PaintHistoryRowChipText(p, outer, _chip);
+	p.translate(-origin);
+}
+
 void SendingHistoryRow::paintDiamond(
 		QPainter &p,
 		QRectF canvas,
@@ -3023,9 +3146,14 @@ not_null<SendingHistoryRow*> AddSendingHistoryRow(
 		not_null<Ui::RpWidget*> layer,
 		not_null<Ui::RpWidget*> bounds,
 		const HistoryRowContent &content,
+		std::shared_ptr<CollectibleMedia> media,
 		Fn<void()> clicked) {
-	const auto result = slot->add(
-		object_ptr<SendingHistoryRow>(slot, layer, bounds, content));
+	const auto result = slot->add(object_ptr<SendingHistoryRow>(
+		slot,
+		layer,
+		bounds,
+		content,
+		std::move(media)));
 	result->setClickedCallback(std::move(clicked));
 	return result;
 }
@@ -14416,7 +14544,8 @@ void Content::setupContent() {
 					&& !anim::Disabled()
 					&& look->surfaceShown()
 					&& look->inView()
-					&& !content.itemAmount));
+					&& (content.itemAmount
+						== _sendingRow->content.itemAmount)));
 		if (look && sending) {
 			if (content != _sendingRow->content) {
 				look->setContent(content);
@@ -14425,9 +14554,12 @@ void Content::setupContent() {
 			return created;
 		} else if (settle) {
 			if (!look->settling() || content != _sendingRow->content) {
+				// Only the diamond's landing bursts; a collectible lands none.
+				const auto burst = !content.itemAmount
+					&& (item.status == TransferItem::Status::Success);
 				look->settle(
 					content,
-					(item.status == TransferItem::Status::Success),
+					burst,
 					crl::guard(list, [=] { (*rebuild)(); }));
 				_sendingRow->content = std::move(content);
 			}
@@ -14442,12 +14574,13 @@ void Content::setupContent() {
 					ShowWalletTransactionBox(_show, _sendingRow->item, media);
 				}
 			};
-			if (sending && !content.itemAmount) {
+			if (sending) {
 				_sendingRow->look = AddSendingHistoryRow(
 					slot,
 					column,
 					listWrap,
 					content,
+					media,
 					click);
 			} else {
 				AddHistoryRow(slot, content, click, media);
