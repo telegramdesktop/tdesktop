@@ -2026,6 +2026,8 @@ PRIVATE
     test/test_capture.h
     test/test_clipboard.cpp
     test/test_clipboard.h
+    test/test_console_lock.cpp
+    test/test_console_lock.h
     test/test_corner_patch.cpp
     test/test_corner_patch.h
     test/test_custom_emoji.cpp

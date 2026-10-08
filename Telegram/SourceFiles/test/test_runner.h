@@ -74,13 +74,17 @@ public:
 	// widget and image to assertions. Keep readiness limited to identity and
 	// paint availability; geometry/raster expectations belong in |inspect|
 	// so a mismatch is a FAIL with actual values, never a timeout.
+	// |skipReason| becomes the capture stage's own Stage::skipReason: a
+	// non-empty answer when the stage begins writes TEST_RESULT: N/A and
+	// skips it; left empty the stage is unchanged.
 	void captureAndInspect(
 		const QString &name,
 		Fn<QWidget*()> resolve,
 		Fn<bool(QWidget*)> ready,
 		Fn<void(QWidget*, const QImage &)> inspect,
 		crl::time timeout = kDefaultStageTimeout,
-		Fn<QString(QWidget*)> readinessDetails = {});
+		Fn<QString(QWidget*)> readinessDetails = {},
+		Fn<QString()> skipReason = {});
 
 	// Release point for per-scenario timers, rpl::lifetimes, watchers, and
 	// raw cross-stage pointers. finish() runs every registered callback

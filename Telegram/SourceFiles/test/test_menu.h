@@ -99,13 +99,20 @@ struct PopupMenuReading {
 // menu; the helper never calls popup() itself, because popup() on an empty
 // menu hides and deleteLater()s it (popup_menu.cpp:945-958) and only the
 // caller knows the position and the way the product opens its menu.
+// |skipReason|, when given, becomes the Stage::skipReason of both stages
+// this appends - the opener and the capture - read when each begins; left
+// empty the helper behaves exactly as before. A campaign gates a
+// popup-capture leg on a locked Windows console with
+// [] { return Test::ConsoleLockGate(Test::ReadConsoleLock()); }
+// (test_console_lock.h).
 void CapturePopupMenu(
 	not_null<Runner*> runner,
 	const QString &name,
 	Fn<QWidget*()> resolve,
 	Fn<void()> open = {},
 	Fn<void(QWidget*, const QImage &)> inspect = {},
-	crl::time timeout = kDefaultStageTimeout);
+	crl::time timeout = kDefaultStageTimeout,
+	Fn<QString()> skipReason = {});
 
 // This helper measuring itself, in six stages. It opens a real
 // Ui::PopupMenu of its own over the primary window and, in the turn that
@@ -128,6 +135,28 @@ void CapturePopupMenu(
 // before-leg, the wedged stage this helper removes, is produced by gating
 // on menu()->isVisible() and re-running the identical scenario, never by a
 // stage that fails on purpose.
+//
+// A locked Windows console. The application is deactivated there and Qt
+// closes the shown menu before the next turn: Attempt 1 Runs 1 and 2 of
+// 2026/10/07/add-a-same-turn-context-menu-reader-and-a-retried-clipboard-round-trip-to-the-test-harness
+// (work/test.md) timed out on "target is not visible" right after the open
+// stage passed. So the four stages that need the menu open across turns -
+// the popup_menu_open capture, close, and the popup_menu_reopened opener
+// and capture - are TEST_RESULT: N/A by a skipReason that names the lock
+// and prints the Test::ReadConsoleLock() reading (test_console_lock.h). It
+// is read when the open stage pops the menu and again when each of those
+// stages begins, and kept once it reads locked: a menu popped or held while
+// locked is already closed. The open stage (decided from the opening turn),
+// refusal text and the teardown still run and decide, the scenario
+// continues past the self-test, and the open stage Notes the CONSOLE_LOCK
+// row it read. The translucency premise stays a named hard fixture gate:
+// Check, while the lock is a skip: a locked console is a scheduling
+// condition - rerun on an unlocked console, where the same host certifies
+// the capture (Run 3) - and a host without translucent windows can never
+// certify that premise at all. Nothing is gated off Windows: on macOS a
+// packed launch with CGSSessionScreenIsLocked true ran this self-test with
+// 0 FAIL (2026/10/06/add-a-post-paint-capture-sampler-to-the-harness,
+// work/test.md, Test 2), and the probe reads not-applicable there.
 void AppendPopupMenuCaptureSelfTest(not_null<Runner*> runner);
 
 // A context menu, read in the turn that built it.

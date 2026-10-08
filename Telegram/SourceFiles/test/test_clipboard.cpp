@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/invoke_queued.h"
 #include "base/timer.h"
 #include "base/unique_qptr.h"
+#include "test/test_console_lock.h"
 #include "test/test_log.h"
 #include "test/test_probe.h"
 #include "test/test_runner.h"
@@ -79,6 +80,7 @@ struct ClipboardFakes {
 };
 
 struct ClipboardSelfTest {
+	ConsoleLockReading liveConsole;
 	qint64 logMark = 0;
 };
 
@@ -150,23 +152,28 @@ struct ClipboardSelfTest {
 [[nodiscard]] QString RefusalReason(
 		const ClipboardRoundTrip &trip,
 		const ClipboardAttempt &last) {
+	// Read at refusal time, so a campaign's own refusal names a locked console.
+	const auto console = u"; console at refusal: "_q
+		+ ConsoleLockText(ReadConsoleLock());
 	const auto head = u"no attempt read its own sentinel back within %1 "
 		u"attempts %2 ms apart; "_q.arg(
 			QString::number(trip.bound),
 			QString::number(trip.delay));
 	switch (last.content) {
 	case ClipboardContent::Empty:
-		return head + u"the last read was empty"_q;
+		return head + u"the last read was empty"_q + console;
 	case ClipboardContent::HarnessSentinel:
 		return head
 			+ u"the last read held %1, a sentinel this harness wrote "
 			u"earlier, not attempt %2's own"_q.arg(
 				last.heldSentinel,
-				QString::number(last.index));
+				QString::number(last.index))
+			+ console;
 	case ClipboardContent::Foreign:
 		return head
 			+ u"the last read held text this harness did not write, which "
-			u"is never printed"_q;
+			u"is never printed"_q
+			+ console;
 	case ClipboardContent::Expected: break;
 	}
 	Unexpected("Content in Test::RefusalReason.");
@@ -715,6 +722,41 @@ void CheckLiveArm(const ClipboardRoundTrip &trip) {
 		ClipboardReadingText(reading));
 }
 
+// Only the lock decides; a round trip that read back is never withdrawn, so
+// this turns nothing but a would-be FAIL into N/A, and only when locked.
+[[nodiscard]] QString LiveArmLockGate(
+		const ClipboardRoundTrip &trip,
+		const ConsoleLockReading &console) {
+	const auto gate = ConsoleLockGate(console);
+	if (trip.ok || gate.isEmpty()) {
+		return QString();
+	}
+	return gate
+		+ u"; no process on the console's desktop can open the clipboard "
+		u"while it is locked, and the live round trip was refused "_q
+		+ ClipboardRefusalName(trip.refusal)
+		+ u" after "_q
+		+ QString::number(trip.attempts.size())
+		+ u"/"_q
+		+ QString::number(trip.bound)
+		+ u" attempts - a scheduling condition: rerun on an unlocked "
+		u"console"_q;
+}
+
+void CheckRefusalConsoleReading(
+		const ClipboardRoundTrip &refused,
+		const ClipboardRoundTrip &succeeded) {
+	const auto refusedText = ClipboardRoundTripText(refused);
+	const auto succeededText = ClipboardRoundTripText(succeeded);
+	Check(
+		refusedText.contains(u"console at refusal: CONSOLE_LOCK: state="_q)
+			&& !succeededText.contains(u"CONSOLE_LOCK:"_q),
+		u"clipboard refusal: a refused round trip names the console-lock "
+		u"reading taken when it was refused, and one that read back names "
+		u"none"_q,
+		u"refused={%1} succeeded={%2}"_q.arg(refusedText, succeededText));
+}
+
 void CheckForeignTextAbsent(qint64 mark) {
 	auto scan = DiscriminatingScan(
 		u"clipboard foreign-text scan"_q,
@@ -937,6 +979,7 @@ void AppendClipboardRoundTripSelfTest(not_null<Runner*> runner) {
 			u"clipboard is refused after exactly the bound"_q,
 		.then = [=] {
 			CheckAlwaysEmptyArm(*empty, *fakes.alwaysEmpty, state->logMark);
+			CheckRefusalConsoleReading(*empty, *failed);
 		},
 	});
 
@@ -976,7 +1019,13 @@ void AppendClipboardRoundTripSelfTest(not_null<Runner*> runner) {
 	runner->add({
 		.name = u"clipboard round trip self-test: a live round trip against "
 			u"the system clipboard"_q,
+		// Runner::beginStage asks once, so |then| Notes the deciding reading.
+		.skipReason = [=] {
+			state->liveConsole = ReadConsoleLock();
+			return LiveArmLockGate(*live, state->liveConsole);
+		},
 		.then = [=] {
+			Note(ConsoleLockText(state->liveConsole));
 			CheckLiveArm(*live);
 		},
 	});

@@ -289,7 +289,7 @@ private:
 // REVERSE order; AppendLangPackSelfTest registers a second one at
 // append time (test_lang_pack.cpp:574) for its own labels and
 // fixtures. Runner::finish() runs its callbacks in registration
-// order (test_runner.cpp:453-456), which is FIFO and therefore the wrong
+// order (test_runner.cpp:455-458), which is FIFO and therefore the wrong
 // order for nested fixtures, so one registration unwinding LIFO replaces
 // one registration per fixture and needs no recursion in remove().
 [[nodiscard]] std::shared_ptr<LangPackFixture> InstallLangPack(

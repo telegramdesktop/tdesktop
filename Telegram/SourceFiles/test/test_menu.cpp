@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 #include "core/application.h"
 #include "test/test_capture.h"
+#include "test/test_console_lock.h"
 #include "test/test_log.h"
 #include "test/test_runner.h"
 #include "test/test_widgets.h"
@@ -445,6 +446,19 @@ void ReleaseContextMenuFixture(not_null<ContextMenuSelfTest*> state) {
 	state->marker = nullptr;
 }
 
+// Empty unless ConsoleLockGate answers: only a locked console gates.
+[[nodiscard]] QString PopupMenuLockGate(const ConsoleLockReading &console) {
+	const auto gate = ConsoleLockGate(console);
+	if (gate.isEmpty()) {
+		return QString();
+	}
+	return gate
+		+ u"; the application is deactivated on a locked console and Qt "
+		"closes a shown Ui::PopupMenu before the next turn, so this stage, "
+		"which needs the self-test's menu to stay open across turns, cannot "
+		"run - a scheduling condition: rerun on an unlocked console"_q;
+}
+
 } // namespace
 
 PopupMenuReading ReadPopupMenu(QWidget *widget) {
@@ -511,10 +525,12 @@ void CapturePopupMenu(
 		Fn<QWidget*()> resolve,
 		Fn<void()> open,
 		Fn<void(QWidget*, const QImage &)> inspect,
-		crl::time timeout) {
+		crl::time timeout,
+		Fn<QString()> skipReason) {
 	if (open) {
 		runner->add({
 			.name = u"open popup menu: %1"_q.arg(name),
+			.skipReason = skipReason,
 			.run = [=] {
 				// "Opens or accepts an already-open menu" is exactly this
 				// and no more: the opener runs only when the resolver does
@@ -542,13 +558,15 @@ void CapturePopupMenu(
 		[](QWidget *widget) { return PopupMenuReady(widget); },
 		inspect,
 		timeout,
-		[](QWidget *widget) { return PopupMenuDetails(widget); });
+		[](QWidget *widget) { return PopupMenuDetails(widget); },
+		std::move(skipReason));
 }
 
 void AppendPopupMenuCaptureSelfTest(not_null<Runner*> runner) {
 	struct State {
 		Fixture fixture;
 		PopupMenuReading openTurn;
+		ConsoleLockReading lock;
 		QString openTurnDetails;
 		QString oneShotReason;
 		bool openTurnReady = false;
@@ -591,6 +609,14 @@ void AppendPopupMenuCaptureSelfTest(not_null<Runner*> runner) {
 			"actions the fixture put in it"_q,
 			PopupMenuDetails(widget));
 	};
+	// Read when each gated stage begins, and kept once locked: a menu
+	// popped or held while the console was locked is already closed.
+	const auto lockGate = [=] {
+		if (!state->lock.locked()) {
+			state->lock = ReadConsoleLock();
+		}
+		return PopupMenuLockGate(state->lock);
+	};
 
 	runner->add({
 		.name = u"popup menu self-test: open"_q,
@@ -605,6 +631,9 @@ void AppendPopupMenuCaptureSelfTest(not_null<Runner*> runner) {
 			if (!state->built) {
 				return;
 			}
+			// Read in the turn that decides whether Qt closes the menu.
+			state->lock = ReadConsoleLock();
+			Note(ConsoleLockText(state->lock));
 			const auto menu = state->fixture.menu.get();
 			menu->popup(state->fixture.at);
 			// Everything below is snapshotted here, in the turn that called
@@ -656,10 +685,18 @@ void AppendPopupMenuCaptureSelfTest(not_null<Runner*> runner) {
 		},
 	});
 
-	CapturePopupMenu(runner, u"popup_menu_open"_q, resolve, {}, inspect);
+	CapturePopupMenu(
+		runner,
+		u"popup_menu_open"_q,
+		resolve,
+		{},
+		inspect,
+		kDefaultStageTimeout,
+		lockGate);
 
 	runner->add({
 		.name = u"popup menu self-test: close"_q,
+		.skipReason = lockGate,
 		.run = [=] {
 			if (!state->built) {
 				return;
@@ -689,7 +726,9 @@ void AppendPopupMenuCaptureSelfTest(not_null<Runner*> runner) {
 		u"popup_menu_reopened"_q,
 		resolve,
 		open,
-		inspect);
+		inspect,
+		kDefaultStageTimeout,
+		lockGate);
 
 	runner->add({
 		.name = u"popup menu self-test: refusal text"_q,

@@ -494,7 +494,7 @@ std::shared_ptr<LangPackFixture> LangPackFixture::Install(
 		FinishRegistered() = true;
 
 		// One registration for the whole process. Runner::finish() runs
-		// its callbacks in registration order (test_runner.cpp:453-456),
+		// its callbacks in registration order (test_runner.cpp:455-458),
 		// which is FIFO, so one callback per fixture would remove the
 		// outermost first and restore a snapshot taken before the inner
 		// fixtures installed. Unwinding LIFO from a single callback fixes
@@ -560,7 +560,7 @@ void AppendLangPackSelfTest(
 	const auto state = new State();
 
 	// finish() runs on every path that reaches it, and also when a
-	// teardown stage already ran (test_runner.h:85-95), so this has to be
+	// teardown stage already ran (test_runner.h:89-99), so this has to be
 	// safe afterwards: assigning nullptr to an already-null
 	// base::unique_qptr is a no-op, and remove() is idempotent - a no-op
 	// on a fixture already removed and on one that never installed. The
@@ -569,7 +569,7 @@ void AppendLangPackSelfTest(
 	// and they follow the label release so no Lang::Updated() they fire
 	// reaches a label. This registration is made at append time and the
 	// module's own on the first install, and finish() runs its callbacks
-	// FIFO (test_runner.cpp:453-456), so the module's unwind runs after
+	// FIFO (test_runner.cpp:455-458), so the module's unwind runs after
 	// these and finds nothing left to unwind.
 	runner->onFinish([=] {
 		state->labelA = nullptr;

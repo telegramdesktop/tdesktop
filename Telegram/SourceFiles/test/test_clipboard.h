@@ -146,6 +146,17 @@ struct ClipboardAttempt {
 // Read-* names what the LAST read held when no attempt read its own
 // sentinel back within the bound. InvalidBound: fewer than one attempt or
 // a negative delay, and nothing was written.
+//
+// A read-* refusal's |reason| ends with "; console at refusal: " and the
+// Test::ConsoleLockText(Test::ReadConsoleLock()) row read at that moment
+// (test_console_lock.h): the host console's state, printed for every
+// accessor, fakes included, and never a cause on its own. On a locked
+// Windows console no process on its desktop can open the clipboard, so a
+// round trip ends in read-empty after the whole bound, as in Attempt 1
+// Runs 1 and 2 of
+// 2026/10/07/add-a-same-turn-context-menu-reader-and-a-retried-clipboard-round-trip-to-the-test-harness
+// (work/test.md), whose rows never named the lock. A success and
+// invalid-bound carry no reading.
 enum class ClipboardRefusal {
 	None,
 	InvalidBound,
@@ -202,7 +213,9 @@ struct ClipboardRoundTripArgs {
 
 // "CLIPBOARD_ROUND_TRIP: label=.. finished=.. ok=.. succeededAt=..
 // attemptsMade=.. bound=.. delayMs=.. elapsedMs=.. refusal=<name>" and
-// " - <reason>"; finished=0 while the round trip is pending.
+// " - <reason>"; finished=0 while the round trip is pending. A read-*
+// refusal's reason ends with "; console at refusal: CONSOLE_LOCK: ..."
+// (ClipboardRefusal, above).
 [[nodiscard]] QString ClipboardRoundTripText(const ClipboardRoundTrip &trip);
 
 // One read of the clipboard, classified against |expected|, for judging a
@@ -248,7 +261,8 @@ struct ClipboardReading {
 //   attempt wrote its own labelled sentinel;
 // - always empty, with the shipped defaults: refused read-empty after
 //   exactly kClipboardRoundTripAttempts attempts and rows, no sooner than
-//   nine delays;
+//   nine delays. Its refusal's reason carries the console-lock reading,
+//   and the fail-three arm's success carries none;
 // - stale: two attempts reading the fail-three arm's first sentinel,
 //   refused read-stale-sentinel naming it;
 // - foreign: three attempts reading an injected foreign text, refused
@@ -259,7 +273,13 @@ struct ClipboardReading {
 // - live: one round trip against the system clipboard with the defaults,
 //   then ReadClipboard of the sentinel it wrote. It overwrites the owner's
 //   clipboard and never restores it. On a host whose clipboard never reads
-//   back it FAILs by name: a host property, so rerun, with no code change;
+//   back it FAILs by name: a host property, so rerun, with no code change.
+//   On a locked Windows console (Test::ReadConsoleLock() reads locked when
+//   the judging stage begins) a round trip that did not read back is
+//   TEST_RESULT: N/A instead, naming the lock and printing that reading -
+//   rerun on an unlocked console - while every injected-accessor arm and
+//   the scan below still run and decide. The judging stage Notes the
+//   CONSOLE_LOCK row it read either way;
 // - last, a Test::DiscriminatingScan over the appended lines: the injected
 //   foreign text is in none of them, with the foreign arm's own three
 //   attempt rows as the control the same walk must match.
