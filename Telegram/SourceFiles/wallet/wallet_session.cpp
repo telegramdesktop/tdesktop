@@ -248,7 +248,7 @@ constexpr auto kMaxHiddenPagesInRow = 20;
 constexpr auto kForcedCollectiblesInterval = 10 * crl::time(1000);
 constexpr auto kCollectibleTransferAttachedNanos = int64(50'000'000);
 constexpr auto kCollectibleTransferForwardNanos = int64(1);
-constexpr auto kLeavingCollectibleRefreshes = 6;
+constexpr auto kCollectibleFollowUpRefreshes = 6;
 // The largest limit wallet.getNfts accepts.
 constexpr auto kCollectiblesPerPage = 20;
 constexpr auto kStreamResyncInterval = 30 * crl::time(1000);
@@ -452,6 +452,29 @@ struct MergedHead {
 	for (auto &item : page) {
 		if (item.id.isEmpty() || !held.contains(item.id)) {
 			result.push_back(std::move(item));
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] std::vector<TransferItem> ArrivedCollectibles(
+		const std::vector<TransferItem> &was,
+		const std::vector<TransferItem> &head) {
+	auto result = std::vector<TransferItem>();
+	auto seen = base::flat_set<QString>();
+	for (const auto &item : head) {
+		if (item.kind != TransferItem::Kind::Collectible
+			|| item.collectible.isEmpty()
+			|| item.status == TransferItem::Status::Failure
+			|| seen.contains(item.collectible)) {
+			continue;
+		}
+		seen.emplace(item.collectible);
+		const auto held = item.id.isEmpty()
+			? ranges::contains(was, item)
+			: ranges::contains(was, item.id, &TransferItem::id);
+		if (!held) {
+			result.push_back(item);
 		}
 	}
 	return result;
@@ -3085,6 +3108,7 @@ void Session::applyState(const MTPWalletState &state, bool pushed) {
 		// marker.
 		if (wasReady && addressChanged) {
 			refreshHistory();
+			refreshCollectibles();
 		} else if (wasReady && (pushed || keyChanged)) {
 			_historyStale = true;
 			refreshStaleHistory();
@@ -3204,6 +3228,9 @@ void Session::setPresence(Presence presence) {
 	}
 	if (presence == Presence::Ready) {
 		refreshHistory();
+		if (current()) {
+			refreshCollectibles();
+		}
 	}
 	if (current()) {
 		_transferWalletIdentityChanges.fire({});
@@ -7516,6 +7543,7 @@ void Session::applyTransactions(
 		_historyNextOffset = QString();
 		_historyHasNext = false;
 	}
+	const auto opened = (_historyRefreshedAt != 0);
 	_historyRefreshedAt = crl::now();
 	_historyUnreachable = false;
 	// checkLoadMore() pages only the transactions tab, but the answer is a
@@ -7535,6 +7563,7 @@ void Session::applyTransactions(
 	if (shown) {
 		_historyHiddenPages = 0;
 	}
+	auto arrived = std::vector<TransferItem>();
 	if (more) {
 		auto fresh = UnheldHistory(_history, std::move(loaded));
 		if (!fresh.empty()) {
@@ -7548,6 +7577,12 @@ void Session::applyTransactions(
 	} else {
 		const auto served = int(loaded.size());
 		const auto full = (served == kTransactionsPerPage);
+		// WHY: the list asked for when a wallet opens covers its first page,
+		// and a row the history already held was followed when it arrived,
+		// so only a row this history never held asks for the list again.
+		if (opened) {
+			arrived = ArrivedCollectibles(_history, loaded);
+		}
 		auto merged = MergedHeadHistory(_history, std::move(loaded));
 		if ((merged.retained > 0)
 			&& full
@@ -7581,6 +7616,9 @@ void Session::applyTransactions(
 		updateListsGate();
 		if (weak && historyRequestCurrent(request)) {
 			continueHiddenHistory(shown);
+		}
+		if (weak && historyRequestCurrent(request)) {
+			followCollectibles(arrived);
 		}
 		if (weak && historyRequestCurrent(request)) {
 			updatePollingState();
@@ -7643,9 +7681,10 @@ void Session::clearCollectibles() {
 		_stateApi.request(request->id).cancel();
 	}
 	_collectibles.clear();
-	_leavingCollectibles.clear();
+	_collectibleFollowUps.clear();
 	_collectiblesRefreshedAt = 0;
 	_collectiblesCompletedAt = 0;
+	_collectiblesForced = false;
 	_collectiblesHasMore = false;
 	_collectiblesNextOffset = QString();
 	_collectiblesPaged = false;
@@ -7720,16 +7759,23 @@ void Session::resetHiddenHistoryPages() {
 
 void Session::refreshCollectibles(bool force) {
 	ensureLoaded();
-	const auto interval = force
+	if (_presence.current() != Presence::Ready) {
+		return;
+	}
+	// A forced ask refused below is owed until a head request goes out.
+	_collectiblesForced = _collectiblesForced || force;
+	const auto forced = _collectiblesForced
+		|| !_collectibleFollowUps.empty();
+	const auto interval = forced
 		? kForcedCollectiblesInterval
 		: kCollectiblesPollInterval;
-	if (_presence.current() != Presence::Ready
-		|| _collectiblesRequest
+	if (_collectiblesRequest
 		|| _collectiblesPaged
 		|| (_collectiblesRefreshedAt
 			&& (crl::now() - _collectiblesRefreshedAt < interval))) {
 		return;
 	}
+	_collectiblesForced = false;
 	_collectiblesRefreshedAt = crl::now();
 	requestCollectibles(false);
 }
@@ -7790,6 +7836,9 @@ void Session::requestCollectibles(bool more) {
 			LOG(("Wallet Error: wallet.getNfts failed: %1, "
 				"keeping last-good collectibles."
 				).arg(error.type()));
+			if (!request->more) {
+				spendCollectibleFollowUps(nullptr);
+			}
 		}
 	}).handleAllErrors().send();
 }
@@ -7821,18 +7870,7 @@ void Session::applyCollectibles(
 			std::make_move_iterator(end(fresh)));
 	} else {
 		list = std::move(loaded);
-		auto &leaving = _leavingCollectibles;
-		for (auto i = begin(leaving); i != end(leaving);) {
-			const auto listed = ranges::contains(
-				list,
-				i->first,
-				&Gram::NftItem::address);
-			if (listed && (--i->second > 0)) {
-				++i;
-			} else {
-				i = leaving.erase(i);
-			}
-		}
+		spendCollectibleFollowUps(&list);
 	}
 	if (!SameCollectibles(_collectibles, list)) {
 		setCollectibles(std::move(list));
@@ -7855,6 +7893,57 @@ void Session::rememberCollectibles(const std::vector<TransferItem> &items) {
 	for (const auto &item : items) {
 		if (const auto &record = item.collectibleRecord) {
 			_collectibleInfo.emplace(record->address, *record);
+		}
+	}
+}
+
+void Session::followCollectibles(const std::vector<TransferItem> &arrived) {
+	auto followed = false;
+	for (const auto &row : arrived) {
+		auto sent = false;
+		if (!row.incoming) {
+			for (auto &entry : _submitted) {
+				if (entry.collectible != row.collectible
+					|| entry.generation != _networkGeneration
+					|| !transferWalletIdentityCurrent(entry.identity)
+					|| (!entry.canonicalId.isEmpty()
+						&& entry.canonicalId != row.id)) {
+					continue;
+				}
+				sent = sent || entry.leaving;
+				entry.leaving = true;
+			}
+		}
+		// This client's own send already armed that transfer's follow-up.
+		if (!sent) {
+			followCollectible(row.collectible, row.incoming);
+			followed = true;
+		}
+	}
+	if (followed) {
+		refreshCollectibles(true);
+	}
+}
+
+void Session::followCollectible(const QString &address, bool incoming) {
+	auto &followUp = _collectibleFollowUps[address];
+	if (!followUp.left) {
+		followUp.left = kCollectibleFollowUpRefreshes;
+	}
+	followUp.incoming = incoming;
+}
+
+void Session::spendCollectibleFollowUps(
+		const std::vector<Gram::NftItem> *list) {
+	auto &followUps = _collectibleFollowUps;
+	for (auto i = begin(followUps); i != end(followUps);) {
+		const auto listed = list
+			&& ranges::contains(*list, i->first, &Gram::NftItem::address);
+		const auto reflected = list && (listed == i->second.incoming);
+		if (!reflected && (--i->second.left > 0)) {
+			++i;
+		} else {
+			i = followUps.erase(i);
 		}
 	}
 }
@@ -8035,7 +8124,7 @@ void Session::pollTick() {
 		resetHiddenHistoryPages();
 		loadMoreHistory();
 	}
-	refreshCollectibles(!_leavingCollectibles.empty());
+	refreshCollectibles();
 	if ((_pending
 			|| _sendUnresolved
 			|| sendRecoveryNeeded()
@@ -10520,8 +10609,7 @@ void Session::dropSubmittedIfListed() {
 					&& (entry.item->status
 						== TransferItem::Status::Success)))) {
 			entry.leaving = true;
-			_leavingCollectibles[entry.collectible]
-				= kLeavingCollectibleRefreshes;
+			followCollectible(entry.collectible, false);
 			leaving = true;
 		}
 		if (entry.canonicalId.isEmpty() && !entry.confirmedHash.isEmpty()) {

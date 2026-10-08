@@ -1057,6 +1057,9 @@ private:
 		const CollectiblesRequest &request);
 	void setCollectibles(std::vector<Gram::NftItem> &&list);
 	void rememberCollectibles(const std::vector<TransferItem> &items);
+	void followCollectibles(const std::vector<TransferItem> &arrived);
+	void followCollectible(const QString &address, bool incoming);
+	void spendCollectibleFollowUps(const std::vector<Gram::NftItem> *list);
 	struct PreviewRequest;
 	struct PreviewState;
 	[[nodiscard]] bool previewCurrent(const PreviewRequest &request) const;
@@ -1268,11 +1271,16 @@ private:
 	bool _collectiblesHasMore = false;
 	QString _collectiblesNextOffset;
 	bool _collectiblesPaged = false;
+	bool _collectiblesForced = false;
 	base::flat_map<QString, Gram::NftItem> _collectibleInfo;
 	base::flat_map<
 		QString,
 		std::vector<Fn<void(const Gram::NftItem &)>>> _collectibleInfoWaiters;
-	base::flat_map<QString, int> _leavingCollectibles;
+	struct CollectibleFollowUp {
+		bool incoming = false;
+		int left = 0;
+	};
+	base::flat_map<QString, CollectibleFollowUp> _collectibleFollowUps;
 
 	rpl::variable<bool> _listsGated = true;
 	rpl::event_stream<> _listsStateUpdates;
