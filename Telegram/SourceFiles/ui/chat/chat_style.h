@@ -415,7 +415,8 @@ public:
 		bool selected,
 		uint8 colorIndex) const;
 	[[nodiscard]] QColor collectibleNameColor(
-		const std::shared_ptr<ColorCollectible> &collectible) const;
+		const std::shared_ptr<ColorCollectible> &collectible,
+		bool selected) const;
 	[[nodiscard]] not_null<Text::QuotePaintCache*> coloredQuoteCache(
 		bool selected,
 		uint8 colorIndex) const;
@@ -566,6 +567,7 @@ private:
 		std::unique_ptr<Text::QuotePaintCache> replySelected;
 		ColoredPalette palette;
 		ColoredPalette paletteSelected;
+		QColor nameSelected;
 	};
 
 	void assignPalette(not_null<const style::palette*> palette);
@@ -578,7 +580,8 @@ private:
 		uint8 colorIndex) const;
 	[[nodiscard]] not_null<Text::QuotePaintCache*> collectibleCache(
 		std::unique_ptr<Text::QuotePaintCache> &cache,
-		const std::shared_ptr<ColorCollectible> &collectible) const;
+		const std::shared_ptr<ColorCollectible> &collectible,
+		bool selected) const;
 	[[nodiscard]] CollectibleColors &resolveCollectibleCaches(
 		const std::shared_ptr<ColorCollectible> &collectible) const;
 

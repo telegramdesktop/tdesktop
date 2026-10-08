@@ -200,9 +200,12 @@ CloudTheme CloudTheme::Parse(
 	};
 	const auto outgoingAccentColor = [&](const MTPThemeSettings &settings) {
 		const auto &data = settings.data();
-		return Ui::MaybeColorFromSerialized(
-			data.voutbox_accent_color()
-		);// .value_or(gift->unique->backdrop.patternColor);
+		const auto result = Ui::MaybeColorFromSerialized(
+			data.voutbox_accent_color());
+		return (result || basedOnDark(settings) || data.vmessage_colors())
+			? result
+			: std::make_optional(Ui::ColorFromSerialized(
+				data.vaccent_color()));
 	};
 	const auto settings = [&] {
 		auto result = base::flat_map<Type, Settings>();

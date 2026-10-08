@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 
 #include "ui/chat/chat_theme.h"
+#include "ui/chat/chat_theme_readability.h"
 #include "ui/image/image_prepare.h" // ImageRoundRadius
 #include "ui/text/text_custom_emoji.h"
 #include "ui/color_contrast.h"
@@ -694,6 +695,7 @@ void ChatStyle::clearColorIndexCaches() {
 	for (auto &cache : _coloredQuoteCaches) {
 		cache = nullptr;
 	}
+	_collectibleCaches.clear();
 }
 
 void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
@@ -891,7 +893,12 @@ ColorIndexValues ChatStyle::computeColorIndexValues(
 	};
 	result.bg = result.outlines[0];
 	result.bg.setAlpha(kDefaultBgOpacity * 255);
-	result.name = result.outlines[0];
+	result.name = selected
+		? EnsurePeerNameReadable(
+			result.outlines[0],
+			msgInBgSelected()->c,
+			_dark)
+		: result.outlines[0];
 	return result;
 }
 
@@ -929,10 +936,22 @@ const ColorIndexValues &ChatStyle::coloredValues(
 }
 
 QColor ChatStyle::collectibleNameColor(
-		const std::shared_ptr<ColorCollectible> &collectible) const {
-	return (_dark && collectible->darkAccentColor.alpha() > 0)
+		const std::shared_ptr<ColorCollectible> &collectible,
+		bool selected) const {
+	const auto result = (_dark && collectible->darkAccentColor.alpha() > 0)
 		? collectible->darkAccentColor
 		: collectible->accentColor;
+	if (!selected) {
+		return result;
+	}
+	auto &entry = resolveCollectibleCaches(collectible);
+	if (!entry.nameSelected.isValid()) {
+		entry.nameSelected = EnsurePeerNameReadable(
+			result,
+			msgInBgSelected()->c,
+			_dark);
+	}
+	return entry.nameSelected;
 }
 
 const style::TextPalette &ChatStyle::coloredTextPalette(
@@ -961,7 +980,7 @@ const style::TextPalette &ChatStyle::collectibleTextPalette(
 	auto &entry = resolveCollectibleCaches(collectible);
 	auto &result = selected ? entry.paletteSelected : entry.palette;
 	if (!result.linkFg) {
-		result.linkFg.emplace(collectibleNameColor(collectible));
+		result.linkFg.emplace(collectibleNameColor(collectible, selected));
 		make(
 			result.data,
 			(selected
@@ -998,7 +1017,8 @@ not_null<Text::QuotePaintCache*> ChatStyle::collectibleQuoteCache(
 	auto &entry = resolveCollectibleCaches(collectible);
 	return collectibleCache(
 		selected ? entry.quoteSelected : entry.quote,
-		collectible);
+		collectible,
+		selected);
 }
 
 not_null<Text::QuotePaintCache*> ChatStyle::collectibleReplyCache(
@@ -1007,7 +1027,8 @@ not_null<Text::QuotePaintCache*> ChatStyle::collectibleReplyCache(
 	auto &entry = resolveCollectibleCaches(collectible);
 	return collectibleCache(
 		selected ? entry.replySelected : entry.reply,
-		collectible);
+		collectible,
+		selected);
 }
 
 not_null<Text::QuotePaintCache*> ChatStyle::coloredCache(
@@ -1026,9 +1047,10 @@ not_null<Text::QuotePaintCache*> ChatStyle::coloredCache(
 
 not_null<Text::QuotePaintCache*> ChatStyle::collectibleCache(
 		std::unique_ptr<Text::QuotePaintCache> &cache,
-		const std::shared_ptr<ColorCollectible> &collectible) const {
+		const std::shared_ptr<ColorCollectible> &collectible,
+		bool selected) const {
 	EnsureBlockquoteCache(cache, [&] {
-		const auto name = collectibleNameColor(collectible);
+		const auto name = collectibleNameColor(collectible, selected);
 		auto bg = name;
 		bg.setAlpha(kDefaultBgOpacity * 255);
 
@@ -1481,9 +1503,7 @@ QColor FromNameFg(
 		const std::shared_ptr<Ui::ColorCollectible> &colorCollectible) {
 	return !colorCollectible
 		? st->coloredValues(selected, colorIndex).name
-		: (st->dark() && (colorCollectible->darkAccentColor.alpha() > 0))
-		? colorCollectible->darkAccentColor
-		: colorCollectible->accentColor;
+		: st->collectibleNameColor(colorCollectible, selected);
 }
 
 void FillComplexOverlayRect(
