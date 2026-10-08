@@ -56,11 +56,12 @@ void SelfTestBoxContent(not_null<Ui::GenericBox*> box, bool noContentMargin) {
 	if (noContentMargin) {
 		// The whole difference between the two legs of this self-test.
 		// Ui::BoxContent's constructor set Qt::WA_OpaquePaintEvent, and this
-		// clears it again (ui/layers/box_content.h:224-230), which is the
-		// only shape the blank-root refusal fires for. Without it the refusal
-		// the second stage quotes is not in force at all, and the plain leg
-		// exists precisely so the log says which boxes are refused and which
-		// are not, instead of leaving a reader to assume every box is.
+		// clears it again (Ui::BoxContent::setNoContentMargin in
+		// ui/layers/box_content.h), which is the only shape the blank-root
+		// refusal fires for. Without it the refusal the second stage quotes
+		// is not in force at all, and the plain leg exists precisely so the
+		// log says which boxes are refused and which are not, instead of
+		// leaving a reader to assume every box is.
 		box->setNoContentMargin(true);
 	}
 	box->setWidth(st::boxWidth);
@@ -100,13 +101,13 @@ void SelfTestBoxContent(not_null<Ui::GenericBox*> box, bool noContentMargin) {
 	}
 	// anim::type::instant is why this fixture needs no animation wait at all:
 	// LayerStackWidget::prepareAnimation takes its instant branch
-	// (ui/layers/layer_widget.cpp:669-673), which reaches
-	// BackgroundWidget::skipAnimation (:151-157) -> checkIfDone (:159-169) ->
-	// LayerStackWidget::animationDone (:756-773), and that is where
-	// layer->show() runs. The normal path instead hides the layer for the
-	// whole animation in prepareForAnimation() (:732-754), which is why the
-	// scenario that paid for this resolver had to gate on box->isVisible()
-	// and wait for a new layer generation before it could capture anything.
+	// (ui/layers/layer_widget.cpp), which reaches
+	// BackgroundWidget::skipAnimation -> checkIfDone ->
+	// LayerStackWidget::animationDone, and that is where layer->show() runs.
+	// The normal path instead hides the layer for the whole animation in
+	// prepareForAnimation(), which is why the scenario that paid for this
+	// resolver had to gate on box->isVisible() and wait for a new layer
+	// generation before it could capture anything.
 	fixture.box = window->show(
 		Box(SelfTestBoxContent, noContentMargin),
 		Ui::LayerOption::CloseOther,

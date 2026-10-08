@@ -51,10 +51,10 @@ struct Fixture {
 		int actions) {
 	auto result = base::make_unique_q<Ui::PopupMenu>(parent.get());
 	// The fixture owns the lifetime, not the popup. _deleteOnHide defaults
-	// to true (ui/widgets/popup_menu.h:260) and hideEvent() then
-	// deleteLater()s the menu (popup_menu.cpp:623-631) - and this self-test
-	// hides its menu on purpose between the two capture legs, so leaving
-	// that on would race the base::unique_qptr holding it.
+	// to true (ui/widgets/popup_menu.h) and hideEvent() then deleteLater()s
+	// the menu (popup_menu.cpp) - and this self-test hides its menu on
+	// purpose between the two capture legs, so leaving that on would race
+	// the base::unique_qptr holding it.
 	result->deleteOnHide(false);
 	for (auto i = 0; i != actions; ++i) {
 		result->addAction(u"Harness %1"_q.arg(i + 1), [] {});
@@ -71,8 +71,8 @@ struct Fixture {
 	fixture.menu = MakeMenu(parent, kSelfTestActions);
 	// Never opened, and never opened by accident either: popup() on a menu
 	// with no actions takes its else branch and hides and deleteLater()s it
-	// (popup_menu.cpp:945-958). It exists only so the refusal stage can read
-	// an empty one and show that carrying no actions is refused on its own.
+	// (popup_menu.cpp). It exists only so the refusal stage can read an
+	// empty one and show that carrying no actions is refused on its own.
 	fixture.empty = MakeMenu(parent, 0);
 	fixture.stray = base::make_unique_q<Ui::RpWidget>(parent);
 	fixture.at = parent->mapToGlobal(parent->rect().center());
@@ -482,7 +482,7 @@ PopupMenuReading ReadPopupMenu(QWidget *widget) {
 	result.width = menu->width();
 	result.height = menu->height();
 	// Read on the popup itself, which forwards to the inner menu
-	// (ui/widgets/popup_menu.h:87, popup_menu.cpp:333-335).
+	// (PopupMenu::actions in ui/widgets/popup_menu.h and popup_menu.cpp).
 	result.actions = int(menu->actions().size());
 	return result;
 }
@@ -702,10 +702,10 @@ void AppendPopupMenuCaptureSelfTest(not_null<Runner*> runner) {
 				return;
 			}
 			// hideMenu(true) reaches hideFast() -> hideFinished() -> hide()
-			// with no opacity animation to wait out (popup_menu.cpp:683-701,
-			// 764-779), so the next leg starts from a menu that is provably
-			// closed and really exercises CapturePopupMenu's opener branch
-			// instead of accepting one that never closed.
+			// with no opacity animation to wait out (popup_menu.cpp), so the
+			// next leg starts from a menu that is provably closed and really
+			// exercises CapturePopupMenu's opener branch instead of
+			// accepting one that never closed.
 			if (const auto menu = state->fixture.menu.get()) {
 				menu->hideMenu(true);
 			}

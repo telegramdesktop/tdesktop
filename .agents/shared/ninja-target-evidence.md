@@ -139,7 +139,7 @@ An absence claim needs a known-present control in the same run: any
 
 `--option-macro OPTION=MACRO` reads a BOOL cache entry (ON -> defined, OFF ->
 undefined) and checks the named macro. The pair is written explicitly because
-spellings differ: `Telegram/cmake/telegram_options.cmake:40-42` maps
+spellings differ: `Telegram/cmake/telegram_options.cmake` maps
 `DESKTOP_APP_DISABLE_AUTOUPDATE` to `TDESKTOP_DISABLE_AUTOUPDATE`, and
 `DESKTOP_APP_SPECIAL_TARGET` (a STRING, so usable only as an
 `--expect-defined TDESKTOP_ALLOW_CLOSED_ALPHA` control) likewise. On an OFF

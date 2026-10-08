@@ -103,16 +103,17 @@ void PaintTwoTone(not_null<Ui::RpWidget*> widget) {
 	if (!instance) {
 		return false;
 	}
-	// The toast Widget is parented to the same |top| (ui/toast/toast.cpp:
-	// 36-39), so it and the backdrop are siblings sharing one origin and
-	// geometry() maps between them with no conversion at all.
+	// The toast Widget is parented to the same |top|
+	// (Ui::Toast::Instance::Instance in ui/toast/toast.cpp), so it and the
+	// backdrop are siblings sharing one origin and geometry() maps between
+	// them with no conversion at all.
 	const auto widget = instance->widget().get();
 	fixture.toastWidget = widget;
 	backdrop->setGeometry(widget->geometry());
 
 	// The flat half sits at the window's own top-left corner, where a toast
 	// attached to nothing never reaches: it is centred in its parent
-	// (ui/toast/toast_widget.cpp:474-485).
+	// (Widget::updateGeometry in ui/toast/toast_widget.cpp).
 	const auto side = st::defaultActiveButton.height * kFlatBands;
 	fixture.flat = base::make_unique_q<Ui::RpWidget>(top);
 	const auto flat = fixture.flat.get();
@@ -134,19 +135,19 @@ void PaintTwoTone(not_null<Ui::RpWidget*> widget) {
 
 // Qt::WA_DontShowOnScreen is what makes a second top level safe here.
 // QWidgetPrivate::show_sys() takes an early return for it
-// (qwidget.cpp:7886-7903): it marks the widget mapped and never calls
+// (qwidget.cpp): it marks the widget mapped and never calls
 // window->setVisible(true), so the QWidgetWindow QWidgetPrivate::create()
 // made is never shown and can take neither activation nor focus from the
-// primary window. Test::ResolveActivationWindow (test_widgets.cpp:89-102)
+// primary window. Test::ResolveActivationWindow (test_widgets.cpp)
 // only ever selects a top level whose QWindow::isVisible() is true, so it
 // cannot select this one either. QWidget::show() still sets
 // WA_WState_Visible on the widget and on its children, which is all
 // ReadViaWindow's visibility gate asks for, and the reading takes no grab.
 // Qt::WA_QuitOnClose is cleared because ~QWidget still runs
 // close_helper(CloseNoEvent) for a created, visible top level
-// (qwidget.cpp:1468-1470), and that path can reach
+// (qwidget.cpp), and that path can reach
 // QGuiApplicationPrivate::emitLastWindowClosed() and maybeQuit()
-// (qwidget.cpp:8316-8326); the primary window keeps that branch false
+// (qwidget.cpp); the primary window keeps that branch false
 // today, but a fixture must not depend on a neighbour to avoid quitting
 // the run.
 [[nodiscard]] base::unique_qptr<Ui::RpWidget> BuildOffscreenWindow(
@@ -408,7 +409,7 @@ void AppendCaptureViaWindowSelfTest(not_null<Runner*> runner) {
 			// pair alone could not see that. It is taken through
 			// ReadWindowActivation, which is pure and does not move
 			// ActivationAttempts() - only ForceWindowActive does
-			// (test_widgets.cpp:385-401) - and the window activation
+			// (test_widgets.cpp) - and the window activation
 			// self-test asserts deltas of that counter, so this stage must
 			// never call ForceWindowActive or ClearWindowActive.
 			state->activationBefore = ReadWindowActivation();
@@ -526,7 +527,7 @@ void AppendCaptureViaWindowSelfTest(not_null<Runner*> runner) {
 			// ever take it down, and the three fixture widgets are parented
 			// into the primary window. Instance::hide() is the product's own
 			// immediate path - _widget->hide(); _widget->deleteLater();
-			// (ui/toast/toast.cpp:116-119) - rather than hideAnimated(),
+			// (ui/toast/toast.cpp) - rather than hideAnimated(),
 			// whose fade-out animation the harness's drained loop starves.
 			if (const auto instance = state->fixture.toast.get()) {
 				instance->hide();

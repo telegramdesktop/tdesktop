@@ -34,8 +34,9 @@ namespace Test {
 // QWindowsClipboard::setMimeData), except that Qt reads the active console
 // session (WTSGetActiveConsoleSessionId), which the row prints beside this
 // process's own. It is not Core::App().screenIsLocked(): only
-// WM_WTSSESSION_CHANGE sets that (platform/win/integration_win.cpp:208-216),
-// so a launch on a console that is already locked reads false there.
+// WM_WTSSESSION_CHANGE sets that (WindowsIntegration::processEvent in
+// platform/win/integration_win.cpp), so a launch on a console that is
+// already locked reads false there.
 //
 // The interpretation. WTS_SESSIONSTATE_LOCK reads locked and
 // WTS_SESSIONSTATE_UNLOCK reads unlocked. Any other value, a failed call, an

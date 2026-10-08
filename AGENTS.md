@@ -308,6 +308,8 @@ A comment is one line; two or three only when the block opens with `// WHY:`. A 
 
 Do not remove existing comments just to satisfy this rule. Preserve comments unless your change makes them incorrect or truly obsolete; when moving or refactoring code, move the useful comment with it. Inline comments that label positional arguments for generated or schema-driven APIs (for example TL/MTP constructors) are useful because the field names are not visible in the call itself.
 
+**Never cite line numbers** in comments, `README.md` files or other checked-in text. Name the function, member, constant or type, and its file when that helps: write `Runner::finish()` in `test_runner.cpp`, not `test_runner.cpp:NNN` or `:NNN-MMM`. Line numbers drift with every edit and nothing updates them. This covers submodule, Qt and other third-party sources too. Quoted log or crash text stays verbatim.
+
 ```cpp
 // BAD - don't do this:
 // Get the user's name

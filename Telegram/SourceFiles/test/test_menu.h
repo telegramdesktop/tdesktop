@@ -19,18 +19,18 @@ namespace Test {
 
 // A Ui::PopupMenu cannot be waited on through the visibility of the
 // Ui::Menu it wraps. PopupMenu::startShowAnimation() ends with
-// hideChildren() (ui/widgets/popup_menu.cpp:842-868, the call at :865), and
-// the only path that shows them again during a normal open is the
-// Ui::PostponeCall the final paintEvent queues once the show animation has
-// drawn its last frame (:369-377). showAnimationCallback() merely calls
-// update() (:896-898), and the other two showChildren() calls sit inside
-// prepareCache()'s grab-and-restore (:789) and the opacity path that
-// re-shows a menu after a hide (:890). So the inner menu is hidden for the
-// whole show animation and comes back only from a side effect no -testagent
-// run is guaranteed to reach. A readiness over menu()->isVisible() then
-// waits until focusOutEvent -> hideMenu() -> hideEvent() -> deleteLater()
-// takes the popup away underneath it (:617-631), which is how runs 4 and 5
-// of 2026/08/28/complete-server-history-details-hash-and-paging ended.
+// hideChildren() (ui/widgets/popup_menu.cpp), and the only path that shows
+// them again during a normal open is the Ui::PostponeCall the final
+// paintEvent queues once the show animation has drawn its last frame.
+// showAnimationCallback() merely calls update(), and the other two
+// showChildren() calls sit inside prepareCache()'s grab-and-restore and the
+// opacity path that re-shows a menu after a hide
+// (opacityAnimationCallback()). So the inner menu is hidden for the whole
+// show animation and comes back only from a side effect no -testagent run
+// is guaranteed to reach. A readiness over menu()->isVisible() then waits
+// until focusOutEvent -> hideMenu() -> hideEvent() -> deleteLater() takes
+// the popup away underneath it, which is how runs 4 and 5 of
+// 2026/08/28/complete-server-history-details-hash-and-paging ended.
 //
 // The opposite mistake costs a run just as surely: a one-shot grab taken in
 // the turn that called popup() lands on a show-animation frame with almost
@@ -45,18 +45,18 @@ namespace Test {
 //
 // Two more facts a caller gets wrong otherwise. Test::PaintingLayerRoot()
 // must not be used on a popup: PopupMenu::init() sets
-// Qt::WA_NoSystemBackground (:126), so the harness's blank-root refusal
-// never applies to it, and the popup is its own top-level window
+// Qt::WA_NoSystemBackground, so the harness's blank-root refusal never
+// applies to it, and the popup is its own top-level window
 // (Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::Popup |
-// Qt::NoDropShadowWindowHint, :118-121), so that walk refuses on its first
-// hop. And the hidden-children premise above is platform-dependent rather
-// than universal: init() takes _useTransparency from
-// Platform::TranslucentWindowsSupported() (:128) and startShowAnimation()
-// returns before hideChildren() when it is false. useTransparency() is
-// public for exactly that reason, every reading below reports it, and the
-// self-test asserts it as a named fixture gate instead of passing vacuously
-// on a host without translucent windows - on Windows it is an inline
-// return true (ui/platform/win/ui_utility_win.h:19-21).
+// Qt::NoDropShadowWindowHint), so that walk refuses on its first hop. And
+// the hidden-children premise above is platform-dependent rather than
+// universal: init() takes _useTransparency from
+// Platform::TranslucentWindowsSupported() and startShowAnimation() returns
+// before hideChildren() when it is false. useTransparency() is public for
+// exactly that reason, every reading below reports it, and the self-test
+// asserts it as a named fixture gate instead of passing vacuously on a host
+// without translucent windows - on Windows it is an inline return true
+// (ui/platform/win/ui_utility_win.h).
 //
 // This is its own module rather than part of test_capture.h because
 // CapturePopupMenu appends Runner stages, and test_runner.cpp already
@@ -97,8 +97,8 @@ struct PopupMenuReading {
 // Captures an open Ui::PopupMenu, or one that |open| opens. |open| runs in
 // its own stage, and only when the resolver does not already answer a ready
 // menu; the helper never calls popup() itself, because popup() on an empty
-// menu hides and deleteLater()s it (popup_menu.cpp:945-958) and only the
-// caller knows the position and the way the product opens its menu.
+// menu hides and deleteLater()s it (popup_menu.cpp) and only the caller
+// knows the position and the way the product opens its menu.
 // |skipReason|, when given, becomes the Stage::skipReason of both stages
 // this appends - the opener and the capture - read when each begins; left
 // empty the helper behaves exactly as before. A campaign gates a
@@ -232,10 +232,10 @@ void AppendPopupMenuCaptureSelfTest(not_null<Runner*> runner);
 // widget; on its own it says nothing about the product.
 //
 // Trigger. Every Ui::Menu entry a user activates ends in QAction::trigger()
-// (PopupMenu::handleTriggered, ui/widgets/popup_menu.cpp:494-510), and
+// (PopupMenu::handleTriggered, ui/widgets/popup_menu.cpp), and
 // Ui::Menu::CreateAction connects QAction::triggered with
 // Qt::QueuedConnection and the action itself as the context
-// (ui/widgets/menu/menu_common.cpp:13-25), so an entry's callback is a
+// (ui/widgets/menu/menu_common.cpp), so an entry's callback is a
 // QMetaCallEvent posted to its action. TriggerContextMenuAction finds the
 // one non-separator entry whose text equals |text| exactly on the
 // still-live menu and, inside Test::Settle, calls trigger() and then

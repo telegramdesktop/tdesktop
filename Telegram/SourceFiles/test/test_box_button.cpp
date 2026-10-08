@@ -51,7 +51,7 @@ struct Fixture {
 };
 
 // Ui::BoxLayerWidget::addButton is the only thing that parents a footer
-// button directly to the shell (ui/layers/box_layer_widget.cpp:327-331), and
+// button directly to the shell (ui/layers/box_layer_widget.cpp), and
 // the box content sits under that same root, so an unrestricted walk would
 // answer content buttons too. Filtering on the parent is what makes the
 // answer exactly "the shell's own button row" - the close Ui::IconButton an
@@ -256,10 +256,10 @@ bool ClickBoxButton(QWidget *box, const QString &label) {
 	// call sites under Telegram/SourceFiles are a plain closeBox() lambda -
 	// and that path is synchronous inside Test::Click:
 	// AbstractButton::setDown(false) calls clicked()
-	// (abstract_button.cpp:190-191), clicked() runs _clickedCallback()
-	// (:122-131), and the callback reaches LayerStackWidget::clearLayers(),
-	// whose clearClosingLayers() erases the Ui::BoxLayerWidget out of its
-	// unique_ptr vector (layer_widget.cpp:944-977) and deletes the shell
+	// (abstract_button.cpp), clicked() runs _clickedCallback(), and the
+	// callback reaches LayerStackWidget::clearLayers(), whose
+	// clearClosingLayers() erases the Ui::BoxLayerWidget out of its
+	// unique_ptr vector (layer_widget.cpp) and deletes the shell
 	// with every button on it. A WidgetDescription taken after the click
 	// would read freed memory. The reading now reports that destruction
 	// itself: BoxShellButtons::match is a QPointer<QWidget>, so survived= is
@@ -826,8 +826,8 @@ void AppendBoxButtonClickSelfTest(not_null<Runner*> runner) {
 			// inside this same turn: closeBox() reaches
 			// LayerStackWidget::prepareAnimation, which calls
 			// clearOldWidgets() synchronously on both of its branches
-			// (layer_widget.cpp:663-671), and _closingLayers holds
-			// std::unique_ptrs (layer_widget.h:296), so the erase is a
+			// (layer_widget.cpp), and _closingLayers holds
+			// std::unique_ptrs (layer_widget.h), so the erase is a
 			// plain delete - the same fact boxAliveRightAfter=0 below
 			// already measures through a base::weak_qptr. ReadBoxButtons
 			// logs nothing, so taking it ahead of the FailureCount()
