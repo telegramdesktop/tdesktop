@@ -1379,11 +1379,12 @@ void ResolveGiveawayInfo(
 
 QString TonAddressUrl(
 		not_null<Main::Session*> session,
-		const QString &address) {
+		const QString &address,
+		bool nft) {
 	const auto prefix = session->appConfig().get<QString>(
 		u"ton_blockchain_explorer_url"_q,
-		u"https://tonviewer.com/"_q);
-	return prefix + address;
+		u"https://tonscan.org/"_q);
+	return prefix + (nft ? u"nft/"_q : QString()) + address;
 }
 
 struct AddedUniqueDetails {
