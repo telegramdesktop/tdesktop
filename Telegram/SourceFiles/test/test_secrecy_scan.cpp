@@ -19,6 +19,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QTemporaryDir>
 
+#include <cmath>
+#include <limits>
+
 namespace Test {
 namespace {
 
@@ -1428,6 +1431,14 @@ const auto kSelfBannerRule = QString(64, QChar('-'));
 const auto kSelfComputedHead = u"Selftest Info: computed state"_q;
 const auto kSelfComputedField = u"digest"_q;
 const auto kSelfOtherValue = u"OTHER_VALUE_MARKER"_q;
+constexpr auto kSelfTelemetryValue = -4821.75;
+constexpr auto kSelfTelemetryDecimals = 2;
+const auto kSelfTelemetryHead = u"NOTE: Selftest telemetry"_q;
+// The digit runs of kSelfTelemetryValue's ordinary decimal.
+const auto kSelfTelemetrySecrets = std::vector<QString>{
+	u"4821"_q,
+	u"75"_q,
+};
 
 [[nodiscard]] std::vector<QString> SelfPhraseA() {
 	return {
@@ -2553,6 +2564,239 @@ void SelfPrintsNothing(const std::shared_ptr<SelfState> &state) {
 			.arg(fileLeaks.join(u", "_q)));
 }
 
+// One TelemetryNumber case: the input and the exact text it must print.
+struct TelemetryCase {
+	double value = 0.;
+	int decimals = 0;
+	QString expected;
+};
+
+// One table for the exact-output and the digit-run checks: zeros of both
+// signs, integers up to 2^53 - 1, negatives, fractions with a carry, a
+// negative value that rounds to zero, many places, a negative |decimals|
+// and the non-finite values. No case sits on an exact rounding half.
+[[nodiscard]] std::vector<TelemetryCase> TelemetryCases() {
+	const auto notANumber = std::numeric_limits<double>::quiet_NaN();
+	const auto infinity = std::numeric_limits<double>::infinity();
+	return {
+		{ 0., 0, u"0p"_q },
+		{ -0., 0, u"0p"_q },
+		{ 7., 0, u"7p"_q },
+		{ 2147483647., 0, u"2147483647p"_q },
+		{ 9007199254740991., 0, u"9007199254740991p"_q },
+		{ -1., 0, u"-1p"_q },
+		{ -320., 0, u"-320p"_q },
+		{ 0.5, 1, u"0p5"_q },
+		{ 1.25, 2, u"1p25"_q },
+		{ 16.31, 2, u"16p31"_q },
+		{ 99.996, 2, u"100p00"_q },
+		{ kSelfTelemetryValue, kSelfTelemetryDecimals, u"-4821p75"_q },
+		{ -0.004, 2, u"-0p00"_q },
+		{ -0.25, 3, u"-0p250"_q },
+		{ 123456789.0625, 4, u"123456789p0625"_q },
+		{ 3.0625, 12, u"3p062500000000"_q },
+		{ 1.75, -1, u"2p"_q },
+		{ notANumber, 2, u"nan"_q },
+		{ infinity, 2, u"inf"_q },
+		{ -infinity, 2, u"-inf"_q },
+	};
+}
+
+// The one telemetry row shape, as an overlay's Note prints it: a plain
+// test-log line whose value is the whole "value" field.
+[[nodiscard]] QString TelemetryRow(const QString &value) {
+	return kSelfTelemetryHead + u" value="_q + value;
+}
+
+// The clean tree plus one telemetry row printing |value|, with the digit
+// runs of the control value as extra synthetic short secrets, so that row
+// is the scan's only candidate.
+[[nodiscard]] SelfFixture TelemetryFixture(const QString &value) {
+	auto result = CleanFixture();
+	for (const auto &secret : kSelfTelemetrySecrets) {
+		result.secrets.shortSecrets.push_back(secret);
+	}
+	InsertBeforePlanted(result.testLog, QStringList{ TelemetryRow(value) });
+	return result;
+}
+
+// Every distinct non-empty digits-only substring of |text|, in order of
+// first appearance: each is a short secret a formatted number could
+// coincide with, so each must be held only embedded.
+[[nodiscard]] std::vector<QString> DigitRuns(const QString &text) {
+	auto result = std::vector<QString>();
+	auto seen = QSet<QString>();
+	const auto size = int(text.size());
+	for (auto from = 0; from != size; ++from) {
+		for (auto till = from; till != size && text[till].isDigit(); ++till) {
+			const auto run = text.mid(from, till + 1 - from);
+			if (!seen.contains(run)) {
+				seen.insert(run);
+				result.push_back(run);
+			}
+		}
+	}
+	return result;
+}
+
+// One row through the scan's own matcher, alone: no canary, planted
+// control or other line, whose framing would leave some digit secrets
+// undecided in a whole ReadSecrecy.
+[[nodiscard]] SecrecyClassReading ScanRow(
+		const QString &row,
+		std::vector<QString> secrets) {
+	const auto matcher = SecrecyMatcher({
+		.shortSecrets = std::move(secrets),
+	});
+	auto result = SecrecyClassReading();
+	ScanText(row, matcher, {}, {}, result, u"test_log.txt"_q);
+	return result;
+}
+
+// Overlay telemetry: the digit runs of an ordinary decimal, as synthetic
+// short secrets, decide at the row's plain-line site with field "-", and
+// the same value as a TelemetryNumber holds them only embedded. Keeps no
+// reading, so the earlier stages' rows and readings stay as they were.
+void SelfTelemetry() {
+	using Sites = std::map<QString, int>;
+	const auto ordinary = QString::number(
+		kSelfTelemetryValue,
+		'f',
+		kSelfTelemetryDecimals);
+	const auto telemetry = TelemetryNumber(
+		kSelfTelemetryValue,
+		kSelfTelemetryDecimals);
+	const auto site = u"test_log.txt|"_q
+		+ kSelfTelemetryHead
+		+ u"|"_q
+		+ kSiteNoField;
+	const auto secrets = int(kSelfTelemetrySecrets.size());
+	{
+		const auto what = u"secrecy self-test: the digit runs of an "
+			"ordinary decimal telemetry value, as synthetic short secrets, "
+			"fail the scan at the row's plain-line site with field -"_q;
+		const auto run = RunFixture(TelemetryFixture(ordinary));
+		CheckPrepared(what, run);
+		const auto &r = run.reading;
+		const auto &t = ClassOf(r, SecrecyClass::TestLog);
+		const auto rows = SecrecyRows(r).join(QChar('\n'));
+		Check(
+			run.prepared
+				&& r.decided
+				&& !r.clean
+				&& (r.clientWritten() == secrets)
+				&& (r.computed() == 0)
+				&& (t.bounded == secrets)
+				&& (t.boundedOther == secrets)
+				&& (t.embedded == 0)
+				&& (t.plainSites == Sites{ { site, secrets } })
+				&& rows.contains(u"plainSites=["_q
+					+ site
+					+ u" x"_q
+					+ QString::number(secrets)
+					+ u"]"_q),
+			what,
+			SiteDetails(t) + u" | "_q + Summary(r));
+	}
+	{
+		const auto what = u"secrecy self-test: the same value as a "
+			"TelemetryNumber holds those secrets only embedded, so a scan "
+			"whose only candidate is that row is clean"_q;
+		const auto run = RunFixture(TelemetryFixture(telemetry));
+		CheckPrepared(what, run);
+		const auto &r = run.reading;
+		const auto &t = ClassOf(r, SecrecyClass::TestLog);
+		Check(
+			run.prepared
+				&& r.decided
+				&& r.clean
+				&& (r.clientWritten() == 0)
+				&& (r.computed() == 0)
+				&& (t.bounded == 0)
+				&& (t.embedded == secrets)
+				&& t.plainSites.empty(),
+			what,
+			SiteDetails(t) + u" | "_q + Summary(r));
+	}
+	const auto cases = TelemetryCases();
+	const auto count = int(cases.size());
+	{
+		// The outputs print in case order: the evidence parses them back.
+		auto outputs = QStringList();
+		auto failed = QStringList();
+		for (auto i = 0; i != count; ++i) {
+			const auto &entry = cases[i];
+			const auto out = TelemetryNumber(entry.value, entry.decimals);
+			outputs.push_back(out);
+			if (out != entry.expected) {
+				failed.push_back(QString::number(i));
+			}
+		}
+		Check(
+			failed.isEmpty(),
+			u"secrecy self-test: TelemetryNumber prints every case as "
+			"documented"_q,
+			u"cases=%1 outputs=[%2] failed=[%3]"_q
+				.arg(count)
+				.arg(outputs.join(u", "_q))
+				.arg(failed.join(u", "_q)));
+	}
+	{
+		// The rule side reads every digit run of each output; the control
+		// side proves the same row shape does count a run of an ordinary
+		// decimal, so a zero on the rule side is not the row's doing.
+		auto finite = 0;
+		auto digitRuns = 0;
+		auto ruleBounded = 0;
+		auto ruleEmbedded = 0;
+		auto ordinaryWithBoundedRun = 0;
+		auto failing = QStringList();
+		for (auto i = 0; i != count; ++i) {
+			const auto &entry = cases[i];
+			const auto out = TelemetryNumber(entry.value, entry.decimals);
+			const auto runs = DigitRuns(out);
+			const auto rule = ScanRow(TelemetryRow(out), runs);
+			digitRuns += int(runs.size());
+			ruleBounded += rule.bounded;
+			ruleEmbedded += rule.embedded;
+			auto ok = (rule.bounded == 0)
+				&& (rule.embedded >= int(runs.size()));
+			if (std::isfinite(entry.value)) {
+				++finite;
+				const auto text = QString::number(
+					entry.value,
+					'f',
+					std::max(entry.decimals, 0));
+				const auto plain = ScanRow(
+					TelemetryRow(text),
+					DigitRuns(text));
+				if (plain.bounded >= 1) {
+					++ordinaryWithBoundedRun;
+				} else {
+					ok = false;
+				}
+			}
+			if (!ok) {
+				failing.push_back(QString::number(i));
+			}
+		}
+		Check(
+			failing.isEmpty() && (finite > 0) && (digitRuns > 0),
+			u"secrecy self-test: no digit run of any TelemetryNumber is "
+			"bounded, while the ordinary decimal of every finite value holds "
+			"a bounded one"_q,
+			u"cases=%1 finite=%2 digitRuns=%3 ruleBounded=%4 "
+			"ruleEmbedded=%5 ordinaryWithBoundedRun=%6/%2 failing=[%7]"_q
+				.arg(count)
+				.arg(finite)
+				.arg(digitRuns)
+				.arg(ruleBounded)
+				.arg(ruleEmbedded)
+				.arg(ordinaryWithBoundedRun)
+				.arg(failing.join(u", "_q)));
+	}
+}
+
 } // namespace
 
 QString SecrecyClassName(SecrecyClass value) {
@@ -2948,6 +3192,21 @@ bool CheckSecrecy(const SecrecyScanArgs &args, const QString &what) {
 	return reading.decided && reading.clean;
 }
 
+QString TelemetryNumber(double value, int decimals) {
+	if (std::isnan(value)) {
+		return u"nan"_q;
+	}
+	const auto sign = (value < 0.) ? u"-"_q : QString();
+	if (std::isinf(value)) {
+		return sign + u"inf"_q;
+	}
+	const auto places = std::max(decimals, 0);
+	auto digits = QString::number(std::abs(value), 'f', places);
+	return sign + (places
+		? digits.replace(QChar('.'), QChar('p'))
+		: (digits + QChar('p')));
+}
+
 void AppendSecrecyScanSelfTest(not_null<Runner*> runner) {
 	const auto state = std::make_shared<SelfState>();
 	const auto stages = std::vector<std::pair<QString, Fn<void()>>>{
@@ -2965,6 +3224,7 @@ void AppendSecrecyScanSelfTest(not_null<Runner*> runner) {
 			u"secrecy_self_prints_nothing"_q,
 			[=] { SelfPrintsNothing(state); },
 		},
+		{ u"secrecy_self_telemetry"_q, [] { SelfTelemetry(); } },
 	};
 	for (const auto &[name, then] : stages) {
 		runner->add({
