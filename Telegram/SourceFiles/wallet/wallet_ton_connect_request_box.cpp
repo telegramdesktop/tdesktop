@@ -60,6 +60,7 @@ struct State {
 	QPointer<Ui::RoundButton> unlock;
 	QPointer<Ui::SlideWrap<Ui::FlatLabel>> fee;
 	QPointer<Ui::SlideWrap<Ui::FlatLabel>> error;
+	std::shared_ptr<bool> markPlayed = std::make_shared<bool>();
 	bool details = false;
 };
 
@@ -594,6 +595,7 @@ void FillSheet(
 					SetDetails(box, state, context, true);
 				});
 			},
+			.markPlayed = state->markPlayed,
 		}),
 		st::walletConnectCardMargin,
 		style::al_top);

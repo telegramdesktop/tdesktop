@@ -77,7 +77,8 @@ bool ShowFirstGramsIfPending(std::shared_ptr<Main::SessionShow> show);
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeWalletCard(
 	QWidget *parent,
-	std::shared_ptr<Main::SessionShow> show);
+	std::shared_ptr<Main::SessionShow> show,
+	std::shared_ptr<bool> markPlayed);
 
 struct TransferCardArgs {
 	int64 totalNano = 0;
@@ -85,6 +86,7 @@ struct TransferCardArgs {
 	QString destination;
 	int recipients = 0;
 	Fn<void()> info;
+	std::shared_ptr<bool> markPlayed; // one per box: a rebuilt card won't replay
 };
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeTransferCard(

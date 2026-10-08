@@ -468,12 +468,13 @@ enum class BalanceStyle : uchar {
 
 class BalanceInk final {
 public:
+	BalanceInk();
+
 	void setContent(
 		CreditsAmount amount,
 		const QString &fiat,
 		BalanceStyle style = BalanceStyle::Balance);
 	void setOuterWidth(int outerWidth);
-	void setAnimatedMark();
 	void playMark(Fn<void()> repaint);
 	void refresh();
 
@@ -13657,25 +13658,7 @@ void WalletKeysBackupBox(
 		(bottom - top + 1) / ratio);
 }
 
-void BalanceInk::setContent(
-		CreditsAmount amount,
-		const QString &fiat,
-		BalanceStyle style) {
-	_balance = amount;
-	_fiatText = fiat;
-	_style = style;
-	refresh();
-}
-
-void BalanceInk::setOuterWidth(int outerWidth) {
-	if (_outerWidth == outerWidth) {
-		return;
-	}
-	_outerWidth = outerWidth;
-	refresh();
-}
-
-void BalanceInk::setAnimatedMark() {
+BalanceInk::BalanceInk() {
 	const auto &font = st::walletCardBalanceMajorLabel.style.font;
 	const auto canvas = GramDiamondCanvas(font);
 	_markFrame = QRectF(
@@ -13694,8 +13677,26 @@ void BalanceInk::setAnimatedMark() {
 	});
 }
 
+void BalanceInk::setContent(
+		CreditsAmount amount,
+		const QString &fiat,
+		BalanceStyle style) {
+	_balance = amount;
+	_fiatText = fiat;
+	_style = style;
+	refresh();
+}
+
+void BalanceInk::setOuterWidth(int outerWidth) {
+	if (_outerWidth == outerWidth) {
+		return;
+	}
+	_outerWidth = outerWidth;
+	refresh();
+}
+
 void BalanceInk::playMark(Fn<void()> repaint) {
-	if (!_markLottie || !_markLottie->valid()) {
+	if (!_markLottie->valid()) {
 		return;
 	}
 	_markRepaint = repaint;
@@ -13784,9 +13785,6 @@ QRectF BalanceInk::fiatRect(const CardFold &fold) const {
 }
 
 QRectF BalanceInk::markVisible(float64 fold) const {
-	if (!_markLottie) {
-		return _markMonoVisible;
-	}
 	const auto &from = _markLottieVisible;
 	const auto &to = _markMonoVisible;
 	return QRectF(
@@ -13819,8 +13817,7 @@ void BalanceInk::paintMark(
 		_markTop,
 		st::walletCardMarkSize,
 		st::walletCardMarkSize);
-	if (!_markLottie
-		|| _markLottieVisible.height() <= 0.
+	if (_markLottieVisible.height() <= 0.
 		|| _markMonoVisible.height() <= 0.) {
 		p.drawImage(monoBox, mono);
 		return;
@@ -13934,7 +13931,7 @@ QRect BalanceInk::markRect(QRect cardRest) const {
 }
 
 QRect BalanceInk::markPaintRect(const CardFold &fold) const {
-	if (!_markLottie || _markLottieVisible.height() <= 0.) {
+	if (_markLottieVisible.height() <= 0.) {
 		return QRect();
 	}
 	return groupTransform(fold).mapRect(
@@ -13968,6 +13965,37 @@ void SetupCardBalance(
 				CreditsType::Ton),
 			FormatFiat(nano, rate));
 		repaint();
+	}, owner->lifetime());
+}
+
+void SetupCardMark(
+		not_null<BalanceInk*> ink,
+		not_null<Ui::RpWidget*> owner,
+		std::shared_ptr<bool> played,
+		Fn<void()> repaint) {
+	// WHY: a box's layer is shown and hidden again synchronously inside its
+	// show animation, so the card re-reads the window's activation on every
+	// show and starts the play only once it stays visible.
+	const auto open = owner->lifetime().make_state<bool>(false);
+	owner->events(
+	) | rpl::filter([](not_null<QEvent*> e) {
+		return (e->type() == QEvent::Show);
+	}) | rpl::map([=] {
+		return rpl::combine(
+			owner->windowActiveValue(),
+			PowerSaving::OnValue(PowerSaving::kStickersChat),
+			anim::Disables());
+	}) | rpl::flatten_latest(
+	) | rpl::on_next([=](bool active, bool saving, bool off) {
+		*open = active && !saving && !off;
+		if (*open && !*played) {
+			InvokeQueued(owner, [=] {
+				if (*open && !*played && owner->isVisible()) {
+					*played = true;
+					ink->playMark(repaint);
+				}
+			});
+		}
 	}, owner->lifetime());
 }
 
@@ -15168,26 +15196,12 @@ void Content::setupBalance() {
 		repaintBalance();
 	}, lifetime());
 
-	_ink->setAnimatedMark();
-	auto shown = events(
-	) | rpl::filter([](not_null<QEvent*> e) {
-		return (e->type() == QEvent::Show);
-	}) | rpl::take(1) | rpl::map_to(true);
-	rpl::combine(
-		rpl::single(false) | rpl::then(std::move(shown)),
-		_panel->windowActiveValue(),
-		PowerSaving::OnValue(PowerSaving::kStickersChat),
-		anim::Disables()
-	) | rpl::filter([](bool shown, bool active, bool saving, bool off) {
-		return shown && active && !saving && !off;
-	}) | rpl::take(1) | rpl::on_next([=] {
-		_ink->playMark([=] {
-			const auto mark = _ink->markPaintRect(cardFold());
-			_pinnedBalance->update(mark);
-			_titleBalance->update(
-				mark.translated(0, st::separatePanelTitleHeight));
-		});
-	}, lifetime());
+	SetupCardMark(_ink.get(), this, std::make_shared<bool>(), [=] {
+		const auto mark = _ink->markPaintRect(cardFold());
+		_pinnedBalance->update(mark);
+		_titleBalance->update(
+			mark.translated(0, st::separatePanelTitleHeight));
+	});
 }
 
 const CardFold &Content::cardFold() const {
@@ -16411,7 +16425,8 @@ base::unique_qptr<Ui::RpWidget> CreateContent(
 
 object_ptr<Ui::RpWidget> MakeWalletCard(
 		QWidget *parent,
-		std::shared_ptr<Main::SessionShow> show) {
+		std::shared_ptr<Main::SessionShow> show,
+		std::shared_ptr<bool> markPlayed) {
 	auto result = object_ptr<Ui::FixedHeightWidget>(
 		parent,
 		st::walletCardHeight);
@@ -16459,6 +16474,10 @@ object_ptr<Ui::RpWidget> MakeWalletCard(
 		&show->session(),
 		[=] { overlay->update(); },
 		raw);
+	SetupCardMark(ink, raw, std::move(markPlayed), [=] {
+		overlay->update(
+			ink->markPaintRect(ComputeCardFold(raw->rect(), 0.)));
+	});
 
 	rpl::single(rpl::empty) | rpl::then(
 		style::PaletteChanged()
@@ -16558,6 +16577,11 @@ object_ptr<Ui::RpWidget> MakeTransferCard(
 		state->ink.refresh();
 		raw->update();
 	}, raw->lifetime());
+
+	SetupCardMark(&state->ink, raw, std::move(args.markPlayed), [=] {
+		raw->update(
+			state->ink.markPaintRect(ComputeCardFold(raw->rect(), 0.)));
+	});
 
 	return result;
 }

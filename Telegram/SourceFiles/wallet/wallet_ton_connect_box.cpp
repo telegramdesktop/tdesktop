@@ -53,6 +53,7 @@ struct State {
 	QPointer<Ui::FlatLabel> notice;
 	QPointer<Ui::RoundButton> connect;
 	QPointer<Ui::RoundButton> restore;
+	std::shared_ptr<bool> markPlayed = std::make_shared<bool>();
 	bool busy = false;
 };
 
@@ -222,7 +223,7 @@ void FillBody(
 		style::al_top);
 	state->proof->entity()->setTryMakeSimilarLines(true);
 	content->add(
-		MakeWalletCard(content, show),
+		MakeWalletCard(content, show, state->markPlayed),
 		st::walletConnectCardMargin,
 		style::al_top);
 	content->add(
