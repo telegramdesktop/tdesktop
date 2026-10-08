@@ -376,7 +376,6 @@ private:
 	Ui::VerticalLayout *_pinnedInner = nullptr;
 	Ui::RpWidget *_pinnedBalance = nullptr;
 	Ui::PlainShadow *_headerShadow = nullptr;
-	Ui::SlideWrap<> *_headerBottomSkip = nullptr;
 	Ui::SlideWrap<Ui::SettingsSlider> *_tabsWrap = nullptr;
 	Ui::PlainShadow *_tabsShadow = nullptr;
 	Ui::PlainShadow *_stripShadow = nullptr;
@@ -14314,7 +14313,7 @@ void Content::setupContent() {
 		wallet->collectiblesTabValue(),
 		HistoryShownValue(&_show->session())
 	) | rpl::map([](bool available, bool collectibles, bool history) {
-		return available && (collectibles || history);
+		return history || (available && collectibles);
 	}));
 	rowsTopSkip->finishAnimating();
 
@@ -14323,7 +14322,6 @@ void Content::setupContent() {
 			column,
 			object_ptr<Ui::VerticalLayout>(column)));
 	const auto rows = listWrap->entity();
-	const auto head = rows->add(object_ptr<Ui::VerticalLayout>(rows));
 	const auto list = rows->add(object_ptr<Ui::VerticalLayout>(rows));
 	struct ListPlace {
 		std::vector<ListedRow> rows;
@@ -14369,7 +14367,7 @@ void Content::setupContent() {
 			_sendingRow = std::make_unique<SendingRow>(SendingRow{
 				.operationId = operationId,
 				.slot = rows->insert(
-					1,
+					0,
 					object_ptr<Ui::VerticalLayout>(rows)),
 				.revealPending = true,
 			});
@@ -14444,7 +14442,6 @@ void Content::setupContent() {
 		// at once, so the geometry readers wait for the rebuilt rows, which
 		// then keep their place on screen in one move.
 		place->rebuilding = true;
-		head->clear();
 		list->clear();
 		const auto &history = wallet->history();
 		auto submitted = wallet->listedSubmittedTransactions();
@@ -14521,11 +14518,6 @@ void Content::setupContent() {
 				: kept
 				? kept->id
 				: QString();
-			if (wallet->collectibles().empty()) {
-				Ui::AddSkip(head, st::walletRowsTopSkip);
-				Ui::AddSubsectionTitle(head, tr::lng_wallet_rows_title());
-				Ui::AddSkip(head);
-			}
 			auto next = begin(submitted);
 			const auto addNext = [&] {
 				const auto &entry = *(next++);
@@ -14752,8 +14744,7 @@ void Content::setupPinned() {
 		}
 	}, buttons->lifetime());
 
-	_headerBottomSkip = _pinnedInner->add(
-		Ui::CreateSlideSkipWidget(_pinnedInner, st::walletRowsTopSkip / 2));
+	Ui::AddSkip(_pinnedInner, st::walletHeaderBottomSkip);
 
 	_headerShadow = Ui::CreateChild<Ui::PlainShadow>(this);
 
@@ -15100,8 +15091,7 @@ void Content::setupTabs(rpl::producer<bool> collectiblesShown) {
 			_pinnedInner,
 			object_ptr<Ui::SettingsSlider>(
 				_pinnedInner,
-				st::walletTabsSlider),
-			style::margins(0, st::walletHeaderBottomSkip, 0, 0)));
+				st::walletTabsSlider)));
 	const auto tabs = _tabsWrap->entity();
 	tabs->setSections({
 		tr::lng_wallet_rows_title(tr::now),
@@ -15110,6 +15100,22 @@ void Content::setupTabs(rpl::producer<bool> collectiblesShown) {
 	tabs->fitWidthToSections();
 	tabs->setNaturalWidth(tabs->width());
 	_tabsShadow = Ui::CreateChild<Ui::PlainShadow>(this);
+
+	// Without collectibles the first tab stands alone, scrolling with the list.
+	const auto column = _column->entity();
+	const auto title = column->insert(
+		0,
+		object_ptr<Ui::SlideWrap<Ui::SettingsSlider>>(
+			column,
+			object_ptr<Ui::SettingsSlider>(column, st::walletRowsTitle)));
+	const auto label = title->entity();
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	tr::lng_wallet_rows_title(
+	) | rpl::on_next([=](const QString &text) {
+		label->setSections({ text });
+		label->fitWidthToSections();
+		label->setNaturalWidth(label->width());
+	}, label->lifetime());
 
 	const auto wallet = &_show->session().wallet();
 	tabs->setActiveSectionFast(wallet->collectiblesTab() ? 1 : 0);
@@ -15127,11 +15133,24 @@ void Content::setupTabs(rpl::producer<bool> collectiblesShown) {
 		}
 	}, tabs->lifetime());
 
-	std::move(collectiblesShown) | rpl::on_next([=](bool shown) {
-		_tabsShown = shown;
-		_tabsWrap->toggle(shown, anim::type::instant);
-		_headerBottomSkip->toggle(!shown, anim::type::instant);
-		_tabsShadow->setVisible(shown);
+	rpl::combine(
+		std::move(collectiblesShown),
+		TransactionsShownValue(&_show->session())
+	) | rpl::map([](bool shown, bool transactions) {
+		return std::make_pair(shown, transactions && !shown);
+	}) | rpl::distinct_until_changed(
+	) | rpl::on_next([=](std::pair<bool, bool> sections) {
+		// WHY: the section that shows goes in before the one that hides, so
+		// no height in between lets the scroll area clamp a scrolled reader.
+		if (sections.second) {
+			title->toggle(true, anim::type::instant);
+		}
+		_tabsShown = sections.first;
+		_tabsWrap->toggle(sections.first, anim::type::instant);
+		_tabsShadow->setVisible(sections.first);
+		if (!sections.second) {
+			title->toggle(false, anim::type::instant);
+		}
 		updateRegions();
 	}, lifetime());
 }

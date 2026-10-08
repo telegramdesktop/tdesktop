@@ -233,6 +233,10 @@ walletTabsSlider: SettingsSlider(defaultTabsSlider) {
 	padding: 12px;
 	strictSkip: 24px;
 }
+// The strip's first tab without its bar, so the title matches the tab exactly.
+walletRowsTitle: SettingsSlider(walletTabsSlider) {
+	barFgActive: transparent;
+}
 walletCollectibleRowHeight: 60px;
 walletCollectibleThumbRadius: 6px;
 walletCollectibleTitleStyle: TextStyle(defaultTextStyle) {
