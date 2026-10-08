@@ -8140,7 +8140,19 @@ void Session::applyStreamRefresh(StreamRefresh wanted) {
 		refreshState();
 	}
 	if (wanted.history) {
-		refreshHistory();
+		if (_historyRequest) {
+			// The flight was sent before this hint, so it may miss its rows.
+			const auto generation = _networkGeneration;
+			const auto revision = _walletIdentityRevision;
+			_historyRequest->done.push_back([=] {
+				if (generation == _networkGeneration
+					&& revision == _walletIdentityRevision) {
+					refreshHistory();
+				}
+			});
+		} else {
+			refreshHistory();
+		}
 	}
 	if (wanted.collectibles) {
 		refreshCollectibles(true);

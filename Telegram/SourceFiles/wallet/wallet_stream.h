@@ -57,6 +57,7 @@ private:
 	void scheduleRenew(TimeId expires);
 	void want(StreamRefresh wanted);
 	void flush();
+	void recheckHistory();
 	[[nodiscard]] bool mine(const std::vector<QString> &accounts) const;
 
 	const not_null<Api*> _api;
@@ -66,6 +67,7 @@ private:
 	base::Timer _renewTimer;
 	base::Timer _coalesceTimer;
 	base::Timer _keepaliveTimer;
+	base::Timer _historyRecheckTimer;
 	QString _address;
 	QString _addressFriendly;
 	StreamRefresh _wanted;
@@ -77,6 +79,7 @@ private:
 	int _retryAttempt = 0;
 	quint32 _messageId = 0;
 	bool _started = false;
+	bool _historyRecheckedOnce = false;
 
 };
 

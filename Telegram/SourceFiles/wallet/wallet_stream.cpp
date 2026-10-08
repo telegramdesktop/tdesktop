@@ -16,6 +16,8 @@ namespace Wallet {
 namespace {
 
 constexpr auto kCoalesceDelay = crl::time(250);
+constexpr auto kHistoryRecheckDelay = crl::time(3000);
+constexpr auto kHistoryLastRecheckDelay = crl::time(10000);
 constexpr auto kKeepaliveInterval = 10 * crl::time(1000);
 constexpr auto kStallTimeout = 30 * crl::time(1000);
 constexpr auto kStableTimeout = 60 * crl::time(1000);
@@ -40,7 +42,8 @@ Stream::Stream(not_null<Api*> api, Fn<void(StreamRefresh)> refresh)
 , _retryTimer([=] { acquire(); })
 , _renewTimer([=] { acquire(); })
 , _coalesceTimer([=] { flush(); })
-, _keepaliveTimer([=] { keepaliveTick(); }) {
+, _keepaliveTimer([=] { keepaliveTick(); })
+, _historyRecheckTimer([=] { recheckHistory(); }) {
 }
 
 Stream::~Stream() {
@@ -69,6 +72,7 @@ void Stream::stop() {
 	_renewTimer.cancel();
 	_coalesceTimer.cancel();
 	_keepaliveTimer.cancel();
+	_historyRecheckTimer.cancel();
 	detachSocket();
 	_socket = nullptr;
 	_state = State::Idle;
@@ -180,6 +184,8 @@ void Stream::handleFrame(const QByteArray &frame) {
 	case Gram::StreamEventKind::Transactions:
 		if (mine(event.accounts)) {
 			want({ .state = true, .history = true, .collectibles = true });
+			_historyRecheckedOnce = false;
+			_historyRecheckTimer.callOnce(kHistoryRecheckDelay);
 		}
 		break;
 	case Gram::StreamEventKind::TraceInvalidated:
@@ -225,6 +231,7 @@ void Stream::failed() {
 	_state = State::Backoff;
 	_keepaliveTimer.cancel();
 	_renewTimer.cancel();
+	_historyRecheckTimer.cancel();
 	_api->cancelRequest(base::take(_acquireId));
 	scheduleRetry();
 }
@@ -264,6 +271,20 @@ void Stream::flush() {
 	const auto wanted = base::take(_wanted);
 	if (_refresh) {
 		_refresh(wanted);
+	}
+}
+
+void Stream::recheckHistory() {
+	// WHY: a frame can arrive before wallet.getTransactions lists its
+	// transfer and may be the last one the provider sends, so the head is
+	// asked again shortly after the last frame naming this wallet.
+	if (!_historyRecheckedOnce) {
+		_historyRecheckedOnce = true;
+		_historyRecheckTimer.callOnce(
+			kHistoryLastRecheckDelay - kHistoryRecheckDelay);
+	}
+	if (_refresh) {
+		_refresh({ .history = true });
 	}
 }
 
