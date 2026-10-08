@@ -35,6 +35,7 @@ constexpr auto kNameLimit = 64;
 constexpr auto kManifestNotFound = 2;
 constexpr auto kManifestContent = 3;
 constexpr auto kUserDeclined = 300;
+constexpr auto kSessionsRefreshFloor = 60 * crl::time(1000);
 
 struct CharRange {
 	char16_t from = 0;
@@ -392,6 +393,17 @@ void TonConnect::ensureLoaded() {
 	requestSessions();
 }
 
+void TonConnect::refreshSessions() {
+	if (_stopped
+		|| _loadRequestId
+		|| (_loadRequestedAt
+			&& (crl::now() - _loadRequestedAt < kSessionsRefreshFloor))
+		|| _session->wallet().presenceCurrent() != Presence::Ready) {
+		return;
+	}
+	requestSessions();
+}
+
 TonConnectKey TonConnect::key(TonConnectSessionId id) const {
 	const auto i = _keys.find(id);
 	return (i != end(_keys)) ? i->second : TonConnectKey();
@@ -611,6 +623,7 @@ TonConnectSessionInfo TonConnect::Parse(const MTPTonConnectSession &session) {
 void TonConnect::requestSessions() {
 	_api.request(base::take(_loadRequestId)).cancel();
 	_changedWhileLoading.clear();
+	_loadRequestedAt = crl::now();
 	_loadRequestId = _api.request(MTPwallet_TonConnectGetSessions(
 	)).done([=](const MTPwallet_TonConnectSessions &result) {
 		_loadRequestId = 0;

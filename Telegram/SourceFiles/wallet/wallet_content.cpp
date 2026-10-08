@@ -114,6 +114,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_rates.h"
 #include "wallet/wallet_sending_effects.h"
 #include "wallet/wallet_session.h"
+#include "wallet/wallet_ton_connect.h"
 #include "wallet/wallet_ton_connect_box.h"
 #include "wallet/wallet_unlock.h"
 #include "wallet/wallet_user_addresses.h"
@@ -16620,11 +16621,17 @@ void FillMenu(
 				tr::lng_wallet_keys_title(tr::now)),
 			[=] { show->showBox(Box(WalletKeysBackupBox, show)); },
 			&st::menuIconPermissions);
-		addAction(
-			Ui::Text::FixAmpersandInAction(
-				tr::lng_wallet_apps_title(tr::now)),
-			[=] { show->showBox(Box(TonConnectAppsBox, show)); },
-			&st::menuIconLink);
+		const auto &store = show->session().wallet().tonConnect();
+		const auto connected = ranges::any_of(
+			ranges::views::values(store.sessions()),
+			TonConnectSessionConnected);
+		if (connected) {
+			addAction(
+				Ui::Text::FixAmpersandInAction(
+					tr::lng_wallet_apps_title(tr::now)),
+				[=] { show->showBox(Box(TonConnectAppsBox, show)); },
+				&st::menuIconLink);
+		}
 	}
 	addAction({ .isSeparator = true });
 	addAction(

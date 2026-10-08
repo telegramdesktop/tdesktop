@@ -217,6 +217,7 @@ public:
 	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] rpl::producer<TonConnectSessionId> updates() const;
 	void ensureLoaded();
+	void refreshSessions();
 
 	[[nodiscard]] TonConnectKey key(TonConnectSessionId id) const;
 	[[nodiscard]] bool participates(TonConnectSessionId id) const;
@@ -314,6 +315,7 @@ private:
 	base::flat_set<TonConnectSessionId> _closeWaiting;
 	rpl::lifetime _restoreLifetime;
 	rpl::event_stream<TonConnectSessionId> _updates;
+	crl::time _loadRequestedAt = 0;
 	mtpRequestId _loadRequestId = 0;
 	bool _loaded = false;
 	bool _stopped = false;

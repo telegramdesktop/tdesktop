@@ -63,6 +63,7 @@ namespace {
 
 not_null<Ui::SeparatePanel*> ShowWallet(not_null<Main::Session*> session) {
 	auto &wallet = session->wallet();
+	wallet.tonConnect().refreshSessions();
 	if (const auto exists = wallet.panel()) {
 		const auto state = exists->windowState();
 		if (state & Qt::WindowMinimized) {
@@ -96,6 +97,11 @@ not_null<Ui::SeparatePanel*> ShowWallet(not_null<Main::Session*> session) {
 	panel->setMenuAllowed([=](const Ui::Menu::MenuCallback &addAction) {
 		FillMenu(show, addAction);
 	});
+
+	panel->windowActiveValue(
+	) | rpl::filter(rpl::mappers::_1) | rpl::on_next([=] {
+		session->wallet().tonConnect().refreshSessions();
+	}, panel->lifetime());
 
 	panel->closeRequests(
 	) | rpl::on_next([=] {
