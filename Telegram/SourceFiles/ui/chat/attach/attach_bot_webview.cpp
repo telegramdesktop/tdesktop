@@ -70,7 +70,7 @@ constexpr auto kProgressOpacity = 0.3;
 constexpr auto kLightnessThreshold = 128;
 constexpr auto kLightnessDelta = 32;
 constexpr auto kExternalShellButtonIconSize = 20;
-constexpr auto kMaxNativeMessageBytes = 1024 * 1024;
+constexpr auto kMaxNativeMessageBytes = 64 * 1024 * 1024;
 constexpr auto kExternalMessageType = "tdesktop_external_bot_webapp";
 
 enum class NativeMessageSource {
@@ -170,6 +170,18 @@ void NavigateToExternalShellTop(not_null<Webview::Window*> window) {
 	return !normalizedA.isEmpty()
 		&& !normalizedB.isEmpty()
 		&& normalizedA == normalizedB;
+}
+
+[[nodiscard]] QByteArray OriginCheckScript(const QString &origin) {
+	auto url = QUrl(origin);
+	if ((url.scheme() == u"https"_q && url.port() == 443)
+		|| (url.scheme() == u"http"_q && url.port() == 80)) {
+		url.setPort(-1);
+	}
+	const auto encoded = QJsonDocument(QJsonArray{
+		QString::fromLatin1(url.toEncoded()),
+	}).toJson(QJsonDocument::Compact);
+	return "this.location.origin === " + encoded + "[0]";
 }
 
 [[nodiscard]] RectPart ParsePosition(const QString &position) {
@@ -1592,7 +1604,6 @@ bool Panel::showWebview(Args &&args, const Webview::ThemeParams &params) {
 	_externalUrl = args.url;
 	_sameOrigin = args.sameOrigin;
 	_initialOrigin = OriginFromUrl(args.url);
-	_currentOrigin = _initialOrigin;
 	if (_externalShell && !_webview) {
 		resetExternalShellIdentity();
 	}
@@ -2474,7 +2485,6 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 		} else if (newWindow) {
 			return true;
 		}
-		_currentOrigin = OriginFromUrl(uri);
 		return true;
 	});
 	raw->setNavigationStartHandler([=] {
@@ -3831,16 +3841,15 @@ void Panel::postEvent(const QString &event, EventData data) {
 		}
 		return;
 	}
-	if (_sameOrigin && !OriginsMatch(_currentOrigin, _initialOrigin)) {
-		return;
-	}
+	const auto originCheck = _sameOrigin
+		? OriginCheckScript(_initialOrigin) + " && "
+		: QByteArray();
 	auto written = v::is<QString>(data)
 		? v::get<QString>(data).toUtf8()
 		: QJsonDocument(
 			v::get<QJsonObject>(data)).toJson(QJsonDocument::Compact);
-	_webview->window.eval(R"(
-if (window.TelegramGameProxy) {
-window.TelegramGameProxy.receiveEvent(
+	_webview->window.eval("if (" + originCheck + R"(this.TelegramGameProxy) {
+this.TelegramGameProxy.receiveEvent(
 		")"
 		+ event.toUtf8()
 		+ '"' + (written.isEmpty() ? QByteArray() : ", " + written)

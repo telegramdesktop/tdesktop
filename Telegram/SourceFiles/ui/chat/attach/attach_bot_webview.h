@@ -335,7 +335,6 @@ private:
 	bool _externalWindowCloseRequested = false;
 	QString _externalShellToken;
 	QString _initialOrigin;
-	QString _currentOrigin;
 	uint64 _externalShellGeneration = 0;
 	bool _externalBackVisible = false;
 	ExternalShellColorState _externalShellColorState;
