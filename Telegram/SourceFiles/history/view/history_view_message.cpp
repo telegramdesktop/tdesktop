@@ -3858,9 +3858,7 @@ bool Message::hasFromPhoto() const {
 		const auto item = data();
 		if (item->isSponsored()) {
 			return false;
-		} else if (item->isPostHidingAuthor()) {
-			return false;
-		if (item->isPost()) {
+		} else if (item->isPost()) {
 			return (context() == Context::MediaEditor)
 				|| !item->isPostHidingAuthor();
 		} else if (item->isEmpty()

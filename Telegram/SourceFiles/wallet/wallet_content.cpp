@@ -3107,7 +3107,8 @@ void SendingHistoryRow::paintChip(Painter &p) {
 		style::RightToLeft() ? padding.right() : padding.left(),
 		rowLayout().chipTop);
 	p.translate(origin);
-	PaintHistoryRowChipSurface(p, outer, _chip, _media, _content.collectible);
+	PaintHistoryRowChipPlate(p, outer, _chip);
+	PaintHistoryRowChipArtwork(p, outer, _chip, _media, _content.collectible);
 	PaintHistoryRowChipText(p, outer, _chip);
 	p.translate(-origin);
 }
