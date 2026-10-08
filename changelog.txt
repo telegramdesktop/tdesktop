@@ -1,3 +1,7 @@
+7.3 (08.10.26)
+
+- Money.
+
 7.2.10 beta (25.09.26)
 
 - Update emoji to Unicode 17.
