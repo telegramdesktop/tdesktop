@@ -3358,7 +3358,8 @@ void AddDetailsCollectibleHeader(
 		not_null<Main::Session*> session,
 		std::shared_ptr<CollectibleMedia> media,
 		const TransferItem &item,
-		int bottomSkip) {
+		int bottomSkip,
+		bool withCollection = true) {
 	const auto container = layout->add(
 		object_ptr<Ui::RpWidget>(layout),
 		style::margins(0, st::walletDetailsAmountTopSkip, 0, bottomSkip),
@@ -3418,7 +3419,8 @@ void AddDetailsCollectibleHeader(
 		collectionLabel->moveToLeft(0, 0, collection->width());
 	}, collection->lifetime());
 	const auto relayout = [=] {
-		const auto hasCollection = !media->collection(address).isEmpty();
+		const auto hasCollection = withCollection
+			&& !media->collection(address).isEmpty();
 		collection->setVisible(hasCollection);
 		const auto nameTop = st::walletDetailsCollectibleSize
 			+ st::walletDetailsCollectibleNameSkip;
@@ -6872,7 +6874,12 @@ void AddSendCommentLock(
 	}, lock->lifetime());
 }
 
-void AddSendConfirmNotes(
+struct SendConfirmNotes {
+	not_null<Ui::RpWidget*> caption;
+	not_null<Ui::RpWidget*> refusal;
+};
+
+SendConfirmNotes AddSendConfirmNotes(
 		not_null<Ui::GenericBox*> box,
 		rpl::producer<bool> captionShown,
 		rpl::producer<QString> refusal) {
@@ -6902,6 +6909,7 @@ void AddSendConfirmNotes(
 	}));
 	shown->finishAnimating();
 	box->addSkip(st::walletSendConfirmBottomSkip);
+	return { .caption = caption, .refusal = shown };
 }
 
 void WalletSendConfirmBox(
@@ -7106,7 +7114,8 @@ void CollectibleTransferBox(
 		session,
 		media,
 		item,
-		st::walletDetailsAmountBottomSkip);
+		st::walletDetailsAmountBottomSkip / 2,
+		false);
 	const auto details = box->addRow(
 		object_ptr<Ui::VerticalLayout>(box),
 		style::margins());
@@ -7315,12 +7324,16 @@ void CollectibleTransferBox(
 			state->built = state->table;
 			auto counted = item;
 			counted.feeNano = state->table.first;
+			const auto top = box->scrollTop();
+			const auto atBottom = (top + box->scrollHeight()
+				>= box->verticalLayout()->height());
 			details->clear();
 			AddDetailsTable(box, details, show, counted, state->table.second);
+			box->scrollToY(atBottom ? ScrollMax : top);
 		});
 	}, details->lifetime());
 
-	AddSendConfirmNotes(
+	const auto notes = AddSendConfirmNotes(
 		box,
 		state->comment.value() | rpl::map([](const QString &text) {
 			return !text.isEmpty();
@@ -7337,6 +7350,17 @@ void CollectibleTransferBox(
 				rpl::empty_value) {
 			return refusalText(error, fee, balance);
 		}));
+	rpl::combine(
+		notes.caption->heightValue(),
+		notes.refusal->heightValue()
+	) | rpl::map([](int captionHeight, int refusalHeight) {
+		return captionHeight + refusalHeight;
+	}) | rpl::combine_previous(
+	) | rpl::filter([](int was, int now) {
+		return (now > was);
+	}) | rpl::to_empty | rpl::on_next([=] {
+		box->scrollToY(ScrollMax);
+	}, box->lifetime());
 
 	const auto pressable = [=] {
 		return !state->sending.current()
