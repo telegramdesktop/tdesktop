@@ -507,14 +507,9 @@ parts:
   tlottie:
     source: https://github.com/dkaraush/tlottie.git
     source-depth: 1
-    source-commit: 31f1b542f88e7b4be9a01e749920d857535fc715
+    source-commit: 92df98dc209bc39b1e567ec74a8c86a0af5239de
     plugin: nil
-    override-pull: |
-      craftctl default
-      git apply "$CRAFT_STAGE/patches/tlottie.patch"
     prime: [-./*]
-    after:
-      - patches
 
   wallet-engine:
     source: https://github.com/i582/wallet-engine.git

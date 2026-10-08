@@ -1985,15 +1985,13 @@ release:
 # that skips them and cannot rebuild tdesktop_rust. The version re-clones
 # them once over such a cache. The revisions are named here because the
 # umbrella stage has to see them, see there.
-tlottieRevision = '31f1b542f8'
+tlottieRevision = '92df98dc20'
 walletEngineRevision = 'e59e0d89d7ee90c388bf36e3334c5b276f396697'
 stage('tlottie', """
 version: 2
-depends:patches/tlottie.patch
     git clone https://github.com/dkaraush/tlottie.git
     cd tlottie
     git checkout """ + tlottieRevision + """
-    git apply ../patches/tlottie.patch
 """)
 
 stage('wallet-engine', """
@@ -2024,10 +2022,9 @@ win_mac:
 # of them is repinned and a warm cache would keep the previous binding. The
 # revisions ride in the version for that, and the counter in front of them
 # flushes a cache whose generated source the CI prune had already deleted.
-# Both patches rewrite those sources, so each is a dependency here.
+# The wallet-engine patch rewrites those sources, so it is a dependency here.
 stage('tdesktop_rust', """
 version: 2.""" + tlottieRevision + '.' + walletEngineRevision + """
-depends:patches/tlottie.patch
 depends:patches/wallet-engine.patch
 win:
     SET "RUSTUP_HOME=%THIRDPARTY_DIR%\\rust\\rustup"
