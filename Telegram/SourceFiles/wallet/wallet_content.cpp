@@ -5596,6 +5596,7 @@ enum class RecipientError : uchar {
 	NameNotFound,
 	NameFailed,
 	LookupFailed,
+	OwnWallet,
 };
 
 [[nodiscard]] rpl::producer<QString> RecipientErrorText(
@@ -5608,6 +5609,8 @@ enum class RecipientError : uchar {
 	case RecipientError::NameFailed:
 	case RecipientError::LookupFailed:
 		return tr::lng_wallet_send_user_load_error();
+	case RecipientError::OwnWallet:
+		return tr::lng_wallet_collectible_own_wallet();
 	}
 	Unexpected("RecipientError in RecipientErrorText.");
 }
@@ -5869,9 +5872,10 @@ QString SendErrorText(SendError error, int64 minTransferNano) {
 	case SendError::KeyMismatch:
 	case SendError::Rejected:
 	case SendError::DataInvalid:
-	case SendError::CollectibleUnavailable:
 	case SendError::CollectibleRejected:
 		return tr::lng_wallet_send_error_failed(tr::now);
+	case SendError::CollectibleUnavailable:
+		return tr::lng_wallet_collectible_not_owned(tr::now);
 	case SendError::KeyChanged:
 		return tr::lng_wallet_send_key_changed_text(tr::now);
 	case SendError::QuoteExpired:
@@ -5989,7 +5993,8 @@ class RecentMoneyRecipientsController final
 public:
 	RecentMoneyRecipientsController(
 		not_null<Ui::GenericBox*> box,
-		std::shared_ptr<Main::SessionShow> show);
+		std::shared_ptr<Main::SessionShow> show,
+		Fn<void(not_null<UserData*>)> choose);
 
 	void prepare() override;
 	void rowClicked(not_null<PeerListRow*> row) override;
@@ -6010,6 +6015,7 @@ private:
 	const base::weak_qptr<Ui::GenericBox> _box;
 	const std::shared_ptr<Main::SessionShow> _show;
 	const base::weak_ptr<Main::Session> _session;
+	const Fn<void(not_null<UserData*>)> _choose;
 	PeerListContentDelegateSimple _delegate;
 	std::vector<not_null<UserData*>> _users;
 	rpl::lifetime _userLifetime;
@@ -6021,10 +6027,12 @@ private:
 
 RecentMoneyRecipientsController::RecentMoneyRecipientsController(
 	not_null<Ui::GenericBox*> box,
-	std::shared_ptr<Main::SessionShow> show)
+	std::shared_ptr<Main::SessionShow> show,
+	Fn<void(not_null<UserData*>)> choose)
 : _box(box)
 , _show(std::move(show))
-, _session(&_show->session()) {
+, _session(&_show->session())
+, _choose(std::move(choose)) {
 }
 
 void RecentMoneyRecipientsController::setContent(
@@ -6169,7 +6177,7 @@ void RecentMoneyRecipientsController::rowClicked(
 	if (!user || !canOffer(user)) {
 		return;
 	}
-	ChooseMoneyRecipient(_box.get(), _show, user);
+	_choose(user);
 }
 
 Main::Session &RecentMoneyRecipientsController::session() const {
@@ -6194,14 +6202,18 @@ rpl::producer<bool> RecentMoneyRecipientsController::shownValue() const {
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeRecentMoneyRecipientsList(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
-		rpl::producer<bool> hidden) {
+		rpl::producer<bool> hidden,
+		Fn<void(not_null<UserData*>)> choose) {
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		box,
 		object_ptr<Ui::VerticalLayout>(box));
 	const auto wrap = result.data();
 	const auto container = wrap->entity();
 	const auto controller = container->lifetime().make_state<
-		RecentMoneyRecipientsController>(box, std::move(show));
+		RecentMoneyRecipientsController>(
+			box,
+			std::move(show),
+			std::move(choose));
 
 	const auto header = container->add(object_ptr<Ui::RpWidget>(container));
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
@@ -6268,7 +6280,8 @@ class MoneyRecipientSearchController final
 public:
 	MoneyRecipientSearchController(
 		not_null<Ui::GenericBox*> box,
-		std::shared_ptr<Main::SessionShow> show);
+		std::shared_ptr<Main::SessionShow> show,
+		Fn<void(not_null<UserData*>)> choose);
 
 	Main::Session &session() const override;
 	void rowClicked(not_null<PeerListRow*> row) override;
@@ -6284,6 +6297,7 @@ private:
 	const base::weak_qptr<Ui::GenericBox> _box;
 	const std::shared_ptr<Main::SessionShow> _show;
 	const not_null<Main::Session*> _session;
+	const Fn<void(not_null<UserData*>)> _choose;
 	PeerListContentDelegateShow _delegate;
 	bool _closed = false;
 
@@ -6291,11 +6305,13 @@ private:
 
 MoneyRecipientSearchController::MoneyRecipientSearchController(
 	not_null<Ui::GenericBox*> box,
-	std::shared_ptr<Main::SessionShow> show)
+	std::shared_ptr<Main::SessionShow> show,
+	Fn<void(not_null<UserData*>)> choose)
 : ChatsListBoxController(&show->session())
 , _box(box)
 , _show(std::move(show))
 , _session(&_show->session())
+, _choose(std::move(choose))
 , _delegate(_show) {
 }
 
@@ -6347,20 +6363,24 @@ void MoneyRecipientSearchController::rowClicked(
 	if (!user) {
 		return;
 	}
-	ChooseMoneyRecipient(_box.get(), _show, user);
+	_choose(user);
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeMoneyRecipientSearchList(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
-		rpl::producer<QString> query) {
+		rpl::producer<QString> query,
+		Fn<void(not_null<UserData*>)> choose) {
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		box,
 		object_ptr<Ui::VerticalLayout>(box));
 	const auto wrap = result.data();
 	const auto container = wrap->entity();
 	const auto controller = container->lifetime().make_state<
-		MoneyRecipientSearchController>(box, std::move(show));
+		MoneyRecipientSearchController>(
+			box,
+			std::move(show),
+			std::move(choose));
 
 	Ui::AddSkip(container, st::walletSendRecentListTopSkip);
 	controller->setStyleOverrides(&st::peerListSingleRow);
@@ -6850,6 +6870,38 @@ void AddSendCommentLock(
 	}, lock->lifetime());
 }
 
+void AddSendConfirmNotes(
+		not_null<Ui::GenericBox*> box,
+		rpl::producer<bool> captionShown,
+		rpl::producer<QString> refusal) {
+	const auto caption = box->addRow(
+		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+			box,
+			object_ptr<Ui::FlatLabel>(
+				box,
+				tr::lng_wallet_comment_public(),
+				st::walletCommentCaptionLabel),
+			st::walletCommentCaptionMargin),
+		style::margins());
+	caption->toggleOn(std::move(captionShown));
+	caption->finishAnimating();
+
+	const auto shown = box->addRow(
+		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+			box,
+			object_ptr<Ui::FlatLabel>(
+				box,
+				rpl::duplicate(refusal),
+				st::walletCommentErrorLabel),
+			st::walletCommentCaptionMargin),
+		style::margins());
+	shown->toggleOn(std::move(refusal) | rpl::map([](const QString &text) {
+		return !text.isEmpty();
+	}));
+	shown->finishAnimating();
+	box->addSkip(st::walletSendConfirmBottomSkip);
+}
+
 void WalletSendConfirmBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
@@ -6941,36 +6993,12 @@ void WalletSendConfirmBox(
 		field->setDisabled(busy);
 	}, field->lifetime());
 
-	const auto caption = box->addRow(
-		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
-			box,
-			object_ptr<Ui::FlatLabel>(
-				box,
-				tr::lng_wallet_comment_public(),
-				st::walletCommentCaptionLabel),
-			st::walletCommentCaptionMargin),
-		style::margins());
-	caption->toggleOn(draft->comment.value() | rpl::map([](
-			const SendComment &comment) {
-		return comment.isPublic && !comment.text.isEmpty();
-	}));
-	caption->finishAnimating();
-
-	const auto refusal = box->addRow(
-		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
-			box,
-			object_ptr<Ui::FlatLabel>(
-				box,
-				rpl::duplicate(args.refusal),
-				st::walletCommentErrorLabel),
-			st::walletCommentCaptionMargin),
-		style::margins());
-	refusal->toggleOn(std::move(args.refusal) | rpl::map([](
-			const QString &text) {
-		return !text.isEmpty();
-	}));
-	refusal->finishAnimating();
-	box->addSkip(st::walletSendConfirmBottomSkip);
+	AddSendConfirmNotes(
+		box,
+		draft->comment.value() | rpl::map([](const SendComment &comment) {
+			return comment.isPublic && !comment.text.isEmpty();
+		}),
+		std::move(args.refusal));
 
 	const auto send = [=, callback = args.send] {
 		callback(state->built ? *state->built : SendConfirmFee());
@@ -6997,6 +7025,485 @@ void WalletSendConfirmBox(
 	field->submits() | rpl::on_next(send, field->lifetime());
 	box->setFocusCallback([=] { field->setFocusFast(); });
 	AddBoxCloseButton(box);
+}
+
+struct CollectibleTransfer {
+	QString address;
+	std::shared_ptr<CollectibleMedia> media;
+};
+
+struct CollectibleRecipient {
+	QString destination;
+	QString tonName;
+	UserId userId;
+	bool bounce = true;
+};
+
+[[nodiscard]] rpl::producer<QString> CollectibleNameValue(
+		std::shared_ptr<CollectibleMedia> media,
+		QString address) {
+	return rpl::single(rpl::empty) | rpl::then(
+		media->changed(
+		) | rpl::filter([=](const QString &changed) {
+			return (changed == address);
+		}) | rpl::to_empty
+	) | rpl::map([=] {
+		return CollectibleTitleText(media->view(address)).text;
+	});
+}
+
+void CollectibleTransferBox(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Main::SessionShow> show,
+		std::shared_ptr<const CollectibleTransfer> collectible,
+		CollectibleRecipient recipient) {
+	const auto session = &show->session();
+	const auto weakSession = base::make_weak(session);
+	const auto wallet = &session->wallet();
+	const auto weak = base::make_weak(box);
+	const auto identity = wallet->transferWalletIdentity();
+	const auto sessionValid = [=] {
+		return weakSession
+			&& show->valid()
+			&& (&show->session() == session);
+	};
+	const auto current = [=] {
+		return weak
+			&& sessionValid()
+			&& identity
+			&& wallet->transferWalletIdentityCurrent(*identity);
+	};
+	if (!current()) {
+		box->closeBox();
+		return;
+	}
+	const auto address = collectible->address;
+	const auto media = collectible->media;
+	box->setWidth(st::boxWideWidth);
+	box->setStyle(st::walletDetailsBox);
+	box->setNoContentMargin(true);
+	AddBoxCloseButton(box);
+
+	const auto openedAt = base::unixtime::now();
+	const auto item = TransferItem{
+		.kind = TransferItem::Kind::Collectible,
+		.incoming = false,
+		.counterparty = recipient.destination,
+		.counterpartyBounceable = recipient.bounce,
+		.counterpartyName = recipient.tonName,
+		.counterpartyPeer = (recipient.userId
+			? peerFromUser(recipient.userId).value
+			: quint64()),
+		.collectible = address,
+		.date = openedAt,
+		.status = TransferItem::Status::Success,
+	};
+	media->resolve(address);
+	AddDetailsCollectibleHeader(
+		box->verticalLayout(),
+		session,
+		media,
+		item,
+		st::walletDetailsAmountBottomSkip);
+	const auto details = box->addRow(
+		object_ptr<Ui::VerticalLayout>(box),
+		style::margins());
+
+	auto owned = object_ptr<Ui::InputField>(
+		box,
+		st::walletCollectibleCommentField,
+		Ui::InputField::Mode::NoNewlines,
+		tr::lng_wallet_send_comment_optional());
+	const auto field = owned.data();
+	box->addRow(
+		MakeCommentBubble(box, std::move(owned), st::windowBg),
+		st::walletCommentFieldMargin);
+	ApplyCommentLimit(field);
+
+	using ShownFee = std::pair<std::optional<int64>, DetailsFee>;
+	struct State {
+		std::shared_ptr<const PreparedSend> prepared;
+		KeyAuthorization authorization;
+		base::Timer signingWait;
+		rpl::variable<QString> comment;
+		rpl::variable<std::optional<int64>> fee;
+		rpl::variable<SendError> error = SendError::None;
+		rpl::variable<bool> estimating = false;
+		rpl::variable<bool> sending = false;
+		Fn<void()> estimate;
+		Fn<void()> continueSend;
+		ShownFee table;
+		std::optional<ShownFee> built;
+		uint64 owner = 0;
+		uint64 revision = 0;
+		int refusals = 0;
+		bool tableQueued = false;
+		bool requoteQueued = false;
+		bool requoteForced = false;
+		bool unlocking = false;
+		bool submitted = false;
+		bool handedOver = false;
+		rpl::lifetime signingLifetime;
+		// WHY: last, so the key ladder cancelled first finds the rest alive.
+		rpl::lifetime keyLifetime;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	state->owner = wallet->createPreviewOwner(box->lifetime());
+
+	wallet->transferWalletIdentityChanges(
+	) | rpl::filter([=] {
+		return !current();
+	}) | rpl::take(1) | rpl::on_next([=] {
+		box->closeBox();
+	}, box->lifetime());
+
+	const auto args = [=] {
+		return SendArgs{
+			.destination = recipient.destination,
+			.collectible = address,
+			.userId = recipient.userId,
+			.comment = SendComment{
+				.text = state->comment.current(),
+				.isPublic = true,
+			},
+			.bounce = recipient.bounce,
+		};
+	};
+	state->estimate = [=] {
+		if (state->estimating.current()) {
+			state->requoteQueued = true;
+			return;
+		}
+		const auto text = state->comment.current();
+		if (!CommentFits(text)) {
+			state->prepared = nullptr;
+			state->fee = std::nullopt;
+			state->error = SendError::CommentTooLong;
+			return;
+		}
+		const auto revision = ++state->revision;
+		const auto signing = wallet->signingReady();
+		state->estimating = true;
+		wallet->estimateFee(
+			KeyAuthorization(),
+			state->owner,
+			args(),
+			crl::guard(box, [=](FeeResult result) {
+				if (revision != state->revision) {
+					return;
+				}
+				const auto forced = base::take(state->requoteForced);
+				const auto requote = base::take(state->requoteQueued)
+					&& (forced
+						|| text != state->comment.current()
+						|| signing != wallet->signingReady());
+				const auto error = (result.error == SendError::None
+						&& !result.prepared)
+					? SendError::Failed
+					: result.error;
+				if (requote || error == SendError::QuoteExpired) {
+					state->prepared = nullptr;
+					state->estimating = false;
+					state->estimate();
+				} else {
+					state->prepared = std::move(result.prepared);
+					state->fee = (error == SendError::None)
+						? std::make_optional(result.feeNano)
+						: std::nullopt;
+					state->error = error;
+					state->estimating = false;
+				}
+				if (state->sending.current() && !state->submitted) {
+					state->continueSend();
+				}
+			}));
+	};
+	wallet->signingReadyValue(
+	) | rpl::skip(1) | rpl::on_next([=](bool ready) {
+		if (ready) {
+			state->signingWait.cancel();
+		}
+		if (!state->submitted) {
+			state->prepared = nullptr;
+			state->estimate();
+		}
+	}, box->lifetime());
+	rpl::merge(
+		wallet->sendStateValue() | rpl::skip(1) | rpl::to_empty,
+		wallet->presenceValue() | rpl::skip(1) | rpl::to_empty
+	) | rpl::on_next([=] {
+		if (state->sending.current() || state->submitted) {
+			return;
+		}
+		state->prepared = nullptr;
+		state->requoteForced = true;
+		state->estimate();
+	}, box->lifetime());
+	rpl::merge(
+		wallet->balanceNanoValue() | rpl::skip(1) | rpl::to_empty,
+		wallet->custodyUpdates()
+	) | rpl::on_next([=] {
+		if (state->sending.current()
+			|| state->submitted
+			|| (!state->estimating.current()
+				&& state->prepared
+				&& state->error.current() == SendError::None)) {
+			return;
+		}
+		state->prepared = nullptr;
+		state->requoteForced = true;
+		state->estimate();
+	}, box->lifetime());
+
+	const auto insufficient = [](std::optional<int64> fee, int64 balance) {
+		return fee && (CollectibleTransferAttachedNanos() + *fee > balance);
+	};
+	const auto refusalText = [=](
+			SendError error,
+			std::optional<int64> fee,
+			int64 balance) {
+		if (error == SendError::InsufficientBalance
+			|| error == SendError::InsufficientFees
+			|| insufficient(fee, balance)) {
+			return SendErrorText(
+				SendError::InsufficientFees,
+				TransferMinNanos(session));
+		} else if (error == SendError::SigningUnavailable
+			|| error == SendError::QuoteExpired
+			|| error == SendError::None) {
+			return QString();
+		}
+		return SendErrorText(error, TransferMinNanos(session));
+	};
+	const auto refusalNow = [=] {
+		return refusalText(
+			state->error.current(),
+			state->fee.current(),
+			wallet->balanceNano());
+	};
+
+	rpl::combine(
+		state->fee.value(),
+		state->estimating.value(),
+		state->error.value()
+	) | rpl::map([](
+			std::optional<int64> fee,
+			bool estimating,
+			SendError error) {
+		const auto loading = estimating
+			|| (error == SendError::None)
+			|| (error == SendError::SigningUnavailable);
+		const auto shown = fee
+			? DetailsFee::Known
+			: loading
+			? DetailsFee::Loading
+			: DetailsFee::Failed;
+		return ShownFee(fee, shown);
+	}) | rpl::distinct_until_changed() | rpl::on_next([=](ShownFee shown) {
+		state->table = shown;
+		if (state->tableQueued) {
+			return;
+		}
+		state->tableQueued = true;
+		Ui::PostponeCall(box, [=] {
+			state->tableQueued = false;
+			if (state->built == state->table) {
+				return;
+			}
+			state->built = state->table;
+			auto counted = item;
+			counted.feeNano = state->table.first;
+			details->clear();
+			AddDetailsTable(box, details, show, counted, state->table.second);
+		});
+	}, details->lifetime());
+
+	AddSendConfirmNotes(
+		box,
+		state->comment.value() | rpl::map([](const QString &text) {
+			return !text.isEmpty();
+		}),
+		rpl::combine(
+			state->error.value(),
+			state->fee.value(),
+			wallet->balanceNanoValue(),
+			rpl::single(rpl::empty) | rpl::then(Lang::Updated())
+		) | rpl::map([=](
+				SendError error,
+				std::optional<int64> fee,
+				int64 balance,
+				rpl::empty_value) {
+			return refusalText(error, fee, balance);
+		}));
+
+	const auto pressable = [=] {
+		return !state->sending.current()
+			&& !state->estimating.current()
+			&& refusalNow().isEmpty()
+			&& (state->prepared
+				|| state->error.current() == SendError::SigningUnavailable);
+	};
+	const auto press = [=] {
+		if (!pressable()) {
+			return;
+		}
+		state->sending = true;
+		state->refusals = 0;
+		state->continueSend();
+	};
+	const auto button = box->addButton(
+		BusyFooterLabel(
+			tr::lng_wallet_collectible_send(
+				lt_name,
+				CollectibleNameValue(media, address)),
+			state->sending.value()),
+		press).data();
+	rpl::combine(
+		state->sending.value(),
+		state->estimating.value(),
+		state->error.value(),
+		state->fee.value(),
+		wallet->balanceNanoValue()
+	) | rpl::to_empty | rpl::on_next([=] {
+		SetButtonDisabledLook(
+			button,
+			!state->sending.current() && !pressable());
+	}, button->lifetime());
+	AddBusyFooterSpinner(button, state->sending.value());
+
+	field->changes() | rpl::on_next([=] {
+		state->comment = field->getLastText();
+		if (!state->sending.current()) {
+			state->estimate();
+		}
+	}, field->lifetime());
+	field->submits() | rpl::on_next(press, field->lifetime());
+	state->sending.value() | rpl::on_next([=](bool sending) {
+		field->setDisabled(sending);
+	}, field->lifetime());
+	box->setFocusCallback([=] { field->setFocusFast(); });
+
+	const auto stop = [=] {
+		state->authorization = {};
+		state->signingWait.cancel();
+		state->signingLifetime.destroy();
+		state->sending = false;
+	};
+	const auto acquireKey = [=] {
+		state->keyLifetime.destroy();
+		state->unlocking = true;
+		AcquireWalletKey(
+			show,
+			current,
+			state->keyLifetime,
+			crl::guard(box, [=](KeyAuthorization auth) {
+				state->unlocking = false;
+				if (!state->sending.current() || state->submitted) {
+					return;
+				} else if (!auth.valid()) {
+					stop();
+					return;
+				}
+				state->authorization = std::move(auth);
+				state->continueSend();
+			}),
+			tr::lng_wallet_restore_text());
+	};
+	const auto awaitSigning = [=] {
+		if (state->signingWait.isActive()) {
+			return;
+		}
+		state->signingLifetime.destroy();
+		wallet->signingReadyValue(
+		) | rpl::filter([](bool ready) {
+			return ready;
+		}) | rpl::take(1) | rpl::on_next([=] {
+			state->continueSend();
+		}, state->signingLifetime);
+		state->signingWait.callOnce(kSigningReadyTimeout);
+	};
+	state->signingWait.setCallback([=] {
+		stop();
+		state->error = SendError::Failed;
+	});
+	const auto started = [=](SendStarted value) {
+		state->handedOver = true;
+		const auto panel = wallet->panel();
+		if (panel && box->window() == panel->window()) {
+			wallet->setWindowSend(value.operationId);
+		}
+		show->hideLayer();
+	};
+	const auto sent = [=](SendError error) {
+		if (error == SendError::KeyChanged) {
+			if (weak && !state->handedOver) {
+				weak->closeBox();
+			}
+			if (sessionValid()) {
+				ShowWalletKeyChanged(show);
+			}
+			return;
+		} else if (!current() || state->handedOver) {
+			return;
+		} else if (error == SendError::None
+			|| error == SendError::SubmissionUnknown) {
+			show->hideLayer();
+			return;
+		}
+		state->submitted = false;
+		const auto retry = (error == SendError::QuoteExpired)
+			|| (error == SendError::SigningUnavailable);
+		if (retry && ++state->refusals <= kSendRefusalRetries) {
+			state->estimate();
+			return;
+		}
+		stop();
+		state->error = (error == SendError::QuoteExpired)
+			? SendError::Failed
+			: error;
+	};
+	state->continueSend = [=] {
+		if (!state->sending.current()
+			|| state->submitted
+			|| state->unlocking) {
+			return;
+		} else if (!current()) {
+			stop();
+			return;
+		} else if (state->estimating.current()) {
+			return;
+		} else if (!state->authorization.valid()) {
+			acquireKey();
+			return;
+		} else if (!wallet->signingReady()) {
+			awaitSigning();
+			return;
+		} else if (!state->prepared) {
+			const auto error = state->error.current();
+			const auto retry = (error == SendError::None)
+				|| (error == SendError::SigningUnavailable);
+			if (retry && ++state->refusals <= kSendRefusalRetries) {
+				state->estimate();
+				return;
+			}
+			stop();
+			if (retry) {
+				state->error = SendError::Failed;
+			}
+			return;
+		} else if (!refusalNow().isEmpty()) {
+			stop();
+			return;
+		}
+		state->submitted = true;
+		wallet->send(
+			state->authorization,
+			base::take(state->prepared),
+			crl::guard(session, sent),
+			crl::guard(session, crl::guard(box, started)));
+	};
+
+	state->estimate();
 }
 
 void ShowSendRecipientWallet(
@@ -8965,13 +9472,35 @@ void ResolveOwnerAndOpenSendFlow(
 	});
 }
 
+[[nodiscard]] CollectibleRecipient CollectibleRecipientFrom(
+		not_null<Main::Session*> session,
+		const SendFlow &flow,
+		const AddressOwner &owner) {
+	const auto user = SendableUser(session, owner.userId);
+	const auto toUser = user
+		&& !user->isSelf()
+		&& (!user->gramAddress()
+			|| *user->gramAddress() == flow.destination);
+	return {
+		.destination = flow.destination,
+		.tonName = flow.tonName,
+		.userId = toUser ? owner.userId : UserId(),
+		.bounce = owner.userId ? false : flow.bounce,
+	};
+}
+
 void WalletSendRecipientBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
-		QString text) {
+		QString text,
+		std::shared_ptr<const CollectibleTransfer> collectible) {
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::giveawayGiftCodeBox);
-	box->setTitle(tr::lng_wallet_send_title());
+	box->setTitle(collectible
+		? tr::lng_gift_transfer_title(
+			lt_name,
+			CollectibleNameValue(collectible->media, collectible->address))
+		: tr::lng_wallet_send_title());
 	AddBoxCloseButton(box);
 
 	const auto session = &show->session();
@@ -8986,6 +9515,7 @@ void WalletSendRecipientBox(
 		rpl::variable<QString> search;
 		rpl::variable<bool> recentHidden = false;
 		base::Timer deadline;
+		Fn<void(not_null<UserData*>)> chooseUser;
 		uint64 revision = 0;
 		bool closed = false;
 		bool searchCreated = false;
@@ -8993,6 +9523,9 @@ void WalletSendRecipientBox(
 	};
 	const auto state = box->lifetime().make_state<State>();
 	const auto lookup = box->lifetime().make_state<TonNameLookup>(session);
+	const auto choose = [=](not_null<UserData*> user) {
+		state->chooseUser(user);
+	};
 
 	const auto recipient = box->addRow(
 		object_ptr<Ui::VerticalLayout>(box),
@@ -9022,7 +9555,8 @@ void WalletSendRecipientBox(
 	recipient->add(MakeRecentMoneyRecipientsList(
 		box,
 		show,
-		state->recentHidden.value()));
+		state->recentHidden.value(),
+		choose));
 
 	const auto stop = [=] {
 		++state->revision;
@@ -9049,7 +9583,8 @@ void WalletSendRecipientBox(
 			recipient->add(MakeMoneyRecipientSearchList(
 				box,
 				show,
-				state->search.value()));
+				state->search.value(),
+				choose));
 			recipient->resizeToWidth(recipient->width());
 		}
 		state->search = searching ? trimmed : QString();
@@ -9062,6 +9597,13 @@ void WalletSendRecipientBox(
 			|| !show->valid()
 			|| &show->session() != session) {
 			return;
+		} else if (collectible) {
+			show->showBox(Box(
+				CollectibleTransferBox,
+				show,
+				collectible,
+				CollectibleRecipientFrom(session, flow, owner)));
+			return;
 		}
 		OpenSendFlow(show, std::move(flow), std::move(owner), box.get());
 	};
@@ -9072,7 +9614,11 @@ void WalletSendRecipientBox(
 	};
 	const auto lookupOwner = [=](SendFlow flow) {
 		if (SendsToOwnWallet(session, flow.destination)) {
-			proceed(flow, AddressOwner());
+			if (collectible) {
+				failName(RecipientError::OwnWallet);
+			} else {
+				proceed(flow, AddressOwner());
+			}
 			return;
 		}
 		const auto revision = ++state->revision;
@@ -9099,6 +9645,59 @@ void WalletSendRecipientBox(
 			crl::guard(session, crl::guard(box, answer)),
 			crl::guard(session, crl::guard(box, fail)));
 	};
+	if (!collectible) {
+		state->chooseUser = [=](not_null<UserData*> user) {
+			ChooseMoneyRecipient(box, show, user);
+		};
+	} else {
+		state->chooseUser = [=](not_null<UserData*> user) {
+			if (state->closed || state->resolving.current()) {
+				return;
+			} else if (user->isSelf()) {
+				failName(RecipientError::OwnWallet);
+				return;
+			}
+			const auto userId = peerToUser(user->id);
+			const auto revision = ++state->revision;
+			const auto answer = [=](QString address) {
+				if (revision != state->revision) {
+					return;
+				}
+				const auto flow = ParseRecipientFlow(
+					FormatFriendly(address, false));
+				if (!flow) {
+					failName(RecipientError::LookupFailed);
+				} else if (SendsToOwnWallet(session, flow->destination)) {
+					failName(RecipientError::OwnWallet);
+				} else {
+					proceed(*flow, AddressOwner{
+						.userId = userId,
+						.address = address,
+					});
+				}
+			};
+			const auto fail = [=](ForceResolveError error) {
+				if (revision != state->revision) {
+					return;
+				}
+				stop();
+				if (!error.silent) {
+					show->showToast(SendUserLoadErrorText(error.type));
+				}
+			};
+			state->resolving = true;
+			state->deadline.setCallback([=] {
+				if (revision == state->revision) {
+					failName(RecipientError::LookupFailed);
+				}
+			});
+			state->deadline.callOnce(kSendUserLoadTimeout);
+			session->wallet().userAddresses().forceResolve(
+				userId,
+				crl::guard(session, crl::guard(box, answer)),
+				crl::guard(session, crl::guard(box, fail)));
+		};
+	}
 	const auto proceedName = [=](const TonNameState &value) {
 		if (auto flow = ParseRecipientFlow(value.address)) {
 			flow->tonName = value.name;
@@ -14125,7 +14724,11 @@ void Content::setupPinned() {
 	});
 	const auto send = addPill(tr::lng_send_button(), [show = _show] {
 		WhenWalletReady(show, [=] {
-			show->showBox(Box(WalletSendRecipientBox, show, QString()));
+			show->showBox(Box(
+				WalletSendRecipientBox,
+				show,
+				QString(),
+				nullptr));
 		});
 	});
 	buttons->widthValue(
@@ -15924,6 +16527,31 @@ void ShowSendToUser(
 			amountNano,
 			origin));
 	}, notReady);
+}
+
+void ShowCollectibleTransfer(
+		std::shared_ptr<Main::SessionShow> show,
+		std::shared_ptr<CollectibleMedia> media,
+		const QString &collectible) {
+	if (!show || !show->valid() || !media || collectible.isEmpty()) {
+		return;
+	}
+	media->resolve(collectible);
+	const auto weak = std::weak_ptr<CollectibleMedia>(media);
+	WhenWalletReady(show, [=] {
+		const auto strong = weak.lock();
+		if (!strong || !show->valid()) {
+			return;
+		}
+		show->showBox(Box(
+			WalletSendRecipientBox,
+			show,
+			QString(),
+			std::make_shared<const CollectibleTransfer>(CollectibleTransfer{
+				.address = collectible,
+				.media = strong,
+			})));
+	});
 }
 
 void ShowSendToLinkRecipient(

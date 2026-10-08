@@ -8393,6 +8393,10 @@ bool SendCommentFits(const QString &text) {
 	return SendCommentBytes(text) <= kSendCommentMaxBytes;
 }
 
+int64 CollectibleTransferAttachedNanos() {
+	return kCollectibleTransferAttachedNanos;
+}
+
 int64 TransferMinNanosFromConfig(float64 configured) {
 	return MinNanosFromConfig(configured, kTransferMinNanosDefault);
 }

@@ -1364,7 +1364,8 @@ void GenericCreditsEntryCover(
 		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::CreditsHistoryEntry &e,
 		const Data::SubscriptionEntry &s,
-		CreditsEntryBoxStyleOverrides st = {}) {
+		CreditsEntryBoxStyleOverrides st = {},
+		std::shared_ptr<const UniqueGiftCoverActions> actions = nullptr) {
 	const auto session = &show->session();
 	const auto owner = &session->data();
 	const auto isStarGift = e.stargift || e.soldOutInfo;
@@ -1428,12 +1429,28 @@ void GenericCreditsEntryCover(
 				ShowUniqueGiftSellBox(show, e.uniqueGift, savedId, wearSt);
 			}
 			: Fn<void()>();
+		auto coverActions = std::vector<Ui::UniqueGiftCoverAction>();
+		if (actions && actions->transfer) {
+			coverActions.push_back({
+				.text = tr::lng_gift_transfer_button(),
+				.icon = &st::menuIconReplace,
+				.callback = actions->transfer,
+			});
+		}
+		if (actions && actions->sell) {
+			coverActions.push_back({
+				.text = tr::lng_gift_transfer_sell(),
+				.icon = &st::menuIconTagSell,
+				.callback = actions->sell,
+			});
+		}
 		AddUniqueGiftCover(content, rpl::single(cover), {
 			.numberText = (uniqueGift->number > 0)
 				? rpl::single(u"#"_q + Lang::FormatCountDecimal(uniqueGift->number))
 				: rpl::producer<QString>(),
 			.resalePrice = UniqueGiftResalePrice(e.uniqueGift, forceTon),
 			.resaleClick = resaleClick,
+			.actions = std::move(coverActions),
 			.message = std::move(message),
 		});
 		if (e.bareGiftOwnerId == session->userPeerId().value) {
@@ -1574,8 +1591,9 @@ void GenericCreditsEntryBox(
 		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::CreditsHistoryEntry &e,
 		const Data::SubscriptionEntry &s,
-		CreditsEntryBoxStyleOverrides st) {
-	GenericCreditsEntryCover(box, show, e, s, st);
+		CreditsEntryBoxStyleOverrides st,
+		std::shared_ptr<const UniqueGiftCoverActions> actions) {
+	GenericCreditsEntryCover(box, show, e, s, st, std::move(actions));
 	GenericCreditsEntryBody(box, show, e, s, nullptr, st);
 }
 
@@ -2787,7 +2805,8 @@ void GlobalStarGiftBox(
 		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::StarGift &data,
 		StarGiftResaleInfo resale,
-		CreditsEntryBoxStyleOverrides st) {
+		CreditsEntryBoxStyleOverrides st,
+		std::shared_ptr<const UniqueGiftCoverActions> actions) {
 	const auto selfId = show->session().userPeerId();
 	const auto ownerId = data.unique ? data.unique->ownerId.value : 0;
 	const auto hostId = data.unique ? data.unique->hostId.value : 0;
@@ -2814,7 +2833,8 @@ void GlobalStarGiftBox(
 			.gift = true,
 		},
 		Data::SubscriptionEntry(),
-		st);
+		st,
+		std::move(actions));
 }
 
 Data::CreditsHistoryEntry SavedStarGiftEntry(

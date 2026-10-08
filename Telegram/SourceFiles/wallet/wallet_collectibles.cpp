@@ -13,20 +13,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/session/session_show.h"
 #include "main/main_session.h"
+#include "settings/settings_credits_graphics.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/basic_click_handlers.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "wallet/wallet_chat_show.h"
 #include "wallet/wallet_collectible_media.h"
+#include "wallet/wallet_content.h"
 #include "wallet/wallet_session.h"
 
 #include "styles/style_giveaway.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_wallet.h"
 
 namespace Wallet {
@@ -85,6 +90,23 @@ private:
 
 };
 
+class CollectibleActionButton final : public Ui::RippleButton {
+public:
+	CollectibleActionButton(
+		QWidget *parent,
+		rpl::producer<QString> text,
+		const style::icon &icon);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	QImage prepareRippleMask() const override;
+
+private:
+	const style::icon &_icon;
+	QString _text;
+
+};
+
 CollectibleRow::CollectibleRow(QWidget *parent)
 : RippleButton(parent, st::defaultRippleAnimationBgOver) {
 }
@@ -134,6 +156,73 @@ void CollectibleRow::paintEvent(QPaintEvent *e) {
 	});
 }
 
+CollectibleActionButton::CollectibleActionButton(
+	QWidget *parent,
+	rpl::producer<QString> text,
+	const style::icon &icon)
+: RippleButton(parent, st::defaultRippleAnimation)
+, _icon(icon) {
+	std::move(text) | rpl::on_next([=](QString value) {
+		_text = std::move(value);
+		update();
+	}, lifetime());
+}
+
+void CollectibleActionButton::paintEvent(QPaintEvent *e) {
+	auto p = Painter(this);
+	const auto radius = st::walletCollectibleActionRadius;
+	{
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::windowBgOver);
+		p.drawRoundedRect(rect(), radius, radius);
+	}
+	paintRipple(p, 0, 0);
+
+	_icon.paint(
+		p,
+		(width() - _icon.width()) / 2,
+		st::walletCollectibleActionIconTop,
+		width());
+
+	const auto &font = st::semiboldFont;
+	const auto text = font->elided(
+		_text,
+		width() - 2 * st::walletCollectibleActionTextSkip);
+	const auto textWidth = font->width(text);
+	p.setFont(font);
+	p.setPen(st::windowBoldFg);
+	p.drawTextLeft(
+		(width() - textWidth) / 2,
+		st::walletCollectibleActionTextTop,
+		width(),
+		text,
+		textWidth);
+}
+
+QImage CollectibleActionButton::prepareRippleMask() const {
+	return Ui::RippleAnimation::RoundRectMask(
+		size(),
+		st::walletCollectibleActionRadius);
+}
+
+[[nodiscard]] QString CollectibleFragmentUrl(const Gram::NftItem &item) {
+	if (item.key.isEmpty()) {
+		return QString();
+	}
+	switch (item.kind) {
+	case Gram::NftKind::TelegramGift:
+		return u"https://fragment.com/gift/"_q + item.key;
+	case Gram::NftKind::TelegramUsername:
+		return u"https://fragment.com/username/"_q + item.key;
+	case Gram::NftKind::TelegramNumber:
+		return u"https://fragment.com/number/"_q + item.key;
+	case Gram::NftKind::Generic:
+		break;
+	}
+	return QString();
+}
+
 [[nodiscard]] rpl::producer<QString> CollectibleAboutText(
 		const Gram::NftItem &item) {
 	if (!item.key.isEmpty()) {
@@ -150,10 +239,64 @@ void CollectibleRow::paintEvent(QPaintEvent *e) {
 	return tr::lng_wallet_collectible_nft_about();
 }
 
+void AddCollectibleActions(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Main::SessionShow> show,
+		std::shared_ptr<CollectibleMedia> media,
+		const Gram::NftItem &item,
+		const QString &sellUrl) {
+	const auto &padding = st::giveawayGiftCodeBox.buttonPadding;
+	const auto row = box->addRow(
+		object_ptr<Ui::FixedHeightWidget>(
+			box,
+			st::walletCollectibleActionHeight),
+		style::margins(
+			padding.left(),
+			st::walletCollectibleActionsTopSkip,
+			padding.right(),
+			st::walletCollectibleActionsBottomSkip));
+	const auto address = item.address;
+	const auto transfer = Ui::CreateChild<CollectibleActionButton>(
+		row,
+		tr::lng_gift_transfer_button(),
+		st::menuIconReplace);
+	transfer->setClickedCallback([=] {
+		ShowCollectibleTransfer(show, media, address);
+	});
+	const auto sell = sellUrl.isEmpty()
+		? nullptr
+		: Ui::CreateChild<CollectibleActionButton>(
+			row,
+			tr::lng_gift_transfer_sell(),
+			st::menuIconTagSell);
+	if (sell) {
+		sell->setClickedCallback([=] {
+			UrlClickHandler::Open(sellUrl);
+		});
+	}
+	row->widthValue(
+	) | rpl::on_next([=](int width) {
+		const auto height = st::walletCollectibleActionHeight;
+		if (!sell) {
+			transfer->resize(width, height);
+			transfer->moveToLeft(0, 0, width);
+			return;
+		}
+		const auto single = (width - st::walletButtonsSkip) / 2;
+		transfer->resize(single, height);
+		transfer->moveToLeft(0, 0, width);
+		const auto left = single + st::walletButtonsSkip;
+		sell->resize(width - left, height);
+		sell->moveToLeft(left, 0, width);
+	}, row->lifetime());
+}
+
 void CollectiblePreviewBox(
 		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Main::SessionShow> show,
 		std::shared_ptr<CollectibleMedia> media,
-		Gram::NftItem item) {
+		Gram::NftItem item,
+		QString sellUrl) {
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(st::giveawayGiftCodeBox);
 	box->setNoContentMargin(true);
@@ -195,6 +338,7 @@ void CollectiblePreviewBox(
 			st::walletCollectiblePreviewAbout),
 		st::walletPhraseTextMargin,
 		style::al_top);
+	AddCollectibleActions(box, show, media, item, sellUrl);
 
 	const auto apply = [=] {
 		title->setMarkedText(CollectibleTitleText(media->view(address)));
@@ -219,25 +363,50 @@ void Activate(
 		std::shared_ptr<Main::SessionShow> show,
 		std::shared_ptr<CollectibleMedia> media,
 		const Gram::NftItem &item) {
+	const auto sellUrl = CollectibleFragmentUrl(item);
 	if (item.kind == Gram::NftKind::TelegramGift && !item.key.isEmpty()) {
 		const auto weak = std::weak_ptr(media);
 		const auto address = item.address;
+		auto actions = std::make_shared<::Settings::UniqueGiftCoverActions>();
+		actions->transfer = [=] {
+			if (const auto strong = weak.lock()) {
+				ShowCollectibleTransfer(show, strong, address);
+			}
+		};
+		if (!sellUrl.isEmpty()) {
+			actions->sell = [=] {
+				UrlClickHandler::Open(sellUrl);
+			};
+		}
 		Core::ResolveAndShowUniqueGift(
 			MakeChatShow(show, false),
 			item.key,
-			[=](const QString &) {
+			::Settings::CreditsEntryBoxStyleOverrides(),
+			[=](const QString &error) {
 				const auto strong = weak.lock();
-				if (strong && show->valid()) {
-					show->showBox(
-						Box(CollectiblePreviewBox, strong, item));
+				if (!strong || !show->valid()) {
+					return;
 				}
+				const auto mismatch = (error == u"GIFT_ADDRESS_MISMATCH"_q);
+				show->showBox(Box(
+					CollectiblePreviewBox,
+					show,
+					strong,
+					item,
+					mismatch ? QString() : sellUrl));
 			},
 			[=](const Data::StarGift &gift) {
 				return UniqueGiftMatchesAddress(gift.unique, address);
-			});
+			},
+			std::move(actions));
 		return;
 	}
-	show->showBox(Box(CollectiblePreviewBox, std::move(media), item));
+	show->showBox(Box(
+		CollectiblePreviewBox,
+		show,
+		std::move(media),
+		item,
+		sellUrl));
 }
 
 void AddRow(

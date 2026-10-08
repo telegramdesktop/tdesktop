@@ -2240,7 +2240,8 @@ void ResolveAndShowUniqueGift(
 		const QString &slug,
 		::Settings::CreditsEntryBoxStyleOverrides st,
 		Fn<void(QString)> fail,
-		Fn<bool(const Data::StarGift &)> validate) {
+		Fn<bool(const Data::StarGift &)> validate,
+		std::shared_ptr<const ::Settings::UniqueGiftCoverActions> actions) {
 	struct Request {
 		base::weak_ptr<Main::Session> weak;
 		QString slug;
@@ -2283,7 +2284,8 @@ void ResolveAndShowUniqueGift(
 				show,
 				*gift,
 				StarGiftResaleInfo(),
-				st));
+				st,
+				actions));
 			show->activate();
 		} else if (fail) {
 			fail(u"RESPONSE_PARSE_FAILED"_q);

@@ -47,7 +47,7 @@ void AcquireTransferCommentKey(
 	rpl::lifetime &lifetime,
 	Fn<void(KeyAuthorization)> done);
 
-// The wallet key ladder for a caller outside the wallet window.
+// The wallet key ladder of a send press, for a caller that owns no key context.
 void AcquireWalletKey(
 	std::shared_ptr<Main::SessionShow> show,
 	Fn<bool()> current,
@@ -155,6 +155,12 @@ void ShowSendToUser(
 	int64 amountNano = 0,
 	Fn<void()> notReady = nullptr,
 	base::weak_qptr<Ui::BoxContent> origin = nullptr);
+
+// The recipient step and the confirmation of a collectible's Transfer.
+void ShowCollectibleTransfer(
+	std::shared_ptr<Main::SessionShow> show,
+	std::shared_ptr<CollectibleMedia> media,
+	const QString &collectible);
 
 void ShowSendToLinkRecipient(
 	std::shared_ptr<Main::SessionShow> show,

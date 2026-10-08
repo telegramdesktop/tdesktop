@@ -605,6 +605,19 @@ walletCollectiblePreviewTitle: FlatLabel(walletPhraseTitleLabel) {
 walletCollectiblePreviewAbout: FlatLabel(walletPhraseTextLabel) {
 	textFg: windowSubTextFg;
 }
+walletCollectibleActionsTopSkip: 12px;
+walletCollectibleActionsBottomSkip: 8px;
+walletCollectibleActionHeight: 56px;
+walletCollectibleActionRadius: walletDetailsCollectibleRadius;
+walletCollectibleActionIconTop: 7px;
+walletCollectibleActionTextTop: 32px;
+walletCollectibleActionTextSkip: 8px;
+walletCollectibleCommentField: InputField(walletCommentField) {
+	textMargins: margins(0px, 4px, 0px, 4px);
+	heightMin: 28px;
+	border: 0px;
+	borderActive: 0px;
+}
 
 walletReceiveTitleHeight: boxTitleHeight;
 walletReceiveTitleButtonSkip: 6px;

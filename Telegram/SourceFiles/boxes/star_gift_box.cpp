@@ -4678,7 +4678,8 @@ void DefaultGiftHandler(
 				.recipientId = peer->id,
 				.forceTon = star->forceTon,
 			},
-			Settings::CreditsEntryBoxStyleOverrides()));
+			Settings::CreditsEntryBoxStyleOverrides(),
+			nullptr));
 	} else if (unique && star->mine && !peer->isSelf()) {
 		if (ShowTransferGiftLater(window->uiShow(), unique)) {
 			return;

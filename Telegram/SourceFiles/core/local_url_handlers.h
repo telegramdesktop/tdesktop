@@ -21,6 +21,7 @@ struct StarGift;
 
 namespace Settings {
 struct CreditsEntryBoxStyleOverrides;
+struct UniqueGiftCoverActions;
 } // namespace Settings
 
 namespace Window {
@@ -57,7 +58,8 @@ void ResolveAndShowUniqueGift(
 	const QString &slug,
 	::Settings::CreditsEntryBoxStyleOverrides st,
 	Fn<void(QString)> fail = nullptr,
-	Fn<bool(const Data::StarGift &)> validate = nullptr);
+	Fn<bool(const Data::StarGift &)> validate = nullptr,
+	std::shared_ptr<const ::Settings::UniqueGiftCoverActions> actions = nullptr);
 void ResolveAndShowUniqueGift(
 	std::shared_ptr<ChatHelpers::Show> show,
 	const QString &slug,

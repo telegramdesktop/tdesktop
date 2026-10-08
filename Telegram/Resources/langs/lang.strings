@@ -8839,6 +8839,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_collectible_username_about" = "The {username} username on Telegram.";
 "lng_wallet_collectible_number_about" = "The anonymous number {number} that can be used to create a Telegram account that is not tied to a SIM card.";
 "lng_wallet_collectible_nft_about" = "A collectible stored on The Open Network (TON) blockchain.";
+"lng_wallet_collectible_send" = "Send {name}";
+"lng_wallet_collectible_not_owned" = "This collectible is no longer in your wallet.";
+"lng_wallet_collectible_own_wallet" = "This collectible is already in your wallet.";
 "lng_wallet_chip_gift" = "Collectible gift";
 "lng_wallet_chip_username" = "Collectible username";
 "lng_wallet_chip_number" = "Anonymous Number";

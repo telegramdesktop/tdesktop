@@ -392,6 +392,7 @@ struct SendComment {
 
 [[nodiscard]] int SendCommentBytes(const QString &text);
 [[nodiscard]] bool SendCommentFits(const QString &text);
+[[nodiscard]] int64 CollectibleTransferAttachedNanos();
 
 [[nodiscard]] int64 TransferMinNanosFromConfig(float64 configured);
 [[nodiscard]] int64 TransferMinNanos(not_null<Main::Session*> session);

@@ -27,6 +27,12 @@ struct UniqueGiftCoverMessage {
 	bool hidden = false;
 };
 
+struct UniqueGiftCoverAction {
+	rpl::producer<QString> text;
+	const style::icon *icon = nullptr;
+	Fn<void()> callback;
+};
+
 struct UniqueGiftCoverArgs {
 	rpl::producer<QString> pretitle;
 	rpl::producer<QString> numberText;
@@ -37,6 +43,7 @@ struct UniqueGiftCoverArgs {
 	rpl::producer<CreditsAmount> resalePrice;
 	Fn<void()> resaleClick;
 	bool attributesInfo = false;
+	std::vector<UniqueGiftCoverAction> actions;
 	Fn<void(
 		std::optional<Data::UniqueGift> now,
 		std::optional<Data::UniqueGift> next,
