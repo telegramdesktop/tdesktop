@@ -1798,6 +1798,24 @@ void FailShareFetch(
 	};
 }
 
+// A user send's served row may name only the address it was sent to.
+void KeepSubmittedRecipient(
+		TransferItem &item,
+		const SubmittedTransferRecord &record) {
+	using Kind = TransferItem::Kind;
+	if (!record.recipient
+		|| item.counterpartyPeer
+		|| item.incoming
+		|| (item.kind != Kind::Transfer && item.kind != Kind::Collectible)
+		|| item.counterparty != record.destination) {
+		return;
+	}
+	if (item.kind == Kind::Transfer) {
+		item.kind = Kind::PeerTransfer;
+	}
+	item.counterpartyPeer = peerFromUser(record.recipient).value;
+}
+
 [[nodiscard]] std::optional<Gram::NftWebDocument> WebDocumentFromServer(
 		const tl::conditional<MTPWebDocument> &document) {
 	if (!document) {
@@ -10589,6 +10607,11 @@ bool Session::adoptSubmittedTransaction(
 		LOG(("Wallet Error: sent transfer has unusable or conflicting "
 			"transaction identity."));
 	} else if (entry->canonicalId.isEmpty()) {
+		if (const auto record = submittedTransferRecord(
+				operationId,
+				entry->identity)) {
+			KeepSubmittedRecipient(item, *record);
+		}
 		entry->canonicalId = item.id;
 		entry->item = std::make_unique<TransferItem>(std::move(item));
 		entry->fallback.reset();
