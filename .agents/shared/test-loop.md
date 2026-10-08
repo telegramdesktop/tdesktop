@@ -757,6 +757,10 @@ command, environment, exit-code, log, artifact and control evidence.
     stages (a menu that closes on an outside press, a paint sampler) a stray click or keystroke can
     abort; pick a requirement at least as long as the expected run and still read
     `input_during_run` afterwards — the gate makes input less likely, it does not prevent it.
+    A window that must keep painting while someone may use the console, where another application
+    can cover it and leave it unexposed, is kept exposed without activating the app by
+    `Test::KeepWindowExposed` (`Telegram/SourceFiles/test/test_window_exposure.h`); the gate itself
+    cannot prevent that occlusion.
 
 ### Crashes & assertions (always launch the test binary with `-testagent`)
 
