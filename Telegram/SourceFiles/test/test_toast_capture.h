@@ -58,9 +58,10 @@ namespace Test {
 // appends Runner stages and test_runner.cpp already includes
 // test_capture.h: the reverse include would invert the harness's layering
 // and make its most-included module runner-aware, which is the rule
-// test_menu.h:57-63 states. It is not part of test_via_window.* either,
-// because that module is the self-test of CaptureViaWindow and is this
-// module's own unchanged-scenario control.
+// the layering note above PopupMenuReading in test_menu.h states. It is
+// not part of test_via_window.* either, because that module is the
+// self-test of CaptureViaWindow and is this module's own
+// unchanged-scenario control.
 
 // |toast| is non-null exactly when |refusal| is empty at the moment the
 // reading is taken: a caller cannot take the pointer without being handed

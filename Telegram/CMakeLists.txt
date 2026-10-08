@@ -2024,6 +2024,8 @@ PRIVATE
     test/test_box_button.h
     test/test_capture.cpp
     test/test_capture.h
+    test/test_clipboard.cpp
+    test/test_clipboard.h
     test/test_corner_patch.cpp
     test/test_corner_patch.h
     test/test_custom_emoji.cpp

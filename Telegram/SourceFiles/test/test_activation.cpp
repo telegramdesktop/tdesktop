@@ -185,9 +185,10 @@ void AppendWindowActivationSelfTest(not_null<Runner*> runner) {
 				return;
 			}
 			// Both snapshots are taken in this one turn, for the reason
-			// test_menu.cpp:231-243 takes its two there: the failing shape
-			// exists only inside the turn that produced it. Here the turn
-			// is a safety boundary as well. ClearWindowActive mutates
+			// AppendPopupMenuCaptureSelfTest's open stage (test_menu.cpp)
+			// takes its two in the turn that called popup(): the failing
+			// shape exists only inside the turn that produced it. Here the
+			// turn is a safety boundary as well. ClearWindowActive mutates
 			// process-global Qt state, and a stage past its timeout skips
 			// every stage after it, so a de-activation left in force at a
 			// stage boundary would silence the rest of the run - which is

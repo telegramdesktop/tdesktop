@@ -51,9 +51,10 @@ class Runner;
 // answer beside that refusal: a shell button that carries the wanted label
 // and is merely disabled or hidden is present, and is not a match.
 //
-// The helper and its self-test share one module for the reason
-// test_menu.h:56-62 states: a facility that appends Runner stages cannot
-// live in test_capture.h, because test_runner.cpp already includes it.
+// The helper and its self-test share one module for the reason the
+// layering note above PopupMenuReading in test_menu.h states: a facility
+// that appends Runner stages cannot live in test_capture.h, because
+// test_runner.cpp already includes it.
 struct BoxShellButtons {
 	QPointer<QWidget> root;
 	QPointer<QWidget> match;
@@ -90,7 +91,7 @@ struct BoxShellButtons {
 // while the reading is matched, because those take not_null<QWidget*>, whose
 // Expects is a crash and not a refusal, and there is nothing left to format
 // afterwards - print the recorded text, not the pointer. PopupMenuReading
-// (test_menu.h:63-72), whose wording this follows, carries no widget
+// (test_menu.h), whose wording this follows, carries no widget
 // pointer at all.
 [[nodiscard]] BoxShellButtons ReadBoxButtons(
 	QWidget *box,
