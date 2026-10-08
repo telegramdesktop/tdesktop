@@ -11107,7 +11107,7 @@ void Session::applyRotationSnapshot(
 	if (operationId != custody().pendingRotation->operationId) {
 		// A journal naming nothing for the pending is conclusive only from
 		// a successful standalone resolve_pending(): refresh() swallows the
-		// failure of its own embedded resolve (refresh.rs:28) and still
+		// failure of its own embedded resolve (refresh.rs) and still
 		// reports kCompleted with the client's fresh, empty send snapshot,
 		// so an update's kIdle is not journal-derived, and the result of
 		// send_boc speaks for its own submission only. Even the standalone
