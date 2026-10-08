@@ -36,6 +36,7 @@ struct CollectibleView {
 	QString number;
 	QString collectionName;
 	Gram::NftKind kind = Gram::NftKind::Generic;
+	bool authenticGift = false;
 	QString key;
 	QString model;
 	QString backdrop;
@@ -43,7 +44,8 @@ struct CollectibleView {
 
 [[nodiscard]] TextWithEntities CollectibleTitleText(
 	const CollectibleView &view);
-[[nodiscard]] QString CollectibleKindText(Gram::NftKind kind);
+[[nodiscard]] QString CollectibleKindText(
+	const CollectibleView &view);
 [[nodiscard]] QString CollectibleSubtitleText(
 	const CollectibleView &view);
 

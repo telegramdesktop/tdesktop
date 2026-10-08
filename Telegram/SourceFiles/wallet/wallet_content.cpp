@@ -1750,7 +1750,7 @@ void AddHistoryRowChip(
 				: CollectibleTitleText(view)));
 		state->subtitle.setText(
 			st::walletRowDateLabel.style,
-			CollectibleKindText(view.kind));
+			CollectibleKindText(view));
 		state->natural = st::walletRowIconSize
 			+ st::walletChipTextSkip
 			+ std::max(state->title.maxWidth(), state->subtitle.maxWidth())

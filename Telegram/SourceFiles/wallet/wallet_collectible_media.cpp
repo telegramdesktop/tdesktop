@@ -151,13 +151,13 @@ TextWithEntities CollectibleTitleText(const CollectibleView &view) {
 	return result;
 }
 
-QString CollectibleKindText(Gram::NftKind kind) {
+QString CollectibleKindText(const CollectibleView &view) {
 	using Kind = Gram::NftKind;
-	return (kind == Kind::TelegramGift)
+	return (view.kind == Kind::TelegramGift && view.authenticGift)
 		? tr::lng_wallet_chip_gift(tr::now)
-		: (kind == Kind::TelegramUsername)
+		: (view.kind == Kind::TelegramUsername)
 		? tr::lng_wallet_chip_username(tr::now)
-		: (kind == Kind::TelegramNumber)
+		: (view.kind == Kind::TelegramNumber)
 		? tr::lng_wallet_chip_number(tr::now)
 		: tr::lng_wallet_chip_nft(tr::now);
 }
@@ -166,7 +166,7 @@ QString CollectibleSubtitleText(const CollectibleView &view) {
 	using Kind = Gram::NftKind;
 	if (view.kind == Kind::TelegramUsername
 		|| view.kind == Kind::TelegramNumber) {
-		return CollectibleKindText(view.kind);
+		return CollectibleKindText(view);
 	} else if (view.kind == Kind::TelegramGift
 		&& !view.model.isEmpty()
 		&& !view.backdrop.isEmpty()) {
@@ -199,6 +199,7 @@ struct CollectibleMedia::Entry {
 	crl::time deadline = 0;
 	State state = State::None;
 	bool sticky = false;
+	bool authenticGift = false;
 };
 
 CollectibleMedia::CollectibleMedia(not_null<Main::Session*> session)
@@ -490,6 +491,7 @@ void CollectibleMedia::clearArtwork(not_null<Entry*> entry) {
 	entry->number.clear();
 	entry->model.clear();
 	entry->backdrop.clear();
+	entry->authenticGift = false;
 	entry->giftPaint = nullptr;
 	entry->imageBytes.clear();
 	entry->prepared.clear();
@@ -512,6 +514,7 @@ void CollectibleMedia::requestGift(
 		}
 		entry->model = unique->model.name;
 		entry->backdrop = unique->backdrop.name;
+		entry->authenticGift = true;
 		_changed.fire_copy(entry->address);
 		_repaint.fire_copy(entry->address);
 		finishChain(entry, State::Done);
@@ -615,6 +618,7 @@ CollectibleView CollectibleMedia::view(const QString &item) const {
 			entry->number,
 			entry->collectionName,
 			entry->record.kind,
+			entry->authenticGift,
 			entry->record.key,
 			entry->model,
 			entry->backdrop,
@@ -628,6 +632,7 @@ CollectibleView CollectibleMedia::view(const QString &item) const {
 		title.second,
 		entry->collectionName,
 		entry->record.kind,
+		entry->authenticGift,
 		entry->record.key,
 		entry->model,
 		entry->backdrop,
