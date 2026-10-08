@@ -9,6 +9,7 @@ function(telegram_add_apple_swift_runtime target_name)
         return()
     endif()
 
+    set(swift_compiler "")
     if (CMAKE_Swift_COMPILER)
         set(swift_compiler "${CMAKE_Swift_COMPILER}")
     endif()
