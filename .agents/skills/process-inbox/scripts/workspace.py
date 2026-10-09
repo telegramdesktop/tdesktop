@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import contextlib
 import datetime
 import hashlib
 import json
@@ -13,7 +14,9 @@ import signal
 import subprocess
 import sys
 import tempfile
+import threading
 import time
+import xml.parsers.expat
 
 
 TAG_PATTERN = re.compile(r"[a-z0-9][a-z0-9-]*")
@@ -74,6 +77,7 @@ WAIT_IDLE_MAX_DEFAULT = 600.0
 LSAPPINFO_ASN_PATTERN = re.compile(r"ASN:0x[0-9a-fA-F]+-0x[0-9a-fA-F]+:")
 LSAPPINFO_NAME_PATTERN = re.compile(r'"(.*)"\s+ASN:')
 LAUNCH_ACTIVATION_VARIABLE = "QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM"
+MACOS_OPEN_TOOL = "/usr/bin/open"
 BUILD_LOCK_PROCESS_NAMES = {
 	"cl.exe",
 	"cmake.exe",
@@ -1960,16 +1964,39 @@ def resolved_exe(value):
 	return path
 
 
+def app_bundle_of(path):
+	for parent in path.parents:
+		if parent.suffix == ".app":
+			return parent
+	return None
+
+
 def portable_root_for(exe, override):
 	if override:
 		root = Path(override).expanduser().resolve()
 		if not root.is_dir():
 			raise WorkspaceError(f"Portable root does not exist: {root}")
 		return root
-	for parent in exe.parents:
-		if parent.suffix == ".app":
-			return parent.parent
-	return exe.parent
+	bundle = app_bundle_of(exe)
+	return bundle.parent if bundle is not None else exe.parent
+
+
+def background_launch_bundle(exe, platform=None):
+	platform = sys.platform if platform is None else platform
+	bundle = app_bundle_of(exe)
+	if (
+		platform != "darwin"
+		or bundle is None
+		or exe.parent != bundle / "Contents" / "MacOS"
+	):
+		return None
+	try:
+		info = plistlib.loads((bundle / "Contents" / "Info.plist").read_bytes())
+	except (OSError, ValueError, xml.parsers.expat.ExpatError):
+		return None
+	if isinstance(info, dict) and info.get("CFBundleExecutable") == exe.name:
+		return bundle
+	return None
 
 
 def unique_destination(directory, name):
@@ -2124,6 +2151,27 @@ def kill_processes_with_executable(exe):
 		except (OSError, subprocess.SubprocessError):
 			continue
 	return killed
+
+
+@contextlib.contextmanager
+def executable_killed_on_abort(exe):
+	replaced = {}
+	if threading.current_thread() is threading.main_thread():
+		for name in ("SIGTERM", "SIGHUP"):
+			number = getattr(signal, name, None)
+			if number is not None and signal.getsignal(number) == signal.SIG_DFL:
+				replaced[number] = signal.signal(
+					number, lambda signum, frame: sys.exit(128 + signum)
+				)
+	try:
+		yield
+	except BaseException:
+		# a background client is not test-run's child: a group or tree kill of test-run misses it
+		kill_processes_with_executable(exe)
+		raise
+	finally:
+		for number, previous in replaced.items():
+			signal.signal(number, previous)
 
 
 def windows_process_records():
@@ -2740,13 +2788,31 @@ def command_test_run(args):
 	working_before = working.stat().st_mtime_ns if working.is_file() else None
 
 	workdir = (portable / PORTABLE_LIVE) if args.portable_root else None
-	launch = [str(exe), "-testagent", "-noupdate"]
+	launch_args = ["-testagent", "-noupdate"]
 	if workdir is not None:
-		launch += ["-workdir", str(workdir)]
+		launch_args += ["-workdir", str(workdir)]
+	bundle = None if args.activate else background_launch_bundle(exe)
+	if bundle is None:
+		launch = [str(exe), *launch_args]
+	else:
+		# AppKit's launch event activates an exec'd client, not one launched by open -g
+		stdout_path.write_bytes(b"")
+		stderr_path.write_bytes(b"")
+		launch = [
+			MACOS_OPEN_TOOL, "-g", "-n", "-W", "-a", str(bundle),
+			"--stdout", str(stdout_path), "--stderr", str(stderr_path),
+			"--args", *launch_args,
+		]
 
 	_, input_before = console_input_reading()
 	launched_at = time.time()
-	with stdout_path.open("wb") as out, stderr_path.open("wb") as err:
+	with executable_killed_on_abort(exe), contextlib.ExitStack() as streams:
+		if bundle is None:
+			out = streams.enter_context(stdout_path.open("wb"))
+			err = streams.enter_context(stderr_path.open("wb"))
+		else:
+			out = streams.enter_context((run_dir / "launcher_output.txt").open("wb"))
+			err = subprocess.STDOUT
 		process = subprocess.Popen(
 			launch,
 			stdout=out,
@@ -2790,8 +2856,12 @@ def command_test_run(args):
 				outcome = "quiet-killed"
 				break
 		process.wait()
-	ended_at = time.time()
-	kill_processes_with_executable(exe)
+		ended_at = time.time()
+		stragglers_after = kill_processes_with_executable(exe)
+	launcher_exit_code = None
+	if bundle is not None:
+		# open -W exits 0 whatever the client's status, so only open's own is known
+		launcher_exit_code, exit_code = exit_code, None
 
 	log_text = (
 		log_path.read_text(encoding="utf-8", errors="replace")
@@ -2861,6 +2931,8 @@ def command_test_run(args):
 		"input_before": input_before,
 		"input_during_run": input_during_run,
 		"launch_activation": "allowed" if args.activate else "suppressed",
+		"launch_method": "exec" if bundle is None else "background",
+		"launcher_exit_code": launcher_exit_code,
 		"log_path": str(log_path) if log_path.is_file() else None,
 		"markers": parse_test_log(log_text),
 		"outcome": outcome,
@@ -2869,6 +2941,7 @@ def command_test_run(args):
 		"stale_crash_cleared": cleared,
 		"stderr_tail": tail_of_file(stderr_path),
 		"stragglers_killed": stragglers,
+		"stragglers_killed_after": stragglers_after,
 		"test_complete": test_complete,
 		"verdict_hint": verdict_hint,
 		"wait_idle": wait_idle,

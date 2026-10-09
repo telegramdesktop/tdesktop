@@ -241,7 +241,8 @@ private:
 //    requests the next from inside paintEvent). Check: the fixture gate -
 //    at least 5 product paints in a shown, exposed, non-minimized primary
 //    window, with the helper's reading in the details (its exposed= is the
-//    value from before the call). A minimized or hidden window produces no
+//    value from before the call, where a window covered since it was shown
+//    can read exposed=1). A minimized or hidden window produces no
 //    paints and the helper refuses it; the gate then fails once with what
 //    it read and the refusal, clears the hint, and every later stage is N/A
 //    by that name.

@@ -38,10 +38,15 @@ class Runner;
 // no paint-stamped product timer and no frame advance. Run 2 set the hint
 // below on the panel's QWindow right after showing it, waited for
 // isExposed() in a pure until, and the leg ran end to end. Since then a
-// workspace.py test-run launch does not activate the client by default
-// (launch_activation "suppressed" in its report, --activate to opt in), so
-// its windows open behind the frontmost application's, and a covered one
-// stays unexposed whether or not anyone uses the console; the
+// default workspace.py test-run launch of an app bundle on macOS does not
+// activate the client (launch_method "background" in its report,
+// --activate to opt in), so its windows open behind the frontmost
+// application's whether or not anyone uses the console. A window covered
+// from the moment it is shown reads isExposed() true until the window
+// server first reports an occlusion change for it - such as this helper's
+// undo dropping it back behind - so exposed=1 is no proof that it is on
+// screen; after such a change a covered window reads unexposed and gets no
+// paints. A stage that needs paints calls the helper either way; the
 // workspace.py test-run --wait-idle gate does not change that.
 //
 // The mechanism. QWindow::setFlag(Qt::WindowStaysOnTopHint, true) on
@@ -152,9 +157,9 @@ void RestoreWindowExposure(const WindowExposure &reading);
 // it set and leave a hint it found alone. Off macOS or on a locked console
 // every leg stage is a named N/A, while the refusal stage runs everywhere.
 // After a default workspace.py test-run launch, which does not activate the
-// client, a target another application's window covers when it is shown
-// reads unexposed before the harness cover (exposedBeforeCover=0), and
-// that leg is the named N/A, never a pass.
+// client, a target that another application's window covers from the
+// moment it is shown cannot be turned unexposed by the harness cover (see
+// "Why it exists" above), so that leg is the named N/A, never a pass.
 // A per-leg teardown stage and Runner::onFinish, registered at append time,
 // destroy every harness window, so none is left over the owner's console on
 // any exit path.

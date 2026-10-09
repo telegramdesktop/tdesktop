@@ -50,7 +50,9 @@ class Runner;
 // deciding half instead of passing it, as does any host where the control
 // cannot read markingAsRead true. Its "activate undoes the lever" and
 // "restore" stages call Window::Controller::activate(), which activates the
-// client on macOS (Platform::ActivateThisProcess()).
+// client on macOS (Platform::ActivateThisProcess()), also after a
+// background workspace.py test-run launch: the window server honours a
+// background-launched client's own activation request.
 struct MarkingReadReading {
 	bool markingAsRead = false;
 	bool isActive = false;

@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import plistlib
+import signal
 import subprocess
 import tempfile
 import time
@@ -1926,6 +1927,17 @@ def run_test_run(exe, run_dir, **overrides):
 	return run_command(workspace.command_test_run, **arguments)
 
 
+@contextlib.contextmanager
+def patched_background_launch(bundle, launcher):
+	with (
+		mock.patch.object(
+			workspace, "background_launch_bundle", return_value=bundle,
+		),
+		mock.patch.object(workspace, "MACOS_OPEN_TOOL", str(launcher)),
+	):
+		yield
+
+
 LSAPPINFO_FRONT = b"ASN:0x0-0x55e55e:\n"
 
 
@@ -2647,6 +2659,264 @@ class MechanicsTest(unittest.TestCase):
 					run_test_run(exe, run_dir, **overrides)
 				self.assertFalse(run_dir.exists())
 				self.assertFalse((debug / workspace.PORTABLE_LIVE).exists())
+
+	def test_background_launch_bundle_needs_macos_and_the_bundle_executable(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			bundle = root / "Telegram.app"
+			contents = bundle / "Contents"
+			main = contents / "MacOS" / "Telegram"
+			other = contents / "MacOS" / "Updater"
+			outside = contents / "Resources" / "Telegram"
+			bare = root / "Telegram"
+			for path in (main, other, outside, bare):
+				path.parent.mkdir(parents=True, exist_ok=True)
+				path.write_bytes(b"")
+			(contents / "Info.plist").write_bytes(
+				plistlib.dumps({"CFBundleExecutable": "Telegram"})
+			)
+			self.assertEqual(
+				workspace.background_launch_bundle(main, platform="darwin"),
+				bundle,
+			)
+			for exe, platform in (
+				(other, "darwin"),
+				(outside, "darwin"),
+				(bare, "darwin"),
+				(main, "linux"),
+				(main, "win32"),
+			):
+				with self.subTest(
+					exe=exe.relative_to(root).as_posix(),
+					platform=platform,
+				):
+					self.assertIsNone(
+						workspace.background_launch_bundle(exe, platform=platform)
+					)
+
+	def test_test_run_launches_a_macos_bundle_in_the_background(self):
+		variable = workspace.LAUNCH_ACTIVATION_VARIABLE
+		for isolated, inherited in (
+			(False, None),
+			(False, ""),
+			(True, None),
+			(True, ""),
+		):
+			with (
+				self.subTest(isolated=isolated, inherited=inherited),
+				tempfile.TemporaryDirectory() as temporary,
+				mock.patch.dict(os.environ),
+			):
+				os.environ.pop(variable, None)
+				if inherited is not None:
+					os.environ[variable] = inherited
+				root = Path(temporary).resolve()
+				debug = make_portable_root(root)
+				bundle = debug / "Telegram.app"
+				exe = write_argv_recording_exe(
+					bundle / "Contents" / "MacOS" / "Telegram",
+					env_names=(variable, "EXTRA_FLAG"),
+				)
+				launcher = write_argv_recording_exe(
+					root / "open",
+					env_names=(variable, "EXTRA_FLAG"),
+				)
+				run_dir = root / "run1"
+				run_dir.mkdir()
+				stdout_path = run_dir / "app_stdout.txt"
+				stderr_path = run_dir / "app_stderr.txt"
+				stdout_path.write_text("stale stdout\n", encoding="utf-8")
+				stderr_path.write_text("stale stderr\n", encoding="utf-8")
+				overrides = {"env": ["EXTRA_FLAG=1"]}
+				launch_args = ["-testagent", "-noupdate"]
+				if isolated:
+					sandbox = make_portable_root(root / "sandbox")
+					overrides["portable_root"] = str(sandbox)
+					launch_args += [
+						"-workdir",
+						str(sandbox / workspace.PORTABLE_LIVE),
+					]
+				with patched_background_launch(bundle, launcher):
+					result = run_test_run(exe, run_dir, **overrides)
+				self.assertEqual(read_argv(run_dir), [
+					"-g", "-n", "-W", "-a", str(bundle),
+					"--stdout", str(stdout_path), "--stderr", str(stderr_path),
+					"--args", *launch_args,
+				])
+				self.assertEqual(
+					read_recorded_env(run_dir),
+					{variable: "1", "EXTRA_FLAG": "1"},
+				)
+				self.assertEqual(result["launch_method"], "background")
+				self.assertIsNone(result["exit_code"])
+				self.assertEqual(result["launcher_exit_code"], 0)
+				self.assertEqual(result["launch_activation"], "suppressed")
+				self.assertEqual(result["verdict_hint"], "complete")
+				self.assertEqual(stdout_path.read_bytes(), b"")
+				self.assertEqual(stderr_path.read_bytes(), b"")
+				self.assertTrue((run_dir / "launcher_output.txt").is_file())
+
+	def test_test_run_activate_keeps_the_direct_launch_for_a_macos_bundle(self):
+		variable = workspace.LAUNCH_ACTIVATION_VARIABLE
+		with (
+			tempfile.TemporaryDirectory() as temporary,
+			mock.patch.dict(os.environ),
+		):
+			os.environ.pop(variable, None)
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			bundle = debug / "Telegram.app"
+			exe = write_argv_recording_exe(
+				bundle / "Contents" / "MacOS" / "Telegram",
+				env_names=(variable, "EXTRA_FLAG"),
+			)
+			launcher = write_argv_recording_exe(
+				root / "open",
+				env_names=(variable, "EXTRA_FLAG"),
+			)
+			run_dir = root / "run1"
+			with patched_background_launch(bundle, launcher):
+				result = run_test_run(
+					exe, run_dir, activate=True, env=["EXTRA_FLAG=1"],
+				)
+			self.assertEqual(read_argv(run_dir), ["-testagent", "-noupdate"])
+			self.assertEqual(
+				read_recorded_env(run_dir),
+				{variable: None, "EXTRA_FLAG": "1"},
+			)
+			self.assertEqual(result["launch_method"], "exec")
+			self.assertEqual(result["exit_code"], 0)
+			self.assertIsNone(result["launcher_exit_code"])
+			self.assertEqual(result["launch_activation"], "allowed")
+			self.assertFalse((run_dir / "launcher_output.txt").exists())
+
+	def test_test_run_reports_a_failed_background_launch(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			bundle = debug / "Telegram.app"
+			exe = write_complete_markers_exe(
+				bundle / "Contents" / "MacOS" / "Telegram",
+			)
+			launcher = write_fake_exe(root / "open", "exit 3\n", "exit /b 3\n")
+			with patched_background_launch(bundle, launcher):
+				result = run_test_run(exe, root / "run1")
+			self.assertEqual(result["launch_method"], "background")
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["launcher_exit_code"], 3)
+			self.assertIsNone(result["exit_code"])
+			self.assertEqual(result["death_signals"], [])
+			self.assertEqual(result["verdict_hint"], "died-without-complete")
+
+	def test_test_run_ends_a_background_client_by_path(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			bundle = debug / "Telegram.app"
+			exe = write_complete_markers_exe(
+				bundle / "Contents" / "MacOS" / "Telegram",
+			)
+			launcher = write_fake_exe(
+				root / "open", "sleep 30\n", ":loop\ngoto loop\n",
+			)
+			with (
+				patched_background_launch(bundle, launcher),
+				mock.patch.object(
+					workspace,
+					"kill_processes_with_executable",
+					side_effect=[[], [4242]],
+				) as kill,
+			):
+				result = run_test_run(
+					exe, root / "run1", deadline=2.0, quiet=30.0,
+				)
+			self.assertEqual(result["outcome"], "deadline-killed")
+			self.assertIsNone(result["launcher_exit_code"])
+			self.assertEqual(
+				kill.call_args_list,
+				[mock.call(exe), mock.call(exe)],
+			)
+			self.assertEqual(result["stragglers_killed"], [])
+			self.assertEqual(result["stragglers_killed_after"], [4242])
+
+	def test_test_run_ends_a_background_client_when_interrupted(self):
+		def interrupt():
+			raise KeyboardInterrupt
+
+		def terminate():
+			signal.getsignal(signal.SIGTERM)(signal.SIGTERM, None)
+
+		previous = signal.signal(signal.SIGTERM, signal.SIG_DFL)
+		self.addCleanup(signal.signal, signal.SIGTERM, previous)
+		real_popen = subprocess.Popen
+		for stop, expected, args in (
+			(interrupt, KeyboardInterrupt, ()),
+			(terminate, SystemExit, (128 + signal.SIGTERM,)),
+		):
+			with (
+				self.subTest(stop=stop.__name__),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				root = Path(temporary).resolve()
+				debug = make_portable_root(root)
+				bundle = debug / "Telegram.app"
+				exe = write_complete_markers_exe(
+					bundle / "Contents" / "MacOS" / "Telegram",
+				)
+				launcher = write_fake_exe(
+					root / "open", "exec sleep 30\n", ":loop\ngoto loop\n",
+				)
+				events = []
+				launched = []
+
+				def popen(*popen_args, **popen_kwargs):
+					launched.append(real_popen(*popen_args, **popen_kwargs))
+					return launched[-1]
+
+				def kill(path):
+					events.append(("kill", path))
+					return []
+
+				def sleep(seconds):
+					events.append("poll")
+					stop()
+
+				try:
+					with (
+						patched_background_launch(bundle, launcher),
+						mock.patch.object(
+							workspace,
+							"console_input_reading",
+							return_value=(0.0, {}),
+						),
+						mock.patch.object(
+							workspace,
+							"kill_processes_with_executable",
+							side_effect=kill,
+						),
+						mock.patch.object(
+							workspace.subprocess, "Popen", side_effect=popen,
+						),
+						mock.patch.object(
+							workspace.time, "sleep", side_effect=sleep,
+						),
+						self.assertRaises(expected) as raised,
+					):
+						run_test_run(exe, root / "run1")
+				finally:
+					for process in launched:
+						if process.poll() is None:
+							process.kill()
+						process.wait()
+				self.assertEqual(raised.exception.args, args)
+				self.assertEqual(
+					[process.args[0] for process in launched],
+					[str(launcher)],
+				)
+				self.assertEqual(events, [("kill", exe), "poll", ("kill", exe)])
+				self.assertEqual(
+					signal.getsignal(signal.SIGTERM), signal.SIG_DFL,
+				)
 
 	def test_parse_test_log_lists_skipped_rows_beside_pass_and_fail(self):
 		markers = workspace.parse_test_log("\n".join([
