@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/basic_types.h"
+#include "test/test_log.h"
 #include "ui/click_handler.h"
 
 #include <crl/crl_time.h>
@@ -182,14 +183,72 @@ struct ClockedRun {
 //     - <refusal>
 // whose refusal starts with manager-did-not-tick or
 // render-advanced-the-manager.
+//
+// Every number in the frame, gate and refusal rows - the request refusal's
+// action= / handler= flags and its elapsed list included - is an ordinary
+// integer until Test::RequestTelemetryNumbers() and a TelemetryNumber
+// after it: index=37p requested=4821p reached=[3764p,4829p] tick=37645p
+// ..., "frame 37p at 4821p ms", "action=1p handler=1p", "read
+// 4821p,3764p". The format is read once per call, so one call's rows share
+// it. The caller's |elapsed| times and |animationEnd| are among those
+// numbers, so under the request they print in a format that hides digits
+// from the secrecy scan: they must never be a fixture secret or a number
+// read from one.
 [[nodiscard]] ClockedRun RunClockedFrames(const ClockedRequest &request);
 
 // The one frame formatter: "kind=frame index=<k> requested=<ms>
 // reached=[<lo>,<hi>] tick=<ms> waited=<ms> probeTicks=<n> renderTicks=<n>",
 // "none" for a bound or tick that was not read, then " gate=<reason>" or
 // " refused=<refusal>" when set. The helper's NOTE rows print through it,
-// and so should a caller's details.
+// and so should a caller's details. This form prints in the format the run
+// asked for (HelperNumberFormat()): ordinary integers, or TelemetryNumbers
+// after RequestTelemetryNumbers(). The gate and refusal texts keep the
+// format they were formatted in.
 [[nodiscard]] QString ClockedFrameText(const ClockedFrame &frame);
+
+// The same frame text with its numbers in |format|, so a self-test reads
+// both formats.
+[[nodiscard]] QString ClockedFrameText(
+	const ClockedFrame &frame,
+	NumberFormat format);
+
+// The texts RunClockedFrames writes, pure, with every number in |format|:
+// the call passes HelperNumberFormat() for its rows, and the secrecy
+// self-test reads both formats through them.
+//
+// ClockedFrameSubject is a gated or refused frame's subject,
+// "<name>: frame <k> at <ms> ms", <k> the 1-based frame.index + 1 and <ms>
+// frame.requested. ClockedEndGateText is the N/A reason of a requested time
+// at or after the declared end, ClockedReachedGateText that of a tick that
+// reached it, ClockedNoTickText the manager-did-not-tick refusal (the probe
+// calls before the tick, the ms since the action started and the ms
+// waited) and ClockedRenderTickText the render-advanced-the-manager
+// refusal. ClockedRequestRefusal is the reason a request is refused, empty
+// when it is accepted.
+[[nodiscard]] QString ClockedFrameSubject(
+	const QString &name,
+	const ClockedFrame &frame,
+	NumberFormat format);
+[[nodiscard]] QString ClockedEndGateText(
+	crl::time requested,
+	crl::time end,
+	NumberFormat format);
+[[nodiscard]] QString ClockedReachedGateText(
+	crl::time reachedLo,
+	crl::time reachedHi,
+	crl::time end,
+	NumberFormat format);
+[[nodiscard]] QString ClockedNoTickText(
+	int probeCalls,
+	crl::time sinceAction,
+	crl::time waited,
+	NumberFormat format);
+[[nodiscard]] QString ClockedRenderTickText(
+	int renderTicks,
+	NumberFormat format);
+[[nodiscard]] QString ClockedRequestRefusal(
+	const ClockedRequest &request,
+	NumberFormat format);
 
 // RunClockedFrames measuring itself on a harness-owned synthetic widget. It
 // needs only the primary window, as the parent of a bar widget that is never

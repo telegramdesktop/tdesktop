@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/basic_types.h"
 #include "base/weak_ptr.h"
+#include "test/test_log.h"
 
 #include <QtCore/QPointer>
 #include <QtCore/QString>
@@ -41,8 +42,40 @@ struct PostPaintSample {
 // The one row formatter:
 // "kind=post seq=<n> paint=<ms> last=<ms> covered=<k> lo=<ms> hi=<ms>".
 // The sampler's own NOTE rows print through it, and so should a caller's
-// details, so one sample reads the same everywhere in a log.
+// details, so one sample reads the same everywhere in a log. This form
+// prints in the format the run asked for (HelperNumberFormat()): ordinary
+// integers, or TelemetryNumbers after RequestTelemetryNumbers().
 [[nodiscard]] QString PostPaintSampleText(const PostPaintSample &sample);
+
+// The same row with its numbers in |format|, so a self-test reads both
+// formats.
+[[nodiscard]] QString PostPaintSampleText(
+	const PostPaintSample &sample,
+	NumberFormat format);
+
+// What the stop row prints: the stop reason, the last sample's |seq| (0
+// before any), whether a sample was pending at the stop, and the sampler's
+// counters.
+struct PostPaintStop {
+	QString reason;
+	int seq = 0;
+	bool pending = false;
+	int samples = 0;
+	int paints = 0;
+	int ignored = 0;
+	int dropped = 0;
+};
+
+// The stop row after "NOTE: ", "<name>: kind=stop reason=<reason> seq=<n>
+// pending=<0|1> samples=<n> paints=<n> ignored=<n> dropped=<n>" (one line),
+// with its numbers in |format|; the sampler's stop passes
+// HelperNumberFormat(). It takes |name| because the row has always
+// substituted the name inside this same .arg chain, before the numbers, so
+// a name holding a %<n> marker keeps expanding exactly as it did.
+[[nodiscard]] QString PostPaintStopText(
+	const QString &name,
+	const PostPaintStop &stop,
+	NumberFormat format);
 
 // Samples one painted owner right after each of its product paints instead
 // of on a timer.
@@ -134,8 +167,9 @@ struct PostPaintSample {
 // (one physical line; the payload is PostPaintSampleText), and the stop is
 //   NOTE: <name>: kind=stop reason=owner-destroyed seq=<last seq>
 //     pending=<0|1> samples=<n> paints=<n> ignored=<n> dropped=<n>
-// where |paints| counts the product paints received, |ignored| the paints
-// the actions caused and |dropped| the samples a grab-free window dropped.
+// (the payload is PostPaintStopText), where |paints| counts the product
+// paints received, |ignored| the paints the actions caused and |dropped|
+// the samples a grab-free window dropped.
 // owner-destroyed is the only stop reason: a window ending is not a stop,
 // and the sampler stays usable. Rows are read the way Test::Probe's are:
 // take mark() immediately before the action under test and pass it to
@@ -143,6 +177,12 @@ struct PostPaintSample {
 // deliberately no accessor over the whole history. details() prints the
 // owner, pending, stop reason, counters, window counts and the longest
 // action, for a Check's details on either verdict.
+//
+// The numbers of the two rows are ordinary integers until
+// Test::RequestTelemetryNumbers(); a row formatted after it prints every
+// one of them as a TelemetryNumber (seq=4821p ... hi=61537p, pending=1p
+// ...). details() and the empty-window NOTE keep ordinary integers either
+// way.
 //
 // The instrument floor. A post-paint sample's lo can never precede the end
 // of the paint it follows: in Attempt 2 of the same task the post-paint

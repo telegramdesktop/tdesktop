@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/basic_types.h"
+#include "test/test_log.h"
 
 #include <QtCore/QString>
 
@@ -63,6 +64,40 @@ struct RoundTrip {
 		return state == RoundTripState::Paired;
 	}
 };
+
+// The probe's own texts, pure, with the numbers it counts and times in
+// |format|. Its checks and roundTripSince print them with
+// HelperNumberFormat(), so they hold ordinary integers until
+// RequestTelemetryNumbers() and TelemetryNumbers after it; a self-test reads
+// both formats through them.
+//
+// "probe=<name> window=[<from>,<till>) rows=<rows>", the rows joined by
+// "; ", or <none> for an empty window: the details of every check.
+[[nodiscard]] QString ProbeWindowText(
+	const QString &name,
+	int from,
+	int till,
+	const std::vector<QString> &rows,
+	NumberFormat format);
+
+// "expected=<n> actual=<n> <window>": checkCountSince's details.
+[[nodiscard]] QString ProbeCountText(
+	int expected,
+	int actual,
+	const QString &window,
+	NumberFormat format);
+
+// "key=<key> state=<state> issues=<n> answers=<n> dropped=<n>
+// preIssues=<n> preAnswers=<n> issueAtMs=<ms> answerAtMs=<ms>
+// roundTripMs=<ms> discarded=<rows> <window>" (one line), the discarded
+// rows joined as ProbeWindowText joins its rows: the RoundTrip::observation
+// roundTripSince builds from |trip|'s state, tallies and times.
+[[nodiscard]] QString RoundTripText(
+	const QString &key,
+	const RoundTrip &trip,
+	const std::vector<QString> &discarded,
+	const QString &window,
+	NumberFormat format);
 
 // An append-only record of observations, readable only through a window.
 //
@@ -143,7 +178,10 @@ public:
 
 	// PASS/FAIL on what the window holds, logging the window bounds and
 	// every row inside it either way, so a failure names the rows it judged
-	// instead of only the verdict.
+	// instead of only the verdict. checkCountSince prints the caller's
+	// |expected| beside the count it read, as a TelemetryNumber after
+	// RequestTelemetryNumbers(), so |expected| must never be a fixture secret
+	// or a number read from one.
 	void checkSawSince(int mark, const QString &part, const QString &what);
 	void checkNoneSince(int mark, const QString &part, const QString &what);
 	void checkCountSince(
@@ -204,12 +242,7 @@ private:
 
 	void push(Role role, const QString &key, const QString &text);
 
-	[[nodiscard]] QString windowDetails(int mark) const;
-	[[nodiscard]] QString roundTripDetails(
-		int mark,
-		const QString &key,
-		const RoundTrip &trip,
-		const std::vector<QString> &discarded) const;
+	[[nodiscard]] QString windowDetails(int mark, NumberFormat format) const;
 
 	QString _name;
 	std::vector<Record> _rows;
@@ -240,6 +273,16 @@ public:
 	// when it does not — naming it as unable to decide rather than letting
 	// it report absence. Returns whether the subject count is meaningful.
 	bool report();
+
+	// The texts report() prints, pure, with the counts in |format|; report()
+	// passes HelperNumberFormat(). tallyText() is its NOTE row,
+	// "<name>: examined=<n> subject(<subjectWhat>)=<n>
+	// control(<controlWhat>)=<n>" (one line), and refusalText() its FAIL
+	// details when no control matched, "the walk matched no <controlWhat>,
+	// so its <subjectWhat> count of <n> over <n> examined items cannot tell
+	// absence from an enumeration that never reaches the subject".
+	[[nodiscard]] QString tallyText(NumberFormat format) const;
+	[[nodiscard]] QString refusalText(NumberFormat format) const;
 
 	[[nodiscard]] int examinedCount() const;
 	[[nodiscard]] int subjectCount() const;

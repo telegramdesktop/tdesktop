@@ -53,13 +53,42 @@ constexpr auto kGrabFreeLead = crl::time(40);
 } // namespace
 
 QString PostPaintSampleText(const PostPaintSample &sample) {
+	return PostPaintSampleText(sample, HelperNumberFormat());
+}
+
+QString PostPaintSampleText(
+		const PostPaintSample &sample,
+		NumberFormat format) {
 	return u"kind=post seq=%1 paint=%2 last=%3 covered=%4 lo=%5 hi=%6"_q
-		.arg(sample.seq)
-		.arg(sample.paintAt)
-		.arg(sample.lastPaintAt)
-		.arg(sample.covered)
-		.arg(sample.lo)
-		.arg(sample.hi);
+		.arg(HelperNumber(sample.seq, format))
+		.arg(HelperNumber(sample.paintAt, format))
+		.arg(HelperNumber(sample.lastPaintAt, format))
+		.arg(HelperNumber(sample.covered, format))
+		.arg(HelperNumber(sample.lo, format))
+		.arg(HelperNumber(sample.hi, format));
+}
+
+QString PostPaintStopText(
+		const QString &name,
+		const PostPaintStop &stop,
+		NumberFormat format) {
+	auto text
+		= u"%1: kind=stop reason=%2 seq=%3 pending=%4 samples=%5 paints=%6 "
+		"ignored=%7 dropped=%8"_q
+			.arg(name)
+			.arg(stop.reason);
+	const auto values = {
+		stop.seq,
+		stop.pending ? 1 : 0,
+		stop.samples,
+		stop.paints,
+		stop.ignored,
+		stop.dropped,
+	};
+	for (const auto value : values) {
+		text = ArgNumber(text, value, format);
+	}
+	return text;
 }
 
 PostPaintSampler::PostPaintSampler(
@@ -169,16 +198,18 @@ void PostPaintSampler::finish(const QString &reason) {
 	}
 	_stopReason = reason;
 	const auto pending = base::take(_pending);
-	Note(u"%1: kind=stop reason=%2 seq=%3 pending=%4 samples=%5 paints=%6 "
-		"ignored=%7 dropped=%8"_q
-			.arg(_name)
-			.arg(_stopReason)
-			.arg(_samples.empty() ? 0 : _samples.back().seq)
-			.arg(pending ? 1 : 0)
-			.arg(int(_samples.size()))
-			.arg(_paints)
-			.arg(_ignored)
-			.arg(_dropped));
+	Note(PostPaintStopText(
+		_name,
+		{
+			.reason = _stopReason,
+			.seq = _samples.empty() ? 0 : _samples.back().seq,
+			.pending = pending,
+			.samples = int(_samples.size()),
+			.paints = _paints,
+			.ignored = _ignored,
+			.dropped = _dropped,
+		},
+		HelperNumberFormat()));
 }
 
 bool PostPaintSampler::sampling(crl::time now) const {

@@ -286,33 +286,7 @@ struct SecrecyScanArgs {
 // reported and do not decide.
 bool CheckSecrecy(const SecrecyScanArgs &args, const QString &what);
 
-// The number format for telemetry an overlay prints into a scanned log,
-// from
-// 2026/10/08/give-overlay-telemetry-a-number-format-the-secrecy-scan-cannot-count.
-// An ordinary decimal leaves each digit run between "=", "-", "." or a
-// blank, so the run is bounded and can equal a short secret by
-// coincidence. It then decides the scan at a "<file>|<head>|-" plain-line
-// site (or at the field's name when the number is a field's whole value),
-// which no computed-field declaration may exempt. This prints "-" for a
-// value below zero, the integer digits, "p" and exactly |decimals|
-// fraction digits (a negative |decimals| counts as 0), rounding as
-// QString::number(.., 'f', ..) does: 42 -> "42p", 16.31 with 2 ->
-// "16p31", -4821.75 with 2 -> "-4821p75". NaN and the infinities print
-// "nan", "inf" and "-inf". Every digit run touches the "p", and an
-// occurrence counts only with no letter or digit right before and after
-// it, so no digit run of a formatted number is ever counted. A judge
-// script reads it as float(v.replace("p", ".")).
-//
-// Format only numbers the overlay measured or computed, never a fixture
-// secret or a number read from one: the format hides digits from the
-// scan, so it would hide that leak too. Choose |decimals| per quantity,
-// never from a secret. A TelemetryNumber is a word to the phrase matcher:
-// it ends a word run where a bare number is neutral. So never print one
-// as a list index or between words copied from product or fixture text,
-// and keep such text out of telemetry rows.
-[[nodiscard]] QString TelemetryNumber(double value, int decimals = 0);
-
-// Nine session-free stages over synthetic log trees in a QTemporaryDir,
+// Ten session-free stages over synthetic log trees in a QTemporaryDir,
 // with synthetic secrets only: canaries, embedded vs bounded, a Recv hit
 // that is reported but does not decide, ten client-written leaks (among
 // them words joined by line breaks, escapes and commas, and a vector
@@ -323,13 +297,22 @@ bool CheckSecrecy(const SecrecyScanArgs &args, const QString &what);
 // and a Send entry still decide; a site that would print a secret is
 // withheld), the undecided refusals, identity selection (a same-name part
 // of another day and an earlier launch's lines before the banner are not
-// counted), the rows printing no secret, and overlay telemetry (the digit
+// counted), the rows printing no secret, overlay telemetry (the digit
 // runs of an ordinary decimal value, as synthetic short secrets, fail at
 // the row's "<file>|<head>|-" site; the same value as a TelemetryNumber
 // holds them only embedded and that scan is clean; every TelemetryNumber
 // of the stage's values prints as documented and holds no bounded digit
-// run, while the ordinary decimal of every finite value holds one). Emits
-// no deliberate FAIL.
+// run, while the ordinary decimal of every finite value holds one), and
+// the shared helpers' numbers. That last stage reads each converted
+// shared-helper row through its own formatter for fixed synthetic values:
+// without the request it prints today's text, and under it the same text
+// with only a "p" after each number; the ordinary text's digit runs, as
+// synthetic short secrets, fail the scan at that row, while the requested
+// row holds none bounded and scans clean; and a synthetic phrase in its
+// caller text gives the same word runs in both formats, beside a premise
+// that a TelemetryNumber between phrase words ends a run. It never asks
+// the process-wide request (RequestTelemetryNumbers). Emits no deliberate
+// FAIL.
 void AppendSecrecyScanSelfTest(not_null<Runner*> runner);
 
 } // namespace Test

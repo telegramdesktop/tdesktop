@@ -11,12 +11,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings.h"
 
+#include <cmath>
+
 namespace Test {
 namespace {
 
 auto FailuresCount = 0;
 auto SkippedCountValue = 0;
 auto CompletedAtValue = crl::time(0);
+auto TelemetryNumbersValue = false;
 
 [[nodiscard]] QString EnsuredDir(const QString &path) {
 	QDir().mkpath(path);
@@ -130,6 +133,60 @@ void Note(const QString &text) {
 	LogRaw(u"NOTE: %1"_q.arg(text));
 }
 
+QString TelemetryNumber(double value, int decimals) {
+	if (std::isnan(value)) {
+		return u"nan"_q;
+	}
+	const auto sign = (value < 0.) ? u"-"_q : QString();
+	if (std::isinf(value)) {
+		return sign + u"inf"_q;
+	}
+	const auto places = std::max(decimals, 0);
+	auto digits = QString::number(std::abs(value), 'f', places);
+	return sign + (places
+		? digits.replace(QChar('.'), QChar('p'))
+		: (digits + QChar('p')));
+}
+
+void RequestTelemetryNumbers() {
+	if (TelemetryNumbersValue) {
+		return;
+	}
+	TelemetryNumbersValue = true;
+	LogRaw(u"TELEMETRY_NUMBERS: requested"_q);
+}
+
+NumberFormat HelperNumberFormat() {
+	return TelemetryNumbersValue
+		? NumberFormat::Telemetry
+		: NumberFormat::Ordinary;
+}
+
+QString HelperNumber(qint64 value, NumberFormat format) {
+	return (format == NumberFormat::Telemetry)
+		? TelemetryNumber(double(value))
+		: QString::number(value);
+}
+
+QString ArgNumber(const QString &text, qint64 value, NumberFormat format) {
+	return (format == NumberFormat::Telemetry)
+		? text.arg(TelemetryNumber(double(value)))
+		: text.arg(value);
+}
+
+QString CheckNearText(
+		int actual,
+		int expected,
+		int tolerance,
+		const QString &what,
+		NumberFormat format) {
+	return u"%1 (actual %2, expected %3 ±%4)"_q.arg(
+		what,
+		HelperNumber(actual, format),
+		HelperNumber(expected, format),
+		HelperNumber(tolerance, format));
+}
+
 void CheckNear(
 		int actual,
 		int expected,
@@ -138,21 +195,24 @@ void CheckNear(
 	const auto ok = (std::abs(actual - expected) <= tolerance);
 	Check(
 		ok,
-		u"%1 (actual %2, expected %3 ±%4)"_q.arg(
-			what,
-			QString::number(actual),
-			QString::number(expected),
-			QString::number(tolerance)),
+		CheckNearText(actual, expected, tolerance, what, HelperNumberFormat()),
 		ok ? QString() : u"out of tolerance"_q);
 }
 
-void LogGeometry(const QString &name, const QRect &rect) {
-	LogRaw(u"GEOMETRY: %1: x=%2 y=%3 w=%4 h=%5"_q.arg(
+QString GeometryText(
+		const QString &name,
+		const QRect &rect,
+		NumberFormat format) {
+	return u"GEOMETRY: %1: x=%2 y=%3 w=%4 h=%5"_q.arg(
 		name,
-		QString::number(rect.x()),
-		QString::number(rect.y()),
-		QString::number(rect.width()),
-		QString::number(rect.height())));
+		HelperNumber(rect.x(), format),
+		HelperNumber(rect.y(), format),
+		HelperNumber(rect.width(), format),
+		HelperNumber(rect.height(), format));
+}
+
+void LogGeometry(const QString &name, const QRect &rect) {
+	LogRaw(GeometryText(name, rect, HelperNumberFormat()));
 }
 
 int FailureCount() {

@@ -42,36 +42,14 @@ struct Probe {
 	crl::time now = -1;
 };
 
-[[nodiscard]] QString ElapsedText(const std::vector<crl::time> &elapsed) {
+[[nodiscard]] QString ElapsedText(
+		const std::vector<crl::time> &elapsed,
+		NumberFormat format) {
 	auto parts = QStringList();
 	for (const auto value : elapsed) {
-		parts.push_back(QString::number(value));
+		parts.push_back(HelperNumber(value, format));
 	}
 	return parts.isEmpty() ? u"none"_q : parts.join(u',');
-}
-
-[[nodiscard]] QString RequestRefusal(const ClockedRequest &request) {
-	if (request.name.isEmpty()) {
-		return u"the request has no name"_q;
-	} else if (bool(request.action) == bool(request.handler)) {
-		return u"exactly one of action and handler must be set "
-			"(action=%1 handler=%2)"_q
-				.arg(request.action ? 1 : 0)
-				.arg(request.handler ? 1 : 0);
-	} else if (!request.render) {
-		return u"no render was supplied"_q;
-	} else if (request.elapsed.empty()) {
-		return u"no elapsed time was requested"_q;
-	}
-	auto previous = crl::time(-1);
-	for (const auto value : request.elapsed) {
-		if (value <= previous) {
-			return u"elapsed times must be non-negative and strictly "
-				"increasing, read %1"_q.arg(ElapsedText(request.elapsed));
-		}
-		previous = value;
-	}
-	return QString();
 }
 
 // One requested time: gate, wait, drain, tick, prove, bound, gate, render.
@@ -79,14 +57,11 @@ void TakeFrame(
 		const ClockedRequest &request,
 		const ClockedRun &run,
 		const Probe &probe,
-		not_null<ClockedFrame*> frame) {
+		not_null<ClockedFrame*> frame,
+		NumberFormat format) {
 	const auto end = request.animationEnd;
 	if (end > 0 && frame->requested >= end) {
-		frame->gate = u"requested %1 ms is at or after the declared "
-			"animation end %2 ms: no in-progress frame exists to judge, so "
-			"nothing was waited for, ticked or rendered"_q
-				.arg(frame->requested)
-				.arg(end);
+		frame->gate = ClockedEndGateText(frame->requested, end, format);
 		return;
 	}
 	const auto deadline = run.actionStarted + frame->requested;
@@ -101,31 +76,22 @@ void TakeFrame(
 	Core::App().animationManager().update();
 	frame->probeTicks = probe.calls - beforeTick;
 	if (!frame->probeTicks) {
-		frame->refusal = u"manager-did-not-tick: "
-			"Core::App().animationManager().update() did not call the "
-			"probe animation (probe calls %1 before and after it, %2 ms "
-			"after the action started, waited %3 ms): the manager skipped "
-			"the tick - a schedule callback still pending (_scheduled; "
-			"under Manager::SetScheduleWithInvokeQueued(true) it is an "
-			"InvokeQueued call the postponed-call drain does not run) or "
-			"an update in progress (_updating); the frame was not "
-			"rendered"_q
-				.arg(beforeTick)
-				.arg(crl::now() - run.actionStarted)
-				.arg(frame->waited);
+		frame->refusal = ClockedNoTickText(
+			beforeTick,
+			crl::now() - run.actionStarted,
+			frame->waited,
+			format);
 		return;
 	}
 	frame->tick = probe.now;
 	frame->reachedLo = frame->tick - run.actionFinished;
 	frame->reachedHi = frame->tick - run.actionStarted;
 	if (end > 0 && frame->reachedHi >= end) {
-		frame->gate = u"the tick reached [%1,%2] ms, at or after the "
-			"declared animation end %3 ms: the animation may have "
-			"finished, so no in-progress frame exists to judge; the frame "
-			"was not rendered"_q
-				.arg(frame->reachedLo)
-				.arg(frame->reachedHi)
-				.arg(end);
+		frame->gate = ClockedReachedGateText(
+			frame->reachedLo,
+			frame->reachedHi,
+			end,
+			format);
 		return;
 	}
 
@@ -133,26 +99,21 @@ void TakeFrame(
 	request.render(*frame);
 	frame->renderTicks = probe.calls - beforeRender;
 	if (frame->renderTicks) {
-		frame->refusal = u"render-advanced-the-manager: the probe "
-			"animation was called %1 time(s) during the render, so the "
-			"frame may show a value past its reached elapsed bounds; "
-			"render synchronously (Test::GrabWidget / GrabRect), never "
-			"through repaint() or processEvents()"_q
-				.arg(frame->renderTicks);
+		frame->refusal = ClockedRenderTickText(frame->renderTicks, format);
 	}
 }
 
-void ReportFrame(const QString &name, const ClockedFrame &frame) {
-	const auto what = u"%1: frame %2 at %3 ms"_q
-		.arg(name)
-		.arg(frame.index + 1)
-		.arg(frame.requested);
+void ReportFrame(
+		const QString &name,
+		const ClockedFrame &frame,
+		NumberFormat format) {
+	const auto what = ClockedFrameSubject(name, frame, format);
 	if (!frame.gate.isEmpty()) {
 		Skipped(what, frame.gate);
 	} else if (!frame.refusal.isEmpty()) {
 		Fail(u"fixture gate: "_q + what, frame.refusal);
 	} else {
-		Note(name + u": "_q + ClockedFrameText(frame));
+		Note(name + u": "_q + ClockedFrameText(frame, format));
 	}
 }
 
@@ -167,8 +128,9 @@ int ClockedRun::taken() const {
 }
 
 ClockedRun RunClockedFrames(const ClockedRequest &request) {
+	const auto format = HelperNumberFormat();
 	auto result = ClockedRun{ .animationEnd = request.animationEnd };
-	result.refusal = RequestRefusal(request);
+	result.refusal = ClockedRequestRefusal(request, format);
 	if (!result.refusal.isEmpty()) {
 		const auto name = request.name.isEmpty()
 			? u"(unnamed)"_q
@@ -204,26 +166,32 @@ ClockedRun RunClockedFrames(const ClockedRequest &request) {
 			.index = index,
 			.requested = request.elapsed[index],
 		};
-		TakeFrame(request, result, probe, &frame);
-		ReportFrame(request.name, frame);
+		TakeFrame(request, result, probe, &frame, format);
+		ReportFrame(request.name, frame, format);
 		result.frames.push_back(std::move(frame));
 	}
 	return result;
 }
 
 QString ClockedFrameText(const ClockedFrame &frame) {
+	return ClockedFrameText(frame, HelperNumberFormat());
+}
+
+QString ClockedFrameText(const ClockedFrame &frame, NumberFormat format) {
 	const auto ticked = (frame.tick >= 0);
 	auto result = u"kind=frame index=%1 requested=%2 reached=%3 tick=%4 "
 		"waited=%5 probeTicks=%6 renderTicks=%7"_q
-			.arg(frame.index + 1)
-			.arg(frame.requested)
+			.arg(HelperNumber(frame.index + 1, format))
+			.arg(HelperNumber(frame.requested, format))
 			.arg(ticked
-				? u"[%1,%2]"_q.arg(frame.reachedLo).arg(frame.reachedHi)
+				? u"[%1,%2]"_q
+					.arg(HelperNumber(frame.reachedLo, format))
+					.arg(HelperNumber(frame.reachedHi, format))
 				: u"none"_q)
-			.arg(ticked ? QString::number(frame.tick) : u"none"_q)
-			.arg(frame.waited)
-			.arg(frame.probeTicks)
-			.arg(frame.renderTicks);
+			.arg(ticked ? HelperNumber(frame.tick, format) : u"none"_q)
+			.arg(HelperNumber(frame.waited, format))
+			.arg(HelperNumber(frame.probeTicks, format))
+			.arg(HelperNumber(frame.renderTicks, format));
 	if (!frame.gate.isEmpty()) {
 		result += u" gate="_q + frame.gate;
 	}
@@ -231,6 +199,95 @@ QString ClockedFrameText(const ClockedFrame &frame) {
 		result += u" refused="_q + frame.refusal;
 	}
 	return result;
+}
+
+QString ClockedFrameSubject(
+		const QString &name,
+		const ClockedFrame &frame,
+		NumberFormat format) {
+	auto text = u"%1: frame %2 at %3 ms"_q.arg(name);
+	text = ArgNumber(text, frame.index + 1, format);
+	return ArgNumber(text, frame.requested, format);
+}
+
+QString ClockedEndGateText(
+		crl::time requested,
+		crl::time end,
+		NumberFormat format) {
+	return u"requested %1 ms is at or after the declared "
+		"animation end %2 ms: no in-progress frame exists to judge, so "
+		"nothing was waited for, ticked or rendered"_q
+			.arg(HelperNumber(requested, format))
+			.arg(HelperNumber(end, format));
+}
+
+QString ClockedReachedGateText(
+		crl::time reachedLo,
+		crl::time reachedHi,
+		crl::time end,
+		NumberFormat format) {
+	return u"the tick reached [%1,%2] ms, at or after the "
+		"declared animation end %3 ms: the animation may have "
+		"finished, so no in-progress frame exists to judge; the frame "
+		"was not rendered"_q
+			.arg(HelperNumber(reachedLo, format))
+			.arg(HelperNumber(reachedHi, format))
+			.arg(HelperNumber(end, format));
+}
+
+QString ClockedNoTickText(
+		int probeCalls,
+		crl::time sinceAction,
+		crl::time waited,
+		NumberFormat format) {
+	return u"manager-did-not-tick: "
+		"Core::App().animationManager().update() did not call the "
+		"probe animation (probe calls %1 before and after it, %2 ms "
+		"after the action started, waited %3 ms): the manager skipped "
+		"the tick - a schedule callback still pending (_scheduled; "
+		"under Manager::SetScheduleWithInvokeQueued(true) it is an "
+		"InvokeQueued call the postponed-call drain does not run) or "
+		"an update in progress (_updating); the frame was not "
+		"rendered"_q
+			.arg(HelperNumber(probeCalls, format))
+			.arg(HelperNumber(sinceAction, format))
+			.arg(HelperNumber(waited, format));
+}
+
+QString ClockedRenderTickText(int renderTicks, NumberFormat format) {
+	return u"render-advanced-the-manager: the probe "
+		"animation was called %1 time(s) during the render, so the "
+		"frame may show a value past its reached elapsed bounds; "
+		"render synchronously (Test::GrabWidget / GrabRect), never "
+		"through repaint() or processEvents()"_q
+			.arg(HelperNumber(renderTicks, format));
+}
+
+QString ClockedRequestRefusal(
+		const ClockedRequest &request,
+		NumberFormat format) {
+	if (request.name.isEmpty()) {
+		return u"the request has no name"_q;
+	} else if (bool(request.action) == bool(request.handler)) {
+		return u"exactly one of action and handler must be set "
+			"(action=%1 handler=%2)"_q
+				.arg(HelperNumber(request.action ? 1 : 0, format))
+				.arg(HelperNumber(request.handler ? 1 : 0, format));
+	} else if (!request.render) {
+		return u"no render was supplied"_q;
+	} else if (request.elapsed.empty()) {
+		return u"no elapsed time was requested"_q;
+	}
+	auto previous = crl::time(-1);
+	for (const auto value : request.elapsed) {
+		if (value <= previous) {
+			return u"elapsed times must be non-negative and strictly "
+				"increasing, read %1"_q.arg(
+					ElapsedText(request.elapsed, format));
+		}
+		previous = value;
+	}
+	return QString();
 }
 
 namespace {
