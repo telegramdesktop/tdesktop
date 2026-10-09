@@ -33,6 +33,7 @@ constexpr auto kOliveGreen = 140.;
 constexpr auto kOliveLightness = 0.66;
 constexpr auto kOliveRange = 0.18;
 constexpr auto kWhiteTextContrast = 4.5;
+constexpr auto kAlphaStep = 8;
 
 using Getter = const style::color &(style::palette_data::*)() const;
 
@@ -389,7 +390,7 @@ using P = style::palette_data;
 	const auto hue = Hue(lab);
 	const auto up = Luminance(Composite(color, backgrounds.front()))
 		>= Luminance(backgrounds.front());
-	for (const auto direction : { up ? 1 : -1, up ? -1 : 1 }) {
+	const auto scan = [&](int direction) -> std::optional<QColor> {
 		for (auto step = 1; step <= kSteps; ++step) {
 			const auto lightness = lab.lightness + direction * step * kStep;
 			if (lightness < 0. || lightness > 1.) {
@@ -402,10 +403,26 @@ using P = style::palette_data;
 				return now;
 			}
 		}
+		return std::nullopt;
+	};
+	const auto opacify = [&](int direction) -> std::optional<QColor> {
+		const auto edge = Make((direction > 0) ? 1. : 0., chroma, hue, nudge);
+		for (auto alpha = color.alpha(); alpha < 255;) {
+			alpha = std::min(alpha + kAlphaStep, 255);
+			if (const auto now = WithAlpha(edge, alpha); ok(now)) {
+				return now;
+			}
+		}
+		return std::nullopt;
+	};
+	for (const auto direction : { up ? 1 : -1, up ? -1 : 1 }) {
+		if (const auto found = scan(direction)) {
+			return *found;
+		} else if (const auto opaque = opacify(direction)) {
+			return *opaque;
+		}
 	}
-	return (color.alpha() != 255)
-		? EnsureContrast(WithAlpha(color, 255), backgrounds, floor, nudge)
-		: color;
+	return color;
 }
 
 [[nodiscard]] QColor ChooseSelectedBg(
