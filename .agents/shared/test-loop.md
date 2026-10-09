@@ -509,7 +509,8 @@ scaffolding.
   these established task-specific observers over reconstructing the same state in a scenario.
 - `test_agent.h` — `Test::Fire(name)` / `HasFired(name)` named waitpoints;
   `launch_finished` fires at the end of `Application::run()`. `TDESKTOP_TEST_SCALE` is applied
-  by the harness at startup.
+  by the harness at startup, and on macOS the harness holds the App Nap opt-out for the whole run
+  (`TDESKTOP_TEST_APP_NAP=allow` leaves it off; see Launch activation).
 - `test_scenario.cpp` — the overlay-owned slot: it defines `Test::SetupScenario(runner)` and
   is a no-op in the repository.
 
@@ -799,24 +800,36 @@ command, environment, exit-code, log, artifact and control evidence.
     refused one the client stays inactive behind it. A scenario's own
     `Platform::ActivateThisProcess()` or `Window::Controller::activate()` is therefore no reliable
     route to OS activation under the default; a campaign whose subject is genuine OS activation
-    launches with `--activate`. A client the launch did not activate is a background application,
-    and macOS may throttle its timers (App Nap / timer coalescing): in background runs on this host
-    a sampler's heartbeat gaps grew to 100-290 ms after about 15 s of normal cadence
-    (`2026/10/01/animate-gram-card-sending-and-settle-effects`, Run 1), and a 4 ms precise sampler
-    ticked every 50-1000 ms from about the 80th second
-    (`2026/10/02/show-the-input-method-composition-in-the-gram-send-amount`, Run 1). A
-    timing-sensitive overlay holds a user-initiated, latency-critical `NSProcessInfo` activity
-    itself, begun in a stage and ended in `Runner::onFinish`, as the
-    `2026/10/07/animate-the-sending-row-for-a-collectible-transfer` overlay's
-    `BeginLatencyActivity` does; `--activate` is no substitute, since it does not keep the client
-    frontmost on a locked console or once the owner switches to another application. `--env` may
+    launches with `--activate`. `--env` may
     not name the variable. The report's `launch_activation` is `"suppressed"` by default and
     `"allowed"` with `--activate`; it names the requested mode, and on macOS only
     `launch_method: "background"` keeps the launch from activating the client. Off macOS nothing
     reads the variable, both modes launch alike (directly, `launch_method: "exec"`), and whether the
     client takes the foreground is the window system's policy (Windows shows the first window with
     `SW_SHOWNORMAL` from a foreground launcher; X11 leaves it to the window manager's focus policy;
-    Wayland to the compositor).
+    Wayland to the compositor). A client the launch did not activate is a background application,
+    which macOS would otherwise nap and whose timers it would coalesce: in background runs on this
+    host without a hold, a sampler's heartbeat gaps grew to 100-290 ms after about 15 s of normal
+    cadence (`2026/10/01/animate-gram-card-sending-and-settle-effects`, Run 1), and a 4 ms precise
+    sampler ticked every 50-1000 ms from about the 80th second
+    (`2026/10/02/show-the-input-method-composition-in-the-gram-send-amount`, Run 1). So on macOS the
+    harness holds one user-initiated, latency-critical `NSProcessInfo` activity
+    (`NSActivityUserInitiatedAllowingIdleSystemSleep | NSActivityLatencyCritical`; idle system sleep
+    stays allowed) for the whole `-testagent` run, `--activate` launches included:
+    `Test::ApplyStartupOverrides()` (`Telegram/SourceFiles/test/test_agent.cpp`) begins it early in
+    `Application::run()`, before `Test::Start()`, and never ends it, so it lasts until the process
+    exits, a watchdog or stage-timeout ending included. An overlay needs no activity of its own: the
+    per-overlay `BeginLatencyActivity` of the
+    `2026/10/07/animate-the-sending-row-for-a-collectible-transfer` overlay is history, and a second
+    activity is harmless but redundant. A campaign whose subject is background scheduling itself
+    (App Nap, timer coalescing, throttled-timer behaviour) launches with
+    `test-run --env TDESKTOP_TEST_APP_NAP=allow` to leave the hold off; any other non-empty value is
+    logged as rejected and the hold is kept. Check the run's one reading row, right after the
+    `TDESKTOP_TEST_SCALE` row of `test_log.txt` (after a rejected-value row when there is one):
+    `NOTE: TDESKTOP_TEST_APP_NAP=[<value>] applied: hold=<active|off> source=<default|environment> - <reason>`.
+    A held run reads `hold=active source=default`, the opt-out reads `hold=off source=environment`,
+    and `hold=off source=default` gives the reason the activity could not be begun. Off macOS
+    nothing reads `TDESKTOP_TEST_APP_NAP` and nothing is held.
   - **Console input (macOS).** `input_before` and `input_after` are console readings taken right
     before the launch and after the process ends; `input_after` comes after the post-run straggler
     kill and the crash/log collection, just before the report prints. Each holds `time` (local

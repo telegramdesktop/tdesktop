@@ -14,6 +14,10 @@ namespace Test {
 
 // Applies TDESKTOP_TEST_* environment overrides (interface scale).
 // Runs before ValidateScale() in Application::run(). No-op unless Active().
+// On macOS it also begins one NSActivityUserInitiatedAllowingIdleSystemSleep
+// | NSActivityLatencyCritical activity, held until the process exits (idle
+// sleep stays allowed) unless TDESKTOP_TEST_APP_NAP=allow, and logs one
+// "TDESKTOP_TEST_APP_NAP=[...] applied: hold=..." row; nothing off macOS.
 void ApplyStartupOverrides();
 
 // Marks a named waitpoint as reached. Fire-once, sticky. No-op unless

@@ -17,6 +17,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QFile>
 #include <QtCore/QSaveFile>
 
+#ifdef Q_OS_MAC
+// Keep last: <objc/objc.h> defines id, Class, BOOL, YES, NO, nil and Nil.
+#include <objc/message.h>
+#include <objc/runtime.h>
+#endif // Q_OS_MAC
+
 namespace Test {
 namespace {
 
@@ -111,6 +117,102 @@ const auto kGramAccountFile = u"test_gram_account.txt"_q;
 	return result;
 }
 
+#ifdef Q_OS_MAC
+
+// NSActivityOptions values from Foundation's NSProcessInfo.h, which a C++
+// unit cannot include. NSActivityUserInitiatedAllowingIdleSystemSleep is
+// NSActivityUserInitiated without NSActivityIdleSystemSleepDisabled, so idle
+// system sleep stays allowed; NSActivityLatencyCritical asks for the highest
+// timer and I/O precision available. Held together, they keep a background
+// client from being napped and its timers from being coalesced.
+// kAppNapHoldOptions is 0xFF00EFFFFF, the SDK's
+// NSActivityUserInitiatedAllowingIdleSystemSleep | NSActivityLatencyCritical.
+constexpr auto kActivityUserInitiatedAllowingIdleSystemSleep = 0x00EFFFFFULL;
+constexpr auto kActivityLatencyCritical = 0xFF00000000ULL;
+constexpr auto kAppNapHoldOptions
+	= kActivityUserInitiatedAllowingIdleSystemSleep
+	| kActivityLatencyCritical;
+
+// The -beginActivityWithOptions:reason: token of the harness hold, retained
+// and never ended or released, so the activity lasts until the process
+// exits: normal completion, a stage timeout, the watchdog, the quit fuse, a
+// test-run kill and a crash alike. Ending it in Runner::onFinish would end it
+// before the drain and the quit teardown.
+auto AppNapActivity = (void*)nullptr;
+
+// Runs on the main thread inside the Cocoa event loop (the InvokeQueued of
+// Sandbox::launchApplication() that calls Application::run()), so the event
+// loop's pool owns the NSString and the token as they are returned; the token
+// outlives that pool because it is retained here. Returns an empty string
+// once the activity is held, otherwise why it is not.
+[[nodiscard]] QString BeginAppNapActivity() {
+	using SendObject = void*(*)(void*, SEL);
+	using SendString = void*(*)(void*, SEL, const char*);
+	using SendBegin = void*(*)(void*, SEL, unsigned long long, void*);
+	const auto cls = objc_getClass("NSProcessInfo");
+	if (!cls) {
+		return u"NSProcessInfo is unavailable"_q;
+	}
+	const auto info = reinterpret_cast<SendObject>(objc_msgSend)(
+		cls,
+		sel_registerName("processInfo"));
+	const auto reason = reinterpret_cast<SendString>(objc_msgSend)(
+		objc_getClass("NSString"),
+		sel_registerName("stringWithUTF8String:"),
+		"Telegram Desktop -testagent run");
+	const auto activity = reinterpret_cast<SendBegin>(objc_msgSend)(
+		info,
+		sel_registerName("beginActivityWithOptions:reason:"),
+		kAppNapHoldOptions,
+		reason);
+	if (!activity) {
+		return u"beginActivityWithOptions:reason: returned nil"_q;
+	}
+	reinterpret_cast<SendObject>(objc_msgSend)(
+		activity,
+		sel_registerName("retain"));
+	AppNapActivity = activity;
+	return QString();
+}
+
+// TDESKTOP_TEST_APP_NAP=allow leaves the hold off, for a campaign whose
+// subject is background scheduling itself; any other non-empty value is
+// rejected and the hold is kept. Writes exactly one reading row.
+void ApplyAppNapHold() {
+	const auto value = qEnvironmentVariable("TDESKTOP_TEST_APP_NAP");
+	auto source = u"default"_q;
+	auto optOut = false;
+	if (!value.isEmpty()) {
+		if (value == u"allow"_q) {
+			optOut = true;
+			source = u"environment"_q;
+		} else {
+			Note(u"TDESKTOP_TEST_APP_NAP rejected: %1"_q.arg(value));
+		}
+	}
+	const auto failure = optOut ? QString() : BeginAppNapActivity();
+	const auto held = !optOut && failure.isEmpty();
+	const auto reason = optOut
+		? u"opted out: macOS may nap this background client"
+			" and coalesce its timers"_q
+		: held
+		? u"NSProcessInfo activity"
+			" NSActivityUserInitiatedAllowingIdleSystemSleep"
+			" | NSActivityLatencyCritical (options 0x%1)"
+			" held until the process exits"_q.arg(
+				QString::number(kAppNapHoldOptions, 16))
+		: failure;
+	const auto report = u"TDESKTOP_TEST_APP_NAP=[%1] applied: "
+		"hold=%2 source=%3 - %4"_q.arg(
+			value,
+			held ? u"active"_q : u"off"_q,
+			source,
+			reason);
+	Note(report);
+}
+
+#endif // Q_OS_MAC
+
 } // namespace
 
 bool Active() {
@@ -141,6 +243,9 @@ void ApplyStartupOverrides() {
 			QString::number(selectedScale),
 			source);
 	Note(report);
+#ifdef Q_OS_MAC
+	ApplyAppNapHold();
+#endif // Q_OS_MAC
 }
 
 void Fire(const QString &event) {

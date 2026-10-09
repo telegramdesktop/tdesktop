@@ -193,18 +193,32 @@ launch in a third, under a condition those runs did not establish
 9). A granted request takes the key window from the frontmost application;
 after a refused one the client stays inactive behind it, so the scenario's own
 activation is no reliable route to OS activation under the default. A client
-the launch did not activate is a background application, and macOS may
-throttle its timers (App Nap / timer coalescing): in background runs on this
-host a sampler's heartbeat gaps grew to 100-290 ms after about 15 s of normal
-cadence (`2026/10/01/animate-gram-card-sending-and-settle-effects`, Run 1), and
-a 4 ms precise sampler ticked every 50-1000 ms from about the 80th second
+the launch did not activate is a background application, which macOS would
+otherwise nap and whose timers it would coalesce: in background runs on this
+host without a hold, a sampler's heartbeat gaps grew to 100-290 ms after about
+15 s of normal cadence
+(`2026/10/01/animate-gram-card-sending-and-settle-effects`, Run 1), and a 4 ms
+precise sampler ticked every 50-1000 ms from about the 80th second
 (`2026/10/02/show-the-input-method-composition-in-the-gram-send-amount`, Run
-1). A timing-sensitive overlay holds a user-initiated, latency-critical
-`NSProcessInfo` activity itself, as the
-`2026/10/07/animate-the-sending-row-for-a-collectible-transfer` overlay's
-`BeginLatencyActivity` does; `--activate` is no substitute, since it does not
-keep the client frontmost on a locked console or once the owner switches to
-another application.
+1). So on macOS the harness holds one user-initiated, latency-critical
+`NSProcessInfo` activity
+(`NSActivityUserInitiatedAllowingIdleSystemSleep | NSActivityLatencyCritical`;
+idle system sleep stays allowed) for the whole `-testagent` run:
+`Test::ApplyStartupOverrides()` (`test_agent.cpp`) begins it early in
+`Application::run()`, before `Test::Start()`, and never ends it, so it lasts
+until the process exits, a watchdog or stage-timeout ending included. The log
+says once which case a run is in: a held run reads
+`NOTE: TDESKTOP_TEST_APP_NAP=[] applied: hold=active ...`, and a run without
+the hold reads `hold=off` with the reason. An overlay no longer holds an
+activity of its own: the per-overlay `BeginLatencyActivity` of the
+`2026/10/07/animate-the-sending-row-for-a-collectible-transfer` overlay is
+history, and a second activity is harmless but redundant. A campaign whose
+subject is background scheduling itself (App Nap, timer coalescing,
+throttled-timer behaviour) launches with
+`test-run --env TDESKTOP_TEST_APP_NAP=allow`, and its log then reads
+`hold=off source=environment`; any other non-empty value is logged as
+rejected and the hold is kept. Off macOS nothing reads
+`TDESKTOP_TEST_APP_NAP` and nothing is held.
 
 | Helper | Use |
 | --- | --- |
@@ -514,7 +528,7 @@ clicking.
 
 | Module | Facilities |
 | --- | --- |
-| `test_agent.h` | Runtime gate, startup scale override, sticky named events, scenario start, account fixture secrets (`TwoStepPassword()` reads `2svpassword.txt`, `GramAccount()` reads `test_gram_account.txt`, `RewriteGramAccountWords()` rewrites the live and golden copies at the rotated wallet's address after a confirmed rotation, `StageGramAccountLiveWords()` stages a proper prefix of the live copy's own words for a self-test and `RestoreGramAccountLiveWords()` lengthens such a staged copy back to the words it was cut from, neither touching the golden sibling; `GramAccountLivePath()` / `GramAccountGoldenPath()` name the two copies for metadata-only checks). |
+| `test_agent.h` | Runtime gate, startup scale override, the macOS App Nap hold (`ApplyStartupOverrides()` begins one `NSActivityUserInitiatedAllowingIdleSystemSleep \| NSActivityLatencyCritical` `NSProcessInfo` activity early in `Application::run()`, before `Test::Start()`, and holds it until the process exits, logging one `NOTE: TDESKTOP_TEST_APP_NAP=[<value>] applied: hold=<active\|off> source=<default\|environment> - <reason>` row; `TDESKTOP_TEST_APP_NAP=allow` leaves it off and any other value is rejected; nothing off macOS), sticky named events, scenario start, account fixture secrets (`TwoStepPassword()` reads `2svpassword.txt`, `GramAccount()` reads `test_gram_account.txt`, `RewriteGramAccountWords()` rewrites the live and golden copies at the rotated wallet's address after a confirmed rotation, `StageGramAccountLiveWords()` stages a proper prefix of the live copy's own words for a self-test and `RestoreGramAccountLiveWords()` lengthens such a staged copy back to the words it was cut from, neither touching the golden sibling; `GramAccountLivePath()` / `GramAccountGoldenPath()` name the two copies for metadata-only checks). |
 | `test_runner.h` | Stages, bounded waits, exact-widget actions, prepared capture/inspection (`captureAndInspect` takes an optional trailing `skipReason` for its stage), first-class gated skips (`skipReason`), `onFinish` release hook (and its finish-release self-test), watchdog (`TDESKTOP_TEST_WATCHDOG` in seconds) and termination. |
 | `test_gated_stage.h` | The first-class gated skip's own self-test: a stage whose `skipReason` returns a reason, writing one `TEST_RESULT: N/A:` row and skipping `run`, `until` and `then` without waiting - its never-ready `until` under a one-second timeout is the falsifier - beside a stage whose gate returns an empty string and runs normally in the tick that begins it. |
 | `test_log.h` | Absolute flushed logs, steps, notes, checks whose `details` are printed on the passing verdict as well as the failing one, tolerances, geometry, completion markers, N/A rows for stages that did not apply, and their count. One `LogRaw` call always writes exactly one physical line, whatever it is handed: every character Python's `str.splitlines()` breaks on - U+000A, U+000B, U+000C, U+000D, U+001C, U+001D, U+001E, U+0085, U+2028, U+2029, and so a CRLF pair as its two code points - is written as a visible `\uXXXX` escape, so a record carrying a break stays one row the external readers' line grammar reads whole and cannot mistake for a completion, while text with no separator is passed through byte for byte and the escape adds no trailing whitespace. `LogGeometry(name, rect)` writes `GEOMETRY: <name>: x=<x> y=<y> w=<w> h=<h>` - so do `CaptureWidget`, `CaptureRect`, `CaptureViaWindow`, `CaptureToastSubtree` and a saved `PreparedWidgetCapture` - and `CheckNear(actual, expected, tolerance, what)` writes `TEST_RESULT: PASS: <what> (actual <a>, expected <e> ±<t>)`, or the same `FAIL` row with ` - out of tolerance` appended. Their numbers are ordinary integers (`x=-4821 y=3764 w=5937 h=6148`, `actual 4826, expected 4821 ±37`), and `TelemetryNumber`s in a row formatted after `RequestTelemetryNumbers()` (`x=-4821p y=3764p w=5937p h=6148p`, `actual 4826p, expected 4821p ±37p`); a judge reads a value of either format with `float(v.replace('p', '.'))`. `GeometryText` (the whole `GEOMETRY:` row) and `CheckNearText` (the check text without its verdict prefix) are the pure formatters, taking an explicit `NumberFormat`. `CheckNear`'s `actual`, `expected` and `tolerance` are the caller's numbers and print in the requested format too, which hides digits from the secrecy scan, so they must never be a fixture secret or a number read from one. |
