@@ -2201,7 +2201,7 @@ struct EdgeBlockIndices {
 	};
 	const auto left = media.x();
 	const auto right = articleWidth - (media.x() + media.width());
-	return {
+	return Ui::BubbleRounding{
 		.topLeft = keep(corners.topLeft, left),
 		.topRight = keep(corners.topRight, right),
 		.bottomLeft = keep(corners.bottomLeft, left),
@@ -5862,7 +5862,7 @@ void MarkdownArticle::Impl::refreshMediaBlockHosts() {
 void MarkdownArticle::Impl::refreshMediaBlockBubbleRounding() {
 	for (const auto &[id, block] : _mediaBlocks) {
 		if (block) {
-			block->setBubbleRounding({});
+			block->setBubbleRounding(Ui::BubbleRounding());
 		}
 	}
 	const auto &prepared = _content.blocks.blocks;
