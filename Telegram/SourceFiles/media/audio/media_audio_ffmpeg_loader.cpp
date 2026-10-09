@@ -421,7 +421,18 @@ bool AbstractAudioFFMpegLoader::initResampleUsingFormat() {
 	if (error || !_swrContext) {
 		LogError(u"swr_alloc_set_opts2"_q, error);
 		return false;
-	} else if (AvErrorWrap error = swr_init(_swrContext)) {
+	}
+	if (_swrSrcChannelLayout.nb_channels == 1
+		&& _swrDstChannelLayout.nb_channels == 2) {
+		// WHY: default mono -> stereo rematrix puts the center at -3 dB,
+		// which made voice messages noticeably quieter than other clients.
+		// Duplicating the channel at full level can't clip.
+		const double matrix[] = { 1., 1. };
+		if (AvErrorWrap error = swr_set_matrix(_swrContext, matrix, 1)) {
+			LogError(u"swr_set_matrix"_q, error);
+		}
+	}
+	if (AvErrorWrap error = swr_init(_swrContext)) {
 		LogError(u"swr_init"_q, error);
 		return false;
 	}
