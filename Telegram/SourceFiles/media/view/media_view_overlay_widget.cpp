@@ -1727,16 +1727,6 @@ void OverlayWidget::updateControls() {
 			_docSaveAs->hide();
 			_docCancel->moveToLeft(_docRect.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileLinksTop);
 			_docCancel->show();
-		} else if (_message && _message->forbidsSaving()) {
-			_docDownload->hide();
-			_docSaveAs->hide();
-			_docCancel->hide();
-			if (!_documentMedia->loaded(true)) {
-				DocumentSaveClickHandler::Save(
-					fileOrigin(),
-					_document,
-					DocumentSaveClickHandler::Mode::ToCacheOrFile);
-			}
 		} else {
 			if (_documentMedia->loaded(true)) {
 				_docDownload->hide();
