@@ -241,7 +241,7 @@ Application::Application()
 			},
 			.confirmText = tr::lng_proxy_web_open(tr::now),
 			.cancelText = tr::lng_cancel(tr::now),
-		}));
+		}), Ui::LayerOption::KeepOther);
 	}, _lifetime);
 }
 
