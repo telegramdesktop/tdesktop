@@ -31,17 +31,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <tbs.h>
 
 // The wrap key is stored nowhere: it is HKDF-SHA256 over the signature a
-// TPM-resident Windows Hello credential produces for a device-wrap random
-// challenge kept in the wrap's payload, salted with the wrap's own random
-// salt. That rests on the Hello key storage provider answering
-// RequestSignAsync with RSASSA-PKCS1-v1_5 over SHA-256 - a deterministic
-// function of the private key and the challenge, measured on a discrete-TPM
-// host rather than promised by the platform's documentation. The keyring thus
-// holds every public input and no private one, and DeriveVaultWrapKey
-// refuses this kind, so nothing derivable from the keyring opens D.
+// Windows Hello credential produces for a device-wrap random challenge kept
+// in the wrap's payload, salted with the wrap's own random salt. That rests
+// on the Hello key storage provider answering RequestSignAsync with
+// RSASSA-PKCS1-v1_5 over SHA-256 - a deterministic function of the private
+// key and the challenge, measured on a discrete-TPM host rather than
+// promised by the platform's documentation. The keyring thus holds every
+// public input and no private one, and DeriveVaultWrapKey refuses this
+// kind, so nothing derivable from the keyring opens D.
 // Should Windows ever move the provider to a probabilistic scheme, every
 // existing wrap would read Corrupt - read-only for every account, nothing
 // deleted, restore from the backup or the phrase - and never leak a key.
+//
+// Where the credential's private key lives is Windows' choice: the TPM the
+// availability check found when Hello can use it, a software key store
+// otherwise. Its attestation is not asked for. That proof depended on the
+// TPM's endorsement certificate and on an attestation certificate Windows
+// obtains from Microsoft's online service, which many machines never get,
+// so demanding it turned the offered row into a failure right after the
+// user's PIN. The row is offered on a qualifying build with a TPM and
+// Windows Hello set up, and whatever Hello then creates is accepted.
 
 namespace Platform {
 namespace {
@@ -345,17 +354,6 @@ void FocusUnownedPrompt(int attemptsLeft = kPromptFocusAttempts) {
 	return ProtectionError::Unavailable;
 }
 
-[[nodiscard]] bool HardwareProven(
-		const KeyCredentialAttestationResult &result) {
-	const auto status = result.Status();
-	const auto buffer = result.AttestationBuffer();
-	const auto length = buffer ? buffer.Length() : uint32_t(0);
-	LOG(("Wallet Info: Windows Hello attestation status %1, buffer length %2."
-		).arg(int(status)
-		).arg(length));
-	return (status == KeyCredentialAttestationStatus::Success) && (length > 0);
-}
-
 [[nodiscard]] Wallet::SecureBytes DeriveWrapKey(
 		const Wallet::SecureBytes &signature,
 		const QByteArray &salt) {
@@ -445,9 +443,7 @@ public:
 	void prime();
 
 private:
-	void attest(std::shared_ptr<EnrollOperation> op);
 	void signForEnroll(std::shared_ptr<EnrollOperation> op);
-	void rejectUnproven(std::shared_ptr<EnrollOperation> op);
 	void signForUnwrap(std::shared_ptr<UnwrapOperation> op);
 	void discardCredential(const winrt::hstring &name);
 
@@ -547,47 +543,13 @@ void WindowsHelloProtection::enroll(
 					return;
 				}
 				op->credential = std::move(result.credential);
-				attest(op);
+				signForEnroll(op);
 			});
 		});
 	});
 	if (!started) {
 		AnswerEnroll(std::move(op->done), ProtectionError::Unavailable);
 	}
-}
-
-void WindowsHelloProtection::attest(std::shared_ptr<EnrollOperation> op) {
-	const auto started = base::WinRT::Try([&] {
-		op->credential.GetAttestationAsync().Completed([op, this](
-				IAsyncOperation<KeyCredentialAttestationResult> that,
-				AsyncStatus status) {
-			const auto hardware = (status == AsyncStatus::Completed)
-				&& base::WinRT::Try([&] {
-					return HardwareProven(that.GetResults());
-				}).value_or(false);
-			crl::on_main([op, hardware, this] {
-				if (hardware) {
-					signForEnroll(op);
-				} else {
-					rejectUnproven(op);
-				}
-			});
-		});
-	});
-	if (!started) {
-		crl::on_main([op, this] {
-			rejectUnproven(op);
-		});
-	}
-}
-
-void WindowsHelloProtection::rejectUnproven(
-		std::shared_ptr<EnrollOperation> op) {
-	LOG(("Wallet Error: The Windows Hello credential is not proven "
-		"hardware-backed, refusing to enroll."));
-	discardCredential(op->name);
-	_available = false;
-	op->done({ .error = ProtectionError::Unavailable });
 }
 
 void WindowsHelloProtection::signForEnroll(

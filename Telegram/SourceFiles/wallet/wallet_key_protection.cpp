@@ -551,7 +551,9 @@ void WalletPasscodeCreateBox(
 
 // Changes the passcode the chooser was opened with. current are the bytes the
 // chooser's gate accepted; a change made elsewhere makes them stale, which an
-// idle box answers by closing and a busy one learns from its own proof.
+// idle box answers by closing and a busy one learns from its own proof. A
+// passcode equal to the current one is not refused: it is saved like any
+// other, re-wrapping key_data and the keyring with a fresh derivation.
 void WalletPasscodeChangeBox(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
@@ -607,13 +609,6 @@ void WalletPasscodeChangeBox(
 				OPENSSL_cleanse(utf8.data(), utf8.size());
 			}
 		});
-		if (!bytes::compare(state->current.span(), bytes::make_span(utf8))) {
-			first->setFocus();
-			first->showError();
-			first->selectAll();
-			fields.showError(tr::lng_passcode_is_same(tr::now));
-			return;
-		}
 		state->typed = SecureBytes(utf8);
 		setBusy(true);
 		using Result = LocalPasscodeChangeResult;
