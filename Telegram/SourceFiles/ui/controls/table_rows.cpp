@@ -86,12 +86,13 @@ void AddTableRow(
 		st::giveawayGiftCodePeerMargin);
 }
 
-ValueWithSmallButton MakeValueWithSmallButton(
+namespace {
+
+[[nodiscard]] ValueWithSmallButton WrapValueWithSmallButton(
 		not_null<TableLayout*> table,
 		not_null<RpWidget*> value,
 		rpl::producer<QString> buttonText,
-		Fn<void(not_null<RpWidget*> button)> handler,
-		int topSkip) {
+		Fn<void(not_null<RpWidget*> button)> handler) {
 	class MarginedWidget final : public RpWidget {
 	public:
 		using RpWidget::RpWidget;
@@ -116,21 +117,6 @@ ValueWithSmallButton MakeValueWithSmallButton(
 	} else {
 		button->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
-	rpl::combine(
-		raw->widthValue(),
-		button->widthValue(),
-		value->naturalWidthValue()
-	) | rpl::on_next([=](int width, int buttonWidth, int) {
-		const auto buttonSkip = st::normalFont->spacew + buttonWidth;
-		value->resizeToNaturalWidth(width - buttonSkip);
-		value->moveToLeft(0, 0, width);
-		button->moveToLeft(
-			rect::right(value) + st::normalFont->spacew,
-			(topSkip
-				+ (table->st().defaultValue.style.font->ascent
-					- table->st().smallButton.style.font->ascent)),
-			width);
-	}, value->lifetime());
 
 	value->heightValue() | rpl::on_next([=](int height) {
 		const auto bottom = st::giveawayGiftCodePeerMargin.bottom();
@@ -141,6 +127,122 @@ ValueWithSmallButton MakeValueWithSmallButton(
 		.widget = std::move(result),
 		.button = button,
 	};
+}
+
+[[nodiscard]] int SmallButtonTop(not_null<TableLayout*> table, int lineTop) {
+	return lineTop
+		+ (table->st().defaultValue.style.font->ascent
+			- table->st().smallButton.style.font->ascent);
+}
+
+void PlaceSmallButtonOnLine(
+		not_null<TableLayout*> table,
+		not_null<RpWidget*> value,
+		not_null<RoundButton*> button,
+		int width,
+		int buttonWidth,
+		int topSkip) {
+	const auto buttonSkip = st::normalFont->spacew + buttonWidth;
+	value->resizeToNaturalWidth(width - buttonSkip);
+	value->moveToLeft(0, 0, width);
+	button->moveToLeft(
+		rect::right(value) + st::normalFont->spacew,
+		SmallButtonTop(table, topSkip),
+		width);
+}
+
+void PlaceSmallButtonAfterText(
+		not_null<TableLayout*> table,
+		not_null<FlatLabel*> value,
+		not_null<RoundButton*> button,
+		int width,
+		int buttonWidth) {
+	const auto lineHeight = value->st().style.lineHeight
+		? value->st().style.lineHeight
+		: value->st().style.font->height;
+	const auto skip = st::normalFont->spacew + buttonWidth;
+	value->setSkipBlock(skip, lineHeight);
+	value->resizeToNaturalWidth(width);
+	value->moveToLeft(0, 0, width);
+	const auto lines = value->countLineWidths();
+	const auto last = lines.empty() ? skip : lines.back();
+	button->moveToLeft(
+		(last > skip) ? (last - buttonWidth) : 0,
+		SmallButtonTop(table, value->height() - lineHeight),
+		width);
+}
+
+} // namespace
+
+ValueWithSmallButton MakeValueWithSmallButton(
+		not_null<TableLayout*> table,
+		not_null<RpWidget*> value,
+		rpl::producer<QString> buttonText,
+		Fn<void(not_null<RpWidget*> button)> handler,
+		int topSkip) {
+	auto result = WrapValueWithSmallButton(
+		table,
+		value,
+		std::move(buttonText),
+		std::move(handler));
+	const auto raw = result.widget.data();
+	const auto button = result.button;
+	rpl::combine(
+		raw->widthValue(),
+		button->widthValue(),
+		value->naturalWidthValue()
+	) | rpl::on_next([=](int width, int buttonWidth, int) {
+		PlaceSmallButtonOnLine(
+			table,
+			value,
+			button,
+			width,
+			buttonWidth,
+			topSkip);
+	}, value->lifetime());
+	return result;
+}
+
+ValueWithSmallButton MakeMultilineValueWithSmallButton(
+		not_null<TableLayout*> table,
+		not_null<FlatLabel*> value,
+		rpl::producer<QString> buttonText,
+		Fn<void(not_null<RpWidget*> button)> handler) {
+	auto result = WrapValueWithSmallButton(
+		table,
+		value,
+		std::move(buttonText),
+		std::move(handler));
+	const auto raw = result.widget.data();
+	const auto button = result.button;
+	const auto laying = value->lifetime().make_state<bool>(false);
+	rpl::combine(
+		raw->widthValue(),
+		button->widthValue(),
+		value->naturalWidthValue()
+	) | rpl::on_next([=](int width, int buttonWidth, int) {
+		if (*laying) {
+			return;
+		}
+		*laying = true;
+		// WHY: the fit is measured without the skip block, so a value that
+		// fits keeps the default one-line geometry, right-to-left text too,
+		// whose skip block lib_ui would put on a line of its own.
+		value->setSkipBlock(0, 0);
+		const auto skip = st::normalFont->spacew + buttonWidth;
+		if (value->textMaxWidth() + skip <= width) {
+			PlaceSmallButtonOnLine(table, value, button, width, buttonWidth, 0);
+		} else {
+			PlaceSmallButtonAfterText(
+				table,
+				value,
+				button,
+				width,
+				buttonWidth);
+		}
+		*laying = false;
+	}, value->lifetime());
+	return result;
 }
 
 object_ptr<RpWidget> MakePeerTableValue(

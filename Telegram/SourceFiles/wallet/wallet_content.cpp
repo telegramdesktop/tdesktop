@@ -3925,7 +3925,7 @@ void AddFeeTableRow(
 	Ui::AddTableRow(
 		table,
 		tr::lng_wallet_details_fee(),
-		Ui::MakeValueWithSmallButton(
+		Ui::MakeMultilineValueWithSmallButton(
 			table,
 			label,
 			rpl::single(u"?"_q),

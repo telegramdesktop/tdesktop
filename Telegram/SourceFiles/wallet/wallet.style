@@ -285,6 +285,8 @@ walletConflictBoxTopSkip: 14px;
 walletDetailsTable: Table(giveawayGiftCodeTable) {
 }
 walletDetailsFeeLabel: FlatLabel(defaultTableValue) {
+	minWidth: 128px;
+	maxHeight: 0px;
 	palette: TextPalette(defaultTextPalette) {
 		linkFg: windowSubTextFg;
 	}
