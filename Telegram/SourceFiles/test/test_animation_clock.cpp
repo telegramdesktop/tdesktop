@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 #include "core/application.h"
 #include "test/test_capture.h"
+#include "test/test_console_lock.h"
 #include "test/test_ink.h"
 #include "test/test_log.h"
 #include "test/test_runner.h"
@@ -380,7 +381,7 @@ struct State {
 
 [[nodiscard]] WindowReading ReadBarWindow(QWidget *bar) {
 	auto result = WindowReading();
-	result.screenLocked = Core::App().screenIsLocked();
+	result.screenLocked = ReadConsoleLock().locked();
 	if (!bar) {
 		return result;
 	}

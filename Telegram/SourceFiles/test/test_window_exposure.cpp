@@ -11,8 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/event_filter.h"
 #include "base/unique_qptr.h"
-#include "core/application.h"
 #include "test/test_capture.h"
+#include "test/test_console_lock.h"
 #include "test/test_log.h"
 #include "test/test_runner.h"
 #include "ui/widgets/separate_panel.h"
@@ -23,10 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QScreen>
 
 #include <array>
-
-#ifdef Q_OS_MAC
-#include <CoreGraphics/CoreGraphics.h>
-#endif // Q_OS_MAC
 
 #include "styles/palette.h"
 #include "styles/style_layers.h"
@@ -383,45 +379,17 @@ void ReleaseLeg(not_null<Leg*> leg) {
 	leg->target = nullptr;
 }
 
-// Core::Application::screenIsLocked() starts false and changes only on the
-// lock and unlock notifications that arrive after launch
-// (the screenIsLocked: and screenIsUnlocked: observers in
-// main_window_mac.mm, and Application::setScreenIsLocked), so a
-// console locked before the launch reads unlocked for the whole run, and a
-// window shown behind the lock screen keeps a stale isExposed(). The
-// session's own CGSSessionScreenIsLocked - the bit workspace.py test-run
-// reports as screen_locked - knows it from the start; a missing dictionary
-// or key reads unlocked. A read-only query: it orders, activates and
-// focuses nothing.
-[[nodiscard]] bool ConsoleLocked() {
-	if (Core::App().screenIsLocked()) {
-		return true;
-	}
-#ifdef Q_OS_MAC
-	const auto session = CGSessionCopyCurrentDictionary();
-	if (!session) {
-		return false;
-	}
-	const auto guard = gsl::finally([=] {
-		CFRelease(session);
-	});
-	const auto value = CFDictionaryGetValue(
-		session,
-		CFSTR("CGSSessionScreenIsLocked"));
-	return value && CFEqual(value, kCFBooleanTrue);
-#else // Q_OS_MAC
-	return false;
-#endif // Q_OS_MAC
-}
-
 [[nodiscard]] QString FixtureSkip(const Leg &leg, bool needBuilt) {
 	if (!kStacking) {
 		return u"off macOS the helper is a documented no-op: Windows and "
 			u"X11 never turn a covered window unexposed, and Wayland gives "
 			u"clients no stacking control"_q;
-	} else if (ConsoleLocked()) {
+	}
+	const auto console = ReadConsoleLock();
+	if (console.locked()) {
 		return u"the console is locked, so occlusion and exposure cannot "
-			u"be decided"_q;
+			u"be decided: "_q
+			+ ConsoleLockText(console);
 	} else if (needBuilt && !leg.built) {
 		return u"the fixture gate failed"_q;
 	}
@@ -523,7 +491,7 @@ void DecideControl(not_null<Leg*> leg) {
 			(cover ? RectText(cover->frameGeometry()) : u"none"_q),
 			QString::number(Elapsed(*leg)),
 			QString::number(kOcclusionBound),
-			(ConsoleLocked() ? u"1"_q : u"0"_q),
+			(ReadConsoleLock().locked() ? u"1"_q : u"0"_q),
 			(leg->exposedBeforeCover ? u"1"_q : u"0"_q),
 			QString::number(crl::now() - leg->shownAt));
 	Check(

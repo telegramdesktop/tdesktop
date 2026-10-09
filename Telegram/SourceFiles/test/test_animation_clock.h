@@ -279,8 +279,9 @@ struct ClockedRun {
 //    hidden and not visible before and after, nothing painted it outside
 //    the renders, and the renders painted it once per taken frame, three.
 //    The window reading - the bar's hidden and visible, the window's
-//    minimized, hidden, exposed, screenLocked and identity - is printed
-//    beside the frames. The three frames are saved as
+//    minimized, hidden, exposed, screenLocked
+//    (Test::ReadConsoleLock().locked()) and identity - is printed beside
+//    the frames. The three frames are saved as
 //    animation_clock_frames, then the bar is released.
 //
 // Without a runner finish callback (the dev Runner has none): the Simple and

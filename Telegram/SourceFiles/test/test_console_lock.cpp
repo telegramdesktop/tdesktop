@@ -9,12 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "test/test_console_lock.h"
 
-#ifdef Q_OS_WIN
 #include "base/platform/base_platform_info.h"
 
+#ifdef Q_OS_WIN
 #include <windows.h>
 #include <WtsApi32.h>
-#endif // Q_OS_WIN
+#elif defined Q_OS_MAC // Q_OS_WIN
+#include <CoreGraphics/CoreGraphics.h>
+#endif // Q_OS_WIN || Q_OS_MAC
 
 namespace Test {
 namespace {
@@ -107,20 +109,96 @@ constexpr auto kNoConsoleSession = DWORD(0xFFFFFFFF);
 	}
 	return result;
 }
-#endif // Q_OS_WIN
+#elif defined Q_OS_MAC // Q_OS_WIN
+enum class SessionFlag {
+	Absent,
+	False,
+	True,
+	NotBoolean,
+};
+
+[[nodiscard]] SessionFlag ReadSessionFlag(
+		CFDictionaryRef session,
+		CFStringRef key) {
+	const auto value = CFDictionaryGetValue(session, key);
+	if (!value) {
+		return SessionFlag::Absent;
+	} else if (CFGetTypeID(value) != CFBooleanGetTypeID()) {
+		return SessionFlag::NotBoolean;
+	}
+	return CFBooleanGetValue(static_cast<CFBooleanRef>(value))
+		? SessionFlag::True
+		: SessionFlag::False;
+}
+
+[[nodiscard]] QString SessionFlagText(SessionFlag flag) {
+	switch (flag) {
+	case SessionFlag::Absent: return u"absent"_q;
+	case SessionFlag::False: return u"0"_q;
+	case SessionFlag::True: return u"1"_q;
+	case SessionFlag::NotBoolean: return u"not-boolean"_q;
+	}
+	Unexpected("Flag in Test::SessionFlagText.");
+}
+
+[[nodiscard]] ConsoleLockReading ReadMacConsoleLock() {
+	auto result = ConsoleLockReading{
+		.source = u"CGSessionCopyCurrentDictionary()"
+			u".CGSSessionScreenIsLocked"_q,
+		.state = ConsoleLockState::Unknown,
+	};
+	const auto session = CGSessionCopyCurrentDictionary();
+	if (!session) {
+		result.reason = u"CGSessionCopyCurrentDictionary returned null: "
+			u"the process runs in no window-server session"_q;
+		return result;
+	}
+	const auto guard = gsl::finally([&] {
+		CFRelease(session);
+	});
+	// Only these two keys are read: the same dictionary carries the user's
+	// names and ids, and every row is published with task evidence.
+	const auto onConsole = ReadSessionFlag(session, kCGSessionOnConsoleKey);
+	const auto locked = ReadSessionFlag(
+		session,
+		CFSTR("CGSSessionScreenIsLocked"));
+	result.raw = u"kCGSSessionOnConsoleKey=%1 "
+		u"CGSSessionScreenIsLocked=%2"_q.arg(
+			SessionFlagText(onConsole),
+			SessionFlagText(locked));
+	if (locked == SessionFlag::True) {
+		result.state = ConsoleLockState::Locked;
+		result.reason = u"CGSSessionScreenIsLocked is true"_q;
+	} else if (locked == SessionFlag::NotBoolean) {
+		result.reason = u"CGSSessionScreenIsLocked is not a boolean"_q;
+	} else if (onConsole == SessionFlag::True) {
+		result.state = ConsoleLockState::Unlocked;
+		result.reason = u"the session is on the console and "
+			u"CGSSessionScreenIsLocked is not true"_q;
+	} else {
+		result.reason = u"the session is not on the console, so "
+			u"CGSSessionScreenIsLocked does not say whether its screen is "
+			u"shown"_q;
+	}
+	return result;
+}
+#endif // Q_OS_WIN || Q_OS_MAC
 
 } // namespace
 
 ConsoleLockReading ReadConsoleLock() {
 #ifdef Q_OS_WIN
 	return ReadWindowsConsoleLock();
-#else // Q_OS_WIN
+#elif defined Q_OS_MAC // Q_OS_WIN
+	return ReadMacConsoleLock();
+#else // Q_OS_WIN || Q_OS_MAC
 	return {
 		.source = u"none"_q,
-		.reason = u"not a Windows build: nothing is read and no gate fires"_q,
+		.reason = u"neither a Windows nor a macOS build: nothing is read "
+			u"and no gate fires"_q,
 		.state = ConsoleLockState::NotApplicable,
 	};
-#endif // Q_OS_WIN
+#endif // Q_OS_WIN || Q_OS_MAC
 }
 
 QString ConsoleLockText(const ConsoleLockReading &reading) {
@@ -134,7 +212,7 @@ QString ConsoleLockText(const ConsoleLockReading &reading) {
 }
 
 QString ConsoleLockGate(const ConsoleLockReading &reading) {
-	return reading.locked()
+	return (Platform::IsWindows() && reading.locked())
 		? (u"locked console: "_q + ConsoleLockText(reading))
 		: QString();
 }

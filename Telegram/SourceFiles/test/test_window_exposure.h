@@ -154,8 +154,12 @@ void RestoreWindowExposure(const WindowExposure &reading);
 // window and the application state unchanged and the widget's own flags
 // untouched; only then does the self-test ask for one update(), which must
 // deliver at least one paint within 3000 ms; the undo must clear the hint
-// it set and leave a hint it found alone. Off macOS or on a locked console
-// every leg stage is a named N/A, while the refusal stage runs everywhere.
+// it set and leave a hint it found alone. Off macOS, or on a console
+// Test::ReadConsoleLock() reads locked (test_console_lock.h; on macOS also
+// a console locked before the launch, where a window shown behind the lock
+// screen keeps a stale isExposed()), every leg stage is a named N/A - the
+// lock's N/A prints the CONSOLE_LOCK row, and the control's screenLocked=
+// is the same reading - while the refusal stage runs everywhere.
 // After a default workspace.py test-run launch, which does not activate the
 // client, a target that another application's window covers from the
 // moment it is shown cannot be turned unexposed by the harness cover (see

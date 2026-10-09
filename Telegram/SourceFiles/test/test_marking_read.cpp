@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mainwidget.h"
 #include "test/test_capture.h"
+#include "test/test_console_lock.h"
 #include "test/test_log.h"
 #include "test/test_runner.h"
 #include "test/test_window_exposure.h"
@@ -161,7 +162,7 @@ struct State {
 
 MarkingReadReading ReadMainWindowMarking(Window::Controller *controller) {
 	auto result = MarkingReadReading();
-	result.screenLocked = Core::App().screenIsLocked();
+	result.screenLocked = ReadConsoleLock().locked();
 	if (!controller) {
 		result.refusal = u"no main window to keep from marking "
 			u"messages read"_q;
@@ -285,11 +286,13 @@ void AppendMainWindowNotMarkingReadSelfTest(not_null<Runner*> runner) {
 			// minimize lever.
 			RefreshActive(state->controller);
 			state->control = ReadMainWindowMarking(state->controller);
-			if (state->control.markingAsRead
-				|| state->control.screenLocked) {
+			if (state->control.markingAsRead) {
 				return true;
 			}
-			return !state->control.exposed
+			// The lock only bounds the wait, as an unexposed window does: a
+			// locked console whose window still marks read runs the deciding
+			// half.
+			return (state->control.screenLocked || !state->control.exposed)
 				&& (crl::now() - state->controlStarted
 					>= kNotMarkingReadBound);
 		},

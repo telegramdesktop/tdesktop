@@ -156,7 +156,9 @@ void CapturePopupMenu(
 // certify that premise at all. Nothing is gated off Windows: on macOS a
 // packed launch with CGSSessionScreenIsLocked true ran this self-test with
 // 0 FAIL (2026/10/06/add-a-post-paint-capture-sampler-to-the-harness,
-// work/test.md, Test 2), and the probe reads not-applicable there.
+// work/test.md, Test 2), so Test::ConsoleLockGate answers only in a
+// Windows build: on macOS the probe reads the session's lock and the open
+// stage prints it, and nothing is gated.
 void AppendPopupMenuCaptureSelfTest(not_null<Runner*> runner);
 
 // A context menu, read in the turn that built it.
