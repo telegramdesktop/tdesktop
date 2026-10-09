@@ -7996,6 +7996,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_photo_editor_crop_free" = "Free";
 
 "lng_photo_editor_corners_about" = "Choose how rounded the sticker corners should look.";
+"lng_photo_editor_corners_circle" = "Circle";
 "lng_photo_editor_corners_large" = "Large";
 "lng_photo_editor_corners_medium" = "Medium";
 "lng_photo_editor_corners_small" = "Small";

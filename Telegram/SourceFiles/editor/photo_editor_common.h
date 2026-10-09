@@ -36,6 +36,7 @@ struct AudioTrack {
 };
 
 enum class RoundedCornersLevel {
+	Circle,
 	Large,
 	Medium,
 	Small,

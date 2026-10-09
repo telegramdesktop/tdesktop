@@ -92,6 +92,7 @@ void ApplyShapeMask(QImage &image, const PhotoModifications &mods) {
 
 float64 RoundedCornersMultiplier(RoundedCornersLevel level) {
 	switch (level) {
+	case RoundedCornersLevel::Circle: return 0.5;
 	case RoundedCornersLevel::Large: return Ui::ForumUserpicRadiusMultiplier();
 	case RoundedCornersLevel::Medium: return 0.2;
 	case RoundedCornersLevel::Small: return 0.12;

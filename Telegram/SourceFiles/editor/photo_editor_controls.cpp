@@ -956,6 +956,9 @@ PhotoEditorControls::PhotoEditorControls(
 					selected ? check : nullptr);
 			};
 			add(
+				tr::lng_photo_editor_corners_circle(tr::now),
+				RoundedCornersLevel::Circle);
+			add(
 				tr::lng_photo_editor_corners_large(tr::now),
 				RoundedCornersLevel::Large);
 			add(
