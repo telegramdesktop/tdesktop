@@ -25,7 +25,7 @@ namespace {
 		.openStickerSets = false,
 		.photoButton = true,
 		.audioButton = withAudio,
-		.linkButton = true,
+		.linkButton = false,
 	};
 }
 
