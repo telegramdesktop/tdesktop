@@ -39,9 +39,18 @@ class Runner;
 // and not marking returns a named refusal. A null controller refuses
 // immediately and does not search for some other top-level window.
 //
-// The self-test needs a session main window, leaves that window shown, and
-// skips the deciding half instead of passing it when the host cannot make
-// the control true.
+// The self-test needs a session main window and leaves that window shown.
+// From its control until its restore stage it stacks the primary window
+// above other applications' windows with Test::KeepWindowExposed, which
+// activates nothing, so a window another application covers - the usual
+// state after a default workspace.py test-run launch, which does not
+// activate the client - still reads exposed. The hint stays set while the
+// lever minimizes the window, where it exposes nothing, and is cleared at
+// the restore stage and in Runner::onFinish. A locked host still skips the
+// deciding half instead of passing it, as does any host where the control
+// cannot read markingAsRead true. Its "activate undoes the lever" and
+// "restore" stages call Window::Controller::activate(), which activates the
+// client on macOS (Platform::ActivateThisProcess()).
 struct MarkingReadReading {
 	bool markingAsRead = false;
 	bool isActive = false;

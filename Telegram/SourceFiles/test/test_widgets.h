@@ -302,12 +302,13 @@ void SettlePostponedCalls();
 // its if (f->isActiveWindow()) branch promotes the target to
 // QApplication::focusWidget(), and isActiveWindow() ends in a fallback to
 // QPlatformWindow::isActive() (qwidget.cpp) - so it takes the
-// platform window not being active, on a locked or unattended console, for
-// setFocus() to "succeed" while hasFocus() and isActiveWindow() keep reading
-// false - no error, no event, just absence - and every affordance routed on
-// them silently does nothing. Clearing only the QPA focus window does not
-// reproduce that where the OS window is still active. Runs 2 and 7 of
-// 2026/08/30/replace-wallet-with-new-or-imported paid for that.
+// platform window not being active, on a locked console, or on macOS after a
+// default workspace.py test-run launch, which does not activate the client,
+// for setFocus() to "succeed" while hasFocus() and isActiveWindow() keep
+// reading false - no error, no event, just absence - and every affordance
+// routed on them silently does nothing. Clearing only the QPA focus window
+// does not reproduce that where the OS window is still active. Runs 2 and 7
+// of 2026/08/30/replace-wallet-with-new-or-imported paid for that.
 // Window::Controller::activate() (window/window_controller.h) is not the
 // answer: it asks the window manager, which on a locked console does not
 // comply, which is why the injection goes through the QPA seam instead.

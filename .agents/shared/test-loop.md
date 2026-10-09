@@ -699,7 +699,8 @@ command, environment, exit-code, log, artifact and control evidence.
   `<EVIDENCE_DIR>/stale-crash/working` and every live `tdata/dumps/*.dmp` to
   `<EVIDENCE_DIR>/stale-crash/dumps/` before launch. A zero-byte `tdata/working` is neither moved
   nor reported. It launches `EXE` **with `-testagent -noupdate`** (so a shipped update can never
-  replace the binary under test mid-run) capturing stdout to
+  replace the binary under test mid-run) and `QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM=1`
+  in its environment (Launch activation, below), capturing stdout to
   `<EVIDENCE_DIR>/app_stdout.txt` and stderr to `<EVIDENCE_DIR>/app_stderr.txt` (the flag prevents
   modal crash hangs, and stderr captures assertion text), enforces **a hard wall-clock deadline
   from launch** and a quiet-log watchdog while polling `<EVIDENCE_DIR>/test_log.txt`, detects
@@ -722,11 +723,48 @@ command, environment, exit-code, log, artifact and control evidence.
   `golden_root` names the executable-directory golden the launch can still read whatever `workdir`
   says. The isolation contract is stated under Test account (portable data) — hard rules. If the
   stale report cannot be moved, `test-run` refuses before launch, prints the helper error on stderr,
-  exits non-zero, and emits no JSON. If a dump cannot be moved, `test-run` leaves it in place,
+  exits non-zero, and emits no JSON. A malformed `--env` value (no `=`, or an empty name), or one
+  naming `QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM`, is refused the same way before SETUP,
+  with nothing created. If a dump cannot be moved, `test-run` leaves it in place,
   records `"to": null` (a null destination), and continues to launch. Then read each `SCREENSHOT:`
   image and judge it, save the binary overlay patch, and restore only inventoried overlay paths
   (`overlay-save` — the patch must be saved before that restore). The runner only gathers evidence;
   ASSESS below stays the agent's own adversarial judgement.
+  - **Launch activation (macOS).** The launched process's environment - only it; nothing is
+    exported in the calling shell - carries `QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM=1`,
+    overwriting an inherited value, so the launch does not activate the client: Qt's cocoa plugin
+    neither activates it when it finishes launching (`applicationDidFinishLaunching`,
+    `qcocoaapplicationdelegate.mm`) nor runs its activation-policy transform
+    (`qcocoaintegration.mm`), which the bundled Debug app does not need: read with the variable
+    set, the client still checks in under its bundle identifier as a regular application
+    (`lsappinfo` `type="Foreground"`, activation policy regular, the policy with a Dock entry), the
+    same as without it. The frontmost application keeps its key window, the client reads
+    `QGuiApplication::applicationState()` inactive, its windows open behind the frontmost
+    application's, and a fully covered one reads unexposed and gets no paints until
+    `Test::KeepWindowExposed` stacks it (the not-marking-read and post-paint self-tests do that for
+    the primary window themselves); focus-routed actions need `Test::ForceWindowActive`. Only the
+    launch's own activation is suppressed: product flows and some self-tests still activate the
+    client (`Telegram/SourceFiles/test/README.md`, Input helpers). `--activate` removes the
+    variable from the launched environment, also when the calling shell exported it, so Qt
+    activates the client at launch as before - for a campaign whose subject is genuine OS
+    activation (the real-focus campaigns) and for control launches; a scenario's own
+    `Platform::ActivateThisProcess()` or `Window::Controller::activate()` still activates the
+    client under the default. A client the launch did not activate is a background application, and
+    macOS may throttle its timers (App Nap / timer coalescing): in background runs on this host a
+    sampler's heartbeat gaps grew to 100-290 ms after about 15 s of normal cadence
+    (`2026/10/01/animate-gram-card-sending-and-settle-effects`, Run 1), and a 4 ms precise sampler
+    ticked every 50-1000 ms from about the 80th second
+    (`2026/10/02/show-the-input-method-composition-in-the-gram-send-amount`, Run 1). A
+    timing-sensitive overlay holds a user-initiated, latency-critical `NSProcessInfo` activity
+    itself, begun in a stage and ended in `Runner::onFinish`, as the
+    `2026/10/07/animate-the-sending-row-for-a-collectible-transfer` overlay's
+    `BeginLatencyActivity` does; `--activate` is no substitute, since it does not keep the client
+    frontmost on a locked console or once the owner switches to another application. `--env` may
+    not name the variable. The report's `launch_activation` is `"suppressed"` by default and
+    `"allowed"` with `--activate`. Off macOS nothing reads the variable, both modes launch alike,
+    and whether the client takes the foreground is the window system's policy (Windows shows the
+    first window with `SW_SHOWNORMAL` from a foreground launcher; X11 leaves it to the window
+    manager's focus policy; Wayland to the compositor).
   - **Console input (macOS).** `input_before` and `input_after` are console readings taken right
     before the launch and after the process ends; `input_after` comes after the post-run straggler
     kill and the crash/log collection, just before the report prints. Each holds `time` (local
@@ -734,6 +772,11 @@ command, environment, exit-code, log, artifact and control evidence.
     `frontmost_app` (the frontmost application's name, from `lsappinfo`) and `screen_locked` (the
     on-console session's `CGSSessionScreenIsLocked`, `false` when absent), each beside a
     `<name>_error` that says why the value is `null`; `input_after` adds `seconds_since_launch`.
+    After a default launch with no stage that activated the client, `input_after.frontmost_app`
+    normally equals `input_before.frontmost_app`; after a launch or a stage that activated the
+    client, macOS hands the foreground to some application when the client quits, which need not
+    be the one frontmost before (`Parallels Desktop` before and `cmux` after in Run 1 of
+    `2026/10/08/keep-an-occluded-harness-window-exposed-without-activating-it`).
     `input_during_run` is `true` when `input_after.idle_seconds` is below
     `input_after.seconds_since_launch`, `false` when it covers it, and `null` when either reading
     lacks its idle time — always off macOS, where every value is `null` with its reason. It says
@@ -753,12 +796,15 @@ command, environment, exit-code, log, artifact and control evidence.
     flag. The wait runs before the account setup, the straggler kill and the crash snapshots, and
     counts toward none of `--deadline`, `--quiet` or `duration_seconds`; a missing executable,
     portable root or golden folder fails before any wait. Use it when the console is unlocked and
-    someone may be using it, especially for a packed harness run whose focus- or paint-sensitive
-    stages (a menu that closes on an outside press, a paint sampler) a stray click or keystroke can
-    abort; pick a requirement at least as long as the expected run and still read
+    someone may be using it, especially for a packed harness run: after a default launch the
+    owner's keystrokes reach the client only once a stage activates it, but a click anywhere still
+    closes an open popup (Qt's global popup monitor, `QCocoaWindow::setupPopupMonitor`,
+    `qcocoawindow.mm`), and a stage that activates the client takes the key window from the
+    owner's application; pick a requirement at least as long as the expected run and still read
     `input_during_run` afterwards — the gate makes input less likely, it does not prevent it.
-    A window that must keep painting while someone may use the console, where another application
-    can cover it and leave it unexposed, is kept exposed without activating the app by
+    The occlusion no longer depends on input at all: after a default launch a window another
+    application covers reads unexposed and gets no paints whether or not anyone uses the console.
+    A window a stage needs painted is kept exposed without activating the app by
     `Test::KeepWindowExposed` (`Telegram/SourceFiles/test/test_window_exposure.h`); the gate itself
     cannot prevent that occlusion.
 

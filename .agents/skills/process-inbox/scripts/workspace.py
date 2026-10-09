@@ -73,6 +73,7 @@ CONSOLE_COMMAND_TIMEOUT = 2.0
 WAIT_IDLE_MAX_DEFAULT = 600.0
 LSAPPINFO_ASN_PATTERN = re.compile(r"ASN:0x[0-9a-fA-F]+-0x[0-9a-fA-F]+:")
 LSAPPINFO_NAME_PATTERN = re.compile(r'"(.*)"\s+ASN:')
+LAUNCH_ACTIVATION_VARIABLE = "QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM"
 BUILD_LOCK_PROCESS_NAMES = {
 	"cl.exe",
 	"cmake.exe",
@@ -2683,6 +2684,12 @@ def wait_for_console_idle(required, bound, clock=time.monotonic, sleep=time.slee
 
 
 def command_test_run(args):
+	extra_environment = parse_env_values(args.env)
+	if LAUNCH_ACTIVATION_VARIABLE in extra_environment:
+		raise WorkspaceError(
+			f"--env cannot set {LAUNCH_ACTIVATION_VARIABLE}: test-run sets it to "
+			"launch the client without activating it, and --activate removes it"
+		)
 	if args.wait_idle is not None:
 		if not 0 < args.wait_idle < float("inf"):
 			raise WorkspaceError("--wait-idle must be a positive number of seconds")
@@ -2709,7 +2716,11 @@ def command_test_run(args):
 
 	environment = os.environ.copy()
 	environment["TDESKTOP_TEST_EVIDENCE_DIR"] = str(run_dir)
-	environment.update(parse_env_values(args.env))
+	if args.activate:
+		environment.pop(LAUNCH_ACTIVATION_VARIABLE, None)
+	else:
+		environment[LAUNCH_ACTIVATION_VARIABLE] = "1"
+	environment.update(extra_environment)
 
 	cleared = (
 		clear_stale_crash_state(
@@ -2849,6 +2860,7 @@ def command_test_run(args):
 		"input_after": input_after,
 		"input_before": input_before,
 		"input_during_run": input_during_run,
+		"launch_activation": "allowed" if args.activate else "suppressed",
 		"log_path": str(log_path) if log_path.is_file() else None,
 		"markers": parse_test_log(log_text),
 		"outcome": outcome,
@@ -5199,6 +5211,7 @@ def parse_args():
 	test_run.add_argument("--grace", type=float, default=15.0)
 	test_run.add_argument("--wait-idle", type=float)
 	test_run.add_argument("--wait-idle-max", type=float, default=WAIT_IDLE_MAX_DEFAULT)
+	test_run.add_argument("--activate", action="store_true")
 	test_run.add_argument("--env", action="append")
 	test_run.set_defaults(handler=command_test_run)
 

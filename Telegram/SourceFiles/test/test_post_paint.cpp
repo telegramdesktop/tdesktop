@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_capture.h"
 #include "test/test_log.h"
 #include "test/test_runner.h"
+#include "test/test_window_exposure.h"
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
 #include "window/window_controller.h"
@@ -1088,6 +1089,7 @@ void AppendPostPaintSamplerSelfTest(not_null<Runner*> runner) {
 		int paintMark = 0;
 		int sampleMark = 0;
 		DestroyReading atDestroy;
+		WindowExposure exposure;
 		bool destroyPosted = false;
 	};
 	const auto state = std::make_shared<State>();
@@ -1098,6 +1100,7 @@ void AppendPostPaintSamplerSelfTest(not_null<Runner*> runner) {
 	// The sampler goes before the widget: its destructor removes its filter
 	// from the owner while the owner still lives.
 	runner->onFinish([=] {
+		RestoreWindowExposure(state->exposure);
 		state->control.cancel();
 		state->sampler = nullptr;
 		state->fixture.widget = nullptr;
@@ -1140,6 +1143,7 @@ void AppendPostPaintSamplerSelfTest(not_null<Runner*> runner) {
 			}
 			const auto fixture = &state->fixture;
 			const auto widget = fixture->widget.get();
+			state->exposure = KeepWindowExposed(widget);
 			state->sampler = std::make_unique<PostPaintSampler>(
 				u"post-paint self-test"_q,
 				widget,
@@ -1157,7 +1161,12 @@ void AppendPostPaintSamplerSelfTest(not_null<Runner*> runner) {
 		},
 		.then = [=] {
 			const auto reading = ReadFixtureGate(state->fixture, state->from);
-			Check(reading.ok, gate, reading.details);
+			Check(
+				reading.ok,
+				gate,
+				reading.details
+					+ u" | "_q
+					+ WindowExposureText(state->exposure));
 			if (reading.ok) {
 				return;
 			}
@@ -1165,6 +1174,7 @@ void AppendPostPaintSamplerSelfTest(not_null<Runner*> runner) {
 				state->fixtureGate = gate;
 			}
 			state->fixture.continuous = false;
+			RestoreWindowExposure(state->exposure);
 			state->sampler = nullptr;
 			state->fixture.widget = nullptr;
 		},
@@ -1410,6 +1420,7 @@ void AppendPostPaintSamplerSelfTest(not_null<Runner*> runner) {
 					.arg(reason)
 					.arg(state->fixture.widget ? u"alive"_q : u"released"_q)
 					.arg(state->fixture.nullImages));
+			RestoreWindowExposure(state->exposure);
 		},
 	});
 }

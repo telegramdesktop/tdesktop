@@ -37,9 +37,12 @@ class Runner;
 // (QWidgetRepaintManager::sync()): no paint, so no post-paint sample,
 // no paint-stamped product timer and no frame advance. Run 2 set the hint
 // below on the panel's QWindow right after showing it, waited for
-// isExposed() in a pure until, and the leg ran end to end. The
-// workspace.py test-run --wait-idle gate only lowers the chance of the
-// occlusion; it cannot prevent it.
+// isExposed() in a pure until, and the leg ran end to end. Since then a
+// workspace.py test-run launch does not activate the client by default
+// (launch_activation "suppressed" in its report, --activate to opt in), so
+// its windows open behind the frontmost application's, and a covered one
+// stays unexposed whether or not anyone uses the console; the
+// workspace.py test-run --wait-idle gate does not change that.
 //
 // The mechanism. QWindow::setFlag(Qt::WindowStaysOnTopHint, true) on
 // widget->window()->windowHandle(). On a shown macOS window
@@ -148,6 +151,10 @@ void RestoreWindowExposure(const WindowExposure &reading);
 // deliver at least one paint within 3000 ms; the undo must clear the hint
 // it set and leave a hint it found alone. Off macOS or on a locked console
 // every leg stage is a named N/A, while the refusal stage runs everywhere.
+// After a default workspace.py test-run launch, which does not activate the
+// client, a target another application's window covers when it is shown
+// reads unexposed before the harness cover (exposedBeforeCover=0), and
+// that leg is the named N/A, never a pass.
 // A per-leg teardown stage and Runner::onFinish, registered at append time,
 // destroy every harness window, so none is left over the owner's console on
 // any exit path.

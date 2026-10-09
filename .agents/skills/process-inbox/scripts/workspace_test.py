@@ -1747,15 +1747,34 @@ def write_dump_after_complete_exe(path, dump, tail, windows_tail):
 	))
 
 
-def write_argv_recording_exe(path):
-	# The cmd branch puts the redirection before `echo` on purpose. In
+def write_argv_recording_exe(path, env_names=()):
+	# The cmd branch puts the redirection before `echo` on purpose, for
+	# the argument and the environment lines alike. In
 	# `echo %~1>>"%ARGS%"` a value ending in a digit would be read as a
 	# stream handle, so an argument like `-scale 1` would silently lose
 	# its last character and redirect stdout instead.
+	envs = ""
+	windows_envs = ""
+	if env_names:
+		envs = 'ENVS="$TDESKTOP_TEST_EVIDENCE_DIR/env.txt"\n' + "".join(
+			f'if [ "${{{name}+set}}" = set ]; then '
+			f'echo "{name}=${name}" >> "$ENVS"; '
+			f'else echo "{name} unset" >> "$ENVS"; fi\n'
+			for name in env_names
+		)
+		windows_envs = (
+			'set "ENVS=%TDESKTOP_TEST_EVIDENCE_DIR%\\env.txt"\n'
+			+ "".join(
+				f'if defined {name} (>>"%ENVS%" echo {name}=%{name}%) '
+				f'else (>>"%ENVS%" echo {name} unset)\n'
+				for name in env_names
+			)
+		)
 	return write_fake_exe(path, (
 		'ARGS="$TDESKTOP_TEST_EVIDENCE_DIR/argv.txt"\n'
 		'for value in "$@"; do echo "$value" >> "$ARGS"; done\n'
-		'LOG="$TDESKTOP_TEST_EVIDENCE_DIR/test_log.txt"\n'
+		+ envs
+		+ 'LOG="$TDESKTOP_TEST_EVIDENCE_DIR/test_log.txt"\n'
 		'echo "TEST_COMPLETE" >> "$LOG"\n'
 		"exit 0\n"
 	), (
@@ -1766,7 +1785,8 @@ def write_argv_recording_exe(path):
 		'shift\n'
 		'goto argv\n'
 		':argvdone\n'
-		'set "LOG=%TDESKTOP_TEST_EVIDENCE_DIR%\\test_log.txt"\n'
+		+ windows_envs
+		+ 'set "LOG=%TDESKTOP_TEST_EVIDENCE_DIR%\\test_log.txt"\n'
 		'echo TEST_COMPLETE>>"%LOG%"\n'
 		"exit /b 0\n"
 	))
@@ -1775,6 +1795,19 @@ def write_argv_recording_exe(path):
 def read_argv(run_dir):
 	text = (run_dir / "argv.txt").read_text(encoding="utf-8")
 	return [line.strip() for line in text.splitlines() if line.strip()]
+
+
+def read_recorded_env(run_dir):
+	recorded = {}
+	text = (run_dir / "env.txt").read_text(encoding="utf-8")
+	for line in text.splitlines():
+		line = line.strip()
+		if "=" in line:
+			name, value = line.split("=", 1)
+			recorded[name] = value
+		elif line.endswith(" unset"):
+			recorded[line[:-len(" unset")]] = None
+	return recorded
 
 
 def make_portable_root(root):
@@ -1886,6 +1919,7 @@ def run_test_run(exe, run_dir, **overrides):
 		"grace": 5.0,
 		"wait_idle": None,
 		"wait_idle_max": workspace.WAIT_IDLE_MAX_DEFAULT,
+		"activate": False,
 		"env": None,
 	}
 	arguments.update(overrides)
@@ -2533,6 +2567,86 @@ class MechanicsTest(unittest.TestCase):
 			self.assertTrue((
 				debug / workspace.PORTABLE_LIVE / workspace.PORTABLE_MARKER
 			).is_file())
+
+	def test_test_run_launches_without_activation_by_default(self):
+		variable = workspace.LAUNCH_ACTIVATION_VARIABLE
+		for inherited in (None, ""):
+			with (
+				self.subTest(inherited=inherited),
+				tempfile.TemporaryDirectory() as temporary,
+				mock.patch.dict(os.environ),
+			):
+				os.environ.pop(variable, None)
+				if inherited is not None:
+					os.environ[variable] = inherited
+				root = Path(temporary).resolve()
+				debug = make_portable_root(root)
+				exe = write_argv_recording_exe(
+					debug / "Telegram",
+					env_names=(variable, "EXTRA_FLAG"),
+				)
+				run_dir = root / "run1"
+				result = run_test_run(exe, run_dir, env=["EXTRA_FLAG=1"])
+				self.assertEqual(
+					read_recorded_env(run_dir),
+					{variable: "1", "EXTRA_FLAG": "1"},
+				)
+				self.assertEqual(
+					read_argv(run_dir),
+					["-testagent", "-noupdate"],
+				)
+				self.assertEqual(result["launch_activation"], "suppressed")
+				self.assertEqual(result["verdict_hint"], "complete")
+
+	def test_test_run_activate_lets_the_launch_activate_the_client(self):
+		variable = workspace.LAUNCH_ACTIVATION_VARIABLE
+		for inherited in (None, "1"):
+			with (
+				self.subTest(inherited=inherited),
+				tempfile.TemporaryDirectory() as temporary,
+				mock.patch.dict(os.environ),
+			):
+				os.environ.pop(variable, None)
+				if inherited is not None:
+					os.environ[variable] = inherited
+				root = Path(temporary).resolve()
+				debug = make_portable_root(root)
+				exe = write_argv_recording_exe(
+					debug / "Telegram",
+					env_names=(variable, "EXTRA_FLAG"),
+				)
+				run_dir = root / "run1"
+				result = run_test_run(
+					exe, run_dir, activate=True, env=["EXTRA_FLAG=1"],
+				)
+				self.assertEqual(
+					read_recorded_env(run_dir),
+					{variable: None, "EXTRA_FLAG": "1"},
+				)
+				self.assertEqual(
+					read_argv(run_dir),
+					["-testagent", "-noupdate"],
+				)
+				self.assertEqual(result["launch_activation"], "allowed")
+
+	def test_test_run_refuses_an_env_that_sets_the_activation_variable(self):
+		variable = workspace.LAUNCH_ACTIVATION_VARIABLE
+		for overrides in (
+			{"env": [f"{variable}=1"]},
+			{"activate": True, "env": [f"{variable}="]},
+		):
+			with (
+				self.subTest(overrides=overrides),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				root = Path(temporary)
+				debug = make_portable_root(root)
+				exe = write_complete_markers_exe(debug / "Telegram")
+				run_dir = root / "run1"
+				with self.assertRaisesRegex(workspace.WorkspaceError, "--env"):
+					run_test_run(exe, run_dir, **overrides)
+				self.assertFalse(run_dir.exists())
+				self.assertFalse((debug / workspace.PORTABLE_LIVE).exists())
 
 	def test_parse_test_log_lists_skipped_rows_beside_pass_and_fail(self):
 		markers = workspace.parse_test_log("\n".join([

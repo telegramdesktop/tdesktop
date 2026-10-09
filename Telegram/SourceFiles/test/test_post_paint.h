@@ -220,8 +220,13 @@ private:
 };
 
 // PostPaintSampler measuring itself on a harness-owned synthetic widget. It
-// needs only a shown, exposed, non-minimized primary window: no session, no
-// chats list and no account fixture. The widget is an opaque Ui::RpWidget
+// needs only a shown, non-minimized primary window: no session, no chats
+// list and no account fixture. Its fixture stage stacks that window above
+// other applications' windows with Test::KeepWindowExposed, which activates
+// nothing, so a window another application covers - the usual state after a
+// default workspace.py test-run launch, which does not activate the client -
+// exposes and paints; the hint is cleared at its last stage, on a failed
+// gate, or in Runner::onFinish. The widget is an opaque Ui::RpWidget
 // parented to that window at (0, 0) and raised, so its product paints go
 // through the same backing-store sync as the surfaces the helper is for.
 // Each paint busy-waits 18 ms (the source's 16-20 ms Debug paints) and
@@ -231,12 +236,15 @@ private:
 // counters alone. Nine stages, ten Test::Check rows:
 //
 // 1. Fixture and warm-up. Builds the widget and the sampler, with no
-//    sampling window open, and repaints continuously (each product paint
+//    sampling window open, keeps the primary window exposed with
+//    Test::KeepWindowExposed, and repaints continuously (each product paint
 //    requests the next from inside paintEvent). Check: the fixture gate -
 //    at least 5 product paints in a shown, exposed, non-minimized primary
-//    window. An occluded or minimized window produces no paints; the gate
-//    then fails once with what it read, and every later stage is N/A by
-//    that name.
+//    window, with the helper's reading in the details (its exposed= is the
+//    value from before the call). A minimized or hidden window produces no
+//    paints and the helper refuses it; the gate then fails once with what
+//    it read and the refusal, clears the hint, and every later stage is N/A
+//    by that name.
 // 2. Timer-only control at a 16 ms cadence. One-shot base::Timer grabs of
 //    the same widget for 1500 ms, still with no sampling window open, so
 //    neither sampler's grabs fall into the other's readings. No check: a
@@ -281,21 +289,21 @@ private:
 //    pending. The helper's NOTE "kind=stop reason=owner-destroyed ...
 //    pending=1" is the log row of that stop.
 // 9. The stage after the owner was destroyed runs. Releases the stopped
-//    sampler, whose filter already died with the owner. Check: it ran, the
-//    stop reason is owner-destroyed, and the sampler and the widget are
-//    released.
+//    sampler, whose filter already died with the owner, and clears the
+//    hint stage 1 set. Check: it ran, the stop reason is owner-destroyed,
+//    and the sampler and the widget are released.
 //
-// Runner::onFinish cancels the control timer, then releases the sampler
-// before the widget, on every path that reaches it; after stage 9 it finds
-// both already released.
+// Runner::onFinish clears the hint, cancels the control timer, then
+// releases the sampler before the widget, on every path that reaches it;
+// after stage 9 it finds all of them already released or cleared.
 //
 // It emits no deliberate FAIL: every row is expected to PASS with the
-// primary window shown and exposed. Its negative legs are two disposable
-// mutations of the helper, never a stage that fails on purpose: with the
-// recursion guard in paintReceived deleted each grab paint posts the next
-// sample, and with the post-paint trigger replaced by a 16 ms timer that
-// runs the sample, samples are taken without a product paint - either way
-// both stage 5 checks fail.
+// primary window shown and not minimized, which stage 1 keeps exposed. Its
+// negative legs are two disposable mutations of the helper, never a stage
+// that fails on purpose: with the recursion guard in paintReceived deleted
+// each grab paint posts the next sample, and with the post-paint trigger
+// replaced by a 16 ms timer that runs the sample, samples are taken without
+// a product paint - either way both stage 5 checks fail.
 void AppendPostPaintSamplerSelfTest(not_null<Runner*> runner);
 
 } // namespace Test
