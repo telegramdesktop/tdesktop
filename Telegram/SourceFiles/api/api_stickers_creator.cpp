@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "menu/menu_action_with_thumbnail.h"
 #include "storage/file_upload.h"
 #include "storage/localimageloader.h"
+#include "styles/style_boxes.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_widgets.h"
 #include "ui/dynamic_thumbnails.h"
@@ -320,7 +321,7 @@ void AddAddToStickerSetAction(
 		.fillSubmenu = [show, document](not_null<Ui::PopupMenu*> submenu) {
 			FillChooseStickerSetMenu(submenu, show, document);
 		},
-		.submenuSt = &st::popupMenuWithIcons,
+		.submenuSt = &st::foldersMenu,
 	});
 }
 
@@ -338,7 +339,7 @@ void AddAddToEmojiSetAction(
 		.fillSubmenu = [show, document](not_null<Ui::PopupMenu*> submenu) {
 			FillChooseEmojiSetMenu(submenu, show, document);
 		},
-		.submenuSt = &st::popupMenuWithIcons,
+		.submenuSt = &st::foldersMenu,
 	});
 }
 
