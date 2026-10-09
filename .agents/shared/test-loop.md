@@ -790,13 +790,18 @@ command, environment, exit-code, log, artifact and control evidence.
     reads unexposed and gets no paints. Either way a stage that needs paints calls
     `Test::KeepWindowExposed` (the not-marking-read and post-paint self-tests do that for the
     primary window themselves); focus-routed actions need `Test::ForceWindowActive`. Only the
-    launch's own activation is suppressed: product flows and some self-tests still activate the
-    client, whose own activation request the window server honours after a background launch too
-    (`Telegram/SourceFiles/test/README.md`, Input helpers); a scenario's own
-    `Platform::ActivateThisProcess()` or `Window::Controller::activate()` still activates the
-    client under the default. A client the launch did not activate is a background application, and
-    macOS may throttle its timers (App Nap / timer coalescing): in background runs on this host a
-    sampler's heartbeat gaps grew to 100-290 ms after about 15 s of normal cadence
+    launch's own activation is suppressed: product flows and some self-tests still request
+    activation (`Telegram/SourceFiles/test/README.md`, Input helpers), and after a background launch
+    the window server may grant or refuse that request - on this host it granted it about 11 s after
+    launch in two default runs and refused it about 20 s after launch in a third, under a condition
+    those runs did not establish (`2026/10/08/launch-the-testagent-client-without-activating-it`,
+    Runs 4, 8 and 9). A granted request takes the key window from the frontmost application; after a
+    refused one the client stays inactive behind it. A scenario's own
+    `Platform::ActivateThisProcess()` or `Window::Controller::activate()` is therefore no reliable
+    route to OS activation under the default; a campaign whose subject is genuine OS activation
+    launches with `--activate`. A client the launch did not activate is a background application,
+    and macOS may throttle its timers (App Nap / timer coalescing): in background runs on this host
+    a sampler's heartbeat gaps grew to 100-290 ms after about 15 s of normal cadence
     (`2026/10/01/animate-gram-card-sending-and-settle-effects`, Run 1), and a 4 ms precise sampler
     ticked every 50-1000 ms from about the 80th second
     (`2026/10/02/show-the-input-method-composition-in-the-gram-send-amount`, Run 1). A
