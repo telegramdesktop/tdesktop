@@ -276,10 +276,6 @@ void LogNativeMessageRejected(
 		bool externalShell,
 		const QString &shellToken) {
 	const auto byteCount = quint64(bytes.size());
-	if (bytes.size() > kMaxNativeMessageBytes) {
-		LogNativeMessageRejected(u"payload too large"_q, byteCount);
-		return std::nullopt;
-	}
 	auto error = QJsonParseError();
 	const auto document = QJsonDocument::fromJson(bytes, &error);
 	if (error.error != QJsonParseError::NoError) {
