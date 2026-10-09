@@ -1617,6 +1617,7 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 	quint64 tag = 0;
 	draft.stream >> tag;
 	if (tag != kRichDraftsTag
+		&& tag != kDraftsTag2
 		&& tag != kMultiDraftTag
 		&& tag != kMultiDraftTagOld) {
 		readDraftsWithCursorsLegacy(history, draft, tag);
