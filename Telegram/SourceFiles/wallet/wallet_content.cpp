@@ -10409,9 +10409,13 @@ void WalletPhraseWarningBox(
 		left->resize(icon.size());
 		label->geometryValue(
 		) | rpl::on_next([=](const QRect &g) {
+			const auto oneLine = LabelLineHeight(st::walletPhraseWarnLabel);
+			const auto shift = (g.height() > oneLine)
+				? st::walletPhraseWarnIconSkip
+				: (g.height() - left->height()) / 2;
 			left->moveToLeft(
 				(g.left() - left->width()) / 2,
-				g.top() + st::walletPhraseWarnIconSkip);
+				g.top() + shift);
 		}, left->lifetime());
 	};
 	Ui::AddSkip(container);
