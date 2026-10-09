@@ -796,11 +796,19 @@ command, environment, exit-code, log, artifact and control evidence.
     the window server may grant or refuse that request - on this host it granted it about 11 s after
     launch in two default runs and refused it about 20 s after launch in a third, under a condition
     those runs did not establish (`2026/10/08/launch-the-testagent-client-without-activating-it`,
-    Runs 4, 8 and 9). A granted request takes the key window from the frontmost application; after a
-    refused one the client stays inactive behind it. A scenario's own
-    `Platform::ActivateThisProcess()` or `Window::Controller::activate()` is therefore no reliable
-    route to OS activation under the default; a campaign whose subject is genuine OS activation
-    launches with `--activate`. `--env` may
+    Runs 4, 8 and 9). A granted request takes the key window from the frontmost application. After a
+    refused one the client stays inactive and the frontmost application keeps its key window, but
+    the client's window may still be ordered in front of the frontmost application's window by the
+    request's own window ordering. In Run 9 above the primary window stayed covered after its
+    restore; with an overlay that made the client's own application-activation calls no-ops,
+    reproducing that refusal under another stage sequence, the not-marking-read self-test's restore
+    through `Window::Controller::activate()` still ran `makeKeyAndOrderFront:` / `orderFront:` and
+    the un-minimize, and the inactive primary window was in front for about 4 s, until a later
+    request put it behind again
+    (`2026/10/09/keep-background-testagent-runs-on-macos-unthrottled-and-painting`, Runs 0 and 3). A
+    scenario's own `Platform::ActivateThisProcess()` or `Window::Controller::activate()` is
+    therefore no reliable route to OS activation under the default; a campaign whose subject is
+    genuine OS activation launches with `--activate`. `--env` may
     not name the variable. The report's `launch_activation` is `"suppressed"` by default and
     `"allowed"` with `--activate`; it names the requested mode, and on macOS only
     `launch_method: "background"` keeps the launch from activating the client. Off macOS nothing
@@ -808,11 +816,18 @@ command, environment, exit-code, log, artifact and control evidence.
     client takes the foreground is the window system's policy (Windows shows the first window with
     `SW_SHOWNORMAL` from a foreground launcher; X11 leaves it to the window manager's focus policy;
     Wayland to the compositor). A client the launch did not activate is a background application,
-    which macOS would otherwise nap and whose timers it would coalesce: in background runs on this
-    host without a hold, a sampler's heartbeat gaps grew to 100-290 ms after about 15 s of normal
-    cadence (`2026/10/01/animate-gram-card-sending-and-settle-effects`, Run 1), and a 4 ms precise
-    sampler ticked every 50-1000 ms from about the 80th second
-    (`2026/10/02/show-the-input-method-composition-in-the-gram-send-amount`, Run 1). So on macOS the
+    which macOS may nap and whose timers it may coalesce: in background runs on this host without a
+    hold, a sampler's heartbeat gaps grew to 100-290 ms after about 15 s of normal cadence
+    (`2026/10/01/animate-gram-card-sending-and-settle-effects`, Run 1), and a 4 ms precise sampler
+    ticked every 50-1000 ms from about the 80th second
+    (`2026/10/02/show-the-input-method-composition-in-the-gram-send-amount`, Run 1). On a locked
+    console macOS napped such a client without a hold: a 16 ms timer was throttled from about 30 s
+    after process start, with largest gaps of 216 ms and 359 ms
+    (`2026/10/09/keep-background-testagent-runs-on-macos-unthrottled-and-painting`, Runs 0 and 4).
+    Another application's window covering the client did not guarantee it: on an unlocked console, a
+    client without a hold that the frontmost application's window covered kept an exact 16 ms timer
+    cadence, largest gap 18-19 ms, over 60 s and over 300 s (Runs 1 and 2). Those runs did not
+    establish what made macOS nap the client. So on macOS the
     harness holds one user-initiated, latency-critical `NSProcessInfo` activity
     (`NSActivityUserInitiatedAllowingIdleSystemSleep | NSActivityLatencyCritical`; idle system sleep
     stays allowed) for the whole `-testagent` run, `--activate` launches included:
