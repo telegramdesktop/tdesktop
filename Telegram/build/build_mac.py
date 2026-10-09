@@ -190,6 +190,13 @@ def assemble(builds, destination, toolchain, target, configuration):
         info = plistlib.loads(info_path.read_bytes())
         info.update(plistlib.loads(icon_info.read_bytes()))
         info_path.write_bytes(plistlib.dumps(info, sort_keys=False))
+        (bundle / 'Contents/PkgInfo').write_bytes(
+            (info['CFBundlePackageType'] + info['CFBundleSignature']).encode('ascii'))
+        # Match Xcode's localization layout used by the release disk image template.
+        for strings in (bundle / 'Contents/Resources').glob('*.lproj/Localizable.strings'):
+            nested = strings.parent / strings.parent.name
+            nested.mkdir(exist_ok=True)
+            shutil.move(strings, nested / strings.name)
         if info['LSMinimumSystemVersion'] != '10.13':
             raise RuntimeError('The universal app lost its 10.13 deployment target.')
         identifier = 'org.telegram.desktop' if target == 'macstore' else 'com.tdesktop.Telegram'
