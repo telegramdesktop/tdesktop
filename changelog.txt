@@ -1,3 +1,11 @@
+7.3.1 (09.10.26)
+
+- Fix wallet encryption with Windows Hello sometimes failing.
+- Fix same passcode saving in wallet encryption.
+- Fix copy-restricted media reaching Downloads.
+- Fix bad date colors in some custom themes.
+- Remove attaching Link in photo editor.
+
 7.3 (08.10.26)
 
 - Money.
