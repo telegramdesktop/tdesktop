@@ -245,6 +245,7 @@ struct MarkdownArticleHitTestResult {
 	MarkdownArticleButtonRowHit buttonRow;
 	std::optional<QPoint> inlineButton;
 	QString customTooltip;
+	QString buttonUrl;
 	int forcedOffset = -1;
 	bool direct = false;
 	bool codeHeaderCopy = false;
@@ -373,6 +374,31 @@ struct MarkdownArticleMediaGeometry {
 	int activeItemIndex = -1;
 };
 
+struct MarkdownArticleBubbleEdges {
+	bool top = false;
+	bool bottom = false;
+	bool mediaAbove = false;
+	bool infoBelow = false;
+	Ui::BubbleRounding corners;
+
+	friend inline bool operator==(
+		const MarkdownArticleBubbleEdges &,
+		const MarkdownArticleBubbleEdges &) = default;
+};
+
+enum class MarkdownArticleEdgeBlock : uchar {
+	None,
+	Line,
+	CodeFrame,
+	QuoteFrame,
+	VisualMedia,
+};
+
+struct MarkdownArticleEdgeBlocks {
+	MarkdownArticleEdgeBlock top = MarkdownArticleEdgeBlock::None;
+	MarkdownArticleEdgeBlock bottom = MarkdownArticleEdgeBlock::None;
+};
+
 class MarkdownArticle {
 public:
 	MarkdownArticle(
@@ -492,6 +518,12 @@ public:
 	[[nodiscard]] std::vector<QRect> buttonRowControlRects() const;
 	[[nodiscard]] std::vector<QRect> unsupportedNoticeRects() const;
 	[[nodiscard]] bool hasUnsupportedNotices() const;
+	void setBubbleEdges(MarkdownArticleBubbleEdges edges);
+	[[nodiscard]] MarkdownArticleBubbleEdges bubbleEdges() const;
+	[[nodiscard]] MarkdownArticleEdgeBlocks edgeBlocks() const;
+	bool updateSkipBlock(int width, int height);
+	bool removeSkipBlock();
+	[[nodiscard]] bool hasSkipBlock() const;
 	void setGroupedActiveIndex(
 		const PreparedEditBlockSource &source,
 		int index);

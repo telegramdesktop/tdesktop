@@ -7,8 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/text/custom_emoji_helper.h"
+
+namespace style {
+struct SettingsButton;
+} // namespace style
+
 namespace Ui {
+
 class RpWidget;
+
+[[nodiscard]] Text::PaletteDependentEmoji AttentionMarkEmoji();
+
 } // namespace Ui
 
 namespace Ui::NewBadge {
@@ -21,5 +31,9 @@ void AddToRight(not_null<Ui::RpWidget*> parent);
 void AddAfterLabel(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Ui::RpWidget*> label);
+void AddAfterButtonText(
+	not_null<Ui::RpWidget*> button,
+	rpl::producer<QString> text,
+	const style::SettingsButton &st);
 
 } // namespace Ui::NewBadge

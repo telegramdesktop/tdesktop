@@ -2498,6 +2498,24 @@ void ChooseStarGiftRecipient(
 	});
 }
 
+bool CanSendStarGiftTo(not_null<PeerData*> peer) {
+	if (const auto user = peer->asUser()) {
+		return !user->isInaccessible()
+			&& !user->isSelf()
+			&& !user->isBot()
+			&& !user->isServiceUser()
+			&& !user->isNotificationsUser()
+			&& !user->isRepliesChat()
+			&& !user->isVerifyCodes()
+			&& user->session().premiumCanBuy();
+	} else if (const auto channel = peer->asBroadcast()) {
+		return !channel->isForbidden()
+			&& channel->stargiftsAvailable()
+			&& !channel->amCreator();
+	}
+	return false;
+}
+
 void ShowStarGiftBox(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer) {
@@ -2761,13 +2779,15 @@ void AttachGiftSenderBadge(
 		const auto margin = st::msgServiceMargin;
 		const auto padding = st::msgServicePadding;
 		const auto available = outer.marginsRemoved(margin).width();
+		const auto minTop = margin.top() * 2;
 		badge->resizeToWidth(std::min(
 			available - padding.left() - padding.right(),
 			badge->textMaxWidth()));
+		box->setMinimalTopSkip(minTop + badge->height() + margin.top());
 		const auto inner = Ui::MapFrom(parent, box, box->rect());
 		const auto top = std::max(
 			inner.y() - badge->height() - margin.top(),
-			outer.y() + (margin.top() * 2));
+			outer.y() + minTop);
 		const auto left = margin.left() + (available - badge->width()) / 2;
 		badge->move(left, top);
 	};
@@ -4658,7 +4678,8 @@ void DefaultGiftHandler(
 				.recipientId = peer->id,
 				.forceTon = star->forceTon,
 			},
-			Settings::CreditsEntryBoxStyleOverrides()));
+			Settings::CreditsEntryBoxStyleOverrides(),
+			nullptr));
 	} else if (unique && star->mine && !peer->isSelf()) {
 		if (ShowTransferGiftLater(window->uiShow(), unique)) {
 			return;

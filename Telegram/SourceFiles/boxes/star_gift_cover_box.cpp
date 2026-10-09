@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_single_player.h"
 #include "main/main_session.h"
 #include "ui/effects/premium_stars_colored.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/effects/unique_gift_message_bubble.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text.h"
@@ -39,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"
+#include "styles/style_info.h"
 #include "styles/style_layers.h"
 
 namespace Ui {
@@ -58,6 +60,15 @@ constexpr auto kPatternStopsAt = crl::time(4 * 1000);
 constexpr auto kModelSpinDuration = crl::time(160);
 constexpr auto kModelStopsAt = crl::time(5.5 * 1000);
 constexpr auto kModelScaleFrom = 0.7;
+
+void PaintAttributeArea(QPainter &p, QRect rect, QColor bg) {
+	auto hq = PainterHighQualityEnabler(p);
+	bg.setAlphaF(kGradientButtonBgOpacity * bg.alphaF());
+	const auto radius = rect.height() / 3.;
+	p.setPen(Qt::NoPen);
+	p.setBrush(bg);
+	p.drawRoundedRect(rect, radius, radius);
+}
 
 class UniqueGiftCoverMessageWidget final : public RpWidget {
 public:
@@ -79,6 +90,28 @@ private:
 	UniqueGiftMessageBubble::Layout _layout;
 	PeerData *_sender = nullptr;
 	bool _hidden = false;
+
+};
+
+class AttributeActionButton final : public RippleButton {
+public:
+	AttributeActionButton(
+		QWidget *parent,
+		UniqueGiftCoverAction &&action,
+		Fn<QColor()> bg,
+		Fn<QColor()> fg);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void onStateChanged(State was, StateChangeSource source) override;
+	QImage prepareRippleMask() const override;
+
+private:
+	const style::icon *_icon = nullptr;
+	const Fn<QColor()> _bg;
+	const Fn<QColor()> _fg;
+	Text::String _text;
+	Animations::Simple _over;
 
 };
 
@@ -169,6 +202,81 @@ void UniqueGiftCoverMessageWidget::replaceImage(
 		? MakeHiddenAuthorThumbnail()
 		: MakeUserpicThumbnail(sender, true);
 	_image->subscribeToUpdates(crl::guard(this, [this] { update(); }));
+}
+
+AttributeActionButton::AttributeActionButton(
+	QWidget *parent,
+	UniqueGiftCoverAction &&action,
+	Fn<QColor()> bg,
+	Fn<QColor()> fg)
+: RippleButton(parent, st::defaultRippleAnimation)
+, _icon(action.icon)
+, _bg(std::move(bg))
+, _fg(std::move(fg)) {
+	setClickedCallback(std::move(action.callback));
+	std::move(action.text) | rpl::on_next([this](const QString &text) {
+		_text.setText(st::uniqueAttributeName, text);
+		update();
+	}, lifetime());
+}
+
+void AttributeActionButton::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+	PaintAttributeArea(p, rect(), _bg());
+
+	const auto ripple = anim::with_alpha(
+		_fg(),
+		st::infoProfileTopBarBackdropRippleOpacity);
+	const auto over = _over.value(isOver() ? 1. : 0.);
+	if (over > 0.) {
+		auto hq = PainterHighQualityEnabler(p);
+		const auto radius = height() / 3.;
+		p.setOpacity(over);
+		p.setBrush(ripple);
+		p.drawRoundedRect(rect(), radius, radius);
+		p.setOpacity(1.);
+	}
+	paintRipple(p, 0, 0, &ripple);
+
+	const auto white = QColor(255, 255, 255);
+	if (_icon) {
+		_icon->paint(
+			p,
+			(width() - _icon->width()) / 2,
+			st::uniqueGiftActionIconTop,
+			width(),
+			white);
+	}
+	const auto &padding = st::uniqueAttributePadding;
+	const auto available = width() - padding.left() - padding.right();
+	const auto textWidth = std::min(available, _text.maxWidth());
+	p.setPen(white);
+	_text.draw(p, {
+		.position = QPoint(
+			(width() - textWidth) / 2,
+			st::uniqueGiftActionTextTop),
+		.availableWidth = textWidth,
+		.elisionLines = 1,
+	});
+}
+
+void AttributeActionButton::onStateChanged(
+		State was,
+		StateChangeSource source) {
+	RippleButton::onStateChanged(was, source);
+
+	const auto over = isOver();
+	if (over != ((was & StateFlag::Over) != 0)) {
+		_over.start(
+			[this] { update(); },
+			over ? 0. : 1.,
+			over ? 1. : 0.,
+			st::universalDuration);
+	}
+}
+
+QImage AttributeActionButton::prepareRippleMask() const {
+	return RippleAnimation::RoundRectMask(size(), height() / 3);
 }
 
 struct AttributeSpin {
@@ -277,6 +385,8 @@ struct UniqueGiftCoverWidget::State {
 	FlatLabel *pretitle = nullptr;
 	FlatLabel *title = nullptr;
 	RpWidget *attrs = nullptr;
+	RpWidget *actions = nullptr;
+	std::vector<not_null<RpWidget*>> actionButtons;
 	UniqueGiftCoverMessageWidget *message = nullptr;
 
 	Fn<void(const Data::UniqueGift &)> updateAttrs;
@@ -585,6 +695,9 @@ UniqueGiftCoverWidget::UniqueGiftCoverWidget(
 		if (_state->number) {
 			_state->number->setTextColorOverride(color);
 		}
+		for (const auto &button : _state->actionButtons) {
+			button->update();
+		}
 	};
 	_state->updateColors = [this, repaintedHook](float64 progress) {
 		if (repaintedHook) {
@@ -856,15 +969,13 @@ UniqueGiftCoverWidget::UniqueGiftCoverWidget(
 				return;
 			}
 			auto hq = PainterHighQualityEnabler(p);
-			auto bg = _state->released.bg;
-			bg.setAlphaF(kGradientButtonBgOpacity * bg.alphaF());
 			const auto innert = st::uniqueAttributeTop;
 			const auto innerh = attrsHeight - innert;
-			const auto radius = innerh / 3.;
 			const auto paint = [&](int x, const AttributeState &state) {
-				p.setPen(Qt::NoPen);
-				p.setBrush(bg);
-				p.drawRoundedRect(x, innert, single, innerh, radius, radius);
+				PaintAttributeArea(
+					p,
+					QRect(x, innert, single, innerh),
+					_state->released.bg);
 				p.setPen(QColor(255, 255, 255));
 				const auto padding = st::uniqueAttributePadding;
 				const auto inner = single - padding.left() - padding.right();
@@ -908,6 +1019,49 @@ UniqueGiftCoverWidget::UniqueGiftCoverWidget(
 			paint(left + single + skip, astate->backdrop);
 			paint(_state->attrs->width() - single - boxPadding.right(), astate->pattern);
 		});
+	}
+	_state->actions = args.actions.empty()
+		? nullptr
+		: CreateChild<RpWidget>(this);
+	if (_state->actions) {
+		_state->actions->resize(
+			_state->actions->width(),
+			st::uniqueAttributeTop + st::uniqueGiftActionHeight);
+		const auto bg = [this] { return _state->released.bg; };
+		const auto fg = [this] { return _state->released.fg; };
+		for (auto &action : args.actions) {
+			_state->actionButtons.push_back(
+				CreateChild<AttributeActionButton>(
+					_state->actions,
+					std::move(action),
+					bg,
+					fg));
+		}
+		_state->actions->widthValue() | rpl::on_next([this](int width) {
+			const auto &buttons = _state->actionButtons;
+			const auto count = int(buttons.size());
+			const auto boxPadding = st::giftBoxPadding;
+			const auto skip = st::giftBoxGiftSkip.x();
+			const auto available = width
+				- boxPadding.left()
+				- boxPadding.right()
+				- (count - 1) * skip;
+			const auto single = available / count;
+			if (single <= 0) {
+				return;
+			}
+			const auto top = st::uniqueAttributeTop;
+			const auto height = st::uniqueGiftActionHeight;
+			auto left = boxPadding.left();
+			for (auto i = 0; i != count; ++i) {
+				const auto right = (i + 1 == count)
+					? (width - boxPadding.right())
+					: (left + single);
+				buttons[i]->resize(right - left, height);
+				buttons[i]->moveToLeft(left, top, width);
+				left = right + skip;
+			}
+		}, _state->actions->lifetime());
 	}
 	_state->updateAttrs(*_state->now.gift);
 
@@ -995,24 +1149,26 @@ void UniqueGiftCoverWidget::layoutContent(
 	_state->released.subtitle->moveToLeft(skip, top);
 	top += subtitleHeight;
 
-	if (_state->message) {
-		if (_state->attrs) {
-			top += (skip / 2);
-			_state->attrs->resizeToWidth(width);
-			_state->attrs->moveToLeft(0, top);
-			top += _state->attrs->height();
+	const auto placeRow = [&](RpWidget *row) {
+		if (row) {
+			row->resizeToWidth(width);
+			row->moveToLeft(0, top);
+			top += row->height();
 		}
+	};
+	if (_state->message) {
+		if (_state->attrs || _state->actions) {
+			top += (skip / 2);
+		}
+		placeRow(_state->attrs);
+		placeRow(_state->actions);
 		_state->message->moveToLeft(0, top);
 		top += messageHeight;
 	} else {
 		top += (skip / 2);
-		if (_state->attrs) {
-			_state->attrs->resizeToWidth(width);
-			_state->attrs->moveToLeft(0, top);
-			top += _state->attrs->height() + (skip / 2);
-		} else {
-			top += (skip / 2);
-		}
+		placeRow(_state->attrs);
+		placeRow(_state->actions);
+		top += (skip / 2);
 	}
 	if (!height() || height() == top) {
 		resize(width, top);

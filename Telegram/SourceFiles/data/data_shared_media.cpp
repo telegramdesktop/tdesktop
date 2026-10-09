@@ -95,31 +95,9 @@ bool SharedMediaAllowSearch(Storage::SharedMediaType type) {
 	}
 }
 
-bool SharedMediaThreadFilterSupported(
-		not_null<PeerData*> peer,
-		MsgId topicRootId,
-		Storage::SharedMediaType type) {
-	if (!topicRootId || !peer->isChannel()) {
-		return true;
-	}
-	// messages.search rejects these filters with top_msg_id in channels.
-	switch (type) {
-	case Type::RoundVoiceFile:
-	case Type::RoundFile:
-	case Type::ChatPhoto: return false;
-	}
-	return true;
-}
-
-Storage::SharedMediaKey SharedMediaLoadableKey(
-		not_null<PeerData*> peer,
-		Storage::SharedMediaKey key) {
-	if (SharedMediaThreadFilterSupported(peer, key.topicRootId, key.type)) {
-		return key;
-	} else if (key.type == Type::RoundVoiceFile) {
-		key.type = Type::VoiceFile;
-	} else if (key.type == Type::ChatPhoto) {
-		key.topicRootId = MsgId();
+Storage::SharedMediaKey SharedMediaLoadableKey(Storage::SharedMediaKey key) {
+	if (key.type == Type::ChatPhoto) {
+		key.topicRootId = MsgId(); // messages.search rejects it in threads.
 	}
 	return key;
 }
@@ -132,7 +110,7 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 	Expects(IsServerMsgId(key.messageId) || (key.messageId == 0));
 	Expects((key.messageId != 0) || (limitBefore == 0 && limitAfter == 0));
 
-	key = SharedMediaLoadableKey(session->data().peer(key.peerId), key);
+	key = SharedMediaLoadableKey(key);
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 		auto builder = lifetime.make_state<SparseIdsSliceBuilder>(

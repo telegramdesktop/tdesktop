@@ -45,16 +45,16 @@ class Runner;
 // PanelShowState::ShowCache is reachable only where
 // Ui::Platform::TranslucentWindowsSupported() answers true.
 // toggleOpacityAnimation() builds _animationCache and calls hideChildren()
-// only inside if (_useTransparency) (separate_panel.cpp:1127-1132), and
+// only inside if (_useTransparency) (separate_panel.cpp), and
 // _useTransparency is assigned exactly once, from that platform answer, in
-// initGeometry (:1424). Outside that branch the panel is still shown
-// (:1140-1142) and hideChildren() never runs, so ReadPanelShowState
+// initGeometry. Outside that branch the panel is still shown
+// and hideChildren() never runs, so ReadPanelShowState
 // never sees children > 0 && shown == 0, answers Live in the turn the
 // panel was shown, and ShowCache is unreachable for a Ui::SeparatePanel
 // there. macOS and Windows answer true unconditionally - on macOS it is an
-// inline return true (ui/platform/mac/ui_utility_mac.h:16-18) - while
+// inline return true (ui/platform/mac/ui_utility_mac.h) - while
 // every other platform answers from the display server
-// (ui/platform/linux/ui_utility_linux.cpp:589-624): true on Wayland, the
+// (ui/platform/linux/ui_utility_linux.cpp): true on Wayland, the
 // _NET_WM_CM_S0 selection owner on X11, false otherwise, so a desktop with
 // no compositing manager has no cache to read. PanelShowSettled still
 // answers when that cache has stopped painting, and there it stopped
@@ -280,11 +280,11 @@ void LogPanelWalk(const QString &name, const PanelWalk &reading);
 // because the first stage asserts that show cache twice. Ui::SeparatePanel
 // latches _useTransparency once from
 // Platform::TranslucentWindowsSupported() in initGeometry
-// (separate_panel.cpp:1424) and builds the cache only inside that branch,
+// (separate_panel.cpp) and builds the cache only inside that branch,
 // so where the answer is false that branch's hideChildren() never runs and
 // ReadPanelShowState answers Live in the turn it was shown - on macOS that
 // answer is an inline return true
-// (ui/platform/mac/ui_utility_mac.h:16-18), while a desktop with no
+// (ui/platform/mac/ui_utility_mac.h), while a desktop with no
 // compositing manager answers false. The first stage then FAILs exactly
 // twice - the premise check, which names itself a fixture gate and whose
 // details read state=live translucentWindows=0 where show_cache was

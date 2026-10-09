@@ -355,14 +355,7 @@ void ReactionFlyAnimation::generateMiniCopies(
 	}
 }
 
-int ReactionFlyAnimation::computeParabolicTop(
-		Parabolic &cache,
-		int from,
-		int to,
-		int top,
-		float64 progress) const {
-	const auto t = progress;
-
+FlyParabola ComputeFlyParabola(int from, int to, int top) {
 	// result = a * t * t + b * t + c
 
 	// y = a * t * t + b * t
@@ -374,20 +367,32 @@ int ReactionFlyAnimation::computeParabolicTop(
 	// b = 2 * t_0 * y_1 / (2 * t_0 - 1)
 	// t_0 = (y_0 / y_1) +- sqrt((y_0 / y_1) * (y_0 / y_1 - 1))
 	const auto y_1 = to - from;
+	const auto y_0 = std::min(0, y_1) - top;
+	const auto ratio = y_1 ? (float64(y_0) / y_1) : 0.;
+	const auto root = y_1 ? sqrt(ratio * (ratio - 1)) : 0.;
+	const auto t_0 = !y_1
+		? 0.5
+		: (y_1 > 0)
+		? (ratio + root)
+		: (ratio - root);
+	const auto a = y_1 ? (y_1 / (1 - 2 * t_0)) : (-4 * y_0);
+	const auto b = y_1 - a;
+	return { a, b };
+}
+
+int ReactionFlyAnimation::computeParabolicTop(
+		Parabolic &cache,
+		int from,
+		int to,
+		int top,
+		float64 progress) const {
+	const auto t = progress;
+	const auto y_1 = to - from;
 	if (cache.key != y_1) {
-		const auto y_0 = std::min(0, y_1) - top;
-		const auto ratio = y_1 ? (float64(y_0) / y_1) : 0.;
-		const auto root = y_1 ? sqrt(ratio * (ratio - 1)) : 0.;
-		const auto t_0 = !y_1
-			? 0.5
-			: (y_1 > 0)
-			? (ratio + root)
-			: (ratio - root);
-		const auto a = y_1 ? (y_1 / (1 - 2 * t_0)) : (-4 * y_0);
-		const auto b = y_1 - a;
+		const auto parabola = ComputeFlyParabola(from, to, top);
 		cache.key = y_1;
-		cache.a = a;
-		cache.b = b;
+		cache.a = parabola.a;
+		cache.b = parabola.b;
 	}
 
 	return int(base::SafeRound(cache.a * t * t + cache.b * t + from));

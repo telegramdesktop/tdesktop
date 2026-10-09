@@ -117,7 +117,7 @@ void PreviewWindowTitle(Painter &p, const style::palette &palette, QRect body, i
 		maximize);
 }
 
-void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRect body, int outerWidth) {
+void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QColor bg, QRect body, int outerWidth) {
 	auto retina = style::DevicePixelRatio();
 	auto titleHeight = PreviewTitleHeight();
 	{
@@ -151,7 +151,7 @@ void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRe
 			inner.height() * retina),
 			corners);
 	rounded.setDevicePixelRatio(style::DevicePixelRatio());
-	preview.fill(st::themePreviewBg->c);
+	preview.fill(bg);
 
 	auto topLeft = st::macWindowShadowTopLeft.instance(QColor(0, 0, 0), 100);
 	auto topRight = topLeft.mirrored(true, false);

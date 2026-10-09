@@ -382,6 +382,7 @@ void HarvestCachedTextLeafs(
 		const auto &placeholderStyle = EditPlaceholderTextStyleFor(
 			prepared,
 			st);
+		block->leaf.removeSkipBlock();
 		storeBlockLeaf(
 			CachedTextLeafSlot::Leaf,
 			MarkedTextLeafSourceSignature(
@@ -1400,10 +1401,12 @@ void RebuildVisibleSegmentLookup(
 		result.state.link = nullptr;
 	}
 	result.preparedLink = ExtractPreparedLink(result.state.link);
-	if (!result.preparedLink
-		&& dynamic_cast<Ui::Text::CustomEmojiClickHandler*>(
-			result.state.link.get())) {
-		result.inlineButton = point;
+	if (!result.preparedLink) {
+		if (const auto custom = dynamic_cast<Ui::Text::CustomEmojiClickHandler*>(
+				result.state.link.get())) {
+			result.inlineButton = point;
+			result.buttonUrl = InlineButtonUrl(custom->entityData());
+		}
 	}
 	if (!result.preparedLink
 		&& !result.inlineButton
@@ -1470,6 +1473,8 @@ void RebuildVisibleSegmentLookup(
 				const auto &runtime = segment.block->buttonRowRuntime;
 				if (runtime && (index < int(runtime->handlers.size()))) {
 					result.state.link = runtime->handlers[index];
+					const auto &record = runtime->buttons[index];
+					result.buttonUrl = RichButtonUrl(record.type, record.data);
 				}
 				result.buttonRow = {
 					.id = segment.block->buttonRowId,
@@ -2086,6 +2091,122 @@ void CollectUnsupportedNoticeRects(
 		}
 	}
 	return false;
+}
+
+[[nodiscard]] bool ExpectsMediaBlock(const PreparedBlock &prepared) {
+	switch (prepared.kind) {
+	case PreparedBlockKind::Photo:
+		return prepared.photo.id
+			&& prepared.photo.viewerOpen
+			&& prepared.photo.urlOverride.isEmpty();
+	case PreparedBlockKind::Video:
+		return bool(prepared.video.id);
+	case PreparedBlockKind::Map:
+		return bool(prepared.map.id);
+	case PreparedBlockKind::Document:
+		return bool(prepared.document.id);
+	case PreparedBlockKind::GroupedMedia:
+		return bool(prepared.groupedMedia.id);
+	default:
+		return false;
+	}
+}
+
+[[nodiscard]] MarkdownArticleEdgeBlock EdgeBlockOf(
+		const PreparedBlock &block,
+		bool top) {
+	switch (block.kind) {
+	case PreparedBlockKind::Photo:
+	case PreparedBlockKind::Video:
+	case PreparedBlockKind::Map:
+	case PreparedBlockKind::GroupedMedia: {
+		const auto caption = !block.text.text.isEmpty()
+			|| block.forceTextSegment;
+		return (!ExpectsMediaBlock(block) || (!top && caption))
+			? MarkdownArticleEdgeBlock::Line
+			: MarkdownArticleEdgeBlock::VisualMedia;
+	}
+	case PreparedBlockKind::CodeBlock:
+		return MarkdownArticleEdgeBlock::CodeFrame;
+	case PreparedBlockKind::Quote:
+		return MarkdownArticleEdgeBlock::QuoteFrame;
+	case PreparedBlockKind::Table: {
+		const auto captionOnly = block.tableRows.empty()
+			|| (block.tableColumnCount <= 0);
+		const auto hasTitle = !block.text.text.isEmpty()
+			|| block.forceTextSegment;
+		return (captionOnly || (top && hasTitle))
+			? MarkdownArticleEdgeBlock::Line
+			: MarkdownArticleEdgeBlock::QuoteFrame;
+	}
+	case PreparedBlockKind::Paragraph:
+	case PreparedBlockKind::Thinking:
+	case PreparedBlockKind::Heading:
+	case PreparedBlockKind::Rule:
+	case PreparedBlockKind::ButtonRow:
+	case PreparedBlockKind::List:
+	case PreparedBlockKind::ListItem:
+	case PreparedBlockKind::DisplayMath:
+	case PreparedBlockKind::Details:
+	case PreparedBlockKind::Document:
+	case PreparedBlockKind::Channel:
+	case PreparedBlockKind::RelatedArticle:
+	case PreparedBlockKind::EmbedPost:
+	case PreparedBlockKind::Placeholder:
+		return MarkdownArticleEdgeBlock::Line;
+	}
+	Unexpected("Block kind in EdgeBlockOf.");
+}
+
+struct EdgeBlockIndices {
+	int first = -1;
+	int last = -1;
+};
+
+[[nodiscard]] EdgeBlockIndices FindEdgeBlockIndices(
+		const std::vector<PreparedBlock> &blocks) {
+	auto result = EdgeBlockIndices();
+	for (auto i = 0, count = int(blocks.size()); i != count; ++i) {
+		if (!IsAnchorOnlyBlock(blocks[i])) {
+			if (result.first < 0) {
+				result.first = i;
+			}
+			result.last = i;
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] MarkdownArticleEdgeBlocks CollectEdgeBlocks(
+		const std::vector<PreparedBlock> &blocks) {
+	const auto indices = FindEdgeBlockIndices(blocks);
+	if (indices.first < 0) {
+		return {};
+	}
+	return {
+		.top = EdgeBlockOf(blocks[indices.first], true),
+		.bottom = EdgeBlockOf(blocks[indices.last], false),
+	};
+}
+
+[[nodiscard]] Ui::BubbleRounding EdgeMediaRounding(
+		Ui::BubbleRounding corners,
+		QRect media,
+		int articleWidth) {
+	using Corner = Ui::BubbleCornerRounding;
+	const auto keep = [](Corner corner, int gap) {
+		return (gap < Ui::BubbleCornerRadius(corner))
+			? corner
+			: Corner::None;
+	};
+	const auto left = media.x();
+	const auto right = articleWidth - (media.x() + media.width());
+	return Ui::BubbleRounding{
+		.topLeft = keep(corners.topLeft, left),
+		.topRight = keep(corners.topRight, right),
+		.bottomLeft = keep(corners.bottomLeft, left),
+		.bottomRight = keep(corners.bottomRight, right),
+	};
 }
 
 [[nodiscard]] PreparedEditHit EditFallbackHitForBlock(
@@ -3751,25 +3872,6 @@ void CollectCodeBlockHighlightKeys(
 	}
 }
 
-[[nodiscard]] bool ExpectsMediaBlock(const PreparedBlock &prepared) {
-	switch (prepared.kind) {
-	case PreparedBlockKind::Photo:
-		return prepared.photo.id
-			&& prepared.photo.viewerOpen
-			&& prepared.photo.urlOverride.isEmpty();
-	case PreparedBlockKind::Video:
-		return bool(prepared.video.id);
-	case PreparedBlockKind::Map:
-		return bool(prepared.map.id);
-	case PreparedBlockKind::Document:
-		return bool(prepared.document.id);
-	case PreparedBlockKind::GroupedMedia:
-		return bool(prepared.groupedMedia.id);
-	default:
-		return false;
-	}
-}
-
 } // namespace
 
 PlaceholderBlockRuntime::PlaceholderBlockRuntime(Fn<void()> repaint)
@@ -3861,6 +3963,12 @@ public:
 	[[nodiscard]] std::vector<QRect> buttonRowControlRects() const;
 	[[nodiscard]] std::vector<QRect> unsupportedNoticeRects() const;
 	[[nodiscard]] bool hasUnsupportedNotices() const;
+	void setBubbleEdges(MarkdownArticleBubbleEdges edges);
+	[[nodiscard]] MarkdownArticleBubbleEdges bubbleEdges() const;
+	[[nodiscard]] MarkdownArticleEdgeBlocks edgeBlocks() const;
+	bool updateSkipBlock(int width, int height);
+	bool removeSkipBlock();
+	[[nodiscard]] bool hasSkipBlock() const;
 	void setGroupedActiveIndex(
 		const PreparedEditBlockSource &source,
 		int index);
@@ -4043,6 +4151,7 @@ private:
 	void releasePressedHandler();
 
 	void refreshMediaBlockHosts();
+	void refreshMediaBlockBubbleRounding();
 
 	void clearPlaceholderRuntimes();
 
@@ -4231,6 +4340,8 @@ private:
 	bool _editableTextEmptyOverride = true;
 	int _editableHeightOverrideIndex = -1;
 	int _editableHeightOverride = 0;
+	MarkdownArticleBubbleEdges _bubbleEdges;
+	QSize _skipBlock;
 	bool _blocksPainted = false;
 
 };
@@ -4728,10 +4839,6 @@ MarkdownArticleHitTestResult MarkdownArticle::Impl::hitTest(
 		QPoint point,
 		Ui::Text::StateRequest::Flags flags) const {
 	auto result = hitTestSegments(point, flags);
-	if (result.inlineButton && result.customTooltip.isEmpty()) {
-		result.customTooltip = InlineButtonTooltip(
-			_inlineButtonPaintState->lookedUpButton);
-	}
 	if ((flags & Ui::Text::StateRequest::Flag::LookupLink)
 		&& !result.state.link
 		&& !result.preparedLink
@@ -4772,6 +4879,53 @@ std::vector<QRect> MarkdownArticle::Impl::unsupportedNoticeRects() const {
 
 bool MarkdownArticle::Impl::hasUnsupportedNotices() const {
 	return PreparedBlocksHaveUnsupportedNotices(_content.blocks.blocks);
+}
+
+void MarkdownArticle::Impl::setBubbleEdges(
+		MarkdownArticleBubbleEdges edges) {
+	if (_bubbleEdges == edges) {
+		return;
+	}
+	_bubbleEdges = edges;
+	refreshMediaBlockBubbleRounding();
+}
+
+MarkdownArticleBubbleEdges MarkdownArticle::Impl::bubbleEdges() const {
+	return _bubbleEdges;
+}
+
+MarkdownArticleEdgeBlocks MarkdownArticle::Impl::edgeBlocks() const {
+	return CollectEdgeBlocks(_content.blocks.blocks);
+}
+
+bool MarkdownArticle::Impl::updateSkipBlock(int width, int height) {
+	const auto size = QSize(width, height);
+	if (size.isEmpty()) {
+		return removeSkipBlock();
+	} else if (_skipBlock == size) {
+		return false;
+	}
+	_skipBlock = size;
+	invalidateLayout();
+	return true;
+}
+
+bool MarkdownArticle::Impl::removeSkipBlock() {
+	if (_skipBlock.isEmpty()) {
+		return false;
+	}
+	_skipBlock = QSize();
+	invalidateLayout();
+	return true;
+}
+
+bool MarkdownArticle::Impl::hasSkipBlock() const {
+	if (_skipBlock.isEmpty()) {
+		return false;
+	}
+	const auto &blocks = _content.blocks.blocks;
+	const auto last = FindEdgeBlockIndices(blocks).last;
+	return (last >= 0) && TakesMessageSkipBlock(blocks[last]);
 }
 
 void MarkdownArticle::Impl::setGroupedActiveIndex(
@@ -5250,7 +5404,16 @@ TextSelection MarkdownArticle::Impl::adjustSelection(
 	if (!segment || !segment->isTextLeaf()) {
 		return selection;
 	}
-	return segment->leaf->adjustSelection(selection, selectionType);
+	const auto adjusted = segment->leaf->adjustSelection(
+		selection,
+		selectionType);
+	const auto length = SegmentLength(*segment);
+	if (length == segment->leaf->length()) {
+		return adjusted;
+	}
+	return TextSelection(
+		uint16(std::min(int(adjusted.from), length)),
+		uint16(std::min(int(adjusted.to), length)));
 }
 
 bool MarkdownArticle::Impl::selectionContains(
@@ -5693,6 +5856,45 @@ void MarkdownArticle::Impl::refreshMediaBlockHosts() {
 			block->setLayoutStyle(layoutStyle());
 			block->setHost(_mediaBlockHost);
 		}
+	}
+}
+
+void MarkdownArticle::Impl::refreshMediaBlockBubbleRounding() {
+	for (const auto &[id, block] : _mediaBlocks) {
+		if (block) {
+			block->setBubbleRounding(Ui::BubbleRounding());
+		}
+	}
+	const auto &prepared = _content.blocks.blocks;
+	if (_blocks.empty() || (_blocks.size() != prepared.size())) {
+		return;
+	}
+	const auto apply = [&](int index, bool top) {
+		const auto &laidOut = _blocks[index];
+		const auto &block = laidOut.mediaBlock;
+		if (!block
+			|| (EdgeBlockOf(prepared[index], top)
+				!= MarkdownArticleEdgeBlock::VisualMedia)) {
+			return;
+		}
+		const auto edge = EdgeMediaRounding(
+			_bubbleEdges.corners,
+			laidOut.mediaRect,
+			_width);
+		auto rounding = block->bubbleRounding();
+		if (top) {
+			rounding.topLeft = edge.topLeft;
+			rounding.topRight = edge.topRight;
+		} else {
+			rounding.bottomLeft = edge.bottomLeft;
+			rounding.bottomRight = edge.bottomRight;
+		}
+		block->setBubbleRounding(rounding);
+	};
+	const auto indices = FindEdgeBlockIndices(prepared);
+	if (indices.first >= 0) {
+		apply(indices.first, true);
+		apply(indices.last, false);
 	}
 }
 
@@ -6620,6 +6822,7 @@ void MarkdownArticle::Impl::finalizeRelayout(int heightBottom) {
 	RefreshScrollableSegmentRects(_blocks, &_segments);
 	rebuildVisibleSegmentLookup();
 	_nextFormattedDateUpdate = CountBlocksFormattedDateUpdate(_blocks);
+	refreshMediaBlockBubbleRounding();
 }
 
 int MarkdownArticle::Impl::inlineButtonWidthCap() const {
@@ -6679,6 +6882,7 @@ void MarkdownArticle::Impl::relayout(int width) {
 		.spoilerLinkFilter = _textSpoilerLinkFilter,
 		.inlineButtonPaintState = _inlineButtonPaintState,
 	};
+	context.skipBlock = _skipBlock;
 	if (_editableMaxLineWidthOverrideLeaf
 		&& (_editableMaxLineWidthOverride > 0)) {
 		context.editableMaxLineWidthOverride
@@ -6773,6 +6977,7 @@ void MarkdownArticle::Impl::relayoutRetained(int width) {
 		.spoilerLinkFilter = _textSpoilerLinkFilter,
 		.inlineButtonPaintState = _inlineButtonPaintState,
 	};
+	context.skipBlock = _skipBlock;
 	if (_editableMaxLineWidthOverrideLeaf
 		&& (_editableMaxLineWidthOverride > 0)) {
 		context.editableMaxLineWidthOverride
@@ -7164,6 +7369,30 @@ std::vector<QRect> MarkdownArticle::unsupportedNoticeRects() const {
 
 bool MarkdownArticle::hasUnsupportedNotices() const {
 	return _impl->hasUnsupportedNotices();
+}
+
+void MarkdownArticle::setBubbleEdges(MarkdownArticleBubbleEdges edges) {
+	_impl->setBubbleEdges(edges);
+}
+
+MarkdownArticleBubbleEdges MarkdownArticle::bubbleEdges() const {
+	return _impl->bubbleEdges();
+}
+
+MarkdownArticleEdgeBlocks MarkdownArticle::edgeBlocks() const {
+	return _impl->edgeBlocks();
+}
+
+bool MarkdownArticle::updateSkipBlock(int width, int height) {
+	return _impl->updateSkipBlock(width, height);
+}
+
+bool MarkdownArticle::removeSkipBlock() {
+	return _impl->removeSkipBlock();
+}
+
+bool MarkdownArticle::hasSkipBlock() const {
+	return _impl->hasSkipBlock();
 }
 
 void MarkdownArticle::setGroupedActiveIndex(

@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/serialize_common.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "data/data_wall_paper.h"
+#include "ui/chat/chat_theme.h"
 #include "ui/style/style_palette_colorizer.h"
 #include "window/themes/window_theme.h"
 
@@ -368,6 +370,66 @@ Fn<void(style::palette&)> PreparePaletteCallback(
 Fn<void(style::palette&)> PrepareCurrentPaletteCallback() {
 	return [=, data = style::main_palette::save()](style::palette &palette) {
 		palette.load(data);
+	};
+}
+
+std::unique_ptr<style::palette> PrepareEmbeddedPalette(
+		EmbeddedType type,
+		std::optional<QColor> accent) {
+	const auto embedded = EmbeddedThemes();
+	const auto i = ranges::find(embedded, type, &EmbeddedScheme::type);
+	Assert(i != end(embedded));
+	const auto colorizer = accent
+		? ColorizerFrom(*i, *accent)
+		: style::colorizer();
+
+	auto result = std::make_unique<style::palette>();
+	if (i->path.isEmpty()) {
+		result->reset(colorizer);
+		return result;
+	}
+	auto instance = Instance();
+	const auto loaded = LoadFromFile(
+		i->path,
+		&instance,
+		nullptr,
+		nullptr,
+		colorizer);
+	Assert(loaded);
+	result->finalize();
+	*result = instance.palette;
+	return result;
+}
+
+Ui::ChatThemeBackground PrepareDefaultBackground(bool dark) {
+	if (!dark) {
+		const auto paper = Data::DefaultWallPaper();
+		return Ui::PrepareBackgroundImage({
+			.path = u":/gui/art/background.tgv"_q,
+			.gzipSvg = true,
+			.colors = paper.backgroundColors(),
+			.isPattern = true,
+			.patternOpacity = paper.patternOpacity(),
+			.generateGradient = true,
+			.gradientRotation = paper.gradientRotation(),
+		});
+	}
+	auto instance = Instance();
+	const auto loaded = LoadFromFile(
+		kNightBaseFile.utf16(),
+		&instance,
+		nullptr,
+		nullptr,
+		style::colorizer());
+	Assert(loaded);
+	auto prepared = Ui::PreprocessBackgroundImage(
+		std::move(instance.background));
+	prepared.setDevicePixelRatio(style::DevicePixelRatio());
+	return {
+		.prepared = prepared,
+		.preparedForTiled = Ui::PrepareImageForTiled(prepared),
+		.colorForFill = Ui::CalculateImageMonoColor(prepared),
+		.tile = instance.tiled,
 	};
 }
 

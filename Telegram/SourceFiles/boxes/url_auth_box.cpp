@@ -40,7 +40,7 @@ namespace UrlAuthBox {
 namespace {
 
 using AnotherSessionFactory = Fn<not_null<Main::Session*>()>;
-using OnUserChangedCallback = Fn<void(Fn<void()>)>;
+using OnUserChangedCallback = Fn<void(Fn<void(not_null<Main::Session*>)>)>;
 
 struct SwitchAccountResult {
 	Ui::RpWidget *widget = nullptr;
@@ -91,7 +91,7 @@ struct SwitchAccountResult {
 	struct State {
 		base::unique_qptr<Ui::PopupMenu> menu;
 		UserData *currentUser = nullptr;
-		Fn<void()> onUserChanged;
+		Fn<void(not_null<Main::Session*>)> onUserChanged;
 	};
 	const auto state = widget->lifetime().make_state<State>();
 
@@ -140,14 +140,8 @@ struct SwitchAccountResult {
 			const auto user = anotherSession->user();
 			const auto action = new QAction(user->name(), state->menu);
 			QObject::connect(action, &QAction::triggered, [=] {
-				state->currentUser = user;
-				const auto newUserpic = Ui::CreateChild<Ui::UserpicButton>(
-					parent,
-					user,
-					st::restoreUserpicIcon);
-				widget->setUserpic(newUserpic);
 				if (state->onUserChanged) {
-					state->onUserChanged();
+					state->onUserChanged(anotherSession);
 				}
 			});
 			auto owned = base::make_unique_q<Ui::Menu::Action>(
@@ -176,7 +170,9 @@ struct SwitchAccountResult {
 	return {
 		widget,
 		[=] { return &state->currentUser->session(); },
-		[=](Fn<void()> callback) { state->onUserChanged = callback; },
+		[=](Fn<void(not_null<Main::Session*>)> callback) {
+			state->onUserChanged = std::move(callback);
+		},
 		[=](UserId newUserIdHint) {
 			const auto isCurrentTest = session->isTestMode();
 			for (const auto &acc : Core::App().domain().orderedAccounts()) {
@@ -185,17 +181,26 @@ struct SwitchAccountResult {
 					continue;
 				}
 				if (acc->session().userId() == newUserIdHint) {
-					state->currentUser = acc->session().user();
-					const auto next = Ui::CreateChild<Ui::UserpicButton>(
-						parent,
-						state->currentUser,
-						st::restoreUserpicIcon);
-					widget->setUserpic(next);
+					if (state->currentUser != acc->session().user()) {
+						state->currentUser = acc->session().user();
+						const auto next = Ui::CreateChild<Ui::UserpicButton>(
+							parent,
+							state->currentUser,
+							st::restoreUserpicIcon);
+						widget->setUserpic(next);
+					}
 					break;
 				}
 			}
 		},
 	};
+}
+
+// The server put a web login token into this url for the current user.
+[[nodiscard]] QVariant AcceptedUrlContext(QVariant context) {
+	auto result = context.value<ClickHandlerContext>();
+	result.keepWebAuthTokens = true;
+	return QVariant::fromValue(result);
 }
 
 } // namespace
@@ -243,7 +248,7 @@ void ActivateButton(
 		button->requestId = 0;
 		result.match([&](const MTPDurlAuthResultAccepted &data) {
 			if (const auto url = data.vurl()) {
-				UrlClickHandler::Open(qs(url->v));
+				UrlClickHandler::Open(qs(url->v), AcceptedUrlContext({}));
 			}
 		}, [&](const MTPDurlAuthResultDefault &data) {
 			HiddenUrlClickHandler::Open(url);
@@ -284,7 +289,9 @@ void ActivateUrl(
 		MTPstring() // in_app_origin
 	)).done([=](const MTPUrlAuthResult &result) {
 		result.match([&](const MTPDurlAuthResultAccepted &data) {
-			UrlClickHandler::Open(qs(data.vurl().value_or_empty()), context);
+			UrlClickHandler::Open(
+				qs(data.vurl().value_or_empty()),
+				AcceptedUrlContext(context));
 		}, [&](const MTPDurlAuthResultDefault &data) {
 			HiddenUrlClickHandler::Open(url, context);
 		}, [&](const MTPDurlAuthResultRequest &data) {
@@ -326,7 +333,9 @@ void RequestButton(
 		if (url.isEmpty() && accepted) {
 			show->showToast(tr::lng_passport_success(tr::now));
 		} else {
-			UrlClickHandler::Open(url);
+			UrlClickHandler::Open(
+				url,
+				accepted ? AcceptedUrlContext({}) : QVariant());
 		}
 	};
 	const auto callback = [=](Result result) {
@@ -402,6 +411,7 @@ void RequestUrl(
 		QString firstMatchCode;
 		bool boxAnswered = false;
 		bool matchCodeSent = false;
+		int switchSeq = 0;
 	};
 	const auto bot = request.is_request_write_access()
 		? session->data().processUser(request.vbot()).get()
@@ -434,7 +444,9 @@ void RequestUrl(
 
 		if ((to.isEmpty() && accepted) || (to == url)) {
 		} else {
-			UrlClickHandler::Open(to, context);
+			UrlClickHandler::Open(
+				to,
+				accepted ? AcceptedUrlContext(context) : context);
 		}
 	};
 	const auto resolveSession = [=] {
@@ -524,10 +536,10 @@ void RequestUrl(
 				SwitchAccountResult>(nullptr);
 			const auto matchCodesShared = box->lifetime().make_state<
 				rpl::variable<QStringList>>(matchCodes);
-			const auto reloadRequest = [=] {
+			const auto reloadForSession = [=](not_null<Main::Session*> target) {
+				const auto generation = ++state->switchSeq;
 				using Flag = MTPmessages_RequestUrlAuth::Flag;
-				const auto currentSession = resolveSession();
-				currentSession->api().request(MTPmessages_RequestUrlAuth(
+				target->api().request(MTPmessages_RequestUrlAuth(
 					MTP_flags(Flag::f_url),
 					MTPInputPeer(),
 					MTPint(), // msg_id
@@ -535,7 +547,11 @@ void RequestUrl(
 					MTP_string(url),
 					MTPstring() // in_app_origin
 				)).done(crl::guard(box, [=](const MTPUrlAuthResult &result) {
+					if (generation != state->switchSeq) {
+						return;
+					}
 					result.match([&](const MTPDurlAuthResultRequest &data) {
+						accountResult->updateUserIdHint(target->userId());
 						const auto newUserId = data.vuser_id_hint()
 							? peerToUser(peerFromUser(*data.vuser_id_hint()))
 							: UserId();
@@ -548,7 +564,19 @@ void RequestUrl(
 						}
 						*matchCodesShared = newCodes;
 					}, [](const auto &) {});
-				})).send();
+				})).fail([=](const MTP::Error &error) {
+					if ((generation != state->switchSeq) || !state->box) {
+						return;
+					}
+					if (error.type() == u"URL_EXPIRED"_q) {
+						state->boxAnswered = true;
+						state->box->closeBox();
+						show->showToast(
+							tr::lng_url_auth_phone_toast_bad_expired(tr::now));
+					} else {
+						show->showToast(error.type());
+					}
+				}).send();
 			};
 			const auto callback = [=](Result result) {
 				state->boxAnswered = true;
@@ -626,7 +654,7 @@ void RequestUrl(
 				w->moveToRight(SwitchableUserpicButton::Skip(), 0);
 			}, (*accountResult).widget->lifetime());
 			state->anotherSession = (*accountResult).anotherSession;
-			(*accountResult).setOnUserChanged(reloadRequest);
+			(*accountResult).setOnUserChanged(reloadForSession);
 		}));
 		if (const auto strong = state->box.get()) {
 			strong->boxClosing() | rpl::on_next([=] {

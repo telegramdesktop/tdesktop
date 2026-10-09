@@ -63,6 +63,7 @@ public:
 		-> std::optional<std::vector<UserId>>;
 
 	[[nodiscard]] static QString SugValidatePassword();
+	[[nodiscard]] static QString SugWalletFirstIncomingTransfer();
 
 	void setSetupEmailState(SetupEmailState state);
 	[[nodiscard]] SetupEmailState setupEmailState() const;

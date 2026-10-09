@@ -10,7 +10,7 @@
   <Identity Name="TelegramMessengerLLP.TelegramDesktop"
     ProcessorArchitecture="ARCHITECTURE"
     Publisher="CN=536BC709-8EE1-4478-AF22-F0F0F26FF64A"
-    Version="7.2.9.0" />
+    Version="7.3.0.0" />
   <Properties>
     <DisplayName>Telegram Desktop</DisplayName>
     <PublisherDisplayName>Telegram Messenger LLP</PublisherDisplayName>
@@ -40,6 +40,9 @@
         </uap3:Extension>
         <uap3:Extension Category="windows.protocol">
           <uap3:Protocol Name="tonsite" Parameters="-- &quot;%1&quot;" />
+        </uap3:Extension>
+        <uap3:Extension Category="windows.protocol">
+          <uap3:Protocol Name="ton" Parameters="-- &quot;%1&quot;" />
         </uap3:Extension>
         <desktop:Extension
           Category="windows.startupTask"

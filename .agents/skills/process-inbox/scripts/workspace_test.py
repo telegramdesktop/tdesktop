@@ -6,8 +6,10 @@ import io
 import json
 import os
 from pathlib import Path
+import plistlib
 import subprocess
 import tempfile
+import time
 from types import SimpleNamespace
 import unittest
 from unittest import mock
@@ -242,6 +244,122 @@ inbox_receipt: receipts/2026/07/18/seed.md
 		"inbox_branch": "inbox/macbook-twork",
 		"inbox": str(inbox),
 	}
+
+
+APPROVAL_TASK = "2026/07/18/active-task"
+OTHER_APPROVAL_TASK = "2026/07/20/other-task"
+
+
+def set_origin_url(main, url):
+	git(main, "remote", "set-url", "origin", str(url))
+
+
+def task_refs(source, task_id):
+	return {
+		name: workspace.resolved_ref(
+			source, workspace.source_task_ref(task_id, name),
+		)
+		for name in ("base", "green", "run")
+	}
+
+
+def approval_recovery_fixture(root, outcome="changed"):
+	config = inbox_worktrees(root)
+	main = Path(config["ai_main"])
+	slot = Path(config["slot_worktree"])
+	origin = root / "origin.git"
+	git(root, "init", "--bare", "--initial-branch=master", str(origin))
+	git(main, "remote", "add", "origin", str(origin))
+	git(main, "push", "origin", "master")
+	git(main, "fetch", "origin")
+	state = main / "tasks" / APPROVAL_TASK / "state.yaml"
+	state.write_text(
+		state.read_text(encoding="utf-8")
+		.replace("status: todo", "status: in-progress")
+		.replace("claimed_by: null", "claimed_by: macbook-twork")
+		.replace("claimed_at: null", "claimed_at: 2026-07-18T10:00:00+04:00")
+		.replace("claim_order: null", "claim_order: 1")
+		.replace("phase: null", "phase: setup"),
+		encoding="utf-8",
+	)
+	git(main, "add", "tasks")
+	git(main, "commit", "-m", f"Start {APPROVAL_TASK}")
+	git(main, "push", "origin", "master")
+	git(main, "fetch", "origin")
+	git(slot, "merge", "--ff-only", "master")
+
+	source = root / "source"
+	git_repo(source)
+	(source / "Telegram" / "build").mkdir(parents=True)
+	(source / "tracked.txt").write_text("base\n", encoding="utf-8")
+	git(source, "add", "tracked.txt")
+	git(source, "commit", "-m", "Create baseline")
+	baseline = git(source, "rev-parse", "HEAD")
+	git(source, "update-ref", workspace.source_task_ref(APPROVAL_TASK, "base"), "HEAD")
+	if outcome == "changed":
+		(source / "tracked.txt").write_text("changed\n", encoding="utf-8")
+		git(
+			source, "commit", "-am",
+			f"Change tracked file\n\nTask: {APPROVAL_TASK}",
+		)
+		git(source, "update-ref", workspace.source_task_ref(APPROVAL_TASK, "green"), "HEAD")
+	git(source, "update-ref", workspace.source_task_ref(APPROVAL_TASK, "run"), "HEAD")
+	for name in ("base", "green", "run"):
+		git(
+			source, "update-ref",
+			workspace.source_task_ref(OTHER_APPROVAL_TASK, name), baseline,
+		)
+	config["source_root"] = str(source)
+
+	work = slot / "tasks" / APPROVAL_TASK / "work"
+	work.mkdir(parents=True)
+	(work / "result.md").write_text(
+		f"""STATUS: DONE
+Outcome: {outcome}
+Touched: {"tracked.txt" if outcome == "changed" else "none"}
+Verdict: APPROVED
+Test-Report: work/test.md
+Checkout: clean-buildable
+""",
+		encoding="utf-8",
+	)
+	(work / "test.md").write_text("# Test report\n\nPassed.\n", encoding="utf-8")
+	return {
+		"config": config,
+		"main": main,
+		"slot": slot,
+		"origin": origin,
+		"source": source,
+		"head": git(source, "rev-parse", "HEAD"),
+		"refs": task_refs(source, APPROVAL_TASK),
+		"other_refs": task_refs(source, OTHER_APPROVAL_TASK),
+	}
+
+
+def finish_approval(fixture):
+	with mock.patch.object(
+		workspace, "worktree_config", return_value=fixture["config"],
+	):
+		return run_command(
+			workspace.command_finish,
+			task=APPROVAL_TASK,
+			status="approved",
+			model="claude-opus-5",
+		)
+
+
+def publish_approval(fixture, stderr=None):
+	with (
+		mock.patch.object(
+			workspace, "worktree_config", return_value=fixture["config"],
+		),
+		contextlib.redirect_stderr(stderr or io.StringIO()),
+	):
+		return run_command(workspace.command_publish)
+
+
+def head_subject(repo, revision="HEAD"):
+	return git(repo, "show", "-s", "--format=%s", revision)
 
 
 class WorkspaceTest(unittest.TestCase):
@@ -1629,6 +1747,36 @@ def write_dump_after_complete_exe(path, dump, tail, windows_tail):
 	))
 
 
+def write_argv_recording_exe(path):
+	# The cmd branch puts the redirection before `echo` on purpose. In
+	# `echo %~1>>"%ARGS%"` a value ending in a digit would be read as a
+	# stream handle, so an argument like `-scale 1` would silently lose
+	# its last character and redirect stdout instead.
+	return write_fake_exe(path, (
+		'ARGS="$TDESKTOP_TEST_EVIDENCE_DIR/argv.txt"\n'
+		'for value in "$@"; do echo "$value" >> "$ARGS"; done\n'
+		'LOG="$TDESKTOP_TEST_EVIDENCE_DIR/test_log.txt"\n'
+		'echo "TEST_COMPLETE" >> "$LOG"\n'
+		"exit 0\n"
+	), (
+		'set "ARGS=%TDESKTOP_TEST_EVIDENCE_DIR%\\argv.txt"\n'
+		':argv\n'
+		'if "%~1"=="" goto argvdone\n'
+		'>>"%ARGS%" echo %~1\n'
+		'shift\n'
+		'goto argv\n'
+		':argvdone\n'
+		'set "LOG=%TDESKTOP_TEST_EVIDENCE_DIR%\\test_log.txt"\n'
+		'echo TEST_COMPLETE>>"%LOG%"\n'
+		"exit /b 0\n"
+	))
+
+
+def read_argv(run_dir):
+	text = (run_dir / "argv.txt").read_text(encoding="utf-8")
+	return [line.strip() for line in text.splitlines() if line.strip()]
+
+
 def make_portable_root(root):
 	debug = root / "out" / "Debug"
 	golden = debug / workspace.PORTABLE_GOLDEN
@@ -1736,10 +1884,111 @@ def run_test_run(exe, run_dir, **overrides):
 		"deadline": 20.0,
 		"quiet": 10.0,
 		"grace": 5.0,
+		"wait_idle": None,
+		"wait_idle_max": workspace.WAIT_IDLE_MAX_DEFAULT,
 		"env": None,
 	}
 	arguments.update(overrides)
 	return run_command(workspace.command_test_run, **arguments)
+
+
+LSAPPINFO_FRONT = b"ASN:0x0-0x55e55e:\n"
+
+
+def lsappinfo_name_output(name):
+	return (
+		f'"{name}" ASN:0x0-0x55e55e: (in front) \n'
+		"    bundleID=[ NULL ] \n"
+		"    bundle path=[ NULL ] \n"
+		"    executable path=[ NULL ] \n"
+		" !cgsConnection !signalled type=[ NULL ]  flavor=[ NULL ]"
+		"  Version=[ NULL ]  Arch=!!none \n"
+	).encode("utf-8")
+
+
+def hid_system_plist(idle_seconds):
+	return plistlib.dumps([{
+		"IOClass": "IOHIDSystem",
+		"IOObjectClass": "IOHIDSystem",
+		"HIDIdleTime": round(idle_seconds * 1e9),
+	}])
+
+
+def console_root_plist(locked):
+	away = {
+		"kCGSSessionOnConsoleKey": False,
+		"kCGSSessionUserNameKey": "telegramdesktop",
+		"CGSSessionScreenIsLocked": True,
+	}
+	here = {
+		"kCGSSessionOnConsoleKey": True,
+		"kCGSSessionUserIDKey": 501,
+		"kCGSSessionUserNameKey": "preston",
+		"kCGSessionLoginDoneKey": True,
+	}
+	if locked:
+		here["CGSSessionScreenIsLocked"] = True
+	return plistlib.dumps({
+		"IOConsoleLocked": False,
+		"IOConsoleUsers": [away, here],
+	})
+
+
+class FakeConsole:
+	def __init__(self, idle, locked=False, app="cmux", on_sleep=None):
+		self.idle = idle
+		self.locked = locked
+		self.app = app
+		self.on_sleep = on_sleep
+		self.now = 0.0
+		self.sleeps = []
+
+	def clock(self):
+		return self.now
+
+	def sleep(self, seconds):
+		if not seconds >= 0:
+			raise ValueError(f"time.sleep would refuse {seconds}")
+		self.sleeps.append(seconds)
+		self.now += seconds
+		if self.on_sleep:
+			self.on_sleep(seconds)
+
+	def output(self, argv):
+		if argv == ["ioreg", "-r", "-c", "IOHIDSystem", "-d", "1", "-a"]:
+			idle = self.idle(self.now)
+			if idle is None:
+				return None, "ioreg timed out after 2 s"
+			return hid_system_plist(idle), None
+		if argv == ["ioreg", "-n", "Root", "-d", "1", "-a"]:
+			return console_root_plist(self.locked), None
+		if argv == ["lsappinfo", "front"]:
+			return LSAPPINFO_FRONT, None
+		if argv == ["lsappinfo", "info", "-only", "name", "ASN:0x0-0x55e55e:"]:
+			return lsappinfo_name_output(self.app), None
+		raise AssertionError(f"unexpected argv {argv}")
+
+	@contextlib.contextmanager
+	def installed(self):
+		real_wait = workspace.wait_for_console_idle
+
+		def wait(required, bound):
+			return real_wait(
+				required, bound, clock=self.clock, sleep=self.sleep,
+			)
+
+		with (
+			mock.patch.object(
+				workspace, "console_unsupported_reason", return_value=None,
+			),
+			mock.patch.object(
+				workspace, "console_command_output", side_effect=self.output,
+			),
+			mock.patch.object(
+				workspace, "wait_for_console_idle", side_effect=wait,
+			),
+		):
+			yield self
 
 
 class SourcePreparationTest(unittest.TestCase):
@@ -2240,6 +2489,50 @@ class MechanicsTest(unittest.TestCase):
 			self.assertEqual(result["markers"]["pass"], ["row painted"])
 			self.assertEqual(result["markers"]["screenshots"], ["/tmp/fake.png"])
 			self.assertFalse(result["crash_report_fresh"])
+
+	def test_test_run_redirects_the_launch_for_a_portable_root(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			sandbox = make_portable_root(root / "sandbox")
+			exe = write_argv_recording_exe(debug / "Telegram")
+
+			isolated_dir = root / "run1"
+			isolated = run_test_run(
+				exe, isolated_dir, portable_root=str(sandbox),
+			)
+			live = sandbox / workspace.PORTABLE_LIVE
+			self.assertTrue(isolated["test_complete"])
+			self.assertEqual(isolated["account"], "fresh-copy")
+			self.assertEqual(
+				read_argv(isolated_dir),
+				["-testagent", "-noupdate", "-workdir", str(live)],
+			)
+			self.assertEqual(isolated["portable_root"], str(sandbox))
+			self.assertEqual(isolated["workdir"], str(live))
+			self.assertEqual(
+				isolated["golden_root"],
+				str(debug / workspace.PORTABLE_GOLDEN),
+			)
+			self.assertTrue((live / workspace.PORTABLE_MARKER).is_file())
+			self.assertFalse((debug / workspace.PORTABLE_LIVE).exists())
+
+			default_dir = root / "run2"
+			default = run_test_run(exe, default_dir)
+			self.assertTrue(default["test_complete"])
+			self.assertEqual(
+				read_argv(default_dir),
+				["-testagent", "-noupdate"],
+			)
+			self.assertEqual(default["portable_root"], str(debug))
+			self.assertIsNone(default["workdir"])
+			self.assertEqual(
+				default["golden_root"],
+				str(debug / workspace.PORTABLE_GOLDEN),
+			)
+			self.assertTrue((
+				debug / workspace.PORTABLE_LIVE / workspace.PORTABLE_MARKER
+			).is_file())
 
 	def test_parse_test_log_lists_skipped_rows_beside_pass_and_fail(self):
 		markers = workspace.parse_test_log("\n".join([
@@ -2781,6 +3074,298 @@ class MechanicsTest(unittest.TestCase):
 			self.assertTrue(dump.is_file())
 			self.assertEqual(list(stale.iterdir()), [])
 			self.assertFalse((run_dir / "app_stdout.txt").exists())
+
+	def test_test_run_reports_input_during_the_run(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			values = iter([3600.0, 0.0])
+			console = FakeConsole(lambda now: next(values), app="Google Chrome")
+			with console.installed():
+				result = run_test_run(exe, root / "run1")
+			before = result["input_before"]
+			after = result["input_after"]
+			self.assertIs(result["input_during_run"], True)
+			self.assertEqual(before["idle_seconds"], 3600.0)
+			self.assertEqual(before["frontmost_app"], "Google Chrome")
+			self.assertIs(before["screen_locked"], False)
+			for name in ("idle_seconds", "frontmost_app", "screen_locked"):
+				self.assertIsNone(before[f"{name}_error"])
+				self.assertIsNone(after[f"{name}_error"])
+			self.assertIsNotNone(
+				datetime.datetime.fromisoformat(before["time"]).tzinfo
+			)
+			self.assertEqual(after["idle_seconds"], 0.0)
+			self.assertGreater(after["seconds_since_launch"], 0)
+			self.assertGreaterEqual(
+				after["seconds_since_launch"],
+				result["duration_seconds"] - 0.05,
+			)
+			self.assertIsNone(result["wait_idle"])
+			self.assertEqual(console.sleeps, [])
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "complete")
+			self.assertTrue(result["test_complete"])
+
+	def test_test_run_reports_no_input_when_idle_covers_the_run(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			console = FakeConsole(lambda now: 3600.0)
+			with console.installed():
+				result = run_test_run(exe, root / "run1")
+			self.assertIs(result["input_during_run"], False)
+			self.assertEqual(result["input_before"]["idle_seconds"], 3600.0)
+			self.assertEqual(result["input_after"]["idle_seconds"], 3600.0)
+			self.assertEqual(result["input_after"]["frontmost_app"], "cmux")
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "complete")
+			self.assertTrue(result["test_complete"])
+
+	def test_test_run_leaves_input_unknown_when_a_reading_fails(self):
+		timeout = "ioreg timed out after 2 s"
+		for case, idles in (
+			("before fails", [None, 0.0]),
+			("after fails", [3600.0, None]),
+		):
+			with (
+				self.subTest(case=case),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				root = Path(temporary)
+				debug = make_portable_root(root)
+				exe = write_complete_markers_exe(debug / "Telegram")
+				values = iter(idles)
+				console = FakeConsole(lambda now: next(values))
+				with console.installed():
+					result = run_test_run(exe, root / "run1")
+				self.assertIsNone(result["input_during_run"])
+				readings = (result["input_before"], result["input_after"])
+				for reading, idle in zip(readings, idles):
+					self.assertEqual(reading["idle_seconds"], idle)
+					self.assertEqual(
+						reading["idle_seconds_error"],
+						timeout if idle is None else None,
+					)
+					self.assertEqual(reading["frontmost_app"], "cmux")
+					self.assertIsNone(reading["frontmost_app_error"])
+					self.assertIs(reading["screen_locked"], False)
+					self.assertIsNone(reading["screen_locked_error"])
+				self.assertEqual(result["outcome"], "exited")
+				self.assertEqual(result["verdict_hint"], "complete")
+
+		with (
+			self.subTest(case="gate read fails"),
+			tempfile.TemporaryDirectory() as temporary,
+		):
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			console = FakeConsole(lambda now: None)
+			with console.installed():
+				result = run_test_run(
+					exe, root / "run1", wait_idle=5.0, wait_idle_max=10.0,
+				)
+			self.assertIsNone(result["wait_idle"]["met"])
+			self.assertEqual(result["wait_idle"]["idle_seconds_error"], timeout)
+			self.assertEqual(result["wait_idle"]["waited_seconds"], 0.0)
+			self.assertEqual(console.sleeps, [])
+			self.assertIsNone(result["input_during_run"])
+			self.assertTrue(result["test_complete"])
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "complete")
+
+		with (
+			self.subTest(case="unparseable output"),
+			tempfile.TemporaryDirectory() as temporary,
+		):
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			with (
+				mock.patch.object(
+					workspace, "console_unsupported_reason", return_value=None,
+				),
+				mock.patch.object(
+					workspace,
+					"console_command_output",
+					return_value=(b"<plist><dict>", None),
+				),
+			):
+				result = run_test_run(exe, root / "run1")
+			for key in ("input_before", "input_after"):
+				reading = result[key]
+				for name in ("idle_seconds", "screen_locked", "frontmost_app"):
+					self.assertIsNone(reading[name])
+				self.assertRegex(reading["idle_seconds_error"], "^ExpatError: ")
+				self.assertRegex(reading["screen_locked_error"], "^ExpatError: ")
+				self.assertRegex(
+					reading["frontmost_app_error"],
+					"^lsappinfo front named no application: ",
+				)
+			self.assertIsNone(result["input_during_run"])
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "complete")
+
+	def test_test_run_gate_launches_once_the_console_is_idle(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			late = (
+				debug / workspace.PORTABLE_LIVE / "tdata" / "dumps"
+				/ workspace.CRASHPAD_COMPLETED_DIR / "late.dmp"
+			)
+
+			def pause(seconds):
+				time.sleep(seconds)
+				late.parent.mkdir(parents=True, exist_ok=True)
+				late.write_bytes(b"MDMP late minidump\n")
+
+			self.assertEqual(workspace.setup_test_account(debug), "fresh-copy")
+			console = FakeConsole(lambda now: now + 0.5, on_sleep=pause)
+			with console.installed():
+				result = run_test_run(
+					exe, root / "run1", wait_idle=2.5, wait_idle_max=10.0,
+				)
+			self.assertEqual(result["wait_idle"], {
+				"idle_seconds": 2.5,
+				"idle_seconds_error": None,
+				"max_seconds": 10.0,
+				"met": True,
+				"required_seconds": 2.5,
+				"skipped": None,
+				"waited_seconds": 2.0,
+			})
+			self.assertEqual(console.sleeps, [2.0])
+			self.assertEqual(result["input_before"]["idle_seconds"], 2.5)
+			self.assertTrue(late.is_file())
+			self.assertTrue(result["test_complete"])
+			self.assertEqual(result["crashpad_dumps_added"], [])
+			self.assertEqual(result["death_signals"], [])
+			self.assertEqual(result["verdict_hint"], "complete")
+			self.assertLess(
+				result["duration_seconds"],
+				result["wait_idle"]["waited_seconds"],
+			)
+
+	def test_test_run_gate_launches_after_its_bound_when_never_idle(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			live_during_wait = []
+			console = FakeConsole(
+				lambda now: 0.5,
+				on_sleep=lambda seconds: live_during_wait.append(
+					(debug / workspace.PORTABLE_LIVE).exists()
+				),
+			)
+			with console.installed():
+				result = run_test_run(
+					exe, root / "run1", wait_idle=5.0, wait_idle_max=10.0,
+				)
+			self.assertEqual(live_during_wait, [False, False, False])
+			gate = result["wait_idle"]
+			self.assertIs(gate["met"], False)
+			self.assertEqual(gate["waited_seconds"], 10.0)
+			self.assertEqual(gate["idle_seconds"], 0.5)
+			self.assertEqual(console.sleeps, [4.5, 4.5, 1.0])
+			self.assertLessEqual(sum(console.sleeps), 10.0)
+			self.assertTrue(result["test_complete"])
+			self.assertEqual(result["verdict_hint"], "complete")
+
+	def test_test_run_skips_readings_and_gate_off_macos(self):
+		reason = "console readings need macOS, this host is linux"
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			with (
+				mock.patch.object(
+					workspace, "console_unsupported_reason", return_value=reason,
+				),
+				mock.patch.object(
+					workspace, "console_command_output",
+				) as command_output,
+			):
+				result = run_test_run(exe, root / "run1", wait_idle=60.0)
+			command_output.assert_not_called()
+			self.assertEqual(result["wait_idle"], {
+				"idle_seconds": None,
+				"idle_seconds_error": None,
+				"max_seconds": 600.0,
+				"met": None,
+				"required_seconds": 60.0,
+				"skipped": reason,
+				"waited_seconds": 0.0,
+			})
+			for key in ("input_before", "input_after"):
+				reading = result[key]
+				datetime.datetime.fromisoformat(reading["time"])
+				for name in ("idle_seconds", "screen_locked", "frontmost_app"):
+					self.assertIsNone(reading[name])
+					self.assertEqual(reading[f"{name}_error"], reason)
+			self.assertIsNone(result["input_during_run"])
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "complete")
+
+	def test_test_run_parses_the_screen_lock_state(self):
+		for locked in (True, False):
+			with (
+				self.subTest(locked=locked),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				root = Path(temporary)
+				debug = make_portable_root(root)
+				exe = write_complete_markers_exe(debug / "Telegram")
+				console = FakeConsole(lambda now: 3600.0, locked=locked)
+				with console.installed():
+					result = run_test_run(exe, root / "run1")
+				for key in ("input_before", "input_after"):
+					self.assertIs(result[key]["screen_locked"], locked)
+					self.assertIsNone(result[key]["screen_locked_error"])
+
+	def test_test_run_rejects_a_bad_idle_gate(self):
+		for overrides in (
+			{"wait_idle": 0.0},
+			{"wait_idle": -1.0},
+			{"wait_idle": float("nan")},
+			{"wait_idle": 5.0, "wait_idle_max": -1.0},
+		):
+			with (
+				self.subTest(overrides=overrides),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				root = Path(temporary)
+				debug = make_portable_root(root)
+				exe = write_complete_markers_exe(debug / "Telegram")
+				run_dir = root / "run1"
+				with (
+					FakeConsole(lambda now: 3600.0).installed(),
+					self.assertRaisesRegex(workspace.WorkspaceError, "--wait-idle"),
+				):
+					run_test_run(exe, run_dir, **overrides)
+				self.assertFalse(run_dir.exists())
+				self.assertFalse((debug / workspace.PORTABLE_LIVE).exists())
+
+	def test_test_run_gate_fails_before_waiting_without_a_golden(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = root / "out" / "Debug"
+			exe = write_complete_markers_exe(debug / "Telegram")
+			console = FakeConsole(lambda now: 0.5)
+			with (
+				console.installed(),
+				self.assertRaisesRegex(workspace.WorkspaceError, "golden"),
+			):
+				run_test_run(
+					exe, root / "run1", wait_idle=5.0, wait_idle_max=10.0,
+				)
+			self.assertEqual(console.sleeps, [])
+			self.assertFalse((debug / workspace.PORTABLE_LIVE).exists())
 
 	def test_portable_root_for_prefers_app_bundle_parent(self):
 		with tempfile.TemporaryDirectory() as temporary:
@@ -3869,6 +4454,241 @@ inbox_receipt: {receipt}
 				source,
 				workspace.source_task_ref(source_task, "base"),
 			))
+
+	def test_publish_recovers_approval_refs_after_fetch_failure(self):
+		for outcome in ("changed", "already-satisfied"):
+			with (
+				self.subTest(outcome=outcome),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				root = Path(temporary)
+				fixture = approval_recovery_fixture(root, outcome)
+				config = fixture["config"]
+				main = fixture["main"]
+				slot = fixture["slot"]
+				origin = fixture["origin"]
+				source = fixture["source"]
+				approve = f"Approve {APPROVAL_TASK}"
+
+				set_origin_url(main, root / "missing.git")
+				with self.assertRaises(workspace.WorkspaceError):
+					finish_approval(fixture)
+				self.assertEqual(head_subject(slot), approve)
+				self.assertEqual(workspace.unpublished_counts(config)["slot_only"], 1)
+				self.assertEqual(workspace.load_state(
+					main, workspace.state_path(main, APPROVAL_TASK),
+				)["status"], "in-progress")
+				self.assertEqual(
+					head_subject(origin, "master"), f"Start {APPROVAL_TASK}",
+				)
+				self.assertEqual(task_refs(source, APPROVAL_TASK), fixture["refs"])
+
+				with self.assertRaises(workspace.WorkspaceError):
+					publish_approval(fixture)
+				self.assertEqual(workspace.unpublished_counts(config)["slot_only"], 1)
+				self.assertEqual(task_refs(source, APPROVAL_TASK), fixture["refs"])
+
+				set_origin_url(main, origin)
+				result = publish_approval(fixture)
+				self.assertTrue(result["published"])
+				self.assertEqual(result["approval_refs"], {
+					"task": APPROVAL_TASK,
+					"action": "deleted",
+					"reason": None,
+				})
+				self.assertEqual(
+					git(main, "rev-parse", "master"),
+					git(origin, "rev-parse", "master"),
+				)
+				self.assertEqual(head_subject(main, "master"), approve)
+				self.assertEqual(workspace.load_state(
+					main, workspace.state_path(main, APPROVAL_TASK),
+				)["status"], "approved")
+				self.assertEqual(
+					task_refs(source, APPROVAL_TASK),
+					{"base": None, "green": None, "run": None},
+				)
+				self.assertEqual(
+					task_refs(source, OTHER_APPROVAL_TASK), fixture["other_refs"],
+				)
+				self.assertEqual(git(source, "rev-parse", "HEAD"), fixture["head"])
+
+				rerun = publish_approval(fixture)
+				self.assertTrue(rerun["published"])
+				self.assertEqual(rerun["approval_refs"]["action"], "absent")
+				self.assertEqual(
+					task_refs(source, OTHER_APPROVAL_TASK), fixture["other_refs"],
+				)
+
+	def test_publish_preserves_approval_refs_for_unsafe_source(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			fixture = approval_recovery_fixture(root)
+			config = fixture["config"]
+			main = fixture["main"]
+			source = fixture["source"]
+			set_origin_url(main, root / "missing.git")
+			with self.assertRaises(workspace.WorkspaceError):
+				finish_approval(fixture)
+			set_origin_url(main, fixture["origin"])
+
+			(source / "tracked.txt").write_text("dirty\n", encoding="utf-8")
+			stderr = io.StringIO()
+			result = publish_approval(fixture, stderr)
+			self.assertTrue(result["published"])
+			self.assertEqual(result["approval_refs"]["action"], "retained")
+			self.assertIn("not clean", result["approval_refs"]["reason"])
+			self.assertIn(APPROVAL_TASK, stderr.getvalue())
+			self.assertEqual(workspace.unpublished_counts(config)["slot_only"], 0)
+			self.assertEqual(task_refs(source, APPROVAL_TASK), fixture["refs"])
+
+			(source / "tracked.txt").write_text("changed\n", encoding="utf-8")
+			(source / "extra.txt").write_text("extra\n", encoding="utf-8")
+			git(source, "add", "extra.txt")
+			git(source, "commit", "-m", "Record unrelated change")
+			result = publish_approval(fixture)
+			self.assertEqual(result["approval_refs"]["action"], "retained")
+			self.assertIn("run ref", result["approval_refs"]["reason"])
+			self.assertEqual(task_refs(source, APPROVAL_TASK), fixture["refs"])
+
+			git(source, "reset", "--hard", fixture["refs"]["run"])
+			result = publish_approval(fixture)
+			self.assertEqual(result["approval_refs"]["action"], "deleted")
+			self.assertEqual(
+				task_refs(source, APPROVAL_TASK),
+				{"base": None, "green": None, "run": None},
+			)
+			self.assertEqual(
+				task_refs(source, OTHER_APPROVAL_TASK), fixture["other_refs"],
+			)
+
+	def test_publish_cleans_refs_when_approval_landed_before_interruption(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			fixture = approval_recovery_fixture(root)
+			config = fixture["config"]
+			main = fixture["main"]
+			slot = fixture["slot"]
+			origin = fixture["origin"]
+			source = fixture["source"]
+			approve = f"Approve {APPROVAL_TASK}"
+			with (
+				mock.patch.object(
+					workspace,
+					"delete_source_refs",
+					side_effect=workspace.WorkspaceError("interrupted"),
+				),
+				self.assertRaises(workspace.WorkspaceError),
+			):
+				finish_approval(fixture)
+			self.assertEqual(task_refs(source, APPROVAL_TASK), fixture["refs"])
+			self.assertEqual(workspace.unpublished_counts(config)["slot_only"], 0)
+			self.assertEqual(head_subject(origin, "master"), approve)
+
+			clone = root / "clone"
+			git(root, "clone", str(origin), str(clone))
+			git(clone, "config", "user.name", "Workflow Test")
+			git(clone, "config", "user.email", "workflow@example.invalid")
+			(clone / "unrelated.txt").write_text("later\n", encoding="utf-8")
+			git(clone, "add", "unrelated.txt")
+			git(clone, "commit", "-m", "Record unrelated change")
+			git(clone, "push", "origin", "HEAD:master")
+
+			result = publish_approval(fixture)
+			self.assertTrue(result["published"])
+			self.assertEqual(result["approval_refs"]["action"], "deleted")
+			self.assertEqual(head_subject(slot), "Record unrelated change")
+			self.assertEqual(
+				git(main, "rev-parse", "master"),
+				git(origin, "rev-parse", "master"),
+			)
+			self.assertEqual(
+				task_refs(source, APPROVAL_TASK),
+				{"base": None, "green": None, "run": None},
+			)
+			self.assertEqual(
+				task_refs(source, OTHER_APPROVAL_TASK), fixture["other_refs"],
+			)
+
+			rerun = publish_approval(fixture)
+			self.assertTrue(rerun["published"])
+			self.assertNotIn("approval_refs", rerun)
+			self.assertEqual(
+				task_refs(source, OTHER_APPROVAL_TASK), fixture["other_refs"],
+			)
+			self.assertEqual(git(source, "rev-parse", "HEAD"), fixture["head"])
+
+	def test_publish_never_cleans_refs_without_owned_approval(self):
+		def replace_state(slot, *pairs):
+			path = slot / "tasks" / APPROVAL_TASK / "state.yaml"
+			text = path.read_text(encoding="utf-8")
+			for old, new in pairs:
+				text = text.replace(old, new)
+			path.write_text(text, encoding="utf-8")
+
+		cases = {
+			"block": (
+				f"Block {APPROVAL_TASK}",
+				(("status: in-progress", "status: blocked"),
+					("phase: setup", "phase: blocked")),
+				None,
+			),
+			"split-required": (
+				f"Split-required {APPROVAL_TASK}",
+				(("status: in-progress", "status: split-required"),
+					("phase: setup", "phase: split-required")),
+				None,
+			),
+			"foreign-owner": (
+				f"Approve {APPROVAL_TASK}",
+				(("status: in-progress", "status: approved"),
+					("phase: setup", "phase: complete"),
+					("claimed_by: macbook-twork", "claimed_by: macbook-other")),
+				(APPROVAL_TASK, "macbook-other"),
+			),
+			"not-approved": (
+				f"Approve {APPROVAL_TASK}",
+				(),
+				(APPROVAL_TASK, "in-progress"),
+			),
+			"other-task": (
+				f"Approve {OTHER_APPROVAL_TASK}",
+				None,
+				(OTHER_APPROVAL_TASK, "does not exist"),
+			),
+		}
+		for name, (subject, pairs, candidate) in cases.items():
+			with (
+				self.subTest(case=name),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				root = Path(temporary)
+				fixture = approval_recovery_fixture(root)
+				slot = fixture["slot"]
+				source = fixture["source"]
+				if pairs is None:
+					(slot / "notes.txt").write_text("other\n", encoding="utf-8")
+				else:
+					replace_state(slot, *pairs)
+				git(slot, "add", "-A")
+				git(slot, "commit", "-m", subject)
+
+				result = publish_approval(fixture)
+				self.assertTrue(result["published"])
+				self.assertEqual(head_subject(fixture["main"], "master"), subject)
+				if candidate is None:
+					self.assertNotIn("approval_refs", result)
+				else:
+					task_id, reason = candidate
+					self.assertEqual(result["approval_refs"]["task"], task_id)
+					self.assertEqual(
+						result["approval_refs"]["action"], "retained",
+					)
+					self.assertIn(reason, result["approval_refs"]["reason"])
+				self.assertEqual(task_refs(source, APPROVAL_TASK), fixture["refs"])
+				self.assertEqual(
+					task_refs(source, OTHER_APPROVAL_TASK), fixture["other_refs"],
+				)
 
 
 if __name__ == "__main__":

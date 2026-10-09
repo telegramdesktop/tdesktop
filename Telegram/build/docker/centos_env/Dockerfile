@@ -16,6 +16,7 @@ dnf config-manager --set-enabled powertools
 dnf -y install cmake autoconf automake libtool pkgconfig make patch git \
 	python3.11-pip python3.11-devel gperf flex bison clang-tools-extra \
 	lld ccache nasm file which wget perl-open perl-XML-Parser perl-IPC-Cmd \
+	perl-Time-Piece \
 	xorg-x11-util-macros $TOOLSET-gcc $TOOLSET-gcc-c++ $TOOLSET-binutils \
 	$TOOLSET-gdb $TOOLSET-libasan-devel libffi-devel fontconfig-devel \
 	freetype-devel libX11-devel wayland-devel alsa-lib-devel \
@@ -160,7 +161,7 @@ RUN <<EOF
 git init patches
 cd patches
 git remote add origin https://github.com/desktop-app/patches.git
-git fetch --depth=1 origin a30e40a7718af3a9369c7f9a59b5b7ff4ba2950c
+git fetch --depth=1 origin aec474953ff7ee9b6e4cd9b8658288ea86d124f3
 git reset --hard FETCH_HEAD
 rm -rf .git
 EOF
@@ -189,7 +190,7 @@ EOF
 
 FROM builder AS xz
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b v5.8.1 --depth=1 https://github.com/tukaani-project/xz.git
+git clone -b v5.8.4 --depth=1 https://github.com/tukaani-project/xz.git
 cd xz
 cmake -B build .
 cmake --build build
@@ -395,7 +396,7 @@ FROM builder AS xcb
 COPY --link --from=xcb-proto /usr/src/xcb-proto-cache /
 
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b libxcb-1.16 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxcb.git
+git clone -b libxcb-1.16.1 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxcb.git
 cd libxcb
 ./autogen.sh --enable-static --disable-shared
 make -j$(nproc)
@@ -509,7 +510,7 @@ EOF
 
 FROM builder AS xtst
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b libXtst-1.2.4 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxtst.git
+git clone -b libXtst-1.2.5 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxtst.git
 cd libxtst
 ./autogen.sh --enable-static --disable-shared
 make -j$(nproc)
@@ -533,7 +534,7 @@ FROM builder AS xv
 COPY --link --from=xext /usr/src/xext-cache /
 
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b libXv-1.0.12 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxv.git
+git clone -b libXv-1.0.13 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxv.git
 cd libxv
 ./autogen.sh --enable-static --disable-shared
 make -j$(nproc)
@@ -544,7 +545,7 @@ EOF
 
 FROM builder AS xrandr
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b libXrandr-1.5.3 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxrandr.git
+git clone -b libXrandr-1.5.4 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxrandr.git
 cd libxrandr
 ./autogen.sh --enable-static --disable-shared
 make -j$(nproc)
@@ -555,7 +556,7 @@ EOF
 
 FROM builder AS xrender
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b libXrender-0.9.11 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxrender.git
+git clone -b libXrender-0.9.12 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxrender.git
 cd libxrender
 ./autogen.sh --enable-static --disable-shared
 make -j$(nproc)
@@ -604,7 +605,7 @@ COPY --link --from=xv /usr/src/xv-cache /
 COPY --link --from=nv-codec-headers /usr/src/nv-codec-headers-cache /
 
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b n6.1.6 --depth=1 https://github.com/FFmpeg/FFmpeg.git
+git clone -b n8.1.3 --depth=1 https://github.com/FFmpeg/FFmpeg.git
 cd FFmpeg
 ./configure \
 	--extra-cflags="-fno-lto -DCONFIG_SAFE_BITSTREAM_READER=1" \
@@ -777,6 +778,7 @@ cmake -B build . \
 	-DWITH_DAV1D=OFF \
 	-DWITH_LIBDE265=OFF \
 	-DWITH_FFMPEG_DECODER=ON \
+	-DWITH_GDK_PIXBUF=OFF \
 	-DWITH_LIBSHARPYUV=OFF \
 	-DWITH_EXAMPLES=OFF
 cmake --build build
@@ -821,7 +823,7 @@ EOF
 
 FROM builder AS openssl
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b openssl-3.2.1 --depth=1 https://github.com/openssl/openssl.git
+git clone -b openssl-3.5.9 --depth=1 https://github.com/openssl/openssl.git
 cd openssl
 sed -i 's/$cmd $cmdflags -c -o/$cmd $cmdflags -g0 -c -o/' Configurations/unix-Makefile.tmpl
 ./config --openssldir=/etc/ssl no-shared no-tests no-dso
@@ -950,7 +952,7 @@ RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git init tg_owt
 cd tg_owt
 git remote add origin https://github.com/desktop-app/tg_owt.git
-git fetch --depth=1 origin 5c5c71258777d0196dbb3a09cc37d2f56ead28ab
+git fetch --depth=1 origin d1cf250ea73de26c4c1f0a3c8173eb2648efbb04
 git reset --hard FETCH_HEAD
 git submodule update --init --recursive --depth=1
 cmake -B build . -DTG_OWT_DLOPEN_PIPEWIRE=ON
@@ -962,7 +964,7 @@ EOF
 
 FROM builder AS ada
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b v3.2.4 --depth=1 https://github.com/ada-url/ada.git
+git clone -b v3.2.9 --depth=1 https://github.com/ada-url/ada.git
 cd ada
 cmake -B build . -DADA_TESTING=OFF -DADA_TOOLS=OFF -DADA_INCLUDE_URL_PATTERN=OFF
 cmake --build build
@@ -989,32 +991,54 @@ cd ..
 rm -rf tde2e
 EOF
 
-FROM patches AS tlottie
+FROM patches AS tdesktop_rust
 RUN <<EOF
 RUST_TOOLCHAIN=1.96.1
 export RUSTUP_HOME=/usr/src/rustup
 export CARGO_HOME=/usr/src/cargo
+export CARGO_BUILD_JOBS={{ JOBS or "default" }}
 wget -O rustup-init.sh https://sh.rustup.rs
 sh rustup-init.sh -y --no-modify-path --profile minimal --default-toolchain $RUST_TOOLCHAIN
 rm rustup-init.sh
 export RUSTUP_TOOLCHAIN=$RUST_TOOLCHAIN
 export PATH=$CARGO_HOME/bin:$PATH
-export DESTDIR=/usr/src/tlottie-cache
+export DESTDIR=/usr/src/tdesktop_rust-cache
 git init tlottie
 cd tlottie
 git remote add origin https://github.com/dkaraush/tlottie.git
-git fetch --depth=1 origin 31f1b542f88e7b4be9a01e749920d857535fc715
+git fetch --depth=1 origin 92df98dc209bc39b1e567ec74a8c86a0af5239de
 git reset --hard FETCH_HEAD
-git apply ../patches/tlottie.patch
-cargo rustc --lib --release --locked \
-	--features c-api --crate-type staticlib \
-	--target x86_64-unknown-linux-gnu \
-	-- --print native-static-libs
-mkdir -p $DESTDIR/usr/local/lib $DESTDIR/usr/local/include/tlottie
-objcopy --strip-debug target/x86_64-unknown-linux-gnu/release/libtlottie.a $DESTDIR/usr/local/lib/libtlottie.a
-cp include/tlottie.h $DESTDIR/usr/local/include/tlottie/tlottie.h
 cd ..
-rm -rf tlottie rustup cargo
+git init wallet-engine
+cd wallet-engine
+git remote add origin https://github.com/i582/wallet-engine.git
+git fetch --depth=1 origin e59e0d89d7ee90c388bf36e3334c5b276f396697
+git reset --hard FETCH_HEAD
+git apply ../patches/wallet-engine.patch
+cd ..
+# One archive for every Rust library. Each staticlib carries its own copy of
+# the Rust standard library, so separate builds define the runtime symbols
+# that must stay global twice and the linker refuses the binary.
+cargo new --lib --vcs none tdesktop_rust
+cd tdesktop_rust
+printf 'pub use ::tlottie;\npub use ::wallet_engine;\n' > src/lib.rs
+cargo add --path ../tlottie --features c-api
+cargo add --path ../wallet-engine
+cargo rustc --lib --release \
+	--crate-type staticlib --crate-type cdylib \
+	--config "profile.release.opt-level={% if MINSIZE %}'z'{% else %}3{% endif %}" \
+	--config "profile.release.lto='{% if LTO %}thin{% else %}off{% endif %}'" \
+	--config "profile.release.codegen-units=1" \
+	--config "profile.release.panic='unwind'" \
+	-- --print native-static-libs
+mkdir -p $DESTDIR/usr/local/lib64 $DESTDIR/usr/local/include/tlottie $DESTDIR/usr/local/include/wallet_engine
+objcopy --strip-debug target/release/libtdesktop_rust.a $DESTDIR/usr/local/lib64/libtdesktop_rust.a
+cp ../tlottie/include/tlottie.h $DESTDIR/usr/local/include/tlottie/tlottie.h
+cargo run --manifest-path ../wallet-engine/bindgen/cpp/bindgen/Cargo.toml --locked -- \
+	--library --out-dir $DESTDIR/usr/local/include/wallet_engine \
+	target/release/libtdesktop_rust.so
+cd ..
+rm -rf tlottie wallet-engine tdesktop_rust rustup cargo
 EOF
 
 FROM builder
@@ -1058,7 +1082,7 @@ COPY --link --from=breakpad /usr/src/breakpad-cache /
 COPY --link --from=webrtc /usr/src/webrtc-cache /
 COPY --link --from=ada /usr/src/ada-cache /
 COPY --link --from=tde2e /usr/src/tde2e-cache /
-COPY --link --from=tlottie /usr/src/tlottie-cache /
+COPY --link --from=tdesktop_rust /usr/src/tdesktop_rust-cache /
 
 COPY --link --from=patches /usr/src/patches patches
 RUN <<EOF

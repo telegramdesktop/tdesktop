@@ -19,9 +19,9 @@ namespace Test {
 class Runner;
 
 // Ui::BoxContent::addButton builds its Ui::RoundButton parented to the box
-// (ui/layers/box_content.cpp:141-153) and hands it to the delegate, and
+// (ui/layers/box_content.cpp) and hands it to the delegate, and
 // Ui::BoxLayerWidget::addButton then re-parents it onto the shell -
-// raw->setParent(this); raw->show(); (ui/layers/box_layer_widget.cpp:327-331).
+// raw->setParent(this); raw->show(); (ui/layers/box_layer_widget.cpp).
 // A footer button is therefore a direct child of the Ui::BoxLayerWidget and
 // not a descendant of the published content widget at all, so a
 // content-rooted FindAll<Ui::RoundButton>(box) can only ever answer zero, a
@@ -34,11 +34,11 @@ class Runner;
 // that root's direct children: the box is itself a child of that root, so an
 // unrestricted walk also reaches every button inside the content and could
 // click one that merely carries the wanted label. accessibilityName
-// (ui/widgets/buttons.h:152-154, virtual on Ui::RpWidget at
-// ui/rp_widget.h:421) is matched case-insensitively and carries the
+// (Ui::RoundButton in ui/widgets/buttons.h, virtual on Ui::RpWidget at
+// ui/rp_widget.h) is matched case-insensitively and carries the
 // untransformed label, so a setTextTransform(ToUpper) display cannot change
 // the match. Ui::BoxContent::triggerButton(int)
-// (ui/layers/box_content.h:131-133) is not this: it is index-based, so a
+// (ui/layers/box_content.h) is not this: it is index-based, so a
 // caller would have to know the footer order, and it calls clicked()
 // directly, bypassing the press/release/leave route Test::Click guarantees.
 // ClickBoxButton stays single-shot; the self-correcting repeat for a
@@ -51,9 +51,10 @@ class Runner;
 // answer beside that refusal: a shell button that carries the wanted label
 // and is merely disabled or hidden is present, and is not a match.
 //
-// The helper and its self-test share one module for the reason
-// test_menu.h:56-62 states: a facility that appends Runner stages cannot
-// live in test_capture.h, because test_runner.cpp already includes it.
+// The helper and its self-test share one module for the reason the
+// layering note above PopupMenuReading in test_menu.h states: a facility
+// that appends Runner stages cannot live in test_capture.h, because
+// test_runner.cpp already includes it.
 struct BoxShellButtons {
 	QPointer<QWidget> root;
 	QPointer<QWidget> match;
@@ -79,7 +80,8 @@ struct BoxShellButtons {
 // pointers. The unusable-button answer is those three bools, never a
 // pointer a caller could dereference after the shell is gone. A footer
 // callback that closes its box deletes the shell and every button on it
-// synchronously (box_layer_widget.h:85-87 through layer_widget.cpp:944-977),
+// synchronously (Ui::BoxLayerWidget::closeBox in box_layer_widget.h
+// through Ui::LayerStackWidget::clearLayers in layer_widget.cpp),
 // and the reading survives that: matched() answers false from that moment
 // on, on the very object the caller is still holding, with its counts,
 // labels, refusal, identity, present, disabled and hidden intact and
@@ -90,7 +92,7 @@ struct BoxShellButtons {
 // while the reading is matched, because those take not_null<QWidget*>, whose
 // Expects is a crash and not a refusal, and there is nothing left to format
 // afterwards - print the recorded text, not the pointer. PopupMenuReading
-// (test_menu.h:63-72), whose wording this follows, carries no widget
+// (test_menu.h), whose wording this follows, carries no widget
 // pointer at all.
 [[nodiscard]] BoxShellButtons ReadBoxButtons(
 	QWidget *box,

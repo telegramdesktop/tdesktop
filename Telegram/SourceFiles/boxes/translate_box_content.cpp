@@ -235,9 +235,6 @@ void TranslateBoxContent(
 	std::move(to) | rpl::on_next(send, box->lifetime());
 
 	box->addLeftButton(tr::lng_settings_language(), [=] {
-		if (loading->toggled()) {
-			return;
-		}
 		(*chooseTo)();
 	});
 }

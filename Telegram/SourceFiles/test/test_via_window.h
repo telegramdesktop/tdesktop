@@ -15,10 +15,11 @@ class Runner;
 
 // Test::CaptureViaWindow measuring itself on the widget shape that paid for
 // it: a real Ui::Toast. Its internal::Widget sets only
-// Qt::WA_TransparentForMouseEvents (ui/toast/toast_widget.cpp:413-441), and
-// while its shown level is below 1 its paintEvent draws the whole frame into
-// a transparent proxy at that opacity and returns (:585-600), so a bare grab
-// of it holds the harness base and nothing else, at perfectly sane geometry.
+// Qt::WA_TransparentForMouseEvents (Widget::Widget in
+// ui/toast/toast_widget.cpp), and while its shown level is below 1 its
+// paintEvent draws the whole frame into a transparent proxy at that opacity
+// and returns, so a bare grab of it holds the harness base and nothing else,
+// at perfectly sane geometry.
 // Run 4 of 2026/08/30/replace-wallet-with-new-or-imported paid for that.
 //
 // The fixture has two halves. The first is that toast over a two-tone opaque
@@ -40,7 +41,7 @@ class Runner;
 // UnpaintedPermille stays far below kUnpaintedMinPermille and
 // PreparedWidgetCapture accepts it, correctly: the failure exists only
 // mid-fade. The toast is shown with Config::infinite, so its _hideAt is 0
-// (ui/toast/toast.cpp:32-34), no expiry timer ever arms, and teardown owns
+// (ui/toast/toast.cpp), no expiry timer ever arms, and teardown owns
 // the hide.
 //
 // A third subject has a fixture of its own, built and destroyed inside a
@@ -52,7 +53,7 @@ class Runner;
 // printable, and the window it named is printed from the text recorded
 // while the reading was still resolved. That top level is never shown on
 // the desktop - QWidgetPrivate::show_sys() takes an early return for
-// Qt::WA_DontShowOnScreen (qwidget.cpp:7886-7903) and never calls
+// Qt::WA_DontShowOnScreen (qwidget.cpp) and never calls
 // window->setVisible(true) - so Test::ResolveActivationWindow, which only
 // ever selects a top level whose QWindow::isVisible() is true, can never
 // select it. The stage measures that rather than asserting it: it reads

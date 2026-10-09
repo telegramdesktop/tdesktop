@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/windows_app_user_model_id.h"
 #include "platform/win/windows_taskbar_buttons.h"
 #include "platform/win/tray_win.h"
+#include "platform/win/wallet_protection_win.h"
 #include "platform/platform_integration.h"
 #include "platform/platform_specific.h"
 #include "mainwindow.h"
@@ -29,8 +30,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <propkey.h>
 
 namespace Platform {
+namespace {
+
+constexpr auto kPowerBroadcastDebounce = crl::time(1000);
+
+} // namespace
 
 void WindowsIntegration::init() {
+	RegisterWalletProtectionProvider();
+	_powerBroadcastTimer.setCallback([=] {
+		if (_powerState == PowerState::SuspendNotified) {
+			_powerState = PowerState::SuspendSettled;
+		} else if (_powerState == PowerState::AutomaticResumeNotified) {
+			_powerState = PowerState::AutomaticResumeSettled;
+		} else if (_powerState == PowerState::UserResumeNotified) {
+			_powerState = PowerState::Awake;
+		}
+	});
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
 	using namespace QNativeInterface::Private;
 	const auto native = qApp->nativeInterface<QWindowsApplication>();
@@ -196,6 +212,30 @@ bool WindowsIntegration::processEvent(
 		} else if (wParam == WTS_SESSION_LOGON
 			|| wParam == WTS_SESSION_UNLOCK) {
 			Core::App().setScreenIsLocked(false);
+		}
+		break;
+
+	case WM_POWERBROADCAST:
+		if (wParam == PBT_APMSUSPEND) {
+			if (_powerState != PowerState::SuspendNotified) {
+				Core::App().notifySystemSleep();
+			}
+			_powerState = PowerState::SuspendNotified;
+			_powerBroadcastTimer.callOnce(kPowerBroadcastDebounce);
+		} else if (wParam == PBT_APMRESUMEAUTOMATIC) {
+			if (_powerState == PowerState::Awake
+				|| _powerState == PowerState::AutomaticResumeSettled
+				|| _powerState == PowerState::UserResumeNotified) {
+				Core::App().notifySystemSleep();
+			}
+			_powerState = PowerState::AutomaticResumeNotified;
+			_powerBroadcastTimer.callOnce(kPowerBroadcastDebounce);
+		} else if (wParam == PBT_APMRESUMESUSPEND) {
+			if (_powerState == PowerState::Awake) {
+				Core::App().notifySystemSleep();
+			}
+			_powerState = PowerState::UserResumeNotified;
+			_powerBroadcastTimer.callOnce(kPowerBroadcastDebounce);
 		}
 		break;
 

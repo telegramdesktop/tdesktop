@@ -37,9 +37,16 @@ constexpr auto kShellOriginCheck =
 }
 
 [[nodiscard]] QJsonValue ColorValue(QColor color) {
-	return color.isValid()
-		? QJsonValue(color.name(QColor::HexRgb))
-		: QJsonValue();
+	if (!color.isValid()) {
+		return QJsonValue();
+	} else if (color.alpha() == 255) {
+		return color.name(QColor::HexRgb);
+	}
+	return u"rgba(%1, %2, %3, %4)"_q
+		.arg(color.red())
+		.arg(color.green())
+		.arg(color.blue())
+		.arg(color.alphaF());
 }
 
 [[nodiscard]] QByteArray ReadResource(const QString &name) {
@@ -189,11 +196,6 @@ QJsonObject Metrics() {
 		{ u"buttonHeight"_q, Unscaled(st::botWebViewBottomButton.height) },
 		{ u"buttonGapX"_q, Unscaled(st::botWebViewBottomSkip.x()) },
 		{ u"buttonGapY"_q, Unscaled(st::botWebViewBottomSkip.y()) },
-		{ u"disclosureSkip"_q, Unscaled(st::botWebViewShellDisclosureSkip) },
-		{
-			u"footerButtonSkip"_q,
-			Unscaled(st::botWebViewShellFooterButtonSkip),
-		},
 		{ u"fullscreenControlWidth"_q, fullscreenButtonSize.width() },
 		{ u"fullscreenControlHeight"_q, fullscreenButtonSize.height() },
 		{ u"fullscreenControlTop"_q, fullscreenControlShift.y() },
@@ -206,9 +208,7 @@ QSize WindowSize(QSize contentSize) {
 	const auto shadowPadding = Unscaled(st::botWebViewShellShadowPadding);
 	return Unscaled(contentSize) + QSize(
 		shadowPadding.left() + shadowPadding.right(),
-		shadowPadding.top()
-			+ Unscaled(st::botWebViewShellHeaderHeight)
-			+ shadowPadding.bottom());
+		shadowPadding.top() + shadowPadding.bottom());
 }
 
 QJsonObject MenuPalette() {
@@ -228,6 +228,9 @@ QJsonObject ColorPayload(const ResolvedColors &colors) {
 		{ u"bodyBg"_q, ColorValue(colors.bodyBg) },
 		{ u"titleBg"_q, ColorValue(colors.titleBg) },
 		{ u"bottomBg"_q, ColorValue(colors.bottomBg) },
+		{ u"titleFg"_q, ColorValue(colors.titleFg) },
+		{ u"titleControlFg"_q, ColorValue(colors.titleControlFg) },
+		{ u"titleControlRipple"_q, ColorValue(colors.titleControlRipple) },
 	};
 }
 

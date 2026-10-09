@@ -139,6 +139,9 @@ public:
 		close();
 	}
 	[[nodiscard]] virtual rpl::producer<QString> title() = 0;
+	[[nodiscard]] virtual rpl::producer<QString> titleBadge() {
+		return nullptr;
+	}
 	virtual void sectionSaveChanges(FnMut<void()> done) {
 		done();
 	}
@@ -306,6 +309,7 @@ void AddDividerTextWithLottie(
 struct LottieIcon {
 	object_ptr<Ui::RpWidget> widget;
 	Fn<void(anim::repeat repeat)> animate;
+	Fn<bool()> animating;
 };
 [[nodiscard]] LottieIcon CreateLottieIcon(
 	not_null<QWidget*> parent,

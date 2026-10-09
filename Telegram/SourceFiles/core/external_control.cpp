@@ -223,6 +223,7 @@ void RequestEnableAutomation() {
 }
 
 [[nodiscard]] QByteArray HandleLock() {
+	// Match the shortcut's verified lock availability.
 	if (!App().domain().local().hasLocalPasscode()) {
 		return Error(u"no local passcode set"_q);
 	}

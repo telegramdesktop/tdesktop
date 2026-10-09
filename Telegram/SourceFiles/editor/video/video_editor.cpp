@@ -10,12 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "editor/editor_crop.h"
 #include "editor/video/video_quality_slider.h"
+#include "editor/video/video_segment_player.h"
 #include "editor/video/video_timeline.h"
+#include "editor/video/video_timeline_seeker.h"
 #include "lang/lang_keys.h"
-#include "media/streaming/media_streaming_document.h"
-#include "media/streaming/media_streaming_instance.h"
-#include "media/streaming/media_streaming_loader_local.h"
-#include "media/streaming/media_streaming_player.h"
 #include "media/view/media_view_pip.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/layers/layer_widget.h"
@@ -33,8 +31,6 @@ namespace Editor {
 namespace {
 
 using Media::View::FlipSizeByRotation;
-
-constexpr auto kSeekThrottle = crl::time(120);
 
 constexpr auto kBubbleMinVisible = crl::time(600);
 
@@ -171,16 +167,6 @@ void BarTextButton::paintEvent(QPaintEvent *e) {
 	return result;
 }
 
-[[nodiscard]] Media::Streaming::FrameRequest FrameRequestFor(
-		QSize size,
-		bool keepAlpha) {
-	auto result = Media::Streaming::FrameRequest();
-	result.resize = size * style::DevicePixelRatio();
-	result.outer = result.resize;
-	result.keepAlpha = keepAlpha;
-	return result;
-}
-
 } // namespace
 
 VideoEditor::VideoEditor(
@@ -192,7 +178,11 @@ VideoEditor::VideoEditor(
 , _dimensions(descriptor.dimensions)
 , _duration(std::max(descriptor.duration, crl::time(1)))
 , _data(descriptor.data)
-, _initial(descriptor.initial) {
+, _initial(descriptor.initial)
+, _player(std::make_unique<SegmentPlayer>(
+	_path,
+	_content,
+	SegmentPlayerOptions{ .keepAlpha = _data.webmSticker })) {
 	_geometry = _initial.geometry;
 	_gif = _initial.gif;
 	_geometry.cropType = _data.editor.cropType;
@@ -263,40 +253,21 @@ void VideoEditor::setupTimeline() {
 	_from = _timeline->from();
 	_till = _timeline->till();
 	_cover = _timeline->cover();
-	_position = _from;
-
-	struct State {
-		base::Timer timer;
-		crl::time pending = -1;
-	};
-	const auto state = lifetime().make_state<State>();
-	state->timer.setCallback([=] {
-		if (state->pending >= 0) {
-			const auto position = state->pending;
-			state->pending = -1;
-			restart(position);
-		}
-	});
-	const auto seek = [=](crl::time position) {
-		state->pending = position;
-		if (!state->timer.isActive()) {
-			state->timer.callOnce(kSeekThrottle);
-		}
-	};
+	_seeker = std::make_unique<TimelineSeeker>(
+		_timeline.get(),
+		_player.get());
 
 	_timeline->trimChanges(
-	) | rpl::on_next([=](crl::time edge) {
+	) | rpl::on_next([=] {
 		_from = _timeline->from();
 		_till = _timeline->till();
 		_cover = _timeline->cover();
 		refreshSizeEstimate();
-		seek(edge);
 	}, _timeline->lifetime());
 
 	_timeline->coverChanges(
 	) | rpl::on_next([=](crl::time cover) {
 		_cover = cover;
-		seek(cover);
 		updateBubble();
 		refreshCoverPreview();
 	}, _timeline->lifetime());
@@ -306,17 +277,6 @@ void VideoEditor::setupTimeline() {
 		_dragging = dragging;
 		if (dragging) {
 			_draggingHead = _timeline->draggingHead();
-			if (_instance) {
-				_instance->pause();
-			}
-		} else {
-			state->timer.cancel();
-			const auto latest = (state->pending >= 0)
-				? state->pending
-				: _position;
-			state->pending = -1;
-			const auto resume = std::clamp(latest, _from, _till);
-			restart((resume >= _till) ? _from : resume);
 		}
 		if (!dragging && _draggingHead) {
 			_draggingHead = false;
@@ -558,40 +518,21 @@ void VideoEditor::setupControls() {
 		_cancel.fire({});
 	});
 	_confirm->setClickedCallback([=] {
+		_timeline->commitPendingEdit();
 		_done.fire(collect());
 	});
 }
 
 void VideoEditor::setupStreaming() {
-	using namespace Media::Streaming;
-
-	auto loader = _path.isEmpty()
-		? MakeBytesLoader(_content)
-		: MakeFileLoader(_path);
-	if (!loader) {
-		return;
-	}
-	_instance = std::make_unique<Instance>(
-		std::make_shared<Document>(std::move(loader)),
-		nullptr);
-	if (!_instance->valid()) {
-		_instance = nullptr;
-		return;
-	}
-	_instance->lockPlayer();
-	_instance->player().updates(
-	) | rpl::on_next_error([=](Update &&update) {
-		handleUpdate(std::move(update));
-	}, [=](Error &&) {
-		_instance = nullptr;
+	_player->repaints(
+	) | rpl::on_next([=] {
 		update();
-	}, _instance->lifetime());
+		if (_player->held()) {
+			updateBubble();
+		}
+	}, lifetime());
 
-	restart(_from);
-}
-
-bool VideoEditor::held() const {
-	return _dragging || _userPaused;
+	_player->start();
 }
 
 void VideoEditor::setupTapToPause() {
@@ -630,15 +571,11 @@ void VideoEditor::setupTapToPause() {
 }
 
 void VideoEditor::togglePause() {
-	if (!_instance) {
+	if (!_player->valid()) {
 		return;
 	}
 	_userPaused = !_userPaused;
-	if (_userPaused) {
-		_instance->pause();
-	} else {
-		_instance->resume();
-	}
+	_player->setPaused(_userPaused);
 	update();
 }
 
@@ -795,64 +732,6 @@ void VideoEditor::updateBubble() {
 	_bubble->update();
 }
 
-void VideoEditor::restart(crl::time position) {
-	if (!_instance) {
-		return;
-	}
-	using namespace Media::Streaming;
-	if (!_frameRect.isEmpty()
-		&& _instance->player().ready()
-		&& !_instance->player().videoSize().isEmpty()) {
-		_lastFrame = _instance->frame(FrameRequestFor(
-			_frameRect.size(),
-			_data.webmSticker)).copy();
-	}
-	_position = std::clamp(position, _from, _till);
-	auto options = PlaybackOptions();
-	options.mode = Mode::Video;
-	options.position = _position;
-	options.loop = false;
-	_instance->play(options);
-	if (held()) {
-		_instance->pause();
-	}
-	if (!_dragging && _timeline) {
-		_timeline->setPlaybackPosition(_position);
-	}
-	update();
-}
-
-void VideoEditor::handleUpdate(Media::Streaming::Update &&update) {
-	using namespace Media::Streaming;
-	v::match(update.data, [&](Information &) {
-		this->update();
-	}, [&](PreloadedVideo) {
-	}, [&](UpdateVideo &data) {
-		_position = data.position;
-		if (held()) {
-			_instance->pause();
-			this->update();
-			updateBubble();
-			return;
-		}
-		if (_position >= _till) {
-			restart(_from);
-			return;
-		}
-		if (_timeline) {
-			_timeline->setPlaybackPosition(_position);
-		}
-		this->update();
-	}, [&](PreloadedAudio) {
-	}, [&](UpdateAudio) {
-	}, [&](WaitingForData) {
-	}, [&](SpeedEstimate) {
-	}, [&](MutedByOther) {
-	}, [&](Finished) {
-		restart(_from);
-	});
-}
-
 void VideoEditor::applyGeometry() {
 	const auto size = this->size();
 	if (size.isEmpty()) {
@@ -919,8 +798,10 @@ void VideoEditor::applyGeometry() {
 	_frameMatrix.rotate(_geometry.angle);
 
 	const auto geometry = _frameMatrix.mapRect(_frameRect);
+	const auto m = _crop->cropMargins();
 	_crop->applyTransform(
-		geometry + _crop->cropMargins(),
+		geometry + m,
+		QPoint(m.left(), m.top()),
 		_geometry.angle,
 		_geometry.flipped,
 		frameSizeF);
@@ -962,21 +843,7 @@ void VideoEditor::paint(QPainter &p) {
 	if (_frameRect.isEmpty()) {
 		return;
 	}
-	auto frame = QImage();
-	if (_instance
-		&& _instance->player().ready()
-		&& !_instance->player().videoSize().isEmpty()) {
-		frame = _instance->frame(FrameRequestFor(
-			_frameRect.size(),
-			_data.webmSticker));
-		if (!held()) {
-			// Marking a frame shown lets the player walk past a pause.
-			_instance->markFrameShown();
-		}
-	}
-	if (frame.isNull()) {
-		frame = _lastFrame;
-	}
+	const auto frame = _player->frame(_frameRect.size());
 	if (frame.isNull()) {
 		return;
 	}
@@ -1012,6 +879,7 @@ void VideoEditor::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		_cancel.fire({});
 	} else if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
+		_timeline->commitPendingEdit();
 		_done.fire(collect());
 	}
 }

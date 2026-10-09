@@ -308,6 +308,8 @@ A comment is one line; two or three only when the block opens with `// WHY:`. A 
 
 Do not remove existing comments just to satisfy this rule. Preserve comments unless your change makes them incorrect or truly obsolete; when moving or refactoring code, move the useful comment with it. Inline comments that label positional arguments for generated or schema-driven APIs (for example TL/MTP constructors) are useful because the field names are not visible in the call itself.
 
+**Never cite line numbers** in comments, `README.md` files or other checked-in text. Name the function, member, constant or type, and its file when that helps: write `Runner::finish()` in `test_runner.cpp`, not `test_runner.cpp:NNN` or `:NNN-MMM`. Line numbers drift with every edit and nothing updates them. This covers submodule, Qt and other third-party sources too. Quoted log or crash text stays verbatim.
+
 ```cpp
 // BAD - don't do this:
 // Get the user's name
@@ -759,6 +761,7 @@ auto filesTextProducer = tr::lng_files_selected(
 - Omit `tr::now` for reactive `rpl::producer<QString>`
 - Placeholders use `lt_tag_name, value` pattern
 - For `{count}`: immediate uses `int`, reactive uses `rpl::producer<float64>` with `| tr::to_count()`
+- Every plural form, `#one` included, keeps `{count}`: many languages put more than 1 into their "one" category (Russian: 21, 31, ...), so a `#one` phrase written for exactly 1 is wrong for them. When exactly 1 deserves different wording, add a separate non-plural key and pick it in code, so every language gets that special case
 - Move producers with `std::move` when passing to placeholders
 - Rich text projectors — these `tr::` helpers serve double duty: as the **last argument** (projector) they set the return type to `TextWithEntities`, and as **placeholder values** they wrap individual substitutions in formatting. Always prefer them over `Ui::Text::Bold()`, `Ui::Text::RichLangValue`, etc. — see REVIEW.md for the full mapping.
   - `tr::marked` — basic projection, converts `QString` to `TextWithEntities`

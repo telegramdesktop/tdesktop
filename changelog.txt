@@ -1,3 +1,18 @@
+7.3 (08.10.26)
+
+- Money.
+
+7.2.10 beta (25.09.26)
+
+- Update emoji to Unicode 17.
+- Submit the rich messages editor with Ctrl+Enter.
+- Play audio tracks in a rich message as a playlist.
+- Improve screen reader support for message selection and the unread bar.
+- Fix empty lines lost when converting an article to plain text.
+- Fix shared media and pinned messages in topics and Saved Messages.
+- Fix animated emoji effects autoplaying on already read messages.
+- Fix many crashes.
+
 7.2.9 (16.09.26)
 
 - Fix some tlottie incorrect renderings.

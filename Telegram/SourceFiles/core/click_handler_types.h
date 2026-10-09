@@ -44,6 +44,10 @@ class SessionController;
 
 [[nodiscard]] bool UrlRequiresConfirmation(const QUrl &url);
 
+// Our links open without a confirmation, so a web login token someone else
+// put into such a link would log the user in to the sender's account.
+[[nodiscard]] QString UrlWithoutWebAuthTokens(const QString &url);
+
 class PeerData;
 struct ClickHandlerContext {
 	FullMsgId itemId;
@@ -54,6 +58,7 @@ struct ClickHandlerContext {
 	std::shared_ptr<Ui::Show> show;
 	bool mayShowConfirmation = false;
 	bool skipBotAutoLogin = false;
+	bool keepWebAuthTokens = false; // Only for urls accepted by the server.
 	bool botStartAutoSubmit = false;
 	bool ignoreIv = false;
 	bool forceExternalUrlConfirmation = false;
@@ -257,5 +262,17 @@ public:
 private:
 	TimeId _date = 0;
 	QString _entityData;
+
+};
+
+class TonAddressClickHandler : public ClickHandler {
+public:
+	explicit TonAddressClickHandler(QString address);
+
+	void onClick(ClickContext context) const override;
+	TextEntity getTextEntity() const override;
+
+private:
+	QString _address;
 
 };

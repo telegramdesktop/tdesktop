@@ -443,9 +443,9 @@ void AppendSeparatePanelWalkSelfTest(not_null<Runner*> runner) {
 			// does not expose the way Ui::PopupMenu::useTransparency()
 			// does. It is the same value, because initGeometry latched it
 			// from the predicate at setInnerSize() time
-			// (separate_panel.cpp:1424, reached from :1367), in the
-			// statement before the show and in this same turn, and it is
-			// recorded and printed here, never branched on.
+			// (separate_panel.cpp), in the statement before the show and
+			// in this same turn, and it is recorded and printed here,
+			// never branched on.
 			state->cacheGeometry = raw->geometry();
 			state->cacheState = ReadPanelShowState(raw);
 			state->cacheTranslucent

@@ -51,6 +51,10 @@ PasswordCheckWidget::PasswordCheckWidget(
 	) | rpl::on_next([=] {
 		hideError();
 	}, _codeField->lifetime());
+	_codeField->submits(
+	) | rpl::on_next([=] {
+		submit();
+	}, _codeField->lifetime());
 
 	setTitleText(tr::lng_signin_title());
 	updateDescriptionText();

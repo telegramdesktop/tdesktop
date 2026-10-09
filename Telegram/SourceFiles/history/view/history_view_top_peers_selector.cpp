@@ -10,9 +10,13 @@
 #include "base/unique_qptr.h"
 #include "chat_helpers/share_message_phrase_factory.h"
 #include "data/components/top_peers.h"
+#include "data/data_folder.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "dialogs/dialogs_indexed_list.h"
+#include "dialogs/dialogs_main_list.h"
+#include "dialogs/dialogs_row.h"
 #include "history/history.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
@@ -37,15 +41,47 @@ constexpr auto kMaxPeers = 5;
 [[nodiscard]] std::vector<not_null<PeerData*>> CollectPeers(
 		not_null<Main::Session*> session) {
 	const auto user = session->user();
-	auto topPeers = session->topPeers().list();
-	const auto it = ranges::find(topPeers, user);
-	if (it != topPeers.end()) {
-		topPeers.erase(it);
-	}
 	auto result = std::vector<not_null<PeerData*>>();
-	result.push_back(user);
-	for (const auto &peer : topPeers | ranges::views::take(kMaxPeers - 1)) {
+	const auto full = [&] {
+		return int(result.size()) >= kMaxPeers;
+	};
+	const auto add = [&](not_null<PeerData*> peer) {
+		if (full() || ranges::contains(result, peer)) {
+			return;
+		}
 		result.push_back(peer);
+	};
+	const auto addUser = [&](not_null<PeerData*> peer) {
+		const auto asUser = peer->asUser();
+		if (asUser
+			&& !asUser->isBot()
+			&& !asUser->isInaccessible()
+			&& !asUser->isServiceUser()) {
+			add(asUser);
+		}
+	};
+	add(user);
+	if (!session->topPeers().disabled()) {
+		for (const auto &peer : session->topPeers().list()) {
+			if (peer->isUser()) {
+				add(peer);
+			}
+		}
+	}
+	const auto addList = [&](not_null<Dialogs::IndexedList*> list) {
+		for (const auto &row : list->all()) {
+			if (full()) {
+				return;
+			}
+			if (const auto history = row->history()) {
+				addUser(history->peer);
+			}
+		}
+	};
+	auto &data = session->data();
+	addList(data.chatsList()->indexed());
+	if (const auto folder = data.folderLoaded(Data::Folder::kId)) {
+		addList(folder->chatsList()->indexed());
 	}
 	return result;
 }

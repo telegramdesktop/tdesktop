@@ -35,6 +35,7 @@ class Changes;
 class GiftAuctions;
 class RecentInlineBots;
 class RecentPeers;
+class RecentMoneyRecipients;
 class RecentSharedMediaGifts;
 class ScheduledMessages;
 class WelcomeMessages;
@@ -83,6 +84,10 @@ class AttachWebView;
 namespace Ui {
 struct ColorIndicesCompressed;
 } // namespace Ui
+
+namespace Wallet {
+class Session;
+} // namespace Wallet
 
 namespace Main {
 
@@ -147,6 +152,9 @@ public:
 	[[nodiscard]] Data::RecentPeers &recentPeers() const {
 		return *_recentPeers;
 	}
+	[[nodiscard]] Data::RecentMoneyRecipients &recentMoneyRecipients() const {
+		return *_recentMoneyRecipients;
+	}
 	[[nodiscard]] Data::RecentSharedMediaGifts &recentSharedGifts() const {
 		return *_recentSharedGifts;
 	}
@@ -185,6 +193,9 @@ public:
 	}
 	[[nodiscard]] Data::Credits &credits() const {
 		return *_credits;
+	}
+	[[nodiscard]] Wallet::Session &wallet() const {
+		return *_wallet;
 	}
 	[[nodiscard]] Api::Updates &updates() const {
 		return *_updates;
@@ -328,6 +339,7 @@ private:
 	const std::unique_ptr<SendAsPeers> _sendAsPeers;
 	const std::unique_ptr<InlineBots::AttachWebView> _attachWebView;
 	const std::unique_ptr<Data::RecentPeers> _recentPeers;
+	const std::unique_ptr<Data::RecentMoneyRecipients> _recentMoneyRecipients;
 	const std::unique_ptr<Data::RecentSharedMediaGifts> _recentSharedGifts;
 	const std::unique_ptr<Data::GiftAuctions> _giftAuctions;
 	const std::unique_ptr<Data::ScheduledMessages> _scheduledMessages;
@@ -341,6 +353,7 @@ private:
 	const std::unique_ptr<Data::Factchecks> _factchecks;
 	const std::unique_ptr<Data::LocationPickers> _locationPickers;
 	const std::unique_ptr<Data::Credits> _credits;
+	const std::unique_ptr<Wallet::Session> _wallet;
 	const std::unique_ptr<Data::PromoSuggestions> _promoSuggestions;
 	const std::unique_ptr<Data::Passkeys> _passkeys;
 	const std::unique_ptr<Settings::FaqSuggestions> _faqSuggestions;

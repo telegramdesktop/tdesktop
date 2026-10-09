@@ -368,7 +368,7 @@ private:
 	rpl::event_stream<> _communityAddChatRefresh;
 	rpl::event_stream<bool> _searchStateForTopBarSuggestion;
 	rpl::event_stream<> _prepareTopBarSnapshot;
-	rpl::event_stream<bool> _openedFolderOrForumChanges;
+	rpl::variable<bool> _openedFolderOrForum;
 
 	object_ptr<Ui::ElasticScroll> _scroll;
 	Ui::VerticalLayout *_innerList = nullptr;
@@ -455,6 +455,7 @@ private:
 	std::unique_ptr<Ui::RpWidget> _childListShadow;
 	rpl::variable<float64> _childListShown;
 	rpl::variable<PeerId> _childListPeerId;
+	bool _childListPostponed = false;
 	std::unique_ptr<Ui::RpWidget> _hideChildListCanvas;
 	std::unique_ptr<Ui::RpWidget> _chatsFilterSlideCanvas;
 

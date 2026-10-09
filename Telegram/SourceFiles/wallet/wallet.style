@@ -1,0 +1,808 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/basic.style";
+using "ui/chat/chat.style";
+using "ui/layers/layers.style";
+using "ui/widgets/widgets.style";
+using "info/channel_statistics/boosts/giveaway/giveaway.style";
+using "settings/settings.style";
+
+walletMenuIcon: icon{{ "menu/wallet-24x24", menuIconColor }};
+walletMenuCurrencyIcon: icon{{ "menu/ip_address", menuIconColor }};
+
+walletPanelSize: size(392px, 620px);
+walletCardHeight: 190px;
+walletCardMargin: margins(40px, 0px, 40px, 0px);
+walletCardRadius: 16px;
+walletCardSoftness: 55px;
+walletCardFieldStep: 4px;
+walletCardTopSkip: 6px;
+walletCardContentLeft: 20px;
+walletCardContentSkip: 8px;
+walletCardSecondaryOpacity: 0.6;
+walletCardBalanceTop: 70px;
+walletCardBalanceMajorLabel: FlatLabel(defaultFlatLabel) {
+	maxHeight: 44px;
+	textFg: activeButtonFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(22px semibold);
+	}
+}
+walletCardMarkSize: 20px;
+walletCardIconMargin: margins(0px, 1px, 6px, 0px);
+walletCardBalanceMinorLabel: FlatLabel(walletCardBalanceMajorLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(16px semibold);
+	}
+}
+walletCardTickerSkip: 7px;
+walletCardFiatLabel: FlatLabel(defaultFlatLabel) {
+	textFg: activeButtonFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+	}
+}
+walletCardFiatTop: 98px;
+walletCardFoldTopScale: 0.80;
+walletCardFoldBottomScale: 0.92;
+walletCardFoldFadePower: 4.0;
+walletCardAngleReach: 320px;
+walletTitleFoldScale: 0.95;
+walletBalanceHeaderMajorFont: font(15px semibold);
+walletBalanceHeaderFiatFont: font(12px semibold);
+walletBalanceHeaderLineSkip: 2px;
+walletCardNameFont: font(13px semibold);
+walletCardNameBottom: 17px;
+walletCardAddressFont: font(9px semibold);
+walletCardAddressSkip: 13px;
+walletCardAddressRight: 14px;
+walletCardQrSize: size(46px, 36px);
+walletCardQrRadius: 10px;
+walletCardQrRight: 42px;
+walletCardQrTop: 72px;
+walletCardQrIcon: icon{{ "menu/qr_code", windowSubTextFg }};
+walletCardInfoIcon: icon{{ "menu/info", windowSubTextFg }};
+walletChatCardMarkTop: 29px;
+walletChatCardMarkSize: 42px;
+// The animation paints over its layout slot, centred on it, so rows stay put.
+walletChatCardMarkPaintSize: 63px;
+// Lifts the larger diamond enough to keep today's gap above the amount.
+walletChatCardMarkRaise: 8px;
+walletChatCardGlareWidth: 90px;
+walletChatCardGlareStroke: 2px;
+walletChatCardClockSize: 12px;
+walletChatCardClockStroke: 1px;
+walletChatCardClockMinuteHand: 4px;
+walletChatCardClockHourHand: 3px;
+// The settled word rises into its ribbon from this far below its rest.
+walletChatCardRevealWordShift: 8px;
+walletChatCardAmountSkip: 3px;
+walletChatCardNameSkip: 15px;
+walletChatCardAddressSkip: 5px;
+walletChatCardBottom: 11px;
+// Halves the capture's measured 12px gap: chatUniqueGiftBorder + 2 = 6.
+walletChatCardCommentSkip: 2px;
+
+walletSendButton: RoundButton(defaultActiveButton) {
+	height: 40px;
+	textTop: 11px;
+	fullRadius: true;
+}
+// Sides match walletRowIconLeft, the gap matches the card-to-buttons skip.
+walletSendButtonMargin: margins(20px, 12px, 20px, 0px);
+walletButtonsSkip: 12px;
+walletIslandMargin: margins(20px, 0px, 20px, 0px);
+walletHeaderBottomSkip: 12px;
+// Left 22px and the vertical 10/8 are settingsButtonNoIcon's own values, so
+// the row stays 38px tall. Right 50px is walletBuyRowPadding's existing
+// allowance for the same st::backButton chevron - SettingsButton::paintText
+// elides at width - padding.left - padding.right, so 22px would let the
+// text run under the arrow. Both backgrounds are transparent because the
+// island paints the pill behind every entry.
+walletIslandRow: SettingsButton(settingsButtonNoIcon) {
+	textBg: transparent;
+	textBgOver: transparent;
+	padding: margins(22px, 10px, 50px, 8px);
+}
+// The Gram Earnings entry carries its sentence in a FlatLabel, so its width
+// limit is a WRAP width, not walletIslandRow's conservative 50px elision
+// allowance: AddRowChevron's st::backButton is 40px wide, inset 5px by
+// settingsPremiumArrowShift and centring a 16px icon, so the chevron's icon
+// box begins 33px from the row's right edge. minWidth is the wrap
+// measurement's own floor - a zero one makes Ui::Text::String measure every
+// string as one line, which walletBuyRowSubtitle below explains in full.
+walletIslandRowLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 80px;
+	style: boxTextStyle;
+	textFg: windowBoldFg;
+}
+walletIslandLabelRightSkip: 33px;
+walletInfoIslandShadow: BoxShadow {
+	blurRadius: 3px;
+	offset: point(0px, 1px);
+	opacity: 0.09;
+}
+
+walletAboutTopSkip: 24px;
+walletAboutPadding: margins(90px, 0px, 54px, 0px);
+walletAboutIconLeft: 48px;
+walletAboutTitleLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowBoldFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(15px semibold);
+	}
+}
+walletAboutTextLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 248px;
+	textFg: windowSubTextFg;
+}
+walletAboutTitleSkip: 3px;
+walletAboutRowSkip: 20px;
+walletAboutInstantIcon: icon{{ "menu/send_instantly-24x24", windowBoldFg }};
+walletAboutFeesIcon: icon{{ "menu/no_fees-24x24", windowBoldFg }};
+walletAboutChainIcon: icon{{ "menu/blockchain_verified-24x24", windowBoldFg }};
+
+walletRowsTopSkip: 16px;
+walletAboutBottomSkip: walletRowsTopSkip;
+walletRowPadding: margins(76px, 6px, 20px, 6px);
+walletRowIconSize: 46px;
+walletRowIconLeft: 20px;
+walletRowArrowIn: icon{{ "wallet/incoming_arrow", historyPeerUserpicFg }};
+walletRowArrowOut: icon{{ "wallet/outgoing_arrow", historyPeerUserpicFg }};
+walletRowGearIcon: icon{{ "wallet/gear", historyPeerUserpicFg }};
+walletRowKeyIcon: icon{{ "settings/key", historyPeerUserpicFg }};
+walletRowTitleLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowBoldFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+	}
+}
+walletRowSubtitleLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowBoldFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px);
+	}
+}
+walletRowDateLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px);
+	}
+}
+walletRowSkip: 4px;
+walletRowAmountMajorLabel: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+	}
+}
+walletRowAmountMinorLabel: FlatLabel(walletRowAmountMajorLabel) {
+}
+walletRowAmountMinorSkip: 0px;
+walletRowMarkSize: 15px;
+walletRowIconMargin: margins(5px, 3px, 0px, 0px);
+walletRowsHintHeight: 44px;
+walletSendingRowOutset: 7px;
+walletSendingRowAmountFont: font(19px semibold);
+walletSendingRowTextMinWidth: 96px;
+walletSendingRowDiamondSkip: 8px;
+walletSendingRowClockSize: 14px;
+walletSendingRowClockStroke: 1px;
+walletSendingRowClockMinuteHand: 5px;
+walletSendingRowClockHourHand: 4px;
+walletSendingRowClockShift: 16px;
+walletSendingRowClockCutout: 2px;
+walletSendingRowGlareWidth: 168px;
+walletSendingRowGlareStroke: 2px;
+walletSendingRowEntranceShift: 13px;
+walletSendingRowBurstOutset: 24px;
+// Text left is walletRowPadding.left, so the row's text lines up with the
+// transaction titles; iconLeft centres the 24px icon on the 46px avatar
+// column at walletRowIconLeft (20 + (46 - 24) / 2). Right 50px is the same
+// chevron allowance walletIslandRow uses for AddRowChevron.
+walletProtectRowSkip: walletRowsTopSkip;
+walletProtectRow: SettingsButton(settingsAttentionButtonWithIcon) {
+	padding: margins(76px, 10px, 50px, 10px);
+	iconLeft: 31px;
+}
+walletProtectRowIcon: icon{{ "menu/info", attentionButtonFg }};
+walletListsLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	size: size(56px, 56px);
+	color: windowSubTextFg;
+	thickness: 4px;
+}
+walletKeysRowLoading: InfiniteRadialAnimation(startGiveawayButtonLoading) {
+	color: windowSubTextFg;
+}
+walletBusyBoxLoading: InfiniteRadialAnimation(walletListsLoading) {
+	size: size(32px, 32px);
+	thickness: 3px;
+}
+walletBusyBoxPadding: margins(0px, 8px, 0px, 16px);
+walletUnlockPromptLoading: InfiniteRadialAnimation(walletBusyBoxLoading) {
+	size: size(32px, 32px);
+	thickness: 2px;
+}
+walletUnlockPromptPadding: margins(0px, 12px, 0px, 4px);
+
+walletTabsSlider: SettingsSlider(defaultTabsSlider) {
+	padding: 12px;
+	strictSkip: 24px;
+}
+// The strip's first tab without its bar, so the title matches the tab exactly.
+walletRowsTitle: SettingsSlider(walletTabsSlider) {
+	barFgActive: transparent;
+}
+walletCollectibleRowHeight: 60px;
+walletCollectibleThumbRadius: 6px;
+walletCollectibleTitleStyle: TextStyle(defaultTextStyle) {
+	font: font(14px);
+}
+walletCollectibleTitlePalette: TextPalette(defaultTextPalette) {
+	linkFg: windowSubTextFg;
+}
+walletCollectibleTitleLabel: FlatLabel(walletRowTitleLabel) {
+	maxHeight: 20px;
+	style: walletCollectibleTitleStyle;
+	palette: walletCollectibleTitlePalette;
+}
+walletChipUsernameIcon: icon{{ "wallet/chip_username", historyPeerUserpicFg }};
+walletChipNumberIcon: icon{{ "wallet/chip_number", historyPeerUserpicFg }};
+walletRowItemMarkIn: IconEmoji {
+	icon: icon{{ "profile/gift-15x15", boxTextFgGood }};
+	padding: margins(4px, 1px, 0px, 0px);
+	useIconColor: true;
+}
+walletRowItemMarkOut: IconEmoji(walletRowItemMarkIn) {
+	icon: icon{{ "profile/gift-15x15", windowSubTextFg }};
+}
+walletChipTopSkip: 12px;
+walletChipTextSkip: 12px;
+walletChipPadding: margins(0px, 0px, 12px, 0px);
+
+walletDetailsBox: Box(giveawayGiftCodeBox) {
+	bg: windowBgOver;
+	buttonPadding: margins(24px, 11px, 24px, 22px);
+}
+walletReceiveBox: Box(giveawayGiftCodeBox) {
+	buttonPadding: margins(0px, 0px, 0px, 0px);
+	buttonHeight: 0px;
+}
+walletPillBox: Box(giveawayGiftCodeBox) {
+	button: RoundButton(giveawayGiftCodeBoxButton) {
+		fullRadius: true;
+	}
+}
+walletConflictBox: Box(defaultBox) {
+	buttonPadding: margins(0px, 0px, 0px, 14px);
+	buttonHeight: 0px;
+}
+walletConflictBoxTopSkip: 14px;
+walletDetailsTable: Table(giveawayGiftCodeTable) {
+}
+walletDetailsFeeLabel: FlatLabel(defaultTableValue) {
+	palette: TextPalette(defaultTextPalette) {
+		linkFg: windowSubTextFg;
+	}
+}
+walletDetailsAmountMajorLabel: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(28px semibold);
+	}
+}
+walletDetailsAmountMinorLabel: FlatLabel(walletDetailsAmountMajorLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(22px semibold);
+	}
+}
+walletDetailsTickerLabel: FlatLabel(walletDetailsAmountMinorLabel) {
+	textFg: windowActiveTextFg;
+}
+walletDetailsAmountMinorSkip: 6px;
+walletDetailsTickerSkip: 6px;
+walletDetailsIconMargin: margins(6px, -2px, 0px, 0px);
+walletDetailsLottieSize: 52px;
+walletDetailsLottieSkip: 4px;
+walletDetailsAmountTopSkip: 24px;
+walletDetailsAmountBottomSkip: 20px;
+walletDetailsFiatLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+	}
+}
+walletDetailsFiatSkip: 2px;
+walletDetailsAddressLabel: FlatLabel(defaultTableValue) {
+	minWidth: 128px;
+	maxHeight: 100px;
+	palette: TextPalette(defaultTextPalette) {
+		monoFg: windowFg;
+	}
+}
+walletDetailsCollectibleSize: 120px;
+walletDetailsCollectibleRadius: 10px;
+walletDetailsCollectibleNameSkip: 20px;
+walletDetailsCollectionSkip: 4px;
+walletDetailsCollectionLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+	}
+}
+walletDetailsCollectionArrow: icon{{ "dialogs/dialogs_topic_arrow", windowSubTextFg }};
+walletDetailsCollectionArrowSkip: 4px;
+walletCommentLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 128px;
+}
+
+walletSendAddressField: InputField(defaultInputField) {
+	textMargins: margins(0px, 10px, 76px, 2px);
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderScale: 0.;
+	placeholderFont: boxTextFont;
+	heightMin: 36px;
+}
+walletSendErrorLabel: FlatLabel(defaultFlatLabel) {
+	textFg: attentionButtonFg;
+}
+walletSendBalanceLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+walletSendField: InputField(defaultInputField) {
+	textMargins: margins(0px, 28px, 0px, 8px);
+	placeholderFont: boxTextFont;
+	heightMin: 55px;
+}
+walletSendFieldMargin: margins(24px, 12px, 24px, 12px);
+walletSendRecentHeaderPadding: margins(24px, 5px, 24px, 5px);
+walletSendRecentListTopSkip: 6px;
+walletSendRecentListSkip: 12px;
+walletSendCommentBubble: UniqueGiftMessageBubble(chatUniqueMessageBubble) {
+	avatarSize: 0px;
+}
+walletSendCommentTextStyle: semiboldTextStyle;
+walletSendCommentTextFg: windowSubTextFg;
+walletSendCommentOutline: boxDividerFg;
+walletSendCommentBgOver: windowBgOver;
+walletSendUserAmountFont: font(28px semibold);
+walletSendUserAmountField: InputField(defaultInputField) {
+	textMargins: margins(0px, 0px, 0px, 0px);
+	textAlign: align(center);
+	placeholderAlign: align(left);
+	placeholderFg: windowSubTextFg;
+	placeholderFgActive: windowSubTextFg;
+	placeholderFgError: windowSubTextFg;
+	placeholderScale: 0.;
+	placeholderShift: 0px;
+	placeholderFont: walletSendUserAmountFont;
+	style: TextStyle(defaultTextStyle) {
+		font: walletSendUserAmountFont;
+	}
+	border: 0px;
+	borderActive: 0px;
+	heightMin: boxTitleHeight;
+	widthMin: 0px;
+	duration: 0;
+}
+walletSendUserTickerLabel: FlatLabel(walletDetailsAmountMinorLabel) {
+	textFg: windowSubTextFg;
+}
+walletSendUserCaretSkip: 2px;
+walletSendUserAmountLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: walletSendUserAmountFont;
+	}
+}
+walletSendUserGramFg: windowActiveTextFg;
+walletSendUserFiatFg: boxTextFgGood;
+walletSendUserBalanceLabel: FlatLabel(walletSendBalanceLabel) {
+	minWidth: 200px;
+	align: align(top);
+}
+walletSendUserErrorLabel: FlatLabel(walletSendErrorLabel) {
+	minWidth: 200px;
+	align: align(top);
+}
+walletSendUserFiatButton: RoundButton(defaultTableSmallButton) {
+	textFg: windowSubTextFg;
+	textFgOver: windowSubTextFg;
+	textBg: windowBgOver;
+	textBgOver: windowBgOver;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgRipple;
+	}
+}
+walletCommentField: InputField(walletSendAddressField) {
+	textMargins: margins(0px, 10px, 0px, 2px);
+}
+walletCommentFieldMargin: margins(24px, 8px, 24px, 0px);
+walletCommentPrivacyMargin: margins(24px, 12px, 24px, 0px);
+walletCommentCaptionLabel: FlatLabel(walletSendBalanceLabel) {
+	minWidth: 200px;
+}
+walletCommentErrorLabel: FlatLabel(walletSendErrorLabel) {
+	minWidth: 200px;
+}
+walletCommentCaptionMargin: margins(24px, 8px, 24px, 0px);
+walletTonConnectPayloadLabel: FlatLabel(walletDetailsAddressLabel) {
+	maxHeight: 0px;
+}
+walletTonConnectNoteLabel: FlatLabel(walletDetailsCollectionLabel) {
+	minWidth: 128px;
+}
+walletTonConnectAmountLabel: FlatLabel(walletDetailsFeeLabel) {
+	minWidth: 128px;
+	maxHeight: 0px;
+}
+walletSendConfirmCommentField: InputField(walletCommentField) {
+	textMargins: margins(0px, 10px, 36px, 2px);
+}
+walletSendConfirmLockOn: icon{{ "menu/lock", windowActiveTextFg }};
+walletSendConfirmLockOff: icon{{ "menu/lock", windowSubTextFg }};
+walletCommentLimitSkip: 4px;
+walletSendConfirmLock: IconButton(defaultIconButton) {
+	width: 28px;
+	height: 28px;
+	icon: walletSendConfirmLockOn;
+	iconOver: walletSendConfirmLockOn;
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 28px;
+	ripple: defaultRippleAnimation;
+}
+walletSendConfirmBottomSkip: 12px;
+
+walletPhraseTitleLabel: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(17px semibold);
+	}
+	align: align(top);
+}
+walletPhraseTextLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 256px;
+	align: align(top);
+}
+walletPhraseIntroTextLabel: FlatLabel(walletPhraseTextLabel) {
+	textFg: windowSubTextFg;
+}
+walletPhraseTitlePadding: margins(24px, 13px, 24px, 0px);
+walletPhraseTextMargin: margins(24px, 8px, 24px, 8px);
+walletCoverLottieSize: 64px;
+walletCoverLottieMargin: margins(24px, 48px, 24px, 10px);
+walletPhraseLottieMargin: margins(24px, 32px, 24px, 10px);
+walletPhraseGridLottieSize: 48px;
+walletPhraseGridLottieMargin: margins(24px, 3px, 24px, 3px);
+walletPhraseGridTextMargin: margins(24px, 4px, 24px, 2px);
+walletPhraseWarnPadding: margins(60px, 0px, 24px, 0px);
+walletPhraseWarnLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 248px;
+}
+walletPhraseWarnIconSkip: 3px;
+walletPhraseWarnRowSkip: 12px;
+walletPhraseWarnShareIcon: icon{{ "wallet/eye_off", windowBoldFg }};
+walletPhraseWarnStealIcon: icon{{ "wallet/warning_circle", windowBoldFg }};
+walletPhraseWarnSupportIcon: icon{{ "wallet/shield_check", windowBoldFg }};
+walletPhraseGridPadding: margins(40px, 4px, 40px, 8px);
+walletPhraseColumnSkip: 16px;
+walletPhraseRowSkip: 8px;
+walletPhraseNumberWidth: 24px;
+walletPhraseNumberLabel: FlatLabel(defaultFlatLabel) {
+	textFg: windowSubTextFg;
+}
+walletPhraseWordLabel: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+}
+walletPasscodeLottieMargin: margins(24px, 24px, 24px, 8px);
+walletPasscodeFieldMargin: margins(22px, 16px, 22px, 0px);
+walletPasscodeErrorMargin: margins(22px, 8px, 22px, 8px);
+walletPasscodeCheckboxMargin: margins(22px, 12px, 22px, 0px);
+walletPasscodeForgotMargin: margins(22px, 12px, 22px, 0px);
+walletReplaceButtonMargin: margins(22px, 12px, 22px, 0px);
+walletReplaceTitleLabel: FlatLabel(boxTitle) {
+	minWidth: 120px;
+	maxHeight: 0px;
+}
+walletReplaceTitleMargin: margins(22px, 16px, 22px, 4px);
+walletImportToggleMargin: margins(22px, 8px, 22px, 4px);
+walletImportField: InputField(walletSendAddressField) {
+	textMargins: margins(34px, 10px, 76px, 2px);
+}
+walletImportFieldMargin: margins(22px, 4px, 22px, 4px);
+walletImportNumberLeft: 10px;
+walletImportNumberTop: 10px;
+walletImportClear: CrossButton {
+	width: 22px;
+	height: 22px;
+
+	cross: CrossAnimation {
+		size: 22px;
+		skip: 6px;
+		stroke: 1.5;
+		minScale: 0.3;
+	}
+	crossFg: boxTitleCloseFg;
+	crossFgOver: boxTitleCloseFgOver;
+	crossPosition: point(0px, 0px);
+
+	duration: 150;
+	loadingPeriod: 1000;
+	ripple: defaultRippleAnimationBgOver;
+}
+walletImportClearPosition: point(11px, 7px);
+walletImportErrorLabel: FlatLabel(walletSendErrorLabel) {
+	minWidth: 120px;
+}
+walletImportErrorSkip: 12px;
+walletImportSuggestionsSkip: 2px;
+walletImportSuggestionsPadding: margins(4px, 4px, 4px, 4px);
+walletImportSuggestionRowHeight: 28px;
+walletImportSuggestionRowPadding: margins(8px, 0px, 8px, 0px);
+walletImportPaste: RoundButton(defaultTableSmallButton) {
+	width: -24px;
+	height: 26px;
+	radius: 13px;
+	textTop: 4px;
+	style: semiboldTextStyle;
+}
+walletImportPasteTop: 5px;
+walletAddressPlateFont: font(14px);
+walletAddressPlateInner: 10px;
+walletAddressPlateRadius: 10px;
+walletAddressPlateSkip: 14px;
+
+walletSendUserCardRadius: walletAddressPlateRadius;
+walletSendUserCardPadding: margins(10px, 10px, 10px, 10px);
+walletSendUserCardPhoto: 32px;
+walletSendUserCardPhotoSkip: 8px;
+walletSendUserCardNameFont: font(14px semibold);
+walletSendUserCardAddressFont: font(12px);
+walletSendUserCardNameSkip: 6px;
+walletSendUserCardTextSkip: 4px;
+walletSendUserCardAboutSkip: 6px;
+walletSendUserCardTopSkip: 12px;
+walletSendUserCardAmountSkip: 12px;
+walletSendUserCardAbout: IconButton(defaultIconButton) {
+	width: 24px;
+	height: 24px;
+	icon: icon{{ "menu/faq", windowActiveTextFg }};
+	iconOver: icon{{ "menu/faq", windowActiveTextFg }};
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 24px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgRipple;
+	}
+}
+
+walletInfoBarLabel: FlatLabel(defaultFlatLabel) {
+	style: semiboldTextStyle;
+	textFg: windowActiveTextFg;
+	minWidth: 80px;
+	align: align(center);
+}
+walletInfoBarLabelSkip: 12px;
+
+walletBackupQuizField: InputField(walletImportField) {
+	textMargins: margins(34px, 10px, 10px, 2px);
+}
+walletBackupQuizFieldsTopSkip: 12px;
+walletBackupQuizFieldsBottomSkip: 8px;
+walletBackupUpdateCheckboxMargin: margins(24px, 0px, 24px, 8px);
+walletBackupNoteMargin: margins(0px, 4px, 0px, 8px);
+walletBackupNotePadding: margins(12px, 10px, 12px, 10px);
+walletBackupNoteRadius: 10px;
+walletBackupNoteBg: windowBgOver;
+walletBackupNoteLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 200px;
+	align: align(center);
+	textFg: windowSubTextFg;
+}
+
+walletCollectiblePreviewTitle: FlatLabel(walletPhraseTitleLabel) {
+	palette: walletCollectibleTitlePalette;
+}
+walletCollectiblePreviewAbout: FlatLabel(walletPhraseTextLabel) {
+	textFg: windowSubTextFg;
+}
+walletCollectibleActionsTopSkip: 12px;
+walletCollectibleActionsBottomSkip: 8px;
+walletCollectibleActionHeight: 56px;
+walletCollectibleActionRadius: walletDetailsCollectibleRadius;
+walletCollectibleActionIconTop: 7px;
+walletCollectibleActionTextTop: 32px;
+walletCollectibleActionTextSkip: 8px;
+walletCollectibleCommentField: InputField(walletCommentField) {
+	textMargins: margins(0px, 4px, 0px, 4px);
+	heightMin: 28px;
+	border: 0px;
+	borderActive: 0px;
+}
+
+walletReceiveTitleHeight: boxTitleHeight;
+walletReceiveTitleButtonSkip: 6px;
+walletReceiveTitleLeft: 60px;
+walletReceiveCloseIconActive: icon {{ "box_button_close", activeButtonSecondaryFg }};
+walletReceiveCloseIconActiveOver: icon {{ "box_button_close", activeButtonSecondaryFgOver }};
+walletReceivePlateMargin: margins(0px, 18px, 0px, 0px);
+walletReceivePlatePadding: margins(16px, 16px, 16px, 16px);
+walletReceivePlateRadius: 16px;
+walletReceiveQrSize: 185px;
+walletReceiveQrCopySize: 320px;
+walletReceiveMarkSize: 44px;
+walletReceiveAddressFont: font(14px semibold);
+walletReceiveAddressTopSkip: 11px;
+walletReceiveAddressLineSkip: -2px;
+walletReceiveHintFont: font(13px);
+walletReceiveHintTopSkip: 4px;
+walletReceiveAboutLabel: FlatLabel(walletPhraseTextLabel) {
+	minWidth: 20px;
+	textFg: activeButtonFg;
+}
+walletReceiveAboutMargin: margins(24px, 12px, 24px, 0px);
+walletReceiveBuyButton: RoundButton(defaultLightButton) {
+	height: 42px;
+	textTop: 12px;
+	style: semiboldTextStyle;
+}
+walletReceiveBuyMargin: margins(16px, 16px, 16px, 12px);
+
+walletBuySubsectionPadding: margins(22px, 19px, 22px, 10px);
+walletBuySectionBottomSkip: 12px;
+walletBuyRow: SettingsButton(settingsButtonNoIcon) {
+	iconLeft: 22px;
+}
+walletBuyRowPadding: margins(62px, 6px, 50px, 8px);
+walletBuyRowSkip: 2px;
+walletBuyRowTitle: FlatLabel(defaultFlatLabel) {
+	textFg: windowBoldFg;
+	style: boxTextStyle;
+}
+walletBuyRowSubtitle: FlatLabel(defaultFlatLabel) {
+	// Ui::FlatLabel builds its Ui::Text::String with a minimal resize width
+	// of kQFixedMax when minWidth is zero, and Ui::Text::String::countSize
+	// then clamps every measurement to that. A subtitle wider than this
+	// column would be measured as one line and painted wrapped, so every
+	// line but the first would be clipped away. Keep this at or below
+	// boxWideWidth minus the horizontal walletBuyRowPadding.
+	minWidth: 200px;
+	textFg: windowSubTextFg;
+	style: boxTextStyle;
+}
+walletBuyIconSize: size(24px, 24px);
+walletBuyBankCardIcon: icon {
+	{ walletBuyIconSize, transparent },
+	{ "wallet/bank_card", settingsIconFg, point(4px, 7px) },
+};
+walletBuyCryptoIcon: icon {
+	{ walletBuyIconSize, transparent },
+	{ "wallet/cryptocurrency", settingsIconFg, point(6px, 4px) },
+};
+walletBuyP2pIcon: icon {
+	{ walletBuyIconSize, transparent },
+	{ "wallet/p2p_market", settingsIconFg, point(3px, 3px) },
+};
+walletBuyWaltIcon: icon {
+	{ walletBuyIconSize, transparent },
+	{ "wallet/walt", settingsIconFg, point(2px, 2px) },
+};
+
+walletHowLottieSize: 52px;
+walletHowLottieMargin: margins(24px, 24px, 24px, 12px);
+walletHowSubtitleLabel: FlatLabel(walletPhraseTextLabel) {
+	minWidth: 20px;
+}
+walletHowSubtitleMargin: margins(24px, 8px, 24px, 14px);
+walletFirstSendIcon: icon{{ "menu/send", windowBoldFg }};
+walletFirstTradeIcon: icon{{ "wallet/trade-24x24", windowBoldFg }};
+walletFirstStoreIcon: icon{{ "menu/wallet-24x24", windowBoldFg }};
+walletFirstAttachEmoji: IconEmoji {
+	icon: icon{{ "poll/general/outline_poll_attach-16x16", windowSubTextFg }};
+	padding: margins(1px, 1px, 1px, 0px);
+}
+walletFirstMenuEmoji: IconEmoji(walletFirstAttachEmoji) {
+	icon: icon{{ "wallet/menu_bars-16x16", windowSubTextFg }};
+}
+
+// Fits walletSendButton; the layer insets both edge buttons by right().
+walletConnectBox: Box(defaultBox) {
+	buttonPadding: margins(24px, 12px, 24px, 12px);
+	buttonHeight: 40px;
+}
+walletConnectBack: IconButton(boxTitleClose) {
+	icon: icon {{ "box_button_back", boxTitleCloseFg }};
+	iconOver: icon {{ "box_button_back", boxTitleCloseFgOver }};
+}
+walletConnectIconSize: 72px;
+walletConnectIconMargin: margins(24px, 24px, 24px, 12px);
+walletConnectIconPlaceholder: icon{{ "menu/link", windowSubTextFg }};
+// A zero minWidth would make Ui::Text::String measure the title as one line.
+walletConnectTitleLabel: FlatLabel(walletPhraseTitleLabel) {
+	minWidth: 200px;
+}
+walletConnectTitleMargin: margins(24px, 0px, 24px, 4px);
+walletConnectDomainLabel: FlatLabel(boxLabel) {
+	align: align(top);
+	textFg: windowSubTextFg;
+}
+walletConnectDomainMargin: margins(24px, 0px, 24px, 14px);
+walletConnectTextLabel: FlatLabel(boxLabel) {
+	align: align(top);
+}
+walletConnectTextMargin: margins(24px, 0px, 24px, 16px);
+walletConnectCardMargin: margins(0px, 0px, 0px, 14px);
+walletConnectCaptionLabel: FlatLabel(walletCommentCaptionLabel) {
+	align: align(top);
+}
+walletConnectCaptionMargin: margins(24px, 0px, 24px, 16px);
+walletConnectSignDataLabel: FlatLabel(walletCommentLabel) {
+	palette: TextPalette(defaultTextPalette) {
+		monoFg: windowFg;
+	}
+}
+walletConnectSignFieldLabel: FlatLabel(walletConnectSignDataLabel) {
+	palette: TextPalette(defaultTextPalette) {
+		monoFg: windowFg;
+		linkFg: windowSubTextFg;
+	}
+}
+walletConnectSignFieldIndent: 16px;
+walletConnectSignCaptionMargin: margins(24px, 8px, 24px, 16px);
+walletConnectActionIconLeft: 13px;
+walletConnectActionPadding: margins(71px, 11px, 20px, 11px);
+walletConnectErrorLabel: FlatLabel(walletCommentErrorLabel) {
+	align: align(top);
+}
+// defaultLightButton's textBg is windowBg, so Cancel would have no fill.
+walletConnectCancelButton: RoundButton(walletSendButton) {
+	textFg: windowActiveTextFg;
+	textFgOver: windowActiveTextFg;
+	textBg: windowBgOver;
+	textBgOver: windowBgOver;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgRipple;
+	}
+}
+walletAppsNameLabel: FlatLabel(walletRowTitleLabel) {
+	minWidth: 20px;
+}
+walletAppsDomainLabel: FlatLabel(walletRowSubtitleLabel) {
+	minWidth: 20px;
+}
+walletAppsDateLabel: FlatLabel(walletRowDateLabel) {
+	minWidth: 20px;
+}
+
+walletIntroTooltip: ImportantTooltip(defaultImportantTooltip) {
+	padding: margins(8px, 3px, 8px, 5px);
+	margin: margins(4px, 4px, 4px, 8px);
+}
+walletIntroTooltipFont: font(11px semibold);
+
+walletCurrencyRowHeight: 36px;
+walletCurrencyRowPadding: margins(24px, 9px, 24px, 0px);
+walletCurrencyRowCodeFont: semiboldFont;
+walletCurrencyRowCodeFg: windowBoldFg;
+walletCurrencyRowNameFg: windowSubTextFg;
+walletCurrencyRowNameSkip: 8px;
+walletCurrencyListSkip: 12px;
+walletCurrencyCheckIcon: icon{{ "player/player_check", windowActiveTextFg }};
+
+walletProtectionAttentionCheckbox: Checkbox(defaultBoxCheckbox) {
+	textFg: attentionButtonFg;
+	textFgActive: attentionButtonFg;
+}
+walletProtectionAboutLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 200px;
+	textFg: windowSubTextFg;
+}
+walletProtectionIntroMargin: margins(22px, 4px, 22px, 4px);
+walletProtectionRowSkip: 12px;
+walletProtectionAboutMargin: margins(34px, 0px, 22px, 0px);
+walletProtectionChangeMargin: margins(34px, 6px, 22px, 0px);
+walletProtectionCreateFieldMargin: margins(22px, 12px, 22px, 0px);
+walletProtectionMeterMargin: margins(22px, 8px, 22px, 0px);

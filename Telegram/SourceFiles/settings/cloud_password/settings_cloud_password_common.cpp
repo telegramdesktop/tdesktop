@@ -7,9 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/cloud_password/settings_cloud_password_common.h"
 
+#include "base/qt_signal_producer.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "settings/settings_common.h"
+#include "ui/rect.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/input_field.h"
@@ -21,6 +23,40 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_settings.h"
 
 namespace Settings::CloudPassword {
+namespace {
+
+struct Icon {
+	not_null<Lottie::Icon*> icon;
+	Fn<void()> update;
+};
+
+Icon CreateInteractiveLottieIcon(
+		not_null<Ui::VerticalLayout*> container,
+		Lottie::IconDescriptor &&descriptor,
+		style::margins padding) {
+	auto object = object_ptr<Ui::RpWidget>(container);
+	const auto raw = object.data();
+
+	const auto width = descriptor.sizeOverride.width();
+	raw->resize((Rect(descriptor.sizeOverride) + padding).size());
+
+	auto owned = Lottie::MakeIcon(std::move(descriptor));
+	const auto icon = owned.get();
+
+	raw->lifetime().add([kept = std::move(owned)]{});
+
+	raw->paintRequest(
+	) | rpl::on_next([=] {
+		auto p = QPainter(raw);
+		const auto left = (raw->width() - width) / 2;
+		icon->paint(p, left, padding.top());
+	}, raw->lifetime());
+
+	container->add(std::move(object));
+	return { .icon = icon, .update = [=] { raw->update(); } };
+}
+
+} // namespace
 
 void OneEdgeBoxContentDivider::skipEdge(Qt::Edge edge, bool skip) {
 	const auto was = _skipEdges;
@@ -250,6 +286,138 @@ void AddSkipInsteadOfError(not_null<Ui::VerticalLayout*> content) {
 	const auto &padding = st::changePhoneDescriptionPadding;
 	Ui::AddSkip(content, dummy->height() + padding.top() + padding.bottom());
 	dummy = nullptr;
+}
+
+void SetupIntroHeader(
+		not_null<Ui::VerticalLayout*> content,
+		rpl::producer<> &&showFinished) {
+	SetupHeader(
+		content,
+		u"cloud_password/intro"_q,
+		std::move(showFinished),
+		tr::lng_settings_cloud_password_start_title(),
+		tr::lng_settings_cloud_password_start_about());
+}
+
+PasswordFieldsDescriptor CreatePasswordDescriptor(const QString &text) {
+	return {
+		.lottie = u"cloud_password/password_input"_q,
+		.title = tr::lng_settings_cloud_password_password_subtitle(),
+		.about = tr::lng_cloud_password_about(),
+		.placeholder = tr::lng_cloud_password_enter_new(),
+		.text = text,
+		.confirm = true,
+		.reactToTyping = true,
+	};
+}
+
+PasswordFields SetupPasswordFields(
+		not_null<Ui::VerticalLayout*> content,
+		PasswordFieldsDescriptor &&descriptor) {
+	const auto icon = CreateInteractiveLottieIcon(
+		content,
+		{
+			.name = descriptor.lottie,
+			.sizeOverride = Size(st::settingsCloudPasswordIconSize),
+		},
+		st::settingLocalPasscodeIconPadding);
+
+	SetupHeader(
+		content,
+		QString(),
+		rpl::never<>(),
+		std::move(descriptor.title),
+		std::move(descriptor.about));
+
+	Ui::AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
+
+	const auto input = AddPasswordField(
+		content,
+		std::move(descriptor.placeholder),
+		descriptor.text);
+	const auto confirm = descriptor.confirm
+		? AddPasswordField(
+			content,
+			tr::lng_cloud_password_confirm_new(),
+			descriptor.text).get()
+		: nullptr;
+	const auto error = AddError(content, input);
+	if (confirm) {
+		QObject::connect(confirm, &Ui::MaskedInputField::changed, [=] {
+			error->hide();
+		});
+	}
+
+	if (!descriptor.reactToTyping) {
+		icon.icon->animate(icon.update, 0, icon.icon->framesCount() - 1);
+	} else {
+		if (!input->text().isEmpty()) {
+			icon.icon->jumpTo(icon.icon->framesCount() / 2, icon.update);
+		}
+		base::qt_signal_producer(
+			input.get(),
+			&QLineEdit::textChanged // Covers Undo.
+		) | rpl::map([=] {
+			return input->text().isEmpty();
+		}) | rpl::distinct_until_changed(
+		) | rpl::on_next([=](bool empty) {
+			const auto from = icon.icon->frameIndex();
+			const auto to = empty ? 0 : (icon.icon->framesCount() / 2 - 1);
+			icon.icon->animate(icon.update, from, to);
+		}, content->lifetime());
+	}
+	return { .input = input, .confirm = confirm, .error = error };
+}
+
+std::optional<QString> ValidatePasswordFields(const PasswordFields &fields) {
+	const auto input = fields.input;
+	const auto confirm = fields.confirm;
+	const auto text = input->text();
+	const auto confirmText = confirm ? confirm->text() : QString();
+	if (text.isEmpty()) {
+		input->setFocus();
+		input->showError();
+		return std::nullopt;
+	} else if (confirm && confirmText.isEmpty()) {
+		confirm->setFocus();
+		confirm->showError();
+		return std::nullopt;
+	} else if (confirm && (text != confirmText)) {
+		confirm->setFocus();
+		confirm->showError();
+		confirm->selectAll();
+		fields.error->show();
+		fields.error->setText(tr::lng_cloud_password_differ(tr::now));
+		return std::nullopt;
+	}
+	return text;
+}
+
+void SubmitPasswordFields(
+		const PasswordFields &fields,
+		Fn<void()> submit) {
+	const auto confirm = fields.confirm;
+	const auto chain = [=] {
+		if (!confirm || confirm->hasFocus()) {
+			submit();
+		} else {
+			confirm->setFocus();
+		}
+	};
+	QObject::connect(fields.input, &Ui::MaskedInputField::submitted, chain);
+	if (confirm) {
+		QObject::connect(confirm, &Ui::MaskedInputField::submitted, chain);
+	}
+}
+
+void FocusPasswordFields(const PasswordFields &fields) {
+	if (!fields.confirm || fields.input->text().isEmpty()) {
+		fields.input->setFocus();
+	} else if (fields.confirm->text().isEmpty()) {
+		fields.confirm->setFocus();
+	} else {
+		fields.input->setFocus();
+	}
 }
 
 } // namespace Settings::CloudPassword

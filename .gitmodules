@@ -103,3 +103,6 @@
 [submodule "Telegram/ThirdParty/libfido2"]
 	path = Telegram/ThirdParty/libfido2
 	url = https://github.com/Yubico/libfido2.git
+[submodule "Telegram/ThirdParty/zxcvbn"]
+	path = Telegram/ThirdParty/zxcvbn
+	url = https://github.com/tsyrogit/zxcvbn-c.git

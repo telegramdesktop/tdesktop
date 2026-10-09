@@ -51,6 +51,17 @@ bool MediaGenericPart::hasHeavyPart() {
 void MediaGenericPart::unloadHeavyPart() {
 }
 
+void MediaGenericPart::hideSpoilers() {
+}
+
+Media::BubbleRoll MediaGenericPart::bubbleRoll(QSize outer) const {
+	return Media::BubbleRoll();
+}
+
+QMargins MediaGenericPart::bubbleRollRepaintMargins(QSize outer) const {
+	return QMargins();
+}
+
 auto MediaGenericPart::stickerTakePlayer(
 	not_null<DocumentData*> data,
 	const Lottie::ColorReplacements *replacements
@@ -94,6 +105,12 @@ MediaGeneric::MediaGeneric(
 			.object = std::move(part),
 		});
 	});
+}
+
+MediaGeneric::Part *MediaGeneric::partAt(int index) const {
+	return (index >= 0 && index < int(_entries.size()))
+		? _entries[index].object.get()
+		: nullptr;
 }
 
 MediaGeneric::~MediaGeneric() {
@@ -152,7 +169,7 @@ void MediaGeneric::draw(Painter &p, const PaintContext &context) const {
 		p.setPen(Qt::NoPen);
 		p.setBrush(context.st->msgServiceBg());
 		const auto rect = QRect(0, 0, width(), height());
-		if (parent()->data()->inlineReplyKeyboard()) {
+		if (parent()->inlineReplyKeyboard()) {
 			const auto half = rect.height() / 2;
 			p.setClipRect(rect - QMargins(0, 0, 0, half));
 			p.drawRoundedRect(rect, radius, radius);
@@ -353,6 +370,36 @@ void MediaGeneric::unloadHeavyPart() {
 	for (const auto &entry : _entries) {
 		entry.object->unloadHeavyPart();
 	}
+}
+
+void MediaGeneric::hideSpoilers() {
+	for (const auto &entry : _entries) {
+		entry.object->hideSpoilers();
+	}
+}
+
+Media::BubbleRoll MediaGeneric::bubbleRoll() const {
+	const auto outer = QSize(width(), height());
+	for (const auto &entry : _entries) {
+		if (const auto roll = entry.object->bubbleRoll(outer)) {
+			return roll;
+		}
+	}
+	return BubbleRoll();
+}
+
+QMargins MediaGeneric::bubbleRollRepaintMargins() const {
+	const auto outer = QSize(width(), height());
+	auto result = QMargins();
+	for (const auto &entry : _entries) {
+		const auto margins = entry.object->bubbleRollRepaintMargins(outer);
+		result = QMargins(
+			std::max(result.left(), margins.left()),
+			std::max(result.top(), margins.top()),
+			std::max(result.right(), margins.right()),
+			std::max(result.bottom(), margins.bottom()));
+	}
+	return result;
 }
 
 QMargins MediaGeneric::inBubblePadding() const {

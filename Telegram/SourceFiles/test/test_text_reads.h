@@ -36,15 +36,16 @@ void CheckTextReads(
 // A text oracle that compares a rendered string against a formatter-shaped
 // one fails on a date, a time or a number that reads identically in the
 // details, because the two sides carry different space classes.
-// langDateTime() (lang/lang_keys.cpp:190-197) embeds
+// langDateTime() (lang/lang_keys.cpp) embeds
 // QLocale().toString(time, QLocale::ShortFormat), and Qt's CLDR data for
 // en_US puts U+202F NARROW NO-BREAK SPACE before the AM/PM day period.
 // Ui::FlatLabel::setText hands that string to Ui::Text::String::setText,
 // whose BlockParser replaces every space-class character except
-// QChar::Nbsp with QChar::Space (text_block_parser.cpp:577-579 and
-// :638-640), so Ui::FlatLabel::accessibilityName() - which returns that
-// parsed text - reads back U+0020 where the formatter wrote U+202F, and a
-// byte-exact comparison fails on two strings a reader cannot tell apart.
+// QChar::Nbsp with QChar::Space (replaceWithSpace in
+// BlockParser::parseCurrentChar, text_block_parser.cpp), so
+// Ui::FlatLabel::accessibilityName() - which returns that parsed text -
+// reads back U+0020 where the formatter wrote U+202F, and a byte-exact
+// comparison fails on two strings a reader cannot tell apart.
 // The mechanism is the text parser, not the accessibility path and not the
 // locale: U+00A0 is the one class the parser leaves alone, so a label fed
 // U+00A0 reads U+00A0 back while one fed U+202F reads U+0020.

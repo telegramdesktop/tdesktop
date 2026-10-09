@@ -51,4 +51,8 @@ Window::SessionController *Show::resolveWindow() const {
 	return ResolveWindowDefault()(&session());
 }
 
+bool Show::canResolveWindow() const {
+	return true;
+}
+
 } // namespace ChatHelpers

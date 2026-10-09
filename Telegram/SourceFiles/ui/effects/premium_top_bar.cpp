@@ -119,6 +119,7 @@ TopBar::TopBar(
 , _titleFont(st.titleFont)
 , _titlePadding(st.titlePadding)
 , _aboutMaxWidth(st.aboutMaxWidth)
+, _lottieTop(descriptor.lottieTop)
 , _about(this, std::move(descriptor.about), st.about)
 , _ministars(
 		this,
@@ -203,12 +204,17 @@ TopBar::TopBar(
 		} else if (_logo == u"diamond"_q) {
 			if (!_diamond3d) {
 				_lottie = Lottie::MakeIcon({
-					.name = u"diamond"_q,
-					.sizeOverride = starSize,
+					.name = (descriptor.lottie.isEmpty()
+						? u"diamond"_q
+						: descriptor.lottie),
+					.sizeOverride = (descriptor.lottieSize.isEmpty()
+						? starSize
+						: descriptor.lottieSize),
 				});
 				_lottie->animate(
 					[=] {
-						update(_starRect.toRect() + Margins(st::lineWidth));
+						update(_starRect.toRect().united(lottieRect())
+							+ Margins(st::lineWidth));
 					},
 					0,
 					_lottie->framesCount() - 1);
@@ -369,6 +375,16 @@ void TopBar::resizeEvent(QResizeEvent *e) {
 	RpWidget::resizeEvent(e);
 }
 
+QRect TopBar::lottieRect() const {
+	return QRect(
+		int(_starRect.left()
+			+ (_starRect.width() - _lottie->width()) / 2
+			- st::lineWidth * 6),
+		int(_starRect.top() + _lottieTop),
+		_lottie->width(),
+		_lottie->height());
+}
+
 void TopBar::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
@@ -403,16 +419,13 @@ void TopBar::paintEvent(QPaintEvent *e) {
 			_ministars.paint(p);
 		}
 		if (_lottie) {
-			_lottie->paint(
-				p,
-				_starRect.left()
-					+ (_starRect.width() - _lottie->width()) / 2
-					- st::lineWidth * 6,
-				_starRect.top());
+			const auto lottie = lottieRect();
+			_lottie->paint(p, lottie.x(), lottie.y());
 			if (!_lottie->animating() && _lottie->frameIndex() > 0) {
 				_lottie->animate(
 					[=] {
-						update(_starRect.toRect() + Margins(st::lineWidth));
+						update(_starRect.toRect().united(lottieRect())
+							+ Margins(st::lineWidth));
 					},
 					0,
 					_lottie->framesCount() - 1);

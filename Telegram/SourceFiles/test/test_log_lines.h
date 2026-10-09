@@ -22,13 +22,13 @@ class Runner;
 // and every one of them survives QString::toUtf8() and reaches the file. A
 // record handed product text carrying one of them therefore used to become
 // several records, which harms a reader twice. parse_test_log
-// (.agents/skills/process-inbox/scripts/workspace.py:2279) keeps only lines
+// (.agents/skills/process-inbox/scripts/workspace.py) keeps only lines
 // beginning with a known marker, so a multi-line FAIL detail silently lost
 // everything after its first line - exactly the part a reader needs. And
-// log_marks_complete (workspace.py:2305) accepts any line that right-trims to
-// the completion marker, so a middle line spelling it made test-run start its
-// grace clock, kill the live application and report a completed run that
-// never reached its end. Ui::FlatLabel::accessibilityName() really does read
+// log_marks_complete accepts any line that right-trims to the completion
+// marker, so a middle line spelling it made test-run start its grace clock,
+// kill the live application and report a completed run that never reached
+// its end. Ui::FlatLabel::accessibilityName() really does read
 // a U+000A back out of a multi-line label, and two harness sites already push
 // such a read-back into a Check detail, so the hole was latent, not
 // imaginary. LogRaw now writes each of those characters as a visible \uXXXX

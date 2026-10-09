@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_messages.h"
 #include "data/data_channel.h"
 #include "data/data_histories.h"
-#include "data/data_shared_media.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "apiwrap.h"
@@ -150,7 +149,7 @@ std::optional<SearchRequest> PrepareSearchRequest(
 	const auto filter = PrepareSearchFilter(type);
 	if (query.isEmpty() && filter.type() == mtpc_inputMessagesFilterEmpty) {
 		return std::nullopt;
-	} else if (!SharedMediaThreadFilterSupported(peer, topicRootId, type)) {
+	} else if (topicRootId && type == Storage::SharedMediaType::ChatPhoto) {
 		return std::nullopt;
 	}
 

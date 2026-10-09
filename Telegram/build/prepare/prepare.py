@@ -1,10 +1,11 @@
-import os, sys, pprint, re, json, pathlib, hashlib, subprocess, glob, tempfile
+import os, sys, pprint, re, json, pathlib, hashlib, subprocess, glob, tempfile, plistlib
 
 executePath = os.getcwd()
 sys.dont_write_bytecode = True
 scriptPath = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(scriptPath + '/..')
 import qt_version
+import build_mac
 
 def finish(code):
     global executePath
@@ -77,13 +78,8 @@ for arg in sys.argv[1:]:
         customRunCommand = True
         runCommand.append('shell')
 
-if not os.path.isdir(os.path.join(libsDir, keysLoc)):
-    pathlib.Path(os.path.join(libsDir, keysLoc)).mkdir(parents=True, exist_ok=True)
-if not os.path.isdir(os.path.join(thirdPartyDir, keysLoc)):
-    pathlib.Path(os.path.join(thirdPartyDir, keysLoc)).mkdir(parents=True, exist_ok=True)
-
 pathPrefixes = [
-    'ThirdParty\\msys64\\mingw64\\bin',
+    'ThirdParty\\msys64\\ucrt64\\bin',
     'ThirdParty\\jom',
     'ThirdParty\\gyp',
 ] if win else [
@@ -117,12 +113,52 @@ elif (winarm):
         'X8664': 'ARM64',
     })
 elif (mac):
+    macToolchain = pathlib.Path(rootDir) / 'Toolchains/CommandLineTools-26.6'
+    macToolchainChoice = os.environ.get('TDESKTOP_MAC_TOOLCHAIN', 'auto')
+    if macToolchainChoice not in ('auto', '26.6', 'system'):
+        error('TDESKTOP_MAC_TOOLCHAIN must be auto, 26.6, or system.')
+    macRelease = macToolchainChoice == '26.6' or (macToolchainChoice == 'auto'
+        and (pathlib.Path(rootDir) / 'DesktopPrivate').is_dir())
+    if macRelease:
+        if os.environ.get('MACOSX_DEPLOYMENT_TARGET', '10.13') != '10.13':
+            error('Official dependency preparation requires deployment target 10.13.')
+        try:
+            macEnvironment, macSdk = build_mac.toolchain_environment(macToolchain)
+        except (OSError, RuntimeError, subprocess.CalledProcessError) as exception:
+            error(str(exception))
+        macSdk = str(macSdk)
+        macDeployment = '10.13'
+        environment['PATH_PREFIX'] = str(macToolchain / 'usr/bin') + pathSep + pathPrefix
+        for variable, program in (('CC', 'clang'), ('CXX', 'clang++'),
+                ('OBJC', 'clang'), ('OBJCXX', 'clang++'),
+                ('AR', 'ar'), ('RANLIB', 'ranlib'), ('LD', 'ld')):
+            environment[variable] = str(macToolchain / 'usr/bin' / program)
+        macCompiler = environment['CC']
+        for target in ('AARCH64_APPLE_DARWIN', 'X86_64_APPLE_DARWIN'):
+            environment['CARGO_TARGET_' + target + '_LINKER'] = macCompiler
+            for variable in ('CC', 'CXX', 'AR'):
+                environment[variable + '_' + target.lower()] = environment[variable]
+        if 'build-stackwalk' in options:
+            error('Legacy stackwalk preparation still requires full Xcode 26.6.')
+    else:
+        macSdk = subprocess.check_output(
+            ['xcrun', '--sdk', 'macosx', '--show-sdk-path'], text=True).strip()
+        macCompiler = subprocess.check_output(['xcrun', '--find', 'clang'], text=True).strip()
+    with open(os.path.join(macSdk, 'SDKSettings.plist'), 'rb') as file:
+        macSdkSettings = plistlib.load(file)
+    macMinimum = macSdkSettings['SupportedTargets']['macosx']['MinimumDeploymentTarget']
+    if not macRelease:
+        macDeployment = os.environ.get('MACOSX_DEPLOYMENT_TARGET', macMinimum)
+    if tuple(map(int, macDeployment.split('.'))) < tuple(map(int, macMinimum.split('.'))):
+        error('The selected macOS SDK requires deployment target ' + macMinimum
+            + ' or newer; select the older toolchain to build for ' + macDeployment + '.')
     environment.update({
         'SPECIAL_TARGET': 'mac',
         'MAKE_THREADS_CNT': '-j' + str(os.cpu_count()),
-        'MACOSX_DEPLOYMENT_TARGET': '10.13',
+        'SDKROOT': macSdk,
+        'MACOSX_DEPLOYMENT_TARGET': macDeployment,
         'UNGUARDED': '-Werror=unguarded-availability-new',
-        'MIN_VER': '-mmacosx-version-min=10.13',
+        'MIN_VER': '-mmacosx-version-min=' + macDeployment,
         'CMAKE_GENERATOR': 'Ninja',
     })
 
@@ -140,16 +176,42 @@ for key in environment:
     environmentKeyString += part
     if not key in ignoreInCacheForThirdParty:
         envForThirdPartyKeyString += part
+if mac:
+    environmentKeyString += subprocess.check_output(
+        [macCompiler, '--version'], text=True)
+    environmentKeyString += json.dumps(macSdkSettings, sort_keys=True)
 environmentKey = hashlib.sha1(environmentKeyString.encode('utf-8')).hexdigest()
 envForThirdPartyKey = hashlib.sha1(envForThirdPartyKeyString.encode('utf-8')).hexdigest()
 
 modifiedEnv = os.environ.copy()
+if mac and macRelease:
+    modifiedEnv.pop('TOOLCHAINS', None)
+    modifiedEnv['PREPARE_DIR'] = scriptPath
 for key in environment:
     modifiedEnv[key] = environment[key]
 if win and 'NoDefaultCurrentDirectoryInExePath' in modifiedEnv:
     del modifiedEnv['NoDefaultCurrentDirectoryInExePath']
 
 modifiedEnv['PATH'] = environment['PATH_PREFIX'] + modifiedEnv['PATH']
+
+if mac:
+    toolchainState = pathlib.Path(libsDir) / 'macos_toolchain.json'
+    purpose = 'release' if macRelease else 'development'
+    if toolchainState.is_file():
+        previous = json.loads(toolchainState.read_text())
+        if previous['purpose'] != purpose:
+            error('Libraries was prepared for ' + previous['purpose']
+                + ' builds. Use a separate dependency directory for ' + purpose + ' builds.')
+    pathlib.Path(libsDir).mkdir(parents=True, exist_ok=True)
+    toolchainState.write_text(json.dumps({
+        'purpose': purpose,
+        'compiler': macCompiler,
+        'sdk': macSdk,
+        'deployment_target': macDeployment,
+    }, indent=2) + '\n')
+
+pathlib.Path(os.path.join(libsDir, keysLoc)).mkdir(parents=True, exist_ok=True)
+pathlib.Path(os.path.join(thirdPartyDir, keysLoc)).mkdir(parents=True, exist_ok=True)
 
 def computeFileHash(path):
     sha1 = hashlib.sha1()
@@ -458,8 +520,9 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout a30e40a7718af3a9369c7f9a59b5b7ff4ba2950c
+    git checkout aec474953ff7ee9b6e4cd9b8658288ea86d124f3
 mac:
+    sed -i '' "s/10.13/$MACOSX_DEPLOYMENT_TARGET/g" macos_meson_*.txt
     git clone https://github.com/desktop-app/qt6_highsierra_patches.git qt6_highsierra
     cd qt6_highsierra
     git checkout 7387476bb3b7200d3b044015696cb3c28f78593c
@@ -471,18 +534,18 @@ win:
     SET CHERE_INVOKING=enabled_from_arguments
     SET MSYS2_PATH_TYPE=inherit
 
-    powershell -Command "iwr -OutFile ./msys64.exe https://github.com/msys2/msys2-installer/releases/download/2025-08-30/msys2-base-x86_64-20250830.sfx.exe"
+    powershell -Command "iwr -OutFile ./msys64.exe https://github.com/msys2/msys2-installer/releases/download/2026-09-27/msys2-base-x86_64-20260927.sfx.exe"
     msys64.exe
     del msys64.exe
 
     bash -c "pacman-key --init; pacman-key --populate; pacman -Syu --noconfirm"
     pacman -Syu --noconfirm ^
         make ^
-        mingw-w64-x86_64-diffutils ^
-        mingw-w64-x86_64-gperf ^
-        mingw-w64-x86_64-nasm ^
-        mingw-w64-x86_64-perl ^
-        mingw-w64-x86_64-pkgconf
+        mingw-w64-ucrt-x86_64-diffutils ^
+        mingw-w64-ucrt-x86_64-gperf ^
+        mingw-w64-ucrt-x86_64-nasm ^
+        mingw-w64-ucrt-x86_64-perl ^
+        mingw-w64-ucrt-x86_64-pkgconf
 """, 'ThirdParty')
 
 stage('python', """
@@ -556,8 +619,9 @@ release:
 
 stage('xz', """
 !win:
-    git clone -b v5.4.5 https://github.com/tukaani-project/xz.git
+    git clone -b v5.4 https://github.com/tukaani-project/xz.git
     cd xz
+    git checkout 05af863c3166cddeb4ab935829b14e995c8346b4
     sed -i '' '\\@check_symbol_exists(futimens "sys/types.h;sys/stat.h" HAVE_FUTIMENS)@d' CMakeLists.txt
     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
@@ -642,7 +706,7 @@ mac:
 """)
 
 stage('openssl3', """
-    git clone -b openssl-3.2.1 https://github.com/openssl/openssl openssl3
+    git clone -b openssl-3.5.9 https://github.com/openssl/openssl openssl3
     cd openssl3
 win32:
     perl Configure no-shared no-tests debug-VC-WIN32 /FS
@@ -1106,7 +1170,7 @@ stage('regex', """
 """)
 
 stage('ffmpeg', """
-    git clone -b n6.1.6 https://github.com/FFmpeg/FFmpeg.git ffmpeg
+    git clone -b n8.1.3 https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
 win:
 depends:patches/ffmpeg.patch
@@ -1329,6 +1393,7 @@ mac:
         -D BUILD_DOCUMENTATION=OFF \\
         -D BUILD_TESTING=OFF \\
         -D ENABLE_PLUGIN_LOADING=OFF \\
+        -D WITH_GDK_PIXBUF=OFF \\
         -D WITH_AOM_ENCODER=OFF \\
         -D WITH_AOM_DECODER=OFF \\
         -D WITH_X265=OFF \\
@@ -1392,8 +1457,32 @@ depends:patches/breakpad.diff
     cd ../../build
     PYTHONPATH=$THIRDPARTY_DIR/gyp python3 gyp_breakpad
     cd ../processor
-    xcodebuild -project processor.xcodeproj -target minidump_stackwalk -configuration Release build
+    xcodebuild -project processor.xcodeproj -target minidump_stackwalk -configuration Release MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET build
 """)
+
+macBreakpadBuild = """
+mac:
+    cd src/client/mac
+    xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Debug MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET build
+release:
+    xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Release MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET build
+    cd ../../tools/mac/dump_syms
+    xcodebuild -project dump_syms.xcodeproj -target dump_syms -configuration Release MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET build
+"""
+if mac and macRelease:
+    macBreakpadBuild = """
+version: """ + computeFileHash(os.path.join(scriptPath, 'breakpad/CMakeLists.txt')) + """
+mac:
+    cmake -S "$PREPARE_DIR/breakpad" -B out -G "Ninja Multi-Config" \\
+        -DBREAKPAD_SOURCE_DIR="$PWD" \\
+        -DCMAKE_INSTALL_PREFIX="$PWD" \\
+        -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+    cmake --build out --config Debug --parallel
+    cmake --install out --config Debug
+release:
+    cmake --build out --config Release --parallel
+    cmake --install out --config Release
+"""
 
 stage('breakpad', """
     git clone https://chromium.googlesource.com/breakpad/breakpad
@@ -1430,13 +1519,7 @@ mac:
     cd src/third_party/lss
     git checkout e1e7b0ad8e
     cd ../../..
-    cd src/client/mac
-    xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Debug build
-release:
-    xcodebuild -project Breakpad.xcodeproj -target Breakpad -configuration Release build
-    cd ../../tools/mac/dump_syms
-    xcodebuild -project dump_syms.xcodeproj -target dump_syms -configuration Release build
-""")
+""" + macBreakpadBuild)
 
 stage('crashpad', """
 mac:
@@ -1504,7 +1587,7 @@ if qt < '6':
 win:
     git clone https://github.com/desktop-app/tg_angle.git
     cd tg_angle
-    git checkout 48bc60bdb1
+    git checkout f62ce7f6efe014cf1f7d95830c505fd2ac1c49e0
     cmake -B out ^
         -DTG_ANGLE_SPECIAL_TARGET=%SPECIAL_TARGET% ^
         -DTG_ANGLE_ZLIB_INCLUDE_PATH=%LIBS_DIR%/zlib
@@ -1619,6 +1702,8 @@ mac:
         -no-feature-cxx17_filesystem \
         -platform macx-clang -- \
         -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+        -DCMAKE_OSX_SYSROOT="$SDKROOT" \
+        -DCMAKE_OSX_DEPLOYMENT_TARGET="$MACOSX_DEPLOYMENT_TARGET" \
         -DCMAKE_PREFIX_PATH="$USED_PREFIX" \
         -DQT_NO_HANDLE_APPLE_SINGLE_ARCH_CROSS_COMPILING=ON \
         -DQT_SYNC_HEADERS_AT_CONFIGURE_TIME=ON
@@ -1700,7 +1785,7 @@ win:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout 89df288dd6ba5b2ec95b3c5eaf1e7e0c3a870fc4
+    git checkout d1cf250ea73de26c4c1f0a3c8173eb2648efbb04
     git submodule update --init --recursive
 win:
     SET MOZJPEG_PATH=$LIBS_DIR/mozjpeg
@@ -1796,7 +1881,7 @@ release:
 """)
 
 stage('ada', """
-    git clone -b v3.2.4 https://github.com/ada-url/ada.git
+    git clone -b v3.2.9 https://github.com/ada-url/ada.git
     cd ada
 win:
     cmake -B out . ^
@@ -1894,12 +1979,53 @@ release:
     buildTd Release
 """)
 
+# Neither this stage nor wallet-engine below builds anything any more: they
+# are the sources tdesktop_rust compiles. The CI prune used to strip both
+# down to their headers while their stage keys stayed valid, leaving a cache
+# that skips them and cannot rebuild tdesktop_rust. The version re-clones
+# them once over such a cache. The revisions are named here because the
+# umbrella stage has to see them, see there.
+tlottieRevision = '92df98dc20'
+walletEngineRevision = 'e59e0d89d7ee90c388bf36e3334c5b276f396697'
 stage('tlottie', """
-depends:patches/tlottie.patch
+version: 2
     git clone https://github.com/dkaraush/tlottie.git
     cd tlottie
-    git checkout 31f1b542f8
-    git apply ../patches/tlottie.patch
+    git checkout """ + tlottieRevision + """
+""")
+
+stage('wallet-engine', """
+version: 2
+depends:patches/wallet-engine.patch
+win:
+    SET "GIT_LFS_SKIP_SMUDGE=1"
+mac:
+    export GIT_LFS_SKIP_SMUDGE=1
+win_mac:
+    git clone https://github.com/i582/wallet-engine.git
+    cd wallet-engine
+    git checkout """ + walletEngineRevision + """
+    git apply ../patches/wallet-engine.patch
+""")
+
+# Every Rust library is built into one archive. A Rust staticlib carries its
+# own copy of the standard library, so building them separately defines the
+# runtime symbols that must stay global twice, which the linker refuses, and
+# duplicates the rest of std in the binary. The umbrella crate is generated
+# here rather than kept in a repository of its own: it is two dependency lines
+# and two re-exports, and the pinned revisions stay visible in the stages
+# above. The profile lives on the command line because a dependency's own
+# [profile] is ignored by cargo; lto and panic cannot be set per package, so
+# they are stated once, while opt-level keeps the level each library asked for.
+# The commands below never name the pinned revisions, they only point cargo
+# at the two checkouts, so nothing in this stage's key would change when one
+# of them is repinned and a warm cache would keep the previous binding. The
+# revisions ride in the version for that, and the counter in front of them
+# flushes a cache whose generated source the CI prune had already deleted.
+# The wallet-engine patch rewrites those sources, so it is a dependency here.
+stage('tdesktop_rust', """
+version: 2.""" + tlottieRevision + '.' + walletEngineRevision + """
+depends:patches/wallet-engine.patch
 win:
     SET "RUSTUP_HOME=%THIRDPARTY_DIR%\\rust\\rustup"
     SET "CARGO_HOME=%THIRDPARTY_DIR%\\rust\\cargo"
@@ -1917,31 +2043,60 @@ winarm:
     SET "RUST_TARGET=aarch64-pc-windows-msvc"
     SET "RUST_BUILD_STD="
 win:
-    cargo rustc --lib --release --locked ^
-        --features c-api --crate-type staticlib ^
+    cargo new --lib --vcs none tdesktop_rust
+    cd tdesktop_rust
+    echo pub use ::tlottie;> src\\lib.rs
+    echo pub use ::wallet_engine;>> src\\lib.rs
+    cargo add --path ..\\tlottie --features c-api
+    cargo add --path ..\\wallet-engine
+    cargo rustc --lib --release ^
+        --crate-type staticlib --crate-type cdylib ^
         %RUST_BUILD_STD% ^
         --target %RUST_TARGET% ^
+        --config "profile.release.opt-level='z'" ^
+        --config "profile.release.lto='thin'" ^
+        --config "profile.release.codegen-units=1" ^
+        --config "profile.release.panic='unwind'" ^
+        --config "profile.release.package.tlottie.opt-level=3" ^
         --config "target.%RUST_TARGET%.rustflags=['-C','target-feature=+crt-static']" ^
         -- --print native-static-libs
-    mkdir out\\lib out\\include
-    copy target\\%RUST_TARGET%\\release\\tlottie.lib out\\lib\\tlottie.lib
-    copy include\\tlottie.h out\\include\\tlottie.h
+    mkdir out\\lib out\\include out\\include\\tlottie out\\include\\wallet_engine out\\src out\\src\\wallet_engine
+    copy target\\%RUST_TARGET%\\release\\tdesktop_rust.lib out\\lib\\tdesktop_rust.lib
+    copy ..\\tlottie\\include\\tlottie.h out\\include\\tlottie\\tlottie.h
+    cargo run --manifest-path ..\\wallet-engine\\bindgen\\cpp\\bindgen\\Cargo.toml --locked -- ^
+        --library --out-dir out\\include\\wallet_engine ^
+        target\\%RUST_TARGET%\\release\\tdesktop_rust.dll
+    move out\\include\\wallet_engine\\wallet_engine.cpp out\\src\\wallet_engine\\wallet_engine.cpp
 mac:
     export RUSTUP_HOME=$THIRDPARTY_DIR/rust/rustup
     export CARGO_HOME=$THIRDPARTY_DIR/rust/cargo
     export RUSTUP_TOOLCHAIN=""" + rustToolchain + """
     export PATH=$CARGO_HOME/bin:$PATH
+    cargo new --lib --vcs none tdesktop_rust
+    cd tdesktop_rust
+    printf 'pub use ::tlottie;\\npub use ::wallet_engine;\\n' > src/lib.rs
+    cargo add --path ../tlottie --features c-api
+    cargo add --path ../wallet-engine
     buildOneArch() {
-        cargo rustc --lib --release --locked \\
-            --features c-api --crate-type staticlib \\
+        cargo rustc --lib --release \\
+            --crate-type staticlib --crate-type cdylib \\
             --target $1 \\
+            --config "profile.release.opt-level='z'" \\
+            --config "profile.release.lto='thin'" \\
+            --config "profile.release.codegen-units=1" \\
+            --config "profile.release.panic='unwind'" \\
+            --config "profile.release.package.tlottie.opt-level=3" \\
             -- --print native-static-libs
     }
     buildOneArch aarch64-apple-darwin
     buildOneArch x86_64-apple-darwin
-    mkdir -p $USED_PREFIX/lib $USED_PREFIX/include/tlottie
-    lipo -create target/aarch64-apple-darwin/release/libtlottie.a target/x86_64-apple-darwin/release/libtlottie.a -output $USED_PREFIX/lib/libtlottie.a
-    cp include/tlottie.h $USED_PREFIX/include/tlottie/tlottie.h
+    mkdir -p $USED_PREFIX/lib $USED_PREFIX/include/tlottie $USED_PREFIX/include/wallet_engine $USED_PREFIX/src/wallet_engine
+    lipo -create target/aarch64-apple-darwin/release/libtdesktop_rust.a target/x86_64-apple-darwin/release/libtdesktop_rust.a -output $USED_PREFIX/lib/libtdesktop_rust.a
+    cp ../tlottie/include/tlottie.h $USED_PREFIX/include/tlottie/tlottie.h
+    cargo run --manifest-path ../wallet-engine/bindgen/cpp/bindgen/Cargo.toml --locked -- \\
+        --library --out-dir $USED_PREFIX/include/wallet_engine \\
+        target/aarch64-apple-darwin/release/libtdesktop_rust.dylib
+    mv $USED_PREFIX/include/wallet_engine/wallet_engine.cpp $USED_PREFIX/src/wallet_engine/wallet_engine.cpp
 """)
 
 if win:

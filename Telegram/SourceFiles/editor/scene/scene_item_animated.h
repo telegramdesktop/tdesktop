@@ -20,14 +20,18 @@ public:
 	[[nodiscard]] virtual bool hasContent() const = 0;
 	[[nodiscard]] virtual QByteArray content() const = 0;
 	[[nodiscard]] virtual crl::time loopDuration() const = 0;
+	[[nodiscard]] virtual VideoTrim trim() const;
 	virtual void releasePlayers() = 0;
+	ItemAnimated *asAnimated() override;
 
-	[[nodiscard]] Media::Encode::AnimatedEntity animatedEntity(
+	[[nodiscard]] virtual Media::Encode::AnimatedEntity animatedEntity(
 		const QTransform &sceneToCanvas) const;
 
 protected:
 	[[nodiscard]] virtual Media::Encode::AnimatedEntity::Kind entityKind()
 		const = 0;
+	[[nodiscard]] virtual QRectF entityRect() const;
+	[[nodiscard]] QRectF visibleRect() const override;
 
 	void paintFrame(
 		QPainter *p,
@@ -42,6 +46,7 @@ private:
 		QSize size;
 		bool flipped = false;
 	} _preview;
+	QSize _paintedFrameSize;
 
 };
 

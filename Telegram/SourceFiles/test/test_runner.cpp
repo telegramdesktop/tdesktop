@@ -321,10 +321,12 @@ void Runner::captureAndInspect(
 		Fn<bool(QWidget*)> ready,
 		Fn<void(QWidget*, const QImage &)> inspect,
 		crl::time timeout,
-		Fn<QString(QWidget*)> readinessDetails) {
+		Fn<QString(QWidget*)> readinessDetails,
+		Fn<QString()> skipReason) {
 	const auto capture = std::make_shared<PreparedWidgetCapture>();
 	add({
 		.name = u"capture painted widget: %1"_q.arg(name),
+		.skipReason = std::move(skipReason),
 		.until = [=] {
 			const auto widget = resolve();
 			if (!capture->prepare(widget)) {

@@ -93,6 +93,15 @@ run directory or an existing ignored build tree. For every artifact or absence
 claim, quote literal readings and include a known-present control when a typo
 could otherwise pass.
 
+For Linux Debug execution copies, use the shared [bounded ELF identity
+guide](evidence/elf-copies.md) for exact digests, strip-debug equivalence and
+independent positive/negative controls.
+
+Object, PCH, link-membership and compiler-definition claims about a Ninja-built
+target come from `.agents/shared/evidence/ninja_target.py` resolving the exact
+consuming output; a glob, a basename or a `compdb`/`compdb-targets` listing is
+not proof of consumption. See [ninja-target-evidence.md](ninja-target-evidence.md).
+
 Use Telegram only when it adds causal coverage. App behavior that lives in the
 client normally requires the Debug binary and instrumented execution. Visible
 claims additionally require captures. Isolated library or build behavior may be
@@ -203,12 +212,86 @@ data.
 The debug build runs in portable mode out of `out/Debug/`. Three sibling folders matter:
 
 - `test_TelegramForcePortable` — the golden test account, prepared by the user. Read-only SOURCE,
-  never modified by tests. (Its presence is the launch gate; the wrapper aborts if it is missing.)
+  never modified by tests, except the word lines of `test_gram_account.txt` after a confirmed key
+  rotation (below). (Its presence is the launch gate; the wrapper aborts if it is missing.)
 - `TelegramForcePortable` — the LIVE folder the app actually uses (its presence is what puts the
   build in portable mode). A marker file named `testing` directly inside it marks it as a
   disposable test copy; a live folder WITHOUT the marker is the user's real data.
 - `real_TelegramForcePortable` — the user's real data, preserved so manual use survives. Once it
   exists, NO flow step may ever delete, rename, move, overwrite, or write into it.
+
+Those three folders sit beside the executable because that is where the app looks:
+`CheckPortableVersionFolder()` resolves `cExeDir() + "TelegramForcePortable"` and never the
+process working directory. `test-run --portable-root <dir>` runs the SETUP steps against `<dir>`
+instead of `out/Debug/` **and** launches with `-workdir <dir>/TelegramForcePortable`, so what the
+run writes through its working directory — its `tdata`, `log.txt`, `DebugLogs/`, the crash report,
+every minidump — lands under `<dir>`; the run writes nothing into the three `out/Debug` folders and
+leaves them where they are. The caller supplies `<dir>/test_TelegramForcePortable` itself: an empty
+directory is enough for an account-free campaign, and a campaign that needs the test account copies
+the real golden into the sandbox. `<dir>` must therefore be a repository-ignored `.local/`
+directory (or the ignored build tree), never `work/` or `evidence/`: a copied golden carries
+`2svpassword.txt` and `test_gram_account.txt`, and those trees are committed and pushed.
+
+Wallet custody bounds the flag. A campaign that may rotate the golden wallet key must NOT pass
+`--portable-root`: `Test::RewriteGramAccountWords()` writes the live copy at `cWorkingDir()`, so a
+redirect leaves the new signing half under `<dir>` while `out/Debug/TelegramForcePortable` — the
+folder the next campaign's P0 reconciliation reads — still holds the old key, and a rotation cut
+short before that rewrite (crash, `deadline-killed`, `quiet-killed`) leaves no record outside
+`<dir>`. The marked live copy of a rotating campaign has to stay
+`out/Debug/TelegramForcePortable`; a redirected campaign that rotates anyway keeps its sandbox live
+copy until the rotation is reconciled, never discarding it with the run directory. The flag
+isolates files, not processes: a redirected launch takes a different single-instance identity
+(`Sandbox::start()` hashes `cWorkingDir()` into the local server name) and is explicitly permitted
+to run beside an instance of the same binary, while the kill still matches on the executable path
+across every sandbox — so **Serialize app runs** below applies unchanged, one live instance of
+`EXE` at a time, sandboxed or not. What the flag does **not** isolate on the fixture side:
+`Test::FixtureSecret()` still falls back to `out/Debug/test_TelegramForcePortable/` for
+`2svpassword.txt` and `test_gram_account.txt`, and `RewriteGramAccountWords()` still rewrites the
+golden copy resolved from `cExeDir()` — neither follows the working directory. Without the flag
+nothing changes: the same `-testagent -noupdate` vector and the same `out/Debug` folders.
+
+Fixture secrets ride in the golden folder beside `tdata`: `2svpassword.txt` and
+`test_gram_account.txt` (below). `2svpassword.txt` is the test account's two-step-verification
+(cloud) password, which the server requires on `wallet.exportSecretPhrase`, `wallet.replaceWallet`
+and the password route of `wallet.disableBackup` (`Session::disableBackup`). `wallet.enableBackup`,
+which has no password field, and the proof route (`Session::disableBackupWithProof`) prove key
+ownership instead of sending the password. A scenario reads it at runtime with
+`Test::TwoStepPassword()` (trimmed; `std::nullopt` when absent; the live copy is read first, then
+the golden sibling) and types it into the product's own `PasscodeBox`, so the real SRP path
+computes the proof. The value stays inside the process: never in overlay code, `work/`,
+`evidence/`, logs, notes, receipts, prompts, or an environment variable recorded anywhere. When a
+selected check needs it, the file is a prerequisite gated by existence (never by value) before the
+campaign is authored, and its absence is a task blocker: publish the task-local `Block` naming
+`2svpassword.txt` as the exact missing input instead of running a degraded campaign, exporting
+the legs as coverage debt, hand-building the SRP, or driving the answer. A scenario that still
+reaches a missing file at runtime refuses with a named fixture gate, never a product FAIL.
+
+The same folder carries `test_gram_account.txt`, the owner's funded golden wallet: the word lines
+until the first empty line, then the address as the app shows it, never a fixed count. A scenario
+reads it with `Test::GramAccount()` under the same read rule (the live copy first, then the golden
+sibling; `std::nullopt` when absent or malformed) and the words stay inside the process exactly
+like the password; only their COUNT and the address may be recorded. `Test::CheckSecrecy`
+(`test_secrecy_scan.h`) proves in the run that neither they, the password nor a custody record
+id or secret ref reached the test log, the app log or `DebugLogs`. A campaign that declares it
+needs the funded wallet is gated on it: the file's existence (never its value) before the campaign
+is authored, its absence the same task-local `Block` naming `test_gram_account.txt`; at campaign
+start `GramAccount()->addressRaw` must equal `*wallet.address()` — a mismatch FAILS the run and is
+never repaired by `/wallet_reset`, `wallet.replaceWallet` or a minted wallet; and the balance must
+cover every planned live leg plus a margin, checked before anything is spent — a shortfall is a
+task-local `Block` naming the address and the amount required, never a driven workaround.
+Campaigns on the golden wallet never reset it and spend only what a leg needs. After a confirmed
+key rotation the scenario rewrites the file's word lines through
+`Test::RewriteGramAccountWords(words, addressRaw)`, which rewrites only a copy whose own address
+is the rotated wallet's, in BOTH copies — the marked live copy and the golden folder — keeping
+the empty line and each copy's own address line; that golden write is the one owner-decided
+exception to the read-only golden folder. Because the golden `tdata` is never modified while the
+file is, the next campaign's P0 reconciles them in process through `Test::ReconcileGramAccount`
+(`Telegram/SourceFiles/test/README.md`, "Account fixture secrets"): fewer local words than the
+file restores custody from the file through the product's own import, and a differing local
+reveal with an equal or greater count rewrites the file from the local reveal. Never delete or
+reset the marked live copy while a campaign may have left a rotation in flight or unrewritten:
+SETUP keeps a marked live copy, and only a manual wipe or `test-account-reset` discards it — and
+with it the only copy of a not-yet-rewritten signing half.
 
 **SETUP — run at the START of every test run, with NO app instance alive. It is idempotent: the
 first SETUP after a crash moves leftover crash files and can refuse before launch; after successful
@@ -254,7 +337,10 @@ either carries the `testing` marker or coexists with `real_...` (step 3). If the
 breaks mid-loop (login screen, `AUTH_KEY_DUPLICATED`), delete the MARKED live folder (that deletion
 takes the Crashpad database under `tdata/dumps/completed/` with it, so copy out any dump worth
 keeping first), re-run SETUP for a fresh golden copy, and retry once; if it is still broken the run
-is UNRECOVERABLE. Never delete or alter `test_...` or `real_...` under any circumstances.
+is UNRECOVERABLE — except a marked live copy that may hold a key rotation in flight or a
+not-yet-rewritten `test_gram_account.txt`, which the flow never deletes (the funded-wallet rule
+above): stop and report instead. Never delete or alter `test_...` or `real_...` under any
+circumstances.
 
 **Serialize app runs.** Never have two `Telegram.exe` instances alive against this account at once —
 concurrent reuse of one auth key can trigger a server-side session reset. Before SETUP, launching, or
@@ -630,13 +716,47 @@ command, environment, exit-code, log, artifact and control evidence.
   before/after delta, listed in full because `test-run` never clears `completed/` between runs;
   `death_signals` names which of `"breakpad_dump"`, `"crashpad_dump"` and `"exit_code"` fired, and
   is `[]` for a healthy run. `stale_crash_cleared` is an ordered list of `{from, kind, to}`
-  entries whose `kind` is `"report"` or `"dump"`, and is `[]` when nothing was cleared. If the
+  entries whose `kind` is `"report"` or `"dump"`, and is `[]` when nothing was cleared.
+  `--portable-root <dir>` additionally passes `-workdir <dir>/TelegramForcePortable`; the report's
+  `workdir` names that redirected working directory and is `null` when the flag was not used, and
+  `golden_root` names the executable-directory golden the launch can still read whatever `workdir`
+  says. The isolation contract is stated under Test account (portable data) — hard rules. If the
   stale report cannot be moved, `test-run` refuses before launch, prints the helper error on stderr,
   exits non-zero, and emits no JSON. If a dump cannot be moved, `test-run` leaves it in place,
   records `"to": null` (a null destination), and continues to launch. Then read each `SCREENSHOT:`
   image and judge it, save the binary overlay patch, and restore only inventoried overlay paths
   (`overlay-save` — the patch must be saved before that restore). The runner only gathers evidence;
   ASSESS below stays the agent's own adversarial judgement.
+  - **Console input (macOS).** `input_before` and `input_after` are console readings taken right
+    before the launch and after the process ends; `input_after` comes after the post-run straggler
+    kill and the crash/log collection, just before the report prints. Each holds `time` (local
+    ISO 8601), `idle_seconds` (the console's HID idle time, `HIDIdleTime` of `IOHIDSystem`),
+    `frontmost_app` (the frontmost application's name, from `lsappinfo`) and `screen_locked` (the
+    on-console session's `CGSSessionScreenIsLocked`, `false` when absent), each beside a
+    `<name>_error` that says why the value is `null`; `input_after` adds `seconds_since_launch`.
+    `input_during_run` is `true` when `input_after.idle_seconds` is below
+    `input_after.seconds_since_launch`, `false` when it covers it, and `null` when either reading
+    lacks its idle time — always off macOS, where every value is `null` with its reason. It says
+    only that keyboard, pointer or other HID input reached the console between the launch and the
+    after reading: not which stage it disturbed, whether the app received it, or that it caused a
+    failure; `false` rules out HID input only, not other desktop events. A reading never prompts
+    for a permission, waits at most 2 s per host command, and never fails the command. The
+    readings never change `outcome`, `verdict_hint` or any other field; classifying a disturbed
+    run stays the assessor's judgement.
+  - **Idle gate.** `--wait-idle <seconds>` re-reads the idle time before the launch until the
+    console has been idle that long or `--wait-idle-max <seconds>` (default 600) elapses, then
+    launches either way. `wait_idle` records `required_seconds`, `max_seconds`, `waited_seconds`,
+    `met` and the last `idle_seconds` (with `idle_seconds_error`); `met` is `true` when the
+    requirement was observed, `false` when the bound elapsed first, and `null` when the idle
+    reading failed (the gate stops there and launches) or the gate was skipped — off macOS it
+    records `skipped` with the reason and launches at once; `wait_idle` is `null` without the
+    flag. The wait runs before the account setup, the straggler kill and the crash snapshots, and
+    counts toward none of `--deadline`, `--quiet` or `duration_seconds`; a missing executable,
+    portable root or golden folder fails before any wait. Use it when the console is unlocked and
+    someone may be using it, especially for a packed harness run whose focus- or paint-sensitive
+    stages (a menu that closes on an outside press, a paint sampler) a stray click or keystroke can
+    abort; pick a requirement at least as long as the expected run and still read
+    `input_during_run` afterwards — the gate makes input less likely, it does not prevent it.
 
 ### Crashes & assertions (always launch the test binary with `-testagent`)
 
@@ -669,8 +789,9 @@ deciding the verdict:
    `file:line` (e.g. `vector(1931) : … vector subscript out of range`). Usually enough to localize.
 2. **`<workdir>/tdata/working`** — the crash report the reporter wrote: the `Assertion:` /
    `CrtAssert:` annotations, the failed `file:line`, and `Caught signal …` / minidump id. Plain text;
-   read it directly. `<workdir>` is the launch `-workdir` (in portable test runs,
-   `out/Debug/TelegramForcePortable/`).
+   read it directly. `<workdir>` is the launch `-workdir` (`out/Debug/TelegramForcePortable/` in
+   ordinary portable test runs, `<portable-root>/TelegramForcePortable/` when the run used
+   `--portable-root`).
 3. **`<workdir>/tdata/dumps/`** — the minidump (full stack, needs symbols to read). When the local
    Debug build and its symbols are available, symbolize it now rather than merely recording its
    path. Breakpad writes `*.dmp` at that top level; the macOS

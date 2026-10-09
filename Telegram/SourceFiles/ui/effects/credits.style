@@ -27,6 +27,8 @@ creditsPremiumCover: PremiumCover(defaultPremiumCover) {
 	aboutMaxWidth: 236px;
 	additionalShadowForDarkThemes: false;
 }
+creditsCurrencyCoverLottieSize: size(104px, 104px);
+creditsCurrencyCoverLottieTop: -17px;
 creditsLowBalancePremiumCover: PremiumCover(creditsPremiumCover) {
 	starSize: size(64px, 62px);
 	starTopSkip: 30px;
@@ -358,6 +360,9 @@ uniqueAttributeType: TextStyle(defaultTextStyle) {
 }
 uniqueAttributePercent: uniqueAttributeType;
 uniqueAttributePercentPadding: margins(4px, 0px, 4px, 0px);
+uniqueGiftActionHeight: 56px;
+uniqueGiftActionIconTop: 7px;
+uniqueGiftActionTextTop: 32px;
 uniqueAttributeModel: RoundButton(defaultLightButton) {
 	textFg: windowBoldFg;
 	textFgOver: windowBoldFg;

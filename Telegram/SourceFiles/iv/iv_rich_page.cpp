@@ -108,7 +108,7 @@ enum class OrderedMarkerType {
 }
 
 [[nodiscard]] QString OrderedRomanText(int value, bool upper) {
-	if (value <= 0) {
+	if (!OrderedRomanSupported(value)) {
 		return QString::number(value);
 	}
 	struct RomanPart {
@@ -994,6 +994,11 @@ bool AppendRichText(
 		return AppendRichText(data.vtext(), result, context, anchorId, anchorIds)
 			&& (context->dropRichTextClickHandlers
 				|| AddEntity(&result->text, from, EntityType::BankCard));
+	}, [&](const MTPDtextTonAddress &data) {
+		const auto from = result->text.text.size();
+		return AppendRichText(data.vtext(), result, context, anchorId, anchorIds)
+			&& (context->dropRichTextClickHandlers
+				|| AddEntity(&result->text, from, EntityType::TonAddress));
 	}, [&](const MTPDtextMentionName &data) {
 		const auto from = result->text.text.size();
 		if (!AppendRichText(data.vtext(), result, context, anchorId, anchorIds)) {
@@ -2535,6 +2540,47 @@ std::optional<RichMessageLimitError> ValidateRichMessage(
 	return std::nullopt;
 }
 
+Main::Session *RichBlocksMediaSession(
+		const std::vector<RichPage::Block> &blocks) {
+	for (const auto &block : blocks) {
+		if (block.photo) {
+			return &block.photo->session();
+		} else if (block.document) {
+			return &block.document->session();
+		} else if (block.peer) {
+			return &block.peer->session();
+		}
+		for (const auto &item : block.mediaItems) {
+			if (item.photo) {
+				return &item.photo->session();
+			} else if (item.document) {
+				return &item.document->session();
+			}
+		}
+		for (const auto &article : block.relatedArticles) {
+			if (article.photo) {
+				return &article.photo->session();
+			}
+		}
+		if (const auto session = RichListItemsMediaSession(block.listItems)) {
+			return session;
+		} else if (const auto nested = RichBlocksMediaSession(block.blocks)) {
+			return nested;
+		}
+	}
+	return nullptr;
+}
+
+Main::Session *RichListItemsMediaSession(
+		const std::vector<RichPage::ListItem> &items) {
+	for (const auto &item : items) {
+		if (const auto session = RichBlocksMediaSession(item.blocks)) {
+			return session;
+		}
+	}
+	return nullptr;
+}
+
 int CountRichPageBlocks(const RichPage &page) {
 	auto metrics = RichMessageMetrics();
 	metrics.tableColumnMeasurementLimit = TableColumnMeasurementLimit(0);
@@ -2726,6 +2772,10 @@ bool RichBlockquoteIsCollapsible(const RichPage::Block &block) {
 	return (block.kind == BlockKind::Quote)
 		&& !block.pullquote
 		&& block.blocks.empty();
+}
+
+bool OrderedRomanSupported(int value) {
+	return (value > 0) && (value <= 9999);
 }
 
 std::optional<TextWithEntities> SerializeAsSimple(

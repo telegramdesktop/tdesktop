@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_prepare_serialize.h"
 #include "iv/markdown/iv_markdown_slideshow_chrome.h"
 #include "iv/markdown/iv_markdown_theme.h"
+#include "iv/iv_rich_message_html_export.h"
 #include "iv/iv_search_bar.h"
 #include "iv/iv_search_controller.h"
 #include "lang/lang_keys.h"
@@ -2083,6 +2084,15 @@ void Widget::copyCurrentSelectionToClipboard() {
 				mimeData->setData(format, textMimeData->data(format));
 			}
 		}
+		if (const auto page = richPageForCurrentSelection()) {
+			const auto html = RichBlocksClipboardHtml({
+				.blocks = page->blocks,
+				.rtl = _state->richPage().rtl,
+			}, _session);
+			if (!html.isEmpty()) {
+				mimeData->setHtml(QString::fromUtf8(html));
+			}
+		}
 	}
 	QApplication::clipboard()->setMimeData(mimeData.release());
 }
@@ -2693,7 +2703,7 @@ bool Widget::handleClipboardKey(QKeyEvent *e) {
 		return true;
 	} else if ((e == QKeySequence::Paste) && _field->isHidden()) {
 		const auto mimeData = QApplication::clipboard()->mimeData();
-		if (const auto data = ClipboardDataFromMimeData(mimeData)) {
+		if (const auto data = ClipboardDataFromMimeData(mimeData, _session)) {
 			pasteStructuredClipboardData(*data);
 			e->accept();
 			return true;
@@ -7240,6 +7250,11 @@ void Widget::revealActiveInlineField() {
 				localRect.y() + localRect.height());
 		}
 	};
+	// Scroll's synthetic mouse move extends a drag-selection and re-enters.
+	beginInlineFieldRevealSuppression();
+	const auto revealGuard = gsl::finally([&] {
+		endInlineFieldRevealSuppression();
+	});
 	for (auto parent = parentWidget(); parent; parent = parent->parentWidget()) {
 		if (const auto scroll = dynamic_cast<Ui::ScrollArea*>(parent)) {
 			scrollIn(scroll);
@@ -7555,7 +7570,9 @@ bool Widget::handleIvClipboardMime(
 	}
 	const auto insertContext = ClipboardPasteInsertContext(
 		activeTextInsertContext());
-	const auto clipboardData = ClipboardDataFromMimeData(data.get());
+	const auto clipboardData = ClipboardDataFromMimeData(
+		data.get(),
+		_session);
 	if (clipboardData && insertContext) {
 		if (action == Ui::InputField::MimeAction::Check) {
 			return true;
@@ -9076,6 +9093,9 @@ bool Widget::handleTabNavigation(QKeyEvent *e) {
 		& ~(Qt::KeypadModifier | Qt::GroupSwitchModifier);
 	if (modifiers != Qt::NoModifier && modifiers != Qt::ShiftModifier) {
 		return false;
+	} else if (_insertSuggestions->handleKeyPress(e)) {
+		e->accept();
+		return true;
 	}
 	const auto forward = (key != Qt::Key_Backtab)
 		&& (modifiers != Qt::ShiftModifier);

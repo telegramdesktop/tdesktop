@@ -22,45 +22,47 @@ namespace Test {
 //
 // Test::CaptureViaWindow grabs the toast's window cropped to the toast's
 // rect mapped into it. That is the right answer to blankness and the wrong
-// answer to hygiene. st::toastBg is #2c3033e5 (ui/colors.palette:448) -
-// alpha 0xE5, about 90% opaque - so roughly a tenth of every pixel the
-// product painted underneath composes into the saved frame, legibly enough
-// to read text through it. The rect's corners are worse than that:
+// answer to hygiene. st::toastBg is #2c3033e5 (ui/colors.palette) - alpha
+// 0xE5, about 90% opaque - so roughly a tenth of every pixel the product
+// painted underneath composes into the saved frame, legibly enough to read
+// text through it. The rect's corners are worse than that:
 // Widget::paintBackground is _roundRect.paint(p, rect())
-// (ui/toast/toast_widget.cpp:525-528), which fills the straight bands and
-// draws four corner images (ui/round_rect.cpp:65-125) whose mask is filled
-// with Qt::transparent and carries only a rounded rect
-// (ui/image/image_prepare.cpp:75-98), so outside the arc the toast paints
-// nothing at all and whatever is behind it shows there unblended.
+// (ui/toast/toast_widget.cpp), which fills the straight bands and draws
+// four corner images (Ui::DrawRoundedRect in ui/round_rect.cpp) whose mask
+// is filled with Qt::transparent and carries only a rounded rect
+// (PrepareCornersMask in ui/image/image_prepare.cpp), so outside the arc
+// the toast paints nothing at all and whatever is behind it shows there
+// unblended.
 //
 // Test::GrabWidget and Test::GrabRect call Ui::GrabWidgetToImage(widget,
-// rect, st::windowBg->c) (test_capture.cpp:236-247), which fills the result
-// with the harness theme base and then renders only that target's own
-// subtree (ui/ui_utility.cpp:133-151). A grab rooted at the toast is
-// therefore hygienic by construction: every pixel the translucent toast
-// leaves uncovered measures st::windowBg and never the product. That is
-// the whole mechanism this module rests on, and it is why a root that is
-// not the live toast is refused here rather than reframed.
+// rect, st::windowBg->c) (test_capture.cpp), which fills the result with
+// the harness theme base and then renders only that target's own subtree
+// (ui/ui_utility.cpp). A grab rooted at the toast is therefore hygienic by
+// construction: every pixel the translucent toast leaves uncovered measures
+// st::windowBg and never the product. That is the whole mechanism this
+// module rests on, and it is why a root that is not the live toast is
+// refused here rather than reframed.
 //
-// Ui::Toast::internal::Widget::_shownLevel is private (toast_widget.h:40),
-// and while it is below 1 paintEvent draws the whole frame into a
-// transparent proxy at that opacity and returns (toast_widget.cpp:585-600)
-// - which is exactly where a toast-rooted grab reads blank. So settledness
-// here is measured and not read: the settled background blend is derived
-// from the live palette and one grab is sampled against it.
+// Ui::Toast::internal::Widget::_shownLevel is private (toast_widget.h), and
+// while it is below 1 paintEvent draws the whole frame into a transparent
+// proxy at that opacity and returns (toast_widget.cpp) - which is exactly
+// where a toast-rooted grab reads blank. So settledness here is measured
+// and not read: the settled background blend is derived from the live
+// palette and one grab is sampled against it.
 //
 // Ui::Toast::internal::Manager exposes only instance() and addToast() and
-// keeps its _toastByWidget map private (ui/toast/toast_manager.h:27-29,
-// :42), so no API enumerates live toasts and the honest resolution is the
-// harness's own visible-widget walk over the top level widgets.
+// keeps its _toastByWidget map private (ui/toast/toast_manager.h), so no
+// API enumerates live toasts and the honest resolution is the harness's own
+// visible-widget walk over the top level widgets.
 //
 // This is its own module rather than part of test_capture.h because it
 // appends Runner stages and test_runner.cpp already includes
 // test_capture.h: the reverse include would invert the harness's layering
 // and make its most-included module runner-aware, which is the rule
-// test_menu.h:57-63 states. It is not part of test_via_window.* either,
-// because that module is the self-test of CaptureViaWindow and is this
-// module's own unchanged-scenario control.
+// the layering note above PopupMenuReading in test_menu.h states. It is
+// not part of test_via_window.* either, because that module is the
+// self-test of CaptureViaWindow and is this module's own
+// unchanged-scenario control.
 
 // |toast| is non-null exactly when |refusal| is empty at the moment the
 // reading is taken: a caller cannot take the pointer without being handed
@@ -68,9 +70,8 @@ namespace Test {
 // reading can only go from resolved to unresolved and never hands back a
 // pointer into freed memory, while |frame|, |identity| and |refusal| are
 // values that stay printable after the toast is gone.
-// Test::WindowMappedCapture (test_capture.h:199-208) and
-// Test::PaintingLayerRootResult (:142-149) carry the same type and the
-// same contract.
+// Test::WindowMappedCapture (test_capture.h) and
+// Test::PaintingLayerRootResult carry the same type and the same contract.
 struct ToastSubtreeReading {
 	QPointer<QWidget> toast;
 	QRect frame;
@@ -102,12 +103,13 @@ struct ToastSubtreeReading {
 
 // GrabToastSubtree, ToastSubtreeReady and ToastSubtreeDetails take exactly
 // one grab each, so a poll costs one grab per tick - the budget
-// test_capture.h:185-187 promises for the window-mapped family. A refused
-// request answers a null image and never a reframed one, so a poll around
-// a refused target ends in a named stage timeout rather than in a grab of
-// something else. ToastSubtreeReady is the settled-show term: it is true
-// once the sampled frame matches st::toastBg's own settled blend over the
-// harness base, which no mid-fade frame does.
+// test_capture.h's comment on WindowMappedCapture promises for the
+// window-mapped family. A refused request answers a null image and never a
+// reframed one, so a poll around a refused target ends in a named stage
+// timeout rather than in a grab of something else. ToastSubtreeReady is the
+// settled-show term: it is true once the sampled frame matches
+// st::toastBg's own settled blend over the harness base, which no mid-fade
+// frame does.
 [[nodiscard]] QImage GrabToastSubtree(
 	QWidget *widget,
 	QRect requested = QRect());
@@ -126,10 +128,10 @@ bool CaptureToastSubtree(
 
 // The joined accessibilityName() of the toast's Ui::FlatLabels - the read
 // the harness README already calls decisive - and its comparison, which
-// goes through the shipped Test::CheckTextReads (test_text_reads.h:31-34)
-// so that the space-class normalization and the both-verdicts printing are
-// composed rather than re-derived. A widget that is not a live toast reads
-// back an empty string.
+// goes through the shipped Test::CheckTextReads (test_text_reads.h) so that
+// the space-class normalization and the both-verdicts printing are composed
+// rather than re-derived. A widget that is not a live toast reads back an
+// empty string.
 [[nodiscard]] QString ReadToastText(QWidget *widget);
 void CheckToastReads(
 	QWidget *widget,
@@ -158,9 +160,9 @@ void CheckToastReads(
 // on a correct frame. The two tones also keep a window-mapped crop of the
 // same rect clear of the blank threshold without resting on the toast's
 // own paint - their lightness is 160 against 96 - which is the reason
-// test_via_window.cpp:65-68 gives for using two. No account fixture
-// secret, wallet phrase, password or hint is read, painted or named
-// anywhere: the only text the self-test paints is its own literal.
+// test_via_window.cpp's comment on PaintTwoTone gives for using two. No
+// account fixture secret, wallet phrase, password or hint is read, painted
+// or named anywhere: the only text the self-test paints is its own literal.
 //
 // Stage 1 reads the fade-in window in the one turn it exists, where the
 // shown level is still 0, and shows the settled-show term answering false
@@ -194,9 +196,9 @@ void CheckToastReads(
 // the pure FindLiveToasts, FindLiveToast, ReadToastSubtree,
 // ToastSubtreeReady and ToastSubtreeDetails readings, which log nothing,
 // and asserted as a passing Check whose details carry the refusal
-// verbatim. test_text_reads.h:70-78 records that module as the harness's
-// one self-test that emits deliberate failures, and this one does not
-// become a second.
+// verbatim. test_text_reads.h's comment on AppendTextReadsSelfTest records
+// that module as the harness's one self-test that emits deliberate
+// failures, and this one does not become a second.
 void AppendToastSubtreeCaptureSelfTest(not_null<Runner*> runner);
 
 } // namespace Test

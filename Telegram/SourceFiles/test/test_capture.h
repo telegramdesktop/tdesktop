@@ -169,18 +169,19 @@ bool CaptureMappedTarget(
 // The one render root a capture of a box inside a layer may use.
 //
 // Ui::BoxContent's constructor sets Qt::WA_OpaquePaintEvent
-// (ui/layers/box_content.h:117-119) and BoxContent::paintEvent fills with the
+// (ui/layers/box_content.h) and BoxContent::paintEvent fills with the
 // delegate's style().bg only while that attribute is set
-// (ui/layers/box_content.cpp:450-459), so a plain Ui::GenericBox paints its
-// own background and the blank-root refusal short-circuits on it: a plain box
-// is NOT refused. setNoContentMargin(true) clears the attribute again
-// (box_content.h:224-230), which is what 53 call sites under
-// Telegram/SourceFiles/ do, and that is the only shape the refusal fires for.
-// Such a box paints no background of its own, and the Ui::BoxLayerWidget the
-// layer stack wrapped it in is what paints instead
-// (ui/layers/box_layer_widget.cpp:120-141), with the box as its direct child
-// (:46) - so the walk is normally one hop, but it is written as a walk
-// because a scenario resolves from a descendant just as often.
+// (ui/layers/box_content.cpp), so a plain Ui::GenericBox paints its own
+// background and the blank-root refusal short-circuits on it: a plain box is
+// NOT refused. setNoContentMargin(true) clears the attribute again
+// (box_content.h), which is what 53 call sites under Telegram/SourceFiles/
+// do, and that is the only shape the refusal fires for. Such a box paints no
+// background of its own, and the Ui::BoxLayerWidget the layer stack wrapped
+// it in is what paints instead (BoxLayerWidget::paintEvent in
+// ui/layers/box_layer_widget.cpp), with the box as its direct child
+// (BoxLayerWidget::BoxLayerWidget) - so the walk is normally one hop, but it
+// is written as a walk because a scenario resolves from a descendant just as
+// often.
 //
 // Run 1 of 2026/08/28/complete-server-history-details-hash-and-paging handed
 // the bare box to Runner::captureAndInspect: PreparedWidgetCapture::prepare()
@@ -193,8 +194,8 @@ bool CaptureMappedTarget(
 // the target's own window looking for a layer. That is also why it must never
 // be used on a Ui::PopupMenu: a popup is its own window, so the walk refuses
 // on its first hop, and Ui::PopupMenu::init() sets Qt::WA_NoSystemBackground
-// (ui/widgets/popup_menu.cpp:126), so the blank-root refusal never applies to
-// it and it needs no layer root at all.
+// (ui/widgets/popup_menu.cpp), so the blank-root refusal never applies to it
+// and it needs no layer root at all.
 //
 // |widget| is non-null exactly when |refusal| is empty at the moment the
 // reading is taken: a caller cannot take the pointer without being handed
@@ -245,23 +246,23 @@ bool CaptureBoxLayer(not_null<QWidget*> box, const QString &name);
 //
 // Ui::Toast::internal::Widget's constructor sets only
 // Qt::WA_TransparentForMouseEvents, never Qt::WA_OpaquePaintEvent nor
-// Qt::WA_NoSystemBackground (ui/toast/toast_widget.cpp:413-441), and while
-// its fade-in opacity is below 1 its paintEvent draws the whole frame into a
-// transparent proxy at that opacity and returns (:585-600). A grab of such a
-// widget holds the harness base and nothing else, at perfectly sane
-// geometry - what run 4 of 2026/08/30/replace-wallet-with-new-or-imported
-// paid for. The repair is to grab the widget's own window and crop it to the
-// widget's rect mapped into that window, because the opaque window behind
-// the fade-in is what holds the real pixels.
+// Qt::WA_NoSystemBackground (ui/toast/toast_widget.cpp), and while its
+// fade-in opacity is below 1 its paintEvent draws the whole frame into a
+// transparent proxy at that opacity and returns. A grab of such a widget
+// holds the harness base and nothing else, at perfectly sane geometry - what
+// run 4 of 2026/08/30/replace-wallet-with-new-or-imported paid for. The
+// repair is to grab the widget's own window and crop it to the widget's rect
+// mapped into that window, because the opaque window behind the fade-in is
+// what holds the real pixels.
 //
 // PreparedWidgetCapture cannot answer this. Its blank-frame refusal fires on
 // every frame such a wrapper can offer, so a poll around it can only end in
-// a stage timeout - the shape test_layer_root.h:24-28 describes for a
-// no-content-margin box.
+// a stage timeout - the shape test_layer_root.h's comment on
+// AppendPaintingLayerRootSelfTest describes for a no-content-margin box.
 //
 // A blank frame here is a Note and never a FAIL, by contract: the decisive
 // oracle for a fade-in wrapper is textual - the joined accessibilityName()
-// of its Ui::FlatLabels (ui/widgets/labels.h:131-133) - and the capture only
+// of its Ui::FlatLabels (ui/widgets/labels.h) - and the capture only
 // corroborates it. A structural refusal is still a loud FAIL, because no
 // amount of waiting repairs it: no widget, not visible, empty geometry, the
 // target is its own window (which keeps this off a Ui::PopupMenu just as the

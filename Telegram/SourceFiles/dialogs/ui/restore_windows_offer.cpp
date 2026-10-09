@@ -196,14 +196,7 @@ void RestoreWindowsOffer::paintEvent(QPaintEvent *e) {
 		pill.width() / 2,
 		pill.height() / 2,
 	});
-	_shadow.paint(p, pill, radius);
-	{
-		auto hq = PainterHighQualityEnabler(p);
-		p.setBrush(st::dialogsBg);
-		p.setPen(Qt::NoPen);
-		p.drawRoundedRect(pill, radius, radius);
-	}
-	PaintPillOutline(p, pill, radius);
+	PaintPillBackground(p, _shadow, pill, radius);
 	p.setPen(st::windowFg);
 	_question.draw(p, {
 		.position = _questionPosition,

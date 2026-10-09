@@ -513,6 +513,14 @@ double MediaBlock::mediaPixelScale() const {
 	return _mediaPixelScale;
 }
 
+void MediaBlock::setBubbleRounding(Ui::BubbleRounding rounding) {
+	_bubbleRounding = rounding;
+}
+
+Ui::BubbleRounding MediaBlock::bubbleRounding() const {
+	return _bubbleRounding;
+}
+
 void MediaBlock::requestRepaint(QRect articleRect) const {
 	if (_host) {
 		_host->requestRepaint(articleRect);

@@ -32,16 +32,15 @@ namespace {
 // reason ChooseLangKey below states.
 //
 // Three classes are deliberately absent. lng_language_name is the value
-// Instance::name() and nativeName() fall back to
-// (lang_instance.cpp:341-351), so overwriting it would rewrite the very
-// identity a fixture freezes. lng_send_action_choose_sticker and
-// lng_user_action_choose_sticker re-run updateChoosingStickerReplacement()
-// from both applyValue (:740-747) and resetValue (:778-785). And every
-// TAGGED phrase is excluded from this list. These stages' label
-// read-back compares accessibilityName() to the raw override, and
-// ValueParser stores a four-character kTextCommand replacer (:137-141)
-// that would not match. The placeholder arm below certifies those
-// keys without that read-back.
+// Instance::name() and nativeName() in lang_instance.cpp fall back to,
+// so overwriting it would rewrite the very identity a fixture freezes.
+// lng_send_action_choose_sticker and lng_user_action_choose_sticker
+// re-run updateChoosingStickerReplacement() from both applyValue and
+// resetValue. And every TAGGED phrase is excluded from this list. These
+// stages' label read-back compares accessibilityName() to the raw
+// override, and ValueParser stores a four-character kTextCommand
+// replacer (in ValueParser::readTag) that would not match. The
+// placeholder arm below certifies those keys without that read-back.
 constexpr const char *kKeyCandidates[] = {
 	"lng_cancel",
 	"lng_continue",
@@ -75,7 +74,7 @@ struct LangKeyChoice {
 
 // Lang::GetKeyIndex answers kKeysCount for a key the generated table does
 // not know, Instance::getValue is Expects(key < _values.size())
-// (lang_instance.h:90-93) and Lang::GetOriginalValue is
+// (lang_instance.h) and Lang::GetOriginalValue is
 // Expects(key < kKeysCount) (the generated lang_auto.cpp), so reading
 // either for an unresolved index would abort a Debug build. The unknown
 // branch therefore prints what it can read by name alone and touches
@@ -141,9 +140,9 @@ struct LangKeyChoice {
 	return instance.isCustom()
 		? u"custom language pack refused: id=%1 - switchToId would rewrite "
 			"every value through PrepareTestValue and fire Lang::Updated() "
-			"(lang_instance.cpp:252-259), and fillFromSerialized could "
-			"reach Local::writeLangPack() through its custom-file branch "
-			"(:473-487)"_q.arg(instance.id())
+			"(lang_instance.cpp), and fillFromSerialized could reach "
+			"Local::writeLangPack() through its custom-file branch"_q.arg(
+				instance.id())
 		: QString();
 }
 
@@ -188,16 +187,17 @@ struct LangKeyChoice {
 	return result;
 }
 
-// Both Expects in applyDifferenceToMe (lang_instance.cpp:686-687) hold by
+// Both Expects in applyDifferenceToMe (lang_instance.cpp) hold by
 // construction here: the lang code is LanguageIdOrDefault of the
 // instance's own id, read immediately before the call, and from_version
-// is always 0. The version is restated rather than invented, so the
-// assignment at :689 writes back the value the pack already holds - which
-// matters because CloudManager::applyLangPackData
-// (lang_cloud_manager.cpp:386) branches on it. The difference is bound to
+// is always 0. The version is restated rather than invented, so
+// applyDifferenceToMe's assignment to _version writes back the value the
+// pack already holds - which matters because CloudManager::applyLangPackData
+// (lang_cloud_manager.cpp) branches on it. The difference is bound to
 // a named local because data() hands out a reference into the boxed data
 // that local owns. An EMPTY |strings| applies and resets nothing, so its
-// only effect is the _updated fire at :698 - the notification half.
+// only effect is the _updated fire in applyDifferenceToMe - the
+// notification half.
 void ApplyStrings(
 		Lang::Instance &instance,
 		const QVector<MTPLangPackString> &strings) {
@@ -213,7 +213,7 @@ void ApplyStrings(
 // deliberately NOT a criterion: on any client that has ever downloaded a
 // cloud language pack, every key the generated table knows already
 // carries an override - fillFromSerialized logs the cached pack's
-// non-default count (lang_instance.cpp:543) and an ordinary account read
+// non-default count (lang_instance.cpp) and an ordinary account read
 // 10993 of them against kKeysCount = 10948 - so a search for a
 // currently-default key finds none and gates the whole self-test out,
 // and a longer candidate list cannot help because the property is
@@ -405,10 +405,9 @@ void LangPackFixture::remove() {
 	auto &instance = Lang::GetInstance();
 
 	// The plural id is deliberately left empty. Instance::reset derives
-	// computedPluralId = pluralId ?: baseId ?: id
-	// (lang_instance.cpp:282-286), and fillFromSerialized then overwrites
-	// _pluralId with the serialized one (:532-536) and re-runs
-	// updatePluralRules() (:547), so the serialized pack decides it.
+	// computedPluralId = pluralId ?: baseId ?: id (lang_instance.cpp), and
+	// fillFromSerialized then overwrites _pluralId with the serialized one
+	// and re-runs updatePluralRules(), so the serialized pack decides it.
 	// There is no public pluralId() getter to freeze it from, and none is
 	// needed.
 	instance.switchToId({
@@ -494,7 +493,7 @@ std::shared_ptr<LangPackFixture> LangPackFixture::Install(
 		FinishRegistered() = true;
 
 		// One registration for the whole process. Runner::finish() runs
-		// its callbacks in registration order (test_runner.cpp:453-456),
+		// its callbacks in registration order (test_runner.cpp),
 		// which is FIFO, so one callback per fixture would remove the
 		// outermost first and restore a snapshot taken before the inner
 		// fixtures installed. Unwinding LIFO from a single callback fixes
@@ -546,22 +545,23 @@ void AppendLangPackSelfTest(
 	// theirs: the stages outlive this call. The teardown stage releases
 	// both labels and removes the two fixtures still installed, but a
 	// timed-out stage and the watchdog skip every stage after them, so
-	// that stage is not the release point (README.md:483-490). Two
-	// distinct Runner::onFinish backstops cover such a run: the module's
-	// single registration unwinds the FIXTURES and captures nothing, so
-	// it cannot reach this State, and the registration just below does
-	// reach it - it releases the LABELS, each of which holds a live
-	// consumer inside Lang::Instance::_updated for as long as it exists
-	// (lib_ui/ui/widgets/labels.cpp:239-244), which is exactly what
-	// README.md:473-481 makes the scenario own, and it takes this
-	// self-test's own fixtures down in reverse installation order, so
-	// the live cloud pack the holder froze is restored even on a run
-	// that never reaches the teardown stage.
+	// that stage is not the release point ("Scenario teardown before
+	// quit" in README.md). Two distinct Runner::onFinish backstops
+	// cover such a run: the module's single registration unwinds the
+	// FIXTURES and captures nothing, so it cannot reach this State, and
+	// the registration just below does reach it - it releases the
+	// LABELS, each of which holds a live consumer inside
+	// Lang::Instance::_updated for as long as it exists (Ui::FlatLabel's
+	// rpl::producer<QString> constructor in lib_ui/ui/widgets/labels.cpp),
+	// which is exactly what that README section makes the scenario own,
+	// and it takes this self-test's own fixtures down in reverse
+	// installation order, so the live cloud pack the holder froze is
+	// restored even on a run that never reaches the teardown stage.
 	const auto state = new State();
 
 	// finish() runs on every path that reaches it, and also when a
-	// teardown stage already ran (test_runner.h:85-95), so this has to be
-	// safe afterwards: assigning nullptr to an already-null
+	// teardown stage already ran (Runner::onFinish in test_runner.h), so
+	// this has to be safe afterwards: assigning nullptr to an already-null
 	// base::unique_qptr is a no-op, and remove() is idempotent - a no-op
 	// on a fixture already removed and on one that never installed. The
 	// removals are in REVERSE installation order, because remove() FAILs
@@ -569,7 +569,7 @@ void AppendLangPackSelfTest(
 	// and they follow the label release so no Lang::Updated() they fire
 	// reaches a label. This registration is made at append time and the
 	// module's own on the first install, and finish() runs its callbacks
-	// FIFO (test_runner.cpp:453-456), so the module's unwind runs after
+	// FIFO (test_runner.cpp), so the module's unwind runs after
 	// these and finds nothing left to unwind.
 	runner->onFinish([=] {
 		state->labelA = nullptr;
@@ -592,9 +592,10 @@ void AppendLangPackSelfTest(
 	});
 
 	// Resolved eagerly, at append time rather than in a stage:
-	// Local::readLangPack() runs inside storage/localstorage.cpp:426, long
-	// before Application::run() reaches Test::Start(), so the pack is
-	// loaded here and every stage's skipReason stays a pure read.
+	// Local::readLangPack() runs inside Local::start()
+	// (storage/localstorage.cpp), long before Application::run() reaches
+	// Test::Start(), so the pack is loaded here and every stage's
+	// skipReason stays a pure read.
 	state->keyA = ChooseLangKey({});
 	state->keyB = ChooseLangKey({ state->keyA.key });
 	state->keyHolder = ChooseLangKey({ state->keyA.key, state->keyB.key });
@@ -669,13 +670,13 @@ void AppendLangPackSelfTest(
 
 			// The identity is read from the instance itself, so this is
 			// the running pack's own id and not a language switch.
-			// reset (lang_instance.cpp:281-305) rewrites every _values[i]
+			// reset (lang_instance.cpp) rewrites every _values[i]
 			// from GetOriginalValue(i), clears _nonDefaultValues, zeroes
 			// _nonDefaultSet and sets _version to 0; on an ordinary id
-			// switchToId fires _idChanges only and never _updated
-			// (:250-261). Every key is default afterwards - the
-			// precondition the four stages below need, which no client
-			// that has downloaded a cloud pack provides on its own.
+			// switchToId fires _idChanges only and never _updated. Every
+			// key is default afterwards - the precondition the four stages
+			// below need, which no client that has downloaded a cloud pack
+			// provides on its own.
 			instance.switchToId({
 				.id = instance.id(),
 				.baseId = instance.baseId(),

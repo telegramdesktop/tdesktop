@@ -20,7 +20,7 @@ class Runner;
 // The window is the first. QWidget::setFocus() walks the focus_child chain
 // unconditionally, but only its if (f->isActiveWindow()) branch promotes the
 // target to QApplication::focusWidget(), and isActiveWindow() ends in a
-// fallback to QPlatformWindow::isActive() (qwidget.cpp:6723-6725) - so it is
+// fallback to QPlatformWindow::isActive() (qwidget.cpp) - so it is
 // the platform window not being active, on a locked or unattended console,
 // that makes setFocus() "succeed" while every hasFocus() and
 // isActiveWindow() branch keeps reading false - no error, no event, just
@@ -33,17 +33,17 @@ class Runner;
 //
 // The wrapper is the second. Ui::InputField declares its own non-virtual
 // bool hasFocus() const returning _inner->hasFocus(), the inner QTextEdit
-// (input_field.h:377, input_field.cpp:4276-4278), and the class installs no
+// (input_field.h, input_field.cpp), and the class installs no
 // setFocusProxy anywhere, so the reading taken through the QWidget* a
 // generic finder hands back answers for the wrapper and is false exactly
 // while the editor holds the focus. Ui::InputField::Inner declares no
-// Q_OBJECT (input_field.cpp:1632), so the focused widget's className()
+// Q_OBJECT (input_field.cpp), so the focused widget's className()
 // resolves to its nearest Q_OBJECT ancestor and the log prints QTextEdit -
 // the string three runs of that campaign were spent learning to read.
 //
 // The key route is the third. Ui::InputField overrides paintEvent,
 // focusInEvent, mousePressEvent, contextMenuEvent and resizeEvent but not
-// keyPressEvent (input_field.h:433-437), and Qt propagates an ignored key
+// keyPressEvent (input_field.h), and Qt propagates an ignored key
 // event up the parent chain and never down into a child - the
 // QEvent::KeyPress case of QApplication::notify re-delivers it to
 // w->parentWidget() until it is accepted or a window is reached. So

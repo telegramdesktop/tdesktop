@@ -85,8 +85,8 @@ struct SentinelSeparation {
 // paints st::toastBg's settled blend over that, its label paints
 // st::toastFg ink, and every antialiased mixture lies between them.
 // ChannelDelta is the maximum absolute per-channel difference
-// (test_ink.cpp:96-104), so the nearest grey to a colour sits exactly half
-// that colour's own channel span away: kFirstSentinel spans 190 and
+// (test_ink.cpp), so the nearest grey to a colour sits exactly half that
+// colour's own channel span away: kFirstSentinel spans 190 and
 // kSecondSentinel spans 192, which puts every grey at least 95 from either
 // and every near-grey at least about 92, in a light palette and a dark one
 // alike. An earlier pair was picked against one palette and collided with
@@ -141,12 +141,12 @@ struct ToastFrame {
 // The one statistic that separates a settled toast from a fading one, and
 // the reason it is a floor on a match count rather than a mean or a
 // minimum: at full show paintEvent calls paintBackground(p) directly
-// (toast_widget.cpp:585-600), so the background pixels are exactly
-// st::toastBg composited over the grab's st::windowBg fill, while at shown
-// level s every one of them is that same colour lerped back towards the
-// fill and none of them matches. The toast's transparent corners and its
-// opaque label ink match at no level at all and only ever lower the count,
-// so a mean or a minimum would measure them instead of the fade.
+// (toast_widget.cpp), so the background pixels are exactly st::toastBg
+// composited over the grab's st::windowBg fill, while at shown level s
+// every one of them is that same colour lerped back towards the fill and
+// none of them matches. The toast's transparent corners and its opaque
+// label ink match at no level at all and only ever lower the count, so a
+// mean or a minimum would measure them instead of the fade.
 [[nodiscard]] ToastFrame ReadToastFrame(const ToastSubtreeReading &reading) {
 	auto result = ToastFrame();
 	result.separation = SettledSeparation();
@@ -266,12 +266,13 @@ struct Fixture {
 		.arg(ToastSubtreeDetails(toast));
 }
 
-// Two tones rather than one, for the reason test_via_window.cpp:65-68
-// gives: with a single tone the window-mapped control's non-blankness
-// would rest on whatever the toast itself managed to paint, which is the
-// thing under measurement. Their lightness is 160 against 96, a spread of
-// 64 against the harness's kBlankSpreadThreshold of 6, so a window-mapped
-// crop of this region clears the blank threshold on the bands alone.
+// Two tones rather than one, for the reason test_via_window.cpp's comment
+// on PaintTwoTone gives: with a single tone the window-mapped control's
+// non-blankness would rest on whatever the toast itself managed to paint,
+// which is the thing under measurement. Their lightness is 160 against 96,
+// a spread of 64 against the harness's kBlankSpreadThreshold of 6, so a
+// window-mapped crop of this region clears the blank threshold on the bands
+// alone.
 void PaintSentinelBands(not_null<Ui::RpWidget*> widget) {
 	const auto raw = widget.get();
 	raw->paintOn([=](QPainter &p) {
@@ -308,9 +309,9 @@ void PaintSentinelBands(not_null<Ui::RpWidget*> widget) {
 	if (!instance) {
 		return false;
 	}
-	// The toast Widget is parented to the same |top| (ui/toast/toast.cpp:
-	// 36-39), so it and the sentinel are siblings sharing one origin and
-	// geometry() maps between them with no conversion at all.
+	// The toast Widget is parented to the same |top| (Instance::Instance in
+	// ui/toast/toast.cpp), so it and the sentinel are siblings sharing one
+	// origin and geometry() maps between them with no conversion at all.
 	const auto widget = instance->widget().get();
 	fixture.toastWidget = widget;
 	sentinel->setGeometry(widget->geometry());
@@ -596,9 +597,9 @@ void AppendToastSubtreeCaptureSelfTest(not_null<Runner*> runner) {
 			// The drain is load-bearing and not hygiene: a mid-fade
 			// paintEvent called disableChildrenPaintOnce(), which sets
 			// Qt::WA_UpdatesDisabled on the toast's children and schedules
-			// the restore as a Ui::PostponeCall (toast_widget.cpp:
-			// 556-583), and every frame below must be taken after that
-			// restore has run.
+			// the restore as a Ui::PostponeCall (toggleChildrenPaint() and
+			// scheduleChildrenPaintRestore() in toast_widget.cpp), and
+			// every frame below must be taken after that restore has run.
 			sentinel->setGeometry(toast->geometry());
 			SettlePostponedCalls();
 
@@ -705,17 +706,18 @@ void AppendToastSubtreeCaptureSelfTest(not_null<Runner*> runner) {
 				return;
 			}
 			// Shown, read and taken down inside this one turn, the way
-			// test_via_window.cpp:398-518 builds, reads and destroys its
-			// own fixture, so nothing this stage creates reaches the
-			// stages after it. It is infinite for the reason the fixture
-			// is: an infinite toast leaves _hideAt at 0 (toast.cpp:32-34)
-			// and the manager then arms no hide timer for it
-			// (toast_manager.cpp:75-83), so nothing takes it down
-			// implicitly and the drained loop's starving of hideAnimated()
-			// never comes into it. Instance::hide() - _widget->hide();
-			// _widget->deleteLater(); (toast.cpp:116-119) - is the seam,
-			// and its hide is synchronous while the walk reads visibility,
-			// so the count drops in that same statement.
+			// AppendCaptureViaWindowSelfTest's retained-reading stage
+			// (test_via_window.cpp) builds, reads and destroys its own
+			// fixture, so nothing this stage creates reaches the stages
+			// after it. It is infinite for the reason the fixture is: an
+			// infinite toast leaves _hideAt at 0 (Instance::Instance in
+			// toast.cpp) and the manager then arms no hide timer for it
+			// (Manager::addToast in toast_manager.cpp), so nothing takes it
+			// down implicitly and the drained loop's starving of
+			// hideAnimated() never comes into it. Instance::hide() -
+			// _widget->hide(); _widget->deleteLater(); (toast.cpp) - is the
+			// seam, and its hide is synchronous while the walk reads
+			// visibility, so the count drops in that same statement.
 			const auto second = Ui::Toast::Show(parent, {
 				.text = { kOtherText },
 				.st = &st::defaultToast,
@@ -1014,9 +1016,9 @@ void AppendToastSubtreeCaptureSelfTest(not_null<Runner*> runner) {
 			// timer will ever take it down, and the sentinel is parented
 			// into the primary window. Instance::hide() is the product's
 			// own immediate path - _widget->hide();
-			// _widget->deleteLater(); (ui/toast/toast.cpp:116-119) -
-			// rather than hideAnimated(), whose fade-out animation the
-			// harness's drained loop starves.
+			// _widget->deleteLater(); (ui/toast/toast.cpp) - rather than
+			// hideAnimated(), whose fade-out animation the harness's
+			// drained loop starves.
 			// The zero reading below is taken around that same hide, and
 			// the walk one statement above it is its control: a bare
 			// empty answer at an arbitrary point would be an accident of

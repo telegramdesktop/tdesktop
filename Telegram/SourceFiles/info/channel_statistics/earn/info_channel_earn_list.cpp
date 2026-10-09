@@ -441,7 +441,7 @@ void InnerWidget::fill() {
 				auto emojiHelper = Ui::Text::CustomEmojiHelper();
 				const auto bigCurrencyIcon = emojiHelper.paletteDependent({
 					.factory = [=] {
-						return Ui::Earn::IconCurrencyColored(
+						return Ui::Earn::IconCurrencyTwoTone(
 							st::boxTitle.style.font,
 							st::currencyFg->c);
 					}, .margin = st::channelEarnCurrencyLearnMargins });
@@ -1512,7 +1512,7 @@ void AddEmojiToMajor(
 		auto helper = Ui::Text::CustomEmojiHelper();
 		auto icon = helper.paletteDependent({
 			.factory = [=] {
-				return Ui::Earn::IconCurrencyColored(
+				return Ui::Earn::IconCurrencyTwoTone(
 					st.style.font,
 					!isIn
 					? st::currencyFg->c

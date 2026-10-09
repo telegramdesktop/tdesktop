@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QWidget>
 
+namespace Ui {
+class InputField;
+} // namespace Ui
+
 namespace Test {
 
 // Telegram's custom widgets do not declare Q_OBJECT, so
@@ -96,8 +100,7 @@ void PublishLiveAction(
 // at a matching internal unwind INSIDE the sent event's own signal
 // emission — both unlike real top-level input.
 //
-// Guarantee: when a helper returns, postponed text fix-ups (for example
-// Ui::CreateTonAmountInput's FixTonAmountInput rewrite) have run AND
+// Guarantee: when a helper returns, postponed text fix-ups have run AND
 // their own change handling has run, so both the widget's document and
 // the field's cached text state (InputField::getLastText) show the
 // product's rewritten text. The drain covers Ui::PostponeCall only:
@@ -132,6 +135,11 @@ void PublishLiveAction(
 // never hovered keeps its Over unchanged, because setOver returns
 // early on an unchanged value.
 //
+// DropText is the one exception to "after each delivered event": it
+// settles once after its drag-enter + drop pair, because a drain between
+// the two could destroy a viewport QDragManager still points at (see its
+// comment).
+//
 // Use Test::Settle for programmatic mutations; SettlePostponedCalls
 // remains the bare drain.
 
@@ -156,7 +164,8 @@ void Drag(
 	not_null<QWidget*> widget,
 	QPoint from,
 	QPoint to,
-	int steps = 8);
+	int steps = 8,
+	Qt::KeyboardModifiers modifiers = Qt::NoModifier);
 
 // Synthesizes a wheel event at |point| in the named widget's coordinates
 // (the widget centre by default). |angleDelta| uses Qt's native
@@ -186,6 +195,90 @@ WheelDelivery Wheel(
 	std::optional<QPoint> point = {});
 [[nodiscard]] QString WheelDeliveryDetails(const WheelDelivery &reading);
 
+// Hands |text| to a Ui::InputField the way a paste does, without the
+// system clipboard. It exists because the clipboard read back empty right
+// after setText on the Windows host of
+// 2026/09/29/keep-the-focused-word-field-in-view-when-importing-a-wallet
+// (work/test.md, Run 1, Tests 9 and 10), so every paste check there was
+// left undecided.
+//
+// Route: a stack QMimeData carrying |text|, a QDragEnterEvent and then a
+// QDropEvent, both sent to field->rawTextEdit()->viewport(). The viewport's
+// QAbstractScrollAreaFilter hands them to QTextEdit::dragEnterEvent and
+// InputField::dropEventInner, which reach canInsertFromMimeDataInner and
+// insertFromMimeDataInner - so the field's setMimeDataHook, or the field's
+// own insertion when the hook leaves it, which is where Ctrl+V also ends.
+//
+// Qt routing (qapplication.cpp, QApplication::notify): the enter must come
+// first, because a Drop goes only to QDragManager's current target, which
+// only an accepted DragEnter sets; with no target a Drop is discarded. An
+// ignored DragEnter climbs parentWidget() to the first enabled ancestor
+// that accepts drops (a chat's file-drop area, for instance), and the Drop
+// then goes there. The helper therefore sends the drop only when the
+// field's own viewport accepted the enter, and for the duration of the
+// pair it installs an application event filter (a shield) that withholds
+// every drag event from any receiver other than that viewport. No other
+// widget ever sees the enter or the drop; |shielded| names every widget Qt
+// would have offered them to. An enter that was not accepted is balanced
+// with a QDragLeaveEvent to the viewport, as Qt itself does.
+//
+// The pair runs inside ONE Test::Settle, not one per event: an accepted
+// enter makes the viewport QDragManager's raw (unguarded) current target,
+// and a drain between the enter and the drop could run product code that
+// destroys the field while the manager still points at it. The drop or the
+// leave clears the target before any postponed call runs, and the single
+// drain afterwards still leaves getLastText() settled.
+//
+// The text goes in at the caret (the drop point is the cursor rectangle's
+// centre); unlike a paste, a selection is NOT replaced
+// (QWidgetTextControl::dropEvent moves the cursor to the drop point).
+//
+// Not covered: it does NOT exercise the clipboard read of a Paste
+// accessory (QGuiApplication::clipboard()->text() in its click callback)
+// or of Ctrl+V (QTextEdit::paste). A check whose subject is that read
+// still needs a host where the clipboard reads back. The helper neither
+// reads nor writes the system clipboard.
+//
+// Side effects: InputField::dropEventInner calls window()->raise() and
+// window()->activateWindow() after the drop. On macOS QCocoaWindow::raise
+// also activates the application unless QT_MAC_SET_RAISE_PROCESS=0, so a
+// shown field's window, and the app, come to the front; a never-shown
+// top-level is unaffected. The viewport keeps Qt::WA_UnderMouse after a
+// delivered drop (only Leave or DragLeave clears it), as a real drop under
+// the pointer would.
+//
+// |delivered| is exactly enterAccepted && dropAccepted. A refusal is
+// returned, never logged: the helper neither Notes nor Fails, and the
+// caller judges the reading, as with WheelDelivery. |fieldAlive| reports a
+// field destroyed by the final drain; that is not a refusal.
+// TextDropDetails never prints the dropped text or the field's text,
+// because a campaign may drop real secret words.
+enum class TextDropRefusal {
+	None,
+	ViewportRefusesDrops,
+	EnterNotAccepted,
+	DropNotAccepted,
+};
+
+struct TextDrop {
+	bool delivered = false;
+	bool enterAccepted = false;
+	bool dropSent = false;
+	bool dropAccepted = false;
+	bool fieldAlive = false;
+	int textLength = 0;
+	int fieldLengthBefore = 0;
+	int fieldLengthAfter = 0;
+	QString target;
+	QStringList shielded;
+	TextDropRefusal refusal = TextDropRefusal::None;
+	QString reason;
+};
+
+[[nodiscard]] QString TextDropRefusalName(TextDropRefusal refusal);
+TextDrop DropText(not_null<Ui::InputField*> field, const QString &text);
+[[nodiscard]] QString TextDropDetails(const TextDrop &reading);
+
 void PressKey(
 	not_null<QWidget*> widget,
 	int key,
@@ -208,14 +301,14 @@ void SettlePostponedCalls();
 // QWidget::setFocus() walks the focus_child chain unconditionally, but only
 // its if (f->isActiveWindow()) branch promotes the target to
 // QApplication::focusWidget(), and isActiveWindow() ends in a fallback to
-// QPlatformWindow::isActive() (qwidget.cpp:6723-6725) - so it takes the
+// QPlatformWindow::isActive() (qwidget.cpp) - so it takes the
 // platform window not being active, on a locked or unattended console, for
 // setFocus() to "succeed" while hasFocus() and isActiveWindow() keep reading
 // false - no error, no event, just absence - and every affordance routed on
 // them silently does nothing. Clearing only the QPA focus window does not
 // reproduce that where the OS window is still active. Runs 2 and 7 of
 // 2026/08/30/replace-wallet-with-new-or-imported paid for that.
-// Window::Controller::activate() (window/window_controller.h:118) is not the
+// Window::Controller::activate() (window/window_controller.h) is not the
 // answer: it asks the window manager, which on a locked console does not
 // comply, which is why the injection goes through the QPA seam instead.
 //

@@ -264,13 +264,13 @@ Ui::ChatThemeBubblesData PrepareBubblesData(
 		const Data::CloudTheme &theme,
 		Data::CloudThemeType type) {
 	const auto i = theme.settings.find(type);
+	if (i == end(theme.settings)) {
+		return {};
+	}
 	return {
-		.colors = (i != end(theme.settings)
-			? i->second.outgoingMessagesColors
-			: std::vector<QColor>()),
-		.accent = (i != end(theme.settings)
-			? i->second.outgoingAccentColor
-			: std::optional<QColor>()),
+		.colors = i->second.outgoingMessagesColors,
+		.accent = i->second.outgoingAccentColor,
+		.dark = (type == Data::CloudThemeType::Dark),
 	};
 }
 

@@ -14,17 +14,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 //#include "styles/style_wallet.h"
 
 #include <QtCore/QLocale>
+#include <QtCore/QTextBoundaryFinder>
+#include <QtGui/QGuiApplication>
+#include <QtGui/QInputMethod>
+#include <QtGui/QInputMethodEvent>
 
 namespace Ui {
 namespace {
 
 constexpr auto kOneTon = kNanosInOne;
 constexpr auto kNanoDigits = 9;
-
-struct FixedAmount {
-	QString text;
-	int position = 0;
-};
 
 std::optional<int64> ParseAmountTons(const QString &trimmed) {
 	auto ok = false;
@@ -60,28 +59,29 @@ std::optional<int64> ParseAmountNano(QString trimmed) {
 		: std::nullopt;
 }
 
-[[nodiscard]] FixedAmount FixTonAmountInput(
+} // namespace
+
+FixedAmount FixTonAmountInput(
 		const QString &was,
 		const QString &text,
-		int position) {
+		int position,
+		int fractionDigits,
+		const QString &separator) {
 	constexpr auto kMaxDigitsCount = 9;
-	const auto separator = FormatTonAmount(1).separator;
 
 	auto result = FixedAmount{ text, position };
 	if (text.isEmpty()) {
 		return result;
-	} else if (text.startsWith('.')
-		|| text.startsWith(',')
-		|| text.startsWith(separator)) {
-		result.text.prepend('0');
-		++result.position;
 	}
 	auto separatorFound = false;
 	auto digitsCount = 0;
 	for (auto i = 0; i != result.text.size();) {
 		const auto ch = result.text[i];
 		const auto atSeparator = QStringView(result.text).mid(i).startsWith(separator);
-		if (ch >= '0' && ch <= '9' && digitsCount < kMaxDigitsCount) {
+		if (ch >= '0' && ch <= '9'
+			&& digitsCount < (separatorFound
+				? fractionDigits
+				: kMaxDigitsCount)) {
 			++i;
 			++digitsCount;
 			continue;
@@ -100,24 +100,102 @@ std::optional<int64> ParseAmountNano(QString trimmed) {
 			--result.position;
 		}
 	}
-	if (result.text == "0" && result.position > 0) {
-		if (was.startsWith('0')) {
-			result.text = QString();
-			result.position = 0;
+	const auto zero = u"0"_q;
+	const auto zeroOnly = zero + separator;
+	if (was == zeroOnly
+		&& (result.text.isEmpty()
+			|| result.text == zero
+			|| result.text == separator)) {
+		// Nothing is left of a canonical zero, so the whole amount is gone.
+		return FixedAmount();
+	} else if (result.text.startsWith(separator)) {
+		if (result.text.size() > separator.size()
+			&& was.startsWith(zeroOnly)
+			&& was.size() > zeroOnly.size()) {
+			// The zero before the separator of a fraction-only amount was
+			// removed, which promotes the fraction to the whole amount.
+			result.text = result.text.mid(separator.size());
+			result.position = std::max(
+				result.position - int(separator.size()),
+				0);
 		} else {
-			result.text += separator;
-			result.position += separator.size();
+			result.text.prepend(zero);
+			++result.position;
 		}
+	}
+	const auto separatorAt = result.text.indexOf(separator);
+	const auto integerLength = (separatorAt >= 0)
+		? separatorAt
+		: int(result.text.size());
+	auto extraZeros = 0;
+	while (extraZeros + 1 < integerLength
+		&& result.text[extraZeros] == QChar('0')) {
+		++extraZeros;
+	}
+	if (extraZeros > 0) {
+		result.text.remove(0, extraZeros);
+		result.position = std::max(result.position - extraZeros, 0);
+	}
+	if (result.text == zero) {
+		// A zero alone is not an amount, it only starts a fractional one.
+		result.text += separator;
+		result.position += separator.size();
 	}
 	return result;
 }
 
-} // namespace
+FixedAmount FixTonAmountValue(
+		const QString &was,
+		int wasCursor,
+		const QString &text,
+		int position,
+		int fractionDigits,
+		const QString &separator) {
+	const auto zero = u"0"_q;
+	auto mapped = text;
+	for (auto &ch : mapped) {
+		const auto code = ch.unicode();
+		if (code >= 0xFF10 && code <= 0xFF19) {
+			ch = QChar('0' + (code - 0xFF10));
+		} else if (code == 0xFF0E) {
+			ch = QChar('.');
+		} else if (code == 0xFF0C) {
+			ch = QChar(',');
+		}
+	}
+	if (was == zero && mapped.size() > 1) {
+		const auto size = int(mapped.size());
+		if (mapped.endsWith(QChar('0')) && position == size - 1) {
+			mapped.chop(1);
+		} else if (mapped.startsWith(QChar('0')) && position == size) {
+			mapped.remove(0, 1);
+			--position;
+		}
+	}
+	const auto typedSeparator = mapped.contains(separator)
+		|| mapped.contains(QChar('.'))
+		|| mapped.contains(QChar(','));
+	const auto result = FixTonAmountInput(
+		QString(),
+		mapped,
+		position,
+		fractionDigits,
+		separator);
+	if (result.text.isEmpty()) {
+		return { zero, std::clamp(wasCursor, 0, 1) };
+	} else if (result.text == zero + separator && !typedSeparator) {
+		return {
+			zero,
+			std::clamp(result.position - int(separator.size()), 0, 1),
+		};
+	}
+	return result;
+}
 
 FormattedTonAmount FormatTonAmount(int64 amount, TonFormatFlags flags) {
 	auto result = FormattedTonAmount();
 	const auto grams = amount / kOneTon;
-	const auto preciseNanos = std::abs(amount) % kOneTon;
+	const auto preciseNanos = std::abs(amount % kOneTon);
 	auto roundedNanos = preciseNanos;
 	if (flags & TonFormatFlag::Rounded) {
 		if (std::abs(grams) >= 1'000'000 && (roundedNanos % 1'000'000)) {
@@ -163,14 +241,18 @@ FormattedTonAmount FormatTonAmount(int64 amount, TonFormatFlags flags) {
 	return result;
 }
 
-std::optional<int64> ParseTonAmountString(const QString &amount) {
+std::optional<int64> ParseTonAmountString(
+		const QString &amount,
+		const QString &separator) {
 	const auto trimmed = amount.trimmed();
-	const auto separator = QString(QLocale::system().decimalPoint());
+	const auto decimal = separator.isEmpty()
+		? TonAmountSeparator()
+		: separator;
 	const auto index1 = trimmed.indexOf('.');
 	const auto index2 = trimmed.indexOf(',');
-	const auto index3 = (separator == "." || separator == ",")
+	const auto index3 = (decimal == "." || decimal == ",")
 		? -1
-		: trimmed.indexOf(separator);
+		: trimmed.indexOf(decimal);
 	const auto found = (index1 >= 0 ? 1 : 0)
 		+ (index2 >= 0 ? 1 : 0)
 		+ (index3 >= 0 ? 1 : 0);
@@ -186,7 +268,7 @@ std::optional<int64> ParseTonAmountString(const QString &amount) {
 		? "."
 		: (index2 >= 0)
 		? ","
-		: separator;
+		: decimal;
 	const auto grams = ParseAmountTons(trimmed.mid(0, index));
 	const auto nano = ParseAmountNano(trimmed.mid(index + used.size()));
 	if (index < 0 || index == trimmed.size() - used.size()) {
@@ -206,10 +288,13 @@ QString TonAmountSeparator() {
 not_null<Ui::InputField*> CreateTonAmountInput(
 		not_null<QWidget*> parent,
 		rpl::producer<QString> placeholder,
-		int64 amount) {
+		int64 amount,
+		Fn<int()> fractionDigits,
+		const style::InputField *st,
+		Fn<QString()> separator) {
 	const auto result = Ui::CreateChild<Ui::InputField>(
 		parent.get(),
-		st::editTagField,
+		st ? *st : st::editTagField,
 		Ui::InputField::Mode::SingleLine,
 		std::move(placeholder),
 		(amount > 0
@@ -225,7 +310,9 @@ not_null<Ui::InputField*> CreateTonAmountInput(
 			const auto fixed = FixTonAmountInput(
 				*lastAmountValue,
 				now,
-				position);
+				position,
+				fractionDigits ? fractionDigits() : kNanoDigits,
+				separator ? separator() : TonAmountSeparator());
 			*lastAmountValue = fixed.text;
 			if (fixed.text == now) {
 				return;
@@ -236,6 +323,138 @@ not_null<Ui::InputField*> CreateTonAmountInput(
 		});
 	}, result->lifetime());
 	return result;
+}
+
+TonAmountInput::TonAmountInput(
+	QWidget *parent,
+	const style::InputField &st,
+	int64 amount,
+	Fn<int()> fractionDigits,
+	Fn<QString()> separator)
+: MaskedInputField(
+	parent,
+	st,
+	nullptr,
+	(amount > 0
+		? FormatTonAmount(amount, TonFormatFlag::Simple).full
+		: u"0"_q))
+, _fractionDigits(std::move(fractionDigits))
+, _separator(std::move(separator)) {
+	setInputMethodHints(Qt::ImhFormattedNumbersOnly
+		| Qt::ImhNoPredictiveText);
+	setAttribute(Qt::WA_OpaquePaintEvent, false);
+
+	connect(this, &MaskedInputField::changed, [=] {
+		_changes.fire({});
+	});
+	connect(this, &MaskedInputField::submitted, [=] {
+		_submits.fire({});
+	});
+}
+
+void TonAmountInput::setText(const QString &text) {
+	MaskedInputField::setText(text.isEmpty() ? u"0"_q : text);
+	_changes.fire({});
+}
+
+rpl::producer<> TonAmountInput::changes() const {
+	return _changes.events();
+}
+
+rpl::producer<> TonAmountInput::submits() const {
+	return _submits.events();
+}
+
+const QString &TonAmountInput::composition() const {
+	return _composition;
+}
+
+rpl::producer<> TonAmountInput::compositionChanges() const {
+	return _compositionChanges.events();
+}
+
+void TonAmountInput::commitComposition() {
+	if (_composition.isEmpty()) {
+		return;
+	} else if (hasFocus()) {
+		QGuiApplication::inputMethod()->commit();
+	}
+	setComposition(QString());
+}
+
+void TonAmountInput::setCaretRectCallback(Fn<QRect()> callback) {
+	_caretRect = std::move(callback);
+}
+
+QVariant TonAmountInput::inputMethodQuery(Qt::InputMethodQuery query) const {
+	if (_caretRect
+		&& (query == Qt::ImCursorRectangle
+			|| query == Qt::ImAnchorRectangle)) {
+		return _caretRect();
+	}
+	return MaskedInputField::inputMethodQuery(query);
+}
+
+void TonAmountInput::paintEvent(QPaintEvent *e) {
+}
+
+void TonAmountInput::inputMethodEvent(QInputMethodEvent *e) {
+	const auto commit = e->commitString();
+	if (commit.isEmpty()
+		|| e->replacementStart() != 0
+		|| e->replacementLength() != 0) {
+		setComposition(e->preeditString());
+		MaskedInputField::inputMethodEvent(e);
+		return;
+	}
+	// WHY: a commit enters as the same characters typed one by one, so it
+	// gets typing's correction, value, label and edit animation instead of
+	// one multi-digit edit that the row would change at once.
+	setComposition(QString());
+	auto finish = QInputMethodEvent();
+	MaskedInputField::inputMethodEvent(&finish);
+	insertTyped(commit);
+	const auto preedit = e->preeditString();
+	if (!preedit.isEmpty()) {
+		setComposition(preedit);
+		auto rest = QInputMethodEvent(preedit, e->attributes());
+		MaskedInputField::inputMethodEvent(&rest);
+	}
+}
+
+void TonAmountInput::setComposition(const QString &text) {
+	if (_composition != text) {
+		_composition = text;
+		_compositionChanges.fire({});
+	}
+}
+
+void TonAmountInput::insertTyped(const QString &text) {
+	auto finder = QTextBoundaryFinder(QTextBoundaryFinder::Grapheme, text);
+	auto from = 0;
+	while (from < text.size()) {
+		const auto till = finder.toNextBoundary();
+		if (till <= from) {
+			break;
+		}
+		insert(text.mid(from, till - from));
+		from = till;
+	}
+}
+
+void TonAmountInput::correctValue(
+		const QString &was,
+		int wasCursor,
+		QString &now,
+		int &nowCursor) {
+	const auto fixed = FixTonAmountValue(
+		was,
+		wasCursor,
+		now,
+		nowCursor,
+		_fractionDigits ? _fractionDigits() : kNanoDigits,
+		_separator ? _separator() : TonAmountSeparator());
+	setCorrectedText(now, nowCursor, fixed.text, fixed.position);
 }
 
 } // namespace Wallet

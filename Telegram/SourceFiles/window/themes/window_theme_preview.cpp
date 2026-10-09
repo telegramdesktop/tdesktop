@@ -422,12 +422,16 @@ QImage Generator::generate() {
 		_rect.size() * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(style::DevicePixelRatio());
-	result.fill(st::themePreviewBg->c);
+	const auto bg = _current.previewBg.isValid()
+		? _current.previewBg
+		: st::themePreviewBg[_palette]->c;
+	result.fill(bg);
 
 	{
 		Painter p(&result);
 		PainterHighQualityEnabler hq(p);
 		_p = &p;
+		setTextPalette(st::defaultTextPalette);
 
 		_p->fillRect(_body, QColor(0, 0, 0));
 		_p->fillRect(_body, st::windowBg[_palette]);
@@ -439,7 +443,7 @@ QImage Generator::generate() {
 		paintHistoryShadows();
 	}
 	if (extended()) {
-		Platform::PreviewWindowFramePaint(result, _palette, _body, _rect.width());
+		Platform::PreviewWindowFramePaint(result, _palette, bg, _body, _rect.width());
 	}
 
 	return result;
@@ -539,11 +543,23 @@ void Generator::paintTopBar() {
 	_p->fillRect(_topBar, st::topBarBg[_palette]);
 
 	auto right = st::topBarMenuToggle.width;
-	st::topBarMenuToggle.icon[_palette].paint(*_p, _topBar.x() + _topBar.width() - right + st::topBarMenuToggle.iconPosition.x(), _topBar.y() + st::topBarMenuToggle.iconPosition.y(), _rect.width());
+	st::topBarMenuToggle.icon.withPalette(_palette).paint(
+		*_p,
+		_topBar.x() + _topBar.width() - right + st::topBarMenuToggle.iconPosition.x(),
+		_topBar.y() + st::topBarMenuToggle.iconPosition.y(),
+		_rect.width());
 	right += st::topBarSkip + st::topBarCall.width;
-	st::topBarCall.icon[_palette].paint(*_p, _topBar.x() + _topBar.width() - right + st::topBarCall.iconPosition.x(), _topBar.y() + st::topBarCall.iconPosition.y(), _rect.width());
+	st::topBarCall.icon.withPalette(_palette).paint(
+		*_p,
+		_topBar.x() + _topBar.width() - right + st::topBarCall.iconPosition.x(),
+		_topBar.y() + st::topBarCall.iconPosition.y(),
+		_rect.width());
 	right += st::topBarSearch.width;
-	st::topBarSearch.icon[_palette].paint(*_p, _topBar.x() + _topBar.width() - right + st::topBarSearch.iconPosition.x(), _topBar.y() + st::topBarSearch.iconPosition.y(), _rect.width());
+	st::topBarSearch.icon.withPalette(_palette).paint(
+		*_p,
+		_topBar.x() + _topBar.width() - right + st::topBarSearch.iconPosition.x(),
+		_topBar.y() + st::topBarSearch.iconPosition.y(),
+		_rect.width());
 
 	auto decreaseWidth = st::topBarCall.width + st::topBarCallSkip + st::topBarSearch.width + st::topBarMenuToggle.width;
 	auto nameleft = _topBar.x() + st::topBarArrowPadding.right();
@@ -562,13 +578,14 @@ void Generator::paintComposeArea() {
 	_p->fillRect(_composeArea, st::historyReplyBg[_palette]);
 
 	auto controlsTop = _composeArea.y() + _composeArea.height() - st::historySendSize.height();
+	const auto attach = st::historyAttach.icon.withPalette(_palette);
 	const auto attachIconLeft = (st::historyAttach.iconPosition.x() < 0)
-		? ((st::historyAttach.width - st::historyAttach.icon.width()) / 2)
+		? ((st::historyAttach.width - attach.width()) / 2)
 		: st::historyAttach.iconPosition.x();
 	const auto attachIconTop = (st::historyAttach.iconPosition.y() < 0)
-		? ((st::historyAttach.height - st::historyAttach.icon.height()) / 2)
+		? ((st::historyAttach.height - attach.height()) / 2)
 		: st::historyAttach.iconPosition.y();
-	st::historyAttach.icon[_palette].paint(*_p, _composeArea.x() + attachIconLeft, controlsTop + attachIconTop, _rect.width());
+	attach.paint(*_p, _composeArea.x() + attachIconLeft, controlsTop + attachIconTop, _rect.width());
 	auto right = st::historySendRight + st::historySendSize.width();
 
 	const auto recordIcon = Lottie::MakeIcon({
@@ -579,13 +596,13 @@ void Generator::paintComposeArea() {
 	recordIcon->paintInCenter(*_p, QRect(_composeArea.x() + _composeArea.width() - right, controlsTop, st::historySendSize.width(), st::historySendSize.height()), st::historyRecordVoiceFg[_palette]->c);
 
 	const auto &emojiButton = st::historyAttachEmoji.inner;
+	const auto emojiIcon = emojiButton.icon.withPalette(_palette);
 	const auto emojiIconLeft = (emojiButton.iconPosition.x() < 0)
-		? ((emojiButton.width - emojiButton.icon.width()) / 2)
+		? ((emojiButton.width - emojiIcon.width()) / 2)
 		: emojiButton.iconPosition.x();
 	const auto emojiIconTop = (emojiButton.iconPosition.y() < 0)
-		? ((emojiButton.height - emojiButton.icon.height()) / 2)
+		? ((emojiButton.height - emojiIcon.height()) / 2)
 		: emojiButton.iconPosition.y();
-	const auto &emojiIcon = emojiButton.icon[_palette];
 	right += emojiButton.width;
 	auto attachEmojiLeft = _composeArea.x() + _composeArea.width() - right;
 	_p->fillRect(attachEmojiLeft, controlsTop, emojiButton.width, emojiButton.height, st::historyComposeAreaBg[_palette]);
@@ -633,13 +650,14 @@ void Generator::paintComposeArea() {
 void Generator::paintDialogs() {
 	_p->fillRect(_dialogs, st::dialogsBg[_palette]);
 
+	const auto menuToggle = st::dialogsMenuToggle.icon.withPalette(_palette);
 	const auto iconLeft = (st::dialogsMenuToggle.iconPosition.x() < 0)
-		? (st::dialogsMenuToggle.width - st::dialogsMenuToggle.icon.width()) / 2
+		? (st::dialogsMenuToggle.width - menuToggle.width()) / 2
 		: st::dialogsMenuToggle.iconPosition.x();
 	const auto iconTop = (st::dialogsMenuToggle.iconPosition.y() < 0)
-		? (st::dialogsMenuToggle.height - st::dialogsMenuToggle.icon.height()) / 2
+		? (st::dialogsMenuToggle.height - menuToggle.height()) / 2
 		: st::dialogsMenuToggle.iconPosition.y();
-	st::dialogsMenuToggle.icon[_palette].paint(*_p, _dialogs.x() + st::dialogsFilterPadding.x() + iconLeft, _dialogs.y() + st::dialogsFilterPadding.y() + iconTop, _rect.width());
+	menuToggle.paint(*_p, _dialogs.x() + st::dialogsFilterPadding.x() + iconLeft, _dialogs.y() + st::dialogsFilterPadding.y() + iconTop, _rect.width());
 
 	auto filterLeft = _dialogs.x() + st::dialogsFilterPadding.x() + st::dialogsMenuToggle.width + st::dialogsFilterPadding.x();
 	auto filterRight = st::dialogsFilterSkip + st::dialogsFilterPadding.x();
@@ -724,9 +742,10 @@ void Generator::paintRow(const Row &row) {
 		return nullptr;
 	})();
 	if (chatTypeIcon) {
-		(*chatTypeIcon)[_palette].paint(*_p, rectForName.topLeft(), fullWidth);
+		const auto icon = chatTypeIcon->withPalette(_palette);
+		icon.paint(*_p, rectForName.topLeft(), fullWidth);
 		rectForName.setLeft(rectForName.left()
-			+ chatTypeIcon->width()
+			+ icon.width()
 			+ st::dialogsChatTypeSkip);
 	}
 
@@ -772,10 +791,10 @@ void Generator::paintRow(const Row &row) {
 		_p->setPen(row.active ? st::dialogsUnreadFgActive[_palette] : (row.selected ? st::dialogsUnreadFgOver[_palette] : st::dialogsUnreadFg[_palette]));
 		_p->drawText(unreadRectLeft + (unreadRectWidth - unreadWidth) / 2, unreadRectTop + textTop + st::dialogsUnreadFont->ascent, counter);
 	} else if (row.pinned) {
-		auto icon = Dialogs::ThreeStateIcon(
+		const auto icon = Dialogs::ThreeStateIcon(
 			st::dialogsPinnedIcon,
 			row.active,
-			row.selected)[_palette];
+			row.selected).withPalette(_palette);
 		icon.paint(*_p, x + fullWidth - st.padding.right() - icon.width(), texttop, fullWidth);
 		availableWidth -= icon.width() + st::dialogsUnreadPadding;
 	}
@@ -802,7 +821,10 @@ void Generator::paintRow(const Row &row) {
 	})();
 	if (sendStateIcon) {
 		rectForName.setWidth(rectForName.width() - st::dialogsSendStateSkip);
-		(*sendStateIcon)[_palette].paint(*_p, rectForName.topLeft() + QPoint(rectForName.width(), 0), fullWidth);
+		sendStateIcon->withPalette(_palette).paint(
+			*_p,
+			rectForName.topLeft() + QPoint(rectForName.width(), 0),
+			fullWidth);
 	}
 	_p->setPen(row.active ? st::dialogsNameFgActive[_palette] : (row.selected ? st::dialogsNameFgOver[_palette] : st::dialogsNameFg[_palette]));
 	row.name.drawElided(*_p, rectForName.left(), rectForName.top(), rectForName.width());
@@ -934,10 +956,10 @@ void Generator::paintBubble(const Bubble &bubble) {
 
 		_p->drawEllipse(inner);
 
-		auto icon = ([&bubble] {
-			return &(bubble.outbg ? st::historyFileOutPlay : st::historyFileInPlay);
-		})();
-		(*icon)[_palette].paintInCenter(*_p, inner);
+		const auto &play = bubble.outbg
+			? st::historyFileOutPlay
+			: st::historyFileInPlay;
+		play.withPalette(_palette).paintInCenter(*_p, inner);
 
 		auto namewidth = x + bubble.width - nameleft - nameright;
 
@@ -1006,7 +1028,10 @@ void Generator::paintBubble(const Bubble &bubble) {
 		return nullptr;
 	})();
 	if (icon) {
-		(*icon)[_palette].paint(*_p, QPoint(infoRight, infoBottom) + st::historySendStatePosition, _rect.width());
+		icon->withPalette(_palette).paint(
+			*_p,
+			QPoint(infoRight, infoBottom) + st::historySendStatePosition,
+			_rect.width());
 	}
 
 	_historyBottom = y - (bubble.attachToTop ? st::msgMarginTopAttached : st::msgMargin.top());
@@ -1040,10 +1065,8 @@ void Generator::paintService(QString text) {
 }
 
 void Generator::paintUserpic(int x, int y, Row::Type type, int index, QString letters) {
-	const auto colorIndex = Ui::DecideColorIndex(index);
-	const auto colors = Ui::EmptyUserpic::UserpicColor(colorIndex);
-	auto userpic = Ui::EmptyUserpic(colors, letters);
-
+	const auto colors = Ui::EmptyUserpic::UserpicColor(
+		Ui::DecideColorIndex(index));
 	const auto size = st::defaultDialogRow.photoSize;
 	auto image = QImage(
 		QSize(size, size) * style::DevicePixelRatio(),
@@ -1051,8 +1074,26 @@ void Generator::paintUserpic(int x, int y, Row::Type type, int index, QString le
 	image.setDevicePixelRatio(style::DevicePixelRatio());
 	image.fill(Qt::transparent);
 	{
-		Painter p(&image);
-		userpic.paintCircle(p, 0, 0, size, size);
+		auto p = QPainter(&image);
+		auto hq = PainterHighQualityEnabler(p);
+		auto gradient = QLinearGradient(0, 0, 0, size);
+		gradient.setStops({
+			{ 0., colors.color1[_palette]->c },
+			{ 1., colors.color2[_palette]->c },
+		});
+		p.setPen(Qt::NoPen);
+		p.setBrush(gradient);
+		p.drawEllipse(0, 0, size, size);
+
+		auto font = st::historyPeerUserpicFont->f;
+		font.setPixelSize((size * 13) / 33);
+		p.setFont(font);
+		p.setBrush(Qt::NoBrush);
+		p.setPen(st::historyPeerUserpicFg[_palette]);
+		p.drawText(
+			QRect(0, 0, size, size),
+			FillLetters(letters),
+			QTextOption(style::al_center));
 	}
 	_p->drawImage(rtl() ? (_rect.width() - x - size) : x, y, image);
 }
@@ -1066,6 +1107,7 @@ void Generator::paintHistoryShadows() {
 void Generator::setTextPalette(const style::TextPalette &st) {
 	_textPalette.linkFg = st.linkFg[_palette].clone();
 	_textPalette.monoFg = st.monoFg[_palette].clone();
+	_textPalette.markBg = st.markBg[_palette].clone();
 	_textPalette.spoilerFg = st.spoilerFg[_palette].clone();
 	_textPalette.selectBg = st.selectBg[_palette].clone();
 	_textPalette.selectFg = st.selectFg[_palette].clone();
@@ -1077,7 +1119,7 @@ void Generator::setTextPalette(const style::TextPalette &st) {
 }
 
 void Generator::restoreTextPalette() {
-	_p->restoreTextPalette();
+	setTextPalette(st::defaultTextPalette);
 }
 
 } // namespace
@@ -1153,23 +1195,24 @@ void DefaultPreviewWindowTitle(Painter &p, const style::palette &palette, QRect 
 	p.fillRect(titleRect, QColor(0, 0, 0));
 	p.fillRect(titleRect, st::titleBgActive[palette]);
 	auto right = st::defaultWindowTitle.close.width;
-	st::defaultWindowTitle.close.icon[palette].paint(p, titleRect.x() + titleRect.width() - right + st::defaultWindowTitle.close.iconPosition.x(), titleRect.y() + st::windowTitleButtonClose.iconPosition.y(), outerWidth);
+	st::defaultWindowTitle.close.icon.withPalette(palette).paint(p, titleRect.x() + titleRect.width() - right + st::defaultWindowTitle.close.iconPosition.x(), titleRect.y() + st::windowTitleButtonClose.iconPosition.y(), outerWidth);
 	right += st::defaultWindowTitle.maximize.width;
-	st::defaultWindowTitle.maximize.icon[palette].paint(p, titleRect.x() + titleRect.width() - right + st::defaultWindowTitle.maximize.iconPosition.x(), titleRect.y() + st::defaultWindowTitle.maximize.iconPosition.y(), outerWidth);
+	st::defaultWindowTitle.maximize.icon.withPalette(palette).paint(p, titleRect.x() + titleRect.width() - right + st::defaultWindowTitle.maximize.iconPosition.x(), titleRect.y() + st::defaultWindowTitle.maximize.iconPosition.y(), outerWidth);
 	right += st::defaultWindowTitle.minimize.width;
-	st::defaultWindowTitle.minimize.icon[palette].paint(p, titleRect.x() + titleRect.width() - right + st::defaultWindowTitle.minimize.iconPosition.x(), titleRect.y() + st::defaultWindowTitle.minimize.iconPosition.y(), outerWidth);
+	st::defaultWindowTitle.minimize.icon.withPalette(palette).paint(p, titleRect.x() + titleRect.width() - right + st::defaultWindowTitle.minimize.iconPosition.x(), titleRect.y() + st::defaultWindowTitle.minimize.iconPosition.y(), outerWidth);
 	p.fillRect(titleRect.x(), titleRect.y() + titleRect.height() - st::lineWidth, titleRect.width(), st::lineWidth, st::titleShadow[palette]);
 }
 
 void DefaultPreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRect body, int outerWidth) {
+	const auto shadow = st::windowShadow.withPalette(palette);
 	auto mask = QImage(
-		st::windowShadow.size() * style::DevicePixelRatio(),
+		shadow.size() * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
 	mask.setDevicePixelRatio(style::DevicePixelRatio());
 	{
 		Painter p(&mask);
 		p.setCompositionMode(QPainter::CompositionMode_Source);
-		st::windowShadow.paint(p, 0, 0, st::windowShadow.width(), QColor(0, 0, 0));
+		shadow.paint(p, 0, 0, shadow.width(), QColor(0, 0, 0));
 	}
 	auto maxSize = 0;
 	auto currentInt = static_cast<uint32>(0);
@@ -1190,18 +1233,17 @@ void DefaultPreviewWindowFramePaint(QImage &preview, const style::palette &palet
 	auto right = left;
 	auto top = size - 2 * st::windowShadowShift;
 
-	auto sprite = st::windowShadow[palette];
 	auto topLeft = QImage(
-		sprite.size() * style::DevicePixelRatio(),
+		shadow.size() * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
 	topLeft.setDevicePixelRatio(style::DevicePixelRatio());
 	{
 		Painter p(&topLeft);
 		p.setCompositionMode(QPainter::CompositionMode_Source);
-		sprite.paint(p, 0, 0, sprite.width());
+		shadow.paint(p, 0, 0, shadow.width());
 	}
-	auto width = sprite.width();
-	auto height = sprite.height();
+	auto width = shadow.width();
+	auto height = shadow.height();
 	auto topRight = topLeft.mirrored(true, false);
 	auto bottomRight = topLeft.mirrored(true, true);
 	auto bottomLeft = topLeft.mirrored(false, true);

@@ -67,6 +67,7 @@ PRIVATE
     v2/ContentNegotiation.h
     v2/CustomDcSctpSocket.cpp
     v2/CustomDcSctpSocket.h
+    v2/CustomParameters.h
     v2/DirectNetworkingImpl.cpp
     v2/DirectNetworkingImpl.h
     v2/ExternalSignalingConnection.cpp
@@ -76,6 +77,8 @@ PRIVATE
     v2/InstanceV2ReferenceImpl.h
     v2/InstanceV2Impl.cpp
     v2/InstanceV2Impl.h
+    v2/MtProtoIceTransport.cpp
+    v2/MtProtoIceTransport.h
     v2/NativeNetworkingImpl.cpp
     v2/NativeNetworkingImpl.h
     v2/RawTcpSocket.cpp
@@ -118,6 +121,8 @@ PRIVATE
     group/GroupJoinPayload.h
     group/GroupNetworkManager.cpp
     group/GroupNetworkManager.h
+    group/StreamingAudioRenderer.cpp
+    group/StreamingAudioRenderer.h
     group/StreamingMediaContext.cpp
     group/StreamingMediaContext.h
     group/VideoStreamingPart.cpp

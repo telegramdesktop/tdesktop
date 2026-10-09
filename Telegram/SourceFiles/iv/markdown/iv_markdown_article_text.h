@@ -68,7 +68,6 @@ struct InlineButtonPaintState {
 	QSize rippleSize;
 	QRect rippleRect;
 	QPoint pressPoint;
-	QString lookedUpButton;
 	int widthCap = 0;
 	bool pressPending = false;
 	bool editMode = false;
@@ -95,6 +94,7 @@ void SetTextLeaf(
 
 [[nodiscard]] bool TextHasInlineButton(const TextWithEntities &text);
 [[nodiscard]] QString InlineButtonTooltip(QStringView data);
+[[nodiscard]] QString InlineButtonUrl(QStringView data);
 
 [[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> MakeInlineButtonObject(
 	QStringView data,

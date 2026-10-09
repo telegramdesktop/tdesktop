@@ -128,6 +128,9 @@ public:
 	[[nodiscard]] int ageVerifyMinAge() const;
 	[[nodiscard]] QString ageVerifyBotUsername() const;
 
+	[[nodiscard]] QString oldWalletBotUsername() const;
+	[[nodiscard]] bool walletAvailable() const;
+
 	[[nodiscard]] int storiesAlbumsLimit() const;
 	[[nodiscard]] int storiesAlbumLimit() const;
 

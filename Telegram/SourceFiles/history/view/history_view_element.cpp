@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_message.h"
 #include "history/view/media/history_view_community_added.h"
+#include "history/view/media/history_view_gram_transfer.h"
 #include "history/view/media/history_view_media_common.h"
 #include "history/view/media/history_view_media_generic.h"
 #include "history/view/media/history_view_media_grouped.h"
@@ -46,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "spellcheck/spellcheck_highlight_syntax.h"
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "payments/payments_reaction_process.h" // TryAddingPaidReaction.
+#include "window/themes/window_theme.h" // IsNightMode.
 #include "window/window_session_controller.h"
 #include "window/section_widget.h"
 #include "ui/chat/chat_style.h"
@@ -55,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/reaction_fly_animation.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
+#include "ui/arc_angles.h"
 #include "ui/item_text_options.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
@@ -646,6 +649,9 @@ bool DefaultElementDelegate::elementHideTopicButton(
 	return true;
 }
 
+GramReadLine *DefaultElementDelegate::elementGramReadLine() {
+	return nullptr;
+}
 
 SimpleElementDelegate::SimpleElementDelegate(
 	not_null<Window::SessionController*> controller,
@@ -1434,6 +1440,85 @@ void Element::paintHighlight(
 	paintCustomHighlight(p, context, skiptop, fillheight, data());
 }
 
+void Element::paintSwipeReplyIcon(
+		Painter &p,
+		const PaintContext &context,
+		QRect g) const {
+	constexpr auto kShiftRatio = 1.5;
+	constexpr auto kBouncePart = 0.25;
+	constexpr auto kMaxHeightRatio = 3.5;
+	constexpr auto kStrokeWidth = 2.;
+	constexpr auto kWaveWidth = 10.;
+	const auto mirrored = !context.gestureHorizontal.inverted;
+	const auto isLeftSize = !context.outbg
+		|| (delegate()->elementChatMode() == ElementChatMode::Wide);
+	const auto ratio = std::min(context.gestureHorizontal.ratio, 1.);
+	const auto reachRatio = context.gestureHorizontal.reachRatio;
+	const auto size = st::historyFastShareSize;
+	const auto bubbleRight = mirrored
+		? (width() - g.x())
+		: rect::right(g);
+	const auto outerWidth = st::historySwipeIconSkip
+		+ (isLeftSize ? bubbleRight : width())
+		+ ((g.height() < size * kMaxHeightRatio)
+			? rightActionSize().value_or(QSize()).width()
+			: 0);
+	const auto shift = std::min(
+		(size * kShiftRatio * context.gestureHorizontal.ratio),
+		-1. * context.gestureHorizontal.translation
+	) + (st::historySwipeIconSkip * ratio * (isLeftSize ? .7 : 1.));
+	const auto rect = QRectF(
+		outerWidth - shift,
+		g.y() + (g.height() - size) / 2,
+		size,
+		size);
+	const auto center = rect::center(rect);
+	const auto spanAngle = ratio * arc::kFullLength;
+	const auto strokeWidth = style::ConvertFloatScale(kStrokeWidth);
+
+	const auto reachScale = std::clamp(
+		(reachRatio > kBouncePart)
+			? (kBouncePart * 2 - reachRatio)
+			: reachRatio,
+		0.,
+		1.);
+	auto pen = Window::Theme::IsNightMode()
+		? QPen(anim::with_alpha(context.st->msgServiceFg()->c, 0.3))
+		: QPen(context.st->msgServiceBg());
+	pen.setWidthF(strokeWidth - (1. * (reachScale / kBouncePart)));
+	const auto arcRect = rect - Margins(strokeWidth);
+	p.save();
+	if (mirrored) {
+		p.translate(width(), 0);
+		p.scale(-1., 1.);
+	}
+	{
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(context.st->msgServiceBg());
+		p.setOpacity(ratio);
+		const auto scale = 1. + 1. * reachScale;
+		p.translate(center);
+		p.scale(mirrored ? scale : -scale, scale);
+		p.translate(-center);
+		p.drawEllipse(rect);
+		context.st->historyFastShareIcon().paintInCenter(p, rect);
+		p.setPen(pen);
+		p.setBrush(Qt::NoBrush);
+		p.drawArc(arcRect, arc::kQuarterLength, spanAngle);
+		// p.drawArc(arcRect, arc::kQuarterLength, spanAngle);
+		if (reachRatio) {
+			const auto w = style::ConvertFloatScale(kWaveWidth);
+			p.setOpacity(ratio - reachRatio);
+			p.drawArc(
+				arcRect + Margins(reachRatio * reachRatio * w),
+				arc::kQuarterLength,
+				spanAngle);
+		}
+	}
+	p.restore();
+}
+
 void Element::paintCustomHighlight(
 		Painter &p,
 		const PaintContext &context,
@@ -1503,7 +1588,20 @@ bool Element::isTopicRootReply() const {
 }
 
 bool Element::hidesBottomInfo() const {
-	return data()->isWelcomeTemplate();
+	return data()->isWelcomeTemplate()
+		|| (data()->isFakeHistoryItem()
+			&& context() == Context::MediaEditor);
+}
+
+ReplyKeyboard *Element::inlineReplyKeyboard() const {
+	return (_context == Context::MediaEditor)
+		? nullptr
+		: _data->inlineReplyKeyboard();
+}
+
+bool Element::hasCommentsButton() const {
+	return (_context != Context::MediaEditor)
+		&& (_data->repliesAreComments() || _data->externalReply());
 }
 
 int Element::skipBlockWidth() const {
@@ -1644,6 +1742,8 @@ void Element::refreshMedia(Element *replacing) {
 			}
 		}
 		_media = media->createView(this, replacing);
+	} else if (item->Has<HistoryServiceGramTransfer>()) {
+		_media = CreateGramTransferMedia(this, replacing);
 	} else if (item->showSimilarChannels()) {
 		_media = std::make_unique<SimilarChannels>(this);
 	} else if (isOnlyCustomEmoji()
@@ -1789,9 +1889,13 @@ int Element::textHeightFor(int textWidth) const {
 		if (const auto rich = const_cast<Element*>(this)->richpage()) {
 			const auto articleHeight = rich->article.resizeGetHeight(
 				richPageWidthFor(textWidth));
-			_textHeight = st::mediaInBubbleSkip
+			const auto skips = rich->edgeSkips();
+			_textHeight = skips.top()
 				+ articleHeight
-				+ (_text.hasSkipBlock() ? skipBlockHeight() : 0);
+				+ skips.bottom()
+				+ ((_text.hasSkipBlock() && !rich->article.hasSkipBlock())
+					? skipBlockHeight()
+					: 0);
 			rich->article.setVisibleTopBottom(0, articleHeight);
 			_textRealWidth = std::clamp(
 				rich->article.lastLayoutWidth(),
@@ -1815,6 +1919,10 @@ int Element::textHeightFor(int textWidth) const {
 
 auto Element::contextDependentServiceText() -> TextWithLinks {
 	const auto item = data();
+	if (item->Has<HistoryServiceGramTransfer>()) {
+		auto prepared = item->prepareGramTransferText(false);
+		return { std::move(prepared.text), std::move(prepared.links) };
+	}
 	const auto info = item->Get<HistoryServiceTopicInfo>();
 	if (!info) {
 		return {};
@@ -2814,9 +2922,11 @@ int Element::textualMaxWidth() const {
 }
 
 auto Element::verticalRepaintRange() const -> VerticalRepaintRange {
+	const auto media = this->media();
+	const auto add = media ? media->bubbleRollRepaintMargins() : QMargins();
 	return {
-		.top = 0,
-		.height = height()
+		.top = -add.top(),
+		.height = height() + add.top() + add.bottom()
 	};
 }
 
@@ -2858,7 +2968,8 @@ void Element::setupReactions(Element *replacing) {
 void Element::refreshReactions() {
 	using namespace Reactions;
 	auto reactionsData = InlineListDataFromMessage(this);
-	if (reactionsData.reactions.empty()) {
+	if (reactionsData.reactions.empty()
+		|| context() == Context::MediaEditor) {
 		setReactions(nullptr);
 		return;
 	}

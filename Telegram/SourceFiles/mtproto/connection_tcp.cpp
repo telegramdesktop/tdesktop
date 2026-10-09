@@ -509,6 +509,10 @@ void TcpConnection::connectToServer(
 		const bytes::vector &protocolSecret,
 		int16 protocolDcId,
 		bool protocolForFiles) {
+	if (_status == Status::Finished) {
+		// Queued connectToServer() may arrive after disconnectFromServer().
+		return;
+	}
 	Expects(_address.isEmpty());
 	Expects(_port == 0);
 	Expects(_protocol == nullptr);

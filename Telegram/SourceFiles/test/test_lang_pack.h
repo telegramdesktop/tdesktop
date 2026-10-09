@@ -26,22 +26,23 @@ class Runner;
 // repairing one leaves the other silent.
 //
 // Half 1, the leftover value. Lang::Instance::fillFromSerialized
-// (lang_instance.cpp:423) never clears _values or _nonDefaultValues
+// (lang_instance.cpp) never clears _values or _nonDefaultValues
 // first: after reading the header it applies only the pairs that were
-// NON-DEFAULT in the serialized snapshot (:544-546). A key that was
-// default before the fixture overwrote it is absent from that set, so
-// the fixture's value survives the restore untouched and is still live
-// afterwards.
+// NON-DEFAULT in the serialized snapshot (its applyValue loop over
+// nonDefaultStrings). A key that was default before the fixture
+// overwrote it is absent from that set, so the fixture's value survives
+// the restore untouched and is still live afterwards.
 //
 // Half 2, the missing notification. _updated.fire exists at exactly four
-// sites in lang_instance.cpp: :257, inside the "#TEST_X" / "#TEST_0"
-// branch of switchToId (:250-261); :277, in switchToCustomFile; and :698
-// and :700, both in applyDifferenceToMe. On an ordinary id such as en or
-// de switchToId fires nothing, and fillFromSerialized fires only
-// _idChanges (:550). Lang::details::Value(ushort) (:811-817) is
+// sites in lang_instance.cpp: one inside the "#TEST_X" / "#TEST_0"
+// branch of switchToId; one in switchToCustomFile; and two, on _updated
+// and on _derived->_updated, both in applyDifferenceToMe. On an ordinary
+// id such as en or de switchToId fires nothing, and fillFromSerialized
+// fires only _idChanges. Lang::details::Value(ushort) is
 // rpl::single(Current(key)) | then(Updated() | rpl::map(...)), and that
-// is the producer every tr:: phrase funnels into (lang_values.h:104-106),
-// so Lang::Updated() is the ONLY signal a bound reactive label re-reads
+// is the producer every tr:: phrase funnels into
+// (Lang::details::Producer<>::Combine in lang_values.h), so
+// Lang::Updated() is the ONLY signal a bound reactive label re-reads
 // on: a restore that does fix the values still leaves an already-painted
 // Ui::FlatLabel showing the fixture's text.
 //
@@ -57,15 +58,15 @@ class Runner;
 // fillFromSerialized(the frozen snapshot, AppVersion), then one EMPTY
 // MTP_langPackDifference purely to deliver Lang::Updated(). "Apply a
 // difference that resets exactly the injected keys" is the wrong shape:
-// Instance::resetValue (:762-787) erases the key from _nonDefaultValues
+// Instance::resetValue erases the key from _nonDefaultValues
 // and restores GetOriginalValue(index), which would discard a legitimate
 // pre-existing override the scenario never installed. The frozen
 // snapshot brings that override back; a reset would delete it.
 //
 // The install and the notification both go through the product's own
-// reset-bearing entry, Instance::applyDifference (:668-702). Its two
-// preconditions (:686-687) - LanguageIdOrDefault(_id) equal to
-// qs(difference.vlang_code()), and difference.vfrom_version().v not
+// reset-bearing entry, Instance::applyDifference. Its two preconditions
+// (the Expects in applyDifferenceToMe) - LanguageIdOrDefault(_id) equal
+// to qs(difference.vlang_code()), and difference.vfrom_version().v not
 // greater than _version - are held HERE rather than copied into each
 // scenario: the lang code is always Lang::LanguageIdOrDefault(id()) read
 // from the instance immediately before the call, and from_version is
@@ -73,9 +74,9 @@ class Runner;
 //
 // The difference's version is always restated and never invented:
 // MTP_int(version(Lang::Pack::Current)) read at call time, so
-// applyDifferenceToMe's assignment (:689) writes back the value the pack
+// applyDifferenceToMe's _version assignment writes back the value the pack
 // already holds. That is required rather than merely harmless -
-// CloudManager::applyLangPackData (lang_cloud_manager.cpp:386) branches
+// CloudManager::applyLangPackData (lang_cloud_manager.cpp) branches
 // on version(pack) < data.vfrom_version().v, so an invented version
 // would change how a genuine cloud difference arriving later in the same
 // run is handled. The removal reads the version AFTER fillFromSerialized
@@ -84,25 +85,27 @@ class Runner;
 // No call this facility makes reaches Local::writeLangPack(). That is
 // exact, and it is NOT a guarantee that nothing is written to disk while
 // a fixture is installed: writeLangPack() has callers outside
-// lang_instance.cpp - lang_cloud_manager.cpp:368, :390 and :392, and
-// intro_step.cpp:231 - and applyLangPackData writes the pack whenever a
-// non-empty cloud difference arrives (:388-390). A cloud difference
-// landing inside the installed window would therefore persist the
-// synthetic values into the portable folder. That folder is disposable
-// and no end-of-run tidy-up is written for it, but the consequence is
-// stated rather than implied away.
+// lang_instance.cpp - CloudManager::showOfferSwitchBox and, twice,
+// CloudManager::applyLangPackData in lang_cloud_manager.cpp, and
+// Step::createSession in intro_step.cpp - and applyLangPackData writes
+// the pack whenever a non-empty cloud difference arrives. A cloud
+// difference landing inside the installed window would therefore
+// persist the synthetic values into the portable folder. That folder is
+// disposable and no end-of-run tidy-up is written for it, but the
+// consequence is stated rather than implied away.
 //
 // Every removal fires _idChanges twice, once from switchToId's reset
-// (:304) and once from fillFromSerialized (:550). The only consumers in
-// the tree are settings/sections/settings_main.cpp:463 and :813, which
-// refresh the Settings language row.
+// and once from fillFromSerialized. The only consumers in the tree are
+// BuildSectionButtons and SetupLanguageButton in
+// settings/sections/settings_main.cpp, which refresh the Settings
+// language row.
 //
 // A PLURAL phrase is installed through its suffixed keys. The generated
 // table knows only lng_foo#zero .. lng_foo#other, so
 // GetKeyIndex("lng_foo") for a phrase<lngtag_count> answers kKeysCount
 // and the base name is refused; pass each suffixed form as its own
 // LangOverride. Instance::getValue is Expects(key < _values.size())
-// (lang_instance.h:90-93), so an unresolved index would abort a Debug
+// (lang_instance.h), so an unresolved index would abort a Debug
 // build: nothing here hands one to getValue or to Lang::details::Value,
 // and the unknown-key refusal is evaluated before any reading.
 //
@@ -111,10 +114,10 @@ class Runner;
 // overrides into the running pack, and injecting long synthetic values
 // already produces the long-locale fixture a scenario wants. Second,
 // Lang::Instance never SETS the locale: it reads QLocale::system()
-// (lang_instance.cpp:311) only to derive a fallback system language
-// code, and QLocale::setDefault is called nowhere in the code this
-// project compiles (the only calls are in the kcoreaddons submodule's
-// autotests, which Telegram does not build). The
+// (Instance::systemLangCode in lang_instance.cpp) only to derive a
+// fallback system language code, and QLocale::setDefault is called
+// nowhere in the code this project compiles (the only calls are in the
+// kcoreaddons submodule's autotests, which Telegram does not build). The
 // locale governs date and number formatting through a different
 // mechanism with a different restore and no relation to Lang::Updated(),
 // so folding it in would give one facility two unrelated symmetries and
@@ -130,7 +133,7 @@ class Runner;
 // One override to install: |key| is a language key name spelled exactly
 // as the generated table spells it, |value| the synthetic text. An empty
 // |value| is refused, because getNonDefaultValue
-// (lang_instance.cpp:722-729) answers an empty QString for both "no
+// (lang_instance.cpp) answers an empty QString for both "no
 // override" and "an override that is the empty string".
 struct LangOverride {
 	QByteArray key;
@@ -287,9 +290,9 @@ private:
 // The module registers one Runner::onFinish callback of its own, on the
 // first install of the process, which unwinds the live fixtures in
 // REVERSE order; AppendLangPackSelfTest registers a second one at
-// append time (test_lang_pack.cpp:574) for its own labels and
+// append time (test_lang_pack.cpp) for its own labels and
 // fixtures. Runner::finish() runs its callbacks in registration
-// order (test_runner.cpp:453-456), which is FIFO and therefore the wrong
+// order (test_runner.cpp), which is FIFO and therefore the wrong
 // order for nested fixtures, so one registration unwinding LIFO replaces
 // one registration per fixture and needs no recursion in remove().
 [[nodiscard]] std::shared_ptr<LangPackFixture> InstallLangPack(
@@ -304,11 +307,11 @@ private:
 // are DEFAULT before the subject fixture installs over them, and on a
 // client that has ever downloaded a cloud language pack no such key
 // exists anywhere in the table: fillFromSerialized logs the cached
-// pack's size as its non-default count (lang_instance.cpp:543), and a
+// pack's size as its non-default count (lang_instance.cpp), and a
 // -testagent run against an ordinary account read "Lang Info: Loaded
 // cached, keys: 10993" against a generated table of kKeysCount = 10948
 // keys - two counts over different sets, since applyValue writes
-// _nonDefaultValues unconditionally (lang_instance.cpp:731-732) and
+// _nonDefaultValues unconditionally (lang_instance.cpp) and
 // so counts cloud keys the generated table does not know - so EVERY key the
 // table knows already carries a cloud override. An earlier version of
 // this self-test chose its keys by "is this one still default?" and
@@ -320,10 +323,10 @@ private:
 // throwaway key, which freezes the live cloud pack - identity,
 // serialize() snapshot and every reading - inside that fixture, and
 // then calls Instance::switchToId with the identity read from the
-// instance itself. switchToId's reset (:281-305) rewrites every
+// instance itself. switchToId's reset rewrites every
 // _values[i] from GetOriginalValue(i), clears _nonDefaultValues, zeroes
 // _nonDefaultSet and sets _version to 0, and on an ordinary id it fires
-// _idChanges only and never _updated (:250-261), so afterwards both
+// _idChanges only and never _updated, so afterwards both
 // chosen keys are default by construction. That is the arrangement's
 // own premise and it is asserted rather than assumed: one Check prints
 // both keys before and after and FAILs there if the reset did not take,
@@ -340,7 +343,7 @@ private:
 // cloud text. And the reset zeroes _version, so a cloud difference
 // arriving inside that window is no longer applied on top of the pack
 // it was computed against: CloudManager::applyLangPackData
-// (lang_cloud_manager.cpp:386) compares version(pack) against
+// (lang_cloud_manager.cpp) compares version(pack) against
 // from_version and re-requests the pack whenever the local version is
 // behind, which after the reset it is for every non-zero from_version.
 // A full-pack answer (from_version 0) is still applied and written to
@@ -371,7 +374,7 @@ private:
 //
 // It asks the process for nothing: no primary window, no session, no
 // chats list, no network, no wallet and no fixture secret. Nothing is
-// shown, painted or grabbed - accessibilityName() (labels.h:131-133)
+// shown, painted or grabbed - accessibilityName() (labels.h)
 // returns the parsed text the label owns before any layout - and no
 // screenshot is taken. It depends on nothing about WHAT the running
 // pack holds, because it arranges that itself; the fixture gate that

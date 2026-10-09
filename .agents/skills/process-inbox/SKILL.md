@@ -1,6 +1,6 @@
 ---
 name: process-inbox
-description: Process the local ignored ai-tdesktop inbox into durable, independently testable Telegram Desktop task records while task execution worktrees remain active. Use when the user invokes $process-inbox or /process-inbox, asks to triage or process ai-tdesktop/inbox/inbox.md, or wants inbox notes and pasted images routed into new or existing AI projects and dated tasks without implementing them.
+description: Process the local ignored ai-tdesktop inbox into durable, independently testable Telegram Desktop task records while task execution worktrees remain active. Use when the user invokes $process-inbox or /process-inbox, asks to triage or process ai-tdesktop/inbox/inbox.md, or wants inbox notes, pasted images, or supplied videos routed into new or existing AI projects and dated tasks without implementing them.
 ---
 
 # Process Inbox
@@ -215,6 +215,59 @@ Omit `Inputs` when none are used. For visual work, include the design basis and
 the exact visual/layout evidence expected. Copy every pertinent supplied file
 into `input/`; never reference the ignored inbox or its backup from a task.
 
+### Supplied videos
+
+A supplied video, usually an animation to reproduce, is analysed once here, by
+the planner, because its timings decide the task split. The video itself is
+never tracked: it stays in the transaction, which `finalize` keeps in the
+ignored local `inbox/backup/`. Performers, possibly on another machine, work
+only from the measurements and frames this step commits. Use the
+bundled helper; it needs `ffmpeg`/`ffprobe`, and `sheet` also needs Pillow:
+
+```bash
+V=<transaction>/<file>.mp4
+python3 .agents/skills/process-inbox/scripts/video.py probe "$V"
+python3 .agents/skills/process-inbox/scripts/video.py extract "$V" --out <scratch>/all
+python3 .agents/skills/process-inbox/scripts/video.py sheet "$V" --step 20 --scale 0.25 --out <scratch>/overview.png
+python3 .agents/skills/process-inbox/scripts/video.py extract "$V" --frames 0,119-134 \
+  --crop 240x240+330+300 --label corner --out <task>/input/frames
+python3 .agents/skills/process-inbox/scripts/video.py sheet "$V" --frames 118-141 \
+  --crop 240x240+330+300 --out <task>/input/frames/sheet-transition-corner-118-141.png
+```
+
+- **Frame numbers and times.** Frames are numbered by decoded index from 0,
+  and the helper names them `frame-NNN-TTTTms[-label].png` from each frame's
+  own timestamp. Phone and screen recordings often have a variable frame rate
+  (`probe` reports `constant_frame_rate`), so never compute a time as
+  index / fps. Cite frames as `fNNN` with their time in the task.
+- **Full extraction.** Write it to scratch space outside the inbox, not into
+  the transaction or `input/`, because a long recording decodes to gigabytes.
+  Use it to find the phases and to measure, then discard it.
+- **Measure, then write the design basis.** In each task's `task.md`, record
+  the probe facts (size, nominal fps, frame count, whether the rate is
+  constant) and the phase boundaries by frame and time. Record every figure a
+  performer must reproduce: speeds, durations, sizes relative to a stable
+  on-screen feature, easing and colour at sampled frames. Say which aspects are
+  the design and which are reference only (the recording's own colours, fonts
+  or geometry), and record every owner override the measurement contradicts.
+- **Commit complete frames per phase.** The committed frames are the whole
+  reference, so a performer must be able to re-measure anything from them.
+  For every animated phase a task owns, commit every frame of that phase as
+  tight crops of the animated region in labelled `sheet`s (enlarged with
+  `--scale` when the detail is small), plus the key poses as single frames
+  and a few full frames for context. Keep crops tight; a sheet of one
+  transition costs far less than the recording. Link each from `Inputs` with
+  its frame and time, and say in the design basis that the reference video is
+  not in the repository. Acceptance compares the app's captures with these
+  named frames.
+- **Video stays local.** Never copy a supplied video into `input/` or link to
+  it from a task. Map it in the receipt as kept in the local backup only, with
+  its `probe` facts and digest, so the original can be found again. A later
+  question the frames cannot answer goes to the owner, not to the video.
+- **Revisions.** When a video revises a reference an existing task already
+  holds, compare the `probe` output and the frames with the committed ones,
+  and record in the receipt whether it replaces the reference, and why.
+
 Keep acceptance criteria to what actually proves the requested behavior. Never
 write a test-data integrity criterion: the live `TelegramForcePortable` folder
 is a disposable copy, so a task must not ask a performer to hash, back up,
@@ -305,6 +358,7 @@ Before committing, verify:
 - every new task has `task.md`, valid `state.yaml`, and a falsifiable
   acceptance result;
 - every task link, dependency, and copied input exists;
+- no supplied video and no full frame extraction is tracked;
 - no task or project reference points into `projects/archive/`;
 - no raw inbox path, `.local/`, browser profile, portable account, credential,
   complete run directory, or complete build log is tracked;

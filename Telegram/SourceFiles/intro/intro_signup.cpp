@@ -42,6 +42,12 @@ SignupWidget::SignupWidget(
 		refreshLang();
 	}, lifetime());
 
+	const auto submitted = [=] { submit(); };
+	_first->submits(
+	) | rpl::on_next(submitted, _first->lifetime());
+	_last->submits(
+	) | rpl::on_next(submitted, _last->lifetime());
+
 	if (_invertOrder) {
 		setTabOrder(_last, _first);
 	} else {
@@ -115,6 +121,7 @@ void SignupWidget::nameSubmitDone(const MTPauth_Authorization &result) {
 }
 
 void SignupWidget::nameSubmitFail(const MTP::Error &error) {
+	_sentRequest = 0;
 	if (MTP::IsFloodError(error)) {
 		showError(tr::lng_flood_error());
 		if (_invertOrder) {

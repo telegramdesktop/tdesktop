@@ -95,11 +95,13 @@ struct PreparedFile {
 	[[nodiscard]] bool isGifv() const;
 	[[nodiscard]] bool canUseHighQualityPhoto() const;
 	[[nodiscard]] bool hasAnimatedEditScene() const;
+	[[nodiscard]] bool hasAudioEditScene() const;
 	[[nodiscard]] bool sendsVideoAsGif() const;
 
 	[[nodiscard]] bool canEditVideo() const;
 
 	[[nodiscard]] int videoQuality() const;
+	[[nodiscard]] int64 memoryUsage() const;
 
 	// Assigned on demand, so deferred work can find this entry back.
 	int64 id = 0;
@@ -163,6 +165,7 @@ struct PreparedList {
 	[[nodiscard]] bool hasSticker() const;
 	[[nodiscard]] bool hasSpoilerMenu(bool compress) const;
 	[[nodiscard]] bool hasSendLargePhotosOption(bool compress) const;
+	[[nodiscard]] int64 memoryUsage() const;
 
 	Error error = Error::None;
 	QString errorData;

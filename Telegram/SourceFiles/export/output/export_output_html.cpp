@@ -301,7 +301,7 @@ QByteArray FormatCustomEmoji(
 		: (custom_emoji == Data::TextPart::UnavailableEmoji())
 		? "<a href=\"\" onclick=\"return ShowNotAvailableEmoji();\">"
 		: ("<a href = \""
-			+ (relativeLinkBase + custom_emoji).toUtf8()
+			+ SerializeString((relativeLinkBase + custom_emoji).toUtf8())
 			+ "\">"))
 		+ text
 		+ "</a>";
@@ -355,6 +355,7 @@ QByteArray FormatText(
 		case Type::Blockquote:
 			return "<blockquote>" + text + "</blockquote>";
 		case Type::BankCard:
+		case Type::TonAddress:
 			return text;
 		case Type::Spoiler: return "<span class=\"spoiler hidden\" "
 			"onclick=\"ShowSpoiler(this)\">"
@@ -909,6 +910,7 @@ bool RichTextHasOutput(const Data::RichText &text) {
 	case Type::AutoEmail:
 	case Type::AutoPhone:
 	case Type::BankCard:
+	case Type::TonAddress:
 	case Type::MentionName:
 	case Type::FormattedDate:
 	case Type::InlineImage:
@@ -1377,6 +1379,7 @@ bool AppendPlainTarget(
 	case Type::AutoEmail:
 	case Type::AutoPhone:
 	case Type::BankCard:
+	case Type::TonAddress:
 	case Type::MentionName:
 	case Type::FormattedDate:
 		return AppendPlainTarget(result, text.children);
@@ -2267,6 +2270,7 @@ void RichHtmlRenderer::collectTextAnchors(const Data::RichText &text) {
 	case Type::AutoEmail:
 	case Type::AutoPhone:
 	case Type::BankCard:
+	case Type::TonAddress:
 	case Type::MentionName:
 	case Type::FormattedDate:
 	case Type::Button:
@@ -2736,6 +2740,10 @@ QByteArray RichHtmlRenderer::renderText(const Data::RichText &text) {
 	case Type::BankCard:
 		return wrapChildren("span", {
 			{ "class", "rich_bank_card" },
+		});
+	case Type::TonAddress:
+		return wrapChildren("span", {
+			{ "class", "rich_ton_address" },
 		});
 	case Type::MentionName:
 		return renderTextLink(text, QByteArray(), {
@@ -4012,7 +4020,7 @@ auto HtmlWriter::Wrap::pushMessage(
 	}, [&](const ActionScreenshotTaken &data) {
 		return serviceFrom + " took a screenshot";
 	}, [&](const ActionCustomAction &data) {
-		return data.message;
+		return SerializeString(data.message);
 	}, [&](const ActionBotAllowed &data) {
 		return data.attachMenu
 			? "You allowed this bot to message you "
@@ -4118,8 +4126,11 @@ auto HtmlWriter::Wrap::pushMessage(
 				: (serviceFrom + " disabled chat theme");
 		}
 		return isChannel
-			? ("Channel theme was changed to " + data.emoji).toUtf8()
-			: (serviceFrom + " changed chat theme to " + data.emoji).toUtf8();
+			? ("Channel theme was changed to "
+				+ SerializeString(data.emoji.toUtf8()))
+			: (serviceFrom
+				+ " changed chat theme to "
+				+ SerializeString(data.emoji.toUtf8()));
 	}, [&](const ActionChatJoinedByRequest &data) {
 		return serviceFrom
 			+ " joined group by request";
@@ -4136,7 +4147,7 @@ auto HtmlWriter::Wrap::pushMessage(
 		}
 		return serviceFrom
 			+ " sent you a gift for "
-			+ data.cost
+			+ SerializeString(data.cost)
 			+ ": Telegram Premium for "
 			+ QString::number(data.days).toUtf8()
 			+ " days.";
@@ -4219,7 +4230,7 @@ auto HtmlWriter::Wrap::pushMessage(
 		}
 		return serviceFrom
 			+ " sent you a gift for "
-			+ data.cost
+			+ SerializeString(data.cost)
 			+ ": "
 			+ QString::number(data.amount.value()).toUtf8()
 			+ (data.amount.ton() ? " TON." : " Telegram Stars.");
@@ -4308,11 +4319,11 @@ auto HtmlWriter::Wrap::pushMessage(
 		return serviceFrom + " added tasks: " + tasks.join(", ");
 	}, [&](const ActionPollAppendAnswer &data) {
 		return serviceFrom + " added &quot;"
-			+ data.option
+			+ SerializeString(data.option)
 			+ "&quot; to the poll.";
 	}, [&](const ActionPollDeleteAnswer &data) {
 		return serviceFrom + " removed &quot;"
-			+ data.option
+			+ SerializeString(data.option)
 			+ "&quot; from the poll.";
 	}, [&](const ActionSuggestedPostApproval &data) {
 		return serviceFrom
@@ -4388,6 +4399,50 @@ auto HtmlWriter::Wrap::pushMessage(
 		return serviceFrom
 			+ " created a bot "
 			+ peers.wrapUserName(data.botId);
+	}, [&](const ActionGramTransfer &data) {
+		const auto amount = FormatGramsAmount(data.amount);
+		const auto address = data.peerAddress.isEmpty()
+			? QByteArray()
+			: (" (" + SerializeString(data.peerAddress) + ")");
+		// td_export can't see PeerData::isNotificationsUser(), same ids.
+		const auto hidden = (dialog.peerId == peerFromUser(333000))
+			|| (dialog.peerId == peerFromUser(777000));
+		const auto sender = hidden ? QByteArray("Someone") : serviceFrom;
+		auto result = message.out
+			? ("You sent "
+				+ amount
+				+ " to "
+				+ peers.wrapPeerName(dialog.peerId)
+				+ address)
+			: (sender + address + " sent you " + amount);
+		if (!data.transactionId.isEmpty()) {
+			result += ", transaction "
+				+ SerializeString(data.transactionId);
+		}
+		if (data.commentEncrypted) {
+			result += ", with an ";
+			result += pushTag("span", {
+				{ "class", "gram_transfer_encrypted_comment" },
+				{ "data-encrypted-comment", data.comment },
+				{ "inline", QByteArray() },
+			});
+			result += "encrypted comment";
+			result += popTag();
+		} else if (!data.comment.isEmpty()) {
+			result += ", with comment: &laquo;"
+				+ SerializeString(data.comment)
+				+ "&raquo;";
+		}
+		return result;
+	}, [&](const ActionWalletTonConnectRequest &data) {
+		const auto topic = data.topic.isEmpty()
+			? QByteArray()
+			: (" &laquo;" + SerializeString(data.topic) + "&raquo;");
+		return data.accepted
+			? ("You approved a TON Connect request" + topic + ".")
+			: data.declined
+			? ("You declined a TON Connect request" + topic + ".")
+			: ("You received a TON Connect request" + topic + ".");
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {
@@ -4572,8 +4627,9 @@ auto HtmlWriter::Wrap::pushMessage(
 						: QString())
 					+ (u"Type: "_q
 						+ HistoryMessageMarkupButton::TypeToString(button));
+				// A bot chooses this url, so only safe schemes get linked.
 				const auto link = (button.type == Type::Url)
-					? button.data
+					? SafeMessageHref(button.data).value_or(QByteArray())
 					: QByteArray();
 				const auto onclick = (button.type != Type::Url)
 					? ("return ShowTextCopied('"
