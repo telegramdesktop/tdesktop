@@ -249,6 +249,8 @@ historySilentTop: -13px;
 
 historyBotMenuSkip: 8px;
 historyBotMenuMaxWidth: 160px;
+historyBotMenuIconSize: 18px;
+historyBotMenuIconWidth: 36px;
 historyBotMenuButton: RoundButton(defaultActiveButton) {
 	width: -24px;
 	height: 30px;

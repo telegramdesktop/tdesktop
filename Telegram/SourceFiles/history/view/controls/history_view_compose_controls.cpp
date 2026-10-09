@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/controls/history_view_compose_controls.h"
 
+#include "history/view/controls/history_view_bot_menu_button.h"
+
 #include "base/call_delayed.h"
 #include "base/event_filter.h"
 #include "base/options.h"
@@ -186,18 +188,6 @@ using SendActionUpdate = ComposeControls::SendActionUpdate;
 using SetHistoryArgs = ComposeControls::SetHistoryArgs;
 using VoiceRecordBar = Controls::VoiceRecordBar;
 using ForwardPanel = Controls::ForwardPanel;
-
-[[nodiscard]] QString FirstEmoji(const QString &s) {
-	const auto begin = s.data();
-	const auto end = begin + s.size();
-	for (auto ch = begin; ch != end; ch++) {
-		auto length = 0;
-		if (const auto e = Ui::Emoji::Find(ch, end, &length)) {
-			return e->text();
-		}
-	}
-	return QString();
-}
 
 } // namespace
 
@@ -1450,6 +1440,16 @@ ComposeControls::ComposeControls(
 		}, _wrap->lifetime());
 	}
 	init();
+
+	session().data().botCommandsChanges(
+	) | rpl::filter([=](not_null<PeerData*> peer) {
+		return _history && (_history->peer == peer);
+	}) | rpl::on_next([=] {
+		if (refreshBotMenuButton()) {
+			updateControlsVisibility();
+			updateControlsGeometry(_wrap->size());
+		}
+	}, _sessionLifetime);
 }
 
 rpl::producer<> ComposeControls::showScheduledRequests() const {
@@ -3484,10 +3484,10 @@ void ComposeControls::fieldChanged() {
 	const auto ttlVisible = _ttlInfo && _ttlInfo->isVisible();
 	updateSendButtonType();
 	_hasSendText = _field->isVisible() && HasSendText(_field);
+	_fieldCharsCountManager.setCount(Ui::ComputeFieldCharacterCount(_field));
 	const auto commandShown = updateBotCommandShown();
 	const auto menuRefreshed = refreshBotMenuButton();
 	const auto likeShown = updateLikeShown();
-	_fieldCharsCountManager.setCount(Ui::ComputeFieldCharacterCount(_field));
 	// Must repeat the rule from updateControlsVisibility().
 	const auto hideExtra = hideExtraButtons()
 		|| isEditingMessage()
@@ -5037,8 +5037,8 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 			? (_commentsShown->width() + _st.commentsSkip)
 			: 0)
 		- ((_attachToggle || _sendAs) ? _st.padding.left() : _st.fieldLeft)
-		- (_botMenu.button
-			? (st::historyBotMenuSkip + _botMenu.button->width())
+		- (_botMenu
+			? (st::historyBotMenuSkip + _botMenu->width())
 			: 0)
 		- (_attachToggle ? _attachToggle->width() : 0)
 		- (_sendAs ? _sendAs->width() : 0)
@@ -5088,10 +5088,10 @@ void ComposeControls::updateControlsGeometry(QSize size) {
 		left += _commentsShown->width() + _st.commentsSkip;
 	}
 	left += (_attachToggle || _sendAs) ? _st.padding.left() : _st.fieldLeft;
-	if (_botMenu.button) {
+	if (_botMenu) {
 		const auto skip = st::historyBotMenuSkip;
-		_botMenu.button->moveToLeft(left + skip, buttonsTop + skip);
-		left += skip + _botMenu.button->width();
+		_botMenu->moveToLeft(left + skip, buttonsTop + skip);
+		left += skip + _botMenu->width();
 	}
 	if (_replaceMedia) {
 		_replaceMedia->moveToLeft(left, buttonsTop);
@@ -5223,8 +5223,8 @@ void ComposeControls::updateControlsVisibility() {
 	if (_replaceMedia) {
 		_replaceMedia->show();
 	}
-	if (_botMenu.button) {
-		_botMenu.button->show();
+	if (_botMenu) {
+		_botMenu->show();
 	}
 	if (_attachToggle) {
 		_attachToggle->setVisible(!_replaceMedia);
@@ -5524,8 +5524,8 @@ bool ComposeControls::refreshBotMenuButton() {
 	const auto user = _history ? _history->peer->asUser() : nullptr;
 	const auto bot = (user && user->isBot()) ? user : nullptr;
 	if (!_regularWindow) {
-		const auto changed = (_botMenu.button != nullptr);
-		_botMenu.button.destroy();
+		const auto changed = (_botMenu != nullptr);
+		_botMenu = nullptr;
 		return changed;
 	}
 	auto buttonChanged = false;
@@ -5533,68 +5533,43 @@ bool ComposeControls::refreshBotMenuButton() {
 		|| (_mode != Mode::Normal)
 		|| (bot->botInfo->botMenuButtonUrl.isEmpty()
 			&& bot->botInfo->commands.empty())) {
-		buttonChanged = (_botMenu.button != nullptr);
-		_botMenu.button.destroy();
-	} else if (!_botMenu.button) {
+		buttonChanged = (_botMenu != nullptr);
+		_botMenu = nullptr;
+		_botMenuPeer = 0;
+	} else if (!_botMenu || _botMenuPeer != bot->id) {
 		buttonChanged = true;
-		_botMenu.text = bot->botInfo->botMenuButtonText;
-		_botMenu.small = (fieldCharacterCount() > kSmallMenuAfter);
-		if (_botMenu.small) {
-			if (const auto e = FirstEmoji(_botMenu.text); !e.isEmpty()) {
-				_botMenu.text = e;
-			}
-		}
-		_botMenu.button.create(
+		_botMenu = std::make_unique<BotMenuButton>(
 			_wrap.get(),
-			(_botMenu.text.isEmpty()
-				? tr::lng_bot_menu_button()
-				: rpl::single(_botMenu.text)),
-			st::historyBotMenuButton);
+			bot->botInfo->botMenuButtonText,
+			fieldCharacterCount() > kSmallMenuAfter,
+			[=] {
+				const auto user = _history
+					? _history->peer->asUser()
+					: nullptr;
+				const auto bot = (user && user->isBot()) ? user : nullptr;
+				if (bot && !bot->botInfo->botMenuButtonUrl.isEmpty()) {
+					session().attachWebView().open({
+						.bot = bot,
+						.context = { .controller = _regularWindow },
+						.button = {
+							.url = bot->botInfo->botMenuButtonUrl.toUtf8(),
+						},
+						.source = InlineBots::WebViewSourceBotMenu(),
+					});
+				} else if (_autocomplete && !_autocomplete->isHidden()) {
+					_autocomplete->hideAnimated();
+				} else if (_autocomplete) {
+					_autocomplete->showFiltered(_history->peer, u"/"_q, true);
+				}
+			},
+			[=] { updateControlsGeometry(_wrap->size()); },
+			session().data().customEmojiManager().factory());
+		_botMenuPeer = bot->id;
 		orderControls();
-
-		_botMenu.button->setFullRadius(true);
-		_botMenu.button->setClickedCallback([=] {
-			const auto user = _history ? _history->peer->asUser() : nullptr;
-			const auto bot = (user && user->isBot()) ? user : nullptr;
-			if (bot && !bot->botInfo->botMenuButtonUrl.isEmpty()) {
-				session().attachWebView().open({
-					.bot = bot,
-					.context = { .controller = _regularWindow },
-					.button = {
-						.url = bot->botInfo->botMenuButtonUrl.toUtf8(),
-					},
-					.source = InlineBots::WebViewSourceBotMenu(),
-				});
-			} else if (_autocomplete && !_autocomplete->isHidden()) {
-				_autocomplete->hideAnimated();
-			} else if (_autocomplete) {
-				_autocomplete->showFiltered(_history->peer, u"/"_q, true);
-			}
-		});
-		_botMenu.button->widthValue(
-		) | rpl::on_next([=](int width) {
-			if (width > st::historyBotMenuMaxWidth) {
-				_botMenu.button->setFullWidth(st::historyBotMenuMaxWidth);
-			} else {
-				updateControlsGeometry(_wrap->size());
-			}
-		}, _botMenu.button->lifetime());
 	}
 	const auto textSmall = fieldCharacterCount() > kSmallMenuAfter;
-	const auto textChanged = _botMenu.button
-		&& ((_botMenu.text != bot->botInfo->botMenuButtonText)
-			|| (_botMenu.small != textSmall));
-	if (textChanged) {
-		_botMenu.text = bot->botInfo->botMenuButtonText;
-		if ((_botMenu.small = textSmall)) {
-			if (const auto e = FirstEmoji(_botMenu.text); !e.isEmpty()) {
-				_botMenu.text = e;
-			}
-		}
-		_botMenu.button->setText(_botMenu.text.isEmpty()
-			? tr::lng_bot_menu_button()
-			: rpl::single(_botMenu.text));
-	}
+	const auto textChanged = _botMenu
+		&& _botMenu->refresh(bot->botInfo->botMenuButtonText, textSmall);
 	return buttonChanged || textChanged;
 }
 
@@ -6380,7 +6355,7 @@ Ui::RpWidget *ComposeControls::likeAnimationTarget() const {
 }
 
 int ComposeControls::fieldCharacterCount() const {
-	return Ui::ComputeFieldCharacterCount(_field);
+	return _fieldCharsCountManager.count();
 }
 
 bool ComposeControls::preventsClose(Fn<void()> &&continueCallback) const {
