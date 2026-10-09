@@ -418,7 +418,7 @@ void Panel::initWindow() {
 			0,
 			widget()->width(),
 			(mode() == PanelMode::Wide
-				? st::groupCallWideVideoTop
+				? st::groupCallWideContentTop
 				: st::groupCallMembersTop));
 		const auto moveable = (titleRect.contains(widgetPoint)
 			&& (!_menuToggle || !_menuToggle->geometry().contains(widgetPoint))
@@ -2767,7 +2767,7 @@ void Panel::updateMembersGeometry() {
 	if (mode() == PanelMode::Wide) {
 		const auto skip = _rtmpFull ? 0 : st::groupCallNarrowSkip;
 		const auto membersWidth = st::groupCallNarrowMembersWidth;
-		const auto top = _rtmpFull ? 0 : st::groupCallWideVideoTop;
+		const auto top = _rtmpFull ? 0 : st::groupCallWideContentTop;
 		_members->setGeometry(
 			widget()->width() - skip - membersWidth,
 			top,
@@ -2923,7 +2923,7 @@ void Panel::refreshTitleGeometry() {
 	const auto from = (widget()->width() - best) / 2;
 	const auto shownTop = (mode() == PanelMode::Default)
 		? st::groupCallTitleTop
-		: (st::groupCallWideVideoTop
+		: (st::groupCallWideContentTop
 			- st::groupCallTitleLabel.style.font->height) / 2;
 	const auto shown = _rtmpFull
 		? _wideControlsAnimation.value(_wideControlsShown ? 1. : 0.)
