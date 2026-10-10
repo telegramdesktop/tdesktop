@@ -39,11 +39,11 @@ namespace Export::Data {
 	}
 
 	const auto reachedUpperBound = (till < size);
+	if (till < size) {
+		list.erase(begin(list) + till, end(list));
+	}
 	if (from > 0) {
 		list.erase(begin(list), begin(list) + from);
-	}
-	if (till < size) {
-		list.erase(begin(list) + (till - from), end(list));
 	}
 	return reachedUpperBound;
 }

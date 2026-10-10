@@ -1832,7 +1832,7 @@ void ApiWrap::requestMessagesCount(int localSplitIndex) {
 		}
 		const auto skipSplit = !Data::SingleMessageAfter(
 			result,
-			_settings->singlePeerFrom);
+			SinglePeerLowerBoundOffsetDate(*_settings));
 		if (skipSplit) {
 			// No messages from the requested range, skip this split.
 			messagesCountLoaded(localSplitIndex, 0);
