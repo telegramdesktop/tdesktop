@@ -171,10 +171,10 @@ FrameGenerator::Frame FrameGenerator::Impl::renderCurrent(
 		return {};
 	}
 
-	auto scaled = QSize(width, height).scaled(size, mode);
-	if (!scaled.isEmpty() && rotationSwapWidthHeight()) {
-		scaled.transpose();
+	if (rotationSwapWidthHeight()) {
+		size.transpose();
 	}
+	const auto scaled = QSize(width, height).scaled(size, mode);
 	if (!GoodStorageForFrame(storage, size)) {
 		storage = CreateFrameStorage(size);
 		if (storage.isNull()) {

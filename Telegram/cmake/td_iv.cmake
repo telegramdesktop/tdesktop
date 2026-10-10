@@ -11,6 +11,9 @@ add_library(tdesktop::td_iv ALIAS td_iv)
 add_library(td_iv_reorder_warning_off INTERFACE)
 target_compile_options(td_iv_reorder_warning_off
 INTERFACE
+    $<$<CXX_COMPILER_ID:MSVC>:/wd5038>
+    $<$<CXX_COMPILER_ID:MSVC>:/wd4265>
+    $<$<CXX_COMPILER_ID:MSVC>:/wd4005>
     $<$<CXX_COMPILER_ID:Clang,AppleClang>:-Wno-reorder-ctor>
     $<$<CXX_COMPILER_ID:GNU>:-Wno-reorder>
 )

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tde2e/tde2e_api.h"
 
+#include "base/algorithm.h"
 #include "base/assertion.h"
 #include "base/debug_log.h"
 
@@ -114,6 +115,117 @@ void EncryptDecrypt::clearCallId(CallId fromId) {
 	Expects(fromId.v != 0);
 
 	_id.compare_exchange_strong(fromId.v, 0);
+}
+
+std::optional<TemporaryKeyPair> TemporaryKeyPair::Generate() {
+	const auto id = tde2e_api::key_generate_temporary_private_key();
+	if (!id.is_ok()) {
+		return std::nullopt;
+	}
+	const auto key = tde2e_api::key_to_public_key(id.value());
+	auto publicKey = key.is_ok()
+		? QByteArray::fromStdString(key.value())
+		: QByteArray();
+	if (publicKey.size() != int(sizeof(PublicKey))) {
+		tde2e_api::key_destroy(id.value());
+		return std::nullopt;
+	}
+	return TemporaryKeyPair(
+		{ .v = uint64(id.value()) },
+		std::move(publicKey));
+}
+
+TemporaryKeyPair::TemporaryKeyPair(PrivateKeyId id, QByteArray publicKey)
+: _id(id)
+, _public(std::move(publicKey)) {
+}
+
+TemporaryKeyPair::TemporaryKeyPair(TemporaryKeyPair &&other)
+: _id(base::take(other._id))
+, _public(base::take(other._public)) {
+}
+
+TemporaryKeyPair &TemporaryKeyPair::operator=(TemporaryKeyPair &&other) {
+	if (this != &other) {
+		if (_id.v) {
+			tde2e_api::key_destroy(std::int64_t(_id.v));
+		}
+		_id = base::take(other._id);
+		_public = base::take(other._public);
+	}
+	return *this;
+}
+
+TemporaryKeyPair::~TemporaryKeyPair() {
+	if (_id.v) {
+		tde2e_api::key_destroy(std::int64_t(_id.v));
+	}
+}
+
+QByteArray TemporaryKeyPair::publicKey() const {
+	return _public;
+}
+
+std::optional<QByteArray> TemporaryKeyPair::decryptForOne(
+		const QByteArray &peerPublicKey,
+		const QByteArray &encrypted) const {
+	if (!_id.v || peerPublicKey.size() != int(sizeof(PublicKey))) {
+		return std::nullopt;
+	}
+	const auto peer = tde2e_api::key_from_public_key(Slice(peerPublicKey));
+	if (!peer.is_ok()) {
+		return std::nullopt;
+	}
+	const auto peerId = peer.value();
+	const auto peerGuard = gsl::finally([=] {
+		tde2e_api::key_destroy(peerId);
+	});
+	const auto shared = tde2e_api::key_from_ecdh(std::int64_t(_id.v), peerId);
+	if (!shared.is_ok()) {
+		return std::nullopt;
+	}
+	const auto sharedId = shared.value();
+	const auto sharedGuard = gsl::finally([=] {
+		tde2e_api::key_destroy(sharedId);
+	});
+	const auto decrypted = tde2e_api::decrypt_message_for_one(
+		sharedId,
+		Slice(encrypted));
+	if (!decrypted.is_ok()) {
+		return std::nullopt;
+	}
+	return QByteArray::fromStdString(decrypted.value());
+}
+
+std::optional<QByteArray> TemporaryKeyPair::encryptForOne(
+		const QByteArray &peerPublicKey,
+		const QByteArray &plain) const {
+	if (!_id.v || peerPublicKey.size() != int(sizeof(PublicKey))) {
+		return std::nullopt;
+	}
+	const auto peer = tde2e_api::key_from_public_key(Slice(peerPublicKey));
+	if (!peer.is_ok()) {
+		return std::nullopt;
+	}
+	const auto peerId = peer.value();
+	const auto peerGuard = gsl::finally([=] {
+		tde2e_api::key_destroy(peerId);
+	});
+	const auto shared = tde2e_api::key_from_ecdh(std::int64_t(_id.v), peerId);
+	if (!shared.is_ok()) {
+		return std::nullopt;
+	}
+	const auto sharedId = shared.value();
+	const auto sharedGuard = gsl::finally([=] {
+		tde2e_api::key_destroy(sharedId);
+	});
+	const auto encrypted = tde2e_api::encrypt_message_for_one(
+		sharedId,
+		Slice(plain));
+	if (!encrypted.is_ok()) {
+		return std::nullopt;
+	}
+	return QByteArray::fromStdString(encrypted.value());
 }
 
 Call::Call(UserId myUserId)

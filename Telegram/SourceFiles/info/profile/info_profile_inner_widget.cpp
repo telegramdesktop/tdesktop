@@ -53,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/new_badges.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "ui/ui_utility.h"
@@ -113,32 +114,7 @@ void AddUnofficialSecurityRiskWarning(
 		}
 		if (user->unofficialSecurityRisk()) {
 			auto helper = Ui::Text::CustomEmojiHelper();
-			auto icon = helper.paletteDependent({
-				.factory = [] {
-					const auto s = st::infoSecurityRiskIconSize;
-					const auto ratio = style::DevicePixelRatio();
-					const auto rect = QRect(0, 0, s, s);
-					auto result = QImage(
-						rect.size() * ratio,
-						QImage::Format_ARGB32_Premultiplied);
-					result.setDevicePixelRatio(ratio);
-					result.fill(Qt::transparent);
-
-					auto p = QPainter(&result);
-					auto hq = PainterHighQualityEnabler(p);
-					p.setPen(Qt::NoPen);
-					p.setBrush(st::attentionButtonFg);
-					p.drawEllipse(rect);
-
-					p.setPen(st::windowFgActive);
-					p.setFont(st::semiboldFont);
-					p.drawText(rect, u"!"_q, style::al_center);
-
-					p.end();
-					return result;
-				},
-				.margin = st::infoSecurityRiskIconMargin,
-			});
+			auto icon = helper.paletteDependent(Ui::AttentionMarkEmoji());
 			auto label = object_ptr<Ui::FlatLabel>(
 				content,
 				tr::lng_profile_unofficial_warning(
@@ -273,7 +249,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		auto tabs = std::vector<MediaTabDescriptor>();
 		const auto countValue = [&](Storage::SharedMediaType type) {
 			return SharedMediaCountValue(
-				tabsPeer,
+				_peer,
 				topicRootId,
 				monoforumPeerId,
 				_migrated,
@@ -332,12 +308,8 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		addTab(Storage::SharedMediaType::File);
 		addTab(Storage::SharedMediaType::Link);
 		addTab(Storage::SharedMediaType::MusicFile);
-		tabs.push_back(MakePollsTabDescriptor(SharedMediaCountValue(
-			tabsPeer,
-			topicRootId,
-			monoforumPeerId,
-			_migrated,
-			Storage::SharedMediaType::Poll) | rpl::map(_1 > 0)));
+		tabs.push_back(MakePollsTabDescriptor(
+			countValue(Storage::SharedMediaType::Poll) | rpl::map(_1 > 0)));
 		addTab(Storage::SharedMediaType::RoundVoiceFile);
 		addTab(Storage::SharedMediaType::GIF);
 		if (!_topic && !_sublist && !_savedMessages) {

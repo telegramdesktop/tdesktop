@@ -23,6 +23,7 @@ namespace Ui {
 class InputField;
 class PasswordInput;
 class LinkButton;
+class VerticalLayout;
 } // namespace Ui
 
 namespace Core {
@@ -58,6 +59,18 @@ public:
 		rpl::producer<QString> customTitle;
 		std::optional<QString> customDescription;
 		rpl::producer<QString> customSubmitButton;
+		std::shared_ptr<Ui::Show> customShow;
+
+		// Check-only skin: a lottie played once when the box is shown, a
+		// centered title and a gray description stand in for the box title.
+		struct CustomHeader {
+			QString lottie;
+			int lottieSize = 0;
+			style::margins lottieMargin;
+			rpl::producer<QString> title;
+			rpl::producer<QString> description;
+		};
+		std::optional<CustomHeader> customHeader;
 	};
 	PasscodeBox(
 		QWidget*,
@@ -81,6 +94,7 @@ public:
 protected:
 	void prepare() override;
 	void setInnerFocus() override;
+	void showFinished() override;
 
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
@@ -89,6 +103,7 @@ private:
 	using CheckPasswordCallback = Fn<void(
 		const Core::CloudPasswordResult &check)>;
 
+	void setupHeader(CloudFields::CustomHeader &header);
 	void submit();
 	void closeReplacedBy();
 	void oldChanged();
@@ -173,6 +188,10 @@ private:
 
 	Ui::Text::String _about, _hintText;
 
+	object_ptr<Ui::VerticalLayout> _header = { nullptr };
+	Fn<void()> _headerAnimate;
+	int _headerHeight = 0;
+
 	object_ptr<Ui::PasswordInput> _oldPasscode;
 	object_ptr<Ui::PasswordInput> _newPasscode;
 	object_ptr<Ui::PasswordInput> _reenterPasscode;
@@ -253,4 +272,5 @@ struct RecoveryEmailValidation {
 [[nodiscard]] object_ptr<Ui::GenericBox> PrePasswordErrorBox(
 	const QString &error,
 	not_null<Main::Session*> session,
-	TextWithEntities &&about);
+	TextWithEntities &&about,
+	std::shared_ptr<Ui::Show> show = nullptr);

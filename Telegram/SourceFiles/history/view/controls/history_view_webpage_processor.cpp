@@ -145,11 +145,12 @@ void WebpageResolver::request(const QString &link, bool force) {
 			page->pendingTill = 0;
 			page->failed = true;
 		}
-		_cache.emplace(link, page->failed ? nullptr : page.get());
+		const auto empty = (data.vwebpage().type() == mtpc_webPageEmpty);
+		_cache[link] = (empty || page->failed) ? nullptr : page.get();
 		_resolved.fire_copy(link);
 	};
 	const auto fail = [=] {
-		_cache.emplace(link, nullptr);
+		_cache[link] = nullptr;
 		_resolved.fire_copy(link);
 	};
 	_requestLink = link;

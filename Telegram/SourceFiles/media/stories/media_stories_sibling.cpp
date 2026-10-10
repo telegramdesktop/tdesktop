@@ -385,6 +385,11 @@ QImage Sibling::nameImage(const SiblingLayout &layout) {
 			_nameImage = QImage(
 				QSize(w, h) * ratio,
 				QImage::Format_ARGB32_Premultiplied);
+			if (_nameImage.isNull()) {
+				// Zero or negative available width, a painter on a null
+				// image has no paint engine and text drawing crashes.
+				return _nameImage;
+			}
 			_nameImage.setDevicePixelRatio(ratio);
 			_nameImage.fill(Qt::transparent);
 			auto p = Painter(&_nameImage);

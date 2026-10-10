@@ -610,14 +610,14 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 		_delegate->panelWebviewMessage(message, save);
 	});
 
-	raw->setNavigationStartHandler([=](const QString &uri, bool newWindow) {
+	raw->setNavigationPolicyHandler([=](const QString &uri, bool newWindow) {
 		if (!_delegate->panelWebviewNavigationAttempt(uri)) {
 			return false;
-		} else if (newWindow) {
-			return false;
 		}
+		return !newWindow;
+	});
+	raw->setNavigationStartHandler([=] {
 		showWebviewProgress();
-		return true;
 	});
 	raw->setNavigationDoneHandler([=](bool success) {
 		hideWebviewProgress();

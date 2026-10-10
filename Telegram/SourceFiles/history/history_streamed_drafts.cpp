@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "iv/iv_rich_page.h"
 #include "main/main_session.h"
 
@@ -67,6 +68,29 @@ struct ThreadKeys {
 		result.secondary = 0;
 	}
 	return result;
+}
+
+[[nodiscard]] bool CanAdoptInPlace(const MTPDmessage &data) {
+	if (data.is_post()
+		|| data.vfwd_from()
+		|| data.vgrouped_id()
+		|| data.vsaved_peer_id()
+		|| data.vsuggested_post()) {
+		return false;
+	}
+	const auto media = data.vmedia();
+	if (!media) {
+		return true;
+	} else if (CheckMessageMedia(*media) != MediaCheckResult::Good) {
+		return false;
+	}
+	return media->match([](const MTPDmessageMediaPhoto &data) {
+		return !data.vttl_seconds();
+	}, [](const MTPDmessageMediaDocument &data) {
+		return !data.vttl_seconds();
+	}, [](const auto &) {
+		return true;
+	});
 }
 
 } // namespace
@@ -365,7 +389,7 @@ void HistoryStreamedDrafts::applyItemRemoved(not_null<HistoryItem*> item) {
 
 HistoryItem *HistoryStreamedDrafts::adoptIncoming(
 		const MTPDmessage &data) {
-	if (_drafts.empty()) {
+	if (_drafts.empty() || data.is_out()) {
 		return nullptr;
 	}
 	const auto fromId = data.vfrom_id()
@@ -450,6 +474,9 @@ HistoryItem *HistoryStreamedDrafts::adoptIncoming(
 	}
 	if (best == end(_drafts)) {
 		return nullptr;
+	} else if (!CanAdoptInPlace(data)) {
+		clearByRandomId(best->first);
+		return nullptr;
 	}
 	const auto item = best->second.message.get();
 	const auto stoppable = best->second.canStop;
@@ -459,6 +486,7 @@ HistoryItem *HistoryStreamedDrafts::adoptIncoming(
 	}
 
 	item->setRealId(data.vid().v);
+	item->applyStreamedDraftFinish(data);
 	if (const auto topic = item->topic()) {
 		topic->applyMaybeLast(item);
 	}
@@ -466,6 +494,7 @@ HistoryItem *HistoryStreamedDrafts::adoptIncoming(
 		sublist->applyMaybeLast(item);
 	}
 	_history->owner().updateExistingMessage(data);
+	_history->owner().requestItemViewRefresh(item);
 	_history->newItemAdded(item, NewAddType::StreamedDraftFinish);
 
 	if (_drafts.empty()) {

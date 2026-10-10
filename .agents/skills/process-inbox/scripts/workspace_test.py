@@ -6,8 +6,11 @@ import io
 import json
 import os
 from pathlib import Path
+import plistlib
+import signal
 import subprocess
 import tempfile
+import time
 from types import SimpleNamespace
 import unittest
 from unittest import mock
@@ -16,6 +19,51 @@ import workspace
 
 
 TASK_ID = "2026/07/19/correct-recent-search-peer-actions"
+
+
+class CommitHashArtifactTests(unittest.TestCase):
+	def test_rejects_explicit_commit_references(self):
+		values = (
+			"Commit: abcdef1",
+			"commit hash = `abcdef1234567890abcdef1234567890abcdef1234`",
+			"commit id: 1234567",
+			"Commit SHA-1: abcdef1",
+			"**Revision:** `abcdef1`",
+			'{"revision": "abcdef1"}',
+			json.dumps({"log": '{"revision": "abcdef1"}'}),
+			"SHA-1: abcdef1",
+			"sha: " + "a" * 64,
+			"Task-Base-SHA: none",
+			"Implementation-SHA: none",
+		)
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			path = root / "result.md"
+			for value in values:
+				with self.subTest(value=value):
+					path.write_text(value, encoding="utf-8")
+					with self.assertRaises(workspace.WorkspaceError):
+						workspace.ensure_no_persisted_commit_hashes(root)
+
+	def test_preserves_runtime_values_and_content_digests(self):
+		values = (
+			'{"revision":3,"amount":1430000000}',
+			json.dumps({"log": '{"revision":3,"amount":1430000000}'}),
+			json.dumps({"log": '{"revision":3},{"amount":1430000000}'}),
+			'revision and box generation - {"amount":2460000000',
+			"revision-and-box-generation amount2460000000",
+			"SHA-256 (not a commit reference): " + "a" * 64,
+			"source-content SHA-256: " + "b" * 64,
+			"commit #1234567",
+			"revision3 amount1430000000",
+		)
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			path = root / "raw.log"
+			for value in values:
+				with self.subTest(value=value):
+					path.write_text(value, encoding="utf-8")
+					workspace.ensure_no_persisted_commit_hashes(root)
 
 
 class FrozenDate(datetime.date):
@@ -197,6 +245,122 @@ inbox_receipt: receipts/2026/07/18/seed.md
 		"inbox_branch": "inbox/macbook-twork",
 		"inbox": str(inbox),
 	}
+
+
+APPROVAL_TASK = "2026/07/18/active-task"
+OTHER_APPROVAL_TASK = "2026/07/20/other-task"
+
+
+def set_origin_url(main, url):
+	git(main, "remote", "set-url", "origin", str(url))
+
+
+def task_refs(source, task_id):
+	return {
+		name: workspace.resolved_ref(
+			source, workspace.source_task_ref(task_id, name),
+		)
+		for name in ("base", "green", "run")
+	}
+
+
+def approval_recovery_fixture(root, outcome="changed"):
+	config = inbox_worktrees(root)
+	main = Path(config["ai_main"])
+	slot = Path(config["slot_worktree"])
+	origin = root / "origin.git"
+	git(root, "init", "--bare", "--initial-branch=master", str(origin))
+	git(main, "remote", "add", "origin", str(origin))
+	git(main, "push", "origin", "master")
+	git(main, "fetch", "origin")
+	state = main / "tasks" / APPROVAL_TASK / "state.yaml"
+	state.write_text(
+		state.read_text(encoding="utf-8")
+		.replace("status: todo", "status: in-progress")
+		.replace("claimed_by: null", "claimed_by: macbook-twork")
+		.replace("claimed_at: null", "claimed_at: 2026-07-18T10:00:00+04:00")
+		.replace("claim_order: null", "claim_order: 1")
+		.replace("phase: null", "phase: setup"),
+		encoding="utf-8",
+	)
+	git(main, "add", "tasks")
+	git(main, "commit", "-m", f"Start {APPROVAL_TASK}")
+	git(main, "push", "origin", "master")
+	git(main, "fetch", "origin")
+	git(slot, "merge", "--ff-only", "master")
+
+	source = root / "source"
+	git_repo(source)
+	(source / "Telegram" / "build").mkdir(parents=True)
+	(source / "tracked.txt").write_text("base\n", encoding="utf-8")
+	git(source, "add", "tracked.txt")
+	git(source, "commit", "-m", "Create baseline")
+	baseline = git(source, "rev-parse", "HEAD")
+	git(source, "update-ref", workspace.source_task_ref(APPROVAL_TASK, "base"), "HEAD")
+	if outcome == "changed":
+		(source / "tracked.txt").write_text("changed\n", encoding="utf-8")
+		git(
+			source, "commit", "-am",
+			f"Change tracked file\n\nTask: {APPROVAL_TASK}",
+		)
+		git(source, "update-ref", workspace.source_task_ref(APPROVAL_TASK, "green"), "HEAD")
+	git(source, "update-ref", workspace.source_task_ref(APPROVAL_TASK, "run"), "HEAD")
+	for name in ("base", "green", "run"):
+		git(
+			source, "update-ref",
+			workspace.source_task_ref(OTHER_APPROVAL_TASK, name), baseline,
+		)
+	config["source_root"] = str(source)
+
+	work = slot / "tasks" / APPROVAL_TASK / "work"
+	work.mkdir(parents=True)
+	(work / "result.md").write_text(
+		f"""STATUS: DONE
+Outcome: {outcome}
+Touched: {"tracked.txt" if outcome == "changed" else "none"}
+Verdict: APPROVED
+Test-Report: work/test.md
+Checkout: clean-buildable
+""",
+		encoding="utf-8",
+	)
+	(work / "test.md").write_text("# Test report\n\nPassed.\n", encoding="utf-8")
+	return {
+		"config": config,
+		"main": main,
+		"slot": slot,
+		"origin": origin,
+		"source": source,
+		"head": git(source, "rev-parse", "HEAD"),
+		"refs": task_refs(source, APPROVAL_TASK),
+		"other_refs": task_refs(source, OTHER_APPROVAL_TASK),
+	}
+
+
+def finish_approval(fixture):
+	with mock.patch.object(
+		workspace, "worktree_config", return_value=fixture["config"],
+	):
+		return run_command(
+			workspace.command_finish,
+			task=APPROVAL_TASK,
+			status="approved",
+			model="claude-opus-5",
+		)
+
+
+def publish_approval(fixture, stderr=None):
+	with (
+		mock.patch.object(
+			workspace, "worktree_config", return_value=fixture["config"],
+		),
+		contextlib.redirect_stderr(stderr or io.StringIO()),
+	):
+		return run_command(workspace.command_publish)
+
+
+def head_subject(repo, revision="HEAD"):
+	return git(repo, "show", "-s", "--format=%s", revision)
 
 
 class WorkspaceTest(unittest.TestCase):
@@ -1307,7 +1471,7 @@ Checkout: clean-buildable
 					"task_action_config",
 					return_value=(config, slot),
 				),
-				mock.patch.object(workspace, "ensure_clean"),
+				mock.patch.object(workspace, "ensure_source_clean"),
 				mock.patch.object(workspace, "validate_source_state"),
 				mock.patch.object(workspace, "delete_source_refs"),
 				mock.patch.object(workspace, "commit_paths", side_effect=record_commit),
@@ -1584,6 +1748,69 @@ def write_dump_after_complete_exe(path, dump, tail, windows_tail):
 	))
 
 
+def write_argv_recording_exe(path, env_names=()):
+	# The cmd branch puts the redirection before `echo` on purpose, for
+	# the argument and the environment lines alike. In
+	# `echo %~1>>"%ARGS%"` a value ending in a digit would be read as a
+	# stream handle, so an argument like `-scale 1` would silently lose
+	# its last character and redirect stdout instead.
+	envs = ""
+	windows_envs = ""
+	if env_names:
+		envs = 'ENVS="$TDESKTOP_TEST_EVIDENCE_DIR/env.txt"\n' + "".join(
+			f'if [ "${{{name}+set}}" = set ]; then '
+			f'echo "{name}=${name}" >> "$ENVS"; '
+			f'else echo "{name} unset" >> "$ENVS"; fi\n'
+			for name in env_names
+		)
+		windows_envs = (
+			'set "ENVS=%TDESKTOP_TEST_EVIDENCE_DIR%\\env.txt"\n'
+			+ "".join(
+				f'if defined {name} (>>"%ENVS%" echo {name}=%{name}%) '
+				f'else (>>"%ENVS%" echo {name} unset)\n'
+				for name in env_names
+			)
+		)
+	return write_fake_exe(path, (
+		'ARGS="$TDESKTOP_TEST_EVIDENCE_DIR/argv.txt"\n'
+		'for value in "$@"; do echo "$value" >> "$ARGS"; done\n'
+		+ envs
+		+ 'LOG="$TDESKTOP_TEST_EVIDENCE_DIR/test_log.txt"\n'
+		'echo "TEST_COMPLETE" >> "$LOG"\n'
+		"exit 0\n"
+	), (
+		'set "ARGS=%TDESKTOP_TEST_EVIDENCE_DIR%\\argv.txt"\n'
+		':argv\n'
+		'if "%~1"=="" goto argvdone\n'
+		'>>"%ARGS%" echo %~1\n'
+		'shift\n'
+		'goto argv\n'
+		':argvdone\n'
+		+ windows_envs
+		+ 'set "LOG=%TDESKTOP_TEST_EVIDENCE_DIR%\\test_log.txt"\n'
+		'echo TEST_COMPLETE>>"%LOG%"\n'
+		"exit /b 0\n"
+	))
+
+
+def read_argv(run_dir):
+	text = (run_dir / "argv.txt").read_text(encoding="utf-8")
+	return [line.strip() for line in text.splitlines() if line.strip()]
+
+
+def read_recorded_env(run_dir):
+	recorded = {}
+	text = (run_dir / "env.txt").read_text(encoding="utf-8")
+	for line in text.splitlines():
+		line = line.strip()
+		if "=" in line:
+			name, value = line.split("=", 1)
+			recorded[name] = value
+		elif line.endswith(" unset"):
+			recorded[line[:-len(" unset")]] = None
+	return recorded
+
+
 def make_portable_root(root):
 	debug = root / "out" / "Debug"
 	golden = debug / workspace.PORTABLE_GOLDEN
@@ -1636,6 +1863,46 @@ inbox_receipt: receipts/2026/07/19/test.md
 	return source, slot, work, config
 
 
+def overlay_bundle_bytes(work):
+	result = {}
+	for relative in (
+		workspace.OVERLAY_PATCH_FILE,
+		workspace.OVERLAY_SUBMODULES_FILE,
+	):
+		path = work / relative
+		if path.is_file():
+			result[relative] = path.read_bytes()
+	patches = work / workspace.OVERLAY_SUBMODULES_DIR
+	if patches.is_dir():
+		for path in sorted(patches.rglob("*")):
+			if path.is_file():
+				result[path.relative_to(work).as_posix()] = path.read_bytes()
+	return result
+
+
+def overlay_repo_with_nested_module(root):
+	root = Path(root)
+	source, slot, work, config = source_repo_with_task(root)
+	dependency = root.resolve() / "dependency"
+	git_repo(dependency)
+	(dependency / "tracked.txt").write_text("module-base\n", encoding="utf-8")
+	git(dependency, "add", "tracked.txt")
+	git(dependency, "commit", "-m", "Create module")
+	git(
+		source, "-c", "protocol.file.allow=always", "submodule", "add",
+		str(dependency), "dep",
+	)
+	git(source, "commit", "-am", "Record dependency")
+	git(
+		source, "update-ref",
+		workspace.source_task_ref(TASK_ID, "run"), "HEAD",
+	)
+	(work / workspace.OVERLAY_PATHS_FILE).write_text(
+		"tracked.txt\ndep/tracked.txt\n", encoding="utf-8",
+	)
+	return source, slot, work, config, source / "dep"
+
+
 def run_command(handler, **kwargs):
 	out = io.StringIO()
 	with contextlib.redirect_stdout(out):
@@ -1651,10 +1918,385 @@ def run_test_run(exe, run_dir, **overrides):
 		"deadline": 20.0,
 		"quiet": 10.0,
 		"grace": 5.0,
+		"wait_idle": None,
+		"wait_idle_max": workspace.WAIT_IDLE_MAX_DEFAULT,
+		"activate": False,
 		"env": None,
 	}
 	arguments.update(overrides)
 	return run_command(workspace.command_test_run, **arguments)
+
+
+@contextlib.contextmanager
+def patched_background_launch(bundle, launcher):
+	with (
+		mock.patch.object(
+			workspace, "background_launch_bundle", return_value=bundle,
+		),
+		mock.patch.object(workspace, "MACOS_OPEN_TOOL", str(launcher)),
+	):
+		yield
+
+
+LSAPPINFO_FRONT = b"ASN:0x0-0x55e55e:\n"
+
+
+def lsappinfo_name_output(name):
+	return (
+		f'"{name}" ASN:0x0-0x55e55e: (in front) \n'
+		"    bundleID=[ NULL ] \n"
+		"    bundle path=[ NULL ] \n"
+		"    executable path=[ NULL ] \n"
+		" !cgsConnection !signalled type=[ NULL ]  flavor=[ NULL ]"
+		"  Version=[ NULL ]  Arch=!!none \n"
+	).encode("utf-8")
+
+
+def hid_system_plist(idle_seconds):
+	return plistlib.dumps([{
+		"IOClass": "IOHIDSystem",
+		"IOObjectClass": "IOHIDSystem",
+		"HIDIdleTime": round(idle_seconds * 1e9),
+	}])
+
+
+def console_root_plist(locked):
+	away = {
+		"kCGSSessionOnConsoleKey": False,
+		"kCGSSessionUserNameKey": "telegramdesktop",
+		"CGSSessionScreenIsLocked": True,
+	}
+	here = {
+		"kCGSSessionOnConsoleKey": True,
+		"kCGSSessionUserIDKey": 501,
+		"kCGSSessionUserNameKey": "preston",
+		"kCGSessionLoginDoneKey": True,
+	}
+	if locked:
+		here["CGSSessionScreenIsLocked"] = True
+	return plistlib.dumps({
+		"IOConsoleLocked": False,
+		"IOConsoleUsers": [away, here],
+	})
+
+
+class FakeConsole:
+	def __init__(self, idle, locked=False, app="cmux", on_sleep=None):
+		self.idle = idle
+		self.locked = locked
+		self.app = app
+		self.on_sleep = on_sleep
+		self.now = 0.0
+		self.sleeps = []
+
+	def clock(self):
+		return self.now
+
+	def sleep(self, seconds):
+		if not seconds >= 0:
+			raise ValueError(f"time.sleep would refuse {seconds}")
+		self.sleeps.append(seconds)
+		self.now += seconds
+		if self.on_sleep:
+			self.on_sleep(seconds)
+
+	def output(self, argv):
+		if argv == ["ioreg", "-r", "-c", "IOHIDSystem", "-d", "1", "-a"]:
+			idle = self.idle(self.now)
+			if idle is None:
+				return None, "ioreg timed out after 2 s"
+			return hid_system_plist(idle), None
+		if argv == ["ioreg", "-n", "Root", "-d", "1", "-a"]:
+			return console_root_plist(self.locked), None
+		if argv == ["lsappinfo", "front"]:
+			return LSAPPINFO_FRONT, None
+		if argv == ["lsappinfo", "info", "-only", "name", "ASN:0x0-0x55e55e:"]:
+			return lsappinfo_name_output(self.app), None
+		raise AssertionError(f"unexpected argv {argv}")
+
+	@contextlib.contextmanager
+	def installed(self):
+		real_wait = workspace.wait_for_console_idle
+
+		def wait(required, bound):
+			return real_wait(
+				required, bound, clock=self.clock, sleep=self.sleep,
+			)
+
+		with (
+			mock.patch.object(
+				workspace, "console_unsupported_reason", return_value=None,
+			),
+			mock.patch.object(
+				workspace, "console_command_output", side_effect=self.output,
+			),
+			mock.patch.object(
+				workspace, "wait_for_console_idle", side_effect=wait,
+			),
+		):
+			yield self
+
+
+class SourcePreparationTest(unittest.TestCase):
+	def make_repo(self, path):
+		git_repo(path)
+		(path / "tracked.txt").write_text("base\n", encoding="utf-8")
+		git(path, "add", "tracked.txt")
+		git(path, "commit", "-m", "Create fixture")
+		return path
+
+	def add_module(self, source, dependency, name="dep space"):
+		git(
+			source, "-c", "protocol.file.allow=always", "submodule", "add",
+			str(dependency), name,
+		)
+		git(source, "commit", "-am", "Record dependency")
+		return source / name
+
+	def test_linked_worktrees_are_ignored_only_by_source_checks(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			source = self.make_repo(root / "source")
+			other = self.make_repo(root / "other")
+			name = "nested space" if os.name == "nt" else "nested 'quote'\nleaf"
+			for owner, name in ((source, name), (other, "other-linked")):
+				linked = source / name
+				git(owner, "worktree", "add", "--detach", str(linked))
+				(linked / "tracked.txt").write_text("elsewhere\n", encoding="utf-8")
+				(linked / "new.txt").write_text("preserve\n", encoding="utf-8")
+				git(linked, "add", "tracked.txt")
+			self.assertEqual(workspace.source_changed_paths(source), [])
+			self.assertFalse(workspace.prepare_source(source))
+			with self.assertRaises(workspace.WorkspaceError):
+				workspace.ensure_clean(source, "AI workspace")
+			(source / "ordinary.txt").write_text("stray\n", encoding="utf-8")
+			(source / "tracked.txt").write_text("local\n", encoding="utf-8")
+			self.assertEqual(
+				workspace.source_changed_paths(source), ["ordinary.txt", "tracked.txt"],
+			)
+			with self.assertRaises(workspace.WorkspaceError):
+				workspace.prepare_source(source)
+			self.assertEqual((linked / "new.txt").read_text(), "preserve\n")
+			self.assertEqual(git(linked, "diff", "--cached", "--name-only"), "tracked.txt")
+
+	def test_unregistered_repositories_and_moved_worktrees_still_block(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			source = self.make_repo(root / "source")
+			self.make_repo(source / "ordinary-repo")
+			git(source, "worktree", "add", "--detach", str(source / "registered"))
+			(source / "registered").rename(source / "moved")
+			(source / "registered").mkdir()
+			(source / "registered/file.txt").write_text("unregistered\n", encoding="utf-8")
+			self.assertEqual(workspace.source_changed_paths(source), [
+				"moved/", "ordinary-repo/", "registered/file.txt",
+			])
+			with self.assertRaises(workspace.WorkspaceError):
+				workspace.prepare_source(source)
+
+	@unittest.skipIf(os.name == "nt", "Requires unprivileged directory symlinks")
+	def test_symlink_to_linked_worktree_is_not_ignored(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			source = self.make_repo(root / "source")
+			linked = root / "linked"
+			git(source, "worktree", "add", "--detach", str(linked))
+			(source / "shortcut").symlink_to(linked, target_is_directory=True)
+			self.assertEqual(workspace.source_changed_paths(source), ["shortcut"])
+
+	def test_nested_module_worktree_does_not_make_parent_dirty(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			source = self.make_repo(root / "source")
+			module = self.add_module(source, self.make_repo(root / "dependency"))
+			linked = module / "nested worktree"
+			git(module, "worktree", "add", "--detach", str(linked))
+			(linked / "tracked.txt").write_text("elsewhere\n", encoding="utf-8")
+			self.assertIn("dep space", workspace.literal_paths(
+				source, "diff", "--name-only", "--ignore-submodules=none"
+			))
+			self.assertEqual(workspace.source_changed_paths(source), [])
+			self.assertEqual(workspace.initialized_submodule_paths(source), ["dep space"])
+			self.assertFalse(workspace.prepare_source(source))
+			(module / "tracked.txt").write_text("owned overlay\n", encoding="utf-8")
+			self.assertEqual(workspace.source_changed_paths(source), ["dep space"])
+			with self.assertRaises(workspace.WorkspaceError):
+				workspace.prepare_source(source)
+			self.assertEqual((module / "tracked.txt").read_text(), "owned overlay\n")
+
+	def test_preparation_updates_recursive_recorded_pins_without_following_remote(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			leaf = self.make_repo(root / "leaf")
+			old_leaf = git(leaf, "rev-parse", "HEAD")
+			(leaf / "tracked.txt").write_text("recorded\n", encoding="utf-8")
+			git(leaf, "commit", "-am", "Recorded version")
+			pinned_leaf = git(leaf, "rev-parse", "HEAD")
+			dependency = self.make_repo(root / "dependency")
+			old_dependency = git(dependency, "rev-parse", "HEAD")
+			self.add_module(dependency, leaf, "nested leaf")
+			pinned_dependency = git(dependency, "rev-parse", "HEAD")
+			source = self.make_repo(root / "source")
+			module = self.add_module(source, dependency)
+			git(module, "checkout", "--detach", old_dependency)
+			(source / "Telegram/build").mkdir(parents=True)
+			git(leaf, "worktree", "add", "--detach", str(module / "scratch"), old_leaf)
+			(leaf / "tracked.txt").write_text("remote tip\n", encoding="utf-8")
+			git(leaf, "commit", "-am", "Newer remote version")
+			source_tip = git(source, "rev-parse", "HEAD")
+			with mock.patch.dict(os.environ, {"GIT_ALLOW_PROTOCOL": "file"}):
+				result = run_command(
+					workspace.command_source_prepare, source_root=str(source),
+				)
+				self.assertTrue(result["source_clean"])
+				self.assertTrue(result["submodules_updated"])
+				self.assertEqual(git(module, "rev-parse", "HEAD"), pinned_dependency)
+				self.assertEqual(git(module / "nested leaf", "rev-parse", "HEAD"), pinned_leaf)
+				git(module / "nested leaf", "checkout", "--detach", old_leaf)
+				self.assertTrue(workspace.prepare_source(source))
+				self.assertEqual(git(module / "nested leaf", "rev-parse", "HEAD"), pinned_leaf)
+				self.assertFalse(workspace.prepare_source(source))
+			self.assertEqual(git(source, "rev-parse", "HEAD"), source_tip)
+			self.assertEqual((module / "scratch/tracked.txt").read_text(), "base\n")
+			self.assertEqual(workspace.source_changed_paths(source), [])
+			self.assertEqual(workspace.mismatched_submodules(source), [])
+
+	def test_preparation_preserves_local_and_staged_changes_before_any_update(self):
+		for kind in ("tracked", "untracked", "staged-module", "staged-gitlink", "staged-source"):
+			with self.subTest(kind=kind), tempfile.TemporaryDirectory() as temporary:
+				root = Path(temporary).resolve()
+				dependency = self.make_repo(root / "dependency")
+				old = git(dependency, "rev-parse", "HEAD")
+				(dependency / "tracked.txt").write_text("new version\n", encoding="utf-8")
+				git(dependency, "commit", "-am", "Advance dependency")
+				source = self.make_repo(root / "source")
+				module = self.add_module(source, dependency)
+				git(module, "checkout", "--detach", old)
+				if kind == "staged-gitlink":
+					git(source, "add", "dep space")
+				elif kind == "staged-source":
+					(source / "tracked.txt").write_text("staged\n", encoding="utf-8")
+					git(source, "add", "tracked.txt")
+				else:
+					name = "new.txt" if kind == "untracked" else "tracked.txt"
+					(module / name).write_text("local edit\n", encoding="utf-8")
+					if kind == "staged-module":
+						git(module, "add", name)
+				before = [git_bytes(p, "diff", "--binary", "HEAD") for p in (source, module)]
+				indexes = [git_bytes(p, "ls-files", "--stage", "-z") for p in (source, module)]
+				with self.assertRaises(workspace.WorkspaceError):
+					workspace.prepare_source(source)
+				self.assertEqual(git(module, "rev-parse", "HEAD"), old)
+				self.assertEqual(before, [git_bytes(p, "diff", "--binary", "HEAD") for p in (source, module)])
+				self.assertEqual(indexes, [git_bytes(p, "ls-files", "--stage", "-z") for p in (source, module)])
+				if kind == "untracked":
+					self.assertEqual((module / "new.txt").read_text(), "local edit\n")
+
+	def test_registered_worktree_at_gitlink_path_is_never_updated(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			dependency = self.make_repo(root / "dependency")
+			old = git(dependency, "rev-parse", "HEAD")
+			(dependency / "tracked.txt").write_text("new version\n", encoding="utf-8")
+			git(dependency, "commit", "-am", "Advance dependency")
+			source = self.make_repo(root / "source")
+			module = self.add_module(source, dependency)
+			git(source, "submodule", "deinit", "-f", "--", "dep space")
+			module.rmdir()
+			git(dependency, "worktree", "add", "--detach", str(module), old)
+			before = git_bytes(module, "ls-files", "--stage", "-z")
+			self.assertTrue(workspace.is_linked_worktree(source, "dep space/"))
+			with self.assertRaises(workspace.WorkspaceError):
+				workspace.prepare_source(source)
+			with self.assertRaises(workspace.WorkspaceError):
+				workspace.initialized_submodule_paths(source)
+			self.assertEqual(git(module, "rev-parse", "HEAD"), old)
+			self.assertEqual(before, git_bytes(module, "ls-files", "--stage", "-z"))
+			self.assertEqual((module / "tracked.txt").read_text(), "base\n")
+
+	def test_submodule_target_cannot_enter_an_existing_linked_worktree(self):
+		for kind in ("gitlink", "file", "ignored-file"):
+			with self.subTest(kind=kind), tempfile.TemporaryDirectory() as temporary:
+				root = Path(temporary).resolve()
+				child = self.make_repo(root / "child")
+				parent = self.make_repo(root / "parent")
+				if kind == "ignored-file":
+					(parent / ".gitignore").write_text("nested/\n", encoding="utf-8")
+					git(parent, "add", ".gitignore")
+					git(parent, "commit", "-m", "Ignore nested directory")
+				old_parent = git(parent, "rev-parse", "HEAD")
+				if kind == "gitlink":
+					self.add_module(parent, child, "nested")
+				else:
+					(parent / "nested").mkdir()
+					name = "tracked.txt" if kind == "ignored-file" else "addition.txt"
+					(parent / "nested" / name).write_text("parent target\n", encoding="utf-8")
+					git(parent, "add", "-f", "nested")
+					git(parent, "commit", "-m", "Add target path")
+				source = self.make_repo(root / "source")
+				module = self.add_module(source, parent)
+				git(module, "checkout", "--detach", old_parent)
+				linked = module / "nested"
+				if linked.exists():
+					linked.rmdir()
+				git(child, "worktree", "add", "--detach", str(linked))
+				(linked / "tracked.txt").write_text("other owner's edit\n", encoding="utf-8")
+				before = git_bytes(linked, "ls-files", "--stage", "-z")
+				with self.assertRaises(workspace.WorkspaceError):
+					workspace.prepare_source(source)
+				self.assertEqual(git(module, "rev-parse", "HEAD"), old_parent)
+				self.assertEqual(before, git_bytes(linked, "ls-files", "--stage", "-z"))
+				self.assertEqual((linked / "tracked.txt").read_text(), "other owner's edit\n")
+				self.assertFalse((linked / "addition.txt").exists())
+
+	def test_preflight_is_read_only_and_fresh_baseline_updates_modules(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			source, slot, _, config = source_repo_with_task(root)
+			dependency = self.make_repo(root / "dependency")
+			old = git(dependency, "rev-parse", "HEAD")
+			(dependency / "tracked.txt").write_text("new\n", encoding="utf-8")
+			git(dependency, "commit", "-am", "Advance dependency")
+			pinned = git(dependency, "rev-parse", "HEAD")
+			module = self.add_module(source, dependency)
+			git(module, "checkout", "--detach", old)
+			with mock.patch.object(workspace, "task_action_config", return_value=(config, slot)):
+				result = run_command(workspace.command_source_preflight, task=TASK_ID, exe=None)
+				self.assertFalse(result["source_clean"])
+				self.assertTrue(result["submodules_dirty"])
+				self.assertEqual(git(module, "rev-parse", "HEAD"), old)
+				run_command(workspace.command_source_begin, task=TASK_ID)
+				self.assertEqual(git(module, "rev-parse", "HEAD"), pinned)
+
+	def test_source_lifecycle_overlay_and_carry_checks_ignore_linked_worktree(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			source, slot, work, config = source_repo_with_task(root)
+			linked = source / "tmp"
+			git(source, "worktree", "add", "--detach", str(linked))
+			(linked / "tracked.txt").write_text("other owner\n", encoding="utf-8")
+			(work / "owned-paths.txt").write_text("tracked.txt\n", encoding="utf-8")
+			with mock.patch.object(workspace, "task_action_config", return_value=(config, slot)):
+				run_command(workspace.command_source_begin, task=TASK_ID)
+				(source / "tracked.txt").write_text("retained\n", encoding="utf-8")
+				preflight = run_command(workspace.command_source_preflight, task=TASK_ID, exe=None)
+				self.assertEqual(preflight["dirty"], ["tracked.txt"])
+				self.assertEqual(preflight["dirty_outside_owned"], [])
+				run_command(
+					workspace.command_source_commit, task=TASK_ID,
+					subject="Correct recent search", mark_green=True,
+				)
+				self.assertNotIn("tmp", git(source, "ls-files").splitlines())
+				(source / "tracked.txt").write_text("overlay\n", encoding="utf-8")
+				(work / "test-overlay.paths").write_text("tracked.txt\n", encoding="utf-8")
+				snapshot = workspace.source_worktree_snapshot(config, slot, TASK_ID)
+				self.assertEqual(snapshot["owned_dirty_paths"], ["tracked.txt"])
+				self.assertEqual(snapshot["outside_owned_paths"], [])
+				run_command(workspace.command_overlay_save, task=TASK_ID, restore="run")
+				run_command(workspace.command_overlay_apply, task=TASK_ID)
+				run_command(workspace.command_overlay_save, task=TASK_ID, restore="run")
+			workspace.ensure_source_clean(source)
+			self.assertEqual((linked / "tracked.txt").read_text(), "other owner\n")
 
 
 class MechanicsTest(unittest.TestCase):
@@ -1893,6 +2535,388 @@ class MechanicsTest(unittest.TestCase):
 			self.assertEqual(result["markers"]["pass"], ["row painted"])
 			self.assertEqual(result["markers"]["screenshots"], ["/tmp/fake.png"])
 			self.assertFalse(result["crash_report_fresh"])
+
+	def test_test_run_redirects_the_launch_for_a_portable_root(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			sandbox = make_portable_root(root / "sandbox")
+			exe = write_argv_recording_exe(debug / "Telegram")
+
+			isolated_dir = root / "run1"
+			isolated = run_test_run(
+				exe, isolated_dir, portable_root=str(sandbox),
+			)
+			live = sandbox / workspace.PORTABLE_LIVE
+			self.assertTrue(isolated["test_complete"])
+			self.assertEqual(isolated["account"], "fresh-copy")
+			self.assertEqual(
+				read_argv(isolated_dir),
+				["-testagent", "-noupdate", "-workdir", str(live)],
+			)
+			self.assertEqual(isolated["portable_root"], str(sandbox))
+			self.assertEqual(isolated["workdir"], str(live))
+			self.assertEqual(
+				isolated["golden_root"],
+				str(debug / workspace.PORTABLE_GOLDEN),
+			)
+			self.assertTrue((live / workspace.PORTABLE_MARKER).is_file())
+			self.assertFalse((debug / workspace.PORTABLE_LIVE).exists())
+
+			default_dir = root / "run2"
+			default = run_test_run(exe, default_dir)
+			self.assertTrue(default["test_complete"])
+			self.assertEqual(
+				read_argv(default_dir),
+				["-testagent", "-noupdate"],
+			)
+			self.assertEqual(default["portable_root"], str(debug))
+			self.assertIsNone(default["workdir"])
+			self.assertEqual(
+				default["golden_root"],
+				str(debug / workspace.PORTABLE_GOLDEN),
+			)
+			self.assertTrue((
+				debug / workspace.PORTABLE_LIVE / workspace.PORTABLE_MARKER
+			).is_file())
+
+	def test_test_run_launches_without_activation_by_default(self):
+		variable = workspace.LAUNCH_ACTIVATION_VARIABLE
+		for inherited in (None, ""):
+			with (
+				self.subTest(inherited=inherited),
+				tempfile.TemporaryDirectory() as temporary,
+				mock.patch.dict(os.environ),
+			):
+				os.environ.pop(variable, None)
+				if inherited is not None:
+					os.environ[variable] = inherited
+				root = Path(temporary).resolve()
+				debug = make_portable_root(root)
+				exe = write_argv_recording_exe(
+					debug / "Telegram",
+					env_names=(variable, "EXTRA_FLAG"),
+				)
+				run_dir = root / "run1"
+				result = run_test_run(exe, run_dir, env=["EXTRA_FLAG=1"])
+				self.assertEqual(
+					read_recorded_env(run_dir),
+					{variable: "1", "EXTRA_FLAG": "1"},
+				)
+				self.assertEqual(
+					read_argv(run_dir),
+					["-testagent", "-noupdate"],
+				)
+				self.assertEqual(result["launch_activation"], "suppressed")
+				self.assertEqual(result["verdict_hint"], "complete")
+
+	def test_test_run_activate_lets_the_launch_activate_the_client(self):
+		variable = workspace.LAUNCH_ACTIVATION_VARIABLE
+		for inherited in (None, "1"):
+			with (
+				self.subTest(inherited=inherited),
+				tempfile.TemporaryDirectory() as temporary,
+				mock.patch.dict(os.environ),
+			):
+				os.environ.pop(variable, None)
+				if inherited is not None:
+					os.environ[variable] = inherited
+				root = Path(temporary).resolve()
+				debug = make_portable_root(root)
+				exe = write_argv_recording_exe(
+					debug / "Telegram",
+					env_names=(variable, "EXTRA_FLAG"),
+				)
+				run_dir = root / "run1"
+				result = run_test_run(
+					exe, run_dir, activate=True, env=["EXTRA_FLAG=1"],
+				)
+				self.assertEqual(
+					read_recorded_env(run_dir),
+					{variable: None, "EXTRA_FLAG": "1"},
+				)
+				self.assertEqual(
+					read_argv(run_dir),
+					["-testagent", "-noupdate"],
+				)
+				self.assertEqual(result["launch_activation"], "allowed")
+
+	def test_test_run_refuses_an_env_that_sets_the_activation_variable(self):
+		variable = workspace.LAUNCH_ACTIVATION_VARIABLE
+		for overrides in (
+			{"env": [f"{variable}=1"]},
+			{"activate": True, "env": [f"{variable}="]},
+		):
+			with (
+				self.subTest(overrides=overrides),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				root = Path(temporary)
+				debug = make_portable_root(root)
+				exe = write_complete_markers_exe(debug / "Telegram")
+				run_dir = root / "run1"
+				with self.assertRaisesRegex(workspace.WorkspaceError, "--env"):
+					run_test_run(exe, run_dir, **overrides)
+				self.assertFalse(run_dir.exists())
+				self.assertFalse((debug / workspace.PORTABLE_LIVE).exists())
+
+	def test_background_launch_bundle_needs_macos_and_the_bundle_executable(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			bundle = root / "Telegram.app"
+			contents = bundle / "Contents"
+			main = contents / "MacOS" / "Telegram"
+			other = contents / "MacOS" / "Updater"
+			outside = contents / "Resources" / "Telegram"
+			bare = root / "Telegram"
+			for path in (main, other, outside, bare):
+				path.parent.mkdir(parents=True, exist_ok=True)
+				path.write_bytes(b"")
+			(contents / "Info.plist").write_bytes(
+				plistlib.dumps({"CFBundleExecutable": "Telegram"})
+			)
+			self.assertEqual(
+				workspace.background_launch_bundle(main, platform="darwin"),
+				bundle,
+			)
+			for exe, platform in (
+				(other, "darwin"),
+				(outside, "darwin"),
+				(bare, "darwin"),
+				(main, "linux"),
+				(main, "win32"),
+			):
+				with self.subTest(
+					exe=exe.relative_to(root).as_posix(),
+					platform=platform,
+				):
+					self.assertIsNone(
+						workspace.background_launch_bundle(exe, platform=platform)
+					)
+
+	def test_test_run_launches_a_macos_bundle_in_the_background(self):
+		variable = workspace.LAUNCH_ACTIVATION_VARIABLE
+		for isolated, inherited in (
+			(False, None),
+			(False, ""),
+			(True, None),
+			(True, ""),
+		):
+			with (
+				self.subTest(isolated=isolated, inherited=inherited),
+				tempfile.TemporaryDirectory() as temporary,
+				mock.patch.dict(os.environ),
+			):
+				os.environ.pop(variable, None)
+				if inherited is not None:
+					os.environ[variable] = inherited
+				root = Path(temporary).resolve()
+				debug = make_portable_root(root)
+				bundle = debug / "Telegram.app"
+				exe = write_argv_recording_exe(
+					bundle / "Contents" / "MacOS" / "Telegram",
+					env_names=(variable, "EXTRA_FLAG"),
+				)
+				launcher = write_argv_recording_exe(
+					root / "open",
+					env_names=(variable, "EXTRA_FLAG"),
+				)
+				run_dir = root / "run1"
+				run_dir.mkdir()
+				stdout_path = run_dir / "app_stdout.txt"
+				stderr_path = run_dir / "app_stderr.txt"
+				stdout_path.write_text("stale stdout\n", encoding="utf-8")
+				stderr_path.write_text("stale stderr\n", encoding="utf-8")
+				overrides = {"env": ["EXTRA_FLAG=1"]}
+				launch_args = ["-testagent", "-noupdate"]
+				if isolated:
+					sandbox = make_portable_root(root / "sandbox")
+					overrides["portable_root"] = str(sandbox)
+					launch_args += [
+						"-workdir",
+						str(sandbox / workspace.PORTABLE_LIVE),
+					]
+				with patched_background_launch(bundle, launcher):
+					result = run_test_run(exe, run_dir, **overrides)
+				self.assertEqual(read_argv(run_dir), [
+					"-g", "-n", "-W", "-a", str(bundle),
+					"--stdout", str(stdout_path), "--stderr", str(stderr_path),
+					"--args", *launch_args,
+				])
+				self.assertEqual(
+					read_recorded_env(run_dir),
+					{variable: "1", "EXTRA_FLAG": "1"},
+				)
+				self.assertEqual(result["launch_method"], "background")
+				self.assertIsNone(result["exit_code"])
+				self.assertEqual(result["launcher_exit_code"], 0)
+				self.assertEqual(result["launch_activation"], "suppressed")
+				self.assertEqual(result["verdict_hint"], "complete")
+				self.assertEqual(stdout_path.read_bytes(), b"")
+				self.assertEqual(stderr_path.read_bytes(), b"")
+				self.assertTrue((run_dir / "launcher_output.txt").is_file())
+
+	def test_test_run_activate_keeps_the_direct_launch_for_a_macos_bundle(self):
+		variable = workspace.LAUNCH_ACTIVATION_VARIABLE
+		with (
+			tempfile.TemporaryDirectory() as temporary,
+			mock.patch.dict(os.environ),
+		):
+			os.environ.pop(variable, None)
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			bundle = debug / "Telegram.app"
+			exe = write_argv_recording_exe(
+				bundle / "Contents" / "MacOS" / "Telegram",
+				env_names=(variable, "EXTRA_FLAG"),
+			)
+			launcher = write_argv_recording_exe(
+				root / "open",
+				env_names=(variable, "EXTRA_FLAG"),
+			)
+			run_dir = root / "run1"
+			with patched_background_launch(bundle, launcher):
+				result = run_test_run(
+					exe, run_dir, activate=True, env=["EXTRA_FLAG=1"],
+				)
+			self.assertEqual(read_argv(run_dir), ["-testagent", "-noupdate"])
+			self.assertEqual(
+				read_recorded_env(run_dir),
+				{variable: None, "EXTRA_FLAG": "1"},
+			)
+			self.assertEqual(result["launch_method"], "exec")
+			self.assertEqual(result["exit_code"], 0)
+			self.assertIsNone(result["launcher_exit_code"])
+			self.assertEqual(result["launch_activation"], "allowed")
+			self.assertFalse((run_dir / "launcher_output.txt").exists())
+
+	def test_test_run_reports_a_failed_background_launch(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			bundle = debug / "Telegram.app"
+			exe = write_complete_markers_exe(
+				bundle / "Contents" / "MacOS" / "Telegram",
+			)
+			launcher = write_fake_exe(root / "open", "exit 3\n", "exit /b 3\n")
+			with patched_background_launch(bundle, launcher):
+				result = run_test_run(exe, root / "run1")
+			self.assertEqual(result["launch_method"], "background")
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["launcher_exit_code"], 3)
+			self.assertIsNone(result["exit_code"])
+			self.assertEqual(result["death_signals"], [])
+			self.assertEqual(result["verdict_hint"], "died-without-complete")
+
+	def test_test_run_ends_a_background_client_by_path(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			bundle = debug / "Telegram.app"
+			exe = write_complete_markers_exe(
+				bundle / "Contents" / "MacOS" / "Telegram",
+			)
+			launcher = write_fake_exe(
+				root / "open", "sleep 30\n", ":loop\ngoto loop\n",
+			)
+			with (
+				patched_background_launch(bundle, launcher),
+				mock.patch.object(
+					workspace,
+					"kill_processes_with_executable",
+					side_effect=[[], [4242]],
+				) as kill,
+			):
+				result = run_test_run(
+					exe, root / "run1", deadline=2.0, quiet=30.0,
+				)
+			self.assertEqual(result["outcome"], "deadline-killed")
+			self.assertIsNone(result["launcher_exit_code"])
+			self.assertEqual(
+				kill.call_args_list,
+				[mock.call(exe), mock.call(exe)],
+			)
+			self.assertEqual(result["stragglers_killed"], [])
+			self.assertEqual(result["stragglers_killed_after"], [4242])
+
+	def test_test_run_ends_a_background_client_when_interrupted(self):
+		def interrupt():
+			raise KeyboardInterrupt
+
+		def terminate():
+			signal.getsignal(signal.SIGTERM)(signal.SIGTERM, None)
+
+		previous = signal.signal(signal.SIGTERM, signal.SIG_DFL)
+		self.addCleanup(signal.signal, signal.SIGTERM, previous)
+		real_popen = subprocess.Popen
+		for stop, expected, args in (
+			(interrupt, KeyboardInterrupt, ()),
+			(terminate, SystemExit, (128 + signal.SIGTERM,)),
+		):
+			with (
+				self.subTest(stop=stop.__name__),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				root = Path(temporary).resolve()
+				debug = make_portable_root(root)
+				bundle = debug / "Telegram.app"
+				exe = write_complete_markers_exe(
+					bundle / "Contents" / "MacOS" / "Telegram",
+				)
+				launcher = write_fake_exe(
+					root / "open", "exec sleep 30\n", ":loop\ngoto loop\n",
+				)
+				events = []
+				launched = []
+
+				def popen(*popen_args, **popen_kwargs):
+					launched.append(real_popen(*popen_args, **popen_kwargs))
+					return launched[-1]
+
+				def kill(path):
+					events.append(("kill", path))
+					return []
+
+				def sleep(seconds):
+					events.append("poll")
+					stop()
+
+				try:
+					with (
+						patched_background_launch(bundle, launcher),
+						mock.patch.object(
+							workspace,
+							"console_input_reading",
+							return_value=(0.0, {}),
+						),
+						mock.patch.object(
+							workspace,
+							"kill_processes_with_executable",
+							side_effect=kill,
+						),
+						mock.patch.object(
+							workspace.subprocess, "Popen", side_effect=popen,
+						),
+						mock.patch.object(
+							workspace.time, "sleep", side_effect=sleep,
+						),
+						self.assertRaises(expected) as raised,
+					):
+						run_test_run(exe, root / "run1")
+				finally:
+					for process in launched:
+						if process.poll() is None:
+							process.kill()
+						process.wait()
+				self.assertEqual(raised.exception.args, args)
+				self.assertEqual(
+					[process.args[0] for process in launched],
+					[str(launcher)],
+				)
+				self.assertEqual(events, [("kill", exe), "poll", ("kill", exe)])
+				self.assertEqual(
+					signal.getsignal(signal.SIGTERM), signal.SIG_DFL,
+				)
 
 	def test_parse_test_log_lists_skipped_rows_beside_pass_and_fail(self):
 		markers = workspace.parse_test_log("\n".join([
@@ -2435,6 +3459,298 @@ class MechanicsTest(unittest.TestCase):
 			self.assertEqual(list(stale.iterdir()), [])
 			self.assertFalse((run_dir / "app_stdout.txt").exists())
 
+	def test_test_run_reports_input_during_the_run(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			values = iter([3600.0, 0.0])
+			console = FakeConsole(lambda now: next(values), app="Google Chrome")
+			with console.installed():
+				result = run_test_run(exe, root / "run1")
+			before = result["input_before"]
+			after = result["input_after"]
+			self.assertIs(result["input_during_run"], True)
+			self.assertEqual(before["idle_seconds"], 3600.0)
+			self.assertEqual(before["frontmost_app"], "Google Chrome")
+			self.assertIs(before["screen_locked"], False)
+			for name in ("idle_seconds", "frontmost_app", "screen_locked"):
+				self.assertIsNone(before[f"{name}_error"])
+				self.assertIsNone(after[f"{name}_error"])
+			self.assertIsNotNone(
+				datetime.datetime.fromisoformat(before["time"]).tzinfo
+			)
+			self.assertEqual(after["idle_seconds"], 0.0)
+			self.assertGreater(after["seconds_since_launch"], 0)
+			self.assertGreaterEqual(
+				after["seconds_since_launch"],
+				result["duration_seconds"] - 0.05,
+			)
+			self.assertIsNone(result["wait_idle"])
+			self.assertEqual(console.sleeps, [])
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "complete")
+			self.assertTrue(result["test_complete"])
+
+	def test_test_run_reports_no_input_when_idle_covers_the_run(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			console = FakeConsole(lambda now: 3600.0)
+			with console.installed():
+				result = run_test_run(exe, root / "run1")
+			self.assertIs(result["input_during_run"], False)
+			self.assertEqual(result["input_before"]["idle_seconds"], 3600.0)
+			self.assertEqual(result["input_after"]["idle_seconds"], 3600.0)
+			self.assertEqual(result["input_after"]["frontmost_app"], "cmux")
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "complete")
+			self.assertTrue(result["test_complete"])
+
+	def test_test_run_leaves_input_unknown_when_a_reading_fails(self):
+		timeout = "ioreg timed out after 2 s"
+		for case, idles in (
+			("before fails", [None, 0.0]),
+			("after fails", [3600.0, None]),
+		):
+			with (
+				self.subTest(case=case),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				root = Path(temporary)
+				debug = make_portable_root(root)
+				exe = write_complete_markers_exe(debug / "Telegram")
+				values = iter(idles)
+				console = FakeConsole(lambda now: next(values))
+				with console.installed():
+					result = run_test_run(exe, root / "run1")
+				self.assertIsNone(result["input_during_run"])
+				readings = (result["input_before"], result["input_after"])
+				for reading, idle in zip(readings, idles):
+					self.assertEqual(reading["idle_seconds"], idle)
+					self.assertEqual(
+						reading["idle_seconds_error"],
+						timeout if idle is None else None,
+					)
+					self.assertEqual(reading["frontmost_app"], "cmux")
+					self.assertIsNone(reading["frontmost_app_error"])
+					self.assertIs(reading["screen_locked"], False)
+					self.assertIsNone(reading["screen_locked_error"])
+				self.assertEqual(result["outcome"], "exited")
+				self.assertEqual(result["verdict_hint"], "complete")
+
+		with (
+			self.subTest(case="gate read fails"),
+			tempfile.TemporaryDirectory() as temporary,
+		):
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			console = FakeConsole(lambda now: None)
+			with console.installed():
+				result = run_test_run(
+					exe, root / "run1", wait_idle=5.0, wait_idle_max=10.0,
+				)
+			self.assertIsNone(result["wait_idle"]["met"])
+			self.assertEqual(result["wait_idle"]["idle_seconds_error"], timeout)
+			self.assertEqual(result["wait_idle"]["waited_seconds"], 0.0)
+			self.assertEqual(console.sleeps, [])
+			self.assertIsNone(result["input_during_run"])
+			self.assertTrue(result["test_complete"])
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "complete")
+
+		with (
+			self.subTest(case="unparseable output"),
+			tempfile.TemporaryDirectory() as temporary,
+		):
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			with (
+				mock.patch.object(
+					workspace, "console_unsupported_reason", return_value=None,
+				),
+				mock.patch.object(
+					workspace,
+					"console_command_output",
+					return_value=(b"<plist><dict>", None),
+				),
+			):
+				result = run_test_run(exe, root / "run1")
+			for key in ("input_before", "input_after"):
+				reading = result[key]
+				for name in ("idle_seconds", "screen_locked", "frontmost_app"):
+					self.assertIsNone(reading[name])
+				self.assertRegex(reading["idle_seconds_error"], "^ExpatError: ")
+				self.assertRegex(reading["screen_locked_error"], "^ExpatError: ")
+				self.assertRegex(
+					reading["frontmost_app_error"],
+					"^lsappinfo front named no application: ",
+				)
+			self.assertIsNone(result["input_during_run"])
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "complete")
+
+	def test_test_run_gate_launches_once_the_console_is_idle(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			late = (
+				debug / workspace.PORTABLE_LIVE / "tdata" / "dumps"
+				/ workspace.CRASHPAD_COMPLETED_DIR / "late.dmp"
+			)
+
+			def pause(seconds):
+				time.sleep(seconds)
+				late.parent.mkdir(parents=True, exist_ok=True)
+				late.write_bytes(b"MDMP late minidump\n")
+
+			self.assertEqual(workspace.setup_test_account(debug), "fresh-copy")
+			console = FakeConsole(lambda now: now + 0.5, on_sleep=pause)
+			with console.installed():
+				result = run_test_run(
+					exe, root / "run1", wait_idle=2.5, wait_idle_max=10.0,
+				)
+			self.assertEqual(result["wait_idle"], {
+				"idle_seconds": 2.5,
+				"idle_seconds_error": None,
+				"max_seconds": 10.0,
+				"met": True,
+				"required_seconds": 2.5,
+				"skipped": None,
+				"waited_seconds": 2.0,
+			})
+			self.assertEqual(console.sleeps, [2.0])
+			self.assertEqual(result["input_before"]["idle_seconds"], 2.5)
+			self.assertTrue(late.is_file())
+			self.assertTrue(result["test_complete"])
+			self.assertEqual(result["crashpad_dumps_added"], [])
+			self.assertEqual(result["death_signals"], [])
+			self.assertEqual(result["verdict_hint"], "complete")
+			self.assertLess(
+				result["duration_seconds"],
+				result["wait_idle"]["waited_seconds"],
+			)
+
+	def test_test_run_gate_launches_after_its_bound_when_never_idle(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			live_during_wait = []
+			console = FakeConsole(
+				lambda now: 0.5,
+				on_sleep=lambda seconds: live_during_wait.append(
+					(debug / workspace.PORTABLE_LIVE).exists()
+				),
+			)
+			with console.installed():
+				result = run_test_run(
+					exe, root / "run1", wait_idle=5.0, wait_idle_max=10.0,
+				)
+			self.assertEqual(live_during_wait, [False, False, False])
+			gate = result["wait_idle"]
+			self.assertIs(gate["met"], False)
+			self.assertEqual(gate["waited_seconds"], 10.0)
+			self.assertEqual(gate["idle_seconds"], 0.5)
+			self.assertEqual(console.sleeps, [4.5, 4.5, 1.0])
+			self.assertLessEqual(sum(console.sleeps), 10.0)
+			self.assertTrue(result["test_complete"])
+			self.assertEqual(result["verdict_hint"], "complete")
+
+	def test_test_run_skips_readings_and_gate_off_macos(self):
+		reason = "console readings need macOS, this host is linux"
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			with (
+				mock.patch.object(
+					workspace, "console_unsupported_reason", return_value=reason,
+				),
+				mock.patch.object(
+					workspace, "console_command_output",
+				) as command_output,
+			):
+				result = run_test_run(exe, root / "run1", wait_idle=60.0)
+			command_output.assert_not_called()
+			self.assertEqual(result["wait_idle"], {
+				"idle_seconds": None,
+				"idle_seconds_error": None,
+				"max_seconds": 600.0,
+				"met": None,
+				"required_seconds": 60.0,
+				"skipped": reason,
+				"waited_seconds": 0.0,
+			})
+			for key in ("input_before", "input_after"):
+				reading = result[key]
+				datetime.datetime.fromisoformat(reading["time"])
+				for name in ("idle_seconds", "screen_locked", "frontmost_app"):
+					self.assertIsNone(reading[name])
+					self.assertEqual(reading[f"{name}_error"], reason)
+			self.assertIsNone(result["input_during_run"])
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "complete")
+
+	def test_test_run_parses_the_screen_lock_state(self):
+		for locked in (True, False):
+			with (
+				self.subTest(locked=locked),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				root = Path(temporary)
+				debug = make_portable_root(root)
+				exe = write_complete_markers_exe(debug / "Telegram")
+				console = FakeConsole(lambda now: 3600.0, locked=locked)
+				with console.installed():
+					result = run_test_run(exe, root / "run1")
+				for key in ("input_before", "input_after"):
+					self.assertIs(result[key]["screen_locked"], locked)
+					self.assertIsNone(result[key]["screen_locked_error"])
+
+	def test_test_run_rejects_a_bad_idle_gate(self):
+		for overrides in (
+			{"wait_idle": 0.0},
+			{"wait_idle": -1.0},
+			{"wait_idle": float("nan")},
+			{"wait_idle": 5.0, "wait_idle_max": -1.0},
+		):
+			with (
+				self.subTest(overrides=overrides),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				root = Path(temporary)
+				debug = make_portable_root(root)
+				exe = write_complete_markers_exe(debug / "Telegram")
+				run_dir = root / "run1"
+				with (
+					FakeConsole(lambda now: 3600.0).installed(),
+					self.assertRaisesRegex(workspace.WorkspaceError, "--wait-idle"),
+				):
+					run_test_run(exe, run_dir, **overrides)
+				self.assertFalse(run_dir.exists())
+				self.assertFalse((debug / workspace.PORTABLE_LIVE).exists())
+
+	def test_test_run_gate_fails_before_waiting_without_a_golden(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = root / "out" / "Debug"
+			exe = write_complete_markers_exe(debug / "Telegram")
+			console = FakeConsole(lambda now: 0.5)
+			with (
+				console.installed(),
+				self.assertRaisesRegex(workspace.WorkspaceError, "golden"),
+			):
+				run_test_run(
+					exe, root / "run1", wait_idle=5.0, wait_idle_max=10.0,
+				)
+			self.assertEqual(console.sleeps, [])
+			self.assertFalse((debug / workspace.PORTABLE_LIVE).exists())
+
 	def test_portable_root_for_prefers_app_bundle_parent(self):
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary)
@@ -2602,6 +3918,343 @@ class MechanicsTest(unittest.TestCase):
 						task=TASK_ID,
 						restore="run",
 					)
+
+	def test_overlay_save_preserves_bundle_when_repeat_save_is_empty(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			source, slot, work, config, module = overlay_repo_with_nested_module(
+				temporary,
+			)
+			(source / "tracked.txt").write_text(
+				"base\nroot-overlay\n", encoding="utf-8",
+			)
+			(module / "tracked.txt").write_text(
+				"module-base\nnested-overlay\n", encoding="utf-8",
+			)
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				saved = run_command(
+					workspace.command_overlay_save,
+					task=TASK_ID,
+					restore="run",
+				)
+			self.assertGreater(saved["patch_bytes"], 0)
+			self.assertEqual(saved["submodules"], ["dep"])
+			self.assertEqual(
+				(source / "tracked.txt").read_text(encoding="utf-8"),
+				"base\n",
+			)
+			self.assertEqual(
+				(module / "tracked.txt").read_text(encoding="utf-8"),
+				"module-base\n",
+			)
+			snapshot = overlay_bundle_bytes(work)
+			self.assertIn(workspace.OVERLAY_PATCH_FILE, snapshot)
+			self.assertIn(workspace.OVERLAY_SUBMODULES_FILE, snapshot)
+			self.assertTrue(any(
+				path.startswith(workspace.OVERLAY_SUBMODULES_DIR + "/")
+				for path in snapshot
+			))
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				with self.assertRaisesRegex(
+					workspace.WorkspaceError,
+					r"The overlay diff is empty; nothing to save",
+				):
+					run_command(
+						workspace.command_overlay_save,
+						task=TASK_ID,
+						restore="run",
+					)
+			self.assertEqual(overlay_bundle_bytes(work), snapshot)
+			self.assertEqual(
+				(source / "tracked.txt").read_text(encoding="utf-8"),
+				"base\n",
+			)
+			self.assertEqual(
+				(module / "tracked.txt").read_text(encoding="utf-8"),
+				"module-base\n",
+			)
+
+	def test_overlay_save_preserves_bundle_when_candidate_collection_fails(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			source, slot, work, config, module = overlay_repo_with_nested_module(
+				temporary,
+			)
+			(source / "tracked.txt").write_text(
+				"base\nroot-overlay\n", encoding="utf-8",
+			)
+			(module / "tracked.txt").write_text(
+				"module-base\nnested-overlay\n", encoding="utf-8",
+			)
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				run_command(
+					workspace.command_overlay_save,
+					task=TASK_ID,
+					restore="run",
+				)
+			snapshot = overlay_bundle_bytes(work)
+			(source / "tracked.txt").write_text(
+				"base\nroot-overlay\n", encoding="utf-8",
+			)
+			(module / "tracked.txt").write_text(
+				"module-base\nnested-overlay\n", encoding="utf-8",
+			)
+			real = workspace.run_git_binary
+
+			def fail_binary_diff(path, *args):
+				if len(args) >= 2 and args[0] == "diff" and args[1] == "--binary":
+					raise workspace.WorkspaceError("git failed")
+				return real(path, *args)
+
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			), mock.patch.object(
+				workspace, "run_git_binary", side_effect=fail_binary_diff,
+			):
+				with self.assertRaisesRegex(workspace.WorkspaceError, "git failed"):
+					run_command(
+						workspace.command_overlay_save,
+						task=TASK_ID,
+						restore="run",
+					)
+			self.assertEqual(overlay_bundle_bytes(work), snapshot)
+			self.assertEqual(
+				(source / "tracked.txt").read_text(encoding="utf-8"),
+				"base\nroot-overlay\n",
+			)
+			self.assertEqual(
+				(module / "tracked.txt").read_text(encoding="utf-8"),
+				"module-base\nnested-overlay\n",
+			)
+
+	def test_overlay_save_preserves_bundle_when_patch_does_not_verify(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			source, slot, work, config, module = overlay_repo_with_nested_module(
+				temporary,
+			)
+			(source / "tracked.txt").write_text(
+				"base\nroot-overlay\n", encoding="utf-8",
+			)
+			(module / "tracked.txt").write_text(
+				"module-base\nnested-overlay\n", encoding="utf-8",
+			)
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				run_command(
+					workspace.command_overlay_save,
+					task=TASK_ID,
+					restore="run",
+				)
+			snapshot = overlay_bundle_bytes(work)
+			(source / "tracked.txt").write_text(
+				"base\nroot-overlay\n", encoding="utf-8",
+			)
+			(module / "tracked.txt").write_text(
+				"module-base\nnested-overlay\n", encoding="utf-8",
+			)
+			real_run = subprocess.run
+
+			def fail_reverse_check(args, **kwargs):
+				if (
+					isinstance(args, (list, tuple))
+					and "apply" in args
+					and "--check" in args
+					and "--reverse" in args
+				):
+					return subprocess.CompletedProcess(
+						args, 1, stdout="", stderr="patch failed\n",
+					)
+				return real_run(args, **kwargs)
+
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			), mock.patch.object(
+				workspace.subprocess, "run", side_effect=fail_reverse_check,
+			):
+				with self.assertRaisesRegex(
+					workspace.WorkspaceError,
+					r"The saved overlay patch does not verify",
+				):
+					run_command(
+						workspace.command_overlay_save,
+						task=TASK_ID,
+						restore="run",
+					)
+			self.assertEqual(overlay_bundle_bytes(work), snapshot)
+			self.assertEqual(
+				(source / "tracked.txt").read_text(encoding="utf-8"),
+				"base\nroot-overlay\n",
+			)
+			self.assertEqual(
+				(module / "tracked.txt").read_text(encoding="utf-8"),
+				"module-base\nnested-overlay\n",
+			)
+
+	def test_overlay_save_replacement_removes_obsolete_nested_entries(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			source, slot, work, config, module = overlay_repo_with_nested_module(
+				temporary,
+			)
+			(source / "tracked.txt").write_text(
+				"base\nroot-overlay\n", encoding="utf-8",
+			)
+			(module / "tracked.txt").write_text(
+				"module-base\nnested-overlay\n", encoding="utf-8",
+			)
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				first = run_command(
+					workspace.command_overlay_save,
+					task=TASK_ID,
+					restore="run",
+				)
+			previous = overlay_bundle_bytes(work)
+			self.assertEqual(first["submodules"], ["dep"])
+			(source / "tracked.txt").write_text(
+				"base\nroot-overlay-v2\n", encoding="utf-8",
+			)
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				replaced = run_command(
+					workspace.command_overlay_save,
+					task=TASK_ID,
+					restore="run",
+				)
+			self.assertGreater(replaced["patch_bytes"], 0)
+			self.assertEqual(replaced["submodules"], [])
+			self.assertIsNotNone(replaced["patch"])
+			self.assertFalse((work / workspace.OVERLAY_SUBMODULES_FILE).exists())
+			self.assertFalse((work / workspace.OVERLAY_SUBMODULES_DIR).exists())
+			self.assertNotEqual(
+				overlay_bundle_bytes(work)[workspace.OVERLAY_PATCH_FILE],
+				previous[workspace.OVERLAY_PATCH_FILE],
+			)
+			self.assertEqual(
+				(module / "tracked.txt").read_text(encoding="utf-8"),
+				"module-base\n",
+			)
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				applied = run_command(
+					workspace.command_overlay_apply,
+					task=TASK_ID,
+				)
+			self.assertTrue(applied["applied"])
+			self.assertEqual(
+				(source / "tracked.txt").read_text(encoding="utf-8"),
+				"base\nroot-overlay-v2\n",
+			)
+			self.assertEqual(
+				(module / "tracked.txt").read_text(encoding="utf-8"),
+				"module-base\n",
+			)
+
+	def test_overlay_save_nested_only_replacement_unlinks_root_patch(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			source, slot, work, config, module = overlay_repo_with_nested_module(
+				temporary,
+			)
+			(source / "tracked.txt").write_text(
+				"base\nroot-overlay\n", encoding="utf-8",
+			)
+			(module / "tracked.txt").write_text(
+				"module-base\nnested-overlay\n", encoding="utf-8",
+			)
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				run_command(
+					workspace.command_overlay_save,
+					task=TASK_ID,
+					restore="run",
+				)
+			self.assertTrue((work / workspace.OVERLAY_PATCH_FILE).is_file())
+			(module / "tracked.txt").write_text(
+				"module-base\nnested-overlay-v2\n", encoding="utf-8",
+			)
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				replaced = run_command(
+					workspace.command_overlay_save,
+					task=TASK_ID,
+					restore="run",
+				)
+			self.assertIsNone(replaced["patch"])
+			self.assertEqual(replaced["submodules"], ["dep"])
+			self.assertFalse((work / workspace.OVERLAY_PATCH_FILE).exists())
+			self.assertTrue((work / workspace.OVERLAY_SUBMODULES_FILE).is_file())
+			self.assertEqual(
+				(source / "tracked.txt").read_text(encoding="utf-8"),
+				"base\n",
+			)
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				applied = run_command(
+					workspace.command_overlay_apply,
+					task=TASK_ID,
+				)
+			self.assertTrue(applied["applied"])
+			self.assertEqual(
+				(source / "tracked.txt").read_text(encoding="utf-8"),
+				"base\n",
+			)
+			self.assertEqual(
+				(module / "tracked.txt").read_text(encoding="utf-8"),
+				"module-base\nnested-overlay-v2\n",
+			)
+
+	def test_overlay_save_inventory_refusal_preserves_existing_bundle(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			source, slot, work, config, module = overlay_repo_with_nested_module(
+				temporary,
+			)
+			(source / "tracked.txt").write_text(
+				"base\nroot-overlay\n", encoding="utf-8",
+			)
+			(module / "tracked.txt").write_text(
+				"module-base\nnested-overlay\n", encoding="utf-8",
+			)
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				run_command(
+					workspace.command_overlay_save,
+					task=TASK_ID,
+					restore="run",
+				)
+			snapshot = overlay_bundle_bytes(work)
+			(source / "stray.txt").write_text("stray\n", encoding="utf-8")
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				with self.assertRaisesRegex(
+					workspace.WorkspaceError,
+					r"outside the overlay inventory: stray\.txt",
+				):
+					run_command(
+						workspace.command_overlay_save,
+						task=TASK_ID,
+						restore="run",
+					)
+			self.assertEqual(overlay_bundle_bytes(work), snapshot)
+			self.assertEqual(
+				(source / "tracked.txt").read_text(encoding="utf-8"),
+				"base\n",
+			)
+			self.assertEqual(
+				(module / "tracked.txt").read_text(encoding="utf-8"),
+				"module-base\n",
+			)
 
 	def test_source_commit_stages_owned_paths_and_marks_green(self):
 		with tempfile.TemporaryDirectory() as temporary:
@@ -3185,6 +4838,241 @@ inbox_receipt: {receipt}
 				source,
 				workspace.source_task_ref(source_task, "base"),
 			))
+
+	def test_publish_recovers_approval_refs_after_fetch_failure(self):
+		for outcome in ("changed", "already-satisfied"):
+			with (
+				self.subTest(outcome=outcome),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				root = Path(temporary)
+				fixture = approval_recovery_fixture(root, outcome)
+				config = fixture["config"]
+				main = fixture["main"]
+				slot = fixture["slot"]
+				origin = fixture["origin"]
+				source = fixture["source"]
+				approve = f"Approve {APPROVAL_TASK}"
+
+				set_origin_url(main, root / "missing.git")
+				with self.assertRaises(workspace.WorkspaceError):
+					finish_approval(fixture)
+				self.assertEqual(head_subject(slot), approve)
+				self.assertEqual(workspace.unpublished_counts(config)["slot_only"], 1)
+				self.assertEqual(workspace.load_state(
+					main, workspace.state_path(main, APPROVAL_TASK),
+				)["status"], "in-progress")
+				self.assertEqual(
+					head_subject(origin, "master"), f"Start {APPROVAL_TASK}",
+				)
+				self.assertEqual(task_refs(source, APPROVAL_TASK), fixture["refs"])
+
+				with self.assertRaises(workspace.WorkspaceError):
+					publish_approval(fixture)
+				self.assertEqual(workspace.unpublished_counts(config)["slot_only"], 1)
+				self.assertEqual(task_refs(source, APPROVAL_TASK), fixture["refs"])
+
+				set_origin_url(main, origin)
+				result = publish_approval(fixture)
+				self.assertTrue(result["published"])
+				self.assertEqual(result["approval_refs"], {
+					"task": APPROVAL_TASK,
+					"action": "deleted",
+					"reason": None,
+				})
+				self.assertEqual(
+					git(main, "rev-parse", "master"),
+					git(origin, "rev-parse", "master"),
+				)
+				self.assertEqual(head_subject(main, "master"), approve)
+				self.assertEqual(workspace.load_state(
+					main, workspace.state_path(main, APPROVAL_TASK),
+				)["status"], "approved")
+				self.assertEqual(
+					task_refs(source, APPROVAL_TASK),
+					{"base": None, "green": None, "run": None},
+				)
+				self.assertEqual(
+					task_refs(source, OTHER_APPROVAL_TASK), fixture["other_refs"],
+				)
+				self.assertEqual(git(source, "rev-parse", "HEAD"), fixture["head"])
+
+				rerun = publish_approval(fixture)
+				self.assertTrue(rerun["published"])
+				self.assertEqual(rerun["approval_refs"]["action"], "absent")
+				self.assertEqual(
+					task_refs(source, OTHER_APPROVAL_TASK), fixture["other_refs"],
+				)
+
+	def test_publish_preserves_approval_refs_for_unsafe_source(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			fixture = approval_recovery_fixture(root)
+			config = fixture["config"]
+			main = fixture["main"]
+			source = fixture["source"]
+			set_origin_url(main, root / "missing.git")
+			with self.assertRaises(workspace.WorkspaceError):
+				finish_approval(fixture)
+			set_origin_url(main, fixture["origin"])
+
+			(source / "tracked.txt").write_text("dirty\n", encoding="utf-8")
+			stderr = io.StringIO()
+			result = publish_approval(fixture, stderr)
+			self.assertTrue(result["published"])
+			self.assertEqual(result["approval_refs"]["action"], "retained")
+			self.assertIn("not clean", result["approval_refs"]["reason"])
+			self.assertIn(APPROVAL_TASK, stderr.getvalue())
+			self.assertEqual(workspace.unpublished_counts(config)["slot_only"], 0)
+			self.assertEqual(task_refs(source, APPROVAL_TASK), fixture["refs"])
+
+			(source / "tracked.txt").write_text("changed\n", encoding="utf-8")
+			(source / "extra.txt").write_text("extra\n", encoding="utf-8")
+			git(source, "add", "extra.txt")
+			git(source, "commit", "-m", "Record unrelated change")
+			result = publish_approval(fixture)
+			self.assertEqual(result["approval_refs"]["action"], "retained")
+			self.assertIn("run ref", result["approval_refs"]["reason"])
+			self.assertEqual(task_refs(source, APPROVAL_TASK), fixture["refs"])
+
+			git(source, "reset", "--hard", fixture["refs"]["run"])
+			result = publish_approval(fixture)
+			self.assertEqual(result["approval_refs"]["action"], "deleted")
+			self.assertEqual(
+				task_refs(source, APPROVAL_TASK),
+				{"base": None, "green": None, "run": None},
+			)
+			self.assertEqual(
+				task_refs(source, OTHER_APPROVAL_TASK), fixture["other_refs"],
+			)
+
+	def test_publish_cleans_refs_when_approval_landed_before_interruption(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			fixture = approval_recovery_fixture(root)
+			config = fixture["config"]
+			main = fixture["main"]
+			slot = fixture["slot"]
+			origin = fixture["origin"]
+			source = fixture["source"]
+			approve = f"Approve {APPROVAL_TASK}"
+			with (
+				mock.patch.object(
+					workspace,
+					"delete_source_refs",
+					side_effect=workspace.WorkspaceError("interrupted"),
+				),
+				self.assertRaises(workspace.WorkspaceError),
+			):
+				finish_approval(fixture)
+			self.assertEqual(task_refs(source, APPROVAL_TASK), fixture["refs"])
+			self.assertEqual(workspace.unpublished_counts(config)["slot_only"], 0)
+			self.assertEqual(head_subject(origin, "master"), approve)
+
+			clone = root / "clone"
+			git(root, "clone", str(origin), str(clone))
+			git(clone, "config", "user.name", "Workflow Test")
+			git(clone, "config", "user.email", "workflow@example.invalid")
+			(clone / "unrelated.txt").write_text("later\n", encoding="utf-8")
+			git(clone, "add", "unrelated.txt")
+			git(clone, "commit", "-m", "Record unrelated change")
+			git(clone, "push", "origin", "HEAD:master")
+
+			result = publish_approval(fixture)
+			self.assertTrue(result["published"])
+			self.assertEqual(result["approval_refs"]["action"], "deleted")
+			self.assertEqual(head_subject(slot), "Record unrelated change")
+			self.assertEqual(
+				git(main, "rev-parse", "master"),
+				git(origin, "rev-parse", "master"),
+			)
+			self.assertEqual(
+				task_refs(source, APPROVAL_TASK),
+				{"base": None, "green": None, "run": None},
+			)
+			self.assertEqual(
+				task_refs(source, OTHER_APPROVAL_TASK), fixture["other_refs"],
+			)
+
+			rerun = publish_approval(fixture)
+			self.assertTrue(rerun["published"])
+			self.assertNotIn("approval_refs", rerun)
+			self.assertEqual(
+				task_refs(source, OTHER_APPROVAL_TASK), fixture["other_refs"],
+			)
+			self.assertEqual(git(source, "rev-parse", "HEAD"), fixture["head"])
+
+	def test_publish_never_cleans_refs_without_owned_approval(self):
+		def replace_state(slot, *pairs):
+			path = slot / "tasks" / APPROVAL_TASK / "state.yaml"
+			text = path.read_text(encoding="utf-8")
+			for old, new in pairs:
+				text = text.replace(old, new)
+			path.write_text(text, encoding="utf-8")
+
+		cases = {
+			"block": (
+				f"Block {APPROVAL_TASK}",
+				(("status: in-progress", "status: blocked"),
+					("phase: setup", "phase: blocked")),
+				None,
+			),
+			"split-required": (
+				f"Split-required {APPROVAL_TASK}",
+				(("status: in-progress", "status: split-required"),
+					("phase: setup", "phase: split-required")),
+				None,
+			),
+			"foreign-owner": (
+				f"Approve {APPROVAL_TASK}",
+				(("status: in-progress", "status: approved"),
+					("phase: setup", "phase: complete"),
+					("claimed_by: macbook-twork", "claimed_by: macbook-other")),
+				(APPROVAL_TASK, "macbook-other"),
+			),
+			"not-approved": (
+				f"Approve {APPROVAL_TASK}",
+				(),
+				(APPROVAL_TASK, "in-progress"),
+			),
+			"other-task": (
+				f"Approve {OTHER_APPROVAL_TASK}",
+				None,
+				(OTHER_APPROVAL_TASK, "does not exist"),
+			),
+		}
+		for name, (subject, pairs, candidate) in cases.items():
+			with (
+				self.subTest(case=name),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				root = Path(temporary)
+				fixture = approval_recovery_fixture(root)
+				slot = fixture["slot"]
+				source = fixture["source"]
+				if pairs is None:
+					(slot / "notes.txt").write_text("other\n", encoding="utf-8")
+				else:
+					replace_state(slot, *pairs)
+				git(slot, "add", "-A")
+				git(slot, "commit", "-m", subject)
+
+				result = publish_approval(fixture)
+				self.assertTrue(result["published"])
+				self.assertEqual(head_subject(fixture["main"], "master"), subject)
+				if candidate is None:
+					self.assertNotIn("approval_refs", result)
+				else:
+					task_id, reason = candidate
+					self.assertEqual(result["approval_refs"]["task"], task_id)
+					self.assertEqual(
+						result["approval_refs"]["action"], "retained",
+					)
+					self.assertIn(reason, result["approval_refs"]["reason"])
+				self.assertEqual(task_refs(source, APPROVAL_TASK), fixture["refs"])
+				self.assertEqual(
+					task_refs(source, OTHER_APPROVAL_TASK), fixture["other_refs"],
+				)
 
 
 if __name__ == "__main__":

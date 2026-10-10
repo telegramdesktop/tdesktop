@@ -189,9 +189,7 @@ QString FillAmountAndCurrency(
 		? QString::fromUtf8("\xe2\x88\x92")
 		: QString();
 	const auto value = std::abs(amount) / std::pow(10., rule.exponent);
-	const auto name = (*rule.international)
-		? QString::fromUtf8(rule.international)
-		: currency;
+	const auto name = CurrencyName(currency);
 	auto result = prefix;
 	if (rule.left) {
 		result.append(name);
@@ -213,7 +211,9 @@ QString FillAmountAndCurrency(
 	return result;
 }
 
-CurrencyRule LookupCurrencyRule(const QString &currency) {
+namespace {
+
+[[nodiscard]] const base::flat_map<QString, CurrencyRule> &CurrencyRulesMap() {
 	static const auto kRules = std::vector<std::pair<QString, CurrencyRule>>{
 		{ u"AED"_q, { "", ',', '.', true, true } },
 		{ u"AFN"_q, {} },
@@ -376,8 +376,191 @@ CurrencyRule LookupCurrencyRule(const QString &currency) {
 		});
 		return base::flat_map<QString, CurrencyRule>(begin(list), end(list));
 	}();
-	const auto i = kRulesMap.find(currency);
-	return (i != end(kRulesMap)) ? i->second : CurrencyRule{};
+	return kRulesMap;
+}
+
+} // namespace
+
+CurrencyRule LookupCurrencyRule(const QString &currency) {
+	const auto &map = CurrencyRulesMap();
+	const auto i = map.find(currency);
+	return (i != end(map)) ? i->second : CurrencyRule{};
+}
+
+bool KnownCurrency(const QString &currency) {
+	return CurrencyRulesMap().contains(currency);
+}
+
+QString CurrencyName(const QString &currency) {
+	const auto rule = LookupCurrencyRule(currency);
+	return (*rule.international)
+		? QString::fromUtf8(rule.international)
+		: currency;
+}
+
+QString CurrencyEnglishName(const QString &currency) {
+	static const auto kNames = std::vector<std::pair<QString, QString>>{
+		{ u"AED"_q, u"United Arab Emirates Dirham"_q },
+		{ u"AFN"_q, u"Afghan Afghani"_q },
+		{ u"ALL"_q, u"Albanian Lek"_q },
+		{ u"AMD"_q, u"Armenian Dram"_q },
+		{ u"ARS"_q, u"Argentine Peso"_q },
+		{ u"AUD"_q, u"Australian Dollar"_q },
+		{ u"AZN"_q, u"Azerbaijani Manat"_q },
+		{ u"BAM"_q, u"Bosnia-Herzegovina Convertible Mark"_q },
+		{ u"BDT"_q, u"Bangladeshi Taka"_q },
+		{ u"BGN"_q, u"Bulgarian Lev"_q },
+		{ u"BHD"_q, u"Bahraini Dinar"_q },
+		{ u"BND"_q, u"Brunei Dollar"_q },
+		{ u"BOB"_q, u"Bolivian Boliviano"_q },
+		{ u"BRL"_q, u"Brazilian Real"_q },
+		{ u"BYN"_q, u"Belarusian Ruble"_q },
+		{ u"CAD"_q, u"Canadian Dollar"_q },
+		{ u"CHF"_q, u"Swiss Franc"_q },
+		{ u"CLP"_q, u"Chilean Peso"_q },
+		{ u"CNY"_q, u"Chinese Yuan"_q },
+		{ u"COP"_q, u"Colombian Peso"_q },
+		{ u"CRC"_q, u"Costa Rican Colón"_q },
+		{ u"CZK"_q, u"Czech Koruna"_q },
+		{ u"DKK"_q, u"Danish Krone"_q },
+		{ u"DOP"_q, u"Dominican Peso"_q },
+		{ u"DZD"_q, u"Algerian Dinar"_q },
+		{ u"EGP"_q, u"Egyptian Pound"_q },
+		{ u"ETB"_q, u"Ethiopian Birr"_q },
+		{ u"EUR"_q, u"Euro"_q },
+		{ u"GBP"_q, u"British Pound"_q },
+		{ u"GEL"_q, u"Georgian Lari"_q },
+		{ u"GHS"_q, u"Ghanaian Cedi"_q },
+		{ u"GTQ"_q, u"Guatemalan Quetzal"_q },
+		{ u"HKD"_q, u"Hong Kong Dollar"_q },
+		{ u"HNL"_q, u"Honduran Lempira"_q },
+		{ u"HRK"_q, u"Croatian Kuna"_q },
+		{ u"HUF"_q, u"Hungarian Forint"_q },
+		{ u"IDR"_q, u"Indonesian Rupiah"_q },
+		{ u"ILS"_q, u"Israeli New Shekel"_q },
+		{ u"INR"_q, u"Indian Rupee"_q },
+		{ u"IQD"_q, u"Iraqi Dinar"_q },
+		{ u"IRR"_q, u"Iranian Rial"_q },
+		{ u"ISK"_q, u"Icelandic Króna"_q },
+		{ u"JMD"_q, u"Jamaican Dollar"_q },
+		{ u"JOD"_q, u"Jordanian Dinar"_q },
+		{ u"JPY"_q, u"Japanese Yen"_q },
+		{ u"KES"_q, u"Kenyan Shilling"_q },
+		{ u"KGS"_q, u"Kyrgyz Som"_q },
+		{ u"KRW"_q, u"South Korean Won"_q },
+		{ u"KZT"_q, u"Kazakhstani Tenge"_q },
+		{ u"LBP"_q, u"Lebanese Pound"_q },
+		{ u"LKR"_q, u"Sri Lankan Rupee"_q },
+		{ u"MAD"_q, u"Moroccan Dirham"_q },
+		{ u"MDL"_q, u"Moldovan Leu"_q },
+		{ u"MMK"_q, u"Myanmar Kyat"_q },
+		{ u"MNT"_q, u"Mongolian Tugrik"_q },
+		{ u"MOP"_q, u"Macanese Pataca"_q },
+		{ u"MUR"_q, u"Mauritian Rupee"_q },
+		{ u"MVR"_q, u"Maldivian Rufiyaa"_q },
+		{ u"MXN"_q, u"Mexican Peso"_q },
+		{ u"MYR"_q, u"Malaysian Ringgit"_q },
+		{ u"MZN"_q, u"Mozambican Metical"_q },
+		{ u"NGN"_q, u"Nigerian Naira"_q },
+		{ u"NIO"_q, u"Nicaraguan Córdoba"_q },
+		{ u"NOK"_q, u"Norwegian Krone"_q },
+		{ u"NPR"_q, u"Nepalese Rupee"_q },
+		{ u"NZD"_q, u"New Zealand Dollar"_q },
+		{ u"PAB"_q, u"Panamanian Balboa"_q },
+		{ u"PEN"_q, u"Peruvian Sol"_q },
+		{ u"PHP"_q, u"Philippine Peso"_q },
+		{ u"PKR"_q, u"Pakistani Rupee"_q },
+		{ u"PLN"_q, u"Polish Zloty"_q },
+		{ u"PYG"_q, u"Paraguayan Guarani"_q },
+		{ u"QAR"_q, u"Qatari Riyal"_q },
+		{ u"RON"_q, u"Romanian Leu"_q },
+		{ u"RSD"_q, u"Serbian Dinar"_q },
+		{ u"RUB"_q, u"Russian Ruble"_q },
+		{ u"SAR"_q, u"Saudi Riyal"_q },
+		{ u"SEK"_q, u"Swedish Krona"_q },
+		{ u"SGD"_q, u"Singapore Dollar"_q },
+		{ u"SYP"_q, u"Syrian Pound"_q },
+		{ u"THB"_q, u"Thai Baht"_q },
+		{ u"TJS"_q, u"Tajikistani Somoni"_q },
+		{ u"TRY"_q, u"Turkish Lira"_q },
+		{ u"TTD"_q, u"Trinidad & Tobago Dollar"_q },
+		{ u"TWD"_q, u"New Taiwan Dollar"_q },
+		{ u"TZS"_q, u"Tanzanian Shilling"_q },
+		{ u"UAH"_q, u"Ukrainian Hryvnia"_q },
+		{ u"UGX"_q, u"Ugandan Shilling"_q },
+		{ u"USD"_q, u"US Dollar"_q },
+		{ u"UYU"_q, u"Uruguayan Peso"_q },
+		{ u"UZS"_q, u"Uzbekistani Som"_q },
+		{ u"VEF"_q, u"Venezuelan Bolívar (2008–2018)"_q },
+		{ u"VND"_q, u"Vietnamese Dong"_q },
+		{ u"YER"_q, u"Yemeni Rial"_q },
+		{ u"ZAR"_q, u"South African Rand"_q },
+		{ u"VUV"_q, u"Vanuatu Vatu"_q },
+		{ u"WST"_q, u"Samoan Tala"_q },
+		{ u"XAF"_q, u"Central African CFA Franc"_q },
+		{ u"XCD"_q, u"East Caribbean Dollar"_q },
+		{ u"XOF"_q, u"West African CFA Franc"_q },
+		{ u"XPF"_q, u"CFP Franc"_q },
+		{ u"ZMW"_q, u"Zambian Kwacha"_q },
+		{ u"ANG"_q, u"Netherlands Antillean Guilder"_q },
+		{ u"RWF"_q, u"Rwandan Franc"_q },
+		{ u"PGK"_q, u"Papua New Guinean Kina"_q },
+		{ u"TOP"_q, u"Tongan Paʻanga"_q },
+		{ u"SBD"_q, u"Solomon Islands Dollar"_q },
+		{ u"SCR"_q, u"Seychellois Rupee"_q },
+		{ u"SHP"_q, u"St. Helena Pound"_q },
+		{ u"SLL"_q, u"Sierra Leonean Leone (1964—2022)"_q },
+		{ u"SOS"_q, u"Somali Shilling"_q },
+		{ u"SRD"_q, u"Surinamese Dollar"_q },
+		{ u"STD"_q, u"São Tomé & Príncipe Dobra (1977–2017)"_q },
+		{ u"SVC"_q, u"Salvadoran Colón"_q },
+		{ u"SZL"_q, u"Swazi Lilangeni"_q },
+		{ u"AOA"_q, u"Angolan Kwanza"_q },
+		{ u"AWG"_q, u"Aruban Florin"_q },
+		{ u"BBD"_q, u"Barbadian Dollar"_q },
+		{ u"BIF"_q, u"Burundian Franc"_q },
+		{ u"BMD"_q, u"Bermudan Dollar"_q },
+		{ u"BSD"_q, u"Bahamian Dollar"_q },
+		{ u"BWP"_q, u"Botswanan Pula"_q },
+		{ u"BZD"_q, u"Belize Dollar"_q },
+		{ u"CDF"_q, u"Congolese Franc"_q },
+		{ u"CVE"_q, u"Cape Verdean Escudo"_q },
+		{ u"DJF"_q, u"Djiboutian Franc"_q },
+		{ u"FJD"_q, u"Fijian Dollar"_q },
+		{ u"FKP"_q, u"Falkland Islands Pound"_q },
+		{ u"GIP"_q, u"Gibraltar Pound"_q },
+		{ u"GMD"_q, u"Gambian Dalasi"_q },
+		{ u"GNF"_q, u"Guinean Franc"_q },
+		{ u"GYD"_q, u"Guyanese Dollar"_q },
+		{ u"HTG"_q, u"Haitian Gourde"_q },
+		{ u"KHR"_q, u"Cambodian Riel"_q },
+		{ u"KMF"_q, u"Comorian Franc"_q },
+		{ u"KYD"_q, u"Cayman Islands Dollar"_q },
+		{ u"LAK"_q, u"Laotian Kip"_q },
+		{ u"LRD"_q, u"Liberian Dollar"_q },
+		{ u"LSL"_q, u"Lesotho Loti"_q },
+		{ u"MGA"_q, u"Malagasy Ariary"_q },
+		{ u"MKD"_q, u"Macedonian Denar"_q },
+		{ u"MWK"_q, u"Malawian Kwacha"_q },
+		{ u"NAD"_q, u"Namibian Dollar"_q },
+		{ u"CLF"_q, u"Chilean Unit of Account (UF)"_q },
+		{ u"KWD"_q, u"Kuwaiti Dinar"_q },
+		{ u"LYD"_q, u"Libyan Dinar"_q },
+		{ u"OMR"_q, u"Omani Rial"_q },
+		{ u"TND"_q, u"Tunisian Dinar"_q },
+		{ u"UYI"_q, u"Uruguayan Peso (Indexed Units)"_q },
+		{ u"MRO"_q, u"Mauritanian Ouguiya (1973–2017)"_q },
+	};
+	static const auto kNamesMap = [] {
+		auto &&list = kNames | ranges::views::transform([](auto &&pair) {
+			return base::flat_multi_map_pair_type<QString, QString>(
+				pair.first,
+				pair.second);
+		});
+		return base::flat_map<QString, QString>(begin(list), end(list));
+	}();
+	const auto i = kNamesMap.find(currency);
+	return (i != end(kNamesMap)) ? i->second : QString();
 }
 
 [[nodiscard]] QString FormatWithSeparators(

@@ -70,7 +70,8 @@ void SharedMedia::add(SharedMediaAddExisting &&query) {
 		if (query.types.test(type)) {
 			peerIt->second[index].addExisting(
 				query.messageId,
-				query.noSkipRange);
+				query.noSkipRange,
+				query.incrementCount);
 		}
 	}
 }
@@ -95,7 +96,7 @@ void SharedMedia::remove(SharedMediaRemoveOne &&query) {
 		for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
 			auto type = static_cast<SharedMediaType>(index);
 			if (query.types.test(type)) {
-				i->second[index].removeOne(query.messageId);
+				i->second[index].removeOne(query.messageId, query.onlyMatched);
 			}
 		}
 	};
@@ -154,6 +155,17 @@ void SharedMedia::invalidate(SharedMediaInvalidateBottom &&query) {
 
 void SharedMedia::unload(SharedMediaUnloadThread &&query) {
 	_lists.erase({ query.peerId, query.topicRootId, query.monoforumPeerId });
+}
+
+void SharedMedia::unload(SharedMediaUnloadAllTopics &&query) {
+	auto peerIt = _lists.lower_bound({ query.peerId, MsgId(0) });
+	while (peerIt != end(_lists) && peerIt->first.peerId == query.peerId) {
+		if (peerIt->first.topicRootId) {
+			peerIt = _lists.erase(peerIt);
+		} else {
+			++peerIt;
+		}
+	}
 }
 
 rpl::producer<SharedMediaResult> SharedMedia::query(SharedMediaQuery &&query) const {

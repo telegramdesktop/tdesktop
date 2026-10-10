@@ -281,7 +281,9 @@ void PeerListsBox::resizeEvent(QResizeEvent *e) {
 	}
 
 	for (const auto &list : _lists) {
-		list.content->resizeToWidth(width());
+		if (list.content) {
+			list.content->resizeToWidth(width());
+		}
 	}
 }
 

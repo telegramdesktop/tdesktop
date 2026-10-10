@@ -26,6 +26,20 @@ namespace Test {
 	not_null<QWidget*> widget,
 	const QRect &logicalRect);
 
+// The harness's one rect formatter: "x,y WxH". Every refusal that quotes a
+// rect prints through it, so two logs name the same rect the same way and
+// stay comparable line by line, exactly as the widget-identity formatter
+// below does for a widget.
+[[nodiscard]] QString RectText(const QRect &rect);
+
+// The harness's one misframing refusal: empty when |logicalRect| is non-empty
+// and lies fully inside |widget|, otherwise the named refusal quoting both
+// rects and the overlap. Every helper that refuses a rect prints through it,
+// so two logs name the same fault the same way.
+[[nodiscard]] QString MisframedDetails(
+	not_null<QWidget*> widget,
+	const QRect &logicalRect);
+
 // The harness's one widget-identity formatter: the typeid name of the live
 // instance plus its "x,y WxH" geometry. Every refusal here prints identities
 // through it, so two logs name the same widget the same way and stay
@@ -42,6 +56,10 @@ namespace Test {
 class PreparedWidgetCapture final {
 public:
 	[[nodiscard]] bool prepare(QWidget *widget);
+	[[nodiscard]] bool prepare(
+		QWidget *owner,
+		QWidget *origin,
+		const QRect &localRect);
 	void invalidate(QString reason);
 	[[nodiscard]] bool save(const QString &name);
 
@@ -82,21 +100,88 @@ bool CaptureMappedRect(
 	const QRect &logicalRect,
 	const QString &name);
 
+// Complete-target readiness for a mapped capture.
+//
+// The caller supplies the real rectangle origin, the painted owner that
+// CaptureMappedRect will grab, and an exact origin-local rectangle. The
+// helper maps with Ui::MapFrom and reports ready only when that complete
+// mapped rectangle lies fully inside the owner and the relevant viewport.
+// Whole-rectangle containment, never overlap: it does not intersect, clip,
+// or reframe the requested rect to make the check pass. An empty, hidden,
+// or partially clipped target is unready, including a rectangle that fits
+// the owner but is clipped by the scroll that actually paints it.
+//
+// The relevant viewport is discovered from the origin's ancestors: a
+// Ui::ElasticScroll is itself the clipper (its viewport() is Dummy and
+// returns the inner content widget — treating that pointer as the clipper
+// recreates origin-local containment always succeeding). A
+// QAbstractScrollArea uses viewport(). The walk does not stop at the
+// owner, because when the owner is the inner content the clipper is its
+// parent. No clipper means only owner containment applies.
+//
+// |origin| and |owner| are non-null exactly when |refusal| is empty at the
+// moment the reading is taken. They are QPointer<QWidget>, so a retained
+// reading answers resolved() false once either widget is destroyed, while
+// |local|, |mapped|, |inViewport|, |identity| and |refusal| stay printable.
+// |viewport| may be null when there is no scrolling ancestor.
+//
+// MappedTargetReady is that geometry reading. It is not capture-ready: a
+// nonpainting owner whose geometry fits is still refused by
+// PreparedWidgetCapture::prepare(owner, origin, rect) and by
+// CaptureMappedTarget, which then compose CaptureMappedRect so owner
+// misframing, blank, and blank-root refusals remain the existing helpers.
+// CaptureMappedRect itself is unchanged and still grabs a scrolled-out
+// row when the grabbed widget is the content widget.
+//
+// PaintingLayerRoot still resolves boxes inside layers specifically. This
+// reading does not walk to a Ui::BoxLayerWidget, and callers still own
+// semantic navigation and exact item identity.
+struct MappedTarget {
+	QPointer<QWidget> origin;
+	QPointer<QWidget> owner;
+	QPointer<QWidget> viewport;
+	QRect local;
+	QRect mapped;
+	QRect inViewport;
+	QString identity;
+	QString refusal;
+
+	[[nodiscard]] bool resolved() const {
+		return origin && owner && refusal.isEmpty();
+	}
+};
+
+[[nodiscard]] MappedTarget ReadMappedTarget(
+	QWidget *owner,
+	QWidget *origin,
+	const QRect &localRect);
+[[nodiscard]] bool MappedTargetReady(
+	QWidget *owner,
+	QWidget *origin,
+	const QRect &localRect);
+[[nodiscard]] QString MappedTargetDetails(const MappedTarget &reading);
+bool CaptureMappedTarget(
+	QWidget *owner,
+	QWidget *origin,
+	const QRect &localRect,
+	const QString &name);
+
 // The one render root a capture of a box inside a layer may use.
 //
 // Ui::BoxContent's constructor sets Qt::WA_OpaquePaintEvent
-// (ui/layers/box_content.h:117-119) and BoxContent::paintEvent fills with the
+// (ui/layers/box_content.h) and BoxContent::paintEvent fills with the
 // delegate's style().bg only while that attribute is set
-// (ui/layers/box_content.cpp:450-459), so a plain Ui::GenericBox paints its
-// own background and the blank-root refusal short-circuits on it: a plain box
-// is NOT refused. setNoContentMargin(true) clears the attribute again
-// (box_content.h:224-230), which is what 53 call sites under
-// Telegram/SourceFiles/ do, and that is the only shape the refusal fires for.
-// Such a box paints no background of its own, and the Ui::BoxLayerWidget the
-// layer stack wrapped it in is what paints instead
-// (ui/layers/box_layer_widget.cpp:120-141), with the box as its direct child
-// (:46) - so the walk is normally one hop, but it is written as a walk
-// because a scenario resolves from a descendant just as often.
+// (ui/layers/box_content.cpp), so a plain Ui::GenericBox paints its own
+// background and the blank-root refusal short-circuits on it: a plain box is
+// NOT refused. setNoContentMargin(true) clears the attribute again
+// (box_content.h), which is what 53 call sites under Telegram/SourceFiles/
+// do, and that is the only shape the refusal fires for. Such a box paints no
+// background of its own, and the Ui::BoxLayerWidget the layer stack wrapped
+// it in is what paints instead (BoxLayerWidget::paintEvent in
+// ui/layers/box_layer_widget.cpp), with the box as its direct child
+// (BoxLayerWidget::BoxLayerWidget) - so the walk is normally one hop, but it
+// is written as a walk because a scenario resolves from a descendant just as
+// often.
 //
 // Run 1 of 2026/08/28/complete-server-history-details-hash-and-paging handed
 // the bare box to Runner::captureAndInspect: PreparedWidgetCapture::prepare()
@@ -109,8 +194,8 @@ bool CaptureMappedRect(
 // the target's own window looking for a layer. That is also why it must never
 // be used on a Ui::PopupMenu: a popup is its own window, so the walk refuses
 // on its first hop, and Ui::PopupMenu::init() sets Qt::WA_NoSystemBackground
-// (ui/widgets/popup_menu.cpp:126), so the blank-root refusal never applies to
-// it and it needs no layer root at all.
+// (ui/widgets/popup_menu.cpp), so the blank-root refusal never applies to it
+// and it needs no layer root at all.
 //
 // |widget| is non-null exactly when |refusal| is empty at the moment the
 // reading is taken: a caller cannot take the pointer without being handed
@@ -136,33 +221,48 @@ struct PaintingLayerRootResult {
 
 [[nodiscard]] PaintingLayerRootResult PaintingLayerRoot(QWidget *box);
 
-// Saves the box's own rect, grabbed out of the Ui::BoxLayerWidget that paints
-// it. An unresolved root is a logged FAIL carrying the refusal above, never a
-// null the caller has to re-check before CaptureMappedRect, which this
-// composes and which takes not_null<QWidget*>.
+// Saves the box content's own rect, grabbed out of the Ui::BoxLayerWidget
+// that paints it. That crop excludes the shell chrome a "whole box" frame
+// exists to show: Ui::BoxLayerWidget::setTitle creates _title parented to
+// the shell (ui/layers/box_layer_widget.cpp), and addButton re-parents each
+// footer button onto the shell (raw->setParent(this); raw->show();). An
+// unresolved root is a logged FAIL carrying the refusal above, never a null
+// the caller has to re-check before CaptureMappedRect, which this composes
+// and which takes not_null<QWidget*>. A box that maps outside its layer is
+// still that helper's named misframing FAIL.
 bool CaptureInLayerRoot(not_null<QWidget*> box, const QString &name);
+
+// Saves the resolved Ui::BoxLayerWidget itself, via CaptureWidget, so the
+// frame includes _title and the addButton footer row that
+// CaptureInLayerRoot's crop drops. An unresolved root is a logged FAIL
+// carrying PaintingLayerRoot's refusal; visibility, blank, and blank-root
+// refusals are CaptureWidget's. For a box that is still hidden while the
+// layer show animation runs, this fails visibility the same way a grab of
+// that shell would — wait until the layer is shown (BoxButtonReady for a
+// footer, or box->isVisible() for the content) rather than relaxing it.
+bool CaptureBoxLayer(not_null<QWidget*> box, const QString &name);
 
 // The one capture for a widget that paints no opaque background of its own.
 //
 // Ui::Toast::internal::Widget's constructor sets only
 // Qt::WA_TransparentForMouseEvents, never Qt::WA_OpaquePaintEvent nor
-// Qt::WA_NoSystemBackground (ui/toast/toast_widget.cpp:413-441), and while
-// its fade-in opacity is below 1 its paintEvent draws the whole frame into a
-// transparent proxy at that opacity and returns (:585-600). A grab of such a
-// widget holds the harness base and nothing else, at perfectly sane
-// geometry - what run 4 of 2026/08/30/replace-wallet-with-new-or-imported
-// paid for. The repair is to grab the widget's own window and crop it to the
-// widget's rect mapped into that window, because the opaque window behind
-// the fade-in is what holds the real pixels.
+// Qt::WA_NoSystemBackground (ui/toast/toast_widget.cpp), and while its
+// fade-in opacity is below 1 its paintEvent draws the whole frame into a
+// transparent proxy at that opacity and returns. A grab of such a widget
+// holds the harness base and nothing else, at perfectly sane geometry - what
+// run 4 of 2026/08/30/replace-wallet-with-new-or-imported paid for. The
+// repair is to grab the widget's own window and crop it to the widget's rect
+// mapped into that window, because the opaque window behind the fade-in is
+// what holds the real pixels.
 //
 // PreparedWidgetCapture cannot answer this. Its blank-frame refusal fires on
 // every frame such a wrapper can offer, so a poll around it can only end in
-// a stage timeout - the shape test_layer_root.h:24-28 describes for a
-// no-content-margin box.
+// a stage timeout - the shape test_layer_root.h's comment on
+// AppendPaintingLayerRootSelfTest describes for a no-content-margin box.
 //
 // A blank frame here is a Note and never a FAIL, by contract: the decisive
 // oracle for a fade-in wrapper is textual - the joined accessibilityName()
-// of its Ui::FlatLabels (ui/widgets/labels.h:131-133) - and the capture only
+// of its Ui::FlatLabels (ui/widgets/labels.h) - and the capture only
 // corroborates it. A structural refusal is still a loud FAIL, because no
 // amount of waiting repairs it: no widget, not visible, empty geometry, the
 // target is its own window (which keeps this off a Ui::PopupMenu just as the

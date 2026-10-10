@@ -653,9 +653,7 @@ HistoryItem *Media::itemForText() const {
 }
 
 bool Media::isRoundedInBubbleBottom() const {
-	return isBubbleBottom()
-		&& !_parent->data()->repliesAreComments()
-		&& !_parent->data()->externalReply();
+	return isBubbleBottom() && !_parent->hasCommentsButton();
 }
 
 Images::CornersMaskRef MediaRoundingMask(

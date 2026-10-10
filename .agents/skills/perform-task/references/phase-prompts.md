@@ -17,7 +17,7 @@ checklists only for intentional current-session build work, Phase 7, the
 small-task fast path, or when delegation is unavailable from the start at the
 current agent depth. Replace
 every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
-`<PROJECT_FILE>`, `<PREVIOUS_CONTEXT>`, `<BUILD>`, `<N>`,
+`<PROJECT_FILE>`, `<BUILD>`, `<N>`,
 `<OWNED_WRITE_SET>`, `<R>`, `<R-1>`, and `<phase-name>`.
 
 ## Orchestration Rules
@@ -29,13 +29,18 @@ every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
 - Phase 7 runs in the current session on native, non-WSL Windows because it depends on the final local diff and touched-file set. Skip it on WSL and keep files LF/no-BOM there.
 - Write each phase prompt to `<WORK_DIR>/logs/phase-<phase-name>.prompt.md` before execution.
 - If you delegate a phase, send the prompt file contents as the initial subagent message.
-- When writing the phase prompt file, append the standard progress file contract and the standard compact reply block below so the subagent knows how to surface progress before the final artifact.
+- When writing the phase prompt file, append the standard compact reply block
+  below. Do not require heartbeat files or periodic progress reports.
 - After each phase completes, write `<WORK_DIR>/logs/phase-<phase-name>.result.md` with exact
   `STATUS:`, `ARTIFACTS:`, `TOUCHED:`, `BLOCKER:`, and `NOTES:` fields.
 - Use `fork_turns: "none"` by default. If the phase depends on thread-only context or UI attachments, pass it explicitly or use the smallest positive turn fork needed.
-- Use only fields the current spawn schema exposes; do not invent role, model, or reasoning arguments. Inherit the parent model/reasoning selection, or match it if the host explicitly supports overrides.
+- Before dispatch, select and apply [phase effort](../../../shared/phase-effort.md).
+  Record the choice and scope reason in the prompt, and the applied setting
+  or inheritance fallback in the result's `NOTES:`. Use only fields the
+  current spawn schema exposes; apply the host mapping for those fields.
 - Give each phase a unique lowercase/digit/underscore task name and tell the phase it is a leaf that must not delegate.
-- For Phase 1, Phase 3, Phase 4, and Phase 6, if delegated retries still fail, stop and ask the user rather than rerunning the phase locally.
+- For Phase 1, Phase 3, Phase 4, and Phase 6, if delegated retries still fail,
+  report a recoverable hard stop to the caller instead of rerunning locally.
 - Never use `codex exec`, background shell child processes, or JSONL child-session logging from this skill.
 
 ### Claude Code: synchronous delegation
@@ -54,7 +59,7 @@ every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
 ### Grok Build: blocking spawn, depth one
 
 - Follow `.grok/ai-workflow-adapter.md`. Its substitutions win over the
-  Codex wait ladder and over any prompt that assumes nested delegation.
+  Codex completion contract and over any prompt that assumes nested delegation.
 - When this session is a top-level `/perform-task`, run each leaf as one
   blocking `spawn_subagent` (`background: false`). The call returning is
   the completion signal; validate the artifact checks below on return.
@@ -68,46 +73,29 @@ every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
   phase once in a fresh `spawn_subagent` with more specific instructions
   before stopping to ask the user.
 
-### Codex: asynchronous spawn and wait
+### Codex: wait for child completion
 
-- Store the canonical target returned by `spawn_agent`.
-- After the initial general reviewer finishes pass 1, keep its canonical target.
-  When specialists finish, use `followup_task` on that target with the pass-2
-  synthesis prompt instead of spawning a second complete-diff reviewer.
-- Poll with `wait_agent` for at most 60 seconds per call; use elapsed wall-clock windows for stall decisions. Use 30-60 second polls when a phase appears close to landing.
-- `wait_agent` is mailbox-wide and may wake for another agent or user input. A timeout is not failure. After every wake, handle new user input if any, inspect the saved target with `list_agents`, and check the expected artifact and matching progress file.
-- If the expected artifact exists and shows progress, wait again.
-- If the expected artifact is not ready but the progress file mtime moved or its heartbeat counter increased since the previous check, wait again. Prefer mtime checks first and avoid rereading the file unless you need detail. Do not count that as a failed wait.
-- If neither the expected artifact nor progress file moved for a full five-minute blocked-check window, use `send_message` while the target is running or `followup_task` when it is idle, asking it to refresh progress, finish the artifact, and return the compact block.
-- If a second five-minute window after that follow-up still produces no usable artifact or movement, use `interrupt_agent` if needed, confirm the turn stopped, and retry the disposable phase once with a new unique name. There is no close-agent operation.
-
-## Standard Progress File Contract
-
-Append this verbatim to every delegated phase prompt:
-
-```text
-You are a leaf phase worker. Do not spawn or delegate to other agents.
-
-Before deep work, create or update the matching progress file in `<WORK_DIR>/logs/`.
-
-Use `phase-<phase-name>.progress.md` as a concise heartbeat with:
-- `Heartbeat: <N>` on the first line, incremented on each meaningful update
-- Current step
-- Files being read or edited
-- Concrete findings or decisions so far
-- Blocker or next checkpoint
-
-Update it sparingly: preferably at natural milestones, and otherwise only after a longer quiet stretch such as roughly 5-10 minutes.
-Keep it tiny so the parent can usually rely on file mtime or the heartbeat counter instead of rereading the whole file.
-Do not wait until the final artifact to write progress.
-```
+Follow [child completion and recovery](../../../shared/codex-delegation.md)
+for native waits, missing-result detection, and bounded recovery. The
+performer owns that contract; do not make leaf agents read orchestration
+references. Preserve the initial general reviewer's canonical target and use
+`followup_task` for pass-2 synthesis after the specialist reports are accepted.
 
 ## Standard Compact Reply Block
 
 Append this verbatim to every delegated phase prompt:
 
 ```text
-Before replying in chat, write the required artifact(s) to disk.
+You are a leaf phase worker. Do not spawn or delegate to other agents, and
+never commit. Complete the assigned work and await its commands before your
+final reply. If a hard stop prevents that, identify any still-active owned
+commands in the blocker. Do not end with a progress-only reply or promise to
+return later. No heartbeat or periodic progress report is required.
+
+Before your final reply, write the required artifact(s) to disk. If you cannot
+finish, return BLOCKED with the concrete failure and any partial artifacts; do
+not imply that unfinished work succeeded. This leaf status is a report to the
+performer, not authority to publish a task Block.
 
 Reply in 8 lines or fewer using exactly these keys:
 STATUS: <DONE|BLOCKED|APPROVED|NEEDS_CHANGES>
@@ -122,9 +110,8 @@ Do not restate the full context, plan, diff, or long reasoning in the chat reply
 
 - Phase 1 is complete only when `context.md` exists and is non-empty, `plan.md`
   exists and contains a `## Status` section, and no unintended source edits
-  were made. For a project task, `project.proposed.md` must also exist and be
-  non-empty. For a `Visual: layout` task, `visual.md` must also satisfy the
-  visual design completion check below.
+  were made. A project amendment is optional. For a `Visual: layout` task,
+  `visual.md` must also satisfy the visual design completion check below.
 - Phase 3 is complete only when `plan.md` contains both `Phases:` in the Status section and `Assessed: yes`, records a rejection outcome (`Fast-Path: rejected` or `Approach: rejected`) that sends the performer back to a fresh Phase 1 leaf, or records `Scope: split-required` and has a complete `split-proposal.md` that stops source work for queue rescoping.
 - Phase 4 is complete only when the target phase checkbox changed to checked and the touched-file list matches the owned write set, or the blocker explains any mismatch.
 - Phase 5 is complete only when the build outcome is known and the build checkbox is updated on success.
@@ -151,6 +138,10 @@ planner, and Phase 3 still verifies both artifacts independently. For a
 between the context and plan steps so the leaf writes `visual.md` before
 `plan.md` and the plan consumes the derived contract.
 
+Use this entry point for both new and follow-up work. Follow the shared
+[project-context policy](../../../shared/project-context.md); when delivering
+the prompt, include its resolved source path so the leaf can read it.
+
 Small-task fast path: the performer may run this phase as a same-session
 checklist instead of a leaf, but only when the task spec itself names every
 file to touch and the change is mechanical — roughly two source files or
@@ -165,14 +156,17 @@ You are a context-gathering and planning agent for a large C++ codebase (Telegra
 
 TASK: <TASK>
 
-YOUR JOB: Read AGENTS.md, inspect the codebase, find all files and code relevant to this task, write self-contained implementation context, and then write a detailed implementation plan.
+YOUR JOB: Read AGENTS.md, inspect the relevant code, write task-specific implementation context, and then write a detailed implementation plan.
 
 Steps:
 1. Read AGENTS.md for project conventions and build instructions.
-2. When `<PROJECT_FILE>` is not `none`, read it as the current durable project
-   blueprint and preserve everything still accurate in the proposal.
+2. Read `.agents/shared/project-context.md` in the source checkout. When
+   `<PROJECT_FILE>` is not `none`, use its small shared overview to orient this
+   task; expand only concretely relevant dependencies and references under
+   that policy. Current task requirements and source govern the plan.
 3. Search the codebase for files, classes, functions, and patterns related to the task.
-4. Read all potentially relevant files. Be thorough and prefer reading more rather than less.
+4. Read the relevant source and adjacent behavior needed to resolve the task's
+   requirements and risks. Use targeted lookups for remaining ambiguities.
 5. For each relevant file, note:
    - file path
    - relevant line ranges
@@ -183,22 +177,18 @@ Steps:
 8. Check .style files if the task involves UI.
 9. Check lang.strings if the task involves user-visible text.
 
-Write `<WORK_DIR>/project.proposed.md` only when `<PROJECT_FILE>` is not
-`none`. It is not used by the current task. Describe the project as if this
-task is approved and fully working, so the performer can promote it only after
-approval. Include:
-- Project: What this project does (feature description, goals, scope)
-- Architecture: High-level architectural decisions, which modules are involved, how they interact
-- Key Design Decisions: Important choices made about the approach
-- Relevant Codebase Areas: Which parts of the codebase this project touches, key types and APIs involved
-
-Do not include temporal state like "Current State", "Pending Changes", "Not yet implemented", or "TODO". Describe the project as a complete, coherent whole.
+When `<PROJECT_FILE>` is not `none` and a useful shared fact changes, propose
+`<WORK_DIR>/project-amendment.md` under the shared policy. Do not modify
+`<PROJECT_FILE>` in this phase. No amendment or placeholder is required otherwise.
 
 Always write `<WORK_DIR>/context.md`.
 
-This is the primary task-specific implementation context. All downstream phases should be able to work from this file plus the referenced source files. It must be self-contained. Include:
+This is the primary task-specific implementation context. Give downstream
+phases enough background to work from it and the exact relevant references;
+link to detailed material instead of copying project history. Include the
+following only where relevant:
 - Task Description: The full task restated clearly
-- Relevant Files: Every file path with line ranges and descriptions
+- Relevant Files: Exact file paths with relevant sections or line ranges and descriptions
 - Key Code Patterns: How similar things are done in the codebase, with snippets when useful
 - Data Structures: Relevant types, structs, classes
 - API Methods: Any TL schema methods involved, copied from api.tl when useful
@@ -207,7 +197,8 @@ This is the primary task-specific implementation context. All downstream phases 
 - Build Info: Build command and any special notes
 - Reference Implementations: Similar features that can serve as templates
 
-Be extremely thorough. Another agent with no prior context will rely on this file.
+Resolve load-bearing questions and state remaining assumptions. Another agent
+with no prior context must understand this task's scope and where to look next.
 
 After context.md is written, create a detailed plan in: <WORK_DIR>/plan.md
 
@@ -269,68 +260,6 @@ Number every step. Group steps into phases if there are more than about eight st
 - [ ] Phase 2: <name> (if applicable)
 - [ ] Pre-review validation
 - [ ] Code review
-
-Do not implement code in this phase.
-```
-
-## Phase 1F: Context and plan for an existing project
-
-```text
-You are a context-gathering and planning agent for a follow-up task on an existing project in a large C++ codebase (Telegram Desktop).
-
-NEW TASK: <TASK>
-
-YOUR JOB: Read the existing project state, gather any additional context needed, produce fresh documents for the new task, and then write a detailed implementation plan.
-
-Steps:
-1. Read AGENTS.md for project conventions and build instructions.
-2. Read <PROJECT_FILE>. This is the project-level blueprint describing everything done so far.
-3. Read <PREVIOUS_CONTEXT>. This is the previous task's gathered context.
-4. Understand what has already been implemented by reading the actual source files referenced in the project file and previous context.
-5. Based on the new task description, search the codebase for any additional files, classes, functions, and patterns that are relevant to the new task but not already covered.
-6. Read all newly relevant files thoroughly.
-
-Write two files.
-
-File 1: `<WORK_DIR>/project.proposed.md`
-
-Write a single coherent proposed project document that describes everything,
-including this task's changes, as fully implemented and working. Do not modify
-`<PROJECT_FILE>` during this phase.
-
-It should incorporate:
-- everything from the existing project document that is still accurate and relevant
-- the new task's functionality described as part of the project, not as a pending change
-- any changed design decisions or architectural updates from the new task requirements
-
-It should not contain:
-- temporal state such as "Current State", "Pending Changes", or "TODO"
-- history of how requirements changed between tasks
-- references to "the old approach" versus "the new approach"
-- task-by-task changelog or timeline
-- information that contradicts the new task requirements
-
-File 2: `<WORK_DIR>/context.md`
-
-This is the primary document for the new task. It must be self-contained and should include:
-- Task Description: The new task restated clearly, with enough project background that an implementation agent can understand it without reading other AI task files
-- Relevant Files: Every file path with line ranges relevant to this task
-- Key Code Patterns: How similar things are done in the codebase
-- Data Structures: Relevant types, structs, classes
-- API Methods: Any TL schema methods involved
-- UI Styles: Any relevant style definitions
-- Localization: Any relevant string keys
-- Build Info: Build command and any special notes
-- Reference Implementations: Similar features that can serve as templates
-
-Be extremely thorough. Another agent with no prior context should be able to work from this file alone.
-
-File 3: `<WORK_DIR>/plan.md`
-
-After the two documents are written, create a detailed plan with the same
-structure required by Phase 1: Task, Approach, Files to Modify, Files to
-Create, numbered Implementation Steps grouped into phases when there are more
-than about eight steps, Build Verification, and the Status checkbox section.
 
 Do not implement code in this phase.
 ```
@@ -499,8 +428,7 @@ Rules:
 - Follow the plan precisely.
 - Follow AGENTS.md coding conventions.
 - You are not alone in the codebase. Respect existing changes and do not revert unrelated work.
-- Do not modify AI task files except the Status section in plan.md and the matching
-  `logs/phase-<phase-name>.progress.md` heartbeat required by this prompt.
+- Do not modify AI task files except the Status section in plan.md.
 - When done, update plan.md Status section: change `- [ ] Phase <N>: ...` to `- [x] Phase <N>: ...`
 - Do not work on other phases.
 
@@ -536,6 +464,9 @@ Read these files:
 
 The implementation is complete. Run the exact pre-review validation selected
 in the assessed plan and fix only task-owned failures that prevent review.
+If assigned medium execution scope, collect any failure output and return
+it to the parent before diagnosis or source repair. The parent assigns that
+follow-up at xhigh or justified high before resuming this checklist.
 
 Steps:
 1. On native Windows, run the recovery contract's exact-path proactive cleanup
@@ -1093,8 +1024,14 @@ When all phases, including pre-review validation, code review, evidence, and Win
 
 ## Error Handling
 
-- If any phase fails or gets stuck, follow the host-specific retry rules above. On Codex, do not close an agent solely because the final artifact is missing while its progress file is still advancing. For Phase 1, Phase 3, Phase 4, and Phase 6, do not rerun locally after delegated retries fail; ask the user instead.
-- If `context.md` or `plan.md` is not written properly by a phase, rerun that phase in a fresh subagent with more specific instructions.
+- If a phase returns incomplete or its runtime reports failure, follow the
+  host-specific completion and recovery rules above. Silence and a missing
+  final artifact do not prove a running agent has failed. For Phase 1, Phase 3,
+  Phase 4, and Phase 6, do not rerun locally after delegated retries fail;
+  report the recoverable hard stop to the caller.
+- If a returned phase left `context.md` or `plan.md` incomplete, use the same
+  bounded phase retry above with more specific instructions, after confirming
+  the original writers stopped.
 - If build errors persist after the build phase's attempts, report the remaining errors to the user.
 - If a review-fix phase introduces new build errors that it cannot resolve, report to the user.
 
@@ -1103,7 +1040,8 @@ When all phases, including pre-review validation, code review, evidence, and Win
 For each phase:
 1. Write the full prompt to `<WORK_DIR>/logs/phase-<phase-name>.prompt.md`
 2. Delegate by sending that prompt text to a fresh subagent, or use it as a same-session checklist only for the designated main-session phases or when delegation was unavailable from the start
-3. For delegated phases, expect a matching `<WORK_DIR>/logs/phase-<phase-name>.progress.md` heartbeat while work is in flight
+3. Wait for delegated completion using the host contract, then validate the
+   returned artifacts and code changes
 4. Save `<WORK_DIR>/logs/phase-<phase-name>.result.md` with `STATUS:`, `ARTIFACTS:`,
    `TOUCHED:`, `BLOCKER:`, and `NOTES:` fields.
 
@@ -1141,19 +1079,21 @@ For review iterations, include the iteration and lens in the file name, for exam
    reply block.
 
 Do not replace this pattern with a shell-launched `grok` process, a
-workflow script, or the Codex wait ladder.
+workflow script, or Codex-specific agent controls.
 
 ## Subagent Pattern (Codex)
 
 Use this pattern conceptually for delegated phases:
 
 1. Write the phase prompt file.
-2. Spawn a fresh leaf subagent with a unique tool-valid task name and `fork_turns: "none"` unless a small recent-turn fork is required.
-3. Require the agent to create the matching progress file early and refresh it sparingly: at natural milestones when possible, otherwise only after a longer quiet stretch such as roughly 5-10 minutes.
-4. Poll for at most 60 seconds at a time. After any mailbox wake, inspect the saved target with `list_agents`; use elapsed five-minute windows rather than poll count for stall checks.
-5. Prefer filesystem mtime checks on the progress file first. If its mtime moved or the heartbeat counter increased, keep waiting; do not treat that as a stall.
-6. After a full blocked-check window with no movement, use `send_message` for a running target or `followup_task` for an idle one. After a second unchanged window, interrupt if needed and retry the disposable phase once with a unique task name.
-7. Validate the expected artifact or code changes with small shell summaries and the completion checks above.
-8. Write the result log from the validated outcome and the compact reply block.
+2. Spawn a fresh leaf subagent with a unique tool-valid task name and
+   `fork_turns: "none"` unless a small recent-turn fork is required. Pass
+   the selected `reasoning_effort` when supported, per the shared phase
+   effort policy; omit `model` to inherit the parent model.
+3. Wait for the child's final result under the shared Codex completion and
+   recovery contract. Keep heartbeat and progress checks out of the parent.
+4. Validate the expected artifacts or code changes after completion with small
+   shell summaries and the completion checks above.
+5. Write the result log from the validated outcome and the compact reply block.
 
 Do not replace this pattern with shell-launched `codex exec`.

@@ -30,7 +30,9 @@ include(cmake/lib_stripe.cmake)
 include(cmake/lib_tgcalls.cmake)
 include(cmake/lib_prisma.cmake)
 include(cmake/lib_fido2.cmake)
+include(cmake/lib_zxcvbn.cmake)
 include(cmake/td_export.cmake)
+include(cmake/td_gram.cmake)
 include(cmake/td_iv.cmake)
 include(cmake/td_lang.cmake)
 include(cmake/td_mtproto.cmake)
@@ -56,8 +58,14 @@ endif()
 include(cmake/generate_update_keys.cmake)
 generate_update_keys(Telegram ${res_loc}/update)
 
-if (DESKTOP_APP_TEST_APPS OR DESKTOP_APP_SPECIAL_TARGET)
+if (DESKTOP_APP_TEST_APPS OR TDESKTOP_BUILD_UPDATE_TESTS)
     include(cmake/test_update_verify.cmake)
+    if (NOT DESKTOP_APP_DISABLE_AUTOUPDATE)
+        include(cmake/test_update_unpack.cmake)
+        if (WIN32 AND NOT build_winstore)
+            include(cmake/test_updater_win.cmake)
+        endif()
+    endif()
 endif()
 
 set_target_properties(Telegram PROPERTIES AUTOMOC ON)
@@ -67,6 +75,7 @@ PRIVATE
     tdesktop::lib_fido2
     tdesktop::lib_tgcalls
     tdesktop::td_export
+    tdesktop::td_gram
     tdesktop::td_iv
     tdesktop::td_lang
     tdesktop::td_mtproto
@@ -87,6 +96,7 @@ PRIVATE
     desktop-app::lib_webview
     desktop-app::lib_ffmpeg
     desktop-app::lib_stripe
+    desktop-app::external_ada
     desktop-app::external_zlib
     desktop-app::external_minizip
     desktop-app::external_kcoreaddons
@@ -97,6 +107,7 @@ PRIVATE
     desktop-app::external_auto_updates
     desktop-app::external_openssl
     desktop-app::external_openal
+    desktop-app::external_wallet_engine
     desktop-app::external_xxhash
 )
 
@@ -594,6 +605,8 @@ PRIVATE
     core/sandbox.h
     core/shortcuts.cpp
     core/shortcuts.h
+    core/ton_explorer_url.cpp
+    core/ton_explorer_url.h
     core/ui_integration.cpp
     core/ui_integration.h
     core/update_channel.h
@@ -601,11 +614,15 @@ PRIVATE
     core/update_checker.h
     core/update_keys.cpp
     core/update_keys.h
+    core/update_unpack.cpp
+    core/update_unpack.h
     core/update_verify.cpp
     core/update_verify.h
     core/utils.cpp
     core/utils.h
     core/version.h
+    core/websocket_client.cpp
+    core/websocket_client.h
     countries/countries_manager.cpp
     countries/countries_manager.h
     data/business/data_business_chatbots.cpp
@@ -632,6 +649,8 @@ PRIVATE
     data/components/promo_suggestions.h
     data/components/recent_inline_bots.cpp
     data/components/recent_inline_bots.h
+    data/components/recent_money_recipients.cpp
+    data/components/recent_money_recipients.h
     data/components/recent_peers.cpp
     data/components/recent_peers.h
     data/components/recent_shared_media_gifts.cpp
@@ -686,6 +705,7 @@ PRIVATE
     data/data_cloud_themes.h
     data/data_community.cpp
     data/data_community.h
+    data/data_compose_stash.h
     data/data_document.cpp
     data/data_document.h
     data/data_document_media.cpp
@@ -870,11 +890,25 @@ PRIVATE
     dialogs/suggestions/suggestion_userpic_setup.cpp
     dialogs/dialogs_widget.cpp
     dialogs/dialogs_widget.h
+    editor/audio_track_timeline.cpp
+    editor/audio_track_timeline.h
     editor/color_picker.cpp
     editor/color_picker.h
     editor/controllers/controllers.h
     editor/controllers/stickers_panel_controller.cpp
     editor/controllers/stickers_panel_controller.h
+    editor/editor_audio_timeline.cpp
+    editor/editor_audio_timeline.h
+    editor/editor_keys_legend.cpp
+    editor/editor_keys_legend.h
+    editor/editor_link_box.cpp
+    editor/editor_link_box.h
+    editor/editor_message_render.cpp
+    editor/editor_message_render.h
+    editor/editor_message_source.cpp
+    editor/editor_message_source.h
+    editor/editor_message_video.cpp
+    editor/editor_message_video.h
     editor/editor_paint.cpp
     editor/editor_paint.h
     editor/photo_editor.cpp
@@ -885,8 +919,14 @@ PRIVATE
     editor/photo_editor_controls.h
     editor/photo_editor_layer_widget.cpp
     editor/photo_editor_layer_widget.h
+    editor/scene/scene_item_message.cpp
+    editor/scene/scene_item_message.h
     editor/scene/scene_item_sticker.cpp
     editor/scene/scene_item_sticker.h
+    editor/scene/scene_item_video.cpp
+    editor/scene/scene_item_video.h
+    editor/video/video_clip.cpp
+    editor/video/video_clip.h
     editor/video/video_editor.cpp
     editor/video/video_editor.h
     editor/video/video_editor_common.cpp
@@ -897,8 +937,14 @@ PRIVATE
     editor/video/video_editor_quality.h
     editor/video/video_quality_slider.cpp
     editor/video/video_quality_slider.h
+    editor/video/video_segment_player.cpp
+    editor/video/video_segment_player.h
     editor/video/video_timeline.cpp
     editor/video/video_timeline.h
+    editor/video/video_timeline_seeker.cpp
+    editor/video/video_timeline_seeker.h
+    editor/video_item_timeline.cpp
+    editor/video_item_timeline.h
     export/export_manager.cpp
     export/export_manager.h
     export/view/export_view_content.cpp
@@ -921,6 +967,8 @@ PRIVATE
     history/admin_log/history_admin_log_section.h
     history/view/controls/compose_controls_common.h
     history/view/controls/history_view_bottom_controls.cpp
+    history/view/controls/history_view_bot_menu_button.cpp
+    history/view/controls/history_view_bot_menu_button.h
     history/view/controls/history_view_bottom_controls.h
     history/view/controls/history_view_compose_ai_button.cpp
     history/view/controls/history_view_compose_ai_button.h
@@ -934,6 +982,10 @@ PRIVATE
     history/view/controls/history_view_compose_media_edit_manager.h
     history/view/controls/history_view_compose_search.cpp
     history/view/controls/history_view_compose_search.h
+    history/view/controls/history_view_compose_stash.cpp
+    history/view/controls/history_view_compose_stash.h
+    history/view/controls/history_view_compose_stash_hint.cpp
+    history/view/controls/history_view_compose_stash_hint.h
     history/view/controls/history_view_draft_options.cpp
     history/view/controls/history_view_draft_options.h
     history/view/controls/history_view_forward_panel.cpp
@@ -974,6 +1026,8 @@ PRIVATE
     history/view/media/history_view_gif.h
     history/view/media/history_view_giveaway.cpp
     history/view/media/history_view_giveaway.h
+    history/view/media/history_view_gram_transfer.cpp
+    history/view/media/history_view_gram_transfer.h
     history/view/media/history_view_invoice.cpp
     history/view/media/history_view_invoice.h
     history/view/media/history_view_large_emoji.cpp
@@ -1259,8 +1313,6 @@ PRIVATE
     info/polls/info_polls_results_widget.h
     info/profile/info_profile_actions.cpp
     info/profile/info_profile_actions.h
-    info/profile/info_profile_badge_tooltip.cpp
-    info/profile/info_profile_badge_tooltip.h
     info/profile/info_profile_badge.cpp
     info/profile/info_profile_badge.h
     info/profile/info_profile_birthday_effect.cpp
@@ -1700,6 +1752,8 @@ PRIVATE
     platform/linux/translate_provider_linux.h
     platform/linux/tray_linux.cpp
     platform/linux/tray_linux.h
+    platform/linux/update_install_linux.cpp
+    platform/linux/update_install_linux.h
     platform/linux/webauthn_linux.cpp
     platform/mac/file_utilities_mac.mm
     platform/mac/file_utilities_mac.h
@@ -1728,6 +1782,8 @@ PRIVATE
     platform/mac/translate_provider_mac.mm
     platform/mac/tray_mac.h
     platform/mac/tray_mac.mm
+    platform/mac/wallet_protection_mac.h
+    platform/mac/wallet_protection_mac.mm
     platform/mac/webauthn_mac.mm
     platform/mac/window_title_mac.mm
     platform/mac/touchbar/items/mac_formatter_item.h
@@ -1764,6 +1820,8 @@ PRIVATE
     platform/win/translate_provider_win.h
     platform/win/tray_win.cpp
     platform/win/tray_win.h
+    platform/win/wallet_protection_win.cpp
+    platform/win/wallet_protection_win.h
     platform/win/webauthn_win.cpp
     platform/win/windows_app_user_model_id.cpp
     platform/win/windows_app_user_model_id.h
@@ -1962,20 +2020,32 @@ PRIVATE
     test/test_activation.h
     test/test_agent.cpp
     test/test_agent.h
+    test/test_animation_clock.cpp
+    test/test_animation_clock.h
     test/test_box_button.cpp
     test/test_box_button.h
     test/test_capture.cpp
     test/test_capture.h
+    test/test_clipboard.cpp
+    test/test_clipboard.h
+    test/test_console_lock.cpp
+    test/test_console_lock.h
+    test/test_corner_patch.cpp
+    test/test_corner_patch.h
     test/test_custom_emoji.cpp
     test/test_custom_emoji.h
     test/test_gated_stage.cpp
     test/test_gated_stage.h
+    test/test_gram_reconcile.cpp
+    test/test_gram_reconcile.h
     test/test_history_fixtures.cpp
     test/test_history_fixtures.h
     test/test_hover.cpp
     test/test_hover.h
     test/test_ink.cpp
     test/test_ink.h
+    test/test_lang_pack.cpp
+    test/test_lang_pack.h
     test/test_launch_fuse.cpp
     test/test_launch_fuse.h
     test/test_layer_root.cpp
@@ -1984,31 +2054,57 @@ PRIVATE
     test/test_log.h
     test/test_log_lines.cpp
     test/test_log_lines.h
+    test/test_mapped_target.cpp
+    test/test_mapped_target.h
+    test/test_marking_read.cpp
+    test/test_marking_read.h
     test/test_menu.cpp
     test/test_menu.h
     test/test_messages.cpp
     test/test_messages.h
+    test/test_notify_override.cpp
+    test/test_notify_override.h
     test/test_open_handoff.cpp
     test/test_open_handoff.h
     test/test_panel.cpp
     test/test_panel.h
+    test/test_post_paint.cpp
+    test/test_post_paint.h
     test/test_probe.cpp
     test/test_probe.h
+    test/test_rpc_fixture.cpp
+    test/test_rpc_fixture.h
     test/test_rpc_retry.cpp
     test/test_rpc_retry.h
     test/test_runner.cpp
     test/test_runner.h
     test/test_scenario.cpp
+    test/test_secrecy_scan.cpp
+    test/test_secrecy_scan.h
     test/test_style.cpp
     test/test_style.h
+    test/test_text_drop.cpp
+    test/test_text_drop.h
     test/test_text_reads.cpp
     test/test_text_reads.h
+    test/test_toast_capture.cpp
+    test/test_toast_capture.h
     test/test_transfer.cpp
     test/test_transfer.h
     test/test_via_window.cpp
     test/test_via_window.h
+    test/test_wallet_intercept.cpp
+    test/test_wallet_intercept.h
+    test/test_wallet_ready.cpp
+    test/test_wallet_ready.h
+    test/test_web_cache.cpp
+    test/test_web_cache.h
+    test/test_wheel.cpp
+    test/test_wheel.h
     test/test_widgets.cpp
     test/test_widgets.h
+    test/test_window_exposure.cpp
+    test/test_window_exposure.h
     ui/boxes/edit_invite_link_session.cpp
     ui/boxes/edit_invite_link_session.h
     ui/boxes/emoji_stake_box.cpp
@@ -2097,6 +2193,72 @@ PRIVATE
     ui/unread_badge.h
     ui/peer/video_userpic_player.cpp
     ui/peer/video_userpic_player.h
+    wallet/wallet_address.cpp
+    wallet/wallet_address.h
+    wallet/wallet_amount_field.cpp
+    wallet/wallet_amount_field.h
+    wallet/wallet_amount_painter.cpp
+    wallet/wallet_amount_painter.h
+    wallet/wallet_api.cpp
+    wallet/wallet_api.h
+    wallet/wallet_chat_show.cpp
+    wallet/wallet_chat_show.h
+    wallet/wallet_collectible_media.cpp
+    wallet/wallet_collectible_media.h
+    wallet/wallet_collectibles.cpp
+    wallet/wallet_collectibles.h
+    wallet/wallet_comment.cpp
+    wallet/wallet_comment.h
+    wallet/wallet_content.cpp
+    wallet/wallet_content.h
+    wallet/wallet_custody.cpp
+    wallet/wallet_custody.h
+    wallet/wallet_diamond_flight.cpp
+    wallet/wallet_diamond_flight.h
+    wallet/wallet_engine.cpp
+    wallet/wallet_engine.h
+    wallet/wallet_fiat.cpp
+    wallet/wallet_fiat.h
+    wallet/wallet_key_protection.cpp
+    wallet/wallet_key_protection.h
+    wallet/wallet_onramp.cpp
+    wallet/wallet_onramp.h
+    wallet/wallet_palette.cpp
+    wallet/wallet_palette.h
+    wallet/wallet_panel.cpp
+    wallet/wallet_panel.h
+    wallet/wallet_phrase_shares.cpp
+    wallet/wallet_phrase_shares.h
+    wallet/wallet_rates.cpp
+    wallet/wallet_rates.h
+    wallet/wallet_session.cpp
+    wallet/wallet_session.h
+    wallet/wallet_stream.cpp
+    wallet/wallet_stream.h
+    wallet/wallet_ton_connect.cpp
+    wallet/wallet_ton_connect.h
+    wallet/wallet_ton_connect_box.cpp
+    wallet/wallet_ton_connect_box.h
+    wallet/wallet_ton_connect_claims.cpp
+    wallet/wallet_ton_connect_claims.h
+    wallet/wallet_ton_connect_emulation.cpp
+    wallet/wallet_ton_connect_emulation.h
+    wallet/wallet_ton_connect_link.cpp
+    wallet/wallet_ton_connect_link.h
+    wallet/wallet_ton_connect_request.cpp
+    wallet/wallet_ton_connect_request.h
+    wallet/wallet_ton_connect_request_box.cpp
+    wallet/wallet_ton_connect_request_box.h
+    wallet/wallet_transfer_messages.cpp
+    wallet/wallet_transfer_messages.h
+    wallet/wallet_transfer_store.cpp
+    wallet/wallet_transfer_store.h
+    wallet/wallet_unlock.cpp
+    wallet/wallet_unlock.h
+    wallet/wallet_user_addresses.cpp
+    wallet/wallet_user_addresses.h
+    wallet/wallet_vault.cpp
+    wallet/wallet_vault.h
     webauthn/cable.h
     webauthn/cable_box.cpp
     webauthn/cable_box.h
@@ -2367,6 +2529,7 @@ else()
     generate_dbus(Telegram org.freedesktop.portal. XdpBackground ${third_party_loc}/xdg-desktop-portal/data/org.freedesktop.portal.Background.xml)
     generate_dbus(Telegram org.freedesktop.portal. FlatpakPortal ${src_loc}/platform/linux/org.freedesktop.portal.Flatpak.xml)
     generate_dbus(Telegram org.freedesktop. XdgNotifications ${src_loc}/platform/linux/org.freedesktop.Notifications.xml)
+    generate_dbus(Telegram org.freedesktop.login1. Logind ${src_loc}/platform/linux/org.freedesktop.login1.Manager.xml)
 endif()
 
 if (build_macstore)
@@ -2564,6 +2727,8 @@ if (NOT DESKTOP_APP_DISABLE_AUTOUPDATE AND NOT build_macstore AND NOT build_wins
             target_link_options(Updater PRIVATE -municode)
         endif()
     elseif (APPLE)
+        # Keep the launch API available to macOS 10.13 release builds.
+        target_compile_options(Updater PRIVATE -Wno-error=deprecated-declarations)
         add_custom_command(TARGET Updater
         POST_BUILD
             COMMAND mkdir -p $<TARGET_FILE_DIR:Telegram>/../Frameworks

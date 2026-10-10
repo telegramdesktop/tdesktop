@@ -187,6 +187,7 @@ QByteArray SerializeText(
 			case Type::Strike: return "strikethrough";
 			case Type::Blockquote: return "blockquote";
 			case Type::BankCard: return "bank_card";
+			case Type::TonAddress: return "ton_address";
 			case Type::Spoiler: return "spoiler";
 			case Type::CustomEmoji: return "custom_emoji";
 			}
@@ -445,6 +446,7 @@ QByteArray RichTextTypeToString(Data::RichText::Type type) {
 	case Type::AutoEmail: return "email";
 	case Type::AutoPhone: return "phone";
 	case Type::BankCard: return "bank_card";
+	case Type::TonAddress: return "ton_address";
 	case Type::MentionName: return "mention_name";
 	case Type::FormattedDate: return "formatted_date";
 	case Type::InlineImage: return "inline_image";
@@ -610,6 +612,7 @@ QByteArray SerializeRichText(
 		case Type::AutoEmail:
 		case Type::AutoPhone:
 		case Type::BankCard:
+		case Type::TonAddress:
 			values.emplace_back(
 				"text",
 				SerializeRichTextChild(context, data.children));
@@ -2056,6 +2059,28 @@ QByteArray SerializeMessage(
 		pushActor();
 		pushAction("managed_bot_created");
 		pushBare("bot", wrapUserName(data.botId));
+	}, [&](const ActionGramTransfer &data) {
+		pushActor();
+		pushAction("gram_transfer");
+		push("amount_whole", data.amount / Data::kNanosInGram);
+		push("amount_nano", data.amount % Data::kNanosInGram);
+		push("peer_address", data.peerAddress);
+		push("transaction_id", data.transactionId);
+		push("comment_encrypted", data.commentEncrypted);
+		if (data.commentEncrypted) {
+			push("encrypted_comment_base64", data.comment);
+		} else {
+			push("comment", data.comment);
+		}
+	}, [&](const ActionWalletTonConnectRequest &data) {
+		pushActor();
+		pushAction("ton_connect_request");
+		push("session_id", data.sessionId);
+		push("expires", data.expires);
+		push("topic", data.topic);
+		push("trace_id", data.traceId);
+		push("accepted", data.accepted);
+		push("declined", data.declined);
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {

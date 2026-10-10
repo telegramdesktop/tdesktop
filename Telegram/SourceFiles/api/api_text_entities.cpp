@@ -227,6 +227,12 @@ EntitiesInText EntitiesFromMTP(
 				d.voffset().v,
 				d.vlength().v,
 			});
+		}, [&](const MTPDmessageEntityTonAddress &d) {
+			result.push_back({
+				EntityType::TonAddress,
+				d.voffset().v,
+				d.vlength().v,
+			});
 		}, [&](const MTPDmessageEntitySpoiler &d) {
 			result.push_back({
 				EntityType::Spoiler,
@@ -333,6 +339,9 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 		} break;
 		case EntityType::BankCard: {
 			v.push_back(MTP_messageEntityBankCard(offset, length));
+		} break;
+		case EntityType::TonAddress: {
+			v.push_back(MTP_messageEntityTonAddress(offset, length));
 		} break;
 		case EntityType::Hashtag: {
 			v.push_back(MTP_messageEntityHashtag(offset, length));

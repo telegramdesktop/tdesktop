@@ -1,17 +1,22 @@
 #!/usr/bin/env python3
 
 import argparse
+import contextlib
 import datetime
 import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
+import plistlib
 import re
 import shutil
 import signal
 import subprocess
 import sys
+import tempfile
+import threading
 import time
+import xml.parsers.expat
 
 
 TAG_PATTERN = re.compile(r"[a-z0-9][a-z0-9-]*")
@@ -33,7 +38,8 @@ MODEL_PATTERN = re.compile(r"[a-z0-9][a-z0-9.-]{0,39}")
 CONSOLIDATION_PENDING = "work/consolidation-pending.md"
 CONSOLIDATION_COMPLETE = "work/consolidation-complete.md"
 COMMIT_HASH_PATTERN = re.compile(
-	r"(?i)\b(?:commit|revision|sha(?:-1)?)\b[^\r\n]{0,32}(?<!#)\b[0-9a-f]{7,64}\b"
+	r"(?i)\b(?:commit(?:[ \t]+(?:hash|id|sha(?:-1)?))?|revision|sha(?:-1)?)\b"
+	r"(?!-[0-9])[ \t:=`\"'\\*()\[\]-]*\b[0-9a-f]{7,64}\b"
 )
 LEGACY_COMMIT_FIELDS = ("Task-Base-SHA:", "Implementation-SHA:")
 PROJECT_ARCHIVE_DIR = "archive"
@@ -66,6 +72,12 @@ TEST_LOG_FILE = "test_log.txt"
 TEST_COMPLETE_MARKER = "TEST_COMPLETE"
 STALE_CRASH_DIR = "stale-crash"
 CRASHPAD_COMPLETED_DIR = "completed"
+CONSOLE_COMMAND_TIMEOUT = 2.0
+WAIT_IDLE_MAX_DEFAULT = 600.0
+LSAPPINFO_ASN_PATTERN = re.compile(r"ASN:0x[0-9a-fA-F]+-0x[0-9a-fA-F]+:")
+LSAPPINFO_NAME_PATTERN = re.compile(r'"(.*)"\s+ASN:')
+LAUNCH_ACTIVATION_VARIABLE = "QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM"
+MACOS_OPEN_TOOL = "/usr/bin/open"
 BUILD_LOCK_PROCESS_NAMES = {
 	"cl.exe",
 	"cmake.exe",
@@ -555,6 +567,189 @@ def changed_paths(path):
 			if value:
 				result.add(value)
 	return sorted(result)
+
+
+def is_linked_worktree(source, path):
+	if not path.endswith("/"):
+		return False
+	candidate = Path(source).resolve() / path
+	marker = candidate / ".git"
+	if (
+		not candidate.is_dir()
+		or candidate.resolve() != candidate
+		or not marker.is_file()
+		or marker.is_symlink()
+	):
+		return False
+	try:
+		git_dir = run_git_binary(
+			candidate, "rev-parse", "--path-format=absolute", "--git-dir"
+		)
+		common_dir = run_git_binary(
+			candidate, "rev-parse", "--path-format=absolute", "--git-common-dir"
+		)
+		if git_dir == common_dir:
+			return False
+		entries = os.fsdecode(run_git_binary(
+			candidate, "worktree", "list", "--porcelain", "-z"
+		)).split("\0")
+	except WorkspaceError:
+		return False
+	return any(
+		entry.startswith("worktree ")
+		and Path(entry[len("worktree "):]) == candidate
+		for entry in entries
+	)
+
+
+def indexed_gitlinks(source):
+	result = {}
+	for entry in literal_paths(source, "ls-files", "--stage"):
+		metadata, path = entry.split("\t", 1)
+		mode, revision, stage = metadata.split()
+		if mode == "160000" and stage == "0":
+			result[path] = revision
+	return result
+
+
+def source_changed_paths(source):
+	source = Path(source).resolve()
+	tracked = set()
+	for arguments in (("diff",), ("diff", "--cached")):
+		tracked.update(literal_paths(
+			source, *arguments, "--name-only", "--ignore-submodules=dirty"
+		))
+	dirty = tracked | {
+		path for path in literal_paths(
+			source, "ls-files", "--others", "--exclude-standard"
+		)
+		if not is_linked_worktree(source, path)
+	}
+	for path in indexed_gitlinks(source):
+		module = source / path
+		if module.resolve() != module or is_linked_worktree(source, path + "/"):
+			dirty.add(path)
+		elif (module / ".git").exists() and source_changed_paths(module):
+			dirty.add(path)
+	return sorted(dirty)
+
+
+def source_local_changes(source):
+	source = Path(source).resolve()
+	gitlinks = indexed_gitlinks(source)
+	dirty = set(source_changed_paths(source)) - gitlinks.keys()
+	dirty.update(literal_paths(
+		source, "diff", "--cached", "--name-only", "--ignore-submodules=none"
+	))
+	for path in gitlinks:
+		module = Path(source) / path
+		if module.resolve() != module or is_linked_worktree(source, path + "/"):
+			dirty.add(path)
+		elif (module / ".git").exists():
+			dirty.update(
+				f"{path}/{value}" for value in source_local_changes(module)
+			)
+	return sorted(dirty)
+
+
+def mismatched_submodules(source):
+	return [
+		line.strip() for line in run_git(
+			source, "submodule", "status", "--recursive"
+		).stdout.splitlines()
+		if line and line[0] in "+-U"
+	]
+
+
+def ensure_source_clean(source):
+	dirty = source_changed_paths(source)
+	mismatched = mismatched_submodules(source)
+	if dirty or mismatched:
+		raise WorkspaceError(
+			"Telegram source checkout is not clean:\n"
+			+ "\n".join(dirty + mismatched)
+		)
+
+
+def registered_nested_worktrees(source):
+	source = Path(source).resolve()
+	result = [
+		path.rstrip("/") for path in literal_paths(
+			source, "ls-files", "--others"
+		)
+		if is_linked_worktree(source, path)
+	]
+	for path in indexed_gitlinks(source):
+		module = source / path
+		if module.resolve() != module:
+			raise WorkspaceError("Submodule path is a symlink: " + str(module))
+		if is_linked_worktree(source, path + "/"):
+			result.append(path)
+		elif (module / ".git").exists():
+			result.extend(
+				f"{path}/{value}" for value in registered_nested_worktrees(module)
+			)
+	return result
+
+
+def protect_worktrees_from_submodule_target(module, revision):
+	worktrees = registered_nested_worktrees(module)
+	if not worktrees:
+		return
+	if run_git(module, "cat-file", "-e", revision + "^{commit}", check=False).returncode:
+		run_git(module, "fetch")
+	for entry in literal_paths(module, "ls-tree", "-r", revision):
+		metadata, path = entry.split("\t", 1)
+		mode = metadata.split()[0]
+		for worktree in worktrees:
+			if (
+				path == worktree
+				or path.startswith(worktree + "/")
+				or (mode != "160000" and worktree.startswith(path + "/"))
+			):
+				raise WorkspaceError(
+					"Submodule target overlaps a registered linked worktree: "
+					+ str(Path(module) / worktree)
+				)
+
+
+def update_source_submodules(source):
+	for path, revision in indexed_gitlinks(source).items():
+		module = Path(source) / path
+		if module.resolve() != module or is_linked_worktree(source, path + "/"):
+			raise WorkspaceError("Submodule checkout is owned by another path: " + str(module))
+		if (module / ".git").exists() and resolved_ref(module, "HEAD") != revision:
+			protect_worktrees_from_submodule_target(module, revision)
+		run_git(
+			source, "--literal-pathspecs", "-c", "submodule.recurse=false",
+			"submodule", "update", "--init", "--checkout", "--", path,
+		)
+		update_source_submodules(module)
+
+
+def prepare_source(source):
+	source = Path(source).resolve()
+	dirty = source_local_changes(source)
+	if dirty:
+		raise WorkspaceError(
+			"Source preparation preserves local changes; resolve these paths "
+			"before updating submodules:\n" + "\n".join(dirty)
+		)
+	update = bool(mismatched_submodules(source))
+	if update:
+		update_source_submodules(source)
+	ensure_source_clean(source)
+	return update
+
+
+def command_source_prepare(args):
+	source = source_root(args.source_root)
+	updated = prepare_source(source)
+	print(json.dumps({
+		"source_root": str(source),
+		"source_clean": True,
+		"submodules_updated": updated,
+	}, indent=2, sort_keys=True))
 
 
 def path_is_stageable(root, path):
@@ -1703,7 +1898,7 @@ def command_source_begin(args):
 			run_git(source, "update-ref", green, series_green)
 			state = "reconciled" if base_value is not None else "recovered"
 		else:
-			ensure_clean(source, "Telegram source checkout")
+			prepare_source(source)
 			run_git(source, "update-ref", base, "HEAD")
 			if green_value is not None:
 				run_git(source, "update-ref", "-d", green)
@@ -1720,7 +1915,7 @@ def command_source_begin(args):
 
 def mark_source_green(config, task_id):
 	source = Path(config["source_root"])
-	ensure_clean(source, "Telegram source checkout")
+	ensure_source_clean(source)
 	base = source_task_ref(task_id, "base")
 	if resolved_ref(source, base) is None:
 		raise WorkspaceError("The local task baseline ref is missing")
@@ -1769,16 +1964,39 @@ def resolved_exe(value):
 	return path
 
 
+def app_bundle_of(path):
+	for parent in path.parents:
+		if parent.suffix == ".app":
+			return parent
+	return None
+
+
 def portable_root_for(exe, override):
 	if override:
 		root = Path(override).expanduser().resolve()
 		if not root.is_dir():
 			raise WorkspaceError(f"Portable root does not exist: {root}")
 		return root
-	for parent in exe.parents:
-		if parent.suffix == ".app":
-			return parent.parent
-	return exe.parent
+	bundle = app_bundle_of(exe)
+	return bundle.parent if bundle is not None else exe.parent
+
+
+def background_launch_bundle(exe, platform=None):
+	platform = sys.platform if platform is None else platform
+	bundle = app_bundle_of(exe)
+	if (
+		platform != "darwin"
+		or bundle is None
+		or exe.parent != bundle / "Contents" / "MacOS"
+	):
+		return None
+	try:
+		info = plistlib.loads((bundle / "Contents" / "Info.plist").read_bytes())
+	except (OSError, ValueError, xml.parsers.expat.ExpatError):
+		return None
+	if isinstance(info, dict) and info.get("CFBundleExecutable") == exe.name:
+		return bundle
+	return None
 
 
 def unique_destination(directory, name):
@@ -1836,12 +2054,17 @@ def clear_stale_crash_state(live, destination):
 	return cleared
 
 
-def setup_test_account(root):
+def golden_test_account(root):
 	golden = root / PORTABLE_GOLDEN
-	live = root / PORTABLE_LIVE
-	real = root / PORTABLE_REAL
 	if not golden.is_dir():
 		raise WorkspaceError(f"Missing golden test account: {golden}")
+	return golden
+
+
+def setup_test_account(root):
+	golden = golden_test_account(root)
+	live = root / PORTABLE_LIVE
+	real = root / PORTABLE_REAL
 	if (live / PORTABLE_MARKER).exists():
 		return "reused-marked-live"
 	if live.exists():
@@ -1928,6 +2151,27 @@ def kill_processes_with_executable(exe):
 		except (OSError, subprocess.SubprocessError):
 			continue
 	return killed
+
+
+@contextlib.contextmanager
+def executable_killed_on_abort(exe):
+	replaced = {}
+	if threading.current_thread() is threading.main_thread():
+		for name in ("SIGTERM", "SIGHUP"):
+			number = getattr(signal, name, None)
+			if number is not None and signal.getsignal(number) == signal.SIG_DFL:
+				replaced[number] = signal.signal(
+					number, lambda signum, frame: sys.exit(128 + signum)
+				)
+	try:
+		yield
+	except BaseException:
+		# a background client is not test-run's child: a group or tree kill of test-run misses it
+		kill_processes_with_executable(exe)
+		raise
+	finally:
+		for number, previous in replaced.items():
+			signal.signal(number, previous)
 
 
 def windows_process_records():
@@ -2336,12 +2580,181 @@ def parse_env_values(values):
 	return environment
 
 
+def console_unsupported_reason():
+	if sys.platform == "darwin":
+		return None
+	return f"console readings need macOS, this host is {sys.platform}"
+
+
+def console_command_output(argv):
+	try:
+		result = subprocess.run(
+			argv,
+			stdin=subprocess.DEVNULL,
+			stdout=subprocess.PIPE,
+			stderr=subprocess.PIPE,
+			timeout=CONSOLE_COMMAND_TIMEOUT,
+		)
+	except subprocess.TimeoutExpired:
+		return None, f"{argv[0]} timed out after {CONSOLE_COMMAND_TIMEOUT:g} s"
+	except OSError as error:
+		return None, f"{argv[0]} could not run: {error}"
+	if result.returncode:
+		detail = result.stderr.decode("utf-8", "replace").strip() or "no stderr"
+		return None, f"{argv[0]} exited with {result.returncode}: {detail}"
+	return result.stdout, None
+
+
+def plist_dicts(output):
+	data = plistlib.loads(output)
+	entries = data if isinstance(data, list) else [data]
+	return [entry for entry in entries if isinstance(entry, dict)]
+
+
+def console_idle_seconds():
+	output, error = console_command_output(
+		["ioreg", "-r", "-c", "IOHIDSystem", "-d", "1", "-a"]
+	)
+	if output is None:
+		return None, error
+	values = [
+		entry["HIDIdleTime"]
+		for entry in plist_dicts(output)
+		if type(entry.get("HIDIdleTime")) is int
+	]
+	if not values:
+		return None, "ioreg listed no IOHIDSystem HIDIdleTime"
+	return round(min(values) / 1e9, 3), None
+
+
+def console_screen_locked():
+	output, error = console_command_output(["ioreg", "-n", "Root", "-d", "1", "-a"])
+	if output is None:
+		return None, error
+	sessions = [
+		session
+		for root in plist_dicts(output)
+		for session in root.get("IOConsoleUsers") or []
+		if isinstance(session, dict)
+		and session.get("kCGSSessionOnConsoleKey") is True
+	]
+	if not sessions:
+		return None, "ioreg lists no session on the console"
+	locked = any(
+		session.get("CGSSessionScreenIsLocked") is True
+		for session in sessions
+	)
+	return locked, None
+
+
+def console_frontmost_app():
+	output, error = console_command_output(["lsappinfo", "front"])
+	if output is None:
+		return None, error
+	asn = output.decode("utf-8", "replace").strip()
+	if not LSAPPINFO_ASN_PATTERN.fullmatch(asn):
+		return None, f"lsappinfo front named no application: {asn!r}"
+	output, error = console_command_output(
+		["lsappinfo", "info", "-only", "name", asn]
+	)
+	if output is None:
+		return None, error
+	lines = output.decode("utf-8", "replace").splitlines()
+	first = lines[0] if lines else ""
+	match = LSAPPINFO_NAME_PATTERN.match(first)
+	if not match:
+		return None, f"lsappinfo info printed no name: {first!r}"
+	return match.group(1), None
+
+
+def console_value(reader):
+	# a reading never fails the run, and plistlib raises ExpatError, not only ValueError
+	try:
+		return reader()
+	except Exception as error:
+		return None, f"{type(error).__name__}: {error}"
+
+
+def console_input_reading():
+	taken_at = time.time()
+	stamp = datetime.datetime.fromtimestamp(taken_at).astimezone()
+	reading = {"time": stamp.isoformat(timespec="milliseconds")}
+	unsupported = console_unsupported_reason()
+	for key, reader in (
+		("idle_seconds", console_idle_seconds),
+		("screen_locked", console_screen_locked),
+		("frontmost_app", console_frontmost_app),
+	):
+		value, error = (
+			(None, unsupported) if unsupported else console_value(reader)
+		)
+		reading[key] = value
+		reading[f"{key}_error"] = error
+	return taken_at, reading
+
+
+def wait_for_console_idle(required, bound, clock=time.monotonic, sleep=time.sleep):
+	result = {
+		"idle_seconds": None,
+		"idle_seconds_error": None,
+		"max_seconds": bound,
+		"met": None,
+		"required_seconds": required,
+		"skipped": console_unsupported_reason(),
+		"waited_seconds": 0.0,
+	}
+	if result["skipped"]:
+		return result
+	start = clock()
+	while True:
+		polled = clock()
+		idle, error = console_value(console_idle_seconds)
+		now = clock()
+		result["idle_seconds"] = idle
+		result["idle_seconds_error"] = error
+		if idle is None:
+			break
+		if idle >= required:
+			result["met"] = True
+			break
+		# a floor so a rounding-sized deficit still advances the clock
+		pause = max(required - idle, 0.01)
+		remaining = bound - (now - start)
+		if pause + (now - polled) >= remaining:
+			# WHY: idle time grows no faster than the clock, so the bound
+			# passes before the requirement can be met; sleep it out.
+			sleep(max(remaining, 0.0))
+			result["met"] = False
+			break
+		sleep(pause)
+	result["waited_seconds"] = round(clock() - start, 3)
+	return result
+
+
 def command_test_run(args):
+	extra_environment = parse_env_values(args.env)
+	if LAUNCH_ACTIVATION_VARIABLE in extra_environment:
+		raise WorkspaceError(
+			f"--env cannot set {LAUNCH_ACTIVATION_VARIABLE}: test-run sets it to "
+			"launch the client without activating it, and --activate removes it"
+		)
+	if args.wait_idle is not None:
+		if not 0 < args.wait_idle < float("inf"):
+			raise WorkspaceError("--wait-idle must be a positive number of seconds")
+		if not 0 <= args.wait_idle_max < float("inf"):
+			raise WorkspaceError("--wait-idle-max must be zero or more seconds")
 	exe = resolved_exe(args.exe)
 	run_dir = Path(args.run_dir).expanduser().resolve()
 	run_dir.mkdir(parents=True, exist_ok=True)
 	(run_dir / "screenshots").mkdir(exist_ok=True)
 	portable = portable_root_for(exe, args.portable_root)
+	if args.wait_idle is not None:
+		golden_test_account(portable)
+	wait_idle = (
+		wait_for_console_idle(args.wait_idle, args.wait_idle_max)
+		if args.wait_idle is not None
+		else None
+	)
 	account = setup_test_account(portable)
 	stragglers = kill_processes_with_executable(exe)
 
@@ -2351,7 +2764,11 @@ def command_test_run(args):
 
 	environment = os.environ.copy()
 	environment["TDESKTOP_TEST_EVIDENCE_DIR"] = str(run_dir)
-	environment.update(parse_env_values(args.env))
+	if args.activate:
+		environment.pop(LAUNCH_ACTIVATION_VARIABLE, None)
+	else:
+		environment[LAUNCH_ACTIVATION_VARIABLE] = "1"
+	environment.update(extra_environment)
 
 	cleared = (
 		clear_stale_crash_state(
@@ -2370,10 +2787,34 @@ def command_test_run(args):
 	dumps_before = set(dumps_dir.glob("*.dmp"))
 	working_before = working.stat().st_mtime_ns if working.is_file() else None
 
+	workdir = (portable / PORTABLE_LIVE) if args.portable_root else None
+	launch_args = ["-testagent", "-noupdate"]
+	if workdir is not None:
+		launch_args += ["-workdir", str(workdir)]
+	bundle = None if args.activate else background_launch_bundle(exe)
+	if bundle is None:
+		launch = [str(exe), *launch_args]
+	else:
+		# AppKit's launch event activates an exec'd client, not one launched by open -g
+		stdout_path.write_bytes(b"")
+		stderr_path.write_bytes(b"")
+		launch = [
+			MACOS_OPEN_TOOL, "-g", "-n", "-W", "-a", str(bundle),
+			"--stdout", str(stdout_path), "--stderr", str(stderr_path),
+			"--args", *launch_args,
+		]
+
+	_, input_before = console_input_reading()
 	launched_at = time.time()
-	with stdout_path.open("wb") as out, stderr_path.open("wb") as err:
+	with executable_killed_on_abort(exe), contextlib.ExitStack() as streams:
+		if bundle is None:
+			out = streams.enter_context(stdout_path.open("wb"))
+			err = streams.enter_context(stderr_path.open("wb"))
+		else:
+			out = streams.enter_context((run_dir / "launcher_output.txt").open("wb"))
+			err = subprocess.STDOUT
 		process = subprocess.Popen(
-			[str(exe), "-testagent", "-noupdate"],
+			launch,
 			stdout=out,
 			stderr=err,
 			env=environment,
@@ -2415,8 +2856,12 @@ def command_test_run(args):
 				outcome = "quiet-killed"
 				break
 		process.wait()
-	ended_at = time.time()
-	kill_processes_with_executable(exe)
+		ended_at = time.time()
+		stragglers_after = kill_processes_with_executable(exe)
+	launcher_exit_code = None
+	if bundle is not None:
+		# open -W exits 0 whatever the client's status, so only open's own is known
+		launcher_exit_code, exit_code = exit_code, None
 
 	log_text = (
 		log_path.read_text(encoding="utf-8", errors="replace")
@@ -2457,6 +2902,15 @@ def command_test_run(args):
 	else:
 		verdict_hint = "hang"
 
+	after_at, input_after = console_input_reading()
+	input_after["seconds_since_launch"] = round(after_at - launched_at, 3)
+	input_during_run = (
+		input_after["idle_seconds"] < input_after["seconds_since_launch"]
+		if input_before["idle_seconds"] is not None
+		and input_after["idle_seconds"] is not None
+		else None
+	)
+
 	print(json.dumps({
 		"account": account,
 		"crash_report": str(working) if working.is_file() else None,
@@ -2472,6 +2926,13 @@ def command_test_run(args):
 		"duration_seconds": round(ended_at - launched_at, 1),
 		"exe": str(exe),
 		"exit_code": exit_code,
+		"golden_root": str(portable_root_for(exe, None) / PORTABLE_GOLDEN),
+		"input_after": input_after,
+		"input_before": input_before,
+		"input_during_run": input_during_run,
+		"launch_activation": "allowed" if args.activate else "suppressed",
+		"launch_method": "exec" if bundle is None else "background",
+		"launcher_exit_code": launcher_exit_code,
 		"log_path": str(log_path) if log_path.is_file() else None,
 		"markers": parse_test_log(log_text),
 		"outcome": outcome,
@@ -2480,8 +2941,11 @@ def command_test_run(args):
 		"stale_crash_cleared": cleared,
 		"stderr_tail": tail_of_file(stderr_path),
 		"stragglers_killed": stragglers,
+		"stragglers_killed_after": stragglers_after,
 		"test_complete": test_complete,
 		"verdict_hint": verdict_hint,
+		"wait_idle": wait_idle,
+		"workdir": str(workdir) if workdir is not None else None,
 	}, indent=2, sort_keys=True))
 
 
@@ -2532,16 +2996,20 @@ def read_overlay_paths(work):
 
 
 def initialized_submodule_paths(source):
-	lines = run_git(
-		source, "submodule", "status", "--recursive"
-	).stdout.splitlines()
+	source = Path(source).resolve()
 	result = []
-	for line in lines:
-		if not line or line[0] == "-":
+	for path in indexed_gitlinks(source):
+		module = Path(source) / path
+		if module.resolve() != module or is_linked_worktree(source, path + "/"):
+			raise WorkspaceError(
+				"Submodule path is a symlink or registered linked worktree: " + path
+			)
+		if not (module / ".git").exists():
 			continue
-		parts = line[1:].split()
-		if len(parts) >= 2:
-			result.append(parts[1])
+		result.append(path)
+		result.extend(
+			f"{path}/{value}" for value in initialized_submodule_paths(module)
+		)
 	return sorted(result, key=lambda path: (-path.count("/"), path))
 
 
@@ -2599,7 +3067,7 @@ def overlay_outside_inventory(source, inventory, submodules):
 	for repository_path in [""] + submodules:
 		repository = source / repository_path if repository_path else source
 		coverage = overlay_coverage(inventory, repository_path)
-		dirty = changed_paths(repository)
+		dirty = source_changed_paths(repository)
 		gitlinks = set(gitlink_paths(repository, dirty))
 		for path in dirty:
 			covered = path_is_covered(path, coverage)
@@ -2673,13 +3141,52 @@ def command_overlay_save(args):
 			"Dirty source paths are outside the overlay inventory: "
 			+ ", ".join(outside)
 		)
-	clear_overlay_submodule_bundle(work)
 	root_paths = groups.get("", [])
 	patch = (
 		run_git_binary(source, "diff", "--binary", "HEAD", "--", *root_paths)
 		if root_paths
 		else b""
 	)
+	submodule_candidates = []
+	for repository_path, paths in groups.items():
+		if not repository_path:
+			continue
+		repository_patch = run_git_binary(
+			source / repository_path, "diff", "--binary", "HEAD", "--", *paths
+		)
+		if not repository_patch.strip():
+			continue
+		name = hashlib.sha256(repository_path.encode("utf-8")).hexdigest()[:16]
+		submodule_candidates.append((repository_path, name, repository_patch))
+	if not patch.strip() and not submodule_candidates:
+		raise WorkspaceError("The overlay diff is empty; nothing to save")
+	with tempfile.TemporaryDirectory() as staging_dir:
+		staging = Path(staging_dir)
+		checks = []
+		if patch.strip():
+			staged = staging / "root.patch"
+			staged.write_bytes(patch)
+			checks.append((source, staged))
+		for repository_path, name, repository_patch in submodule_candidates:
+			staged = staging / f"{name}.patch"
+			staged.write_bytes(repository_patch)
+			checks.append((source / repository_path, staged))
+		for repository, saved_patch in checks:
+			check = subprocess.run(
+				[
+					"git", "-C", str(repository), "apply", "--check",
+					"--reverse", str(saved_patch),
+				],
+				stdout=subprocess.PIPE,
+				stderr=subprocess.PIPE,
+				text=True,
+			)
+			if check.returncode:
+				raise WorkspaceError(
+					"The saved overlay patch does not verify: "
+					+ check.stderr.strip()
+				)
+	clear_overlay_submodule_bundle(work)
 	patch_path = work / OVERLAY_PATCH_FILE
 	if patch.strip():
 		patch_path.write_bytes(patch)
@@ -2687,20 +3194,10 @@ def command_overlay_save(args):
 		patch_path.unlink(missing_ok=True)
 	submodule_entries = []
 	patches_dir = work / OVERLAY_SUBMODULES_DIR
-	for repository_path, paths in groups.items():
-		if not repository_path:
-			continue
-		repository = source / repository_path
-		repository_patch = run_git_binary(
-			repository, "diff", "--binary", "HEAD", "--", *paths
-		)
-		if not repository_patch.strip():
-			continue
+	for repository_path, name, repository_patch in submodule_candidates:
 		patches_dir.mkdir(parents=True, exist_ok=True)
-		name = hashlib.sha256(repository_path.encode("utf-8")).hexdigest()[:16]
 		relative_patch = f"{OVERLAY_SUBMODULES_DIR}/{name}.patch"
-		submodule_patch_path = work / relative_patch
-		submodule_patch_path.write_bytes(repository_patch)
+		(work / relative_patch).write_bytes(repository_patch)
 		submodule_entries.append({
 			"patch": relative_patch,
 			"path": repository_path,
@@ -2713,30 +3210,6 @@ def command_overlay_save(args):
 			}, indent=2, sort_keys=True) + "\n",
 			encoding="utf-8",
 		)
-	if not patch.strip() and not submodule_entries:
-		raise WorkspaceError("The overlay diff is empty; nothing to save")
-	checks = []
-	if patch.strip():
-		checks.append((source, patch_path))
-	checks.extend(
-		(source / entry["path"], work / entry["patch"])
-		for entry in submodule_entries
-	)
-	for repository, saved_patch in checks:
-		check = subprocess.run(
-			[
-				"git", "-C", str(repository), "apply", "--check",
-				"--reverse", str(saved_patch),
-			],
-			stdout=subprocess.PIPE,
-			stderr=subprocess.PIPE,
-			text=True,
-		)
-		if check.returncode:
-			raise WorkspaceError(
-				"The saved overlay patch does not verify: "
-				+ check.stderr.strip()
-			)
 	restored = []
 	if args.restore != "none":
 		ref = source_task_ref(args.task, args.restore)
@@ -2759,7 +3232,7 @@ def command_overlay_save(args):
 					f"{repository_path}/{path}"
 					if repository_path else path
 				)
-				for path in changed_paths(repository)
+				for path in source_changed_paths(repository)
 				if path_is_covered(path, paths)
 			)
 		if remaining:
@@ -2876,7 +3349,7 @@ def command_source_commit(args):
 	allowed = owned + [source_note]
 	if carried_from is not None:
 		allowed.append(f"tasks/{carried_from}.md")
-	dirty = changed_paths(source)
+	dirty = source_changed_paths(source)
 	if not dirty:
 		raise WorkspaceError("The source checkout has no changes to commit")
 	outside = [
@@ -2995,14 +3468,8 @@ def command_fence_check(args):
 def command_source_preflight(args):
 	config, slot = task_action_config(args)
 	source = Path(config["source_root"])
-	dirty = changed_paths(source)
-	submodule_lines = run_git(
-		source, "submodule", "status", "--recursive"
-	).stdout.splitlines()
-	submodules_dirty = [
-		line.strip() for line in submodule_lines
-		if line and line[0] in "+-U"
-	]
+	dirty = source_changed_paths(source)
+	submodules_dirty = mismatched_submodules(source)
 	work = slot / task_relative_dir(args.task) / "work"
 	owned_file = work / "owned-paths.txt"
 	owned = [
@@ -3142,7 +3609,7 @@ def owned_source_paths(slot, task_id):
 def source_worktree_snapshot(config, slot, task_id):
 	source = Path(config["source_root"])
 	owned = owned_source_paths(slot, task_id)
-	dirty = changed_paths(source)
+	dirty = source_changed_paths(source)
 	allowed = owned + [f"tasks/{task_id}.md"]
 	gitlinks = set(gitlink_paths(source, dirty))
 	nested_owned = {}
@@ -3155,7 +3622,7 @@ def source_worktree_snapshot(config, slot, task_id):
 		]
 		if not nested_allowed:
 			continue
-		nested_dirty = changed_paths(source / path)
+		nested_dirty = source_changed_paths(source / path)
 		if all(path_is_covered(value, nested_allowed) for value in nested_dirty):
 			nested_owned[path] = (nested_allowed, nested_dirty)
 	owned_dirty = [
@@ -3339,7 +3806,7 @@ def command_finish(args):
 	result = result_path.read_text(encoding="utf-8-sig")
 	lines = result.splitlines()
 	if not split_required:
-		ensure_clean(Path(config["source_root"]), "Telegram source checkout")
+		ensure_source_clean(Path(config["source_root"]))
 		expected = "STATUS: DONE" if approved else "STATUS: BLOCKED"
 		if expected not in lines:
 			raise WorkspaceError(
@@ -3417,9 +3884,47 @@ def command_finish(args):
 	}, indent=2, sort_keys=True))
 
 
+def recover_approval_source_refs(config, task_id):
+	source = Path(config["source_root"])
+	refs = [
+		resolved_ref(source, source_task_ref(task_id, name))
+		for name in ("base", "green", "run")
+	]
+	if all(value is None for value in refs):
+		return {"task": task_id, "action": "absent", "reason": None}
+	try:
+		main = Path(config["ai_main"])
+		state = load_state(main, state_path(main, task_id))
+		if state["status"] != "approved":
+			raise WorkspaceError(
+				f"Canonical task status is {state['status']!r}, not 'approved'"
+			)
+		if state["claimed_by"] != config["checkout_tag"]:
+			raise WorkspaceError(
+				f"Canonical task is claimed by {state['claimed_by']!r}, "
+				f"not {config['checkout_tag']!r}"
+			)
+		if state["type"] != DEFAULT_TASK_TYPE:
+			raise WorkspaceError(
+				f"Canonical task type is {state['type']!r}, not {DEFAULT_TASK_TYPE!r}"
+			)
+		result_path = main / task_relative_dir(task_id) / "work" / "result.md"
+		if not result_path.is_file():
+			raise WorkspaceError(f"Task result is missing: {result_path}")
+		lines = result_path.read_text(encoding="utf-8-sig").splitlines()
+		outcome = validate_outcome_result(lines, result_path, True)
+		ensure_source_clean(source)
+		validate_source_state(config, task_id, outcome == "changed")
+	except WorkspaceError as error:
+		return {"task": task_id, "action": "retained", "reason": str(error)}
+	delete_source_refs(config, task_id)
+	return {"task": task_id, "action": "deleted", "reason": None}
+
+
 def command_publish(args):
 	config = worktree_config(args, create=True)
 	slot = Path(config["slot_worktree"])
+	approval_task = approval_task_for_head(slot)
 	consolidation_validate = consolidation_validation_for_head(slot)
 	split_validate = split_validation_for_head(slot)
 	validate = consolidation_validate or split_validate
@@ -3430,7 +3935,16 @@ def command_publish(args):
 		).stdout.strip()[len("Split "):]
 		if load_splits(slot)[source_task]["implementation_carrier"] is None:
 			delete_source_refs(config, source_task)
-	print(json.dumps({"published": bool(published)}, indent=2, sort_keys=True))
+	output = {"published": bool(published)}
+	if published and approval_task is not None:
+		report = recover_approval_source_refs(config, approval_task)
+		if report["action"] == "retained":
+			print(
+				f"warning: kept source refs of {approval_task}: {report['reason']}",
+				file=sys.stderr,
+			)
+		output["approval_refs"] = report
+	print(json.dumps(output, indent=2, sort_keys=True))
 
 
 def normalized_publish_path(value):
@@ -3637,6 +4151,15 @@ def validate_split_tree(root, source_task, replacements, receipt, carrier):
 			raise WorkspaceError(
 				f"Project index omits split replacement {task_id}: {project_path}"
 			)
+
+
+def approval_task_for_head(slot):
+	subject = run_git(slot, "show", "-s", "--format=%s", "HEAD").stdout.strip()
+	prefix = "Approve "
+	if not subject.startswith(prefix):
+		return None
+	task_id = subject[len(prefix):]
+	return task_id if TASK_ID_PATTERN.fullmatch(task_id) else None
 
 
 def split_validation_for_head(slot):
@@ -4719,6 +5242,10 @@ def parse_args():
 	source_verify_commit.add_argument("--ref", default="HEAD")
 	source_verify_commit.set_defaults(handler=command_source_verify_commit)
 
+	source_prepare = subparsers.add_parser("source-prepare")
+	source_prepare.add_argument("--source-root")
+	source_prepare.set_defaults(handler=command_source_prepare)
+
 	source_preflight = subparsers.add_parser("source-preflight")
 	add_common_arguments(source_preflight)
 	source_preflight.add_argument("--task", required=True)
@@ -4755,6 +5282,9 @@ def parse_args():
 	test_run.add_argument("--deadline", type=float, default=120.0)
 	test_run.add_argument("--quiet", type=float, default=60.0)
 	test_run.add_argument("--grace", type=float, default=15.0)
+	test_run.add_argument("--wait-idle", type=float)
+	test_run.add_argument("--wait-idle-max", type=float, default=WAIT_IDLE_MAX_DEFAULT)
+	test_run.add_argument("--activate", action="store_true")
 	test_run.add_argument("--env", action="append")
 	test_run.set_defaults(handler=command_test_run)
 

@@ -19,9 +19,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "main/main_app_config.h"
 #include "media/view/media_view_open_common.h"
+#include "lang/lang_hardcoded.h"
 #include "lang/lang_keys.h"
 #include "intro/intro_widget.h"
 #include "mtproto/mtproto_config.h"
+#include "storage/storage_account.h"
 #include "ui/toast/toast.h"
 #include "ui/emoji_config.h"
 #include "chat_helpers/emoji_sets_manager.h"
@@ -31,6 +33,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/components/promo_suggestions.h"
 #include "data/data_thread.h"
 #include "settings/settings_common.h"
+#include "wallet/wallet_panel.h"
+#include "wallet/wallet_session.h"
 #include "apiwrap.h" // ApiWrap::acceptTerms.
 #include "styles/style_layers.h"
 
@@ -264,6 +268,7 @@ void Controller::checkLockByTerms() {
 		return;
 	}
 	hideSettingsAndLayer(anim::type::instant);
+	Wallet::CloseWallet(&account().session());
 	const auto box = show(Box<TermsBox>(
 		*data,
 		tr::lng_terms_agree(),
@@ -566,6 +571,29 @@ QPoint Controller::getPointForCallPanelCenter() const {
 		: _widget.geometry().center();
 }
 
+QString LogoutConfirmationText(Main::Account *account) {
+	auto result = tr::lng_sure_logout(tr::now);
+	const auto append = [&](const QString &line) {
+		if (!line.isEmpty()) {
+			result += u"\n\n"_q + line;
+		}
+	};
+	const auto &domain = Core::App().domain();
+	if (account) {
+		append(Wallet::WalletLossWarning(
+			Wallet::WalletLossOnLogout(account)));
+	} else if (!domain.started()) {
+		append(tr::lng_sure_logout_wallet_unknown(tr::now));
+	} else {
+		auto loss = Wallet::WalletLoss();
+		for (const auto &[index, one] : domain.accounts()) {
+			loss.add(Wallet::WalletLossOnLogout(one.get()));
+		}
+		append(Wallet::WalletLossWarning(loss));
+	}
+	return result;
+}
+
 void Controller::showLogoutConfirmation() {
 	const auto account = Core::App().passcodeLocked()
 		? nullptr
@@ -582,10 +610,27 @@ void Controller::showLogoutConfirmation() {
 		}
 	};
 	show(Ui::MakeConfirmBox({
-		.text = tr::lng_sure_logout(),
+		.text = LogoutConfirmationText(account),
 		.confirmed = callback,
 		.confirmText = tr::lng_settings_logout(),
 		.confirmStyle = &st::attentionBoxButton,
+	}));
+}
+
+void Controller::showPasscodeClearFailed(Fn<bool()> retry) {
+	if (_passcodeClearFailedBox) {
+		return;
+	}
+	_passcodeClearFailedBox = show(Ui::MakeConfirmBox({
+		.text = Lang::Hard::SecureSaveError(),
+		.confirmed = [=](Fn<void()> close) {
+			if (retry && retry()) {
+				close();
+			}
+		},
+		.confirmText = tr::lng_bot_download_retry(),
+		.cancelText = tr::lng_close(),
+		.title = tr::lng_passcode_remove(),
 	}));
 }
 

@@ -56,11 +56,12 @@ void SelfTestBoxContent(not_null<Ui::GenericBox*> box, bool noContentMargin) {
 	if (noContentMargin) {
 		// The whole difference between the two legs of this self-test.
 		// Ui::BoxContent's constructor set Qt::WA_OpaquePaintEvent, and this
-		// clears it again (ui/layers/box_content.h:224-230), which is the
-		// only shape the blank-root refusal fires for. Without it the refusal
-		// the second stage quotes is not in force at all, and the plain leg
-		// exists precisely so the log says which boxes are refused and which
-		// are not, instead of leaving a reader to assume every box is.
+		// clears it again (Ui::BoxContent::setNoContentMargin in
+		// ui/layers/box_content.h), which is the only shape the blank-root
+		// refusal fires for. Without it the refusal the second stage quotes
+		// is not in force at all, and the plain leg exists precisely so the
+		// log says which boxes are refused and which are not, instead of
+		// leaving a reader to assume every box is.
 		box->setNoContentMargin(true);
 	}
 	box->setWidth(st::boxWidth);
@@ -100,13 +101,13 @@ void SelfTestBoxContent(not_null<Ui::GenericBox*> box, bool noContentMargin) {
 	}
 	// anim::type::instant is why this fixture needs no animation wait at all:
 	// LayerStackWidget::prepareAnimation takes its instant branch
-	// (ui/layers/layer_widget.cpp:669-673), which reaches
-	// BackgroundWidget::skipAnimation (:151-157) -> checkIfDone (:159-169) ->
-	// LayerStackWidget::animationDone (:756-773), and that is where
-	// layer->show() runs. The normal path instead hides the layer for the
-	// whole animation in prepareForAnimation() (:732-754), which is why the
-	// scenario that paid for this resolver had to gate on box->isVisible()
-	// and wait for a new layer generation before it could capture anything.
+	// (ui/layers/layer_widget.cpp), which reaches
+	// BackgroundWidget::skipAnimation -> checkIfDone ->
+	// LayerStackWidget::animationDone, and that is where layer->show() runs.
+	// The normal path instead hides the layer for the whole animation in
+	// prepareForAnimation(), which is why the scenario that paid for this
+	// resolver had to gate on box->isVisible() and wait for a new layer
+	// generation before it could capture anything.
 	fixture.box = window->show(
 		Box(SelfTestBoxContent, noContentMargin),
 		Ui::LayerOption::CloseOther,
@@ -319,6 +320,38 @@ void AppendPaintingLayerRootSelfTest(not_null<Runner*> runner) {
 				"the box's rect maps inside its Ui::BoxLayerWidget and "
 				"MisframedDetails does not fire"_q,
 				details());
+			Check(
+				CaptureBoxLayer(box, u"layer_root_box_shell"_q),
+				u"CaptureBoxLayer saves the resolved Ui::BoxLayerWidget, "
+				"including the title band CaptureInLayerRoot's crop "
+				"drops"_q,
+				details());
+			const auto titleBand = Crop(
+				image,
+				QRect(0, 0, image.width(), int(mapped.y() * ratio)));
+			Check(
+				(mapped.y() > 0)
+					&& !titleBand.isNull()
+					&& !LooksBlank(titleBand),
+				u"the whole-shell frame holds a non-blank title band "
+				"above the box content's mapped top"_q,
+				u"mapped=%1,%2 %3x%4 titleBand=%5x%6"_q
+					.arg(mapped.x())
+					.arg(mapped.y())
+					.arg(mapped.width())
+					.arg(mapped.height())
+					.arg(titleBand.width())
+					.arg(titleBand.height()));
+			Check(
+				cropped.height() < image.height(),
+				u"the content-cropped frame is strictly shorter than the "
+				"shell, so the title band is new information and not a "
+				"rename"_q,
+				u"cropped=%1x%2 shell=%3x%4"_q
+					.arg(cropped.width())
+					.arg(cropped.height())
+					.arg(image.width())
+					.arg(image.height()));
 		},
 		kDefaultStageTimeout,
 		[=](QWidget*) {
@@ -364,6 +397,26 @@ void AppendPaintingLayerRootSelfTest(not_null<Runner*> runner) {
 				"hop, which is the mechanism that keeps the resolver off a "
 				"Ui::PopupMenu"_q,
 				owner.refusal);
+			const auto live = PaintingLayerRoot(state->fixture.box.get());
+			const auto outside = live.resolved()
+				? QRect(
+					live.widget->width(),
+					live.widget->height(),
+					16,
+					16)
+				: QRect();
+			const auto misframed = live.resolved()
+				? MisframedDetails(live.widget.data(), outside)
+				: QString();
+			Check(
+				live.resolved()
+					&& !misframed.isEmpty()
+					&& misframed.contains(
+						u"requested rect is not fully inside"_q),
+				u"CaptureMappedRect's misframing refusal still fires for "
+				"a rect that maps outside the layer, observed through "
+				"MisframedDetails so this stage logs no failure"_q,
+				misframed);
 		},
 	});
 

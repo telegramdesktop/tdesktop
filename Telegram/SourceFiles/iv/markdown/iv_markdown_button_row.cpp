@@ -513,6 +513,12 @@ const style::icon *RichButtonIcon(ButtonType type) {
 	Unexpected("TypeIcon in Iv::Markdown::RichButtonIcon.");
 }
 
+QString RichButtonUrl(ButtonType type, const QByteArray &data) {
+	return (type == ButtonType::Url || type == ButtonType::Auth)
+		? QString::fromUtf8(data)
+		: QString();
+}
+
 QString RichButtonTooltip(
 		ButtonType type,
 		const QByteArray &data,
@@ -523,9 +529,7 @@ QString RichButtonTooltip(
 			lt_text,
 			st::wrap_rtl(QString::fromUtf8(data)));
 	}
-	const auto url = (type == ButtonType::Url || type == ButtonType::Auth)
-		? QString::fromUtf8(data)
-		: QString();
+	const auto url = RichButtonUrl(type, data);
 	if (url.isEmpty()) {
 		return elidedLabel;
 	} else if (elidedLabel.isEmpty()) {

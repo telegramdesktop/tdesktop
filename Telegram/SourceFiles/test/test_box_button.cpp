@@ -18,10 +18,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_widgets.h"
 #include "ui/layers/box_content.h"
 #include "ui/layers/generic_box.h"
+#include "ui/effects/animation_value.h"
 #include "ui/layers/layer_widget.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
 #include "ui/abstract_button.h"
 #include "ui/rp_widget.h"
+#include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "window/window_controller.h"
 
@@ -37,6 +40,8 @@ namespace {
 const auto kSubmitLabel = u"Harness Submit"_q;
 const auto kCancelLabel = u"Harness Cancel"_q;
 const auto kCloseLabel = u"Harness Close"_q;
+const auto kBusyLabel = u"Harness Busy"_q;
+const auto kHiddenLabel = u"Harness Hidden"_q;
 const auto kDecoyLabel = u"Harness Content"_q;
 const auto kUnknownLabel = u"Harness Nowhere"_q;
 
@@ -46,7 +51,7 @@ struct Fixture {
 };
 
 // Ui::BoxLayerWidget::addButton is the only thing that parents a footer
-// button directly to the shell (ui/layers/box_layer_widget.cpp:327-331), and
+// button directly to the shell (ui/layers/box_layer_widget.cpp), and
 // the box content sits under that same root, so an unrestricted walk would
 // answer content buttons too. Filtering on the parent is what makes the
 // answer exactly "the shell's own button row" - the close Ui::IconButton an
@@ -93,22 +98,42 @@ void SelfTestBoxContent(
 	box->addButton(rpl::single(kSubmitLabel), std::move(submitted));
 	box->addButton(rpl::single(kCancelLabel), nullptr);
 	box->addButton(rpl::single(kCloseLabel), [=] { box->closeBox(); });
+	const auto busy = box->addButton(rpl::single(kBusyLabel), nullptr);
+	busy->setDisabled(true);
+	const auto hidden = box->addButton(rpl::single(kHiddenLabel), nullptr);
+	hidden->hide();
 }
 
-[[nodiscard]] bool BuildFixture(Fixture &fixture, Fn<void()> submitted) {
+[[nodiscard]] Ui::FlatLabel *ShellTitle(QWidget *root) {
+	if (!root) {
+		return nullptr;
+	}
+	for (const auto label : FindAll<Ui::FlatLabel>(root)) {
+		if (label->parentWidget() == root) {
+			return label;
+		}
+	}
+	return nullptr;
+}
+
+[[nodiscard]] bool BuildFixture(
+		Fixture &fixture,
+		Fn<void()> submitted,
+		anim::type animated) {
 	const auto window = Core::App().activePrimaryWindow();
 	if (!window) {
 		return false;
 	}
 	fixture.stray = base::make_unique_q<Ui::RpWidget>(window->widget().get());
-	// anim::type::instant is why this fixture needs no animation wait:
-	// LayerStackWidget takes its instant branch straight to animationDone,
-	// where layer->show() runs, while the normal path hides the layer for
-	// the whole animation. test_layer_root.cpp:96-122 carries the full walk.
+	// anim::type::normal is the product default and the path that hides the
+	// layer in LayerStackWidget::prepareForAnimation until animationDone
+	// shows it again. The first self-test stage takes its hidden reading
+	// in that same turn; until still waits on box->isVisible(). Instant
+	// skips the hide; test_layer_root.cpp carries the full walk.
 	fixture.box = window->show(
 		Box(SelfTestBoxContent, std::move(submitted)),
 		Ui::LayerOption::CloseOther,
-		anim::type::instant);
+		animated);
 	return (fixture.box.get() != nullptr);
 }
 
@@ -147,11 +172,20 @@ BoxShellButtons ReadBoxButtons(QWidget *box, const QString &label) {
 		if (name.compare(label, Qt::CaseInsensitive) != 0) {
 			continue;
 		}
+		result.present = true;
 		// A click on a hidden or a disabled button is exactly the silent
 		// no-op this helper exists to remove, and Test::Click would deliver
 		// it just as happily as any other, so a name that matches an
-		// unusable button is a refusal here and never a match.
+		// unusable button is a refusal here and never a match. present /
+		// disabled / hidden are values recorded from isVisible() /
+		// isDisabled() in this walk, never derived from |match|, which
+		// goes null when the shell dies.
 		if (!visible || !enabled) {
+			if (!visible) {
+				result.hidden = true;
+			} else {
+				result.disabled = true;
+			}
 			if (unusable.isEmpty()) {
 				unusable = u"the shell button labelled \"%1\" under %2 is "
 					"%3, so clicking it would do nothing at all"_q
@@ -180,10 +214,19 @@ bool BoxButtonReady(QWidget *box, const QString &label) {
 	return ReadBoxButtons(box, label).matched();
 }
 
+bool BoxButtonDisabled(QWidget *box, const QString &label) {
+	return ReadBoxButtons(box, label).disabled;
+}
+
+bool BoxButtonHidden(QWidget *box, const QString &label) {
+	return ReadBoxButtons(box, label).hidden;
+}
+
 QString BoxButtonDetails(QWidget *box, const QString &label) {
 	const auto reading = ReadBoxButtons(box, label);
 	const auto text = u"box %1 root=%2 wanted=\"%3\" shellButtons=%4 "
-		"shellRoundButtons=%5 contentRoundButtons=%6 labels=[%7]"_q
+		"shellRoundButtons=%5 contentRoundButtons=%6 labels=[%7] "
+		"present=%8 disabled=%9 hidden=%10"_q
 		.arg(
 			reading.identity,
 			reading.root
@@ -193,7 +236,10 @@ QString BoxButtonDetails(QWidget *box, const QString &label) {
 		.arg(reading.shellButtons)
 		.arg(reading.shellRoundButtons)
 		.arg(reading.contentRoundButtons)
-		.arg(reading.labels.join(u", "_q));
+		.arg(reading.labels.join(u", "_q))
+		.arg(reading.present ? 1 : 0)
+		.arg(reading.disabled ? 1 : 0)
+		.arg(reading.hidden ? 1 : 0);
 	return reading.refusal.isEmpty()
 		? text
 		: u"%1 - %2"_q.arg(text, reading.refusal);
@@ -210,10 +256,10 @@ bool ClickBoxButton(QWidget *box, const QString &label) {
 	// call sites under Telegram/SourceFiles are a plain closeBox() lambda -
 	// and that path is synchronous inside Test::Click:
 	// AbstractButton::setDown(false) calls clicked()
-	// (abstract_button.cpp:190-191), clicked() runs _clickedCallback()
-	// (:122-131), and the callback reaches LayerStackWidget::clearLayers(),
-	// whose clearClosingLayers() erases the Ui::BoxLayerWidget out of its
-	// unique_ptr vector (layer_widget.cpp:944-977) and deletes the shell
+	// (abstract_button.cpp), clicked() runs _clickedCallback(), and the
+	// callback reaches LayerStackWidget::clearLayers(), whose
+	// clearClosingLayers() erases the Ui::BoxLayerWidget out of its
+	// unique_ptr vector (layer_widget.cpp) and deletes the shell
 	// with every button on it. A WidgetDescription taken after the click
 	// would read freed memory. The reading now reports that destruction
 	// itself: BoxShellButtons::match is a QPointer<QWidget>, so survived= is
@@ -239,6 +285,7 @@ void AppendBoxButtonClickSelfTest(not_null<Runner*> runner) {
 	struct State {
 		Fixture fixture;
 		BoxShellButtons closedReading;
+		BoxShellButtons busyReading;
 		QString closedMatchText;
 		QString closedRootText;
 		QString closedIdentityBefore;
@@ -253,6 +300,19 @@ void AppendBoxButtonClickSelfTest(not_null<Runner*> runner) {
 		int closedContentRoundButtonsBefore = 0;
 		bool closedMatchedBefore = false;
 		bool closedMatchedSameTurn = true;
+		bool busyPresentBefore = false;
+		bool busyDisabledBefore = false;
+		bool busyHiddenBefore = false;
+		QString busyRefusalBefore;
+		QStringList busyLabelsBefore;
+		BoxShellButtons hiddenSubmit;
+		BoxShellButtons hiddenCancel;
+		BoxShellButtons hiddenBusy;
+		bool hiddenBoxVisible = true;
+		bool hiddenRootVisible = true;
+		bool hiddenTitleVisible = true;
+		bool hiddenReady = true;
+		int hiddenTitleCount = 0;
 	};
 	// Leaked on purpose, the way the harness's other self-tests leak theirs:
 	// the stages outlive this call. The teardown stage releases the fixture,
@@ -280,13 +340,80 @@ void AppendBoxButtonClickSelfTest(not_null<Runner*> runner) {
 		.run = [=] {
 			state->built = BuildFixture(
 				state->fixture,
-				[=] { ++state->fired; });
+				[=] { ++state->fired; },
+				anim::type::normal);
 			Check(
 				state->built,
 				u"fixture gate: the self-test fixture was built"_q,
 				state->built
 					? QString()
 					: u"Core::App().activePrimaryWindow() is null"_q);
+			if (!state->built) {
+				return;
+			}
+			const auto box = state->fixture.box.get();
+			if (!box) {
+				Check(
+					false,
+					u"the fixture box exists in the turn it was shown"_q,
+					details());
+				return;
+			}
+			const auto root = PaintingLayerRoot(box);
+			const auto title = ShellTitle(
+				root.resolved() ? root.widget.data() : nullptr);
+			state->hiddenSubmit = ReadBoxButtons(box, kSubmitLabel);
+			state->hiddenCancel = ReadBoxButtons(box, kCancelLabel);
+			state->hiddenBusy = ReadBoxButtons(box, kBusyLabel);
+			state->hiddenBoxVisible = box->isVisible();
+			state->hiddenRootVisible = root.resolved()
+				&& root.widget->isVisible();
+			state->hiddenTitleCount = title ? 1 : 0;
+			state->hiddenTitleVisible = title && title->isVisible();
+			state->hiddenReady = BoxButtonReady(box, kSubmitLabel);
+			const auto hiddenText = u"boxVisible=%1 rootVisible=%2 "
+				"titleCount=%3 titleVisible=%4 ready=%5 "
+				"submit=[%6] cancel=[%7] busy=[%8] refusal=%9"_q
+				.arg(state->hiddenBoxVisible ? 1 : 0)
+				.arg(state->hiddenRootVisible ? 1 : 0)
+				.arg(state->hiddenTitleCount)
+				.arg(state->hiddenTitleVisible ? 1 : 0)
+				.arg(state->hiddenReady ? 1 : 0)
+				.arg(state->hiddenSubmit.labels.join(u", "_q))
+				.arg(state->hiddenCancel.labels.join(u", "_q))
+				.arg(state->hiddenBusy.labels.join(u", "_q))
+				.arg(state->hiddenSubmit.refusal);
+			Check(
+				state->hiddenSubmit.present
+					&& state->hiddenSubmit.hidden
+					&& !state->hiddenSubmit.matched()
+					&& state->hiddenSubmit.labels.contains(
+						u"Harness Submit (hidden)"_q)
+					&& state->hiddenCancel.present
+					&& state->hiddenCancel.hidden
+					&& state->hiddenCancel.labels.contains(
+						u"Harness Cancel (hidden)"_q)
+					&& !state->hiddenBoxVisible
+					&& !state->hiddenRootVisible
+					&& (state->hiddenTitleCount == 1)
+					&& !state->hiddenTitleVisible
+					&& !state->hiddenReady
+					&& state->hiddenSubmit.refusal.contains(u"is hidden"_q),
+				u"in the turn the box was shown with anim::type::normal, "
+				"the whole Ui::BoxLayerWidget is hidden, so ReadBoxButtons "
+				"names every footer (hidden) including the title label, "
+				"BoxButtonReady is false, and ClickBoxButton's refusal "
+				"would name that hide"_q,
+				hiddenText);
+			Check(
+				state->hiddenBusy.present
+					&& state->hiddenBusy.hidden
+					&& !state->hiddenBusy.disabled
+					&& state->hiddenBusy.labels.contains(
+						u"Harness Busy (hidden)"_q),
+				u"the hide is the whole layer, not a product-disabled "
+				"footer: Busy is (hidden) in this turn, not (disabled)"_q,
+				hiddenText);
 		},
 		.until = ready,
 		.then = [=] {
@@ -302,6 +429,44 @@ void AppendBoxButtonClickSelfTest(not_null<Runner*> runner) {
 				return;
 			}
 			const auto root = PaintingLayerRoot(box);
+			const auto title = ShellTitle(
+				root.resolved() ? root.widget.data() : nullptr);
+			const auto submit = ReadBoxButtons(box, kSubmitLabel);
+			const auto busy = ReadBoxButtons(box, kBusyLabel);
+			const auto settledText = u"hiddenLabels=[%1] hiddenReady=%2 "
+				"submit present=%3 matched=%4 hidden=%5 "
+				"busy present=%6 disabled=%7 hidden=%8 "
+				"titleVisible=%9 "_q
+				.arg(state->hiddenSubmit.labels.join(u", "_q))
+				.arg(state->hiddenReady ? 1 : 0)
+				.arg(submit.present ? 1 : 0)
+				.arg(submit.matched() ? 1 : 0)
+				.arg(submit.hidden ? 1 : 0)
+				.arg(busy.present ? 1 : 0)
+				.arg(busy.disabled ? 1 : 0)
+				.arg(busy.hidden ? 1 : 0)
+				.arg((title && title->isVisible()) ? 1 : 0)
+				+ u"boxVisible=%1 labels=[%2]"_q
+				.arg(box->isVisible() ? 1 : 0)
+				.arg(submit.labels.join(u", "_q));
+			Check(
+				state->hiddenSubmit.hidden
+					&& !state->hiddenReady
+					&& submit.present
+					&& submit.matched()
+					&& !submit.hidden
+					&& BoxButtonReady(box, kSubmitLabel)
+					&& busy.present
+					&& busy.disabled
+					&& !busy.hidden
+					&& busy.labels.contains(u"Harness Busy (disabled)"_q)
+					&& title
+					&& title->isVisible()
+					&& box->isVisible(),
+				u"after the layer show animation settles, the same box "
+				"object reads Submit ready and Busy disabled, with the "
+				"title visible"_q,
+				settledText);
 			const auto shell = ShellButtons(root.widget.data());
 			auto reachable = 0;
 			for (const auto button : shell) {
@@ -375,11 +540,96 @@ void AppendBoxButtonClickSelfTest(not_null<Runner*> runner) {
 				after == before,
 				u"a successful click logs no failure of its own"_q,
 				u"failures before=%1 after=%2"_q.arg(before).arg(after));
+			const auto root = PaintingLayerRoot(box);
 			Check(
-				CaptureInLayerRoot(box, u"box_button_shell"_q),
-				u"the clicked shell row is saved as durable evidence "
-				"through the existing layer-root capture"_q,
+				root.resolved(),
+				u"the clicked box still has a painting layer root to "
+				"measure both frames against"_q,
+				root.resolved()
+					? WidgetDescription(root.widget.data())
+					: root.refusal);
+			if (!root.resolved()) {
+				return;
+			}
+			const auto mapped = Ui::MapFrom(
+				root.widget.data(),
+				box,
+				box->rect());
+			Check(
+				CaptureInLayerRoot(box, u"box_button_shell_cropped"_q),
+				u"the content-cropped before-leg still saves the box's "
+				"own rect through CaptureInLayerRoot"_q,
 				details());
+			Check(
+				CaptureBoxLayer(box, u"box_button_shell"_q),
+				u"the clicked shell row is saved as durable evidence "
+				"through CaptureBoxLayer, whose frame is the "
+				"Ui::BoxLayerWidget including the footer row"_q,
+				details());
+			const auto shellImage = GrabWidget(root.widget.data());
+			const auto croppedImage = GrabRect(root.widget.data(), mapped);
+			const auto ratio = shellImage.devicePixelRatio();
+			const auto titleBand = Crop(
+				shellImage,
+				QRect(0, 0, shellImage.width(), int(mapped.y() * ratio)));
+			const auto footerTop = int(
+				(mapped.y() + mapped.height()) * ratio);
+			const auto footerHeight = (footerTop < shellImage.height())
+				? (shellImage.height() - footerTop)
+				: 0;
+			const auto footerBand = Crop(
+				shellImage,
+				QRect(0, footerTop, shellImage.width(), footerHeight));
+			const auto footerInCropped = Crop(
+				croppedImage,
+				QRect(
+					0,
+					croppedImage.height(),
+					croppedImage.width(),
+					footerBand.height()));
+			const auto measureText = u"shell=%1x%2 cropped=%3x%4 "
+				"root=%5x%6 mapped=%7,%8 %9x"_q
+				.arg(shellImage.width())
+				.arg(shellImage.height())
+				.arg(croppedImage.width())
+				.arg(croppedImage.height())
+				.arg(root.widget->width())
+				.arg(root.widget->height())
+				.arg(mapped.x())
+				.arg(mapped.y())
+				.arg(mapped.width())
+				+ u"%1 ratio=%2 titleBand=%3x%4 footerBand=%5x%6 "
+				"footerInCroppedNull=%7"_q
+				.arg(mapped.height())
+				.arg(ratio)
+				.arg(titleBand.width())
+				.arg(titleBand.height())
+				.arg(footerBand.width())
+				.arg(footerBand.height())
+				.arg(footerInCropped.isNull() ? 1 : 0);
+			Check(
+				(shellImage.width()
+					>= int(root.widget->width() * ratio))
+					&& (shellImage.height()
+						>= int(root.widget->height() * ratio))
+					&& (mapped.y() > 0)
+					&& ((mapped.y() + mapped.height())
+						< root.widget->height())
+					&& !titleBand.isNull()
+					&& !LooksBlank(titleBand)
+					&& !footerBand.isNull()
+					&& !LooksBlank(footerBand),
+				u"the whole-shell frame covers the Ui::BoxLayerWidget and "
+				"holds non-blank title and footer bands outside the box "
+				"content's mapped rect"_q,
+				measureText);
+			Check(
+				!croppedImage.isNull()
+					&& (croppedImage.height() < shellImage.height())
+					&& footerInCropped.isNull(),
+				u"the content-cropped before-leg is strictly shorter than "
+				"the shell and cannot contain the footer band"_q,
+				measureText);
 		},
 		.timeoutDetails = details,
 	});
@@ -452,6 +702,105 @@ void AppendBoxButtonClickSelfTest(not_null<Runner*> runner) {
 	});
 
 	runner->add({
+		.name = u"box button self-test: a disabled footer is readable as "
+			"disabled"_q,
+		.run = [=] {
+			if (!state->built) {
+				return;
+			}
+			const auto box = state->fixture.box.get();
+			if (!box) {
+				Check(
+					false,
+					u"the fixture box is still alive to be read as "
+					"disabled"_q,
+					details());
+				return;
+			}
+			const auto busy = ReadBoxButtons(box, kBusyLabel);
+			const auto hidden = ReadBoxButtons(box, kHiddenLabel);
+			const auto submit = ReadBoxButtons(box, kSubmitLabel);
+			const auto busyText = u"present=%1 disabled=%2 hidden=%3 "
+				"matched=%4 match=%5 labels=[%6] refusal=%7"_q
+				.arg(busy.present ? 1 : 0)
+				.arg(busy.disabled ? 1 : 0)
+				.arg(busy.hidden ? 1 : 0)
+				.arg(busy.matched() ? 1 : 0)
+				.arg(busy.match ? 1 : 0)
+				.arg(busy.labels.join(u", "_q), busy.refusal);
+			const auto hiddenText = u"present=%1 disabled=%2 hidden=%3 "
+				"matched=%4 match=%5 labels=[%6] refusal=%7"_q
+				.arg(hidden.present ? 1 : 0)
+				.arg(hidden.disabled ? 1 : 0)
+				.arg(hidden.hidden ? 1 : 0)
+				.arg(hidden.matched() ? 1 : 0)
+				.arg(hidden.match ? 1 : 0)
+				.arg(hidden.labels.join(u", "_q), hidden.refusal);
+			Check(
+				busy.present
+					&& busy.disabled
+					&& !busy.hidden
+					&& !busy.matched()
+					&& (busy.match == nullptr)
+					&& busy.refusal.contains(u"is disabled"_q)
+					&& busy.labels.contains(u"Harness Busy (disabled)"_q),
+				u"a disabled footer button is readable as present and "
+				"disabled through the new answer, and matched() is still "
+				"false"_q,
+				busyText);
+			Check(
+				BoxButtonDisabled(box, kBusyLabel)
+					&& !BoxButtonReady(box, kBusyLabel)
+					&& !BoxButtonHidden(box, kBusyLabel),
+				u"BoxButtonDisabled is true for that disabled footer, "
+				"beside BoxButtonReady still false"_q,
+				busyText);
+			Check(
+				hidden.present
+					&& hidden.hidden
+					&& !hidden.disabled
+					&& !hidden.matched()
+					&& (hidden.match == nullptr)
+					&& hidden.labels.contains(u"Harness Hidden (hidden)"_q)
+					&& BoxButtonHidden(box, kHiddenLabel)
+					&& !BoxButtonDisabled(box, kHiddenLabel),
+				u"a hidden footer button is still distinguished from a "
+				"disabled one"_q,
+				hiddenText);
+			Check(
+				submit.present
+					&& submit.matched()
+					&& !submit.disabled
+					&& !submit.hidden
+					&& BoxButtonReady(box, kSubmitLabel),
+				u"the ready submit footer is still a match, so the "
+				"unusable answer does not rename matched()"_q,
+				BoxButtonDetails(box, kSubmitLabel));
+			Note(u"box button self-test: the FAIL row below is this "
+				"self-test's ClickBoxButton negative control - clicking "
+				"the disabled footer is expected to Fail"_q);
+			const auto before = FailureCount();
+			const auto clicked = ClickBoxButton(box, kBusyLabel);
+			const auto after = FailureCount();
+			Check(
+				!clicked && (after == before + 1),
+				u"ClickBoxButton on that same disabled button still "
+				"produces its named Fail"_q,
+				u"clicked=%1 failures before=%2 after=%3 refusal=%4"_q
+					.arg(clicked ? 1 : 0)
+					.arg(before)
+					.arg(after)
+					.arg(busy.refusal));
+			state->busyReading = busy;
+			state->busyPresentBefore = busy.present;
+			state->busyDisabledBefore = busy.disabled;
+			state->busyHiddenBefore = busy.hidden;
+			state->busyRefusalBefore = busy.refusal;
+			state->busyLabelsBefore = busy.labels;
+		},
+	});
+
+	runner->add({
 		.name = u"box button self-test: a click that closes its own box"_q,
 		.run = [=] {
 			if (!state->built) {
@@ -477,8 +826,8 @@ void AppendBoxButtonClickSelfTest(not_null<Runner*> runner) {
 			// inside this same turn: closeBox() reaches
 			// LayerStackWidget::prepareAnimation, which calls
 			// clearOldWidgets() synchronously on both of its branches
-			// (layer_widget.cpp:663-671), and _closingLayers holds
-			// std::unique_ptrs (layer_widget.h:296), so the erase is a
+			// (layer_widget.cpp), and _closingLayers holds
+			// std::unique_ptrs (layer_widget.h), so the erase is a
 			// plain delete - the same fact boxAliveRightAfter=0 below
 			// already measures through a base::weak_qptr. ReadBoxButtons
 			// logs nothing, so taking it ahead of the FailureCount()
@@ -578,6 +927,40 @@ void AppendBoxButtonClickSelfTest(not_null<Runner*> runner) {
 				"pointer to format"_q,
 				u"match=[%1] root=[%2]"_q
 					.arg(state->closedMatchText, state->closedRootText));
+			Check(
+				state->busyPresentBefore
+					&& state->busyDisabledBefore
+					&& !state->busyHiddenBefore
+					&& state->busyReading.present
+					&& state->busyReading.disabled
+					&& !state->busyReading.hidden
+					&& !state->busyReading.matched()
+					&& (state->busyReading.match == nullptr)
+					&& (state->busyReading.root == nullptr)
+					&& (state->busyReading.refusal
+						== state->busyRefusalBefore)
+					&& (state->busyReading.labels
+						== state->busyLabelsBefore)
+					&& !state->busyRefusalBefore.isEmpty()
+					&& state->busyLabelsBefore.contains(
+						u"Harness Busy (disabled)"_q),
+				u"the retained disabled-button answer is still present "
+				"and disabled after the box that owned it has been "
+				"destroyed, without dereferencing anything"_q,
+				u"present=%1 (before %2) disabled=%3 (before %4) "
+				"hidden=%5 matched=%6 match=%7 root=%8 "
+				"refusalAndLabels=%9"_q
+					.arg(state->busyReading.present ? 1 : 0)
+					.arg(state->busyPresentBefore ? 1 : 0)
+					.arg(state->busyReading.disabled ? 1 : 0)
+					.arg(state->busyDisabledBefore ? 1 : 0)
+					.arg(state->busyReading.hidden ? 1 : 0)
+					.arg(state->busyReading.matched() ? 1 : 0)
+					.arg(state->busyReading.match ? 1 : 0)
+					.arg(state->busyReading.root ? 1 : 0)
+					.arg(u"refusal=%1 labels=[%2]"_q.arg(
+						state->busyReading.refusal,
+						state->busyReading.labels.join(u", "_q))));
 		},
 	});
 

@@ -172,7 +172,7 @@ WebviewCarrier::WebviewCarrier(
 	_window->setMessageHandler([=](Webview::Message message) {
 		handleMessage(std::move(message.text), std::move(message.sourceUrl));
 	});
-	_window->setNavigationStartHandler([=](QString url, bool newWindow) {
+	_window->setNavigationPolicyHandler([=](QString url, bool newWindow) {
 		return !newWindow && validNavigation(url);
 	});
 	_window->setNavigationDoneHandler([=](bool success) {
@@ -206,7 +206,7 @@ void WebviewCarrier::close() {
 	_callbacks = Callbacks();
 	if (_window && _window->valid()) {
 		_window->setMessageHandler(Fn<void(Webview::Message)>());
-		_window->setNavigationStartHandler([](QString, bool) {
+		_window->setNavigationPolicyHandler([](QString, bool) {
 			return false;
 		});
 		_window->setNavigationDoneHandler(nullptr);

@@ -249,6 +249,8 @@ historySilentTop: -13px;
 
 historyBotMenuSkip: 8px;
 historyBotMenuMaxWidth: 160px;
+historyBotMenuIconSize: 18px;
+historyBotMenuIconWidth: 36px;
 historyBotMenuButton: RoundButton(defaultActiveButton) {
 	width: -24px;
 	height: 30px;
@@ -550,6 +552,7 @@ historyPageButtonPadding: margins(13px, 8px, 13px, 8px);
 historyPageEnlargeSize: 36px;
 historyPageEnlargeSkip: 4px;
 historyPageEnlargeRadius: 8px;
+historyPageEnlargeRippleOpacity: 0.3;
 
 historyCommentsButtonHeight: 40px;
 historyCommentsSkipLeft: 9px;

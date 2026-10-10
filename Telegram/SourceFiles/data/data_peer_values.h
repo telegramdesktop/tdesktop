@@ -154,6 +154,7 @@ inline auto PeerFullFlagValue(
 [[nodiscard]] rpl::producer<bool> AmPremiumValue(
 	not_null<Main::Session*> session);
 
+[[nodiscard]] QString BotStatusText(not_null<UserData*> user);
 [[nodiscard]] TimeId SortByOnlineValue(not_null<UserData*> user, TimeId now);
 [[nodiscard]] crl::time OnlineChangeTimeout(
 	LastseenStatus status,

@@ -64,12 +64,13 @@ namespace Ui::BotWebView {
 namespace {
 
 constexpr auto kClipboardReadTimeout = crl::time(10000);
+constexpr auto kOpenLinkTimeout = crl::time(3000);
 constexpr auto kProgressDuration = crl::time(200);
 constexpr auto kProgressOpacity = 0.3;
 constexpr auto kLightnessThreshold = 128;
 constexpr auto kLightnessDelta = 32;
 constexpr auto kExternalShellButtonIconSize = 20;
-constexpr auto kMaxNativeMessageBytes = 1024 * 1024;
+constexpr auto kMaxNativeMessageBytes = 64 * 1024 * 1024;
 constexpr auto kExternalMessageType = "tdesktop_external_bot_webapp";
 
 enum class NativeMessageSource {
@@ -171,6 +172,18 @@ void NavigateToExternalShellTop(not_null<Webview::Window*> window) {
 		&& normalizedA == normalizedB;
 }
 
+[[nodiscard]] QByteArray OriginCheckScript(const QString &origin) {
+	auto url = QUrl(origin);
+	if ((url.scheme() == u"https"_q && url.port() == 443)
+		|| (url.scheme() == u"http"_q && url.port() == 80)) {
+		url.setPort(-1);
+	}
+	const auto encoded = QJsonDocument(QJsonArray{
+		QString::fromLatin1(url.toEncoded()),
+	}).toJson(QJsonDocument::Compact);
+	return "this.location.origin === " + encoded + "[0]";
+}
+
 [[nodiscard]] RectPart ParsePosition(const QString &position) {
 	if (position == u"left"_q) {
 		return RectPart::Left;
@@ -263,10 +276,6 @@ void LogNativeMessageRejected(
 		bool externalShell,
 		const QString &shellToken) {
 	const auto byteCount = quint64(bytes.size());
-	if (bytes.size() > kMaxNativeMessageBytes) {
-		LogNativeMessageRejected(u"payload too large"_q, byteCount);
-		return std::nullopt;
-	}
 	auto error = QJsonParseError();
 	const auto document = QJsonDocument::fromJson(bytes, &error);
 	if (error.error != QJsonParseError::NoError) {
@@ -379,7 +388,13 @@ void LogNativeMessageRejected(
 }
 
 [[nodiscard]] bool UseExternalBotWebApps() {
-	return ::Platform::IsLinux();
+	return ::Platform::IsWayland();
+}
+
+[[nodiscard]] QString MiniAppWindowTitle(const QString &title) {
+	return tr::lng_credits_box_history_entry_miniapp(tr::now)
+		+ u": "_q
+		+ title;
 }
 
 [[nodiscard]] QColor ResolveExternalShellThemeColor(QColor color) {
@@ -430,7 +445,6 @@ struct SharedPanelMenuItem {
 	const style::icon *icon = nullptr;
 	bool isSeparator = false;
 	bool isAttention = false;
-	bool isEnabled = true;
 	std::vector<SharedPanelMenuItem> children;
 };
 
@@ -645,7 +659,6 @@ void DispatchSharedPanelMenuAction(
 			tr::lng_bot_download_retry(tr::now));
 		item.actionLabel = tr::lng_bot_download_retry(tr::now);
 	}
-	item.isEnabled = !item.id.isEmpty();
 	return item;
 }
 
@@ -875,7 +888,6 @@ void CollectSharedPanelMenuIcons(
 		{ u"id"_q, item.id },
 		{ u"text"_q, item.text },
 		{ u"attention"_q, item.isAttention },
-		{ u"enabled"_q, item.isEnabled },
 	};
 	if (!item.subtitle.isEmpty()) {
 		result.insert(u"subtitle"_q, item.subtitle);
@@ -1236,11 +1248,11 @@ Panel::Panel(Args &&args)
 		_widget->setAttribute(Qt::WA_DontShowOnScreen);
 		_externalLayer->boxAdded(
 		) | rpl::on_next([=] {
-			setExternalShellBlocked(true);
+			setWebviewBlocked(true);
 		}, _widget->lifetime());
 		_externalLayer->boxClosed(
 		) | rpl::on_next([=] {
-			setExternalShellBlocked(false);
+			setWebviewBlocked(false);
 		}, _widget->lifetime());
 	}
 	_widget->setWindowFlag(Qt::WindowStaysOnTopHint, false);
@@ -1250,10 +1262,7 @@ Panel::Panel(Args &&args)
 	rpl::duplicate(
 		args.title
 	) | rpl::on_next([=](const QString &title) {
-		const auto value = tr::lng_credits_box_history_entry_miniapp(tr::now)
-			+ u": "_q
-			+ title;
-		panel->window()->setWindowTitle(value);
+		panel->window()->setWindowTitle(MiniAppWindowTitle(title));
 	}, panel->lifetime());
 
 	const auto params = _delegate->botThemeParams();
@@ -1265,7 +1274,6 @@ Panel::Panel(Args &&args)
 			if (!_webview) {
 				return;
 			}
-			applyExternalShellFullscreen(fullscreen);
 			sendFullScreen();
 			sendSafeArea();
 			sendContentSafeArea();
@@ -1304,6 +1312,7 @@ Panel::Panel(Args &&args)
 
 	_widget->backRequests(
 	) | rpl::on_next([=] {
+		_lastUserInteraction = crl::now();
 		postEvent("back_button_pressed");
 	}, _widget->lifetime());
 
@@ -1321,16 +1330,11 @@ Panel::Panel(Args &&args)
 	}, _widget->lifetime());
 
 	setTitle(std::move(args.title));
-	_bottomText.value() | rpl::on_next([=](const QString &text) {
-		if (_externalShell) {
-			return;
-		}
-	}, _widget->lifetime());
 	_externalTitleBadgeVisible = (args.titleBadge.paint != nullptr);
 	_widget->setTitleBadge(std::move(args.titleBadge));
 
 	if (!showWebview(std::move(args), params)) {
-		if (_externalShell && _externalLayer) {
+		if (_externalLayer) {
 			const auto available = Webview::Availability();
 			if (available.error != Webview::Available::Error::None) {
 				showExternalShellError(WebviewErrorText(
@@ -1340,7 +1344,6 @@ Panel::Panel(Args &&args)
 				showExternalShellError({ tr::lng_bot_webview_failed(tr::now) });
 			}
 		} else {
-			_externalShell = false;
 			const auto available = Webview::Availability();
 			if (available.error != Webview::Available::Error::None) {
 				showWebviewError(tr::lng_bot_no_webview(tr::now), available);
@@ -1352,6 +1355,7 @@ Panel::Panel(Args &&args)
 }
 
 Panel::~Panel() {
+	closeExternalShellPopup();
 	base::take(_webview);
 	_progress = nullptr;
 	_externalLayer = nullptr;
@@ -1474,7 +1478,6 @@ void Panel::requestActivate() {
 
 void Panel::toggleProgress(bool shown) {
 	if (_externalShell) {
-		sendExternalShellMethod("setProgress", { { u"shown"_q, shown } });
 		return;
 	}
 	if (!_progress) {
@@ -1597,7 +1600,6 @@ bool Panel::showWebview(Args &&args, const Webview::ThemeParams &params) {
 	_externalUrl = args.url;
 	_sameOrigin = args.sameOrigin;
 	_initialOrigin = OriginFromUrl(args.url);
-	_currentOrigin = _initialOrigin;
 	if (_externalShell && !_webview) {
 		resetExternalShellIdentity();
 	}
@@ -1622,7 +1624,6 @@ bool Panel::showWebview(Args &&args, const Webview::ThemeParams &params) {
 	rpl::duplicate(args.downloadsProgress) | rpl::on_next([=] {
 		_downloadsUpdated.fire({});
 		if (_externalShell && _externalShellBootstrapped) {
-			sendExternalShellAssets();
 			sendExternalShellMenu();
 		}
 	}, lifetime());
@@ -1633,6 +1634,7 @@ bool Panel::showWebview(Args &&args, const Webview::ThemeParams &params) {
 
 	const auto dispatch = SharedPanelMenuDispatchArgs{
 		.settings = [=] {
+			_lastUserInteraction = crl::now();
 			postEvent("settings_button_pressed");
 		},
 		.reload = [=] {
@@ -1708,17 +1710,22 @@ void Panel::setExternalShellBottomColor(std::optional<QColor> color) {
 
 LinuxShell::ResolvedColors Panel::externalShellColors(
 		const Webview::ThemeParams &params) const {
+	const auto title = _externalShellColorState.titleUsesTheme
+		? ResolveExternalShellThemeColor(params.titleBg)
+		: _externalShellColorState.title.value_or(params.titleBg);
 	const auto body = _externalShellColorState.bodyUsesTheme
 		? ResolveExternalShellThemeColor(params.bodyBg)
 		: _externalShellColorState.body.value_or(params.bodyBg);
+	const auto titleContrast = ComputeContrastColors(title);
 	return {
-		.titleBg = _externalShellColorState.titleUsesTheme
-			? ResolveExternalShellThemeColor(params.titleBg)
-			: _externalShellColorState.title.value_or(params.titleBg),
+		.titleBg = title,
 		.bodyBg = body,
 		.bottomBg = _externalShellColorState.bottomUsesTheme
 			? body
 			: _externalShellColorState.bottom.value_or(body),
+		.titleFg = titleContrast.text,
+		.titleControlFg = titleContrast.control,
+		.titleControlRipple = titleContrast.ripple,
 	};
 }
 
@@ -1759,13 +1766,11 @@ void Panel::sendExternalShellBootstrap() {
 	sendExternalShellMethod("bootstrap", {
 		{ u"url"_q, _externalUrl },
 		{ u"sameOrigin"_q, bool(_sameOrigin) },
-		{ u"initialOrigin"_q, _initialOrigin },
 		{ u"title"_q, _externalTitle },
+		{ u"windowTitle"_q, MiniAppWindowTitle(_externalTitle) },
 		{ u"metrics"_q, LinuxShell::Metrics() },
 		{ u"colors"_q, LinuxShell::ColorPayload(externalShellColors(params)) },
-		{ u"bottomText"_q, QString() },
 		{ u"backVisible"_q, _externalBackVisible },
-		{ u"menuVisible"_q, true },
 		{ u"badgeVisible"_q, _externalTitleBadgeVisible },
 	});
 	sendExternalShellAssets();
@@ -1945,6 +1950,7 @@ void Panel::sendExternalShellAssets() {
 void Panel::handleExternalShellMenuAction(const QString &id) {
 	DispatchSharedPanelMenuAction(id, {
 		.settings = [=] {
+			_lastUserInteraction = crl::now();
 			postEvent("settings_button_pressed");
 		},
 		.reload = [=] {
@@ -1979,35 +1985,27 @@ void Panel::handleExternalShellMenuAction(const QString &id) {
 void Panel::sendExternalShellChrome() {
 	sendExternalShellMethod("setChrome", {
 		{ u"backVisible"_q, _externalBackVisible },
-		{ u"menuVisible"_q, true },
 		{ u"badgeVisible"_q, _externalTitleBadgeVisible },
 	});
 }
 
-void Panel::setExternalShellBlocked(bool blocked) {
-	if (!_externalShell) {
-		return;
-	}
-	const auto was = (_externalBlockCount > 0);
+void Panel::setWebviewBlocked(bool blocked) {
+	const auto was = (_webviewBlockCount > 0);
 	if (blocked) {
-		++_externalBlockCount;
-	} else if (_externalBlockCount > 0) {
-		--_externalBlockCount;
+		++_webviewBlockCount;
+	} else if (_webviewBlockCount > 0) {
+		--_webviewBlockCount;
 	}
-	const auto now = (_externalBlockCount > 0);
-	if (was != now) {
-		sendExternalShellMethod("setBlocked", { { u"blocked"_q, now } });
+	const auto now = (_webviewBlockCount > 0);
+	if (was != now && _webview) {
+		_webview->window.setInputBlocked(now);
 	}
 }
 
-void Panel::closeExternalShellLayer() {
-	if (!_externalShell) {
-		return;
+void Panel::closeExternalShellPopup() {
+	if (const auto close = base::take(_closeExternalShellPopup)) {
+		close();
 	}
-	if (_externalLayer) {
-		_externalLayer->hideLayers(anim::type::normal);
-	}
-	Webview::CloseBlockingPopup();
 }
 
 void Panel::showExternalShellError(TextWithEntities text) {
@@ -2018,15 +2016,12 @@ void Panel::showExternalShellError(TextWithEntities text) {
 	base::take(_webview);
 	_externalWebviewParent = nullptr;
 	_webviewParent = nullptr;
-	Webview::CloseBlockingPopup();
+	closeExternalShellPopup();
 	if (!_externalLayer) {
 		showCriticalError(text);
 		return;
 	}
-	_externalLayer->setAnchor(
-		anchor.anchorGeometry,
-		anchor.outerSize,
-		anchor.transientParent);
+	_externalLayer->setAnchor(anchor.outerSize, anchor.transientParent);
 	const auto weak = base::make_weak(this);
 	const auto botClosed = std::make_shared<bool>(false);
 	const auto closeBot = [=] {
@@ -2058,14 +2053,11 @@ Panel::ExternalShellAnchor Panel::externalShellAnchor() const {
 	}
 	auto popupAnchor = _webview->window.popupAnchor();
 	auto result = ExternalShellAnchor{
-		.anchorGeometry = std::move(popupAnchor.geometry),
 		.outerSize = std::move(popupAnchor.outerSize),
 		.transientParent = CompatibleForeignParent(
 			std::move(popupAnchor.transientParent)),
 	};
-	if (!result.transientParent
-		&& !result.anchorGeometry
-		&& !result.outerSize) {
+	if (!result.transientParent && !result.outerSize) {
 		return {};
 	}
 	return result;
@@ -2079,32 +2071,30 @@ QWidget *Panel::webviewWindowForPopup() const {
 void Panel::showPopup(
 		Webview::PopupArgs &&args,
 		Fn<void(Webview::PopupResult)> done) {
-	if (!_externalShell) {
-		// Never block here: a nested event loop started from inside a
-		// webview callback would run queued main thread work, including
-		// the deferred close of this very panel, and the whole object
-		// graph under the running callback would be destroyed.
-		Webview::ShowPopupAsync(std::move(args), std::move(done), true);
-		return;
+	if (_externalShell) {
+		const auto anchor = externalShellAnchor();
+		args.transientParent = anchor.transientParent;
+		args.parent = nullptr;
 	}
-	const auto anchor = externalShellAnchor();
-	args.anchorGeometry = anchor.anchorGeometry;
-	args.transientParent = anchor.transientParent;
-	args.parent = nullptr;
-	setExternalShellBlocked(true);
+	setWebviewBlocked(true);
 	const auto weak = base::make_weak(this);
-	Webview::ShowPopupAsync(
+	// WHY: never block here, a nested event loop would run the deferred
+	// close of this panel under the running webview callback.
+	auto close = Webview::ShowPopupAsync(
 		std::move(args),
 		[=, done = std::move(done)](
 				Webview::PopupResult result) mutable {
 			if (weak) {
-				weak->setExternalShellBlocked(false);
+				weak->setWebviewBlocked(false);
 			}
 			if (done) {
 				done(std::move(result));
 			}
 		},
-		false);
+		true);
+	if (_externalShell) {
+		_closeExternalShellPopup = std::move(close);
+	}
 }
 
 void Panel::createWebviewBottom() {
@@ -2158,6 +2148,12 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 	_headerColorReceived = false;
 	_bodyColorReceived = false;
 	_bottomColorReceived = false;
+	_headerColorLifetime.destroy();
+	_bodyColorLifetime.destroy();
+	_bottomBarColorLifetime.destroy();
+	_externalShellColorState = {};
+	_bottomBarColor = std::nullopt;
+	_widget->overrideBottomBarColor(std::nullopt);
 	updateColorOverrides(params);
 	if (!_externalShell) {
 		createWebviewBottom();
@@ -2226,7 +2222,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 #endif // !Q_OS_WIN && !Q_OS_MAC
 
 	raw->setInteractionHandler([=] {
-		_lastWebviewInteraction = crl::now();
+		_lastUserInteraction = crl::now();
 	});
 	raw->setExternalWindowCloseHandler([=] {
 		if (!_externalShell
@@ -2237,6 +2233,11 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 		_externalWindowCloseRequested = true;
 		invalidateExternalShellSession();
 		requestClose();
+	});
+	raw->setFullscreenChangedHandler([=](bool fullscreen) {
+		if (_externalShell && _webview && &_webview->window == raw) {
+			_fullscreen = fullscreen;
+		}
 	});
 
 	QObject::connect(raw->widget(), &QObject::destroyed, [=] {
@@ -2325,12 +2326,12 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 					requestClose();
 				}
 			} else if (command == "shell_menu_request") {
-				if (_externalBlockCount <= 0) {
+				if (_webviewBlockCount <= 0) {
 					sendExternalShellAssets();
 					sendExternalShellMenu();
 				}
 			} else if (command == "shell_menu_action") {
-				if (_externalBlockCount <= 0) {
+				if (_webviewBlockCount <= 0) {
 					handleExternalShellMenuAction(arguments["id"].toString());
 				}
 			} else if (command == "shell_request_button_icon") {
@@ -2338,8 +2339,6 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 				if (name.isString()) {
 					requestExternalShellButtonEmoji(name.toString());
 				}
-			} else if (command == "shell_close_layer") {
-				closeExternalShellLayer();
 			}
 			return;
 		}
@@ -2366,18 +2365,22 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 		} else if (command == "web_app_request_content_safe_area") {
 			sendContentSafeArea();
 		} else if (command == "web_app_request_fullscreen") {
-			if (!_fullscreen.current()) {
-				_fullscreen = true;
-			} else {
+			if (_fullscreen.current()) {
 				sendFullScreen();
+			} else if (_externalShell) {
+				applyExternalShellFullscreen(true);
+			} else {
+				_fullscreen = true;
 			}
 		} else if (command == "web_app_request_file_download") {
 			processDownloadRequest(arguments);
 		} else if (command == "web_app_exit_fullscreen") {
-			if (_fullscreen.current()) {
-				_fullscreen = false;
-			} else {
+			if (!_fullscreen.current()) {
 				sendFullScreen();
+			} else if (_externalShell) {
+				applyExternalShellFullscreen(false);
+			} else {
+				_fullscreen = false;
 			}
 		} else if (command == "web_app_check_home_screen") {
 			postEvent("home_screen_checked", QJsonObject{
@@ -2472,15 +2475,16 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 		}
 	});
 
-	raw->setNavigationStartHandler([=](const QString &uri, bool newWindow) {
+	raw->setNavigationPolicyHandler([=](const QString &uri, bool newWindow) {
 		if (_delegate->botHandleLocalUri(uri, false)) {
 			return false;
 		} else if (newWindow) {
 			return true;
 		}
-		_currentOrigin = OriginFromUrl(uri);
-		showWebviewProgress();
 		return true;
+	});
+	raw->setNavigationStartHandler([=] {
+		showWebviewProgress();
 	});
 	raw->setNavigationDoneHandler([=](bool success) {
 		hideWebviewProgress();
@@ -2504,14 +2508,13 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 	if (_externalShell) {
 		raw->setDialogHandler([=](Webview::DialogArgs args) {
 			const auto anchor = externalShellAnchor();
-			args.anchorGeometry = anchor.anchorGeometry;
 			args.transientParent = anchor.transientParent;
 			args.parent = nullptr;
-			setExternalShellBlocked(true);
+			setWebviewBlocked(true);
 			const auto weak = base::make_weak(this);
 			const auto guard = gsl::finally([=] {
 				if (weak) {
-					weak->setExternalShellBlocked(false);
+					weak->setWebviewBlocked(false);
 				}
 			});
 			return Webview::DefaultDialogHandler(std::move(args));
@@ -2520,30 +2523,42 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 				Webview::DialogArgs args,
 				std::function<void(Webview::DialogResult)> done) {
 			const auto anchor = externalShellAnchor();
-			args.anchorGeometry = anchor.anchorGeometry;
 			args.transientParent = anchor.transientParent;
 			args.parent = nullptr;
-			setExternalShellBlocked(true);
+			setWebviewBlocked(true);
 			const auto weak = base::make_weak(this);
-			Webview::DefaultDialogHandlerAsync(
+			_closeExternalShellPopup = Webview::DefaultDialogHandlerAsync(
 				std::move(args),
 				[=, done = std::move(done)](
 						Webview::DialogResult result) mutable {
 					if (weak) {
-						weak->setExternalShellBlocked(false);
+						weak->setWebviewBlocked(false);
 					}
 					done(std::move(result));
 				},
-				false);
+				true);
 			return true;
 		});
 	} else {
 		raw->setDialogHandler([=](Webview::DialogArgs args) {
-			return _closeRequested
-				? Webview::DialogResult()
-				: Webview::DefaultDialogHandler(std::move(args));
+			if (_closeRequested) {
+				return Webview::DialogResult();
+			}
+			setWebviewBlocked(true);
+			const auto weak = base::make_weak(this);
+			const auto guard = gsl::finally([=] {
+				if (weak) {
+					weak->setWebviewBlocked(false);
+				}
+			});
+			return Webview::DefaultDialogHandler(std::move(args));
 		});
 	}
+	raw->setPermissionHandler([=](
+			Webview::PermissionType type,
+			Fn<void(bool)> done) {
+		requestPermission(type, std::move(done));
+	});
 
 	auto initScript = QByteArray(R"(
 window.TelegramWebviewProxy = {
@@ -2639,7 +2654,10 @@ void Panel::setTitle(rpl::producer<QString> title) {
 	}
 	std::move(title) | rpl::on_next([=](const QString &title) {
 		_externalTitle = title;
-		sendExternalShellMethod("setTitle", { { u"title"_q, title } });
+		sendExternalShellMethod("setTitle", {
+			{ u"title"_q, title },
+			{ u"windowTitle"_q, MiniAppWindowTitle(title) },
+		});
 	}, _widget->lifetime());
 }
 
@@ -2864,13 +2882,43 @@ void Panel::openExternalLink(const QJsonObject &args) {
 		LOG(("BotWebView Error: Bad url in openExternalLink."));
 		requestClose();
 		return;
-	} else if (!allowOpenLink()) {
-		return;
-	} else if (iv) {
-		_delegate->botOpenIvLink(url);
-	} else {
-		File::OpenUrl(url);
 	}
+	const auto open = [=] {
+		if (iv) {
+			_delegate->botOpenIvLink(url);
+		} else {
+			File::OpenUrl(url);
+		}
+	};
+	if (allowOpenLink()) {
+		open();
+	} else {
+		confirmExternalLink(url, open);
+	}
+}
+
+void Panel::confirmExternalLink(const QString &url, Fn<void()> open) {
+	if (!_webview) {
+		return;
+	}
+	using Button = Webview::PopupArgs::Button;
+	const auto parsed = QUrl(url);
+	const auto weak = base::make_weak(this);
+	showPopup({
+		.parent = webviewWindowForPopup(),
+		.title = tr::lng_open_this_link(tr::now),
+		.text = (parsed.isValid()
+			? QString::fromUtf8(parsed.toEncoded())
+			: url),
+		.buttons = {
+			{ .id = "open", .text = tr::lng_open_link(tr::now) },
+			{ .id = "cancel", .type = Button::Type::Cancel },
+		},
+	}, [=](Webview::PopupResult result) {
+		if (weak && result.id == "open") {
+			open();
+		}
+	});
 }
 
 void Panel::openInvoice(const QJsonObject &args) {
@@ -2936,6 +2984,8 @@ void Panel::openPopup(const QJsonObject &args) {
 	}, [=](Webview::PopupResult result) {
 		if (!weak) {
 			return;
+		} else if (result.id) {
+			_lastUserInteraction = crl::now();
 		}
 		postEvent("popup_closed", result.id
 			? QJsonObject{ { u"button_id"_q, *result.id } }
@@ -3065,6 +3115,45 @@ void Panel::replyRequestPhone(bool shared) {
 	});
 }
 
+void Panel::requestPermission(
+		Webview::PermissionType type,
+		Fn<void(bool)> done) {
+	if (_inBlockingRequest) {
+		done(false);
+		return;
+	}
+	_inBlockingRequest = true;
+	using Type = Webview::PermissionType;
+	using Button = Webview::PopupArgs::Button;
+	const auto text = [&] {
+		switch (type) {
+		case Type::Microphone:
+			return tr::lng_bot_allow_microphone(tr::now);
+		case Type::Camera:
+			return tr::lng_bot_allow_camera(tr::now);
+		case Type::CameraAndMicrophone:
+			return tr::lng_bot_allow_camera_microphone(tr::now);
+		case Type::Geolocation:
+			return tr::lng_bot_allow_location(tr::now);
+		}
+		Unexpected("Type in Panel::requestPermission.");
+	}();
+	showPopup({
+		.parent = webviewWindowForPopup(),
+		.text = text,
+		.buttons = {
+			{
+				.id = "allow",
+				.text = tr::lng_bot_allow_permission_confirm(tr::now),
+			},
+			{ .id = "cancel", .type = Button::Type::Cancel },
+		},
+	}, crl::guard(this, [=](Webview::PopupResult result) {
+		_inBlockingRequest = false;
+		done(result.id == "allow");
+	}));
+}
+
 void Panel::invokeCustomMethod(const QJsonObject &args) {
 	const auto requestId = args["req_id"];
 	if (requestId.isUndefined()) {
@@ -3118,13 +3207,13 @@ void Panel::requestClipboardText(const QJsonObject &args) {
 	postEvent(u"clipboard_text_received"_q, result);
 }
 
-bool Panel::allowOpenLink() const {
-	//const auto now = crl::now();
-	//if (_mainButtonLastClick
-	//	&& _mainButtonLastClick + kProcessClickTimeout >= now) {
-	//	_mainButtonLastClick = 0;
-	//	return true;
-	//}
+bool Panel::allowOpenLink() {
+	if (!_lastUserInteraction
+		|| _lastUserInteraction == _openLinkInteraction
+		|| _lastUserInteraction + kOpenLinkTimeout < crl::now()) {
+		return false;
+	}
+	_openLinkInteraction = _lastUserInteraction;
 	return true;
 }
 
@@ -3133,8 +3222,8 @@ bool Panel::allowClipboardQuery() const {
 		return false;
 	}
 	const auto now = crl::now();
-	return _lastWebviewInteraction
-		&& (_lastWebviewInteraction + kClipboardReadTimeout >= now);
+	return _lastUserInteraction
+		&& (_lastUserInteraction + kClipboardReadTimeout >= now);
 }
 
 void Panel::scheduleCloseWithConfirmation() {
@@ -3204,7 +3293,6 @@ void Panel::processButtonMessage(
 		sendExternalShellButton(
 			(&button == &_mainButton) ? "main" : "secondary",
 			args);
-		sendViewport();
 		return;
 	}
 
@@ -3308,9 +3396,7 @@ void Panel::processHeaderColor(const QJsonObject &args) {
 
 void Panel::overrideBodyColor(std::optional<QColor> color) {
 	if (_externalShell) {
-		if (_bodyColorReceived) {
-			setExternalShellBodyColor(color);
-		}
+		setExternalShellBodyColor(color);
 		sendExternalShellColors(_delegate->botThemeParams());
 		return;
 	}
@@ -3322,20 +3408,7 @@ void Panel::overrideBodyColor(std::optional<QColor> color) {
 		raw->setTextColorOverride(std::nullopt);
 		return;
 	}
-	const auto contrast = 2.5;
-	const auto luminance = 0.2126 * color->redF()
-		+ 0.7152 * color->greenF()
-		+ 0.0722 * color->blueF();
-	const auto textColor = (luminance > 0.5)
-		? QColor(0, 0, 0)
-		: QColor(255, 255, 255);
-	const auto textLuminance = (luminance > 0.5) ? 0 : 1;
-	const auto adaptiveOpacity = (luminance - textLuminance + contrast)
-		/ contrast;
-	const auto opacity = std::clamp(adaptiveOpacity, 0.5, 0.64);
-	auto buttonColor = textColor;
-	buttonColor.setAlphaF(opacity);
-	raw->setTextColorOverride(buttonColor);
+	raw->setTextColorOverride(ComputeContrastColors(*color).control);
 }
 
 void Panel::processBackgroundColor(const QJsonObject &args) {
@@ -3447,6 +3520,7 @@ void Panel::createButton(std::unique_ptr<Button> &button) {
 
 	raw->setClickedCallback([=] {
 		if (!raw->isDisabled()) {
+			_lastUserInteraction = crl::now();
 			if (raw == _mainButton.get()) {
 				postEvent("main_button_pressed");
 			} else if (raw == _secondaryButton.get()) {
@@ -3564,10 +3638,7 @@ void Panel::showBox(
 		anim::type animated) {
 	if (_externalShell) {
 		const auto anchor = externalShellAnchor();
-		_externalLayer->setAnchor(
-			anchor.anchorGeometry,
-			anchor.outerSize,
-			anchor.transientParent);
+		_externalLayer->setAnchor(anchor.outerSize, anchor.transientParent);
 		_externalLayer->showBox(std::move(box), options, animated);
 		return;
 	}
@@ -3638,7 +3709,7 @@ not_null<QWidget*> Panel::toastParent() const {
 }
 
 void Panel::hideLayer(anim::type animated) {
-	if (_externalShell && _externalLayer) {
+	if (_externalLayer) {
 		_externalLayer->hideLayers(animated);
 		return;
 	}
@@ -3704,12 +3775,11 @@ void Panel::updateThemeParams(const Webview::ThemeParams &params) {
 }
 
 void Panel::updateColorOverrides(const Webview::ThemeParams &params) {
+	if (_externalShell) {
+		return;
+	}
 	if (!_headerColorReceived && params.titleBg.alpha() == 255) {
-		if (_externalShell) {
-			sendExternalShellColors(params);
-		} else {
-			_widget->overrideTitleColor(params.titleBg);
-		}
+		_widget->overrideTitleColor(params.titleBg);
 	}
 	if (!_bodyColorReceived && params.bodyBg.alpha() == 255) {
 		overrideBodyColor(params.bodyBg);
@@ -3727,7 +3797,8 @@ void Panel::invoiceClosed(const QString &slug, const QString &status) {
 	if (_hiddenForPayment) {
 		_hiddenForPayment = false;
 		if (_externalShell) {
-			setExternalShellBlocked(false);
+			_webview->window.setVisible(true);
+			_webview->window.focus();
 		} else {
 			_widget->showAndActivate();
 		}
@@ -3737,7 +3808,9 @@ void Panel::invoiceClosed(const QString &slug, const QString &status) {
 void Panel::hideForPayment() {
 	_hiddenForPayment = true;
 	if (_externalShell) {
-		setExternalShellBlocked(true);
+		if (_webview) {
+			_webview->window.setVisible(false);
+		}
 	} else {
 		_widget->hideGetDuration();
 	}
@@ -3764,16 +3837,15 @@ void Panel::postEvent(const QString &event, EventData data) {
 		}
 		return;
 	}
-	if (_sameOrigin && !OriginsMatch(_currentOrigin, _initialOrigin)) {
-		return;
-	}
+	const auto originCheck = _sameOrigin
+		? OriginCheckScript(_initialOrigin) + " && "
+		: QByteArray();
 	auto written = v::is<QString>(data)
 		? v::get<QString>(data).toUtf8()
 		: QJsonDocument(
 			v::get<QJsonObject>(data)).toJson(QJsonDocument::Compact);
-	_webview->window.eval(R"(
-if (window.TelegramGameProxy) {
-window.TelegramGameProxy.receiveEvent(
+	_webview->window.eval("if (" + originCheck + R"(this.TelegramGameProxy) {
+this.TelegramGameProxy.receiveEvent(
 		")"
 		+ event.toUtf8()
 		+ '"' + (written.isEmpty() ? QByteArray() : ", " + written)

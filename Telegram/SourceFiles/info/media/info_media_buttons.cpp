@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "base/platform/base_platform_info.h"
 #include "base/qt/qt_key_modifiers.h"
+#include "base/weak_ptr.h"
 #include "core/application.h"
 #include "core/ui_integration.h"
 #include "data/components/recent_shared_media_gifts.h"
@@ -54,6 +55,22 @@ namespace {
 		|| (type == Type::RoundVoiceFile)
 		|| (type == Type::GIF)
 		|| (type == Type::Poll);
+}
+
+[[nodiscard]] bool SeparateAllowed(
+		not_null<PeerData*> peer,
+		Storage::SharedMediaType type) {
+	return !peer->isSelf() && SeparateSupported(type);
+}
+
+[[nodiscard]] bool SublistDestroyed(
+		const base::weak_ptr<Data::SavedSublist> &weak) {
+	// A weak_ptr built from nullptr has no alive_tracker, so null() and
+	// empty() are both true. Destroying a real SavedSublist leaves a
+	// tracker whose value is gone: null() is false and get() is nullptr.
+	// Returning on !get() alone would also no-op buttons created with no
+	// sublist. The destroyed-only test is therefore !null() && !get().
+	return !weak.null() && !weak.get();
 }
 
 void AddContextMenuToButton(
@@ -110,7 +127,7 @@ Window::SeparateId SeparateId(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
 		Storage::SharedMediaType type) {
-	if (peer->isSelf() || !SeparateSupported(type)) {
+	if (!SeparateAllowed(peer, type)) {
 		return { nullptr };
 	}
 	const auto topic = topicRootId
@@ -123,6 +140,45 @@ Window::SeparateId SeparateId(
 			? (Data::Thread*)topic
 		: peer->owner().history(peer);
 	return { thread, type };
+}
+
+Window::SeparateId SeparateId(
+		not_null<PeerData*> peer,
+		MsgId topicRootId,
+		Data::SavedSublist *sublist,
+		Type type) {
+	if (sublist) {
+		return SeparateAllowed(peer, type)
+			? Window::SeparateId(sublist, type)
+			: Window::SeparateId(nullptr);
+	}
+	return SeparateId(peer, topicRootId, type);
+}
+
+Fn<void()> SeparateOpenCallback(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<PeerData*> peer,
+		MsgId topicRootId,
+		Data::SavedSublist *sublist,
+		Type type) {
+	if (!SeparateId(peer, topicRootId, sublist, type)) {
+		return nullptr;
+	}
+	const auto weakSublist = base::make_weak(sublist);
+	return [=] {
+		if (SublistDestroyed(weakSublist)) {
+			return;
+		}
+		const auto separateId = SeparateId(
+			peer,
+			topicRootId,
+			weakSublist.get(),
+			type);
+		if (!separateId) {
+			return;
+		}
+		navigation->parentController()->showInNewWindow(separateId);
+	};
 }
 
 not_null<Ui::SlideWrap<Ui::SettingsButton>*> AddCountedButton(
@@ -160,7 +216,7 @@ not_null<Ui::SettingsButton*> AddButton(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
-		PeerId monoforumPeerId,
+		Data::SavedSublist *sublist,
 		PeerData *migrated,
 		Type type,
 		Ui::MultiSlideTracker &tracker) {
@@ -169,20 +225,25 @@ not_null<Ui::SettingsButton*> AddButton(
 		Profile::SharedMediaCountValue(
 			peer,
 			topicRootId,
-			monoforumPeerId,
+			sublist ? sublist->sublistPeer()->id : PeerId(),
 			migrated,
 			type),
 		MediaText(type),
 		tracker)->entity();
-	const auto separateId = SeparateId(peer, topicRootId, type);
-	const auto openInWindow = separateId
-		? [=] { navigation->parentController()->showInNewWindow(separateId); }
-		: Fn<void()>(nullptr);
-	Ui::InstallTooltip(result, [=] {
-		return Platform::IsMac()
-			? tr::lng_new_window_tooltip_cmd(tr::now)
-			: tr::lng_new_window_tooltip_ctrl(tr::now);
-	});
+	const auto weakSublist = base::make_weak(sublist);
+	const auto openInWindow = SeparateOpenCallback(
+		navigation,
+		peer,
+		topicRootId,
+		sublist,
+		type);
+	if (openInWindow) {
+		Ui::InstallTooltip(result, [=] {
+			return Platform::IsMac()
+				? tr::lng_new_window_tooltip_cmd(tr::now)
+				: tr::lng_new_window_tooltip_ctrl(tr::now);
+		});
+	}
 	AddContextMenuToButton(result, openInWindow);
 	result->addClickHandler([=](Qt::MouseButton mouse) {
 		if (mouse == Qt::RightButton) {
@@ -198,12 +259,22 @@ not_null<Ui::SettingsButton*> AddButton(
 		if (topicRootId && !topic) {
 			return;
 		}
-		const auto separateId = SeparateId(peer, topicRootId, type);
+		if (SublistDestroyed(weakSublist)) {
+			return;
+		}
+		const auto sublist = weakSublist.get();
+		const auto separateId = SeparateId(
+			peer,
+			topicRootId,
+			sublist,
+			type);
 		if (Core::App().separateWindowFor(separateId) && openInWindow) {
 			openInWindow();
 		} else {
 			navigation->showSection(topicRootId
 				? std::make_shared<Info::Memento>(topic, Section(type))
+				: sublist
+				? std::make_shared<Info::Memento>(sublist, Section(type))
 				: std::make_shared<Info::Memento>(peer, Section(type)));
 		}
 	});

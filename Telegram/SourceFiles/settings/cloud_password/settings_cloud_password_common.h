@@ -85,6 +85,38 @@ void SetupHeader(
 void AddSkipInsteadOfField(not_null<Ui::VerticalLayout*> content);
 void AddSkipInsteadOfError(not_null<Ui::VerticalLayout*> content);
 
+void SetupIntroHeader(
+	not_null<Ui::VerticalLayout*> content,
+	rpl::producer<> &&showFinished);
+
+struct PasswordFieldsDescriptor {
+	QString lottie;
+	rpl::producer<QString> title;
+	v::text::data about;
+	rpl::producer<QString> placeholder;
+	QString text;
+	bool confirm = true;
+	bool reactToTyping = true;
+};
+
+struct PasswordFields {
+	not_null<Ui::PasswordInput*> input;
+	Ui::PasswordInput *confirm = nullptr;
+	not_null<Ui::FlatLabel*> error;
+};
+
+[[nodiscard]] PasswordFieldsDescriptor CreatePasswordDescriptor(
+	const QString &text = QString());
+[[nodiscard]] PasswordFields SetupPasswordFields(
+	not_null<Ui::VerticalLayout*> content,
+	PasswordFieldsDescriptor &&descriptor);
+[[nodiscard]] std::optional<QString> ValidatePasswordFields(
+	const PasswordFields &fields);
+void SubmitPasswordFields(
+	const PasswordFields &fields,
+	Fn<void()> submit);
+void FocusPasswordFields(const PasswordFields &fields);
+
 struct BottomButton {
 	base::weak_qptr<Ui::RpWidget> content;
 	base::weak_qptr<Ui::RpWidget> button;

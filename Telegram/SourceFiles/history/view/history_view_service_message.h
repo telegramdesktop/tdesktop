@@ -72,6 +72,7 @@ private:
 };
 
 int WideChatWidth();
+[[nodiscard]] bool ServiceAllowsSwipeReply(not_null<const HistoryItem*> item);
 
 class ServiceMessagePainter {
 public:

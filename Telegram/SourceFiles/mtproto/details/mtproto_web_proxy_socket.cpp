@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/web_proxy/web_proxy_transport.h"
 
+#include <QtCore/QtEndian>
+
 namespace MTP::details {
 
 WebProxySocket::WebProxySocket(
@@ -49,9 +51,9 @@ bool WebProxySocket::isGoodStartNonce(bytes::const_span nonce) {
 	Expects(nonce.size() >= 2 * sizeof(uint32));
 
 	const auto bytes = nonce.data();
-	const auto zero = *reinterpret_cast<const uchar*>(bytes);
-	const auto first = *reinterpret_cast<const uint32*>(bytes);
-	const auto second = *(reinterpret_cast<const uint32*>(bytes) + 1);
+	const auto zero = gsl::to_integer<uchar>(nonce.front());
+	const auto first = qFromUnaligned<uint32>(bytes);
+	const auto second = qFromUnaligned<uint32>(bytes + sizeof(uint32));
 	return (zero != 0xEFU)
 		&& (first != 0x44414548U)
 		&& (first != 0x54534F50U)

@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/invoke_queued.h"
 
+#include <QtCore/QtEndian>
+
 namespace MTP::details {
 
 TcpSocket::TcpSocket(
@@ -58,9 +60,9 @@ bool TcpSocket::isGoodStartNonce(bytes::const_span nonce) {
 	Expects(nonce.size() >= 2 * sizeof(uint32));
 
 	const auto bytes = nonce.data();
-	const auto zero = *reinterpret_cast<const uchar*>(bytes);
-	const auto first = *reinterpret_cast<const uint32*>(bytes);
-	const auto second = *(reinterpret_cast<const uint32*>(bytes) + 1);
+	const auto zero = gsl::to_integer<uchar>(nonce.front());
+	const auto first = qFromUnaligned<uint32>(bytes);
+	const auto second = qFromUnaligned<uint32>(bytes + sizeof(uint32));
 	const auto reserved01 = 0x000000EFU;
 	const auto reserved11 = 0x44414548U;
 	const auto reserved12 = 0x54534F50U;

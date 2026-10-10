@@ -570,6 +570,13 @@ void MarkdownDocumentWidget::contextMenuEvent(QContextMenuEvent *e) {
 				},
 				&st::menuIconCopy);
 		}
+	} else if (!state.buttonUrl.isEmpty()) {
+		_contextMenu->addAction(
+			tr::lng_context_copy_link(tr::now),
+			[url = state.buttonUrl] {
+				QGuiApplication::clipboard()->setText(url);
+			},
+			&st::menuIconCopy);
 	}
 
 	if (_contextMenu->empty()) {

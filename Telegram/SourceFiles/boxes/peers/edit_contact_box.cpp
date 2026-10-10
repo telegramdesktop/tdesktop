@@ -837,7 +837,7 @@ void Controller::showPhotoMenu(bool suggest) {
 					[=](QImage &&editedImage) {
 						processChosenPhoto(std::move(editedImage), suggest);
 					},
-					qvariant_cast<QImage>(data->imageData()));
+					QGuiApplication::clipboard()->image());
 			};
 			_photoMenu->addAction(
 				tr::lng_profile_photo_from_clipboard(tr::now),

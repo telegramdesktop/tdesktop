@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "core/click_handler_types.h" // UrlClickHandler
+#include "core/ton_explorer_url.h"
 #include "core/ui_integration.h"
 #include "data/components/credits.h"
 #include "data/components/recent_shared_media_gifts.h"
@@ -1163,7 +1164,7 @@ void FillUniqueGiftMenu(
 	if (!unique) {
 		return;
 	}
-	if (unique->canBeTheme) {
+	if (unique->canBeTheme && show->canResolveWindow()) {
 		menu->addAction(tr::lng_gift_transfer_set_theme(tr::now), [=] {
 			if (const auto window = show->resolveWindow()) {
 				SetThemeFromUniqueGift(window, unique);
@@ -1363,7 +1364,8 @@ void GenericCreditsEntryCover(
 		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::CreditsHistoryEntry &e,
 		const Data::SubscriptionEntry &s,
-		CreditsEntryBoxStyleOverrides st = {}) {
+		CreditsEntryBoxStyleOverrides st = {},
+		std::shared_ptr<const UniqueGiftCoverActions> actions = nullptr) {
 	const auto session = &show->session();
 	const auto owner = &session->data();
 	const auto isStarGift = e.stargift || e.soldOutInfo;
@@ -1427,12 +1429,28 @@ void GenericCreditsEntryCover(
 				ShowUniqueGiftSellBox(show, e.uniqueGift, savedId, wearSt);
 			}
 			: Fn<void()>();
+		auto coverActions = std::vector<Ui::UniqueGiftCoverAction>();
+		if (actions && actions->transfer) {
+			coverActions.push_back({
+				.text = tr::lng_gift_transfer_button(),
+				.icon = &st::menuIconReplace,
+				.callback = actions->transfer,
+			});
+		}
+		if (actions && actions->sell) {
+			coverActions.push_back({
+				.text = tr::lng_gift_transfer_sell(),
+				.icon = &st::menuIconTagSell,
+				.callback = actions->sell,
+			});
+		}
 		AddUniqueGiftCover(content, rpl::single(cover), {
 			.numberText = (uniqueGift->number > 0)
 				? rpl::single(u"#"_q + Lang::FormatCountDecimal(uniqueGift->number))
 				: rpl::producer<QString>(),
 			.resalePrice = UniqueGiftResalePrice(e.uniqueGift, forceTon),
 			.resaleClick = resaleClick,
+			.actions = std::move(coverActions),
 			.message = std::move(message),
 		});
 		if (e.bareGiftOwnerId == session->userPeerId().value) {
@@ -1573,8 +1591,9 @@ void GenericCreditsEntryBox(
 		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::CreditsHistoryEntry &e,
 		const Data::SubscriptionEntry &s,
-		CreditsEntryBoxStyleOverrides st) {
-	GenericCreditsEntryCover(box, show, e, s, st);
+		CreditsEntryBoxStyleOverrides st,
+		std::shared_ptr<const UniqueGiftCoverActions> actions) {
+	GenericCreditsEntryCover(box, show, e, s, st, std::move(actions));
 	GenericCreditsEntryBody(box, show, e, s, nullptr, st);
 }
 
@@ -2069,7 +2088,7 @@ void GenericCreditsEntryBody(
 				st::creditsBoxAboutDivider),
 			style::al_top);
 		label->setClickHandlerFilter([=](const auto &...) {
-			UrlClickHandler::Open(TonAddressUrl(session, address));
+			UrlClickHandler::Open(Core::TonExplorerUrl(session, address));
 			return false;
 		});
 	};
@@ -2689,7 +2708,8 @@ void UniqueGiftValueBox(
 			style::al_top);
 	};
 
-	if (const auto count = value->forSaleOnTelegram; count > 0) {
+	if (const auto count = value->forSaleOnTelegram
+		; count > 0 && show->canResolveWindow()) {
 		addAvailability(
 			count,
 			tr::lng_gift_value_telegram
@@ -2785,7 +2805,8 @@ void GlobalStarGiftBox(
 		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::StarGift &data,
 		StarGiftResaleInfo resale,
-		CreditsEntryBoxStyleOverrides st) {
+		CreditsEntryBoxStyleOverrides st,
+		std::shared_ptr<const UniqueGiftCoverActions> actions) {
 	const auto selfId = show->session().userPeerId();
 	const auto ownerId = data.unique ? data.unique->ownerId.value : 0;
 	const auto hostId = data.unique ? data.unique->hostId.value : 0;
@@ -2812,7 +2833,8 @@ void GlobalStarGiftBox(
 			.gift = true,
 		},
 		Data::SubscriptionEntry(),
-		st);
+		st,
+		std::move(actions));
 }
 
 Data::CreditsHistoryEntry SavedStarGiftEntry(

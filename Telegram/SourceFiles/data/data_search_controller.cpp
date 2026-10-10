@@ -149,6 +149,8 @@ std::optional<SearchRequest> PrepareSearchRequest(
 	const auto filter = PrepareSearchFilter(type);
 	if (query.isEmpty() && filter.type() == mtpc_inputMessagesFilterEmpty) {
 		return std::nullopt;
+	} else if (topicRootId && type == Storage::SharedMediaType::ChatPhoto) {
+		return std::nullopt;
 	}
 
 	const auto minId = 0;

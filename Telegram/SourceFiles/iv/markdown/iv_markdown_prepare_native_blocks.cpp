@@ -283,7 +283,7 @@ bool AppendPreparedQuoteParagraph(
 }
 
 [[nodiscard]] QString PreparedOrderedRomanText(int value, bool upper) {
-	if (value <= 0) {
+	if (!OrderedRomanSupported(value)) {
 		return QString::number(value);
 	}
 	struct RomanPart {

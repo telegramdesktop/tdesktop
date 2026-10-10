@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "settings/settings_common_session.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/controls/button_busy.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
@@ -502,9 +503,7 @@ void PasskeysNoneBox(
 			}));
 		});
 		if (!canRegister) {
-			button->setAttribute(Qt::WA_TransparentForMouseEvents);
-			button->setTextFgOverride(
-				anim::with_alpha(button->st().textFg->c, 0.5));
+			Ui::SetButtonDimmed(createButton, true);
 		}
 		box->addButton(std::move(button));
 

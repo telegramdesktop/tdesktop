@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QObject>
 #include <QtCore/QThread>
+#include <QtCore/QtEndian>
 
 #include <deque>
 
@@ -189,7 +190,7 @@ mtpBuffer AbstractConnection::prepareNotSecurePacket(
 	result.resize(kPrefixInts);
 
 	const auto messageId = &result[kTcpPrefixInts + kAuthKeyIdInts];
-	*reinterpret_cast<mtpMsgId*>(messageId) = newId;
+	qToUnaligned(newId, messageId);
 
 	request.write(result);
 

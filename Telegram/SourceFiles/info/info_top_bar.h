@@ -44,6 +44,7 @@ class Section;
 struct TitleDescriptor {
 	rpl::producer<QString> title;
 	rpl::producer<QString> subtitle;
+	rpl::producer<QString> badge;
 };
 
 class TopBar : public Ui::RpWidget {
@@ -164,6 +165,7 @@ private:
 	std::vector<base::unique_qptr<Ui::RpWidget>> _buttons;
 	QPointer<Ui::FadeWrap<Ui::FlatLabel>> _title;
 	QPointer<Ui::FadeWrap<Ui::FlatLabel>> _subtitle;
+	QPointer<Ui::FadeWrap<Ui::FlatLabel>> _badge;
 
 	bool _searchModeEnabled = false;
 	bool _searchModeAvailable = false;

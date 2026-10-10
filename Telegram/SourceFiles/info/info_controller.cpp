@@ -436,6 +436,8 @@ not_null<Ui::RpWidget*> Controller::wrapWidget() const {
 bool Controller::validateMementoPeer(
 		not_null<ContentMemento*> memento) const {
 	return memento->peer() == peer()
+		&& memento->topic() == topic()
+		&& memento->sublist() == sublist()
 		&& memento->migratedPeerId() == migratedPeerId()
 		&& memento->settingsSelf() == settingsSelf()
 		&& memento->storiesPeer() == storiesPeer()
@@ -540,16 +542,20 @@ void Controller::removeFromStack(const std::vector<Section> &sections) const {
 	_widget->removeFromStack(sections);
 }
 
-auto Controller::produceSearchQuery(
-		const QString &query) const -> SearchQuery {
-	Expects(_key.peer() != nullptr);
+auto AbstractController::produceSearchQuery(
+		const QString &query) const
+-> SearchQuery {
+	Expects(peer() != nullptr);
 
 	auto result = SearchQuery();
-	result.type = _section.mediaType();
-	result.peerId = _key.peer()->id;
-	result.topicRootId = _key.topic() ? _key.topic()->rootId() : 0;
+	result.type = section().mediaType();
+	result.peerId = peer()->id;
+	result.topicRootId = topic() ? topic()->rootId() : 0;
+	result.monoforumPeerId = sublist()
+		? sublist()->sublistPeer()->id
+		: PeerId();
 	result.query = query;
-	result.migratedPeerId = _migrated ? _migrated->id : PeerId(0);
+	result.migratedPeerId = migratedPeerId();
 	return result;
 }
 

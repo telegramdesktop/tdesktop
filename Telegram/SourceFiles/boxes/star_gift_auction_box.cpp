@@ -1119,7 +1119,6 @@ void AuctionBidBox(not_null<GenericBox*> box, AuctionBidBoxArgs &&args) {
 				MakeAveragePriceValue(raw, tooltip, name, price),
 				st::giveawayGiftCodeLabelMargin,
 				st::giveawayGiftCodeValueMargin);
-			raw->resizeToWidth(raw->widthNoMargins());
 		}, raw->lifetime());
 	}
 	return result;

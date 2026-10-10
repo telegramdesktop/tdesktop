@@ -5,6 +5,11 @@ own repository setup, commit boundaries, account safety, and host-specific
 drivers. This protocol owns task-derived evidence selection, execution,
 assessment, recovery, and reporting.
 
+Apply [phase effort](phase-effort.md) when assigning this loop's work.
+Running specified checks may use `medium`; evidence design, authoring,
+verdicts, diagnosis, and repairs favor `xhigh`, with `high` only when the
+parent is sure the particular phase contains nothing complex.
+
 ## Vocabulary
 
 - task-runner — the stateful owner of one task and its evidence loop;
@@ -87,6 +92,15 @@ additions, exit code and complete local log. Direct by-products to the ignored
 run directory or an existing ignored build tree. For every artifact or absence
 claim, quote literal readings and include a known-present control when a typo
 could otherwise pass.
+
+For Linux Debug execution copies, use the shared [bounded ELF identity
+guide](evidence/elf-copies.md) for exact digests, strip-debug equivalence and
+independent positive/negative controls.
+
+Object, PCH, link-membership and compiler-definition claims about a Ninja-built
+target come from `.agents/shared/evidence/ninja_target.py` resolving the exact
+consuming output; a glob, a basename or a `compdb`/`compdb-targets` listing is
+not proof of consumption. See [ninja-target-evidence.md](ninja-target-evidence.md).
 
 Use Telegram only when it adds causal coverage. App behavior that lives in the
 client normally requires the Debug binary and instrumented execution. Visible
@@ -198,12 +212,86 @@ data.
 The debug build runs in portable mode out of `out/Debug/`. Three sibling folders matter:
 
 - `test_TelegramForcePortable` — the golden test account, prepared by the user. Read-only SOURCE,
-  never modified by tests. (Its presence is the launch gate; the wrapper aborts if it is missing.)
+  never modified by tests, except the word lines of `test_gram_account.txt` after a confirmed key
+  rotation (below). (Its presence is the launch gate; the wrapper aborts if it is missing.)
 - `TelegramForcePortable` — the LIVE folder the app actually uses (its presence is what puts the
   build in portable mode). A marker file named `testing` directly inside it marks it as a
   disposable test copy; a live folder WITHOUT the marker is the user's real data.
 - `real_TelegramForcePortable` — the user's real data, preserved so manual use survives. Once it
   exists, NO flow step may ever delete, rename, move, overwrite, or write into it.
+
+Those three folders sit beside the executable because that is where the app looks:
+`CheckPortableVersionFolder()` resolves `cExeDir() + "TelegramForcePortable"` and never the
+process working directory. `test-run --portable-root <dir>` runs the SETUP steps against `<dir>`
+instead of `out/Debug/` **and** launches with `-workdir <dir>/TelegramForcePortable`, so what the
+run writes through its working directory — its `tdata`, `log.txt`, `DebugLogs/`, the crash report,
+every minidump — lands under `<dir>`; the run writes nothing into the three `out/Debug` folders and
+leaves them where they are. The caller supplies `<dir>/test_TelegramForcePortable` itself: an empty
+directory is enough for an account-free campaign, and a campaign that needs the test account copies
+the real golden into the sandbox. `<dir>` must therefore be a repository-ignored `.local/`
+directory (or the ignored build tree), never `work/` or `evidence/`: a copied golden carries
+`2svpassword.txt` and `test_gram_account.txt`, and those trees are committed and pushed.
+
+Wallet custody bounds the flag. A campaign that may rotate the golden wallet key must NOT pass
+`--portable-root`: `Test::RewriteGramAccountWords()` writes the live copy at `cWorkingDir()`, so a
+redirect leaves the new signing half under `<dir>` while `out/Debug/TelegramForcePortable` — the
+folder the next campaign's P0 reconciliation reads — still holds the old key, and a rotation cut
+short before that rewrite (crash, `deadline-killed`, `quiet-killed`) leaves no record outside
+`<dir>`. The marked live copy of a rotating campaign has to stay
+`out/Debug/TelegramForcePortable`; a redirected campaign that rotates anyway keeps its sandbox live
+copy until the rotation is reconciled, never discarding it with the run directory. The flag
+isolates files, not processes: a redirected launch takes a different single-instance identity
+(`Sandbox::start()` hashes `cWorkingDir()` into the local server name) and is explicitly permitted
+to run beside an instance of the same binary, while the kill still matches on the executable path
+across every sandbox — so **Serialize app runs** below applies unchanged, one live instance of
+`EXE` at a time, sandboxed or not. What the flag does **not** isolate on the fixture side:
+`Test::FixtureSecret()` still falls back to `out/Debug/test_TelegramForcePortable/` for
+`2svpassword.txt` and `test_gram_account.txt`, and `RewriteGramAccountWords()` still rewrites the
+golden copy resolved from `cExeDir()` — neither follows the working directory. Without the flag
+nothing changes: the same `-testagent -noupdate` vector and the same `out/Debug` folders.
+
+Fixture secrets ride in the golden folder beside `tdata`: `2svpassword.txt` and
+`test_gram_account.txt` (below). `2svpassword.txt` is the test account's two-step-verification
+(cloud) password, which the server requires on `wallet.exportSecretPhrase`, `wallet.replaceWallet`
+and the password route of `wallet.disableBackup` (`Session::disableBackup`). `wallet.enableBackup`,
+which has no password field, and the proof route (`Session::disableBackupWithProof`) prove key
+ownership instead of sending the password. A scenario reads it at runtime with
+`Test::TwoStepPassword()` (trimmed; `std::nullopt` when absent; the live copy is read first, then
+the golden sibling) and types it into the product's own `PasscodeBox`, so the real SRP path
+computes the proof. The value stays inside the process: never in overlay code, `work/`,
+`evidence/`, logs, notes, receipts, prompts, or an environment variable recorded anywhere. When a
+selected check needs it, the file is a prerequisite gated by existence (never by value) before the
+campaign is authored, and its absence is a task blocker: publish the task-local `Block` naming
+`2svpassword.txt` as the exact missing input instead of running a degraded campaign, exporting
+the legs as coverage debt, hand-building the SRP, or driving the answer. A scenario that still
+reaches a missing file at runtime refuses with a named fixture gate, never a product FAIL.
+
+The same folder carries `test_gram_account.txt`, the owner's funded golden wallet: the word lines
+until the first empty line, then the address as the app shows it, never a fixed count. A scenario
+reads it with `Test::GramAccount()` under the same read rule (the live copy first, then the golden
+sibling; `std::nullopt` when absent or malformed) and the words stay inside the process exactly
+like the password; only their COUNT and the address may be recorded. `Test::CheckSecrecy`
+(`test_secrecy_scan.h`) proves in the run that neither they, the password nor a custody record
+id or secret ref reached the test log, the app log or `DebugLogs`. A campaign that declares it
+needs the funded wallet is gated on it: the file's existence (never its value) before the campaign
+is authored, its absence the same task-local `Block` naming `test_gram_account.txt`; at campaign
+start `GramAccount()->addressRaw` must equal `*wallet.address()` — a mismatch FAILS the run and is
+never repaired by `/wallet_reset`, `wallet.replaceWallet` or a minted wallet; and the balance must
+cover every planned live leg plus a margin, checked before anything is spent — a shortfall is a
+task-local `Block` naming the address and the amount required, never a driven workaround.
+Campaigns on the golden wallet never reset it and spend only what a leg needs. After a confirmed
+key rotation the scenario rewrites the file's word lines through
+`Test::RewriteGramAccountWords(words, addressRaw)`, which rewrites only a copy whose own address
+is the rotated wallet's, in BOTH copies — the marked live copy and the golden folder — keeping
+the empty line and each copy's own address line; that golden write is the one owner-decided
+exception to the read-only golden folder. Because the golden `tdata` is never modified while the
+file is, the next campaign's P0 reconciles them in process through `Test::ReconcileGramAccount`
+(`Telegram/SourceFiles/test/README.md`, "Account fixture secrets"): fewer local words than the
+file restores custody from the file through the product's own import, and a differing local
+reveal with an equal or greater count rewrites the file from the local reveal. Never delete or
+reset the marked live copy while a campaign may have left a rotation in flight or unrewritten:
+SETUP keeps a marked live copy, and only a manual wipe or `test-account-reset` discards it — and
+with it the only copy of a not-yet-rewritten signing half.
 
 **SETUP — run at the START of every test run, with NO app instance alive. It is idempotent: the
 first SETUP after a crash moves leftover crash files and can refuse before launch; after successful
@@ -249,7 +337,10 @@ either carries the `testing` marker or coexists with `real_...` (step 3). If the
 breaks mid-loop (login screen, `AUTH_KEY_DUPLICATED`), delete the MARKED live folder (that deletion
 takes the Crashpad database under `tdata/dumps/completed/` with it, so copy out any dump worth
 keeping first), re-run SETUP for a fresh golden copy, and retry once; if it is still broken the run
-is UNRECOVERABLE. Never delete or alter `test_...` or `real_...` under any circumstances.
+is UNRECOVERABLE — except a marked live copy that may hold a key rotation in flight or a
+not-yet-rewritten `test_gram_account.txt`, which the flow never deletes (the funded-wallet rule
+above): stop and report instead. Never delete or alter `test_...` or `real_...` under any
+circumstances.
 
 **Serialize app runs.** Never have two `Telegram.exe` instances alive against this account at once —
 concurrent reuse of one auth key can trigger a server-side session reset. Before SETUP, launching, or
@@ -418,7 +509,8 @@ scaffolding.
   these established task-specific observers over reconstructing the same state in a scenario.
 - `test_agent.h` — `Test::Fire(name)` / `HasFired(name)` named waitpoints;
   `launch_finished` fires at the end of `Application::run()`. `TDESKTOP_TEST_SCALE` is applied
-  by the harness at startup.
+  by the harness at startup, and on macOS the harness holds the App Nap opt-out for the whole run
+  (`TDESKTOP_TEST_APP_NAP=allow` leaves it off; see Launch activation).
 - `test_scenario.cpp` — the overlay-owned slot: it defines `Test::SetupScenario(runner)` and
   is a no-op in the repository.
 
@@ -608,10 +700,13 @@ command, environment, exit-code, log, artifact and control evidence.
   `<EVIDENCE_DIR>/stale-crash/working` and every live `tdata/dumps/*.dmp` to
   `<EVIDENCE_DIR>/stale-crash/dumps/` before launch. A zero-byte `tdata/working` is neither moved
   nor reported. It launches `EXE` **with `-testagent -noupdate`** (so a shipped update can never
-  replace the binary under test mid-run) capturing stdout to
-  `<EVIDENCE_DIR>/app_stdout.txt` and stderr to `<EVIDENCE_DIR>/app_stderr.txt` (the flag prevents
-  modal crash hangs, and stderr captures assertion text), enforces **a hard wall-clock deadline
-  from launch** and a quiet-log watchdog while polling `<EVIDENCE_DIR>/test_log.txt`, detects
+  replace the binary under test mid-run) and `QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM=1`
+  in its environment - on macOS through LaunchServices in the background when `EXE` is its `.app`
+  bundle's main executable, otherwise directly (Launch activation, below) - with the client's
+  stdout in `<EVIDENCE_DIR>/app_stdout.txt` and its stderr in
+  `<EVIDENCE_DIR>/app_stderr.txt` on both paths (the flag prevents modal crash hangs, and stderr
+  captures assertion text), enforces **a hard wall-clock deadline from launch** and a quiet-log
+  watchdog while polling `<EVIDENCE_DIR>/test_log.txt`, detects
   `TEST_COMPLETE` versus process death (crash) versus the caps elapsing (hang), kills any
   straggler, and returns one JSON report with the parsed markers, stderr tail, fresh crash
   diagnostics, `crashpad_dumps_added`, `death_signals`, and `stale_crash_cleared`. The
@@ -621,17 +716,180 @@ command, environment, exit-code, log, artifact and control evidence.
   `TEST_COMPLETE` alone is not success: when the process writes it and then dies, the verdict is
   `died-after-complete`, not `complete`, on any of three independent signals — a non-zero
   `exit_code`, a new `.dmp` in the live `tdata/dumps/completed/` Crashpad database across the run,
-  or a fresh top-level `tdata/dumps/*.dmp` from a Breakpad build. `crashpad_dumps_added` is that
-  before/after delta, listed in full because `test-run` never clears `completed/` between runs;
-  `death_signals` names which of `"breakpad_dump"`, `"crashpad_dump"` and `"exit_code"` fired, and
-  is `[]` for a healthy run. `stale_crash_cleared` is an ordered list of `{from, kind, to}`
-  entries whose `kind` is `"report"` or `"dump"`, and is `[]` when nothing was cleared. If the
+  or a fresh top-level `tdata/dumps/*.dmp` from a Breakpad build. `exit_code` is a signal only for
+  a direct launch: a background launch reports it `null`, which leaves the two dump signals.
+  `crashpad_dumps_added` is that before/after delta, listed in full because `test-run` never
+  clears `completed/` between runs; `death_signals` names which of `"breakpad_dump"`,
+  `"crashpad_dump"` and `"exit_code"` fired, and is `[]` for a healthy run. `stale_crash_cleared`
+  is an ordered list of `{from, kind, to}` entries whose `kind` is `"report"` or `"dump"`, and is
+  `[]` when nothing was cleared.
+  `--portable-root <dir>` additionally passes `-workdir <dir>/TelegramForcePortable`; the report's
+  `workdir` names that redirected working directory and is `null` when the flag was not used, and
+  `golden_root` names the executable-directory golden the launch can still read whatever `workdir`
+  says. The isolation contract is stated under Test account (portable data) — hard rules. If the
   stale report cannot be moved, `test-run` refuses before launch, prints the helper error on stderr,
-  exits non-zero, and emits no JSON. If a dump cannot be moved, `test-run` leaves it in place,
+  exits non-zero, and emits no JSON. A malformed `--env` value (no `=`, or an empty name), or one
+  naming `QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM`, is refused the same way before SETUP,
+  with nothing created. If a dump cannot be moved, `test-run` leaves it in place,
   records `"to": null` (a null destination), and continues to launch. Then read each `SCREENSHOT:`
   image and judge it, save the binary overlay patch, and restore only inventoried overlay paths
   (`overlay-save` — the patch must be saved before that restore). The runner only gathers evidence;
   ASSESS below stays the agent's own adversarial judgement.
+  - **Launch activation (macOS).** Two things activate a client at launch, and the default stops
+    both for an app bundle's main executable. Qt's cocoa plugin activates it when it finishes
+    launching (`applicationDidFinishLaunching`, `qcocoaapplicationdelegate.mm`) unless
+    `QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM` is set, and AppKit activates it when it
+    handles the launch `open application` Apple Event, which WindowServer honours for a client the
+    console's terminal exec'd, with the variable set or not; a client LaunchServices launched in
+    the background (`open -g`) is not activated at launch
+    (`2026/10/08/launch-the-testagent-client-without-activating-it`, Runs 2-3). The launched
+    process's environment - only it; nothing is exported in the calling shell - carries
+    `QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM=1`, overwriting an inherited value. The same
+    variable skips Qt's activation-policy transform (`qcocoaintegration.mm`), which the
+    bundled Debug app does not need: read with the variable set, the client still checks in under
+    its bundle identifier as a regular application (`lsappinfo` `type="Foreground"`, activation
+    policy regular, the policy with a Dock entry), the same as without it, and owns the menu bar
+    whenever it is active. When `EXE` is its `.app` bundle's main executable
+    (`<bundle>/Contents/MacOS/<name>`, with `CFBundleExecutable` `<name>` in
+    `<bundle>/Contents/Info.plist`), `test-run` launches the bundle in the background with
+    `/usr/bin/open` as
+    `open -g -n -W -a <bundle> --stdout <stdout> --stderr <stderr> --args <arguments>`, with the
+    client's streams going to `app_stdout.txt` / `app_stderr.txt` and the arguments those of a
+    direct launch. `-g` keeps it out of the foreground, `-n` starts a new instance even when
+    another copy of the bundle runs, and `-W` keeps `open` running until the client exits, so the
+    deadline, quiet and grace caps work as for a direct launch. The client inherits the launched
+    environment, `--env` values included, through `open`, whose own output goes to
+    `<EVIDENCE_DIR>/launcher_output.txt`. The report's `launch_method` is `"background"` for that
+    path and `"exec"` for a direct launch. A background launch reports `exit_code` `null`, because
+    `open -W` exits 0 whatever the client's status, and `launcher_exit_code` is `open`'s own
+    status: non-zero when `open` failed (read `launcher_output.txt`), `null` when `test-run` killed
+    `open`, and always `null` for a direct launch, whose `exit_code` is the client's. A deadline,
+    quiet or grace kill of a background launch ends only `open`; the post-run path-scoped kill then
+    ends the client, and `stragglers_killed_after` lists the pids that kill ended, on both paths
+    (`[]` when nothing was left). A background client is not `test-run`'s child, so a Ctrl-C or a
+    process-group or tree kill of `test-run` does not reach it: `test-run` ends it by path when it
+    is interrupted or terminated (SIGINT, SIGTERM or SIGHUP), and after a SIGKILL of `test-run`
+    itself run `workspace.py test-cleanup --exe EXE` (the next `test-run`'s pre-launch kill also
+    ends it). The background client starts in `/`, which is harmless: Telegram
+    moves to its working folder at startup (`QDir::setCurrent(cWorkingDir())`, `logs.cpp`),
+    `-workdir` is passed as an absolute path, and on macOS the folder it started in only resolves
+    start URLs, of which `test-run` passes none. Qt's messages still reach `app_stderr.txt` without
+    a terminal: Qt's Apple log handler copies every enabled message to stderr unless the launched
+    environment sets `OS_ACTIVITY_DT_MODE`, `ACTIVITY_LOG_STDERR`, `CFLOG_FORCE_STDERR` or
+    `CFLOG_FORCE_DISABLE_STDERR` (`AppleUnifiedLogger::preventsStderrLogging`, `qcore_mac.mm`), so
+    do not pass those through `--env` when the run reads Qt's log. `--activate` launches `EXE`
+    directly with the variable removed from the launched environment, also when the calling shell
+    exported it, so Qt and AppKit activate the client at launch as before and the report keeps the
+    client's `exit_code` - for a campaign whose subject is genuine OS activation (the real-focus
+    campaigns) and for control launches. Any other `EXE` - an executable outside a bundle, or one
+    that is not its bundle's main executable - is launched directly with the variable set, so
+    AppKit's launch activation can still activate it. After a background launch the frontmost
+    application keeps its key window, the client reads `QGuiApplication::applicationState()`
+    inactive, and its windows open behind the frontmost application's. A window shown already
+    covered reads `isExposed()` true until the window server first reports a change for it, so
+    `exposed=1` is no proof that the window is on screen; after such a change a covered window
+    reads unexposed and gets no paints. Either way a stage that needs paints calls
+    `Test::KeepWindowExposed` (the not-marking-read and post-paint self-tests do that for the
+    primary window themselves); focus-routed actions need `Test::ForceWindowActive`. Only the
+    launch's own activation is suppressed: product flows and some self-tests still request
+    activation (`Telegram/SourceFiles/test/README.md`, Input helpers), and after a background launch
+    the window server may grant or refuse that request - on this host it granted it about 11 s after
+    launch in two default runs and refused it about 20 s after launch in a third, under a condition
+    those runs did not establish (`2026/10/08/launch-the-testagent-client-without-activating-it`,
+    Runs 4, 8 and 9). A granted request takes the key window from the frontmost application. After a
+    refused one the client stays inactive and the frontmost application keeps its key window, but
+    the client's window may still be ordered in front of the frontmost application's window by the
+    request's own window ordering. In Run 9 above the primary window stayed covered after its
+    restore; with an overlay that made the client's own application-activation calls no-ops,
+    reproducing that refusal under another stage sequence, the not-marking-read self-test's restore
+    through `Window::Controller::activate()` still ran `makeKeyAndOrderFront:` / `orderFront:` and
+    the un-minimize, and the inactive primary window was in front for about 4 s, until a later
+    request put it behind again
+    (`2026/10/09/keep-background-testagent-runs-on-macos-unthrottled-and-painting`, Runs 0 and 3). A
+    scenario's own `Platform::ActivateThisProcess()` or `Window::Controller::activate()` is
+    therefore no reliable route to OS activation under the default; a campaign whose subject is
+    genuine OS activation launches with `--activate`. `--env` may
+    not name the variable. The report's `launch_activation` is `"suppressed"` by default and
+    `"allowed"` with `--activate`; it names the requested mode, and on macOS only
+    `launch_method: "background"` keeps the launch from activating the client. Off macOS nothing
+    reads the variable, both modes launch alike (directly, `launch_method: "exec"`), and whether the
+    client takes the foreground is the window system's policy (Windows shows the first window with
+    `SW_SHOWNORMAL` from a foreground launcher; X11 leaves it to the window manager's focus policy;
+    Wayland to the compositor). A client the launch did not activate is a background application,
+    which macOS may nap and whose timers it may coalesce: in background runs on this host without a
+    hold, a sampler's heartbeat gaps grew to 100-290 ms after about 15 s of normal cadence
+    (`2026/10/01/animate-gram-card-sending-and-settle-effects`, Run 1), and a 4 ms precise sampler
+    ticked every 50-1000 ms from about the 80th second
+    (`2026/10/02/show-the-input-method-composition-in-the-gram-send-amount`, Run 1). On a locked
+    console macOS napped such a client without a hold: a 16 ms timer was throttled from about 30 s
+    after process start, with largest gaps of 216 ms and 359 ms
+    (`2026/10/09/keep-background-testagent-runs-on-macos-unthrottled-and-painting`, Runs 0 and 4).
+    Another application's window covering the client did not guarantee it: on an unlocked console, a
+    client without a hold that the frontmost application's window covered kept an exact 16 ms timer
+    cadence, largest gap 18-19 ms, over 60 s and over 300 s (Runs 1 and 2). Those runs did not
+    establish what made macOS nap the client. So on macOS the
+    harness holds one user-initiated, latency-critical `NSProcessInfo` activity
+    (`NSActivityUserInitiatedAllowingIdleSystemSleep | NSActivityLatencyCritical`; idle system sleep
+    stays allowed) for the whole `-testagent` run, `--activate` launches included:
+    `Test::ApplyStartupOverrides()` (`Telegram/SourceFiles/test/test_agent.cpp`) begins it early in
+    `Application::run()`, before `Test::Start()`, and never ends it, so it lasts until the process
+    exits, a watchdog or stage-timeout ending included. An overlay needs no activity of its own: the
+    per-overlay `BeginLatencyActivity` of the
+    `2026/10/07/animate-the-sending-row-for-a-collectible-transfer` overlay is history, and a second
+    activity is harmless but redundant. A campaign whose subject is background scheduling itself
+    (App Nap, timer coalescing, throttled-timer behaviour) launches with
+    `test-run --env TDESKTOP_TEST_APP_NAP=allow` to leave the hold off; any other non-empty value is
+    logged as rejected and the hold is kept. Check the run's one reading row, right after the
+    `TDESKTOP_TEST_SCALE` row of `test_log.txt` (after a rejected-value row when there is one):
+    `NOTE: TDESKTOP_TEST_APP_NAP=[<value>] applied: hold=<active|off> source=<default|environment> - <reason>`.
+    A held run reads `hold=active source=default`, the opt-out reads `hold=off source=environment`,
+    and `hold=off source=default` gives the reason the activity could not be begun. Off macOS
+    nothing reads `TDESKTOP_TEST_APP_NAP` and nothing is held.
+  - **Console input (macOS).** `input_before` and `input_after` are console readings taken right
+    before the launch and after the process ends; `input_after` comes after the post-run straggler
+    kill and the crash/log collection, just before the report prints. Each holds `time` (local
+    ISO 8601), `idle_seconds` (the console's HID idle time, `HIDIdleTime` of `IOHIDSystem`),
+    `frontmost_app` (the frontmost application's name, from `lsappinfo`) and `screen_locked` (the
+    on-console session's `CGSSessionScreenIsLocked`, `false` when absent), each beside a
+    `<name>_error` that says why the value is `null`; `input_after` adds `seconds_since_launch`.
+    After a default launch with no stage that activated the client, `input_after.frontmost_app`
+    normally equals `input_before.frontmost_app`; after a launch or a stage that activated the
+    client, macOS hands the foreground to some application when the client quits, which need not
+    be the one frontmost before (`Parallels Desktop` before and `cmux` after in Run 1 of
+    `2026/10/08/keep-an-occluded-harness-window-exposed-without-activating-it`).
+    `input_during_run` is `true` when `input_after.idle_seconds` is below
+    `input_after.seconds_since_launch`, `false` when it covers it, and `null` when either reading
+    lacks its idle time — always off macOS, where every value is `null` with its reason. It says
+    only that keyboard, pointer or other HID input reached the console between the launch and the
+    after reading: not which stage it disturbed, whether the app received it, or that it caused a
+    failure; `false` rules out HID input only, not other desktop events. A reading never prompts
+    for a permission, waits at most 2 s per host command, and never fails the command. The
+    readings never change `outcome`, `verdict_hint` or any other field; classifying a disturbed
+    run stays the assessor's judgement.
+  - **Idle gate.** `--wait-idle <seconds>` re-reads the idle time before the launch until the
+    console has been idle that long or `--wait-idle-max <seconds>` (default 600) elapses, then
+    launches either way. `wait_idle` records `required_seconds`, `max_seconds`, `waited_seconds`,
+    `met` and the last `idle_seconds` (with `idle_seconds_error`); `met` is `true` when the
+    requirement was observed, `false` when the bound elapsed first, and `null` when the idle
+    reading failed (the gate stops there and launches) or the gate was skipped — off macOS it
+    records `skipped` with the reason and launches at once; `wait_idle` is `null` without the
+    flag. The wait runs before the account setup, the straggler kill and the crash snapshots, and
+    counts toward none of `--deadline`, `--quiet` or `duration_seconds`; a missing executable,
+    portable root or golden folder fails before any wait. Use it when the console is unlocked and
+    someone may be using it, especially for a packed harness run: after a default launch the
+    owner's keystrokes reach the client only once a stage activates it, but a click anywhere still
+    closes an open popup (Qt's global popup monitor, `QCocoaWindow::setupPopupMonitor`,
+    `qcocoawindow.mm`), and a stage that activates the client takes the key window from the
+    owner's application; pick a requirement at least as long as the expected run and still read
+    `input_during_run` afterwards — the gate makes input less likely, it does not prevent it.
+    The occlusion no longer depends on input at all: after a default background launch the
+    client's windows open behind the frontmost application's whether or not anyone uses the
+    console. A window shown already covered reads `isExposed()` true until the window server first
+    reports a change for it, and a covered window reads unexposed and gets no paints after one
+    (Launch activation, above), so a window a stage needs painted is kept exposed without
+    activating the app by `Test::KeepWindowExposed`
+    (`Telegram/SourceFiles/test/test_window_exposure.h`) either way; the gate itself cannot prevent
+    that occlusion.
 
 ### Crashes & assertions (always launch the test binary with `-testagent`)
 
@@ -656,16 +914,19 @@ report is also sufficient when Telegram's reporter wrote nothing. **After** `TES
 opposite holds: `CrashReports::Finish()` unlinks `tdata/working` during the clean shutdown that
 precedes a teardown fault, so the only signals left are a non-zero `exit_code`, a new
 `tdata/dumps/completed/*.dmp` on the macOS Crashpad build, and a new top-level `tdata/dumps/*.dmp`
-on the Breakpad builds — `test-run` reads all three and reports `died-after-complete`. So **always
-pass `-testagent`**, and on a crash gather diagnostics in this order before
-deciding the verdict:
+on the Breakpad builds — `test-run` reads all three and reports `died-after-complete`. `exit_code`
+counts only for a direct launch: a macOS background launch reports it `null` (`open -W` exits 0
+whatever the client's status), so after `TEST_COMPLETE` such a run relies on the new
+`tdata/dumps/completed/*.dmp`. So **always pass `-testagent`**, and on a crash gather diagnostics
+in this order before deciding the verdict:
 
 1. **`<EVIDENCE_DIR>/app_stderr.txt`** — the `[testagent] assert: …` line gives the failed expression and
    `file:line` (e.g. `vector(1931) : … vector subscript out of range`). Usually enough to localize.
 2. **`<workdir>/tdata/working`** — the crash report the reporter wrote: the `Assertion:` /
    `CrtAssert:` annotations, the failed `file:line`, and `Caught signal …` / minidump id. Plain text;
-   read it directly. `<workdir>` is the launch `-workdir` (in portable test runs,
-   `out/Debug/TelegramForcePortable/`).
+   read it directly. `<workdir>` is the launch `-workdir` (`out/Debug/TelegramForcePortable/` in
+   ordinary portable test runs, `<portable-root>/TelegramForcePortable/` when the run used
+   `--portable-root`).
 3. **`<workdir>/tdata/dumps/`** — the minidump (full stack, needs symbols to read). When the local
    Debug build and its symbols are available, symbolize it now rather than merely recording its
    path. Breakpad writes `*.dmp` at that top level; the macOS

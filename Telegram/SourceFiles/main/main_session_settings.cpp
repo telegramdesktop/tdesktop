@@ -95,6 +95,7 @@ QByteArray SessionSettings::serialize() const {
 	for (const auto &id : _extraFavoriteReactions) {
 		size += sizeof(quint64) + Serialize::stringSize(id.emoji());
 	}
+	size += sizeof(qint32); // _stashHintShowsCount
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -187,6 +188,7 @@ QByteArray SessionSettings::serialize() const {
 		for (const auto &id : _extraFavoriteReactions) {
 			stream << quint64(id.custom()) << id.emoji();
 		}
+		stream << qint32(_stashHintShowsCount);
 	}
 
 	Ensures(result.size() == size);
@@ -263,6 +265,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	qint32 disableSharingBoxShowsCount = 0;
 	qint32 phoneNumberHidden = 0;
 	std::vector<Data::ReactionId> extraFavoriteReactions;
+	qint32 stashHintShowsCount = 0;
 
 	stream >> versionTag;
 	if (versionTag == kVersionTag) {
@@ -745,6 +748,9 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 			}
 		}
 	}
+	if (!stream.atEnd()) {
+		stream >> stashHintShowsCount;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for SessionSettings::addFromSerialized()"));
@@ -811,6 +817,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	_disableSharingBoxShowsCount = disableSharingBoxShowsCount;
 	_phoneNumberHidden = (phoneNumberHidden == 1);
 	_extraFavoriteReactions = std::move(extraFavoriteReactions);
+	_stashHintShowsCount = stashHintShowsCount;
 
 	if (version < 2) {
 		app.setLastSeenWarningSeen(appLastSeenWarningSeen == 1);
@@ -970,6 +977,20 @@ void SessionSettings::incrementDisableSharingBoxShown() {
 
 void SessionSettings::resetDisableSharingBoxShown() {
 	_disableSharingBoxShowsCount = 0;
+}
+
+bool SessionSettings::shouldShowStashHint() const {
+	return _stashHintShowsCount < kStashHintMaxShowsCount;
+}
+
+void SessionSettings::incrementStashHintShown() {
+	if (shouldShowStashHint()) {
+		_stashHintShowsCount++;
+	}
+}
+
+void SessionSettings::markStashHintUsed() {
+	_stashHintShowsCount = kStashHintMaxShowsCount;
 }
 
 std::vector<TimeId> SessionSettings::mutePeriods() const {

@@ -47,11 +47,26 @@ void Submit(
 		not_null<Ui::PasswordInput*> field,
 		not_null<Ui::FlatLabel*> error,
 		Fn<void()> finish) {
-	const auto fail = [&](const QString &text) {
+	const auto fail = [=](const QString &text) {
 		error->setText(text);
 		error->show();
 	};
-	switch (TryPasscode(field->text())) {
+	auto done = crl::guard(box, [=](bool correct) {
+		field->setDisabled(false);
+		if (correct) {
+			const auto weak = base::make_weak(box);
+			Core::App().unlockPasscode();
+			if (weak) {
+				finish();
+			}
+			return;
+		}
+		field->setFocus();
+		field->selectAll();
+		field->showError();
+		fail(tr::lng_passcode_wrong(tr::now));
+	});
+	switch (TryPasscode(field->text(), std::move(done))) {
 	case PasscodeAttempt::Empty:
 		field->showError();
 		return;
@@ -59,18 +74,11 @@ void Submit(
 		field->showError();
 		fail(tr::lng_flood_error(tr::now));
 		return;
-	case PasscodeAttempt::Wrong:
-		field->selectAll();
-		field->showError();
-		fail(tr::lng_passcode_wrong(tr::now));
+	case PasscodeAttempt::Busy:
 		return;
-	case PasscodeAttempt::Correct:
-		break;
-	}
-	const auto weak = base::make_weak(box);
-	Core::App().unlockPasscode();
-	if (weak) {
-		finish();
+	case PasscodeAttempt::Started:
+		field->setDisabled(true);
+		return;
 	}
 }
 

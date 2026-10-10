@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/random.h"
 
+#include <QtCore/QtEndian>
+
 namespace MTP {
 namespace details {
 namespace {
@@ -99,8 +101,8 @@ mtpBuffer AbstractConnection::prepareSecurePacket(
 	constexpr auto kTcpPostfixInts = 4;
 	result.reserve(kPrefixInts + size + kTcpPostfixInts);
 	result.resize(kPrefixInts);
-	*reinterpret_cast<uint64*>(&result[kAuthKeyIdPosition]) = keyId;
-	*reinterpret_cast<MTPint128*>(&result[kMessageKeyPosition]) = msgKey;
+	qToUnaligned(keyId, &result[kAuthKeyIdPosition]);
+	qToUnaligned(msgKey, &result[kMessageKeyPosition]);
 	return result;
 }
 

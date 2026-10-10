@@ -35,7 +35,8 @@ public:
 	rpl::producer<Core::CloudPasswordState> state() const;
 	std::optional<Core::CloudPasswordState> stateCurrent() const;
 
-	rpl::producer<ResetRetryDate, QString> resetPassword();
+	rpl::producer<ResetRetryDate, QString> resetPassword(
+		bool ignoreSilentErrors = false);
 	rpl::producer<rpl::no_value, QString> cancelResetPassword();
 
 	rpl::producer<SetOk, QString> set(

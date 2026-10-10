@@ -108,7 +108,7 @@ enum class OrderedMarkerType {
 }
 
 [[nodiscard]] QString OrderedRomanText(int value, bool upper) {
-	if (value <= 0) {
+	if (!OrderedRomanSupported(value)) {
 		return QString::number(value);
 	}
 	struct RomanPart {
@@ -994,6 +994,11 @@ bool AppendRichText(
 		return AppendRichText(data.vtext(), result, context, anchorId, anchorIds)
 			&& (context->dropRichTextClickHandlers
 				|| AddEntity(&result->text, from, EntityType::BankCard));
+	}, [&](const MTPDtextTonAddress &data) {
+		const auto from = result->text.text.size();
+		return AppendRichText(data.vtext(), result, context, anchorId, anchorIds)
+			&& (context->dropRichTextClickHandlers
+				|| AddEntity(&result->text, from, EntityType::TonAddress));
 	}, [&](const MTPDtextMentionName &data) {
 		const auto from = result->text.text.size();
 		if (!AppendRichText(data.vtext(), result, context, anchorId, anchorIds)) {
@@ -1871,23 +1876,25 @@ void RemovePremiumOnlyInlineEntities(TextWithEntities *text) {
 	}
 }
 
-void AppendSimpleBlock(
+bool AppendSimpleBlock(
 		TextWithEntities *result,
 		TextWithEntities &&block,
 		EntityType wrap = EntityType::Invalid,
-		const QString &wrapData = QString()) {
+		const QString &wrapData = QString(),
+		int emptyLinesBefore = 0) {
 	TextUtilities::Trim(block);
 	if (block.empty()) {
-		return;
+		return false;
 	}
 	if (wrap != EntityType::Invalid) {
 		block.entities.push_back(
 			EntityInText(wrap, 0, int(block.text.size()), wrapData));
 	}
 	if (!result->empty()) {
-		result->append(QChar('\n'));
+		result->append(QString(1 + emptyLinesBefore, QChar('\n')));
 	}
 	result->append(std::move(block));
+	return true;
 }
 
 // Computes the length text.text would have after TextUtilities::Trim(),
@@ -1920,19 +1927,35 @@ void AppendSimpleBlock(
 // is cheap enough to run on every content change.
 struct SimpleTextBuilder {
 	TextWithEntities result;
+	int emptyLines = 0;
 
 	void append(
 			const TextWithEntities &text,
 			EntityType wrap = EntityType::Invalid,
 			const QString &wrapData = QString()) {
-		AppendSimpleBlock(&result, TextWithEntities(text), wrap, wrapData);
+		appendBlock(TextWithEntities(text), wrap, wrapData);
 	}
 	void appendQuote(SimpleTextBuilder &&body, bool collapsed) {
-		AppendSimpleBlock(
-			&result,
+		appendBlock(
 			std::move(body.result),
 			EntityType::Blockquote,
 			collapsed ? u"1"_q : QString());
+	}
+	void appendEmptyLine() {
+		++emptyLines;
+	}
+	void appendBlock(
+			TextWithEntities &&block,
+			EntityType wrap = EntityType::Invalid,
+			const QString &wrapData = QString()) {
+		if (AppendSimpleBlock(
+				&result,
+				std::move(block),
+				wrap,
+				wrapData,
+				emptyLines)) {
+			emptyLines = 0;
+		}
 	}
 	[[nodiscard]] int length() const {
 		return int(result.text.size());
@@ -1941,6 +1964,7 @@ struct SimpleTextBuilder {
 
 struct SimpleTextCounter {
 	int result = 0;
+	int emptyLines = 0;
 
 	void append(
 			const TextWithEntities &text,
@@ -1951,16 +1975,30 @@ struct SimpleTextCounter {
 	void appendQuote(SimpleTextCounter &&body, bool) {
 		appendLength(body.result);
 	}
+	void appendEmptyLine() {
+		++emptyLines;
+	}
 	void appendLength(int length) {
 		if (length > 0) {
 			// The 1 is for the '\n' AppendSimpleBlock() would insert.
-			result += (result > 0 ? 1 : 0) + length;
+			result += (result > 0 ? (1 + emptyLines) : 0) + length;
+			emptyLines = 0;
 		}
 	}
 	[[nodiscard]] int length() const {
 		return result;
 	}
 };
+
+// Empty paragraphs between text are blank lines, at the edges they're dropped.
+template <typename Accumulator>
+void AppendSimpleParagraph(Accumulator &to, const TextWithEntities &text) {
+	if (TrimmedLength(text) > 0) {
+		to.append(text);
+	} else {
+		to.appendEmptyLine();
+	}
+}
 
 template <typename Accumulator>
 [[nodiscard]] bool CollectSimpleQuote(
@@ -1982,7 +2020,7 @@ template <typename Accumulator>
 			|| !SimpleTextEntitiesAllowed(child.text.text)) {
 			return false;
 		}
-		body.append(child.text.text);
+		AppendSimpleParagraph(body, child.text.text);
 	}
 	return true;
 }
@@ -2002,7 +2040,7 @@ template <typename Accumulator>
 			if (!SimpleTextEntitiesAllowed(block.text.text)) {
 				return false;
 			}
-			to.append(block.text.text);
+			AppendSimpleParagraph(to, block.text.text);
 			break;
 		case BlockKind::Code:
 			if (!block.text.text.entities.isEmpty()) {
@@ -2285,6 +2323,17 @@ void AppendSummaryBlock(
 	}
 }
 
+void AppendFlattenedBlock(SimpleTextBuilder &to, const Block &block) {
+	auto piece = TextWithEntities();
+	AppendSummaryBlock(&piece, block, false);
+	RemovePremiumOnlyInlineEntities(&piece);
+	if (!piece.empty()) {
+		to.appendBlock(std::move(piece));
+	} else if (block.kind == BlockKind::Paragraph) {
+		to.appendEmptyLine();
+	}
+}
+
 std::shared_ptr<const RichPage> ParsePage(
 		not_null<Main::Session*> session,
 		const MTPPage &page,
@@ -2491,6 +2540,47 @@ std::optional<RichMessageLimitError> ValidateRichMessage(
 	return std::nullopt;
 }
 
+Main::Session *RichBlocksMediaSession(
+		const std::vector<RichPage::Block> &blocks) {
+	for (const auto &block : blocks) {
+		if (block.photo) {
+			return &block.photo->session();
+		} else if (block.document) {
+			return &block.document->session();
+		} else if (block.peer) {
+			return &block.peer->session();
+		}
+		for (const auto &item : block.mediaItems) {
+			if (item.photo) {
+				return &item.photo->session();
+			} else if (item.document) {
+				return &item.document->session();
+			}
+		}
+		for (const auto &article : block.relatedArticles) {
+			if (article.photo) {
+				return &article.photo->session();
+			}
+		}
+		if (const auto session = RichListItemsMediaSession(block.listItems)) {
+			return session;
+		} else if (const auto nested = RichBlocksMediaSession(block.blocks)) {
+			return nested;
+		}
+	}
+	return nullptr;
+}
+
+Main::Session *RichListItemsMediaSession(
+		const std::vector<RichPage::ListItem> &items) {
+	for (const auto &item : items) {
+		if (const auto session = RichBlocksMediaSession(item.blocks)) {
+			return session;
+		}
+	}
+	return nullptr;
+}
+
 int CountRichPageBlocks(const RichPage &page) {
 	auto metrics = RichMessageMetrics();
 	metrics.tableColumnMeasurementLimit = TableColumnMeasurementLimit(0);
@@ -2614,7 +2704,7 @@ TextWithEntities FlattenRichPageSummary(
 }
 
 TextWithEntities FlattenRichPageToSimpleText(const RichPage &page) {
-	auto result = TextWithEntities();
+	auto to = SimpleTextBuilder();
 	for (const auto &block : page.blocks) {
 		switch (block.kind) {
 		case BlockKind::Code: {
@@ -2623,11 +2713,7 @@ TextWithEntities FlattenRichPageToSimpleText(const RichPage &page) {
 			auto inner = block.text.text;
 			Markdown::ExpandInlineTextObjects(&inner, false);
 			inner.entities.clear();
-			AppendSimpleBlock(
-				&result,
-				std::move(inner),
-				EntityType::Pre,
-				block.language);
+			to.appendBlock(std::move(inner), EntityType::Pre, block.language);
 			break;
 		}
 		case BlockKind::Quote: {
@@ -2635,29 +2721,26 @@ TextWithEntities FlattenRichPageToSimpleText(const RichPage &page) {
 			// the author is dropped and the inner content is flattened into a
 			// single TextWithEntities (keeping allowed inline formatting, no
 			// nested block formatting).
-			auto inner = TextWithEntities();
-			AppendSummaryLine(&inner, block.text, false);
-			AppendSummaryBlocks(&inner, block.blocks, false);
-			AppendSummaryLine(&inner, block.caption, false);
-			RemovePremiumOnlyInlineEntities(&inner);
-			AppendSimpleBlock(
-				&result,
-				std::move(inner),
-				EntityType::Blockquote);
+			auto inner = SimpleTextBuilder();
+			AppendSummaryLine(&inner.result, block.text, false);
+			for (const auto &child : block.blocks) {
+				AppendFlattenedBlock(inner, child);
+			}
+			AppendSummaryLine(&inner.result, block.caption, false);
+			RemovePremiumOnlyInlineEntities(&inner.result);
+			to.appendQuote(std::move(inner), false);
 			break;
 		}
 		default: {
 			// Every other block (heading, list, table, math, paragraph, ...)
 			// is flattened to plain text lines, keeping the inline formatting a
 			// normal message can carry.
-			auto piece = TextWithEntities();
-			AppendSummaryBlock(&piece, block, false);
-			RemovePremiumOnlyInlineEntities(&piece);
-			AppendSummaryLine(&result, std::move(piece), false);
+			AppendFlattenedBlock(to, block);
 			break;
 		}
 		}
 	}
+	auto result = std::move(to.result);
 	TextUtilities::Trim(result);
 	if (result.empty()) {
 		result = TextWithEntities::Simple(tr::lng_message_empty(tr::now));
@@ -2689,6 +2772,10 @@ bool RichBlockquoteIsCollapsible(const RichPage::Block &block) {
 	return (block.kind == BlockKind::Quote)
 		&& !block.pullquote
 		&& block.blocks.empty();
+}
+
+bool OrderedRomanSupported(int value) {
+	return (value > 0) && (value <= 9999);
 }
 
 std::optional<TextWithEntities> SerializeAsSimple(

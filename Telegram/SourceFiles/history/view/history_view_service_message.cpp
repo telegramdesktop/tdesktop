@@ -215,6 +215,25 @@ int WideChatWidth() {
 	return st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left();
 }
 
+bool ServiceAllowsSwipeReply(not_null<const HistoryItem*> item) {
+	if (item->Has<HistoryServiceGramTransfer>()) {
+		return true;
+	}
+	const auto media = item->media();
+	const auto gift = media ? media->gift() : nullptr;
+	if (!gift) {
+		return false;
+	}
+	using Type = Data::GiftType;
+	const auto types = std::array{
+		Type::Premium,
+		Type::Credits,
+		Type::Ton,
+		Type::StarGift,
+	};
+	return ranges::contains(types, gift->type);
+}
+
 void ServiceMessagePainter::PaintDate(
 		Painter &p,
 		not_null<const Ui::ChatStyle*> st,
@@ -530,8 +549,7 @@ QSize Service::performCountCurrentSize(int newWidth) {
 		}
 	}
 
-	const auto item = data();
-	if (const auto keyboard = item->inlineReplyKeyboard()) {
+	if (const auto keyboard = inlineReplyKeyboard()) {
 		const auto keyboardWidth = mediaDisplayed ? media->width() : contentWidth;
 		const auto keyboardHeight = st::msgBotKbButton.margin + keyboard->naturalHeight();
 		newHeight += keyboardHeight;
@@ -629,11 +647,19 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 
 	paintHighlight(p, context, g.height());
 
+	const auto gestureShift = context.gestureHorizontal.visualTranslationFor(
+		data()->id.bare);
+	const auto block = g;
+	if (gestureShift) {
+		p.translate(gestureShift, 0);
+	}
+
 	p.setTextPalette(st->serviceTextPalette());
 
 	const auto media = this->media();
 	const auto mediaDisplayed = media && media->isDisplayed();
 	const auto onlyMedia = (mediaDisplayed && media->hideServiceText());
+	const auto gramTransfer = data()->Has<HistoryServiceGramTransfer>();
 
 	if (_reactions) {
 		const auto reactionsHeight = st::mediaInBubbleSkip + _reactions->height();
@@ -649,8 +675,7 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 		p.translate(-reactionsPosition);
 	}
 
-	const auto item = data();
-	const auto keyboard = item->inlineReplyKeyboard();
+	const auto keyboard = inlineReplyKeyboard();
 	if (keyboard) {
 		// We need to count geometry without keyboard for bubble selection
 		// intervals counting below.
@@ -691,6 +716,13 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 		p.setPen(st->msgServiceFg());
 		p.setFont(st::msgServiceFont);
 		prepareCustomEmojiPaint(p, context, text());
+		const auto selection = !gramTransfer
+			? context.selection
+			: (context.selection == FullSelection)
+			? AllTextSelection
+			: snapSelection(
+				std::min(int(context.selection.from), text().length()),
+				std::min(int(context.selection.to), text().length()));
 		text().draw(p, {
 			.position = trect.topLeft(),
 			.availableWidth = trect.width(),
@@ -701,16 +733,50 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 			.pausedEmoji = context.paused || On(PowerSaving::kEmojiChat),
 			.pausedSpoiler = context.paused || On(PowerSaving::kChatSpoiler),
 			.fullWidthSelection = false,
-			.selection = context.selection,
+			.selection = selection,
 		});
 	}
 	if (mediaDisplayed) {
 		const auto left = g.left() + (g.width() - media->width()) / 2;
 		const auto top = g.top() + (onlyMedia ? 0 : (g.height() - media->height()));
 		const auto position = QPoint(left, top);
+		const auto selection = gramTransfer
+			? UnshiftItemSelection(context.selection, text())
+			: TextSelection();
+		const auto roll = media->bubbleRoll();
+		if (roll) {
+			const auto center = QRectF(
+				QRect(position, QSize(media->width(), media->height()))
+			).center();
+			p.save();
+			p.translate(center);
+			p.rotate(roll.rotate);
+			p.scale(roll.scale, roll.scale);
+			p.translate(-center);
+		}
 		p.translate(position);
-		media->draw(p, context.translated(-position).withSelection({}));
+		media->draw(p, context.translated(-position).withSelection(selection));
 		p.translate(-position);
+		if (roll) {
+			p.restore();
+		}
+	}
+	if (gestureShift) {
+		p.translate(-gestureShift, 0);
+		if (context.reactionInfo && context.reactionInfo->effectPaint) {
+			context.reactionInfo->effectOffset += QPoint(gestureShift, 0);
+		}
+		const auto blockWidth = std::max(
+			onlyMedia ? 0 : std::min(maxWidth(), block.width()),
+			mediaDisplayed ? media->width() : 0);
+		paintSwipeReplyIcon(
+			p,
+			context,
+			QRect(
+				block.x() + (block.width() - blockWidth) / 2,
+				block.y(),
+				blockWidth,
+				block.height()));
 	}
 }
 
@@ -765,7 +831,7 @@ TextState Service::textState(QPoint point, StateRequest request) const {
 		}
 	}
 
-	auto keyboard = item->inlineReplyKeyboard();
+	auto keyboard = inlineReplyKeyboard();
 	auto keyboardHeight = 0;
 	if (keyboard) {
 		keyboardHeight = keyboard->naturalHeight();
@@ -846,6 +912,12 @@ TextState Service::textState(QPoint point, StateRequest request) const {
 		}
 	} else if (mediaDisplayed && point.y() >= mediaTop) {
 		result = media->textState(mediaPoint, request);
+		if (item->Has<HistoryServiceGramTransfer>()) {
+			AddTextStateOffset(&result, text().length());
+		}
+	} else if (item->Has<HistoryServiceGramTransfer>()
+		&& point.y() >= trect.y() + trect.height()) {
+		SetTextStatePosition(&result, text().length(), false);
 	}
 	return result;
 }
@@ -854,7 +926,47 @@ void Service::updatePressed(QPoint point) {
 }
 
 TextForMimeData Service::selectedText(TextSelection selection) const {
-	return text().toTextForMimeData(selection);
+	const auto transfer = data()->Get<HistoryServiceGramTransfer>();
+	const auto sentenceSelection = !transfer
+		? selection
+		: (selection == FullSelection)
+		? AllTextSelection
+		: snapSelection(
+			std::min(int(selection.from), text().length()),
+			std::min(int(selection.to), text().length()));
+	auto result = text().toTextForMimeData(sentenceSelection);
+	if (selection == FullSelection) {
+		if (transfer) {
+			const auto comment = transfer->commentText();
+			if (!comment.isEmpty()) {
+				result.rich = tr::lng_action_gram_transfer_comment(
+					tr::now,
+					lt_text,
+					result.rich,
+					lt_comment,
+					tr::marked(comment),
+					tr::marked);
+				result.expanded = tr::lng_action_gram_transfer_comment(
+					tr::now,
+					lt_text,
+					result.expanded,
+					lt_comment,
+					comment);
+			}
+		}
+	} else if (transfer) {
+		const auto media = this->media();
+		if (media && media->isDisplayed()) {
+			auto comment = media->selectedText(
+				UnshiftItemSelection(selection, text()));
+			if (result.empty()) {
+				result = std::move(comment);
+			} else if (!comment.empty()) {
+				result.append(u"\n\n"_q).append(std::move(comment));
+			}
+		}
+	}
+	return result;
 }
 
 SelectedQuote Service::selectedQuote(TextSelection selection) const {
@@ -869,7 +981,32 @@ TextSelection Service::selectionFromQuote(
 TextSelection Service::adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const {
-	return text().adjustSelection(selection, type);
+	if (!data()->Has<HistoryServiceGramTransfer>()) {
+		return text().adjustSelection(selection, type);
+	} else if (selection == FullSelection) {
+		return selection;
+	}
+	const auto media = this->media();
+	const auto mediaDisplayed = media && media->isDisplayed();
+	const auto length = text().length();
+	const auto mediaLength = mediaDisplayed ? media->fullSelectionLength() : 0;
+	const auto end = length + mediaLength;
+	selection = snapSelection(
+		std::min(int(selection.from), end),
+		std::min(int(selection.to), end));
+	if (selection.to <= length) {
+		return text().adjustSelection(selection, type);
+	}
+	const auto comment = ShiftItemSelection(
+		media->adjustSelection(UnshiftItemSelection(selection, text()), type),
+		text());
+	if (selection.from >= length) {
+		return comment;
+	}
+	const auto sentence = text().adjustSelection(
+		{ selection.from, uint16(length) },
+		type);
+	return { sentence.from, comment.to };
 }
 
 EmptyPainter::EmptyPainter(not_null<History*> history)

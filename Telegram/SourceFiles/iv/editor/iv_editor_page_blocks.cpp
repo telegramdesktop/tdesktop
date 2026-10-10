@@ -34,6 +34,7 @@ bool StripWrapperEntityInEditMode(EntityType type) {
 	case EntityType::BotCommand:
 	case EntityType::Phone:
 	case EntityType::BankCard:
+	case EntityType::TonAddress:
 		return true;
 	default:
 		return false;

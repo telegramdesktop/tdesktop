@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/premium_preview_box.h"
 #include "chat_helpers/message_field.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "iv/editor/iv_editor_clipboard_import.h"
 #include "iv/editor/iv_editor_session.h"
 #include "iv/iv_rich_page.h"
@@ -28,6 +30,7 @@ namespace ChatHelpers {
 namespace {
 
 constexpr auto kToastDuration = 9 * crl::time(1000);
+constexpr auto kOfferTimeout = 30 * crl::time(1000);
 
 } // namespace
 
@@ -70,16 +73,19 @@ TextWithTags TextWithTagsReplaced(
 		+ original.text.mid(till);
 	const auto shift = int(with.text.size()) - (till - from);
 	for (const auto &tag : original.tags) {
-		if (tag.offset + tag.length <= from) {
-			result.tags.push_back(tag);
+		if (tag.offset < from) {
+			const auto end = std::min(tag.offset + tag.length, from);
+			result.tags.push_back({ tag.offset, end - tag.offset, tag.id });
 		}
 	}
 	for (const auto &tag : with.tags) {
 		result.tags.push_back({ from + tag.offset, tag.length, tag.id });
 	}
 	for (const auto &tag : original.tags) {
-		if (tag.offset >= till) {
-			result.tags.push_back({ tag.offset + shift, tag.length, tag.id });
+		const auto end = tag.offset + tag.length;
+		if (end > till) {
+			const auto start = std::max(tag.offset, till);
+			result.tags.push_back({ start + shift, end - start, tag.id });
 		}
 	}
 	return result;
@@ -93,6 +99,15 @@ std::shared_ptr<QMimeData> CloneMimeData(not_null<const QMimeData*> data) {
 	return result;
 }
 
+bool RichPasteOfferThrottle::take() {
+	const auto now = crl::now();
+	if (_lastShown && (now - _lastShown) < kOfferTimeout) {
+		return false;
+	}
+	_lastShown = now;
+	return true;
+}
+
 void ShowRichPasteToast(RichPasteToastArgs &&args) {
 	const auto session = args.session;
 	const auto undo = (args.offer == RichPasteOffer::Plain);
@@ -101,8 +116,14 @@ void ShowRichPasteToast(RichPasteToastArgs &&args) {
 	const auto locked = !undo
 		&& !field
 		&& !Iv::Editor::SessionPremium(session);
+	if (locked
+		&& Core::App().settings().readPref<bool>(
+			"rich_paste_toast_hidden",
+			false)) {
+		return;
+	}
 	const auto button = locked
-		? QString()
+		? tr::lng_archive_hint_button(tr::now)
 		: undo
 		? tr::lng_rich_paste_toast_undo(tr::now)
 		: field
@@ -176,12 +197,20 @@ void ShowRichPasteToast(RichPasteToastArgs &&args) {
 	if (button.isEmpty()) {
 		return;
 	}
+	Fn<void()> action = std::move(args.action);
+	if (locked) {
+		action = [=] {
+			Core::App().settings().writePref<bool>(
+				"rich_paste_toast_hidden",
+				true);
+		};
+	}
 	const auto activate = Ui::CreateChild<Ui::RoundButton>(
 		widget.get(),
 		rpl::single(button),
 		st::historyPremiumViewSet);
 	activate->show();
-	activate->setClickedCallback([=, action = std::move(args.action)] {
+	activate->setClickedCallback([=, action = std::move(action)] {
 		if (const auto strong = weak.get()) {
 			strong->hideAnimated();
 		}

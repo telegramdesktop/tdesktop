@@ -196,10 +196,14 @@ MenuVolumeItem::MenuVolumeItem(
 				return snap.first;
 			}
 		}
-		return value;
+		return _canMute ? value : std::max(value, 1. / kMaxVolumePercent);
 	});
 
 	initArcsAnimation();
+}
+
+void MenuVolumeItem::setCanMute(bool canMute) {
+	_canMute = canMute;
 }
 
 void MenuVolumeItem::initArcsAnimation() {

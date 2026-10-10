@@ -8,6 +8,14 @@ description: Continue autonomous Telegram Desktop development from the shared ai
 When running in Grok Build, read `.grok/ai-workflow-adapter.md` completely
 before any other host-specific delegation rule and apply its substitutions.
 
+Before assigning workers, read [phase effort](../../shared/phase-effort.md)
+and apply its scope-based effort selection and host mappings. On Codex, also
+read [child completion and recovery](../../shared/codex-delegation.md) and
+apply it to every worker below, including inbox, split, routing, and
+consolidation workers. Include that reference in each publication-owning or
+orchestrating child prompt, even when it must not delegate. Only disposable
+phase leaves receive the phase final-reply contract instead.
+
 Act as the checkout-level scheduler. Choose one invocation mode at startup,
 freeze its task batch, and keep looping only through that batch and follow-ups
 discovered from its results. Do not drain unrelated tasks added while the run
@@ -172,10 +180,12 @@ switch this checkout to a compatible existing local branch and continue the
 same frozen batch. Require a clean source checkout and submodules, no owned or
 disposable task overlay, no exact checkout executable, no source recovery refs
 for work already begun, and verify with `git worktree list --porcelain` that the
-branch is not checked out elsewhere. Prefer a compatible branch appearing for
-the most remaining batch tasks; preserve recorded batch order. Do not create a
-branch or cherry-pick, rebase, or merge. After `git switch`, refresh `queue`,
-rerun `source-lineage` and `source-preflight`, then Start/Retry or resume. If no
+branch is not checked out elsewhere. Apply `source-prepare` (below) to this
+cleanliness gate so stale submodules are updated and registered nested worktrees
+are ignored. Prefer a compatible branch appearing for the most remaining batch
+tasks; preserve recorded batch order. Do not create a branch or cherry-pick,
+rebase, or merge. After `git switch`, refresh `queue`, rerun `source-lineage`,
+`source-prepare` and `source-preflight`, then Start/Retry or resume. If no
 safe compatible local branch exists, stop and ask the human.
 
 ### Mode 1: resume active work, then drain the selected snapshot
@@ -229,10 +239,10 @@ Give the worker the source checkout path and instruct it to read and use
 transaction, may use the bounded planner delegation required by that skill,
 must not implement tasks, and must return the receipt and created ids.
 
-Wait in intervals no longer than 60 seconds. A timeout is not failure. Inspect
-the saved target after every wake and validate the receipt plus refreshed
-queue before proceeding. Record as the initial batch exactly the actionable
-task ids routed by that receipt, whether newly created or reused. Never launch
+Wait for the worker to return using the host completion contract, then
+validate the receipt plus refreshed queue before proceeding. Record as the
+initial batch exactly the actionable task ids routed by that receipt, whether
+newly created or reused. Never launch
 a second inbox worker in this invocation. If it cannot publish durable AI
 state, stop with the inbox transaction recoverable.
 
@@ -247,10 +257,27 @@ not eligible in this invocation. Do not substitute it when a batch task is
 claimed concurrently, blocked by an external dependency, or otherwise
 unavailable.
 
-Before publishing any new canonical `Start` commit, require a clean Telegram
-source checkout with clean submodules and no unrelated untracked files. The one
-exception is the checkout-owned first replacement whose `carried_from` field
-and source `split.yaml` designate it as the implementation carrier: start it
+After the source-lineage gate passes, prepare the Telegram checkout before
+Start, Retry, or a pre-Phase-1 resume that has no owned source changes:
+
+```bash
+python3 .agents/skills/process-inbox/scripts/workspace.py source-prepare
+```
+
+This automatically initializes or updates stale submodules recursively to the
+recorded gitlink commits, using a non-force checkout. It preserves local and
+staged changes and never follows remote tips. Source cleanliness checks ignore
+verified registered linked worktrees nested inside the checkout or its
+submodules, including their contents; leave those worktrees untouched. Ordinary
+untracked files, tracked changes and unregistered nested repositories still
+block. Preparation refuses a submodule target that would enter a registered
+worktree, including one hidden by ignore rules. AI main and slot cleanliness
+rules remain unchanged. Queue and `source-preflight` stay read-only.
+
+Before publishing any new canonical `Start` commit, require that preparation
+succeeds. The one exception is the checkout-owned first replacement whose
+`carried_from` field and source `split.yaml` designate it as the implementation
+carrier: start it
 with the retained source state intact, and let the helper revalidate the sealed
 worktree before transferring task refs. Do not require a Telegram executable,
 portable account, desktop, Docker daemon, or
@@ -370,9 +397,10 @@ reaches a global hard stop. You may use the bounded leaf delegation required by
 the skill. Do not select or start another task.
 ```
 
-The performer is stateful. Never duplicate it. Poll at no more than 60-second
-intervals, distinguish progress from completion using its task artifacts, and
-follow up with the same target if it becomes idle before a valid boundary.
+The performer is stateful. Never duplicate it. Wait for its final result using
+the host completion contract. If it stops before a valid boundary, recover
+through its saved target under that contract; do not wait indefinitely for
+another response from an idle or failed turn.
 
 After it returns, require one of:
 

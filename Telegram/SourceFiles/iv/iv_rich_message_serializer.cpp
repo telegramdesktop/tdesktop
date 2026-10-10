@@ -163,6 +163,7 @@ struct SerializeBlockResult {
 	case EntityType::Email: return 18;
 	case EntityType::Phone: return 19;
 	case EntityType::BankCard: return 20;
+	case EntityType::TonAddress: return 21;
 	case EntityType::Invalid:
 	case EntityType::Semibold:
 	case EntityType::MediaTimestamp:
@@ -471,6 +472,7 @@ bool CollectUser(SerializeContext *context, uint64 userId) {
 	case EntityType::Email:
 	case EntityType::Phone:
 	case EntityType::BankCard:
+	case EntityType::TonAddress:
 		return *inner;
 	case EntityType::CustomUrl: {
 		const auto data = entity.data();

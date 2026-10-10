@@ -12,10 +12,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_log.h"
 #include "ui/layers/box_layer_widget.h"
 #include "ui/ui_utility.h"
+#include "ui/widgets/elastic_scroll.h"
 
 #include "styles/palette.h"
 
 #include <QtGui/QPainter>
+#include <QtWidgets/QAbstractScrollArea>
 
 namespace Test {
 namespace {
@@ -31,31 +33,6 @@ constexpr auto kWalkedChainHead = 3;
 	return name.endsWith(u".png"_q, Qt::CaseInsensitive)
 		? name
 		: (name + u".png"_q);
-}
-
-[[nodiscard]] QString RectText(const QRect &rect) {
-	return u"%1,%2 %3x%4"_q
-		.arg(rect.x())
-		.arg(rect.y())
-		.arg(rect.width())
-		.arg(rect.height());
-}
-
-[[nodiscard]] QString MisframedDetails(
-		not_null<QWidget*> widget,
-		const QRect &logicalRect) {
-	const auto bounds = widget->rect();
-	if (!logicalRect.isEmpty() && bounds.contains(logicalRect)) {
-		return QString();
-	}
-	const auto inside = bounds.intersected(logicalRect);
-	return u"requested rect is not fully inside the grabbed widget: "
-		u"requested=%1 widget=%2 inside=%3 rows=%4/%5 columns=%6/%7"_q
-		.arg(RectText(logicalRect), RectText(bounds), RectText(inside))
-		.arg(inside.height())
-		.arg(logicalRect.height())
-		.arg(inside.width())
-		.arg(logicalRect.width());
 }
 
 [[nodiscard]] std::vector<QPoint> SamplePoints(const QSize &size) {
@@ -209,6 +186,33 @@ constexpr auto kWalkedChainHead = 3;
 	return shown.join(u" < "_q);
 }
 
+[[nodiscard]] QWidget *MappedClipper(QWidget *origin) {
+	for (auto widget = origin; widget; widget = widget->parentWidget()) {
+		if (const auto elastic = dynamic_cast<Ui::ElasticScroll*>(widget)) {
+			return elastic;
+		} else if (const auto area = dynamic_cast<QAbstractScrollArea*>(widget)) {
+			return area->viewport();
+		} else if (widget == widget->window()) {
+			break;
+		}
+	}
+	return nullptr;
+}
+
+[[nodiscard]] QString MappedTargetText(const MappedTarget &reading) {
+	return u"mapped-target: %1 local=%2 mapped=%3 inViewport=%4 viewport=%5%6"_q
+		.arg(reading.identity.isEmpty() ? u"<none>"_q : reading.identity)
+		.arg(RectText(reading.local))
+		.arg(RectText(reading.mapped))
+		.arg(RectText(reading.inViewport))
+		.arg(reading.viewport
+			? WidgetDescription(reading.viewport.data())
+			: u"<none>"_q)
+		.arg(reading.refusal.isEmpty()
+			? QString()
+			: u" - %1"_q.arg(reading.refusal));
+}
+
 [[nodiscard]] QString ViaWindowText(const WindowMappedCapture &reading) {
 	return u"window-mapped capture: target=%1 window=%2 mapped=%3 - a blank "
 		u"frame is a Note and never a FAIL, because the decisive oracle for a "
@@ -225,6 +229,31 @@ constexpr auto kWalkedChainHead = 3;
 }
 
 } // namespace
+
+QString RectText(const QRect &rect) {
+	return u"%1,%2 %3x%4"_q
+		.arg(rect.x())
+		.arg(rect.y())
+		.arg(rect.width())
+		.arg(rect.height());
+}
+
+QString MisframedDetails(
+		not_null<QWidget*> widget,
+		const QRect &logicalRect) {
+	const auto bounds = widget->rect();
+	if (!logicalRect.isEmpty() && bounds.contains(logicalRect)) {
+		return QString();
+	}
+	const auto inside = bounds.intersected(logicalRect);
+	return u"requested rect is not fully inside the grabbed widget: "
+		u"requested=%1 widget=%2 inside=%3 rows=%4/%5 columns=%6/%7"_q
+		.arg(RectText(logicalRect), RectText(bounds), RectText(inside))
+		.arg(inside.height())
+		.arg(logicalRect.height())
+		.arg(inside.width())
+		.arg(logicalRect.width());
+}
 
 QString WidgetDescription(not_null<QWidget*> widget) {
 	const auto &instance = *widget;
@@ -297,6 +326,42 @@ bool PreparedWidgetCapture::prepare(QWidget *widget) {
 	_widget = widget;
 	_image = image;
 	_globalGeometry = QRect(widget->mapToGlobal(QPoint()), widget->size());
+	_pendingReason = QString();
+	return true;
+}
+
+bool PreparedWidgetCapture::prepare(
+		QWidget *owner,
+		QWidget *origin,
+		const QRect &localRect) {
+	_widget = nullptr;
+	_image = QImage();
+	_globalGeometry = QRect();
+	const auto reading = ReadMappedTarget(owner, origin, localRect);
+	if (!reading.resolved()) {
+		_pendingReason = reading.refusal;
+		return false;
+	}
+	const auto image = GrabRect(reading.owner.data(), reading.mapped);
+	if (LooksBlank(image)) {
+		_pendingReason = u"mapped target grab still looks blank: %1 mapped=%2"_q
+			.arg(reading.identity, RectText(reading.mapped));
+		return false;
+	}
+	const auto blankRoot = BlankRootDetails(
+		reading.owner.data(),
+		image,
+		reading.mapped,
+		false);
+	if (!blankRoot.isEmpty()) {
+		_pendingReason = blankRoot;
+		return false;
+	}
+	_widget = reading.owner;
+	_image = image;
+	_globalGeometry = QRect(
+		reading.owner->mapToGlobal(reading.mapped.topLeft()),
+		reading.mapped.size());
 	_pendingReason = QString();
 	return true;
 }
@@ -407,6 +472,125 @@ bool CaptureMappedRect(
 		name);
 }
 
+MappedTarget ReadMappedTarget(
+		QWidget *owner,
+		QWidget *origin,
+		const QRect &localRect) {
+	if (!owner && !origin) {
+		return {
+			.refusal = u"no painted owner or rectangle origin was handed "
+				u"to the mapped-target reading"_q,
+		};
+	} else if (!owner) {
+		return {
+			.identity = WidgetDescription(origin),
+			.refusal = u"no painted owner was handed to the mapped-target "
+				u"reading"_q,
+		};
+	} else if (!origin) {
+		return {
+			.identity = WidgetDescription(owner),
+			.refusal = u"no rectangle origin was handed to the mapped-target "
+				u"reading"_q,
+		};
+	}
+	auto result = MappedTarget{
+		.local = localRect,
+		.identity = u"origin=%1 owner=%2"_q.arg(
+			WidgetDescription(origin),
+			WidgetDescription(owner)),
+	};
+	if (!origin->isVisible()) {
+		result.refusal = u"rectangle origin is not visible: %1"_q.arg(
+			result.identity);
+		return result;
+	} else if (!owner->isVisible()) {
+		result.refusal = u"painted owner is not visible: %1"_q.arg(
+			result.identity);
+		return result;
+	} else if (origin->size().isEmpty()) {
+		result.refusal = u"rectangle origin has empty geometry: %1"_q.arg(
+			result.identity);
+		return result;
+	} else if (owner->size().isEmpty()) {
+		result.refusal = u"painted owner has empty geometry: %1"_q.arg(
+			result.identity);
+		return result;
+	} else if (localRect.isEmpty()) {
+		result.refusal = u"requested target rect is empty: local=%1 %2"_q
+			.arg(RectText(localRect), result.identity);
+		return result;
+	}
+	const auto clipper = MappedClipper(origin);
+	if (clipper && !clipper->isVisible()) {
+		result.refusal = u"relevant viewport is not visible: %1 clipper=%2"_q
+			.arg(result.identity, WidgetDescription(clipper));
+		return result;
+	}
+	result.mapped = Ui::MapFrom(owner, origin, localRect);
+	if (const auto misframed = MisframedDetails(owner, result.mapped)
+		; !misframed.isEmpty()) {
+		result.refusal = u"mapped target is not fully inside the painted "
+			u"owner: %1 local=%2 mapped=%3 clipper=%4 - %5"_q
+			.arg(result.identity)
+			.arg(RectText(localRect))
+			.arg(RectText(result.mapped))
+			.arg(clipper ? WidgetDescription(clipper) : u"<none>"_q)
+			.arg(misframed);
+		return result;
+	}
+	if (clipper) {
+		result.inViewport = Ui::MapFrom(clipper, origin, localRect);
+		if (const auto misframed = MisframedDetails(
+				clipper,
+				result.inViewport)
+			; !misframed.isEmpty()) {
+			result.refusal = u"mapped target is not fully inside the "
+				u"relevant viewport: %1 local=%2 mapped=%3 inViewport=%4 "
+				u"clipper=%5 - %6"_q
+				.arg(result.identity)
+				.arg(RectText(localRect))
+				.arg(RectText(result.mapped))
+				.arg(RectText(result.inViewport))
+				.arg(WidgetDescription(clipper))
+				.arg(misframed);
+			return result;
+		}
+	}
+	result.origin = origin;
+	result.owner = owner;
+	result.viewport = clipper;
+	return result;
+}
+
+bool MappedTargetReady(
+		QWidget *owner,
+		QWidget *origin,
+		const QRect &localRect) {
+	return ReadMappedTarget(owner, origin, localRect).resolved();
+}
+
+QString MappedTargetDetails(const MappedTarget &reading) {
+	return MappedTargetText(reading);
+}
+
+bool CaptureMappedTarget(
+		QWidget *owner,
+		QWidget *origin,
+		const QRect &localRect,
+		const QString &name) {
+	const auto reading = ReadMappedTarget(owner, origin, localRect);
+	if (!reading.resolved()) {
+		Fail(u"capture %1"_q.arg(name), reading.refusal);
+		return false;
+	}
+	return CaptureMappedRect(
+		reading.owner.data(),
+		reading.origin.data(),
+		localRect,
+		name);
+}
+
 PaintingLayerRootResult PaintingLayerRoot(QWidget *box) {
 	if (!box) {
 		return {
@@ -439,6 +623,15 @@ bool CaptureInLayerRoot(not_null<QWidget*> box, const QString &name) {
 		return false;
 	}
 	return CaptureMappedRect(root.widget.data(), box, box->rect(), name);
+}
+
+bool CaptureBoxLayer(not_null<QWidget*> box, const QString &name) {
+	const auto root = PaintingLayerRoot(box);
+	if (!root.resolved()) {
+		Fail(u"capture %1"_q.arg(name), root.refusal);
+		return false;
+	}
+	return CaptureWidget(root.widget.data(), name);
 }
 
 WindowMappedCapture ReadViaWindow(QWidget *widget) {

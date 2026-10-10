@@ -894,6 +894,7 @@ groupCallMembersTop: 51px;
 groupCallTitleTop: 8px;
 groupCallSubtitleTop: 26px;
 groupCallWideVideoTop: 24px;
+groupCallWideContentTop: groupCallWideVideoTop + 9px;
 
 groupCallAddMember: SettingsButton(defaultSettingsButton) {
 	textFg: groupCallMemberNotJoinedStatus;

@@ -115,6 +115,7 @@ private:
 	QPixmap _image, _topBarGradient, _bottomBarGradient;
 	std::unique_ptr<Animation> _animation;
 	bool _customEmojiRepaintScheduled = false;
+	bool _imageRefreshScheduled = false;
 
 };
 

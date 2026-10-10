@@ -288,6 +288,20 @@ SystemMediaControlsManager::SystemMediaControlsManager()
 		_lifetimeDownload.destroy();
 	}, _lifetime);
 
+	// _streamed and _cachedMediaView hold session-owned objects (the
+	// big file cache Database, the mtproto loader, DocumentData), so
+	// they must be dropped on every stop, even while a video delegate
+	// is active or when distinct_until_changed() swallows the event:
+	// on logout the player calls stopAndClear() while the session is
+	// still alive, and destroying them later would touch freed memory.
+	rpl::merge(
+		mediaPlayer->stops(AudioMsgId::Type::Song),
+		mediaPlayer->stops(AudioMsgId::Type::Voice)
+	) | rpl::on_next([=] {
+		_cachedMediaView = nullptr;
+		_streamed = nullptr;
+	}, _lifetime);
+
 	auto trackChanged = mediaPlayer->trackChanged(
 	) | rpl::filter([=](AudioMsgId::Type audioType) {
 		return (audioType == AudioMsgId::Type::Song)

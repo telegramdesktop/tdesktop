@@ -54,6 +54,54 @@ QString RoundTripStateName(RoundTripState state) {
 	return u"missing"_q;
 }
 
+QString ProbeWindowText(
+		const QString &name,
+		int from,
+		int till,
+		const std::vector<QString> &rows,
+		NumberFormat format) {
+	auto text = u"probe=%1 window=[%2,%3) rows=%4"_q.arg(name);
+	text = ArgNumber(text, from, format);
+	text = ArgNumber(text, till, format);
+	return text.arg(JoinRows(rows));
+}
+
+QString ProbeCountText(
+		int expected,
+		int actual,
+		const QString &window,
+		NumberFormat format) {
+	return u"expected=%1 actual=%2 %3"_q
+		.arg(HelperNumber(expected, format))
+		.arg(HelperNumber(actual, format))
+		.arg(window);
+}
+
+QString RoundTripText(
+		const QString &key,
+		const RoundTrip &trip,
+		const std::vector<QString> &discarded,
+		const QString &window,
+		NumberFormat format) {
+	const auto tallies = u"issues=%1 answers=%2 dropped=%3 "
+		"preIssues=%4 preAnswers=%5"_q
+			.arg(HelperNumber(trip.issues, format))
+			.arg(HelperNumber(trip.answers, format))
+			.arg(HelperNumber(trip.dropped, format))
+			.arg(HelperNumber(trip.preIssues, format))
+			.arg(HelperNumber(trip.preAnswers, format));
+	return u"key=%1 state=%2 %3 issueAtMs=%4 answerAtMs=%5 roundTripMs=%6 "
+		"discarded=%7 %8"_q.arg(
+			key,
+			RoundTripStateName(trip.state),
+			tallies,
+			HelperNumber(trip.issueAtMs, format),
+			HelperNumber(trip.answerAtMs, format),
+			HelperNumber(trip.roundTripMs, format),
+			JoinRows(discarded),
+			window);
+}
+
 Probe::Probe(QString name) : _name(std::move(name)) {
 }
 
@@ -125,27 +173,30 @@ std::vector<TimedRow> Probe::timedRowsSince(
 	return result;
 }
 
-QString Probe::windowDetails(int mark) const {
+QString Probe::windowDetails(int mark, NumberFormat format) const {
 	const auto from = std::clamp(mark, 0, int(_rows.size()));
-	return u"probe=%1 window=[%2,%3) rows=%4"_q
-		.arg(_name)
-		.arg(from)
-		.arg(_rows.size())
-		.arg(JoinRows(rowsSince(mark)));
+	return ProbeWindowText(
+		_name,
+		from,
+		int(_rows.size()),
+		rowsSince(mark),
+		format);
 }
 
 void Probe::checkSawSince(
 		int mark,
 		const QString &part,
 		const QString &what) {
-	Check(sawSince(mark, part), what, windowDetails(mark));
+	const auto format = HelperNumberFormat();
+	Check(sawSince(mark, part), what, windowDetails(mark, format));
 }
 
 void Probe::checkNoneSince(
 		int mark,
 		const QString &part,
 		const QString &what) {
-	Check(!sawSince(mark, part), what, windowDetails(mark));
+	const auto format = HelperNumberFormat();
+	Check(!sawSince(mark, part), what, windowDetails(mark, format));
 }
 
 void Probe::checkCountSince(
@@ -154,13 +205,11 @@ void Probe::checkCountSince(
 		int expected,
 		const QString &what) {
 	const auto actual = countSince(mark, part);
+	const auto format = HelperNumberFormat();
 	Check(
 		actual == expected,
 		what,
-		u"expected=%1 actual=%2 %3"_q
-			.arg(expected)
-			.arg(actual)
-			.arg(windowDetails(mark)));
+		ProbeCountText(expected, actual, windowDetails(mark, format), format));
 }
 
 RoundTrip Probe::roundTripSince(int mark, const QString &key) const {
@@ -233,32 +282,14 @@ RoundTrip Probe::roundTripSince(int mark, const QString &key) const {
 		}
 	}
 	trip.dropped = int(discarded.size());
-	trip.observation = roundTripDetails(mark, key, trip, discarded);
+	const auto format = HelperNumberFormat();
+	trip.observation = RoundTripText(
+		key,
+		trip,
+		discarded,
+		windowDetails(mark, format),
+		format);
 	return trip;
-}
-
-QString Probe::roundTripDetails(
-		int mark,
-		const QString &key,
-		const RoundTrip &trip,
-		const std::vector<QString> &discarded) const {
-	const auto tallies = u"issues=%1 answers=%2 dropped=%3 "
-		"preIssues=%4 preAnswers=%5"_q
-			.arg(trip.issues)
-			.arg(trip.answers)
-			.arg(trip.dropped)
-			.arg(trip.preIssues)
-			.arg(trip.preAnswers);
-	return u"key=%1 state=%2 %3 issueAtMs=%4 answerAtMs=%5 roundTripMs=%6 "
-		"discarded=%7 %8"_q.arg(
-			key,
-			RoundTripStateName(trip.state),
-			tallies,
-			QString::number(qint64(trip.issueAtMs)),
-			QString::number(qint64(trip.answerAtMs)),
-			QString::number(qint64(trip.roundTripMs)),
-			JoinRows(discarded),
-			windowDetails(mark));
 }
 
 RoundTrip Probe::checkRoundTripSince(
@@ -302,13 +333,8 @@ void DiscriminatingScan::matchedControl(const QString &detail) {
 }
 
 bool DiscriminatingScan::report() {
-	Note(u"%1: examined=%2 subject(%3)=%4 control(%5)=%6"_q
-		.arg(_name)
-		.arg(_examined)
-		.arg(_subjectWhat)
-		.arg(_subjects)
-		.arg(_controlWhat)
-		.arg(_controls));
+	const auto format = HelperNumberFormat();
+	Note(tallyText(format));
 	if (!_subjectDetails.empty()) {
 		Note(_name + u" subjects: "_q + JoinRows(_subjectDetails));
 	}
@@ -319,16 +345,26 @@ bool DiscriminatingScan::report() {
 	Check(
 		discriminates,
 		_name + u" discriminates"_q,
-		discriminates
-			? QString()
-			: u"the walk matched no %1, so its %2 count of %3 over %4 examined "
-			u"items cannot tell absence from an enumeration that never reaches "
-			u"the subject"_q
-				.arg(_controlWhat)
-				.arg(_subjectWhat)
-				.arg(_subjects)
-				.arg(_examined));
+		discriminates ? QString() : refusalText(format));
 	return discriminates;
+}
+
+QString DiscriminatingScan::tallyText(NumberFormat format) const {
+	auto text = u"%1: examined=%2 subject(%3)=%4 control(%5)=%6"_q.arg(_name);
+	text = ArgNumber(text, _examined, format).arg(_subjectWhat);
+	text = ArgNumber(text, _subjects, format).arg(_controlWhat);
+	return ArgNumber(text, _controls, format);
+}
+
+QString DiscriminatingScan::refusalText(NumberFormat format) const {
+	auto text
+		= u"the walk matched no %1, so its %2 count of %3 over %4 examined "
+		u"items cannot tell absence from an enumeration that never reaches "
+		u"the subject"_q
+			.arg(_controlWhat)
+			.arg(_subjectWhat);
+	text = ArgNumber(text, _subjects, format);
+	return ArgNumber(text, _examined, format);
 }
 
 int DiscriminatingScan::examinedCount() const {

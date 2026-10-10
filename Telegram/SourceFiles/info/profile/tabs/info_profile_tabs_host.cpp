@@ -295,18 +295,17 @@ Fn<void()> TabsHost::openInWindowFor(const MediaTabDescriptor &tab) const {
 	if (!tab.sharedMediaType) {
 		return nullptr;
 	}
-	const auto peer = _context.sublist
-		? _context.sublist->sublistPeer()
-		: _context.peer;
-	const auto separateId = Media::SeparateId(
+	const auto peer = _context.peer;
+	const auto topicRootId = _context.topic
+		? _context.topic->rootId()
+		: MsgId();
+	const auto type = *tab.sharedMediaType;
+	return Media::SeparateOpenCallback(
+		_context.controller,
 		peer,
-		_context.topic ? _context.topic->rootId() : MsgId(),
-		*tab.sharedMediaType);
-	if (!separateId) {
-		return nullptr;
-	}
-	const auto window = _context.controller->parentController();
-	return [=] { window->showInNewWindow(separateId); };
+		topicRootId,
+		_context.sublist,
+		type);
 }
 
 void TabsHost::showTabMenu(const QString &id) {

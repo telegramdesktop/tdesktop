@@ -220,6 +220,7 @@ void AddNativeIvBlockAnchor(
 	case EntityType::Email:
 	case EntityType::Phone:
 	case EntityType::BankCard:
+	case EntityType::TonAddress:
 	case EntityType::CustomUrl:
 	case EntityType::MentionName:
 	case EntityType::FormattedDate:

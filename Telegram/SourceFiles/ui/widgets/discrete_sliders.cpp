@@ -291,14 +291,15 @@ const style::SettingsSlider &SettingsSlider::st() const {
 }
 
 int SettingsSlider::centerOfSection(int section) const {
-	const auto widths = countSectionsWidths(0);
 	auto result = 0;
-	if (section >= 0 && section < widths.size()) {
-		for (auto i = 0; i < section; i++) {
-			result += widths[i];
+	auto index = 0;
+	enumerateSections([&](const Section &data) {
+		if (index++ == section) {
+			result = data.left + (data.width / 2);
+			return false;
 		}
-		result += widths[section] / 2;
-	}
+		return true;
+	});
 	return result;
 }
 

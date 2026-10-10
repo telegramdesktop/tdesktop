@@ -93,6 +93,7 @@ public:
 	void checkBeforeClose(Fn<void()> close) override;
 	void checkBeforeCloseByEscape(Fn<void()> close) override;
 	rpl::producer<QString> title() override;
+	rpl::producer<QString> titleBadge() override;
 
 	void enableBackButton() override;
 

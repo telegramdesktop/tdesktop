@@ -15,11 +15,11 @@ class Runner;
 
 // Which boxes the harness refuses as a render root is not the question a
 // reader assumes it is. Ui::BoxContent's constructor sets
-// Qt::WA_OpaquePaintEvent (ui/layers/box_content.h:117-119), and the
+// Qt::WA_OpaquePaintEvent (ui/layers/box_content.h), and the
 // blank-root refusal short-circuits to an empty string for any widget
 // carrying it, so a plain Ui::GenericBox paints its own background and is
 // accepted as its own render root. setNoContentMargin(true) clears the
-// attribute again (:224-230) - 53 call sites under Telegram/SourceFiles/ do
+// attribute again - 53 call sites under Telegram/SourceFiles/ do
 // exactly that - and only then does the box paint nothing of its own and get
 // every frame it offers refused. Run 1 of
 // 2026/08/28/complete-server-history-details-hash-and-paging handed such a
@@ -37,8 +37,12 @@ class Runner;
 // captures the box through the Ui::BoxLayerWidget the resolver answers, crops
 // the box's own mapped rect out of that accepted frame to show the root
 // really holds the box's pixels rather than merely being some ancestor that
-// paints, and refuses a null, a stray widget and the window itself by name so
-// the resolver is shown to discriminate instead of answering everything.
+// paints, saves that crop through CaptureInLayerRoot and the whole shell
+// through CaptureBoxLayer so the title band above the mapped box is present
+// only in the shell frame, quotes MisframedDetails on a rect outside the
+// root as a passing Check, and refuses a null, a stray widget and the window
+// itself by name so the resolver is shown to discriminate instead of
+// answering everything.
 //
 // It needs no session, no chats list, no network and no account fixture. The
 // only thing it asks of the process is a primary window to show a layer in,

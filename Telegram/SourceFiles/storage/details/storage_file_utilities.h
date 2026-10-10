@@ -27,6 +27,26 @@ void ClearKey(const FileKey &key, const QString &basePath);
 	const QByteArray &passcode,
 	const QByteArray &salt);
 
+struct PasscodeKdf final {
+	quint32 kind = 0;
+	quint32 memory = 0;
+	quint32 time = 0;
+	quint32 parallel = 0;
+
+	[[nodiscard]] bool valid() const;
+	[[nodiscard]] bool costWithinLimits() const;
+};
+
+inline constexpr auto kPasscodeKdfArgon2id = quint32(1);
+inline constexpr auto kPasscodeKdfScrypt = quint32(2);
+inline constexpr auto kPasscodeSaltMinSize = 8;
+
+[[nodiscard]] PasscodeKdf DefaultPasscodeKdf();
+[[nodiscard]] MTP::AuthKeyPtr CreatePasscodeKey(
+	const QByteArray &passcode,
+	const QByteArray &salt,
+	const PasscodeKdf &kdf);
+
 struct FileReadDescriptor final {
 	~FileReadDescriptor();
 
@@ -69,9 +89,14 @@ public:
 		EncryptedDescriptor &data,
 		const MTP::AuthKeyPtr &key);
 
+	// Commits the buffered bytes: sync descriptors report whether the
+	// record durably reached disk, async writes are fire-and-forget and
+	// report true. Idempotent - a repeated call (as from the destructor)
+	// returns the remembered result.
+	bool finish();
+
 private:
 	void init(const QString &name);
-	void finish();
 
 	const QString _basePath;
 	QBuffer _buffer;
@@ -81,6 +106,7 @@ private:
 	HashMd5 _md5;
 	int _fullSize = 0;
 	bool _sync = false;
+	bool _result = true;
 
 };
 

@@ -21,6 +21,9 @@ stateful runner. Treat the external `task.md`, its referenced inputs, project
 context, and repository as sufficient unless the request expressly requires
 unavailable exact bytes or content.
 
+Use the shared [project-context policy](../../../shared/project-context.md)
+for selective reading, task-specific context, and optional durable amendments.
+
 Use visual evidence in this order: explicit task facts; supplied inputs;
 adjacent current UI/code/styles and the pre-task baseline; repository history
 and legacy implementations; then the closest established desktop convention
@@ -39,7 +42,6 @@ WORK_DIR = TASK_DIR/work
 LOCAL_DIR = TASK_DIR/.local
 TASK_SPEC = TASK_DIR/task.md plus referenced TASK_DIR/input files
 PROJECT_FILE = AI_SLOT/projects/<project>/project.md, or none
-PREVIOUS_CONTEXT = latest approved project task's work/context.md, or none
 BASE_REF = refs/ai-tasks/TASK_ID/base
 GREEN_REF = refs/ai-tasks/TASK_ID/green
 RUN_REF = refs/ai-tasks/TASK_ID/run
@@ -91,8 +93,25 @@ Before planning or editing:
    Require `current_satisfies: true`. A mismatch before Phase 1 returns the
    clean pre-phase routing stop defined below; a mismatch first established
    after Phase 1 follows the task-local Block rule.
-4. Run the scripted preflight report and act on its JSON instead of composing
-   the equivalent shell checks by hand:
+4. For a new run or a pre-Phase-1 resume with no owned source changes, prepare
+   the source checkout after the lineage gate passes:
+
+   ```bash
+   python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
+     source-prepare --source-root SOURCE_ROOT
+   ```
+
+   This automatically initializes or updates stale submodules recursively to
+   recorded gitlinks with a non-force checkout, preserving staged and local
+   edits. Source checks ignore only verified registered linked worktrees nested
+   in the checkout or its submodules and leave their contents untouched. Other
+   untracked or tracked changes still block. Preparation refuses a submodule
+   target that would enter a registered worktree, including an ignored one. AI
+   worktrees stay strict. Do not prepare a carried implementation or synchronize
+   modules containing owned implementation or disposable overlay changes on resume.
+
+   Run the read-only scripted preflight report and act on its JSON instead of
+   composing the equivalent shell checks by hand:
 
    ```bash
    python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
@@ -108,8 +127,30 @@ Before planning or editing:
    unselected instrument is irrelevant. An unavailable selected platform or
    stage is either replaced by an equally direct instrument or recorded under
    `Unverified:` with its expected exposure; never silently weaken the oracle.
-7. For a new run require a clean tracked Telegram worktree, clean submodules,
-   and no unrelated untracked files, then initialize local recovery state:
+   A selected check that must pass the account's two-step verification has
+   the `2svpassword.txt` fixture (`Telegram/SourceFiles/test/README.md`,
+   "Account fixture secrets") as a prerequisite. Gate its presence — existence
+   only, never its value — before Phase 4 editing and again before the
+   evidence campaign. When it is absent, do not author, build, launch, or
+   degrade the campaign around it and do not export the legs as coverage
+   debt: publish the task-local `Block` at once — `Blocker-Type: test`,
+   `Unverified:` naming the password-gated checks, `work/test.md` carrying a
+   `## Recovery exhaustion` section that states no automatic strategy can
+   supply an account secret and that a hand-built SRP or a driven answer is
+   not a substitute for those legs — with any retained implementation intact,
+   so a retry after the file appears resumes at the first incomplete boundary.
+   A selected check that the task declares needs the funded golden wallet
+   additionally has the `test_gram_account.txt` fixture (same README
+   section) as a prerequisite, gated by existence only at the same two
+   points; at campaign start the served `walletState.address` must equal the
+   file's address or the run FAILS — never repaired by `/wallet_reset` or a
+   minted wallet — and the balance must cover every planned live leg plus a
+   margin, checked before anything is spent. A missing file or a shortfall
+   is the same task-local `Block` — `Blocker-Type: test`, naming the address
+   and the amount required, `Unverified:` naming the funded-wallet checks —
+   never a driven workaround and never a minted wallet.
+7. For a new run require successful source preparation, then initialize local
+   recovery state (`source-begin` also prepares a fresh baseline):
 
    ```bash
    python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
@@ -136,7 +177,7 @@ Use tracked, resumable task artifacts:
 
 ```text
 work/context.md
-work/project.proposed.md       # project tasks only
+work/project-amendment.md      # optional narrow durable change for a project
 work/visual.md                 # layout tasks only
 work/plan.md
 work/split-proposal.md         # only when assessment rejects intrinsic scope
@@ -151,9 +192,7 @@ work/test.md
 work/test-cap-assessment-*.md  # independent focused-recovery decision at a campaign cap
 work/result.md
 work/owned-paths.txt
-work/progress.md
 work/logs/phase-*.prompt.md
-work/logs/phase-*.progress.md
 work/logs/phase-*.result.md
 work/test-overlay.patch
 evidence/                      # selected durable proof
@@ -171,21 +210,26 @@ Keep complete portable accounts, browser/Computer Use profiles, downloaded
 components, raw run directories, full build output, and temporary files under
 `.local/` or the checkout's existing ignored build tree. Never commit them.
 
-At startup read `phase` plus the existing progress, plan, review, test, and
-result artifacts. Resume at the first incomplete validated boundary. Do not
-repeat an approved phase merely because the prior agent session disappeared.
+At startup read `phase` plus the existing plan, review, test, and result
+artifacts. Legacy progress files may supply recovery hints but are not
+required and never prove completion. Resume at the first incomplete validated
+boundary. Do not repeat an approved phase merely because the prior agent
+session disappeared.
 Treat a compact subagent reply as a notification; the artifact and repository
 state are proof.
 
-At each stable boundary update `work/progress.md` and record the current phase
-locally:
+Apply the shared policy on resume too: an old full project proposal is not a
+completion requirement or a replacement to promote. Revalidate any useful
+durable fact against the current task and source before proposing an amendment.
+
+At each stable boundary record the current phase locally:
 
 ```bash
 python3 SOURCE_ROOT/.agents/skills/process-inbox/scripts/workspace.py \
   checkpoint --source-root SOURCE_ROOT --task TASK_ID --phase PHASE
 ```
 
-Record progress after context, assessed plan, each completed implementation
+Checkpoint after context, assessed plan, each completed implementation
 phase when useful for recovery, the retained implementation commit, review,
 and each material test attempt. Never mark a half-written artifact complete.
 The helper changes only task-scoped files in the slot worktree and publishes no
@@ -218,7 +262,11 @@ prompts, plus the host-specific orchestration rules.
   source edits so queue planning can replace the task.
 - Use `fork_turns: "none"` with explicit paths. Fork the smallest turn window
   only for genuinely unavailable chat-only visual context.
-- Inherit the parent's model and reasoning level. Do not invent tool fields.
+- Select effort using [phase effort](../../../shared/phase-effort.md):
+  `medium` for routine execution, otherwise favor `xhigh`; use `high` only
+  with the parent's concrete justification that the phase has no complexity.
+  Apply the host mapping, including Claude's `opus` pin for `medium` or
+  justified `high` work.
 - Keep implementation units sequential unless the assessed plan proves
   disjoint write sets and capacity makes parallel edits safe.
 - Never duplicate the performer or an implementation unit with uncertain
@@ -230,12 +278,12 @@ leaf as a synchronous foreground call and validate its artifacts when the call
 returns; run independent leaves of one step as parallel calls in a single
 message. On Grok Build, follow `.grok/ai-workflow-adapter.md`: blocking
 `spawn_subagent` leaves from a top-level performer, same-session checklists
-from a `/continue` child, no Codex wait ladder. On Codex, use the
-asynchronous wait ladder from the phase prompts: poll no longer than 60
-seconds, treat a timeout as not-failure, use artifact mtimes and heartbeat
-counters, message the target after five minutes without movement, and
-interrupt and retry that disposable phase once after a second unchanged
-window. On any host, never replace a live stateful performer.
+from a `/continue` child. On Codex, follow
+[child completion and recovery](../../../shared/codex-delegation.md). Keep
+waiting in the performer turn until each child returns or recovery reaches a
+hard stop, then validate the phase artifacts. Never end the turn with a
+progress-only result while children or commands are pending. On any host,
+never replace a live stateful performer.
 
 ## Implementation phases
 
@@ -246,10 +294,10 @@ Run sequentially:
    then `work/plan.md` with exact files, functions, ordered steps, bounded
    phases, owned write sets, adaptive review/evidence plans, the selected
    pre-review validation, and status checkboxes.
-   For project work it also writes `work/project.proposed.md` as a coherent
-   finished-state blueprint; use the Phase 1F prompt when prior task context
-   exists, otherwise Phase 1 with the project file. Do not promote the
-   proposal yet; blocked work must not become project truth.
+   Use the same Phase 1 prompt for standalone, new-project, and follow-up work,
+   with the selected small overview and explicitly relevant references. A
+   useful durable change may warrant `work/project-amendment.md` under the
+   shared policy; its absence does not make the phase incomplete.
    The visual contract derives every dimension from request relationships,
    supplied images, font metrics, style tokens, sibling geometry, or a cited
    desktop analogue, with ordered calculations, tolerances, relationship
@@ -666,6 +714,21 @@ Before an instrument runs, gate only its own prerequisites:
 - a Telegram build needs the matching configured Debug tree;
 - a Telegram launch additionally needs the exact executable, golden portable
   account, safe path-scoped process control, and test harness;
+- a check that must pass the account's two-step verification needs the
+  `2svpassword.txt` fixture, read at runtime through `Test::TwoStepPassword()`
+  (`Telegram/SourceFiles/test/README.md`, "Account fixture secrets"); its
+  absence is the task blocker of Phase 3 step 5, never a degraded run, and
+  the value never enters overlay code, artifacts, logs, or prompts;
+- a check that the task declares needs the funded golden wallet needs the
+  `test_gram_account.txt` fixture, read at runtime through
+  `Test::GramAccount()` (same README section): the file present, the served
+  `walletState.address` equal to the file's at campaign start (a mismatch
+  FAILS the run, never `/wallet_reset`), and the balance covering every
+  planned live leg plus a margin before any spend — a missing file or a
+  shortfall is the task-local `Block` of Phase 3 step 5 (`Blocker-Type:
+  test`, the address and the amount required), never a driven workaround
+  and never a minted wallet, and the words never enter overlay code,
+  artifacts, logs, or prompts;
 - Computer Use needs the separate capability gate;
 - another platform's unavailable toolchain is recorded as an exact
   `Unverified:` exposure, not simulated by an unrelated local command.
@@ -809,9 +872,29 @@ name its paths under `Touched:` when owned source work exists; otherwise use
 `Checkout: source-state-retained` and does not require a test report, because
 each replacement receives its own complete review and evidence campaign.
 
-For approved project work, promote `work/project.proposed.md` to the project's
-`project.md` immediately before final AI publication. For blocked work, retain
-the proposal only as a task artifact.
+For approved project work with a still-useful amendment, apply the shared
+policy immediately before final AI publication:
+
+1. Require a clean canonical AI main worktree. When `origin` exists, fetch it
+   there and fast-forward its `master` to `origin/master`. Read the latest
+   canonical target section and reconcile the proposed fact with it.
+2. Author only the task's narrow edit in its own
+   `AI_SLOT/projects/<project>/project.md`, validated against those fresh
+   canonical facts. Keep unrelated slot text unchanged; the final rebase
+   brings in independent canonical edits. Never copy the fresh whole file
+   into a stale slot and replay those edits as this task's change. Skip a
+   redundant or unsupported amendment. If section changes prevent a safe
+   task-only edit, retain the proposal task-locally and finish without the
+   optional amendment unless the conflict invalidates task correctness. Do not
+   sync, rebase, stash, or copy other files into the dirty task slot.
+3. Use ordinary `finish` below. It commits the task artifacts and optional
+   own-project file before fetching/rebasing the now-clean slot. Its existing
+   rebase handles later independent edits; preserve the final commit and stop
+   on a semantic conflict. Do not broaden its path scope to indexes, other
+   projects, or reference files.
+
+Without an amendment, publish the task normally. Blocked and split-required
+results must leave shared project files unchanged; proposals remain task-local.
 
 Publish final AI state only after the Telegram commit and result are final:
 
@@ -937,7 +1020,8 @@ delays finishing the work actually in hand.
   owned and disposable changes, publish a clean task-local `blocked` boundary
   naming the missing source task and branch evidence, and let `continue` run
   non-dependent batch work. Never perform branch integration inside the task.
-- A disposable phase may be retried once through the wait ladder. Never fresh
+- A stopped disposable phase may be retried once under the host completion
+  and recovery contract, after confirming no old writers remain. Never fresh
   retry the performer within the same attempt. An interruption leaves local
   task state `in-progress`; a later `continue` invocation resumes it. A later
   invocation reopens a published blocked task locally without a `Resume`

@@ -76,6 +76,9 @@ void MessageBar::setup() {
 		auto p = Painter(&_widget);
 		p.setInactive(_customEmojiPaused());
 		_customEmojiRepaintScheduled = false;
+		if (_imageRefreshScheduled) {
+			refreshImage();
+		}
 		paint(p);
 	}, _widget.lifetime());
 }
@@ -216,7 +219,9 @@ void MessageBar::updateFromContent(MessageBarContent &&content) {
 		_content.context);
 	if (_content.preview) {
 		_content.preview->subscribeToUpdates(crl::guard(&_widget, [=] {
-			refreshImage();
+			// May be called from inside SpoilerAnimationManager's loop,
+			// refreshing here would re-enter it through index().
+			_imageRefreshScheduled = true;
 			_widget.update();
 		}));
 	}
@@ -224,6 +229,7 @@ void MessageBar::updateFromContent(MessageBarContent &&content) {
 }
 
 void MessageBar::refreshImage() {
+	_imageRefreshScheduled = false;
 	_image = _content.preview
 		? QPixmap::fromImage(
 			_content.preview->image(st::historyReplyPreview),

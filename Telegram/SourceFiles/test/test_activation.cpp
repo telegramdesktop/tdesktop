@@ -30,7 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Test {
 namespace {
 
-// Twelve polls at Runner's kTickInterval of 50ms (test_runner.cpp:31) is
+// Twelve polls at Runner's kTickInterval of 50ms (test_runner.cpp) is
 // about 600ms, well inside kDefaultStageTimeout, and it is more than one
 // kActivationNoteEvery period - so the cap on the re-assertion note is
 // provably exercised instead of merely never being reached.
@@ -185,9 +185,10 @@ void AppendWindowActivationSelfTest(not_null<Runner*> runner) {
 				return;
 			}
 			// Both snapshots are taken in this one turn, for the reason
-			// test_menu.cpp:231-243 takes its two there: the failing shape
-			// exists only inside the turn that produced it. Here the turn
-			// is a safety boundary as well. ClearWindowActive mutates
+			// AppendPopupMenuCaptureSelfTest's open stage (test_menu.cpp)
+			// takes its two in the turn that called popup(): the failing
+			// shape exists only inside the turn that produced it. Here the
+			// turn is a safety boundary as well. ClearWindowActive mutates
 			// process-global Qt state, and a stage past its timeout skips
 			// every stage after it, so a de-activation left in force at a
 			// stage boundary would silence the rest of the run - which is
@@ -225,9 +226,9 @@ void AppendWindowActivationSelfTest(not_null<Runner*> runner) {
 				"reads derivedHasFocus=%1 focusInsideField=%2 "
 				"focusWidget=%3 - QWidget::isActiveWindow() ends in a "
 				"fallback to QPlatformWindow::isActive() "
-				"(qwidget.cpp:6723-6725), so on a host whose OS window is "
+				"(qwidget.cpp), so on a host whose OS window is "
 				"genuinely active it answers true all the same and "
-				"setFocus() (qwidget.cpp:6351) promotes the inner editor as "
+				"setFocus() (qwidget.cpp) promotes the inner editor as "
 				"usual. The full silence of this signature needs a "
 				"genuinely inactive platform window - a locked or "
 				"unattended console."_q

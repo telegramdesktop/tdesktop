@@ -74,13 +74,30 @@ public:
 	// widget and image to assertions. Keep readiness limited to identity and
 	// paint availability; geometry/raster expectations belong in |inspect|
 	// so a mismatch is a FAIL with actual values, never a timeout.
+	// |skipReason| becomes the capture stage's own Stage::skipReason: a
+	// non-empty answer when the stage begins writes TEST_RESULT: N/A and
+	// skips it; left empty the stage is unchanged.
 	void captureAndInspect(
 		const QString &name,
 		Fn<QWidget*()> resolve,
 		Fn<bool(QWidget*)> ready,
 		Fn<void(QWidget*, const QImage &)> inspect,
 		crl::time timeout = kDefaultStageTimeout,
-		Fn<QString(QWidget*)> readinessDetails = {});
+		Fn<QString(QWidget*)> readinessDetails = {},
+		Fn<QString()> skipReason = {});
+
+	// Release point for per-scenario timers, rpl::lifetimes, watchers, and
+	// raw cross-stage pointers. finish() runs every registered callback
+	// exactly once on every path that reaches it — stage timeout, watchdog,
+	// skip-to-end, and normal completion — after _finished is set and the
+	// ticker/watchdog are cancelled, before the post-quit fuse is armed and
+	// before kFinishDrainDelay is scheduled. The drain still runs so a fused
+	// file-launch can observe its fuse; these callbacks neither skip that
+	// drain nor wait for it, and they run before Complete() and Core::Quit().
+	// They also run when a teardown stage already ran, so they must be safe
+	// to call after teardown. A registration made after finish() has already
+	// run executes immediately and is never silently dropped.
+	void onFinish(Fn<void()> callback);
 
 	[[nodiscard]] bool empty() const;
 
@@ -99,6 +116,7 @@ private:
 	crl::time _stageStarted = 0;
 	base::Timer _ticker;
 	base::Timer _watchdog;
+	std::vector<Fn<void()>> _onFinish;
 
 };
 
@@ -106,5 +124,24 @@ private:
 // file with a scenario built from the task's test design; the repository
 // copy registers nothing.
 void SetupScenario(not_null<Runner*> runner);
+
+// The finish-release hook measuring itself. One Runner calls finish() once,
+// so the overlay selects the path. Timeout and Watchdog emit a harness FAIL
+// by construction. registerRelease=false is the timeout control that leaves
+// the 5 ms timer ticking; do not pack that control into a scenario that must
+// exit cleanly.
+enum class FinishReleasePath {
+	Timeout,
+	Watchdog,
+	Complete,
+	CompleteWithTeardown,
+	SkipAll,
+	LateRegister,
+};
+
+void AppendFinishReleaseSelfTest(
+	not_null<Runner*> runner,
+	FinishReleasePath path,
+	bool registerRelease = true);
 
 } // namespace Test

@@ -200,7 +200,10 @@ menuIconRatingRefund: icon {{ "menu/rating_refund-24x24", menuIconColor }};
 menuIconAuctionDrop: icon {{ "menu/auction_drop", menuIconColor }};
 menuIconStarsRefund: icon {{ "menu/auction_refund", menuIconColor }};
 menuIconStarsCarryover: icon {{ "menu/auction_carry", menuIconColor }};
-menuIconTon: icon{{ "payments/ton_emoji-18x18", windowActiveTextFg, point(3px, 2px) }};
+menuIconTon: icon {
+	{ "payments/ton_emoji_body-18x18", windowActiveTextFg, point(3px, 2px) },
+	{ "payments/ton_emoji_shine-18x18", windowFgActive, point(3px, 2px) },
+};
 menuIconReorder: icon{{ "menu/reorder-24x24", menuIconColor }};
 menuIconCraftTraits: icon{{ "menu/craft_random-24x24", menuIconColor }};
 menuIconCraftChance: icon{{ "menu/craft_chance-24x24", menuIconColor }};
@@ -259,6 +262,8 @@ mediaMenuIconInfo: icon {{ "menu/info", mediaviewMenuFg }};
 mediaMenuIconBlock: icon {{ "menu/block", mediaviewMenuFg }};
 
 mediaMenuIconFlip: icon {{ "menu/flip", mediaviewMenuFg }};
+mediaMenuIconEdit: icon {{ "menu/edit", mediaviewMenuFg }};
+mediaMenuIconNightMode: icon {{ "menu/night_mode", mediaviewMenuFg }};
 mediaMenuIconFont: icon {{ "menu/fonts", mediaviewMenuFg }};
 mediaMenuIconTextStylePlain: icon {{ "menu/text_style_plain-22x22", mediaviewMenuFg, point(0px, 2px) }};
 mediaMenuIconTextStyleFramed: icon {{ "menu/text_style_framed-22x22", mediaviewMenuFg, point(0px, 2px) }};

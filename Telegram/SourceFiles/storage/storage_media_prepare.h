@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "core/file_utilities.h"
+#include "editor/photo_editor_common.h"
 
 namespace tr {
 template <typename ...>
@@ -20,10 +21,6 @@ struct PreparedFile;
 struct PreparedList;
 enum class AlbumType;
 } // namespace Ui
-
-namespace Editor {
-struct PhotoModifications;
-} // namespace Editor
 
 namespace Storage {
 
@@ -52,22 +49,32 @@ enum class MimeDataState {
 [[nodiscard]] MimeDataState ComputeMimeDataState(const QMimeData *data);
 [[nodiscard]] bool ValidatePhotoEditorMediaDragData(
 	not_null<const QMimeData*> data,
-	bool withVideo);
+	bool composeAnimated,
+	bool composeSound);
 
 struct PhotoEditorMedia {
 	QImage image;
 	QString videoPath;
 	QByteArray videoContent;
 	crl::time videoDuration = 0;
+	bool videoHasAudio = false;
+	Editor::AudioTrack audio;
 
 	[[nodiscard]] bool video() const {
 		return !videoPath.isEmpty() || !videoContent.isEmpty();
 	}
 	[[nodiscard]] explicit operator bool() const {
-		return !image.isNull();
+		return !image.isNull() || !audio.empty();
 	}
 };
 [[nodiscard]] PhotoEditorMedia ReadPhotoEditorMedia(
+	const QString &path,
+	const QByteArray &content);
+void ReadPhotoEditorMediaAsync(
+	const QString &path,
+	const QByteArray &content,
+	Fn<void(PhotoEditorMedia&&)> done);
+[[nodiscard]] Editor::AudioTrack ReadPhotoEditorAudio(
 	const QString &path,
 	const QByteArray &content);
 [[nodiscard]] bool ValidateEditMediaDragData(

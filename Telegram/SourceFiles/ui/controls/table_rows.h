@@ -55,12 +55,20 @@ struct ValueWithSmallButton {
 	rpl::producer<QString> buttonText,
 	Fn<void(not_null<RpWidget*> button)> handler = nullptr,
 	int topSkip = 0);
+// The value wraps, and the button follows the end of its last line.
+[[nodiscard]] ValueWithSmallButton MakeMultilineValueWithSmallButton(
+	not_null<TableLayout*> table,
+	not_null<FlatLabel*> value,
+	rpl::producer<QString> buttonText,
+	Fn<void(not_null<RpWidget*> button)> handler = nullptr);
+// A click on the name opens the short info box unless |clicked| replaces it.
 [[nodiscard]] object_ptr<RpWidget> MakePeerTableValue(
 	not_null<TableLayout*> table,
 	std::shared_ptr<ChatHelpers::Show> show,
 	PeerId id,
 	rpl::producer<QString> button = nullptr,
-	Fn<void()> handler = nullptr);
+	Fn<void()> handler = nullptr,
+	Fn<void()> clicked = nullptr);
 [[nodiscard]] object_ptr<RpWidget> MakePeerWithStatusValue(
 	not_null<TableLayout*> table,
 	std::shared_ptr<ChatHelpers::Show> show,

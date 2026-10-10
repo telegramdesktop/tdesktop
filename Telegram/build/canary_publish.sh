@@ -25,7 +25,8 @@
 #                           universal build and share a message)
 #   BASE, COUNTER, COMMIT   the version being published
 #   VERSION_STR             the display version (7.0.9) of the archives
-#   PREVIOUS                commit of the previous run, for the changelog
+#   PREVIOUS                previous run's tip; one subject if it is not
+#                           an ancestor of HEAD
 #   SIGNED                  "true" when the platform binaries carry their
 #                           Authenticode signature / notarization (Linux
 #                           has none to carry and always passes "true")
@@ -124,19 +125,37 @@ if [ "$SIGNED" != "true" ]; then
     mac|armac) NOTE="UNSIGNED test build: not signed or notarized." ;;
   esac
 fi
-CAPTION=$({
-  echo "Canary #$COUNTER · $COMMIT"
-  if [ -n "$NOTE" ]; then
-    echo "$NOTE"
+# WHY: `git log | head` under pipefail dies with SIGPIPE (141) and
+# aborts before sendDocument. The changelog is optional; a missing
+# or huge range still has to publish the builds.
+CAPTION="Canary #$COUNTER · $COMMIT"
+if [ -n "$NOTE" ]; then
+  CAPTION=$(printf '%s\n%s' "$CAPTION" "$NOTE")
+fi
+LOG=$(
+  set +e
+  set +o pipefail
+  ancestor=0
+  if [ -n "$PREVIOUS" ] \
+    && git cat-file -e "$PREVIOUS^{commit}" 2>/dev/null \
+    && git merge-base --is-ancestor "$PREVIOUS" HEAD 2>/dev/null; then
+    ancestor=1
   fi
-  echo ""
-  if [ -n "$PREVIOUS" ] && git cat-file -e "$PREVIOUS^{commit}" 2>/dev/null \
-    && [ "$(git rev-parse "$PREVIOUS")" != "$(git rev-parse HEAD)" ]; then
-    git log --no-merges --pretty=format:'• %s' "$PREVIOUS..HEAD" | head -20
+  if [ "$ancestor" = 1 ] \
+    && [ "$(git rev-parse "$PREVIOUS" 2>/dev/null)" != "$(git rev-parse HEAD 2>/dev/null)" ]; then
+    git log --no-merges --pretty=format:'• %s' -n 20 "$PREVIOUS..HEAD" 2>/dev/null
+  elif [ -n "$PREVIOUS" ] && [ "$ancestor" != 1 ]; then
+    # Not in HEAD's history: the lane was rebased, so keep one subject.
+    git log -1 --pretty=format:'• %s' 2>/dev/null
   else
-    git log --no-merges --pretty=format:'• %s' -10
+    git log --no-merges --pretty=format:'• %s' -n 10 2>/dev/null
   fi
-} | head -c 1000)
+  exit 0
+) || true
+if [ -n "$LOG" ]; then
+  CAPTION=$(printf '%s\n\n%s' "$CAPTION" "$LOG")
+fi
+CAPTION=${CAPTION:0:1000}
 
 POSTS_JSON="{}"
 for PLATFORM in $PLATFORMS; do

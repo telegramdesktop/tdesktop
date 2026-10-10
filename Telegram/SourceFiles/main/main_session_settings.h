@@ -138,6 +138,10 @@ public:
 	void incrementDisableSharingBoxShown();
 	void resetDisableSharingBoxShown();
 
+	[[nodiscard]] bool shouldShowStashHint() const;
+	void incrementStashHintShown();
+	void markStashHintUsed();
+
 	[[nodiscard]] std::vector<TimeId> mutePeriods() const;
 	void addMutePeriod(TimeId period);
 
@@ -202,6 +206,7 @@ private:
 	static constexpr auto kDefaultSupportChatsLimitSlice = 7 * 24 * 60 * 60;
 	static constexpr auto kPhotoEditorHintMaxShowsCount = 5;
 	static constexpr auto kDisableSharingBoxMaxShowsCount = 3;
+	static constexpr auto kStashHintMaxShowsCount = 2;
 
 	struct ThreadId {
 		PeerId peerId;
@@ -227,6 +232,7 @@ private:
 	bool _dialogsFiltersEnabled = false;
 	int _photoEditorHintShowsCount = 0;
 	int _disableSharingBoxShowsCount = 0;
+	int _stashHintShowsCount = 0;
 	std::vector<TimeId> _mutePeriods;
 	TimeId _lastNonPremiumLimitDownload = 0;
 	TimeId _lastNonPremiumLimitUpload = 0;

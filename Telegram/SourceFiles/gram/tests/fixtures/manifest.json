@@ -1,0 +1,300 @@
+{
+  "apiCaptures": {
+    "task": "2026/08/06/probe-toncenter-nft-and-dns-endpoints",
+    "captured": "2026-08-06",
+    "transport": "toncenter.performApiRequest to ShiftDcId(webFileDcId, kToncenterDcShift); MTProto Test environment, live mainnet data",
+    "note": "raw response bodies, byte-exact as the proxy returned them; a body of the shape {\"error\":...} is the proxy's own error response, not a transport failure. The block-level task and captured fields describe the first batch; every later entry carries its own task and captured, and an entry with a url and mechanism pair was loaded through that mechanism rather than the transport named above.",
+    "requests": [
+      {
+        "file": "api-nft-items-owner1.json",
+        "method": "GET",
+        "endpoint": "/api/v3/nft/items",
+        "query": "owner_address=0%3A9DA971AF38D2F03ABDF308D5F91636A97E5A2B07A66C39D71D7CBAE3B032EDDC",
+        "bytes": 110532
+      },
+      {
+        "file": "api-nft-items-owner2.json",
+        "method": "GET",
+        "endpoint": "/api/v3/nft/items",
+        "query": "owner_address=0%3A4E3664FAEE814FBDB6C1CB36D72BAC52D15E186C11ECD664FE1B3F1A7CFD801D",
+        "bytes": 23698
+      },
+      {
+        "file": "api-nft-items-owner1-paged.json",
+        "method": "GET",
+        "endpoint": "/api/v3/nft/items",
+        "query": "owner_address=0%3A9DA971AF38D2F03ABDF308D5F91636A97E5A2B07A66C39D71D7CBAE3B032EDDC&limit=50&offset=0",
+        "bytes": 82860
+      },
+      {
+        "file": "api-nft-items-address-gift.json",
+        "method": "GET",
+        "endpoint": "/api/v3/nft/items",
+        "query": "address=0%3ACA0CFD519F763102B5BEC9D9E3AF43592EA362FB773FA319EA09C4F162C171E0",
+        "bytes": 2029
+      },
+      {
+        "file": "api-nft-items-collection-numbers.json",
+        "method": "GET",
+        "endpoint": "/api/v3/nft/items",
+        "query": "collection_address=EQAOQdwdw8kGftJCSFgOErM1mBjYPe4DBPq8-AhF6vr9si5N&limit=1",
+        "bytes": 2028
+      },
+      {
+        "file": "api-nft-items-collection-usernames.json",
+        "method": "GET",
+        "endpoint": "/api/v3/nft/items",
+        "query": "collection_address=EQCA14o1-VWhS2efqoh_9M1b_A9DtKTuoqfmkn83AbJzwnPi&limit=1",
+        "bytes": 2342
+      },
+      {
+        "file": "api-nft-items-camel.json",
+        "method": "GET",
+        "endpoint": "/api/v3/nftItems",
+        "query": "owner_address=0%3A9DA971AF38D2F03ABDF308D5F91636A97E5A2B07A66C39D71D7CBAE3B032EDDC",
+        "bytes": 54
+      },
+      {
+        "file": "api-nft-transfers-owner1.json",
+        "method": "GET",
+        "endpoint": "/api/v3/nft/transfers",
+        "query": "owner_address=0%3A9DA971AF38D2F03ABDF308D5F91636A97E5A2B07A66C39D71D7CBAE3B032EDDC",
+        "bytes": 52
+      },
+      {
+        "file": "api-nft-transfers-owner1-paged.json",
+        "method": "GET",
+        "endpoint": "/api/v3/nft/transfers",
+        "query": "owner_address=0%3A9DA971AF38D2F03ABDF308D5F91636A97E5A2B07A66C39D71D7CBAE3B032EDDC&direction=both&limit=50&offset=0",
+        "bytes": 52
+      },
+      {
+        "file": "api-nft-transfers-item-gift.json",
+        "method": "GET",
+        "endpoint": "/api/v3/nft/transfers",
+        "query": "item_address=0%3ACA0CFD519F763102B5BEC9D9E3AF43592EA362FB773FA319EA09C4F162C171E0",
+        "bytes": 52
+      },
+      {
+        "file": "api-nft-transfers-camel.json",
+        "method": "GET",
+        "endpoint": "/api/v3/nftTransfers",
+        "query": "owner_address=0%3A9DA971AF38D2F03ABDF308D5F91636A97E5A2B07A66C39D71D7CBAE3B032EDDC",
+        "bytes": 58
+      },
+      {
+        "file": "api-dns-records-domain-tolya.json",
+        "method": "GET",
+        "endpoint": "/api/v3/dns/records",
+        "query": "domain=tolya.ton",
+        "bytes": 807
+      },
+      {
+        "file": "api-dns-records-wallet-owner1.json",
+        "method": "GET",
+        "endpoint": "/api/v3/dns/records",
+        "query": "wallet=0%3A9DA971AF38D2F03ABDF308D5F91636A97E5A2B07A66C39D71D7CBAE3B032EDDC",
+        "bytes": 1361
+      },
+      {
+        "file": "api-dns-records-domain-saint.json",
+        "method": "GET",
+        "endpoint": "/api/v3/dns/records",
+        "query": "domain=saint.ton",
+        "bytes": 958
+      },
+      {
+        "file": "api-dns-records-domain-pumpanddump.json",
+        "method": "GET",
+        "endpoint": "/api/v3/dns/records",
+        "query": "domain=pumpanddump.ton",
+        "bytes": 776
+      },
+      {
+        "file": "api-dns-records-wallet-owner3.json",
+        "method": "GET",
+        "endpoint": "/api/v3/dns/records",
+        "query": "wallet=0%3A8B704249E018FAA59BDC356F463A7A34FC0201DBBFA7441A387BE83E9FFFBFC4",
+        "bytes": 776
+      },
+      {
+        "file": "api-dns-records-camel.json",
+        "method": "GET",
+        "endpoint": "/api/v3/dnsRecords",
+        "query": "wallet=0%3A9DA971AF38D2F03ABDF308D5F91636A97E5A2B07A66C39D71D7CBAE3B032EDDC",
+        "bytes": 56
+      },
+      {
+        "file": "api-traces-owner2.json",
+        "task": "2026/08/06/probe-collectible-metadata-and-date-sources",
+        "captured": "2026-08-06",
+        "method": "GET",
+        "endpoint": "/api/v3/traces",
+        "query": "account=0%3A4E3664FAEE814FBDB6C1CB36D72BAC52D15E186C11ECD664FE1B3F1A7CFD801D&limit=20&offset=0",
+        "bytes": 122797
+      },
+      {
+        "file": "api-traces-owner1-limit5.json",
+        "task": "2026/08/06/probe-collectible-metadata-and-date-sources",
+        "captured": "2026-08-06",
+        "method": "GET",
+        "endpoint": "/api/v3/traces",
+        "query": "account=0%3A9DA971AF38D2F03ABDF308D5F91636A97E5A2B07A66C39D71D7CBAE3B032EDDC&limit=5&offset=0",
+        "bytes": 1296004
+      },
+      {
+        "file": "api-traces-item-gift.json",
+        "task": "2026/08/06/probe-collectible-metadata-and-date-sources",
+        "captured": "2026-08-06",
+        "method": "GET",
+        "endpoint": "/api/v3/traces",
+        "query": "account=0%3ACA0CFD519F763102B5BEC9D9E3AF43592EA362FB773FA319EA09C4F162C171E0&limit=20&offset=0",
+        "bytes": 45
+      },
+      {
+        "file": "api-transactions-latest.json",
+        "task": "2026/08/06/probe-collectible-metadata-and-date-sources",
+        "captured": "2026-08-06",
+        "method": "GET",
+        "endpoint": "/api/v3/transactions",
+        "query": "limit=1&offset=0",
+        "bytes": 2192
+      },
+      {
+        "file": "api-transactions-item-gift.json",
+        "task": "2026/08/06/probe-collectible-metadata-and-date-sources",
+        "captured": "2026-08-06",
+        "method": "GET",
+        "endpoint": "/api/v3/transactions",
+        "query": "account=0%3ACA0CFD519F763102B5BEC9D9E3AF43592EA362FB773FA319EA09C4F162C171E0&limit=20&offset=0",
+        "bytes": 37
+      },
+      {
+        "file": "api-nft-items-owner1-limit5.json",
+        "task": "2026/08/06/probe-collectible-metadata-and-date-sources",
+        "captured": "2026-08-06",
+        "method": "GET",
+        "endpoint": "/api/v3/nft/items",
+        "query": "owner_address=0%3A9DA971AF38D2F03ABDF308D5F91636A97E5A2B07A66C39D71D7CBAE3B032EDDC&limit=5",
+        "bytes": 8567
+      },
+      {
+        "file": "api-nft-items-owner1-metadata-flag.json",
+        "task": "2026/08/06/probe-collectible-metadata-and-date-sources",
+        "captured": "2026-08-06",
+        "method": "GET",
+        "endpoint": "/api/v3/nft/items",
+        "query": "owner_address=0%3A9DA971AF38D2F03ABDF308D5F91636A97E5A2B07A66C39D71D7CBAE3B032EDDC&limit=5&include_metadata=true",
+        "bytes": 8567
+      },
+      {
+        "file": "api-jetton-wallets-owner1.json",
+        "task": "2026/08/06/probe-collectible-metadata-and-date-sources",
+        "captured": "2026-08-06",
+        "method": "GET",
+        "endpoint": "/api/v3/jetton/wallets",
+        "query": "owner_address=0%3A9DA971AF38D2F03ABDF308D5F91636A97E5A2B07A66C39D71D7CBAE3B032EDDC&limit=20&offset=0",
+        "bytes": 25146
+      },
+      {
+        "file": "api-jetton-masters-usdt.json",
+        "task": "2026/08/06/probe-collectible-metadata-and-date-sources",
+        "captured": "2026-08-06",
+        "method": "GET",
+        "endpoint": "/api/v3/jetton/masters",
+        "query": "address=0%3AB113A994B5024A16719F69139328EB759596C38A25F59028B146FECDC3621DFE&limit=1&offset=0",
+        "bytes": 1070
+      },
+      {
+        "file": "api-nft-collections-gifts.json",
+        "task": "2026/08/06/probe-collectible-metadata-and-date-sources",
+        "captured": "2026-08-06",
+        "method": "GET",
+        "endpoint": "/api/v3/nft/collections",
+        "query": "collection_address=0%3A4C71F300665314AF55B75FC91D130DDF24C5006961F8F9772613947945F14863",
+        "bytes": 766
+      },
+      {
+        "file": "api-metadata-address-gift.json",
+        "task": "2026/08/06/probe-collectible-metadata-and-date-sources",
+        "captured": "2026-08-06",
+        "method": "GET",
+        "endpoint": "/api/v3/metadata",
+        "query": "address=0%3ACA0CFD519F763102B5BEC9D9E3AF43592EA362FB773FA319EA09C4F162C171E0",
+        "bytes": 219
+      },
+      {
+        "file": "api-nft-transfers-owner1-in.json",
+        "task": "2026/08/06/probe-collectible-metadata-and-date-sources",
+        "captured": "2026-08-06",
+        "method": "GET",
+        "endpoint": "/api/v3/nft/transfers",
+        "query": "owner_address=0%3A9DA971AF38D2F03ABDF308D5F91636A97E5A2B07A66C39D71D7CBAE3B032EDDC&direction=in",
+        "bytes": 52
+      },
+      {
+        "file": "api-nft-transfers-owner2.json",
+        "task": "2026/08/06/probe-collectible-metadata-and-date-sources",
+        "captured": "2026-08-06",
+        "method": "GET",
+        "endpoint": "/api/v3/nft/transfers",
+        "query": "owner_address=0%3A4E3664FAEE814FBDB6C1CB36D72BAC52D15E186C11ECD664FE1B3F1A7CFD801D",
+        "bytes": 52
+      },
+      {
+        "file": "api-masterchain-info.json",
+        "task": "2026/08/06/probe-collectible-metadata-and-date-sources",
+        "captured": "2026-08-06",
+        "method": "GET",
+        "endpoint": "/api/v3/masterchainInfo",
+        "query": "",
+        "bytes": 1808
+      },
+      {
+        "file": "fragment-gift-deskcalendar-45754.json",
+        "task": "2026/08/06/probe-collectible-metadata-and-date-sources",
+        "captured": "2026-08-06",
+        "method": "GET",
+        "url": "https://nft.fragment.com/gift/deskcalendar-45754.json",
+        "mechanism": "DownloadLocation{PlainUrlLocation} -> CreateFileLoader -> webFileLoader",
+        "bytes": 448
+      },
+      {
+        "file": "fragment-collection-deskcalendar.json",
+        "task": "2026/08/06/probe-collectible-metadata-and-date-sources",
+        "captured": "2026-08-06",
+        "method": "GET",
+        "url": "https://nft.fragment.com/collection/deskcalendar.json",
+        "mechanism": "DownloadLocation{PlainUrlLocation} -> CreateFileLoader -> webFileLoader",
+        "bytes": 449
+      },
+      {
+        "file": "fragment-gift-deskcalendar-45754-image.webp",
+        "task": "2026/08/06/probe-collectible-metadata-and-date-sources",
+        "captured": "2026-08-06",
+        "method": "GET",
+        "url": "https://nft.fragment.com/gift/deskcalendar-45754.webp",
+        "mechanism": "DownloadLocation{PlainUrlLocation} -> CreateFileLoader -> webFileLoader",
+        "bytes": 74632
+      },
+      {
+        "file": "fragment-imgproxy-deskcalendar-small.bin",
+        "task": "2026/08/06/probe-collectible-metadata-and-date-sources",
+        "captured": "2026-08-06",
+        "method": "GET",
+        "url": "https://imgproxy.toncenter.com/CLisjZYndcPa0HF7lUeL2LkBthE4L7OJ04Gp8GEDknE/pr:small/aHR0cHM6Ly9uZnQuZnJhZ21lbnQuY29tL2dpZnQvZGVza2NhbGVuZGFyLTQ1NzU0LndlYnA",
+        "mechanism": "DownloadLocation{PlainUrlLocation} -> CreateFileLoader -> webFileLoader",
+        "bytes": 20546
+      },
+      {
+        "file": "fragment-missing-control.json",
+        "task": "2026/08/06/probe-collectible-metadata-and-date-sources",
+        "captured": "2026-08-06",
+        "method": "GET",
+        "url": "https://nft.fragment.com/gift/deskcalendar-45754-notanitem.json",
+        "mechanism": "DownloadLocation{PlainUrlLocation} -> CreateFileLoader -> webFileLoader",
+        "bytes": 468
+      }
+    ]
+  }
+}

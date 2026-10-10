@@ -20,6 +20,7 @@ struct CurrentData {
 	WallPaperId backgroundId = 0;
 	QImage backgroundImage;
 	bool backgroundTiled = false;
+	QColor previewBg;
 };
 
 enum class PreviewType {
