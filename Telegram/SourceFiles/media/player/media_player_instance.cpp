@@ -898,6 +898,7 @@ void Instance::play(AudioMsgId::Type type) {
 			emitUpdate(type);
 		}
 		data->resumeOnCallEnd = false;
+		data->resumeOnVoiceEnd = false;
 	}
 }
 
@@ -918,6 +919,9 @@ void Instance::play(
 			audioId.contextId());
 		if (!shared) {
 			return;
+		}
+		if (audioId.type() == AudioMsgId::Type::Voice) {
+			pauseSongForVoice();
 		}
 		playStreamed(audioId, std::move(shared));
 	}
@@ -1007,7 +1011,11 @@ void Instance::stop(AudioMsgId::Type type, bool asFinished) {
 			_listenTracker->finalize();
 		}
 		data->resumeOnCallEnd = false;
+		data->resumeOnVoiceEnd = false;
 		_playerStopped.fire_copy({type});
+		if (type == AudioMsgId::Type::Voice) {
+			resumeSongAfterVoice();
+		}
 	}
 	if (asFinished) {
 		_tracksFinished.fire_copy(type);
@@ -1015,6 +1023,7 @@ void Instance::stop(AudioMsgId::Type type, bool asFinished) {
 }
 
 void Instance::stopAndClear(not_null<Data*> data) {
+	getData(AudioMsgId::Type::Song)->resumeOnVoiceEnd = false;
 	stop(data->type);
 	*data = Data(data->type, data->overview);
 	_tracksFinished.fire_copy(data->type);
@@ -1182,6 +1191,7 @@ void Instance::playPause(AudioMsgId::Type type) {
 			emitUpdate(type);
 		}
 		data->resumeOnCallEnd = false;
+		data->resumeOnVoiceEnd = false;
 	}
 }
 
@@ -1206,6 +1216,33 @@ void Instance::resumeOnCall(AudioMsgId::Type type) {
 			play(type);
 		}
 	}
+}
+
+void Instance::pauseSongForVoice() {
+	const auto state = getState(AudioMsgId::Type::Song);
+	if (!state.id
+		|| IsStopped(state.state)
+		|| IsPaused(state.state)
+		|| state.state == State::Pausing) {
+		return;
+	}
+	pause(AudioMsgId::Type::Song);
+	if (const auto data = getData(AudioMsgId::Type::Song)) {
+		data->resumeOnVoiceEnd = true;
+	}
+}
+
+void Instance::resumeSongAfterVoice(bool force) {
+	const auto data = getData(AudioMsgId::Type::Song);
+	if (!data->resumeOnVoiceEnd && !force) {
+		return;
+	}
+	data->resumeOnVoiceEnd = false;
+	if (Core::App().calls().currentCall()
+		|| Core::App().calls().currentGroupCall()) {
+		return;
+	}
+	play(AudioMsgId::Type::Song);
 }
 
 bool Instance::next(AudioMsgId::Type type) {
@@ -1442,6 +1479,9 @@ void Instance::emitUpdate(AudioMsgId::Type type, CheckCallback check) {
 		data->isPlaying = !IsStopped(state.state);
 		if (finished) {
 			_tracksFinished.fire_copy(type);
+			if (type == AudioMsgId::Type::Voice) {
+				resumeSongAfterVoice();
+			}
 		}
 	}
 }
@@ -1481,8 +1521,8 @@ void Instance::stopAndClose() {
 	_listenTracker->finalize();
 	_closePlayerRequests.fire({});
 
-	stop(AudioMsgId::Type::Voice);
 	stop(AudioMsgId::Type::Song);
+	stop(AudioMsgId::Type::Voice);
 
 	Shortcuts::ToggleMediaShortcuts(false);
 }
@@ -1563,9 +1603,14 @@ void Instance::handleStreamingError(
 			document,
 			DocumentSaveClickHandler::Mode::ToFile);
 	}
+	const auto resumeSong = (data->type == AudioMsgId::Type::Voice)
+		&& getData(AudioMsgId::Type::Song)->resumeOnVoiceEnd;
 	emitUpdate(data->type);
 	if (data->streamed && data->streamed->instance.player().failed()) {
 		clearStreamed(data);
+	}
+	if (resumeSong && !data->streamed) {
+		resumeSongAfterVoice(true);
 	}
 }
 

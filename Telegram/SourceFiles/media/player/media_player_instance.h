@@ -222,6 +222,7 @@ private:
 		Main::Session *session = nullptr;
 		bool isPlaying = false;
 		bool resumeOnCallEnd = false;
+		bool resumeOnVoiceEnd = false;
 		std::unique_ptr<Streamed> streamed;
 		std::unique_ptr<ShuffleData> shuffleData;
 		std::unique_ptr<base::PowerSaveBlocker> powerSaveBlocker;
@@ -258,6 +259,9 @@ private:
 
 	void pauseOnCall(AudioMsgId::Type type);
 	void resumeOnCall(AudioMsgId::Type type);
+
+	void pauseSongForVoice();
+	void resumeSongAfterVoice(bool force = false);
 
 	void setCurrent(const AudioMsgId &audioId);
 	void refreshPlaylist(not_null<Data*> data);
