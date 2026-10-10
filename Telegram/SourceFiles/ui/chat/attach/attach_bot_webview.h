@@ -163,6 +163,8 @@ public:
 
 	void requestActivate();
 	void toggleProgress(bool shown);
+	void requestWindowClose();
+	[[nodiscard]] bool isActiveWindow() const;
 
 	void showBox(object_ptr<BoxContent> box);
 	void showBox(
@@ -303,6 +305,10 @@ private:
 	void createButton(std::unique_ptr<Button> &button);
 	void scheduleCloseWithConfirmation();
 	void closeWithConfirmation();
+	void toggleApplicationEventFilter(bool install);
+	bool filterApplicationEvent(
+		not_null<QObject*> object,
+		not_null<QEvent*> e);
 	void sendViewport();
 	void sendSafeArea();
 	void sendContentSafeArea();
@@ -343,6 +349,7 @@ private:
 	ExternalButtonState _externalSecondaryButton;
 	std::unique_ptr<RpWidget> _externalPanelParent;
 	std::unique_ptr<SeparatePanel> _widget;
+	std::unique_ptr<QObject> _applicationEventFilter;
 	std::unique_ptr<WebviewWithLifetime> _webview;
 	std::unique_ptr<StandaloneLayerStack> _externalLayer;
 	Fn<void()> _closeExternalShellPopup;

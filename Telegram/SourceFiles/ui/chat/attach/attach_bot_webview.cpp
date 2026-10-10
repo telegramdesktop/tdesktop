@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "core/file_utilities.h"
+#include "core/shortcuts.h"
 #include "webview/webview_embed.h"
 #include "webview/webview_dialog.h"
 #include "webview/webview_interface.h"
@@ -1296,11 +1297,7 @@ Panel::Panel(Args &&args)
 
 	_widget->closeRequests(
 	) | rpl::on_next([=] {
-		if (_closeNeedConfirmation) {
-			scheduleCloseWithConfirmation();
-		} else {
-			requestClose();
-		}
+		requestWindowClose();
 	}, _widget->lifetime());
 
 	_widget->closeEvents(
@@ -1352,9 +1349,12 @@ Panel::Panel(Args &&args)
 			}
 		}
 	}
+
+	toggleApplicationEventFilter(true);
 }
 
 Panel::~Panel() {
+	toggleApplicationEventFilter(false);
 	closeExternalShellPopup();
 	base::take(_webview);
 	_progress = nullptr;
@@ -1362,6 +1362,66 @@ Panel::~Panel() {
 	_externalWebviewParent = nullptr;
 	_widget = nullptr;
 	_externalPanelParent = nullptr;
+}
+
+void Panel::toggleApplicationEventFilter(bool install) {
+	if (!install) {
+		_applicationEventFilter = nullptr;
+		return;
+	} else if (_applicationEventFilter) {
+		return;
+	}
+	class Filter final : public QObject {
+	public:
+		explicit Filter(not_null<Panel*> owner) : _owner(owner) {
+		}
+
+	private:
+		bool eventFilter(QObject *obj, QEvent *e) override {
+			return obj && e && _owner->filterApplicationEvent(obj, e);
+		}
+
+		const not_null<Panel*> _owner;
+
+	};
+
+	_applicationEventFilter = std::make_unique<Filter>(this);
+	qApp->installEventFilter(_applicationEventFilter.get());
+}
+
+bool Panel::filterApplicationEvent(
+		not_null<QObject*> object,
+		not_null<QEvent*> e) {
+	if (e->type() != QEvent::ShortcutOverride) {
+		return false;
+	}
+	const auto event = static_cast<QKeyEvent*>(e.get());
+	if (!isActiveWindow()) {
+		return false;
+	} else if (Shortcuts::MatchesCommand(
+			event,
+			Shortcuts::Command::Close)) {
+		e->accept();
+		requestWindowClose();
+		return true;
+	}
+	return false;
+}
+
+void Panel::requestWindowClose() {
+	if (_closeNeedConfirmation) {
+		scheduleCloseWithConfirmation();
+	} else {
+		requestClose();
+	}
+}
+
+bool Panel::isActiveWindow() const {
+	if (_externalShell) {
+		const auto widget = _webview ? _webview->window.widget() : nullptr;
+		return widget && widget->isActiveWindow();
+	}
+	return _widget->isActiveWindow();
 }
 
 void Panel::setupDownloadsProgress(
