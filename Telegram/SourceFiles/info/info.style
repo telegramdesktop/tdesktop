@@ -216,8 +216,8 @@ infoTopBarSaveStories: IconButton(infoTopBarForward) {
 	iconOver: icon {{ "info/info_stories_to_profile", boxTitleCloseFgOver }};
 }
 infoTopBarArchiveStories: IconButton(infoTopBarForward) {
-	icon: icon {{ "info/info_stories_to_archive", boxTitleCloseFg }};
-	iconOver: icon {{ "info/info_stories_to_archive", boxTitleCloseFgOver }};
+	icon: icon {{ "menu/archive", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/archive", boxTitleCloseFgOver }};
 }
 infoTopBarPinStories: IconButton(infoTopBarForward) {
 	icon: icon {{ "menu/pin", boxTitleCloseFg }};
@@ -336,8 +336,8 @@ infoLayerTopBarSaveStories: IconButton(infoLayerTopBarForward) {
 	iconOver: icon {{ "info/info_stories_to_profile", boxTitleCloseFgOver }};
 }
 infoLayerTopBarArchiveStories: IconButton(infoLayerTopBarForward) {
-	icon: icon {{ "info/info_stories_to_archive", boxTitleCloseFg }};
-	iconOver: icon {{ "info/info_stories_to_archive", boxTitleCloseFgOver }};
+	icon: icon {{ "menu/archive", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/archive", boxTitleCloseFgOver }};
 }
 infoLayerTopBarPinStories: IconButton(infoLayerTopBarForward) {
 	icon: icon {{ "menu/pin", boxTitleCloseFg }};
