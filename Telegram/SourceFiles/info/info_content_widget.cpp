@@ -185,16 +185,15 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 
 	setupSwipeHandler(_innerWrap);
 
-	// MSVC BUG + REGRESSION rpl::mappers::tuple :(
 	rpl::combine(
 		_scroll->scrollTopValue(),
 		_scroll->heightValue(),
-		_innerWrap->entity()->desiredHeightValue()
+		_innerWrap->entity()->desiredHeightValue(),
+		tuple(_1, _1 + _2, _3)
 	) | rpl::on_next([this](
 			int top,
-			int height,
+			int bottom,
 			int desired) {
-		const auto bottom = top + height;
 		_innerDesiredHeight = desired;
 		_innerWrap->setVisibleTopBottom(top, bottom);
 		_scrollTillBottomChanges.fire_copy(
