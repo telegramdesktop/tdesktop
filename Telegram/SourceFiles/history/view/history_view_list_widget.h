@@ -618,7 +618,8 @@ private:
 		not_null<HistoryItem*>,
 		std::unique_ptr<Element>>;
 
-	[[nodiscard]] std::vector<Element*> accessibleElements() const;
+	[[nodiscard]] const std::vector<Element*> &accessibleElements() const;
+	void invalidateAccessibleElements();
 	[[nodiscard]] int accessibilityNewestIndex(int count) const;
 	[[nodiscard]] int accessibilityUnreadBarIndex() const;
 	[[nodiscard]] HistoryItem *accessibilityItemAtIndex(
@@ -1055,6 +1056,9 @@ private:
 		not_null<const HistoryItem*>,
 		quintptr> _accessibilityIdentities;
 	mutable quintptr _accessibilityIdentityCounter = 0;
+	mutable std::optional<std::vector<Element*>> _accessibleElements;
+	mutable const Element *_accessibilityUnreadBar = nullptr;
+	mutable int _accessibilityUnreadBarIndex = -1;
 	mutable const HistoryView::Element *_activeColumnsView = nullptr;
 	mutable std::vector<HistoryView::MessageSubItem> _activeColumns;
 
