@@ -1043,6 +1043,30 @@ void System::ensureSoundCreated() {
 		Core::App().settings().getSoundPath(u"msg_incoming"_q));
 }
 
+void System::updateTypingSound(
+		not_null<const QWidget*> owner,
+		bool playing) {
+	if (playing) {
+		_typingOwners.emplace(owner);
+	} else {
+		_typingOwners.remove(owner);
+	}
+	if (_typingOwners.empty()) {
+		_typingTrack = nullptr;
+		return;
+	} else if (_typingTrack) {
+		return;
+	}
+	_typingTrack = Media::Audio::Current().createTrack();
+	_typingTrack->fillFromFile(u":/sounds/chat_typing.wav"_q);
+	const auto raw = _typingTrack.get();
+	_manager->maybePlayTypingSound([=] {
+		if (_typingTrack.get() == raw) {
+			raw->playInLoop();
+		}
+	});
+}
+
 void System::updateAll() {
 	if (_manager) {
 		_manager->updateAll();

@@ -347,6 +347,8 @@ private:
 
 	void setupComposeControls();
 	void setupSwipeReplyAndBack();
+	void setupTypingSound();
+	void updateTypingSound();
 
 	void setupRoot();
 	void setupTopicViewer();
