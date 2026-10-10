@@ -7,76 +7,49 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/core_screenshot_protection.h"
 
+#include "base/event_filter.h"
 #include "platform/platform_specific.h"
 
-#include <QtWidgets/QApplication>
-
 namespace Core {
-namespace {
 
-class WindowFilter final : public QObject {
-public:
-	explicit WindowFilter(Fn<void(not_null<QWidget*>)> appeared);
-
-protected:
-	bool eventFilter(QObject *watched, QEvent *event) override;
-
-private:
-	Fn<void(not_null<QWidget*>)> _appeared;
-
-};
-
-WindowFilter::WindowFilter(Fn<void(not_null<QWidget*>)> appeared)
-: _appeared(std::move(appeared)) {
-}
-
-bool WindowFilter::eventFilter(QObject *watched, QEvent *event) {
-	const auto type = event->type();
-	if (type == QEvent::WinIdChange || type == QEvent::Show) {
-		if (const auto widget = qobject_cast<QWidget*>(watched)) {
-			if (widget->isWindow()) {
-				_appeared(widget);
-			}
-		}
-	}
-	return QObject::eventFilter(watched, event);
-}
-
-} // namespace
-
-ScreenshotProtection::ScreenshotProtection() {
-	_active.value(
-	) | rpl::on_next([=](bool active) {
-		apply(active);
-	}, _lifetime);
-}
+ScreenshotProtection::ScreenshotProtection() = default;
 
 ScreenshotProtection::~ScreenshotProtection() = default;
 
 void ScreenshotProtection::addContentReason(
+		not_null<QWidget*> window,
 		rpl::producer<bool> active,
 		rpl::lifetime &lifetime) {
-	addReason(std::move(active), lifetime);
+	addReason(window, std::move(active), lifetime);
 }
 
 void ScreenshotProtection::addAmbientReason(
+		not_null<QWidget*> window,
 		rpl::producer<bool> active,
 		rpl::lifetime &lifetime) {
 	if (Platform::AmbientScreenshotProtectionSupported()) {
-		addReason(std::move(active), lifetime);
+		addReason(window, std::move(active), lifetime);
 	}
 }
 
 void ScreenshotProtection::addReason(
+		not_null<QWidget*> window,
 		rpl::producer<bool> active,
 		rpl::lifetime &lifetime) {
 	const auto id = ++_lastReasonId;
-	_reasons.emplace(id, false);
+	_reasons.emplace(id, Reason{ window.get(), false });
 	std::move(
 		active
 	) | rpl::on_next(crl::guard(this, [=](bool value) {
-		_reasons[id] = value;
+		_reasons[id].active = value;
 		refresh();
+	}), lifetime);
+	base::install_event_filter(window, crl::guard(this, [=](
+			not_null<QEvent*> event) {
+		if (event->type() == QEvent::WinIdChange) {
+			apply(window, true);
+		}
+		return base::EventFilterResult::Continue;
 	}), lifetime);
 	lifetime.add(crl::guard(this, [=] {
 		_reasons.remove(id);
@@ -84,32 +57,50 @@ void ScreenshotProtection::addReason(
 	}));
 }
 
-bool ScreenshotProtection::active() const {
-	return _active.current();
+bool ScreenshotProtection::activeFor(not_null<QWidget*> window) const {
+	for (const auto &[id, reason] : _reasons) {
+		if (reason.active && reason.window == window.get()) {
+			return true;
+		}
+	}
+	return false;
 }
 
-rpl::producer<bool> ScreenshotProtection::activeValue() const {
-	return _active.value();
+void ScreenshotProtection::apply(not_null<QWidget*> window, bool force) {
+	const auto enabled = activeFor(window);
+	const auto i = _applied.find(window);
+	if (!force && i != _applied.end() && i->second.enabled == enabled) {
+		return;
+	}
+	Platform::SetWindowScreenshotProtection(window, enabled);
+	if (i == _applied.end()) {
+		_applied.emplace(window, Applied{ window.get(), enabled });
+	} else {
+		i->second.enabled = enabled;
+	}
 }
 
 void ScreenshotProtection::refresh() {
-	_active = ranges::any_of(_reasons, [](const auto &reason) {
-		return reason.second;
-	});
-}
-
-void ScreenshotProtection::apply(bool enabled) {
-	if (enabled) {
-		_filter = std::make_unique<WindowFilter>([](
-				not_null<QWidget*> window) {
-			Platform::SetWindowScreenshotProtection(window, true);
-		});
-		qApp->installEventFilter(_filter.get());
-	} else {
-		_filter = nullptr;
+	auto desired = base::flat_map<not_null<QWidget*>, bool>();
+	for (const auto &[id, reason] : _reasons) {
+		if (const auto window = reason.window.data()) {
+			auto &state = desired[not_null{ window }];
+			state = state || reason.active;
+		}
 	}
-	for (const auto widget : QApplication::topLevelWidgets()) {
-		Platform::SetWindowScreenshotProtection(widget, enabled);
+	for (auto i = _applied.begin(); i != _applied.end();) {
+		if (i->second.window.data()) {
+			++i;
+		} else {
+			i = _applied.erase(i);
+		}
+	}
+	auto windows = desired;
+	for (const auto &[widget, applied] : _applied) {
+		windows.emplace(widget, false);
+	}
+	for (const auto &[widget, enabled] : windows) {
+		apply(widget);
 	}
 }
 

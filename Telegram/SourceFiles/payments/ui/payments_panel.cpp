@@ -68,6 +68,10 @@ Panel::Progress::Progress(QWidget *parent, Fn<QRect()> rect)
 	st::paymentsLoading) {
 }
 
+not_null<QWidget*> Panel::widget() const {
+	return _widget.get();
+}
+
 Panel::Panel(not_null<PanelDelegate*> delegate)
 : _delegate(delegate)
 , _widget(std::make_unique<SeparatePanel>()) {

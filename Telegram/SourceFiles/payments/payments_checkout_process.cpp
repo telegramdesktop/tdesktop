@@ -338,6 +338,7 @@ CheckoutProcess::CheckoutProcess(
 	}, _lifetime);
 
 	Core::App().screenshotProtection().addContentReason(
+		_panel->widget(),
 		_screenshotProtection.value(),
 		_panel->lifetime());
 
