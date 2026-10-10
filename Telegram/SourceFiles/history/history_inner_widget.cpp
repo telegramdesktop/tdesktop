@@ -3980,6 +3980,9 @@ void HistoryInner::copySelectedText() {
 		text,
 		getSelectedRichBlocks(),
 		&session());
+	if (hasSelectedItems()) {
+		clearSelected();
+	}
 }
 
 void HistoryInner::editCaptionUploadLayer(not_null<HistoryItem*> item) {
