@@ -678,6 +678,7 @@ bool ReplyArea::confirmSendingFiles(
 		.sendType = Api::SendType::Normal,
 		.sendMenuDetails = sendMenuDetails(),
 		.stOverride = &st::storiesComposeControls,
+		.dark = true,
 		.confirmed = crl::guard(this, confirmed),
 		.cancelled = _controls->restoreTextCallback(insertTextOnCancel),
 	}));
