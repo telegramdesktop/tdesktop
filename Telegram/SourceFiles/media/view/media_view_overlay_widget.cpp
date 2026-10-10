@@ -7398,6 +7398,7 @@ void OverlayWidget::handleKeyPress(not_null<QKeyEvent*> e) {
 		} else {
 			close();
 		}
+	// Ctrl + S is claimed against other shortcuts in eventFilter().
 	} else if (e == QKeySequence::Save || e == QKeySequence::SaveAs) {
 		saveAs();
 	} else if (key == Qt::Key_Copy || (key == Qt::Key_C && ctrl)) {
@@ -8731,6 +8732,9 @@ bool OverlayWidget::filterApplicationEvent(
 			return true;
 		} else if (key == Qt::Key_0 && ctrl) {
 			zoomReset();
+			return true;
+		} else if (event == QKeySequence::SaveAs
+			|| event == QKeySequence::Save) {
 			return true;
 		}
 		return false;
