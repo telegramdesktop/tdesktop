@@ -25,9 +25,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "ui/image/image.h"
 #include "ui/effects/spoiler_mess.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/chat/chat_style.h"
 #include "ui/text/text_utilities.h"
 #include "ui/grouped_layout.h"
+#include "ui/rect.h"
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
@@ -91,15 +93,26 @@ using Data::PhotoSize;
 } // namespace
 
 struct Photo::Enlarge final {
+	explicit Enlarge(Fn<void()> update);
+
 	[[nodiscard]] static std::unique_ptr<Enlarge> Create(
 		not_null<Photo*> photo,
 		int width,
 		int height);
 	[[nodiscard]] QRect rect(int outerWidth) const;
+	void press(QPoint origin);
+	void release();
 	void paint(
 		Painter &p,
 		int outerWidth,
-		const style::icon &icon);
+		const style::icon &icon,
+		const QColor &rippleColor);
+
+	Fn<void()> update;
+	uint32 hovered : 1 = 0;
+	QPoint lastPoint;
+	std::unique_ptr<Ui::RippleAnimation> ripple;
+
 };
 
 std::unique_ptr<Photo::Enlarge> Photo::Enlarge::Create(
@@ -119,7 +132,10 @@ std::unique_ptr<Photo::Enlarge> Photo::Enlarge::Create(
 		|| (height < outer)) {
 		return nullptr;
 	}
-	return std::make_unique<Enlarge>();
+	return std::make_unique<Enlarge>([=] { photo->repaint(); });
+}
+
+Photo::Enlarge::Enlarge(Fn<void()> update) : update(std::move(update)) {
 }
 
 QRect Photo::Enlarge::rect(int outerWidth) const {
@@ -132,16 +148,43 @@ QRect Photo::Enlarge::rect(int outerWidth) const {
 	};
 }
 
+void Photo::Enlarge::press(QPoint origin) {
+	if (!ripple) {
+		ripple = std::make_unique<Ui::RippleAnimation>(
+			st::defaultRippleAnimation,
+			Ui::RippleAnimation::RoundRectMask(
+				Size(st::historyPageEnlargeSize),
+				st::historyPageEnlargeRadius),
+			update);
+	}
+	ripple->add(origin);
+}
+
+void Photo::Enlarge::release() {
+	if (ripple) {
+		ripple->lastStop();
+	}
+}
+
 void Photo::Enlarge::paint(
 		Painter &p,
 		int outerWidth,
-		const style::icon &icon) {
+		const style::icon &icon,
+		const QColor &rippleColor) {
 	auto hq = PainterHighQualityEnabler(p);
 	const auto r = rect(outerWidth);
 	p.drawRoundedRect(
 		r,
 		st::historyPageEnlargeRadius,
 		st::historyPageEnlargeRadius);
+	if (ripple) {
+		p.setOpacity(st::historyPageEnlargeRippleOpacity);
+		ripple->paint(p, r.x(), r.y(), r.width(), &rippleColor);
+		p.setOpacity(1.);
+		if (ripple->empty()) {
+			ripple.reset();
+		}
+	}
 	icon.paintInCenter(p, r);
 }
 
@@ -521,7 +564,11 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 			context);
 	}
 	if (showEnlarge) {
-		_enlarge->paint(p, width(), sti->historyPageEnlarge);
+		_enlarge->paint(
+			p,
+			width(),
+			sti->historyPageEnlarge,
+			st->msgDateImgFg()->c);
 	}
 	if (_purchasedPriceTag) {
 		auto geometry = rthumb;
@@ -777,6 +824,20 @@ ClickHandlerPtr Photo::spoilerTagLink() const {
 	return Media::spoilerTagLink(_spoiler.get(), _spoilerTag);
 }
 
+void Photo::clickHandlerPressedChanged(
+		const ClickHandlerPtr &p,
+		bool pressed) {
+	File::clickHandlerPressedChanged(p, pressed);
+	if (!p || p != _openl || !_enlarge) {
+		return;
+	}
+	if (pressed && _enlarge->hovered) {
+		_enlarge->press(_enlarge->lastPoint);
+	} else if (!pressed) {
+		_enlarge->release();
+	}
+}
+
 QImage Photo::spoilerTagBackground() const {
 	return _spoiler ? _spoiler->background : QImage();
 }
@@ -805,10 +866,14 @@ TextState Photo::textState(QPoint point, StateRequest request) const {
 			: _data->loading()
 			? _cancell
 			: _savel;
-		if (_enlarge
-			&& result.link == _openl
-			&& _enlarge->rect(width()).contains(point)) {
-			result.cursor = CursorState::Enlarge;
+		if (_enlarge && result.link == _openl) {
+			const auto rect = _enlarge->rect(width());
+			const auto over = rect.contains(point);
+			if (over) {
+				result.cursor = CursorState::Enlarge;
+			}
+			_enlarge->lastPoint = point - rect.topLeft();
+			_enlarge->hovered = over ? 1 : 0;
 		}
 	}
 	if (_parent->media() == this && (!_parent->hasBubble() || isBubbleBottom())) {

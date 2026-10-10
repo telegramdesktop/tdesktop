@@ -47,6 +47,9 @@ public:
 
 	void draw(Painter &p, const PaintContext &context) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
+	void clickHandlerPressedChanged(
+		const ClickHandlerPtr &p,
+		bool pressed) override;
 
 	PhotoData *getPhoto() const override {
 		return _data;
