@@ -553,6 +553,10 @@ foldersMenu: PopupMenu(popupMenuWithIcons) {
 	}
 }
 
+ownedStickerSetsMenu: PopupMenu(popupMenuWithIcons) {
+	maxHeight: 320px;
+}
+
 futureOwnerBox: Box(defaultBox) {
 	buttonPadding: margins(0px, 0px, 0px, 14px);
 	buttonHeight: 0px;
