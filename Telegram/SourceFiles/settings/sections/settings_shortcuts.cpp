@@ -71,6 +71,8 @@ struct Labeled {
 		{ C::ChatNext, tr::lng_shortcuts_chat_next() },
 		{ C::ChatFirst, tr::lng_shortcuts_chat_first() },
 		{ C::ChatLast, tr::lng_shortcuts_chat_last() },
+		{ C::ChatListBack, tr::lng_shortcuts_chat_list_back() },
+		{ C::ChatListOpen, tr::lng_shortcuts_chat_list_open() },
 		{ C::ChatSelf, tr::lng_shortcuts_chat_self() },
 		separator,
 		{ C::ChatPinned1, pinned(1) },
