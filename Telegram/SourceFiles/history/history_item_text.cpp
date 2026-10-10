@@ -392,13 +392,35 @@ std::optional<SelectedCopyReplyContext> ReplyContextForSelectedCopy(
 	};
 }
 
+[[nodiscard]] QString SelectedCopyAuthorName(not_null<HistoryItem*> item) {
+	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
+		const auto sender = forwarded->originalSender;
+		auto name = sender
+			? sender->name()
+			: (forwarded->originalHiddenSenderInfo
+				? forwarded->originalHiddenSenderInfo->name
+				: QString());
+		if (!name.isEmpty()) {
+			return forwarded->originalPostAuthor.isEmpty()
+				? std::move(name)
+				: tr::lng_forwarded_signed(
+					tr::now,
+					lt_channel,
+					name,
+					lt_user,
+					forwarded->originalPostAuthor);
+		}
+	}
+	return item->author()->name();
+}
+
 TextForMimeData HistorySelectedItemPlainWrappedText(
 		not_null<HistoryItem*> item,
 		TextForMimeData &&body) {
 	auto result = TextForMimeData();
 	const auto time = u"[%1] "_q.arg(
 		QLocale().toString(ItemDateTime(item), QLocale::ShortFormat));
-	const auto author = item->author()->name();
+	const auto author = SelectedCopyAuthorName(item);
 	const auto size = time.size() + author.size() + 2 + body.expanded.size();
 	result.reserve(size);
 	result.append(time).append(author).append(u": "_q);
@@ -551,7 +573,7 @@ TextForMimeData HistorySelectedItemWrappedText(
 	auto result = TextForMimeData();
 	const auto time = u"[%1] "_q.arg(
 		QLocale().toString(ItemDateTime(item), QLocale::ShortFormat));
-	const auto author = item->author()->name();
+	const auto author = SelectedCopyAuthorName(item);
 	const auto replyTo = tr::lng_context_copy_in_reply_to(
 		tr::now,
 		lt_name,
