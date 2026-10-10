@@ -145,6 +145,10 @@ bool HandleEvent(not_null<QObject*> object, not_null<QShortcutEvent*> event);
 
 bool HandlePossibleChatSwitch(not_null<QKeyEvent*> event);
 
+[[nodiscard]] bool MatchesCommand(
+	not_null<QKeyEvent*> event,
+	Command command);
+
 struct ChatSwitchRequest {
 	Qt::Key action = Qt::Key_Tab; // Key_Tab, Key_Backtab or Key_Escape.
 	bool started = false;

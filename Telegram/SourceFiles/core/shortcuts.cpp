@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QAction>
 #include <QShortcut>
+#include <QtGui/private/qkeymapper_p.h>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QJsonArray>
@@ -182,6 +183,9 @@ public:
 	void toggleSupport(bool toggled);
 	void listen(not_null<QWidget*> widget);
 	[[nodiscard]] bool handles(const QKeySequence &sequence) const;
+	[[nodiscard]] bool matchesCommand(
+		not_null<QKeyEvent*> event,
+		Command command) const;
 
 	[[nodiscard]] const QStringList &errors() const;
 
@@ -389,6 +393,21 @@ void Manager::listen(not_null<QWidget*> widget) {
 
 bool Manager::handles(const QKeySequence &sequence) const {
 	return _shortcuts.contains(sequence);
+}
+
+bool Manager::matchesCommand(
+		not_null<QKeyEvent*> event,
+		Command command) const {
+	for (const auto &combination : QKeyMapper::possibleKeys(event)) {
+		const auto i = _shortcuts.find(QKeySequence(combination));
+		if (i == end(_shortcuts)) {
+			continue;
+		}
+		if (ranges::contains(lookup(i->second.get()), command)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void Manager::pruneListened() {
@@ -1023,6 +1042,10 @@ void Change(
 
 void ResetToDefaults() {
 	Data.resetToDefaults();
+}
+
+bool MatchesCommand(not_null<QKeyEvent*> event, Command command) {
+	return Data.matchesCommand(event, command);
 }
 
 bool AllowWithoutModifiers(int key) {
