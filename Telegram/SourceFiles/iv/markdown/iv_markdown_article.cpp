@@ -3323,6 +3323,40 @@ void ConsiderStructuralListItemDropTargets(
 	return false;
 }
 
+[[nodiscard]] const QString &CollapsibleBlockId(const PreparedBlock &block) {
+	static const auto kNone = QString();
+	return (block.kind == PreparedBlockKind::Details)
+		? block.anchorId
+		: (block.kind == PreparedBlockKind::Quote)
+		? block.collapseToggleId
+		: kNone;
+}
+
+void CollectCollapsedBlocks(
+		const std::vector<PreparedBlock> &blocks,
+		MarkdownArticleCollapsed *to) {
+	for (const auto &block : blocks) {
+		if (const auto &id = CollapsibleBlockId(block); !id.isEmpty()) {
+			(*to)[{ block.kind, id }] = block.collapsed;
+		}
+		CollectCollapsedBlocks(block.children, to);
+	}
+}
+
+void RestoreCollapsedBlocks(
+		std::vector<PreparedBlock> *blocks,
+		const MarkdownArticleCollapsed &collapsed) {
+	for (auto &block : *blocks) {
+		if (const auto &id = CollapsibleBlockId(block); !id.isEmpty()) {
+			const auto i = collapsed.find({ block.kind, id });
+			if (i != end(collapsed)) {
+				block.collapsed = i->second;
+			}
+		}
+		RestoreCollapsedBlocks(&block.children, collapsed);
+	}
+}
+
 [[nodiscard]] bool PreparedBlockHasAnchor(
 		const PreparedBlock &block,
 		const QString &anchorId) {
@@ -3874,6 +3908,14 @@ void CollectCodeBlockHighlightKeys(
 
 } // namespace
 
+void RestoreCollapsed(
+		MarkdownArticleContent *content,
+		const MarkdownArticleCollapsed &collapsed) {
+	if (!collapsed.empty()) {
+		RestoreCollapsedBlocks(&content->blocks.blocks, collapsed);
+	}
+}
+
 PlaceholderBlockRuntime::PlaceholderBlockRuntime(Fn<void()> repaint)
 : clickHandler(std::make_shared<LambdaClickHandler>([] {
 }))
@@ -4022,6 +4064,8 @@ public:
 	[[nodiscard]] bool toggleDetails(const QString &anchorId);
 
 	[[nodiscard]] bool toggleBlockquote(const QString &toggleId);
+
+	[[nodiscard]] MarkdownArticleCollapsed collapsed() const;
 
 	[[nodiscard]] bool segmentIsText(int index) const;
 
@@ -5127,6 +5171,12 @@ bool MarkdownArticle::Impl::toggleBlockquote(const QString &toggleId) {
 	}
 	invalidateLayout();
 	return true;
+}
+
+MarkdownArticleCollapsed MarkdownArticle::Impl::collapsed() const {
+	auto result = MarkdownArticleCollapsed();
+	CollectCollapsedBlocks(_content.blocks.blocks, &result);
+	return result;
 }
 
 bool MarkdownArticle::Impl::segmentIsText(int index) const {
@@ -7290,6 +7340,10 @@ bool MarkdownArticle::toggleDetails(const QString &anchorId) {
 
 bool MarkdownArticle::toggleBlockquote(const QString &toggleId) {
 	return _impl->toggleBlockquote(toggleId);
+}
+
+MarkdownArticleCollapsed MarkdownArticle::collapsed() const {
+	return _impl->collapsed();
 }
 
 bool MarkdownArticle::segmentIsText(int index) const {

@@ -601,6 +601,15 @@ Message::Message(
 	if (animation) {
 		_bottomInfo.continueEffectAnimation(std::move(animation));
 	}
+	if (const auto rich = replacing
+			? replacing->Get<HistoryMessageRichPage>()
+			: nullptr) {
+		if (auto collapsed = rich->article.collapsed(); !collapsed.empty()) {
+			AddComponents(HistoryMessageRichPageCollapsed::Bit());
+			Get<HistoryMessageRichPageCollapsed>()->collapsed
+				= std::move(collapsed);
+		}
+	}
 	if (data->isSponsored()) {
 		const auto &session = data->history()->session();
 		const auto details = session.sponsoredMessages().lookupDetails(
