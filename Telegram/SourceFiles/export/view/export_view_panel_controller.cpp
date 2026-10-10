@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
+#include "data/data_peer.h"
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
 #include "base/qt/qt_common_adapters.h"
@@ -397,6 +398,14 @@ rpl::producer<> PanelController::stopRequests() const {
 
 void PanelController::fillParams(const PasswordCheckState &state) {
 	_settings->singlePeer = state.singlePeer;
+	_settings->singleTopicRootId = state.singleTopicRootId;
+	_settings->singleTopicPeerId = state.singleTopicPeerId;
+	_settings->singleTopicTitle = state.singleTopicTitle;
+	_settings->splitTopics = !_settings->onlySingleTopic()
+		&& _settings->onlySinglePeer()
+		&& _settings->singlePeer.type() == mtpc_inputPeerChannel
+		&& _session->data().peer(peerFromChannel(
+			_settings->singlePeer.c_inputPeerChannel().vchannel_id()))->isForum();
 }
 
 void PanelController::updateState(State &&state) {

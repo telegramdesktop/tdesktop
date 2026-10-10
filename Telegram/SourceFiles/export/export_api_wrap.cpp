@@ -418,6 +418,7 @@ public:
 
 	void save(const Location &location, const QString &relativePath);
 	std::optional<QString> find(const Location &location) const;
+	void clear();
 
 private:
 	int _limit = 0;
@@ -555,6 +556,12 @@ struct ApiWrap::DialogsProcess : ChatsProcess {
 	TimeId offsetDate = 0;
 	int32 offsetId = 0;
 	MTPInputPeer offsetPeer = MTP_inputPeerEmpty();
+	Data::DialogsInfo expanded;
+	int forumIndex = 0;
+	TimeId topicOffsetDate = 0;
+	int32 topicOffsetId = 0;
+	int32 topicOffsetTopicId = 0;
+	base::flat_map<int32, Data::ForumTopic> topics;
 };
 
 struct ApiWrap::AbstractMessagesProcess {
@@ -588,6 +595,7 @@ struct ApiWrap::TopicProcess : AbstractMessagesProcess {
 	MTPInputPeer inputPeer;
 	int32 topicRootId = 0;
 	QString relativePath;
+	bool onlyMyMessages = false;
 
 	FnMut<bool(int count)> start;
 
@@ -703,6 +711,11 @@ std::optional<QString> ApiWrap::LoadedFileCache::find(
 		return i->second;
 	}
 	return std::nullopt;
+}
+
+void ApiWrap::LoadedFileCache::clear() {
+	_map.clear();
+	_list.clear();
 }
 
 ApiWrap::FileProcess::FileProcess(const QString &path, Output::Stats *stats)
@@ -1785,6 +1798,64 @@ void ApiWrap::requestMessages(
 	Expects(_chatProcess == nullptr);
 	Expects(_selfId.has_value());
 
+	if (info.topicRootId) {
+		prepareTopicFiles(info.relativePath);
+		if (info.topicRootId == 1
+			&& ranges::any_of(info.splits, [](int split) { return split < 0; })) {
+			auto migrated = info;
+			migrated.topicRootId = 0;
+			std::erase_if(migrated.splits, [](int split) { return split >= 0; });
+			migrated.messagesCountPerSplit.assign(migrated.splits.size(), 0);
+			requestMessages(
+				migrated,
+				[info, start = std::move(start)](
+						const Data::DialogInfo &loaded) mutable {
+					auto updated = info;
+					updated.messagesCountPerSplit = loaded.messagesCountPerSplit;
+					return start(updated);
+				},
+				progress,
+				slice,
+				[=, done = std::move(done)]() mutable {
+					if (_cancelled) {
+						return;
+					}
+					requestTopicMessages(
+						info.peerId,
+						info.input,
+						info.topicRootId,
+						info.relativePath,
+						info.onlyMyMessages,
+						[=](int count) {
+							return progress(DownloadProgress{ .itemCount = count });
+						},
+						progress,
+						slice,
+						std::move(done));
+				});
+			return;
+		}
+		requestTopicMessages(
+			info.peerId,
+			info.input,
+			info.topicRootId,
+			info.relativePath,
+			info.onlyMyMessages,
+			[info, start = std::move(start)](int count) mutable {
+				auto updated = info;
+				updated.messagesCountPerSplit = { count };
+				return start(updated);
+			},
+			std::move(progress),
+			std::move(slice),
+			std::move(done));
+		return;
+	}
+
+	if (!info.isForum) {
+		_topicFilesPath.clear();
+	}
+
 	_chatProcess = std::make_unique<ChatProcess>();
 	_chatProcess->context.selfPeerId = peerFromUser(*_selfId);
 	_chatProcess->info = info;
@@ -1891,6 +1962,10 @@ void ApiWrap::skipFile(uint64 randomId) {
 }
 
 void ApiWrap::cancelExportFast() {
+	_cancelled = true;
+	if (_forumRequestId) {
+		_mtp.request(base::take(_forumRequestId)).cancel();
+	}
 	if (_takeoutId.has_value()) {
 		const auto requestId = mainRequest(MTPaccount_FinishTakeoutSession(
 			MTP_flags(0)
@@ -2094,9 +2169,144 @@ void ApiWrap::requestLeftChannelsIfNeeded() {
 void ApiWrap::finishDialogsList() {
 	Expects(_dialogsProcess != nullptr);
 
-	const auto process = base::take(_dialogsProcess);
-	Data::FinalizeDialogsInfo(process->info, *_settings);
-	process->done(std::move(process->info));
+	Data::FinalizeDialogsInfo(_dialogsProcess->info, *_settings);
+	requestNextForum();
+}
+
+void ApiWrap::requestNextForum() {
+	if (_cancelled || !_dialogsProcess) {
+		return;
+	}
+	const auto process = _dialogsProcess.get();
+	while (const auto chat = process->info.item(process->forumIndex)) {
+		if (chat->isForum) {
+			const auto selection = _settings->topicSelection.find(
+				chat->peerId.value);
+			if (selection == end(_settings->topicSelection)
+				|| !selection->second.empty()) {
+				requestForumTopicsSlice();
+				return;
+			}
+		} else {
+			auto &list = chat->isLeftChannel
+				? process->expanded.left
+				: process->expanded.chats;
+			list.push_back(*chat);
+		}
+		++process->forumIndex;
+	}
+	const auto finished = base::take(_dialogsProcess);
+	finished->done(std::move(finished->expanded));
+}
+
+void ApiWrap::requestForumTopicsSlice() {
+	if (_cancelled || !_dialogsProcess) {
+		return;
+	}
+	const auto process = _dialogsProcess.get();
+	const auto chat = process->info.item(process->forumIndex);
+	_forumRequestId = _mtp.request(MTPmessages_GetForumTopics(
+		MTP_flags(0),
+		chat->input,
+		MTPstring(),
+		MTP_int(process->topicOffsetDate),
+		MTP_int(process->topicOffsetId),
+		MTP_int(process->topicOffsetTopicId),
+		MTP_int(kChatsSliceLimit)
+	)).done([=](const MTPmessages_ForumTopics &result) {
+		if (_cancelled || _dialogsProcess.get() != process) {
+			return;
+		}
+		_forumRequestId = 0;
+		const auto slice = Data::ParseForumTopicsSlice(result);
+		if (slice.list.empty() && !result.data().vtopics().v.isEmpty()) {
+			error(u"Forum topic page has no usable pagination cursor."_q);
+			return;
+		}
+		for (const auto &topic : slice.list) {
+			process->topics.emplace(topic.rootId, topic);
+		}
+		if (!slice.list.empty()
+			&& std::tie(slice.offsetDate, slice.offsetId, slice.offsetTopicId)
+				== std::tie(process->topicOffsetDate,
+					process->topicOffsetId,
+					process->topicOffsetTopicId)) {
+			error(u"Forum topic pagination did not advance."_q);
+			return;
+		}
+		if (slice.list.empty()) {
+			if (process->topics.contains(1)
+				|| !_settings->includesTopic(chat->peerId.value, 1)) {
+				finishForumTopics();
+			} else {
+				_forumRequestId = _mtp.request(MTPmessages_GetForumTopicsByID(
+					chat->input,
+					MTP_vector<MTPint>(1, MTP_int(1))
+				)).done([=](const MTPmessages_ForumTopics &result) {
+					if (_cancelled || _dialogsProcess.get() != process) {
+						return;
+					}
+					_forumRequestId = 0;
+					for (const auto &topic
+							: Data::ParseForumTopicsSlice(result).list) {
+						process->topics.emplace(topic.rootId, topic);
+					}
+					if (!process->topics.contains(1)) {
+						error(u"General forum topic metadata is unavailable."_q);
+						return;
+					}
+					finishForumTopics();
+				}).fail([=](const MTP::Error &result) {
+					if (!_cancelled && _dialogsProcess.get() == process) {
+						_forumRequestId = 0;
+						error(result);
+					}
+				}).send();
+			}
+			return;
+		}
+		process->topicOffsetDate = slice.offsetDate;
+		process->topicOffsetId = slice.offsetId;
+		process->topicOffsetTopicId = slice.offsetTopicId;
+		if (process->progress(process->processedCount)) {
+			requestForumTopicsSlice();
+		}
+	}).fail([=](const MTP::Error &result) {
+		if (!_cancelled && _dialogsProcess.get() == process) {
+			_forumRequestId = 0;
+			error(result);
+		}
+	}).send();
+}
+
+void ApiWrap::finishForumTopics() {
+	if (_cancelled || !_dialogsProcess) {
+		return;
+	}
+	const auto process = _dialogsProcess.get();
+	const auto chat = process->info.item(process->forumIndex);
+	const auto selection = _settings->topicSelection.find(chat->peerId.value);
+	if (selection != end(_settings->topicSelection)) {
+		for (const auto id : selection->second) {
+			if (!process->topics.contains(id)) {
+				error(u"Selected forum topic is no longer available."_q);
+				return;
+			}
+		}
+	}
+	auto &list = chat->isLeftChannel
+		? process->expanded.left
+		: process->expanded.chats;
+	for (const auto &[id, topic] : process->topics) {
+		if (_settings->includesTopic(chat->peerId.value, id)) {
+			list.push_back(Data::DialogInfoFromTopic(*chat, topic));
+		}
+	}
+	process->topics.clear();
+	process->topicOffsetDate = 0;
+	process->topicOffsetId = process->topicOffsetTopicId = 0;
+	++process->forumIndex;
+	requestNextForum();
 }
 
 void ApiWrap::requestLeftChannelsSliceGeneric(FnMut<void()> done) {
@@ -2912,27 +3122,39 @@ void ApiWrap::finishMessages() {
 	process->done();
 }
 
+void ApiWrap::prepareTopicFiles(const QString &relativePath) {
+	if (_topicFilesPath == relativePath) {
+		return;
+	}
+	_fileCache->clear();
+	_resolvedCustomEmoji.clear();
+	_topicFilesPath = relativePath;
+}
+
 void ApiWrap::requestTopicMessages(
 		PeerId peerId,
 		MTPInputPeer inputPeer,
 		int32 topicRootId,
+		const QString &relativePath,
+		bool onlyMyMessages,
 		FnMut<bool(int count)> start,
 		Fn<bool(DownloadProgress)> progress,
 		Fn<bool(Data::MessagesSlice&&)> slice,
 		FnMut<void()> done) {
 	Expects(_topicProcess == nullptr);
 	Expects(_selfId.has_value());
+	if (_cancelled) {
+		return;
+	}
 
 	_topicProcess = std::make_unique<TopicProcess>();
 	_topicProcess->context.selfPeerId = peerFromUser(*_selfId);
 	_topicProcess->peerId = peerId;
 	_topicProcess->inputPeer = inputPeer;
 	_topicProcess->topicRootId = topicRootId;
-	_topicProcess->relativePath = "chats/chat_"
-		+ QString::number(peerId.value)
-		+ "/topic_"
-		+ QString::number(topicRootId)
-		+ "/";
+	_topicProcess->relativePath = relativePath;
+	_topicProcess->onlyMyMessages = onlyMyMessages;
+	prepareTopicFiles(relativePath);
 	_topicProcess->start = std::move(start);
 	_topicProcess->fileProgress = std::move(progress);
 	_topicProcess->handleSlice = std::move(slice);
@@ -2947,6 +3169,10 @@ void ApiWrap::requestTopicMessages(
 			MTP_inputMessageID(MTP_int(topicRootId)))
 	)).done([=](const MTPmessages_Messages &rootResult) {
 		Expects(_topicProcess != nullptr);
+		if (rootResult.type() == mtpc_messages_messagesNotModified) {
+			error("Unexpected messagesNotModified received.");
+			return;
+		}
 
 		auto rootSlice = rootResult.match([&](
 				const MTPDmessages_messagesNotModified &) {
@@ -2959,6 +3185,9 @@ void ApiWrap::requestTopicMessages(
 				data.vchats(),
 				_topicProcess->relativePath);
 		});
+		rootSlice = Data::FilterTopicRootSlice(
+			std::move(rootSlice),
+			onlyMyMessages);
 
 		auto rootSlicePtr = std::make_shared<Data::MessagesSlice>(
 			std::move(rootSlice));
@@ -2984,8 +3213,8 @@ void ApiWrap::requestTopicMessages(
 					error("Unexpected messagesNotModified received.");
 					return;
 				}
-				_topicProcess->totalCount = count;
-				if (!_topicProcess->start(count)) {
+				_topicProcess->totalCount = count + rootSlicePtr->list.size();
+				if (!_topicProcess->start(_topicProcess->totalCount)) {
 					return;
 				}
 
@@ -3024,6 +3253,9 @@ void ApiWrap::requestTopicMessagesSlice() {
 					data.vusers(),
 					data.vchats(),
 					_topicProcess->relativePath);
+				slice = Data::FilterTopicMessagesSlice(
+					std::move(slice),
+					_topicProcess->offsetId);
 				if (slice.list.empty()) {
 					_topicProcess->lastSlice = true;
 				}
@@ -3044,6 +3276,28 @@ void ApiWrap::requestTopicReplies(
 		Expects(_topicProcess != nullptr);
 		base::take(_topicProcess->requestDone)(std::move(result));
 	};
+	if (_topicProcess->onlyMyMessages) {
+		mainRequest(MTPmessages_Search(
+			MTP_flags(MTPmessages_Search::Flag::f_from_id
+				| MTPmessages_Search::Flag::f_top_msg_id),
+			_topicProcess->inputPeer,
+			MTP_string(),
+			MTP_inputPeerSelf(),
+			MTPInputPeer(),
+			MTPVector<MTPReaction>(),
+			MTP_int(_topicProcess->topicRootId),
+			MTP_inputMessagesFilterEmpty(),
+			MTP_int(0),
+			MTP_int(0),
+			MTP_int(offsetId),
+			MTP_int(addOffset),
+			MTP_int(limit),
+			MTP_int(0),
+			MTP_int(0),
+			MTP_long(0)
+		)).done(doneHandler).send();
+		return;
+	}
 
 	mainRequest(MTPmessages_GetReplies(
 		_topicProcess->inputPeer,
@@ -3204,10 +3458,7 @@ void ApiWrap::finishTopicMessagesSlice() {
 		}
 	}
 
-	const auto reachedTotal = _topicProcess->totalCount > 0
-		&& _topicProcess->processedCount >= _topicProcess->totalCount;
-
-	if (!_topicProcess->lastSlice && !reachedTotal) {
+	if (!_topicProcess->lastSlice) {
 		requestTopicMessagesSlice();
 	} else {
 		finishTopicMessages();
