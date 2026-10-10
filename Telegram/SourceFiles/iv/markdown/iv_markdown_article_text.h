@@ -90,7 +90,8 @@ void SetTextLeaf(
 	Fn<void()> repaint = nullptr,
 	Fn<void(QRect)> repaintRect = nullptr,
 	Fn<bool(const ClickContext&)> spoilerLinkFilter = nullptr,
-	bool richButtonLabel = false);
+	bool richButtonLabel = false,
+	bool keepLeadingSpaces = false);
 
 [[nodiscard]] bool TextHasInlineButton(const TextWithEntities &text);
 [[nodiscard]] QString InlineButtonTooltip(QStringView data);

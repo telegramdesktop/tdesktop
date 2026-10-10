@@ -741,7 +741,9 @@ void PopulateCodeBlockLeaf(
 		false,
 		std::move(repaint),
 		std::move(repaintRect),
-		std::move(spoilerLinkFilter));
+		std::move(spoilerLinkFilter),
+		false,
+		true);
 	BindLinks(leaf, codeLinks);
 	if (syntaxHighlightProcessId) {
 		*syntaxHighlightProcessId = processId;

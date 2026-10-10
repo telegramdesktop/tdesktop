@@ -2378,7 +2378,8 @@ void SetTextLeaf(
 		Fn<void()> repaint,
 		Fn<void(QRect)> repaintRect,
 		Fn<bool(const ClickContext&)> spoilerLinkFilter,
-		bool richButtonLabel) {
+		bool richButtonLabel,
+		bool keepLeadingSpaces) {
 	*leaf = Ui::Text::String(TextMinResizeWidth(minResizeWidth));
 	auto context = mediaRuntime
 		? mediaRuntime->textContext()
@@ -2461,10 +2462,14 @@ void SetTextLeaf(
 	const auto resolved = richButtonLabel
 		? ResolveRichButtonLabelDates(text, context.formattedDateFactory)
 		: TextWithEntities();
+	auto options = rtl ? kIvMarkedTextOptionsRtl : kIvMarkedTextOptions;
+	if (keepLeadingSpaces) {
+		options.flags |= TextParseKeepLeadingSpaces;
+	}
 	leaf->setMarkedText(
 		textStyle,
 		richButtonLabel ? resolved : text,
-		rtl ? kIvMarkedTextOptionsRtl : kIvMarkedTextOptions,
+		options,
 		context);
 	SetTextLeafSpoilerLinkFilter(leaf, std::move(spoilerLinkFilter));
 	if (inlineButtonPaintState
