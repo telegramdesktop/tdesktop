@@ -1048,6 +1048,16 @@ void Panel::setupMembers() {
 		_call->changeVolume(request);
 	}, _callLifetime);
 
+	_members->toggleScreenMuteRequests(
+	) | rpl::on_next([=](MuteRequest request) {
+		_call->toggleScreenMute(request);
+	}, _callLifetime);
+
+	_members->changeScreenVolumeRequests(
+	) | rpl::on_next([=](VolumeRequest request) {
+		_call->changeScreenVolume(request);
+	}, _callLifetime);
+
 	_members->kickParticipantRequests(
 	) | rpl::on_next([=](not_null<PeerData*> participantPeer) {
 		kickParticipant(participantPeer);

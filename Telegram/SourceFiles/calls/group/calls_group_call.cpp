@@ -3590,6 +3590,24 @@ float64 GroupCall::singleSourceVolumeValue() const {
 	return _singleSourceVolume / float64(Group::kDefaultVolume);
 }
 
+float64 GroupCall::effectiveParticipantVolume(
+		const Data::GroupCallParticipant &participant) const {
+	return participant.mutedByMe
+		? 0.
+		: (participant.volume / float64(Group::kDefaultVolume));
+}
+
+float64 GroupCall::effectiveParticipantScreenVolume(
+		const Data::GroupCallParticipant &participant) const {
+	const auto i = _screenVolumesByPeer.find(participant.peer);
+	if (i != end(_screenVolumesByPeer)) {
+		return i->second.muted
+			? 0.
+			: (i->second.volume / float64(Group::kDefaultVolume));
+	}
+	return effectiveParticipantVolume(participant);
+}
+
 void GroupCall::updateInstanceVolumes() {
 	const auto real = lookupReal();
 	if (!real) {
@@ -3626,14 +3644,13 @@ void GroupCall::updateInstanceVolume(
 		&& (volumeChanged
 			|| (was && (GetAdditionalAudioSsrc(was->videoParams)
 				!= additionalSsrc)));
-	const auto localVolume = now.mutedByMe
-		? 0.
-		: (now.volume / float64(Group::kDefaultVolume));
+	const auto localVolume = effectiveParticipantVolume(now);
+	const auto localScreenVolume = effectiveParticipantScreenVolume(now);
 	if (set) {
 		_instance->setVolume(now.ssrc, localVolume);
 	}
 	if (additionalSet) {
-		_instance->setVolume(additionalSsrc, localVolume);
+		_instance->setVolume(additionalSsrc, localScreenVolume);
 	}
 }
 
@@ -4016,6 +4033,42 @@ void GroupCall::changeVolume(const Group::VolumeRequest &data) {
 	}
 }
 
+void GroupCall::toggleScreenMute(const Group::MuteRequest &data) {
+	if (_rtmp || videoStream() || data.peer->isSelf()) {
+		return;
+	}
+	auto &state = _screenVolumesByPeer[data.peer];
+	state.muted = data.mute;
+	_otherParticipantScreenStateValue.fire(participantScreenState(data.peer));
+	applyScreenVolume(data.peer);
+}
+
+void GroupCall::changeScreenVolume(const Group::VolumeRequest &data) {
+	if (_rtmp || videoStream() || data.peer->isSelf()) {
+		return;
+	}
+	auto &state = _screenVolumesByPeer[data.peer];
+	state.volume = std::clamp(data.volume, 1, Group::kMaxVolume);
+	state.muted = false;
+	_otherParticipantScreenStateValue.fire(participantScreenState(data.peer));
+	applyScreenVolume(data.peer);
+}
+
+void GroupCall::applyScreenVolume(not_null<PeerData*> participantPeer) {
+	if (!_instance) {
+		return;
+	}
+	const auto participant = LookupParticipant(this, participantPeer);
+	if (!participant) {
+		return;
+	}
+	const auto ssrc = GetAdditionalAudioSsrc(participant->videoParams);
+	if (!ssrc) {
+		return;
+	}
+	_instance->setVolume(ssrc, effectiveParticipantScreenVolume(*participant));
+}
+
 void GroupCall::editParticipant(
 		not_null<PeerData*> participantPeer,
 		bool mute,
@@ -4240,6 +4293,40 @@ void GroupCall::sendMessage(TextWithTags message) {
 auto GroupCall::otherParticipantStateValue() const
 -> rpl::producer<Group::ParticipantState> {
 	return _otherParticipantStateValue.events();
+}
+
+auto GroupCall::otherParticipantScreenStateValue() const
+-> rpl::producer<Group::ParticipantState> {
+	return _otherParticipantScreenStateValue.events();
+}
+
+bool GroupCall::hasScreenShareAudio(
+		not_null<PeerData*> participantPeer) {
+	const auto participant = LookupParticipant(this, participantPeer);
+	return participant && GetAdditionalAudioSsrc(participant->videoParams);
+}
+
+Group::ParticipantState GroupCall::participantScreenState(
+		not_null<PeerData*> participantPeer) {
+	const auto participant = LookupParticipant(this, participantPeer);
+	const auto i = _screenVolumesByPeer.find(participantPeer);
+	const auto fallbackVolume = participant
+		? participant->volume
+		: Group::kDefaultVolume;
+	const auto fallbackMuted = participant ? participant->mutedByMe : false;
+	return Group::ParticipantState{
+		.peer = participantPeer,
+		.volume = std::clamp(
+			(i != end(_screenVolumesByPeer))
+				? i->second.volume
+				: fallbackVolume,
+			1,
+			Group::kMaxVolume),
+		.mutedByMe = (i != end(_screenVolumesByPeer))
+			? i->second.muted
+			: fallbackMuted,
+		.locallyOnly = true,
+	};
 }
 
 MTPInputGroupCall GroupCall::inputCall() const {
