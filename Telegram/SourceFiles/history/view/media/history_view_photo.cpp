@@ -90,6 +90,61 @@ using Data::PhotoSize;
 
 } // namespace
 
+struct Photo::Enlarge final {
+	[[nodiscard]] static std::unique_ptr<Enlarge> Create(
+		not_null<Photo*> photo,
+		int width,
+		int height);
+	[[nodiscard]] QRect rect(int outerWidth) const;
+	void paint(
+		Painter &p,
+		int outerWidth,
+		const style::icon &icon);
+};
+
+std::unique_ptr<Photo::Enlarge> Photo::Enlarge::Create(
+		not_null<Photo*> photo,
+		int width,
+		int height) {
+	const auto parent = photo->_parent;
+	const auto outer = 2 * st::historyPageEnlargeSkip
+		+ st::historyPageEnlargeSize;
+	if ((parent->media() == photo)
+		|| !parent->data()->media()
+		|| parent->data()->isSponsored()
+		|| (parent->context() == Context::MediaEditor)
+		|| !parent->data()->media()->webpage()
+		|| !parent->data()->media()->webpage()->suggestEnlargePhoto()
+		|| (width < outer)
+		|| (height < outer)) {
+		return nullptr;
+	}
+	return std::make_unique<Enlarge>();
+}
+
+QRect Photo::Enlarge::rect(int outerWidth) const {
+	const auto skip = st::historyPageEnlargeSkip;
+	return {
+		outerWidth - skip - st::historyPageEnlargeSize,
+		skip,
+		st::historyPageEnlargeSize,
+		st::historyPageEnlargeSize,
+	};
+}
+
+void Photo::Enlarge::paint(
+		Painter &p,
+		int outerWidth,
+		const style::icon &icon) {
+	auto hq = PainterHighQualityEnabler(p);
+	const auto r = rect(outerWidth);
+	p.drawRoundedRect(
+		r,
+		st::historyPageEnlargeRadius,
+		st::historyPageEnlargeRadius);
+	icon.paintInCenter(p, r);
+}
+
 struct Photo::Streamed {
 	explicit Streamed(std::shared_ptr<::Media::Streaming::Document> shared);
 	::Media::Streaming::Instance instance;
@@ -320,17 +375,7 @@ QSize Photo::countCurrentSize(int newWidth) {
 	if (newWidth >= maxWidth()) {
 		newHeight = std::min(newHeight, minHeight());
 	}
-	const auto enlargeInner = st::historyPageEnlargeSize;
-	const auto enlargeOuter = 2 * st::historyPageEnlargeSkip + enlargeInner;
-	const auto showEnlarge = (_parent->media() != this)
-		&& _parent->data()->media()
-		&& !_parent->data()->isSponsored()
-		&& (_parent->context() != Context::MediaEditor)
-		&& _parent->data()->media()->webpage()
-		&& _parent->data()->media()->webpage()->suggestEnlargePhoto()
-		&& (newWidth >= enlargeOuter)
-		&& (newHeight >= enlargeOuter);
-	_showEnlarge = showEnlarge ? 1 : 0;
+	_enlarge = Enlarge::Create(this, newWidth, newHeight);
 	return { newWidth, newHeight };
 }
 
@@ -405,7 +450,7 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 		}
 	}
 
-	const auto showEnlarge = loaded && _showEnlarge;
+	const auto showEnlarge = loaded && _enlarge;
 	const auto ttlCovered = _ttlCover
 		&& _spoiler
 		&& !_spoiler->revealed;
@@ -476,16 +521,12 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 			context);
 	}
 	if (showEnlarge) {
-		auto hq = PainterHighQualityEnabler(p);
-		const auto rect = enlargeRect();
-		const auto radius = st::historyPageEnlargeRadius;
-		p.drawRoundedRect(rect, radius, radius);
-		sti->historyPageEnlarge.paintInCenter(p, rect);
+		_enlarge->paint(p, width(), sti->historyPageEnlarge);
 	}
 	if (_purchasedPriceTag) {
 		auto geometry = rthumb;
 		if (showEnlarge) {
-			const auto rect = enlargeRect();
+			const auto rect = _enlarge->rect(width());
 			geometry.setY(rect.y() + rect.height());
 		}
 		drawPurchasedTag(p, geometry, context);
@@ -732,18 +773,6 @@ QSize Photo::photoSize() const {
 	return QSize(_data->width(), _data->height());
 }
 
-QRect Photo::enlargeRect() const {
-	const auto skip = st::historyPageEnlargeSkip;
-	const auto enlargeInner = st::historyPageEnlargeSize;
-	const auto enlargeOuter = 2 * skip + enlargeInner;
-	return {
-		width() - enlargeOuter + skip,
-		skip,
-		enlargeInner,
-		enlargeInner,
-	};
-}
-
 ClickHandlerPtr Photo::spoilerTagLink() const {
 	return Media::spoilerTagLink(_spoiler.get(), _spoilerTag);
 }
@@ -776,9 +805,9 @@ TextState Photo::textState(QPoint point, StateRequest request) const {
 			: _data->loading()
 			? _cancell
 			: _savel;
-		if (_showEnlarge
+		if (_enlarge
 			&& result.link == _openl
-			&& enlargeRect().contains(point)) {
+			&& _enlarge->rect(width()).contains(point)) {
 			result.cursor = CursorState::Enlarge;
 		}
 	}
