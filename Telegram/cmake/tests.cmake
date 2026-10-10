@@ -53,3 +53,25 @@ if (APPLE)
             "$<TARGET_FILE_DIR:test_text>/Contents/Resources/"
     )
 endif()
+
+add_executable(test_export_message_slice)
+init_target(test_export_message_slice "(tests)")
+
+target_precompile_headers(test_export_message_slice
+PRIVATE
+    ${src_loc}/export/export_pch.h
+)
+target_include_directories(test_export_message_slice PRIVATE ${src_loc})
+nice_target_sources(test_export_message_slice ${src_loc}
+PRIVATE
+    export/data/export_message_slice.h
+    tests/test_export_message_slice.cpp
+)
+target_link_libraries(test_export_message_slice
+PRIVATE
+    tdesktop::td_scheme
+)
+set_target_properties(test_export_message_slice PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+add_dependencies(Telegram test_export_message_slice)
