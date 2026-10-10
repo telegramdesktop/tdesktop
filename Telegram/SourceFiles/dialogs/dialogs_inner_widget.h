@@ -151,6 +151,7 @@ public:
 	void switchToFilter(FilterId filterId);
 
 	void clearSelection();
+	[[nodiscard]] bool hasSelection() const;
 
 	void changeOpenedFolder(Data::Folder *folder);
 	void changeOpenedForum(Data::Forum *forum);
@@ -206,6 +207,8 @@ public:
 
 	void setLoadMoreCallback(Fn<void()> callback);
 	void setLoadMoreFilteredCallback(Fn<void()> callback);
+	void setSearchResultsOnly(Fn<QString(int count)> title);
+	void setDeselectOnTopUp(bool value);
 	[[nodiscard]] rpl::producer<> listBottomReached() const;
 	[[nodiscard]] auto changeSearchTabRequests() const
 		-> rpl::producer<ChatSearchTab>;
@@ -466,6 +469,9 @@ private:
 		QRect updateRect = QRect(),
 		UpdateRowSections sections = UpdateRowSection::All);
 	void fillSupportSearchMenu(not_null<Ui::PopupMenu*> menu);
+	void fillSearchResultMenu(
+		not_null<Ui::PopupMenu*> menu,
+		FullMsgId itemId);
 
 	void refreshShownList();
 	void rebuildCommunitySections();
@@ -789,6 +795,8 @@ private:
 
 	Fn<void()> _loadMoreCallback;
 	Fn<void()> _loadMoreFilteredCallback;
+	Fn<QString(int count)> _searchResultsOnlyTitle;
+	bool _deselectOnTopUp = false;
 	rpl::event_stream<> _listBottomReached;
 	rpl::event_stream<ChosenRow> _chosenRow;
 	rpl::event_stream<> _updated;
