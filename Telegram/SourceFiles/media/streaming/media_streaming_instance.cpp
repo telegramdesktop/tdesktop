@@ -214,8 +214,8 @@ FrameWithInfo Instance::frameWithInfo(const FrameRequest &request) const {
 	return player().frameWithInfo(request, this);
 }
 
-FrameWithInfo Instance::frameWithInfo() const {
-	return player().frameWithInfo(this);
+FrameWithInfo Instance::frameWithInfo(bool hdr) const {
+	return player().frameWithInfo(this, hdr);
 }
 
 bool Instance::markFrameShown() const {
