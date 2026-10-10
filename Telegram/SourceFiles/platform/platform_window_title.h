@@ -16,6 +16,10 @@ inline bool NativeTitleRequiresShadow() {
 	return Platform::IsWindows();
 }
 
+inline bool WindowTitleAlignsLeft() {
+	return IsMac26_0OrGreater();
+}
+
 int PreviewTitleHeight();
 void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QColor bg, QRect body, int outerWidth);
 

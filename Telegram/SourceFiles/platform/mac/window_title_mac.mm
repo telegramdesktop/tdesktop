@@ -79,7 +79,15 @@ void PreviewWindowTitle(Painter &p, const style::palette &palette, QRect body, i
 	p.setPen(st::titleFgActive[palette]);
 	p.setFont(font);
 
-	p.drawText(titleRect, u"Telegram"_q, style::al_center);
+	if (WindowTitleAlignsLeft()) {
+		constexpr auto kTrafficLightsWidth = 8 + 3 * (12 + 8);
+		p.drawText(
+			titleRect.adjusted(kTrafficLightsWidth, 0, 0, 0),
+			u"Telegram"_q,
+			style::al_left);
+	} else {
+		p.drawText(titleRect, u"Telegram"_q, style::al_center);
+	}
 
 	auto isGraphite = ([NSColor currentControlTint] == NSGraphiteControlTint);
 	auto buttonSkip = 8;
