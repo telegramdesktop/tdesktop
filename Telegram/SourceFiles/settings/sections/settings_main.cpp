@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "base/platform/base_platform_info.h"
 #include "boxes/language_box.h"
+#include "boxes/keys_legend.h"
 #include "boxes/star_gift_box.h"
 #include "boxes/username_box.h"
 #include "core/application.h"
@@ -75,6 +76,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/menu/menu_item_base.h"
@@ -578,18 +580,54 @@ void BuildPremiumSection(SectionBuilder &builder) {
 	builder.addSkip();
 }
 
+class CircleRippleIconButton final : public Ui::IconButton {
+public:
+	using Ui::IconButton::IconButton;
+
+protected:
+	QImage prepareRippleMask() const override {
+		return Ui::RippleAnimation::EllipseMask(size());
+	}
+};
+
 void BuildHelpSection(SectionBuilder &builder) {
 	builder.addDivider();
 	builder.addSkip();
 
 	const auto controller = builder.controller();
-	builder.addButton({
+	const auto faq = builder.addButton({
 		.id = u"main/faq"_q,
 		.title = tr::lng_settings_faq(),
 		.icon = { &st::menuIconFaq },
 		.onClick = [=] { OpenFaq(controller); },
-		.keywords = { u"help"_q, u"support"_q, u"questions"_q },
+		.keywords = {
+			u"help"_q,
+			u"support"_q,
+			u"questions"_q,
+			u"shortcuts"_q,
+			u"keyboard"_q,
+			u"hotkeys"_q,
+			u"legend"_q,
+			u"gestures"_q,
+		},
 	});
+	if (faq) {
+		const auto legend = Ui::CreateChild<CircleRippleIconButton>(
+			faq,
+			st::settingsFaqKeysLegend);
+		legend->setAccessibleName(tr::lng_keys_legend_title(tr::now));
+		faq->sizeValue(
+		) | rpl::on_next([=](const QSize &size) {
+			const auto right = st::settingsButtonRightSkip
+				- st::settingsFaqKeysLegend.iconPosition.x();
+			legend->moveToRight(
+				right,
+				(size.height() - legend->height()) / 2);
+		}, legend->lifetime());
+		legend->setClickedCallback([=] {
+			ShowKeysLegend(&controller->window());
+		});
+	}
 
 	builder.addButton({
 		.id = u"main/features"_q,

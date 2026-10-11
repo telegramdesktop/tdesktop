@@ -8033,6 +8033,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_photo_editor_keys_gesture_wheel" = "wheel";
 "lng_photo_editor_keys_wheel" = "Wheel";
 "lng_photo_editor_keys_middle_drag" = "Middle drag";
+"lng_photo_editor_keys_middle_click" = "Middle click";
 "lng_photo_editor_keys_double_click" = "Double click";
 "lng_photo_editor_keys_legend" = "Show these shortcuts";
 "lng_photo_editor_keys_crop" = "Crop";
@@ -8064,6 +8065,61 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_photo_editor_keys_timeline_window" = "Move trimmed range";
 
 "lng_photo_editor_link_customize" = "Customize Link Text";
+
+"lng_keys_legend_title" = "Shortcuts and gestures";
+
+"lng_keys_legend_section_general" = "General";
+"lng_keys_legend_section_chats" = "Chats list";
+"lng_keys_legend_section_messages" = "Messages";
+"lng_keys_legend_section_compose" = "Writing messages";
+"lng_keys_legend_section_media" = "Media viewer";
+"lng_keys_legend_section_fullscreen" = "Fullscreen video";
+"lng_keys_legend_section_iv" = "Instant View";
+
+"lng_keys_legend_pinned_chats" = "Open pinned chat by number";
+"lng_keys_legend_folder_numbers" = "Open folder by number";
+"lng_keys_legend_chat_switcher" = "Quick chat switcher";
+"lng_keys_legend_new_window" = "Open chat in a new window";
+"lng_keys_legend_quick_preview" = "Show a quick chat preview";
+"lng_keys_legend_extend_selection" = "Extend text selection";
+"lng_keys_legend_autoscroll" = "Autoscroll the chat";
+"lng_keys_legend_alt_text_select" = "Select text instead of opening links";
+"lng_keys_legend_edit_last" = "Edit the last message";
+"lng_keys_legend_reply_prev" = "Reply to previous message";
+"lng_keys_legend_reply_next" = "Reply to next message";
+"lng_keys_legend_attach" = "Attach a file";
+"lng_keys_legend_paste_plain" = "Paste as plain text";
+
+"lng_keys_legend_media_play" = "Play or pause";
+"lng_keys_legend_hold" = "Hold";
+"lng_keys_legend_click" = "Click";
+"lng_keys_legend_drag" = "Drag";
+"lng_keys_legend_wheel" = "Wheel";
+"lng_keys_legend_media_2x" = "2x speed";
+"lng_keys_legend_media_nav" = "Previous or next media";
+"lng_keys_legend_media_escape" = "Close the viewer";
+"lng_keys_legend_media_fullscreen_escape" = "Exit fullscreen";
+"lng_keys_legend_media_fullscreen" = "Toggle fullscreen video";
+"lng_keys_legend_media_seek" = "Seek backward or forward";
+"lng_keys_legend_media_pause" = "Pause or resume";
+"lng_keys_legend_media_frame" = "Frame-step while paused";
+"lng_keys_legend_media_percent" = "Jump to 0-90% of the video";
+"lng_keys_legend_media_flip" = "Flip the photo horizontally or vertically";
+"lng_keys_legend_media_zoom" = "Zoom in or out";
+"lng_keys_legend_media_zoom_reset" = "Reset zoom";
+"lng_keys_legend_media_save" = "Save media";
+"lng_keys_legend_media_fit" = "Fit to screen";
+"lng_keys_legend_media_double" = "Toggle fullscreen";
+"lng_keys_legend_media_hold" = "Speed up playback, drag to scrub the speed";
+"lng_keys_legend_media_chapter_prev" = "Previous chapter";
+"lng_keys_legend_media_chapter_next" = "Next chapter";
+
+"lng_keys_legend_iv_zoom" = "Zoom the page";
+"lng_keys_legend_iv_zoom_reset" = "Reset zoom";
+"lng_keys_legend_iv_search" = "Search the page";
+"lng_keys_legend_iv_close" = "Close Instant View";
+
+"lng_keys_legend_open" = "Show these shortcuts";
 
 "lng_voice_speed_slow" = "Slow";
 "lng_voice_speed_normal" = "Normal";

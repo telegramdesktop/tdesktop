@@ -186,6 +186,7 @@ menuIconUniqueProfile: icon {{ "settings/premium/features/feature_profile_cover"
 menuIconNftWear: icon {{ "menu/nft_wear", menuIconColor }};
 menuIconNftTakeOff: icon {{ "menu/nft_takeoff", menuIconColor }};
 menuIconShortcut: icon {{ "menu/shortcut", menuIconColor }};
+menuIconKeysLegend: icon {{ "menu/keyboard", menuIconColor }};
 menuIconHourglass: icon {{ "menu/hourglass", menuIconColor }};
 menuIconPayment: icon {{ "payments/payment_card", menuIconColor }};
 menuIconOrderPrice: icon {{ "menu/order_price", menuIconColor }};

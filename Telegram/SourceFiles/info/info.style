@@ -193,6 +193,10 @@ infoTopBarQr: IconButton(infoTopBarMenu) {
 	iconPosition: point(8px, -1px);
 	rippleAreaPosition: point(0px, 6px);
 }
+infoTopBarKeysLegend: IconButton(infoTopBarQr) {
+	icon: icon {{ "menu/faq", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/faq", boxTitleCloseFgOver }};
+}
 infoTopBarEdit: IconButton(infoTopBarMenu) {
 	width: 48px;
 	icon: icon {{ "menu/edit", boxTitleCloseFg }};
@@ -303,6 +307,10 @@ infoLayerTopBarQr: IconButton(infoLayerTopBarClose) {
 	icon: icon {{ "menu/qr_code", boxTitleCloseFg }};
 	iconOver: icon {{ "menu/qr_code", boxTitleCloseFgOver }};
 	iconPosition: point(8px, -1px);
+}
+infoLayerTopBarKeysLegend: IconButton(infoLayerTopBarQr) {
+	icon: icon {{ "menu/faq", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/faq", boxTitleCloseFgOver }};
 }
 infoLayerTopBarSearch: IconButton(infoLayerTopBarClose) {
 	width: 48px;

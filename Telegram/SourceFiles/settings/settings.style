@@ -49,6 +49,20 @@ settingsAttentionButtonWithIcon: SettingsButton(settingsButton) {
 	textFg: attentionButtonFg;
 	textFgOver: attentionButtonFgOver;
 }
+settingsFaqKeysLegendIcon: icon {{ "menu/keyboard", menuIconColor }};
+settingsFaqKeysLegendIconOver: icon {{ "menu/keyboard", windowBoldFgOver }};
+settingsFaqKeysLegend: IconButton {
+	width: 40px;
+	height: 40px;
+
+	icon: settingsFaqKeysLegendIcon;
+	iconOver: settingsFaqKeysLegendIconOver;
+	iconPosition: point(6px, 6px);
+
+	ripple: defaultRippleAnimation;
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 40px;
+}
 settingsExperimentalTitle: FlatLabel(defaultFlatLabel) {
 	minWidth: 100px;
 }

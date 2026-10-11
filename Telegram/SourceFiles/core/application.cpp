@@ -95,6 +95,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "boxes/abstract_box.h"
+#include "boxes/keys_legend.h"
 #include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
 #include "boxes/premium_limits_box.h"
@@ -730,6 +731,8 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 			&& toggleActiveWindowFullScreen()) {
 			return true;
 		} else if (Shortcuts::HandlePossibleChatSwitch(event)) {
+			return true;
+		} else if (HandleKeysLegendHotkey(this, object, event)) {
 			return true;
 		}
 	} break;

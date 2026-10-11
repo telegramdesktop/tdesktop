@@ -33,6 +33,7 @@ struct Row {
 struct Section {
 	QString title;
 	std::vector<Row> rows;
+	bool stickToPrevious = false;
 };
 
 struct St {

@@ -16,10 +16,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_memento.h"
 #include "info/info_top_bar.h"
 #include "settings/cloud_password/settings_cloud_password_email_confirm.h"
+#include "boxes/keys_legend.h"
 #include "settings/sections/settings_chat.h"
 #include "settings/sections/settings_information.h"
 #include "settings/sections/settings_main.h"
 #include "settings/sections/settings_premium.h"
+#include "settings/sections/settings_shortcuts.h"
 #include "settings/settings_search.h"
 #include "ui/effects/ripple_animation.h" // MaskByDrawer.
 #include "ui/widgets/menu/menu_add_action_callback.h"
@@ -461,6 +463,16 @@ void WrapWidget::setupTopBarMenuToggle() {
 			button->setAccessibleName(tr::lng_dlg_filter(tr::now));
 			button->addClickHandler([=] {
 				_controller->showSettings(::Settings::Search::Id());
+			});
+		} else if (section.settingsType() == ::Settings::ShortcutsId()) {
+			const auto &st = (wrap() == Wrap::Layer)
+				? st::infoLayerTopBarKeysLegend
+				: st::infoTopBarKeysLegend;
+			const auto button = _topBar->addButton(
+				base::make_unique_q<Ui::IconButton>(_topBar, st));
+			button->setAccessibleName(tr::lng_keys_legend_title(tr::now));
+			button->addClickHandler([=] {
+				ShowKeysLegend(&_controller->parentController()->window());
 			});
 		} else if (section.settingsType() == ::Settings::InformationId()) {
 			const auto controller = _controller->parentController();
