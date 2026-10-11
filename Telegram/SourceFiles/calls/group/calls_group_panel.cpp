@@ -36,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/rp_window.h"
 #include "ui/chat/group_call_bar.h"
-#include "ui/controls/userpic_button.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
@@ -425,7 +424,6 @@ void Panel::initWindow() {
 			&& (!_menuToggle || !_menuToggle->geometry().contains(widgetPoint))
 			&& (!_menu || !_menu->geometry().contains(widgetPoint))
 			&& (!_recordingMark || !_recordingMark->geometry().contains(widgetPoint))
-			&& (!_joinAsToggle || !_joinAsToggle->geometry().contains(widgetPoint))
 			&& !pinOnTopRect().contains(widgetPoint));
 		if (!moveable) {
 			return (Flag::None | Flag(0));
@@ -766,7 +764,13 @@ void Panel::refreshVideoButtons(std::optional<bool> overrideWideMode) {
 		_screenShare.create(widget(), st::groupCallScreenShareSmall);
 		_screenShare->show();
 		_screenShare->setClickedCallback([=] {
-			chooseShareScreenSource();
+			const auto narrow = (mode() == PanelMode::Default);
+			// the wide row keeps the chooser while sharing
+			if (narrow && _call->isSharingScreen()) {
+				_call->toggleScreenSharing(std::nullopt);
+			} else {
+				chooseShareScreenSource();
+			}
 		});
 		_screenShare->setAccessibleName(tr::lng_group_call_screen_share_start(tr::now));
 		_screenShare->setColorOverrides(
@@ -1410,13 +1414,6 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 		raiseControls();
 	}, lifetime());
 
-	rpl::combine(
-		_call->videoIsWorkingValue(),
-		_call->isSharingScreenValue()
-	) | rpl::on_next([=] {
-		refreshTopButton();
-	}, lifetime());
-
 	_call->mutedValue(
 	) | rpl::skip(1) | rpl::on_next([=](MuteState state) {
 		updateButtonsGeometry();
@@ -1537,47 +1534,14 @@ void Panel::refreshTopButton() {
 	}
 	if (_mode.current() == PanelMode::Wide) {
 		_menuToggle.destroy();
-		_joinAsToggle.destroy();
 		updateButtonsGeometry(); // _wideMenu <-> _settings
-		return;
-	}
-	const auto hasJoinAs = _call->showChooseJoinAs();
-	const auto showNarrowMenu = _call->canManage()
-		|| _call->videoIsWorking();
-	const auto showNarrowUserpic = !showNarrowMenu && hasJoinAs;
-	if (showNarrowMenu) {
-		_joinAsToggle.destroy();
-		if (!_menuToggle) {
-			_menuToggle.create(widget(), st::groupCallMenuToggle);
-			_menuToggle->show();
-			_menuToggle->setAccessibleName(tr::lng_sr_group_call_menu(tr::now));
-			_menuToggle->setClickedCallback([=] { showMainMenu(); });
-			updateControlsGeometry();
-			raiseControls();
-		}
-	} else if (showNarrowUserpic) {
-		_menuToggle.destroy();
-		rpl::single(
-			_call->joinAs()
-		) | rpl::then(_call->rejoinEvents(
-		) | rpl::map([](const RejoinEvent &event) {
-			return event.nowJoinAs;
-		})) | rpl::on_next([=](not_null<PeerData*> joinAs) {
-			auto joinAsToggle = object_ptr<Ui::UserpicButton>(
-				widget(),
-				joinAs,
-				st::groupCallJoinAsToggle);
-			_joinAsToggle.destroy();
-			_joinAsToggle = std::move(joinAsToggle);
-			_joinAsToggle->show();
-			_joinAsToggle->setClickedCallback([=] {
-				chooseJoinAs();
-			});
-			updateControlsGeometry();
-		}, lifetime());
-	} else {
-		_menuToggle.destroy();
-		_joinAsToggle.destroy();
+	} else if (!_menuToggle) {
+		_menuToggle.create(widget(), st::groupCallMenuToggle);
+		_menuToggle->show();
+		_menuToggle->setAccessibleName(tr::lng_sr_group_call_menu(tr::now));
+		_menuToggle->setClickedCallback([=] { showMainMenu(); });
+		updateControlsGeometry();
+		raiseControls();
 	}
 }
 
@@ -1877,11 +1841,7 @@ QRect Panel::computeTitleRect() const {
 	const auto remove = skip + ((mode() == PanelMode::Wide)
 		? pin
 		: (st::groupCallMenuTogglePosition.x()
-			+ (_menuToggle
-				? _menuToggle->width()
-				: _joinAsToggle
-				? _joinAsToggle->width()
-				: 0)
+			+ (_menuToggle ? _menuToggle->width() : 0)
 			+ pin));
 	const auto width = widget()->width();
 #ifdef Q_OS_MAC
@@ -1962,6 +1922,14 @@ void Panel::updateButtonsStyles() {
 		_message->setText(wide
 			? rpl::single(QString())
 			: tr::lng_group_call_message());
+	}
+	if (_screenShare) {
+		_screenShare->setStyle(wide
+			? st::groupCallScreenShareSmall
+			: st::groupCallScreenShare);
+		_screenShare->setText(wide
+			? rpl::single(QString())
+			: tr::lng_group_call_screen());
 	}
 	if (_settings) {
 		_settings->setText(wide
@@ -2483,28 +2451,18 @@ void Panel::updateControlsGeometry() {
 					: (controls.x() - _pinOnTop->width())),
 				controls.y());
 		} else {
-			const auto toggleWidth = _menuToggle
-				? _menuToggle->width()
-				: _joinAsToggle
-				? _joinAsToggle->width()
-				: 0;
+			const auto toggleWidth = _menuToggle ? _menuToggle->width() : 0;
 			const auto wide = (mode() == PanelMode::Wide);
 			_pinOnTop->moveToRight(
 				wide ? 0 : (menux + toggleWidth),
 				wide ? 0 : menuy);
 		}
 	}
-	if (controlsOnTheLeft) {
-		if (_menuToggle) {
+	if (_menuToggle) {
+		if (controlsOnTheLeft) {
 			_menuToggle->moveToRight(menux, menuy);
-		} else if (_joinAsToggle) {
-			_joinAsToggle->moveToRight(menux, menuy);
-		}
-	} else {
-		if (_menuToggle) {
+		} else {
 			_menuToggle->moveToLeft(menux, menuy);
-		} else if (_joinAsToggle) {
-			_joinAsToggle->moveToLeft(menux, menuy);
 		}
 	}
 }
@@ -2646,8 +2604,10 @@ void Panel::updateButtonsGeometry() {
 		const auto muteSize = _mute->innerSize().width();
 		const auto single = (_settings ? _settings : _callShare)->width();
 		const auto showVideoButton = videoButtonInNarrowMode();
-		const auto four = !_callShare && !showVideoButton && messagesEnabled;
-		const auto five = !four && !_callShare && messagesEnabled;
+		const auto five = !_callShare && showVideoButton && messagesEnabled;
+		const auto four = !_callShare
+			&& !five
+			&& (showVideoButton || messagesEnabled);
 		const auto buttonSkip = four
 			? (st::groupCallButtonSkip / 2)
 			: five
@@ -2701,26 +2661,29 @@ void Panel::updateButtonsGeometry() {
 			+ (five ? buttonSkip : 0);
 		const auto nextButtonLeft = leftButtonLeft
 			+ ((five || four) ? (single + buttonSkip) : 0);
-		const auto muteButtonLeft = four
-			? (nextButtonLeft + addSkip)
-			: ((widget()->width() - muteSize) / 2);
+		const auto muteButtonLeft = !four
+			? ((widget()->width() - muteSize) / 2)
+			: showVideoButton
+			? (nextButtonLeft + single + buttonSkip + addSkip)
+			: (nextButtonLeft + addSkip);
 		_mute->moveInner({ muteButtonLeft, muteTop });
-		toggle(_screenShare, false);
 		toggle(_wideMenu, false);
 		toggle(_callShare, true);
 		if (_callShare) {
 			_callShare->moveToLeft(leftButtonLeft, buttonsTop);
 		}
+		toggle(_screenShare, !_callShare && showVideoButton);
+		if (_screenShare) {
+			_screenShare->moveToLeft(leftButtonLeft, buttonsTop);
+		}
 		toggle(_video, !_callShare && showVideoButton);
 		if (_video) {
 			_video->setStyle(st::groupCallVideo, &st::groupCallVideoActive);
-			_video->moveToLeft(leftButtonLeft, buttonsTop);
+			_video->moveToLeft(nextButtonLeft, buttonsTop);
 		}
-		toggle(_settings, !_callShare && (five || !showVideoButton));
+		toggle(_settings, !_callShare && !showVideoButton);
 		if (_settings) {
-			_settings->moveToLeft(
-				four ? leftButtonLeft : nextButtonLeft,
-				buttonsTop);
+			_settings->moveToLeft(leftButtonLeft, buttonsTop);
 		}
 		toggle(_message, !_callShare && messagesEnabled);
 		if (_message) {

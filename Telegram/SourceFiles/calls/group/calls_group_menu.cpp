@@ -512,7 +512,8 @@ void FillMenu(
 	const auto addEditRecording = !conference
 		&& call->canManage()
 		&& !real->scheduleDate();
-	const auto addScreenCast = call->videoIsWorking()
+	const auto addScreenCast = wide
+		&& call->videoIsWorking()
 		&& !real->scheduleDate();
 	if (addEditJoinAs) {
 		menu->addAction(MakeJoinAsAction(

@@ -229,7 +229,6 @@ private:
 	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
 	rpl::variable<bool> _wideMenuShown = false;
 	rpl::variable<bool> _messageTyping = false;
-	object_ptr<Ui::AbstractButton> _joinAsToggle = { nullptr };
 	object_ptr<Members> _members = { nullptr };
 	std::unique_ptr<Viewport> _viewport;
 	rpl::lifetime _trackControlsOverStateLifetime;

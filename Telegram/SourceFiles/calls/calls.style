@@ -949,11 +949,6 @@ groupCallMenuToggle: IconButton {
 		color: groupCallMembersBg;
 	}
 }
-groupCallJoinAsToggle: UserpicButton(defaultUserpicButton) {
-	size: size(36px, 36px);
-	photoSize: 30px;
-	photoPosition: point(3px, 3px);
-}
 groupCallMenuPosition: point(-1px, 29px);
 groupCallWideMenuPosition: point(-2px, 28px);
 
@@ -1012,6 +1007,9 @@ groupCallMessageInner: IconButton(groupCallSettingsInner) {
 	icon: icon {{ "calls/call_message", groupCallIconFg }};
 	iconPosition: point(-1px, 16px);
 }
+groupCallScreenShareInner: IconButton(groupCallSettingsInner) {
+	icon: icon {{ "calls/calls_present", groupCallIconFg }};
+}
 groupCallSettings: CallButton(callMicrophoneMute) {
 	button: groupCallSettingsInner;
 }
@@ -1035,6 +1033,9 @@ groupCallMessageInnerActive: IconButton(groupCallMessageInner) {
 }
 groupCallMessageActive: CallButton(groupCallMessage) {
 	button: groupCallMessageInnerActive;
+}
+groupCallScreenShare: CallButton(groupCallSettings) {
+	button: groupCallScreenShareInner;
 }
 groupCallHangup: CallButton(callHangup) {
 	button: groupCallHangupInner;
