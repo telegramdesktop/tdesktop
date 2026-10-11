@@ -2135,6 +2135,8 @@ PRIVATE
     ui/controls/custom_emoji_toast_icon.h
     ui/controls/emoji_button_factory.cpp
     ui/controls/emoji_button_factory.h
+    ui/controls/keys_legend.cpp
+    ui/controls/keys_legend.h
     ui/controls/location_picker.cpp
     ui/controls/location_picker.h
     ui/controls/silent_toggle.cpp
