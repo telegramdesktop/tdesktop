@@ -1081,6 +1081,19 @@ bool AllowWithoutModifiers(int key) {
 	return (key >= 0x80) && !ranges::contains(service, key);
 }
 
+QString ToDisplayString(const QKeySequence &sequence) {
+	auto result = sequence.toString();
+	if (!Platform::IsMac()) {
+		return result;
+	}
+	// Qt swaps modifiers on mac: Cmd arrives as "Ctrl+", Control as "Meta+".
+	return result
+		.replace(u"Ctrl+"_q, QString(QChar(0x2318)))
+		.replace(u"Meta+"_q, QString(QChar(0x2303)))
+		.replace(u"Alt+"_q, QString(QChar(0x2325)))
+		.replace(u"Shift+"_q, QString(QChar(0x21E7)));
+}
+
 void Finish() {
 	Data.clear();
 }

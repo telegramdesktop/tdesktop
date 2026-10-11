@@ -132,17 +132,6 @@ struct Labeled {
 	};
 }
 
-[[nodiscard]] QString ToString(const QKeySequence &key) {
-	auto result = key.toString();
-#ifdef Q_OS_MAC
-	result = result.replace(u"Ctrl+"_q, QString() + QChar(0x2318));
-	result = result.replace(u"Meta+"_q, QString() + QChar(0x2303));
-	result = result.replace(u"Alt+"_q, QString() + QChar(0x2325));
-	result = result.replace(u"Shift+"_q, QString() + QChar(0x21E7));
-#endif // Q_OS_MAC
-	return result;
-}
-
 [[nodiscard]] QStringList KeyWords(const QKeySequence &key) {
 	if (key.isEmpty()) {
 		return {};
@@ -300,9 +289,9 @@ struct SetupShortcutsResult {
 						? TextWithEntities()
 						: removed
 						? Ui::Text::Wrapped(
-							TextWithEntities{ ToString(key) },
+							TextWithEntities{ Shortcuts::ToDisplayString(key) },
 							EntityType::StrikeOut)
-						: TextWithEntities{ ToString(key) });
+						: TextWithEntities{ Shortcuts::ToDisplayString(key) });
 					keys->setTextColorOverride((recording == raw)
 						? st::boxTextFgGood->c
 						: removed
