@@ -23,6 +23,17 @@ QString Translator::translate(const char *context, const char *sourceText, const
 		if (u"About %1"_q == sourceText) return tr::lng_mac_menu_about_telegram(tr::now, lt_telegram, u"%1"_q);
 		return QString();
 	}
+	if (u"QCocoaMenuItem"_q == context) {
+		if (u"Cut"_q == sourceText) return tr::lng_mac_menu_cut(tr::now);
+		if (u"Copy"_q == sourceText) return tr::lng_mac_menu_copy(tr::now);
+		if (u"Paste"_q == sourceText) return tr::lng_mac_menu_paste(tr::now);
+		if (u"Select All"_q == sourceText) return tr::lng_mac_menu_select_all(tr::now);
+		return QString();
+	}
+	if (u"QCocoaMenuBar"_q == context) {
+		if (u"Edit"_q == sourceText) return tr::lng_mac_menu_edit(tr::now);
+		return QString();
+	}
 	if (u"QWidgetTextControl"_q == context || u"QLineEdit"_q == context) {
 		if (u"&Undo"_q == sourceText) return Platform::IsWindows() ? tr::lng_wnd_menu_undo(tr::now) : Platform::IsMac() ? tr::lng_mac_menu_undo(tr::now) : tr::lng_linux_menu_undo(tr::now);
 		if (u"&Redo"_q == sourceText) return Platform::IsWindows() ? tr::lng_wnd_menu_redo(tr::now) : Platform::IsMac() ? tr::lng_mac_menu_redo(tr::now) : tr::lng_linux_menu_redo(tr::now);
