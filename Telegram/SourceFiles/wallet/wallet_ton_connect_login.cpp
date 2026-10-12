@@ -146,14 +146,13 @@ void TonConnectLoginSection::setup() {
 	_toggle = _container->add(object_ptr<Ui::SettingsButton>(
 		_container,
 		tr::lng_url_auth_wallet_connect()));
-	_toggle->toggleOn(_toggled.value());
-	_toggle->toggledChanges(
-	) | rpl::filter([=](bool toggled) {
-		return (toggled != _toggled.current());
-	}) | rpl::on_next([=](bool toggled) {
-		_wanted = toggled;
-		_toggled = toggled;
-	}, _toggle->lifetime());
+	_toggle->toggleOn(_toggled.value(), true);
+	_toggle->setClickedCallback([=] {
+		if (!_toggle->isDisabled()) {
+			_wanted = !_toggled.current();
+			_toggled = _wanted;
+		}
+	});
 	Ui::AddSkip(_container);
 
 	const auto join = [](TextWithEntities text, TextWithEntities suffix) {
