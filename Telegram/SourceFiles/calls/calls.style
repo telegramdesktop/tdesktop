@@ -1335,6 +1335,19 @@ groupCallTitlePinOnTop: IconButton(groupCallTitleButton) {
 	icon: groupCallTitlePinIcon;
 	iconOver: groupCallTitlePinIconOver;
 }
+groupCallTitleMenu: IconButton(groupCallTitleButton) {
+	icon: icon {
+		{ "calls/navbar_more", groupCallMemberNotJoinedStatus },
+	};
+	iconOver: icon {
+		{ windowTitleButtonSize, groupCallMembersBgOver },
+		{ "calls/navbar_more", groupCallMembersFg },
+	};
+}
+groupCallMenuOnTop: IconButton(groupCallPinOnTop) {
+	icon: icon{{ "calls/navbar_more", groupCallMemberNotJoinedStatus }};
+	iconOver: icon{{ "calls/navbar_more", groupCallMembersFg }};
+}
 
 groupCallMajorBlobMaxRadius: 4px;
 

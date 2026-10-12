@@ -166,7 +166,10 @@ private:
 		std::optional<bool> overrideWideMode = std::nullopt);
 	void refreshTopButton();
 	void createPinOnTop();
-	[[nodiscard]] QRect pinOnTopRect() const;
+	void createTitleMenu();
+	[[nodiscard]] std::vector<not_null<Ui::IconButton*>> titleButtons() const;
+	[[nodiscard]] QRect titleButtonRect(
+		not_null<Ui::IconButton*> button) const;
 	void setupFullScreenBehavior();
 	void setupEmptyRtmp();
 	void toggleWideControls(bool shown);
@@ -226,6 +229,7 @@ private:
 	object_ptr<Ui::AbstractButton> _recordingMark = { nullptr };
 	object_ptr<Ui::IconButton> _menuToggle = { nullptr };
 	object_ptr<Ui::IconButton> _pinOnTop = { nullptr };
+	object_ptr<Ui::IconButton> _titleMenu = { nullptr };
 	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
 	rpl::variable<bool> _wideMenuShown = false;
 	rpl::variable<bool> _messageTyping = false;
