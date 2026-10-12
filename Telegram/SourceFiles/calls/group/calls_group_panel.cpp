@@ -86,6 +86,7 @@ constexpr auto kStartNoConfirmation = TimeId(10);
 constexpr auto kControlsBackgroundOpacity = 0.8;
 constexpr auto kOverrideActiveColorBgAlpha = 172;
 constexpr auto kHideControlsTimeout = 5 * crl::time(1000);
+constexpr auto kMembersColumnSlideDuration = crl::time(200);
 
 class Show final : public ChatHelpers::Show {
 public:
@@ -1209,6 +1210,9 @@ void Panel::raiseControls() {
 	if (_pinOnTop) {
 		_pinOnTop->raise();
 	}
+	if (_titleColumn) {
+		_titleColumn->raise();
+	}
 	if (_titleMenu) {
 		_titleMenu->raise();
 	}
@@ -1437,7 +1441,12 @@ void Panel::subscribeToChanges(not_null<Data::GroupCall*> real) {
 std::vector<not_null<Ui::IconButton*>> Panel::titleButtons() const {
 	auto result = std::vector<not_null<Ui::IconButton*>>();
 	// Ordered from the system buttons outward; the placement walk relies on it.
-	for (const auto button : { _pinOnTop.data(), _titleMenu.data() }) {
+	const auto buttons = {
+		_pinOnTop.data(),
+		_titleColumn.data(),
+		_titleMenu.data()
+	};
+	for (const auto button : buttons) {
 		if (button && !button->isHidden()) {
 			result.push_back(button);
 		}
@@ -1525,6 +1534,64 @@ void Panel::createTitleMenu() {
 	raiseControls();
 }
 
+void Panel::createTitleColumn() {
+	const auto wrap = _window->controlsWrap();
+	_titleColumn.create(
+		wrap ? wrap : widget().get(),
+		wrap ? st::groupCallTitleColumn : st::groupCallColumnOnTop);
+	_titleColumn->show();
+	const auto shownIcon = wrap
+		? &st::groupCallTitleColumnShownIcon
+		: &st::groupCallColumnShownOnTop;
+	const auto shownIconOver = wrap
+		? &st::groupCallTitleColumnShownIconOver
+		: &st::groupCallColumnShownOnTop;
+	const auto updateLook = [=](bool shown) {
+		_titleColumn->setIconOverride(
+			shown ? shownIcon : nullptr,
+			shown ? shownIconOver : nullptr);
+		_titleColumn->setAccessibleName(shown
+			? tr::lng_sr_group_call_column_hide(tr::now)
+			: tr::lng_sr_group_call_column_show(tr::now));
+	};
+	updateLook(_membersColumnShown);
+	_titleColumn->setClickedCallback([=] {
+		toggleMembersColumn();
+		updateLook(_membersColumnShown);
+	});
+
+	updateControlsGeometry();
+	raiseControls();
+}
+
+void Panel::toggleMembersColumn() {
+	const auto from = _membersColumnAnimation.value(
+		_membersColumnShown ? 1. : 0.);
+	_membersColumnShown = !_membersColumnShown;
+	const auto shown = _membersColumnShown;
+	_membersColumnAnimation.start(
+		[=] {
+			updateMembersGeometry();
+			updateButtonsGeometry();
+		},
+		from,
+		shown ? 1. : 0.,
+		kMembersColumnSlideDuration,
+		shown ? anim::easeOutCirc : anim::easeInCirc);
+}
+
+int Panel::membersColumnReserve() const {
+	if (_call->rtmp()) {
+		return 0;
+	}
+	const auto shown = _membersColumnAnimation.value(
+		_membersColumnShown ? 1. : 0.);
+	return anim::interpolate(
+		0,
+		st::groupCallNarrowSkip + st::groupCallNarrowMembersWidth,
+		shown);
+}
+
 void Panel::setupFullScreenBehavior() {
 	Expects(_call->rtmp());
 
@@ -1563,11 +1630,17 @@ void Panel::refreshTopButton() {
 	}
 	if (_mode.current() == PanelMode::Wide) {
 		_menuToggle.destroy();
-		if (!_call->rtmp() && !_titleMenu) {
-			createTitleMenu();
+		if (!_call->rtmp()) {
+			if (!_titleColumn) {
+				createTitleColumn();
+			}
+			if (!_titleMenu) {
+				createTitleMenu();
+			}
 		}
 		updateButtonsGeometry(); // _wideMenu <-> _settings
 	} else {
+		_titleColumn.destroy();
 		_titleMenu.destroy();
 		if (!_menuToggle) {
 			_menuToggle.create(widget(), st::groupCallMenuToggle);
@@ -1942,6 +2015,7 @@ bool Panel::updateMode() {
 	}
 	_wideControlsShown = _showWideControls = true;
 	_wideControlsAnimation.stop();
+	_membersColumnAnimation.stop();
 	_viewport->widget()->setVisible(wide);
 	if (_members) {
 		_members->setMode(mode);
@@ -2566,9 +2640,7 @@ void Panel::updateButtonsGeometry() {
 			+ (muteSize + skip)
 			+ _hangup->width();
 		const auto membersSkip = st::groupCallNarrowSkip;
-		const auto membersWidth = rtmp
-			? membersSkip
-			: (st::groupCallNarrowMembersWidth + 2 * membersSkip);
+		const auto membersWidth = membersSkip + membersColumnReserve();
 		auto left = membersSkip + (widget()->width()
 			- membersWidth
 			- membersSkip
@@ -2781,18 +2853,16 @@ void Panel::updateMembersGeometry() {
 		const auto skip = _rtmpFull ? 0 : st::groupCallNarrowSkip;
 		const auto membersWidth = st::groupCallNarrowMembersWidth;
 		const auto top = _rtmpFull ? 0 : st::groupCallWideContentTop;
+		const auto reserve = membersColumnReserve();
 		_members->setGeometry(
-			widget()->width() - skip - membersWidth,
+			widget()->width() - reserve,
 			top,
 			membersWidth,
 			std::min(desiredHeight, widget()->height() - top - skip));
-		const auto viewportSkip = _call->rtmp()
-			? 0
-			: (skip + membersWidth);
 		_viewport->setGeometry(_rtmpFull, {
 			skip,
 			top,
-			widget()->width() - viewportSkip - 2 * skip,
+			widget()->width() - reserve - 2 * skip,
 			widget()->height() - top - skip,
 		});
 	} else {

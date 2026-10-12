@@ -167,6 +167,9 @@ private:
 	void refreshTopButton();
 	void createPinOnTop();
 	void createTitleMenu();
+	void createTitleColumn();
+	void toggleMembersColumn();
+	[[nodiscard]] int membersColumnReserve() const;
 	[[nodiscard]] std::vector<not_null<Ui::IconButton*>> titleButtons() const;
 	[[nodiscard]] QRect titleButtonRect(
 		not_null<Ui::IconButton*> button) const;
@@ -229,6 +232,7 @@ private:
 	object_ptr<Ui::AbstractButton> _recordingMark = { nullptr };
 	object_ptr<Ui::IconButton> _menuToggle = { nullptr };
 	object_ptr<Ui::IconButton> _pinOnTop = { nullptr };
+	object_ptr<Ui::IconButton> _titleColumn = { nullptr };
 	object_ptr<Ui::IconButton> _titleMenu = { nullptr };
 	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
 	rpl::variable<bool> _wideMenuShown = false;
@@ -249,7 +253,9 @@ private:
 	bool _showWideControls = false;
 	bool _trackControls = false;
 	bool _wideControlsShown = false;
+	bool _membersColumnShown = true;
 	Ui::Animations::Simple _wideControlsAnimation;
+	Ui::Animations::Simple _membersColumnAnimation;
 
 	object_ptr<Ui::RpWidget> _controlsBackgroundWide = { nullptr };
 	std::unique_ptr<ControlsBackgroundNarrow> _controlsBackgroundNarrow;

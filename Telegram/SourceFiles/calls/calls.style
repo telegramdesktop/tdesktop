@@ -1335,6 +1335,24 @@ groupCallTitlePinOnTop: IconButton(groupCallTitleButton) {
 	icon: groupCallTitlePinIcon;
 	iconOver: groupCallTitlePinIconOver;
 }
+groupCallTitleColumnIcon: icon {
+	{ "calls/navbar_column", groupCallMemberNotJoinedStatus },
+};
+groupCallTitleColumnIconOver: icon {
+	{ windowTitleButtonSize, groupCallMembersBgOver },
+	{ "calls/navbar_column", groupCallMembersFg },
+};
+groupCallTitleColumnShownIcon: icon {
+	{ "calls/navbar_column_filled", groupCallMembersFg },
+};
+groupCallTitleColumnShownIconOver: icon {
+	{ windowTitleButtonSize, groupCallMembersBgOver },
+	{ "calls/navbar_column_filled", groupCallMembersFg },
+};
+groupCallTitleColumn: IconButton(groupCallTitleButton) {
+	icon: groupCallTitleColumnIcon;
+	iconOver: groupCallTitleColumnIconOver;
+}
 groupCallTitleMenu: IconButton(groupCallTitleButton) {
 	icon: icon {
 		{ "calls/navbar_more", groupCallMemberNotJoinedStatus },
@@ -1348,6 +1366,11 @@ groupCallMenuOnTop: IconButton(groupCallPinOnTop) {
 	icon: icon{{ "calls/navbar_more", groupCallMemberNotJoinedStatus }};
 	iconOver: icon{{ "calls/navbar_more", groupCallMembersFg }};
 }
+groupCallColumnOnTop: IconButton(groupCallPinOnTop) {
+	icon: icon{{ "calls/navbar_column", groupCallMemberNotJoinedStatus }};
+	iconOver: icon{{ "calls/navbar_column", groupCallMembersFg }};
+}
+groupCallColumnShownOnTop: icon{{ "calls/navbar_column_filled", groupCallMembersFg }};
 
 groupCallMajorBlobMaxRadius: 4px;
 
