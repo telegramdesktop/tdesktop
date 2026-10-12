@@ -3516,10 +3516,11 @@ void GroupCall::fillActiveVideoEndpoints() {
 		return;
 	}
 
+	// A missing self row is a rejoin or a gap, not a video withdrawal.
 	const auto me = real->participantByPeer(joinAs());
 	if (me && me->videoJoined) {
 		_videoIsWorking = true;
-	} else {
+	} else if (me) {
 		_videoIsWorking = false;
 		toggleVideo(false);
 		toggleScreenSharing(std::nullopt);
