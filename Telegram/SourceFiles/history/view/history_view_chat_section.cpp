@@ -1322,6 +1322,35 @@ void ChatWidget::closeCurrent() {
 	}
 }
 
+void ChatWidget::sublistDestroyed() {
+	const auto window = &controller()->window();
+	const auto id = controller()->windowId();
+	if (id.chat() == _sublist || id.sublist() == _sublist) {
+		Core::App().closeWindow(window);
+		return;
+	}
+	const auto weak = base::make_weak(this);
+	const auto showing = Core::App().windowForShowingHistory(_peer);
+	if (HistoryView::SubsectionTabs::UsedFor(_history)
+		&& (!showing || showing == window)) {
+		auto params = Window::SectionShow(
+			Window::SectionShow::Way::ClearStack,
+			anim::type::instant,
+			anim::activation::background);
+		params.preferCurrentWindow = true;
+
+		// Switch now: the sublist is freed right after this event.
+		controller()->showThread(_history, ShowAtUnreadMsgId, params);
+		if (!weak) {
+			return;
+		}
+	}
+	closeCurrent();
+	if (weak && !id.hasChatsList()) {
+		Core::App().closeWindow(window);
+	}
+}
+
 void ChatWidget::setTopic(Data::ForumTopic *topic) {
 	if (_topic == topic) {
 		return;
@@ -4235,7 +4264,7 @@ void ChatWidget::subscribeToSublist() {
 
 	_sublist->destroyed(
 	) | rpl::on_next([=] {
-		closeCurrent();
+		sublistDestroyed();
 	}, lifetime());
 
 	unreadCountUpdated();

@@ -803,6 +803,11 @@ void SubsectionTabs::track() {
 			if (_around == sublist) {
 				_around = _history;
 				refreshSlice();
+			} else if (ranges::contains(
+					_slice,
+					not_null<Data::Thread*>(sublist),
+					&Item::thread)) {
+				refreshSlice();
 			}
 		}, _lifetime);
 
