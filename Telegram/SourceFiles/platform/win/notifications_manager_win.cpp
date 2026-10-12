@@ -281,15 +281,67 @@ void QueryFocusAssist() {
 		IQuietHoursSettings
 	>(CLSID_QuietHoursSettings, CLSCTX_LOCAL_SERVER);
 	if (!quietHoursSettings) {
+		if (FocusAssistBlocks) {
+			LOG(("Focus Assist: Unavailable."));
+			FocusAssistBlocks = false;
+		}
 		return;
 	}
 
-	auto profileId = base::CoTaskMemString();
-	auto hr = quietHoursSettings->get_UserSelectedProfile(profileId.put());
-	if (FAILED(hr) || !profileId) {
+	// On Windows 11 UserSelectedProfile stays unrestricted while Focus
+	// sessions, Do Not Disturb or automatic rules are active, so check
+	// ActiveProfile and the active quiet moment profile as well and use
+	// the most restrictive of them.
+	auto active = base::CoTaskMemString();
+	auto moment = base::CoTaskMemString();
+	auto selected = base::CoTaskMemString();
+	const auto valid = [](const base::CoTaskMemString &id) {
+		return id && *id.data();
+	};
+	const auto restrictiveness = [](const QString &name) {
+		return name.endsWith(".alarmsonly", Qt::CaseInsensitive)
+			? 2
+			: name.endsWith(".priorityonly", Qt::CaseInsensitive)
+			? 1
+			: 0;
+	};
+	auto profileId = LPWSTR();
+	auto profileName = QString();
+	const auto consider = [&](const base::CoTaskMemString &id) {
+		if (!valid(id)) {
+			return;
+		}
+		const auto name = QString::fromWCharArray(id.data());
+		if (!profileId
+			|| restrictiveness(name) > restrictiveness(profileName)) {
+			profileId = id.data();
+			profileName = name;
+		}
+	};
+	if (SUCCEEDED(quietHoursSettings->get_ActiveProfile(active.put()))) {
+		consider(active);
+	}
+	com_ptr<IQuietMomentsManager> moments;
+	auto momentId = UINT32();
+	if (SUCCEEDED(quietHoursSettings->get_QuietMomentsManager(moments.put()))
+		&& moments
+		&& SUCCEEDED(moments->GetActiveQuietMoment(&momentId))
+		&& momentId != 0
+		&& SUCCEEDED(quietHoursSettings->get_ActiveQuietMomentProfile(
+			moment.put()))) {
+		consider(moment);
+	}
+	if (SUCCEEDED(quietHoursSettings->get_UserSelectedProfile(
+			selected.put()))) {
+		consider(selected);
+	}
+	if (!profileId) {
+		if (FocusAssistBlocks) {
+			LOG(("Focus Assist: No profile."));
+			FocusAssistBlocks = false;
+		}
 		return;
 	}
-	const auto profileName = QString::fromWCharArray(profileId.data());
 	if (profileName.endsWith(".alarmsonly", Qt::CaseInsensitive)) {
 		if (!FocusAssistBlocks) {
 			LOG(("Focus Assist: Alarms Only."));
@@ -320,7 +372,7 @@ void QueryFocusAssist() {
 	});
 
 	com_ptr<IQuietHoursProfile> profile;
-	hr = quietHoursSettings->GetProfile(profileId.data(), profile.put());
+	auto hr = quietHoursSettings->GetProfile(profileId, profile.put());
 	if (FAILED(hr) || !profile) {
 		return;
 	}
