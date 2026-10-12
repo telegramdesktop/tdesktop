@@ -2563,7 +2563,6 @@ void Panel::updateControlsGeometry() {
 	}
 	updateButtonsGeometry();
 	updateMembersGeometry();
-	refreshTitle();
 
 	const auto wrap = _window->controlsWrap();
 	const auto controls = _window->controlsGeometry();
@@ -2600,6 +2599,8 @@ void Panel::updateControlsGeometry() {
 			_menuToggle->moveToLeft(menux, menuy);
 		}
 	}
+	// computeTitleRect() reads the title buttons placed above.
+	refreshTitle();
 }
 
 void Panel::updateButtonsGeometry() {
