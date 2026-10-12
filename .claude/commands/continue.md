@@ -50,6 +50,11 @@ to read `.claude/ai-workflow-adapter.md` completely before the applicable shared
 skill or reference. Use the Agent tool for those workers; do not start Claude
 subprocesses through Bash.
 
+Decide the review provider once at startup, per the adapter's review and
+assessment provider: `native` when the arguments ask not to use Codex,
+otherwise `codex`. Put `Review provider: <codex|native>` in every performer
+prompt. A Codex opt-out is not a selection hint.
+
 Arguments, when present, are natural-language hints for new shared work; their
 wording decides whether they merely prioritize or strictly restrict selection:
 

@@ -50,7 +50,8 @@ This file adapts harness mechanics and removes unnecessary text normalization.
 - Run independent leaves that truly share one step — the surviving specialist
   reviews in an iteration, or assessed-disjoint implementation units — as
   parallel Agent calls in a single message so they run concurrently and all
-  return together. The mandatory general reviewer is not one of them: it runs
+  return together. Reviews and assessments use Codex leaves instead unless
+  the invocation opted out; see the review and assessment provider below. The mandatory general reviewer is not one of them: it runs
   alone before them to emit the retirement list, and alone again after their
   reports exist to own the verdict.
 - A long Debug build may run as background Bash; the harness re-invokes the
@@ -89,6 +90,40 @@ This file adapts harness mechanics and removes unnecessary text normalization.
   this adapter: their phase prompts are self-contained and already carry the
   leaf rules (no delegation, no commits, final-reply contract); an
   adapter read there is wasted context.
+
+## Review and assessment provider
+
+In Claude Code, `perform-task` runs its independent reviews and assessments
+as Codex CLI leaves by default, under
+[Codex CLI leaves](../.agents/shared/codex-cli-leaves.md). The performer reads
+that contract completely before its first Codex leaf. These phases use Codex:
+
+- Phase 3 plan assessment;
+- the Phase 6 initial general review, all five standard lenses, any named
+  domain specialist, every focused general re-review and every rerun
+  specialist; the general reviewer's synthesis pass resumes its own pass-1
+  Codex leaf;
+- the review convergence assessment and the evidence-campaign-cap
+  assessment.
+
+Everything else stays on Claude `Agent` leaves: context and plan, visual
+design, implementation units, builds, review fixes, evidence authoring, test
+runs and failure diagnosis. The phase prompts, artifacts, completion checks,
+carry-forward rules and verdict handling are the same for both providers.
+
+The provider is `codex` unless the invocation opts out. A user who asks
+`perform-task` or `continue` not to use Codex — for example "no codex",
+"without codex" or "Claude-only reviews" — gets the `native` provider: those
+phases run as Claude `Agent` leaves exactly as before. A `continue` scheduler
+passes `Review provider: codex` or `Review provider: native` in every
+performer prompt, and the performer follows that line. When `codex_leaf.py
+check` fails, the performer uses `native` for the invocation and records why.
+
+A Codex leaf is not an `Agent` call. Start the leaves of one step back to back
+with `codex_leaf.py start`, then block on them with foreground
+`codex_leaf.py wait` calls until it exits 0. That blocking wait is the
+sanctioned completion signal for these leaves, not an artifact poll. Record
+the provider and effort of each Codex phase in its result `NOTES:`.
 
 ## Model self-reporting
 

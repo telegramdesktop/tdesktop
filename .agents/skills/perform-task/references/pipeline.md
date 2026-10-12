@@ -267,6 +267,10 @@ prompts, plus the host-specific orchestration rules.
   with the parent's concrete justification that the phase has no complexity.
   Apply the host mapping, including Claude's `opus` pin for `medium` or
   justified `high` work.
+- On Claude Code, assessment, every review and the convergence and
+  campaign-cap assessments run as Codex CLI leaves unless the invocation opted
+  out; see the Claude adapter's review and assessment provider. Prompts,
+  artifacts, completion checks and verdict handling are unchanged.
 - Keep implementation units sequential unless the assessed plan proves
   disjoint write sets and capacity makes parallel edits safe.
 - Never duplicate the performer or an implementation unit with uncertain

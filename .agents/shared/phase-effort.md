@@ -49,6 +49,10 @@ the existing validation/review contract. Likewise, unexpected complexity in a
   and inherit the parent model; this remains the default for non-routine
   work. Do not pass a reasoning field: the Agent tool does not expose one.
   The `opus` pin changes the model; actual reasoning effort remains inherited.
+- **Codex CLI leaves started from another host:** Pass the selected effort as
+  `codex_leaf.py start --effort`, per
+  [Codex CLI leaves](codex-cli-leaves.md). Do not pass a model; the leaf uses
+  the user's configured Codex model.
 - **Grok Build:** Keep the adapter's inherited model and effort; do not invent
   unsupported effort arguments.
 - **Same-session work or unavailable overrides:** Retain the actual session

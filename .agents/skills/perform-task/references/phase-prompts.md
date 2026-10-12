@@ -41,7 +41,8 @@ every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
 - Give each phase a unique lowercase/digit/underscore task name and tell the phase it is a leaf that must not delegate.
 - For Phase 1, Phase 3, Phase 4, and Phase 6, if delegated retries still fail,
   report a recoverable hard stop to the caller instead of rerunning locally.
-- Never use `codex exec`, background shell child processes, or JSONL child-session logging from this skill.
+- On a Codex host, delegate only through native subagents; never shell out to `codex exec` or start background shell child processes there.
+- On Claude Code, reviews and assessments run as Codex CLI leaves unless the invocation opted out, per the Claude adapter's review and assessment provider and [Codex CLI leaves](../../../shared/codex-cli-leaves.md). Their transcripts stay in `TASK_DIR/.local/codex/`, never in tracked artifacts.
 
 ### Claude Code: synchronous delegation
 
@@ -55,6 +56,11 @@ every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
 - If a returned leaf fails its completion check, retry that disposable phase
   once in a fresh Agent with more specific instructions before stopping to
   ask the user.
+- With the `codex` review provider, Phase 3, every Phase 6 review and the
+  convergence and campaign-cap assessments run as Codex CLI leaves instead:
+  start the leaves of one step together, block on `codex_leaf.py wait`, then
+  validate the same completion checks. The general reviewer's pass-2
+  synthesis resumes its pass-1 leaf with `--resume`.
 
 ### Grok Build: blocking spawn, depth one
 
@@ -1063,6 +1069,13 @@ For review iterations, include the iteration and lens in the file name, for exam
 3. When the calls return, validate the expected artifacts or code changes with
    small shell summaries and the completion checks above.
 4. Write the result log from the validated outcome and the compact reply block.
+
+For a review or assessment phase under the `codex` review provider, replace
+step 2 with one `codex_leaf.py start` per leaf — working directory
+`WORK_DIR`, `workspace-write` sandbox, `--no-project-doc`, the selected
+`--effort`, and the Codex CLI leaves preamble before the prompt — followed by
+foreground `codex_leaf.py wait` calls until they all finish. Steps 3 and 4 are
+unchanged; the compact reply is the leaf's `<name>.last.md`.
 
 ## Subagent Pattern (Grok Build)
 
