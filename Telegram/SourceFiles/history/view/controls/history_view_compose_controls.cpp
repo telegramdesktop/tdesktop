@@ -4994,7 +4994,7 @@ void ComposeControls::updateSendButtonType() {
 		return perMessage * messages;
 	}();
 	_send->setState({
-		.type = type,
+		.type = (delay > 0) ? Type::Slowmode : type,
 		.fillBgOverride = (_chosenStarsCount.value_or(0)
 			? Ui::ColorFromSerialized(StarsColoringForCount(
 				appConfig.groupCallColorings(),
