@@ -379,7 +379,8 @@ jobs:
           # the one above and GitHub rejects the duplicate. The submodules
           # are public repositories and need no credentials.
           #
-          # Not recursive: the only nested submodule any build needs is
+          # Not recursive: the nested submodules any build needs are
+          # QuickJS-ng inside ThirdParty/twidget, fetched explicitly, and
           # cmake/external/glib/cppgir, which cmake/external adds under
           # if (LINUX) — so Windows and macOS never compile it. Skipping
           # it keeps gitlab.com, which regularly answers 403 to cloud
@@ -387,6 +388,7 @@ jobs:
           # documentation (range-v3 gh-pages, libcbor doxygen-theme).
           cd $TBUILD/$REPO_NAME
           git submodule update --init --depth=1
+          git -C Telegram/ThirdParty/twidget submodule update --init --depth=1
 
       - name: Read canary configuration.
         shell: bash
@@ -774,11 +776,14 @@ jobs:
       - name: Clone.
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          # Not recursive, see the Windows job: nothing macOS compiles
-          # lives in a nested submodule, and recursing would clone
-          # cppgir from gitlab.com once per arch of this matrix.
+          # Not recursive, see the Windows job: the only nested submodule
+          # macOS compiles is QuickJS-ng, fetched below, and recursing
+          # would clone cppgir from gitlab.com once per arch of this matrix.
           submodules: true
           path: ${{ env.REPO_NAME }}
+
+      - name: Nested submodules.
+        run: git -C $REPO_NAME/Telegram/ThirdParty/twidget submodule update --init --depth=1
 
       - name: Read canary configuration.
         run: |
@@ -1233,6 +1238,7 @@ jobs:
               url."$CPPGIR_MIRROR".insteadOf https://gitlab.com/mnauw/cppgir.git
           fi
           git -C cmake submodule update --init --recursive --depth=1
+          git -C Telegram/ThirdParty/twidget submodule update --init --depth=1
 
       - name: Read canary configuration.
         run: |
