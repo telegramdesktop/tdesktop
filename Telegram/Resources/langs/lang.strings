@@ -5259,6 +5259,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_url_auth_login_attempt" = "This login attempt came from the device above.";
 "lng_url_auth_allow_messages_label" = "Allow Messages";
 "lng_url_auth_allow_messages_about" = "This will allow {bot} to message you";
+"lng_url_auth_wallet_label" = "Wallet";
+"lng_url_auth_wallet_connect" = "Connect Wallet";
+"lng_url_auth_wallet_about" = "{bot} asks to connect your wallet to this site. The site will see your TON address, balance and activity, but can't move funds without your permission. Connecting signs a sign-in signature, not a transfer.";
+"lng_url_auth_wallet_no_key" = "This device doesn't hold the current key of this wallet. {link} to connect it.";
+"lng_url_auth_wallet_no_key_link" = "Restore the key";
+"lng_url_auth_wallet_reserved" = "Wallet access can't be granted to this site.";
 "lng_url_auth_phone_sure_title" = "Phone Number";
 "lng_url_auth_phone_sure_text" = "{domain} wants to access your phone number **{phone}**.\n\nAllow access?";
 "lng_url_auth_phone_sure_deny" = "Deny";

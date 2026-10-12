@@ -41,3 +41,11 @@ urlAuthBoxRowBottomLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 	maxHeight: 30px;
 }
+urlAuthBoxRowAddressLabel: FlatLabel(urlAuthBoxRowTopLabel) {
+	style: TextStyle(boxLabelStyle) {
+		font: font(12px);
+	}
+	palette: TextPalette(defaultTextPalette) {
+		monoFg: windowFg;
+	}
+}

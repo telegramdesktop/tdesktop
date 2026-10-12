@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
+#include "main/session/session_show.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
@@ -33,6 +34,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/shadow.h"
+#include "ui/wrap/vertical_layout.h"
+#include "wallet/wallet_ton_connect_login.h"
+
 #include "styles/style_userpic_button.h"
 #include "styles/style_window.h"
 
@@ -362,7 +366,8 @@ void RequestButton(
 				MTPstring(),
 				result.matchCode.isEmpty()
 					? MTPstring()
-					: MTP_string(result.matchCode)
+					: MTP_string(result.matchCode),
+				MTPInputTonConnectOauthSession() // tonconnect_session
 			)).done([=](const MTPUrlAuthResult &result) {
 				const auto accepted = result.match(
 				[](const MTPDurlAuthResultAccepted &data) {
@@ -411,12 +416,17 @@ void RequestUrl(
 	struct State {
 		base::weak_qptr<Ui::BoxContent> box;
 		AnotherSessionFactory anotherSession = nullptr;
+		QPointer<Ui::VerticalLayout> walletContainer;
+		base::weak_ptr<Wallet::TonConnectLoginSection> wallet;
+		rpl::variable<bool> walletBusy;
 		QString firstMatchCode;
 		bool boxAnswered = false;
 		bool matchCodeSent = false;
 		int switchSeq = 0;
 	};
-	const auto bot = request.is_request_write_access()
+	const auto requestWrite = request.is_request_write_access();
+	const auto login = Wallet::ParseTonConnectLogin(request);
+	const auto bot = (requestWrite || login)
 		? session->data().processUser(request.vbot()).get()
 		: nullptr;
 	const auto requestPhone = request.is_request_phone_number();
@@ -460,74 +470,97 @@ void RequestUrl(
 			MTP_string(url)
 		)).send();
 	};
-	const auto sendRequest = [=](Result result) {
-		if (!result.auth) {
-			requestDecline();
-			finishWithUrl(url, false);
-		} else {
-			const auto sharePhone = result.sharePhone;
-			using Flag = MTPmessages_AcceptUrlAuth::Flag;
-			const auto flags = Flag::f_url
-				| (result.allowWrite ? Flag::f_write_allowed : Flag(0))
-				| (sharePhone ? Flag::f_share_phone_number : Flag(0))
-				| (result.matchCode.isEmpty() ? Flag(0) : Flag::f_match_code);
-			resolveSession()->api().request(MTPmessages_AcceptUrlAuth(
-				MTP_flags(flags),
-				MTPInputPeer(),
-				MTPint(), // msg_id
-				MTPint(), // button_id
-				MTP_string(url),
-				result.matchCode.isEmpty()
-					? MTPstring()
-					: MTP_string(result.matchCode)
-			)).done([=](const MTPUrlAuthResult &result) {
-				const auto accepted = result.match(
-				[](const MTPDurlAuthResultAccepted &data) {
-					return true;
-				}, [](const auto &) {
-					return false;
-				});
-				const auto to = result.match(
-				[&](const MTPDurlAuthResultAccepted &data) {
-					return qs(data.vurl().value_or_empty());
-				}, [&](const MTPDurlAuthResultDefault &data) {
-					return url;
-				}, [&](const MTPDurlAuthResultRequest &data) {
-					LOG(("API Error: "
-						"got urlAuthResultRequest after acceptUrlAuth."));
-					return url;
-				});
-				finishWithUrl(to, accepted);
-				const auto domainWrapped = isApp
-					? tr::bold(domain)
-					: tr::link(domain);
-				show->showToast(Ui::Toast::Config{
-					.title = tr::lng_url_auth_phone_toast_good_title(tr::now),
-					.text = ((requestPhone && !sharePhone)
-						? tr::lng_url_auth_phone_toast_good_no_phone
-						: tr::lng_url_auth_phone_toast_good)(
-							tr::now,
-							lt_domain,
-							domainWrapped,
-							tr::marked),
-					.duration = crl::time(4000),
-				});
-			}).fail([=] {
-				const auto domainWrapped = isApp
-					? tr::bold(domain)
-					: tr::link(domain);
-				show->showToast(Ui::Toast::Config{
-					.title = tr::lng_url_auth_phone_toast_bad_title(tr::now),
-					.text = tr::lng_url_auth_phone_toast_bad(
+	const auto sendAccept = [=](
+			Result result,
+			std::optional<MTPInputTonConnectOauthSession> tonconnect) {
+		const auto sharePhone = result.sharePhone;
+		const auto withWallet = tonconnect.has_value();
+		using Flag = MTPmessages_AcceptUrlAuth::Flag;
+		const auto flags = Flag::f_url
+			| (result.allowWrite ? Flag::f_write_allowed : Flag(0))
+			| (sharePhone ? Flag::f_share_phone_number : Flag(0))
+			| (result.matchCode.isEmpty() ? Flag(0) : Flag::f_match_code)
+			| (withWallet ? Flag::f_tonconnect_session : Flag(0));
+		resolveSession()->api().request(MTPmessages_AcceptUrlAuth(
+			MTP_flags(flags),
+			MTPInputPeer(),
+			MTPint(), // msg_id
+			MTPint(), // button_id
+			MTP_string(url),
+			result.matchCode.isEmpty()
+				? MTPstring()
+				: MTP_string(result.matchCode),
+			tonconnect.value_or(
+				MTPInputTonConnectOauthSession()) // tonconnect_session
+		)).done([=](const MTPUrlAuthResult &result) {
+			const auto accepted = result.match(
+			[](const MTPDurlAuthResultAccepted &data) {
+				return true;
+			}, [](const auto &) {
+				return false;
+			});
+			const auto to = result.match(
+			[&](const MTPDurlAuthResultAccepted &data) {
+				return qs(data.vurl().value_or_empty());
+			}, [&](const MTPDurlAuthResultDefault &data) {
+				return url;
+			}, [&](const MTPDurlAuthResultRequest &data) {
+				LOG(("API Error: "
+					"got urlAuthResultRequest after acceptUrlAuth."));
+				return url;
+			});
+			finishWithUrl(to, accepted);
+			const auto domainWrapped = isApp
+				? tr::bold(domain)
+				: tr::link(domain);
+			show->showToast(Ui::Toast::Config{
+				.title = tr::lng_url_auth_phone_toast_good_title(tr::now),
+				.text = ((requestPhone && !sharePhone)
+					? tr::lng_url_auth_phone_toast_good_no_phone
+					: tr::lng_url_auth_phone_toast_good)(
 						tr::now,
 						lt_domain,
 						domainWrapped,
 						tr::marked),
-					.duration = crl::time(4000),
-				});
-				finishWithUrl(url, false);
-			}).send();
+				.duration = crl::time(4000),
+			});
+		}).fail([=](const MTP::Error &error) {
+			if (withWallet) {
+				LOG(("Wallet Error: messages.acceptUrlAuth "
+					"with a wallet grant failed: %1").arg(error.type()));
+			}
+			const auto domainWrapped = isApp
+				? tr::bold(domain)
+				: tr::link(domain);
+			show->showToast(Ui::Toast::Config{
+				.title = tr::lng_url_auth_phone_toast_bad_title(tr::now),
+				.text = tr::lng_url_auth_phone_toast_bad(
+					tr::now,
+					lt_domain,
+					domainWrapped,
+					tr::marked),
+				.duration = crl::time(4000),
+			});
+			finishWithUrl(url, false);
+		}).send();
+	};
+	const auto sendRequest = [=](Result result) {
+		if (!result.auth) {
+			requestDecline();
+			finishWithUrl(url, false);
+			return;
 		}
+		const auto wallet = state->wallet.get();
+		if (wallet && wallet->wanted()) {
+			state->boxAnswered = false;
+			wallet->confirm([=](
+					const MTPInputTonConnectOauthSession &tonconnect) {
+				state->boxAnswered = true;
+				sendAccept(result, tonconnect);
+			});
+			return;
+		}
+		sendAccept(result, std::nullopt);
 	};
 	const auto browser = qs(request.vbrowser().value_or("Unknown browser"));
 	const auto device = qs(request.vplatform().value_or("Unknown platform"));
@@ -539,6 +572,31 @@ void RequestUrl(
 				SwitchAccountResult>(nullptr);
 			const auto matchCodesShared = box->lifetime().make_state<
 				rpl::variable<QStringList>>(matchCodes);
+			const auto buildWallet = [=](
+					not_null<Main::Session*> owner,
+					std::optional<Wallet::TonConnectLoginRequest> walletLogin,
+					UserData *walletBot) {
+				if (!state->walletContainer) {
+					return;
+				}
+				state->walletContainer->clear();
+				state->wallet = nullptr;
+				state->walletBusy = false;
+				if (!walletLogin || !walletBot || resolveSession() != owner) {
+					return;
+				}
+				state->wallet = Wallet::AddTonConnectLoginSection(
+					state->walletContainer,
+					{
+						.session = owner,
+						.show = Main::MakeSessionShow(box->uiShow(), owner),
+						.request = *walletLogin,
+						.botName = Info::Profile::NameValue(walletBot),
+						.busyChanged = [=](bool busy) {
+							state->walletBusy = busy;
+						},
+					});
+			};
 			const auto reloadForSession = [=](not_null<Main::Session*> target) {
 				const auto generation = ++state->switchSeq;
 				using Flag = MTPmessages_RequestUrlAuth::Flag;
@@ -566,6 +624,14 @@ void RequestUrl(
 							}
 						}
 						*matchCodesShared = newCodes;
+						const auto switched
+							= Wallet::ParseTonConnectLogin(data);
+						buildWallet(
+							target,
+							switched,
+							(switched
+								? target->data().processUser(data.vbot()).get()
+								: nullptr));
 					}, [](const auto &) {});
 				})).fail([=](const MTP::Error &error) {
 					if ((generation != state->switchSeq) || !state->box) {
@@ -582,6 +648,11 @@ void RequestUrl(
 				}).send();
 			};
 			const auto callback = [=](Result result) {
+				if (const auto wallet = state->wallet.get()) {
+					if (wallet->busy()) {
+						return;
+					}
+				}
 				state->boxAnswered = true;
 				if (result.matchCode.isEmpty()
 					&& !state->firstMatchCode.isEmpty()) {
@@ -624,6 +695,9 @@ void RequestUrl(
 						});
 				}));
 			};
+			auto walletOwned = object_ptr<Ui::VerticalLayout>(
+				box->verticalLayout());
+			state->walletContainer = walletOwned.data();
 			ShowDetails(
 				box,
 				url,
@@ -639,7 +713,7 @@ void RequestUrl(
 						st::defaultUserpicButton,
 						Ui::PeerUserpicShape::Forum)
 					: nullptr),
-				bot ? Info::Profile::NameValue(bot) : nullptr,
+				requestWrite ? Info::Profile::NameValue(bot) : nullptr,
 				browser,
 				device,
 				ip,
@@ -647,7 +721,9 @@ void RequestUrl(
 				(matchCodesFirst
 					? (rpl::single(QStringList()) | rpl::type_erased)
 					: matchCodesShared->value()),
-				isApp);
+				isApp,
+				std::move(walletOwned),
+				state->walletBusy.value());
 
 			*accountResult = AddAccountsMenu(
 				box->verticalLayout(),
@@ -658,6 +734,10 @@ void RequestUrl(
 			}, (*accountResult).widget->lifetime());
 			state->anotherSession = (*accountResult).anotherSession;
 			(*accountResult).setOnUserChanged(reloadForSession);
+			buildWallet(session, login, bot);
+			if (login && resolveSession() != session) {
+				reloadForSession(resolveSession());
+			}
 		}));
 		if (const auto strong = state->box.get()) {
 			strong->boxClosing() | rpl::on_next([=] {

@@ -2253,6 +2253,8 @@ PRIVATE
     wallet/wallet_ton_connect_emulation.h
     wallet/wallet_ton_connect_link.cpp
     wallet/wallet_ton_connect_link.h
+    wallet/wallet_ton_connect_login.cpp
+    wallet/wallet_ton_connect_login.h
     wallet/wallet_ton_connect_request.cpp
     wallet/wallet_ton_connect_request.h
     wallet/wallet_ton_connect_request_box.cpp

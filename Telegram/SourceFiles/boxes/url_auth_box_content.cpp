@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/qthelp_url.h"
 #include "lang/lang_keys.h"
+#include "ui/controls/button_busy.h"
 #include "ui/dynamic_image.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/layers/generic_box.h"
@@ -299,34 +300,35 @@ QPoint SwitchableUserpicButton::prepareRippleStartPosition() const {
 	return mapFromGlobal(QCursor::pos());
 }
 
-void AddAuthInfoRow(
+AuthInfoRowLabels AddAuthInfoRow(
 		not_null<Ui::VerticalLayout*> container,
-		const QString &topText,
-		const QString &bottomText,
+		const TextWithEntities &topText,
+		const TextWithEntities &bottomText,
 		const QString &leftText,
-		const style::icon &icon) {
+		const style::icon &icon,
+		const style::FlatLabel *valueSt) {
 	const auto row = container->add(
 		object_ptr<Ui::RpWidget>(container),
 		st::boxRowPadding);
 
 	const auto topLabel = Ui::CreateChild<Ui::FlatLabel>(
 		row,
-		topText,
-		st::urlAuthBoxRowTopLabel);
+		rpl::single(topText),
+		valueSt ? *valueSt : st::urlAuthBoxRowTopLabel);
 	topLabel->setSelectable(true);
 	Ui::InstallTooltip(topLabel, [=] {
 		return (topLabel->textMaxWidth() > topLabel->width())
-			? topText
+			? topText.text
 			: QString();
 	});
 	const auto bottomLabel = Ui::CreateChild<Ui::FlatLabel>(
 		row,
-		bottomText,
-		st::urlAuthBoxRowBottomLabel);
+		rpl::single(bottomText),
+		valueSt ? *valueSt : st::urlAuthBoxRowBottomLabel);
 	bottomLabel->setSelectable(true);
 	Ui::InstallTooltip(bottomLabel, [=] {
 		return (bottomLabel->textMaxWidth() > bottomLabel->width())
-			? bottomText
+			? bottomText.text
 			: QString();
 	});
 	const auto leftLabel = Ui::CreateChild<Ui::FlatLabel>(
@@ -374,6 +376,7 @@ void AddAuthInfoRow(
 			icon.paintInCenter(p, widget->rect());
 		}, widget->lifetime());
 	}
+	return { topLabel, bottomLabel };
 }
 
 void Show(
@@ -462,7 +465,9 @@ void ShowDetails(
 		const QString &ip,
 		const QString &region,
 		rpl::producer<QStringList> matchCodes,
-		bool isApp) {
+		bool isApp,
+		object_ptr<Ui::RpWidget> extraSection,
+		rpl::producer<bool> busy) {
 	box->setWidth(st::boxWidth);
 	box->setStyle(st::urlAuthBox);
 
@@ -524,8 +529,8 @@ void ShowDetails(
 	if (!platform.isEmpty() || !browser.isEmpty()) {
 		AddAuthInfoRow(
 			content,
-			platform,
-			browser,
+			tr::marked(platform),
+			tr::marked(browser),
 			tr::lng_url_auth_device_label(tr::now),
 			st::menuIconDevices);
 	}
@@ -535,8 +540,8 @@ void ShowDetails(
 	if (!ip.isEmpty() || !region.isEmpty()) {
 		AddAuthInfoRow(
 			content,
-			ip,
-			region,
+			tr::marked(ip),
+			tr::marked(region),
 			tr::lng_url_auth_ip_label(tr::now),
 			st::menuIconAddress);
 	}
@@ -547,6 +552,10 @@ void ShowDetails(
 		content,
 		rpl::single(tr::lng_url_auth_login_attempt(tr::now)));
 	Ui::AddSkip(content);
+
+	if (extraSection) {
+		content->add(std::move(extraSection));
+	}
 
 	auto allowMessages = (Ui::SettingsButton*)(nullptr);
 	if (botName) {
@@ -582,6 +591,11 @@ void ShowDetails(
 				st::defaultLightButton),
 			padding);
 		PrepareFullWidthRoundButton(button, content, padding);
+		if (busy) {
+			std::move(busy) | rpl::on_next([=](bool value) {
+				Ui::SetButtonBusy(button, value);
+			}, button->lifetime());
+		}
 		button->setClickedCallback([=] {
 			if (state->matchCodes.isEmpty()) {
 				callback({

@@ -76,6 +76,8 @@ struct TonConnectEventRequest {
 struct TonConnectReply {
 	QByteArray challengeAnswer;
 	QByteArray body;
+	TimeId proofTimestamp = 0;
+	QByteArray proofSignature;
 };
 
 struct TonConnectKeyResult {
