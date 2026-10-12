@@ -1959,7 +1959,7 @@ QRect Panel::computeTitleRect() const {
 	const auto skip = st::groupCallTitleSeparator;
 	auto custom = 0;
 	if (!_window->controlsWrap()) {
-		for (const auto button : titleButtons()) {
+		for (const auto &button : titleButtons()) {
 			custom += button->width();
 		}
 	}
@@ -1970,12 +1970,13 @@ QRect Panel::computeTitleRect() const {
 			+ custom));
 	const auto width = widget()->width();
 #ifdef Q_OS_MAC
-	return QRect(70, 0, width - remove - 70, 28);
+	const auto left = st::groupCallTitleLeftMac;
+	return QRect(left, 0, width - remove - left, 28);
 #else // Q_OS_MAC
 	const auto controls = _window->controlsGeometry();
 	const auto onTheLeft = (controls.center().x() < width / 2);
 	auto band = controls;
-	for (const auto button : titleButtons()) {
+	for (const auto &button : titleButtons()) {
 		band = band.united(button->geometry());
 	}
 	const auto right = band.x() + band.width() + skip;
@@ -2574,7 +2575,7 @@ void Panel::updateControlsGeometry() {
 		auto x = controlsOnTheLeft
 			? (controls.x() + controls.width())
 			: controls.x();
-		for (const auto button : titleButtons()) {
+		for (const auto &button : titleButtons()) {
 			if (controlsOnTheLeft) {
 				button->move(x, controls.y());
 				x += button->width();
@@ -2587,7 +2588,7 @@ void Panel::updateControlsGeometry() {
 		const auto toggleWidth = _menuToggle ? _menuToggle->width() : 0;
 		const auto wide = (mode() == PanelMode::Wide);
 		auto right = wide ? 0 : (menux + toggleWidth);
-		for (const auto button : titleButtons()) {
+		for (const auto &button : titleButtons()) {
 			button->moveToRight(right, wide ? 0 : menuy);
 			right += button->width();
 		}

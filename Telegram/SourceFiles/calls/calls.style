@@ -923,6 +923,7 @@ groupCallTitleLabel: FlatLabel(groupCallSubtitleLabel) {
 	}
 }
 groupCallTitleSeparator: 4px;
+groupCallTitleLeftMac: 78px;
 groupCallVideoLimitLabel: FlatLabel(defaultFlatLabel) {
 	align: align(top);
 	textFg: groupCallMemberNotJoinedStatus;
