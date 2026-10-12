@@ -2847,7 +2847,8 @@ void Panel::updateMembersGeometry() {
 	if (!_members) {
 		return;
 	}
-	_members->setVisible(!_call->rtmp());
+	_members->setVisible(!_call->rtmp()
+		&& (mode() != PanelMode::Wide || membersColumnReserve() > 0));
 	const auto desiredHeight = _members->desiredHeight();
 	if (mode() == PanelMode::Wide) {
 		const auto skip = _rtmpFull ? 0 : st::groupCallNarrowSkip;
