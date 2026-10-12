@@ -68,6 +68,10 @@ namespace {
 
 const auto kPsaForwardedPrefix = "cloud_lng_forwarded_psa_";
 
+[[nodiscard]] bool IsForwardedFromChannel(const PeerData *sender) {
+	return sender && sender->isChannel() && !sender->isMegagroup();
+}
+
 base::options::toggle FastButtonsModeOption({
 	.id = kOptionFastButtonsMode,
 	.name = "Fast buttons mode",
@@ -282,37 +286,18 @@ bool HiddenSenderInfo::paintCustomUserpic(
 	return valid;
 }
 
-void HistoryMessageForwarded::create(
+TextWithEntities HistoryMessageForwarded::phrase(
 		const HistoryMessageVia *via,
-		not_null<const HistoryItem*> item) const {
-	auto phrase = TextWithEntities();
-	auto context = Core::TextContext({
-		.session = &item->history()->session(),
-	});
-	const auto fromChannel = originalSender
-		&& originalSender->isChannel()
-		&& !originalSender->isMegagroup();
+		TextWithEntities userpic) const {
+	const auto fromChannel = IsForwardedFromChannel(originalSender);
 	const auto name = TextWithEntities{
 		.text = (originalSender
 			? originalSender->name()
 			: originalHiddenSenderInfo->name)
 	};
-	if (const auto copy = originalSender) {
-		context.repaint = [=] {
-			// It is important to capture here originalSender by value,
-			// not capture the HistoryMessageForwarded* and read the
-			// originalSender field, because the components themselves
-			// get moved from place to place and the captured `this`
-			// pointer may become invalid, resulting in a crash.
-			copy->owner().requestItemRepaint(item);
-		};
-		phrase = Ui::Text::SingleCustomEmoji(
-			copy->owner().customEmojiManager().peerUserpicEmojiData(
-				copy,
-				st::fwdTextUserpicPadding));
-	}
+	auto result = std::move(userpic);
 	if (!originalPostAuthor.isEmpty()) {
-		phrase.append(
+		result.append(
 			tr::lng_forwarded_signed(
 				tr::now,
 				lt_channel,
@@ -321,31 +306,31 @@ void HistoryMessageForwarded::create(
 				{ .text = originalPostAuthor },
 				tr::marked));
 	} else {
-		phrase.append(name);
+		result.append(name);
 	}
 	if (story) {
-		phrase = tr::lng_forwarded_story(
+		result = tr::lng_forwarded_story(
 			tr::now,
 			lt_user,
-			Ui::Text::Wrapped(phrase, EntityType::CustomUrl, QString()), // Link 1.
+			Ui::Text::Wrapped(result, EntityType::CustomUrl, QString()), // Link 1.
 			tr::marked);
 	} else if (via && psaType.isEmpty()) {
 		const auto linkData = tr::link(
 			QString(),
 			1).entities.front().data(); // Link 1.
 		if (fromChannel) {
-			phrase = tr::lng_forwarded_channel_via(
+			result = tr::lng_forwarded_channel_via(
 				tr::now,
 				lt_channel,
-				Ui::Text::Wrapped(phrase, EntityType::CustomUrl, linkData), // Link 1.
+				Ui::Text::Wrapped(result, EntityType::CustomUrl, linkData), // Link 1.
 				lt_inline_bot,
 				tr::link('@' + via->bot->username(), 2), // Link 2.
 				tr::marked);
 		} else {
-			phrase = tr::lng_forwarded_via(
+			result = tr::lng_forwarded_via(
 				tr::now,
 				lt_user,
-				Ui::Text::Wrapped(phrase, EntityType::CustomUrl, linkData), // Link 1.
+				Ui::Text::Wrapped(result, EntityType::CustomUrl, linkData), // Link 1.
 				lt_inline_bot,
 				tr::link('@' + via->bot->username(), 2), // Link 2.
 				tr::marked);
@@ -357,40 +342,70 @@ void HistoryMessageForwarded::create(
 				: Lang::GetNonDefaultValue(
 					kPsaForwardedPrefix + psaType.toUtf8());
 			if (!custom.isEmpty()) {
-				custom = custom.replace("{channel}", phrase.text);
-				const auto index = int(custom.indexOf(phrase.text));
-				const auto size = int(phrase.text.size());
-				phrase = TextWithEntities{
+				custom = custom.replace("{channel}", result.text);
+				const auto index = int(custom.indexOf(result.text));
+				const auto size = int(result.text.size());
+				result = TextWithEntities{
 					.text = custom,
 					.entities = {{ EntityType::CustomUrl, index, size, {} }},
 				};
 			} else {
-				phrase = (psaType.isEmpty()
+				result = (psaType.isEmpty()
 					? tr::lng_forwarded_channel
 					: tr::lng_forwarded_psa_default)(
 						tr::now,
 						lt_channel,
 						Ui::Text::Wrapped(
-							phrase,
+							result,
 							EntityType::CustomUrl,
 							QString()), // Link 1.
 						tr::marked);
 			}
 		} else {
-			phrase = tr::lng_forwarded(
+			result = tr::lng_forwarded(
 				tr::now,
 				lt_user,
-				Ui::Text::Wrapped(phrase, EntityType::CustomUrl, QString()), // Link 1.
+				Ui::Text::Wrapped(result, EntityType::CustomUrl, QString()), // Link 1.
 				tr::marked);
 		}
 	}
-	text.setMarkedText(st::fwdTextStyle, phrase, kMarkupTextOptions, context);
+	return result;
+}
 
-	text.setLink(1, fromChannel
-		? JumpToMessageClickHandler(originalSender, originalId)
-		: originalSender
-		? originalSender->openLink()
-		: HiddenSenderInfo::ForwardClickHandler());
+void HistoryMessageForwarded::create(
+		const HistoryMessageVia *via,
+		not_null<const HistoryItem*> item) const {
+	auto context = Core::TextContext({
+		.session = &item->history()->session(),
+	});
+	auto userpic = tr::marked();
+	if (const auto copy = originalSender) {
+		context.repaint = [=] {
+			// It is important to capture here originalSender by value,
+			// not capture the HistoryMessageForwarded* and read the
+			// originalSender field, because the components themselves
+			// get moved from place to place and the captured `this`
+			// pointer may become invalid, resulting in a crash.
+			copy->owner().requestItemRepaint(item);
+		};
+		userpic = Ui::Text::SingleCustomEmoji(
+			copy->owner().customEmojiManager().peerUserpicEmojiData(
+				copy,
+				st::fwdTextUserpicPadding));
+	}
+	text.setMarkedText(
+		st::fwdTextStyle,
+		phrase(via, std::move(userpic)),
+		kMarkupTextOptions,
+		context);
+
+	text.setLink(
+		1,
+		IsForwardedFromChannel(originalSender)
+			? JumpToMessageClickHandler(originalSender, originalId)
+			: originalSender
+			? originalSender->openLink()
+			: HiddenSenderInfo::ForwardClickHandler());
 	if (via) {
 		text.setLink(2, via->link);
 	}

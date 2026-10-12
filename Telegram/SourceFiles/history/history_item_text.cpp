@@ -414,6 +414,15 @@ std::optional<SelectedCopyReplyContext> ReplyContextForSelectedCopy(
 	return item->author()->name();
 }
 
+QString ForwardedLineForSelectedCopy(not_null<HistoryItem*> item) {
+	const auto forwarded = item->Get<HistoryMessageForwarded>();
+	if (!forwarded || !item->displayForwardedFrom()) {
+		return QString();
+	}
+	return TextUtilities::SingleLine(
+		forwarded->phrase(item->Get<HistoryMessageVia>()).text);
+}
+
 TextForMimeData HistorySelectedItemPlainWrappedText(
 		not_null<HistoryItem*> item,
 		TextForMimeData &&body) {
@@ -560,45 +569,59 @@ TextForMimeData HistoryGroupTextForSelectedCopy(
 }
 
 TextForMimeData HistorySelectedItemWrappedText(
-		not_null<HistoryItem*> item,
+		const HistorySelectedTextEntry &entry,
 		TextForMimeData &&body,
 		bool richContext) {
+	const auto item = entry.item;
 	if (!richContext) {
 		return HistorySelectedItemPlainWrappedText(item, std::move(body));
 	}
 	auto context = ReplyContextForSelectedCopy(item);
-	if (!context) {
+	// The album's bubble, with its forward header, belongs to its first item.
+	const auto forwarded = ForwardedLineForSelectedCopy(
+		entry.group ? entry.group->items.front() : item);
+	if (!context && forwarded.isEmpty()) {
 		return HistorySelectedItemPlainWrappedText(item, std::move(body));
 	}
 	auto result = TextForMimeData();
 	const auto time = u"[%1] "_q.arg(
 		QLocale().toString(ItemDateTime(item), QLocale::ShortFormat));
-	const auto author = SelectedCopyAuthorName(item);
-	const auto replyTo = tr::lng_context_copy_in_reply_to(
-		tr::now,
-		lt_name,
-		context->senderName);
+	const auto author = forwarded.isEmpty()
+		? SelectedCopyAuthorName(item)
+		: item->author()->name();
+	const auto replyTo = context
+		? tr::lng_context_copy_in_reply_to(
+			tr::now,
+			lt_name,
+			context->senderName)
+		: QString();
 	const auto size = time.size()
 		+ author.size()
 		+ 1
 		+ replyTo.size()
 		+ 2
-		+ context->quote.expanded.size()
+		+ (context ? context->quote.expanded.size() : 0)
+		+ forwarded.size()
+		+ 1
 		+ body.expanded.size();
 	result.reserve(size);
-	result
-		.append(time)
-		.append(author)
-		.append(' ')
-		.append(replyTo)
-		.append(':');
-	if (context->quote.empty()) {
-		result.append(' ').append(std::move(body));
-	} else {
+	result.append(time).append(author);
+	if (context) {
+		result.append(' ').append(replyTo);
+	}
+	result.append(':');
+	if (!forwarded.isEmpty()) {
+		result.append('\n').append(forwarded);
+	}
+	if (context && !context->quote.empty()) {
 		result.append(u"\n> "_q).append(std::move(context->quote));
 		if (!body.empty()) {
 			result.append('\n').append(std::move(body));
 		}
+	} else if (forwarded.isEmpty()) {
+		result.append(' ').append(std::move(body));
+	} else if (!body.empty()) {
+		result.append('\n').append(std::move(body));
 	}
 	return result;
 }
@@ -608,6 +631,13 @@ TextForMimeData HistorySelectedItemWrappedText(
 TextForMimeData HistorySelectedItemsText(
 		const std::vector<HistorySelectedTextEntry> &entries,
 		bool richContext) {
+	if (!richContext && entries.size() == 1) {
+		const auto &part = entries.front();
+		if (part.group) {
+			return HistoryGroupText(not_null<const Data::Group*>{ part.group });
+		}
+		return HistoryItemText(part.item);
+	}
 	const auto topics = TopicsForSelectedCopy(entries);
 	auto result = TextForMimeData();
 	const auto separator = u"\n"_q;
@@ -635,7 +665,7 @@ TextForMimeData HistorySelectedItemsText(
 				: HistoryItemText(entry.item);
 		}
 		result.append(HistorySelectedItemWrappedText(
-			entry.item,
+			entry,
 			std::move(body),
 			richContext));
 		if (i + 1 != count) {

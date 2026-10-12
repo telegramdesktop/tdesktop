@@ -5816,25 +5816,7 @@ bool Message::displayFromName() const {
 }
 
 bool Message::displayForwardedFrom() const {
-	const auto item = data();
-	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
-		if (forwarded->story) {
-			return true;
-		} else if (item->showForwardsFromSender(forwarded)) {
-			return forwarded->savedFromHiddenSenderInfo
-				|| (forwarded->savedFromSender
-					&& (forwarded->savedFromSender
-						!= forwarded->originalSender));
-		}
-		if (const auto sender = item->discussionPostOriginalSender()) {
-			if (sender == forwarded->originalSender) {
-				return false;
-			}
-		}
-		const auto media = item->media();
-		return !media || !media->dropForwardedInfo();
-	}
-	return false;
+	return data()->displayForwardedFrom();
 }
 
 bool Message::hasOutLayout() const {

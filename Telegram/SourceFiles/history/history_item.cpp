@@ -4079,6 +4079,27 @@ bool HistoryItem::showForwardsFromSender(
 			|| forwarded->imported);
 }
 
+bool HistoryItem::displayForwardedFrom() const {
+	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
+		if (forwarded->story) {
+			return true;
+		} else if (showForwardsFromSender(forwarded)) {
+			return forwarded->savedFromHiddenSenderInfo
+				|| (forwarded->savedFromSender
+					&& (forwarded->savedFromSender
+						!= forwarded->originalSender));
+		}
+		if (const auto sender = discussionPostOriginalSender()) {
+			if (sender == forwarded->originalSender) {
+				return false;
+			}
+		}
+		const auto media = this->media();
+		return !media || !media->dropForwardedInfo();
+	}
+	return false;
+}
+
 not_null<PeerData*> HistoryItem::fromOriginal() const {
 	if (const auto forwarded = Get<HistoryMessageForwarded>()) {
 		if (forwarded->originalSender) {
