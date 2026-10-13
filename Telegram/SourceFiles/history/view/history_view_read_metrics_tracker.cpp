@@ -278,7 +278,7 @@ void ReadMetricsTracker::restartTimer() {
 			updateNearest(tracked.entryGraceStart + kGracePeriod);
 		} else if (tracked.exitGracePending && !_paused) {
 			updateNearest(tracked.exitGraceStart + kGracePeriod);
-		} else if (tracked.viewId) {
+		} else if (tracked.viewId && !tracked.exitGracePending) {
 			updateNearest(tracked.trackingStarted + kMaxTrackingDuration);
 			if (!_paused && _currentlyVisible.contains(msgId) && activityDeadline > now) {
 				updateNearest(activityDeadline);
