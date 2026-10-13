@@ -99,6 +99,35 @@ L:\Telegram\ThirdParty\         # Build tools (NuGet, Python, etc.)
 
 Dependencies are located relative to the repository: `../Libraries`, `../win64/Libraries`, or `../ThirdParty`.
 
+## Dependency backports
+
+For explicitly requested dependency updates and backports, use the dependency
+repositories' `master` branches directly. Do not create `codex/*` or other topic
+branches in `Libraries/patches`, `Libraries/tg_owt`, or `Libraries/tg_angle`.
+The scheduled dependency monitor remains advisory and does not implement fixes.
+
+- Before editing each dependency repository, inspect its working tree and
+  current branch, fetch `origin`, and verify that the checkout is on `master`,
+  tracks `origin/master`, and is synchronized with the fetched remote branch.
+  Switch to `master` when necessary and fast-forward it when possible. Review
+  divergence before integrating it; preserve unrelated edits, untracked library
+  checkouts and local commits. Do not reset them away or publish unrelated local
+  commits implicitly.
+- Commit fixes to our copied dependencies, including WebRTC and ANGLE, directly
+  in `tg_owt` and `tg_angle`. For external dependencies such as Qt and FFmpeg,
+  commit patch files to `Libraries/patches` and apply them consistently through
+  the applicable prepare, Docker and Snap recipes. Keep intentional differences
+  between platform versions and do not add patch copies inside tdesktop.
+- Keep each independent fix in a separate commit and retain its upstream
+  provenance. Review applicability, prerequisites and patch interactions before
+  committing. Respect the requested validation scope; do not rebuild dependencies
+  unless the user explicitly requests it.
+- Push `master` to `origin/master` without force, fetch again and verify that
+  every new dependency commit is reachable from the published `origin/master`.
+  Only then update the applicable tdesktop revisions to those published SHAs.
+  If integration changes a SHA, update every recipe that consumed the old one.
+  A commit available only on a local or topic branch is not a finished update.
+
 ## Build Configuration
 
 ### Build Commands
