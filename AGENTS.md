@@ -300,6 +300,15 @@ Both app-level (`Core::Settings`) and session-level (`Main::SessionSettings`) us
 
 # Development Guidelines
 
+## Area maps
+
+A directory under `Telegram/SourceFiles` may have its own `AGENTS.md`: the
+map of that area's modules, placement rules, invariants, and things to leave
+alone. Read the nearest map before adding code under its directory and put
+new code where its Placement section says. A change that needs a different
+shape amends the map in the same task. How maps are written and how changes
+are checked against them is in `.agents/skills/code-health/SKILL.md`.
+
 ## Coding Style
 
 **Comments are rationed:**
