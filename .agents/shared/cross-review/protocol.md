@@ -104,14 +104,20 @@ as in round 1. Arbitrate and fix as before.
 
 ## Stopping
 
+The loop runs until the review consolidates: every finding is fixed and
+reviewed again, or decided without a fix because it does not hold or points at
+a problem this change neither introduced nor touched. A real defect in the
+changed code is never left open to save a round.
+
 Stop when any of these holds and report it:
 
 - **converged**: a round produced no FIX decision, after reversals were
   dismissed;
-- **round cap**: the cap, four rounds unless the human set another, is
+- **round cap**: the cap, ten rounds unless the human set another, is
   reached;
-- **not converging**: the number of new FIX decisions did not shrink for two
-  consecutive rounds, or a fix would grow the change into another subsystem;
+- **not converging**: fixes keep reopening earlier decisions instead of
+  settling new findings, or a fix would grow the change into another
+  subsystem;
 - **human decision needed**: a decision would be superseded a second time, or
   a fix needs a product choice the change does not settle.
 

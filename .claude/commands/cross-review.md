@@ -17,7 +17,7 @@ Read the arguments below as natural language:
 
 - nothing: the uncommitted changes;
 - "N commits", "last N commits" or `HEAD~N`: the last N commits;
-- "max K rounds": a round cap other than four;
+- "max K rounds": a round cap other than ten;
 - "review only" or "no fixes": one round, arbitration and a report, with no
   edits;
 - "resume" with a session path, or "resume last": continue an earlier session
