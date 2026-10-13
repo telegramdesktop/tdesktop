@@ -4,6 +4,7 @@ import posixpath
 import re
 import statistics
 
+import atlas
 import clones
 import cmake_model
 import cpp_text
@@ -35,6 +36,8 @@ CLASS_BY_KIND = {
     'long-function': 'Q4',
     'layering': 'Q5',
     'stale-map': 'map',
+    'unmapped': 'map',
+    'stale-atlas': 'map',
 }
 MAP_PATH = re.compile(r'`([\w./-]+\.(?:cpp|h|mm|style))`')
 
@@ -48,6 +51,11 @@ def file_limit(path):
 
 
 def snapshot(tree, queue=None, churn_days=180, cost_days=120):
+    sources_atlas = atlas.load(tree)
+
+    def area_of(path):
+        return (sources_atlas.area_of(path) if sources_atlas else None) or metrics.area_of(path)
+
     model = cmake_model.build(tree.files)
     graph = includes.IncludeGraph(tree, model)
     cost = graph.costs()
@@ -64,7 +72,7 @@ def snapshot(tree, queue=None, churn_days=180, cost_days=120):
     tested = model.tested_files()
 
     for path, entry in files.items():
-        entry['area'] = metrics.area_of(path)
+        entry['area'] = area_of(path)
         entry['churn'] = changes.get(path, 0)
         entry['hotspot'] = round(entry['churn'] * entry['lines'] / 1000, 1)
         entry['target'] = model.target_of(path)
@@ -90,20 +98,20 @@ def snapshot(tree, queue=None, churn_days=180, cost_days=120):
             area['tested_lines'] += entry['lines']
     for clone in found_clones:
         for side in ('left', 'right'):
-            area = areas.get(metrics.area_of(clone[side]['path']))
+            area = areas.get(area_of(clone[side]['path']))
             if area:
                 area['clone_lines'] += clone['lines']
     for violation in layering:
-        area = areas.get(metrics.area_of(violation['path']))
+        area = areas.get(area_of(violation['path']))
         if area:
             area['layering'] += 1
     for item in unused:
-        area = areas.get(metrics.area_of(item['path']))
+        area = areas.get(area_of(item['path']))
         if area:
             area['unused'] += 1
     per_area = {}
     for task, entry in tasks.items():
-        for area in {metrics.area_of(p) for p in entry['paths'] if p in files}:
+        for area in {area_of(p) for p in entry['paths'] if p in files}:
             per_area.setdefault(area, []).append(entry)
     for area, entries in per_area.items():
         if area in areas:
@@ -145,6 +153,7 @@ def snapshot(tree, queue=None, churn_days=180, cost_days=120):
         'unused': unused,
         'tasks': tasks,
         'maps': map_references(tree),
+        'atlas': atlas.check(sources_atlas, tree) if sources_atlas else None,
     }
 
 
@@ -171,6 +180,9 @@ def findings(snap):
     total = snap['totals']['build_work_lines'] or 1
     result = {}
 
+    def area_of(path):
+        return files[path]['area'] if path in files else metrics.area_of(path)
+
     def heat(*paths):
         return 1 + sum(files.get(p, {}).get('churn', 0) for p in paths) / 10
 
@@ -180,7 +192,7 @@ def findings(snap):
             'id': identity,
             'kind': kind,
             'class': CLASS_BY_KIND[kind],
-            'area': metrics.area_of(paths[0]) if paths else key,
+            'area': area_of(paths[0]) if paths else key,
             'title': title,
             'paths': paths,
             'score': round(impact * heat(*paths), 1),
@@ -268,6 +280,19 @@ def findings(snap):
                 f'{path} names {len(data["missing"])} missing file(s): '
                 + ', '.join(data['missing'][:5]),
                 [path], 5, data)
+
+    checked = snap.get('atlas') or {}
+    folders = {}
+    for path in checked.get('unmapped', ()):
+        folders.setdefault(posixpath.dirname(path), []).append(path)
+    for folder, paths in folders.items():
+        add('unmapped', folder,
+            f'{len(paths)} file(s) in {folder} match no atlas area',
+            paths, 5, {'files': paths[:20]})
+    for name, pattern in checked.get('unused', ()):
+        add('stale-atlas', f'{name}:{pattern}',
+            f'atlas area {name} names `{pattern}`, which matches no file',
+            [atlas.ATLAS_PATH], 5, {'area': name, 'pattern': pattern})
 
     hot = sorted(snap['areas'].items(), key=lambda kv: -kv[1]['hotspot'])[:20]
     for area, data in hot:

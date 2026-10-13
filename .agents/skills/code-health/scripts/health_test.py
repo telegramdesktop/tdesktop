@@ -4,6 +4,7 @@ import tempfile
 import textwrap
 import unittest
 
+import atlas
 import clones
 import cmake_model
 import cpp_text
@@ -358,6 +359,66 @@ class CheckTests(unittest.TestCase):
         self.assertIn('app/user.cpp', stranded[0])
         self.assertNotIn('app/other.cpp', stranded[0])
 
+    def test_removed_last_use_reports_orphaned_helper(self):
+        src = 'Telegram/SourceFiles/'
+        helper = 'int Helper(int value) {\n\treturn value + 1;\n}\n\n'
+        caller = 'int Caller(int value) {\n\treturn Helper(value);\n}\n'
+        self.repo.write({src + 'low/low.cpp': LOW + '\n' + helper + caller})
+        self.repo.git('commit', '-qam', 'Helper.')
+        self.repo.write({src + 'low/low.cpp': LOW + '\n' + helper})
+        _, warnings = self.run_check()
+        self.assertTrue(any(w.startswith('Helper:') and 'last use' in w for w in warnings), warnings)
+
+    def test_base_class_mention_is_a_use(self):
+        src = 'Telegram/SourceFiles/'
+        base = 'class Host {\npublic:\n\tvirtual ~Host() = default;\n};\n'
+        impl = 'class Engine::Impl final : public Host {\n};\n'
+        user = 'class Fake final : public Host {\n};\n'
+        self.repo.write({
+            src + 'low/host.h': '#pragma once\n\n' + base,
+            src + 'low/engine.cpp': impl,
+            src + 'low/fake.cpp': user,
+        })
+        self.repo.git('add', '-A')
+        self.repo.git('commit', '-qm', 'Host.')
+        self.repo.remove(src + 'low/fake.cpp')
+        _, warnings = self.run_check()
+        self.assertFalse(any(w.startswith('Host:') for w in warnings), warnings)
+
+    def test_removed_last_use_reports_orphaned_style_and_key(self):
+        src = 'Telegram/SourceFiles/'
+        style = 'using "ui/basic.style";\n\nmenuIconUnique: icon {{ "menu/unique", menuIconColor }};\nmenuIconShared: icon {{ "menu/shared", menuIconColor }};\n'
+        lang = '"lng_unique_label" = "Unique";\n"lng_shared_label" = "Shared";\n'
+        use = ('void Fill() {\n\tuse(st::menuIconUnique, tr::lng_unique_label(tr::now));\n'
+               '\tuse(st::menuIconShared, tr::lng_shared_label(tr::now));\n}\n')
+        other = 'void Other() {\n\tuse(st::menuIconShared, tr::lng_shared_label(tr::now));\n}\n'
+        self.repo.write({
+            src + 'ui/menu_icons.style': style,
+            'Telegram/Resources/langs/lang.strings': lang,
+            src + 'low/fill.cpp': use,
+            src + 'app/other.cpp': other,
+        })
+        self.repo.git('add', '-A')
+        self.repo.git('commit', '-qm', 'Styles.')
+        self.repo.write({src + 'low/fill.cpp': use.replace(
+            '\tuse(st::menuIconUnique, tr::lng_unique_label(tr::now));\n', '')})
+        _, warnings = self.run_check()
+        orphans = [w.split(':')[0] for w in warnings if 'last use' in w]
+        self.assertEqual(sorted(orphans), ['lng_unique_label', 'menuIconUnique'], warnings)
+
+    def test_removed_style_definition_still_used_is_reported(self):
+        src = 'Telegram/SourceFiles/'
+        style = 'menuIconGone: icon {{ "menu/gone", menuIconColor }};\n'
+        self.repo.write({
+            src + 'ui/menu_icons.style': style,
+            src + 'platform/win/menu_win.cpp': 'void Use() {\n\tuse(st::menuIconGone);\n}\n',
+        })
+        self.repo.git('add', '-A')
+        self.repo.git('commit', '-qm', 'Style.')
+        self.repo.write({src + 'ui/menu_icons.style': '\n'})
+        _, warnings = self.run_check()
+        self.assertTrue(any(w.startswith('menuIconGone:') and 'menu_win.cpp' in w for w in warnings), warnings)
+
     def test_complete_deletion_is_clean(self):
         src = 'Telegram/SourceFiles/'
         self.repo.write({
@@ -405,6 +466,64 @@ class VerifyTests(unittest.TestCase):
             capture_output=True, text=True)
         self.assertEqual(typo.returncode, 2)
         self.assertIn('unknown', typo.stdout)
+
+
+class AtlasTests(unittest.TestCase):
+    TEXT = dedent("""
+        # Source atlas
+
+        ## Model
+
+        ### low — Low-level helpers
+        - Paths: `SourceFiles/low/`
+        - Owns arithmetic.
+
+        ### app — Application
+        - Paths: `SourceFiles/app/`, `SourceFiles/low/special_*`
+        - Owns the entry point.
+    """)
+
+    def test_most_specific_pattern_wins(self):
+        parsed = atlas.Atlas(self.TEXT)
+        self.assertEqual(parsed.area_of('Telegram/SourceFiles/low/low.cpp'), 'low')
+        self.assertEqual(parsed.area_of('Telegram/SourceFiles/low/special_case.cpp'), 'app')
+        self.assertEqual(parsed.area_of('Telegram/SourceFiles/app/app.cpp'), 'app')
+        self.assertIsNone(parsed.area_of('Telegram/SourceFiles/other/x.cpp'))
+
+    def test_check_reports_unmapped_and_unused(self):
+        repo = Repo(dict(fixture(), **{
+            'Telegram/SourceFiles/other/other.cpp': 'void Other() {\n}\n',
+        }))
+        self.addCleanup(repo.temp.cleanup)
+        tree = sources.from_worktree(repo.root)
+        result = atlas.check(atlas.Atlas(self.TEXT), tree)
+        self.assertEqual(result['unmapped'], ['Telegram/SourceFiles/other/other.cpp'])
+        self.assertEqual(result['unused'], [('app', 'SourceFiles/low/special_*')])
+
+    def test_scan_names_areas_by_the_atlas(self):
+        repo = Repo(dict(fixture(), **{atlas.ATLAS_PATH: self.TEXT}))
+        self.addCleanup(repo.temp.cleanup)
+        snap = report.snapshot(sources.from_worktree(repo.root))
+        self.assertEqual(snap['files']['Telegram/SourceFiles/low/low.cpp']['area'], 'low')
+        found = report.findings(snap)
+        self.assertIn('stale-atlas:app:SourceFiles/low/special_*', found)
+
+    def test_large_directories_split_into_large_subdirectories(self):
+        files = {
+            'Telegram/SourceFiles/big/a.cpp': 20000,
+            'Telegram/SourceFiles/big/sub/b.cpp': 15000,
+            'Telegram/SourceFiles/big/tiny/c.cpp': 500,
+            'Telegram/SourceFiles/small/d.cpp': 1000,
+        }
+        folders, _ = atlas.candidates(files)
+        self.assertEqual(folders, {
+            'Telegram/SourceFiles',
+            'Telegram/SourceFiles/big',
+            'Telegram/SourceFiles/big/sub',
+            'Telegram/SourceFiles/small',
+        })
+        self.assertEqual(atlas.owner('Telegram/SourceFiles/big/tiny/c.cpp', folders),
+                         'Telegram/SourceFiles/big')
 
 
 class MoveTests(unittest.TestCase):

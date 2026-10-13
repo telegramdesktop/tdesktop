@@ -331,12 +331,14 @@ Both app-level (`Core::Settings`) and session-level (`Main::SessionSettings`) us
 
 ## Area maps
 
-A directory under `Telegram/SourceFiles` may have its own `AGENTS.md`: the
-map of that area's modules, placement rules, invariants, and things to leave
-alone. Read the nearest map before adding code under its directory and put
-new code where its Placement section says. A change that needs a different
-shape amends the map in the same task. How maps are written and how changes
-are checked against them is in `.agents/skills/code-health/SKILL.md`.
+`Telegram/SourceFiles/AGENTS.md`, once approved, is the source atlas: every
+area of the tree with its paths and responsibility. A directory may also
+have its own `AGENTS.md`: the map of that area's modules, placement rules,
+invariants, and things to leave alone. Before adding code, read the atlas
+entry of the area you touch and the nearest map, and put new code where they
+say. A change that needs a different shape amends the map in the same task.
+How the atlas and maps are written and how changes are checked against them
+is in `.agents/skills/code-health/SKILL.md`.
 
 ## Coding Style
 

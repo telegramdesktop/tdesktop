@@ -16,6 +16,31 @@ reshapes and redesigns run the full pipeline.
 Run every command from the repository root. The scripts need only Python 3
 and Git, and finish in seconds.
 
+## Where it runs
+
+Scheduled runs use one dedicated checkout on one machine: a linked worktree
+of a tdesktop clone, next to `ai-tdesktop`, detached at `origin/dev`, never
+used for tasks. Its ledger is the clone's, and surveys and audits read its
+working tree, which must be the code that was scanned. Create it once:
+
+```bash
+git -C <clone> worktree add <parent of ai-tdesktop>/thealth --detach origin/dev
+```
+
+Each scheduled run starts there with:
+
+```bash
+python3 .agents/skills/code-health/scripts/health.py sync
+```
+
+`sync` refuses a checkout on a branch or with local changes; otherwise it
+fetches `origin/dev`, checks it out detached and updates the `lib_*`
+submodules the scan reads. The scan's JSON says `worktree_matches: true` when
+the working tree is exactly the scanned commit; survey and audit run only
+then. A run from any other checkout scans and proposes but skips them, and
+its summary says so. Only one machine runs the schedule, because each
+machine keeps its own ledger and inbox.
+
 ## Scan (scheduled)
 
 ```bash
@@ -47,6 +72,15 @@ propose when the code-health budget has room; survey at most one area a week.
 The scheduled run is `/code-health scan route` in Claude Code or
 `$code-health scan route` in Codex.
 
+## Atlas (whole tree)
+
+Follow [the atlas procedure](references/atlas.md) when the owner asks for it
+or `Telegram/SourceFiles/AGENTS.md` does not exist yet: `health.py atlas`
+builds the data skeleton, agents describe and consolidate the areas, the
+other provider verifies, and the owner approves the draft in words before it
+is committed. Once it exists, `health.py` names areas by it, and the scan
+reports files no area matches and patterns that match nothing.
+
 ## Survey (one area)
 
 Follow [the survey procedure](references/survey.md). Pick the area with the
@@ -71,9 +105,10 @@ include across an already crossed target pair, growing a file that is
 already over the limit by more than a 20-line fix (an error under
 `--strict`), a class over the method limit growing, added code that repeats
 existing code, a header made materially heavier for the units that include
-it, and a removed function or class still mentioned somewhere, including
-platform files this host never compiles. `perform-task` runs it before every
-review.
+it, a removed function, class, style or language key still mentioned
+somewhere, including platform files this host never compiles, and a removed
+last use that leaves a function, field, class, style or language key with
+only its definition. `perform-task` runs it before every review.
 
 `moves` proves a Q1 change only moves code; it lists every added line that was
 not removed, every removed line that did not reappear, and moved statements
@@ -96,7 +131,7 @@ an open status).
   theirs only at approval), findings already named by an open code-health
   task, and findings an approved code-health task listed under `Dropped:` in
   its `work/result.md` in the last 180 days, unless their metric has since
-  doubled.
+  doubled or the class bounds changed in a way that removes the reason.
 - Prefer, in order: Q0 deletions; Q1 for heavy headers and oversized files
   in areas with high churn; Q2 for duplicated code that still changes. Q3
   tests for hot untested areas, Q4 and Q5 are proposed only when their

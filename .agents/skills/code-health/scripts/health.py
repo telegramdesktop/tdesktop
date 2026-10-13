@@ -2,6 +2,8 @@
 changes. Run from the repository root.
 
   scan   [--ref origin/dev] [--fetch] [--queue ../ai-tdesktop]
+  sync   (dedicated scan checkout only: detach at fresh origin/dev)
+  atlas  [--ref origin/dev] [--check FILE]
   area   <path-prefix-or-area>
   check  [--base HEAD] [--staged] [--strict]
   moves  [--base HEAD] [--head REV] [--staged]
@@ -18,7 +20,10 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import atlas
+import cmake_model
 import cpp_text
+import includes
 import metrics
 import report
 import review
@@ -90,8 +95,97 @@ def command_scan(args):
         'ref': snap['ref'],
         'storage_root': str(root),
         'run_directory': str(run),
+        'worktree_matches': worktree_matches(args.repo, snap['commit']),
         'open_findings': opened,
         'totals': snap['totals'],
+    }, indent=2))
+    return 0
+
+
+def worktree_matches(repo, commit):
+    """Whether the working tree is exactly `commit`, submodules included,
+    so agents reading files read what was scanned."""
+    head = sources.git(repo, 'rev-parse', 'HEAD').decode().strip()
+    dirty = sources.git(repo, 'status', '--porcelain', '--', 'Telegram').strip()
+    return head == commit and not dirty
+
+
+def command_sync(args):
+    repo = Path(args.repo)
+    attached = subprocess.run(
+        ['git', '-C', str(repo), 'symbolic-ref', '-q', 'HEAD'],
+        capture_output=True).returncode == 0
+    if attached:
+        print('sync runs only in a dedicated checkout detached at origin/dev; '
+              'create one with `git worktree add <path> --detach origin/dev`.',
+              file=sys.stderr)
+        return 1
+    if sources.git(repo, 'status', '--porcelain').strip():
+        print('The checkout has local changes; sync never discards them.',
+              file=sys.stderr)
+        return 1
+    sources.git(repo, 'fetch', '--no-tags', '--no-recurse-submodules',
+                'origin', '+refs/heads/dev:refs/remotes/origin/dev')
+    sources.git(repo, 'checkout', '--detach', '--quiet', 'origin/dev')
+    raw = sources.git(repo, 'ls-tree', 'HEAD', '--', 'Telegram/').decode()
+    libs = [
+        line.split('\t', 1)[1] for line in raw.splitlines()
+        if line.split()[1] == 'commit' and line.split('\t', 1)[1].startswith('Telegram/lib_')
+    ]
+    sources.git(repo, 'submodule', 'update', '--init', '--', *libs)
+    commit = sources.git(repo, 'rev-parse', 'HEAD').decode().strip()
+    print(json.dumps({
+        'commit': commit,
+        'submodules': libs,
+        'worktree_matches': worktree_matches(repo, commit),
+    }, indent=2))
+    return 0
+
+
+def command_atlas(args):
+    tree = tree_for(args)
+    if args.check:
+        draft = atlas.Atlas(Path(args.check).read_text(encoding='utf-8'))
+        result = atlas.check(draft, tree)
+        sizes = {}
+        for path in tree.files:
+            if atlas.mapped_file(path):
+                name = draft.area_of(path)
+                if name:
+                    sizes[name] = sizes.get(name, 0) + tree.lines(path)
+        print(f'{len(draft.areas)} areas; {len(result["unmapped"])} unmapped files; '
+              f'{len(result["ambiguous"])} ambiguous; {len(result["unused"])} unused patterns.')
+        folders = {}
+        for path in result['unmapped']:
+            folder = os.path.dirname(path)
+            folders[folder] = folders.get(folder, 0) + 1
+        for folder, count in sorted(folders.items()):
+            print(f'unmapped  {folder}/ ({count} files)')
+        for path, names in result['ambiguous'][:40]:
+            print(f'ambiguous {path}: {", ".join(names)}')
+        for name, pattern in result['unused']:
+            print(f'unused    {name}: `{pattern}`')
+        empty = [name for name in draft.areas if not sizes.get(name)]
+        for name in empty:
+            print(f'empty     {name}')
+        print()
+        for name, lines in sorted(sizes.items(), key=lambda kv: -kv[1]):
+            print(f'{lines:8,}  {name}')
+        return 1 if result['unmapped'] or result['ambiguous'] or result['unused'] else 0
+    queue = args.queue if args.queue and Path(args.queue).is_dir() else None
+    snap = report.snapshot(tree, queue)
+    graph = includes.IncludeGraph(tree, cmake_model.build(tree.files))
+    rows = atlas.skeleton(tree, snap, graph)
+    stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+    directory = storage_root(args.repo) / 'atlas' / f'{stamp}-{tree.commit[:10]}'
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / 'skeleton.json').write_text(json.dumps(rows, indent=1) + '\n', encoding='utf-8')
+    (directory / 'skeleton.md').write_text(atlas.markdown(rows), encoding='utf-8')
+    print(json.dumps({
+        'commit': tree.commit,
+        'directory': str(directory),
+        'candidates': len(rows),
+        'lines': sum(row['lines'] for row in rows),
     }, indent=2))
     return 0
 
@@ -106,8 +200,9 @@ def command_area(args):
     prefix = args.area.rstrip('/')
 
     def inside(path):
-        return (metrics.area_of(path) == prefix
-                or metrics.area_of(path).startswith(prefix + '/')
+        area = snap['files'].get(path, {}).get('area') or metrics.area_of(path)
+        return (area == prefix
+                or area.startswith(prefix + '/')
                 or path.startswith(prefix)
                 or path.startswith(f'Telegram/SourceFiles/{prefix}'))
 
@@ -242,6 +337,12 @@ def main():
     moves.add_argument('--base', default='HEAD')
     moves.add_argument('--head')
     moves.add_argument('--staged', action='store_true')
+    commands.add_parser('sync')
+    atlas_parser = commands.add_parser('atlas')
+    atlas_parser.add_argument('--ref')
+    atlas_parser.add_argument('--fetch', action='store_true')
+    atlas_parser.add_argument('--queue', default='../ai-tdesktop')
+    atlas_parser.add_argument('--check')
     verify = commands.add_parser('verify')
     verify.add_argument('--base', default='HEAD')
     verify.add_argument('ids', nargs='+')
@@ -252,6 +353,8 @@ def main():
         'check': command_check,
         'moves': command_moves,
         'verify': command_verify,
+        'sync': command_sync,
+        'atlas': command_atlas,
     }
     try:
         return handlers[args.command](args)
