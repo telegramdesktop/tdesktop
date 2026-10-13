@@ -516,12 +516,6 @@ struct TableCellMinimumWidthConstraint {
 [[nodiscard]] TextWithEntities EditPlaceholderTextValue(
 	const PreparedBlock &block,
 	const QString &text);
-void CopyCachedTextLeafs(
-	const std::vector<PreparedBlock> &preparedBlocks,
-	std::vector<LaidOutBlock> *blocks,
-	const style::Markdown &st,
-	CachedTextLeafPool *pool,
-	bool rtl);
 void BuildOrReuseMarkedTextLeaf(
 	Ui::Text::String *leaf,
 	CachedTextLeafSlot slot,
@@ -554,19 +548,6 @@ void BuildOrReuseEditPlaceholderLeaf(
 void ApplyPreparedEditSources(
 	LaidOutBlock *block,
 	const PreparedBlock &prepared);
-void LayoutMediaCaption(
-	LaidOutBlock *block,
-	const PreparedBlock &prepared,
-	const std::vector<PreparedFormulaSlot> *formulas,
-	InlineFormulaObjectCache *inlineFormulaObjects,
-	const std::shared_ptr<MediaRuntime> &mediaRuntime,
-	const style::Markdown &st,
-	int left,
-	int top,
-	int width,
-	int skip,
-	int *bottom,
-	LayoutContext context = {});
 void FillMediaCaptionContent(
 	LaidOutBlock *block,
 	const PreparedBlock &prepared,

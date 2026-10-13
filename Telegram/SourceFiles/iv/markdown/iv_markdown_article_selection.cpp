@@ -1373,15 +1373,6 @@ std::optional<TextSelection> TextSelectionForSegment(
 		false);
 }
 
-std::optional<TextSelection> TextSelectionForSegmentIndex(
-		const PaintSelectionState &selectionState,
-		int index) {
-	const auto segment = FindSegment(selectionState.segments, index);
-	return segment
-		? TextSelectionForSegment(*segment, selectionState)
-		: std::nullopt;
-}
-
 std::optional<TextSelection> PaintTextSelectionForSegment(
 		const SelectableSegment &segment,
 		const PaintSelectionState &selectionState) {

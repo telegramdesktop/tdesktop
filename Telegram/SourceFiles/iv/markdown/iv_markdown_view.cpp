@@ -191,7 +191,6 @@ public:
 		MarkdownPreviewScrollMode mode);
 	void scrollToY(int top, MarkdownPreviewScrollMode mode);
 	[[nodiscard]] int scrollTop() const;
-	[[nodiscard]] rpl::producer<int> scrollTopValue() const;
 	bool updateContent(MarkdownArticleContent prepared, OpenOptions options);
 	[[nodiscard]] auto searchSources() const
 	-> std::vector<MarkdownArticleSearchSource>;
@@ -819,12 +818,6 @@ int MarkdownPreviewRoot::scrollTop() const {
 	return _scroll ? _scroll->scrollTop() : 0;
 }
 
-rpl::producer<int> MarkdownPreviewRoot::scrollTopValue() const {
-	return _scroll
-		? _scroll->scrollTopValue()
-		: rpl::single(0) | rpl::type_erased;
-}
-
 auto MarkdownPreviewRoot::searchSources() const
 -> std::vector<MarkdownArticleSearchSource> {
 	return _article
@@ -887,11 +880,6 @@ void ScrollMarkdownPreviewToY(
 int MarkdownPreviewScrollTop(Ui::RpWidget *preview) {
 	const auto root = dynamic_cast<MarkdownPreviewRoot*>(preview);
 	return root ? root->scrollTop() : 0;
-}
-
-rpl::producer<int> MarkdownPreviewScrollTopValue(Ui::RpWidget *preview) {
-	const auto root = dynamic_cast<MarkdownPreviewRoot*>(preview);
-	return root ? root->scrollTopValue() : rpl::single(0);
 }
 
 auto MarkdownPreviewSearchSources(Ui::RpWidget *preview)
