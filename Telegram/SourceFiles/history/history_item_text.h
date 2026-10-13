@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_msg_id.h"
 #include "iv/iv_rich_page.h"
 
 class HistoryItem;
@@ -24,7 +23,6 @@ struct HistorySelectedTextEntry {
 
 struct HistorySelectedTextImage {
 	not_null<PhotoData*> photo;
-	FullMsgId itemId;
 	QString before;
 	QString after;
 };

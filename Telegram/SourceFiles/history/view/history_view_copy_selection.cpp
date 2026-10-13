@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_copy_selection.h"
 
 #include "base/qt_signal_producer.h"
-#include "data/data_file_origin.h"
+#include "base/weak_ptr.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
@@ -17,7 +17,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "media/view/media_view_recognition_selection.h"
+#include "platform/platform_specific.h"
 #include "platform/platform_text_recognition.h"
+#include "storage/cache/storage_cache_database.h"
 #include "ui/controls/text_copied_toast.h"
 #include "ui/image/image.h"
 
@@ -31,7 +33,32 @@ constexpr auto kMaxRecognitionsInFlight = 2;
 
 auto RecognitionsInFlight = 0;
 
-class ImageTextCopy final {
+[[nodiscard]] QImage LoadedLargeImage(not_null<PhotoData*> photo) {
+	if (const auto media = photo->activeMediaView()) {
+		if (const auto image = media->image(Data::PhotoSize::Large)) {
+			return image->original();
+		}
+	}
+	return QImage();
+}
+
+[[nodiscard]] QImage ReadCachedImage(QByteArray bytes, bool webFile) {
+	auto image = Images::Read({ .content = std::move(bytes) }).image;
+	if (webFile && image.format() == QImage::Format_ARGB32) {
+		image = Images::Opaque(std::move(image));
+	}
+	const auto limit = PhotoData::SideLimit();
+	if (image.width() > limit || image.height() > limit) {
+		image = image.scaled(
+			limit,
+			limit,
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation);
+	}
+	return image;
+}
+
+class ImageTextCopy final : public base::has_weak_ptr {
 public:
 	ImageTextCopy(
 		std::shared_ptr<Ui::Show> show,
@@ -46,8 +73,11 @@ public:
 private:
 	struct Photo {
 		not_null<PhotoData*> photo;
-		std::shared_ptr<Data::PhotoMedia> media;
-		Data::FileOrigin origin;
+		QImage image;
+		QByteArray bytes;
+		Storage::Cache::Key key;
+		bool webFile = false;
+		bool reading = false;
 		bool recognizing = false;
 		bool resolved = false;
 	};
@@ -60,16 +90,20 @@ private:
 	void setBlock(
 		not_null<PhotoData*> photo,
 		const Media::View::RecognitionResult &result);
+	void cacheRead(int index, QByteArray &&bytes);
 	void check();
-	void recognize(not_null<PhotoData*> photo, QImage image);
+	void recognize(int index);
 	void finishIfResolved();
 
 	static void Recognized(
+		const base::weak_ptr<ImageTextCopy> &weak,
+		int index,
 		Media::View::RecognitionId id,
-		Media::View::RecognitionResult &&result);
+		std::optional<Media::View::RecognitionResult> &&result);
 
 	const std::shared_ptr<Ui::Show> _show;
 	const not_null<Main::Session*> _session;
+	const int64 _clipboardChangeCount = 0;
 	HistorySelectedTextParts _text;
 	Iv::RichPageBlocksSlice _richBlocks;
 	std::vector<Photo> _photos;
@@ -91,24 +125,26 @@ ImageTextCopy::ImageTextCopy(
 	Iv::RichPageBlocksSlice &&richBlocks)
 : _show(std::move(show))
 , _session(session)
+, _clipboardChangeCount(Platform::ClipboardChangeCount())
 , _text(std::move(text))
 , _richBlocks(std::move(richBlocks)) {
+	const auto large = Data::PhotoSize::Large;
 	for (const auto &image : _text.images) {
 		const auto photo = image.photo;
 		if (hasPhoto(photo)) {
 			continue;
 		}
-		auto entry = Photo{ .photo = photo, .origin = image.itemId };
+		auto entry = Photo{ .photo = photo };
 		if (const auto result = cached(photo)) {
 			entry.resolved = true;
 			setBlock(photo, *result);
 		} else {
-			entry.media = photo->createMediaView();
-			entry.resolved = !entry.media->image(Data::PhotoSize::Large)
-				&& (photo->failed(Data::PhotoSize::Large)
-					|| !photo->location(Data::PhotoSize::Large).valid());
-			if (entry.resolved) {
-				entry.media = nullptr;
+			entry.image = LoadedLargeImage(photo);
+			if (entry.image.isNull()) {
+				const auto &file = photo->location(large).file();
+				entry.key = file.cacheKey();
+				entry.webFile = v::is<WebFileLocation>(file.data);
+				entry.resolved = !entry.key;
 			}
 		}
 		_photos.push_back(std::move(entry));
@@ -132,27 +168,31 @@ void ImageTextCopy::start() {
 	) | rpl::on_next([] {
 		PendingCopy() = nullptr;
 	}, _lifetime);
-	for (const auto &entry : _photos) {
-		if (!entry.resolved) {
-			entry.media->wanted(Data::PhotoSize::Large, entry.origin);
+	// WHY: the cache queue is serial, so lookups queued in the press turn
+	// run before any later download's put; a photo still downloading at the
+	// press must be skipped, not read once its download lands.
+	const auto weak = base::make_weak(this);
+	for (auto i = 0, count = int(_photos.size()); i != count; ++i) {
+		auto &entry = _photos[i];
+		if (entry.resolved || !entry.image.isNull()) {
+			continue;
 		}
+		entry.reading = true;
+		_session->data().cache().get(entry.key, [=](QByteArray &&value) {
+			crl::on_main(weak, [=, value = std::move(value)]() mutable {
+				cacheRead(i, std::move(value));
+			});
+		});
 	}
-	rpl::merge(
-		_session->downloaderTaskFinished(),
-		_session->data().photoLoadProgress(
-		) | rpl::filter([=](not_null<PhotoData*> photo) {
-			return hasPhoto(photo);
-		}) | rpl::to_empty
-	) | rpl::on_next([=] {
-		check();
-	}, _lifetime);
 	check();
 }
 
 void ImageTextCopy::complete() {
 	_lifetime.destroy();
 	const auto text = _text.composed(_blocks);
-	if (text.empty()) {
+	// Qt sees an outside pasteboard write only on activation.
+	if (text.empty()
+		|| Platform::ClipboardChangeCount() != _clipboardChangeCount) {
 		return;
 	}
 	Iv::SetRichBlocksClipboard(text, std::move(_richBlocks), _session);
@@ -200,49 +240,80 @@ void ImageTextCopy::setBlock(
 	}
 }
 
+void ImageTextCopy::cacheRead(int index, QByteArray &&bytes) {
+	auto &entry = _photos[index];
+	if (entry.resolved) {
+		return;
+	}
+	entry.reading = false;
+	if (bytes.isEmpty() || bytes.startsWith("partial:")) {
+		entry.resolved = true;
+	} else {
+		entry.bytes = std::move(bytes);
+	}
+	check();
+}
+
 void ImageTextCopy::check() {
-	const auto large = Data::PhotoSize::Large;
-	for (auto &entry : _photos) {
-		if (entry.resolved) {
+	for (auto i = 0, count = int(_photos.size()); i != count; ++i) {
+		auto &entry = _photos[i];
+		if (entry.resolved || entry.reading) {
 			continue;
-		}
-		const auto photo = entry.photo;
-		if (const auto result = cached(photo)) {
+		} else if (const auto result = cached(entry.photo)) {
 			entry.resolved = true;
-			entry.media = nullptr;
-			setBlock(photo, *result);
-		} else if (entry.recognizing) {
-			continue;
-		} else if (const auto image = entry.media->image(large)) {
-			if (RecognitionsInFlight < kMaxRecognitionsInFlight) {
-				entry.recognizing = true;
-				recognize(photo, image->original());
-				entry.media = nullptr;
-			}
-		} else if (photo->failed(large) || photo->cancelled()) {
-			entry.resolved = true;
-			entry.media = nullptr;
+			entry.image = QImage();
+			entry.bytes = QByteArray();
+			setBlock(entry.photo, *result);
+		} else if (!entry.recognizing
+			&& RecognitionsInFlight < kMaxRecognitionsInFlight) {
+			recognize(i);
 		}
 	}
 	finishIfResolved();
 }
 
-void ImageTextCopy::recognize(not_null<PhotoData*> photo, QImage image) {
+void ImageTextCopy::recognize(int index) {
+	auto &entry = _photos[index];
+	entry.recognizing = true;
 	++RecognitionsInFlight;
-	crl::async([id = recognitionId(photo), image = std::move(image)] {
-		auto result = Platform::TextRecognition::RecognizeText(image);
-		crl::on_main([=, result = std::move(result)]() mutable {
-			Recognized(id, std::move(result));
+	crl::async([
+		weak = base::make_weak(this),
+		index,
+		id = recognitionId(entry.photo),
+		image = base::take(entry.image),
+		bytes = base::take(entry.bytes),
+		webFile = entry.webFile
+	]() mutable {
+		if (image.isNull()) {
+			image = ReadCachedImage(std::move(bytes), webFile);
+		}
+		auto result = std::optional<Media::View::RecognitionResult>();
+		if (!image.isNull()) {
+			result = Platform::TextRecognition::RecognizeText(image);
+		}
+		crl::on_main([
+			weak = std::move(weak),
+			index,
+			id,
+			result = std::move(result)
+		]() mutable {
+			Recognized(weak, index, id, std::move(result));
 		});
 	});
 }
 
 void ImageTextCopy::Recognized(
+		const base::weak_ptr<ImageTextCopy> &weak,
+		int index,
 		Media::View::RecognitionId id,
-		Media::View::RecognitionResult &&result) {
+		std::optional<Media::View::RecognitionResult> &&result) {
 	--RecognitionsInFlight;
-	if (const auto cache = Media::View::RecognitionCache()) {
-		(*cache)[id] = std::move(result);
+	if (!result) {
+		if (const auto strong = weak.get()) {
+			strong->_photos[index].resolved = true;
+		}
+	} else if (const auto cache = Media::View::RecognitionCache()) {
+		(*cache)[id] = std::move(*result);
 	}
 	if (const auto current = PendingCopy().get()) {
 		current->check();
