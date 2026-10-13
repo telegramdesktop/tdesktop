@@ -51,7 +51,18 @@ class Runner;
 // reported at its "<file>|<head>|<field>" site, and a campaign may declare
 // (head, field) pairs the product source shows it formats from values it
 // computes: a hit that is exactly such a field's value is reported in
-// SECRECY_COMPUTED and never decides, like a Recv hit.
+// SECRECY_COMPUTED and never decides, like a Recv hit. A product line with
+// no name= field has no such site to declare, so the scan itself carries
+// the MTProto transport's DEBUG_LOG lines that print only integers (from
+// 2026/10/13/keep-the-secrecy-scan-from-counting-a-coincidental-transport-number):
+// each format, as its function in session_private.cpp, session.cpp or
+// mtp_instance.cpp writes it, with the slots that source shows the client
+// computes. In a DebugLogs log_ part, a line that is exactly an entry start
+// and one such format with each placeholder one ASCII integer, then
+// DEBUG_LOG's " (<that file> : <digits>)" and nothing more, gets the site
+// "<file>|<format head>|<slot>" (or "-"), and a hit that is the whole
+// integer of a computed slot is reported in SECRECY_COMPUTED the same way.
+// Campaigns declare nothing for these lines.
 //
 // A zero is certified only when it can be told from absence: every class
 // must hold at least one accepted file and a known-present control (a fresh
@@ -160,7 +171,9 @@ struct SecrecyClassReading {
 	int boundedOther = 0;
 	int boundedSend = 0;
 	int boundedRecv = 0;
-	int boundedComputed = 0; // exactly a declared computed field's value
+	// Exactly a declared computed field's value, or the whole integer of a
+	// computed slot of a carried transport line.
+	int boundedComputed = 0;
 	int boundedQuoted = 0;
 	int boundedUnquoted = 0;
 	int tokensOther = 0;
@@ -175,8 +188,10 @@ struct SecrecyClassReading {
 	std::map<QString, int> sendSites; // schema identifiers only
 	std::map<QString, int> recvSites;
 	// Plain-line bounded short-secret hits by "<file>|<head>|<field>"
-	// ("<file>|?|?" withheld, "-" not exactly one field's value): the
-	// deciding ones, and exact values of a declared computed field.
+	// ("<file>|?|?" withheld, "-" not exactly one field's value; on a
+	// carried transport line the head is its format's and the field a
+	// slot's name): the deciding ones, and exact values of a declared
+	// computed field or of a carried computed slot.
 	std::map<QString, int> plainSites;
 	std::map<QString, int> computedSites;
 	QStringList names; // public file names of the scanned files
@@ -235,7 +250,9 @@ struct SecrecyReading {
 // A field the product formats from a value it computes itself, never from
 // fixture input, spelled exactly as a plain-line site prints it: the
 // message head of its line (the text after the timestamp or entry prefix
-// and before the first name= field) and the field name.
+// and before the first name= field) and the field name. It matches name=
+// fields only: a carried transport line needs no declaration, and none
+// changes its classification.
 struct SecrecyComputedField {
 	QString head;
 	QString field;
@@ -256,6 +273,7 @@ struct SecrecyScanArgs {
 	// decide. Declare a field only when the product source shows it is
 	// formatted from a value the product computes, never from fixture
 	// input. No declaration exempts a word run, a token or a Send entry.
+	// The carried transport lines' numbers need none: the scan carries them.
 	std::vector<SecrecyComputedField> computedFields;
 };
 
@@ -282,11 +300,12 @@ struct SecrecyScanArgs {
 // then re-reads the bytes it appended to test_log.txt and Checks that they
 // carry no secret either. Returns decided && clean. DebugLogs must be
 // enabled (tdata/withdebug = 1), or the DebugLog and MtpLog classes are
-// undecided. Hits on declared computed fields (args.computedFields) are
+// undecided. Hits on declared computed fields (args.computedFields) and
+// whole integers of the carried transport lines' computed slots are
 // reported and do not decide.
 bool CheckSecrecy(const SecrecyScanArgs &args, const QString &what);
 
-// Ten session-free stages over synthetic log trees in a QTemporaryDir,
+// Eleven session-free stages over synthetic log trees in a QTemporaryDir,
 // with synthetic secrets only: canaries, embedded vs bounded, a Recv hit
 // that is reported but does not decide, ten client-written leaks (among
 // them words joined by line breaks, escapes and commas, and a vector
@@ -311,8 +330,22 @@ bool CheckSecrecy(const SecrecyScanArgs &args, const QString &what);
 // row holds none bounded and scans clean; and a synthetic phrase in its
 // caller text gives the same word runs in both formats, beside a premise
 // that a TelemetryNumber between phrase words ends a run. It never asks
-// the process-wide request (RequestTelemetryNumbers). Emits no deliberate
-// FAIL.
+// the process-wide request (RequestTelemetryNumbers). The last stage
+// covers the carried transport lines with a synthetic short secret of
+// digits: the same number as a computed slot's whole integer in two
+// hand-built product lines is reported at their sites and that scan is
+// clean, while it still fails as the digits of a negative value, the
+// suffix's line number, a server-sent slot (declared or not), in a line
+// with an added field, trailing text or a harness file in its suffix, as a
+// plain-line leak beside them, and in that same line in the test log, the
+// app log or an mtp_ part; an accepted earlier log_ part classes it alike
+// and still needs its own control. Matrices sweep every carried row and
+// slot, whole zero and negative values, glued and longer integers, file
+// names, entry framing and suffixes, malformed numbers, the withholding of
+// a site that would print a given secret, and tokens, word runs, Send and
+// Recv bodies on carried text; and its rows print no synthetic value, in
+// memory or as written. Like the two stages before it, it keeps no
+// reading for the rows stage. Emits no deliberate FAIL.
 void AppendSecrecyScanSelfTest(not_null<Runner*> runner);
 
 } // namespace Test
