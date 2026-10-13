@@ -971,6 +971,11 @@ reactPanelScrollRounded: ScrollArea(emojiScroll) {
 selfForwardsTaggerStripSkip: 11px;
 
 toastLottieIconSize: size(20px, 20px);
+textCopiedToastLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	color: toastFg;
+	thickness: 2px;
+	size: toastLottieIconSize;
+}
 selfForwardsTaggerIconPadding: margins(14px, 2px, 8px, 2px);
 selfForwardsTaggerToast: Toast(defaultToast) {
 	minWidth: 160px;

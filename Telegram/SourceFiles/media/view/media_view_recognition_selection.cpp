@@ -11,6 +11,78 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/style/style_core.h"
 
 namespace Media::View {
+namespace {
+
+struct ReadingOrder {
+	std::vector<int> order;
+	std::vector<int> row;
+};
+
+[[nodiscard]] ReadingOrder ComputeReadingOrder(
+		const std::vector<Platform::TextRecognition::RectWithText> &items) {
+	const auto count = int(items.size());
+	auto result = ReadingOrder{
+		.order = std::vector<int>(count),
+		.row = std::vector<int>(count, 0),
+	};
+	auto &order = result.order;
+	auto &row = result.row;
+	for (auto i = 0; i != count; ++i) {
+		order[i] = i;
+	}
+	const auto centerY = [&](int i) {
+		return items[i].rect.y() + items[i].rect.height() / 2;
+	};
+	std::sort(order.begin(), order.end(), [&](int a, int b) {
+		return centerY(a) < centerY(b);
+	});
+	auto rows = 0;
+	for (auto k = 1; k < count; ++k) {
+		const auto prev = order[k - 1];
+		const auto cur = order[k];
+		const auto threshold = std::max(
+			items[prev].rect.height(),
+			items[cur].rect.height()) / 2;
+		if (centerY(cur) - centerY(prev) > threshold) {
+			++rows;
+		}
+		row[cur] = rows;
+	}
+	std::stable_sort(order.begin(), order.end(), [&](int a, int b) {
+		return (row[a] != row[b])
+			? (row[a] < row[b])
+			: (items[a].rect.x() < items[b].rect.x());
+	});
+	return result;
+}
+
+} // namespace
+
+RecognitionCacheMap *RecognitionCache() {
+	static auto cache = Platform::TextRecognition::IsAvailable()
+		? std::make_unique<base::flat_map<RecognitionId, RecognitionResult>>()
+		: nullptr;
+	return cache.get();
+}
+
+QString RecognizedText(const Platform::TextRecognition::Result &result) {
+	const auto &items = result.items;
+	const auto reading = ComputeReadingOrder(items);
+	auto text = QString();
+	auto lastRow = -1;
+	for (const auto item : reading.order) {
+		const auto &line = items[item].text;
+		if (line.isEmpty()) {
+			continue;
+		}
+		if (!text.isEmpty()) {
+			text += (reading.row[item] != lastRow) ? '\n' : ' ';
+		}
+		text += line;
+		lastRow = reading.row[item];
+	}
+	return text;
+}
 
 void RecognitionSelection::setSources(
 		not_null<const Result*> result,
@@ -235,34 +307,9 @@ std::vector<RecognitionSpan> RecognitionSelection::spans() const {
 		return {};
 	}
 
-	auto order = std::vector<int>(count);
-	for (auto i = 0; i != count; ++i) {
-		order[i] = i;
-	}
-	const auto centerY = [&](int i) {
-		return items[i].rect.y() + items[i].rect.height() / 2;
-	};
-	std::sort(order.begin(), order.end(), [&](int a, int b) {
-		return centerY(a) < centerY(b);
-	});
-	auto row = std::vector<int>(count, 0);
-	auto rows = 0;
-	for (auto k = 1; k != count; ++k) {
-		const auto prev = order[k - 1];
-		const auto cur = order[k];
-		const auto threshold = std::max(
-			items[prev].rect.height(),
-			items[cur].rect.height()) / 2;
-		if (centerY(cur) - centerY(prev) > threshold) {
-			++rows;
-		}
-		row[cur] = rows;
-	}
-	std::stable_sort(order.begin(), order.end(), [&](int a, int b) {
-		return (row[a] != row[b])
-			? (row[a] < row[b])
-			: (items[a].rect.x() < items[b].rect.x());
-	});
+	const auto reading = ComputeReadingOrder(items);
+	const auto &order = reading.order;
+	const auto &row = reading.row;
 	auto rank = std::vector<int>(count);
 	for (auto k = 0; k != count; ++k) {
 		rank[order[k]] = k;

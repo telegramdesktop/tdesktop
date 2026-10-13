@@ -139,24 +139,6 @@ namespace Media {
 namespace View {
 namespace {
 
-struct RecognitionId {
-	uint64 sessionUniqueId = 0;
-	PhotoId photoId = 0;
-	DocumentId documentId = 0;
-
-	friend inline auto operator<=>(RecognitionId, RecognitionId) = default;
-};
-
-using RecognitionResult = Platform::TextRecognition::Result;
-using RecognitionCacheMap = base::flat_map<RecognitionId, RecognitionResult>;
-
-[[nodiscard]] RecognitionCacheMap *RecognitionCache() {
-	static auto cache = Platform::TextRecognition::IsAvailable()
-		? std::make_unique<base::flat_map<RecognitionId, RecognitionResult>>()
-		: nullptr;
-	return cache.get();
-}
-
 [[nodiscard]] int LayoutIndependentKey(not_null<QKeyEvent*> e) {
 	if constexpr (Platform::IsWindows()) {
 		const auto native = int(e->nativeVirtualKey());

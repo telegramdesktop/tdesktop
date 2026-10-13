@@ -80,6 +80,52 @@ TextForMimeData AppendExtraCopyText(
 	return result;
 }
 
+HistorySelectedTextParts TextParts(TextForMimeData &&text) {
+	auto result = HistorySelectedTextParts();
+	result.texts.push_back(std::move(text));
+	return result;
+}
+
+void AppendParts(
+		HistorySelectedTextParts &to,
+		HistorySelectedTextParts &&parts) {
+	auto &texts = parts.texts;
+	to.texts.back().append(std::move(texts.front()));
+	to.images.insert(
+		end(to.images),
+		std::make_move_iterator(begin(parts.images)),
+		std::make_move_iterator(end(parts.images)));
+	to.texts.insert(
+		end(to.texts),
+		std::make_move_iterator(begin(texts) + 1),
+		std::make_move_iterator(end(texts)));
+}
+
+void PrependText(HistorySelectedTextParts &to, TextForMimeData &&prefix) {
+	prefix.append(std::move(to.texts.front()));
+	to.texts.front() = std::move(prefix);
+}
+
+void AddImageSlot(
+		HistorySelectedTextParts &to,
+		HistorySelectedTextImage &&image) {
+	to.images.push_back(std::move(image));
+	to.texts.emplace_back();
+}
+
+HistorySelectedTextParts AppendExtraCopyText(
+		not_null<HistoryItem*> item,
+		HistorySelectedTextParts &&result) {
+	auto extra = AppendExtraCopyText(item, TextForMimeData());
+	if (extra.empty()) {
+		return std::move(result);
+	} else if (!result.empty()) {
+		result.texts.back().append(u"\n\n"_q);
+	}
+	result.texts.back().append(std::move(extra));
+	return std::move(result);
+}
+
 TextForMimeData HistoryItemMainText(not_null<HistoryItem*> item) {
 	const auto media = item->media();
 
@@ -164,6 +210,18 @@ bool UsesSelectedCopyPlaceholder(not_null<Data::Media*> media) {
 	return false;
 }
 
+PhotoData *SelectedCopyImage(not_null<HistoryItem*> item) {
+	const auto media = item->media();
+	return (media
+		&& !item->isService()
+		&& !media->webpage()
+		&& !media->ttlSeconds()
+		&& !item->isMediaSensitive()
+		&& item->computeUnavailableReason().isEmpty())
+		? media->photo()
+		: nullptr;
+}
+
 bool SelectedCopyMediaBeforeText(
 		not_null<HistoryItem*> item,
 		not_null<Data::Media*> media) {
@@ -174,20 +232,21 @@ bool SelectedCopyMediaBeforeText(
 	return result;
 }
 
-TextForMimeData CombineSelectedCopyTextAndMedia(
+HistorySelectedTextParts CombineSelectedCopyTextAndMedia(
 		TextForMimeData &&text,
-		TextForMimeData &&media,
+		HistorySelectedTextParts &&media,
 		bool mediaBeforeText) {
 	if (text.empty()) {
 		return std::move(media);
 	} else if (media.empty()) {
-		return std::move(text);
+		return TextParts(std::move(text));
 	} else if (mediaBeforeText) {
-		media.append(u"\n\n"_q).append(std::move(text));
+		media.texts.back().append(u"\n\n"_q).append(std::move(text));
 		return std::move(media);
 	}
-	text.append(u"\n\n"_q).append(std::move(media));
-	return std::move(text);
+	text.append(u"\n\n"_q);
+	PrependText(media, std::move(text));
+	return std::move(media);
 }
 
 struct SelectedCopyAlbumCounts {
@@ -423,18 +482,21 @@ QString ForwardedLineForSelectedCopy(not_null<HistoryItem*> item) {
 		forwarded->phrase(item->Get<HistoryMessageVia>()).text);
 }
 
-TextForMimeData HistorySelectedItemPlainWrappedText(
+HistorySelectedTextParts HistorySelectedItemPlainWrappedText(
 		not_null<HistoryItem*> item,
-		TextForMimeData &&body) {
+		HistorySelectedTextParts &&body) {
 	auto result = TextForMimeData();
 	const auto time = u"[%1] "_q.arg(
 		QLocale().toString(ItemDateTime(item), QLocale::ShortFormat));
 	const auto author = SelectedCopyAuthorName(item);
-	const auto size = time.size() + author.size() + 2 + body.expanded.size();
+	const auto size = time.size()
+		+ author.size()
+		+ 2
+		+ body.texts.front().expanded.size();
 	result.reserve(size);
 	result.append(time).append(author).append(u": "_q);
-	result.append(std::move(body));
-	return result;
+	PrependText(body, std::move(result));
+	return std::move(body);
 }
 
 std::vector<not_null<Data::ForumTopic*>> TopicsForSelectedCopy(
@@ -472,6 +534,26 @@ std::vector<not_null<Data::ForumTopic*>> TopicsForSelectedCopy(
 }
 
 } // namespace
+
+bool HistorySelectedTextParts::empty() const {
+	return ranges::all_of(texts, &TextForMimeData::empty);
+}
+
+TextForMimeData HistorySelectedTextParts::composed(
+		const base::flat_map<not_null<PhotoData*>, QString> &blocks) const {
+	Expects(texts.size() == images.size() + 1);
+
+	auto result = texts.front();
+	for (auto i = 0, count = int(images.size()); i != count; ++i) {
+		const auto &image = images[i];
+		const auto j = blocks.find(image.photo);
+		if (j != end(blocks) && !j->second.isEmpty()) {
+			result.append(image.before).append(j->second).append(image.after);
+		}
+		result.append(base::duplicate(texts[i + 1]));
+	}
+	return result;
+}
 
 TextForMimeData HistoryItemText(not_null<HistoryItem*> item) {
 	return AppendExtraCopyText(item, HistoryItemMainText(item));
@@ -531,18 +613,27 @@ TextForMimeData HistoryGroupText(not_null<const Data::Group*> group) {
 
 namespace {
 
-TextForMimeData HistoryItemTextForSelectedCopy(not_null<HistoryItem*> item) {
+HistorySelectedTextParts HistoryItemTextForSelectedCopy(
+		not_null<HistoryItem*> item) {
 	const auto media = item->media();
 	if (!media) {
-		return HistoryItemText(item);
+		return TextParts(HistoryItemText(item));
 	}
 	const auto mediaPointer = not_null{ media };
 	if (!UsesSelectedCopyPlaceholder(mediaPointer)) {
-		return HistoryItemText(item);
+		return TextParts(HistoryItemText(item));
 	}
-	auto mediaResult = SelectedCopyMediaLabel(mediaPointer);
-	if (mediaResult.empty()) {
-		return HistoryItemText(item);
+	auto mediaLabel = SelectedCopyMediaLabel(mediaPointer);
+	if (mediaLabel.empty()) {
+		return TextParts(HistoryItemText(item));
+	}
+	auto mediaResult = TextParts(std::move(mediaLabel));
+	if (const auto photo = SelectedCopyImage(item)) {
+		AddImageSlot(mediaResult, {
+			.photo = photo,
+			.itemId = item->fullId(),
+			.before = u"\n"_q,
+		});
 	}
 	auto textResult = media->document()
 		? media->clipboardText()
@@ -554,12 +645,22 @@ TextForMimeData HistoryItemTextForSelectedCopy(not_null<HistoryItem*> item) {
 	return AppendExtraCopyText(item, std::move(result));
 }
 
-TextForMimeData HistoryGroupTextForSelectedCopy(
+HistorySelectedTextParts HistoryGroupTextForSelectedCopy(
 		not_null<const Data::Group*> group) {
 	Expects(!group->items.empty());
 
 	auto textResult = HistoryGroupText(group);
-	auto mediaResult = SelectedCopyAlbumLabel(CountSelectedCopyAlbumMedia(group));
+	auto mediaResult = TextParts(
+		SelectedCopyAlbumLabel(CountSelectedCopyAlbumMedia(group)));
+	for (const auto &item : group->items) {
+		if (const auto photo = SelectedCopyImage(item)) {
+			AddImageSlot(mediaResult, {
+				.photo = photo,
+				.itemId = item->fullId(),
+				.before = u"\n"_q,
+			});
+		}
+	}
 	const auto item = group->items.back();
 	const auto media = item->media();
 	return CombineSelectedCopyTextAndMedia(
@@ -568,9 +669,35 @@ TextForMimeData HistoryGroupTextForSelectedCopy(
 		media ? SelectedCopyMediaBeforeText(item, not_null{ media }) : true);
 }
 
-TextForMimeData HistorySelectedItemWrappedText(
+HistorySelectedTextParts HistoryItemTextParts(not_null<HistoryItem*> item) {
+	const auto photo = SelectedCopyImage(item);
+	if (!photo) {
+		return TextParts(HistoryItemText(item));
+	}
+	const auto media = not_null{ item->media() };
+	if (SelectedCopyMediaBeforeText(item, media)) {
+		auto rest = HistoryItemText(item);
+		auto result = TextParts(TextForMimeData());
+		AddImageSlot(result, {
+			.photo = photo,
+			.itemId = item->fullId(),
+			.after = rest.empty() ? QString() : u"\n\n"_q,
+		});
+		result.texts.back() = std::move(rest);
+		return result;
+	}
+	auto result = TextParts(HistoryItemMainText(item));
+	AddImageSlot(result, {
+		.photo = photo,
+		.itemId = item->fullId(),
+		.before = u"\n\n"_q,
+	});
+	return AppendExtraCopyText(item, std::move(result));
+}
+
+HistorySelectedTextParts HistorySelectedItemWrappedText(
 		const HistorySelectedTextEntry &entry,
-		TextForMimeData &&body,
+		HistorySelectedTextParts &&body,
 		bool richContext) {
 	const auto item = entry.item;
 	if (!richContext) {
@@ -603,7 +730,7 @@ TextForMimeData HistorySelectedItemWrappedText(
 		+ (context ? context->quote.expanded.size() : 0)
 		+ forwarded.size()
 		+ 1
-		+ body.expanded.size();
+		+ body.texts.front().expanded.size();
 	result.reserve(size);
 	result.append(time).append(author);
 	if (context) {
@@ -616,36 +743,38 @@ TextForMimeData HistorySelectedItemWrappedText(
 	if (context && !context->quote.empty()) {
 		result.append(u"\n> "_q).append(std::move(context->quote));
 		if (!body.empty()) {
-			result.append('\n').append(std::move(body));
+			result.append('\n');
 		}
 	} else if (forwarded.isEmpty()) {
-		result.append(' ').append(std::move(body));
+		result.append(' ');
 	} else if (!body.empty()) {
-		result.append('\n').append(std::move(body));
+		result.append('\n');
 	}
-	return result;
+	PrependText(body, std::move(result));
+	return std::move(body);
 }
 
 } // namespace
 
-TextForMimeData HistorySelectedItemsText(
+HistorySelectedTextParts HistorySelectedItemsTextParts(
 		const std::vector<HistorySelectedTextEntry> &entries,
 		bool richContext) {
 	if (!richContext && entries.size() == 1) {
 		const auto &part = entries.front();
 		if (part.group) {
-			return HistoryGroupText(not_null<const Data::Group*>{ part.group });
+			return TextParts(
+				HistoryGroupText(not_null<const Data::Group*>{ part.group }));
 		}
-		return HistoryItemText(part.item);
+		return HistoryItemTextParts(part.item);
 	}
 	const auto topics = TopicsForSelectedCopy(entries);
-	auto result = TextForMimeData();
+	auto result = TextParts(TextForMimeData());
 	const auto separator = u"\n"_q;
 	for (auto i = 0, count = int(entries.size()); i != count; ++i) {
 		const auto &entry = entries[i];
 		if (!topics.empty()
 			&& (!i || topics[i]->rootId() != topics[i - 1]->rootId())) {
-			result
+			result.texts.back()
 				.append(u"[--- "_q)
 				.append(tr::lng_sr_chat_topic(tr::now))
 				.append(u" \""_q)
@@ -653,23 +782,25 @@ TextForMimeData HistorySelectedItemsText(
 				.append(u"\" ---]"_q)
 				.append(separator);
 		}
-		auto body = TextForMimeData();
+		auto body = HistorySelectedTextParts();
 		if (entry.group) {
 			const auto group = not_null<const Data::Group*>{ entry.group };
 			body = richContext
 				? HistoryGroupTextForSelectedCopy(group)
-				: HistoryGroupText(group);
+				: TextParts(HistoryGroupText(group));
 		} else {
 			body = richContext
 				? HistoryItemTextForSelectedCopy(entry.item)
-				: HistoryItemText(entry.item);
+				: TextParts(HistoryItemText(entry.item));
 		}
-		result.append(HistorySelectedItemWrappedText(
-			entry,
-			std::move(body),
-			richContext));
+		AppendParts(
+			result,
+			HistorySelectedItemWrappedText(
+				entry,
+				std::move(body),
+				richContext));
 		if (i + 1 != count) {
-			result.append(separator);
+			result.texts.back().append(separator);
 		}
 	}
 	return result;

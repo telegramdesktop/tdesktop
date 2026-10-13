@@ -5527,6 +5527,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_copy_selected" = "Copy Selected Text";
 "lng_context_copy_selected_items" = "Copy Selected as Text";
 "lng_context_copy_in_reply_to" = "in reply to {name}";
+"lng_context_copy_text_from_image" = "—Text from image—";
 "lng_context_forward_selected" = "Forward Selected";
 "lng_context_send_now_selected" = "Send selected now";
 "lng_context_reschedule_selected" = "Reschedule Selected";

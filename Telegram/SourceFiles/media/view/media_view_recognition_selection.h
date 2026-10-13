@@ -11,6 +11,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Media::View {
 
+struct RecognitionId {
+	uint64 sessionUniqueId = 0;
+	PhotoId photoId = 0;
+	DocumentId documentId = 0;
+
+	friend inline auto operator<=>(RecognitionId, RecognitionId) = default;
+};
+
+using RecognitionResult = Platform::TextRecognition::Result;
+using RecognitionCacheMap = base::flat_map<RecognitionId, RecognitionResult>;
+
+[[nodiscard]] RecognitionCacheMap *RecognitionCache();
+[[nodiscard]] QString RecognizedText(
+	const Platform::TextRecognition::Result &result);
+
 struct RecognitionPosition {
 	int item = -1;
 	int character = 0;
