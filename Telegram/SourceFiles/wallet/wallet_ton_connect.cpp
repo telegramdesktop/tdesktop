@@ -337,6 +337,10 @@ void TonConnect::apply(const MTPTonConnectSession &session) {
 	store(Parse(session), false);
 }
 
+void TonConnect::applyCreated(const MTPTonConnectSession &session) {
+	store(Parse(session), true);
+}
+
 void TonConnect::applyPendingDisconnect(const QVector<MTPlong> &ids) {
 	if (_stopped) {
 		return;

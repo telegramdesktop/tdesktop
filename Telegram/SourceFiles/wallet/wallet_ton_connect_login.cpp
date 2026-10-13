@@ -7,9 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "wallet/wallet_ton_connect_login.h"
 
+#include "base/timer_rpl.h"
 #include "boxes/url_auth_box_content.h"
 #include "lang/lang_keys.h"
 #include "main/session/session_show.h"
+#include "main/main_account.h"
 #include "main/main_session.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
@@ -30,9 +32,18 @@ namespace Wallet {
 namespace {
 
 constexpr auto kWalletResolveTimeout = 20 * crl::time(1000);
+constexpr auto kWalletPreloadTimeout = 3 * crl::time(1000);
 constexpr auto kManifestPollInterval = 5 * crl::time(1000);
 constexpr auto kManifestPollLimit = 12;
 constexpr auto kManifestContent = 3;
+
+[[nodiscard]] bool WalletStateKnown(not_null<Main::Session*> session) {
+	auto &wallet = session->wallet();
+	const auto presence = wallet.presence();
+	return (presence != Presence::Unknown)
+		&& (presence != Presence::Ready
+			|| wallet.deviceCustodyState().mode != DeviceMode::Unknown);
+}
 
 } // namespace
 
@@ -57,6 +68,43 @@ std::optional<TonConnectLoginRequest> ParseTonConnectLogin(
 			return user.vid().v;
 		}),
 	};
+}
+
+void PreloadTonConnectLoginWallet(
+		not_null<Main::Session*> session,
+		Fn<void()> done,
+		Fn<void()> lost) {
+	if (WalletStateKnown(session)) {
+		done();
+		return;
+	}
+	auto &wallet = session->wallet();
+	wallet.startPolling();
+	const auto lifetime = std::make_shared<rpl::lifetime>();
+	session->account().sessionChanges(
+	) | rpl::filter(
+		!rpl::mappers::_1
+	) | rpl::on_next([=] {
+		const auto callback = lost;
+		lifetime->destroy();
+		if (callback) {
+			callback();
+		}
+	}, *lifetime);
+	rpl::merge(
+		base::timer_once(kWalletPreloadTimeout),
+		rpl::merge(
+			wallet.presenceValue() | rpl::to_empty,
+			wallet.deviceCustodyStateValue() | rpl::to_empty
+		) | rpl::filter([=] {
+			return WalletStateKnown(session);
+		})
+	) | rpl::on_next([=] {
+		const auto callback = done;
+		session->wallet().stopPolling();
+		lifetime->destroy();
+		callback();
+	}, *lifetime);
 }
 
 TonConnectLoginSection::TonConnectLoginSection(
@@ -190,9 +238,7 @@ void TonConnectLoginSection::setup() {
 TonConnectLoginSection::State TonConnectLoginSection::computeState() {
 	auto &wallet = _session->wallet();
 	const auto presence = wallet.presence();
-	if (presence == Presence::Unknown
-		|| (presence == Presence::Ready
-			&& wallet.deviceCustodyState().mode == DeviceMode::Unknown)) {
+	if (!WalletStateKnown(_session)) {
 		return _timedOut ? State::LoadFailed : State::Loading;
 	} else if (presence != Presence::Ready) {
 		return State::LoadFailed;
@@ -354,7 +400,7 @@ void TonConnectLoginSection::create() {
 
 void TonConnectLoginSection::created(const MTPTonConnectSession &result) {
 	auto &store = _session->wallet().tonConnect();
-	store.apply(result);
+	store.applyCreated(result);
 	const auto info = TonConnect::Parse(result);
 	const auto usable = (info.id == _request.sessionId)
 		&& !info.dappClientId.compare(_request.clientId, Qt::CaseInsensitive)
@@ -383,7 +429,9 @@ void TonConnectLoginSection::createFailed(const MTP::Error &error) {
 	if (type == u"WALLET_UNAVAILABLE"_q) {
 		refresh();
 	}
-	fail(ErrorWithType(tr::lng_wallet_connect_failed(tr::now), type));
+	fail(MTP::IgnoreError(error)
+		? QString()
+		: ErrorWithType(tr::lng_wallet_connect_failed(tr::now), type));
 }
 
 void TonConnectLoginSection::manifestChanged() {
@@ -446,7 +494,9 @@ void TonConnectLoginSection::manifestPollFailed(const MTP::Error &error) {
 	const auto &type = error.type();
 	LOG(("Wallet Error: login wallet.tonConnectGetPending failed: %1"
 		).arg(type));
-	if (type == u"TONCONNECT_SESSION_CLOSED"_q
+	if (MTP::IgnoreError(error)) {
+		fail(QString());
+	} else if (type == u"TONCONNECT_SESSION_CLOSED"_q
 		|| type == u"TONCONNECT_SESSION_NOT_FOUND"_q) {
 		fail(tr::lng_wallet_connect_expired(tr::now));
 	}
@@ -528,7 +578,9 @@ void TonConnectLoginSection::registerFailed(const MTP::Error &error) {
 		u"TONCONNECT_SESSION_CLOSED"_q,
 		u"TONCONNECT_SESSION_NOT_FOUND"_q,
 	};
-	if (ranges::contains(expired, type)) {
+	if (MTP::IgnoreError(error)) {
+		fail(QString());
+	} else if (ranges::contains(expired, type)) {
 		fail(tr::lng_wallet_connect_expired(tr::now));
 	} else {
 		fail(ErrorWithType(tr::lng_wallet_connect_failed(tr::now), type));

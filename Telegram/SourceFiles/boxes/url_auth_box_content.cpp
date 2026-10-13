@@ -257,6 +257,9 @@ SwitchableUserpicButton::SwitchableUserpicButton(
 }
 
 void SwitchableUserpicButton::setUserpic(not_null<Ui::RpWidget*> userpic) {
+	if (_userpic && _userpic != userpic) {
+		delete _userpic;
+	}
 	_userpic = userpic;
 	_userpic->setParent(this);
 	_userpic->moveToRight(_skip, _skip);
@@ -315,9 +318,8 @@ AuthInfoRowLabels AddAuthInfoRow(
 		const QString &leftText,
 		const style::icon &icon,
 		const style::FlatLabel *valueSt) {
-	const auto row = container->add(
-		object_ptr<Ui::RpWidget>(container),
-		st::boxRowPadding);
+	auto owned = object_ptr<Ui::RpWidget>(container);
+	const auto row = owned.data();
 
 	const auto topLabel = Ui::CreateChild<Ui::FlatLabel>(
 		row,
@@ -384,6 +386,7 @@ AuthInfoRowLabels AddAuthInfoRow(
 			icon.paintInCenter(p, widget->rect());
 		}, widget->lifetime());
 	}
+	container->add(std::move(owned), st::boxRowPadding);
 	return { topLabel, bottomLabel };
 }
 

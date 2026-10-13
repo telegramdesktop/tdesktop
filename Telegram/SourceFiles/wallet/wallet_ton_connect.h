@@ -208,6 +208,7 @@ public:
 	void stop();
 
 	void apply(const MTPTonConnectSession &session);
+	void applyCreated(const MTPTonConnectSession &session);
 	void applyPendingDisconnect(const QVector<MTPlong> &ids);
 	[[nodiscard]] static TonConnectSessionInfo Parse(
 		const MTPTonConnectSession &session);

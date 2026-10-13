@@ -42,6 +42,11 @@ struct TonConnectLoginRequest {
 [[nodiscard]] std::optional<TonConnectLoginRequest> ParseTonConnectLogin(
 	const MTPDurlAuthResultRequest &data);
 
+void PreloadTonConnectLoginWallet(
+	not_null<Main::Session*> session,
+	Fn<void()> done,
+	Fn<void()> lost = nullptr);
+
 struct TonConnectLoginArgs {
 	not_null<Main::Session*> session;
 	std::shared_ptr<Main::SessionShow> show;

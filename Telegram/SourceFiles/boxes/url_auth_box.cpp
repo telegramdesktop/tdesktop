@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/url_auth_box.h"
 
 #include "apiwrap.h"
+#include "base/call_delayed.h"
 #include "boxes/url_auth_box_content.h"
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "core/application.h"
@@ -46,12 +47,52 @@ namespace {
 using AnotherSessionFactory = Fn<not_null<Main::Session*>()>;
 using OnUserChangedCallback = Fn<void(Fn<void(not_null<Main::Session*>)>)>;
 
+constexpr auto kHintedRequestTimeout = 3 * crl::time(1000);
+
 struct SwitchAccountResult {
 	Ui::RpWidget *widget = nullptr;
 	AnotherSessionFactory anotherSession;
 	OnUserChangedCallback setOnUserChanged;
+	Fn<void(Fn<void()>)> setOnUserLost;
 	Fn<void(UserId)> updateUserIdHint;
 };
+
+[[nodiscard]] not_null<Main::Session*> HintedSession(
+		not_null<Main::Session*> session,
+		UserId userIdHint) {
+	if (!userIdHint) {
+		return session;
+	}
+	for (const auto &account : Core::App().domain().orderedAccounts()) {
+		if (account->sessionExists()
+			&& (account->session().isTestMode() == session->isTestMode())
+			&& (account->session().userId() == userIdHint)) {
+			return &account->session();
+		}
+	}
+	return session;
+}
+
+[[nodiscard]] MTPmessages_RequestUrlAuth UrlAuthRequest(const QString &url) {
+	using Flag = MTPmessages_RequestUrlAuth::Flag;
+	return MTPmessages_RequestUrlAuth(
+		MTP_flags(Flag::f_url),
+		MTPInputPeer(),
+		MTPint(), // msg_id
+		MTPint(), // button_id
+		MTP_string(url),
+		MTPstring()); // in_app_origin
+}
+
+[[nodiscard]] QStringList MatchCodes(const MTPDurlAuthResultRequest &data) {
+	auto result = QStringList();
+	if (const auto codes = data.vmatch_codes()) {
+		for (const auto &code : codes->v) {
+			result.push_back(qs(code));
+		}
+	}
+	return result;
+}
 
 [[nodiscard]] std::shared_ptr<Ui::DynamicImage> MakeMatchCodeImage(
 		not_null<Main::Session*> session,
@@ -96,32 +137,39 @@ struct SwitchAccountResult {
 		base::unique_qptr<Ui::PopupMenu> menu;
 		UserData *currentUser = nullptr;
 		Fn<void(not_null<Main::Session*>)> onUserChanged;
+		Fn<void()> onUserLost;
+		rpl::lifetime currentLifetime;
 	};
 	const auto state = widget->lifetime().make_state<State>();
 
 	const auto isCurrentTest = session->isTestMode();
-	const auto findHintedUser = [&]() -> UserData* {
-		if (!userIdHint) {
-			return session->user().get();
-		}
-		for (const auto &account : Core::App().domain().orderedAccounts()) {
-			if (!account->sessionExists()
-				|| (account->session().isTestMode() != isCurrentTest)) {
-				continue;
-			}
-			if (account->session().userId() == userIdHint) {
-				return account->session().user();
-			}
-		}
-		return session->user().get();
-	};
 
-	state->currentUser = findHintedUser();
-	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
-		parent,
-		state->currentUser,
-		st::restoreUserpicIcon);
-	widget->setUserpic(userpic);
+	const auto watch = [=](
+			not_null<Main::Account*> account,
+			rpl::lifetime &lifetime) {
+		account->sessionChanges(
+		) | rpl::filter(
+			!rpl::mappers::_1
+		) | rpl::on_next([=] {
+			state->menu = nullptr;
+			if (const auto onUserLost = state->onUserLost) {
+				onUserLost();
+			}
+		}, lifetime);
+	};
+	watch(&session->account(), widget->lifetime());
+	const auto setCurrentUser = [=](not_null<UserData*> user) {
+		state->currentUser = user;
+		widget->setUserpic(Ui::CreateChild<Ui::UserpicButton>(
+			parent,
+			user,
+			st::restoreUserpicIcon));
+		state->currentLifetime.destroy();
+		if (&user->session() != session) {
+			watch(&user->session().account(), state->currentLifetime);
+		}
+	};
+	setCurrentUser(HintedSession(session, userIdHint)->user());
 	const auto filtered = [=] {
 		auto result = std::vector<not_null<Main::Session*>>();
 		for (const auto &account : Core::App().domain().orderedAccounts()) {
@@ -177,6 +225,9 @@ struct SwitchAccountResult {
 		[=](Fn<void(not_null<Main::Session*>)> callback) {
 			state->onUserChanged = std::move(callback);
 		},
+		[=](Fn<void()> callback) {
+			state->onUserLost = std::move(callback);
+		},
 		[=](UserId newUserIdHint) {
 			const auto isCurrentTest = session->isTestMode();
 			for (const auto &acc : Core::App().domain().orderedAccounts()) {
@@ -186,12 +237,7 @@ struct SwitchAccountResult {
 				}
 				if (acc->session().userId() == newUserIdHint) {
 					if (state->currentUser != acc->session().user()) {
-						state->currentUser = acc->session().user();
-						const auto next = Ui::CreateChild<Ui::UserpicButton>(
-							parent,
-							state->currentUser,
-							st::restoreUserpicIcon);
-						widget->setUserpic(next);
+						setCurrentUser(acc->session().user());
 					}
 					break;
 				}
@@ -286,15 +332,8 @@ void ActivateUrl(
 		return result;
 	}());
 
-	using Flag = MTPmessages_RequestUrlAuth::Flag;
-	session->api().request(MTPmessages_RequestUrlAuth(
-		MTP_flags(Flag::f_url),
-		MTPInputPeer(),
-		MTPint(), // msg_id
-		MTPint(), // button_id
-		MTP_string(url),
-		MTPstring() // in_app_origin
-	)).done([=](const MTPUrlAuthResult &result) {
+	session->api().request(UrlAuthRequest(url)).done([=](
+			const MTPUrlAuthResult &result) {
 		result.match([&](const MTPDurlAuthResultAccepted &data) {
 			UrlClickHandler::Open(
 				qs(data.vurl().value_or_empty()),
@@ -419,8 +458,17 @@ void RequestUrl(
 		QPointer<Ui::VerticalLayout> walletContainer;
 		base::weak_ptr<Wallet::TonConnectLoginSection> wallet;
 		rpl::variable<bool> walletBusy;
+		rpl::variable<bool> reloading;
+		struct Prefetched {
+			base::weak_ptr<Main::Session> session;
+			std::optional<Wallet::TonConnectLoginRequest> login;
+			UserData *bot = nullptr;
+			QStringList matchCodes;
+		};
+		std::optional<Prefetched> prefetched;
 		QString firstMatchCode;
 		bool boxAnswered = false;
+		bool lost = false;
 		bool matchCodeSent = false;
 		int switchSeq = 0;
 	};
@@ -440,15 +488,7 @@ void RequestUrl(
 	const auto userIdHint = request.vuser_id_hint()
 		? peerToUser(peerFromUser(*request.vuser_id_hint()))
 		: UserId();
-	const auto matchCodes = [&] {
-		auto result = QStringList();
-		if (const auto codes = request.vmatch_codes()) {
-			for (const auto &code : codes->v) {
-				result.push_back(qs(code));
-			}
-		}
-		return result;
-	}();
+	const auto matchCodes = MatchCodes(request);
 	const auto state = std::make_shared<State>();
 	const auto finishWithUrl = [=](const QString &to, bool accepted) {
 		if (state->box) {
@@ -545,7 +585,9 @@ void RequestUrl(
 		}).send();
 	};
 	const auto sendRequest = [=](Result result) {
-		if (!result.auth) {
+		if (state->lost) {
+			return;
+		} else if (!result.auth) {
 			requestDecline();
 			finishWithUrl(url, false);
 			return;
@@ -570,8 +612,16 @@ void RequestUrl(
 		state->box = show->show(Box([=](not_null<Ui::GenericBox*> box) {
 			const auto accountResult = box->lifetime().make_state<
 				SwitchAccountResult>(nullptr);
+			const auto prefetched = state->prefetched;
+			const auto prefetchedSession = prefetched
+				? prefetched->session.get()
+				: nullptr;
 			const auto matchCodesShared = box->lifetime().make_state<
-				rpl::variable<QStringList>>(matchCodes);
+				rpl::variable<QStringList>>(prefetchedSession
+					? prefetched->matchCodes
+					: matchCodes);
+			const auto reloadLifetime = box->lifetime().make_state<
+				rpl::lifetime>();
 			const auto buildWallet = [=](
 					not_null<Main::Session*> owner,
 					std::optional<Wallet::TonConnectLoginRequest> walletLogin,
@@ -598,32 +648,34 @@ void RequestUrl(
 					});
 			};
 			const auto reloadForSession = [=](not_null<Main::Session*> target) {
+				if (state->walletBusy.current()) {
+					return;
+				}
 				const auto generation = ++state->switchSeq;
-				using Flag = MTPmessages_RequestUrlAuth::Flag;
-				target->api().request(MTPmessages_RequestUrlAuth(
-					MTP_flags(Flag::f_url),
-					MTPInputPeer(),
-					MTPint(), // msg_id
-					MTPint(), // button_id
-					MTP_string(url),
-					MTPstring() // in_app_origin
-				)).done(crl::guard(box, [=](const MTPUrlAuthResult &result) {
+				state->reloading = true;
+				reloadLifetime->destroy();
+				target->account().sessionChanges(
+				) | rpl::filter(
+					!rpl::mappers::_1
+				) | rpl::on_next([=] {
+					if (generation == state->switchSeq) {
+						state->reloading = false;
+					}
+				}, *reloadLifetime);
+				target->api().request(
+					UrlAuthRequest(url)
+				).done(crl::guard(box, [=](const MTPUrlAuthResult &result) {
 					if (generation != state->switchSeq) {
 						return;
 					}
+					state->reloading = false;
 					result.match([&](const MTPDurlAuthResultRequest &data) {
 						accountResult->updateUserIdHint(target->userId());
 						const auto newUserId = data.vuser_id_hint()
 							? peerToUser(peerFromUser(*data.vuser_id_hint()))
 							: UserId();
 						accountResult->updateUserIdHint(newUserId);
-						auto newCodes = QStringList();
-						if (const auto codes = data.vmatch_codes()) {
-							for (const auto &code : codes->v) {
-								newCodes.push_back(qs(code));
-							}
-						}
-						*matchCodesShared = newCodes;
+						*matchCodesShared = MatchCodes(data);
 						const auto switched
 							= Wallet::ParseTonConnectLogin(data);
 						buildWallet(
@@ -637,6 +689,7 @@ void RequestUrl(
 					if ((generation != state->switchSeq) || !state->box) {
 						return;
 					}
+					state->reloading = false;
 					if (error.type() == u"URL_EXPIRED"_q) {
 						state->boxAnswered = true;
 						state->box->closeBox();
@@ -648,7 +701,9 @@ void RequestUrl(
 				}).send();
 			};
 			const auto callback = [=](Result result) {
-				if (const auto wallet = state->wallet.get()) {
+				if (state->reloading.current()) {
+					return;
+				} else if (const auto wallet = state->wallet.get()) {
 					if (wallet->busy()) {
 						return;
 					}
@@ -723,11 +778,14 @@ void RequestUrl(
 					: matchCodesShared->value()),
 				isApp,
 				std::move(walletOwned),
-				state->walletBusy.value());
+				rpl::combine(
+					state->walletBusy.value(),
+					state->reloading.value(),
+					rpl::mappers::_1 || rpl::mappers::_2));
 
 			*accountResult = AddAccountsMenu(
 				box->verticalLayout(),
-				userIdHint);
+				prefetchedSession ? prefetchedSession->userId() : userIdHint);
 			box->verticalLayout()->widthValue(
 			) | rpl::on_next([=, w = (*accountResult).widget] {
 				w->moveToRight(
@@ -736,9 +794,22 @@ void RequestUrl(
 			}, (*accountResult).widget->lifetime());
 			state->anotherSession = (*accountResult).anotherSession;
 			(*accountResult).setOnUserChanged(reloadForSession);
-			buildWallet(session, login, bot);
-			if (login && resolveSession() != session) {
-				reloadForSession(resolveSession());
+			(*accountResult).setOnUserLost([=] {
+				state->lost = true;
+				buildWallet(session, std::nullopt, nullptr);
+				state->boxAnswered = true;
+				box->uiShow()->hideLayer();
+			});
+			if (prefetchedSession && resolveSession() == prefetchedSession) {
+				buildWallet(
+					prefetchedSession,
+					prefetched->login,
+					prefetched->bot);
+			} else {
+				buildWallet(session, login, bot);
+				if (login && resolveSession() != session) {
+					reloadForSession(resolveSession());
+				}
 			}
 		}));
 		if (const auto strong = state->box.get()) {
@@ -752,8 +823,76 @@ void RequestUrl(
 			requestDecline();
 		}
 	};
+	const auto showAuthBoxPrepared = [=] {
+		if (!login) {
+			showAuthBox();
+			return;
+		}
+		const auto hinted = HintedSession(session, userIdHint);
+		if (hinted == session) {
+			Wallet::PreloadTonConnectLoginWallet(session, showAuthBox);
+			return;
+		}
+		const auto weak = base::make_weak(session);
+		const auto finished = std::make_shared<bool>();
+		const auto finish = [=](std::optional<State::Prefetched> data) {
+			if (std::exchange(*finished, true)) {
+				return;
+			}
+			const auto strong = weak.get();
+			if (!strong) {
+				return;
+			}
+			const auto owner = data ? data->session.get() : nullptr;
+			state->prefetched = std::move(data);
+			if (!owner) {
+				Wallet::PreloadTonConnectLoginWallet(
+					strong,
+					crl::guard(strong, showAuthBox));
+				return;
+			}
+			Wallet::PreloadTonConnectLoginWallet(
+				owner,
+				crl::guard(strong, showAuthBox),
+				[=] {
+					state->prefetched = std::nullopt;
+					if (const auto origin = weak.get()) {
+						Wallet::PreloadTonConnectLoginWallet(
+							origin,
+							crl::guard(origin, showAuthBox));
+					}
+				});
+		};
+		hinted->api().request(
+			UrlAuthRequest(url)
+		).done([=](const MTPUrlAuthResult &result) {
+			result.match([&](const MTPDurlAuthResultRequest &data) {
+				const auto hintedLogin = Wallet::ParseTonConnectLogin(data);
+				finish(State::Prefetched{
+					.session = base::make_weak(hinted),
+					.login = hintedLogin,
+					.bot = (hintedLogin
+						? hinted->data().processUser(data.vbot()).get()
+						: nullptr),
+					.matchCodes = MatchCodes(data),
+				});
+			}, [&](const auto &) {
+				finish(std::nullopt);
+			});
+		}).fail([=](const MTP::Error &error) {
+			if (error.type() != u"URL_EXPIRED"_q) {
+				finish(std::nullopt);
+			} else if (!std::exchange(*finished, true)) {
+				show->showToast(
+					tr::lng_url_auth_phone_toast_bad_expired(tr::now));
+			}
+		}).send();
+		base::call_delayed(kHintedRequestTimeout, [=] {
+			finish(std::nullopt);
+		});
+	};
 	if (!matchCodesFirst || matchCodes.isEmpty()) {
-		showAuthBox();
+		showAuthBoxPrepared();
 		return;
 	}
 	auto matchCodesBox = base::weak_qptr<Ui::BoxContent>();
@@ -780,7 +919,7 @@ void RequestUrl(
 							return;
 						}
 						state->firstMatchCode = std::move(matchCode);
-						showAuthBox();
+						showAuthBoxPrepared();
 					}).fail([=](const MTP::Error &error) {
 						show->showToast((error.type() == u"URL_EXPIRED"_q)
 							? tr::lng_url_auth_phone_toast_bad_expired(
