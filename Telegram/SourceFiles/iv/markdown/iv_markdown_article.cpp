@@ -369,7 +369,7 @@ void HarvestCachedTextLeafs(
 				ListMarkerText(prepared),
 				st.body,
 				PlainTextMinResizeWidth(st.body),
-				false),
+				rtl),
 			&block->marker);
 	}
 

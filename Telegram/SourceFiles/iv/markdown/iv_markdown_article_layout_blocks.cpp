@@ -1069,7 +1069,7 @@ void CopyBlockCachedTextLeafs(
 				ListMarkerText(prepared),
 				st.body,
 				PlainTextMinResizeWidth(st.body),
-				false),
+				rtl),
 			&block.marker);
 	}
 
