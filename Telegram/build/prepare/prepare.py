@@ -1587,7 +1587,7 @@ if qt < '6':
 win:
     git clone https://github.com/desktop-app/tg_angle.git
     cd tg_angle
-    git checkout f62ce7f6efe014cf1f7d95830c505fd2ac1c49e0
+    git checkout b34c4dc879d115d34794a657c7fa5f6bb34bc10a
     cmake -B out ^
         -DTG_ANGLE_SPECIAL_TARGET=%SPECIAL_TARGET% ^
         -DTG_ANGLE_ZLIB_INCLUDE_PATH=%LIBS_DIR%/zlib
