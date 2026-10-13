@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_url_scheme.h"
 #include "base/platform/base_platform_last_input.h"
 #include "base/platform/base_platform_info.h"
+#include "base/platform/base_platform_process.h"
 #include "platform/platform_specific.h"
 #include "platform/platform_integration.h"
 #include "history/history.h"
@@ -782,8 +783,13 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 						}),
 						StartUrlRequiresActivate);
 					cRefStartUrls() << base::take(_urlsToOpen);
-					checkStartUrls();
-					if (_lastActivePrimaryWindow && activateRequired) {
+					const auto activated = checkStartUrlsActivating();
+					if (!activateRequired) {
+						return;
+					} else if (activated) {
+						base::Platform::ActivateThisProcessWindow(
+							activated->winId());
+					} else if (_lastActivePrimaryWindow) {
 						_lastActivePrimaryWindow->activate();
 					}
 				});
@@ -1271,6 +1277,22 @@ void Application::checkStartUrls() {
 			_lastActivePrimaryWindow->widget()->handleStartFiles(
 				std::move(paths));
 		}
+	}
+}
+
+QPointer<QWidget> Application::checkStartUrlsActivating() {
+	if (_startUrlActivated) {
+		checkStartUrls();
+		return nullptr;
+	}
+	_startUrlActivated.emplace();
+	checkStartUrls();
+	return *base::take(_startUrlActivated);
+}
+
+void Application::registerWindowActivation(not_null<QWidget*> window) {
+	if (_startUrlActivated) {
+		*_startUrlActivated = window.get();
 	}
 }
 

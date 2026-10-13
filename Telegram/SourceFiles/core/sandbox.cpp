@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/sandbox.h"
 
 #include "base/platform/base_platform_info.h"
+#include "base/platform/base_platform_process.h"
 #include "platform/platform_specific.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -547,6 +548,11 @@ void Sandbox::readClients() {
 		return (i != _localClients.end()) ? &*i : nullptr;
 	};
 	QList<QUrl> startUrls;
+	struct Reply {
+		QLocalSocket *socket = nullptr;
+		bool activationRequired = false;
+	};
+	auto replies = std::vector<Reply>();
 	for (const auto socket : sockets) {
 		const auto client = findClient(socket);
 		if (!client) {
@@ -629,17 +635,33 @@ void Sandbox::readClients() {
 					activationRequired = StartUrlRequiresActivate(url.toString());
 				}
 			}
-			const auto processId = QApplication::applicationPid();
-			const auto windowId = activationRequired
-				? execExternal("show")
-				: 0;
-			const auto response = u"RES:%1_%2;"_q.arg(processId).arg(windowId).toLatin1();
-			socket->write(response.data(), response.size());
+			replies.push_back({ socket, activationRequired });
 		}
 	}
 	cRefStartUrls() << base::take(startUrls);
-	if (_application) {
-		_application->checkStartUrls();
+	const auto activated = _application
+		? _application->checkStartUrlsActivating()
+		: QPointer<QWidget>();
+	auto windowId = std::optional<uint64>();
+	const auto activate = [&] {
+		if (!windowId) {
+			if (activated) {
+				base::Platform::ActivateThisProcessWindow(activated->winId());
+				windowId = Platform::ActivationWindowId(activated.data());
+			} else {
+				windowId = execExternal("show");
+			}
+		}
+		return *windowId;
+	};
+	const auto processId = QApplication::applicationPid();
+	for (const auto &reply : replies) {
+		if (!findClient(reply.socket)) {
+			continue;
+		}
+		const auto id = reply.activationRequired ? activate() : 0;
+		const auto response = u"RES:%1_%2;"_q.arg(processId).arg(id).toLatin1();
+		reply.socket->write(response.data(), response.size());
 	}
 }
 
