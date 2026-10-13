@@ -160,11 +160,38 @@ void CommitText(not_null<QWidget*> widget, const QString &text);
 // mouse moves retain Qt::LeftButton in buttons(), matching a real drag.
 // Like Click, it ends with a QEvent::Leave, so the drag leaves no hover
 // behind.
+//
+// A drag whose start the target queues - both message lists queue
+// performDrag() with InvokeQueued once the pointer leaves the pressed item
+// or passes the drag distance - is released before that call runs, so the
+// drag never starts. Such a drag needs Test::AppendQueuedStartDrag
+// (test_queued_drag.h).
 void Drag(
 	not_null<QWidget*> widget,
 	QPoint from,
 	QPoint to,
 	int steps = 8,
+	Qt::KeyboardModifiers modifiers = Qt::NoModifier);
+
+// The two halves Drag is made of: Drag is DragPressAndMoves, then
+// DragRelease when the first answered true (false means the widget died
+// during the press or a move, and nothing more was sent). They deliver the
+// same events through the same settle as Drag, and are exported for
+// Test::AppendQueuedStartDrag (test_queued_drag.h), which returns to the
+// event loop between them. A scenario uses Drag or that helper, never the
+// halves by hand: a press and moves without their release leave the
+// target's button down across turns.
+[[nodiscard]] bool DragPressAndMoves(
+	not_null<QWidget*> widget,
+	QPoint from,
+	QPoint to,
+	int steps = 8,
+	Qt::KeyboardModifiers modifiers = Qt::NoModifier);
+
+// The release at |to| and the same QEvent::Leave as Click and Drag.
+void DragRelease(
+	not_null<QWidget*> widget,
+	QPoint to,
 	Qt::KeyboardModifiers modifiers = Qt::NoModifier);
 
 // Synthesizes a wheel event at |point| in the named widget's coordinates

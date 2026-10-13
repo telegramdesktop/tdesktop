@@ -2074,6 +2074,8 @@ PRIVATE
     test/test_post_paint.h
     test/test_probe.cpp
     test/test_probe.h
+    test/test_queued_drag.cpp
+    test/test_queued_drag.h
     test/test_rpc_fixture.cpp
     test/test_rpc_fixture.h
     test/test_rpc_retry.cpp

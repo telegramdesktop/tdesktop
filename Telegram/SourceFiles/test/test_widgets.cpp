@@ -100,6 +100,26 @@ void DeliverPointerLeave(const base::weak_qptr<QWidget> &widget) {
 	DeliverAndSettle(widget, leave);
 }
 
+// The one event Drag's press, moves and release are built from. Each event
+// is still built right before its own delivery, so mapToGlobal is read only
+// after the previous event settled.
+[[nodiscard]] QMouseEvent MakeDragEvent(
+		not_null<QWidget*> widget,
+		QEvent::Type type,
+		QPoint local,
+		Qt::MouseButton button,
+		Qt::KeyboardModifiers modifiers) {
+	return QMouseEvent(
+		type,
+		QPointF(local),
+		QPointF(widget->mapToGlobal(local)),
+		button,
+		(type == QEvent::MouseButtonRelease)
+			? Qt::NoButton
+			: Qt::LeftButton,
+		modifiers);
+}
+
 [[nodiscard]] int &ActivationAttempts() {
 	static auto result = 0;
 	return result;
@@ -385,31 +405,54 @@ void Drag(
 		QPoint to,
 		int steps,
 		Qt::KeyboardModifiers modifiers) {
+	if (DragPressAndMoves(widget, from, to, steps, modifiers)) {
+		DragRelease(widget, to, modifiers);
+	}
+}
+
+bool DragPressAndMoves(
+		not_null<QWidget*> widget,
+		QPoint from,
+		QPoint to,
+		int steps,
+		Qt::KeyboardModifiers modifiers) {
 	const auto alive = base::make_weak(widget);
-	const auto makeEvent = [&](QEvent::Type type, QPoint local, auto button) {
-		return QMouseEvent(
-			type,
-			QPointF(local),
-			QPointF(widget->mapToGlobal(local)),
-			button,
-			(type == QEvent::MouseButtonRelease)
-				? Qt::NoButton
-				: Qt::LeftButton,
-			modifiers);
-	};
-	auto press = makeEvent(QEvent::MouseButtonPress, from, Qt::LeftButton);
+	auto press = MakeDragEvent(
+		widget,
+		QEvent::MouseButtonPress,
+		from,
+		Qt::LeftButton,
+		modifiers);
 	if (!DeliverAndSettle(alive, press)) {
-		return;
+		return false;
 	}
 	steps = std::max(steps, 1);
 	for (auto step = 1; step <= steps; ++step) {
 		const auto local = from + ((to - from) * step) / steps;
-		auto move = makeEvent(QEvent::MouseMove, local, Qt::NoButton);
+		auto move = MakeDragEvent(
+			widget,
+			QEvent::MouseMove,
+			local,
+			Qt::NoButton,
+			modifiers);
 		if (!DeliverAndSettle(alive, move)) {
-			return;
+			return false;
 		}
 	}
-	auto release = makeEvent(QEvent::MouseButtonRelease, to, Qt::LeftButton);
+	return true;
+}
+
+void DragRelease(
+		not_null<QWidget*> widget,
+		QPoint to,
+		Qt::KeyboardModifiers modifiers) {
+	const auto alive = base::make_weak(widget);
+	auto release = MakeDragEvent(
+		widget,
+		QEvent::MouseButtonRelease,
+		to,
+		Qt::LeftButton,
+		modifiers);
 	DeliverAndSettle(alive, release);
 	DeliverPointerLeave(alive);
 }
