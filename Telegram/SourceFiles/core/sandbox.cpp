@@ -645,9 +645,9 @@ void Sandbox::readClients() {
 	auto windowId = std::optional<uint64>();
 	const auto activate = [&] {
 		if (!windowId) {
-			if (activated) {
-				base::Platform::ActivateThisProcessWindow(activated->winId());
-				windowId = Platform::ActivationWindowId(activated.data());
+			if (const auto window = activated.data()) {
+				windowId = Platform::ActivationWindowId(window);
+				base::Platform::ActivateThisProcessWindow(window->winId());
 			} else {
 				windowId = execExternal("show");
 			}
