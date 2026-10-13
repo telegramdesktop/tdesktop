@@ -335,9 +335,13 @@ Run sequentially:
    result may be produced after source edits by the review convergence
    assessment when the retained implementation exposes several independently
    shippable/testable boundaries.
-3. **Implement.** Run one leaf per assessed plan phase. Before each edit,
-   update `work/owned-paths.txt`. A leaf edits only its owned paths and its
-   phase status; it does not commit.
+3. **Implement.** Before the first source edit, run the read-only probes from
+   `## Prerequisites` in `test-design.md`. When one fails, stop before
+   implementation with a recoverable hard stop naming the missing condition
+   and the human action that clears it, so no implementation time is spent on
+   evidence that cannot run. Then run one leaf per assessed plan phase. Before
+   each edit, update `work/owned-paths.txt`. A leaf edits only its owned paths
+   and its phase status; it does not commit.
 4. **Pre-review validation.** Run the assessed fast validation in the
    performer. App source normally builds the configured Debug Telegram target;
    isolated scripts, generators, libraries and harness code may use a focused

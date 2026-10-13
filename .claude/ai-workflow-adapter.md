@@ -35,6 +35,15 @@ This file adapts harness mechanics and removes unnecessary text normalization.
   loops for phase leaves. Codex native wait and runtime-status controls do
   not apply in Claude Code. Leaves owe final artifacts and a compact result,
   with no heartbeat files or periodic progress reports.
+- Some Claude Code builds run every `Agent` call in the background: the call
+  returns at once with an agent id, and the leaf's result arrives later as a
+  task notification. There the notification is the completion signal and its
+  text is the leaf's report. Keep the turn open until it arrives, because a
+  performer that ends its turn while a leaf runs stops the task. When nothing
+  else is pending, a short foreground Bash `sleep` of a few minutes only keeps
+  the turn open; never read the leaf's artifacts or transcript while it runs.
+  Validate the artifacts when the notification arrives, as for a synchronous
+  return.
 - A leaf's return value IS its report. Never tell a leaf to send its findings
   back through `SendMessage`, and never wait on one to do so. A leaf has no
   address for its parent: an agent *type* such as `general-purpose` is not a
