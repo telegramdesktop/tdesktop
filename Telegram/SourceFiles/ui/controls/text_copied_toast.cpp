@@ -103,7 +103,7 @@ void TextCopiedToastPending::State::expandTo(float64 progress) {
 		}
 	}
 	if (progress >= 1.) {
-		hide.callOnce(Toast::kDefaultDuration);
+		hide.callOnce(Toast::kDefaultDuration, Qt::PreciseTimer);
 	}
 }
 
