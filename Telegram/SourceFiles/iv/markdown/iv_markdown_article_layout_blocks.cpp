@@ -156,107 +156,6 @@ void SetPlainTextLeaf(
 	int minResizeWidth,
 	bool rtl);
 
-[[nodiscard]] CachedTextLeafSourceSignature MarkedTextLeafSourceSignature(
-		TextWithEntities text,
-		const style::TextStyle &textStyle,
-		int minResizeWidth,
-		bool rtl) {
-	auto result = CachedTextLeafSourceSignature();
-	result.dependsOnMediaRuntime = TextDependsOnMediaRuntime(text);
-	result.dependsOnInlineButtonColumn = TextHasInlineButton(text);
-	result.text = std::move(text);
-	result.minResizeWidth = minResizeWidth;
-	result.styleKey = TextStyleKey(textStyle);
-	result.rtl = rtl;
-	return result;
-}
-
-[[nodiscard]] CachedTextLeafSourceSignature PlainTextLeafSourceSignature(
-		const QString &text,
-		const style::TextStyle &textStyle,
-		int minResizeWidth,
-		bool rtl) {
-	return MarkedTextLeafSourceSignature(
-		TextWithEntities::Simple(text),
-		textStyle,
-		minResizeWidth,
-		rtl);
-}
-
-[[nodiscard]] CachedTextLeafSourceSignature CodeTextLeafSourceSignature(
-		const PreparedBlock &prepared,
-		const style::Markdown &st) {
-	auto result = MarkedTextLeafSourceSignature(
-		CodeBlockDisplayText(prepared.text),
-		st.code,
-		CodeTextMinResizeWidth(st),
-		false);
-	result.codeLanguage = prepared.codeLanguage;
-	return result;
-}
-
-[[nodiscard]] CachedTextLeafKey BlockCachedTextLeafKey(
-		CachedTextLeafSlot slot,
-		const PreparedBlock &prepared,
-		const std::vector<int> &preparedPath) {
-	auto result = CachedTextLeafKey();
-	result.slot = slot;
-	if ((slot == CachedTextLeafSlot::Leaf
-			|| slot == CachedTextLeafSlot::Placeholder
-			|| slot == CachedTextLeafSlot::Fallback)
-		&& prepared.editLeaf) {
-		result.identityKind = CachedTextLeafIdentityKind::EditLeaf;
-		result.editLeaf = *prepared.editLeaf;
-		return result;
-	}
-	if ((slot == CachedTextLeafSlot::Marker) && prepared.editListItem) {
-		result.identityKind = CachedTextLeafIdentityKind::EditListItem;
-		result.editListItem = *prepared.editListItem;
-		return result;
-	}
-	if (prepared.editBlock) {
-		result.identityKind = CachedTextLeafIdentityKind::EditBlock;
-		result.editBlock = *prepared.editBlock;
-		return result;
-	}
-	if (prepared.editListItem) {
-		result.identityKind = CachedTextLeafIdentityKind::EditListItem;
-		result.editListItem = *prepared.editListItem;
-		return result;
-	}
-	if (prepared.editLeaf) {
-		result.identityKind = CachedTextLeafIdentityKind::EditLeaf;
-		result.editLeaf = *prepared.editLeaf;
-		return result;
-	}
-	result.preparedPath = preparedPath;
-	return result;
-}
-
-[[nodiscard]] CachedTextLeafKey TableCellCachedTextLeafKey(
-		CachedTextLeafSlot slot,
-		const PreparedTableCell &prepared,
-		const std::vector<int> &preparedPath,
-		int tableRowIndex,
-		int tableCellIndex) {
-	auto result = CachedTextLeafKey();
-	result.slot = slot;
-	result.tableRowIndex = tableRowIndex;
-	result.tableCellIndex = tableCellIndex;
-	if (prepared.editLeaf) {
-		result.identityKind = CachedTextLeafIdentityKind::EditLeaf;
-		result.editLeaf = *prepared.editLeaf;
-		return result;
-	}
-	if (prepared.editCell) {
-		result.identityKind = CachedTextLeafIdentityKind::EditTableCell;
-		result.editTableCell = *prepared.editCell;
-		return result;
-	}
-	result.preparedPath = preparedPath;
-	return result;
-}
-
 template <typename Builder, typename Consumer>
 auto WithCachedTextLeaf(
 		LayoutContext context,
@@ -1043,6 +942,107 @@ bool MissingRetainedLeaf(
 		const QString &text,
 		const Ui::Text::String &leaf) {
 	return TextNeedsRetainedLeaf(text) && leaf.isEmpty();
+}
+
+CachedTextLeafSourceSignature MarkedTextLeafSourceSignature(
+		TextWithEntities text,
+		const style::TextStyle &textStyle,
+		int minResizeWidth,
+		bool rtl) {
+	auto result = CachedTextLeafSourceSignature();
+	result.dependsOnMediaRuntime = TextDependsOnMediaRuntime(text);
+	result.dependsOnInlineButtonColumn = TextHasInlineButton(text);
+	result.text = std::move(text);
+	result.minResizeWidth = minResizeWidth;
+	result.styleKey = TextStyleKey(textStyle);
+	result.rtl = rtl;
+	return result;
+}
+
+CachedTextLeafSourceSignature PlainTextLeafSourceSignature(
+		const QString &text,
+		const style::TextStyle &textStyle,
+		int minResizeWidth,
+		bool rtl) {
+	return MarkedTextLeafSourceSignature(
+		TextWithEntities::Simple(text),
+		textStyle,
+		minResizeWidth,
+		rtl);
+}
+
+CachedTextLeafSourceSignature CodeTextLeafSourceSignature(
+		const PreparedBlock &prepared,
+		const style::Markdown &st) {
+	auto result = MarkedTextLeafSourceSignature(
+		CodeBlockDisplayText(prepared.text),
+		st.code,
+		CodeTextMinResizeWidth(st),
+		false);
+	result.codeLanguage = prepared.codeLanguage;
+	return result;
+}
+
+CachedTextLeafKey BlockCachedTextLeafKey(
+		CachedTextLeafSlot slot,
+		const PreparedBlock &prepared,
+		const std::vector<int> &preparedPath) {
+	auto result = CachedTextLeafKey();
+	result.slot = slot;
+	if ((slot == CachedTextLeafSlot::Leaf
+			|| slot == CachedTextLeafSlot::Placeholder
+			|| slot == CachedTextLeafSlot::Fallback)
+		&& prepared.editLeaf) {
+		result.identityKind = CachedTextLeafIdentityKind::EditLeaf;
+		result.editLeaf = *prepared.editLeaf;
+		return result;
+	}
+	if ((slot == CachedTextLeafSlot::Marker) && prepared.editListItem) {
+		result.identityKind = CachedTextLeafIdentityKind::EditListItem;
+		result.editListItem = *prepared.editListItem;
+		return result;
+	}
+	if (prepared.editBlock) {
+		result.identityKind = CachedTextLeafIdentityKind::EditBlock;
+		result.editBlock = *prepared.editBlock;
+		return result;
+	}
+	if (prepared.editListItem) {
+		result.identityKind = CachedTextLeafIdentityKind::EditListItem;
+		result.editListItem = *prepared.editListItem;
+		return result;
+	}
+	if (prepared.editLeaf) {
+		result.identityKind = CachedTextLeafIdentityKind::EditLeaf;
+		result.editLeaf = *prepared.editLeaf;
+		return result;
+	}
+	result.preparedPath = preparedPath;
+	return result;
+}
+
+CachedTextLeafKey TableCellCachedTextLeafKey(
+		CachedTextLeafSlot slot,
+		const PreparedTableCell &prepared,
+		const std::vector<int> &preparedPath,
+		int tableRowIndex,
+		int tableCellIndex) {
+	auto result = CachedTextLeafKey();
+	result.slot = slot;
+	result.tableRowIndex = tableRowIndex;
+	result.tableCellIndex = tableCellIndex;
+	if (prepared.editLeaf) {
+		result.identityKind = CachedTextLeafIdentityKind::EditLeaf;
+		result.editLeaf = *prepared.editLeaf;
+		return result;
+	}
+	if (prepared.editCell) {
+		result.identityKind = CachedTextLeafIdentityKind::EditTableCell;
+		result.editTableCell = *prepared.editCell;
+		return result;
+	}
+	result.preparedPath = preparedPath;
+	return result;
 }
 
 void BuildOrReuseMarkedTextLeaf(

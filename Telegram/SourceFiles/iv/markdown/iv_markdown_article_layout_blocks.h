@@ -516,6 +516,29 @@ struct TableCellMinimumWidthConstraint {
 [[nodiscard]] TextWithEntities EditPlaceholderTextValue(
 	const PreparedBlock &block,
 	const QString &text);
+[[nodiscard]] CachedTextLeafSourceSignature MarkedTextLeafSourceSignature(
+	TextWithEntities text,
+	const style::TextStyle &textStyle,
+	int minResizeWidth,
+	bool rtl);
+[[nodiscard]] CachedTextLeafSourceSignature PlainTextLeafSourceSignature(
+	const QString &text,
+	const style::TextStyle &textStyle,
+	int minResizeWidth,
+	bool rtl);
+[[nodiscard]] CachedTextLeafSourceSignature CodeTextLeafSourceSignature(
+	const PreparedBlock &prepared,
+	const style::Markdown &st);
+[[nodiscard]] CachedTextLeafKey BlockCachedTextLeafKey(
+	CachedTextLeafSlot slot,
+	const PreparedBlock &prepared,
+	const std::vector<int> &preparedPath);
+[[nodiscard]] CachedTextLeafKey TableCellCachedTextLeafKey(
+	CachedTextLeafSlot slot,
+	const PreparedTableCell &prepared,
+	const std::vector<int> &preparedPath,
+	int tableRowIndex,
+	int tableCellIndex);
 void BuildOrReuseMarkedTextLeaf(
 	Ui::Text::String *leaf,
 	CachedTextLeafSlot slot,

@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_button_row.h"
 #include "iv/markdown/iv_markdown_media_reuse.h"
 #include "iv/markdown/iv_markdown_prepare_links.h"
-#include "iv/markdown/iv_markdown_prepare_serialize.h"
 #include "lang/lang_keys.h"
 #include "ui/style/style_core_color.h"
 #include "ui/style/style_core_scale.h"
@@ -124,20 +123,6 @@ struct MarkdownArticleHorizontalScrollLookup {
 	const LaidOutBlock *block = nullptr;
 };
 
-[[nodiscard]] bool TextDependsOnMediaRuntime(
-		const TextWithEntities &text) {
-	for (const auto &entity : text.entities) {
-		if (entity.type() != EntityType::CustomEmoji) {
-			continue;
-		}
-		const auto parsed = ParseInlineTextObjectEntity(entity.data());
-		if (parsed && (parsed->kind == InlineTextObjectKind::IvImage)) {
-			return true;
-		}
-	}
-	return false;
-}
-
 [[nodiscard]] TextWithEntities DisplayMathFallbackText() {
 	auto result = TextWithEntities::Simple(u"Invalid formula"_q);
 	result.entities.push_back(EntityInText(
@@ -151,111 +136,6 @@ struct MarkdownArticleHorizontalScrollLookup {
 	return open
 		? tr::lng_iv_details_state_expanded(tr::now)
 		: tr::lng_iv_details_state_collapsed(tr::now);
-}
-
-[[nodiscard]] size_t TextStyleKey(const style::TextStyle &style) {
-	return reinterpret_cast<size_t>(&style);
-}
-
-[[nodiscard]] CachedTextLeafSourceSignature MarkedTextLeafSourceSignature(
-		TextWithEntities text,
-		const style::TextStyle &textStyle,
-		int minResizeWidth,
-		bool rtl) {
-	auto result = CachedTextLeafSourceSignature();
-	result.dependsOnMediaRuntime = TextDependsOnMediaRuntime(text);
-	result.dependsOnInlineButtonColumn = TextHasInlineButton(text);
-	result.text = std::move(text);
-	result.minResizeWidth = minResizeWidth;
-	result.styleKey = TextStyleKey(textStyle);
-	result.rtl = rtl;
-	return result;
-}
-
-[[nodiscard]] CachedTextLeafSourceSignature PlainTextLeafSourceSignature(
-		const QString &text,
-		const style::TextStyle &textStyle,
-		int minResizeWidth,
-		bool rtl) {
-	return MarkedTextLeafSourceSignature(
-		TextWithEntities::Simple(text),
-		textStyle,
-		minResizeWidth,
-		rtl);
-}
-
-[[nodiscard]] CachedTextLeafSourceSignature CodeTextLeafSourceSignature(
-		const PreparedBlock &prepared,
-		const style::Markdown &st) {
-	auto result = MarkedTextLeafSourceSignature(
-		CodeBlockDisplayText(prepared.text),
-		st.code,
-		CodeTextMinResizeWidth(st),
-		false);
-	result.codeLanguage = prepared.codeLanguage;
-	return result;
-}
-
-[[nodiscard]] CachedTextLeafKey BlockCachedTextLeafKey(
-		CachedTextLeafSlot slot,
-		const PreparedBlock &prepared,
-		const std::vector<int> &preparedPath) {
-	auto result = CachedTextLeafKey();
-	result.slot = slot;
-	if ((slot == CachedTextLeafSlot::Leaf
-			|| slot == CachedTextLeafSlot::Placeholder
-			|| slot == CachedTextLeafSlot::Fallback)
-		&& prepared.editLeaf) {
-		result.identityKind = CachedTextLeafIdentityKind::EditLeaf;
-		result.editLeaf = *prepared.editLeaf;
-		return result;
-	}
-	if ((slot == CachedTextLeafSlot::Marker) && prepared.editListItem) {
-		result.identityKind = CachedTextLeafIdentityKind::EditListItem;
-		result.editListItem = *prepared.editListItem;
-		return result;
-	}
-	if (prepared.editBlock) {
-		result.identityKind = CachedTextLeafIdentityKind::EditBlock;
-		result.editBlock = *prepared.editBlock;
-		return result;
-	}
-	if (prepared.editListItem) {
-		result.identityKind = CachedTextLeafIdentityKind::EditListItem;
-		result.editListItem = *prepared.editListItem;
-		return result;
-	}
-	if (prepared.editLeaf) {
-		result.identityKind = CachedTextLeafIdentityKind::EditLeaf;
-		result.editLeaf = *prepared.editLeaf;
-		return result;
-	}
-	result.preparedPath = preparedPath;
-	return result;
-}
-
-[[nodiscard]] CachedTextLeafKey TableCellCachedTextLeafKey(
-		CachedTextLeafSlot slot,
-		const PreparedTableCell &prepared,
-		const std::vector<int> &preparedPath,
-		int tableRowIndex,
-		int tableCellIndex) {
-	auto result = CachedTextLeafKey();
-	result.slot = slot;
-	result.tableRowIndex = tableRowIndex;
-	result.tableCellIndex = tableCellIndex;
-	if (prepared.editLeaf) {
-		result.identityKind = CachedTextLeafIdentityKind::EditLeaf;
-		result.editLeaf = *prepared.editLeaf;
-		return result;
-	}
-	if (prepared.editCell) {
-		result.identityKind = CachedTextLeafIdentityKind::EditTableCell;
-		result.editTableCell = *prepared.editCell;
-		return result;
-	}
-	result.preparedPath = preparedPath;
-	return result;
 }
 
 void StoreCachedTextLeaf(
