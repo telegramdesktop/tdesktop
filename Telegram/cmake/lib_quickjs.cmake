@@ -4,9 +4,11 @@
 # For license and copyright information please follow this link:
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
-# QuickJS-ng: the JavaScript engine interactive HTML messages run their
-# scripts on. It is the submodule of ThirdParty/twidget, so it stays at the
-# exact revision the other clients use and their precompiled bytecode loads.
+# QuickJS-ng as vendored by ThirdParty/widget-sandbox: the engine its shared
+# sandbox and validator bundles run on. Their precompiled bytecode is checked
+# against this exact engine, and widget-sandbox's sandbox code is written for
+# its API, so the revision comes with that submodule. qjs_shim.c holds the
+# shared helpers, including the checked bytecode loader.
 # Upstream's own CMakeLists always builds the CLI and test executables and
 # sets project-wide flags, so only the engine sources are compiled here.
 # There is no packaged branch: the API still changes between releases.
@@ -16,7 +18,8 @@ init_target(lib_quickjs "(external)")
 
 add_library(tdesktop::lib_quickjs ALIAS lib_quickjs)
 
-set(quickjs_loc ${third_party_loc}/twidget/Sources/CQuickJSNG/quickjs)
+set(quickjs_root ${third_party_loc}/widget-sandbox/packages/ios/Sources/CQuickJS)
+set(quickjs_loc ${quickjs_root}/quickjs)
 
 if (NOT EXISTS ${quickjs_loc}/quickjs.c)
     message(FATAL_ERROR "QuickJS-ng sources are missing, run 'git submodule update --init --recursive'.")
@@ -33,21 +36,23 @@ if (MSVC)
     )
 endif()
 
-nice_target_sources(lib_quickjs ${quickjs_loc}
+nice_target_sources(lib_quickjs ${quickjs_root}
 PRIVATE
-    cutils.h
-    dtoa.c
-    dtoa.h
-    libregexp.c
-    libregexp.h
-    libunicode.c
-    libunicode.h
-    list.h
-    quickjs-atom.h
-    quickjs-c-atomics.h
-    quickjs-opcode.h
-    quickjs.c
-    quickjs.h
+    include/qjs_shim.h
+    include/quickjs.h
+    quickjs/cutils.h
+    quickjs/dtoa.c
+    quickjs/dtoa.h
+    quickjs/libregexp.c
+    quickjs/libregexp.h
+    quickjs/libunicode.c
+    quickjs/libunicode.h
+    quickjs/list.h
+    quickjs/quickjs-atom.h
+    quickjs/quickjs-c-atomics.h
+    quickjs/quickjs-opcode.h
+    quickjs/quickjs.c
+    shim/qjs_shim.c
 )
 
 set_target_properties(lib_quickjs PROPERTIES
@@ -58,6 +63,8 @@ set_target_properties(lib_quickjs PROPERTIES
 
 target_include_directories(lib_quickjs
 PUBLIC
+    ${quickjs_root}/include
+PRIVATE
     ${quickjs_loc}
 )
 

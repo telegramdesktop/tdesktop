@@ -77,6 +77,11 @@ if (MSVC)
         strcasecmp=_stricmp
         strncasecmp=_strnicmp
     )
+    # The fork's document.cpp uses std::back_inserter without <iterator>.
+    set_source_files_properties(${litehtml_loc}/src/document.cpp
+    PROPERTIES
+        COMPILE_OPTIONS /FIiterator
+    )
     target_link_libraries(lib_litehtml PRIVATE lib_litehtml_warnings_off)
 else()
     target_compile_options(lib_litehtml PRIVATE -w)
