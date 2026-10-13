@@ -45,13 +45,14 @@ routing:
 ## Q0 — delete
 
 Dead code, unreferenced functions, unreleased format leftovers, stale
-compatibility paths.
+compatibility paths, and the styles and language keys only that code used.
 
 - Proof: the candidate list from the scan, then a Debug build and link of every
-  target that compiled the code, without it, and `health.py check` with no
-  "definition removed but still mentioned" warning. That textual scan also
-  covers platform files this host never compiles, and the reviewer searches
-  them again. A platform-specific file is removed only when its platform's
+  target that compiled the code, without it, and `health.py check` with
+  neither a "definition removed but still mentioned" nor a "removed its last
+  use" warning. Those textual scans cover platform files this host never
+  compiles, and code the Debug build's `-Wno-unused-function` hides; the
+  reviewer searches platform files again. A platform-specific file is removed only when its platform's
   build can be run or the symbol is provably unreferenced by name in every
   source and generated input.
 - Batch: up to ten candidates of one area in one task.

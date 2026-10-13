@@ -20,18 +20,26 @@ An item stays in the lane only while it is exactly its class:
 
 - **Q0** removes code that no build, platform file or generated input
   references, together with its declarations, includes, CMake entries, and
-  fields or helpers only it used.
+  the functions, fields, classes, styles and language keys only it used. A
+  style or language key goes only when nothing else in the tree mentions it.
+  A field that other code still writes stays unless every writer is in the
+  files the task names.
 - **Q1** moves code without editing it. The only new lines are includes,
   declarations, namespace scaffolding and CMake source-list entries.
 - **Q2** replaces copies that are identical apart from names and literal
   values with one shared function in a file both callers' targets already
-  link; each call site passes its own values.
+  link; each call site passes its own values. What only the removed copy
+  used goes with it. The kept copy may move within its own file, for example
+  out of an anonymous namespace, and drops `[[nodiscard]]` or `static` from
+  its definition once a header declares it.
 - Nothing else changes: no new strings, styles, settings or log lines, no
   reordered side effects, and no new templates, header-defined functions or
   `std::variant` dispatch, so neither build work nor binary size can grow.
 - Edits stay within the files the task names, the file that receives moved
   code or the shared copy, their CMake source lists, the include lines of
-  their direct users, and the Modules lines of the area map.
+  their direct users, the Modules lines of the area map, and the entries in
+  `.style` files and `Telegram/Resources/langs/lang.strings` that only
+  removed code used.
 
 An item that cannot stay within these bounds is dropped, not forced: restore
 its files and record it under `Dropped:` with the reason. Dropping is the
@@ -39,7 +47,9 @@ normal outcome for a false candidate, such as a function a platform file still
 calls, copies that differ in logic, or a move that needs edits. Never
 continue a dropped item in the full pipeline inside this task; the scan
 proposes it again in a class that fits. A defect noticed on the way is never
-fixed here: write it as a discovered task.
+fixed here: write it as a discovered task. Other dead or duplicated code
+noticed on the way, such as a copy below the clone threshold, is named in
+the result prose and left alone.
 
 ## Steps
 
@@ -50,13 +60,14 @@ resume, continue after the last checkpoint and rerun every proof after any
 edit.
 
 1. **Preflight.** Read `SOURCE_ROOT/AGENTS.md`, `REVIEW.md`, `TASK_SPEC` and
-   the nearest area map (`AGENTS.md` in the area's directory). Run the
-   pipeline's source-lineage gate, `source-prepare`, `source-preflight`
+   the nearest area map (`AGENTS.md` in the area's directory), and
+   `AI_SLOT/AGENTS.md`. Run the pipeline's source-lineage gate,
+   `source-prepare` unless the scheduler just ran it, `source-preflight`
    without `--exe`, and `source-begin`. The lane needs no executable,
    account, overlay or UI driver.
 2. **Recheck.** The findings were measured on an older `origin/dev`. Run
-   `HEALTH verify --base BASE_REF <finding ids>`. A `present` item is still
-   to do. An `unknown` item was not found under its id; read the code at the
+   `HEALTH verify --base BASE_REF <finding ids>`; it exits 1 while items are
+   present, which is expected here. A `present` item is still to do. An `unknown` item was not found under its id; read the code at the
    places the task names and drop it only if the code is gone or no longer
    fits the class. If every item is dropped here, skip to step 8.
 3. **Edit.** Write `work/owned-paths.txt` first, then edit without leaves.
@@ -66,19 +77,26 @@ edit.
    - the Debug `Telegram` build as `AGENTS.md` describes, plus any test
      target that compiles a changed file;
    - `HEALTH check --base BASE_REF`: no errors, and no warning the change
-     caused. That includes "definition removed but still mentioned", a
-     textual scan that also covers platform files this host never compiles;
+     caused. Two warnings matter most here. "Definition removed but still
+     mentioned" scans platform files this host never compiles. "The change
+     removed its last use" names a function, field, class, style or key the
+     change left dead: remove it within bounds and check again until neither
+     appears, because the Debug build hides unused functions;
    - Q1: `HEALTH moves --base BASE_REF` reports `MOVE_ONLY`, or every line
      it lists is a declaration or re-wrapped signature you explain;
    - `HEALTH verify --base BASE_REF <kept ids>` reports each item
      `resolved`, or, for one step of a larger split, the metric reaches the
      task's target. `changed` means a smaller copy of the clone is left.
 
-   Fix a failing proof within bounds or drop its item. If nothing is left,
-   restore the checkout to `BASE_REF` and skip to step 8. Checkpoint
+   Fix a failing proof within bounds or drop its item. After a drop, rerun
+   every proof on what remains; the incremental build recompiles what the
+   restore touched, and that is enough. If nothing is left, restore the
+   checkout to `BASE_REF` and skip to step 8. Checkpoint
    `mechanical-proved`.
 5. **Review.** One fresh reviewer with the prompt below writes
-   `work/review1-mechanical.md`. On Claude Code it is a Codex CLI leaf under
+   `work/review1-mechanical.md`; keep the prompt and its result log at
+   `work/logs/phase-mechanical-review-1.prompt.md` and `.result.md`, and
+   checkpoint `mechanical-reviewed`. On Claude Code it is a Codex CLI leaf under
    the adapter's review provider and
    [Codex CLI leaves](../../../shared/codex-cli-leaves.md) (`--cwd WORK_DIR
    --sandbox workspace-write --no-project-doc`); when Codex is unavailable,
@@ -87,7 +105,9 @@ edit.
    attached, and `xhigh` for Q2.
 6. **Fix once.** On `NEEDS_CHANGES`, fix each finding within bounds or drop
    its item, rerun the affected proofs, and resume the same reviewer once
-   (`--resume review1-mechanical`, writing `work/review2-mechanical.md`). If
+   (`--resume review1-mechanical`, writing `work/review2-mechanical.md`) with
+   a prompt that lists each finding, what changed for it, and the new proof
+   outputs, and asks it to judge only those fixes and what they affect. If
    that verdict still needs changes, drop the items it names and rerun the
    proofs. There is no third review: the approval covers the items the last
    review did not name.
@@ -115,8 +135,9 @@ The class contract is in
    line by line and confirm every difference became an argument.
 2. Completeness: for Q0, no remaining reference on any platform (search
    platform/, *_win, *_mac, *_linux, .mm and generated inputs) and no
-   orphaned declaration, include, string or style; for Q1, nothing edited
-   in transit; for Q2, every copy the task names now calls the shared one.
+   orphaned declaration, include, field, string or style; for Q1, nothing
+   edited in transit; for Q2, every copy the task names now calls the
+   shared one and nothing only the removed copy used is left behind.
 3. Bounds: no edit outside the files the bounds allow.
 4. Proofs: each was run on this diff and supports its claim.
 5. Placement: new homes follow the area map, or the surrounding structure

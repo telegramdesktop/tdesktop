@@ -721,7 +721,8 @@ a new file, never to split the old file inside this task. Repeating existing
 code, or making a widely included header materially heavier, is a
 maintenance defect worth changing. A removed definition still mentioned
 elsewhere is a stale declaration or a break on the platform that compiles
-the mention. One more include across an already crossed target pair blocks
+the mention, and a removed last use leaves a definition to delete in the
+same task. One more include across an already crossed target pair blocks
 only when a clean alternative exists.
 Where the nearest directory `AGENTS.md` area map exists, judge placement
 against it rather than against the surrounding code.

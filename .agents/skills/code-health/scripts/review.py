@@ -3,8 +3,10 @@
 The ratchet compares a change with its own base, so it needs no stored
 baseline: oversized files may not grow beyond a small fix, new files may not start oversized,
 a new include may not cross a target boundary, a header may not get much
-heavier to rebuild, added code may not repeat code that already exists, and
-a removed definition may not leave mentions behind."""
+heavier to rebuild, added code may not repeat code that already exists, a
+removed definition may not leave mentions behind, and a removed use may not
+leave a definition nothing uses."""
+from collections import Counter
 from pathlib import Path
 import re
 import subprocess
@@ -13,8 +15,9 @@ import clones
 import cmake_model
 import cpp_text
 import includes
+import metrics
 from report import LIMITS, file_limit
-from sources import git, wanted
+from sources import LANG_FILE, git, wanted
 
 
 HUNK = re.compile(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@')
@@ -31,6 +34,17 @@ PREFIXES = re.compile(r'^(\[\[nodiscard\]\] |static |inline )+')
 DEFAULTS = re.compile(r'([\w>*&] [*&]?\w+) = [^,(){}]+(?=[,)])')
 CONTROL = ('if ', 'for ', 'while ', 'switch ', 'return ', '} else')
 DECLARATION = re.compile(r'^(?!return )[\w:<>*&\[\], ]+ [*&]?~?\w+\(')
+NOT_TYPE = r'(?!(?:return|co_return|else|case|throw|new|delete|co_await|not|and|or)\b)'
+IDENT = re.compile(r'[A-Za-z_]\w*')
+CODE_WORDS = frozenset('''
+    auto bool break case catch char class const constexpr continue default
+    delete double else enum explicit false float for friend if inline int long
+    mutable namespace new noexcept nullptr operator override private protected
+    public return short signed sizeof static struct switch template this throw
+    true try typedef typename union unsigned using virtual void volatile while
+    final int64 uint64 int32 uint32 float64 QString const_cast static_cast
+    reinterpret_cast dynamic_cast std base not_null crl rpl
+'''.split())
 
 
 def code_path(path):
@@ -38,25 +52,56 @@ def code_path(path):
         cpp_text.EXTENSIONS_TU + cpp_text.EXTENSIONS_HEADER)
 
 
+def tracked_path(path):
+    """Code plus the files that define what code names: styles and keys."""
+    return code_path(path) or (wanted(path) and path.endswith('.style')) or path == LANG_FILE
+
+
 def untracked(repo):
     raw = git(repo, 'ls-files', '--others', '--exclude-standard', '--',
               'Telegram').decode('utf-8', 'replace')
-    return [path for path in raw.splitlines() if code_path(path)]
+    return [path for path in raw.splitlines() if tracked_path(path)]
 
 
 def changed(repo, base, staged):
-    """(status letter, path) of changed code files; without `staged`,
-    untracked files count as added, so a change is seen before its commit."""
+    """(status letter, path) of changed code, style and language files;
+    without `staged`, untracked files count as added, so a change is seen
+    before its commit."""
     args = ['diff', '--name-status', '--no-renames']
     args += ['--cached', base] if staged else [base]
     raw = git(repo, *args, '--', 'Telegram').decode('utf-8', 'replace')
     result = []
     for line in raw.splitlines():
         status, _, path = line.partition('\t')
-        if code_path(path):
+        if tracked_path(path):
             result.append((status[0], path))
     if not staged:
         result += [('A', path) for path in untracked(repo)]
+    return result
+
+
+def diff_lines(repo, base, staged):
+    """{path: (removed lines, added lines)} over the changed files."""
+    args = ['diff', '-U0', '--no-color', '--no-renames']
+    args += ['--cached', base] if staged else [base]
+    raw = git(repo, *args, '--', 'Telegram').decode('utf-8', 'replace')
+    result = {}
+    path = None
+    for line in raw.splitlines():
+        if line.startswith('--- '):
+            path = line[6:] if line.startswith('--- a/') else None
+            continue
+        if line.startswith('+++ '):
+            path = line[6:] if line.startswith('+++ b/') else path
+            continue
+        if not path or not tracked_path(path) or not line or line[0] not in '+-':
+            continue
+        entry = result.setdefault(path, ([], []))
+        entry[0 if line[0] == '-' else 1].append(line[1:])
+    if not staged:
+        for path in untracked(repo):
+            text = (Path(repo) / path).read_text(encoding='utf-8', errors='replace')
+            result[path] = ([], text.split('\n'))
     return result
 
 
@@ -94,7 +139,7 @@ def check(tree, base='HEAD', staged=False, strict=False):
     added_code = []
     crossings = []
     for status, path in changed(tree.repo, base, staged):
-        if status == 'D':
+        if status == 'D' or not code_path(path):
             continue
         head = tree.files.get(path)
         if head is None:
@@ -164,16 +209,117 @@ def check(tree, base='HEAD', staged=False, strict=False):
             f'{name}: definition removed but still mentioned at {where}{more}; '
             f'remove what is left, or keep it if code this host does not '
             f'compile calls it.')
+    for name, places in orphaned(tree, base, staged):
+        where = ', '.join(f'{path}:{number}' for path, number in places[:5])
+        warnings.append(
+            f'{name}: the change removed its last use; only its definition '
+            f'remains at {where}; remove it too.')
     return errors, warnings
 
 
-def definitions(text):
-    """(short name, qualifier or None) of column-0 functions and classes."""
+CLASS_HEAD = re.compile(
+    r'^(?:template\s*<.*>\s*)?(?:class|struct|union|enum(?:\s+class)?)\s+'
+    r'(?:\[\[[^\]]*\]\]\s*)?([\w:]+)')
+STYLE_DEFINITION = re.compile(r'^(\w+)\s*:', re.M)
+LANG_DEFINITION = re.compile(r'^"(\w+?)(?:#\w+)?"\s*=', re.M)
+
+
+def definitions(text, path=''):
+    """(short name, qualifier or None) of column-0 functions and classes, of
+    top-level styles in a `.style` file, or of keys in the language file."""
+    if path == LANG_FILE:
+        return {(name, None) for name in LANG_DEFINITION.findall(text)}
+    if path.endswith('.style'):
+        return {(name, None) for name in STYLE_DEFINITION.findall(text)}
     result = set()
     for item in cpp_text.functions(text):
         parts = item.name.split('::')
         result.add((parts[-1], parts[-2] if len(parts) > 1 else None))
     return result | {(item.name, None) for item in cpp_text.classes(text)}
+
+
+def mention_lines(text):
+    """Lines with comments blanked, numbering preserved."""
+    return [line.split('//')[0] for line in cpp_text.code_lines(text)]
+
+
+def defines(path, line, name):
+    """Whether this mention of `name` declares or defines it rather than
+    using it: its key in the language file, its entry in a `.style` file, or
+    a declaration, definition or constructor initializer in code."""
+    escaped = re.escape(name)
+    if path == LANG_FILE:
+        return re.match(r'\s*"' + escaped + r'(?:#\w+)?"\s*=', line) is not None
+    if path.endswith('.style'):
+        return re.match(r'\s*' + escaped + r'\s*:', line) is not None
+    stripped = line.strip()
+    if re.match(r'[,:]\s*' + escaped + r'\s*[({]', stripped):
+        return True
+    if not line[:1].isspace():
+        head = CLASS_HEAD.match(line)
+        if head:
+            return head.group(1).split('::')[-1] == name
+        if '(' in line.split('=')[0]:
+            declared = cpp_text.definition_name(line)
+            return declared is not None and declared.split('::')[-1] == name
+        return metrics.declares(line, re.compile(r'\b' + escaped + r'\b'))
+    typed = (r'^' + NOT_TYPE + r'(?:\[\[nodiscard\]\]\s*)?'
+             r'(?:(?:static|virtual|inline|explicit|constexpr|mutable|const)\s+)*'
+             r'[\w:<>*&,\[\] ]+\s[*&]?')
+    if re.match(typed + escaped + r'\(', stripped):
+        return True
+    return re.match(
+        typed + escaped + r'(?:\s*=\s*[^;]*|\s*\{[^;]*\}|\[[^\]]*\])?;$',
+        stripped) is not None
+
+
+def orphaned(tree, base, staged):
+    """Names the removed lines used whose only remaining mentions in the tree
+    are their own definitions or declarations: a function, field, class,
+    style or language key the change left without a user."""
+    removed = Counter()
+    added = Counter()
+    used = set()
+    for path, (minus, plus) in diff_lines(tree.repo, base, staged).items():
+        for line in minus:
+            names = set(IDENT.findall(line.split('//')[0]))
+            removed.update(names)
+            used |= {name for name in names if not defines(path, line, name)}
+        for line in plus:
+            added.update(IDENT.findall(line.split('//')[0]))
+    candidates = {
+        name for name, count in removed.items()
+        if count > added.get(name, 0) and name in used and len(name) >= 4
+        and name not in CODE_WORDS and not metrics.UNUSED_EXEMPT.search(name)
+    }
+    if not candidates:
+        return []
+    files = {}
+    for path, text in tree.files.items():
+        if not tracked_path(path):
+            continue
+        for name in set(IDENT.findall(text)) & candidates:
+            files.setdefault(name, []).append(path)
+    result = []
+    for name in sorted(candidates):
+        paths = files.get(name, [])
+        if not paths or len(paths) > 3:
+            continue
+        pattern = re.compile(r'\b' + re.escape(name) + r'\b')
+        places = []
+        for path in paths:
+            for number, line in enumerate(mention_lines(tree.files[path]), 1):
+                if not pattern.search(line):
+                    continue
+                if not defines(path, line, name) or 'override' in line:
+                    places = None
+                    break
+                places.append((path, number))
+            if places is None:
+                break
+        if places:
+            result.append((name, places))
+    return result
 
 
 def platform_only(path):
@@ -195,9 +341,9 @@ def stranded(tree, base, staged):
     for status, path in changed(tree.repo, base, staged):
         old = base_text(tree.repo, base, path)
         if old is not None:
-            before |= definitions(old)
+            before |= definitions(old, path)
         if status != 'D' and path in tree.files:
-            after |= definitions(tree.files[path])
+            after |= definitions(tree.files[path], path)
     kept = {name for name, _ in after}
     owners = {}
     for name, owner in before:
@@ -209,18 +355,18 @@ def stranded(tree, base, staged):
     mentions = {}
     still_defined = set()
     for path, text in tree.files.items():
-        if not path.endswith(cpp_text.EXTENSIONS_TU + cpp_text.EXTENSIONS_HEADER):
+        if not tracked_path(path):
             continue
         if not pattern.search(text):
             continue
-        still_defined |= {name for name, _ in definitions(text)} & owners.keys()
+        still_defined |= {name for name, _ in definitions(text, path)} & owners.keys()
         relevant = {
             name for name, qualifiers in owners.items()
             if None in qualifiers or platform_only(path)
             or any(q in text for q in qualifiers)
         }
-        for number, line in enumerate(cpp_text.code_lines(text), 1):
-            for match in pattern.finditer(line.split('//')[0]):
+        for number, line in enumerate(mention_lines(text), 1):
+            for match in pattern.finditer(line):
                 if match.group(1) in relevant:
                     mentions.setdefault(match.group(1), []).append((path, number))
     return sorted(
