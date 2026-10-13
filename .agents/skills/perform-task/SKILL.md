@@ -39,6 +39,12 @@ The pipeline reference adapts conflicting generic test-loop mechanics for the
 external AI worktree and exact-path safety. Its named adapter wins at those
 points; retain every other test-loop rule.
 
+A task whose `task.md` has a `## Code health` section with class Q0, Q1 or
+Q2 runs the [mechanical lane](references/mechanical-lane.md) instead. For it,
+read that file and, from `pipeline.md`, the Contract, Preflight, Telegram
+commits and Final AI state sections; skip the test-loop and Computer Use
+references.
+
 ## Resolve the workspace and task
 
 Run from a Telegram Desktop checkout. Use the host's Python 3 command:

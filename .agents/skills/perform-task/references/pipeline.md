@@ -394,8 +394,10 @@ Run sequentially:
 
 Every unfinished task follows one adaptive implementation path. Task size,
 repository location, and whether Telegram is eventually launched do not select
-a profile. Before editing, Phase 2 assessment records the task's actual failure
-surfaces and writes both of these contracts:
+a profile. The one exception is a code-health task of class Q0, Q1 or Q2,
+which runs the [mechanical lane](mechanical-lane.md): its class bounds the
+change to what a tool can prove. Before editing, Phase 2 assessment records
+the task's actual failure surfaces and writes both of these contracts:
 
 ```text
 Expected surfaces:

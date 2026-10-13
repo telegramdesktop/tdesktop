@@ -325,7 +325,13 @@ The checkout tag belongs in the receipt only.
 
 Every new task uses `type: implement`. Do not predict a cheap or expensive
 execution profile while routing: the performer selects review specialists and
-evidence instruments after inspecting the real code and risks. Keep acceptance
+evidence instruments after inspecting the real code and risks. Requests
+written by the code-health skill carry a `## Code health` section; keep it
+verbatim in the task, because its class selects the performer's lane, and
+never add one to any other request. A Q0, Q1 or Q2 request is already
+planned and sized: route it as one standalone task (`project: null`, no
+dependencies), copy its title, paragraph and sections verbatim, and never
+merge or split it. Q3–Q5 requests are planned like any other. Keep acceptance
 criteria outcome-focused. Name a required build, probe, app run, interaction,
 or screenshot only when that instrument is itself part of the requested result
 or no other instrument could decide the claim from the facts already known to

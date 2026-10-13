@@ -69,6 +69,9 @@ Partition all mergeable work by this exact key:
 2. the same scheduler membership: every member is in the current batch, or no
    member is in it.
 
+A task whose `task.md` has a `## Code health` section is never a candidate:
+its class sizes its batch.
+
 Never merge across projects, between a project and standalone work, or across
 the frozen-batch boundary. Named projects and standalone work are separate
 lineages even when their files overlap. Every unfinished task uses
