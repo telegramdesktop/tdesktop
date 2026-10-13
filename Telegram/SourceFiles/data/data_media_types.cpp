@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_premium_gift.h"
 #include "history/view/media/history_view_unique_gift.h"
 #include "history/view/media/history_view_userpic_suggestion.h"
+#include "history/view/media/history_view_widget_document.h"
 #include "dialogs/ui/dialogs_message_view.h"
 #include "ui/boxes/emoji_stake_box.h"
 #include "ui/controls/ton_common.h"
@@ -80,6 +81,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h" // ClickHandlerContext
 #include "lang/lang_keys.h"
 #include "storage/file_upload.h"
+#include "tgw/tgw_document.h"
 #include "window/window_session_controller.h" // SessionController::uiShow.
 #include "apiwrap.h"
 #include "styles/style_chat.h"
@@ -1485,7 +1487,19 @@ std::unique_ptr<HistoryView::Media> MediaFile::createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
 		HistoryView::Element *replacing) {
-	if (_document->sticker()) {
+	if (realParent->media() == this
+		&& Tgw::IsWidgetViewCandidate(_document, realParent)) {
+		if (Tgw::ShowWidgetView(_document, realParent)) {
+			return std::make_unique<HistoryView::WidgetDocument>(
+				message,
+				realParent,
+				_document);
+		}
+		return std::make_unique<HistoryView::Document>(
+			message,
+			realParent,
+			_document);
+	} else if (_document->sticker()) {
 		return std::make_unique<HistoryView::UnwrappedMedia>(
 			message,
 			std::make_unique<HistoryView::Sticker>(

@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download.h"
 #include "storage/storage_folder_archive.h"
 #include "storage/storage_media_prepare.h"
+#include "tgw/tgw_document.h"
 #include "window/themes/window_theme_preview.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -1180,6 +1181,11 @@ void FileLoadTask::process(ProcessArgs &&args) {
 
 	if (_type == SendMediaType::Photo && photoThumbs.empty()) {
 		_type = SendMediaType::File;
+	}
+	if (_type == SendMediaType::File) {
+		filemime = Tgw::UploadMimeType(
+			(_displayName.isEmpty() ? filename : _displayName),
+			filemime);
 	}
 
 	if (isVoice) {

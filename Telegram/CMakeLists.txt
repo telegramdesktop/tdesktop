@@ -1107,6 +1107,8 @@ PRIVATE
     history/view/media/history_view_video_status.h
     history/view/media/history_view_web_page.cpp
     history/view/media/history_view_web_page.h
+    history/view/media/history_view_widget_document.cpp
+    history/view/media/history_view_widget_document.h
     history/view/reactions/history_view_reactions.cpp
     history/view/reactions/history_view_reactions.h
     history/view/reactions/history_view_reactions_button.cpp
@@ -2178,6 +2180,8 @@ PRIVATE
     test/test_widgets.h
     test/test_window_exposure.cpp
     test/test_window_exposure.h
+    tgw/tgw_document.cpp
+    tgw/tgw_document.h
     ui/boxes/edit_invite_link_session.cpp
     ui/boxes/edit_invite_link_session.h
     ui/boxes/emoji_stake_box.cpp

@@ -81,6 +81,7 @@ set(style_files
     media/view/media_view.style
     overview/overview.style
     wallet/wallet.style
+    tgw/tgw.style
     window/window.style
     window/window_main_menu.style
     editor/editor.style

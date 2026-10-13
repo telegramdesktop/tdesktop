@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_photo.h"
 #include "data/data_document.h"
+#include "tgw/tgw_document.h"
 
 #include <QtCore/QBuffer>
 
@@ -353,7 +354,9 @@ bool Should(
 		const Full &data,
 		Source source,
 		not_null<DocumentData*> document) {
-	if (document->sticker() || document->isGifv()) {
+	if (document->sticker()
+		|| document->isGifv()
+		|| Tgw::ShouldAutoDownload(document)) {
 		return true;
 	} else if (document->isVoiceMessage()
 		|| document->isVideoMessage()
@@ -368,7 +371,7 @@ bool Should(
 		const Full &data,
 		not_null<PeerData*> peer,
 		not_null<DocumentData*> document) {
-	if (document->sticker()) {
+	if (document->sticker() || Tgw::ShouldAutoDownload(document)) {
 		return true;
 	}
 	const auto override = data.peerOverride(peer->id);
