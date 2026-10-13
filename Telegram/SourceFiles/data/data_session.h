@@ -378,11 +378,15 @@ public:
 	struct ItemVisibilityQuery {
 		not_null<HistoryItem*> item;
 		not_null<bool*> isVisible;
+		const ViewElement *view = nullptr;
 	};
-	[[nodiscard]] bool queryItemVisibility(not_null<HistoryItem*> item) const;
+	[[nodiscard]] bool queryItemVisibility(
+		not_null<HistoryItem*> item,
+		const ViewElement *view = nullptr) const;
 	[[nodiscard]] bool queryDocumentVisibility(not_null<DocumentData*> document) const;
 	[[nodiscard]] rpl::producer<ItemVisibilityQuery> itemVisibilityQueries() const;
 	void itemVisibilitiesUpdated();
+	[[nodiscard]] rpl::producer<> itemVisibilitiesUpdates() const;
 
 	struct IdChange {
 		FullMsgId newId;
@@ -1215,6 +1219,7 @@ private:
 	rpl::event_stream<not_null<UserData*>> _userIsBotChanges;
 	rpl::event_stream<not_null<PeerData*>> _botCommandsChanges;
 	rpl::event_stream<ItemVisibilityQuery> _itemVisibilityQueries;
+	rpl::event_stream<> _itemVisibilitiesUpdates;
 	rpl::event_stream<IdChange> _itemIdChanges;
 	rpl::event_stream<not_null<const HistoryItem*>> _itemLayoutChanges;
 	rpl::event_stream<not_null<const ViewElement*>> _viewLayoutChanges;

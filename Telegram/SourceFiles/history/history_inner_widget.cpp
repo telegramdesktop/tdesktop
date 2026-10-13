@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
 #include "payments/payments_reaction_process.h"
+#include "tgw/tgw_log_box.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/menu/menu_multiline_action.h"
 #include "ui/widgets/popup_menu.h"
@@ -3183,6 +3184,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			&& (document->isVoiceMessage() || document->isVideoMessage())
 			&& Menu::HasRateTranscribeItem(item)) {
 			rateTranscriptionItem = item;
+		}
+		if (const auto view = item ? item->mainView() : nullptr) {
+			Tgw::AddLogAction(_menu, view, controller->uiShow());
 		}
 	};
 

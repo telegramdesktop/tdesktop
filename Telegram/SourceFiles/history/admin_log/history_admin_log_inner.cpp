@@ -74,6 +74,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_file.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
+#include "tgw/tgw_document.h"
+#include "tgw/tgw_log_box.h"
+#include "tgw/tgw_runtime.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -400,7 +403,8 @@ InnerWidget::InnerWidget(
 			const Data::Session::ItemVisibilityQuery &query) {
 		if (const auto view = viewForItem(query.item)) {
 			auto top = itemTop(view);
-			if (top >= 0
+			if ((!query.view || (query.view == view))
+				&& top >= 0
 				&& top + view->height() > _visibleTop
 				&& top < _visibleBottom) {
 				*query.isVisible = true;
@@ -2315,6 +2319,9 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				&st::menuIconCopy);
 		}
 	}
+	if (view && myView(view) && (viewForItem(view->data()) == view)) {
+		Tgw::AddLogAction(_menu, view, _controller->uiShow());
+	}
 
 	if (_menu->empty()) {
 		_menu = nullptr;
@@ -3259,7 +3266,33 @@ void InnerWidget::resizeItem(not_null<Element*> view) {
 }
 
 void InnerWidget::refreshItem(not_null<const Element*> view) {
-	// No need to refresh views in admin log.
+	const auto item = view->data();
+	const auto current = viewForItem(item);
+	if (current != view.get() || !myView(view)) {
+		return;
+	}
+	const auto media = item->media();
+	const auto document = media ? media->document() : nullptr;
+	const auto shown = current->media();
+	if (!document
+		|| !shown
+		|| (shown->getDocument() != document)
+		|| !Tgw::IsWidgetViewCandidate(document, item)) {
+		return;
+	}
+	const auto runtime = Tgw::FindRuntime(view);
+	const auto failed = runtime
+		&& (runtime->state() == Tgw::Runtime::State::Failed);
+	if (!failed
+		&& ((runtime != nullptr) == Tgw::ShowWidgetView(document, item))) {
+		return;
+	}
+	if (Element::PressedLink() == current) {
+		ClickHandler::unpressed();
+	}
+	ClickHandler::clearActive(current);
+	current->overrideMedia(media->createView(current));
+	current->checkHeavyPart();
 }
 
 QPoint InnerWidget::mapPointToItem(QPoint point, const Element *view) const {

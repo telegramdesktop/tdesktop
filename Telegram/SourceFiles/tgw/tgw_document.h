@@ -10,9 +10,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class DocumentData;
 class HistoryItem;
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Tgw {
 
 extern const char kOptionWidgetMessages[];
+
+struct ContentReader {
+	Fn<QByteArray()> read;
+	int generation = 0;
+};
+
+struct WidgetItemId {
+	not_null<Main::Session*> session;
+	FullMsgId id;
+};
 
 void InitEnabled();
 [[nodiscard]] bool Enabled();
@@ -35,5 +49,13 @@ void InitEnabled();
 	not_null<DocumentData*> document,
 	not_null<const HistoryItem*> item);
 [[nodiscard]] bool HasValidatedContent(not_null<DocumentData*> document);
+
+[[nodiscard]] std::optional<ContentReader> PrepareContentReader(
+	not_null<DocumentData*> document);
+void MarkContentUnavailable(
+	not_null<DocumentData*> document,
+	int generation,
+	FullMsgId itemId);
+void DisableWidgetViews(const std::vector<WidgetItemId> &items);
 
 } // namespace Tgw

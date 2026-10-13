@@ -2184,8 +2184,20 @@ PRIVATE
     test/test_widgets.h
     test/test_window_exposure.cpp
     test/test_window_exposure.h
+    tgw/tgw_bridge.cpp
+    tgw/tgw_bridge.h
     tgw/tgw_document.cpp
     tgw/tgw_document.h
+    tgw/tgw_intl.cpp
+    tgw/tgw_intl.h
+    tgw/tgw_log_box.cpp
+    tgw/tgw_log_box.h
+    tgw/tgw_renderer.cpp
+    tgw/tgw_renderer.h
+    tgw/tgw_resources.cpp
+    tgw/tgw_resources.h
+    tgw/tgw_runtime.cpp
+    tgw/tgw_runtime.h
     ui/boxes/edit_invite_link_session.cpp
     ui/boxes/edit_invite_link_session.h
     ui/boxes/emoji_stake_box.cpp
@@ -2561,6 +2573,7 @@ PRIVATE
     qrc/telegram/picker.qrc
     qrc/telegram/telegram.qrc
     qrc/telegram/sounds.qrc
+    qrc/telegram/tgw.qrc
     winrc/Telegram.rc
     winrc/Telegram.manifest
     langs/lang.strings

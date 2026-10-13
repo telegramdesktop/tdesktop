@@ -718,11 +718,15 @@ ListWidget::ListWidget(
 	}
 
 	_session->data().itemVisibilityQueries(
-	) | rpl::on_next([=](
+	) | rpl::filter([=](
+			const Data::Session::ItemVisibilityQuery &query) {
+		return !query.view || isVisible();
+	}) | rpl::on_next([=](
 			const Data::Session::ItemVisibilityQuery &query) {
 		if (const auto view = viewForItem(query.item)) {
 			const auto top = itemTop(view);
-			if (top >= 0
+			if ((!query.view || (query.view == view))
+				&& top >= 0
 				&& top + view->height() > _visibleTop
 				&& top < _visibleBottom) {
 				*query.isVisible = true;

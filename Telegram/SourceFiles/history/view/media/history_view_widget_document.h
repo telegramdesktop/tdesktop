@@ -13,6 +13,10 @@ namespace Data {
 class DocumentMedia;
 } // namespace Data
 
+namespace Tgw {
+class Runtime;
+} // namespace Tgw
+
 namespace HistoryView {
 
 class WidgetDocument final : public File {
@@ -57,11 +61,21 @@ private:
 	[[nodiscard]] QRect cardRect() const;
 	[[nodiscard]] int countHeight() const;
 	[[nodiscard]] bool drawsInfo() const;
+	void drawFilename(
+		Painter &p,
+		const PaintContext &context,
+		QRect card) const;
+	void drawStopped(
+		Painter &p,
+		const PaintContext &context,
+		QRect card) const;
 	void ensureDataMediaCreated() const;
 	void requestFallback() const;
+	void runtimeHeavyChanged();
 
 	const not_null<DocumentData*> _data;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
+	std::unique_ptr<Tgw::Runtime> _runtime;
 	mutable bool _fallbackRequested = false;
 
 };

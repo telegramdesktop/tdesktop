@@ -57,6 +57,7 @@ struct Entry {
 	Source source;
 	int generation = 0;
 	Verdict verdict = Verdict::Unknown;
+	bool unavailable = false;
 };
 
 struct State {
@@ -84,6 +85,7 @@ base::options::toggle OptionWidgetMessages({
 });
 
 auto EnabledAtStartup = false;
+auto WidgetViewsDisabled = false;
 
 [[nodiscard]] QString WidgetMimeType() {
 	return u"application/x-tgwidget"_q;
@@ -153,6 +155,32 @@ auto EnabledAtStartup = false;
 	return state.needed ? Verdict::Invalid : Verdict::Valid;
 }
 
+[[nodiscard]] QByteArray ReadLocation(const Core::FileLocation &location) {
+	if (!location.check()) {
+		return QByteArray();
+	}
+	auto file = QFile(location.name());
+	if (!file.open(QIODevice::ReadOnly) || file.size() != location.size) {
+		return QByteArray();
+	}
+	auto result = file.read(location.size);
+	file.close();
+	return location.check() ? result : QByteArray();
+}
+
+[[nodiscard]] QByteArray ReadValidated(
+		const QByteArray &bytes,
+		const std::shared_ptr<const Core::FileLocation> &access,
+		int64 size) {
+	if (size <= 0 || size > Storage::kMaxFileInMemory) {
+		return QByteArray();
+	}
+	auto result = access ? ReadLocation(*access) : bytes;
+	const auto valid = (result.size() == size)
+		&& (CheckBytes(result) == Verdict::Valid);
+	return valid ? result : QByteArray();
+}
+
 [[nodiscard]] bool SameSource(const Source &a, const Source &b) {
 	if (a.bytes.isEmpty() || b.bytes.isEmpty()) {
 		return a.bytes.isEmpty()
@@ -178,6 +206,10 @@ auto EnabledAtStartup = false;
 	const auto bytes = media->bytes();
 	return (bytes.constData() == source.bytes.constData())
 		&& (bytes.size() == source.bytes.size());
+}
+
+[[nodiscard]] bool Usable(const Entry &entry) {
+	return (entry.verdict == Verdict::Valid) && !entry.unavailable;
 }
 
 void Release(Entry &entry) {
@@ -318,6 +350,7 @@ void StartCheck(
 		Content content) {
 	entry.source = std::move(content.source);
 	entry.verdict = Verdict::Checking;
+	entry.unavailable = false;
 	const auto generation = ++entry.generation;
 	auto access = std::shared_ptr<const Core::FileLocation>();
 	if (entry.source.bytes.isEmpty()) {
@@ -383,7 +416,7 @@ void Apply(
 		StartCheck(session, document, entry, std::move(*content));
 		return false;
 	}
-	return (entry.verdict == Verdict::Valid);
+	return Usable(entry);
 }
 
 void PostRefresh(
@@ -391,7 +424,7 @@ void PostRefresh(
 		not_null<DocumentData*> document) {
 	crl::on_main(session, [=] {
 		const auto entry = FindEntry(session, document);
-		if (entry && entry->verdict == Verdict::Valid) {
+		if (entry && Usable(*entry)) {
 			RefreshItems(session, document, base::take(entry->pending));
 		}
 	});
@@ -485,6 +518,9 @@ bool IsWidgetViewCandidate(
 bool ShowWidgetView(
 		not_null<DocumentData*> document,
 		not_null<const HistoryItem*> item) {
+	if (WidgetViewsDisabled) {
+		return false;
+	}
 	const auto session = &document->session();
 	const auto state = ResolveState(session);
 	Sweep(state);
@@ -498,11 +534,60 @@ bool ShowWidgetView(
 
 bool HasValidatedContent(not_null<DocumentData*> document) {
 	const auto entry = FindEntry(&document->session(), document);
-	if (!entry || entry->verdict != Verdict::Valid) {
+	if (WidgetViewsDisabled || !entry || !Usable(*entry)) {
 		return false;
 	}
 	const auto content = CurrentContent(document);
 	return content && SameSource(content->source, entry->source);
+}
+
+std::optional<ContentReader> PrepareContentReader(
+		not_null<DocumentData*> document) {
+	const auto entry = FindEntry(&document->session(), document);
+	if (WidgetViewsDisabled || !entry || !Usable(*entry)) {
+		return std::nullopt;
+	}
+	const auto content = CurrentContent(document);
+	if (!content || !SameSource(content->source, entry->source)) {
+		return std::nullopt;
+	}
+	const auto bytes = entry->source.bytes;
+	const auto access = bytes.isEmpty()
+		? EnableAccess(content->location)
+		: nullptr;
+	const auto size = entry->source.size;
+	return ContentReader{
+		.read = [=] { return ReadValidated(bytes, access, size); },
+		.generation = entry->generation,
+	};
+}
+
+void MarkContentUnavailable(
+		not_null<DocumentData*> document,
+		int generation,
+		FullMsgId itemId) {
+	const auto session = &document->session();
+	const auto entry = FindEntry(session, document);
+	if (entry && entry->generation == generation) {
+		entry->unavailable = true;
+	}
+	crl::on_main(session, [=] {
+		RefreshItems(session, document, { itemId });
+	});
+}
+
+void DisableWidgetViews(const std::vector<WidgetItemId> &items) {
+	WidgetViewsDisabled = true;
+	for (const auto &widget : items) {
+		const auto session = widget.session;
+		const auto id = widget.id;
+		crl::on_main(session, [=] {
+			const auto owner = &session->data();
+			if (const auto item = owner->message(id)) {
+				owner->requestItemViewRefresh(item);
+			}
+		});
+	}
 }
 
 } // namespace Tgw

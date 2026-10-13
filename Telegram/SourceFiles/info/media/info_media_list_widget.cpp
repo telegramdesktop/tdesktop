@@ -251,7 +251,8 @@ void ListWidget::start() {
 			session().data().itemVisibilityQueries(
 			) | rpl::filter([=](
 					const Data::Session::ItemVisibilityQuery &query) {
-				return _provider->isPossiblyMyItem(query.item)
+				return !query.view
+					&& _provider->isPossiblyMyItem(query.item)
 					&& isVisible();
 			}) | rpl::on_next([=](
 					const Data::Session::ItemVisibilityQuery &query) {

@@ -14,8 +14,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_element.h"
 #include "history/history_item.h"
+#include "lang/lang_keys.h"
 #include "tgw/tgw_document.h"
+#include "tgw/tgw_runtime.h"
 #include "ui/chat/chat_style.h"
+#include "ui/cached_round_corners.h"
 #include "ui/painter.h"
 
 #include "styles/style_chat.h"
@@ -28,7 +31,15 @@ WidgetDocument::WidgetDocument(
 	not_null<HistoryItem*> realParent,
 	not_null<DocumentData*> document)
 : File(parent, realParent)
-, _data(document) {
+, _data(document)
+, _runtime(std::make_unique<Tgw::Runtime>(Tgw::RuntimeDescriptor{
+	.view = parent,
+	.item = realParent,
+	.document = document,
+	.resize = [=] { _data->owner().requestViewResize(_parent); },
+	.repaint = [=] { _parent->repaint(); },
+	.heavyChanged = [=] { runtimeHeavyChanged(); },
+})) {
 	setDocumentLinks(_data, realParent);
 
 	// Adopts bytes the replaced file view may hold only in memory.
@@ -37,8 +48,12 @@ WidgetDocument::WidgetDocument(
 }
 
 WidgetDocument::~WidgetDocument() {
+	const auto heavy = hasHeavyPart();
+	_runtime = nullptr;
 	if (_dataMedia) {
 		_data->owner().keepAlive(base::take(_dataMedia));
+	}
+	if (heavy) {
 		_parent->checkHeavyPart();
 	}
 }
@@ -48,6 +63,9 @@ QSize WidgetDocument::countOptimalSize() {
 }
 
 QSize WidgetDocument::countCurrentSize(int newWidth) {
+	_runtime->setWidth(std::max(
+		newWidth - st::msgPadding.left() - st::msgPadding.right(),
+		0));
 	return { newWidth, countHeight() };
 }
 
@@ -66,7 +84,9 @@ QRect WidgetDocument::cardRect() const {
 
 int WidgetDocument::countHeight() const {
 	const auto margins = cardMargins();
-	return margins.top() + st::tgwPlaceholderHeight + margins.bottom();
+	const auto content = _runtime->height().value_or(
+		st::tgwPlaceholderHeight);
+	return margins.top() + content + margins.bottom();
 }
 
 bool WidgetDocument::drawsInfo() const {
@@ -79,29 +99,16 @@ void WidgetDocument::draw(Painter &p, const PaintContext &context) const {
 		return;
 	}
 	ensureDataMediaCreated();
-	if (!_dataMedia->loaded()) {
+	const auto loaded = _dataMedia->loaded();
+	if (!loaded) {
 		requestFallback();
 	}
 
-	const auto stm = context.messageStyle();
-	p.fillRect(card, stm->msgWaveformInactive);
-
-	const auto name = card.marginsRemoved({
-		st::msgPadding.left(),
-		0,
-		st::msgPadding.right(),
-		0,
-	});
-	if (!name.isEmpty()) {
-		p.setFont(st::semiboldFont);
-		p.setPen(stm->historyFileNameFg);
-		p.drawText(
-			name,
-			st::semiboldFont->elided(
-				_data->filename(),
-				name.width(),
-				Qt::ElideMiddle),
-			style::al_center);
+	p.fillRect(card, context.messageStyle()->msgWaveformInactive);
+	if (_runtime->stopped()) {
+		drawStopped(p, context, card);
+	} else {
+		drawFilename(p, context, card);
 	}
 	if (drawsInfo()) {
 		_parent->drawInfo(
@@ -112,6 +119,79 @@ void WidgetDocument::draw(Painter &p, const PaintContext &context) const {
 			width(),
 			InfoDisplayType::Image);
 	}
+	if (loaded && card.intersects(context.clip)) {
+		_runtime->painted();
+	}
+}
+
+void WidgetDocument::drawFilename(
+		Painter &p,
+		const PaintContext &context,
+		QRect card) const {
+	const auto name = card.marginsRemoved({
+		st::msgPadding.left(),
+		0,
+		st::msgPadding.right(),
+		0,
+	});
+	if (name.isEmpty()) {
+		return;
+	}
+	p.setFont(st::semiboldFont);
+	p.setPen(context.messageStyle()->historyFileNameFg);
+	p.drawText(
+		name,
+		st::semiboldFont->elided(
+			_data->filename(),
+			name.width(),
+			Qt::ElideMiddle),
+		style::al_center);
+}
+
+void WidgetDocument::drawStopped(
+		Painter &p,
+		const PaintContext &context,
+		QRect card) const {
+	const auto &font = st::msgDateFont;
+	const auto padding = st::msgDateImgPadding;
+	const auto skip = st::msgDateImgDelta;
+	const auto pillHeight = font->height + 2 * padding.y();
+	const auto top = card.y() + (card.height() - pillHeight) / 2;
+	const auto left = card.x() + skip;
+	auto right = card.x() + card.width() - skip;
+	if (drawsInfo()) {
+		const auto infoBottom = card.y() + card.height() - skip;
+		const auto infoTop = infoBottom - pillHeight;
+		if (top < infoBottom && top + pillHeight > infoTop) {
+			right -= _parent->infoWidth() + 2 * padding.x() + skip;
+		}
+	}
+	const auto available = right - left - 2 * padding.x();
+	if (available <= 0) {
+		return;
+	}
+	const auto label = font->elided(tr::lng_tgw_stopped(tr::now), available);
+	if (label.isEmpty()) {
+		return;
+	}
+	const auto labelWidth = std::min(font->width(label), available);
+	const auto pillWidth = labelWidth + 2 * padding.x();
+	const auto pill = QRect(
+		left + (right - left - pillWidth) / 2,
+		top,
+		pillWidth,
+		pillHeight);
+	const auto sti = context.imageStyle();
+	p.save();
+	p.setClipRect(card, Qt::IntersectClip);
+	Ui::FillRoundRect(p, pill, sti->msgDateImgBg, sti->msgDateImgBgCorners);
+	p.setFont(font);
+	p.setPen(context.st->msgDateImgFg());
+	p.drawText(
+		pill.x() + padding.x(),
+		pill.y() + padding.y() + font->ascent,
+		label);
+	p.restore();
 }
 
 TextState WidgetDocument::textState(
@@ -195,11 +275,20 @@ bool WidgetDocument::dataLoaded() const {
 }
 
 bool WidgetDocument::hasHeavyPart() const {
-	return (_dataMedia != nullptr);
+	return (_dataMedia != nullptr) || (_runtime && _runtime->heavy());
 }
 
 void WidgetDocument::unloadHeavyPart() {
 	_dataMedia = nullptr;
+	_runtime->unload();
+}
+
+void WidgetDocument::runtimeHeavyChanged() {
+	if (_runtime->heavy()) {
+		_data->owner().registerHeavyViewPart(_parent);
+	} else {
+		_parent->checkHeavyPart();
+	}
 }
 
 } // namespace HistoryView

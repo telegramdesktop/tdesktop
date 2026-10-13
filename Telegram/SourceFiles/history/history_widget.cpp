@@ -1108,9 +1108,13 @@ HistoryWidget::HistoryWidget(
 	session().data().itemVisibilityQueries(
 	) | rpl::filter([=](
 			const Data::Session::ItemVisibilityQuery &query) {
+		const auto history = query.item->history();
+		const auto view = query.item->mainView();
 		return !_showAnimation
-			&& (_history == query.item->history())
-			&& (query.item->mainView() != nullptr)
+			&& ((_history == history)
+				|| (query.view && (_migrated == history)))
+			&& (view != nullptr)
+			&& (!query.view || (query.view == view))
 			&& _list
 			&& !_list->isHidden()
 			&& isVisible();

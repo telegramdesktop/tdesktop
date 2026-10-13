@@ -112,6 +112,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "spellcheck/spellcheck_types.h"
+#include "tgw/tgw_log_box.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
@@ -434,6 +435,7 @@ void AddDocumentActions(
 		not_null<Ui::PopupMenu*> menu,
 		not_null<DocumentData*> document,
 		HistoryItem *item,
+		const Element *view,
 		not_null<ListWidget*> list) {
 	if (document->loading()) {
 		menu->addAction(tr::lng_context_cancel_download(tr::now), [=] {
@@ -525,6 +527,9 @@ void AddDocumentActions(
 		menu,
 		document,
 		[=] { return list->showCopyRestrictionForSelected(); });
+	if (view) {
+		Tgw::AddLogAction(menu, view, controller->uiShow());
+	}
 }
 
 void AddPostLinkAction(
@@ -1853,7 +1858,7 @@ void FillContextMenuItems(
 	if (lnkPhoto && request.selectedItems.empty()) {
 		AddPhotoActions(result, lnkPhoto, item, list);
 	} else if (lnkDocument) {
-		AddDocumentActions(result, lnkDocument, item, list);
+		AddDocumentActions(result, lnkDocument, item, view, list);
 	} else if (poll) {
 		const auto context = list->elementContext();
 		AddPollActions(
@@ -1888,7 +1893,7 @@ void FillContextMenuItems(
 			}
 		}
 		if (const auto document = media ? media->getDocument() : nullptr) {
-			AddDocumentActions(result, document, view->data(), list);
+			AddDocumentActions(result, document, view->data(), view, list);
 		}
 		if (!link && (view->hasVisibleText() || mediaHasTextForCopy)) {
 			if (!list->hasCopyRestriction(view->data())) {
