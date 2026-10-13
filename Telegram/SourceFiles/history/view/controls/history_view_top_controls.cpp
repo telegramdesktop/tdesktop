@@ -1226,16 +1226,6 @@ void TopControls::updateZOrder() {
 	}
 }
 
-void TopControls::applyHeightChange(int was, int now, bool preserveTop) {
-	if (was == now) {
-		return;
-	} else if (preserveTop) {
-		applyHeightChangeWithTopMoved(was, now);
-	} else {
-		applyHeightChangeWithRelayout(was, now);
-	}
-}
-
 void TopControls::applyHeightChangeWithTopMoved(int was, int now) {
 	const auto delta = now - was;
 	if (!delta) {

@@ -109,7 +109,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/session/send_as_peers.h"
 #include "media/audio/media_audio_capture.h"
 #include "media/audio/media_audio.h"
-#include "menu/menu_checked_action.h"
 #include "mtproto/mtproto_config.h"
 #include "menu/menu_send.h"
 #include "settings/sections/settings_premium.h"
@@ -121,7 +120,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/dropdown_menu.h"
-#include "ui/widgets/popup_menu.h"
 #include "ui/text/format_values.h"
 #include "ui/controls/compose_ai_button_factory.h"
 #include "ui/controls/emoji_button.h"
@@ -142,7 +140,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_credits.h"
 #include "styles/style_iv.h"
 #include "styles/style_layers.h"
-#include "styles/style_menu_icons.h"
 
 namespace HistoryView {
 namespace {
@@ -6643,51 +6640,6 @@ rpl::producer<bool> SendDisabledBySlowmode(not_null<PeerData*> peer) {
 			channel->slowmodeAppliedValue(),
 			std::move(hasSendingMessage),
 			_1 && _2);
-}
-
-void ShowPhotoEditSpoilerMenu(
-		not_null<Ui::RpWidget*> parent,
-		not_null<HistoryItem*> item,
-		const std::optional<bool> &override,
-		Fn<void(bool)> callback) {
-	const auto media = item->media();
-	const auto hasPreview = media && media->hasReplyPreview();
-	const auto preview = hasPreview ? media->replyPreview() : nullptr;
-	if (!preview) {
-		return;
-	}
-	const auto spoilered = override
-		? (*override)
-		: (preview && media->hasSpoiler());
-	const auto menu = Ui::CreateChild<Ui::PopupMenu>(
-		parent,
-		st::popupMenuWithIcons);
-	Menu::AddCheckedAction(
-		menu,
-		tr::lng_context_spoiler_effect(tr::now),
-		[=] { callback(!spoilered); },
-		&st::menuIconSpoiler,
-		spoilered);
-	menu->popup(QCursor::pos());
-}
-
-Image *MediaPreviewWithOverriddenSpoiler(
-		not_null<HistoryItem*> item,
-		bool spoiler) {
-	if (const auto media = item->media()) {
-		if (const auto photo = media->photo()) {
-			return photo->getReplyPreview(
-				item->fullId(),
-				item->history()->peer,
-				spoiler);
-		} else if (const auto document = media->document()) {
-			return document->getReplyPreview(
-				item->fullId(),
-				item->history()->peer,
-				spoiler);
-		}
-	}
-	return nullptr;
 }
 
 } // namespace HistoryView

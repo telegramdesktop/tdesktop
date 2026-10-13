@@ -445,14 +445,6 @@ void InlineList::flipToRight() {
 	}
 }
 
-int InlineList::placeAndResizeGetHeight(QRect available) {
-	const auto result = resizeGetHeight(available.width());
-	for (auto &button : _buttons) {
-		button.geometry.translate(available.x(), 0);
-	}
-	return result;
-}
-
 void InlineList::paint(
 		Painter &p,
 		const PaintContext &context,

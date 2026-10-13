@@ -934,8 +934,6 @@ private:
 	template <typename Method>
 	void enumerateForumThreadBars(Method method);
 
-	void setGeometryCrashAnnotations(not_null<Element*> view);
-
 	static constexpr auto kMinimalIdsLimit = 24;
 
 	const not_null<ListDelegate*> _delegate;

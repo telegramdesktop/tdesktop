@@ -230,29 +230,6 @@ Selector::Selector(
 	mediaPreviewParent) {
 }
 
-#if 0 // not ready
-Selector::Selector(
-	not_null<QWidget*> parent,
-	const style::EmojiPan &st,
-	std::shared_ptr<ChatHelpers::Show> show,
-	ChatHelpers::EmojiListMode mode,
-	std::vector<DocumentId> recent,
-	Fn<void(bool fast)> close,
-	bool child)
-: Selector(
-	parent,
-	st,
-	std::move(show),
-	{ .customAllowed = true },
-	mode,
-	std::move(recent),
-	{},
-	nullptr,
-	close,
-	child) {
-}
-#endif
-
 Selector::Selector(
 	not_null<QWidget*> parent,
 	const style::EmojiPan &st,
@@ -1358,78 +1335,6 @@ bool AdjustMenuGeometryForSelector(
 	selector->setSpecialExpandTopSkip(additionalPaddingBottom);
 	return menu->prepareGeometryFor(desiredPosition);
 }
-
-#if 0 // not ready
-AttachSelectorResult MakeJustSelectorMenu(
-		not_null<Ui::PopupMenu*> menu,
-		not_null<Window::SessionController*> controller,
-		QPoint desiredPosition,
-		ChatHelpers::EmojiListMode mode,
-		std::vector<DocumentId> recent,
-		Fn<void(ChosenReaction)> chosen) {
-	const auto selector = Ui::CreateChild<Selector>(
-		menu.get(),
-		st::reactPanelEmojiPan,
-		controller->uiShow(),
-		mode,
-		std::move(recent),
-		[=](bool fast) { menu->hideMenu(fast); },
-		false); // child
-	if (!AdjustMenuGeometryForSelector(menu, desiredPosition, selector)) {
-		return AttachSelectorResult::Failed;
-	}
-	if (mode != ChatHelpers::EmojiListMode::RecentReactions) {
-		Ui::Platform::FixPopupMenuNativeEmojiPopup(menu);
-	}
-	const auto selectorInnerTop = menu->preparedPadding().top()
-		- st::reactStripExtend.top();
-	menu->animatePhaseValue(
-	) | rpl::on_next([=](Ui::PopupMenu::AnimatePhase phase) {
-		if (phase == Ui::PopupMenu::AnimatePhase::StartHide) {
-			selector->beforeDestroy();
-		}
-	}, selector->lifetime());
-	selector->initGeometry(selectorInnerTop);
-	selector->show();
-
-	selector->chosen() | rpl::on_next([=](ChosenReaction reaction) {
-		menu->hideMenu();
-		chosen(std::move(reaction));
-	}, selector->lifetime());
-
-	const auto correctTop = selector->y();
-	menu->showStateValue(
-	) | rpl::on_next([=](Ui::PopupMenu::ShowState state) {
-		const auto origin = menu->preparedOrigin();
-		using Origin = Ui::PanelAnimation::Origin;
-		if (origin == Origin::BottomLeft || origin == Origin::BottomRight) {
-			const auto add = state.appearing
-				? (menu->rect().marginsRemoved(
-					menu->preparedPadding()
-				).height() - state.appearingHeight)
-				: 0;
-			selector->move(selector->x(), correctTop + add);
-		}
-		selector->updateShowState(
-			state.widthProgress * state.heightProgress,
-			state.opacity,
-			state.appearing,
-			state.toggling);
-	}, selector->lifetime());
-
-	const auto weak = base::make_weak(controller);
-	controller->enableGifPauseReason(
-		Window::GifPauseReason::MediaPreview);
-	QObject::connect(menu.get(), &QObject::destroyed, [weak] {
-		if (const auto strong = weak.get()) {
-			strong->disableGifPauseReason(
-				Window::GifPauseReason::MediaPreview);
-		}
-	});
-
-	return AttachSelectorResult::Attached;
-}
-#endif
 
 AttachSelectorResult AttachSelectorToMenu(
 		not_null<Ui::PopupMenu*> menu,

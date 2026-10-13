@@ -115,7 +115,6 @@ private:
 	void resetPinnedState();
 	void updateLayout();
 	void updateZOrder();
-	void applyHeightChange(int was, int now, bool preserveTop);
 	void applyHeightChangeWithTopMoved(int was, int now);
 	void applyHeightChangeWithRelayout(int was, int now);
 

@@ -364,12 +364,6 @@ void EmojiInteractions::refreshLayerShift() {
 	_layerShift = Ui::MapFrom(_layerParent, _parent, QPoint(0, 0));
 }
 
-void EmojiInteractions::refreshLayerGeometryAndUpdate(QRect rect) {
-	if (!rect.isEmpty()) {
-		_layer->update(rect.translated(_layerShift));
-	}
-}
-
 void EmojiInteractions::visibleAreaUpdated(
 		int visibleTop,
 		int visibleBottom) {
