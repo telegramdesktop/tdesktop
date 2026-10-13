@@ -35,6 +35,8 @@ public:
 	[[nodiscard]] static int Size();
 	[[nodiscard]] static int MaxWidth();
 	[[nodiscard]] static int Skip();
+	[[nodiscard]] static int RightSkip();
+	[[nodiscard]] static int TopSkip();
 
 	explicit SwitchableUserpicButton(not_null<Ui::RpWidget*> parent);
 
