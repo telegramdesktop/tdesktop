@@ -344,7 +344,7 @@ private:
 		Data::MessagePosition position,
 		FullMsgId originItemId,
 		const Window::SectionShow &params);
-	void finishSending();
+	void finishSending(const Api::SendOptions &options);
 
 	void setupComposeControls();
 	void setupSwipeReplyAndBack();
