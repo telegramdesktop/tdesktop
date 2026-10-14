@@ -479,7 +479,7 @@ class AtlasTests(unittest.TestCase):
         - Owns arithmetic.
 
         ### app — Application
-        - Paths: `SourceFiles/app/`, `SourceFiles/low/special_*`
+        - Paths: `SourceFiles/app/`, `SourceFiles/low/special_*`, `SourceFiles/low/low.h`
         - Owns the entry point.
     """)
 
@@ -505,8 +505,10 @@ class AtlasTests(unittest.TestCase):
         self.addCleanup(repo.temp.cleanup)
         snap = report.snapshot(sources.from_worktree(repo.root))
         self.assertEqual(snap['files']['Telegram/SourceFiles/low/low.cpp']['area'], 'low')
+        self.assertEqual(snap['files']['Telegram/SourceFiles/low/low.h']['area'], 'app')
         found = report.findings(snap)
         self.assertIn('stale-atlas:app:SourceFiles/low/special_*', found)
+        self.assertNotIn(f'stale-map:{atlas.ATLAS_PATH}', found)
 
     def test_large_directories_split_into_large_subdirectories(self):
         files = {

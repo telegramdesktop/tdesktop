@@ -158,10 +158,11 @@ def snapshot(tree, queue=None, churn_days=180, cost_days=120):
 
 
 def map_references(tree):
-    """Area maps and the source paths they name that no longer exist."""
+    """Area maps and the source paths they name that no longer exist. The
+    atlas is left out: its patterns are checked as stale-atlas findings."""
     result = {}
     for path, text in tree.files.items():
-        if not path.endswith('/AGENTS.md'):
+        if not path.endswith('/AGENTS.md') or path == atlas.ATLAS_PATH:
             continue
         folder = posixpath.dirname(path)
         missing = []

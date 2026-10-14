@@ -331,8 +331,8 @@ Both app-level (`Core::Settings`) and session-level (`Main::SessionSettings`) us
 
 ## Area maps
 
-`Telegram/SourceFiles/AGENTS.md`, once approved, is the source atlas: every
-area of the tree with its paths and responsibility. A directory may also
+`Telegram/SourceFiles/AGENTS.md` is the source atlas: every area of the
+tree with its paths and responsibility. A directory may also
 have its own `AGENTS.md`: the map of that area's modules, placement rules,
 invariants, and things to leave alone. Before adding code, read the atlas
 entry of the area you touch and the nearest map, and put new code where they

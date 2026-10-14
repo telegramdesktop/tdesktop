@@ -30,8 +30,11 @@ words, once, and approves amendments as the code changes.
   most specific pattern wins: a file, then a glob, then the longest prefix.
   Every source file must match exactly one area.
 - **Layers** order the areas from foundation to features, so a reader sees
-  which way dependencies should point: libraries, core and model, network
-  and storage, UI kit, shared UI, features, platform.
+  which way dependencies should point: libraries, core, model, network and
+  storage, UI kit, UI libraries (the libraries that link lib_ui), shared UI,
+  features in product groups, platform, tooling and tests. A known break of
+  an area's boundary is named in a "Today it also …" sentence instead of
+  widening the responsibility.
 - About 60–90 areas and at most ~400 lines. An area larger than ~40K lines
   or with two unrelated responsibilities is split; a directory under ~2K
   lines joins the area it works with most.
