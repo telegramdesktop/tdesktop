@@ -25,6 +25,9 @@ namespace {
 
 constexpr auto kReadChunk = 64 * 1024;
 constexpr auto kRetainedSnapshots = 8;
+constexpr auto kUtf8Bom = std::string_view("\xEF\xBB\xBF");
+constexpr auto kBareMarker = std::string_view("<!-- tgw:bare -->");
+constexpr auto kBarePrefixSize = int(kUtf8Bom.size() + kBareMarker.size() + 1);
 
 #ifdef _DEBUG
 constexpr auto kDefaultEnabled = true;
@@ -37,6 +40,11 @@ enum class Verdict : uchar {
 	Checking,
 	Valid,
 	Invalid,
+};
+
+struct Checked {
+	Verdict verdict = Verdict::Unknown;
+	bool bare = false;
 };
 
 struct Source {
@@ -58,6 +66,7 @@ struct Entry {
 	int generation = 0;
 	Verdict verdict = Verdict::Unknown;
 	bool unavailable = false;
+	bool bare = false;
 };
 
 struct State {
@@ -121,24 +130,39 @@ auto WidgetViewsDisabled = false;
 	return true;
 }
 
-[[nodiscard]] Verdict CheckBytes(const QByteArray &bytes) {
-	auto state = Utf8State();
-	return (!bytes.isEmpty()
-		&& FeedUtf8(state, bytes.constData(), bytes.size())
-		&& !state.needed)
-		? Verdict::Valid
-		: Verdict::Invalid;
+[[nodiscard]] bool HasBareMarker(const QByteArray &bytes) {
+	// HTML decoding drops a leading BOM and ends a line at a CR as well.
+	auto rest = std::string_view(bytes.constData(), bytes.size());
+	if (rest.starts_with(kUtf8Bom)) {
+		rest.remove_prefix(kUtf8Bom.size());
+	}
+	if (!rest.starts_with(kBareMarker)) {
+		return false;
+	}
+	rest.remove_prefix(kBareMarker.size());
+	return rest.empty() || (rest.front() == '\n') || (rest.front() == '\r');
 }
 
-[[nodiscard]] Verdict CheckFile(const QString &path, int64 size) {
+[[nodiscard]] Checked CheckBytes(const QByteArray &bytes) {
+	auto state = Utf8State();
+	const auto valid = !bytes.isEmpty()
+		&& FeedUtf8(state, bytes.constData(), bytes.size())
+		&& !state.needed;
+	return valid
+		? Checked{ .verdict = Verdict::Valid, .bare = HasBareMarker(bytes) }
+		: Checked{ .verdict = Verdict::Invalid };
+}
+
+[[nodiscard]] Checked CheckFile(const QString &path, int64 size) {
 	if (!size) {
-		return Verdict::Invalid;
+		return { .verdict = Verdict::Invalid };
 	}
 	auto file = QFile(path);
 	if (!file.open(QIODevice::ReadOnly) || file.size() != size) {
-		return Verdict::Unknown;
+		return { .verdict = Verdict::Unknown };
 	}
 	auto state = Utf8State();
+	auto prefix = QByteArray();
 	auto buffer = QByteArray(kReadChunk, Qt::Uninitialized);
 	auto left = size;
 	while (left > 0) {
@@ -146,13 +170,19 @@ auto WidgetViewsDisabled = false;
 			buffer.data(),
 			std::min(left, int64(kReadChunk)));
 		if (read <= 0) {
-			return Verdict::Unknown;
+			return { .verdict = Verdict::Unknown };
 		} else if (!FeedUtf8(state, buffer.constData(), read)) {
-			return Verdict::Invalid;
+			return { .verdict = Verdict::Invalid };
+		}
+		if (prefix.size() < kBarePrefixSize) {
+			const auto missing = int64(kBarePrefixSize - prefix.size());
+			prefix.append(buffer.constData(), int(std::min(read, missing)));
 		}
 		left -= read;
 	}
-	return state.needed ? Verdict::Invalid : Verdict::Valid;
+	return state.needed
+		? Checked{ .verdict = Verdict::Invalid }
+		: Checked{ .verdict = Verdict::Valid, .bare = HasBareMarker(prefix) };
 }
 
 [[nodiscard]] QByteArray ReadLocation(const Core::FileLocation &location) {
@@ -177,7 +207,7 @@ auto WidgetViewsDisabled = false;
 	}
 	auto result = access ? ReadLocation(*access) : bytes;
 	const auto valid = (result.size() == size)
-		&& (CheckBytes(result) == Verdict::Valid);
+		&& (CheckBytes(result).verdict == Verdict::Valid);
 	return valid ? result : QByteArray();
 }
 
@@ -215,6 +245,7 @@ auto WidgetViewsDisabled = false;
 void Release(Entry &entry) {
 	entry.source = Source();
 	entry.verdict = Verdict::Unknown;
+	entry.bare = false;
 }
 
 [[nodiscard]] bool LeavesRetained(
@@ -341,7 +372,7 @@ void Apply(
 	not_null<Main::Session*> session,
 	not_null<DocumentData*> document,
 	int generation,
-	Verdict verdict);
+	Checked checked);
 
 void StartCheck(
 		not_null<Main::Session*> session,
@@ -351,6 +382,7 @@ void StartCheck(
 	entry.source = std::move(content.source);
 	entry.verdict = Verdict::Checking;
 	entry.unavailable = false;
+	entry.bare = false;
 	const auto generation = ++entry.generation;
 	auto access = std::shared_ptr<const Core::FileLocation>();
 	if (entry.source.bytes.isEmpty()) {
@@ -364,11 +396,11 @@ void StartCheck(
 	const auto size = entry.source.size;
 	const auto weak = base::make_weak(session);
 	crl::async([=] {
-		const auto verdict = access
+		const auto checked = access
 			? CheckFile(access->name(), size)
 			: CheckBytes(bytes);
 		crl::on_main(weak, [=] {
-			Apply(session, document, generation, verdict);
+			Apply(session, document, generation, checked);
 		});
 	});
 }
@@ -377,7 +409,7 @@ void Apply(
 		not_null<Main::Session*> session,
 		not_null<DocumentData*> document,
 		int generation,
-		Verdict verdict) {
+		Checked checked) {
 	const auto state = FindState(session);
 	if (!state) {
 		return;
@@ -389,11 +421,12 @@ void Apply(
 	auto &entry = i->second;
 	auto content = CurrentContent(document);
 	if (content && SameSource(content->source, entry.source)) {
-		entry.verdict = verdict;
+		entry.verdict = checked.verdict;
+		entry.bare = checked.bare;
 		if (!entry.source.bytes.isEmpty()) {
 			Retain(state, document);
 		}
-		if (verdict == Verdict::Valid) {
+		if (checked.verdict == Verdict::Valid) {
 			RefreshItems(session, document, base::take(entry.pending));
 		}
 		return;
@@ -539,6 +572,15 @@ bool HasValidatedContent(not_null<DocumentData*> document) {
 	}
 	const auto content = CurrentContent(document);
 	return content && SameSource(content->source, entry->source);
+}
+
+bool IsBareWidget(not_null<DocumentData*> document) {
+	const auto entry = FindEntry(&document->session(), document);
+	if (!entry || !HasValidatedContent(document)) {
+		return false;
+	}
+	const auto name = document->filename();
+	return entry->bare || name.endsWith(u"-bare.tgw"_q, Qt::CaseInsensitive);
 }
 
 std::optional<ContentReader> PrepareContentReader(

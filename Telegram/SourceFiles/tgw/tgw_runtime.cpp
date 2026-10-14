@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_resources.h"
 #include "twidget/widget_host.h"
 #include "ui/style/style_core_scale.h"
+#include "ui/color_contrast.h"
 
 namespace Tgw {
 namespace {
@@ -38,7 +39,6 @@ constexpr auto kOmittedBytes = 128;
 constexpr auto kSnapshotBytes = 64 * 1024;
 constexpr auto kNotesBytes = 56 * 1024;
 constexpr auto kLogBytes = 128 * 1024;
-constexpr auto kTheme = "light";
 
 static_assert(kStateBytes + kKindsBytes + kConsoleBytes + kBridgeBytes
 	== kSnapshotBytes);
@@ -81,6 +81,7 @@ struct Job {
 	twidget::RendererFactory factory;
 	Fn<void(const std::string &, const std::string &)> bridge;
 	twidget::WidgetHostOptions options;
+	std::string theme;
 	std::string stoppedLabel;
 	Slot slot;
 	double width = 0.;
@@ -179,6 +180,24 @@ void HostDeleter::operator()(twidget::WidgetHost *host) const {
 
 [[nodiscard]] int LogicalHeight(double css) {
 	return int(std::ceil(css * style::Scale() / 100.));
+}
+
+[[nodiscard]] std::string ThemeName(bool dark) {
+	return dark ? "dark" : "light";
+}
+
+void ApplyTheme(twidget::WidgetHost &host, const std::string &theme) {
+	const auto apply = [&] {
+		host.onHostThread([&] {
+			host.setTheme(theme);
+		});
+	};
+	apply();
+	// WHY: the engine may still post a batch validated in the old theme, so
+	// the styles are replayed again behind a barrier on its thread; probe()
+	// wraps its code in String(), shadowed here to call no widget global.
+	host.probe("0); function String() { return ''; } return (0");
+	apply();
 }
 
 [[nodiscard]] twidget::WidgetHostOptions DefaultHostOptions(
@@ -380,7 +399,7 @@ void AppendTail(
 		auto host = HostPointer(
 			new twidget::WidgetHost(
 				std::string(html.constData(), size_t(html.size())),
-				kTheme,
+				std::move(job.theme),
 				job.width,
 				job.options,
 				std::move(job.resources),
@@ -434,6 +453,7 @@ struct Runtime::Host {
 	base::weak_ptr<Runtime> owner;
 	uint64 id = 0;
 	bool sampling = false;
+	bool theming = false;
 	bool retired = false;
 };
 
@@ -527,6 +547,17 @@ void Runtime::setWidth(int width) {
 			applyWidth();
 		});
 	}
+}
+
+void Runtime::setBubbleColor(const QColor &color) {
+	const auto rgba = color.rgba();
+	if (_bubbleColor == rgba) {
+		return;
+	}
+	_bubbleColor = rgba;
+	_dark = (Ui::CountContrast(color, QColor(255, 255, 255))
+		> Ui::CountContrast(color, QColor(0, 0, 0)));
+	syncHostTheme();
 }
 
 void Runtime::painted() {
@@ -862,6 +893,7 @@ void Runtime::construct(
 	subscribeLive();
 	_state = State::Constructing;
 	_hostVisible = _visible;
+	_hostDark = _dark;
 	auto job = Job{
 		.read = std::move(reader->read),
 		.resources = std::move(resources),
@@ -869,6 +901,7 @@ void Runtime::construct(
 		.factory = _live->hostFactory(),
 		.bridge = _live->hostBridgeHandler(),
 		.options = DefaultHostOptions(ratio, _visible),
+		.theme = ThemeName(_dark),
 		.stoppedLabel = tr::lng_tgw_stopped(tr::now).toStdString(),
 		.slot = std::make_shared<Reservation>([] { Check(); }),
 		.width = width,
@@ -905,6 +938,12 @@ void Runtime::constructed(
 		return;
 	} else if (Core::Quitting()) {
 		release();
+		return;
+	} else if (_hostDark != _dark) {
+		// Its engine would boot in the stale theme ahead of setTheme().
+		release();
+		addNote(u"Released, the theme changed before it started."_q);
+		_repaint();
 		return;
 	}
 	_host = std::make_shared<Host>(Host{
@@ -1037,6 +1076,38 @@ void Runtime::syncHostVisibility() {
 		_hostVisible = _visible;
 		_host->pointer->setVisible(_visible);
 	}
+}
+
+void Runtime::syncHostTheme() {
+	if (!_host || _host->theming || _hostDark == _dark) {
+		return;
+	}
+	_hostDark = _dark;
+	_host->theming = true;
+	addNote(_dark
+		? u"Switched to the dark theme."_q
+		: u"Switched to the light theme."_q);
+	++Runtimes().jobs;
+	crl::async([
+		host = _host,
+		pointer = _host->pointer,
+		theme = ThemeName(_dark)
+	]() mutable {
+		ApplyTheme(*pointer, theme);
+		pointer = nullptr;
+		crl::on_main([host = std::move(host)] {
+			ThemeDone(host);
+		});
+	});
+}
+
+void Runtime::ThemeDone(const std::shared_ptr<Host> &host) {
+	host->theming = false;
+	const auto owner = host->owner.get();
+	if (owner && owner->_host == host) {
+		owner->syncHostTheme();
+	}
+	JobDone();
 }
 
 void Runtime::applyWidth() {

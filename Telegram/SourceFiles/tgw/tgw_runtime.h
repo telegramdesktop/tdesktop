@@ -66,6 +66,7 @@ public:
 	[[nodiscard]] RendererCore *core() const;
 
 	void setWidth(int width);
+	void setBubbleColor(const QColor &color);
 	void painted();
 	void unload();
 
@@ -87,6 +88,7 @@ private:
 		uint64 request,
 		bool last,
 		QString text);
+	static void ThemeDone(const std::shared_ptr<Host> &host);
 	[[nodiscard]] static Runtime *FindVictim();
 
 	[[nodiscard]] bool startable() const;
@@ -117,6 +119,7 @@ private:
 		const std::string &arguments);
 
 	void syncHostVisibility();
+	void syncHostTheme();
 	void applyWidth();
 	void displayChanged(bool repaint);
 	void heavyStateChanged(bool wasHeavy);
@@ -139,6 +142,7 @@ private:
 	Fn<void(const QString &text)> _logDone;
 	rpl::lifetime _liveLifetime;
 	std::optional<int> _shownHeight;
+	std::optional<QRgb> _bubbleColor;
 	uint64 _hiddenSerial = 0;
 	uint64 _queueSerial = 0;
 	uint64 _lastHost = 0;
@@ -150,6 +154,8 @@ private:
 	State _state = State::Idle;
 	bool _visible = false;
 	bool _hostVisible = false;
+	bool _dark = false;
+	bool _hostDark = false;
 	bool _painted = false;
 	bool _stopFatal = false;
 	bool _widthPosted = false;

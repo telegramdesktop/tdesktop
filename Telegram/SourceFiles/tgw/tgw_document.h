@@ -49,6 +49,7 @@ void InitEnabled();
 	not_null<DocumentData*> document,
 	not_null<const HistoryItem*> item);
 [[nodiscard]] bool HasValidatedContent(not_null<DocumentData*> document);
+[[nodiscard]] bool IsBareWidget(not_null<DocumentData*> document);
 
 [[nodiscard]] std::optional<ContentReader> PrepareContentReader(
 	not_null<DocumentData*> document);

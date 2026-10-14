@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_renderer.h"
 #include "tgw/tgw_runtime.h"
 #include "ui/chat/chat_style.h"
+#include "ui/chat/chat_theme.h"
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
 
@@ -26,6 +27,45 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_tgw.h"
 
 namespace HistoryView {
+namespace {
+
+constexpr auto kPatternColors = 4;
+
+struct PatternColor {
+	qint64 key = 0;
+	QColor color;
+};
+
+[[nodiscard]] QColor PatternAverageColor(const QPixmap &pattern) {
+	static auto cache = std::array<PatternColor, kPatternColors>();
+	const auto key = pattern.cacheKey();
+	for (const auto &entry : cache) {
+		if (entry.key == key) {
+			return entry.color;
+		}
+	}
+	std::rotate(begin(cache), end(cache) - 1, end(cache));
+	cache.front() = {
+		.key = key,
+		.color = Ui::CountAverageColor(
+			pattern.toImage().convertToFormat(
+				QImage::Format_ARGB32_Premultiplied)),
+	};
+	return cache.front().color;
+}
+
+[[nodiscard]] QColor BubbleColor(const PaintContext &context) {
+	const auto pattern = context.bubblesPattern;
+	if (!context.outbg
+		|| !pattern
+		|| context.viewport.isEmpty()
+		|| pattern->pixmap.size().isEmpty()) {
+		return context.st->messageStyle(context.outbg, false).msgBg->c;
+	}
+	return PatternAverageColor(pattern->pixmap);
+}
+
+} // namespace
 
 WidgetDocument::WidgetDocument(
 	not_null<Element*> parent,
@@ -40,7 +80,8 @@ WidgetDocument::WidgetDocument(
 	.resize = [=] { _data->owner().requestViewResize(_parent); },
 	.repaint = [=] { _parent->repaint(); },
 	.heavyChanged = [=] { runtimeHeavyChanged(); },
-})) {
+}))
+, _bare(Tgw::IsBareWidget(document)) {
 	setDocumentLinks(_data, realParent);
 
 	// Adopts bytes the replaced file view may hold only in memory.
@@ -64,13 +105,36 @@ QSize WidgetDocument::countOptimalSize() {
 }
 
 QSize WidgetDocument::countCurrentSize(int newWidth) {
+	const auto margins = cardMargins();
 	_runtime->setWidth(std::max(
-		newWidth - st::msgPadding.left() - st::msgPadding.right(),
+		newWidth - margins.left() - margins.right(),
 		0));
 	return { newWidth, countHeight() };
 }
 
+bool WidgetDocument::needsBubble() const {
+	if (!_bare) {
+		return true;
+	}
+	const auto item = _parent->data();
+	return item->isSponsored()
+		|| _parent->hasCommentsButton()
+		|| item->viaBot()
+		|| !item->emptyText()
+		|| _parent->displayReply()
+		|| _parent->displayForwardedFrom()
+		|| _parent->displayFromName()
+		|| _parent->displayedTopicButton();
+}
+
+bool WidgetDocument::unwrapped() const {
+	return _bare && !_parent->hasBubble();
+}
+
 QMargins WidgetDocument::cardMargins() const {
+	if (!_parent->hasBubble()) {
+		return {};
+	}
 	return {
 		st::msgPadding.left(),
 		isBubbleTop() ? st::msgPadding.top() : 0,
@@ -80,18 +144,48 @@ QMargins WidgetDocument::cardMargins() const {
 }
 
 QRect WidgetDocument::cardRect() const {
-	return QRect(0, 0, width(), height()).marginsRemoved(cardMargins());
+	const auto full = QRect(0, 0, width(), height() - bareInfoHeight());
+	return full.marginsRemoved(cardMargins());
 }
 
 int WidgetDocument::countHeight() const {
 	const auto margins = cardMargins();
 	const auto content = _runtime->height().value_or(
 		st::tgwPlaceholderHeight);
-	return margins.top() + content + margins.bottom();
+	return margins.top() + content + margins.bottom() + bareInfoHeight();
+}
+
+int WidgetDocument::bareInfoHeight() const {
+	if (_parent->hasBubble()
+		|| !drawsInfo()
+		|| _parent->hidesBottomInfo()) {
+		return 0;
+	}
+	const auto line = st::msgDateFont->height;
+	const auto effect = _parent->data()->effectId() ? line : 0;
+	return st::tgwBareInfoSkip
+		+ line
+		+ effect
+		+ 2 * st::msgDateImgPadding.y();
 }
 
 bool WidgetDocument::drawsInfo() const {
 	return isBubbleBottom() && (_parent->media() == this);
+}
+
+std::optional<QRect> WidgetDocument::rightActionRect() const {
+	if (_parent->hasBubble() || (_parent->media() != this)) {
+		return std::nullopt;
+	}
+	const auto size = _parent->rightActionSize();
+	if (!size) {
+		return std::nullopt;
+	}
+	const auto left = _parent->hasRightLayout()
+		? -(size->width() + st::historyFastShareLeft)
+		: (width() + st::historyFastShareLeft);
+	const auto top = height() - st::historyFastShareBottom - size->height();
+	return QRect(QPoint(left, top), *size);
 }
 
 void WidgetDocument::draw(Painter &p, const PaintContext &context) const {
@@ -99,19 +193,35 @@ void WidgetDocument::draw(Painter &p, const PaintContext &context) const {
 	if (card.isEmpty()) {
 		return;
 	}
+	_runtime->setBubbleColor(BubbleColor(context));
 	ensureDataMediaCreated();
 	const auto loaded = _dataMedia->loaded();
 	if (!loaded) {
 		requestFallback();
 	}
 
+	const auto bubble = _parent->hasBubble();
 	const auto visible = card.intersects(context.clip);
 	const auto core = visible ? _runtime->core() : nullptr;
 	const auto frame = core ? core->frame() : QImage();
 	if (frame.isNull()) {
-		p.fillRect(card, context.messageStyle()->msgWaveformInactive);
+		if (bubble) {
+			p.fillRect(card, context.messageStyle()->msgWaveformInactive);
+		} else {
+			const auto sti = context.imageStyle();
+			Ui::FillRoundRect(
+				p,
+				card,
+				sti->msgServiceBg,
+				sti->msgServiceBgCornersSmall);
+		}
 		if (!_runtime->stopped()) {
-			drawFilename(p, context, card);
+			drawFilename(
+				p,
+				card,
+				(bubble
+					? context.messageStyle()->historyFileNameFg
+					: context.st->msgServiceFg()));
 		}
 	} else {
 		p.save();
@@ -119,17 +229,38 @@ void WidgetDocument::draw(Painter &p, const PaintContext &context) const {
 		p.drawImage(card.topLeft(), frame);
 		p.restore();
 	}
+	if (!bubble && context.selected()) {
+		fillImageOverlay(p, card, std::nullopt, context);
+	}
 	if (_runtime->stopped()) {
 		drawStopped(p, context, card);
 	}
 	if (drawsInfo()) {
-		_parent->drawInfo(
+		if (bubble) {
+			_parent->drawInfo(
+				p,
+				context,
+				card.x() + card.width(),
+				card.y() + card.height(),
+				width(),
+				InfoDisplayType::Image);
+		} else {
+			_parent->drawInfo(
+				p,
+				context,
+				width(),
+				height(),
+				width(),
+				InfoDisplayType::Background);
+		}
+	}
+	if (const auto action = rightActionRect()) {
+		_parent->drawRightAction(
 			p,
 			context,
-			card.x() + card.width(),
-			card.y() + card.height(),
-			width(),
-			InfoDisplayType::Image);
+			action->x(),
+			action->y(),
+			width());
 	}
 	if (loaded && visible) {
 		_runtime->painted();
@@ -138,8 +269,8 @@ void WidgetDocument::draw(Painter &p, const PaintContext &context) const {
 
 void WidgetDocument::drawFilename(
 		Painter &p,
-		const PaintContext &context,
-		QRect card) const {
+		QRect card,
+		const style::color &fg) const {
 	const auto name = card.marginsRemoved({
 		st::msgPadding.left(),
 		0,
@@ -150,7 +281,7 @@ void WidgetDocument::drawFilename(
 		return;
 	}
 	p.setFont(st::semiboldFont);
-	p.setPen(context.messageStyle()->historyFileNameFg);
+	p.setPen(fg);
 	p.drawText(
 		name,
 		st::semiboldFont->elided(
@@ -171,7 +302,7 @@ void WidgetDocument::drawStopped(
 	const auto top = card.y() + (card.height() - pillHeight) / 2;
 	const auto left = card.x() + skip;
 	auto right = card.x() + card.width() - skip;
-	if (drawsInfo()) {
+	if (_parent->hasBubble() && drawsInfo()) {
 		const auto infoBottom = card.y() + card.height() - skip;
 		const auto infoTop = infoBottom - pillHeight;
 		if (top < infoBottom && top + pillHeight > infoTop) {
@@ -214,15 +345,28 @@ TextState WidgetDocument::textState(
 	if (card.isEmpty()) {
 		return result;
 	} else if (drawsInfo()) {
-		const auto info = _parent->bottomInfoTextState(
-			card.x() + card.width(),
-			card.y() + card.height(),
-			point,
-			InfoDisplayType::Image);
+		const auto info = _parent->hasBubble()
+			? _parent->bottomInfoTextState(
+				card.x() + card.width(),
+				card.y() + card.height(),
+				point,
+				InfoDisplayType::Image)
+			: _parent->bottomInfoTextState(
+				width(),
+				height(),
+				point,
+				InfoDisplayType::Background);
 		if (info.link
 			|| info.cursor != CursorState::None
 			|| info.customTooltip) {
 			return info;
+		}
+	}
+	if (const auto action = rightActionRect()) {
+		if (action->contains(point)) {
+			result.link = _parent->rightActionLink(
+				point - action->topLeft());
+			return result;
 		}
 	}
 	if (card.contains(point)) {
@@ -238,6 +382,11 @@ TextState WidgetDocument::textState(
 }
 
 QPoint WidgetDocument::resolveCustomInfoRightBottom() const {
+	if (!_parent->hasBubble()) {
+		return QPoint(
+			width() - st::msgDateImgPadding.x(),
+			height() - st::msgDateImgPadding.y());
+	}
 	const auto card = cardRect();
 	const auto skipx = st::msgDateImgDelta + st::msgDateImgPadding.x();
 	const auto skipy = st::msgDateImgDelta + st::msgDateImgPadding.y();

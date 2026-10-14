@@ -194,8 +194,9 @@ RendererCore::~RendererCore() {
 twidget::RendererFactory RendererCore::hostFactory() const {
 	return [link = _link](
 			std::shared_ptr<twidget::SandboxResources>,
-			const std::string &,
+			const std::string &theme,
 			double) {
+		link->postTheme(theme == "dark");
 		return std::unique_ptr<twidget::Renderer>(
 			std::make_unique<HostRenderer>(link));
 	};

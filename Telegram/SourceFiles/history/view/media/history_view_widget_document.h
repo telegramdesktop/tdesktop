@@ -37,9 +37,8 @@ public:
 	bool hideMessageText() const override {
 		return false;
 	}
-	bool needsBubble() const override {
-		return true;
-	}
+	bool needsBubble() const override;
+	bool unwrapped() const override;
 	bool customInfoLayout() const override {
 		return true;
 	}
@@ -60,11 +59,13 @@ private:
 	[[nodiscard]] QMargins cardMargins() const;
 	[[nodiscard]] QRect cardRect() const;
 	[[nodiscard]] int countHeight() const;
+	[[nodiscard]] int bareInfoHeight() const;
 	[[nodiscard]] bool drawsInfo() const;
+	[[nodiscard]] std::optional<QRect> rightActionRect() const;
 	void drawFilename(
 		Painter &p,
-		const PaintContext &context,
-		QRect card) const;
+		QRect card,
+		const style::color &fg) const;
 	void drawStopped(
 		Painter &p,
 		const PaintContext &context,
@@ -76,6 +77,7 @@ private:
 	const not_null<DocumentData*> _data;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	std::unique_ptr<Tgw::Runtime> _runtime;
+	const bool _bare = false;
 	mutable bool _fallbackRequested = false;
 
 };
