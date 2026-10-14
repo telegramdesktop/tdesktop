@@ -87,6 +87,7 @@ struct GiftTypeStars {
 	bool hidden : 1 = false;
 	bool resale : 1 = false;
 	bool mine : 1 = false;
+	bool onCard : 1 = false;
 
 	[[nodiscard]] friend inline bool operator==(
 		const GiftTypeStars&,

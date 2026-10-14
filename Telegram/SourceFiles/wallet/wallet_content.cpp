@@ -102,6 +102,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_amount_painter.h"
 #include "wallet/wallet_card_angle.h"
 #include "wallet/wallet_card_gradient.h"
+#include "wallet/wallet_card_stickers.h"
 #include "wallet/wallet_chat_show.h"
 #include "wallet/wallet_collectible_media.h"
 #include "wallet/wallet_collectibles.h"
@@ -369,6 +370,7 @@ private:
 	object_ptr<Ui::ScrollArea> _scroll;
 	SingleQueuedInvokation _loadMoreCheck;
 	std::unique_ptr<BalanceInk> _ink;
+	std::unique_ptr<CardStickers> _cardStickers;
 	Ui::Text::String _title;
 	base::unique_qptr<Ui::RpWidget> _titleBalance;
 	Ui::RpWidget *_container = nullptr;
@@ -14891,16 +14893,23 @@ void Content::setupBalance() {
 	_pinnedBalance->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_pinnedBalance->show();
 	_pinnedBalance->raise();
+	_cardStickers = std::make_unique<CardStickers>(
+		&_show->session(),
+		OwnCardStickersValue(&_show->session()),
+		[=] { _pinnedBalance->update(_card->geometry()); });
 	_pinnedBalance->paintRequest(
 	) | rpl::on_next([=](QRect clip) {
 		const auto fold = cardFold();
-		const auto ink = _ink->boundingRect(fold);
-		if (!clip.intersects(ink)) {
-			return;
-		}
 		auto p = QPainter(_pinnedBalance);
 		auto hq = PainterHighQualityEnabler(p);
-		_ink->paint(p, fold, cardOutline(), clip);
+		if (clip.intersects(_ink->boundingRect(fold))) {
+			_ink->paint(p, fold, cardOutline(), clip);
+		}
+		if (fold.valid && fold.opacity > 0.) {
+			p.setOpacity(fold.opacity);
+			p.setTransform(fold.transform, true);
+			_cardStickers->paint(p, fold.rest);
+		}
 	}, _pinnedBalance->lifetime());
 
 	_titleBalance.reset(Ui::CreateChild<Ui::RpWidget>(window()));

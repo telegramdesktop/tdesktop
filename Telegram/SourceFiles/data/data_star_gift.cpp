@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lang/lang_tag.h"
 #include "main/main_session.h"
+#include "ui/chat/chat_style.h"
 #include "ui/controls/ton_common.h"
 #include "ui/text/text_utilities.h"
 #include "styles/style_credits.h"
@@ -146,6 +147,63 @@ TextWithEntities FormatGiftResaleAsked(const UniqueGift &gift) {
 	return gift.onlyAcceptTon
 		? FormatGiftResaleTon(gift)
 		: FormatGiftResaleStars(gift);
+}
+
+// WHY: each parse allocates the gift's shared parts anew, so the served
+// values are compared; what only a later request fills in, like transfer
+// dates, is left out, or a box enriching the gift would rebuild its row.
+bool SameServedStarGift(const StarGift &a, const StarGift &b) {
+	Expects(a.unique != nullptr);
+	Expects(b.unique != nullptr);
+
+	const auto served = [](const StarGift &gift) {
+		const auto &unique = *gift.unique;
+		const auto &details = unique.originalDetails;
+		return std::tie(
+			gift.id,
+			gift.document,
+			gift.releasedBy,
+			gift.limitedLeft,
+			gift.limitedCount,
+			unique.id,
+			unique.initialGiftId,
+			unique.slug,
+			unique.title,
+			unique.number,
+			unique.giftAddress,
+			unique.ownerAddress,
+			unique.ownerName,
+			unique.ownerId,
+			unique.hostId,
+			unique.releasedBy,
+			unique.themeUser,
+			unique.nanoTonForResale,
+			unique.starsForResale,
+			unique.starsMinOffer,
+			unique.craftChancePermille,
+			unique.onlyAcceptTon,
+			unique.canBeTheme,
+			unique.crafted,
+			unique.burned,
+			unique.model,
+			unique.pattern,
+			unique.backdrop,
+			details.senderId,
+			details.recipientId,
+			details.date,
+			details.message);
+	};
+	const auto value = [](const UniqueGiftValue &data) {
+		return std::tie(data.currency, data.valuePrice, data.valuePriceUsd);
+	};
+	const auto same = [](const auto &was, const auto &now, auto key) {
+		return (!was || !now) ? (!was && !now) : (key(*was) == key(*now));
+	};
+	return (served(a) == served(b))
+		&& (a.resellTonOnly == b.resellTonOnly)
+		&& (a.requirePremium == b.requirePremium)
+		&& same(a.unique->value, b.unique->value, value)
+		&& same(a.unique->peerColor, b.unique->peerColor, std::identity());
 }
 
 GiftAttributeId IdFor(const UniqueGiftBackdrop &value) {

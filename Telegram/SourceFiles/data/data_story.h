@@ -92,6 +92,8 @@ struct StoryArea {
 		const StoryArea &) = default;
 };
 
+[[nodiscard]] StoryArea ParseArea(const MTPMediaAreaCoordinates &area);
+
 struct StoryLocation {
 	StoryArea area;
 	Data::LocationPoint point;

@@ -47,6 +47,7 @@ namespace {
 
 constexpr auto kGiftsPerRow = 3;
 constexpr auto kCraftUnavailableOpacity = 0.5;
+constexpr auto kOnCardShade = 0.45;
 
 [[nodiscard]] bool AllowedToSend(
 		const GiftTypeStars &gift,
@@ -71,6 +72,54 @@ constexpr auto kCraftUnavailableOpacity = 0.5;
 		return allowUnlimited;
 	}
 	return allowLimited || (gift.info.starsToUpgrade && allowUnique);
+}
+
+[[nodiscard]] QColor OnCardTone(QColor color, QColor edge) {
+	const auto tone = [](int value, int border) {
+		const auto multiplier = 1. - kOnCardShade * (1. - border / 255.);
+		return int(base::SafeRound(value * multiplier));
+	};
+	return QColor(
+		tone(color.red(), edge.red()),
+		tone(color.green(), edge.green()),
+		tone(color.blue(), edge.blue()));
+}
+
+[[nodiscard]] QImage OnCardSilhouette(
+		const QImage &frame,
+		QRect target,
+		QRect inner,
+		const Data::UniqueGiftBackdrop &backdrop) {
+	auto result = frame.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+	if (result.isNull() || target.isEmpty()) {
+		return result;
+	}
+	auto gradient = QRadialGradient(inner.center(), inner.width() / 2);
+	gradient.setStops({
+		{ 0., OnCardTone(backdrop.centerColor, backdrop.edgeColor) },
+		{ 1., OnCardTone(backdrop.edgeColor, backdrop.edgeColor) },
+	});
+	const auto ratio = result.devicePixelRatio();
+	auto p = QPainter(&result);
+	p.setCompositionMode(QPainter::CompositionMode_SourceIn);
+	p.scale(
+		result.width() / (ratio * target.width()),
+		result.height() / (ratio * target.height()));
+	p.translate(-target.topLeft());
+	p.fillRect(target, gradient);
+	p.end();
+	return result;
+}
+
+[[nodiscard]] GiftBadge OnCardBadge(
+		const Data::UniqueGiftBackdrop &backdrop) {
+	return {
+		.text = tr::lng_gift_stars_on_card(tr::now),
+		.bg1 = backdrop.edgeColor,
+		.bg2 = backdrop.patternColor,
+		.fg = QColor(255, 255, 255),
+		.small = true,
+	};
 }
 
 } // namespace
@@ -724,6 +773,7 @@ void GiftButton::paint(QPainter &p, float64 craftProgress) {
 	const auto stargift = std::get_if<GiftTypeStars>(&_descriptor);
 	const auto unique = stargift ? stargift->info.unique.get() : nullptr;
 	const auto onsale = unique && unique->starsForResale && small();
+	const auto onCard = unique && stargift->onCard;
 	const auto requirePremium = stargift
 		&& !stargift->userpic
 		&& !stargift->resale
@@ -845,29 +895,35 @@ void GiftButton::paint(QPainter &p, float64 craftProgress) {
 			_player->markFrameShown();
 		}
 		const auto size = frame.size() / style::DevicePixelRatio();
-		p.drawImage(
-			QRect(
-				(width - size.width()) / 2,
-				((_mode == Mode::CraftPreview
-					|| _mode == Mode::Minimal
-					|| _mode == Mode::Craft)
-					? (extend.top()
-						+ ((height
-							- extend.top()
-							- extend.bottom()
-							- size.height()) / 2))
-					: small()
-					? st::giftBoxSmallStickerTop
-					: _text.isEmpty()
-					? (unique
-						? st::giftBoxStickerUniqueTop
-						: st::giftBoxStickerStarTop)
-					: _byStars.isEmpty()
-					? st::giftBoxStickerTop
-					: st::giftBoxStickerTopByStars),
-				size.width(),
-				size.height()),
-			frame);
+		const auto target = QRect(
+			(width - size.width()) / 2,
+			((_mode == Mode::CraftPreview
+				|| _mode == Mode::Minimal
+				|| _mode == Mode::Craft)
+				? (extend.top()
+					+ ((height
+						- extend.top()
+						- extend.bottom()
+						- size.height()) / 2))
+				: small()
+				? st::giftBoxSmallStickerTop
+				: _text.isEmpty()
+				? (unique
+					? st::giftBoxStickerUniqueTop
+					: st::giftBoxStickerStarTop)
+				: _byStars.isEmpty()
+				? st::giftBoxStickerTop
+				: st::giftBoxStickerTopByStars),
+			size.width(),
+			size.height());
+		const auto image = onCard
+			? OnCardSilhouette(
+				frame,
+				target,
+				QRect(0, 0, width, height).marginsRemoved(extend),
+				unique->backdrop)
+			: frame;
+		p.drawImage(target, image);
 	}
 	if (hidden) {
 		const auto topleft = QPoint(
@@ -896,7 +952,7 @@ void GiftButton::paint(QPainter &p, float64 craftProgress) {
 	const auto font = st::semiboldFont;
 	p.setFont(font);
 
-	const auto badge = v::match(_descriptor, [&](GiftTypePremium data) {
+	auto badge = v::match(_descriptor, [&](GiftTypePremium data) {
 		if (data.discountPercent > 0) {
 			p.setBrush(st::attentionButtonFg);
 			const auto kMinus = QChar(0x2212);
@@ -986,6 +1042,9 @@ void GiftButton::paint(QPainter &p, float64 craftProgress) {
 		}
 		return GiftBadge();
 	});
+	if (onCard) {
+		badge = OnCardBadge(unique->backdrop);
+	}
 
 	if (badge) {
 		const auto rubberOut = st::lineWidth;

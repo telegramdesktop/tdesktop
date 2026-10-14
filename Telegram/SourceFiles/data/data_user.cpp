@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_bot_command.h"
 #include "data/data_photo.h"
 #include "data/data_stories.h"
+#include "data/data_user_wallet_card.h"
 #include "data/data_wall_paper.h"
 #include "data/notify/data_notify_settings.h"
 #include "history/history.h"
@@ -1136,7 +1137,7 @@ void ApplyUserUpdate(
 		update.is_noforwards_peer_enabled());
 
 	if (const auto card = update.vwallet_card()) {
-		user->setWalletCard(ParseWalletCard(*card));
+		user->setWalletCard(ParseWalletCard(&user->session(), *card));
 	} else {
 		user->setWalletCard(std::nullopt);
 	}
@@ -1167,14 +1168,6 @@ Ui::BotVerifyDetails ParseBotVerifyDetails(const MTPBotVerification *info) {
 		.botId = UserId(data.vbot_id().v),
 		.iconId = DocumentId(data.vicon().v),
 		.description = ParseBotVerificationText(data.vdescription()),
-	};
-}
-
-WalletCard ParseWalletCard(const MTPwallet_Card &card) {
-	const auto &data = card.data();
-	return {
-		.address = qs(data.vaddress()),
-		.balance = int64(data.vbalance().v),
 	};
 }
 

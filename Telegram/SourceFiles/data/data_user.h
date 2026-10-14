@@ -21,16 +21,7 @@ namespace Data {
 class Forum;
 struct BotCommand;
 struct BusinessDetails;
-
-struct WalletCard {
-	QString address;
-	int64 balance = 0;
-
-	friend inline bool operator==(
-		const WalletCard &,
-		const WalletCard &) = default;
-};
-
+struct WalletCard;
 } // namespace Data
 
 namespace Api {
@@ -402,7 +393,5 @@ void ApplyUserUpdate(
 
 [[nodiscard]] Ui::BotVerifyDetails ParseBotVerifyDetails(
 	const MTPBotVerification *info);
-
-[[nodiscard]] WalletCard ParseWalletCard(const MTPwallet_Card &card);
 
 } // namespace Data

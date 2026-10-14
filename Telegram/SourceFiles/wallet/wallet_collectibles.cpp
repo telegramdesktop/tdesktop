@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/star_gift_box.h"
 #include "data/data_session.h"
 #include "data/data_star_gift.h"
+#include "data/data_user_wallet_card.h"
 #include "gram/api/gram_api_nft.h"
 #include "info/peer_gifts/info_peer_gifts_common.h"
 #include "lang/lang_hardcoded.h"
@@ -31,6 +32,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/painter.h"
+#include "wallet/wallet_address.h"
+#include "wallet/wallet_card_stickers.h"
 #include "wallet/wallet_chat_show.h"
 #include "wallet/wallet_collectible_media.h"
 #include "wallet/wallet_content.h"
@@ -69,6 +72,7 @@ protected:
 private:
 	struct Square {
 		CollectibleRecord record;
+		bool onCard = false;
 		std::unique_ptr<Info::PeerGifts::GiftButton> gift;
 		std::unique_ptr<Ui::AbstractButton> thumb;
 	};
@@ -86,6 +90,7 @@ private:
 	void refreshWindows();
 	void refreshSquares();
 	void refreshMediaWindow();
+	void applyOnCard(const std::vector<Data::WalletCardSticker> &stickers);
 	void applySquare(Square &square, const CollectibleRecord &record);
 	void activate(const QString &address);
 	[[nodiscard]] auto createGiftButton(const QString &address)
@@ -100,6 +105,7 @@ private:
 	const QSize _singleMin;
 	std::vector<CollectibleRecord> _records;
 	base::flat_map<QString, Square> _squares;
+	base::flat_set<QString> _onCard;
 	QString _pressed;
 	QSize _single;
 	int _perRow = 0;
@@ -473,6 +479,12 @@ CollectiblesGrid::CollectiblesGrid(
 			}
 		}
 	}, lifetime());
+
+	OwnCardStickersValue(
+		&_show->session()
+	) | rpl::on_next([=](const std::vector<Data::WalletCardSticker> &list) {
+		applyOnCard(list);
+	}, lifetime());
 }
 
 void CollectiblesGrid::rebuild() {
@@ -689,6 +701,27 @@ void CollectiblesGrid::refreshMediaWindow() {
 	_media->setListWindow(std::move(ordered));
 }
 
+void CollectiblesGrid::applyOnCard(
+		const std::vector<Data::WalletCardSticker> &stickers) {
+	auto onCard = base::flat_set<QString>();
+	for (const auto &sticker : stickers) {
+		auto address = CanonicalAddress(sticker.address);
+		if (!address.isEmpty()) {
+			onCard.emplace(std::move(address));
+		}
+	}
+	if (_onCard == onCard) {
+		return;
+	}
+	_onCard = std::move(onCard);
+	for (auto &[address, square] : _squares) {
+		if (square.gift) {
+			const auto record = square.record;
+			applySquare(square, record);
+		}
+	}
+}
+
 void CollectiblesGrid::applySquare(
 		Square &square,
 		const CollectibleRecord &record) {
@@ -709,15 +742,20 @@ void CollectiblesGrid::applySquare(
 		if (fresh) {
 			square.gift = createGiftButton(record.address);
 		}
+		const auto onCard = _onCard.contains(record.address);
 		// A reparse allocates the gift anew, equal values keep the player.
-		if (fresh || !SameServedGift(square.record, record)) {
+		if (fresh
+			|| !SameServedGift(square.record, record)
+			|| square.onCard != onCard) {
 			square.gift->setDescriptor(
 				Info::PeerGifts::GiftTypeStars{
 					.info = *record.gift,
 					.mine = true,
+					.onCard = onCard,
 				},
 				Info::PeerGifts::GiftButtonMode::Minimal);
 		}
+		square.onCard = onCard;
 	}
 	square.record = record;
 }

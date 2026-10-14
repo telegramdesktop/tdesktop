@@ -1,0 +1,45 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+#pragma once
+
+#include "data/data_story.h"
+
+namespace Main {
+class Session;
+} // namespace Main
+
+namespace Data {
+
+struct StarGift;
+
+struct WalletCardSticker {
+	QString address;
+	StoryArea area;
+	std::shared_ptr<const StarGift> gift;
+
+	friend bool operator==(
+		const WalletCardSticker &,
+		const WalletCardSticker &);
+};
+
+struct WalletCard {
+	QString address;
+	int64 balance = 0;
+	std::vector<WalletCardSticker> stickers;
+	QString backgroundAddress;
+
+	friend inline bool operator==(
+		const WalletCard &,
+		const WalletCard &) = default;
+};
+
+[[nodiscard]] WalletCard ParseWalletCard(
+	not_null<Main::Session*> session,
+	const MTPwallet_Card &card);
+
+} // namespace Data

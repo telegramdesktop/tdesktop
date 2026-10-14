@@ -213,6 +213,8 @@ struct StarGift {
 		const StarGift &) = default;
 };
 
+[[nodiscard]] bool SameServedStarGift(const StarGift &a, const StarGift &b);
+
 class SavedStarGiftId {
 public:
 	[[nodiscard]] static SavedStarGiftId User(MsgId messageId) {

@@ -828,6 +828,8 @@ PRIVATE
     data/data_user_photos.h
     data/data_user_names.cpp
     data/data_user_names.h
+    data/data_user_wallet_card.cpp
+    data/data_user_wallet_card.h
     data/data_wall_paper.cpp
     data/data_wall_paper.h
     data/data_web_page.cpp
@@ -2223,6 +2225,8 @@ PRIVATE
     wallet/wallet_amount_painter.h
     wallet/wallet_api.cpp
     wallet/wallet_api.h
+    wallet/wallet_card_stickers.cpp
+    wallet/wallet_card_stickers.h
     wallet/wallet_chat_show.cpp
     wallet/wallet_chat_show.h
     wallet/wallet_collectible_media.cpp
