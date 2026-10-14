@@ -29,6 +29,24 @@ base::options::toggle ClassicProfileScroll({
 
 constexpr auto kScrollStepTime = crl::time(260);
 
+struct SnapAnchors {
+	int first = 0;
+	int second = 0;
+};
+
+[[nodiscard]] SnapAnchors CountSnapAnchors(int pinnedMaxHeight) {
+	const auto baseMax = st::infoProfileTopBarHeightMax;
+	const auto step2 = st::infoProfileTopBarStep2;
+	if (pinnedMaxHeight < baseMax) {
+		return { .first = step2 + st::lineWidth, .second = step2 };
+	}
+	const auto extra = pinnedMaxHeight - baseMax;
+	return {
+		.first = st::infoProfileTopBarStep1 + extra,
+		.second = step2 + extra,
+	};
+}
+
 } // namespace
 
 const char kClassicProfileScroll[] = "classic-profile-scroll";
@@ -83,10 +101,9 @@ void SetupFlexibleRegularScroll(
 	const auto state = scroll->lifetime().make_state<State>();
 	const auto single = scroll->verticalScrollBar()->singleStep()
 		* QApplication::wheelScrollLines();
-	const auto step2 = st::infoProfileTopBarStep2;
-	const auto step1 = (max < st::infoProfileTopBarHeightMax)
-		? (step2 + st::lineWidth)
-		: st::infoProfileTopBarStep1;
+	const auto anchors = CountSnapAnchors(max);
+	const auto step1 = anchors.first;
+	const auto step2 = anchors.second;
 
 	state->animation.init([=](crl::time now) {
 		if (abortSnapOnExternalScroll
@@ -233,11 +250,9 @@ void FlexibleScrollHelper::setupScrollHandling() {
 
 	const auto singleStep = _scroll->verticalScrollBar()->singleStep()
 		* QApplication::wheelScrollLines();
-	const auto step1 = (_pinnedToTop->maximumHeight()
-			< st::infoProfileTopBarHeightMax)
-		? (st::infoProfileTopBarStep2 + st::lineWidth)
-		: st::infoProfileTopBarStep1;
-	const auto step2 = st::infoProfileTopBarStep2;
+	const auto anchors = CountSnapAnchors(_pinnedToTop->maximumHeight());
+	const auto step1 = anchors.first;
+	const auto step2 = anchors.second;
 
 	base::install_event_filter(_scroll->verticalScrollBar(), [=](
 			not_null<QEvent*> e) {

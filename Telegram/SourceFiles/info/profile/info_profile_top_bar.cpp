@@ -50,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "info/info_memento.h"
 #include "info/profile/info_profile_badge.h"
+#include "info/profile/info_profile_balance_pill.h"
 #include "info/profile/info_profile_birthday_effect.h"
 #include "info/profile/info_profile_cover.h" // LargeCustomEmojiMargins
 #include "info/profile/info_profile_status_label.h"
@@ -380,13 +381,19 @@ TopBar::TopBar(
 	&& descriptor.source != Source::Stories
 	&& descriptor.source != Source::Preview
 	&& (_wrap.current() != Wrap::Side || !_peer->isNotificationsUser()))
+, _balanceReserve((_source == Source::Profile
+		&& _peer->isUser()
+		&& !_savedMessages
+		&& !_topic)
+	? st::infoProfileTopBarBalanceReserve
+	: 0)
 , _minForProgress([&] {
 	QWidget::setMinimumHeight(st::infoLayerTopBarHeight);
-	QWidget::setMaximumHeight(_savedMessages
+	QWidget::setMaximumHeight(_balanceReserve + (_savedMessages
 		? st::infoLayerTopBarHeight
 		: _hasActions
 		? st::infoProfileTopBarHeightMax
-		: st::infoProfileTopBarNoActionsHeightMax);
+		: st::infoProfileTopBarNoActionsHeightMax));
 	return QWidget::minimumHeight()
 		+ (!_hasActions
 			? 0
@@ -483,6 +490,12 @@ TopBar::TopBar(
 	}
 
 	bindStatus();
+	if (_balanceReserve) {
+		_balancePill = std::make_unique<BalancePill>(
+			this,
+			_peer->asUser(),
+			_edgeColor.value());
+	}
 
 	_title->setContextCopyText(tr::lng_profile_copy_fullname(tr::now));
 	_title->setSelectable(true);
@@ -2095,6 +2108,9 @@ void TopBar::updateStatusPosition(float64 progressCurrent) {
 		* std::clamp((progressCurrent) / 0.15, 0., 1.);
 
 	_status->moveToLeft(statusLeft + statusShift, statusTop);
+	if (_balancePill) {
+		_balancePill->place(width(), statusTop - swapShift, progressCurrent);
+	}
 
 	if (_showLastSeen->toggled()) {
 		_showLastSeen->moveToLeft(
@@ -2867,11 +2883,10 @@ void TopBar::paintEvent(QPaintEvent *e) {
 	if (_hasGradientBg && _cachedGradient.isNull()) {
 		const auto collectible = effectiveCollectible();
 		const auto colorProfile = effectiveColorProfile();
-		const auto offset = QPoint(
-			0,
-			_hasActions
-				? -st::infoProfileTopBarPhotoBgShift
-				: -st::infoProfileTopBarPhotoBgNoActionsShift);
+		const auto shift = _balanceReserve / 2 + (_hasActions
+			? st::infoProfileTopBarPhotoBgShift
+			: st::infoProfileTopBarPhotoBgNoActionsShift);
+		const auto offset = QPoint(0, -shift);
 		if (collectible) {
 			_cachedGradient = Ui::CreateTopBgGradient(
 				QSize(width(), maximumHeight()),

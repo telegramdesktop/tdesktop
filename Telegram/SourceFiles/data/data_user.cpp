@@ -249,6 +249,25 @@ void UserData::setGramAddress(QString address) {
 	_gramAddress = std::move(address);
 }
 
+const Data::WalletCard *UserData::walletCard() const {
+	return _walletCard.get();
+}
+
+void UserData::setWalletCard(std::optional<Data::WalletCard> card) {
+	if ((!card && !_walletCard)
+		|| (card && _walletCard && *card == *_walletCard)) {
+		return;
+	}
+	if (!card) {
+		_walletCard = nullptr;
+	} else if (_walletCard) {
+		*_walletCard = std::move(*card);
+	} else {
+		_walletCard = std::make_unique<Data::WalletCard>(std::move(*card));
+	}
+	session().changes().peerUpdated(this, UpdateFlag::WalletCard);
+}
+
 bool UserData::hasActiveStories() const {
 	return flags() & Flag::HasActiveStories;
 }
@@ -1116,6 +1135,12 @@ void ApplyUserUpdate(
 		update.is_noforwards_my_enabled(),
 		update.is_noforwards_peer_enabled());
 
+	if (const auto card = update.vwallet_card()) {
+		user->setWalletCard(ParseWalletCard(*card));
+	} else {
+		user->setWalletCard(std::nullopt);
+	}
+
 	user->fullUpdated();
 }
 
@@ -1142,6 +1167,14 @@ Ui::BotVerifyDetails ParseBotVerifyDetails(const MTPBotVerification *info) {
 		.botId = UserId(data.vbot_id().v),
 		.iconId = DocumentId(data.vicon().v),
 		.description = ParseBotVerificationText(data.vdescription()),
+	};
+}
+
+WalletCard ParseWalletCard(const MTPwallet_Card &card) {
+	const auto &data = card.data();
+	return {
+		.address = qs(data.vaddress()),
+		.balance = int64(data.vbalance().v),
 	};
 }
 

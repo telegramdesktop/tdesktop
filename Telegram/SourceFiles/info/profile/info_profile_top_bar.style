@@ -102,6 +102,26 @@ infoProfileTopBarShowLastSeen: RoundButton(defaultActiveButton) {
 	}
 	ripple: universalRippleAnimation;
 }
+infoProfileTopBarBalanceSkip: 25px;
+infoProfileTopBarBalanceBottomSkip: 13px;
+infoProfileBalancePillHeight: 20px;
+infoProfileTopBarBalanceReserve: infoProfileTopBarStatusTop
+	+ infoProfileTopBarBalanceSkip
+	+ infoProfileBalancePillHeight
+	+ infoProfileTopBarBalanceBottomSkip
+	+ infoProfileTopBarActionButtonsHeight
+	- infoProfileTopBarHeightMax;
+infoProfileBalancePillPadding: margins(9px, 0px, 8px, 0px);
+infoProfileBalancePillLabelFont: font(12px);
+infoProfileBalancePillAmountFont: font(12px semibold);
+infoProfileBalancePillFractionFont: font(9px semibold);
+infoProfileBalancePillIconSize: 16px;
+infoProfileBalancePillLabelSkip: 3px;
+infoProfileBalancePillIconSkip: 3px;
+infoProfileBalancePillArrowSkip: 3px;
+infoProfileBalancePillArrow: icon{{ "dialogs/dialogs_topic_arrow", windowBoldFg }};
+infoProfileBalancePillColoredBgOpacity: 0.2;
+infoProfileBalancePillColoredIconTint: 0.5;
 infoStatusHiddenToastIcon: icon{{ "community/requests_hidden", toastFg }};
 infoBotVerifyBadge: InfoPeerBadge(infoPeerBadge) {
 	position: point(-2px, 2px);

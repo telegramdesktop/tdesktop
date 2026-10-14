@@ -86,6 +86,7 @@ struct MenuCallback;
 namespace Info::Profile {
 
 class Badge;
+class BalancePill;
 class StatusLabel;
 class TopBarActionButton;
 
@@ -264,7 +265,9 @@ private:
 	const std::unique_ptr<Badge> _verified;
 
 	const bool _hasActions;
+	const int _balanceReserve;
 	const int _minForProgress;
+	std::unique_ptr<BalancePill> _balancePill;
 
 	std::unique_ptr<Ui::GlareTooltip> _badgeTooltip;
 	std::vector<std::unique_ptr<Ui::GlareTooltip>> _badgeOldTooltips;

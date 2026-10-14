@@ -26,6 +26,7 @@ namespace Wallet {
 namespace {
 
 constexpr auto kTinyFiatScale = 15;
+constexpr auto kGramDigits = 9;
 
 [[nodiscard]] QString FiatDigits(
 		int64 nanoAmount,
@@ -209,6 +210,17 @@ QString TinyAmountFraction(int64 units, int scale, int decimals) {
 		}
 	}
 	return QString(position - 1, QChar('0')) + QChar('0' + int(digit));
+}
+
+QString GramMinorPart(int64 amountNano) {
+	const auto tiny = TinyAmountFraction(amountNano, kGramDigits);
+	if (!tiny.isEmpty()) {
+		return QString(QLocale().decimalPoint()) + tiny;
+	}
+	const auto cents = std::abs(amountNano % Ui::kNanosInOne)
+		/ (Ui::kNanosInOne / 100);
+	return QString(QLocale().decimalPoint())
+		+ u"%1"_q.arg(cents, 2, 10, QChar('0'));
 }
 
 rpl::producer<FiatRate> FiatRateValue(not_null<Main::Session*> session) {

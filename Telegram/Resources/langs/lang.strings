@@ -8960,6 +8960,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_comment_key_mismatch" = "This comment was encrypted for a different wallet key and can't be decrypted on this device.";
 "lng_wallet_send_title" = "Send Grams";
 "lng_wallet_profile_send_money" = "Send Money";
+"lng_wallet_profile_balance" = "Balance:";
 "lng_wallet_send_user_title" = "Send to {user}";
 "lng_wallet_send_user_unavailable" = "This user can't receive Grams.";
 "lng_wallet_send_user_load_error" = "The recipient's wallet couldn't be loaded.";

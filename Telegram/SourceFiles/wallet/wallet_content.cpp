@@ -186,7 +186,6 @@ constexpr auto kSendOwnerLookupDelay = crl::time(500);
 constexpr auto kCommentPasswordStateTimeout = 30 * crl::time(1000);
 constexpr auto kHeldSendKeyTimeout = 60 * crl::time(1000);
 constexpr auto kCustodyResolveTimeout = 20 * crl::time(1000);
-constexpr auto kGramDigits = 9;
 constexpr auto kSendingRowGlareDuration = crl::time(1450);
 constexpr auto kSendingRowGlarePause = crl::time(1040);
 constexpr auto kSendingRowGlareLag = 0.4;
@@ -1295,17 +1294,6 @@ void SetAmountColor(
 
 [[nodiscard]] QString GramMajorPart(int64 amountNano) {
 	return QString::number(amountNano / Ui::kNanosInOne);
-}
-
-[[nodiscard]] QString GramMinorPart(int64 amountNano) {
-	const auto tiny = TinyAmountFraction(amountNano, kGramDigits);
-	if (!tiny.isEmpty()) {
-		return QString(QLocale().decimalPoint()) + tiny;
-	}
-	const auto cents = std::abs(amountNano % Ui::kNanosInOne)
-		/ (Ui::kNanosInOne / 100);
-	return QString(QLocale().decimalPoint())
-		+ u"%1"_q.arg(cents, 2, 10, QChar('0'));
 }
 
 struct RowAmountText {

@@ -21,6 +21,16 @@ namespace Data {
 class Forum;
 struct BotCommand;
 struct BusinessDetails;
+
+struct WalletCard {
+	QString address;
+	int64 balance = 0;
+
+	friend inline bool operator==(
+		const WalletCard &,
+		const WalletCard &) = default;
+};
+
 } // namespace Data
 
 namespace Api {
@@ -297,6 +307,9 @@ public:
 	[[nodiscard]] const std::optional<QString> &gramAddress() const;
 	void setGramAddress(QString address);
 
+	[[nodiscard]] const Data::WalletCard *walletCard() const;
+	void setWalletCard(std::optional<Data::WalletCard> card);
+
 	[[nodiscard]] bool hasActiveStories() const;
 	[[nodiscard]] bool hasUnreadStories() const;
 	[[nodiscard]] bool hasActiveVideoStream() const;
@@ -361,6 +374,7 @@ private:
 	QString _privateForwardName;
 	std::optional<QString> _gramAddress;
 	std::unique_ptr<Ui::BotVerifyDetails> _botVerifyDetails;
+	std::unique_ptr<Data::WalletCard> _walletCard;
 	Data::StarsRating _starsRating;
 
 	ChannelId _personalChannelId = 0;
@@ -388,5 +402,7 @@ void ApplyUserUpdate(
 
 [[nodiscard]] Ui::BotVerifyDetails ParseBotVerifyDetails(
 	const MTPBotVerification *info);
+
+[[nodiscard]] WalletCard ParseWalletCard(const MTPwallet_Card &card);
 
 } // namespace Data
