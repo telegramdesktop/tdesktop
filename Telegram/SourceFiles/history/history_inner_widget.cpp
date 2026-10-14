@@ -2582,7 +2582,15 @@ void HistoryInner::mouseActionFinish(
 		return false;
 	};
 
+	const auto wasPressed = bool(ClickHandler::getPressed());
 	auto activated = ClickHandler::unpressed();
+	if (const auto view = Element::HoveredLink()) {
+		if (wasPressed && !activated && view == Element::Moused()) {
+			const auto point = _widget->clampMousePosition(
+				mapFromGlobal(_mousePosition));
+			view->updatePressed(mapPointToItem(point, view));
+		}
+	}
 	const auto pressedItemView = Element::Pressed();
 	if (pressedItemView) {
 		repaintItem(pressedItemView);
@@ -5454,6 +5462,13 @@ void HistoryInner::mouseActionUpdate() {
 	auto mousePos = mapFromGlobal(_mousePosition);
 	auto point = _widget->clampMousePosition(mousePos);
 
+	// Voice message seek support.
+	if (const auto pressedView = Element::PressedLink()) {
+		if (itemTop(pressedView) >= 0) {
+			pressedView->updatePressed(mapPointToItem(mousePos, pressedView));
+		}
+	}
+
 	auto m = QPoint();
 
 	adjustCurrent(point.y());
@@ -5706,7 +5721,7 @@ void HistoryInner::mouseActionUpdate() {
 	_acceptsHorizontalScroll = dragState.horizontalScroll;
 	if (_mouseAction == MouseAction::None) {
 		_mouseCursorState = dragState.cursor;
-		if (dragState.link) {
+		if (dragState.link && _mouseCursorState != CursorState::Default) {
 			cur = style::cur_pointer;
 		} else if (_mouseCursorState == CursorState::Text && !hasSelectedItems()) {
 			cur = style::cur_text;
@@ -5786,14 +5801,8 @@ void HistoryInner::mouseActionUpdate() {
 		}
 	}
 
-	// Voice message seek support.
-	if (const auto pressedItem = _dragStateItem) {
-		if (const auto pressedView = viewByItem(pressedItem)) {
-			if (pressedItem->history() == _history || pressedItem->history() == _migrated) {
-				auto adjustedPoint = mapPointToItem(point, pressedView);
-				pressedView->updatePressed(adjustedPoint);
-			}
-		}
+	if (view && !ClickHandler::getPressed()) {
+		view->updatePressed(m);
 	}
 
 	if (_mouseAction == MouseAction::Selecting) {

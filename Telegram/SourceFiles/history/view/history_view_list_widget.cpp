@@ -62,6 +62,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "media/player/media_player_instance.h"
 #include "dialogs/ui/dialogs_video_userpic.h"
+#include "tgw/tgw_input.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/elastic_scroll.h"
@@ -609,6 +610,7 @@ ListWidget::ListWidget(
 				Qt::ScrollPhase phase) {
 			return consumeScrollAction(delta, phase);
 		});
+		scroll->setCustomWheelProcess(Tgw::ConsumeWheel);
 	}
 	if (_readMetricsTracker) {
 		Core::App().inAppKeyPressed(
@@ -5317,7 +5319,13 @@ void ListWidget::mouseActionFinish(
 			&& _overElement->toggleSelectionByHandlerClick(handler);
 	};
 
+	const auto wasPressed = bool(ClickHandler::getPressed());
 	auto activated = ClickHandler::unpressed();
+	if (const auto view = Element::HoveredLink()) {
+		if (wasPressed && !activated && view == _overElement) {
+			view->updatePressed(_overState.point);
+		}
+	}
 	auto simpleSelectionChange = pressState.itemId
 		&& !_pressWasInactive
 		&& (button != Qt::RightButton)
@@ -5442,6 +5450,17 @@ void ListWidget::mouseActionUpdate() {
 	auto point = QPoint(
 		std::clamp(mousePosition.x(), 0, width()),
 		std::clamp(mousePosition.y(), _visibleTop, _visibleBottom));
+
+	// Voice message seek support.
+	if (_pressState.pointState != PointState::Outside
+		&& ClickHandler::getPressed()) {
+		if (const auto item = session().data().message(_pressState.itemId)) {
+			if (const auto view = viewForItem(item)) {
+				auto adjustedPoint = mapPointToItem(mousePosition, view);
+				view->updatePressed(adjustedPoint);
+			}
+		}
+	}
 
 	const auto reactionState = _reactionsManager
 		? _reactionsManager->buttonTextState(point)
@@ -5703,15 +5722,8 @@ void ListWidget::mouseActionUpdate() {
 		}
 	}
 
-	// Voice message seek support.
-	if (_pressState.pointState != PointState::Outside
-		&& ClickHandler::getPressed()) {
-		if (const auto item = session().data().message(_pressState.itemId)) {
-			if (const auto view = viewForItem(item)) {
-				auto adjustedPoint = mapPointToItem(point, view);
-				view->updatePressed(adjustedPoint);
-			}
-		}
+	if (view && !ClickHandler::getPressed()) {
+		view->updatePressed(itemPoint);
 	}
 
 	if (_mouseAction == MouseAction::Selecting) {
@@ -5725,7 +5737,9 @@ void ListWidget::mouseActionUpdate() {
 }
 
 style::cursor ListWidget::computeMouseCursor() const {
-	if (ClickHandler::getPressed() || ClickHandler::getActive()) {
+	if (ClickHandler::getPressed()
+		|| (ClickHandler::getActive()
+			&& _mouseCursorState != CursorState::Default)) {
 		return style::cur_pointer;
 	} else if (!hasSelectedItems()
 		&& (_mouseCursorState == CursorState::Text)) {

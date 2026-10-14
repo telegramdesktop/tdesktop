@@ -2188,8 +2188,12 @@ PRIVATE
     tgw/tgw_backend.h
     tgw/tgw_bridge.cpp
     tgw/tgw_bridge.h
+    tgw/tgw_cursor.cpp
+    tgw/tgw_cursor.h
     tgw/tgw_document.cpp
     tgw/tgw_document.h
+    tgw/tgw_input.cpp
+    tgw/tgw_input.h
     tgw/tgw_intl.cpp
     tgw/tgw_intl.h
     tgw/tgw_log_box.cpp

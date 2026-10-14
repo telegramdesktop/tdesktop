@@ -14,6 +14,7 @@ class DocumentMedia;
 } // namespace Data
 
 namespace Tgw {
+class RendererCore;
 class Runtime;
 } // namespace Tgw
 
@@ -29,6 +30,21 @@ public:
 
 	void draw(Painter &p, const PaintContext &context) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
+	void updatePressed(QPoint point) override;
+
+	[[nodiscard]] bool toggleSelectionByHandlerClick(
+		const ClickHandlerPtr &p) const override;
+	[[nodiscard]] bool allowTextSelectionByHandler(
+		const ClickHandlerPtr &p) const override;
+	[[nodiscard]] bool dragItemByHandler(
+		const ClickHandlerPtr &p) const override;
+
+	void clickHandlerActiveChanged(
+		const ClickHandlerPtr &p,
+		bool active) override;
+	void clickHandlerPressedChanged(
+		const ClickHandlerPtr &p,
+		bool pressed) override;
 
 	DocumentData *getDocument() const override {
 		return _data;
@@ -63,6 +79,11 @@ private:
 	[[nodiscard]] int bareInfoHeight() const;
 	[[nodiscard]] bool drawsInfo() const;
 	[[nodiscard]] std::optional<QRect> rightActionRect() const;
+	[[nodiscard]] Tgw::RendererCore *pointerCore() const;
+	[[nodiscard]] QPointF cssPoint(QPoint point) const;
+	void pressCard();
+	void releaseCard();
+	void setCardClaimed(bool claimed);
 	void drawFilename(
 		Painter &p,
 		QRect card,
@@ -78,9 +99,13 @@ private:
 	const not_null<DocumentData*> _data;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	std::unique_ptr<Tgw::Runtime> _runtime;
+	const ClickHandlerPtr _cardLink;
+	QPoint _pointerPoint;
 	const bool _bare = false;
 	const bool _hideReply = false;
 	mutable bool _fallbackRequested = false;
+	bool _cardHovered = false;
+	bool _cardClaimed = false;
 
 };
 

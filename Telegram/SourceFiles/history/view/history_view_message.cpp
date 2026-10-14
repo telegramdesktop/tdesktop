@@ -4866,72 +4866,9 @@ void Message::updatePressed(QPoint point) {
 			}
 		}
 	}
-	const auto item = data();
 	const auto media = this->media();
-	if (!media) {
-		return;
-	}
-
-	auto g = countGeometry();
-
-	const auto reactionsInBubble = _reactions && embedReactionsInBubble();
-	if (_reactions && !reactionsInBubble) {
-		const auto reactionsHeight = st::mediaInBubbleSkip + _reactions->height();
-		g.setHeight(g.height() - reactionsHeight);
-	}
-
-	const auto keyboard = inlineReplyKeyboard();
-	if (keyboard) {
-		auto keyboardHeight = st::msgBotKbButton.margin + keyboard->naturalHeight();
-		g.setHeight(g.height() - keyboardHeight);
-	}
-
-	if (drawBubble()) {
-		auto mediaDisplayed = media && media->isDisplayed();
-		auto trect = g.marginsAdded(-st::msgPadding);
-		if (mediaDisplayed && media->isBubbleTop()) {
-			trect.setY(trect.y() - st::msgPadding.top());
-		} else {
-			if (displayFromName()) {
-				trect.setTop(trect.top() + st::msgNameFont->height);
-			}
-			if (displayedTopicButton()) {
-				trect.setTop(trect.top()
-					+ st::topicButtonSkip
-					+ st::topicButtonPadding.top()
-					+ st::msgNameFont->height
-					+ st::topicButtonPadding.bottom()
-					+ st::topicButtonSkip);
-			}
-			if (displayForwardedFrom()) {
-				auto forwarded = item->Get<HistoryMessageForwarded>();
-				auto fwdheight = ((forwarded->text.maxWidth() > trect.width()) ? 2 : 1) * st::semiboldFont->height;
-				trect.setTop(trect.top() + fwdheight);
-			}
-			if (const auto reply = Get<Reply>()) {
-				trect.setTop(trect.top() + reply->height());
-			}
-			if (const auto summaryHeader = Get<SummaryHeader>()) {
-				trect.setTop(trect.top() + summaryHeader->height());
-			}
-			if (item->Has<HistoryMessageVia>()) {
-				if (!displayFromName() && !displayForwardedFrom()) {
-					trect.setTop(trect.top() + st::msgNameFont->height);
-				}
-			}
-		}
-		if (mediaDisplayed && media->isBubbleBottom()) {
-			trect.setHeight(trect.height() + st::msgPadding.bottom());
-		}
-
-		if (mediaDisplayed) {
-			auto mediaHeight = media->height();
-			auto mediaLeft = trect.x() - st::msgPadding.left();
-			auto mediaTop = (trect.y() + trect.height() - mediaHeight);
-			media->updatePressed(point - QPoint(mediaLeft, mediaTop));
-		}
-	} else {
-		media->updatePressed(point - g.topLeft());
+	if (media && media->isDisplayed()) {
+		media->updatePressed(point - _lastMediaPosition);
 	}
 }
 

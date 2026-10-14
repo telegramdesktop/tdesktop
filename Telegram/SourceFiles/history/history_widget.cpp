@@ -211,6 +211,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "support/support_autocomplete.h"
 #include "support/support_helper.h"
 #include "support/support_preload.h"
+#include "tgw/tgw_input.h"
 #include "dialogs/dialogs_key.h"
 #include "calls/calls_instance.h"
 #include "styles/style_boxes.h"
@@ -400,6 +401,7 @@ HistoryWidget::HistoryWidget(
 	_scroll->setCrossAxisWheelProcess([=](QPoint delta, Qt::ScrollPhase phase) {
 		return _list && _list->consumeScrollAction(delta, phase);
 	});
+	_scroll->setCustomWheelProcess(Tgw::ConsumeWheel);
 	_scroll->scrolls() | rpl::on_next([=] {
 		handleScroll();
 	}, lifetime());

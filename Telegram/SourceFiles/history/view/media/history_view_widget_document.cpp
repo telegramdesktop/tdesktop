@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_widget_document.h"
 
+#include "core/click_handler_types.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_file_click_handler.h"
@@ -17,20 +18,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "lang/lang_keys.h"
 #include "tgw/tgw_document.h"
+#include "tgw/tgw_input.h"
 #include "tgw/tgw_renderer.h"
 #include "tgw/tgw_runtime.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/style/style_core_scale.h"
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
 
 #include "styles/style_chat.h"
 #include "styles/style_tgw.h"
 
+#include <QtGui/QGuiApplication>
+
 namespace HistoryView {
 namespace {
 
 constexpr auto kPatternColors = 4;
+constexpr auto kCssPercent = 100.;
 
 struct PatternColor {
 	qint64 key = 0;
@@ -66,6 +72,15 @@ struct PatternColor {
 	return PatternAverageColor(pattern->pixmap);
 }
 
+[[nodiscard]] int CurrentModifiers() {
+	return Tgw::DomModifiers(QGuiApplication::keyboardModifiers());
+}
+
+[[nodiscard]] bool OtherLinkPressed(const ClickHandlerPtr &link) {
+	const auto pressed = ClickHandler::getPressed();
+	return pressed && (pressed != link);
+}
+
 } // namespace
 
 WidgetDocument::WidgetDocument(
@@ -82,10 +97,12 @@ WidgetDocument::WidgetDocument(
 	.repaint = [=] { _parent->repaint(); },
 	.heavyChanged = [=] { runtimeHeavyChanged(); },
 }))
+, _cardLink(std::make_shared<LambdaClickHandler>([] {}))
 , _bare(Tgw::IsBareWidget(document))
 , _hideReply(parent->delegate()->elementHideReply(parent)
 	|| parent->data()->Has<HistoryMessageSuggestion>()) {
 	setDocumentLinks(_data, realParent);
+	setCardClaimed(false);
 
 	// Adopts bytes the replaced file view may hold only in memory.
 	_dataMedia = _data->createMediaView();
@@ -93,6 +110,7 @@ WidgetDocument::WidgetDocument(
 }
 
 WidgetDocument::~WidgetDocument() {
+	setCardClaimed(false);
 	const auto heavy = hasHeavyPart();
 	_runtime = nullptr;
 	if (_dataMedia) {
@@ -188,6 +206,17 @@ std::optional<QRect> WidgetDocument::rightActionRect() const {
 		: (width() + st::historyFastShareLeft);
 	const auto top = height() - st::historyFastShareBottom - size->height();
 	return QRect(QPoint(left, top), *size);
+}
+
+Tgw::RendererCore *WidgetDocument::pointerCore() const {
+	const auto selection = _parent->delegate()->elementInSelectionMode(
+		_parent);
+	return selection.inSelectionMode ? nullptr : _runtime->interactive();
+}
+
+QPointF WidgetDocument::cssPoint(QPoint point) const {
+	const auto local = point - cardRect().topLeft();
+	return QPointF(local) * (kCssPercent / style::Scale());
 }
 
 void WidgetDocument::draw(Painter &p, const PaintContext &context) const {
@@ -371,16 +400,111 @@ TextState WidgetDocument::textState(
 			return result;
 		}
 	}
-	if (card.contains(point)) {
-		result.link = _data->uploading()
-			? _cancell
-			: dataLoaded()
-			? _openl
-			: _data->loading()
-			? _cancell
-			: _savel;
+	if (!card.contains(point)) {
+		return result;
+	} else if (const auto core = pointerCore()) {
+		using Flag = Ui::Text::StateRequest::Flag;
+		const auto hand = (request.flags & Flag::LookupLink)
+			&& !OtherLinkPressed(_cardLink)
+			&& core->handCursorAt(cssPoint(point));
+		result.link = _cardLink;
+		result.cursor = hand ? CursorState::None : CursorState::Default;
+		return result;
 	}
+	result.link = _data->uploading()
+		? _cancell
+		: dataLoaded()
+		? _openl
+		: _data->loading()
+		? _cancell
+		: _savel;
 	return result;
+}
+
+void WidgetDocument::updatePressed(QPoint point) {
+	_pointerPoint = point;
+	const auto core = _runtime->interactive();
+	if (!core || OtherLinkPressed(_cardLink)) {
+		return;
+	} else if (core->pressed() || (_cardHovered && pointerCore())) {
+		core->pointerMove(cssPoint(point), CurrentModifiers());
+	}
+}
+
+bool WidgetDocument::toggleSelectionByHandlerClick(
+		const ClickHandlerPtr &p) const {
+	return (p == _cardLink) || File::toggleSelectionByHandlerClick(p);
+}
+
+bool WidgetDocument::allowTextSelectionByHandler(
+		const ClickHandlerPtr &p) const {
+	return (p == _cardLink) && !_cardClaimed;
+}
+
+bool WidgetDocument::dragItemByHandler(const ClickHandlerPtr &p) const {
+	return (p == _cardLink) ? !_cardClaimed : File::dragItemByHandler(p);
+}
+
+void WidgetDocument::clickHandlerActiveChanged(
+		const ClickHandlerPtr &p,
+		bool active) {
+	if (p != _cardLink) {
+		File::clickHandlerActiveChanged(p, active);
+		return;
+	}
+	_cardHovered = active;
+	if (!active) {
+		if (const auto core = _runtime->interactive()) {
+			core->pointerLeave();
+		}
+	} else if (const auto core = pointerCore()) {
+		core->pointerEnter();
+	}
+}
+
+void WidgetDocument::clickHandlerPressedChanged(
+		const ClickHandlerPtr &p,
+		bool pressed) {
+	if (p == _cardLink) {
+		if (pressed) {
+			pressCard();
+		} else {
+			releaseCard();
+		}
+	}
+	File::clickHandlerPressedChanged(p, pressed);
+}
+
+void WidgetDocument::pressCard() {
+	const auto core = pointerCore();
+	if (!core) {
+		return;
+	}
+	core->pointerPress(cssPoint(_pointerPoint), CurrentModifiers());
+	if (core->claimed()) {
+		setCardClaimed(true);
+	}
+	if (core->takesKeys()) {
+		Tgw::GrantKeys(core);
+	}
+}
+
+void WidgetDocument::releaseCard() {
+	if (const auto core = _runtime->interactive()) {
+		core->pointerRelease(cssPoint(_pointerPoint), CurrentModifiers());
+		if (!_cardHovered) {
+			core->pointerLeave();
+		}
+	}
+	setCardClaimed(false);
+}
+
+void WidgetDocument::setCardClaimed(bool claimed) {
+	_cardClaimed = claimed;
+	const auto document = claimed ? nullptr : _data.get();
+	_cardLink->setProperty(
+		kDocumentLinkMediaProperty,
+		reinterpret_cast<qulonglong>(document));
 }
 
 QPoint WidgetDocument::resolveCustomInfoRightBottom() const {

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "renderer-litehtml/src/renderer.h"
 #include "tgw/tgw_bridge.h"
 #include "tgw/tgw_document.h"
 #include "tgw/tgw_intl.h"
@@ -536,6 +537,16 @@ RendererCore *Runtime::core() const {
 	return (_live && _live->hasContent()) ? _live.get() : _still.get();
 }
 
+RendererCore *Runtime::interactive() const {
+	const auto live = _live.get();
+	return ((_state == State::Live)
+		&& live
+		&& (live == core())
+		&& live->acceptsInput())
+		? live
+		: nullptr;
+}
+
 void Runtime::setWidth(int width) {
 	if (_width == width) {
 		return;
@@ -561,7 +572,7 @@ void Runtime::setBubbleColor(const QColor &color) {
 }
 
 void Runtime::painted() {
-	if (heavy()) {
+	if (heavy() || (stopped() && _displayDeferred)) {
 		if (!_visible) {
 			PostCheck();
 		}
@@ -740,7 +751,9 @@ void Runtime::RefreshVisibility() {
 	auto &registry = Runtimes();
 	auto changed = std::vector<not_null<Runtime*>>();
 	for (const auto &runtime : registry.list) {
-		if ((runtime->heavy() || runtime->_painted)
+		if ((runtime->heavy()
+				|| runtime->_painted
+				|| runtime->_displayDeferred)
 			&& (runtime->queryVisible() != runtime->_visible)) {
 			changed.push_back(runtime);
 		}
@@ -1072,6 +1085,12 @@ void Runtime::bridgeCall(
 }
 
 void Runtime::syncHostVisibility() {
+	if (_live) {
+		_live->setOnScreen(_visible);
+	}
+	if (_visible) {
+		postShownDisplay();
+	}
 	if (_host && _hostVisible != _visible) {
 		_hostVisible = _visible;
 		_host->pointer->setVisible(_visible);
@@ -1126,12 +1145,38 @@ void Runtime::applyWidth() {
 
 void Runtime::displayChanged(bool repaint) {
 	const auto now = height();
-	if (_shownHeight != now) {
+	const auto resize = (_shownHeight != now);
+	if (!resize && !repaint) {
+		return;
+	} else if (!_visible
+		&& (_state == State::Live || _state == State::Stopped)) {
+		_displayDeferred = true;
+		return;
+	}
+	_displayDeferred = false;
+	if (resize) {
 		_shownHeight = now;
 		_resize();
-	} else if (repaint) {
+	} else {
 		_repaint();
 	}
+}
+
+void Runtime::postShownDisplay() {
+	const auto shown = core();
+	if (shown && shown->renderer()->dirty()) {
+		_displayDeferred = true;
+	}
+	if (!_displayDeferred || _displayPosted) {
+		return;
+	}
+	_displayPosted = true;
+	crl::on_main(this, [=] {
+		_displayPosted = false;
+		if (base::take(_displayDeferred)) {
+			displayChanged(true);
+		}
+	});
 }
 
 void Runtime::heavyStateChanged(bool wasHeavy) {

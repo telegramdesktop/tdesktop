@@ -2926,7 +2926,17 @@ void InnerWidget::mouseActionCancel() {
 void InnerWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton button) {
 	mouseActionUpdate(screenPos);
 
+	const auto wasPressed = bool(ClickHandler::getPressed());
 	auto activated = ClickHandler::unpressed();
+	if (const auto view = Element::HoveredLink()) {
+		if (wasPressed && !activated && view == Element::Moused()) {
+			const auto position = mapFromGlobal(_mousePosition);
+			const auto point = QPoint(
+				std::clamp(position.x(), 0, width()),
+				std::clamp(position.y(), _visibleTop, _visibleBottom));
+			view->updatePressed(mapPointToItem(point, view));
+		}
+	}
 	if (_mouseAction == MouseAction::Dragging) {
 		activated = nullptr;
 	}
@@ -3006,6 +3016,12 @@ void InnerWidget::updateSelected() {
 	auto point = QPoint(
 		std::clamp(mousePosition.x(), 0, width()),
 		std::clamp(mousePosition.y(), _visibleTop, _visibleBottom));
+
+	// Voice message seek support.
+	if (const auto pressedView = Element::PressedLink()) {
+		const auto adjustedPoint = mapPointToItem(mousePosition, pressedView);
+		pressedView->updatePressed(adjustedPoint);
+	}
 
 	auto itemPoint = QPoint();
 	auto begin = std::rbegin(_displayItems), end = std::rend(_displayItems);
@@ -3093,7 +3109,7 @@ void InnerWidget::updateSelected() {
 	auto cursor = style::cur_default;
 	if (_mouseAction == MouseAction::None) {
 		_mouseCursorState = dragState.cursor;
-		if (dragState.link) {
+		if (dragState.link && _mouseCursorState != CursorState::Default) {
 			cursor = style::cur_pointer;
 		} else if (_mouseCursorState == CursorState::Text) {
 			cursor = style::cur_text;
@@ -3123,10 +3139,8 @@ void InnerWidget::updateSelected() {
 		}
 	}
 
-	// Voice message seek support.
-	if (const auto pressedView = Element::PressedLink()) {
-		const auto adjustedPoint = mapPointToItem(point, pressedView);
-		pressedView->updatePressed(adjustedPoint);
+	if (view && !ClickHandler::getPressed()) {
+		view->updatePressed(itemPoint);
 	}
 
 	//if (_mouseAction == MouseAction::Selecting) {

@@ -64,6 +64,7 @@ public:
 	[[nodiscard]] bool stopped() const;
 	[[nodiscard]] std::optional<int> height() const;
 	[[nodiscard]] RendererCore *core() const;
+	[[nodiscard]] RendererCore *interactive() const;
 
 	void setWidth(int width);
 	void setBubbleColor(const QColor &color);
@@ -122,6 +123,7 @@ private:
 	void syncHostTheme();
 	void applyWidth();
 	void displayChanged(bool repaint);
+	void postShownDisplay();
 	void heavyStateChanged(bool wasHeavy);
 	void addNote(const QString &text);
 	void applySample(uint64 host, uint64 request, bool last, QString text);
@@ -160,6 +162,8 @@ private:
 	bool _stopFatal = false;
 	bool _widthPosted = false;
 	bool _summaryLast = false;
+	bool _displayDeferred = false;
+	bool _displayPosted = false;
 
 };
 
