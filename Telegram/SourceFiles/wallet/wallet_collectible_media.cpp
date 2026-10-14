@@ -161,34 +161,12 @@ QString CollectibleKindText(const CollectibleView &view) {
 		: tr::lng_wallet_chip_nft(tr::now);
 }
 
-QString CollectibleSubtitleText(const CollectibleView &view) {
-	using Kind = Gram::NftKind;
-	if (view.kind == Kind::TelegramUsername
-		|| view.kind == Kind::TelegramNumber) {
-		return CollectibleKindText(view);
-	} else if (view.kind == Kind::TelegramGift
-		&& !view.model.isEmpty()
-		&& !view.backdrop.isEmpty()) {
-		return tr::lng_wallet_collectible_gift_attributes(
-			tr::now,
-			lt_model,
-			view.model,
-			lt_backdrop,
-			view.backdrop);
-	} else if (!view.collectionName.isEmpty()) {
-		return view.collectionName;
-	}
-	return tr::lng_wallet_chip_nft(tr::now);
-}
-
 struct CollectibleMedia::Entry {
 	QString address;
 	CollectibleRecord record;
 	QString fallback;
 	QString name;
 	QString number;
-	QString model;
-	QString backdrop;
 	QString collectionName;
 	QByteArray imageBytes;
 	int artworkGeneration = 0;
@@ -497,8 +475,6 @@ void CollectibleMedia::applyGift(not_null<Entry*> entry) {
 	if (unique->number > 0) {
 		entry->number = u" #"_q + Lang::FormatCountDecimal(unique->number);
 	}
-	entry->model = unique->model.name;
-	entry->backdrop = unique->backdrop.name;
 	_changed.fire_copy(entry->address);
 	_repaint.fire_copy(entry->address);
 	finishChain(entry, State::Done);
@@ -509,8 +485,6 @@ void CollectibleMedia::clearArtwork(not_null<Entry*> entry) {
 	entry->loader = nullptr;
 	entry->name.clear();
 	entry->number.clear();
-	entry->model.clear();
-	entry->backdrop.clear();
 	entry->giftPaint = nullptr;
 	entry->imageBytes.clear();
 	entry->prepared.clear();
@@ -585,8 +559,6 @@ CollectibleView CollectibleMedia::view(const QString &item) const {
 			entry->collectionName,
 			entry->record.kind,
 			entry->record.key,
-			entry->model,
-			entry->backdrop,
 		};
 	}
 	const auto title = SplitNumberTail(entry->name.isEmpty()
@@ -598,8 +570,6 @@ CollectibleView CollectibleMedia::view(const QString &item) const {
 		entry->collectionName,
 		entry->record.kind,
 		entry->record.key,
-		entry->model,
-		entry->backdrop,
 	};
 }
 

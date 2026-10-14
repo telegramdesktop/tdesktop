@@ -39,15 +39,11 @@ struct CollectibleView {
 	QString collectionName;
 	Gram::NftKind kind = Gram::NftKind::Generic;
 	QString key;
-	QString model;
-	QString backdrop;
 };
 
 [[nodiscard]] TextWithEntities CollectibleTitleText(
 	const CollectibleView &view);
 [[nodiscard]] QString CollectibleKindText(
-	const CollectibleView &view);
-[[nodiscard]] QString CollectibleSubtitleText(
 	const CollectibleView &view);
 
 class CollectibleMedia final : public base::has_weak_ptr {

@@ -240,7 +240,6 @@ walletTabsSlider: SettingsSlider(defaultTabsSlider) {
 walletRowsTitle: SettingsSlider(walletTabsSlider) {
 	barFgActive: transparent;
 }
-walletCollectibleRowHeight: 60px;
 walletCollectibleThumbRadius: 6px;
 walletCollectibleTitleStyle: TextStyle(defaultTextStyle) {
 	font: font(14px);

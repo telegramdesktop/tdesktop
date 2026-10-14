@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_star_gift.h"
 #include "gram/api/gram_api_nft.h"
+#include "info/peer_gifts/info_peer_gifts_common.h"
 #include "lang/lang_hardcoded.h"
 #include "lang/lang_keys.h"
 #include "main/session/session_show.h"
@@ -20,9 +21,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_response.h"
 #include "settings/settings_credits_graphics.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/effects/round_area_with_shadow.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
-#include "ui/text/text_options.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
@@ -30,12 +31,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/painter.h"
-#include "ui/vertical_list.h"
 #include "wallet/wallet_chat_show.h"
 #include "wallet/wallet_collectible_media.h"
 #include "wallet/wallet_content.h"
 #include "wallet/wallet_session.h"
 
+#include "styles/style_credits.h"
 #include "styles/style_giveaway.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -45,36 +46,11 @@ namespace Wallet {
 namespace {
 
 constexpr auto kPreloadScreens = 3;
+constexpr auto kPreloadRows = 2;
 
-constexpr auto kTitleTextOptions = TextParseOptions{
-	TextParseMarkdown,
-	0,
-	0,
-	Qt::LayoutDirectionAuto,
-};
-
-class CollectibleRow final : public Ui::RippleButton {
+class CollectiblesGrid final : public Ui::RpWidget {
 public:
-	explicit CollectibleRow(QWidget *parent);
-
-	void setTitle(TextWithEntities text);
-	void setSubtitle(const QString &text);
-	void setPaintThumb(Fn<void(Painter&, QRect)> paint);
-
-protected:
-	int resizeGetHeight(int newWidth) override;
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	Ui::Text::String _title;
-	Ui::Text::String _subtitle;
-	Fn<void(Painter&, QRect)> _paintThumb;
-
-};
-
-class CollectiblesList final : public Ui::VerticalLayout {
-public:
-	CollectiblesList(
+	CollectiblesGrid(
 		QWidget *parent,
 		std::shared_ptr<Main::SessionShow> show,
 		std::shared_ptr<CollectibleMedia> media);
@@ -82,20 +58,59 @@ public:
 	void rebuild();
 
 protected:
+	int resizeGetHeight(int newWidth) override;
 	void visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
 
 private:
-	void refreshWindow();
+	struct Square {
+		CollectibleRecord record;
+		std::unique_ptr<Info::PeerGifts::GiftButton> gift;
+		std::unique_ptr<Ui::AbstractButton> thumb;
+	};
+
+	[[nodiscard]] int rowsCount() const;
+	[[nodiscard]] std::pair<int, int> rowsRange(
+		int top,
+		int bottom,
+		int preload) const;
+	[[nodiscard]] QRect squareRect(int index) const;
+	[[nodiscard]] int squareAt(QPoint point) const;
+	[[nodiscard]] int indexOf(const QString &address) const;
+
+	void invalidateWindows();
+	void refreshWindows();
+	void refreshSquares();
+	void refreshMediaWindow();
+	void applySquare(Square &square, const CollectibleRecord &record);
+	void activate(const QString &address);
+	[[nodiscard]] auto createGiftButton(const QString &address)
+	-> std::unique_ptr<Info::PeerGifts::GiftButton>;
+	[[nodiscard]] std::unique_ptr<Ui::AbstractButton> createThumbButton(
+		const QString &address);
+	void paintThumb(not_null<QWidget*> thumb, const QString &address);
 
 	const std::shared_ptr<Main::SessionShow> _show;
 	const std::shared_ptr<CollectibleMedia> _media;
-	std::vector<QString> _addresses;
+	Info::PeerGifts::Delegate _delegate;
+	const QSize _singleMin;
+	std::vector<CollectibleRecord> _records;
+	base::flat_map<QString, Square> _squares;
+	QString _pressed;
+	QSize _single;
+	int _perRow = 0;
+	int _left = 0;
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
-	int _windowFrom = -1;
-	int _windowTill = -1;
+	int _squaresFrom = -1;
+	int _squaresTill = -1;
+	int _mediaFrom = -1;
+	int _mediaTill = -1;
+	bool _over = false;
 
 };
 
@@ -115,72 +130,6 @@ private:
 	QString _text;
 
 };
-
-CollectibleRow::CollectibleRow(QWidget *parent)
-: RippleButton(parent, st::defaultRippleAnimationBgOver) {
-}
-
-void CollectibleRow::setTitle(TextWithEntities text) {
-	_title.setMarkedText(
-		st::walletCollectibleTitleStyle,
-		std::move(text),
-		kTitleTextOptions);
-	update();
-}
-
-void CollectibleRow::setSubtitle(const QString &text) {
-	_subtitle.setText(
-		st::walletRowDateLabel.style,
-		text,
-		Ui::NameTextOptions());
-	update();
-}
-
-void CollectibleRow::setPaintThumb(Fn<void(Painter&, QRect)> paint) {
-	_paintThumb = std::move(paint);
-	update();
-}
-
-int CollectibleRow::resizeGetHeight(int newWidth) {
-	return st::walletCollectibleRowHeight;
-}
-
-void CollectibleRow::paintEvent(QPaintEvent *e) {
-	auto p = Painter(this);
-	paintRipple(p, 0, 0);
-
-	if (_paintThumb) {
-		_paintThumb(p, QRect(
-			st::walletRowIconLeft,
-			(st::walletCollectibleRowHeight - st::walletRowIconSize) / 2,
-			st::walletRowIconSize,
-			st::walletRowIconSize));
-	}
-
-	const auto titleHeight = st::walletCollectibleTitleStyle.font->height;
-	const auto subtitleHeight = st::walletRowDateLabel.style.font->height;
-	const auto top = (st::walletCollectibleRowHeight
-		- titleHeight
-		- st::walletRowSkip
-		- subtitleHeight) / 2;
-	const auto left = st::walletRowPadding.left();
-	const auto available = width() - left - st::walletRowPadding.right();
-	p.setPen(st::windowBoldFg);
-	_title.draw(p, {
-		.position = { left, top },
-		.outerWidth = width(),
-		.availableWidth = available,
-		.palette = &st::walletCollectibleTitlePalette,
-		.elisionLines = 1,
-	});
-	p.setPen(st::windowSubTextFg);
-	_subtitle.draw(p, {
-		.position = { left, top + titleHeight + st::walletRowSkip },
-		.outerWidth = width(),
-		.availableWidth = available,
-		.elisionLines = 1,
-	});
-}
 
 CollectibleActionButton::CollectibleActionButton(
 	QWidget *parent,
@@ -496,96 +445,357 @@ void Activate(
 		sellUrl));
 }
 
-void AddRow(
-		not_null<Ui::VerticalLayout*> container,
-		std::shared_ptr<CollectibleMedia> media,
-		std::shared_ptr<Main::SessionShow> show,
-		const CollectibleRecord &item) {
-	const auto address = item.address;
-	const auto row = container->add(
-		object_ptr<CollectibleRow>(container));
-	row->setPaintThumb([=](Painter &p, QRect rect) {
-		media->paint(
-			p,
-			address,
-			rect,
-			row->width(),
-			st::walletCollectibleThumbRadius);
-	});
-	const auto apply = [=] {
-		const auto view = media->view(address);
-		row->setTitle(CollectibleTitleText(view));
-		row->setSubtitle(CollectibleSubtitleText(view));
-	};
-	apply();
-
-	const auto mine = [=](const QString &changed) {
-		return (changed == address);
-	};
-	media->changed(
-	) | rpl::filter(mine) | rpl::on_next(apply, row->lifetime());
-	media->repaint(
-	) | rpl::filter(mine) | rpl::on_next([=] {
-		row->update();
-	}, row->lifetime());
-
-	row->setClickedCallback([=] {
-		Activate(show, media, item);
-	});
-}
-
-CollectiblesList::CollectiblesList(
+CollectiblesGrid::CollectiblesGrid(
 	QWidget *parent,
 	std::shared_ptr<Main::SessionShow> show,
 	std::shared_ptr<CollectibleMedia> media)
-: VerticalLayout(parent)
+: RpWidget(parent)
 , _show(std::move(show))
-, _media(std::move(media)) {
+, _media(std::move(media))
+, _delegate(&_show->session(), Info::PeerGifts::GiftButtonMode::Minimal)
+, _singleMin(_delegate.buttonSize()) {
+	setMouseTracking(true);
+
+	_media->repaint(
+	) | rpl::on_next([=](const QString &address) {
+		const auto i = _squares.find(address);
+		if (i != end(_squares) && i->second.thumb) {
+			i->second.thumb->update();
+		}
+	}, lifetime());
+
+	style::PaletteChanged(
+	) | rpl::on_next([=] {
+		_delegate.invalidateCache();
+		for (const auto &[address, square] : _squares) {
+			if (square.thumb) {
+				square.thumb->update();
+			}
+		}
+	}, lifetime());
 }
 
-void CollectiblesList::rebuild() {
-	clear();
-	_addresses.clear();
-	const auto wallet = &_show->session().wallet();
-	for (const auto &item : wallet->collectibles()) {
-		AddRow(this, _media, _show, item);
-		_addresses.push_back(item.address);
-	}
-	Ui::AddSkip(this, st::walletRowsTopSkip);
+void CollectiblesGrid::rebuild() {
+	_records = _show->session().wallet().collectibles();
+	invalidateWindows();
 	if (const auto width = this->width()) {
 		resizeToWidth(width);
 	}
-	_windowFrom = _windowTill = -1;
-	refreshWindow();
+	refreshWindows();
 }
 
-void CollectiblesList::visibleTopBottomUpdated(
+int CollectiblesGrid::resizeGetHeight(int newWidth) {
+	const auto skip = st::giftBoxGiftSkip.x();
+	const auto margin = st::walletSendButtonMargin;
+	const auto available = newWidth - margin.left() - margin.right();
+	const auto perRow = (available > 0)
+		? std::max((available + skip) / (_singleMin.width() + skip), 1)
+		: 0;
+	auto single = QSize();
+	auto left = 0;
+	if (perRow) {
+		single = QSize(
+			std::min(
+				(available + skip) / perRow - skip,
+				2 * _singleMin.width()),
+			_singleMin.height());
+		const auto full = perRow * (single.width() + skip) - skip;
+		left = margin.left() + (available - full) / 2;
+	}
+	if (_perRow != perRow || _single != single || _left != left) {
+		_perRow = perRow;
+		_single = single;
+		_left = left;
+		invalidateWindows();
+		refreshWindows();
+	}
+	if (const auto rows = rowsCount()) {
+		const auto last = squareRect(rows * _perRow - 1);
+		return last.y() + last.height() + st::walletRowsTopSkip;
+	}
+	return 0;
+}
+
+void CollectiblesGrid::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;
-	VerticalLayout::visibleTopBottomUpdated(visibleTop, visibleBottom);
-	refreshWindow();
+	refreshWindows();
 }
 
-void CollectiblesList::refreshWindow() {
-	const auto count = int(_addresses.size());
-	const auto row = st::walletCollectibleRowHeight;
-	const auto page = std::max(_visibleBottom - _visibleTop, 0);
-	const auto till = _visibleBottom + page * kPreloadScreens;
-	const auto from = std::clamp(_visibleTop / row, 0, count);
-	const auto last = std::clamp((till + row - 1) / row, from, count);
-	if (_windowFrom == from && _windowTill == last) {
+void CollectiblesGrid::mousePressEvent(QMouseEvent *e) {
+	if (e->button() != Qt::LeftButton) {
 		return;
 	}
-	_windowFrom = from;
-	_windowTill = last;
+	const auto index = squareAt(mapFromGlobal(e->globalPos()));
+	_pressed = (index >= 0) ? _records[index].address : QString();
+}
+
+void CollectiblesGrid::mouseMoveEvent(QMouseEvent *e) {
+	const auto over = (squareAt(e->pos()) >= 0);
+	if (_over != over) {
+		_over = over;
+		setCursor(over ? style::cur_pointer : style::cur_default);
+	}
+}
+
+void CollectiblesGrid::mouseReleaseEvent(QMouseEvent *e) {
+	if (e->button() != Qt::LeftButton) {
+		return;
+	}
+	const auto pressed = base::take(_pressed);
+	const auto index = squareAt(mapFromGlobal(e->globalPos()));
+	if (!pressed.isEmpty()
+		&& index >= 0
+		&& _records[index].address == pressed) {
+		activate(pressed);
+	}
+}
+
+int CollectiblesGrid::rowsCount() const {
+	return _perRow
+		? ((int(_records.size()) + _perRow - 1) / _perRow)
+		: 0;
+}
+
+std::pair<int, int> CollectiblesGrid::rowsRange(
+		int top,
+		int bottom,
+		int preload) const {
+	const auto rows = rowsCount();
+	if (!rows) {
+		return { 0, 0 };
+	}
+	const auto padding = _delegate.buttonExtend().top();
+	const auto pitch = _single.height() + st::giftBoxGiftSkip.y();
+	const auto from = std::clamp(
+		std::max(top - padding, 0) / pitch - preload,
+		0,
+		rows);
+	const auto till = std::clamp(
+		(std::max(bottom - padding, 0) + pitch - 1) / pitch + preload,
+		from,
+		rows);
+	return { from, till };
+}
+
+QRect CollectiblesGrid::squareRect(int index) const {
+	if (!_perRow || index < 0) {
+		return QRect();
+	}
+	const auto skip = st::giftBoxGiftSkip;
+	const auto column = index % _perRow;
+	const auto row = index / _perRow;
+	return QRect(
+		QPoint(
+			_left + column * (_single.width() + skip.x()),
+			(_delegate.buttonExtend().top()
+				+ row * (_single.height() + skip.y()))),
+		_single);
+}
+
+int CollectiblesGrid::squareAt(QPoint point) const {
+	if (!_perRow) {
+		return -1;
+	}
+	const auto skip = st::giftBoxGiftSkip;
+	const auto x = point.x() - _left;
+	const auto y = point.y() - _delegate.buttonExtend().top();
+	if (x < 0 || y < 0) {
+		return -1;
+	}
+	const auto column = x / (_single.width() + skip.x());
+	const auto index = (y / (_single.height() + skip.y())) * _perRow
+		+ column;
+	if (column >= _perRow || index >= int(_records.size())) {
+		return -1;
+	}
+	return squareRect(index).contains(point) ? index : -1;
+}
+
+int CollectiblesGrid::indexOf(const QString &address) const {
+	const auto i = ranges::find(
+		_records,
+		address,
+		&CollectibleRecord::address);
+	return (i != end(_records)) ? int(i - begin(_records)) : -1;
+}
+
+void CollectiblesGrid::invalidateWindows() {
+	_squaresFrom = _squaresTill = -1;
+	_mediaFrom = _mediaTill = -1;
+}
+
+void CollectiblesGrid::refreshWindows() {
+	refreshSquares();
+	refreshMediaWindow();
+}
+
+void CollectiblesGrid::refreshSquares() {
+	const auto [from, till] = rowsRange(
+		_visibleTop,
+		_visibleBottom,
+		kPreloadRows);
+	if (_squaresFrom == from && _squaresTill == till) {
+		return;
+	}
+	_squaresFrom = from;
+	_squaresTill = till;
+
+	auto old = base::take(_squares);
+	auto now = base::flat_map<QString, Square>();
+	const auto extend = _delegate.buttonExtend();
+	const auto last = std::min(till * _perRow, int(_records.size()));
+	for (auto index = from * _perRow; index < last; ++index) {
+		const auto &record = _records[index];
+		const auto i = old.find(record.address);
+		auto square = (i != end(old)) ? std::move(i->second) : Square();
+		applySquare(square, record);
+		const auto inner = squareRect(index);
+		if (square.gift) {
+			square.gift->setGeometry(inner, extend);
+		} else {
+			square.thumb->setGeometry(inner.marginsAdded(extend));
+		}
+		now.emplace(record.address, std::move(square));
+	}
+	_squares = std::move(now);
+	if (!_pressed.isEmpty() && !_squares.contains(_pressed)) {
+		_pressed = QString();
+	}
+}
+
+void CollectiblesGrid::refreshMediaWindow() {
+	const auto page = std::max(_visibleBottom - _visibleTop, 0);
+	const auto [from, till] = rowsRange(
+		_visibleTop,
+		_visibleBottom + page * kPreloadScreens,
+		0);
+	if (_mediaFrom == from && _mediaTill == till) {
+		return;
+	}
+	_mediaFrom = from;
+	_mediaTill = till;
+
 	auto ordered = std::vector<QString>();
-	ordered.reserve(last - from);
-	for (auto i = from; i != last; ++i) {
-		ordered.push_back(_addresses[i]);
+	const auto last = std::min(till * _perRow, int(_records.size()));
+	for (auto index = from * _perRow; index < last; ++index) {
+		const auto &record = _records[index];
+		if (!record.gift) {
+			ordered.push_back(record.address);
+		}
 	}
 	_media->setListWindow(std::move(ordered));
+}
+
+void CollectiblesGrid::applySquare(
+		Square &square,
+		const CollectibleRecord &record) {
+	const auto kindChanged = record.gift
+		? (square.thumb != nullptr)
+		: (square.gift != nullptr);
+	if (kindChanged && _pressed == record.address) {
+		_pressed = QString();
+	}
+	if (!record.gift) {
+		square.gift = nullptr;
+		if (!square.thumb) {
+			square.thumb = createThumbButton(record.address);
+		}
+	} else {
+		square.thumb = nullptr;
+		const auto fresh = !square.gift;
+		if (fresh) {
+			square.gift = createGiftButton(record.address);
+		}
+		// A reparse allocates the gift anew, equal values keep the player.
+		if (fresh || !SameServedGift(square.record, record)) {
+			square.gift->setDescriptor(
+				Info::PeerGifts::GiftTypeStars{
+					.info = *record.gift,
+					.mine = true,
+				},
+				Info::PeerGifts::GiftButtonMode::Minimal);
+		}
+	}
+	square.record = record;
+}
+
+void CollectiblesGrid::activate(const QString &address) {
+	const auto index = indexOf(address);
+	if (index >= 0) {
+		const auto record = _records[index];
+		Activate(_show, _media, record);
+	}
+}
+
+auto CollectiblesGrid::createGiftButton(const QString &address)
+-> std::unique_ptr<Info::PeerGifts::GiftButton> {
+	auto result = std::make_unique<Info::PeerGifts::GiftButton>(
+		this,
+		&_delegate);
+	const auto raw = result.get();
+	raw->setClickedCallback([=] {
+		activate(address);
+	});
+	raw->mouseEvents(
+	) | rpl::on_next([=](QMouseEvent *e) {
+		if (e->type() == QEvent::MouseButtonPress) {
+			mousePressEvent(e);
+		} else if (e->type() == QEvent::MouseButtonRelease) {
+			mouseReleaseEvent(e);
+		}
+	}, raw->lifetime());
+	raw->show();
+	return result;
+}
+
+std::unique_ptr<Ui::AbstractButton> CollectiblesGrid::createThumbButton(
+		const QString &address) {
+	auto result = std::make_unique<Ui::AbstractButton>(this);
+	const auto raw = result.get();
+	raw->setAttribute(Qt::WA_TransparentForMouseEvents);
+	raw->setClickedCallback([=] {
+		activate(address);
+	});
+	raw->paintRequest(
+	) | rpl::on_next([=] {
+		paintThumb(raw, address);
+	}, raw->lifetime());
+	raw->show();
+	return result;
+}
+
+void CollectiblesGrid::paintThumb(
+		not_null<QWidget*> thumb,
+		const QString &address) {
+	auto p = Painter(thumb.get());
+	const auto outer = thumb->rect();
+	auto background = _delegate.background();
+	const auto fill = Ui::RoundAreaWithShadow::FillWithImage(
+		p,
+		outer,
+		{ .image = &background, .rect = background.rect() });
+	if (!fill.isEmpty()) {
+		p.fillRect(fill, st::windowBg);
+	}
+	const auto inner = outer.marginsRemoved(_delegate.buttonExtend());
+	const auto radius = st::giftBoxGiftRadius;
+	auto clip = QPainterPath();
+	clip.addRoundedRect(inner, radius, radius);
+	p.setClipPath(clip);
+	const auto side = std::max(inner.width(), inner.height());
+	_media->paint(
+		p,
+		address,
+		QRect(
+			inner.x() + (inner.width() - side) / 2,
+			inner.y() + (inner.height() - side) / 2,
+			side,
+			side),
+		outer.width(),
+		radius);
 }
 
 } // namespace
@@ -595,15 +805,15 @@ void AddCollectiblesList(
 		std::shared_ptr<Main::SessionShow> show,
 		std::shared_ptr<CollectibleMedia> media) {
 	const auto wallet = &show->session().wallet();
-	const auto list = container->add(object_ptr<CollectiblesList>(
+	const auto grid = container->add(object_ptr<CollectiblesGrid>(
 		container,
 		std::move(show),
 		std::move(media)));
-	list->rebuild();
+	grid->rebuild();
 	wallet->collectiblesUpdates(
 	) | rpl::on_next([=] {
-		list->rebuild();
-	}, list->lifetime());
+		grid->rebuild();
+	}, grid->lifetime());
 }
 
 } // namespace Wallet
