@@ -157,7 +157,7 @@ FeeResult GiftDepositFee(
 
 SendError GiftDepositInputError(
 		const SendArgs &args,
-		const std::vector<Gram::NftItem> &items,
+		const std::vector<CollectibleRecord> &items,
 		bool listComplete) {
 	if (args.payload.isEmpty()) {
 		return SendError::None;
@@ -174,7 +174,7 @@ SendError GiftDepositInputError(
 		|| !args.bounce) {
 		return SendError::InvalidRequest;
 	}
-	const auto listed = [&](const Gram::NftItem &entry) {
+	const auto listed = [&](const CollectibleRecord &entry) {
 		return SameAddress(entry.address, item);
 	};
 	return (listComplete && ranges::none_of(items, listed))

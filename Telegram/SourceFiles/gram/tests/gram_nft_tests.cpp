@@ -332,7 +332,7 @@ std::vector<Check> NftChecks() {
 			}
 			return QString();
 		} },
-		{ u"nft_kind_fragment_gift_slug"_q, [] {
+		{ u"nft_kind_gift_uri_not_nominated"_q, [] {
 			const auto name = u"api-nft-items-address-gift.json"_q;
 			const auto bytes = ReadFixture(name);
 			if (bytes.isEmpty()) {
@@ -354,20 +354,16 @@ std::vector<Check> NftChecks() {
 					+ item.contentUri
 					+ u", expected "_q
 					+ uri;
-			} else if (item.kind != NftKind::TelegramGift) {
+			} else if (item.kind != NftKind::Generic) {
 				return u"kind: got "_q
 					+ QString::number(int(item.kind))
-					+ u", expected TelegramGift; the kind comes from the "
-					u"content.uri nft.fragment.com/<segment>/ shape, because "
-					u"each gift model mints its own collection contract and "
-					u"no address list can enumerate them"_q;
-			} else if (item.key != u"deskcalendar-45754"_q) {
+					+ u", expected Generic; a gift content.uri is "
+					u"item-controlled metadata, and only the gift Telegram "
+					u"serves in wallet.nftItem makes an item a gift"_q;
+			} else if (!item.key.isEmpty()) {
 				return u"key: got "_q
 					+ item.key
-					+ u", expected deskcalendar-45754; the slug goes verbatim "
-					u"into payments.getUniqueStarGift, so the server's own "
-					u"capitalization of it is not derivable from any committed "
-					u"byte and is deliberately not asserted"_q;
+					+ u", expected none; a gift uri nominates no slug"_q;
 			}
 			const auto nested = QByteArray(
 				"{\"nft_items\":[{"
@@ -394,11 +390,8 @@ std::vector<Check> NftChecks() {
 			if (nestedItem.kind != NftKind::Generic) {
 				return u"nested slug: got kind "_q
 					+ QString::number(int(nestedItem.kind))
-					+ u", expected Generic; a remainder that leaves "
-					u"[a-zA-Z0-9._-] - the only class the app's "
-					u"t.me/nft/<slug> handler accepts - yields no slug, and "
-					u"without a resolvable slug the gift kind is useless, so "
-					u"the item stays Generic"_q;
+					+ u", expected Generic; a gift uri never classifies, "
+					u"whatever its remainder"_q;
 			} else if (!nestedItem.key.isEmpty()) {
 				return u"nested slug: got key "_q
 					+ nestedItem.key
@@ -426,21 +419,16 @@ std::vector<Check> NftChecks() {
 					+ u" items, expected 1"_q;
 			}
 			const auto &other = synthetic->list.front();
-			if (other.kind != NftKind::TelegramGift) {
+			if (other.kind != NftKind::Generic) {
 				return u"foreign collection: got kind "_q
 					+ QString::number(int(other.kind))
-					+ u", expected TelegramGift; a gift uri nominates a "
-					u"candidate whatever its collection, because every gift "
-					u"model mints its own collection contract. The uri is "
-					u"item-controlled, so the wallet shows the gift view "
-					u"only after payments.getUniqueStarGift resolves the "
-					u"slug and the reply's gift_address equals this exact "
-					u"item's address; a forged uri fails that binding and "
-					u"lands in the generic preview fallback"_q;
-			} else if (other.key != u"deskcalendar-45754"_q) {
+					+ u", expected Generic; a gift uri under any collection "
+					u"is item-controlled metadata, and only the gift Telegram "
+					u"serves in wallet.nftItem makes an item a gift"_q;
+			} else if (!other.key.isEmpty()) {
 				return u"foreign collection: got key "_q
 					+ other.key
-					+ u", expected deskcalendar-45754"_q;
+					+ u", expected none"_q;
 			}
 			return QString();
 		} },
@@ -556,16 +544,16 @@ std::vector<Check> NftChecks() {
 			gift.contentUri =
 				u"https://nft.fragment.com/gift/deskcalendar-45754.json"_q;
 			ClassifyNftKind(gift);
-			if (gift.kind != NftKind::TelegramGift) {
+			if (gift.kind != NftKind::Generic) {
 				return u"gift kind: got "_q
 					+ QString::number(int(gift.kind))
-					+ u", expected TelegramGift; every gift model mints its "
-					u"own collection contract, so the gift uri nominates the "
-					u"candidate whatever collection holds the item"_q;
-			} else if (gift.key != u"deskcalendar-45754"_q) {
+					+ u", expected Generic; a gift uri nominates nothing, "
+					u"because only the gift Telegram serves in wallet.nftItem "
+					u"makes an item a gift"_q;
+			} else if (!gift.key.isEmpty()) {
 				return u"gift key: got "_q
 					+ gift.key
-					+ u", expected deskcalendar-45754"_q;
+					+ u", expected none"_q;
 			}
 			const auto numberRaw = u"0:0e41dc1dc3c9067ed24248580e12b335"
 				u"9818d83dee0304fabcf80845eafafdb2"_q;
@@ -595,8 +583,7 @@ std::vector<Check> NftChecks() {
 					+ forged.key
 					+ u", expected Generic with none; numbers and usernames "
 					u"each have exactly one authoritative Fragment "
-					u"collection, so the address still gates them and only "
-					u"a gift uri nominates without one"_q;
+					u"collection, so the address still gates them"_q;
 			}
 			return QString();
 		} },
@@ -648,8 +635,8 @@ std::vector<Check> NftChecks() {
 			check(
 				u"gift from image"_q,
 				giftImage,
-				NftKind::TelegramGift,
-				u"deskcalendar-45754"_q);
+				NftKind::Generic,
+				QString());
 
 			auto giftLottie = NftItem();
 			giftLottie.collection = foreignRaw;
@@ -662,8 +649,8 @@ std::vector<Check> NftChecks() {
 			check(
 				u"gift from lottie"_q,
 				giftLottie,
-				NftKind::TelegramGift,
-				u"deskcalendar-45754"_q);
+				NftKind::Generic,
+				QString());
 
 			auto numberImage = NftItem();
 			numberImage.collection = numberRaw;

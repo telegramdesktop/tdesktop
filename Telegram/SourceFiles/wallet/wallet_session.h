@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/flat_map.h"
+#include "base/flat_set.h"
 #include "base/timer.h"
 #include "core/core_cloud_password.h"
 #include "data/data_msg_id.h"
@@ -17,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "wallet/wallet_address.h"
 #include "wallet/wallet_api.h"
+#include "wallet/wallet_collectible_record.h"
 #include "wallet/wallet_custody.h"
 #include "wallet/wallet_engine.h"
 #include "wallet/wallet_stream.h"
@@ -219,7 +221,7 @@ struct TransferItem {
 	QString counterpartyName;
 	quint64 counterpartyPeer = 0;
 	QString collectible;
-	std::optional<Gram::NftItem> collectibleRecord;
+	std::optional<CollectibleRecord> collectibleRecord;
 	QString provider;
 	// Always a magnitude. The mappings fold a source's signed amount into
 	// this field and `incoming`, because every surface that paints a
@@ -473,10 +475,12 @@ struct SendArgs {
 [[nodiscard]] QByteArray TransactionHashFromServer(const QString &value);
 
 [[nodiscard]] std::vector<TransferItem> HistoryFromServer(
+	not_null<Main::Session*> session,
 	const QVector<MTPWalletTransaction> &list,
 	std::optional<TransferWalletIdentity> identity = std::nullopt);
 
-[[nodiscard]] std::vector<Gram::NftItem> CollectiblesFromServer(
+[[nodiscard]] std::vector<CollectibleRecord> CollectiblesFromServer(
+	not_null<Main::Session*> session,
 	const QVector<MTPwallet_NftItem> &list);
 
 [[nodiscard]] bool IsWordlistWord(const QString &word);
@@ -775,7 +779,7 @@ public:
 	void loadMoreHistory();
 	void resetHiddenHistoryPages();
 
-	[[nodiscard]] const std::vector<Gram::NftItem> &collectibles() const;
+	[[nodiscard]] const std::vector<CollectibleRecord> &collectibles() const;
 	[[nodiscard]] rpl::producer<> collectiblesUpdates() const;
 	[[nodiscard]] bool collectiblesTab() const;
 	[[nodiscard]] rpl::producer<bool> collectiblesTabValue() const;
@@ -784,7 +788,9 @@ public:
 	void loadMoreCollectibles();
 	void resolveCollectibleInfo(
 		const QString &item,
-		Fn<void(const Gram::NftItem &)> done);
+		Fn<void(const CollectibleRecord &)> done);
+	[[nodiscard]] auto collectibleInfoReplaced() const
+	-> rpl::producer<CollectibleRecord>;
 	// Waits for a collectible the server is sending to this wallet.
 	[[nodiscard]] uint64 expectIncomingCollectible(
 		Fn<bool(const Gram::NftItem &)> matches,
@@ -1079,11 +1085,12 @@ private:
 	void applyCollectibles(
 		const MTPwallet_NftItems &result,
 		const CollectiblesRequest &request);
-	void setCollectibles(std::vector<Gram::NftItem> &&list);
+	void setCollectibles(std::vector<CollectibleRecord> &&list);
 	void rememberCollectibles(const std::vector<TransferItem> &items);
 	void followCollectibles(const std::vector<TransferItem> &arrived);
 	void followCollectible(const QString &address, bool incoming);
-	void spendCollectibleFollowUps(const std::vector<Gram::NftItem> *list);
+	void spendCollectibleFollowUps(
+		const std::vector<CollectibleRecord> *list);
 	struct PreviewRequest;
 	struct PreviewState;
 	[[nodiscard]] bool previewCurrent(const PreviewRequest &request) const;
@@ -1288,7 +1295,7 @@ private:
 	GiftMoveHistoryCoverage _giftMoveCoverage;
 	crl::time _historyRefreshedAt = 0;
 
-	std::vector<Gram::NftItem> _collectibles;
+	std::vector<CollectibleRecord> _collectibles;
 	rpl::event_stream<> _collectiblesUpdates;
 	rpl::variable<bool> _collectiblesTab = false;
 	crl::time _collectiblesRefreshedAt = 0;
@@ -1298,10 +1305,13 @@ private:
 	QString _collectiblesNextOffset;
 	bool _collectiblesPaged = false;
 	bool _collectiblesForced = false;
-	base::flat_map<QString, Gram::NftItem> _collectibleInfo;
+	base::flat_map<QString, CollectibleRecord> _collectibleInfo;
+	// Answered by toncenter only, so a served record replaces them.
+	base::flat_set<QString> _collectibleInfoLookedUp;
+	rpl::event_stream<CollectibleRecord> _collectibleInfoReplaced;
 	base::flat_map<
 		QString,
-		std::vector<Fn<void(const Gram::NftItem &)>>> _collectibleInfoWaiters;
+		std::vector<Fn<void(const CollectibleRecord &)>>> _collectibleInfoWaiters;
 	struct CollectibleFollowUp {
 		bool incoming = false;
 		int left = 0;

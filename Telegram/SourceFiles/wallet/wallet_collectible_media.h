@@ -27,6 +27,8 @@ class Session;
 
 namespace Wallet {
 
+struct CollectibleRecord;
+
 [[nodiscard]] bool UniqueGiftMatchesAddress(
 	const std::shared_ptr<Data::UniqueGift> &unique,
 	const QString &address);
@@ -36,7 +38,6 @@ struct CollectibleView {
 	QString number;
 	QString collectionName;
 	Gram::NftKind kind = Gram::NftKind::Generic;
-	bool authenticGift = false;
 	QString key;
 	QString model;
 	QString backdrop;
@@ -90,21 +91,18 @@ private:
 
 	void resolveFromRecord(
 		not_null<Entry*> entry,
-		const Gram::NftItem &record,
+		const CollectibleRecord &record,
 		int generation);
 	void refreshFromCollectibles();
 	void refreshFromRecord(
 		not_null<Entry*> entry,
-		const Gram::NftItem &record);
+		const CollectibleRecord &record);
 	bool applyRecord(
 		not_null<Entry*> entry,
-		const Gram::NftItem &record);
+		const CollectibleRecord &record);
 	void startArtwork(not_null<Entry*> entry);
+	void applyGift(not_null<Entry*> entry);
 	void clearArtwork(not_null<Entry*> entry);
-	void requestGift(
-		not_null<Entry*> entry,
-		const QString &slug,
-		int generation);
 	void startImageLoad(
 		not_null<Entry*> entry,
 		const Gram::NftWebDocument &document,

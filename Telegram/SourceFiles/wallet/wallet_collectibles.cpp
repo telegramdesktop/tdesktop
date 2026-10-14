@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/weak_qptr.h"
 #include "boxes/star_gift_box.h"
-#include "core/local_url_handlers.h"
 #include "data/data_session.h"
 #include "data/data_star_gift.h"
 #include "gram/api/gram_api_nft.h"
@@ -239,7 +238,7 @@ QImage CollectibleActionButton::prepareRippleMask() const {
 	}
 	switch (item.kind) {
 	case Gram::NftKind::TelegramGift:
-		return u"https://fragment.com/gift/"_q + item.key;
+		return u"https://fragment.com/gift/"_q + item.key.toLower();
 	case Gram::NftKind::TelegramUsername:
 		return u"https://fragment.com/username/"_q + item.key;
 	case Gram::NftKind::TelegramNumber:
@@ -457,18 +456,17 @@ void AddShowInGiftsCheckbox(
 void Activate(
 		std::shared_ptr<Main::SessionShow> show,
 		std::shared_ptr<CollectibleMedia> media,
-		const Gram::NftItem &item) {
+		const CollectibleRecord &item) {
 	const auto sellUrl = CollectibleFragmentUrl(item);
-	if (item.kind == Gram::NftKind::TelegramGift && !item.key.isEmpty()) {
+	if (item.gift) {
 		const auto weak = std::weak_ptr(media);
 		const auto address = item.address;
 		const auto slug = item.key;
-		const auto unique = std::make_shared<
-			std::shared_ptr<Data::UniqueGift>>();
+		const auto unique = item.gift->unique;
 		auto actions = std::make_shared<::Settings::UniqueGiftCoverActions>();
 		actions->transfer = [=] {
 			if (const auto strong = weak.lock()) {
-				ShowCollectibleTransfer(show, strong, address, slug, *unique);
+				ShowCollectibleTransfer(show, strong, address, slug, unique);
 			}
 		};
 		if (!sellUrl.isEmpty()) {
@@ -477,32 +475,17 @@ void Activate(
 			};
 		}
 		actions->aboveButtons = [=](not_null<Ui::GenericBox*> box) {
-			if (const auto gift = *unique) {
-				AddShowInGiftsCheckbox(box, show, gift);
+			if (unique) {
+				AddShowInGiftsCheckbox(box, show, unique);
 			}
 		};
-		Core::ResolveAndShowUniqueGift(
+		show->showBox(Box(
+			::Settings::GlobalStarGiftBox,
 			MakeChatShow(show, false),
-			item.key,
+			*item.gift,
+			::Settings::StarGiftResaleInfo(),
 			::Settings::CreditsEntryBoxStyleOverrides(),
-			[=](const QString &error) {
-				const auto strong = weak.lock();
-				if (!strong || !show->valid()) {
-					return;
-				}
-				const auto mismatch = (error == u"GIFT_ADDRESS_MISMATCH"_q);
-				show->showBox(Box(
-					CollectiblePreviewBox,
-					show,
-					strong,
-					item,
-					mismatch ? QString() : sellUrl));
-			},
-			[=](const Data::StarGift &gift) {
-				*unique = gift.unique;
-				return UniqueGiftMatchesAddress(gift.unique, address);
-			},
-			std::move(actions));
+			std::move(actions)));
 		return;
 	}
 	show->showBox(Box(
@@ -517,7 +500,7 @@ void AddRow(
 		not_null<Ui::VerticalLayout*> container,
 		std::shared_ptr<CollectibleMedia> media,
 		std::shared_ptr<Main::SessionShow> show,
-		const Gram::NftItem &item) {
+		const CollectibleRecord &item) {
 	const auto address = item.address;
 	const auto row = container->add(
 		object_ptr<CollectibleRow>(container));

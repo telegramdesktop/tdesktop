@@ -2225,6 +2225,8 @@ PRIVATE
     wallet/wallet_chat_show.h
     wallet/wallet_collectible_media.cpp
     wallet/wallet_collectible_media.h
+    wallet/wallet_collectible_record.cpp
+    wallet/wallet_collectible_record.h
     wallet/wallet_collectibles.cpp
     wallet/wallet_collectibles.h
     wallet/wallet_comment.cpp

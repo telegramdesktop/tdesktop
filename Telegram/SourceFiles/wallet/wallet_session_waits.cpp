@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "wallet/wallet_session_waits.h"
 
-#include "gram/api/gram_api_nft.h"
+#include "wallet/wallet_collectible_record.h"
 
 namespace Wallet {
 namespace {
@@ -48,7 +48,7 @@ bool CollectibleWaits::empty() const {
 }
 
 void CollectibleWaits::settle(
-		const std::vector<Gram::NftItem> *page,
+		const std::vector<CollectibleRecord> *page,
 		crl::time sentAt) {
 	const auto now = crl::now();
 	auto finished = std::vector<std::pair<Fn<void(bool)>, bool>>();

@@ -13,6 +13,8 @@ struct NftItem;
 
 namespace Wallet {
 
+struct CollectibleRecord;
+
 class CollectibleWaits final {
 public:
 	explicit CollectibleWaits(Fn<void()> changed);
@@ -22,7 +24,9 @@ public:
 		Fn<void(bool arrived)> done);
 	void cancel(uint64 id);
 	[[nodiscard]] bool empty() const;
-	void settle(const std::vector<Gram::NftItem> *page, crl::time sentAt);
+	void settle(
+		const std::vector<CollectibleRecord> *page,
+		crl::time sentAt);
 
 private:
 	struct Entry {

@@ -48,7 +48,7 @@ void RequestGiftDeposit(
 	const QString &collectible);
 [[nodiscard]] SendError GiftDepositInputError(
 	const SendArgs &args,
-	const std::vector<Gram::NftItem> &items,
+	const std::vector<CollectibleRecord> &items,
 	bool listComplete);
 [[nodiscard]] bool GiftDepositRejected(const EngineError &error);
 void CheckGiftDepositOwner(

@@ -2298,10 +2298,7 @@ bool StartUrlRequiresActivate(const QString &url) {
 void ResolveAndShowUniqueGift(
 		std::shared_ptr<ChatHelpers::Show> show,
 		const QString &slug,
-		::Settings::CreditsEntryBoxStyleOverrides st,
-		Fn<void(QString)> fail,
-		Fn<bool(const Data::StarGift &)> validate,
-		std::shared_ptr<const ::Settings::UniqueGiftCoverActions> actions) {
+		::Settings::CreditsEntryBoxStyleOverrides st) {
 	struct Request {
 		base::weak_ptr<Main::Session> weak;
 		QString slug;
@@ -2330,12 +2327,6 @@ void ResolveAndShowUniqueGift(
 		const auto &data = result.data();
 		session->data().processUsers(data.vusers());
 		if (const auto gift = Api::FromTL(session, data.vgift())) {
-			if (validate && !validate(*gift)) {
-				if (fail) {
-					fail(u"GIFT_ADDRESS_MISMATCH"_q);
-				}
-				return;
-			}
 			Core::App().hideMediaView();
 
 			using namespace ::Settings;
@@ -2345,16 +2336,12 @@ void ResolveAndShowUniqueGift(
 				*gift,
 				StarGiftResaleInfo(),
 				st,
-				actions));
+				nullptr));
 			show->activate();
-		} else if (fail) {
-			fail(u"RESPONSE_PARSE_FAILED"_q);
 		}
 	}).fail([=](const MTP::Error &error) {
 		clear();
-		if (fail) {
-			fail(error.type());
-		} else if (!Ui::ShowGiftErrorToast(show, error)) {
+		if (!Ui::ShowGiftErrorToast(show, error)) {
 			show->showToast(u"Error: "_q + error.type());
 		}
 	}).send();
@@ -2362,15 +2349,8 @@ void ResolveAndShowUniqueGift(
 
 void ResolveAndShowUniqueGift(
 		std::shared_ptr<ChatHelpers::Show> show,
-		const QString &slug,
-		Fn<void(QString)> fail,
-		Fn<bool(const Data::StarGift &)> validate) {
-	ResolveAndShowUniqueGift(
-		std::move(show),
-		slug,
-		{},
-		std::move(fail),
-		std::move(validate));
+		const QString &slug) {
+	ResolveAndShowUniqueGift(std::move(show), slug, {});
 }
 
 TimeId ParseVideoTimestamp(QStringView value) {

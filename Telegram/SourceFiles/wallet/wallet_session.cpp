@@ -478,15 +478,15 @@ struct MergedHead {
 	return result;
 }
 
-[[nodiscard]] std::vector<Gram::NftItem> UnheldCollectibles(
-		const std::vector<Gram::NftItem> &was,
-		std::vector<Gram::NftItem> &&page) {
+[[nodiscard]] std::vector<CollectibleRecord> UnheldCollectibles(
+		const std::vector<CollectibleRecord> &was,
+		std::vector<CollectibleRecord> &&page) {
 	auto held = base::flat_set<QString>();
 	held.reserve(was.size());
 	for (const auto &item : was) {
 		held.emplace(item.address);
 	}
-	auto result = std::vector<Gram::NftItem>();
+	auto result = std::vector<CollectibleRecord>();
 	result.reserve(page.size());
 	for (auto &item : page) {
 		if (!held.contains(item.address)) {
@@ -497,8 +497,8 @@ struct MergedHead {
 }
 
 [[nodiscard]] bool SameCollectibles(
-		const std::vector<Gram::NftItem> &was,
-		const std::vector<Gram::NftItem> &now) {
+		const std::vector<CollectibleRecord> &was,
+		const std::vector<CollectibleRecord> &now) {
 	return (was == now);
 }
 
@@ -1811,7 +1811,8 @@ void KeepSubmittedRecipient(
 	});
 }
 
-[[nodiscard]] std::optional<Gram::NftItem> CollectibleFromServer(
+[[nodiscard]] std::optional<CollectibleRecord> CollectibleFromServer(
+		not_null<Main::Session*> session,
 		const MTPwallet_NftItem &item) {
 	const auto &data = item.data();
 	const auto address = CanonicalAddress(qs(data.vaddress()));
@@ -1819,7 +1820,7 @@ void KeepSubmittedRecipient(
 		LOG(("Wallet Error: wallet.NftItem address is not parseable."));
 		return std::nullopt;
 	}
-	auto result = Gram::NftItem();
+	auto result = CollectibleRecord();
 	result.address = address;
 	if (const auto collection = data.vcollection_address()) {
 		result.collection = CanonicalAddress(qs(*collection));
@@ -1832,13 +1833,8 @@ void KeepSubmittedRecipient(
 	result.imageSmall = WebDocumentFromServer(data.vimage_small());
 	result.contentUrl = WebDocumentFromServer(data.vcontent_url());
 	result.lottie = WebDocumentFromServer(data.vlottie());
-	Gram::ClassifyNftKind(result);
-	if (const auto gift = data.vgift()) {
-		gift->match([&](const MTPDstarGiftUnique &unique) {
-			result.kind = Gram::NftKind::TelegramGift;
-			result.key = qs(unique.vslug());
-		}, [](const MTPDstarGift &) {
-		});
+	if (!FillServedGift(session, result, data.vgift())) {
+		Gram::ClassifyNftKind(result);
 	}
 	return result;
 }
@@ -1868,6 +1864,7 @@ void SetDirectedAmount(
 }
 
 [[nodiscard]] TransferItem HistoryItemFromServer(
+		not_null<Main::Session*> session,
 		const MTPWalletTransaction &item,
 		const std::optional<TransferWalletIdentity> &identity) {
 	const auto &data = item.data();
@@ -1936,7 +1933,7 @@ void SetDirectedAmount(
 			// for, so no lang key is invented for it.
 		});
 		if (const auto nft = data.vnft()) {
-			if (auto record = CollectibleFromServer(*nft)) {
+			if (auto record = CollectibleFromServer(session, *nft)) {
 				result.kind = TransferItem::Kind::Collectible;
 				result.collectible = record->address;
 				result.collectibleRecord = std::move(*record);
@@ -2104,23 +2101,25 @@ QByteArray DecodeServerEncryptedComment(const QString &encoded) {
 }
 
 std::vector<TransferItem> HistoryFromServer(
+		not_null<Main::Session*> session,
 		const QVector<MTPWalletTransaction> &list,
 		std::optional<TransferWalletIdentity> identity) {
 	auto result = std::vector<TransferItem>();
 	result.reserve(list.size());
 	for (const auto &item : list) {
-		result.push_back(HistoryItemFromServer(item, identity));
+		result.push_back(HistoryItemFromServer(session, item, identity));
 	}
 	return result;
 }
 
-std::vector<Gram::NftItem> CollectiblesFromServer(
+std::vector<CollectibleRecord> CollectiblesFromServer(
+		not_null<Main::Session*> session,
 		const QVector<MTPwallet_NftItem> &list) {
-	auto result = std::vector<Gram::NftItem>();
+	auto result = std::vector<CollectibleRecord>();
 	result.reserve(list.size());
 	auto seen = base::flat_set<QString>();
 	for (const auto &item : list) {
-		if (auto mapped = CollectibleFromServer(item)) {
+		if (auto mapped = CollectibleFromServer(session, item)) {
 			if (seen.emplace(mapped->address).second) {
 				result.push_back(std::move(*mapped));
 			}
@@ -7441,7 +7440,10 @@ void Session::resolveTransaction(
 		// falls back to its address instead of the Telegram identity.
 		_session->data().processUsers(data.vusers());
 		_session->data().processChats(data.vchats());
-		auto list = HistoryFromServer(data.vtransactions().v, identity);
+		auto list = HistoryFromServer(
+			_session,
+			data.vtransactions().v,
+			identity);
 		rememberCollectibles(list);
 		// WHY: the id a message carries is the transfer's trace id, while
 		// the served row is named by its own lt:hash, so an answer to one
@@ -7514,7 +7516,10 @@ void Session::applyTransactions(
 		&& (_panel != nullptr)
 		&& !collectiblesTab();
 	_historySettled = true;
-	auto loaded = HistoryFromServer(data.vtransactions().v, request.identity);
+	auto loaded = HistoryFromServer(
+		_session,
+		data.vtransactions().v,
+		request.identity);
 	rememberCollectibles(loaded);
 	const auto covered = UpdateGiftMoveCoverage(
 		_giftMoveCoverage,
@@ -7821,10 +7826,10 @@ void Session::applyCollectibles(
 		const MTPwallet_NftItems &result,
 		const CollectiblesRequest &request) {
 	const auto &data = result.data();
-	auto loaded = CollectiblesFromServer(data.vitems().v);
+	auto loaded = CollectiblesFromServer(_session, data.vitems().v);
 	if (!request.more && _collectiblesPaged) {
 		// A paged list keeps its pages and cursor; only arrivals are added.
-		const auto left = [&](const Gram::NftItem &item) {
+		const auto left = [&](const CollectibleRecord &item) {
 			const auto i = _collectibleFollowUps.find(item.address);
 			return (i != end(_collectibleFollowUps))
 				&& !i->second.incoming
@@ -7835,7 +7840,7 @@ void Session::applyCollectibles(
 		};
 		auto list = UnheldCollectibles(
 			_collectibles,
-			std::vector<Gram::NftItem>(loaded));
+			std::vector<CollectibleRecord>(loaded));
 		list.insert(end(list), begin(_collectibles), end(_collectibles));
 		list.erase(ranges::remove_if(list, left), end(list));
 		spendCollectibleFollowUps(&loaded);
@@ -7857,7 +7862,7 @@ void Session::applyCollectibles(
 	_collectiblesPaged = request.more
 		&& (_panel != nullptr)
 		&& collectiblesTab();
-	auto list = std::vector<Gram::NftItem>();
+	auto list = std::vector<CollectibleRecord>();
 	if (request.more) {
 		auto fresh = UnheldCollectibles(_collectibles, std::move(loaded));
 		list = _collectibles;
@@ -7877,7 +7882,7 @@ void Session::applyCollectibles(
 		request.sentAt);
 }
 
-void Session::setCollectibles(std::vector<Gram::NftItem> &&list) {
+void Session::setCollectibles(std::vector<CollectibleRecord> &&list) {
 	_collectibles = std::move(list);
 	if (_collectibles.empty()) {
 		_collectiblesTab = false;
@@ -7885,13 +7890,20 @@ void Session::setCollectibles(std::vector<Gram::NftItem> &&list) {
 	}
 	for (const auto &item : _collectibles) {
 		_collectibleInfo[item.address] = item;
+		_collectibleInfoLookedUp.remove(item.address);
 	}
 	_collectiblesUpdates.fire({});
 }
 
 void Session::rememberCollectibles(const std::vector<TransferItem> &items) {
 	for (const auto &item : items) {
-		if (const auto &record = item.collectibleRecord) {
+		const auto &record = item.collectibleRecord;
+		if (!record) {
+			continue;
+		} else if (_collectibleInfoLookedUp.remove(record->address)) {
+			_collectibleInfo[record->address] = *record;
+			_collectibleInfoReplaced.fire_copy(*record);
+		} else {
 			_collectibleInfo.emplace(record->address, *record);
 		}
 	}
@@ -7934,7 +7946,7 @@ void Session::followCollectible(const QString &address, bool incoming) {
 }
 
 void Session::spendCollectibleFollowUps(
-		const std::vector<Gram::NftItem> *list) {
+		const std::vector<CollectibleRecord> *list) {
 	auto &followUps = _collectibleFollowUps;
 	for (auto i = begin(followUps); i != end(followUps);) {
 		const auto listed = list
@@ -7976,7 +7988,7 @@ bool Session::listsConfirmedEmpty() const {
 
 void Session::resolveCollectibleInfo(
 		const QString &item,
-		Fn<void(const Gram::NftItem &)> done) {
+		Fn<void(const CollectibleRecord &)> done) {
 	const auto i = _collectibleInfo.find(item);
 	if (i != end(_collectibleInfo)) {
 		done(i->second);
@@ -7988,12 +8000,13 @@ void Session::resolveCollectibleInfo(
 	if (!first) {
 		return;
 	}
-	const auto finish = [=](Gram::NftItem found, bool remember) {
+	const auto finish = [=](CollectibleRecord found, bool remember) {
 		const auto i = _collectibleInfo.find(item);
 		if (i != end(_collectibleInfo)) {
 			found = i->second;
 		} else if (remember) {
 			_collectibleInfo.emplace(item, found);
+			_collectibleInfoLookedUp.emplace(item);
 		}
 		auto &waiting = _collectibleInfoWaiters[item];
 		for (const auto &callback : base::take(waiting)) {
@@ -8013,11 +8026,15 @@ void Session::resolveCollectibleInfo(
 					}
 				}
 			}
-			finish(found, true);
+			finish(CollectibleRecord{ std::move(found) }, true);
 		},
 		[=](const Gram::ApiError &) {
-			finish(Gram::NftItem(), false);
+			finish(CollectibleRecord(), false);
 		});
+}
+
+rpl::producer<CollectibleRecord> Session::collectibleInfoReplaced() const {
+	return _collectibleInfoReplaced.events();
 }
 
 uint64 Session::expectIncomingCollectible(
@@ -8237,7 +8254,7 @@ rpl::producer<ListsEmptyState> Session::listsEmptyStateValue() const {
 	}) | rpl::distinct_until_changed();
 }
 
-const std::vector<Gram::NftItem> &Session::collectibles() const {
+const std::vector<CollectibleRecord> &Session::collectibles() const {
 	return _collectibles;
 }
 
@@ -10101,7 +10118,7 @@ bool Session::applySubmittedUpdate(
 			changed = !entry->lookupStopped || changed;
 			entry->lookupStopped = true;
 			auto items = std::vector{
-				HistoryItemFromServer(*transaction, identity),
+				HistoryItemFromServer(_session, *transaction, identity),
 			};
 			rememberCollectibles(items);
 			changed = adoptSubmittedTransaction(
@@ -10533,7 +10550,10 @@ void Session::applySubmittedLookup(
 	// nor applyTransactions(): the state lane and the engine refresh are
 	// the balance authority, and a by-message answer is not the paged
 	// feed, so its offset would page a list that nobody renders.
-	auto loaded = HistoryFromServer(data.vtransactions().v, request->identity);
+	auto loaded = HistoryFromServer(
+		_session,
+		data.vtransactions().v,
+		request->identity);
 	rememberCollectibles(loaded);
 	// wallet.transactions echoes neither the requested message hash nor
 	// any per-row link to it, so the attribution is made by the request:
