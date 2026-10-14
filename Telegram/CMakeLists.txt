@@ -2184,6 +2184,8 @@ PRIVATE
     test/test_widgets.h
     test/test_window_exposure.cpp
     test/test_window_exposure.h
+    tgw/tgw_backend.cpp
+    tgw/tgw_backend.h
     tgw/tgw_bridge.cpp
     tgw/tgw_bridge.h
     tgw/tgw_document.cpp
@@ -2192,6 +2194,8 @@ PRIVATE
     tgw/tgw_intl.h
     tgw/tgw_log_box.cpp
     tgw/tgw_log_box.h
+    tgw/tgw_painter.cpp
+    tgw/tgw_painter.h
     tgw/tgw_renderer.cpp
     tgw/tgw_renderer.h
     tgw/tgw_resources.cpp

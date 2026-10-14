@@ -8,11 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_renderer.h"
 
 #include "renderer-litehtml/src/renderer.h"
+#include "tgw/tgw_backend.h"
+#include "tgw/tgw_painter.h"
 #include "twidget/json.h"
-
-#include "styles/style_basic.h"
-
-#include <QtGui/QFontMetricsF>
+#include "ui/style/style_core_scale.h"
 
 #include <mutex>
 
@@ -47,47 +46,7 @@ namespace {
 constexpr auto kMinHeight = 24.;
 constexpr auto kMaxHeight = 900.;
 constexpr auto kFallbackWidth = 1.;
-constexpr auto kMaxFontPixelSize = 1024;
 constexpr auto kReadyMessage = "{\"type\":\"ready\"}";
-
-constexpr auto kFontWeights = std::array{
-	QFont::Thin,
-	QFont::ExtraLight,
-	QFont::Light,
-	QFont::Normal,
-	QFont::Medium,
-	QFont::DemiBold,
-	QFont::Bold,
-	QFont::ExtraBold,
-	QFont::Black,
-};
-
-class MeasuringBackend final : public twlite::Backend {
-public:
-	int create_font(
-		const std::string &families,
-		float size,
-		int weight,
-		bool italic,
-		twlite::FontMetrics &out) override;
-	void delete_font(int font) override;
-	float text_width(int font, const std::string &text) override;
-	bool load_image(
-		int id,
-		const std::string &url,
-		float &width,
-		float &height) override;
-
-private:
-	struct Font {
-		QFontMetricsF metrics;
-		double scale = 1.;
-	};
-
-	base::flat_map<int, Font> _fonts;
-	int _lastFontId = 0;
-
-};
 
 class HostRenderer final : public twidget::Renderer {
 public:
@@ -109,60 +68,8 @@ private:
 	return std::isfinite(width) && (width > 0.);
 }
 
-[[nodiscard]] QFont::Weight FontWeight(int weight) {
-	const auto index = (std::clamp(weight, 100, 900) + 50) / 100 - 1;
-	return kFontWeights[index];
-}
-
-int MeasuringBackend::create_font(
-		const std::string &,
-		float size,
-		int weight,
-		bool italic,
-		twlite::FontMetrics &out) {
-	const auto requested = std::isfinite(size)
-		? std::max(double(size), 0.)
-		: 0.;
-	const auto pixels = int(std::clamp(
-		std::round(requested),
-		1.,
-		double(kMaxFontPixelSize)));
-	const auto scale = requested / pixels;
-	auto font = st::normalFont->f;
-	font.setPixelSize(pixels);
-	font.setWeight(FontWeight(weight));
-	font.setItalic(italic);
-	const auto metrics = QFontMetricsF(font);
-	out.ascent = float(metrics.ascent() * scale);
-	out.descent = float(metrics.descent() * scale);
-	out.height = float(metrics.lineSpacing() * scale);
-	out.x_height = float(metrics.xHeight() * scale);
-	out.zero_width = float(metrics.horizontalAdvance(QChar('0')) * scale);
-	const auto id = ++_lastFontId;
-	_fonts.emplace(id, Font{ metrics, scale });
-	return id;
-}
-
-void MeasuringBackend::delete_font(int font) {
-	_fonts.remove(font);
-}
-
-float MeasuringBackend::text_width(int font, const std::string &text) {
-	const auto i = _fonts.find(font);
-	if (i == end(_fonts)) {
-		return 0.f;
-	}
-	const auto utf16 = QString::fromUtf8(text.data(), int(text.size()));
-	return float(i->second.metrics.horizontalAdvance(utf16)
-		* i->second.scale);
-}
-
-bool MeasuringBackend::load_image(
-		int,
-		const std::string &,
-		float &,
-		float &) {
-	return false;
+[[nodiscard]] int DeviceSide(uint32 side) {
+	return int(std::min(side, uint32(std::numeric_limits<int>::max())));
 }
 
 HostRenderer::HostRenderer(std::shared_ptr<HostLink> link)
@@ -272,7 +179,7 @@ void HostLink::postBridgeCall(RendererCore::BridgeCall call) {
 
 RendererCore::RendererCore(double width, double dpr)
 : _link(std::make_shared<HostLink>(this))
-, _backend(std::make_unique<MeasuringBackend>())
+, _backend(std::make_unique<QtBackend>(dpr))
 , _renderer(std::make_unique<twlite::Renderer>(
 	ValidWidth(width) ? width : kFallbackWidth,
 	dpr,
@@ -353,6 +260,36 @@ bool RendererCore::stopFatal() const {
 
 not_null<twlite::Renderer*> RendererCore::renderer() const {
 	return _renderer.get();
+}
+
+const QImage &RendererCore::frame() {
+	const auto size = QSize(
+		DeviceSide(_renderer->px_width()),
+		DeviceSide(_renderer->px_height()));
+	const auto ratio = style::DevicePixelRatio();
+	if (!_renderer->dirty()
+		&& (_frameSize == size)
+		&& (_frame.isNull() || _frame.devicePixelRatio() == ratio)) {
+		return _frame;
+	}
+	// WHY: the display list names backend font handles that the next
+	// rebuild deletes, so it is rasterized at once and only the pixels
+	// are kept.
+	_frame = PaintFrame(
+		_renderer->paint(),
+		*_backend,
+		size,
+		_renderer->dpr());
+	_frameSize = size;
+	if (!_frame.isNull()) {
+		_frame.setDevicePixelRatio(ratio);
+	}
+	return _frame;
+}
+
+void RendererCore::dropFrame() {
+	_frame = QImage();
+	_frameSize = QSize();
 }
 
 rpl::producer<RendererCore::Changes> RendererCore::updates() const {

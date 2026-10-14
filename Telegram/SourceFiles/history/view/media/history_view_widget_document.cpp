@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "tgw/tgw_document.h"
+#include "tgw/tgw_renderer.h"
 #include "tgw/tgw_runtime.h"
 #include "ui/chat/chat_style.h"
 #include "ui/cached_round_corners.h"
@@ -104,11 +105,22 @@ void WidgetDocument::draw(Painter &p, const PaintContext &context) const {
 		requestFallback();
 	}
 
-	p.fillRect(card, context.messageStyle()->msgWaveformInactive);
+	const auto visible = card.intersects(context.clip);
+	const auto core = visible ? _runtime->core() : nullptr;
+	const auto frame = core ? core->frame() : QImage();
+	if (frame.isNull()) {
+		p.fillRect(card, context.messageStyle()->msgWaveformInactive);
+		if (!_runtime->stopped()) {
+			drawFilename(p, context, card);
+		}
+	} else {
+		p.save();
+		p.setClipRect(card, Qt::IntersectClip);
+		p.drawImage(card.topLeft(), frame);
+		p.restore();
+	}
 	if (_runtime->stopped()) {
 		drawStopped(p, context, card);
-	} else {
-		drawFilename(p, context, card);
 	}
 	if (drawsInfo()) {
 		_parent->drawInfo(
@@ -119,7 +131,7 @@ void WidgetDocument::draw(Painter &p, const PaintContext &context) const {
 			width(),
 			InfoDisplayType::Image);
 	}
-	if (loaded && card.intersects(context.clip)) {
+	if (loaded && visible) {
 		_runtime->painted();
 	}
 }

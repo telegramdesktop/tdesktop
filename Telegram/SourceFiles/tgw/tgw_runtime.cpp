@@ -551,6 +551,9 @@ void Runtime::unload() {
 		release();
 		addNote(u"Released with the unloaded messages."_q);
 	}
+	if (_still) {
+		_still->dropFrame();
+	}
 }
 
 QString Runtime::logText() const {

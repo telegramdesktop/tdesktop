@@ -16,13 +16,13 @@ class Json;
 } // namespace twidget
 
 namespace twlite {
-class Backend;
 class Renderer;
 } // namespace twlite
 
 namespace Tgw {
 
 class HostLink;
+class QtBackend;
 
 class RendererCore final : public base::has_weak_ptr {
 public:
@@ -58,6 +58,8 @@ public:
 	[[nodiscard]] const QString &stopReason() const;
 	[[nodiscard]] bool stopFatal() const;
 	[[nodiscard]] not_null<twlite::Renderer*> renderer() const;
+	[[nodiscard]] const QImage &frame();
+	void dropFrame();
 
 	[[nodiscard]] rpl::producer<Changes> updates() const;
 	[[nodiscard]] rpl::producer<BridgeCall> bridgeCalls() const;
@@ -75,8 +77,10 @@ private:
 	void forward(const twidget::Json &message);
 
 	const std::shared_ptr<HostLink> _link;
-	std::unique_ptr<twlite::Backend> _backend;
+	std::unique_ptr<QtBackend> _backend;
 	std::unique_ptr<twlite::Renderer> _renderer;
+	QImage _frame;
+	QSize _frameSize;
 	std::optional<double> _height;
 	std::string _pendingSize;
 	QString _stopReason;
