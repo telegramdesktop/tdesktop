@@ -2492,7 +2492,9 @@ void ListWidget::performDrag() {
 		pressedHandler->property(
 			kDocumentLinkMediaProperty).toULongLong());
 	if (document) {
-		if (_pressState.item && _pressState.item->forbidsForward()) {
+		const auto peer = _controller->key().peer();
+		if ((peer && !peer->allowsForwarding())
+			|| (_pressState.item && _pressState.item->forbidsForward())) {
 			return;
 		}
 		const auto filepath = document->filepath(true);
