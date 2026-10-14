@@ -1094,7 +1094,8 @@ For review iterations, include the iteration and lens in the file name, for exam
 For a review or assessment phase under the `codex` review provider, replace
 step 2 with one `codex_leaf.py start` per leaf — working directory
 `WORK_DIR`, `workspace-write` sandbox, `--no-project-doc`, the selected
-`--effort`, and the Codex CLI leaves preamble before the prompt — followed by
+`--effort`, `--model` where the effort policy's lens models pin one, and the
+Codex CLI leaves preamble before the prompt — followed by
 foreground `codex_leaf.py wait` calls until they all finish. Steps 3 and 4 are
 unchanged; the compact reply is the leaf's `<name>.last.md`.
 
@@ -1123,7 +1124,8 @@ Use this pattern conceptually for delegated phases:
 2. Spawn a fresh leaf subagent with a unique tool-valid task name and
    `fork_turns: "none"` unless a small recent-turn fork is required. Pass
    the selected `reasoning_effort` when supported, per the shared phase
-   effort policy; omit `model` to inherit the parent model.
+   effort policy; omit `model` to inherit the parent model, except where
+   the policy's lens models pin one.
 3. Wait for the child's final result under the shared Codex completion and
    recovery contract. Keep heartbeat and progress checks out of the parent.
 4. Validate the expected artifacts or code changes after completion with small

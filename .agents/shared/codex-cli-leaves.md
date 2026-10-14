@@ -25,8 +25,11 @@ log in to Codex on the user's behalf.
 
 Select effort with [phase effort](phase-effort.md) and pass it as `--effort`
 (`medium`, `high` or `xhigh`; review and assessment phases default to
-`xhigh`). Do not pass `--model`: the leaf uses the model configured for the
-user's Codex CLI. Record the effort in the phase result `NOTES:`.
+`xhigh`). Pass `--model` only where
+[lens models](phase-effort.md#lens-models) pin one (the reuse, structure and
+performance lenses); otherwise the leaf uses the model configured for the
+user's Codex CLI. Record the effort and any pinned model in the phase result
+`NOTES:`.
 
 ## Working directory and sandbox
 
