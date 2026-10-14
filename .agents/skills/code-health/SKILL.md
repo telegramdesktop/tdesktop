@@ -94,7 +94,23 @@ Follow [the survey procedure](references/survey.md). Pick the area with the
 highest product of hotspot and median task hours that has no survey newer
 than its last 100 commits, unless the invocation names one. A survey drafts
 or amends the [area map](references/maps.md) and writes proposals; it changes
-no source.
+no source. To survey a named area now, run `$code-health survey <area>` (or
+`/code-health survey <area>`) in the dedicated clone.
+
+## Owner decisions
+
+The owner reads `latest-summary.md` and decides in a conversation in any task
+checkout; the dedicated clone never commits. The agent reads runs, surveys
+and the ledger from the dedicated clone's storage root
+(`../thealth/.git/code-health/`, or `health.py --repo ../thealth`), then:
+
+- **Route** named proposals or survey defects: append each, verbatim, to
+  `../ai-tdesktop/inbox/inbox.md` as a separate request. This is the owner's
+  word that Q3, Q4 and Q5 need; `process-inbox` makes them tasks.
+- **Approve** a drafted map or invariants: write the approved text, with the
+  owner's changes, to the area's `AGENTS.md`, date each approved invariant,
+  and commit it as `[ai] Add the <area> map`.
+- **Decline** a finding: add it to `ignored.json` with the reason and date.
 
 ## Check (every change)
 

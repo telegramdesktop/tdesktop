@@ -6,10 +6,13 @@ placement against the map rather than the surrounding code.
 
 ## Location and size
 
-One `AGENTS.md` in the area's directory, using `health.py`'s area names (two
-levels under `Telegram/SourceFiles`): `Telegram/SourceFiles/iv/editor/AGENTS.md`.
-At most about 150 lines of plain language: the owner approves maps by reading
-them, never by reading code.
+One map per atlas area, in the `AGENTS.md` of the directory named by the
+area's first `Paths:` pattern: `iv/editor` maps to
+`Telegram/SourceFiles/iv/editor/AGENTS.md`. Areas whose first pattern is in
+the same directory share that file, one `# <Area> map` part each. Areas in
+`lib_*` submodules keep only their atlas entry. At most about 150 lines of
+plain language per area: the owner approves maps by reading them, never by
+reading code.
 
 Name source files in backticks (`` `iv_editor_state.cpp` ``) so the scan can
 report a map that names files which no longer exist.
