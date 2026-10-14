@@ -123,7 +123,6 @@ bool WidgetDocument::needsBubble() const {
 		|| !item->emptyText()
 		|| _parent->displayReply()
 		|| _parent->displayForwardedFrom()
-		|| _parent->displayFromName()
 		|| _parent->displayedTopicButton();
 }
 
