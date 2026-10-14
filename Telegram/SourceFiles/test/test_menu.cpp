@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/menu/menu_common.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/rp_widget.h"
+#include "ui/ui_utility.h"
 #include "window/window_controller.h"
 
 #include <QtGui/QGuiApplication>
@@ -238,12 +239,15 @@ enum class HostMode {
 // base::unique_qptr<Ui::PopupMenu> member replaced on every event, built
 // synchronously inside it. Its callbacks report through |ran| and never
 // capture the host, so a queued callback outliving it touches nothing it
-// owned.
+// owned. A |postponed| marker, when set, is queued through
+// Ui::PostponeCall at the end of every handled event, the way a product
+// handler queues its own fix-ups.
 class ContextMenuHost final : public Ui::RpWidget {
 public:
 	ContextMenuHost(QWidget *parent, Fn<void(QString)> ran);
 
 	void setMode(HostMode mode, QWidget *elsewhere = nullptr);
+	void setPostponed(Fn<void()> postponed);
 	void dropMenus();
 	[[nodiscard]] int handled() const;
 	[[nodiscard]] QContextMenuEvent::Reason lastReason() const;
@@ -255,6 +259,7 @@ private:
 	void fill(not_null<Ui::PopupMenu*> menu);
 
 	Fn<void(QString)> _ran;
+	Fn<void()> _postponed;
 	QPointer<QWidget> _elsewhere;
 	base::unique_qptr<Ui::PopupMenu> _menu;
 	base::unique_qptr<Ui::PopupMenu> _extra;
@@ -281,6 +286,8 @@ struct ContextMenuSelfTest {
 	ContextMenuReading gone;
 	ContextMenuReading duplicate;
 	ContextMenuReading delivery;
+	ContextMenuReading observed;
+	ContextMenuReading observedGone;
 	MenuTrigger twinTrigger;
 	MenuTrigger submenuTrigger;
 	MenuTrigger firstTrigger;
@@ -297,6 +304,15 @@ struct ContextMenuSelfTest {
 	int firstAtReturn = 0;
 	int premiseAtReturn = 0;
 	int premiseAfterHelper = 0;
+	int postponedRuns = 0;
+	int observerRuns = 0;
+	int handledBeforeObserved = 0;
+	int handledAtObserver = -1;
+	int postponedAtObserver = -1;
+	int postponedAtReturn = -1;
+	int observerRunsBeforeGone = 0;
+	int observerRunsAfterGone = 0;
+	bool goneReceiverNull = false;
 	bool built = false;
 };
 
@@ -308,6 +324,10 @@ ContextMenuHost::ContextMenuHost(QWidget *parent, Fn<void(QString)> ran)
 void ContextMenuHost::setMode(HostMode mode, QWidget *elsewhere) {
 	_mode = mode;
 	_elsewhere = elsewhere;
+}
+
+void ContextMenuHost::setPostponed(Fn<void()> postponed) {
+	_postponed = std::move(postponed);
 }
 
 void ContextMenuHost::dropMenus() {
@@ -382,6 +402,10 @@ void ContextMenuHost::contextMenuEvent(QContextMenuEvent *e) {
 			},
 		});
 	} break;
+	}
+	if (const auto postponed = _postponed) {
+		// Guarded by the host, so a marker outliving it never runs.
+		Ui::PostponeCall(this, [=] { postponed(); });
 	}
 	// Accepted in every mode, so the event never propagates to the primary
 	// window and to a product handler there.
@@ -871,7 +895,8 @@ QString ContextMenuLifecycleText(const ContextMenuLifecycle &lifecycle) {
 ContextMenuReading OpenContextMenu(
 		QWidget *receiver,
 		QPoint point,
-		QContextMenuEvent::Reason reason) {
+		QContextMenuEvent::Reason reason,
+		Fn<void()> observeAtBuild) {
 	auto result = ContextMenuReading();
 	result.eventReason = reason;
 	result.local = point;
@@ -904,6 +929,12 @@ ContextMenuReading OpenContextMenu(
 				"menu"_q;
 			result.menu.clear();
 			result.parent.clear();
+		}
+		// The caller's observation of its own receiver, at the same
+		// boundary as the at-build lifecycle and only while the receiver
+		// lives (test_menu.h).
+		if (observeAtBuild && result.receiverWidget) {
+			observeAtBuild();
 		}
 		// In the call that built the menu, before any postponed call
 		// runs: the reading Run 2 decided every leg by.
@@ -1474,6 +1505,90 @@ void AppendContextMenuReaderSelfTest(not_null<Runner*> runner) {
 				"unchanged"_q,
 				MenuTriggerDetails(gone)
 					+ u" firstRuns=%1"_q.arg(firstRunsAfter));
+		},
+	});
+
+	runner->add({
+		.name = u"context menu reader self-test: an at-build observer runs "
+			"before the postponed calls drain"_q,
+		.skipReason = gate,
+		.run = [=] {
+			const auto host = state->host.get();
+			host->setMode(HostMode::Build);
+			host->setPostponed([raw] { ++raw->postponedRuns; });
+			state->handledBeforeObserved = host->handled();
+			state->observed = OpenContextMenu(
+				host,
+				state->at,
+				QContextMenuEvent::Mouse,
+				[raw] {
+					++raw->observerRuns;
+					raw->handledAtObserver = raw->host->handled();
+					raw->postponedAtObserver = raw->postponedRuns;
+				});
+			state->postponedAtReturn = state->postponedRuns;
+			host->setPostponed(nullptr);
+			host->dropMenus();
+
+			// A receiver destroyed before the call: its QPointer reads
+			// null, so the reader refuses and must not call the observer.
+			auto doomed = base::make_unique_q<Ui::RpWidget>(
+				state->elsewhere.get());
+			const auto gone = QPointer<QWidget>(doomed.get());
+			doomed = nullptr;
+			state->goneReceiverNull = gone.isNull();
+			state->observerRunsBeforeGone = state->observerRuns;
+			state->observedGone = OpenContextMenu(
+				gone.data(),
+				state->at,
+				QContextMenuEvent::Mouse,
+				[raw] { ++raw->observerRuns; });
+			state->observerRunsAfterGone = state->observerRuns;
+		},
+		.then = [=] {
+			const auto &observed = state->observed;
+			const auto counters = u"observerRuns=%1 handledBefore=%2 "
+				"handledAtObserver=%3 postponedAtObserver=%4 "
+				"postponedAtReturn=%5 postponedRunsNow=%6"_q
+				.arg(state->observerRunsBeforeGone)
+				.arg(state->handledBeforeObserved)
+				.arg(state->handledAtObserver)
+				.arg(state->postponedAtObserver)
+				.arg(state->postponedAtReturn)
+				.arg(state->postponedRuns);
+			Check(
+				observed.built()
+					&& (observed.fresh == 1)
+					&& (observed.texts == expected)
+					&& (state->observerRunsBeforeGone == 1)
+					&& (state->handledAtObserver
+						== state->handledBeforeObserved + 1),
+				u"observer: called exactly once, after the handler ran and "
+				"built the one new menu"_q,
+				ContextMenuDetails(observed) + u" "_q + counters);
+			Check(
+				(state->postponedAtObserver == 0)
+					&& (state->postponedAtReturn == 1)
+					&& (state->postponedRuns == 1),
+				u"observer: it ran before the Ui::PostponeCall marker the "
+				"handler queued had drained, and the marker had run once "
+				"when the reader returned"_q,
+				counters);
+			const auto &gone = state->observedGone;
+			Check(
+				state->goneReceiverNull
+					&& (gone.refusal == ContextMenuRefusal::ReceiverGone)
+					&& !gone.delivered
+					&& (state->observerRunsAfterGone
+						== state->observerRunsBeforeGone),
+				u"observer: a destroyed receiver is refused as "
+				"receiver-gone, nothing is sent and the observer is not "
+				"called"_q,
+				ContextMenuDetails(gone)
+					+ u" receiverNull=%1 observerRuns=%2->%3"_q
+						.arg(state->goneReceiverNull ? 1 : 0)
+						.arg(state->observerRunsBeforeGone)
+						.arg(state->observerRunsAfterGone));
 		},
 	});
 

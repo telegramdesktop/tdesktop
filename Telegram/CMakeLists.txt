@@ -2028,6 +2028,8 @@ PRIVATE
     test/test_box_button.h
     test/test_capture.cpp
     test/test_capture.h
+    test/test_chat_menu.cpp
+    test/test_chat_menu.h
     test/test_clipboard.cpp
     test/test_clipboard.h
     test/test_console_lock.cpp
@@ -2068,6 +2070,8 @@ PRIVATE
     test/test_notify_override.h
     test/test_open_handoff.cpp
     test/test_open_handoff.h
+    test/test_palette.cpp
+    test/test_palette.h
     test/test_panel.cpp
     test/test_panel.h
     test/test_post_paint.cpp
