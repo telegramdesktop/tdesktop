@@ -18,13 +18,17 @@ and Git, and finish in seconds.
 
 ## Where it runs
 
-Scheduled runs use one dedicated checkout on one machine: a linked worktree
-of a tdesktop clone, next to `ai-tdesktop`, detached at `origin/dev`, never
-used for tasks. Its ledger is the clone's, and surveys and audits read its
-working tree, which must be the code that was scanned. Create it once:
+Scheduled runs use one dedicated clone on one machine: `thealth` next to
+`ai-tdesktop`, a separate tdesktop clone that tracks only `dev`, stays
+detached at `origin/dev` and is never used for tasks. Its ledger lives in its
+own `.git/code-health/`, and surveys and audits read its working tree, which
+must be the code that was scanned. Create it once:
 
 ```bash
-git -C <clone> worktree add <parent of ai-tdesktop>/thealth --detach origin/dev
+git clone --no-checkout --single-branch --branch dev \
+    https://github.com/telegramdesktop/tdesktop.git <parent of ai-tdesktop>/thealth
+git -C <parent of ai-tdesktop>/thealth checkout --detach origin/dev
+git -C <parent of ai-tdesktop>/thealth branch -D dev
 ```
 
 Each scheduled run starts there with:
@@ -32,6 +36,9 @@ Each scheduled run starts there with:
 ```bash
 python3 .agents/skills/code-health/scripts/health.py sync
 ```
+
+The run writes the clone's Git metadata, so the agent needs write access to
+its `.git`; a Codex `workspace-write` sandbox blocks that.
 
 `sync` refuses a checkout on a branch or with local changes; otherwise it
 fetches `origin/dev`, checks it out detached and updates the `lib_*`

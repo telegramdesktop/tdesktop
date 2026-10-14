@@ -83,7 +83,7 @@ def command_scan(args):
         'commit': snap['commit'],
         'ref': snap['ref'],
         'checked_at_utc': snap['checked_at_utc'],
-        'run_directory': str(run),
+        'run_directory': str(run.relative_to(root)),
         'totals': snap['totals'],
         'findings': ledger,
     }
@@ -116,8 +116,8 @@ def command_sync(args):
         ['git', '-C', str(repo), 'symbolic-ref', '-q', 'HEAD'],
         capture_output=True).returncode == 0
     if attached:
-        print('sync runs only in a dedicated checkout detached at origin/dev; '
-              'create one with `git worktree add <path> --detach origin/dev`.',
+        print('sync runs only in a dedicated clone detached at origin/dev; '
+              'see "Where it runs" in the code-health skill.',
               file=sys.stderr)
         return 1
     if sources.git(repo, 'status', '--porcelain').strip():
@@ -196,7 +196,7 @@ def command_area(args):
     if not latest:
         print('No scan yet; run `health.py scan` first.', file=sys.stderr)
         return 1
-    snap = load(Path(latest['run_directory']) / 'snapshot.json')
+    snap = load(root / latest['run_directory'] / 'snapshot.json')
     prefix = args.area.rstrip('/')
 
     def inside(path):
