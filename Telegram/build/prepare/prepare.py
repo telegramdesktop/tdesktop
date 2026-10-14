@@ -1418,7 +1418,7 @@ stage('openal-soft', """
     git clone https://github.com/telegramdesktop/openal-soft.git
     cd openal-soft
 win:
-    git checkout 291c0fdbbd
+    git checkout 00cb9b649c
     cmake -B build . ^
         -D LIBTYPE:STRING=STATIC ^
         -D FORCE_STATIC_VCRT=ON ^
