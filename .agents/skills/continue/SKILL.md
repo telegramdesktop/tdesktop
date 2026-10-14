@@ -1,6 +1,6 @@
 ---
 name: continue
-description: Continue autonomous Telegram Desktop development from the shared ai-tdesktop repository. Use when the user invokes $continue or /continue, asks Codex to keep working through the AI queue, or wants one command to resume the active task at the head of a frozen startup batch, drain matching queued work, or process the local inbox only when startup has no task work, while including and consolidating follow-ups discovered from the batch but deferring unrelated tasks added mid-run.
+description: Continue autonomous Telegram Desktop development from the shared ai-tdesktop repository. Use when the user invokes $continue or /continue with a batch specification (named tasks, projects, a described theme, the active task, the inbox, or explicitly all pending tasks), or asks Codex to work through a specified part of the AI queue. Resumes this checkout's active task first, freezes exactly the specified batch, includes and consolidates follow-ups discovered from it, and defers everything else; without a specification it only reports the queue and asks for one.
 ---
 
 # Continue AI Work
@@ -24,10 +24,10 @@ work in a fresh leaf worker. Delegate inbox planning and one-task execution; do
 not plan or implement Telegram changes in this scheduler session.
 
 This is the default development command and the successor to the old `task`
-and `implement` workflows. Inbox processing may bootstrap an otherwise idle
-invocation exactly once and owns request splitting and project routing;
-`perform-task` owns context, planning, implementation, review, Debug build,
-test-loop, evidence, and final publication.
+and `implement` workflows. Inbox processing runs only when the specification
+asks for the inbox, at most once per invocation, and owns request splitting
+and project routing; `perform-task` owns context, planning, implementation,
+review, Debug build, test-loop, evidence, and final publication.
 
 ## Resolve the workspace
 
@@ -40,6 +40,8 @@ python3 .agents/skills/process-inbox/scripts/workspace.py queue
 
 Use `python` or `py -3` when appropriate. Save `checkout_tag`, `ai_main`,
 `slot_worktree`, and `source_root` from its JSON. Read `ai_main/AGENTS.md`.
+Then read the batch specification (below). Without one, stop here, after only
+this read-only `queue` call, and report and ask as that section says.
 
 Stop before mutating anything when `violations` is nonempty or AI master is
 dirty. Dirty task-scoped AI files are the active checkout's local resumable
@@ -97,36 +99,55 @@ consolidation transaction is in flight.
 After recovering pending consolidations and before freezing a new batch, route
 this checkout's `own_split_required` task, when any, through the dedicated split
 worker below. Refresh the queue afterward and freeze the resulting replacement
-tasks at the front of the initial batch regardless of a scope hint; they replace
-checkout work that hints cannot exclude. Record that startup split for the
-invocation summary. A split-required task is exclusive checkout work: do not
-start, retry, or resume another task while it remains unrouted. If its retained
-source state cannot be transferred safely, stop with that state intact rather
-than skipping it.
+tasks at the front of the initial batch regardless of the specification; they
+replace checkout work that a specification cannot exclude. Record that startup
+split for the invocation summary. A split-required task is exclusive checkout
+work: do not start, retry, or resume another task while it remains unrouted.
+If its retained source state cannot be transferred safely, stop with that
+state intact rather than skipping it.
 
-## Interpret scope hints
+## Read the batch specification
 
-Treat text after `$continue` or `/continue` as optional natural-language
-guidance for new shared work. Its own wording decides its strength. A
-preference such as "payments tasks first" reorders the shared tasks recorded
-in the startup batch; it does not exclude the others. A restriction such as
-"only the payments tasks" or "all tasks except projects X and Y" records only
-matching unclaimed shared tasks.
-Hints never exclude this checkout's active, split-required, blocked, or
-legacy-reserved work.
-A restrictive hint that matches no shared task does not make an existing
-queue look idle or permit inbox processing.
+The text after `$continue` or `/continue` is the batch specification. It is
+required, and it always restricts: the initial batch is exactly the tasks it
+selects, in the order its wording gives, otherwise in queue order. It may
+select:
+
+- tasks by id, slug, or title;
+- projects, or every task except named ones ("all tasks except projects X and
+  Y");
+- a theme or area described in words ("the three code health ones"), matched
+  against the tasks in the startup snapshot;
+- "the active task": this checkout's `in-progress` task alone;
+- "the inbox": one inbox transaction, then only the tasks its receipt routes;
+- explicitly "all pending tasks": every `own_todo` and `unclaimed_todo` task in
+  the refreshed startup snapshot of canonical master, including tasks still
+  waiting on dependencies. Blocked tasks are not pending.
+
+This checkout's blocked and legacy-reserved tasks join only when the
+specification selects them, by name or by a description they match. A Codex
+opt-out such as "no codex" is not a specification, and neither is a purely
+procedural argument.
+
+Without a specification, stop after the read-only `queue` call, before
+publishing leftovers, recovering consolidations, routing a split, or touching
+the inbox. Report this checkout's `in-progress`, `split-required`, and blocked
+task ids, the number of unclaimed `todo` tasks, and whether the inbox is
+nonempty, then ask for a specification. A specification that matches no task
+adds no shared tasks: the run handles only the exclusive checkout state below,
+then stops normally with the same report. It never falls back to the whole
+queue or the inbox.
+
+This checkout's `in-progress` task and an own `split-required` task are
+exclusive checkout state, not shared work. The run handles them first even
+when the specification does not name them, because no other task can start
+while they exist, and the startup report names them.
 
 The recorded batch is invocation-local bookkeeping, not a reservation. Start
 only one shared task at a time, finish or exceptionally block it, refresh
 canonical state, then select another recorded id. Always resume this
-checkout's `in-progress` task and previously blocked work before applying a
-priority hint to new shared work, unless the user expressly asks to stop or
-reassign it.
-
-The presence of active work changes ordering, not batch scope. Unless the user
-expressly asks to run only the current task, freeze the same matching startup
-queue behind the active task that would have been recorded without active work.
+checkout's `in-progress` task before other recorded work, unless the user
+expressly asks to stop or reassign it.
 
 ## Freeze the invocation batch
 
@@ -188,51 +209,42 @@ rebase, or merge. After `git switch`, refresh `queue`, rerun `source-lineage`,
 `source-prepare` and `source-preflight`, then Start/Retry or resume. If no
 safe compatible local branch exists, stop and ask the human.
 
-### Mode 1: resume active work, then drain the selected snapshot
+### Mode 1: resume active work, then the specified tasks
 
 If `own_in_progress` contains this checkout's active task, choose `active`
-mode and record that task id first. Then append the same queue tail that Mode 2
-would record from the startup snapshot:
+mode and record that task id first. Then append what the specification
+selects: the tasks Mode 2 would record from the startup snapshot, or, when it
+asks for the inbox, the tasks routed by Mode 3's single inbox transaction, run
+at startup.
 
-- every own blocked and legacy-reserved task, regardless of the hint;
-- every unclaimed task under no hint or a preference, ordered with preferred
-  matches first;
-- only matching unclaimed tasks under a restrictive hint.
-
-Record dependency-waiting tasks too. Finish the active task to an approved,
-genuinely blocked, split-required, or global-hard-stop boundary, route any
-split before continuing, then continue through ready recorded tasks one at a
-time. Only an explicit request to run just the active
+Finish the active task to an approved, genuinely blocked, split-required, or
+global-hard-stop boundary, route any split before continuing, then continue
+through ready recorded tasks one at a time. A specification of just the active
 task produces a one-item active batch.
 
-### Mode 2: drain the existing queue snapshot
+### Mode 2: run the specified queue tasks
 
-When there is no active or split-required task but any `own_blocked`,
-`own_todo`, or `unclaimed_todo` task exists, choose `queue` mode. Record:
+When there is no active or split-required task and the specification selects
+queue tasks, choose `queue` mode. Record exactly the selected ids from the
+startup snapshot, in the specification's order. Record tasks even when their
+dependencies are not yet approved; they may become ready as earlier batch
+members finish. An empty selection stops normally without processing the
+inbox.
 
-- every own blocked and legacy-reserved task, regardless of the hint;
-- every unclaimed task under no hint or a preference, ordered with preferred
-  matches first;
-- only matching unclaimed tasks under a restrictive hint.
+Never invoke `process-inbox` unless the specification asks for the inbox, and
+never after the recorded batch drains.
 
-Record tasks even when their dependencies are not yet approved. They may
-become ready as earlier batch members finish. The existence of any queue task
-selects this mode before a restrictive hint filters unclaimed ids; an empty
-filtered batch stops normally without processing the inbox.
+### Mode 3: run what one inbox transaction routes
 
-Never invoke `process-inbox` in `active` or `queue` mode, including after the
-recorded batch drains.
+Choose `inbox` mode when the specification asks for the inbox and no task is
+active; with an active task, Mode 1 runs the same transaction. Queue tasks the
+specification does not also select stay out of the batch, and tasks it does
+select follow the routed ones. Work owned by another checkout is not work this
+checkout can drain and does not enter its batch.
 
-### Mode 3: bootstrap from the inbox
-
-Choose `inbox` mode only when `own_in_progress`, `own_split_required`,
-`own_blocked`, `own_todo`, and `unclaimed_todo` were all empty in the initial
-snapshot. Work owned by
-another checkout is not work this checkout can drain and does not enter its
-batch.
-
-If `inbox_nonempty` is false, record an empty batch and proceed to normal
-stop. If it is true, spawn one inbox worker with `fork_turns: "none"`.
+If `inbox_nonempty` is false, record the batch without routed tasks and report
+that the inbox was empty. If it is true, spawn one inbox worker with
+`fork_turns: "none"`.
 
 Give the worker the source checkout path and instruct it to read and use
 `.agents/skills/process-inbox/SKILL.md` completely. It owns exactly one inbox
@@ -240,14 +252,14 @@ transaction, may use the bounded planner delegation required by that skill,
 must not implement tasks, and must return the receipt and created ids.
 
 Wait for the worker to return using the host completion contract, then
-validate the receipt plus refreshed queue before proceeding. Record as the
-initial batch exactly the actionable task ids routed by that receipt, whether
-newly created or reused. Never launch
-a second inbox worker in this invocation. If it cannot publish durable AI
-state, stop with the inbox transaction recoverable.
+validate the receipt plus refreshed queue before proceeding. Record the
+actionable task ids routed by that receipt, whether newly created or reused,
+after any active task and before queue tasks the specification also selects.
+Never launch a second inbox worker in this invocation. If it cannot publish
+durable AI state, stop with the inbox transaction recoverable.
 
 Inbox content that appears or remains after this startup transaction is left
-untouched for the next `$continue` or `/continue` invocation.
+untouched for a later invocation that asks for the inbox.
 
 ## Drain only the frozen batch
 
@@ -682,9 +694,9 @@ consolidation records, refresh canonical state, and only then select more work.
 
 ## Report
 
-Return one compact summary: invocation mode, initial batch ids, discovered ids
-added to the batch, inbox receipt if processed, tasks approved, exceptionally
-blocked tasks with exact unverified behavior and retry status, recorded tasks
+Return one compact summary: the specification, invocation mode, initial
+batch ids, discovered ids added to the batch, inbox receipt if processed,
+tasks approved, exceptionally blocked tasks with exact unverified behavior and retry status, recorded tasks
 left queued, unrelated new tasks deferred to the next invocation, routed
 discoveries, split-required sources with ordered replacements and carriers,
 infrastructure-limited coverage gaps recorded but not routed,

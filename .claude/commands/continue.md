@@ -7,13 +7,17 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, AskUserQuestion, Todo
 
 Read `.claude/ai-workflow-adapter.md` and
 `.agents/skills/continue/SKILL.md` completely. Follow the shared skill with the
-Claude adapter's delegation and text-handling substitutions. At startup choose
-exactly one shared-skill mode and record its frozen task ids: put any active
-task first and append the matching existing queue snapshot, drain that snapshot
-when no task is active, or, when both are empty, process one inbox transaction
-and drain only its routed tasks. Never add unrelated tasks observed later in
-the run. Append and implement only new follow-up tasks routed from results
-produced by this invocation, including their transitive discovered follow-ups.
+Claude adapter's delegation and text-handling substitutions. The arguments
+below are the required batch specification. Without one, stop after the
+read-only `queue` call, report what the shared skill lists, and ask for a
+specification through `AskUserQuestion`. Otherwise choose exactly one
+shared-skill mode and record its frozen task ids: any active task first, then
+exactly the tasks the specification selects, or the tasks one inbox
+transaction routes when it asks for the inbox. "All pending tasks" freezes the
+pending tasks on canonical ai-tdesktop master at startup. Never add unrelated
+tasks observed later in the run. Append and implement only new follow-up
+tasks routed from results produced by this invocation, including their
+transitive discovered follow-ups.
 Preserve the shared skill's source-project inheritance rule; detaching a
 follow-up requires its affirmative independence test. Continue until that
 frozen-and-derived batch reaches the scheduler's normal stop condition or a
@@ -53,10 +57,10 @@ subprocesses through Bash.
 Decide the review provider once at startup, per the adapter's review and
 assessment provider: `native` when the arguments ask not to use Codex,
 otherwise `codex`. Put `Review provider: <codex|native>` in every performer
-prompt. A Codex opt-out is not a selection hint.
+prompt. A Codex opt-out is not a batch specification.
 
-Arguments, when present, are natural-language hints for new shared work; their
-wording decides whether they merely prioritize or strictly restrict selection:
+The arguments are the batch specification. They always restrict the batch to
+the tasks they select; ordering words only order those tasks:
 
 ```text
 $ARGUMENTS

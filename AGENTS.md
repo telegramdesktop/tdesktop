@@ -48,8 +48,9 @@ done | sort
   implementation, no matter how small the task looks.
 - Acting on an existing queue task goes through the workflow skills instead of
   by hand: `perform-task <slug or full id>` starts or resumes and performs
-  exactly one known task, and `continue` drains eligible shared work. Source
-  commits owned by a task use the three-line form described under `## Commits`.
+  exactly one known task, and `continue <batch specification>` runs the batch
+  of tasks the specification selects. Source commits owned by a task use the
+  three-line form described under `## Commits`.
 - A request the user makes in conversation is ordinary work: do it directly in
   this checkout. Do not write it to the ignored `../ai-tdesktop/inbox/inbox.md`,
   and do not run `process-inbox` or `continue` over it, unless the user asks for
