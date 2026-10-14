@@ -5075,5 +5075,89 @@ inbox_receipt: {receipt}
 				)
 
 
+class HealthWorktreeTest(unittest.TestCase):
+	def setUp(self):
+		temporary = tempfile.TemporaryDirectory()
+		self.addCleanup(temporary.cleanup)
+		self.root = Path(temporary.name)
+		origin = self.root / "origin.git"
+		git(self.root, "init", "--bare", "--initial-branch=master", str(origin))
+		seed = self.root / "ai-a"
+		seed.mkdir()
+		git(seed, "init", "--initial-branch=master")
+		(seed / ".gitignore").write_text("inbox/\n**/.local/\n", encoding="utf-8")
+		(seed / "AGENTS.md").write_text("# AI tasks\n", encoding="utf-8")
+		self.identity(seed)
+		git(seed, "add", ".gitignore", "AGENTS.md")
+		git(seed, "commit", "-m", "Create AI workspace")
+		git(seed, "remote", "add", "origin", str(origin))
+		git(seed, "push", "origin", "master")
+		other = self.root / "ai-b"
+		git(self.root, "clone", "--quiet", str(origin), str(other))
+		self.identity(other)
+		self.machines = [self.machine("twork", seed), self.machine("tother", other)]
+
+	def identity(self, repo):
+		git(repo, "config", "user.name", "Workflow Test")
+		git(repo, "config", "user.email", "workflow@example.invalid")
+
+	def machine(self, name, main):
+		source = self.root / name
+		build = source / "Telegram" / "build"
+		build.mkdir(parents=True)
+		git(source, "init", "--initial-branch=master")
+		(build / "ai-machine-tag").write_text("macbook\n", encoding="utf-8")
+		return SimpleNamespace(
+			source_root=str(source),
+			ai_main=str(main),
+			worktrees_root=str(self.root / f"{name}-worktrees"),
+			message=None,
+			drop_on_conflict=False,
+		)
+
+	def run_json(self, handler, args):
+		output = io.StringIO()
+		with contextlib.redirect_stdout(output):
+			handler(args)
+		return json.loads(output.getvalue())
+
+	def write(self, config, path, text):
+		target = Path(config["health_worktree"]) / path
+		target.parent.mkdir(parents=True, exist_ok=True)
+		target.write_text(text, encoding="utf-8")
+
+	def test_second_run_of_the_day_is_dropped(self):
+		first, second = self.machines
+		config_first = self.run_json(workspace.command_health_ensure, first)
+		config_second = self.run_json(workspace.command_health_ensure, second)
+		self.write(config_first, "code-health/ledger.json", "first\n")
+		self.write(config_second, "code-health/ledger.json", "second\n")
+
+		first.message = "Record code health scan"
+		published = self.run_json(workspace.command_health_publish, first)
+		self.assertTrue(published["published"])
+		self.assertEqual(
+			git(first.ai_main, "show", "master:code-health/ledger.json"),
+			"first",
+		)
+
+		second.message = "Record code health scan"
+		with self.assertRaises(workspace.RebaseConflict):
+			self.run_json(workspace.command_health_publish, second)
+		second.drop_on_conflict = True
+		dropped = self.run_json(workspace.command_health_publish, second)
+		self.assertFalse(dropped["published"])
+		self.assertTrue(dropped["dropped"])
+		state = Path(config_second["health_state"]) / "ledger.json"
+		self.assertEqual(state.read_text(encoding="utf-8"), "first\n")
+
+	def test_only_code_health_paths_are_published(self):
+		config = self.run_json(workspace.command_health_ensure, self.machines[0])
+		self.write(config, "tasks/stray.md", "stray\n")
+		self.machines[0].message = "Record code health scan"
+		with self.assertRaises(workspace.WorkspaceError):
+			self.run_json(workspace.command_health_publish, self.machines[0])
+
+
 if __name__ == "__main__":
 	unittest.main()

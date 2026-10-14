@@ -41,8 +41,10 @@ words, once, and approves amendments as the code changes.
 
 ## Draft
 
-1. Run `health.py atlas`. It writes `atlas/<date>/skeleton.md` and
-   `skeleton.json` under the storage root: candidate areas from the
+1. Run `health.py atlas --ref origin/dev --fetch --state <health_state>`
+   (see the skill's state section). It writes
+   `atlas/<stamp>-<commit>/skeleton.md` and `skeleton.json` there: candidate
+   areas from the
    directory tree (directories over 30K lines split into their large
    subdirectories, ones under 3K join their parent), each with its size,
    largest files, file-name groups, CMake target, the areas it includes and
@@ -60,13 +62,14 @@ words, once, and approves amendments as the code changes.
    unrelated widgets is split by responsibility), assign layers, and write
    `atlas.md` in the format above.
 4. **Verify**, with the other provider when the host can run one (on Claude
-   Code a Codex CLI leaf, `--cwd <source root> --sandbox read-only`): it
+   Code a Codex CLI leaf, `--cwd <scan worktree> --sandbox read-only`): it
    samples each area's responsibility against the code and reports claims
    the code contradicts. `health.py atlas --check <draft>` must report every
    file matched by exactly one area and no pattern that matches nothing.
 5. Save the draft, the verifier report and a short list of the judgment
    calls the owner should look at first (splits, merges, layer choices)
-   beside the skeleton. The owner approves in words or asks for changes.
+   beside the skeleton, and publish them with `health-publish`. The owner
+   approves in words or asks for changes.
    Only the approved text is committed, as
    `Telegram/SourceFiles/AGENTS.md`.
 

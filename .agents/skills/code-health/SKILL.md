@@ -16,55 +16,74 @@ reshapes and redesigns run the full pipeline.
 Run every command from the repository root. The scripts need only Python 3
 and Git, and finish in seconds.
 
-## Where it runs
+## Where it runs and where its state lives
 
-Scheduled runs use one dedicated clone on one machine: `thealth` next to
-`ai-tdesktop`, a separate tdesktop clone that tracks only `dev`, stays
-detached at `origin/dev` and is never used for tasks. Its ledger lives in its
-own `.git/code-health/`, and surveys and audits read its working tree, which
-must be the code that was scanned. Create it once:
+Any Telegram Desktop checkout with `ai-tdesktop` beside it runs code health;
+no checkout is special. The shared state lives in ai-tdesktop's
+`code-health/`, so every checkout and machine sees one ledger and one set of
+decisions:
+
+- `ledger.json`: every finding with its first-seen and resolved dates, plus
+  the scanned commit, the totals and `run`, the latest run's directory;
+- `history.jsonl`: one line of totals per run;
+- `runs/<stamp>-<commit>/`: the scan's `report.md` and the run's
+  `summary.md` and `proposals.md`;
+- `ignored.json`: findings the owner declined, with the reason and date;
+- `audits.json`: audit results and suspended class and area pairs;
+- `surveys/<area>/<date>/` and `atlas/<stamp>-<commit>/`: drafts for the
+  owner;
+- `.local/`, ignored: each machine's cache of raw scans by commit.
+
+Read the state from `../ai-tdesktop/code-health/`. Write it only in this
+checkout's code-health worktree, and publish it like other AI state:
 
 ```bash
-git clone --no-checkout --single-branch --branch dev \
-    https://github.com/telegramdesktop/tdesktop.git <parent of ai-tdesktop>/thealth
-git -C <parent of ai-tdesktop>/thealth checkout --detach origin/dev
-git -C <parent of ai-tdesktop>/thealth branch -D dev
+python3 .agents/skills/process-inbox/scripts/workspace.py health-ensure
+python3 .agents/skills/process-inbox/scripts/workspace.py health-publish \
+    --message "<subject>" [--drop-on-conflict]
 ```
 
-Each scheduled run starts there with:
+`health-ensure` prints `health_state`, the worktree's `code-health/`
+directory, after bringing it to canonical master. When it reports
+`health_dirty` or `health_unpublished`, an earlier run here was interrupted:
+publish the leftovers with `health-publish --message "Record an interrupted
+code health run" --drop-on-conflict`, then ensure again. `health-publish`
+commits only `code-health/` and pushes through the same rebase-and-retry
+path as task state.
+
+## Scheduled run
+
+Once a day, from any checkout:
+
+1. Run `health-ensure`, then the scan below with `--state <health_state>`.
+   A scan that prints `skipped` found today's run already recorded: stop.
+2. Claim the day with `health-publish --message "Record code health scan of
+   <commit>" --drop-on-conflict`. `dropped: true` means another checkout
+   published today's scan first: stop without routing anything.
+3. Audit, survey when one is due, then write the summary and proposals
+   (below) and route what the trust rules allow.
+4. Publish with `health-publish --message "Publish code health report for
+   <date>"`.
+
+The scheduled run is `/code-health scan route` in Claude Code or
+`$code-health scan route` in Codex.
+
+## Scan
 
 ```bash
-python3 .agents/skills/code-health/scripts/health.py sync
-```
-
-The run writes the clone's Git metadata, so the agent needs write access to
-its `.git`; a Codex `workspace-write` sandbox blocks that.
-
-`sync` refuses a checkout on a branch or with local changes; otherwise it
-fetches `origin/dev`, checks it out detached and updates the `lib_*`
-submodules the scan reads. The scan's JSON says `worktree_matches: true` when
-the working tree is exactly the scanned commit; survey and audit run only
-then. A run from any other checkout scans and proposes but skips them, and
-its summary says so. Only one machine runs the schedule, because each
-machine keeps its own ledger and inbox.
-
-## Scan (scheduled)
-
-```bash
-python3 .agents/skills/code-health/scripts/health.py scan --ref origin/dev --fetch
+python3 .agents/skills/code-health/scripts/health.py scan --ref origin/dev --fetch --state <health_state>
 ```
 
 It reads the exact `origin/dev` commit from Git objects, including each
-submodule at its pinned commit, without touching the working tree. A
-submodule commit missing locally is skipped and named in the notes. A failed
-fetch is a failed run; never present an older ref as fresh. Without `--ref`
-it scans the working tree, which is for testing and must be labeled as such.
-
-Results go to `code-health/` in Git's common directory: `runs/<stamp>/`
-holds `snapshot.json` and `report.md`; `latest.json` is the findings ledger
-with first-seen, last-seen and resolved dates; `latest.md` is the latest
-report. Findings listed in `ignored.json` there stay in the ledger as
-`ignored`.
+submodule at its pinned commit, without touching the working tree, so the
+checkout may hold unrelated work. A submodule commit missing locally is
+skipped and named in the notes. A failed fetch is a failed run; never present
+an older ref as fresh. `--state` records the scan in the ledger, history and
+run report, at most once a UTC day unless `--force`; findings listed in
+`ignored.json` stay in the ledger as `ignored`. Only a scan of an exact ref
+is recorded. Without `--state` (and, for testing, without `--ref`) the report
+goes to a temporary directory and the ledger is untouched; label such a run
+as a test.
 
 What the scan measures: file and class size, function length, churn and
 hotspots (size × churn), duplicated code, unused-function candidates,
@@ -74,10 +93,17 @@ cross CMake target boundaries, headless test coverage, stale area maps, and
 agent cost per area (hours from `Start` to `Approve` and review rounds of
 tasks whose commits touched the area, read from `../ai-tdesktop`).
 
-After the scan, write the run's summary and proposals (below). Scan daily;
-propose when the code-health budget has room; survey at most one area a week.
-The scheduled run is `/code-health scan route` in Claude Code or
-`$code-health scan route` in Codex.
+Scan daily; propose when the code-health budget has room; survey at most
+one area a week. Surveys and audits read the code at the scanned commit, not
+the checkout's working tree:
+
+```bash
+python3 .agents/skills/code-health/scripts/health.py worktree
+python3 .agents/skills/code-health/scripts/health.py worktree --remove <path>
+```
+
+The first prints the path of a temporary detached checkout of the latest
+published scan's commit, with its `lib_*` submodules; remove it when done.
 
 ## Atlas (whole tree)
 
@@ -95,22 +121,23 @@ highest product of hotspot and median task hours that has no survey newer
 than its last 100 commits, unless the invocation names one. A survey drafts
 or amends the [area map](references/maps.md) and writes proposals; it changes
 no source. To survey a named area now, run `$code-health survey <area>` (or
-`/code-health survey <area>`) in the dedicated clone.
+`/code-health survey <area>`) in any checkout; it writes to `health_state`
+and publishes with `health-publish`.
 
 ## Owner decisions
 
-The owner reads `latest-summary.md` and decides in a conversation in any task
-checkout; the dedicated clone never commits. The agent reads runs, surveys
-and the ledger from the dedicated clone's storage root
-(`../thealth/.git/code-health/`, or `health.py --repo ../thealth`), then:
+The owner reads the latest run's `summary.md` and decides in a conversation
+in any checkout. The agent reads the state from `../ai-tdesktop/code-health/`,
+then:
 
 - **Route** named proposals or survey defects: append each, verbatim, to
   `../ai-tdesktop/inbox/inbox.md` as a separate request. This is the owner's
   word that Q3, Q4 and Q5 need; `process-inbox` makes them tasks.
 - **Approve** a drafted map or invariants: write the approved text, with the
-  owner's changes, to the area's `AGENTS.md`, date each approved invariant,
-  and commit it as `[ai] Add the <area> map`.
-- **Decline** a finding: add it to `ignored.json` with the reason and date.
+  owner's changes, to the area's `AGENTS.md` in the source checkout, date
+  each approved invariant, and commit it as `[ai] Add the <area> map`.
+- **Decline** a finding: add it to `ignored.json` in `health_state` with the
+  reason and date, and publish.
 
 ## Check (every change)
 
@@ -204,18 +231,18 @@ previous audit. A fresh agent with no task context checks it against its
 class: the proof was run and supports the claim, behavior did not change, and
 the metric moved as stated. Use the other provider when the host can run
 one: on Claude Code a Codex CLI leaf under
-[Codex CLI leaves](../../shared/codex-cli-leaves.md) (`--cwd <source root>
+[Codex CLI leaves](../../shared/codex-cli-leaves.md) (`--cwd <scan worktree>
 --sandbox read-only`); otherwise a fresh native agent. Mechanical tasks had one
 reviewer, so this sample is their second look. Record the result in
-`audits.json` under the storage root, with suspended class and area pairs. A
+`audits.json` in `health_state`, with suspended class and area pairs. A
 failed audit suspends routing of that class in that area and becomes an
 ordinary repair task.
 
 ## Report contract
 
-Save `summary.md` beside the run's report and replace `latest-summary.md` in
-the storage root, using a temporary file and rename. Two blocks, in order,
-both present even when empty:
+Save `summary.md` and `proposals.md` beside the run's `report.md` in
+`health_state`. The summary has two blocks, in order, both present even when
+empty:
 
 1. **Got worse or needs a decision**: new layering violations, newly
    oversized files, build work up more than 1% since the previous run, new

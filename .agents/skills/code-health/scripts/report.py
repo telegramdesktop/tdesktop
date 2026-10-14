@@ -315,7 +315,6 @@ def merge(previous, current, checked_at):
     for identity, finding in current.items():
         prior = old.get(identity, {})
         finding['first_seen'] = prior.get('first_seen', checked_at)
-        finding['last_seen'] = checked_at
         finding['status'] = 'open'
         ledger[identity] = finding
     cutoff = (datetime.datetime.fromisoformat(checked_at)
@@ -365,7 +364,7 @@ def markdown(snap, ledger, previous):
         out.append(f'| {label} | {now:,} | {change} |')
 
     open_findings = [f for f in ledger.values() if f['status'] == 'open']
-    new = [f for f in open_findings if f['first_seen'] == f['last_seen']]
+    new = [f for f in open_findings if f['first_seen'] == snap['checked_at_utc']]
     resolved = [
         f for f in ledger.values()
         if f['status'] == 'resolved' and f.get('resolved_at') == snap['checked_at_utc']

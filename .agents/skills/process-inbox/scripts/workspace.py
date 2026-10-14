@@ -97,6 +97,10 @@ class WorkspaceError(RuntimeError):
 	pass
 
 
+class RebaseConflict(WorkspaceError):
+	pass
+
+
 def run_git(path, *args, check=True):
 	result = subprocess.run(
 		["git", "-C", str(path), *args],
@@ -332,6 +336,34 @@ def routing_unpublished_count(config):
 		"--left-right",
 		"--count",
 		f"master...{config['routing_branch']}",
+	).stdout.strip().split()
+	return int(counts[1])
+
+
+HEALTH_STATE = "code-health"
+
+
+def health_worktree_config(args, create=False):
+	config = repository_config(args, create=create)
+	tag = config["checkout_tag"]
+	branch = f"code-health/{tag}"
+	worktree = Path(config["worktrees_root"]) / f"{tag}-code-health"
+	linked_worktree(config, worktree, branch, create, "code-health AI worktree")
+	return {
+		**config,
+		"health_worktree": str(worktree),
+		"health_branch": branch,
+		"health_state": str(worktree / HEALTH_STATE),
+	}
+
+
+def health_unpublished_count(config):
+	counts = run_git(
+		Path(config["health_worktree"]),
+		"rev-list",
+		"--left-right",
+		"--count",
+		f"master...{config['health_branch']}",
 	).stdout.strip().split()
 	return int(counts[1])
 
@@ -830,7 +862,7 @@ def publish_worktree(config, worktree_key, branch_key, label, validate=None):
 		rebase = run_git(worktree, "rebase", "master", check=False)
 		if rebase.returncode:
 			run_git(worktree, "rebase", "--abort", check=False)
-			raise WorkspaceError(
+			raise RebaseConflict(
 				"AI state conflicts with newer master; the worktree commits were preserved. "
 				+ (rebase.stderr.strip() or rebase.stdout.strip())
 			)
@@ -5003,6 +5035,73 @@ def command_route_publish(args):
 	}, indent=2, sort_keys=True))
 
 
+def command_health_ensure(args):
+	config = health_worktree_config(args, create=True)
+	worktree = Path(config["health_worktree"])
+	dirty = changed_paths(worktree)
+	unpublished = health_unpublished_count(config)
+	if not dirty and not unpublished:
+		update_main_from_origin(config)
+		sync_branch_worktree(
+			config,
+			"health_worktree",
+			"health_branch",
+			"ai-tdesktop code-health worktree",
+		)
+	print(json.dumps({
+		**config,
+		"health_dirty": dirty,
+		"health_unpublished": unpublished,
+	}, indent=2, sort_keys=True))
+
+
+def command_health_publish(args):
+	config = health_worktree_config(args, create=True)
+	worktree = Path(config["health_worktree"])
+	changes = changed_paths(worktree)
+	outside = [path for path in changes if not path_is_covered(path, [HEALTH_STATE])]
+	if outside:
+		raise WorkspaceError(
+			"Code-health worktree changes outside code-health/: "
+			+ ", ".join(outside)
+		)
+	committed = bool(changes)
+	if committed:
+		if not args.message:
+			raise WorkspaceError("A commit message is required when changes exist")
+		run_git(worktree, "add", "-A", "--", HEALTH_STATE)
+		run_git(worktree, "commit", "-m", args.message)
+	elif not health_unpublished_count(config):
+		raise WorkspaceError("The code-health worktree has nothing to publish")
+	result = {
+		"committed": committed,
+		"health_branch": config["health_branch"],
+		"health_worktree": config["health_worktree"],
+	}
+	try:
+		publish_worktree(
+			config,
+			"health_worktree",
+			"health_branch",
+			"ai-tdesktop code-health worktree",
+		)
+	except RebaseConflict:
+		if not args.drop_on_conflict:
+			raise
+		run_git(worktree, "reset", "--hard", "master")
+		print(json.dumps({
+			**result,
+			"published": False,
+			"dropped": True,
+		}, indent=2, sort_keys=True))
+		return
+	print(json.dumps({
+		**result,
+		"published": True,
+		"dropped": False,
+	}, indent=2, sort_keys=True))
+
+
 def command_inbox_ensure(args):
 	config = inbox_worktree_config(args, create=True)
 	print(json.dumps(config, indent=2, sort_keys=True))
@@ -5349,6 +5448,16 @@ def parse_args():
 		dest="paths",
 	)
 	route_publish.set_defaults(handler=command_route_publish)
+
+	health_ensure = subparsers.add_parser("health-ensure")
+	add_common_arguments(health_ensure)
+	health_ensure.set_defaults(handler=command_health_ensure)
+
+	health_publish = subparsers.add_parser("health-publish")
+	add_common_arguments(health_publish)
+	health_publish.add_argument("--message")
+	health_publish.add_argument("--drop-on-conflict", action="store_true")
+	health_publish.set_defaults(handler=command_health_publish)
 
 	consolidate_publish = subparsers.add_parser("consolidate-publish")
 	add_common_arguments(consolidate_publish)

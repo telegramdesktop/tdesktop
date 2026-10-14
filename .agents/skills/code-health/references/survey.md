@@ -12,7 +12,9 @@ about to land.
    clones, layering, unused candidates, build reach, agent cost. Do not
    re-measure what it already reports.
 2. The previous survey and the current map, when present.
-3. The open ledger findings for the area (`latest.json`).
+3. The open ledger findings for the area (`ledger.json` in the state).
+4. The code at the scanned commit: every lens reads the checkout that
+   `health.py worktree` prints, never the source checkout's working tree.
 
 ## Lenses
 
@@ -37,13 +39,14 @@ Before anything is written down, a separate verifier re-checks every claim the
 proposals or the map rely on: re-run the count, re-read the lines, confirm
 "unused" has no callers. Use the other provider for the verifier, because
 same-model reviewers share blind spots: on Claude Code a Codex CLI leaf under
-[Codex CLI leaves](../../../shared/codex-cli-leaves.md) (`--cwd <source root>
+[Codex CLI leaves](../../../shared/codex-cli-leaves.md) (`--cwd <scan worktree>
 --sandbox read-only`), elsewhere a fresh native agent. Claims that were not
 re-checked are marked `(inferred)`.
 
 ## Outputs
 
-Saved under the storage root as `surveys/<area>/<date>/`:
+Saved in `health_state` as `surveys/<area>/<date>/` and published with
+`health-publish`:
 
 - `survey.md`: module map by responsibility, hotspots, duplication,
   coupling, testability, what to leave alone, and a ranked plan in classes

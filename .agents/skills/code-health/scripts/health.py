@@ -1,10 +1,10 @@
 """Code health: measure the codebase, keep a findings ledger, and check
 changes. Run from the repository root.
 
-  scan   [--ref origin/dev] [--fetch] [--queue ../ai-tdesktop]
-  sync   (dedicated scan checkout only: detach at fresh origin/dev)
-  atlas  [--ref origin/dev] [--check FILE]
-  area   <path-prefix-or-area>
+  scan     [--ref origin/dev] [--fetch] [--queue ../ai-tdesktop] [--state DIR] [--force]
+  worktree [--ref COMMIT] | --remove PATH
+  atlas    [--ref origin/dev] [--check FILE] [--state DIR]
+  area     <path-prefix-or-area>
   check  [--base HEAD] [--staged] [--strict]
   moves  [--base HEAD] [--head REV] [--staged]
   verify [--base HEAD] <finding-id>...
@@ -30,13 +30,22 @@ import review
 import sources
 
 
-def storage_root(repo):
-    common = Path(sources.git(repo, 'rev-parse', '--git-common-dir').decode().strip())
-    if not common.is_absolute():
-        common = Path(repo) / common
-    root = common.resolve() / 'code-health'
-    (root / 'runs').mkdir(parents=True, exist_ok=True)
-    return root
+def published_state(args):
+    """The code-health state published in the main ai-tdesktop worktree."""
+    return Path(args.queue) / 'code-health'
+
+
+def snapshot_cache(args, commit):
+    return published_state(args) / '.local' / 'snapshots' / f'{commit}.json'
+
+
+def cache_snapshot(args, snap):
+    """Keep a commit's raw scan in the ignored cache beside the published
+    state, when ai-tdesktop is present."""
+    if Path(args.queue).is_dir():
+        path = snapshot_cache(args, snap['commit'])
+        path.parent.mkdir(parents=True, exist_ok=True)
+        write_atomic(path, json.dumps(snap) + '\n')
 
 
 def write_atomic(path, text):
@@ -53,92 +62,131 @@ def load(path):
         return None
 
 
+def fetch_dev(repo):
+    sources.git(repo, 'fetch', '--no-tags', '--no-recurse-submodules',
+                'origin', '+refs/heads/dev:refs/remotes/origin/dev')
+
+
+def ensure_commit(repo, commit):
+    """Fetch origin dev when a published scan's commit is not in this clone."""
+    present = subprocess.run(['git', '-C', str(repo), 'cat-file', '-e', commit + '^{commit}'],
+                             capture_output=True).returncode == 0
+    if not present:
+        fetch_dev(repo)
+
+
 def tree_for(args):
     if args.ref:
         if args.fetch:
-            sources.git(args.repo, 'fetch', '--no-tags', '--no-recurse-submodules',
-                        'origin', '+refs/heads/dev:refs/remotes/origin/dev')
+            fetch_dev(args.repo)
         return sources.from_ref(args.repo, args.ref)
     return sources.from_worktree(args.repo)
 
 
 def command_scan(args):
+    state = Path(args.state) if args.state else None
+    if state and not args.ref:
+        print('Only a scan of an exact --ref is recorded in the ledger; '
+              'scan the working tree without --state.', file=sys.stderr)
+        return 2
+    source = state or published_state(args)
+    previous = load(source / 'ledger.json')
+    now = datetime.datetime.now(datetime.timezone.utc)
+    if (state and previous and not args.force
+            and previous['checked_at_utc'][:10] == now.date().isoformat()):
+        print(json.dumps({
+            'skipped': 'code health already ran today',
+            'commit': previous['commit'],
+            'run_directory': str(state / previous['run']),
+        }, indent=2))
+        return 0
     tree = tree_for(args)
     queue = args.queue if args.queue and Path(args.queue).is_dir() else None
     snap = report.snapshot(tree, queue)
-    root = storage_root(args.repo)
-    previous = load(root / 'latest.json')
     current = report.findings(snap)
     ledger = report.merge(previous, current, snap['checked_at_utc'])
-    for identity in (load(root / 'ignored.json') or {}):
+    for identity in (load(source / 'ignored.json') or {}):
         if identity in ledger and ledger[identity]['status'] == 'open':
             ledger[identity]['status'] = 'ignored'
-    stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
-    run = root / 'runs' / f'{stamp}-{tree.commit[:10]}'
-    run.mkdir(parents=True, exist_ok=True)
     text = report.markdown(snap, ledger, previous)
-    (run / 'snapshot.json').write_text(json.dumps(snap, indent=1) + '\n', encoding='utf-8')
+    if state:
+        run = state / 'runs' / f'{now.strftime("%Y%m%dT%H%M%SZ")}-{tree.commit[:10]}'
+        run.mkdir(parents=True, exist_ok=True)
+    else:
+        run = Path(tempfile.mkdtemp(prefix='code-health-'))
     (run / 'report.md').write_text(text, encoding='utf-8')
-    latest = {
-        'commit': snap['commit'],
-        'ref': snap['ref'],
-        'checked_at_utc': snap['checked_at_utc'],
-        'run_directory': str(run.relative_to(root)),
-        'totals': snap['totals'],
-        'findings': ledger,
-    }
-    write_atomic(root / 'latest.json', json.dumps(latest, indent=1) + '\n')
-    write_atomic(root / 'latest.md', text)
+    if state:
+        cache_snapshot(args, snap)
+        latest = {
+            'commit': snap['commit'],
+            'ref': snap['ref'],
+            'checked_at_utc': snap['checked_at_utc'],
+            'run': run.relative_to(state).as_posix(),
+            'totals': snap['totals'],
+            'findings': ledger,
+        }
+        write_atomic(state / 'ledger.json',
+                     json.dumps(latest, indent=1, sort_keys=True) + '\n')
+        with open(state / 'history.jsonl', 'a', encoding='utf-8') as stream:
+            stream.write(json.dumps({
+                'checked_at_utc': snap['checked_at_utc'],
+                'commit': snap['commit'],
+                'totals': snap['totals'],
+            }, sort_keys=True) + '\n')
+    else:
+        (run / 'snapshot.json').write_text(json.dumps(snap, indent=1) + '\n', encoding='utf-8')
     opened = sum(1 for f in ledger.values() if f['status'] == 'open')
     print(json.dumps({
         'commit': snap['commit'],
         'ref': snap['ref'],
-        'storage_root': str(root),
         'run_directory': str(run),
-        'worktree_matches': worktree_matches(args.repo, snap['commit']),
+        'ledger': str(state / 'ledger.json') if state else None,
         'open_findings': opened,
         'totals': snap['totals'],
     }, indent=2))
     return 0
 
 
-def worktree_matches(repo, commit):
-    """Whether the working tree is exactly `commit`, submodules included,
-    so agents reading files read what was scanned."""
-    head = sources.git(repo, 'rev-parse', 'HEAD').decode().strip()
-    dirty = sources.git(repo, 'status', '--porcelain', '--', 'Telegram').strip()
-    return head == commit and not dirty
+WORKTREE_PREFIX = 'code-health-source-'
 
 
-def command_sync(args):
+def command_worktree(args):
+    """A temporary detached checkout of the scanned commit, with the lib_*
+    submodules the scan reads, for surveys and audits."""
     repo = Path(args.repo)
-    attached = subprocess.run(
-        ['git', '-C', str(repo), 'symbolic-ref', '-q', 'HEAD'],
-        capture_output=True).returncode == 0
-    if attached:
-        print('sync runs only in a dedicated clone detached at origin/dev; '
-              'see "Where it runs" in the code-health skill.',
+    if args.remove:
+        path = Path(args.remove).resolve()
+        if not path.name.startswith(WORKTREE_PREFIX):
+            print(f'Not a code-health worktree: {path}', file=sys.stderr)
+            return 1
+        sources.git(repo, 'worktree', 'remove', '--force', str(path))
+        print(json.dumps({'removed': str(path)}, indent=2))
+        return 0
+    ref = args.ref
+    if not ref:
+        latest = load(published_state(args) / 'ledger.json')
+        if not latest:
+            print('No published scan yet; pass --ref.', file=sys.stderr)
+            return 1
+        ref = latest['commit']
+        ensure_commit(repo, ref)
+    commit = sources.git(repo, 'rev-parse', '--verify', ref + '^{commit}').decode().strip()
+    path = Path(tempfile.gettempdir()).resolve() / f'{WORKTREE_PREFIX}{commit[:10]}'
+    if not path.exists():
+        sources.git(repo, 'worktree', 'add', '--detach', '--quiet', str(path), commit)
+    head = sources.git(path, 'rev-parse', 'HEAD').decode().strip()
+    if head != commit:
+        print(f'{path} exists at {head[:10]}, not {commit[:10]}; remove it first.',
               file=sys.stderr)
         return 1
-    if sources.git(repo, 'status', '--porcelain').strip():
-        print('The checkout has local changes; sync never discards them.',
-              file=sys.stderr)
-        return 1
-    sources.git(repo, 'fetch', '--no-tags', '--no-recurse-submodules',
-                'origin', '+refs/heads/dev:refs/remotes/origin/dev')
-    sources.git(repo, 'checkout', '--detach', '--quiet', 'origin/dev')
-    raw = sources.git(repo, 'ls-tree', 'HEAD', '--', 'Telegram/').decode()
+    raw = sources.git(path, 'ls-tree', 'HEAD', '--', 'Telegram/').decode()
     libs = [
         line.split('\t', 1)[1] for line in raw.splitlines()
         if line.split()[1] == 'commit' and line.split('\t', 1)[1].startswith('Telegram/lib_')
     ]
-    sources.git(repo, 'submodule', 'update', '--init', '--', *libs)
-    commit = sources.git(repo, 'rev-parse', 'HEAD').decode().strip()
-    print(json.dumps({
-        'commit': commit,
-        'submodules': libs,
-        'worktree_matches': worktree_matches(repo, commit),
-    }, indent=2))
+    if libs:
+        sources.git(path, 'submodule', 'update', '--init', '--', *libs)
+    print(json.dumps({'path': str(path), 'commit': commit, 'submodules': libs}, indent=2))
     return 0
 
 
@@ -177,8 +225,11 @@ def command_atlas(args):
     graph = includes.IncludeGraph(tree, cmake_model.build(tree.files))
     rows = atlas.skeleton(tree, snap, graph)
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
-    directory = storage_root(args.repo) / 'atlas' / f'{stamp}-{tree.commit[:10]}'
-    directory.mkdir(parents=True, exist_ok=True)
+    if args.state:
+        directory = Path(args.state) / 'atlas' / f'{stamp}-{tree.commit[:10]}'
+        directory.mkdir(parents=True, exist_ok=True)
+    else:
+        directory = Path(tempfile.mkdtemp(prefix='code-health-atlas-'))
     (directory / 'skeleton.json').write_text(json.dumps(rows, indent=1) + '\n', encoding='utf-8')
     (directory / 'skeleton.md').write_text(atlas.markdown(rows), encoding='utf-8')
     print(json.dumps({
@@ -191,12 +242,16 @@ def command_atlas(args):
 
 
 def command_area(args):
-    root = storage_root(args.repo)
-    latest = load(root / 'latest.json')
+    latest = load(published_state(args) / 'ledger.json')
     if not latest:
-        print('No scan yet; run `health.py scan` first.', file=sys.stderr)
+        print('No published scan yet; see the code-health skill.', file=sys.stderr)
         return 1
-    snap = load(root / latest['run_directory'] / 'snapshot.json')
+    snap = load(snapshot_cache(args, latest['commit']))
+    if not snap:
+        ensure_commit(args.repo, latest['commit'])
+        tree = sources.from_ref(args.repo, latest['commit'])
+        snap = report.snapshot(tree, args.queue if Path(args.queue).is_dir() else None)
+        cache_snapshot(args, snap)
     prefix = args.area.rstrip('/')
 
     def inside(path):
@@ -327,8 +382,15 @@ def main():
     scan.add_argument('--ref')
     scan.add_argument('--fetch', action='store_true')
     scan.add_argument('--queue', default='../ai-tdesktop')
+    scan.add_argument('--state')
+    scan.add_argument('--force', action='store_true')
+    worktree = commands.add_parser('worktree')
+    worktree.add_argument('--ref')
+    worktree.add_argument('--remove')
+    worktree.add_argument('--queue', default='../ai-tdesktop')
     area = commands.add_parser('area')
     area.add_argument('area')
+    area.add_argument('--queue', default='../ai-tdesktop')
     check = commands.add_parser('check')
     check.add_argument('--base', default='HEAD')
     check.add_argument('--staged', action='store_true')
@@ -337,12 +399,12 @@ def main():
     moves.add_argument('--base', default='HEAD')
     moves.add_argument('--head')
     moves.add_argument('--staged', action='store_true')
-    commands.add_parser('sync')
     atlas_parser = commands.add_parser('atlas')
     atlas_parser.add_argument('--ref')
     atlas_parser.add_argument('--fetch', action='store_true')
     atlas_parser.add_argument('--queue', default='../ai-tdesktop')
     atlas_parser.add_argument('--check')
+    atlas_parser.add_argument('--state')
     verify = commands.add_parser('verify')
     verify.add_argument('--base', default='HEAD')
     verify.add_argument('ids', nargs='+')
@@ -353,7 +415,7 @@ def main():
         'check': command_check,
         'moves': command_moves,
         'verify': command_verify,
-        'sync': command_sync,
+        'worktree': command_worktree,
         'atlas': command_atlas,
     }
     try:

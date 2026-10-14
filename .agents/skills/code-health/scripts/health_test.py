@@ -1,13 +1,18 @@
+import contextlib
+import io
+import json
 from pathlib import Path
 import subprocess
 import tempfile
 import textwrap
+from types import SimpleNamespace
 import unittest
 
 import atlas
 import clones
 import cmake_model
 import cpp_text
+import health
 import includes
 import metrics
 import report
@@ -526,6 +531,72 @@ class AtlasTests(unittest.TestCase):
         })
         self.assertEqual(atlas.owner('Telegram/SourceFiles/big/tiny/c.cpp', folders),
                          'Telegram/SourceFiles/big')
+
+
+class StateTests(unittest.TestCase):
+    def setUp(self):
+        self.repo = Repo(fixture())
+        self.addCleanup(self.repo.temp.cleanup)
+        queue = tempfile.TemporaryDirectory()
+        self.addCleanup(queue.cleanup)
+        self.queue = Path(queue.name)
+        self.published = self.queue / 'code-health'
+        self.state = self.queue / 'worktree' / 'code-health'
+        self.commit = self.repo.git('rev-parse', 'HEAD').strip()
+
+    def run_health(self, handler, **values):
+        args = dict(repo=str(self.repo.root), queue=str(self.queue), ref='HEAD',
+                    fetch=False, state=None, force=False)
+        args.update(values)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            code = handler(SimpleNamespace(**args))
+        return code, output.getvalue()
+
+    def test_recorded_scan_writes_state_once_a_day(self):
+        _, output = self.run_health(health.command_scan, state=str(self.state))
+        self.assertEqual(json.loads(output)['ledger'], str(self.state / 'ledger.json'))
+        ledger = json.loads((self.state / 'ledger.json').read_text(encoding='utf-8'))
+        self.assertEqual(ledger['commit'], self.commit)
+        self.assertTrue((self.state / ledger['run'] / 'report.md').is_file())
+        self.assertTrue((self.published / '.local' / 'snapshots'
+                         / f'{self.commit}.json').is_file())
+        _, output = self.run_health(health.command_scan, state=str(self.state))
+        self.assertIn('skipped', json.loads(output))
+        self.run_health(health.command_scan, state=str(self.state), force=True)
+        history = (self.state / 'history.jsonl').read_text(encoding='utf-8')
+        self.assertEqual(len(history.splitlines()), 2)
+
+    def test_working_tree_scan_leaves_the_ledger_alone(self):
+        _, output = self.run_health(health.command_scan, ref=None)
+        result = json.loads(output)
+        self.assertIsNone(result['ledger'])
+        self.assertTrue(Path(result['run_directory'], 'report.md').is_file())
+        self.assertFalse(self.published.exists())
+        code, _ = self.run_health(health.command_scan, ref=None, state=str(self.state))
+        self.assertEqual(code, 2)
+        self.assertFalse(self.state.exists())
+
+    def test_area_rebuilds_a_missing_snapshot_of_the_published_scan(self):
+        self.run_health(health.command_scan, state=str(self.published))
+        (self.published / '.local' / 'snapshots' / f'{self.commit}.json').unlink()
+        code, output = self.run_health(health.command_area, area='low')
+        self.assertEqual(code, 0)
+        self.assertIn('Telegram/SourceFiles/low/low.cpp', output)
+
+    def test_source_worktree_is_created_reused_and_removed(self):
+        _, output = self.run_health(health.command_worktree, remove=None)
+        path = Path(json.loads(output)['path'])
+        self.addCleanup(lambda: path.exists() and self.run_health(
+            health.command_worktree, remove=str(path)))
+        self.assertEqual(self.repo.git('-C', str(path), 'rev-parse', 'HEAD').strip(),
+                         self.commit)
+        _, again = self.run_health(health.command_worktree, remove=None)
+        self.assertEqual(Path(json.loads(again)['path']), path)
+        code, _ = self.run_health(health.command_worktree, remove=str(self.queue))
+        self.assertEqual(code, 1)
+        self.run_health(health.command_worktree, remove=str(path))
+        self.assertFalse(path.exists())
 
 
 class MoveTests(unittest.TestCase):
