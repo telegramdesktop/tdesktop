@@ -207,6 +207,7 @@ void ApplyTheme(twidget::WidgetHost &host, const std::string &theme) {
 	auto result = twidget::WidgetHostOptions{
 		.visible = visible,
 		.devicePixelRatio = ratio,
+		.features = { "webAnimations" },
 	};
 	result.cpuLimitMs *= kCpuLimitScale;
 	return result;

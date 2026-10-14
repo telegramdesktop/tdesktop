@@ -18,7 +18,6 @@ add_library(tdesktop::lib_litehtml ALIAS lib_litehtml)
 
 set(litehtml_root ${third_party_loc}/twidget/Sources/LiteHTML)
 set(litehtml_loc ${litehtml_root}/litehtml)
-set(litehtml_gen ${CMAKE_CURRENT_BINARY_DIR}/litehtml_gen)
 
 if (NOT EXISTS ${litehtml_loc}/src/document.cpp)
     message(FATAL_ERROR "twidget sources are missing, run 'git submodule update --init --recursive'.")
@@ -67,20 +66,10 @@ PRIVATE
 )
 
 if (MSVC)
-    # gumbo includes POSIX <strings.h> and the fork calls strncasecmp,
-    # MSVC has neither of them.
-    file(CONFIGURE OUTPUT ${litehtml_gen}/strings.h
-        CONTENT "#pragma once\n#include <string.h>\n" @ONLY)
-    target_include_directories(lib_litehtml PRIVATE ${litehtml_gen})
-    target_compile_definitions(lib_litehtml
+    # gumbo includes POSIX <strings.h>, the fork ships a stand-in for MSVC.
+    target_include_directories(lib_litehtml
     PRIVATE
-        strcasecmp=_stricmp
-        strncasecmp=_strnicmp
-    )
-    # The fork's document.cpp uses std::back_inserter without <iterator>.
-    set_source_files_properties(${litehtml_loc}/src/document.cpp
-    PROPERTIES
-        COMPILE_OPTIONS /FIiterator
+        ${litehtml_loc}/src/gumbo/visualc/include
     )
     target_link_libraries(lib_litehtml PRIVATE lib_litehtml_warnings_off)
 else()

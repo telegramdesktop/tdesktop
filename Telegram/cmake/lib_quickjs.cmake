@@ -4,11 +4,12 @@
 # For license and copyright information please follow this link:
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
-# QuickJS-ng as vendored by ThirdParty/widget-sandbox: the engine its shared
-# sandbox and validator bundles run on. Their precompiled bytecode is checked
-# against this exact engine, and widget-sandbox's sandbox code is written for
-# its API, so the revision comes with that submodule. qjs_shim.c holds the
-# shared helpers, including the checked bytecode loader.
+# QuickJS-ng as the TelegramMessenger/quickjs fork, a nested submodule of
+# ThirdParty/widget-sandbox: the engine its shared sandbox and validator
+# bundles run on. Their precompiled bytecode is checked against this exact
+# engine, and widget-sandbox's sandbox code is written for its API, so the
+# revision comes with that submodule. qjs_shim.c holds the shared helpers,
+# including the checked bytecode loader.
 # Upstream's own CMakeLists always builds the CLI and test executables and
 # sets project-wide flags, so only the engine sources are compiled here.
 # There is no packaged branch: the API still changes between releases.
@@ -39,7 +40,6 @@ endif()
 nice_target_sources(lib_quickjs ${quickjs_root}
 PRIVATE
     include/qjs_shim.h
-    include/quickjs.h
     quickjs/cutils.h
     quickjs/dtoa.c
     quickjs/dtoa.h
@@ -52,6 +52,7 @@ PRIVATE
     quickjs/quickjs-c-atomics.h
     quickjs/quickjs-opcode.h
     quickjs/quickjs.c
+    quickjs/quickjs.h
     shim/qjs_shim.c
 )
 
