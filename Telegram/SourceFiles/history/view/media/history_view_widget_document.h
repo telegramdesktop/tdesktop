@@ -56,6 +56,7 @@ private:
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 
+	[[nodiscard]] bool bareKeepsBubble() const;
 	[[nodiscard]] QMargins cardMargins() const;
 	[[nodiscard]] QRect cardRect() const;
 	[[nodiscard]] int countHeight() const;
@@ -78,6 +79,7 @@ private:
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	std::unique_ptr<Tgw::Runtime> _runtime;
 	const bool _bare = false;
+	const bool _hideReply = false;
 	mutable bool _fallbackRequested = false;
 
 };

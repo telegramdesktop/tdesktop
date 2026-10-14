@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_element.h"
 #include "history/history_item.h"
+#include "history/history_item_components.h"
 #include "lang/lang_keys.h"
 #include "tgw/tgw_document.h"
 #include "tgw/tgw_renderer.h"
@@ -81,7 +82,9 @@ WidgetDocument::WidgetDocument(
 	.repaint = [=] { _parent->repaint(); },
 	.heavyChanged = [=] { runtimeHeavyChanged(); },
 }))
-, _bare(Tgw::IsBareWidget(document)) {
+, _bare(Tgw::IsBareWidget(document))
+, _hideReply(parent->delegate()->elementHideReply(parent)
+	|| parent->data()->Has<HistoryMessageSuggestion>()) {
 	setDocumentLinks(_data, realParent);
 
 	// Adopts bytes the replaced file view may hold only in memory.
@@ -113,21 +116,21 @@ QSize WidgetDocument::countCurrentSize(int newWidth) {
 }
 
 bool WidgetDocument::needsBubble() const {
-	if (!_bare) {
-		return true;
-	}
+	return !_bare || bareKeepsBubble();
+}
+
+bool WidgetDocument::unwrapped() const {
+	return _bare && !bareKeepsBubble();
+}
+
+bool WidgetDocument::bareKeepsBubble() const {
 	const auto item = _parent->data();
 	return item->isSponsored()
 		|| _parent->hasCommentsButton()
 		|| item->viaBot()
 		|| !item->emptyText()
-		|| _parent->displayReply()
-		|| _parent->displayForwardedFrom()
-		|| _parent->displayedTopicButton();
-}
-
-bool WidgetDocument::unwrapped() const {
-	return _bare && !_parent->hasBubble();
+		|| (!_hideReply && item->Has<HistoryMessageReply>())
+		|| _parent->displayForwardedFrom();
 }
 
 QMargins WidgetDocument::cardMargins() const {
