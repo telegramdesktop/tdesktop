@@ -42,7 +42,9 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
-[[nodiscard]] bool UrlRequiresConfirmation(const QUrl &url);
+[[nodiscard]] bool UrlRequiresConfirmation(
+	not_null<Main::Session*> session,
+	const QUrl &url);
 
 // Our links open without a confirmation, so a web login token someone else
 // put into such a link would log the user in to the sender's account.

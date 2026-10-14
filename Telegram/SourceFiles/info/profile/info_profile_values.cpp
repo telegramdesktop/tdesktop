@@ -75,9 +75,11 @@ auto PlainPrimaryUsernameValue(not_null<PeerData*> peer) {
 	}) | rpl::flatten_latest();
 }
 
-void StripExternalLinks(TextWithEntities &text) {
-	const auto local = [](const QString &url) {
-		return !UrlRequiresConfirmation(QUrl::fromUserInput(url));
+void StripExternalLinks(
+		not_null<Main::Session*> session,
+		TextWithEntities &text) {
+	const auto local = [&](const QString &url) {
+		return !UrlRequiresConfirmation(session, QUrl::fromUserInput(url));
 	};
 	const auto notLocal = [&](const EntityInText &entity) {
 		if (entity.type() == EntityType::CustomUrl) {
@@ -256,7 +258,7 @@ TextWithEntities AboutWithEntities(
 	auto result = TextWithEntities{ value };
 	TextUtilities::ParseEntities(result, flags);
 	if (stripExternal) {
-		StripExternalLinks(result);
+		StripExternalLinks(&peer->session(), result);
 	}
 	return result;
 }

@@ -608,7 +608,7 @@ void SponsoredMessages::append(
 		.mediaDocumentId = (mediaDocument ? mediaDocument->id : 0),
 		.backgroundEmojiId = BackgroundEmojiIdFromColor(data.vcolor()),
 		.colorIndex = ColorIndexFromColor(data.vcolor()).value_or(0),
-		.isLinkInternal = !UrlRequiresConfirmation(qs(data.vurl())),
+		.isLinkInternal = !UrlRequiresConfirmation(_session, qs(data.vurl())),
 		.isRecommended = data.is_recommended(),
 		.canReport = data.is_can_report(),
 	};

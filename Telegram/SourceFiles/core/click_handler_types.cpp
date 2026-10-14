@@ -14,6 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/local_url_handlers.h"
 #include "core/file_utilities.h"
 #include "mainwidget.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
+#include "main/main_domain.h"
 #include "main/main_session.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/text/text_utilities.h"
@@ -119,6 +122,65 @@ constexpr auto kReminderSetToastDuration = 4 * crl::time(1000);
 	return result;
 }
 
+[[nodiscard]] std::vector<QString> DefaultWhitelistedDomains() {
+	return {
+		u"telegram.dog"_q,
+		u"telegram.me"_q,
+		u"telegram.org"_q,
+		u"t.me"_q,
+		u"telegra.ph"_q,
+		u"te.legra.ph"_q,
+		u"graph.org"_q,
+		u"telesco.pe"_q,
+		u"fragment.com"_q,
+	};
+}
+
+[[nodiscard]] std::vector<QString> WhitelistedDomains(
+		const Main::AppConfig &config) {
+	return config.get<std::vector<QString>>(
+		u"whitelisted_domains"_q,
+		DefaultWhitelistedDomains());
+}
+
+[[nodiscard]] std::vector<QString> WhitelistedDomains(
+		const ClickHandlerContext &my) {
+	const auto &domain = Core::App().domain();
+	const auto window = my.sessionWindow.get();
+	const auto account = window
+		? &window->session().account()
+		: my.peer
+		? &my.peer->session().account()
+		: domain.started()
+		? &domain.active()
+		: nullptr;
+	return account
+		? WhitelistedDomains(account->appConfig())
+		: DefaultWhitelistedDomains();
+}
+
+[[nodiscard]] bool HostInDomains(
+		const QString &host,
+		const std::vector<QString> &domains) {
+	return ranges::any_of(domains, [&](const QString &domain) {
+		return !domain.isEmpty()
+			&& host.endsWith(domain, Qt::CaseInsensitive)
+			&& (host.size() == domain.size()
+				|| host[host.size() - domain.size() - 1] == '.');
+	});
+}
+
+[[nodiscard]] bool HostInAnyWhitelist(const QString &host) {
+	using Entry = Main::Domain::AccountWithIndex;
+	return HostInDomains(host, DefaultWhitelistedDomains())
+		|| ranges::any_of(Core::App().domain().accounts(), [&](
+				const Entry &entry) {
+			return HostInDomains(
+				host,
+				WhitelistedDomains(entry.account->appConfig()));
+		});
+}
+
 [[nodiscard]] bool IsTelegramShortLinkHost(const QUrl &url) {
 	using namespace qthelp;
 
@@ -128,8 +190,11 @@ constexpr auto kReminderSetToastDuration = 4 * crl::time(1000);
 		RegExOption::CaseInsensitive).valid();
 }
 
-[[nodiscard]] bool HiddenUrlRequiresConfirmation(const QUrl &url) {
-	return UrlRequiresConfirmation(url) || IsTelegramShortLinkHost(url);
+[[nodiscard]] bool HiddenUrlRequiresConfirmation(
+		const QUrl &url,
+		const ClickHandlerContext &my) {
+	return !HostInDomains(url.host(), WhitelistedDomains(my))
+		|| IsTelegramShortLinkHost(url);
 }
 
 [[nodiscard]] bool IsWebAuthTokenPart(QStringView part) {
@@ -324,20 +389,12 @@ void DoneSetReminder(std::shared_ptr<ChatHelpers::Show> show) {
 
 } // namespace
 
-bool UrlRequiresConfirmation(const QUrl &url) {
-	using namespace qthelp;
-
-	return !regex_match(
-		"(^|\\.)("
-		"telegram\\.(org|me|dog)"
-		"|t\\.me"
-		"|te\\.?legra\\.ph"
-		"|graph\\.org"
-		"|fragment\\.com"
-		"|telesco\\.pe"
-		")$",
+bool UrlRequiresConfirmation(
+		not_null<Main::Session*> session,
+		const QUrl &url) {
+	return !HostInDomains(
 		url.host(),
-		RegExOption::CaseInsensitive);
+		WhitelistedDomains(session->appConfig()));
 }
 
 QString UrlWithoutWebAuthTokens(const QString &url) {
@@ -351,9 +408,8 @@ QString UrlWithoutWebAuthTokens(const QString &url) {
 	while (host.endsWith('.')) {
 		host.chop(1);
 	}
-	auto check = QUrl();
-	check.setHost(host);
-	if (host.isEmpty() || UrlRequiresConfirmation(check)) {
+	// Stripping a foreign token is always safe, so check the widest list.
+	if (host.isEmpty() || !HostInAnyWhitelist(host)) {
 		return url;
 	}
 	const auto query = WithoutWebAuthTokenParams(
@@ -452,7 +508,7 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 		};
 		if (forceConfirmation
 			|| (confirmAfterIvFallback && !canTryIv)
-			|| (HiddenUrlRequiresConfirmation(parsedUrl)
+			|| (HiddenUrlRequiresConfirmation(parsedUrl, my)
 				&& !skipConfirmation)) {
 			if (!my.show) {
 				Core::App().hideMediaView();

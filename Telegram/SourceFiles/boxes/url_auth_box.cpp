@@ -230,6 +230,9 @@ void ActivateButton(
 	const auto inputPeer = message->history()->peer->input();
 	const auto buttonId = button->buttonId;
 	const auto url = QString::fromUtf8(button->data);
+	const auto context = QVariant::fromValue(ClickHandlerContext{
+		.peer = message->history()->peer,
+	});
 
 	using Flag = MTPmessages_RequestUrlAuth::Flag;
 	button->requestId = session->api().request(MTPmessages_RequestUrlAuth(
@@ -251,7 +254,7 @@ void ActivateButton(
 				UrlClickHandler::Open(qs(url->v), AcceptedUrlContext({}));
 			}
 		}, [&](const MTPDurlAuthResultDefault &data) {
-			HiddenUrlClickHandler::Open(url);
+			HiddenUrlClickHandler::Open(url, context);
 		}, [&](const MTPDurlAuthResultRequest &data) {
 			if (const auto item = session->data().message(itemId)) {
 				RequestButton(show, data, item, lookup);
@@ -264,7 +267,7 @@ void ActivateButton(
 		}
 
 		button->requestId = 0;
-		HiddenUrlClickHandler::Open(url);
+		HiddenUrlClickHandler::Open(url, context);
 	}).send();
 }
 
