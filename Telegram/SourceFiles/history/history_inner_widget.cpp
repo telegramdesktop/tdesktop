@@ -2532,6 +2532,7 @@ void HistoryInner::itemRemoved(not_null<const HistoryItem*> item) {
 }
 
 void HistoryInner::viewRemoved(not_null<const Element*> view) {
+	invalidateAccessibleElements();
 	if (_overlayHost) {
 		_overlayHost->viewGone(view);
 	}
@@ -4471,6 +4472,7 @@ void HistoryInner::checkActivation() {
 }
 
 void HistoryInner::recountHistoryGeometry(bool initial) {
+	invalidateAccessibleElements();
 	_contentWidth = _scroll->width();
 
 	if (_history->hasPendingResizedItems()
@@ -6555,8 +6557,15 @@ bool CanSendReply(not_null<const HistoryItem*> item) {
 
 // Accessibility.
 
-std::vector<HistoryView::Element*> HistoryInner::accessibleElements() const {
-	std::vector<Element*> result;
+auto HistoryInner::accessibleElements() const
+-> const std::vector<HistoryView::Element*> & {
+	// Accessibility asks about each row separately, several times per row,
+	// and every answer needs this list, so building it on each call made
+	// reading a long history quadratic. Keep it until the rows change.
+	if (_accessibleElements) {
+		return *_accessibleElements;
+	}
+	auto &result = _accessibleElements.emplace();
 	const auto gather = [&](not_null<History*> history) {
 		for (const auto &block : history->blocks) {
 			for (const auto &message : block->messages) {
@@ -6573,6 +6582,11 @@ std::vector<HistoryView::Element*> HistoryInner::accessibleElements() const {
 	return result;
 }
 
+void HistoryInner::invalidateAccessibleElements() {
+	_accessibleElements = std::nullopt;
+	_accessibilityUnreadBar = nullptr;
+}
+
 int HistoryInner::accessibilityUnreadBarIndex() const {
 	auto *barElement = _history->unreadBar();
 	if (!barElement && _migrated) {
@@ -6581,13 +6595,18 @@ int HistoryInner::accessibilityUnreadBarIndex() const {
 	if (!barElement) {
 		return -1;
 	}
-	const auto elements = accessibleElements();
-	for (auto i = 0, count = int(elements.size()); i < count; ++i) {
-		if (elements[i] == barElement) {
-			return i;
+	const auto &elements = accessibleElements();
+	if (_accessibilityUnreadBar != barElement) {
+		_accessibilityUnreadBar = barElement;
+		_accessibilityUnreadBarIndex = -1;
+		for (auto i = 0, count = int(elements.size()); i < count; ++i) {
+			if (elements[i] == barElement) {
+				_accessibilityUnreadBarIndex = i;
+				break;
+			}
 		}
 	}
-	return -1;
+	return _accessibilityUnreadBarIndex;
 }
 
 HistoryItem *HistoryInner::accessibilityItemAtIndex(
@@ -6624,7 +6643,7 @@ QString HistoryInner::accessibilityChildName(int index) const {
 			? HistoryView::UnreadBarAccessibilityName(barElement)
 			: tr::lng_unread_bar_some(tr::now);
 	}
-	const auto elements = accessibleElements();
+	const auto &elements = accessibleElements();
 	const auto elementIndex = (barIndex >= 0 && index > barIndex)
 		? (index - 1)
 		: index;
@@ -6654,7 +6673,7 @@ QAccessible::State HistoryInner::accessibilityChildState(int index) const {
 	const auto barIndex = accessibilityUnreadBarIndex();
 	if (barIndex < 0 || index != barIndex) {
 		state.selectable = true;
-		const auto elements = accessibleElements();
+		const auto &elements = accessibleElements();
 		const auto elementIndex = (barIndex >= 0 && index > barIndex)
 			? (index - 1)
 			: index;
@@ -6707,7 +6726,7 @@ QRect HistoryInner::accessibilityChildRect(int index) const {
 		return QRect();
 	}
 
-	const auto elements = accessibleElements();
+	const auto &elements = accessibleElements();
 	const auto elementIndex = (barIndex >= 0 && index > barIndex)
 		? (index - 1)
 		: index;
@@ -6764,7 +6783,7 @@ QString HistoryInner::accessibilityChildSubItemValue(
 	if (column < 0 || column >= int(active.size())) {
 		return {};
 	}
-	const auto elements = accessibleElements();
+	const auto &elements = accessibleElements();
 	const auto elementIndex = (barIndex >= 0 && row > barIndex)
 		? (row - 1)
 		: row;
@@ -6785,7 +6804,7 @@ auto HistoryInner::computeActiveColumns(int row) const
 		_activeColumnsView = nullptr;
 		return _activeColumns;
 	}
-	const auto elements = accessibleElements();
+	const auto &elements = accessibleElements();
 	const auto elementIndex = (barIndex >= 0 && row > barIndex)
 		? (row - 1)
 		: row;
@@ -6915,7 +6934,7 @@ quintptr HistoryInner::accessibilityChildIdentity(int index) const {
 	if (barIndex >= 0 && index == barIndex) {
 		return 0;
 	}
-	const auto elements = accessibleElements();
+	const auto &elements = accessibleElements();
 	const auto elementIndex = (barIndex >= 0 && index > barIndex)
 		? (index - 1)
 		: index;
@@ -6941,7 +6960,7 @@ int HistoryInner::accessibilityChildIndexByIdentity(
 	if (!identity) {
 		return -1;
 	}
-	const auto elements = accessibleElements();
+	const auto &elements = accessibleElements();
 	const auto barIndex = accessibilityUnreadBarIndex();
 	for (auto i = 0, n = int(elements.size()); i != n; ++i) {
 		const auto j = _accessibilityIdentities.find(
