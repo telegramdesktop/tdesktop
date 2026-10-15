@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
+#include "lang/lang_keys.h"
 #include "ui/controls/emoji_button.h"
 #include "ui/effects/fade_animation.h"
 #include "ui/layers/box_content.h"
@@ -19,6 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/input_field.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat_helpers.h" // defaultComposeFiles.
+
+#include <QtWidgets/QApplication>
 
 namespace Ui {
 
@@ -48,21 +51,34 @@ namespace Ui {
 			fade->paint(p);
 		}, fadeTarget->lifetime());
 		if (fadeOnFocusChange) {
-			rpl::single(false) | rpl::then(
-				field->focusedChanges()
-			) | rpl::on_next([=](bool shown) {
+			// Shown while the keyboard is in the field: its text, a button
+			// inside it, or the toggle itself. With a screen reader those
+			// are Tab stops, and a toggle fading out as soon as the text
+			// loses the focus would hide right under the Tab on its way to
+			// it, leaving the keyboard on a widget that is not there.
+			const auto refresh = [=] {
 				crl::on_main(emojiToggle, [=] {
-					if (shown) {
+					const auto focused = QApplication::focusWidget();
+					const auto inside = focused
+						&& (focused == emojiToggle
+							|| field->isAncestorOf(focused));
+					if (inside) {
 						fade->fadeIn(st::universalDuration);
 					} else if (emojiToggle->isVisible()) {
 						fade->fadeOut(st::universalDuration);
 					}
 				});
-			}, emojiToggle->lifetime());
+			};
+			QObject::connect(
+				qApp,
+				&QApplication::focusChanged,
+				emojiToggle,
+				[=] { refresh(); });
 		}
 		fade->fadeOut(1);
 		fade->finish();
 	}
+	emojiToggle->setAccessibleName(tr::lng_switch_emoji(tr::now));
 
 
 	const auto outer = box->getDelegate()->outerContainer();
