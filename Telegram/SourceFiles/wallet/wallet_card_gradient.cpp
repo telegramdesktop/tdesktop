@@ -30,6 +30,14 @@ constexpr auto kQrPlateAngle = 119.72;
 constexpr auto kQrPlateFrom = 0.0799;
 constexpr auto kQrPlateTill = 0.922;
 constexpr auto kQrPlateAlpha = 224; // 0.88 * 255, rounded.
+constexpr auto kTintRampSteps = 4096;
+
+struct TintLevels {
+	std::array<float64, 256> red = {};
+	std::array<float64, 256> green = {};
+	std::array<float64, 256> blue = {};
+	float64 offset = 0.;
+};
 
 struct SoftnessStop {
 	float64 at = 0.;
@@ -122,6 +130,57 @@ void RenderBackground(
 	p.end();
 }
 
+[[nodiscard]] std::vector<QRgb> MakeTintRamp(const CardTint &tint) {
+	auto result = std::vector<QRgb>();
+	result.reserve(kTintRampSteps + 1);
+	for (auto i = 0; i <= kTintRampSteps; ++i) {
+		result.push_back(CardTintAt(tint, i / float64(kTintRampSteps)).rgb());
+	}
+	return result;
+}
+
+[[nodiscard]] TintLevels ComputeTintLevels() {
+	const auto [from, till] = ranges::minmax(
+		kSweep | ranges::views::transform(CardLuminance));
+	const auto scale = kTintRampSteps / (till - from);
+	auto result = TintLevels{ .offset = 0.5 - from * scale };
+	for (auto i = 0; i != 256; ++i) {
+		result.red[i] = CardLuminance(qRgb(i, 0, 0)) * scale;
+		result.green[i] = CardLuminance(qRgb(0, i, 0)) * scale;
+		result.blue[i] = CardLuminance(qRgb(0, 0, i)) * scale;
+	}
+	return result;
+}
+
+void TintImage(QImage &image, const std::vector<QRgb> &ramp) {
+	static const auto levels = ComputeTintLevels();
+	const auto red = levels.red.data();
+	const auto green = levels.green.data();
+	const auto blue = levels.blue.data();
+	const auto colors = ramp.data();
+	const auto stride = image.bytesPerLine();
+	auto bytes = image.bits();
+	for (auto y = 0; y != image.height(); ++y, bytes += stride) {
+		auto pixel = reinterpret_cast<QRgb*>(bytes);
+		for (const auto end = pixel + image.width(); pixel != end; ++pixel) {
+			const auto color = *pixel;
+			if (qAlpha(color) != 255) {
+				continue;
+			}
+			const auto level = red[qRed(color)]
+				+ green[qGreen(color)]
+				+ blue[qBlue(color)]
+				+ levels.offset;
+			const auto index = (level <= 0.)
+				? 0
+				: (level >= kTintRampSteps)
+				? kTintRampSteps
+				: int(level);
+			*pixel = colors[index];
+		}
+	}
+}
+
 } // namespace
 
 void CardBackground::paint(QPainter &p, const QRect &card, float64 angle) {
@@ -143,6 +202,9 @@ void CardBackground::paint(QPainter &p, const QRect &card, float64 angle) {
 			covered * ratio + QSize(2, 2),
 			ratio,
 			angle);
+		if (_tint) {
+			TintImage(_image, _tintRamp);
+		}
 		_drawn = card.size();
 		_angle = angle;
 		_ratio = ratio;
@@ -161,6 +223,15 @@ void CardBackground::paint(QPainter &p, const QRect &card, float64 angle) {
 	p.setBrush(brush);
 	p.drawRoundedRect(card, st::walletCardRadius, st::walletCardRadius);
 	p.setBrush(Qt::NoBrush);
+}
+
+void CardBackground::setTint(std::optional<CardTint> tint) {
+	if (_tint == tint) {
+		return;
+	}
+	_tint = std::move(tint);
+	_tintRamp = _tint ? MakeTintRamp(*_tint) : std::vector<QRgb>();
+	_image = QImage();
 }
 
 void CardBackground::clear() {

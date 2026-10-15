@@ -104,6 +104,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_card_editor.h"
 #include "wallet/wallet_card_float.h"
 #include "wallet/wallet_card_gradient.h"
+#include "wallet/wallet_card_look.h"
 #include "wallet/wallet_card_space.h"
 #include "wallet/wallet_card_stickers.h"
 #include "wallet/wallet_chat_show.h"
@@ -420,6 +421,7 @@ public:
 		not_null<QWidget*> paintOwner);
 	void invalidateCache();
 	void followCursor();
+	void setLook(CardLook look);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -440,7 +442,7 @@ private:
 	QString _addressLine2;
 	CardFold _fold;
 	QPointer<QWidget> _paintOwner;
-	CardBackground _background;
+	CardLookPainter _look;
 	QImage _cache;
 	float64 _cacheAngle = 0.;
 	std::unique_ptr<CardAngle> _angle;
@@ -13742,7 +13744,8 @@ Card::Card(
 	rpl::producer<TextWithEntities> name)
 : RpWidget(parent)
 , _show(std::move(show))
-, _nameStyle(st::defaultTextStyle) {
+, _nameStyle(st::defaultTextStyle)
+, _look(crl::guard(this, [=] { invalidateCache(); })) {
 	_nameStyle.font = st::walletCardNameFont->monospace();
 	_show->session().wallet().presenceValue(
 	) | rpl::on_next([=](Presence) {
@@ -13784,6 +13787,12 @@ void Card::invalidateCache() {
 void Card::followCursor() {
 	if (!_angle) {
 		_angle = std::make_unique<CardAngle>();
+	}
+}
+
+void Card::setLook(CardLook look) {
+	if (_look.setLook(std::move(look))) {
+		invalidateCache();
 	}
 }
 
@@ -13863,7 +13872,7 @@ void Card::paintFold(
 
 void Card::paintContent(Painter &p, float64 angle) {
 	const auto size = restRect().size();
-	_background.paint(p, QRect(QPoint(), size), angle);
+	_look.paint(p, QRect(QPoint(), size), angle);
 
 	const auto qr = CardQrRect(size.width());
 	PaintCardQrPlate(p, qr);
@@ -13874,7 +13883,7 @@ void Card::paintContent(Painter &p, float64 angle) {
 	_name.drawElided(p, layout.nameLeft, layout.nameTop, layout.nameMax);
 
 	if (!_addressLine1.isEmpty()) {
-		p.setPen(st::windowActiveTextFg);
+		p.setPen(_look.stripInk());
 		p.setFont(layout.addressFont);
 		p.save();
 		p.translate(layout.addressBaseline, st::walletCardAddressSkip);
@@ -14612,6 +14621,11 @@ void Content::setupPinned() {
 	_card->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_card->show();
 	_card->followCursor();
+	OwnCardLookValue(
+		&_show->session()
+	) | rpl::on_next([=](CardLook &&look) {
+		_card->setLook(std::move(look));
+	}, _card->lifetime());
 	_cardButton = Ui::CreateChild<Ui::AbstractButton>(this);
 	_cardButton->setClickedCallback([=] {
 		ShowWalletReceiveBox(&_show->session(), _show);
