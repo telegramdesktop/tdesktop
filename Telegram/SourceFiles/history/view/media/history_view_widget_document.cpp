@@ -141,6 +141,10 @@ bool WidgetDocument::unwrapped() const {
 	return _bare && !bareKeepsBubble();
 }
 
+bool WidgetDocument::customInfoLayout() const {
+	return !_parent->hasBubble();
+}
+
 bool WidgetDocument::bareKeepsBubble() const {
 	const auto item = _parent->data();
 	return item->isSponsored()
@@ -164,7 +168,7 @@ QMargins WidgetDocument::cardMargins() const {
 }
 
 QRect WidgetDocument::cardRect() const {
-	const auto full = QRect(0, 0, width(), height() - bareInfoHeight());
+	const auto full = QRect(0, 0, width(), height() - infoHeight());
 	return full.marginsRemoved(cardMargins());
 }
 
@@ -172,14 +176,14 @@ int WidgetDocument::countHeight() const {
 	const auto margins = cardMargins();
 	const auto content = _runtime->height().value_or(
 		st::tgwPlaceholderHeight);
-	return margins.top() + content + margins.bottom() + bareInfoHeight();
+	return margins.top() + content + margins.bottom() + infoHeight();
 }
 
-int WidgetDocument::bareInfoHeight() const {
-	if (_parent->hasBubble()
-		|| !drawsInfo()
-		|| _parent->hidesBottomInfo()) {
+int WidgetDocument::infoHeight() const {
+	if (!infoBelowCard() || _parent->hidesBottomInfo()) {
 		return 0;
+	} else if (_parent->hasBubble()) {
+		return st::tgwBubbleInfoSkip + _parent->skipBlockHeight();
 	}
 	const auto line = st::msgDateFont->height;
 	const auto effect = _parent->data()->effectId() ? line : 0;
@@ -189,7 +193,7 @@ int WidgetDocument::bareInfoHeight() const {
 		+ 2 * st::msgDateImgPadding.y();
 }
 
-bool WidgetDocument::drawsInfo() const {
+bool WidgetDocument::infoBelowCard() const {
 	return isBubbleBottom() && (_parent->media() == this);
 }
 
@@ -266,24 +270,14 @@ void WidgetDocument::draw(Painter &p, const PaintContext &context) const {
 	if (_runtime->stopped()) {
 		drawStopped(p, context, card);
 	}
-	if (drawsInfo()) {
-		if (bubble) {
-			_parent->drawInfo(
-				p,
-				context,
-				card.x() + card.width(),
-				card.y() + card.height(),
-				width(),
-				InfoDisplayType::Image);
-		} else {
-			_parent->drawInfo(
-				p,
-				context,
-				width(),
-				height(),
-				width(),
-				InfoDisplayType::Background);
-		}
+	if (!bubble && infoBelowCard()) {
+		_parent->drawInfo(
+			p,
+			context,
+			width(),
+			height(),
+			width(),
+			InfoDisplayType::Background);
 	}
 	if (const auto action = rightActionRect()) {
 		_parent->drawRightAction(
@@ -332,14 +326,7 @@ void WidgetDocument::drawStopped(
 	const auto pillHeight = font->height + 2 * padding.y();
 	const auto top = card.y() + (card.height() - pillHeight) / 2;
 	const auto left = card.x() + skip;
-	auto right = card.x() + card.width() - skip;
-	if (_parent->hasBubble() && drawsInfo()) {
-		const auto infoBottom = card.y() + card.height() - skip;
-		const auto infoTop = infoBottom - pillHeight;
-		if (top < infoBottom && top + pillHeight > infoTop) {
-			right -= _parent->infoWidth() + 2 * padding.x() + skip;
-		}
-	}
+	const auto right = card.x() + card.width() - skip;
 	const auto available = right - left - 2 * padding.x();
 	if (available <= 0) {
 		return;
@@ -375,18 +362,12 @@ TextState WidgetDocument::textState(
 	const auto card = cardRect();
 	if (card.isEmpty()) {
 		return result;
-	} else if (drawsInfo()) {
-		const auto info = _parent->hasBubble()
-			? _parent->bottomInfoTextState(
-				card.x() + card.width(),
-				card.y() + card.height(),
-				point,
-				InfoDisplayType::Image)
-			: _parent->bottomInfoTextState(
-				width(),
-				height(),
-				point,
-				InfoDisplayType::Background);
+	} else if (!_parent->hasBubble() && infoBelowCard()) {
+		const auto info = _parent->bottomInfoTextState(
+			width(),
+			height(),
+			point,
+			InfoDisplayType::Background);
 		if (info.link
 			|| info.cursor != CursorState::None
 			|| info.customTooltip) {
@@ -508,17 +489,9 @@ void WidgetDocument::setCardClaimed(bool claimed) {
 }
 
 QPoint WidgetDocument::resolveCustomInfoRightBottom() const {
-	if (!_parent->hasBubble()) {
-		return QPoint(
-			width() - st::msgDateImgPadding.x(),
-			height() - st::msgDateImgPadding.y());
-	}
-	const auto card = cardRect();
-	const auto skipx = st::msgDateImgDelta + st::msgDateImgPadding.x();
-	const auto skipy = st::msgDateImgDelta + st::msgDateImgPadding.y();
 	return QPoint(
-		card.x() + card.width() - skipx,
-		card.y() + card.height() - skipy);
+		width() - st::msgDateImgPadding.x(),
+		height() - st::msgDateImgPadding.y());
 }
 
 void WidgetDocument::ensureDataMediaCreated() const {

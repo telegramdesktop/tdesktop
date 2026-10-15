@@ -621,6 +621,17 @@ void RendererCore::hostMessage(const twidget::Json &message) {
 		_frameRequested = true;
 		refreshClock();
 		return;
+	} else if (type == "frozen") {
+		// WHY: WidgetDocument::drawStopped() paints the themed stop pill; the
+		// core's own freeze would rebuild its badge and fatal dimming into
+		// the last frame, so the core never sees this message.
+		_stopped = true;
+		_frameRequested = false;
+		_stopReason = QString::fromStdString(message["reason"].asString());
+		_stopFatal = message["fatal"].asBool();
+		releaseInput();
+		finish({}, Change::Stopped | Change::Repaint);
+		return;
 	}
 	const auto wasDirty = _renderer->dirty();
 	_backend->beginCanvasBatch();
@@ -634,13 +645,6 @@ void RendererCore::hostMessage(const twidget::Json &message) {
 		}
 	} else if (type == "anim") {
 		changes |= Change::Repaint;
-	} else if (type == "frozen") {
-		_stopped = true;
-		_frameRequested = false;
-		_stopReason = QString::fromStdString(message["reason"].asString());
-		_stopFatal = message["fatal"].asBool();
-		releaseInput();
-		changes |= Change::Stopped | Change::Repaint;
 	} else if (type == "listen") {
 		learnListen(message["types"]);
 	} else if (type == "preventDefault") {

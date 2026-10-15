@@ -55,9 +55,7 @@ public:
 	}
 	bool needsBubble() const override;
 	bool unwrapped() const override;
-	bool customInfoLayout() const override {
-		return true;
-	}
+	bool customInfoLayout() const override;
 	QPoint resolveCustomInfoRightBottom() const override;
 
 	bool hasHeavyPart() const override;
@@ -76,8 +74,8 @@ private:
 	[[nodiscard]] QMargins cardMargins() const;
 	[[nodiscard]] QRect cardRect() const;
 	[[nodiscard]] int countHeight() const;
-	[[nodiscard]] int bareInfoHeight() const;
-	[[nodiscard]] bool drawsInfo() const;
+	[[nodiscard]] int infoHeight() const;
+	[[nodiscard]] bool infoBelowCard() const;
 	[[nodiscard]] std::optional<QRect> rightActionRect() const;
 	[[nodiscard]] Tgw::RendererCore *pointerCore() const;
 	[[nodiscard]] QPointF cssPoint(QPoint point) const;

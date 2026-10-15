@@ -9,3 +9,4 @@ using "ui/chat/chat.style";
 
 tgwPlaceholderHeight: 160px;
 tgwBareInfoSkip: msgDateImgDelta;
+tgwBubbleInfoSkip: mediaInBubbleSkip;
