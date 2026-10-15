@@ -57,6 +57,8 @@ public:
 		const MTPSendMessageAction &action);
 	void clear(not_null<UserData*> from);
 
+	[[nodiscard]] bool typingShown() const;
+
 	[[nodiscard]] QString actionText() const {
 		return _sendActionString;
 	}

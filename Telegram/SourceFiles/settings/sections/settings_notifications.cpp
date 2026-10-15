@@ -1020,6 +1020,60 @@ void BuildGlobalNotificationsSection(SectionBuilder &builder) {
 		return SectionBuilder::WidgetToAdd{};
 	});
 
+	const auto typingPrivate = builder.addButton({
+		.id = u"notifications/typing-sound-private"_q,
+		.title = tr::lng_settings_typing_sound_private(),
+		.icon = { &st::menuIconSoundOn },
+		.toggled = rpl::single(
+			Core::App().settings().typingSoundPrivate()
+		) | rpl::type_erased,
+		.keywords = { u"sound"_q, u"typing"_q, u"chat"_q },
+	});
+	if (typingPrivate) {
+		typingPrivate->toggledChanges(
+		) | rpl::filter([](bool checked) {
+			return (checked != Core::App().settings().typingSoundPrivate());
+		}) | rpl::on_next([](bool checked) {
+			Core::App().settings().setTypingSoundPrivate(checked);
+		}, typingPrivate->lifetime());
+	}
+
+	const auto typingGroups = builder.addButton({
+		.id = u"notifications/typing-sound-groups"_q,
+		.title = tr::lng_settings_typing_sound_groups(),
+		.icon = { &st::menuIconSoundOn },
+		.toggled = rpl::single(
+			Core::App().settings().typingSoundGroups()
+		) | rpl::type_erased,
+		.keywords = { u"sound"_q, u"typing"_q, u"group"_q },
+	});
+	if (typingGroups) {
+		typingGroups->toggledChanges(
+		) | rpl::filter([](bool checked) {
+			return (checked != Core::App().settings().typingSoundGroups());
+		}) | rpl::on_next([](bool checked) {
+			Core::App().settings().setTypingSoundGroups(checked);
+		}, typingGroups->lifetime());
+	}
+
+	const auto typingChatList = builder.addButton({
+		.id = u"notifications/typing-sound-chat-list"_q,
+		.title = tr::lng_settings_typing_sound_chat_list(),
+		.icon = { &st::menuIconSoundOn },
+		.toggled = rpl::single(
+			Core::App().settings().typingSoundChatList()
+		) | rpl::type_erased,
+		.keywords = { u"sound"_q, u"typing"_q, u"list"_q },
+	});
+	if (typingChatList) {
+		typingChatList->toggledChanges(
+		) | rpl::filter([](bool checked) {
+			return (checked != Core::App().settings().typingSoundChatList());
+		}) | rpl::on_next([](bool checked) {
+			Core::App().settings().setTypingSoundChatList(checked);
+		}, typingChatList->lifetime());
+	}
+
 	builder.addSkip();
 
 	if (desktop) {

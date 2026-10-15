@@ -117,6 +117,7 @@ public:
 	[[nodiscard]] Window::SeparateId windowId() const;
 	[[nodiscard]] bool isPrimary() const;
 	[[nodiscard]] bool isMainSectionShown() const;
+	[[nodiscard]] bool dialogsInFocus() const;
 	[[nodiscard]] bool isThirdSectionShown() const;
 
 	[[nodiscard]] Dialogs::RowDescriptor resolveChatNext(
