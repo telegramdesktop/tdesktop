@@ -49,6 +49,7 @@ struct PeerByLinkInfo {
 	RepliesByLinkInfo repliesInfo;
 	ResolveType resolveType = ResolveType::Default;
 	QString referral;
+	QString noPaidToken;
 	QString startToken;
 	ChatAdminRights startAdminRights;
 	bool startAutoSubmit = false;

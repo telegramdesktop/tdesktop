@@ -444,10 +444,14 @@ void Premium::requestPremiumRequiredSlice() {
 			= base::take(_resolveMessageMoneyRequiredUsers);
 	}
 	const auto finish = [=](const QVector<MTPRequirementToContact> &list) {
-
+		const auto superseded = base::take(
+			_resolveMessageMoneySupersededUsers);
 		auto index = 0;
 		for (const auto &user : base::take(_resolveMessageMoneyRequestedUsers)) {
 			const auto set = [&](bool requirePremium, int stars) {
+				if (superseded.contains(user)) {
+					return;
+				}
 				using Flag = UserDataFlag;
 				constexpr auto me = Flag::RequiresPremiumToWrite;
 				constexpr auto known = Flag::MessageMoneyRestrictionsKnown;
@@ -487,6 +491,49 @@ void Premium::requestPremiumRequiredSlice() {
 	}).fail([=] {
 		finish({});
 	}).send();
+}
+
+void Premium::importNoPaidMessagesToken(
+		not_null<UserData*> user,
+		const QString &token,
+		Fn<void(bool priceRemoved)> done,
+		Fn<void(const MTP::Error &)> fail) {
+	const auto key = std::pair(user, token);
+	auto &callbacks = _noPaidTokenImports[key];
+	callbacks.push_back({ std::move(done), std::move(fail) });
+	if (callbacks.size() > 1) {
+		return;
+	}
+	const auto priced = [=] {
+		return user->hasStarsPerMessage() || (user->starsPerMessage() > 0);
+	};
+	_api.request(MTPcontacts_ImportNoPaidMessagesToken(
+		user->inputUser(),
+		MTP_string(token)
+	)).done([=](const MTPUser &result) {
+		const auto pricedBefore = priced();
+		if (_resolveMessageMoneyRequestedUsers.contains(user)) {
+			_resolveMessageMoneySupersededUsers.emplace(user);
+		}
+		_session->api().reloadFullPeer(user);
+		_session->data().processUser(result);
+		const auto priceRemoved = pricedBefore && !priced();
+		if (const auto callbacks = _noPaidTokenImports.take(key)) {
+			for (const auto &callback : *callbacks) {
+				if (callback.done) {
+					callback.done(priceRemoved);
+				}
+			}
+		}
+	}).fail([=](const MTP::Error &error) {
+		if (const auto callbacks = _noPaidTokenImports.take(key)) {
+			for (const auto &callback : *callbacks) {
+				if (callback.fail) {
+					callback.fail(error);
+				}
+			}
+		}
+	}).handleAllErrors().send();
 }
 
 PremiumGiftCodeOptions::PremiumGiftCodeOptions(not_null<PeerData*> peer)

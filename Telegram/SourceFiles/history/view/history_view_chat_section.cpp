@@ -908,7 +908,9 @@ ChatWidget::ChatWidget(
 			| PeerUpdateFlag::StarsPerMessage)) {
 			refreshSuggestPostToggle();
 		}
-		if (update.flags & PeerUpdateFlag::IsBlocked) {
+		if ((update.flags & PeerUpdateFlag::IsBlocked)
+			|| ((update.flags & PeerUpdateFlag::StarsPerMessage)
+				&& _peer->isUser())) {
 			refreshAboutView(true);
 		} else if (update.flags & (PeerUpdateFlag::FullInfo
 			| PeerUpdateFlag::Rights
@@ -6005,6 +6007,9 @@ void ChatWidget::refreshAboutView(bool force) {
 				|| user->isFullLoaded()) {
 				refresh();
 			} else {
+				if (force) {
+					destroy();
+				}
 				session().api().requestFullPeer(user);
 			}
 		} else {

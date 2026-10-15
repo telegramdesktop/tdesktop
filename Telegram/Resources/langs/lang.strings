@@ -7070,6 +7070,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_send_free_channel" = "Send a direct message to the administrator of {channel}.";
 "lng_send_charges_stars_text" = "{user} charges {amount} for each message.";
 "lng_send_charges_stars_go" = "Buy Stars";
+"lng_no_paid_token_invalid" = "This free messages link is invalid or has expired.";
+"lng_no_paid_token_user_invalid" = "This free messages link can't be used.";
+"lng_no_paid_token_applied" = "You can now message {user} for free.";
 
 "lng_exceptions_list_title" = "Exceptions";
 "lng_removed_list_title" = "Removed users";

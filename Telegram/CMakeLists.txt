@@ -2368,6 +2368,8 @@ PRIVATE
     window/window_main_menu_helpers.h
     window/window_media_preview.cpp
     window/window_media_preview.h
+    window/window_no_paid_token.cpp
+    window/window_no_paid_token.h
     window/window_peer_menu.cpp
     window/window_peer_menu.h
     window/window_restore_shell.cpp
