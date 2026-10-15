@@ -156,7 +156,6 @@ void RequestWithGiftPassword(
 		not_null<Ui::RpWidget*> parent,
 		GiftPasswordStep step) {
 	struct State {
-		rpl::lifetime lifetime;
 		bool inFlight = false;
 		bool done = false;
 	};
@@ -182,6 +181,10 @@ void RequestWithGiftPassword(
 		}
 	};
 	const auto probeFailed = [=](const MTP::Error &error) {
+		if (error.type().startsWith(u"CLIENT_"_q)) {
+			step.failed(error); // a locally made error is no password challenge
+			return;
+		}
 		auto prePassword = PrePasswordErrorBox(
 			error.type(),
 			session,
@@ -192,12 +195,10 @@ void RequestWithGiftPassword(
 			showBox(std::move(prePassword));
 			return;
 		}
-		state->lifetime = session->api().cloudPassword().state(
+		session->api().cloudPassword().state(
 		) | rpl::take(
 			1
 		) | rpl::on_next([=](const Core::CloudPasswordState &pass) {
-			state->lifetime.destroy();
-
 			auto fields = PasscodeBox::CloudFields::From(pass);
 			fields.customTitle = tr::lng_gift_transfer_password_title();
 			fields.customDescription
@@ -224,7 +225,7 @@ void RequestWithGiftPassword(
 				});
 			});
 			showBox(Box<PasscodeBox>(session, fields));
-		});
+		}, parent->lifetime());
 	};
 	session->api().cloudPassword().reload();
 	step.send(
@@ -239,7 +240,8 @@ void ExportOnBlockchain(
 		std::shared_ptr<Data::UniqueGift> gift,
 		Data::SavedStarGiftId giftId,
 		Fn<void()> boxShown,
-		Fn<void()> wentToUrl) {
+		Fn<void()> wentToUrl,
+		Fn<void()> failed) {
 	const auto session = &window->session();
 	const auto show = window->uiShow();
 	const auto send = [=](
@@ -263,6 +265,7 @@ void ExportOnBlockchain(
 		.boxShown = boxShown,
 		.succeeded = wentToUrl,
 		.failed = [=](const MTP::Error &error) {
+			failed();
 			show->showToast(error.type());
 		},
 	});
@@ -384,7 +387,9 @@ void MoveToWalletBox(
 	const auto show = window->uiShow();
 	const auto weakSession = base::make_weak(session);
 	const auto weakBox = base::make_weak(box);
-	const auto falseType = u"STARGIFT_WITHDRAW_FALSE"_q;
+	const auto falseError = MTP::Error::Local(
+		u"STARGIFT_WITHDRAW_FALSE"_q,
+		u"payments.withdrawStarGift returned false"_q);
 
 	wallet->startPolling();
 	box->lifetime().add([=] {
@@ -507,9 +512,7 @@ void MoveToWalletBox(
 				return;
 			}
 			disarm();
-			fail(MTP::Error::Local(
-				falseType,
-				u"payments.withdrawStarGift returned false"_q));
+			fail(falseError);
 		}).fail([=](const MTP::Error &error) {
 			disarm();
 			fail(error);
@@ -536,7 +539,7 @@ void MoveToWalletBox(
 			return;
 		}
 		if (!Ui::ShowGiftErrorToast(show, error)) {
-			show->showToast((error.type() == falseType)
+			show->showToast((error.type() == falseError.type())
 				? Lang::Hard::ServerError()
 				: error.type());
 		}
@@ -620,6 +623,8 @@ void MoveToWalletBox(
 						strong->closeBox();
 					}
 					close();
+				}, [=] {
+					state->exporting = false;
 				});
 			}));
 			return;

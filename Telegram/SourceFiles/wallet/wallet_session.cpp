@@ -7740,7 +7740,7 @@ void Session::refreshCollectibles(bool force) {
 		? kForcedCollectiblesInterval
 		: kCollectiblesPollInterval;
 	if (_collectiblesRequest
-		|| _collectiblesPaged
+		|| (_collectiblesPaged && _collectibleWaits->empty())
 		|| (_collectiblesRefreshedAt
 			&& (crl::now() - _collectiblesRefreshedAt < interval))) {
 		return;
@@ -7818,13 +7818,25 @@ void Session::applyCollectibles(
 		const MTPwallet_NftItems &result,
 		const CollectiblesRequest &request) {
 	const auto &data = result.data();
+	auto loaded = CollectiblesFromServer(data.vitems().v);
+	if (!request.more && _collectiblesPaged) {
+		// A paged list keeps its pages and cursor; only arrivals are added.
+		auto fresh = UnheldCollectibles(
+			_collectibles,
+			std::vector<Gram::NftItem>(loaded));
+		if (!fresh.empty()) {
+			fresh.insert(end(fresh), begin(_collectibles), end(_collectibles));
+			setCollectibles(std::move(fresh));
+		}
+		_collectibleWaits->settle(&loaded, request.sentAt);
+		return;
+	}
 	const auto served = data.vnext_offset();
 	auto next = served ? qs(*served) : QString();
 	if (!next.isEmpty() && (next == request.offset)) {
 		LOG(("Wallet Error: wallet.getNfts repeated its offset."));
 		next = QString();
 	}
-	auto loaded = CollectiblesFromServer(data.vitems().v);
 	_collectiblesNextOffset = next;
 	_collectiblesHasMore = !next.isEmpty();
 	_collectiblesCompletedAt = crl::now();
