@@ -46,7 +46,7 @@ constexpr auto kMiterLimit = 10.;
 constexpr auto kQuarterTurn = 90.;
 constexpr auto kDegrees = 180. / M_PI;
 constexpr auto kLimitKind = std::string_view("canvas-limit");
-constexpr auto kModeKind = std::string_view("canvas-composite");
+constexpr auto kModeKind = std::string_view("canvas-composite: ");
 constexpr auto kWorkDetail = std::string_view(
 	"canvas drawing exceeded the work allowance of a message,"
 	" the rest of its drawing was skipped");
@@ -1722,8 +1722,8 @@ void Canvases::noteMode(int index) {
 		return;
 	}
 	_notedModes |= bit;
-	const auto name = kUnsupportedModes[index].name;
-	diagnose(kModeKind, std::string(name) + std::string(kModeDetail));
+	const auto name = std::string(kUnsupportedModes[index].name);
+	diagnose(std::string(kModeKind) + name, name + std::string(kModeDetail));
 }
 
 void Canvases::diagnose(std::string_view kind, std::string_view detail) const {
