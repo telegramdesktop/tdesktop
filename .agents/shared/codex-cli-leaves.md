@@ -14,12 +14,12 @@ Python 3 (`python3`, `python` or `py -3`, `-I` where available).
 python3 SOURCE_ROOT/.agents/shared/scripts/codex_leaf.py check
 ```
 
-It prints one JSON line and exits non-zero when `codex` is missing from
-`PATH`, does not start, or is not logged in. Check once per invocation before
-the first Codex leaf. When it fails, run the same phases as the host's native
-leaves exactly as before and record `Review provider: native (codex
-unavailable: <reason>)` in the phase result `NOTES:`. Never install, update or
-log in to Codex on the user's behalf.
+It prints one JSON line and exits non-zero when `codex` is found neither on
+`PATH` nor bundled in the Codex app, does not start, or is not logged in.
+Check once per invocation before the first Codex leaf. When it fails, run the
+same phases as the host's native leaves exactly as before and record `Review
+provider: native (codex unavailable: <reason>)` in the phase result `NOTES:`.
+Never install, update or log in to Codex on the user's behalf.
 
 ## Effort and model
 

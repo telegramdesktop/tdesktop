@@ -38,6 +38,9 @@ RUNNING = ('starting', 'running')
 TERMINAL = ('done', 'failed', 'stopped')
 ARCHIVED = ('jsonl', 'stderr', 'last', 'runner_log', 'state')
 WINDOWS = (os.name == 'nt')
+CODEX_APP_MAC = '/Applications/Codex.app/Contents/Resources/codex'
+CODEX_APP_PACKAGES = ('Software\\Classes\\Local Settings\\Software\\Microsoft'
+    '\\Windows\\CurrentVersion\\AppModel\\Repository\\Packages')
 FRESHNESS = 2
 LOCK_TIMEOUT = 60
 KILL_GRACE = 10
@@ -107,7 +110,33 @@ def codex_binary():
         found = shutil.which(name)
         if found:
             return found
-    return None
+    return codex_app_binary()
+
+
+def codex_app_binary():
+    # The Codex app bundles the CLI, but on Windows the package folder is
+    # renamed by every app update, so it cannot stay on PATH.
+    if not WINDOWS:
+        return CODEX_APP_MAC if os.access(CODEX_APP_MAC, os.X_OK) else None
+    import winreg
+    found = []
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, CODEX_APP_PACKAGES) as packages:
+            for index in range(winreg.QueryInfoKey(packages)[0]):
+                name = winreg.EnumKey(packages, index)
+                parts = name.split('_')
+                if (len(parts) != 5 or parts[0] != 'OpenAI.Codex'
+                        or parts[4] != '2p2nqsd0c76g0'):
+                    continue
+                with winreg.OpenKey(packages, name) as package:
+                    root = winreg.QueryValueEx(package, 'PackageRootFolder')[0]
+                binary = os.path.join(root, 'app', 'resources', 'codex.exe')
+                if os.path.isfile(binary):
+                    version = tuple(int(x) for x in parts[1].split('.'))
+                    found.append((version, binary))
+    except (OSError, ValueError):
+        return None
+    return max(found)[1] if found else None
 
 
 def paths(run_dir, name):
@@ -667,7 +696,10 @@ def terminate_leaf(state, files):
 def command_check(args):
     binary = codex_binary()
     if not binary:
-        print(json.dumps({'ok': False, 'reason': 'codex is not on PATH'}))
+        print(json.dumps({
+            'ok': False,
+            'reason': 'codex is neither on PATH nor in the Codex app',
+        }))
         return 1
     flags = subprocess.CREATE_NO_WINDOW if WINDOWS else 0
     try:
@@ -811,7 +843,7 @@ def command_start(args):
         fail('prompt file does not exist: ' + args.prompt_file)
     binary = codex_binary()
     if not binary:
-        fail('codex is not on PATH')
+        fail('codex is neither on PATH nor in the Codex app')
     resume_thread = None
     if args.resume:
         if args.resume == args.name:
