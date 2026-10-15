@@ -20,8 +20,7 @@ namespace Wallet {
 // card's rest rect there, `quad` the folded quadrilateral it is painted
 // as, and `transform` maps the first onto the second. A Card paints with
 // a widget-local painter, so it reconciles with p.translate(-x(), -y())
-// before applying `transform` and draws into `rest`; paintedQuad() and
-// paintedOutline() return Content coordinates for the same reason.
+// before applying `transform` and draws into `rest`.
 struct CardFold {
 	QRect rest;
 	QPolygonF quad;
@@ -58,6 +57,8 @@ struct CardSpace {
 	int nameWidth,
 	int nameHeight);
 
+[[nodiscard]] CardFold ComputeCardFold(QRect cardRest, float64 fold);
+[[nodiscard]] QPolygonF CardFoldOutline(const CardFold &fold);
 [[nodiscard]] QPointF CardFoldPoint(const CardFold &fold, QPointF local);
 [[nodiscard]] float64 CardFoldScale(const CardFold &fold, QPointF local);
 

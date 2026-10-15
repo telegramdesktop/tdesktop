@@ -69,6 +69,11 @@ walletCardQrIcon: icon{{ "menu/qr_code", windowSubTextFg }};
 walletCardInfoIcon: icon{{ "menu/info", windowSubTextFg }};
 walletCardStickerTouch: 4px;
 walletCardStickerRingWidth: 1px;
+walletCardFloatShadow: BoxShadow {
+	blurRadius: 18px;
+	offset: point(0px, 2px);
+	opacity: 0.22;
+}
 walletChatCardMarkTop: 29px;
 walletChatCardMarkSize: 42px;
 // The animation paints over its layout slot, centred on it, so rows stay put.

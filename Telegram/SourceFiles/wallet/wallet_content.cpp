@@ -101,6 +101,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_amount_field.h"
 #include "wallet/wallet_amount_painter.h"
 #include "wallet/wallet_card_angle.h"
+#include "wallet/wallet_card_float.h"
 #include "wallet/wallet_card_gradient.h"
 #include "wallet/wallet_card_space.h"
 #include "wallet/wallet_card_stickers.h"
@@ -173,7 +174,6 @@ constexpr auto kBackupWriteDownDelay = 30 * crl::time(1000);
 constexpr auto kBackupQuizWordCount = 3;
 constexpr auto kCoverBodyPart = 0.90;
 constexpr auto kCoverTitleScale = 0.05;
-constexpr auto kCardFoldMinHeight = 1.;
 constexpr auto kIntroTooltipShownPref = "wallet_intro_tooltip_shown"_cs;
 constexpr auto kWalletIntroGlares = 2;
 constexpr auto kUndatedRowDate = std::numeric_limits<TimeId>::max();
@@ -371,6 +371,7 @@ private:
 	SingleQueuedInvokation _loadMoreCheck;
 	std::unique_ptr<BalanceInk> _ink;
 	std::unique_ptr<CardStickers> _cardStickers;
+	std::unique_ptr<CardFloat> _cardFloat;
 	Ui::Text::String _title;
 	base::unique_qptr<Ui::RpWidget> _titleBalance;
 	Ui::RpWidget *_container = nullptr;
@@ -400,8 +401,6 @@ private:
 
 };
 
-[[nodiscard]] CardFold ComputeCardFold(QRect cardRest, float64 fold);
-
 class Card final : public Ui::RpWidget {
 public:
 	Card(
@@ -411,10 +410,12 @@ public:
 
 	void setFold(const CardFold &fold);
 	[[nodiscard]] const CardFold &fold() const;
-	[[nodiscard]] QPolygonF paintedQuad() const;
-	[[nodiscard]] QPolygonF paintedOutline() const;
 	[[nodiscard]] std::vector<QRectF> protectedAreas(
 		const BalanceInk &ink) const;
+	void paintFold(
+		Painter &p,
+		const CardFold &fold,
+		not_null<QWidget*> paintOwner);
 	void invalidateCache();
 	void followCursor();
 
@@ -423,8 +424,9 @@ protected:
 
 private:
 	[[nodiscard]] QRect restRect() const;
-	[[nodiscard]] QRectF paintedRect() const;
-	[[nodiscard]] float64 paintAngle();
+	[[nodiscard]] float64 paintAngle(
+		not_null<QWidget*> paintOwner,
+		QRectF rect);
 	void paintContent(Painter &p, float64 angle);
 	void validateCache(float64 angle);
 	void refreshAddress();
@@ -435,6 +437,7 @@ private:
 	QString _addressLine1;
 	QString _addressLine2;
 	CardFold _fold;
+	QPointer<QWidget> _paintOwner;
 	CardBackground _background;
 	QImage _cache;
 	float64 _cacheAngle = 0.;
@@ -13751,10 +13754,9 @@ Card::Card(
 			kMarkupTextOptions,
 			Core::TextContext({
 				.session = &_show->session(),
-				.repaint = crl::guard(this, [=] { update(); }),
+				.repaint = crl::guard(this, [=] { invalidateCache(); }),
 		}));
 		invalidateCache();
-		update();
 	}, lifetime());
 }
 
@@ -13768,24 +13770,13 @@ const CardFold &Card::fold() const {
 	return _fold;
 }
 
-QPolygonF Card::paintedQuad() const {
-	return _fold.quad;
-}
-
-QPolygonF Card::paintedOutline() const {
-	if (!_fold.valid) {
-		return QPolygonF();
-	}
-	auto path = QPainterPath();
-	path.addRoundedRect(
-		QRectF(_fold.rest),
-		st::walletCardRadius,
-		st::walletCardRadius);
-	return _fold.transform.map(path.toFillPolygon());
-}
-
 void Card::invalidateCache() {
 	_cache = QImage();
+	if (const auto owner = _paintOwner.data()) {
+		owner->update();
+	} else {
+		update();
+	}
 }
 
 void Card::followCursor() {
@@ -13794,15 +13785,11 @@ void Card::followCursor() {
 	}
 }
 
-QRectF Card::paintedRect() const {
-	return _fold.quad.boundingRect().translated(-QPointF(pos()));
-}
-
-float64 Card::paintAngle() {
+float64 Card::paintAngle(not_null<QWidget*> paintOwner, QRectF rect) {
 	if (!_angle) {
 		return 0.;
 	}
-	_angle->track(this, this, paintedRect());
+	_angle->track(this, paintOwner, rect);
 	return _angle->value(crl::now());
 }
 
@@ -13823,7 +13810,6 @@ void Card::refreshAddress() {
 		_addressLine2 = GroupedAddressLine(address, kAddressLength / 2);
 	}
 	invalidateCache();
-	update();
 }
 
 void Card::validateCache(float64 angle) {
@@ -13844,23 +13830,33 @@ void Card::validateCache(float64 angle) {
 }
 
 void Card::paintEvent(QPaintEvent *e) {
-	if (!_fold.valid || _fold.opacity <= 0.) {
-		return;
-	}
-	const auto angle = paintAngle();
 	auto p = Painter(this);
-	if (!_fold.fold) {
-		auto hq = PainterHighQualityEnabler(p);
-		p.translate(restRect().topLeft());
-		paintContent(p, angle);
+	p.translate(-x(), -y());
+	paintFold(p, _fold, this);
+}
+
+void Card::paintFold(
+		Painter &p,
+		const CardFold &fold,
+		not_null<QWidget*> paintOwner) {
+	if (!fold.valid || fold.opacity <= 0.) {
 		return;
 	}
-	validateCache(angle);
+	_paintOwner = paintOwner.get();
+	const auto bounds = fold.quad.boundingRect();
+	const auto angle = paintAngle(paintOwner, p.transform().mapRect(bounds));
+	p.save();
 	auto hq = PainterHighQualityEnabler(p);
-	p.setOpacity(_fold.opacity);
-	p.translate(-x(), -y());
-	p.setTransform(_fold.transform, true);
-	p.drawImage(QRectF(_fold.rest), _cache);
+	p.setOpacity(p.opacity() * fold.opacity);
+	if (fold.transform.type() <= QTransform::TxTranslate) {
+		p.translate(bounds.topLeft());
+		paintContent(p, angle);
+	} else {
+		validateCache(angle);
+		p.setTransform(fold.transform, true);
+		p.drawImage(QRectF(fold.rest), _cache);
+	}
+	p.restore();
 }
 
 void Card::paintContent(Painter &p, float64 angle) {
@@ -13910,44 +13906,6 @@ std::vector<QRectF> Card::protectedAreas(const BalanceInk &ink) const {
 			stripRight - layout.stripLeft,
 			stripHeight),
 	};
-}
-
-CardFold ComputeCardFold(QRect cardRest, float64 fold) {
-	auto result = CardFold();
-	result.rest = cardRest;
-	result.fold = fold;
-	result.topY = cardRest.top() - cardRest.top() * fold;
-	result.bottomY = result.topY + cardRest.height() * (1. - fold);
-	result.opacity = 1. - std::pow(fold, st::walletCardFoldFadePower);
-	if (result.bottomY - result.topY < kCardFoldMinHeight) {
-		return result;
-	}
-	const auto bottomWidth = cardRest.width()
-		* (1. - (1. - st::walletCardFoldBottomScale) * fold);
-	const auto topWidth = bottomWidth
-		* (1. - (1. - st::walletCardFoldTopScale) * fold);
-	const auto center = cardRest.left() + cardRest.width() / 2.;
-	const auto rest = QRectF(cardRest);
-	const auto restQuad = QPolygonF({
-		rest.topLeft(),
-		rest.topRight(),
-		rest.bottomRight(),
-		rest.bottomLeft(),
-	});
-	auto quad = QPolygonF({
-		QPointF(center - topWidth / 2., result.topY),
-		QPointF(center + topWidth / 2., result.topY),
-		QPointF(center + bottomWidth / 2., result.bottomY),
-		QPointF(center - bottomWidth / 2., result.bottomY),
-	});
-	auto transform = QTransform();
-	if (!QTransform::quadToQuad(restQuad, quad, transform)) {
-		return result;
-	}
-	result.quad = std::move(quad);
-	result.transform = transform;
-	result.valid = true;
-	return result;
 }
 
 Content::Content(
@@ -14532,6 +14490,7 @@ void Content::setupContent() {
 			.painter = base::make_weak(_cardStickers),
 			.fold = [=] { return cardFold(); },
 			.protectedAreas = [=] { return _card->protectedAreas(*_ink); },
+			.bring = [=] { _cardFloat->bring(); },
 		});
 	collectiblesWrap->toggleOn(wallet->collectiblesTabValue());
 	collectiblesWrap->finishAnimating();
@@ -14591,11 +14550,12 @@ void Content::setupContent() {
 	_pinnedBackground->raise();
 	_card->raise();
 	_pinned->raise();
-	_cardButton->raise();
 	_tabsShadow->raise();
 	_headerShadow->raise();
 	_stripShadow->raise();
 	_strip->raise();
+	_cardButton->raise();
+	_cardFloat->widget()->raise();
 
 	const auto local = &_show->session().local();
 	if (!local->readPref<bool>(kIntroTooltipShownPref)) {
@@ -14892,11 +14852,16 @@ void Content::setupBalance() {
 	_cardStickers = std::make_unique<CardStickers>(
 		&_show->session(),
 		OwnCardStickersValue(&_show->session()),
-		[=] { _pinnedBalance->update(_card->geometry()); });
-	_pinnedBalance->paintRequest(
-	) | rpl::on_next([=](QRect clip) {
-		const auto fold = cardFold();
-		auto p = QPainter(_pinnedBalance);
+		[=] {
+			_pinnedBalance->update(_card->geometry());
+			if (_cardFloat) {
+				_cardFloat->update();
+			}
+		});
+	const auto paintInkAndStickers = [=](
+			QPainter &p,
+			const CardFold &fold,
+			QRect clip) {
 		auto hq = PainterHighQualityEnabler(p);
 		if (clip.intersects(_ink->boundingRect(fold))) {
 			_ink->paint(p, fold, cardOutline(), clip);
@@ -14905,6 +14870,28 @@ void Content::setupBalance() {
 			p.setOpacity(fold.opacity);
 			p.setTransform(fold.transform, true);
 			_cardStickers->paint(p, fold.rest);
+		}
+	};
+	_cardFloat = std::make_unique<CardFloat>(CardFloatArgs{
+		.body = this,
+		.inPlace = [=] {
+			return ComputeCardFold(cardRest(), foldProgress());
+		},
+		.arriving = _cardStickers->arrivingValue(),
+		.paint = [=](Painter &p, const CardFold &fold, QRect clip) {
+			_card->paintFold(p, fold, _cardFloat->widget());
+			paintInkAndStickers(p, fold, clip);
+		},
+		.changed = [=] {
+			updatePinned();
+			_titleBalance->update();
+		},
+	});
+	_pinnedBalance->paintRequest(
+	) | rpl::on_next([=](QRect clip) {
+		if (!_cardFloat->shown()) {
+			auto p = QPainter(_pinnedBalance);
+			paintInkAndStickers(p, cardFold(), clip);
 		}
 	}, _pinnedBalance->lifetime());
 
@@ -14929,6 +14916,7 @@ void Content::setupBalance() {
 	const auto repaintBalance = [=] {
 		_pinnedBalance->update();
 		_titleBalance->update();
+		_cardFloat->update();
 		_paintedInk = _ink->boundingRect(cardFold());
 	};
 
@@ -14950,7 +14938,6 @@ void Content::setupBalance() {
 		const auto scope = WindowPaletteScope(this);
 		_ink->refresh();
 		_card->invalidateCache();
-		_card->update();
 		_pinnedBackground->update();
 		repaintBalance();
 	}, lifetime());
@@ -14971,18 +14958,20 @@ void Content::setupBalance() {
 		_pinnedBalance->update(mark);
 		_titleBalance->update(
 			mark.translated(0, st::separatePanelTitleHeight));
+		_cardFloat->update();
 	});
 }
 
 const CardFold &Content::cardFold() const {
-	return _card->fold();
+	return _cardFloat->shown() ? _cardFloat->fold() : _card->fold();
 }
 
 QRegion Content::cardOutline() const {
-	if (_card->isHidden()) {
+	const auto &fold = cardFold();
+	if (!fold.valid || fold.opacity <= 0.) {
 		return {};
 	}
-	return QRegion(_card->paintedQuad().toPolygon());
+	return QRegion(fold.quad.toPolygon());
 }
 
 void Content::paintTitle(QPainter &p, float64 fold) {
@@ -15522,10 +15511,12 @@ void Content::updatePinned() {
 		QPoint(rest.left(), 0),
 		rest.bottomRight());
 	_card->setGeometry(cardWidget);
-	_card->setFold(fold);
-	const auto shown = fold.valid && fold.opacity > 0.;
+	_cardFloat->update();
+	_card->setFold(_cardFloat->shown() ? CardFold() : fold);
+	const auto presented = cardFold();
+	const auto shown = presented.valid && presented.opacity > 0.;
 	if (shown) {
-		const auto outline = _card->paintedOutline();
+		const auto outline = CardFoldOutline(presented);
 		const auto bounds = outline.boundingRect().toAlignedRect();
 		_cardButton->setGeometry(bounds);
 		_cardButton->setMask(QRegion(
@@ -15540,7 +15531,7 @@ void Content::updatePinned() {
 	// The card's dirty area is its whole widget rect, which contains
 	// every folded quad, and the ink's is the union of the rects it was
 	// and is painted into.
-	const auto inkPainted = _ink->boundingRect(fold);
+	const auto inkPainted = _ink->boundingRect(presented);
 	const auto inkDirty = _paintedInk.united(inkPainted);
 	_paintedInk = inkPainted;
 	update(cardWidget);
@@ -16255,7 +16246,6 @@ object_ptr<Ui::RpWidget> MakeWalletCard(
 		const auto scope = WindowPaletteScope(raw);
 		ink->refresh();
 		card->invalidateCache();
-		card->update();
 		overlay->update();
 	}, raw->lifetime());
 

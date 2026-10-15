@@ -2227,6 +2227,8 @@ PRIVATE
     wallet/wallet_api.h
     wallet/wallet_card_flight.cpp
     wallet/wallet_card_flight.h
+    wallet/wallet_card_float.cpp
+    wallet/wallet_card_float.h
     wallet/wallet_card_space.cpp
     wallet/wallet_card_space.h
     wallet/wallet_card_stickers.cpp

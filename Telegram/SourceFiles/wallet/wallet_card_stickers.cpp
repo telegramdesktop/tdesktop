@@ -678,11 +678,13 @@ void CardStickers::hold(const QString &address) {
 	_holds.emplace(canonical);
 	dropLanding(canonical);
 	invalidate();
+	refreshArriving();
 }
 
 void CardStickers::release(const QString &address) {
 	if (_holds.remove(CanonicalAddress(address))) {
 		invalidate();
+		refreshArriving();
 	}
 }
 
@@ -711,6 +713,11 @@ void CardStickers::land(
 		}
 	}
 	invalidate();
+	refreshArriving();
+}
+
+rpl::producer<bool> CardStickers::arrivingValue() const {
+	return _arriving.value();
 }
 
 void CardStickers::apply(std::vector<Data::WalletCardSticker> &&stickers) {
@@ -922,9 +929,18 @@ bool CardStickers::landingStep(crl::time now) {
 		_landings.clear();
 	}
 	invalidate();
-	return ranges::any_of(_landings, [&](const Landing &landing) {
+	const auto active = ranges::any_of(_landings, [&](const Landing &landing) {
 		return now - landing.started < kLandingDuration;
 	});
+	if (!active) {
+		_landingAnimation.stop();
+	}
+	_arriving = active || !_holds.empty();
+	return active;
+}
+
+void CardStickers::refreshArriving() {
+	_arriving = _landingAnimation.animating() || !_holds.empty();
 }
 
 void CardStickers::invalidate() {

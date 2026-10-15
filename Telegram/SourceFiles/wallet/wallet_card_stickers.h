@@ -46,6 +46,8 @@ public:
 		float64 fromScale = 1.,
 		QImage frame = QImage());
 
+	[[nodiscard]] rpl::producer<bool> arrivingValue() const;
+
 private:
 	struct Entry;
 	struct Landing;
@@ -65,6 +67,7 @@ private:
 	void dropLanding(const QString &canonical);
 	void pruneLandings(crl::time now);
 	[[nodiscard]] bool landingStep(crl::time now);
+	void refreshArriving();
 	void invalidate();
 
 	const not_null<Main::Session*> _session;
@@ -73,6 +76,7 @@ private:
 	std::vector<Landing> _landings;
 	base::flat_set<QString> _holds;
 	Ui::Animations::Basic _landingAnimation;
+	rpl::variable<bool> _arriving;
 	QImage _layer;
 	QSize _layerSize;
 	int _layerRatio = 0;
@@ -86,6 +90,7 @@ struct CardHost {
 	base::weak_ptr<CardStickers> painter;
 	Fn<CardFold()> fold;
 	Fn<std::vector<QRectF>()> protectedAreas;
+	Fn<void()> bring;
 };
 
 [[nodiscard]] CardSpace CurrentCardSpace(

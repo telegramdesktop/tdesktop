@@ -10,12 +10,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_story.h"
 
 #include <QtCore/QLineF>
+#include <QtGui/QPainterPath>
 
 #include "styles/style_wallet.h"
 
 namespace Wallet {
 namespace {
 
+constexpr auto kCardFoldMinHeight = 1.;
 constexpr auto kOutlineRatio = 0.03;
 constexpr auto kAnchorX = 0.55;
 constexpr auto kAnchorY = 0.70;
@@ -229,6 +231,56 @@ QRect CardNameRect(
 		layout.nameTop,
 		std::min(nameWidth, layout.nameMax),
 		nameHeight);
+}
+
+CardFold ComputeCardFold(QRect cardRest, float64 fold) {
+	auto result = CardFold();
+	result.rest = cardRest;
+	result.fold = fold;
+	result.topY = cardRest.top() - cardRest.top() * fold;
+	result.bottomY = result.topY + cardRest.height() * (1. - fold);
+	result.opacity = 1. - std::pow(fold, st::walletCardFoldFadePower);
+	if (result.bottomY - result.topY < kCardFoldMinHeight) {
+		return result;
+	}
+	const auto bottomWidth = cardRest.width()
+		* (1. - (1. - st::walletCardFoldBottomScale) * fold);
+	const auto topWidth = bottomWidth
+		* (1. - (1. - st::walletCardFoldTopScale) * fold);
+	const auto center = cardRest.left() + cardRest.width() / 2.;
+	const auto rest = QRectF(cardRest);
+	const auto restQuad = QPolygonF({
+		rest.topLeft(),
+		rest.topRight(),
+		rest.bottomRight(),
+		rest.bottomLeft(),
+	});
+	auto quad = QPolygonF({
+		QPointF(center - topWidth / 2., result.topY),
+		QPointF(center + topWidth / 2., result.topY),
+		QPointF(center + bottomWidth / 2., result.bottomY),
+		QPointF(center - bottomWidth / 2., result.bottomY),
+	});
+	auto transform = QTransform();
+	if (!QTransform::quadToQuad(restQuad, quad, transform)) {
+		return result;
+	}
+	result.quad = std::move(quad);
+	result.transform = transform;
+	result.valid = true;
+	return result;
+}
+
+QPolygonF CardFoldOutline(const CardFold &fold) {
+	if (!fold.valid) {
+		return QPolygonF();
+	}
+	auto path = QPainterPath();
+	path.addRoundedRect(
+		QRectF(fold.rest),
+		st::walletCardRadius,
+		st::walletCardRadius);
+	return fold.transform.map(path.toFillPolygon());
 }
 
 QPointF CardFoldPoint(const CardFold &fold, QPointF local) {

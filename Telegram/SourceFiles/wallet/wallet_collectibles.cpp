@@ -986,10 +986,16 @@ void CollectiblesGrid::flyToCard(const QString &address, QImage frame) {
 		const auto area = shownArea(address);
 		return area ? cardPose(*area) : std::nullopt;
 	};
+	const auto eligible = !frame.isNull()
+		&& !anim::Disabled()
+		&& squarePose(address).has_value();
+	if (eligible && _host.bring) {
+		_host.bring();
+	}
 	if (!card()) {
 		releaseSticker(address);
 		return;
-	} else if (frame.isNull() || anim::Disabled() || !squarePose(address)) {
+	} else if (!eligible) {
 		landSticker(address);
 		return;
 	}
