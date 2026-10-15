@@ -39,6 +39,7 @@ enum class EmojiGroupType {
 
 struct EmojiGroup {
 	QString iconId;
+	QString title; // What a screen reader calls the group.
 	std::vector<QString> emoticons;
 	EmojiGroupType type = EmojiGroupType::Normal;
 
@@ -60,6 +61,11 @@ public:
 	SearchWithGroups(QWidget *parent, SearchDescriptor descriptor);
 
 	[[nodiscard]] rpl::producer<> escapes() const;
+	// Enter or Down in the field, or a group chosen from the keyboard:
+	// the results are for the keyboard now, with the query they are of.
+	// For a screen reader only: without one the results are not focusable.
+	[[nodiscard]] auto activations() const
+	-> rpl::producer<std::vector<QString>>;
 	[[nodiscard]] rpl::producer<std::vector<QString>> queryValue() const;
 	[[nodiscard]] auto debouncedQueryValue() const
 		-> rpl::producer<std::vector<QString>>;
@@ -67,9 +73,24 @@ public:
 	void cancel();
 	void setLoading(bool loading);
 	void stealFocus();
+	[[nodiscard]] bool groupsHaveFocus() const;
 	void returnFocus();
+	// The control the focus was taken from, handed over to whoever takes
+	// the focus on from the search - the results - and forgotten here.
+	[[nodiscard]] QWidget *takeFocusReturn();
 
 	[[nodiscard]] static int IconSizeOverride();
+
+	// Created inside the list it filters, the search is next to it for
+	// a screen reader: its container is the one given here.
+	void setAccessibilityParent(RpWidget *parent);
+	// What the field is called for a screen reader, when its placeholder
+	// says less than that: which of the lists it searches.
+	void setFieldAccessibleName(const QString &name);
+	RpWidget *accessibilityParent() const override;
+	// An unnamed pane: without a role of its own the widget gets the
+	// stock accessible interface, which knows nothing of the parent.
+	QAccessible::Role accessibilityRole() override;
 
 private:
 	int resizeGetHeight(int newWidth) override;
@@ -96,6 +117,7 @@ private:
 	not_null<CrossButton*> _cancel;
 	not_null<InputField*> _field;
 	QPointer<QWidget> _focusTakenFrom;
+	QPointer<RpWidget> _accessibilityParent;
 	not_null<FadeWrap<RpWidget>*> _groups;
 	not_null<RpWidget*> _fade;
 	QPointer<RpWidget> _rightEdge;
@@ -114,6 +136,8 @@ private:
 	rpl::variable<QString> _chosenGroup;
 	base::Timer _debounceTimer;
 	bool _inited = false;
+	rpl::event_stream<> _downs;
+	rpl::event_stream<std::vector<QString>> _activations;
 
 };
 
@@ -128,6 +152,8 @@ public:
 	[[nodiscard]] QImage grab();
 
 	[[nodiscard]] rpl::producer<> escapes() const;
+	[[nodiscard]] auto activations() const
+	-> rpl::producer<std::vector<QString>>;
 	[[nodiscard]] rpl::producer<std::vector<QString>> queryValue() const;
 	[[nodiscard]] auto debouncedQueryValue() const
 		->rpl::producer<std::vector<QString>>;
@@ -135,8 +161,15 @@ public:
 	void cancel();
 	void setLoading(bool loading);
 	void stealFocus();
+	[[nodiscard]] bool groupsHaveFocus() const;
 	void returnFocus();
+	[[nodiscard]] QWidget *takeFocusReturn();
 	void setRightReserved(int value);
+	// The search is created as a child of the list it filters and sits
+	// above it: move it before the list in the Tab chain, and have a
+	// screen reader see it next to the list, not inside it.
+	void placeInTabChainBefore(not_null<QWidget*> widget);
+	void setFieldAccessibleName(const QString &name);
 
 private:
 	void updateSearchGeometry();

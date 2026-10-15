@@ -238,6 +238,7 @@ void EmojiStatuses::requestProfilePhotoGroups() {
 		group.match([&](const MTPDemojiGroupPremium &data) {
 			result.push_back({
 				.iconId = QString::number(data.vicon_emoji_id().v),
+				.title = qs(data.vtitle()),
 				.type = Ui::EmojiGroupType::Premium,
 			});
 		}, [&](const auto &data) {
@@ -248,6 +249,7 @@ void EmojiStatuses::requestProfilePhotoGroups() {
 			}) | ranges::to_vector;
 			result.push_back({
 				.iconId = QString::number(data.vicon_emoji_id().v),
+				.title = qs(data.vtitle()),
 				.emoticons = std::move(emoticons),
 				.type = (MTPDemojiGroupGreeting::Is<decltype(data)>()
 					? Ui::EmojiGroupType::Greeting
