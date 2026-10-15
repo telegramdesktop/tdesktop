@@ -646,6 +646,18 @@ rpl::producer<QMouseEvent*> GiftButton::mouseEvents() {
 	return _mouseEvents.events();
 }
 
+QImage GiftButton::currentStickerFrame() const {
+	if (!_player || !_player->ready()) {
+		return QImage();
+	}
+	return _player->frame(
+		stickerSize(),
+		QColor(0, 0, 0, 0),
+		false,
+		crl::now(),
+		true).image;
+}
+
 bool GiftButton::makeCraftFrameIsFinal(
 		QImage &frame,
 		float64 progress) {

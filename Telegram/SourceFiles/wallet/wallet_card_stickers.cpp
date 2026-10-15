@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_card_stickers.h"
 
 #include "apiwrap.h"
-#include "data/data_changes.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_star_gift.h"
@@ -18,20 +17,35 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_common.h"
 #include "lottie/lottie_single_player.h"
 #include "main/main_session.h"
+#include "ui/effects/star_burst.h"
 #include "ui/painter.h"
+#include "wallet/wallet_address.h"
+#include "wallet/wallet_card_space.h"
+#include "wallet/wallet_own_card.h"
+#include "wallet/wallet_session.h"
 
 #include "styles/style_wallet.h"
 
 namespace Wallet {
 namespace {
 
-constexpr auto kOutlineRatio = 0.03;
 // WHY: the outline is computed on a grid of at most this many cells per
 // outline radius, so the work per frame pixel stays bounded at any size.
 constexpr auto kOutlineSamples = 8;
 constexpr auto kNoSite = std::numeric_limits<float>::max();
 constexpr auto kSolidSpan = -2;
 constexpr auto kBlendSpan = -3;
+constexpr auto kSettleDuration = crl::time(70);
+constexpr auto kRingDelay = crl::time(50);
+constexpr auto kRingDuration = crl::time(300);
+constexpr auto kLandingDuration = kRingDelay + kRingDuration;
+constexpr auto kSparkleDelay = crl::time(150);
+constexpr auto kSparkleSpread = crl::time(50);
+constexpr auto kSparkleLifeMin = crl::time(100);
+constexpr auto kSparkleLifeMax = crl::time(150);
+constexpr auto kRingStartScale = 1.2;
+constexpr auto kRingGrowth = 0.8;
+constexpr auto kRingOpacity = 0.6;
 
 struct OutlineGrid {
 	int step = 0;
@@ -58,16 +72,6 @@ struct OutlineSpan {
 	int column = 0;
 	QRgb value = 0;
 };
-
-[[nodiscard]] int StickerSide(const Data::StoryArea &area, QSize card) {
-	const auto limit = float64(std::min(card.width(), card.height()));
-	const auto side = std::min(
-		area.geometry.width() * card.width(),
-		area.geometry.height() * card.height());
-	return (side > 0.)
-		? int(base::SafeRound(std::min(side, limit)))
-		: 0;
-}
 
 [[nodiscard]] QSize FrameSize(not_null<DocumentData*> document, int side) {
 	const auto box = QSize(side, side);
@@ -502,10 +506,8 @@ void DrawFrameRow(QRgb *to, const QRgb *from, int width) {
 [[nodiscard]] QImage Outlined(QImage frame, int ratio) {
 	frame = std::move(frame).convertToFormat(
 		QImage::Format_ARGB32_Premultiplied);
-	const auto side = std::max(frame.width(), frame.height());
-	const auto outline = std::max(
-		1,
-		int(base::SafeRound(side * kOutlineRatio)));
+	const auto outline = CardStickerOutline(
+		std::max(frame.width(), frame.height()));
 	auto grid = OutlineSites(frame, outline);
 	OutlineDistances(grid, outline);
 	OutlineAlphas(grid, outline);
@@ -514,19 +516,66 @@ void DrawFrameRow(QRgb *to, const QRgb *from, int width) {
 	return result;
 }
 
+[[nodiscard]] QSizeF LogicalSize(const QImage &image) {
+	return QSizeF(image.size()) / image.devicePixelRatio();
+}
+
+[[nodiscard]] float64 EaseOut(float64 progress) {
+	const auto left = 1. - std::clamp(progress, 0., 1.);
+	return 1. - left * left;
+}
+
+[[nodiscard]] Ui::StarBurstDescriptor LandingBurstDescriptor() {
+	const auto side = [](float64 sign) {
+		return Ui::StarBurstSide{
+			.sign = sign,
+			.count = 5,
+			.angle = { -90., 90. },
+			.reach = { 0.55, 0.85 },
+		};
+	};
+	return {
+		.sides = { side(-1.), side(1.) },
+		.delay = kSparkleDelay,
+		.spread = kSparkleSpread,
+		.lifeMin = kSparkleLifeMin,
+		.lifeMax = kSparkleLifeMax,
+		.size = { 0.05, 0.09 },
+		.alpha = { 0.6, 1. },
+		.twinkle = { 0.1, 1.9 },
+		.appearTill = 0.2,
+		.fadeAfter = 0.5,
+		.deformation = 0.1,
+	};
+}
+
+void PaintRing(
+		QPainter &p,
+		QPointF center,
+		float64 side,
+		crl::time elapsed) {
+	if (elapsed < kRingDelay || elapsed >= kLandingDuration) {
+		return;
+	}
+	const auto progress = (elapsed - kRingDelay) / float64(kRingDuration);
+	const auto radius = side * (kRingStartScale + kRingGrowth * progress) / 2.;
+	const auto opacity = p.opacity();
+	p.setOpacity(opacity * kRingOpacity * (1. - progress));
+	p.setPen(QPen(QColor(255, 255, 255), st::walletCardStickerRingWidth));
+	p.setBrush(Qt::NoBrush);
+	p.drawEllipse(center, radius, radius);
+	p.setOpacity(opacity);
+}
+
 void PaintSticker(
 		QPainter &p,
 		const Data::StoryArea &area,
 		const QImage &image,
-		QSize card) {
-	const auto center = area.geometry.center();
-	const auto rotation = std::isfinite(area.rotation)
-		? std::remainder(area.rotation, 360.)
-		: 0.;
-	const auto size = QSizeF(image.size()) / image.devicePixelRatio();
+		QSize card,
+		QSizeF size) {
 	p.save();
-	p.translate(center.x() * card.width(), center.y() * card.height());
-	p.rotate(rotation);
+	p.translate(CardStickerCenter(area, card));
+	p.rotate(CardStickerRotation(area));
 	p.drawImage(
 		QRectF(QPointF(-size.width() / 2., -size.height() / 2.), size),
 		image);
@@ -538,6 +587,7 @@ void PaintSticker(
 struct CardStickers::Entry {
 	not_null<DocumentData*> document;
 	Data::WalletCardSticker data;
+	QString canonical;
 	std::shared_ptr<Data::DocumentMedia> media;
 	std::unique_ptr<HistoryView::StickerPlayer> player;
 	QImage image;
@@ -546,22 +596,37 @@ struct CardStickers::Entry {
 	rpl::lifetime loading;
 };
 
+struct CardStickers::Landing {
+	QString address;
+	QImage frame;
+	std::unique_ptr<Ui::StarBurst> burst;
+	crl::time started = 0;
+	float64 fromScale = 1.;
+};
+
 void RefreshOwnCard(not_null<Main::Session*> session) {
 	session->api().requestFullPeer(session->user());
 }
 
 auto OwnCardStickersValue(not_null<Main::Session*> session)
 -> rpl::producer<std::vector<Data::WalletCardSticker>> {
-	const auto self = session->user();
-	return session->changes().peerFlagsValue(
-		self,
-		Data::PeerUpdate::Flag::WalletCard
-	) | rpl::map([=] {
-		const auto card = self->walletCard();
-		return card
-			? card->stickers
-			: std::vector<Data::WalletCardSticker>();
+	return session->wallet().ownCard().shownValue(
+	) | rpl::map([](const OwnCardState &state) {
+		return state.stickers;
 	}) | rpl::distinct_until_changed();
+}
+
+CardSpace CurrentCardSpace(
+		const CardHost &host,
+		const std::vector<Data::WalletCardSticker> &stickers) {
+	return ComputeCardSpace(
+		host.fold().rest.size(),
+		host.protectedAreas(),
+		stickers | ranges::views::transform(
+			&Data::WalletCardSticker::area
+		) | ranges::to_vector,
+		st::walletCardStickerTouch,
+		style::DevicePixelRatio());
 }
 
 CardStickers::CardStickers(
@@ -569,7 +634,8 @@ CardStickers::CardStickers(
 	rpl::producer<std::vector<Data::WalletCardSticker>> stickers,
 	Fn<void()> repaint)
 : _session(session)
-, _repaint(std::move(repaint)) {
+, _repaint(std::move(repaint))
+, _landingAnimation([=](crl::time now) { return landingStep(now); }) {
 	std::move(
 		stickers
 	) | rpl::on_next([=](std::vector<Data::WalletCardSticker> &&list) {
@@ -591,12 +657,60 @@ void CardStickers::paint(QPainter &p, QRect rest) {
 			_layerValid = false;
 		}
 	}
+	const auto now = crl::now();
+	if (!_landings.empty()) {
+		pruneLandings(now);
+		_layerValid = false;
+	}
 	if (!_layerValid) {
-		compose();
+		compose(now);
 	}
 	if (!_layer.isNull()) {
 		p.drawImage(QRectF(rest), _layer);
 	}
+}
+
+void CardStickers::hold(const QString &address) {
+	const auto canonical = CanonicalAddress(address);
+	if (canonical.isEmpty()) {
+		return;
+	}
+	_holds.emplace(canonical);
+	dropLanding(canonical);
+	invalidate();
+}
+
+void CardStickers::release(const QString &address) {
+	if (_holds.remove(CanonicalAddress(address))) {
+		invalidate();
+	}
+}
+
+void CardStickers::land(
+		const QString &address,
+		float64 fromScale,
+		QImage frame) {
+	const auto canonical = CanonicalAddress(address);
+	if (canonical.isEmpty()) {
+		return;
+	}
+	_holds.remove(canonical);
+	dropLanding(canonical);
+	if (!anim::Disabled() && lookup(canonical)) {
+		_landings.push_back({
+			.address = canonical,
+			.frame = std::move(frame),
+			.burst = Ui::StarBurst::Make(LandingBurstDescriptor()),
+			.started = crl::now(),
+			.fromScale = (std::isfinite(fromScale) && fromScale > 0.)
+				? fromScale
+				: 1.,
+		});
+		if (!_landingAnimation.animating()) {
+			_landingAnimation.start();
+		}
+	}
+	invalidate();
 }
 
 void CardStickers::apply(std::vector<Data::WalletCardSticker> &&stickers) {
@@ -613,15 +727,18 @@ void CardStickers::apply(std::vector<Data::WalletCardSticker> &&stickers) {
 			? std::move(*i)
 			: std::make_unique<Entry>(Entry{ .document = document });
 		entry->data = std::move(sticker);
+		entry->canonical = CanonicalAddress(entry->data.address);
 		_entries.push_back(std::move(entry));
 	}
-	_layerValid = false;
-	_repaint();
+	_landings.erase(ranges::remove_if(_landings, [&](const Landing &landing) {
+		return !lookup(landing.address);
+	}), end(_landings));
+	invalidate();
 }
 
 bool CardStickers::validate(not_null<Entry*> entry) {
 	auto changed = false;
-	const auto side = StickerSide(entry->data.area, _layerSize);
+	const auto side = CardStickerSide(entry->data.area, _layerSize);
 	if (entry->side != side || entry->ratio != _layerRatio) {
 		changed = !entry->image.isNull();
 		prepare(entry, side);
@@ -695,19 +812,21 @@ void CardStickers::capture(not_null<Entry*> entry) {
 	}
 }
 
-void CardStickers::compose() {
+void CardStickers::compose(crl::time now) {
 	_layerValid = true;
-	_layer = QImage();
-	const auto ready = ranges::any_of(_entries, [](const auto &entry) {
-		return !entry->image.isNull();
-	});
-	if (!ready || _layerSize.isEmpty()) {
+	const auto shown = [&](const std::unique_ptr<Entry> &entry) {
+		return !entry->image.isNull() && !_holds.contains(entry->canonical);
+	};
+	if (_layerSize.isEmpty()
+		|| (_landings.empty() && !ranges::any_of(_entries, shown))) {
+		_layer = QImage();
 		return;
 	}
-	_layer = QImage(
-		_layerSize * _layerRatio,
-		QImage::Format_ARGB32_Premultiplied);
-	_layer.setDevicePixelRatio(_layerRatio);
+	const auto size = _layerSize * _layerRatio;
+	if (_layer.size() != size || _layer.devicePixelRatio() != _layerRatio) {
+		_layer = QImage(size, QImage::Format_ARGB32_Premultiplied);
+		_layer.setDevicePixelRatio(_layerRatio);
+	}
 	_layer.fill(Qt::transparent);
 	auto p = QPainter(&_layer);
 	auto hq = PainterHighQualityEnabler(p);
@@ -718,10 +837,99 @@ void CardStickers::compose() {
 		st::walletCardRadius);
 	p.setClipPath(clip);
 	for (const auto &entry : _entries) {
-		if (!entry->image.isNull()) {
-			PaintSticker(p, entry->data.area, entry->image, _layerSize);
+		if (_holds.contains(entry->canonical)) {
+			continue;
+		}
+		const auto landing = ranges::find(
+			_landings,
+			entry->canonical,
+			&Landing::address);
+		if (landing != end(_landings)) {
+			paintLanding(p, entry.get(), *landing, now);
+		} else if (!entry->image.isNull()) {
+			PaintSticker(
+				p,
+				entry->data.area,
+				entry->image,
+				_layerSize,
+				LogicalSize(entry->image));
 		}
 	}
+}
+
+void CardStickers::paintLanding(
+		QPainter &p,
+		not_null<const Entry*> entry,
+		const Landing &landing,
+		crl::time now) const {
+	const auto side = float64(entry->side);
+	if (side <= 0.) {
+		return;
+	}
+	const auto &area = entry->data.area;
+	const auto center = CardStickerCenter(area, _layerSize);
+	const auto elapsed = now - landing.started;
+	PaintRing(p, center, side, elapsed);
+	if (landing.burst) {
+		landing.burst->paint(p, {
+			.origin = center,
+			.extent = side,
+			.elapsed = elapsed,
+		});
+	}
+	const auto settle = EaseOut(elapsed / float64(kSettleDuration));
+	const auto scale = 1. + (landing.fromScale - 1.) * (1. - settle);
+	if (!entry->image.isNull()) {
+		const auto size = LogicalSize(entry->image) * scale;
+		PaintSticker(p, area, entry->image, _layerSize, size);
+	} else if (!landing.frame.isNull()) {
+		const auto size = QSizeF(landing.frame.size()).scaled(
+			QSizeF(side, side),
+			Qt::KeepAspectRatio) * scale;
+		PaintSticker(p, area, landing.frame, _layerSize, size);
+	}
+}
+
+CardStickers::Entry *CardStickers::lookup(const QString &canonical) const {
+	const auto i = ranges::find(
+		_entries,
+		canonical,
+		&Entry::canonical);
+	return (i != end(_entries)) ? i->get() : nullptr;
+}
+
+void CardStickers::dropLanding(const QString &canonical) {
+	_landings.erase(
+		ranges::remove(_landings, canonical, &Landing::address),
+		end(_landings));
+}
+
+void CardStickers::pruneLandings(crl::time now) {
+	const auto disabled = anim::Disabled();
+	_landings.erase(ranges::remove_if(_landings, [&](const Landing &landing) {
+		if (disabled) {
+			return true;
+		} else if (now - landing.started < kLandingDuration) {
+			return false;
+		}
+		const auto entry = lookup(landing.address);
+		return !entry || !entry->image.isNull() || landing.frame.isNull();
+	}), end(_landings));
+}
+
+bool CardStickers::landingStep(crl::time now) {
+	if (anim::Disabled()) {
+		_landings.clear();
+	}
+	invalidate();
+	return ranges::any_of(_landings, [&](const Landing &landing) {
+		return now - landing.started < kLandingDuration;
+	});
+}
+
+void CardStickers::invalidate() {
+	_layerValid = false;
+	_repaint();
 }
 
 } // namespace Wallet

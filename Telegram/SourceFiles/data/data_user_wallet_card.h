@@ -17,6 +17,8 @@ namespace Data {
 
 struct StarGift;
 
+inline constexpr auto kWalletCardMaxStickers = 10;
+
 struct WalletCardSticker {
 	QString address;
 	StoryArea area;
@@ -32,11 +34,15 @@ struct WalletCard {
 	int64 balance = 0;
 	std::vector<WalletCardSticker> stickers;
 	QString backgroundAddress;
+	bool stickersComplete = true;
 
 	friend inline bool operator==(
 		const WalletCard &,
 		const WalletCard &) = default;
 };
+
+[[nodiscard]] bool UniqueWalletCardStickers(
+	const std::vector<WalletCardSticker> &list);
 
 [[nodiscard]] WalletCard ParseWalletCard(
 	not_null<Main::Session*> session,

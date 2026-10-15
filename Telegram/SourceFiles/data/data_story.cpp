@@ -43,6 +43,20 @@ StoryArea ParseArea(const MTPMediaAreaCoordinates &area) {
 	};
 }
 
+MTPMediaAreaCoordinates SerializeArea(const StoryArea &area) {
+	using Flag = MTPDmediaAreaCoordinates::Flag;
+	const auto &geometry = area.geometry;
+	const auto center = geometry.center() * 100.;
+	return MTP_mediaAreaCoordinates(
+		MTP_flags((area.radius > 0.) ? Flag::f_radius : Flag()),
+		MTP_double(center.x()),
+		MTP_double(center.y()),
+		MTP_double(geometry.width() * 100.),
+		MTP_double(geometry.height() * 100.),
+		MTP_double(area.rotation),
+		MTP_double(area.radius));
+}
+
 namespace {
 
 using UpdateFlag = StoryUpdate::Flag;

@@ -47,6 +47,7 @@ namespace Wallet {
 class CollectibleWaits;
 class Engine;
 class Onramp;
+class OwnCard;
 class Rates;
 class Session;
 struct ShareFetch;
@@ -810,6 +811,7 @@ public:
 	[[nodiscard]] TransferMessages &transferMessages();
 	[[nodiscard]] UserAddresses &userAddresses();
 	[[nodiscard]] TonConnect &tonConnect();
+	[[nodiscard]] OwnCard &ownCard();
 
 	[[nodiscard]] Ui::SeparatePanel *panel() const;
 	void setPanel(std::unique_ptr<Ui::SeparatePanel> panel);
@@ -1215,6 +1217,7 @@ private:
 	const std::unique_ptr<UserAddresses> _userAddresses;
 	const std::unique_ptr<TransferMessages> _transferMessages;
 	const std::unique_ptr<TonConnect> _tonConnect;
+	const std::unique_ptr<OwnCard> _ownCard;
 	const std::unique_ptr<Stream> _stream;
 	const std::unique_ptr<CollectibleWaits> _collectibleWaits;
 	base::Timer _pollTimer;

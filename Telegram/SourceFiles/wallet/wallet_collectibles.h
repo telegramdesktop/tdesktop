@@ -18,10 +18,12 @@ class VerticalLayout;
 namespace Wallet {
 
 class CollectibleMedia;
+struct CardHost;
 
 void AddCollectiblesList(
 	not_null<Ui::VerticalLayout*> container,
 	std::shared_ptr<Main::SessionShow> show,
-	std::shared_ptr<CollectibleMedia> media);
+	std::shared_ptr<CollectibleMedia> media,
+	CardHost host);
 
 } // namespace Wallet

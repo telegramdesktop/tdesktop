@@ -8,13 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user_wallet_card.h"
 
 #include "api/api_premium.h"
+#include "base/flat_set.h"
 #include "data/data_star_gift.h"
 #include "wallet/wallet_address.h"
 
 namespace Data {
 namespace {
-
-constexpr auto kMaxStickers = 10;
 
 [[nodiscard]] bool ValidCoordinates(const MTPMediaAreaCoordinates &area) {
 	const auto &data = area.data();
@@ -81,6 +80,18 @@ bool operator==(const WalletCardSticker &a, const WalletCardSticker &b) {
 	return SameServedStarGift(*a.gift, *b.gift);
 }
 
+bool UniqueWalletCardStickers(const std::vector<WalletCardSticker> &list) {
+	auto identities = base::flat_set<QString>();
+	for (const auto &sticker : list) {
+		auto canonical = Wallet::CanonicalAddress(sticker.address);
+		if (canonical.isEmpty()
+			|| !identities.emplace(std::move(canonical)).second) {
+			return false;
+		}
+	}
+	return true;
+}
+
 WalletCard ParseWalletCard(
 		not_null<Main::Session*> session,
 		const MTPwallet_Card &card) {
@@ -89,12 +100,16 @@ WalletCard ParseWalletCard(
 		.address = qs(data.vaddress()),
 		.balance = int64(data.vbalance().v),
 	};
+	auto complete = true;
 	if (const auto stickers = data.vstickers()) {
 		const auto &list = stickers->v;
-		for (const auto &sticker : list | ranges::views::take(kMaxStickers)) {
+		const auto limit = kWalletCardMaxStickers;
+		complete = (list.size() <= limit);
+		for (const auto &sticker : list | ranges::views::take(limit)) {
 			if (auto parsed = ParseSticker(session, sticker)) {
 				result.stickers.push_back(std::move(*parsed));
 			} else {
+				complete = false;
 				LOG(("API Error: Bad wallet.cardSticker skipped."));
 			}
 		}
@@ -103,7 +118,10 @@ WalletCard ParseWalletCard(
 		result.backgroundAddress = BackgroundAddress(
 			result.stickers,
 			*background);
+		complete = complete && !result.backgroundAddress.isEmpty();
 	}
+	result.stickersComplete = complete
+		&& UniqueWalletCardStickers(result.stickers);
 	return result;
 }
 

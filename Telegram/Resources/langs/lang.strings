@@ -8934,6 +8934,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_collectible_not_owned" = "This collectible is no longer in your wallet.";
 "lng_wallet_collectible_own_wallet" = "This collectible is already in your wallet.";
 "lng_wallet_collectible_show_in_gifts" = "also show in my gifts";
+"lng_wallet_card_add" = "Add to Card";
+"lng_wallet_card_remove" = "Remove from Card";
+"lng_wallet_card_limit#one" = "You can put up to {count} gift on your card.";
+"lng_wallet_card_limit#other" = "You can put up to {count} gifts on your card.";
+"lng_wallet_card_saved_profile" = "This gift is shown on your profile. Hide it there to put it on your card.";
+"lng_wallet_card_save_error" = "Couldn't save your card.";
+"lng_wallet_card_not_ready" = "Your card isn't ready to edit. Please try again.";
+"lng_wallet_card_no_space" = "There is no free space on this card.";
 "lng_wallet_chip_gift" = "Collectible gift";
 "lng_wallet_chip_username" = "Collectible username";
 "lng_wallet_chip_number" = "Anonymous Number";

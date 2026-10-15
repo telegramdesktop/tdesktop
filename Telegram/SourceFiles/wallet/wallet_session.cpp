@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_engine.h"
 #include "wallet/wallet_key_protection.h"
 #include "wallet/wallet_onramp.h"
+#include "wallet/wallet_own_card.h"
 #include "wallet/wallet_phrase_shares.h"
 #include "wallet/wallet_rates.h"
 #include "wallet/wallet_session_deposit.h"
@@ -2295,6 +2296,7 @@ Session::Session(not_null<Main::Session*> session)
 , _userAddresses(std::make_unique<UserAddresses>(session))
 , _transferMessages(std::make_unique<TransferMessages>(session))
 , _tonConnect(std::make_unique<TonConnect>(session))
+, _ownCard(std::make_unique<OwnCard>(session))
 , _stream(std::make_unique<Stream>(&_api, [=](StreamRefresh wanted) {
 	applyStreamRefresh(wanted);
 }))
@@ -2389,6 +2391,10 @@ UserAddresses &Session::userAddresses() {
 
 TonConnect &Session::tonConnect() {
 	return *_tonConnect;
+}
+
+OwnCard &Session::ownCard() {
+	return *_ownCard;
 }
 
 Ui::SeparatePanel *Session::panel() const {

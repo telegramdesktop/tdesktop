@@ -196,6 +196,7 @@ public:
 
 	[[nodiscard]] rpl::producer<QPoint> contextMenuRequests() const;
 	[[nodiscard]] rpl::producer<QMouseEvent*> mouseEvents();
+	[[nodiscard]] QImage currentStickerFrame() const;
 
 	[[nodiscard]] bool makeCraftFrameIsFinal(
 		QImage &frame,

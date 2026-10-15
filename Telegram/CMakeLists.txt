@@ -2225,6 +2225,10 @@ PRIVATE
     wallet/wallet_amount_painter.h
     wallet/wallet_api.cpp
     wallet/wallet_api.h
+    wallet/wallet_card_flight.cpp
+    wallet/wallet_card_flight.h
+    wallet/wallet_card_space.cpp
+    wallet/wallet_card_space.h
     wallet/wallet_card_stickers.cpp
     wallet/wallet_card_stickers.h
     wallet/wallet_chat_show.cpp
@@ -2255,6 +2259,8 @@ PRIVATE
     wallet/wallet_move_to_gifts.h
     wallet/wallet_onramp.cpp
     wallet/wallet_onramp.h
+    wallet/wallet_own_card.cpp
+    wallet/wallet_own_card.h
     wallet/wallet_palette.cpp
     wallet/wallet_palette.h
     wallet/wallet_panel.cpp

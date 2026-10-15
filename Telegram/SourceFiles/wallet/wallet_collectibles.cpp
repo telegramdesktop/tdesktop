@@ -25,18 +25,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/round_area_with_shadow.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/painter.h"
 #include "wallet/wallet_address.h"
+#include "wallet/wallet_card_flight.h"
 #include "wallet/wallet_card_stickers.h"
 #include "wallet/wallet_chat_show.h"
 #include "wallet/wallet_collectible_media.h"
 #include "wallet/wallet_content.h"
+#include "wallet/wallet_own_card.h"
+#include "wallet/wallet_palette.h"
 #include "wallet/wallet_session.h"
 
 #include "styles/style_credits.h"
@@ -56,7 +61,9 @@ public:
 	CollectiblesGrid(
 		QWidget *parent,
 		std::shared_ptr<Main::SessionShow> show,
-		std::shared_ptr<CollectibleMedia> media);
+		std::shared_ptr<CollectibleMedia> media,
+		CardHost host);
+	~CollectiblesGrid();
 
 	void rebuild();
 
@@ -76,6 +83,10 @@ private:
 		std::unique_ptr<Info::PeerGifts::GiftButton> gift;
 		std::unique_ptr<Ui::AbstractButton> thumb;
 	};
+	struct Flight {
+		std::unique_ptr<CardFlight> flight;
+		uint64 id = 0;
+	};
 
 	[[nodiscard]] int rowsCount() const;
 	[[nodiscard]] std::pair<int, int> rowsRange(
@@ -93,6 +104,34 @@ private:
 	void applyOnCard(const std::vector<Data::WalletCardSticker> &stickers);
 	void applySquare(Square &square, const CollectibleRecord &record);
 	void activate(const QString &address);
+	void showCardMenu(const QString &address, QPoint point);
+	void cardAction(const QString &address, bool add);
+	void addToCard(const CollectibleRecord &record);
+	void removeFromCard(const QString &address);
+	void applyFailure(const OwnCardFailure &failure);
+	void showRefusal(OwnCardChange change);
+	void flyToCard(const QString &address, QImage frame);
+	void flyToSquare(
+		const QString &address,
+		Data::StoryArea area,
+		QImage frame);
+	void startFlight(const QString &address, CardFlightArgs &&args);
+	void cancelFlight(const QString &address);
+	void holdSticker(const QString &address);
+	void releaseSticker(const QString &address);
+	void landSticker(
+		const QString &address,
+		float64 fromScale = 1.,
+		QImage frame = QImage());
+	void setReturning(const QString &address, bool returning);
+	[[nodiscard]] OwnCard &ownCard() const;
+	[[nodiscard]] QImage squareFrame(const QString &address) const;
+	[[nodiscard]] std::optional<Data::StoryArea> shownArea(
+		const QString &address) const;
+	[[nodiscard]] std::optional<FlightPose> squarePose(
+		const QString &address) const;
+	[[nodiscard]] std::optional<FlightPose> cardPose(
+		const Data::StoryArea &area) const;
 	[[nodiscard]] auto createGiftButton(const QString &address)
 	-> std::unique_ptr<Info::PeerGifts::GiftButton>;
 	[[nodiscard]] std::unique_ptr<Ui::AbstractButton> createThumbButton(
@@ -101,11 +140,17 @@ private:
 
 	const std::shared_ptr<Main::SessionShow> _show;
 	const std::shared_ptr<CollectibleMedia> _media;
+	const CardHost _host;
 	Info::PeerGifts::Delegate _delegate;
 	const QSize _singleMin;
 	std::vector<CollectibleRecord> _records;
 	base::flat_map<QString, Square> _squares;
 	base::flat_set<QString> _onCard;
+	base::unique_qptr<Ui::PopupMenu> _menu;
+	base::flat_map<QString, Flight> _flights;
+	base::flat_set<QString> _held;
+	base::flat_set<QString> _returning;
+	uint64 _lastFlightId = 0;
 	QString _pressed;
 	QSize _single;
 	int _perRow = 0;
@@ -451,13 +496,55 @@ void Activate(
 		sellUrl));
 }
 
+[[nodiscard]] QString CardLimitText() {
+	return tr::lng_wallet_card_limit(
+		tr::now,
+		lt_count,
+		Data::kWalletCardMaxStickers);
+}
+
+[[nodiscard]] QString RefusalText(OwnCardChange change) {
+	switch (change) {
+	case OwnCardChange::NotReady:
+		return tr::lng_wallet_card_not_ready(tr::now);
+	case OwnCardChange::Limit:
+		return CardLimitText();
+	case OwnCardChange::Invalid:
+		return tr::lng_wallet_card_save_error(tr::now);
+	case OwnCardChange::Applied:
+	case OwnCardChange::Unchanged:
+		break;
+	}
+	return QString();
+}
+
+[[nodiscard]] QString FailureText(const OwnCardFailure &failure) {
+	const auto &type = failure.type;
+	if (failure.notReady) {
+		return tr::lng_wallet_card_not_ready(tr::now);
+	} else if (type == u"WALLET_STICKER_LIMIT_EXCEEDED"_q) {
+		return CardLimitText();
+	} else if (type == u"WALLET_STICKER_SAVED_PROFILE"_q) {
+		return tr::lng_wallet_card_saved_profile(tr::now);
+	} else if (type == u"WALLET_NFT_NOT_OWNED"_q) {
+		return tr::lng_wallet_collectible_not_owned(tr::now);
+	} else if (type == u"WALLET_UNAVAILABLE"_q) {
+		return tr::lng_wallet_unavailable(tr::now);
+	} else if (MTP::IsFloodError(type)) {
+		return tr::lng_flood_error(tr::now);
+	}
+	return ErrorWithType(tr::lng_wallet_card_save_error(tr::now), type);
+}
+
 CollectiblesGrid::CollectiblesGrid(
 	QWidget *parent,
 	std::shared_ptr<Main::SessionShow> show,
-	std::shared_ptr<CollectibleMedia> media)
+	std::shared_ptr<CollectibleMedia> media,
+	CardHost host)
 : RpWidget(parent)
 , _show(std::move(show))
 , _media(std::move(media))
+, _host(std::move(host))
 , _delegate(&_show->session(), Info::PeerGifts::GiftButtonMode::Minimal)
 , _singleMin(_delegate.buttonSize()) {
 	setMouseTracking(true);
@@ -485,6 +572,20 @@ CollectiblesGrid::CollectiblesGrid(
 	) | rpl::on_next([=](const std::vector<Data::WalletCardSticker> &list) {
 		applyOnCard(list);
 	}, lifetime());
+
+	ownCard().failures(
+	) | rpl::on_next([=](const OwnCardFailure &failure) {
+		applyFailure(failure);
+	}, lifetime());
+}
+
+CollectiblesGrid::~CollectiblesGrid() {
+	_flights.clear();
+	if (const auto painter = _host.painter.get()) {
+		for (const auto &address : _held) {
+			painter->release(address);
+		}
+	}
 }
 
 void CollectiblesGrid::rebuild() {
@@ -742,7 +843,8 @@ void CollectiblesGrid::applySquare(
 		if (fresh) {
 			square.gift = createGiftButton(record.address);
 		}
-		const auto onCard = _onCard.contains(record.address);
+		const auto onCard = _onCard.contains(record.address)
+			|| _returning.contains(record.address);
 		// A reparse allocates the gift anew, equal values keep the player.
 		if (fresh
 			|| !SameServedGift(square.record, record)
@@ -768,6 +870,293 @@ void CollectiblesGrid::activate(const QString &address) {
 	}
 }
 
+void CollectiblesGrid::showCardMenu(const QString &address, QPoint point) {
+	const auto index = indexOf(address);
+	if (_menu || index < 0 || !_records[index].gift) {
+		return;
+	}
+	const auto add = !ownCard().contains(address);
+	_menu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
+	_menu->addAction(
+		Ui::Text::FixAmpersandInAction(add
+			? tr::lng_wallet_card_add(tr::now)
+			: tr::lng_wallet_card_remove(tr::now)),
+		[=] { cardAction(address, add); },
+		&st::menuIconStickers);
+	const auto scope = WindowPaletteScope(this);
+	_menu->popup(point);
+}
+
+void CollectiblesGrid::cardAction(const QString &address, bool add) {
+	const auto index = indexOf(address);
+	if (index < 0 || !_records[index].gift) {
+		return;
+	}
+	const auto onCard = ownCard().contains(address);
+	if (onCard == add) {
+		return;
+	} else if (add) {
+		addToCard(_records[index]);
+	} else {
+		removeFromCard(address);
+	}
+}
+
+void CollectiblesGrid::addToCard(const CollectibleRecord &record) {
+	auto &own = ownCard();
+	const auto stickers = own.shown().stickers;
+	if (!own.ready()) {
+		showRefusal(OwnCardChange::NotReady);
+		return;
+	} else if (int(stickers.size()) >= Data::kWalletCardMaxStickers) {
+		showRefusal(OwnCardChange::Limit);
+		return;
+	}
+	const auto area = AutoPlace(CurrentCardSpace(_host, stickers));
+	if (!area) {
+		_show->showToast(tr::lng_wallet_card_no_space(tr::now));
+		return;
+	}
+	const auto address = record.address;
+	auto frame = squareFrame(address);
+	cancelFlight(address);
+	holdSticker(address);
+	const auto change = own.add({
+		.address = address,
+		.area = *area,
+		.gift = record.gift,
+	});
+	if (change != OwnCardChange::Applied) {
+		releaseSticker(address);
+		showRefusal(change);
+		return;
+	}
+	flyToCard(address, std::move(frame));
+}
+
+void CollectiblesGrid::removeFromCard(const QString &address) {
+	auto &own = ownCard();
+	const auto area = shownArea(address);
+	if (!area) {
+		return;
+	} else if (!own.ready()) {
+		showRefusal(OwnCardChange::NotReady);
+		return;
+	}
+	auto frame = squareFrame(address);
+	cancelFlight(address);
+	setReturning(address, true);
+	const auto change = own.remove(address);
+	if (change != OwnCardChange::Applied) {
+		setReturning(address, false);
+		showRefusal(change);
+		return;
+	}
+	flyToSquare(address, *area, std::move(frame));
+}
+
+void CollectiblesGrid::applyFailure(const OwnCardFailure &failure) {
+	for (const auto &sticker : failure.left) {
+		const auto address = CanonicalAddress(sticker.address);
+		auto frame = squareFrame(address);
+		cancelFlight(address);
+		flyToSquare(address, sticker.area, std::move(frame));
+	}
+	for (const auto &sticker : failure.returned) {
+		const auto address = CanonicalAddress(sticker.address);
+		cancelFlight(address);
+		if (cardPose(sticker.area)) {
+			landSticker(address);
+		}
+	}
+	if (!failure.silent) {
+		_show->showToast(FailureText(failure));
+	}
+}
+
+void CollectiblesGrid::showRefusal(OwnCardChange change) {
+	const auto text = RefusalText(change);
+	if (!text.isEmpty()) {
+		_show->showToast(text);
+	}
+}
+
+void CollectiblesGrid::flyToCard(const QString &address, QImage frame) {
+	const auto card = [=] {
+		const auto area = shownArea(address);
+		return area ? cardPose(*area) : std::nullopt;
+	};
+	if (!card()) {
+		releaseSticker(address);
+		return;
+	} else if (frame.isNull() || anim::Disabled() || !squarePose(address)) {
+		landSticker(address);
+		return;
+	}
+	startFlight(address, {
+		.body = _host.body,
+		.image = frame,
+		.square = [=] { return squarePose(address); },
+		.card = card,
+		.done = [=](bool arrived) {
+			const auto target = arrived ? card() : std::nullopt;
+			if (target) {
+				const auto side = st::giftBoxStickerSize.width();
+				landSticker(address, side / target->side, frame);
+			} else {
+				releaseSticker(address);
+			}
+		},
+	});
+}
+
+void CollectiblesGrid::flyToSquare(
+		const QString &address,
+		Data::StoryArea area,
+		QImage frame) {
+	setReturning(address, true);
+	const auto card = [=] { return cardPose(area); };
+	if (frame.isNull()
+		|| anim::Disabled()
+		|| !card()
+		|| !squarePose(address)) {
+		setReturning(address, false);
+		return;
+	}
+	startFlight(address, {
+		.body = _host.body,
+		.image = std::move(frame),
+		.square = [=] { return squarePose(address); },
+		.card = card,
+		.direction = CardFlightDirection::ToSquare,
+		.done = [=](bool) { setReturning(address, false); },
+	});
+}
+
+void CollectiblesGrid::startFlight(
+		const QString &address,
+		CardFlightArgs &&args) {
+	const auto id = ++_lastFlightId;
+	args.done = [=, done = std::move(args.done)](bool arrived) {
+		crl::on_main(this, [=] {
+			const auto i = _flights.find(address);
+			if (i != end(_flights) && i->second.id == id) {
+				_flights.erase(i);
+			}
+		});
+		if (done) {
+			done(arrived);
+		}
+	};
+	auto flight = std::make_unique<CardFlight>(std::move(args));
+	const auto raw = flight.get();
+	_flights[address] = Flight{ std::move(flight), id };
+	raw->start();
+}
+
+void CollectiblesGrid::cancelFlight(const QString &address) {
+	_flights.remove(address);
+	releaseSticker(address);
+	setReturning(address, false);
+}
+
+void CollectiblesGrid::holdSticker(const QString &address) {
+	if (const auto painter = _host.painter.get()) {
+		painter->hold(address);
+		_held.emplace(address);
+	}
+}
+
+void CollectiblesGrid::releaseSticker(const QString &address) {
+	if (_held.remove(address)) {
+		if (const auto painter = _host.painter.get()) {
+			painter->release(address);
+		}
+	}
+}
+
+void CollectiblesGrid::landSticker(
+		const QString &address,
+		float64 fromScale,
+		QImage frame) {
+	_held.remove(address);
+	if (const auto painter = _host.painter.get()) {
+		painter->land(address, fromScale, std::move(frame));
+	}
+}
+
+void CollectiblesGrid::setReturning(const QString &address, bool returning) {
+	const auto changed = returning
+		? _returning.emplace(address).second
+		: _returning.remove(address);
+	const auto i = _squares.find(address);
+	if (changed && i != end(_squares) && i->second.gift) {
+		const auto record = i->second.record;
+		applySquare(i->second, record);
+	}
+}
+
+OwnCard &CollectiblesGrid::ownCard() const {
+	return _show->session().wallet().ownCard();
+}
+
+QImage CollectiblesGrid::squareFrame(const QString &address) const {
+	const auto i = _squares.find(address);
+	return (i != end(_squares) && i->second.gift)
+		? i->second.gift->currentStickerFrame()
+		: QImage();
+}
+
+std::optional<Data::StoryArea> CollectiblesGrid::shownArea(
+		const QString &address) const {
+	for (const auto &sticker : ownCard().shown().stickers) {
+		if (CanonicalAddress(sticker.address) == address) {
+			return sticker.area;
+		}
+	}
+	return std::nullopt;
+}
+
+std::optional<FlightPose> CollectiblesGrid::squarePose(
+		const QString &address) const {
+	const auto index = indexOf(address);
+	const auto i = _squares.find(address);
+	if (index < 0
+		|| i == end(_squares)
+		|| !i->second.gift
+		|| !i->second.gift->isVisible()) {
+		return std::nullopt;
+	}
+	const auto side = float64(st::giftBoxStickerSize.width());
+	const auto center = QRectF(squareRect(index)).center();
+	if (center.y() + side / 2. <= _visibleTop
+		|| center.y() - side / 2. >= _visibleBottom) {
+		return std::nullopt;
+	}
+	return FlightPose{
+		.center = mapTo(_host.body.get(), center),
+		.side = side,
+	};
+}
+
+std::optional<FlightPose> CollectiblesGrid::cardPose(
+		const Data::StoryArea &area) const {
+	if (!_host.painter) {
+		return std::nullopt;
+	}
+	const auto fold = _host.fold();
+	if (!fold.valid || fold.opacity <= 0.) {
+		return std::nullopt;
+	}
+	const auto size = fold.rest.size();
+	const auto local = CardStickerCenter(area, size);
+	return FlightPose{
+		.center = CardFoldPoint(fold, local),
+		.side = CardStickerSide(area, size) * CardFoldScale(fold, local),
+		.rotation = CardStickerRotation(area),
+	};
+}
+
 auto CollectiblesGrid::createGiftButton(const QString &address)
 -> std::unique_ptr<Info::PeerGifts::GiftButton> {
 	auto result = std::make_unique<Info::PeerGifts::GiftButton>(
@@ -777,6 +1166,10 @@ auto CollectiblesGrid::createGiftButton(const QString &address)
 	raw->setClickedCallback([=] {
 		activate(address);
 	});
+	raw->contextMenuRequests(
+	) | rpl::on_next([=](QPoint point) {
+		showCardMenu(address, point);
+	}, raw->lifetime());
 	raw->mouseEvents(
 	) | rpl::on_next([=](QMouseEvent *e) {
 		if (e->type() == QEvent::MouseButtonPress) {
@@ -841,12 +1234,14 @@ void CollectiblesGrid::paintThumb(
 void AddCollectiblesList(
 		not_null<Ui::VerticalLayout*> container,
 		std::shared_ptr<Main::SessionShow> show,
-		std::shared_ptr<CollectibleMedia> media) {
+		std::shared_ptr<CollectibleMedia> media,
+		CardHost host) {
 	const auto wallet = &show->session().wallet();
 	const auto grid = container->add(object_ptr<CollectiblesGrid>(
 		container,
 		std::move(show),
-		std::move(media)));
+		std::move(media),
+		std::move(host)));
 	grid->rebuild();
 	wallet->collectiblesUpdates(
 	) | rpl::on_next([=] {

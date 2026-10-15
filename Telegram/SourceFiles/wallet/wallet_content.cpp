@@ -102,6 +102,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_amount_painter.h"
 #include "wallet/wallet_card_angle.h"
 #include "wallet/wallet_card_gradient.h"
+#include "wallet/wallet_card_space.h"
 #include "wallet/wallet_card_stickers.h"
 #include "wallet/wallet_chat_show.h"
 #include "wallet/wallet_collectible_media.h"
@@ -229,7 +230,6 @@ constexpr auto kRowEmojiDiamondBottom = 62. / 72.;
 
 class BalanceInk;
 class Card;
-struct CardFold;
 class InfoIsland;
 class InfoIslandEntry;
 class SendingHistoryRow;
@@ -400,23 +400,6 @@ private:
 
 };
 
-struct CardFold {
-	QRect rest;
-	QPolygonF quad;
-	QTransform transform;
-	float64 topY = 0.;
-	float64 bottomY = 0.;
-	float64 opacity = 1.;
-	float64 fold = 0.;
-	bool valid = false;
-};
-
-// CardFold is expressed entirely in Content coordinates: `rest` is the
-// card's rest rect there, `quad` the folded quadrilateral it is painted
-// as, and `transform` maps the first onto the second. A Card paints with
-// a widget-local painter, so it reconciles with p.translate(-x(), -y())
-// before applying `transform` and draws into `rest`; paintedQuad() and
-// paintedOutline() return Content coordinates for the same reason.
 [[nodiscard]] CardFold ComputeCardFold(QRect cardRest, float64 fold);
 
 class Card final : public Ui::RpWidget {
@@ -430,6 +413,8 @@ public:
 	[[nodiscard]] const CardFold &fold() const;
 	[[nodiscard]] QPolygonF paintedQuad() const;
 	[[nodiscard]] QPolygonF paintedOutline() const;
+	[[nodiscard]] std::vector<QRectF> protectedAreas(
+		const BalanceInk &ink) const;
 	void invalidateCache();
 	void followCursor();
 
@@ -491,10 +476,10 @@ public:
 	[[nodiscard]] QRect boundingRect(const CardFold &fold) const;
 	[[nodiscard]] QRect markRect(QRect cardRest) const;
 	[[nodiscard]] QRect markPaintRect(const CardFold &fold) const;
-
-private:
 	[[nodiscard]] QRectF amountRect(const CardFold &fold) const;
 	[[nodiscard]] QRectF fiatRect(const CardFold &fold) const;
+
+private:
 	[[nodiscard]] QRectF markVisible(float64 fold) const;
 	[[nodiscard]] QRectF markDrawRect(
 		float64 fold,
@@ -1088,14 +1073,6 @@ QString EncryptedCommentLabel::accessibilityName() {
 	return st::walletPanelSize.width()
 		- st::walletCardMargin.left()
 		- st::walletCardMargin.right();
-}
-
-[[nodiscard]] QRect CardQrRect(int cardWidth) {
-	return QRect(
-		cardWidth - st::walletCardQrRight - st::walletCardQrSize.width(),
-		st::walletCardQrTop,
-		st::walletCardQrSize.width(),
-		st::walletCardQrSize.height());
 }
 
 [[nodiscard]] QRect TransferCardInfoRect(int cardWidth) {
@@ -13894,35 +13871,45 @@ void Card::paintContent(Painter &p, float64 angle) {
 	PaintCardQrPlate(p, qr);
 	st::walletCardQrIcon.paintInCenter(p, qr, CardQrIconFg());
 
-	const auto &nameFont = _nameStyle.font;
-	const auto addressFont = st::walletCardAddressFont->monospace();
-	const auto addressBaseline = size.width()
-		- st::walletCardAddressRight
-		- addressFont->height
-		- addressFont->ascent;
-	const auto stripLeft = addressBaseline - addressFont->descent;
-	const auto nameMax = stripLeft
-		- st::walletCardContentSkip
-		- st::walletCardContentLeft;
+	const auto layout = ComputeCardTextLayout(size, _nameStyle.font);
 	p.setPen(st::activeButtonFg);
-	_name.drawLeftElided(
-		p,
-		st::walletCardContentLeft,
-		size.height() - st::walletCardNameBottom - nameFont->ascent,
-		nameMax,
-		size.width(),
-		1);
+	_name.drawElided(p, layout.nameLeft, layout.nameTop, layout.nameMax);
 
 	if (!_addressLine1.isEmpty()) {
 		p.setPen(st::windowActiveTextFg);
-		p.setFont(addressFont);
+		p.setFont(layout.addressFont);
 		p.save();
-		p.translate(addressBaseline, st::walletCardAddressSkip);
+		p.translate(layout.addressBaseline, st::walletCardAddressSkip);
 		p.rotate(90);
 		p.drawText(0, 0, _addressLine1);
-		p.drawText(0, -addressFont->height, _addressLine2);
+		p.drawText(0, -layout.addressFont->height, _addressLine2);
 		p.restore();
 	}
+}
+
+std::vector<QRectF> Card::protectedAreas(const BalanceInk &ink) const {
+	const auto size = restRect().size();
+	const auto rest = ComputeCardFold(QRect(QPoint(), size), 0.);
+	const auto layout = ComputeCardTextLayout(size, _nameStyle.font);
+	const auto &font = layout.addressFont;
+	const auto stripRight = size.width() - st::walletCardAddressRight;
+	const auto stripHeight = std::max(
+		font->width(_addressLine1),
+		font->width(_addressLine2));
+	return {
+		ink.amountRect(rest),
+		ink.fiatRect(rest),
+		QRectF(CardQrRect(size.width())),
+		CardNameRect(
+			layout,
+			_name.maxWidth(),
+			_nameStyle.font->height),
+		QRectF(
+			layout.stripLeft,
+			st::walletCardAddressSkip,
+			stripRight - layout.stripLeft,
+			stripHeight),
+	};
 }
 
 CardFold ComputeCardFold(QRect cardRest, float64 fold) {
@@ -14536,7 +14523,16 @@ void Content::setupContent() {
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			column,
 			object_ptr<Ui::VerticalLayout>(column)));
-	AddCollectiblesList(collectiblesWrap->entity(), _show, media);
+	AddCollectiblesList(
+		collectiblesWrap->entity(),
+		_show,
+		media,
+		{
+			.body = this,
+			.painter = base::make_weak(_cardStickers),
+			.fold = [=] { return cardFold(); },
+			.protectedAreas = [=] { return _card->protectedAreas(*_ink); },
+		});
 	collectiblesWrap->toggleOn(wallet->collectiblesTabValue());
 	collectiblesWrap->finishAnimating();
 
