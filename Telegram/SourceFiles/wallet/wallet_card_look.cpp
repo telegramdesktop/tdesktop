@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user_wallet_card.h"
 #include "main/main_session.h"
 #include "ui/text/text_custom_emoji.h"
+#include "ui/emoji_config.h"
 #include "ui/top_background_gradient.h"
 #include "wallet/wallet_address.h"
 #include "wallet/wallet_own_card.h"
@@ -25,6 +26,59 @@ namespace {
 constexpr auto kPatternTop = 0.125;
 constexpr auto kPatternHeight = 0.79;
 constexpr auto kPatternInkAlpha = 153; // As faint as the calls panel pattern.
+constexpr auto kPatternSizeTag = Data::CustomEmojiSizeTag::Large;
+
+class ScaledPatternEmoji final : public Ui::Text::CustomEmoji {
+public:
+	explicit ScaledPatternEmoji(not_null<Ui::Text::CustomEmoji*> emoji);
+
+	int width() override;
+	QString entityData() override;
+	void paint(QPainter &p, const Context &context) override;
+	void unload() override;
+	bool ready() override;
+	bool readyInDefaultState() override;
+
+private:
+	const not_null<Ui::Text::CustomEmoji*> _emoji;
+
+};
+
+ScaledPatternEmoji::ScaledPatternEmoji(
+	not_null<Ui::Text::CustomEmoji*> emoji)
+: _emoji(emoji) {
+}
+
+int ScaledPatternEmoji::width() {
+	return _emoji->width();
+}
+
+QString ScaledPatternEmoji::entityData() {
+	return _emoji->entityData();
+}
+
+void ScaledPatternEmoji::paint(QPainter &p, const Context &context) {
+	const auto scale = Ui::Emoji::GetSizeLarge()
+		/ float64(Data::FrameSizeFromTag(kPatternSizeTag));
+	p.save();
+	p.translate(context.position);
+	p.scale(scale, scale);
+	p.translate(-context.position);
+	_emoji->paint(p, context);
+	p.restore();
+}
+
+void ScaledPatternEmoji::unload() {
+	_emoji->unload();
+}
+
+bool ScaledPatternEmoji::ready() {
+	return _emoji->ready();
+}
+
+bool ScaledPatternEmoji::readyInDefaultState() {
+	return _emoji->readyInDefaultState();
+}
 
 [[nodiscard]] QRect PatternRect(const QRect &card) {
 	return QRect(
@@ -40,7 +94,7 @@ constexpr auto kPatternInkAlpha = 153; // As faint as the calls panel pattern.
 	auto result = document->owner().customEmojiManager().create(
 		document,
 		std::move(repaint),
-		Data::CustomEmojiSizeTag::Large);
+		kPatternSizeTag);
 	[[maybe_unused]] const auto preload = result->ready();
 	return result;
 }
@@ -149,11 +203,12 @@ void CardLookPainter::paintPattern(QPainter &p, const QRect &card) {
 		_symbols.clear();
 		_symbolsRatio = ratio;
 	}
+	auto symbol = ScaledPatternEmoji(_emoji.get());
 	Ui::PaintBgPoints(
 		p,
 		Ui::PatternBgPoints(),
 		_symbols,
-		_emoji.get(),
+		&symbol,
 		QColor(0, 0, 0, kPatternInkAlpha),
 		PatternRect(card));
 }
