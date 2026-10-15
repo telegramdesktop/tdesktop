@@ -295,6 +295,7 @@ private:
 
 	void requestToTakeTextWithTags();
 	bool validateLength(const QString &text) const;
+	[[nodiscard]] bool hasEphemeralCommand() const;
 
 	[[nodiscard]] Fn<MenuDetails()> prepareSendMenuDetails(
 		const SendFilesBoxDescriptor &descriptor);
