@@ -773,6 +773,11 @@ private:
 		const State::LeafPath &leaf,
 		State::FieldMode mode,
 		const InlineFieldStyleKey &styleKey);
+	void restoreInlineFieldAfterMutation(
+		const std::optional<State::LeafPath> &restoreLeaf,
+		const std::optional<InlineFieldStyleKey> &restoreStyleKey,
+		State::FieldMode restoreMode,
+		const std::optional<HistoryLeafSelection> &restoreSelection);
 	void pruneRetainedLeafFields();
 	void removeRetainedLeafFieldsAfter(int historyIndex);
 	void moveRetainedLeafFields(
