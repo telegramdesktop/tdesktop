@@ -37,6 +37,7 @@ namespace Webrtc {
 enum class VideoState;
 class VideoTrack;
 struct DeviceResolvedId;
+class MixingAudioControl;
 } // namespace Webrtc
 
 namespace Calls {
@@ -387,6 +388,7 @@ private:
 	std::vector<not_null<PeerData*>> _conferenceParticipants;
 
 	std::unique_ptr<tgcalls::Instance> _instance;
+	std::shared_ptr<Webrtc::MixingAudioControl> _screenAudioControl;
 	std::shared_ptr<tgcalls::VideoCaptureInterface> _videoCapture;
 	QString _videoCaptureDeviceId;
 	bool _videoCaptureIsScreencast = false;
