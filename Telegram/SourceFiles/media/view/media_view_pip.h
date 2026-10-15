@@ -219,7 +219,8 @@ private:
 
 	[[nodiscard]] bool canUseVideoFrame() const;
 	[[nodiscard]] QImage videoFrame(const FrameRequest &request) const;
-	[[nodiscard]] Streaming::FrameWithInfo videoFrameWithInfo() const; // YUV
+	[[nodiscard]] Streaming::FrameWithInfo videoFrameWithInfo(
+		bool hdr) const; // YUV
 	[[nodiscard]] QImage staticContent() const;
 	[[nodiscard]] OverState computeState(QPoint position) const;
 	void setOverState(OverState state);

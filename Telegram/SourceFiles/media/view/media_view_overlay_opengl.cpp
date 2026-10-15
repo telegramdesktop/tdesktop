@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/gl/gl_shader.h"
 #include "ui/painter.h"
 #include "media/stories/media_stories_view.h"
+#include "media/streaming/media_streaming_color.h"
 #include "media/streaming/media_streaming_common.h"
 #include "media/view/media_view_video_stream.h"
 #include "platform/platform_overlay_widget.h"
@@ -226,7 +227,7 @@ void OverlayWidget::RendererGL::init(QOpenGLFunctions &f) {
 		&*_yuv420Program,
 		_texturedVertexShader,
 		FragmentShader({
-			FragmentSampleYUV420Texture(),
+			FragmentSampleYUV420Texture(true),
 			FragmentApplyControlsFade(),
 			FragmentRoundedCorners()
 		}));
@@ -236,7 +237,7 @@ void OverlayWidget::RendererGL::init(QOpenGLFunctions &f) {
 		&*_nv12Program,
 		_texturedVertexShader,
 		FragmentShader({
-			FragmentSampleNV12Texture(),
+			FragmentSampleNV12Texture(true),
 			FragmentApplyControlsFade(),
 			FragmentRoundedCorners()
 		}));
@@ -385,7 +386,7 @@ void OverlayWidget::RendererGL::paintVideoStream() {
 
 void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 		ContentGeometry geometry) {
-	const auto data = _owner->videoFrameWithInfo();
+	const auto data = _owner->videoFrameWithInfo(false);
 	if (data.format == Streaming::FrameFormat::None) {
 		return;
 	} else if (data.format == Streaming::FrameFormat::ARGB32) {
@@ -481,6 +482,13 @@ void OverlayWidget::RendererGL::paintTransformedVideoFrame(
 		program->setUniformValue("v_texture", GLint(2));
 	}
 	program->setUniformValue("f_texture", GLint(nv12 ? 2 : 3));
+	const auto color = Streaming::PrepareColorUniforms(
+		data.color ? *data.color : Streaming::FrameColor(),
+		nv12,
+		false);
+	program->setUniformValue(
+		"yuvToRgb",
+		QMatrix4x4(color.yuvToRgb.data()).transposed());
 
 	toggleBlending(geometry.roundRadius > 0.);
 	const auto textureRect = _owner->_stories
