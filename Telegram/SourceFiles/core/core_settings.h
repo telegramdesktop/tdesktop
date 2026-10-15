@@ -39,6 +39,7 @@ namespace Core {
 
 inline constexpr auto kScreenReaderModeDisabledKey
 	= "screen-reader-mode-disabled"_cs;
+inline constexpr auto kInChatSoundsKey = "in-chat-sounds"_cs;
 
 struct WindowPosition {
 	int32 moncrc = 0;
@@ -208,6 +209,8 @@ public:
 	void setSoundNotify(bool value) {
 		_soundNotify = value;
 	}
+	[[nodiscard]] bool inChatSounds();
+	void setInChatSounds(bool value);
 	[[nodiscard]] bool desktopNotify() const {
 		return _desktopNotify;
 	}
