@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/basic_click_handlers.h"
 #include "ui/painter.h"
 #include "wallet/wallet_address.h"
+#include "wallet/wallet_card_drag.h"
 #include "wallet/wallet_card_flight.h"
 #include "wallet/wallet_card_stickers.h"
 #include "wallet/wallet_chat_show.h"
@@ -49,6 +50,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_wallet.h"
+
+#include <QtWidgets/QApplication>
 
 namespace Wallet {
 namespace {
@@ -80,12 +83,26 @@ private:
 	struct Square {
 		CollectibleRecord record;
 		bool onCard = false;
+		bool silhouette = false;
 		std::unique_ptr<Info::PeerGifts::GiftButton> gift;
 		std::unique_ptr<Ui::AbstractButton> thumb;
 	};
 	struct Flight {
 		std::unique_ptr<CardFlight> flight;
 		uint64 id = 0;
+	};
+	struct Press {
+		QString address;
+		QPoint origin;
+		QPointF grab;
+		bool draggable = false;
+		bool grabbed = false;
+	};
+	struct Drag {
+		QString address;
+		QImage frame;
+		uint64 generation = 0;
+		std::unique_ptr<DraggedGift> gift;
 	};
 
 	[[nodiscard]] int rowsCount() const;
@@ -124,9 +141,28 @@ private:
 		float64 fromScale = 1.,
 		QImage frame = QImage());
 	void setReturning(const QString &address, bool returning);
+	void setLifted(const QString &address);
+	void refreshSquare(const QString &address);
+	[[nodiscard]] std::optional<FlightPose> dragSource(
+		const QString &address) const;
+	[[nodiscard]] bool dragFollowing() const;
+	void startDrag(QPoint global);
+	void endGesture(std::optional<QPoint> release);
+	void clearPress();
+	void dropDrag(const FlightPose &released);
+	[[nodiscard]] std::optional<CardDropKind> addDragged(
+		std::shared_ptr<const Data::StarGift> gift,
+		QPointF local);
+	void landDrag(uint64 generation, std::optional<float64> releasedSide);
+	void returnDrag();
+	void vanishDrag();
+	void dragFinished(uint64 generation);
+	void finishTravel();
 	[[nodiscard]] OwnCard &ownCard() const;
 	[[nodiscard]] QImage squareFrame(const QString &address) const;
 	[[nodiscard]] std::optional<Data::StoryArea> shownArea(
+		const QString &address) const;
+	[[nodiscard]] std::optional<FlightPose> shownPose(
 		const QString &address) const;
 	[[nodiscard]] std::optional<FlightPose> squarePose(
 		const QString &address) const;
@@ -150,8 +186,11 @@ private:
 	base::flat_map<QString, Flight> _flights;
 	base::flat_set<QString> _held;
 	base::flat_set<QString> _returning;
+	Drag _drag;
+	QString _lifted;
 	uint64 _lastFlightId = 0;
-	QString _pressed;
+	uint64 _lastDragGeneration = 0;
+	Press _press;
 	QSize _single;
 	int _perRow = 0;
 	int _left = 0;
@@ -577,9 +616,19 @@ CollectiblesGrid::CollectiblesGrid(
 	) | rpl::on_next([=](const OwnCardFailure &failure) {
 		applyFailure(failure);
 	}, lifetime());
+
+	events(
+	) | rpl::filter([](not_null<QEvent*> e) {
+		return (e->type() == QEvent::Hide)
+			|| (e->type() == QEvent::WindowDeactivate);
+	}) | rpl::on_next([=] {
+		endGesture(std::nullopt);
+		finishTravel();
+	}, lifetime());
 }
 
 CollectiblesGrid::~CollectiblesGrid() {
+	_drag = Drag();
 	_flights.clear();
 	if (const auto painter = _host.painter.get()) {
 		for (const auto &address : _held) {
@@ -635,14 +684,36 @@ void CollectiblesGrid::visibleTopBottomUpdated(
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;
 	refreshWindows();
+	if (dragFollowing() && _host.bring) {
+		_host.bring();
+	}
 }
 
 void CollectiblesGrid::mousePressEvent(QMouseEvent *e) {
 	if (e->button() != Qt::LeftButton) {
 		return;
 	}
-	const auto index = squareAt(mapFromGlobal(e->globalPos()));
-	_pressed = (index >= 0) ? _records[index].address : QString();
+	endGesture(std::nullopt);
+	finishTravel();
+	const auto global = e->globalPos();
+	const auto index = squareAt(mapFromGlobal(global));
+	if (index < 0) {
+		return;
+	}
+	const auto address = _records[index].address;
+	const auto source = dragSource(address);
+	_press = Press{
+		.address = address,
+		.origin = global,
+		.grab = (source
+			? (QPointF(_host.body->mapFromGlobal(global)) - source->center)
+			: QPointF()),
+		.draggable = source.has_value(),
+		.grabbed = source.has_value(),
+	};
+	if (source) {
+		grabMouse();
+	}
 }
 
 void CollectiblesGrid::mouseMoveEvent(QMouseEvent *e) {
@@ -651,18 +722,243 @@ void CollectiblesGrid::mouseMoveEvent(QMouseEvent *e) {
 		_over = over;
 		setCursor(over ? style::cur_pointer : style::cur_default);
 	}
+	const auto following = dragFollowing();
+	if (!following && _press.address.isEmpty()) {
+		return;
+	}
+	const auto expected = following || _press.grabbed;
+	if (!(e->buttons() & Qt::LeftButton)
+		|| (expected && mouseGrabber() != this)) {
+		endGesture(std::nullopt);
+		return;
+	}
+	const auto global = e->globalPos();
+	if (following) {
+		_drag.gift->move(_host.body->mapFromGlobal(global));
+	} else if (_press.draggable
+		&& ((global - _press.origin).manhattanLength()
+			>= QApplication::startDragDistance())) {
+		startDrag(global);
+	}
 }
 
 void CollectiblesGrid::mouseReleaseEvent(QMouseEvent *e) {
 	if (e->button() != Qt::LeftButton) {
 		return;
 	}
-	const auto pressed = base::take(_pressed);
-	const auto index = squareAt(mapFromGlobal(e->globalPos()));
-	if (!pressed.isEmpty()
-		&& index >= 0
-		&& _records[index].address == pressed) {
-		activate(pressed);
+	const auto global = e->globalPos();
+	const auto press = base::take(_press);
+	const auto lost = (mouseGrabber() != this)
+		&& (press.grabbed || dragFollowing());
+	endGesture(lost ? std::nullopt : std::make_optional(global));
+	if (lost || press.address.isEmpty()) {
+		return;
+	}
+	const auto index = squareAt(mapFromGlobal(global));
+	if (index >= 0 && _records[index].address == press.address) {
+		activate(press.address);
+	}
+}
+
+std::optional<FlightPose> CollectiblesGrid::dragSource(
+		const QString &address) const {
+	const auto index = indexOf(address);
+	if (index < 0) {
+		return std::nullopt;
+	}
+	const auto &gift = _records[index].gift;
+	if (!gift
+		|| !gift->unique
+		|| !_host.painter
+		|| ownCard().contains(address)
+		|| _flights.contains(address)
+		|| _held.contains(address)
+		|| _returning.contains(address)) {
+		return std::nullopt;
+	}
+	return squarePose(address);
+}
+
+bool CollectiblesGrid::dragFollowing() const {
+	return _drag.gift && _drag.gift->following();
+}
+
+void CollectiblesGrid::startDrag(QPoint global) {
+	_press.draggable = false;
+	const auto address = _press.address;
+	const auto source = dragSource(address);
+	const auto frame = source ? squareFrame(address) : QImage();
+	if (frame.isNull()) {
+		return;
+	}
+	const auto press = base::take(_press);
+	holdSticker(address);
+	setLifted(address);
+	_drag = Drag{
+		.address = address,
+		.frame = frame,
+		.generation = ++_lastDragGeneration,
+		.gift = std::make_unique<DraggedGift>(DraggedGiftArgs{
+			.body = _host.body,
+			.titleExtension = st::separatePanelTitleHeight,
+			.image = frame,
+			.source = *source,
+			.cursor = _host.body->mapFromGlobal(global),
+			.grab = press.grab,
+		}),
+	};
+	if (_host.bring) {
+		_host.bring();
+	}
+}
+
+void CollectiblesGrid::endGesture(std::optional<QPoint> release) {
+	const auto following = dragFollowing();
+	_press = Press();
+	auto released = std::optional<FlightPose>();
+	if (following && release) {
+		_drag.gift->move(_host.body->mapFromGlobal(*release));
+		released = _drag.gift->pose();
+	}
+	if (mouseGrabber() == this) {
+		releaseMouse();
+	}
+	if (!following || !dragFollowing()) {
+		return;
+	} else if (released) {
+		dropDrag(*released);
+	} else {
+		returnDrag();
+	}
+}
+
+void CollectiblesGrid::clearPress() {
+	if (base::take(_press).grabbed && mouseGrabber() == this) {
+		releaseMouse();
+	}
+}
+
+void CollectiblesGrid::dropDrag(const FlightPose &released) {
+	const auto address = _drag.address;
+	const auto generation = _drag.generation;
+	const auto index = indexOf(address);
+	const auto gift = (index >= 0) ? _records[index].gift : nullptr;
+	if (!gift || !gift->unique || ownCard().contains(address)) {
+		vanishDrag();
+		return;
+	}
+	const auto fold = _host.fold();
+	const auto local = CardFoldLocal(fold, released.center);
+	if (!local
+		|| fold.opacity <= 0.
+		|| !CardFoldOutline(fold).containsPoint(
+			released.center,
+			Qt::OddEvenFill)) {
+		returnDrag();
+		return;
+	}
+	const auto kind = addDragged(gift, *local);
+	if (!kind) {
+		returnDrag();
+	} else if (*kind == CardDropKind::InPlace) {
+		_drag.gift = nullptr;
+		landDrag(generation, released.side);
+	} else {
+		_drag.gift->settle([=] {
+			return shownPose(address);
+		}, (*kind == CardDropKind::Chip), [=](bool) {
+			landDrag(generation, std::nullopt);
+		});
+	}
+}
+
+std::optional<CardDropKind> CollectiblesGrid::addDragged(
+		std::shared_ptr<const Data::StarGift> gift,
+		QPointF local) {
+	auto &own = ownCard();
+	const auto stickers = own.shown().stickers;
+	if (!own.ready()) {
+		showRefusal(OwnCardChange::NotReady);
+		return std::nullopt;
+	} else if (int(stickers.size()) >= Data::kWalletCardMaxStickers) {
+		showRefusal(OwnCardChange::Limit);
+		return std::nullopt;
+	}
+	const auto space = CurrentCardSpace(_host, stickers);
+	const auto drop = ResolveCardDrop(space, local);
+	if (!drop) {
+		_show->showToast(tr::lng_wallet_card_no_space(tr::now));
+		return std::nullopt;
+	}
+	const auto change = own.add({
+		.address = _drag.address,
+		.area = CardStickerArea(drop->center, drop->side, 0., space.card),
+		.gift = std::move(gift),
+	});
+	if (change != OwnCardChange::Applied) {
+		showRefusal(change);
+		return std::nullopt;
+	}
+	setLifted(QString());
+	return drop->kind;
+}
+
+void CollectiblesGrid::landDrag(
+		uint64 generation,
+		std::optional<float64> releasedSide) {
+	if (_drag.generation != generation) {
+		return;
+	}
+	const auto address = _drag.address;
+	if (const auto target = shownPose(address)) {
+		const auto scale = releasedSide
+			? (*releasedSide / target->side)
+			: 1.;
+		landSticker(address, scale, _drag.frame);
+	} else {
+		releaseSticker(address);
+	}
+	dragFinished(generation);
+}
+
+void CollectiblesGrid::returnDrag() {
+	const auto address = _drag.address;
+	const auto generation = _drag.generation;
+	if (!squarePose(address)) {
+		vanishDrag();
+		return;
+	}
+	_drag.gift->returnTo([=] {
+		return squarePose(address);
+	}, [=](bool) {
+		dragFinished(generation);
+	});
+	releaseSticker(address);
+}
+
+void CollectiblesGrid::vanishDrag() {
+	const auto address = _drag.address;
+	const auto generation = _drag.generation;
+	_drag.gift->vanish([=] { dragFinished(generation); });
+	setLifted(QString());
+	releaseSticker(address);
+}
+
+void CollectiblesGrid::dragFinished(uint64 generation) {
+	if (_drag.generation != generation) {
+		return;
+	}
+	setLifted(QString());
+	crl::on_main(this, [=] {
+		if (_drag.generation == generation) {
+			_drag = Drag();
+		}
+	});
+}
+
+void CollectiblesGrid::finishTravel() {
+	if (_drag.gift) {
+		_drag.gift->finish();
 	}
 }
 
@@ -774,8 +1070,8 @@ void CollectiblesGrid::refreshSquares() {
 		now.emplace(record.address, std::move(square));
 	}
 	_squares = std::move(now);
-	if (!_pressed.isEmpty() && !_squares.contains(_pressed)) {
-		_pressed = QString();
+	if (!_press.address.isEmpty() && !_squares.contains(_press.address)) {
+		clearPress();
 	}
 }
 
@@ -829,8 +1125,8 @@ void CollectiblesGrid::applySquare(
 	const auto kindChanged = record.gift
 		? (square.thumb != nullptr)
 		: (square.gift != nullptr);
-	if (kindChanged && _pressed == record.address) {
-		_pressed = QString();
+	if (kindChanged && _press.address == record.address) {
+		clearPress();
 	}
 	if (!record.gift) {
 		square.gift = nullptr;
@@ -845,19 +1141,23 @@ void CollectiblesGrid::applySquare(
 		}
 		const auto onCard = _onCard.contains(record.address)
 			|| _returning.contains(record.address);
+		const auto silhouette = (_lifted == record.address);
 		// A reparse allocates the gift anew, equal values keep the player.
 		if (fresh
 			|| !SameServedGift(square.record, record)
-			|| square.onCard != onCard) {
+			|| square.onCard != onCard
+			|| square.silhouette != silhouette) {
 			square.gift->setDescriptor(
 				Info::PeerGifts::GiftTypeStars{
 					.info = *record.gift,
 					.mine = true,
 					.onCard = onCard,
+					.silhouette = silhouette,
 				},
 				Info::PeerGifts::GiftButtonMode::Minimal);
 		}
 		square.onCard = onCard;
+		square.silhouette = silhouette;
 	}
 	square.record = record;
 }
@@ -872,7 +1172,11 @@ void CollectiblesGrid::activate(const QString &address) {
 
 void CollectiblesGrid::showCardMenu(const QString &address, QPoint point) {
 	const auto index = indexOf(address);
-	if (_menu || index < 0 || !_records[index].gift) {
+	if (_menu
+		|| index < 0
+		|| !_records[index].gift
+		|| !_press.address.isEmpty()
+		|| dragFollowing()) {
 		return;
 	}
 	const auto add = !ownCard().contains(address);
@@ -982,10 +1286,7 @@ void CollectiblesGrid::showRefusal(OwnCardChange change) {
 }
 
 void CollectiblesGrid::flyToCard(const QString &address, QImage frame) {
-	const auto card = [=] {
-		const auto area = shownArea(address);
-		return area ? cardPose(*area) : std::nullopt;
-	};
+	const auto card = [=] { return shownPose(address); };
 	const auto eligible = !frame.isNull()
 		&& !anim::Disabled()
 		&& squarePose(address).has_value();
@@ -1062,6 +1363,10 @@ void CollectiblesGrid::startFlight(
 
 void CollectiblesGrid::cancelFlight(const QString &address) {
 	_flights.remove(address);
+	if (_drag.gift && !_drag.gift->following() && _drag.address == address) {
+		_drag = Drag();
+		setLifted(QString());
+	}
 	releaseSticker(address);
 	setReturning(address, false);
 }
@@ -1095,8 +1400,22 @@ void CollectiblesGrid::setReturning(const QString &address, bool returning) {
 	const auto changed = returning
 		? _returning.emplace(address).second
 		: _returning.remove(address);
+	if (changed) {
+		refreshSquare(address);
+	}
+}
+
+void CollectiblesGrid::setLifted(const QString &address) {
+	const auto was = std::exchange(_lifted, address);
+	if (was != address) {
+		refreshSquare(was);
+		refreshSquare(address);
+	}
+}
+
+void CollectiblesGrid::refreshSquare(const QString &address) {
 	const auto i = _squares.find(address);
-	if (changed && i != end(_squares) && i->second.gift) {
+	if (i != end(_squares) && i->second.gift) {
 		const auto record = i->second.record;
 		applySquare(i->second, record);
 	}
@@ -1121,6 +1440,12 @@ std::optional<Data::StoryArea> CollectiblesGrid::shownArea(
 		}
 	}
 	return std::nullopt;
+}
+
+std::optional<FlightPose> CollectiblesGrid::shownPose(
+		const QString &address) const {
+	const auto area = shownArea(address);
+	return area ? cardPose(*area) : std::nullopt;
 }
 
 std::optional<FlightPose> CollectiblesGrid::squarePose(

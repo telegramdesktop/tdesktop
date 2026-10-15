@@ -45,7 +45,20 @@ struct CardSpace {
 	QSize card;
 	std::vector<QRectF> guarded;
 	std::vector<QRectF> stickers;
+	float64 touch = 0.;
 	int ratio = 1;
+};
+
+enum class CardDropKind : uchar {
+	InPlace,
+	Moved,
+	Chip,
+};
+
+struct CardDrop {
+	QPointF center;
+	float64 side = 0.;
+	CardDropKind kind = CardDropKind::InPlace;
 };
 
 [[nodiscard]] QRect CardQrRect(int cardWidth);
@@ -60,6 +73,9 @@ struct CardSpace {
 [[nodiscard]] CardFold ComputeCardFold(QRect cardRest, float64 fold);
 [[nodiscard]] QPolygonF CardFoldOutline(const CardFold &fold);
 [[nodiscard]] QPointF CardFoldPoint(const CardFold &fold, QPointF local);
+[[nodiscard]] std::optional<QPointF> CardFoldLocal(
+	const CardFold &fold,
+	QPointF point);
 [[nodiscard]] float64 CardFoldScale(const CardFold &fold, QPointF local);
 
 [[nodiscard]] QPointF CardStickerCenter(
@@ -87,5 +103,8 @@ struct CardSpace {
 	float64 rotation);
 [[nodiscard]] std::optional<Data::StoryArea> AutoPlace(
 	const CardSpace &space);
+[[nodiscard]] std::optional<CardDrop> ResolveCardDrop(
+	const CardSpace &space,
+	QPointF center);
 
 } // namespace Wallet

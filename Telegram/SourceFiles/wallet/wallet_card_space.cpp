@@ -24,6 +24,9 @@ constexpr auto kAnchorY = 0.70;
 constexpr auto kPreferredSide = 0.21;
 constexpr auto kLatticeStep = 0.005;
 constexpr auto kLeftWeight = 1.5;
+constexpr auto kMinDropSide = 0.12;
+constexpr auto kChipSide = 8. / 7.;
+constexpr auto kChipSink = 0.15;
 constexpr auto kEpsilon = 1e-9;
 
 struct Candidate {
@@ -65,6 +68,11 @@ struct Candidate {
 	return Square(
 		CardStickerCenter(area, card),
 		OuterHalf(side, ratio) * span);
+}
+
+[[nodiscard]] QRectF GuardedCore(const QRectF &rect, float64 touch) {
+	const auto core = rect.adjusted(touch, touch, -touch, -touch);
+	return core.isEmpty() ? rect : core;
 }
 
 [[nodiscard]] float64 Clearance(const QRectF &box, QPointF point) {
@@ -188,6 +196,95 @@ struct Candidate {
 	return result;
 }
 
+[[nodiscard]] bool Nearer(const Candidate &a, const Candidate &b) {
+	if (a.distance != b.distance) {
+		return a.distance < b.distance;
+	} else if (a.painted != b.painted) {
+		return a.painted > b.painted;
+	}
+	return (a.row != b.row) ? (a.row < b.row) : (a.column < b.column);
+}
+
+[[nodiscard]] std::optional<CardDrop> ChipDrop(
+		const CardSpace &space,
+		QPointF center) {
+	const auto plate = QRectF(CardQrRect(space.card.width()));
+	const auto touch = space.touch;
+	if (!plate.adjusted(-touch, -touch, touch, touch).contains(center)) {
+		return std::nullopt;
+	}
+	const auto side = plate.width() * kChipSide;
+	const auto painted = int(base::SafeRound(side));
+	if (painted <= 0) {
+		return std::nullopt;
+	}
+	const auto bottom = plate.y() + plate.height() * kChipSink;
+	const auto chip = QPointF(plate.center().x(), bottom - side / 2.);
+	auto others = space;
+	std::erase(others.guarded, GuardedCore(plate, touch));
+	const auto available = Available(others, chip, true);
+	if (OuterHalf(painted, space.ratio) > available + kEpsilon) {
+		return std::nullopt;
+	}
+	return CardDrop{
+		.center = chip,
+		.side = side,
+		.kind = CardDropKind::Chip,
+	};
+}
+
+[[nodiscard]] std::optional<CardDrop> NearestDrop(
+		const CardSpace &space,
+		QPointF center,
+		float64 limit,
+		float64 least) {
+	const auto width = float64(space.card.width());
+	const auto height = float64(space.card.height());
+	const auto step = width * kLatticeStep;
+	const auto left = int(std::ceil(-center.x() / step));
+	const auto right = int(std::floor((width - center.x()) / step));
+	const auto top = int(std::ceil(-center.y() / step));
+	const auto bottom = int(std::floor((height - center.y()) / step));
+	auto result = std::optional<Candidate>();
+	for (auto row = top; row <= bottom; ++row) {
+		for (auto column = left; column <= right; ++column) {
+			const auto distance = float64(column) * column
+				+ float64(row) * row;
+			if (result && distance > result->distance) {
+				continue;
+			}
+			const auto point = center + QPointF(column * step, row * step);
+			const auto side = FittedSide(
+				Available(space, point, true),
+				limit,
+				1.,
+				space.ratio);
+			if (side < least - kEpsilon) {
+				continue;
+			}
+			const auto candidate = Candidate{
+				.center = point,
+				.side = side,
+				.distance = distance,
+				.painted = int(base::SafeRound(side)),
+				.row = row,
+				.column = column,
+			};
+			if (!result || Nearer(candidate, *result)) {
+				result = candidate;
+			}
+		}
+	}
+	if (!result) {
+		return std::nullopt;
+	}
+	return CardDrop{
+		.center = result->center,
+		.side = result->side,
+		.kind = CardDropKind::Moved,
+	};
+}
+
 } // namespace
 
 QRect CardQrRect(int cardWidth) {
@@ -287,6 +384,24 @@ QPointF CardFoldPoint(const CardFold &fold, QPointF local) {
 	return fold.transform.map(QPointF(fold.rest.topLeft()) + local);
 }
 
+std::optional<QPointF> CardFoldLocal(const CardFold &fold, QPointF point) {
+	if (!fold.valid
+		|| !std::isfinite(point.x())
+		|| !std::isfinite(point.y())) {
+		return std::nullopt;
+	}
+	auto invertible = false;
+	const auto inverted = fold.transform.inverted(&invertible);
+	if (!invertible) {
+		return std::nullopt;
+	}
+	const auto mapped = inverted.map(point);
+	if (!std::isfinite(mapped.x()) || !std::isfinite(mapped.y())) {
+		return std::nullopt;
+	}
+	return mapped - QPointF(fold.rest.topLeft());
+}
+
 float64 CardFoldScale(const CardFold &fold, QPointF local) {
 	const auto half = QPointF(0.5, 0.);
 	return QLineF(
@@ -342,11 +457,14 @@ CardSpace ComputeCardSpace(
 		const std::vector<Data::StoryArea> &stickers,
 		float64 touch,
 		int ratio) {
-	auto result = CardSpace{ .card = card, .ratio = std::max(ratio, 1) };
+	auto result = CardSpace{
+		.card = card,
+		.touch = touch,
+		.ratio = std::max(ratio, 1),
+	};
 	for (const auto &rect : protectedAreas) {
 		if (rect.width() > 0. && rect.height() > 0.) {
-			const auto core = rect.adjusted(touch, touch, -touch, -touch);
-			result.guarded.push_back(core.isEmpty() ? rect : core);
+			result.guarded.push_back(GuardedCore(rect, touch));
 		}
 	}
 	for (const auto &area : stickers) {
@@ -382,6 +500,37 @@ std::optional<Data::StoryArea> AutoPlace(const CardSpace &space) {
 		return std::nullopt;
 	}
 	return CardStickerArea(best->center, best->side, 0., space.card);
+}
+
+std::optional<CardDrop> ResolveCardDrop(
+		const CardSpace &space,
+		QPointF center) {
+	if (space.card.isEmpty()
+		|| !std::isfinite(center.x())
+		|| !std::isfinite(center.y())) {
+		return std::nullopt;
+	} else if (const auto chip = ChipDrop(space, center)) {
+		return chip;
+	}
+	const auto width = float64(space.card.width());
+	const auto limit = width * kPreferredSide;
+	const auto least = std::min(limit, width * kMinDropSide);
+	const auto side = FreeSideAt(space, center, limit, 0.);
+	if (side >= least - kEpsilon) {
+		return CardDrop{ .center = center, .side = side };
+	}
+	if (const auto nearest = NearestDrop(space, center, limit, least)) {
+		return nearest;
+	}
+	const auto area = AutoPlace(space);
+	if (!area) {
+		return std::nullopt;
+	}
+	return CardDrop{
+		.center = CardStickerCenter(*area, space.card),
+		.side = area->geometry.width() * width,
+		.kind = CardDropKind::Moved,
+	};
 }
 
 } // namespace Wallet

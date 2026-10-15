@@ -22,6 +22,10 @@ struct FlightPose {
 	float64 rotation = 0.;
 };
 
+[[nodiscard]] bool ValidFlightPose(const std::optional<FlightPose> &pose);
+[[nodiscard]] float64 FlightEaseOut(float64 progress);
+[[nodiscard]] QRectF FlightImageRect(const QImage &image, float64 side);
+
 enum class CardFlightDirection : uchar {
 	ToCard,
 	ToSquare,

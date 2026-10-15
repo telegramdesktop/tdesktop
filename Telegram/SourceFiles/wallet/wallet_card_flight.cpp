@@ -20,20 +20,6 @@ constexpr auto kEpsilon = 1e-9;
 constexpr auto kWidestAngle = 45.;
 constexpr auto kQuarterTurn = 90.;
 
-[[nodiscard]] bool Valid(const std::optional<FlightPose> &pose) {
-	return pose
-		&& std::isfinite(pose->center.x())
-		&& std::isfinite(pose->center.y())
-		&& std::isfinite(pose->rotation)
-		&& std::isfinite(pose->side)
-		&& (pose->side > 0.);
-}
-
-[[nodiscard]] float64 EaseOut(float64 progress) {
-	const auto left = 1. - std::clamp(progress, 0., 1.);
-	return 1. - left * left;
-}
-
 [[nodiscard]] float64 RotationSpan(float64 from, float64 to) {
 	const auto span = [](float64 degrees) {
 		const auto radians = qDegreesToRadians(degrees);
@@ -125,7 +111,23 @@ constexpr auto kQuarterTurn = 90.;
 	return middle + normal * low;
 }
 
-[[nodiscard]] QRectF ImageRect(const QImage &image, float64 side) {
+} // namespace
+
+bool ValidFlightPose(const std::optional<FlightPose> &pose) {
+	return pose
+		&& std::isfinite(pose->center.x())
+		&& std::isfinite(pose->center.y())
+		&& std::isfinite(pose->rotation)
+		&& std::isfinite(pose->side)
+		&& (pose->side > 0.);
+}
+
+float64 FlightEaseOut(float64 progress) {
+	const auto left = 1. - std::clamp(progress, 0., 1.);
+	return 1. - left * left;
+}
+
+QRectF FlightImageRect(const QImage &image, float64 side) {
 	const auto size = QSizeF(image.size()).scaled(
 		QSizeF(side, side),
 		Qt::KeepAspectRatio);
@@ -133,8 +135,6 @@ constexpr auto kQuarterTurn = 90.;
 		QPointF(-size.width() / 2., -size.height() / 2.),
 		size);
 }
-
-} // namespace
 
 class CardFlight::Layer final : public Ui::RpWidget {
 public:
@@ -165,7 +165,7 @@ void CardFlight::Layer::setPose(const FlightPose &pose) {
 	const auto area = QTransform()
 		.translate(pose.center.x(), pose.center.y())
 		.rotate(pose.rotation)
-		.mapRect(ImageRect(_image, pose.side))
+		.mapRect(FlightImageRect(_image, pose.side))
 		.toAlignedRect()
 		.marginsAdded({ 1, 1, 1, 1 });
 	_pose = pose;
@@ -181,7 +181,7 @@ void CardFlight::Layer::paintEvent(QPaintEvent *e) {
 	auto hq = PainterHighQualityEnabler(p);
 	p.translate(_pose->center);
 	p.rotate(_pose->rotation);
-	p.drawImage(ImageRect(_image, _pose->side), _image);
+	p.drawImage(FlightImageRect(_image, _pose->side), _image);
 }
 
 CardFlight::CardFlight(CardFlightArgs &&args)
@@ -229,11 +229,11 @@ bool CardFlight::step(float64 progress) {
 	}
 	const auto square = _square();
 	const auto card = _card();
-	if (!Valid(square) || !Valid(card)) {
+	if (!ValidFlightPose(square) || !ValidFlightPose(card)) {
 		return false;
 	}
 	const auto toCard = (_direction == CardFlightDirection::ToCard);
-	const auto eased = EaseOut(progress);
+	const auto eased = FlightEaseOut(progress);
 	const auto along = toCard ? eased : (1. - eased);
 	const auto widest = toCard
 		? square->side

@@ -786,6 +786,7 @@ void GiftButton::paint(QPainter &p, float64 craftProgress) {
 	const auto unique = stargift ? stargift->info.unique.get() : nullptr;
 	const auto onsale = unique && unique->starsForResale && small();
 	const auto onCard = unique && stargift->onCard;
+	const auto silhouette = onCard || (unique && stargift->silhouette);
 	const auto requirePremium = stargift
 		&& !stargift->userpic
 		&& !stargift->resale
@@ -928,7 +929,7 @@ void GiftButton::paint(QPainter &p, float64 craftProgress) {
 				: st::giftBoxStickerTopByStars),
 			size.width(),
 			size.height());
-		const auto image = onCard
+		const auto image = silhouette
 			? OnCardSilhouette(
 				frame,
 				target,
