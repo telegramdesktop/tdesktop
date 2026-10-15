@@ -2251,6 +2251,8 @@ PRIVATE
     wallet/wallet_rates.h
     wallet/wallet_session.cpp
     wallet/wallet_session.h
+    wallet/wallet_session_waits.cpp
+    wallet/wallet_session_waits.h
     wallet/wallet_stream.cpp
     wallet/wallet_stream.h
     wallet/wallet_ton_connect.cpp

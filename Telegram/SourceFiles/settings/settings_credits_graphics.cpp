@@ -1199,11 +1199,12 @@ void FillUniqueGiftMenu(
 		&& (savedId.isUser() ? e.in : savedId.chat()->canTransferGifts())
 		&& (unique->starsForTransfer >= 0);
 	if (transfer) {
+		const auto shownOnProfile = e.savedToProfile;
 		menu->addAction(tr::lng_gift_transfer_button(tr::now), [=] {
 			if (!owner) {
 				ShowActionLocked(show, unique->slug);
 			} else if (const auto window = show->resolveWindow()) {
-				ShowTransferGiftBox(window, unique, savedId);
+				ShowTransferGiftBox(window, unique, savedId, shownOnProfile);
 			}
 		}, st.transfer ? st.transfer : &st::menuIconReplace);
 	}

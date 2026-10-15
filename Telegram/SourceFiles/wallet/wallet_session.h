@@ -42,6 +42,7 @@ class SeparatePanel;
 
 namespace Wallet {
 
+class CollectibleWaits;
 class Engine;
 class Onramp;
 class Rates;
@@ -758,6 +759,11 @@ public:
 	void resolveCollectibleInfo(
 		const QString &item,
 		Fn<void(const Gram::NftItem &)> done);
+	// Waits for a collectible the server is sending to this wallet.
+	[[nodiscard]] uint64 expectIncomingCollectible(
+		Fn<bool(const Gram::NftItem &)> matches,
+		Fn<void(bool arrived)> done);
+	void cancelIncomingCollectible(uint64 id);
 #ifdef _DEBUG
 	void debugClearNetworkState();
 	void debugRestoreNetworkState();
@@ -1176,6 +1182,7 @@ private:
 	const std::unique_ptr<TransferMessages> _transferMessages;
 	const std::unique_ptr<TonConnect> _tonConnect;
 	const std::unique_ptr<Stream> _stream;
+	const std::unique_ptr<CollectibleWaits> _collectibleWaits;
 	base::Timer _pollTimer;
 	base::Timer _shareFetchTimer;
 	base::Timer _gaslessTimer;

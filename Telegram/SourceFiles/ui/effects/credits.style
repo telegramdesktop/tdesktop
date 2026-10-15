@@ -486,6 +486,21 @@ offerValueBad: FlatLabel(offerValueGood) {
 	textFg: attentionButtonFg;
 }
 
+giftMoveToWalletUserpic: icon{{ "wallet/move_to_wallet-24x24", historyPeerUserpicFg }};
+giftMoveToWalletAppear: FlatLabel(boxLabel) {
+	align: align(top);
+}
+giftMoveToWalletPath: FlatLabel(giftMoveToWalletAppear) {
+	textFg: windowSubTextFg;
+}
+giftMoveToWalletMoneyEmoji: IconEmoji {
+	icon: icon{{ "menu/wallet-16x16", windowSubTextFg }};
+	padding: margins(1px, 1px, 1px, 0px);
+}
+giftMoveToWalletCollectiblesEmoji: IconEmoji(giftMoveToWalletMoneyEmoji) {
+	icon: icon{{ "menu/rating_gifts-16x16", windowSubTextFg }};
+}
+
 uniqueGiftValuePrice: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
 		font: font(20px semibold);

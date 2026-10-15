@@ -4493,6 +4493,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_transferred_about" = "{name} was successfully transferred to {recipient}.";
 "lng_gift_transfer_title" = "Transfer {name}";
 "lng_gift_transfer_via_blockchain" = "Send via Blockchain";
+"lng_gift_transfer_to_wallet" = "Move to My Wallet";
+"lng_gift_transfer_to_wallet_text" = "Move this gift to your blockchain wallet?";
+"lng_gift_transfer_to_wallet_appear" = "It will appear in";
+"lng_gift_transfer_to_wallet_path" = "{menu} › {money} › {collectibles}";
+"lng_gift_transfer_to_wallet_button" = "Move";
+"lng_gift_transfer_to_wallet_done" = "Gift moved to your wallet.";
+"lng_gift_transfer_to_wallet_view" = "View";
 "lng_gift_transfer_password_title" = "Two-step verification";
 "lng_gift_transfer_password_description" = "Please enter your password to transfer.";
 "lng_gift_transfer_password_about" = "You can withdraw only if you have:";

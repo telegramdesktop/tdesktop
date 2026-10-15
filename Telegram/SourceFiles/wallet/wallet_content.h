@@ -128,6 +128,15 @@ struct ActionRowArgs {
 	std::shared_ptr<Ui::Show> show,
 	const QString &address);
 
+// The address in groups of four on a rounded plate, a spinner until known.
+void AddAddressPlate(
+	not_null<Ui::VerticalLayout*> container,
+	rpl::producer<QString> address,
+	const style::margins &margin,
+	int groupsPerLine,
+	std::shared_ptr<Ui::Show> show = nullptr,
+	rpl::producer<bool> spinnerAllowed = rpl::single(true));
+
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeCommentBubble(
 	not_null<QWidget*> parent,
 	object_ptr<Ui::RpWidget> content,

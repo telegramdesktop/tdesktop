@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_onramp.h"
 #include "wallet/wallet_phrase_shares.h"
 #include "wallet/wallet_rates.h"
+#include "wallet/wallet_session_waits.h"
 #include "wallet/wallet_ton_connect.h"
 #include "wallet/wallet_ton_connect_emulation.h"
 #include "wallet/wallet_transfer_messages.h"
@@ -98,6 +99,7 @@ struct Session::CollectiblesRequest {
 	int generation = 0;
 	QString offset;
 	bool more = false;
+	crl::time sentAt = 0;
 	mtpRequestId id = 0;
 };
 
@@ -1848,6 +1850,13 @@ void KeepSubmittedRecipient(
 	result.contentUrl = WebDocumentFromServer(data.vcontent_url());
 	result.lottie = WebDocumentFromServer(data.vlottie());
 	Gram::ClassifyNftKind(result);
+	if (const auto gift = data.vgift()) {
+		gift->match([&](const MTPDstarGiftUnique &unique) {
+			result.kind = Gram::NftKind::TelegramGift;
+			result.key = qs(unique.vslug());
+		}, [](const MTPDstarGift &) {
+		});
+	}
 	return result;
 }
 
@@ -2303,6 +2312,9 @@ Session::Session(not_null<Main::Session*> session)
 , _tonConnect(std::make_unique<TonConnect>(session))
 , _stream(std::make_unique<Stream>(&_api, [=](StreamRefresh wanted) {
 	applyStreamRefresh(wanted);
+}))
+, _collectibleWaits(std::make_unique<CollectibleWaits>([=] {
+	updatePollingState();
 }))
 , _pollTimer([=] { pollTick(); })
 , _gaslessTimer([=] { refreshGaslessInfo(); })
@@ -7722,7 +7734,8 @@ void Session::refreshCollectibles(bool force) {
 	// A forced ask refused below is owed until a head request goes out.
 	_collectiblesForced = _collectiblesForced || force;
 	const auto forced = _collectiblesForced
-		|| !_collectibleFollowUps.empty();
+		|| !_collectibleFollowUps.empty()
+		|| !_collectibleWaits->empty();
 	const auto interval = forced
 		? kForcedCollectiblesInterval
 		: kCollectiblesPollInterval;
@@ -7763,6 +7776,7 @@ void Session::requestCollectibles(bool more) {
 			.generation = _networkGeneration,
 			.offset = more ? _collectiblesNextOffset : QString(),
 			.more = more,
+			.sentAt = crl::now(),
 		});
 	_collectiblesRequest = request;
 	request->id = _stateApi.request(MTPwallet_GetNfts(
@@ -7832,6 +7846,9 @@ void Session::applyCollectibles(
 	if (!SameCollectibles(_collectibles, list)) {
 		setCollectibles(std::move(list));
 	}
+	_collectibleWaits->settle(
+		request.more ? nullptr : &_collectibles,
+		request.sentAt);
 }
 
 void Session::setCollectibles(std::vector<Gram::NftItem> &&list) {
@@ -7977,6 +7994,21 @@ void Session::resolveCollectibleInfo(
 		});
 }
 
+uint64 Session::expectIncomingCollectible(
+		Fn<bool(const Gram::NftItem &)> matches,
+		Fn<void(bool arrived)> done) {
+	ensureLoaded();
+	if (!_walletAvailable
+		|| (_presence.current() == Presence::Unavailable)) {
+		return 0;
+	}
+	return _collectibleWaits->add(std::move(matches), std::move(done));
+}
+
+void Session::cancelIncomingCollectible(uint64 id) {
+	_collectibleWaits->cancel(id);
+}
+
 #ifdef _DEBUG
 void Session::debugClearNetworkState() {
 	if (_presence.current() != Presence::Ready) {
@@ -8013,7 +8045,8 @@ void Session::updatePollingState() {
 		|| sendRecoveryNeeded()
 		|| submittedLookupNeeded()
 		|| custody().pendingRotation
-		|| custody().anyAwaitingServerKey();
+		|| custody().anyAwaitingServerKey()
+		|| !_collectibleWaits->empty();
 	if (!wanted) {
 		_pollTimer.cancel();
 	} else if (!_pollTimer.isActive()) {
@@ -8033,6 +8066,7 @@ bool Session::pollingRequested() const {
 
 void Session::pollTick() {
 	ensureLoaded();
+	_collectibleWaits->settle(nullptr, 0);
 	expireStaleSubmittedTransfers();
 	updatePollingState();
 	if (!_pollTimer.isActive()) {
