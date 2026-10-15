@@ -4018,6 +4018,9 @@ void ComposeControls::initTabbedSelector() {
 	) | rpl::on_next([=](ChatHelpers::FileChosen &&data) {
 		if (const auto info = data.document->sticker()
 			; info && info->setType == Data::StickersType::Emoji) {
+			if (_writeRestriction.current()) {
+				return;
+			}
 			if (data.document->isPremiumEmoji()
 				&& !session().premium()
 				&& (!_history
