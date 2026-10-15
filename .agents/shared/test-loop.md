@@ -975,15 +975,16 @@ implementation or overlay verdict:
 - the same signature occurs on two launches.
 
 Before changing recovery strategies, preserve the current overlay and account and stop only the
-exact-path app. Then run the clean rebuild in `AGENTS.md` ("### macOS crashes while reading the
-cached language pack" under "## Troubleshooting") once, exactly as written there, its checks
-included. It deletes only the intermediate tree `out/build`, never runs an Xcode clean, and
+exact-path app. Then run the clean rebuild in `AGENTS.md` ("### Forcing a full recompile on macOS"
+under "## Troubleshooting") once, exactly as written there, its precondition and checks included.
+It deletes only the intermediate tree `out/build`, never runs an Xcode clean, and
 rebuilds with `BUILD`. Its check before the rebuild must show that `out/build`, which holds every
 intermediate object file, is gone; its check after the rebuild must show that the rebuild
 compiled every object file and that every entry `out/Debug` held before is still present. The
 step has no accepted failure: any other result stops the recovery. Do not substitute an Xcode
-clean (`--target clean`, `--clean-first` or a Clean in the Xcode app): `AGENTS.md` explains how
-`--target clean` and `--clean-first` can delete `out/Debug` with every portable folder, and why an
+clean (`--target clean`, `--clean-first` or a Clean in the Xcode app): `AGENTS.md`
+("### Build Commands" under "## Build Configuration") explains how `--target clean` and
+`--target Telegram --clean-first` can delete `out/Debug` with every portable folder, and why an
 exit 65 from `--target clean` does not prove that `out/Debug` survived. Never mark `out/Debug`
 deletable (`xattr -w com.apple.xcode.CreatedByBuildSystem true`, the hint in Xcode's refusal to
 delete it), and never move, rename or remove a portable folder or any other entry of `out/Debug`

@@ -165,13 +165,12 @@ attribute, `--target clean` refuses to delete `out/Debug` and ends
 `** CLEAN FAILED **` (exit 65). It ends the same way when it refuses only
 another, unmarked products folder and deletes a marked `out/Debug`, so exit 65
 alone does not prove that `out/Debug` survived. To force a full recompile,
-follow the `out/build` deletion in
-"### macOS crashes while reading the cached language pack" under
-"## Troubleshooting" exactly as written there, its checks before and after the
-rebuild included. Never mark `out/Debug` deletable with
-`xattr -w com.apple.xcode.CreatedByBuildSystem true`, as the note in Xcode's
-refusal suggests, and never move, rename or remove any `out/Debug` entry to
-make a clean succeed.
+follow the `out/build` deletion in "### Forcing a full recompile on macOS"
+under "## Troubleshooting" exactly as written there, its precondition and its
+checks before and after the rebuild included. Never mark `out/Debug` deletable
+with `xattr -w com.apple.xcode.CreatedByBuildSystem true`, as the note in
+Xcode's refusal suggests, and never move, rename or remove any `out/Debug`
+entry to make a clean succeed.
 
 ## Platform-Specific Requirements
 
@@ -232,36 +231,32 @@ older `kKeysCount`. The characteristic failure is:
   `Local::readLangPack()`.
 
 If this exact startup failure repeats twice, do not change the implementation,
-test overlay, or portable account. Stop only this checkout's exact Telegram
-process and make sure no build of this checkout is running. Then rebuild every
-object once by deleting the intermediate tree `out/build`, never with an Xcode
-clean.
+test overlay, or portable account. Rebuild every object once by following the
+`out/build` deletion in "### Forcing a full recompile on macOS" exactly as
+written there, its precondition and checks included, never with an Xcode clean
+(see the macOS statement in "### Build Commands" under
+"## Build Configuration"). Then rerun the same test once. If the signature
+persists after that clean rebuild, continue normal crash diagnosis or report
+the blocker. Do not loop clean rebuilds.
 
-Xcode's `CONFIGURATION_BUILD_DIR` is `out/Debug`, the folder that also holds
-the portable account folders, and what an Xcode clean does to it depends on
-whether it carries the `com.apple.xcode.CreatedByBuildSystem` extended
-attribute. With the attribute,
-`cmake --build out --config Debug --target clean` deletes `out/Debug` with
-every folder in it, and `--clean-first` does the same before it builds.
-Without it, the clean still deletes the intermediates but ends
-`** CLEAN FAILED **` (exit 65), with one error
-`Could not delete ... because it was not created by the build system` for
-each products folder it refused, `out/Debug` among them. Exit 65 alone does
-not mean `out/Debug` survived: another refused products folder gives the same
-status after `out/Debug` was deleted. So do not run `--target clean`,
-`--clean-first` or a Clean in the Xcode app on this tree. Never follow that
-error's note to mark `out/Debug` deletable with
-`xattr -w com.apple.xcode.CreatedByBuildSystem true`: the next clean would
-delete the accounts. Never move, rename or remove a portable folder or any
-other entry of `out/Debug` to make a clean succeed.
+### Forcing a full recompile on macOS
+
+Start only when no build of this checkout is running and this checkout's exact
+Telegram process is stopped. Never stop any other process for this procedure.
+Outside the autonomous `continue` / `perform-task` workflow, stopping that
+process follows "### Build output locks": the user may be testing it, so ask
+the user first and never terminate it without explicit permission. Then
+rebuild every object by deleting the intermediate tree `out/build`, never with
+an Xcode clean (see the macOS statement in "### Build Commands" under
+"## Build Configuration").
 
 The generated project keeps every intermediate (object files, precompiled
 headers and Xcode's build database) under `out/build`, its `SYMROOT`, and
 only build products in `out/Debug` and the other per-target `Debug` folders.
 Deleting `out/build` therefore works the same whether or not `out/Debug`
-carries the attribute, and it touches nothing in `out/Debug`. From the
-repository root, record what `out/Debug` holds, delete the intermediates and
-confirm that `out/build` is gone:
+carries the `com.apple.xcode.CreatedByBuildSystem` attribute, and it touches
+nothing in `out/Debug`. From the repository root, record what `out/Debug`
+holds, delete the intermediates and confirm that `out/build` is gone:
 
 ```bash
 test -d out/Telegram.xcodeproj &&
@@ -294,9 +289,7 @@ test -f out/language-rebuild-mark.txt &&
 It must print `0` (no object file is older than the mark written before
 `out/build` was deleted), then a nonzero object count, and nothing else (every
 entry `out/Debug` held before is still there). Anything else stops the
-procedure; report what it printed. Then rerun the same test once. If the
-signature persists after that clean rebuild, continue normal crash diagnosis
-or report the blocker. Do not loop clean rebuilds.
+procedure; report what it printed.
 
 ### Build output locks
 
