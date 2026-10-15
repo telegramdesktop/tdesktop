@@ -2188,6 +2188,8 @@ PRIVATE
     tgw/tgw_backend.h
     tgw/tgw_bridge.cpp
     tgw/tgw_bridge.h
+    tgw/tgw_canvas.cpp
+    tgw/tgw_canvas.h
     tgw/tgw_cursor.cpp
     tgw/tgw_cursor.h
     tgw/tgw_document.cpp

@@ -33,6 +33,27 @@ constexpr auto kMaxMaskPixels = float64(1 << 20);
 constexpr auto kMaskMargin = 2;
 constexpr auto kMaxShadowBytes = int64(16 * 1024 * 1024);
 constexpr auto kMaxShadows = 128;
+constexpr auto kMaxPathElements = int64(1 << 18);
+constexpr auto kMaxPathEdges = int64(1 << 20);
+constexpr auto kMaxPathWork = int64(1 << 27);
+constexpr auto kElementWork = int64(256);
+constexpr auto kShapeWork = 4096.;
+constexpr auto kDashPointWork = 256.;
+constexpr auto kCurveThreshold = 0.25;
+constexpr auto kCurveLevels = 9;
+constexpr auto kArcCurves = 5.;
+constexpr auto kCoordinateLimit = 32767.;
+constexpr auto kEdgeSpanLimit = 4. * kCoordinateLimit + 2.;
+constexpr auto kCurveSlack = 1e-4;
+constexpr auto kClipEdges = 5.;
+constexpr auto kOffsetSweeps = 2.;
+constexpr auto kMiterTurn = 3.;
+constexpr auto kClipWork = 16.;
+constexpr auto kRasterCells = 256.;
+constexpr auto kRasterBand = 37.;
+constexpr auto kRasterBands = 39.;
+constexpr auto kRasterAttempts = 8.;
+constexpr auto kGradientPixel = 8.;
 
 struct CornerRadius {
 	float64 x = 0.;
@@ -87,6 +108,13 @@ struct ShadowKey {
 		const ShadowKey &) = default;
 };
 
+struct Bounds {
+	float64 left = std::numeric_limits<float64>::infinity();
+	float64 top = std::numeric_limits<float64>::infinity();
+	float64 right = -std::numeric_limits<float64>::infinity();
+	float64 bottom = -std::numeric_limits<float64>::infinity();
+};
+
 class ShadowCache final {
 public:
 	[[nodiscard]] QImage find(const ShadowKey &key);
@@ -134,6 +162,79 @@ private:
 
 };
 
+class Outline final {
+public:
+	Outline(
+		const QTransform &device,
+		QSize size,
+		float64 threshold,
+		float64 limit);
+	Outline(
+		const QTransform &device,
+		QSize size,
+		float64 threshold,
+		float64 limit,
+		const QPen &pen);
+
+	[[nodiscard]] bool add(const QPainterPath &path);
+	[[nodiscard]] float64 edges() const;
+	[[nodiscard]] float64 spans() const;
+	[[nodiscard]] float64 visibleSpans() const;
+	[[nodiscard]] float64 rowSpans() const;
+	[[nodiscard]] float64 clampedSpans() const;
+	[[nodiscard]] float64 density() const;
+	[[nodiscard]] float64 coverage() const;
+	[[nodiscard]] QRectF extent() const;
+	[[nodiscard]] QRectF anchors() const;
+
+private:
+	[[nodiscard]] QPointF map(QPointF point);
+	[[nodiscard]] float64 clamped(QPointF from, QPointF to) const;
+	void count(
+		float64 edges,
+		float64 spans,
+		float64 clamped,
+		float64 density,
+		float64 top,
+		float64 bottom);
+	void move(QPointF to);
+	void line(QPointF to);
+	void curve(QPointF b, QPointF c, QPointF d);
+	void join(QPointF direction);
+	void cap(QPointF at);
+	void finish();
+	[[nodiscard]] float64 quarter();
+
+	const QTransform _device;
+	const float64 _width = 0.;
+	const float64 _height = 0.;
+	const float64 _threshold = 0.;
+	const float64 _limit = 0.;
+	const bool _stroke = false;
+	const float64 _radius = 0.;
+	const float64 _deviceRadius = 0.;
+	const float64 _reach = 0.;
+	const bool _roundJoin = false;
+	const Qt::PenCapStyle _cap = Qt::FlatCap;
+	float64 _quarter = -1.;
+	float64 _edges = 0.;
+	float64 _spans = 0.;
+	float64 _visibleSpans = 0.;
+	float64 _rowSpans = 0.;
+	float64 _clampedSpans = 0.;
+	float64 _density = 0.;
+	Bounds _controls;
+	Bounds _anchors;
+	QPointF _start;
+	QPointF _startMapped;
+	QPointF _point;
+	QPointF _mapped;
+	std::optional<QPointF> _first;
+	std::optional<QPointF> _last;
+	bool _valid = true;
+
+};
+
 class Executor final {
 public:
 	Executor(QPainter &root, const QtBackend &backend, float64 scale);
@@ -166,11 +267,6 @@ private:
 	void drawText(const twlite::Command &command);
 	void drawImage(const twlite::Command &command);
 	[[nodiscard]] bool drawPath(const twlite::Command &command);
-	[[nodiscard]] bool strokeDashes(
-		const QPainterPath &path,
-		const QPen &pen,
-		std::vector<float64> dashes,
-		float64 offset);
 	[[nodiscard]] bool drawShadow(const twlite::Command &command);
 	[[nodiscard]] bool drawMask(
 		const ShadowSource &source,
@@ -203,11 +299,10 @@ private:
 	std::vector<Entry> _stack;
 	std::vector<std::unique_ptr<Layer>> _layers;
 	std::vector<QRectF> _inks;
+	PaintAllowance _allowance;
 	size_t _group = 0;
 	int64 _layerBytes = 0;
 	int64 _layerWork = 0;
-	int64 _dashSteps = kMaxDashSteps;
-	int64 _flattenBytes = kMaxFlattenBytes;
 	int _hidden = 0;
 
 };
@@ -224,18 +319,17 @@ private:
 	return int64(size.width()) * size.height() * kPixelBytes;
 }
 
-void PrepareHints(QPainter &painter) {
-	painter.setRenderHints(QPainter::Antialiasing
-		| QPainter::SmoothPixmapTransform
-		| QPainter::TextAntialiasing);
-}
-
 [[nodiscard]] QRectF DeviceLimit(const QPaintDevice &device) {
 	return QRectF(0., 0., device.width(), device.height()).adjusted(
 		-kDeviceMargin,
 		-kDeviceMargin,
 		kDeviceMargin,
 		kDeviceMargin);
+}
+
+[[nodiscard]] QSize DeviceSize(const QPainter &painter) {
+	const auto device = painter.device();
+	return QSize(device->width(), device->height());
 }
 
 [[nodiscard]] QRectF DeviceClipBounds(QPainter &painter) {
@@ -270,24 +364,6 @@ void PrepareHints(QPainter &painter) {
 		kInkMargin,
 		kInkMargin));
 	return result.toAlignedRect();
-}
-
-[[nodiscard]] bool Finite(QPointF point) {
-	return std::isfinite(point.x()) && std::isfinite(point.y());
-}
-
-[[nodiscard]] bool Finite(const QTransform &transform) {
-	const auto values = std::array{
-		transform.m11(),
-		transform.m12(),
-		transform.m21(),
-		transform.m22(),
-		transform.dx(),
-		transform.dy(),
-	};
-	return ranges::all_of(values, [](qreal value) {
-		return std::isfinite(value);
-	});
 }
 
 [[nodiscard]] float64 MaxStretch(const QTransform &transform) {
@@ -588,21 +664,6 @@ void PrepareHints(QPainter &painter) {
 	return color.a ? QBrush(ToColor(color)) : QBrush();
 }
 
-[[nodiscard]] QBrush LinearBrush(
-		QPointF from,
-		QPointF to,
-		const std::vector<twlite::Stop> &stops) {
-	if (!Finite(from) || !Finite(to)) {
-		return QBrush();
-	}
-	const auto strict = StrictStops(stops, false);
-	if (from == to && !strict.isEmpty()) {
-		return QBrush(strict.back().second);
-	}
-	auto gradient = QLinearGradient(from, to);
-	return StopsBrush(gradient, strict);
-}
-
 [[nodiscard]] QBrush RadialBrush(
 		QPointF centre,
 		float64 radiusX,
@@ -635,21 +696,6 @@ void PrepareHints(QPainter &painter) {
 			centre.y()));
 	}
 	return result;
-}
-
-[[nodiscard]] QBrush ConicBrush(
-		QPointF centre,
-		float64 from,
-		const std::vector<twlite::Stop> &stops) {
-	if (!Finite(centre) || !std::isfinite(from)) {
-		return QBrush();
-	}
-	const auto turn = std::fmod(from, 360.);
-	// CSS turns clockwise from 12 o'clock, Qt counter-clockwise from 3 o'clock.
-	auto gradient = QConicalGradient(
-		centre,
-		std::fmod(90. - turn + 360., 360.));
-	return StopsBrush(gradient, StrictStops(stops, true));
 }
 
 [[nodiscard]] QBrush BackgroundBrush(const twlite::Command &command) {
@@ -685,61 +731,6 @@ void PrepareHints(QPainter &painter) {
 	return -1;
 }
 
-[[nodiscard]] QPainterPath VectorPath(const twlite::Path &path) {
-	auto result = QPainterPath();
-	result.setFillRule(path.evenodd ? Qt::OddEvenFill : Qt::WindingFill);
-	const auto &points = path.points;
-	const auto finite = [](float value) {
-		return std::isfinite(value);
-	};
-	const auto point = [&](size_t at) {
-		return QPointF(points[at], points[at + 1]);
-	};
-	auto index = size_t();
-	auto started = false;
-	for (const auto op : path.ops) {
-		const auto count = PointValues(op);
-		if (count < 0 || points.size() - index < size_t(count)) {
-			break;
-		}
-		const auto from = points.begin() + index;
-		if (!std::all_of(from, from + count, finite)) {
-			break;
-		}
-		switch (op) {
-		case twlite::Path::Move:
-			result.moveTo(point(index));
-			started = true;
-			break;
-		case twlite::Path::Line:
-			if (started) {
-				result.lineTo(point(index));
-			}
-			break;
-		case twlite::Path::Quad:
-			if (started) {
-				result.quadTo(point(index), point(index + 2));
-			}
-			break;
-		case twlite::Path::Cubic:
-			if (started) {
-				result.cubicTo(
-					point(index),
-					point(index + 2),
-					point(index + 4));
-			}
-			break;
-		case twlite::Path::Close:
-			if (started) {
-				result.closeSubpath();
-			}
-			break;
-		}
-		index += count;
-	}
-	return result;
-}
-
 [[nodiscard]] QBrush PathBrush(const twlite::Path &path) {
 	const auto gradient = path.stops.empty() ? 0 : path.gradient;
 	switch (gradient) {
@@ -759,51 +750,6 @@ void PrepareHints(QPainter &painter) {
 	return SolidBrush(path.fill_color);
 }
 
-[[nodiscard]] Qt::PenCapStyle PathCap(int cap) {
-	constexpr auto styles = std::array{
-		Qt::FlatCap,
-		Qt::RoundCap,
-		Qt::SquareCap,
-	};
-	return (cap >= 0 && cap < int(styles.size()))
-		? styles[cap]
-		: styles.front();
-}
-
-[[nodiscard]] Qt::PenJoinStyle PathJoin(int join) {
-	constexpr auto styles = std::array{
-		Qt::SvgMiterJoin,
-		Qt::RoundJoin,
-		Qt::BevelJoin,
-	};
-	return (join >= 0 && join < int(styles.size()))
-		? styles[join]
-		: styles.front();
-}
-
-[[nodiscard]] std::vector<float64> DashPattern(
-		const std::vector<float> &dashes) {
-	const auto finite = [](float value) {
-		return std::isfinite(value);
-	};
-	if (dashes.empty() || !ranges::all_of(dashes, finite)) {
-		return {};
-	}
-	const auto count = dashes.size();
-	const auto size = (count % 2) ? (count * 2) : count;
-	auto result = std::vector<float64>();
-	result.reserve(size);
-	for (auto i = size_t(); i != size; ++i) {
-		result.push_back(std::max(float64(dashes[i % count]), 0.));
-	}
-	const auto positive = [](float64 value) {
-		return (value > 0.);
-	};
-	return ranges::any_of(result, positive)
-		? result
-		: std::vector<float64>();
-}
-
 [[nodiscard]] float64 MiterLimit(const twlite::Path &path) {
 	return std::isfinite(path.miter_limit)
 		? std::max(float64(path.miter_limit), 1.)
@@ -819,10 +765,6 @@ void PrepareHints(QPainter &painter) {
 		PathJoin(path.line_join));
 	result.setMiterLimit(MiterLimit(path));
 	return result;
-}
-
-[[nodiscard]] float64 StrokeReach(float64 width, float64 miterLimit) {
-	return width * std::max(miterLimit, 2.) / 2.;
 }
 
 [[nodiscard]] float64 Wrap(float64 value, float64 period) {
@@ -914,6 +856,224 @@ void PrepareHints(QPainter &painter) {
 	return true;
 }
 
+[[nodiscard]] int64 CurvePieces(
+		const std::array<QPointF, 4> &curve,
+		float64 threshold,
+		float64 limit) {
+	struct Piece {
+		std::array<QPointF, 4> points;
+		int level = 0;
+	};
+	const auto middle = [](QPointF a, QPointF b) {
+		return (a + b) * .5;
+	};
+	auto stack = std::array<Piece, kCurveLevels + 1>();
+	stack[0] = Piece{ .points = curve, .level = kCurveLevels };
+	auto top = 0;
+	auto result = int64();
+	while (top >= 0 && result <= limit) {
+		const auto [a, b, c, d] = stack[top].points;
+		const auto level = stack[top].level;
+		const auto dx = d.x() - a.x();
+		const auto dy = d.y() - a.y();
+		auto length = std::abs(dx) + std::abs(dy);
+		auto distance = 0.;
+		if (length > 1.) {
+			distance = std::abs(dx * (a.y() - b.y()) - dy * (a.x() - b.x()))
+				+ std::abs(dx * (a.y() - c.y()) - dy * (a.x() - c.x()));
+		} else {
+			distance = std::abs(a.x() - b.x())
+				+ std::abs(a.y() - b.y())
+				+ std::abs(a.x() - c.x())
+				+ std::abs(a.y() - c.y());
+			length = 1.;
+		}
+		if (distance < threshold * length || !level) {
+			++result;
+			--top;
+			continue;
+		}
+		const auto ab = middle(a, b);
+		const auto bc = middle(b, c);
+		const auto cd = middle(c, d);
+		const auto abc = middle(ab, bc);
+		const auto bcd = middle(bc, cd);
+		const auto abcd = middle(abc, bcd);
+		stack[top] = Piece{
+			.points = { abcd, bcd, cd, d },
+			.level = level - 1,
+		};
+		stack[++top] = Piece{
+			.points = { a, ab, abc, abcd },
+			.level = level - 1,
+		};
+	}
+	return result;
+}
+
+[[nodiscard]] float64 Span(QPointF from, QPointF to) {
+	return std::abs(to.x() - from.x()) + std::abs(to.y() - from.y());
+}
+
+void Include(Bounds &bounds, QPointF point) {
+	bounds.left = std::min(bounds.left, point.x());
+	bounds.top = std::min(bounds.top, point.y());
+	bounds.right = std::max(bounds.right, point.x());
+	bounds.bottom = std::max(bounds.bottom, point.y());
+}
+
+[[nodiscard]] QRectF BoundsRect(const Bounds &bounds, float64 margin) {
+	if (!(bounds.left <= bounds.right) || !(bounds.top <= bounds.bottom)) {
+		return QRectF();
+	}
+	return QRectF(
+		QPointF(bounds.left, bounds.top),
+		QPointF(bounds.right, bounds.bottom)).adjusted(
+			-margin,
+			-margin,
+			margin,
+			margin);
+}
+
+[[nodiscard]] std::pair<float64, float64> CurveRange(
+		float64 a,
+		float64 b,
+		float64 c,
+		float64 d) {
+	auto low = std::min(a, d);
+	auto high = std::max(a, d);
+	const auto include = [&](float64 t) {
+		if (t > 0. && t < 1.) {
+			const auto s = 1. - t;
+			const auto value = s * s * s * a
+				+ 3. * s * s * t * b
+				+ 3. * s * t * t * c
+				+ t * t * t * d;
+			low = std::min(low, value);
+			high = std::max(high, value);
+		}
+	};
+	const auto qa = 3. * (b - c) + d - a;
+	const auto qb = 2. * (a - 2. * b + c);
+	const auto qc = b - a;
+	if (qa == 0.) {
+		if (qb != 0.) {
+			include(-qc / qb);
+		}
+		return { low, high };
+	}
+	const auto discriminant = qb * qb - 4. * qa * qc;
+	if (discriminant >= 0.) {
+		const auto root = std::sqrt(discriminant);
+		include((-qb + root) / (2. * qa));
+		include((-qb - root) / (2. * qa));
+	}
+	return { low, high };
+}
+
+[[nodiscard]] bool BeyondRaster(const QRectF &rect) {
+	return std::max({
+		-rect.left(),
+		-rect.top(),
+		rect.right(),
+		rect.bottom(),
+		rect.width(),
+		rect.height(),
+	}) > kCoordinateLimit;
+}
+
+[[nodiscard]] float64 Turn(QPointF from, QPointF to) {
+	return std::atan2(
+		std::abs(from.x() * to.y() - from.y() * to.x()),
+		from.x() * to.x() + from.y() * to.y());
+}
+
+[[nodiscard]] float64 PolygonTurn(const std::array<QPointF, 4> &curve) {
+	auto result = 0.;
+	auto previous = std::optional<QPointF>();
+	for (auto i = 1; i != 4; ++i) {
+		const auto leg = curve[i] - curve[i - 1];
+		if (leg.isNull()) {
+			continue;
+		} else if (previous) {
+			result += Turn(*previous, leg);
+		}
+		previous = leg;
+	}
+	return result;
+}
+
+[[nodiscard]] std::optional<QPointF> Tangent(
+		QPointF from,
+		std::initializer_list<QPointF> to) {
+	for (const auto point : to) {
+		if (!(point - from).isNull()) {
+			return point - from;
+		}
+	}
+	return std::nullopt;
+}
+
+[[nodiscard]] float64 RasterWork(
+		const Outline &outline,
+		QSize size,
+		float64 pixelWeight) {
+	const auto frame = QRectF(QPointF(), QSizeF(size));
+	const auto extent = outline.extent();
+	auto edges = outline.edges();
+	if (!extent.intersects(frame)) {
+		return edges;
+	}
+	const auto visible = extent.intersected(frame);
+	const auto rows = std::ceil(visible.bottom()) - std::floor(visible.top());
+	const auto columns = std::ceil(visible.right())
+		- std::floor(visible.left());
+	auto spans = outline.spans();
+	auto iterated = outline.visibleSpans();
+	auto density = std::min(columns + 2., outline.density());
+	auto clip = 0.;
+	const auto clipping = BeyondRaster(extent);
+	if (clipping) {
+		clip = kClipWork * edges;
+		spans = iterated = BeyondRaster(outline.anchors())
+			? (outline.clampedSpans() + (kClipEdges - 1.) * edges)
+			: std::min(spans, kClipEdges * edges * kEdgeSpanLimit);
+		edges *= kClipEdges;
+		density = columns + 2.;
+	}
+	const auto attempts = (density > kRasterCells)
+		? std::min(
+			kRasterAttempts,
+			1. + std::ceil(std::log2(density / kRasterCells)))
+		: 1.;
+	const auto bands = std::clamp(
+		std::floor(rows / kRasterBand),
+		1.,
+		kRasterBands);
+	const auto first = rows - (bands - 1.) * kRasterBand;
+	const auto crowded = first * density / kRasterCells;
+	const auto failing = (crowded > 1.)
+		? std::min(std::ceil(std::log2(crowded)), std::ceil(std::log2(first)))
+		: 0.;
+	const auto cells = std::min(rows * (columns + 2.), edges + spans);
+	const auto splits = 2. * failing * std::ceil(cells / kRasterCells);
+	const auto passes = attempts * std::min(2. * rows, bands + splits);
+	const auto levels = std::ceil(std::log2(rows)) + 1.;
+	const auto deep = 4. * outline.rowSpans() + (2. * levels + 2.) * iterated;
+	const auto shallow = std::exp2(failing + 2.)
+		/ std::min(kRasterBand, rows)
+		* outline.rowSpans()
+		+ (2. * failing + 2.) * iterated;
+	const auto overlap = clipping
+		? std::numeric_limits<float64>::infinity()
+		: attempts * std::min(deep, shallow);
+	const auto pixels = std::min(rows * columns, outline.coverage());
+	return passes * edges
+		+ std::min(passes * iterated, overlap)
+		+ pixels * pixelWeight
+		+ clip;
+}
+
 [[nodiscard]] ShadowSource OuterShadow(
 		const QRectF &box,
 		const Corners &corners,
@@ -952,10 +1112,6 @@ void PrepareHints(QPainter &painter) {
 			: SpreadCorners(hole, corners, -spread),
 		.inset = true,
 	};
-}
-
-[[nodiscard]] int StackRadius(float64 sigma) {
-	return int(base::SafeRound(std::sqrt(1. + 6. * sigma * sigma) - 1.));
 }
 
 [[nodiscard]] float64 FittingScale(QSizeF size, float64 margin) {
@@ -1022,7 +1178,7 @@ void PrepareHints(QPainter &painter) {
 }
 
 [[nodiscard]] QRectF PathInk(const twlite::Path &path) {
-	const auto vector = VectorPath(path);
+	const auto vector = VectorPath(path.ops, path.points, path.evenodd);
 	if (vector.isEmpty()) {
 		return QRectF();
 	}
@@ -1208,9 +1364,7 @@ void PrepareHints(QPainter &painter) {
 			key.corners),
 		Qt::white);
 	p.end();
-	return ColorizeMask(
-		Images::BlurLargeImage(std::move(result), layout.radius),
-		key.color);
+	return ShadowFromCoverage(std::move(result), layout.radius, key.color);
 }
 
 [[nodiscard]] ShadowCache &Shadows() {
@@ -1366,6 +1520,324 @@ void Dasher::line(QPointF from, QPointF to) {
 	_result.lineTo(to);
 }
 
+Outline::Outline(
+		const QTransform &device,
+		QSize size,
+		float64 threshold,
+		float64 limit)
+: _device(device)
+, _width(size.width())
+, _height(size.height())
+, _threshold(threshold)
+, _limit(limit) {
+}
+
+Outline::Outline(
+		const QTransform &device,
+		QSize size,
+		float64 threshold,
+		float64 limit,
+		const QPen &pen)
+: _device(device)
+, _width(size.width())
+, _height(size.height())
+, _threshold(threshold)
+, _limit(limit)
+, _stroke(true)
+, _radius(pen.widthF() / 2.)
+, _deviceRadius(_radius * MaxStretch(device))
+, _reach(StrokeReach(pen.widthF(), pen.miterLimit()) * MaxStretch(device))
+, _roundJoin(pen.joinStyle() == Qt::RoundJoin)
+, _cap(pen.capStyle()) {
+}
+
+bool Outline::add(const QPainterPath &path) {
+	for (auto i = 0, count = path.elementCount(); i != count; ++i) {
+		const auto &element = path.elementAt(i);
+		switch (element.type) {
+		case QPainterPath::MoveToElement: move(element); break;
+		case QPainterPath::LineToElement: line(element); break;
+		case QPainterPath::CurveToElement:
+			curve(element, path.elementAt(i + 1), path.elementAt(i + 2));
+			i += 2;
+			break;
+		case QPainterPath::CurveToDataElement: break;
+		}
+		if (!(_edges <= _limit)) {
+			return false;
+		}
+	}
+	finish();
+	return _valid && (_edges <= _limit);
+}
+
+float64 Outline::edges() const {
+	return _edges;
+}
+
+float64 Outline::spans() const {
+	return _spans;
+}
+
+float64 Outline::visibleSpans() const {
+	return _visibleSpans;
+}
+
+float64 Outline::rowSpans() const {
+	return _rowSpans;
+}
+
+float64 Outline::clampedSpans() const {
+	return _clampedSpans;
+}
+
+float64 Outline::density() const {
+	return _density;
+}
+
+float64 Outline::coverage() const {
+	return _stroke
+		? (_spans * (_deviceRadius + 1.))
+		: std::numeric_limits<float64>::infinity();
+}
+
+QRectF Outline::extent() const {
+	return BoundsRect(_controls, _reach);
+}
+
+QRectF Outline::anchors() const {
+	const auto magnitude = std::max({
+		-_controls.left,
+		-_controls.top,
+		_controls.right,
+		_controls.bottom,
+	});
+	return BoundsRect(_anchors, -(_reach + 1. + magnitude * kCurveSlack));
+}
+
+QPointF Outline::map(QPointF point) {
+	const auto result = _device.map(point);
+	_valid = _valid && Finite(result);
+	Include(_controls, result);
+	return result;
+}
+
+float64 Outline::clamped(QPointF from, QPointF to) const {
+	const auto clamp = [&](QPointF point) {
+		return QPointF(
+			std::clamp(point.x(), 0., _width),
+			std::clamp(point.y(), 0., _height));
+	};
+	return Span(clamp(from), clamp(to));
+}
+
+void Outline::count(
+		float64 edges,
+		float64 spans,
+		float64 clamped,
+		float64 density,
+		float64 top,
+		float64 bottom) {
+	_edges += edges;
+	_spans += spans;
+	_clampedSpans += clamped;
+	const auto from = std::max(top - _reach, 0.);
+	const auto till = std::min(bottom + _reach, _height);
+	if (from <= till) {
+		_visibleSpans += spans;
+		_rowSpans += spans * (std::ceil(till) - std::floor(from) + 1.);
+		_density += density;
+	}
+}
+
+void Outline::move(QPointF to) {
+	finish();
+	_start = _point = to;
+	_startMapped = _mapped = map(to);
+	Include(_anchors, _mapped);
+	if (!_stroke) {
+		count(1., 0., 0., 0., _mapped.y(), _mapped.y());
+	}
+}
+
+void Outline::line(QPointF to) {
+	const auto mapped = map(to);
+	Include(_anchors, mapped);
+	const auto span = Span(_mapped, mapped);
+	const auto top = std::min(_mapped.y(), mapped.y());
+	const auto bottom = std::max(_mapped.y(), mapped.y());
+	const auto direction = to - _point;
+	const auto inside = clamped(_mapped, mapped);
+	const auto slope = std::abs(mapped.x() - _mapped.x())
+		/ std::max(bottom - top, 1.)
+		+ 2.;
+	if (!_stroke) {
+		count(1., span + 1., inside + 1., slope, top, bottom);
+	} else if (!direction.isNull()) {
+		join(direction);
+		count(
+			2.,
+			2. * (span + 1.),
+			2. * (inside + 3. * _deviceRadius + 1.),
+			2. * slope,
+			top,
+			bottom);
+		_last = direction;
+	}
+	_point = to;
+	_mapped = mapped;
+}
+
+void Outline::curve(QPointF b, QPointF c, QPointF d) {
+	const auto a = _point;
+	const auto points = std::array{ a, b, c, d };
+	const auto mapped = std::array{ _mapped, map(b), map(c), map(d) };
+	const auto polygon = Span(mapped[0], mapped[1])
+		+ Span(mapped[1], mapped[2])
+		+ Span(mapped[2], mapped[3]);
+	const auto sideways = std::abs(mapped[1].x() - mapped[0].x())
+		+ std::abs(mapped[2].x() - mapped[1].x())
+		+ std::abs(mapped[3].x() - mapped[2].x());
+	const auto [left, right] = CurveRange(
+		mapped[0].x(),
+		mapped[1].x(),
+		mapped[2].x(),
+		mapped[3].x());
+	const auto [top, bottom] = CurveRange(
+		mapped[0].y(),
+		mapped[1].y(),
+		mapped[2].y(),
+		mapped[3].y());
+	Include(_anchors, QPointF(left, top));
+	Include(_anchors, QPointF(right, bottom));
+	const auto pieces = float64(
+		CurvePieces(points, _threshold, _limit - _edges));
+	const auto across = 3. * (_width + _height + 2. * _deviceRadius);
+	if (!_stroke) {
+		count(
+			pieces,
+			polygon + pieces,
+			std::min(polygon, across) + pieces,
+			sideways + 2. * pieces,
+			top,
+			bottom);
+	} else if (const auto start = Tangent(a, { b, c, d })) {
+		const auto turn = PolygonTurn(points);
+		const auto offset = 2. * turn * std::sqrt(_radius / (3. * _threshold));
+		const auto side = pieces + std::ceil(offset) + 1.;
+		const auto length = polygon + 1.5 * turn * _deviceRadius;
+		join(*start);
+		count(
+			2. * side,
+			2. * (length + side),
+			2. * (std::min(length, kOffsetSweeps * across) + side),
+			2. * (sideways + 1.5 * turn * _deviceRadius + 2. * side),
+			top,
+			bottom);
+		_last = -*Tangent(d, { c, b, a });
+	}
+	_point = d;
+	_mapped = mapped[3];
+}
+
+void Outline::join(QPointF direction) {
+	if (!_last) {
+		_first = direction;
+		return;
+	}
+	const auto turn = Turn(*_last, direction);
+	const auto y = _mapped.y();
+	if (!_roundJoin) {
+		const auto miter = std::tan(std::min(turn, kMiterTurn) / 2.);
+		const auto tip = _deviceRadius * (1. + miter);
+		const auto spans = 4. + 3. * _deviceRadius + 3. * std::min(_reach, tip);
+		count(4., spans, spans, spans + 4., y, y);
+		return;
+	}
+	const auto shortest = std::min(
+		std::hypot(direction.x(), direction.y()),
+		std::hypot(_last->x(), _last->y()));
+	const auto inside = (shortest <= _radius);
+	const auto quarters = std::ceil(turn / (M_PI / 2.))
+		+ 1.
+		+ (inside ? kArcCurves : 0.);
+	const auto pieces = quarters * quarter();
+	const auto sweep = turn + (inside ? (2. * M_PI) : 0.);
+	const auto spans = 3.
+		+ 3. * _deviceRadius
+		+ pieces
+		+ 1.5 * sweep * _deviceRadius;
+	count(3. + pieces, spans, spans, spans + 3. + pieces, y, y);
+}
+
+void Outline::cap(QPointF at) {
+	switch (_cap) {
+	case Qt::RoundCap: {
+		const auto pieces = 2. * quarter();
+		const auto spans = pieces + 1.5 * M_PI * _deviceRadius;
+		count(pieces, spans, spans, spans + pieces, at.y(), at.y());
+	} break;
+	case Qt::SquareCap: {
+		const auto spans = 6. * _deviceRadius + 3.;
+		count(3., spans, spans, spans + 3., at.y(), at.y());
+	} break;
+	default: {
+		const auto spans = 3. * _deviceRadius + 1.;
+		count(1., spans, spans, spans + 1., at.y(), at.y());
+	} break;
+	}
+}
+
+void Outline::finish() {
+	if (!_stroke) {
+		if (_point != _start) {
+			const auto top = std::min(_mapped.y(), _startMapped.y());
+			const auto bottom = std::max(_mapped.y(), _startMapped.y());
+			const auto slope = std::abs(_startMapped.x() - _mapped.x())
+				/ std::max(bottom - top, 1.)
+				+ 2.;
+			count(
+				1.,
+				Span(_mapped, _startMapped) + 1.,
+				clamped(_mapped, _startMapped) + 1.,
+				slope,
+				top,
+				bottom);
+		}
+	} else if (_first) {
+		if (_point == _start) {
+			join(*_first);
+		} else {
+			cap(_startMapped);
+			cap(_mapped);
+		}
+	}
+	_first = _last = std::nullopt;
+}
+
+float64 Outline::quarter() {
+	if (_quarter < 0.) {
+		const auto radius = _radius;
+		const auto handle = radius * kKappa;
+		const auto straight = std::array{
+			QPointF(radius, 0.),
+			QPointF(radius, handle),
+			QPointF(handle, radius),
+			QPointF(0., radius),
+		};
+		auto turned = straight;
+		for (auto &point : turned) {
+			point = QPointF(point.x() - point.y(), point.x() + point.y())
+				* std::sqrt(.5);
+		}
+		const auto most = float64(kMaxCurvePoints);
+		_quarter = float64(std::max(
+			CurvePieces(straight, _threshold, most),
+			CurvePieces(turned, _threshold, most)));
+	}
+	return _quarter;
+}
+
 Executor::Executor(
 		QPainter &root,
 		const QtBackend &backend,
@@ -1377,6 +1849,13 @@ Executor::Executor(
 }
 
 bool Executor::run(const twlite::DisplayList &list) {
+	for (const auto &command : list) {
+		if (command.kind == twlite::Cmd::Path
+			&& command.path
+			&& !_allowance.chargeElements(int64(command.path->ops.size()))) {
+			return false;
+		}
+	}
 	const auto device = _root.device();
 	_inks = GroupInks(
 		list,
@@ -1506,7 +1985,7 @@ void Executor::drawText(const twlite::Command &command) {
 
 void Executor::drawImage(const twlite::Command &command) {
 	const auto image = command.canvas
-		? nullptr
+		? _backend.canvas(command.canvas)
 		: _backend.image(command.image);
 	const auto target = ToRect(command.rect);
 	const auto base = command.has_clip ? ToRect(command.clip) : target;
@@ -1539,13 +2018,17 @@ bool Executor::drawPath(const twlite::Command &command) {
 	if (!source) {
 		return true;
 	}
-	const auto path = VectorPath(*source);
+	const auto path = VectorPath(source->ops, source->points, source->evenodd);
 	if (path.isEmpty()) {
 		return true;
 	}
+	auto &p = painter();
 	const auto brush = source->fill ? PathBrush(*source) : QBrush();
 	if (brush.style() != Qt::NoBrush) {
-		painter().fillPath(path, brush);
+		if (!_allowance.chargeFill(p, path, brush)) {
+			return false;
+		}
+		p.fillPath(path, brush);
 	}
 	if (!source->stroke
 		|| !source->stroke_color.a
@@ -1555,64 +2038,18 @@ bool Executor::drawPath(const twlite::Command &command) {
 	const auto pen = PathPen(*source);
 	auto dashes = DashPattern(source->dashes);
 	if (dashes.empty()) {
-		painter().strokePath(path, pen);
+		if (!_allowance.chargeStroke(p, path, pen)) {
+			return false;
+		}
+		p.strokePath(path, pen);
 		return true;
 	}
-	return strokeDashes(
+	return _allowance.strokeDashes(
+		p,
 		path,
 		pen,
 		std::move(dashes),
 		std::isfinite(source->dash_offset) ? source->dash_offset : 0.);
-}
-
-bool Executor::strokeDashes(
-		const QPainterPath &path,
-		const QPen &pen,
-		std::vector<float64> dashes,
-		float64 offset) {
-	auto &p = painter();
-	const auto scale = MaxStretch(p.combinedTransform());
-	auto invertible = false;
-	const auto fromDevice = p.combinedTransform().inverted(&invertible)
-		* QTransform::fromScale(scale, scale);
-	if (!std::isfinite(scale) || !(scale > 0.) || !invertible) {
-		return true;
-	}
-	const auto width = pen.widthF() * scale;
-	const auto reach = StrokeReach(width, pen.miterLimit());
-	const auto device = VisibleRect(p).adjusted(
-		-kInkMargin,
-		-kInkMargin,
-		kInkMargin,
-		kInkMargin);
-	const auto visible = fromDevice.mapRect(device).adjusted(
-		-reach,
-		-reach,
-		reach,
-		reach);
-	auto dasher = Dasher(
-		std::move(dashes),
-		offset,
-		scale,
-		visible,
-		_dashSteps);
-	const auto scaled = QTransform::fromScale(scale, scale);
-	if (!ReserveFlattening(path, _flattenBytes)) {
-		return false;
-	}
-	for (const auto &polygon : path.toSubpathPolygons(scaled)) {
-		if (!dasher.add(polygon)) {
-			return false;
-		}
-	}
-	auto stroker = QPainterPathStroker(pen);
-	stroker.setWidth(width);
-	const auto outline = stroker.createStroke(dasher.result());
-	p.save();
-	p.scale(1. / scale, 1. / scale);
-	p.fillPath(outline, pen.brush());
-	p.restore();
-	return true;
 }
 
 bool Executor::drawShadow(const twlite::Command &command) {
@@ -1897,6 +2334,332 @@ bool Executor::reachable(QPointF point) const {
 }
 
 } // namespace
+
+PaintAllowance::PaintAllowance()
+: _elements(kMaxPathElements)
+, _edges(kMaxPathEdges)
+, _work(kMaxPathWork)
+, _dashSteps(kMaxDashSteps)
+, _flattenBytes(kMaxFlattenBytes) {
+}
+
+bool PaintAllowance::chargeElements(int64 count) {
+	if (count < 0 || count > _elements || count > _work / kElementWork) {
+		return false;
+	}
+	_elements -= count;
+	_work -= count * kElementWork;
+	return true;
+}
+
+bool PaintAllowance::chargeFill(
+		const QPainter &painter,
+		const QPainterPath &path,
+		const QBrush &brush) {
+	return chargeShape(
+		path,
+		painter.combinedTransform(),
+		DeviceSize(painter),
+		nullptr,
+		brush.style());
+}
+
+bool PaintAllowance::chargeStroke(
+		const QPainter &painter,
+		const QPainterPath &path,
+		const QPen &pen) {
+	return chargeShape(
+		path,
+		painter.combinedTransform(),
+		DeviceSize(painter),
+		&pen,
+		pen.brush().style());
+}
+
+bool PaintAllowance::strokeDashes(
+		QPainter &painter,
+		const QPainterPath &path,
+		const QPen &pen,
+		std::vector<float64> dashes,
+		float64 offset) {
+	auto &p = painter;
+	const auto scale = MaxStretch(p.combinedTransform());
+	auto invertible = false;
+	const auto fromDevice = p.combinedTransform().inverted(&invertible)
+		* QTransform::fromScale(scale, scale);
+	if (!std::isfinite(scale) || !(scale > 0.) || !invertible) {
+		return true;
+	}
+	const auto width = pen.widthF() * scale;
+	const auto reach = StrokeReach(width, pen.miterLimit());
+	const auto device = VisibleRect(p).adjusted(
+		-kInkMargin,
+		-kInkMargin,
+		kInkMargin,
+		kInkMargin);
+	const auto visible = fromDevice.mapRect(device).adjusted(
+		-reach,
+		-reach,
+		reach,
+		reach);
+	auto dasher = Dasher(
+		std::move(dashes),
+		offset,
+		scale,
+		visible,
+		_dashSteps);
+	const auto scaled = QTransform::fromScale(scale, scale);
+	if (!ReserveFlattening(path, _flattenBytes)) {
+		return false;
+	}
+	const auto polygons = path.toSubpathPolygons(scaled);
+	auto points = 0.;
+	for (const auto &polygon : polygons) {
+		points += polygon.size();
+	}
+	if (!charge(0., points * kDashPointWork)) {
+		return false;
+	}
+	for (const auto &polygon : polygons) {
+		if (!dasher.add(polygon)) {
+			return false;
+		}
+	}
+	auto stroker = QPainterPathStroker(pen);
+	stroker.setWidth(width);
+	auto outlinePen = pen;
+	outlinePen.setWidthF(width);
+	const auto toDevice = QTransform::fromScale(1. / scale, 1. / scale)
+		* p.combinedTransform();
+	if (!chargeShape(
+			dasher.result(),
+			toDevice,
+			DeviceSize(p),
+			&outlinePen,
+			pen.brush().style())) {
+		return false;
+	}
+	const auto outline = stroker.createStroke(dasher.result());
+	auto brush = pen.brush();
+	brush.setTransform(brush.transform() * scaled);
+	p.save();
+	p.scale(1. / scale, 1. / scale);
+	p.fillPath(outline, brush);
+	p.restore();
+	return true;
+}
+
+bool PaintAllowance::chargeShape(
+		const QPainterPath &path,
+		const QTransform &device,
+		QSize size,
+		const QPen *pen,
+		Qt::BrushStyle style) {
+	const auto stretch = MaxStretch(device);
+	if (!std::isfinite(stretch)) {
+		return false;
+	}
+	const auto threshold = (stretch > 0.)
+		? (kCurveThreshold / stretch)
+		: kCurveThreshold;
+	const auto limit = float64(_edges);
+	auto outline = pen
+		? Outline(device, size, threshold, limit, *pen)
+		: Outline(device, size, threshold, limit);
+	if (!outline.add(path)) {
+		return false;
+	}
+	const auto weight = (style == Qt::SolidPattern) ? 1. : kGradientPixel;
+	return charge(
+		outline.edges(),
+		RasterWork(outline, size, weight) + kShapeWork);
+}
+
+bool PaintAllowance::charge(float64 edges, float64 work) {
+	if (!std::isfinite(edges)
+		|| !std::isfinite(work)
+		|| !(edges <= float64(_edges))
+		|| !(work <= float64(_work))) {
+		return false;
+	}
+	_edges -= int64(std::ceil(edges));
+	_work -= int64(std::ceil(work));
+	return true;
+}
+
+void PrepareHints(QPainter &painter) {
+	painter.setRenderHints(QPainter::Antialiasing
+		| QPainter::SmoothPixmapTransform
+		| QPainter::TextAntialiasing);
+}
+
+bool Finite(QPointF point) {
+	return std::isfinite(point.x()) && std::isfinite(point.y());
+}
+
+bool Finite(const QTransform &transform) {
+	const auto values = std::array{
+		transform.m11(),
+		transform.m12(),
+		transform.m21(),
+		transform.m22(),
+		transform.dx(),
+		transform.dy(),
+	};
+	return ranges::all_of(values, [](qreal value) {
+		return std::isfinite(value);
+	});
+}
+
+QBrush GradientBrush(
+		QGradient &gradient,
+		const std::vector<twlite::Stop> &stops,
+		bool reversed) {
+	return StopsBrush(gradient, StrictStops(stops, reversed));
+}
+
+QBrush LinearBrush(
+		QPointF from,
+		QPointF to,
+		const std::vector<twlite::Stop> &stops) {
+	if (!Finite(from) || !Finite(to)) {
+		return QBrush();
+	}
+	const auto strict = StrictStops(stops, false);
+	if (from == to && !strict.isEmpty()) {
+		return QBrush(strict.back().second);
+	}
+	auto gradient = QLinearGradient(from, to);
+	return StopsBrush(gradient, strict);
+}
+
+QBrush ConicBrush(
+		QPointF centre,
+		float64 from,
+		const std::vector<twlite::Stop> &stops) {
+	if (!Finite(centre) || !std::isfinite(from)) {
+		return QBrush();
+	}
+	const auto turn = std::fmod(from, 360.);
+	// CSS turns clockwise from 12 o'clock, Qt counter-clockwise from 3 o'clock.
+	auto gradient = QConicalGradient(
+		centre,
+		std::fmod(90. - turn + 360., 360.));
+	return GradientBrush(gradient, stops, true);
+}
+
+QPainterPath VectorPath(
+		const std::vector<twlite::Path::Op> &ops,
+		const std::vector<float> &points,
+		bool evenodd) {
+	auto result = QPainterPath();
+	result.setFillRule(evenodd ? Qt::OddEvenFill : Qt::WindingFill);
+	const auto finite = [](float value) {
+		return std::isfinite(value);
+	};
+	const auto point = [&](size_t at) {
+		return QPointF(points[at], points[at + 1]);
+	};
+	auto index = size_t();
+	auto started = false;
+	for (const auto op : ops) {
+		const auto count = PointValues(op);
+		if (count < 0 || points.size() - index < size_t(count)) {
+			break;
+		}
+		const auto from = points.begin() + index;
+		if (!std::all_of(from, from + count, finite)) {
+			break;
+		}
+		switch (op) {
+		case twlite::Path::Move:
+			result.moveTo(point(index));
+			started = true;
+			break;
+		case twlite::Path::Line:
+			if (started) {
+				result.lineTo(point(index));
+			}
+			break;
+		case twlite::Path::Quad:
+			if (started) {
+				result.quadTo(point(index), point(index + 2));
+			}
+			break;
+		case twlite::Path::Cubic:
+			if (started) {
+				result.cubicTo(
+					point(index),
+					point(index + 2),
+					point(index + 4));
+			}
+			break;
+		case twlite::Path::Close:
+			if (started) {
+				result.closeSubpath();
+			}
+			break;
+		}
+		index += count;
+	}
+	return result;
+}
+
+Qt::PenCapStyle PathCap(int cap) {
+	constexpr auto styles = std::array{
+		Qt::FlatCap,
+		Qt::RoundCap,
+		Qt::SquareCap,
+	};
+	return (cap >= 0 && cap < int(styles.size()))
+		? styles[cap]
+		: styles.front();
+}
+
+Qt::PenJoinStyle PathJoin(int join) {
+	constexpr auto styles = std::array{
+		Qt::SvgMiterJoin,
+		Qt::RoundJoin,
+		Qt::BevelJoin,
+	};
+	return (join >= 0 && join < int(styles.size()))
+		? styles[join]
+		: styles.front();
+}
+
+std::vector<float64> DashPattern(const std::vector<float> &dashes) {
+	const auto finite = [](float value) {
+		return std::isfinite(value);
+	};
+	if (dashes.empty() || !ranges::all_of(dashes, finite)) {
+		return {};
+	}
+	const auto count = dashes.size();
+	const auto size = (count % 2) ? (count * 2) : count;
+	auto result = std::vector<float64>();
+	result.reserve(size);
+	for (auto i = size_t(); i != size; ++i) {
+		result.push_back(std::max(float64(dashes[i % count]), 0.));
+	}
+	const auto positive = [](float64 value) {
+		return (value > 0.);
+	};
+	return ranges::any_of(result, positive)
+		? result
+		: std::vector<float64>();
+}
+
+float64 StrokeReach(float64 width, float64 miterLimit) {
+	return width * std::max(miterLimit, 2.) / 2.;
+}
+
+int StackRadius(float64 sigma) {
+	return int(base::SafeRound(std::sqrt(1. + 6. * sigma * sigma) - 1.));
+}
+
+QImage ShadowFromCoverage(QImage mask, int radius, QRgb color) {
+	return ColorizeMask(Images::BlurLargeImage(std::move(mask), radius), color);
+}
 
 QImage PaintFrame(
 		const twlite::DisplayList &list,

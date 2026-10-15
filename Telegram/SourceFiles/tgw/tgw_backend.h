@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Tgw {
 
+class Canvases;
+
 struct QtFont {
 	QFont font;
 	QFontMetricsF metrics;
@@ -21,7 +23,11 @@ struct QtFont {
 
 class QtBackend final : public twlite::Backend {
 public:
-	explicit QtBackend(float64 ratio);
+	using Diagnostic = Fn<void(
+		const std::string &kind,
+		const std::string &detail)>;
+
+	QtBackend(float64 ratio, Diagnostic diagnostic);
 	~QtBackend();
 
 	int create_font(
@@ -37,14 +43,36 @@ public:
 		const std::string &url,
 		float &width,
 		float &height) override;
+	void canvas_run(
+		int id,
+		int width,
+		int height,
+		const std::vector<twlite::CanvasOp> &ops) override;
+	bool canvas_read(
+		int id,
+		int x,
+		int y,
+		int width,
+		int height,
+		std::vector<uint8_t> &rgba) override;
+	void canvas_release(int id) override;
 
 	[[nodiscard]] const QtFont *font(int id) const;
 	[[nodiscard]] const QImage *image(int id) const;
+	[[nodiscard]] QSizeF imageSize(int id) const;
+	[[nodiscard]] const QImage *canvas(int id) const;
+	void beginCanvasBatch();
 
 private:
+	struct Image {
+		QImage image;
+		QSizeF size;
+	};
+
 	const float64 _ratio = 1.;
 	base::flat_map<int, QtFont> _fonts;
-	base::flat_map<int, QImage> _images;
+	base::flat_map<int, Image> _images;
+	const std::unique_ptr<Canvases> _canvases;
 	int64 _imageBytes = 0;
 	int _lastFontId = 0;
 

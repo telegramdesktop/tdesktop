@@ -28,6 +28,7 @@ public:
 	void detach(not_null<twidget::Renderer*> proxy);
 	void close();
 	void toHost(const std::string &json);
+	void diag(const std::string &kind, const std::string &detail);
 
 	void postLoaded();
 	void postMessage(twidget::Json message);
@@ -249,6 +250,13 @@ void HostLink::toHost(const std::string &json) {
 	}
 }
 
+void HostLink::diag(const std::string &kind, const std::string &detail) {
+	auto lock = std::lock_guard(_mutex);
+	if (_proxy && _proxy->onDiag) {
+		_proxy->onDiag(kind, detail);
+	}
+}
+
 RendererCore *HostLink::current() const {
 	auto lock = std::lock_guard(_mutex);
 	return _closed ? nullptr : _core.get();
@@ -288,7 +296,11 @@ void HostLink::postBridgeCall(RendererCore::BridgeCall call) {
 
 RendererCore::RendererCore(double width, double dpr)
 : _link(std::make_shared<HostLink>(this))
-, _backend(std::make_unique<QtBackend>(dpr))
+, _backend(std::make_unique<QtBackend>(
+	dpr,
+	[link = _link](const std::string &kind, const std::string &detail) {
+		link->diag(kind, detail);
+	}))
 , _renderer(std::make_unique<twlite::Renderer>(
 	ValidWidth(width) ? width : kFallbackWidth,
 	dpr,
@@ -611,6 +623,7 @@ void RendererCore::hostMessage(const twidget::Json &message) {
 		return;
 	}
 	const auto wasDirty = _renderer->dirty();
+	_backend->beginCanvasBatch();
 	const auto out = _renderer->receive(message);
 	auto changes = Changes();
 	if (type == "ops" && !message["ops"].arr().empty()) {
