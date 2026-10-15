@@ -1157,14 +1157,6 @@ void Widget::activateInitialNodeAtEnd() {
 	activateTextOrdinalAtEnd(_state->textNodeCount() - 1);
 }
 
-void Widget::activateSegment(int segmentIndex, int cursorOffset) {
-	const auto ordinal = editableOrdinalForSegment(segmentIndex);
-	if (ordinal < 0) {
-		return;
-	}
-	activateTextOrdinal(ordinal, cursorOffset);
-}
-
 bool Widget::prepareFieldForInput() {
 	if (hasStructuralSelection()) {
 		if (const auto target = removeCurrentStructuralSelection(true)) {
@@ -1290,10 +1282,6 @@ bool Widget::commitAndActivateTextOrdinal(
 	return true;
 }
 
-void Widget::acceptInlineField() {
-	hideInlineFieldAndRefresh();
-}
-
 void Widget::toggleSearch() {
 	if (_search && _search->shown()) {
 		_search->hide();
@@ -1409,14 +1397,6 @@ void Widget::refreshPreparedContent() {
 		} else {
 			_search->refresh();
 		}
-	}
-}
-
-void Widget::refreshPreparedLeafAtActiveSource() {
-	if (const auto source = _state->activePreparedLeafSource()) {
-		refreshPreparedLeafAtSource(*source);
-	} else {
-		refreshPreparedContent();
 	}
 }
 
@@ -1876,14 +1856,6 @@ void Widget::replacePreparedBlock(
 
 void Widget::insertPreparedBlocks(std::vector<RichPage::Block> blocks) {
 	insertPreparedBlocks(std::move(blocks), activeTextInsertContext());
-}
-
-void Widget::pastePreparedBlock(
-		RichPage::Block block,
-		PreparedMediaPasteTarget target) {
-	auto blocks = std::vector<RichPage::Block>();
-	blocks.push_back(std::move(block));
-	pastePreparedBlocks(std::move(blocks), std::move(target));
 }
 
 void Widget::pastePreparedBlocks(
@@ -3421,13 +3393,6 @@ Fn<void()> Widget::captureScrollTopRestorer() const {
 		}
 	}
 	return nullptr;
-}
-
-void Widget::insertHeading1() {
-	insertBlock({
-		.type = State::InsertBlockType::Heading,
-		.headingLevel = 1,
-	});
 }
 
 void Widget::insertBlockquote() {

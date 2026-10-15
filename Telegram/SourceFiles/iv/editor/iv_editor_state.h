@@ -338,8 +338,6 @@ public:
 	[[nodiscard]] std::optional<int> insertLeadingParagraphActive(
 		bool focusInserted);
 	void resyncAfterExternalRichPageMutation();
-	void insertHeading1AfterActive();
-	void insertBlockquoteAfterActive();
 	struct ActiveTextInsertContext {
 		TextWithEntities before;
 		TextWithEntities selected;
@@ -411,7 +409,6 @@ public:
 		replaceActiveTextSelectionWithText(
 			TextWithEntities text,
 			ActiveTextInsertContext context);
-	[[nodiscard]] bool insertPreparedBlockAfterActive(RichPage::Block block);
 	[[nodiscard]] bool insertPreparedBlocksAfterActive(
 		std::vector<RichPage::Block> blocks,
 		std::optional<ActiveTextInsertContext> context = std::nullopt);
