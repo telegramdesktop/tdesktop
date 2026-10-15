@@ -64,7 +64,8 @@ void ShowMenu(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Window::SessionController*> controller,
 		not_null<State*> state,
-		int index) {
+		int index,
+		QPoint position) {
 	const auto session = &controller->session();
 
 	auto id = FilterId(0);
@@ -131,7 +132,7 @@ void ShowMenu(
 		state->menu = nullptr;
 		return;
 	}
-	state->menu->popup(QCursor::pos());
+	state->menu->popup(position);
 }
 
 void ShowFiltersListMenu(
@@ -139,6 +140,7 @@ void ShowFiltersListMenu(
 		not_null<Main::Session*> session,
 		not_null<State*> state,
 		int active,
+		QPoint position,
 		Fn<void(int)> changeActive) {
 	const auto &list = session->data().chatsFilters().list();
 
@@ -193,7 +195,7 @@ void ShowFiltersListMenu(
 		state->menu = nullptr;
 		return;
 	}
-	state->menu->popup(QCursor::pos());
+	state->menu->popup(position);
 }
 
 } // namespace
@@ -228,6 +230,11 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 			trackActiveFilterAndUnreadAndReorder
 				? st::dialogsSearchTabs
 				: st::chatsFiltersTabs));
+	slider->setAccessibleName(tr::lng_filters_title(tr::now));
+	// Switching a folder reloads the whole chat list, and a locked premium
+	// folder opens an upsell on activation - so the arrows only browse the
+	// folder tabs, committing on Enter / Space.
+	slider->setAccessibilityActivateOnBrowse(false);
 	const auto state = wrap->lifetime().make_state<State>();
 	const auto reassignUnreadValue = [=] {
 		state->reorderLifetime.destroy();
@@ -362,6 +369,14 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 		}
 	};
 
+	slider->accessibilitySectionBrowsed(
+	) | rpl::on_next([=](int index) {
+		// Browsing with a screen reader moves between sections without
+		// activating them, so nothing else scrolls the strip; keep the
+		// browsed section visible.
+		scrollToIndex(index, anim::type::normal);
+	}, slider->lifetime());
+
 	const auto applyFilter = [=](const Data::ChatFilter &filter) {
 		if (slider->reordering()) {
 			return;
@@ -494,15 +509,22 @@ not_null<Ui::RpWidget*> AddChatFiltersTabsStrip(
 				applyFilter(filter);
 			}
 		}, state->rebuildLifetime);
-		slider->contextMenuRequested() | rpl::on_next([=](int index) {
+		slider->contextMenuRequested() | rpl::on_next([=](
+				Ui::ChatsFiltersTabMenuRequest request) {
 			if (trackActiveFilterAndUnreadAndReorder) {
-				ShowMenu(wrap, controller, state, index);
+				ShowMenu(
+					wrap,
+					controller,
+					state,
+					request.index,
+					request.position);
 			} else {
 				ShowFiltersListMenu(
 					wrap,
 					session,
 					state,
 					slider->activeSection(),
+					request.position,
 					[=](int i) { slider->setActiveSection(i); });
 			}
 		}, state->rebuildLifetime);
