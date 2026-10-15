@@ -1588,7 +1588,7 @@ if win and qt >= '6':
 win32_win64:
     git clone https://github.com/desktop-app/qt6_windows7_patches.git qt6_windows7
     cd qt6_windows7
-    git checkout 44bcad72a5399ea33e6ec40d532e8fe7273a51d2
+    git checkout bf64e7264237ffd371493f1780ef71d3f41373c9
 """)
 
 if win:
