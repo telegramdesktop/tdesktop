@@ -66,6 +66,7 @@ struct PaintContext {
 	required<QBrush> currentBg;
 	FilterId filter = 0;
 	float64 topicsExpanded = 0.;
+	float64 activeCollapsed = 0.;
 	crl::time now = 0;
 	QStringView searchLowerText;
 	int width = 0;
