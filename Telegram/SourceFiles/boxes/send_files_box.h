@@ -121,6 +121,7 @@ struct SendFilesBoxDescriptor {
 	Api::SendType sendType = {};
 	Fn<SendMenu::Details()> sendMenuDetails = nullptr;
 	const style::ComposeControls *stOverride = nullptr;
+	bool dark = false;
 	SendFilesConfirmed confirmed;
 	Fn<void()> cancelled;
 	FullReplyTo replyTo;
@@ -305,6 +306,7 @@ private:
 
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const style::ComposeControls &_st;
+	const bool _dark = false;
 	const Api::SendType _sendType = Api::SendType();
 
 	QString _titleText;

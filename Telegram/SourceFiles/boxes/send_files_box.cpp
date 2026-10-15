@@ -691,6 +691,7 @@ SendFilesBox::SendFilesBox(QWidget*, SendFilesBoxDescriptor &&descriptor)
 , _st(descriptor.stOverride
 	? *descriptor.stOverride
 	: st::defaultComposeControls)
+, _dark(descriptor.dark)
 , _sendType(descriptor.sendType)
 , _titleHeight(st::boxTitleHeight)
 , _list(std::move(descriptor.list))
@@ -2050,6 +2051,7 @@ void SendFilesBox::setupCaption() {
 		},
 		.allowPremiumEmoji = allow,
 		.fieldStyle = &_st.files.caption,
+		.openLinks = { .dark = _dark },
 	});
 	setupCaptionAutocomplete();
 	Ui::Emoji::SuggestionsController::Init(
