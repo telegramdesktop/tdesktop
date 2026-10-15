@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rhi/rhi_shader.h"
 #include "ui/painter.h"
 #include "data/data_peer_values.h"
+#include "media/streaming/media_streaming_color.h"
 #include "media/streaming/media_streaming_common.h"
 #include "media/view/media_view_video_stream.h"
 #include "platform/platform_overlay_widget.h"
@@ -42,8 +43,10 @@ struct ContentUniforms {
 	float roundRect[4];
 	float roundRadius;
 	float _pad1[3];
+	std::array<float, 16> yuvToRgb;
+	std::array<float, 4> hdr;
 };
-static_assert(sizeof(ContentUniforms) == 80);
+static_assert(sizeof(ContentUniforms) == 160);
 
 struct TransparentContentUniforms {
 	float viewport[2];
@@ -185,6 +188,9 @@ void OverlayWidget::RendererRhi::initialize(
 
 	_placeholderTexture = rhi->newTexture(QRhiTexture::RGBA8, QSize(1, 1));
 	_placeholderTexture->create();
+
+	_hdrSupported = rhi->isTextureFormatSupported(QRhiTexture::R16)
+		&& rhi->isTextureFormatSupported(QRhiTexture::RG16);
 
 	createPipelines();
 	_initialized = true;
@@ -657,6 +663,7 @@ void OverlayWidget::RendererRhi::releaseResources() {
 	_lumaSize = QSize();
 	_chromaSize = QSize();
 	_chromaNV12 = false;
+	_videoHighBitDepth = false;
 	_usingExternalVideoTextures = false;
 	_trackFrameIndex = 0;
 	_streamedIndex = 0;
@@ -1033,7 +1040,7 @@ void OverlayWidget::RendererRhi::paintVideoStream() {
 
 void OverlayWidget::RendererRhi::paintTransformedVideoFrame(
 		ContentGeometry geometry) {
-	const auto data = _owner->videoFrameWithInfo();
+	const auto data = _owner->videoFrameWithInfo(_hdrSupported);
 	if (data.format == Streaming::FrameFormat::None) {
 		return;
 	} else if (data.format == Streaming::FrameFormat::ARGB32) {
@@ -1096,9 +1103,13 @@ void OverlayWidget::RendererRhi::paintTransformedVideoFrame(
 		if (!yuv || yuv->size.isEmpty()) {
 			return;
 		}
-		if (!_yTexture || _lumaSize != yuv->size) {
+		const auto highBitDepth = yuv->highBitDepth;
+		const auto formatChanged = (_videoHighBitDepth != highBitDepth);
+		if (!_yTexture || _lumaSize != yuv->size || formatChanged) {
 			delete _yTexture;
-			_yTexture = _rhi->newTexture(QRhiTexture::R8, yuv->size);
+			_yTexture = _rhi->newTexture(
+				highBitDepth ? QRhiTexture::R16 : QRhiTexture::R8,
+				yuv->size);
 			_yTexture->create();
 			_lumaSize = yuv->size;
 		}
@@ -1112,11 +1123,11 @@ void OverlayWidget::RendererRhi::paintTransformedVideoFrame(
 				QRhiTextureUploadEntry(0, 0, yDesc)));
 
 		if (nv12) {
-			if (!_uvTexture || nv12changed
+			if (!_uvTexture || nv12changed || formatChanged
 				|| _chromaSize != yuv->chromaSize) {
 				delete _uvTexture;
 				_uvTexture = _rhi->newTexture(
-					QRhiTexture::RG8,
+					highBitDepth ? QRhiTexture::RG16 : QRhiTexture::RG8,
 					yuv->chromaSize);
 				_uvTexture->create();
 				_chromaSize = yuv->chromaSize;
@@ -1130,17 +1141,16 @@ void OverlayWidget::RendererRhi::paintTransformedVideoFrame(
 				QRhiTextureUploadDescription(
 					QRhiTextureUploadEntry(0, 0, uvDesc)));
 		} else {
-			if (!_uTexture || nv12changed
+			if (!_uTexture || nv12changed || formatChanged
 				|| _chromaSize != yuv->chromaSize) {
+				const auto format = highBitDepth
+					? QRhiTexture::R16
+					: QRhiTexture::R8;
 				delete _uTexture;
-				_uTexture = _rhi->newTexture(
-					QRhiTexture::R8,
-					yuv->chromaSize);
+				_uTexture = _rhi->newTexture(format, yuv->chromaSize);
 				_uTexture->create();
 				delete _vTexture;
-				_vTexture = _rhi->newTexture(
-					QRhiTexture::R8,
-					yuv->chromaSize);
+				_vTexture = _rhi->newTexture(format, yuv->chromaSize);
 				_vTexture->create();
 				_chromaSize = yuv->chromaSize;
 			}
@@ -1162,6 +1172,7 @@ void OverlayWidget::RendererRhi::paintTransformedVideoFrame(
 					QRhiTextureUploadEntry(0, 0, vDesc)));
 		}
 		_chromaNV12 = nv12;
+		_videoHighBitDepth = highBitDepth;
 		} // if (!zeroCopied)
 		_usingExternalVideoTextures = zeroCopied;
 	}
@@ -1235,6 +1246,14 @@ void OverlayWidget::RendererRhi::paintTransformedVideoFrame(
 		uniforms.roundRect[3] = vh;
 	}
 	uniforms.roundRadius = geometry.roundRadius * _factor;
+	const auto color = Streaming::PrepareColorUniforms(
+		data.color ? *data.color : Streaming::FrameColor(),
+		nv12,
+		nativeTexture
+			? (data.nativeFrame && data.nativeFrame->highBitDepth)
+			: _videoHighBitDepth);
+	uniforms.yuvToRgb = color.yuvToRgb;
+	uniforms.hdr = color.hdr;
 	_rub->updateDynamicBuffer(
 		_uniformBuffer, uOffset, sizeof(ContentUniforms), &uniforms);
 

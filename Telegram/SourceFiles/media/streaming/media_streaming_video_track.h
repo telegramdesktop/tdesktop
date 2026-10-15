@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "media/streaming/media_streaming_color.h"
 #include "media/streaming/media_streaming_utility.h"
 
 #include <crl/crl_object_on_queue.h>
@@ -61,7 +62,9 @@ public:
 	[[nodiscard]] FrameWithInfo frameWithInfo(
 		const FrameRequest &request,
 		const Instance *instance);
-	[[nodiscard]] FrameWithInfo frameWithInfo(const Instance *instance);
+	[[nodiscard]] FrameWithInfo frameWithInfo(
+		const Instance *instance,
+		bool hdr);
 	[[nodiscard]] QImage currentFrameImage();
 	void unregisterInstance(not_null<const Instance*> instance);
 	[[nodiscard]] rpl::producer<> checkNextFrame() const;
@@ -86,6 +89,7 @@ private:
 		QImage original;
 		FrameYUV yuv;
 		NativeFrame nativeFrame;
+		FrameColor color;
 		crl::time position = kTimeUnknown;
 		crl::time displayed = kTimeUnknown;
 		crl::time display = kTimeUnknown;
