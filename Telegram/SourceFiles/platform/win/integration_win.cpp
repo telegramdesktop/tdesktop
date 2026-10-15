@@ -197,7 +197,6 @@ bool WindowsIntegration::processEvent(
 		break;
 
 	case WM_ENDSESSION:
-		Core::Sandbox::NotifySystemShuttingDown();
 		Core::Quit();
 		break;
 
