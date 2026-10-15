@@ -214,36 +214,70 @@ older `kKeysCount`. The characteristic failure is:
 
 If this exact startup failure repeats twice, do not change the implementation,
 test overlay, or portable account. Stop only this checkout's exact Telegram
-process. Because Xcode's `CONFIGURATION_BUILD_DIR` is `out/Debug`, make a
-safety copy of every existing portable folder outside `out/` before cleaning:
+process and make sure no build of this checkout is running. Then rebuild every
+object once by deleting the intermediate tree `out/build`, never with an Xcode
+clean.
+
+Xcode's `CONFIGURATION_BUILD_DIR` is `out/Debug`, the folder that also holds
+the portable account folders, and what an Xcode clean does to it depends on
+whether it carries the `com.apple.xcode.CreatedByBuildSystem` extended
+attribute. With the attribute,
+`cmake --build out --config Debug --target clean` deletes `out/Debug` with
+every folder in it, and `--clean-first` does the same before it builds.
+Without it, the clean still deletes the intermediates but ends
+`** CLEAN FAILED **` (exit 65), with one error
+`Could not delete ... because it was not created by the build system` for
+each products folder it refused, `out/Debug` among them. Exit 65 alone does
+not mean `out/Debug` survived: another refused products folder gives the same
+status after `out/Debug` was deleted. So do not run `--target clean`,
+`--clean-first` or a Clean in the Xcode app on this tree. Never follow that
+error's note to mark `out/Debug` deletable with
+`xattr -w com.apple.xcode.CreatedByBuildSystem true`: the next clean would
+delete the accounts. Never move, rename or remove a portable folder or any
+other entry of `out/Debug` to make a clean succeed.
+
+The generated project keeps every intermediate (object files, precompiled
+headers and Xcode's build database) under `out/build`, its `SYMROOT`, and
+only build products in `out/Debug` and the other per-target `Debug` folders.
+Deleting `out/build` therefore works the same whether or not `out/Debug`
+carries the attribute, and it touches nothing in `out/Debug`. From the
+repository root, record what `out/Debug` holds, delete the intermediates and
+confirm that `out/build` is gone:
 
 ```bash
-portable_backup_root="$(mktemp -d "${TMPDIR:-/tmp}/tdesktop-portable-clean.XXXXXX")"
-for portable_name in \
-  TelegramForcePortable \
-  test_TelegramForcePortable \
-  real_TelegramForcePortable; do
-  if [ -d "out/Debug/$portable_name" ]; then
-    ditto "out/Debug/$portable_name" "$portable_backup_root/$portable_name"
-  fi
-done
+test -d out/Telegram.xcodeproj &&
+  ls -A out/Debug | sort > out/language-rebuild-mark.txt &&
+  rm -rf out/build &&
+  test ! -e out/build &&
+  echo 'out/build is gone'
 ```
 
-Require every expected backup copy to exist before continuing. Then perform
-one full Xcode Debug clean and rebuild:
+It must print `out/build is gone`: no intermediate object survived. Object
+files elsewhere in `out/`, such as CMake's compiler checks or a release
+build's tree, belong to other builds; leave them alone. This step has no
+accepted failure: an error, other output or no output stops the procedure.
+Then run one full Debug rebuild, which has to compile every object again:
 
 ```bash
-cmake --build out --config Debug --target clean
 cmake --build out --config Debug --target Telegram
 ```
 
-Afterward, restore a portable folder from the backup only when its original
-path is missing; never overwrite a folder that survived the clean. Verify all
-three original folder names that existed before the clean are present, keep
-the backup until the rebuilt app completes one successful launch, and record
-its path if the run stops before verification. Then rerun the same test once.
-If the signature persists after that clean rebuild, continue normal crash
-diagnosis or report the blocker. Do not loop clean rebuilds.
+It must end `** BUILD SUCCEEDED **`. Then check that the rebuild compiled every
+object and that nothing in `out/Debug` was lost:
+
+```bash
+test -f out/language-rebuild-mark.txt &&
+  find out/build -name '*.o' ! -newer out/language-rebuild-mark.txt | wc -l &&
+  find out/build -name '*.o' | wc -l &&
+  ls -A out/Debug | sort | comm -23 out/language-rebuild-mark.txt -
+```
+
+It must print `0` (no object file is older than the mark written before
+`out/build` was deleted), then a nonzero object count, and nothing else (every
+entry `out/Debug` held before is still there). Anything else stops the
+procedure; report what it printed. Then rerun the same test once. If the
+signature persists after that clean rebuild, continue normal crash diagnosis
+or report the blocker. Do not loop clean rebuilds.
 
 ### Build output locks
 

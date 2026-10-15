@@ -972,16 +972,23 @@ implementation or overlay verdict:
   `Local::readLangPack()`;
 - the same signature occurs on two launches.
 
-Before changing recovery strategies, preserve the current overlay and account,
-stop only the exact-path app,
-follow the portable-folder safety-copy procedure in `AGENTS.md`, then run one full Xcode Debug
-clean followed by `BUILD` (the configured-tree clean is normally
-`cmake --build out --config Debug --target clean`). Restore only portable folders missing after
-the clean, never overwrite survivors, and retain the external backup through one successful
-post-build launch. Rerun the same scenario once. Record the preceding runs as `TEST_FLAW` caused
-by stale generated-language objects; do not spend an implementation attempt or re-author the
-overlay. If the identical signature remains after the single clean rebuild, resume normal crash
-classification and the directness ladder. Never loop clean rebuilds.
+Before changing recovery strategies, preserve the current overlay and account and stop only the
+exact-path app. Then run the clean rebuild in `AGENTS.md` ("### macOS crashes while reading the
+cached language pack" under "## Troubleshooting") once, exactly as written there, its checks
+included. It deletes only the intermediate tree `out/build`, never runs an Xcode clean, and
+rebuilds with `BUILD`. Its check before the rebuild must show that `out/build`, which holds every
+intermediate object file, is gone; its check after the rebuild must show that the rebuild
+compiled every object file and that every entry `out/Debug` held before is still present. The
+step has no accepted failure: any other result stops the recovery. Do not substitute an Xcode
+clean (`--target clean`, `--clean-first` or a Clean in the Xcode app): `AGENTS.md` explains how
+`--target clean` and `--clean-first` can delete `out/Debug` with every portable folder, and why an
+exit 65 from `--target clean` does not prove that `out/Debug` survived. Never mark `out/Debug`
+deletable (`xattr -w com.apple.xcode.CreatedByBuildSystem true`, the hint in Xcode's refusal to
+delete it), and never move, rename or remove a portable folder or any other entry of `out/Debug`
+to make a clean succeed. Rerun the same scenario once. Record the preceding runs as `TEST_FLAW`
+caused by stale generated-language objects; do not spend an implementation attempt or re-author
+the overlay. If the identical signature remains after the single clean rebuild, resume normal
+crash classification and the directness ladder. Never loop clean rebuilds.
 
 ### Hangs & freezes (two layers, because they have two causes)
 
