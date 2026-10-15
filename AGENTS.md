@@ -154,6 +154,25 @@ cmake --build "l:\Telegram\tx64\out" --config Debug --target Telegram
 
 **Never build Release** - it's extremely heavy and not needed for testing changes.
 
+**On macOS, never run an Xcode clean against `out/`** - not `--target clean`,
+not `--clean-first` with any target, not `xcodebuild ... clean` and not a
+Clean in the Xcode app. Xcode's build-products folder for `Telegram` is
+`out/Debug`, which also holds the portable account folders. When `out/Debug`
+carries the `com.apple.xcode.CreatedByBuildSystem` extended attribute,
+`--target clean` deletes `out/Debug` with every folder in it, and
+`--target Telegram --clean-first` does the same before it builds. Without the
+attribute, `--target clean` refuses to delete `out/Debug` and ends
+`** CLEAN FAILED **` (exit 65). It ends the same way when it refuses only
+another, unmarked products folder and deletes a marked `out/Debug`, so exit 65
+alone does not prove that `out/Debug` survived. To force a full recompile,
+follow the `out/build` deletion in
+"### macOS crashes while reading the cached language pack" under
+"## Troubleshooting" exactly as written there, its checks before and after the
+rebuild included. Never mark `out/Debug` deletable with
+`xattr -w com.apple.xcode.CreatedByBuildSystem true`, as the note in Xcode's
+refusal suggests, and never move, rename or remove any `out/Debug` entry to
+make a clean succeed.
+
 ## Platform-Specific Requirements
 
 ### Windows

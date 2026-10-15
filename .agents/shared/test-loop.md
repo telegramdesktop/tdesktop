@@ -692,8 +692,10 @@ command, environment, exit-code, log, artifact and control evidence.
 - **Codegen does not track resource mtimes.** If the task changed only a resource the style codegen
   consumes (an icon `.svg`, etc.) without touching a `.style`, an incremental build will NOT re-pack
   it and the binary keeps the OLD asset. Before building such a task force regeneration — touch the
-  referencing `.style` (or clean the codegen output) — so the change actually ships. A render that
-  shows no difference from before is the symptom of skipping this.
+  referencing `.style` (or clean the codegen output) — so the change actually ships. On macOS never
+  force regeneration with an Xcode clean: see `AGENTS.md` ("### Build Commands" under
+  "## Build Configuration"). A render that shows no difference from before is the symptom of
+  skipping this.
 - Run: execute the workspace helper's `test-run` command with `EXE` and `EVIDENCE_DIR`. One call
   performs the SETUP steps (Test account), creates `EVIDENCE_DIR`, path-scope-kills stragglers,
   then, for a reused marked-live account, moves a non-empty live `tdata/working` to
