@@ -123,7 +123,7 @@ parts:
   patches:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
-    source-commit: f7433965ed33996c641a822c78a81eef3526c9e7
+    source-commit: 4811dda9fcabbf9cd8cab585d4df2379d81edf04
     plugin: nil
     override-pull: |
       craftctl default
