@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ffmpeg/ffmpeg_bytes_io_wrap.h"
 #include "ffmpeg/ffmpeg_utility.h"
+#include "media/streaming/media_streaming_color.h"
 
 namespace Media::Video {
 namespace {
@@ -115,6 +116,7 @@ struct Source {
 
 [[nodiscard]] QImage ConvertFrame(
 		not_null<AVFrame*> frame,
+		const Streaming::FrameColor &color,
 		int rotation,
 		QSize box,
 		bool cover,
@@ -144,28 +146,14 @@ struct Source {
 	const auto srcFormat = (frame->format == AV_PIX_FMT_NONE)
 		? AV_PIX_FMT_YUV420P
 		: AVPixelFormat(frame->format);
-	scale = MakeSwscalePointer(
-		srcSize,
-		srcFormat,
-		dstSize,
-		AV_PIX_FMT_BGRA,
-		&scale);
-	if (!scale) {
+	if (!Streaming::ConvertFrameToARGB32(
+			frame,
+			srcFormat,
+			color,
+			storage,
+			scale)) {
 		return {};
 	}
-	uint8_t *dstData[AV_NUM_DATA_POINTERS] = { storage.bits(), nullptr };
-	int dstLinesize[AV_NUM_DATA_POINTERS] = {
-		int(storage.bytesPerLine()),
-		0,
-	};
-	sws_scale(
-		scale.get(),
-		frame->data,
-		frame->linesize,
-		0,
-		frame->height,
-		dstData,
-		dstLinesize);
 
 	if (srcFormat == AV_PIX_FMT_BGRA || srcFormat == AV_PIX_FMT_YUVA420P) {
 		PremultiplyInplace(storage);
@@ -208,6 +196,7 @@ private:
 	SwscalePointer _scale;
 	AVPacket *_packet = nullptr;
 	crl::time _decodedPosition = -1;
+	int _colorPeak = 0;
 	bool _finished = false;
 
 };
@@ -332,6 +321,7 @@ QImage Extractor::take(crl::time position) {
 	}
 	return ConvertFrame(
 		_kept.get(),
+		Streaming::ReadFrameColor(_kept.get(), _colorPeak),
 		_source.rotation,
 		_request.box,
 		_request.cover,

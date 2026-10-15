@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #ifdef Q_OS_MAC
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
 
+#include "media/streaming/media_streaming_native_frame_mac.h"
+
 #include <CoreVideo/CoreVideo.h>
 #include <Metal/Metal.h>
 #include <rhi/qrhi.h>
@@ -47,10 +49,10 @@ bool MetalTextureCache::createTexturesFromPixelBuffer(
 
 	auto pixelBuffer = static_cast<CVPixelBufferRef>(cvPixelBuffer);
 	const auto format = CVPixelBufferGetPixelFormatType(pixelBuffer);
-	if (format != kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
-		&& format != kCVPixelFormatType_420YpCbCr8BiPlanarFullRange) {
+	if (!Streaming::SupportedPixelBufferFormat(format)) {
 		return false;
 	}
+	const auto highBitDepth = Streaming::HighBitDepthPixelBufferFormat(format);
 
 	const auto nativeHandles = rhi->nativeHandles();
 	if (!nativeHandles) {
@@ -91,7 +93,7 @@ bool MetalTextureCache::createTexturesFromPixelBuffer(
 		_private->cache,
 		pixelBuffer,
 		nil,
-		MTLPixelFormatR8Unorm,
+		highBitDepth ? MTLPixelFormatR16Unorm : MTLPixelFormatR8Unorm,
 		width,
 		height,
 		0,
@@ -107,7 +109,7 @@ bool MetalTextureCache::createTexturesFromPixelBuffer(
 		_private->cache,
 		pixelBuffer,
 		nil,
-		MTLPixelFormatRG8Unorm,
+		highBitDepth ? MTLPixelFormatRG16Unorm : MTLPixelFormatRG8Unorm,
 		uvWidth,
 		uvHeight,
 		1,
@@ -128,13 +130,19 @@ bool MetalTextureCache::createTexturesFromPixelBuffer(
 	*lumaSize = QSize(width, height);
 	*chromaSize = QSize(uvWidth, uvHeight);
 
-	if (!*yTexture || (*yTexture)->pixelSize() != *lumaSize) {
+	const auto yFormat = highBitDepth ? QRhiTexture::R16 : QRhiTexture::R8;
+	const auto uvFormat = highBitDepth ? QRhiTexture::RG16 : QRhiTexture::RG8;
+	if (!*yTexture
+		|| (*yTexture)->pixelSize() != *lumaSize
+		|| (*yTexture)->format() != yFormat) {
 		delete *yTexture;
-		*yTexture = rhi->newTexture(QRhiTexture::R8, *lumaSize);
+		*yTexture = rhi->newTexture(yFormat, *lumaSize);
 	}
-	if (!*uvTexture || (*uvTexture)->pixelSize() != *chromaSize) {
+	if (!*uvTexture
+		|| (*uvTexture)->pixelSize() != *chromaSize
+		|| (*uvTexture)->format() != uvFormat) {
 		delete *uvTexture;
-		*uvTexture = rhi->newTexture(QRhiTexture::RG8, *chromaSize);
+		*uvTexture = rhi->newTexture(uvFormat, *chromaSize);
 	}
 
 	(*yTexture)->createFrom({quint64(yMtlTexture), 0});

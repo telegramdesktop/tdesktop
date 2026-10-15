@@ -38,61 +38,6 @@ using ::Media::ValidFrameSize;
 	return (adjusted < 1.) ? crl::time(1) : crl::time(adjusted);
 }
 
-[[nodiscard]] QImage ConvertToARGB32(
-		FrameFormat format,
-		const FrameYUV &data) {
-	Expects(data.y.data != nullptr);
-	Expects(data.u.data != nullptr);
-	Expects((format == FrameFormat::NV12) || (data.v.data != nullptr));
-	Expects(!data.size.isEmpty());
-
-	//if (FFmpeg::RotationSwapWidthHeight(stream.rotation)) {
-	//	resize.transpose();
-	//}
-
-	auto result = FFmpeg::CreateFrameStorage(data.size);
-	if (result.isNull()) {
-		return QImage();
-	}
-	const auto swscale = FFmpeg::MakeSwscalePointer(
-		data.size,
-		(format == FrameFormat::YUV420
-			? AV_PIX_FMT_YUV420P
-			: AV_PIX_FMT_NV12),
-		data.size,
-		AV_PIX_FMT_BGRA);
-	if (!swscale) {
-		return QImage();
-	}
-
-	// AV_NUM_DATA_POINTERS defined in AVFrame struct
-	const uint8_t *srcData[AV_NUM_DATA_POINTERS] = {
-		static_cast<const uint8_t*>(data.y.data),
-		static_cast<const uint8_t*>(data.u.data),
-		static_cast<const uint8_t*>(data.v.data),
-		nullptr,
-	};
-	int srcLinesize[AV_NUM_DATA_POINTERS] = {
-		data.y.stride,
-		data.u.stride,
-		data.v.stride,
-		0,
-	};
-	uint8_t *dstData[AV_NUM_DATA_POINTERS] = { result.bits(), nullptr };
-	int dstLinesize[AV_NUM_DATA_POINTERS] = { int(result.bytesPerLine()), 0 };
-
-	sws_scale(
-		swscale.get(),
-		srcData,
-		srcLinesize,
-		0,
-		data.size.height(),
-		dstData,
-		dstLinesize);
-
-	return result;
-}
-
 } // namespace
 
 class VideoTrackObject final {
@@ -128,6 +73,7 @@ public:
 
 	void rasterizeFrame(not_null<Frame*> frame);
 	[[nodiscard]] bool requireARGB32() const;
+	[[nodiscard]] bool allowHdr() const;
 
 private:
 	enum class FrameResult {
@@ -174,6 +120,7 @@ private:
 	Stream _stream;
 	AudioMsgId _audioId;
 	bool _readTillEnd = false;
+	int _colorPeak = 0;
 	FnMut<void(const Information &)> _ready;
 	Fn<void(Error)> _error;
 	crl::time _pausedTime = kTimeUnknown;
@@ -465,12 +412,22 @@ bool VideoTrackObject::requireARGB32() const {
 	return true;
 }
 
+bool VideoTrackObject::allowHdr() const {
+	for (const auto &[_, request] : _requests) {
+		if (request.requireARGB32 || !request.hdr) {
+			return false;
+		}
+	}
+	return true;
+}
+
 void VideoTrackObject::rasterizeFrame(not_null<Frame*> frame) {
 	Expects(frame->position != kFinishedPosition);
 
 	fillRequests(frame);
 	frame->format = FrameFormat::None;
 	frame->nativeFrame = NativeFrame();
+	frame->color = ReadFrameColor(frame->decoded.get(), _colorPeak);
 	if (frame->decoded->hw_frames_ctx) {
 #ifdef Q_OS_MAC
 		const auto hwFormat = frame->decoded->format;
@@ -481,9 +438,11 @@ void VideoTrackObject::rasterizeFrame(not_null<Frame*> frame) {
 			? CVPixelBufferGetPixelFormatType(
 				static_cast<CVPixelBufferRef>(pb))
 			: 0;
+		const auto pbHighBitDepth = HighBitDepthPixelBufferFormat(pbFormat);
+		const auto pbPlain = !pbHighBitDepth && !frame->color.hdr();
 		const auto pbSupported = (pb != nullptr)
-			&& (pbFormat == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
-				|| pbFormat == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange);
+			&& SupportedPixelBufferFormat(pbFormat)
+			&& (pbPlain || allowHdr());
 		if (!wantARGB && isVT && pbSupported) {
 				const auto w = frame->decoded->width;
 				const auto h = frame->decoded->height;
@@ -494,6 +453,7 @@ void VideoTrackObject::rasterizeFrame(not_null<Frame*> frame) {
 						(w + 1) / 2,
 						(h + 1) / 2,
 					},
+					.highBitDepth = pbHighBitDepth,
 				};
 				frame->alpha = false;
 				frame->format = FrameFormat::NativeTexture;
@@ -524,11 +484,19 @@ void VideoTrackObject::rasterizeFrame(not_null<Frame*> frame) {
 	const auto frameWithData = frame->transferred
 		? frame->transferred.get()
 		: frame->decoded.get();
-	if ((frameWithData->format == AV_PIX_FMT_YUV420P
-		|| frameWithData->format == AV_PIX_FMT_NV12) && !requireARGB32()) {
-		const auto nv12 = (frameWithData->format == AV_PIX_FMT_NV12);
+	const auto format = frameWithData->format;
+	const auto highBitDepth = (format == AV_PIX_FMT_YUV420P10LE)
+		|| (format == AV_PIX_FMT_P010LE);
+	const auto plain = !highBitDepth && !frame->color.hdr();
+	if ((format == AV_PIX_FMT_YUV420P
+		|| format == AV_PIX_FMT_NV12
+		|| highBitDepth)
+		&& (plain || allowHdr())
+		&& !requireARGB32()) {
+		const auto nv12 = (format == AV_PIX_FMT_NV12)
+			|| (format == AV_PIX_FMT_P010LE);
 		frame->alpha = false;
-		frame->yuv = ExtractYUV(_stream, frameWithData);
+		frame->yuv = ExtractYUV(frameWithData);
 		if (frame->yuv.size.isEmpty()
 			|| frame->yuv.chromaSize.isEmpty()
 			|| !frame->yuv.y.data
@@ -557,7 +525,8 @@ void VideoTrackObject::rasterizeFrame(not_null<Frame*> frame) {
 			frameWithData,
 			chooseOriginalResize(
 				{ frameWithData->width, frameWithData->height }),
-			std::move(frame->original));
+			std::move(frame->original),
+			frame->color);
 		if (frame->original.isNull()) {
 			frame->prepared.clear();
 			fail(Error::InvalidData);
@@ -721,7 +690,9 @@ bool VideoTrackObject::processFirstFrame() {
 		kMaxFrameArea);
 	if (!valid) {
 		return false;
-	} else if (decodedFrame->hw_frames_ctx) {
+	}
+	const auto color = ReadFrameColor(decodedFrame, _colorPeak);
+	if (decodedFrame->hw_frames_ctx) {
 		if (!_stream.transferredFrame) {
 			_stream.transferredFrame = FFmpeg::MakeFramePointer();
 		}
@@ -750,7 +721,8 @@ bool VideoTrackObject::processFirstFrame() {
 		_stream,
 		frameWithData,
 		QSize(),
-		QImage());
+		QImage(),
+		color);
 	if (frame.isNull()) {
 		return false;
 	}
@@ -1257,21 +1229,24 @@ FrameWithInfo VideoTrack::frameWithInfo(
 	};
 }
 
-FrameWithInfo VideoTrack::frameWithInfo(const Instance *instance) {
+FrameWithInfo VideoTrack::frameWithInfo(const Instance *instance, bool hdr) {
 	const auto data = _shared->frameForPaintWithIndex();
 	const auto i = data.frame->prepared.find(instance);
 	const auto none = (i == data.frame->prepared.end());
-	if (none || i->second.request.requireARGB32) {
+	if (none
+		|| i->second.request.requireARGB32
+		|| (i->second.request.hdr != hdr)) {
 		_wrapped.with([=](Implementation &unwrapped) {
 			unwrapped.updateFrameRequest(
 				instance,
-				{ .requireARGB32 = false });
+				{ .requireARGB32 = false, .hdr = hdr });
 		});
 	}
 	return {
 		.image = data.frame->original,
 		.yuv = &data.frame->yuv,
 		.nativeFrame = &data.frame->nativeFrame,
+		.color = &data.frame->color,
 		.format = data.frame->format,
 		.index = data.index,
 		.alpha = data.frame->alpha,
@@ -1297,10 +1272,15 @@ QImage VideoTrack::frameImage(
 	if (frame->original.isNull()) {
 		if (frame->format == FrameFormat::YUV420
 			|| frame->format == FrameFormat::NV12) {
-			frame->original = ConvertToARGB32(frame->format, frame->yuv);
+			frame->original = ConvertYUVToARGB32(
+				frame->yuv,
+				(frame->format == FrameFormat::NV12),
+				frame->color);
 #ifdef Q_OS_MAC
 		} else if (frame->format == FrameFormat::NativeTexture) {
-			frame->original = ConvertNativeFrameToARGB32(frame->nativeFrame);
+			frame->original = ConvertNativeFrameToARGB32(
+				frame->nativeFrame,
+				frame->color);
 #endif // Q_OS_MAC
 		}
 	}
@@ -1343,10 +1323,15 @@ QImage VideoTrack::currentFrameImage() {
 	if (frame->original.isNull()) {
 		if (frame->format == FrameFormat::YUV420
 			|| frame->format == FrameFormat::NV12) {
-			frame->original = ConvertToARGB32(frame->format, frame->yuv);
+			frame->original = ConvertYUVToARGB32(
+				frame->yuv,
+				(frame->format == FrameFormat::NV12),
+				frame->color);
 #ifdef Q_OS_MAC
 		} else if (frame->format == FrameFormat::NativeTexture) {
-			frame->original = ConvertNativeFrameToARGB32(frame->nativeFrame);
+			frame->original = ConvertNativeFrameToARGB32(
+				frame->nativeFrame,
+				frame->color);
 #endif // Q_OS_MAC
 		}
 	}

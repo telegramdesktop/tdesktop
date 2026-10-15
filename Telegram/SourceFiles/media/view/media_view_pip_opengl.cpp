@@ -300,7 +300,7 @@ std::optional<QColor> Pip::RendererGL::clearColor() {
 
 void Pip::RendererGL::paintTransformedVideoFrame(
 		ContentGeometry geometry) {
-	const auto data = _owner->videoFrameWithInfo();
+	const auto data = _owner->videoFrameWithInfo(false);
 	if (data.format == Streaming::FrameFormat::None) {
 		return;
 	}
