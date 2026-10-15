@@ -84,6 +84,13 @@ struct CardDrop {
 [[nodiscard]] float64 CardStickerRotation(const Data::StoryArea &area);
 [[nodiscard]] int CardStickerSide(const Data::StoryArea &area, QSize card);
 [[nodiscard]] int CardStickerOutline(int frameSide);
+[[nodiscard]] float64 CardStickerOuterSide(int side, int ratio);
+[[nodiscard]] float64 CardStickerMinimumSide(float64 side, QSize card);
+[[nodiscard]] bool CardStickerContains(
+	const Data::StoryArea &area,
+	QSize card,
+	int ratio,
+	QPointF local);
 [[nodiscard]] Data::StoryArea CardStickerArea(
 	QPointF center,
 	float64 side,
@@ -106,5 +113,10 @@ struct CardDrop {
 [[nodiscard]] std::optional<CardDrop> ResolveCardDrop(
 	const CardSpace &space,
 	QPointF center);
+[[nodiscard]] std::optional<CardDrop> ResolveCardMove(
+	const CardSpace &space,
+	QPointF center,
+	float64 side,
+	float64 rotation);
 
 } // namespace Wallet

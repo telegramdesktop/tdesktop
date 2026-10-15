@@ -27,6 +27,7 @@ constexpr auto kLeftWeight = 1.5;
 constexpr auto kMinDropSide = 0.12;
 constexpr auto kChipSide = 8. / 7.;
 constexpr auto kChipSink = 0.15;
+constexpr auto kChipRotation = 0.5;
 constexpr auto kEpsilon = 1e-9;
 
 struct Candidate {
@@ -237,7 +238,8 @@ struct Candidate {
 		const CardSpace &space,
 		QPointF center,
 		float64 limit,
-		float64 least) {
+		float64 least,
+		float64 span) {
 	const auto width = float64(space.card.width());
 	const auto height = float64(space.card.height());
 	const auto step = width * kLatticeStep;
@@ -257,7 +259,7 @@ struct Candidate {
 			const auto side = FittedSide(
 				Available(space, point, true),
 				limit,
-				1.,
+				span,
 				space.ratio);
 			if (side < least - kEpsilon) {
 				continue;
@@ -434,6 +436,37 @@ int CardStickerOutline(int frameSide) {
 	return std::max(1, int(base::SafeRound(frameSide * kOutlineRatio)));
 }
 
+float64 CardStickerOuterSide(int side, int ratio) {
+	return (side > 0) ? (2. * OuterHalf(side, std::max(ratio, 1))) : 0.;
+}
+
+float64 CardStickerMinimumSide(float64 side, QSize card) {
+	return (card.isEmpty() || !std::isfinite(side) || side <= 0.)
+		? 0.
+		: std::min(side, card.width() * kMinDropSide);
+}
+
+bool CardStickerContains(
+		const Data::StoryArea &area,
+		QSize card,
+		int ratio,
+		QPointF local) {
+	const auto side = CardStickerSide(area, card);
+	const auto center = CardStickerCenter(area, card);
+	if (side <= 0
+		|| !std::isfinite(local.x())
+		|| !std::isfinite(local.y())
+		|| !std::isfinite(center.x())
+		|| !std::isfinite(center.y())) {
+		return false;
+	}
+	const auto offset = QTransform().rotate(
+		-CardStickerRotation(area)
+	).map(local - center);
+	const auto half = CardStickerOuterSide(side, ratio) / 2.;
+	return (std::abs(offset.x()) <= half) && (std::abs(offset.y()) <= half);
+}
+
 Data::StoryArea CardStickerArea(
 		QPointF center,
 		float64 side,
@@ -514,12 +547,12 @@ std::optional<CardDrop> ResolveCardDrop(
 	}
 	const auto width = float64(space.card.width());
 	const auto limit = width * kPreferredSide;
-	const auto least = std::min(limit, width * kMinDropSide);
+	const auto least = CardStickerMinimumSide(limit, space.card);
 	const auto side = FreeSideAt(space, center, limit, 0.);
 	if (side >= least - kEpsilon) {
 		return CardDrop{ .center = center, .side = side };
 	}
-	if (const auto nearest = NearestDrop(space, center, limit, least)) {
+	if (const auto nearest = NearestDrop(space, center, limit, least, 1.)) {
 		return nearest;
 	}
 	const auto area = AutoPlace(space);
@@ -531,6 +564,31 @@ std::optional<CardDrop> ResolveCardDrop(
 		.side = area->geometry.width() * width,
 		.kind = CardDropKind::Moved,
 	};
+}
+
+std::optional<CardDrop> ResolveCardMove(
+		const CardSpace &space,
+		QPointF center,
+		float64 side,
+		float64 rotation) {
+	if (space.card.isEmpty()
+		|| !std::isfinite(center.x())
+		|| !std::isfinite(center.y())
+		|| !std::isfinite(side)
+		|| !std::isfinite(rotation)
+		|| side <= 0.) {
+		return std::nullopt;
+	} else if (std::abs(std::remainder(rotation, 360.)) < kChipRotation) {
+		if (const auto chip = ChipDrop(space, center)) {
+			return chip;
+		}
+	}
+	const auto least = CardStickerMinimumSide(side, space.card);
+	const auto fitted = FreeSideAt(space, center, side, rotation);
+	if (fitted >= least - kEpsilon) {
+		return CardDrop{ .center = center, .side = fitted };
+	}
+	return NearestDrop(space, center, side, least, RotationSpan(rotation));
 }
 
 } // namespace Wallet

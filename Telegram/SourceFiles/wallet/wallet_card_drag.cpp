@@ -14,25 +14,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Wallet {
 namespace {
 
-constexpr auto kLiftScale = 1.05;
-constexpr auto kLiftDuration = crl::time(50);
+constexpr auto kSquareLiftScale = 1.05;
+constexpr auto kSquareLiftDuration = crl::time(50);
+constexpr auto kSquareReturnDuration = crl::time(185);
+constexpr auto kCardLiftScale = 1.28;
+constexpr auto kCardLiftDuration = crl::time(100);
+constexpr auto kCardReturnDuration = crl::time(140);
 constexpr auto kSettleDuration = crl::time(110);
 constexpr auto kSquashWide = 0.11;
 constexpr auto kSquashTall = 0.22;
-constexpr auto kReturnDuration = crl::time(185);
 constexpr auto kReturnFade = 0.5;
 constexpr auto kReturnFadeDuration = crl::time(100);
 constexpr auto kVanishDuration = crl::time(150);
 constexpr auto kVanishShrink = 0.4;
+constexpr auto kScaleOutDuration = crl::time(180);
+constexpr auto kDriftDecay = crl::time(35);
+constexpr auto kVelocityWindow = crl::time(50);
 
 [[nodiscard]] FlightPose Interpolate(
 		const FlightPose &from,
 		const FlightPose &to,
 		float64 along) {
+	const auto turn = std::remainder(to.rotation - from.rotation, 360.);
 	return {
 		.center = from.center + (to.center - from.center) * along,
 		.side = from.side + (to.side - from.side) * along,
-		.rotation = from.rotation + (to.rotation - from.rotation) * along,
+		.rotation = from.rotation + turn * along,
 	};
 }
 
@@ -130,18 +137,23 @@ void DraggedGift::Layer::paintEvent(QPaintEvent *e) {
 }
 
 DraggedGift::DraggedGift(DraggedGiftArgs &&args)
-: _source(args.source)
+: _moved(std::move(args.moved))
+, _source(args.source)
 , _cursor(args.cursor)
 , _grab(args.grab)
-, _started(crl::now())
+, _sampled(args.cursor)
+, _scaleStarted(crl::now())
+, _sampledAt(_scaleStarted)
+, _origin(args.origin)
 , _animation([=](crl::time now) { return tick(now); }) {
+	_scaleTo = liftScale();
 	if (!args.image.isNull()) {
 		_layer = base::make_unique_q<Layer>(
 			args.body,
 			args.titleExtension,
 			std::move(args.image));
 	}
-	apply({ .pose = followPose(_started) });
+	apply({ .pose = followPose(_scaleStarted) });
 	if (_layer) {
 		_layer->show();
 		_layer->raise();
@@ -161,12 +173,41 @@ bool DraggedGift::following() const {
 	return (_phase == Phase::Following);
 }
 
+float64 DraggedGift::liftScale() const {
+	return (_origin == DraggedGiftSource::Card)
+		? kCardLiftScale
+		: kSquareLiftScale;
+}
+
 void DraggedGift::move(QPointF cursor) {
 	if (!following()) {
 		return;
 	}
+	const auto now = crl::now();
+	if (cursor != _sampled && now > _sampledAt) {
+		_velocity = (cursor - _sampled) / float64(now - _sampledAt);
+		_sampled = cursor;
+		_sampledAt = now;
+	}
 	_cursor = cursor;
-	apply({ .pose = followPose(crl::now()) });
+	follow(now);
+}
+
+void DraggedGift::resize(float64 scale) {
+	if (!following()
+		|| !std::isfinite(scale)
+		|| scale <= 0.
+		|| scale == _scaleTo) {
+		return;
+	}
+	const auto now = crl::now();
+	_scaleFrom = followScale(now);
+	_scaleTo = scale;
+	_scaleStarted = now;
+	follow(now);
+	if (!anim::Disabled() && !_animation.animating()) {
+		_animation.start();
+	}
 }
 
 void DraggedGift::settle(
@@ -186,38 +227,67 @@ void DraggedGift::returnTo(
 }
 
 void DraggedGift::vanish(Fn<void()> done) {
-	travel(Phase::Vanishing, nullptr, [done = std::move(done)](bool) {
-		if (done) {
-			done();
-		}
-	});
+	disappear(Phase::Vanishing, std::move(done));
+}
+
+void DraggedGift::scaleOut(Fn<void()> done) {
+	disappear(Phase::ScalingOut, std::move(done));
 }
 
 void DraggedGift::finish() {
 	if (following() || _phase == Phase::Done) {
 		return;
 	}
-	const auto vanishing = (_phase == Phase::Vanishing);
-	complete(vanishing || (_target && ValidFlightPose(_target())));
+	complete(disappearing() || (_target && ValidFlightPose(_target())));
+}
+
+crl::time DraggedGift::liftDuration() const {
+	return (_origin == DraggedGiftSource::Card)
+		? kCardLiftDuration
+		: kSquareLiftDuration;
+}
+
+float64 DraggedGift::followScale(crl::time now) const {
+	const auto progress = anim::Disabled()
+		? 1.
+		: ((now - _scaleStarted) / float64(liftDuration()));
+	return _scaleFrom + (_scaleTo - _scaleFrom) * FlightEaseOut(progress);
 }
 
 FlightPose DraggedGift::followPose(crl::time now) const {
-	const auto progress = anim::Disabled()
-		? 1.
-		: ((now - _started) / float64(kLiftDuration));
-	const auto scale = 1. + (kLiftScale - 1.) * FlightEaseOut(progress);
+	const auto scale = followScale(now);
 	return {
 		.center = _cursor - _grab * scale,
 		.side = _source.side * scale,
+		.rotation = _source.rotation,
 	};
 }
 
+QPointF DraggedGift::releaseDrift(crl::time now) const {
+	if (now - _sampledAt > kVelocityWindow) {
+		return QPointF();
+	}
+	const auto drift = _velocity * float64(kDriftDecay);
+	const auto length = std::hypot(drift.x(), drift.y());
+	if (!std::isfinite(length)) {
+		return QPointF();
+	}
+	return (length > _from.side) ? (drift * (_from.side / length)) : drift;
+}
+
+bool DraggedGift::disappearing() const {
+	return (_phase == Phase::Vanishing) || (_phase == Phase::ScalingOut);
+}
+
 crl::time DraggedGift::duration() const {
+	const auto card = (_origin == DraggedGiftSource::Card);
 	switch (_phase) {
 	case Phase::Settling:
 	case Phase::Squashing: return kSettleDuration;
-	case Phase::Returning: return kReturnDuration;
+	case Phase::Returning:
+		return card ? kCardReturnDuration : kSquareReturnDuration;
 	case Phase::Vanishing: return kVanishDuration;
+	case Phase::ScalingOut: return kScaleOutDuration;
 	case Phase::Following:
 	case Phase::Done: break;
 	}
@@ -238,6 +308,16 @@ DraggedGift::Frame DraggedGift::travelFrame(
 			},
 			.opacity = 1. - along,
 		};
+	} else if (_phase == Phase::ScalingOut) {
+		const auto drifted = 1. - std::exp(-elapsed / kDriftDecay);
+		return {
+			.pose = {
+				.center = _from.center + _drift * drifted,
+				.side = _from.side * (1. - along),
+				.rotation = _from.rotation,
+			},
+			.opacity = 1. - along * along,
+		};
 	}
 	auto result = Frame{ .pose = Interpolate(_from, target, along) };
 	if (_phase == Phase::Returning) {
@@ -249,6 +329,14 @@ DraggedGift::Frame DraggedGift::travelFrame(
 		result.scaleY = 1. - kSquashTall * left * left;
 	}
 	return result;
+}
+
+void DraggedGift::disappear(Phase phase, Fn<void()> done) {
+	travel(phase, nullptr, [done = std::move(done)](bool) {
+		if (done) {
+			done();
+		}
+	});
 }
 
 void DraggedGift::travel(
@@ -265,6 +353,7 @@ void DraggedGift::travel(
 	_from = followPose(now);
 	_pose = _from;
 	_phase = phase;
+	_drift = (phase == Phase::ScalingOut) ? releaseDrift(now) : QPointF();
 	_target = std::move(target);
 	_done = std::move(done);
 	_started = now;
@@ -273,16 +362,23 @@ void DraggedGift::travel(
 	}
 }
 
+void DraggedGift::follow(crl::time now) {
+	apply({ .pose = followPose(now) });
+	if (_moved) {
+		_moved(_pose);
+	}
+}
+
 bool DraggedGift::tick(crl::time now) {
 	if (!following()) {
 		return step(now);
 	}
-	apply({ .pose = followPose(now) });
-	return !anim::Disabled() && (now - _started < kLiftDuration);
+	follow(now);
+	return !anim::Disabled() && (now - _scaleStarted < liftDuration());
 }
 
 bool DraggedGift::step(crl::time now) {
-	const auto target = (_phase == Phase::Vanishing)
+	const auto target = disappearing()
 		? std::make_optional(_from)
 		: _target
 		? _target()

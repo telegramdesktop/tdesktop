@@ -45,12 +45,19 @@ public:
 		const QString &address,
 		float64 fromScale = 1.,
 		QImage frame = QImage());
+	void preview(const QString &address, const Data::StoryArea &area);
+	void clearPreview();
+	void play(const QString &address);
+	void stopPlayback();
 
+	[[nodiscard]] bool shown(const QString &address) const;
+	[[nodiscard]] QImage image(const QString &address) const;
 	[[nodiscard]] rpl::producer<bool> arrivingValue() const;
 
 private:
 	struct Entry;
 	struct Landing;
+	struct Preview;
 
 	void apply(std::vector<Data::WalletCardSticker> &&stickers);
 	[[nodiscard]] bool validate(not_null<Entry*> entry);
@@ -58,11 +65,19 @@ private:
 	void createPlayer(not_null<Entry*> entry);
 	void capture(not_null<Entry*> entry);
 	void compose(crl::time now);
+	[[nodiscard]] bool advance(not_null<Entry*> entry, crl::time now);
+	void presented(not_null<Entry*> entry);
+	bool paintArt(
+		QPainter &p,
+		not_null<const Entry*> entry,
+		const Data::StoryArea &area,
+		float64 scale) const;
 	void paintLanding(
 		QPainter &p,
 		not_null<const Entry*> entry,
 		const Landing &landing,
 		crl::time now) const;
+	[[nodiscard]] Entry *find(const QString &address) const;
 	[[nodiscard]] Entry *lookup(const QString &canonical) const;
 	void dropLanding(const QString &canonical);
 	void pruneLandings(crl::time now);
@@ -74,6 +89,7 @@ private:
 	const Fn<void()> _repaint;
 	std::vector<std::unique_ptr<Entry>> _entries;
 	std::vector<Landing> _landings;
+	std::unique_ptr<Preview> _preview;
 	base::flat_set<QString> _holds;
 	Ui::Animations::Basic _landingAnimation;
 	rpl::variable<bool> _arriving;

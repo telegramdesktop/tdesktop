@@ -101,6 +101,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_amount_field.h"
 #include "wallet/wallet_amount_painter.h"
 #include "wallet/wallet_card_angle.h"
+#include "wallet/wallet_card_editor.h"
 #include "wallet/wallet_card_float.h"
 #include "wallet/wallet_card_gradient.h"
 #include "wallet/wallet_card_space.h"
@@ -372,6 +373,7 @@ private:
 	std::unique_ptr<BalanceInk> _ink;
 	std::unique_ptr<CardStickers> _cardStickers;
 	std::unique_ptr<CardFloat> _cardFloat;
+	std::unique_ptr<CardStickerEditor> _cardEditor;
 	Ui::Text::String _title;
 	base::unique_qptr<Ui::RpWidget> _titleBalance;
 	Ui::RpWidget *_container = nullptr;
@@ -14481,17 +14483,29 @@ void Content::setupContent() {
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			column,
 			object_ptr<Ui::VerticalLayout>(column)));
-	AddCollectiblesList(
-		collectiblesWrap->entity(),
-		_show,
-		media,
-		{
-			.body = this,
-			.painter = base::make_weak(_cardStickers),
-			.fold = [=] { return cardFold(); },
-			.protectedAreas = [=] { return _card->protectedAreas(*_ink); },
-			.bring = [=] { _cardFloat->bring(); },
-		});
+	const auto host = CardHost{
+		.body = this,
+		.painter = base::make_weak(_cardStickers),
+		.fold = [=] { return cardFold(); },
+		.protectedAreas = [=] { return _card->protectedAreas(*_ink); },
+		.bring = [=] { _cardFloat->bring(); },
+	};
+	_cardEditor = std::make_unique<CardStickerEditor>(CardEditorArgs{
+		.show = _show,
+		.host = host,
+		.input = _cardButton,
+		.header = _pinned,
+		.squares = AddCollectiblesList(
+			collectiblesWrap->entity(),
+			_show,
+			media,
+			host),
+		.repaint = [=](QRect rect) {
+			_pinnedBalance->update(rect);
+			_cardFloat->update();
+		},
+	});
+	_cardEditor->updateInput();
 	collectiblesWrap->toggleOn(wallet->collectiblesTabValue());
 	collectiblesWrap->finishAnimating();
 
@@ -14867,9 +14881,14 @@ void Content::setupBalance() {
 			_ink->paint(p, fold, cardOutline(), clip);
 		}
 		if (fold.valid && fold.opacity > 0.) {
+			p.save();
 			p.setOpacity(fold.opacity);
 			p.setTransform(fold.transform, true);
 			_cardStickers->paint(p, fold.rest);
+			p.restore();
+			if (_cardEditor) {
+				_cardEditor->paint(p, fold);
+			}
 		}
 	};
 	_cardFloat = std::make_unique<CardFloat>(CardFloatArgs{
@@ -15514,15 +15533,9 @@ void Content::updatePinned() {
 	_cardFloat->update();
 	_card->setFold(_cardFloat->shown() ? CardFold() : fold);
 	const auto presented = cardFold();
-	const auto shown = presented.valid && presented.opacity > 0.;
-	if (shown) {
-		const auto outline = CardFoldOutline(presented);
-		const auto bounds = outline.boundingRect().toAlignedRect();
-		_cardButton->setGeometry(bounds);
-		_cardButton->setMask(QRegion(
-			outline.translated(-bounds.topLeft()).toPolygon()));
+	if (_cardEditor) {
+		_cardEditor->updateInput();
 	}
-	_cardButton->setVisible(shown);
 	_scroll->setVerticalBarTopSkip(height - min);
 	_tabsShadow->setGeometry(0, height, width(), st::lineWidth);
 	_headerShadow->setVisible(height == min);

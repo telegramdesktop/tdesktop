@@ -69,6 +69,7 @@ public:
 	~CollectiblesGrid();
 
 	void rebuild();
+	[[nodiscard]] CollectiblesSquares squares();
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -142,6 +143,7 @@ private:
 		QImage frame = QImage());
 	void setReturning(const QString &address, bool returning);
 	void setLifted(const QString &address);
+	void setLeaving(const QString &address, bool leaving);
 	void refreshSquare(const QString &address);
 	[[nodiscard]] std::optional<FlightPose> dragSource(
 		const QString &address) const;
@@ -188,6 +190,7 @@ private:
 	base::flat_set<QString> _returning;
 	Drag _drag;
 	QString _lifted;
+	QString _leaving;
 	uint64 _lastFlightId = 0;
 	uint64 _lastDragGeneration = 0;
 	Press _press;
@@ -542,21 +545,6 @@ void Activate(
 		Data::kWalletCardMaxStickers);
 }
 
-[[nodiscard]] QString RefusalText(OwnCardChange change) {
-	switch (change) {
-	case OwnCardChange::NotReady:
-		return tr::lng_wallet_card_not_ready(tr::now);
-	case OwnCardChange::Limit:
-		return CardLimitText();
-	case OwnCardChange::Invalid:
-		return tr::lng_wallet_card_save_error(tr::now);
-	case OwnCardChange::Applied:
-	case OwnCardChange::Unchanged:
-		break;
-	}
-	return QString();
-}
-
 [[nodiscard]] QString FailureText(const OwnCardFailure &failure) {
 	const auto &type = failure.type;
 	if (failure.notReady) {
@@ -644,6 +632,23 @@ void CollectiblesGrid::rebuild() {
 		resizeToWidth(width);
 	}
 	refreshWindows();
+}
+
+CollectiblesSquares CollectiblesGrid::squares() {
+	const auto weak = base::make_weak(this);
+	return {
+		.pose = [=](const QString &address) {
+			const auto strong = weak.get();
+			return strong
+				? strong->squarePose(CanonicalAddress(address))
+				: std::nullopt;
+		},
+		.leaving = [=](const QString &address, bool leaving) {
+			if (const auto strong = weak.get()) {
+				strong->setLeaving(CanonicalAddress(address), leaving);
+			}
+		},
+	};
 }
 
 int CollectiblesGrid::resizeGetHeight(int newWidth) {
@@ -773,7 +778,8 @@ std::optional<FlightPose> CollectiblesGrid::dragSource(
 		|| ownCard().contains(address)
 		|| _flights.contains(address)
 		|| _held.contains(address)
-		|| _returning.contains(address)) {
+		|| _returning.contains(address)
+		|| _leaving == address) {
 		return std::nullopt;
 	}
 	return squarePose(address);
@@ -1139,9 +1145,11 @@ void CollectiblesGrid::applySquare(
 		if (fresh) {
 			square.gift = createGiftButton(record.address);
 		}
-		const auto onCard = _onCard.contains(record.address)
-			|| _returning.contains(record.address);
-		const auto silhouette = (_lifted == record.address);
+		const auto leaving = (_leaving == record.address);
+		const auto onCard = !leaving
+			&& (_onCard.contains(record.address)
+				|| _returning.contains(record.address));
+		const auto silhouette = leaving || (_lifted == record.address);
 		// A reparse allocates the gift anew, equal values keep the player.
 		if (fresh
 			|| !SameServedGift(square.record, record)
@@ -1175,6 +1183,7 @@ void CollectiblesGrid::showCardMenu(const QString &address, QPoint point) {
 	if (_menu
 		|| index < 0
 		|| !_records[index].gift
+		|| _leaving == address
 		|| !_press.address.isEmpty()
 		|| dragFollowing()) {
 		return;
@@ -1193,7 +1202,7 @@ void CollectiblesGrid::showCardMenu(const QString &address, QPoint point) {
 
 void CollectiblesGrid::cardAction(const QString &address, bool add) {
 	const auto index = indexOf(address);
-	if (index < 0 || !_records[index].gift) {
+	if (index < 0 || !_records[index].gift || _leaving == address) {
 		return;
 	}
 	const auto onCard = ownCard().contains(address);
@@ -1279,7 +1288,7 @@ void CollectiblesGrid::applyFailure(const OwnCardFailure &failure) {
 }
 
 void CollectiblesGrid::showRefusal(OwnCardChange change) {
-	const auto text = RefusalText(change);
+	const auto text = OwnCardRefusalText(change);
 	if (!text.isEmpty()) {
 		_show->showToast(text);
 	}
@@ -1410,6 +1419,18 @@ void CollectiblesGrid::setLifted(const QString &address) {
 	if (was != address) {
 		refreshSquare(was);
 		refreshSquare(address);
+	}
+}
+
+void CollectiblesGrid::setLeaving(const QString &address, bool leaving) {
+	if (!leaving && _leaving != address) {
+		return;
+	}
+	const auto now = leaving ? address : QString();
+	const auto was = std::exchange(_leaving, now);
+	if (was != now) {
+		refreshSquare(was);
+		refreshSquare(now);
 	}
 }
 
@@ -1562,7 +1583,22 @@ void CollectiblesGrid::paintThumb(
 
 } // namespace
 
-void AddCollectiblesList(
+QString OwnCardRefusalText(OwnCardChange change) {
+	switch (change) {
+	case OwnCardChange::NotReady:
+		return tr::lng_wallet_card_not_ready(tr::now);
+	case OwnCardChange::Limit:
+		return CardLimitText();
+	case OwnCardChange::Invalid:
+		return tr::lng_wallet_card_save_error(tr::now);
+	case OwnCardChange::Applied:
+	case OwnCardChange::Unchanged:
+		break;
+	}
+	return QString();
+}
+
+CollectiblesSquares AddCollectiblesList(
 		not_null<Ui::VerticalLayout*> container,
 		std::shared_ptr<Main::SessionShow> show,
 		std::shared_ptr<CollectibleMedia> media,
@@ -1578,6 +1614,7 @@ void AddCollectiblesList(
 	) | rpl::on_next([=] {
 		grid->rebuild();
 	}, grid->lifetime());
+	return grid->squares();
 }
 
 } // namespace Wallet

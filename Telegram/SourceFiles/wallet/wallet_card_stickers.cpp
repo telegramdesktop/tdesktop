@@ -73,12 +73,46 @@ struct OutlineSpan {
 	QRgb value = 0;
 };
 
+struct Playback {
+	std::unique_ptr<HistoryView::StickerPlayer> player;
+	QImage frame;
+	int side = 0;
+	int index = 0;
+	bool advanced = false;
+	bool awaitingFrame = false;
+};
+
 [[nodiscard]] QSize FrameSize(not_null<DocumentData*> document, int side) {
 	const auto box = QSize(side, side);
 	const auto &dimensions = document->dimensions;
 	return dimensions.isEmpty()
 		? box
 		: dimensions.scaled(box, Qt::KeepAspectRatio).expandedTo({ 1, 1 });
+}
+
+[[nodiscard]] std::unique_ptr<HistoryView::StickerPlayer> MakePlayer(
+		not_null<DocumentData*> document,
+		const QByteArray &bytes,
+		int side,
+		int ratio) {
+	const auto sticker = document->sticker();
+	const auto size = FrameSize(document, side);
+	if (sticker && sticker->isLottie()) {
+		return std::make_unique<HistoryView::LottiePlayer>(
+			std::make_unique<Lottie::SinglePlayer>(
+				Lottie::ReadContent(bytes, document->filepath()),
+				Lottie::FrameRequest{ size * ratio },
+				Lottie::Quality::High));
+	} else if (sticker && sticker->isWebm()) {
+		return std::make_unique<HistoryView::WebmPlayer>(
+			document->location(),
+			bytes,
+			size);
+	}
+	return std::make_unique<HistoryView::StaticStickerPlayer>(
+		document->location(),
+		bytes,
+		size);
 }
 
 void LowerEnvelope(
@@ -590,7 +624,9 @@ struct CardStickers::Entry {
 	QString canonical;
 	std::shared_ptr<Data::DocumentMedia> media;
 	std::unique_ptr<HistoryView::StickerPlayer> player;
+	std::optional<Playback> playback;
 	QImage image;
+	int imageSide = 0;
 	int side = 0;
 	int ratio = 0;
 	rpl::lifetime loading;
@@ -602,6 +638,11 @@ struct CardStickers::Landing {
 	std::unique_ptr<Ui::StarBurst> burst;
 	crl::time started = 0;
 	float64 fromScale = 1.;
+};
+
+struct CardStickers::Preview {
+	QString address;
+	Data::StoryArea area;
 };
 
 void RefreshOwnCard(not_null<Main::Session*> session) {
@@ -677,6 +718,9 @@ void CardStickers::hold(const QString &address) {
 	}
 	_holds.emplace(canonical);
 	dropLanding(canonical);
+	if (const auto entry = lookup(canonical)) {
+		entry->playback.reset();
+	}
 	invalidate();
 	refreshArriving();
 }
@@ -716,6 +760,102 @@ void CardStickers::land(
 	refreshArriving();
 }
 
+void CardStickers::preview(
+		const QString &address,
+		const Data::StoryArea &area) {
+	const auto entry = find(address);
+	const auto &geometry = area.geometry;
+	const auto finite = std::isfinite(geometry.x()
+		+ geometry.y()
+		+ geometry.width()
+		+ geometry.height()
+		+ area.rotation);
+	if (!entry
+		|| !finite
+		|| geometry.width() <= 0.
+		|| geometry.height() <= 0.) {
+		clearPreview();
+		return;
+	}
+	dropLanding(entry->canonical);
+	if (!_preview) {
+		_preview = std::make_unique<Preview>();
+	}
+	_preview->address = entry->canonical;
+	_preview->area = area;
+	invalidate();
+	refreshArriving();
+}
+
+void CardStickers::clearPreview() {
+	if (base::take(_preview)) {
+		invalidate();
+		refreshArriving();
+	}
+}
+
+void CardStickers::play(const QString &address) {
+	const auto entry = find(address);
+	if (!entry
+		|| entry->playback
+		|| entry->image.isNull()
+		|| entry->side <= 0
+		|| !entry->media
+		|| !entry->media->loaded()
+		|| _holds.contains(entry->canonical)
+		|| anim::Disabled()) {
+		return;
+	}
+	const auto sticker = entry->document->sticker();
+	if (!sticker || !sticker->isAnimated()) {
+		return;
+	}
+	entry->playback = Playback{
+		.player = MakePlayer(
+			entry->document,
+			entry->media->bytes(),
+			entry->side,
+			entry->ratio),
+		.side = entry->side,
+	};
+	const auto playback = &*entry->playback;
+	playback->player->setRepaintCallback([=] {
+		playback->awaitingFrame = false;
+		invalidate();
+	});
+}
+
+void CardStickers::stopPlayback() {
+	auto stopped = false;
+	for (const auto &entry : _entries) {
+		if (entry->playback) {
+			entry->playback.reset();
+			stopped = true;
+		}
+	}
+	if (stopped) {
+		invalidate();
+	}
+}
+
+bool CardStickers::shown(const QString &address) const {
+	const auto entry = find(address);
+	return entry
+		&& (entry->side > 0)
+		&& !entry->image.isNull()
+		&& !_holds.contains(entry->canonical);
+}
+
+QImage CardStickers::image(const QString &address) const {
+	const auto entry = find(address);
+	if (!entry) {
+		return QImage();
+	} else if (entry->playback && !entry->playback->frame.isNull()) {
+		return entry->playback->frame;
+	}
+	return entry->image;
+}
+
 rpl::producer<bool> CardStickers::arrivingValue() const {
 	return _arriving.value();
 }
@@ -727,19 +867,26 @@ void CardStickers::apply(std::vector<Data::WalletCardSticker> &&stickers) {
 			continue;
 		}
 		const auto document = sticker.gift->document;
+		const auto canonical = CanonicalAddress(sticker.address);
 		const auto i = ranges::find_if(was, [&](const auto &entry) {
-			return entry && (entry->document == document);
+			return entry
+				&& (entry->document == document)
+				&& (entry->canonical == canonical);
 		});
 		auto entry = (i != end(was))
 			? std::move(*i)
 			: std::make_unique<Entry>(Entry{ .document = document });
 		entry->data = std::move(sticker);
-		entry->canonical = CanonicalAddress(entry->data.address);
+		entry->canonical = canonical;
 		_entries.push_back(std::move(entry));
 	}
 	_landings.erase(ranges::remove_if(_landings, [&](const Landing &landing) {
 		return !lookup(landing.address);
 	}), end(_landings));
+	if (_preview && !lookup(_preview->address)) {
+		_preview = nullptr;
+		refreshArriving();
+	}
 	invalidate();
 }
 
@@ -750,7 +897,7 @@ bool CardStickers::validate(not_null<Entry*> entry) {
 		changed = !entry->image.isNull();
 		prepare(entry, side);
 	}
-	if (entry->image.isNull() && entry->player && entry->player->ready()) {
+	if (entry->player && entry->player->ready()) {
 		capture(entry);
 		changed = changed || !entry->image.isNull();
 	}
@@ -760,7 +907,7 @@ bool CardStickers::validate(not_null<Entry*> entry) {
 void CardStickers::prepare(not_null<Entry*> entry, int side) {
 	entry->loading.destroy();
 	entry->player = nullptr;
-	entry->image = QImage();
+	entry->playback.reset();
 	entry->side = side;
 	entry->ratio = _layerRatio;
 	if (!side) {
@@ -782,27 +929,11 @@ void CardStickers::prepare(not_null<Entry*> entry, int side) {
 }
 
 void CardStickers::createPlayer(not_null<Entry*> entry) {
-	const auto document = entry->document;
-	const auto bytes = entry->media->bytes();
-	const auto sticker = document->sticker();
-	const auto size = FrameSize(document, entry->side);
-	if (sticker && sticker->isLottie()) {
-		entry->player = std::make_unique<HistoryView::LottiePlayer>(
-			std::make_unique<Lottie::SinglePlayer>(
-				Lottie::ReadContent(bytes, document->filepath()),
-				Lottie::FrameRequest{ size * entry->ratio },
-				Lottie::Quality::High));
-	} else if (sticker && sticker->isWebm()) {
-		entry->player = std::make_unique<HistoryView::WebmPlayer>(
-			document->location(),
-			bytes,
-			size);
-	} else {
-		entry->player = std::make_unique<HistoryView::StaticStickerPlayer>(
-			document->location(),
-			bytes,
-			size);
-	}
+	entry->player = MakePlayer(
+		entry->document,
+		entry->media->bytes(),
+		entry->side,
+		entry->ratio);
 	entry->player->setRepaintCallback(_repaint);
 }
 
@@ -816,6 +947,7 @@ void CardStickers::capture(not_null<Entry*> entry) {
 	entry->player = nullptr;
 	if (!frame.isNull()) {
 		entry->image = Outlined(std::move(frame), entry->ratio);
+		entry->imageSide = entry->side;
 	}
 }
 
@@ -847,21 +979,81 @@ void CardStickers::compose(crl::time now) {
 		if (_holds.contains(entry->canonical)) {
 			continue;
 		}
+		const auto raw = entry.get();
+		const auto playing = advance(raw, now);
 		const auto landing = ranges::find(
 			_landings,
 			entry->canonical,
 			&Landing::address);
-		if (landing != end(_landings)) {
-			paintLanding(p, entry.get(), *landing, now);
-		} else if (!entry->image.isNull()) {
-			PaintSticker(
-				p,
-				entry->data.area,
-				entry->image,
-				_layerSize,
-				LogicalSize(entry->image));
+		if (_preview && _preview->address == entry->canonical) {
+			paintArt(p, raw, _preview->area, 1.);
+		} else if (landing != end(_landings)) {
+			paintLanding(p, raw, *landing, now);
+		} else {
+			paintArt(p, raw, entry->data.area, 1.);
+		}
+		if (playing) {
+			presented(raw);
 		}
 	}
+}
+
+bool CardStickers::advance(not_null<Entry*> entry, crl::time now) {
+	if (!entry->playback) {
+		return false;
+	} else if (anim::Disabled()) {
+		entry->playback.reset();
+		return false;
+	}
+	auto &playback = *entry->playback;
+	if (playback.awaitingFrame || !playback.player->ready()) {
+		return false;
+	}
+	auto info = playback.player->frame(
+		FrameSize(entry->document, playback.side),
+		QColor(0, 0, 0, 0),
+		false,
+		now,
+		false);
+	if (info.image.isNull()) {
+		return false;
+	} else if (playback.advanced
+		&& (info.index == 0 || info.index < playback.index)) {
+		entry->playback.reset();
+		return false;
+	} else if (playback.frame.isNull() || info.index != playback.index) {
+		playback.frame = Outlined(std::move(info.image), entry->ratio);
+		playback.index = info.index;
+	}
+	return true;
+}
+
+void CardStickers::presented(not_null<Entry*> entry) {
+	auto &playback = *entry->playback;
+	if (playback.player->framesCount() == 1) {
+		entry->playback.reset();
+	} else if (playback.player->markFrameShown()) {
+		playback.advanced = true;
+		playback.awaitingFrame = true;
+	}
+}
+
+bool CardStickers::paintArt(
+		QPainter &p,
+		not_null<const Entry*> entry,
+		const Data::StoryArea &area,
+		float64 scale) const {
+	const auto playing = entry->playback
+		&& !entry->playback->frame.isNull();
+	const auto &image = playing ? entry->playback->frame : entry->image;
+	const auto from = playing ? entry->playback->side : entry->imageSide;
+	const auto side = CardStickerSide(area, _layerSize);
+	if (image.isNull() || from <= 0 || side <= 0) {
+		return false;
+	}
+	const auto size = LogicalSize(image) * (scale * side / float64(from));
+	PaintSticker(p, area, image, _layerSize, size);
+	return true;
 }
 
 void CardStickers::paintLanding(
@@ -886,15 +1078,17 @@ void CardStickers::paintLanding(
 	}
 	const auto settle = EaseOut(elapsed / float64(kSettleDuration));
 	const auto scale = 1. + (landing.fromScale - 1.) * (1. - settle);
-	if (!entry->image.isNull()) {
-		const auto size = LogicalSize(entry->image) * scale;
-		PaintSticker(p, area, entry->image, _layerSize, size);
-	} else if (!landing.frame.isNull()) {
+	if (!paintArt(p, entry, area, scale) && !landing.frame.isNull()) {
 		const auto size = QSizeF(landing.frame.size()).scaled(
 			QSizeF(side, side),
 			Qt::KeepAspectRatio) * scale;
 		PaintSticker(p, area, landing.frame, _layerSize, size);
 	}
+}
+
+CardStickers::Entry *CardStickers::find(const QString &address) const {
+	const auto canonical = CanonicalAddress(address);
+	return canonical.isEmpty() ? nullptr : lookup(canonical);
 }
 
 CardStickers::Entry *CardStickers::lookup(const QString &canonical) const {
@@ -935,12 +1129,14 @@ bool CardStickers::landingStep(crl::time now) {
 	if (!active) {
 		_landingAnimation.stop();
 	}
-	_arriving = active || !_holds.empty();
+	refreshArriving();
 	return active;
 }
 
 void CardStickers::refreshArriving() {
-	_arriving = _landingAnimation.animating() || !_holds.empty();
+	_arriving = _landingAnimation.animating()
+		|| !_holds.empty()
+		|| (_preview != nullptr);
 }
 
 void CardStickers::invalidate() {
