@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tgw/tgw_backend.h"
 
+#include "renderer-litehtml/src/css.h"
 #include "tgw/tgw_canvas.h"
 #include "ui/image/svg_safety.h"
 
@@ -24,6 +25,12 @@ namespace {
 
 constexpr auto kMaxFontSize = 1e6;
 constexpr auto kMaxFontPixelSize = 1024;
+constexpr auto kMaxNewCanvasFonts = 16;
+constexpr auto kMaxCanvasFonts = 32;
+constexpr auto kMaxCanvasFontParses = 64;
+constexpr auto kMaxCanvasFontSpellings = 64;
+constexpr auto kMaxCanvasFontSpellingSize = std::size_t(512);
+constexpr auto kCanvasFontKind = std::string_view("canvas-font-limit");
 constexpr auto kMaxImageUrlSize = std::size_t(5 * 1024 * 1024);
 constexpr auto kMaxImageSide = 4096;
 constexpr auto kMaxImagePixels = 4 * 1024 * 1024;
@@ -354,9 +361,8 @@ private:
 	return result;
 }
 
-[[nodiscard]] QFont::Weight FontWeight(int weight) {
-	const auto index = (std::clamp(weight, 100, 900) + 50) / 100 - 1;
-	return kFontWeights[index];
+[[nodiscard]] int FontWeightIndex(int weight) {
+	return (std::clamp(weight, 100, 900) + 50) / 100 - 1;
 }
 
 [[nodiscard]] std::optional<FontKind> GenericKind(std::string_view family) {
@@ -400,6 +406,28 @@ private:
 	return (kind == FontKind::Monospace)
 		? st::normalFont->monospace()->f
 		: st::normalFont->f;
+}
+
+[[nodiscard]] std::pair<uint32, float64> ResolveFont(
+		std::string_view families,
+		float size,
+		int weight,
+		bool italic) {
+	const auto style = (uint32(FontWeightIndex(weight)) << 2)
+		| (uint32(italic) << 1)
+		| uint32(ResolveFamilies(families));
+	const auto requested = std::isfinite(size)
+		? std::clamp(float64(size), 0., kMaxFontSize)
+		: 0.;
+	return { style, requested };
+}
+
+[[nodiscard]] QFont StyledFont(uint32 style, int pixels) {
+	auto result = BaseFont(FontKind(style & 1));
+	result.setPixelSize(pixels);
+	result.setWeight(kFontWeights[style >> 2]);
+	result.setItalic((style & 2) != 0);
+	return result;
 }
 
 [[nodiscard]] std::string_view ImageFormat(std::string_view mime) {
@@ -1773,7 +1801,10 @@ QString SvgRewriter::prefixed(const QString &name) const {
 
 QtBackend::QtBackend(float64 ratio, Diagnostic diagnostic)
 : _ratio(ratio)
-, _canvases(std::make_unique<Canvases>(std::move(diagnostic))) {
+, _diagnostic(diagnostic)
+, _canvases(std::make_unique<Canvases>(std::move(diagnostic)))
+, _canvasFontsLeft(kMaxNewCanvasFonts)
+, _canvasParsesLeft(kMaxCanvasFontParses) {
 }
 
 QtBackend::~QtBackend() {
@@ -1788,18 +1819,18 @@ int QtBackend::create_font(
 		int weight,
 		bool italic,
 		twlite::FontMetrics &out) {
-	const auto requested = std::isfinite(size)
-		? std::clamp(float64(size), 0., kMaxFontSize)
-		: 0.;
+	const auto key = ResolveFont(families, size, weight, italic);
+	return _canvasText ? admitCanvasFont(key, out) : makeFont(key, out);
+}
+
+int QtBackend::makeFont(FontKey key, twlite::FontMetrics &out) {
+	const auto requested = key.second;
 	const auto pixels = int(std::clamp(
 		std::round(requested),
 		1.,
 		float64(kMaxFontPixelSize)));
 	const auto scale = requested / pixels;
-	auto font = BaseFont(ResolveFamilies(families));
-	font.setPixelSize(pixels);
-	font.setWeight(FontWeight(weight));
-	font.setItalic(italic);
+	const auto font = StyledFont(key.first, pixels);
 	const auto metrics = QFontMetricsF(font);
 	out.ascent = float(metrics.ascent() * scale);
 	out.descent = float(metrics.descent() * scale);
@@ -1812,6 +1843,11 @@ int QtBackend::create_font(
 }
 
 void QtBackend::delete_font(int font) {
+	for (const auto &entry : _canvasFonts) {
+		if (entry.second.id == font) {
+			return;
+		}
+	}
 	_fonts.remove(font);
 }
 
@@ -1902,6 +1938,82 @@ const QImage *QtBackend::canvas(int id) const {
 
 void QtBackend::beginCanvasBatch() {
 	_canvases->refill();
+	_canvasFontsLeft = kMaxNewCanvasFonts;
+	_canvasParsesLeft = kMaxCanvasFontParses;
+}
+
+int QtBackend::canvasFont(
+		const std::string &css,
+		twlite::FontMetrics &metrics) {
+	if (css.size() > kMaxCanvasFontSpellingSize) {
+		return refuseCanvasFont(metrics);
+	}
+	const auto i = _canvasSpellings.find(css);
+	if (i != end(_canvasSpellings)) {
+		return admitCanvasFont(i->second, metrics);
+	} else if (_canvasParsesLeft <= 0) {
+		return refuseCanvasFont(metrics);
+	}
+	--_canvasParsesLeft;
+	const auto parsed = twlite::css::parse_font(css);
+	const auto key = ResolveFont(
+		parsed.family,
+		parsed.size,
+		parsed.weight,
+		parsed.italic);
+	if (int(_canvasSpellings.size()) >= kMaxCanvasFontSpellings) {
+		// Holds no handles, so clearing it mid-message is safe.
+		_canvasSpellings.clear();
+	}
+	_canvasSpellings.emplace(css, key);
+	return admitCanvasFont(key, metrics);
+}
+
+void QtBackend::setCanvasText(bool enabled) {
+	_canvasText = enabled;
+}
+
+void QtBackend::releaseCanvasFonts() {
+	for (const auto &entry : _canvasFonts) {
+		_fonts.remove(entry.second.id);
+	}
+	_canvasFonts.clear();
+	_canvasSpellings.clear();
+	_canvasFontsLeft = 0;
+	_canvasParsesLeft = 0;
+}
+
+int QtBackend::admitCanvasFont(FontKey key, twlite::FontMetrics &out) {
+	const auto i = _canvasFonts.find(key);
+	if (i != end(_canvasFonts)) {
+		out = i->second.metrics;
+		return i->second.id;
+	} else if (_canvasFontsLeft <= 0
+		|| int(_canvasFonts.size()) >= kMaxCanvasFonts) {
+		return refuseCanvasFont(out);
+	}
+	const auto id = makeFont(key, out);
+	_canvasFonts.emplace(key, CachedFont{ id, out });
+	--_canvasFontsLeft;
+	return id;
+}
+
+int QtBackend::refuseCanvasFont(twlite::FontMetrics &out) {
+	out = twlite::FontMetrics();
+	if (!std::exchange(_canvasFontLimitNoted, true) && _diagnostic) {
+		_diagnostic(
+			std::string(kCanvasFontKind),
+			"canvas text exceeded the allowance of "
+				+ std::to_string(kMaxNewCanvasFonts)
+				+ " new fonts per message, "
+				+ std::to_string(kMaxCanvasFonts)
+				+ " per widget, "
+				+ std::to_string(kMaxCanvasFontParses)
+				+ " font strings per message of at most "
+				+ std::to_string(kMaxCanvasFontSpellingSize)
+				+ " bytes; text in other fonts is skipped");
+	}
+	return 0;
 }
 
 } // namespace Tgw

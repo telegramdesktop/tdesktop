@@ -81,6 +81,26 @@ private:
 
 };
 
+// WHY: one ops message draws canvas text and lays out the document through
+// the same create_font(), so only the core's canvas_font() hook can tell
+// canvas fonts apart for their allowance.
+class CanvasFontRenderer final : public twlite::Renderer {
+public:
+	CanvasFontRenderer(
+		double width,
+		double dpr,
+		bool dark,
+		not_null<QtBackend*> backend);
+
+private:
+	int canvas_font(
+		const std::string &css,
+		twlite::FontMetrics &metrics) override;
+
+	const not_null<QtBackend*> _backend;
+
+};
+
 [[nodiscard]] bool ValidWidth(double width) {
 	return std::isfinite(width) && (width > 0.);
 }
@@ -215,6 +235,21 @@ void HostRenderer::destroy() {
 	_link->detach(this);
 }
 
+CanvasFontRenderer::CanvasFontRenderer(
+	double width,
+	double dpr,
+	bool dark,
+	not_null<QtBackend*> backend)
+: twlite::Renderer(width, dpr, dark, *backend)
+, _backend(backend) {
+}
+
+int CanvasFontRenderer::canvas_font(
+		const std::string &css,
+		twlite::FontMetrics &metrics) {
+	return _backend->canvasFont(css, metrics);
+}
+
 } // namespace
 
 HostLink::HostLink(not_null<RendererCore*> core)
@@ -301,11 +336,11 @@ RendererCore::RendererCore(double width, double dpr)
 	[link = _link](const std::string &kind, const std::string &detail) {
 		link->diag(kind, detail);
 	}))
-, _renderer(std::make_unique<twlite::Renderer>(
+, _renderer(std::make_unique<CanvasFontRenderer>(
 	ValidWidth(width) ? width : kFallbackWidth,
 	dpr,
 	false,
-	*_backend))
+	_backend.get()))
 , _clock([=] { return step(); })
 , _wake([=] { wake(); }) {
 }
@@ -343,6 +378,7 @@ void RendererCore::detach() {
 	_pendingSize = std::string();
 	refreshClock();
 	_link->close();
+	_backend->releaseCanvasFonts();
 }
 
 bool RendererCore::attached() const {
@@ -634,8 +670,12 @@ void RendererCore::hostMessage(const twidget::Json &message) {
 		return;
 	}
 	const auto wasDirty = _renderer->dirty();
+	const auto measure = (type == "query")
+		&& (message["query"]["q"].asString() == "measureText");
 	_backend->beginCanvasBatch();
+	_backend->setCanvasText(measure);
 	const auto out = _renderer->receive(message);
+	_backend->setCanvasText(false);
 	auto changes = Changes();
 	if (type == "ops" && !message["ops"].arr().empty()) {
 		changes |= Change::Repaint;

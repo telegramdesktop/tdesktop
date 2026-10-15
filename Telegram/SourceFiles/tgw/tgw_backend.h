@@ -62,19 +62,44 @@ public:
 	[[nodiscard]] QSizeF imageSize(int id) const;
 	[[nodiscard]] const QImage *canvas(int id) const;
 	void beginCanvasBatch();
+	[[nodiscard]] int canvasFont(
+		const std::string &css,
+		twlite::FontMetrics &metrics);
+	void setCanvasText(bool enabled);
+	void releaseCanvasFonts();
 
 private:
+	using FontKey = std::pair<uint32, float64>;
+
 	struct Image {
 		QImage image;
 		QSizeF size;
 	};
 
+	struct CachedFont {
+		int id = 0;
+		twlite::FontMetrics metrics;
+	};
+
+	[[nodiscard]] int makeFont(FontKey key, twlite::FontMetrics &out);
+	[[nodiscard]] int admitCanvasFont(
+		FontKey key,
+		twlite::FontMetrics &out);
+	[[nodiscard]] int refuseCanvasFont(twlite::FontMetrics &out);
+
 	const float64 _ratio = 1.;
+	const Diagnostic _diagnostic;
 	base::flat_map<int, QtFont> _fonts;
 	base::flat_map<int, Image> _images;
+	base::flat_map<FontKey, CachedFont> _canvasFonts;
+	base::flat_map<std::string, FontKey> _canvasSpellings;
 	const std::unique_ptr<Canvases> _canvases;
 	int64 _imageBytes = 0;
 	int _lastFontId = 0;
+	int _canvasFontsLeft = 0;
+	int _canvasParsesLeft = 0;
+	bool _canvasText = false;
+	bool _canvasFontLimitNoted = false;
 
 };
 
