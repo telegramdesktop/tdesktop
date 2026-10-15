@@ -16,6 +16,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class PeerListContent;
 
+namespace Api {
+struct GlobalMediaResult;
+class PeerSearch;
+} // namespace Api
+
 namespace Data {
 class Thread;
 } // namespace Data
@@ -34,13 +39,16 @@ enum class SharedMediaType : signed char;
 
 namespace Ui::Controls {
 struct SwipeHandlerArgs;
+struct SwipeHandlerFinishData;
 } // namespace Ui::Controls
 
 namespace Ui {
 class BoxContent;
+class SearchFieldController;
 class ScrollArea;
 class ElasticScroll;
 class SettingsSlider;
+class SlideAnimation;
 class VerticalLayout;
 template <typename Widget>
 class SlideWrap;
@@ -53,6 +61,7 @@ class SessionController;
 namespace Dialogs {
 
 class InnerWidget;
+struct ChosenRow;
 class PostsSearch;
 class PostsSearchIntro;
 struct PostsSearchIntroState;
@@ -75,7 +84,9 @@ public:
 	void chooseRow();
 
 	bool consumeSearchQuery(const QString &query);
+	[[nodiscard]] bool ownsSearchQuery(const QString &query) const;
 	[[nodiscard]] rpl::producer<> clearSearchQueryRequests() const;
+	[[nodiscard]] rpl::producer<> reapplySearchQueryRequests() const;
 
 	[[nodiscard]] Data::Thread *updateFromParentDrag(QPoint globalPosition);
 	void dragLeft();
@@ -86,6 +97,15 @@ public:
 
 	[[nodiscard]] bool persist() const;
 	void clearPersistance();
+
+	[[nodiscard]] bool chatsTabActive() const;
+	void setTabsOnly(bool tabsOnly);
+	[[nodiscard]] bool tabsOnly() const;
+	[[nodiscard]] int tabsHeight() const;
+	[[nodiscard]] auto swipeTabFinishData(
+		Qt::LayoutDirection direction,
+		Fn<void()> finished)
+	-> Ui::Controls::SwipeHandlerFinishData;
 
 	[[nodiscard]] rpl::producer<not_null<PeerData*>> topPeerChosen() const {
 		return _topPeerChosen.events();
@@ -102,6 +122,10 @@ public:
 	-> rpl::producer<not_null<PeerData*>> {
 		return _recommendations->chosen.events();
 	}
+	[[nodiscard]] auto globalChannelChosen() const
+	-> rpl::producer<not_null<PeerData*>> {
+		return _globalChannels->chosen.events();
+	}
 	[[nodiscard]] auto recentAppChosen() const
 	-> rpl::producer<not_null<PeerData*>> {
 		return _recentApps->chosen.events();
@@ -109,6 +133,10 @@ public:
 	[[nodiscard]] auto popularAppChosen() const
 	-> rpl::producer<not_null<PeerData*>> {
 		return _popularApps->chosen.events();
+	}
+	[[nodiscard]] auto globalAppChosen() const
+	-> rpl::producer<not_null<PeerData*>> {
+		return _globalApps->chosen.events();
 	}
 	[[nodiscard]] auto openBotMainAppRequests() const
 	-> rpl::producer<not_null<PeerData*>> {
@@ -159,6 +187,7 @@ private:
 		Info::WrapWidget *wrap = nullptr;
 		rpl::variable<int> count;
 	};
+	struct SearchList;
 
 	[[nodiscard]] static std::vector<Key> TabKeysFor(
 		not_null<Window::SessionController*> controller);
@@ -177,12 +206,21 @@ private:
 	void selectJumpChats(Qt::Key direction, int pageSize);
 	void selectJumpChannels(Qt::Key direction, int pageSize);
 	void selectJumpApps(Qt::Key direction, int pageSize);
+	void selectJumpSections(
+		const std::vector<Fn<JumpResult(Qt::Key, int)>> &sections,
+		not_null<Ui::ElasticScroll*> scroll,
+		Qt::Key direction,
+		int pageSize);
 
 	[[nodiscard]] Data::Thread *updateFromChatsDrag(QPoint globalPosition);
 	[[nodiscard]] Data::Thread *updateFromChannelsDrag(
 		QPoint globalPosition);
 	[[nodiscard]] Data::Thread *updateFromAppsDrag(QPoint globalPosition);
 	[[nodiscard]] Data::Thread *fromListId(uint64 peerListRowId);
+	[[nodiscard]] not_null<ObjectList*> channelsSecondList() const;
+	[[nodiscard]] not_null<ObjectList*> appsSecondList() const;
+	[[nodiscard]] Ui::SearchFieldController *mediaListSearch(Key key) const;
+
 
 	[[nodiscard]] std::unique_ptr<ObjectList> setupRecentPeers(
 		RecentPeersList recentPeers);
@@ -191,26 +229,40 @@ private:
 
 	[[nodiscard]] std::unique_ptr<ObjectList> setupMyChannels();
 	[[nodiscard]] std::unique_ptr<ObjectList> setupRecommendations();
+	[[nodiscard]] std::unique_ptr<SearchList> setupChannelsPosts();
 	[[nodiscard]] auto setupEmptyChannels()
 		-> object_ptr<Ui::SlideWrap<Ui::RpWidget>>;
 
 	[[nodiscard]] std::unique_ptr<ObjectList> setupRecentApps();
 	[[nodiscard]] std::unique_ptr<ObjectList> setupPopularApps();
 
+	[[nodiscard]] static bool TakesSearchQuery(Key key);
+	[[nodiscard]] static bool ListsSearchResults(Key key);
+	[[nodiscard]] static auto ListSelectJump(not_null<ObjectList*> raw)
+		-> Fn<JumpResult(Qt::Key, int)>;
 	[[nodiscard]] std::unique_ptr<ObjectList> setupObjectList(
 		not_null<Ui::ElasticScroll*> scroll,
 		not_null<Ui::VerticalLayout*> parent,
 		not_null<ObjectListController*> controller,
 		Fn<int()> addToScroll = nullptr);
+	[[nodiscard]] std::unique_ptr<ObjectList> setupGlobalPeers(
+		not_null<Ui::ElasticScroll*> scroll,
+		not_null<Ui::VerticalLayout*> parent,
+		rpl::producer<std::vector<not_null<PeerData*>>> peers,
+		not_null<ObjectList*> above,
+		bool expandable);
 
 	[[nodiscard]] object_ptr<Ui::SlideWrap<Ui::RpWidget>> setupEmpty(
 		not_null<QWidget*> parent,
+		not_null<Ui::ElasticScroll*> scroll,
 		SearchEmptyIcon icon,
-		rpl::producer<QString> text);
+		rpl::producer<TextWithEntities> text);
 
+	bool setTabSearchQuery(const QString &query);
+	void resetTabSearchQuery(Key key);
 	void switchTab(Key key);
 	void startShownAnimation(bool shown, Fn<void()> finish);
-	void startSlideAnimation(Key was, Key now);
+	void startSlideAnimation(Key was, Key now, bool swipe);
 	void ensureContent(Key key);
 	void finishShow();
 
@@ -223,6 +275,23 @@ private:
 	void setupPostsResults();
 	void setupPostsIntro(const PostsSearchIntroState &intro);
 	void updatePostsSearchVisibleRange();
+	void showSearchResult(const ChosenRow &row, const QString &query);
+
+	[[nodiscard]] std::unique_ptr<SearchList> setupSearchList(Key key);
+	void setupSearchListContent(not_null<SearchList*> search);
+	[[nodiscard]] SearchList *shownSearchList(Key key) const;
+	void setSearchListQuery(Key key, const QString &query);
+	void resetSearchList(not_null<SearchList*> search, const QString &query);
+	void setChannelsSearchQuery(const QString &query);
+	void requestChannelsSearch();
+	void setAppsSearchQuery(const QString &query);
+	void requestAppsSearch();
+	void requestSearchList(not_null<SearchList*> search);
+	void searchListReceived(
+		not_null<SearchList*> search,
+		const Api::GlobalMediaResult &result);
+	void updateChannelsPostsVisibleRange();
+	void updateSearchListVisibleRange(not_null<SearchList*> search);
 
 	const not_null<Window::SessionController*> _controller;
 
@@ -247,9 +316,18 @@ private:
 
 	const std::unique_ptr<Ui::ElasticScroll> _channelsScroll;
 	const not_null<Ui::VerticalLayout*> _channelsContent;
+	rpl::variable<QString> _channelsQuery;
+	rpl::variable<std::vector<not_null<PeerData*>>> _joinedChannelsResults;
+	rpl::variable<std::vector<not_null<PeerData*>>> _globalChannelsResults;
+	rpl::variable<bool> _channelsLoading = false;
+	rpl::variable<bool> _channelsHasPosts = false;
+	bool _channelsPostsKeyJump = false;
+	std::unique_ptr<Api::PeerSearch> _channelsPeerSearch;
 
 	const std::unique_ptr<ObjectList> _myChannels;
 	const std::unique_ptr<ObjectList> _recommendations;
+	const std::unique_ptr<ObjectList> _globalChannels;
+	const std::unique_ptr<SearchList> _channelsPosts;
 
 	const not_null<Ui::SlideWrap<Ui::RpWidget>*> _emptyChannels;
 
@@ -262,31 +340,38 @@ private:
 	PostsSearchIntro *_postsSearchIntro = nullptr;
 	InnerWidget *_postsContent = nullptr;
 
+	rpl::variable<QString> _appsQuery;
+	rpl::variable<std::vector<not_null<PeerData*>>> _usedAppsResults;
+	rpl::variable<std::vector<not_null<PeerData*>>> _globalAppsResults;
+	rpl::variable<bool> _appsLoading = false;
+	std::unique_ptr<Api::PeerSearch> _appsPeerSearch;
 	rpl::producer<> _recentAppsRefreshed;
 	Fn<bool(not_null<PeerData*>)> _recentAppsShows;
 	const std::unique_ptr<ObjectList> _recentApps;
 	const std::unique_ptr<ObjectList> _popularApps;
+	const std::unique_ptr<ObjectList> _globalApps;
 
 	base::flat_map<Key, MediaList> _mediaLists;
+	base::flat_map<Key, std::unique_ptr<SearchList>> _searchLists;
 	rpl::event_stream<> _clearSearchQueryRequests;
+	rpl::event_stream<> _reapplySearchQueryRequests;
+	QString _fieldQuery;
 	QString _searchQuery;
+	QString _postsSearchQuery;
 	base::Timer _searchQueryTimer;
 
 	Ui::Animations::Simple _shownAnimation;
 	Fn<void()> _showFinished;
 	bool _hidden = false;
 	bool _persist = false;
+	bool _tabsOnly = false;
 	QPixmap _cache;
 
-	Ui::Animations::Simple _slideAnimation;
-	QPixmap _slideLeft;
-	QPixmap _slideRight;
+	std::unique_ptr<Ui::SlideAnimation> _slideAnimation;
 
 	Ui::Controls::SwipeBackResult _swipeBackData;
 	rpl::lifetime _swipeLifetime;
-
-	int _slideLeftTop = 0;
-	int _slideRightTop = 0;
+	bool _swipeSwitch = false;
 
 };
 

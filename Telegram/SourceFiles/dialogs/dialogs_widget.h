@@ -309,6 +309,7 @@ private:
 	void updateSuggestions(anim::type animated);
 	void processSearchFocusChange();
 	void closeSuggestions();
+	[[nodiscard]] bool suggestionsCoverList() const;
 	[[nodiscard]] bool searchActive() const;
 
 	[[nodiscard]] bool redirectToSearchPossible() const;
@@ -438,6 +439,7 @@ private:
 	bool _chatsFilterSwipeSwitch = false;
 	bool _swipeBackMirrored = false;
 	bool _swipeBackIconMirrored = false;
+	bool _swipeSearchTabs = false;
 
 	SearchProcessState _searchProcess;
 	SearchProcessState _migratedProcess;
