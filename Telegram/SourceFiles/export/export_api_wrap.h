@@ -76,6 +76,7 @@ public:
 		int itemIndex = 0;
 		int64 ready = 0;
 		int64 total = 0;
+		int itemCount = 0;
 	};
 	void requestUserpics(
 		FnMut<bool(Data::UserpicsInfo&&)> start,
@@ -110,6 +111,8 @@ public:
 		PeerId peerId,
 		MTPInputPeer inputPeer,
 		int32 topicRootId,
+		const QString &relativePath,
+		bool onlyMyMessages,
 		FnMut<bool(int count)> start,
 		Fn<bool(DownloadProgress)> progress,
 		Fn<bool(Data::MessagesSlice&&)> slice,
@@ -187,6 +190,9 @@ private:
 	void requestDialogsSlice();
 	void appendDialogsSlice(Data::DialogsInfo &&info);
 	void finishDialogsList();
+	void requestNextForum();
+	void requestForumTopicsSlice();
+	void finishForumTopics();
 	void requestSinglePeerDialog();
 	mtpRequestId requestSinglePeerMigrated(const Data::DialogInfo &info);
 	void appendSinglePeerDialogs(Data::DialogsInfo &&info);
@@ -248,6 +254,7 @@ private:
 	void finishMessagesSlice();
 	void finishMessages();
 
+	void prepareTopicFiles(const QString &relativePath);
 	void loadTopicMessagesFiles(Data::MessagesSlice &&slice);
 	void resolveTopicCustomEmoji();
 	void loadNextTopicMessageFile();
@@ -331,6 +338,8 @@ private:
 	void ioError(const Output::Result &result);
 
 	MTP::ConcurrentSender _mtp;
+	mtpRequestId _forumRequestId = 0;
+	bool _cancelled = false;
 	std::optional<uint64> _takeoutId;
 	std::optional<UserId> _selfId;
 	Output::Stats *_stats = nullptr;
@@ -340,6 +349,7 @@ private:
 
 	std::unique_ptr<StartProcess> _startProcess;
 	std::unique_ptr<LoadedFileCache> _fileCache;
+	QString _topicFilesPath;
 	std::unique_ptr<ContactsProcess> _contactsProcess;
 	std::unique_ptr<UserpicsProcess> _userpicsProcess;
 	std::unique_ptr<StoriesProcess> _storiesProcess;

@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "export/output/export_output_abstract.h"
 #include "export/view/export_view_panel_controller.h"
+#include "export/data/export_data_types.h"
+#include "data/data_peer.h"
+#include "data/data_session.h"
+#include "mtproto/sender.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
@@ -27,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/file_utilities.h"
 #include "base/unixtime.h"
+#include "base/flat_set.h"
 #include "main/main_session.h"
 #include "styles/style_export.h"
 #include "styles/style_layers.h"
@@ -168,6 +173,27 @@ void SettingsWidget::setupContent() {
 void SettingsWidget::setupOptions(not_null<Ui::VerticalLayout*> container) {
 	if (!_singlePeerId) {
 		setupFullExportOptions(container);
+	} else if (readData().splitTopics) {
+		addHeader(container, tr::lng_export_header_topic(tr::now));
+	}
+	if (!_singlePeerId || readData().splitTopics) {
+		const auto button = container->add(
+			object_ptr<Ui::RoundButton>(
+				container,
+				tr::lng_export_choose_topics(),
+				st::defaultBoxButton),
+			st::exportSettingPadding);
+		button->setClickedCallback([=] {
+			if (_singlePeerId) {
+				auto chat = Data::DialogInfo();
+				chat.input = readData().singlePeer;
+				chat.peerId = _singlePeerId;
+				chat.name = _session->data().peer(_singlePeerId)->name().toUtf8();
+				chooseForumTopics(chat);
+			} else {
+				chooseForums();
+			}
+		});
 	}
 	setupMediaOptions(container);
 	if (!_singlePeerId) {
@@ -674,8 +700,12 @@ not_null<Ui::RpWidget*> SettingsWidget::setupButtons(
 		return top < scroll->scrollTopMax();
 	}));
 
-	value() | rpl::map([](const Settings &data) {
-		return (data.types != Types(0)) || data.onlySinglePeer();
+	value() | rpl::map([=](const Settings &data) {
+		const auto selected = data.topicSelection.find(_singlePeerId.value);
+		return ((data.types != Types(0)) || data.onlySinglePeer())
+			&& (!data.splitTopics
+				|| selected == end(data.topicSelection)
+				|| !selected->second.empty());
 	}) | rpl::distinct_until_changed(
 	) | rpl::on_next([=](bool canStart) {
 		refreshButtons(buttons, canStart);
@@ -983,6 +1013,243 @@ rpl::producer<> SettingsWidget::cancelClicks() const {
 	) | rpl::map([](Wrap &&wrap) {
 		return std::move(wrap.value);
 	}) | rpl::flatten_latest();
+}
+
+void SettingsWidget::chooseForums() {
+	_showBoxCallback(Box([=](not_null<Ui::GenericBox*> box) {
+		box->setTitle(tr::lng_export_choose_topics());
+		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
+		const auto api = box->lifetime().make_state<MTP::Sender>(
+			&_session->mtp());
+		struct State {
+			TimeId offsetDate = 0;
+			int32 offsetId = 0;
+			MTPInputPeer offsetPeer = MTP_inputPeerEmpty();
+			base::flat_set<uint64> seen;
+			int forums = 0;
+			Fn<void()> load;
+		};
+		const auto state = box->lifetime().make_state<State>();
+		const auto status = box->addRow(object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_export_forums_loading(tr::now),
+			st::exportAboutOptionLabel));
+		state->load = [=] {
+			api->request(MTPmessages_GetDialogs(
+				MTP_flags(state->offsetId
+					? MTPmessages_GetDialogs::Flag::f_exclude_pinned
+					: MTPmessages_GetDialogs::Flags(0)),
+				MTPint(),
+				MTP_int(state->offsetDate),
+				MTP_int(state->offsetId),
+				state->offsetPeer,
+				MTP_int(100),
+				MTP_long(0)
+			)).done(crl::guard(this, [=](const MTPmessages_Dialogs &result) {
+				if (result.type() == mtpc_messages_dialogsNotModified) {
+					status->setText(tr::lng_export_topics_failed(tr::now));
+					return;
+				}
+				const auto parsed = Data::ParseDialogsInfo(result);
+				for (const auto &chat : parsed.chats) {
+					if (!chat.isForum
+						|| !state->seen.emplace(chat.peerId.value).second) {
+						continue;
+					}
+					const auto type = (chat.type
+							== Data::DialogInfo::Type::PublicSupergroup)
+						? Type::PublicGroups
+						: Type::PrivateGroups;
+					if (!(readData().types & type)) {
+						continue;
+					}
+					++state->forums;
+					const auto button = box->addRow(
+						object_ptr<Ui::RoundButton>(
+							box,
+							rpl::single(QString::fromUtf8(chat.name)),
+							st::defaultBoxButton));
+					button->setClickedCallback(crl::guard(this, [=] {
+						chooseForumTopics(chat);
+					}));
+				}
+				if (parsed.chats.empty()
+					|| result.type() == mtpc_messages_dialogs) {
+					if (state->forums) {
+						status->hide();
+					} else {
+						status->setText(tr::lng_export_forums_empty(tr::now));
+					}
+					return;
+				}
+				const auto &last = parsed.chats.back();
+				if (last.topMessageId == state->offsetId
+					&& last.peerId == ReadPeerId(_session, state->offsetPeer)) {
+					status->setText(tr::lng_export_topics_failed(tr::now));
+					return;
+				}
+				state->offsetDate = last.topMessageDate;
+				state->offsetId = last.topMessageId;
+				state->offsetPeer = last.input;
+				state->load();
+			})).fail([=](const MTP::Error &) {
+				status->setText(tr::lng_export_topics_failed(tr::now));
+			}).send();
+		};
+		state->load();
+	}));
+}
+
+void SettingsWidget::chooseForumTopics(const Data::DialogInfo &chat) {
+	_showBoxCallback(Box([=](not_null<Ui::GenericBox*> box) {
+		box->setTitle(rpl::single(QString::fromUtf8(chat.name)));
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+		const auto api = box->lifetime().make_state<MTP::Sender>(
+			&_session->mtp());
+		struct State {
+			TimeId offsetDate = 0;
+			int32 offsetId = 0;
+			int32 offsetTopicId = 0;
+			bool updating = false;
+			bool defaultChecked = false;
+			base::flat_map<int32, not_null<Ui::Checkbox*>> rows;
+			Fn<void()> load;
+			Fn<void(const MTPmessages_ForumTopics&)> append;
+			Fn<void()> finish;
+		};
+		const auto state = box->lifetime().make_state<State>();
+		const auto selected = readData().topicSelection.find(chat.peerId.value);
+		const auto ids = (selected != end(readData().topicSelection))
+			? selected->second
+			: std::vector<int32>();
+		state->defaultChecked = selected == end(readData().topicSelection);
+		const auto all = box->addRow(object_ptr<Ui::Checkbox>(
+			box,
+			tr::lng_export_all_topics(tr::now),
+			state->defaultChecked,
+			st::defaultBoxCheckbox),
+			st::exportSettingPadding);
+		all->setDisabled(true);
+		box->addRow(object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_export_topics_about(tr::now),
+			st::exportAboutOptionLabel),
+			st::exportAboutOptionPadding);
+		const auto status = box->addRow(object_ptr<Ui::FlatLabel>(
+			box,
+			tr::lng_export_topics_loading(tr::now),
+			st::exportAboutOptionLabel));
+		all->checkedChanges() | rpl::on_next([=](bool checked) {
+			if (state->updating) {
+				return;
+			}
+			state->defaultChecked = checked;
+			state->updating = true;
+			for (const auto &[id, row] : state->rows) {
+				row->setChecked(checked);
+			}
+			state->updating = false;
+		}, all->lifetime());
+		state->append = [=](const MTPmessages_ForumTopics &result) {
+			const auto slice = Data::ParseForumTopicsSlice(result);
+			for (const auto &topic : slice.list) {
+				if (state->rows.contains(topic.rootId)) {
+					continue;
+				}
+				const auto row = box->addRow(object_ptr<Ui::Checkbox>(
+					box,
+					QString::fromUtf8(topic.title),
+					state->defaultChecked || ranges::contains(ids, topic.rootId),
+					st::defaultBoxCheckbox),
+					st::exportSettingPadding);
+				state->rows.emplace(topic.rootId, row);
+				row->setDisabled(true);
+				row->checkedChanges() | rpl::on_next([=](bool checked) {
+					if (!state->updating && !checked && all->checked()) {
+						state->updating = true;
+						all->setChecked(false);
+						state->updating = false;
+					}
+				}, row->lifetime());
+			}
+		};
+		state->finish = crl::guard(this, [=] {
+			status->hide();
+			all->setDisabled(false);
+			for (const auto &[id, row] : state->rows) {
+				row->setDisabled(false);
+			}
+			box->addButton(tr::lng_settings_save(), crl::guard(this, [=] {
+				changeData([&](Settings &settings) {
+					if (all->checked()) {
+						settings.topicSelection.erase(chat.peerId.value);
+					} else {
+						auto &ids = settings.topicSelection[chat.peerId.value];
+						ids.clear();
+						for (const auto &[id, row] : state->rows) {
+							if (row->checked()) {
+								ids.push_back(id);
+							}
+						}
+					}
+				});
+				box->closeBox();
+			}));
+		});
+		state->load = [=] {
+			api->request(MTPmessages_GetForumTopics(
+				MTP_flags(0),
+				chat.input,
+				MTPstring(),
+				MTP_int(state->offsetDate),
+				MTP_int(state->offsetId),
+				MTP_int(state->offsetTopicId),
+				MTP_int(100)
+			)).done([=](const MTPmessages_ForumTopics &result) {
+				const auto slice = Data::ParseForumTopicsSlice(result);
+				if (slice.list.empty() && !result.data().vtopics().v.isEmpty()) {
+					status->setText(tr::lng_export_topics_failed(tr::now));
+					return;
+				}
+				state->append(result);
+				if (!slice.list.empty()
+					&& std::tie(slice.offsetDate, slice.offsetId, slice.offsetTopicId)
+						== std::tie(state->offsetDate,
+							state->offsetId,
+							state->offsetTopicId)) {
+					status->setText(tr::lng_export_topics_failed(tr::now));
+					return;
+				}
+				if (slice.list.empty()) {
+					if (state->rows.contains(1)) {
+						state->finish();
+					} else {
+						api->request(MTPmessages_GetForumTopicsByID(
+							chat.input,
+							MTP_vector<MTPint>(1, MTP_int(1))
+						)).done([=](const MTPmessages_ForumTopics &result) {
+							state->append(result);
+							if (!state->rows.contains(1)) {
+								status->setText(tr::lng_export_topics_failed(tr::now));
+								return;
+							}
+							state->finish();
+						}).fail([=](const MTP::Error &) {
+							status->setText(tr::lng_export_topics_failed(tr::now));
+						}).send();
+					}
+					return;
+				}
+				state->offsetDate = slice.offsetDate;
+				state->offsetId = slice.offsetId;
+				state->offsetTopicId = slice.offsetTopicId;
+				state->load();
+			}).fail([=](const MTP::Error &) {
+				status->setText(tr::lng_export_topics_failed(tr::now));
+			}).send();
+		};
+		state->load();
+	}));
 }
 
 } // namespace View

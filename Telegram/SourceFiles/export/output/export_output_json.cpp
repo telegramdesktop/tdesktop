@@ -26,6 +26,7 @@ using Context = details::JsonContext;
 struct RichSerializeContext {
 	Context &json;
 	const Data::RichMessage &message;
+	const QByteArray &relativePathPrefix;
 };
 
 QByteArray SerializeString(const QByteArray &value) {
@@ -148,10 +149,20 @@ QByteArray SerializeArray(
 	return result;
 }
 
+QByteArray StripRelativePathPrefix(
+		const QByteArray &path,
+		const QByteArray &relativePathPrefix) {
+	return (!relativePathPrefix.isEmpty()
+		&& path.startsWith(relativePathPrefix))
+		? path.mid(relativePathPrefix.size())
+		: path;
+}
+
 QByteArray SerializeText(
 		Context &context,
 		const std::vector<Data::TextPart> &data,
-		bool serializeToObjects = false) {
+		bool serializeToObjects = false,
+		const QByteArray &relativePathPrefix = QByteArray()) {
 	using Type = Data::TextPart::Type;
 
 	if (data.empty()) {
@@ -209,9 +220,13 @@ QByteArray SerializeText(
 			: (part.type == Type::Pre
 				|| part.type == Type::TextUrl
 				|| part.type == Type::CustomEmoji)
-			? SerializeString(part.additional)
+			? SerializeString(part.type == Type::CustomEmoji
+				? StripRelativePathPrefix(
+					part.additional,
+					relativePathPrefix)
+				: part.additional)
 			: (part.type == Type::Blockquote)
-			? (part.additional.isEmpty() ? "false" : "true")
+			? QByteArray(part.additional.isEmpty() ? "false" : "true")
 			: QByteArray();
 		return SerializeObject(context, {
 			{ "type", SerializeString(typeString) },
@@ -234,8 +249,12 @@ Data::Utf8String FormatUsername(const Data::Utf8String &username) {
 	return username.isEmpty() ? username : ('@' + username);
 }
 
-QByteArray FormatFilePath(const Data::File &file) {
-	return file.relativePath.toUtf8();
+QByteArray FormatFilePath(
+		const Data::File &file,
+		const QByteArray &relativePathPrefix = QByteArray()) {
+	return StripRelativePathPrefix(
+		file.relativePath.toUtf8(),
+		relativePathPrefix);
 }
 
 QByteArray SerializeRichBool(bool value) {
@@ -265,7 +284,8 @@ void AppendRichFileAvailability(
 		std::vector<std::pair<QByteArray, QByteArray>> &values,
 		const Data::File *file,
 		const QByteArray &pathKey,
-		const QByteArray &reasonKey) {
+		const QByteArray &reasonKey,
+		const QByteArray &relativePathPrefix = QByteArray()) {
 	using SkipReason = Data::File::SkipReason;
 	if (file) {
 		switch (file->skipReason) {
@@ -287,7 +307,9 @@ void AppendRichFileAvailability(
 			if (!file->relativePath.isEmpty()) {
 				values.emplace_back(
 					pathKey,
-					SerializeString(file->relativePath.toUtf8()));
+					SerializeString(FormatFilePath(
+						*file,
+						relativePathPrefix)));
 				return;
 			}
 			break;
@@ -303,12 +325,14 @@ void AppendRichPhotoMetadata(
 		const QByteArray &reasonKey,
 		const QByteArray &sizeKey,
 		const QByteArray &widthKey,
-		const QByteArray &heightKey) {
+		const QByteArray &heightKey,
+		const QByteArray &relativePathPrefix = QByteArray()) {
 	AppendRichFileAvailability(
 		values,
 		photo ? &photo->image.file : nullptr,
 		pathKey,
-		reasonKey);
+		reasonKey,
+		relativePathPrefix);
 	if (!photo) {
 		return;
 	}
@@ -328,12 +352,14 @@ void AppendRichPhotoMetadata(
 void AppendRichDocumentMetadata(
 		std::vector<std::pair<QByteArray, QByteArray>> &values,
 		const Data::Document *document,
-		bool includeDimensions) {
+		bool includeDimensions,
+		const QByteArray &relativePathPrefix = QByteArray()) {
 	AppendRichFileAvailability(
 		values,
 		document ? &document->file : nullptr,
 		"file",
-		"file_skip_reason");
+		"file_skip_reason",
+		relativePathPrefix);
 	if (!document) {
 		return;
 	}
@@ -348,7 +374,8 @@ void AppendRichDocumentMetadata(
 			values,
 			&document->thumb.file,
 			"thumbnail",
-			"thumbnail_skip_reason");
+			"thumbnail_skip_reason",
+			relativePathPrefix);
 		values.emplace_back(
 			"thumbnail_file_size",
 			Data::NumberToString(document->thumb.file.size));
@@ -653,7 +680,9 @@ QByteArray SerializeRichText(
 			values.emplace_back("text", SerializeString(data.text));
 			values.emplace_back(
 				"document_id",
-				SerializeString(data.customEmojiData));
+				SerializeString(StripRelativePathPrefix(
+					data.customEmojiData,
+					context.relativePathPrefix)));
 			break;
 		case Type::MentionName:
 			values.emplace_back(
@@ -697,7 +726,8 @@ QByteArray SerializeRichText(
 			AppendRichDocumentMetadata(
 				values,
 				FindRichDocument(context, data.id),
-				false);
+				false,
+				context.relativePathPrefix);
 			values.emplace_back(
 				"width",
 				Data::NumberToString(data.width));
@@ -1021,7 +1051,8 @@ QByteArray SerializeRichRelatedArticle(
 			"photo_skip_reason",
 			"photo_file_size",
 			"photo_width",
-			"photo_height");
+			"photo_height",
+			context.relativePathPrefix);
 	}
 	if (data.author) {
 		values.emplace_back("author", SerializeString(*data.author));
@@ -1268,7 +1299,8 @@ QByteArray SerializeRichBlock(
 				"photo_skip_reason",
 				"photo_file_size",
 				"width",
-				"height");
+				"height",
+				context.relativePathPrefix);
 			values.emplace_back(
 				"spoiler",
 				SerializeRichBool(data.spoiler));
@@ -1293,7 +1325,8 @@ QByteArray SerializeRichBlock(
 			AppendRichDocumentMetadata(
 				values,
 				FindRichDocument(context, data.documentId),
-				true);
+				true,
+				context.relativePathPrefix);
 			values.emplace_back(
 				"autoplay",
 				SerializeRichBool(data.autoplay));
@@ -1331,7 +1364,8 @@ QByteArray SerializeRichBlock(
 					"poster_photo_skip_reason",
 					"poster_photo_file_size",
 					"poster_photo_width",
-					"poster_photo_height");
+					"poster_photo_height",
+					context.relativePathPrefix);
 			}
 			if (data.width) {
 				values.emplace_back(
@@ -1368,7 +1402,8 @@ QByteArray SerializeRichBlock(
 				"author_photo_skip_reason",
 				"author_photo_file_size",
 				"author_photo_width",
-				"author_photo_height");
+				"author_photo_height",
+				context.relativePathPrefix);
 			values.emplace_back("author", SerializeString(data.author));
 			values.emplace_back("date", SerializeDate(data.date));
 			values.emplace_back(
@@ -1403,7 +1438,8 @@ QByteArray SerializeRichBlock(
 			AppendRichDocumentMetadata(
 				values,
 				FindRichDocument(context, data.documentId),
-				true);
+				true,
+				context.relativePathPrefix);
 			values.emplace_back(
 				"caption",
 				SerializeRichCaption(context, data.caption));
@@ -1496,8 +1532,13 @@ QByteArray SerializeRichBlocks(
 
 QByteArray SerializeRichMessage(
 		Context &context,
-		const Data::RichMessage &data) {
-	auto richContext = RichSerializeContext{ context, data };
+		const Data::RichMessage &data,
+		const QByteArray &relativePathPrefix) {
+	auto richContext = RichSerializeContext{
+		context,
+		data,
+		relativePathPrefix
+	};
 	auto values = std::vector<std::pair<QByteArray, QByteArray>>{
 		{ "rtl", SerializeRichBool(data.rtl) },
 		{ "part", SerializeRichBool(data.part) },
@@ -1518,7 +1559,8 @@ QByteArray SerializeMessage(
 		Context &context,
 		const Data::Message &message,
 		const std::map<PeerId, Data::Peer> &peers,
-		const QString &internalLinksDomain) {
+		const QString &internalLinksDomain,
+		const QByteArray &relativePathPrefix = QByteArray()) {
 	using namespace Data;
 
 	if (v::is<UnsupportedMedia>(message.media.content)
@@ -1661,7 +1703,8 @@ QByteArray SerializeMessage(
 			case SkipReason::FileType:
 				return pre + "(File not included. "
 					"Change data exporting settings to download.)";
-			case SkipReason::None: return FormatFilePath(file);
+			case SkipReason::None:
+				return FormatFilePath(file, relativePathPrefix);
 			}
 			Unexpected("Skip reason while writing file path.");
 		}());
@@ -2317,10 +2360,21 @@ QByteArray SerializeMessage(
 	if (message.richMessage) {
 		pushBare(
 			"rich_message",
-			SerializeRichMessage(context, *message.richMessage));
+			SerializeRichMessage(
+				context,
+				*message.richMessage,
+				relativePathPrefix));
 	} else {
-		pushBare("text", SerializeText(context, message.text));
-		pushBare("text_entities", SerializeText(context, message.text, true));
+		pushBare("text", SerializeText(
+			context,
+			message.text,
+			false,
+			relativePathPrefix));
+		pushBare("text_entities", SerializeText(
+			context,
+			message.text,
+			true,
+			relativePathPrefix));
 	}
 
 	if (!message.inlineButtonRows.empty()) {
@@ -2412,7 +2466,9 @@ QByteArray SerializeMessage(
 				case Reaction::Type::CustomEmoji:
 					pairs.push_back({
 						"document_id",
-						SerializeString(reaction.documentId),
+						SerializeString(StripRelativePathPrefix(
+							reaction.documentId,
+							relativePathPrefix)),
 					});
 					break;
 			}
@@ -2465,7 +2521,14 @@ Result JsonWriter::start(
 	_stats = stats;
 	_output = fileWithRelativePath(mainFileRelativePath());
 	if (_settings.onlySinglePeer()) {
-		return Result::Success();
+		if (!_settings.splitTopics) {
+			return Result::Success();
+		}
+		auto block = pushNesting(Context::kObject);
+		block.append(prepareObjectItemStart("about"));
+		block.append(SerializeString(_environment.aboutTelegram));
+		block.append(prepareObjectItemStart("topics"));
+		return _output->writeBlock(block + pushNesting(Context::kArray));
 	}
 	auto block = pushNesting(Context::kObject);
 	block.append(prepareObjectItemStart("about"));
@@ -2939,9 +3002,48 @@ Result JsonWriter::writeWebSessions(const Data::SessionsList &data) {
 Result JsonWriter::writeDialogsStart(const Data::DialogsInfo &data) {
 	return Result::Success();
 }
-
 Result JsonWriter::writeDialogStart(const Data::DialogInfo &data) {
+
 	Expects(_output != nullptr);
+
+	const auto startTopicWriter = [&] {
+		auto settings = _settings;
+		settings.path += data.relativePath;
+		settings.singlePeer = data.input;
+		settings.singleTopicRootId = data.topicRootId;
+		settings.splitTopics = false;
+		_topicWriter = std::make_unique<JsonWriter>();
+		if (const auto result = _topicWriter->start(
+				settings,
+				_environment,
+				_stats); !result) {
+			return result;
+		}
+		_topicWriter->_filePathPrefix = data.relativePath.toUtf8();
+		return _topicWriter->writeDialogStart(data);
+	};
+	if (_settings.onlySinglePeer() && _settings.splitTopics) {
+		auto block = prepareArrayItemStart();
+		block.append(pushNesting(Context::kObject));
+		block.append(prepareObjectItemStart("name")
+			+ StringAllowNull(data.name));
+		block.append(prepareObjectItemStart("forum_name")
+			+ StringAllowNull(data.topicChatName));
+		block.append(prepareObjectItemStart("topic_root_id")
+			+ Data::NumberToString(data.topicRootId));
+		block.append(prepareObjectItemStart("file")
+			+ StringAllowNull(
+				(data.relativePath + mainFileRelativePath()).toUtf8()));
+		block.append(popNesting());
+		if (const auto result = _output->writeBlock(block); !result) {
+			return result;
+		}
+		return startTopicWriter();
+	} else if (data.isForum && !_settings.onlySinglePeer()) {
+		if (const auto result = startTopicWriter(); !result) {
+			return result;
+		}
+	}
 
 	if (!_settings.onlySinglePeer()) {
 		const auto result = validateDialogsMode(data.isLeftChannel);
@@ -2982,6 +3084,17 @@ Result JsonWriter::writeDialogStart(const Data::DialogInfo &data) {
 		+ StringAllowNull(TypeString(data.type)));
 	block.append(prepareObjectItemStart("id")
 		+ Data::NumberToString(Data::PeerToBareId(data.peerId)));
+	if (data.isForum) {
+		block.append(prepareObjectItemStart("forum_name")
+			+ StringAllowNull(data.topicChatName));
+		block.append(prepareObjectItemStart("topic_root_id")
+			+ Data::NumberToString(data.topicRootId));
+		if (!_settings.onlySinglePeer()) {
+			block.append(prepareObjectItemStart("topic_file")
+				+ StringAllowNull(
+					(data.relativePath + mainFileRelativePath()).toUtf8()));
+		}
+	}
 	block.append(prepareObjectItemStart("messages"));
 	block.append(pushNesting(Context::kArray));
 	return _output->writeBlock(block);
@@ -3009,16 +3122,27 @@ Result JsonWriter::validateDialogsMode(bool isLeftChannel) {
 Result JsonWriter::writeDialogSlice(const Data::MessagesSlice &data) {
 	Expects(_output != nullptr);
 
+	if (_topicWriter) {
+		if (const auto result = _topicWriter->writeDialogSlice(data); !result) {
+			return result;
+		}
+		if (_settings.onlySinglePeer() && _settings.splitTopics) {
+			return Result::Success();
+		}
+	}
+
 	auto block = QByteArray();
 	for (const auto &message : data.list) {
 		if (Data::SkipMessageByDate(message, _settings)) {
 			continue;
 		}
-		block.append(prepareArrayItemStart() + SerializeMessage(
+		block.append(prepareArrayItemStart());
+		block.append(SerializeMessage(
 			_context,
 			message,
 			data.peers,
-			_environment.internalLinksDomain));
+			_environment.internalLinksDomain,
+			_filePathPrefix));
 	}
 	return block.isEmpty() ? Result::Success() : _output->writeBlock(block);
 }
@@ -3026,12 +3150,30 @@ Result JsonWriter::writeDialogSlice(const Data::MessagesSlice &data) {
 Result JsonWriter::writeDialogEnd() {
 	Expects(_output != nullptr);
 
+	if (_topicWriter) {
+		const auto result = _topicWriter->writeDialogEnd();
+		_topicWriter.reset();
+		if (!result) {
+			return result;
+		} else if (_settings.onlySinglePeer() && _settings.splitTopics) {
+			return Result::Success();
+		}
+	}
+
 	auto block = popNesting();
-	return _output->writeBlock(block + popNesting());
+	block.append(popNesting());
+	return _output->writeBlock(block);
 }
 
 Result JsonWriter::writeDialogsEnd() {
 	if (_settings.onlySinglePeer()) {
+		if (!_settings.splitTopics) {
+			return Result::Success();
+		}
+		auto block = popNesting();
+		block.append(popNesting());
+		return _output->writeBlock(block);
+	} else if (_dialogsMode == DialogsMode::None) {
 		return Result::Success();
 	}
 	return writeChatsEnd();

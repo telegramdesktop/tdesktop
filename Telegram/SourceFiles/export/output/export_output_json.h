@@ -107,6 +107,8 @@ private:
 	DialogsMode _dialogsMode = DialogsMode::None;
 
 	std::unique_ptr<File> _output;
+	std::unique_ptr<JsonWriter> _topicWriter;
+	QByteArray _filePathPrefix;
 
 };
 
