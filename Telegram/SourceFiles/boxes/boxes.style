@@ -540,11 +540,57 @@ moderateBoxExpandTextStyle: TextStyle(boxTextStyle) {
 moderateBoxExpandToggleSize: 4px;
 moderateBoxExpandToggleFourStrokes: 3px;
 
-profileQrFont: font(fsize bold);
-profileQrBackgroundRadius: 12px;
-profileQrIcon: icon{{ "qr_mini", windowActiveTextFg }};
-profileQrBackgroundMargins: margins(36px, 12px, 36px, 12px);
-profileQrBackgroundPadding: margins(0px, 24px, 0px, 24px);
+peerQrBox: Box(defaultBox) {
+	buttonPadding: margins(0px, 0px, 0px, 0px);
+	buttonHeight: 0px;
+	shadowIgnoreTopSkip: true;
+}
+peerQrBoxWidth: aboutWidth;
+peerQrCardWidth: 288px;
+peerQrCardSkip: 20px;
+peerQrUsernameSkip: 18px;
+peerQrUsernameLarge: font(36px bold);
+peerQrUsernameMedium: font(30px bold);
+peerQrUsernameSmall: font(23px bold);
+peerQrUsernameMin: 14px;
+peerQrCardShadowRadius: 21px;
+peerQrCardShadowShift: 7px;
+peerQrPillSkip: 13px;
+peerQrPillHeight: 26px;
+peerQrPatternHeight: 720px;
+peerQrDriftSpeed: 6px;
+peerQrButtonSkip: 16px;
+peerQrButton: IconButton(defaultIconButton) {
+	width: 40px;
+	height: 40px;
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 40px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: shadowFg;
+	}
+}
+peerQrClose: IconButton(peerQrButton) {
+	icon: icon {{ "box_button_close", windowFg }};
+	iconOver: icon {{ "box_button_close", windowFg }};
+}
+peerQrCopy: IconButton(peerQrButton) {
+	icon: icon {{ "menu/copy", windowFg }};
+	iconOver: icon {{ "menu/copy", windowFg }};
+}
+peerQrShare: IconButton(peerQrButton) {
+	icon: icon {{ "menu/share", windowFg }};
+	iconOver: icon {{ "menu/share", windowFg }};
+}
+peerQrButtonLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	size: size(20px, 20px);
+	thickness: 2px;
+}
+peerQrTitle: FlatLabel(boxTitle) {
+}
+peerQrAbout: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	minWidth: 100px;
+}
 
 foldersMenu: PopupMenu(popupMenuWithIcons) {
 	maxHeight: 320px;

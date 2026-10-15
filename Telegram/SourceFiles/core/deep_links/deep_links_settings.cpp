@@ -133,7 +133,8 @@ void ShowQrBox(not_null<Window::SessionController*> controller) {
 		Ui::FillPeerQrBox,
 		user.get(),
 		std::nullopt,
-		rpl::single(QString())));
+		rpl::single(QString()),
+		nullptr));
 }
 
 Result ShowPeerColorBox(
@@ -156,13 +157,13 @@ Result ShowPeerColorBox(
 	return Result::Handled;
 }
 
-Result HandleQrCode(const Context &ctx, bool highlightCopy) {
+Result HandleQrCode(const Context &ctx, bool highlightShare) {
 	if (!ctx.controller) {
 		return Result::NeedsAuth;
 	}
 
-	if (highlightCopy) {
-		ctx.controller->setHighlightControlId(u"self-qr-code/copy"_q);
+	if (highlightShare) {
+		ctx.controller->setHighlightControlId(u"self-qr-code/share"_q);
 	}
 
 	const auto user = ctx.controller->session().user();

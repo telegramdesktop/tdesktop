@@ -90,6 +90,10 @@ void FastShareLink(
 	std::shared_ptr<Main::SessionShow> show,
 	const QString &url,
 	ShareBoxStyleOverrides st = {});
+void FastShareImage(
+	std::shared_ptr<Main::SessionShow> show,
+	QImage image,
+	const QString &caption);
 
 struct RecipientMoneyRestrictionError;
 [[nodiscard]] auto ShareMessageMoneyRestrictionError()

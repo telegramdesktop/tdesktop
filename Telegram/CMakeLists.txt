@@ -2168,6 +2168,8 @@ PRIVATE
     ui/effects/message_sending_animation_common.h
     ui/effects/message_sending_animation_controller.cpp
     ui/effects/message_sending_animation_controller.h
+    ui/effects/peer_qr_surface.cpp
+    ui/effects/peer_qr_surface.h
     ui/effects/reaction_fly_animation.cpp
     ui/effects/reaction_fly_animation.h
     ui/effects/thanos_effect.cpp

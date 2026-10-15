@@ -1572,8 +1572,7 @@ object_ptr<Ui::BoxContent> InviteLinkQrBox(
 		rpl::producer<QString> about) {
 	return Box([=, t = std::move(title), a = std::move(about)](
 			not_null<Ui::GenericBox*> box) {
-		Ui::FillPeerQrBox(box, peer, link, std::move(a));
-		box->setTitle(std::move(t));
+		Ui::FillPeerQrBox(box, peer, link, std::move(a), std::move(t));
 	});
 }
 

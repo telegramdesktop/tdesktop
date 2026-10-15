@@ -7,421 +7,200 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/boxes/peer_qr_box.h"
 
+#include "base/weak_qptr.h"
+#include "boxes/share_box.h"
 #include "core/application.h"
-#include "data/data_cloud_themes.h"
 #include "data/data_peer.h"
-#include "data/data_session.h"
-#include "data/data_user.h"
-#include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
+#include "data/data_wall_paper.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
-#include "main/main_session.h"
-#include "qr/qr_generate.h"
 #include "settings/settings_common.h"
-#include "ui/controls/userpic_button.h"
-#include "ui/dynamic_image.h"
-#include "ui/dynamic_thumbnails.h"
-#include "ui/effects/animations.h"
-#include "ui/image/image_prepare.h"
+#include "ui/effects/peer_qr_surface.h"
+#include "ui/effects/radial_animation.h"
 #include "ui/layers/generic_box.h"
-#include "ui/painter.h"
-#include "ui/rect.h"
+#include "ui/layers/show.h"
 #include "ui/toast/toast.h"
-#include "ui/ui_utility.h"
-#include "ui/vertical_list.h"
-#include "ui/widgets/box_content_divider.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/continuous_sliders.h"
-#include "ui/wrap/vertical_layout.h"
+#include "ui/widgets/labels.h"
+#include "ui/color_contrast.h"
+#include "ui/painter.h"
+#include "ui/ui_utility.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_giveaway.h"
-#include "styles/style_credits.h"
-#include "styles/style_intro.h"
 #include "styles/style_layers.h"
-#include "styles/style_settings.h"
-#include "styles/style_widgets.h"
 
 #include <QtCore/QMimeData>
 #include <QtGui/QGuiApplication>
-#include <QtSvg/QSvgRenderer>
 
 namespace Ui {
 namespace {
 
-using Colors = std::vector<QColor>;
+struct BoxState {
+	QString link;
+	QString username;
+	QImage image;
+	QString imageLink;
+	QString imageUsername;
+	bool rendering = false;
+};
 
-[[nodiscard]] QMargins NoPhotoBackgroundMargins() {
-	return QMargins(
-		st::profileQrBackgroundMargins.left(),
-		st::profileQrBackgroundMargins.left(),
-		st::profileQrBackgroundMargins.right(),
-		st::profileQrBackgroundMargins.bottom());
+class PeerQrButton final : public IconButton {
+public:
+	PeerQrButton(QWidget *parent, const style::IconButton &st);
+
+	void setColors(QColor disc, QColor icon);
+	void setBusy(bool busy);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	InfiniteRadialAnimation _loading;
+	QColor _disc;
+	QColor _icon;
+	bool _busy = false;
+
+};
+
+PeerQrButton::PeerQrButton(QWidget *parent, const style::IconButton &st)
+: IconButton(parent, st)
+, _loading([=] { update(); }, st::peerQrButtonLoading) {
 }
 
-[[nodiscard]] style::font CreateFont(int size, int scale) {
-	return style::font(
-		style::ConvertScale(size, scale),
-		st::profileQrFont->flags(),
-		st::profileQrFont->family());
+void PeerQrButton::setColors(QColor disc, QColor icon) {
+	_disc = disc;
+	_icon = icon;
+	setIconColorOverride(icon);
+	update();
 }
 
-[[nodiscard]] QImage TelegramQr(
-		const Qr::Data &data,
-		int pixel,
-		int max,
-		bool hasWhiteBackground) {
-	Expects(data.size > 0);
-
-	constexpr auto kCenterRatio = 0.175;
-
-	if (max > 0 && data.size * pixel > max) {
-		pixel = std::max(max / data.size, 1);
+void PeerQrButton::setBusy(bool busy) {
+	if (_busy == busy) {
+		return;
 	}
-	auto qr = Qr::Generate(
-		data,
-		pixel * style::DevicePixelRatio(),
-		hasWhiteBackground ? Qt::transparent : Qt::black,
-		hasWhiteBackground ? Qt::white : Qt::transparent);
+	_busy = busy;
+	if (busy) {
+		_loading.start();
+	} else {
+		_loading.stop(anim::type::instant);
+	}
+	update();
+}
+
+void PeerQrButton::paintEvent(QPaintEvent *e) {
+	const auto disc = QRect(
+		st().rippleAreaPosition,
+		QSize(st().rippleAreaSize, st().rippleAreaSize));
 	{
-		auto p = QPainter(&qr);
+		auto p = QPainter(this);
 		auto hq = PainterHighQualityEnabler(p);
-		auto svg = QSvgRenderer(u":/gui/plane_white.svg"_q);
-		const auto size = qr.rect().size();
-		const auto centerRect = Rect(size)
-			- Margins((size.width() - (size.width() * kCenterRatio)) / 2);
 		p.setPen(Qt::NoPen);
-		p.setBrush(Qt::white);
-		if (hasWhiteBackground) {
-			p.setCompositionMode(QPainter::CompositionMode_Clear);
-			p.drawEllipse(centerRect);
-			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-			svg.render(&p, centerRect);
-		} else {
-			p.drawEllipse(centerRect);
-			p.setCompositionMode(QPainter::CompositionMode_Clear);
-			svg.render(&p, centerRect);
-		}
-	}
-	return qr;
-}
-
-[[nodiscard]] QMargins RoundedMargins(
-		const QMargins &backgroundMargins,
-		int photoSize,
-		int textMaxHeight) {
-	return (textMaxHeight
-		? (backgroundMargins + QMargins(0, photoSize / 2, 0, textMaxHeight))
-		: photoSize
-		? backgroundMargins + QMargins(0, photoSize / 2, 0, photoSize / 2)
-		: Margins(backgroundMargins.left()));
-}
-
-void Paint(
-		QPainter &p,
-		const style::font &font,
-		const QString &text,
-		const Colors &backgroundColors,
-		const QMargins &backgroundMargins,
-		const QImage &qrImage,
-		const QRect &qrRect,
-		int qrMaxSize,
-		int qrPixel,
-		int radius,
-		int textMaxHeight,
-		int photoSize,
-		bool hasWhiteBackground) {
-	auto hq = PainterHighQualityEnabler(p);
-	p.setPen(Qt::NoPen);
-	p.setBrush(hasWhiteBackground ? Qt::white : Qt::transparent);
-	const auto roundedRect = qrRect
-		+ RoundedMargins(backgroundMargins, photoSize, textMaxHeight);
-	p.drawRoundedRect(roundedRect, radius, radius);
-	if (!qrImage.isNull() && !backgroundColors.empty()) {
-		constexpr auto kDuration = crl::time(10000);
-		const auto angle = (crl::now() % kDuration)
-			/ float64(kDuration) * 360.0;
-		const auto gradientRotation = int(angle / 45.) * 45;
-		const auto gradientRotationAdd = angle - gradientRotation;
-
-		const auto textAdditionalWidth = backgroundMargins.left();
-		auto back = Images::GenerateGradient(
-			qrRect.size() + QSize(textAdditionalWidth, 0),
-			backgroundColors,
-			gradientRotation,
-			1. - (gradientRotationAdd / 45.));
-		if (hasWhiteBackground) {
-			p.drawImage(qrRect, back);
-		}
-		const auto coloredSize = QSize(back.width(), textMaxHeight);
-		auto colored = QImage(
-			coloredSize * style::DevicePixelRatio(),
-			QImage::Format_ARGB32_Premultiplied);
-		colored.setDevicePixelRatio(style::DevicePixelRatio());
-		colored.fill(Qt::transparent);
-		if (textMaxHeight) {
-			// '@' + QString(32, 'W');
-			auto p = QPainter(&colored);
-			auto hq = PainterHighQualityEnabler(p);
-			p.setPen(Qt::black);
-			p.setFont(font);
-			auto option = QTextOption(style::al_center);
-			option.setWrapMode(QTextOption::WrapAnywhere);
-			p.drawText(Rect(coloredSize), text, option);
-			p.setCompositionMode(QPainter::CompositionMode_SourceIn);
-			p.drawImage(0, -back.height() + textMaxHeight, back);
-		}
-		if (!hasWhiteBackground) {
-			auto copy = qrImage;
-			{
-				auto p = QPainter(&copy);
-				p.setCompositionMode(QPainter::CompositionMode_SourceIn);
-				p.drawImage(Rect(copy.size()), back);
-			}
-			p.drawImage(qrRect, copy);
-		} else {
-			p.drawImage(qrRect, qrImage);
-		}
-		if (textMaxHeight) {
-			p.drawImage(
-				qrRect.x() - textAdditionalWidth / 2,
-				rect::bottom(qrRect)
-					+ ((rect::bottom(roundedRect) - rect::bottom(qrRect))
-						- textMaxHeight) / 2,
-				colored);
-		}
-	}
-}
-
-not_null<Ui::RpWidget*> PrepareQrWidget(
-		not_null<Ui::VerticalLayout*> container,
-		std::shared_ptr<Ui::DynamicImage> userpicMedia,
-		rpl::producer<int> fontSizeValue,
-		rpl::producer<bool> userpicToggled,
-		rpl::producer<bool> backgroundToggled,
-		rpl::producer<QString> username,
-		rpl::producer<QString> links,
-		rpl::producer<Colors> bgs,
-		rpl::producer<QString> about) {
-	const auto divider = container->add(
-		object_ptr<Ui::BoxContentDivider>(container));
-	struct State final {
-		explicit State(Fn<void()> callback) : updating(callback) {
-			updating.start();
-		}
-
-		Ui::Animations::Basic updating;
-		style::font font;
-		QImage qrImage;
-		Colors backgroundColors;
-		QString text;
-		QMargins backgroundMargins;
-		int textWidth = 0;
-		int textMaxHeight = 0;
-		int photoSize = 0;
-		bool backgroundToggled = false;
-	};
-	const auto result = Ui::CreateChild<Ui::RpWidget>(divider);
-	const auto state = result->lifetime().make_state<State>(
-		[=] { result->update(); });
-	userpicMedia->subscribeToUpdates(crl::guard(result, [=] {
-		result->update();
-	}));
-	const auto qrMaxSize = st::boxWideWidth
-		- rect::m::sum::h(st::boxRowPadding)
-		- rect::m::sum::h(st::profileQrBackgroundMargins);
-	const auto aboutLabel = Ui::CreateChild<Ui::FlatLabel>(
-		divider,
-		st::creditsBoxAboutDivider);
-	rpl::combine(
-		std::move(fontSizeValue),
-		std::move(userpicToggled),
-		std::move(backgroundToggled),
-		std::move(username),
-		std::move(bgs),
-		std::move(links),
-		std::move(about),
-		rpl::single(rpl::empty) | rpl::then(style::PaletteChanged())
-	) | rpl::on_next([=](
-			int fontSize,
-			bool userpicToggled,
-			bool backgroundToggled,
-			const QString &username,
-			const Colors &backgroundColors,
-			const QString &link,
-			const QString &about,
-			const auto &) {
-		state->font = CreateFont(fontSize, style::Scale());
-		state->backgroundToggled = backgroundToggled;
-		state->backgroundMargins = userpicToggled
-			? st::profileQrBackgroundMargins
-			: NoPhotoBackgroundMargins();
-		state->photoSize = userpicToggled
-			? st::defaultUserpicButton.photoSize
-			: 0;
-		state->backgroundColors = backgroundColors;
-		state->text = username.toUpper();
-		state->textWidth = state->font->width(state->text);
-		if (!link.isEmpty()) {
-			const auto remainder = qrMaxSize % st::introQrPixel;
-			const auto downTo = remainder
-				? qrMaxSize - remainder
-				: qrMaxSize;
-			state->qrImage = TelegramQr(
-				Qr::Encode(link.toUtf8(), Qr::Redundancy::Default),
-				st::introQrPixel,
-				downTo,
-				backgroundToggled).scaled(
-					Size(qrMaxSize * style::DevicePixelRatio()),
-					Qt::IgnoreAspectRatio,
-					Qt::SmoothTransformation);
-		} else {
-			auto image = QImage(
-				Size(qrMaxSize * style::DevicePixelRatio()),
-				QImage::Format_ARGB32_Premultiplied);
-			image.fill(Qt::white);
-			image.setDevicePixelRatio(style::DevicePixelRatio());
-			state->qrImage = std::move(image);
-		}
-		const auto resultWidth = qrMaxSize
-			+ rect::m::sum::h(state->backgroundMargins);
-		{
-			aboutLabel->setText(about);
-			aboutLabel->resizeToWidth(resultWidth);
-		}
-		const auto textMaxWidth = state->backgroundMargins.left()
-			+ (state->qrImage.width() / style::DevicePixelRatio());
-		const auto lines = int(state->textWidth / textMaxWidth) + 1;
-		state->textMaxHeight = state->textWidth
-			? (state->font->height * lines)
-			: 0;
-		const auto whiteMargins = RoundedMargins(
-			state->backgroundMargins,
-			state->photoSize,
-			state->textMaxHeight);
-		result->resize(
-			qrMaxSize + rect::m::sum::h(whiteMargins),
-			qrMaxSize
-				+ rect::m::sum::v(whiteMargins) // White.
-				+ rect::m::sum::v(st::profileQrBackgroundPadding) // Gray.
-				+ state->photoSize / 2
-				+ aboutLabel->height());
-
-		divider->resize(container->width(), result->height());
-		result->moveToLeft((container->width() - result->width()) / 2, 0);
-
-		aboutLabel->raise();
-		aboutLabel->moveToLeft(
-			result->x(),
-			divider->height()
-				- aboutLabel->height()
-				- st::defaultBoxDividerLabelPadding.top());
-	}, container->lifetime());
-	result->paintRequest(
-	) | rpl::on_next([=](QRect clip) {
-		auto p = QPainter(result);
-		const auto size = (state->qrImage.size() / style::DevicePixelRatio());
-		const auto qrRect = Rect(
-			(result->width() - size.width()) / 2,
-			state->backgroundMargins.top() + state->photoSize / 2,
-			size);
-		p.translate(
-			0,
-			st::profileQrBackgroundPadding.top() + state->photoSize / 2);
-		Paint(
-			p,
-			state->font,
-			state->text,
-			state->backgroundColors,
-			state->backgroundMargins,
-			state->qrImage,
-			qrRect,
-			qrMaxSize,
-			st::introQrPixel,
-			st::profileQrBackgroundRadius,
-			state->textMaxHeight,
-			state->photoSize,
-			state->backgroundToggled);
-		if (!state->photoSize) {
+		p.setBrush(_disc);
+		p.drawEllipse(disc);
+		if (_busy) {
+			const auto &loading = st::peerQrButtonLoading;
+			const auto size = loading.size;
+			InfiniteRadialAnimation::Draw(
+				p,
+				_loading.computeState(),
+				disc.topLeft() + QPoint(
+					(disc.width() - size.width()) / 2,
+					(disc.height() - size.height()) / 2),
+				size,
+				width(),
+				_icon,
+				loading.thickness);
 			return;
 		}
-		const auto photoSize = state->photoSize;
-		const auto pixelSize = photoSize * style::DevicePixelRatio();
-		p.drawImage(
-			QRect(
-				(result->width() - photoSize) / 2,
-				-photoSize / 2,
-				photoSize,
-				photoSize),
-			userpicMedia->image(pixelSize));
-	}, result->lifetime());
+	}
+	IconButton::paintEvent(e);
+}
+
+[[nodiscard]] PeerQrAppearance DefaultAppearance() {
+	const auto paper = Data::WallPaper::ConstructDefault();
+	auto colors = paper.backgroundColors();
+	const auto white = QColor(255, 255, 255);
+	const auto darkness = [&](const QColor &color) {
+		return CountContrast(color, white);
+	};
+	const auto edge = colors.empty()
+		? QColor()
+		: *ranges::max_element(colors, ranges::less(), darkness);
+	return {
+		.colors = std::move(colors),
+		.patternPath = u":/gui/art/background.tgv"_q,
+		.patternOpacity = paper.patternOpacity(),
+		.edge = edge,
+	};
+}
+
+[[nodiscard]] rpl::producer<QString> QrLinkValue(
+		PeerData *peer,
+		const std::optional<QString> &customLink) {
+	if (customLink) {
+		return rpl::single(*customLink);
+	} else if (peer) {
+		return Info::Profile::LinkValue(
+			peer,
+			true
+		) | rpl::map([](const Info::Profile::LinkWithUrl &link) {
+			return link.text;
+		});
+	}
+	return rpl::single(QString());
+}
+
+[[nodiscard]] not_null<PeerQrButton*> AddButton(
+		not_null<PeerQrSurface*> surface,
+		const style::IconButton &st,
+		const QString &name) {
+	const auto result = CreateChild<PeerQrButton>(surface.get(), st);
+	const auto &colors = surface->colors();
+	result->setColors(colors.control, colors.foreground);
+	result->setAccessibleName(name);
 	return result;
 }
 
-[[nodiscard]] Fn<void(int)> AddDotsToSlider(
-		not_null<Ui::ContinuousSlider*> slider,
-		const style::MediaSlider &st,
-		int count) {
-	const auto lineWidth = st::lineWidth;
-	const auto smallSize = Size(st.seekSize.height() - st.width);
-	auto smallDots = std::vector<not_null<Ui::RpWidget*>>();
-	smallDots.reserve(count - 1);
-	const auto paintSmall = [=](QPainter &p, const QBrush &brush) {
-		auto hq = PainterHighQualityEnabler(p);
-		auto pen = st::boxBg->p;
-		pen.setWidth(st.width);
-		p.setPen(pen);
-		p.setBrush(brush);
-		p.drawEllipse(Rect(smallSize) - Margins(lineWidth));
-	};
-	for (auto i = 0; i < count - 1; i++) {
-		smallDots.push_back(
-			Ui::CreateChild<Ui::RpWidget>(slider->parentWidget()));
-		const auto dot = smallDots.back();
-		dot->resize(smallSize);
-		dot->setAttribute(Qt::WA_TransparentForMouseEvents);
-		dot->paintRequest() | rpl::on_next([=] {
-			auto p = QPainter(dot);
-			const auto fg = (slider->value() > (i / float64(count - 1)))
-				? st.activeFg
-				: st.inactiveFg;
-			paintSmall(p, fg);
-		}, dot->lifetime());
-	}
-	const auto bigDot = Ui::CreateChild<Ui::RpWidget>(slider->parentWidget());
-	bigDot->resize(st.seekSize);
-	bigDot->setAttribute(Qt::WA_TransparentForMouseEvents);
-	bigDot->paintRequest() | rpl::on_next([=] {
-		auto p = QPainter(bigDot);
-		auto hq = PainterHighQualityEnabler(p);
-		auto pen = st::boxBg->p;
-		pen.setWidth(st.width);
-		p.setPen(pen);
-		p.setBrush(st.activeFg);
-		p.drawEllipse(Rect(st.seekSize) - Margins(lineWidth));
-	}, bigDot->lifetime());
+[[nodiscard]] not_null<FlatLabel*> AddLabel(
+		not_null<PeerQrSurface*> surface,
+		const style::FlatLabel &st) {
+	const auto result = CreateChild<FlatLabel>(surface.get(), st);
+	result->setTextColorOverride(surface->colors().foreground);
+	return result;
+}
 
-	return [=](int index) {
-		const auto g = slider->geometry();
-		const auto bigTop = g.y() + (g.height() - bigDot->height()) / 2;
-		const auto smallTop = g.y()
-			+ (g.height() - smallSize.height()) / 2;
-		for (auto i = 0; i < count; ++i) {
-			if (index == i) {
-				const auto x = ((g.width() - bigDot->width()) * i)
-					/ float64(count - 1);
-				bigDot->move(g.x() + std::round(x), bigTop);
-			} else {
-				const auto k = (i < index) ? i : i - 1;
-				const auto w = smallDots[k]->width();
-				smallDots[k]->move(
-					g.x() + ((g.width() - w) * i) / (count - 1),
-					smallTop);
-			}
-		}
-	};
+void RenderCardImage(
+		not_null<GenericBox*> box,
+		not_null<PeerQrSurface*> surface,
+		not_null<BoxState*> state,
+		not_null<PeerQrButton*> button,
+		Fn<void(QImage)> done) {
+	if (state->rendering) {
+		return;
+	} else if (!state->image.isNull()
+		&& state->imageLink == state->link
+		&& state->imageUsername == state->username) {
+		done(state->image);
+		return;
+	}
+	state->rendering = true;
+	button->setBusy(true);
+	const auto link = state->link;
+	const auto username = state->username;
+	const auto weak = base::make_weak(box);
+	crl::async([=, args = surface->prepareImage()]() mutable {
+		auto image = RenderPeerQrImage(std::move(args));
+		crl::on_main(weak, [=, image = std::move(image)] {
+			state->rendering = false;
+			button->setBusy(false);
+			state->image = image;
+			state->imageLink = link;
+			state->imageUsername = username;
+			done(image);
+		});
+	});
 }
 
 } // namespace
@@ -430,51 +209,61 @@ void FillPeerQrBox(
 		not_null<Ui::GenericBox*> box,
 		PeerData *peer,
 		std::optional<QString> customLink,
-		rpl::producer<QString> about) {
+		rpl::producer<QString> about,
+		rpl::producer<QString> title) {
+	box->setStyle(st::peerQrBox);
+	box->setWidth(st::peerQrBoxWidth);
+	box->setNoContentMargin(true);
+	box->setCustomCornersFilling(RectPart::FullTop | RectPart::FullBottom);
+	box->verticalLayout()->resizeToWidth(st::peerQrBoxWidth);
+
+	const auto peerBox = peer && !customLink;
+	const auto state = box->lifetime().make_state<BoxState>();
+	const auto surface = box->addRow(
+		object_ptr<PeerQrSurface>(box, DefaultAppearance()),
+		style::margins());
+	const auto close = AddButton(
+		surface,
+		st::peerQrClose,
+		tr::lng_close(tr::now));
+	const auto copy = AddButton(
+		surface,
+		st::peerQrCopy,
+		tr::lng_group_invite_context_copy(tr::now));
 	const auto window = Core::App().findWindow(box);
 	const auto controller = window ? window->sessionController() : nullptr;
-	if (!controller) {
-		return;
+	const auto weakController = base::make_weak(controller);
+	const auto share = controller
+		? AddButton(
+			surface,
+			st::peerQrShare,
+			tr::lng_group_invite_context_share(tr::now)).get()
+		: nullptr;
+	const auto titleLabel = title
+		? AddLabel(surface, st::peerQrTitle).get()
+		: nullptr;
+	const auto aboutLabel = about
+		? AddLabel(surface, st::peerQrAbout).get()
+		: nullptr;
+	if (aboutLabel) {
+		aboutLabel->setTryMakeSimilarLines(true);
 	}
-	box->setStyle(st::giveawayGiftCodeBox);
-	box->setNoContentMargin(true);
-	box->setWidth(st::aboutWidth);
-	box->setTitle(tr::lng_group_invite_context_qr());
-	box->verticalLayout()->resizeToWidth(box->width());
-	struct State {
-		Ui::RpWidget* saveButton = nullptr;
-		rpl::variable<bool> saveButtonBusy = false;
-		rpl::variable<bool> userpicToggled = true;
-		rpl::variable<bool> backgroundToggled = true;
-		rpl::variable<Colors> bgs;
-		Ui::Animations::Simple animation;
-		rpl::variable<int> chosen = 0;
-		rpl::variable<int> scaleValue = 0;
-		rpl::variable<int> fontSizeValue = 28;
-	};
-	const auto state = box->lifetime().make_state<State>();
-	state->userpicToggled = !(customLink || !peer);
 
-	const auto usernameValue = [=] {
-		return (customLink || !peer)
-			? (rpl::single(QString()) | rpl::type_erased)
-			: Info::Profile::UsernameValue(peer, true) | rpl::map(
-				[](const auto &username) { return username.text; });
-	};
-	const auto linkValue = [=] {
-		return customLink
-			? rpl::single(*customLink)
-			: peer
-			? Info::Profile::LinkValue(peer, true) | rpl::map(
-				[](const auto &link) { return link.text; })
-			: (rpl::single(QString()) | rpl::type_erased);
-	};
-
-	const auto userpicMedia = Ui::MakeUserpicThumbnail(peer
-		? peer
-		: controller->session().user().get());
-
-	linkValue() | rpl::on_next([=](const QString &link) {
+	if (peerBox) {
+		Info::Profile::UsernameValue(
+			peer,
+			true
+		) | rpl::on_next([=](const TextWithEntities &username) {
+			state->username = username.text.toUpper();
+			surface->setUsername(state->username);
+		}, box->lifetime());
+	}
+	QrLinkValue(
+		peer,
+		customLink
+	) | rpl::on_next([=](const QString &link) {
+		state->link = link;
+		surface->setLink(link);
 		if (link.isEmpty()) {
 			box->showFinishes() | rpl::on_next([=] {
 				box->closeBox();
@@ -483,543 +272,111 @@ void FillPeerQrBox(
 		}
 	}, box->lifetime());
 
-	PrepareQrWidget(
-		box->verticalLayout(),
-		userpicMedia,
-		state->fontSizeValue.value(),
-		state->userpicToggled.value(),
-		state->backgroundToggled.value(),
-		usernameValue(),
-		linkValue(),
-		state->bgs.value(),
-		about ? std::move(about) : rpl::single(QString()));
-
-	Ui::AddSkip(box->verticalLayout());
-	Ui::AddSubsectionTitle(
-		box->verticalLayout(),
-		tr::lng_userpic_builder_color_subtitle());
-
-	const auto themesContainer = box->addRow(
-		object_ptr<Ui::VerticalLayout>(box));
-
-	const auto activewidth = int(
-		(st::defaultInputField.borderActive + st::lineWidth) * 0.9);
-	const auto size = st::chatThemePreviewSize.width();
-
-	const auto fill = [=](const std::vector<Data::CloudTheme> &cloudThemes) {
-		while (themesContainer->count()) {
-			delete themesContainer->widgetAt(0);
+	const auto relayout = [=] {
+		const auto width = surface->width();
+		const auto skip = st::peerQrButtonSkip;
+		const auto cardWidth = st::peerQrCardWidth;
+		const auto card = QRect(
+			(width - cardWidth) / 2,
+			skip + close->height() + st::peerQrCardSkip,
+			cardWidth,
+			PeerQrCardHeight(cardWidth, peerBox));
+		auto bottom = card.y() + card.height();
+		if (peerBox) {
+			bottom += st::peerQrPillSkip + st::peerQrPillHeight;
 		}
-
-		struct State {
-			Colors colors;
-			QImage image;
-		};
-		constexpr auto kMaxInRow = 4;
-		constexpr auto kMaxColors = 4;
-		auto row = (Ui::RpWidget*)(nullptr);
-		auto counter = 0;
-		const auto spacing = (0
-			+ (box->width() - rect::m::sum::h(st::boxRowPadding))
-			- (kMaxInRow * size)) / (kMaxInRow + 1);
-
-		auto colorsCollection = ranges::views::all(
-			cloudThemes
-		) | ranges::views::transform([](const auto &cloudTheme) -> Colors {
-			const auto it = cloudTheme.settings.find(
-				Data::CloudThemeType::Light);
-			if (it == end(cloudTheme.settings)) {
-				return Colors();
-			}
-			const auto colors = it->second.paper
-				? it->second.paper->backgroundColors()
-				: Colors();
-			if (colors.size() != kMaxColors) {
-				return Colors();
-			}
-			return colors;
-		}) | ranges::views::filter([](const Colors &colors) {
-			return !colors.empty();
-		}) | ranges::to_vector;
-		Expects(!colorsCollection.empty());
-		colorsCollection[0] = Colors{
-			st::premiumButtonBg1->c,
-			st::premiumButtonBg1->c,
-			st::premiumButtonBg2->c,
-			st::premiumButtonBg3->c,
-		};
-		// colorsCollection.push_back(Colors{
-		// 	st::creditsBg1->c,
-		// 	st::creditsBg2->c,
-		// 	st::creditsBg1->c,
-		// 	st::creditsBg2->c,
-		// });
-
-		for (const auto &colors : colorsCollection) {
-			if (state->bgs.current().empty()) {
-				state->bgs = colors;
-			}
-
-			if (counter % kMaxInRow == 0) {
-				Ui::AddSkip(themesContainer);
-				row = themesContainer->add(
-					object_ptr<Ui::RpWidget>(themesContainer));
-				row->resize(size, size);
-			}
-			const auto widget = Ui::CreateChild<Ui::AbstractButton>(row);
-			widget->setClickedCallback([=] {
-				state->chosen = counter;
-				widget->update();
-				state->animation.stop();
-				state->animation.start([=](float64 value) {
-					const auto was = state->bgs.current();
-					const auto &now = colors;
-					if (was.size() == now.size()
-						&& was.size() == kMaxColors) {
-						state->bgs = Colors({
-							anim::color(was[0], now[0], value),
-							anim::color(was[1], now[1], value),
-							anim::color(was[2], now[2], value),
-							anim::color(was[3], now[3], value),
-						});
-					}
-				},
-				0.,
-				1.,
-				st::shakeDuration);
-			});
-			state->chosen.value() | rpl::combine_previous(
-			) | rpl::filter([=](int i, int k) {
-				return i == counter || k == counter;
-			}) | rpl::on_next([=] {
-				widget->update();
-			}, widget->lifetime());
-			widget->resize(size, size);
-			widget->moveToLeft(
-				spacing + ((counter % kMaxInRow) * (size + spacing)),
-				0);
-			widget->show();
-
-			const auto cornersMask = Images::CornersMask(
-				st::roundRadiusLarge * style::DevicePixelRatio());
-			const auto back = [&] {
-				auto gradient = Images::GenerateGradient(
-					Size(size - activewidth * 5) * style::DevicePixelRatio(),
-					colors,
-					0,
-					0);
-				gradient.setDevicePixelRatio(style::DevicePixelRatio());
-				auto result = Images::Round(std::move(gradient), cornersMask);
-				const auto rect = Rect(
-					result.size() / style::DevicePixelRatio());
-				auto colored = result;
-				colored.fill(Qt::transparent);
-				{
-					auto p = QPainter(&colored);
-					auto hq = PainterHighQualityEnabler(p);
-					st::profileQrIcon.paintInCenter(p, rect);
-					p.setCompositionMode(QPainter::CompositionMode_SourceIn);
-					p.drawImage(0, 0, result);
-				}
-				auto temp = result;
-				temp.fill(Qt::transparent);
-				{
-					auto p = QPainter(&temp);
-					auto hq = PainterHighQualityEnabler(p);
-					p.setPen(st::premiumButtonFg);
-					p.setBrush(st::premiumButtonFg);
-					const auto size = st::profileQrIcon.width() * 1.5;
-					const auto margins = Margins((rect.width() - size) / 2);
-					const auto inner = rect - margins;
-					p.drawRoundedRect(
-						inner,
-						st::roundRadiusLarge,
-						st::roundRadiusLarge);
-					p.drawImage(0, 0, colored);
-				}
-				{
-					auto p = QPainter(&result);
-					p.drawImage(0, 0, temp);
-				}
-				return result;
-			}();
-			widget->paintRequest() | rpl::on_next([=] {
-				auto p = QPainter(widget);
-				const auto rect = widget->rect() - Margins(activewidth * 2.5);
-				p.drawImage(rect.x(), rect.y(), back);
-				if (state->chosen.current() == counter) {
-					auto hq = PainterHighQualityEnabler(p);
-					auto pen = st::activeLineFg->p;
-					pen.setWidth(st::defaultInputField.borderActive);
-					p.setPen(pen);
-					const auto r = st::roundRadiusLarge
-						+ activewidth * 2.1 * style::DevicePixelRatio();
-					p.drawRoundedRect(
-						widget->rect() - Margins(pen.width()),
-						r,
-						r);
-				}
-			}, widget->lifetime());
-			counter++;
+		if (aboutLabel && !aboutLabel->isHidden()) {
+			aboutLabel->resizeToWidth(cardWidth);
+			aboutLabel->moveToLeft(
+				card.x(),
+				bottom + st::peerQrPillSkip,
+				width);
+			bottom += st::peerQrPillSkip + aboutLabel->height();
 		}
-		Ui::AddSkip(themesContainer);
-		Ui::AddSkip(themesContainer);
-		themesContainer->resizeToWidth(box->width());
+		const auto rowTop = bottom + st::peerQrCardSkip;
+		close->moveToRight(skip, skip, width);
+		copy->moveToLeft(skip, rowTop, width);
+		if (share) {
+			share->moveToRight(skip, rowTop, width);
+		}
+		if (titleLabel) {
+			const auto left = st::boxTitlePosition.x();
+			titleLabel->resizeToNaturalWidth(
+				width - left - close->width() - 2 * skip);
+			titleLabel->moveToLeft(
+				left,
+				skip + (close->height() - titleLabel->height()) / 2,
+				width);
+		}
+		surface->setCardGeometry(card);
+		surface->resize(width, rowTop + copy->height() + skip);
 	};
-
-	const auto themes = &controller->session().data().cloudThemes();
-	const auto &list = themes->chatThemes();
-	if (!list.empty()) {
-		fill(list);
-	} else {
-		themes->refreshChatThemes();
-		themes->chatThemesUpdated(
-		) | rpl::take(1) | rpl::on_next([=] {
-			fill(themes->chatThemes());
-		}, box->lifetime());
+	if (titleLabel) {
+		std::move(title) | rpl::on_next([=](const QString &text) {
+			titleLabel->setText(text);
+			relayout();
+		}, titleLabel->lifetime());
 	}
-
-	Ui::AddSkip(box->verticalLayout());
-	Ui::AddDivider(box->verticalLayout());
-	Ui::AddSkip(box->verticalLayout());
-	Ui::AddSubsectionTitle(
-		box->verticalLayout(),
-		tr::lng_qr_box_quality());
-	Ui::AddSkip(box->verticalLayout());
-	constexpr auto kMaxQualities = 3;
-	{
-		const auto seekSize = st::settingsScale.seekSize.height();
-		const auto &labelSt = st::defaultFlatLabel;
-		const auto labels = box->verticalLayout()->add(
-			Ui::CreateSkipWidget(
-				box,
-				labelSt.style.font->height + labelSt.style.font->descent),
-			st::boxRowPadding);
-		const auto left = Ui::CreateChild<Ui::FlatLabel>(
-			labels,
-			tr::lng_qr_box_quality1(),
-			labelSt);
-		const auto middle = Ui::CreateChild<Ui::FlatLabel>(
-			labels,
-			tr::lng_qr_box_quality2(),
-			labelSt);
-		const auto right = Ui::CreateChild<Ui::FlatLabel>(
-			labels,
-			tr::lng_qr_box_quality3(),
-			labelSt);
-		labels->sizeValue(
-		) | rpl::on_next([=](const QSize &size) {
-			left->moveToLeft(0, 0);
-			middle->moveToLeft((size.width() - middle->width()) / 2, 0);
-			right->moveToRight(0, 0);
-		}, labels->lifetime());
-
-		const auto slider = box->verticalLayout()->add(
-			object_ptr<Ui::MediaSliderWheelless>(
-				box->verticalLayout(),
-				st::settingsScale),
-			st::boxRowPadding);
-		slider->resize(slider->width(), seekSize);
-		const auto active = st::windowActiveTextFg->c;
-		const auto inactive = st::windowSubTextFg->c;
-		const auto colorize = [=](int index) {
-			if (index == 0) {
-				left->setTextColorOverride(active);
-				middle->setTextColorOverride(inactive);
-				right->setTextColorOverride(inactive);
-			} else if (index == 1) {
-				left->setTextColorOverride(inactive);
-				middle->setTextColorOverride(active);
-				right->setTextColorOverride(inactive);
-			} else if (index == 2) {
-				left->setTextColorOverride(inactive);
-				middle->setTextColorOverride(inactive);
-				right->setTextColorOverride(active);
-			}
-		};
-		const auto updateGeometry = AddDotsToSlider(
-			slider,
-			st::settingsScale,
-			kMaxQualities);
-		slider->geometryValue(
-		) | rpl::on_next([=](const QRect &rect) {
-			updateGeometry(int(slider->value() * (kMaxQualities - 1)));
-		}, box->lifetime());
-
-		box->setShowFinishedCallback([=] {
-			colorize(0);
-			updateGeometry(0);
-		});
-		slider->setPseudoDiscrete(
-			kMaxQualities,
-			[=](int index) { return index; },
-			0,
-			[=](int scale) {
-				state->scaleValue = scale;
-				colorize(scale);
-				updateGeometry(scale);
-			},
-			[](int) {});
+	if (aboutLabel) {
+		std::move(about) | rpl::on_next([=](const QString &text) {
+			aboutLabel->setText(text);
+			aboutLabel->setVisible(!text.isEmpty());
+			relayout();
+		}, aboutLabel->lifetime());
 	}
-	if (peer && !customLink) {
-		Ui::AddSkip(box->verticalLayout());
-		Ui::AddSkip(box->verticalLayout());
-		Ui::AddSubsectionTitle(
-			box->verticalLayout(),
-			tr::lng_qr_box_font_size());
-		Ui::AddSkip(box->verticalLayout());
-		const auto seekSize = st::settingsScale.seekSize.height();
+	surface->widthValue() | rpl::on_next(relayout, surface->lifetime());
 
-		const auto slider = box->verticalLayout()->add(
-			object_ptr<Ui::MediaSliderWheelless>(
-				box->verticalLayout(),
-				st::settingsScale),
-			st::boxRowPadding);
-		slider->resize(slider->width(), seekSize);
-		const auto kSizeAmount = 15;
-		const auto kMinSize = 14;
-		const auto kMaxSize = 44;
-		const auto kStep = (kMaxSize - kMinSize) / (kSizeAmount - 1);
-		const auto updateGeometry = AddDotsToSlider(
-			slider,
-			st::settingsScale,
-			kSizeAmount);
-		const auto fontSizeToIndex = [=](int fontSize) {
-			return (fontSize - kMinSize) / kStep;
-		};
-		const auto indexToFontSize = [=](int index) {
-			return kMinSize + index * kStep;
-		};
-		{
-			const auto username = peer->username();
-			if (!username.isEmpty()) {
-				const auto measured = ('@' + username).toUpper();
-				const auto qrMaxSize = st::boxWideWidth
-					- rect::m::sum::h(st::boxRowPadding)
-					- rect::m::sum::h(st::profileQrBackgroundMargins);
-				auto picked = kMinSize;
-				for (auto i = kSizeAmount - 1; i >= 0; --i) {
-					const auto size = indexToFontSize(i);
-					const auto font = CreateFont(size, style::Scale());
-					if (font->width(measured) <= qrMaxSize) {
-						picked = size;
-						break;
-					}
-				}
-				state->fontSizeValue = picked;
-			}
-		}
-		slider->geometryValue(
-		) | rpl::on_next([=](const QRect &rect) {
-			updateGeometry(fontSizeToIndex(state->fontSizeValue.current()));
-		}, box->lifetime());
-
-		box->setShowFinishedCallback([=] {
-			updateGeometry(fontSizeToIndex(state->fontSizeValue.current()));
-		});
-		slider->setPseudoDiscrete(
-			kSizeAmount,
-			[=](int index) { return indexToFontSize(index); },
-			state->fontSizeValue.current(),
-			[=](int fontSize) {
-				state->fontSizeValue = fontSize;
-				updateGeometry(fontSizeToIndex(fontSize));
-			},
-			[](int) {});
-	}
-	Ui::AddSkip(box->verticalLayout());
-	Ui::AddSkip(box->verticalLayout());
-	if (peer) {
-		const auto userpicToggle = box->verticalLayout()->add(
-			object_ptr<Ui::SettingsButton>(
-				box->verticalLayout(),
-				(peer->isUser()
-					? tr::lng_mediaview_profile_photo
-					: (peer->isChannel() && !peer->isMegagroup())
-					? tr::lng_mediaview_channel_photo
-					: tr::lng_mediaview_group_photo)(),
-				st::settingsButtonNoIcon));
-		userpicToggle->toggleOn(state->userpicToggled.value(), true);
-		userpicToggle->setClickedCallback([=] {
-			state->userpicToggled = !state->userpicToggled.current();
-		});
-	}
-	{
-		const auto backgroundToggle = box->verticalLayout()->add(
-			object_ptr<Ui::SettingsButton>(
-				box->verticalLayout(),
-				tr::lng_qr_box_transparent_background(),
-				st::settingsButtonNoIcon));
-		backgroundToggle->toggleOn(
-			state->backgroundToggled.value() | rpl::map(!rpl::mappers::_1),
-			true);
-		backgroundToggle->setClickedCallback([=] {
-			state->backgroundToggled = !state->backgroundToggled.current();
-		});
-	}
-	Ui::AddSkip(box->verticalLayout());
-	Ui::AddSkip(box->verticalLayout());
-
-	auto buttonText = rpl::conditional(
-		state->saveButtonBusy.value() | rpl::map(rpl::mappers::_1),
-		rpl::single(QString()),
-		tr::lng_chat_link_copy());
-	const auto show = controller->uiShow();
-	state->saveButton = box->addButton(std::move(buttonText), [=] {
-		if (state->saveButtonBusy.current()) {
-			return;
-		}
-		state->saveButtonBusy = true;
-		const auto userpicToggled = state->userpicToggled.current();
-		const auto backgroundToggled = state->backgroundToggled.current();
-		const auto scale = style::kScaleDefault
-			* (kMaxQualities + int(state->scaleValue.current() * 2));
-		const auto divider = std::max(100, style::Scale())
-			/ style::kScaleDefault;
-		const auto profileQrBackgroundRadius = style::ConvertScale(
-			st::profileQrBackgroundRadius / divider,
-			scale);
-		const auto introQrPixel = style::ConvertScale(
-			st::introQrPixel / divider,
-			scale);
-		const auto lineWidth = style::ConvertScale(
-			st::lineWidth / divider,
-			scale);
-		const auto boxWideWidth = style::ConvertScale(
-			st::boxWideWidth / divider,
-			scale);
-		const auto createMargins = [&](const style::margins &margins) {
-			return QMargins(
-				style::ConvertScale(margins.left() / divider, scale),
-				style::ConvertScale(margins.top() / divider, scale),
-				style::ConvertScale(margins.right() / divider, scale),
-				style::ConvertScale(margins.bottom() / divider, scale));
-		};
-		const auto boxRowPadding = createMargins(st::boxRowPadding);
-		const auto backgroundMargins = userpicToggled
-			? createMargins(st::profileQrBackgroundMargins)
-			: createMargins(NoPhotoBackgroundMargins());
-		const auto qrMaxSize = boxWideWidth
-			- rect::m::sum::h(boxRowPadding)
-			- rect::m::sum::h(backgroundMargins);
-		const auto photoSize = userpicToggled
-			? style::ConvertScale(
-				st::defaultUserpicButton.photoSize / divider,
-				scale)
-			: 0;
-
-		const auto font = CreateFont(state->fontSizeValue.current(), scale);
-		const auto username = rpl::variable<QString>(
-			usernameValue()).current().toUpper();
-		const auto link = rpl::variable<QString>(linkValue());
-		const auto textWidth = font->width(username);
-		const auto top = photoSize
-			? userpicMedia->image(photoSize)
-			: QImage();
-		const auto bgs = state->bgs.current();
-		const auto weak = base::make_weak(box);
-
-		crl::async([=] {
-			const auto qrImage = TelegramQr(
-				Qr::Encode(
-					link.current().toUtf8(),
-					Qr::Redundancy::Default),
-				introQrPixel,
-				qrMaxSize,
-				backgroundToggled);
-			const auto textMaxWidth = backgroundMargins.left()
-				+ (qrImage.width() / style::DevicePixelRatio());
-			const auto lines = int(textWidth / textMaxWidth) + 1;
-			const auto textMaxHeight = textWidth ? font->height * lines : 0;
-
-			const auto whiteMargins = RoundedMargins(
-				backgroundMargins,
-				photoSize,
-				textMaxHeight);
-			const auto resultSize = QSize(
-				qrMaxSize + rect::m::sum::h(whiteMargins),
-				qrMaxSize + rect::m::sum::v(whiteMargins) + photoSize / 2);
-
-			const auto qrImageSize = qrImage.size()
-				/ style::DevicePixelRatio();
-			const auto qrRect = Rect(
-				(resultSize.width() - qrImageSize.width()) / 2,
-				whiteMargins.top() + photoSize / 2,
-				qrImageSize);
-
-			auto image = QImage(
-				resultSize * style::DevicePixelRatio(),
-				QImage::Format_ARGB32_Premultiplied);
-			image.fill(Qt::transparent);
-			image.setDevicePixelRatio(style::DevicePixelRatio());
-			{
-				auto p = QPainter(&image);
-				p.translate(0, lineWidth); // Bad.
-				Paint(
-					p,
-					font,
-					username,
-					bgs,
-					backgroundMargins,
-					qrImage,
-					qrRect,
-					qrMaxSize,
-					introQrPixel,
-					profileQrBackgroundRadius,
-					textMaxHeight,
-					photoSize,
-					backgroundToggled);
-
-				if (userpicToggled) {
-					p.drawImage((resultSize.width() - photoSize) / 2, 0, top);
-				}
-			}
-			crl::on_main(weak, [=] {
-				state->saveButtonBusy = false;
-				auto mime = std::make_unique<QMimeData>();
-				mime->setImageData(std::move(image));
-				QGuiApplication::clipboard()->setMimeData(mime.release());
-				show->showToast({
-					.text = { tr::lng_group_invite_qr_copied(tr::now) },
-					.iconLottie = u"toast/copy"_q,
-					.iconLottieSize = st::toastLottieIconSize,
-				});
+	close->setClickedCallback([=] {
+		box->closeBox();
+	});
+	copy->setClickedCallback([=] {
+		RenderCardImage(box, surface, state, copy, [=](QImage image) {
+			auto mime = std::make_unique<QMimeData>();
+			mime->setImageData(std::move(image));
+			QGuiApplication::clipboard()->setMimeData(mime.release());
+			box->uiShow()->showToast({
+				.text = { tr::lng_group_invite_qr_copied(tr::now) },
+				.iconLottie = u"toast/copy"_q,
+				.iconLottieSize = st::toastLottieIconSize,
 			});
 		});
 	});
-
-	if (const auto saveButton = state->saveButton) {
-		using namespace Info::Statistics;
-		const auto loadingAnimation = InfiniteRadialAnimationWidget(
-			saveButton,
-			saveButton->height() / 2);
-		AddChildToWidgetCenter(saveButton, loadingAnimation);
-		loadingAnimation->showOn(state->saveButtonBusy.value());
-
-		box->showFinishes(
-		) | rpl::take(1) | rpl::on_next([=] {
-			if (const auto window = Core::App().findWindow(box)) {
-				window->checkHighlightControl(
-					u"self-qr-code/copy"_q,
-					saveButton,
-					{
-						.color = &st::activeButtonFg,
-						.opacity = 0.6,
-						.rippleShape = true,
-						.scroll = false,
-					});
-			}
-		}, box->lifetime());
+	if (share) {
+		share->setClickedCallback([=] {
+			RenderCardImage(box, surface, state, share, [=](QImage image) {
+				if (const auto strong = weakController.get()) {
+					FastShareImage(
+						strong->uiShow(),
+						std::move(image),
+						state->imageLink);
+				}
+			});
+		});
 	}
 
-	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
+	box->showFinishes(
+	) | rpl::take(1) | rpl::on_next([=] {
+		surface->startAnimations();
+		const auto strong = weakController.get();
+		if (share && strong) {
+			strong->checkHighlightControl(
+				u"self-qr-code/share"_q,
+				share,
+				{ .rippleShape = true, .scroll = false });
+		}
+	}, box->lifetime());
 }
 
 void DefaultShowFillPeerQrBoxCallback(
 		std::shared_ptr<Ui::Show> show,
 		PeerData *peer) {
 	if (peer && !peer->username().isEmpty()) {
-		show->show(Box(Ui::FillPeerQrBox, peer, std::nullopt, nullptr));
+		show->show(Box(
+			Ui::FillPeerQrBox,
+			peer,
+			std::nullopt,
+			nullptr,
+			nullptr));
 	}
 }
 

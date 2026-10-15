@@ -3859,7 +3859,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_chat_link_description" = "Add a message that will be entered in the message field for anyone who starts a chat with you using this link.";
 "lng_chat_link_placeholder" = "Add Preset Message";
 "lng_chat_link_saved" = "Chat link saved.";
-"lng_chat_link_copy" = "Copy";
 "lng_chat_link_share" = "Share";
 "lng_chat_link_rename" = "Rename";
 "lng_chat_link_delete" = "Delete";
@@ -8745,13 +8744,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_contact_details_note" = "Note";
 "lng_contact_details_birthday" = "Birthday";
 "lng_contact_details_organization" = "Organization";
-
-"lng_qr_box_quality" = "Quality";
-"lng_qr_box_quality1" = "Normal";
-"lng_qr_box_quality2" = "High";
-"lng_qr_box_quality3" = "Very High";
-"lng_qr_box_transparent_background" = "Transparent Background";
-"lng_qr_box_font_size" = "Font size";
 
 "lng_frozen_bar_title" = "Your account is frozen!";
 "lng_frozen_bar_text" = "Click to view details {arrow}";
