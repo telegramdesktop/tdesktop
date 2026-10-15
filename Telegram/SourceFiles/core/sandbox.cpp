@@ -262,14 +262,12 @@ void Sandbox::QuitWhenStarted() {
 	if (!QApplication::instance() || !Instance()._started) {
 		QuitOnStartRequested = true;
 	} else {
-		// Use exit(0) instead of quit() to avoid recursive
-		// [NSApp terminate:] on macOS. Since Qt 6.0, quit() routes
-		// through QCocoaIntegration::quit() -> [NSApp terminate:],
-		// which when called from within applicationShouldTerminate:
-		// causes a nested terminate that leads to exit() being called
-		// directly, bypassing normal cleanup. exit(0) properly exits
-		// event loops without going through the platform plugin.
-		QCoreApplication::exit(0);
+		// WHY: quit() on macOS since Qt 6.0 routes through [NSApp terminate:],
+		// and since Qt 6.7 even exit() emits aboutToQuit synchronously, which
+		// destroys windows mid-dispatch. So exit(0), deferred one loop tick.
+		InvokeQueued(&Instance(), [] {
+			QCoreApplication::exit(0);
+		});
 	}
 }
 
