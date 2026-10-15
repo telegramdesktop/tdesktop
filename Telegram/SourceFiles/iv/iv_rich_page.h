@@ -299,6 +299,12 @@ struct RichPageLinkUrl {
 	uint64 webpageId = 0;
 };
 
+struct RichQuote {
+	MTPVector<MTPRichText> fragments;
+	std::optional<int> offset;
+	TextWithEntities text;
+};
+
 enum class RichParseMode : uchar {
 	Normal, // textDiff is resolved to the updated text.
 	DisplayTextDiff, // textDiff shows old and new text with highlights.
@@ -339,6 +345,10 @@ inline constexpr auto kTextDiffDeletedColorIndex = 11;
 [[nodiscard]] std::shared_ptr<const RichPage> ParseRichPage(
 	not_null<Main::Session*> session,
 	const MTPDwebPage &webpage);
+[[nodiscard]] std::shared_ptr<const RichQuote> ParseRichQuote(
+	not_null<Main::Session*> session,
+	const MTPVector<MTPRichText> &fragments,
+	std::optional<int> offset);
 [[nodiscard]] std::optional<TextWithEntities> SerializeAsSimple(
 	const RichPage &page,
 	not_null<Main::Session*> session);

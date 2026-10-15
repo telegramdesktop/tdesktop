@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt/qt_key_modifiers.h"
 #include "base/algorithm.h"
 #include "base/options.h"
+#include "iv/iv_rich_page.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/spoiler_mess.h"
@@ -414,6 +415,7 @@ void HistoryMessageForwarded::create(
 ReplyFields ReplyFields::clone(not_null<HistoryItem*> parent) const {
 	return {
 		.quote = quote,
+		.richQuote = richQuote,
 		.externalMedia = (externalMedia
 			? externalMedia->clone(parent)
 			: nullptr),
@@ -430,6 +432,10 @@ ReplyFields ReplyFields::clone(not_null<HistoryItem*> parent) const {
 		.manualQuote = manualQuote,
 		.topicPost = topicPost,
 	};
+}
+
+const TextWithEntities &ReplyFields::displayQuote() const {
+	return richQuote ? richQuote->text : quote;
 }
 
 ReplyFields ReplyFieldsFromMTP(
@@ -468,13 +474,26 @@ ReplyFields ReplyFieldsFromMTP(
 		if (const auto media = data.vreply_media()) {
 			result.externalMedia = HistoryItem::CreateMedia(item, *media);
 		}
-		result.quote = TextWithEntities{
-			qs(data.vquote_text().value_or_empty()),
-			Api::EntitiesFromMTP(
+		// WHY: the server rejects a flat copy of a rich quote, so the flat
+		// fields stay empty and replyTo() re-derives a reply without a quote.
+		if (const auto rich = data.vquote_rich()) {
+			auto offset = std::optional<int>();
+			if (const auto value = data.vquote_offset()) {
+				offset = value->v;
+			}
+			result.richQuote = Iv::ParseRichQuote(
 				&owner->session(),
-				data.vquote_entities().value_or_empty()),
-		};
-		result.quoteOffset = data.vquote_offset().value_or_empty();
+				*rich,
+				offset);
+		} else {
+			result.quote = TextWithEntities{
+				qs(data.vquote_text().value_or_empty()),
+				Api::EntitiesFromMTP(
+					&owner->session(),
+					data.vquote_entities().value_or_empty()),
+			};
+			result.quoteOffset = data.vquote_offset().value_or_empty();
+		}
 		result.manualQuote = data.is_quote() ? 1 : 0;
 		return result;
 	}, [&](const MTPDmessageReplyStoryHeader &data) {
@@ -589,7 +608,7 @@ void HistoryMessageReply::updateData(
 	}
 
 	const auto asExternal = displayAsExternal(holder);
-	const auto nonEmptyQuote = !_fields.quote.empty()
+	const auto nonEmptyQuote = !_fields.displayQuote().empty()
 		&& (asExternal || _fields.manualQuote);
 	_multiline = !_fields.storyId && (asExternal || nonEmptyQuote);
 

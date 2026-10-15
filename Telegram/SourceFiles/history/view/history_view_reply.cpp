@@ -354,6 +354,7 @@ void Reply::update(
 		not_null<HistoryMessageReply*> data) {
 	const auto item = view->data();
 	const auto &fields = data->fields();
+	const auto &quote = fields.displayQuote();
 	const auto message = data->resolvedMessage.get();
 	const auto messageMedia = (message
 			&& (fields.todoItemId || !fields.pollOption.isEmpty()))
@@ -415,7 +416,7 @@ void Reply::update(
 	_multiline = data->multiline() ? 1 : 0;
 	const auto hasQuoteIcon = _displaying
 		&& fields.manualQuote
-		&& !fields.quote.empty();
+		&& !quote.empty();
 	_hasQuoteIcon = hasQuoteIcon ? 1 : 0;
 
 	const auto repaint = [=] { item->customEmojiRepaint(); };
@@ -444,10 +445,10 @@ void Reply::update(
 		? Ui::Text::Colorized(
 			Ui::Text::IconEmoji(&st::historyPollReplyIcon)
 		).append(messagePoll->question)
-		: (message && (fields.quote.empty() || !fields.manualQuote))
+		: (message && (quote.empty() || !fields.manualQuote))
 		? message->inReplyText()
-		: !fields.quote.empty()
-		? fields.quote
+		: !quote.empty()
+		? quote
 		: story
 		? Ui::Text::Colorized(
 			Ui::Text::IconEmoji(&st::historyReplyStoryIcon)

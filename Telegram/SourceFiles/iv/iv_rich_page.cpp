@@ -243,6 +243,7 @@ struct ParseContext {
 	bool dropRichTextClickHandlers = false;
 	bool keepRichTextFormattedDates = false;
 	bool displayTextDiff = false;
+	bool dropInlineImages = false;
 	int blockDepth = 0;
 };
 
@@ -847,6 +848,9 @@ bool AppendRichText(
 		}
 		return true;
 	}, [&](const MTPDtextImage &data) {
+		if (context->dropInlineImages) {
+			return true;
+		}
 		const auto replacementText = u"[image]"_q;
 		if (context->source == ParseSource::RichMessage
 			|| !data.vdocument_id().v
@@ -2659,6 +2663,43 @@ std::shared_ptr<const RichPage> ParseRichPage(
 		return std::shared_ptr<const RichPage>();
 	}
 	return ParsePage(session, *cachedPage, &webpage);
+}
+
+std::shared_ptr<const RichQuote> ParseRichQuote(
+		not_null<Main::Session*> session,
+		const MTPVector<MTPRichText> &fragments,
+		std::optional<int> offset) {
+	auto context = ParseContext(session, ParseSource::RichMessage);
+	context.dropInlineImages = true;
+	auto text = tr::marked();
+	for (const auto &fragment : fragments.v) {
+		auto line = ParseRichText(
+			fragment,
+			&context,
+			RichTextParseMode::DropClickHandlersKeepDates).text;
+		Markdown::ExpandInlineTextObjects(&line, true);
+		if (line.empty()) {
+			continue;
+		} else if (!text.empty()) {
+			text.append(QChar('\n'));
+		}
+		text.append(std::move(line));
+	}
+	auto filtered = Ui::Text::Filtered(text, {
+		EntityType::Bold,
+		EntityType::Italic,
+		EntityType::Underline,
+		EntityType::StrikeOut,
+		EntityType::Spoiler,
+		EntityType::CustomEmoji,
+		EntityType::FormattedDate,
+	});
+	Markdown::SortEntities(&filtered);
+	return std::make_shared<RichQuote>(RichQuote{
+		.fragments = fragments,
+		.offset = offset,
+		.text = std::move(filtered),
+	});
 }
 
 TextWithEntities FlattenRichPageSummary(
