@@ -433,6 +433,12 @@ MainWindow::MainWindow(not_null<Controller*> controller)
 		Ui::Toast::SetDefaultParent(_body.data());
 	}
 
+	// The folders sidebar is created after the main widget, so it would
+	// come after it in the Tab chain - after the whole chat list, though
+	// it sits to the left of it: order the children of the body by what
+	// they look like, so the sidebar comes first, as it is laid out.
+	_body->setVisualTabOrder(true);
+
 	windowActiveValue(
 	) | rpl::skip(1) | rpl::on_next([=](bool active) {
 		InvokeQueued(this, [=] {
