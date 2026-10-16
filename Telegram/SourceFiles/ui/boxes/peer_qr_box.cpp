@@ -598,11 +598,16 @@ void SetupFreeCodes(
 			},
 			&st::menuIconStar);
 		menu->setForcedVerticalOrigin(PopupMenu::VerticalOrigin::Top);
-		const auto inner = menu->inner();
 		const auto geometry = pill->pillGeometry();
-		menu->popup(surface->mapToGlobal(QPoint(
-			geometry.x() + (geometry.width() - inner.width()) / 2 - inner.x(),
-			geometry.y())));
+		const auto anchor = surface->mapToGlobal(QPoint(
+			geometry.x() + (geometry.width() - menu->inner().width()) / 2,
+			geometry.y()));
+		// the shadow padding left of the inner panel is known only once prepared
+		if (menu->prepareGeometryFor(anchor)
+			&& menu->prepareGeometryFor(
+				anchor - QPoint(menu->inner().x(), 0))) {
+			menu->popupPrepared();
+		}
 	};
 
 	free->expireTimer.setCallback([=] {
