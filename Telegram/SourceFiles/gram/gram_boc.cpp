@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QByteArray>
 
+#include <bit>
+
 namespace Gram {
 namespace {
 
@@ -25,6 +27,9 @@ constexpr auto kExternalOpcode = quint32(0xFBBA99C8);
 constexpr auto kInternalOpcode = quint32(0xFBBA99C7);
 constexpr auto kMaxCells = 64;
 constexpr auto kMaxBytes = 64 * 1024;
+constexpr auto kNftTransferOpcode = quint32(0x5FCC3D14);
+constexpr auto kNftTransferOwnerBits = 32 + 64 + 2 + 1 + 8 + 256;
+constexpr auto kStdAddressTag = quint64(0b10);
 
 struct Cell {
 	int dataFrom = 0;
@@ -41,6 +46,38 @@ struct ParsedBoc {
 	int root = 0;
 	bool hasCrc = false;
 };
+
+class BitReader final {
+public:
+	BitReader(const QByteArray &data, int from, int size);
+
+	[[nodiscard]] std::optional<quint64> read(int count);
+
+private:
+	const QByteArray &_data;
+	const int _from = 0;
+	const int _size = 0;
+	int _position = 0;
+
+};
+
+BitReader::BitReader(const QByteArray &data, int from, int size)
+: _data(data)
+, _from(from)
+, _size(size) {
+}
+
+std::optional<quint64> BitReader::read(int count) {
+	if (count < 1 || count > 64 || _size - _position < count) {
+		return std::nullopt;
+	}
+	auto result = quint64(0);
+	for (auto i = 0; i != count; ++i, ++_position) {
+		const auto byte = uchar(_data[_from + (_position / 8)]);
+		result = (result << 1) | ((byte >> (7 - (_position % 8))) & 1);
+	}
+	return result;
+}
 
 [[nodiscard]] std::optional<quint64> ReadNumber(
 		const QByteArray &data,
@@ -215,6 +252,50 @@ struct ParsedBoc {
 	};
 }
 
+[[nodiscard]] std::optional<int> CellBits(
+		const QByteArray &data,
+		const Cell &cell) {
+	if (cell.wholeBytes) {
+		return cell.dataSize * 8;
+	}
+	const auto last = uchar(data[cell.dataFrom + cell.dataSize - 1]);
+	if (!(last & 0x7F)) {
+		return std::nullopt;
+	}
+	return cell.dataSize * 8 - 1 - std::countr_zero(last);
+}
+
+[[nodiscard]] bool StrictlyValid(const ParsedBoc &parsed) {
+	const auto &data = parsed.data;
+	const auto count = int(parsed.cells.size());
+	if (parsed.root < 0 || parsed.root >= count) {
+		return false;
+	} else if (parsed.hasCrc) {
+		const auto till = int(data.size()) - 4;
+		auto stored = quint32(0);
+		for (auto i = 0; i != 4; ++i) {
+			stored |= (quint32(uchar(data[till + i])) << (8 * i));
+		}
+		if (stored != Crc32c(data, till)) {
+			return false;
+		}
+	}
+	for (auto i = 0; i != count; ++i) {
+		const auto &cell = parsed.cells[i];
+		if (!CellBits(data, cell)) {
+			return false;
+		}
+		auto offset = cell.refsFrom;
+		for (auto j = 0; j != cell.refs; ++j) {
+			const auto ref = ReadNumber(data, offset, parsed.refSize);
+			if (!ref || *ref <= quint64(i) || *ref >= quint64(count)) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 } // namespace
 
 QString BreakRotationSignature(const QString &bocBase64) {
@@ -284,6 +365,38 @@ std::optional<QString> TextCommentFromBoc(const QString &bocBase64) {
 		index = int(*next);
 	}
 	return std::nullopt;
+}
+
+QString NftTransferNewOwner(const QString &bocBase64) {
+	const auto parsed = ParseBoc(bocBase64);
+	if (!parsed || !StrictlyValid(*parsed)) {
+		return QString();
+	}
+	const auto &root = parsed->cells[parsed->root];
+	const auto bits = CellBits(parsed->data, root);
+	if (!bits || *bits < kNftTransferOwnerBits) {
+		return QString();
+	}
+	auto reader = BitReader(parsed->data, root.dataFrom, *bits);
+	if (reader.read(32) != kNftTransferOpcode
+		|| !reader.read(64).has_value()
+		|| reader.read(2) != kStdAddressTag
+		|| reader.read(1) != quint64(0)) {
+		return QString();
+	}
+	const auto workchain = reader.read(8);
+	if (!workchain) {
+		return QString();
+	}
+	auto hash = QString();
+	for (auto i = 0; i != 4; ++i) {
+		const auto part = reader.read(64);
+		if (!part) {
+			return QString();
+		}
+		hash += u"%1"_q.arg(*part, 16, 16, QChar('0'));
+	}
+	return QString::number(int(qint8(*workchain))) + ':' + hash;
 }
 
 } // namespace Gram

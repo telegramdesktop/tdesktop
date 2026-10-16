@@ -414,8 +414,10 @@ struct SendComment {
 
 struct SendArgs {
 	QString destination;
-	// An owned collectible's item address; the session picks amountNano then.
+	// The owned item's address; without a payload the session sets amountNano.
 	QString collectible;
+	// A served NFT transfer body, sent unmodified to the collectible.
+	QString payload;
 	int64 amountNano = 0;
 	UserId userId;
 	SendComment comment;

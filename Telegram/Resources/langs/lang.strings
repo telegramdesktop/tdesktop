@@ -4500,6 +4500,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_transfer_to_wallet_button" = "Move";
 "lng_gift_transfer_to_wallet_done" = "Gift moved to your wallet.";
 "lng_gift_transfer_to_wallet_view" = "View";
+"lng_gift_transfer_to_gifts" = "Move to My Gifts";
+"lng_gift_transfer_to_gifts_text" = "Transfer this collectible off-chain to your Telegram account?";
+"lng_gift_transfer_to_gifts_appear" = "It will appear in";
+"lng_gift_transfer_to_gifts_path" = "{profile} › {gifts}";
+"lng_gift_transfer_to_gifts_button" = "Move";
+"lng_gift_transfer_to_gifts_done" = "Gift moved to your account.";
 "lng_gift_transfer_password_title" = "Two-step verification";
 "lng_gift_transfer_password_description" = "Please enter your password to transfer.";
 "lng_gift_transfer_password_about" = "You can withdraw only if you have:";

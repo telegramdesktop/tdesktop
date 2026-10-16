@@ -500,6 +500,10 @@ giftMoveToWalletMoneyEmoji: IconEmoji {
 giftMoveToWalletCollectiblesEmoji: IconEmoji(giftMoveToWalletMoneyEmoji) {
 	icon: icon{{ "menu/rating_gifts-16x16", windowSubTextFg }};
 }
+giftMoveToGiftsUserpic: icon{{ "wallet/move_to_gifts-24x24", historyPeerUserpicFg }};
+giftMoveToGiftsProfileEmoji: IconEmoji(giftMoveToWalletMoneyEmoji) {
+	icon: icon{{ "menu/profile-16x16", windowSubTextFg }};
+}
 
 uniqueGiftValuePrice: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {

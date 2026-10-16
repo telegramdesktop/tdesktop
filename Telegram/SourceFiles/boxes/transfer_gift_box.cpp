@@ -271,27 +271,6 @@ void ExportOnBlockchain(
 	});
 }
 
-void PaintMoveToWalletUserpic(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size) {
-	x = style::RightToLeft() ? (outerWidth - x - size) : x;
-
-	auto bg = QLinearGradient(x, y, x, y + size);
-	bg.setStops({
-		{ 0., st::historyPeerSavedMessagesBg->c },
-		{ 1., st::historyPeerSavedMessagesBg2->c }
-	});
-	PainterHighQualityEnabler hq(p);
-	p.setBrush(bg);
-	p.setPen(Qt::NoPen);
-	p.drawEllipse(x, y, size, size);
-
-	st::giftMoveToWalletUserpic.paintInCenter(p, QRect(x, y, size, size));
-}
-
 [[nodiscard]] bool ListedGift(
 		const Gram::NftItem &item,
 		const std::shared_ptr<Data::UniqueGift> &gift) {
@@ -316,55 +295,6 @@ void PaintMoveToWalletUserpic(
 		tr::lng_wallet_rows_collectibles(
 		) | prefixed(&st::giftMoveToWalletCollectiblesEmoji),
 		tr::marked);
-}
-
-void ShowGiftMovedToWalletToast(
-		std::shared_ptr<ChatHelpers::Show> show,
-		not_null<DocumentData*> sticker,
-		Fn<void()> view) {
-	const auto &st = st::historyPremiumToast;
-	const auto &viewSt = st::historyPremiumViewSet;
-	const auto label = tr::lng_gift_transfer_to_wallet_view(tr::now);
-	const auto side = Ui::Emoji::GetCustomSizeLarge();
-	const auto rightSkip = viewSt.style.font->width(label)
-		- viewSt.width
-		- st.padding.right();
-	const auto weak = show->showToast(Ui::Toast::Config{
-		.text = tr::lng_gift_transfer_to_wallet_done(tr::now, tr::marked),
-		.iconContent = Ui::MakeCustomEmojiToastIcon(
-			&sticker->session(),
-			sticker->id,
-			QSize(side, side)),
-		.padding = rpl::single(QMargins(0, 0, rightSkip, 0)),
-		.st = &st,
-		.acceptinput = true,
-		.duration = kMovedToWalletToastDuration,
-	});
-	const auto strong = weak.get();
-	if (!strong) {
-		return;
-	}
-	const auto widget = strong->widget();
-	const auto button = Ui::CreateChild<Ui::RoundButton>(
-		widget.get(),
-		tr::lng_gift_transfer_to_wallet_view(),
-		viewSt);
-	button->show();
-	button->setClickedCallback([=] {
-		if (const auto strong = weak.get()) {
-			strong->hideAnimated();
-		}
-		view();
-	});
-	rpl::combine(
-		widget->sizeValue(),
-		button->sizeValue()
-	) | rpl::on_next([=](QSize outer, QSize inner) {
-		button->moveToRight(
-			0,
-			(outer.height() - inner.height()) / 2,
-			outer.width());
-	}, widget->lifetime());
 }
 
 void MoveToWalletBox(
@@ -460,12 +390,16 @@ void MoveToWalletBox(
 		state->finished = true;
 		state->busy = false;
 		if (show->valid()) {
-			ShowGiftMovedToWalletToast(show, gift->model.document, [=] {
-				if (const auto strong = weakSession.get()) {
-					strong->wallet().setCollectiblesTab(true);
-					Wallet::ShowWallet(strong);
-				}
-			});
+			ShowGiftMovedToast(
+				show,
+				gift->model.document,
+				tr::lng_gift_transfer_to_wallet_done(tr::now, tr::marked),
+				[=] {
+					if (const auto strong = weakSession.get()) {
+						strong->wallet().setCollectiblesTab(true);
+						Wallet::ShowWallet(strong);
+					}
+				});
 		}
 		if (const auto strong = weakBox.get()) {
 			strong->closeBox();
@@ -683,7 +617,13 @@ void MoveToWalletBox(
 					int outerWidth,
 					int size) mutable {
 				if (toWallet) {
-					PaintMoveToWalletUserpic(p, x, y, outerWidth, size);
+					PaintGiftMoveUserpic(
+						p,
+						x,
+						y,
+						outerWidth,
+						size,
+						st::giftMoveToWalletUserpic);
 				} else {
 					Ui::EmptyUserpic::PaintCurrency(p, x, y, outerWidth, size);
 				}
@@ -1208,6 +1148,78 @@ base::weak_qptr<Ui::GenericBox> ShowBuyResaleGiftConfirm(
 }
 
 } // namespace
+
+void PaintGiftMoveUserpic(
+		Painter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size,
+		const style::icon &icon) {
+	x = style::RightToLeft() ? (outerWidth - x - size) : x;
+
+	auto bg = QLinearGradient(x, y, x, y + size);
+	bg.setStops({
+		{ 0., st::historyPeerSavedMessagesBg->c },
+		{ 1., st::historyPeerSavedMessagesBg2->c }
+	});
+	PainterHighQualityEnabler hq(p);
+	p.setBrush(bg);
+	p.setPen(Qt::NoPen);
+	p.drawEllipse(x, y, size, size);
+
+	icon.paintInCenter(p, QRect(x, y, size, size));
+}
+
+void ShowGiftMovedToast(
+		std::shared_ptr<Ui::Show> show,
+		not_null<DocumentData*> sticker,
+		TextWithEntities text,
+		Fn<void()> view) {
+	const auto &st = st::historyPremiumToast;
+	const auto &viewSt = st::historyPremiumViewSet;
+	const auto label = tr::lng_gift_transfer_to_wallet_view(tr::now);
+	const auto side = Ui::Emoji::GetCustomSizeLarge();
+	const auto rightSkip = viewSt.style.font->width(label)
+		- viewSt.width
+		- st.padding.right();
+	const auto weak = show->showToast(Ui::Toast::Config{
+		.text = std::move(text),
+		.iconContent = Ui::MakeCustomEmojiToastIcon(
+			&sticker->session(),
+			sticker->id,
+			QSize(side, side)),
+		.padding = rpl::single(QMargins(0, 0, rightSkip, 0)),
+		.st = &st,
+		.acceptinput = true,
+		.duration = kMovedToWalletToastDuration,
+	});
+	const auto strong = weak.get();
+	if (!strong) {
+		return;
+	}
+	const auto widget = strong->widget();
+	const auto button = Ui::CreateChild<Ui::RoundButton>(
+		widget.get(),
+		tr::lng_gift_transfer_to_wallet_view(),
+		viewSt);
+	button->show();
+	button->setClickedCallback([=] {
+		if (const auto strong = weak.get()) {
+			strong->hideAnimated();
+		}
+		view();
+	});
+	rpl::combine(
+		widget->sizeValue(),
+		button->sizeValue()
+	) | rpl::on_next([=](QSize outer, QSize inner) {
+		button->moveToRight(
+			0,
+			(outer.height() - inner.height()) / 2,
+			outer.width());
+	}, widget->lifetime());
+}
 
 void ShowTransferToBox(
 		not_null<Window::SessionController*> controller,

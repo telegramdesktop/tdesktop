@@ -167,11 +167,18 @@ void ShowSendToUser(
 	Fn<void()> notReady = nullptr,
 	base::weak_qptr<Ui::BoxContent> origin = nullptr);
 
+struct CollectibleTransfer {
+	QString address;
+	QString slug;
+	std::shared_ptr<CollectibleMedia> media;
+};
+
 // The recipient step and the confirmation of a collectible's Transfer.
 void ShowCollectibleTransfer(
 	std::shared_ptr<Main::SessionShow> show,
 	std::shared_ptr<CollectibleMedia> media,
-	const QString &collectible);
+	const QString &collectible,
+	const QString &slug = QString());
 
 void ShowSendToLinkRecipient(
 	std::shared_ptr<Main::SessionShow> show,

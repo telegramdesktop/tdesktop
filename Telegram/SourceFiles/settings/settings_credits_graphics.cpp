@@ -98,6 +98,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/ui_utility.h"
+#include "wallet/wallet_move_to_gifts.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_calls.h"
@@ -1202,7 +1203,9 @@ void FillUniqueGiftMenu(
 		const auto shownOnProfile = e.savedToProfile;
 		menu->addAction(tr::lng_gift_transfer_button(tr::now), [=] {
 			if (!owner) {
-				ShowActionLocked(show, unique->slug);
+				Wallet::ShowAddressHeldGiftTransfer(show, unique, [=] {
+					ShowActionLocked(show, unique->slug);
+				});
 			} else if (const auto window = show->resolveWindow()) {
 				ShowTransferGiftBox(window, unique, savedId, shownOnProfile);
 			}

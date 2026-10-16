@@ -387,10 +387,11 @@ void Activate(
 	if (item.kind == Gram::NftKind::TelegramGift && !item.key.isEmpty()) {
 		const auto weak = std::weak_ptr(media);
 		const auto address = item.address;
+		const auto slug = item.key;
 		auto actions = std::make_shared<::Settings::UniqueGiftCoverActions>();
 		actions->transfer = [=] {
 			if (const auto strong = weak.lock()) {
-				ShowCollectibleTransfer(show, strong, address);
+				ShowCollectibleTransfer(show, strong, address, slug);
 			}
 		};
 		if (!sellUrl.isEmpty()) {

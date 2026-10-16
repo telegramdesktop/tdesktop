@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_onramp.h"
 #include "wallet/wallet_phrase_shares.h"
 #include "wallet/wallet_rates.h"
+#include "wallet/wallet_session_deposit.h"
 #include "wallet/wallet_session_waits.h"
 #include "wallet/wallet_ton_connect.h"
 #include "wallet/wallet_ton_connect_emulation.h"
@@ -189,6 +190,7 @@ struct Session::PreviewState : base::has_weak_ptr {
 	};
 
 	base::flat_map<uint64, uint64> owners;
+	base::flat_map<uint64, std::weak_ptr<rpl::lifetime>> registrations;
 	std::deque<PreviewRequest> queue;
 	std::optional<Flight> active;
 	uint64 lastOwner = 0;
@@ -1406,27 +1408,6 @@ void FailShareFetch(
 	} catch (...) {
 	}
 	return u"ROTATION_FAILED"_q;
-}
-
-[[nodiscard]] engine::SendIntent IntentFromArgs(
-		const SendArgs &args,
-		engine::SendMessageBody body) {
-	auto message = engine::SendMessage{
-		.destination = FormatFriendly(
-			args.destination,
-			args.bounce).toStdString(),
-		.amount = engine::SendAmount(engine::SendAmount::kExact{
-			.nanograms = QString::number(args.amountNano).toStdString(),
-		}),
-		.body = std::move(body),
-		.bounce = args.bounce,
-		.state_init = std::nullopt,
-	};
-	return engine::SendIntent{
-		.expiration = engine::SendExpiration(
-			engine::SendExpiration::kEngineDefault{}),
-		.messages = { std::move(message) },
-	};
 }
 
 [[nodiscard]] engine::NftTransferIntent CollectibleTransferIntent(
@@ -7740,7 +7721,9 @@ void Session::refreshCollectibles(bool force) {
 		? kForcedCollectiblesInterval
 		: kCollectiblesPollInterval;
 	if (_collectiblesRequest
-		|| (_collectiblesPaged && _collectibleWaits->empty())
+		|| (_collectiblesPaged
+			&& _collectibleWaits->empty()
+			&& _collectibleFollowUps.empty())
 		|| (_collectiblesRefreshedAt
 			&& (crl::now() - _collectiblesRefreshedAt < interval))) {
 		return;
@@ -7821,12 +7804,23 @@ void Session::applyCollectibles(
 	auto loaded = CollectiblesFromServer(data.vitems().v);
 	if (!request.more && _collectiblesPaged) {
 		// A paged list keeps its pages and cursor; only arrivals are added.
-		auto fresh = UnheldCollectibles(
+		const auto left = [&](const Gram::NftItem &item) {
+			const auto i = _collectibleFollowUps.find(item.address);
+			return (i != end(_collectibleFollowUps))
+				&& !i->second.incoming
+				&& !ranges::contains(
+					loaded,
+					item.address,
+					&Gram::NftItem::address);
+		};
+		auto list = UnheldCollectibles(
 			_collectibles,
 			std::vector<Gram::NftItem>(loaded));
-		if (!fresh.empty()) {
-			fresh.insert(end(fresh), begin(_collectibles), end(_collectibles));
-			setCollectibles(std::move(fresh));
+		list.insert(end(list), begin(_collectibles), end(_collectibles));
+		list.erase(ranges::remove_if(list, left), end(list));
+		spendCollectibleFollowUps(&loaded);
+		if (!SameCollectibles(_collectibles, list)) {
+			setCollectibles(std::move(list));
 		}
 		_collectibleWaits->settle(&loaded, request.sentAt);
 		return;
@@ -8542,10 +8536,11 @@ uint64 Session::createPreviewOwner(rpl::lifetime &lifetime) {
 		_preview = std::make_unique<PreviewState>();
 	}
 	const auto owner = ++_preview->lastOwner;
+	const auto registration = std::make_shared<rpl::lifetime>(
+		crl::guard(_preview.get(), [=, this] { retirePreviewOwner(owner); }));
 	_preview->owners.emplace(owner, 0);
-	lifetime.add(crl::guard(_preview.get(), [=, this] {
-		retirePreviewOwner(owner);
-	}));
+	_preview->registrations.emplace(owner, registration);
+	lifetime.add([registration] {});
 	refreshGaslessInfo(true);
 	return owner;
 }
@@ -8560,6 +8555,7 @@ void Session::estimateFee(
 	}
 	done = LoggedFeeDone(std::move(done));
 	const auto transfersCollectible = !args.collectible.isEmpty();
+	const auto deposit = transfersCollectible && !args.payload.isEmpty();
 	const auto collectible = transfersCollectible
 		? CanonicalAddress(args.collectible)
 		: QString();
@@ -8576,6 +8572,11 @@ void Session::estimateFee(
 		? SendError::CommentTooLong
 		: collectibleInvalid
 		? SendError::InvalidRequest
+		: !args.payload.isEmpty()
+		? GiftDepositInputError(
+			args,
+			_collectibles,
+			(_collectiblesCompletedAt > 0) && !_collectiblesHasMore)
 		: transfersCollectible
 		? SendError::None
 		: (args.amountNano <= 0
@@ -8628,7 +8629,9 @@ void Session::estimateFee(
 	};
 	if (transfersCollectible) {
 		request.args.collectible = collectible;
-		request.args.amountNano = kCollectibleTransferAttachedNanos;
+		if (!deposit) {
+			request.args.amountNano = kCollectibleTransferAttachedNanos;
+		}
 	}
 	enqueuePreview(std::move(request));
 }
@@ -8803,6 +8806,7 @@ void Session::resolveDnsName(
 void Session::retirePreviewOwner(uint64 owner) {
 	cancelFeeEstimate(owner);
 	_preview->owners.remove(owner);
+	_preview->registrations.remove(owner);
 	if (_preview->owners.empty()) {
 		retireGaslessRequest();
 	}
@@ -8941,7 +8945,11 @@ void Session::startPreview() {
 		};
 		_previewPending = true;
 		const auto &request = _preview->active->request;
-		if (!request.args.collectible.isEmpty()) {
+		if (!request.args.payload.isEmpty()) {
+			previewPrepared(flight, engine::SendMessageBody::kRawPayload{
+				.boc = request.args.payload.toStdString(),
+			});
+		} else if (!request.args.collectible.isEmpty()) {
 			previewCollectible(flight);
 		} else if (request.tonConnect || request.args.comment.text.isEmpty()) {
 			previewPrepared(flight, engine::SendMessageBody::kEmpty{});
@@ -9013,9 +9021,13 @@ void Session::previewPrepared(uint64 flight, engine::SendMessageBody body) {
 			IntentFromArgs(active.request.args, std::move(body)));
 	active.stage = PreviewState::Flight::Stage::Previewing;
 	const auto client = active.request.client;
-	const auto paired = !tonConnect && active.request.terms.eligible(
-		active.request.args.amountNano,
-		active.request.args.destination);
+	const auto deposit = !active.request.args.payload.isEmpty();
+	const auto item = active.request.args.collectible;
+	const auto paired = !tonConnect
+		&& !deposit
+		&& active.request.terms.eligible(
+			active.request.args.amountNano,
+			active.request.args.destination);
 	const auto own = active.request.identity
 		? active.request.identity->address
 		: QString();
@@ -9027,7 +9039,9 @@ void Session::previewPrepared(uint64 flight, engine::SendMessageBody body) {
 			: client->preview_send(request);
 	}, [=, this](engine::SendPreview preview) {
 		const auto fee = DecimalInt64(preview.emulation.wallet_fees_nanograms);
-		auto result = (fee && *fee >= 0)
+		auto result = deposit
+			? GiftDepositFee(preview.emulation, item)
+			: (fee && *fee >= 0)
 			? FeeResult{ .feeNano = *fee }
 			: FeeResult{ .error = SendError::Failed };
 		if (tonConnect && result.error == SendError::None) {
@@ -9045,7 +9059,11 @@ void Session::previewPrepared(uint64 flight, engine::SendMessageBody body) {
 			finishPreview(flight, FeeResult{ .feeNano = 0 });
 			return;
 		}
-		finishPreview(flight, FeeResult{ .error = SendErrorFrom(error) });
+		finishPreview(flight, FeeResult{
+			.error = (deposit && GiftDepositRejected(error))
+				? SendError::CollectibleRejected
+				: SendErrorFrom(error),
+		});
 	});
 }
 
@@ -9214,7 +9232,7 @@ SendError Session::sendRefusal(
 	}
 	const auto &args = prepared->args;
 	const auto tonConnect = prepared->tonConnect;
-	const auto ordinary = !tonConnect && !prepared->nft;
+	const auto ordinary = !tonConnect && args.collectible.isEmpty();
 	if (!SendCommentFits(args.comment.text)) {
 		return SendError::CommentTooLong;
 	}
@@ -9285,13 +9303,19 @@ void Session::send(
 		std::shared_ptr<const PreparedSend> prepared,
 		Fn<void(SendError)> done,
 		Fn<void(SendStarted)> started) {
-	startSend(
-		std::move(auth),
-		std::move(prepared),
-		std::move(done),
-		std::move(started),
-		nullptr,
-		{});
+	if (!prepared
+		|| prepared->args.payload.isEmpty()
+		|| sendRefusal(prepared, auth) != SendError::None) {
+		startSend(auth, prepared, done, started, nullptr, {});
+		return;
+	}
+	CheckGiftDepositOwner(
+		_api,
+		prepared->identity.address,
+		prepared->args.collectible,
+		_preview->registrations[prepared->owner].lock(),
+		done,
+		[=, this] { startSend(auth, prepared, done, started, nullptr, {}); });
 }
 
 void Session::sendTonConnect(
@@ -9350,7 +9374,7 @@ void Session::startSend(
 	}
 	const auto terms = gaslessTerms();
 	const auto &args = prepared->args;
-	const auto ordinary = !prepared->tonConnect && !prepared->nft;
+	const auto ordinary = !prepared->tonConnect && args.collectible.isEmpty();
 	const auto paired = ordinary
 		&& terms.eligible(args.amountNano, args.destination);
 	const auto linked = !tonConnectLink.operationId.empty();
@@ -9815,7 +9839,8 @@ void Session::submitTransfer(
 		return;
 	}
 	const auto amount = prepared->args.amountNano;
-	const auto ordinary = !prepared->tonConnect && !prepared->nft;
+	const auto ordinary = !prepared->tonConnect
+		&& prepared->args.collectible.isEmpty();
 	if (ordinary
 		&& TransferAmountBelowMinimum(amount, TransferMinNanos(_session))) {
 		refuse(SendError::AmountTooSmall, u"WALLET_TRANSFER_AMOUNT_TOO_SMALL"_q);
@@ -9905,12 +9930,6 @@ void Session::submitTransfer(
 			.message = messageId,
 		};
 		crl::on_main(_session, [=] { report(started); });
-	}
-	DEBUG_LOG(("Wallet Info: wallet.sendTransfer data_normal: %1"
-		).arg(QString::fromLatin1(data.normal.toBase64())));
-	if (data.gasless) {
-		DEBUG_LOG(("Wallet Info: wallet.sendTransfer data_gasless: %1"
-			).arg(QString::fromLatin1(data.gasless->toBase64())));
 	}
 	using Flag = MTPwallet_SendTransfer::Flag;
 	_stateApi.request(MTPwallet_SendTransfer(
