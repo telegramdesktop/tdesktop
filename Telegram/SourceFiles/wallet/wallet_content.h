@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class UserData;
 
+namespace Data {
+struct UniqueGift;
+} // namespace Data
+
 namespace Main {
 class Session;
 class SessionShow;
@@ -170,6 +174,7 @@ void ShowSendToUser(
 struct CollectibleTransfer {
 	QString address;
 	QString slug;
+	std::shared_ptr<Data::UniqueGift> unique;
 	std::shared_ptr<CollectibleMedia> media;
 };
 
@@ -178,7 +183,8 @@ void ShowCollectibleTransfer(
 	std::shared_ptr<Main::SessionShow> show,
 	std::shared_ptr<CollectibleMedia> media,
 	const QString &collectible,
-	const QString &slug = QString());
+	const QString &slug = QString(),
+	std::shared_ptr<Data::UniqueGift> unique = nullptr);
 
 void ShowSendToLinkRecipient(
 	std::shared_ptr<Main::SessionShow> show,

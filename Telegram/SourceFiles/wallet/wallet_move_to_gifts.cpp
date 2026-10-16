@@ -11,13 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_box.h"
 #include "boxes/transfer_gift_box.h"
 #include "chat_helpers/compose/compose_show.h"
-#include "data/data_media_types.h"
-#include "data/data_session.h"
 #include "data/data_star_gift.h"
 #include "data/data_user.h"
 #include "gram/api/gram_api_nft.h"
-#include "history/history.h"
-#include "history/history_item.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h"
 #include "info/peer_gifts/info_peer_gifts_widget.h"
 #include "info/profile/info_profile_values.h"
@@ -149,12 +145,10 @@ private:
 	void sent(SendError error);
 	void keyChanged();
 	void bind(const std::string &operationId);
-	void handOver();
-	void trackFailure();
-	void arm();
-	void arrived(not_null<HistoryItem*> item);
-	void finish(std::shared_ptr<Data::UniqueGift> unique);
-	void disarm();
+	void handOver(bool uncertain);
+	void track();
+	void resolve();
+	void finish();
 	void closing();
 
 	const not_null<Ui::GenericBox*> _box;
@@ -165,13 +159,13 @@ private:
 	const not_null<Session*> _wallet;
 	const std::optional<TransferWalletIdentity> _identity;
 	std::optional<GiftDeposit> _answer;
-	std::shared_ptr<Data::UniqueGift> _arrived;
 	rpl::variable<QString> _refusal;
 	rpl::variable<bool> _pressable = false;
 	std::string _operationId;
 	crl::time _submittedAt = 0;
 	int64 _balance = 0;
 	bool _handedOver = false;
+	bool _uncertain = false;
 	bool _finished = false;
 	bool _closing = false;
 	rpl::lifetime _watch;
@@ -330,26 +324,6 @@ void AccountCard::paintEvent(QPaintEvent *e) {
 		: failed;
 }
 
-[[nodiscard]] std::shared_ptr<Data::UniqueGift> ArrivedGift(
-		not_null<HistoryItem*> item,
-		PeerId self,
-		const QString &slug) {
-	const auto media = item->media();
-	const auto gift = media ? media->gift() : nullptr;
-	const auto unique = gift ? gift->unique : nullptr;
-	if (!item->isService()
-		|| !unique
-		|| !gift->messageFromUniqueAction
-		|| gift->channel
-		|| unique->slug.compare(slug, Qt::CaseInsensitive) != 0) {
-		return nullptr;
-	}
-	const auto peer = item->history()->peer;
-	const auto toSelf = peer->isSelf() || (peer->isUser() && !item->out());
-	const auto owned = !unique->ownerId || (unique->ownerId == self);
-	return (toSelf && owned) ? unique : nullptr;
-}
-
 MoveToGiftsFlow::MoveToGiftsFlow(
 	not_null<Ui::GenericBox*> box,
 	std::shared_ptr<Main::SessionShow> show,
@@ -370,6 +344,7 @@ MoveToGiftsFlow::MoveToGiftsFlow(
 	.started = crl::guard(this, [=](SendStarted value) { started(value); }),
 	.sent = crl::guard(this, [=](SendError error) { sent(error); }),
 }) {
+	Expects(_collectible->unique != nullptr);
 }
 
 rpl::producer<std::optional<int64>> MoveToGiftsFlow::feeValue() const {
@@ -435,7 +410,7 @@ void MoveToGiftsFlow::subscribe() {
 	}, _lifetime);
 	_preparation.sendingValue(
 	) | rpl::filter(!rpl::mappers::_1) | rpl::on_next([=] {
-		disarm();
+		_watch.destroy();
 	}, _lifetime);
 }
 
@@ -511,21 +486,17 @@ void MoveToGiftsFlow::requested(GiftDeposit deposit) {
 }
 
 void MoveToGiftsFlow::press() {
-	if (!_preparation.pressable()) {
-		return;
-	}
-	arm();
 	_preparation.press();
 }
 
 void MoveToGiftsFlow::started(const SendStarted &value) {
 	_submittedAt = crl::now();
+	_handedOver = true;
 	const auto panel = _wallet->panel();
 	if (panel && _box->window() == panel->window()) {
 		_wallet->setWindowSend(value.operationId);
 	}
 	bind(value.operationId);
-	handOver();
 }
 
 void MoveToGiftsFlow::sent(SendError error) {
@@ -539,13 +510,12 @@ void MoveToGiftsFlow::sent(SendError error) {
 				Qt::CaseInsensitive)) {
 			bind(pending->operationId);
 		}
-		handOver();
+		handOver(error == SendError::SubmissionUnknown);
 	} else if (error == SendError::KeyChanged) {
 		keyChanged();
 	} else if (_handedOver) {
 		_preparation.fail(QuietError(error) ? SendError::Failed : error);
 	} else {
-		_arrived = nullptr;
 		_preparation.refused(error);
 	}
 }
@@ -568,76 +538,59 @@ void MoveToGiftsFlow::bind(const std::string &operationId) {
 		return;
 	}
 	_operationId = operationId;
-	if (_handedOver) {
-		trackFailure();
+	if (_uncertain) {
+		track();
 	}
 }
 
-void MoveToGiftsFlow::handOver() {
-	if (_handedOver) {
-		return;
-	}
+void MoveToGiftsFlow::handOver(bool uncertain) {
 	_handedOver = true;
+	_uncertain = uncertain;
 	if (!_submittedAt) {
 		_submittedAt = crl::now();
 	}
-	trackFailure();
-	if (auto unique = base::take(_arrived)) {
-		finish(std::move(unique));
+	// WHY: the gift's service message did not reach the running session in
+	// time to track (only the next launch's dialogs had it), so the move
+	// ends at the accepted submission, as the owner's fallback asks.
+	if (uncertain) {
+		track();
+	} else {
+		finish();
 	}
 }
 
-void MoveToGiftsFlow::trackFailure() {
+void MoveToGiftsFlow::track() {
 	if (_operationId.empty()) {
 		return;
 	}
-	rpl::single(rpl::empty) | rpl::then(
-		_wallet->historyUpdates()
-	) | rpl::filter([=] {
-		const auto item = _wallet->trackedTransaction(_operationId);
-		return item && (item->status == TransferItem::Status::Failure);
-	}) | rpl::on_next([=] {
-		_preparation.fail(SendError::Failed);
+	_wallet->historyUpdates() | rpl::on_next([=] {
+		resolve();
 	}, _watch);
+	resolve();
 }
 
-void MoveToGiftsFlow::arm() {
-	disarm();
-	_session->data().newItemAdded(
-	) | rpl::on_next([=](not_null<HistoryItem*> item) {
-		arrived(item);
-	}, _watch);
-}
-
-void MoveToGiftsFlow::arrived(not_null<HistoryItem*> item) {
-	// WHY: the account learns of the gift only from its service message,
-	// which can land before the core reports the handoff, so a match seen
-	// after the send call waits for that report instead of being lost.
-	if (!_preparation.submitted()) {
+void MoveToGiftsFlow::resolve() {
+	const auto item = _wallet->trackedTransaction(_operationId);
+	if (!item) {
 		return;
-	} else if (auto unique = ArrivedGift(
-			item,
-			_session->userPeerId(),
-			_collectible->slug)) {
-		if (_handedOver) {
-			finish(std::move(unique));
-		} else {
-			_arrived = std::move(unique);
-		}
+	} else if (item->status == TransferItem::Status::Failure) {
+		_preparation.fail(SendError::Failed);
+	} else if (item->status == TransferItem::Status::Success) {
+		finish();
 	}
 }
 
-void MoveToGiftsFlow::finish(std::shared_ptr<Data::UniqueGift> unique) {
-	if (_finished) {
+void MoveToGiftsFlow::finish() {
+	if (_finished || _closing) {
 		return;
 	}
 	_finished = true;
-	LOG(("Wallet Info: gift deposit arrived %1 ms after submission."
+	LOG(("Wallet Info: gift deposit accepted %1 ms after submission start."
 		).arg(crl::now() - _submittedAt));
-	disarm();
+	_watch.destroy();
 	const auto show = _show;
 	const auto weak = _weakSession;
-	const auto sticker = unique->model.document;
+	const auto sticker = _collectible->unique->model.document;
 	const auto view = [=] {
 		const auto strong = weak.get();
 		const auto window = strong ? strong->tryResolveWindow() : nullptr;
@@ -656,14 +609,9 @@ void MoveToGiftsFlow::finish(std::shared_ptr<Data::UniqueGift> unique) {
 	}
 }
 
-void MoveToGiftsFlow::disarm() {
-	_arrived = nullptr;
-	_watch.destroy();
-}
-
 void MoveToGiftsFlow::closing() {
 	_closing = true;
-	disarm();
+	_watch.destroy();
 	_preparation.cancel();
 }
 
@@ -802,7 +750,8 @@ void OpenHeldGiftTransfer(
 		show,
 		std::make_shared<CollectibleMedia>(session),
 		item,
-		unique->slug);
+		unique->slug,
+		unique);
 }
 
 } // namespace
@@ -812,7 +761,7 @@ void AddMoveToMyGiftsRow(
 		std::shared_ptr<Main::SessionShow> show,
 		std::shared_ptr<const CollectibleTransfer> collectible,
 		rpl::producer<bool> hidden) {
-	if (!collectible || collectible->slug.isEmpty()) {
+	if (!collectible || collectible->slug.isEmpty() || !collectible->unique) {
 		return;
 	}
 	const auto wrap = container->add(

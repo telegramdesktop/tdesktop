@@ -16575,7 +16575,8 @@ void ShowCollectibleTransfer(
 		std::shared_ptr<Main::SessionShow> show,
 		std::shared_ptr<CollectibleMedia> media,
 		const QString &collectible,
-		const QString &slug) {
+		const QString &slug,
+		std::shared_ptr<Data::UniqueGift> unique) {
 	if (!show || !show->valid() || !media || collectible.isEmpty()) {
 		return;
 	}
@@ -16593,6 +16594,7 @@ void ShowCollectibleTransfer(
 			std::make_shared<const CollectibleTransfer>(CollectibleTransfer{
 				.address = collectible,
 				.slug = slug,
+				.unique = unique,
 				.media = strong,
 			})));
 	});

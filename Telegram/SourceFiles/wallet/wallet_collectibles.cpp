@@ -388,10 +388,12 @@ void Activate(
 		const auto weak = std::weak_ptr(media);
 		const auto address = item.address;
 		const auto slug = item.key;
+		const auto unique = std::make_shared<
+			std::shared_ptr<Data::UniqueGift>>();
 		auto actions = std::make_shared<::Settings::UniqueGiftCoverActions>();
 		actions->transfer = [=] {
 			if (const auto strong = weak.lock()) {
-				ShowCollectibleTransfer(show, strong, address, slug);
+				ShowCollectibleTransfer(show, strong, address, slug, *unique);
 			}
 		};
 		if (!sellUrl.isEmpty()) {
@@ -417,6 +419,7 @@ void Activate(
 					mismatch ? QString() : sellUrl));
 			},
 			[=](const Data::StarGift &gift) {
+				*unique = gift.unique;
 				return UniqueGiftMatchesAddress(gift.unique, address);
 			},
 			std::move(actions));
