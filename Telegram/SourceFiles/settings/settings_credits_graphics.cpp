@@ -1597,8 +1597,11 @@ void GenericCreditsEntryBox(
 		const Data::SubscriptionEntry &s,
 		CreditsEntryBoxStyleOverrides st,
 		std::shared_ptr<const UniqueGiftCoverActions> actions) {
-	GenericCreditsEntryCover(box, show, e, s, st, std::move(actions));
+	GenericCreditsEntryCover(box, show, e, s, st, actions);
 	GenericCreditsEntryBody(box, show, e, s, nullptr, st);
+	if (actions && actions->aboveButtons && e.uniqueGift) {
+		actions->aboveButtons(box);
+	}
 }
 
 void GenericCreditsEntryBody(

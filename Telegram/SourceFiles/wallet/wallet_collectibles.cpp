@@ -7,18 +7,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "wallet/wallet_collectibles.h"
 
+#include "apiwrap.h"
+#include "base/weak_qptr.h"
+#include "boxes/star_gift_box.h"
 #include "core/local_url_handlers.h"
+#include "data/data_session.h"
 #include "data/data_star_gift.h"
 #include "gram/api/gram_api_nft.h"
+#include "lang/lang_hardcoded.h"
 #include "lang/lang_keys.h"
 #include "main/session/session_show.h"
 #include "main/main_session.h"
+#include "mtproto/mtproto_response.h"
 #include "settings/settings_credits_graphics.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_options.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -379,6 +386,74 @@ void CollectiblePreviewBox(
 	box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
 }
 
+void AddShowInGiftsCheckbox(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Main::SessionShow> show,
+		std::shared_ptr<Data::UniqueGift> unique) {
+	const auto session = &show->session();
+	const auto self = session->userPeerId();
+	const auto slug = unique->slug;
+	const auto &cst = st::walletCollectibleShowCheckbox;
+	const auto checkbox = box->addRow(
+		object_ptr<Ui::Checkbox>(
+			box,
+			tr::lng_wallet_collectible_show_in_gifts(),
+			(unique->hostId == self),
+			cst),
+		st::boxRowPadding + QMargins(
+			cst.checkPosition.x(),
+			cst.margin.top(),
+			0,
+			cst.margin.bottom()),
+		style::al_top);
+	const auto weak = base::make_weak(checkbox);
+	checkbox->checkedChanges(
+	) | rpl::on_next([=](bool checked) {
+		using Notify = Ui::Checkbox::NotifyAboutChange;
+		if (checkbox->isDisabled()) {
+			checkbox->setChecked(!checked, Notify::DontNotify);
+			return;
+		}
+		checkbox->setDisabled(true);
+		const auto restore = [=] {
+			if (const auto strong = weak.get()) {
+				strong->setDisabled(false);
+				strong->setChecked(!checked, Notify::DontNotify);
+			}
+		};
+		using Flag = MTPpayments_DisplayStarGift::Flag;
+		session->api().request(MTPpayments_DisplayStarGift(
+			MTP_flags(checked ? Flag::f_peer : Flag()),
+			checked ? MTP_inputPeerSelf() : MTP_inputPeerEmpty(),
+			MTP_string(slug)
+		)).done([=](const MTPBool &result) {
+			if (!mtpIsTrue(result)) {
+				restore();
+				if (show->valid()) {
+					show->showToast(Lang::Hard::ServerError());
+				}
+				return;
+			}
+			unique->hostId = checked ? self : PeerId();
+			session->data().notifyGiftUpdate({
+				.slug = slug,
+				.action = Data::GiftUpdate::Action::HostChange,
+			});
+			if (const auto strong = weak.get()) {
+				strong->setDisabled(false);
+			}
+		}).fail([=](const MTP::Error &error) {
+			restore();
+			if (MTP::IgnoreError(error) || !show->valid()) {
+				return;
+			}
+			if (!Ui::ShowGiftErrorToast(show, error)) {
+				show->showToast(error.type());
+			}
+		}).send();
+	}, checkbox->lifetime());
+}
+
 void Activate(
 		std::shared_ptr<Main::SessionShow> show,
 		std::shared_ptr<CollectibleMedia> media,
@@ -401,6 +476,11 @@ void Activate(
 				UrlClickHandler::Open(sellUrl);
 			};
 		}
+		actions->aboveButtons = [=](not_null<Ui::GenericBox*> box) {
+			if (const auto gift = *unique) {
+				AddShowInGiftsCheckbox(box, show, gift);
+			}
+		};
 		Core::ResolveAndShowUniqueGift(
 			MakeChatShow(show, false),
 			item.key,

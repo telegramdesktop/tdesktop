@@ -107,6 +107,7 @@ struct GiftUpdate {
 		Unpin,
 		ResaleChange,
 		Upgraded,
+		HostChange,
 	};
 
 	Data::SavedStarGiftId id;

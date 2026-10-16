@@ -446,8 +446,20 @@ void InnerWidget::loadCollections() {
 void InnerWidget::subscribeToUpdates() {
 	_peer->owner().giftUpdates(
 	) | rpl::on_next([=](const Data::GiftUpdate &update) {
-		applyUpdateTo(_all, update);
 		using Action = Data::GiftUpdate::Action;
+		if (update.action == Action::HostChange) {
+			const auto invalidate = [](Entries &entries) {
+				entries.filter = std::nullopt;
+				entries.allLoaded = false;
+			};
+			invalidate(_all);
+			for (auto &[_, entries] : _perCollection) {
+				invalidate(entries);
+			}
+			switchTo(_descriptor.current().collectionId);
+			return;
+		}
+		applyUpdateTo(_all, update);
 		if (update.action == Action::Pin
 			|| update.action == Action::Unpin
 			|| update.action == Action::Delete) {
@@ -683,8 +695,9 @@ void InnerWidget::loadMore() {
 	}).fail([=] {
 		_loadMoreRequestId = 0;
 		_collectionsLoadedCallback = nullptr;
-		_entries->filter = _descriptor.current().filter;
-		_entries->allLoaded = true;
+		if (_entries->filter == _descriptor.current().filter) {
+			_entries->allLoaded = true;
+		}
 	}).send();
 }
 
@@ -708,6 +721,7 @@ void InnerWidget::loaded(const MTPpayments_SavedStarGifts &result) {
 	}
 	if (_entries->filter != filter) {
 		_entries->filter = filter;
+		cancelDragging();
 		_list->clear();
 	}
 	_list->reserve(_list->size() + data.vgifts().v.size());

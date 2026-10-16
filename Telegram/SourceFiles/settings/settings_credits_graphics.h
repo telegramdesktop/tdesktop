@@ -141,6 +141,7 @@ struct CreditsEntryBoxStyleOverrides {
 struct UniqueGiftCoverActions {
 	Fn<void()> transfer;
 	Fn<void()> sell;
+	Fn<void(not_null<Ui::GenericBox*>)> aboveButtons;
 };
 
 [[nodiscard]] rpl::producer<CreditsAmount> UniqueGiftResalePrice(

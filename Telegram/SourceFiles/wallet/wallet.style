@@ -618,6 +618,9 @@ walletCollectibleActionRadius: walletDetailsCollectibleRadius;
 walletCollectibleActionIconTop: 7px;
 walletCollectibleActionTextTop: 32px;
 walletCollectibleActionTextSkip: 8px;
+walletCollectibleShowCheckbox: Checkbox(defaultBoxCheckbox) {
+	width: 0px;
+}
 walletCollectibleCommentField: InputField(walletCommentField) {
 	textMargins: margins(0px, 4px, 0px, 4px);
 	heightMin: 28px;

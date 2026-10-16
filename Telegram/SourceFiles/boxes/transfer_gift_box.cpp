@@ -389,6 +389,13 @@ void MoveToWalletBox(
 		}
 		state->finished = true;
 		state->busy = false;
+		if (keepOnProfile) {
+			session->data().notifyGiftUpdate({
+				.id = savedId,
+				.slug = gift->slug,
+				.action = Data::GiftUpdate::Action::HostChange,
+			});
+		}
 		if (show->valid()) {
 			ShowGiftMovedToast(
 				show,
