@@ -21,7 +21,6 @@ namespace Ui {
 class SubTabs;
 class PopupMenu;
 class VerticalLayout;
-class MultiSlideTracker;
 struct SubTabsReorderUpdate;
 } // namespace Ui
 
@@ -34,6 +33,10 @@ enum class SelectionAction;
 namespace Info::Media {
 class ListWidget;
 } // namespace Info::Media
+
+namespace Info::Profile {
+struct Section;
+} // namespace Info::Profile
 
 namespace Window {
 class SessionNavigation;
@@ -122,10 +125,10 @@ private:
 	void createAboutArchive();
 
 	void startTop();
-	void addArchiveButton(Ui::MultiSlideTracker &tracker);
-	void addRecentButton(Ui::MultiSlideTracker &tracker);
-	void addGiftsButton(Ui::MultiSlideTracker &tracker);
-	void finalizeTop();
+	[[nodiscard]] Profile::Section makeArchiveButton();
+	[[nodiscard]] Profile::Section makeRecentButton();
+	[[nodiscard]] Profile::Section makeGiftsButton();
+	void finalizeTop(bool addAlbumsSkip = true);
 
 	void refreshAlbumsTabs();
 	void showMenuForAlbum(int id);
