@@ -3502,6 +3502,7 @@ void AddDetailsCollectibleHeader(
 		st::walletDetailsCollectibleSize,
 		st::walletDetailsCollectibleSize);
 	artwork->setAttribute(Qt::WA_TransparentForMouseEvents);
+	artwork->show();
 	artwork->paintRequest(
 	) | rpl::on_next([=] {
 		auto p = Painter(artwork);
@@ -3516,6 +3517,7 @@ void AddDetailsCollectibleHeader(
 		container,
 		st::walletCollectibleTitleLabel);
 	name->setAttribute(Qt::WA_TransparentForMouseEvents);
+	name->show();
 	const auto collection = Ui::CreateChild<Ui::AbstractButton>(container);
 	const auto collectionLabel = Ui::CreateChild<Ui::FlatLabel>(
 		collection,
