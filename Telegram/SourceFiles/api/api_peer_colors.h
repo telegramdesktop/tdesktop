@@ -47,6 +47,8 @@ public:
 		uint8 index) const;
 
 	[[nodiscard]] std::vector<uint8> profileColorIndices() const;
+	[[nodiscard]] auto suggestedProfileValue() const
+		-> rpl::producer<std::vector<uint8>>;
 
 private:
 	struct ProfileColorOption {
@@ -69,6 +71,7 @@ private:
 	mtpRequestId _profileRequestId = 0;
 	base::Timer _timer;
 	rpl::variable<std::vector<uint8>> _suggested;
+	rpl::variable<std::vector<uint8>> _profileSuggested;
 	base::flat_map<uint8, int> _requiredLevelsGroup;
 	base::flat_map<uint8, int> _requiredLevelsChannel;
 	rpl::event_stream<> _colorIndicesChanged;

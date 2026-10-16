@@ -601,6 +601,28 @@ peerQrMenuTimerOff: icon {{ "menu/timer_off-24x24", menuIconColor }};
 peerQrMenuAboutFont: font(12px);
 peerQrToastTimer: icon {{ "menu/timer", toastFg }};
 peerQrToastCheck: icon {{ "toast/check", toastFg }};
+peerQrWaveOvershoot: 71px;
+peerQrWaveGlowFrom: 107px;
+peerQrWaveGlowTill: 67px;
+peerQrWaveBlend: 190px;
+peerQrColors: IconButton(peerQrButton) {
+	width: 48px;
+	icon: icon {{ "menu/colors", windowFg }};
+	iconOver: icon {{ "menu/colors", windowFg }};
+	rippleAreaPosition: point(4px, 0px);
+}
+peerQrPanelMargin: 10px;
+peerQrPanelPadding: 11px;
+peerQrPanelRadius: 24px;
+peerQrPanelFade: 14px;
+peerQrPanelSkip: 12px;
+peerQrPanelScroll: ScrollArea(defaultScrollArea) {
+	barHidden: true;
+}
+peerQrSwatchSkip: 12px;
+peerQrSwatchRing: 2px;
+peerQrSwatchRingInset: 6px;
+peerQrSwatchRise: 8px;
 
 foldersMenu: PopupMenu(popupMenuWithIcons) {
 	maxHeight: 320px;

@@ -230,6 +230,17 @@ PeerQrPill::PeerQrPill(not_null<QWidget*> parent, PeerQrColors colors)
 
 PeerQrPill::~PeerQrPill() = default;
 
+void PeerQrPill::setColors(PeerQrColors colors) {
+	if (_colors == colors) {
+		return;
+	}
+	_colors = std::move(colors);
+	_feeStar = PrepareStarBox(_colors.foreground, false);
+	_crossedInk = PrepareStarBox(_colors.ink, true);
+	_crossedForeground = PrepareStarBox(_colors.foreground, true);
+	update();
+}
+
 void PeerQrPill::setPillPosition(int centerX, int top) {
 	const auto above = ExtendAbove();
 	_centerX = centerX;

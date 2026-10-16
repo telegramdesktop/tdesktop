@@ -15,9 +15,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_wall_paper.h"
 #include "info/profile/info_profile_free_codes.h"
+#include "info/profile/info_profile_share_theme.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
 #include "settings/settings_common.h"
+#include "ui/effects/peer_qr_colors_panel.h"
 #include "ui/effects/peer_qr_pill.h"
 #include "ui/effects/peer_qr_surface.h"
 #include "ui/effects/radial_animation.h"
@@ -72,6 +74,29 @@ struct FreeCodesState {
 	base::weak_ptr<Toast::Instance> toast;
 };
 
+class PeerQrButton;
+
+struct AppearanceState {
+	PeerQrColorsPanel *panel = nullptr;
+	PeerQrButton *island = nullptr;
+	std::vector<PeerQrSwatch> swatches;
+	std::optional<PeerQrThemeKey> current;
+	std::optional<PeerQrThemeKey> served;
+	std::optional<PeerQrThemeKey> chosen;
+	std::optional<PeerQrThemeKey> saving;
+	std::optional<Info::Profile::QrServedTheme> pending;
+	bool canSave = false;
+	bool shown = false;
+	float64 progress = 0.;
+};
+
+struct OpenLayout {
+	QRect panel;
+	QPointF card;
+	float64 scale = 1.;
+	int pillTop = 0;
+};
+
 struct BoxState {
 	QString link;
 	QString plainLink;
@@ -79,8 +104,10 @@ struct BoxState {
 	QImage image;
 	QString imageLink;
 	QString imageUsername;
+	PeerQrAppearance imageAppearance;
 	base::weak_qptr<BoxContent> shareBox;
 	FreeCodesState free;
+	AppearanceState appearance;
 	bool rendering = false;
 };
 
@@ -162,15 +189,14 @@ void PeerQrButton::setBusy(bool busy) {
 }
 
 void PeerQrButton::paintEvent(QPaintEvent *e) {
-	const auto disc = QRect(
-		st().rippleAreaPosition,
-		QSize(st().rippleAreaSize, st().rippleAreaSize));
+	const auto disc = rect();
 	{
 		auto p = QPainter(this);
 		auto hq = PainterHighQualityEnabler(p);
+		const auto radius = disc.height() / 2.;
 		p.setPen(Qt::NoPen);
 		p.setBrush(_disc);
-		p.drawEllipse(disc);
+		p.drawRoundedRect(disc, radius, radius);
 		if (_busy) {
 			const auto &loading = st::peerQrButtonLoading;
 			const auto size = loading.size;
@@ -329,8 +355,9 @@ int AboutAction::contentHeight() const {
 		const style::IconButton &st,
 		const QString &name) {
 	const auto result = CreateChild<PeerQrButton>(surface.get(), st);
-	const auto &colors = surface->colors();
-	result->setColors(colors.control, colors.foreground);
+	surface->colorsValue() | rpl::on_next([=](const PeerQrColors &colors) {
+		result->setColors(colors.control, colors.foreground);
+	}, result->lifetime());
 	result->setAccessibleName(name);
 	return result;
 }
@@ -339,7 +366,9 @@ int AboutAction::contentHeight() const {
 		not_null<PeerQrSurface*> surface,
 		const style::FlatLabel &st) {
 	const auto result = CreateChild<FlatLabel>(surface.get(), st);
-	result->setTextColorOverride(surface->colors().foreground);
+	surface->colorsValue() | rpl::on_next([=](const PeerQrColors &colors) {
+		result->setTextColorOverride(colors.foreground);
+	}, result->lifetime());
 	return result;
 }
 
@@ -353,7 +382,8 @@ void RenderCardImage(
 		return;
 	} else if (!state->image.isNull()
 		&& state->imageLink == state->link
-		&& state->imageUsername == state->username) {
+		&& state->imageUsername == state->username
+		&& state->imageAppearance == surface->appearance()) {
 		done(state->image);
 		return;
 	}
@@ -361,6 +391,7 @@ void RenderCardImage(
 	button->setBusy(true);
 	const auto link = state->link;
 	const auto username = state->username;
+	const auto appearance = surface->appearance();
 	const auto weak = base::make_weak(box);
 	crl::async([=, args = surface->prepareImage()]() mutable {
 		auto image = RenderPeerQrImage(std::move(args));
@@ -370,6 +401,7 @@ void RenderCardImage(
 			state->image = image;
 			state->imageLink = link;
 			state->imageUsername = username;
+			state->imageAppearance = appearance;
 			done(image);
 		});
 	});
@@ -474,6 +506,9 @@ void SetupFreeCodes(
 		surface.get(),
 		surface->colors());
 	free->pill = pill;
+	surface->colorsValue() | rpl::on_next([=](PeerQrColors colors) {
+		pill->setColors(std::move(colors));
+	}, pill->lifetime());
 
 	const auto applyLink = [=](const QString &link) {
 		state->link = link;
@@ -675,6 +710,217 @@ void SetupFreeCodes(
 	});
 }
 
+[[nodiscard]] OpenLayout ComputeOpenLayout(QSize outer, QSize card) {
+	const auto margin = st::peerQrPanelMargin;
+	const auto width = outer.width() - 2 * margin;
+	const auto height = PeerQrColorsPanel::HeightForWidth(width);
+	const auto panel = QRect(
+		margin,
+		outer.height() - margin - height,
+		width,
+		height);
+	const auto pillTop = panel.y()
+		- st::peerQrPanelSkip
+		- st::peerQrPillHeight;
+	const auto bottom = pillTop - st::peerQrPillSkip;
+	const auto edge = st::peerQrButtonSkip;
+	const auto &close = st::peerQrClose;
+	const auto scaleFor = [&](int top) {
+		return std::clamp((bottom - top) / float64(card.height()), 0., 1.);
+	};
+	auto scale = scaleFor(edge);
+	if ((outer.width() + card.width() * scale) / 2. + st::peerQrPanelSkip
+		> outer.width() - edge - close.width) {
+		scale = scaleFor(edge + close.height + st::peerQrPanelSkip);
+	}
+	return {
+		.panel = panel,
+		.card = QPointF(
+			(outer.width() - card.width() * scale) / 2.,
+			bottom - card.height() * scale),
+		.scale = scale,
+		.pillTop = pillTop,
+	};
+}
+
+[[nodiscard]] const PeerQrSwatch *FindSwatch(
+		const std::vector<PeerQrSwatch> &swatches,
+		PeerQrThemeKey key) {
+	const auto i = ranges::find(swatches, key, &PeerQrSwatch::key);
+	return (i != end(swatches)) ? &*i : nullptr;
+}
+
+void ApplyServedTheme(
+		not_null<PeerQrSurface*> surface,
+		not_null<AppearanceState*> appearance,
+		const Info::Profile::QrServedTheme &theme,
+		anim::type animated) {
+	const auto &swatch = theme.swatch;
+	const auto ring = (swatch.key.type == PeerQrThemeKey::Type::Other)
+		? std::optional<PeerQrThemeKey>()
+		: swatch.key;
+	appearance->current = ring;
+	surface->setAppearance(
+		(swatch.appearance.empty()
+			? DefaultAppearance()
+			: swatch.appearance),
+		animated);
+	appearance->panel->setSelected(ring, animated);
+}
+
+void SaveAppearance(
+		not_null<GenericBox*> box,
+		not_null<AppearanceState*> appearance,
+		not_null<PeerData*> peer) {
+	const auto key = appearance->chosen;
+	const auto baseline = appearance->saving
+		? appearance->saving
+		: appearance->served;
+	if (!key || !appearance->canSave || key == baseline) {
+		return;
+	}
+	const auto clear = [=] {
+		if (appearance->saving == key) {
+			appearance->saving = std::nullopt;
+		}
+	};
+	const auto reset = crl::guard(box, clear);
+	const auto show = box->uiShow();
+	appearance->saving = key;
+	// WHY: a pick only previews, so browsing the circles sends nothing;
+	// the choice is saved once, when the panel or the box closes.
+	Info::Profile::SaveQrTheme(peer, *key, crl::guard(box, [=] {
+		clear();
+		appearance->served = key;
+	}), [=](QString error) {
+		reset();
+		if (!error.isEmpty()) {
+			show->showToast(error);
+		}
+	});
+}
+
+void SetupAppearance(
+		not_null<GenericBox*> box,
+		not_null<PeerQrSurface*> surface,
+		not_null<BoxState*> state,
+		not_null<PeerData*> peer,
+		not_null<PeerQrButton*> copy,
+		PeerQrButton *share) {
+	const auto appearance = &state->appearance;
+	const auto island = AddButton(
+		surface,
+		st::peerQrColors,
+		tr::lng_qr_box_colors(tr::now));
+	const auto panel = CreateChild<PeerQrColorsPanel>(surface.get());
+	appearance->island = island.get();
+	appearance->panel = panel;
+
+	surface->colorsValue() | rpl::on_next([=](const PeerQrColors &colors) {
+		panel->setColors(colors);
+	}, panel->lifetime());
+
+	Info::Profile::QrThemeSwatchesValue(
+		&peer->session()
+	) | rpl::on_next([=](std::vector<PeerQrSwatch> &&swatches) {
+		swatches.insert(begin(swatches), PeerQrSwatch{
+			.appearance = DefaultAppearance(),
+		});
+		const auto current = appearance->current;
+		const auto reapply = current
+			&& (current->type == PeerQrThemeKey::Type::Color)
+			&& FindSwatch(appearance->swatches, *current);
+		appearance->swatches = std::move(swatches);
+		if (reapply) {
+			if (const auto now = FindSwatch(appearance->swatches, *current)) {
+				surface->setAppearance(now->appearance, anim::type::instant);
+			}
+		}
+		panel->setSwatches(appearance->swatches);
+	}, box->lifetime());
+
+	Info::Profile::QrServedThemeValue(
+		peer
+	) | rpl::on_next([=](Info::Profile::QrServedTheme &&theme) {
+		appearance->served = theme.swatch.key;
+		if (appearance->chosen) {
+			return;
+		} else if (theme.kept || appearance->shown) {
+			ApplyServedTheme(
+				surface,
+				appearance,
+				theme,
+				theme.kept ? anim::type::instant : anim::type::normal);
+		} else {
+			appearance->pending = std::move(theme);
+		}
+	}, box->lifetime());
+
+	Info::Profile::QrThemeCanSaveValue(peer) | rpl::on_next([=](bool can) {
+		appearance->canSave = can;
+	}, box->lifetime());
+
+	panel->picks() | rpl::on_next([=](PeerQrThemeKey key) {
+		if (const auto swatch = FindSwatch(appearance->swatches, key)) {
+			appearance->chosen = key;
+			appearance->current = key;
+			appearance->pending = std::nullopt;
+			surface->setAppearance(swatch->appearance, anim::type::normal);
+			panel->setSelected(key, anim::type::normal);
+		}
+	}, box->lifetime());
+
+	const auto setSideShown = [=](bool shown) {
+		copy->setVisible(shown);
+		if (share) {
+			share->setVisible(shown);
+		}
+		island->setVisible(shown);
+	};
+	const auto toggle = [=](bool shown) {
+		if (panel->toggled() == shown) {
+			return;
+		} else if (shown) {
+			setSideShown(false);
+			box->setCloseByEscape(false);
+		}
+		panel->toggle(shown, anim::type::normal);
+		if (!shown) {
+			SaveAppearance(box, appearance, peer);
+		}
+	};
+	island->setClickedCallback([=] {
+		toggle(true);
+	});
+	rpl::merge(
+		surface->events() | rpl::filter([](not_null<QEvent*> e) {
+			return (e->type() == QEvent::MouseButtonPress);
+		}) | rpl::to_empty,
+		box->events() | rpl::filter([](not_null<QEvent*> e) {
+			return (e->type() == QEvent::KeyPress)
+				&& (static_cast<QKeyEvent*>(e.get())->key() == Qt::Key_Escape);
+		}) | rpl::to_empty,
+		panel->outsidePresses()
+	) | rpl::on_next([=] {
+		toggle(false);
+	}, box->lifetime());
+	panel->shownValue() | rpl::filter([](bool shown) {
+		return !shown;
+	}) | rpl::on_next([=] {
+		// the Escape that closes the panel must not reach the layer as well
+		PostponeCall(box, [=] {
+			if (!panel->toggled()) {
+				box->setCloseByEscape(true);
+			}
+		});
+		setSideShown(true);
+	}, box->lifetime());
+
+	box->boxClosing() | rpl::on_next([=] {
+		SaveAppearance(box, appearance, peer);
+	}, box->lifetime());
+}
+
 } // namespace
 
 void FillPeerQrBox(
@@ -725,6 +971,7 @@ void FillPeerQrBox(
 	}
 
 	if (peerBox) {
+		SetupAppearance(box, surface, state, peer, copy, share);
 		Info::Profile::UsernameValue(
 			peer,
 			true
@@ -760,9 +1007,7 @@ void FillPeerQrBox(
 			cardWidth,
 			PeerQrCardHeight(cardWidth, peerBox));
 		auto bottom = card.y() + card.height();
-		if (const auto pill = state->free.pill) {
-			pill->setPillPosition(width / 2, bottom + st::peerQrPillSkip);
-		}
+		auto pillTop = float64(bottom + st::peerQrPillSkip);
 		if (peerBox) {
 			bottom += st::peerQrPillSkip + st::peerQrPillHeight;
 		}
@@ -775,6 +1020,7 @@ void FillPeerQrBox(
 			bottom += st::peerQrPillSkip + aboutLabel->height();
 		}
 		const auto rowTop = bottom + st::peerQrCardSkip;
+		const auto height = rowTop + copy->height() + skip;
 		close->moveToRight(skip, skip, width);
 		copy->moveToLeft(skip, rowTop, width);
 		if (share) {
@@ -790,7 +1036,29 @@ void FillPeerQrBox(
 				width);
 		}
 		surface->setCardGeometry(card);
-		surface->resize(width, rowTop + copy->height() + skip);
+		surface->resize(width, height);
+		if (const auto panel = state->appearance.panel) {
+			const auto island = state->appearance.island;
+			const auto open = ComputeOpenLayout(
+				QSize(width, height),
+				card.size());
+			const auto progress = state->appearance.progress;
+			const auto lerp = [&](float64 from, float64 till) {
+				return from + (till - from) * progress;
+			};
+			island->moveToLeft((width - island->width()) / 2, rowTop, width);
+			panel->setGeometry(open.panel);
+			panel->setIslandRect(island->geometry());
+			surface->setCardPlacement(
+				QPointF(
+					lerp(card.x(), open.card.x()),
+					lerp(card.y(), open.card.y())),
+				lerp(1., open.scale));
+			pillTop = lerp(pillTop, open.pillTop);
+		}
+		if (const auto pill = state->free.pill) {
+			pill->setPillPosition(width / 2, int(std::round(pillTop)));
+		}
 	};
 	if (titleLabel) {
 		std::move(title) | rpl::on_next([=](const QString &text) {
@@ -806,6 +1074,12 @@ void FillPeerQrBox(
 		}, aboutLabel->lifetime());
 	}
 	surface->widthValue() | rpl::on_next(relayout, surface->lifetime());
+	if (const auto panel = state->appearance.panel) {
+		panel->progressValue() | rpl::on_next([=](float64 progress) {
+			state->appearance.progress = progress;
+			relayout();
+		}, box->lifetime());
+	}
 
 	close->setClickedCallback([=] {
 		box->closeBox();
@@ -814,7 +1088,9 @@ void FillPeerQrBox(
 		return state->free.requesting || RefuseExpiring(surface, state);
 	};
 	const auto dropRendered = [=] {
-		return refuseImage() || (state->imageLink != state->link);
+		return refuseImage()
+			|| (state->imageLink != state->link)
+			|| (state->imageAppearance != surface->appearance());
 	};
 	copy->setClickedCallback([=] {
 		if (refuseImage()) {
@@ -859,6 +1135,11 @@ void FillPeerQrBox(
 	box->showFinishes(
 	) | rpl::take(1) | rpl::on_next([=] {
 		surface->startAnimations();
+		auto &appearance = state->appearance;
+		appearance.shown = true;
+		if (const auto pending = base::take(appearance.pending)) {
+			ApplyServedTheme(surface, &appearance, *pending, anim::type::normal);
+		}
 		const auto strong = weakController.get();
 		if (share && strong) {
 			strong->checkHighlightControl(

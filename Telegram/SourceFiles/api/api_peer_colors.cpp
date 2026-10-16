@@ -218,7 +218,7 @@ void PeerColors::applyProfile(const MTPDhelp_peerColors &data) {
 		});
 	};
 
-	auto suggested = std::vector<Data::ColorProfileData>();
+	auto suggested = std::vector<uint8>();
 	const auto &list = data.vcolors().v;
 	suggested.reserve(list.size());
 	for (const auto &color : list) {
@@ -231,6 +231,9 @@ void PeerColors::applyProfile(const MTPDhelp_peerColors &data) {
 		const auto colorIndex = uint8(colorIndexBare);
 		auto result = ProfileColorOption();
 		result.isHidden = data.is_hidden();
+		if (!result.isHidden) {
+			suggested.push_back(colorIndex);
+		}
 		if (const auto min = data.vgroup_min_level()) {
 			result.requiredLevelsGroup = min->v;
 		}
@@ -245,6 +248,7 @@ void PeerColors::applyProfile(const MTPDhelp_peerColors &data) {
 		}
 		_profileColors[colorIndex] = std::move(result);
 	}
+	_profileSuggested = std::move(suggested);
 }
 
 std::optional<Data::ColorProfileSet> PeerColors::colorProfileFor(
@@ -273,6 +277,11 @@ std::vector<uint8> PeerColors::profileColorIndices() const {
 		result.push_back(index);
 	}
 	return result;
+}
+
+auto PeerColors::suggestedProfileValue() const
+-> rpl::producer<std::vector<uint8>> {
+	return _profileSuggested.value();
 }
 
 } // namespace Api

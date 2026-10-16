@@ -7087,6 +7087,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_no_paid_token_toast_restored" = "Message fee restored";
 "lng_no_paid_token_toast_expired" = "Code expired, fee is back";
 "lng_no_paid_token_toast_expiring" = "This code is about to expire.";
+"lng_qr_box_colors" = "Colors";
 
 "lng_exceptions_list_title" = "Exceptions";
 "lng_removed_list_title" = "Removed users";

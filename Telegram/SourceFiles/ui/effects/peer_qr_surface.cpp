@@ -31,7 +31,20 @@ constexpr auto kForegroundContrast = 4.5;
 constexpr auto kInkChromaScale = 1.25;
 constexpr auto kInkChromaAdd = 0.02;
 constexpr auto kInkChromaMax = 0.20;
-constexpr auto kControlAlpha = 0.35;
+constexpr auto kDarkInkGlassAlpha = 0.35;
+constexpr auto kWhiteGlyphGlassAlpha = 0.12;
+constexpr auto kWhiteGlyphContrast = 3.;
+constexpr auto kGradientRadiusRatio = 0.62;
+constexpr auto kGradientMiddleStop = 0.55;
+constexpr auto kGradientMiddleMix = 0.5;
+constexpr auto kSoftLightMix = 0.22;
+constexpr auto kSoftLightAlpha = 0.35;
+constexpr auto kAccentLightHueShift = 28.;
+constexpr auto kAccentLightAlpha = 0.25;
+constexpr auto kLightReach = 0.5;
+constexpr auto kLightOrbit = 0.22;
+constexpr auto kLightsAngle = 135.;
+constexpr auto kLightsSpeed = 10.;
 constexpr auto kShadowAlpha = 0.13;
 constexpr auto kImageScale = 4;
 constexpr auto kQrOversample = 2;
@@ -74,6 +87,10 @@ constexpr auto kBouncePeak = 1.03;
 constexpr auto kBounceTrough = 0.995;
 constexpr auto kBouncePeakAt = 0.25;
 constexpr auto kBounceTroughAt = 0.6;
+constexpr auto kWaveDuration = crl::time(600);
+constexpr auto kWavePower = 2.4;
+constexpr auto kWaveGlowAlpha = 0.38;
+constexpr auto kWaveTintMix = 0.55;
 constexpr auto kFinderSize = 7;
 
 struct CardLayout {
@@ -130,6 +147,11 @@ struct BackgroundRequest {
 	float64 patternOpacity = 0.;
 	float64 progress = 1.;
 	int rotation = 0;
+	QColor center;
+	QColor edge;
+	QPointF gradientCenter;
+	float64 gradientRadius = 0.;
+	float64 lightsAngle = 0.;
 };
 
 [[nodiscard]] QColor SolveLightness(
@@ -151,6 +173,67 @@ struct BackgroundRequest {
 	return FromLch(from, chroma, hue);
 }
 
+[[nodiscard]] QColor MixLab(
+		const QColor &a,
+		const QColor &b,
+		float64 ratio) {
+	const auto mix = [&](float64 from, float64 till) {
+		return from + (till - from) * ratio;
+	};
+	const auto from = ToLab(a);
+	const auto till = ToLab(b);
+	const auto lab = Lab{
+		.lightness = mix(from.lightness, till.lightness),
+		.a = mix(from.a, till.a),
+		.b = mix(from.b, till.b),
+	};
+	auto result = FromLch(lab.lightness, Chroma(lab), Hue(lab));
+	result.setAlphaF(mix(a.alphaF(), b.alphaF()));
+	return result;
+}
+
+[[nodiscard]] QColor MeanLab(const std::vector<QColor> &colors) {
+	Expects(!colors.empty());
+
+	auto sum = Lab();
+	for (const auto &color : colors) {
+		const auto lab = ToLab(color);
+		sum.lightness += lab.lightness;
+		sum.a += lab.a;
+		sum.b += lab.b;
+	}
+	const auto count = float64(colors.size());
+	const auto mean = Lab{
+		.lightness = sum.lightness / count,
+		.a = sum.a / count,
+		.b = sum.b / count,
+	};
+	return FromLch(mean.lightness, Chroma(mean), Hue(mean));
+}
+
+[[nodiscard]] PeerQrColors MixColors(
+		const PeerQrColors &a,
+		const PeerQrColors &b,
+		float64 ratio) {
+	return {
+		.ink = MixLab(a.ink, b.ink, ratio),
+		.foreground = MixLab(a.foreground, b.foreground, ratio),
+		.control = MixLab(a.control, b.control, ratio),
+	};
+}
+
+[[nodiscard]] QColor ComputeWaveTint(const PeerQrAppearance &appearance) {
+	const auto lightness = [](const QColor &color) {
+		return ToLab(color).lightness;
+	};
+	const auto center = appearance.center.isValid()
+		? appearance.center
+		: appearance.colors.empty()
+		? appearance.edge
+		: *ranges::max_element(appearance.colors, ranges::less(), lightness);
+	return MixLab(center, QColor(255, 255, 255), kWaveTintMix);
+}
+
 [[nodiscard]] PeerQrColors ComputePeerQrColors(
 		const PeerQrAppearance &appearance) {
 	const auto white = QColor(255, 255, 255);
@@ -159,21 +242,41 @@ struct BackgroundRequest {
 	const auto chroma = std::min(
 		Chroma(edge) * kInkChromaScale + kInkChromaAdd,
 		kInkChromaMax);
+	const auto colored = appearance.center.isValid();
+	const auto reference = colored
+		? MixLab(appearance.center, appearance.edge, kGradientMiddleMix)
+		: appearance.colors.empty()
+		? appearance.edge
+		: MeanLab(appearance.colors);
+	const auto stops = colored
+		? std::vector{ appearance.center, reference, appearance.edge }
+		: appearance.colors;
 	const auto darkness = [&](const QColor &color) {
 		return CountContrast(color, white);
 	};
-	const auto darkest = appearance.colors.empty()
+	const auto darkest = stops.empty()
 		? appearance.edge
-		: *ranges::max_element(appearance.colors, ranges::less(), darkness);
+		: *ranges::max_element(stops, ranges::less(), darkness);
+	const auto dark = SolveLightness(
+		hue,
+		chroma,
+		darkest,
+		kForegroundContrast);
+	const auto glass = [&](float64 alpha) {
+		return anim::color(reference, white, alpha);
+	};
+	const auto whiteContrast = CountContrast(
+		white,
+		glass(kWhiteGlyphGlassAlpha));
+	const auto whiteGlyphs = (whiteContrast >= kWhiteGlyphContrast)
+		|| (whiteContrast >= CountContrast(dark, glass(kDarkInkGlassAlpha)));
 	auto control = white;
-	control.setAlphaF(kControlAlpha);
+	control.setAlphaF(whiteGlyphs
+		? kWhiteGlyphGlassAlpha
+		: kDarkInkGlassAlpha);
 	return {
 		.ink = SolveLightness(hue, chroma, white, kInkContrast),
-		.foreground = SolveLightness(
-			hue,
-			chroma,
-			darkest,
-			kForegroundContrast),
+		.foreground = whiteGlyphs ? white : dark,
 		.control = control,
 	};
 }
@@ -353,16 +456,100 @@ struct BackgroundRequest {
 		: result.scaledToHeight(height, Qt::SmoothTransformation);
 }
 
+void PaintAppearanceGradient(
+		QPainter &p,
+		const QRect &rect,
+		QPointF center,
+		float64 radius,
+		const QColor &centerColor,
+		const QColor &edgeColor) {
+	auto gradient = QRadialGradient(center, radius);
+	gradient.setStops({
+		{ 0., centerColor },
+		{
+			kGradientMiddleStop,
+			MixLab(centerColor, edgeColor, kGradientMiddleMix),
+		},
+		{ 1., edgeColor },
+	});
+	p.fillRect(rect, gradient);
+}
+
+void PaintAppearanceLights(
+		QPainter &p,
+		const QRect &rect,
+		QPointF center,
+		float64 radius,
+		const QColor &centerColor,
+		float64 angle) {
+	const auto radians = angle * M_PI / 180.;
+	const auto orbit = QPointF(std::cos(radians), -std::sin(radians))
+		* (kLightOrbit * radius);
+	const auto reach = kLightReach * radius;
+	const auto paintLight = [&](
+			QPointF position,
+			QColor color,
+			float64 alpha) {
+		auto transparent = color;
+		transparent.setAlpha(0);
+		color.setAlphaF(alpha);
+		auto gradient = QRadialGradient(position, reach);
+		gradient.setStops({ { 0., color }, { 1., transparent } });
+		const auto bounds = QRectF(
+			position - QPointF(reach, reach),
+			QSizeF(2. * reach, 2. * reach));
+		p.fillRect(bounds.intersected(QRectF(rect)), gradient);
+	};
+	const auto lab = ToLab(centerColor);
+	paintLight(
+		center + orbit,
+		MixLab(centerColor, QColor(255, 255, 255), kSoftLightMix),
+		kSoftLightAlpha);
+	paintLight(
+		center - orbit,
+		FromLch(
+			lab.lightness,
+			Chroma(lab),
+			Hue(lab) + kAccentLightHueShift),
+		kAccentLightAlpha);
+}
+
+[[nodiscard]] QImage ComposeColorBackground(
+		const BackgroundRequest &request) {
+	auto result = QImage(request.size, QImage::Format_ARGB32_Premultiplied);
+	auto p = QPainter(&result);
+	const auto rect = QRect(QPoint(), request.size);
+	PaintAppearanceGradient(
+		p,
+		rect,
+		request.gradientCenter,
+		request.gradientRadius,
+		request.center,
+		request.edge);
+	PaintAppearanceLights(
+		p,
+		rect,
+		request.gradientCenter,
+		request.gradientRadius,
+		request.center,
+		request.lightsAngle);
+	p.end();
+	return result;
+}
+
 [[nodiscard]] QImage ComposeBackground(const BackgroundRequest &request) {
-	if (request.size.isEmpty() || request.colors.empty()) {
+	const auto colored = request.center.isValid();
+	if (request.size.isEmpty() || (!colored && request.colors.empty())) {
 		return QImage();
 	}
-	auto result = Images::GenerateGradient(
-		request.size,
-		request.colors,
-		request.rotation,
-		float(request.progress));
-	if (!request.pattern.isNull()) {
+	auto result = colored
+		? ComposeColorBackground(request)
+		: Images::GenerateGradient(
+			request.size,
+			request.colors,
+			request.rotation,
+			float(request.progress));
+	if (!colored && !request.pattern.isNull()) {
 		auto p = QPainter(&result);
 		p.setCompositionMode(QPainter::CompositionMode_SoftLight);
 		p.setOpacity(request.patternOpacity);
@@ -383,6 +570,59 @@ struct BackgroundRequest {
 	return request.corners.front().isNull()
 		? result
 		: Images::Round(std::move(result), request.corners);
+}
+
+[[nodiscard]] float64 FarthestCorner(QPointF center, QSizeF size) {
+	return std::hypot(
+		std::max(center.x(), size.width() - center.x()),
+		std::max(center.y(), size.height() - center.y()));
+}
+
+[[nodiscard]] float64 WaveRadius(float64 farthest, float64 progress) {
+	return (farthest + st::peerQrWaveOvershoot)
+		* (1. - std::pow(1. - progress, kWavePower));
+}
+
+void PaintWaveGlow(
+		QPainter &p,
+		const QRect &rect,
+		QPointF center,
+		float64 radius,
+		float64 progress,
+		const QColor &tint) {
+	const auto alpha = kWaveGlowAlpha * (1. - progress);
+	const auto half = (st::peerQrWaveGlowFrom
+		+ (st::peerQrWaveGlowTill - st::peerQrWaveGlowFrom) * progress) / 2.;
+	if (radius <= 0. || alpha <= 0. || half <= 0.) {
+		return;
+	}
+	const auto outer = radius + half;
+	auto transparent = tint;
+	transparent.setAlpha(0);
+	auto peak = tint;
+	peak.setAlphaF(alpha);
+	auto stops = QGradientStops();
+	if (radius > half) {
+		stops.push_back({ (radius - half) / outer, transparent });
+	} else {
+		auto inner = tint;
+		inner.setAlphaF(alpha * (1. - radius / half));
+		stops.push_back({ 0., inner });
+	}
+	stops.push_back({ radius / outer, peak });
+	stops.push_back({ 1., transparent });
+	auto gradient = QRadialGradient(center, outer);
+	gradient.setStops(stops);
+	const auto bounds = QRectF(
+		center - QPointF(outer, outer),
+		QSizeF(2. * outer, 2. * outer));
+	auto rounded = QPainterPath();
+	rounded.addRoundedRect(QRectF(rect), st::boxRadius, st::boxRadius);
+	auto hq = PainterHighQualityEnabler(p);
+	p.save();
+	p.setClipPath(rounded);
+	p.fillRect(bounds.intersected(QRectF(rect)), gradient);
+	p.restore();
 }
 
 [[nodiscard]] PlaneState ComputePlaneState(
@@ -696,6 +936,7 @@ struct PeerQrSurface::Card {
 	CardLayout layout;
 	CardContent content;
 	std::optional<QrSwap> swap;
+	QImage qrMask;
 };
 
 int PeerQrCardHeight(int cardWidth, bool withUsername) {
@@ -737,13 +978,22 @@ QImage RenderPeerQrImage(PeerQrImageArgs args) {
 		.lines = std::move(args.usernameLines),
 	};
 	const auto margin = QSize(2 * args.margin, 2 * args.margin);
+	const auto size = layout.size + margin;
+	const auto card = QRectF(
+		QPointF(args.margin, args.margin),
+		QSizeF(layout.size));
+	const auto &appearance = args.appearance;
 	auto result = ComposeBackground({
-		.colors = args.appearance.colors,
-		.pattern = ReadPattern(
-			args.appearance.patternPath,
-			args.patternHeight),
-		.size = layout.size + margin,
-		.patternOpacity = args.appearance.patternOpacity,
+		.colors = appearance.colors,
+		.pattern = ReadPattern(appearance.patternPath, args.patternHeight),
+		.size = size,
+		.patternOpacity = appearance.patternOpacity,
+		.center = appearance.center,
+		.edge = appearance.edge,
+		.gradientCenter = card.center(),
+		.gradientRadius = kGradientRadiusRatio
+			* std::hypot(size.width(), size.height()),
+		.lightsAngle = kLightsAngle,
 	});
 	if (!result.isNull()) {
 		auto p = QPainter(&result);
@@ -759,6 +1009,7 @@ PeerQrSurface::PeerQrSurface(
 : RpWidget(parent)
 , _appearance(std::move(appearance))
 , _colors(ComputePeerQrColors(_appearance))
+, _shownColors(_colors)
 , _card(std::make_unique<Card>())
 , _corners(Images::CornersMask(st::boxRadius))
 , _animation([=](crl::time now) { return animationCallback(now); }) {
@@ -811,9 +1062,57 @@ void PeerQrSurface::setUsername(const QString &username) {
 
 void PeerQrSurface::setCardGeometry(QRect card) {
 	if (_cardGeometry != card) {
+		const auto moved = (_cardGeometry.center() != card.center());
 		_cardGeometry = card;
 		refreshCard();
+		if (moved && _appearance.center.isValid()) {
+			composeNow();
+		}
 	}
+}
+
+void PeerQrSurface::setCardPlacement(QPointF topLeft, float64 scale) {
+	if (_cardPlacement
+		&& _cardPlacement->topLeft == topLeft
+		&& _cardPlacement->scale == scale) {
+		return;
+	}
+	_cardPlacement = CardPlacement{ .topLeft = topLeft, .scale = scale };
+	update();
+}
+
+void PeerQrSurface::setAppearance(
+		PeerQrAppearance appearance,
+		anim::type animated) {
+	if (_appearance == appearance) {
+		return;
+	}
+	const auto now = crl::now();
+	const auto wave = (animated == anim::type::normal)
+		&& !anim::Disabled()
+		&& (_startedAt > 0)
+		&& !_cardGeometry.isEmpty();
+	auto from = wave ? currentPicture(now) : QImage();
+	_appearance = std::move(appearance);
+	_colors = ComputePeerQrColors(_appearance);
+	loadPattern();
+	composeNow();
+	if (!wave) {
+		_wave = std::nullopt;
+		setShownColors(_colors);
+		return;
+	}
+	const auto center = cardRect().center();
+	_wave = Wave{
+		.from = std::move(from),
+		.colorsFrom = _shownColors,
+		.tint = ComputeWaveTint(_appearance),
+		.center = center,
+		.farthest = FarthestCorner(center, QSizeF(size())),
+		.startedAt = now,
+	};
+	_bounceStartedAt = now;
+	checkAnimation();
 }
 
 void PeerQrSurface::startAnimations() {
@@ -823,8 +1122,16 @@ void PeerQrSurface::startAnimations() {
 	checkAnimation();
 }
 
+const PeerQrAppearance &PeerQrSurface::appearance() const {
+	return _appearance;
+}
+
 const PeerQrColors &PeerQrSurface::colors() const {
-	return _colors;
+	return _shownColors;
+}
+
+rpl::producer<PeerQrColors> PeerQrSurface::colorsValue() const {
+	return _colorsChanges.events_starting_with_copy(_shownColors);
 }
 
 PeerQrImageArgs PeerQrSurface::prepareImage() const {
@@ -869,7 +1176,11 @@ void PeerQrSurface::paintEvent(QPaintEvent *e) {
 		requestBackground(now);
 	}
 	auto p = QPainter(this);
-	p.drawImage(0, 0, _background);
+	if (_wave) {
+		paintWave(p, now);
+	} else {
+		p.drawImage(0, 0, _background);
+	}
 	if (_cardGeometry.isEmpty()) {
 		return;
 	}
@@ -878,7 +1189,12 @@ void PeerQrSurface::paintEvent(QPaintEvent *e) {
 	auto frame = still
 		? CardFrame()
 		: ComputeCardFrame(elapsed, _card->layout.logo.width() / 2.);
-	p.translate(_cardGeometry.topLeft());
+	const auto placed = cardScale();
+	p.translate(cardRect().topLeft());
+	if (placed != 1.) {
+		p.setRenderHint(QPainter::SmoothPixmapTransform);
+		p.scale(placed, placed);
+	}
 	if (!still) {
 		if (_startedAt > 0 && !_blooming) {
 			frame.bloom = 1.;
@@ -905,14 +1221,20 @@ void PeerQrSurface::paintEvent(QPaintEvent *e) {
 
 void PeerQrSurface::loadPattern() {
 	const auto path = _appearance.patternPath;
-	if (path.isEmpty()) {
+	if (path.isEmpty() || path == _patternPath) {
 		return;
 	}
+	_patternPath = path;
+	_pattern = QImage();
+	_patternShownAt = 0;
 	const auto height = st::peerQrPatternHeight * style::DevicePixelRatio();
 	const auto weak = base::make_weak(this);
 	crl::async([=] {
 		auto pattern = ReadPattern(path, height);
 		crl::on_main(weak, [=] {
+			if (_patternPath != path) {
+				return;
+			}
 			_pattern = pattern;
 			if (PowerSaving::On(PowerSaving::kChatBackground)) {
 				composeNow();
@@ -922,6 +1244,7 @@ void PeerQrSurface::loadPattern() {
 }
 
 void PeerQrSurface::composeNow() {
+	++_backgroundGeneration;
 	applyBackground(prepareBackground(crl::now())());
 }
 
@@ -936,11 +1259,14 @@ void PeerQrSurface::checkAnimation() {
 
 bool PeerQrSurface::animationCallback(crl::time now) {
 	const auto still = anim::Disabled();
-	if (still && PowerSaving::On(PowerSaving::kChatBackground)) {
+	if (_wave) {
+		updateWave(now);
+		update();
+	} else if (still && PowerSaving::On(PowerSaving::kChatBackground)) {
 		return false;
 	} else if (!still && _blooming) {
 		_blooming = (now - _startedAt < kBloomDuration);
-		update(_cardGeometry);
+		update(cardRect().toAlignedRect());
 	} else if (!still && (_card->swap || _bounceStartedAt)) {
 		if (_card->swap && now >= _card->swap->startedAt + kSwapDuration) {
 			_card->swap = std::nullopt;
@@ -971,7 +1297,21 @@ Fn<QImage()> PeerQrSurface::prepareBackground(crl::time now) {
 		.corners = _corners,
 		.size = size() * ratio,
 	};
-	if (!_pattern.isNull() && (live || frozen)) {
+	if (_appearance.center.isValid()) {
+		const auto card = _cardGeometry.isEmpty()
+			? QRectF(rect())
+			: live
+			? cardRect()
+			: QRectF(_cardGeometry);
+		const auto elapsed = live ? (now - _startedAt) : crl::time();
+		request.center = _appearance.center;
+		request.edge = _appearance.edge;
+		request.gradientCenter = card.center() * ratio;
+		request.gradientRadius = kGradientRadiusRatio
+			* std::hypot(width(), height())
+			* ratio;
+		request.lightsAngle = kLightsAngle + kLightsSpeed * elapsed / 1000.;
+	} else if (!_pattern.isNull() && (live || frozen)) {
 		if (live && !_patternShownAt) {
 			_patternShownAt = now;
 		}
@@ -1016,12 +1356,15 @@ Fn<QImage()> PeerQrSurface::prepareBackground(crl::time now) {
 void PeerQrSurface::requestBackground(crl::time now) {
 	_backgroundComposing = true;
 	_backgroundRequestedAt = now;
+	const auto generation = _backgroundGeneration;
 	const auto weak = base::make_weak(this);
 	crl::async([=, compose = prepareBackground(now)] {
 		auto image = compose();
 		crl::on_main(weak, [=, image = std::move(image)]() mutable {
 			_backgroundComposing = false;
-			applyBackground(std::move(image));
+			if (_backgroundGeneration == generation) {
+				applyBackground(std::move(image));
+			}
 		});
 	});
 }
@@ -1035,10 +1378,27 @@ void PeerQrSurface::applyBackground(QImage image) {
 	update();
 }
 
+QRectF PeerQrSurface::cardRect() const {
+	return _cardPlacement
+		? QRectF(
+			_cardPlacement->topLeft,
+			QSizeF(_cardGeometry.size()) * _cardPlacement->scale)
+		: QRectF(_cardGeometry);
+}
+
+float64 PeerQrSurface::cardScale() const {
+	return _cardPlacement ? _cardPlacement->scale : 1.;
+}
+
 QRect PeerQrSurface::logoRect() const {
-	return _cardGeometry.isEmpty()
-		? rect()
-		: _card->layout.logo.translated(_cardGeometry.topLeft());
+	if (_cardGeometry.isEmpty()) {
+		return rect();
+	}
+	const auto scale = cardScale();
+	const auto logo = QRectF(_card->layout.logo);
+	return QRectF(
+		cardRect().topLeft() + logo.topLeft() * scale,
+		logo.size() * scale).toAlignedRect();
 }
 
 QRect PeerQrSurface::cardUpdateRect() const {
@@ -1050,9 +1410,10 @@ QRect PeerQrSurface::cardUpdateRect() const {
 	const auto half = std::max(
 		_cardGeometry.width(),
 		_cardGeometry.height()) / 2.;
-	const auto grow = shadow
-		+ int(std::ceil((half + shadow) * (kBouncePeak - 1.)));
-	return _cardGeometry.marginsAdded({ grow, grow, grow, grow });
+	const auto grow = (shadow + (half + shadow) * (kBouncePeak - 1.))
+		* cardScale();
+	return cardRect().marginsAdded(
+		{ grow, grow, grow, grow }).toAlignedRect();
 }
 
 void PeerQrSurface::refreshCard() {
@@ -1066,7 +1427,7 @@ void PeerQrSurface::refreshCard() {
 	auto content = PrepareCardContent(
 		layout,
 		_link,
-		_colors.ink,
+		_shownColors.ink,
 		st::peerQrCardShadowRadius,
 		st::peerQrCardShadowShift,
 		style::DevicePixelRatio());
@@ -1094,9 +1455,100 @@ void PeerQrSurface::refreshQr() {
 	content.qr = PrepareQrImage(
 		content.data,
 		_card->layout.qr.width(),
-		_colors.ink,
+		_shownColors.ink,
 		style::DevicePixelRatio());
+	_card->qrMask = QImage();
 	update(cardUpdateRect());
+}
+
+void PeerQrSurface::recolorQr() {
+	auto &content = _card->content;
+	content.ink = _shownColors.ink;
+	update(cardUpdateRect());
+	if (content.data.size <= 0) {
+		return;
+	}
+	const auto side = _card->layout.qr.width();
+	const auto ratio = style::DevicePixelRatio();
+	if (_shownColors == _colors) {
+		_card->qrMask = QImage();
+		content.qr = PrepareQrImage(content.data, side, content.ink, ratio);
+		return;
+	} else if (_card->qrMask.isNull()) {
+		_card->qrMask = PrepareQrImage(
+			content.data,
+			side,
+			QColor(255, 255, 255),
+			ratio);
+	}
+	content.qr = style::colorizeImage(_card->qrMask, content.ink);
+	content.qr.setDevicePixelRatio(ratio);
+}
+
+void PeerQrSurface::setShownColors(const PeerQrColors &colors) {
+	if (_shownColors == colors) {
+		return;
+	}
+	_shownColors = colors;
+	recolorQr();
+	_colorsChanges.fire_copy(_shownColors);
+}
+
+void PeerQrSurface::updateWave(crl::time now) {
+	const auto progress = anim::Disabled()
+		? 1.
+		: std::clamp(
+			float64(now - _wave->startedAt) / kWaveDuration,
+			0.,
+			1.);
+	if (progress >= 1.) {
+		_wave = std::nullopt;
+		setShownColors(_colors);
+		return;
+	}
+	const auto radius = WaveRadius(_wave->farthest, progress);
+	const auto blend = anim::easeOutCubic(
+		1.,
+		std::clamp(radius / st::peerQrWaveBlend, 0., 1.));
+	setShownColors((blend >= 1.)
+		? _colors
+		: MixColors(_wave->colorsFrom, _colors, blend));
+}
+
+void PeerQrSurface::paintWave(QPainter &p, crl::time now) const {
+	const auto &wave = *_wave;
+	const auto progress = std::clamp(
+		float64(now - wave.startedAt) / kWaveDuration,
+		0.,
+		1.);
+	const auto radius = WaveRadius(wave.farthest, progress);
+	if (radius < wave.farthest) {
+		p.drawImage(0, 0, wave.from);
+		auto circle = QPainterPath();
+		circle.addEllipse(wave.center, radius, radius);
+		auto hq = PainterHighQualityEnabler(p);
+		p.save();
+		p.setClipPath(circle);
+		p.drawImage(0, 0, _background);
+		p.restore();
+	} else {
+		p.drawImage(0, 0, _background);
+	}
+	PaintWaveGlow(p, rect(), wave.center, radius, progress, wave.tint);
+}
+
+QImage PeerQrSurface::currentPicture(crl::time now) const {
+	if (!_wave) {
+		return _background;
+	}
+	const auto ratio = style::DevicePixelRatio();
+	auto result = QImage(size() * ratio, QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
+	result.fill(Qt::transparent);
+	auto p = QPainter(&result);
+	paintWave(p, now);
+	p.end();
+	return result;
 }
 
 } // namespace Ui

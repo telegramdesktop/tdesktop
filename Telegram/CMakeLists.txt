@@ -199,6 +199,8 @@ PRIVATE
     api/api_sending.h
     api/api_sensitive_content.cpp
     api/api_sensitive_content.h
+    api/api_share_themes.cpp
+    api/api_share_themes.h
     api/api_single_message_search.cpp
     api/api_single_message_search.h
     api/api_statistics.cpp
@@ -768,6 +770,7 @@ PRIVATE
     data/data_peer_common.h
     data/data_peer_id.cpp
     data/data_peer_id.h
+    data/data_peer_share_theme.h
     data/data_peer_values.cpp
     data/data_peer_values.h
     data/data_photo.cpp
@@ -1343,6 +1346,8 @@ PRIVATE
     info/profile/info_profile_phone_menu.h
     info/profile/info_profile_section_stack.cpp
     info/profile/info_profile_section_stack.h
+    info/profile/info_profile_share_theme.cpp
+    info/profile/info_profile_share_theme.h
     info/profile/info_profile_shared_media_classic.cpp
     info/profile/info_profile_shared_media_classic.h
     info/profile/info_profile_status_label.cpp
@@ -2170,6 +2175,8 @@ PRIVATE
     ui/effects/message_sending_animation_common.h
     ui/effects/message_sending_animation_controller.cpp
     ui/effects/message_sending_animation_controller.h
+    ui/effects/peer_qr_colors_panel.cpp
+    ui/effects/peer_qr_colors_panel.h
     ui/effects/peer_qr_pill.cpp
     ui/effects/peer_qr_pill.h
     ui/effects/peer_qr_surface.cpp

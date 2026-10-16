@@ -24,6 +24,7 @@ public:
 	PeerQrPill(not_null<QWidget*> parent, PeerQrColors colors);
 	~PeerQrPill();
 
+	void setColors(PeerQrColors colors);
 	void setPillPosition(int centerX, int top);
 	void showFee(int amount);
 	void showTemporary(crl::time arrival, crl::time deadline);
@@ -69,10 +70,10 @@ private:
 	void paintPill(QPainter &p, const Frame &frame) const;
 	void paintParticles(QPainter &p, crl::time now) const;
 
-	const PeerQrColors _colors;
-	const QImage _feeStar;
-	const QImage _crossedInk;
-	const QImage _crossedForeground;
+	PeerQrColors _colors;
+	QImage _feeStar;
+	QImage _crossedInk;
+	QImage _crossedForeground;
 	base::unique_qptr<AbstractButton> _button;
 	AnimatedString _freeText;
 	QString _feeText;
