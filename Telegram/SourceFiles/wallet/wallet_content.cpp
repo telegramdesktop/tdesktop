@@ -1231,6 +1231,7 @@ struct HistoryRowContent {
 	PeerData *peer = nullptr;
 	bool itemAmount = false;
 	QString collectible;
+	std::optional<CollectibleRecord> collectibleRecord;
 
 	friend bool operator==(
 		const HistoryRowContent &,
@@ -1606,6 +1607,7 @@ struct RowAmountPlacement {
 }
 
 struct HistoryRowChipState {
+	QString key;
 	Gram::NftKind kind = Gram::NftKind::Generic;
 	Ui::Text::String title;
 	Ui::Text::String subtitle;
@@ -1665,8 +1667,7 @@ void PaintHistoryRowChipArtwork(
 		Painter &p,
 		int outerWidth,
 		const HistoryRowChipState &state,
-		const std::shared_ptr<CollectibleMedia> &media,
-		const QString &address) {
+		const std::shared_ptr<CollectibleMedia> &media) {
 	const auto side = st::walletRowIconSize;
 	const auto radius = st::walletCollectibleThumbRadius;
 	const auto rtl = style::RightToLeft();
@@ -1684,7 +1685,7 @@ void PaintHistoryRowChipArtwork(
 	} else if (state.kind == Gram::NftKind::TelegramNumber) {
 		st::walletChipNumberIcon.paintInCenter(p, square);
 	} else {
-		media->paintArtwork(p, address, square, outerWidth, radius);
+		media->paintArtwork(p, state.key, square, outerWidth, radius);
 	}
 }
 
@@ -1733,10 +1734,14 @@ void TrackHistoryRowChip(
 		not_null<HistoryRowChipState*> state,
 		std::shared_ptr<CollectibleMedia> media,
 		QString address,
+		const std::optional<CollectibleRecord> &record,
 		Fn<void()> repaint,
 		rpl::lifetime &lifetime) {
+	const auto served = record && record->gift;
+	const auto key = served ? media->resolveServed(*record) : address;
+	state->key = key;
 	const auto refresh = [=] {
-		const auto view = media->view(address);
+		const auto view = media->view(key);
 		state->kind = view.kind;
 		using Kind = Gram::NftKind;
 		state->title.setMarkedText(
@@ -1756,13 +1761,15 @@ void TrackHistoryRowChip(
 		repaint();
 	};
 	const auto mine = [=](const QString &changed) {
-		return (changed == address);
+		return (changed == key);
 	};
 	media->changed(
 	) | rpl::filter(mine) | rpl::on_next(refresh, lifetime);
 	media->repaint(
 	) | rpl::filter(mine) | rpl::on_next(repaint, lifetime);
-	media->resolveBackground(address);
+	if (!served) {
+		media->resolveBackground(address);
+	}
 	refresh();
 }
 
@@ -1770,7 +1777,8 @@ void AddHistoryRowChip(
 		not_null<Ui::VerticalLayout*> inner,
 		not_null<HistoryRowButton*> button,
 		std::shared_ptr<CollectibleMedia> media,
-		QString address) {
+		QString address,
+		const std::optional<CollectibleRecord> &record) {
 	Ui::AddSkip(inner, st::walletChipTopSkip);
 	const auto chip = inner->add(object_ptr<Ui::FixedHeightWidget>(
 		inner,
@@ -1784,7 +1792,7 @@ void AddHistoryRowChip(
 	chip->paintRequest(
 	) | rpl::on_next([=] {
 		auto p = Painter(chip);
-		PaintHistoryRowChipArtwork(p, chip->width(), *state, media, address);
+		PaintHistoryRowChipArtwork(p, chip->width(), *state, media);
 		PaintHistoryRowChipText(p, chip->width(), *state);
 	}, chip->lifetime());
 	button->setPaintUnderRipple([=](Painter &p) {
@@ -1793,7 +1801,13 @@ void AddHistoryRowChip(
 		PaintHistoryRowChipPlate(p, chip->width(), *state);
 		p.translate(-origin);
 	});
-	TrackHistoryRowChip(state, media, address, repaint, chip->lifetime());
+	TrackHistoryRowChip(
+		state,
+		media,
+		address,
+		record,
+		repaint,
+		chip->lifetime());
 }
 
 not_null<Ui::RpWidget*> AddHistoryRow(
@@ -1854,7 +1868,12 @@ not_null<Ui::RpWidget*> AddHistoryRow(
 		st::walletRowDateLabel));
 	const auto hasChip = content.itemAmount && (media != nullptr);
 	if (hasChip) {
-		AddHistoryRowChip(inner, button, media, content.collectible);
+		AddHistoryRowChip(
+			inner,
+			button,
+			media,
+			content.collectible,
+			content.collectibleRecord);
 	}
 
 	const auto circle = Ui::CreateChild<Ui::RpWidget>(wrap);
@@ -2260,7 +2279,8 @@ void SendingHistoryRow::updateSurfaceGeometry() {
 
 void SendingHistoryRow::setContent(HistoryRowContent content) {
 	const auto peerChanged = !_userpic || (_content.peer != content.peer);
-	const auto chipChanged = (_content.collectible != content.collectible);
+	const auto chipChanged = (_content.collectible != content.collectible)
+		|| (_content.collectibleRecord != content.collectibleRecord);
 	_content = std::move(content);
 	_text = PrepareHistoryRowText(_content);
 	if (!_content.itemAmount) {
@@ -2281,6 +2301,7 @@ void SendingHistoryRow::setContent(HistoryRowContent content) {
 				&_chip,
 				_media,
 				_content.collectible,
+				_content.collectibleRecord,
 				[=] { _surface->update(); },
 				_chipLifetime);
 		}
@@ -3075,7 +3096,7 @@ void SendingHistoryRow::paintChip(Painter &p) {
 		rowLayout().chipTop);
 	p.translate(origin);
 	PaintHistoryRowChipPlate(p, outer, _chip);
-	PaintHistoryRowChipArtwork(p, outer, _chip, _media, _content.collectible);
+	PaintHistoryRowChipArtwork(p, outer, _chip, _media);
 	PaintHistoryRowChipText(p, outer, _chip);
 	p.translate(-origin);
 }
@@ -3190,6 +3211,7 @@ not_null<SendingHistoryRow*> AddSendingHistoryRow(
 			.peer = peer,
 			.itemAmount = true,
 			.collectible = item.collectible,
+			.collectibleRecord = item.collectibleRecord,
 		};
 	}
 	const auto pending

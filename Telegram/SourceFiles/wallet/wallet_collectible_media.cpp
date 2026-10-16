@@ -237,6 +237,24 @@ void CollectibleMedia::resolveBackground(const QString &item) {
 	checkStartNext();
 }
 
+QString CollectibleMedia::resolveServed(const CollectibleRecord &record) {
+	Expects(record.gift && record.gift->unique);
+
+	// Never an address, so list refreshes and resolution chains miss it.
+	const auto key = record.address + u"/gift/"_q + record.key;
+	auto &pointer = _map[key];
+	if (!pointer) {
+		pointer = std::make_unique<Entry>();
+		pointer->address = key;
+		pointer->state = State::Done;
+	}
+	const auto entry = pointer.get();
+	if (applyRecord(entry, record)) {
+		applyGift(entry);
+	}
+	return key;
+}
+
 void CollectibleMedia::setListWindow(std::vector<QString> ordered) {
 	for (const auto &item : _window) {
 		const auto entry = find(item);

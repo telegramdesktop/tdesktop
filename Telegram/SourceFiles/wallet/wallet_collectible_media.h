@@ -53,6 +53,7 @@ public:
 
 	void resolve(const QString &item);
 	void resolveBackground(const QString &item);
+	[[nodiscard]] QString resolveServed(const CollectibleRecord &record);
 	void setListWindow(std::vector<QString> ordered);
 
 	[[nodiscard]] CollectibleView view(const QString &item) const;
