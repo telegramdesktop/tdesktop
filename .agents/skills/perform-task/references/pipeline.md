@@ -186,7 +186,7 @@ work/review1-<lens>.md         # all five standard lens applicability/reviews
 work/review1.md                # canonical first-review verdict
 work/review<R>-focused.md      # mandatory focused general re-review, R > 1
 work/review<R>-<specialist>.md # only specialists invalidated by the fix
-work/review-convergence<C>.md  # bounded loop disposition when needed
+work/review-convergence<C>.md  # loop diagnosis at a checkpoint or cycle
 work/test-design.md            # assessed evidence contract, reconciled after diff
 work/test.md
 work/test-cap-assessment-*.md  # independent focused-recovery decision at a campaign cap
@@ -332,7 +332,7 @@ Run sequentially:
    first exact implementation/evidence plan. It cannot create replacement tasks;
    the performer publishes the proposal as the task's `split-required` result,
    and the scheduler independently owns the deep split transaction. The same
-   result may be produced after source edits by the bounded convergence
+   result may be produced after source edits by the review convergence
    assessment when the retained implementation exposes several independently
    shippable/testable boundaries.
 3. **Implement.** Run one leaf per assessed plan phase. Before each edit,
@@ -358,9 +358,9 @@ Run sequentially:
    the fix and affected invariants, plus only the specialists that originated a
    repaired blocker or whose exact review question the fix changed. Presence of
    a broad surface is not enough to replay it. Reconcile only invalidated
-   evidence checks and rerun only affected validation. At the convergence
-   triggers below, stop the ordinary loop and obtain an explicit repair,
-   replan, or rescope disposition.
+   evidence checks and rerun only affected validation. The loop runs until
+   the reviewers agree; at the convergence checkpoints below an independent
+   assessor diagnoses it and continues, replans or rescopes it.
 6. **Normalize.** On native non-WSL Windows, normalize only task-owned source,
    header, style, localization, and build/config text to CRLF without BOM,
    preserving content and trailing-newline state, then rerun the selected
@@ -520,28 +520,58 @@ every lens that could describe it. It reads the complete task diff only when the
 made the previous review boundary unreliable, in which case it triggers the
 convergence assessment rather than silently restarting the initial review.
 
-Stop the ordinary fix loop and run a fresh independent convergence assessment
-when any of these holds:
+Review exists to make independent reviewers, often from different vendors,
+agree on the implementation. Fix and re-review until a round's canonical
+verdict has no blocking finding. A round count never ends the loop and never
+asks a human; never approve unresolved findings to end it, and never restart
+the broad initial review because rounds accumulate.
 
-- two canonical review verdicts have required changes;
-- blocker count or affected scope did not materially shrink after a fix;
-- a fix adds owned paths, a subsystem, a build/platform boundary, or a new
-  ownership, concurrency, persistence, or trust mechanism; or
+Instead of the next ordinary fix, run a fresh independent convergence
+assessment when any of these holds:
+
+- the fifth canonical review verdict requires changes, and afterwards the
+  checkpoint the previous assessment named;
+- a finding asks to undo an earlier fix or a recorded ruling, so the loop is
+  cycling instead of settling new findings;
+- a fix would grow the change into a subsystem or product boundary the
+  assessed plan did not include; or
 - the reviewer can no longer state which prior approvals remain valid.
 
-The assessor writes `review-convergence<C>.md` with exactly one disposition:
+The assessor reads the whole loop: which findings were new, which recur or
+reopen earlier ones, which fixes introduced the next round's defects, and
+whether the open set is narrowing. It writes `review-convergence<C>.md` with
+exactly one disposition:
 
-- `CONTINUE_FOCUSED` — one bounded fix list and at most one final focused
-  review round;
-- `REPLAN_CURRENT` — the task remains cohesive, but implementation returns to
-  an explicitly named validated boundary and a replacement plan before review;
+- `CONTINUE` — convergence is real but slow, such as a mechanism with many
+  special cases where each round finds new, narrower defects and resolved
+  ones stay resolved. It lists the open blockers, any rulings, and the next
+  checkpoint: by default three more verdicts that require changes, at most
+  five. The ordinary loop resumes with no final-round limit.
+- `REPLAN_CURRENT` — the loop cycles, or each fix breaks the same mechanism,
+  so the mechanism is wrong. Implementation returns to an explicitly named
+  validated boundary and a replacement plan for that mechanism. The replanned
+  code gets a focused general review plus the lenses it touches, approvals
+  outside it carry forward, and the verdict count restarts.
 - `RESCOPE_REQUIRED` — the task contains independently testable product
-  boundaries; write or update `split-proposal.md` and stop automatic work; or
-- `HARD_STOP` — an exact unsafe or unavailable condition needs human action.
+  boundaries; write or update `split-proposal.md` and stop automatic work.
+- `HARD_STOP` — an exact unsafe or unavailable condition needs human action,
+  such as a fix that needs funded value, credentials or a server change. Slow
+  convergence, a round count or a hard design is never a hard stop.
 
-If the allowed final focused round still has blocking findings, stop with the
-unapproved convergence artifact. Never approve unresolved findings and never
-start another broad review campaign merely because time remains.
+A ruling settles a question the loop keeps reopening: which of two
+conflicting findings holds, or what the task requires where it is silent. The
+assessor decides it from the task, project documents and the closest
+repository precedent, preferring existing behavior, and records both sides.
+Later fixes follow it and later reviewers receive it. A finding that
+contradicts a ruling is dropped unless it brings a concrete failure scenario
+the ruling did not weigh; such a finding triggers a fresh assessment.
+
+A later assessment reads every earlier one. It may choose `CONTINUE` again
+only when the loop progressed since the previous checkpoint: resolved findings
+stayed resolved and the open set narrowed or moved to new, narrower cases.
+Otherwise it chooses `REPLAN_CURRENT` or `RESCOPE_REQUIRED`. An older
+assessment that allowed only one final focused round reads as `CONTINUE` with
+the default checkpoint; its final round no longer stops the loop.
 
 ### Evidence selection
 
@@ -809,7 +839,7 @@ checks, and choose at most one focused recovery campaign or document recovery
 exhaustion. A focused campaign that does not converge stops automatic work with
 an exact recoverable hard stop; it never starts a third campaign or converts the
 cap into approval/Block. An `IMPL_BUG` fix creates a new retained attempt, uses the same
-focused general/invalidated-specialist review and convergence triggers as the
+focused general/invalidated-specialist review and convergence checkpoints as the
 pre-commit loop, and reruns only invalidated checks. It never restarts the
 initial complete-diff review simply because the attempt number changed.
 

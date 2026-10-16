@@ -146,7 +146,7 @@ New and unfinished tasks use the single adaptive `implement` path. Assessment
 must first confirm that the request is one cohesive implementation/review/test
 unit. If it contains independently useful and independently testable product
 boundaries, record `Scope: split-required` and a concrete split proposal before
-source edits. The same result may arise later from the bounded convergence
+source edits. The same result may arise later from the review convergence
 assessment when the retained implementation proves that one review/evidence
 campaign is not coherent. Do not force the broad request through smaller
 implementation phases and call it one task. The independent assessment has
@@ -180,11 +180,13 @@ and evidence checks it actually affects. Review fixes receive a focused general
 delta review plus only those invalidated specialists; they do not restart the
 full review or evidence design.
 
-Automatic replay is bounded. If two review verdicts need changes, findings are
-not converging, or a fix expands the architecture or owned paths, run the
-pipeline's independent convergence assessment instead of another broad round.
-It chooses a bounded focused repair, a coherent replan, or `RESCOPE_REQUIRED`;
-unresolved findings are never approved merely to meet the bound. A task whose
+The review loop runs until the reviewers agree, with no round limit and no
+human stop. At the fifth verdict that needs changes, at each later checkpoint,
+or when the loop cycles or a fix outgrows the plan, the pipeline's independent
+convergence assessment diagnoses it instead of another ordinary fix. It
+continues the loop with rulings that settle reopened questions, replans the
+failing mechanism, or chooses `RESCOPE_REQUIRED`; unresolved findings are never
+approved to end the loop. A task whose
 desired outcome was already present may finish without a source commit only
 after the same general review and evidence loop prove
 `Outcome: already-satisfied`.

@@ -123,7 +123,7 @@ Do not restate the full context, plan, diff, or long reasoning in the chat reply
 - Phase 5 is complete only when the build outcome is known and the build checkbox is updated on success.
 - An initial Phase 6 lens is complete only when all five `review1-<lens>.md` reports exist with `## Verdict: NOT_APPLICABLE | CLEAN | FINDINGS` and a non-empty `## Checked` section. `NOT_APPLICABLE` must tie its proof to the complete diff; `CLEAN`/`FINDINGS` must name the relevant full files and adjacent surfaces reviewed.
 - Initial Phase 6 general review is complete only when `review1-general.md` and `review1.md` exist with a `## Verdict:` line, a non-empty `## Coverage` section, all five lens reports are accepted or an unsupported bailout has been rerun, and every evidence check is reconciled against the actual diff.
-- A focused Phase 6 review is complete only when `review<R>-focused.md` and `review<R>.md` name the fix paths and invariants, account for every carried-forward and invalidated approval, account for every rerun specialist, and reconcile only invalidated evidence checks. A convergence assessment is complete only with one exact disposition from the pipeline and its required bounded next action or split proposal.
+- A focused Phase 6 review is complete only when `review<R>-focused.md` and `review<R>.md` name the fix paths and invariants, account for every carried-forward and invalidated approval, account for every rerun specialist, and reconcile only invalidated evidence checks. A convergence assessment is complete only with its loop map, one exact disposition from the pipeline and that disposition's next action: open blockers, rulings and the next checkpoint for `CONTINUE`, the boundary and replacement approach for `REPLAN_CURRENT`, or a split proposal.
 - Phase 6b is complete only when the requested fixes were applied and the post-fix build outcome is known.
 - Phase 3 is additionally incomplete until `test-design.md` exists, covers
   every acceptance surface, assigns each check a direct instrument, oracle,
@@ -536,11 +536,12 @@ fix invalidated.
 The focused general reviewer confirms those reports and writes `review<R>.md`,
 explicitly carrying all other approvals forward.
 
-After two `NEEDS_CHANGES` verdicts, non-shrinking findings, architectural/scope
-expansion, or loss of a reliable carry-forward boundary, run the convergence
-prompt instead of another ordinary fix round. It permits at most one final
-focused repair before a stop, replan, or rescope. The bound never converts an
-unresolved finding into approval.
+Fix and re-review until a verdict has no blocking finding; there is no round
+limit. Run the convergence prompt instead of the next ordinary fix at the fifth
+`NEEDS_CHANGES` verdict and then at each checkpoint an assessment names, or
+when the focused reviewer returns `CONVERGENCE_REQUIRED`. Give its rulings to
+every later fix and focused review. No count converts an unresolved finding
+into approval.
 
 A wording or style suggestion is non-blocking unless it causes incorrect
 behavior, unsafe use, misleading build instructions, a repository-rule
@@ -798,7 +799,12 @@ Read:
 - <WORK_DIR>/review<R-1>.md and the fix result;
 - the fixed paths, containing functions/types, and affected callers;
 - test-design.md entries the fix reports invalidated;
-- only the lens or domain-specialist reports explicitly rerun for this fix.
+- only the lens or domain-specialist reports explicitly rerun for this fix;
+- the `## Rulings` of every <WORK_DIR>/review-convergence<C>.md.
+
+A ruling is settled. Drop a finding that contradicts one unless it brings a
+concrete failure scenario the ruling did not weigh; report that finding and
+return `CONVERGENCE_REQUIRED`.
 
 Do not restart the complete-diff review. Verify each repaired blocker, inspect
 the fix for regressions in its actual data/control/lifetime boundary, and check
@@ -829,9 +835,11 @@ Write <WORK_DIR>/review<R>-focused.md and <WORK_DIR>/review<R>.md with:
 ## Changes Required
 <blocking findings only>
 
-Return `CONVERGENCE_REQUIRED` rather than another ordinary fix when this is the
-second NEEDS_CHANGES verdict, findings did not shrink, the fix expanded owned
-paths/architecture, or the carry-forward boundary is unreliable.
+Return `CONVERGENCE_REQUIRED` rather than `NEEDS_CHANGES` when a finding asks
+to undo an earlier fix or ruling, a fix would grow the change into a subsystem
+or product boundary the assessed plan did not include, or the carry-forward
+boundary is unreliable, and still list its blocking findings. Never return it
+for a round count; the performer owns the count checkpoints.
 ~~~
 
 ### Review convergence assessment
@@ -841,32 +849,50 @@ You are an independent review-convergence assessor for one Telegram Desktop
 task. You are a leaf and must not delegate or edit source.
 
 Read the task, context.md, assessed plan.md, every canonical review<R>.md, every
-fix result, current owned paths, the current complete task diff, and the exact
-validation/evidence status. Read source only as needed to decide disposition.
+fix result, every earlier review-convergence<C>.md, current owned paths, the
+current complete task diff, and the exact validation/evidence status. Read
+source only as needed to decide disposition.
 
-Diagnose why review is not converging: repeated discovery in stable code,
-regressions introduced by fixes, architectural coupling, oversized intrinsic
-scope, or an external unsafe boundary. Preserve findings already resolved and
-do not run another broad review.
+The loop exists to make independent reviewers agree on the implementation; a
+round count alone is not a problem. Map the loop: each round's blocking
+findings, whether each was new, recurring, or reopening an earlier fix or
+ruling, and which fix introduced it. Decide whether the open set is narrowing,
+cycling, or regrowing in one mechanism, and why: many genuine special cases,
+regressions introduced by fixes, conflicting reviewer demands, architectural
+coupling, oversized intrinsic scope, or an external unsafe boundary. Preserve
+findings already resolved and do not run another broad review.
 
-Write <WORK_DIR>/review-convergence<C>.md with exactly one verdict:
+Write <WORK_DIR>/review-convergence<C>.md with the loop map, the diagnosis and
+exactly one verdict:
 
-## Verdict: CONTINUE_FOCUSED | REPLAN_CURRENT | RESCOPE_REQUIRED | HARD_STOP
+## Verdict: CONTINUE | REPLAN_CURRENT | RESCOPE_REQUIRED | HARD_STOP
 
-- CONTINUE_FOCUSED: one bounded list of remaining blockers, one owned write
-  set, the approvals carried forward, and at most one final focused review.
-- REPLAN_CURRENT: why the task remains cohesive, the exact validated source
-  boundary to preserve or restore, and the replacement approach. Do not use
-  this to disguise multiple independent product outcomes as phases.
+- CONTINUE: convergence is real but slow. List the open blockers with one
+  owned write set, the approvals carried forward, any rulings, and the next
+  checkpoint: by default three more NEEDS_CHANGES verdicts, at most five.
+  After an earlier assessment, show progress since it: resolved findings
+  stayed resolved and the open set narrowed or moved to new, narrower cases.
+  Without that progress choose another verdict.
+- REPLAN_CURRENT: the loop cycles or each fix breaks the same mechanism. Say
+  why the task remains cohesive, and name the mechanism, the exact validated
+  source boundary to preserve or restore, and the replacement approach. Do not
+  use this to disguise multiple independent product outcomes as phases.
 - RESCOPE_REQUIRED: why one review/evidence campaign is incoherent and a
   split-proposal.md containing independently buildable/testable replacement
   tasks, acceptance oracles, dependencies, and salvageable work.
 - HARD_STOP: the exact unsafe or unavailable condition and required human
-  action.
+  action, such as funded value, credentials or a server change. Slow
+  convergence, a round count or a difficult design is never a HARD_STOP.
 
-The verdict cannot approve code. If a permitted final focused round still has
-blocking findings, stop with its unapproved artifacts; do not begin another
-campaign automatically.
+Under `## Rulings`, settle each question the loop keeps reopening: which of two
+conflicting findings holds, or what the task requires where it is silent.
+Decide from the task, project documents and the closest repository precedent,
+preferring existing behavior, and record both sides with the reason. Later
+fixes follow a ruling; later reviewers drop a finding that contradicts it
+unless it brings a concrete failure scenario the ruling did not weigh.
+
+The verdict cannot approve code; only a later review round with no blocking
+finding does.
 ~~~
 
 On `RESCOPE_REQUIRED`, the performer validates `split-proposal.md`, inventories
@@ -880,8 +906,9 @@ the scheduler's later split worker assigns the sealed implementation carrier.
 You are a review-fix agent for one Telegram Desktop task. You are a leaf and
 must not delegate.
 
-Read context.md, plan.md, review<R>.md, AGENTS.md, REVIEW.md, and every source
-file named by a blocking finding. Implement only "Changes Required".
+Read context.md, plan.md, review<R>.md, AGENTS.md, REVIEW.md, the `## Rulings`
+of every review-convergence<C>.md, and every source file named by a blocking
+finding. Implement only "Changes Required", following those rulings.
 Do not implement Dropped or non-blocking notes. Stay inside owned-paths.txt and
 do not edit AI artifacts.
 
