@@ -90,7 +90,7 @@ void FastShareLink(
 	std::shared_ptr<Main::SessionShow> show,
 	const QString &url,
 	ShareBoxStyleOverrides st = {});
-void FastShareImage(
+[[nodiscard]] base::weak_qptr<Ui::BoxContent> FastShareImage(
 	std::shared_ptr<Main::SessionShow> show,
 	QImage image,
 	const QString &caption);

@@ -59,6 +59,22 @@ constexpr auto kDriftHeading = 225.;
 constexpr auto kWanderPeriod = crl::time(17000);
 constexpr auto kWanderAngle = 30.;
 constexpr auto kPatternFadeDuration = crl::time(200);
+constexpr auto kSwapDelay = crl::time(40);
+constexpr auto kSwapDuration = crl::time(450);
+constexpr auto kSwapTravel = crl::time(350);
+constexpr auto kDustLife = crl::time(100);
+constexpr auto kDustPerModule = 3;
+constexpr auto kDustSizeMin = 0.35;
+constexpr auto kDustSizeMax = 0.7;
+constexpr auto kDustRiseMin = 0.6;
+constexpr auto kDustRiseMax = 1.2;
+constexpr auto kDustDrift = 0.5;
+constexpr auto kBounceDuration = crl::time(320);
+constexpr auto kBouncePeak = 1.03;
+constexpr auto kBounceTrough = 0.995;
+constexpr auto kBouncePeakAt = 0.25;
+constexpr auto kBounceTroughAt = 0.6;
+constexpr auto kFinderSize = 7;
 
 struct CardLayout {
 	QSize size;
@@ -83,6 +99,12 @@ struct CardContent {
 	QPoint shadowPosition;
 };
 
+struct QrSwap {
+	QImage qr;
+	Qr::Data data;
+	crl::time startedAt = 0;
+};
+
 struct PlaneState {
 	QPointF shift;
 	float64 scale = 1.;
@@ -95,6 +117,8 @@ struct PlaneState {
 struct CardFrame {
 	PlaneState plane;
 	float64 bloom = 1.;
+	const QrSwap *swap = nullptr;
+	crl::time swapElapsed = 0;
 };
 
 struct BackgroundRequest {
@@ -241,6 +265,18 @@ struct BackgroundRequest {
 		Qt::SmoothTransformation);
 }
 
+[[nodiscard]] QImage PrepareQrImage(
+		const Qr::Data &data,
+		int side,
+		const QColor &ink,
+		int ratio) {
+	auto result = (data.size > 0)
+		? GenerateFinalQr(data, side * ratio, ink)
+		: QImage();
+	result.setDevicePixelRatio(ratio);
+	return result;
+}
+
 [[nodiscard]] QImage PrepareCardShadow(
 		QSize size,
 		int radius,
@@ -288,10 +324,7 @@ struct BackgroundRequest {
 		int shadowShift,
 		int ratio) {
 	auto data = link.isEmpty() ? Qr::Data() : Qr::Encode(link);
-	auto qr = (data.size > 0)
-		? GenerateFinalQr(data, layout.qr.width() * ratio, ink)
-		: QImage();
-	qr.setDevicePixelRatio(ratio);
+	auto qr = PrepareQrImage(data, layout.qr.width(), ink, ratio);
 	return {
 		.shadow = PrepareCardShadow(
 			layout.size,
@@ -520,6 +553,110 @@ void PaintBloom(
 	}
 }
 
+[[nodiscard]] uint32 DustHash(uint32 value) {
+	value ^= value >> 16;
+	value *= 0x7FEB352DU;
+	value ^= value >> 15;
+	value *= 0x846CA68BU;
+	value ^= value >> 16;
+	return value;
+}
+
+[[nodiscard]] float64 DustRandom(uint32 &seed) {
+	seed = DustHash(seed + 0x9E3779B9U);
+	return seed / 4294967296.;
+}
+
+void PaintSwap(
+		QPainter &p,
+		const QRect &qr,
+		const CardContent &content,
+		const QrSwap &swap,
+		crl::time elapsed) {
+	if (elapsed < 0) {
+		p.drawImage(qr, swap.qr);
+		return;
+	}
+	const auto travel = std::min(float64(elapsed) / kSwapTravel, 1.);
+	const auto bottom = qr.y() + qr.height();
+	const auto front = bottom - travel * qr.height();
+	const auto paintPart = [&](
+			const QImage &image,
+			float64 from,
+			float64 till) {
+		if (till > from) {
+			p.save();
+			p.setClipRect(
+				QRectF(qr.x(), from, qr.width(), till - from),
+				Qt::IntersectClip);
+			p.drawImage(qr, image);
+			p.restore();
+		}
+	};
+	paintPart(swap.qr, qr.y(), front);
+	paintPart(content.qr, front, bottom);
+
+	const auto &data = swap.data;
+	const auto count = data.size;
+	if (count <= 0) {
+		return;
+	}
+	const auto cell = qr.width() / float64(count);
+	const auto speed = qr.height() / float64(kSwapTravel);
+	const auto blankFrom = (count - Qr::ReplaceSize(data, 1)) / 2;
+	const auto blankTill = count - blankFrom;
+	const auto blank = [&](int index) {
+		return (index >= blankFrom) && (index < blankTill);
+	};
+	const auto leading = [&](int index) {
+		return index < kFinderSize;
+	};
+	const auto trailing = [&](int index) {
+		return index >= count - kFinderSize;
+	};
+	const auto dusty = [&](int row, int column) {
+		return data.values[row * count + column]
+			&& !(blank(row) && blank(column))
+			&& !(leading(row) && (leading(column) || trailing(column)))
+			&& !(trailing(row) && leading(column));
+	};
+	for (auto row = 0; row != count; ++row) {
+		const auto release = kSwapTravel * (1. - (row + 0.5) / count);
+		const auto age = elapsed - release;
+		if (age < 0. || age >= kDustLife) {
+			continue;
+		}
+		const auto progress = age / kDustLife;
+		auto color = content.ink;
+		color.setAlphaF(color.alphaF() * (1. - progress));
+		p.setBrush(color);
+		for (auto column = 0; column != count; ++column) {
+			if (!dusty(row, column)) {
+				continue;
+			}
+			for (auto k = 0; k != kDustPerModule; ++k) {
+				auto seed = (uint32(row) << 16)
+					| (uint32(column) << 4)
+					| uint32(k);
+				const auto x = column + DustRandom(seed);
+				const auto y = row + DustRandom(seed);
+				const auto size = kDustSizeMin
+					+ (kDustSizeMax - kDustSizeMin) * DustRandom(seed);
+				const auto rise = kDustRiseMin
+					+ (kDustRiseMax - kDustRiseMin) * DustRandom(seed);
+				const auto drift = kDustDrift * (2. * DustRandom(seed) - 1.);
+				const auto radius = size * cell / 2.;
+				p.drawEllipse(
+					QPointF(
+						qr.x() + (x + drift * progress) * cell,
+						qr.y() + y * cell - rise * speed * age),
+					radius,
+					radius);
+			}
+		}
+	}
+}
+
 void PaintCard(
 		QPainter &p,
 		const CardLayout &layout,
@@ -533,8 +670,13 @@ void PaintCard(
 		QRect(QPoint(), layout.size),
 		layout.radius,
 		layout.radius);
-	if (!content.qr.isNull()) {
-		if (frame.bloom >= 1.) {
+	if (frame.swap || !content.qr.isNull()) {
+		if (frame.swap) {
+			p.save();
+			p.setClipRect(QRect(QPoint(), layout.size));
+			PaintSwap(p, layout.qr, content, *frame.swap, frame.swapElapsed);
+			p.restore();
+		} else if (frame.bloom >= 1.) {
 			p.drawImage(layout.qr, content.qr);
 		} else {
 			PaintBloom(p, layout.qr, content, frame.bloom);
@@ -553,10 +695,30 @@ void PaintCard(
 struct PeerQrSurface::Card {
 	CardLayout layout;
 	CardContent content;
+	std::optional<QrSwap> swap;
 };
 
 int PeerQrCardHeight(int cardWidth, bool withUsername) {
 	return ComputeCardLayout(cardWidth, withUsername).size.height();
+}
+
+float64 PeerQrBounceScale(float64 progress) {
+	const auto phase = [&](float64 from, float64 till) {
+		return (progress - from) / (till - from);
+	};
+	if (progress < 0. || progress >= 1.) {
+		return 1.;
+	} else if (progress <= kBouncePeakAt) {
+		const auto rise = anim::easeOutCubic(1., phase(0., kBouncePeakAt));
+		return 1. + (kBouncePeak - 1.) * rise;
+	} else if (progress <= kBounceTroughAt) {
+		const auto fall = anim::sineInOut(
+			1.,
+			phase(kBouncePeakAt, kBounceTroughAt));
+		return kBouncePeak + (kBounceTrough - kBouncePeak) * fall;
+	}
+	const auto settle = anim::sineInOut(1., phase(kBounceTroughAt, 1.));
+	return kBounceTrough + (1. - kBounceTrough) * settle;
 }
 
 QImage RenderPeerQrImage(PeerQrImageArgs args) {
@@ -612,10 +774,31 @@ PeerQrSurface::PeerQrSurface(
 
 PeerQrSurface::~PeerQrSurface() = default;
 
-void PeerQrSurface::setLink(const QString &link) {
-	if (_link != link) {
-		_link = link;
-		refreshCard();
+void PeerQrSurface::setLink(const QString &link, anim::type animated) {
+	if (_link == link) {
+		return;
+	}
+	const auto swap = (animated == anim::type::normal)
+		&& !anim::Disabled()
+		&& (_startedAt > 0)
+		&& !_cardGeometry.isEmpty()
+		&& !_card->content.qr.isNull();
+	if (swap) {
+		const auto startedAt = crl::now() + kSwapDelay;
+		_card->swap = QrSwap{
+			.qr = base::take(_card->content.qr),
+			.data = base::take(_card->content.data),
+			.startedAt = startedAt,
+		};
+		_bounceStartedAt = startedAt;
+		_blooming = false;
+	} else {
+		_card->swap = std::nullopt;
+	}
+	_link = link;
+	refreshQr();
+	if (swap) {
+		checkAnimation();
 	}
 }
 
@@ -687,14 +870,37 @@ void PeerQrSurface::paintEvent(QPaintEvent *e) {
 	}
 	auto p = QPainter(this);
 	p.drawImage(0, 0, _background);
-	if (!_cardGeometry.isEmpty()) {
-		const auto elapsed = (_startedAt > 0) ? (now - _startedAt) : 0;
-		const auto frame = anim::Disabled()
-			? CardFrame()
-			: ComputeCardFrame(elapsed, _card->layout.logo.width() / 2.);
-		p.translate(_cardGeometry.topLeft());
-		PaintCard(p, _card->layout, _card->content, frame);
+	if (_cardGeometry.isEmpty()) {
+		return;
 	}
+	const auto still = anim::Disabled();
+	const auto elapsed = (_startedAt > 0) ? (now - _startedAt) : 0;
+	auto frame = still
+		? CardFrame()
+		: ComputeCardFrame(elapsed, _card->layout.logo.width() / 2.);
+	p.translate(_cardGeometry.topLeft());
+	if (!still) {
+		if (_startedAt > 0 && !_blooming) {
+			frame.bloom = 1.;
+		}
+		if (const auto &swap = _card->swap) {
+			frame.swap = &*swap;
+			frame.swapElapsed = now - swap->startedAt;
+		}
+		const auto scale = _bounceStartedAt
+			? PeerQrBounceScale(
+				float64(now - _bounceStartedAt) / kBounceDuration)
+			: 1.;
+		if (scale != 1.) {
+			const auto center = QRectF(
+				QPointF(),
+				QSizeF(_card->layout.size)).center();
+			p.translate(center);
+			p.scale(scale, scale);
+			p.translate(-center);
+		}
+	}
+	PaintCard(p, _card->layout, _card->content, frame);
 }
 
 void PeerQrSurface::loadPattern() {
@@ -735,6 +941,14 @@ bool PeerQrSurface::animationCallback(crl::time now) {
 	} else if (!still && _blooming) {
 		_blooming = (now - _startedAt < kBloomDuration);
 		update(_cardGeometry);
+	} else if (!still && (_card->swap || _bounceStartedAt)) {
+		if (_card->swap && now >= _card->swap->startedAt + kSwapDuration) {
+			_card->swap = std::nullopt;
+		}
+		if (_bounceStartedAt && now >= _bounceStartedAt + kBounceDuration) {
+			_bounceStartedAt = 0;
+		}
+		update(cardUpdateRect());
 	} else if (!still || backgroundDue(now)) {
 		update(logoRect());
 	}
@@ -827,6 +1041,20 @@ QRect PeerQrSurface::logoRect() const {
 		: _card->layout.logo.translated(_cardGeometry.topLeft());
 }
 
+QRect PeerQrSurface::cardUpdateRect() const {
+	if (_cardGeometry.isEmpty()) {
+		return rect();
+	}
+	const auto shadow = st::peerQrCardShadowRadius
+		+ st::peerQrCardShadowShift;
+	const auto half = std::max(
+		_cardGeometry.width(),
+		_cardGeometry.height()) / 2.;
+	const auto grow = shadow
+		+ int(std::ceil((half + shadow) * (kBouncePeak - 1.)));
+	return _cardGeometry.marginsAdded({ grow, grow, grow, grow });
+}
+
 void PeerQrSurface::refreshCard() {
 	if (_cardGeometry.isEmpty()) {
 		*_card = Card();
@@ -854,6 +1082,21 @@ void PeerQrSurface::refreshCard() {
 		st::peerQrUsernameMin);
 	*_card = Card{ layout, std::move(content) };
 	update();
+}
+
+void PeerQrSurface::refreshQr() {
+	if (_cardGeometry.isEmpty()) {
+		refreshCard();
+		return;
+	}
+	auto &content = _card->content;
+	content.data = _link.isEmpty() ? Qr::Data() : Qr::Encode(_link);
+	content.qr = PrepareQrImage(
+		content.data,
+		_card->layout.qr.width(),
+		_colors.ink,
+		style::DevicePixelRatio());
+	update(cardUpdateRect());
 }
 
 } // namespace Ui

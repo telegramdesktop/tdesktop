@@ -26,6 +26,7 @@ struct PeerQrColors {
 };
 
 [[nodiscard]] int PeerQrCardHeight(int cardWidth, bool withUsername);
+[[nodiscard]] float64 PeerQrBounceScale(float64 progress);
 
 struct PeerQrImageArgs {
 	PeerQrAppearance appearance;
@@ -47,7 +48,9 @@ public:
 	PeerQrSurface(QWidget *parent, PeerQrAppearance appearance);
 	~PeerQrSurface();
 
-	void setLink(const QString &link);
+	void setLink(
+		const QString &link,
+		anim::type animated = anim::type::instant);
 	void setUsername(const QString &username);
 	void setCardGeometry(QRect card);
 	void startAnimations();
@@ -64,6 +67,7 @@ private:
 	void loadPattern();
 	void composeNow();
 	void refreshCard();
+	void refreshQr();
 	void checkAnimation();
 	[[nodiscard]] bool animationCallback(crl::time now);
 	[[nodiscard]] bool backgroundDue(crl::time now) const;
@@ -71,6 +75,7 @@ private:
 	void requestBackground(crl::time now);
 	void applyBackground(QImage image);
 	[[nodiscard]] QRect logoRect() const;
+	[[nodiscard]] QRect cardUpdateRect() const;
 
 	const PeerQrAppearance _appearance;
 	const PeerQrColors _colors;
@@ -86,6 +91,7 @@ private:
 	crl::time _driftTime = 0;
 	crl::time _backgroundRequestedAt = 0;
 	crl::time _patternShownAt = 0;
+	crl::time _bounceStartedAt = 0;
 	bool _backgroundComposing = false;
 	bool _blooming = false;
 	Animations::Basic _animation;

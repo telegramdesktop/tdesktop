@@ -1331,6 +1331,8 @@ PRIVATE
     info/profile/info_profile_cover.h
     info/profile/info_profile_emoji_status_panel.cpp
     info/profile/info_profile_emoji_status_panel.h
+    info/profile/info_profile_free_codes.cpp
+    info/profile/info_profile_free_codes.h
     info/profile/info_profile_inner_widget.cpp
     info/profile/info_profile_inner_widget.h
     info/profile/info_profile_members.cpp
@@ -2168,6 +2170,8 @@ PRIVATE
     ui/effects/message_sending_animation_common.h
     ui/effects/message_sending_animation_controller.cpp
     ui/effects/message_sending_animation_controller.h
+    ui/effects/peer_qr_pill.cpp
+    ui/effects/peer_qr_pill.h
     ui/effects/peer_qr_surface.cpp
     ui/effects/peer_qr_surface.h
     ui/effects/reaction_fly_animation.cpp

@@ -753,7 +753,7 @@ bool ResolveUsernameOrPhone(
 			: Window::RepliesByLinkInfo{ v::null },
 		.resolveType = resolveType,
 		.referral = referral,
-		.noPaidToken = params.value(u"nopaidtoken"_q),
+		.noPaidToken = params.value(u"free"_q),
 		.startToken = startToken,
 		.startAdminRights = adminRights,
 		.startAutoSubmit = myContext.botStartAutoSubmit,

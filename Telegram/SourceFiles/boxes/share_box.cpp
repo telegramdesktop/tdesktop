@@ -2323,7 +2323,7 @@ void FastShareLink(
 		anim::type::normal);
 }
 
-void FastShareImage(
+base::weak_qptr<Ui::BoxContent> FastShareImage(
 		std::shared_ptr<Main::SessionShow> show,
 		QImage image,
 		const QString &caption) {
@@ -2401,6 +2401,7 @@ void FastShareImage(
 		}),
 		Ui::LayerOption::KeepOther,
 		anim::type::normal);
+	return *box;
 }
 
 auto ShareMessageMoneyRestrictionError()

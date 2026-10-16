@@ -74,6 +74,17 @@ struct GiftOptionData {
 	int months = 0;
 };
 
+struct NoPaidTokenExport {
+	bool revoke = false;
+	bool temporary = false;
+};
+
+struct NoPaidMessagesToken {
+	QString token;
+	QString url;
+	TimeId expires = 0;
+};
+
 class Premium final {
 public:
 	explicit Premium(not_null<ApiWrap*> api);
@@ -124,6 +135,10 @@ public:
 		not_null<UserData*> user,
 		const QString &token,
 		Fn<void(bool priceRemoved)> done,
+		Fn<void(const MTP::Error &)> fail);
+	void exportNoPaidMessagesToken(
+		NoPaidTokenExport args,
+		Fn<void(NoPaidMessagesToken)> done,
 		Fn<void(const MTP::Error &)> fail);
 
 private:

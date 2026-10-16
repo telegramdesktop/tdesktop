@@ -536,6 +536,26 @@ void Premium::importNoPaidMessagesToken(
 	}).handleAllErrors().send();
 }
 
+void Premium::exportNoPaidMessagesToken(
+		NoPaidTokenExport args,
+		Fn<void(NoPaidMessagesToken)> done,
+		Fn<void(const MTP::Error &)> fail) {
+	using Flag = MTPcontacts_ExportNoPaidMessagesToken::Flag;
+	_api.request(MTPcontacts_ExportNoPaidMessagesToken(
+		MTP_flags((args.revoke ? Flag::f_revoke : Flag())
+			| (args.temporary ? Flag::f_temporary : Flag()))
+	)).done([=](const MTPExportedNoPaidMessagesToken &result) {
+		const auto &data = result.data();
+		done({
+			.token = qs(data.vtoken()),
+			.url = qs(data.vurl().value_or_empty()),
+			.expires = data.vexpires().value_or_empty(),
+		});
+	}).fail([=](const MTP::Error &error) {
+		fail(error);
+	}).handleFloodErrors().send();
+}
+
 PremiumGiftCodeOptions::PremiumGiftCodeOptions(not_null<PeerData*> peer)
 : _peer(peer)
 , _api(&peer->session().api().instance()) {
