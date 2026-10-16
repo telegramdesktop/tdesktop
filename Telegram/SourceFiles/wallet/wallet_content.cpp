@@ -3384,12 +3384,14 @@ void AddDetailsAmountHeader(
 			? u"+"_q
 			: QString(kMinus)) + formatted.wholeString,
 		st::walletDetailsAmountMajorLabel);
+	major->show();
 	const auto minor = Ui::CreateChild<Ui::FlatLabel>(
 		container,
 		formatted.nanoString.isEmpty()
 			? QString()
 			: (formatted.separator + formatted.nanoString),
 		st::walletDetailsAmountMinorLabel);
+	minor->show();
 	// The unit is spelled out instead of drawn as the currency mark: the
 	// mark is the animation above the amount now, and saying it twice in
 	// one header only makes the line harder to read.
@@ -3400,6 +3402,7 @@ void AddDetailsAmountHeader(
 			lt_count,
 			std::abs(item.amountNano / float64(Ui::kNanosInOne))).toUpper(),
 		st::walletDetailsTickerLabel);
+	ticker->show();
 	const auto subdued = (item.status == TransferItem::Status::Pending)
 		|| (item.status == TransferItem::Status::Failure);
 	const auto &color = subdued
@@ -3461,6 +3464,7 @@ void AddDetailsAmountHeader(
 		}
 	};
 	if (fiat) {
+		fiat->show();
 		std::move(rate) | rpl::on_next([=](const FiatRate &value) {
 			fiat->setText(FormatFiat(amountNano, value));
 			relayout();
