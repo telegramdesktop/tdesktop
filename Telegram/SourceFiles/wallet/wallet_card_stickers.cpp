@@ -726,9 +726,11 @@ void CardStickers::hold(const QString &address) {
 }
 
 void CardStickers::release(const QString &address) {
-	if (_holds.remove(CanonicalAddress(address))) {
+	const auto canonical = CanonicalAddress(address);
+	if (_holds.remove(canonical)) {
 		invalidate();
 		refreshArriving();
+		_releases.fire_copy(canonical);
 	}
 }
 
@@ -740,7 +742,7 @@ void CardStickers::land(
 	if (canonical.isEmpty()) {
 		return;
 	}
-	_holds.remove(canonical);
+	const auto ended = _holds.remove(canonical);
 	dropLanding(canonical);
 	if (!anim::Disabled() && lookup(canonical)) {
 		_landings.push_back({
@@ -758,6 +760,9 @@ void CardStickers::land(
 	}
 	invalidate();
 	refreshArriving();
+	if (ended) {
+		_releases.fire_copy(canonical);
+	}
 }
 
 void CardStickers::preview(
@@ -846,6 +851,10 @@ bool CardStickers::shown(const QString &address) const {
 		&& !_holds.contains(entry->canonical);
 }
 
+bool CardStickers::held(const QString &address) const {
+	return _holds.contains(CanonicalAddress(address));
+}
+
 QImage CardStickers::image(const QString &address) const {
 	const auto entry = find(address);
 	if (!entry) {
@@ -858,6 +867,10 @@ QImage CardStickers::image(const QString &address) const {
 
 rpl::producer<bool> CardStickers::arrivingValue() const {
 	return _arriving.value();
+}
+
+rpl::producer<QString> CardStickers::releases() const {
+	return _releases.events();
 }
 
 void CardStickers::apply(std::vector<Data::WalletCardSticker> &&stickers) {

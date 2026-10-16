@@ -104,9 +104,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_card_editor.h"
 #include "wallet/wallet_card_float.h"
 #include "wallet/wallet_card_gradient.h"
-#include "wallet/wallet_card_look.h"
 #include "wallet/wallet_card_space.h"
 #include "wallet/wallet_card_stickers.h"
+#include "wallet/wallet_card_transition.h"
 #include "wallet/wallet_chat_show.h"
 #include "wallet/wallet_collectible_media.h"
 #include "wallet/wallet_collectibles.h"
@@ -375,6 +375,7 @@ private:
 	std::unique_ptr<CardStickers> _cardStickers;
 	std::unique_ptr<CardFloat> _cardFloat;
 	std::unique_ptr<CardStickerEditor> _cardEditor;
+	std::unique_ptr<CardLookFollower> _cardLook;
 	Ui::Text::String _title;
 	base::unique_qptr<Ui::RpWidget> _titleBalance;
 	Ui::RpWidget *_container = nullptr;
@@ -421,7 +422,8 @@ public:
 		not_null<QWidget*> paintOwner);
 	void invalidateCache();
 	void followCursor();
-	void setLook(CardLook look);
+	void setLook(CardLook look, CardLookChange change = {});
+	[[nodiscard]] rpl::producer<bool> lookTransitionValue() const;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -442,7 +444,7 @@ private:
 	QString _addressLine2;
 	CardFold _fold;
 	QPointer<QWidget> _paintOwner;
-	CardLookPainter _look;
+	CardLookTransition _look;
 	QImage _cache;
 	float64 _cacheAngle = 0.;
 	std::unique_ptr<CardAngle> _angle;
@@ -13790,10 +13792,12 @@ void Card::followCursor() {
 	}
 }
 
-void Card::setLook(CardLook look) {
-	if (_look.setLook(std::move(look))) {
-		invalidateCache();
-	}
+void Card::setLook(CardLook look, CardLookChange change) {
+	_look.setLook(std::move(look), change);
+}
+
+rpl::producer<bool> Card::lookTransitionValue() const {
+	return _look.runningValue();
 }
 
 float64 Card::paintAngle(not_null<QWidget*> paintOwner, QRectF rect) {
@@ -13872,26 +13876,27 @@ void Card::paintFold(
 
 void Card::paintContent(Painter &p, float64 angle) {
 	const auto size = restRect().size();
-	_look.paint(p, QRect(QPoint(), size), angle);
-
 	const auto qr = CardQrRect(size.width());
-	PaintCardQrPlate(p, qr);
-	st::walletCardQrIcon.paintInCenter(p, qr, CardQrIconFg());
-
 	const auto layout = ComputeCardTextLayout(size, _nameStyle.font);
-	p.setPen(st::activeButtonFg);
-	_name.drawElided(p, layout.nameLeft, layout.nameTop, layout.nameMax);
+	const auto foreground = [&](Painter &q, QColor ink) {
+		PaintCardQrPlate(q, qr);
+		st::walletCardQrIcon.paintInCenter(q, qr, CardQrIconFg());
 
-	if (!_addressLine1.isEmpty()) {
-		p.setPen(_look.stripInk());
-		p.setFont(layout.addressFont);
-		p.save();
-		p.translate(layout.addressBaseline, st::walletCardAddressSkip);
-		p.rotate(90);
-		p.drawText(0, 0, _addressLine1);
-		p.drawText(0, -layout.addressFont->height, _addressLine2);
-		p.restore();
-	}
+		q.setPen(st::activeButtonFg);
+		_name.drawElided(q, layout.nameLeft, layout.nameTop, layout.nameMax);
+
+		if (!_addressLine1.isEmpty()) {
+			q.setPen(ink);
+			q.setFont(layout.addressFont);
+			q.save();
+			q.translate(layout.addressBaseline, st::walletCardAddressSkip);
+			q.rotate(90);
+			q.drawText(0, 0, _addressLine1);
+			q.drawText(0, -layout.addressFont->height, _addressLine2);
+			q.restore();
+		}
+	};
+	_look.paint(p, QRect(QPoint(), size), angle, foreground);
 }
 
 std::vector<QRectF> Card::protectedAreas(const BalanceInk &ink) const {
@@ -14621,11 +14626,6 @@ void Content::setupPinned() {
 	_card->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_card->show();
 	_card->followCursor();
-	OwnCardLookValue(
-		&_show->session()
-	) | rpl::on_next([=](CardLook &&look) {
-		_card->setLook(std::move(look));
-	}, _card->lifetime());
 	_cardButton = Ui::CreateChild<Ui::AbstractButton>(this);
 	_cardButton->setClickedCallback([=] {
 		ShowWalletReceiveBox(&_show->session(), _show);
@@ -14886,6 +14886,13 @@ void Content::setupBalance() {
 				_cardFloat->update();
 			}
 		});
+	_cardLook = std::make_unique<CardLookFollower>(CardLookFollowerArgs{
+		.session = &_show->session(),
+		.stickers = _cardStickers.get(),
+		.apply = [card = _card](CardLook look, CardLookChange change) {
+			card->setLook(std::move(look), change);
+		},
+	});
 	const auto paintInkAndStickers = [=](
 			QPainter &p,
 			const CardFold &fold,
@@ -14910,7 +14917,11 @@ void Content::setupBalance() {
 		.inPlace = [=] {
 			return ComputeCardFold(cardRest(), foldProgress());
 		},
-		.arriving = _cardStickers->arrivingValue(),
+		.arriving = rpl::combine(
+			_cardStickers->arrivingValue(),
+			_card->lookTransitionValue(),
+			rpl::mappers::_1 || rpl::mappers::_2
+		) | rpl::distinct_until_changed(),
 		.paint = [=](Painter &p, const CardFold &fold, QRect clip) {
 			_card->paintFold(p, fold, _cardFloat->widget());
 			paintInkAndStickers(p, fold, clip);

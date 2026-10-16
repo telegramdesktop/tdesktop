@@ -51,8 +51,10 @@ public:
 	void stopPlayback();
 
 	[[nodiscard]] bool shown(const QString &address) const;
+	[[nodiscard]] bool held(const QString &address) const;
 	[[nodiscard]] QImage image(const QString &address) const;
 	[[nodiscard]] rpl::producer<bool> arrivingValue() const;
+	[[nodiscard]] rpl::producer<QString> releases() const;
 
 private:
 	struct Entry;
@@ -93,6 +95,7 @@ private:
 	base::flat_set<QString> _holds;
 	Ui::Animations::Basic _landingAnimation;
 	rpl::variable<bool> _arriving;
+	rpl::event_stream<QString> _releases;
 	QImage _layer;
 	QSize _layerSize;
 	int _layerRatio = 0;

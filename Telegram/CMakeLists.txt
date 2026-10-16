@@ -2239,6 +2239,8 @@ PRIVATE
     wallet/wallet_card_space.h
     wallet/wallet_card_stickers.cpp
     wallet/wallet_card_stickers.h
+    wallet/wallet_card_transition.cpp
+    wallet/wallet_card_transition.h
     wallet/wallet_chat_show.cpp
     wallet/wallet_chat_show.h
     wallet/wallet_collectible_media.cpp

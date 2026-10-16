@@ -124,7 +124,8 @@ private:
 	void activate(const QString &address);
 	void showCardMenu(const QString &address, QPoint point);
 	void cardAction(const QString &address, bool add);
-	void addToCard(const CollectibleRecord &record);
+	void colorAction(const QString &address, bool apply);
+	void addToCard(const CollectibleRecord &record, bool color = false);
 	void removeFromCard(const QString &address);
 	void applyFailure(const OwnCardFailure &failure);
 	void showRefusal(OwnCardChange change);
@@ -135,6 +136,7 @@ private:
 		QImage frame);
 	void startFlight(const QString &address, CardFlightArgs &&args);
 	void cancelFlight(const QString &address);
+	void dropFlight(const QString &address);
 	void holdSticker(const QString &address);
 	void releaseSticker(const QString &address);
 	void landSticker(
@@ -161,6 +163,7 @@ private:
 	void dragFinished(uint64 generation);
 	void finishTravel();
 	[[nodiscard]] OwnCard &ownCard() const;
+	[[nodiscard]] bool colorSource(const QString &address) const;
 	[[nodiscard]] QImage squareFrame(const QString &address) const;
 	[[nodiscard]] std::optional<Data::StoryArea> shownArea(
 		const QString &address) const;
@@ -1189,7 +1192,14 @@ void CollectiblesGrid::showCardMenu(const QString &address, QPoint point) {
 		return;
 	}
 	const auto add = !ownCard().contains(address);
+	const auto apply = !colorSource(address);
 	_menu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
+	_menu->addAction(
+		Ui::Text::FixAmpersandInAction(apply
+			? tr::lng_wallet_card_apply_color(tr::now)
+			: tr::lng_wallet_card_remove_color(tr::now)),
+		[=] { colorAction(address, apply); },
+		&st::menuIconPalette);
 	_menu->addAction(
 		Ui::Text::FixAmpersandInAction(add
 			? tr::lng_wallet_card_add(tr::now)
@@ -1215,7 +1225,26 @@ void CollectiblesGrid::cardAction(const QString &address, bool add) {
 	}
 }
 
-void CollectiblesGrid::addToCard(const CollectibleRecord &record) {
+void CollectiblesGrid::colorAction(const QString &address, bool apply) {
+	const auto index = indexOf(address);
+	if (index < 0
+		|| !_records[index].gift
+		|| _leaving == address
+		|| colorSource(address) == apply) {
+		return;
+	} else if (apply && !ownCard().contains(address)) {
+		addToCard(_records[index], true);
+		return;
+	}
+	auto &own = ownCard();
+	auto desired = own.shown();
+	desired.background = apply ? address : QString();
+	showRefusal(own.save(std::move(desired)));
+}
+
+void CollectiblesGrid::addToCard(
+		const CollectibleRecord &record,
+		bool color) {
 	auto &own = ownCard();
 	const auto stickers = own.shown().stickers;
 	if (!own.ready()) {
@@ -1234,11 +1263,20 @@ void CollectiblesGrid::addToCard(const CollectibleRecord &record) {
 	auto frame = squareFrame(address);
 	cancelFlight(address);
 	holdSticker(address);
-	const auto change = own.add({
+	auto sticker = Data::WalletCardSticker{
 		.address = address,
 		.area = *area,
 		.gift = record.gift,
-	});
+	};
+	const auto change = [&] {
+		if (!color) {
+			return own.add(std::move(sticker));
+		}
+		auto desired = own.shown();
+		desired.stickers.push_back(std::move(sticker));
+		desired.background = address;
+		return own.save(std::move(desired));
+	}();
 	if (change != OwnCardChange::Applied) {
 		releaseSticker(address);
 		showRefusal(change);
@@ -1257,9 +1295,10 @@ void CollectiblesGrid::removeFromCard(const QString &address) {
 		return;
 	}
 	auto frame = squareFrame(address);
-	cancelFlight(address);
+	dropFlight(address);
 	setReturning(address, true);
 	const auto change = own.remove(address);
+	releaseSticker(address);
 	if (change != OwnCardChange::Applied) {
 		setReturning(address, false);
 		showRefusal(change);
@@ -1371,13 +1410,17 @@ void CollectiblesGrid::startFlight(
 }
 
 void CollectiblesGrid::cancelFlight(const QString &address) {
+	dropFlight(address);
+	releaseSticker(address);
+	setReturning(address, false);
+}
+
+void CollectiblesGrid::dropFlight(const QString &address) {
 	_flights.remove(address);
 	if (_drag.gift && !_drag.gift->following() && _drag.address == address) {
 		_drag = Drag();
 		setLifted(QString());
 	}
-	releaseSticker(address);
-	setReturning(address, false);
 }
 
 void CollectiblesGrid::holdSticker(const QString &address) {
@@ -1444,6 +1487,12 @@ void CollectiblesGrid::refreshSquare(const QString &address) {
 
 OwnCard &CollectiblesGrid::ownCard() const {
 	return _show->session().wallet().ownCard();
+}
+
+bool CollectiblesGrid::colorSource(const QString &address) const {
+	const auto &own = ownCard();
+	return own.contains(address)
+		&& (CanonicalAddress(own.shown().background) == address);
 }
 
 QImage CollectiblesGrid::squareFrame(const QString &address) const {

@@ -8936,6 +8936,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_collectible_show_in_gifts" = "also show in my gifts";
 "lng_wallet_card_add" = "Add to Card";
 "lng_wallet_card_remove" = "Remove from Card";
+"lng_wallet_card_apply_color" = "Apply Color";
+"lng_wallet_card_remove_color" = "Remove Color";
 "lng_wallet_card_limit#one" = "You can put up to {count} gift on your card.";
 "lng_wallet_card_limit#other" = "You can put up to {count} gifts on your card.";
 "lng_wallet_card_saved_profile" = "This gift is shown on your profile. Hide it there to put it on your card.";
