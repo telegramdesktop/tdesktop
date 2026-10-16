@@ -559,6 +559,8 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 	}, [](const MTPDmessageMediaVideoStream &) -> Result {
 		// Live stories.
 		return nullptr;
+	}, [](const MTPDmessageMediaWidget &) -> Result {
+		return nullptr; // #TODO widgets
 	}, [](const MTPDmessageMediaEmpty &) -> Result {
 		return nullptr;
 	}, [](const MTPDmessageMediaUnsupported &) -> Result {

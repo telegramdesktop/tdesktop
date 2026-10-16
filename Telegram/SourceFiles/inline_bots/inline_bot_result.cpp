@@ -274,6 +274,7 @@ std::shared_ptr<Result> Result::Create(
 			qs(data.vmessage()),
 			Api::EntitiesFromMTP(session, data.ventities().value_or_empty()),
 			false);
+	}, [](const MTPDbotInlineMessageWidget &) {
 	});
 
 	if (!result->sendData || !result->sendData->isValid()) {
