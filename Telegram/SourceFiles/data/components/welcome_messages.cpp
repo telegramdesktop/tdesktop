@@ -659,8 +659,10 @@ HistoryItem *WelcomeMessages::append(
 			? *data.vmedia()
 			: MTPMessageMedia(MTP_messageMediaEmpty())));
 	if (const auto richMessage = data.vrich_message()) {
-		item->applyLocalRichPage(
-			Iv::ParseRichPage(_session, *richMessage));
+		item->applyLocalRichPage(Iv::ParseRichPage(
+			_session,
+			*richMessage,
+			Iv::RichParseMode::Quotable));
 	}
 	list.items.emplace_back(item);
 	list.itemById.emplace(id, item);
@@ -688,7 +690,10 @@ void WelcomeMessages::applyEdition(
 	edition.mtpMedia = data.vmedia();
 	edition.invertMedia = data.is_invert_media();
 	if (const auto richMessage = data.vrich_message()) {
-		edition.richPage = Iv::ParseRichPage(_session, *richMessage);
+		edition.richPage = Iv::ParseRichPage(
+			_session,
+			*richMessage,
+			Iv::RichParseMode::Quotable);
 	}
 	item->applyEdition(std::move(edition));
 }

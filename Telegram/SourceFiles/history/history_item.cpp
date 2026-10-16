@@ -210,7 +210,13 @@ template <typename T>
 [[nodiscard]] std::shared_ptr<const Iv::RichPage> ParsedRichPage(
 		not_null<Main::Session*> session,
 		const MTPRichMessage *richMessage) {
-	return richMessage ? Iv::ParseRichPage(session, *richMessage) : nullptr;
+	if (!richMessage) {
+		return nullptr;
+	}
+	return Iv::ParseRichPage(
+		session,
+		*richMessage,
+		Iv::RichParseMode::Quotable);
 }
 
 [[nodiscard]] std::shared_ptr<const Iv::RichPage> BestRichPage(
@@ -558,7 +564,9 @@ HistoryItem::HistoryItem(
 		_flags |= MessageFlag::Legacy;
 		createComponents(data);
 		if (const auto richMessage = data.vrich_message()) {
-			const auto richPage = Iv::ParseRichPage(&history->session(), *richMessage);
+			const auto richPage = ParsedRichPage(
+				&history->session(),
+				richMessage);
 			setRichPage(richPage);
 			setText(Iv::FlattenRichPageSummary(richPage));
 		} else {
@@ -598,7 +606,9 @@ HistoryItem::HistoryItem(
 			}
 		}
 		if (const auto richMessage = data.vrich_message()) {
-			const auto richPage = Iv::ParseRichPage(&history->session(), *richMessage);
+			const auto richPage = ParsedRichPage(
+				&history->session(),
+				richMessage);
 			setRichPage(richPage);
 			setText(Iv::FlattenRichPageSummary(richPage));
 		} else {
