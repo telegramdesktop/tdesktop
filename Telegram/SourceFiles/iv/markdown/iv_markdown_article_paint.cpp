@@ -209,6 +209,15 @@ bool PaintRelatedArticleImage(
 	return result;
 }
 
+[[nodiscard]] MarkdownArticlePaintContext ChildrenPaintContext(
+		const MarkdownArticlePaintContext &context,
+		const LaidOutBlock &block) {
+	const auto clip = ChildrenPaintClip(block);
+	return clip
+		? ClippedContext(context, context.clip.intersected(*clip))
+		: context;
+}
+
 [[nodiscard]] MarkdownArticlePaintContext RevealSuppressedContext(
 		const MarkdownArticlePaintContext &context) {
 	auto result = context;
@@ -2015,9 +2024,7 @@ void PaintQuoteBlock(
 		}
 	}
 
-	auto local = ClippedContext(
-		context,
-		context.clip.intersected(block.contentRect));
+	auto local = ChildrenPaintContext(context, block);
 	local.caches.supplementaryColorOverride
 		= NonPullquoteQuoteCaptionColor(context, st);
 	PaintBlocks(
@@ -2419,12 +2426,7 @@ void PaintEmbedPostBlock(
 		}
 	}
 	if (!block.bodyRect.isEmpty()) {
-		const auto bodyContext = ClippedContext(
-			context,
-			context.clip.intersected(
-				block.scrollViewportRect.isEmpty()
-					? block.bodyRect
-					: block.scrollViewportRect));
+		const auto bodyContext = ChildrenPaintContext(context, block);
 		PaintBlocks(
 			p,
 			block.children,
@@ -2836,9 +2838,7 @@ void PaintDetailsBlock(
 	p.restore();
 
 	if (!block.bodyRect.isEmpty()) {
-		const auto bodyContext = ClippedContext(
-			context,
-			context.clip.intersected(block.bodyRect));
+		const auto bodyContext = ChildrenPaintContext(context, block);
 		PaintBlocks(
 			p,
 			block.children,
@@ -3129,11 +3129,7 @@ void PaintBlock(
 		break;
 	case PreparedBlockKind::List:
 		{
-			const auto childContext = block.scrollViewportRect.isEmpty()
-				? context
-				: ClippedContext(
-					context,
-					context.clip.intersected(block.scrollViewportRect));
+			const auto childContext = ChildrenPaintContext(context, block);
 			PaintBlocks(
 				p,
 				block.children,
@@ -3173,11 +3169,7 @@ void PaintBlock(
 			}
 		}
 		{
-			const auto childContext = block.scrollViewportRect.isEmpty()
-				? context
-				: ClippedContext(
-					context,
-					context.clip.intersected(block.scrollViewportRect));
+			const auto childContext = ChildrenPaintContext(context, block);
 			PaintBlocks(
 				p,
 				block.children,
@@ -3299,6 +3291,23 @@ QRect HorizontalOverflowContentClip(
 		viewport.y(),
 		width,
 		viewport.height());
+}
+
+std::optional<QRect> ChildrenPaintClip(const LaidOutBlock &block) {
+	const auto list = (block.kind == PreparedBlockKind::List)
+		|| (block.kind == PreparedBlockKind::ListItem);
+	if (block.kind == PreparedBlockKind::Details) {
+		return block.bodyRect;
+	} else if (block.kind == PreparedBlockKind::Quote) {
+		return block.contentRect;
+	} else if (block.kind == PreparedBlockKind::EmbedPost) {
+		return block.scrollViewportRect.isEmpty()
+			? block.bodyRect
+			: block.scrollViewportRect;
+	} else if (list && !block.scrollViewportRect.isEmpty()) {
+		return block.scrollViewportRect;
+	}
+	return std::nullopt;
 }
 
 QColor NonPullquoteQuoteCaptionColor(

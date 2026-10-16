@@ -233,24 +233,49 @@ struct QuoteHighlightTarget {
 	return result;
 }
 
-[[nodiscard]] std::optional<QRect> ScrollOwnerClip(
+[[nodiscard]] std::optional<QRect> DescendantPaintClip(
+		const LaidOutBlock &ancestor,
+		const LaidOutBlock *block,
+		QRect clip) {
+	if (const auto own = ChildrenPaintClip(ancestor)) {
+		clip = clip.intersected(*own);
+	}
+	for (const auto &child : ancestor.children) {
+		if (&child == block) {
+			return clip;
+		} else if (const auto found = DescendantPaintClip(child, block, clip)) {
+			return found;
+		}
+	}
+	return std::nullopt;
+}
+
+[[nodiscard]] QRect VisibleSegmentRect(
 		const SelectableSegment &segment,
+		QRect outer,
+		QRect logical,
 		const LaidOutBlock *owner,
 		const style::Markdown &st) {
 	if (!owner) {
-		return std::nullopt;
+		return outer;
 	} else if (segment.block != owner) {
-		return owner->scrollViewportRect;
+		const auto clip = DescendantPaintClip(
+			*owner,
+			segment.block,
+			owner->outer);
+		const auto caption = (segment.parentSegmentIndex >= 0);
+		const auto painted = caption ? logical : outer;
+		return clip ? painted.intersected(*clip) : QRect();
 	} else if (segment.cell) {
-		return HorizontalOverflowContentClip(
+		return outer.intersected(HorizontalOverflowContentClip(
 			*owner,
 			st,
-			owner->visibleTableRect);
+			owner->visibleTableRect));
 	} else if ((owner->kind == PreparedBlockKind::Table)
 		|| (owner->kind == PreparedBlockKind::Details)) {
-		return std::nullopt;
+		return outer;
 	}
-	return owner->scrollViewportRect;
+	return outer.intersected(owner->scrollViewportRect);
 }
 
 void AppendHighlightRect(
@@ -432,8 +457,12 @@ QRect DisplayRangesRect(
 			continue;
 		}
 		const auto [logical, owner] = geometry(segment->index);
-		const auto clip = ScrollOwnerClip(*segment, owner, st);
-		const auto visible = clip ? outer.intersected(*clip) : outer;
+		const auto visible = VisibleSegmentRect(
+			*segment,
+			outer,
+			logical,
+			owner,
+			st);
 		if (math) {
 			add(visible);
 		} else if (!visible.isEmpty() && !logical.isEmpty()) {
