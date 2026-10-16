@@ -25,6 +25,7 @@ constexpr auto kPreferredSide = 0.21;
 constexpr auto kLatticeStep = 0.005;
 constexpr auto kLeftWeight = 1.5;
 constexpr auto kMinDropSide = 0.12;
+constexpr auto kMinAutoSide = 0.07;
 constexpr auto kChipSide = 8. / 7.;
 constexpr auto kChipSink = 0.15;
 constexpr auto kChipRotation = 0.5;
@@ -158,6 +159,7 @@ struct Candidate {
 	const auto height = float64(space.card.height());
 	const auto anchor = QPointF(width * kAnchorX, height * kAnchorY);
 	const auto limit = width * kPreferredSide;
+	const auto least = width * kMinAutoSide;
 	const auto step = width * kLatticeStep;
 	const auto left = int(std::ceil(-anchor.x() / step));
 	const auto right = int(std::floor((width - anchor.x()) / step));
@@ -173,7 +175,7 @@ struct Candidate {
 				limit,
 				1.,
 				space.ratio);
-			if (side <= 0.) {
+			if (side <= 0. || side < least - kEpsilon) {
 				continue;
 			}
 			const auto painted = int(base::SafeRound(side));
@@ -315,9 +317,7 @@ CardTextLayout ComputeCardTextLayout(
 	result.nameMax = result.stripLeft
 		- st::walletCardContentSkip
 		- st::walletCardContentLeft;
-	result.nameLeft = style::RightToLeft()
-		? (card.width() - st::walletCardContentLeft - result.nameMax)
-		: st::walletCardContentLeft;
+	result.nameLeft = st::walletCardContentLeft;
 	return result;
 }
 
