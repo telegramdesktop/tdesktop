@@ -52,6 +52,24 @@ struct Candidate {
 	return side / 2. + CardStickerOutline(side * ratio) / float64(ratio);
 }
 
+[[nodiscard]] QPolygonF FoldQuad(
+		QRect cardRest,
+		float64 fold,
+		float64 topY,
+		float64 bottomY) {
+	const auto bottomWidth = cardRest.width()
+		* (1. - (1. - st::walletCardFoldBottomScale) * fold);
+	const auto topWidth = bottomWidth
+		* (1. - (1. - st::walletCardFoldTopScale) * fold);
+	const auto center = cardRest.left() + cardRest.width() / 2.;
+	return QPolygonF({
+		QPointF(center - topWidth / 2., topY),
+		QPointF(center + topWidth / 2., topY),
+		QPointF(center + bottomWidth / 2., bottomY),
+		QPointF(center - bottomWidth / 2., bottomY),
+	});
+}
+
 [[nodiscard]] QRectF Square(QPointF center, float64 half) {
 	return QRectF(
 		center - QPointF(half, half),
@@ -342,11 +360,6 @@ CardFold ComputeCardFold(QRect cardRest, float64 fold) {
 	if (result.bottomY - result.topY < kCardFoldMinHeight) {
 		return result;
 	}
-	const auto bottomWidth = cardRest.width()
-		* (1. - (1. - st::walletCardFoldBottomScale) * fold);
-	const auto topWidth = bottomWidth
-		* (1. - (1. - st::walletCardFoldTopScale) * fold);
-	const auto center = cardRest.left() + cardRest.width() / 2.;
 	const auto rest = QRectF(cardRest);
 	const auto restQuad = QPolygonF({
 		rest.topLeft(),
@@ -354,12 +367,7 @@ CardFold ComputeCardFold(QRect cardRest, float64 fold) {
 		rest.bottomRight(),
 		rest.bottomLeft(),
 	});
-	auto quad = QPolygonF({
-		QPointF(center - topWidth / 2., result.topY),
-		QPointF(center + topWidth / 2., result.topY),
-		QPointF(center + bottomWidth / 2., result.bottomY),
-		QPointF(center - bottomWidth / 2., result.bottomY),
-	});
+	auto quad = FoldQuad(cardRest, fold, result.topY, result.bottomY);
 	auto transform = QTransform();
 	if (!QTransform::quadToQuad(restQuad, quad, transform)) {
 		return result;
@@ -384,6 +392,19 @@ QPolygonF CardFoldOutline(const CardFold &fold) {
 
 QPointF CardFoldPoint(const CardFold &fold, QPointF local) {
 	return fold.transform.map(QPointF(fold.rest.topLeft()) + local);
+}
+
+QPointF CardFoldLimitPoint(const CardFold &fold, QPointF local) {
+	if (fold.valid) {
+		return CardFoldPoint(fold, local);
+	}
+	const auto &rest = fold.rest;
+	const auto quad = FoldQuad(rest, fold.fold, fold.topY, fold.bottomY);
+	const auto x = rest.width() ? (local.x() / rest.width()) : 0.;
+	const auto y = rest.height() ? (local.y() / rest.height()) : 0.;
+	const auto top = quad[0] + (quad[1] - quad[0]) * x;
+	const auto bottom = quad[3] + (quad[2] - quad[3]) * x;
+	return top + (bottom - top) * y;
 }
 
 std::optional<QPointF> CardFoldLocal(const CardFold &fold, QPointF point) {

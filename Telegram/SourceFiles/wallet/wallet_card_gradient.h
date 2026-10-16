@@ -38,5 +38,6 @@ void PaintCardQrPlate(QPainter &p, const QRect &plate);
 
 // The sweep's average, the colour surfaces next to the card match.
 [[nodiscard]] QColor CardReferenceColor();
+[[nodiscard]] QColor CardReferenceColor(const CardTint &tint);
 
 } // namespace Wallet

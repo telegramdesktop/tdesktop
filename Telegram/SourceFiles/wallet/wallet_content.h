@@ -44,6 +44,7 @@ namespace Wallet {
 
 class CommentScope;
 class CollectibleMedia;
+class WindowPalette;
 struct KeyAuthorization;
 struct TransferItem;
 enum class SendError;
@@ -81,7 +82,8 @@ bool ShowFirstGramsIfPending(std::shared_ptr<Main::SessionShow> show);
 
 [[nodiscard]] base::unique_qptr<Ui::RpWidget> CreateContent(
 	not_null<Ui::SeparatePanel*> panel,
-	std::shared_ptr<Main::SessionShow> show);
+	std::shared_ptr<Main::SessionShow> show,
+	const std::shared_ptr<WindowPalette> &palette);
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeWalletCard(
 	QWidget *parent,

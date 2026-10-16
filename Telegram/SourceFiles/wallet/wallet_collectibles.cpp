@@ -587,8 +587,7 @@ CollectiblesGrid::CollectiblesGrid(
 		}
 	}, lifetime());
 
-	style::PaletteChanged(
-	) | rpl::on_next([=] {
+	WindowPaletteChanged(this) | rpl::on_next([=] {
 		_delegate.invalidateCache();
 		for (const auto &[address, square] : _squares) {
 			if (square.thumb) {
@@ -1206,7 +1205,7 @@ void CollectiblesGrid::showCardMenu(const QString &address, QPoint point) {
 			: tr::lng_wallet_card_remove(tr::now)),
 		[=] { cardAction(address, add); },
 		&st::menuIconStickers);
-	const auto scope = WindowPaletteScope(this);
+	const auto scope = WindowPaletteScope(_menu.get());
 	_menu->popup(point);
 }
 

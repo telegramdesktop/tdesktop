@@ -33,9 +33,9 @@ constexpr auto kQrPlateAlpha = 224; // 0.88 * 255, rounded.
 constexpr auto kTintRampSteps = 4096;
 
 struct TintLevels {
-	std::array<float64, 256> red = {};
-	std::array<float64, 256> green = {};
-	std::array<float64, 256> blue = {};
+	float64 red[256] = {};
+	float64 green[256] = {};
+	float64 blue[256] = {};
 	float64 offset = 0.;
 };
 
@@ -152,11 +152,42 @@ void RenderBackground(
 	return result;
 }
 
+[[nodiscard]] const TintLevels &Levels() {
+	static const auto result = ComputeTintLevels();
+	return result;
+}
+
+[[nodiscard]] TG_FORCE_INLINE int TintRampIndex(
+		const TintLevels &levels,
+		QRgb color) {
+	const auto level = levels.red[qRed(color)]
+		+ levels.green[qGreen(color)]
+		+ levels.blue[qBlue(color)]
+		+ levels.offset;
+	return (level <= 0.)
+		? 0
+		: (level >= kTintRampSteps)
+		? kTintRampSteps
+		: int(level);
+}
+
+[[nodiscard]] QColor AverageColor(
+		const std::array<QRgb, kSweep.size()> &colors) {
+	auto red = 0.;
+	auto green = 0.;
+	auto blue = 0.;
+	for (const auto rgb : colors) {
+		const auto color = QColor(rgb);
+		red += color.redF();
+		green += color.greenF();
+		blue += color.blueF();
+	}
+	const auto count = float64(colors.size());
+	return QColor::fromRgbF(red / count, green / count, blue / count);
+}
+
 void TintImage(QImage &image, const std::vector<QRgb> &ramp) {
-	static const auto levels = ComputeTintLevels();
-	const auto red = levels.red.data();
-	const auto green = levels.green.data();
-	const auto blue = levels.blue.data();
+	const auto &levels = Levels();
 	const auto colors = ramp.data();
 	const auto stride = image.bytesPerLine();
 	auto bytes = image.bits();
@@ -167,16 +198,7 @@ void TintImage(QImage &image, const std::vector<QRgb> &ramp) {
 			if (qAlpha(color) != 255) {
 				continue;
 			}
-			const auto level = red[qRed(color)]
-				+ green[qGreen(color)]
-				+ blue[qBlue(color)]
-				+ levels.offset;
-			const auto index = (level <= 0.)
-				? 0
-				: (level >= kTintRampSteps)
-				? kTintRampSteps
-				: int(level);
-			*pixel = colors[index];
+			*pixel = colors[TintRampIndex(levels, color)];
 		}
 	}
 }
@@ -242,17 +264,17 @@ void CardBackground::clear() {
 }
 
 QColor CardReferenceColor() {
-	auto red = 0.;
-	auto green = 0.;
-	auto blue = 0.;
-	for (const auto rgb : kSweep) {
-		const auto color = QColor(rgb);
-		red += color.redF();
-		green += color.greenF();
-		blue += color.blueF();
+	return AverageColor(kSweep);
+}
+
+QColor CardReferenceColor(const CardTint &tint) {
+	const auto &levels = Levels();
+	auto tinted = kSweep;
+	for (auto &rgb : tinted) {
+		const auto index = TintRampIndex(levels, rgb);
+		rgb = CardTintAt(tint, index / float64(kTintRampSteps)).rgb();
 	}
-	const auto count = float64(kSweep.size());
-	return QColor::fromRgbF(red / count, green / count, blue / count);
+	return AverageColor(tinted);
 }
 
 void PaintCardQrPlate(QPainter &p, const QRect &plate) {

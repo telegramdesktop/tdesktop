@@ -128,6 +128,8 @@ bool LoadFromContent(
 	const QByteArray &content,
 	not_null<Instance*> out,
 	Cached *outCache);
+[[nodiscard]] std::optional<QByteArray> ReadPaletteContent(
+	const QString &path);
 
 struct BackgroundUpdate {
 	enum class Type {

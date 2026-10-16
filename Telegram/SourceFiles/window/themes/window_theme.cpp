@@ -289,6 +289,31 @@ bool loadBackground(zlib::FileToRead &file, QByteArray *outBackground, bool *out
 	return true;
 }
 
+std::optional<QByteArray> ReadPaletteContent(
+		zlib::FileToRead &file,
+		const QByteArray &content,
+		const std::optional<QByteArray> &editedPalette) {
+	unz_global_info globalInfo = { 0 };
+	file.getGlobalInfo(&globalInfo);
+	if (file.error() != UNZ_OK) {
+		// Looks like it is not a .zip theme.
+		return editedPalette.value_or(content);
+	}
+	auto schemeContent = editedPalette.value_or(QByteArray());
+	if (schemeContent.isEmpty()) {
+		schemeContent = file.readFileContent("colors.tdesktop-theme", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
+	}
+	if (schemeContent.isEmpty()) {
+		file.clearError();
+		schemeContent = file.readFileContent("colors.tdesktop-palette", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
+	}
+	if (file.error() != UNZ_OK) {
+		LOG(("Theme Error: could not read 'colors.tdesktop-theme' or 'colors.tdesktop-palette' in the theme file."));
+		return std::nullopt;
+	}
+	return schemeContent;
+}
+
 bool LoadTheme(
 		const QByteArray &content,
 		const style::colorizer &colorizer,
@@ -308,32 +333,20 @@ bool LoadTheme(
 
 	const auto emptyColorizer = style::colorizer();
 	const auto &paletteColorizer = editedPalette ? emptyColorizer : colorizer;
-	auto paletteContent = QByteArray();
-
-	unz_global_info globalInfo = { 0 };
-	file.getGlobalInfo(&globalInfo);
+	const auto paletteContent = ReadPaletteContent(
+		file,
+		content,
+		editedPalette);
+	if (!paletteContent) {
+		return false;
+	} else if (!loadColorScheme(*paletteContent, paletteColorizer, out)) {
+		DEBUG_LOG(("Theme: Could not loadColorScheme."));
+		return false;
+	}
+	if (!out) {
+		Background()->saveAdjustableColors();
+	}
 	if (file.error() == UNZ_OK) {
-		auto schemeContent = editedPalette.value_or(QByteArray());
-		if (schemeContent.isEmpty()) {
-			schemeContent = file.readFileContent("colors.tdesktop-theme", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
-		}
-		if (schemeContent.isEmpty()) {
-			file.clearError();
-			schemeContent = file.readFileContent("colors.tdesktop-palette", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
-		}
-		if (file.error() != UNZ_OK) {
-			LOG(("Theme Error: could not read 'colors.tdesktop-theme' or 'colors.tdesktop-palette' in the theme file."));
-			return false;
-		}
-		if (!loadColorScheme(schemeContent, paletteColorizer, out)) {
-			DEBUG_LOG(("Theme: Could not loadColorScheme."));
-			return false;
-		}
-		paletteContent = schemeContent;
-		if (!out) {
-			Background()->saveAdjustableColors();
-		}
-
 		auto backgroundTiled = false;
 		auto backgroundContent = QByteArray();
 		if (!loadBackground(file, &backgroundContent, &backgroundTiled)) {
@@ -371,16 +384,6 @@ bool LoadTheme(
 			}
 			applyBackground(std::move(background), backgroundTiled, out);
 		}
-	} else {
-		// Looks like it is not a .zip theme.
-		paletteContent = editedPalette.value_or(content);
-		if (!loadColorScheme(paletteContent, paletteColorizer, out)) {
-			DEBUG_LOG(("Theme: Could not loadColorScheme from non-zip."));
-			return false;
-		}
-		if (!out) {
-			Background()->saveAdjustableColors();
-		}
 	}
 	if (out) {
 		out->palette.finalize(paletteColorizer);
@@ -388,7 +391,7 @@ bool LoadTheme(
 	if (ensureReadable && paletteColorizer) {
 		EnsureAccentReadable(
 			out ? out->palette : *style::main_palette::get(),
-			paletteContent);
+			*paletteContent);
 	}
 	if (cache) {
 		if (out) {
@@ -1577,6 +1580,15 @@ bool LoadFromContent(
 		std::nullopt,
 		outCache,
 		out);
+}
+
+std::optional<QByteArray> ReadPaletteContent(const QString &path) {
+	const auto content = readThemeContent(path);
+	if (content.isEmpty()) {
+		return std::nullopt;
+	}
+	auto file = zlib::FileToRead(content);
+	return ReadPaletteContent(file, content, std::nullopt);
 }
 
 rpl::producer<bool> IsThemeDarkValue() {

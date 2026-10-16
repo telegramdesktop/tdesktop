@@ -27,6 +27,16 @@ struct CardLookChange {
 	QPointF origin;
 };
 
+[[nodiscard]] crl::time CardLookFadeDuration();
+[[nodiscard]] float64 CardLookFadeValue(float64 progress);
+[[nodiscard]] float64 CardLookRimInside(float64 width);
+void PaintCardLookRim(
+	QPainter &p,
+	QPointF center,
+	float64 radius,
+	float64 width);
+void DrawDevicePixels(QPainter &p, const QRect &pixels, const QImage &image);
+
 class CardLookTransition final {
 public:
 	explicit CardLookTransition(Fn<void()> repaint);

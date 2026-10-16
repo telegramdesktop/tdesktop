@@ -86,6 +86,7 @@ DraggedGift::Layer::Layer(
 , _titleExtension(titleExtension)
 , _image(std::move(image)) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
+	MarkTravelLayer(this);
 	body->geometryValue() | rpl::on_next([=] {
 		if (_frame) {
 			setFrame(*_frame);

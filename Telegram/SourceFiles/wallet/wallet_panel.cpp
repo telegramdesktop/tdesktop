@@ -77,18 +77,18 @@ not_null<Ui::SeparatePanel*> ShowWallet(not_null<Main::Session*> session) {
 	}
 	auto owned = std::make_unique<Ui::SeparatePanel>();
 	const auto panel = owned.get();
-	UseWindowPalette(panel);
+	const auto palette = UseWindowPalette(panel);
 	const auto show = Main::MakeSessionShow(panel->uiShow(), session);
 	panel->setWindowFlag(Qt::WindowStaysOnTopHint, false);
 	Shortcuts::Listen(panel); // Main window may be hidden to tray.
 	panel->setInnerSize(st::walletPanelSize);
 	rpl::single(rpl::empty) | rpl::then(
-		style::PaletteChanged()
+		WindowPaletteChanged(panel)
 	) | rpl::on_next([=] {
 		const auto scope = WindowPaletteScope(panel);
 		panel->overrideTitleColor(st::windowBgOver->c);
 		panel->overrideBottomBarColor(st::windowBgOver->c);
-		panel->overrideBodyColor(WindowPalette()
+		panel->overrideBodyColor(palette->resolve(false)
 			? std::make_optional(st::windowBg->c)
 			: std::nullopt);
 	}, panel->lifetime());
@@ -117,7 +117,7 @@ not_null<Ui::SeparatePanel*> ShowWallet(not_null<Main::Session*> session) {
 	}, panel->lifetime());
 
 	wallet.setPanel(std::move(owned));
-	panel->showInner(CreateContent(panel, show));
+	panel->showInner(CreateContent(panel, show, palette));
 	Core::App().registerWindowActivation(panel);
 	return panel;
 }

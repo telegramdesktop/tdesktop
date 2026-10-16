@@ -9,10 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
+#include "ui/ui_utility.h"
 
 namespace Wallet {
 namespace {
 
+constexpr auto kTravelLayerProperty = "walletTravelLayer";
 constexpr auto kFlightDuration = crl::time(250);
 constexpr auto kBend = 0.45;
 constexpr auto kBendSteps = 16;
@@ -136,6 +138,14 @@ QRectF FlightImageRect(const QImage &image, float64 side) {
 		size);
 }
 
+void MarkTravelLayer(not_null<QWidget*> layer) {
+	layer->setProperty(kTravelLayerProperty, true);
+}
+
+bool IsTravelLayer(not_null<const QWidget*> widget) {
+	return widget->property(kTravelLayerProperty).toBool();
+}
+
 class CardFlight::Layer final : public Ui::RpWidget {
 public:
 	Layer(not_null<Ui::RpWidget*> body, QImage image);
@@ -146,6 +156,9 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	[[nodiscard]] bool sync();
+
+	const not_null<Ui::RpWidget*> _body;
 	const QImage _image;
 	std::optional<FlightPose> _pose;
 	QRect _area;
@@ -153,15 +166,20 @@ private:
 };
 
 CardFlight::Layer::Layer(not_null<Ui::RpWidget*> body, QImage image)
-: RpWidget(body.get())
+: RpWidget(body->window())
+, _body(body)
 , _image(std::move(image)) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
-	body->sizeValue() | rpl::on_next([=](QSize size) {
-		setGeometry(QRect(QPoint(), size));
+	MarkTravelLayer(this);
+	body->geometryValue() | rpl::on_next([=] {
+		if (sync()) {
+			update();
+		}
 	}, lifetime());
 }
 
 void CardFlight::Layer::setPose(const FlightPose &pose) {
+	const auto moved = sync();
 	const auto area = QTransform()
 		.translate(pose.center.x(), pose.center.y())
 		.rotate(pose.rotation)
@@ -169,8 +187,17 @@ void CardFlight::Layer::setPose(const FlightPose &pose) {
 		.toAlignedRect()
 		.marginsAdded({ 1, 1, 1, 1 });
 	_pose = pose;
-	update(_area.united(area));
+	update(moved ? rect() : _area.united(area));
 	_area = area;
+}
+
+bool CardFlight::Layer::sync() {
+	const auto geometry = Ui::MapFrom(parentWidget(), _body, _body->rect());
+	if (geometry == this->geometry()) {
+		return false;
+	}
+	setGeometry(geometry);
+	return true;
 }
 
 void CardFlight::Layer::paintEvent(QPaintEvent *e) {

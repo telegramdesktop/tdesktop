@@ -127,6 +127,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_ton_connect_box.h"
 #include "wallet/wallet_unlock.h"
 #include "wallet/wallet_user_addresses.h"
+#include "wallet/wallet_window_transition.h"
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -322,7 +323,8 @@ class Content final : public Ui::RpWidget {
 public:
 	Content(
 		not_null<Ui::SeparatePanel*> panel,
-		std::shared_ptr<Main::SessionShow> show);
+		std::shared_ptr<Main::SessionShow> show,
+		std::shared_ptr<WindowPalette> palette);
 	~Content();
 
 	void flySendDiamond(
@@ -368,6 +370,7 @@ private:
 	[[nodiscard]] QRegion cardOutline() const;
 
 	const std::shared_ptr<Main::SessionShow> _show;
+	const std::shared_ptr<WindowPalette> _palette;
 	Ui::SeparatePanel *_panel = nullptr;
 	object_ptr<Ui::ScrollArea> _scroll;
 	SingleQueuedInvokation _loadMoreCheck;
@@ -375,7 +378,7 @@ private:
 	std::unique_ptr<CardStickers> _cardStickers;
 	std::unique_ptr<CardFloat> _cardFloat;
 	std::unique_ptr<CardStickerEditor> _cardEditor;
-	std::unique_ptr<CardLookFollower> _cardLook;
+	std::unique_ptr<WindowLookTransition> _cardLook;
 	Ui::Text::String _title;
 	base::unique_qptr<Ui::RpWidget> _titleBalance;
 	Ui::RpWidget *_container = nullptr;
@@ -1273,7 +1276,7 @@ void SetAmountColor(
 		not_null<Ui::FlatLabel*> minor,
 		const style::color &color) {
 	rpl::single(rpl::empty) | rpl::then(
-		style::PaletteChanged()
+		WindowPaletteChanged(major)
 	) | rpl::on_next([=] {
 		const auto scope = WindowPaletteScope(major);
 		major->setTextColorOverride(color->c);
@@ -3411,7 +3414,7 @@ void AddDetailsAmountHeader(
 		? st::boxTextFgGood
 		: st::windowFg;
 	rpl::single(rpl::empty) | rpl::then(
-		style::PaletteChanged()
+		WindowPaletteChanged(container)
 	) | rpl::on_next([=] {
 		const auto scope = WindowPaletteScope(container);
 		major->setTextColorOverride(color->c);
@@ -4448,7 +4451,7 @@ void WalletReceiveBox(
 	rpl::single(
 		rpl::empty
 	) | rpl::then(
-		style::PaletteChanged()
+		WindowPaletteChanged(box)
 	) | rpl::on_next([=] {
 		const auto scope = WindowPaletteScope(box);
 		bar.title->setTextColorOverride(st::activeButtonFg->c);
@@ -4531,8 +4534,7 @@ void WalletReceiveBox(
 			hintTop + hintFont->ascent,
 			hint);
 	}, plate->lifetime());
-	style::PaletteChanged(
-	) | rpl::on_next([=] {
+	WindowPaletteChanged(plate) | rpl::on_next([=] {
 		const auto scope = WindowPaletteScope(plate);
 		state->image = ReceiveQrImage(
 			address,
@@ -4939,7 +4941,7 @@ void SetupIntroTooltip(
 		colors());
 	state->tooltip->setAttribute(Qt::WA_TransparentForMouseEvents);
 	state->tooltip->finishAnimating();
-	style::PaletteChanged() | rpl::on_next([=] {
+	WindowPaletteChanged(parent) | rpl::on_next([=] {
 		if (!state->finished) {
 			state->tooltip->setColors(colors());
 		}
@@ -5168,7 +5170,7 @@ void WalletTransactionBox(
 			[=] { show->showBox(Box(WalletHowItWorksBox, session)); },
 			&st::menuIconFaq);
 		raw->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
-		const auto scope = WindowPaletteScope(box);
+		const auto scope = WindowPaletteScope(raw);
 		raw->popup(toggle->mapToGlobal(QPoint(
 			toggle->width(),
 			toggle->height())));
@@ -6091,7 +6093,7 @@ void SetButtonDisabledLook(
 	ApplyButtonDisabledLook(button);
 	if (!button->property("walletDisabledLook").toBool()) {
 		button->setProperty("walletDisabledLook", true);
-		style::PaletteChanged() | rpl::on_next([=] {
+		WindowPaletteChanged(button) | rpl::on_next([=] {
 			ApplyButtonDisabledLook(button);
 		}, button->lifetime());
 	}
@@ -7715,7 +7717,7 @@ void WalletSendBox(
 			editComment,
 			&st::menuIconChatBubble);
 		raw->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
-		const auto scope = WindowPaletteScope(box);
+		const auto scope = WindowPaletteScope(raw);
 		raw->popup(toggle->mapToGlobal(QPoint(
 			toggle->width(),
 			toggle->height())));
@@ -13966,9 +13968,11 @@ std::vector<QRectF> Card::protectedAreas(const BalanceInk &ink) const {
 
 Content::Content(
 	not_null<Ui::SeparatePanel*> panel,
-	std::shared_ptr<Main::SessionShow> show)
+	std::shared_ptr<Main::SessionShow> show,
+	std::shared_ptr<WindowPalette> palette)
 : RpWidget(panel)
 , _show(std::move(show))
+, _palette(std::move(palette))
 , _panel(panel)
 , _scroll(this, st::defaultScrollArea)
 , _loadMoreCheck([this] { checkLoadMore(); }) {
@@ -13980,6 +13984,7 @@ Content::Content(
 }
 
 Content::~Content() {
+	_cardLook = nullptr;
 	_show->session().wallet().stopPolling();
 }
 
@@ -14926,13 +14931,18 @@ void Content::setupBalance() {
 				_cardFloat->update();
 			}
 		});
-	_cardLook = std::make_unique<CardLookFollower>(CardLookFollowerArgs{
-		.session = &_show->session(),
-		.stickers = _cardStickers.get(),
-		.apply = [card = _card](CardLook look, CardLookChange change) {
-			card->setLook(std::move(look), change);
-		},
-	});
+	_cardLook = std::make_unique<WindowLookTransition>(
+		WindowLookTransitionArgs{
+			.session = &_show->session(),
+			.stickers = _cardStickers.get(),
+			.panel = _panel,
+			.body = this,
+			.palette = _palette,
+			.fold = [=] { return cardFold(); },
+			.apply = [card = _card](CardLook look, CardLookChange change) {
+				card->setLook(std::move(look), change);
+			},
+		});
 	const auto paintInkAndStickers = [=](
 			QPainter &p,
 			const CardFold &fold,
@@ -14960,7 +14970,8 @@ void Content::setupBalance() {
 		.arriving = rpl::combine(
 			_cardStickers->arrivingValue(),
 			_card->lookTransitionValue(),
-			rpl::mappers::_1 || rpl::mappers::_2
+			_cardLook->runningValue(),
+			rpl::mappers::_1 || rpl::mappers::_2 || rpl::mappers::_3
 		) | rpl::distinct_until_changed(),
 		.paint = [=](Painter &p, const CardFold &fold, QRect clip) {
 			_card->paintFold(p, fold, _cardFloat->widget());
@@ -15017,8 +15028,7 @@ void Content::setupBalance() {
 		repaintBalance,
 		this);
 
-	style::PaletteChanged(
-	) | rpl::on_next([=] {
+	WindowPaletteChanged(this) | rpl::on_next([=] {
 		const auto scope = WindowPaletteScope(this);
 		_ink->refresh();
 		_card->invalidateCache();
@@ -16258,8 +16268,9 @@ rpl::producer<bool> TransactionsShownValue(
 
 base::unique_qptr<Ui::RpWidget> CreateContent(
 		not_null<Ui::SeparatePanel*> panel,
-		std::shared_ptr<Main::SessionShow> show) {
-	return base::make_unique_q<Content>(panel, std::move(show));
+		std::shared_ptr<Main::SessionShow> show,
+		const std::shared_ptr<WindowPalette> &palette) {
+	return base::make_unique_q<Content>(panel, std::move(show), palette);
 }
 
 object_ptr<Ui::RpWidget> MakeWalletCard(
@@ -16319,7 +16330,7 @@ object_ptr<Ui::RpWidget> MakeWalletCard(
 	});
 
 	rpl::single(rpl::empty) | rpl::then(
-		style::PaletteChanged()
+		WindowPaletteChanged(raw)
 	) | rpl::on_next([=] {
 		const auto scope = WindowPaletteScope(raw);
 		ink->refresh();
@@ -16409,7 +16420,7 @@ object_ptr<Ui::RpWidget> MakeTransferCard(
 	}, raw->lifetime());
 
 	rpl::single(rpl::empty) | rpl::then(
-		style::PaletteChanged()
+		WindowPaletteChanged(raw)
 	) | rpl::on_next([=] {
 		const auto scope = WindowPaletteScope(raw);
 		state->ink.refresh();

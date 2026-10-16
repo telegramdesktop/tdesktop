@@ -71,7 +71,7 @@ struct Disc {
 		change.origin.x() * area.width(),
 		change.origin.y() * area.height());
 	const auto reach = OutlineReach(area, center)
-		+ kRimInside * area.width();
+		+ CardLookRimInside(area.width());
 	return { .center = center, .radius = reach * FlightEaseOut(progress) };
 }
 
@@ -96,16 +96,42 @@ void PrepareScratch(QImage &image, QSize size, float64 ratio) {
 	image.fill(Qt::transparent);
 }
 
-void DrawDevicePixels(QPainter &p, const QRect &pixels, const QImage &image) {
-	const auto source = QRect(QPoint(), pixels.size());
-	p.save();
-	SetDeviceTransform(p, QTransform::fromTranslate(pixels.x(), pixels.y()));
-	p.drawImage(source, image, source);
-	p.restore();
+[[nodiscard]] std::optional<QPointF> SourceOrigin(
+		const OwnCardState &state,
+		const QString &source) {
+	const auto i = ranges::find_if(state.stickers, [&](const auto &sticker) {
+		return (CanonicalAddress(sticker.address) == source);
+	});
+	if (i == end(state.stickers)) {
+		return std::nullopt;
+	}
+	const auto center = i->area.geometry.center();
+	if (!std::isfinite(center.x()) || !std::isfinite(center.y())) {
+		return std::nullopt;
+	}
+	return center;
 }
 
-void PaintRim(QPainter &p, QPointF center, float64 radius, float64 width) {
-	const auto inside = kRimInside * width;
+} // namespace
+
+crl::time CardLookFadeDuration() {
+	return kFadeDuration;
+}
+
+float64 CardLookFadeValue(float64 progress) {
+	return anim::sineInOut(1., progress);
+}
+
+float64 CardLookRimInside(float64 width) {
+	return kRimInside * width;
+}
+
+void PaintCardLookRim(
+		QPainter &p,
+		QPointF center,
+		float64 radius,
+		float64 width) {
+	const auto inside = CardLookRimInside(width);
 	const auto outer = radius + kRimOutside * width;
 	const auto peak = QColor::fromRgbF(1., 1., 1., kRimAlpha);
 	const auto clear = QColor(255, 255, 255, 0);
@@ -128,23 +154,13 @@ void PaintRim(QPainter &p, QPointF center, float64 radius, float64 width) {
 	p.restore();
 }
 
-[[nodiscard]] std::optional<QPointF> SourceOrigin(
-		const OwnCardState &state,
-		const QString &source) {
-	const auto i = ranges::find_if(state.stickers, [&](const auto &sticker) {
-		return (CanonicalAddress(sticker.address) == source);
-	});
-	if (i == end(state.stickers)) {
-		return std::nullopt;
-	}
-	const auto center = i->area.geometry.center();
-	if (!std::isfinite(center.x()) || !std::isfinite(center.y())) {
-		return std::nullopt;
-	}
-	return center;
+void DrawDevicePixels(QPainter &p, const QRect &pixels, const QImage &image) {
+	const auto source = QRect(QPoint(), pixels.size());
+	p.save();
+	SetDeviceTransform(p, QTransform::fromTranslate(pixels.x(), pixels.y()));
+	p.drawImage(source, image, source);
+	p.restore();
 }
-
-} // namespace
 
 struct CardLookTransition::Layer {
 	CardLook look;
@@ -309,7 +325,11 @@ void CardLookTransition::compose(
 			const auto progress = Progress(above, frame.now);
 			const auto disc = WaveDisc(frame.card, above.change, progress);
 			if (disc.radius > 0.) {
-				PaintRim(q, disc.center, disc.radius, frame.card.width());
+				PaintCardLookRim(
+					q,
+					disc.center,
+					disc.radius,
+					frame.card.width());
 			}
 		}
 		foreground(q, look.stripInk());
@@ -331,7 +351,7 @@ void CardLookTransition::reveal(const Layer &layer, const Frame &frame) {
 	// the opacity, so the rounded edges keep their alpha instead of stacking.
 	q.setCompositionMode(QPainter::CompositionMode_Source);
 	if (layer.change.reveal == CardLookReveal::Fade) {
-		q.setOpacity(anim::sineInOut(1., progress));
+		q.setOpacity(CardLookFadeValue(progress));
 	} else {
 		const auto disc = WaveDisc(frame.card, layer.change, progress);
 		if (disc.radius <= 0.) {

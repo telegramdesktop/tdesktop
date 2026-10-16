@@ -26,6 +26,9 @@ struct FlightPose {
 [[nodiscard]] float64 FlightEaseOut(float64 progress);
 [[nodiscard]] QRectF FlightImageRect(const QImage &image, float64 side);
 
+void MarkTravelLayer(not_null<QWidget*> layer);
+[[nodiscard]] bool IsTravelLayer(not_null<const QWidget*> widget);
+
 enum class CardFlightDirection : uchar {
 	ToCard,
 	ToSquare,

@@ -2317,6 +2317,8 @@ PRIVATE
     wallet/wallet_user_addresses.h
     wallet/wallet_vault.cpp
     wallet/wallet_vault.h
+    wallet/wallet_window_transition.cpp
+    wallet/wallet_window_transition.h
     webauthn/cable.h
     webauthn/cable_box.cpp
     webauthn/cable_box.h

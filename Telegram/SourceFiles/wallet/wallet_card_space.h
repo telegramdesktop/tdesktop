@@ -73,6 +73,7 @@ struct CardDrop {
 [[nodiscard]] CardFold ComputeCardFold(QRect cardRest, float64 fold);
 [[nodiscard]] QPolygonF CardFoldOutline(const CardFold &fold);
 [[nodiscard]] QPointF CardFoldPoint(const CardFold &fold, QPointF local);
+[[nodiscard]] QPointF CardFoldLimitPoint(const CardFold &fold, QPointF local);
 [[nodiscard]] std::optional<QPointF> CardFoldLocal(
 	const CardFold &fold,
 	QPointF point);
