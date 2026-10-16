@@ -4443,6 +4443,8 @@ auto HtmlWriter::Wrap::pushMessage(
 			: data.declined
 			? ("You declined a TON Connect request" + topic + ".")
 			: ("You received a TON Connect request" + topic + ".");
+	}, [&](const ActionNoPaidMessagesTokenUsed &data) {
+		return serviceFrom + " started a chat via a free messages link";
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

@@ -1921,6 +1921,9 @@ void SetDirectedAmount(
 			setCounterparty(data);
 		}, [&](const MTPDwalletTransactionPeerAddress &data) {
 			setCounterparty(data);
+		}, [&](const MTPDwalletTransactionPeerChannel &data) {
+			setCounterparty(data);
+		}, [](const MTPDwalletTransactionPeerTelegramGift &) {
 		}, [&](const MTPDwalletTransactionPeerOnramp &data) {
 			setCounterparty(data);
 			// Without a provider or an address it reads as the address peer.

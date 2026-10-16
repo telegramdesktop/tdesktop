@@ -140,8 +140,9 @@ void ExportOnBlockchain(
 	session->api().cloudPassword().reload();
 	session->api().request(
 		MTPpayments_GetStarGiftWithdrawalUrl(
+			MTP_flags(0),
 			Api::InputSavedStarGiftId(giftId),
-			MTP_inputCheckPasswordEmpty())
+			MTPbytes())
 	).fail([=](const MTP::Error &error) {
 		auto box = PrePasswordErrorBox(
 			error.type(),
@@ -171,8 +172,10 @@ void ExportOnBlockchain(
 				using ExportUrl = MTPpayments_StarGiftWithdrawalUrl;
 				session->api().request(
 					MTPpayments_GetStarGiftWithdrawalUrl(
+						MTP_flags(0),
 						Api::InputSavedStarGiftId(giftId),
-						result.result)
+						//result.result,
+						MTPbytes())
 				).done([=](const ExportUrl &result) {
 					UrlClickHandler::Open(qs(result.data().vurl()));
 					wentToUrl();

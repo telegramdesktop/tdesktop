@@ -2813,6 +2813,8 @@ ServiceAction ParseServiceAction(
 			.accepted = data.is_accepted(),
 			.declined = data.is_declined(),
 		};
+	}, [&](const MTPDmessageActionNoPaidMessagesTokenUsed &data) {
+		result.content = ActionNoPaidMessagesTokenUsed();
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

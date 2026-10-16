@@ -1126,6 +1126,9 @@ struct ActionWalletTonConnectRequest {
 	bool declined = false;
 };
 
+struct ActionNoPaidMessagesTokenUsed {
+};
+
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -1189,7 +1192,8 @@ struct ServiceAction {
 		ActionChangeCreator,
 		ActionManagedBotCreated,
 		ActionGramTransfer,
-		ActionWalletTonConnectRequest> content;
+		ActionWalletTonConnectRequest,
+		ActionNoPaidMessagesTokenUsed> content;
 };
 
 ServiceAction ParseServiceAction(

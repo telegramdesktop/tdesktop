@@ -100,7 +100,8 @@ std::optional<MTPMessageReplyHeader> PrepareLogReply(
 					| Flag::f_quote
 					| Flag::f_quote_entities
 					| Flag::f_quote_offset
-					| Flag::f_quote_text;
+					| Flag::f_quote_text
+					| Flag::f_quote_rich;
 				return MTP_messageReplyHeader(
 					MTP_flags((data.vflags().v & ~removeFlags)
 						| Flag::f_reply_to_msg_id),
@@ -113,7 +114,8 @@ std::optional<MTPMessageReplyHeader> PrepareLogReply(
 					MTPVector<MTPMessageEntity>(), // quote_entities
 					MTPint(), // quote_offset
 					MTPint(), // todo_item_id
-					MTPbytes()); // poll_option
+					MTPbytes(), // poll_option
+					MTPVector<MTPRichText>()); // quote_rich
 			}
 		}
 		return {};

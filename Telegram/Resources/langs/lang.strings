@@ -2689,6 +2689,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_ton_connect_expired_unknown" = "The request has expired";
 "lng_action_took_screenshot" = "{from} took a screenshot!";
 "lng_action_you_took_screenshot" = "You took a screenshot!";
+"lng_action_no_paid_token_used" = "{from} started a chat via your free messages link";
+"lng_action_you_no_paid_token_used" = "You started a chat via a free messages link";
 "lng_action_bot_allowed_from_domain" = "You allowed this bot to message you when you logged in on {domain}.";
 "lng_action_bot_allowed_from_app" = "You allowed this bot to message you when you opened {app}.";
 "lng_action_secure_values_sent" = "{user} received the following documents: {documents}";

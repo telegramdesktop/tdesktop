@@ -110,7 +110,8 @@ MTPInputReplyTo ReplyToForMTP(
 				? history->owner().peer(replyToMonoforumPeerId)->input()
 				: MTPInputPeer()),
 			MTP_int(replyTo.todoItemId),
-			MTP_bytes(replyTo.pollOption));
+			MTP_bytes(replyTo.pollOption),
+			MTPVector<MTPRichText>());
 	} else if (history->peer->amMonoforumAdmin()
 		&& replyTo.monoforumPeerId) {
 		const auto replyToMonoforumPeer = replyTo.monoforumPeerId

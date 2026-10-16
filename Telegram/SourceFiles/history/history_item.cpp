@@ -6369,6 +6369,23 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return prepareTonConnectRequestText();
 	};
 
+	auto prepareNoPaidMessagesTokenUsed = [this](const MTPDmessageActionNoPaidMessagesTokenUsed &) {
+		auto result = PreparedServiceText();
+		if (out()) {
+			result.text = tr::lng_action_you_no_paid_token_used(
+				tr::now,
+				tr::marked);
+		} else {
+			result.links.push_back(fromLink());
+			result.text = tr::lng_action_no_paid_token_used(
+				tr::now,
+				lt_from,
+				fromLinkText(), // Link 1.
+				tr::marked);
+		}
+		return result;
+	};
+
 	auto preparePaymentSentMe = [&](const MTPDmessageActionPaymentSentMe &data) {
 		auto result = PreparedServiceText();
 		result.text = (data.is_recurring_used()
@@ -8033,6 +8050,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		prepareChangeCommunity,
 		prepareGramTransfer,
 		prepareTonConnectRequest,
+		prepareNoPaidMessagesTokenUsed,
 		PrepareErrorText<MTPDmessageActionEmpty>));
 
 	processAction(action);

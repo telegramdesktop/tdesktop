@@ -2081,6 +2081,9 @@ QByteArray SerializeMessage(
 		push("trace_id", data.traceId);
 		push("accepted", data.accepted);
 		push("declined", data.declined);
+	}, [&](const ActionNoPaidMessagesTokenUsed &data) {
+		pushActor();
+		pushAction("no_paid_messages_token_used");
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {
