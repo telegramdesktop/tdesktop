@@ -234,6 +234,8 @@ public:
 		const MessageSelection &selection) const override;
 	TextSelection selectionFromQuote(
 		const SelectedQuote &quote) const override;
+	HighlightYRange richQuoteHighlightYRange(
+		const Ui::ChatPaintRichQuote &quote) const override;
 	TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const override;

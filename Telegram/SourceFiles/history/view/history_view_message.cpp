@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_reply_button.h"
 #include "history/view/history_view_group_call_bar.h" // UserpicInRow.
 #include "history/view/history_view_reply.h"
+#include "history/view/history_view_rich_quote.h"
 #include "history/view/history_view_transcribe_button.h"
 #include "history/view/history_view_summary_header.h"
 #include "history/view/history_view_view_button.h" // ViewButton.
@@ -3233,10 +3234,12 @@ void Message::paintRichText(
 		});
 		articleContext.reveal = &*revealState;
 	}
+	auto quotePaint = RichQuotePaint(rich, data(), &articleContext);
 	p.save();
 	p.translate(rect.topLeft());
 	rich->article.paint(p, articleContext);
 	p.restore();
+	quotePaint.finish(rect.topLeft());
 }
 
 PointState Message::pointState(QPoint point) const {
@@ -5123,6 +5126,19 @@ TextSelection Message::selectionFromQuote(
 		}
 	}
 	return {};
+}
+
+HighlightYRange Message::richQuoteHighlightYRange(
+		const Ui::ChatPaintRichQuote &quote) const {
+	const auto rich = richpage();
+	auto trect = QRect();
+	return (rich && prepareRichPageTextRect(trect))
+		? RichQuoteHighlightYRange(
+			rich,
+			data(),
+			quote,
+			richPageRect(trect).y())
+		: HighlightYRange();
 }
 
 TextSelection Message::adjustSelection(

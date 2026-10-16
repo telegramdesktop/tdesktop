@@ -438,6 +438,16 @@ const TextWithEntities &ReplyFields::displayQuote() const {
 	return richQuote ? richQuote->text : quote;
 }
 
+MessageHighlightId ReplyFields::highlight() const {
+	return {
+		.quote = manualQuote ? quote : TextWithEntities(),
+		.quoteOffset = int(quoteOffset),
+		.todoItemId = todoItemId,
+		.pollOption = pollOption,
+		.richQuote = manualQuote ? richQuote : nullptr,
+	};
+}
+
 ReplyFields ReplyFieldsFromMTP(
 		not_null<HistoryItem*> item,
 		const MTPMessageReplyHeader &reply) {

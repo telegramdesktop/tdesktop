@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "iv/iv_cached_media.h"
 #include "iv/iv_rich_page.h"
+#include "iv/iv_rich_page_quote.h"
 #include "base/unixtime.h"
 #include "boxes/premium_preview_box.h"
 #include "core/application.h"
@@ -3468,6 +3469,37 @@ TextSelection Element::FindSelectionFromQuote(
 	return ApplyModificationsFrom(result, text);
 }
 
+Ui::ChatPaintRichQuote Element::richSelectionFromQuote(
+		const SelectedQuote &quote) const {
+	Expects(quote.item != nullptr);
+
+	const auto &payload = quote.highlight.richQuote;
+	const auto rich = richpage();
+	if (!payload || !rich || !rich->page) {
+		return {};
+	}
+	const auto item = quote.item;
+	const auto &translated = item->translatedText();
+	const auto &original = item->originalText();
+	if (&translated != &original || rich->page != item->richPage()) {
+		return {};
+	}
+	const auto found = Iv::LocateRichQuote(
+		&history()->session(),
+		*rich->page,
+		payload->fragments.v,
+		payload->offset.value_or(0));
+	if (!found) {
+		return {};
+	}
+	return { rich->page, found->from, found->till };
+}
+
+HighlightYRange Element::richQuoteHighlightYRange(
+		const Ui::ChatPaintRichQuote &quote) const {
+	return {};
+}
+
 Reactions::ButtonParameters Element::reactionButtonParameters(
 		QPoint position,
 		const TextState &reactionState) const {
@@ -3830,6 +3862,9 @@ HighlightYRange FindHighlightYRange(
 	if (!highlight.pollOption.isEmpty()) {
 		const auto y = FindViewPollOptionY(view, highlight.pollOption);
 		return { y - 4 * single, y + 4 * single };
+	}
+	if (highlight.richQuote) {
+		return view->richQuoteHighlightYRange(highlight.richQuote);
 	}
 	if (!sel.empty()) {
 		const auto begin = FindViewY(view, sel.from) - single;

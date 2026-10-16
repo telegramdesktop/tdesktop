@@ -1582,9 +1582,16 @@ bool ScheduledWidget::showMessage(
 		}
 		return nullptr;
 	}();
-	showAtPosition(
-		message->position(),
-		originItem ? originItem->fullId() : FullMsgId());
+	const auto position = message->position();
+	const auto originId = originItem ? originItem->fullId() : FullMsgId();
+	if (params.highlight.richQuote) {
+		_inner->showAtPosition(
+			position,
+			params,
+			_cornerButtons.doneJumpFrom(position.fullId, originId));
+	} else {
+		showAtPosition(position, originId);
+	}
 	return true;
 }
 

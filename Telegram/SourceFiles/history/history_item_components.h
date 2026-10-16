@@ -328,6 +328,7 @@ private:
 struct ReplyFields {
 	[[nodiscard]] ReplyFields clone(not_null<HistoryItem*> parent) const;
 	[[nodiscard]] const TextWithEntities &displayQuote() const;
+	[[nodiscard]] MessageHighlightId highlight() const;
 
 	TextWithEntities quote;
 	std::shared_ptr<const Iv::RichQuote> richQuote;

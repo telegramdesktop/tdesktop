@@ -16,6 +16,10 @@ namespace Data {
 class Session;
 } // namespace Data
 
+namespace Iv {
+struct RichPage;
+} // namespace Iv
+
 namespace Ui {
 struct ChatPaintHighlight;
 } // namespace Ui
@@ -67,6 +71,9 @@ private:
 		TextSelection part;
 		int todoListId = 0;
 		QByteArray pollOption;
+		std::shared_ptr<const Iv::RichPage> richPage;
+		int richFrom = 0;
+		int richTill = 0;
 
 		explicit operator bool() const {
 			return itemId.operator bool();

@@ -408,7 +408,8 @@ bool TextHasInlineLinkButton(const TextWithEntities &text) {
 std::vector<InlineLinkButtonSpan> ExpandInlineLinkButtons(
 		TextWithEntities *text,
 		RichButtonLabelDates dates,
-		const Ui::Text::FormattedDateFactory &factory) {
+		const Ui::Text::FormattedDateFactory &factory,
+		std::vector<PreparedTextReplacement> *replacements) {
 	auto result = std::vector<InlineLinkButtonSpan>();
 	auto &entities = text->entities;
 	for (auto i = entities.begin(); i != entities.end();) {
@@ -424,6 +425,13 @@ std::vector<InlineLinkButtonSpan> ExpandInlineLinkButtons(
 			!= HistoryMessageMarkupButton::Type::Disabled);
 		auto data = actionable ? i->data() : QString();
 		const auto offset = i->offset();
+		if (replacements) {
+			replacements->push_back({
+				.position = offset,
+				.skipped = i->length(),
+				.added = int(label.text.size()),
+			});
+		}
 		ReplaceInlineObjectText(text, *i, label.text);
 		i = ExpandInlineObjectEntities(text, i, label.entities);
 		if (actionable && !label.text.isEmpty()) {

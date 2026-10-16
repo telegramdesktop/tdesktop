@@ -505,12 +505,7 @@ void Reply::setLinkFrom(
 	const auto isAdminLogEntry = view->data()->isAdminLogEntry();
 	const auto externalChannelId = peerToChannel(fields.externalPeerId);
 	const auto messageId = fields.messageId;
-	const auto highlight = MessageHighlightId{
-		.quote = fields.manualQuote ? fields.quote : TextWithEntities(),
-		.quoteOffset = int(fields.quoteOffset),
-		.todoItemId = fields.todoItemId,
-		.pollOption = fields.pollOption,
-	};
+	const auto highlight = fields.highlight();
 	const auto returnToId = view->data()->fullId();
 	const auto externalLink = [=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();

@@ -912,8 +912,13 @@ void InnerWidget::jumpToMessageInLog(
 		return;
 	}
 	const auto from = _visibleTop;
+	const auto range = (highlight.richQuote && (height > viewport))
+		? HistoryView::FindHighlightYRange(view, _highlighter.state(item))
+		: HistoryView::HighlightYRange();
 	const auto target = std::clamp(
-		top - std::max(0, (viewport - height) / 2),
+		(range
+			? HistoryView::AdjustScrollForRange(top, viewport, range)
+			: (top - std::max(0, (viewport - height) / 2))),
 		0,
 		std::max(0, this->height() - viewport));
 	if (from == target) {
@@ -2960,16 +2965,8 @@ void InnerWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton but
 				if (const auto data = item->Get<HistoryMessageReply>()) {
 					const auto to = data->resolvedMessage.get();
 					if (to && to->isAdminLogEntry()) {
-						const auto &fields = data->fields();
 						mouseActionCancel();
-						jumpToMessageInLog(to, {
-							.quote = (fields.manualQuote
-								? fields.quote
-								: TextWithEntities()),
-							.quoteOffset = int(fields.quoteOffset),
-							.todoItemId = fields.todoItemId,
-							.pollOption = fields.pollOption,
-						});
+						jumpToMessageInLog(to, data->fields().highlight());
 						return;
 					}
 				}

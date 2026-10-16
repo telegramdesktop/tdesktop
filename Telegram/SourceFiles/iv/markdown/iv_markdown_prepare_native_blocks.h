@@ -29,5 +29,8 @@ struct NativeIvPreparedLeafFormulaRange {
 [[nodiscard]] const QString *ResolveCanonicalNativeIvLeafText(
 	const Iv::RichPage &page,
 	const PreparedEditLeafSource &source);
+[[nodiscard]] const TextWithEntities *ResolveCanonicalNativeIvLeafRichText(
+	const Iv::RichPage &page,
+	const PreparedEditLeafSource &source);
 
 } // namespace Iv::Markdown

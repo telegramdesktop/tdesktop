@@ -15,6 +15,10 @@ namespace Iv::Markdown {
 
 struct MarkdownArticlePaintContext;
 
+[[nodiscard]] QRect HorizontalOverflowContentClip(
+	const LaidOutBlock &block,
+	const style::Markdown &st,
+	QRect viewport);
 [[nodiscard]] QColor NonPullquoteQuoteCaptionColor(
 	const MarkdownArticlePaintContext &context,
 	const style::Markdown &st);

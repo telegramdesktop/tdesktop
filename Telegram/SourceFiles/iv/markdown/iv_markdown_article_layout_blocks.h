@@ -498,6 +498,7 @@ struct TableCellMinimumWidthConstraint {
 	const LaidOutBlock &block,
 	const style::Markdown &st);
 [[nodiscard]] QString CodeBlockDisplayText(const QString &text);
+[[nodiscard]] std::vector<int> CodeBlockDisplayOffsets(const QString &text);
 [[nodiscard]] TextWithEntities CodeBlockDisplayText(TextWithEntities text);
 [[nodiscard]] int BlockSkip(
 	const PreparedBlock &block,

@@ -41,7 +41,8 @@ struct InlineLinkButtonSpan {
 std::vector<InlineLinkButtonSpan> ExpandInlineLinkButtons(
 	TextWithEntities *text,
 	RichButtonLabelDates dates,
-	const Ui::Text::FormattedDateFactory &factory);
+	const Ui::Text::FormattedDateFactory &factory,
+	std::vector<PreparedTextReplacement> *replacements = nullptr);
 
 [[nodiscard]] QString InlineFormulaCopySource(const QString &source);
 [[nodiscard]] MarkdownPrepareDimensions CaptureMarkdownPrepareDimensions();

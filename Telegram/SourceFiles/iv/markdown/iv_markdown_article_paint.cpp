@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/markdown/iv_markdown_article_paint.h"
 #include "iv/markdown/iv_markdown_article.h"
+#include "iv/markdown/iv_markdown_article_quote.h"
 #include "iv/markdown/iv_markdown_article_text.h"
 #include "ui/dynamic_image.h"
 #include "ui/effects/path_shift_gradient.h"
@@ -800,6 +801,9 @@ void PaintTextLeaf(
 	drawContext.selection = selection.value_or(TextSelection());
 	drawContext.linePostprocess = linePostprocess ? &*linePostprocess : nullptr;
 	leaf.draw(p, drawContext);
+	if (context.quoteRanges) {
+		AppendQuoteTextHighlight(p, leaf, makeContext(), context, segmentIndex);
+	}
 	const auto searchRanges = PaintSearchRangesForSegmentIndex(
 		context.selectionState,
 		context.searchState,
@@ -1477,30 +1481,6 @@ void PaintTableCaption(
 		&& (block.horizontalScrollLeft < block.horizontalScrollMax);
 }
 
-[[nodiscard]] QRect HorizontalOverflowContentClip(
-		const LaidOutBlock &block,
-		const style::Markdown &st,
-		QRect viewport) {
-	if (block.horizontalScrollMax <= 0 || viewport.isEmpty()) {
-		return viewport;
-	}
-	const auto indicatorWidth = std::min(
-		std::max(OverflowIndicatorWidth(block, st), 1),
-		viewport.width());
-	const auto left = (block.horizontalScrollLeft > 0)
-		? indicatorWidth
-		: 0;
-	const auto right = HorizontalRightEdgeHidden(block)
-		? indicatorWidth
-		: 0;
-	const auto width = std::max(viewport.width() - left - right, 0);
-	return QRect(
-		viewport.x() + left,
-		viewport.y(),
-		width,
-		viewport.height());
-}
-
 [[nodiscard]] QRect HorizontalScrollLogicalPaintRect(
 		const LaidOutBlock &block) {
 	if (block.insideHorizontalScroll) {
@@ -1888,6 +1868,10 @@ void PaintDisplayMathBlock(
 				&& (formulaContext.hiddenSegmentIndex == block.segmentIndex)) {
 				return;
 			}
+			AppendQuoteFormulaHighlight(
+				block.visibleFormulaRect,
+				formulaContext,
+				block.segmentIndex);
 			const auto &paintSt = PaintStyle(formulaContext, st);
 			const auto formula = PreparedFormulaFor(formulas, block.formulaIndex);
 			p.setPen(paintSt.textColor->c);
@@ -2953,7 +2937,7 @@ void PaintThinkingBlock(
 		PaintSelectableTextLeaf(
 			maskPainter,
 			block.leaf,
-			ClippedContext(context, logicalRect),
+			ClippedContext(context, contentClip),
 			block.textRect,
 			block.textWidth,
 			block.segmentIndex,
@@ -3292,6 +3276,30 @@ void PaintBlock(
 }
 
 } // namespace
+
+QRect HorizontalOverflowContentClip(
+		const LaidOutBlock &block,
+		const style::Markdown &st,
+		QRect viewport) {
+	if (block.horizontalScrollMax <= 0 || viewport.isEmpty()) {
+		return viewport;
+	}
+	const auto indicatorWidth = std::min(
+		std::max(OverflowIndicatorWidth(block, st), 1),
+		viewport.width());
+	const auto left = (block.horizontalScrollLeft > 0)
+		? indicatorWidth
+		: 0;
+	const auto right = HorizontalRightEdgeHidden(block)
+		? indicatorWidth
+		: 0;
+	const auto width = std::max(viewport.width() - left - right, 0);
+	return QRect(
+		viewport.x() + left,
+		viewport.y(),
+		width,
+		viewport.height());
+}
 
 QColor NonPullquoteQuoteCaptionColor(
 		const MarkdownArticlePaintContext &context,

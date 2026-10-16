@@ -1874,7 +1874,9 @@ void ClearPreparedEditSources(std::vector<PreparedBlock> *blocks) {
 			0,
 			block.text,
 			block.anchorId,
-			std::nullopt,
+			(IsQuotableNativeContent(state->result)
+				? std::make_optional(path)
+				: std::nullopt),
 			state);
 	case RichPageBlockKind::AuthorDate: {
 		auto prepared = PreparedIvRichText();
@@ -2202,15 +2204,28 @@ NativeInstantViewLeafUpdateResult UpdatePreparedNativeIvLeaf(
 const QString *ResolveCanonicalNativeIvLeafText(
 		const Iv::RichPage &page,
 		const PreparedEditLeafSource &source) {
+	if (source.kind == PreparedEditLeafKind::MathFormula) {
+		const auto block = ResolveCanonicalNativeIvBlock(page, source.block);
+		return (block && block->kind == RichPageBlockKind::Math)
+			? &block->formula
+			: nullptr;
+	}
+	const auto text = ResolveCanonicalNativeIvLeafRichText(page, source);
+	return text ? &text->text : nullptr;
+}
+
+const TextWithEntities *ResolveCanonicalNativeIvLeafRichText(
+		const Iv::RichPage &page,
+		const PreparedEditLeafSource &source) {
 	const auto block = ResolveCanonicalNativeIvBlock(page, source.block);
 	if (!block) {
 		return nullptr;
 	}
 	switch (source.kind) {
 	case PreparedEditLeafKind::BlockText:
-		return &block->text.text.text;
+		return &block->text.text;
 	case PreparedEditLeafKind::BlockCaption:
-		return &block->caption.text.text;
+		return &block->caption.text;
 	case PreparedEditLeafKind::ListItemText: {
 		const auto &items = block->listItems;
 		if (block->kind != RichPageBlockKind::List
@@ -2218,7 +2233,7 @@ const QString *ResolveCanonicalNativeIvLeafText(
 			|| std::size_t(source.listItemIndex) >= items.size()) {
 			return nullptr;
 		}
-		return &items[source.listItemIndex].text.text.text;
+		return &items[source.listItemIndex].text.text;
 	}
 	case PreparedEditLeafKind::TableCellText: {
 		const auto &rows = block->tableRows;
@@ -2232,14 +2247,18 @@ const QString *ResolveCanonicalNativeIvLeafText(
 			|| std::size_t(source.tableCellIndex) >= cells.size()) {
 			return nullptr;
 		}
-		return &cells[source.tableCellIndex].text.text.text;
+		return &cells[source.tableCellIndex].text.text;
 	}
 	case PreparedEditLeafKind::MathFormula:
-		return (block->kind == RichPageBlockKind::Math)
-			? &block->formula
-			: nullptr;
+		return nullptr;
 	}
 	return nullptr;
+}
+
+bool IsQuotableNativeContent(const MarkdownArticleContent &content) {
+	return !content.editMode
+		&& content.richPage
+		&& (content.richPage->quoteModel.get() != nullptr);
 }
 
 } // namespace Iv::Markdown
