@@ -76,6 +76,109 @@ constexpr auto kMaxEmojiKeys = 6;
 	};
 }
 
+[[nodiscard]] int PanelPosition(const QString &name) {
+	static const auto kOrder = std::vector<QString>{
+		u"Black"_q,
+		u"Onyx Black"_q,
+		u"Gunmetal"_q,
+		u"Midnight Blue"_q,
+		u"Steel Grey"_q,
+		u"Roman Silver"_q,
+		u"Raspberry"_q,
+		u"Carmine"_q,
+		u"Fire Engine"_q,
+		u"Burnt Sienna"_q,
+		u"Tomato"_q,
+		u"Copper"_q,
+		u"Persimmon"_q,
+		u"Orange"_q,
+		u"Caramel"_q,
+		u"Mustard"_q,
+		u"Old Gold"_q,
+		u"Satin Gold"_q,
+		u"Amber"_q,
+		u"Pure Gold"_q,
+		u"Lemongrass"_q,
+		u"Malachite"_q,
+		u"Shamrock Green"_q,
+		u"Mint Green"_q,
+		u"Emerald"_q,
+		u"Pacific Green"_q,
+		u"Jade Green"_q,
+		u"Deep Cyan"_q,
+		u"Celtic Blue"_q,
+		u"Cobalt Blue"_q,
+		u"Neon Blue"_q,
+		u"Cyberpunk"_q,
+		u"Electric Indigo"_q,
+		u"Lavender"_q,
+		u"Grape"_q,
+		u"French Violet"_q,
+		u"Purple"_q,
+		u"Electric Purple"_q,
+		u"Fandango"_q,
+		u"Mexican Pink"_q,
+		u"Burgundy"_q,
+		u"Rosewood"_q,
+		u"Chestnut"_q,
+		u"Coral Red"_q,
+		u"Strawberry"_q,
+		u"Mystic Pearl"_q,
+		u"Carrot Juice"_q,
+		u"Light Olive"_q,
+		u"Khaki Green"_q,
+		u"Camo Green"_q,
+		u"Pistachio"_q,
+		u"Hunter Green"_q,
+		u"Pine Green"_q,
+		u"Gunship Green"_q,
+		u"Tactical Pine"_q,
+		u"Aquamarine"_q,
+		u"Pacific Cyan"_q,
+		u"Turquoise"_q,
+		u"Moonstone"_q,
+		u"Sky Blue"_q,
+		u"Azure Blue"_q,
+		u"Sapphire"_q,
+		u"Silver Blue"_q,
+		u"Indigo Dye"_q,
+		u"French Blue"_q,
+		u"Navy Blue"_q,
+		u"English Violet"_q,
+		u"Dark Lilac"_q,
+		u"Seal Brown"_q,
+		u"Chocolate"_q,
+		u"Cappuccino"_q,
+		u"Desert Sand"_q,
+		u"Dark Green"_q,
+		u"Ranger Green"_q,
+		u"Marine Blue"_q,
+		u"Ivory White"_q,
+		u"Platinum"_q,
+		u"Battleship Grey"_q,
+		u"Rifle Green"_q,
+		u"Feldgrau"_q,
+	};
+	const auto trimmed = name.trimmed();
+	const auto i = ranges::find_if(kOrder, [&](const QString &listed) {
+		return !listed.compare(trimmed, Qt::CaseInsensitive);
+	});
+	return int(i - begin(kOrder));
+}
+
+[[nodiscard]] auto PanelOrder(
+		const std::vector<Data::UniqueGiftBackdrop> &backdrops)
+-> std::vector<not_null<const Data::UniqueGiftBackdrop*>> {
+	using Entry = std::pair<int, not_null<const Data::UniqueGiftBackdrop*>>;
+	auto entries = std::vector<Entry>();
+	entries.reserve(backdrops.size());
+	for (const auto &backdrop : backdrops) {
+		entries.emplace_back(PanelPosition(backdrop.name), &backdrop);
+	}
+	ranges::stable_sort(entries, ranges::less(), &Entry::first);
+	return entries | ranges::views::values | ranges::to_vector;
+}
+
 [[nodiscard]] std::vector<QString> EmojiKeys(
 		const std::vector<Data::ReactionId> &emojis) {
 	auto result = std::vector<QString>();
@@ -171,10 +274,10 @@ auto QrThemeSwatchesValue(not_null<Main::Session*> session)
 		if (ranges::none_of(backdrops, IsDefaultBackdrop)) {
 			result.push_back(DefaultSwatch(backdrops));
 		}
-		for (const auto &backdrop : backdrops) {
+		for (const auto backdrop : PanelOrder(backdrops)) {
 			result.push_back({
-				.key = { .type = ThemeType::Backdrop, .id = backdrop.id },
-				.appearance = BackdropAppearance(backdrop),
+				.key = { .type = ThemeType::Backdrop, .id = backdrop->id },
+				.appearance = BackdropAppearance(*backdrop),
 			});
 		}
 		return result;
