@@ -402,8 +402,109 @@ std::optional<RichQuotePoint> RichQuoteModel::pointAt(
 	return std::nullopt;
 }
 
+std::optional<RichQuotePoint> RichQuoteModel::labelPointAt(
+		const Markdown::PreparedEditLeafSource &leaf,
+		int buttonPosition,
+		int labelOffset,
+		bool atEnd) const {
+	if (buttonPosition < 0 || labelOffset < 0) {
+		return std::nullopt;
+	}
+	for (auto index = 0, count = int(_nodes.size()); index != count; ++index) {
+		const auto &node = _nodes[index];
+		const auto from = begin(_pieces) + piecesFrom(index);
+		const auto till = begin(_pieces) + _nodePiecesTill[index];
+		if (!node.leaf
+			|| *node.leaf != leaf
+			|| from == till
+			|| buttonPosition < from->pageFrom
+			|| buttonPosition >= (till - 1)->pageTill) {
+			continue;
+		}
+		const auto piece = std::upper_bound(
+			from,
+			till,
+			buttonPosition,
+			[](int value, const Piece &entry) {
+				return value < entry.pageTill;
+			});
+		if (!piece->atomic) {
+			return std::nullopt;
+		}
+		const auto owner = int(piece - begin(_pieces));
+		const auto label = labelsFrom(owner);
+		if (label == int(_labels.size()) || _labels[label].piece != owner) {
+			return RichQuotePoint{
+				.node = index,
+				.from = piece->from,
+				.till = piece->till,
+			};
+		} else if (piece->pageFrom != buttonPosition
+			|| labelOffset > _labels[label].length) {
+			return std::nullopt;
+		}
+		return labelPoint(index, _labels[label], labelOffset, atEnd);
+	}
+	return std::nullopt;
+}
+
 int RichQuoteModel::piecesFrom(int node) const {
 	return node ? _nodePiecesTill[node - 1] : 0;
+}
+
+int RichQuoteModel::labelsFrom(int piece) const {
+	const auto label = std::lower_bound(
+		begin(_labels),
+		end(_labels),
+		piece,
+		[](const Label &entry, int value) {
+			return entry.piece < value;
+		});
+	return int(label - begin(_labels));
+}
+
+RichQuotePoint RichQuoteModel::labelPoint(
+		int node,
+		const Label &label,
+		int offset,
+		bool atEnd) const {
+	const auto &owner = _pieces[label.piece];
+	const auto from = begin(_labelPieces) + label.from;
+	const auto till = begin(_labelPieces) + label.till;
+	const Piece *piece = nullptr;
+	if (atEnd) {
+		const auto after = std::lower_bound(
+			from,
+			till,
+			offset,
+			[](const Piece &entry, int value) {
+				return entry.pageFrom < value;
+			});
+		piece = (after != from) ? &*(after - 1) : nullptr;
+	} else {
+		const auto at = std::upper_bound(
+			from,
+			till,
+			offset,
+			[](int value, const Piece &entry) {
+				return value < entry.pageTill;
+			});
+		piece = (at != till) ? &*at : nullptr;
+	}
+	if (!piece) {
+		const auto edge = atEnd ? owner.from : owner.till;
+		return { .node = node, .from = edge, .till = edge };
+	} else if (!piece->atomic) {
+		const auto at = piece->from + (offset - piece->pageFrom);
+		return { .node = node, .from = at, .till = at };
+	}
+	const auto exact = (offset == (atEnd ? piece->pageTill : piece->pageFrom));
+	const auto edge = atEnd ? piece->till : piece->from;
+	return {
+		.node = node,
+		.from = exact ? edge : piece->from,
+		.till = exact ? edge : piece->till,
+	};
 }
 
 bool RichQuoteModel::valid(const RichPage &page) const {
@@ -465,7 +566,9 @@ bool RichQuoteModel::valid(const RichPage &page) const {
 		formulasTill = formula.till;
 	}
 	const auto projectionTill = _nodes.empty() ? 0 : _nodes.back().till;
-	return (projectionTill == size) && (pieces == int(_pieces.size()));
+	return (projectionTill == size)
+		&& (pieces == int(_pieces.size()))
+		&& validLabels();
 }
 
 bool RichQuoteModel::validPieces(
@@ -499,6 +602,54 @@ bool RichQuoteModel::validPieces(
 	return (projection == node.till);
 }
 
+bool RichQuoteModel::validLabels() const {
+	if (_labels.size() > std::size_t(kMaxSize)
+		|| _labelPieces.size() > std::size_t(kMaxSize)) {
+		return false;
+	}
+	auto owner = -1;
+	auto stored = 0;
+	for (const auto &label : _labels) {
+		if (label.piece <= owner
+			|| label.piece >= int(_pieces.size())
+			|| label.from != stored
+			|| label.till <= label.from
+			|| label.till > int(_labelPieces.size())
+			|| label.length <= 0) {
+			return false;
+		}
+		const auto &piece = _pieces[label.piece];
+		if (!piece.atomic || piece.pageTill <= piece.pageFrom) {
+			return false;
+		}
+		auto projection = piece.from;
+		auto position = 0;
+		for (auto i = label.from; i != label.till; ++i) {
+			const auto &entry = _labelPieces[i];
+			if (entry.from < projection
+				|| entry.till < entry.from
+				|| entry.till > piece.till
+				|| entry.pageFrom != position
+				|| entry.pageTill < entry.pageFrom
+				|| entry.pageTill > label.length
+				|| (!entry.atomic
+					&& (entry.pageTill == entry.pageFrom
+						|| (entry.till - entry.from
+							!= entry.pageTill - entry.pageFrom)))) {
+				return false;
+			}
+			projection = entry.till;
+			position = entry.pageTill;
+		}
+		if (position != label.length) {
+			return false;
+		}
+		owner = label.piece;
+		stored = label.till;
+	}
+	return (stored == int(_labelPieces.size()));
+}
+
 RichQuoteRecorder::RichQuoteRecorder() = default;
 
 RichQuoteRecorder::~RichQuoteRecorder() = default;
@@ -513,6 +664,10 @@ bool RichQuoteRecorder::suppressed() const {
 
 bool RichQuoteRecorder::hidden() const {
 	return (_hidden > 0);
+}
+
+bool RichQuoteRecorder::keepsLabels() const {
+	return recording() && _node.leaf.has_value();
 }
 
 void RichQuoteRecorder::fail() {
@@ -618,7 +773,10 @@ RichQuoteRecorder::Mark RichQuoteRecorder::mark(qsizetype pageFrom) {
 	return result;
 }
 
-void RichQuoteRecorder::collapse(const Mark &mark, qsizetype pageTill) {
+void RichQuoteRecorder::collapse(
+		const Mark &mark,
+		qsizetype pageTill,
+		const NormalizedLabel *label) {
 	if (!recording()) {
 		return;
 	} else if (mark.node != _serial
@@ -631,6 +789,15 @@ void RichQuoteRecorder::collapse(const Mark &mark, qsizetype pageTill) {
 		return;
 	}
 	_floor = mark.floor;
+	// WHY: a link-style label is shown as its own characters, so the atom
+	// keeps where each label position comes from, or a partial selection
+	// inside the label would quote the whole label.
+	const auto keep = label && _node.leaf && !label->text.isEmpty();
+	auto pieces = std::vector<RichQuoteModel::Piece>();
+	if (keep && !labelPieces(mark.pieces, *label, &pieces)) {
+		fail();
+		return;
+	}
 	erasePieces(mark.pieces);
 	if (!_node.leaf) {
 		return;
@@ -649,6 +816,9 @@ void RichQuoteRecorder::collapse(const Mark &mark, qsizetype pageTill) {
 		.pageTill = int(pageTill),
 		.atomic = true,
 	});
+	if (keep) {
+		addLabel(std::move(pieces), int(label->text.size()));
+	}
 }
 
 std::optional<QString> RichQuoteRecorder::takeNodeText() {
@@ -1003,9 +1173,138 @@ void RichQuoteRecorder::addPiece(RichQuoteModel::Piece piece) {
 	pieces.push_back(piece);
 }
 
+bool RichQuoteRecorder::labelPieces(
+		int from,
+		const NormalizedLabel &label,
+		std::vector<RichQuoteModel::Piece> *result) const {
+	const auto &offsets = label.offsets;
+	if (offsets.empty()
+		|| offsets.size() > std::size_t(kMaxSize)
+		|| offsets.front() != 0
+		|| offsets.back() != label.text.size()
+		|| !std::is_sorted(begin(offsets), end(offsets))) {
+		return false;
+	}
+	const auto &pieces = _result._pieces;
+	const auto &labels = _result._labels;
+	const auto &stored = _result._labelPieces;
+	const auto size = int(offsets.size()) - 1;
+	auto nested = _result.labelsFrom(from);
+	auto position = 0;
+	for (auto i = from, count = int(pieces.size()); i != count; ++i) {
+		const auto &piece = pieces[i];
+		if (piece.pageFrom != position
+			|| piece.pageTill < piece.pageFrom
+			|| piece.pageTill > size
+			|| result->size() >= std::size_t(kMaxSize)) {
+			return false;
+		}
+		position = piece.pageTill;
+		const auto labelFrom = offsets[piece.pageFrom];
+		const auto labelTill = offsets[piece.pageTill];
+		if (nested < int(labels.size()) && labels[nested].piece == i) {
+			const auto &inner = labels[nested++];
+			if (!piece.atomic
+				|| inner.length != labelTill - labelFrom
+				|| inner.from > inner.till
+				|| inner.till > int(stored.size())
+				|| (std::size_t(inner.till - inner.from)
+					> std::size_t(kMaxSize) - result->size())) {
+				return false;
+			}
+			for (auto k = inner.from; k != inner.till; ++k) {
+				auto composed = stored[k];
+				composed.pageFrom += labelFrom;
+				composed.pageTill += labelFrom;
+				result->push_back(composed);
+			}
+		} else if (piece.atomic) {
+			result->push_back({
+				.from = piece.from,
+				.till = piece.till,
+				.pageFrom = labelFrom,
+				.pageTill = labelTill,
+				.atomic = true,
+			});
+		} else if (!labelText(piece, label, result)) {
+			return false;
+		}
+	}
+	return (position == size) && (nested == int(labels.size()));
+}
+
+bool RichQuoteRecorder::labelText(
+		const RichQuoteModel::Piece &piece,
+		const NormalizedLabel &label,
+		std::vector<RichQuoteModel::Piece> *result) const {
+	const auto &offsets = label.offsets;
+	const auto &projection = _result._projection;
+	if (piece.from < 0
+		|| piece.till < piece.from
+		|| piece.till > projection.size()
+		|| piece.till - piece.from != piece.pageTill - piece.pageFrom) {
+		return false;
+	}
+	auto from = piece.pageFrom;
+	auto till = piece.pageTill;
+	while (from != till && offsets[from] == offsets[from + 1]) {
+		++from;
+	}
+	while (till != from && offsets[till - 1] == offsets[till]) {
+		--till;
+	}
+	if (from == till) {
+		return true;
+	}
+	const auto length = till - from;
+	const auto start = piece.from + (from - piece.pageFrom);
+	if (offsets[till] - offsets[from] != length
+		|| (QStringView(projection).mid(start, length)
+			!= QStringView(label.text).mid(offsets[from], length))) {
+		return false;
+	}
+	result->push_back({
+		.from = start,
+		.till = start + length,
+		.pageFrom = offsets[from],
+		.pageTill = offsets[till],
+	});
+	return true;
+}
+
+void RichQuoteRecorder::addLabel(
+		std::vector<RichQuoteModel::Piece> pieces,
+		int length) {
+	if (_failed) {
+		return;
+	}
+	auto &stored = _result._labelPieces;
+	auto &labels = _result._labels;
+	if (pieces.size() > std::size_t(kMaxSize) - stored.size()
+		|| labels.size() >= std::size_t(kMaxSize)) {
+		fail();
+		return;
+	}
+	const auto from = int(stored.size());
+	stored.insert(end(stored), begin(pieces), end(pieces));
+	labels.push_back({
+		.piece = int(_result._pieces.size()) - 1,
+		.from = from,
+		.till = int(stored.size()),
+		.length = length,
+	});
+}
+
 void RichQuoteRecorder::erasePieces(int from) {
 	auto &pieces = _result._pieces;
 	pieces.erase(begin(pieces) + from, end(pieces));
+	auto &labels = _result._labels;
+	const auto label = _result.labelsFrom(from);
+	if (label < int(labels.size())) {
+		auto &stored = _result._labelPieces;
+		stored.erase(begin(stored) + labels[label].from, end(stored));
+		labels.erase(begin(labels) + label, end(labels));
+	}
 }
 
 void RichQuoteRecorder::truncateProjection(int size) {

@@ -29,6 +29,10 @@ struct Reaction;
 struct ReactionId;
 } // namespace Data
 
+namespace Iv {
+struct BuiltRichQuote;
+} // namespace Iv
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -587,6 +591,8 @@ public:
 	virtual TextForMimeData selectedText(
 		const MessageSelection &selection) const;
 	[[nodiscard]] Iv::RichPageBlocksSlice selectedRichBlocks(
+		const MessageSelection &selection) const;
+	[[nodiscard]] std::optional<Iv::BuiltRichQuote> selectedRichQuote(
 		const MessageSelection &selection) const;
 	virtual SelectedQuote selectedQuote(
 		TextSelection selection) const = 0;

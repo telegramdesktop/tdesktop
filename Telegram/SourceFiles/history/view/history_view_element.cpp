@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/reactions/history_view_reactions.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_reply.h"
+#include "history/view/history_view_rich_quote.h"
 #include "history/view/history_view_text_helper.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
@@ -37,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_cached_media.h"
 #include "iv/iv_rich_page.h"
 #include "iv/iv_rich_page_quote.h"
+#include "iv/iv_rich_page_quote_builder.h"
 #include "base/unixtime.h"
 #include "boxes/premium_preview_box.h"
 #include "core/application.h"
@@ -3265,6 +3267,16 @@ Iv::RichPageBlocksSlice Element::selectedRichBlocks(
 			selection.richPage.selection),
 		.rtl = (rich->page && rich->page->rtl),
 	};
+}
+
+std::optional<Iv::BuiltRichQuote> Element::selectedRichQuote(
+		const MessageSelection &selection) const {
+	const auto rich = richpage();
+	if (!rich || !selection.isRichPage()) {
+		return std::nullopt;
+	}
+	const auto item = textItem() ? textItem() : data().get();
+	return RichQuoteForSelection(rich, item, selection.richPage.selection);
 }
 
 SelectedQuote Element::selectedQuote(

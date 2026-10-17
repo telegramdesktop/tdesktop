@@ -11,9 +11,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class HistoryItem;
 
+namespace Iv {
+struct BuiltRichQuote;
+} // namespace Iv
+
 namespace Iv::Markdown {
 struct MarkdownArticlePaintContext;
 struct MarkdownArticleSearchMatch;
+struct MarkdownArticleSelection;
 } // namespace Iv::Markdown
 
 namespace Ui {
@@ -48,5 +53,10 @@ private:
 	not_null<const HistoryItem*> item,
 	const Ui::ChatPaintRichQuote &quote,
 	int articleTop);
+
+[[nodiscard]] std::optional<Iv::BuiltRichQuote> RichQuoteForSelection(
+	not_null<const HistoryMessageRichPage*> rich,
+	not_null<const HistoryItem*> item,
+	const Iv::Markdown::MarkdownArticleSelection &selection);
 
 } // namespace HistoryView

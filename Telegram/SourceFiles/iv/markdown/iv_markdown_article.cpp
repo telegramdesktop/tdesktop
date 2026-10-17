@@ -3930,10 +3930,10 @@ public:
 	[[nodiscard]] int segmentIndexForEditableLeaf(
 		const PreparedEditLeafSource &source) const;
 
-	void appendDisplayRangesForLeafText(
+	[[nodiscard]] QuoteLeafLookup quoteLeaf(
 		const PreparedEditLeafSource &source,
-		std::span<const MarkdownArticleTextRange> ranges,
-		not_null<std::vector<MarkdownArticleSearchMatch>*> result) const;
+		int segmentIndex) const;
+	[[nodiscard]] int groupedCaptionSegment(int segmentIndex) const;
 	[[nodiscard]] QRect displayRangesRect(
 		const std::vector<MarkdownArticleSearchMatch> &ranges) const;
 
@@ -5139,21 +5139,22 @@ int MarkdownArticle::Impl::segmentIndexForEditableLeaf(
 	return -1;
 }
 
-void MarkdownArticle::Impl::appendDisplayRangesForLeafText(
+QuoteLeafLookup MarkdownArticle::Impl::quoteLeaf(
 		const PreparedEditLeafSource &source,
-		std::span<const MarkdownArticleTextRange> ranges,
-		not_null<std::vector<MarkdownArticleSearchMatch>*> result) const {
+		int segmentIndex) const {
 	const auto prepared = FindPreparedArticleLeaf(
 		_content.blocks.blocks,
 		source);
-	AppendDisplayRangesForLeafText({
+	return {
 		.content = &_content,
-		.segment = FindSegment(
-			&_segments,
-			segmentIndexForEditableLeaf(source)),
+		.segment = FindSegment(&_segments, segmentIndex),
 		.block = prepared.block,
 		.cell = prepared.cell,
-	}, source, ranges, result);
+	};
+}
+
+int MarkdownArticle::Impl::groupedCaptionSegment(int segmentIndex) const {
+	return GroupedCaptionSegment(_segments, segmentIndex);
 }
 
 QRect MarkdownArticle::Impl::displayRangesRect(
@@ -7269,7 +7270,25 @@ void MarkdownArticle::appendDisplayRangesForLeafText(
 		const PreparedEditLeafSource &source,
 		std::span<const MarkdownArticleTextRange> ranges,
 		not_null<std::vector<MarkdownArticleSearchMatch>*> result) const {
-	_impl->appendDisplayRangesForLeafText(source, ranges, result);
+	const auto segmentIndex = _impl->segmentIndexForEditableLeaf(source);
+	const auto leaf = _impl->quoteLeaf(source, segmentIndex);
+	AppendDisplayRangesForLeafText(leaf, source, ranges, result);
+}
+
+std::optional<MarkdownArticleLeafPoint> MarkdownArticle::leafPointForDisplay(
+		int segmentIndex,
+		int offset,
+		MarkdownArticleTextEdge edge) const {
+	const auto source = _impl->editableLeafForSegment(segmentIndex);
+	if (!source) {
+		return std::nullopt;
+	}
+	const auto leaf = _impl->quoteLeaf(*source, segmentIndex);
+	return LeafPointForDisplay(leaf, *source, offset, edge);
+}
+
+int MarkdownArticle::groupedCaptionSegment(int segmentIndex) const {
+	return _impl->groupedCaptionSegment(segmentIndex);
 }
 
 QRect MarkdownArticle::displayRangesRect(

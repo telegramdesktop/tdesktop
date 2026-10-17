@@ -28,6 +28,12 @@ struct QuoteInterval {
 	int64 till = 0;
 };
 
+struct QuoteSourceRange {
+	int64 from = 0;
+	int64 till = 0;
+	const PreparedTextReplacement *owner = nullptr;
+};
+
 struct QuoteObject {
 	int offset = 0;
 	int length = 0;
@@ -112,11 +118,156 @@ struct QuoteHighlightTarget {
 	return !intervals->empty();
 }
 
-[[nodiscard]] const std::vector<PreparedTextReplacement> *FindLinkSplices(
+[[nodiscard]] const PreparedLinkSplices *FindLinkSplices(
 		const std::vector<PreparedLinkSplices> &splices,
 		const TextWithEntities *page) {
 	const auto i = ranges::find(splices, page, &PreparedLinkSplices::source);
-	return (i != end(splices)) ? &i->replacements : nullptr;
+	return (i != end(splices)) ? &*i : nullptr;
+}
+
+[[nodiscard]] std::optional<int64> ReplacedSourceSize(
+		std::span<const PreparedTextReplacement> replacements,
+		int64 size) {
+	auto previous = int64();
+	auto result = size;
+	for (const auto &[position, skipped, added] : replacements) {
+		const auto till = int64(position) + added;
+		if (position < previous || skipped < 0 || added < 0 || till > size) {
+			return std::nullopt;
+		}
+		previous = till;
+		result += int64(skipped) - added;
+	}
+	return result;
+}
+
+[[nodiscard]] QuoteSourceRange UndoReplacements(
+		std::span<const PreparedTextReplacement> replacements,
+		int64 position,
+		MarkdownArticleTextEdge edge) {
+	const auto start = (edge == MarkdownArticleTextEdge::Start);
+	auto shift = int64();
+	for (const auto &replacement : replacements) {
+		const auto from = int64(replacement.position);
+		const auto till = from + replacement.added;
+		if (start ? (position < from) : (position <= from)) {
+			break;
+		} else if (start ? (position < till) : (position <= till)) {
+			const auto source = from - shift;
+			return {
+				.from = source,
+				.till = source + replacement.skipped,
+				.owner = &replacement,
+			};
+		}
+		shift += int64(replacement.added) - replacement.skipped;
+	}
+	return { .from = position - shift, .till = position - shift };
+}
+
+[[nodiscard]] int64 EdgeOf(
+		const QuoteSourceRange &range,
+		MarkdownArticleTextEdge edge) {
+	return (edge == MarkdownArticleTextEdge::Start) ? range.from : range.till;
+}
+
+[[nodiscard]] int64 VisibleCodeSize(const QString &page) {
+	const auto size = int64(page.size());
+	return page.endsWith(u"\r\n"_q)
+		? (size - 2)
+		: (page.endsWith(QChar(u'\n')) || page.endsWith(QChar(u'\r')))
+		? (size - 1)
+		: size;
+}
+
+[[nodiscard]] int64 CodeSourcePosition(
+		const std::vector<int> &offsets,
+		int64 position,
+		MarkdownArticleTextEdge edge) {
+	const auto after = std::upper_bound(
+		begin(offsets),
+		end(offsets),
+		position);
+	const auto index = int64(after - begin(offsets)) - 1;
+	return ((after == end(offsets))
+		|| (*(after - 1) == position)
+		|| (edge == MarkdownArticleTextEdge::Start))
+		? index
+		: (index + 1);
+}
+
+[[nodiscard]] std::optional<int64> LabelSourcePosition(
+		const PreparedLinkSplices &splices,
+		const PreparedTextReplacement &label,
+		int64 position,
+		MarkdownArticleTextEdge edge) {
+	const auto &dates = splices.labelDates;
+	const auto from = int64(label.position);
+	const auto till = from + label.added;
+	const auto before = [](const PreparedTextReplacement &date, int64 value) {
+		return (date.position < value);
+	};
+	const auto first = std::lower_bound(
+		begin(dates),
+		end(dates),
+		from,
+		before);
+	const auto last = std::lower_bound(first, end(dates), till, before);
+	const auto previous = (&label != splices.replacements.data())
+		? (&label - 1)
+		: nullptr;
+	const auto adjacent = previous
+		&& (int64(previous->position) + previous->added == from);
+	if ((label.skipped <= 0)
+		|| ((first != begin(dates))
+			&& (int64((first - 1)->position) + (first - 1)->added > from))
+		|| (adjacent
+			&& (first != last)
+			&& (first->position == from)
+			&& !first->added)
+		|| !ReplacedSourceSize({ first, last }, till)) {
+		return std::nullopt;
+	}
+	const auto range = UndoReplacements({ first, last }, position, edge);
+	return EdgeOf(range, edge) - from;
+}
+
+[[nodiscard]] std::optional<MarkdownArticleLeafPoint> PagePointForPrepared(
+		const PreparedEditLeafSource &source,
+		const PreparedLinkSplices *splices,
+		int64 position,
+		MarkdownArticleTextEdge edge,
+		int64 prepared,
+		int64 page) {
+	const auto none = std::span<const PreparedTextReplacement>();
+	const auto replacements = splices
+		? std::span(splices->replacements)
+		: none;
+	if ((ReplacedSourceSize(replacements, prepared) != page)
+		|| (splices && !ReplacedSourceSize(splices->labelDates, prepared))
+		|| (page > std::numeric_limits<int>::max())) {
+		return std::nullopt;
+	}
+	const auto range = UndoReplacements(replacements, position, edge);
+	if (!range.owner) {
+		return MarkdownArticleLeafPoint{
+			.leaf = source,
+			.position = int(range.from),
+		};
+	}
+	const auto label = LabelSourcePosition(
+		*splices,
+		*range.owner,
+		position,
+		edge);
+	if (!label || (*label > std::numeric_limits<int>::max())) {
+		return std::nullopt;
+	}
+	return MarkdownArticleLeafPoint{
+		.leaf = source,
+		.position = int(range.from),
+		.labelOffset = int(*label),
+	};
 }
 
 [[nodiscard]] std::vector<QuoteObject> DisplayObjects(
@@ -349,7 +500,7 @@ void AppendDisplayRangesForLeafText(
 		return;
 	}
 	const auto splices = FindLinkSplices(leaf.content->linkSplices, text);
-	if ((splices && !ApplyReplacements(&intervals, *splices))
+	if ((splices && !ApplyReplacements(&intervals, splices->replacements))
 		|| !ClampIntervals(&intervals, prepared->text.size())) {
 		return;
 	}
@@ -378,6 +529,85 @@ void AppendDisplayRangesForLeafText(
 			.to = int(till),
 		});
 	}
+}
+
+std::optional<MarkdownArticleLeafPoint> LeafPointForDisplay(
+		const QuoteLeafLookup &leaf,
+		const PreparedEditLeafSource &source,
+		int offset,
+		MarkdownArticleTextEdge edge) {
+	const auto segment = leaf.segment;
+	if (!leaf.content
+		|| !IsQuotableNativeContent(*leaf.content)
+		|| !segment
+		|| (offset < 0)
+		|| (offset > SegmentLength(*segment))) {
+		return std::nullopt;
+	}
+	const auto &page = *leaf.content->richPage;
+	if (segment->kind == SelectableSegmentKind::DisplayMath) {
+		const auto formula = (source.kind == PreparedEditLeafKind::MathFormula)
+			? ResolveCanonicalNativeIvLeafText(page, source)
+			: nullptr;
+		if (!formula) {
+			return std::nullopt;
+		}
+		return MarkdownArticleLeafPoint{
+			.leaf = source,
+			.position = (offset > 0) ? int(formula->size()) : 0,
+		};
+	}
+	const auto text = ResolveCanonicalNativeIvLeafRichText(page, source);
+	const auto prepared = leaf.cell
+		? &leaf.cell->text
+		: leaf.block
+		? &leaf.block->text
+		: nullptr;
+	if (!segment->isTextLeaf() || !text || !prepared) {
+		return std::nullopt;
+	}
+	const auto code = (segment->kind == SelectableSegmentKind::CodeBlock);
+	const auto offsets = code
+		? CodeBlockDisplayOffsets(prepared->text)
+		: std::vector<int>();
+	const auto displaySize = code
+		? int64(CodeBlockDisplayText(prepared->text).size())
+		: int64(prepared->text.size());
+	const auto objects = DisplayObjects(*prepared, code ? &offsets : nullptr);
+	auto modifications = std::vector<PreparedTextReplacement>();
+	if (!CollectRealModifications(*segment->leaf, objects, &modifications)) {
+		return std::nullopt;
+	}
+	const auto covered = ReplacedSourceSize(
+		modifications,
+		segment->leaf->length());
+	if (!covered || (*covered > displaySize)) {
+		return std::nullopt;
+	}
+	const auto display = EdgeOf(
+		UndoReplacements(modifications, offset, edge),
+		edge);
+	return PagePointForPrepared(
+		source,
+		FindLinkSplices(leaf.content->linkSplices, text),
+		code ? CodeSourcePosition(offsets, display, edge) : display,
+		edge,
+		prepared->text.size(),
+		code ? VisibleCodeSize(text->text) : int64(text->text.size()));
+}
+
+int GroupedCaptionSegment(
+		const std::vector<SelectableSegment> &segments,
+		int segmentIndex) {
+	const auto segment = FindSegment(&segments, segmentIndex);
+	const auto block = segment ? segment->block : nullptr;
+	if (!block
+		|| segment->isTextLeaf()
+		|| (block->kind != PreparedBlockKind::GroupedMedia)) {
+		return -1;
+	}
+	const auto caption = FindSegment(&segments, block->secondarySegmentIndex);
+	return (caption && (caption->leaf == &block->leaf)) ? caption->index : -1;
 }
 
 void AppendQuoteTextHighlight(

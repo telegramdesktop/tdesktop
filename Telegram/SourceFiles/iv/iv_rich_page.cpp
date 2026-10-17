@@ -851,14 +851,15 @@ template <typename Append>
 [[nodiscard]] bool CollapseQuoteAtom(
 		RichText *result,
 		ParseContext *context,
-		Append &&append) {
+		Append &&append,
+		const RichQuoteRecorder::NormalizedLabel *label = nullptr) {
 	const auto quote = context->quote;
 	if (!quote) {
 		return append();
 	}
 	const auto mark = quote->mark(result->text.text.size());
 	const auto appended = append();
-	quote->collapse(mark, result->text.text.size());
+	quote->collapse(mark, result->text.text.size(), label);
 	return appended;
 }
 
@@ -1215,15 +1216,22 @@ bool AppendRichText(
 				anchorId,
 				anchorIds);
 		}
+		auto normalized = RichQuoteRecorder::NormalizedLabel();
 		return CollapseQuoteAtom(result, context, [&] {
 			auto parsed = ParseRichText(
 				data.vtext(),
 				context,
 				RichTextParseMode::DropClickHandlersKeepDates);
+			const auto offsets = (quote && quote->keepsLabels())
+				? &normalized.offsets
+				: nullptr;
 			const auto label = Markdown::NormalizeRichButtonLabel(
-				std::move(parsed.text));
+				std::move(parsed.text),
+				offsets);
 			if (label.empty()) {
 				return true;
+			} else if (offsets) {
+				normalized.text = label.text;
 			}
 			using Type = HistoryMessageMarkupButton::Type;
 			const auto disabled = (button->type == Type::Disabled);
@@ -1247,7 +1255,7 @@ bool AppendRichText(
 					},
 				},
 				label.text);
-		});
+		}, &normalized);
 	});
 }
 

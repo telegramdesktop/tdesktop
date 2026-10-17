@@ -77,6 +77,11 @@ public:
 	[[nodiscard]] std::optional<RichQuotePoint> pointAt(
 		const Markdown::PreparedEditLeafSource &leaf,
 		int position) const;
+	[[nodiscard]] std::optional<RichQuotePoint> labelPointAt(
+		const Markdown::PreparedEditLeafSource &leaf,
+		int buttonPosition,
+		int labelOffset,
+		bool atEnd) const;
 
 private:
 	friend class RichQuoteRecorder;
@@ -88,22 +93,37 @@ private:
 		int pageTill = 0;
 		bool atomic = false;
 	};
+	struct Label {
+		int piece = 0;
+		int from = 0;
+		int till = 0;
+		int length = 0;
+	};
 
 	RichQuoteModel() = default;
 
 	[[nodiscard]] int piecesFrom(int node) const;
+	[[nodiscard]] int labelsFrom(int piece) const;
+	[[nodiscard]] RichQuotePoint labelPoint(
+		int node,
+		const Label &label,
+		int offset,
+		bool atEnd) const;
 	[[nodiscard]] bool valid(const RichPage &page) const;
 	[[nodiscard]] bool validPieces(
 		const RichQuoteNode &node,
 		int from,
 		int till,
 		const QString &page) const;
+	[[nodiscard]] bool validLabels() const;
 
 	QString _projection;
 	std::vector<RichQuoteNode> _nodes;
 	std::vector<MTPRichText> _trees;
 	std::vector<int> _nodePiecesTill;
 	std::vector<Piece> _pieces;
+	std::vector<Piece> _labelPieces;
+	std::vector<Label> _labels;
 	std::vector<RichQuoteRange> _formulas;
 	bool _partial = false;
 
@@ -122,6 +142,10 @@ public:
 		int nodes = 0;
 		int pieces = 0;
 	};
+	struct NormalizedLabel {
+		std::vector<int> offsets;
+		QString text;
+	};
 
 	RichQuoteRecorder();
 	RichQuoteRecorder(const RichQuoteRecorder &) = delete;
@@ -131,6 +155,7 @@ public:
 	[[nodiscard]] bool failed() const;
 	[[nodiscard]] bool suppressed() const;
 	[[nodiscard]] bool hidden() const;
+	[[nodiscard]] bool keepsLabels() const;
 	void fail();
 
 	void appendText(QStringView text, qsizetype pageFrom);
@@ -143,7 +168,10 @@ public:
 		qsizetype pageFrom,
 		qsizetype pageTill);
 	[[nodiscard]] Mark mark(qsizetype pageFrom);
-	void collapse(const Mark &mark, qsizetype pageTill);
+	void collapse(
+		const Mark &mark,
+		qsizetype pageTill,
+		const NormalizedLabel *label = nullptr);
 	[[nodiscard]] std::optional<QString> takeNodeText();
 
 	[[nodiscard]] Checkpoint checkpoint() const;
@@ -210,6 +238,15 @@ private:
 	void pushHidden();
 	void popScope();
 	void addPiece(RichQuoteModel::Piece piece);
+	[[nodiscard]] bool labelPieces(
+		int from,
+		const NormalizedLabel &label,
+		std::vector<RichQuoteModel::Piece> *result) const;
+	[[nodiscard]] bool labelText(
+		const RichQuoteModel::Piece &piece,
+		const NormalizedLabel &label,
+		std::vector<RichQuoteModel::Piece> *result) const;
+	void addLabel(std::vector<RichQuoteModel::Piece> pieces, int length);
 	void erasePieces(int from);
 	void truncateProjection(int size);
 	void retarget(const Checkpoint &from, const Leaf &was, const Leaf &now);

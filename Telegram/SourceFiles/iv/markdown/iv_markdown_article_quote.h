@@ -28,6 +28,14 @@ void AppendDisplayRangesForLeafText(
 	const PreparedEditLeafSource &source,
 	std::span<const MarkdownArticleTextRange> ranges,
 	not_null<std::vector<MarkdownArticleSearchMatch>*> result);
+[[nodiscard]] std::optional<MarkdownArticleLeafPoint> LeafPointForDisplay(
+	const QuoteLeafLookup &leaf,
+	const PreparedEditLeafSource &source,
+	int offset,
+	MarkdownArticleTextEdge edge);
+[[nodiscard]] int GroupedCaptionSegment(
+	const std::vector<SelectableSegment> &segments,
+	int segmentIndex);
 
 void AppendQuoteTextHighlight(
 	QPainter &p,

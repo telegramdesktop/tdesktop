@@ -148,6 +148,17 @@ struct MarkdownArticleTextRange {
 	int till = 0;
 };
 
+enum class MarkdownArticleTextEdge : uchar {
+	Start,
+	End,
+};
+
+struct MarkdownArticleLeafPoint {
+	PreparedEditLeafSource leaf;
+	int position = 0;
+	int labelOffset = -1;
+};
+
 struct MarkdownArticleSearchSource {
 	QString text;
 	QString hiddenText;
@@ -520,6 +531,11 @@ public:
 		const PreparedEditLeafSource &source,
 		std::span<const MarkdownArticleTextRange> ranges,
 		not_null<std::vector<MarkdownArticleSearchMatch>*> result) const;
+	[[nodiscard]] std::optional<MarkdownArticleLeafPoint> leafPointForDisplay(
+		int segmentIndex,
+		int offset,
+		MarkdownArticleTextEdge edge) const;
+	[[nodiscard]] int groupedCaptionSegment(int segmentIndex) const;
 	[[nodiscard]] QRect displayRangesRect(
 		const std::vector<MarkdownArticleSearchMatch> &ranges) const;
 	[[nodiscard]] QRect textSegmentRect(int segmentIndex) const;

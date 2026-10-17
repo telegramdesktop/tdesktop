@@ -858,6 +858,7 @@ struct PreparedTextReplacement {
 struct PreparedLinkSplices {
 	const TextWithEntities *source = nullptr;
 	std::vector<PreparedTextReplacement> replacements;
+	std::vector<PreparedTextReplacement> labelDates;
 };
 
 struct MarkdownArticleContent {
