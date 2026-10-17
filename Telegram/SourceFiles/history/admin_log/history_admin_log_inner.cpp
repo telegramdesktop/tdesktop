@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/qt/qt_common_adapters.h"
 #include "base/qt/qt_key_modifiers.h"
+#include "base/event_filter.h"
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
 #include "mainwindow.h"
@@ -45,8 +46,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/expandable_peer_list.h"
+#include "ui/widgets/shadow.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
+#include "ui/widgets/menu/menu_item_base.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/image/image.h"
 #include "ui/text/text_utilities.h"
@@ -76,6 +79,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 
 #include <QtWidgets/QApplication>
+#include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 
 namespace AdminLog {
@@ -2324,8 +2328,13 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 	if (_menu->empty()) {
 		_menu = nullptr;
+		_showUnbanFor = nullptr;
 	} else {
 		_menu->popup(e->globalPos());
+		if (_showUnbanFor) {
+			showUnbanMenu(_menu.get(), _showUnbanFor);
+			_showUnbanFor = nullptr;
+		}
 		e->accept();
 	}
 }
@@ -2397,6 +2406,165 @@ void InnerWidget::copyContextText(FullMsgId itemId) {
 	if (const auto item = session().data().message(itemId)) {
 		TextUtilities::SetClipboardText(HistoryItemText(item));
 	}
+}
+
+void InnerWidget::showUnbanMenu(
+		not_null<Ui::PopupMenu*> parent,
+		not_null<PeerData*> participant) {
+	if (parent->isHidden()) {
+		return;
+	}
+	using Phase = Ui::PopupMenu::AnimatePhase;
+	const auto menu = Ui::CreateChild<Ui::PopupMenu>(
+		parent,
+		st::popupMenuExpandedSeparator);
+	menu->addAction(
+		tr::lng_context_unban_user(tr::now),
+		[=] {
+			menu->hideMenu(true);
+			parent->hideMenu(true);
+			unbanParticipant(participant);
+		},
+		&st::menuIconUnblock);
+	const auto natural = menu->menu()->width();
+	const auto width = std::max(natural, parent->menu()->width());
+	if (width != natural) {
+		menu->setForceWidth(width);
+	}
+	menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopLeft);
+	const auto weakParent = QPointer<Ui::PopupMenu>(parent);
+	const auto cursorItem = std::make_shared<QPointer<Ui::Menu::ItemBase>>();
+	const auto updateCursor = [=](Ui::Menu::ItemBase *item) {
+		if (*cursorItem == item) {
+			return;
+		}
+		if (*cursorItem) {
+			(*cursorItem)->setCursor(style::cur_default);
+		}
+		*cursorItem = item;
+		if (item) {
+			item->setCursor(style::cur_pointer);
+		}
+	};
+	base::install_event_filter(menu, [=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::Hide) {
+			updateCursor(nullptr);
+			if (weakParent) {
+				weakParent->hideMenu(true);
+			}
+			return base::EventFilterResult::Continue;
+		}
+		const auto mouse = (e->type() == QEvent::MouseMove
+			|| e->type() == QEvent::MouseButtonPress
+			|| e->type() == QEvent::MouseButtonRelease)
+			? static_cast<QMouseEvent*>(e.get())
+			: nullptr;
+		if (!mouse) {
+			if (e->type() == QEvent::KeyPress) {
+				if (static_cast<QKeyEvent*>(e.get())->key()
+					== Qt::Key_Escape) {
+					menu->hideMenu(true);
+					if (weakParent) {
+						weakParent->hideMenu(true);
+					}
+					return base::EventFilterResult::Cancel;
+				}
+			}
+			return base::EventFilterResult::Continue;
+		}
+		const auto global = mouse->globalPosition().toPoint();
+		const auto insideMenu = menu->geometry().contains(global);
+		const auto insideParent = weakParent
+			&& weakParent->geometry().contains(global);
+		if (!insideMenu && !insideParent) {
+			if (e->type() == QEvent::MouseButtonPress) {
+				menu->hideMenu(true);
+				weakParent->hideMenu(true);
+				return base::EventFilterResult::Cancel;
+			}
+			return base::EventFilterResult::Continue;
+		}
+		if (weakParent) {
+			const auto menuWidget = weakParent->menu();
+			const auto globalPoint = mouse->globalPosition().toPoint();
+			const auto local = menuWidget->mapFromGlobal(globalPoint);
+			const auto overItem = (menuWidget->childAt(local) != nullptr);
+			if (overItem || (e->type() == QEvent::MouseMove)) {
+				QMouseEvent clone(
+					e->type(),
+					local,
+					menuWidget->window()->mapFromGlobal(globalPoint),
+					mouse->globalPosition(),
+					mouse->button(),
+					mouse->buttons(),
+					mouse->modifiers());
+				QApplication::sendEvent(menuWidget, &clone);
+				if (!insideParent) {
+					updateCursor(nullptr);
+				} else {
+					const auto selected = menuWidget->findSelectedAction();
+					updateCursor((selected
+							&& (selected->lastTriggeredSource()
+								== Ui::Menu::TriggeredSource::Mouse))
+						? selected
+						: nullptr);
+				}
+			} else if (!insideMenu
+				&& (e->type() == QEvent::MouseButtonPress)) {
+				menu->hideMenu(true);
+				weakParent->hideMenu(true);
+				return base::EventFilterResult::Cancel;
+			}
+		}
+		return insideMenu
+			? base::EventFilterResult::Continue
+			: base::EventFilterResult::Cancel;
+	});
+	const auto extend = Ui::BoxShadow::ExtendFor(parent->st().shadow);
+	const auto pos = QPoint(
+		parent->x(),
+		parent->y()
+			+ parent->height()
+			- extend.bottom()
+			+ parent->st().radius
+			- extend.top());
+	if (const auto screen = QGuiApplication::screenAt(pos)) {
+		const auto available = screen->availableGeometry();
+		if (pos.y() + menu->height() > available.y() + available.height()) {
+			menu->deleteLater();
+			return;
+		}
+	}
+	menu->popup(pos);
+	parent->animatePhaseValue()
+		| rpl::filter([=](Phase phase) {
+			return phase == Phase::StartHide || phase == Phase::Hidden;
+		}) | rpl::take(1) | rpl::on_next([=] {
+			menu->hideMenu(true);
+		}, menu->lifetime());
+}
+
+void InnerWidget::unbanParticipant(not_null<PeerData*> participant) {
+	const auto channel = _channel;
+	const auto show = _controller->uiShow();
+	const auto weak = base::make_weak(this);
+	_controller->show(Ui::MakeConfirmBox({
+		.text = tr::lng_context_unban_sure(
+			tr::now,
+			lt_user,
+			participant->name()),
+		.confirmed = [=](Fn<void()> close) {
+			close();
+			participant->session().api().chatParticipants().unblock(
+				channel,
+				participant);
+			show->showToast(tr::lng_context_unban_done(tr::now));
+			if (const auto strong = weak.get()) {
+				strong->setParticipantBanned(participant, false);
+			}
+		},
+		.confirmText = tr::lng_context_unban_user(tr::now),
+	}));
 }
 
 void InnerWidget::suggestRestrictParticipant(
@@ -2512,6 +2680,7 @@ void InnerWidget::suggestRestrictParticipant(
 				_channel,
 				participant,
 				{ _channel->restrictions(), 0 });
+			setParticipantBanned(participant, true);
 		};
 		const auto addAction = Ui::Menu::CreateAddActionCallback(_menu);
 		addAction({
@@ -2534,6 +2703,21 @@ void InnerWidget::suggestRestrictParticipant(
 			});
 		}
 	}
+
+	const auto cached = [&] {
+		const auto i = _banStates.find(participant->id);
+		return (i != _banStates.end()) ? i->second : false;
+	}();
+	if (cached) {
+		_showUnbanFor = participant;
+		return;
+	}
+	const auto menu = QPointer<Ui::PopupMenu>(_menu.get());
+	requestBanState(participant, [=](std::optional<bool> banned) {
+		if (banned.value_or(false) && menu && menu == _menu.get()) {
+			showUnbanMenu(menu.data(), participant);
+		}
+	});
 }
 
 void InnerWidget::restrictParticipant(
@@ -2555,6 +2739,7 @@ void InnerWidget::restrictParticipant(
 void InnerWidget::restrictParticipantDone(
 		not_null<PeerData*> participant,
 		ChatRestrictionsInfo rights) {
+	setParticipantBanned(participant, rights.flags ? true : false);
 	if (rights.flags) {
 		_admins.erase(
 			std::remove(_admins.begin(), _admins.end(), participant),
@@ -2568,6 +2753,38 @@ void InnerWidget::restrictParticipantDone(
 	}
 	_downLoaded = false;
 	checkPreloadMore();
+}
+
+void InnerWidget::requestBanState(
+		not_null<PeerData*> participant,
+		Fn<void(std::optional<bool> banned)> done) {
+	const auto peerId = participant->id;
+	_api.request(MTPchannels_GetParticipant(
+		_channel->inputChannel(),
+		participant->input()
+	)).done([=](const MTPchannels_ChannelParticipant &result) {
+		participant->owner().processUsers(result.data().vusers());
+
+		const auto info = Api::ChatParticipant(
+			result.data().vparticipant(),
+			participant);
+		using Type = Api::ChatParticipant::Type;
+		const auto banned = (info.type() == Type::Banned)
+			|| (info.type() == Type::Restricted);
+		_banStates[peerId] = banned;
+		done(banned);
+	}).fail([=](const MTP::Error &error) {
+		if (error.type() == u"USER_NOT_PARTICIPANT"_q) {
+			_banStates[peerId] = false;
+		}
+		done(std::nullopt);
+	}).send();
+}
+
+void InnerWidget::setParticipantBanned(
+		not_null<PeerData*> participant,
+		bool banned) {
+	_banStates[participant->id] = banned;
 }
 
 bool InnerWidget::canRestrict() const {
