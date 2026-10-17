@@ -25,6 +25,8 @@ constexpr auto kUserpicsSliceLimit = 100;
 constexpr auto kFileChunkSize = 128 * 1024;
 constexpr auto kFileRequestsCount = 2;
 //constexpr auto kFileNextRequestDelay = crl::time(20);
+constexpr auto kFileRequestsCountFast = 8;
+constexpr auto kFileRequestsCountFastMax = 64;
 constexpr auto kChatsSliceLimit = 100;
 constexpr auto kMessagesSliceLimit = 100;
 constexpr auto kTopPeerSliceLimit = 100;
@@ -410,6 +412,26 @@ void VisitRichMessage(
 
 } // namespace
 
+const char kOptionExportFasterDownload[] = "export-faster-download";
+const char kOptionExportFasterDownloadCount[] = "export-faster-download-count";
+
+base::options::toggle FasterExportDownloadOption({
+	.id = kOptionExportFasterDownload,
+	.name = "Faster export downloads",
+	.description = "Download export media files with more parallel"
+		" requests in flight.",
+});
+
+base::options::option<int> FasterExportDownloadCountOption({
+	.id = kOptionExportFasterDownloadCount,
+	.name = "Faster export downloads: request count",
+	.description = "Number of parallel requests in flight when"
+		" \"Faster export downloads\" is on. Add the"
+		" \"export-faster-download-count\" key with the wanted integer"
+		" to the Export/Import experimental settings code.",
+	.defaultValue = kFileRequestsCountFast,
+});
+
 class ApiWrap::LoadedFileCache {
 public:
 	using Location = Data::FileLocation;
@@ -512,9 +534,11 @@ struct ApiWrap::FileProcess {
 	struct Request {
 		int64 offset = 0;
 		QByteArray bytes;
+		mtpRequestId requestId = 0;
 	};
 	std::deque<Request> requests;
 	mtpRequestId requestId = 0;
+	std::vector<int64> referenceRefreshWaiting;
 };
 
 struct ApiWrap::FileProgress {
@@ -581,6 +605,7 @@ struct ApiWrap::ChatProcess : AbstractMessagesProcess {
 
 	int localSplitIndex = 0;
 	int32 largestIdPlusOne = 1;
+	bool seekFromDate = true;
 };
 
 struct ApiWrap::TopicProcess : AbstractMessagesProcess {
@@ -735,6 +760,24 @@ auto ApiWrap::splitRequest(int index, Request &&request) {
 		std::forward<Request>(request)));
 }
 
+auto ApiWrap::fileRequestFast(const Data::FileLocation &location, int64 offset) {
+	Expects(location.dcId != 0
+		|| location.data.type() == mtpc_inputTakeoutFileLocation);
+	Expects(_takeoutId.has_value());
+
+	return std::move(_mtp.request(MTPInvokeWithTakeout<MTPupload_GetFile>(
+		MTP_long(*_takeoutId),
+		MTPupload_GetFile(
+			MTP_flags(0),
+			location.data,
+			MTP_long(offset),
+			MTP_int(kFileChunkSize))
+	)).fail([=](const MTP::Error &result) {
+		clearFileRequestId(offset);
+		filePartFailed(offset, result);
+	}).toDC(MTP::ShiftDcId(location.dcId, MTP::kExportMediaDcShift)));
+}
+
 auto ApiWrap::fileRequest(const Data::FileLocation &location, int64 offset) {
 	Expects(location.dcId != 0
 		|| location.data.type() == mtpc_inputTakeoutFileLocation);
@@ -750,25 +793,43 @@ auto ApiWrap::fileRequest(const Data::FileLocation &location, int64 offset) {
 			MTP_int(kFileChunkSize))
 	)).fail([=](const MTP::Error &result) {
 		_fileProcess->requestId = 0;
-		if (result.type() == u"TAKEOUT_FILE_EMPTY"_q
-			&& _otherDataProcess != nullptr) {
-			filePartDone(
-				0,
-				MTP_upload_file(
-					MTP_storage_filePartial(),
-					MTP_int(0),
-					MTP_bytes()));
-		} else if (result.type() == u"LOCATION_INVALID"_q
-			|| result.type() == u"VERSION_INVALID"_q
-			|| result.type() == u"LOCATION_NOT_AVAILABLE"_q) {
-			filePartUnavailable();
-		} else if (result.code() == 400
-			&& result.type().startsWith(u"FILE_REFERENCE_"_q)) {
-			filePartRefreshReference(offset);
-		} else {
-			error(std::move(result));
-		}
+		filePartFailed(offset, result);
 	}).toDC(MTP::ShiftDcId(location.dcId, MTP::kExportMediaDcShift)));
+}
+
+void ApiWrap::filePartFailed(int64 offset, const MTP::Error &result) {
+	Expects(_fileProcess != nullptr);
+
+	if (result.type() == u"TAKEOUT_FILE_EMPTY"_q
+		&& _otherDataProcess != nullptr) {
+		filePartDone(
+			0,
+			MTP_upload_file(
+				MTP_storage_filePartial(),
+				MTP_int(0),
+				MTP_bytes()));
+	} else if (result.type() == u"LOCATION_INVALID"_q
+		|| result.type() == u"VERSION_INVALID"_q
+		|| result.type() == u"LOCATION_NOT_AVAILABLE"_q) {
+		filePartUnavailable();
+	} else if (result.code() == 400
+		&& result.type().startsWith(u"FILE_REFERENCE_"_q)) {
+		filePartRefreshReference(offset);
+	} else {
+		error(result);
+	}
+}
+
+mtpRequestId ApiWrap::sendFilePartFast(int64 offset) {
+	Expects(_fileProcess != nullptr);
+
+	return fileRequestFast(
+		_fileProcess->location,
+		offset
+	).done([=](const MTPupload_File &result) {
+		clearFileRequestId(offset);
+		filePartDone(offset, result);
+	}).send();
 }
 
 ApiWrap::ApiWrap(
@@ -1805,6 +1866,7 @@ void ApiWrap::requestMessagesCount(int localSplitIndex) {
 		0, // offset_id
 		0, // add_offset
 		1, // limit
+		0, // offset_date
 		[=](const MTPmessages_Messages &result) {
 		Expects(_chatProcess != nullptr);
 
@@ -1849,6 +1911,7 @@ void ApiWrap::checkFirstMessageDate(int localSplitIndex, int count) {
 		1, // offset_id
 		-1, // add_offset
 		1, // limit
+		0, // offset_date
 		[=](const MTPmessages_Messages &result) {
 		Expects(_chatProcess != nullptr);
 
@@ -1884,6 +1947,14 @@ void ApiWrap::skipFile(uint64 randomId) {
 		return;
 	}
 	LOG(("Export Info: File skipped."));
+	if (FasterExportDownloadOption.value()) {
+		if (const auto requestId = base::take(_fileProcess->requestId)) {
+			_mtp.request(requestId).cancel();
+		}
+		cancelPendingFileRequests();
+		base::take(_fileProcess)->done(QString());
+		return;
+	}
 	Assert(!_fileProcess->requests.empty());
 	Assert(_fileProcess->requestId != 0);
 	_mtp.request(base::take(_fileProcess->requestId)).cancel();
@@ -2211,17 +2282,30 @@ void ApiWrap::requestMessagesSlice() {
 		startMessagesSlice({});
 		return;
 	}
+	const auto from = _settings->singlePeerFrom;
+	// WHY: the API anchors offset_date at the newest message before it, and
+	// history is walked from the oldest to the newest, so the first slice
+	// must start at the range or the whole history downloads first.
+	const auto seekFrom = (from > 0)
+		&& !_chatProcess->info.onlyMyMessages
+		&& _chatProcess->seekFromDate;
+	_chatProcess->seekFromDate = false;
 	requestChatMessages(
 		_chatProcess->info.splits[_chatProcess->localSplitIndex],
-		_chatProcess->largestIdPlusOne,
+		seekFrom ? 0 : _chatProcess->largestIdPlusOne,
 		-kMessagesSliceLimit,
 		kMessagesSliceLimit,
+		seekFrom ? (from - 1) : 0,
 		[=](const MTPmessages_Messages &result) {
 		Expects(_chatProcess != nullptr);
 
 		result.match([&](const MTPDmessages_messagesNotModified &data) {
 			error("Unexpected messagesNotModified received.");
 		}, [&](const auto &data) {
+			if (seekFrom && data.vmessages().v.empty()) {
+				requestMessagesSlice();
+				return;
+			}
 			if constexpr (MTPDmessages_messages::Is<decltype(data)>()) {
 				_chatProcess->lastSlice = true;
 			}
@@ -2240,6 +2324,7 @@ void ApiWrap::requestChatMessages(
 		int offsetId,
 		int addOffset,
 		int limit,
+		int offsetDate,
 		FnMut<void(MTPmessages_Messages&&)> done) {
 	Expects(_chatProcess != nullptr);
 
@@ -2259,6 +2344,8 @@ void ApiWrap::requestChatMessages(
 	const auto realSplitIndex = (splitIndex >= 0)
 		? splitIndex
 		: (splitsCount + splitIndex);
+	const auto from = _settings->singlePeerFrom;
+	const auto till = _settings->singlePeerTill;
 	if (_chatProcess->info.onlyMyMessages) {
 		splitRequest(realSplitIndex, MTPmessages_Search(
 			MTP_flags(MTPmessages_Search::Flag::f_from_id),
@@ -2269,8 +2356,8 @@ void ApiWrap::requestChatMessages(
 			MTPVector<MTPReaction>(), // saved_reaction
 			MTPint(), // top_msg_id
 			MTP_inputMessagesFilterEmpty(),
-			MTP_int(0), // min_date
-			MTP_int(0), // max_date
+			MTP_int((from > 0) ? (from - 1) : 0), // min_date
+			MTP_int(till), // max_date
 			MTP_int(offsetId),
 			MTP_int(addOffset),
 			MTP_int(limit),
@@ -2282,7 +2369,7 @@ void ApiWrap::requestChatMessages(
 		splitRequest(realSplitIndex, MTPmessages_GetHistory(
 			realPeerInput,
 			MTP_int(offsetId),
-			MTP_int(0), // offset_date
+			MTP_int(offsetDate),
 			MTP_int(addOffset),
 			MTP_int(limit),
 			MTP_int(0), // max_id
@@ -2303,6 +2390,7 @@ void ApiWrap::requestChatMessages(
 						offsetId,
 						addOffset,
 						limit,
+						offsetDate,
 						base::take(_chatProcess->requestDone));
 					return true;
 				}
@@ -2802,6 +2890,10 @@ void ApiWrap::finishMessagesSlice() {
 	Expects(_chatProcess->messageFileWorkMessageIndex < 0);
 
 	auto slice = *base::take(_chatProcess->slice);
+	const auto till = _settings->singlePeerTill;
+	const auto reachedTill = (till > 0)
+		&& !slice.list.empty()
+		&& (slice.list.back().date >= till);
 	if (!slice.list.empty()) {
 		_chatProcess->largestIdPlusOne = slice.list.back().id + 1;
 		const auto splitIndex = _chatProcess->info.splits[
@@ -2812,6 +2904,12 @@ void ApiWrap::finishMessagesSlice() {
 		if (!_chatProcess->handleSlice(std::move(slice))) {
 			return;
 		}
+	}
+	if (reachedTill) {
+		// History is walked oldest to newest, so nothing ahead is in range.
+		_chatProcess->lastSlice = true;
+		_chatProcess->localSplitIndex =
+			int(_chatProcess->info.splits.size()) - 1;
 	}
 	if (_chatProcess->lastSlice
 		&& (++_chatProcess->localSplitIndex
@@ -3392,6 +3490,10 @@ void ApiWrap::loadFile(
 
 	loadFilePart();
 
+	if (FasterExportDownloadOption.value()) {
+		Ensures(!_fileProcess->requests.empty());
+		return;
+	}
 	Ensures(_fileProcess->requestId != 0);
 }
 
@@ -3415,7 +3517,48 @@ auto ApiWrap::prepareFileProcess(
 	return result;
 }
 
+void ApiWrap::loadFilePartFast() {
+	if (!_fileProcess) {
+		return;
+	}
+	// WHY: the end of a size-unknown stream is an empty part, and one issued
+	// ahead of the parts before it can overtake them; the file would then be
+	// finalized with those parts cancelled, so such files stay serial.
+	const auto maxInFlight = (_fileProcess->size <= 0)
+		? 1
+		: std::clamp(
+			FasterExportDownloadCountOption.value(),
+			1,
+			kFileRequestsCountFastMax);
+	while (int(_fileProcess->requests.size()) < maxInFlight
+		&& (_fileProcess->size <= 0
+			|| _fileProcess->offset < _fileProcess->size)) {
+		const auto offset = _fileProcess->offset;
+		_fileProcess->requests.push_back({ offset });
+		_fileProcess->requests.back().requestId = sendFilePartFast(offset);
+		_fileProcess->offset += kFileChunkSize;
+	}
+}
+
+void ApiWrap::clearFileRequestId(int64 offset) {
+	Expects(_fileProcess != nullptr);
+
+	using Request = FileProcess::Request;
+	auto &requests = _fileProcess->requests;
+	const auto i = ranges::find(
+		requests,
+		offset,
+		[](const Request &request) { return request.offset; });
+	if (i != end(requests)) {
+		i->requestId = 0;
+	}
+}
+
 void ApiWrap::loadFilePart() {
+	if (FasterExportDownloadOption.value()) {
+		loadFilePartFast();
+		return;
+	}
 	if (!_fileProcess
 		|| _fileProcess->requestId
 		|| _fileProcess->requests.size() >= kFileRequestsCount
@@ -3463,6 +3606,9 @@ void ApiWrap::filePartDone(int64 offset, const MTPupload_File &result) {
 			error("Empty bytes received in file part.");
 			return;
 		}
+		if (FasterExportDownloadOption.value()) {
+			cancelPendingFileRequests();
+		}
 		const auto result = _fileProcess->file.writeBlock({});
 		if (!result) {
 			ioError(result);
@@ -3509,6 +3655,16 @@ void ApiWrap::filePartDone(int64 offset, const MTPupload_File &result) {
 	process->done(process->relativePath);
 }
 
+void ApiWrap::cancelPendingFileRequests() {
+	Expects(_fileProcess != nullptr);
+
+	for (auto &request : _fileProcess->requests) {
+		if (const auto requestId = base::take(request.requestId)) {
+			_mtp.request(requestId).cancel();
+		}
+	}
+}
+
 QString ApiWrap::filePartMediaFolder() const {
 	if (_chatProcess) {
 		return _chatProcess->info.relativePath;
@@ -3518,6 +3674,21 @@ QString ApiWrap::filePartMediaFolder() const {
 	return QString();
 }
 
+void ApiWrap::retryFilePartRequest(int64 offset) {
+	Expects(_fileProcess != nullptr);
+
+	using Request = FileProcess::Request;
+	auto &requests = _fileProcess->requests;
+	const auto i = ranges::find(
+		requests,
+		offset,
+		[](const Request &request) { return request.offset; });
+	if (i == end(requests)) {
+		return;
+	}
+	i->requestId = sendFilePartFast(offset);
+}
+
 void ApiWrap::filePartRetryReference(
 		int64 offset,
 		Data::FileLocation location) {
@@ -3525,6 +3696,15 @@ void ApiWrap::filePartRetryReference(
 	Expects(_fileProcess->requestId == 0);
 
 	_fileProcess->location = std::move(location);
+	if (FasterExportDownloadOption.value()) {
+		retryFilePartRequest(offset);
+		const auto waiting = base::take(
+			_fileProcess->referenceRefreshWaiting);
+		for (const auto waitingOffset : waiting) {
+			retryFilePartRequest(waitingOffset);
+		}
+		return;
+	}
 	_fileProcess->requestId = fileRequest(
 		_fileProcess->location,
 		offset
@@ -3536,6 +3716,12 @@ void ApiWrap::filePartRetryReference(
 
 void ApiWrap::filePartRefreshReference(int64 offset) {
 	Expects(_fileProcess != nullptr);
+
+	if (FasterExportDownloadOption.value()
+		&& _fileProcess->requestId != 0) {
+		_fileProcess->referenceRefreshWaiting.push_back(offset);
+		return;
+	}
 	Expects(_fileProcess->requestId == 0);
 
 	const auto origin = _fileProcess->origin;
@@ -3801,6 +3987,9 @@ void ApiWrap::filePartUnavailable() {
 
 	LOG(("Export Error: File unavailable."));
 
+	if (FasterExportDownloadOption.value()) {
+		cancelPendingFileRequests();
+	}
 	base::take(_fileProcess)->done(QString());
 }
 
