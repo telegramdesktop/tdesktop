@@ -296,6 +296,7 @@ private:
 	void filePartDone(int64 offset, const MTPupload_File &result);
 	void clearFileRequestId(int64 offset);
 	void cancelPendingFileRequests();
+	void filePartFailed(int64 offset, const MTP::Error &result);
 	void filePartUnavailable();
 	[[nodiscard]] QString filePartMediaFolder() const;
 	void retryFilePartRequest(int64 offset);
@@ -335,6 +336,7 @@ private:
 	[[nodiscard]] auto fileRequestFast(
 		const Data::FileLocation &location,
 		int64 offset);
+	[[nodiscard]] mtpRequestId sendFilePartFast(int64 offset);
 
 	void error(const MTP::Error &error);
 	void error(const QString &text);

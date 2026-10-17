@@ -426,8 +426,9 @@ base::options::option<int> FasterExportDownloadCountOption({
 	.id = kOptionExportFasterDownloadCount,
 	.name = "Faster export downloads: request count",
 	.description = "Number of parallel requests in flight when"
-		" \"Faster export downloads\" is on. Set via the Export/Import"
-		" experimental settings code.",
+		" \"Faster export downloads\" is on. Add the"
+		" \"export-faster-download-count\" key with the wanted integer"
+		" to the Export/Import experimental settings code.",
 	.defaultValue = kFileRequestsCountFast,
 });
 
@@ -773,24 +774,7 @@ auto ApiWrap::fileRequestFast(const Data::FileLocation &location, int64 offset) 
 			MTP_int(kFileChunkSize))
 	)).fail([=](const MTP::Error &result) {
 		clearFileRequestId(offset);
-		if (result.type() == u"TAKEOUT_FILE_EMPTY"_q
-			&& _otherDataProcess != nullptr) {
-			filePartDone(
-				0,
-				MTP_upload_file(
-					MTP_storage_filePartial(),
-					MTP_int(0),
-					MTP_bytes()));
-		} else if (result.type() == u"LOCATION_INVALID"_q
-			|| result.type() == u"VERSION_INVALID"_q
-			|| result.type() == u"LOCATION_NOT_AVAILABLE"_q) {
-			filePartUnavailable();
-		} else if (result.code() == 400
-			&& result.type().startsWith(u"FILE_REFERENCE_"_q)) {
-			filePartRefreshReference(offset);
-		} else {
-			error(std::move(result));
-		}
+		filePartFailed(offset, result);
 	}).toDC(MTP::ShiftDcId(location.dcId, MTP::kExportMediaDcShift)));
 }
 
@@ -809,25 +793,43 @@ auto ApiWrap::fileRequest(const Data::FileLocation &location, int64 offset) {
 			MTP_int(kFileChunkSize))
 	)).fail([=](const MTP::Error &result) {
 		_fileProcess->requestId = 0;
-		if (result.type() == u"TAKEOUT_FILE_EMPTY"_q
-			&& _otherDataProcess != nullptr) {
-			filePartDone(
-				0,
-				MTP_upload_file(
-					MTP_storage_filePartial(),
-					MTP_int(0),
-					MTP_bytes()));
-		} else if (result.type() == u"LOCATION_INVALID"_q
-			|| result.type() == u"VERSION_INVALID"_q
-			|| result.type() == u"LOCATION_NOT_AVAILABLE"_q) {
-			filePartUnavailable();
-		} else if (result.code() == 400
-			&& result.type().startsWith(u"FILE_REFERENCE_"_q)) {
-			filePartRefreshReference(offset);
-		} else {
-			error(std::move(result));
-		}
+		filePartFailed(offset, result);
 	}).toDC(MTP::ShiftDcId(location.dcId, MTP::kExportMediaDcShift)));
+}
+
+void ApiWrap::filePartFailed(int64 offset, const MTP::Error &result) {
+	Expects(_fileProcess != nullptr);
+
+	if (result.type() == u"TAKEOUT_FILE_EMPTY"_q
+		&& _otherDataProcess != nullptr) {
+		filePartDone(
+			0,
+			MTP_upload_file(
+				MTP_storage_filePartial(),
+				MTP_int(0),
+				MTP_bytes()));
+	} else if (result.type() == u"LOCATION_INVALID"_q
+		|| result.type() == u"VERSION_INVALID"_q
+		|| result.type() == u"LOCATION_NOT_AVAILABLE"_q) {
+		filePartUnavailable();
+	} else if (result.code() == 400
+		&& result.type().startsWith(u"FILE_REFERENCE_"_q)) {
+		filePartRefreshReference(offset);
+	} else {
+		error(result);
+	}
+}
+
+mtpRequestId ApiWrap::sendFilePartFast(int64 offset) {
+	Expects(_fileProcess != nullptr);
+
+	return fileRequestFast(
+		_fileProcess->location,
+		offset
+	).done([=](const MTPupload_File &result) {
+		clearFileRequestId(offset);
+		filePartDone(offset, result);
+	}).send();
 }
 
 ApiWrap::ApiWrap(
@@ -1944,8 +1946,8 @@ void ApiWrap::skipFile(uint64 randomId) {
 	if (!_fileProcess || _fileProcess->randomId != randomId) {
 		return;
 	}
+	LOG(("Export Info: File skipped."));
 	if (FasterExportDownloadOption.value()) {
-		LOG(("Export Info: File skipped."));
 		if (const auto requestId = base::take(_fileProcess->requestId)) {
 			_mtp.request(requestId).cancel();
 		}
@@ -1953,7 +1955,6 @@ void ApiWrap::skipFile(uint64 randomId) {
 		base::take(_fileProcess)->done(QString());
 		return;
 	}
-	LOG(("Export Info: File skipped."));
 	Assert(!_fileProcess->requests.empty());
 	Assert(_fileProcess->requestId != 0);
 	_mtp.request(base::take(_fileProcess->requestId)).cancel();
@@ -3520,23 +3521,21 @@ void ApiWrap::loadFilePartFast() {
 	if (!_fileProcess) {
 		return;
 	}
-	const auto maxInFlight = std::clamp(
-		FasterExportDownloadCountOption.value(),
-		1,
-		kFileRequestsCountFastMax);
+	// WHY: the end of a size-unknown stream is an empty part, and one issued
+	// ahead of the parts before it can overtake them; the file would then be
+	// finalized with those parts cancelled, so such files stay serial.
+	const auto maxInFlight = (_fileProcess->size <= 0)
+		? 1
+		: std::clamp(
+			FasterExportDownloadCountOption.value(),
+			1,
+			kFileRequestsCountFastMax);
 	while (int(_fileProcess->requests.size()) < maxInFlight
 		&& (_fileProcess->size <= 0
 			|| _fileProcess->offset < _fileProcess->size)) {
 		const auto offset = _fileProcess->offset;
 		_fileProcess->requests.push_back({ offset });
-		const auto requestId = fileRequestFast(
-			_fileProcess->location,
-			offset
-		).done([=](const MTPupload_File &result) {
-			clearFileRequestId(offset);
-			filePartDone(offset, result);
-		}).send();
-		_fileProcess->requests.back().requestId = requestId;
+		_fileProcess->requests.back().requestId = sendFilePartFast(offset);
 		_fileProcess->offset += kFileChunkSize;
 	}
 }
@@ -3687,13 +3686,7 @@ void ApiWrap::retryFilePartRequest(int64 offset) {
 	if (i == end(requests)) {
 		return;
 	}
-	i->requestId = fileRequestFast(
-		_fileProcess->location,
-		offset
-	).done([=](const MTPupload_File &result) {
-		clearFileRequestId(offset);
-		filePartDone(offset, result);
-	}).send();
+	i->requestId = sendFilePartFast(offset);
 }
 
 void ApiWrap::filePartRetryReference(
