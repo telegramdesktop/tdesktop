@@ -65,7 +65,7 @@ public:
 	CardView(
 		not_null<Window::SessionController*> controller,
 		not_null<UserData*> user,
-		Ui::LayerWidget *profileLayer);
+		not_null<QWidget*> origin);
 	~CardView();
 
 	void parentResized() override;
@@ -86,6 +86,7 @@ private:
 	[[nodiscard]] bool covered() const;
 	[[nodiscard]] bool onlyLayer(
 		not_null<Ui::LayerStackWidget*> stack) const;
+	[[nodiscard]] Ui::LayerWidget *underlyingLayer() const;
 	[[nodiscard]] float64 opacity() const;
 	[[nodiscard]] QImage captureScene();
 	[[nodiscard]] QImage compose() const;
@@ -117,7 +118,7 @@ private:
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<UserData*> _user;
-	const QPointer<Ui::LayerWidget> _profileLayer;
+	const QPointer<QWidget> _origin;
 	const not_null<Ui::RpWidget*> _content;
 	Ui::LayerBackdrop _backdrop;
 	Ui::Animations::Simple _fade;
@@ -297,10 +298,10 @@ void PaintLabelPlate(QPainter &p, QRect plate, float64 level) {
 CardView::CardView(
 	not_null<Window::SessionController*> controller,
 	not_null<UserData*> user,
-	Ui::LayerWidget *profileLayer)
+	not_null<QWidget*> origin)
 : _controller(controller)
 , _user(user)
-, _profileLayer(profileLayer)
+, _origin(origin.get())
 , _content(Ui::CreateChild<Ui::RpWidget>(this))
 , _backdrop(this, [=] { return captureScene(); }, OverlayAlpha)
 , _data(*user->walletCard()) {
@@ -439,6 +440,24 @@ bool CardView::onlyLayer(not_null<Ui::LayerStackWidget*> stack) const {
 	});
 }
 
+Ui::LayerWidget *CardView::underlyingLayer() const {
+	const auto origin = _origin.data();
+	if (origin && (origin->window() == window())) {
+		return EnclosingLayer(origin);
+	}
+	const auto stack = this->stack();
+	if (!stack) {
+		return nullptr;
+	}
+	for (const auto child : stack->children()) {
+		const auto layer = dynamic_cast<Ui::LayerWidget*>(child);
+		if (layer && (layer != this) && !layer->isHidden()) {
+			return layer;
+		}
+	}
+	return nullptr;
+}
+
 float64 CardView::opacity() const {
 	return (_phase == Phase::Preparing)
 		? 0.
@@ -452,7 +471,7 @@ QImage CardView::captureScene() {
 		_captureDeferred = true;
 		return QImage();
 	}
-	auto result = Ui::CaptureUnderLayer(this, _profileLayer.data());
+	auto result = Ui::CaptureUnderLayer(this, underlyingLayer());
 	if (_phase != Phase::Shown) {
 		_sharp = result;
 	}
@@ -837,7 +856,7 @@ void CardView::refreshTransition() {
 	}
 	auto sharp = covered()
 		? QImage()
-		: Ui::CaptureUnderLayer(this, _profileLayer.data());
+		: Ui::CaptureUnderLayer(this, underlyingLayer());
 	if (!sharp.isNull()) {
 		_sharp = std::move(sharp);
 	}
@@ -882,7 +901,7 @@ void CardView::closeView(Fn<void()> route) {
 		remove(std::move(route));
 		return;
 	}
-	auto sharp = Ui::CaptureUnderLayer(this, _profileLayer.data());
+	auto sharp = Ui::CaptureUnderLayer(this, underlyingLayer());
 	if (sharp.isNull()) {
 		remove(std::move(route));
 		return;
@@ -929,10 +948,7 @@ void ShowCardView(
 		|| ControllersWithView().contains(controller)) {
 		return;
 	}
-	auto view = std::make_unique<CardView>(
-		controller,
-		user,
-		EnclosingLayer(origin));
+	auto view = std::make_unique<CardView>(controller, user, origin);
 	controller->uiShow()->showLayer(
 		std::move(view),
 		Ui::LayerOption::KeepOther,
