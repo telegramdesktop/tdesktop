@@ -191,7 +191,6 @@ const auto PhotoLargeLevels = u"ydxcwmbsa"_q;
 constexpr auto kDefaultMapWidth = 400;
 constexpr auto kDefaultMapHeight = 200;
 constexpr auto kMaxParsedBlockDepth = 64;
-constexpr auto kMaxQuoteTextDepth = 64;
 
 [[nodiscard]] int NonZeroMapWidth(int width) {
 	return (width > 0) ? width : kDefaultMapWidth;
@@ -885,7 +884,7 @@ bool AppendRichText(
 		std::vector<QString> *anchorIds) {
 	const auto quote = context->quote;
 	if (quote) {
-		if (!quote->failed() && context->textDepth >= kMaxQuoteTextDepth) {
+		if (!quote->failed() && context->textDepth >= kRichQuoteMaxTextDepth) {
 			quote->fail();
 		}
 		if (quote->failed() && quote->hidden()) {
@@ -1284,22 +1283,25 @@ bool AppendRichText(
 		Markdown::PreparedEditLeafKind kind,
 		std::size_t index,
 		RichTextParseMode mode = RichTextParseMode::Normal) {
-	const auto node = RichQuoteScope::Node(context->quote, kind, index);
+	const auto node = RichQuoteScope::Node(context->quote, kind, index, text);
 	return ParseRichText(text, context, mode);
 }
 
 void RecordQuotableFormula(
 		ParseContext *context,
 		std::size_t index,
-		const QString &formula) {
+		const QString &formula,
+		const MTPstring &source) {
 	const auto quote = context->quote;
+	if (!quote) {
+		return;
+	}
 	const auto node = RichQuoteScope::Node(
 		quote,
 		Markdown::PreparedEditLeafKind::MathFormula,
-		index);
-	if (quote) {
-		quote->appendFormula(formula, 0, formula.size());
-	}
+		index,
+		MTP_textMath(source));
+	quote->appendFormula(formula, 0, formula.size());
 }
 
 [[nodiscard]] RichText ParseQuotableListItemText(
@@ -1310,7 +1312,8 @@ void RecordQuotableFormula(
 	const auto node = RichQuoteScope::ListItemNode(
 		context->quote,
 		index,
-		itemIndex);
+		itemIndex,
+		text);
 	return ParseRichText(text, context);
 }
 
@@ -1324,7 +1327,8 @@ void RecordQuotableFormula(
 		context->quote,
 		index,
 		row,
-		cell);
+		cell,
+		text);
 	return ParseRichText(text, context);
 }
 
@@ -1379,7 +1383,8 @@ void PushOutput(
 		const auto node = RichQuoteScope::Node(
 			quote,
 			Markdown::PreparedEditLeafKind::BlockCaption,
-			index);
+			index,
+			caption.data().vtext());
 		AppendRichText(
 			caption.data().vtext(),
 			&result,
@@ -1393,7 +1398,8 @@ void PushOutput(
 		const auto node = RichQuoteScope::Node(
 			quote,
 			Markdown::PreparedEditLeafKind::BlockCaption,
-			index);
+			index,
+			caption.data().vcredit());
 		AppendRichText(
 			caption.data().vcredit(),
 			&credit,
@@ -1956,7 +1962,7 @@ void AppendBlock(
 	}, [&](const MTPDpageBlockMath &data) {
 		auto parsed = MakeBlock(BlockKind::Math);
 		parsed.formula = qs(data.vsource());
-		RecordQuotableFormula(context, index, parsed.formula);
+		RecordQuotableFormula(context, index, parsed.formula, data.vsource());
 		result->push_back(std::move(parsed));
 	}, [&](const MTPDpageBlockTable &data) {
 		auto parsed = MakeBlock(BlockKind::Table);

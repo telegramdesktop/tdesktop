@@ -270,6 +270,12 @@ QStringView RichQuoteModel::nodeText(int index) const {
 	return QStringView(_projection).mid(node.from, node.till - node.from);
 }
 
+const MTPRichText *RichQuoteModel::nodeTree(int index) const {
+	return (index >= 0 && index < int(_trees.size()))
+		? &_trees[index]
+		: nullptr;
+}
+
 bool RichQuoteModel::partial() const {
 	return _partial;
 }
@@ -405,7 +411,8 @@ bool RichQuoteModel::valid(const RichPage &page) const {
 	if (size > kMaxSize
 		|| _nodes.size() > std::size_t(kMaxSize)
 		|| _pieces.size() > std::size_t(kMaxSize)
-		|| _nodePiecesTill.size() != _nodes.size()) {
+		|| _nodePiecesTill.size() != _nodes.size()
+		|| _trees.size() != _nodes.size()) {
 		return false;
 	}
 	auto pieces = 0;
@@ -784,7 +791,8 @@ std::optional<Markdown::PreparedEditBlockPath> RichQuoteRecorder::blockPath(
 
 void RichQuoteRecorder::beginNode(
 		Markdown::PreparedEditLeafKind kind,
-		std::size_t index) {
+		std::size_t index,
+		const MTPRichText &tree) {
 	auto leaf = std::optional<Leaf>();
 	if (wantsLeaf()) {
 		const auto path = blockPath(index);
@@ -794,12 +802,13 @@ void RichQuoteRecorder::beginNode(
 			fail();
 		}
 	}
-	openNode(std::move(leaf));
+	openNode(std::move(leaf), &tree);
 }
 
 void RichQuoteRecorder::beginListItemNode(
 		std::size_t index,
-		std::size_t listItem) {
+		std::size_t listItem,
+		const MTPRichText &tree) {
 	auto leaf = std::optional<Leaf>();
 	if (wantsLeaf()) {
 		const auto path = blockPath(index);
@@ -814,13 +823,14 @@ void RichQuoteRecorder::beginListItemNode(
 			fail();
 		}
 	}
-	openNode(std::move(leaf));
+	openNode(std::move(leaf), &tree);
 }
 
 void RichQuoteRecorder::beginTableCellNode(
 		std::size_t index,
 		std::size_t row,
-		std::size_t cell) {
+		std::size_t cell,
+		const MTPRichText &tree) {
 	auto leaf = std::optional<Leaf>();
 	if (wantsLeaf()) {
 		const auto path = blockPath(index);
@@ -837,14 +847,16 @@ void RichQuoteRecorder::beginTableCellNode(
 			fail();
 		}
 	}
-	openNode(std::move(leaf));
+	openNode(std::move(leaf), &tree);
 }
 
 void RichQuoteRecorder::beginHiddenNode() {
-	openNode(std::nullopt);
+	openNode(std::nullopt, nullptr);
 }
 
-void RichQuoteRecorder::openNode(std::optional<Leaf> leaf) {
+void RichQuoteRecorder::openNode(
+		std::optional<Leaf> leaf,
+		const MTPRichText *tree) {
 	_scopes.push_back(Scope::Node);
 	if (_node.open) {
 		fail();
@@ -869,6 +881,9 @@ void RichQuoteRecorder::openNode(std::optional<Leaf> leaf) {
 	_node.start = int(projection.size());
 	_node.pieces = int(_result._pieces.size());
 	_node.recorded = true;
+	if (tree) {
+		_node.tree = *tree;
+	}
 	_floor = _node.pieces;
 }
 
@@ -895,7 +910,7 @@ void RichQuoteRecorder::closeNode() {
 		erasePieces(node.pieces);
 	}
 	auto &nodes = _result._nodes;
-	if (nodes.size() >= std::size_t(kMaxSize)) {
+	if (nodes.size() >= std::size_t(kMaxSize) || !node.tree) {
 		fail();
 		return;
 	}
@@ -905,6 +920,7 @@ void RichQuoteRecorder::closeNode() {
 		.leaf = std::move(node.leaf),
 	});
 	_result._nodePiecesTill.push_back(int(pieces.size()));
+	_result._trees.push_back(std::move(*node.tree));
 }
 
 void RichQuoteRecorder::pushBlockChildren(std::size_t index) {
@@ -1025,9 +1041,10 @@ RichQuoteScope::~RichQuoteScope() {
 RichQuoteScope RichQuoteScope::Node(
 		RichQuoteRecorder *recorder,
 		Markdown::PreparedEditLeafKind kind,
-		std::size_t index) {
+		std::size_t index,
+		const MTPRichText &tree) {
 	if (recorder) {
-		recorder->beginNode(kind, index);
+		recorder->beginNode(kind, index, tree);
 	}
 	return RichQuoteScope(recorder);
 }
@@ -1035,9 +1052,10 @@ RichQuoteScope RichQuoteScope::Node(
 RichQuoteScope RichQuoteScope::ListItemNode(
 		RichQuoteRecorder *recorder,
 		std::size_t index,
-		std::size_t listItem) {
+		std::size_t listItem,
+		const MTPRichText &tree) {
 	if (recorder) {
-		recorder->beginListItemNode(index, listItem);
+		recorder->beginListItemNode(index, listItem, tree);
 	}
 	return RichQuoteScope(recorder);
 }
@@ -1046,9 +1064,10 @@ RichQuoteScope RichQuoteScope::TableCellNode(
 		RichQuoteRecorder *recorder,
 		std::size_t index,
 		std::size_t row,
-		std::size_t cell) {
+		std::size_t cell,
+		const MTPRichText &tree) {
 	if (recorder) {
-		recorder->beginTableCellNode(index, row, cell);
+		recorder->beginTableCellNode(index, row, cell, tree);
 	}
 	return RichQuoteScope(recorder);
 }

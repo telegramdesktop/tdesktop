@@ -1492,6 +1492,8 @@ PRIVATE
     iv/iv_rich_page.h
     iv/iv_rich_page_quote.cpp
     iv/iv_rich_page_quote.h
+    iv/iv_rich_page_quote_builder.cpp
+    iv/iv_rich_page_quote_builder.h
     lang/lang_cloud_manager.cpp
     lang/lang_cloud_manager.h
     lang/lang_instance.cpp

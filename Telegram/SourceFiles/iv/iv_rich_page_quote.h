@@ -22,6 +22,8 @@ namespace Iv {
 
 struct RichPage;
 
+inline constexpr auto kRichQuoteMaxTextDepth = 64;
+
 struct RichQuoteRange {
 	int from = 0;
 	int till = 0;
@@ -66,6 +68,7 @@ public:
 	[[nodiscard]] const QString &projection() const;
 	[[nodiscard]] const std::vector<RichQuoteNode> &nodes() const;
 	[[nodiscard]] QStringView nodeText(int index) const;
+	[[nodiscard]] const MTPRichText *nodeTree(int index) const;
 	[[nodiscard]] bool partial() const;
 	[[nodiscard]] bool splitsFormula(int position) const;
 
@@ -98,6 +101,7 @@ private:
 
 	QString _projection;
 	std::vector<RichQuoteNode> _nodes;
+	std::vector<MTPRichText> _trees;
 	std::vector<int> _nodePiecesTill;
 	std::vector<Piece> _pieces;
 	std::vector<RichQuoteRange> _formulas;
@@ -169,6 +173,7 @@ private:
 	};
 	struct OpenNode {
 		std::optional<Leaf> leaf;
+		std::optional<MTPRichText> tree;
 		int separatorAt = 0;
 		int start = 0;
 		int pieces = 0;
@@ -182,14 +187,21 @@ private:
 	[[nodiscard]] std::optional<Markdown::PreparedEditBlockPath> blockPath(
 		std::size_t index) const;
 
-	void beginNode(Markdown::PreparedEditLeafKind kind, std::size_t index);
-	void beginListItemNode(std::size_t index, std::size_t listItem);
+	void beginNode(
+		Markdown::PreparedEditLeafKind kind,
+		std::size_t index,
+		const MTPRichText &tree);
+	void beginListItemNode(
+		std::size_t index,
+		std::size_t listItem,
+		const MTPRichText &tree);
 	void beginTableCellNode(
 		std::size_t index,
 		std::size_t row,
-		std::size_t cell);
+		std::size_t cell,
+		const MTPRichText &tree);
 	void beginHiddenNode();
-	void openNode(std::optional<Leaf> leaf);
+	void openNode(std::optional<Leaf> leaf, const MTPRichText *tree);
 	void closeNode();
 	void pushBlockChildren(std::size_t index);
 	void pushListItemChildren(std::size_t index, std::size_t listItem);
@@ -223,16 +235,19 @@ public:
 	[[nodiscard]] static RichQuoteScope Node(
 		RichQuoteRecorder *recorder,
 		Markdown::PreparedEditLeafKind kind,
-		std::size_t index);
+		std::size_t index,
+		const MTPRichText &tree);
 	[[nodiscard]] static RichQuoteScope ListItemNode(
 		RichQuoteRecorder *recorder,
 		std::size_t index,
-		std::size_t listItem);
+		std::size_t listItem,
+		const MTPRichText &tree);
 	[[nodiscard]] static RichQuoteScope TableCellNode(
 		RichQuoteRecorder *recorder,
 		std::size_t index,
 		std::size_t row,
-		std::size_t cell);
+		std::size_t cell,
+		const MTPRichText &tree);
 	[[nodiscard]] static RichQuoteScope HiddenNode(
 		RichQuoteRecorder *recorder);
 	[[nodiscard]] static RichQuoteScope BlockChildren(
