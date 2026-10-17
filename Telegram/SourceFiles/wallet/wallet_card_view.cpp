@@ -605,9 +605,7 @@ void CardView::setupCard() {
 void CardView::setupButton() {
 	_button = Ui::CreateChild<Ui::RoundButton>(
 		_content.get(),
-		(_user->isSelf()
-			? tr::lng_wallet_details_open_wallet()
-			: tr::lng_wallet_profile_send_money()),
+		rpl::single(QString()),
 		st::walletSendButton);
 	_button->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
 	_button->setVisible(canActivate());
@@ -637,8 +635,11 @@ void CardView::setupButton() {
 		refreshButton();
 	}, _button->lifetime());
 
-	_button->naturalWidthValue(
-	) | rpl::skip(1) | rpl::on_next([=] {
+	(_user->isSelf()
+		? tr::lng_wallet_details_open_wallet()
+		: tr::lng_wallet_profile_send_money()
+	) | rpl::on_next([=](const QString &text) {
+		_button->setText(rpl::single(text));
 		contentResized();
 	}, _button->lifetime());
 }
