@@ -97,6 +97,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/wrap/fade_wrap.h"
+#include "wallet/wallet_card_view.h"
 #include "window/themes/window_theme.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
@@ -491,10 +492,17 @@ TopBar::TopBar(
 
 	bindStatus();
 	if (_balanceReserve) {
+		const auto user = _peer->asUser();
 		_balancePill = std::make_unique<BalancePill>(
 			this,
-			_peer->asUser(),
+			user,
 			_edgeColor.value());
+		const auto pill = _balancePill.get();
+		pill->setClickedCallback([=] {
+			if (pill->actionable()) {
+				Wallet::ShowCardView(controller, user, pill);
+			}
+		});
 	}
 
 	_title->setContextCopyText(tr::lng_profile_copy_fullname(tr::now));

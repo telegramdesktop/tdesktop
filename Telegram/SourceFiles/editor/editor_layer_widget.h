@@ -8,10 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/layers/layer_widget.h"
+#include "ui/effects/layer_backdrop.h"
 #include "ui/image/image.h"
 #include "editor/photo_editor_common.h"
 #include "base/unique_qptr.h"
-#include "base/timer.h"
 
 enum class ImageRoundRadius;
 
@@ -39,22 +39,9 @@ private:
 	void forwardKeyEvent(not_null<QKeyEvent*> e);
 
 	void start();
-	void cacheBackground();
-	void checkBackgroundStale();
-	void checkCacheBackground();
-	[[nodiscard]] QImage renderBackground();
-	void backgroundReady(QImage background, bool night);
-	void startBackgroundFade();
 
 	const base::unique_qptr<Ui::RpWidget> _content;
-	QImage _backgroundBack;
-	QImage _background;
-	QImage _backgroundNext;
-	Ui::Animations::Simple _backgroundFade;
-	base::Timer _backgroundTimer;
-	crl::time _lastAreaChangeTime = 0;
-	bool _backgroundCaching = false;
-	bool _backgroundNight = false;
+	Ui::LayerBackdrop _backdrop;
 	bool _forwardingKeyEvent = false;
 	bool _keyEventIgnored = false;
 

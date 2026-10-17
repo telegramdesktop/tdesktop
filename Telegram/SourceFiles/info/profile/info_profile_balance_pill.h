@@ -7,14 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
+#include "ui/abstract_button.h"
 #include "wallet/wallet_amount_painter.h"
 
 class UserData;
 
 namespace Info::Profile {
 
-class BalancePill final : public Ui::RpWidget {
+class BalancePill final : public Ui::AbstractButton {
 public:
 	BalancePill(
 		QWidget *parent,
@@ -22,11 +22,11 @@ public:
 		rpl::producer<std::optional<QColor>> edgeColor);
 
 	void place(int outerWidth, int statusTop, float64 progress);
+	[[nodiscard]] bool actionable() const;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
-	QAccessible::Role accessibilityRole() override;
 	QString accessibilityName() override;
 
 private:

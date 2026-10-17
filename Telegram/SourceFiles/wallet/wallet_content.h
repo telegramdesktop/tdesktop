@@ -42,6 +42,7 @@ struct MenuCallback;
 
 namespace Wallet {
 
+struct CardLook;
 class CommentScope;
 class CollectibleMedia;
 class WindowPalette;
@@ -85,10 +86,19 @@ bool ShowFirstGramsIfPending(std::shared_ptr<Main::SessionShow> show);
 	std::shared_ptr<Main::SessionShow> show,
 	const std::shared_ptr<WindowPalette> &palette);
 
+struct WalletCardArgs {
+	rpl::producer<TextWithEntities> name;
+	rpl::producer<QString> address;
+	rpl::producer<int64> balanceNano;
+	rpl::producer<QString> fiat;
+	rpl::producer<CardLook> look;
+};
+
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeWalletCard(
 	QWidget *parent,
 	std::shared_ptr<Main::SessionShow> show,
-	std::shared_ptr<bool> markPlayed);
+	std::shared_ptr<bool> markPlayed,
+	WalletCardArgs args = {});
 
 struct TransferCardArgs {
 	int64 totalNano = 0;

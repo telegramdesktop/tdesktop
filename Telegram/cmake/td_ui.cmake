@@ -566,6 +566,8 @@ PRIVATE
     ui/effects/fireworks_animation.h
     ui/effects/glare.cpp
     ui/effects/glare.h
+    ui/effects/layer_backdrop.cpp
+    ui/effects/layer_backdrop.h
     ui/effects/loading_element.cpp
     ui/effects/loading_element.h
     ui/effects/ministar_particles.cpp

@@ -47,7 +47,7 @@ BalancePill::BalancePill(
 	QWidget *parent,
 	not_null<UserData*> user,
 	rpl::producer<std::optional<QColor>> edgeColor)
-: RpWidget(parent) {
+: AbstractButton(parent) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 	hide();
 
@@ -92,6 +92,13 @@ void BalancePill::place(int outerWidth, int statusTop, float64 progress) {
 		_opacity = opacity;
 		update();
 	}
+	const auto transparent = (_opacity <= 0.);
+	if (testAttribute(Qt::WA_TransparentForMouseEvents) != transparent) {
+		setAttribute(Qt::WA_TransparentForMouseEvents, transparent);
+		if (transparent) {
+			clearState();
+		}
+	}
 	_top = statusTop + st::infoProfileTopBarBalanceSkip;
 	if (_outerWidth != outerWidth) {
 		_outerWidth = outerWidth;
@@ -99,6 +106,10 @@ void BalancePill::place(int outerWidth, int statusTop, float64 progress) {
 	} else {
 		move((_outerWidth - width()) / 2, _top);
 	}
+}
+
+bool BalancePill::actionable() const {
+	return !isHidden() && (_opacity > 0.);
 }
 
 void BalancePill::setContent(const QString &label, int64 balance) {
@@ -215,10 +226,6 @@ void BalancePill::paintEvent(QPaintEvent *e) {
 		_arrowTop,
 		width(),
 		fg);
-}
-
-QAccessible::Role BalancePill::accessibilityRole() {
-	return QAccessible::Role::StaticText;
 }
 
 QString BalancePill::accessibilityName() {

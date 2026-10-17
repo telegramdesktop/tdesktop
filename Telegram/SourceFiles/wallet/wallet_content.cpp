@@ -415,7 +415,8 @@ public:
 	Card(
 		QWidget *parent,
 		std::shared_ptr<Main::SessionShow> show,
-		rpl::producer<TextWithEntities> name);
+		rpl::producer<TextWithEntities> name,
+		rpl::producer<QString> address = nullptr);
 
 	void setFold(const CardFold &fold);
 	[[nodiscard]] const CardFold &fold() const;
@@ -443,7 +444,7 @@ private:
 	void paintContent(Painter &p, float64 angle);
 	void paintFace(Painter &p);
 	void validateCache(float64 angle);
-	void refreshAddress();
+	void setAddress(const QString &address);
 
 	const std::shared_ptr<Main::SessionShow> _show;
 	style::TextStyle _nameStyle;
@@ -13754,23 +13755,46 @@ QRect BalanceInk::markPaintRect(const CardFold &fold) const {
 	});
 }
 
+[[nodiscard]] rpl::producer<QString> CardAddressValue(
+		not_null<Main::Session*> session) {
+	return session->wallet().presenceValue(
+	) | rpl::map([=](Presence) {
+		return session->wallet().addressFriendly(false);
+	});
+}
+
 void SetupCardBalance(
 		not_null<BalanceInk*> ink,
 		not_null<Main::Session*> session,
 		Fn<void()> repaint,
-		not_null<Ui::RpWidget*> owner) {
-	rpl::combine(
-		session->wallet().balanceNanoValue(),
-		FiatRateValue(session)
-	) | rpl::on_next([=](int64 nano, FiatRate rate) {
+		not_null<Ui::RpWidget*> owner,
+		rpl::producer<int64> balanceNano = nullptr,
+		rpl::producer<QString> fiat = nullptr) {
+	const auto apply = [=](int64 nano, const QString &text) {
 		const auto scope = WindowPaletteScope(owner);
 		ink->setContent(
 			CreditsAmount(
 				nano / Ui::kNanosInOne,
 				nano % Ui::kNanosInOne,
 				CreditsType::Ton),
-			FormatFiat(nano, rate));
+			text);
 		repaint();
+	};
+	auto amount = balanceNano
+		? std::move(balanceNano)
+		: session->wallet().balanceNanoValue();
+	if (fiat) {
+		rpl::combine(
+			std::move(amount),
+			std::move(fiat)
+		) | rpl::on_next(apply, owner->lifetime());
+		return;
+	}
+	rpl::combine(
+		std::move(amount),
+		FiatRateValue(session)
+	) | rpl::on_next([=](int64 nano, FiatRate rate) {
+		apply(nano, FormatFiat(nano, rate));
 	}, owner->lifetime());
 }
 
@@ -13808,15 +13832,18 @@ void SetupCardMark(
 Card::Card(
 	QWidget *parent,
 	std::shared_ptr<Main::SessionShow> show,
-	rpl::producer<TextWithEntities> name)
+	rpl::producer<TextWithEntities> name,
+	rpl::producer<QString> address)
 : RpWidget(parent)
 , _show(std::move(show))
 , _nameStyle(st::defaultTextStyle)
 , _look(crl::guard(this, [=] { invalidateCache(); })) {
 	_nameStyle.font = st::walletCardNameFont->monospace();
-	_show->session().wallet().presenceValue(
-	) | rpl::on_next([=](Presence) {
-		refreshAddress();
+	auto friendly = address
+		? std::move(address)
+		: CardAddressValue(&_show->session());
+	std::move(friendly) | rpl::on_next([=](const QString &value) {
+		setAddress(value);
 	}, lifetime());
 
 	std::move(name) | rpl::on_next([=](TextWithEntities name) {
@@ -13896,9 +13923,7 @@ QRect Card::restRect() const {
 		st::walletCardHeight);
 }
 
-void Card::refreshAddress() {
-	auto &wallet = _show->session().wallet();
-	const auto address = wallet.addressFriendly(false);
+void Card::setAddress(const QString &address) {
 	_addressLine1 = _addressLine2 = QString();
 	if (address.size() == kAddressLength) {
 		_addressLine1 = GroupedAddressLine(address, 0);
@@ -16322,7 +16347,8 @@ base::unique_qptr<Ui::RpWidget> CreateContent(
 object_ptr<Ui::RpWidget> MakeWalletCard(
 		QWidget *parent,
 		std::shared_ptr<Main::SessionShow> show,
-		std::shared_ptr<bool> markPlayed) {
+		std::shared_ptr<bool> markPlayed,
+		WalletCardArgs args) {
 	auto result = object_ptr<Ui::FixedHeightWidget>(
 		parent,
 		st::walletCardHeight);
@@ -16332,8 +16358,16 @@ object_ptr<Ui::RpWidget> MakeWalletCard(
 	const auto card = Ui::CreateChild<Card>(
 		raw,
 		show,
-		CardNameValue(&show->session()));
+		(args.name
+			? std::move(args.name)
+			: CardNameValue(&show->session())),
+		std::move(args.address));
 	card->setAttribute(Qt::WA_TransparentForMouseEvents);
+	if (args.look) {
+		std::move(args.look) | rpl::on_next([=](CardLook look) {
+			card->setLook(std::move(look));
+		}, card->lifetime());
+	}
 
 	const auto overlay = Ui::CreateChild<Ui::RpWidget>(raw);
 	overlay->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -16369,7 +16403,9 @@ object_ptr<Ui::RpWidget> MakeWalletCard(
 		ink,
 		&show->session(),
 		[=] { overlay->update(); },
-		raw);
+		raw,
+		std::move(args.balanceNano),
+		std::move(args.fiat));
 	SetupCardMark(ink, raw, std::move(markPlayed), [=] {
 		overlay->update(
 			ink->markPaintRect(ComputeCardFold(raw->rect(), 0.)));

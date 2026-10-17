@@ -108,6 +108,16 @@ walletSendButton: RoundButton(defaultActiveButton) {
 // Sides match walletRowIconLeft, the gap matches the card-to-buttons skip.
 walletSendButtonMargin: margins(20px, 12px, 20px, 0px);
 walletButtonsSkip: 12px;
+walletCardViewSkip: 24px;
+walletCardViewLabelWidth: 188px;
+walletCardViewLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: walletCardViewLabelWidth;
+	align: align(top);
+	textFg: windowSubTextFg;
+}
+walletCardViewLabelPlatePadding: margins(12px, 6px, 12px, 6px);
+walletCardViewDimDay: 0.07;
+walletCardViewDimNight: 0.25;
 walletIslandMargin: margins(20px, 0px, 20px, 0px);
 walletHeaderBottomSkip: 12px;
 // Left 22px and the vertical 10/8 are settingsButtonNoIcon's own values, so
