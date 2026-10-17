@@ -59,12 +59,19 @@ const style::palette *WindowPaletteFor(not_null<const QWidget*> widget) {
 		: nullptr;
 }
 
+void ForceFullPaletteRepaint(not_null<QWidget*> widget) {
+	const auto refresher = std::make_unique<QWidget>(widget);
+	refresher->setAttribute(Qt::WA_TransparentForMouseEvents);
+	refresher->setGeometry(widget->rect());
+	refresher->show();
+}
+
 void RefreshWindowPaletteChild(not_null<QWidget*> child) {
 	const auto scope = style::main_palette::Override(WindowPaletteFor(child));
 	if (const auto menu = dynamic_cast<PopupMenu*>(child.get())) {
 		menu->refreshAnimationCache();
 	}
-	child->update();
+	ForceFullPaletteRepaint(child);
 }
 
 void UpdateWindowPaletteChildren(not_null<const QWidget*> window) {

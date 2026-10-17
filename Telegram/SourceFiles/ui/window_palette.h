@@ -21,6 +21,7 @@ void SetWindowPalette(
 [[nodiscard]] bool HasWindowPalettes();
 [[nodiscard]] const style::palette *WindowPaletteFor(
 	not_null<const QWidget*> widget);
+void ForceFullPaletteRepaint(not_null<QWidget*> widget);
 void RefreshWindowPaletteChild(not_null<QWidget*> child);
 void UpdateWindowPaletteChildren(not_null<const QWidget*> window);
 

@@ -324,7 +324,9 @@ void WindowLookReveal::instant(CardLook look) {
 	finish();
 	_palette->setLook(look);
 	_apply(std::move(look), {});
-	_panel->update();
+	if (!_panel->isHidden()) {
+		Ui::ForceFullPaletteRepaint(_panel);
+	}
 	Ui::UpdateWindowPaletteChildren(_panel);
 }
 
