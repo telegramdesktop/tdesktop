@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_address.h"
 #include "wallet/wallet_card_drag.h"
 #include "wallet/wallet_card_flight.h"
+#include "wallet/wallet_card_look.h"
 #include "wallet/wallet_card_stickers.h"
 #include "wallet/wallet_chat_show.h"
 #include "wallet/wallet_collectible_media.h"
@@ -1192,6 +1193,13 @@ void CollectiblesGrid::showCardMenu(const QString &address, QPoint point) {
 	}
 	const auto add = !ownCard().contains(address);
 	const auto apply = !colorSource(address);
+	if (apply && _host.prepareColor) {
+		const auto sticker = Data::WalletCardSticker{
+			.address = address,
+			.gift = _records[index].gift,
+		};
+		_host.prepareColor(ResolveCardLook({ sticker }, address));
+	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
 	_menu->addAction(
 		Ui::Text::FixAmpersandInAction(apply

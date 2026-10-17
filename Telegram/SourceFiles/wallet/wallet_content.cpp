@@ -14548,6 +14548,7 @@ void Content::setupContent() {
 		.fold = [=] { return cardFold(); },
 		.protectedAreas = [=] { return _card->protectedAreas(*_ink); },
 		.bring = [=] { _cardFloat->bring(); },
+		.prepareColor = [=](const CardLook &look) { _palette->prepare(look); },
 	};
 	_cardEditor = std::make_unique<CardStickerEditor>(CardEditorArgs{
 		.show = _show,

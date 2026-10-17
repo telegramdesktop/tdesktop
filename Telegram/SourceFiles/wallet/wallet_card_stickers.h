@@ -25,6 +25,8 @@ class RpWidget;
 
 namespace Wallet {
 
+struct CardLook;
+
 void RefreshOwnCard(not_null<Main::Session*> session);
 [[nodiscard]] auto OwnCardStickersValue(not_null<Main::Session*> session)
 -> rpl::producer<std::vector<Data::WalletCardSticker>>;
@@ -110,6 +112,7 @@ struct CardHost {
 	Fn<CardFold()> fold;
 	Fn<std::vector<QRectF>()> protectedAreas;
 	Fn<void()> bring;
+	Fn<void(const CardLook&)> prepareColor;
 };
 
 [[nodiscard]] CardSpace CurrentCardSpace(

@@ -47,14 +47,18 @@ private:
 	struct Source {
 		QPointF origin;
 		float64 width = 0.;
+		float64 start = 0.;
 	};
 
 	[[nodiscard]] QRect area() const;
 	[[nodiscard]] bool hidden() const;
 	[[nodiscard]] bool live() const;
-	[[nodiscard]] std::optional<Source> source(QPointF fraction) const;
+	[[nodiscard]] std::optional<Source> source(
+		const CardLookChange &change) const;
 	[[nodiscard]] QTransform reprojection() const;
+	[[nodiscard]] QTransform imageMap(QPointF shift) const;
 	[[nodiscard]] float64 progress() const;
+	[[nodiscard]] std::optional<QRect> hole() const;
 
 	void instant(CardLook look);
 	void animate(CardLook look, CardLookChange change);
@@ -62,16 +66,19 @@ private:
 		QImage image,
 		QRect pixels,
 		QRect area,
-		std::optional<Source> source);
+		std::optional<Source> source,
+		crl::time started);
 	void settle();
 	void flush();
 	void finish();
 	void dropOverlay();
 	void updateGeometry();
+	void refresh();
 	void restack();
 	bool watch(not_null<QObject*> child);
 	[[nodiscard]] bool tick(crl::time now);
 	void paint(QPainter &p) const;
+	void compose(QPainter &p, not_null<QWidget*> widget) const;
 
 	const not_null<Ui::SeparatePanel*> _panel;
 	const not_null<Ui::RpWidget*> _body;
@@ -80,6 +87,7 @@ private:
 	const Fn<void(CardLook, CardLookChange)> _apply;
 	std::optional<Pending> _pending;
 	base::unique_qptr<Ui::RpWidget> _overlay;
+	base::unique_qptr<Ui::RpWidget> _band;
 	QImage _image;
 	QRectF _imageRect;
 	QRect _area;

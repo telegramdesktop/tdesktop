@@ -72,7 +72,13 @@ struct Disc {
 		change.origin.y() * area.height());
 	const auto reach = OutlineReach(area, center)
 		+ CardLookRimInside(area.width());
-	return { .center = center, .radius = reach * FlightEaseOut(progress) };
+	return {
+		.center = center,
+		.radius = CardLookWaveRadius(
+			CardLookWaveStart(change, card.size()),
+			reach,
+			progress),
+	};
 }
 
 [[nodiscard]] QRect DevicePixels(const QPainter &p, const QRect &card) {
@@ -96,7 +102,7 @@ void PrepareScratch(QImage &image, QSize size, float64 ratio) {
 	image.fill(Qt::transparent);
 }
 
-[[nodiscard]] std::optional<QPointF> SourceOrigin(
+[[nodiscard]] std::optional<CardLookChange> SourceWave(
 		const OwnCardState &state,
 		const QString &source) {
 	const auto i = ranges::find_if(state.stickers, [&](const auto &sticker) {
@@ -105,11 +111,16 @@ void PrepareScratch(QImage &image, QSize size, float64 ratio) {
 	if (i == end(state.stickers)) {
 		return std::nullopt;
 	}
-	const auto center = i->area.geometry.center();
+	const auto &geometry = i->area.geometry;
+	const auto center = geometry.center();
 	if (!std::isfinite(center.x()) || !std::isfinite(center.y())) {
 		return std::nullopt;
 	}
-	return center;
+	return CardLookChange{
+		.reveal = CardLookReveal::Wave,
+		.origin = center,
+		.stickerSize = geometry.size(),
+	};
 }
 
 } // namespace
@@ -122,8 +133,24 @@ float64 CardLookFadeValue(float64 progress) {
 	return anim::sineInOut(1., progress);
 }
 
+float64 CardLookWaveStart(const CardLookChange &change, QSize card) {
+	const auto side = CardStickerSide(
+		{ .geometry = QRectF(QPointF(), change.stickerSize) },
+		card);
+	return CardStickerOuterSide(side, style::DevicePixelRatio()) / M_SQRT2;
+}
+
+float64 CardLookWaveRadius(float64 start, float64 reach, float64 progress) {
+	const auto from = std::clamp(start, 0., std::max(reach, 0.));
+	return from + (reach - from) * FlightEaseOut(progress);
+}
+
 float64 CardLookRimInside(float64 width) {
 	return kRimInside * width;
+}
+
+float64 CardLookRimOutside(float64 width) {
+	return kRimOutside * width;
 }
 
 void PaintCardLookRim(
@@ -132,7 +159,7 @@ void PaintCardLookRim(
 		float64 radius,
 		float64 width) {
 	const auto inside = CardLookRimInside(width);
-	const auto outer = radius + kRimOutside * width;
+	const auto outer = radius + CardLookRimOutside(width);
 	const auto peak = QColor::fromRgbF(1., 1., 1., kRimAlpha);
 	const auto clear = QColor(255, 255, 255, 0);
 	auto gradient = QRadialGradient(center, outer);
@@ -420,12 +447,12 @@ void CardLookFollower::released(const QString &address) {
 }
 
 void CardLookFollower::wave(CardLook look) {
-	const auto origin = SourceOrigin(
+	const auto change = SourceWave(
 		_session->wallet().ownCard().shown(),
 		look.source);
-	present(std::move(look), origin
-		? CardLookChange{ .reveal = CardLookReveal::Wave, .origin = *origin }
-		: CardLookChange{ .reveal = CardLookReveal::Fade });
+	present(
+		std::move(look),
+		change.value_or(CardLookChange{ .reveal = CardLookReveal::Fade }));
 }
 
 void CardLookFollower::present(CardLook look, CardLookChange change) {

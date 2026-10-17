@@ -33,6 +33,7 @@ struct Capture {
 		const QRectF &area,
 		QPointF origin,
 		float64 cardWidth,
+		float64 start,
 		float64 progress) {
 	const auto corners = std::array{
 		area.topLeft(),
@@ -45,7 +46,7 @@ struct Capture {
 		accumulate_max(reach, QLineF(origin, corner).length());
 	}
 	reach += CardLookRimInside(cardWidth);
-	return reach * FlightEaseOut(progress);
+	return CardLookWaveRadius(start, reach, progress);
 }
 
 [[nodiscard]] crl::time WindowRevealDuration(CardLookReveal reveal) {
@@ -54,11 +55,11 @@ struct Capture {
 		: CardLookFadeDuration();
 }
 
-[[nodiscard]] Capture CaptureWindow(not_null<QWidget*> window, QRect area) {
+[[nodiscard]] Capture CaptureWindow(not_null<QWidget*> window) {
 	const auto ratio = window->devicePixelRatio();
 	const auto pixels = QRectF(
-		QPointF(area.topLeft()) * ratio,
-		QSizeF(area.size()) * ratio).toAlignedRect();
+		QPointF(),
+		QSizeF(window->size()) * ratio).toAlignedRect();
 	if (pixels.isEmpty()) {
 		return {};
 	}
@@ -69,7 +70,6 @@ struct Capture {
 	image.setDevicePixelRatio(ratio);
 	image.fill(Qt::transparent);
 	auto p = QPainter(&image);
-	p.translate(-QPointF(pixels.topLeft()) / ratio);
 	Ui::RenderWidget(
 		p,
 		window,
@@ -87,11 +87,18 @@ struct Capture {
 			|| IsTravelLayer(widget)) {
 			continue;
 		}
+		const auto mask = widget->mask();
+		const auto region = mask.isEmpty()
+			? QRegion(widget->rect())
+			: (mask & widget->rect());
+		if (region.isEmpty()) {
+			continue;
+		}
 		Ui::RenderWidget(
 			p,
 			widget,
-			widget->pos(),
-			QRegion(widget->rect()),
+			widget->pos() + region.boundingRect().topLeft(),
+			region,
 			QWidget::DrawChildren);
 	}
 	p.end();
@@ -236,21 +243,22 @@ bool WindowLookReveal::live() const {
 }
 
 std::optional<WindowLookReveal::Source> WindowLookReveal::source(
-		QPointF fraction) const {
+		const CardLookChange &change) const {
 	const auto fold = _fold();
 	const auto &rest = fold.rest;
 	if (rest.isEmpty()) {
 		return std::nullopt;
 	}
 	const auto point = CardFoldLimitPoint(fold, QPointF(
-		fraction.x() * rest.width(),
-		fraction.y() * rest.height()));
+		change.origin.x() * rest.width(),
+		change.origin.y() * rest.height()));
 	if (!std::isfinite(point.x()) || !std::isfinite(point.y())) {
 		return std::nullopt;
 	}
 	return Source{
 		.origin = point + QPointF(Ui::MapFrom(_panel, _body, QPoint())),
 		.width = float64(rest.width()),
+		.start = CardLookWaveStart(change, rest.size()),
 	};
 }
 
@@ -267,9 +275,38 @@ QTransform WindowLookReveal::reprojection() const {
 		* QTransform::fromTranslate(now.x(), now.y());
 }
 
+QTransform WindowLookReveal::imageMap(QPointF shift) const {
+	const auto ratio = _image.devicePixelRatio();
+	return QTransform::fromScale(1. / ratio, 1. / ratio)
+		* QTransform::fromTranslate(_imageRect.x(), _imageRect.y())
+		* reprojection()
+		* QTransform::fromTranslate(-shift.x(), -shift.y());
+}
+
 float64 WindowLookReveal::progress() const {
 	const auto duration = WindowRevealDuration(_reveal);
 	return std::clamp((_now - _started) / float64(duration), 0., 1.);
+}
+
+std::optional<QRect> WindowLookReveal::hole() const {
+	if (_reveal != CardLookReveal::Wave
+		|| !reprojection().isIdentity()
+		|| _image.devicePixelRatio() != _panel->devicePixelRatio()) {
+		return std::nullopt;
+	}
+	const auto area = this->area();
+	const auto radius = WindowWaveRadius(
+		QRectF(area),
+		_source.origin,
+		_source.width,
+		_source.start,
+		progress());
+	const auto outer = radius + CardLookRimOutside(_source.width) + 1.;
+	const auto result = QRectF(
+		_source.origin - QPointF(outer, outer),
+		QSizeF(2. * outer, 2. * outer)
+	).toAlignedRect().intersected(area);
+	return (result == area) ? std::nullopt : std::make_optional(result);
 }
 
 void WindowLookReveal::instant(CardLook look) {
@@ -282,11 +319,12 @@ void WindowLookReveal::instant(CardLook look) {
 }
 
 void WindowLookReveal::animate(CardLook look, CardLookChange change) {
+	const auto started = crl::now();
 	const auto area = this->area();
 	const auto wave = (change.reveal == CardLookReveal::Wave)
-		? source(change.origin)
+		? source(change)
 		: std::nullopt;
-	auto captured = CaptureWindow(_panel, area);
+	auto captured = CaptureWindow(_panel);
 	if (captured.image.isNull()) {
 		_pending = Pending{ .look = std::move(look), .change = change };
 		return;
@@ -294,18 +332,26 @@ void WindowLookReveal::animate(CardLook look, CardLookChange change) {
 	_palette->holdChildren();
 	{
 		const auto updates = SuppressUpdates(_panel);
-		install(std::move(captured.image), captured.pixels, area, wave);
+		install(
+			std::move(captured.image),
+			captured.pixels,
+			area,
+			wave,
+			started);
 		_palette->setLook(look);
 		_apply(std::move(look), {});
 	}
-	_animation.start();
+	if (tick(crl::now())) {
+		_animation.start();
+	}
 }
 
 void WindowLookReveal::install(
 		QImage image,
 		QRect pixels,
 		QRect area,
-		std::optional<Source> source) {
+		std::optional<Source> source,
+		crl::time started) {
 	const auto ratio = image.devicePixelRatio();
 	_image = std::move(image);
 	_imageRect = QRectF(
@@ -314,8 +360,14 @@ void WindowLookReveal::install(
 	_area = area;
 	_source = source.value_or(Source());
 	_reveal = source ? CardLookReveal::Wave : CardLookReveal::Fade;
-	_started = _now = crl::now();
+	_started = _now = started;
 	if (!_overlay) {
+		_band = base::make_unique_q<Ui::RpWidget>(_panel);
+		_band->setAttribute(Qt::WA_TransparentForMouseEvents);
+		_band->paintRequest() | rpl::on_next([=] {
+			auto p = QPainter(_band.get());
+			compose(p, _band.get());
+		}, _overlayLifetime);
 		_overlay = base::make_unique_q<Ui::RpWidget>(_panel);
 		_overlay->setAttribute(Qt::WA_TransparentForMouseEvents);
 		_overlay->paintRequest() | rpl::on_next([=] {
@@ -327,6 +379,7 @@ void WindowLookReveal::install(
 		}
 	}
 	updateGeometry();
+	_band->show();
 	_overlay->show();
 	restack();
 	_running = true;
@@ -355,21 +408,43 @@ void WindowLookReveal::finish() {
 	dropOverlay();
 	_image = QImage();
 	_running = false;
+	_panel->update();
 	_palette->releaseChildren();
 }
 
 void WindowLookReveal::dropOverlay() {
 	_overlayLifetime.destroy();
-	if (const auto overlay = _overlay.release()) {
-		overlay->hide();
-		overlay->deleteLater();
+	for (const auto widget : { _overlay.release(), _band.release() }) {
+		if (widget) {
+			widget->hide();
+			widget->deleteLater();
+		}
 	}
 }
 
 void WindowLookReveal::updateGeometry() {
-	const auto rect = reprojection().mapRect(_imageRect).toAlignedRect();
-	_overlay->setGeometry(rect.intersected(_panel->rect()));
+	_overlay->setGeometry(reprojection().isIdentity()
+		? _panel->rect()
+		: area());
 	_overlay->update();
+	refresh();
+}
+
+void WindowLookReveal::refresh() {
+	const auto hole = this->hole();
+	if (_overlay->testAttribute(Qt::WA_OpaquePaintEvent) != bool(hole)) {
+		_overlay->setAttribute(Qt::WA_OpaquePaintEvent, bool(hole));
+		_overlay->update();
+	}
+	if (!hole) {
+		_overlay->clearMask();
+		_overlay->update();
+		_band->setGeometry(QRect());
+		return;
+	}
+	_band->setGeometry(*hole);
+	_band->update();
+	_overlay->setMask(QRegion(_overlay->rect()) - *hole);
 }
 
 void WindowLookReveal::restack() {
@@ -378,6 +453,7 @@ void WindowLookReveal::restack() {
 	}
 	_restacking = true;
 	_overlay->raise();
+	_band->raise();
 	const auto children = _panel->children();
 	for (const auto child : children) {
 		if (child->isWidgetType()) {
@@ -391,7 +467,9 @@ void WindowLookReveal::restack() {
 }
 
 bool WindowLookReveal::watch(not_null<QObject*> child) {
-	if (!child->isWidgetType() || child.get() == _overlay.get()) {
+	if (!child->isWidgetType()
+		|| child.get() == _overlay.get()
+		|| child.get() == _band.get()) {
 		return false;
 	}
 	const auto widget = static_cast<QWidget*>(child.get());
@@ -421,26 +499,38 @@ bool WindowLookReveal::tick(crl::time now) {
 		finish();
 		return false;
 	}
-	_overlay->update();
+	refresh();
 	return true;
 }
 
 void WindowLookReveal::paint(QPainter &p) const {
+	if (!_overlay->testAttribute(Qt::WA_OpaquePaintEvent)) {
+		compose(p, _overlay.get());
+	} else if (!_image.isNull()) {
+		p.setCompositionMode(QPainter::CompositionMode_Source);
+		DrawMapped(p, imageMap(QPointF(_overlay->pos())), _image);
+	}
+}
+
+void WindowLookReveal::compose(
+		QPainter &p,
+		not_null<QWidget*> widget) const {
 	if (_image.isNull()) {
 		return;
 	}
 	const auto map = reprojection();
-	const auto shift = QPointF(_overlay->pos());
-	const auto ratio = _image.devicePixelRatio();
-	const auto image = QTransform::fromScale(1. / ratio, 1. / ratio)
-		* QTransform::fromTranslate(_imageRect.x(), _imageRect.y())
-		* map
-		* QTransform::fromTranslate(-shift.x(), -shift.y());
+	const auto shift = QPointF(widget->pos());
+	const auto image = imageMap(shift);
 	const auto progress = this->progress();
 	const auto wave = (_reveal == CardLookReveal::Wave);
 	const auto origin = map.map(_source.origin);
 	const auto radius = wave
-		? WindowWaveRadius(QRectF(area()), origin, _source.width, progress)
+		? WindowWaveRadius(
+			QRectF(area()),
+			origin,
+			_source.width,
+			_source.start,
+			progress)
 		: 0.;
 	const auto opacity = wave ? 1. : (1. - CardLookFadeValue(progress));
 	if (opacity <= 0.) {
@@ -451,7 +541,8 @@ void WindowLookReveal::paint(QPainter &p) const {
 	if (radius > 0.) {
 		auto path = QPainterPath();
 		path.setFillRule(Qt::OddEvenFill);
-		path.addRect(QRectF(_overlay->rect()));
+		const auto rect = QRectF(widget->rect());
+		path.addRect(rect.marginsAdded({ 1., 1., 1., 1. }));
 		path.addEllipse(origin - shift, radius, radius);
 		p.setClipPath(path);
 	}

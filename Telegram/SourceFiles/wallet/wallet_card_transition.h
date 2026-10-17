@@ -25,11 +25,20 @@ enum class CardLookReveal : uchar {
 struct CardLookChange {
 	CardLookReveal reveal = CardLookReveal::Instant;
 	QPointF origin;
+	QSizeF stickerSize;
 };
 
 [[nodiscard]] crl::time CardLookFadeDuration();
 [[nodiscard]] float64 CardLookFadeValue(float64 progress);
+[[nodiscard]] float64 CardLookWaveStart(
+	const CardLookChange &change,
+	QSize card);
+[[nodiscard]] float64 CardLookWaveRadius(
+	float64 start,
+	float64 reach,
+	float64 progress);
 [[nodiscard]] float64 CardLookRimInside(float64 width);
+[[nodiscard]] float64 CardLookRimOutside(float64 width);
 void PaintCardLookRim(
 	QPainter &p,
 	QPointF center,

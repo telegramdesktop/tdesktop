@@ -199,9 +199,6 @@ void WindowPalette::setLook(const CardLook &look) {
 	if (!_type || _version != style::PaletteVersion()) {
 		return;
 	}
-	if (!_recipe) {
-		_recipe = &Window::Theme::AccentRecipe(*_type);
-	}
 	if (_recipe->apply(*_palette, accent(*_type))) {
 		notify();
 	}
@@ -242,6 +239,7 @@ void WindowPalette::rebuild() {
 	if (!_type) {
 		return;
 	}
+	_recipe = &Window::Theme::AccentRecipe(*_type);
 	auto built = Window::Theme::PrepareEmbeddedPalette(
 		*_type,
 		accent(*_type));
