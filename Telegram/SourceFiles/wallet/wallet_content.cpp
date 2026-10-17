@@ -108,6 +108,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_custody.h"
 #include "wallet/wallet_diamond_flight.h"
 #include "wallet/wallet_fiat.h"
+#include "wallet/wallet_gift_move_presentation.h"
 #include "wallet/wallet_key_protection.h"
 #include "wallet/wallet_move_to_gifts.h"
 #include "wallet/wallet_onramp.h"
@@ -3187,20 +3188,21 @@ not_null<SendingHistoryRow*> AddSendingHistoryRow(
 		? langDateTime(base::unixtime::parse(*item.date))
 		: QString();
 	if (ShowsCollectible(item)) {
+		const auto telegram = ShowsGiftMove(item);
 		const auto peer = item.counterpartyPeer
 			? session->data().peerLoaded(PeerId(item.counterpartyPeer))
 			: nullptr;
-		const auto hasCounterparty = !item.counterparty.isEmpty();
+		const auto hasCounterparty = !telegram && !item.counterparty.isEmpty();
 		const auto domain = hasCounterparty
 			? item.counterpartyName.trimmed()
 			: QString();
-		const auto kindText = item.incoming
-			? tr::lng_wallet_row_collectible_in(tr::now)
-			: tr::lng_wallet_row_collectible_out(tr::now);
-		const auto titleIsKind = !peer && !hasCounterparty;
+		const auto kindText = CollectibleRowKindText(item);
+		const auto titleIsKind = !telegram && !peer && !hasCounterparty;
 		const auto statusText = RowStatusSubtitle(item.status);
 		return {
-			.title = (peer
+			.title = (telegram
+				? tr::lng_wallet_row_telegram(tr::now)
+				: peer
 				? peer->name()
 				: !domain.isEmpty()
 				? domain
@@ -4047,6 +4049,8 @@ void AddDetailsTable(
 			table,
 			tr::lng_wallet_details_operation(),
 			tr::lng_wallet_row_key_change(tr::marked));
+	} else if (ShowsGiftMove(item)) {
+		AddGiftMoveDetailsRows(table, item);
 	} else if (peer) {
 		AddPeerCounterpartyRows(box, table, show, peer, item);
 	} else if (!item.counterparty.isEmpty()) {
@@ -7299,7 +7303,7 @@ void CollectibleTransferBox(
 		state->handedOver = true;
 		const auto panel = wallet->panel();
 		if (panel && box->window() == panel->window()) {
-			wallet->setWindowSend(value.operationId);
+			SetWindowSendOperation(wallet, value.operationId);
 		}
 		show->hideLayer();
 	};
@@ -8731,7 +8735,7 @@ void WalletSendBox(
 		const auto panel = wallet->panel();
 		if (panel && box->window() == panel->window()) {
 			state->handedOver = true;
-			wallet->setWindowSend(started.operationId);
+			SetWindowSendOperation(wallet, started.operationId);
 			if (const auto content = dynamic_cast<Content*>(panel->inner())) {
 				content->flySendDiamond(started.operationId, amountField);
 			}
@@ -13994,10 +13998,12 @@ Content::~Content() {
 
 [[nodiscard]] bool HistoryShown(not_null<Main::Session*> session) {
 	const auto wallet = &session->wallet();
-	return !wallet->listsGated()
-		&& (!wallet->historyVisibleEmpty()
-			|| !wallet->listedSubmittedTransactions().empty()
-			|| wallet->sendingTransaction(wallet->windowSend()));
+	return CurrentGiftMovePreview(wallet)
+		|| (!wallet->listsGated()
+			&& (!wallet->historyVisibleEmpty()
+				|| !wallet->listedSubmittedTransactions().empty()
+				|| wallet->sendingTransaction(
+					wallet->windowSend().operationId)));
 }
 
 [[nodiscard]] rpl::producer<bool> HistoryShownValue(
@@ -14383,6 +14389,11 @@ void Content::setupContent() {
 		return created;
 	};
 	const auto rebuildList = [=] {
+		auto submitted = wallet->listedSubmittedTransactions();
+		const auto window = WindowSendingRowFor(wallet, submitted);
+		if (_sendingRow && _sendingRow->operationId == window.predecessor) {
+			_sendingRow->operationId = window.operationId;
+		}
 		const auto scrollTop = _scroll->scrollTop();
 		const auto anchor = listWrap->toggled()
 			? CountListAnchor(listedRows(), column, scrollTop - _reserve)
@@ -14393,8 +14404,7 @@ void Content::setupContent() {
 		// then keep their place on screen in one move.
 		place->rebuilding = true;
 		list->clear();
-		const auto &history = wallet->history();
-		auto submitted = wallet->listedSubmittedTransactions();
+		const auto &history = ListedHistory(wallet);
 		// A row sits by date, so old failures stop covering fresh history.
 		ranges::stable_sort(submitted, ranges::greater(), [](const auto &entry) {
 			return entry.item.date.value_or(kUndatedRowDate);
@@ -14410,8 +14420,8 @@ void Content::setupContent() {
 		};
 		auto created = false;
 		if (HistoryShown(&_show->session())) {
-			const auto &op = wallet->windowSend();
-			const auto sending = wallet->sendingTransaction(op);
+			const auto &op = window.operationId;
+			const auto &sending = window.sending;
 			const auto settled = (op.empty() || sending)
 				? end(submitted)
 				: ranges::find(
@@ -14464,7 +14474,7 @@ void Content::setupContent() {
 			const auto skipId = !held
 				? QString()
 				: sending
-				? sending->id
+				? (sending->id.isEmpty() ? window.servedId : sending->id)
 				: kept
 				? kept->id
 				: QString();

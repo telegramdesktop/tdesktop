@@ -213,6 +213,7 @@ struct TransferItem {
 	std::optional<TransferWalletIdentity> walletIdentity;
 	Kind kind = Kind::Transfer;
 	bool incoming = false;
+	TransferGiftMove giftMove = TransferGiftMove::None;
 	QString counterparty;
 	bool counterpartyBounceable = false; // as served or as sent, raw is UQ
 	QString counterpartyName;
@@ -344,6 +345,7 @@ struct PendingSendInfo {
 	QString comment;
 	UserId recipient;
 	bool bounce = false;
+	TransferGiftMove giftMove = TransferGiftMove::None;
 };
 
 [[nodiscard]] TransferItem ItemFromPending(const PendingSendInfo &pending);
@@ -356,6 +358,28 @@ struct SendStarted {
 struct ListedSubmittedTransfer {
 	std::string operationId;
 	TransferItem item;
+	QString servedId;
+};
+
+struct GiftMoveHistoryCoverage {
+	std::optional<TimeId> oldest;
+	QString cursor;
+	bool complete = false;
+};
+
+struct GiftMovePreviewData {
+	uint64 token = 0;
+	uint64 generation = 0;
+	std::string operationId;
+	std::string selected;
+	TransferItem item;
+	std::weak_ptr<void> alive;
+};
+
+struct WindowSend {
+	std::string operationId;
+	std::shared_ptr<bool> guard;
+	std::vector<GiftMovePreviewData> previews;
 };
 
 struct TransferReceipt {
@@ -825,7 +849,8 @@ public:
 		KeyAuthorization auth,
 		std::shared_ptr<const PreparedSend> prepared,
 		Fn<void(SendError)> done,
-		Fn<void(SendStarted)> started = nullptr);
+		Fn<void(SendStarted)> started = nullptr,
+		Fn<void(std::string)> preparing = nullptr);
 	[[nodiscard]] SendError sendRefusal(
 		const std::shared_ptr<const PreparedSend> &prepared,
 		const KeyAuthorization &auth);
@@ -849,8 +874,8 @@ public:
 	[[nodiscard]] std::optional<TransferItem> sendingTransaction(
 		const std::string &operationId) const;
 	// The send the wallet window started, which its list shows as sending.
-	void setWindowSend(std::string operationId);
-	[[nodiscard]] const std::string &windowSend() const;
+	void setWindowSend(WindowSend value);
+	[[nodiscard]] const WindowSend &windowSend() const;
 	[[nodiscard]] TonConnectSendFate tonConnectSendFate(
 		const std::string &operationId);
 
@@ -1260,6 +1285,7 @@ private:
 	bool _historyHasNext = false;
 	// Set by new rows, cleared when paging stalls: a shown row stays shown.
 	std::optional<TimeId> _listedBoundary;
+	GiftMoveHistoryCoverage _giftMoveCoverage;
 	crl::time _historyRefreshedAt = 0;
 
 	std::vector<Gram::NftItem> _collectibles;
@@ -1306,7 +1332,7 @@ private:
 	std::optional<PendingSendInfo> _pending;
 	bool _sendUnresolved = false;
 	std::string _unresolvedOperationId;
-	std::string _windowSend;
+	WindowSend _windowSend;
 	uint64 _sendRevision = 0;
 	struct TransferSubmissionState {
 		std::string operationId;

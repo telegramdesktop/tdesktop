@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_phrase_shares.h"
 #include "wallet/wallet_rates.h"
 #include "wallet/wallet_session_deposit.h"
+#include "wallet/wallet_session_gift_moves.h"
 #include "wallet/wallet_session_waits.h"
 #include "wallet/wallet_ton_connect.h"
 #include "wallet/wallet_ton_connect_emulation.h"
@@ -1771,6 +1772,7 @@ void FailShareFetch(
 		.commentEncrypted = item.commentEncrypted,
 		.gasless = item.gasless,
 		.counterpartyBounceable = item.counterpartyBounceable,
+		.giftMove = item.giftMove,
 	};
 }
 
@@ -1913,7 +1915,10 @@ void SetDirectedAmount(
 			setCounterparty(data);
 		}, [&](const MTPDwalletTransactionPeerChannel &data) {
 			setCounterparty(data);
-		}, [](const MTPDwalletTransactionPeerTelegramGift &) {
+		}, [&](const MTPDwalletTransactionPeerTelegramGift &data) {
+			result.giftMove = data.is_own_profile()
+				? TransferGiftMove::OwnProfile
+				: TransferGiftMove::Telegram;
 		}, [&](const MTPDwalletTransactionPeerOnramp &data) {
 			setCounterparty(data);
 			// Without a provider or an address it reads as the address peer.
@@ -2353,6 +2358,10 @@ Session::Session(not_null<Main::Session*> session)
 }
 
 Session::~Session() {
+	if (_windowSend.guard) {
+		*_windowSend.guard = false;
+	}
+	_windowSend = WindowSend();
 	_tonConnect->stop();
 	retireCommentScopes();
 	_commentLifetime.destroy();
@@ -2406,7 +2415,7 @@ void Session::setPanel(std::unique_ptr<Ui::SeparatePanel> panel) {
 		_stateApi.request(base::take(_waltBalanceRequestId)).cancel();
 		_waltBalanceRequested = false;
 		_existingWaltBalanceUrl = QString();
-		_windowSend.clear();
+		_windowSend.operationId.clear();
 	}
 }
 
@@ -7507,6 +7516,12 @@ void Session::applyTransactions(
 	_historySettled = true;
 	auto loaded = HistoryFromServer(data.vtransactions().v, request.identity);
 	rememberCollectibles(loaded);
+	const auto covered = UpdateGiftMoveCoverage(
+		_giftMoveCoverage,
+		_history,
+		loaded,
+		next ? qs(*next) : QString(),
+		request.offset);
 	const auto shown = ranges::any_of(loaded, [&](const TransferItem &i) {
 		return !historyItemHidden(i);
 	});
@@ -7523,6 +7538,8 @@ void Session::applyTransactions(
 				std::make_move_iterator(begin(fresh)),
 				std::make_move_iterator(end(fresh)));
 			setHistory(std::move(list));
+		} else if (covered) {
+			_historyUpdates.fire({});
 		}
 	} else {
 		const auto served = int(loaded.size());
@@ -7560,6 +7577,8 @@ void Session::applyTransactions(
 		}
 		if (!SameHistory(_history, merged.list)) {
 			setHistory(std::move(merged.list));
+		} else if (covered) {
+			_historyUpdates.fire({});
 		}
 	}
 	if (weak && historyRequestCurrent(request)) {
@@ -7597,6 +7616,7 @@ void Session::clearHistory() {
 	}
 	clearSubmittedTransfers();
 	_history.clear();
+	_giftMoveCoverage = GiftMoveHistoryCoverage();
 	_historyHasNext = false;
 	_historyNextOffset = QString();
 	_historyRefreshedAt = 0;
@@ -8252,12 +8272,12 @@ void Session::setCollectiblesTab(bool value) {
 	refreshStaleHistory();
 }
 
-void Session::setWindowSend(std::string operationId) {
-	_windowSend = std::move(operationId);
+void Session::setWindowSend(WindowSend value) {
+	_windowSend = std::move(value);
 	_historyUpdates.fire({});
 }
 
-const std::string &Session::windowSend() const {
+const WindowSend &Session::windowSend() const {
 	return _windowSend;
 }
 
@@ -8302,18 +8322,22 @@ std::vector<TransferItem> Session::submittedTransactions() const {
 
 auto Session::listedSubmittedTransactions() const
 -> std::vector<ListedSubmittedTransfer> {
-	auto result = std::vector<ListedSubmittedTransfer>();
+	auto facts = SubmittedListFacts{
+		.history = _history,
+		.boundary = _listedBoundary,
+		.coverage = _giftMoveCoverage,
+		.skew = kSendingMatchSkew,
+		.sendingId = (_submission ? _submission->operationId : std::string()),
+	};
+	facts.sending = sendingTransaction(facts.sendingId);
 	for (const auto &entry : _submitted) {
-		const auto item = submittedShown(entry);
-		if (!item
-			|| (_listedBoundary
-				&& item->date
-				&& (*item->date < *_listedBoundary))) {
-			continue;
-		}
-		result.push_back({ entry.operationId, *item });
+		facts.entries.push_back({
+			.operationId = entry.operationId,
+			.shown = submittedShown(entry),
+			.canonicalId = entry.canonicalId,
+		});
 	}
-	return result;
+	return ListedSubmittedTransfers(facts);
 }
 
 TonConnectSendFate Session::tonConnectSendFate(
@@ -8398,6 +8422,7 @@ std::optional<TransferItem> Session::sendingTransaction(
 		.comment = (args.comment.isPublic ? args.comment.text : QString()),
 		.recipient = args.userId,
 		.bounce = args.bounce,
+		.giftMove = SentGiftMove(args),
 	});
 	const auto entry = ranges::find(
 		_submitted,
@@ -8408,7 +8433,9 @@ std::optional<TransferItem> Session::sendingTransaction(
 		&& transferWalletIdentityCurrent(entry->identity)) {
 		result.id = entry->canonicalId;
 	}
-	if (!result.id.isEmpty() || result.counterparty.isEmpty()) {
+	if (!result.id.isEmpty()
+		|| result.counterparty.isEmpty()
+		|| (result.giftMove != TransferGiftMove::None)) {
 		return result;
 	}
 	const auto same = [&](const TransferItem &item) {
@@ -8454,28 +8481,6 @@ std::optional<TransferItem> Session::sendingTransaction(
 		result.id = found->id;
 	}
 	return result;
-}
-
-TransferItem ItemFromPending(const PendingSendInfo &pending) {
-	return TransferItem{
-		.walletIdentity = pending.walletIdentity,
-		.kind = (!pending.collectible.isEmpty()
-			? TransferItem::Kind::Collectible
-			: pending.recipient
-			? TransferItem::Kind::PeerTransfer
-			: TransferItem::Kind::Transfer),
-		.incoming = false,
-		.counterparty = pending.destination,
-		.counterpartyBounceable = pending.bounce,
-		.counterpartyPeer = (pending.recipient
-			? peerFromUser(pending.recipient).value
-			: quint64()),
-		.collectible = pending.collectible,
-		.amountNano = pending.amountNano,
-		.comment = pending.comment,
-		.date = pending.posted,
-		.status = TransferItem::Status::Pending,
-	};
 }
 
 int SendCommentBytes(const QString &text) {
@@ -9302,11 +9307,19 @@ void Session::send(
 		KeyAuthorization auth,
 		std::shared_ptr<const PreparedSend> prepared,
 		Fn<void(SendError)> done,
-		Fn<void(SendStarted)> started) {
+		Fn<void(SendStarted)> started,
+		Fn<void(std::string)> preparing) {
 	if (!prepared
 		|| prepared->args.payload.isEmpty()
 		|| sendRefusal(prepared, auth) != SendError::None) {
 		startSend(auth, prepared, done, started, nullptr, {});
+		return;
+	} else if (preparing) {
+		const auto weak = base::make_weak(_preview.get());
+		preparing(prepared->operationId);
+		if (weak) {
+			send(auth, prepared, done, started);
+		}
 		return;
 	}
 	CheckGiftDepositOwner(
@@ -9416,6 +9429,7 @@ void Session::startSend(
 		.network = custodyRecord->network,
 		.paired = paired,
 		.bounce = args.bounce,
+		.giftMove = SentGiftMove(args),
 	});
 	_submittedTransfersDirty = true;
 	if (!persistSubmittedTransfers()) {
@@ -9439,6 +9453,7 @@ void Session::startSend(
 		.comment = stored->comment,
 		.recipient = stored->recipient,
 		.bounce = stored->bounce,
+		.giftMove = stored->giftMove,
 	};
 	const auto owner = _preview->owners.find(prepared->owner);
 	if (owner != end(_preview->owners)) {
@@ -10320,6 +10335,7 @@ Session::SubmittedTransfer *Session::upsertSubmittedTransfer(
 		.comment = record->comment,
 		.recipient = record->recipient,
 		.bounce = record->bounce,
+		.giftMove = record->giftMove,
 	}));
 	if (FailedTransferTerminal(record->terminal)) {
 		fallback->status = TransferItem::Status::Failure;
@@ -10340,6 +10356,7 @@ Session::SubmittedTransfer *Session::upsertSubmittedTransfer(
 		item->counterpartyBounceable = stored.counterpartyBounceable;
 		item->counterpartyName = stored.counterpartyName;
 		item->counterpartyPeer = stored.counterpartyPeer;
+		item->giftMove = stored.giftMove;
 		item->collectible = stored.collectible;
 		item->amountNano = stored.amountNano;
 		item->feeNano = stored.feeNano;
@@ -10724,13 +10741,16 @@ void Session::retireSubmission() {
 }
 
 void Session::clearSubmittedTransfers() {
+	if (_windowSend.guard) {
+		*_windowSend.guard = false;
+	}
 	dropSubmittedLookup();
 	_submitted.clear();
 	_pending.reset();
 	retireSubmission();
 	_lastLookupOperationId.clear();
 	_unresolvedOperationId.clear();
-	_windowSend.clear();
+	_windowSend = WindowSend();
 	_sendUnresolved = false;
 	_sendRecoveryReady = false;
 	++_sendRevision;

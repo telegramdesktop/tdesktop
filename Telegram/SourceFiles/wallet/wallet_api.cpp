@@ -194,6 +194,7 @@ void Api::scheduleTimeoutCheck() {
 }
 
 void Api::checkTimeouts() {
+	const auto weak = base::make_weak(_session);
 	const auto now = crl::now();
 	while (!_sent.empty() && (now >= _sent.front().deadline)) {
 		auto entry = std::move(_sent.front());
@@ -204,6 +205,9 @@ void Api::checkTimeouts() {
 			).arg(entry.endpoint).arg(kRequestTimeout));
 		if (entry.fail) {
 			entry.fail(Gram::ApiError{ .message = kTimeoutErrorMessage });
+			if (!weak) {
+				return;
+			}
 		}
 	}
 	scheduleTimeoutCheck();

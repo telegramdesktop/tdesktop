@@ -8918,6 +8918,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_row_key_change" = "Key update";
 "lng_wallet_row_collectible_in" = "Incoming collectible";
 "lng_wallet_row_collectible_out" = "Outgoing collectible";
+"lng_wallet_row_telegram" = "Telegram";
+"lng_wallet_row_moved_from_profile" = "moved from profile";
+"lng_wallet_row_moved_to_profile" = "moved to profile";
 "lng_wallet_row_items#one" = "{count} item";
 "lng_wallet_row_items#other" = "{count} items";
 "lng_wallet_rows_title" = "Transactions";
@@ -8949,6 +8952,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_details_status" = "Status";
 "lng_wallet_details_failed_reason" = "Failed ({reason})";
 "lng_wallet_details_operation" = "Operation";
+"lng_wallet_details_moved_from_profile" = "Moved from profile";
+"lng_wallet_details_moved_to_profile" = "Moved to profile";
 "lng_wallet_details_fee_unknown" = "Lookup failed";
 "lng_wallet_comment_decryption_failed" = "This comment couldn't be decrypted.";
 "lng_wallet_comment_key_mismatch" = "This comment was encrypted for a different wallet key and can't be decrypted on this device.";

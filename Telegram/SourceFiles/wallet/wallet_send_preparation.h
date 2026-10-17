@@ -21,6 +21,12 @@ namespace Wallet {
 inline constexpr auto kSendRefusalRetries = 3;
 inline constexpr auto kSigningReadyTimeout = 30 * crl::time(1000);
 
+struct SendCallbacks {
+	Fn<void(SendStarted)> started;
+	Fn<void(SendError)> sent;
+	Fn<void(std::string)> preparing;
+};
+
 struct SendPreparationDescriptor {
 	std::shared_ptr<Main::SessionShow> show;
 	Fn<bool()> current;
@@ -29,6 +35,7 @@ struct SendPreparationDescriptor {
 	rpl::producer<> invalidated = rpl::never<>();
 	Fn<void(SendStarted)> started;
 	Fn<void(SendError)> sent;
+	Fn<SendCallbacks(SendCallbacks)> attempt;
 };
 
 class SendPreparation final : public base::has_weak_ptr {
@@ -73,6 +80,7 @@ private:
 	const Fn<bool(SendError, std::optional<int64>)> _blocked;
 	const Fn<void(SendStarted)> _started;
 	const Fn<void(SendError)> _sent;
+	const Fn<SendCallbacks(SendCallbacks)> _attempt;
 	rpl::producer<> _invalidated;
 	std::shared_ptr<const PreparedSend> _prepared;
 	KeyAuthorization _authorization;

@@ -28,13 +28,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
-#include "ui/widgets/separate_panel.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/painter.h"
 #include "wallet/wallet_address.h"
 #include "wallet/wallet_collectible_media.h"
 #include "wallet/wallet_content.h"
+#include "wallet/wallet_gift_move_presentation.h"
 #include "wallet/wallet_send_preparation.h"
 #include "wallet/wallet_session.h"
 #include "wallet/wallet_session_deposit.h"
@@ -158,6 +158,7 @@ private:
 	const base::weak_ptr<Main::Session> _weakSession;
 	const not_null<Session*> _wallet;
 	const std::optional<TransferWalletIdentity> _identity;
+	GiftMovePreview _preview;
 	std::optional<GiftDeposit> _answer;
 	rpl::variable<QString> _refusal;
 	rpl::variable<bool> _pressable = false;
@@ -335,6 +336,7 @@ MoveToGiftsFlow::MoveToGiftsFlow(
 , _weakSession(base::make_weak(_session))
 , _wallet(&_session->wallet())
 , _identity(_wallet->transferWalletIdentity())
+, _preview(_session)
 , _preparation({
 	.show = _show,
 	.current = [=] { return current(); },
@@ -343,6 +345,7 @@ MoveToGiftsFlow::MoveToGiftsFlow(
 	.invalidated = _wallet->collectiblesUpdates(),
 	.started = crl::guard(this, [=](SendStarted value) { started(value); }),
 	.sent = crl::guard(this, [=](SendError error) { sent(error); }),
+	.attempt = _preview.attempts(),
 }) {
 	Expects(_collectible->unique != nullptr);
 }
@@ -411,6 +414,14 @@ void MoveToGiftsFlow::subscribe() {
 	_preparation.sendingValue(
 	) | rpl::filter(!rpl::mappers::_1) | rpl::on_next([=] {
 		_watch.destroy();
+	}, _lifetime);
+	_preparation.sendingValue(
+	) | rpl::skip(1) | rpl::on_next([=](bool sending) {
+		if (!sending) {
+			_preview.stop();
+		} else if (_identity && _answer) {
+			_preview.show(*_identity, _answer->args);
+		}
 	}, _lifetime);
 }
 
@@ -492,10 +503,6 @@ void MoveToGiftsFlow::press() {
 void MoveToGiftsFlow::started(const SendStarted &value) {
 	_submittedAt = crl::now();
 	_handedOver = true;
-	const auto panel = _wallet->panel();
-	if (panel && _box->window() == panel->window()) {
-		_wallet->setWindowSend(value.operationId);
-	}
 	bind(value.operationId);
 }
 
@@ -612,7 +619,11 @@ void MoveToGiftsFlow::finish() {
 void MoveToGiftsFlow::closing() {
 	_closing = true;
 	_watch.destroy();
-	_preparation.cancel();
+	const auto weak = base::make_weak(this);
+	_preview.close();
+	if (weak) {
+		_preparation.cancel();
+	}
 }
 
 void MoveToMyGiftsBox(

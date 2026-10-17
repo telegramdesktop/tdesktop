@@ -23,6 +23,7 @@ SendPreparation::SendPreparation(SendPreparationDescriptor &&descriptor)
 , _blocked(std::move(descriptor.blocked))
 , _started(std::move(descriptor.started))
 , _sent(std::move(descriptor.sent))
+, _attempt(std::move(descriptor.attempt))
 , _invalidated(std::move(descriptor.invalidated))
 , _signingWait([=] { fail(SendError::Failed); }) {
 }
@@ -171,7 +172,11 @@ void SendPreparation::press() {
 	if (!pressable()) {
 		return;
 	}
+	const auto weak = base::make_weak(this);
 	_sending = true;
+	if (!weak) {
+		return;
+	}
 	_refusals = 0;
 	proceed();
 }
@@ -243,11 +248,27 @@ void SendPreparation::submit() {
 	_submitted = true;
 	_signingWait.cancel();
 	_signingLifetime.destroy();
-	_wallet->send(
-		_authorization,
-		base::take(_prepared),
-		crl::guard(_session, _sent),
-		crl::guard(_session, _started));
+	const auto session = _session;
+	const auto wallet = _wallet;
+	auto authorization = _authorization;
+	auto prepared = base::take(_prepared);
+	auto callbacks = SendCallbacks{ .started = _started, .sent = _sent };
+	if (const auto attempt = _attempt) {
+		const auto weak = base::make_weak(session);
+		callbacks = attempt(std::move(callbacks));
+		if (!weak) {
+			return;
+		}
+	}
+	wallet->send(
+		std::move(authorization),
+		std::move(prepared),
+		crl::guard(session, std::move(callbacks.sent)),
+		crl::guard(session, std::move(callbacks.started)),
+		(callbacks.preparing
+			? Fn<void(std::string)>(
+				crl::guard(session, std::move(callbacks.preparing)))
+			: nullptr));
 }
 
 void SendPreparation::refused(SendError error) {
@@ -262,8 +283,11 @@ void SendPreparation::refused(SendError error) {
 }
 
 void SendPreparation::fail(SendError error) {
+	const auto weak = base::make_weak(this);
 	stop();
-	_error = error;
+	if (weak) {
+		_error = error;
+	}
 }
 
 void SendPreparation::stop() {

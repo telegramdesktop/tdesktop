@@ -2237,6 +2237,8 @@ PRIVATE
     wallet/wallet_engine.h
     wallet/wallet_fiat.cpp
     wallet/wallet_fiat.h
+    wallet/wallet_gift_move_presentation.cpp
+    wallet/wallet_gift_move_presentation.h
     wallet/wallet_key_protection.cpp
     wallet/wallet_key_protection.h
     wallet/wallet_move_to_gifts.cpp
@@ -2257,6 +2259,8 @@ PRIVATE
     wallet/wallet_session.h
     wallet/wallet_session_deposit.cpp
     wallet/wallet_session_deposit.h
+    wallet/wallet_session_gift_moves.cpp
+    wallet/wallet_session_gift_moves.h
     wallet/wallet_session_waits.cpp
     wallet/wallet_session_waits.h
     wallet/wallet_stream.cpp
