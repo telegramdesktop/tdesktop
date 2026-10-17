@@ -119,6 +119,8 @@ public:
 		not_null<History*> history,
 		not_null<HistoryItem*> to,
 		const FullReplyTo &replyTo);
+	[[nodiscard]] static const TextWithEntities &ComposePreviewQuote(
+		const FullReplyTo &replyTo);
 
 private:
 	[[nodiscard]] bool hasBackgroundEmoji() const;

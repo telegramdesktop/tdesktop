@@ -111,6 +111,16 @@ base::options::toggle FastButtonsModeOption({
 		tr::marked);
 }
 
+[[nodiscard]] std::shared_ptr<const Iv::RichQuote> RichQuoteFromMTP(
+		not_null<Main::Session*> session,
+		const MTPVector<MTPRichText> &fragments,
+		tl::conditional<MTPint> offset) {
+	return Iv::ParseRichQuote(
+		session,
+		fragments,
+		offset ? std::make_optional(offset->v) : std::nullopt);
+}
+
 } // namespace
 
 const char kOptionFastButtonsMode[] = "fast-buttons-mode";
@@ -485,16 +495,12 @@ ReplyFields ReplyFieldsFromMTP(
 			result.externalMedia = HistoryItem::CreateMedia(item, *media);
 		}
 		// WHY: the server rejects a flat copy of a rich quote, so the flat
-		// fields stay empty and replyTo() re-derives a reply without a quote.
+		// fields stay empty and replyTo() resends it only as richQuote.
 		if (const auto rich = data.vquote_rich()) {
-			auto offset = std::optional<int>();
-			if (const auto value = data.vquote_offset()) {
-				offset = value->v;
-			}
-			result.richQuote = Iv::ParseRichQuote(
+			result.richQuote = RichQuoteFromMTP(
 				&owner->session(),
 				*rich,
-				offset);
+				data.vquote_offset());
 		} else {
 			result.quote = TextWithEntities{
 				qs(data.vquote_text().value_or_empty()),
@@ -531,13 +537,22 @@ FullReplyTo ReplyToFromMTP(
 			result.messageId.peer = parsed->id;
 		}
 		result.topicRootId = data.vtop_msg_id().value_or_empty();
-		result.quote = TextWithEntities{
-			qs(data.vquote_text().value_or_empty()),
-			Api::EntitiesFromMTP(
-				&history->session(),
-				data.vquote_entities().value_or_empty()),
-		};
-		result.quoteOffset = data.vquote_offset().value_or_empty();
+		if (const auto rich = data.vquote_rich()) {
+			if (!rich->v.isEmpty()) {
+				result.richQuote = RichQuoteFromMTP(
+					&history->session(),
+					*rich,
+					data.vquote_offset());
+			}
+		} else {
+			result.quote = TextWithEntities{
+				qs(data.vquote_text().value_or_empty()),
+				Api::EntitiesFromMTP(
+					&history->session(),
+					data.vquote_entities().value_or_empty()),
+			};
+			result.quoteOffset = data.vquote_offset().value_or_empty();
+		}
 		result.todoItemId = data.vtodo_item_id().value_or_empty();
 		result.pollOption = data.vpoll_option().value_or_empty();
 		return result;

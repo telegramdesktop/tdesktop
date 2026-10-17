@@ -211,9 +211,10 @@ struct FullReplyTo {
 	int quoteOffset = 0;
 	int todoItemId = 0;
 	QByteArray pollOption;
+	std::shared_ptr<const Iv::RichQuote> richQuote;
 
 	[[nodiscard]] MessageHighlightId highlight() const {
-		return { quote, quoteOffset, todoItemId, pollOption };
+		return { quote, quoteOffset, todoItemId, pollOption, richQuote };
 	}
 	[[nodiscard]] bool replying() const {
 		return messageId || (storyId && storyId.peer);

@@ -304,4 +304,26 @@ std::optional<Iv::BuiltRichQuote> RichQuoteForSelection(
 		session->appConfig().quoteLengthMax());
 }
 
+SelectedQuote Element::selectedReplyQuote(
+		const MessageSelection &selection) const {
+	if (!selection.isRichPage()) {
+		return selectedQuote(selection);
+	}
+	const auto built = selectedRichQuote(selection);
+	if (!built) {
+		return {};
+	}
+	const auto item = textItem() ? textItem() : data().get();
+	return {
+		.item = item,
+		.highlight = {
+			.richQuote = Iv::ParseRichQuote(
+				&item->history()->session(),
+				built->fragments,
+				built->offset),
+		},
+		.overflown = built->overflown,
+	};
+}
+
 } // namespace HistoryView

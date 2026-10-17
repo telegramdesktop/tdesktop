@@ -2464,7 +2464,8 @@ bool SessionController::switchInlineQuery(
 		Ui::kQFixedMax
 	};
 	if (to.currentReplyTo.messageId.msg == to.currentReplyTo.topicRootId
-		&& to.currentReplyTo.quote.empty()) {
+		&& to.currentReplyTo.quote.empty()
+		&& !to.currentReplyTo.richQuote) {
 		to.currentReplyTo.messageId.msg = MsgId();
 	}
 	if (!history->suggestDraftAllowed()) {

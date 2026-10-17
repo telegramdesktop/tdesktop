@@ -427,7 +427,7 @@ struct SelectedQuote {
 	bool overflown = false;
 
 	explicit operator bool() const {
-		return item && !highlight.quote.empty();
+		return item && (!highlight.quote.empty() || highlight.richQuote);
 	}
 	friend inline bool operator==(SelectedQuote, SelectedQuote) = default;
 };
@@ -593,6 +593,8 @@ public:
 	[[nodiscard]] Iv::RichPageBlocksSlice selectedRichBlocks(
 		const MessageSelection &selection) const;
 	[[nodiscard]] std::optional<Iv::BuiltRichQuote> selectedRichQuote(
+		const MessageSelection &selection) const;
+	[[nodiscard]] SelectedQuote selectedReplyQuote(
 		const MessageSelection &selection) const;
 	virtual SelectedQuote selectedQuote(
 		TextSelection selection) const = 0;

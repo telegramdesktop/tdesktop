@@ -339,6 +339,9 @@ rpl::producer<SelectedQuote> PreviewWrap::showQuoteSelector(
 
 	initElements();
 
+	if (quote.highlight.richQuote) {
+		return rpl::single(quote);
+	}
 	const auto view = _entries.back().view.get();
 	_selection = view->selectionFromQuote(quote);
 	return _selection.value(
@@ -736,8 +739,12 @@ void DraftOptionsBox(
 	const auto state = box->lifetime().make_state<State>();
 	state->link = args.usedLink;
 	state->quote = SelectedQuote{
-		replyItem,
-		{ draft.reply.quote, draft.reply.quoteOffset },
+		.item = replyItem,
+		.highlight = {
+			.quote = draft.reply.quote,
+			.quoteOffset = draft.reply.quoteOffset,
+			.richQuote = draft.reply.richQuote,
+		},
 	};
 	state->forward = std::move(args.forward);
 	state->webpage = draft.webpage;
@@ -827,9 +834,11 @@ void DraftOptionsBox(
 			result.messageId = current.item->fullId();
 			result.quote = current.highlight.quote;
 			result.quoteOffset = current.highlight.quoteOffset;
+			result.richQuote = current.highlight.richQuote;
 //			result.todoItemId = current.highlight.todoItemId;
 		} else {
 			result.quote = {};
+			result.richQuote = nullptr;
 //			result.todoItemId = 0;
 		}
 		return result;

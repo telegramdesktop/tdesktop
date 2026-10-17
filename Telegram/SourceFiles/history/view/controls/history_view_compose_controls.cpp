@@ -405,7 +405,7 @@ void FieldHeader::init() {
 		} else if (isEditingMessage()) {
 			st::historyEditIcon.paint(p, position, width());
 		} else if (const auto reply = displayedReplyingToMessage(); reply.replying()) {
-			if (!reply.quote.empty()) {
+			if (!HistoryView::Reply::ComposePreviewQuote(reply).empty()) {
 				st::historyQuoteIcon.paint(p, position, width());
 			} else {
 				st::historyReplyIcon.paint(p, position, width());
@@ -577,11 +577,12 @@ void FieldHeader::updateShownMessageText() {
 		.repaint = [=] { customEmojiRepaint(); },
 	});
 	const auto reply = displayedReplyingToMessage();
+	const auto &quote = HistoryView::Reply::ComposePreviewQuote(reply);
 	_shownMessageText.setMarkedText(
 		st::messageTextStyle,
-		((isEditingMessage() || reply.quote.empty())
+		((isEditingMessage() || quote.empty())
 			? _shownMessage->inReplyText()
-			: reply.quote),
+			: quote),
 		Ui::DialogTextOptions(),
 		context);
 }

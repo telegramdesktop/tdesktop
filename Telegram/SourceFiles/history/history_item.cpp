@@ -4658,6 +4658,7 @@ FullReplyTo HistoryItem::replyTo() const {
 			result.messageId = { replyToPeer, id };
 			result.quote = fields.quote;
 			result.quoteOffset = fields.quoteOffset;
+			result.richQuote = fields.richQuote;
 		}
 		if (const auto id = fields.storyId) {
 			result.storyId = { replyToPeer, id };
@@ -5447,7 +5448,11 @@ void HistoryItem::createComponentsHelper(HistoryItemCommonFields &&fields) {
 				|| (to && to->Has<HistoryServiceTopicInfo>())
 				|| (forum && forum->creating(config.reply.topMessageId)));
 		config.reply.topicPost = topicPost ? 1 : 0;
-		config.reply.manualQuote = replyTo.quote.empty() ? 0 : 1;
+		config.reply.richQuote = replyTo.messageId
+			? replyTo.richQuote
+			: nullptr;
+		config.reply.manualQuote = (config.reply.richQuote
+			|| !replyTo.quote.empty()) ? 1 : 0;
 		config.reply.quoteOffset = replyTo.quoteOffset;
 		config.reply.quote = std::move(replyTo.quote);
 	}

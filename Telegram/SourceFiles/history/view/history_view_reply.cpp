@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
+#include "iv/iv_rich_page.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/chat/chat_style.h"
@@ -1152,7 +1153,7 @@ TextWithEntities Reply::ComposePreviewName(
 	const auto groupNameAdded = displayAsExternal
 		&& (toPeer != sender)
 		&& (toPeer->isChat() || toPeer->isMegagroup());
-	const auto quote = replyTo && !replyTo.quote.empty();
+	const auto quote = replyTo && !ComposePreviewQuote(replyTo).empty();
 	const auto shorten = groupNameAdded || quote;
 
 	auto nameFull = TextWithEntities();
@@ -1173,6 +1174,11 @@ TextWithEntities Reply::ComposePreviewName(
 			nameFull,
 			tr::marked);
 
+}
+
+const TextWithEntities &Reply::ComposePreviewQuote(
+		const FullReplyTo &replyTo) {
+	return replyTo.richQuote ? replyTo.richQuote->text : replyTo.quote;
 }
 
 void Reply::unloadPersistentAnimation() {
