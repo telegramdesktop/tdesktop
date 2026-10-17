@@ -54,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
+#include <QtGui/QPainterPath>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QWidget>
 
@@ -128,10 +129,21 @@ public:
 		return _draggingScrollDelta.events();
 	}
 
+	void cancelRichSelection();
+
 private:
 	struct Entry {
 		HistoryItem *item = nullptr;
 		std::unique_ptr<Element> view;
+	};
+	struct RichSelection {
+		TextState anchor;
+		TextState focus;
+		MessageSelection selection;
+		std::shared_ptr<const Iv::RichPage> page;
+		SelectedQuote shownQuote;
+		Ui::ChatPaintRichQuote shown;
+		QPainterPath shownPath;
 	};
 
 	void paintEvent(QPaintEvent *e) override;
@@ -147,13 +159,24 @@ private:
 	}
 
 	void clear(std::vector<Entry> entries);
+	[[nodiscard]] bool showsItem(not_null<const HistoryItem*> item) const;
+	void itemRemoved(not_null<const HistoryItem*> item);
 	void initElements();
+	void layoutElements(int width);
+	void relayoutRichView();
 	void highlightUsedLink(
 		const TextWithTags &message,
 		const QString &usedLink,
 		const std::vector<MessageLinkRange> &links);
 	void startSelection(TextSelectType type);
 	[[nodiscard]] TextSelection resolveNewSelection() const;
+
+	void startRichSelection(QPoint position, TextSelectType type);
+	void updateRichSelection(const TextState &state);
+	void finishRichSelection(QPoint position);
+	void resetRichSelection();
+	[[nodiscard]] TextState richTextState(QPoint position) const;
+	[[nodiscard]] std::shared_ptr<const Iv::RichPage> quotableRichPage() const;
 
 	const not_null<Ui::GenericBox*> _box;
 	const not_null<History*> _history;
@@ -165,6 +188,8 @@ private:
 	std::vector<Entry> _entries;
 	base::flat_set<not_null<const Element*>> _views;
 	rpl::variable<TextSelection> _selection;
+	std::optional<RichSelection> _rich;
+	rpl::event_stream<SelectedQuote> _richQuotes;
 	rpl::event_stream<QString> _chosenUrl;
 	Ui::PeerUserpicView _userpic;
 	rpl::lifetime _elementLifetime;
@@ -214,6 +239,18 @@ PreviewWrap::PreviewWrap(
 		}
 	}, lifetime());
 
+	session->data().viewResizeRequest(
+	) | rpl::on_next([=](not_null<Element*> view) {
+		if (_rich && _views.contains(view)) {
+			relayoutRichView();
+		}
+	}, lifetime());
+
+	session->data().itemRemoved(
+	) | rpl::on_next([=](not_null<const HistoryItem*> item) {
+		itemRemoved(item);
+	}, lifetime());
+
 	_selection.changes() | rpl::on_next([=] {
 		update();
 	}, lifetime());
@@ -238,6 +275,7 @@ PreviewWrap::PreviewWrap(
 }
 
 PreviewWrap::~PreviewWrap() {
+	_richQuotes = rpl::event_stream<SelectedQuote>();
 	_selection.reset(TextSelection());
 	base::take(_views);
 	clear(base::take(_entries));
@@ -253,7 +291,50 @@ void PreviewWrap::clear(std::vector<Entry> entries) {
 	}
 }
 
+bool PreviewWrap::showsItem(not_null<const HistoryItem*> item) const {
+	return ranges::any_of(_views, [&](not_null<const Element*> view) {
+		return (view->data() == item) || (view->textItem() == item);
+	});
+}
+
+void PreviewWrap::itemRemoved(not_null<const HistoryItem*> item) {
+	if (!showsItem(item)) {
+		return;
+	}
+	resetRichSelection();
+	_selection.reset(TextSelection());
+	_link = _pressedLink = nullptr;
+	base::take(_views);
+	auto entries = base::take(_entries);
+	auto owned = std::vector<FullMsgId>();
+	for (auto &entry : entries) {
+		const auto fake = base::take(entry.item);
+		if (fake && fake != item) {
+			owned.push_back(fake->fullId());
+		}
+	}
+	clear(std::move(entries));
+	update();
+	if (owned.empty()) {
+		return;
+	}
+	// WHY: a bulk removal like History::destroyMessagesBySublist() may hold
+	// the other fake items in its list already, so destroying them here would
+	// free them twice; they are destroyed later, only if they still exist.
+	const auto session = &_history->session();
+	crl::on_main(session, [=] {
+		for (const auto &id : owned) {
+			if (const auto fake = session->data().message(id)) {
+				fake->destroy();
+			}
+		}
+	});
+}
+
 bool PreviewWrap::hasViewForItem(not_null<const HistoryItem*> item) const {
+	if (_rich) {
+		return showsItem(item);
+	}
 	return (item->history() == _history)
 		&& ranges::contains(_views, item, &Element::data);
 }
@@ -261,6 +342,7 @@ bool PreviewWrap::hasViewForItem(not_null<const HistoryItem*> item) const {
 void PreviewWrap::showForwardSelector(Data::ResolvedForwardDraft draft) {
 	Expects(!draft.items.empty());
 
+	resetRichSelection();
 	_selection.reset(TextSelection());
 
 	auto was = base::take(_entries);
@@ -316,6 +398,7 @@ void PreviewWrap::showForwardSelector(Data::ResolvedForwardDraft draft) {
 
 rpl::producer<SelectedQuote> PreviewWrap::showQuoteSelector(
 		const SelectedQuote &quote) {
+	resetRichSelection();
 	_selection.reset(TextSelection());
 
 	auto was = base::take(_entries);
@@ -339,10 +422,19 @@ rpl::producer<SelectedQuote> PreviewWrap::showQuoteSelector(
 
 	initElements();
 
+	const auto view = _entries.back().view.get();
+	const auto textItem = view->textItem();
+	if (textItem && textItem->translatedRichPage()) {
+		_rich = RichSelection{
+			.shownQuote = quote,
+			.shown = view->richSelectionFromQuote(quote),
+		};
+		cancelRichSelection();
+		return _richQuotes.events();
+	}
 	if (quote.highlight.richQuote) {
 		return rpl::single(quote);
 	}
-	const auto view = _entries.back().view.get();
 	_selection = view->selectionFromQuote(quote);
 	return _selection.value(
 	) | rpl::map([=](TextSelection selection) {
@@ -358,6 +450,7 @@ rpl::producer<QString> PreviewWrap::showLinkSelector(
 		Data::WebPageDraft webpage,
 		const std::vector<MessageLinkRange> &links,
 		const QString &usedLink) {
+	resetRichSelection();
 	_selection.reset(TextSelection());
 	base::take(_views);
 	clear(base::take(_entries));
@@ -458,11 +551,31 @@ void PreviewWrap::paintEvent(QPaintEvent *e) {
 		!window()->isActiveWindow());
 	for (const auto &entry : _entries) {
 		context.outbg = entry.view->hasOutLayout();
-		context.selection = _selecting
-			? resolveNewSelection()
-			: _selection.current();
+		if (_rich) {
+			const auto live = _rich->selection.isRichPage()
+				&& (_rich->page == quotableRichPage());
+			context.messageSelection = live ? &_rich->selection : nullptr;
+			if (!live && !_selecting) {
+				context.highlight.collapsion = 1.;
+				context.highlight.richQuote = _rich->shown;
+				context.highlightPathCache = &_rich->shownPath;
+			}
+			_rich->shownPath.clear();
+		} else {
+			context.selection = _selecting
+				? resolveNewSelection()
+				: _selection.current();
+		}
 
 		entry.view->draw(p, context);
+
+		if (_rich && !_rich->shownPath.isEmpty()) {
+			// Zero opacity skips the whole-message overlay and its own fill.
+			auto color = context.messageStyle()->textPalette.linkFg->c;
+			color.setAlpha(int(0.25 * 255));
+			_rich->shownPath.setFillRule(Qt::WindingFill);
+			p.fillPath(_rich->shownPath, color);
+		}
 
 		const auto height = entry.view->height();
 		p.translate(0, height);
@@ -569,6 +682,9 @@ void PreviewWrap::mouseMoveEvent(QMouseEvent *e) {
 			update();
 		}
 	}
+	if (_rich && _selecting) {
+		updateRichSelection(resolved);
+	}
 
 	_draggingScrollDelta.fire([&] {
 		if (!_selecting || _visibleTop >= _visibleBottom) {
@@ -585,6 +701,10 @@ void PreviewWrap::mouseMoveEvent(QMouseEvent *e) {
 void PreviewWrap::mousePressEvent(QMouseEvent *e) {
 	if (!_over) {
 		return;
+	} else if (_rich) {
+		startRichSelection(e->pos(), _trippleClickTimer.isActive()
+			? TextSelectType::Paragraphs
+			: TextSelectType::Letters);
 	} else if (_section == Section::Reply) {
 		startSelection(_trippleClickTimer.isActive()
 			? TextSelectType::Paragraphs
@@ -597,6 +717,9 @@ void PreviewWrap::mousePressEvent(QMouseEvent *e) {
 void PreviewWrap::mouseReleaseEvent(QMouseEvent *e) {
 	if (_section == Section::Reply) {
 		if (!_selecting) {
+			return;
+		} else if (_rich) {
+			finishRichSelection(e->pos());
 			return;
 		}
 		const auto result = resolveNewSelection();
@@ -618,6 +741,9 @@ void PreviewWrap::mouseReleaseEvent(QMouseEvent *e) {
 void PreviewWrap::mouseDoubleClickEvent(QMouseEvent *e) {
 	if (!_over) {
 		return;
+	} else if (_rich) {
+		startRichSelection(e->pos(), TextSelectType::Words);
+		_trippleClickTimer.callOnce(QApplication::doubleClickInterval());
 	} else if (_section == Section::Reply) {
 		startSelection(TextSelectType::Words);
 		_trippleClickTimer.callOnce(QApplication::doubleClickInterval());
@@ -632,13 +758,29 @@ void PreviewWrap::initElements() {
 	) | rpl::filter([=](int width) {
 		return width > st::msgMinWidth;
 	}) | rpl::on_next([=](int width) {
-		auto height = _position.y();
-		for (const auto &entry : _entries) {
-			height += entry.view->resizeGetHeight(width);
-		}
-		height += st::msgMargin.top();
-		resize(width, height);
+		layoutElements(width);
 	}, _elementLifetime);
+}
+
+void PreviewWrap::layoutElements(int width) {
+	auto height = _position.y();
+	for (const auto &entry : _entries) {
+		height += entry.view->resizeGetHeight(width);
+	}
+	height += st::msgMargin.top();
+	resize(width, height);
+}
+
+void PreviewWrap::relayoutRichView() {
+	if (width() > st::msgMinWidth) {
+		layoutElements(width());
+	}
+	if (_rich->page && (_rich->page != quotableRichPage())) {
+		cancelRichSelection();
+	}
+	const auto view = _entries.back().view.get();
+	_rich->shown = view->richSelectionFromQuote(_rich->shownQuote);
+	update();
 }
 
 TextSelection PreviewWrap::resolveNewSelection() const {
@@ -670,6 +812,120 @@ void PreviewWrap::startSelection(TextSelectType type) {
 		setCursor(style::cur_text);
 	}
 	update();
+}
+
+void PreviewWrap::startRichSelection(QPoint position, TextSelectType type) {
+	if (_selecting && _selectType >= type) {
+		return;
+	} else if (width() > st::msgMinWidth) {
+		layoutElements(width());
+	}
+	const auto page = quotableRichPage();
+	if (!page) {
+		cancelRichSelection();
+		return;
+	}
+	const auto state = richTextState(position);
+	_rich->anchor = _rich->focus = state;
+	_rich->selection = MessageSelection();
+	_rich->page = page;
+	_selecting = true;
+	_selectType = type;
+	if (!_textCursor) {
+		setCursor(style::cur_text);
+	}
+	updateRichSelection(state);
+	update();
+}
+
+void PreviewWrap::updateRichSelection(const TextState &state) {
+	if (!_rich->page || (_rich->page != quotableRichPage())) {
+		cancelRichSelection();
+		return;
+	}
+	const auto &cursor = state.selectionCursor;
+	if (!cursor.isRichPage() || !cursor.valid()) {
+		return;
+	}
+	_rich->focus = state;
+	auto selection = _entries.back().view->selectionFromStates(
+		_rich->anchor,
+		_rich->focus,
+		_selectType);
+	_rich->selection = selection.isRichPage()
+		? std::move(selection)
+		: MessageSelection();
+	update();
+}
+
+void PreviewWrap::finishRichSelection(QPoint position) {
+	updateRichSelection(richTextState(position));
+	if (!_selecting) {
+		return;
+	}
+	_selecting = false;
+	_selectType = TextSelectType::Letters;
+	if (!_textCursor) {
+		setCursor(style::cur_default);
+	}
+	_draggingScrollDelta.fire(0);
+
+	const auto view = _entries.back().view.get();
+	auto quote = view->selectedReplyQuote(_rich->selection);
+	if (!quote) {
+		const auto item = view->textItem();
+		quote = SelectedQuote{ item ? item : view->data().get() };
+	}
+	_rich->shownQuote = quote;
+	_rich->shown = view->richSelectionFromQuote(quote);
+	update();
+	_richQuotes.fire(std::move(quote));
+}
+
+void PreviewWrap::cancelRichSelection() {
+	if (!_rich) {
+		return;
+	}
+	_rich->anchor = _rich->focus = TextState();
+	_rich->selection = MessageSelection();
+	_rich->page = nullptr;
+	_selectType = TextSelectType::Letters;
+	_trippleClickTimer.cancel();
+	if (base::take(_selecting)) {
+		if (!_textCursor) {
+			setCursor(style::cur_default);
+		}
+		_draggingScrollDelta.fire(0);
+	}
+	update();
+}
+
+void PreviewWrap::resetRichSelection() {
+	if (!_rich) {
+		return;
+	}
+	cancelRichSelection();
+	_rich = std::nullopt;
+	_richQuotes = rpl::event_stream<SelectedQuote>();
+}
+
+TextState PreviewWrap::richTextState(QPoint position) const {
+	if (_entries.empty()) {
+		return TextState();
+	}
+	return _entries.back().view->textState(position - _position, {
+		.flags = Ui::Text::StateRequest::Flag::LookupSymbol,
+		.onlyMessageText = _onlyMessageText,
+	});
+}
+
+std::shared_ptr<const Iv::RichPage> PreviewWrap::quotableRichPage() const {
+	const auto item = _entries.empty()
+		? nullptr
+		: _entries.back().view->textItem();
+	return (item && (&item->translatedText() == &item->originalText()))
+		? item->translatedRichPage()
+		: nullptr;
 }
 
 PreviewDelegate::PreviewDelegate(
@@ -808,9 +1064,9 @@ void DraftOptionsBox(
 			box->setTitle(hasLink
 				? tr::lng_link_options_header()
 				: hasReply
-				? (state->quote.current().highlight.quote.empty()
-					? tr::lng_reply_options_header()
-					: tr::lng_reply_options_quote())
+				? (state->quote.current()
+					? tr::lng_reply_options_quote()
+					: tr::lng_reply_options_header())
 				: (forwardCount == 1)
 				? tr::lng_forward_title()
 				: tr::lng_forward_many_title(
@@ -1181,6 +1437,7 @@ void DraftOptionsBox(
 		if (!bottom->count()) {
 			rebuildBottom(shown);
 		} else if (!state->rebuildScheduled) {
+			state->wrap->cancelRichSelection();
 			state->rebuildScheduled = true;
 			crl::on_main(bottom, [=] {
 				state->rebuildScheduled = false;
@@ -1193,9 +1450,9 @@ void DraftOptionsBox(
 		state->quote.value(),
 		state->shown.value()
 	) | rpl::map([=](const SelectedQuote &quote, Section shown) {
-		return (quote.highlight.quote.empty() || shown != Section::Reply)
-			? tr::lng_settings_save()
-			: tr::lng_reply_quote_selected();
+		return (quote && shown == Section::Reply)
+			? tr::lng_reply_quote_selected()
+			: tr::lng_settings_save();
 	}) | rpl::flatten_latest();
 	const auto submit = [=] {
 		if (state->quote.current().overflown) {
@@ -1244,7 +1501,11 @@ void DraftOptionsBox(
 
 	args.show->session().data().itemViewRefreshRequest(
 	) | rpl::on_next([=](not_null<const HistoryItem*> item) {
-		if (state->wrap->hasViewForItem(item)) {
+		const auto &quote = state->quote.current();
+		const auto richReply = (quote.item == item)
+			&& (quote.highlight.richQuote || item->richPage());
+		if (richReply || state->wrap->hasViewForItem(item)) {
+			state->wrap->cancelRichSelection();
 			state->rebuild();
 		}
 	}, box->lifetime());
