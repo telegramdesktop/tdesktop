@@ -43,6 +43,8 @@ COMMIT_HASH_PATTERN = re.compile(
 )
 LEGACY_COMMIT_FIELDS = ("Task-Base-SHA:", "Implementation-SHA:")
 PROJECT_ARCHIVE_DIR = "archive"
+BATCHES_DIR = "batches"
+FINISHED_BATCH_STATUSES = {"approved", "superseded", "split", "retired"}
 PROJECT_LINK_PATTERN = re.compile(r"\]\(\.\./\.\./(?!\.\./)")
 ARCHIVED_PROJECT_LINK_PATTERN = re.compile(r"\]\(\.\./\.\./\.\./")
 STATE_FIELD_ORDER = [
@@ -1298,6 +1300,92 @@ def pending_consolidations(root):
 	return result
 
 
+def batch_relative_path(tag):
+	if not TAG_PATTERN.fullmatch(tag):
+		raise WorkspaceError(f"Invalid checkout tag: {tag!r}")
+	return f"{BATCHES_DIR}/{tag}.yaml"
+
+
+def task_record_status(root, states, task_id):
+	# The live status, the kind of retirement, or None for an unknown id.
+	if not TASK_ID_PATTERN.fullmatch(task_id):
+		return None
+	if task_id in states:
+		return states[task_id]["status"]
+	directory = root / "tasks" / task_id
+	if (directory / "superseded.yaml").is_file():
+		return "superseded"
+	if (directory / "split.yaml").is_file():
+		return "split"
+	if (directory / "task.md").is_file():
+		return "retired"
+	return None
+
+
+def batch_task_order(root, states, task_id, values):
+	# The started task leads; the rest keep their first selection position.
+	ordered = list(dict.fromkeys([task_id, *(values or [])]))
+	unknown = [
+		value for value in ordered
+		if task_record_status(root, states, value) is None
+	]
+	if unknown:
+		raise WorkspaceError("Unknown batch task ids: " + ", ".join(unknown))
+	kept = []
+	dropped = []
+	for value in ordered:
+		status = task_record_status(root, states, value)
+		if status in FINISHED_BATCH_STATUSES:
+			dropped.append({"id": value, "status": status})
+		else:
+			kept.append(value)
+	return kept, dropped
+
+
+def write_batch(root, tag, task_ids, newline):
+	relative = batch_relative_path(tag)
+	path = root / relative
+	path.parent.mkdir(exist_ok=True)
+	stamp = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+	lines = [
+		f"checkout: {tag}",
+		f"updated: {stamp}",
+		"tasks:",
+		*(f"  - {task_id}" for task_id in task_ids),
+	]
+	path.write_bytes((newline.join(lines) + newline).encode("utf-8"))
+	return relative
+
+
+def load_batch(root, tag):
+	path = root / batch_relative_path(tag)
+	try:
+		text = path.read_text(encoding="utf-8-sig")
+	except (OSError, UnicodeDecodeError):
+		return []
+	result = []
+	listing = False
+	for line in text.splitlines():
+		stripped = line.strip()
+		if not stripped or stripped.startswith("#"):
+			continue
+		if listing and stripped.startswith("- "):
+			value = parse_scalar(stripped[2:])
+			if (
+				isinstance(value, str)
+				and TASK_ID_PATTERN.fullmatch(value)
+				and value not in result
+			):
+				result.append(value)
+		elif not line[0].isspace():
+			listing = line.split(":", 1)[0].strip() == "tasks"
+	return result
+
+
+def file_newline(path):
+	return "\r\n" if b"\r\n" in path.read_bytes() else "\n"
+
+
 def command_queue(args):
 	config = worktree_config(args, create=True)
 	main = Path(config["ai_main"])
@@ -1363,6 +1451,16 @@ def command_queue(args):
 			violations.append(f"{task['id']} is blocked but unclaimed")
 		if task["status"] == "split-required" and task["claimed_by"] is None:
 			violations.append(f"{task['id']} is split-required but unclaimed")
+	own_batch = [
+		{
+			"id": task_id,
+			"status": task_record_status(slot, states, task_id) or "missing",
+			"claimed_by": (
+				states[task_id]["claimed_by"] if task_id in states else None
+			),
+		}
+		for task_id in load_batch(slot, tag)
+	]
 	inbox_file = main / "inbox" / "inbox.md"
 	result = {
 		**config,
@@ -1370,6 +1468,7 @@ def command_queue(args):
 			inbox_file.is_file()
 			and bool(inbox_file.read_text(encoding="utf-8").strip())
 		),
+		"own_batch": own_batch,
 		"own_in_progress": own_in_progress,
 		"own_todo": own_todo,
 		"own_blocked": own_blocked,
@@ -1436,6 +1535,12 @@ def command_start(args):
 		raise WorkspaceError(
 			f"Task is not available todo work for this checkout: {args.task}"
 		)
+	batch, batch_dropped = batch_task_order(
+		slot,
+		states,
+		args.task,
+		getattr(args, "batch", None),
+	)
 	carried_from = task["carried_from"]
 	if carried_from is not None:
 		split = load_splits(slot).get(carried_from)
@@ -1489,10 +1594,16 @@ def command_start(args):
 		"lease_until": None,
 		"phase": "setup",
 	})
+	batch_path = write_batch(
+		slot,
+		config["checkout_tag"],
+		batch,
+		file_newline(path),
+	)
 	try:
 		commit = commit_paths(
 			config,
-			[str(path.relative_to(slot))],
+			[str(path.relative_to(slot)), batch_path],
 			f"Start {args.task} on {config['checkout_tag']}",
 		)
 	except WorkspaceError as error:
@@ -1522,6 +1633,8 @@ def command_start(args):
 		"task": args.task,
 		"status": "in-progress",
 		"published": bool(commit),
+		"batch": batch,
+		"batch_dropped": batch_dropped,
 	}, indent=2, sort_keys=True))
 
 
@@ -5298,6 +5411,7 @@ def parse_args():
 	add_common_arguments(start)
 	start.add_argument("--task", required=True)
 	start.add_argument("--require", action="append", default=[])
+	start.add_argument("--batch", action="extend", nargs="+", metavar="ID")
 	start.set_defaults(handler=command_start)
 
 	source_lineage = subparsers.add_parser("source-lineage")

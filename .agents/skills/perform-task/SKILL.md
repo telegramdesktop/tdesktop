@@ -108,6 +108,12 @@ Inspect the resolved task, readiness, `other_active_task`, status, and owner.
 - If it is already `in-progress` and owned by this checkout, resume it without
   another state commit.
 
+Without `--batch`, `start` records this task alone as the checkout's soft
+batch mark, `batches/<checkout-tag>.yaml`, inside its `Start` commit. A
+`continue` scheduler passes its own ordered `--batch` instead. `retry` stays
+local and leaves the mark untouched. The mark never claims or reserves any
+task.
+
 Refresh with `resolve` after each mutation. The source pipeline begins only
 after the slot state shows this task `in-progress` for this checkout. For a new
 task, canonical master must already contain its `Start` commit.

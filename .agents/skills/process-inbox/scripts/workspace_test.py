@@ -1246,6 +1246,13 @@ inbox_receipt: receipts/2026/07/20/race.md
 			self.assertEqual(state["claim_order"], 1)
 			self.assertEqual(state["phase"], "setup")
 			self.assertEqual(
+				commit.call_args.args[1],
+				[
+					str(Path("tasks") / TASK_ID / "state.yaml"),
+					"batches/macbook-twork.yaml",
+				],
+			)
+			self.assertEqual(
 				commit.call_args.args[2],
 				f"Start {TASK_ID} on macbook-twork",
 			)
@@ -4830,6 +4837,24 @@ inbox_receipt: {receipt}
 					require=[],
 				)
 			self.assertEqual(started["status"], "in-progress")
+			self.assertEqual(started["batch"], [replacements[0]])
+			self.assertEqual(
+				head_subject(main),
+				f"Start {replacements[0]} on macbook-twork",
+			)
+			self.assertEqual(
+				sorted(git(
+					main, "show", "--name-only", "--format=", "HEAD",
+				).splitlines()),
+				[
+					"batches/macbook-twork.yaml",
+					f"tasks/{replacements[0]}/state.yaml",
+				],
+			)
+			self.assertEqual(
+				workspace.load_batch(main, "macbook-twork"),
+				[replacements[0]],
+			)
 			self.assertIsNotNone(workspace.resolved_ref(
 				source,
 				workspace.source_task_ref(replacements[0], "base"),
@@ -5073,6 +5098,335 @@ inbox_receipt: {receipt}
 				self.assertEqual(
 					task_refs(source, OTHER_APPROVAL_TASK), fixture["other_refs"],
 				)
+
+
+BATCH_FIRST = "2026/07/18/first-task"
+BATCH_NEXT = "2026/07/20/next-task"
+BATCH_LATER = "2026/07/21/later-task"
+BATCH_DONE = "2026/07/17/done-task"
+BATCH_MERGED = "2026/07/16/merged-task"
+BATCH_DIVIDED = "2026/07/15/divided-task"
+BATCH_RETRACTED = "2026/07/14/retracted-task"
+BATCH_BLOCKED = "2026/07/13/blocked-task"
+OUR_BATCH = "batches/macbook-twork.yaml"
+THEIR_BATCH = "batches/macbook-tother.yaml"
+
+
+class BatchMarkTest(unittest.TestCase):
+	def setUp(self):
+		temporary = tempfile.TemporaryDirectory()
+		self.addCleanup(temporary.cleanup)
+		self.root = Path(temporary.name)
+		self.origin = self.root / "origin.git"
+		git(self.root, "init", "--bare", "--initial-branch=master", str(self.origin))
+		seed = self.root / "ai-a"
+		seed.mkdir()
+		git(seed, "init", "--initial-branch=master")
+		self.identity(seed)
+		(seed / ".gitignore").write_text("inbox/\n**/.local/\n", encoding="utf-8")
+		for task_id in (BATCH_FIRST, BATCH_NEXT, BATCH_LATER):
+			self.task(seed, task_id, "todo")
+		self.task(seed, BATCH_DONE, "approved", "macbook-tother")
+		self.task(seed, BATCH_BLOCKED, "blocked", "macbook-twork")
+		self.task(seed, BATCH_MERGED).joinpath("superseded.yaml").write_text(
+			f"superseded_by: {BATCH_LATER}\n"
+			"receipt: receipts/2026/07/16/merge.md\n"
+			"type: implement\n"
+			"project: null\n"
+			"content_sha256: " + "0" * 64 + "\n",
+			encoding="utf-8",
+		)
+		self.task(seed, BATCH_DIVIDED).joinpath("split.yaml").write_text(
+			f"split_into: [{BATCH_NEXT}, {BATCH_LATER}]\n",
+			encoding="utf-8",
+		)
+		self.task(seed, BATCH_RETRACTED)
+		git(seed, "add", "-A")
+		git(seed, "commit", "-m", "Seed batch tasks")
+		git(seed, "remote", "add", "origin", str(self.origin))
+		git(seed, "push", "origin", "master")
+		other = self.root / "ai-b"
+		git(self.root, "clone", "--quiet", str(self.origin), str(other))
+		self.identity(other)
+		self.ours = self.machine("twork", seed)
+		self.theirs = self.machine("tother", other)
+
+	def identity(self, repo):
+		git(repo, "config", "user.name", "Workflow Test")
+		git(repo, "config", "user.email", "workflow@example.invalid")
+
+	def task(self, repo, task_id, status=None, claimed_by=None):
+		directory = repo / "tasks" / task_id
+		directory.mkdir(parents=True)
+		(directory / "task.md").write_text(
+			f"# {task_id.rsplit('/', 1)[-1]}\n", encoding="utf-8",
+		)
+		if status is None:
+			return directory
+		claimed = claimed_by is not None
+		(directory / "state.yaml").write_text(
+			f"""status: {status}
+type: implement
+created: {task_id[:10].replace("/", "-")}
+project: null
+depends_on: []
+claimed_by: {claimed_by if claimed else "null"}
+claimed_at: {"2026-07-13T10:00:00+04:00" if claimed else "null"}
+claim_order: {"1" if claimed else "null"}
+lease_until: null
+phase: {"null" if status == "todo" else status}
+inbox_receipt: receipts/2026/07/13/test.md
+""",
+			encoding="utf-8",
+		)
+		return directory
+
+	def machine(self, name, main):
+		source = self.root / name
+		build = source / "Telegram" / "build"
+		build.mkdir(parents=True)
+		git(source, "init", "--initial-branch=master")
+		(build / "ai-machine-tag").write_text("macbook\n", encoding="utf-8")
+		return SimpleNamespace(
+			source_root=str(source),
+			ai_main=str(main),
+			worktrees_root=str(self.root / f"{name}-worktrees"),
+			require=[],
+			batch=None,
+		)
+
+	def run_json(self, handler, machine, **values):
+		output = io.StringIO()
+		with contextlib.redirect_stdout(output):
+			handler(SimpleNamespace(**{**vars(machine), **values}))
+		return json.loads(output.getvalue())
+
+	def slot(self, machine):
+		name = Path(machine.source_root).name
+		return Path(machine.worktrees_root) / f"macbook-{name}"
+
+	def published(self, path):
+		return git(self.origin, "show", f"master:{path}")
+
+	def head_paths(self, repo):
+		return sorted(git(
+			repo, "show", "--name-only", "--format=", "master",
+		).splitlines())
+
+	def test_start_writes_the_batch_into_its_start_commit(self):
+		result = self.run_json(
+			workspace.command_start,
+			self.ours,
+			task=BATCH_FIRST,
+			batch=[
+				BATCH_NEXT,
+				BATCH_DONE,
+				BATCH_FIRST,
+				BATCH_MERGED,
+				BATCH_NEXT,
+				BATCH_DIVIDED,
+				BATCH_RETRACTED,
+				BATCH_LATER,
+			],
+		)
+
+		self.assertTrue(result["published"])
+		self.assertEqual(result["batch"], [BATCH_FIRST, BATCH_NEXT, BATCH_LATER])
+		self.assertEqual(result["batch_dropped"], [
+			{"id": BATCH_DONE, "status": "approved"},
+			{"id": BATCH_MERGED, "status": "superseded"},
+			{"id": BATCH_DIVIDED, "status": "split"},
+			{"id": BATCH_RETRACTED, "status": "retired"},
+		])
+		self.assertEqual(
+			head_subject(self.origin, "master"),
+			f"Start {BATCH_FIRST} on macbook-twork",
+		)
+		self.assertEqual(self.head_paths(self.origin), [
+			OUR_BATCH,
+			f"tasks/{BATCH_FIRST}/state.yaml",
+		])
+		lines = self.published(OUR_BATCH).splitlines()
+		self.assertEqual(lines[0], "checkout: macbook-twork")
+		self.assertTrue(lines[1].startswith("updated: "))
+		updated = datetime.datetime.fromisoformat(lines[1][len("updated: "):])
+		self.assertIsNotNone(updated.tzinfo)
+		self.assertEqual(lines[2:], [
+			"tasks:",
+			f"  - {BATCH_FIRST}",
+			f"  - {BATCH_NEXT}",
+			f"  - {BATCH_LATER}",
+		])
+		self.assertEqual(workspace.changed_paths(self.slot(self.ours)), [])
+
+	def test_start_rejects_unknown_batch_ids_before_changing_anything(self):
+		with self.assertRaisesRegex(
+			workspace.WorkspaceError,
+			"Unknown batch task ids: 2026/07/30/missing-task, not-a-task",
+		):
+			self.run_json(
+				workspace.command_start,
+				self.ours,
+				task=BATCH_FIRST,
+				batch=[BATCH_NEXT, "2026/07/30/missing-task", "not-a-task"],
+			)
+
+		slot = self.slot(self.ours)
+		self.assertEqual(workspace.changed_paths(slot), [])
+		self.assertFalse((slot / OUR_BATCH).exists())
+		self.assertEqual(head_subject(self.origin, "master"), "Seed batch tasks")
+		state = workspace.load_state(slot, workspace.state_path(slot, BATCH_FIRST))
+		self.assertEqual(state["status"], "todo")
+
+	def test_start_without_a_batch_marks_only_the_started_task(self):
+		result = self.run_json(
+			workspace.command_start, self.ours, task=BATCH_NEXT,
+		)
+
+		self.assertEqual(result["batch"], [BATCH_NEXT])
+		self.assertEqual(result["batch_dropped"], [])
+		self.assertEqual(
+			workspace.load_batch(Path(self.ours.ai_main), "macbook-twork"),
+			[BATCH_NEXT],
+		)
+
+	def test_a_batch_marks_tasks_without_claiming_them(self):
+		self.run_json(
+			workspace.command_start,
+			self.ours,
+			task=BATCH_FIRST,
+			batch=[BATCH_NEXT, BATCH_LATER],
+		)
+
+		started = self.run_json(
+			workspace.command_start,
+			self.theirs,
+			task=BATCH_NEXT,
+		)
+
+		self.assertTrue(started["published"])
+		self.assertEqual(
+			head_subject(self.origin, "master"),
+			f"Start {BATCH_NEXT} on macbook-tother",
+		)
+		self.assertIn(f"  - {BATCH_NEXT}", self.published(OUR_BATCH))
+		self.assertEqual(
+			self.published(THEIR_BATCH).splitlines()[2:],
+			["tasks:", f"  - {BATCH_NEXT}"],
+		)
+		queue = self.run_json(workspace.command_queue, self.ours)
+		self.assertEqual(queue["own_batch"], [
+			{
+				"id": BATCH_FIRST,
+				"status": "in-progress",
+				"claimed_by": "macbook-twork",
+			},
+			{
+				"id": BATCH_NEXT,
+				"status": "in-progress",
+				"claimed_by": "macbook-tother",
+			},
+			{"id": BATCH_LATER, "status": "todo", "claimed_by": None},
+		])
+		self.assertEqual(queue["own_todo"], [])
+		self.assertEqual(
+			[task["id"] for task in queue["unclaimed_todo"]],
+			[BATCH_LATER],
+		)
+		self.assertEqual(queue["other_claimed_unfinished"], 1)
+		self.assertEqual(queue["violations"], [])
+		theirs = self.run_json(workspace.command_queue, self.theirs)
+		self.assertEqual(
+			[entry["id"] for entry in theirs["own_batch"]],
+			[BATCH_NEXT],
+		)
+		self.assertEqual(
+			[task["id"] for task in theirs["unclaimed_todo"]],
+			[BATCH_LATER],
+		)
+
+	def test_a_lost_start_leaves_no_batch_published(self):
+		self.run_json(workspace.command_start, self.theirs, task=BATCH_NEXT)
+
+		with mock.patch.object(workspace, "sync_canonical"):
+			with self.assertRaisesRegex(workspace.WorkspaceError, "Start lost"):
+				self.run_json(
+					workspace.command_start,
+					self.ours,
+					task=BATCH_NEXT,
+					batch=[BATCH_NEXT, BATCH_LATER],
+				)
+
+		slot = self.slot(self.ours)
+		self.assertEqual(workspace.changed_paths(slot), [])
+		self.assertEqual(
+			git(slot, "rev-parse", "HEAD"),
+			git(slot, "rev-parse", "master"),
+		)
+		self.assertFalse((slot / OUR_BATCH).exists())
+		missing = subprocess.run(
+			["git", "-C", str(self.origin), "cat-file", "-e", f"master:{OUR_BATCH}"],
+			stdout=subprocess.DEVNULL,
+			stderr=subprocess.DEVNULL,
+		)
+		self.assertNotEqual(missing.returncode, 0)
+		self.assertEqual(
+			head_subject(self.origin, "master"),
+			f"Start {BATCH_NEXT} on macbook-tother",
+		)
+
+	def test_queue_lists_an_absent_batch_as_empty(self):
+		queue = self.run_json(workspace.command_queue, self.ours)
+
+		self.assertEqual(queue["own_batch"], [])
+
+	def test_batch_option_collects_every_id_in_order(self):
+		with mock.patch("sys.argv", [
+			"workspace.py", "start", "--task", BATCH_FIRST,
+			"--batch", BATCH_NEXT, BATCH_LATER, "--batch", BATCH_DONE,
+		]):
+			args = workspace.parse_args()
+		self.assertEqual(args.batch, [BATCH_NEXT, BATCH_LATER, BATCH_DONE])
+		with mock.patch("sys.argv", [
+			"workspace.py", "start", "--task", BATCH_FIRST,
+		]):
+			args = workspace.parse_args()
+		self.assertIsNone(args.batch)
+		with mock.patch("sys.argv", [
+			"workspace.py", "retry", "--task", BATCH_BLOCKED,
+		]):
+			args = workspace.parse_args()
+		self.assertFalse(hasattr(args, "batch"))
+
+	def test_reading_a_batch_ignores_what_it_cannot_use(self):
+		root = self.root / "loose"
+		self.assertEqual(workspace.load_batch(root, "macbook-twork"), [])
+		path = root / OUR_BATCH
+		path.parent.mkdir(parents=True)
+		path.write_bytes(b"\xff\xfe\x00tasks:\n")
+		self.assertEqual(workspace.load_batch(root, "macbook-twork"), [])
+		path.write_text(
+			"# comment\n"
+			"updated: soon\n"
+			"tasks:\n"
+			f"  - {BATCH_FIRST}\n"
+			"  - not-a-task\n"
+			"  - [nested]\n"
+			f"  - '{BATCH_NEXT}'\n"
+			f"  - {BATCH_FIRST}\n"
+			"other:\n"
+			f"  - {BATCH_LATER}\n",
+			encoding="utf-8",
+		)
+		self.assertEqual(
+			workspace.load_batch(root, "macbook-twork"),
+			[BATCH_FIRST, BATCH_NEXT],
+		)
+		path.write_text(f"tasks:\n- {BATCH_LATER}\n", encoding="utf-8")
+		self.assertEqual(
+			workspace.load_batch(root, "macbook-twork"),
+			[BATCH_LATER],
+		)
 
 
 class HealthWorktreeTest(unittest.TestCase):

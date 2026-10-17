@@ -46,7 +46,8 @@ this read-only `queue` call, and report and ask as that section says.
 Stop before mutating anything when `violations` is nonempty or AI master is
 dirty. Dirty task-scoped AI files are the active checkout's local resumable
 phase state and are expected; resume from them, never discard them. Other
-uncommitted slot changes under `tasks/`, `projects/`, or `receipts/` are
+uncommitted slot changes under `tasks/`, `projects/`, `receipts/`, or this
+checkout's `batches/<checkout_tag>.yaml` are
 disposable leftovers of an interrupted worker; the ignored inbox snapshot and
 published task results retain every durable input needed to redo them.
 Restore those exact tracked paths to the slot branch head, delete their
@@ -164,7 +165,8 @@ these invocation-local values in the scheduler plan:
 - `split_records`, initialized with any startup split transaction and otherwise
   empty.
 
-Do not write a batch file, claim the whole batch, or publish reservations.
+Do not claim the whole batch or publish reservations. The batch's only
+durable trace is the soft mark that `start` publishes (below).
 Queue refreshes update task state but never add ordinary task ids to the
 frozen batch.
 
@@ -297,6 +299,17 @@ other instrument before assessment selects it. The performer gates every
 selected instrument before using it and records an unavailable platform or
 stage precisely instead of preventing unrelated task work from starting.
 
+Every `start` below passes `--batch` with the effective batch's remaining
+unfinished task ids in selection order, the task being started first: the
+current `batch_task_ids` after split, consolidation, and discovery rewrites,
+without approved, superseded, split, or retired ids. The helper rewrites this
+checkout's `batches/<checkout_tag>.yaml` with that list inside the same `Start`
+commit. `retry` stays local and leaves the file as the last Start wrote it.
+Reorders and additions take effect at the next Start. The file is a soft mark for viewing every checkout's batch on one
+board, never a reservation: any checkout may still start a listed task, and
+ownership comes only from `claimed_by`. Queue refreshes report it as
+`own_batch`. Never edit it by hand.
+
 ### 1. Resume active batch work
 
 If this checkout has an `in-progress` task whose id is in `batch_task_ids`,
@@ -344,7 +357,8 @@ checkout whose id is in `batch_task_ids`, and start it:
 
 ```bash
 python3 .agents/skills/process-inbox/scripts/workspace.py start \
-  --task <YYYY/MM/DD/slug> [--require <explicit-source-task-id> ...]
+  --task <YYYY/MM/DD/slug> [--require <explicit-source-task-id> ...] \
+  --batch <YYYY/MM/DD/slug> [<remaining-batch-task-id> ...]
 ```
 
 The resulting canonical `Start` commit changes it to `in-progress`. Leave
