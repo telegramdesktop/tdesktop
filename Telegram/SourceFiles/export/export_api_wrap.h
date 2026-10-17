@@ -216,6 +216,7 @@ private:
 		int offsetId,
 		int addOffset,
 		int limit,
+		int offsetDate,
 		FnMut<void(MTPmessages_Messages&&)> done);
 	void startMessagesSlice(Data::MessagesSlice &&slice);
 	void resumeMessagesSlice();

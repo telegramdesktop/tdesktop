@@ -604,6 +604,7 @@ struct ApiWrap::ChatProcess : AbstractMessagesProcess {
 
 	int localSplitIndex = 0;
 	int32 largestIdPlusOne = 1;
+	bool seekFromDate = true;
 };
 
 struct ApiWrap::TopicProcess : AbstractMessagesProcess {
@@ -1863,6 +1864,7 @@ void ApiWrap::requestMessagesCount(int localSplitIndex) {
 		0, // offset_id
 		0, // add_offset
 		1, // limit
+		0, // offset_date
 		[=](const MTPmessages_Messages &result) {
 		Expects(_chatProcess != nullptr);
 
@@ -1907,6 +1909,7 @@ void ApiWrap::checkFirstMessageDate(int localSplitIndex, int count) {
 		1, // offset_id
 		-1, // add_offset
 		1, // limit
+		0, // offset_date
 		[=](const MTPmessages_Messages &result) {
 		Expects(_chatProcess != nullptr);
 
@@ -2278,17 +2281,30 @@ void ApiWrap::requestMessagesSlice() {
 		startMessagesSlice({});
 		return;
 	}
+	const auto from = _settings->singlePeerFrom;
+	// WHY: the API anchors offset_date at the newest message before it, and
+	// history is walked from the oldest to the newest, so the first slice
+	// must start at the range or the whole history downloads first.
+	const auto seekFrom = (from > 0)
+		&& !_chatProcess->info.onlyMyMessages
+		&& _chatProcess->seekFromDate;
+	_chatProcess->seekFromDate = false;
 	requestChatMessages(
 		_chatProcess->info.splits[_chatProcess->localSplitIndex],
-		_chatProcess->largestIdPlusOne,
+		seekFrom ? 0 : _chatProcess->largestIdPlusOne,
 		-kMessagesSliceLimit,
 		kMessagesSliceLimit,
+		seekFrom ? (from - 1) : 0,
 		[=](const MTPmessages_Messages &result) {
 		Expects(_chatProcess != nullptr);
 
 		result.match([&](const MTPDmessages_messagesNotModified &data) {
 			error("Unexpected messagesNotModified received.");
 		}, [&](const auto &data) {
+			if (seekFrom && data.vmessages().v.empty()) {
+				requestMessagesSlice();
+				return;
+			}
 			if constexpr (MTPDmessages_messages::Is<decltype(data)>()) {
 				_chatProcess->lastSlice = true;
 			}
@@ -2307,6 +2323,7 @@ void ApiWrap::requestChatMessages(
 		int offsetId,
 		int addOffset,
 		int limit,
+		int offsetDate,
 		FnMut<void(MTPmessages_Messages&&)> done) {
 	Expects(_chatProcess != nullptr);
 
@@ -2326,6 +2343,8 @@ void ApiWrap::requestChatMessages(
 	const auto realSplitIndex = (splitIndex >= 0)
 		? splitIndex
 		: (splitsCount + splitIndex);
+	const auto from = _settings->singlePeerFrom;
+	const auto till = _settings->singlePeerTill;
 	if (_chatProcess->info.onlyMyMessages) {
 		splitRequest(realSplitIndex, MTPmessages_Search(
 			MTP_flags(MTPmessages_Search::Flag::f_from_id),
@@ -2336,8 +2355,8 @@ void ApiWrap::requestChatMessages(
 			MTPVector<MTPReaction>(), // saved_reaction
 			MTPint(), // top_msg_id
 			MTP_inputMessagesFilterEmpty(),
-			MTP_int(0), // min_date
-			MTP_int(0), // max_date
+			MTP_int((from > 0) ? (from - 1) : 0), // min_date
+			MTP_int(till), // max_date
 			MTP_int(offsetId),
 			MTP_int(addOffset),
 			MTP_int(limit),
@@ -2349,7 +2368,7 @@ void ApiWrap::requestChatMessages(
 		splitRequest(realSplitIndex, MTPmessages_GetHistory(
 			realPeerInput,
 			MTP_int(offsetId),
-			MTP_int(0), // offset_date
+			MTP_int(offsetDate),
 			MTP_int(addOffset),
 			MTP_int(limit),
 			MTP_int(0), // max_id
@@ -2370,6 +2389,7 @@ void ApiWrap::requestChatMessages(
 						offsetId,
 						addOffset,
 						limit,
+						offsetDate,
 						base::take(_chatProcess->requestDone));
 					return true;
 				}
@@ -2869,6 +2889,10 @@ void ApiWrap::finishMessagesSlice() {
 	Expects(_chatProcess->messageFileWorkMessageIndex < 0);
 
 	auto slice = *base::take(_chatProcess->slice);
+	const auto till = _settings->singlePeerTill;
+	const auto reachedTill = (till > 0)
+		&& !slice.list.empty()
+		&& (slice.list.back().date >= till);
 	if (!slice.list.empty()) {
 		_chatProcess->largestIdPlusOne = slice.list.back().id + 1;
 		const auto splitIndex = _chatProcess->info.splits[
@@ -2879,6 +2903,12 @@ void ApiWrap::finishMessagesSlice() {
 		if (!_chatProcess->handleSlice(std::move(slice))) {
 			return;
 		}
+	}
+	if (reachedTill) {
+		// History is walked oldest to newest, so nothing ahead is in range.
+		_chatProcess->lastSlice = true;
+		_chatProcess->localSplitIndex =
+			int(_chatProcess->info.splits.size()) - 1;
 	}
 	if (_chatProcess->lastSlice
 		&& (++_chatProcess->localSplitIndex
