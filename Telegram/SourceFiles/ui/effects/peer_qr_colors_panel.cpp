@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/color_contrast.h"
 #include "ui/painter.h"
-#include "ui/top_background_gradient.h"
 #include "styles/style_boxes.h"
 
 namespace Ui {
@@ -92,23 +91,24 @@ struct Circle {
 [[nodiscard]] QImage PrepareCircle(
 		const PeerQrAppearance &appearance,
 		int size) {
-	if (size <= 0) {
-		return QImage();
-	} else if (appearance.center.isValid()) {
-		return Images::Circle(CreateTopBgGradient(
-			QSize(size, size),
-			appearance.center,
-			appearance.edge,
-			false));
-	} else if (appearance.colors.empty()) {
+	if (size <= 0 || !appearance.center.isValid()) {
 		return QImage();
 	}
 	const auto ratio = style::DevicePixelRatio();
-	auto result = Images::Circle(Images::GenerateGradient(
+	auto result = QImage(
 		QSize(size, size) * ratio,
-		appearance.colors));
+		QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(ratio);
-	return result;
+	{
+		auto p = QPainter(&result);
+		auto gradient = QLinearGradient(QPointF(), QPointF(size, size));
+		gradient.setStops({
+			{ 0., appearance.center },
+			{ 1., appearance.edge },
+		});
+		p.fillRect(QRect(0, 0, size, size), gradient);
+	}
+	return Images::Circle(std::move(result));
 }
 
 [[nodiscard]] bool NeedsHairline(const QImage &image, float64 radius) {

@@ -557,7 +557,6 @@ peerQrCardShadowRadius: 21px;
 peerQrCardShadowShift: 7px;
 peerQrPillSkip: 13px;
 peerQrPillHeight: 26px;
-peerQrPatternHeight: 720px;
 peerQrDriftSpeed: 6px;
 peerQrButtonSkip: 16px;
 peerQrButton: IconButton(defaultIconButton) {

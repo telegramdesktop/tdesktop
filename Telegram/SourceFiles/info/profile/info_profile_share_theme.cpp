@@ -58,6 +58,24 @@ constexpr auto kMaxEmojiKeys = 6;
 	};
 }
 
+[[nodiscard]] bool IsDefaultBackdrop(
+		const Data::UniqueGiftBackdrop &backdrop) {
+	return (BackdropAppearance(backdrop) == Ui::PeerQrDefaultAppearance());
+}
+
+[[nodiscard]] Ui::PeerQrSwatch DefaultSwatch(
+		const std::vector<Data::UniqueGiftBackdrop> &backdrops) {
+	const auto i = ranges::find_if(backdrops, IsDefaultBackdrop);
+	const auto found = (i != end(backdrops));
+	return {
+		.key = {
+			.type = found ? ThemeType::Backdrop : ThemeType::Default,
+			.id = found ? i->id : 0,
+		},
+		.appearance = Ui::PeerQrDefaultAppearance(),
+	};
+}
+
 [[nodiscard]] std::vector<QString> EmojiKeys(
 		const std::vector<Data::ReactionId> &emojis) {
 	auto result = std::vector<QString>();
@@ -95,8 +113,8 @@ constexpr auto kMaxEmojiKeys = 6;
 		not_null<Main::Session*> session,
 		const Data::ShareTheme &theme,
 		const std::vector<Data::UniqueGiftBackdrop> &backdrops) {
-	return v::match(theme, [](const Data::ShareThemeDefault &) {
-		return Ui::PeerQrSwatch{ .key = { .type = ThemeType::Default } };
+	return v::match(theme, [&](const Data::ShareThemeDefault &) {
+		return DefaultSwatch(backdrops);
 	}, [&](const Data::ShareThemeColor &data) {
 		return Ui::PeerQrSwatch{
 			.key = { .type = ThemeType::Color, .id = data.colorId },
@@ -146,23 +164,12 @@ constexpr auto kMaxEmojiKeys = 6;
 
 auto QrThemeSwatchesValue(not_null<Main::Session*> session)
 -> rpl::producer<std::vector<Ui::PeerQrSwatch>> {
-	return rpl::combine(
-		session->api().peerColors().suggestedProfileValue(),
-		session->api().shareThemes().backdropsValue(),
-		Window::Theme::IsNightModeValue()
-	) | rpl::map([=](
-			const std::vector<uint8> &colors,
-			const std::vector<Data::UniqueGiftBackdrop> &backdrops,
-			bool) {
+	return session->api().shareThemes().backdropsValue(
+	) | rpl::map([](const std::vector<Data::UniqueGiftBackdrop> &backdrops) {
 		auto result = std::vector<Ui::PeerQrSwatch>();
-		result.reserve(colors.size() + backdrops.size());
-		for (const auto index : colors) {
-			if (auto appearance = ColorAppearance(session, index)) {
-				result.push_back({
-					.key = { .type = ThemeType::Color, .id = index },
-					.appearance = std::move(*appearance),
-				});
-			}
+		result.reserve(backdrops.size() + 1);
+		if (ranges::none_of(backdrops, IsDefaultBackdrop)) {
+			result.push_back(DefaultSwatch(backdrops));
 		}
 		for (const auto &backdrop : backdrops) {
 			result.push_back({
