@@ -62,6 +62,7 @@ private:
 
 	void instant(CardLook look);
 	void animate(CardLook look, CardLookChange change);
+	void paintFirstFrame();
 	void install(
 		QImage image,
 		QRect pixels,
@@ -96,6 +97,8 @@ private:
 	crl::time _started = 0;
 	crl::time _now = 0;
 	bool _restacking = false;
+	bool _firstFramePending = false;
+	bool _firstFrameQueued = false;
 	rpl::variable<bool> _running = false;
 	Ui::Animations::Basic _animation;
 	rpl::lifetime _overlayLifetime;

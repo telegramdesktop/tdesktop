@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_card_flight.h"
 #include "wallet/wallet_palette.h"
 
+#include <QtGui/QWindow>
+
 namespace Wallet {
 namespace {
 
@@ -103,6 +105,14 @@ struct Capture {
 	}
 	p.end();
 	return { .image = std::move(image), .pixels = pixels };
+}
+
+[[nodiscard]] bool Painting(not_null<QWidget*> window) {
+	const auto painting = [](const QWidget *widget) {
+		return widget->testAttribute(Qt::WA_WState_InPaintEvent);
+	};
+	return painting(window)
+		|| ranges::any_of(window->findChildren<QWidget*>(), painting);
 }
 
 [[nodiscard]] auto SuppressUpdates(not_null<QWidget*> window) {
@@ -343,7 +353,28 @@ void WindowLookReveal::animate(CardLook look, CardLookChange change) {
 	}
 	if (tick(crl::now())) {
 		_animation.start();
+		_firstFramePending = true;
+		if (!std::exchange(_firstFrameQueued, true)) {
+			Ui::PostponeCall(this, [=] {
+				_firstFrameQueued = false;
+				paintFirstFrame();
+			});
+		}
 	}
+}
+
+void WindowLookReveal::paintFirstFrame() {
+	const auto window = _panel->windowHandle();
+	if (!base::take(_firstFramePending)
+		|| !_overlay
+		|| !live()
+		|| !window
+		|| !window->isExposed()
+		|| Painting(_panel)) {
+		return;
+	}
+	const auto hole = _band->geometry();
+	_panel->repaint(hole.isEmpty() ? _panel->rect() : hole);
 }
 
 void WindowLookReveal::install(
@@ -365,12 +396,14 @@ void WindowLookReveal::install(
 		_band = base::make_unique_q<Ui::RpWidget>(_panel);
 		_band->setAttribute(Qt::WA_TransparentForMouseEvents);
 		_band->paintRequest() | rpl::on_next([=] {
+			_firstFramePending = false;
 			auto p = QPainter(_band.get());
 			compose(p, _band.get());
 		}, _overlayLifetime);
 		_overlay = base::make_unique_q<Ui::RpWidget>(_panel);
 		_overlay->setAttribute(Qt::WA_TransparentForMouseEvents);
 		_overlay->paintRequest() | rpl::on_next([=] {
+			_firstFramePending = false;
 			auto p = QPainter(_overlay.get());
 			paint(p);
 		}, _overlayLifetime);
