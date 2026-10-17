@@ -75,7 +75,7 @@ public:
 
 	bool takeThirdSectionFromLayer();
 
-	void handleStartFiles(QStringList interprets, QStringList paths);
+	void handleStartFiles(QStringList paths);
 
 	[[nodiscard]] bool contentOverlapped(const QRect &globalRect);
 	[[nodiscard]] bool contentOverlapped(QWidget *w, QPaintEvent *e) {
@@ -132,6 +132,7 @@ private:
 	void applyInitialWorkMode();
 	void ensureLayerCreated();
 	void destroyLayer();
+	void raiseMediaPreview();
 
 	void themeUpdated(const Window::Theme::BackgroundUpdate &data);
 

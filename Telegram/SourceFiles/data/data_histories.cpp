@@ -9,7 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_text_entities.h"
 #include "data/business/data_shortcut_messages.h"
+#include "data/components/ephemeral_messages.h"
 #include "data/components/scheduled_messages.h"
+#include "data/components/welcome_messages.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -202,6 +204,7 @@ void Histories::readInbox(not_null<History*> history) {
 }
 
 void Histories::readInboxTill(not_null<HistoryItem*> item) {
+	const auto shown = item;
 	const auto history = item->history();
 	if (!item->isRegular()) {
 		readClientSideMessage(item);
@@ -236,7 +239,7 @@ void Histories::readInboxTill(not_null<HistoryItem*> item) {
 			return;
 		}
 	}
-	readInboxTill(history, item->id);
+	readShownTill(shown, item->id, false);
 }
 
 void Histories::readInboxTill(not_null<History*> history, MsgId tillId) {
@@ -341,8 +344,29 @@ void Histories::readInboxOnNewMessage(not_null<HistoryItem*> item) {
 	if (!item->isRegular()) {
 		readClientSideMessage(item);
 	} else {
-		readInboxTill(item->history(), item->id, true);
+		readShownTill(item, item->id, true);
 	}
+}
+
+void Histories::readShownTill(
+		not_null<HistoryItem*> shown,
+		MsgId tillId,
+		bool force) {
+	const auto history = shown->history();
+	const auto wasReadTill = history->inboxReadTillId();
+	readInboxTill(history, tillId, force);
+	const auto readTill = history->inboxReadTillId();
+	if (readTill > wasReadTill) {
+		_shownReads.fire({
+			.shown = shown,
+			.wasReadTill = wasReadTill,
+			.readTill = readTill,
+		});
+	}
+}
+
+rpl::producer<Histories::ShownRead> Histories::shownReads() const {
+	return _shownReads.events();
 }
 
 void Histories::readClientSideMessage(not_null<HistoryItem*> item) {
@@ -970,6 +994,17 @@ void Histories::deleteMessages(const MessageIdsList &ids, bool revoke) {
 				} else {
 					_owner->shortcutMessages().removeSending(item);
 				}
+				continue;
+			} else if (item->isWelcomeTemplate()) {
+				auto &welcome = _owner->session().welcomeMessages();
+				if (item->isSending() || item->hasFailed()) {
+					welcome.removeSending(item);
+				} else {
+					welcome.deleteTemplate(item);
+				}
+				continue;
+			} else if (item->isEphemeral()) {
+				_owner->session().ephemeralMessages().deleteMessage(item);
 				continue;
 			}
 			remove.push_back(item);

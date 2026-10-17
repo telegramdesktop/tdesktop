@@ -52,5 +52,6 @@ private:
 
 	rpl::lifetime _loadLifetime;
 	rpl::lifetime _toggleLifetime;
+	rpl::lifetime _reorderLifetime;
 
 };

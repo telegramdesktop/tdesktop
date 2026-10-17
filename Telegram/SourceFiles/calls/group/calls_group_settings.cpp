@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "webrtc/webrtc_audio_input_tester.h"
 #include "webrtc/webrtc_device_resolver.h"
+#include "window/window_unlock_passcode_box.h"
 #include "settings/sections/settings_calls.h"
 #include "settings/settings_common.h"
 #include "settings/settings_credits_graphics.h"
@@ -625,7 +626,17 @@ void SettingsBox(
 		auto [shareLinkCallback, shareLinkLifetime] = ShareInviteLinkAction(
 			peer,
 			box->uiShow());
-		shareLink = std::move(shareLinkCallback);
+		const auto share = box->lifetime().make_state<Fn<void()>>();
+		*share = [box, share, callback = std::move(shareLinkCallback)] {
+			if (::Window::ShowUnlockPasscodeBox(
+					box->uiShow(),
+					DarkUnlockPasscodeBoxStyle(),
+					crl::guard(box, [=] { (*share)(); }))) {
+				return;
+			}
+			callback();
+		};
+		shareLink = [=] { (*share)(); };
 		box->lifetime().add(std::move(shareLinkLifetime));
 	} else {
 		const auto lookupLink = [=] {

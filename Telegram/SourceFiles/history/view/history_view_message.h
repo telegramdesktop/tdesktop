@@ -26,6 +26,7 @@ struct ReactionId;
 namespace Ui {
 struct BubbleRounding;
 class RoundCheckbox;
+struct TornEdgeCache;
 } // namespace Ui
 
 namespace HistoryView {
@@ -82,6 +83,7 @@ struct InstantViewMediaRuntime
 struct HistoryMessageRichPage
 : RuntimeComponent<HistoryMessageRichPage, Element> {
 	HistoryMessageRichPage();
+	[[nodiscard]] QMargins edgeSkips() const;
 
 	struct Host final : Iv::Markdown::MediaBlockHost {
 		base::weak_ptr<Message> owner;
@@ -100,8 +102,14 @@ struct HistoryMessageRichPage
 
 	Iv::Markdown::MarkdownArticle article;
 	Iv::Markdown::MarkdownArticleThinkingPaintCache thinkingPaintCache;
+	std::unique_ptr<Ui::TornEdgeCache> tornEdges;
 	rpl::lifetime highlightReadyLifetime;
 	int paletteVersion = -1;
+	TimeId registeredFormattedDateUpdate = 0;
+	// Probing at the max width again would undo the final bubble layout.
+	mutable int textualWidth = 0;
+	mutable uint16 demandedTextWidth = 0;
+	bool hasUnsupportedBlocks = false;
 	mutable ClickHandlerPtr handler;
 	mutable std::optional<Iv::Markdown::MarkdownArticleHorizontalScrollHit> handlerHorizontalScrollHit;
 	mutable QPoint handlerHorizontalScrollPoint;
@@ -112,6 +120,15 @@ struct HistoryMessageRichPage
 	mutable Iv::Markdown::MediaActivation handlerMediaActivation;
 	mutable Iv::Markdown::PreparedPlaceholderBlockId handlerPlaceholderId;
 	mutable QPoint handlerPlaceholderPoint;
+	mutable Iv::Markdown::MarkdownArticleButtonRowHit handlerButtonRow;
+	mutable ClickHandlerPtr handlerButtonRowHandler;
+	mutable Iv::Markdown::MarkdownArticleButtonRowHit pressedButtonRow;
+	mutable ClickHandlerPtr pressedButtonRowHandler;
+	mutable std::optional<Iv::Markdown::PreparedEditListItemSource>
+		handlerTaskItem;
+	mutable std::optional<QPoint> handlerInlineButtonPoint;
+	mutable ClickHandlerPtr handlerInlineButtonHandler;
+	mutable ClickHandlerPtr pressedInlineButtonHandler;
 };
 
 enum class BadgeRole : uchar {
@@ -274,8 +291,6 @@ public:
 
 	void itemDataChanged() override;
 
-	VerticalRepaintRange verticalRepaintRange() const override;
-
 	void applyGroupAdminChanges(
 		const base::flat_set<UserId> &changes) override;
 
@@ -432,6 +447,10 @@ private:
 		StateRequest request) const;
 
 	void updateMediaInBubbleState();
+	void updateRichPageInBubbleState();
+	[[nodiscard]] auto countRichPageBubbleEdges() const
+	-> Iv::Markdown::MarkdownArticleBubbleEdges;
+	[[nodiscard]] bool richPageInfoRow() const;
 	QRect countGeometry() const;
 	[[nodiscard]] Ui::BubbleRounding countMessageRounding() const;
 	[[nodiscard]] Ui::BubbleRounding countBubbleRounding(
@@ -444,6 +463,8 @@ private:
 	bool hasVisibleText() const override;
 	[[nodiscard]] int visibleTextLength() const;
 	[[nodiscard]] int visibleMediaTextLength() const;
+	[[nodiscard]] int bottomInfoHeight() const;
+	[[nodiscard]] bool usesMessageInfoLayout() const;
 	[[nodiscard]] bool needInfoDisplay() const;
 	[[nodiscard]] bool invertMedia() const;
 	[[nodiscard]] bool hasFastReply() const;
@@ -462,6 +483,7 @@ private:
 	void refreshInfoSkipBlock(HistoryItem *textItem);
 	[[nodiscard]] int monospaceMaxWidth() const;
 	[[nodiscard]] int bubbleTextWidth(int bubbleWidth) const;
+	[[nodiscard]] int richPageDemandedTextWidth() const;
 	[[nodiscard]] int bubbleTextualWidth() const;
 
 	void ensureSummarizeButton() const;
@@ -495,8 +517,8 @@ private:
 	void psaTooltipToggled(bool shown) const;
 	void invalidateTextDependentCache() override;
 
-	bool textAppearValidate(not_null<TextAppearing*> appearing);
-	bool textAppearCheckLine(not_null<TextAppearing*> appearing);
+	bool textAppearValidate();
+	bool textAppearCheckLine();
 	void textAppearStartWidthAnimation(not_null<TextAppearing*> appearing);
 	void textAppearStartHeightAnimation(
 		not_null<TextAppearing*> appearing,

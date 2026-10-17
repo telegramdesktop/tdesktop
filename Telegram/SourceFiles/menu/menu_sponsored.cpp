@@ -436,6 +436,9 @@ void FillSponsored(
 				? &st::mediaMenuIconChannel
 				: &st::menuIconChannel),
 			.fillSubmenu = std::move(fillSubmenu),
+			.submenuSt = (dark
+				? &st::mediaviewSponsorInfoMenu
+				: &st::historySponsorInfoMenu),
 		});
 		addAction({
 			.separatorSt = (dark

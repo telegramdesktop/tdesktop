@@ -193,7 +193,7 @@ void PaintCurrencyInner(
 		int y,
 		int size,
 		const style::color &fg) {
-	auto svg = QSvgRenderer(Ui::Earn::CurrencySvgColored(fg->c));
+	auto svg = QSvgRenderer(Ui::Earn::CurrencySvgMono(fg->c));
 	const auto skip = size / 5;
 	svg.render(&p, QRect(x, y, size, size).marginsRemoved(
 		{ skip, skip, skip, skip }));

@@ -822,16 +822,17 @@ void ParticipantsAdditionalData::applyBannedLocally(
 	} else {
 		const auto kicked = rights.flags & ChatRestriction::ViewMessages;
 		const auto alreadyRestrictedBy = restrictedBy(participant);
-		applyParticipant(Api::ChatParticipant(
-			kicked
-				? Api::ChatParticipant::Type::Banned
-				: Api::ChatParticipant::Type::Restricted,
-			participant->id,
-			alreadyRestrictedBy
-				? peerToUser(alreadyRestrictedBy->id)
-				: participant->session().userId(),
-			std::move(rights),
-			ChatAdminRightsInfo()));
+		applyParticipant(
+			Api::ChatParticipant(
+				kicked
+					? Api::ChatParticipant::Type::Banned
+					: Api::ChatParticipant::Type::Restricted,
+				participant->id,
+				alreadyRestrictedBy
+					? peerToUser(alreadyRestrictedBy->id)
+					: participant->session().userId(),
+				std::move(rights),
+				ChatAdminRightsInfo()));
 	}
 }
 
@@ -1373,6 +1374,9 @@ auto ParticipantsBoxController::saveState() const
 	my->offset = _offset;
 	my->allLoaded = _allLoaded;
 	my->wasLoading = (_loadRequestId != 0);
+	my->groupByRole = _groupByRole.current();
+	my->adminsPreloaded = _adminsPreloaded;
+	my->wasPreloadingAdmins = (_adminsRequestId != 0);
 	if (const auto search = searchController()) {
 		my->searchState = search->saveState();
 	}
@@ -1433,11 +1437,16 @@ void ParticipantsBoxController::restoreState(
 		_additional = std::move(my->additional);
 		_offset = my->offset;
 		_allLoaded = my->allLoaded;
+		_adminsPreloaded = my->adminsPreloaded;
+		_groupByRole = my->groupByRole;
 		if (const auto search = searchController()) {
 			search->restoreState(std::move(my->searchState));
 		}
 		if (my->wasLoading) {
 			loadMoreRows();
+		}
+		if (my->wasPreloadingAdmins) {
+			preloadAdmins();
 		}
 		const auto was = _fullCountValue.current();
 		PeerListController::restoreState(std::move(state));
@@ -1581,7 +1590,11 @@ void ParticipantsBoxController::unload() {
 	if (const auto requestId = base::take(_loadRequestId)) {
 		_api.request(requestId).cancel();
 	}
+	if (const auto requestId = base::take(_adminsRequestId)) {
+		_api.request(requestId).cancel();
+	}
 	_allLoaded = false;
+	_adminsPreloaded = false;
 	_offset = 0;
 }
 
@@ -1590,6 +1603,7 @@ void ParticipantsBoxController::rebuild() {
 		prepareChatRows(chat);
 	} else {
 		loadMoreRows();
+		preloadAdmins();
 	}
 	refreshRows();
 }
@@ -1647,7 +1661,7 @@ void ParticipantsBoxController::rebuildChatParticipants(
 		return;
 	}
 
-	auto &participants = chat->participants;
+	const auto &participants = chat->participants;
 	auto count = delegate()->peerListFullRowsCount();
 	for (auto i = 0; i != count;) {
 		auto row = delegate()->peerListRowAt(i);
@@ -2711,6 +2725,48 @@ void ParticipantsBoxController::applyRoleSectionHeaders() {
 	}
 }
 
+void ParticipantsBoxController::preloadAdmins() {
+	if (_adminsPreloaded
+		|| _adminsRequestId
+		|| !_groupByRole.current()
+		|| (_role != Role::Profile && _role != Role::Members)) {
+		return;
+	}
+	const auto channel = _peer->asChannel();
+	if (!channel || !channel->canViewAdmins()) {
+		return;
+	}
+	const auto offset = 0;
+	const auto participantsHash = uint64(0);
+	_adminsRequestId = _api.request(MTPchannels_GetParticipants(
+		channel->inputChannel(),
+		MTP_channelParticipantsAdmins(),
+		MTP_int(offset),
+		MTP_int(channel->session().serverConfig().chatSizeMax),
+		MTP_long(participantsHash)
+	)).done([=](const MTPchannels_ChannelParticipants &result) {
+		_adminsRequestId = 0;
+		_adminsPreloaded = true;
+		result.match([&](const MTPDchannels_channelParticipants &data) {
+			const auto &[availableCount, list]
+				= Api::ChatParticipants::Parse(channel, data);
+			for (const auto &data : list) {
+				if (const auto participant = _additional.applyParticipant(
+						data)) {
+					appendRow(participant);
+				}
+			}
+		}, [](const MTPDchannels_channelParticipantsNotModified &) {
+			LOG(("API Error: "
+				"channels.channelParticipantsNotModified received!"));
+		});
+		resort();
+		refreshRows();
+	}).fail([=] {
+		_adminsRequestId = 0;
+	}).send();
+}
+
 void ParticipantsBoxController::resort() {
 	if (_groupByRole.current()) {
 		if (_onlineSorter) {
@@ -2735,6 +2791,7 @@ void ParticipantsBoxController::setGroupByRole(bool grouped) {
 		return;
 	}
 	_groupByRole = grouped;
+	preloadAdmins();
 	resort();
 }
 

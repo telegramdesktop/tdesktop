@@ -63,7 +63,8 @@ public:
 	}
 
 	QString accessibilityValue() const override {
-		const auto percent = std::clamp(qRound(_value * 100.), 0, 100);
+		const auto rounded = int(base::SafeRound(_value * 100.));
+		const auto percent = std::clamp(rounded, 0, 100);
 		return QString::number(percent) + '%';
 	}
 

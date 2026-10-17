@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "api/api_bot.h"
+
 class HistoryItem;
 struct HistoryMessageMarkupButton;
 
@@ -24,8 +26,7 @@ namespace UrlAuthBox {
 void ActivateButton(
 	std::shared_ptr<Ui::Show> show,
 	not_null<const HistoryItem*> message,
-	int row,
-	int column);
+	Api::BotButtonLookup lookup);
 void ActivateUrl(
 	std::shared_ptr<Ui::Show> show,
 	not_null<Main::Session*> session,

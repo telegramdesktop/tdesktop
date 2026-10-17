@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "webauthn/cable.h"
 
+#include "core/websocket_client.h"
 #include "webauthn/cable_box.h"
 #include "webauthn/cable_scanner.h"
-#include "webauthn/cable_tunnel.h"
 #include "webauthn/webauthn_common.h"
 #include "lang/lang_keys.h"
 #include "base/algorithm.h"
@@ -26,6 +26,7 @@ namespace {
 
 constexpr auto kCeremonyTimeoutMs = crl::time(180000);
 constexpr auto kBluetoothProbeMs = crl::time(1500);
+constexpr auto kTunnelPort = 443;
 
 [[nodiscard]] QByteArray ToByteArray(const Bytes &bytes) {
 	return QByteArray(
@@ -46,7 +47,7 @@ struct Ceremony final : std::enable_shared_from_this<Ceremony> {
 
 	QRKey qrKey;
 	std::array<uint8_t, kEidKeySize> eidKey = {};
-	std::unique_ptr<TunnelSocket> socket;
+	std::unique_ptr<Core::WebSocketClient> socket;
 	std::unique_ptr<BleScanner> scanner;
 	std::unique_ptr<HandshakeInitiator> handshake;
 	std::unique_ptr<Crypter> crypter;
@@ -315,7 +316,7 @@ void OnAdvert(std::shared_ptr<Ceremony> ceremony, QByteArray serviceData) {
 
 	SetSheet(ceremony.get(), Sheet::Connecting);
 
-	ceremony->socket = std::make_unique<TunnelSocket>();
+	ceremony->socket = std::make_unique<Core::WebSocketClient>();
 	const auto raw = ceremony->socket.get();
 	const auto weak = std::weak_ptr(ceremony);
 	raw->onConnected = [weak] {
@@ -345,7 +346,11 @@ void OnAdvert(std::shared_ptr<Ceremony> ceremony, QByteArray serviceData) {
 			}
 		}
 	};
-	raw->connectToTunnel(QString::fromStdString(domain), path);
+	raw->connectTo(
+		QString::fromStdString(domain),
+		kTunnelPort,
+		path,
+		u"fido.cable"_q);
 }
 
 void ShowBox(std::shared_ptr<Ceremony> ceremony, bool bluetooth) {

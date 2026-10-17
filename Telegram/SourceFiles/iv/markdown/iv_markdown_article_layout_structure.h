@@ -37,5 +37,7 @@ namespace Iv::Markdown {
 	const std::vector<LaidOutBlock> &blocks,
 	const style::Markdown &st,
 	bool rtl);
+[[nodiscard]] int ArticleHorizontalOverflow(
+	const std::vector<LaidOutBlock> &blocks);
 
 } // namespace Iv::Markdown

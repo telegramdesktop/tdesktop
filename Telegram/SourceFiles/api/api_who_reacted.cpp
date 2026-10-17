@@ -458,7 +458,7 @@ bool UpdateUserpics(
 		not_null<State*> state,
 		not_null<HistoryItem*> item,
 		const std::vector<PeerWithReaction> &ids) {
-	auto &owner = item->history()->owner();
+	const auto &owner = item->history()->owner();
 
 	struct ResolvedPeer {
 		PeerData *peer = nullptr;

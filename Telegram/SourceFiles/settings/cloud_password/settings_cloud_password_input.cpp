@@ -8,13 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/cloud_password/settings_cloud_password_input.h"
 
 #include "api/api_cloud_password.h"
-#include "base/qt_signal_producer.h"
 #include "base/timer.h"
 #include "base/unixtime.h"
 #include "core/core_cloud_password.h"
 #include "data/components/promo_suggestions.h"
 #include "lang/lang_keys.h"
-#include "lottie/lottie_icon.h"
 #include "main/main_session.h"
 #include "settings/cloud_password/settings_cloud_password_common.h"
 #include "settings/cloud_password/settings_cloud_password_email_confirm.h"
@@ -24,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/cloud_password/settings_cloud_password_validate_icon.h"
 #include "ui/boxes/boost_box.h" // Ui::StartFireworks.
 #include "ui/boxes/confirm_box.h"
-#include "ui/rect.h"
 #include "ui/text/format_values.h"
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
@@ -68,37 +65,6 @@ ValidatePassword:
 namespace Settings {
 namespace CloudPassword {
 namespace {
-
-struct Icon {
-	not_null<Lottie::Icon*> icon;
-	Fn<void()> update;
-};
-
-Icon CreateInteractiveLottieIcon(
-		not_null<Ui::VerticalLayout*> container,
-		Lottie::IconDescriptor &&descriptor,
-		style::margins padding) {
-	auto object = object_ptr<Ui::RpWidget>(container);
-	const auto raw = object.data();
-
-	const auto width = descriptor.sizeOverride.width();
-	raw->resize((Rect(descriptor.sizeOverride) + padding).size());
-
-	auto owned = Lottie::MakeIcon(std::move(descriptor));
-	const auto icon = owned.get();
-
-	raw->lifetime().add([kept = std::move(owned)]{});
-
-	raw->paintRequest(
-	) | rpl::on_next([=] {
-		auto p = QPainter(raw);
-		const auto left = (raw->width() - width) / 2;
-		icon->paint(p, left, padding.top());
-	}, raw->lifetime());
-
-	container->add(std::move(object));
-	return { .icon = icon, .update = [=] { raw->update(); } };
-}
 
 [[nodiscard]] not_null<Ui::LinkButton*> AddLinkButton(
 		not_null<Ui::VerticalLayout*> content,
@@ -220,53 +186,29 @@ void Input::setupContent() {
 		};
 	}
 
-	const auto icon = CreateInteractiveLottieIcon(
-		content,
-		{
-			.name = currentStepValidate
-				? u"cloud_password/validate"_q
-				: u"cloud_password/password_input"_q,
-			.sizeOverride = Size(st::settingsCloudPasswordIconSize),
-		},
-		st::settingLocalPasscodeIconPadding);
-
-	SetupHeader(
-		content,
-		QString(),
-		rpl::never<>(),
-		currentStepValidate
-			? tr::lng_settings_suggestion_password_step_input_title()
-			: isCheck
-			? tr::lng_settings_cloud_password_check_subtitle()
-			: hasPassword
-			? tr::lng_settings_cloud_password_manage_password_change()
-			: tr::lng_settings_cloud_password_password_subtitle(),
-		currentStepValidate
-			? tr::lng_settings_suggestion_password_step_input_about()
-			: isCheck
-			? tr::lng_settings_cloud_password_manage_about1()
-			: tr::lng_cloud_password_about());
-
-	Ui::AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
-
-	const auto newInput = AddPasswordField(
-		content,
-		(isCheck
-			? tr::lng_cloud_password_enter_old()
-			: tr::lng_cloud_password_enter_new()),
-		currentStepDataPassword);
-	const auto reenterInput = isCheck
-		? (Ui::PasswordInput*)(nullptr)
-		: AddPasswordField(
-			content,
-			tr::lng_cloud_password_confirm_new(),
-			currentStepDataPassword).get();
-	const auto error = AddError(content, newInput);
-	if (reenterInput) {
-		QObject::connect(reenterInput, &Ui::MaskedInputField::changed, [=] {
-			error->hide();
-		});
+	auto descriptor = CreatePasswordDescriptor(currentStepDataPassword);
+	if (currentStepValidate) {
+		descriptor.lottie = u"cloud_password/validate"_q;
+		descriptor.reactToTyping = false;
+		descriptor.title
+			= tr::lng_settings_suggestion_password_step_input_title();
+		descriptor.about
+			= tr::lng_settings_suggestion_password_step_input_about();
+	} else if (isCheck) {
+		descriptor.title = tr::lng_settings_cloud_password_check_subtitle();
+		descriptor.about = tr::lng_settings_cloud_password_manage_about1();
+	} else if (hasPassword) {
+		descriptor.title
+			= tr::lng_settings_cloud_password_manage_password_change();
 	}
+	if (isCheck) {
+		descriptor.placeholder = tr::lng_cloud_password_enter_old();
+		descriptor.confirm = false;
+	}
+	const auto fields = SetupPasswordFields(content, std::move(descriptor));
+	const auto newInput = fields.input;
+	const auto reenterInput = fields.confirm;
+	const auto error = fields.error;
 
 	if (isCheck) {
 		AddSkipInsteadOfField(content);
@@ -402,12 +344,6 @@ void Input::setupContent() {
 		Ui::AddSkip(content);
 	}
 
-	if (currentStepValidate) {
-		icon.icon->animate(icon.update, 0, icon.icon->framesCount() - 1);
-	} else if (!newInput->text().isEmpty()) {
-		icon.icon->jumpTo(icon.icon->framesCount() / 2, icon.update);
-	}
-
 	const auto checkPassword = [=](const QString &pass) {
 		if (_requestLifetime) {
 			return;
@@ -459,66 +395,27 @@ void Input::setupContent() {
 		content,
 		isCheck ? tr::lng_passcode_check_button() : tr::lng_continue());
 	button->setClickedCallback([=] {
-		const auto newText = newInput->text();
-		const auto reenterText = isCheck ? QString() : reenterInput->text();
-		if (newText.isEmpty()) {
-			newInput->setFocus();
-			newInput->showError();
-		} else if (reenterInput && reenterText.isEmpty()) {
-			reenterInput->setFocus();
-			reenterInput->showError();
-		} else if (reenterInput && (newText != reenterText)) {
-			reenterInput->setFocus();
-			reenterInput->showError();
-			reenterInput->selectAll();
-			error->show();
-			error->setText(tr::lng_cloud_password_differ(tr::now));
-		} else if (isCheck) {
-			checkPassword(newText);
+		const auto password = ValidatePasswordFields(fields);
+		if (!password) {
+			return;
+		}
+		if (isCheck) {
+			checkPassword(*password);
 		} else {
 			auto data = stepData();
 			data.processRecover = currentStepProcessRecover;
-			data.password = newText;
+			data.password = *password;
 			setStepData(std::move(data));
 			showOther(CloudPasswordHintId());
 		}
 	});
 
-	if (!currentStepValidate) {
-		base::qt_signal_producer(
-			newInput.get(),
-			&QLineEdit::textChanged // Covers Undo.
-		) | rpl::map([=] {
-			return newInput->text().isEmpty();
-		}) | rpl::distinct_until_changed(
-		) | rpl::on_next([=](bool empty) {
-			const auto from = icon.icon->frameIndex();
-			const auto to = empty ? 0 : (icon.icon->framesCount() / 2 - 1);
-			icon.icon->animate(icon.update, from, to);
-		}, content->lifetime());
-	}
-
-	const auto submit = [=] {
-		if (!reenterInput || reenterInput->hasFocus()) {
-			button->clicked({}, Qt::LeftButton);
-		} else {
-			reenterInput->setFocus();
-		}
-	};
-	QObject::connect(newInput, &Ui::MaskedInputField::submitted, submit);
-	if (reenterInput) {
-		using namespace Ui;
-		QObject::connect(reenterInput, &MaskedInputField::submitted, submit);
-	}
+	SubmitPasswordFields(fields, [=] {
+		button->clicked({}, Qt::LeftButton);
+	});
 
 	setFocusCallback(crl::guard(content, [=] {
-		if (isCheck || newInput->text().isEmpty()) {
-			newInput->setFocus();
-		} else if (reenterInput->text().isEmpty()) {
-			reenterInput->setFocus();
-		} else {
-			newInput->setFocus();
-		}
+		FocusPasswordFields(fields);
 	}));
 
 	Ui::ResizeFitChild(this, content);

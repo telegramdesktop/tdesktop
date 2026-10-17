@@ -8,7 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/effects/animations.h"
+#include "ui/rp_widget.h"
 #include "base/object_ptr.h"
+#include "base/unique_qptr.h"
 
 class History;
 class HistoryItem;
@@ -19,6 +21,7 @@ class ChatStyle;
 class ScrollArea;
 class ElasticScroll;
 class JumpDownButton;
+class PopupMenu;
 } // namespace Ui
 
 namespace Data {
@@ -27,6 +30,8 @@ class Thread;
 } // namespace Data
 
 namespace HistoryView {
+
+class StashButton;
 
 struct CornerButton {
 	template <typename ...Args>
@@ -43,6 +48,7 @@ enum class CornerButtonType {
 	Mentions,
 	Reactions,
 	PollVotes,
+	Stash,
 };
 
 class CornerButtonsDelegate {
@@ -82,10 +88,14 @@ public:
 	void skipReplyReturn(FullMsgId id);
 	void calculateNextReplyReturn();
 
+	[[nodiscard]] bool ignoresVisibility() const;
 	void updateVisibility(Type type, bool shown);
 	void updateUnreadThingsVisibility();
 	void updateJumpDownVisibility(std::optional<int> counter = {});
 	void updatePositions();
+
+	[[nodiscard]] rpl::producer<> stashClicks() const;
+	void setStashMenuFiller(Fn<void(not_null<Ui::PopupMenu*>)> filler);
 
 	void finishAnimations();
 
@@ -111,6 +121,11 @@ private:
 	[[nodiscard]] CornerButton &buttonByType(Type type);
 	[[nodiscard]] History *lookupHistory() const;
 	void showAt(MsgId id);
+	void showStashMenu();
+
+	// The unread counter is painted as a badge, so a screen reader should
+	// have it too - as the description, next to the unchanging name.
+	void updateAccessibleDescription(CornerButton &button);
 
 	const not_null<QWidget*> _parent;
 	const Fn<bool(QEvent*)> _scrollViewportEvent;
@@ -118,10 +133,22 @@ private:
 
 	rpl::lifetime _stLifetime;
 
+	// The buttons stack upwards from the corner, so they are created in the
+	// reverse of their visual order. Keeping them in a column of their own
+	// lets that column sort them by position, and lets the parent place the
+	// whole group after the list instead of before it.
+	Ui::RpWidget _column;
+	QRegion _columnMask;
+
 	CornerButton _down;
 	CornerButton _mentions;
 	CornerButton _reactions;
 	CornerButton _pollVotes;
+	CornerButton _stash;
+	const not_null<StashButton*> _stashButton;
+	rpl::event_stream<> _stashClicks;
+	Fn<void(not_null<Ui::PopupMenu*>)> _stashMenuFiller;
+	base::unique_qptr<Ui::PopupMenu> _stashMenu;
 
 	HistoryItem *_replyReturn = nullptr;
 	QVector<FullMsgId> _replyReturns;

@@ -159,6 +159,16 @@ private:
 	void eraseSettledHtmlExports();
 
 	void trackSession(not_null<Main::Session*> session);
+
+	// Each markdown window is a parentless top level window, and
+	// Markdown::Controller::active() is that window's isActiveWindow(),
+	// so at most one entry of _markdowns can report itself active. That
+	// lets a single key stand for "the focused markdown window": a caller
+	// acting only on the returned key is not skipping a second focused
+	// window that a scan of the whole map would have found.
+	[[nodiscard]] QString activeMarkdownKey() const;
+	void takeMarkdown(const QString &key);
+
 	void bindMarkdown(
 		const QString &key,
 		not_null<Main::Session*> session,
@@ -168,6 +178,13 @@ private:
 		FullMsgId itemId);
 	void closeMarkdownsForSession(not_null<Main::Session*> session);
 	void closeSessionDataViews(not_null<Main::Session*> session);
+	void cancelRichMessageRequests(not_null<Main::Session*> session);
+	void finishInPageRequest(
+		not_null<Main::Session*> session,
+		mtpRequestId requestId);
+	void cancelInPageRequests(not_null<Main::Session*> session);
+	void cancelIvRequest();
+	void closeLegacyWindows();
 
 	ProcessReceivedPageResult processReceivedPage(
 		not_null<Main::Session*> session,
@@ -207,6 +224,9 @@ private:
 	Main::Session *_ivRequestSession = nullptr;
 	QString _ivRequestUri;
 	mtpRequestId _ivRequestId = 0;
+	base::flat_map<
+		not_null<Main::Session*>,
+		base::flat_set<mtpRequestId>> _inPageRequested;
 
 	std::unique_ptr<TonSite> _tonSite;
 

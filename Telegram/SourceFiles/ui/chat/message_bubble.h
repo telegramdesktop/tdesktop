@@ -121,8 +121,17 @@ struct ComplexBubble {
 	const std::vector<BubbleSelectionInterval> &selection;
 };
 
+struct TornEdgeCache;
+
+struct BubbleWithGaps {
+	SimpleBubble simple;
+	const std::vector<BubbleSelectionInterval> &gaps;
+	not_null<TornEdgeCache*> torn;
+};
+
 void PaintBubble(QPainter &p, const SimpleBubble &args);
 void PaintBubble(QPainter &p, const ComplexBubble &args);
+void PaintBubble(QPainter &p, const BubbleWithGaps &args);
 
 void PaintPatternBubblePart(
 	QPainter &p,

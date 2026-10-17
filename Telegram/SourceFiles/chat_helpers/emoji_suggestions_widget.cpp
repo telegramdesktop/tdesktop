@@ -55,6 +55,7 @@ public:
 	void showWithQuery(SuggestionsQuery query, bool force = false);
 	void selectFirstResult();
 	bool handleKeyEvent(int key);
+	[[nodiscard]] bool consumesEnter() const;
 
 	[[nodiscard]] rpl::producer<bool> toggleAnimated() const;
 
@@ -684,6 +685,10 @@ void SuggestionsWidget::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
+bool SuggestionsWidget::consumesEnter() const {
+	return (_selected >= 0) && (_selected < int(_rows.size()));
+}
+
 bool SuggestionsWidget::triggerSelectedRow() const {
 	if (_selected >= 0) {
 		triggerRow(_rows[_selected]);
@@ -868,6 +873,10 @@ void SuggestionsController::handleTextChange() {
 			_suggestions->selectFirstResult();
 		}
 	}
+}
+
+bool SuggestionsController::consumesEnter() const {
+	return shown() && _suggestions && _suggestions->consumesEnter();
 }
 
 void SuggestionsController::showWithQuery(SuggestionsQuery query) {

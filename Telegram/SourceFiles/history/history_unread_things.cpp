@@ -234,7 +234,7 @@ void Proxy::checkAdd(MsgId msgId, bool resolved) {
 	if (!_data) {
 		return;
 	}
-	auto &list = resolveList();
+	const auto &list = resolveList();
 	if (!list.loadedCount() || list.maxLoaded() <= msgId) {
 		return;
 	}

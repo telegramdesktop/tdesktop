@@ -7,14 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/attach/attach_prepare.h"
 
+#include "editor/scene/scene.h"
 #include "ui/rp_widget.h"
 #include "ui/widgets/popup_menu.h"
 
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/image/image_prepare.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/ui_utility.h"
+#include "lang/lang_keys.h"
 #include "core/mime_type.h"
+#include "styles/style_chat.h"
+#include "styles/style_chat_style.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_media_player.h"
 
@@ -36,7 +41,7 @@ struct GroupRange {
 	}
 };
 
-struct HighQualityBadgeCache {
+struct MediaBadgeCache {
 	QRgb bg = 0;
 	QRgb fg = 0;
 	qreal ratio = 0.;
@@ -45,10 +50,9 @@ struct HighQualityBadgeCache {
 	QImage image;
 };
 
-[[nodiscard]] const QImage &HighQualityBadgeImage(
-		const style::ComposeControls &st) {
-	static auto cache = HighQualityBadgeCache();
-	const auto text = u"HD"_q;
+[[nodiscard]] const QImage &MediaBadgeImage(
+		MediaBadgeCache &cache,
+		const QString &text) {
 	const auto &font = st::mediaPlayerSpeedButton.font;
 	const auto xpadding = style::ConvertScale(2.);
 	const auto ypadding = 0;
@@ -99,6 +103,37 @@ struct HighQualityBadgeCache {
 	return cache.image;
 }
 
+[[nodiscard]] const QImage &HighQualityBadgeImage() {
+	static auto cache = MediaBadgeCache();
+	return MediaBadgeImage(cache, u"HD"_q);
+}
+
+[[nodiscard]] const QImage &AnimatedBadgeImage() {
+	static auto cache = MediaBadgeCache();
+	return MediaBadgeImage(cache, u"GIF"_q);
+}
+
+void PaintMediaBadge(
+		QPainter &p,
+		const style::ComposeControls &st,
+		QRect rect,
+		RectPart origin,
+		const QImage &badge) {
+	const auto outerSkip = st.photoQualityBadgeOuterSkip;
+	const auto size = badge.size() / badge.devicePixelRatio();
+	const auto left = (origin == RectPart::TopLeft)
+		|| (origin == RectPart::BottomLeft);
+	const auto top = (origin == RectPart::TopLeft)
+		|| (origin == RectPart::TopRight);
+	const auto x = left
+		? (rect.x() + outerSkip)
+		: (rect.x() + rect.width() - size.width() - outerSkip);
+	const auto y = top
+		? (rect.y() + outerSkip)
+		: (rect.y() + rect.height() - size.height() - outerSkip);
+	p.drawImage(QPointF(x, y), badge);
+}
+
 [[nodiscard]] AlbumType GroupTypeForFile(
 		PreparedFile::Type type,
 		bool groupFiles,
@@ -117,6 +152,14 @@ struct HighQualityBadgeCache {
 		: AlbumType::None;
 }
 
+[[nodiscard]] bool SendsAnimationAsGif(const PreparedFile &file) {
+	const auto job = file.animationJob.get();
+	const auto still = job
+		? std::get_if<Media::Encode::StillSource>(&job->source)
+		: nullptr;
+	return job && (!still || still->music.empty());
+}
+
 [[nodiscard]] std::vector<GroupRange> GroupRanges(
 		const std::vector<PreparedFile> &files,
 		SendFilesWay way,
@@ -131,10 +174,13 @@ struct HighQualityBadgeCache {
 	auto from = 0;
 	auto groupType = AlbumType::None;
 	for (auto i = 0; i != int(files.size()); ++i) {
-		const auto fileGroupType = GroupTypeForFile(
-			files[i].type,
-			groupFiles,
-			sendImagesAsPhotos);
+		const auto fileGroupType = (SendsAnimationAsGif(files[i])
+			|| files[i].sendsVideoAsGif())
+			? AlbumType::None
+			: GroupTypeForFile(
+				files[i].type,
+				groupFiles,
+				sendImagesAsPhotos);
 		const auto count = (i - from);
 		if ((i > from && groupType != fileGroupType)
 			|| ((groupType != AlbumType::None) && (count == kMaxAlbumCount))) {
@@ -207,6 +253,76 @@ bool PreparedFile::canUseHighQualityPhoto() const {
 			|| (originalDimensions.height() > kStandardPhotoSideLimit));
 }
 
+int PreparedFile::videoQuality() const {
+	using Video = PreparedFileInformation::Video;
+	const auto video = information
+		? std::get_if<Video>(&information->media)
+		: nullptr;
+	return video ? video->modifications.quality : 0;
+}
+
+bool PreparedFile::canEditVideo() const {
+	Expects(information != nullptr);
+
+	using Video = PreparedFileInformation::Video;
+	const auto video = std::get_if<Video>(&information->media);
+	// Soundless clips are sent as GIFs, but stay editable; isVideoFile() is
+	// too narrow here. Playback streams either from a file or from bytes.
+	return (type == PreparedFile::Type::Video)
+		&& video
+		&& !video->isWebmSticker
+		&& (!path.isEmpty() || !content.isEmpty());
+}
+
+bool PreparedFile::sendsVideoAsGif() const {
+	const auto video = information
+		? std::get_if<PreparedFileInformation::Video>(&information->media)
+		: nullptr;
+	// A source without audio already is a GIF and grouping it has always been
+	// allowed, so only a video turned into one has to leave the album.
+	return video && video->hasAudio && video->modifications.gif;
+}
+
+int64 PreparedFile::memoryUsage() const {
+	using Image = PreparedFileInformation::Image;
+	using Song = PreparedFileInformation::Song;
+	using Video = PreparedFileInformation::Video;
+	auto result = int64(content.size()) + int64(preview.sizeInBytes());
+	if (information) {
+		v::match(information->media, [&](const Image &data) {
+			result += int64(data.data.sizeInBytes())
+				+ int64(data.bytes.size());
+		}, [&](const Song &data) {
+			result += int64(data.cover.sizeInBytes());
+		}, [&](const Video &data) {
+			result += int64(data.thumbnail.sizeInBytes());
+		}, [](v::null_t) {
+		});
+	}
+	if (videoCover) {
+		result += videoCover->memoryUsage();
+	}
+	return result;
+}
+
+bool PreparedFile::hasAnimatedEditScene() const {
+	const auto image = information
+		? std::get_if<PreparedFileInformation::Image>(&information->media)
+		: nullptr;
+	return image
+		&& image->modifications.paint
+		&& image->modifications.paint->hasAnimatedResult();
+}
+
+bool PreparedFile::hasAudioEditScene() const {
+	const auto image = information
+		? std::get_if<PreparedFileInformation::Image>(&information->media)
+		: nullptr;
+	return image
+		&& image->modifications.paint
+		&& image->modifications.paint->hasSoundResult();
+}
+
 AlbumType PreparedFile::albumType(bool sendImagesAsPhotos) const {
 	switch (type) {
 	case Type::Photo:
@@ -276,6 +392,17 @@ void PreparedList::mergeToEnd(PreparedList &&other, bool cutToAlbumSize) {
 		}
 		files.push_back(std::move(file));
 	}
+}
+
+int64 PreparedList::memoryUsage() const {
+	auto result = int64();
+	for (const auto &file : files) {
+		result += file.memoryUsage();
+	}
+	for (const auto &file : filesToProcess) {
+		result += file.memoryUsage();
+	}
+	return result;
 }
 
 bool PreparedList::canBeSentInSlowmode() const {
@@ -428,6 +555,16 @@ std::shared_ptr<PreparedBundle> PrepareFilesBundle(
 	});
 }
 
+std::shared_ptr<PreparedBundle> MakeSingleFileBundle(PreparedList &&list) {
+	const auto way = SendFilesWay();
+	const auto slowmode = false;
+	const auto ctrlShiftEnter = false;
+	return PrepareFilesBundle(
+		DivideByGroups(std::move(list), way, slowmode),
+		way,
+		ctrlShiftEnter);
+}
+
 int MaxAlbumItems() {
 	return kMaxAlbumCount;
 }
@@ -503,20 +640,82 @@ void PaintHighQualityBadge(
 		const style::ComposeControls &st,
 		QRect rect,
 		RectPart origin) {
-	const auto outerSkip = st.photoQualityBadgeOuterSkip;
-	const auto &badge = HighQualityBadgeImage(st);
-	const auto size = badge.size() / badge.devicePixelRatio();
-	const auto left = (origin == RectPart::TopLeft)
-		|| (origin == RectPart::BottomLeft);
-	const auto top = (origin == RectPart::TopLeft)
-		|| (origin == RectPart::TopRight);
-	const auto x = left
-		? (rect.x() + outerSkip)
-		: (rect.x() + rect.width() - size.width() - outerSkip);
-	const auto y = top
-		? (rect.y() + outerSkip)
-		: (rect.y() + rect.height() - size.height() - outerSkip);
-	p.drawImage(QPointF(x, y), badge);
+	PaintMediaBadge(p, st, rect, origin, HighQualityBadgeImage());
+}
+
+void PaintAnimatedBadge(
+		QPainter &p,
+		const style::ComposeControls &st,
+		QRect rect,
+		RectPart origin) {
+	PaintMediaBadge(p, st, rect, origin, AnimatedBadgeImage());
+}
+
+void PaintVideoQualityBadge(QPainter &p, QRect preview, int quality) {
+	if (quality <= 0) {
+		return;
+	}
+	const auto text = QString::number(quality) + 'p';
+	const auto delta = st::msgDateImgDelta;
+	const auto &padding = st::msgDateImgPadding;
+	const auto size = QSize(
+		st::normalFont->width(text) + 2 * padding.x(),
+		st::normalFont->height + 2 * padding.y());
+	if (preview.width() < 2 * size.width()
+		|| preview.height() < 2 * size.height()) {
+		return;
+	}
+	const auto rect = Rect(
+		preview.x() + delta,
+		preview.y() + preview.height() - delta - size.height(),
+		size);
+	auto hq = PainterHighQualityEnabler(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::msgDateImgBg);
+	const auto radius = rect.height() / 2.;
+	p.drawRoundedRect(rect, radius, radius);
+	p.setFont(st::normalFont);
+	p.setPen(st::msgDateImgFg);
+	p.drawText(rect, Qt::AlignCenter, text);
+}
+
+void PaintMediaTtlBadge(QPainter &p, QRect preview, crl::time ttlSeconds) {
+	if (!ttlSeconds) {
+		return;
+	}
+	const auto singleView = (ttlSeconds == crl::time(0x7FFFFFFF));
+	const auto delta = st::msgDateImgDelta;
+	const auto &padding = st::msgDateImgPadding;
+	const auto size = singleView
+		? QSize(
+			st::historyVideoMessageTtlIcon.width() + 2 * padding.y(),
+			st::historyVideoMessageTtlIcon.height() + 2 * padding.y())
+		: QSize(
+			(st::normalFont->width(
+				tr::lng_seconds_tiny(tr::now, lt_count, ttlSeconds))
+				+ 2 * padding.x()),
+			st::normalFont->height + 2 * padding.y());
+	if (preview.width() < 2 * size.width()
+		|| preview.height() < 2 * size.height()) {
+		return;
+	}
+	const auto rect = Rect(preview.x() + delta, preview.y() + delta, size);
+	auto hq = PainterHighQualityEnabler(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::msgDateImgBg);
+	if (singleView) {
+		p.drawEllipse(rect);
+		st::historyVideoMessageTtlIcon.paintInCenter(p, rect);
+	} else {
+		const auto radius = rect.height() / 2.;
+		p.drawRoundedRect(rect, radius, radius);
+		p.setFont(st::normalFont);
+		p.setPen(st::msgDateImgFg);
+		p.drawText(
+			rect,
+			Qt::AlignCenter,
+			tr::lng_seconds_tiny(tr::now, lt_count, ttlSeconds));
+	}
 }
 
 } // namespace Ui

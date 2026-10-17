@@ -28,6 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_message_reactions.h"
 #include "data/data_folder.h"
 #include "data/data_changes.h"
+#include "data/stickers/data_custom_emoji.h"
+#include "chat_helpers/stickers_emoji_pack.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -73,9 +75,11 @@ auto PlainPrimaryUsernameValue(not_null<PeerData*> peer) {
 	}) | rpl::flatten_latest();
 }
 
-void StripExternalLinks(TextWithEntities &text) {
-	const auto local = [](const QString &url) {
-		return !UrlRequiresConfirmation(QUrl::fromUserInput(url));
+void StripExternalLinks(
+		not_null<Main::Session*> session,
+		TextWithEntities &text) {
+	const auto local = [&](const QString &url) {
+		return !UrlRequiresConfirmation(session, QUrl::fromUserInput(url));
 	};
 	const auto notLocal = [&](const EntityInText &entity) {
 		if (entity.type() == EntityType::CustomUrl) {
@@ -254,7 +258,7 @@ TextWithEntities AboutWithEntities(
 	auto result = TextWithEntities{ value };
 	TextUtilities::ParseEntities(result, flags);
 	if (stripExternal) {
-		StripExternalLinks(result);
+		StripExternalLinks(&peer->session(), result);
 	}
 	return result;
 }
@@ -364,6 +368,13 @@ rpl::producer<bool> IsContactValue(not_null<UserData*> user) {
 	) | rpl::map([=] {
 		return user->isContact();
 	});
+}
+
+bool CanReportBot(not_null<UserData*> user) {
+	return user->isBot()
+		&& !user->isSelf()
+		&& !user->isSupport()
+		&& !user->isVerifyCodes();
 }
 
 [[nodiscard]] rpl::producer<QString> InviteToChatButton(
@@ -756,6 +767,36 @@ rpl::producer<QString> BirthdayLabelText(
 			tr::lng_info_birthday_today_label(),
 			tr::lng_info_birthday_label());
 	}) | rpl::flatten_latest();
+}
+
+rpl::producer<TextWithEntities> BirthdayValueMarkedText(
+		not_null<UserData*> user,
+		rpl::producer<Data::Birthday> birthday) {
+	const auto session = &user->session();
+	const auto cake = Data::BirthdayCake();
+	const auto emoji = Ui::Emoji::Find(cake);
+	return rpl::combine(
+		BirthdayValueText(std::move(birthday)),
+		rpl::single(rpl::empty) | rpl::then(
+			session->emojiStickersPack().refreshed())
+	) | rpl::map([=](const QString &text, const auto &) {
+		auto result = TextWithEntities{ text };
+		const auto position = emoji ? text.indexOf(cake) : -1;
+		if (position < 0) {
+			return result;
+		}
+		const auto id = session->emojiStickersPack().standardEmojiDocument(
+			emoji);
+		if (id) {
+			result.entities.push_back({
+				EntityType::CustomEmoji,
+				int(position),
+				int(cake.size()),
+				Data::SerializeCustomEmojiId(id),
+			});
+		}
+		return result;
+	});
 }
 
 rpl::producer<QString> BirthdayValueText(

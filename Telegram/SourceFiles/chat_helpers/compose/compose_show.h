@@ -64,6 +64,7 @@ public:
 	virtual void processChosenSticker(FileChosen &&chosen) const = 0;
 
 	[[nodiscard]] virtual Window::SessionController *resolveWindow() const;
+	[[nodiscard]] virtual bool canResolveWindow() const;
 };
 
 } // namespace ChatHelpers

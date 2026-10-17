@@ -1,0 +1,44 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/basic.style";
+using "ui/widgets/widgets.style";
+
+PasscodeStrengthMeter {
+	height: pixels;
+	segmentSpacing: pixels;
+	segmentRadius: pixels;
+	labelSkip: pixels;
+	label: FlatLabel;
+	emptyFg: color;
+	veryWeakFg: color;
+	weakFg: color;
+	goodFg: color;
+	strongFg: color;
+}
+
+defaultPasscodeStrengthMeter: PasscodeStrengthMeter {
+	height: 4px;
+	segmentSpacing: 4px;
+	segmentRadius: 2px;
+	labelSkip: 6px;
+	label: FlatLabel(defaultFlatLabel) {
+		// A zero minWidth makes FlatLabel build its Text::String with
+		// minResizeWidth == kQFixedMax, and Text::String::enumerateLines
+		// then lays the advice out at that width instead of the width it
+		// was given, so a sentence wider than the meter reports a single
+		// line and loses its tail. Any small non-zero value restores the
+		// wrap at the width the meter actually has.
+		minWidth: 10px;
+		textFg: windowSubTextFg;
+	}
+	emptyFg: windowBgOver;
+	veryWeakFg: attentionButtonFg;
+	weakFg: statisticsChartLineOrange;
+	goodFg: statisticsChartLineLightgreen;
+	strongFg: statisticsChartLineGreen;
+}

@@ -398,7 +398,8 @@ void Widget::scrollDownClicked() {
 
 void Widget::scrollToAnimationCallback() {
 	const auto scrollTo = _scroll->scrollTopMax();
-	_scroll->scrollToY(qRound(_scrollToAnimation.value(scrollTo)));
+	const auto value = _scrollToAnimation.value(scrollTo);
+	_scroll->scrollToY(int(base::SafeRound(value)));
 }
 
 void Widget::updateScrollDownVisibility() {
@@ -561,6 +562,11 @@ std::shared_ptr<Window::SectionMemento> Widget::createMemento() {
 	auto result = std::make_shared<SectionMemento>(channel());
 	saveState(result.get());
 	return result;
+}
+
+auto Widget::createIdentityMemento()
+-> std::shared_ptr<Window::SectionMemento> {
+	return std::make_shared<SectionMemento>(channel());
 }
 
 void Widget::saveState(not_null<SectionMemento*> memento) {

@@ -9,6 +9,7 @@ layout(binding = 1) uniform sampler2D s_texture;
 layout(std140, binding = 0) uniform Params {
 	vec2 viewport;
 	float g_opacity;
+	float _flipY; // Used by the vertex stage only.
 	float o_opacity;
 };
 

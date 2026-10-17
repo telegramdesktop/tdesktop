@@ -137,6 +137,9 @@ if len(version_parts) < 2:
 if len(version_parts) > 4:
   print('Error: bad version passed ' + version)
   sys.exit(1)
+if (int(version_parts[0]), int(version_parts[1])) < (7, 2):
+  print('Error: the v2 update format requires version 7.2 or newer.')
+  sys.exit(1)
 version_major = version_parts[0] + '.' + version_parts[1]
 if len(version_parts) == 2:
   version = version_major + '.0'
@@ -192,62 +195,58 @@ files.append({
   'mime': 'application/x-gzip',
   'label': 'Source code (tar.gz, full)',
 })
-files.append({
-  'local': 'tsetup.' + version_full + '.exe',
-  'remote': 'tsetup.' + version_full + '.exe',
-  'backup_folder': 'tsetup',
-  'mime': 'application/octet-stream',
-  'label': 'Windows 32 bit: Installer',
-})
-files.append({
-  'local': 'tportable.' + version_full + '.zip',
-  'remote': 'tportable.' + version_full + '.zip',
-  'backup_folder': 'tsetup',
-  'mime': 'application/zip',
-  'label': 'Windows 32 bit: Portable',
-})
-files.append({
-  'local': 'tsetup-x64.' + version_full + '.exe',
-  'remote': 'tsetup-x64.' + version_full + '.exe',
-  'backup_folder': 'tx64',
-  'mime': 'application/octet-stream',
-  'label': 'Windows 64 bit: Installer',
-})
-files.append({
-  'local': 'tportable-x64.' + version_full + '.zip',
-  'remote': 'tportable-x64.' + version_full + '.zip',
-  'backup_folder': 'tx64',
-  'mime': 'application/zip',
-  'label': 'Windows 64 bit: Portable',
-})
-files.append({
-  'local': 'tsetup-arm64.' + version_full + '.exe',
-  'remote': 'tsetup-arm64.' + version_full + '.exe',
-  'backup_folder': 'tarm64',
-  'mime': 'application/octet-stream',
-  'label': 'Windows on ARM: Installer',
-})
-files.append({
-  'local': 'tportable-arm64.' + version_full + '.zip',
-  'remote': 'tportable-arm64.' + version_full + '.zip',
-  'backup_folder': 'tarm64',
-  'mime': 'application/zip',
-  'label': 'Windows on ARM: Portable',
-})
-files.append({
-  'local': 'tsetup.' + version_full + '.dmg',
-  'remote': 'tsetup.' + version_full + '.dmg',
-  'backup_folder': 'tmac',
-  'mime': 'application/octet-stream',
-  'label': 'macOS 10.13+: Installer',
-})
-files.append({
-  'local': 'tsetup.' + version_full + '.tar.xz',
-  'remote': 'tsetup.' + version_full + '.tar.xz',
-  'backup_folder': 'tlinux',
-  'mime': 'application/octet-stream',
-  'label': 'Linux 64 bit: Binary',
-})
+
+artifact_suffix = '-beta' if beta == 1 else ''
+
+def appendFile(name, backup_folder, mime, label):
+  files.append({
+    'local': name,
+    'remote': name,
+    'backup_folder': backup_folder,
+    'mime': mime,
+    'label': label,
+  })
+
+appendFile(
+  'td-setup-win-x86-' + version + artifact_suffix + '.exe',
+  'win-x86',
+  'application/octet-stream',
+  'Windows 32 bit: Installer')
+appendFile(
+  'td-portable-win-x86-' + version + artifact_suffix + '.zip',
+  'win-x86',
+  'application/zip',
+  'Windows 32 bit: Portable')
+appendFile(
+  'td-setup-win-x64-' + version + artifact_suffix + '.exe',
+  'win-x64',
+  'application/octet-stream',
+  'Windows 64 bit: Installer')
+appendFile(
+  'td-portable-win-x64-' + version + artifact_suffix + '.zip',
+  'win-x64',
+  'application/zip',
+  'Windows 64 bit: Portable')
+appendFile(
+  'td-setup-win-arm-' + version + artifact_suffix + '.exe',
+  'win-arm',
+  'application/octet-stream',
+  'Windows on ARM: Installer')
+appendFile(
+  'td-portable-win-arm-' + version + artifact_suffix + '.zip',
+  'win-arm',
+  'application/zip',
+  'Windows on ARM: Portable')
+appendFile(
+  'td-setup-mac-' + version + artifact_suffix + '.dmg',
+  'mac',
+  'application/octet-stream',
+  'macOS 10.13+: Installer')
+appendFile(
+  'td-setup-linux-x64-' + version + artifact_suffix + '.tar.xz',
+  'linux-x64',
+  'application/octet-stream',
+  'Linux 64 bit: Binary')
 
 r = requests.get(url + 'repos/telegramdesktop/tdesktop/releases/tags/v' + version)
 

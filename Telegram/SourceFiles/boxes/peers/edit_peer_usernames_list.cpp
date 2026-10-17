@@ -397,6 +397,16 @@ void UsernamesList::rebuild(const Data::Usernames &usernames) {
 					_rows,
 					data.oldPosition,
 					data.newPosition);
+				if (_isBot) {
+					auto &usernames = _peer->session().api().usernames();
+					_reorderLifetime.destroy();
+					_reorderLifetime = usernames.reorder(
+						_peer,
+						order()
+					) | rpl::on_done(crl::guard(this, [=] {
+						_reorderLifetime.destroy();
+					}));
+				}
 			}
 		}
 	}, content->lifetime());

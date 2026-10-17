@@ -136,7 +136,7 @@ void LargeEmoji::paintCustom(
 	const auto outer = Ui::Text::AdjustCustomEmojiSize(inner);
 	const auto skip = (inner - outer) / 2;
 	//const auto preview = context.imageStyle()->msgServiceBg->c;
-	auto &textst = context.st->messageStyle(false, false);
+	const auto &textst = context.st->messageStyle(false, false);
 	if (context.selected()) {
 		const auto factor = style::DevicePixelRatio();
 		const auto size = QSize(outer, outer) * factor;

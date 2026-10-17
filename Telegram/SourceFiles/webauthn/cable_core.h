@@ -122,7 +122,6 @@ struct EcKeyDeleter {
 using EcKeyPtr = std::unique_ptr<EC_KEY, EcKeyDeleter>;
 
 [[nodiscard]] bool RandomBytes(uint8_t *out, size_t size);
-[[nodiscard]] std::array<uint8_t, 20> Sha1Digest(ByteSpan data);
 [[nodiscard]] std::array<uint8_t, 32> Sha256Digest(ByteSpan data);
 [[nodiscard]] std::array<uint8_t, 32> HmacSha256(
 	ByteSpan key,

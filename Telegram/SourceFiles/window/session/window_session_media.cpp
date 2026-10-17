@@ -89,6 +89,12 @@ void SessionController::showDrawToReplyFilesBox(
 		not_null<Data::Thread*> thread,
 		FullMsgId replyTo,
 		Ui::PreparedList &&list) {
+	const auto replyItem = session().data().message(replyTo);
+	if (replyItem
+		&& replyItem->isEphemeral()
+		&& !CanReplyToEphemeral(replyItem)) {
+		replyTo = FullMsgId();
+	}
 	const auto weak = base::make_weak(thread);
 	const auto peer = thread->peer();
 	const auto show = uiShow();

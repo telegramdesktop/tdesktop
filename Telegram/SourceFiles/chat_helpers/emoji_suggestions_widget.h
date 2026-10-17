@@ -57,6 +57,7 @@ public:
 	[[nodiscard]] bool shown() const {
 		return _shown && !_forceHidden;
 	}
+	[[nodiscard]] bool consumesEnter() const;
 	void setReplaceCallback(Fn<void(
 		int from,
 		int till,

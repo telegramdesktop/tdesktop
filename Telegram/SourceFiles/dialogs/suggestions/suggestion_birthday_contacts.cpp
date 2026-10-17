@@ -20,8 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/ui_utility.h"
 #include "window/window_session_controller.h"
-#include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_dialogs.h"
 #include "styles/style_userpic_button.h"
 
 namespace Dialogs::TopBarSuggestions {
@@ -103,10 +103,10 @@ void Activate(ActivateArgs args) {
 					inRow.push_back({ .peer = user });
 				}
 			}
-			const auto &userpicsSt = st::historyCommentsUserpics;
+			const auto &userpicsSt = st::dialogsTopBarSuggestionUserpics;
 			const auto rowCount = int(inRow.size());
-			const auto rowWidth = rowCount * userpicsSt.size
-				- userpicsSt.shift;
+			const auto rowWidth = userpicsSt.size
+				+ (rowCount - 1) * (userpicsSt.size - userpicsSt.shift);
 			const auto rowHeight = userpicsSt.size;
 			const auto widget = Ui::CreateChild<Ui::RpWidget>(content.get());
 			widget->resize(rowWidth, rowHeight);
@@ -119,7 +119,7 @@ void Activate(ActivateArgs args) {
 					HistoryView::GenerateUserpicsInRow(
 						s->userpics,
 						s->inRow,
-						st::historyCommentsUserpics,
+						st::dialogsTopBarSuggestionUserpics,
 						3);
 				}
 				p.drawImage(0, 0, s->userpics);

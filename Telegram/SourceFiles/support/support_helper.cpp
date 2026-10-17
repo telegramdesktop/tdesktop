@@ -9,8 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_key.h"
 #include "data/data_drafts.h"
-#include "data/data_forum.h"
-#include "data/data_forum_topic.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
@@ -18,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "boxes/abstract_box.h"
 #include "ui/boxes/confirm_box.h"
-#include "ui/chat/attach/attach_prepare.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_entity.h"
 #include "ui/text/text_options.h"
@@ -30,8 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "window/window_session_controller.h"
 #include "storage/storage_account.h"
-#include "storage/storage_media_prepare.h"
-#include "storage/localimageloader.h"
 #include "core/launcher.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -668,86 +663,6 @@ QString ChatOccupiedString(not_null<History*> history) {
 	return (name.isEmpty() || name.startsWith(u"[rand^"_q))
 		? hand + " chat taken"
 		: hand + ' ' + name + " is here";
-}
-
-QString InterpretSendPath(
-		not_null<Window::SessionController*> window,
-		const QString &path) {
-	QFile f(path);
-	if (!f.open(QIODevice::ReadOnly)) {
-		return "App Error: Could not open interpret file: " + path;
-	}
-	const auto content = QString::fromUtf8(f.readAll());
-	f.close();
-	const auto lines = content.split('\n');
-	auto toId = PeerId(0);
-	auto topicRootId = MsgId(0);
-	auto filePath = QString();
-	auto caption = QString();
-	for (const auto &line : lines) {
-		if (line.startsWith(u"from: "_q)) {
-			if (window->session().userId().bare
-				!= base::StringViewMid(
-					line,
-					u"from: "_q.size()).toULongLong()) {
-				return "App Error: Wrong current user.";
-			}
-		} else if (line.startsWith(u"channel: "_q)) {
-			const auto channelId = base::StringViewMid(
-				line,
-				u"channel: "_q.size()).toULongLong();
-			toId = peerFromChannel(channelId);
-		} else if (line.startsWith(u"topic: "_q)) {
-			const auto topicId = base::StringViewMid(
-				line,
-				u"topic: "_q.size()).toULongLong();
-			topicRootId = MsgId(topicId);
-		} else if (line.startsWith(u"file: "_q)) {
-			const auto path = line.mid(u"file: "_q.size());
-			if (!QFile(path).exists()) {
-				return "App Error: Could not find file with path: " + path;
-			}
-			filePath = path;
-		} else if (line.startsWith(u"caption: "_q)) {
-			caption = line.mid(u"caption: "_q.size());
-		} else if (!caption.isEmpty()) {
-			caption += '\n' + line;
-		} else {
-			return "App Error: Invalid command: " + line;
-		}
-	}
-	const auto history = window->session().data().historyLoaded(toId);
-	const auto sendTo = [=](not_null<Data::Thread*> thread) {
-		window->showThread(thread);
-		const auto premium = thread->session().user()->isPremium();
-		auto list = Storage::PrepareMediaList(
-			QStringList(filePath),
-			st::sendMediaPreviewSize,
-			premium);
-		if (!list.files.empty()) {
-			list.files.back().caption.text = caption;
-			thread->session().api().sendFiles(
-				std::move(list),
-				SendMediaType::File,
-				nullptr,
-				Api::SendAction(thread));
-		}
-	};
-	if (!history) {
-		return "App Error: Could not find channel with id: "
-			+ QString::number(peerToChannel(toId).bare);
-	} else if (const auto forum = history->asForum()) {
-		forum->requestTopic(topicRootId, [=] {
-			if (const auto forum = history->asForum()) {
-				if (const auto topic = forum->topicFor(topicRootId)) {
-					sendTo(topic);
-				}
-			}
-		});
-	} else if (!topicRootId) {
-		sendTo(history);
-	}
-	return QString();
 }
 
 } // namespace Support

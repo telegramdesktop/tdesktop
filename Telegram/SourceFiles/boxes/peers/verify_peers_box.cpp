@@ -7,8 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/verify_peers_box.h"
 
+#include "api/api_text_entities.h"
 #include "apiwrap.h"
 #include "boxes/peer_list_controllers.h"
+#include "chat_helpers/message_field.h"
 #include "data/data_user.h"
 #include "history/history.h"
 #include "main/main_app_config.h"
@@ -25,6 +27,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kSetupVerificationToastDuration = 4 * crl::time(1000);
+
+[[nodiscard]] TextWithEntities OnlyTextUrlEntities(TextWithEntities text) {
+	text.entities.erase(
+		ranges::remove_if(text.entities, [](const EntityInText &entity) {
+			return entity.type() != EntityType::CustomUrl;
+		}),
+		text.entities.end());
+	return text;
+}
 
 class Controller final : public ChatsListBoxController {
 public:
@@ -51,16 +62,23 @@ private:
 void Setup(
 		not_null<UserData*> bot,
 		not_null<PeerData*> peer,
-		QString description,
+		TextWithEntities description,
 		Fn<void(QString)> done) {
 	using Flag = MTPbots_SetCustomVerification::Flag;
 	bot->session().api().request(MTPbots_SetCustomVerification(
 		MTP_flags(Flag::f_bot
 			| Flag::f_enabled
-			| (description.isEmpty() ? Flag() : Flag::f_custom_description)),
+			| (description.empty() ? Flag() : Flag::f_custom_description)),
 		bot->inputUser(),
 		peer->input(),
-		MTP_string(description)
+		description.empty()
+			? MTPTextWithEntities()
+			: MTP_textWithEntities(
+				MTP_string(description.text),
+				Api::EntitiesToMTP(
+					&bot->session(),
+					description.entities,
+					Api::ConvertOption::SkipLocal))
 	)).done([=] {
 		done(QString());
 	}).fail([=](const MTP::Error &error) {
@@ -76,7 +94,7 @@ void Remove(
 		MTP_flags(MTPbots_SetCustomVerification::Flag::f_bot),
 		bot->inputUser(),
 		peer->input(),
-		MTPstring()
+		MTPTextWithEntities()
 	)).done([=] {
 		done(QString());
 	}).fail([=](const MTP::Error &error) {
@@ -105,7 +123,7 @@ void Controller::confirmAdd(not_null<PeerData*> peer) {
 	show->show(Box([=](not_null<Ui::GenericBox*> box) {
 		struct State {
 			Ui::InputField *field = nullptr;
-			QString description;
+			TextWithEntities description;
 			bool sent = false;
 		};
 		const auto settings = bot->botInfo
@@ -113,14 +131,16 @@ void Controller::confirmAdd(not_null<PeerData*> peer) {
 			: nullptr;
 		const auto modify = settings && settings->canModifyDescription;
 		const auto state = std::make_shared<State>(State{
-			.description = settings ? settings->customDescription : QString()
+			.description = settings
+				? settings->customDescription
+				: TextWithEntities()
 		});
 
 		const auto limit = session().appConfig().get<int>(
 			u"bot_verification_description_length_limit"_q,
 			70);
 		const auto send = [=] {
-			if (modify && state->description.size() > limit) {
+			if (modify && state->description.text.size() > limit) {
 				state->field->showError();
 				return;
 			} else if (state->sent) {
@@ -128,7 +148,9 @@ void Controller::confirmAdd(not_null<PeerData*> peer) {
 			}
 			state->sent = true;
 			const auto weak = base::make_weak(box);
-			const auto description = modify ? state->description : QString();
+			const auto description = modify
+				? state->description
+				: TextWithEntities();
 			Setup(bot, peer, description, [=](QString error) {
 				if (error.isEmpty()) {
 					if (const auto strong = weak.get()) {
@@ -172,10 +194,33 @@ void Controller::confirmAdd(not_null<PeerData*> peer) {
 			box,
 			st::createPollField,
 			Ui::InputField::Mode::NoNewlines,
-			rpl::single(state->description),
-			state->description
+			rpl::single(state->description.text),
+			TextWithTags{
+				state->description.text,
+				TextUtilities::ConvertEntitiesToTextTags(
+					state->description.entities)
+			}
 		), st::createPollFieldPadding);
 		state->field = field;
+
+		field->setMarkdownReplacesEnabled(rpl::single(
+			Ui::MarkdownEnabledState{
+				Ui::MarkdownEnabled{ .typedTags = false },
+			}));
+		field->setEditLinkCallback(DefaultEditLinkCallback(show, field));
+		field->setTagMimeProcessor([](QStringView mimeTag) {
+			using Field = Ui::InputField;
+			auto all = TextUtilities::SplitTags(mimeTag);
+			for (auto i = all.begin(); i != all.end();) {
+				if (!Field::IsValidMarkdownLink(*i)
+					|| TextUtilities::IsMentionLink(*i)) {
+					i = all.erase(i);
+					continue;
+				}
+				++i;
+			}
+			return TextUtilities::JoinTag(all);
+		});
 
 		box->setFocusCallback([=] {
 			field->setFocusFast();
@@ -184,7 +229,11 @@ void Controller::confirmAdd(not_null<PeerData*> peer) {
 		Ui::AddSkip(box->verticalLayout());
 
 		field->changes() | rpl::on_next([=] {
-			state->description = field->getLastText();
+			const auto value = field->getTextWithAppliedMarkdown();
+			state->description = OnlyTextUrlEntities({
+				value.text,
+				TextUtilities::ConvertTextTagsToEntities(value.tags),
+			});
 		}, field->lifetime());
 
 		field->setMaxLength(limit * 2);

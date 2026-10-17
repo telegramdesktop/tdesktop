@@ -68,13 +68,15 @@ struct SharedMediaAddExisting {
 		PeerId monoforumPeerId,
 		SharedMediaTypesMask types,
 		MsgId messageId,
-		MsgRange noSkipRange)
+		MsgRange noSkipRange,
+		bool incrementCount = false)
 	: peerId(peerId)
 	, topicRootId(topicRootId)
 	, monoforumPeerId(monoforumPeerId)
 	, messageId(messageId)
 	, noSkipRange(noSkipRange)
-	, types(types) {
+	, types(types)
+	, incrementCount(incrementCount) {
 	}
 
 	PeerId peerId = 0;
@@ -83,6 +85,7 @@ struct SharedMediaAddExisting {
 	MsgId messageId = 0;
 	MsgRange noSkipRange;
 	SharedMediaTypesMask types;
+	bool incrementCount = false;
 
 };
 
@@ -117,16 +120,25 @@ struct SharedMediaAddSlice {
 struct SharedMediaRemoveOne {
 	SharedMediaRemoveOne(
 		PeerId peerId,
+		MsgId topicRootId,
+		PeerId monoforumPeerId,
 		SharedMediaTypesMask types,
-		MsgId messageId)
+		MsgId messageId,
+		bool onlyMatched = false)
 	: peerId(peerId)
+	, topicRootId(topicRootId)
+	, monoforumPeerId(monoforumPeerId)
 	, messageId(messageId)
-	, types(types) {
+	, types(types)
+	, onlyMatched(onlyMatched) {
 	}
 
 	PeerId peerId = 0;
+	MsgId topicRootId = 0;
+	PeerId monoforumPeerId = 0;
 	MsgId messageId = 0;
 	SharedMediaTypesMask types;
+	bool onlyMatched = false;
 
 };
 
@@ -249,6 +261,13 @@ struct SharedMediaUnloadThread {
 	PeerId monoforumPeerId = 0;
 };
 
+struct SharedMediaUnloadAllTopics {
+	SharedMediaUnloadAllTopics(PeerId peerId) : peerId(peerId) {
+	}
+
+	PeerId peerId = 0;
+};
+
 class SharedMedia {
 public:
 	using Type = SharedMediaType;
@@ -260,6 +279,7 @@ public:
 	void remove(SharedMediaRemoveAll &&query);
 	void invalidate(SharedMediaInvalidateBottom &&query);
 	void unload(SharedMediaUnloadThread &&query);
+	void unload(SharedMediaUnloadAllTopics &&query);
 
 	rpl::producer<SharedMediaResult> query(SharedMediaQuery &&query) const;
 	SharedMediaResult snapshot(const SharedMediaQuery &query) const;

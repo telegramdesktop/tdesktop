@@ -62,6 +62,7 @@ historyPollRadialAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimati
 	size: size(18px, 18px);
 }
 historyPollRippleOpacity: 0.3;
+historyPollRippleDateInfoSkip: 2px;
 historyPollRecentVotersSkip: 4px;
 historyPollRecentVoterSize: 18px;
 historyPollRecentVoterSkip: 13px;
@@ -98,7 +99,6 @@ historyPollInChosenSelected: icon {{ "poll_select_check", historyFileInIconFgSel
 
 historyPollAddOptionTop: 3px;
 historyPollAddOptionButtonSize: 26px;
-historyPollAddOptionEmojiLeft: -4px;
 historyPollAddOptionField: InputField(defaultInputField) {
 	textBg: transparent;
 	textFg: windowFg;

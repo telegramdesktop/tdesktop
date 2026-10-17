@@ -12,6 +12,7 @@ class PhotoData;
 
 namespace Ui {
 class DropdownMenu;
+class PopupMenu;
 class RpWidget;
 } // namespace Ui
 
@@ -47,5 +48,12 @@ bool ShowReactionPreview(
 	FullMsgId origin,
 	Data::ReactionId reactionId,
 	bool emojiPreview = false);
+
+[[nodiscard]] bool AttachReactionPreviewToMenu(
+	not_null<Ui::PopupMenu*> menu,
+	not_null<Window::SessionController*> controller,
+	QPoint desiredPosition,
+	FullMsgId origin,
+	const Data::ReactionId &reactionId);
 
 } // namespace HistoryView

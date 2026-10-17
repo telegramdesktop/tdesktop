@@ -569,7 +569,7 @@ void EmbedOverlay::ensureWebview() {
 		return handleDataRequest(std::move(request));
 	});
 	raw->init(EmbedInitScript());
-	raw->setNavigationStartHandler([=](const QString &uri, bool newWindow) {
+	raw->setNavigationPolicyHandler([=](const QString &uri, bool newWindow) {
 		if (uri == u"about:blank"_q) {
 			return true;
 		}

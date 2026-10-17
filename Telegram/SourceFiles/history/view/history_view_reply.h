@@ -14,6 +14,7 @@ class Session;
 } // namespace Data
 
 namespace Ui {
+struct SpoilerMessFrame;
 class SpoilerAnimation;
 struct BackgroundEmojiData;
 struct BackgroundEmojiCache;
@@ -57,6 +58,13 @@ void FillBackgroundEmoji(
 	bool quote,
 	const Ui::BackgroundEmojiCache &cache,
 	const QImage &firstGiftFrame);
+
+void FillPreviewSpoiler(
+	QPainter &p,
+	QRect rect,
+	const QPixmap &preview,
+	const Ui::SpoilerMessFrame &frame,
+	QImage &cache);
 
 class Reply final : public RuntimeComponent<Reply, Element> {
 public:
@@ -113,6 +121,8 @@ public:
 		const FullReplyTo &replyTo);
 
 private:
+	[[nodiscard]] bool hasBackgroundEmoji() const;
+	[[nodiscard]] int nameIconsSkip() const;
 	[[nodiscard]] Ui::Text::GeometryDescriptor textGeometry(
 		int available,
 		int firstLineSkip,
@@ -136,6 +146,7 @@ private:
 
 	ClickHandlerPtr _link;
 	std::unique_ptr<Ui::SpoilerAnimation> _spoiler;
+	mutable QImage _spoilerCache;
 	mutable PeerData *_externalSender = nullptr;
 	mutable PeerData *_colorPeer = nullptr;
 	mutable struct {
@@ -152,6 +163,7 @@ private:
 	mutable int _nameVersion = 0;
 	uint8 _hiddenSenderColorIndexPlusOne : 7 = 0;
 	uint8 _hasQuoteIcon : 1 = 0;
+	uint8 _hasBackgroundEmoji : 1 = 0;
 	uint8 _expanded : 1 = 0;
 	mutable uint8 _expandable : 1 = 0;
 	mutable uint8 _minHeightExpandable : 1 = 0;

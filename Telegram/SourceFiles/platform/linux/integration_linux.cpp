@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QAbstractEventDispatcher>
 
 #include <gio/gio.hpp>
+#include <logind/logind.hpp>
 #include <xdpinhibit/xdpinhibit.hpp>
 
 #ifdef __GLIBC__
@@ -127,10 +128,12 @@ private:
 		return _inhibitProxy;
 	}
 
+	void initSystemSleep();
 	void initInhibit();
 
 	const gi::ref_ptr<Application> _application;
 	XdpInhibit::InhibitProxy _inhibitProxy;
+	Logind::ManagerProxy _logindProxy;
 #if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
 	base::Platform::XDP::SettingWatcher _darkModeWatcher;
 #endif // Qt < 6.5.0
@@ -138,6 +141,7 @@ private:
 	base::qt_connection _memoryTrim;
 	crl::time _memoryTrimmed = 0;
 #endif // __GLIBC__
+
 };
 
 LinuxIntegration::LinuxIntegration()
@@ -176,6 +180,8 @@ LinuxIntegration::LinuxIntegration()
 }
 
 void LinuxIntegration::init() {
+	initSystemSleep();
+
 	XdpInhibit::InhibitProxy::new_for_bus(
 		Gio::BusType::SESSION_,
 		Gio::DBusProxyFlags::NONE_,
@@ -187,6 +193,44 @@ void LinuxIntegration::init() {
 				nullptr);
 
 			initInhibit();
+		}));
+}
+
+void LinuxIntegration::initSystemSleep() {
+	const auto info = Logind::Manager::interface_info();
+	const auto annotations = gi::wrap_to<gi::Collection<
+		gi::ZTSpan,
+		GDBusAnnotationInfo*,
+		gi::transfer_none_t>>(
+			info.gobj_()->annotations,
+			gi::transfer_none);
+	const auto service = Gio::DBusAnnotationInfo::lookup(
+		annotations,
+		"org.telegram.DBus.Service");
+	const auto objectPath = Gio::DBusAnnotationInfo::lookup(
+		annotations,
+		"org.telegram.DBus.ObjectPath");
+	if (!service || !objectPath) {
+		return;
+	}
+
+	Logind::ManagerProxy::new_for_bus(
+		Gio::BusType::SYSTEM_,
+		Gio::DBusProxyFlags::DO_NOT_AUTO_START_
+			| Gio::DBusProxyFlags::DO_NOT_LOAD_PROPERTIES_,
+		service,
+		objectPath,
+		crl::guard(this, [=](GObject::Object, Gio::AsyncResult res) {
+			_logindProxy = Logind::ManagerProxy::new_for_bus_finish(
+				res,
+				nullptr);
+			if (!_logindProxy) {
+				return;
+			}
+			Logind::Manager(_logindProxy).signal_prepare_for_sleep().connect(
+				crl::guard(this, [](Logind::Manager, gboolean) {
+					Core::App().notifySystemSleep();
+				}));
 		}));
 }
 

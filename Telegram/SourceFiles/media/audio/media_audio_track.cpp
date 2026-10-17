@@ -244,6 +244,7 @@ void Track::reattachToDevice() {
 }
 
 Track::~Track() {
+	finish();
 	detachFromDevice();
 	_instance->unregisterTrack(this);
 }

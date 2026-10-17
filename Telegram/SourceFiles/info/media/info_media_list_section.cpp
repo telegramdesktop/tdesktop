@@ -36,7 +36,7 @@ bool ListSection::empty() const {
 UniversalMsgId ListSection::minId() const {
 	Expects(!empty());
 
-	return GetUniversalId(_items.back()->getItem());
+	return _minId;
 }
 
 void ListSection::setTop(int top) {
@@ -105,12 +105,19 @@ bool ListSection::belongsHere(
 void ListSection::appendItem(not_null<BaseLayout*> item) {
 	_items.push_back(item);
 	_byItem.emplace(item->getItem(), item);
+	_minId = GetUniversalId(item->getItem());
 }
 
 bool ListSection::removeItem(not_null<const HistoryItem*> item) {
 	if (const auto i = _byItem.find(item); i != end(_byItem)) {
 		_items.erase(ranges::remove(_items, i->second), end(_items));
 		_byItem.erase(i);
+		if (!_mosaic.empty()) {
+			// Without touching the removed layout, see refreshMinId().
+			_mosaic.clearRows(true);
+			_mosaic.addItems(_items);
+		}
+		refreshMinId();
 		refreshHeight();
 		return true;
 	}
@@ -119,7 +126,18 @@ bool ListSection::removeItem(not_null<const HistoryItem*> item) {
 
 void ListSection::reorderItems(int oldPosition, int newPosition) {
 	base::reorder(_items, oldPosition, newPosition);
+	refreshMinId();
 	refreshHeight();
+}
+
+void ListSection::refreshMinId() {
+	// The layouts are owned by the Provider and it destroys them from its
+	// own itemRemoved() handler, which is invoked before ours. So minId()
+	// must not dereference them, it is recomputed only when all the items
+	// that are left in the section are known to be alive.
+	_minId = _items.empty()
+		? UniversalMsgId()
+		: GetUniversalId(_items.back()->getItem());
 }
 
 QRect ListSection::findItemRect(
@@ -158,9 +176,8 @@ ListFoundItem ListSection::findItemByPoint(QPoint point) const {
 	auto item = *itemIt;
 	auto rect = findItemRect(item);
 	if (point.y() >= rect.top()) {
-		auto shift = floorclamp(
-			point.x(),
-			(_itemWidth + st::infoMediaSkip),
+		auto shift = std::clamp(
+			point.x() / (_itemWidth + st::infoMediaSkip),
 			0,
 			_itemsInRow);
 		while (shift-- && itemIt != _items.end()) {

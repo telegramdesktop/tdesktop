@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_instance.h"
 #include "core/application.h"
+#include "mtproto/web_proxy/web_proxy_transport.h"
 #include "mtproto/mtp_instance.h"
 #include "mtproto/mtproto_dc_options.h"
 #include "core/file_utilities.h"
@@ -29,7 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "media/audio/media_audio_track.h"
 #include "settings/sections/settings_folders.h"
-#include "storage/storage_account.h"
 #include "api/api_updates.h"
 #include "base/qt/qt_common_adapters.h"
 #include "base/custom_app_icon.h"
@@ -176,6 +176,12 @@ auto GenerateCodes() {
 		Ui::Toast::Show(now
 			? u"Fast buttons mode enabled."_q
 			: u"Fast buttons mode disabled."_q);
+	});
+	codes.emplace(u"externalweb"_q, [](SessionController *window) {
+		const auto disabled = MTP::WebProxy::Transport::ToggleWebviewDisabled();
+		Ui::Toast::Show(disabled
+			? u"WebView transport blocked."_q
+			: u"WebView transport unblocked."_q);
 	});
 
 	auto audioFilters = u"Audio files (*.wav *.mp3);;"_q + FileDialog::AllFilesFilter();

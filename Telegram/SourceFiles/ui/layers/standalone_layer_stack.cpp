@@ -105,11 +105,11 @@ void StandaloneLayerStack::showBox(
 		_entries.back().panel->hideForStacking();
 	}
 	auto panel = base::make_unique_q<SeparatePanel>(SeparatePanelArgs{
-		.anchorGeometry = _anchorGeometry,
 		.transientParent = _transientParent,
 	});
 	panel->setWindowFlag(Qt::WindowStaysOnTopHint, false);
 	panel->setAttribute(Qt::WA_DeleteOnClose, false);
+	panel->setAttribute(Qt::WA_ShowModal);
 	panel->setTitleHeight(0);
 	panel->setCloseAllowed(false);
 
@@ -141,6 +141,14 @@ void StandaloneLayerStack::showBox(
 	rawPanel->closeEvents(
 	) | rpl::on_next([=] {
 		closeEntry(rawPanel);
+		crl::on_main(this, [=] {
+			_closing.erase(
+				ranges::remove(
+					_closing,
+					rawPanel,
+					&base::unique_qptr<SeparatePanel>::get),
+				end(_closing));
+		});
 	}, rawPanel->lifetime());
 
 	rawPanel->showInner(std::move(layerWidget));
@@ -156,20 +164,27 @@ void StandaloneLayerStack::hideLayers(anim::type animated) {
 		if (entry.box) {
 			entry.box->setClosing();
 		}
-		entry.panel->hideGetDuration();
+		if (animated == anim::type::normal) {
+			hidePanel(std::move(entry.panel));
+		}
 		_boxClosed.fire({});
 	}
 }
 
+void StandaloneLayerStack::hidePanel(
+		base::unique_qptr<SeparatePanel> panel) {
+	const auto raw = panel.get();
+	_closing.push_back(std::move(panel));
+	raw->hideGetDuration();
+}
+
 void StandaloneLayerStack::setAnchor(
-		std::optional<QRect> geometry,
 		std::optional<QSize> outerSize,
 		Platform::ForeignParent transientParent) {
-	_anchorGeometry = std::move(geometry);
 	_anchorOuterSize = std::move(outerSize);
 	_transientParent = std::move(transientParent);
 	for (const auto &entry : _entries) {
-		entry.panel->setAnchorData(_anchorGeometry, _transientParent);
+		entry.panel->setAnchorData(_transientParent);
 	}
 }
 
@@ -182,10 +197,7 @@ ShowFactory StandaloneLayerStack::showFactory() {
 
 std::optional<QSize> StandaloneLayerStack::layerOuterSize() {
 	if (_anchorOuterSize) {
-		return _anchorOuterSize;
-	}
-	if (_anchorGeometry) {
-		return _anchorGeometry->size();
+		return style::ConvertScale(*_anchorOuterSize);
 	}
 	if (const auto screen = QGuiApplication::primaryScreen()) {
 		return screen->availableGeometry().size();
@@ -210,12 +222,10 @@ void StandaloneLayerStack::closeEntry(SeparatePanel *panel) {
 	if (entry.box) {
 		entry.box->setClosing();
 	}
-	entry.panel->hideGetDuration();
+	hidePanel(std::move(entry.panel));
 	_boxClosed.fire({});
 	if (wasTop && !_entries.empty()) {
-		_entries.back().panel->setAnchorData(
-			_anchorGeometry,
-			_transientParent);
+		_entries.back().panel->setAnchorData(_transientParent);
 		_entries.back().panel->showAndActivate();
 	}
 }

@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
-class JumpDownButton final : public RippleButton {
+class JumpDownButton : public RippleButton {
 public:
 	JumpDownButton(QWidget *parent, const style::TwoIconButton &st);
 

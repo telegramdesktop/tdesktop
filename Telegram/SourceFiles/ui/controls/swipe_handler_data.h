@@ -20,11 +20,20 @@ struct SwipeContextData final {
 		return !empty();
 	}
 
+	[[nodiscard]] int visualTranslationFor(int64 bareId) const {
+		if (!translation || (msgBareId != bareId)) {
+			return 0;
+		}
+		return inverted ? translation : -translation;
+	}
+
 	float64 ratio = 0.;
 	float64 reachRatio = 0.;
+	float64 exactTranslation = 0.;
 	int64 msgBareId = 0;
 	int translation = 0;
 	int cursorTop = 0;
+	bool inverted = false;
 };
 
 struct SwipeHandlerInitData final {

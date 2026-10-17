@@ -117,7 +117,7 @@ inline QDataStream &operator>>(QDataStream &stream, ReadBytesVectorWrap data) {
 
 	constexpr auto kStep = quint32(1024 * 1024);
 	for (auto allocated = quint32(0); allocated < len;) {
-		auto blockSize = qMin(kStep, len - allocated);
+		auto blockSize = std::min(kStep, len - allocated);
 		bytes.resize(allocated + blockSize);
 		if (stream.readRawData(reinterpret_cast<char*>(bytes.data()) + allocated, blockSize) != blockSize) {
 			bytes.clear();

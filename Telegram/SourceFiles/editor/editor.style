@@ -89,6 +89,9 @@ photoEditorStickersButton: IconButton(photoEditorRotateButton) {
 }
 photoEditorStickersIconActive: icon {{ "settings/settings_stickers", photoEditorButtonIconFgActive }};
 
+photoEditorTextButtonSize: size(42px, 42px);
+photoEditorTextButtonGlyphSkip: 3px;
+
 photoEditorShapesButton: IconButton(photoEditorRotateButton) {
 	icon: icon {{ "photo_editor/shapes-28x28", photoEditorButtonIconFg }};
 	iconOver: icon {{ "photo_editor/shapes-28x28", photoEditorButtonIconFgOver }};
@@ -138,6 +141,16 @@ photoEditorMenuCheckLabel: FlatLabel(defaultFlatLabel) {
 	}
 	minWidth: 100px;
 	textFg: groupCallMembersFg;
+}
+photoEditorShapeFillDuration: 160;
+photoEditorShapeFillRadius: 13px;
+photoEditorAlignIconSize: 24px;
+photoEditorMenuRoundCheckUntoggledFg: groupCallMemberNotJoinedStatus;
+photoEditorMenuRoundCheck: RoundCheckbox(defaultRoundCheckbox) {
+	size: 20px;
+	border: groupCallActiveFg;
+	bgActive: groupCallActiveFg;
+	check: icon {{ "default_checkbox_check", groupCallMembersFg, point(3px, 6px) }};
 }
 
 photoEditorCropRatioMenu: PopupMenu(mediaviewPopupMenu) {
@@ -193,3 +206,192 @@ photoEditorCropPointSize: 10px;
 photoEditorCropMinSize: 20px;
 
 photoEditorItemHandleSize: 10px;
+photoEditorStickyTrigger: 12px;
+photoEditorStickyLineWidth: 2px;
+
+photoEditorKeysButton: IconButton(photoEditorRotateButton) {
+	icon: icon {{ "photo_editor/keyboard", photoEditorButtonIconFg }};
+	iconOver: icon {{ "photo_editor/keyboard", photoEditorButtonIconFgOver }};
+}
+photoEditorKeysButtonLeft: 16px;
+photoEditorKeysMenuSkip: 6px;
+photoEditorKeysMenu: PopupMenu(photoEditorCropRatioMenu) {
+	scrollPadding: margins(0px, 4px, 0px, 4px);
+	menu: Menu(mediaviewMenu) {
+		widthMin: 220px;
+		widthMax: 600px;
+		itemPadding: margins(14px, 8px, 14px, 8px);
+		arrow: photoEditorMenuSubmenuArrow;
+	}
+}
+photoEditorKeysTitleStyle: TextStyle(semiboldTextStyle) {
+	font: font(12px semibold);
+}
+photoEditorKeysTitleFg: groupCallMemberNotJoinedStatus;
+photoEditorKeysTitleSkip: 6px;
+photoEditorKeysRowSkip: 6px;
+photoEditorKeysCapStyle: TextStyle(semiboldTextStyle) {
+	font: font(12px semibold);
+}
+photoEditorKeysCapHeight: 20px;
+photoEditorKeysCapMinWidth: 22px;
+photoEditorKeysCapPadding: 6px;
+photoEditorKeysCapRadius: 4px;
+photoEditorKeysCapSkip: 4px;
+photoEditorKeysCapBg: groupCallMenuBgOver;
+photoEditorKeysCapBorder: groupCallMemberNotJoinedStatus;
+photoEditorKeysCapFg: groupCallMembersFg;
+photoEditorKeysTextSkip: 12px;
+photoEditorKeysTextWidth: 360px;
+photoEditorKeysTextMinWidth: 100px;
+photoEditorKeysTextFg: groupCallMembersFg;
+
+photoEditorAudioDiscSize: 48px;
+photoEditorAudioDiscSkip: 12px;
+photoEditorAudioDiscCoverSize: 30px;
+photoEditorAudioDiscRing: 2px;
+photoEditorAudioDiscRingFg: mediaviewControlFg;
+photoEditorAudioDiscIcon: icon {{ "photo_editor/widget_music", photoEditorButtonIconFg }};
+photoEditorAudioDiscIconOver: icon {{ "photo_editor/widget_music", photoEditorButtonIconFgOver }};
+photoEditorMenuDelete: icon {{ "menu/delete", mediaviewMenuFg }};
+photoEditorMediaMenu: PopupMenu(photoEditorCropRatioMenu) {
+	scrollPadding: margins(0px, 3px, 0px, 8px);
+	menu: Menu(mediaviewMenu) {
+		widthMin: 210px;
+		arrow: photoEditorMenuSubmenuArrow;
+	}
+}
+photoEditorAudioVolumeItem: Menu(mediaviewMenu) {
+	itemBgOver: groupCallMenuBg;
+	arrow: photoEditorMenuSubmenuArrow;
+}
+photoEditorAudioVolumePadding: margins(15px, 6px, 17px, 5px);
+photoEditorAudioVolumeMargin: margins(54px, 0px, 17px, 0px);
+
+photoEditorAudioTimelineBarWidth: 2px;
+photoEditorAudioTimelineBarSkip: 3px;
+photoEditorAudioTimelineBarMin: 1px;
+photoEditorAudioTimelineBarRatio: 0.6;
+photoEditorAudioTimelineBarOpacity: 0.4;
+photoEditorAudioTimelineIcon: 13px;
+photoEditorAudioTimelineIconSkip: 3px;
+photoEditorAudioTimelineDotSkip: 10px;
+photoEditorAudioTimelineDotRadius: 1px;
+photoEditorAudioTimelineTextSkip: 12px;
+photoEditorAudioTimelineFade: 8px;
+photoEditorAudioTimelineAuthorFont: font(12px semibold);
+photoEditorAudioTimelineFont: font(12px);
+photoEditorTrimShortestIconSize: 24px;
+
+videoTimelineStripHeight: 54px;
+videoTimelineLabelHeight: 18px;
+// Wide enough to hold the cover dot without it touching either side.
+videoTimelineLabelSkip: 17px;
+videoTimelineTrimStripHeight: 32px;
+videoTimelineTrimLabelSkip: 10px;
+videoTimelineDotSize: 5px;
+videoTimelineDotActiveSize: 9px;
+videoTimelineDotSkip: 2px;
+videoTimelineDotFg: callAnswerBg;
+videoTimelineRadius: 6px;
+videoTimelineHandleWidth: 11px;
+videoTimelineHandleMinWidth: 4px;
+videoTimelineHandleGripWidth: 2px;
+videoTimelineHandleGripHeight: 16px;
+videoTimelineHandleHitSlop: 12px;
+videoTimelinePlayheadWidth: 3px;
+videoTimelinePlayheadOutline: 1px;
+videoTimelinePlayheadOverflow: 5px;
+videoTimelineFg: mediaviewControlFg;
+videoTimelineDimBg: mediaviewCaptionBg;
+videoTimelinePlaceholderBg: mediaviewPipPlaybackInactive;
+videoTimelineDurationFg: mediaviewCaptionFg;
+videoTimelineSizeFg: mediaviewCaptionFg;
+videoTimelineSizeSkip: 12px;
+videoTimelineScrollHeight: 2px;
+videoTimelineScrollSkip: 3px;
+videoTimelineScrollMinWidth: 16px;
+videoTimelineOverviewSelectionHeight: 3px;
+videoTimelineOverviewFg: windowBgActive;
+videoTimelineHintSkip: 4px;
+videoTimelineHintWidth: 18px;
+videoTimelineHintHeight: 20px;
+videoTimelineHintRadius: 6px;
+videoTimelineHintStroke: 2px;
+videoTimelineHintArrowWidth: 5px;
+videoTimelineHintArrowHeight: 10px;
+videoTimelineDurationStyle: TextStyle(defaultTextStyle) {
+	font: font(12px semibold);
+}
+videoTimelineDurationFieldSkip: 4px;
+videoTimelineDurationField: InputField(defaultInputField) {
+	textBg: transparent;
+	textFg: videoTimelineDurationFg;
+	textMargins: margins(0px, 0px, 0px, 0px);
+	border: 0px;
+	borderActive: 0px;
+	style: videoTimelineDurationStyle;
+}
+
+videoEditorGifButton: IconButton(photoEditorRotateButton) {
+	icon: icon {{ "photo_editor/gif", photoEditorButtonIconFg }};
+	iconOver: icon {{ "photo_editor/gif", photoEditorButtonIconFgOver }};
+}
+videoEditorGifIconActive: icon {
+	{ "photo_editor/gif", photoEditorButtonIconFgActive }
+};
+
+videoQualitySliderDotSize: 7px;
+videoQualitySliderDotActiveSize: 11px;
+videoQualitySliderLineWidth: 2px;
+videoQualitySliderLineGap: 4px;
+videoQualitySliderLabelSkip: 5px;
+videoQualitySliderSideSkip: 18px;
+videoQualitySliderFg: mediaviewPipPlaybackInactive;
+videoQualitySliderActiveFg: mediaviewControlFg;
+videoQualitySliderLabelFg: mediaviewCaptionFg;
+videoQualitySliderLabelActiveFg: mediaviewControlFg;
+videoQualitySliderStyle: TextStyle(defaultTextStyle) {
+	font: font(12px semibold);
+}
+// videoQualitySliderDotActiveSize + videoQualitySliderLabelSkip + font height
+videoQualitySliderHeight: 32px;
+
+videoEditorTimelineTop: 10px;
+photoEditorTimelineSkip: 6px;
+videoEditorHintSkip: 8px;
+videoEditorQualitySkip: 6px;
+videoEditorBarSkip: 12px;
+videoEditorBarBottomSkip: 16px;
+videoEditorContentSkip: 20px;
+videoEditorHint: FlatLabel(defaultFlatLabel) {
+	textFg: mediaviewCaptionFg;
+	align: align(top);
+}
+
+videoEditorBubbleSize: 62px;
+videoEditorBubbleSkip: 8px;
+videoEditorBubbleBorder: 2px;
+videoEditorFlashFg: mediaviewControlFg;
+videoEditorPlayIcon: icon {{ "player/player_play", mediaviewControlFg }};
+videoEditorPlayBadgeSize: 68px;
+videoEditorPlayBadgeBg: mediaviewCaptionBg;
+videoEditorAbout: FlatLabel(photoEditorAbout) {
+}
+videoEditorAboutMargin: margins(10px, 10px, 10px, 0px);
+
+photoEditorMessageReferenceWidth: 600px;
+photoEditorLinkPreviewMargin: margins(24px, 12px, 24px, 6px);
+photoEditorLinkPreviewMaxHeight: 320px;
+photoEditorLinkPreviewPadding: 12px;
+photoEditorLinkPillIcon: icon {{ "photo_editor/link", windowFg }};
+photoEditorLinkThemeSize: 36px;
+photoEditorLinkThemeIconSize: 28px;
+photoEditorLinkThemeSkip: 6px;
+photoEditorLinkThemeBg: mediaviewCaptionBg;
+photoEditorLinkLoadingRadius: bubbleRadiusLarge;
+photoEditorLinkLoadingPadding: margins(12px, 11px, 12px, 11px);
+photoEditorLinkLoadingLine: 10px;
+photoEditorLinkLoadingSkip: 8px;
+photoEditorLinkLoadingQuote: 3px;
+photoEditorLinkLoadingQuoteSkip: 8px;

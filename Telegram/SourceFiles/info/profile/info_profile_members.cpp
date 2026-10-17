@@ -73,7 +73,7 @@ Members::Members(
 int Members::desiredHeight() const {
 	auto desired = _header ? _header->height() : 0;
 	desired += _list->fullRowsCount() * st::infoMembersList.item.height;
-	return qMax(height(), desired);
+	return std::max(height(), desired);
 }
 
 rpl::producer<int> Members::onlineCountValue() const {

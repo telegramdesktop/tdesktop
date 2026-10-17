@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "ui/basic.style";
 
+using "chat_helpers/chat_helpers.style"; // GroupCallUserpics
 using "ui/layers/layers.style"; // boxRoundShadow
 using "ui/widgets/widgets.style";
 
@@ -191,6 +192,7 @@ dialogsCallBadgeSkip: point(-3px, -3px);
 
 dialogsSubscriptionBadgeSize: 16px;
 dialogsSubscriptionBadgeSkip: point(-4px, -4px);
+dialogsSubscriptionBadgeOutlineTwice: 3px;
 
 dialogsCommunityBadgeSize: 16px;
 dialogsCommunityBadgeSkip: point(-3px, -3px);
@@ -210,6 +212,8 @@ dialogsSpeakingDenominator: 8.;
 dialogsImportantBarHeight: 37px;
 
 dialogsWidthDuration: universalDuration;
+dialogsFilterSlideDuration: 200;
+dialogsFilterSwipeSlideDuration: 140;
 dialogsTextWidthMin: 150px;
 
 dialogsTextPalette: TextPalette(defaultTextPalette) {
@@ -537,8 +541,20 @@ dialogsMiniInvoiceIcon: IconEmoji {
 	icon: icon {{ "payments/payment_card-18x18", dialogsTextFg }};
 	padding: margins(0px, 1px, 3px, 0px);
 }
-dialogsMiniCallIcon: IconEmoji {
-	icon: icon {{ "profile/call-18x18", dialogsTextFg }};
+dialogsMiniCallOutgoingIcon: IconEmoji {
+	icon: icon {{ "dialogs/dialogs_chatlist_call_outgoing-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
+}
+dialogsMiniCallIncomingIcon: IconEmoji {
+	icon: icon {{ "dialogs/dialogs_chatlist_call_incoming-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
+}
+dialogsMiniVideoCallOutgoingIcon: IconEmoji {
+	icon: icon {{ "dialogs/dialogs_chatlist_video_call_outgoing-18x18", dialogsTextFg }};
+	padding: margins(0px, 1px, 3px, 0px);
+}
+dialogsMiniVideoCallIncomingIcon: IconEmoji {
+	icon: icon {{ "dialogs/dialogs_chatlist_video_call_incoming-18x18", dialogsTextFg }};
 	padding: margins(0px, 1px, 3px, 0px);
 }
 dialogsMiniStoryIcon: IconEmoji {
@@ -839,6 +855,13 @@ dialogsTopBarSuggestionAboutStyle: TextStyle(defaultTextStyle) {
 	font: font(11px);
 }
 dialogsTopBarSuggestionMargins: margins(8px, 8px, 8px, 8px);
+dialogsTopBarSuggestionIconPadding: 12px;
+dialogsTopBarSuggestionUserpics: GroupCallUserpics {
+	size: 25px;
+	shift: 8px;
+	stroke: 2px;
+	align: align(left);
+}
 dialogsTopBarSuggestionShadow: BoxShadow {
 	blurRadius: 3px;
 	offset: point(0px, 1px);
@@ -922,4 +945,23 @@ dialogsUnconfirmedAuthButtonNo: RoundButton(dialogsUnconfirmedAuthButton) {
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: attentionButtonBgRipple;
 	}
+}
+
+restoreWindowsOfferPadding: margins(
+	dialogsTopBarLeftPadding,
+	6px,
+	dialogsTopBarLeftPadding,
+	8px);
+restoreWindowsOfferPosition: point(10px, 10px);
+restoreWindowsOfferSkip: 2px;
+restoreWindowsOfferButtonSkip: 6px;
+restoreWindowsOfferQuestionStyle: TextStyle(defaultTextStyle) {
+	font: font(12px semibold);
+}
+restoreWindowsOfferClose: IconButton(dialogsCancelSearchInPeer) {
+	width: 28px;
+	height: 29px;
+	iconPosition: point(5px, 6px);
+	rippleAreaPosition: point(0px, 1px);
+	rippleAreaSize: 28px;
 }

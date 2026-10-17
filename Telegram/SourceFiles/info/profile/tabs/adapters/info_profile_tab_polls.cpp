@@ -36,9 +36,7 @@ public:
 		SharedMediaType::Poll,
 		context.migrated,
 		true)
-	, _countPeer(context.sublist
-		? context.sublist->sublistPeer()
-		: context.peer)
+	, _countPeer(context.peer)
 	, _topicRootId(context.topic ? context.topic->rootId() : MsgId())
 	, _monoforumPeerId(context.sublist
 		? context.sublist->sublistPeer()->id
@@ -133,6 +131,12 @@ public:
 		_polls.selectionAction(SelectionAction::Clear);
 		_subController.applySearchQuery(QString());
 		_polls.setSearchQuery(QString());
+	}
+
+	void paintOverflow(QPainter &p) override {
+		if (!skeletonShown()) {
+			_polls.paintBackground(p, QRect());
+		}
 	}
 
 	void setVisibleRegion(int top, int bottom) override {

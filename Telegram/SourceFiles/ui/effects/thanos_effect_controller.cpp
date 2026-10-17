@@ -8,9 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/thanos_effect_controller.h"
 
 #include "ui/effects/thanos_effect.h"
-#include "ui/widgets/scroll_area.h"
 #include "ui/chat/chat_style.h"
 #include "ui/painter.h"
+#include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "history/history_item.h"
@@ -22,6 +22,13 @@ namespace {
 constexpr auto kBaseDuration = crl::time(400);
 constexpr auto kPerPixelDuration = float64(0.15);
 constexpr auto kMaxDuration = crl::time(600);
+constexpr auto kPendingAttempts = 4;
+
+[[nodiscard]] bool IsStarGiftService(not_null<const HistoryItem*> item) {
+	const auto media = item->media();
+	const auto gift = media ? media->gift() : nullptr;
+	return gift && gift->type == Data::GiftType::StarGift;
+}
 
 } // namespace
 
@@ -57,11 +64,14 @@ void ThanosEffectController::captureItemsBatch(
 	if (!anyFound) {
 		return;
 	}
+	_preCaptured.clear();
+	_announcedRemoval.clear();
 	ensureScrollBaseline();
 	for (const auto &item : items) {
 		if (const auto view = _delegate.viewForItem(item)) {
 			const auto top = _delegate.itemTop(view);
 			const auto height = view->height();
+			_announcedRemoval.emplace(item->fullId());
 			if (captureView(view, height, top)) {
 				_preCaptured.emplace(item->fullId(), PreCapturedView{
 					.height = height,
@@ -75,9 +85,29 @@ void ThanosEffectController::captureItemsBatch(
 
 void ThanosEffectController::clearPreCaptured() {
 	_preCaptured.clear();
-	if (!_collapseAnimation.animating()) {
+	_announcedRemoval.clear();
+	resetScrollBaseline();
+}
+
+void ThanosEffectController::resetScrollBaseline() {
+	if (_pending.empty() && !_collapseAnimation.animating()) {
 		_restoreScrollPending = false;
 		_wasAtBottom = false;
+	}
+}
+
+void ThanosEffectController::commitAnnouncedRemovals(
+		Fn<bool(FullMsgId)> removed) {
+	auto list = std::vector<FullMsgId>();
+	for (const auto &id : _announcedRemoval) {
+		if (removed(id)) {
+			list.push_back(id);
+		}
+	}
+	for (const auto &id : list) {
+		if (const auto item = _session->data().message(id)) {
+			captureOnRemoval(item);
+		}
 	}
 }
 
@@ -93,16 +123,13 @@ void ThanosEffectController::captureOnRemoval(
 	if (!view) {
 		return;
 	}
-	_removalHeight += view->height();
+	_announcedRemoval.remove(item->fullId());
 	if (const auto it = _preCaptured.find(item->fullId());
 		it != end(_preCaptured)) {
 		const auto saved = it->second;
 		_preCaptured.erase(it);
 		if (saved.top >= 0) {
-			startCollapseAnimation(
-				saved.height,
-				saved.top,
-				saved.dateHeight);
+			notePendingRemoval(saved.height, saved.top, saved.dateHeight);
 		}
 		return;
 	}
@@ -111,16 +138,65 @@ void ThanosEffectController::captureOnRemoval(
 	const auto dateHeight = view->displayedDateHeight();
 
 	if ((!item->isRegular() && !item->isEphemeral())
-		|| item->isService()
+		|| (item->isService() && !IsStarGiftService(item))
 		|| top < 0
-		|| height <= 0
 		|| _delegate.contentWidth() <= 0) {
 		return;
 	}
 	[[maybe_unused]] const auto dissolved = captureView(view, height, top);
 
 	ensureScrollBaseline();
-	startCollapseAnimation(height, top, dateHeight);
+	notePendingRemoval(height, top, dateHeight);
+}
+
+void ThanosEffectController::notePendingRemoval(
+		int height,
+		int top,
+		int dateHeight) {
+	if (_pending.empty()) {
+		_pendingContentHeight = _delegate.contentHeight();
+		_pendingAttempts = 0;
+	}
+	const auto scrollBottom = _delegate.scrollTop()
+		+ _delegate.scrollWidget()->height();
+	_pending.push_back({
+		.top = top,
+		.height = height,
+		.dateHeight = dateHeight,
+		.below = (top - _gapsShift >= scrollBottom),
+	});
+}
+
+void ThanosEffectController::flushRemovals(int contentHeight) {
+	const auto guard = gsl::finally([&] { resetScrollBaseline(); });
+	if (_pending.empty()) {
+		return;
+	}
+	auto left = _pendingContentHeight - contentHeight;
+	if (left <= 0) {
+		// Grouped media relayouts a pass later than item removal.
+		if (++_pendingAttempts > kPendingAttempts) {
+			_pending.clear();
+		}
+		return;
+	}
+	const auto pending = base::take(_pending);
+	auto assumed = 0;
+	for (const auto &removal : pending) {
+		assumed += removal.height;
+	}
+	for (auto i = 0, count = int(pending.size()); i != count; ++i) {
+		const auto &removal = pending[i];
+		const auto share = (i + 1 == count)
+			? left
+			: (assumed > 0)
+			? int(int64(removal.height) * left / assumed)
+			: 0;
+		left -= share;
+		if (!removal.below) {
+			startCollapseAnimation(share, removal.top, removal.dateHeight);
+		}
+	}
 }
 
 void ThanosEffectController::ensureScrollBaseline() {
@@ -136,7 +212,8 @@ bool ThanosEffectController::captureView(
 		int viewHeight,
 		int viewTop) {
 	const auto item = view->data();
-	if ((!item->isRegular() && !item->isEphemeral()) || item->isService()) {
+	if ((!item->isRegular() && !item->isEphemeral())
+		|| (item->isService() && !IsStarGiftService(item))) {
 		return false;
 	}
 	if (viewTop < 0) {
@@ -224,13 +301,6 @@ void ThanosEffectController::startCollapseAnimation(
 		int itemTop,
 		int dateHeight) {
 	if (height <= 0) {
-		return;
-	}
-
-	const auto scrollTop = _delegate.scrollTop();
-	const auto scrollBottom = scrollTop + _delegate.scrollWidget()->height();
-
-	if (itemTop >= scrollBottom) {
 		return;
 	}
 

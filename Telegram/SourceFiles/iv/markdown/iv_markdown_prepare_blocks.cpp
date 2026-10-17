@@ -224,6 +224,7 @@ void PrepareTableCellText(
 	block.tableAlignments = NormalizedTableAlignments(node, columnCount);
 	block.tableBordered = true;
 	block.tableStriped = false;
+	block.tableCompact = false;
 	block.tableRows.reserve(node.children.size());
 
 	for (const auto &rowNode : node.children) {

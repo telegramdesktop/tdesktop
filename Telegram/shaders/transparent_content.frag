@@ -8,6 +8,8 @@ layout(binding = 2) uniform sampler2D f_texture;
 
 layout(std140, binding = 0) uniform Params {
 	vec2 viewport;
+	// 1.0 when gl_FragCoord.y counts from the bottom (OpenGL).
+	float fragCoordYUp;
 	vec4 shadowTopRect;
 	vec4 shadowBottomSkipOpacityFullFade;
 	vec4 transparentBg;
@@ -16,13 +18,17 @@ layout(std140, binding = 0) uniform Params {
 };
 
 void main() {
-	vec2 fragCoord = vec2(gl_FragCoord.x, viewport.y - gl_FragCoord.y);
+	float fragY = (fragCoordYUp > 0.0)
+		? gl_FragCoord.y
+		: (viewport.y - gl_FragCoord.y);
+	vec2 fragCoord = vec2(gl_FragCoord.x, fragY);
 	vec4 result = texture(s_texture, v_texcoord);
 
 	vec2 checkboardLadder = floor(fragCoord / transparentSize);
 	float checkboard = mod(checkboardLadder.x + checkboardLadder.y, 2.0);
-	vec4 bg = mix(transparentBg, transparentFg, checkboard);
-	result = vec4(result.rgb * result.a + bg.rgb * (1.0 - result.a), 1.0);
+	vec4 bg = mix(transparentFg, transparentBg, checkboard);
+	// The texture is premultiplied already, so it composites as it is.
+	result = result + bg * (1.0 - result.a);
 
 	float topHeight = shadowTopRect.w;
 	float bottomHeight = shadowBottomSkipOpacityFullFade.x;

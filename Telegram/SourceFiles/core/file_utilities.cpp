@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/file_utilities.h"
 
+#include "core/click_handler_types.h"
 #include "core/version.h"
 #include "storage/localstorage.h"
 #include "storage/storage_account.h"
@@ -124,6 +125,10 @@ QString filedialogNextFilename(
 namespace File {
 
 void OpenUrl(const QString &url) {
+	OpenUrlWithOwnAutoLogin(UrlWithoutWebAuthTokens(url));
+}
+
+void OpenUrlWithOwnAutoLogin(const QString &url) {
 	crl::on_main([=] {
 		Ui::PreventDelayedActivation();
 		Platform::File::UnsafeOpenUrl(url);
@@ -348,6 +353,11 @@ QString PhotoVideoAudioFilesFilter() {
 
 QString AudioFilesFilter() {
 	return u"Audio Files (*.mp3 *.m4a *.aac *.ogg *.flac *.opus *.oga);;"_q
+		+ AllFilesFilter();
+}
+
+QString MusicFilesFilter() {
+	return u"Audio files (*.mp3 *.m4a *.flac *.ogg *.wav *.aac *.opus);;"_q
 		+ AllFilesFilter();
 }
 

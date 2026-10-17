@@ -244,7 +244,7 @@ void Provider::checkPreload(
 				sliceKey(_universalAroundId),
 				sliceKey(universalId));
 			Assert(delta != std::nullopt);
-			preloadRequired = (qAbs(*delta) >= minUniversalIdDelta);
+			preloadRequired = (std::abs(*delta) >= minUniversalIdDelta);
 		}
 		if (preloadRequired) {
 			_idsLimit = preloadIdsLimit;
@@ -358,11 +358,17 @@ void Provider::jumpToMessage(
 	_viewerLifetime.destroy();
 
 	const auto peer = _controller->session().data().peer(_peer->id);
-	const auto request = Api::PrepareSearchRequest(
-		peer,
+	const auto key = SharedMediaLoadableKey(Storage::SharedMediaKey(
+		peer->id,
 		_topicRootId,
 		_monoforumPeerId,
 		_type,
+		messageId));
+	const auto request = Api::PrepareSearchRequest(
+		peer,
+		key.topicRootId,
+		key.monoforumPeerId,
+		key.type,
 		QString(),
 		messageId,
 		Data::LoadDirection::Around);
@@ -383,10 +389,10 @@ void Provider::jumpToMessage(
 
 	_controller->session().api().request(
 		std::move(*request)
-	).done([=](const Api::SearchRequestResult &result) {
+	).done(crl::guard(this, [=](const Api::SearchRequestResult &result) {
 		auto parsed = Api::ParseSearchResult(
 			peer,
-			_type,
+			key.type,
 			messageId,
 			Data::LoadDirection::Around,
 			result);
@@ -394,17 +400,17 @@ void Provider::jumpToMessage(
 		if (!parsed.messageIds.empty()) {
 			peer->session().storage().add(Storage::SharedMediaAddSlice(
 				peer->id,
-				_topicRootId,
-				_monoforumPeerId,
-				_type,
+				key.topicRootId,
+				key.monoforumPeerId,
+				key.type,
 				std::move(parsed.messageIds),
 				parsed.noSkipRange,
 				parsed.fullCount));
 		}
 		finish();
-	}).fail([=] {
+	})).fail(crl::guard(this, [=] {
 		finish();
-	}).send();
+	})).send();
 }
 
 bool Provider::anchorWhileAtTop() {
@@ -437,9 +443,17 @@ SparseIdsMergedSlice::Key Provider::sliceKey(
 
 void Provider::itemRemoved(not_null<const HistoryItem*> item) {
 	const auto id = GetUniversalId(item);
-	if (const auto i = _layouts.find(id); i != end(_layouts)) {
-		_layoutRemoved.fire(i->second.item.get());
-		_layouts.erase(i);
+	const auto i = _layouts.find(id);
+	if (i == end(_layouts)) {
+		return;
+	}
+	_layoutRemoved.fire(i->second.item.get());
+	// The list widget handles layoutRemoved() synchronously and may
+	// refresh its height from there, which can reach refreshViewer()
+	// -> refreshRows() -> fillSections() -> clearStaleLayouts() before
+	// we get back here, erasing this very entry, so look it up again.
+	if (const auto j = _layouts.find(id); j != end(_layouts)) {
+		_layouts.erase(j);
 	}
 }
 

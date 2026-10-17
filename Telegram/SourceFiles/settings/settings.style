@@ -129,7 +129,7 @@ settingsBusinessIconChatLinks: icon {{ "settings/premium/business/business_links
 settingsBusinessPromoLocation: icon {{ "settings/premium/promo/business_location", premiumButtonBg1 }};
 settingsBusinessPromoHours: icon {{ "settings/premium/promo/business_hours", premiumButtonBg1 }};
 settingsBusinessPromoReplies: icon {{ "settings/premium/promo/business_quickreply", premiumButtonBg1 }};
-settingsBusinessPromoGreeting: icon {{ "settings/premium/promo/business_greeting", premiumButtonBg1 }};
+settingsBusinessPromoGreeting: icon {{ "menu/welcome_message-24x24", premiumButtonBg1 }};
 settingsBusinessPromoAway: icon {{ "settings/premium/promo/business_away", premiumButtonBg1 }};
 settingsBusinessPromoChatbots: icon {{ "settings/premium/promo/business_chatbot", premiumButtonBg1 }};
 settingsBusinessPromoChatIntro: icon {{ "settings/premium/promo/business_intro", premiumButtonBg1 }};
@@ -195,6 +195,7 @@ settingLocalPasscodeError: FlatLabel(changePhoneError) {
 settingLocalPasscodeDescriptionBottomSkip: 15px;
 settingLocalPasscodeIconPadding: margins(0px, 19px, 0px, 5px);
 settingLocalPasscodeButtonPadding: margins(0px, 19px, 0px, 35px);
+settingLocalPasscodeMeterPadding: margins(0px, 8px, 0px, 0px);
 
 settingsInfoPhotoHeight: 162px;
 settingsInfoPhotoSize: 100px;
@@ -372,6 +373,7 @@ sessionBigName: FlatLabel(defaultFlatLabel) {
 sessionDateLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 	align: align(top);
+	maxHeight: 20px;
 }
 sessionDateSkip: 19px;
 sessionValuePadding: margins(37px, 5px, 0px, 0px);

@@ -97,7 +97,9 @@ void Widget::moveBottom(int bottom) {
 
 void Widget::updateContentHeight() {
 	auto addedHeight = innerPadding().top() + innerPadding().bottom();
-	auto wantedContentHeight = qRound(st::emojiPanHeightRatio * _bottom) - addedHeight;
+	const auto wanted
+		= int(base::SafeRound(st::emojiPanHeightRatio * _bottom));
+	auto wantedContentHeight = wanted - addedHeight;
 	auto contentHeight = std::clamp(
 		wantedContentHeight,
 		st::inlineResultsMinHeight,
@@ -375,10 +377,10 @@ void Widget::inlineResultsDone(const MTPmessages_BotResults &result) {
 	auto it = _inlineCache.find(_inlineQuery);
 	auto adding = (it != _inlineCache.cend());
 	if (result.type() == mtpc_messages_botResults) {
-		auto &d = result.c_messages_botResults();
+		const auto &d = result.c_messages_botResults();
 		_controller->session().data().processUsers(d.vusers());
 
-		auto &v = d.vresults().v;
+		const auto &v = d.vresults().v;
 		auto queryId = d.vquery_id().v;
 
 		if (it == _inlineCache.cend()) {

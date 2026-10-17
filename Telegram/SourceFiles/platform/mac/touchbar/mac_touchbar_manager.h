@@ -26,4 +26,5 @@ API_AVAILABLE(macos(10.12.2))
 - (id)init:(rpl::producer<Ui::MarkdownEnabledState>)markdownState
 	controller:(not_null<Window::Controller*>)controller
 	domain:(not_null<Main::Domain*>)domain;
+- (void)invalidate;
 @end

@@ -42,6 +42,12 @@ enum class PhotoQualityState : uchar {
 	High,
 };
 
+enum class CoverState : uchar {
+	None,
+	Add,
+	Has,
+};
+
 struct Details {
 	Type type = Type::Disabled;
 	uint64 barePeerId = 0;
@@ -49,6 +55,7 @@ struct Details {
 	SpoilerState spoiler = SpoilerState::None;
 	CaptionState caption = CaptionState::None;
 	PhotoQualityState photoQuality = PhotoQualityState::None;
+	CoverState cover = CoverState::None;
 	TextWithTags commentPreview;
 	QString commentStreamerName;
 	std::optional<uint64> price;

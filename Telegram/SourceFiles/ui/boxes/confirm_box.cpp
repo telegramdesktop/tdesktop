@@ -34,7 +34,9 @@ void ConfirmBox(not_null<Ui::GenericBox*> box, ConfirmBoxArgs &&args) {
 			object_ptr<Ui::FlatLabel>(
 				box.get(),
 				v::text::take_marked(std::move(args.text)),
-				args.labelStyle ? *args.labelStyle : st::boxLabel),
+				args.labelStyle ? *args.labelStyle : st::boxLabel,
+				st::defaultPopupMenu,
+				args.labelContext),
 			use);
 		if (args.labelFilter) {
 			label->setClickHandlerFilter(std::move(args.labelFilter));
@@ -83,7 +85,8 @@ void ConfirmBox(not_null<Ui::GenericBox*> box, ConfirmBoxArgs &&args) {
 			return;
 		}
 		const auto k = static_cast<QKeyEvent*>(e.get());
-		if (k->key() == Qt::Key_Enter || k->key() == Qt::Key_Return) {
+		if (!k->isAutoRepeat()
+			&& (k->key() == Qt::Key_Enter || k->key() == Qt::Key_Return)) {
 			confirmButton->clicked(Qt::KeyboardModifiers(), Qt::LeftButton);
 		}
 	}, box->lifetime());

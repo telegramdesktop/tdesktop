@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
+#include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_sticker_player.h"
@@ -179,7 +180,7 @@ void ChooseRecipient(
 		not_null<Ui::WhoReactedEntryAction*> action;
 		std::shared_ptr<Ui::DynamicImage> userpic;
 	};
-	auto actions = std::make_shared<std::vector<Entry>>();
+	const auto actions = menu->lifetime().make_state<std::vector<Entry>>();
 	actions->reserve(list.size());
 	for (const auto &peer : list) {
 		auto view = peer->createUserpicView();
@@ -191,14 +192,15 @@ void ChooseRecipient(
 		const auto index = int(actions->size());
 		actions->push_back({ action.get(), Ui::MakeUserpicThumbnail(peer) });
 
+		const auto user = peer->asUser();
 		const auto updateUserpic = [=] {
 			const auto size = st::defaultWhoRead.photoSize;
 			actions->at(index).action->setData({
 				.text = peer->name(),
 				.date = (peer->isSelf()
 					? tr::lng_group_call_join_as_personal(tr::now)
-					: peer->isUser()
-					? tr::lng_status_bot(tr::now)
+					: user
+					? Data::BotStatusText(user)
 					: peer->isBroadcast()
 					? tr::lng_channel_status(tr::now)
 					: tr::lng_group_status(tr::now)),

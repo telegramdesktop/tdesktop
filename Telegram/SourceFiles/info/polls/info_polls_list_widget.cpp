@@ -225,7 +225,7 @@ private:
 	bool _newPollButtonShown = true;
 
 	std::unique_ptr<Lottie::Icon> _emptyIcon;
-	Ui::Text::String _emptyText;
+	Ui::Text::String _emptyText = { 1 };
 	bool _emptyAnimated = false;
 
 	QImage _bg;
@@ -366,7 +366,8 @@ void ListWidget::Inner::updateGeometry(QRect rect) {
 		return;
 	}
 	_inlineViewportHeight = rect.height();
-	_list->resizeToWidth(rect.width(), rect.height());
+	// Short inline list would sink to bottom of viewport.
+	_list->resizeToWidth(rect.width(), _scroll ? rect.height() : 0);
 	if (!_viewerRefreshed) {
 		_viewerRefreshed = true;
 		_list->refreshViewer();
@@ -1063,9 +1064,16 @@ void ListWidget::setInternalState(
 }
 
 std::shared_ptr<ContentMemento> ListWidget::doCreateMemento() {
-	auto result = std::make_shared<ListMemento>(
-		controller()->key().peer(),
-		controller()->migratedPeerId());
+	auto result = std::shared_ptr<ListMemento>();
+	if (const auto sublist = controller()->sublist()) {
+		result = std::make_shared<ListMemento>(sublist);
+	} else if (const auto topic = controller()->topic()) {
+		result = std::make_shared<ListMemento>(topic);
+	} else {
+		result = std::make_shared<ListMemento>(
+			controller()->key().peer(),
+			controller()->migratedPeerId());
+	}
 	saveState(result.get());
 	return result;
 }

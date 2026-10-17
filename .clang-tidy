@@ -1,0 +1,38 @@
+# Qt helpers where the standard is exact; the list grows one check at a time.
+Checks: '-*,bugprone-unsafe-functions'
+WarningsAsErrors: 'bugprone-unsafe-functions'
+CheckOptions:
+  bugprone-unsafe-functions.CustomFunctions: >
+    ^::qMin$,std::min,;
+    ^::qMax$,std::max,;
+    ^::qAbs$,std::abs,;
+    ^::qBound$,std::clamp,orders arguments as (low, value, high);
+    ^::qSwap$,std::swap,;
+    ^::qMakePair$,std::make_pair,;
+    ^::qExchange$,std::exchange,;
+    ^::qAsConst$,std::as_const,;
+    ^::qFabs$,std::fabs,;
+    ^::qSin$,std::sin,;
+    ^::qCos$,std::cos,;
+    ^::qTan$,std::tan,;
+    ^::qAcos$,std::acos,;
+    ^::qAsin$,std::asin,;
+    ^::qAtan$,std::atan,;
+    ^::qAtan2$,std::atan2,;
+    ^::qSqrt$,std::sqrt,;
+    ^::qLn$,std::log,;
+    ^::qExp$,std::exp,;
+    ^::qPow$,std::pow,;
+    ^::qHypot$,std::hypot,;
+    ^::qIsNaN$,std::isnan,;
+    ^::qIsInf$,std::isinf,;
+    ^::qIsFinite$,std::isfinite,;
+    ^::qPopulationCount$,std::popcount,;
+    ^::qCountLeadingZeroBits$,std::countl_zero,;
+    ^::qCountTrailingZeroBits$,std::countr_zero,;
+    ^::qCeil$,int(std::ceil(...)),;
+    ^::qFloor$,int(std::floor(...)),;
+    ^::qRound$,int(base::SafeRound(...)),
+
+# Header findings repeat per translation unit, and submodules are not ours.
+HeaderFilterRegex: ''

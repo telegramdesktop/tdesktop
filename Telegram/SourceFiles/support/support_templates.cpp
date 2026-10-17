@@ -573,7 +573,7 @@ void Templates::updateRequestFinished(QNetworkReply *reply) {
 			errors = std::move(result.errors),
 			index = std::move(index)
 		]() mutable {
-			auto &existing = _data.files.at(path);
+			const auto &existing = _data.files.at(path);
 			auto &parsed = one.files.at(path);
 			MoveKeys(parsed, existing);
 			ReplaceFileIndex(_index, ComputeIndex(one), path);

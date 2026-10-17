@@ -63,7 +63,9 @@ void PlaybackProgress::updateState(
 		? std::clamp(float64(availableTill) / length, 0., 1.)
 		: -1.;
 	const auto animatedPosition = position + (state.frequency * kPlaybackAnimationDurationMs / 1000);
-	const auto animatedProgress = length ? qMax(float64(animatedPosition) / length, 0.) : 0.;
+	const auto animatedProgress = length
+		? std::max(float64(animatedPosition) / length, 0.)
+		: 0.;
 	if (length != _length || position != _position || wasInLoadingState) {
 		const auto animated = length
 			&& _length
@@ -96,7 +98,7 @@ void PlaybackProgress::updateLoadingState(float64 progress) {
 }
 
 float64 PlaybackProgress::value() const {
-	return qMin(a_value.current(), 1.);
+	return std::min(a_value.current(), 1.);
 }
 
 void PlaybackProgress::setValue(float64 value, bool animated) {

@@ -16,8 +16,12 @@ inline bool NativeTitleRequiresShadow() {
 	return Platform::IsWindows();
 }
 
+inline bool WindowTitleAlignsLeft() {
+	return IsMac26_0OrGreater();
+}
+
 int PreviewTitleHeight();
-void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRect body, int outerWidth);
+void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QColor bg, QRect body, int outerWidth);
 
 } // namespace Platform
 
@@ -31,7 +35,7 @@ inline int PreviewTitleHeight() {
 	return Window::Theme::DefaultPreviewTitleHeight();
 }
 
-inline void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRect body, int outerWidth) {
+inline void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QColor bg, QRect body, int outerWidth) {
 	return Window::Theme::DefaultPreviewWindowFramePaint(preview, palette, body, outerWidth);
 }
 

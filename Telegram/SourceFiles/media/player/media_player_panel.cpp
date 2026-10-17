@@ -17,8 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_forum_topic.h"
-#include "data/data_saved_messages.h"
-#include "data/data_saved_sublist.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/cached_round_corners.h"
@@ -97,7 +95,7 @@ bool Panel::preventAutoHide() const {
 void Panel::updateControlsGeometry() {
 	const auto scrollTop = contentTop();
 	const auto width = contentWidth();
-	const auto scrollHeight = qMax(
+	const auto scrollHeight = std::max(
 		height() - scrollTop - contentBottom() - scrollMarginBottom(),
 		0);
 	if (scrollHeight > 0) {
@@ -130,7 +128,10 @@ void Panel::updateSize() {
 		listHeight = widget->height();
 	}
 	auto scrollVisible = (listHeight > 0);
-	auto scrollHeight = scrollVisible ? (qMin(listHeight, st::mediaPlayerListHeightMax) + st::mediaPlayerListMarginBottom) : 0;
+	auto scrollHeight = scrollVisible
+		? (std::min(listHeight, st::mediaPlayerListHeightMax)
+			+ st::mediaPlayerListMarginBottom)
+		: 0;
 	height += scrollHeight + contentBottom();
 	resize(width, height);
 	_scroll->setVisible(scrollVisible);
@@ -251,9 +252,7 @@ void Panel::refreshList() {
 		const auto document = media ? media->document() : nullptr;
 		if (!document
 			|| !document->isSharedMediaMusic()
-			|| (!item->isRegular()
-				&& !item->isScheduled()
-				&& !item->isSavedMusicItem())) {
+			|| !IsRealPlaybackContext(item)) {
 			return nullptr;
 		}
 		savedMusicItem = item->isSavedMusicItem();
@@ -316,13 +315,12 @@ void Panel::refreshList() {
 			_scroll->scrollToY(newScrollTop);
 		}, weak->lifetime());
 
-		// MSVC BUG + REGRESSION rpl::mappers::tuple :(
 		using namespace rpl::mappers;
 		rpl::combine(
 			_scroll->scrollTopValue(),
-			_scroll->heightValue()
-		) | rpl::on_next([=](int top, int height) {
-			const auto bottom = top + height;
+			_scroll->heightValue(),
+			tuple(_1, _1 + _2)
+		) | rpl::on_next([=](int top, int bottom) {
 			weak->setVisibleTopBottom(top, bottom);
 		}, weak->lifetime());
 
@@ -368,12 +366,8 @@ Data::ForumTopic *Panel::listTopic() const {
 }
 
 Data::SavedSublist *Panel::listSublist() const {
-	const auto monoforum = (_listPeer && _listSublistPeerId)
-		? _listPeer->monoforum()
-		: nullptr;
-	return monoforum
-		? monoforum->sublistLoaded(
-			_listPeer->owner().peer(_listSublistPeerId))
+	return _listPeer
+		? _listPeer->monoforumSublistFor(_listSublistPeerId)
 		: nullptr;
 }
 

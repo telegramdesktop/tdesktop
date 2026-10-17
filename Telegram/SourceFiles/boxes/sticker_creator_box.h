@@ -37,4 +37,11 @@ void OpenCreateEmojiFlow(
 	not_null<DocumentData*> document,
 	Fn<void(MTPmessages_StickerSet)> done = nullptr);
 
+[[nodiscard]] bool AdaptGifToSet(
+	std::shared_ptr<ChatHelpers::Show> show,
+	StickerSetIdentifier set,
+	not_null<DocumentData*> document,
+	Data::StickersType type,
+	Fn<void(MTPmessages_StickerSet)> done = nullptr);
+
 } // namespace Api

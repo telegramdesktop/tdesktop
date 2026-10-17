@@ -134,16 +134,7 @@ constexpr auto kFrameSize = 4096;
 		return {};
 	}
 
-	auto swrContext = MakeSwresamplePointer(
-		&inCodecContext->ch_layout,
-		inCodecContext->sample_fmt,
-		inCodecContext->sample_rate,
-		&outCodecContext->ch_layout,
-		outCodecContext->sample_fmt,
-		outCodecContext->sample_rate);
-	if (!swrContext) {
-		return {};
-	}
+	auto swrContext = SwresamplePointer();
 
 	auto packet = av_packet_alloc();
 	const auto guard = gsl::finally([&] {
@@ -238,6 +229,17 @@ constexpr auto kFrameSize = 4096;
 					LogError("avcodec_receive_frame", error);
 					return {};
 				}
+			}
+			swrContext = MakeSwresamplePointer(
+				&frame->ch_layout,
+				static_cast<AVSampleFormat>(frame->format),
+				frame->sample_rate,
+				&outCodecContext->ch_layout,
+				outCodecContext->sample_fmt,
+				outCodecContext->sample_rate,
+				&swrContext);
+			if (!swrContext) {
+				return {};
 			}
 			error = swr_convert(
 				swrContext.get(),

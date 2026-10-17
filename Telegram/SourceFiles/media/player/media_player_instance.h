@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class AudioMsgId;
 class DocumentData;
 class History;
+class HistoryItem;
 
 namespace Media {
 enum class RepeatMode;
@@ -65,6 +66,8 @@ void finish(not_null<Audio::Instance*> instance);
 void SaveLastPlaybackPosition(
 	not_null<DocumentData*> document,
 	const TrackState &state);
+
+[[nodiscard]] bool IsRealPlaybackContext(not_null<const HistoryItem*> item);
 
 not_null<Instance*> instance();
 
@@ -144,6 +147,7 @@ public:
 		return false;
 	}
 	void startSeeking(AudioMsgId::Type type);
+	void updateSeeking(AudioMsgId::Type type, float64 progress);
 	void finishSeeking(AudioMsgId::Type type, float64 progress);
 	void cancelSeeking(AudioMsgId::Type type);
 
@@ -200,6 +204,7 @@ private:
 		Storage::SharedMediaType overview;
 		AudioMsgId current;
 		AudioMsgId seeking;
+		std::vector<not_null<DocumentData*>> currentTracks;
 		std::optional<SparseIdsMergedSlice> playlistSlice;
 		std::optional<SliceKey> playlistSliceKey;
 		std::optional<SliceKey> playlistRequestedKey;
@@ -217,6 +222,7 @@ private:
 		Main::Session *session = nullptr;
 		bool isPlaying = false;
 		bool resumeOnCallEnd = false;
+		bool resumeOnVoiceEnd = false;
 		std::unique_ptr<Streamed> streamed;
 		std::unique_ptr<ShuffleData> shuffleData;
 		std::unique_ptr<base::PowerSaveBlocker> powerSaveBlocker;
@@ -241,12 +247,21 @@ private:
 	Streaming::PlaybackOptions streamingOptions(
 		const AudioMsgId &audioId,
 		crl::time position = -1);
+	[[nodiscard]] crl::time streamedDuration(
+		not_null<Streamed*> streamed) const;
+	void seekStreamed(
+		not_null<Data*> data,
+		float64 progress,
+		bool keepPaused);
 
 	// Observed notifications.
 	void handleSongUpdate(const AudioMsgId &audioId);
 
 	void pauseOnCall(AudioMsgId::Type type);
 	void resumeOnCall(AudioMsgId::Type type);
+
+	void pauseSongForVoice();
+	void resumeSongAfterVoice(bool force = false);
 
 	void setCurrent(const AudioMsgId &audioId);
 	void refreshPlaylist(not_null<Data*> data);
@@ -259,6 +274,10 @@ private:
 	bool validOtherPlaylist(not_null<const Data*> data) const;
 	void validateOtherPlaylist(not_null<Data*> data);
 	void playlistUpdated(not_null<Data*> data);
+	[[nodiscard]] AudioMsgId trackInItem(
+		not_null<const Data*> data,
+		int delta) const;
+	bool moveInItem(not_null<Data*> data, int delta, bool autonext);
 	bool moveInPlaylist(not_null<Data*> data, int delta, bool autonext);
 	void updatePowerSaveBlocker(
 		not_null<Data*> data,

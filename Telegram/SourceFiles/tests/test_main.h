@@ -103,6 +103,7 @@ public:
 	void registerLeaveSubscription(not_null<QWidget*> widget);
 	void unregisterLeaveSubscription(not_null<QWidget*> widget);
 	QString emojiCacheFolder();
+	QString fontsCacheFolder();
 	QString openglCheckFilePath();
 	QString angleBackendFilePath();
 	void touchCounterIncrement();

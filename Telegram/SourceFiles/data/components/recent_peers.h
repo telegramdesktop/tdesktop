@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/weak_ptr.h"
 #include "ui/userpic_view.h"
 
 namespace Main {
@@ -43,7 +44,9 @@ private:
 	const not_null<Main::Session*> _session;
 
 	std::vector<not_null<PeerData*>> _list;
-	std::vector<not_null<Thread*>> _opens;
+	// Weak: a ForumTopic or SavedSublist can be destroyed without an
+	// applyTopicDeleted() / applySublistDeleted() call.
+	std::vector<base::weak_ptr<Thread>> _opens;
 	base::flat_map<
 		not_null<PeerData*>,
 		Ui::PeerUserpicView> _chatOpenUserpicsCache;

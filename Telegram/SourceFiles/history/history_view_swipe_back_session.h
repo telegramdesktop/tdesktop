@@ -14,8 +14,8 @@ class ListWidget;
 } // namespace HistoryView
 
 namespace Ui {
-class RpWidget;
 class ElasticScroll;
+class RpWidget;
 } // namespace Ui
 
 namespace Window {

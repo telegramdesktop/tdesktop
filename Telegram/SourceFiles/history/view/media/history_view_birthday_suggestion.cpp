@@ -87,7 +87,7 @@ namespace HistoryView {
 			(isSelf
 				? st::birthdaySuggestTableLastPadding
 				: st::birthdaySuggestTablePadding)));
-		if (!isSelf) {
+		if (!isSelf && (parent->context() != Context::MediaEditor)) {
 			auto link = std::make_shared<LambdaClickHandler>([=](
 					ClickContext context) {
 				Core::App().openInternalUrl(

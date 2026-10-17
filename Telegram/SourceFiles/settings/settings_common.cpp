@@ -16,14 +16,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/premium_top_bar.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/search_field_controller.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/elastic_scroll.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/text/text_entity.h"
 #include "styles/style_edit_peer_members.h"
+#include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 #include "styles/style_widgets.h"
@@ -689,7 +693,11 @@ LottieIcon CreateLottieIcon(
 
 	}, raw->lifetime());
 
-	return { .widget = std::move(object), .animate = std::move(animate) };
+	return {
+		.widget = std::move(object),
+		.animate = std::move(animate),
+		.animating = [=] { return icon->animating(); },
+	};
 }
 
 SliderWithLabel MakeSliderWithLabel(
@@ -831,6 +839,44 @@ void AddPremiumStar(
 
 	ministarsContainer->resize(fullHeight, fullHeight);
 	ministars->setCenter(ministarsContainer->rect());
+}
+
+SectionSearchRow CreateSectionSearchRow(
+		not_null<QWidget*> parent,
+		const QString &query) {
+	auto controller = std::make_unique<Ui::SearchFieldController>(query);
+	auto rowView = controller->createRowView(
+		parent,
+		st::infoLayerMediaSearch);
+	const auto row = rowView.wrap.release();
+	const auto field = rowView.field.data();
+	row->show();
+	return {
+		.controller = std::move(controller),
+		.row = row,
+		.field = field,
+	};
+}
+
+QStringList SearchWords(const QString &text) {
+	auto simple = text;
+	return TextUtilities::PrepareSearchWords(simple.replace('#', ' '));
+}
+
+bool MatchesWords(const QStringList &terms, const QStringList &words) {
+	for (const auto &word : words) {
+		auto found = false;
+		for (const auto &term : terms) {
+			if (term.startsWith(word)) {
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			return false;
+		}
+	}
+	return true;
 }
 
 } // namespace Settings

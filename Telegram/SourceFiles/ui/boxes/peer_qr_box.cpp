@@ -916,6 +916,7 @@ void FillPeerQrBox(
 		const auto top = photoSize
 			? userpicMedia->image(photoSize)
 			: QImage();
+		const auto bgs = state->bgs.current();
 		const auto weak = base::make_weak(box);
 
 		crl::async([=] {
@@ -958,7 +959,7 @@ void FillPeerQrBox(
 					p,
 					font,
 					username,
-					state->bgs.current(),
+					bgs,
 					backgroundMargins,
 					qrImage,
 					qrRect,

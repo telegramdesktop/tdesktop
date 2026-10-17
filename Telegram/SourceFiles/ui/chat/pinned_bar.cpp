@@ -122,6 +122,10 @@ void PinnedBar::setRightButton(object_ptr<Ui::RpWidget> button) {
 			_right.button->setDuration(0);
 			_right.button->show(anim::type::instant);
 		}
+
+		// The button is created and replaced deeper in the tree than the bars
+		// container watches, so it wouldn't be placed in the visual Tab order.
+		RefreshVisualTabOrder(_right.button.data());
 	}
 	if (_bar) {
 		updateControlsGeometry(_wrap.geometry());

@@ -42,6 +42,8 @@ public:
 	[[nodiscard]] std::optional<QColor> textColorOverride(
 		const style::color &defaultColor) const;
 
+	[[nodiscard]] QColor cardOverlay() const;
+
 private:
 	void updateBrush(
 		QSize widgetSize,

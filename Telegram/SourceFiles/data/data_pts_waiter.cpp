@@ -173,7 +173,7 @@ bool PtsWaiter::check(ChannelData *channel, int32 pts, int32 count) {
 		return true;
 	}
 
-	_last = qMax(_last, pts);
+	_last = std::max(_last, pts);
 	_count += count;
 	if (_last == _count) {
 		_good = _last;

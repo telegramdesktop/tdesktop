@@ -215,7 +215,7 @@ void DcOptions::processFromList(
 			continue;
 		}
 
-		auto &option = mtpOption.c_dcOption();
+		const auto &option = mtpOption.c_dcOption();
 		auto dcId = option.vid().v;
 		auto flags = option.vflags().v;
 		auto ip = std::string(

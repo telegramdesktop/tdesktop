@@ -149,6 +149,7 @@ private:
 	void listAddTranslatedItems(
 		not_null<TranslateTracker*> tracker) override;
 	not_null<Window::SessionController*> listWindow() override;
+	Window::SessionController *listWindowOrNull() override;
 	not_null<QWidget*> listEmojiInteractionsParent() override;
 	not_null<const Ui::ChatStyle*> listChatStyle() override;
 	rpl::producer<bool> listChatWideValue() override;
@@ -856,6 +857,10 @@ void Item::listAddTranslatedItems(
 
 not_null<Window::SessionController*> Item::listWindow() {
 	Unexpected("Item::listWindow.");
+}
+
+Window::SessionController *Item::listWindowOrNull() {
+	return nullptr;
 }
 
 not_null<QWidget*> Item::listEmojiInteractionsParent() {

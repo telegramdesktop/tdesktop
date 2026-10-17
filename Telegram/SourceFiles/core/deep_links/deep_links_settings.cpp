@@ -221,7 +221,7 @@ Result ShowMyProfile(const Context &ctx) {
 		return Result::NeedsAuth;
 	}
 	ctx.controller->showSection(
-		Info::Stories::Make(ctx.controller->session().user()));
+		Info::Stories::MakeMyProfile(ctx.controller->session().user()));
 	return Result::Handled;
 }
 
@@ -601,7 +601,7 @@ void RegisterSettingsHandlers(Router &router) {
 			ctx.controller->setHighlightControlId(highlight);
 		}
 		const auto &local = ctx.controller->session().domain().local();
-		if (local.hasLocalPasscode()) {
+		if (local.hasPasscode()) {
 			ctx.controller->showSettings(::Settings::LocalPasscodeCheckId());
 		} else {
 			ctx.controller->showSettings(::Settings::LocalPasscodeCreateId());

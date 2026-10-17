@@ -275,7 +275,6 @@ void DocumentMedia::videoThumbnailWanted(Data::FileOrigin origin) {
 
 void DocumentMedia::setVideoThumbnail(QByteArray content) {
 	_videoThumbnailBytes = std::move(content);
-	_videoThumbnailBytes.detach();
 }
 
 void DocumentMedia::checkStickerLarge() {
@@ -313,7 +312,9 @@ void DocumentMedia::automaticLoad(
 		return;
 	}
 	const auto toCache = _owner->saveToCache();
-	if (!toCache && !Core::App().canSaveFileWithoutAskingForPath()) {
+	if (!toCache && _owner->forbidsFileSave()) {
+		return;
+	} else if (!toCache && !Core::App().canSaveFileWithoutAskingForPath()) {
 		// We need a filename, but we're supposed to ask user for it.
 		// No automatic download in this case.
 		return;
@@ -335,6 +336,12 @@ void DocumentMedia::automaticLoad(
 	const auto loadFromCloud = shouldLoadFromCloud
 		? LoadFromCloudOrLocal
 		: LoadFromLocalOnly;
+	if (_owner->loading()) {
+		if (loadFromCloud == LoadFromCloudOrLocal) {
+			_owner->permitLoadFromCloud();
+		}
+		return;
+	}
 	_owner->save(
 		origin,
 		filename,

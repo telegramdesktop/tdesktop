@@ -434,8 +434,9 @@ FingerprintBadge SetupFingerprintBadge(
 			}
 
 			if (entry.position >= kEmojiInCarousel) {
-				entry.position -= qFloor(entry.position / kEmojiInCarousel)
-					* kEmojiInCarousel;
+				const auto turns
+					= int(std::floor(entry.position / kEmojiInCarousel));
+				entry.position -= turns * kEmojiInCarousel;
 			}
 			while (entry.position >= 1.) {
 				Assert(!entry.sliding.empty());

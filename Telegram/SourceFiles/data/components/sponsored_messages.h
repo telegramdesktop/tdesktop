@@ -124,6 +124,11 @@ public:
 		InjectToMiddle,
 		AppendToTopBar,
 	};
+	struct InjectState {
+		HistoryItem *lastInjected = nullptr;
+		int postsBetween = 0;
+		bool injectedAny = false;
+	};
 	using Details = SponsoredMessageDetails;
 	using RandomId = QByteArray;
 	explicit SponsoredMessages(not_null<Main::Session*> session);
@@ -160,6 +165,11 @@ public:
 		MsgId injectAfterMsgId,
 		int betweenHeight,
 		int fallbackWidth);
+	[[nodiscard]] std::optional<InjectState> injectState(
+		not_null<History*> history);
+	[[nodiscard]] HistoryItem *injectItem(
+		not_null<History*> history,
+		not_null<HistoryItem*> after);
 
 	void view(const FullMsgId &fullId);
 	void view(const QByteArray &randomId);

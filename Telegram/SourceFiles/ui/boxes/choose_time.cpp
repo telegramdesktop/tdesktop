@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/boxes/choose_time.h"
 
+#include "base/invoke_queued.h"
 #include "base/qt_signal_producer.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/fields/time_part_input_with_placeholder.h"
@@ -21,23 +22,33 @@ ChooseTimeResult ChooseTimeWidget(
 		TimeId startSeconds,
 		bool hiddenDaysInput) {
 	using TimeField = Ui::TimePartWithPlaceholder;
-	const auto putNext = [](not_null<TimeField*> field, QChar ch) {
+	// Focusing synchronously closes an open IME composition, which on Windows
+	// makes QWindowsInputContext::reset() re-send the commit to the field we
+	// came from, whose correctValue() calls us again, until the stack
+	// overflows. Ui::TimeInput::setFocusQueued() breaks the same loop the
+	// same way - and unlike a re-entrancy flag it still lets a chained
+	// overflow digit reach the field after the next one.
+	const auto setFocusQueued = [](not_null<TimeField*> field) {
+		const auto raw = field.get();
+		InvokeQueued(raw, [raw] { raw->setFocus(); });
+	};
+	const auto putNext = [=](not_null<TimeField*> field, QChar ch) {
 		field->setCursorPosition(0);
 		if (ch.unicode()) {
 			field->setText(ch + field->getLastText());
 			field->setCursorPosition(1);
 		}
 		field->onTextEdited();
-		field->setFocus();
+		setFocusQueued(field);
 	};
 
-	const auto erasePrevious = [](not_null<TimeField*> field) {
+	const auto erasePrevious = [=](not_null<TimeField*> field) {
 		const auto text = field->getLastText();
 		if (!text.isEmpty()) {
 			field->setCursorPosition(text.size() - 1);
 			field->setText(text.mid(0, text.size() - 1));
 		}
-		field->setFocus();
+		setFocusQueued(field);
 	};
 
 	struct State {

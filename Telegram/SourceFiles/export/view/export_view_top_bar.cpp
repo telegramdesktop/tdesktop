@@ -62,7 +62,7 @@ void TopBar::resizeToWidthInfo(int w) {
 		_infoRight->moveToLeft(
 			w - padding - _infoRight->width(),
 			infoTop);
-		_infoMiddle->resizeToWidth(qMax(
+		_infoMiddle->resizeToWidth(std::max(
 			_infoRight->x()
 				- rect::right(_infoLeft)
 				- spacing * 2,

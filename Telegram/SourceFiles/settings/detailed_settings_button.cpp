@@ -186,7 +186,7 @@ int DetailedSettingsButton::firstDescriptionLineBottom() const {
 	const auto top = (_descriptionTop > 0)
 		? _descriptionTop
 		: descriptionTopValue();
-	return top + qMax(
+	return top + std::max(
 		_style.description.style.lineHeight,
 		_style.description.style.font->height);
 }

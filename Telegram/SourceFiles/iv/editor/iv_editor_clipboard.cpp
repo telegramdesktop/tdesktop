@@ -8,9 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/editor/iv_editor_clipboard.h"
 
 #include "base/random.h"
+#include "base/weak_ptr.h"
+#include "main/main_session.h"
 
 #include <QtCore/QMimeData>
-#include <QtCore/QPointer>
 
 namespace Iv::Editor {
 namespace {
@@ -18,19 +19,42 @@ namespace {
 struct ClipboardStorage {
 	uint64 sessionId = base::RandomValue<uint64>();
 	uint64 serial = 0;
-	QPointer<QMimeData> mimeData;
+	base::weak_ptr<Main::Session> mediaSession;
+	bool hasMedia = false;
 	std::optional<ClipboardData> data;
 };
+
+[[nodiscard]] Main::Session *PayloadMediaSession(
+		const ClipboardBlockData &payload) {
+	return RichBlocksMediaSession(payload.blocks);
+}
+
+[[nodiscard]] Main::Session *PayloadMediaSession(
+		const ClipboardListItemsData &payload) {
+	return RichListItemsMediaSession(payload.items);
+}
+
+[[nodiscard]] Main::Session *MediaSession(const ClipboardData &data) {
+	return std::visit([](const auto &payload) {
+		return PayloadMediaSession(payload);
+	}, data);
+}
 
 [[nodiscard]] ClipboardStorage &Storage() {
 	static auto storage = ClipboardStorage();
 	return storage;
 }
 
-[[nodiscard]] bool MarkerMatches(const QMimeData *mimeData) {
-	return mimeData
-		&& mimeData->hasFormat(ClipboardMimeType())
-		&& (mimeData->data(ClipboardMimeType()) == "1");
+[[nodiscard]] ClipboardOrigin StoredOrigin(const ClipboardData &data) {
+	return std::visit([](const auto &payload) {
+		return payload.origin;
+	}, data);
+}
+
+[[nodiscard]] QByteArray MarkerPayload(const ClipboardOrigin &origin) {
+	return QByteArray::number(qulonglong(origin.sessionId))
+		+ ':'
+		+ QByteArray::number(qulonglong(origin.serial));
 }
 
 [[nodiscard]] bool OriginMatches(
@@ -44,9 +68,16 @@ struct ClipboardStorage {
 [[nodiscard]] bool StoredDataMatches(
 		const ClipboardData &data,
 		const ClipboardStorage &storage) {
-	return std::visit([&](const auto &payload) {
-		return OriginMatches(payload.origin, storage);
-	}, data);
+	return OriginMatches(StoredOrigin(data), storage);
+}
+
+[[nodiscard]] bool MarkerMatches(
+		const QMimeData *mimeData,
+		const ClipboardData &data) {
+	return mimeData
+		&& mimeData->hasFormat(ClipboardMimeType())
+		&& (mimeData->data(ClipboardMimeType())
+			== MarkerPayload(StoredOrigin(data)));
 }
 
 [[nodiscard]] ClipboardData StampClipboardData(ClipboardData data) {
@@ -67,21 +98,29 @@ QString ClipboardMimeType() {
 
 std::unique_ptr<QMimeData> MimeDataFromClipboardData(ClipboardData data) {
 	auto &storage = Storage();
+	const auto media = MediaSession(data);
+	storage.mediaSession = media;
+	storage.hasMedia = (media != nullptr);
 	storage.data = StampClipboardData(std::move(data));
 	auto result = std::make_unique<QMimeData>();
-	result->setData(ClipboardMimeType(), "1");
-	storage.mimeData = result.get();
+	result->setData(
+		ClipboardMimeType(),
+		MarkerPayload(StoredOrigin(*storage.data)));
 	return result;
 }
 
 std::optional<ClipboardData> ClipboardDataFromMimeData(
-		const QMimeData *mimeData) {
-	const auto &storage = Storage();
-	if (!MarkerMatches(mimeData)
-		|| !storage.data
-		|| !storage.mimeData
-		|| (storage.mimeData.data() != mimeData)
-		|| !StoredDataMatches(*storage.data, storage)) {
+		const QMimeData *mimeData,
+		not_null<Main::Session*> session) {
+	auto &storage = Storage();
+	if (storage.hasMedia && !storage.mediaSession.get()) {
+		storage.data = std::nullopt;
+		storage.hasMedia = false;
+	}
+	if (!storage.data
+		|| (storage.hasMedia && storage.mediaSession.get() != session)
+		|| !StoredDataMatches(*storage.data, storage)
+		|| !MarkerMatches(mimeData, *storage.data)) {
 		return std::nullopt;
 	}
 	return storage.data;

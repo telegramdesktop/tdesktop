@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/elastic_scroll.h"
+#include "ui/widgets/selecting_scroll.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/integration.h"
 #include "ui/rect.h"
@@ -190,7 +191,6 @@ public:
 		MarkdownPreviewScrollMode mode);
 	void scrollToY(int top, MarkdownPreviewScrollMode mode);
 	[[nodiscard]] int scrollTop() const;
-	[[nodiscard]] rpl::producer<int> scrollTopValue() const;
 	bool updateContent(MarkdownArticleContent prepared, OpenOptions options);
 	[[nodiscard]] auto searchSources() const
 	-> std::vector<MarkdownArticleSearchSource>;
@@ -297,6 +297,9 @@ void MarkdownPreviewRoot::setup() {
 	_scroll->setOverscrollBg(st::windowBg->c);
 	_scrollContent = _scroll->setOwnedWidget(object_ptr<Ui::RpWidget>(_scroll));
 	_body = Ui::CreateChild<MarkdownDocumentWidget>(_scrollContent);
+	Ui::SetupSelectingScroll(_body, [=](int pixels) {
+		_scroll->scrollToY(_scroll->scrollTop() + pixels);
+	});
 	_scrollToTop = Ui::CreateChild<Ui::JumpDownButton>(_scroll, st::dialogsToUp);
 	_scrollToTop->setClickedCallback([=] { scrollToTop(); });
 	_scrollToTop->setAccessibleName(tr::lng_sr_scroll_to_top(tr::now));
@@ -552,6 +555,12 @@ void MarkdownPreviewRoot::activateLink(
 				link.target));
 		}
 		break;
+	case PreparedLinkKind::ToggleBlockquote:
+		if (_body && !_body->toggleBlockquote(link.target)) {
+			DEBUG_LOG(("Native Markdown IV: failed blockquote toggle: %1").arg(
+				link.target));
+		}
+		break;
 	}
 }
 
@@ -754,10 +763,7 @@ void MarkdownPreviewRoot::applyPreparedContent(
 	_failure->hide();
 	_failureOpen->hide();
 	if (!_pendingFragment.isEmpty()) {
-		const auto scrolled = scrollToAnchor(
-			_pendingFragment,
-			MarkdownPreviewScrollMode::Instant);
-		static_cast<void>(scrolled);
+		scrollToAnchor(_pendingFragment, MarkdownPreviewScrollMode::Instant);
 		_pendingFragment.clear();
 	}
 	_scrollToTop->raise();
@@ -810,12 +816,6 @@ void MarkdownPreviewRoot::scrollToY(
 
 int MarkdownPreviewRoot::scrollTop() const {
 	return _scroll ? _scroll->scrollTop() : 0;
-}
-
-rpl::producer<int> MarkdownPreviewRoot::scrollTopValue() const {
-	return _scroll
-		? _scroll->scrollTopValue()
-		: rpl::single(0) | rpl::type_erased;
 }
 
 auto MarkdownPreviewRoot::searchSources() const
@@ -880,11 +880,6 @@ void ScrollMarkdownPreviewToY(
 int MarkdownPreviewScrollTop(Ui::RpWidget *preview) {
 	const auto root = dynamic_cast<MarkdownPreviewRoot*>(preview);
 	return root ? root->scrollTop() : 0;
-}
-
-rpl::producer<int> MarkdownPreviewScrollTopValue(Ui::RpWidget *preview) {
-	const auto root = dynamic_cast<MarkdownPreviewRoot*>(preview);
-	return root ? root->scrollTopValue() : rpl::single(0);
 }
 
 auto MarkdownPreviewSearchSources(Ui::RpWidget *preview)
@@ -956,7 +951,8 @@ void MarkdownPreviewRoot::scrollToYAnimated(int top) {
 		if (!_scroll) {
 			return;
 		}
-		const auto animated = qRound(_scrollToAnimation.value(scrollTo));
+		const auto animated
+			= int(base::SafeRound(_scrollToAnimation.value(scrollTo)));
 		const auto animatedDelta = animated - scrollTo;
 		const auto realDelta = _scroll->scrollTop() - scrollTo;
 		if (base::OppositeSigns(realDelta, animatedDelta)) {

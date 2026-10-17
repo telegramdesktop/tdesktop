@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <memory>
 
+namespace Data {
+class Media;
+} // namespace Data
+
 namespace Iv {
 struct RichPage;
 } // namespace Iv
@@ -49,4 +53,13 @@ struct HistoryMessageEdition {
 	const MTPMessageReactions *mtpReactions = nullptr;
 	const MTPFactCheck *mtpFactcheck = nullptr;
 	QString fromRank;
+};
+
+struct HistoryMessageContent {
+	TextWithEntities text;
+	std::unique_ptr<Data::Media> media;
+	HistoryMessageMarkupData markup;
+	std::shared_ptr<const Iv::RichPage> richPage;
+	bool invertMedia = false;
+	bool hideEdited = false;
 };

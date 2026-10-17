@@ -29,6 +29,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 using std::deque;
 using std::wstring;
 
+[[nodiscard]] wstring FormatUpdateError(
+	const wstring &message,
+	DWORD errorCode);
+[[nodiscard]] bool ParseUpdateProcess(
+	const WCHAR *id,
+	const WCHAR *created,
+	DWORD &processId,
+	ULONGLONG &creationTime);
+[[nodiscard]] DWORD FinishUpdateProcess(
+	DWORD processId,
+	ULONGLONG creationTime);
+
 extern LPTOP_LEVEL_EXCEPTION_FILTER _oldWndExceptionFilter;
 LONG CALLBACK _exceptionFilter(EXCEPTION_POINTERS* pExceptionPointers);
 LPTOP_LEVEL_EXCEPTION_FILTER WINAPI RedirectedSetUnhandledExceptionFilter(_In_opt_ LPTOP_LEVEL_EXCEPTION_FILTER lpTopLevelExceptionFilter);

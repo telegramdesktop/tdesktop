@@ -15,6 +15,7 @@ class EditPrivacyController;
 namespace Ui {
 class BoxContent;
 class GenericBox;
+class Show;
 } // namespace Ui
 
 namespace Settings {
@@ -25,7 +26,8 @@ int ExceptionUsersCount(const std::vector<not_null<PeerData*>> &exceptions);
 
 bool CheckEditCloudPassword(not_null<::Main::Session*> session);
 object_ptr<Ui::BoxContent> EditCloudPasswordBox(
-	not_null<::Main::Session*> session);
+	not_null<::Main::Session*> session,
+	std::shared_ptr<Ui::Show> show = nullptr);
 object_ptr<Ui::BoxContent> ClearPaymentInfoBox(
 	not_null<::Main::Session*> session);
 void OpenFileConfirmationsBox(not_null<Ui::GenericBox*> box);

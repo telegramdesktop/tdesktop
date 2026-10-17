@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_album_thumbnail.h"
 
 #include "core/mime_type.h" // Core::IsMimeSticker.
+#include "lang/lang_keys.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/image/image_prepare.h"
 #include "ui/text/format_values.h"
@@ -42,8 +43,14 @@ AlbumThumbnail::AlbumThumbnail(
 , _fullPreview(file.videoCover ? file.videoCover->preview : file.preview)
 , _shrinkSize(int(std::ceil(st::roundRadiusLarge / 1.4)))
 , _isPhoto(file.type == PreparedFile::Type::Photo)
-, _isVideo(file.type == PreparedFile::Type::Video)
+, _isVideo((file.type == PreparedFile::Type::Video)
+	|| file.hasAudioEditScene())
+, _canEditVideo(file.canEditVideo())
 , _canShowHighQualityBadge(file.canUseHighQualityPhoto())
+, _canShowAnimatedBadge(file.hasAnimatedEditScene()
+	&& !file.hasAudioEditScene())
+, _videoQuality(file.videoQuality())
+, _ttlSeconds(file.ttlSeconds)
 , _isCompressedSticker(Core::IsMimeSticker(file.information->filemime))
 , _repaint(std::move(repaint))
 , _repaintRect(std::move(repaintRect)) {
@@ -94,7 +101,10 @@ AlbumThumbnail::AlbumThumbnail(
 		- st::sendBoxAlbumGroupSkipRight;
 	_captionAvailableWidth = availableCaptionWidth;
 	const auto filepath = file.path;
-	if (filepath.isEmpty()) {
+	if (file.archive) {
+		_name = file.displayName;
+		_status = tr::lng_folder_archive_status(tr::now);
+	} else if (filepath.isEmpty()) {
 		_name = file.displayName.isEmpty()
 			? "image.png"
 			: file.displayName;
@@ -144,7 +154,9 @@ AlbumThumbnail::AlbumThumbnail(
 
 	const auto duration = st::historyAttach.ripple.hideDuration;
 	_editMedia->setClickedCallback([=] {
-		base::call_delayed(duration, parent, editCallback);
+		// Guarded by the button, which dies with this thumbnail, so the
+		// delayed edit is dropped instead of firing for a thumb that is gone.
+		base::call_delayed(duration, _editMedia.data(), editCallback);
 	});
 	_deleteMedia->setClickedCallback(deleteCallback);
 
@@ -247,6 +259,18 @@ bool AlbumThumbnail::isCompressedSticker() const {
 	return _isCompressedSticker;
 }
 
+bool AlbumThumbnail::canEditVideo() const {
+	return _canEditVideo;
+}
+
+void AlbumThumbnail::setModifyAllowed(bool value) {
+	_modifyAllowed = value;
+}
+
+bool AlbumThumbnail::canModify() const {
+	return !_isCompressedSticker && (_isPhoto || _modifyAllowed);
+}
+
 void AlbumThumbnail::paintInAlbum(
 		QPainter &p,
 		int left,
@@ -319,6 +343,15 @@ void AlbumThumbnail::paintInAlbum(
 	_lastRectOfModify = geometry;
 	if (showHighQualityBadge && _canShowHighQualityBadge) {
 		PaintHighQualityBadge(p, _st, paintedTo);
+	}
+	if (_canShowAnimatedBadge) {
+		PaintAnimatedBadge(p, _st, paintedTo);
+	}
+	if (_videoQuality && !shrinkProgress) {
+		PaintVideoQualityBadge(p, paintedTo, _videoQuality);
+	}
+	if (_ttlSeconds && !shrinkProgress) {
+		PaintMediaTtlBadge(p, paintedTo, _ttlSeconds);
 	}
 }
 
@@ -529,6 +562,12 @@ void AlbumThumbnail::paintPhoto(
 	if (showHighQualityBadge && _canShowHighQualityBadge) {
 		PaintHighQualityBadge(p, _st, rect);
 	}
+	if (_canShowAnimatedBadge) {
+		PaintAnimatedBadge(p, _st, rect);
+	}
+	if (_videoQuality) {
+		PaintVideoQualityBadge(p, rect, _videoQuality);
+	}
 }
 
 void AlbumThumbnail::paintFile(
@@ -600,7 +639,7 @@ bool AlbumThumbnail::containsPoint(QPoint position) const {
 }
 
 bool AlbumThumbnail::buttonsContainPoint(QPoint position) const {
-	return ((_isPhoto && !_isCompressedSticker)
+	return (canModify()
 		? _lastRectOfModify
 		: _lastRectOfButtons).contains(position);
 }
@@ -609,7 +648,7 @@ AttachButtonType AlbumThumbnail::buttonTypeFromPoint(QPoint position) const {
 	if (!buttonsContainPoint(position)) {
 		return AttachButtonType::None;
 	}
-	return (!_lastRectOfButtons.contains(position) && !_isCompressedSticker)
+	return (!_lastRectOfButtons.contains(position) && canModify())
 		? AttachButtonType::Modify
 		: (_buttons.vertical()
 			? (position.y() < _lastRectOfButtons.center().y())

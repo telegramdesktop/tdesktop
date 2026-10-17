@@ -63,15 +63,15 @@ public:
 	}
 	bool searchWordsContain(const QString &needle) const {
 		for (const auto &word : _searchWords) {
-			if (word.startsWith(needle)) {
+			if (word.contains(needle)) {
 				return true;
 			}
 		}
 		return false;
 	}
 
-	const base::flat_set<QChar> &searchStartChars() const {
-		return _searchStartChars;
+	const base::flat_set<QChar> &searchChars() const {
+		return _searchChars;
 	}
 
 	void setTop(int top) {
@@ -110,7 +110,7 @@ private:
 	Ui::Text::String _description = { st::windowMinWidth / 2 };
 
 	base::flat_set<QString> _searchWords;
-	base::flat_set<QChar> _searchStartChars;
+	base::flat_set<QChar> _searchChars;
 
 	int _top = 0;
 	int _height = 0;
@@ -156,7 +156,7 @@ void EditorBlock::Row::fillValueString() {
 
 void EditorBlock::Row::fillSearchIndex() {
 	_searchWords.clear();
-	_searchStartChars.clear();
+	_searchChars.clear();
 	const auto toIndex = _name
 		+ ' ' + _copyOf
 		+ ' ' + TextUtilities::RemoveAccents(_description.toString())
@@ -166,7 +166,9 @@ void EditorBlock::Row::fillSearchIndex() {
 		Qt::SkipEmptyParts);
 	for (const auto &word : words) {
 		_searchWords.emplace(word);
-		_searchStartChars.emplace(word[0]);
+		for (const auto &ch : word) {
+			_searchChars.emplace(ch);
+		}
 	}
 }
 
@@ -274,7 +276,7 @@ void EditorBlock::addToSearch(const Row &row) {
 	if (!query.isEmpty()) resetSearch();
 
 	auto index = findRowIndex(&row);
-	for (const auto &ch : row.searchStartChars()) {
+	for (const auto &ch : row.searchChars()) {
 		_searchIndex[ch].insert(index);
 	}
 
@@ -286,7 +288,7 @@ void EditorBlock::removeFromSearch(const Row &row) {
 	if (!query.isEmpty()) resetSearch();
 
 	auto index = findRowIndex(&row);
-	for (const auto &ch : row.searchStartChars()) {
+	for (const auto &ch : row.searchChars()) {
 		const auto i = _searchIndex.find(ch);
 		if (i != end(_searchIndex)) {
 			i->second.remove(index);
@@ -797,7 +799,7 @@ void EditorBlock::addRowRipple(int index) {
 }
 
 void EditorBlock::stopLastRipple(int index) {
-	auto &row = rowAtIndex(index);
+	const auto &row = rowAtIndex(index);
 	if (row.ripple()) {
 		row.ripple()->lastStop();
 	}

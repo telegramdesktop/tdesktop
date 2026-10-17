@@ -29,10 +29,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_themes.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "info/info_memento.h"
 #include "info/profile/info_profile_badge.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
 #include "info/profile/info_profile_phone_menu.h"
 #include "info/profile/info_profile_values.h"
+#include "info/stories/info_stories_widget.h"
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
@@ -192,6 +194,7 @@ Cover::Cover(
 	initViewers();
 	setupChildGeometry();
 
+	_userpic->setVideoAllowed(true);
 	_userpic->switchChangePhotoOverlay(_user->isSelf(), [=](
 			Ui::UserpicButton::ChosenImage chosen) {
 		auto &image = chosen.image;
@@ -200,9 +203,10 @@ Cover::Cover(
 		_user->session().api().peerPhoto().upload(
 			_user,
 			{
-				std::move(image),
-				chosen.markup.documentId,
-				chosen.markup.colors,
+				.image = std::move(image),
+				.markupDocumentId = chosen.markup.documentId,
+				.markupColors = chosen.markup.colors,
+				.video = std::move(chosen.video),
 			});
 		if (!isMarkup) {
 			_userpic->showUploadProgress();
@@ -364,10 +368,13 @@ void BuildSectionButtons(SectionBuilder &builder) {
 	const auto showOther = builder.showOther();
 
 	if (!session->supportMode()) {
-		builder.addSectionButton({
+		builder.addButton({
 			.title = tr::lng_settings_my_account(),
-			.targetSection = InformationId(),
 			.icon = { &st::menuIconProfile },
+			.onClick = [=] {
+				controller->showSection(
+					Info::Stories::MakeMyProfile(session->user()));
+			},
 			.keywords = { u"profile"_q, u"edit"_q, u"information"_q },
 		});
 	}

@@ -199,6 +199,8 @@ private:
 	bool _sendFormFailed = false;
 
 	rpl::lifetime _gettingPasswordState;
+	rpl::variable<bool> _screenshotProtection = true;
+
 	rpl::lifetime _lifetime;
 
 };

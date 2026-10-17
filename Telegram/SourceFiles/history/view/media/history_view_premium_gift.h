@@ -52,7 +52,6 @@ public:
 	void unloadHeavyPart() override;
 
 private:
-	[[nodiscard]] bool incomingGift() const;
 	[[nodiscard]] bool outgoingGift() const;
 	[[nodiscard]] bool tonGift() const;
 	[[nodiscard]] bool starGift() const;

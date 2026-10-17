@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_chat_preview.h"
 
+#include "menu/menu_mark_as_read.h"
 #include "data/data_channel.h"
 #include "data/data_forum_topic.h"
 #include "data/data_histories.h"
@@ -76,7 +77,7 @@ bool ChatPreviewManager::show(
 				const auto owner = &thread->owner();
 				if (action.cancel) {
 				} else if (action.markRead) {
-					MarkAsReadThread(thread);
+					MarkAsReadMenu::MarkAsReadThread(thread);
 				} else if (action.markUnread) {
 					if (const auto history = thread->asHistory()) {
 						history->owner().histories().changeDialogUnreadMark(

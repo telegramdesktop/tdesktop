@@ -4,9 +4,6 @@
 [submodule "Telegram/ThirdParty/xxHash"]
 	path = Telegram/ThirdParty/xxHash
 	url = https://github.com/Cyan4973/xxHash.git
-[submodule "Telegram/ThirdParty/rlottie"]
-	path = Telegram/ThirdParty/rlottie
-	url = https://github.com/desktop-app/rlottie.git
 [submodule "Telegram/ThirdParty/lz4"]
 	path = Telegram/ThirdParty/lz4
 	url = https://github.com/lz4/lz4.git
@@ -93,7 +90,7 @@
 	url = https://github.com/desktop-app/lib_translate
 [submodule "Telegram/ThirdParty/cmark-gfm"]
 	path = Telegram/ThirdParty/cmark-gfm
-	url = https://github.com/github/cmark-gfm.git
+	url = https://github.com/desktop-app/cmark-gfm.git
 [submodule "Telegram/ThirdParty/MicroTeX"]
 	path = Telegram/ThirdParty/MicroTeX
 	url = https://github.com/desktop-app/MicroTeX.git
@@ -106,3 +103,6 @@
 [submodule "Telegram/ThirdParty/libfido2"]
 	path = Telegram/ThirdParty/libfido2
 	url = https://github.com/Yubico/libfido2.git
+[submodule "Telegram/ThirdParty/zxcvbn"]
+	path = Telegram/ThirdParty/zxcvbn
+	url = https://github.com/tsyrogit/zxcvbn-c.git

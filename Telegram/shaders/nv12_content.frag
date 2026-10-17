@@ -9,6 +9,8 @@ layout(binding = 3) uniform sampler2D f_texture;
 
 layout(std140, binding = 0) uniform Params {
 	vec2 viewport;
+	// 1.0 when gl_FragCoord.y counts from the bottom (OpenGL).
+	float fragCoordYUp;
 	vec4 shadowTopRect;
 	vec4 shadowBottomSkipOpacityFullFade;
 	vec4 roundRect;
@@ -27,7 +29,10 @@ float roundedCorner(vec2 fragCoord) {
 }
 
 void main() {
-	vec2 fragCoord = vec2(gl_FragCoord.x, viewport.y - gl_FragCoord.y);
+	float fragY = (fragCoordYUp > 0.0)
+		? gl_FragCoord.y
+		: (viewport.y - gl_FragCoord.y);
+	vec2 fragCoord = vec2(gl_FragCoord.x, fragY);
 	float y = texture(y_texture, v_texcoord).r - 0.0625;
 	vec2 uv = texture(uv_texture, v_texcoord).rg - vec2(0.5, 0.5);
 	float u = uv.x;

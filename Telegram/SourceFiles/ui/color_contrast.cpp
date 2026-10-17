@@ -28,4 +28,15 @@ float64 CountContrast(const QColor &a, const QColor &b) {
 	return (brightest + 0.05) / (darkest + 0.05);
 }
 
+float64 CountPerceivedBrightness(const QColor &color) {
+	return (color.red() * 0.2126
+		+ color.green() * 0.7152
+		+ color.blue() * 0.0722) / 255.;
+}
+
+bool IsLightBackground(const QColor &background) {
+	constexpr auto kLightBrightness = 0.72;
+	return CountPerceivedBrightness(background) > kLightBrightness;
+}
+
 } // namespace Ui

@@ -634,7 +634,7 @@ not_null<Ui::VerticalLayout*> SetupFoldersList(
 		auto removeRequests = std::vector<MTPmessages_UpdateDialogFilter>();
 		auto removeChatlistRequests = std::vector<MTPchatlists_LeaveChatlist>();
 
-		auto &realFilters = session->data().chatsFilters();
+		const auto &realFilters = session->data().chatsFilters();
 		const auto &list = realFilters.list();
 		order.reserve(state->rows.size());
 		for (auto &row : state->rows) {
@@ -1150,6 +1150,18 @@ void BuildViewSection(SectionBuilder &builder) {
 			Core::App().saveSettingsDelayed();
 		});
 
+		return SectionBuilder::WidgetToAdd{};
+	}, [] {
+		return SearchEntry{
+			.id = u"folders/tab-view"_q,
+			.title = tr::lng_filters_view_subtitle(tr::now),
+			.keywords = { u"view"_q, u"layout"_q, u"tabs"_q },
+		};
+	});
+
+	builder.add([](const WidgetContext &ctx) {
+		const auto content = ctx.container;
+
 		Ui::AddSkip(content);
 		Ui::AddSubsectionTitle(
 			content,
@@ -1181,12 +1193,6 @@ void BuildViewSection(SectionBuilder &builder) {
 		Ui::AddSkip(content);
 
 		return SectionBuilder::WidgetToAdd{};
-	}, [] {
-		return SearchEntry{
-			.id = u"folders/tab-view"_q,
-			.title = tr::lng_filters_view_subtitle(tr::now),
-			.keywords = { u"view"_q, u"layout"_q, u"tabs"_q },
-		};
 	});
 }
 

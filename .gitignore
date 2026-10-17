@@ -45,6 +45,8 @@ stage
 /snap/gui/*.png
 /snap/gui/*.desktop
 /snap/plugins/__pycache__
+__pycache__/
+*.pyc
 
 /Telegram/*.user.*
 *.txt.user

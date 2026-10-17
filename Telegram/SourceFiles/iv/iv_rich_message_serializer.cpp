@@ -163,6 +163,7 @@ struct SerializeBlockResult {
 	case EntityType::Email: return 18;
 	case EntityType::Phone: return 19;
 	case EntityType::BankCard: return 20;
+	case EntityType::TonAddress: return 21;
 	case EntityType::Invalid:
 	case EntityType::Semibold:
 	case EntityType::MediaTimestamp:
@@ -291,35 +292,40 @@ struct SerializeBlockResult {
 	return std::nullopt;
 }
 
+bool CollectUser(SerializeContext *context, uint64 userId) {
+	if (!userId) {
+		return false;
+	} else if (context->users.contains(userId)) {
+		return true;
+	} else if (userId == context->session->userId().bare) {
+		context->users.emplace(userId, MTP_inputUserSelf());
+		return true;
+	}
+	const auto user = context->session->data().user(UserId(userId));
+	if (user->isLoaded()) {
+		context->users.emplace(userId, user->inputUser());
+		return true;
+	} else if (const auto item = user->owner().messageWithPeer(user->id)) {
+		context->users.emplace(
+			userId,
+			MTP_inputUserFromMessage(
+				item->history()->peer->input(),
+				MTP_int(int(item->id.bare)),
+				MTP_long(userId)));
+		return true;
+	}
+	return false;
+}
+
 [[nodiscard]] std::optional<uint64> CollectMentionUser(
 		SerializeContext *context,
 		const QString &data) {
 	const auto fields = TextUtilities::MentionNameDataToFields(data);
 	if (!fields.userId || fields.selfId != context->session->userId().bare) {
 		return std::nullopt;
-	}
-	if (context->users.find(fields.userId) != end(context->users)) {
+	} else if (CollectUser(context, fields.userId)) {
 		return fields.userId;
-	}
-	if (fields.userId == fields.selfId) {
-		context->users.emplace(fields.userId, MTP_inputUserSelf());
-		return fields.userId;
-	}
-	const auto user = context->session->data().user(UserId(fields.userId));
-	if (user->isLoaded()) {
-		context->users.emplace(fields.userId, user->inputUser());
-		return fields.userId;
-	}
-	if (const auto item = user->owner().messageWithPeer(user->id)) {
-		context->users.emplace(
-			fields.userId,
-			MTP_inputUserFromMessage(
-				item->history()->peer->input(),
-				MTP_int(int(item->id.bare)),
-				MTP_long(fields.userId)));
-		return fields.userId;
-	}
-	if (!fields.accessHash) {
+	} else if (!fields.accessHash) {
 		return std::nullopt;
 	}
 	context->users.emplace(
@@ -403,6 +409,23 @@ struct SerializeBlockResult {
 		SerializeContext *context,
 		int skipIndex);
 
+[[nodiscard]] std::optional<MTPRichText> SerializeInlineTextButton(
+		const Markdown::InlineTextObjectButtonData &button,
+		SerializeContext *context);
+
+[[nodiscard]] std::optional<MTPRichText> SerializeRichTextValue(
+		const TextWithEntities &text,
+		SerializeContext *context) {
+	const auto entities = SortedRichTextEntities(text);
+	return SerializeRichTextRange(
+		text.text,
+		entities,
+		0,
+		text.text.size(),
+		context,
+		kNoEntityIndex);
+}
+
 [[nodiscard]] std::optional<MTPRichText> SerializeRichTextEntity(
 		const QString &text,
 		const std::vector<EntityInText> &entities,
@@ -449,6 +472,7 @@ struct SerializeBlockResult {
 	case EntityType::Email:
 	case EntityType::Phone:
 	case EntityType::BankCard:
+	case EntityType::TonAddress:
 		return *inner;
 	case EntityType::CustomUrl: {
 		const auto data = entity.data();
@@ -497,6 +521,15 @@ struct SerializeBlockResult {
 					(image && !image->replacementText.isEmpty())
 						? image->replacementText
 						: u"[image]"_q));
+			}
+			case Markdown::InlineTextObjectKind::Button: {
+				const auto button = std::get_if<
+					Markdown::InlineTextObjectButtonData>(&parsed->data);
+				if (!button || button->label.text.isEmpty()) {
+					return std::optional<MTPRichText>(
+						MakePlainRichText(segment));
+				}
+				return SerializeInlineTextButton(*button, context);
 			}
 			}
 		}
@@ -609,14 +642,7 @@ struct SerializeBlockResult {
 		const RichText &text,
 		const QString &anchorId,
 		SerializeContext *context) {
-	const auto entities = SortedRichTextEntities(text.text);
-	auto result = SerializeRichTextRange(
-		text.text.text,
-		entities,
-		0,
-		text.text.text.size(),
-		context,
-		kNoEntityIndex);
+	auto result = SerializeRichTextValue(text.text, context);
 	if (!result) {
 		return std::nullopt;
 	}
@@ -632,6 +658,96 @@ struct SerializeBlockResult {
 	return text
 		? std::make_optional(MTP_pageCaption(*text, MTP_textEmpty()))
 		: std::nullopt;
+}
+
+[[nodiscard]] std::optional<MTPInlineButtonType> SerializeInlineButtonType(
+		const HistoryMessageMarkupButton &button,
+		SerializeContext *context) {
+	using Type = HistoryMessageMarkupButton::Type;
+	switch (button.type) {
+	case Type::Url:
+		return MTP_inlineButtonTypeUrl(MTP_string(qs(button.data)));
+	case Type::CopyText:
+		return MTP_inlineButtonTypeCopy(MTP_string(qs(button.data)));
+	case Type::Disabled:
+		return MTP_inlineButtonTypeDisabled();
+	case Type::UserProfile: {
+		const auto userId = button.data.toULongLong();
+		if (!userId) {
+			return std::nullopt;
+		}
+		CollectUser(context, userId);
+		return MTP_inlineButtonTypeUserProfile(MTP_long(userId));
+	}
+	}
+	return std::nullopt;
+}
+
+[[nodiscard]] std::optional<MTPRichButtonStyle> SerializeRichButtonStyle(
+		HistoryMessageMarkupButton::Color color,
+		bool link) {
+	using Color = HistoryMessageMarkupButton::Color;
+	using Flag = MTPDrichButtonStyle::Flag;
+	auto flags = MTPDrichButtonStyle::Flags();
+	switch (color) {
+	case Color::Primary: flags |= Flag::f_bg_primary; break;
+	case Color::Danger: flags |= Flag::f_bg_danger; break;
+	case Color::Success: flags |= Flag::f_bg_success; break;
+	case Color::Normal:
+		if (!link) {
+			return std::nullopt;
+		}
+		break;
+	}
+	if (link) {
+		flags |= Flag::f_link;
+	}
+	return MTP_richButtonStyle(MTP_flags(flags));
+}
+
+[[nodiscard]] std::optional<MTPPageButton> SerializePageButton(
+		const RichPage::Button &button,
+		SerializeContext *context) {
+	const auto text = SerializeRichTextValue(
+		Markdown::NormalizeRichButtonLabel(button.text.text),
+		context);
+	const auto type = SerializeInlineButtonType(button.button, context);
+	if (!text || !type) {
+		return std::nullopt;
+	}
+	const auto style = SerializeRichButtonStyle(
+		button.button.visual.color,
+		false);
+	using Flag = MTPDpageButton::Flag;
+	return MTP_pageButton(
+		MTP_flags(style ? Flag::f_style : MTPDpageButton::Flags()),
+		*text,
+		*type,
+		style.value_or(MTPRichButtonStyle()));
+}
+
+std::optional<MTPRichText> SerializeInlineTextButton(
+		const Markdown::InlineTextObjectButtonData &button,
+		SerializeContext *context) {
+	const auto record = HistoryMessageMarkupButton(
+		button.type,
+		QString(),
+		{},
+		button.data);
+	const auto type = SerializeInlineButtonType(record, context);
+	const auto text = SerializeRichTextValue(
+		Markdown::NormalizeRichButtonLabel(button.label),
+		context);
+	if (!text || !type) {
+		return std::nullopt;
+	}
+	const auto style = SerializeRichButtonStyle(button.color, button.link);
+	using Flag = MTPDtextButton::Flag;
+	return MTP_textButton(
+		MTP_flags(style ? Flag::f_style : MTPDtextButton::Flags()),
+		*text,
+		*type,
+		style.value_or(MTPRichButtonStyle()));
 }
 
 [[nodiscard]] std::optional<MTPPageBlock> SerializeGroupedMediaItem(
@@ -866,6 +982,7 @@ void TrimEmptyParagraphEdges(std::vector<Block> *blocks) {
 			block.photo).has_value();
 	case BlockKind::Video:
 	case BlockKind::Audio:
+	case BlockKind::File:
 		return ResolveInputDocument(
 			context,
 			block.documentId,
@@ -899,6 +1016,7 @@ void TrimEmptyParagraphEdges(std::vector<Block> *blocks) {
 		return ResolveInputPhoto(context, block.photoId, block.photo).has_value();
 	case BlockKind::Video:
 	case BlockKind::Audio:
+	case BlockKind::File:
 		return ResolveInputDocument(
 			context,
 			block.documentId,
@@ -920,6 +1038,8 @@ void TrimEmptyParagraphEdges(std::vector<Block> *blocks) {
 		return true;
 	case BlockKind::Map:
 		return block.zoom > 0;
+	case BlockKind::ButtonRow:
+		return !block.buttons.empty();
 	case BlockKind::AuthorDate:
 		return RichTextHasVisibleText(block.text) || block.date != 0;
 	case BlockKind::Divider:
@@ -1262,6 +1382,11 @@ void TrimEmptyParagraphEdges(std::vector<Block> *blocks) {
 				: FailedSerializeBlock();
 		}
 		if (block.blocks.empty()) {
+			using Flag = MTPDpageBlockBlockquote::Flag;
+			auto flags = MTPDpageBlockBlockquote::Flags();
+			if (block.collapsed) {
+				flags |= Flag::f_collapsed;
+			}
 			const auto caption = SerializeRichTextWithAnchor(
 				block.caption,
 				QString(),
@@ -1272,6 +1397,7 @@ void TrimEmptyParagraphEdges(std::vector<Block> *blocks) {
 				context);
 			return (text && caption)
 				? SuccessfulSerializeBlock(MTP_pageBlockBlockquote(
+					MTP_flags(flags),
 					*text,
 					*caption))
 				: FailedSerializeBlock();
@@ -1505,17 +1631,23 @@ void TrimEmptyParagraphEdges(std::vector<Block> *blocks) {
 			MTP_long(*documentId),
 			*caption));
 	}
-	case BlockKind::Audio: {
+	case BlockKind::Audio:
+	case BlockKind::File: {
 		const auto documentId = CollectDocument(
 			context,
 			block.documentId,
 			block.document);
 		const auto caption = SerializeCaption(block.caption, block.anchorId, context);
-		return (documentId && caption)
-			? SuccessfulSerializeBlock(MTP_pageBlockAudio(
-				MTP_long(*documentId),
-				*caption))
-			: FailedSerializeBlock();
+		if (!documentId || !caption) {
+			return FailedSerializeBlock();
+		}
+		const auto document = ResolveDocumentData(
+			context,
+			block.documentId,
+			block.document);
+		return SuccessfulSerializeBlock(RichDocumentIsAudio(document)
+			? MTP_pageBlockAudio(MTP_long(*documentId), *caption)
+			: MTP_pageBlockDocument(MTP_long(*documentId), *caption));
 	}
 	case BlockKind::Math:
 		return SuccessfulSerializeBlock(MTP_pageBlockMath(
@@ -1528,6 +1660,9 @@ void TrimEmptyParagraphEdges(std::vector<Block> *blocks) {
 		}
 		if (block.striped) {
 			flags |= Flag::f_striped;
+		}
+		if (block.compact) {
+			flags |= Flag::f_compact;
 		}
 		auto rows = QVector<MTPPageTableRow>();
 		rows.reserve(block.tableRows.size());
@@ -1637,6 +1772,38 @@ void TrimEmptyParagraphEdges(std::vector<Block> *blocks) {
 		return SuccessfulSerializeBlock(MTP_pageBlockCollage(
 			MTP_vector<MTPPageBlock>(std::move(*items)),
 			*caption));
+	}
+	case BlockKind::ButtonRow: {
+		if (block.buttons.empty()) {
+			return FailedSerializeBlock();
+		}
+		auto buttons = QVector<MTPPageButton>();
+		buttons.reserve(block.buttons.size());
+		for (const auto &button : block.buttons) {
+			const auto serialized = SerializePageButton(button, context);
+			if (!serialized) {
+				return FailedSerializeBlock();
+			}
+			buttons.push_back(*serialized);
+		}
+		using Flag = MTPDpageBlockButtonRow::Flag;
+		auto flags = MTPDpageBlockButtonRow::Flags();
+		switch (block.buttonAlignment) {
+		case RichPage::ButtonAlignment::Left:
+			flags |= Flag::f_align_left;
+			break;
+		case RichPage::ButtonAlignment::Center:
+			flags |= Flag::f_align_center;
+			break;
+		case RichPage::ButtonAlignment::Right:
+			flags |= Flag::f_align_right;
+			break;
+		case RichPage::ButtonAlignment::Stretch:
+			break;
+		}
+		return SuccessfulSerializeBlock(MTP_pageBlockButtonRow(
+			MTP_flags(flags),
+			MTP_vector<MTPPageButton>(std::move(buttons))));
 	}
 	case BlockKind::Unsupported:
 	case BlockKind::AuthorDate:

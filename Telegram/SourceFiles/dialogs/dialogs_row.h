@@ -42,7 +42,7 @@ enum class SortMode;
 [[nodiscard]] QRect CornerBadgeTTLRect(int photoSize);
 [[nodiscard]] QImage BlurredDarkenedPart(QImage image, QRect part);
 
-class BasicRow {
+class BasicRow : public base::has_weak_ptr {
 public:
 	BasicRow();
 	virtual ~BasicRow();
@@ -117,6 +117,10 @@ public:
 		bool hasUnreadBadgesAbove) const final override;
 
 	[[nodiscard]] bool lookupIsInTopicJump(int x, int y) const;
+	[[nodiscard]] bool lookupIsInCommunityBadge(
+		int x,
+		int y,
+		const style::DialogRow &st) const;
 	void stopLastRipple() override;
 	void clearRipple() override;
 	void addTopicJumpRipple(
@@ -192,6 +196,7 @@ private:
 		uint32 storiesHasVideoStream : 1 = 0;
 		uint32 active : 1 = 0;
 		uint32 hidden : 1 = 0;
+		uint32 communityMember : 1 = 0;
 	};
 
 	void setCornerBadgeShown(
@@ -221,7 +226,7 @@ private:
 
 };
 
-class FakeRow final : public BasicRow, public base::has_weak_ptr {
+class FakeRow final : public BasicRow {
 public:
 	FakeRow(
 		Key searchInChat,

@@ -157,6 +157,7 @@ public:
 
 	// Thread: Main. Locks: AudioMutex.
 	void setSpeedFromExternal(const AudioMsgId &audioId, float64 speed);
+	void setVolumeFromExternal(const AudioMsgId &audioId, float64 volume);
 
 	Streaming::TimePoint getExternalSyncTimePoint(
 		const AudioMsgId &audio) const;
@@ -247,6 +248,7 @@ private:
 		bool loading = false;
 		bool loaded = false;
 		bool waitingForBuffer = false;
+		float64 volume = 1.;
 
 		// Speed dependent values.
 		float64 speed = 1.;
@@ -403,11 +405,11 @@ namespace Media {
 namespace Audio {
 
 TG_FORCE_INLINE uint16 ReadOneSample(uchar data) {
-	return qAbs((static_cast<int16>(data) - 0x80) * 0x100);
+	return std::abs((static_cast<int16>(data) - 0x80) * 0x100);
 }
 
 TG_FORCE_INLINE uint16 ReadOneSample(int16 data) {
-	return qAbs(data);
+	return std::abs(data);
 }
 
 template <typename SampleType, typename Callback>

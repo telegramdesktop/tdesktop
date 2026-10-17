@@ -756,29 +756,26 @@ ParseResult ParseMarkdownForIv(ValidatedMarkdownSource source) {
 		| CMARK_OPT_SOURCEPOS
 		| CMARK_OPT_FOOTNOTES
 		| CMARK_OPT_STRIKETHROUGH_DOUBLE_TILDE;
-	auto parser = ParserPointer(cmark_parser_new(parserOptions));
-	if (!parser) {
+	// The parse runs under a memory budget: without it a hostile source
+	// can transiently allocate gigabytes inside cmark before any of the
+	// post-parse limits below is ever consulted.
+	const auto budgeted = RunBudgetedCmarkParse(
+		source.normalized,
+		parserOptions);
+	if (budgeted.overMemoryLimit) {
 		return Failure(
-			source.sourceName,
+			std::move(source.sourceName),
+			u"cmark-memory-limit"_q);
+	} else if (!budgeted.root) {
+		return Failure(
+			std::move(source.sourceName),
 			u"cmark-parser-failed"_q);
 	}
-	auto error = QString();
-	if (!AttachExtensions(parser.get(), &error)) {
-		return Failure(source.sourceName, std::move(error));
-	}
-	cmark_parser_feed(
-		parser.get(),
-		source.normalized.constData(),
-		static_cast<std::size_t>(source.normalized.size()));
-	auto root = NodePointer(cmark_parser_finish(parser.get()));
-	if (!root) {
-		return Failure(
-			source.sourceName,
-			u"cmark-parser-failed"_q);
-	}
+	auto root = NodePointer(budgeted.root);
 	auto document = EmptyDocument(std::move(source.sourceName));
 	document.sourceText = std::move(source.decoded);
 	auto scanBlocks = std::vector<MathScanBlock>();
+	auto error = QString();
 	auto state = ParserState{
 		source.normalized,
 		source.lineStarts,

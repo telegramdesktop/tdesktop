@@ -12,8 +12,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class QPainter;
 
+namespace Ui {
+class BoxShadow;
+} // namespace Ui
+
 namespace Dialogs {
 
+void PaintPillBackground(
+	QPainter &p,
+	const Ui::BoxShadow &shadow,
+	const QRect &pill,
+	int radius);
 void PaintPillOutline(QPainter &p, const QRect &pill, int radius);
 void PaintTopFade(QPainter &p, int outerWidth, int fadeHeight, QColor bg);
 void PaintBottomFade(QPainter &p, int outerWidth, int fadeHeight, QColor bg);

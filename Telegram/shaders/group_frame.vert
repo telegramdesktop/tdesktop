@@ -10,6 +10,9 @@ layout(location = 2) out vec2 v_position;
 
 layout(std140, binding = 0) uniform Params {
 	vec2 viewport;
+	float _pad0;
+	// -1.0 when the NDC Y axis points down (Vulkan), 1.0 otherwise.
+	float flipY;
 	vec4 frameBg;
 	vec4 shadow;
 	float paused;
@@ -23,8 +26,6 @@ void main() {
 	v_texcoord = v_texcoordIn;
 	b_texcoord = b_texcoordIn;
 	v_position = position;
-	gl_Position = vec4(
-		vec2(-1.0, -1.0) + 2.0 * position / viewport,
-		0.0,
-		1.0);
+	vec2 ndc = vec2(-1.0, -1.0) + 2.0 * position / viewport;
+	gl_Position = vec4(ndc.x, ndc.y * flipY, 0.0, 1.0);
 }

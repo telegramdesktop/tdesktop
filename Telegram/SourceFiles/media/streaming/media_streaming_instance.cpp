@@ -176,6 +176,12 @@ void Instance::setSpeed(float64 speed) {
 	_shared->player().setSpeed(speed);
 }
 
+void Instance::setVolume(float64 volume) {
+	Expects(_shared != nullptr);
+
+	_shared->player().setVolume(volume);
+}
+
 bool Instance::waitingShown() const {
 	Expects(_shared != nullptr);
 

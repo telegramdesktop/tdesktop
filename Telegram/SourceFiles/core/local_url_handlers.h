@@ -15,8 +15,13 @@ namespace ChatHelpers {
 class Show;
 } // namespace ChatHelpers
 
+namespace Data {
+struct StarGift;
+} // namespace Data
+
 namespace Settings {
 struct CreditsEntryBoxStyleOverrides;
+struct UniqueGiftCoverActions;
 } // namespace Settings
 
 namespace Window {
@@ -51,10 +56,15 @@ struct LocalUrlHandler {
 void ResolveAndShowUniqueGift(
 	std::shared_ptr<ChatHelpers::Show> show,
 	const QString &slug,
-	::Settings::CreditsEntryBoxStyleOverrides st);
+	::Settings::CreditsEntryBoxStyleOverrides st,
+	Fn<void(QString)> fail = nullptr,
+	Fn<bool(const Data::StarGift &)> validate = nullptr,
+	std::shared_ptr<const ::Settings::UniqueGiftCoverActions> actions = nullptr);
 void ResolveAndShowUniqueGift(
 	std::shared_ptr<ChatHelpers::Show> show,
-	const QString &slug);
+	const QString &slug,
+	Fn<void(QString)> fail = nullptr,
+	Fn<bool(const Data::StarGift &)> validate = nullptr);
 
 [[nodiscard]] TimeId ParseVideoTimestamp(QStringView value);
 

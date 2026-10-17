@@ -2591,7 +2591,7 @@ void GroupCall::applySubChainUpdate(
 		int next) {
 	Expects(subchain >= 0 && subchain < kSubChainsCount);
 
-	auto &entry = _subchains[subchain];
+	const auto &entry = _subchains[subchain];
 	auto raw = std::vector<TdE2E::Block>();
 	raw.reserve(blocks.size());
 	for (const auto &block : blocks) {
@@ -3516,10 +3516,11 @@ void GroupCall::fillActiveVideoEndpoints() {
 		return;
 	}
 
+	// A missing self row is a rejoin or a gap, not a video withdrawal.
 	const auto me = real->participantByPeer(joinAs());
 	if (me && me->videoJoined) {
 		_videoIsWorking = true;
-	} else {
+	} else if (me) {
 		_videoIsWorking = false;
 		toggleVideo(false);
 		toggleScreenSharing(std::nullopt);

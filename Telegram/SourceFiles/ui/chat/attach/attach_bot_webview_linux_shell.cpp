@@ -20,6 +20,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui::BotWebView::LinuxShell {
 namespace {
 
+constexpr auto kShellOriginCheck =
+	"window.location.protocol === 'https:'"
+	" && window.location.hostname === 'web.telegram.org'"
+	" && (!window.location.port || window.location.port === '443')";
+
 [[nodiscard]] QByteArray JsonValue(QJsonValue value) {
 	auto array = QJsonArray();
 	array.push_back(std::move(value));
@@ -32,9 +37,16 @@ namespace {
 }
 
 [[nodiscard]] QJsonValue ColorValue(QColor color) {
-	return color.isValid()
-		? QJsonValue(color.name(QColor::HexRgb))
-		: QJsonValue();
+	if (!color.isValid()) {
+		return QJsonValue();
+	} else if (color.alpha() == 255) {
+		return color.name(QColor::HexRgb);
+	}
+	return u"rgba(%1, %2, %3, %4)"_q
+		.arg(color.red())
+		.arg(color.green())
+		.arg(color.blue())
+		.arg(color.alphaF());
 }
 
 [[nodiscard]] QByteArray ReadResource(const QString &name) {
@@ -68,8 +80,9 @@ QByteArray InstallScript(const QString &shellToken) {
 		JsonValue(shellToken));
 
 	auto script = QByteArray();
-	script += "if (window === window.top"
-		" && !window.TelegramDesktopShell"
+	script += "if (window === window.top && ";
+	script += kShellOriginCheck;
+	script += " && !window.TelegramDesktopShell"
 		" && !window.TelegramDesktopShellInstalling) {"
 		"window.TelegramDesktopShellInstalling = true;"
 		"try {"
@@ -114,8 +127,10 @@ QByteArray MethodCallScript(
 	const auto payload = JsonObject(data);
 	const auto token = JsonValue(shellToken);
 	auto script = QByteArray();
-	script.reserve(method.size() * 2 + payload.size() + token.size() + 98);
-	script += "if (window.TelegramDesktopShell"
+	script.reserve(method.size() * 2 + payload.size() + token.size() + 256);
+	script += "if (window === window.top && ";
+	script += kShellOriginCheck;
+	script += " && window.TelegramDesktopShell"
 		" && window.TelegramDesktopShell.";
 	script += method;
 	script += ") { window.TelegramDesktopShell.";
@@ -136,7 +151,9 @@ QByteArray EventScript(
 	const auto payload = JsonObject(data);
 	const auto token = JsonValue(shellToken);
 	auto script = QByteArray();
-	script += "if (window.TelegramDesktopShell) {"
+	script += "if (window === window.top && ";
+	script += kShellOriginCheck;
+	script += " && window.TelegramDesktopShell) {"
 		"window.TelegramDesktopShell.nativeEvent(";
 	script += eventValue;
 	script += ", ";
@@ -148,17 +165,17 @@ QByteArray EventScript(
 }
 
 QJsonObject Metrics() {
-	const auto &shellPadding = st::botWebViewShellPadding;
-	const auto &shadowPadding = st::botWebViewShellShadowPadding;
-	const auto &titlePadding = st::botWebViewShellTitlePadding;
-	const auto &menuButtonSize = st::botWebViewShellMenuButtonSize;
-	const auto fullscreenButtonSize = QSize(
+	const auto shellPadding = Unscaled(st::botWebViewShellPadding);
+	const auto shadowPadding = Unscaled(st::botWebViewShellShadowPadding);
+	const auto titlePadding = Unscaled(st::botWebViewShellTitlePadding);
+	const auto menuButtonSize = Unscaled(st::botWebViewShellMenuButtonSize);
+	const auto fullscreenButtonSize = Unscaled(QSize(
 		st::fullScreenPanelClose.width,
-		st::fullScreenPanelClose.height);
+		st::fullScreenPanelClose.height));
 	const auto fullscreenControlShift
-		= st::separatePanelClose.rippleAreaPosition;
+		= Unscaled(st::separatePanelClose.rippleAreaPosition);
 	return {
-		{ u"shellRadius"_q, st::botWebViewShellRadius },
+		{ u"shellRadius"_q, Unscaled(st::botWebViewShellRadius) },
 		{ u"shellPaddingTop"_q, shellPadding.top() },
 		{ u"shellPaddingRight"_q, shellPadding.right() },
 		{ u"shellPaddingBottom"_q, shellPadding.bottom() },
@@ -167,20 +184,18 @@ QJsonObject Metrics() {
 		{ u"shadowPaddingRight"_q, shadowPadding.right() },
 		{ u"shadowPaddingBottom"_q, shadowPadding.bottom() },
 		{ u"shadowPaddingLeft"_q, shadowPadding.left() },
-		{ u"headerHeight"_q, st::botWebViewShellHeaderHeight },
+		{ u"headerHeight"_q, Unscaled(st::botWebViewShellHeaderHeight) },
 		{ u"titlePaddingTop"_q, titlePadding.top() },
 		{ u"titlePaddingRight"_q, titlePadding.right() },
 		{ u"titlePaddingBottom"_q, titlePadding.bottom() },
 		{ u"titlePaddingLeft"_q, titlePadding.left() },
-		{ u"badgeSkip"_q, st::botWebViewShellBadgeSkip },
-		{ u"frameRadius"_q, st::botWebViewShellFrameRadius },
+		{ u"badgeSkip"_q, Unscaled(st::botWebViewShellBadgeSkip) },
+		{ u"frameRadius"_q, Unscaled(st::botWebViewShellFrameRadius) },
 		{ u"controlWidth"_q, menuButtonSize.width() },
 		{ u"controlHeight"_q, menuButtonSize.height() },
-		{ u"buttonHeight"_q, st::botWebViewBottomButton.height },
-		{ u"buttonGapX"_q, st::botWebViewBottomSkip.x() },
-		{ u"buttonGapY"_q, st::botWebViewBottomSkip.y() },
-		{ u"disclosureSkip"_q, st::botWebViewShellDisclosureSkip },
-		{ u"footerButtonSkip"_q, st::botWebViewShellFooterButtonSkip },
+		{ u"buttonHeight"_q, Unscaled(st::botWebViewBottomButton.height) },
+		{ u"buttonGapX"_q, Unscaled(st::botWebViewBottomSkip.x()) },
+		{ u"buttonGapY"_q, Unscaled(st::botWebViewBottomSkip.y()) },
 		{ u"fullscreenControlWidth"_q, fullscreenButtonSize.width() },
 		{ u"fullscreenControlHeight"_q, fullscreenButtonSize.height() },
 		{ u"fullscreenControlTop"_q, fullscreenControlShift.y() },
@@ -190,12 +205,10 @@ QJsonObject Metrics() {
 }
 
 QSize WindowSize(QSize contentSize) {
-	const auto &shadowPadding = st::botWebViewShellShadowPadding;
-	return contentSize + QSize(
+	const auto shadowPadding = Unscaled(st::botWebViewShellShadowPadding);
+	return Unscaled(contentSize) + QSize(
 		shadowPadding.left() + shadowPadding.right(),
-		shadowPadding.top()
-			+ st::botWebViewShellHeaderHeight
-			+ shadowPadding.bottom());
+		shadowPadding.top() + shadowPadding.bottom());
 }
 
 QJsonObject MenuPalette() {
@@ -215,6 +228,9 @@ QJsonObject ColorPayload(const ResolvedColors &colors) {
 		{ u"bodyBg"_q, ColorValue(colors.bodyBg) },
 		{ u"titleBg"_q, ColorValue(colors.titleBg) },
 		{ u"bottomBg"_q, ColorValue(colors.bottomBg) },
+		{ u"titleFg"_q, ColorValue(colors.titleFg) },
+		{ u"titleControlFg"_q, ColorValue(colors.titleControlFg) },
+		{ u"titleControlRipple"_q, ColorValue(colors.titleControlRipple) },
 	};
 }
 

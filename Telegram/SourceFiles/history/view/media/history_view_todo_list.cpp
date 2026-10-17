@@ -171,7 +171,8 @@ QSize TodoList::countOptimalSize() {
 }
 
 bool TodoList::canComplete() const {
-	return (_parent->data()->out()
+	return (_parent->context() != Context::MediaEditor)
+		&& (_parent->data()->out()
 		|| _parent->history()->peer->isSelf()
 		|| _todolist->othersCanComplete())
 		&& _parent->data()->isRegular()

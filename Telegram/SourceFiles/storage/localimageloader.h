@@ -10,13 +10,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/variant.h"
 #include "api/api_common.h"
 
+#include <memory>
+
 namespace Ui {
 struct PreparedFileInformation;
+struct PreparedFileArchive;
 } // namespace Ui
+
+namespace Media::Encode {
+struct Job;
+struct VideoSource;
+} // namespace Media::Encode
 
 namespace Main {
 class Session;
 } // namespace Main
+
+namespace Storage {
+struct ArchiveEntries;
+} // namespace Storage
+
+struct FilePrepareResult;
 
 // Load files up to 2'000 MB.
 constexpr auto kFileSizeLimit = 2'000 * int64(1024 * 1024);
@@ -34,6 +48,9 @@ enum class SendMediaType {
 	File,
 	ThemeFile,
 	Secure,
+
+	// Uploaded just to get an InputFile, without a document or a message.
+	SecondaryFile,
 };
 
 using TaskId = void*; // no interface, just id
@@ -113,9 +130,16 @@ struct SendingAlbum {
 		uint64 randomId = 0;
 		FullMsgId msgId;
 		std::optional<MTPInputSingleMedia> media;
+		std::shared_ptr<FilePrepareResult> prepared;
 	};
 
 	SendingAlbum();
+
+	[[nodiscard]] bool preparedMusicBatching() const;
+	[[nodiscard]] bool preparedMusicReady() const;
+	[[nodiscard]] std::shared_ptr<FilePrepareResult> preparedMusicSample() const;
+	[[nodiscard]] std::vector<std::shared_ptr<FilePrepareResult>>
+		takePreparedMusic();
 
 	void fillMedia(
 		not_null<HistoryItem*> item,
@@ -123,10 +147,12 @@ struct SendingAlbum {
 		uint64 randomId);
 	void refreshMediaCaption(not_null<HistoryItem*> item);
 	void removeItem(not_null<HistoryItem*> item);
+	void removeTask(TaskId taskId);
 
 	uint64 groupId = 0;
 	std::vector<Item> items;
 	Api::SendOptions options;
+	bool musicPreparedBatching = false;
 	bool sent = false;
 
 };
@@ -160,11 +186,12 @@ struct FilePrepareDescriptor {
 };
 struct FilePrepareResult {
 	explicit FilePrepareResult(FilePrepareDescriptor &&descriptor);
+	~FilePrepareResult();
 
 	TaskId taskId = kEmptyTaskId;
 	uint64 id = 0;
 	FileLoadTo to;
-	std::shared_ptr<SendingAlbum> album;
+	std::weak_ptr<SendingAlbum> album;
 	SendMediaType type = SendMediaType::File;
 	QString filepath;
 	QByteArray content;
@@ -193,6 +220,12 @@ struct FilePrepareResult {
 	TextWithTags caption;
 	bool spoiler = false;
 	bool forceFile = false;
+	std::shared_ptr<Media::Encode::VideoSource> videoSource;
+	crl::time videoCoverOffset = 0;
+	std::shared_ptr<Media::Encode::Job> animationJob;
+	std::shared_ptr<Ui::PreparedFileArchive> archive;
+	std::shared_ptr<Storage::ArchiveEntries> archiveEntries;
+	QString transcodedTempPath;
 
 	std::vector<MTPInputDocument> attachedStickers;
 
@@ -211,6 +244,9 @@ public:
 	static std::unique_ptr<Ui::PreparedFileInformation> ReadMediaInformation(
 		const QString &filepath,
 		const QByteArray &content,
+		const QString &filemime);
+	[[nodiscard]] static bool IsVideoFile(
+		const QString &filepath,
 		const QString &filemime);
 	static bool FillImageInformation(
 		QImage &&image,
@@ -232,6 +268,9 @@ public:
 		std::shared_ptr<SendingAlbum> album;
 		bool forceFile = false;
 		bool sendLargePhotos = false;
+		std::shared_ptr<Media::Encode::Job> animationJob;
+		bool animationAsGif = true;
+		std::shared_ptr<Ui::PreparedFileArchive> archive;
 		uint64 idOverride = 0;
 		QString displayName;
 	};
@@ -304,6 +343,9 @@ private:
 	bool _spoiler = false;
 	bool _forceFile = false;
 	bool _sendLargePhotos = false;
+	std::shared_ptr<Media::Encode::Job> _animationJob;
+	bool _animationAsGif = true;
+	std::shared_ptr<Ui::PreparedFileArchive> _archive;
 
 	std::shared_ptr<FilePrepareResult> _result;
 

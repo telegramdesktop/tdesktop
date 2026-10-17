@@ -74,6 +74,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "iv/iv_instance.h"
+#include "wallet/wallet_panel.h"
+#include "wallet/wallet_ton_connect_link.h"
 #include "apiwrap.h"
 
 #include "styles/style_chat_helpers.h"
@@ -441,6 +443,23 @@ bool ApplyMtprotoProxy(
 	return true;
 }
 
+bool ApplyWebProxy(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	auto params = url_parse_params(
+		match->captured(1),
+		qthelp::UrlParamNameTransform::ToLower);
+	ProxiesBoxController::ShowApplyConfirmation(
+		controller,
+		MTP::ProxyData::Type::Web,
+		params);
+	if (controller) {
+		controller->window().activate();
+	}
+	return true;
+}
+
 bool ShowPassportForm(
 		Window::SessionController *controller,
 		const QMap<QString, QString> &params) {
@@ -533,6 +552,8 @@ bool ShowWallPaper(
 			result |= ChatAdminRight::ManageCall;
 		} else if (element == u"manage_direct_messages"_q) {
 			result |= ChatAdminRight::ManageDirect;
+		} else if (element == u"manage_welcome_messages"_q) {
+			result |= ChatAdminRight::ManageWelcomeMessages;
 		} else if (element == u"anonymous"_q) {
 			result |= ChatAdminRight::Anonymous;
 		} else if (element == u"manage_chat"_q) {
@@ -542,6 +563,17 @@ bool ShowWallPaper(
 		}
 	}
 	return result;
+}
+
+bool OpenTonConnectQuery(
+		not_null<Window::SessionController*> controller,
+		const QString &query) {
+	if (const auto link = Wallet::ParseTonConnectLink(query)) {
+		Wallet::OpenTonConnectLink(controller, *link);
+	} else {
+		controller->showToast(tr::lng_wallet_send_link_invalid(tr::now));
+	}
+	return true;
 }
 
 bool ResolveUsernameOrPhone(
@@ -554,6 +586,17 @@ bool ResolveUsernameOrPhone(
 	const auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
+
+	// A dApp link must not choose the account, so this precedes "acc".
+	if (!params.value(u"domain"_q).compare(
+			u"sendgrams"_q,
+			Qt::CaseInsensitive)) {
+		const auto query = Wallet::TonConnectStartParamQuery(
+			params.value(u"startapp"_q));
+		if (query) {
+			return OpenTonConnectQuery(controller, *query);
+		}
+	}
 
 	if (params.contains(u"acc"_q)) {
 		const auto switched = ApplyAccountIndex(
@@ -1678,6 +1721,28 @@ bool ResolveTonSettings(
 	return true;
 }
 
+bool ResolveSendGrams(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto params = url_parse_params(
+		match->captured(1).mid(1),
+		qthelp::UrlParamNameTransform::ToLower);
+	const auto query = Wallet::TonConnectStartParamQuery(
+		params.value(u"startapp"_q));
+	if (query) {
+		return OpenTonConnectQuery(controller, *query);
+	}
+	Wallet::OpenSendGramsLink(
+		controller,
+		params.value(u"to"_q),
+		params.value(u"amount"_q));
+	return true;
+}
+
 bool ResolveOAuth(
 		Window::SessionController *controller,
 		const Match &match,
@@ -1751,6 +1816,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 			ApplyMtprotoProxy
 		},
 		{
+			u"^webproxy/?\\?(.+)(#|$)"_q,
+			ApplyWebProxy
+		},
+		{
 			u"^passport/?\\?(.+)(#|$)"_q,
 			ShowPassport
 		},
@@ -1817,6 +1886,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			u"^(ton|grams)/?(^\\?.*)?(#|$)"_q,
 			ResolveTonSettings
+		},
+		{
+			u"^sendgrams/?(\\?.+)?(#|$)"_q,
+			ResolveSendGrams
 		},
 		{
 			u"^oauth/?\\?(.+)(#|$)"_q,
@@ -1908,6 +1981,12 @@ QString TryConvertUrlToLocal(QString url) {
 	if (url.size() > 8192) {
 		url = url.mid(0, 8192);
 	}
+	if (url.startsWith(u"tc://"_q, Qt::CaseInsensitive)) {
+		const auto query = url.indexOf('?');
+		return u"tg://sendgrams?startapp="_q
+			+ Wallet::TonConnectStartParam(
+				(query < 0) ? QString() : url.mid(query + 1));
+	}
 
 	using namespace qthelp;
 	auto matchOptions = RegExOption::CaseInsensitive;
@@ -1970,6 +2049,11 @@ QString TryConvertUrlToLocal(QString url) {
 			return u"tg://socks?"_q + socksMatch->captured(1);
 		} else if (const auto proxyMatch = regex_match(u"^proxy/?\\?(.+)(#|$)"_q, query, matchOptions)) {
 			return u"tg://proxy?"_q + proxyMatch->captured(1);
+		} else if (const auto webproxyMatch = regex_match(
+				u"^webproxy/?\\?(.+)(#|$)"_q,
+				query,
+				matchOptions)) {
+			return u"tg://webproxy?"_q + webproxyMatch->captured(1);
 		} else if (const auto invoiceMatch = regex_match(u"^(invoice/|\\$)([a-zA-Z0-9_\\-]+)(\\?|#|$)"_q, query, matchOptions)) {
 			return u"tg://invoice?slug="_q + invoiceMatch->captured(2);
 		} else if (const auto bgMatch = regex_match(u"^bg/([a-zA-Z0-9\\.\\_\\-\\~]+)(\\?(.+)?)?$"_q, query, matchOptions)) {
@@ -1994,6 +2078,10 @@ QString TryConvertUrlToLocal(QString url) {
 		} else if (const auto callMatch = regex_match(u"^call/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"_q, query, matchOptions)) {
 			const auto slug = callMatch->captured(1);
 			return u"tg://call?slug="_q + slug;
+		} else if (const auto sendGramsMatch = regex_match(u"^sendgrams/?(\\?(.*))?$"_q, query, matchOptions)) {
+			const auto params = sendGramsMatch->captured(2);
+			return u"tg://sendgrams"_q
+				+ (params.isEmpty() ? QString() : '?' + params);
 		} else if (const auto newbotMatch = regex_match(u"^newbot/([a-zA-Z0-9\\.\\_]+)(/([a-zA-Z0-9\\.\\_]*))?(/?\\?(.+))?$"_q, query, matchOptions)) {
 			const auto manager = newbotMatch->captured(1);
 			const auto username = newbotMatch->captured(3);
@@ -2150,7 +2238,10 @@ bool StartUrlRequiresActivate(const QString &url) {
 void ResolveAndShowUniqueGift(
 		std::shared_ptr<ChatHelpers::Show> show,
 		const QString &slug,
-		::Settings::CreditsEntryBoxStyleOverrides st) {
+		::Settings::CreditsEntryBoxStyleOverrides st,
+		Fn<void(QString)> fail,
+		Fn<bool(const Data::StarGift &)> validate,
+		std::shared_ptr<const ::Settings::UniqueGiftCoverActions> actions) {
 	struct Request {
 		base::weak_ptr<Main::Session> weak;
 		QString slug;
@@ -2179,6 +2270,12 @@ void ResolveAndShowUniqueGift(
 		const auto &data = result.data();
 		session->data().processUsers(data.vusers());
 		if (const auto gift = Api::FromTL(session, data.vgift())) {
+			if (validate && !validate(*gift)) {
+				if (fail) {
+					fail(u"GIFT_ADDRESS_MISMATCH"_q);
+				}
+				return;
+			}
 			Core::App().hideMediaView();
 
 			using namespace ::Settings;
@@ -2187,12 +2284,17 @@ void ResolveAndShowUniqueGift(
 				show,
 				*gift,
 				StarGiftResaleInfo(),
-				st));
+				st,
+				actions));
 			show->activate();
+		} else if (fail) {
+			fail(u"RESPONSE_PARSE_FAILED"_q);
 		}
 	}).fail([=](const MTP::Error &error) {
 		clear();
-		if (!Ui::ShowGiftErrorToast(show, error)) {
+		if (fail) {
+			fail(error.type());
+		} else if (!Ui::ShowGiftErrorToast(show, error)) {
 			show->showToast(u"Error: "_q + error.type());
 		}
 	}).send();
@@ -2200,8 +2302,15 @@ void ResolveAndShowUniqueGift(
 
 void ResolveAndShowUniqueGift(
 		std::shared_ptr<ChatHelpers::Show> show,
-		const QString &slug) {
-	ResolveAndShowUniqueGift(std::move(show), slug, {});
+		const QString &slug,
+		Fn<void(QString)> fail,
+		Fn<bool(const Data::StarGift &)> validate) {
+	ResolveAndShowUniqueGift(
+		std::move(show),
+		slug,
+		{},
+		std::move(fail),
+		std::move(validate));
 }
 
 TimeId ParseVideoTimestamp(QStringView value) {

@@ -13,7 +13,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Platform {
 
+inline bool CheckAppTranslocation() {
+	return true;
+}
+
 inline void IgnoreApplicationActivationRightNow() {
+}
+
+inline int64 ClipboardChangeCount() {
+	return 0;
 }
 
 inline bool TrayIconSupported() {

@@ -180,10 +180,10 @@ void Userpic::createCache(Image *image) {
 		auto width = image->width();
 		auto height = image->height();
 		if (width > height) {
-			width = qMax((width * real) / height, 1);
+			width = std::max((width * real) / height, 1);
 			height = real;
 		} else {
-			height = qMax((height * real) / width, 1);
+			height = std::max((height * real) / width, 1);
 			width = real;
 		}
 		_userPhoto = image->pixNoCache(

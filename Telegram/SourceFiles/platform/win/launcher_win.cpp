@@ -185,6 +185,23 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 		}
 	} else {
 		pushArgument(u"-update"_q);
+		auto created = FILETIME();
+		auto exited = FILETIME();
+		auto kernel = FILETIME();
+		auto user = FILETIME();
+		if (GetProcessTimes(GetCurrentProcess(), &created, &exited, &kernel, &user)) {
+			// WHY: Application and storage destruction precede this call, so
+			// the updater can terminate us if remaining process teardown hangs.
+			const auto creationTime = (quint64(created.dwHighDateTime) << 32)
+				| created.dwLowDateTime;
+			pushArgument(u"-finishprocess"_q);
+			pushArgument(QString::number(GetCurrentProcessId()));
+			pushArgument(QString::number(creationTime));
+		} else {
+			const auto error = GetLastError();
+			LOG(("Update Error: could not query process creation time: %1"
+				).arg(error));
+		}
 		pushArgument(u"-exename"_q);
 		pushArgument('"' + cExeName() + '"');
 		if (cWriteProtected()) {

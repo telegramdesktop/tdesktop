@@ -31,10 +31,41 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
   BuildTarget="$line"
 done < "$FullScriptPath/target"
 
+if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
+  python3 "$FullScriptPath/build_mac.py" --check \
+    || Error "macOS releases require preserved Command Line Tools 26.6 and macOS SDK 26.5."
+fi
+
+UpdateKeysLoc="$FullScriptPath/../Resources/update"
+
+# Update signing settings. Edit these directly when rotating keys, they are
+# the single source of truth (no environment overrides).
+ReleaseLocalKey="$FullScriptPath/../../../DesktopPrivate/modern/release-local-2026b.pem"
+ReleaseLocalKeyId="rl-2026b"
+ReleaseCloudVault="tdesktop-release-kv"
+ReleaseCloudKeyId="rc-2026a"
+ReleaseCloudKeyName="release-2026a"
+
+if [ "$BuildTarget" != "macstore" ]; then
+  if [ ! -f "$ReleaseLocalKey" ]; then
+    Error "Release local key not found: $ReleaseLocalKey"
+  fi
+  python3 "$FullScriptPath/sign_update.py" --check \
+    --az-vault "$ReleaseCloudVault" \
+    --az-key "$ReleaseCloudKeyName" \
+    --keys-loc "$UpdateKeysLoc" \
+    --key-id "$ReleaseCloudKeyId" \
+    || Error "Cloud update signing is not ready, fix the setup above before building."
+fi
+
 while IFS='' read -r line || [[ -n "$line" ]]; do
   set $line
   eval $1="$2"
 done < "$FullScriptPath/version"
+
+if [ "$AppVersion" -lt 7002000 ]; then
+  Error "The v2 update format requires version 7.2 or newer."
+fi
 
 VersionForPacker="$AppVersion"
 if [ "$AlphaVersion" != "0" ]; then
@@ -50,12 +81,56 @@ else
   AlphaBetaParam='-beta'
 fi
 
+if [ "$AlphaVersion" != "0" ]; then
+  Error "The v2 update format has no alpha channel."
+fi
+case "$AppVersionStr" in
+  *.*.*) ;;
+  *) Error "AppVersionStr '$AppVersionStr' must have three components for the v2 names." ;;
+esac
+UpdateChannel="stable"
+ArtifactSuffix=""
+if [ "$BetaChannel" != "0" ]; then
+  UpdateChannel="beta"
+  ArtifactSuffix="-beta"
+fi
+
+BackupFolder="t$BuildTarget"
+if [ "$BuildTarget" == "linux" ]; then
+  BackupFolder="linux-x64"
+elif [ "$BuildTarget" == "mac" ]; then
+  BackupFolder="mac"
+fi
+
+SignUpdate() {
+  until python3 "$FullScriptPath/sign_update.py" \
+      --input signing-input.bin \
+      --output release-cloud.sig \
+      --az-vault "$ReleaseCloudVault" \
+      --az-key "$ReleaseCloudKeyName"; do
+    echo "Cloud signing of $UpdateFile failed, retrying in 10 seconds (fix az login / network in another terminal).."
+    sleep 10
+  done
+}
+
+PackUpdate() {
+  "./Packer" "$@" -version $VersionForPacker -channel $UpdateChannel \
+    -keys-loc "$UpdateKeysLoc" -emit-signing-input signing-input.bin
+  SignUpdate
+  "./Packer" -channel $UpdateChannel -keys-loc "$UpdateKeysLoc" \
+    -unsigned "$UpdateFile.unsigned" \
+    -embed-signatures "$ReleaseCloudKeyId:release-cloud.sig" \
+    -local-key "$ReleaseLocalKey" \
+    -local-key-id "$ReleaseLocalKeyId"
+  rm signing-input.bin release-cloud.sig "$UpdateFile.unsigned"
+}
+
 echo ""
 HomePath="$FullScriptPath/.."
 if [ "$BuildTarget" == "linux" ]; then
   echo "Building version $AppVersionStrFull for Linux 64bit.."
-  UpdateFile="tlinuxupd$AppVersion"
-  SetupFile="tsetup.$AppVersionStrFull.tar.xz"
+  UpdateFile="td-update-linux-x64-$AppVersion$ArtifactSuffix"
+  SetupFile="td-setup-linux-x64-$AppVersionStr$ArtifactSuffix.tar.xz"
   ProjectPath="$HomePath/../out"
   ReleasePath="$ProjectPath/Release"
   BinaryName="Telegram"
@@ -82,8 +157,8 @@ elif [ "$BuildTarget" == "mac" ] ; then
   if [ "$AC_USERNAME" == "" ]; then
     Error "AC_USERNAME not found!"
   fi
-  UpdateFileAMD64="tmacupd$AppVersion"
-  UpdateFileARM64="tarmacupd$AppVersion"
+  UpdateFileAMD64="td-update-mac-x64-$AppVersion$ArtifactSuffix"
+  UpdateFileARM64="td-update-mac-arm-$AppVersion$ArtifactSuffix"
   if [ "$MacArch" == "arm64" ]; then
     UpdateFile="$UpdateFileARM64"
   elif [ "$MacArch" == "x86_64" ]; then
@@ -94,10 +169,14 @@ elif [ "$BuildTarget" == "mac" ] ; then
   BinaryName="Telegram"
   if [ "$MacArch" != "" ]; then
     BundleName="$BinaryName.$MacArch.app"
-    SetupFile="tsetup.$MacArch.$AppVersionStrFull.dmg"
+    if [ "$MacArch" == "arm64" ]; then
+      SetupFile="td-setup-mac-arm-$AppVersionStr$ArtifactSuffix.dmg"
+    else
+      SetupFile="td-setup-mac-x64-$AppVersionStr$ArtifactSuffix.dmg"
+    fi
   else
     BundleName="$BinaryName.app"
-    SetupFile="tsetup.$AppVersionStrFull.dmg"
+    SetupFile="td-setup-mac-$AppVersionStr$ArtifactSuffix.dmg"
   fi
 elif [ "$BuildTarget" == "macstore" ]; then
   if [ "$AlphaVersion" != "0" ]; then
@@ -135,6 +214,14 @@ else
   fi
 fi
 
+if [ "$MacArch" == "" ]; then
+  LockDir="$ProjectPath/.build.lock"
+  if ! mkdir -p "$ProjectPath" || ! mkdir "$LockDir" 2> /dev/null; then
+    Error "Another build.sh seems to be running (found $LockDir, remove it if stale)."
+  fi
+  trap 'rmdir "$LockDir"' EXIT
+fi
+
 DeployPath="$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStrFull"
 
 if [ "$BuildTarget" == "linux" ]; then
@@ -147,9 +234,9 @@ if [ "$BuildTarget" == "linux" ]; then
     fi
   fi
 
-  BackupPath="/media/psf/backup/tdesktop/$AppVersionStrMajor/$AppVersionStrFull/t$BuildTarget"
+  BackupPath="/media/psf/backup/tdesktop/$AppVersionStrMajor/$AppVersionStrFull/$BackupFolder"
   if [ ! -d "/media/psf/backup/tdesktop" ]; then
-    BackupPath="/mnt/c/Telegram/Projects/backup/tdesktop/$AppVersionStrMajor/$AppVersionStrFull/t$BuildTarget"
+    BackupPath="/mnt/c/Telegram/Projects/backup/tdesktop/$AppVersionStrMajor/$AppVersionStrFull/$BackupFolder"
     if [ ! -d "/mnt/c/Telegram/Projects/backup/tdesktop" ]; then
       Error "Backup folder not found!"
     fi
@@ -172,7 +259,7 @@ if [ "$BuildTarget" == "linux" ]; then
 
   echo "Preparing version $AppVersionStrFull, executing Packer.."
   cd "$ReleasePath"
-  "./Packer" -path "$BinaryName" -path Updater -version $VersionForPacker $AlphaBetaParam
+  PackUpdate -path "$BinaryName" -path Updater
   echo "Packer done!"
 
   if [ "$AlphaVersion" != "0" ]; then
@@ -255,10 +342,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
       rm -rf "$ReleasePath/$BinaryName.app/Contents/_CodeSignature"
       rm -rf "$ReleasePath/Updater"
 
-      ./configure.sh -D DESKTOP_APP_MAC_ARCH="arm64;x86_64" -DDESKTOP_APP_ENABLE_LTO=ON
-
-      cd $ProjectPath
-      cmake --build . --config Release --target Telegram
+      python3 "$FullScriptPath/build_mac.py" --configuration Release --output "$ReleasePath"
     fi
 
     if [ ! -d "$ReleasePath/$BinaryName.app" ]; then
@@ -363,6 +447,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
         cp -f tsetup_template.dmg tsetup.temp.dmg
         TempDiskPath=`hdiutil attach -nobrowse -noautoopenrw -readwrite tsetup.temp.dmg | awk -F "\t" 'END {print $3}'`
         cp -R "./$BundleName" "$TempDiskPath/"
+        rm -f "$TempDiskPath/$BundleName/Contents/Resources/AppIcon.icns"
         bless --folder "$TempDiskPath/"
         hdiutil detach "$TempDiskPath"
         hdiutil convert tsetup.temp.dmg -format UDBZ -ov -o "$SetupFile"
@@ -430,7 +515,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
       mv "$ReleasePath/$BundleName" "$UpdatePackPath/$BinaryName.app"
       cp "$ReleasePath/Packer" "$UpdatePackPath/"
       cd "$UpdatePackPath"
-      "./Packer" -path "$BinaryName.app" -target "$BuildTarget" -version $VersionForPacker -arch $MacArch $AlphaBetaParam
+      PackUpdate -path "$BinaryName.app" -target "$BuildTarget" -arch $MacArch
       echo "Packer done!"
       mv "$UpdateFile" "$ReleasePath/"
       cd "$ReleasePath"
@@ -462,12 +547,12 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
     mv "$ReleasePath/$SetupFile" "$DeployPath/"
 
     if [ "$BuildTarget" == "mac" ]; then
-      mkdir -p "$BackupPath/tmac"
-      cp "$DeployPath/$UpdateFileAMD64" "$BackupPath/tmac/"
-      cp "$DeployPath/$UpdateFileARM64" "$BackupPath/tmac/"
-      cp "$DeployPath/$SetupFile" "$BackupPath/tmac/"
+      mkdir -p "$BackupPath/$BackupFolder"
+      cp "$DeployPath/$UpdateFileAMD64" "$BackupPath/$BackupFolder/"
+      cp "$DeployPath/$UpdateFileARM64" "$BackupPath/$BackupFolder/"
+      cp "$DeployPath/$SetupFile" "$BackupPath/$BackupFolder/"
       if [ "$AlphaVersion" != "0" ]; then
-        cp -v "$DeployPath/$AlphaKeyFile" "$BackupPath/tmac/"
+        cp -v "$DeployPath/$AlphaKeyFile" "$BackupPath/$BackupFolder/"
       fi
     fi
   elif [ "$BuildTarget" == "macstore" ]; then

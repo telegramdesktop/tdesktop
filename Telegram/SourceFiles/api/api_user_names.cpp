@@ -83,6 +83,8 @@ rpl::producer<Data::Usernames> Usernames::loadUsernames(
 					consumer.put_next({});
 					consumer.put_done();
 				});
+			}).fail([=] {
+				consumer.put_done();
 			}).send();
 		};
 		const auto requestChannel = [&](const MTPInputChannel &data) {
@@ -103,6 +105,8 @@ rpl::producer<Data::Usernames> Usernames::loadUsernames(
 						consumer.put_done();
 					});
 				});
+			}).fail([=] {
+				consumer.put_done();
 			}).send();
 		};
 		if (peer->isSelf()) {
@@ -261,8 +265,10 @@ void Usernames::requestToCache(not_null<PeerData*> peer) {
 	const auto lifetime = std::make_shared<rpl::lifetime>();
 	*lifetime = loadUsernames(
 		peer
-	) | rpl::on_next([=, id = peer->id](Data::Usernames usernames) {
+	) | rpl::on_next_done([=, id = peer->id](Data::Usernames usernames) {
 		_tinyCache = std::make_pair(id, std::move(usernames));
+		lifetime->destroy();
+	}, [=] {
 		lifetime->destroy();
 	});
 }

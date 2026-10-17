@@ -88,6 +88,9 @@ FrameGenerator::Impl::Impl(const QByteArray &bytes)
 		nullptr,
 		&FrameGenerator::Impl::Seek);
 
+	if (!_format) {
+		return;
+	}
 	auto error = 0;
 	if ((error = avformat_find_stream_info(_format.get(), nullptr))) {
 		return;
@@ -168,10 +171,10 @@ FrameGenerator::Frame FrameGenerator::Impl::renderCurrent(
 		return {};
 	}
 
-	auto scaled = QSize(width, height).scaled(size, mode);
-	if (!scaled.isEmpty() && rotationSwapWidthHeight()) {
-		scaled.transpose();
+	if (rotationSwapWidthHeight()) {
+		size.transpose();
 	}
+	const auto scaled = QSize(width, height).scaled(size, mode);
 	if (!GoodStorageForFrame(storage, size)) {
 		storage = CreateFrameStorage(size);
 		if (storage.isNull()) {

@@ -42,7 +42,7 @@ struct StarRefProgram {
 struct BotVerifierSettings {
 	DocumentId iconId = 0;
 	QString company;
-	QString customDescription;
+	TextWithEntities customDescription;
 	bool canModifyDescription = false;
 
 	explicit operator bool() const {
@@ -246,6 +246,8 @@ public:
 	[[nodiscard]] const std::vector<QString> &usernames() const;
 	[[nodiscard]] bool isUsernameEditable(QString username) const;
 
+	[[nodiscard]] bool isOldWalletBot() const;
+
 	void setBotVerifyDetails(Ui::BotVerifyDetails details);
 	void setBotVerifyDetailsIcon(DocumentId iconId);
 	[[nodiscard]] Ui::BotVerifyDetails *botVerifyDetails() const {
@@ -287,6 +289,13 @@ public:
 	[[nodiscard]] bool hasPrivateForwardName() const;
 	[[nodiscard]] QString privateForwardName() const;
 	void setPrivateForwardName(const QString &name);
+
+	// Disengaged means no source has answered about this user yet; engaged
+	// and empty means a source answered and this user has no wallet; engaged
+	// and non-empty is the canonical raw address. Every write is an answer,
+	// never a nullopt: answers come from wallet.getUserAddresses.
+	[[nodiscard]] const std::optional<QString> &gramAddress() const;
+	void setGramAddress(QString address);
 
 	[[nodiscard]] bool hasActiveStories() const;
 	[[nodiscard]] bool hasUnreadStories() const;
@@ -350,6 +359,7 @@ private:
 	std::vector<Data::UnavailableReason> _unavailableReasons;
 	QString _phone;
 	QString _privateForwardName;
+	std::optional<QString> _gramAddress;
 	std::unique_ptr<Ui::BotVerifyDetails> _botVerifyDetails;
 	Data::StarsRating _starsRating;
 
@@ -369,7 +379,9 @@ private:
 
 namespace Data {
 
-void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update);
+void ApplyUserUpdate(
+	not_null<UserData*> user,
+	const MTPDuserFull &update);
 
 [[nodiscard]] StarRefProgram ParseStarRefProgram(
 	const MTPStarRefProgram *program);

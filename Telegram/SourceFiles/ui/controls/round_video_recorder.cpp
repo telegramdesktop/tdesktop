@@ -47,6 +47,7 @@ constexpr auto kLogoYShift = 10;
 constexpr auto kOverlayOpacity = 0.1;
 constexpr auto kOverlayOpaque = 1. - kOverlayOpacity;
 constexpr auto kOverlayUVOpaque = 128 * kOverlayOpaque;
+constexpr auto kTextOpaque = 100;
 
 using namespace FFmpeg;
 
@@ -195,7 +196,7 @@ private:
 
 	void initEncoding();
 	void initCircleMask();
-	void initCircularTextImage();
+	void initCircularTextAdd();
 	void initMinithumbsCanvas();
 	void maybeSaveMinithumb(
 		not_null<AVFrame*> frame,
@@ -278,7 +279,7 @@ private:
 	ReadBytesWrap _forConcat1, _forConcat2;
 
 	uint8_t _logoFrameCounter = 0;
-	QImage _circularTextImage;
+	std::vector<uint8_t> _circularTextAdd;
 
 	std::vector<bool> _circleMask; // Always nice to use vector<bool>! :D
 
@@ -300,7 +301,7 @@ RoundVideoRecorder::Private::Private(
 , _timeoutTimer(_weak, [=] { timeout(); }) {
 	initEncoding();
 	initCircleMask();
-	initCircularTextImage();
+	initCircularTextAdd();
 	initMinithumbsCanvas();
 
 	_timeoutTimer.callOnce(kInitTimeout);
@@ -852,11 +853,11 @@ void RoundVideoRecorder::Private::initCircleMask() {
 	}
 }
 
-void RoundVideoRecorder::Private::initCircularTextImage() {
+void RoundVideoRecorder::Private::initCircularTextAdd() {
 	constexpr auto kCircularTextRadius = kSide / 2 + 17;
 	constexpr auto kCircularTextStartAngle = 125;
 	constexpr auto kCircularTextEndAngle = 145;
-	_circularTextImage = CircularTextImage(
+	const auto image = CircularTextImage(
 		u"Telegram"_q.toUpper(),
 		kSide,
 		kSide,
@@ -867,6 +868,15 @@ void RoundVideoRecorder::Private::initCircularTextImage() {
 		Qt::transparent,
 		st::roundVideoFont,
 		true);
+	_circularTextAdd.resize(kSide * kSide);
+	auto to = _circularTextAdd.data();
+	for (auto y = 0; y != kSide; ++y) {
+		const auto from = reinterpret_cast<const QRgb*>(
+			image.constScanLine(y));
+		for (auto x = 0; x != kSide; ++x) {
+			*to++ = uint8_t(qAlpha(from[x]) * kTextOpaque / 255);
+		}
+	}
 }
 
 void RoundVideoRecorder::Private::initMinithumbsCanvas() {
@@ -900,8 +910,8 @@ void RoundVideoRecorder::Private::drawLogoOnYUV420P(
 	const auto height = frame->height;
 
 	const auto logoBottom = height - kLogoSize + kLogoYShift;
-	const auto logoStartX = kLogoXShift;
-	const auto logoEndX = logoStartX + kLogoSize;
+	const auto logoStartX = std::max(kLogoXShift, 0);
+	const auto logoEndX = std::min(kLogoXShift + kLogoSize, width);
 	const auto logoStartY = logoBottom;
 	const auto logoEndY = logoBottom + kLogoSize;
 
@@ -915,52 +925,43 @@ void RoundVideoRecorder::Private::drawLogoOnYUV420P(
 	auto uData = frame->data[1];
 	auto vData = frame->data[2];
 	const auto uvSkip = frame->linesize[1] - uvWidth;
-	auto yMaskIndex = 0;
 
 	for (auto y = 0; y < height; ++y) {
+		const auto maskRow = y * width;
 		for (auto x = 0; x < width; ++x) {
-			if (_circleMask[yMaskIndex]) {
-				*yData = static_cast<uint8_t>(*yData * kOverlayOpacity
+			if (_circleMask[maskRow + x]) {
+				yData[x] = static_cast<uint8_t>(yData[x] * kOverlayOpacity
 					+ 16 * kOverlayOpaque);
 			}
-
-			if ((x >= logoStartX && x < logoEndX)
-				&& (y >= logoStartY && y < logoEndY)) {
-				const auto logoX = x - kLogoXShift;
-				const auto logoY = y - logoBottom;
-
-				const auto blendedValue = currentLogo[logoX][logoY];
+		}
+		if (y >= logoStartY && y < logoEndY) {
+			const auto logoY = y - logoBottom;
+			for (auto x = logoStartX; x < logoEndX; ++x) {
+				const auto blendedValue = currentLogo[x - kLogoXShift][logoY];
 				if (blendedValue > 0) {
 					const auto logoFactor = blendedValue / 255.0f;
-					*yData = static_cast<uint8_t>(*yData * (1 - logoFactor)
+					yData[x] = static_cast<uint8_t>(yData[x] * (1 - logoFactor)
 						+ 255 * logoFactor);
 				}
 			}
-
-			const auto textAlpha = qAlpha(_circularTextImage.pixel(x, y))
-				/ 255.;
-			*yData = std::min(
-				*yData + static_cast<uint8_t>(textAlpha * 100),
-				255);
-
-			++yData;
-			++yMaskIndex;
 		}
-		yData += ySkip;
+		const auto textRow = _circularTextAdd.data() + maskRow;
+		for (auto x = 0; x < width; ++x) {
+			yData[x] = std::min(yData[x] + int(textRow[x]), 255);
+		}
+		yData += width + ySkip;
 
 		if (y % 2 == 0) {
 			for (auto x = 0; x < uvWidth; ++x) {
-				if (_circleMask[(y * width) + (x * 2)]) {
-					*uData = static_cast<uint8_t>(*uData * kOverlayOpacity
+				if (_circleMask[maskRow + (x * 2)]) {
+					uData[x] = static_cast<uint8_t>(uData[x] * kOverlayOpacity
 						+ kOverlayUVOpaque);
-					*vData = static_cast<uint8_t>(*vData * kOverlayOpacity
+					vData[x] = static_cast<uint8_t>(vData[x] * kOverlayOpacity
 						+ kOverlayUVOpaque);
 				}
-				++uData;
-				++vData;
 			}
-			uData += uvSkip;
-			vData += uvSkip;
+			uData += uvWidth + uvSkip;
+			vData += uvWidth + uvSkip;
 		}
 	}
 }

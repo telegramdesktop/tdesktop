@@ -52,7 +52,7 @@ void ThanosEffect::WarmUp() {
 	if (!GL::WidgetsRhiEnabled()) {
 		return;
 	}
-	(void)GL::CheckRhiCapabilities();
+	[[maybe_unused]] const auto capabilities = GL::CheckRhiCapabilities();
 #endif
 }
 

@@ -298,32 +298,37 @@ void AppendTextWithInlineFormulas(
 	}
 }
 
-[[nodiscard]] int FindMatchingRawInlineTag(
+// For every opening raw tag in [from, till) computes the index of its
+// matching closing tag, or -1. This is one linear stack sweep replacing
+// a forward rescan per opening tag: with unmatched tags the rescan made
+// sibling processing quadratic, freezing the UI on hostile paragraphs.
+//
+// The sweep follows exactly the semantics of the per-opening scan it
+// replaces: a closer that does not match the top of the stack aborts
+// every pending opening tag (each pending opening's own forward scan
+// would have hit the same mismatch), and trailing pending openings at
+// the end of the range stay unmatched.
+[[nodiscard]] std::vector<int> ComputeMatchingRawInlineTags(
 		const std::vector<MarkdownNode> &nodes,
 		int from,
-		int till,
-		RawInlineTag openingTag) {
-	if (!IsOpeningRawInlineTag(openingTag)) {
-		return -1;
-	}
-	auto stack = std::vector<RawInlineTag>();
-	stack.push_back(openingTag);
+		int till) {
+	auto match = std::vector<int>(nodes.size(), -1);
+	auto pending = std::vector<std::pair<int, RawInlineTag>>();
 	for (auto i = from; i != till; ++i) {
 		const auto tag = ParseRawInlineTag(nodes[i]);
 		if (tag == RawInlineTag::None) {
 			continue;
 		} else if (IsOpeningRawInlineTag(tag)) {
-			stack.push_back(tag);
-		} else if (stack.empty()
-			|| MatchingClosingRawInlineTag(stack.back()) != tag) {
-			return -1;
-		} else if (stack.size() == 1) {
-			return i;
+			pending.emplace_back(i, tag);
+		} else if (!pending.empty()
+			&& MatchingClosingRawInlineTag(pending.back().second) == tag) {
+			match[pending.back().first] = i;
+			pending.pop_back();
 		} else {
-			stack.pop_back();
+			pending.clear();
 		}
 	}
-	return -1;
+	return match;
 }
 
 void AppendInline(
@@ -340,17 +345,21 @@ void AppendInlineRange(
 		TextWithEntities *text,
 		std::vector<PreparedLink> *links,
 		InlineFormulaContext *inlineFormulas,
-		PrepareState *state) {
+		PrepareState *state,
+		const std::vector<int> *rawTagMatches = nullptr) {
+	// rawTagMatches may cover a whole superset of [from, till): nested
+	// ranges within the same nodes vector reuse it, so every sibling
+	// list is matched exactly once in total.
+	const auto computed = rawTagMatches
+		? std::vector<int>()
+		: ComputeMatchingRawInlineTags(nodes, from, till);
+	const auto &match = rawTagMatches ? *rawTagMatches : computed;
 	for (auto i = from; i != till; ++i) {
 		const auto &node = nodes[i];
 		const auto tag = ParseRawInlineTag(node);
 		if (IsOpeningRawInlineTag(tag)) {
-			const auto closing = FindMatchingRawInlineTag(
-				nodes,
-				i + 1,
-				till,
-				tag);
-			if (closing > i) {
+			const auto closing = (i < int(match.size())) ? match[i] : -1;
+			if (closing > i && closing < till) {
 				const auto entityFrom = text->text.size();
 				AppendInlineRange(
 					nodes,
@@ -359,7 +368,8 @@ void AppendInlineRange(
 					text,
 					links,
 					inlineFormulas,
-					state);
+					state,
+					&match);
 				const auto entityLength = text->text.size() - entityFrom;
 				if (entityLength > 0) {
 					text->entities.push_back(EntityInText(
@@ -399,9 +409,8 @@ void AppendInline(
 			inlineFormulas,
 			state);
 		break;
+	// Chat markdown never ends lines with two spaces of CommonMark.
 	case NodeKind::SoftBreak:
-		text->append(QChar(' '));
-		break;
 	case NodeKind::LineBreak:
 		text->append(QChar('\n'));
 		break;

@@ -126,12 +126,7 @@ int PaintSuggestionBubbleBackground(
 		pill.width() / 2,
 		pill.height() / 2,
 	});
-	shadow.paint(p, pill, radius);
-	auto hq = PainterHighQualityEnabler(p);
-	p.setBrush(st::dialogsBg);
-	p.setPen(Qt::NoPen);
-	p.drawRoundedRect(pill, radius, radius);
-	PaintPillOutline(p, pill, radius);
+	PaintPillBackground(p, shadow, pill, radius);
 	return radius;
 }
 
@@ -739,7 +734,7 @@ void TopBarSuggestionContent::setLeadingWidget(Ui::RpWidget *widget) {
 	widget->setParent(this);
 	widget->setAttribute(Qt::WA_TransparentForMouseEvents);
 	const auto &margins = st::dialogsTopBarSuggestionMargins;
-	const auto &row = st::defaultDialogRow;
+	const auto iconPadding = st::dialogsTopBarSuggestionIconPadding;
 	sizeValue() | rpl::filter_size(
 	) | rpl::on_next([=](const QSize &s) {
 		widget->raise();
@@ -749,15 +744,14 @@ void TopBarSuggestionContent::setLeadingWidget(Ui::RpWidget *widget) {
 			: (s.height() - rect::m::sum::v(margins));
 		const auto leftInset = _geometry.iconLeft
 			? _geometry.iconLeft
-			: (row.padding.left()
-				+ (row.photoSize - widget->width()) / 2);
+			: (margins.left() + iconPadding);
 		widget->moveToLeft(
 			leftInset,
 			margins.top() + (cardHeight - widget->height()) / 2);
 	}, _leadingWidgetLifetime);
-	const auto padding = (_geometry.leadingTextSkip
-		? _geometry.leadingTextSkip
-		: row.nameLeft) - margins.left();
+	const auto padding = _geometry.leadingTextSkip
+		? (_geometry.leadingTextSkip - margins.left())
+		: (iconPadding + widget->width() + iconPadding);
 	if (_leftPadding != padding) {
 		_leftPadding = padding;
 		resizeToWidth(width());

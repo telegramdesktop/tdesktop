@@ -747,7 +747,7 @@ void WeatherView::cacheBackground() {
 		return format(fahrenheit);
 	}().append(QChar(0xb0)).append(_celsius ? "C" : "F");
 	const auto metrics = QFontMetrics(_font);
-	const auto textWidth = qCeil(metrics.horizontalAdvance(text));
+	const auto textWidth = int(std::ceil(metrics.horizontalAdvance(text)));
 	_padding = int(_rect.height() / 5);
 	const auto fullWidth = (_emoji ? (_emojiSize - _padding) : 0)
 		+ textWidth

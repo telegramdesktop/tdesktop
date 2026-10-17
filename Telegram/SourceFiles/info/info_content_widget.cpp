@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_forum_topic.h"
 #include "data/data_forum.h"
+#include "data/data_saved_messages.h"
+#include "data/data_user.h"
 #include "info/profile/info_profile_widget.h"
 #include "info/media/info_media_widget.h"
 #include "info/common_groups/info_common_groups_widget.h"
@@ -108,6 +110,13 @@ ContentWidget::ContentWidget(
 	) | rpl::on_next([this] {
 		updateControlsGeometry();
 	}, lifetime());
+
+	_scroll->scrollTopChanges(
+	) | rpl::on_next([this] {
+		if (!_applyingScrollTopRestore) {
+			_scrollTopRestore = std::nullopt;
+		}
+	}, lifetime());
 }
 
 void ContentWidget::resizeEvent(QResizeEvent *e) {
@@ -176,20 +185,26 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 
 	setupSwipeHandler(_innerWrap);
 
-	// MSVC BUG + REGRESSION rpl::mappers::tuple :(
 	rpl::combine(
 		_scroll->scrollTopValue(),
 		_scroll->heightValue(),
-		_innerWrap->entity()->desiredHeightValue()
+		_innerWrap->entity()->desiredHeightValue(),
+		tuple(_1, _1 + _2, _3)
 	) | rpl::on_next([this](
 			int top,
-			int height,
+			int bottom,
 			int desired) {
-		const auto bottom = top + height;
 		_innerDesiredHeight = desired;
 		_innerWrap->setVisibleTopBottom(top, bottom);
 		_scrollTillBottomChanges.fire_copy(
 			std::max(desired + _innerTopReserve - bottom, 0));
+	}, _innerWrap->lifetime());
+
+	rpl::merge(
+		_scroll->heightValue() | rpl::to_empty,
+		_innerWrap->heightValue() | rpl::to_empty
+	) | rpl::on_next([=] {
+		applyScrollTopRestore();
 	}, _innerWrap->lifetime());
 
 	rpl::combine(
@@ -359,7 +374,21 @@ rpl::producer<int> ContentWidget::scrollTopValue() const {
 }
 
 void ContentWidget::scrollTopRestore(int scrollTop) {
-	_scroll->scrollToY(scrollTop);
+	_scrollTopRestore = scrollTop;
+	applyScrollTopRestore();
+}
+
+void ContentWidget::applyScrollTopRestore() {
+	if (!_scrollTopRestore || _applyingScrollTopRestore) {
+		return;
+	}
+	const auto top = *_scrollTopRestore;
+	if (_scroll->scrollTopMax() >= top) {
+		_scrollTopRestore = std::nullopt;
+	}
+	_applyingScrollTopRestore = true;
+	_scroll->scrollToY(top);
+	_applyingScrollTopRestore = false;
 }
 
 void ContentWidget::scrollTo(const Ui::ScrollToRequest &request) {
@@ -604,6 +633,8 @@ Key ContentMemento::key() const {
 		return Key(topic);
 	} else if (const auto sublist = this->sublist()) {
 		return Key(sublist);
+	} else if (const auto savedMessages = this->savedMessages()) {
+		return Key(savedMessages);
 	} else if (const auto peer = this->peer()) {
 		return Key(peer);
 	} else if (const auto poll = this->poll()) {
@@ -655,6 +686,12 @@ ContentMemento::ContentMemento(
 			}
 		}, _lifetime);
 	}
+}
+
+ContentMemento::ContentMemento(not_null<Data::SavedMessages*> savedMessages)
+: _peer(savedMessages->session().user().get())
+, _savedMessages(savedMessages) {
+	Expects(!savedMessages->parentChat());
 }
 
 ContentMemento::ContentMemento(Settings::Tag settings)

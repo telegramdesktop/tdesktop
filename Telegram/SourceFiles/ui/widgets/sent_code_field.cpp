@@ -19,6 +19,9 @@ SentCodeField::SentCodeField(
 	rpl::producer<QString> placeholder,
 	const QString &val)
 : Ui::InputField(parent, st, std::move(placeholder), val) {
+	setInputMethodHints(Qt::ImhDigitsOnly
+		| Qt::ImhNoPredictiveText
+		| Qt::ImhSensitiveData);
 	changes() | rpl::on_next([=] { fix(); }, lifetime());
 }
 

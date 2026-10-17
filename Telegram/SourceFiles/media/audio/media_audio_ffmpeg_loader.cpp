@@ -48,6 +48,7 @@ bool AbstractFFMpegLoader::open(crl::time positionMs, float64 speed) {
 		return false;
 	}
 	fmtContext->pb = ioContext;
+	FFmpeg::RestrictToCustomIO(fmtContext);
 
 	if (AvErrorWrap error = avformat_open_input(&fmtContext, 0, 0, 0)) {
 		ioBuffer = nullptr;
@@ -96,7 +97,9 @@ AbstractFFMpegLoader::~AbstractFFMpegLoader() {
 int AbstractFFMpegLoader::ReadData(void *opaque, uint8_t *buf, int buf_size) {
 	auto l = reinterpret_cast<AbstractFFMpegLoader *>(opaque);
 
-	auto nbytes = qMin(l->_data.size() - l->_dataPos, int32(buf_size));
+	auto nbytes = std::min(
+		static_cast<int>(l->_data.size()) - l->_dataPos,
+		buf_size);
 	if (nbytes <= 0) {
 		return AVERROR_EOF;
 	}
@@ -129,7 +132,9 @@ int64_t AbstractFFMpegLoader::SeekData(void *opaque, int64_t offset, int whence)
 int AbstractFFMpegLoader::ReadBytes(void *opaque, uint8_t *buf, int buf_size) {
 	auto l = reinterpret_cast<AbstractFFMpegLoader *>(opaque);
 
-	auto nbytes = qMin(static_cast<int>(l->_bytes.size()) - l->_dataPos, buf_size);
+	auto nbytes = std::min(
+		static_cast<int>(l->_bytes.size()) - l->_dataPos,
+		buf_size);
 	if (nbytes <= 0) {
 		return AVERROR_EOF;
 	}

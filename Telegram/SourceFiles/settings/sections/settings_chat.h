@@ -25,23 +25,10 @@ namespace Settings {
 
 [[nodiscard]] Type ChatId();
 
-void SetupDataStorage(
-	not_null<Window::SessionController*> controller,
-	not_null<Ui::VerticalLayout*> container);
-void SetupAutoDownload(
-	not_null<Window::SessionController*> controller,
-	not_null<Ui::VerticalLayout*> container);
 void SetupDefaultThemes(
 	not_null<Window::Controller*> window,
 	not_null<Ui::VerticalLayout*> container,
 	HighlightRegistry *highlights = nullptr);
-void SetupSupport(
-	not_null<Window::SessionController*> controller,
-	not_null<Ui::VerticalLayout*> container);
-void SetupExport(
-	not_null<Window::SessionController*> controller,
-	not_null<Ui::VerticalLayout*> container,
-	Fn<void(Type)> showOther);
 
 void PaintRoundColorButton(
 	QPainter &p,
@@ -83,11 +70,6 @@ void SetupMessages(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::VerticalLayout*> container,
 	HighlightRegistry *highlights = nullptr);
-
-void SetupArchive(
-	not_null<Window::SessionController*> controller,
-	not_null<Ui::VerticalLayout*> container,
-	Fn<void(Type)> showOther);
 
 void SetupSensitiveContent(
 	not_null<Window::SessionController*> controller,

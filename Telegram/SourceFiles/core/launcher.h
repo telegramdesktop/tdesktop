@@ -53,6 +53,7 @@ protected:
 private:
 	void prepareSettings();
 	void initQtMessageLogging();
+	void initFFmpegMessageLogging();
 	void processArguments();
 
 	QStringList readArguments(int argc, char *argv[]) const;

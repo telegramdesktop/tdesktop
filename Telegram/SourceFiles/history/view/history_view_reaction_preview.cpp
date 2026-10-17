@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "base/event_filter.h"
 #include "boxes/sticker_set_box.h"
+#include "core/shortcuts.h"
 #include "data/data_document.h"
 #include "data/data_photo.h"
 #include "data/data_message_reactions.h"
@@ -23,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/shadow.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/painter.h"
@@ -36,21 +38,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-void SetupOverlayHideOnEscape(
+void SetupOverlayKeyHandling(
 		not_null<Ui::AbstractButton*> clickable,
 		Fn<void()> hideAll) {
 	clickable->setClickedCallback(hideAll);
+	Shortcuts::Pause();
+	clickable->lifetime().add(Shortcuts::Unpause);
 	base::install_event_filter(QCoreApplication::instance(), [=](
 			not_null<QEvent*> e) {
-		if (e->type() == QEvent::KeyPress
-			&& clickable->window()->isActiveWindow()) {
-			const auto k = static_cast<QKeyEvent*>(e.get());
-			if (k->key() == Qt::Key_Escape) {
-				hideAll();
-				return base::EventFilterResult::Cancel;
-			}
+		const auto type = e->type();
+		if ((type != QEvent::KeyPress && type != QEvent::KeyRelease)
+			|| !clickable->window()->isActiveWindow()) {
+			return base::EventFilterResult::Continue;
 		}
-		return base::EventFilterResult::Continue;
+		const auto k = static_cast<QKeyEvent*>(e.get());
+		if (type == QEvent::KeyPress && k->key() == Qt::Key_Escape) {
+			hideAll();
+		}
+		return base::EventFilterResult::Cancel;
 	}, clickable->lifetime());
 }
 
@@ -78,6 +83,19 @@ struct PreviewOverlay {
 	Fn<void()> hideAll;
 };
 
+[[nodiscard]] DocumentData *LookupReactionDocument(
+		not_null<Window::SessionController*> controller,
+		const Data::ReactionId &reactionId) {
+	auto &owner = controller->session().data();
+	if (const auto custom = reactionId.custom()) {
+		return owner.document(custom);
+	} else if (const auto resolved
+			= owner.reactions().lookupTemporary(reactionId)) {
+		return resolved->selectAnimation;
+	}
+	return nullptr;
+}
+
 template <typename MediaData>
 [[nodiscard]] PreviewOverlay CreatePreviewOverlay(
 		not_null<Window::SessionController*> controller,
@@ -101,7 +119,7 @@ template <typename MediaData>
 			st::defaultToggle.duration,
 			[=] { state->clear(); });
 	};
-	SetupOverlayHideOnEscape(state->clickable.get(), hideAll);
+	SetupOverlayKeyHandling(state->clickable.get(), hideAll);
 	state->mediaPreview->showPreview(origin, media);
 	state->clickable->show();
 	const auto clickableRaw = state->clickable.get();
@@ -204,14 +222,7 @@ bool ShowReactionPreview(
 		FullMsgId origin,
 		Data::ReactionId reactionId,
 		bool emojiPreview) {
-	auto document = (DocumentData*)(nullptr);
-	if (const auto custom = reactionId.custom()) {
-		document = controller->session().data().document(custom);
-	} else if (const auto resolved
-			= controller->session().data().reactions().lookupTemporary(
-				reactionId)) {
-		document = resolved->selectAnimation;
-	}
+	const auto document = LookupReactionDocument(controller, reactionId);
 	if (!document) {
 		return false;
 	}
@@ -310,6 +321,87 @@ bool ShowReactionPreview(
 	return true;
 }
 
+bool AttachReactionPreviewToMenu(
+		not_null<Ui::PopupMenu*> menu,
+		not_null<Window::SessionController*> controller,
+		QPoint desiredPosition,
+		FullMsgId origin,
+		const Data::ReactionId &reactionId) {
+	const auto document = LookupReactionDocument(controller, reactionId);
+	if (!document) {
+		return false;
+	}
+	const auto size = st::reactionPreviewInMenuSize;
+	const auto skip = st::reactionPreviewInMenuSkip;
+	menu->setAdditionalMenuPadding(
+		QMargins(0, size + skip, 0, 0),
+		QMargins());
+	if (!menu->prepareGeometryFor(desiredPosition)) {
+		return false;
+	}
+	const auto preview = Ui::CreateChild<Window::MediaPreviewWidget>(
+		menu.get(),
+		controller);
+	preview->setAttribute(Qt::WA_TransparentForMouseEvents);
+	preview->setPaintBackground(false);
+	preview->setHideEmoji(true);
+	preview->setMaxContentSize(size);
+	preview->setCustomDuration(menu->st().showDuration);
+	preview->showPreview(origin, document);
+
+	// Menu hides children, so widget's own pause release never runs.
+	const auto weak = base::make_weak(controller);
+	QObject::connect(menu.get(), &QObject::destroyed, [weak] {
+		if (const auto strong = weak.get()) {
+			strong->disableGifPauseReason(
+				Window::GifPauseReason::MediaPreview);
+		}
+	});
+
+	const auto background = menu->useTransparency()
+		? nullptr
+		: Ui::CreateChild<Ui::RpWidget>(menu.get());
+	if (background) {
+		background->setAttribute(Qt::WA_TransparentForMouseEvents);
+		const auto bg = menu->st().menu.itemBg;
+		background->paintOn([=](QPainter &p) {
+			p.fillRect(background->rect(), bg);
+		});
+		background->show();
+		background->lower();
+	}
+
+	menu->sizeValue() | rpl::on_next([=](QSize outer) {
+		const auto padding = menu->preparedPadding();
+		const auto left = padding.left();
+		const auto width = outer.width() - left - padding.right();
+		if (background) {
+			background->setGeometry(left, 0, width, padding.top());
+		}
+		preview->setGeometry(left, padding.top() - skip - size, width, size);
+	}, preview->lifetime());
+
+	using ShowState = Ui::PopupMenu::ShowState;
+	menu->showStateValue() | rpl::on_next([=](ShowState state) {
+		if (state.toggling) {
+			preview->hide();
+			if (background) {
+				background->hide();
+			}
+			return;
+		}
+		if (background && background->isHidden()) {
+			background->show();
+		}
+		if (preview->isHidden()) {
+			preview->show();
+		}
+		preview->raise();
+	}, preview->lifetime());
+
+	return true;
+}
+
 void ShowWidgetPreview(
 		not_null<Window::SessionController*> controller,
 		Fn<void(not_null<Ui::RpWidget*>)> setupContent,
@@ -345,7 +437,7 @@ void ShowWidgetPreview(
 				s->clickable.reset();
 			});
 	};
-	SetupOverlayHideOnEscape(state->clickable.get(), hideAll);
+	SetupOverlayKeyHandling(state->clickable.get(), hideAll);
 
 	auto menu = object_ptr<Ui::DropdownMenu>(
 		mainwidget,

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "core/file_utilities.h"
+#include "editor/photo_editor_common.h"
 
 namespace tr {
 template <typename ...>
@@ -26,10 +27,17 @@ namespace Storage {
 enum class MimeDataState {
 	None,
 	Files,
+	FilesArchive,
+	FilesArchiveOnly,
 	PhotoFiles,
+	PhotoFilesArchive,
 	MediaFiles,
+	MediaFilesArchive,
 	//PremiumFile,
 	Image,
+	Media,
+	Folder,
+	FolderArchiveOnly,
 };
 
 [[nodiscard]] std::optional<Ui::PreparedList> PreparedFileFromFilesDialog(
@@ -40,28 +48,74 @@ enum class MimeDataState {
 	bool premium);
 [[nodiscard]] MimeDataState ComputeMimeDataState(const QMimeData *data);
 [[nodiscard]] bool ValidatePhotoEditorMediaDragData(
-	not_null<const QMimeData*> data);
+	not_null<const QMimeData*> data,
+	bool composeAnimated,
+	bool composeSound);
+
+struct PhotoEditorMedia {
+	QImage image;
+	QString videoPath;
+	QByteArray videoContent;
+	crl::time videoDuration = 0;
+	bool videoHasAudio = false;
+	Editor::AudioTrack audio;
+
+	[[nodiscard]] bool video() const {
+		return !videoPath.isEmpty() || !videoContent.isEmpty();
+	}
+	[[nodiscard]] explicit operator bool() const {
+		return !image.isNull() || !audio.empty();
+	}
+};
+[[nodiscard]] PhotoEditorMedia ReadPhotoEditorMedia(
+	const QString &path,
+	const QByteArray &content);
+void ReadPhotoEditorMediaAsync(
+	const QString &path,
+	const QByteArray &content,
+	Fn<void(PhotoEditorMedia&&)> done);
+[[nodiscard]] Editor::AudioTrack ReadPhotoEditorAudio(
+	const QString &path,
+	const QByteArray &content);
 [[nodiscard]] bool ValidateEditMediaDragData(
 	not_null<const QMimeData*> data,
 	Ui::AlbumType albumType);
 [[nodiscard]] Ui::PreparedList PrepareMediaList(
 	const QList<QUrl> &files,
 	int previewWidth,
-	bool premium);
+	bool premium,
+	Fn<void(const Ui::PreparedList &)> errorCallback = nullptr);
 [[nodiscard]] Ui::PreparedList PrepareMediaList(
 	const QStringList &files,
 	int previewWidth,
-	bool premium);
+	bool premium,
+	Fn<void(const Ui::PreparedList &)> errorCallback = nullptr);
 [[nodiscard]] Ui::PreparedList PrepareMediaFromImage(
 	QImage &&image,
 	QByteArray &&content,
 	int previewWidth);
 void PrepareDetails(Ui::PreparedFile &file, int previewWidth, int sideLimit);
+struct VideoDetails {
+	QSize originalDimensions;
+	QSize shownDimensions;
+	QImage preview;
+};
+
+[[nodiscard]] VideoDetails ComputeVideoDetails(
+	const QImage &thumbnail,
+	const Editor::PhotoModifications &geometry,
+	int previewWidth,
+	int sideLimit);
+void ApplyVideoDetails(Ui::PreparedFile &file, VideoDetails &&details);
+void UpdateVideoDetails(
+	Ui::PreparedFile &file,
+	int previewWidth,
+	int sideLimit);
 void UpdateImageDetails(
 	Ui::PreparedFile &file,
 	int previewWidth,
 	int sideLimit);
 
-bool ApplyModifications(Ui::PreparedList &list);
+bool ApplyModifications(Ui::PreparedList &list, bool composeAnimated = false);
 
 } // namespace Storage

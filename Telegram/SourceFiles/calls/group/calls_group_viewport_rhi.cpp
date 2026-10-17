@@ -32,9 +32,11 @@ constexpr auto kNoiseTextureSize = 256;
 constexpr auto kBlurTextureSizeFactor = 4.;
 constexpr auto kBlurOpacity = 0.65f;
 
+// The NDC Y flip stays at offset 12 in every block, see NdcFlipY().
 struct GroupFrameUniforms {
 	float viewport[2];
-	float _pad0[2];
+	float _pad0;
+	float flipY;
 	float frameBg[4];
 	float shadow[4];
 	float paused;
@@ -56,13 +58,30 @@ static_assert(sizeof(BlurUniforms) == 16);
 struct ImageUniforms {
 	float viewport[2];
 	float g_opacity;
-	float _pad;
+	float flipY;
 };
 static_assert(sizeof(ImageUniforms) == 16);
 
 [[nodiscard]] QShader LoadShader(const QString &name) {
 	return Ui::Rhi::ShaderFromFile(
 		u":/shaders/"_q + name + u".qsb"_q);
+}
+
+// Vulkan is the only backend with the NDC Y axis pointing down.
+[[nodiscard]] float NdcFlipY(not_null<QRhi*> rhi) {
+	return rhi->isYUpInNDC() ? 1.f : -1.f;
+}
+
+// A full render target quad for the offscreen passes, with the same
+// orientation on every backend.
+[[nodiscard]] std::array<float, 16> OffscreenQuad(not_null<QRhi*> rhi) {
+	const auto flipY = NdcFlipY(rhi);
+	return { {
+		-1.f, -1.f * flipY, 0.f, 1.f,
+		 1.f, -1.f * flipY, 1.f, 1.f,
+		-1.f,  1.f * flipY, 0.f, 0.f,
+		 1.f,  1.f * flipY, 1.f, 0.f,
+	} };
 }
 
 [[nodiscard]] bool UseExpandForCamera(QSize original, QSize viewport) {
@@ -988,18 +1007,13 @@ void Viewport::RendererRhi::drawYuv2RgbPass(
 
 	// Convert with a fixed orientation for every backend; the OpenGL
 	// compositing flip is compensated later, in drawFramePass().
-	const auto coords = std::array{
-		-1.f, -1.f, 0.f, 1.f,
-		 1.f, -1.f, 1.f, 1.f,
-		-1.f,  1.f, 0.f, 0.f,
-		 1.f,  1.f, 1.f, 0.f,
-	};
+	const auto coords = OffscreenQuad(_rhi);
 
 	if (!_rub) {
 		_rub = _rhi->nextResourceUpdateBatch();
 	}
 	_rub->updateDynamicBuffer(
-		_offscreenVertexBuffer, 0, coords.size(), coords.data());
+		_offscreenVertexBuffer, 0, sizeof(coords), coords.data());
 
 	auto *srb = _rhi->newShaderResourceBindings();
 	_perDrawSrbs.push_back(srb);
@@ -1041,18 +1055,13 @@ void Viewport::RendererRhi::drawDownscalePass(
 		QSize blurSize) {
 	const float w = float(blurSize.width());
 	const float h = float(blurSize.height());
-	const float coords[] = {
-		-1.f, -1.f, 0.f, 1.f,
-		 1.f, -1.f, 1.f, 1.f,
-		-1.f,  1.f, 0.f, 0.f,
-		 1.f,  1.f, 1.f, 0.f,
-	};
+	const auto coords = OffscreenQuad(_rhi);
 
 	if (!_rub) {
 		_rub = _rhi->nextResourceUpdateBatch();
 	}
 	_rub->updateDynamicBuffer(
-		_offscreenVertexBuffer, 0, sizeof(coords), coords);
+		_offscreenVertexBuffer, 0, sizeof(coords), coords.data());
 
 	auto *srb = _rhi->newShaderResourceBindings();
 	_perDrawSrbs.push_back(srb);
@@ -1088,19 +1097,14 @@ void Viewport::RendererRhi::drawBlurPass(
 		QSize blurSize) {
 	const float w = float(blurSize.width());
 	const float h = float(blurSize.height());
-	const float coords[] = {
-		-1.f, -1.f, 0.f, 1.f,
-		 1.f, -1.f, 1.f, 1.f,
-		-1.f,  1.f, 0.f, 0.f,
-		 1.f,  1.f, 1.f, 0.f,
-	};
+	const auto coords = OffscreenQuad(_rhi);
 
 	{
 		BlurUniforms blurUniforms{};
 		blurUniforms.texelOffset = 1.f / w;
 		auto *rub = _rhi->nextResourceUpdateBatch();
 		rub->updateDynamicBuffer(
-			_offscreenVertexBuffer, 0, sizeof(coords), coords);
+			_offscreenVertexBuffer, 0, sizeof(coords), coords.data());
 		rub->updateDynamicBuffer(
 			_uniformBuffer, 0, sizeof(blurUniforms), &blurUniforms);
 
@@ -1136,7 +1140,7 @@ void Viewport::RendererRhi::drawBlurPass(
 		blurUniforms.texelOffset = 1.f / h;
 		auto *rub = _rhi->nextResourceUpdateBatch();
 		rub->updateDynamicBuffer(
-			_offscreenVertexBuffer, 0, sizeof(coords), coords);
+			_offscreenVertexBuffer, 0, sizeof(coords), coords.data());
 		rub->updateDynamicBuffer(
 			_uniformBuffer, 0, sizeof(blurUniforms), &blurUniforms);
 
@@ -1262,6 +1266,7 @@ void Viewport::RendererRhi::drawFramePass(
 	GroupFrameUniforms uniforms{};
 	uniforms.viewport[0] = pw;
 	uniforms.viewport[1] = ph;
+	uniforms.flipY = NdcFlipY(_rhi);
 
 	const auto bg = fullscreen ? QColor(0, 0, 0) : rhiClearColor();
 	uniforms.frameBg[0] = bg.redF();
@@ -1563,6 +1568,7 @@ void Viewport::RendererRhi::paintUsingRaster(
 	imgUniforms.viewport[0] = pw;
 	imgUniforms.viewport[1] = ph;
 	imgUniforms.g_opacity = opacity;
+	imgUniforms.flipY = NdcFlipY(_rhi);
 
 	_rub->updateDynamicBuffer(
 		_uniformBuffer, uOffset, sizeof(imgUniforms), &imgUniforms);

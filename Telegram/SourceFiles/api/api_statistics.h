@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_boosts.h"
 #include "data/data_channel_earn.h"
 #include "data/data_statistics.h"
+#include "data/data_statistics_lists.h"
 
 class ChannelData;
 class PeerData;
@@ -29,10 +30,12 @@ public:
 
 	[[nodiscard]] Data::ChannelStatistics channelStats() const;
 	[[nodiscard]] Data::SupergroupStatistics supergroupStats() const;
+	[[nodiscard]] Data::StatisticsLists lists() const;
 
 private:
 	Data::ChannelStatistics _channelStats;
 	Data::SupergroupStatistics _supergroupStats;
+	Data::StatisticsLists _lists;
 
 	std::deque<Fn<void()>> _zoomDeque;
 

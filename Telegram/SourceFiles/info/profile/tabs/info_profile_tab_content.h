@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 
 class PeerData;
+class QPainter;
 
 namespace Data {
 class ForumTopic;
@@ -39,6 +40,10 @@ struct MediaTabContext {
 	Fn<void(int count)> onlineCountChanged;
 };
 
+struct MediaTabState {
+	virtual ~MediaTabState() = default;
+};
+
 class MediaTabContent {
 public:
 	virtual ~MediaTabContent() = default;
@@ -57,9 +62,14 @@ public:
 	virtual void setTopOverlay(int height) {
 	}
 
-	virtual void saveScrollState(QByteArray &out) {
+	// Painter is translated to tab widget origin, clipped to filler.
+	virtual void paintOverflow(QPainter &p) {
 	}
-	virtual void restoreScrollState(const QByteArray &in) {
+
+	[[nodiscard]] virtual std::unique_ptr<MediaTabState> saveState() {
+		return nullptr;
+	}
+	virtual void restoreState(std::unique_ptr<MediaTabState> state) {
 	}
 };
 

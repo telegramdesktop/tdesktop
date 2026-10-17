@@ -121,9 +121,14 @@ const auto kAudioItemIdentifier = @"touchbarAudio";
 	return self;
 }
 
+- (void)invalidate {
+	_lifetime.destroy();
+	_controller = nullptr;
+}
+
 - (NSTouchBarItem*)touchBar:(NSTouchBar*)touchBar
 		makeItemForIdentifier:(NSTouchBarItemIdentifier)itemId {
-	if (!touchBar || !_controller->sessionController()) {
+	if (!touchBar || !_controller || !_controller->sessionController()) {
 		return nil;
 	}
 	const auto isEqual = [&](NSString *string) {

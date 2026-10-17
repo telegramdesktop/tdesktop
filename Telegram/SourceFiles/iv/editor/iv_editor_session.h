@@ -7,16 +7,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "api/api_common.h"
 #include "base/basic_types.h"
+#include "data/data_msg_id.h"
 #include "menu/menu_send_details.h"
 #include <rpl/producer.h>
 
 #include <memory>
 #include <optional>
 
+class DocumentData;
 class HistoryItem;
 class PeerData;
+class PhotoData;
+
+namespace Api {
+struct SendAction;
+} // namespace Api
 
 namespace Main {
 class Session;
@@ -31,8 +37,11 @@ class Show;
 } // namespace ChatHelpers
 
 namespace Ui {
+class InputField;
 class SendButton;
 } // namespace Ui
+
+class QMimeData;
 
 namespace Iv {
 struct RichPage;
@@ -51,14 +60,39 @@ struct ComposeBoxOptions {
 	};
 
 	Scope scope = Scope::Thread;
+	std::shared_ptr<QMimeData> initialPaste;
 	SubmitPolicy submitPolicy = SubmitPolicy::Immediate;
 	Fn<void(TextWithTags)> returnText;
+	bool welcomeTemplates = false;
 };
 
 [[nodiscard]] std::shared_ptr<ChatHelpers::Show> ActiveWindowShow(
 	not_null<Main::Session*> session);
 void ShowRichMessagesPremiumToast(std::shared_ptr<ChatHelpers::Show> show);
 [[nodiscard]] bool CanAuthorRichMessages(not_null<Main::Session*> session);
+[[nodiscard]] bool SessionPremium(not_null<Main::Session*> session);
+[[nodiscard]] rpl::producer<bool> AmPremiumValue(
+	not_null<Main::Session*> session);
+[[nodiscard]] rpl::producer<int> StarsPerMessageValue(
+	not_null<Main::Session*> session,
+	not_null<PeerData*> peer);
+[[nodiscard]] bool IsEmojiDocument(not_null<DocumentData*> document);
+[[nodiscard]] bool PremiumEmojiForbidden(
+	not_null<Main::Session*> session,
+	not_null<PeerData*> peer,
+	not_null<DocumentData*> document);
+[[nodiscard]] bool AllowEmojiWithoutPremium(
+	not_null<PeerData*> peer,
+	DocumentData *exactEmoji = nullptr);
+void InsertCustomEmoji(
+	not_null<Ui::InputField*> field,
+	not_null<DocumentData*> document);
+[[nodiscard]] PhotoData *UsablePhoto(
+	not_null<Main::Session*> session,
+	uint64 id);
+[[nodiscard]] DocumentData *UsableDocument(
+	not_null<Main::Session*> session,
+	uint64 id);
 void OfferRichMessagePremiumChoice(
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<Main::Session*> session,
@@ -86,6 +120,9 @@ void ShowEditFromFieldBox(
 	Api::SendAction action,
 	std::optional<TextWithTags> fieldTextOverride = std::nullopt,
 	Fn<void()> fieldMigratedOverride = nullptr);
+[[nodiscard]] bool HasEditWindowFor(
+	not_null<Main::Session*> session,
+	FullMsgId itemId);
 [[nodiscard]] bool ActivateEditWindowFor(
 	not_null<Main::Session*> session,
 	FullMsgId itemId);

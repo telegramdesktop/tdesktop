@@ -67,6 +67,7 @@ public:
 	[[nodiscard]] MembersRow *lookupRow(not_null<PeerData*> peer) const;
 	[[nodiscard]] not_null<MembersRow*> rtmpFakeRow(
 		not_null<PeerData*> peer) const;
+	[[nodiscard]] rpl::producer<not_null<MembersRow*>> rowRemoved() const;
 
 	void setMode(PanelMode mode);
 	[[nodiscard]] QRect getInnerGeometry() const;

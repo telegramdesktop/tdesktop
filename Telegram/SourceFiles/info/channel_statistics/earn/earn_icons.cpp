@@ -22,16 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui::Earn {
 namespace {
 
-[[nodiscard]] QByteArray CurrencySvg(const QColor &c) {
-	const auto color = u"rgb(%1,%2,%3)"_q
-		.arg(c.red())
-		.arg(c.green())
-		.arg(c.blue())
-		.toUtf8();
-	return R"(
-<svg width="72px" height="72px" viewBox="0 0 72 72">
-    <g stroke="none" fill="none" fill-rule="evenodd">
-        <path fill=")" + color + R"(" d="M26.0148187,12.0018928 L45.6469002,12.0007985
+constexpr auto kCurrencyBody = R"(M26.0148187,12.0018928 L45.6469002,12.0007985
  C48.1777253,12.0066542 49.5893649,12.0554519 50.8804395,12.462099
  C52.179101,12.873841 53.3833619,13.5432922 54.423511,14.4349062
  C55.5981446,15.4450073 56.4762152,16.8342664 58.2300327,19.6157469
@@ -48,23 +39,38 @@ namespace {
  L13.7699754,19.6157469 C15.5237928,16.8342664 16.4018634,15.4450073
  17.5764971,14.4349062 C18.6163557,13.5432922 19.8209071,12.873841
  21.1192781,12.462099 C22.3516674,12.0739358 23.6941154,12.0118297
- 26.0148187,12.0018928 L26.0148187,12.0018928 Z M39.7838696,26.8434492
+ 26.0148187,12.0018928 L26.0148187,12.0018928 Z)";
+
+constexpr auto kCurrencyShine = R"(M39.7838696,26.8434492
  L31.9493683,29.8016705 C31.4490624,29.9905805 31.4492603,30.6983702
  31.9496718,30.8870004 L39.7838696,33.8401019 L42.6683153,41.7951143
  C42.8531134,42.3047691 43.5738691,42.3048571 43.7587917,41.7952475
  L46.6454844,33.8401019 L54.4772842,30.8869792 C54.9776209,30.6983182
  54.9778188,29.9906327 54.4775878,29.8016918 L46.6454844,26.8434492
  L43.7587718,18.8907402 C43.5738178,18.3812036 42.8531647,18.3812916
- 42.6683351,18.8908734 L39.7838696,26.8434492 Z"></path>
+ 42.6683351,18.8908734 L39.7838696,26.8434492 Z)";
+
+[[nodiscard]] QByteArray FilledPath(const QColor &c, const QByteArray &d) {
+	const auto color = u"rgb(%1,%2,%3)"_q
+		.arg(c.red())
+		.arg(c.green())
+		.arg(c.blue())
+		.toUtf8();
+	return "<path fill=\"" + color + "\" d=\"" + d + "\"></path>";
+}
+
+[[nodiscard]] QByteArray CurrencySvg(const QByteArray &paths) {
+	return R"(
+<svg width="72px" height="72px" viewBox="0 0 72 72">
+    <g stroke="none" fill="none" fill-rule="evenodd">
+        )" + paths + R"(
     </g>
 </svg>)";
 }
 
-} // namespace
-
-QImage IconCurrencyColored(int size, const QColor &c) {
+[[nodiscard]] QImage RenderCurrency(int size, const QByteArray &svg) {
 	const auto s = Size(size);
-	auto svg = QSvgRenderer(CurrencySvg(c));
+	auto renderer = QSvgRenderer(svg);
 	auto image = QImage(
 		s * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
@@ -72,19 +78,68 @@ QImage IconCurrencyColored(int size, const QColor &c) {
 	image.fill(Qt::transparent);
 	{
 		auto p = QPainter(&image);
-		svg.render(&p, Rect(s));
+		renderer.render(&p, Rect(s));
 	}
 	return image;
 }
 
-QImage IconCurrencyColored(
-		const style::font &font,
-		const QColor &c) {
-	return IconCurrencyColored(font->ascent, c);
+} // namespace
+
+QImage IconCurrencyMono(int size, const QColor &c) {
+	return RenderCurrency(size, CurrencySvgMono(c));
 }
 
-QByteArray CurrencySvgColored(const QColor &c) {
-	return CurrencySvg(c);
+QImage IconCurrencyMono(const style::font &font, const QColor &c) {
+	return IconCurrencyMono(font->ascent, c);
+}
+
+QImage IconCurrencyTwoTone(int size, const QColor &c) {
+	return RenderCurrency(size, CurrencySvgTwoTone(c));
+}
+
+QImage IconCurrencyTwoTone(const style::font &font, const QColor &c) {
+	return IconCurrencyTwoTone(font->ascent, c);
+}
+
+float64 AlignedMarkTop(
+		const style::font &font,
+		const QImage &image) {
+	Expects(!image.isNull());
+	Expects(image.hasAlphaChannel());
+	const auto rowHasAlpha = [&](int y) {
+		for (auto x = 0; x != image.width(); ++x) {
+			if (qAlpha(image.pixel(x, y))) {
+				return true;
+			}
+		}
+		return false;
+	};
+	auto first = 0;
+	while (first != image.height() && !rowHasAlpha(first)) {
+		++first;
+	}
+	Expects(first != image.height());
+	auto last = image.height() - 1;
+	while (!rowHasAlpha(last)) {
+		--last;
+	}
+	const auto zero = font->metrics().tightBoundingRect(u"0"_q);
+	const auto digitCenter = font->ascent
+		+ (zero.top() + zero.bottom()) / 2.;
+	const auto markCenter = (first + last + 1.)
+		/ (2. * image.devicePixelRatio());
+	return digitCenter - markCenter;
+}
+
+QByteArray CurrencySvgMono(const QColor &c) {
+	return CurrencySvg(FilledPath(
+		c,
+		QByteArray(kCurrencyBody) + ' ' + kCurrencyShine));
+}
+
+QByteArray CurrencySvgTwoTone(const QColor &c) {
+	return CurrencySvg(FilledPath(c, kCurrencyBody)
+		+ FilledPath(st::windowFgActive->c, kCurrencyShine));
 }
 
 QImage MenuIconCurrency(const QSize &size) {
@@ -110,7 +165,7 @@ QImage MenuIconCurrency(const QSize &size) {
 	p.setCompositionMode(QPainter::CompositionMode_SourceOver);
 
 	const auto s = Size(st::inviteLinkSubscribeBoxTerms.style.font->ascent);
-	auto svg = QSvgRenderer(CurrencySvg(st::infoIconFg->c));
+	auto svg = QSvgRenderer(CurrencySvgMono(st::infoIconFg->c));
 	svg.render(
 		&p,
 		QRectF(
@@ -161,7 +216,7 @@ std::unique_ptr<Ui::Text::CustomEmoji> MakeCurrencyIconEmoji(
 		const QColor &c) {
 	return std::make_unique<Ui::CustomEmoji::Internal>(
 		u"currency_icon:%1:%2"_q.arg(font->height).arg(c.name()),
-		IconCurrencyColored(font, c));
+		IconCurrencyTwoTone(font, c));
 }
 
 Ui::Text::PaletteDependentEmoji IconCreditsEmoji(
@@ -179,7 +234,7 @@ Ui::Text::PaletteDependentEmoji IconCreditsEmoji(
 Ui::Text::PaletteDependentEmoji IconCurrencyEmoji(
 		IconDescriptor descriptor) {
 	return { .factory = [=] {
-		return IconCurrencyColored(
+		return IconCurrencyTwoTone(
 			descriptor.size ? descriptor.size : st::earnTonIconSize,
 			st::currencyFg->c);
 	}, .margin = descriptor.margin.value_or(st::earnTonIconMargin) };

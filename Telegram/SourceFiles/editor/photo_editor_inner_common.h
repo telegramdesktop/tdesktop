@@ -38,6 +38,38 @@ struct Brush {
 	Tool tool = Tool::Pen;
 };
 
+enum class TextStyle : uchar {
+	Framed,
+	SemiTransparent,
+	Plain,
+	Opaque,
+};
+
+enum class TextTypeface : uchar {
+	Default,
+	Italic,
+	Serif,
+	Condensed,
+	Monospace,
+};
+
+enum class TextAlignment : uchar {
+	Center,
+	Left,
+	Right,
+};
+
+struct TextPrefs {
+	TextStyle style = TextStyle::Plain;
+	TextTypeface typeface = TextTypeface::Default;
+	TextAlignment alignment = TextAlignment::Center;
+	float64 sizeRatio = 0.;
+
+	friend inline bool operator==(
+		const TextPrefs &,
+		const TextPrefs &) = default;
+};
+
 enum class ShapeType : uchar {
 	Circle,
 	Rectangle,
@@ -59,6 +91,15 @@ struct ShapeRequest {
 enum class SaveState {
 	Save,
 	Keep,
+};
+
+struct VideoTrim {
+	crl::time from = 0;
+	crl::time till = 0;
+
+	friend inline bool operator==(
+		const VideoTrim &,
+		const VideoTrim &) = default;
 };
 
 } // namespace Editor

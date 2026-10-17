@@ -17,6 +17,10 @@ namespace Api {
 struct WhoReadList;
 } // namespace Api
 
+namespace Data {
+class SavedMessages;
+} // namespace Data
+
 namespace Dialogs::Stories {
 struct Content;
 } // namespace Dialogs::Stories
@@ -129,6 +133,10 @@ public:
 	}
 	virtual void fillTopBarMenu(const Ui::Menu::MenuCallback &addAction);
 
+	[[nodiscard]] virtual rpl::producer<> topBarMenuFilledChanges() const {
+		return rpl::never<>();
+	}
+
 	[[nodiscard]] virtual bool closeByOutsideClick() const {
 		return true;
 	}
@@ -143,6 +151,9 @@ public:
 	}
 	[[nodiscard]] virtual rpl::producer<QString> title() = 0;
 	[[nodiscard]] virtual rpl::producer<QString> subtitle() {
+		return nullptr;
+	}
+	[[nodiscard]] virtual rpl::producer<QString> titleBadge() {
 		return nullptr;
 	}
 	[[nodiscard]] virtual auto titleStories()
@@ -220,6 +231,7 @@ protected:
 
 private:
 	Ui::RpWidget *doSetInnerWidget(object_ptr<Ui::RpWidget> inner);
+	void applyScrollTopRestore();
 	Ui::RpWidget *doSetupFlexibleInnerWidget(
 		object_ptr<Ui::RpWidget> inner,
 		FlexibleScrollData &flexibleScroll,
@@ -247,6 +259,8 @@ private:
 	int _additionalScroll = 0;
 	int _addedHeight = 0;
 	int _maxVisibleHeight = 0;
+	std::optional<int> _scrollTopRestore;
+	bool _applyingScrollTopRestore = false;
 	bool _isStackBottom = false;
 
 	// To paint round edges from content.
@@ -265,6 +279,7 @@ public:
 		Data::ForumTopic *topic,
 		Data::SavedSublist *sublist,
 		PeerId migratedPeerId);
+	explicit ContentMemento(not_null<Data::SavedMessages*> savedMessages);
 	explicit ContentMemento(PeerGifts::Tag gifts);
 	explicit ContentMemento(Settings::Tag settings);
 	explicit ContentMemento(Downloads::Tag downloads);
@@ -299,6 +314,9 @@ public:
 	}
 	[[nodiscard]] Data::SavedSublist *sublist() const {
 		return _sublist;
+	}
+	[[nodiscard]] Data::SavedMessages *savedMessages() const {
+		return _savedMessages;
 	}
 	[[nodiscard]] UserData *settingsSelf() const {
 		return _settingsSelf;
@@ -383,6 +401,7 @@ private:
 	const PeerId _migratedPeerId = 0;
 	Data::ForumTopic *_topic = nullptr;
 	Data::SavedSublist *_sublist = nullptr;
+	Data::SavedMessages * const _savedMessages = nullptr;
 	UserData * const _settingsSelf = nullptr;
 	PeerData * const _storiesPeer = nullptr;
 	int _storiesAlbumId = 0;

@@ -208,7 +208,8 @@ void ProgressWidget::Row::paintInstance(QPainter &p, const Instance &data) {
 
 	const auto thickness = st::exportProgressWidth;
 	const auto top = height() - thickness;
-	const auto till = qRound(data.progress.value(data.value) * width());
+	const auto progress = data.progress.value(data.value);
+	const auto till = int(base::SafeRound(progress * width()));
 	if (till > 0) {
 		p.fillRect(0, top, till, thickness, st::exportProgressFg);
 	}

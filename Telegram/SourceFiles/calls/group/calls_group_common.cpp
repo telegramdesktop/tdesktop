@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
+#include "window/window_unlock_passcode_box.h"
 #include "styles/style_layers.h"
 #include "styles/style_media_view.h"
 #include "styles/style_menu_icons.h"
@@ -266,6 +267,16 @@ ConferenceCallLinkStyleOverrides DarkConferenceCallLinkStyle() {
 		.contextRevoke = &st::mediaMenuIconRemove,
 		.shareBox = std::make_shared<ShareBoxStyleOverrides>(
 			DarkShareBoxStyle()),
+	};
+}
+
+::Window::UnlockPasscodeBoxStyle DarkUnlockPasscodeBoxStyle() {
+	return {
+		.box = &st::groupCallUnlockBox,
+		.close = &st::storiesStealthBoxClose,
+		.description = &st::groupCallUnlockDescription,
+		.field = &st::groupCallUnlockField,
+		.error = &st::groupCallUnlockError,
 	};
 }
 

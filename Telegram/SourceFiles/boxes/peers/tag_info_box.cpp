@@ -234,7 +234,7 @@ void TagPreviewsWidget::paintPreview(
 		QSize(rect.width(), window()->height()),
 		local);
 
-	auto &cache = (previewRole == BadgeRole::User)
+	const auto &cache = (previewRole == BadgeRole::User)
 		? _leftCache
 		: _rightCache;
 	if (cache.isNull()) {

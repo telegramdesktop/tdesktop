@@ -93,7 +93,14 @@ void HandleWithdrawalButton(
 				};
 				const auto fail = [=](const MTP::Error &error) {
 					const auto message = error.type();
-					if (box && !box->handleCustomCheckError(message)) {
+					if (message == u"AMOUNT_TOO_SMALL"_q) {
+						if (box) {
+							box->closeBox();
+						}
+						show->showToast(
+							tr::lng_channel_earn_out_amount_too_small(
+								tr::now));
+					} else if (box && !box->handleCustomCheckError(message)) {
 						show->showToast(message);
 					}
 				};
@@ -124,6 +131,11 @@ void HandleWithdrawalButton(
 			return;
 		}
 		const auto fail = [=](const MTP::Error &error) {
+			if (error.type() == u"AMOUNT_TOO_SMALL"_q) {
+				show->showToast(tr::lng_channel_earn_out_amount_too_small(
+					tr::now));
+				return;
+			}
 			auto box = PrePasswordErrorBox(
 				error.type(),
 				session,

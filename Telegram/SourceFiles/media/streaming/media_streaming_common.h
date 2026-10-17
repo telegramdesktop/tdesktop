@@ -44,6 +44,7 @@ struct PlaybackOptions {
 	crl::time position = 0;
 	crl::time durationOverride = 0;
 	float64 speed = 1.; // Valid values between 0.5 and 2.
+	float64 volume = 1.; // Valid values between 0. and 1.
 	AudioMsgId audioId;
 	bool syncVideoByAudio = true;
 	bool waitForMarkAsShown = false;

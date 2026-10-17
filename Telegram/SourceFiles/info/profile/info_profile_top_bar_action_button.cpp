@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_top_bar_action_button.h"
 
+#include "ui/effects/animation_value.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
@@ -103,6 +104,12 @@ void TopBarActionButton::setLottieColor(const style::color *color) {
 void TopBarActionButton::setStyle(const TopBarActionButtonStyle &style) {
 	_bgColor = style.bgColor;
 	_fgColor = style.fgColor;
+	_rippleColor = _fgColor
+		? std::make_optional(
+			anim::with_alpha(
+				*_fgColor,
+				st::infoProfileTopBarBackdropRippleOpacity))
+		: std::nullopt;
 	update();
 }
 
@@ -118,9 +125,19 @@ void TopBarActionButton::paintEvent(QPaintEvent *e) {
 	{
 		auto hq = PainterHighQualityEnabler(p);
 		p.drawRoundedRect(rect(), st::boxRadius, st::boxRadius);
+
+		const auto hovered = _rippleColor
+			? _overAnimation.value(isOver() ? 1. : 0.)
+			: 0.;
+		if (hovered > 0.) {
+			p.setOpacity(progress * hovered);
+			p.setBrush(*_rippleColor);
+			p.drawRoundedRect(rect(), st::boxRadius, st::boxRadius);
+			p.setOpacity(progress);
+		}
 	}
 
-	paintRipple(p, 0, 0);
+	paintRipple(p, 0, 0, _rippleColor ? &*_rippleColor : nullptr);
 
 	const auto iconSize = st::infoProfileTopBarActionButtonIconSize;
 	const auto iconTop = st::infoProfileTopBarActionButtonIconTop;
@@ -176,6 +193,21 @@ void TopBarActionButton::paintEvent(QPaintEvent *e) {
 		textRect.width(),
 		Qt::ElideMiddle);
 	p.drawText(textRect, elidedText, style::al_top);
+}
+
+void TopBarActionButton::onStateChanged(
+		State was,
+		StateChangeSource source) {
+	RippleButton::onStateChanged(was, source);
+
+	const auto over = isOver();
+	if (over != ((was & StateFlag::Over) != 0)) {
+		_overAnimation.start(
+			[=] { update(); },
+			over ? 0. : 1.,
+			over ? 1. : 0.,
+			st::universalDuration);
+	}
 }
 
 QImage TopBarActionButton::prepareRippleMask() const {

@@ -16,6 +16,7 @@ dnf config-manager --set-enabled powertools
 dnf -y install cmake autoconf automake libtool pkgconfig make patch git \
 	python3.11-pip python3.11-devel gperf flex bison clang-tools-extra \
 	lld ccache nasm file which wget perl-open perl-XML-Parser perl-IPC-Cmd \
+	perl-Time-Piece \
 	xorg-x11-util-macros $TOOLSET-gcc $TOOLSET-gcc-c++ $TOOLSET-binutils \
 	$TOOLSET-gdb $TOOLSET-libasan-devel libffi-devel fontconfig-devel \
 	freetype-devel libX11-devel wayland-devel alsa-lib-devel \
@@ -103,7 +104,6 @@ implib() {
 implib /usr/lib64/libgtk-3.so
 implib /usr/lib64/libgdk-3.so
 implib /usr/lib64/libgdk_pixbuf-2.0.so
-implib /usr/lib64/libpango-1.0.so
 implib /usr/lib64/libvdpau.so
 implib /usr/lib64/libva-x11.so
 implib /usr/lib64/libva-drm.so
@@ -161,7 +161,7 @@ RUN <<EOF
 git init patches
 cd patches
 git remote add origin https://github.com/desktop-app/patches.git
-git fetch --depth=1 origin 27efa67b60881c52b112cf924d705e573d03a0ab
+git fetch --depth=1 origin f7433965ed33996c641a822c78a81eef3526c9e7
 git reset --hard FETCH_HEAD
 rm -rf .git
 EOF
@@ -190,29 +190,13 @@ EOF
 
 FROM builder AS xz
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b v5.8.1 --depth=1 https://github.com/tukaani-project/xz.git
+git clone -b v5.8.4 --depth=1 https://github.com/tukaani-project/xz.git
 cd xz
 cmake -B build .
 cmake --build build
 DESTDIR=/usr/src/xz-cache cmake --install build
 cd ..
 rm -rf xz
-EOF
-
-FROM builder AS protobuf
-RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b v30.2 --depth=1 --recursive --shallow-submodules \
-	https://github.com/protocolbuffers/protobuf.git
-cd protobuf
-cmake -B build . \
-	-Dprotobuf_BUILD_TESTS=OFF \
-	-Dprotobuf_BUILD_PROTOBUF_BINARIES=ON \
-	-Dprotobuf_BUILD_LIBPROTOC=ON \
-	-Dprotobuf_WITH_ZLIB=OFF
-cmake --build build
-DESTDIR=/usr/src/protobuf-cache cmake --install build
-cd ..
-rm -rf protobuf
 EOF
 
 FROM builder AS lcms2
@@ -301,21 +285,6 @@ cd ..
 rm -rf openh264
 EOF
 
-FROM builder AS de265
-RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b v1.1.1 --depth=1 https://github.com/strukturag/libde265.git
-cd libde265
-cmake -B build . \
-	-DCMAKE_BUILD_TYPE=None \
-	-DBUILD_SHARED_LIBS=OFF \
-	-DENABLE_DECODER=OFF \
-	-DENABLE_SDL=OFF
-cmake --build build
-DESTDIR=/usr/src/de265-cache cmake --install build
-cd ..
-rm -rf libde265
-EOF
-
 FROM builder AS vpx
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git init libvpx
@@ -369,35 +338,6 @@ cmake --build build
 DESTDIR=/usr/src/avif-cache cmake --install build
 cd ..
 rm -rf libavif
-EOF
-
-FROM builder AS heif
-COPY --link --from=de265 /usr/src/de265-cache /
-
-RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b v1.23.1 --depth=1 https://github.com/strukturag/libheif.git
-cd libheif
-cmake -B build . \
-	-DBUILD_SHARED_LIBS=OFF \
-	-DBUILD_DOCUMENTATION=OFF \
-	-DBUILD_TESTING=OFF \
-	-DENABLE_PLUGIN_LOADING=OFF \
-	-DWITH_X265=OFF \
-	-DWITH_AOM_DECODER=OFF \
-	-DWITH_AOM_ENCODER=OFF \
-	-DWITH_X264=OFF \
-	-DWITH_OpenH264_DECODER=OFF \
-	-DWITH_RAV1E=OFF \
-	-DWITH_RAV1E_PLUGIN=OFF \
-	-DWITH_SvtEnc=OFF \
-	-DWITH_SvtEnc_PLUGIN=OFF \
-	-DWITH_DAV1D=OFF \
-	-DWITH_LIBSHARPYUV=OFF \
-	-DWITH_EXAMPLES=OFF
-cmake --build build
-DESTDIR=/usr/src/heif-cache cmake --install build
-cd ..
-rm -rf libheif
 EOF
 
 FROM builder AS jxl
@@ -456,7 +396,7 @@ FROM builder AS xcb
 COPY --link --from=xcb-proto /usr/src/xcb-proto-cache /
 
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b libxcb-1.16 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxcb.git
+git clone -b libxcb-1.16.1 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxcb.git
 cd libxcb
 ./autogen.sh --enable-static --disable-shared
 make -j$(nproc)
@@ -570,7 +510,7 @@ EOF
 
 FROM builder AS xtst
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b libXtst-1.2.4 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxtst.git
+git clone -b libXtst-1.2.5 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxtst.git
 cd libxtst
 ./autogen.sh --enable-static --disable-shared
 make -j$(nproc)
@@ -594,7 +534,7 @@ FROM builder AS xv
 COPY --link --from=xext /usr/src/xext-cache /
 
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b libXv-1.0.12 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxv.git
+git clone -b libXv-1.0.13 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxv.git
 cd libxv
 ./autogen.sh --enable-static --disable-shared
 make -j$(nproc)
@@ -605,7 +545,7 @@ EOF
 
 FROM builder AS xrandr
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b libXrandr-1.5.3 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxrandr.git
+git clone -b libXrandr-1.5.4 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxrandr.git
 cd libxrandr
 ./autogen.sh --enable-static --disable-shared
 make -j$(nproc)
@@ -616,7 +556,7 @@ EOF
 
 FROM builder AS xrender
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b libXrender-0.9.11 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxrender.git
+git clone -b libXrender-0.9.12 --depth=1 https://github.com/gitlab-freedesktop-mirrors/libxrender.git
 cd libxrender
 ./autogen.sh --enable-static --disable-shared
 make -j$(nproc)
@@ -665,7 +605,7 @@ COPY --link --from=xv /usr/src/xv-cache /
 COPY --link --from=nv-codec-headers /usr/src/nv-codec-headers-cache /
 
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b n6.1.6 --depth=1 https://github.com/FFmpeg/FFmpeg.git
+git clone -b n8.1.3 --depth=1 https://github.com/FFmpeg/FFmpeg.git
 cd FFmpeg
 ./configure \
 	--extra-cflags="-fno-lto -DCONFIG_SAFE_BITSTREAM_READER=1" \
@@ -778,6 +718,7 @@ cd FFmpeg
 	--enable-decoder=wmavoice \
 	--enable-encoder=aac \
 	--enable-encoder=libopenh264 \
+	--enable-encoder=libvpx_vp9 \
 	--enable-encoder=libopus \
 	--enable-encoder=pcm_s16le \
 	--enable-filter=atempo \
@@ -805,11 +746,45 @@ cd FFmpeg
 	--enable-muxer=mp4 \
 	--enable-muxer=ogg \
 	--enable-muxer=opus \
-	--enable-muxer=wav
+	--enable-muxer=wav \
+	--enable-muxer=webm
 make -j$(nproc)
 make DESTDIR=/usr/src/ffmpeg-cache install
 cd ..
 rm -rf ffmpeg
+EOF
+
+FROM patches AS heif
+COPY --link --from=ffmpeg /usr/src/ffmpeg-cache /
+
+RUN --mount=type=cache,target=/var/cache/ccache <<EOF
+git clone -b v1.23.5 --depth=1 https://github.com/strukturag/libheif.git
+cd libheif
+git apply ../patches/libheif.patch
+cmake -B build . \
+	-DBUILD_SHARED_LIBS=OFF \
+	-DBUILD_DOCUMENTATION=OFF \
+	-DBUILD_TESTING=OFF \
+	-DENABLE_PLUGIN_LOADING=OFF \
+	-DWITH_X265=OFF \
+	-DWITH_AOM_DECODER=OFF \
+	-DWITH_AOM_ENCODER=OFF \
+	-DWITH_X264=OFF \
+	-DWITH_OpenH264_DECODER=OFF \
+	-DWITH_RAV1E=OFF \
+	-DWITH_RAV1E_PLUGIN=OFF \
+	-DWITH_SvtEnc=OFF \
+	-DWITH_SvtEnc_PLUGIN=OFF \
+	-DWITH_DAV1D=OFF \
+	-DWITH_LIBDE265=OFF \
+	-DWITH_FFMPEG_DECODER=ON \
+	-DWITH_GDK_PIXBUF=OFF \
+	-DWITH_LIBSHARPYUV=OFF \
+	-DWITH_EXAMPLES=OFF
+cmake --build build
+DESTDIR=/usr/src/heif-cache cmake --install build
+cd ..
+rm -rf libheif
 EOF
 
 FROM builder AS pipewire
@@ -848,7 +823,7 @@ EOF
 
 FROM builder AS openssl
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b openssl-3.2.1 --depth=1 https://github.com/openssl/openssl.git
+git clone -b openssl-3.5.9 --depth=1 https://github.com/openssl/openssl.git
 cd openssl
 sed -i 's/$cmd $cmdflags -c -o/$cmd $cmdflags -g0 -c -o/' Configurations/unix-Makefile.tmpl
 ./config --openssldir=/etc/ssl no-shared no-tests no-dso
@@ -895,7 +870,7 @@ COPY --link --from=openssl /usr/src/openssl-cache /
 COPY --link --from=xkbcommon /usr/src/xkbcommon-cache /
 
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-QT=6.11.1
+QT=6.11.2
 git clone -b v$QT --depth=1 https://github.com/qt/qt5.git
 cd qt5
 git submodule update --init --recursive --depth=1 \
@@ -977,7 +952,7 @@ RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git init tg_owt
 cd tg_owt
 git remote add origin https://github.com/desktop-app/tg_owt.git
-git fetch --depth=1 origin 5c5c71258777d0196dbb3a09cc37d2f56ead28ab
+git fetch --depth=1 origin 07fb35bc33b3e79125a1beab7690e830f183f5d8
 git reset --hard FETCH_HEAD
 git submodule update --init --recursive --depth=1
 cmake -B build . -DTG_OWT_DLOPEN_PIPEWIRE=ON
@@ -989,7 +964,7 @@ EOF
 
 FROM builder AS ada
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b v3.2.4 --depth=1 https://github.com/ada-url/ada.git
+git clone -b v3.2.9 --depth=1 https://github.com/ada-url/ada.git
 cd ada
 cmake -B build . -DADA_TESTING=OFF -DADA_TOOLS=OFF -DADA_INCLUDE_URL_PATTERN=OFF
 cmake --build build
@@ -1016,10 +991,59 @@ cd ..
 rm -rf tde2e
 EOF
 
+FROM patches AS tdesktop_rust
+RUN <<EOF
+RUST_TOOLCHAIN=1.96.1
+export RUSTUP_HOME=/usr/src/rustup
+export CARGO_HOME=/usr/src/cargo
+export CARGO_BUILD_JOBS={{ JOBS or "default" }}
+wget -O rustup-init.sh https://sh.rustup.rs
+sh rustup-init.sh -y --no-modify-path --profile minimal --default-toolchain $RUST_TOOLCHAIN
+rm rustup-init.sh
+export RUSTUP_TOOLCHAIN=$RUST_TOOLCHAIN
+export PATH=$CARGO_HOME/bin:$PATH
+export DESTDIR=/usr/src/tdesktop_rust-cache
+git init tlottie
+cd tlottie
+git remote add origin https://github.com/dkaraush/tlottie.git
+git fetch --depth=1 origin 92df98dc209bc39b1e567ec74a8c86a0af5239de
+git reset --hard FETCH_HEAD
+cd ..
+git init wallet-engine
+cd wallet-engine
+git remote add origin https://github.com/i582/wallet-engine.git
+git fetch --depth=1 origin e59e0d89d7ee90c388bf36e3334c5b276f396697
+git reset --hard FETCH_HEAD
+git apply ../patches/wallet-engine.patch
+cd ..
+# One archive for every Rust library. Each staticlib carries its own copy of
+# the Rust standard library, so separate builds define the runtime symbols
+# that must stay global twice and the linker refuses the binary.
+cargo new --lib --vcs none tdesktop_rust
+cd tdesktop_rust
+printf 'pub use ::tlottie;\npub use ::wallet_engine;\n' > src/lib.rs
+cargo add --path ../tlottie --features c-api
+cargo add --path ../wallet-engine
+cargo rustc --lib --release \
+	--crate-type staticlib --crate-type cdylib \
+	--config "profile.release.opt-level={% if MINSIZE %}'z'{% else %}3{% endif %}" \
+	--config "profile.release.lto='{% if LTO %}thin{% else %}off{% endif %}'" \
+	--config "profile.release.codegen-units=1" \
+	--config "profile.release.panic='unwind'" \
+	-- --print native-static-libs
+mkdir -p $DESTDIR/usr/local/lib64 $DESTDIR/usr/local/include/tlottie $DESTDIR/usr/local/include/wallet_engine
+objcopy --strip-debug target/release/libtdesktop_rust.a $DESTDIR/usr/local/lib64/libtdesktop_rust.a
+cp ../tlottie/include/tlottie.h $DESTDIR/usr/local/include/tlottie/tlottie.h
+cargo run --manifest-path ../wallet-engine/bindgen/cpp/bindgen/Cargo.toml --locked -- \
+	--library --out-dir $DESTDIR/usr/local/include/wallet_engine \
+	target/release/libtdesktop_rust.so
+cd ..
+rm -rf tlottie wallet-engine tdesktop_rust rustup cargo
+EOF
+
 FROM builder
 COPY --link --from=zlib /usr/src/zlib-cache /
 COPY --link --from=xz /usr/src/xz-cache /
-COPY --link --from=protobuf /usr/src/protobuf-cache /
 COPY --link --from=lcms2 /usr/src/lcms2-cache /
 COPY --link --from=brotli /usr/src/brotli-cache /
 COPY --link --from=highway /usr/src/highway-cache /
@@ -1027,7 +1051,6 @@ COPY --link --from=mozjpeg /usr/src/mozjpeg-cache /
 COPY --link --from=opus /usr/src/opus-cache /
 COPY --link --from=dav1d /usr/src/dav1d-cache /
 COPY --link --from=openh264 /usr/src/openh264-cache /
-COPY --link --from=de265 /usr/src/de265-cache /
 COPY --link --from=vpx /usr/src/vpx-cache /
 COPY --link --from=webp /usr/src/webp-cache /
 COPY --link --from=avif /usr/src/avif-cache /
@@ -1059,6 +1082,7 @@ COPY --link --from=breakpad /usr/src/breakpad-cache /
 COPY --link --from=webrtc /usr/src/webrtc-cache /
 COPY --link --from=ada /usr/src/ada-cache /
 COPY --link --from=tde2e /usr/src/tde2e-cache /
+COPY --link --from=tdesktop_rust /usr/src/tdesktop_rust-cache /
 
 COPY --link --from=patches /usr/src/patches patches
 RUN <<EOF

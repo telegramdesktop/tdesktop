@@ -30,7 +30,11 @@ constexpr auto kSecondsInDay = 86400;
 int OnlinePhraseChangeInSeconds(LastseenStatus status, TimeId now) {
 	const auto till = status.onlineTill();
 	if (till > now) {
-		return till - now;
+		// base::unixtime::now() may wrap negative after a huge local clock
+		// jump while the app is running, then till - now overflows int32.
+		return int(std::min(
+			int64(till) - int64(now),
+			int64(std::numeric_limits<int>::max())));
 	} else if (status.isHidden()) {
 		return std::numeric_limits<int>::max();
 	}
@@ -59,7 +63,7 @@ std::optional<QString> OnlineTextSpecial(not_null<UserData*> user) {
 				lt_count_decimal,
 				count);
 		}
-		return tr::lng_status_bot(tr::now);
+		return BotStatusText(user);
 	} else if (user->isServiceUser()) {
 		return tr::lng_status_support(tr::now);
 	}
@@ -374,6 +378,28 @@ rpl::producer<bool> CanPinMessagesValue(not_null<PeerData*> peer) {
 	Unexpected("Peer type in CanPinMessagesValue.");
 }
 
+rpl::producer<bool> AllowsForwardingValue(not_null<PeerData*> peer) {
+	if (const auto user = peer->asUser()) {
+		return rpl::combine(
+			PeerFlagValue(user, UserDataFlag::NoForwardsMyEnabled),
+			PeerFlagValue(user, UserDataFlag::NoForwardsPeerEnabled)
+		) | rpl::map([](bool my, bool peer) {
+			return !my && !peer;
+		});
+	} else if (const auto chat = peer->asChat()) {
+		return PeerFlagValue(
+			chat,
+			ChatDataFlag::NoForwards
+		) | rpl::map(!rpl::mappers::_1);
+	} else if (const auto channel = peer->asChannel()) {
+		return PeerFlagValue(
+			channel,
+			ChannelDataFlag::NoForwards
+		) | rpl::map(!rpl::mappers::_1);
+	}
+	return rpl::single(true);
+}
+
 rpl::producer<bool> CanManageGroupCallValue(not_null<PeerData*> peer) {
 	const auto flag = ChatAdminRight::ManageCall;
 	if (const auto user = peer->asUser()) {
@@ -405,6 +431,30 @@ rpl::producer<bool> PeerPremiumValue(not_null<PeerData*> peer) {
 
 rpl::producer<bool> AmPremiumValue(not_null<Main::Session*> session) {
 	return PeerPremiumValue(session->user());
+}
+
+QString BotStatusText(not_null<UserData*> user) {
+	struct Suffix {
+		QStringView text;
+		tr::phrase<> phrase;
+	};
+	static constexpr auto kSuffixes = std::array{
+		Suffix{ u"app", tr::lng_status_bot_app },
+		Suffix{ u"agent", tr::lng_status_bot_agent },
+		Suffix{ u"ai", tr::lng_status_bot_ai },
+		Suffix{ u"game", tr::lng_status_bot_game },
+		Suffix{ u"gay", tr::lng_status_bot_gay },
+	};
+	const auto &usernames = user->usernames();
+	if (!usernames.empty()) {
+		const auto &username = usernames.front();
+		for (const auto &suffix : kSuffixes) {
+			if (username.endsWith(suffix.text, Qt::CaseInsensitive)) {
+				return suffix.phrase(tr::now);
+			}
+		}
+	}
+	return tr::lng_status_bot(tr::now);
 }
 
 TimeId SortByOnlineValue(not_null<UserData*> user, TimeId now) {

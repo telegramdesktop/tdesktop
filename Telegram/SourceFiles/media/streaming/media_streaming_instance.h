@@ -69,6 +69,7 @@ public:
 
 	[[nodiscard]] float64 speed() const;
 	void setSpeed(float64 speed);
+	void setVolume(float64 volume);
 
 	[[nodiscard]] bool waitingShown() const;
 	[[nodiscard]] float64 waitingOpacity() const;

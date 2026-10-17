@@ -49,9 +49,6 @@ select {
 	--button-height: 40px;
 	--button-gap-x: 12px;
 	--button-gap-y: 8px;
-	--disclosure-skip: 12px;
-	--footer-button-skip: 10px;
-	--footer-gap: var(--disclosure-skip);
 	--fullscreen-control-width: 44px;
 	--fullscreen-control-height: 44px;
 	--fullscreen-control-top: 8px;
@@ -64,7 +61,6 @@ select {
 	--title-fg: #000000;
 	--title-control-fg: rgba(0, 0, 0, 0.64);
 	--title-control-ripple: rgba(0, 0, 0, 0.064);
-	--footer-fg: rgba(0, 0, 0, 0.55);
 	--button-ripple: rgba(0, 0, 0, 0.14);
 	--menu-bg: #ffffff;
 	--menu-fg: #000000;
@@ -212,12 +208,29 @@ select {
 	background-repeat: no-repeat;
 	background-size: contain;
 }
+#loading {
+	margin-left: var(--badge-skip);
+	width: 14px;
+	height: 14px;
+	flex: 0 0 auto;
+	border: 2px solid var(--title-control-fg);
+	border-right-color: transparent;
+	border-radius: 50%;
+	animation: spin 0.8s linear infinite;
+	opacity: 0;
+	visibility: hidden;
+	transition: opacity 200ms linear, visibility 0s linear 200ms;
+}
+#root.loading #loading {
+	opacity: 1;
+	visibility: visible;
+	transition: opacity 200ms linear;
+}
 #body {
 	flex: 1 1 auto;
 	min-height: 0;
 	display: flex;
 	flex-direction: column;
-	gap: var(--footer-gap);
 	padding: 0;
 	background: var(--body-bg, #ffffff);
 }
@@ -240,8 +253,7 @@ select {
 #footer {
 	display: none;
 	flex: 0 0 auto;
-	color: var(--footer-fg);
-	padding: max(0px, calc(var(--shell-pad-bottom) - var(--footer-gap)))
+	padding: var(--shell-pad-bottom)
 		var(--shell-pad-right)
 		var(--shell-pad-bottom)
 		var(--shell-pad-left);
@@ -250,17 +262,6 @@ select {
 #footer.visible {
 	display: flex;
 	flex-direction: column;
-}
-#disclosure {
-	display: none;
-	text-align: center;
-	font-size: 12px;
-	line-height: 16px;
-	padding: 0 4px;
-	word-break: break-word;
-}
-#disclosure.visible {
-	display: block;
 }
 #buttons-wrap {
 	display: none;
@@ -342,15 +343,19 @@ select {
 .button-spinner.visible {
 	display: block;
 }
-#menu-backdrop {
+#pointer-shield {
 	position: absolute;
 	inset: 0;
 	display: none;
 	background: transparent;
 	z-index: 11;
 }
-#menu-backdrop.visible {
+#pointer-shield.visible,
+#pointer-shield.held {
 	display: block;
+}
+.pressed {
+	z-index: 12;
 }
 #menu {
 	position: absolute;
@@ -390,9 +395,13 @@ select {
 	border-bottom: 0;
 	pointer-events: none;
 }
-#root.fullscreen #back,
 #root.fullscreen #title-row {
 	display: none !important;
+}
+#root.fullscreen #back {
+	position: fixed;
+	top: var(--fullscreen-control-top);
+	left: var(--fullscreen-control-right);
 }
 #root.fullscreen .title-control {
 	width: var(--fullscreen-control-width);
@@ -402,14 +411,10 @@ select {
 	--title-control-ripple: rgba(0, 0, 0, 0.094);
 	pointer-events: auto;
 }
-#root.fullscreen #body {
-	gap: 0;
-}
 #root.fullscreen #menu {
 	top: calc(
 		var(--fullscreen-control-top)
-			+ var(--fullscreen-control-height)
-			- 8px);
+			+ var(--fullscreen-control-height));
 	right: calc(var(--fullscreen-control-right) + var(--fullscreen-control-width));
 }
 #root.fullscreen #resize-handles {
@@ -616,16 +621,6 @@ button.menu-download .ripple .inner {
 	opacity: 0.8;
 	position: relative;
 	z-index: 1;
-}
-#blocker {
-	position: absolute;
-	inset: 0;
-	display: none;
-	background: rgba(0, 0, 0, 0.12);
-	z-index: 20;
-}
-#root.blocked #blocker {
-	display: block;
 }
 @keyframes spin {
 	to { transform: rotate(360deg); }

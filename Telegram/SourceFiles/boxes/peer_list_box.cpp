@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "base/qt/qt_key_modifiers.h"
 #include "base/unixtime.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -371,7 +372,7 @@ void PeerListBox::peerListSetRowChecked(
 		peerListUpdateRow(row);
 
 		// This call deletes row from _searchRows.
-		if (_select && trackSelected) {
+		if (_select && trackSelected && !base::IsShiftPressed()) {
 			_select->entity()->clearQuery();
 		}
 	} else {
@@ -1687,8 +1688,11 @@ void PeerListContent::paintEvent(QPaintEvent *e) {
 	if (_mode != Mode::Custom) {
 		auto fill = QRegion(clip);
 		if (count > 0 && !sectionsShown()) {
-			const auto from = floorclamp(yFrom, _rowHeight, 0, count);
-			const auto to = ceilclamp(yTo, _rowHeight, 0, count);
+			const auto [from, to] = Ui::RowsInRange(
+				yFrom,
+				yTo,
+				_rowHeight,
+				count);
 			for (auto index = from; index != to; ++index) {
 				if (getRow(RowIndex(index))->opacity() == 1.) {
 					fill -= QRect(
@@ -1736,8 +1740,11 @@ void PeerListContent::paintEvent(QPaintEvent *e) {
 			p.translate(0, -top);
 		}
 	} else if (count > 0) {
-		const auto from = floorclamp(yFrom, _rowHeight, 0, count);
-		const auto to = ceilclamp(yTo, _rowHeight, 0, count);
+		const auto [from, to] = Ui::RowsInRange(
+			yFrom,
+			yTo,
+			_rowHeight,
+			count);
 		p.translate(0, from * _rowHeight);
 		for (auto index = from; index != to; ++index) {
 			handleRepaintAfter(paintRow(p, now, RowIndex(index)));

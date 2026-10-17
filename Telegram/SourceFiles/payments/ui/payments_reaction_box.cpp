@@ -209,7 +209,8 @@ void SelectShownPeer(
 		not_null<Ui::WhoReactedEntryAction*> action;
 		std::shared_ptr<Ui::DynamicImage> userpic;
 	};
-	auto actions = std::make_shared<std::vector<Entry>>();
+	const auto actions = (*menu)->lifetime().make_state<
+		std::vector<Entry>>();
 	actions->reserve(mine.size());
 	for (const auto &entry : mine) {
 		auto action = base::make_unique_q<WhoReactedEntryAction>(

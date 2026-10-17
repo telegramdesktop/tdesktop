@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_memento.h"
 #include "info/info_wrap_widget.h"
 #include "info/profile/info_profile_widget.h"
+#include "info/profile/tabs/adapters/info_profile_tab_chats.h"
 #include "info/profile/tabs/adapters/info_profile_tab_media.h"
 #include "info/profile/tabs/adapters/info_profile_tab_members.h"
 #include "info/profile/tabs/adapters/info_profile_tab_peer_lists.h"
@@ -52,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/new_badges.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "ui/ui_utility.h"
@@ -112,32 +114,7 @@ void AddUnofficialSecurityRiskWarning(
 		}
 		if (user->unofficialSecurityRisk()) {
 			auto helper = Ui::Text::CustomEmojiHelper();
-			auto icon = helper.paletteDependent({
-				.factory = [] {
-					const auto s = st::infoSecurityRiskIconSize;
-					const auto ratio = style::DevicePixelRatio();
-					const auto rect = QRect(0, 0, s, s);
-					auto result = QImage(
-						rect.size() * ratio,
-						QImage::Format_ARGB32_Premultiplied);
-					result.setDevicePixelRatio(ratio);
-					result.fill(Qt::transparent);
-
-					auto p = QPainter(&result);
-					auto hq = PainterHighQualityEnabler(p);
-					p.setPen(Qt::NoPen);
-					p.setBrush(st::attentionButtonFg);
-					p.drawEllipse(rect);
-
-					p.setPen(st::windowFgActive);
-					p.setFont(st::semiboldFont);
-					p.drawText(rect, u"!"_q, style::al_center);
-
-					p.end();
-					return result;
-				},
-				.margin = st::infoSecurityRiskIconMargin,
-			});
+			auto icon = helper.paletteDependent(Ui::AttentionMarkEmoji());
 			auto label = object_ptr<Ui::FlatLabel>(
 				content,
 				tr::lng_profile_unofficial_warning(
@@ -176,6 +153,7 @@ InnerWidget::InnerWidget(
 , _migrated(_controller->migrated())
 , _topic(_controller->key().topic())
 , _sublist(_controller->key().sublist())
+, _savedMessages(_controller->key().savedMessages() != nullptr)
 , _content(setupContent(this, origin)) {
 	_content->heightValue(
 	) | rpl::on_next([this](int height) {
@@ -198,7 +176,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 			user,
 			Data::PeerUpdate::Flag::FullInfo
 		) | rpl::on_next([=] {
-			auto &photos = user->session().api().peerPhoto();
+			const auto &photos = user->session().api().peerPhoto();
 			if (const auto original = photos.nonPersonalPhoto(user)) {
 				// Preload it for the edit contact box.
 				_nonPersonalView = original->createMediaView();
@@ -210,16 +188,18 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
 
-	const auto musicPeer = _sublist
-		? _sublist->sublistPeer().get()
-		: _peer.get();
-	AddSavedMusic(
-		result.data(),
-		_controller,
-		musicPeer,
-		_topBarColor.value());
-	if (const auto user = _peer->asUser()) {
-		AddUnofficialSecurityRiskWarning(result.data(), user);
+	if (!_savedMessages) {
+		const auto musicPeer = _sublist
+			? _sublist->sublistPeer().get()
+			: _peer.get();
+		AddSavedMusic(
+			result.data(),
+			_controller,
+			musicPeer,
+			_topBarColor.value());
+		if (const auto user = _peer->asUser()) {
+			AddUnofficialSecurityRiskWarning(result.data(), user);
+		}
 	}
 
 	auto stack = SectionStack(result.data());
@@ -228,13 +208,15 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		return result;
 	}
 
-	BuildProfileDetailsSections(
-		stack,
-		_controller,
-		_peer,
-		_topic,
-		_sublist,
-		origin);
+	if (!_savedMessages) {
+		BuildProfileDetailsSections(
+			stack,
+			_controller,
+			_peer,
+			_topic,
+			_sublist,
+			origin);
+	}
 
 	const auto thirdColumn = (_controller->wrap() == Wrap::Side);
 	const auto tabs = UseProfileMediaTabs() && !thirdColumn;
@@ -267,7 +249,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		auto tabs = std::vector<MediaTabDescriptor>();
 		const auto countValue = [&](Storage::SharedMediaType type) {
 			return SharedMediaCountValue(
-				tabsPeer,
+				_peer,
 				topicRootId,
 				monoforumPeerId,
 				_migrated,
@@ -302,7 +284,10 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 			addSplit(Type::Photo);
 			addSplit(Type::Video);
 		};
-		if (!_topic) {
+		if (_savedMessages) {
+			tabs.push_back(MakeChatsTabDescriptor());
+		}
+		if (!_topic && !_savedMessages) {
 			tabs.push_back(MakeStoriesTabDescriptor(tabsPeer));
 			if (!_sublist) {
 				tabs.push_back(MakeGiftsTabDescriptor(_peer));
@@ -317,21 +302,17 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 				MembersInTabValue(_peer)));
 		}
 		addMediaTabs();
-		if (!_topic) {
+		if (!_topic && !_savedMessages) {
 			tabs.push_back(MakeSavedTabDescriptor(tabsPeer));
 		}
 		addTab(Storage::SharedMediaType::File);
 		addTab(Storage::SharedMediaType::Link);
 		addTab(Storage::SharedMediaType::MusicFile);
-		tabs.push_back(MakePollsTabDescriptor(SharedMediaCountValue(
-			tabsPeer,
-			topicRootId,
-			monoforumPeerId,
-			_migrated,
-			Storage::SharedMediaType::Poll) | rpl::map(_1 > 0)));
+		tabs.push_back(MakePollsTabDescriptor(
+			countValue(Storage::SharedMediaType::Poll) | rpl::map(_1 > 0)));
 		addTab(Storage::SharedMediaType::RoundVoiceFile);
 		addTab(Storage::SharedMediaType::GIF);
-		if (!_topic && !_sublist) {
+		if (!_topic && !_sublist && !_savedMessages) {
 			if (const auto user = _peer->asUser()) {
 				tabs.push_back(MakeCommonGroupsTabDescriptor(user));
 			}
@@ -370,9 +351,14 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 			.shown = raw->heightValue() | rpl::map(_1 > 0),
 		});
 	};
-	if (_topic || _sublist) {
+	if (_topic || _sublist || _savedMessages) {
 		if (tabs) {
 			addTabsHost();
+			if (_savedMessages) {
+				// The bar is pinned at its minimum height there, so the
+				// tabs behave as docked from the very start.
+				_tabsDocked = true;
+			}
 		}
 		stack.finalize();
 		return result;
@@ -483,7 +469,8 @@ void InnerWidget::visibleTopBottomUpdated(
 			}
 		}
 		_tabsHost->setVisibleRegion(visibleTop - top, visibleBottom - top);
-		_tabsDocked = (top > 0) && (visibleTop >= top);
+		_tabsDocked = _savedMessages
+			|| ((top > 0) && (visibleTop >= top));
 	}
 }
 
@@ -492,7 +479,7 @@ void InnerWidget::saveState(not_null<Memento*> memento) {
 		memento->setMembersState(_members->saveState());
 	}
 	if (_tabsHost) {
-		memento->setActiveTab(_tabsHost->activeId());
+		memento->setTabsState(_tabsHost->saveState());
 	}
 }
 
@@ -504,9 +491,7 @@ void InnerWidget::restoreState(not_null<Memento*> memento) {
 		_sharedMediaWrap->finishAnimating();
 	}
 	if (_tabsHost) {
-		if (const auto active = memento->activeTab(); !active.isEmpty()) {
-			_tabsHost->restoreActiveTab(active);
-		}
+		_tabsHost->restoreState(memento->tabsState());
 	}
 }
 
@@ -570,6 +555,9 @@ base::weak_qptr<Ui::RpWidget> InnerWidget::createPinnedToTop(
 			.peer = _sublist ? _sublist->sublistPeer().get() : nullptr,
 			.backToggles = _backToggles.value(),
 			.showFinished = _showFinished.events(),
+			.customStatus = (_savedMessages
+				? SavedChatsCountStatus(&_peer->session())
+				: rpl::producer<TextWithEntities>()),
 		});
 	content->backRequest(
 	) | rpl::start_to_stream(_backClicks, content->lifetime());

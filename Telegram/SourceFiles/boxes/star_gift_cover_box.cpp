@@ -10,29 +10,37 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_lottie.h"
 #include "core/application.h"
 #include "core/ui_integration.h"
-#include "main/main_session.h"
-#include "window/window_controller.h"
-#include "window/window_session_controller.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_document.h"
-#include "data/data_file_origin.h"
 #include "data/data_document_media.h"
+#include "data/data_file_origin.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
-#include "data/stickers/data_custom_emoji.h"
+#include "info/peer_gifts/info_peer_gifts_common.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_common.h"
 #include "lottie/lottie_single_player.h"
+#include "main/main_session.h"
 #include "ui/effects/premium_stars_colored.h"
-#include "ui/painter.h"
+#include "ui/effects/ripple_animation.h"
+#include "ui/effects/unique_gift_message_bubble.h"
 #include "ui/text/format_values.h"
+#include "ui/text/text.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
+#include "ui/wrap/vertical_layout.h"
+#include "ui/dynamic_image.h"
+#include "ui/dynamic_thumbnails.h"
+#include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "ui/top_background_gradient.h"
 #include "ui/vertical_list.h"
-#include "ui/widgets/buttons.h"
-#include "ui/wrap/vertical_layout.h"
-#include "ui/widgets/labels.h"
-#include "info/peer_gifts/info_peer_gifts_common.h"
+#include "window/window_controller.h"
+#include "window/window_session_controller.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"
+#include "styles/style_info.h"
 #include "styles/style_layers.h"
 
 namespace Ui {
@@ -52,6 +60,224 @@ constexpr auto kPatternStopsAt = crl::time(4 * 1000);
 constexpr auto kModelSpinDuration = crl::time(160);
 constexpr auto kModelStopsAt = crl::time(5.5 * 1000);
 constexpr auto kModelScaleFrom = 0.7;
+
+void PaintAttributeArea(QPainter &p, QRect rect, QColor bg) {
+	auto hq = PainterHighQualityEnabler(p);
+	bg.setAlphaF(kGradientButtonBgOpacity * bg.alphaF());
+	const auto radius = rect.height() / 3.;
+	p.setPen(Qt::NoPen);
+	p.setBrush(bg);
+	p.drawRoundedRect(rect, radius, radius);
+}
+
+class UniqueGiftCoverMessageWidget final : public RpWidget {
+public:
+	UniqueGiftCoverMessageWidget(
+		QWidget *parent,
+		rpl::producer<UniqueGiftCoverMessage> message);
+	~UniqueGiftCoverMessageWidget();
+
+protected:
+	int resizeGetHeight(int newWidth) override;
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	void setMessage(const UniqueGiftCoverMessage &message);
+	void replaceImage(not_null<PeerData*> sender, bool hidden);
+
+	Text::String _text = { 1 };
+	std::shared_ptr<DynamicImage> _image;
+	UniqueGiftMessageBubble::Layout _layout;
+	PeerData *_sender = nullptr;
+	bool _hidden = false;
+
+};
+
+class AttributeActionButton final : public RippleButton {
+public:
+	AttributeActionButton(
+		QWidget *parent,
+		UniqueGiftCoverAction &&action,
+		Fn<QColor()> bg,
+		Fn<QColor()> fg);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void onStateChanged(State was, StateChangeSource source) override;
+	QImage prepareRippleMask() const override;
+
+private:
+	const style::icon *_icon = nullptr;
+	const Fn<QColor()> _bg;
+	const Fn<QColor()> _fg;
+	Text::String _text;
+	Animations::Simple _over;
+
+};
+
+UniqueGiftCoverMessageWidget::UniqueGiftCoverMessageWidget(
+	QWidget *parent,
+	rpl::producer<UniqueGiftCoverMessage> message)
+: RpWidget(parent) {
+	std::move(message) | rpl::on_next([this](
+			const UniqueGiftCoverMessage &value) {
+		setMessage(value);
+	}, lifetime());
+}
+
+UniqueGiftCoverMessageWidget::~UniqueGiftCoverMessageWidget() {
+	if (_image) {
+		_image->subscribeToUpdates(nullptr);
+	}
+}
+
+int UniqueGiftCoverMessageWidget::resizeGetHeight(int newWidth) {
+	if (!newWidth) {
+		return 0;
+	}
+	_layout = UniqueGiftMessageBubble::ResolveLayout(
+		st::chatUniqueMessageBubble,
+		st::uniqueGiftMessagePadding,
+		newWidth,
+		_text);
+	return _layout.sectionHeight;
+}
+
+void UniqueGiftCoverMessageWidget::paintEvent(QPaintEvent *e) {
+	auto p = Painter(this);
+	UniqueGiftMessageBubble::Paint(
+		p,
+		st::chatUniqueMessageBubble,
+		_layout);
+	if (_image) {
+		p.drawImage(
+			_layout.avatar,
+			_image->image(st::chatUniqueMessageBubble.avatarSize));
+	}
+
+	p.setPen(Qt::white);
+	_text.draw(p, {
+		.position = _layout.text.topLeft(),
+		.outerWidth = width(),
+		.availableWidth = _layout.text.width(),
+		.align = style::al_topleft,
+		.spoiler = Text::DefaultSpoilerCache(),
+		.now = crl::now(),
+		.pausedEmoji = On(PowerSaving::kEmojiChat),
+		.pausedSpoiler = On(PowerSaving::kChatSpoiler),
+		.elisionLines = 0,
+	});
+}
+
+void UniqueGiftCoverMessageWidget::setMessage(
+		const UniqueGiftCoverMessage &message) {
+	replaceImage(message.sender, message.hidden);
+	_text.setMarkedText(
+		st::chatUniqueTextStyle,
+		message.text,
+		kMarkupTextOptions,
+		Core::TextContext({
+			.session = &message.sender->session(),
+			.repaint = crl::guard(this, [this] { update(); }),
+		}));
+	_text.setSpoilerRevealed(true, anim::type::instant);
+	if (width() > 0) {
+		resizeToWidth(width());
+	}
+	update();
+}
+
+void UniqueGiftCoverMessageWidget::replaceImage(
+		not_null<PeerData*> sender,
+		bool hidden) {
+	if (_sender == sender.get() && _hidden == hidden) {
+		return;
+	}
+	if (_image) {
+		_image->subscribeToUpdates(nullptr);
+	}
+	_sender = sender;
+	_hidden = hidden;
+	_image = hidden
+		? MakeHiddenAuthorThumbnail()
+		: MakeUserpicThumbnail(sender, true);
+	_image->subscribeToUpdates(crl::guard(this, [this] { update(); }));
+}
+
+AttributeActionButton::AttributeActionButton(
+	QWidget *parent,
+	UniqueGiftCoverAction &&action,
+	Fn<QColor()> bg,
+	Fn<QColor()> fg)
+: RippleButton(parent, st::defaultRippleAnimation)
+, _icon(action.icon)
+, _bg(std::move(bg))
+, _fg(std::move(fg)) {
+	setClickedCallback(std::move(action.callback));
+	std::move(action.text) | rpl::on_next([this](const QString &text) {
+		_text.setText(st::uniqueAttributeName, text);
+		update();
+	}, lifetime());
+}
+
+void AttributeActionButton::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+	PaintAttributeArea(p, rect(), _bg());
+
+	const auto ripple = anim::with_alpha(
+		_fg(),
+		st::infoProfileTopBarBackdropRippleOpacity);
+	const auto over = _over.value(isOver() ? 1. : 0.);
+	if (over > 0.) {
+		auto hq = PainterHighQualityEnabler(p);
+		const auto radius = height() / 3.;
+		p.setOpacity(over);
+		p.setBrush(ripple);
+		p.drawRoundedRect(rect(), radius, radius);
+		p.setOpacity(1.);
+	}
+	paintRipple(p, 0, 0, &ripple);
+
+	const auto white = QColor(255, 255, 255);
+	if (_icon) {
+		_icon->paint(
+			p,
+			(width() - _icon->width()) / 2,
+			st::uniqueGiftActionIconTop,
+			width(),
+			white);
+	}
+	const auto &padding = st::uniqueAttributePadding;
+	const auto available = width() - padding.left() - padding.right();
+	const auto textWidth = std::min(available, _text.maxWidth());
+	p.setPen(white);
+	_text.draw(p, {
+		.position = QPoint(
+			(width() - textWidth) / 2,
+			st::uniqueGiftActionTextTop),
+		.availableWidth = textWidth,
+		.elisionLines = 1,
+	});
+}
+
+void AttributeActionButton::onStateChanged(
+		State was,
+		StateChangeSource source) {
+	RippleButton::onStateChanged(was, source);
+
+	const auto over = isOver();
+	if (over != ((was & StateFlag::Over) != 0)) {
+		_over.start(
+			[this] { update(); },
+			over ? 0. : 1.,
+			over ? 1. : 0.,
+			st::universalDuration);
+	}
+}
+
+QImage AttributeActionButton::prepareRippleMask() const {
+	return RippleAnimation::RoundRectMask(size(), height() / 3);
+}
 
 struct AttributeSpin {
 	AttributeSpin(crl::time duration) : duration(duration) {
@@ -121,6 +347,7 @@ struct UniqueGiftCoverWidget::PatternView {
 };
 
 struct UniqueGiftCoverWidget::ModelView {
+	uint64 setupId = 0;
 	std::shared_ptr<Data::DocumentMedia> media;
 	std::unique_ptr<Lottie::SinglePlayer> lottie;
 	rpl::lifetime lifetime;
@@ -148,6 +375,7 @@ struct UniqueGiftCoverWidget::State {
 	AttributeSpin patternSpin = kPatternSpinDuration;
 	AttributeSpin modelSpin = kModelSpinDuration;
 	crl::time spinStarted = 0;
+	uint64 modelSetupId = 0;
 	int heightFinal = 0;
 	bool crossfading = false;
 	bool updateAttributesPending = false;
@@ -157,6 +385,9 @@ struct UniqueGiftCoverWidget::State {
 	FlatLabel *pretitle = nullptr;
 	FlatLabel *title = nullptr;
 	RpWidget *attrs = nullptr;
+	RpWidget *actions = nullptr;
+	std::vector<not_null<RpWidget*>> actionButtons;
+	UniqueGiftCoverMessageWidget *message = nullptr;
 
 	Fn<void(const Data::UniqueGift &)> updateAttrs;
 	Fn<void(float64)> updateColors;
@@ -171,6 +402,20 @@ struct UniqueGiftCoverWidget::State {
 	Info::PeerGifts::GiftBadge craftedBadgeKey;
 	rpl::variable<CreditsAmount> resaleAmount;
 	Fn<void()> resaleClick;
+
+	[[nodiscard]] ModelView *modelBySetupId(uint64 setupId) {
+		if (now.model.setupId == setupId) {
+			return &now.model;
+		} else if (next.model.setupId == setupId) {
+			return &next.model;
+		}
+		for (auto &model : spinnerModels) {
+			if (model.setupId == setupId) {
+				return &model;
+			}
+		}
+		return nullptr;
+	}
 
 };
 
@@ -192,20 +437,32 @@ UniqueGiftCoverWidget::UniqueGiftCoverWidget(
 		const auto document = model.document;
 		to.media = document->createMediaView();
 		to.media->automaticLoad(document->stickerSetOrigin(), nullptr);
+		to.setupId = ++_state->modelSetupId;
+
+		// ModelView-s are moved around (now = base::take(next), taking
+		// from spinnerModels), moving `lifetime` (and the subscription
+		// below) with them, so the handlers can't capture `&to` - they
+		// find the view by `setupId` at each event instead.
+		const auto id = to.setupId;
+		const auto media = to.media;
 		rpl::single() | rpl::then(
 			document->session().downloaderTaskFinished()
-		) | rpl::filter([&to] {
-			return to.media->loaded();
-		}) | rpl::on_next([this, &to] {
+		) | rpl::filter([media] {
+			return media->loaded();
+		}) | rpl::on_next([this, id, media] {
+			const auto view = _state->modelBySetupId(id);
+			if (!view || view->media != media) {
+				return;
+			}
 			const auto lottieSize = st::creditsHistoryEntryStarGiftSize;
-			to.lottie = ChatHelpers::LottiePlayerFromDocument(
-				to.media.get(),
+			view->lottie = ChatHelpers::LottiePlayerFromDocument(
+				media.get(),
 				ChatHelpers::StickerLottieSize::MessageHistory,
 				QSize(lottieSize, lottieSize),
 				Lottie::Quality::High);
 
-			to.lifetime.destroy();
-			const auto lottie = to.lottie.get();
+			view->lifetime.destroy();
+			const auto lottie = view->lottie.get();
 			lottie->updates() | rpl::on_next([this, lottie] {
 				if (_state->now.model.lottie.get() == lottie
 					|| _state->crossfade.animating()) {
@@ -214,7 +471,7 @@ UniqueGiftCoverWidget::UniqueGiftCoverWidget(
 				if (const auto onstack = _state->checkSpinnerStart) {
 					onstack();
 				}
-			}, to.lifetime);
+			}, view->lifetime);
 		}, to.lifetime);
 	};
 
@@ -437,6 +694,9 @@ UniqueGiftCoverWidget::UniqueGiftCoverWidget(
 			onSale ? QColor(255, 255, 255) : color);
 		if (_state->number) {
 			_state->number->setTextColorOverride(color);
+		}
+		for (const auto &button : _state->actionButtons) {
+			button->update();
 		}
 	};
 	_state->updateColors = [this, repaintedHook](float64 progress) {
@@ -709,15 +969,13 @@ UniqueGiftCoverWidget::UniqueGiftCoverWidget(
 				return;
 			}
 			auto hq = PainterHighQualityEnabler(p);
-			auto bg = _state->released.bg;
-			bg.setAlphaF(kGradientButtonBgOpacity * bg.alphaF());
 			const auto innert = st::uniqueAttributeTop;
 			const auto innerh = attrsHeight - innert;
-			const auto radius = innerh / 3.;
 			const auto paint = [&](int x, const AttributeState &state) {
-				p.setPen(Qt::NoPen);
-				p.setBrush(bg);
-				p.drawRoundedRect(x, innert, single, innerh, radius, radius);
+				PaintAttributeArea(
+					p,
+					QRect(x, innert, single, innerh),
+					_state->released.bg);
 				p.setPen(QColor(255, 255, 255));
 				const auto padding = st::uniqueAttributePadding;
 				const auto inner = single - padding.left() - padding.right();
@@ -762,74 +1020,167 @@ UniqueGiftCoverWidget::UniqueGiftCoverWidget(
 			paint(_state->attrs->width() - single - boxPadding.right(), astate->pattern);
 		});
 	}
+	_state->actions = args.actions.empty()
+		? nullptr
+		: CreateChild<RpWidget>(this);
+	if (_state->actions) {
+		_state->actions->resize(
+			_state->actions->width(),
+			st::uniqueAttributeTop + st::uniqueGiftActionHeight);
+		const auto bg = [this] { return _state->released.bg; };
+		const auto fg = [this] { return _state->released.fg; };
+		for (auto &action : args.actions) {
+			_state->actionButtons.push_back(
+				CreateChild<AttributeActionButton>(
+					_state->actions,
+					std::move(action),
+					bg,
+					fg));
+		}
+		_state->actions->widthValue() | rpl::on_next([this](int width) {
+			const auto &buttons = _state->actionButtons;
+			const auto count = int(buttons.size());
+			const auto boxPadding = st::giftBoxPadding;
+			const auto skip = st::giftBoxGiftSkip.x();
+			const auto available = width
+				- boxPadding.left()
+				- boxPadding.right()
+				- (count - 1) * skip;
+			const auto single = available / count;
+			if (single <= 0) {
+				return;
+			}
+			const auto top = st::uniqueAttributeTop;
+			const auto height = st::uniqueGiftActionHeight;
+			auto left = boxPadding.left();
+			for (auto i = 0; i != count; ++i) {
+				const auto right = (i + 1 == count)
+					? (width - boxPadding.right())
+					: (left + single);
+				buttons[i]->resize(right - left, height);
+				buttons[i]->moveToLeft(left, top, width);
+				left = right + skip;
+			}
+		}, _state->actions->lifetime());
+	}
 	_state->updateAttrs(*_state->now.gift);
 
-	rpl::combine(
-		widthValue(),
-		_state->released.subtitleHeight.value(),
-		_state->numberTextWidth.value()
-	) | rpl::on_next([this](int width, int subtitleHeight, int) {
-		const auto skip = st::uniqueGiftBottom;
-		if (width <= 3 * skip) {
-			return;
-		}
-		const auto available = width - 2 * skip;
-		auto top = st::uniqueGiftTitleTop;
-		if (_state->pretitle) {
-			_state->title->resizeToWidth(available);
-			_state->pretitle->move((width - _state->pretitle->width()) / 2, top);
-			top += _state->pretitle->height()
-				+ (st::uniqueGiftSubtitleTop - st::uniqueGiftTitleTop)
-				- _state->title->height();
-		}
+	_state->message = args.message
+		? CreateChild<UniqueGiftCoverMessageWidget>(
+			this,
+			std::move(args.message))
+		: nullptr;
+	if (_state->message) {
+		widthValue() | rpl::on_next([
+				message = _state->message](int width) {
+			message->resizeToWidth(width);
+		}, _state->message->lifetime());
+	}
 
-		if (_state->number && _state->number->textMaxWidth() > 0) {
-			const auto titleWidth = _state->title->textMaxWidth();
-			_state->title->resizeToWidth(titleWidth);
-			const auto numberWidth = _state->number->textMaxWidth();
-			_state->number->resizeToWidth(numberWidth);
-			const auto gap = st::normalFont->spacew;
-			const auto totalWidth = titleWidth + gap + numberWidth;
-			const auto groupLeft = (width - totalWidth) / 2;
-			_state->title->moveToLeft(groupLeft, top);
-			const auto &stTitle = _state->title->st();
-			const auto &stNumber = _state->number->st();
-			_state->number->moveToLeft(
-				groupLeft + titleWidth + gap,
-				(top
-					+ stTitle.style.font->ascent
-					- stNumber.style.font->ascent));
-		} else {
-			_state->title->resizeToWidth(available);
-			_state->title->moveToLeft(skip, top);
-		}
-		if (_state->pretitle) {
-			top += _state->title->height() + st::defaultVerticalListSkip;
-		} else {
-			top += st::uniqueGiftSubtitleTop - st::uniqueGiftTitleTop;
-		}
+	if (_state->message) {
+		rpl::combine(
+			widthValue(),
+			_state->released.subtitleHeight.value(),
+			_state->numberTextWidth.value(),
+			_state->message->heightValue()
+		) | rpl::on_next([this](int width, int subtitleHeight, int, int) {
+			layoutContent(
+				width,
+				subtitleHeight,
+				_state->message->height());
+		}, lifetime());
+	} else {
+		rpl::combine(
+			widthValue(),
+			_state->released.subtitleHeight.value(),
+			_state->numberTextWidth.value()
+		) | rpl::on_next([this](int width, int subtitleHeight, int) {
+			layoutContent(width, subtitleHeight, 0);
+		}, lifetime());
+	}
+}
 
-		_state->released.subtitle->moveToLeft(skip, top);
-		top += subtitleHeight + (skip / 2);
+void UniqueGiftCoverWidget::layoutContent(
+		int width,
+		int subtitleHeight,
+		int messageHeight) {
+	const auto skip = st::uniqueGiftBottom;
+	if (width <= 3 * skip) {
+		return;
+	}
+	const auto available = width - 2 * skip;
+	auto top = st::uniqueGiftTitleTop;
+	if (_state->pretitle) {
+		_state->title->resizeToWidth(available);
+		_state->pretitle->move(
+			(width - _state->pretitle->width()) / 2,
+			top);
+		top += _state->pretitle->height()
+			+ (st::uniqueGiftSubtitleTop - st::uniqueGiftTitleTop)
+			- _state->title->height();
+	}
 
-		if (_state->attrs) {
-			_state->attrs->resizeToWidth(width);
-			_state->attrs->moveToLeft(0, top);
-			top += _state->attrs->height() + (skip / 2);
-		} else {
+	if (_state->number && _state->number->textMaxWidth() > 0) {
+		const auto titleWidth = _state->title->textMaxWidth();
+		_state->title->resizeToWidth(titleWidth);
+		const auto numberWidth = _state->number->textMaxWidth();
+		_state->number->resizeToWidth(numberWidth);
+		const auto gap = st::normalFont->spacew;
+		const auto totalWidth = titleWidth + gap + numberWidth;
+		const auto groupLeft = (width - totalWidth) / 2;
+		_state->title->moveToLeft(groupLeft, top);
+		const auto &stTitle = _state->title->st();
+		const auto &stNumber = _state->number->st();
+		_state->number->moveToLeft(
+			groupLeft + titleWidth + gap,
+			(top
+				+ stTitle.style.font->ascent
+				- stNumber.style.font->ascent));
+	} else {
+		_state->title->resizeToWidth(available);
+		_state->title->moveToLeft(skip, top);
+	}
+	if (_state->pretitle) {
+		top += _state->title->height() + st::defaultVerticalListSkip;
+	} else {
+		top += st::uniqueGiftSubtitleTop - st::uniqueGiftTitleTop;
+	}
+
+	_state->released.subtitle->moveToLeft(skip, top);
+	top += subtitleHeight;
+
+	const auto placeRow = [&](RpWidget *row) {
+		if (row) {
+			row->resizeToWidth(width);
+			row->moveToLeft(0, top);
+			top += row->height();
+		}
+	};
+	if (_state->message) {
+		if (_state->attrs || _state->actions) {
 			top += (skip / 2);
 		}
-		if (!height() || height() == top) {
-			resize(width, top);
-		} else {
-			_state->heightFinal = top;
-			_state->heightAnimation.start([this, width, top] {
-				resize(
-					width,
-					int(base::SafeRound(_state->heightAnimation.value(top))));
-			}, height(), top, st::slideWrapDuration);
-		}
-	}, lifetime());
+		placeRow(_state->attrs);
+		placeRow(_state->actions);
+		_state->message->moveToLeft(0, top);
+		top += messageHeight;
+	} else {
+		top += (skip / 2);
+		placeRow(_state->attrs);
+		placeRow(_state->actions);
+		top += (skip / 2);
+	}
+	if (!height() || height() == top) {
+		resize(width, top);
+	} else {
+		_state->heightFinal = top;
+		_state->heightAnimation.start([this, width, top] {
+			resize(
+				width,
+				int(base::SafeRound(
+					_state->heightAnimation.value(top))));
+		}, height(), top, st::slideWrapDuration);
+	}
 }
 
 void UniqueGiftCoverWidget::paintEvent(QPaintEvent *e) {
@@ -981,7 +1332,7 @@ QRect UniqueGiftCoverWidget::prepareCraftFrame(
 	gradient.setStops({ { 0., center }, { 1., edge } });
 	p.setPen(Qt::NoPen);
 	if (radius > 0.) {
-		const auto more = qCeil(radius * 2);
+		const auto more = int(std::ceil(radius * 2));
 		p.setCompositionMode(QPainter::CompositionMode_Source);
 		p.fillRect(0, 0, more, more, Qt::transparent);
 		p.fillRect(rect.width() - more, 0, more, more, Qt::transparent);

@@ -332,6 +332,7 @@ public:
 	[[nodiscard]] int slowmodeSecondsLeft() const;
 	[[nodiscard]] bool canManageGroupCall() const;
 	[[nodiscard]] bool canManageRanks() const;
+	[[nodiscard]] bool canManageWelcomeMessages() const;
 	[[nodiscard]] bool amMonoforumAdmin() const;
 
 	[[nodiscard]] int starsPerMessage() const;
@@ -682,6 +683,11 @@ namespace Data {
 void SetTopPinnedMessageId(
 	not_null<PeerData*> peer,
 	MsgId messageId);
+void ApplyPinnedMessageId(
+	not_null<PeerData*> peer,
+	MsgId messageId,
+	MsgId topicRootId = 0,
+	PeerId monoforumPeerId = 0);
 [[nodiscard]] FullMsgId ResolveTopPinnedId(
 	not_null<PeerData*> peer,
 	MsgId topicRootId,

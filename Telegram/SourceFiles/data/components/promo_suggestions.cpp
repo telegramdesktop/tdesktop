@@ -76,7 +76,8 @@ void PromoSuggestions::refreshTopPromotion() {
 			return {};
 		}
 		const auto &proxy = Core::App().settings().proxy().selected();
-		if (proxy.type != MTP::ProxyData::Type::Mtproto) {
+		if (proxy.type != MTP::ProxyData::Type::Mtproto
+			&& proxy.type != MTP::ProxyData::Type::Web) {
 			return {};
 		}
 		return { proxy.host, proxy.port };
@@ -269,9 +270,7 @@ void PromoSuggestions::dismissSetupEmail(Fn<void()> done) {
 }
 
 void PromoSuggestions::invalidate() {
-	if (_topPromotionRequestId) {
-		_session->api().request(_topPromotionRequestId).cancel();
-	}
+	_session->api().request(base::take(_topPromotionRequestId)).cancel();
 	_topPromotionNextRequestTime = 0;
 	_topPromotionTimer.callOnce(crl::time(200));
 }
@@ -348,6 +347,11 @@ std::optional<UserIds> PromoSuggestions::knownBirthdaysToday() const {
 
 QString PromoSuggestions::SugValidatePassword() {
 	static const auto key = u"VALIDATE_PASSWORD"_q;
+	return key;
+}
+
+QString PromoSuggestions::SugWalletFirstIncomingTransfer() {
+	static const auto key = u"WALLET_FIRST_INCOMING_TRANSFER"_q;
 	return key;
 }
 

@@ -18,9 +18,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/cached_round_corners.h"
 #include "ui/layers/generic_box.h"
 #include "ui/dynamic_image.h"
-#include "ui/image/image_prepare.h"
 #include "lang/lang_keys.h"
 #include "base/flat_map.h"
+#include "base/flat_set.h"
 #include "styles/style_boxes.h"
 #include "styles/style_calendar_box.h"
 #include "styles/style_chat.h"
@@ -33,6 +33,8 @@ namespace Ui {
 namespace {
 
 constexpr auto kDaysInWeek = 7;
+constexpr auto kThumbnailsPerPaint = 4;
+constexpr auto kKeepMonthsAround = 2;
 constexpr auto kTooltipDelay = crl::time(1000);
 constexpr auto kJumpDelay = 2 * crl::time(1000);
 
@@ -192,15 +194,12 @@ void FillMonthYearPicker(
 
 class CalendarBox::Context {
 public:
-	Context(QDate month, QDate highlighted);
+	Context(QDate month, QDate highlighted, QDate min, QDate max);
 
 	void setAllowsSelection(bool allowsSelection);
 	[[nodiscard]] bool allowsSelection() const {
 		return _allowsSelection;
 	}
-
-	void setMinDate(QDate date);
-	void setMaxDate(QDate date);
 
 	[[nodiscard]] int minDayIndex() const {
 		return _minDayIndex;
@@ -297,24 +296,20 @@ private:
 
 };
 
-CalendarBox::Context::Context(QDate month, QDate highlighted)
+CalendarBox::Context::Context(
+	QDate month,
+	QDate highlighted,
+	QDate min,
+	QDate max)
 : _firstDayOfWeek(static_cast<int>(QLocale().firstDayOfWeek())) // 1..7
+, _min(min)
+, _max(max)
 , _highlighted(highlighted) {
 	showMonth(month);
 }
 
 void CalendarBox::Context::setAllowsSelection(bool allows) {
 	_allowsSelection = allows;
-}
-
-void CalendarBox::Context::setMinDate(QDate date) {
-	_min = date;
-	applyMonth(_month.current(), true);
-}
-
-void CalendarBox::Context::setMaxDate(QDate date) {
-	_max = date;
-	applyMonth(_month.current(), true);
 }
 
 void CalendarBox::Context::showMonth(QDate month) {
@@ -548,6 +543,7 @@ private:
 	void setSelected(int selected);
 	void setPressed(int pressed);
 	void loadDynamicImages();
+	void releaseDistantImages();
 
 	int rowsLeft() const;
 	int rowsTop() const;
@@ -563,7 +559,7 @@ private:
 
 	struct DynamicImageState {
 		std::shared_ptr<DynamicImage> image;
-		bool requested = false;
+		bool subscribed = false;
 		bool animationFinished = false;
 		anim::value animation;
 		crl::time animationStart = 0;
@@ -575,6 +571,8 @@ private:
 
 	std::map<int, std::unique_ptr<RippleAnimation>> _ripples;
 	base::flat_map<QDate, DynamicImageState> _dynamicImageStates;
+	base::flat_set<QDate> _requestedMonths;
+	bool _thumbnailsLoadPending = false;
 	Ui::Animations::Basic _animation;
 
 	Fn<void(QDate)> _dateChosenCallback;
@@ -709,9 +707,7 @@ CalendarBox::Inner::Inner(
 void CalendarBox::Inner::monthChanged(QDate month) {
 	setSelected(kEmptySelection);
 	_ripples.clear();
-	for (auto &[date, state] : _dynamicImageStates) {
-		state.requested = false;
-	}
+	releaseDistantImages();
 	loadDynamicImages();
 	resizeToCurrent();
 	update();
@@ -723,33 +719,48 @@ void CalendarBox::Inner::loadDynamicImages() {
 		return;
 	}
 	const auto currentMonth = _context->month();
-	const auto prevMonth = currentMonth.addMonths(-1);
-	const auto nextMonth = currentMonth.addMonths(1);
-
-	const auto matchesMonth = [&](const QDate &d, const QDate &month) {
-		return d.year() == month.year() && d.month() == month.month();
-	};
-	const auto from = -_context->daysShift();
-	const auto till = from + _context->rowsCount() * kDaysInWeek;
-	for (auto i = from; i != till; ++i) {
-		const auto date = _context->dateFromIndex(i);
-		if (matchesMonth(date, currentMonth)
-			|| matchesMonth(date, prevMonth)
-			|| matchesMonth(date, nextMonth)) {
-			auto &state = _dynamicImageStates[date];
-			if (state.image || state.requested) {
-				continue;
-			}
-			state.requested = true;
-			_dynamicImageForDate(
-				date,
-				crl::guard(this, [=](
-						QDate imageDate,
-						std::shared_ptr<DynamicImage> image) {
-					setDynamicImage(imageDate, std::move(image));
-				}));
+	for (const auto shift : { 0, -1, 1 }) {
+		const auto month = currentMonth.addMonths(shift);
+		const auto first = currentMonth.daysTo(month);
+		const auto last = first + month.daysInMonth() - 1;
+		if (last < _context->minDayIndex()
+			|| first > _context->maxDayIndex()) {
+			continue;
+		} else if (!_requestedMonths.emplace(month).second) {
+			continue;
 		}
+		_dynamicImageForDate(
+			month,
+			crl::guard(this, [=](
+					QDate imageDate,
+					std::shared_ptr<DynamicImage> image) {
+				setDynamicImage(imageDate, std::move(image));
+			}));
 	}
+}
+
+void CalendarBox::Inner::releaseDistantImages() {
+	const auto current = _context->month();
+	const auto from = current.addMonths(-kKeepMonthsAround);
+	const auto till = current.addMonths(kKeepMonthsAround + 1);
+	const auto release = [](auto from, auto till) {
+		for (auto i = from; i != till; ++i) {
+			if (i->second.subscribed) {
+				i->second.image->subscribeToUpdates(nullptr);
+			}
+		}
+	};
+	auto outdated = _dynamicImageStates.lower_bound(from);
+	release(begin(_dynamicImageStates), outdated);
+	_dynamicImageStates.erase(begin(_dynamicImageStates), outdated);
+	outdated = _dynamicImageStates.lower_bound(till);
+	release(outdated, end(_dynamicImageStates));
+	_dynamicImageStates.erase(outdated, end(_dynamicImageStates));
+
+	auto months = ranges::lower_bound(_requestedMonths, from);
+	_requestedMonths.erase(begin(_requestedMonths), months);
+	months = ranges::lower_bound(_requestedMonths, till);
+	_requestedMonths.erase(months, end(_requestedMonths));
 }
 
 void CalendarBox::Inner::resizeToCurrent() {
@@ -762,7 +773,11 @@ void CalendarBox::Inner::paintEvent(QPaintEvent *e) {
 
 	auto clip = e->rect();
 
+	_thumbnailsLoadPending = false;
 	paintRows(p, clip);
+	if (_thumbnailsLoadPending) {
+		update();
+	}
 }
 
 int CalendarBox::Inner::rowsLeft() const {
@@ -795,6 +810,21 @@ void CalendarBox::Inner::paintRows(QPainter &p, QRect clip) {
 	index += fromRow * kDaysInWeek;
 	const auto innerSkipLeft = (_st.cellSize.width() - _st.cellInner) / 2;
 	const auto innerSkipTop = (_st.cellSize.height() - _st.cellInner) / 2;
+	auto started = 0;
+	const auto subscribed = [&](DynamicImageState &state) {
+		if (state.subscribed) {
+			return true;
+		} else if (started == kThumbnailsPerPaint) {
+			_thumbnailsLoadPending = true;
+			return false;
+		}
+		++started;
+		state.subscribed = true;
+		state.image->subscribeToUpdates(crl::guard(this, [=] {
+			update();
+		}));
+		return true;
+	};
 	for (auto row = fromRow; row != tillRow; ++row, y += rowHeight) {
 		auto x = rowsLeft();
 		const auto fromIndex = index;
@@ -833,7 +863,7 @@ void CalendarBox::Inner::paintRows(QPainter &p, QRect clip) {
 			if (const auto it = _dynamicImageStates.find(date);
 					it != end(_dynamicImageStates)) {
 				auto &state = it->second;
-				if (state.image) {
+				if (state.image && subscribed(state)) {
 					if (!state.animating() && !state.animationFinished) {
 						state.animation = anim::value(0., 1.);
 						state.animationStart = crl::now();
@@ -861,9 +891,7 @@ void CalendarBox::Inner::paintRows(QPainter &p, QRect clip) {
 									- QPointF(side / 2., side / 2.),
 								QSizeF(side, side));
 							p.setOpacity(opacity);
-							p.drawImage(
-								revealRect,
-								Images::Circle(std::move(image)));
+							p.drawImage(revealRect, image);
 							p.setPen(Qt::NoPen);
 							p.setBrush(st::songCoverOverlayFg);
 							p.drawEllipse(revealRect);
@@ -1072,15 +1100,18 @@ void CalendarBox::Inner::setDateChosenCallback(Fn<void(QDate)> callback) {
 void CalendarBox::Inner::setDynamicImage(
 		QDate date,
 		std::shared_ptr<DynamicImage> image) {
-	auto &state = _dynamicImageStates[date];
-	if (image) {
-		state.image = std::move(image);
-		state.image->subscribeToUpdates(crl::guard(this, [=] {
+	if (!image) {
+		if (_dynamicImageStates.remove(date)) {
 			update();
-		}));
-	} else {
-		_dynamicImageStates.remove(date);
+		}
+		return;
 	}
+	auto &state = _dynamicImageStates[date];
+	if (state.image == image) {
+		return;
+	}
+	state.image = std::move(image);
+	state.subscribed = false;
 	update();
 }
 
@@ -1219,7 +1250,11 @@ CalendarBox::CalendarBox(QWidget*, CalendarBoxArgs &&args)
 : _st(args.st)
 , _styleColors(args.stColors)
 , _context(
-	std::make_unique<Context>(args.month.value(), args.highlighted.value()))
+	std::make_unique<Context>(
+		args.month.value(),
+		args.highlighted.value(),
+		args.minDate,
+		args.maxDate))
 , _scroll(std::make_unique<ScrollArea>(this, st::calendarScroll))
 , _inner(_scroll->setOwnedWidget(object_ptr<Inner>(
 	this,
@@ -1236,8 +1271,6 @@ CalendarBox::CalendarBox(QWidget*, CalendarBoxArgs &&args)
 , _selectionChanged(std::move(args.selectionChanged)) {
 	_inner->setRequireImage(args.requireImage);
 	_context->setAllowsSelection(args.allowsSelection);
-	_context->setMinDate(args.minDate);
-	_context->setMaxDate(args.maxDate);
 
 	_title->setClickedCallback([=,
 			minDate = args.minDate,

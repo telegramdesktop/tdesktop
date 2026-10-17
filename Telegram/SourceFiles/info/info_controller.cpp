@@ -21,8 +21,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_forum_topic.h"
 #include "data/data_forum.h"
+#include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "data/data_shared_media.h"
 #include "data/data_media_types.h"
 #include "data/data_download_manager.h"
@@ -40,6 +42,10 @@ Key::Key(not_null<Data::ForumTopic*> topic) : _value(topic) {
 }
 
 Key::Key(not_null<Data::SavedSublist*> sublist) : _value(sublist) {
+}
+
+Key::Key(not_null<Data::SavedMessages*> savedMessages)
+: _value(savedMessages) {
 }
 
 Key::Key(Settings::Tag settings) : _value(settings) {
@@ -84,6 +90,8 @@ PeerData *Key::peer() const {
 		return topic->peer();
 	} else if (const auto sublist = this->sublist()) {
 		return sublist->owningHistory()->peer;
+	} else if (const auto savedMessages = this->savedMessages()) {
+		return savedMessages->session().user().get();
 	}
 	return nullptr;
 }
@@ -104,6 +112,14 @@ Data::SavedSublist *Key::sublist() const {
 	return nullptr;
 }
 
+Data::SavedMessages *Key::savedMessages() const {
+	if (const auto saved = std::get_if<not_null<Data::SavedMessages*>>(
+			&_value)) {
+		return *saved;
+	}
+	return nullptr;
+}
+
 UserData *Key::settingsSelf() const {
 	if (const auto tag = std::get_if<Settings::Tag>(&_value)) {
 		return tag->self;
@@ -117,6 +133,13 @@ bool Key::isDownloads() const {
 
 bool Key::isGlobalMedia() const {
 	return v::is<GlobalMedia::Tag>(_value);
+}
+
+bool Key::globalMediaOnlyForwardable() const {
+	if (const auto tag = std::get_if<GlobalMedia::Tag>(&_value)) {
+		return tag->onlyForwardable;
+	}
+	return false;
 }
 
 PeerData *Key::storiesPeer() const {
@@ -413,6 +436,8 @@ not_null<Ui::RpWidget*> Controller::wrapWidget() const {
 bool Controller::validateMementoPeer(
 		not_null<ContentMemento*> memento) const {
 	return memento->peer() == peer()
+		&& memento->topic() == topic()
+		&& memento->sublist() == sublist()
 		&& memento->migratedPeerId() == migratedPeerId()
 		&& memento->settingsSelf() == settingsSelf()
 		&& memento->storiesPeer() == storiesPeer()
@@ -517,16 +542,20 @@ void Controller::removeFromStack(const std::vector<Section> &sections) const {
 	_widget->removeFromStack(sections);
 }
 
-auto Controller::produceSearchQuery(
-		const QString &query) const -> SearchQuery {
-	Expects(_key.peer() != nullptr);
+auto AbstractController::produceSearchQuery(
+		const QString &query) const
+-> SearchQuery {
+	Expects(peer() != nullptr);
 
 	auto result = SearchQuery();
-	result.type = _section.mediaType();
-	result.peerId = _key.peer()->id;
-	result.topicRootId = _key.topic() ? _key.topic()->rootId() : 0;
+	result.type = section().mediaType();
+	result.peerId = peer()->id;
+	result.topicRootId = topic() ? topic()->rootId() : 0;
+	result.monoforumPeerId = sublist()
+		? sublist()->sublistPeer()->id
+		: PeerId();
 	result.query = query;
-	result.migratedPeerId = _migrated ? _migrated->id : PeerId(0);
+	result.migratedPeerId = migratedPeerId();
 	return result;
 }
 

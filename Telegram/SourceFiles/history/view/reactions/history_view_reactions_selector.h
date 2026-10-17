@@ -88,16 +88,6 @@ public:
 		Fn<bool()> paused = nullptr,
 		bool child = false,
 		QWidget *mediaPreviewParent = nullptr);
-#if 0 // not ready
-	Selector(
-		not_null<QWidget*> parent,
-		const style::EmojiPan &st,
-		std::shared_ptr<ChatHelpers::Show> show,
-		ChatHelpers::EmojiListMode mode,
-		std::vector<DocumentId> recent,
-		Fn<void(bool fast)> close,
-		bool child = false);
-#endif
 	~Selector();
 
 	[[nodiscard]] bool useTransparency() const;
@@ -159,6 +149,7 @@ private:
 		bool child,
 		QWidget *mediaPreviewParent);
 
+	void showEvent(QShowEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
@@ -242,6 +233,7 @@ private:
 	int _skipx = 0;
 	int _skipy = 0;
 	int _pressed = -1;
+	crl::time _shownAt = 0;
 	bool _useTransparency = false;
 	bool _appearing = false;
 	bool _toggling = false;
@@ -261,16 +253,6 @@ enum class AttachSelectorResult {
 	Failed,
 	Attached,
 };
-
-#if 0 // not ready
-AttachSelectorResult MakeJustSelectorMenu(
-	not_null<Ui::PopupMenu*> menu,
-	not_null<Window::SessionController*> controller,
-	QPoint desiredPosition,
-	ChatHelpers::EmojiListMode mode,
-	std::vector<DocumentId> recent,
-	Fn<void(ChosenReaction)> chosen);
-#endif
 
 AttachSelectorResult AttachSelectorToMenu(
 	not_null<Ui::PopupMenu*> menu,

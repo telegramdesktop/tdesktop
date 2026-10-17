@@ -540,12 +540,29 @@ void Panel::Incoming::RendererSW::fillBottomShadow(QPainter &p) {
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
 
+// std140 puts the vec3 at offset 16, the NDC Y flip fills the hole.
 struct IncomingShadowUniforms {
 	float viewport[2];
+	float fragCoordYUp;
+	float flipY;
 	float shadow[3];
-	float _pad0;
+	float _pad1;
 };
-static_assert(sizeof(IncomingShadowUniforms) == 24);
+static_assert(sizeof(IncomingShadowUniforms) == 32);
+
+namespace {
+
+// Vulkan is the only backend with the NDC Y axis pointing down.
+[[nodiscard]] float NdcFlipY(not_null<QRhi*> rhi) {
+	return rhi->isYUpInNDC() ? 1.f : -1.f;
+}
+
+// OpenGL is the only backend with gl_FragCoord.y counting from the bottom.
+[[nodiscard]] float FragCoordYUp(not_null<QRhi*> rhi) {
+	return rhi->isYUpInFramebuffer() ? 1.f : 0.f;
+}
+
+} // namespace
 
 class Panel::Incoming::RendererRhi final
 	: public Ui::GL::Renderer
@@ -856,6 +873,8 @@ public:
 		IncomingShadowUniforms uniforms{};
 		uniforms.viewport[0] = pw;
 		uniforms.viewport[1] = ph;
+		uniforms.flipY = NdcFlipY(rhi);
+		uniforms.fragCoordYUp = FragCoordYUp(rhi);
 		uniforms.shadow[0] = shadowHeight * factor;
 		uniforms.shadow[1] = shadowBottom.bottom();
 		uniforms.shadow[2] = shadowAlpha;
@@ -948,7 +967,8 @@ public:
 		};
 		rub->updateDynamicBuffer(
 			_shadowVertexBuffer, 0, sizeof(shadowCoords), shadowCoords);
-		const float viewport2[] = { pw, ph, 0.f, 0.f };
+		// { viewport, unused, flipY }, see the vertex shader Params block.
+		const float viewport2[] = { pw, ph, 0.f, NdcFlipY(_rhi) };
 		rub->updateDynamicBuffer(
 			_shadowUniformBuffer, 0, sizeof(viewport2), viewport2);
 	}

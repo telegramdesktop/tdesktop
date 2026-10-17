@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_sticker.h"
 #include "storage/storage_shared_media.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
+#include "data/data_file_click_handler.h"
 #include "data/data_session.h"
 #include "data/data_web_page.h"
 #include "lang/lang_keys.h"
@@ -218,7 +220,7 @@ SelectedQuote Media::selectedQuote(TextSelection selection) const {
 }
 
 QSize Media::countCurrentSize(int newWidth) {
-	return QSize(qMin(newWidth, maxWidth()), minHeight());
+	return QSize(std::min(newWidth, maxWidth()), minHeight());
 }
 
 bool Media::hasPurchasedTag() const {
@@ -521,6 +523,25 @@ void Media::createSpoilerLink(not_null<MediaSpoiler*> spoiler) {
 			return;
 		}
 		const auto view = media->parent();
+		const auto item = view->data();
+		if (item->isTtlCoveredMedia()) {
+			if (const auto photo = media->getPhoto()) {
+				view->delegate()->elementOpenPhoto(photo, item->fullId());
+			} else if (const auto document = media->getDocument()) {
+				if (document->createMediaView()->canBePlayed()) {
+					view->delegate()->elementOpenDocument(
+						document,
+						item->fullId(),
+						true);
+				} else if (!document->loading()) {
+					DocumentSaveClickHandler::Save(
+						item->fullId(),
+						document,
+						DocumentSaveClickHandler::Mode::ToCacheOrFile);
+				}
+			}
+			return;
+		}
 		spoiler->revealed = true;
 		spoiler->revealAnimation.start([=] {
 			view->repaint();
@@ -632,9 +653,7 @@ HistoryItem *Media::itemForText() const {
 }
 
 bool Media::isRoundedInBubbleBottom() const {
-	return isBubbleBottom()
-		&& !_parent->data()->repliesAreComments()
-		&& !_parent->data()->externalReply();
+	return isBubbleBottom() && !_parent->hasCommentsButton();
 }
 
 Images::CornersMaskRef MediaRoundingMask(

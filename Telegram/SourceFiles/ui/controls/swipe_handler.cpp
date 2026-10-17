@@ -35,15 +35,14 @@ constexpr auto kSwipedBackSpeedRatio = 0.35;
 constexpr auto kOverswipeLogA = 16.;
 constexpr auto kOverswipeLogB = 10.;
 
-[[nodiscard]] int DampedOverswipe(int translation) {
+[[nodiscard]] float64 DampedOverswipe(float64 translation) {
 	if (!translation) {
-		return 0;
+		return 0.;
 	}
 	const auto scale = style::Scale() / 100.;
 	const auto value = std::abs(translation) / scale;
 	const auto result = kOverswipeLogA * log(1. + value / kOverswipeLogB);
-	return (translation > 0 ? 1 : -1)
-		* int(base::SafeRound(result * scale));
+	return (translation > 0 ? 1. : -1.) * result * scale;
 }
 
 float64 InterpolationRatio(float64 from, float64 to, float64 result) {
@@ -89,6 +88,7 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 		QPointF position;
 		QPointF delta;
 		bool touch = false;
+		bool inverted = false;
 	};
 	struct State {
 		base::unique_qptr<QObject> filter;
@@ -108,6 +108,7 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 		bool started = false;
 		bool reached = false;
 		bool touch = false;
+		bool inverted = false;
 
 		rpl::lifetime lifetime;
 	};
@@ -135,15 +136,20 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 		ratio = std::max(ratio, 0.);
 		state->data.ratio = ratio;
 		const auto overscrollRatio = std::max(ratio - 1., 0.);
-		const auto translation = int(
-			base::SafeRound(-std::min(ratio, 1.) * state->threshold)
-		) + DampedOverswipe(int(
-			base::SafeRound(-overscrollRatio * state->threshold)
-		));
+		const auto thresholdShift = -std::min(ratio, 1.) * state->threshold;
+		const auto overswipeShift = -overscrollRatio * state->threshold;
+		const auto damped = DampedOverswipe(base::SafeRound(overswipeShift));
+		const auto translation = int(base::SafeRound(thresholdShift))
+			+ int(base::SafeRound(damped));
+		const auto exactTranslation = thresholdShift
+			+ DampedOverswipe(overswipeShift);
 		state->data.msgBareId = state->finishByTopData.msgBareId;
 		state->data.translation = translation
 			* state->directionInt;
+		state->data.exactTranslation = exactTranslation
+			* state->directionInt;
 		state->data.cursorTop = state->cursorPosition.y();
+		state->data.inverted = state->inverted;
 		update(state->data);
 	};
 	const auto setOrientation = [=](std::optional<Qt::Orientation> o) {
@@ -204,6 +210,7 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 		update(state->data);
 	};
 	const auto updateWith = [=, generateFinish = args.init](UpdateArgs args) {
+		state->inverted = args.inverted;
 		const auto fillFinishByTop = [&] {
 			if (!args.delta.x()) {
 				return;
@@ -349,6 +356,7 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 					.position = touches[0].pos(),
 					.delta = state->startAt - touches[0].pos(),
 					.touch = true,
+					.inverted = true,
 				};
 				updateWith(args);
 			}
@@ -375,13 +383,12 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 			if (cancel) {
 				processEnd();
 			} else {
-				const auto invert = (w->inverted() ? -1 : 1);
-				const auto delta = Ui::ScrollDeltaF(w) * invert;
 				updateWith({
 					.globalCursor = w->globalPosition().toPoint(),
 					.position = QPointF(),
-					.delta = state->delta + delta * kSwipeSlow,
+					.delta = state->delta - Ui::ScrollDeltaF(w) * kSwipeSlow,
 					.touch = false,
+					.inverted = w->inverted(),
 				});
 			}
 		} break;

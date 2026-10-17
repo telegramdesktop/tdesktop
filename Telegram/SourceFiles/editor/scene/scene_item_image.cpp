@@ -14,6 +14,9 @@ ItemImage::ItemImage(
 	ItemBase::Data data)
 : ItemBase(std::move(data))
 , _pixmap(std::move(pixmap)) {
+	if (flipped()) {
+		performFlip();
+	}
 	setAspectRatio(_pixmap.isNull()
 		? 1.0
 		: (_pixmap.height() / float64(_pixmap.width())));
@@ -23,14 +26,13 @@ void ItemImage::paint(
 		QPainter *p,
 		const QStyleOptionGraphicsItem *option,
 		QWidget *w) {
-	const auto rect = contentRect();
-	const auto pixmapSize = QSizeF(_pixmap.size() / style::DevicePixelRatio())
-		.scaled(rect.size(), Qt::KeepAspectRatio);
-	const auto resultRect = QRectF(rect.topLeft(), pixmapSize).translated(
-		(rect.width() - pixmapSize.width()) / 2.,
-		(rect.height() - pixmapSize.height()) / 2.);
-	p->drawPixmap(resultRect.toRect(), _pixmap);
+	p->setRenderHint(QPainter::SmoothPixmapTransform);
+	p->drawPixmap(visibleRect().toRect(), _pixmap);
 	ItemBase::paint(p, option, w);
+}
+
+QRectF ItemImage::visibleRect() const {
+	return fittedRect(_pixmap.size() / style::DevicePixelRatio());
 }
 
 void ItemImage::performFlip() {

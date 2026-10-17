@@ -56,6 +56,9 @@ if (NOT "${_qrc_new}" STREQUAL "${_qrc_old}")
     file(WRITE "${_qrc_path}" "${_qrc_new}")
 endif()
 
+# target_prepare_qrc() skips build-tree paths, so declare the .binobj sources.
+set_source_files_properties("${_qrc_path}" PROPERTIES
+    QRC_GENERATED_FROM "${_models_script};${_model_sources}")
 add_custom_target(bake_models DEPENDS ${_model_outputs})
 nice_target_sources(Telegram ${_models_out_dir}
 PRIVATE

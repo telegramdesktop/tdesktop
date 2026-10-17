@@ -745,7 +745,7 @@ void EditScans::scanFieldsChanged(bool changed) {
 
 void EditScans::updateErrorLabels() {
 	const auto updateList = [&](FileType type) {
-		auto &list = this->list(type);
+		const auto &list = this->list(type);
 		if (list.uploadMoreError) {
 			list.uploadMoreError->toggle(
 				!list.uploadedSomeMore(),
@@ -963,7 +963,7 @@ void EditScans::toggleSpecialScanError(FileType type, bool shown) {
 }
 
 void EditScans::specialScanErrorAnimationCallback(FileType type) {
-	auto &scan = findSpecialScan(type);
+	const auto &scan = findSpecialScan(type);
 	const auto error = scan.errorAnimation.value(
 		scan.errorShown ? 1. : 0.);
 	if (error == 0.) {

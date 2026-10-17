@@ -1119,7 +1119,6 @@ void AuctionBidBox(not_null<GenericBox*> box, AuctionBidBoxArgs &&args) {
 				MakeAveragePriceValue(raw, tooltip, name, price),
 				st::giveawayGiftCodeLabelMargin,
 				st::giveawayGiftCodeValueMargin);
-			raw->resizeToWidth(raw->widthNoMargins());
 		}, raw->lifetime());
 	}
 	return result;
@@ -1280,9 +1279,9 @@ void AuctionGotGiftsBox(
 					}
 					return result;
 				};
-				auto &models = state->data.models;
-				auto &patterns = state->data.patterns;
-				auto &backdrops = state->data.backdrops;
+				const auto &models = state->data.models;
+				const auto &patterns = state->data.patterns;
+				const auto &backdrops = state->data.backdrops;
 				consumer.put_next(cover({
 					.title = info.resellTitle,
 					.model = models[index(state->modelIndices, models)],

@@ -29,6 +29,7 @@ struct TranslateBoxContentResult {
 };
 
 class GenericBox;
+class VerticalLayout;
 
 class TranslateShowButton final : public RpWidget {
 public:
@@ -56,5 +57,10 @@ struct TranslateBoxContentArgs {
 void TranslateBoxContent(
 	not_null<GenericBox*> box,
 	TranslateBoxContentArgs &&args);
+
+[[nodiscard]] Fn<void(TextWithEntities)> AddTranslateCopyButton(
+	not_null<VerticalLayout*> container,
+	not_null<RpWidget*> subtitle,
+	bool hasCopyRestriction);
 
 } // namespace Ui

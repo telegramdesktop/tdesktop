@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "info/media/info_media_common.h"
 #include "data/data_shared_media.h"
+#include "base/weak_ptr.h"
 
 namespace Info {
 class AbstractController;
@@ -16,7 +17,10 @@ class AbstractController;
 
 namespace Info::Media {
 
-class Provider final : public ListProvider, private ListSectionDelegate {
+class Provider final
+	: public ListProvider
+	, private ListSectionDelegate
+	, public base::has_weak_ptr {
 public:
 	explicit Provider(not_null<AbstractController*> controller);
 

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_list_widget.h"
 
+#include "history/view/history_view_about_view.h"
 #include "base/unixtime.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "base/qt/qt_common_adapters.h"
@@ -16,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 #include "history/history_item_text.h"
 #include "history/history_streamed_drafts.h"
+#include "history/view/media/history_view_gram_transfer.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/reactions/history_view_reactions.h"
@@ -23,10 +25,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_reply_button.h"
 #include "history/view/reactions/history_view_reactions_selector.h"
 #include "history/view/history_view_context_menu.h"
+#include "history/view/history_view_copy_selection.h"
 #include "history/view/history_view_about_view.h"
 #include "history/view/history_view_drag.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_emoji_interactions.h"
+#include "chat_helpers/emoji_interactions.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_cursor_state.h"
@@ -38,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_top_peers_selector.h"
 #include "history/view/history_view_quick_action.h"
 #include "chat_helpers/message_field.h"
+#include "chat_helpers/stickers_emoji_pack.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "core/application.h"
@@ -49,12 +54,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_views.h"
 #include "layout/layout_selection.h"
 #include "payments/payments_reaction_process.h"
+#include "history/view/history_view_reaction_preview.h"
 #include "window/section_widget.h"
 #include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "main/main_session.h"
 #include "media/player/media_player_instance.h"
+#include "dialogs/ui/dialogs_video_userpic.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/elastic_scroll.h"
@@ -68,16 +75,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_theme.h"
 #include "ui/chat/chat_style.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "ui/rect.h"
 #include "ui/screen_reader_mode.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
+#include "lang/lang_tag.h"
 #include "boxes/peers/edit_participant_box.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/moderate_messages_box.h"
 #include "boxes/premium_preview_box.h"
 #include "boxes/send_gif_with_caption_box.h"
-#include "core/crash_reports.h"
 #include "data/components/sponsored_messages.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
@@ -121,6 +129,11 @@ constexpr auto kScrollDateHideOnDayCrossingTimeout = crl::time(3000);
 		return nullptr;
 	}
 	return std::make_unique<ReadMetricsTracker>(history->peer);
+}
+
+[[nodiscard]] bool HidesDates(Context context) {
+	return (context == Context::ShortcutMessages)
+		|| (context == Context::WelcomeMessages);
 }
 
 } // namespace
@@ -373,16 +386,23 @@ void ListWidget::enumerateUserpics(Method method) {
 
 		// Call method on a userpic for all messages that have it and for those who are not showing it
 		// because of their attachment to the next message if they are bottom-most visible.
-		if (view->displayFromPhoto() || (view->hasFromPhoto() && itembottom >= _visibleBottom)) {
+		if (view->displayFromPhoto()
+			|| (view->hasFromPhoto()
+				&& view->isAttachedToNext()
+				&& itembottom >= _visibleBottom)) {
 			if (lowestAttachedItemTop < 0) {
 				lowestAttachedItemTop = itemtop + view->marginTop();
 			}
 			// Attach userpic to the bottom of the visible area with the same margin as the last message.
 			auto userpicMinBottomSkip = st::historyPaddingBottom + st::msgMargin.bottom();
-			auto userpicBottom = qMin(itembottom - view->marginBottom(), _visibleBottom - userpicMinBottomSkip);
+			auto userpicBottom = std::min(
+				itembottom - view->marginBottom(),
+				_visibleBottom - userpicMinBottomSkip);
 
 			// Do not let the userpic go above the attached messages pack top line.
-			userpicBottom = qMax(userpicBottom, lowestAttachedItemTop + st::msgPhotoSize);
+			userpicBottom = std::max(
+				userpicBottom,
+				lowestAttachedItemTop + st::msgPhotoSize);
 
 			// Call the template callback function that was passed
 			// and return if it finished everything it needed.
@@ -425,11 +445,14 @@ void ListWidget::enumerateDates(Method method) {
 				itemtop);
 
 			// Attach date to the top of the visible area with the same margin as it has in service message.
-			auto dateTop = qMax(itemtop - collapsed, _visibleTop) + st::msgServiceMargin.top();
+			auto dateTop = std::max(itemtop - collapsed, _visibleTop)
+				+ st::msgServiceMargin.top();
 
 			// Do not let the date go below the single-day messages pack bottom line.
 			auto dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
-			dateTop = qMin(dateTop, lowestInOneDayItemBottom - dateHeight);
+			dateTop = std::min(
+				dateTop,
+				lowestInOneDayItemBottom - dateHeight);
 
 			// Call the template callback function that was passed
 			// and return if it finished everything it needed.
@@ -447,6 +470,65 @@ void ListWidget::enumerateDates(Method method) {
 	};
 
 	enumerateItems<EnumItemsDirection::BottomToTop>(dateCallback);
+}
+
+template <typename Method>
+void ListWidget::enumerateForumThreadBars(Method method) {
+	if (!_delegate->listShowForumThreadBars()) {
+		return;
+	}
+
+	const auto skip = (_scrollDateOpacity.animating() || _scrollDateShown)
+		? int(base::SafeRound(
+			(_scrollDateOpacity.value(_scrollDateShown ? 1. : 0.)
+				* (st::msgServicePadding.bottom()
+					+ st::msgServiceFont->height
+					+ st::msgServicePadding.top()
+					+ st::msgServiceMargin.top()))))
+		: 0;
+
+	// Find and remember the bottom of an single-day messages pack
+	// -1 means we didn't find a same-day with previous message yet.
+	auto lowestInOneBunchItemBottom = -1;
+
+	auto barCallback = [&](not_null<Element*> view, int itemtop, int itembottom) {
+		const auto item = view->data();
+		if (lowestInOneBunchItemBottom < 0 && view->isInOneBunchWithPrevious()) {
+			lowestInOneBunchItemBottom = itembottom - view->marginBottom();
+		}
+
+		// Call method on a bar for all messages that have it and for those who are not showing it
+		// because they are in a one day together with the previous message if they are top-most visible.
+		if (view->displayForumThreadBar() || (!item->isEmpty() && itemtop <= _visibleTop)) {
+			if (lowestInOneBunchItemBottom < 0) {
+				lowestInOneBunchItemBottom = itembottom - view->marginBottom();
+			}
+			// Attach bar to the top of the visible area with the same margin as it has in service message.
+			int barTop = std::max(
+				itemtop + view->displayedDateHeight(),
+				_visibleTop + skip)
+				+ st::msgServiceMargin.top();
+
+			// Do not let the bar go below the single-bar messages pack bottom line.
+			int barHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
+			barTop = std::min(barTop, lowestInOneBunchItemBottom - barHeight);
+
+			// Call the template callback function that was passed
+			// and return if it finished everything it needed.
+			if (!method(view, itemtop, barTop)) {
+				return false;
+			}
+		}
+
+		// Forget the found bottom of the pack, search for the next one from scratch.
+		if (!view->isInOneBunchWithPrevious()) {
+			lowestInOneBunchItemBottom = -1;
+		}
+
+		return true;
+	};
+
+	enumerateItems<EnumItemsDirection::BottomToTop>(barCallback);
 }
 
 ListWidget::ListWidget(
@@ -510,6 +592,28 @@ ListWidget::ListWidget(
 	}
 
 	_scrollDateHideTimer.setCallback([this] { scrollDateHideByTimer(); });
+
+	if (const auto window = controllerOrNull()) {
+		using PlayRequest = ChatHelpers::EmojiInteractionPlayRequest;
+		window->emojiInteractions().playRequests(
+		) | rpl::filter([=](const PlayRequest &request) {
+			return (viewForItem(request.item) != nullptr)
+				&& window->widget()->isActive();
+		}) | rpl::on_next([=](PlayRequest &&request) {
+			if (const auto view = viewForItem(request.item)) {
+				_emojiInteractions->play(std::move(request), view);
+			}
+		}, lifetime());
+		_emojiInteractions->playStarted(
+		) | rpl::on_next([=](QString &&emoji) {
+			if (const auto history = _delegate->listTranslateHistory()) {
+				window->emojiInteractions().playStarted(
+					history->peer,
+					std::move(emoji));
+			}
+		}, lifetime());
+	}
+
 	_session->data().viewRepaintRequest(
 	) | rpl::on_next([this](Data::RequestViewRepaint data) {
 		if (data.view->delegate() == this) {
@@ -652,6 +756,10 @@ not_null<Window::SessionController*> ListWidget::controller() const {
 	return _delegate->listWindow();
 }
 
+Window::SessionController *ListWidget::controllerOrNull() const {
+	return _delegate->listWindowOrNull();
+}
+
 not_null<ListDelegate*> ListWidget::delegate() const {
 	return _delegate;
 }
@@ -670,44 +778,15 @@ void ListWidget::refreshViewer() {
 	}, _viewerLifetime);
 }
 
-void ListWidget::setGeometryCrashAnnotations(not_null<Element*> view) {
-	CrashReports::SetAnnotation(
-		"Geometry",
-		u"size: %1x%2, visibleTop: %3, visibleBottom: %4, top: %5"_q
-		.arg(width())
-		.arg(height())
-		.arg(_visibleTop)
-		.arg(_visibleBottom)
-		.arg(_itemsTop));
-	const auto logItems = [&] {
-		auto items = QStringList();
-		auto top = _itemsTop;
-		auto index = 0;
-		for (const auto &some : _items) {
-			items.push_back(u"(%1)%2=%3,%4,%5"_q
-				.arg(index++)
-				.arg(top)
-				.arg(itemTop(some))
-				.arg(some->y())
-				.arg(some->height()));
-			top += some->height();
-		}
-		return items.join(';');
-	};
-	CrashReports::SetAnnotation("Chosen", u"%1,%2,%3"_q
-		.arg(itemTop(view))
-		.arg(view->y())
-		.arg(view->height()));
-	CrashReports::SetAnnotation("Before", logItems());
-	updateSize();
-	CrashReports::SetAnnotation("After", logItems());
-}
-
 void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 	Expects(_viewsCapacity.empty());
 
 	if (_thanosController) {
-		_thanosController->clearPreCaptured();
+		// Main history drops the view before itemRemoved() fires.
+		_thanosController->commitAnnouncedRemovals([&](FullMsgId id) {
+			return ranges::find(_slice.ids, id) == end(_slice.ids);
+		});
+		_thanosController->resetScrollBaseline();
 	}
 
 	saveScrollState();
@@ -725,6 +804,19 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 		int(end(_slice.ids) - addedToEndFrom),
 		1
 	) - 1;
+
+	auto shiftAnchor = (HistoryItem*)nullptr;
+	auto shiftAnchorBottom = 0;
+	if (_thanosController && !_thanosController->renderGaps().empty()) {
+		for (const auto &view : _items) {
+			const auto id = view->data()->fullId();
+			if (ranges::find(_slice.ids, id) != end(_slice.ids)) {
+				shiftAnchor = view->data();
+				shiftAnchorBottom = view->y() + view->height();
+				break;
+			}
+		}
+	}
 
 	auto destroyingBarElement = _bar.element;
 	auto clearingOverElement = _overElement;
@@ -766,13 +858,23 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 		: std::min(addedToEndCount, int(_items.size()));
 	for (auto e = end(_items), i = e - revealCount; i != e; ++i) {
 		const auto item = (*i)->data();
-		if (!item->history()->streamedDrafts().hasFor(item)) {
+		const auto streamed = item->history()->streamedDraftsIfExists();
+		if (!item->isSponsored()
+			&& (!streamed || !streamed->hasFor(item))) {
 			_itemRevealPending.emplace(*i);
 		}
 	}
 	updateAroundPositionFromNearest(nearestIndex);
 
 	updateItemsGeometry();
+
+	if (shiftAnchor) {
+		// Prepended slice moves every item, gap coordinate follows it.
+		if (const auto view = viewForItem(shiftAnchor)) {
+			_thanosController->shiftGaps(
+				view->y() + view->height() - shiftAnchorBottom);
+		}
+	}
 
 	if (clearingOverElement) {
 		_overElement = nullptr;
@@ -791,6 +893,9 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 
 	pruneAccessibilityIdentities();
 
+	if (scrolledTillEnd && addedToEndCount > 0) {
+		_delegate->listItemsAddedToEnd(_items, addedToEndCount);
+	}
 	const auto markLastAsRead = (scrolledTillEnd && markingMessagesRead());
 	checkUnreadBarCreation(markLastAsRead);
 	restoreScrollState();
@@ -801,6 +906,85 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 		_emptyInfo->setVisible(isEmpty());
 	}
 	checkActivation();
+	checkAnnounceFirstMessages();
+	_delegate->listContentRefreshed();
+}
+
+void ListWidget::rememberScrollAnchor() {
+	if (!_scrollTopState.item && !_items.empty()) {
+		const auto top = findItemByY(_visibleTop);
+		_scrollTopState.item = top->data()->position();
+		_scrollTopState.shift = _visibleTop - itemTop(top);
+	}
+}
+
+bool ListWidget::appendToEnd(not_null<HistoryItem*> item) {
+	if (_slice.skippedAfter != 0
+		|| ranges::contains(_slice.ids, item->fullId())) {
+		return false;
+	}
+	rememberScrollAnchor();
+	const auto old = _slice;
+	_slice.ids.push_back(item->fullId());
+	refreshRows(old);
+	return true;
+}
+
+bool ListWidget::insertAfter(
+		not_null<HistoryItem*> after,
+		not_null<HistoryItem*> item) {
+	if (ranges::contains(_slice.ids, item->fullId())) {
+		return false;
+	}
+	const auto i = ranges::find(_slice.ids, after->fullId());
+	if (i == end(_slice.ids)) {
+		return false;
+	}
+	const auto index = int(i - begin(_slice.ids));
+	rememberScrollAnchor();
+	const auto old = _slice;
+	_slice.ids.insert(begin(_slice.ids) + index + 1, item->fullId());
+	refreshRows(old);
+	return true;
+}
+
+ListWidget::InjectAfterLookup ListWidget::lookupInjectAfter(
+		HistoryItem *anchor,
+		int minCount,
+		int minHeight) const {
+	const auto from = anchor
+		? ranges::find(_items, anchor, [](not_null<Element*> view) {
+			return view->data().get();
+		})
+		: _bar.element
+		? ranges::find(_items, not_null{ _bar.element })
+		: end(_items);
+	if (from == end(_items)) {
+		return {};
+	}
+	auto count = 0;
+	auto height = 0;
+	auto i = from;
+	while ((count < minCount) || (height < minHeight)) {
+		++i;
+		if (i == end(_items)) {
+			return {
+				.after = _items.back()->data().get(),
+				.ranOffEnd = true,
+			};
+		}
+		++count;
+		height += (*i)->height();
+	}
+	const auto date = (*i)->data()->date();
+	while ((i + 1) != end(_items)
+		&& (*(i + 1))->data()->date() == date) {
+		++i;
+	}
+	return {
+		.after = (*i)->data().get(),
+		.ranOffEnd = ((i + 1) == end(_items)) && !_itemsKnownTillEnd,
+	};
 }
 
 std::optional<int> ListWidget::scrollTopForPosition(
@@ -919,6 +1103,39 @@ bool ListWidget::animatedScrolling() const {
 	return _scrollToAnimation.animating();
 }
 
+void ListWidget::scrollToCurrentVoiceMessage(
+		FullMsgId fromId,
+		FullMsgId toId) {
+	const auto from = viewForItem(fromId);
+	const auto to = viewForItem(toId);
+	if (!from || !to) {
+		return;
+	}
+	const auto fromTop = itemTop(from);
+	const auto fromBottom = fromTop + from->height();
+	if (fromBottom <= _visibleTop || fromTop >= _visibleBottom) {
+		return;
+	}
+	const auto toTop = itemTop(to);
+	const auto toBottom = toTop + to->height();
+	const auto partlyAbove = (toTop < _visibleTop)
+		&& (toBottom < _visibleBottom);
+	const auto partlyBelow = (toTop > _visibleTop)
+		&& (toBottom > _visibleBottom);
+	if (!partlyAbove && !partlyBelow) {
+		return;
+	}
+	const auto scrollTop = scrollTopForView(to);
+	if (!scrollTop) {
+		return;
+	}
+	scrollTo(
+		*scrollTop,
+		to->data()->position(),
+		*scrollTop - _visibleTop,
+		AnimatedScroll::Part);
+}
+
 void ListWidget::scrollToAnimationCallback(
 		FullMsgId attachToId,
 		int relativeTo) {
@@ -1021,21 +1238,45 @@ void ListWidget::showAtPosition(
 
 	if (showAtUnread) {
 		showAroundPosition(position, [=] {
-			if (_bar.element) {
-				_bar.element->destroyUnreadBar();
-				const auto i = ranges::find(_items, not_null{ _bar.element });
-				Assert(i != end(_items));
-				refreshAttachmentsAtIndex(i - begin(_items));
-				_bar = {};
-			}
+			clearUnreadBar();
 			checkUnreadBarCreation();
 			return showAtPositionNow(position, params, done);
 		});
 	} else if (!showAtPositionNow(position, params, done)) {
+		const auto targetAbove = isBelowPosition(position);
+		const auto targetBelow = isAbovePosition(position);
 		showAroundPosition(position, [=] {
+			if ((targetAbove || targetBelow)
+				&& (params.animated != anim::type::instant)) {
+				if (const auto to = scrollTopForPosition(position)) {
+					const auto screen = _visibleBottom - _visibleTop;
+					_delegate->listScrollTo(targetAbove
+						? (*to + screen)
+						: (*to - screen));
+				}
+			}
 			return showAtPositionNow(position, params, done);
 		});
 	}
+}
+
+void ListWidget::clearUnreadBar() {
+	if (!_bar.element) {
+		return;
+	}
+	_bar.element->destroyUnreadBar();
+	const auto i = ranges::find(_items, not_null{ _bar.element });
+	Assert(i != end(_items));
+	refreshAttachmentsAtIndex(i - begin(_items));
+	_bar = {};
+}
+
+bool ListWidget::unreadBarBelowVisibleBottom() const {
+	const auto element = _bar.element;
+	if (!element || _bar.hidden) {
+		return false;
+	}
+	return itemTop(element) >= _visibleBottom;
 }
 
 bool ListWidget::showAtPositionNow(
@@ -1150,6 +1391,9 @@ Element *ListWidget::viewForItem(FullMsgId itemId) const {
 
 Element *ListWidget::viewForItem(const HistoryItem *item) const {
 	if (item) {
+		if (_aboutView && _aboutView->item() == item) {
+			return _aboutView->view();
+		}
 		if (const auto i = _views.find(item); i != _views.end()) {
 			return i->second.get();
 		}
@@ -1372,6 +1616,9 @@ void ListWidget::toggleScrollDateShown() {
 void ListWidget::repaintScrollDateCallback() {
 	auto updateTop = _visibleTop;
 	auto updateHeight = st::msgServiceMargin.top() + st::msgServicePadding.top() + st::msgServiceFont->height + st::msgServicePadding.bottom();
+	if (_delegate->listShowForumThreadBars()) {
+		updateHeight *= 2;
+	}
 	update(0, updateTop, width(), updateHeight);
 }
 
@@ -1433,6 +1680,7 @@ bool ListWidget::hasSelectedItems() const {
 SelectionModeResult ListWidget::inSelectionMode() const {
 	const auto now = hasSelectedItems()
 		|| !_dragSelected.empty()
+		|| _chooseForReportReason.has_value()
 		|| (_mouseAction == MouseAction::Selecting && _lastInSelectionMode);
 	if (_lastInSelectionMode != now) {
 		_lastInSelectionMode = now;
@@ -1502,12 +1750,6 @@ bool ListWidget::isGoodForSelection(
 		int &totalCount) const {
 	if (!_delegate->listIsItemGoodForSelection(item)) {
 		return false;
-	}
-	if (!applyTo.empty()) {
-		const auto first = session().data().message(applyTo.begin()->first);
-		if (first && !first->inSameSelectionGroup(item)) {
-			return false;
-		}
 	}
 	if (!applyTo.contains(item->fullId())) {
 		++totalCount;
@@ -1656,6 +1898,14 @@ void ListWidget::cancelSelection() {
 	clearTextSelection();
 }
 
+void ListWidget::setChooseReportReason(Data::ReportInput reportInput) {
+	_chooseForReportReason = std::move(reportInput);
+}
+
+void ListWidget::clearChooseReportReason() {
+	_chooseForReportReason = std::nullopt;
+}
+
 void ListWidget::selectItem(not_null<HistoryItem*> item) {
 	if (hasSelectRestriction()) {
 		return;
@@ -1683,6 +1933,92 @@ void ListWidget::selectItemAsGroup(not_null<HistoryItem*> item) {
 		pushSelectedItems();
 		update();
 	}
+}
+
+std::vector<not_null<HistoryItem*>> ListWidget::collectBetween(
+		not_null<HistoryItem*> from,
+		not_null<HistoryItem*> to,
+		int max) const {
+	const auto fromView = viewForItem(from);
+	const auto toView = viewForItem(to);
+	if (!fromView || !toView) {
+		return {};
+	}
+	const auto fromIt = ranges::find(_items, not_null{ fromView });
+	const auto toIt = ranges::find(_items, not_null{ toView });
+	if (fromIt == end(_items) || toIt == end(_items) || toIt <= fromIt) {
+		return {};
+	}
+	auto result = std::vector<not_null<HistoryItem*>>();
+	result.reserve(max);
+	result.push_back(from);
+	result.push_back(to);
+	for (auto i = fromIt + 1; i != toIt; ++i) {
+		if (int(result.size()) > max) {
+			return {};
+		}
+		const auto item = (*i)->data();
+		if (_delegate->listIsItemGoodForSelection(item)) {
+			result.push_back(item);
+		}
+	}
+	if (int(result.size()) > max) {
+		return {};
+	}
+	return result;
+}
+
+std::vector<not_null<HistoryItem*>> ListWidget::selectionUpTo(
+		not_null<HistoryItem*> item) const {
+	if (_selected.empty()) {
+		return {};
+	}
+	const auto group = session().data().groups().find(item);
+	const auto toItem = group ? group->items.front() : item;
+	auto nearestItem = (HistoryItem*)nullptr;
+	auto topToBottom = false;
+	auto minDiff = int64(0);
+	for (const auto &entry : _selected) {
+		const auto selected = session().data().message(entry.first);
+		if (!selected) {
+			continue;
+		}
+		const auto diff = entry.first.msg.bare - toItem->fullId().msg.bare;
+		if (!nearestItem || std::abs(diff) < minDiff) {
+			nearestItem = selected;
+			minDiff = std::abs(diff);
+			topToBottom = (diff < 0);
+		}
+	}
+	if (!nearestItem) {
+		return {};
+	}
+	const auto startItem = topToBottom ? nearestItem : toItem.get();
+	const auto endItem = topToBottom ? toItem.get() : nearestItem;
+	const auto left = MaxSelectedItems
+		- int(_selected.size())
+		+ (topToBottom ? 0 : 1);
+	return collectBetween(startItem, endItem, left);
+}
+
+bool ListWidget::canSelectItemsUpTo(not_null<HistoryItem*> item) const {
+	return !hasSelectRestriction() && !selectionUpTo(item).empty();
+}
+
+void ListWidget::selectItemsUpTo(not_null<HistoryItem*> item) {
+	if (hasSelectRestriction()) {
+		return;
+	}
+	const auto list = selectionUpTo(item);
+	if (list.empty()) {
+		return;
+	}
+	clearTextSelection();
+	for (const auto &i : list) {
+		changeSelectionAsGroup(_selected, i, SelectAction::Select);
+	}
+	pushSelectedItems();
+	update();
 }
 
 void ListWidget::showEditCaptionUploadLayer(not_null<HistoryItem*> item) {
@@ -1756,6 +2092,14 @@ bool ListWidget::loadedAtTopKnown() const {
 
 bool ListWidget::loadedAtTop() const {
 	return skippedAtTop() == 0;
+}
+
+bool ListWidget::insideJumpToEndInsteadOfToUnread() const {
+	if (_session->supportMode()) {
+		return true;
+	}
+	const auto unread = _bar.element;
+	return unread && (itemTop(unread) <= _visibleBottom);
 }
 
 bool ListWidget::loadedAtBottomKnown() const {
@@ -1865,6 +2209,24 @@ bool ListWidget::canConsumeHorizontalScroll(QPoint position, int delta) const {
 			delta);
 }
 
+bool ListWidget::hasVisibleSimilarChannels() const {
+	const auto from = std::lower_bound(
+		begin(_items),
+		end(_items),
+		_visibleTop,
+		[this](auto &elem, int top) {
+			return this->itemTop(elem) + elem->height() <= top;
+		});
+	for (auto i = from; i != end(_items); ++i) {
+		if (itemTop(*i) >= _visibleBottom) {
+			break;
+		} else if ((*i)->data()->showSimilarChannels()) {
+			return true;
+		}
+	}
+	return false;
+}
+
 bool ListWidget::consumeScrollAction(
 		QPoint delta,
 		Qt::ScrollPhase phase,
@@ -1895,9 +2257,12 @@ auto ListWidget::findViewForPinnedTracking(int top) const
 			top,
 			std::less<>(),
 			&Element::y);
-		return (first == end(_items) || (*first)->y() > top)
-			? first - 1
-			: first;
+		if (first == end(_items) || (*first)->y() > top) {
+			// 'top' may be above the first item, then lower_bound()
+			// returns begin() and 'first - 1' would read _items[-1].
+			return (first == begin(_items)) ? first : (first - 1);
+		}
+		return first;
 	};
 	const auto findView = [&](int top)
 	-> std::pair<std::vector<not_null<Element*>>::const_iterator, int> {
@@ -2019,8 +2384,28 @@ QString ListWidget::tooltipText() const {
 		if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
 			return forwarded->text.toString();
 		}
-	} else if (const auto link = ClickHandler::getActive()) {
-		return link->tooltip();
+	}
+	if (const auto link = ClickHandler::getActive()) {
+		const auto count = Reactions::ReactionCountOfLink(
+			_overItemExact ? _overItemExact : item,
+			link);
+		if (count.count && count.shortened) {
+			return Lang::FormatCountDecimal(count.count);
+		}
+		if (const auto text = link->tooltip(); !text.isEmpty()) {
+			return text;
+		}
+	}
+	if (const auto view = _overElement;
+		view && _mouseAction == MouseAction::None) {
+		if (_mouseCursorState == CursorState::FromPhoto) {
+			if (const auto from = view->data()->displayFrom()) {
+				return from->name();
+			}
+		}
+		auto request = StateRequest();
+		request.flags |= Ui::Text::StateRequest::Flag::LookupCustomTooltip;
+		return view->textState(_overState.point, request).customTooltipText;
 	}
 	return QString();
 }
@@ -2046,11 +2431,6 @@ SelectionModeResult ListWidget::elementInSelectionMode(
 		const HistoryView::Element *view) {
 	if (view && !_delegate->listIsItemGoodForSelection(view->data())) {
 		return {};
-	} else if (view && !_selected.empty()) {
-		const auto first = session().data().message(_selected.begin()->first);
-		if (first && !first->inSameSelectionGroup(view->data())) {
-			return {};
-		}
 	}
 	return inSelectionMode();
 }
@@ -2094,13 +2474,17 @@ void ListWidget::elementShowAddPollOption(
 		not_null<PollData*> poll,
 		FullMsgId context,
 		QRect optionRect) {
+	const auto window = controllerOrNull();
+	if (!window) {
+		return;
+	}
 	ShowAddPollOptionOverlay(
 		ensureOverlayHost(),
 		this,
 		view,
 		poll,
 		context,
-		controller(),
+		window,
 		_delegate->listChatStyle());
 }
 
@@ -2221,6 +2605,9 @@ void ListWidget::elementReplyTo(const FullReplyTo &to) {
 }
 
 void ListWidget::elementStartInteraction(not_null<const Element*> view) {
+	if (const auto window = controllerOrNull()) {
+		window->emojiInteractions().startOutgoing(view);
+	}
 }
 
 void ListWidget::elementStartPremium(
@@ -2252,6 +2639,14 @@ bool ListWidget::elementHideTopicButton(not_null<const Element*> view) {
 	return _delegate->listElementHideTopicButton(view);
 }
 
+GramReadLine *ListWidget::elementGramReadLine() {
+	if (!_gramReadLine) {
+		_gramReadLine = std::make_unique<GramReadLine>([=] {
+			update();
+		});
+	}
+	return _gramReadLine.get();
+}
 
 void ListWidget::saveState(not_null<ListMemento*> memento) {
 	memento->setAroundPosition(_aroundPosition);
@@ -2272,13 +2667,15 @@ void ListWidget::restoreState(not_null<ListMemento*> memento) {
 
 void ListWidget::updateItemsGeometry() {
 	const auto count = int(_items.size());
+	const auto showBars = _delegate->listShowForumThreadBars();
 	const auto first = [&] {
 		for (auto i = 0; i != count; ++i) {
 			const auto view = _items[i].get();
 			if (view->isHidden()) {
+				view->refreshForumThreadBar(nullptr, showBars);
 				view->setDisplayDate(false);
 			} else {
-				view->setDisplayDate(_context != Context::ShortcutMessages);
+				view->setDisplayDate(!HidesDates(_context));
 				view->setAttachToPrevious(false);
 				return i;
 			}
@@ -2301,6 +2698,9 @@ void ListWidget::resizeToWidth(int newWidth, int minHeight) {
 	_minHeight = minHeight;
 	RpWidget::resizeToWidth(newWidth);
 	restoreScrollPosition();
+	if (_thanosController) {
+		_thanosController->pinScroll();
+	}
 }
 
 void ListWidget::startItemRevealAnimations() {
@@ -2395,7 +2795,7 @@ void ListWidget::revealItemsCallback() {
 		const auto nowHeight = _itemsTop
 			+ _itemsHeight
 			+ collapseGapTotal
-			+ st::historyPaddingBottom;
+			+ countBottomPadding();
 		if (wasHeight != nowHeight) {
 			resize(width(), nowHeight);
 		}
@@ -2431,19 +2831,27 @@ int ListWidget::resizeGetHeight(int newWidth) {
 	_itemsWidth = newWidth;
 	_itemsHeight = newHeight - _itemsRevealHeight;
 	if (_thanosController) {
-		_thanosController->clearRemovalHeight();
+		_thanosController->flushRemovals(_itemsHeight);
 	}
 	const auto collapseGapTotal = collapseGapsTotal();
+	const auto about = aboutView();
+	const auto aboutAboveHistory = about
+		&& about->aboveHistory();
+	if (about && about->view()) {
+		about->height = about->view()->resizeGetHeight(newWidth);
+	} else if (about) {
+		about->top = about->height = 0;
+	}
 	setItemsTop(countItemsTop());
-	if (const auto about = _delegate->listAboutView()) {
-		if (const auto view = about->view()) {
-			about->height = view->resizeGetHeight(newWidth);
-			setItemsTop(std::max(_itemsTop, about->height));
+	if (about && about->view()) {
+		if (aboutAboveHistory) {
 			about->top = std::min(
 				_itemsTop - about->height,
 				std::max(0, (_minHeight - about->height) / 2));
 		} else {
-			about->top = about->height = 0;
+			about->top = std::max(
+				std::max(0, (_minHeight - about->height) / 2),
+				_itemsTop + _itemsHeight + collapseGapTotal);
 		}
 	}
 	if (_emptyInfo) {
@@ -2452,7 +2860,7 @@ int ListWidget::resizeGetHeight(int newWidth) {
 	return _itemsTop
 		+ _itemsHeight
 		+ collapseGapTotal
-		+ st::historyPaddingBottom;
+		+ countBottomPadding();
 }
 
 void ListWidget::restoreScrollPosition() {
@@ -2584,7 +2992,11 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	}
 	auto readTill = (HistoryItem*)nullptr;
 	auto readContents = base::flat_set<not_null<HistoryItem*>>();
+	auto startEffects = base::flat_set<not_null<const Element*>>();
+	auto startInteractions = base::flat_set<not_null<const Element*>>();
 	const auto markingAsViewed = markingMessagesRead();
+	const auto markingContentRead = markingContentsRead();
+	const auto interactionsWindow = controllerOrNull();
 	const auto guard = gsl::finally([&] {
 		if (_translateTracker) {
 			_delegate->listAddTranslatedItems(_translateTracker.get());
@@ -2593,10 +3005,21 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		if (metricsStale) {
 			_readMetricsTracker->endBatch();
 		}
+		if (!startEffects.empty()) {
+			for (const auto &view : startEffects) {
+				_emojiInteractions->playEffectOnRead(view);
+			}
+		}
+		if (!startInteractions.empty()) {
+			for (const auto &view : startInteractions) {
+				_animatedStickersPlayed.emplace(view->data());
+				interactionsWindow->emojiInteractions().startAutoplay(view);
+			}
+		}
 		if (markingAsViewed && readTill) {
 			_delegate->listMarkReadTill(readTill);
 		}
-		if (!readContents.empty() && markingContentsRead()) {
+		if (!readContents.empty() && markingContentRead) {
 			_delegate->listMarkContentsRead(readContents);
 		}
 		_userpicsCache.clear();
@@ -2610,10 +3033,6 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		std::min(st::msgMaxWidth / 2, width() / 2));
 
 	auto clip = e->rect();
-
-	if (_thanosController) {
-		_thanosController->clearRemovalHeight();
-	}
 
 	auto collapseGapTotal = 0;
 	for (const auto &gap : collapseGaps()) {
@@ -2629,17 +3048,29 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 
 	auto context = preparePaintContext(clip);
 	context.highlightPathCache = &_highlightPathCache;
-	if (const auto about = _delegate->listAboutView()) {
-		if (const auto view = about->view()) {
-			const auto top = about->top;
-			if (clip.y() < top + about->height
-				&& clip.y() + clip.height() > top) {
-				p.translate(0, top);
-				view->draw(p, context.translated(0, -top));
-				p.translate(0, -top);
-			}
+	const auto about = _aboutView
+		? _aboutView
+		: _delegate->listAboutView();
+	const auto drawAboutView = [&] {
+		if (!about || !about->view()) {
+			return;
 		}
-	}
+		if (clip.y() >= about->top + about->height
+			|| clip.y() + clip.height() <= about->top) {
+			return;
+		}
+		const auto view = about->view();
+		const auto top = about->top;
+		auto aboutContext = context.translated(0, -top);
+		const auto selection = itemRenderSelection(view);
+		aboutContext.selection = selection.selection;
+		aboutContext.fullMessageSelected = selection.fullMessageSelected;
+		aboutContext.messageSelection = selection.messageSelection;
+		p.translate(0, top);
+		view->draw(p, aboutContext);
+		p.translate(0, -top);
+	};
+	drawAboutView();
 	if (from == end(_items)) {
 		_delegate->listPaintEmpty(p, context);
 		return;
@@ -2719,6 +3150,20 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 			} else if (isUnread) {
 				readTill = item;
 			}
+			if (markingContentRead
+				&& item->hasUnwatchedEffect()
+				&& _delegate->listAllowsReadEffect(view)) {
+				startEffects.emplace(view);
+			}
+			if (markingContentRead
+				&& interactionsWindow
+				&& !item->out()
+				&& !_animatedStickersPlayed.contains(item)
+				&& !PowerSaving::On(PowerSaving::kEmojiChat)
+				&& CanPlayEmojiInteraction(view)
+				&& session->emojiStickersPack().hasAnimationsFor(item)) {
+				startInteractions.emplace(view);
+			}
 			if (markingAsViewed && item->hasViews()) {
 				session->api().views().scheduleIncrement(item);
 			}
@@ -2751,6 +3196,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 
 	paintUserpics(p, context, clip);
 	paintDates(p, context, clip);
+	paintForumThreadBars(p, context, clip);
 
 	if (_replyButtonManager) {
 		_replyButtonManager->paint(p, context);
@@ -2777,28 +3223,28 @@ void ListWidget::paintUserpics(
 		// paint the userpic if it intersects the painted rect
 		if (userpicTop + st::msgPhotoSize > clip.top()) {
 			const auto item = view->data();
-			const auto hasTranslation = context.gestureHorizontal.translation
-				&& (context.gestureHorizontal.msgBareId
-					== item->fullId().msg.bare);
-			if (hasTranslation) {
-				p.translate(context.gestureHorizontal.translation, 0);
+			const auto shift = context.gestureHorizontal.visualTranslationFor(
+				item->id.bare);
+			if (shift) {
+				p.translate(shift, 0);
 				update(
 					QRect(
-						st::historyPhotoLeft
-							+ context.gestureHorizontal.translation,
+						st::historyPhotoLeft + std::min(shift, 0),
 						userpicTop,
-						st::msgPhotoSize
-							- context.gestureHorizontal.translation,
+						st::msgPhotoSize + std::abs(shift),
 						st::msgPhotoSize));
 			}
-			if (const auto from = item->displayFrom()) {
-				from->paintUserpicLeft(
+			if (const auto from = view->displayFrom()) {
+				Dialogs::Ui::PaintUserpic(
 					p,
+					from,
+					validateVideoUserpic(from),
 					_userpics[from],
 					st::historyPhotoLeft,
 					userpicTop,
 					view->width(),
-					st::msgPhotoSize);
+					st::msgPhotoSize,
+					context.paused);
 			} else if (const auto info = item->displayHiddenSenderInfo()) {
 				if (info->customUserpic.empty()) {
 					info->emptyUserpic.paintCircle(
@@ -2823,19 +3269,59 @@ void ListWidget::paintUserpics(
 			} else {
 				Unexpected("Corrupt forwarded information in message.");
 			}
-			if (hasTranslation) {
-				p.translate(-context.gestureHorizontal.translation, 0);
+			if (shift) {
+				p.translate(-shift, 0);
 			}
 		}
 		return true;
 	});
 }
 
+ListWidget::VideoUserpic *ListWidget::validateVideoUserpic(
+		not_null<PeerData*> peer) {
+	if (!peer->isPremium()
+		|| peer->userpicPhotoUnknown()
+		|| !peer->userpicHasVideo()) {
+		_videoUserpics.remove(peer);
+		return nullptr;
+	}
+	const auto i = _videoUserpics.find(peer);
+	if (i != end(_videoUserpics)) {
+		return i->second.get();
+	}
+	const auto repaint = [=] {
+		if (_resizePending) {
+			return;
+		}
+		enumerateUserpics([&](not_null<Element*> view, int userpicTop) {
+			if (userpicTop >= _visibleBottom) {
+				return false;
+			}
+			if (userpicTop + st::msgPhotoSize > _visibleTop) {
+				if (const auto from = view->data()->displayFrom()) {
+					if (from == peer) {
+						rtlupdate(
+							st::historyPhotoLeft,
+							userpicTop,
+							st::msgPhotoSize,
+							st::msgPhotoSize);
+					}
+				}
+			}
+			return true;
+		});
+	};
+	return _videoUserpics.emplace(peer, std::make_unique<VideoUserpic>(
+		peer,
+		repaint
+	)).first->second.get();
+}
+
 void ListWidget::paintDates(
 		Painter &p,
 		const Ui::ChatPaintContext &context,
 		QRect clip) {
-	if (_context == Context::ShortcutMessages) {
+	if (HidesDates(_context)) {
 		return;
 	}
 
@@ -2880,6 +3366,48 @@ void ListWidget::paintDates(
 						width,
 						_isChatWide);
 				}
+			}
+		}
+		return true;
+	});
+}
+
+void ListWidget::paintForumThreadBars(
+		Painter &p,
+		const Ui::ChatPaintContext &context,
+		QRect clip) {
+	p.setOpacity(1.);
+	const auto barHeight = st::msgServicePadding.bottom()
+		+ st::msgServiceFont->height
+		+ st::msgServicePadding.top();
+	enumerateForumThreadBars([&](not_null<Element*> view, int itemtop, int barTop) {
+		// stop the enumeration if the bar is above the painted rect
+		if (barTop + barHeight <= clip.top()) {
+			return false;
+		}
+
+		const auto displayBar = view->displayForumThreadBar();
+		auto barInPlace = displayBar;
+		if (barInPlace) {
+			const auto correctBarTop = itemtop + view->displayedDateHeight() + st::msgServiceMargin.top();
+			barInPlace = (barTop < correctBarTop + st::msgServiceMargin.top());
+		}
+
+		// paint the bar if it intersects the painted rect
+		if (barTop < clip.top() + clip.height()) {
+			const auto barY = barTop - st::msgServiceMargin.top();
+			const auto width = view->width();
+			if (const auto bar = view->Get<ForumThreadBar>()) {
+				bar->paint(p, context.st, barY, width, _isChatWide, !barInPlace);
+			} else {
+				_forumThreadBarWidth = ForumThreadBar::PaintForGetWidth(
+					p,
+					context.st,
+					view,
+					_forumThreadBarUserpicView,
+					barY,
+					width,
+					_isChatWide);
 			}
 		}
 		return true;
@@ -2945,6 +3473,10 @@ void ListWidget::applyDragSelection(SelectedMap &applyTo) const {
 }
 
 TextForMimeData ListWidget::getSelectedText() const {
+	return getSelectedTextParts().composed();
+}
+
+HistorySelectedTextParts ListWidget::getSelectedTextParts() const {
 	auto selected = _selected;
 
 	if (_mouseAction == MouseAction::Selecting && !_dragSelected.empty()) {
@@ -2953,9 +3485,9 @@ TextForMimeData ListWidget::getSelectedText() const {
 
 	if (selected.empty()) {
 		if (const auto view = viewForItem(_selectedTextItem)) {
-			return view->selectedText(_selectedTextSelection);
+			return { .texts = { view->selectedText(_selectedTextSelection) } };
 		}
-		return _selectedText;
+		return { .texts = { _selectedText } };
 	}
 
 	const auto richContext = (selected.size() > 1);
@@ -2996,7 +3528,48 @@ TextForMimeData ListWidget::getSelectedText() const {
 			const HistorySelectedTextEntry &b) {
 			return _delegate->listIsLessInOrder(a.item, b.item);
 		});
-	return HistorySelectedItemsText(entries, richContext);
+	return HistorySelectedItemsTextParts(entries, richContext);
+}
+
+Iv::RichPageBlocksSlice ListWidget::getSelectedRichBlocks() const {
+	auto selected = _selected;
+
+	if (_mouseAction == MouseAction::Selecting && !_dragSelected.empty()) {
+		applyDragSelection(selected);
+	}
+
+	if (selected.empty()) {
+		const auto view = viewForItem(_selectedTextItem);
+		return view
+			? view->selectedRichBlocks(_selectedTextSelection)
+			: Iv::RichPageBlocksSlice();
+	} else if (selected.size() != 1) {
+		return {};
+	}
+	const auto item = session().data().message(selected.front().first);
+	return (!item || session().data().groups().find(item))
+		? Iv::RichPageBlocksSlice()
+		: HistoryItemRichBlocks(item);
+}
+
+void ListWidget::copySelectedText(bool withImageText) {
+	if (showCopyRestrictionForSelected()) {
+		return;
+	}
+	auto text = getSelectedTextParts();
+	if (text.empty() && (!withImageText || text.images.empty())) {
+		return;
+	}
+	CopySelection({
+		.show = _delegate->listUiShow(),
+		.session = &session(),
+		.text = std::move(text),
+		.blocks = getSelectedRichBlocks(),
+		.withImageText = withImageText,
+	});
+	if (hasSelectedItems()) {
+		clearSelected();
+	}
 }
 
 MessageIdsList ListWidget::getSelectedIds() const {
@@ -3009,9 +3582,16 @@ SelectedItems ListWidget::getSelectedItems() const {
 
 TextSelection ListWidget::getSelectedTextRange(
 		not_null<HistoryItem*> item) const {
-	return (_selectedTextItem == item)
-		? _selectedTextSelection.flatRangeForEdit()
-		: TextSelection();
+	if (!hasSelectedText()) {
+		return TextSelection();
+	} else if (_selectedTextItem == item) {
+		return _selectedTextSelection.flatRangeForEdit();
+	} else if (const auto view = viewForItem(_selectedTextItem)) {
+		if (view->textItem() == item) {
+			return _selectedTextSelection.flatRangeForEdit();
+		}
+	}
+	return TextSelection();
 }
 
 MessageSelection ListWidget::getSelectedTextSelection(
@@ -3067,11 +3647,17 @@ auto ListWidget::countScrollState() const -> ScrollTopState {
 	if (_items.empty() || (_itemsKnownTillEnd && atNewestEdge())) {
 		return { Data::MessagePosition(), 0 };
 	}
-	const auto topItem = findItemByY(_visibleTop);
-	return {
-		topItem->data()->position(),
-		_visibleTop - itemTop(topItem)
-	};
+	const auto index = findItemIndexByY(_visibleTop);
+	for (auto i = index, count = int(_items.size()); i != count; ++i) {
+		const auto view = _items[i];
+		if (!view->data()->isSponsored()) {
+			return {
+				view->data()->position(),
+				_visibleTop - itemTop(view),
+			};
+		}
+	}
+	return { Data::MessagePosition(), 0 };
 }
 
 void ListWidget::keyPressEvent(QKeyEvent *e) {
@@ -3264,7 +3850,12 @@ void ListWidget::keyPressEvent(QKeyEvent *e) {
 		&& (hasSelectedText() || hasSelectedItems())
 		&& !showCopyRestriction()
 		&& !hasCopyRestrictionForSelected()) {
-		TextUtilities::SetClipboardText(getSelectedText());
+		copySelectedText();
+	} else if (IsCopyWithImageTextShortcut(e, &session())
+		&& (hasSelectedText() || hasSelectedItems())
+		&& !showCopyRestriction()
+		&& !hasCopyRestrictionForSelected()) {
+		copySelectedText(true);
 #ifdef Q_OS_MAC
 	} else if (key == Qt::Key_E
 		&& e->modifiers().testFlag(Qt::ControlModifier)
@@ -3297,8 +3888,10 @@ void ListWidget::keyPressEvent(QKeyEvent *e) {
 			|| (key == Qt::Key_PageUp)
 			|| (key == Qt::Key_PageDown))) {
 		_scrollKeyEvents.fire(std::move(e));
-	} else if (!(e->modifiers() & ~Qt::ShiftModifier)
-		&& key != Qt::Key_Shift) {
+	} else if (((key == Qt::Key_O)
+		&& (modifiers == Qt::ControlModifier))
+		|| (!(modifiers & ~Qt::ShiftModifier)
+			&& key != Qt::Key_Shift)) {
 		_delegate->listTryProcessKeyInput(e);
 	} else {
 		e->ignore();
@@ -3321,8 +3914,7 @@ void ListWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 		&& _selected.empty()
 		&& _overElement
 		&& (_overElement->data()->isRegular()
-			|| (_overElement->data()->isEphemeral()
-				&& !_overElement->data()->out()))) {
+			|| CanReplyToEphemeral(_overElement->data()))) {
 		mouseActionCancel();
 		switch (CurrentQuickAction()) {
 		case DoubleClickQuickAction::Reply: {
@@ -3406,6 +3998,10 @@ void ListWidget::contextMenuEvent(QContextMenuEvent *e) {
 }
 
 void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
+	if (!controllerOrNull()) {
+		// Every entry of this menu needs a window, like in the chat preview.
+		return;
+	}
 	if (e->reason() == QContextMenuEvent::Mouse) {
 		mouseActionUpdate(e->globalPos());
 	} else if (e->reason() == QContextMenuEvent::Keyboard
@@ -3468,20 +4064,43 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		? PeerId(link->property(kPeerLinkPeerIdProperty).toULongLong())
 		: PeerId();
 	_whoReactedMenuLifetime.destroy();
-	if (!clickedReaction.empty()
-		&& overItem
-		&& Api::WhoReactedExists(overItem, Api::WhoReactedList::One)) {
-		HistoryView::ShowWhoReactedMenu(
-			&_menu,
-			e->globalPos(),
-			this,
-			overItem,
-			clickedReaction,
-			controller(),
-			_whoReactedMenuLifetime);
-		e->accept();
-		return;
-	} else if (!linkPhoneNumber.isEmpty()) {
+	const auto leaderOrSelf = [&]() -> HistoryItem* {
+		if (!overItem) {
+			return nullptr;
+		}
+		const auto group = session().data().groups().find(overItem);
+		return group ? group->items.front().get() : overItem;
+	}();
+	if (!clickedReaction.empty() && leaderOrSelf) {
+		if (clickedReaction.paid()) {
+			Payments::ShowPaidReactionDetails(
+				controller(),
+				leaderOrSelf,
+				viewForItem(leaderOrSelf),
+				HistoryReactionSource::Selector);
+			e->accept();
+			return;
+		} else if (Api::WhoReactedExists(
+				leaderOrSelf,
+				Api::WhoReactedList::One)) {
+			HistoryView::ShowWhoReactedMenu(
+				&_menu,
+				e->globalPos(),
+				this,
+				leaderOrSelf,
+				clickedReaction,
+				controller(),
+				_whoReactedMenuLifetime);
+			e->accept();
+			return;
+		} else if (HistoryView::ShowReactionPreview(
+				controller(),
+				leaderOrSelf->fullId(),
+				clickedReaction)) {
+			return;
+		}
+	}
+	if (!linkPhoneNumber.isEmpty()) {
 		PhoneClickHandler(&session(), linkPhoneNumber).onClick(
 			prepareClickContext(
 				Qt::LeftButton,
@@ -3660,8 +4279,14 @@ void ListWidget::touchUpdateSpeed() {
 
 			// fingers are inacurates, we ignore small changes to avoid stopping the autoscroll because
 			// of a small horizontal offset when scrolling vertically
-			const int newSpeedY = (qAbs(pixelsPerSecond.y()) > Ui::kFingerAccuracyThreshold) ? pixelsPerSecond.y() : 0;
-			const int newSpeedX = (qAbs(pixelsPerSecond.x()) > Ui::kFingerAccuracyThreshold) ? pixelsPerSecond.x() : 0;
+			const int newSpeedY = (std::abs(pixelsPerSecond.y())
+				> Ui::kFingerAccuracyThreshold)
+				? pixelsPerSecond.y()
+				: 0;
+			const int newSpeedX = (std::abs(pixelsPerSecond.x())
+				> Ui::kFingerAccuracyThreshold)
+				? pixelsPerSecond.x()
+				: 0;
 			if (_touchScrollState == Ui::TouchScrollState::Auto) {
 				const int oldSpeedY = _touchSpeed.y();
 				const int oldSpeedX = _touchSpeed.x();
@@ -3709,8 +4334,16 @@ void ListWidget::touchResetSpeed() {
 void ListWidget::touchDeaccelerate(int32 elapsed) {
 	int32 x = _touchSpeed.x();
 	int32 y = _touchSpeed.y();
-	_touchSpeed.setX((x == 0) ? x : (x > 0) ? qMax(0, x - elapsed) : qMin(0, x + elapsed));
-	_touchSpeed.setY((y == 0) ? y : (y > 0) ? qMax(0, y - elapsed) : qMin(0, y + elapsed));
+	_touchSpeed.setX((x == 0)
+		? x
+		: (x > 0)
+		? std::max(0, x - elapsed)
+		: std::min(0, x + elapsed));
+	_touchSpeed.setY((y == 0)
+		? y
+		: (y > 0)
+		? std::max(0, y - elapsed)
+		: std::min(0, y + elapsed));
 }
 
 void ListWidget::touchEvent(QTouchEvent *e) {
@@ -4143,10 +4776,10 @@ void ListWidget::mouseActionStart(
 			|| _overState.pointState == PointState::Outside
 			|| !_overElement->allowTextSelectionByHandler(pressed))) {
 		_mouseAction = MouseAction::PrepareDrag;
-	} else if (hasSelectedItems()) {
+	} else if (inSelectionMode().inSelectionMode) {
 		if (overSelectedItems()) {
 			_mouseAction = MouseAction::PrepareDrag;
-		} else if (!_pressWasInactive && !hasSelectRestriction()) {
+		} else if (!_pressWasInactive) {
 			_mouseAction = MouseAction::PrepareSelect;
 		}
 	}
@@ -4291,7 +4924,7 @@ void ListWidget::mouseActionFinish(
 			|| _mouseAction == MouseAction::PrepareDrag);
 	auto needItemSelectionToggle = simpleSelectionChange
 		&& (!activated || toggleByHandler(activated))
-		&& hasSelectedItems();
+		&& inSelectionMode().inSelectionMode;
 	auto needTextSelectionClear = simpleSelectionChange
 		&& hasSelectedText();
 
@@ -4372,7 +5005,7 @@ ClickHandlerContext ListWidget::prepareClickHandlerContext(FullMsgId id) {
 		.elementDelegate = [weak = base::make_weak(this)] {
 			return (ElementDelegate*)weak.get();
 		},
-		.sessionWindow = base::make_weak(controller()),
+		.sessionWindow = base::make_weak(controllerOrNull()),
 	};
 }
 
@@ -4418,10 +5051,18 @@ void ListWidget::mouseActionUpdate() {
 		: TextState();
 	const auto replyBtnItem = session().data().message(replyBtnState.itemId);
 	const auto replyBtnView = viewForItem(replyBtnItem);
+	const auto aboutView = (_aboutView
+		&& _aboutView->view()
+		&& point.y() >= _aboutView->top
+		&& point.y() < _aboutView->top + _aboutView->view()->height())
+		? _aboutView->view()
+		: nullptr;
 	const auto view = reactionView
 		? reactionView
 		: replyBtnView
 		? replyBtnView
+		: aboutView
+		? aboutView
 		: strictFindItemByY(point.y());
 	const auto item = view ? view->data().get() : nullptr;
 	const auto itemPoint = mapPointToItem(point, view);
@@ -4526,7 +5167,11 @@ void ListWidget::mouseActionUpdate() {
 					auto dateLeft = st::msgServiceMargin.left();
 					auto maxwidth = view->width();
 					if (_isChatWide) {
-						maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
+						maxwidth = std::min(
+							maxwidth,
+							int32(st::msgMaxWidth
+								+ 2 * st::msgPhotoSkip
+								+ 2 * st::msgMargin.left()));
 					}
 					auto widthForDate = maxwidth - st::msgServiceMargin.left() - st::msgServiceMargin.left();
 
@@ -4546,6 +5191,52 @@ void ListWidget::mouseActionUpdate() {
 			return true;
 		});
 		if (!dragState.link) {
+			enumerateForumThreadBars([&](not_null<Element*> view, int itemtop, int barTop) {
+				// stop the enumeration if the bar is above our point
+				if (barTop + dateHeight <= point.y()) {
+					return false;
+				}
+
+				// stop enumeration if we've found a bar under the cursor
+				if (barTop <= point.y()) {
+					auto barWidth = 0;
+					if (const auto bar = view->Get<ForumThreadBar>()) {
+						barWidth = bar->width;
+					} else {
+						barWidth = _forumThreadBarWidth;
+					}
+					auto barLeft = st::msgServiceMargin.left();
+					auto maxwidth = view->width();
+					if (_isChatWide) {
+						maxwidth = std::min(
+							maxwidth,
+							int32(st::msgMaxWidth
+								+ 2 * st::msgPhotoSkip
+								+ 2 * st::msgMargin.left()));
+					}
+					auto widthForBar = maxwidth - st::msgServiceMargin.left() - st::msgServiceMargin.left();
+
+					barLeft += (widthForBar - barWidth) / 2;
+
+					if (point.x() >= barLeft && point.x() < barLeft + barWidth) {
+						const auto item = view->data();
+						if (!_forumThreadBarLink) {
+							_forumThreadBarLink = std::make_shared<Window::ForumThreadClickHandler>(item);
+						} else {
+							static_cast<Window::ForumThreadClickHandler*>(
+								_forumThreadBarLink.get())->update(item);
+						}
+						dragState = TextState(
+							nullptr,
+							_forumThreadBarLink);
+						_overItemExact = session().data().message(dragState.itemId);
+						lnkhost = view;
+					}
+				}
+				return true;
+			});
+		}
+		if (!dragState.link) {
 			dragState = view->textState(itemPoint, request);
 			_overItemExact = session().data().message(dragState.itemId);
 			lnkhost = view;
@@ -4562,6 +5253,7 @@ void ListWidget::mouseActionUpdate() {
 						// stop enumeration if we've found a userpic under the cursor
 						if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
 							dragState = TextState(nullptr, view->fromPhotoLink());
+							dragState.cursor = CursorState::FromPhoto;
 							dragStateUserpic = true;
 							_overItemExact = nullptr;
 							lnkhost = view;
@@ -4580,7 +5272,9 @@ void ListWidget::mouseActionUpdate() {
 	}
 	if (dragState.link
 		|| dragState.cursor == CursorState::Date
-		|| dragState.cursor == CursorState::Forwarded) {
+		|| dragState.cursor == CursorState::Forwarded
+		|| dragState.cursor == CursorState::FromPhoto
+		|| dragState.customTooltip) {
 		Ui::Tooltip::Show(1000, this);
 	}
 
@@ -4654,6 +5348,9 @@ std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
 		pressedView,
 		_pressItemExact ? _pressItemExact : pressedItem,
 		_pressState);
+	if (uponSelected && hasCopyRestrictionForSelected()) {
+		return nullptr;
+	}
 
 	auto urls = QList<QUrl>();
 	const auto selectedText = [&] {
@@ -4667,6 +5364,18 @@ std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
 		}
 		return TextForMimeData();
 	}();
+	const auto canForwardAll = [&] {
+		for (const auto &[itemId, data] : _selected) {
+			if (!data.canForward) {
+				return false;
+			}
+		}
+		return true;
+	};
+	const auto forwardSelection = uponSelected
+		&& !_delegate->listAllowsDragForward()
+		&& !_selected.empty()
+		&& canForwardAll();
 	if (auto mimeData = TextUtilities::MimeDataFromText(selectedText)) {
 		clearDragSelection();
 		_selectScroll.cancel();
@@ -4674,22 +5383,9 @@ std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
 		if (!urls.isEmpty()) {
 			mimeData->setUrls(urls);
 		}
-		if (uponSelected && !_delegate->listAllowsDragForward()) {
-			const auto canForwardAll = [&] {
-				for (const auto &[itemId, data] : _selected) {
-					if (!data.canForward) {
-						return false;
-					}
-				}
-				return true;
-			}();
-			auto items = canForwardAll
-				? collectSelectedIds()
-				: MessageIdsList();
-			if (!items.empty()) {
-				session().data().setMimeForwardIds(std::move(items));
-				mimeData->setData(u"application/x-td-forward"_q, "1");
-			}
+		if (forwardSelection) {
+			session().data().setMimeForwardIds(collectSelectedIds());
+			mimeData->setData(u"application/x-td-forward"_q, "1");
 		}
 		return mimeData;
 	} else if (pressedView) {
@@ -4697,7 +5393,12 @@ std::unique_ptr<QMimeData> ListWidget::prepareDrag() {
 		const auto exactItem = _pressItemExact
 			? _pressItemExact
 			: pressedItem;
-		if (_mouseCursorState == CursorState::Date) {
+		if (hasCopyRestriction(exactItem)) {
+			return nullptr;
+		}
+		if (forwardSelection) {
+			forwardIds = collectSelectedIds();
+		} else if (_mouseCursorState == CursorState::Date) {
 			if (_overElement->data()->allowsForward()) {
 				forwardIds = session().data().itemOrItsGroup(
 					_overElement->data());
@@ -4758,6 +5459,9 @@ void ListWidget::performDrag() {
 		if (_reactionsManager) {
 			_reactionsManager->updateButton({});
 		}
+		if (_replyButtonManager) {
+			_replyButtonManager->updateButton({});
+		}
 		_delegate->listLaunchDrag(
 			std::move(mimeData),
 			crl::guard(this, [=] { mouseActionUpdate(QCursor::pos()); }));
@@ -4765,6 +5469,9 @@ void ListWidget::performDrag() {
 }
 
 int ListWidget::itemTop(not_null<const Element*> view) const {
+	if (_aboutView && view == _aboutView->view()) {
+		return _aboutView->top;
+	}
 	return _itemsTop + view->y();
 }
 
@@ -4778,17 +5485,29 @@ int ListWidget::collapseGapsTotal() const {
 	for (const auto &gap : collapseGaps()) {
 		result += gap.height;
 	}
-	if (_thanosController) {
-		result = std::max(result - _thanosController->removalHeight(), 0);
-	}
 	return result;
+}
+
+AboutView *ListWidget::aboutView() const {
+	return _aboutView ? _aboutView : _delegate->listAboutView();
+}
+
+int ListWidget::countBottomPadding() const {
+	const auto about = aboutView();
+	return (about && about->view() && !about->aboveHistory())
+		? std::max(st::historyPaddingBottom, about->height)
+		: st::historyPaddingBottom;
 }
 
 int ListWidget::countItemsTop() const {
 	const auto full = _itemsHeight
 		+ collapseGapsTotal()
-		+ st::historyPaddingBottom;
-	return (_minHeight > full) ? (_minHeight - full) : 0;
+		+ countBottomPadding();
+	const auto result = (_minHeight > full) ? (_minHeight - full) : 0;
+	const auto about = aboutView();
+	return (about && about->view() && about->aboveHistory())
+		? std::max(result, about->height)
+		: result;
 }
 
 void ListWidget::setItemsTop(int top) {
@@ -4806,7 +5525,7 @@ void ListWidget::collapseGapsUpdated() {
 	const auto nowHeight = _itemsTop
 		+ _itemsHeight
 		+ gapTotal
-		+ st::historyPaddingBottom;
+		+ countBottomPadding();
 	if (height() != nowHeight) {
 		resize(width(), nowHeight);
 	}
@@ -4838,6 +5557,7 @@ void ListWidget::setupThanosEffect() {
 			.visibleAreaTop = [=] { return _visibleTop; },
 			.visibleAreaBottom = [=] { return _visibleBottom; },
 			.contentWidth = [=] { return width(); },
+			.contentHeight = [=] { return _itemsHeight; },
 			.preparePaintContext = [=](QRect clip) {
 				return preparePaintContext(clip);
 			},
@@ -4848,7 +5568,7 @@ void ListWidget::setupThanosEffect() {
 				return scroll;
 			},
 			.scrollToY = [=](int y) {
-				scroll->scrollToY(y);
+				_delegate->listScrollTo(y);
 			},
 			.collapseGapsUpdated = [=] { collapseGapsUpdated(); },
 		},
@@ -4929,15 +5649,29 @@ void ListWidget::refreshAttachmentsFromTill(int from, int till) {
 	if (from == till) {
 		return;
 	}
+	const auto hidesDates = HidesDates(_context);
+	const auto showBars = _delegate->listShowForumThreadBars();
+	const auto previousShown = [&]() -> Element* {
+		for (auto i = from; i != 0;) {
+			const auto view = _items[--i].get();
+			if (!view->isHidden()) {
+				return view;
+			}
+		}
+		return nullptr;
+	};
 	auto view = _items[from].get();
+	view->refreshForumThreadBar(previousShown(), showBars);
 	for (auto i = from + 1; i != till; ++i) {
 		const auto next = _items[i].get();
 		if (next->isHidden()) {
+			next->refreshForumThreadBar(nullptr, showBars);
 			next->setDisplayDate(false);
 		} else {
+			next->refreshForumThreadBar(view, showBars);
 			const auto viewDate = view->dateTime();
 			const auto nextDate = next->dateTime();
-			next->setDisplayDate(_context != Context::ShortcutMessages
+			next->setDisplayDate(!hidesDates
 				&& (nextDate.date() != viewDate.date()
 					|| view->data()->hideDisplayDate()));
 			auto attached = next->computeIsAttachToPrevious(view);
@@ -4972,7 +5706,7 @@ void ListWidget::viewHeightAdjusted(not_null<Element*> view) {
 		_itemsTop
 			+ _itemsHeight
 			+ collapseGapsTotal()
-			+ st::historyPaddingBottom);
+			+ countBottomPadding());
 	restoreScrollPosition();
 	updateVisibleTopItem();
 	update();
@@ -5022,6 +5756,12 @@ void ListWidget::showItemHighlight(not_null<HistoryItem*> item) {
 	}
 }
 
+void ListWidget::aboutViewReplaced(const Element *was) {
+	if (was) {
+		viewReplaced(was, nullptr);
+	}
+}
+
 void ListWidget::viewReplaced(not_null<const Element*> was, Element *now) {
 	if (_activeColumnsView == was.get()) {
 		_activeColumnsView = nullptr;
@@ -5066,6 +5806,10 @@ void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
 	if (_selectedTextItem == item) {
 		clearTextSelection();
 	}
+	const auto selected = _selected.find(item->fullId());
+	if (selected != end(_selected)) {
+		removeItemSelection(selected);
+	}
 	if (_overItemExact == item) {
 		_overItemExact = nullptr;
 	}
@@ -5080,6 +5824,7 @@ void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
 		_accessibilitySelectionAnchor = nullptr;
 	}
 	_accessibilityIdentities.remove(item);
+	_animatedStickersPlayed.remove(item);
 	const auto i = _views.find(item);
 	if (i == end(_views)) {
 		return;
@@ -5130,11 +5875,23 @@ void ListWidget::editMessageRequestNotify(FullMsgId item) const {
 
 bool ListWidget::lastMessageEditRequestNotify() const {
 	const auto now = base::unixtime::now();
+	const auto &list = ranges::views::reverse(_items);
+	const auto notSponsored = ranges::find_if(list, [](
+			not_null<Element*> view) {
+		return !view->data()->isSponsored();
+	});
+	if (notSponsored != end(list) && (*notSponsored)->data()->isLocal()) {
+		const auto last = (*notSponsored)->data();
+		if (last->media() && last->media()->allowsEdit()) {
+			controller()->show(Box(Ui::EditCaptionBox, *notSponsored));
+			return true;
+		}
+		return false;
+	}
 	auto proj = [&](not_null<Element*> view) {
 		return view->data()->allowsEdit(now)
 			&& !view->data()->isUploading();
 	};
-	const auto &list = ranges::views::reverse(_items);
 	const auto it = ranges::find_if(list, std::move(proj));
 	if (it == end(list)) {
 		return false;
@@ -5154,6 +5911,9 @@ auto ListWidget::replyToMessageRequested() const
 void ListWidget::replyToMessageRequestNotify(
 		FullReplyTo to,
 		bool forceAnotherChat) {
+	if (!to.quote.empty()) {
+		clearTextSelection();
+	}
 	_requestedToReplyToMessage.fire({ std::move(to), forceAnotherChat });
 }
 
@@ -5180,8 +5940,7 @@ void ListWidget::replyNextMessage(FullMsgId fullId, bool next) {
 		if (view) {
 			const auto newFullId = view->data()->fullId();
 			if (!view->data()->isRegular()
-				&& (!view->data()->isEphemeral()
-					|| view->data()->out())) {
+				&& !CanReplyToEphemeral(view->data())) {
 				return replyNextMessage(newFullId, next);
 			}
 			replyToMessageRequestNotify({ newFullId });
@@ -5226,11 +5985,29 @@ void ListWidget::setEmptyInfoWidget(base::unique_qptr<Ui::RpWidget> &&w) {
 	}
 }
 
+void ListWidget::setAboutView(AboutView *view) {
+	if (_aboutView == view) {
+		return;
+	}
+	if (const auto was = _aboutView ? _aboutView->view() : nullptr) {
+		viewReplaced(was, nullptr);
+	}
+	_aboutView = view;
+	updateSize();
+	update();
+}
+
 void ListWidget::overrideChatMode(std::optional<ElementChatMode> mode) {
 	_overrideChatMode = mode;
 }
 
 ListWidget::~ListWidget() {
+	// Stop listening to session events before any member is destroyed:
+	// ~TranslateTracker reverts translations still in flight, which fires
+	// viewResizeRequest() back into this half-destroyed widget and through
+	// the delegate reaches listScrollTo() when its scroll is already gone.
+	lifetime().destroy();
+
 	// Destroy child widgets first, because they may invoke leaveEvent-s.
 	_emptyInfo = nullptr;
 	if (const auto raw = _menu.release()) {
@@ -5238,6 +6015,11 @@ ListWidget::~ListWidget() {
 			delete raw;
 		});
 	}
+
+	// Views in _views are destroyed after _reactionsManager, but their
+	// destructors may invoke repaintItem() (e.g. by clearing the active
+	// click handler), which uses _reactionsManager, so null it explicitly.
+	_reactionsManager = nullptr;
 }
 
 // Accessibility.
@@ -5381,7 +6163,7 @@ void ListWidget::changeAccessibilitySelection(
 	clearTextSelection();
 	repaintItem(view);
 	pushSelectedItems();
-	accessibilityChildStateChanged(index, { .selected = true });
+	accessibilityChildSelectionChanged(index);
 	accessibilityChildNameChanged(index);
 }
 
@@ -5533,6 +6315,16 @@ QAccessible::Role ListWidget::accessibilityChildRole() const {
 	return QAccessible::Role::ListItem;
 }
 
+QAccessible::Role ListWidget::accessibilityChildRoleAt(int index) const {
+	// The unread bar divides the read messages from the unread ones, it
+	// is not a message itself - a separator to a screen reader, which also
+	// keeps it out of the selection and the item count.
+	const auto barIndex = accessibilityUnreadBarIndex();
+	return (barIndex >= 0 && index == barIndex)
+		? QAccessible::Role::Separator
+		: accessibilityChildRole();
+}
+
 QRect ListWidget::accessibilityChildRect(int index) const {
 	const auto barIndex = accessibilityUnreadBarIndex();
 	if (barIndex >= 0 && index == barIndex) {
@@ -5623,67 +6415,92 @@ QString ListWidget::accessibilityChildSubItemValue(
 		active[column]);
 }
 
+void ListWidget::checkAnnounceFirstMessages() {
+	if (_announceFirstMessages && hasFocus()) {
+		InvokeQueued(this, [=] {
+			if (_announceFirstMessages && hasFocus()) {
+				announceAccessibilityFocusedChild();
+			}
+		});
+	}
+}
+
+void ListWidget::announceAccessibilityFocusedChild() {
+	const auto count = accessibilityChildCount();
+	if (count <= 0) {
+		// One-shot for chats focused before their first messages arrived:
+		// while the empty list holds focus, remember that the first
+		// received slice (or the first live-added message in a genuinely
+		// empty chat) should announce the focused message. Fired (queued)
+		// from checkAnnounceFirstMessages and disarmed by any real
+		// announcement below or in a later focus-in. Deliberately not
+		// gated by the screen-reader-mode detector: it may still be false
+		// during startup or for valid clients that are not on its
+		// allowlist, while the deferred announcement is a no-op without
+		// an accessibility client and never moves ordinary keyboard focus.
+		_announceFirstMessages = true;
+		return;
+	}
+	_announceFirstMessages = false;
+	if (_accessibilityFocusedItem) {
+		const auto elements = accessibleElements();
+		const auto barIndex = accessibilityUnreadBarIndex();
+		auto found = -1;
+		for (auto i = 0, n = int(elements.size()); i < n; ++i) {
+			if (elements[i]->data().get()
+				== _accessibilityFocusedItem) {
+				found = (barIndex >= 0 && i >= barIndex)
+					? (i + 1)
+					: i;
+				break;
+			}
+		}
+		if (found >= 0 && found < count) {
+			_accessibilityFocusedIndex = found;
+			announceAccessibilityFocus(found);
+			return;
+		}
+		// The cached focused item is no longer in the list (it
+		// was removed or fell out of the loaded slice since we
+		// last had focus). Invalidate the index together with the
+		// item: announcing whatever row occupies the old index
+		// would leave later actions bound to a row the user never
+		// heard about once the list shifts again. The auto-select
+		// branch below establishes a fresh focus instead.
+		_accessibilityFocusedItem = nullptr;
+		_accessibilityFocusedIndex = -1;
+	} else if (_accessibilityFocusedIndex >= 0) {
+		// A nonnegative index with no cached item means the unread
+		// bar was focused. Follow the bar to wherever it sits now,
+		// or fall through to pick a fresh focus target when it is
+		// gone: the row that occupies the old index was never
+		// announced to the user.
+		_accessibilityFocusedIndex = accessibilityUnreadBarIndex();
+	}
+	if (_accessibilityFocusedIndex >= 0
+		&& _accessibilityFocusedIndex < count) {
+		announceAccessibilityFocus(_accessibilityFocusedIndex);
+		return;
+	}
+	const auto barIndex = accessibilityUnreadBarIndex();
+	const auto index = (barIndex >= 0 && barIndex + 1 < count)
+		? (barIndex + 1)
+		: accessibilityNewestIndex(count);
+	const auto elements = accessibleElements();
+	const auto item = accessibilityItemAtIndex(
+		index,
+		elements,
+		barIndex);
+	setAccessibilityFocusedItem(index, item);
+}
+
 void ListWidget::focusInEvent(QFocusEvent *e) {
 	RpWidget::focusInEvent(e);
 
 	InvokeQueued(this, [=] {
-		if (!hasFocus()) {
-			return;
+		if (hasFocus()) {
+			announceAccessibilityFocusedChild();
 		}
-		const auto count = accessibilityChildCount();
-		if (count <= 0) {
-			return;
-		}
-		if (_accessibilityFocusedItem) {
-			const auto elements = accessibleElements();
-			const auto barIndex = accessibilityUnreadBarIndex();
-			auto found = -1;
-			for (auto i = 0, n = int(elements.size()); i < n; ++i) {
-				if (elements[i]->data().get()
-					== _accessibilityFocusedItem) {
-					found = (barIndex >= 0 && i >= barIndex)
-						? (i + 1)
-						: i;
-					break;
-				}
-			}
-			if (found >= 0 && found < count) {
-				_accessibilityFocusedIndex = found;
-				announceAccessibilityFocus(found);
-				return;
-			}
-			// The cached focused item is no longer in the list (it
-			// was removed or fell out of the loaded slice since we
-			// last had focus). Invalidate the index together with the
-			// item: announcing whatever row occupies the old index
-			// would leave later actions bound to a row the user never
-			// heard about once the list shifts again. The auto-select
-			// branch below establishes a fresh focus instead.
-			_accessibilityFocusedItem = nullptr;
-			_accessibilityFocusedIndex = -1;
-		} else if (_accessibilityFocusedIndex >= 0) {
-			// A nonnegative index with no cached item means the unread
-			// bar was focused. Follow the bar to wherever it sits now,
-			// or fall through to pick a fresh focus target when it is
-			// gone: the row that occupies the old index was never
-			// announced to the user.
-			_accessibilityFocusedIndex = accessibilityUnreadBarIndex();
-		}
-		if (_accessibilityFocusedIndex >= 0
-			&& _accessibilityFocusedIndex < count) {
-			announceAccessibilityFocus(_accessibilityFocusedIndex);
-			return;
-		}
-		const auto barIndex = accessibilityUnreadBarIndex();
-		const auto index = (barIndex >= 0 && barIndex + 1 < count)
-			? (barIndex + 1)
-			: accessibilityNewestIndex(count);
-		const auto elements = accessibleElements();
-		const auto item = accessibilityItemAtIndex(
-			index,
-			elements,
-			barIndex);
-		setAccessibilityFocusedItem(index, item);
 	});
 }
 
@@ -5847,7 +6664,7 @@ void ConfirmDeleteSelectedItems(not_null<ListWidget*> widget) {
 	}
 	const auto controller = widget->controller();
 	const auto owner = &controller->session().data();
-	if (items.front().ephemeral) {
+	if (ranges::all_of(items, &SelectedItem::ephemeral)) {
 		auto ephemeralItems = std::vector<not_null<HistoryItem*>>();
 		ephemeralItems.reserve(items.size());
 		for (const auto &item : items) {
@@ -5873,7 +6690,8 @@ void ConfirmDeleteSelectedItems(not_null<ListWidget*> widget) {
 	const auto confirmed = crl::guard(widget, [=] {
 		widget->cancelSelection();
 	});
-	if (CanCreateModerateMessagesBox(historyItems)) {
+	const auto mixed = ranges::any_of(items, &SelectedItem::ephemeral);
+	if (!mixed && CanCreateModerateMessagesBox(historyItems)) {
 		const auto opt = DefaultModerateMessagesBoxOptions();
 		controller->show(Box(
 			CreateModerateMessagesBox,
@@ -5916,7 +6734,7 @@ void ConfirmSendNowSelectedItems(not_null<ListWidget*> widget) {
 	const auto navigation = widget->controller();
 	const auto history = [&]() -> History* {
 		auto result = (History*)nullptr;
-		auto &data = navigation->session().data();
+		const auto &data = navigation->session().data();
 		for (const auto &item : items) {
 			if (!item.canSendNow) {
 				return nullptr;

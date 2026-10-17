@@ -63,13 +63,24 @@ constexpr auto kPreloadButtonRows = 2;
 [[nodiscard]] GiftDescriptor DescriptorForGift(
 		not_null<PeerData*> to,
 		const Data::SavedStarGift &gift) {
+	const auto unique = (gift.info.unique != nullptr);
+	auto sender = unique
+		? nullptr
+		: ((gift.anonymous || !gift.fromId)
+			? nullptr
+			: to->owner().peer(gift.fromId).get());
+	if (unique
+		&& !gift.message.empty()
+		&& !gift.anonymous
+		&& gift.fromId) {
+		const auto loaded = to->owner().peerLoaded(gift.fromId);
+		sender = (loaded && !loaded->isServiceUser()) ? loaded : nullptr;
+	}
 	return GiftTypeStars{
 		.info = gift.info,
-		.from = ((gift.anonymous || !gift.fromId)
-			? nullptr
-			: to->owner().peer(gift.fromId).get()),
+		.from = sender,
 		.date = gift.date,
-		.userpic = !gift.info.unique,
+		.userpic = unique ? (sender != nullptr) : true,
 		.pinned = gift.pinned,
 		.hidden = gift.hidden,
 		.mine = to->isSelf(),
@@ -794,9 +805,10 @@ void InnerWidget::validateButtons() {
 		: padding.bottom();
 	const auto row = _single.height() + st::giftBoxGiftSkip.y();
 	const auto totalRows = (int(_list->size()) + _perRow - 1) / _perRow;
-	const auto fromRow = std::max(
+	const auto fromRow = std::clamp(
 		(std::max(_visibleFrom - vskip, 0) / row) - kPreloadButtonRows,
-		0);
+		0,
+		totalRows);
 	const auto tillRow = std::min(
 		((_visibleTill - vskip + row - 1) / row) + kPreloadButtonRows,
 		totalRows);
@@ -1219,7 +1231,7 @@ void InnerWidget::showGift(int index) {
 	Expects(index >= 0 && index < _list->size());
 
 	if (const auto id = _addingToCollectionId) {
-		auto &gift = (*_list)[index].gift;
+		const auto &gift = (*_list)[index].gift;
 		auto changes = _collectionChanges.current();
 		const auto selected = _inCollection.contains(gift.manageId);
 		if (selected) {

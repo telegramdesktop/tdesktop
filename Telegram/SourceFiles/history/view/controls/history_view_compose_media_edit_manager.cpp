@@ -9,18 +9,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
+#include "data/data_peer.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "menu/menu_send.h"
 #include "ui/widgets/popup_menu.h"
 #include "styles/style_chat_helpers.h"
 
 namespace HistoryView {
 
-MediaEditManager::MediaEditManager() = default;
+MediaEditManager::MediaEditManager()
+: _coverUploader([=] { _updateRequests.fire({}); }) {
+}
 
 void MediaEditManager::start(
 		not_null<HistoryItem*> item,
@@ -31,6 +34,7 @@ void MediaEditManager::start(
 		cancel();
 		return;
 	}
+	resetCover();
 	_item = item;
 	_spoilered = spoilered.value_or(media->hasSpoiler());
 	_invertCaption = invertCaption.value_or(item->invertMedia());
@@ -40,9 +44,17 @@ void MediaEditManager::start(
 			cancel();
 		}
 	});
+	if (CanEditVideoCover(item) && media->videoCover()) {
+		// Prefetch the video's own thumbnail, it was never loaded
+		// if the video was always displayed with a cover, and it
+		// becomes visible as soon as the cover is removed.
+		media->document()->loadThumbnail(item->fullId());
+	}
 }
 
-void MediaEditManager::apply(SendMenu::Action action) {
+void MediaEditManager::apply(
+		SendMenu::Action action,
+		std::shared_ptr<ChatHelpers::Show> show) {
 	using Type = SendMenu::Action::Type;
 	if (action.type == Type::CaptionUp) {
 		_invertCaption = true;
@@ -52,11 +64,18 @@ void MediaEditManager::apply(SendMenu::Action action) {
 		_spoilered = true;
 	} else if (action.type == Type::SpoilerOff) {
 		_spoilered = false;
+	} else if (action.type == Type::EditCover) {
+		editVideoCover(std::move(show));
+		return;
+	} else if (action.type == Type::RemoveCover) {
+		removeVideoCover();
+		return;
 	}
 	_updateRequests.fire({});
 }
 
 void MediaEditManager::cancel() {
+	resetCover();
 	_menu = nullptr;
 	_item = nullptr;
 	_spoilered = false;
@@ -67,7 +86,8 @@ void MediaEditManager::cancel() {
 void MediaEditManager::showMenu(
 		not_null<Ui::RpWidget*> parent,
 		Fn<void()> finished,
-		bool hasCaptionText) {
+		bool hasCaptionText,
+		std::shared_ptr<ChatHelpers::Show> show) {
 	if (!_item) {
 		return;
 	}
@@ -81,7 +101,7 @@ void MediaEditManager::showMenu(
 		parent,
 		st::popupMenuWithIcons);
 	const auto callback = [=](SendMenu::Action action, const auto &) {
-		apply(action);
+		apply(action, show);
 	};
 	const auto position = QCursor::pos();
 	SendMenu::FillSendMenu(
@@ -95,6 +115,9 @@ void MediaEditManager::showMenu(
 }
 
 Image *MediaEditManager::mediaPreview() {
+	if (const auto picked = _coverUploader.preview()) {
+		return picked;
+	}
 	if (const auto media = _item ? _item->media() : nullptr) {
 		if (const auto photo = media->photo()) {
 			return photo->getReplyPreview(
@@ -102,13 +125,32 @@ Image *MediaEditManager::mediaPreview() {
 				_item->history()->peer,
 				_spoilered);
 		} else if (const auto document = media->document()) {
-			return document->getReplyPreview(
+			const auto cover = _coverCleared
+				? nullptr
+				: media->videoCover();
+			if (cover) {
+				return cover->getReplyPreview(
+					_item->fullId(),
+					_item->history()->peer,
+					_spoilered);
+			}
+			const auto result = document->getReplyPreview(
 				_item->fullId(),
 				_item->history()->peer,
-				_spoilered);
+				_spoilered,
+				_coverCleared);
+			if (_coverCleared
+				&& document->replyPreviewLoaded(_spoilered)) {
+				_coverClearedLifetime.destroy();
+			}
+			return result;
 		}
 	}
 	return nullptr;
+}
+
+void MediaEditManager::paintCoverUpload(Painter &p, QRect to) {
+	_coverUploader.paintUploading(p, to);
 }
 
 bool MediaEditManager::spoilered() const {
@@ -117,6 +159,26 @@ bool MediaEditManager::spoilered() const {
 
 bool MediaEditManager::invertCaption() const {
 	return _invertCaption;
+}
+
+Api::VideoCoverEdit MediaEditManager::videoCover() {
+	const auto photo = _coverUploader.photo();
+	const auto weak = base::make_weak(&_coverUploader);
+	return {
+		.photo = photo,
+		.cleared = _coverCleared && !photo,
+		.refresh = [weak](Fn<void(PhotoData*)> done) {
+			if (const auto strong = weak.get()) {
+				strong->reupload(std::move(done));
+			} else {
+				done(nullptr);
+			}
+		},
+	};
+}
+
+bool MediaEditManager::videoCoverUploading() const {
+	return _coverUploader.uploading();
 }
 
 SendMenu::Details MediaEditManager::sendMenuDetails(
@@ -134,6 +196,10 @@ SendMenu::Details MediaEditManager::sendMenuDetails(
 		&& (editPhoto
 			|| (editDocument
 				&& (editDocument->isVideoFile() || editDocument->isGifv())));
+	const auto canEditCover = CanEditVideoCover(_item);
+	const auto hasCover = (_coverUploader.photo() != nullptr)
+		|| _coverUploader.uploading()
+		|| (media->videoCover() && !_coverCleared);
 	return {
 		.spoiler = (!canSaveSpoiler
 			? SendMenu::SpoilerState::None
@@ -145,6 +211,11 @@ SendMenu::Details MediaEditManager::sendMenuDetails(
 			: _invertCaption
 			? SendMenu::CaptionState::Above
 			: SendMenu::CaptionState::Below),
+		.cover = (!canEditCover
+			? SendMenu::CoverState::None
+			: hasCover
+			? SendMenu::CoverState::Has
+			: SendMenu::CoverState::Add),
 	};
 }
 
@@ -160,6 +231,48 @@ bool MediaEditManager::CanBeSpoilered(not_null<HistoryItem*> item) {
 	return (editPhoto && !editPhoto->isNull())
 		|| (editDocument
 			&& (editDocument->isVideoFile() || editDocument->isGifv()));
+}
+
+bool MediaEditManager::CanEditVideoCover(not_null<HistoryItem*> item) {
+	const auto media = item->media();
+	const auto document = (media && media->allowsEditMedia())
+		? media->document()
+		: nullptr;
+	const auto peer = item->history()->peer;
+	return document
+		&& document->isVideoFile()
+		&& !document->dimensions.isEmpty()
+		&& (peer->isBroadcast() || peer->isSelf() || peer->isBot());
+}
+
+void MediaEditManager::editVideoCover(
+		std::shared_ptr<ChatHelpers::Show> show) {
+	if (!_item || !show || !CanEditVideoCover(_item)) {
+		return;
+	}
+	_coverUploader.choose(_item, std::move(show));
+}
+
+void MediaEditManager::removeVideoCover() {
+	_coverUploader.reset();
+	const auto item = _item;
+	const auto media = item ? item->media() : nullptr;
+	_coverCleared = media && (media->videoCover() != nullptr);
+	if (_coverCleared) {
+		media->document()->loadThumbnail(item->fullId());
+		_coverClearedLifetime.destroy();
+		item->history()->session().downloaderTaskFinished(
+		) | rpl::on_next([=] {
+			_updateRequests.fire({});
+		}, _coverClearedLifetime);
+	}
+	_updateRequests.fire({});
+}
+
+void MediaEditManager::resetCover() {
+	_coverUploader.reset();
+	_coverCleared = false;
+	_coverClearedLifetime.destroy();
 }
 
 } // namespace HistoryView

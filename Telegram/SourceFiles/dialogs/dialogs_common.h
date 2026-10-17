@@ -157,6 +157,11 @@ struct RightButton final {
 	Ui::Text::String text;
 	std::unique_ptr<Ui::RippleAnimation> ripple;
 
+	// The ripple is created once per peer and then reused, while the row it
+	// repaints changes with every filter. So the callback is kept here and
+	// refreshed on each press instead of being baked into the ripple.
+	Fn<void()> rippleUpdate;
+
 	explicit operator bool() const {
 		return st != nullptr;
 	}

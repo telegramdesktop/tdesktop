@@ -60,7 +60,7 @@ bool ChangeItemSelection(
 }
 
 int MinItemHeight(Type type, int width) {
-	auto &songSt = st::overviewFileLayout;
+	const auto &songSt = st::overviewFileLayout;
 
 	switch (type) {
 	case Type::Photo:

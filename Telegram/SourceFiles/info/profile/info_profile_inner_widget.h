@@ -104,6 +104,7 @@ private:
 	PeerData * const _migrated = nullptr;
 	Data::ForumTopic * const _topic = nullptr;
 	Data::SavedSublist * const _sublist = nullptr;
+	const bool _savedMessages = false;
 
 	bool _inResize = false;
 	int _lastDesiredHeight = -1;

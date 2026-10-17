@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "data/business/data_shortcut_messages.h"
 #include "data/components/scheduled_messages.h"
+#include "data/components/welcome_messages.h"
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
 #include "data/data_saved_sublist.h"
@@ -410,6 +411,7 @@ void EditMessageWithUploadedMedia(
 		if (item) {
 			item->removeFromSharedMediaIndex();
 			item->clearSavedMedia();
+			item->addToSharedMediaIndex();
 			item->setIsLocalUpdateMedia(true);
 			applyUpdates();
 			item->setIsLocalUpdateMedia(false);
@@ -532,13 +534,40 @@ mtpRequestId EditTextMessage(
 		SendOptions options,
 		Fn<void(mtpRequestId requestId)> done,
 		Fn<void(const QString &error, mtpRequestId requestId)> fail,
-		bool spoilered) {
+		bool spoilered,
+		VideoCoverEdit videoCover) {
+	if (item->isWelcomeTemplate()) {
+		const auto history = item->history();
+		auto &welcome = history->session().welcomeMessages();
+		welcome.edit(
+			history,
+			welcome.lookupId(item),
+			caption,
+			[=] {
+				if (done) {
+					done(0);
+				}
+			},
+			[=](const QString &error) {
+				if (fail) {
+					fail(error, 0);
+				}
+			});
+		return 0;
+	}
 	const auto media = item->media();
-	if (media
+	const auto spoilerChanged = media
 		&& HistoryView::MediaEditManager::CanBeSpoilered(item)
-		&& spoilered != media->hasSpoiler()) {
+		&& (spoilered != media->hasSpoiler());
+	const auto coverChanged = media
+		&& media->document()
+		&& (videoCover.photo
+			? (videoCover.photo != media->videoCover())
+			: (videoCover.cleared && media->videoCover() != nullptr));
+	if (spoilerChanged || coverChanged) {
 		auto takeInputMedia = Fn<std::optional<MTPInputMedia>()>(nullptr);
 		auto takeFileReference = Fn<QByteArray()>(nullptr);
+		auto refreshCover = Fn<void(Fn<void(PhotoData*)>)>(nullptr);
 		if (const auto photo = media->photo()) {
 			using Flag = MTPDinputMediaPhoto::Flag;
 			const auto flags = Flag()
@@ -554,30 +583,49 @@ mtpRequestId EditTextMessage(
 			takeFileReference = [=] { return photo->fileReference(); };
 		} else if (const auto document = media->document()) {
 			using Flag = MTPDinputMediaDocument::Flag;
-			const auto videoCover = media->videoCover();
+			const auto cover = std::make_shared<PhotoData*>(videoCover.photo
+				? videoCover.photo
+				: videoCover.cleared
+				? nullptr
+				: media->videoCover());
 			const auto videoTimestamp = media->videoTimestamp();
 			const auto flags = Flag()
 				| (media->ttlSeconds() ? Flag::f_ttl_seconds : Flag())
 				| (spoilered ? Flag::f_spoiler : Flag())
 				| (videoTimestamp ? Flag::f_video_timestamp : Flag())
-				| (videoCover ? Flag::f_video_cover : Flag());
+				| (*cover ? Flag::f_video_cover : Flag());
 			takeInputMedia = [=] {
 				return MTP_inputMediaDocument(
 					MTP_flags(flags),
 					document->mtpInput(),
-					(videoCover
-						? videoCover->mtpInput()
+					(*cover
+						? (*cover)->mtpInput()
 						: MTPInputPhoto()),
 					MTP_int(media->ttlSeconds()),
 					MTP_int(videoTimestamp),
 					MTPstring()); // query
 			};
-			takeFileReference = [=] { return document->fileReference(); };
+			takeFileReference = [=] {
+				return document->fileReference()
+					+ (*cover ? (*cover)->fileReference() : QByteArray());
+			};
+			if (videoCover.photo && videoCover.refresh) {
+				const auto refresh = videoCover.refresh;
+				refreshCover = [=](Fn<void(PhotoData*)> refreshed) {
+					refresh([=](PhotoData *fresh) {
+						if (fresh) {
+							*cover = fresh;
+						}
+						refreshed(fresh);
+					});
+				};
+			}
 		}
 
 		const auto usedFileReference = takeFileReference
 			? takeFileReference()
 			: QByteArray();
+		const auto coverRefreshed = std::make_shared<bool>(false);
 		const auto origin = item->fullId();
 		const auto api = &item->history()->session().api();
 		const auto performRequest = [=](
@@ -586,21 +634,38 @@ mtpRequestId EditTextMessage(
 			const auto handleReference = [=](
 					const QString &error,
 					mtpRequestId requestId) {
-				if (error.startsWith(u"FILE_REFERENCE_"_q)) {
+				if (!error.startsWith(u"FILE_REFERENCE_"_q)) {
+					fail(error, requestId);
+					return;
+				}
+				const auto retryOrFail = [=] {
+					if (takeFileReference
+						&& (takeFileReference() != usedFileReference)) {
+						repeatRequest(
+							repeatRequest,
+							originalRequestId
+								? originalRequestId
+								: requestId);
+					} else {
+						fail(error, requestId);
+					}
+				};
+				const auto refreshOrigin = [=] {
 					api->refreshFileReference(origin, [=](const auto &) {
-						if (takeFileReference &&
-							(takeFileReference() != usedFileReference)) {
-							repeatRequest(
-								repeatRequest,
-								originalRequestId
-									? originalRequestId
-									: requestId);
+						retryOrFail();
+					});
+				};
+				if (refreshCover && !*coverRefreshed) {
+					*coverRefreshed = true;
+					refreshCover([=](PhotoData *fresh) {
+						if (fresh) {
+							retryOrFail();
 						} else {
-							fail(error, requestId);
+							refreshOrigin();
 						}
 					});
 				} else {
-					fail(error, requestId);
+					refreshOrigin();
 				}
 			};
 			const auto callback = [=](
@@ -642,6 +707,25 @@ mtpRequestId EditRichMessage(
 		SendOptions options,
 		Fn<void(mtpRequestId requestId)> done,
 		Fn<void(const QString &error, mtpRequestId requestId)> fail) {
+	if (item->isWelcomeTemplate()) {
+		const auto history = item->history();
+		auto &welcome = history->session().welcomeMessages();
+		welcome.editRich(
+			history,
+			welcome.lookupId(item),
+			std::move(richMessage),
+			[=] {
+				if (done) {
+					done(0);
+				}
+			},
+			[=](const QString &error) {
+				if (fail) {
+					fail(error, 0);
+				}
+			});
+		return 0;
+	}
 	const auto session = &item->history()->session();
 	const auto api = &session->api();
 	const auto sentEntities = MTPVector<MTPMessageEntity>();

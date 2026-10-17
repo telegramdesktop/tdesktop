@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/basic_types.h"
+#include "history/history_item_reply_markup.h"
 #include "ui/text/text_entity.h"
 
 #include <QtCore/QByteArray>
@@ -48,6 +49,7 @@ struct RichPage {
 		Code,
 		Divider,
 		Anchor,
+		ButtonRow,
 		List,
 		Quote,
 		Photo,
@@ -57,6 +59,7 @@ struct RichPage {
 		GroupedMedia,
 		Channel,
 		Audio,
+		File,
 		Math,
 		Table,
 		Details,
@@ -179,6 +182,23 @@ struct RichPage {
 			const RelatedArticle &,
 			const RelatedArticle &) = default;
 	};
+	enum class ButtonAlignment : uchar {
+		Stretch,
+		Left,
+		Center,
+		Right,
+	};
+	struct Button {
+		RichText text;
+		HistoryMessageMarkupButton button = HistoryMessageMarkupButton(
+			HistoryMessageMarkupButton::Type::Disabled,
+			QString(),
+			{});
+
+		friend inline bool operator==(
+			const Button &,
+			const Button &) = default;
+	};
 	struct Block {
 		BlockKind kind = BlockKind::Unsupported;
 		QString anchorId;
@@ -193,7 +213,7 @@ struct RichPage {
 		QString channelTitle;
 		QString audioTitle;
 		QString audioPerformer;
-		QString audioFileName;
+		QString fileName;
 		TimeId date = 0;
 		int audioDuration = 0;
 		int headingLevel = 0;
@@ -212,10 +232,13 @@ struct RichPage {
 		bool open = false;
 		bool bordered = false;
 		bool striped = false;
+		bool compact = false;
 		bool pullquote = false;
+		bool collapsed = false;
 		ListKind listKind = ListKind::Bullet;
 		OrderedListData orderedList;
 		GroupedMediaIntent mediaIntent = GroupedMediaIntent::Collage;
+		ButtonAlignment buttonAlignment = ButtonAlignment::Stretch;
 		PhotoData *photo = nullptr;
 		DocumentData *document = nullptr;
 		PeerData *peer = nullptr;
@@ -227,6 +250,7 @@ struct RichPage {
 		std::vector<GroupedMediaItem> mediaItems;
 		std::vector<TableRow> tableRows;
 		std::vector<RelatedArticle> relatedArticles;
+		std::vector<Button> buttons;
 
 		friend inline bool operator==(
 			const Block &,
@@ -243,12 +267,22 @@ struct RichPage {
 		const RichPage &) = default;
 };
 
+struct RichPageBlocksSlice {
+	std::vector<RichPage::Block> blocks;
+	bool rtl = false;
+
+	[[nodiscard]] bool empty() const {
+		return blocks.empty();
+	}
+};
+
 struct RichMessageLimits {
 	int lengthLimit = 32768;
 	int maxBlocks = 500;
 	int maxDepth = 16;
 	int maxMedia = 50;
 	int maxTableCols = 20;
+	int maxButtons = 8;
 };
 
 enum class RichMessageLimitError : unsigned char {
@@ -257,6 +291,7 @@ enum class RichMessageLimitError : unsigned char {
 	Depth,
 	Media,
 	TableColumns,
+	Buttons,
 };
 
 struct RichPageLinkUrl {
@@ -323,5 +358,15 @@ inline constexpr auto kTextDiffDeletedColorIndex = 11;
 [[nodiscard]] TextWithEntities FlattenRichPageToSimpleText(
 	const RichPage &page);
 [[nodiscard]] bool DetermineRichPageRtl(const RichPage &page);
+[[nodiscard]] std::vector<not_null<DocumentData*>> CollectRichPageAudio(
+	const RichPage &page);
+[[nodiscard]] Main::Session *RichBlocksMediaSession(
+	const std::vector<RichPage::Block> &blocks);
+[[nodiscard]] Main::Session *RichListItemsMediaSession(
+	const std::vector<RichPage::ListItem> &items);
+[[nodiscard]] bool RichDocumentIsAudio(DocumentData *document);
+[[nodiscard]] bool RichBlockIsDocumentRow(RichPage::BlockKind kind);
+[[nodiscard]] bool RichBlockquoteIsCollapsible(const RichPage::Block &block);
+[[nodiscard]] bool OrderedRomanSupported(int value);
 
 } // namespace Iv

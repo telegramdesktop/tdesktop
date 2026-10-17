@@ -677,6 +677,9 @@ void Chatbots::setupContent() {
 	_chooserVisible = !current.bot;
 	_usernameWrap->toggle(_chooserVisible.current(), anim::type::instant);
 	const auto username = usernameWrap->entity();
+	username->setInputMethodHints(Qt::ImhLatinOnly
+		| Qt::ImhNoAutoUppercase
+		| Qt::ImhNoPredictiveText);
 
 	_usernameValue = rpl::single(
 		username->getLastText()

@@ -94,9 +94,7 @@ public:
 	MediaTabAdapter(MediaTabContext context, SharedMediaType type)
 	: _context(context)
 	, _type(type)
-	, _countPeer(context.sublist
-		? context.sublist->sublistPeer()
-		: context.peer)
+	, _countPeer(context.peer)
 	, _topicRootId(context.topic ? context.topic->rootId() : MsgId())
 	, _monoforumPeerId(context.sublist
 		? context.sublist->sublistPeer()->id

@@ -41,7 +41,7 @@ void SearchEmpty::setup(Icon icon, rpl::producer<TextWithEntities> text) {
 		}
 		Unexpected("Icon in SearchEmpty::setup.");
 	}();
-	const auto [widget, animate] = Settings::CreateLottieIcon(
+	const auto [widget, animate, animating] = Settings::CreateLottieIcon(
 		this,
 		{
 			.name = animation,

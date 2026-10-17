@@ -130,7 +130,7 @@ void SelfDestructionBox::gotCurrent(int days) {
 
 	auto daysAdjusted = _ttlValues[0];
 	for (const auto value : _ttlValues) {
-		if (qAbs(days - value) < qAbs(days - daysAdjusted)) {
+		if (std::abs(days - value) < std::abs(days - daysAdjusted)) {
 			daysAdjusted = value;
 		}
 	}

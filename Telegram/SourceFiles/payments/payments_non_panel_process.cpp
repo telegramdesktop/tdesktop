@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_credits.h"
 #include "base/unixtime.h"
 #include "boxes/send_credits_box.h"
+#include "boxes/star_gift_box.h"
 #include "data/components/credits.h"
 #include "data/data_credits.h"
 #include "data/data_photo.h"
@@ -90,7 +91,7 @@ void ProcessCreditsPayment(
 							std::max(form->starGiftPerUserLimit, 1),
 							tr::rich),
 					});
-				} else {
+				} else if (!Ui::ShowGiftErrorToast(show, *error)) {
 					show->showToast(*error);
 				}
 				if (onstack) {
@@ -160,26 +161,30 @@ void ProcessCreditsReceipt(
 }
 
 Fn<void(NonPanelPaymentForm)> ProcessNonPanelPaymentFormFactory(
-		not_null<Window::SessionController*> controller,
+		base::weak_ptr<Window::SessionController> controller,
 		Fn<void(CheckoutResult)> maybeReturnToBot) {
 	return [=](NonPanelPaymentForm form) {
+		const auto strong = controller.get();
+		if (!strong) {
+			return;
+		}
 		using CreditsFormDataPtr = std::shared_ptr<CreditsFormData>;
 		using CreditsReceiptPtr = std::shared_ptr<CreditsReceiptData>;
 		v::match(form, [&](const CreditsFormDataPtr &form) {
 			ProcessCreditsPayment(
-				controller->uiShow(),
-				controller->content().get(),
+				strong->uiShow(),
+				strong->content().get(),
 				form,
 				maybeReturnToBot);
-			controller->window().activate();
+			strong->window().activate();
 		}, [&](const CreditsReceiptPtr &receipt) {
-			ProcessCreditsReceipt(controller, receipt, maybeReturnToBot);
+			ProcessCreditsReceipt(strong, receipt, maybeReturnToBot);
 		}, [](RealFormPresentedNotification) {});
 	};
 }
 
 Fn<void(NonPanelPaymentForm)> ProcessNonPanelPaymentFormFactory(
-		not_null<Window::SessionController*> controller,
+		base::weak_ptr<Window::SessionController> controller,
 		not_null<HistoryItem*> item) {
 	return IsCreditsInvoice(item)
 		? ProcessNonPanelPaymentFormFactory(controller)

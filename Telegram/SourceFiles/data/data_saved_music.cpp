@@ -107,9 +107,14 @@ void SavedMusic::save(
 		return;
 	}
 	const auto item = musicIdToMsg(peerId, entry, document);
+	const auto previousSize = entry.list.size();
+	entry.list.erase(
+		ranges::remove(entry.list, item),
+		end(entry.list));
+	const auto removed = int(previousSize - entry.list.size());
 	entry.list.insert(begin(entry.list), item);
 	if (entry.total >= 0) {
-		++entry.total;
+		entry.total = std::max(entry.total + 1 - removed, 0);
 	}
 	_myIds.insert(begin(_myIds), document->id);
 
@@ -139,15 +144,20 @@ void SavedMusic::save(
 void SavedMusic::remove(not_null<DocumentData*> document) {
 	const auto peerId = _owner->session().userPeerId();
 	auto &entry = _entries[peerId];
-	const auto i = ranges::find(entry.list, document, ItemDocument);
-	if (i != end(entry.list)) {
-		entry.musicIdFromMsgId.remove((*i)->id);
-		entry.list.erase(i);
+	const auto i = entry.musicIdToMsg.find(document);
+	if (i != end(entry.musicIdToMsg)) {
+		const auto item = not_null(i->second.get());
+		const auto previousSize = entry.list.size();
+		entry.list.erase(
+			ranges::remove(entry.list, item),
+			end(entry.list));
+		const auto removed = int(previousSize - entry.list.size());
+		entry.musicIdFromMsgId.remove(item->id);
 		if (entry.total > 0) {
-			entry.total = std::max(entry.total - 1, 0);
+			entry.total = std::max(entry.total - removed, 0);
 		}
+		entry.musicIdToMsg.erase(i);
 	}
-	entry.musicIdToMsg.remove(document);
 	_myIds.erase(ranges::remove(_myIds, document->id), end(_myIds));
 	_owner->session().api().request(MTPaccount_SaveMusic(
 		MTP_flags(MTPaccount_SaveMusic::Flag::f_unsave),
@@ -234,6 +244,14 @@ int SavedMusic::count(PeerId peerId) const {
 	}
 	const auto entry = lookupEntry(peerId);
 	return entry ? std::max(entry->total, 0) : 0;
+}
+
+bool SavedMusic::fullyLoaded(PeerId peerId) const {
+	if (!Supported(peerId)) {
+		return true;
+	}
+	const auto entry = lookupEntry(peerId);
+	return entry && entry->loaded;
 }
 
 const std::vector<not_null<HistoryItem*>> &SavedMusic::list(

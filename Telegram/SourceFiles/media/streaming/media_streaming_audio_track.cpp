@@ -135,6 +135,7 @@ void AudioTrack::mixerInit() {
 	data->codec = std::move(_stream.codec);
 	data->duration = _stream.duration;
 	data->speed = _options.speed;
+	data->volume = _options.volume;
 
 	Media::Player::mixer()->play(
 		_audioId,
@@ -186,6 +187,11 @@ void AudioTrack::stop() {
 void AudioTrack::setSpeed(float64 speed) {
 	_options.speed = speed;
 	Media::Player::mixer()->setSpeedFromExternal(_audioId, speed);
+}
+
+void AudioTrack::setVolume(float64 volume) {
+	_options.volume = volume;
+	Media::Player::mixer()->setVolumeFromExternal(_audioId, volume);
 }
 
 rpl::producer<> AudioTrack::waitingForData() const {

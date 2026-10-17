@@ -69,6 +69,10 @@ Memento::Memento(not_null<Data::SavedSublist*> sublist)
 : ContentMemento(sublist->owningHistory()->peer, nullptr, sublist, 0) {
 }
 
+Memento::Memento(not_null<Data::SavedMessages*> savedMessages)
+: ContentMemento(savedMessages) {
+}
+
 Info::Section Memento::section() const {
 	return Info::Section(Info::Section::Type::Profile);
 }
@@ -88,6 +92,14 @@ void Memento::setMembersState(std::unique_ptr<MembersState> state) {
 
 std::unique_ptr<MembersState> Memento::membersState() {
 	return std::move(_membersState);
+}
+
+void Memento::setTabsState(std::unique_ptr<TabsState> state) {
+	_tabsState = std::move(state);
+}
+
+std::unique_ptr<TabsState> Memento::tabsState() {
+	return std::move(_tabsState);
 }
 
 Memento::~Memento() = default;
@@ -121,7 +133,7 @@ Widget::Widget(
 		const auto reserve = innerTopReserve();
 		if (request.ymin < 0) {
 			scrollTopRestore(
-				qMin(scrollTopSave(), request.ymax + reserve));
+				std::min(scrollTopSave(), request.ymax + reserve));
 		} else {
 			scrollTo({
 				request.ymin + reserve,
@@ -325,7 +337,9 @@ rpl::producer<QString> Widget::title() {
 		return tr::lng_profile_direct_messages();
 	}
 	const auto peer = controller()->key().peer();
-	if (const auto user = peer->asUser()) {
+	if (controller()->key().savedMessages()) {
+		return tr::lng_saved_messages();
+	} else if (const auto user = peer->asUser()) {
 		return (user->isBot() && !user->isSupport())
 			? tr::lng_info_bot_title()
 			: tr::lng_info_user_title();
@@ -354,6 +368,12 @@ bool Widget::showInternal(not_null<ContentMemento*> memento) {
 		return false;
 	}
 	if (auto profileMemento = dynamic_cast<Memento*>(memento.get())) {
+		if (profileMemento->savedMessages()
+			!= controller()->key().savedMessages()) {
+			// The Saved Messages page and the self profile page
+			// are built differently, so a new content is required.
+			return false;
+		}
 		restoreState(profileMemento);
 		return true;
 	}
@@ -369,7 +389,10 @@ void Widget::setInternalState(
 }
 
 std::shared_ptr<ContentMemento> Widget::doCreateMemento() {
-	auto result = std::make_shared<Memento>(controller());
+	const auto savedMessages = controller()->key().savedMessages();
+	auto result = savedMessages
+		? std::make_shared<Memento>(savedMessages)
+		: std::make_shared<Memento>(controller());
 	saveState(result.get());
 	return result;
 }

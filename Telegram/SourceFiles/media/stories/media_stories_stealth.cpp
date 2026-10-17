@@ -382,19 +382,23 @@ void SetupStealthMode(
 void AddStealthModeMenu(
 		const Ui::Menu::MenuCallback &add,
 		not_null<PeerData*> peer,
-		not_null<Window::SessionController*> controller) {
+		not_null<Window::SessionController*> controller,
+		Fn<void()> onActivated) {
 	if (!peer->session().premiumPossible() || !peer->isUser()) {
 		return;
 	}
 	const auto now = base::unixtime::now();
 	const auto stealth = peer->owner().stories().stealthMode();
+	const auto open = onActivated
+		? onActivated
+		: Fn<void()>([=] { controller->openPeerStories(peer->id); });
 	add(
 		tr::lng_stories_view_anonymously(tr::now),
 		[=] {
 			SetupStealthMode(
 				controller->uiShow(),
 				StealthModeDescriptor{
-					[=] { controller->openPeerStories(peer->id); },
+					open,
 					&st::storiesStealthStyleDefault,
 				});
 		},

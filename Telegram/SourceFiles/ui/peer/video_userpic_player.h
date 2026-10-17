@@ -27,7 +27,10 @@ public:
 	void setup(not_null<PeerData*> peer, not_null<PhotoData*> photo);
 	void clear();
 
-	[[nodiscard]] QImage frame(QSize size, not_null<PeerData*> peer);
+	[[nodiscard]] QImage frame(
+		QSize size,
+		not_null<PeerData*> peer,
+		bool paused);
 	[[nodiscard]] bool ready() const;
 
 private:

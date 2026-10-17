@@ -155,7 +155,7 @@ void Item::paint(Painter &p, int outerWidth) {
 		paintOnce(p, _x, _y, outerWidth);
 	} else {
 		for (auto i = _copies.begin(), e = _copies.end(); i != e;) {
-			auto x = qRound(i->x.value(_x));
+			auto x = int(base::SafeRound(i->x.value(_x)));
 			auto y = i->y;
 			auto animating = i->x.animating();
 			if (animating || (y == _y)) {
@@ -430,7 +430,7 @@ public:
 	void setFocusedChangedCallback(Fn<void(bool focused)> callback);
 	void setCancelButtonShown(bool shown);
 
-	void addItemInBunch(std::unique_ptr<Item> item);
+	bool addItemInBunch(std::unique_ptr<Item> item);
 	void finishItemsBunch(AddItemWay way);
 	void setItemText(uint64 itemId, const QString &text);
 
@@ -617,12 +617,14 @@ void MultiSelect::setQuery(const QString &query) {
 }
 
 void MultiSelect::addItem(uint64 itemId, const QString &text, style::color color, PaintRoundImage paintRoundImage, AddItemWay way) {
-	addItemInBunch(itemId, text, color, std::move(paintRoundImage));
-	_inner->finishItemsBunch(way);
+	if (addItemInBunch(itemId, text, color, std::move(paintRoundImage))) {
+		_inner->finishItemsBunch(way);
+	}
 }
 
-void MultiSelect::addItemInBunch(uint64 itemId, const QString &text, style::color color, PaintRoundImage paintRoundImage) {
-	_inner->addItemInBunch(std::make_unique<Item>(_st.item, itemId, text, color, std::move(paintRoundImage)));
+bool MultiSelect::addItemInBunch(uint64 itemId, const QString &text, style::color color, PaintRoundImage paintRoundImage) {
+	return _inner->addItemInBunch(
+		std::make_unique<Item>(_st.item, itemId, text, color, std::move(paintRoundImage)));
 }
 
 void MultiSelect::finishItemsBunch() {
@@ -653,7 +655,7 @@ int MultiSelect::resizeGetHeight(int newWidth) {
 	if (newWidth != _inner->width()) {
 		_inner->resizeToWidth(newWidth);
 	}
-	auto newHeight = qMin(_inner->height(), _st.maxHeight);
+	auto newHeight = std::min(_inner->height(), _st.maxHeight);
 	_scroll->setGeometryToLeft(0, 0, newWidth, newHeight);
 	return newHeight;
 }
@@ -887,9 +889,9 @@ void MultiSelect::Inner::paintEvent(QPaintEvent *e) {
 
 QMargins MultiSelect::Inner::itemPaintMargins() const {
 	return {
-		qMax(_st.itemSkip, _st.padding.left()),
+		std::max(_st.itemSkip, _st.padding.left()),
 		_st.itemSkip,
-		qMax(_st.itemSkip, _st.padding.right()),
+		std::max(_st.itemSkip, _st.padding.right()),
 		_st.itemSkip,
 	};
 }
@@ -979,7 +981,10 @@ void MultiSelect::Inner::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
-void MultiSelect::Inner::addItemInBunch(std::unique_ptr<Item> item) {
+bool MultiSelect::Inner::addItemInBunch(std::unique_ptr<Item> item) {
+	if (_idsMap.find(item->id()) != _idsMap.cend()) {
+		return false;
+	}
 	auto wasEmpty = _items.empty();
 	item->setUpdateCallback([this, item = item.get()] {
 		auto itemRect = item->paintArea(width() - _st.padding.left() - _st.padding.top());
@@ -992,6 +997,7 @@ void MultiSelect::Inner::addItemInBunch(std::unique_ptr<Item> item) {
 	if (wasEmpty) {
 		updateHasAnyItems(true);
 	}
+	return true;
 }
 
 void MultiSelect::Inner::finishItemsBunch(AddItemWay way) {
@@ -1010,7 +1016,9 @@ void MultiSelect::Inner::computeItemsGeometry(int newWidth) {
 	auto itemLeft = 0;
 	auto itemTop = 0;
 	auto widthLeft = newWidth;
-	auto maxVisiblePadding = qMax(_st.padding.left(), _st.padding.right());
+	auto maxVisiblePadding = std::max(
+		_st.padding.left(),
+		_st.padding.right());
 	for (const auto &item : _items) {
 		auto itemWidth = item->getWidth();
 		Assert(itemWidth <= newWidth);
@@ -1045,7 +1053,7 @@ void MultiSelect::Inner::updateItemsGeometry() {
 }
 
 void MultiSelect::Inner::updateHeightStep() {
-	auto newHeight = qRound(_height.value(_newHeight));
+	auto newHeight = int(base::SafeRound(_height.value(_newHeight)));
 	if (auto heightDelta = newHeight - height()) {
 		resize(width(), newHeight);
 		if (_resizedCallback) {

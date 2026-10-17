@@ -34,7 +34,7 @@ PinnedTracker::PinnedTracker(not_null<Data::Thread*> thread)
 	: nullptr) {
 	using namespace rpl::mappers;
 	const auto has = [&](Data::Thread *thread) -> rpl::producer<bool> {
-		auto &changes = _thread->session().changes();
+		const auto &changes = _thread->session().changes();
 		const auto flag = Data::EntryUpdate::Flag::HasPinnedMessages;
 		if (!thread) {
 			return rpl::single(false);

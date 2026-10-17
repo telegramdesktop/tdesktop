@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 
 class History;
-class HistoryInner;
 
 namespace Ui {
 class RpWidget;
@@ -38,14 +37,12 @@ public:
 		not_null<Ui::RpWidget*> parent,
 		not_null<Ui::ElasticScroll*> scroll,
 		not_null<Window::SessionController*> controller,
-		Fn<bool()> topicBottomReady = nullptr);
+		Fn<bool()> loadedAtBottom = nullptr);
 	~PullToNextChannel();
-
-	void attachToContent(not_null<HistoryInner*> inner);
 
 	void setHistory(History *history);
 	void setTopic(Data::ForumTopic *topic);
-
+	void reset(anim::type animated);
 	void updateGeometry();
 
 private:
@@ -60,6 +57,7 @@ private:
 
 	[[nodiscard]] bool active() const;
 	[[nodiscard]] bool atBottom() const;
+	[[nodiscard]] bool hintVisible() const;
 	void handleOverscroll(
 		Ui::ElasticScrollPosition position,
 		Ui::ElasticScrollMovement movement);
@@ -67,7 +65,6 @@ private:
 	void startExpand(bool ready);
 	void pushIndicator();
 	void clearState();
-	void reset();
 	void jumpWhenReady(base::weak_ptr<History> next, crl::time waited);
 	void jumpTo(not_null<History*> history);
 	void jumpToTopic(
@@ -77,7 +74,7 @@ private:
 	const not_null<Ui::RpWidget*> _parent;
 	const not_null<Ui::ElasticScroll*> _scroll;
 	const not_null<Window::SessionController*> _controller;
-	const Fn<bool()> _topicBottomReady;
+	const Fn<bool()> _loadedAtBottom;
 	const base::unique_qptr<Indicator> _indicator;
 	const base::unique_qptr<HintOverlay> _hint;
 
@@ -89,6 +86,7 @@ private:
 	QString _topicCompleted;
 
 	bool _pulling = false;
+	bool _holding = false;
 	bool _committed = false;
 	bool _jumping = false;
 	bool _reached = false;

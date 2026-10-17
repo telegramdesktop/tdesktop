@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/effects/slide_animation.h"
 #include "ui/chat/requests_bar.h"
 #include "ui/chat/group_call_bar.h"
 #include "ui/chat/more_chats_bar.h"
@@ -447,6 +448,10 @@ Widget::Widget(
 			_childListPeerId.value(),
 			_childListShown.value(),
 			makeChildListShown)));
+	controller->activeChatsFilter(
+	) | rpl::on_next([=](FilterId id) {
+		switchToChatsFilter(id);
+	}, lifetime());
 	rpl::combine(
 		_scroll->heightValue(),
 		_topBarSuggestionHeightChanged.events_starting_with(0)
@@ -869,8 +874,9 @@ void Widget::setupSwipeBack() {
 			_inner->clearQuickActions();
 			if (!isRightToLeft) {
 				if (const auto key = _inner->calcSwipeKey(top);
-						key && !isDisabled) {
-					_inner->prepareQuickAction(key, action);
+						key
+						&& !isDisabled
+						&& _inner->prepareQuickAction(key, action)) {
 					return Ui::Controls::SwipeHandlerFinishData{
 						.callback = [=, session = &session()] {
 							auto callback = [=, peerId = PeerId(key)] {
@@ -953,7 +959,9 @@ void Widget::setupSwipeBack() {
 			if (CheckAndJumpToNearChatsFilter(controller(), next, false)) {
 				return Ui::Controls::DefaultSwipeBackHandlerFinishData([=] {
 					_swipeBackData = {};
+					_chatsFilterSwipeSwitch = true;
 					CheckAndJumpToNearChatsFilter(controller(), next, true);
+					_chatsFilterSwipeSwitch = false;
 				});
 			}
 		}
@@ -991,7 +999,7 @@ void Widget::chosenRow(const ChosenRow &row) {
 		: nullptr;
 	const auto userpicCommunity = [&]() -> ChannelData* {
 		if (!history
-			|| !row.userpicClick
+			|| !(row.userpicClick || row.communityBadgeClick)
 			|| (row.message.fullId.msg != ShowAtUnreadMsgId)) {
 			return nullptr;
 		}
@@ -1191,6 +1199,12 @@ void Widget::scrollToDefaultChecked(bool verytop) {
 }
 
 void Widget::setupScrollUpButton() {
+	// The button floats over the bottom of the list, but it is created long
+	// before it, so the scroll has to order the two - and it is an overlay,
+	// not something laid out beside the list.
+	_scroll->setVisualTabOrder(true);
+	_scrollToTop->setVisualTabOrderOverlay(true);
+
 	_scrollToTop->setClickedCallback([=] { scrollToDefaultChecked(); });
 	_scrollToTop->setAccessibleName(tr::lng_sr_scroll_to_top(tr::now));
 	trackScroll(_scrollToTop);
@@ -1218,7 +1232,7 @@ void Widget::setupFrozenAccountBar() {
 }
 
 void Widget::setupTopBarSuggestions() {
-	if (_layout == Layout::Child) {
+	if (_layout == Layout::Child || !controller()->windowId().primary()) {
 		return;
 	}
 	using namespace rpl::mappers;
@@ -1234,7 +1248,7 @@ void Widget::setupTopBarSuggestions() {
 		) | rpl::filter(_1 == nullptr) | rpl::map([=] {
 			auto on = rpl::combine(
 				controller()->activeChatsFilter(),
-				_openedFolderOrForumChanges.events_starting_with(false),
+				_openedFolderOrForum.value(),
 				_searchStateForTopBarSuggestion.events_starting_with(
 					!_searchState.query.isEmpty()),
 				_jumpToDate->toggledValue()
@@ -1294,10 +1308,9 @@ void Widget::updateFrozenAccountBar() {
 }
 
 void Widget::updateTopBarSuggestions() {
-	if (_topBarSuggestion) {
-		_openedFolderOrForumChanges.fire(
-			_openedFolder || _openedForum || _openedCommunity);
-	}
+	_openedFolderOrForum = (_openedFolder
+		|| _openedForum
+		|| _openedCommunity);
 }
 
 bool Widget::communityOverlaysShown() const {
@@ -2046,9 +2059,10 @@ void Widget::toggleFiltersMenu(bool enabled) {
 			_chatFilters.get(),
 			&session(),
 			[this](FilterId id) {
-				_scroll->scrollToY(0);
 				if (controller()->activeChatsFilterCurrent() != id) {
 					controller()->setActiveChatsFilter(id);
+				} else {
+					_scroll->scrollToY(0);
 				}
 			},
 			Window::GifPauseReason::Any,
@@ -2240,6 +2254,7 @@ void Widget::changeOpenedSubsection(
 	if (isHidden()) {
 		animated = anim::type::instant;
 	}
+	_chatsFilterSlideCanvas = nullptr;
 	auto oldContentCache = QPixmap();
 	const auto showDirection = fromRight
 		? Window::SlideDirection::FromRight
@@ -2325,7 +2340,7 @@ void Widget::collectStoriesUserpicsViews(Data::StorySourcesList list) {
 		? _storiesUserpicsViewsHidden
 		: _storiesUserpicsViewsShown;
 	map.clear();
-	auto &owner = session().data();
+	const auto &owner = session().data();
 	for (const auto &source : owner.stories().sources(list)) {
 		if (const auto peer = owner.peerLoaded(source.id)) {
 			if (auto view = peer->activeUserpicView(); view.cloud) {
@@ -2339,6 +2354,7 @@ void Widget::changeOpenedForum(Data::Forum *forum, anim::type animated) {
 	if (_openedForum == forum) {
 		return;
 	}
+	_childListPostponed = false;
 	changeOpenedSubsection([&] {
 		cancelSearch({ .forceFullCancel = true });
 		closeChildList(anim::type::instant);
@@ -2513,6 +2529,84 @@ void Widget::showSearchInTopBar(anim::type animated) {
 	updateForceDisplayWide();
 }
 
+void Widget::switchToChatsFilter(FilterId id) {
+	const auto was = _inner->filterId();
+	const auto animated = (was != id)
+		&& !isHidden()
+		&& !_showAnimation
+		&& (_chatsFilterSwipeSwitch
+			|| (_chatFilters && !_chatFilters->isHidden()));
+	if (!animated) {
+		_inner->switchToFilter(id);
+		return;
+	}
+	const auto &list = session().data().chatsFilters().list();
+	const auto indexOf = [&](FilterId filterId) {
+		return int(ranges::find(list, filterId, &Data::ChatFilter::id)
+			- begin(list));
+	};
+	const auto slideLeft = (indexOf(id) < indexOf(was));
+	const auto duration = _chatsFilterSwipeSwitch
+		? st::dialogsFilterSwipeSlideDuration
+		: st::dialogsFilterSlideDuration;
+	_chatsFilterSlideCanvas = nullptr;
+	auto wasCache = grabForChatsFilterSlide();
+	_inner->switchToFilter(id);
+	if (_inner->filterId() == was) {
+		return;
+	}
+	startChatsFilterSlide(
+		std::move(wasCache),
+		grabForChatsFilterSlide(),
+		slideLeft,
+		duration);
+}
+
+QPixmap Widget::grabForChatsFilterSlide() {
+	const auto hidden = _scrollToTop->isHidden();
+	if (!hidden) {
+		_scrollToTop->hide();
+	}
+	auto result = Ui::GrabOpaque(
+		_scroll.data(),
+		_scroll->rect(),
+		st::dialogsBg->c);
+	if (!hidden) {
+		_scrollToTop->show();
+	}
+	return result;
+}
+
+void Widget::startChatsFilterSlide(
+		QPixmap wasCache,
+		QPixmap nowCache,
+		bool slideLeft,
+		crl::time duration) {
+	_chatsFilterSlideCanvas = std::make_unique<Ui::RpWidget>(this);
+	const auto canvas = _chatsFilterSlideCanvas.get();
+	canvas->setAttribute(Qt::WA_TransparentForMouseEvents);
+	canvas->setAttribute(Qt::WA_OpaquePaintEvent);
+	canvas->setGeometry(_scroll->geometry());
+	const auto animation
+		= canvas->lifetime().make_state<Ui::SlideAnimation>();
+	animation->setSnapshots(std::move(wasCache), std::move(nowCache));
+	canvas->paintOn([=](QPainter &p) {
+		p.fillRect(canvas->rect(), st::dialogsBg);
+		animation->paintFrame(p, 0, 0, canvas->width());
+	});
+	canvas->show();
+	if (_connecting) {
+		_connecting->raise();
+	}
+	animation->start(slideLeft, [=] {
+		if (animation->animating()) {
+			canvas->update();
+		} else {
+			_chatsFilterSlideCanvas = nullptr;
+		}
+	}, duration);
+}
+
 QPixmap Widget::grabForFolderSlideAnimation() {
 	const auto hidden = _scrollToTop->isHidden();
 	if (!hidden) {
@@ -2647,7 +2741,8 @@ void Widget::scrollToDefault(bool verytop) {
 	startScrollUpButtonAnimation(false);
 
 	const auto scroll = [=] {
-		const auto animated = qRound(_scrollToAnimation.value(scrollTo));
+		const auto animated
+			= int(base::SafeRound(_scrollToAnimation.value(scrollTo)));
 		const auto animatedDelta = animated - scrollTo;
 		const auto realDelta = _scroll->scrollTop() - scrollTo;
 		if (base::OppositeSigns(realDelta, animatedDelta)) {
@@ -2752,6 +2847,7 @@ void Widget::updateStoriesVisibility() {
 	}
 	const auto widthAnimation = !_widthAnimationCache.isNull();
 	const auto suggestionsAnimation = widthAnimation
+		&& !_openedFolder
 		&& (!_suggestions || !_hidingSuggestions.empty());
 	const auto hiddenAnimated = _searchHasFocus
 		|| _searchSuggestionsLocked
@@ -2772,6 +2868,12 @@ void Widget::updateStoriesVisibility() {
 		|| (pulledDown && hiddenAnimated);
 	const auto hidden = hiddenInstant || hiddenAnimated;
 	const auto changed = (_stories->toggledHidden() != hidden);
+	if (changed
+		&& hidden
+		&& (_storiesExplicitExpand
+			|| _storiesExplicitExpandValue.current() > 0)) {
+		storiesExplicitCollapse();
+	}
 	_stories->setToggledHidden(hiddenInstant, hiddenAnimated);
 	if (changed) {
 		using Type = Ui::ElasticScroll::OverscrollType;
@@ -2797,9 +2899,9 @@ void Widget::updateStoriesTitleShown() {
 	if (!_subsectionTopBar || !_openedFolder) {
 		return;
 	}
-	const auto shown = (!_stories
-		|| _stories->empty()
-		|| _stories->toggledHidden())
+	const auto shown = !_widthAnimationCache.isNull()
+		? 0.
+		: (!_stories || _stories->empty() || _stories->toggledHidden())
 		? 1.
 		: _stories->collapsedGeometryCurrent().expanded;
 	_subsectionTopBar->setTitleShownRatio(shown);
@@ -2820,6 +2922,7 @@ void Widget::showAnimated(
 		Window::SlideDirection direction,
 		const Window::SectionSlideParams &params) {
 	_showAnimation = nullptr;
+	_chatsFilterSlideCanvas = nullptr;
 
 	auto oldContentCache = params.oldContentCache;
 	showFast();
@@ -3855,10 +3958,13 @@ void Widget::showForum(
 	}
 	const auto nochat = !controller()->mainSectionShown();
 	if (!params.childColumn
-		|| (Core::App().settings().dialogsWidthRatio(nochat) == 0.)
 		|| (_layout != Layout::Main)
 		|| OptionForumHideChatsList.value()) {
 		changeOpenedForum(forum, params.animated);
+		return;
+	} else if (Core::App().settings().dialogsWidthRatio(nochat) == 0.) {
+		changeOpenedForum(forum, params.animated);
+		_childListPostponed = true;
 		return;
 	}
 	cancelSearch({ .forceFullCancel = true });
@@ -4137,7 +4243,7 @@ bool Widget::applySearchState(SearchState state) {
 			&& !searchInPeer());
 		updateControlsGeometry();
 	}
-	if (_topBarSuggestion && queryEmptyChanged) {
+	if (queryEmptyChanged) {
 		_searchStateForTopBarSuggestion.fire(!_searchState.query.isEmpty());
 	}
 	_searchWithPostsPreview = computeSearchWithPostsPreview();
@@ -4332,6 +4438,16 @@ void Widget::completeHashtag(QString tag) {
 
 void Widget::resizeEvent(QResizeEvent *e) {
 	updateControlsGeometry();
+	if (_childListPostponed) {
+		const auto nochat = !controller()->mainSectionShown();
+		if (Core::App().settings().dialogsWidthRatio(nochat) > 0.) {
+			const auto forum = not_null(_openedForum);
+			changeOpenedForum(nullptr, anim::type::instant);
+			showForum(
+				forum,
+				Window::SectionShow(anim::type::instant).withChildColumn());
+		}
+	}
 }
 
 void Widget::updateLockUnlockVisibility(anim::type animated) {
@@ -4341,6 +4457,7 @@ void Widget::updateLockUnlockVisibility(anim::type animated) {
 	const auto widthAnimation = !_widthAnimationCache.isNull();
 	const auto suggestionsAnimation = widthAnimation
 		&& (!_suggestions || !_hidingSuggestions.empty());
+	// Show verified locking; the layout path only reads the cache.
 	const auto hiddenInstant = _showAnimation
 		|| _openedForum
 		|| (widthAnimation && !suggestionsAnimation)
@@ -4436,7 +4553,9 @@ void Widget::updateControlsGeometry() {
 		+ st::dialogsFilterPadding.x();
 	const auto filterRight = st::dialogsFilterSkip
 		+ st::dialogsFilterPadding.x();
-	const auto filterWidth = qMax(ratiow, smallw) - filterLeft - filterRight;
+	const auto filterWidth = std::max(ratiow, smallw)
+		- filterLeft
+		- filterRight;
 	const auto filterAreaHeight = st::topBarHeight;
 	_searchControls->setGeometry(0, filterAreaTop, ratiow, filterAreaHeight);
 	if (_subsectionTopBar) {
@@ -4489,9 +4608,12 @@ void Widget::updateControlsGeometry() {
 	if (_stories) {
 		const auto inFolderTitle = _openedFolder && _subsectionTopBar;
 		const auto storiesLeft = inFolderTitle
-			? (_subsectionTopBar->titleLeft()
-				- st::dialogsStories.left
-				- st::dialogsStories.photoLeft)
+			? anim::interpolate(
+				(_subsectionTopBar->titleLeft()
+					- st::dialogsStories.left
+					- st::dialogsStories.photoLeft),
+				_narrowWidth,
+				narrowRatio)
 			: (filterLeft + filterWidth);
 		_stories->setLayoutConstraints(
 			{ storiesLeft, filterTop + added },
@@ -4595,6 +4717,9 @@ void Widget::updateControlsGeometry() {
 		const auto scrollHeight = height() - scrollTop - bottomSkip;
 		const auto wasScrollHeight = _scroll->height();
 		_scroll->setGeometry(0, scrollTop, scrollWidth, scrollHeight);
+		if (_chatsFilterSlideCanvas) {
+			_chatsFilterSlideCanvas->setGeometry(_scroll->geometry());
+		}
 		if (scrollHeight != wasScrollHeight) {
 			controller()->floatPlayerAreaUpdated();
 		}

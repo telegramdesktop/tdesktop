@@ -7,6 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_file_origin.h"
+
+#include <QtCore/QString>
+
+#include <vector>
+
 class History;
 class PhotoData;
 class DocumentData;
@@ -24,11 +30,19 @@ namespace Api {
 
 struct MessageToSend;
 struct SendAction;
+struct MusicSelectionItem {
+	not_null<DocumentData*> document;
+	Data::FileOrigin origin;
+};
 
 void SendExistingDocument(
 	MessageToSend &&message,
 	not_null<DocumentData*> document,
 	std::optional<MsgId> localMessageId = std::nullopt);
+
+void SendMusicSelection(
+	MessageToSend &&message,
+	std::vector<MusicSelectionItem> items);
 
 void SendExistingPhoto(
 	MessageToSend &&message,

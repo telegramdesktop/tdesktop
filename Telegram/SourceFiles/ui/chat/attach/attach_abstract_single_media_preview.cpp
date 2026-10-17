@@ -69,8 +69,27 @@ void AbstractSingleMediaPreview::setSpoiler(bool spoiler) {
 	update();
 }
 
+void AbstractSingleMediaPreview::setModifyAllowed(bool value) {
+	_modifyAllowed = value;
+}
+
 void AbstractSingleMediaPreview::setCanShowHighQualityBadge(bool value) {
 	_canShowHighQualityBadge = value;
+	update();
+}
+
+void AbstractSingleMediaPreview::setCanShowAnimatedBadge(bool value) {
+	_canShowAnimatedBadge = value;
+	update();
+}
+
+void AbstractSingleMediaPreview::setVideoQuality(int quality) {
+	_videoQuality = quality;
+	update();
+}
+
+void AbstractSingleMediaPreview::setTtlSeconds(crl::time ttlSeconds) {
+	_ttlSeconds = ttlSeconds;
 	update();
 }
 
@@ -92,8 +111,8 @@ void AbstractSingleMediaPreview::preparePreview(QImage preview) {
 	if (_animated && drawBackground()) {
 		auto limitW = st::sendMediaPreviewSize;
 		auto limitH = st::confirmMaxHeight;
-		maxW = qMax(preview.width(), 1);
-		maxH = qMax(preview.height(), 1);
+		maxW = std::max(preview.width(), 1);
+		maxH = std::max(preview.height(), 1);
 		if (maxW * limitH > maxH * limitW) {
 			if (maxW < limitW) {
 				maxH = maxH * limitW / maxW;
@@ -118,16 +137,18 @@ void AbstractSingleMediaPreview::preparePreview(QImage preview) {
 	}
 	_previewWidth = st::sendMediaPreviewSize;
 	if (preview.width() < _previewWidth) {
-		_previewWidth = qMax(preview.width(), kMinPreviewWidth);
+		_previewWidth = std::max(preview.width(), kMinPreviewWidth);
 	}
-	auto maxthumbh = qMin(qRound(1.5 * _previewWidth), st::confirmMaxHeight);
-	_previewHeight = qRound(originalHeight
+	auto maxthumbh = std::min(
+		int(base::SafeRound(1.5 * _previewWidth)),
+		st::confirmMaxHeight);
+	_previewHeight = int(base::SafeRound(originalHeight
 		* float64(_previewWidth)
-		/ originalWidth);
+		/ originalWidth));
 	if (_previewHeight > maxthumbh) {
-		_previewWidth = qRound(_previewWidth
+		_previewWidth = int(base::SafeRound(_previewWidth
 			* float64(maxthumbh)
-			/ _previewHeight);
+			/ _previewHeight));
 		accumulate_max(_previewWidth, kMinPreviewWidth);
 		_previewHeight = maxthumbh;
 	}
@@ -255,6 +276,24 @@ void AbstractSingleMediaPreview::paintEvent(QPaintEvent *e) {
 			_st,
 			QRect(_previewLeft, _previewTop, _previewWidth, _previewHeight));
 	}
+	if (_canShowAnimatedBadge) {
+		PaintAnimatedBadge(
+			p,
+			_st,
+			QRect(_previewLeft, _previewTop, _previewWidth, _previewHeight));
+	}
+	if (_videoQuality && _sendWay.sendImagesAsPhotos()) {
+		PaintVideoQualityBadge(
+			p,
+			QRect(_previewLeft, _previewTop, _previewWidth, _previewHeight),
+			_videoQuality);
+	}
+	if (_ttlSeconds && _sendWay.sendImagesAsPhotos()) {
+		PaintMediaTtlBadge(
+			p,
+			QRect(_previewLeft, _previewTop, _previewWidth, _previewHeight),
+			_ttlSeconds);
+	}
 }
 
 void AbstractSingleMediaPreview::mousePressEvent(QMouseEvent *e) {
@@ -264,17 +303,23 @@ void AbstractSingleMediaPreview::mousePressEvent(QMouseEvent *e) {
 }
 
 void AbstractSingleMediaPreview::mouseMoveEvent(QMouseEvent *e) {
-	applyCursor((isPhoto() && isOverPreview(e->pos()))
+	applyCursor((canModify() && isOverPreview(e->pos()))
 		? style::cur_pointer
 		: style::cur_default);
 }
 
 void AbstractSingleMediaPreview::mouseReleaseEvent(QMouseEvent *e) {
 	if (base::take(_pressed) && isOverPreview(e->pos())) {
-		if (e->button() == Qt::LeftButton && isPhoto()) {
+		if (e->button() == Qt::LeftButton && canModify()) {
 			_photoEditorRequests.fire({});
 		}
 	}
+}
+
+bool AbstractSingleMediaPreview::canModify() const {
+	// Video edits only apply when the file is sent as a video.
+	return isPhoto()
+		|| (_modifyAllowed && _sendWay.sendImagesAsPhotos());
 }
 
 void AbstractSingleMediaPreview::applyCursor(style::cursor cursor) {

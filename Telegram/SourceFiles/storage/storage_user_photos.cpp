@@ -118,8 +118,10 @@ rpl::producer<UserPhotosResult> UserPhotos::List::query(
 		if (position != _photoIds.end()) {
 			auto haveBefore = int(position - _photoIds.begin());
 			auto haveEqualOrAfter = int(_photoIds.end() - position);
-			auto before = qMin(haveBefore, query.limitBefore);
-			auto equalOrAfter = qMin(haveEqualOrAfter, query.limitAfter + 1);
+			auto before = std::min(haveBefore, query.limitBefore);
+			auto equalOrAfter = std::min(
+				haveEqualOrAfter,
+				query.limitAfter + 1);
 			result.photoIds = std::deque<PhotoId>(
 				position - before,
 				position + equalOrAfter);

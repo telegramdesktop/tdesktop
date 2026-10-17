@@ -81,6 +81,9 @@ endif()
 if (NOT "${_qrc_new}" STREQUAL "${_qrc_old}")
     file(WRITE "${_qrc_path}" "${_qrc_new}")
 endif()
+# target_prepare_qrc() skips build-tree paths, so declare the .qsb sources.
+set_source_files_properties("${_qrc_path}" PROPERTIES
+    QRC_GENERATED_FROM "${_shader_sources}")
 add_custom_target(compile_shaders DEPENDS ${_qsb_outputs})
 nice_target_sources(Telegram ${_qsb_out_dir}
 PRIVATE

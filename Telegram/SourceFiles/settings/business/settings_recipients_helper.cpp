@@ -337,6 +337,9 @@ void AddBusinessRecipientsSelector(
 			data.allButExcluded = (value == kAllExcept);
 		});
 	});
+	lifetime.add([=] {
+		group->setChangedCallback(nullptr);
+	});
 }
 
 int ShortcutsCount(not_null<Main::Session*> session) {

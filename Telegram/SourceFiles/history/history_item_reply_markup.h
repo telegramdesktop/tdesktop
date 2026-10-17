@@ -9,6 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/flags.h"
 #include "data/data_chat_participant_status.h"
+#include "data/data_types.h"
+
+#include <optional>
 
 namespace Api {
 struct SendOptions;
@@ -69,10 +72,10 @@ struct RequestPeerQuery {
 };
 static_assert(std::is_trivially_copy_assignable_v<RequestPeerQuery>);
 
-class MTPDkeyboardButtonRequestPeer;
+class MTPDbuttonTypeRequestPeer;
 
 [[nodiscard]] RequestPeerQuery RequestPeerQueryFromTL(
-	const MTPDkeyboardButtonRequestPeer &query);
+	const MTPDbuttonTypeRequestPeer &query);
 
 struct HistoryMessageMarkupButton {
 	enum class Type : uchar {
@@ -93,11 +96,23 @@ struct HistoryMessageMarkupButton {
 		WebView,
 		SimpleWebView,
 		CopyText,
+		Disabled,
 
 		SuggestDecline,
 		SuggestAccept,
 		SuggestChange,
 		CreateBot,
+
+		kCount,
+	};
+
+	enum class TypeIcon : uchar {
+		None,
+		Url,
+		Payment,
+		SwitchPm,
+		Webview,
+		Copy,
 	};
 
 	enum class Color : uchar {
@@ -110,6 +125,10 @@ struct HistoryMessageMarkupButton {
 	struct Visual {
 		DocumentId iconId = 0;
 		Color color = Color::Normal;
+
+		friend inline bool operator==(
+			const Visual &,
+			const Visual &) = default;
 	};
 
 	HistoryMessageMarkupButton(
@@ -125,6 +144,18 @@ struct HistoryMessageMarkupButton {
 		FullMsgId itemId,
 		int row,
 		int column);
+	[[nodiscard]] static bool LoadsOnActivate(Type type);
+	[[nodiscard]] static TypeIcon IconOfType(Type type);
+	[[nodiscard]] static QByteArray RichPageButtonKey(
+		const HistoryMessageMarkupButton &button);
+	[[nodiscard]] static QByteArray RegisterRichPageButton(
+		not_null<Data::Session*> owner,
+		FullMsgId itemId,
+		const HistoryMessageMarkupButton &button);
+	[[nodiscard]] static HistoryMessageMarkupButton *GetRichPageButton(
+		not_null<Data::Session*> owner,
+		FullMsgId itemId,
+		const QByteArray &key);
 
 	Type type;
 	Visual visual;
@@ -135,6 +166,17 @@ struct HistoryMessageMarkupButton {
 	mutable mtpRequestId requestId = 0;
 
 };
+
+[[nodiscard]] bool operator==(
+	const HistoryMessageMarkupButton &a,
+	const HistoryMessageMarkupButton &b);
+
+[[nodiscard]] std::optional<HistoryMessageMarkupButton> ParseInlineButton(
+	const MTPInlineButtonType &type,
+	const QString &text,
+	HistoryMessageMarkupButton::Visual visual);
+[[nodiscard]] HistoryMessageMarkupButton::Visual ParseRichButtonVisual(
+	const tl::conditional<MTPRichButtonStyle> &style);
 
 struct HistoryMessageMarkupData {
 	HistoryMessageMarkupData() = default;
@@ -151,7 +193,8 @@ struct HistoryMessageMarkupData {
 	QString placeholder;
 
 private:
-	void fillRows(const QVector<MTPKeyboardButtonRow> &v);
+	template <typename Row>
+	void fillRows(const QVector<Row> &v);
 
 };
 

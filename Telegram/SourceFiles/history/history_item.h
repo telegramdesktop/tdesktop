@@ -215,6 +215,7 @@ public:
 	[[nodiscard]] bool isSavedMusicItem() const;
 	[[nodiscard]] BusinessShortcutId shortcutId() const;
 	[[nodiscard]] bool isBusinessShortcut() const;
+	[[nodiscard]] bool isWelcomeTemplate() const;
 	void setRealShortcutId(BusinessShortcutId id);
 	void setCustomServiceLink(ClickHandlerPtr link);
 
@@ -275,9 +276,12 @@ public:
 	void setHasUnreadPollVote();
 	[[nodiscard]] bool hasUnwatchedEffect() const;
 	bool markEffectWatched();
+	bool markEmojiInteractionWatched();
 	[[nodiscard]] bool isUnreadMedia() const;
 	[[nodiscard]] bool isIncomingUnreadMedia() const;
 	[[nodiscard]] bool hasUnreadMediaFlag() const;
+	[[nodiscard]] bool isTtlCoveredMedia() const;
+	[[nodiscard]] TimeId mediaDestroyAt() const;
 	void markReactionsRead();
 	void markPollVotesRead();
 	void markMediaAndMentionRead();
@@ -291,8 +295,11 @@ public:
 	[[nodiscard]] bool isEditingMedia() const;
 	void clearSavedMedia();
 
+	[[nodiscard]] HistoryMessageContent backupContent();
+	void applyContent(HistoryMessageContent &&content);
+
 	// Zero result means this message is not self-destructing right now.
-	[[nodiscard]] crl::time getSelfDestructIn(crl::time now);
+	void applyMediaContentsRead(TimeId readDate);
 
 	[[nodiscard]] bool definesReplyKeyboard() const;
 	[[nodiscard]] ReplyMarkupFlags replyKeyboardFlags() const;
@@ -348,13 +355,13 @@ public:
 	[[nodiscard]] bool isEphemeral() const {
 		return _flags & MessageFlag::Ephemeral;
 	}
-	[[nodiscard]] bool canBeSelected() const {
-		return (isRegular() || isEphemeral()) && !isService();
+	[[nodiscard]] bool isFakeHistoryItem() const {
+		return _flags & MessageFlag::FakeHistoryItem;
 	}
-	[[nodiscard]] bool inSameSelectionGroup(
-			not_null<const HistoryItem*> other) const {
-		return isEphemeral() == other->isEphemeral();
+	[[nodiscard]] bool isLegacyMessage() const {
+		return _flags & MessageFlag::Legacy;
 	}
+	[[nodiscard]] bool canBeSelected() const;
 	[[nodiscard]] bool isFakeAboutView() const {
 		return _flags & MessageFlag::FakeAboutView;
 	}
@@ -403,6 +410,11 @@ public:
 	void applyEdition(const QVector<MTPMessageExtendedMedia> &media);
 	void updateForwardedInfo(const MTPMessageFwdHeader *fwd);
 	void updateSentContent(const MTPDmessage &data);
+	void updateSentContent(
+		const TextWithEntities &textWithEntities,
+		const MTPMessageMedia *media,
+		const MTPRichMessage *richMessage);
+	void applyStreamedDraftFinish(const MTPDmessage &data);
 	void applySentMessage(const MTPDmessage &data);
 	void applySentMessage(
 		const QString &text,
@@ -452,8 +464,9 @@ public:
 	[[nodiscard]] TextForMimeData clipboardText() const;
 
 	bool changeViewsCount(int count);
+	bool changeForwardsCount(int count);
 	void setForwardsCount(int count);
-	void setReplies(HistoryMessageRepliesData &&data);
+	void setReplies(HistoryMessageRepliesData &&data, bool notify = true);
 	void clearReplies();
 	void changeRepliesCount(int delta, PeerId replier);
 	void setReplyFields(
@@ -482,6 +495,7 @@ public:
 	[[nodiscard]] bool allowsSendNow() const;
 	[[nodiscard]] bool allowsReschedule() const;
 	[[nodiscard]] bool allowsForward() const;
+	[[nodiscard]] bool allowsMediaDownloadControls() const;
 	[[nodiscard]] bool allowsEdit(TimeId now) const;
 	[[nodiscard]] bool allowsEditMedia() const;
 	[[nodiscard]] bool canDelete() const;
@@ -550,6 +564,7 @@ public:
 	[[nodiscard]] Data::Media *media() const {
 		return _media.get();
 	}
+	[[nodiscard]] const Data::Media *savedMedia() const;
 	[[nodiscard]] std::shared_ptr<const Iv::RichPage> richPage() const;
 	[[nodiscard]] auto translatedRichPage() const
 		-> std::shared_ptr<const Iv::RichPage>;
@@ -595,6 +610,7 @@ public:
 
 	[[nodiscard]] bool showForwardsFromSender(
 		not_null<const HistoryMessageForwarded*> forwarded) const;
+	[[nodiscard]] bool displayForwardedFrom() const;
 
 	[[nodiscard]] bool isEmpty() const;
 	[[nodiscard]] MessageGroupId groupId() const;
@@ -690,15 +706,8 @@ private:
 	void detectTextLinks(const TextWithEntities &textWithEntities);
 	void setTextValue(TextWithEntities text, bool force = false);
 	[[nodiscard]] bool isTooOldForEdit(TimeId now) const;
-	[[nodiscard]] bool isLegacyMessage() const {
-		return _flags & MessageFlag::Legacy;
-	}
 
 	[[nodiscard]] bool checkDiscussionLink(ChannelId id) const;
-	void updateSentContent(
-		const TextWithEntities &textWithEntities,
-		const MTPMessageMedia *media,
-		const MTPRichMessage *richMessage);
 	void updateSentContent(
 		const TextWithEntities &textWithEntities,
 		const MTPMessageMedia *media,
@@ -713,6 +722,7 @@ private:
 	void changeReplyToTopCounter(
 		not_null<HistoryMessageReply*> reply,
 		int delta);
+	bool updateRepliesText(not_null<HistoryMessageViews*> views);
 	void refreshRepliesText(
 		not_null<HistoryMessageViews*> views,
 		bool forceResize = false);
@@ -734,6 +744,9 @@ private:
 	void clearDependencyMessage();
 	void setupChatThemeChange();
 	void setupTTLChange();
+	void setupTonConnectRequest();
+	void armTonConnectRequestExpiry();
+	void updateTonConnectRequestText();
 
 	void translationToggle(
 		not_null<HistoryMessageTranslation*> translation,
@@ -742,7 +755,9 @@ private:
 		LanguageId to,
 		TextWithEntities result,
 		std::shared_ptr<const Iv::RichPage> page);
-	void setSelfDestruct(HistorySelfDestructType type, MTPint mtpTTLvalue);
+	void setSelfDestruct(HistorySelfDestructType type, TimeId ttlSeconds);
+	void armMediaDestroy(TimeId destroyAt);
+	void unarmMediaDestroy();
 
 	void resolveDependent(not_null<HistoryServiceDependentData*> dependent);
 	void resolveDependent(not_null<HistoryMessageReply*> reply);
@@ -778,6 +793,9 @@ private:
 	[[nodiscard]] PreparedServiceText preparePinnedText();
 	[[nodiscard]] PreparedServiceText prepareGameScoreText();
 	[[nodiscard]] PreparedServiceText preparePaymentSentText();
+	[[nodiscard]] PreparedServiceText prepareGramTransferText(
+		bool includeComment = true);
+	[[nodiscard]] PreparedServiceText prepareTonConnectRequestText();
 	[[nodiscard]] PreparedServiceText prepareStoryMentionText();
 	[[nodiscard]] PreparedServiceText prepareInvitedToCallText(
 		const std::vector<not_null<UserData*>> &users,

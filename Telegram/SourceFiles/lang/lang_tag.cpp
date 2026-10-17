@@ -990,7 +990,7 @@ PluralResult Plural(
 	// To correctly select a shift for PluralType::Short
 	// we must first round the number.
 	const auto shortened = (type == lt_count_short)
-		? FormatCountToShort(qRound(value))
+		? FormatCountToShort(int(base::SafeRound(value)))
 		: ShortenedCount();
 
 	// Simplified.
@@ -1012,7 +1012,7 @@ PluralResult Plural(
 		? ChoosePlural
 		: ChoosePluralDefault)((integer ? i : -1), i, v, w, f, t);
 	if (integer) {
-		const auto round = qRound(value);
+		const auto round = int(base::SafeRound(value));
 		if (type == lt_count_short) {
 			return { shift, shortened.string };
 		} else if (type == lt_count_decimal) {

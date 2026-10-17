@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/rp_widget.h"
+#include "ui/ui_utility.h"
 #include "ui/widgets/color_editor.h"
 #include "styles/style_editor.h"
 
@@ -293,6 +294,7 @@ ColorPicker::ColorPicker(
 , _sizeControlHoverArea(std::in_place, parent)
 , _sizeControl(std::in_place, parent)
 , _toolSelection(std::in_place, parent)
+, _rowFade(std::in_place, parent)
 , _brush(savedBrushes[ToolIndex(savedTool)])
 , _toolBrushes(savedBrushes) {
 	_colorButton->resize(Size(st::photoEditorColorButtonSize));
@@ -327,6 +329,13 @@ ColorPicker::ColorPicker(
 			-padding - half,
 			-padding - half);
 		p.drawEllipse(rect);
+	});
+	_rowFade->setAttribute(Qt::WA_TransparentForMouseEvents);
+	_rowFade->setAttribute(Qt::WA_TranslucentBackground, true);
+	_rowFade->setVisible(false);
+	_rowFade->paintOn([=](QPainter &p) {
+		p.setOpacity(_rowFadeAnimation.value(_rowFadeShown ? 1. : 0.));
+		p.drawImage(0, 0, _rowFadeImage);
 	});
 
 	_toolButtons.push_back(base::make_unique_q<ToolLottieButton>(
@@ -636,7 +645,15 @@ void ColorPicker::paintSizeControl(QPainter &p) {
 	p.drawEllipse(handleRect);
 }
 
-void ColorPicker::setVisible(bool visible) {
+void ColorPicker::setVisible(bool visible, anim::type animated) {
+	_rowFadeAnimation.stop();
+	_rowFade->hide();
+	const auto fade = (animated == anim::type::normal)
+		&& !_paletteVisible
+		&& (visible != _colorButton->isVisible());
+	if (fade && !visible) {
+		_rowFadeImage = grabRow();
+	}
 	if (!visible) {
 		_paletteVisible = false;
 		_sizeDown.pressed = false;
@@ -647,10 +664,21 @@ void ColorPicker::setVisible(bool visible) {
 		_sizeControlPositionAnimation.stop();
 		_toolSelectionAnimation.stop();
 	}
-	_colorButton->setVisible(visible && !_paletteVisible);
 	_paletteWrap->setVisible(visible && _paletteVisible);
 	_sizeControlHoverArea->setVisible(visible);
 	_sizeControl->setVisible(visible);
+	setRowVisible(visible);
+	if (!fade) {
+		return;
+	} else if (visible) {
+		_rowFadeImage = grabRow();
+		setRowVisible(false);
+	}
+	startRowFade(visible);
+}
+
+void ColorPicker::setRowVisible(bool visible) {
+	_colorButton->setVisible(visible && !_paletteVisible);
 	const auto showTools = visible
 		&& !_paletteVisible
 		&& !_toolSelectionSuppressed;
@@ -661,6 +689,57 @@ void ColorPicker::setVisible(bool visible) {
 	if (showTools) {
 		updateToolSelection(false);
 	}
+}
+
+QRect ColorPicker::rowRect() const {
+	auto result = _colorButton->geometry();
+	for (const auto &button : _toolButtons) {
+		result = result.united(button->geometry());
+	}
+	return result.united(_toolSelection->geometry());
+}
+
+QImage ColorPicker::grabRow() const {
+	const auto rect = rowRect();
+	const auto ratio = style::DevicePixelRatio();
+	auto result = QImage(
+		rect.size() * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
+	result.fill(Qt::transparent);
+	auto p = QPainter(&result);
+	const auto draw = [&](not_null<QWidget*> widget) {
+		if (widget->isVisible()) {
+			p.drawImage(
+				widget->pos() - rect.topLeft(),
+				Ui::GrabWidgetToImage(widget));
+		}
+	};
+	draw(_colorButton.get());
+	for (const auto &button : _toolButtons) {
+		draw(button.get());
+	}
+	draw(_toolSelection.get());
+	return result;
+}
+
+void ColorPicker::startRowFade(bool shown) {
+	_rowFadeShown = shown;
+	_rowFade->setGeometry(rowRect());
+	_rowFade->raise();
+	_rowFade->show();
+	_rowFadeAnimation.start([=] {
+		_rowFade->update();
+		if (!_rowFadeAnimation.animating()) {
+			_rowFade->hide();
+			if (_rowFadeShown) {
+				setRowVisible(true);
+			}
+		}
+	},
+	shown ? 0. : 1.,
+	shown ? 1. : 0.,
+	st::photoEditorBarAnimationDuration);
 }
 
 rpl::producer<Brush> ColorPicker::saveBrushRequests() const {

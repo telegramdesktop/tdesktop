@@ -502,6 +502,9 @@ EditContactScheme GetContactScheme(Scope::Type type) {
 		result.newHeader = tr::lng_passport_new_email(tr::now);
 		result.newPlaceholder = tr::lng_passport_email_title();
 		result.aboutNew = tr::lng_passport_new_email_code(tr::now);
+		result.inputHints = Qt::ImhEmailCharactersOnly
+			| Qt::ImhNoAutoUppercase
+			| Qt::ImhNoPredictiveText;
 		result.validate = [](const QString &value) {
 			const auto at = value.indexOf('@');
 			const auto dot = value.lastIndexOf('.');

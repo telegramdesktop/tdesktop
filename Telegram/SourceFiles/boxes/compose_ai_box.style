@@ -143,7 +143,7 @@ aiTonePreviewAboutLabel: FlatLabel(defaultFlatLabel) {
 aiTonePreviewAboutMargin: margins(28px, 6px, 28px, 6px);
 aiTonePreviewAttributionLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
-	minWidth: 0px;
+	minWidth: 20px;
 	align: align(top);
 	style: TextStyle(defaultTextStyle) {
 		font: font(12px);

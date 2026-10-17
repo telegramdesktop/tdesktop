@@ -84,6 +84,7 @@ public:
 	[[nodiscard]] EmojiStatusCollectible *collectibleInfo(CollectibleId id);
 
 	void registerAutomaticClear(not_null<PeerData*> peer, TimeId until);
+	[[nodiscard]] TimeId automaticClearAt(not_null<PeerData*> peer) const;
 
 	using Groups = std::vector<Ui::EmojiGroup>;
 	[[nodiscard]] rpl::producer<Groups> emojiGroupsValue() const;

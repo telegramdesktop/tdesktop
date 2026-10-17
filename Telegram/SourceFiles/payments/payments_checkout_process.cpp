@@ -19,7 +19,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/local_url_handlers.h" // TryConvertUrlToLocal.
 #include "core/file_utilities.h" // File::OpenUrl.
 #include "core/core_cloud_password.h" // Core::CloudPasswordState
+#include "core/application.h"
 #include "core/click_handler_types.h"
+#include "core/core_screenshot_protection.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "api/api_cloud_password.h"
@@ -335,6 +337,11 @@ CheckoutProcess::CheckoutProcess(
 		handleFormUpdate(update);
 	}, _lifetime);
 
+	Core::App().screenshotProtection().addContentReason(
+		_panel->widget(),
+		_screenshotProtection.value(),
+		_panel->lifetime());
+
 	_panel->savedMethodChosen(
 	) | rpl::on_next([=](QString id) {
 		_form->chooseSavedMethod(id);
@@ -425,7 +432,10 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 			rpl::single(_form->invoice().provider));
 		_sendFormFailed = false;
 		_sendFormPending = true;
-		if (!_panel->showWebview(data.url, false, std::move(bottomText))) {
+		if (!_panel->showWebview(
+				data.url,
+				Ui::WebviewMode::Verification,
+				std::move(bottomText))) {
 			File::OpenUrl(data.url);
 			close();
 		}
@@ -698,7 +708,9 @@ void CheckoutProcess::panelAcceptTermsAndSubmit() {
 void CheckoutProcess::panelWebviewMessage(
 		const QJsonDocument &message,
 		bool saveInformation) {
-	if (!message.isArray()) {
+	if (_sendFormPending) {
+		return;
+	} else if (!message.isArray()) {
 		LOG(("Payments Error: "
 			"Not an array received in buy_callback arguments."));
 		return;
@@ -797,6 +809,7 @@ void CheckoutProcess::panelEditPhone() {
 }
 
 void CheckoutProcess::showForm() {
+	_screenshotProtection = !_form->invoice().isTest;
 	_panel->showForm(
 		_form->invoice(),
 		_form->information(),

@@ -60,6 +60,8 @@ public:
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) override;
 	std::shared_ptr<Window::SectionMemento> createMemento() override;
+	auto createIdentityMemento()
+		-> std::shared_ptr<Window::SectionMemento> override;
 	bool showMessage(
 		PeerId peerId,
 		const Window::SectionShow &params,

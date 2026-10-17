@@ -64,6 +64,12 @@ historyReplyTop: 2px;
 historyReplyBottom: 2px;
 historyReplyPreview: 32px;
 historyReplyPreviewMargin: margins(7px, 4px, 4px, 4px);
+historyEditCoverRadialBg: 24px;
+historyEditCoverRadial: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	color: msgDateImgFg;
+	thickness: 2px;
+	size: size(16px, 16px);
+}
 historyReplyPadding: margins(11px, 2px, 6px, 2px);
 historyReplyUser: IconEmoji {
 	icon: icon {{ "chat/reply_type_user", windowFg }};
@@ -243,6 +249,8 @@ historySilentTop: -13px;
 
 historyBotMenuSkip: 8px;
 historyBotMenuMaxWidth: 160px;
+historyBotMenuIconSize: 18px;
+historyBotMenuIconWidth: 36px;
 historyBotMenuButton: RoundButton(defaultActiveButton) {
 	width: -24px;
 	height: 30px;
@@ -447,8 +455,13 @@ historyTranscribeRadialAnimation: InfiniteRadialAnimation(defaultInfiniteRadialA
 
 historyVideoMessageMuteSize: 25px;
 historyVideoMessageProgressOpacity: 0.72;
-historyVideoMessageSeekInset: 12px;
-historyVideoMessageSeekDotSize: 13px;
+historyVideoMessageSeekInset: 18px;
+historyVideoMessageSeekLine: 5px;
+historyVideoMessageSeekDotSize: 16px;
+historyVideoMessageSeekDotSizeMin: 6px;
+historyVideoMessageSeekDotSizeGrabbed: 22px;
+historyVideoMessageSeekGrabBand: 40px;
+historyVideoMessageSeekShadowOpacity: 0.16;
 
 historyAdminLogEmptyWidth: 260px;
 historyAdminLogEmptyPadding: margins(10px, 12px, 10px, 12px);
@@ -539,6 +552,7 @@ historyPageButtonPadding: margins(13px, 8px, 13px, 8px);
 historyPageEnlargeSize: 36px;
 historyPageEnlargeSkip: 4px;
 historyPageEnlargeRadius: 8px;
+historyPageEnlargeRippleOpacity: 0.3;
 
 historyCommentsButtonHeight: 40px;
 historyCommentsSkipLeft: 9px;
@@ -621,6 +635,10 @@ ttlDividerLabelPadding: margins(22px, 10px, 22px, 19px);
 ttlItemPadding: margins(0px, 4px, 0px, 4px);
 ttlItemTimerFont: font(12px);
 
+historyRevertItemAboutStyle: TextStyle(defaultTextStyle) {
+	font: ttlItemTimerFont;
+}
+
 expandedMenuSeparator: MenuSeparator(defaultMenuSeparator) {
 	padding: margins(0px, 4px, 0px, 4px);
 	width: 6px;
@@ -637,6 +655,8 @@ whoReadMenu: PopupMenu(popupMenuExpandedSeparator) {
 	scrollPadding: margins(0px, 6px, 0px, 4px);
 	maxHeight: 400px;
 }
+reactionPreviewInMenuSize: 120px;
+reactionPreviewInMenuSkip: 8px;
 whoReadNameWithDateTop: 3px;
 whoReadDateTop: 20px;
 whoReadDateSkip: 15px;
@@ -762,15 +782,29 @@ msgServiceGiftThemeStickerSize: 64px;
 msgServiceGiftThemeStickerPadding: margins(18px, 18px, 18px, 18px);
 msgServiceCommunityAddedPhoto: 66px; // About 2/3 of msgServicePhotoWidth.
 
+unsupportedNoticePadding: margins(0px, 7px, 12px, 7px);
+unsupportedNoticeBadgeSize: 36px;
+unsupportedNoticeBadgeSkip: 10px;
+unsupportedNoticeButtonHeight: 30px;
+unsupportedNoticeButtonPadding: margins(12px, 0px, 12px, 0px);
+unsupportedNoticeRadius: 10px;
+unsupportedNoticeMaxWidth: 430px;
+unsupportedGapSkip: 10px;
+unsupportedTearAmplitude: 5px;
+unsupportedTearPeriod: 20px;
+unsupportedNoticePlane: icon{{ "chat/unsupported_plane", msgServiceFg }};
+
 historySponsorInfoItem: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
 		font: font(12px);
 	}
 	minWidth: 136px;
-	maxHeight: 120px;
 }
 historySponsorInfoItemDark: FlatLabel(historySponsorInfoItem) {
 	textFg: mediaviewControlFg;
+}
+historySponsorInfoMenu: PopupMenu(popupMenuExpandedSeparator) {
+	maxHeight: 420px;
 }
 historyHasCustomEmoji: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
@@ -928,11 +962,22 @@ chatSuggestChangeIcon: IconEmoji {
 
 
 repliesEmptyIcon: icon{{ "chat/large_quickreply", msgServiceFg }};
-greetingEmptyIcon: icon{{ "chat/large_greeting", msgServiceFg }};
+greetingEmptyIcon: icon{{ "chat/large_welcome-56x52", msgServiceFg, margins(12px, 4px, 12px, 4px) }};
 awayEmptyIcon: icon{{ "chat/large_away", msgServiceFg }};
 repliesEmptyWidth: 264px;
 repliesEmptySkip: 16px;
 repliesEmptyPadding: margins(10px, 20px, 10px, 16px);
+
+welcomeEmptyWidth: repliesEmptyWidth;
+welcomeEmptyIcon: icon{{ "chat/large_welcome-80x76", msgServiceFg }};
+welcomeEmptyPadding: margins(16px, 38px, 16px, 28px);
+welcomeEmptyIconSkip: 30px;
+welcomeEmptyTextSkip: 10px;
+welcomeEmptyTitle: TextStyle(messageTextStyle) {
+	font: font(16px semibold);
+}
+welcomeEmptyAbout: messageTextStyle;
+
 repliesComposeControls: ComposeControls(defaultComposeControls) {
 	tabbedHeightMin: 220px;
 }
@@ -986,6 +1031,7 @@ previewName: FlatLabel(defaultFlatLabel) {
 }
 previewStatus: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
+	maxHeight: 20px;
 }
 previewUserpic: UserpicButton(defaultUserpicButton) {
 	size: size(40px, 40px);
@@ -1093,6 +1139,7 @@ botDownloadCancel: IconButton {
 }
 chatUniqueGiftBorder: 4px;
 chatUniqueGiftBadgePadding: margins(12px, 0px, 12px, 2px);
+chatUniqueGiftMaxWidth: 272px;
 
 chatUniqueStickerPadding: margins(10px, 40px, 10px, 9px);
 chatUniquePreviewPadding: margins(10px, 30px, 10px, 32px);
@@ -1107,6 +1154,19 @@ chatUniqueTextStyle: TextStyle(defaultTextStyle) {
 chatUniqueAuthorSkip: 6px;
 chatUniqueTableSkip: 9px;
 chatUniqueRowSkip: 2px;
+UniqueGiftMessageBubble {
+	textPadding: margins;
+	avatarSize: pixels;
+	radius: pixels;
+	tailSize: size;
+}
+chatUniqueMessageBubble: UniqueGiftMessageBubble {
+	textPadding: margins(6px, 6px, 6px, 6px);
+	avatarSize: 20px;
+	radius: 10px;
+	tailSize: size(4px, 5px);
+}
+chatUniqueMessagePadding: margins(22px, 6px, 22px, 7px);
 chatUniqueButtonPadding: margins(12px, 5px, 12px, 26px);
 
 markupWebview: icon {{ "chat/markup_webview", windowFg }};

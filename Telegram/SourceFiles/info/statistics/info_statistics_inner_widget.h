@@ -16,6 +16,10 @@ namespace Info {
 class Controller;
 } // namespace Info
 
+namespace Ui::Menu {
+struct MenuCallback;
+} // namespace Ui::Menu
+
 namespace Info::Statistics {
 
 class Memento;
@@ -54,6 +58,9 @@ public:
 	[[nodiscard]] rpl::producer<ShowRequest> showRequests() const;
 
 	void showFinished();
+
+	void fillMenu(const Ui::Menu::MenuCallback &addAction);
+	[[nodiscard]] rpl::producer<> menuFilledChanges() const;
 
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);

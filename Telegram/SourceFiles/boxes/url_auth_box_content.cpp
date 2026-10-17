@@ -43,6 +43,23 @@ void PrepareFullWidthRoundButton(
 	}, button->lifetime());
 }
 
+[[nodiscard]] bool TitleFitsBesideSwitcher(const TextWithEntities &title) {
+	const auto &st = st::urlAuthBoxTitle;
+	const auto available = st::boxWidth
+		- st::boxRowPadding.left()
+		- st::boxRowPadding.right();
+	const auto widths = Ui::Text::String(
+		st.style,
+		title,
+		kMarkupTextOptions,
+		st.minWidth
+	).countLineWidths(available);
+	const auto free = st::boxWidth / 2
+		- SwitchableUserpicButton::MaxWidth()
+		- SwitchableUserpicButton::Skip();
+	return widths.empty() || (widths.front() <= 2 * free);
+}
+
 } // namespace
 
 void ShowMatchCodesBox(
@@ -209,11 +226,22 @@ void ShowMatchCodesBox(
 	}
 }
 
+int SwitchableUserpicButton::Size() {
+	return st::restoreUserpicIcon.photoSize + st::lineWidth * 8;
+}
+
+int SwitchableUserpicButton::MaxWidth() {
+	return Size() * 2.5 - st::restoreUserpicIcon.photoSize;
+}
+
+int SwitchableUserpicButton::Skip() {
+	return st::lineWidth * 4;
+}
+
 SwitchableUserpicButton::SwitchableUserpicButton(
-	not_null<Ui::RpWidget*> parent,
-	int size)
+	not_null<Ui::RpWidget*> parent)
 : RippleButton(parent, st::defaultRippleAnimation)
-, _size(size)
+, _size(Size())
 , _userpicSize(st::restoreUserpicIcon.photoSize)
 , _skip((_size - _userpicSize) / 2) {
 	resize(_size, _size);
@@ -233,9 +261,7 @@ void SwitchableUserpicButton::setExpanded(bool expanded) {
 		return;
 	}
 	_expanded = expanded;
-	const auto w = _expanded
-		? (_size * 2.5 - _userpicSize)
-		: _size;
+	const auto w = _expanded ? MaxWidth() : _size;
 	resize(w, _size);
 	if (_userpic) {
 		_userpic->moveToRight(_skip, _skip);
@@ -442,8 +468,8 @@ void ShowDetails(
 
 	const auto content = box->verticalLayout();
 
-	Ui::AddSkip(content);
-	Ui::AddSkip(content);
+	const auto withUserpic = (userpicOwned != nullptr);
+	const auto reserve = content->add(object_ptr<Ui::RpWidget>(content));
 	if (userpicOwned) {
 		const auto userpic = content->add(
 			std::move(userpicOwned),
@@ -455,29 +481,33 @@ void ShowDetails(
 	}
 
 	const auto domainUrl = isApp ? QString() : qthelp::validate_url(domain);
-	const auto userpicButtonWidth = st::restoreUserpicIcon.photoSize;
-	const auto titlePadding = style::margins(
-		st::boxRowPadding.left(),
-		st::boxRowPadding.top(),
-		st::boxRowPadding.right() + userpicButtonWidth,
-		st::boxRowPadding.bottom());
-	content->add(
-		object_ptr<Ui::FlatLabel>(
-			content,
-			(isApp
-				? tr::lng_url_auth_login_title(
-					lt_domain,
-					rpl::single(tr::bold(domain)),
-					tr::marked)
-				: domainUrl.isEmpty()
-					? tr::lng_url_auth_login_button(tr::marked)
-					: tr::lng_url_auth_login_title(
-						lt_domain,
-						rpl::single(Ui::Text::Link(domain, domainUrl)),
-						tr::marked)),
-			st::boxTitle),
-		titlePadding,
+	auto titleText = [&]() -> rpl::producer<TextWithEntities> {
+		if (isApp) {
+			return tr::lng_url_auth_login_title(
+				lt_domain,
+				rpl::single(tr::bold(domain)),
+				tr::marked);
+		} else if (domainUrl.isEmpty()) {
+			return tr::lng_url_auth_login_button(tr::marked);
+		}
+		return tr::lng_url_auth_login_title(
+			lt_domain,
+			rpl::single(Ui::Text::Link(domain, domainUrl)),
+			tr::marked);
+	}();
+	const auto title = content->add(
+		object_ptr<Ui::FlatLabel>(content, st::urlAuthBoxTitle),
+		st::boxRowPadding,
 		style::al_top);
+	title->setTryMakeSimilarLines(true);
+	std::move(titleText) | rpl::on_next([=](const TextWithEntities &text) {
+		title->setMarkedText(text);
+		reserve->resize(
+			reserve->width(),
+			(withUserpic || TitleFitsBesideSwitcher(text))
+				? (2 * st::defaultVerticalListSkip)
+				: SwitchableUserpicButton::Size());
+	}, title->lifetime());
 	Ui::AddSkip(content);
 
 	content->add(

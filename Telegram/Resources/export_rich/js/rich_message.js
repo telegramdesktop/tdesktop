@@ -1,4 +1,4 @@
-document.querySelectorAll('.slideshow').forEach(function (root) {
+document.querySelectorAll('tg-slideshow').forEach(function (root) {
 	var track = root.querySelector('.slideshow-track');
 	if (!track || !track.children.length) {
 		return;

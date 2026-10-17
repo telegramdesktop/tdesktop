@@ -68,6 +68,14 @@ protected:
 
 	void radialAnimationCallback(crl::time now) const;
 
+	void paintTtlFire(QPainter &p, QRect inner) const;
+	void paintTtlCountdown(
+		QPainter &p,
+		QRect inner,
+		int line,
+		const style::color &color,
+		bool paused) const;
+
 	void ensureAnimation() const;
 	void checkAnimationFinished() const;
 

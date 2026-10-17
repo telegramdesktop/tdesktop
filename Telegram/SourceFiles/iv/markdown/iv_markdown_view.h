@@ -47,8 +47,6 @@ void ScrollMarkdownPreviewToY(
 	int top,
 	MarkdownPreviewScrollMode mode = MarkdownPreviewScrollMode::Instant);
 [[nodiscard]] int MarkdownPreviewScrollTop(Ui::RpWidget *preview);
-[[nodiscard]] rpl::producer<int> MarkdownPreviewScrollTopValue(
-	Ui::RpWidget *preview);
 
 struct MarkdownArticleSearchMatch;
 struct MarkdownArticleSearchSource;

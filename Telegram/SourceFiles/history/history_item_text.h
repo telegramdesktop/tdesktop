@@ -7,7 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "iv/iv_rich_page.h"
+
 class HistoryItem;
+class PhotoData;
 
 namespace Data {
 struct Group;
@@ -18,8 +21,25 @@ struct HistorySelectedTextEntry {
 	const Data::Group *group = nullptr;
 };
 
+struct HistorySelectedTextImage {
+	not_null<PhotoData*> photo;
+	QString before;
+	QString after;
+};
+
+struct HistorySelectedTextParts {
+	std::vector<TextForMimeData> texts;
+	std::vector<HistorySelectedTextImage> images;
+
+	[[nodiscard]] bool empty() const;
+	[[nodiscard]] TextForMimeData composed(
+		const base::flat_map<not_null<PhotoData*>, QString> &blocks = {}) const;
+};
+
 TextForMimeData HistoryItemText(not_null<HistoryItem*> item);
+[[nodiscard]] Iv::RichPageBlocksSlice HistoryItemRichBlocks(
+	not_null<HistoryItem*> item);
 TextForMimeData HistoryGroupText(not_null<const Data::Group*> group);
-TextForMimeData HistorySelectedItemsText(
+[[nodiscard]] HistorySelectedTextParts HistorySelectedItemsTextParts(
 	const std::vector<HistorySelectedTextEntry> &entries,
 	bool richContext);

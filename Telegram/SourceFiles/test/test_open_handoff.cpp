@@ -116,7 +116,6 @@ OpenHandoff DescribeOpenHandoff(
 		return result;
 	}
 	const auto media = document->createMediaView();
-	static_cast<void>(document->location(true));
 	result.isTheme = document->isTheme();
 	result.loadedFull = media->loaded(true);
 	result.canBePlayed = media->canBePlayed();

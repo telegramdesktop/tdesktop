@@ -34,7 +34,7 @@ void Changes::Manager<DataType, UpdateType>::sendRealtimeNotifications(
 		not_null<DataType*> data,
 		Flags flags) {
 	for (auto i = 0; i != kCount; ++i) {
-		const auto flag = static_cast<Flag>(1U << i);
+		const auto flag = static_cast<Flag>(1ULL << i);
 		if (flags & flag) {
 			_realtimeStreams[i].fire({ data, flags });
 		}

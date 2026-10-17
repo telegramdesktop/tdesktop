@@ -121,6 +121,7 @@ private:
 
 		[[nodiscard]] PrepareState prepareState(
 			crl::time trackTime,
+			float64 playbackSpeed,
 			bool dropStaleFrames);
 
 		[[nodiscard]] PresentFrame presentFrame(

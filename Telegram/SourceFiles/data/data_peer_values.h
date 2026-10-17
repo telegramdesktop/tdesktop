@@ -148,10 +148,13 @@ inline auto PeerFullFlagValue(
 	not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<bool> CanManageGroupCallValue(
 	not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<bool> AllowsForwardingValue(
+	not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<bool> PeerPremiumValue(not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<bool> AmPremiumValue(
 	not_null<Main::Session*> session);
 
+[[nodiscard]] QString BotStatusText(not_null<UserData*> user);
 [[nodiscard]] TimeId SortByOnlineValue(not_null<UserData*> user, TimeId now);
 [[nodiscard]] crl::time OnlineChangeTimeout(
 	LastseenStatus status,

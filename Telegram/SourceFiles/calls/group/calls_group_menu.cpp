@@ -488,9 +488,7 @@ void FillMenu(
 		not_null<Ui::DropdownMenu*> menu,
 		not_null<PeerData*> peer,
 		not_null<GroupCall*> call,
-		bool wide,
 		Fn<void()> chooseJoinAs,
-		Fn<void()> chooseShareScreenSource,
 		Fn<void(object_ptr<Ui::BoxContent>)> showBox) {
 	const auto weak = base::make_weak(call);
 	const auto resolveReal = [=] {
@@ -511,8 +509,6 @@ void FillMenu(
 	const auto addEditTitle = !conference && call->canManage();
 	const auto addEditRecording = !conference
 		&& call->canManage()
-		&& !real->scheduleDate();
-	const auto addScreenCast = call->videoIsWorking()
 		&& !real->scheduleDate();
 	if (addEditJoinAs) {
 		menu->addAction(MakeJoinAsAction(
@@ -578,23 +574,6 @@ void FillMenu(
 			menu->menu(),
 			real->recordStartDateValue(),
 			handler));
-	}
-	if (addScreenCast) {
-		const auto sharing = call->isSharingScreen();
-		const auto toggle = [=] {
-			if (const auto strong = weak.get()) {
-				if (sharing) {
-					strong->toggleScreenSharing(std::nullopt);
-				} else {
-					chooseShareScreenSource();
-				}
-			}
-		};
-		menu->addAction(
-			(call->isSharingScreen()
-				? tr::lng_group_call_screen_share_stop(tr::now)
-				: tr::lng_group_call_screen_share_start(tr::now)),
-			toggle);
 	}
 	menu->addAction(tr::lng_group_call_settings(tr::now), [=] {
 		if (const auto strong = weak.get()) {

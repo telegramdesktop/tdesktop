@@ -10,8 +10,42 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/painter.h"
 #include "ui/widgets/labels.h"
+#include "styles/style_info.h"
 #include "styles/style_window.h"
 #include "styles/style_settings.h"
+
+namespace Ui {
+
+Text::PaletteDependentEmoji AttentionMarkEmoji() {
+	return {
+		.factory = [] {
+			const auto s = st::infoSecurityRiskIconSize;
+			const auto ratio = style::DevicePixelRatio();
+			const auto rect = QRect(0, 0, s, s);
+			auto result = QImage(
+				rect.size() * ratio,
+				QImage::Format_ARGB32_Premultiplied);
+			result.setDevicePixelRatio(ratio);
+			result.fill(Qt::transparent);
+
+			auto p = QPainter(&result);
+			auto hq = PainterHighQualityEnabler(p);
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::attentionButtonFg);
+			p.drawEllipse(rect);
+
+			p.setPen(st::windowFgActive);
+			p.setFont(st::semiboldFont);
+			p.drawText(rect, u"!"_q, style::al_center);
+
+			p.end();
+			return result;
+		},
+		.margin = st::infoSecurityRiskIconMargin,
+	};
+}
+
+} // namespace Ui
 
 namespace Ui::NewBadge {
 
@@ -61,6 +95,33 @@ void AddAfterLabel(
 	) | rpl::on_next([=](QRect geometry) {
 		badge->move(st::settingsPremiumNewBadgePosition
 			+ QPoint(label->x() + label->width(), label->y()));
+	}, badge->lifetime());
+}
+
+void AddAfterButtonText(
+		not_null<Ui::RpWidget*> button,
+		rpl::producer<QString> text,
+		const style::SettingsButton &st) {
+	const auto badge = CreateNewBadge(
+		button,
+		tr::lng_premium_summary_new_badge());
+	rpl::combine(
+		std::move(text),
+		button->widthValue()
+	) | rpl::on_next([=, &st](const QString &text, int width) {
+		const auto space = st.style.font->spacew;
+		const auto left = st.padding.left()
+			+ st.style.font->width(text)
+			+ space;
+		const auto available = width - left - st.padding.right();
+		badge->setVisible(available >= badge->width());
+		if (!badge->isHidden()) {
+			const auto top = st.padding.top()
+				+ st.style.font->ascent
+				- st::settingsPremiumNewBadge.style.font->ascent
+				- st::settingsPremiumNewBadgePadding.top();
+			badge->moveToLeft(left, top, width);
+		}
 	}, badge->lifetime());
 }
 

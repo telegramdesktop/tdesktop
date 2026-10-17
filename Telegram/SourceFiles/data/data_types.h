@@ -46,6 +46,8 @@ struct UploadState {
 	int64 offset = 0;
 	int64 size = 0;
 	bool waitingForAlbum = false;
+	bool preparing = false;
+	float64 prepareProgress = 0.;
 };
 
 Storage::Cache::Key DocumentCacheKey(int32 dcId, uint64 id);
@@ -301,8 +303,7 @@ enum class MessageFlag : uint64 {
 	// Outgoing message and failed to be sent.
 	SendingFailed         = (1ULL << 27),
 
-	// No media and only a several emoji or an only custom emoji text.
-	SpecialOnlyEmoji      = (1ULL << 28),
+	EmojiInteractionWatched = (1ULL << 28),
 
 	// Message existing in the message history.
 	HistoryEntry          = (1ULL << 29),

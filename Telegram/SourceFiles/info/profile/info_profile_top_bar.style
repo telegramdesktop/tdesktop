@@ -7,31 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "info/info.style";
 
-infoTopBarColoredBack: IconButton(infoTopBarBack) {
-	icon: icon {{ "info/info_back", groupCallMembersFg }};
-	iconOver: icon {{ "info/info_back", groupCallMembersFg }};
-	ripple: universalRippleAnimation;
-}
-infoLayerTopBarColoredBack: IconButton(infoLayerTopBarBack) {
-	icon: icon {{ "info/info_back", groupCallMembersFg }};
-	iconOver: icon {{ "info/info_back", groupCallMembersFg }};
-	ripple: universalRippleAnimation;
-}
-infoTopBarColoredClose: IconButton(infoTopBarClose) {
-	icon: icon {{ "info/info_close", groupCallMembersFg }};
-	iconOver: icon {{ "info/info_close", groupCallMembersFg }};
-	ripple: universalRippleAnimation;
-}
-infoTopBarColoredEdit: IconButton(infoTopBarEdit) {
-	icon: icon {{ "menu/edit", groupCallMembersFg }};
-	iconOver: icon {{ "menu/edit", groupCallMembersFg }};
-	ripple: universalRippleAnimation;
-}
-infoLayerTopBarColoredEdit: IconButton(infoLayerTopBarEdit) {
-	icon: icon {{ "menu/edit", groupCallMembersFg }};
-	iconOver: icon {{ "menu/edit", groupCallMembersFg }};
-	ripple: universalRippleAnimation;
-}
 infoTopBarBlackBack: IconButton(infoTopBarBack) {
 	icon: icon {{ "info/info_back", windowBoldFg }};
 	iconOver: icon {{ "info/info_back", windowBoldFg }};
@@ -47,9 +22,9 @@ infoTopBarBlackClose: IconButton(infoTopBarClose) {
 	iconOver: icon {{ "info/info_close", windowBoldFg }};
 	ripple: universalRippleAnimation;
 }
-infoTopBarColoredMenu: IconButton(infoTopBarMenu) {
-	icon: icon {{ "title_menu_dots", groupCallMembersFg }};
-	iconOver: icon {{ "title_menu_dots", groupCallMembersFg }};
+infoLayerTopBarBlackClose: IconButton(infoLayerTopBarClose) {
+	icon: icon {{ "info/info_close", windowBoldFg }};
+	iconOver: icon {{ "info/info_close", windowBoldFg }};
 	ripple: universalRippleAnimation;
 }
 infoTopBarBlackMenu: IconButton(infoTopBarMenu) {
@@ -57,20 +32,9 @@ infoTopBarBlackMenu: IconButton(infoTopBarMenu) {
 	iconOver: icon {{ "title_menu_dots", windowBoldFg }};
 	ripple: universalRippleAnimation;
 }
-infoTopBarColoredSearch: IconButton(infoTopBarSearch) {
-	icon: icon {{ "top_bar_search", groupCallMembersFg }};
-	iconOver: icon {{ "top_bar_search", groupCallMembersFg }};
-	ripple: universalRippleAnimation;
-}
 infoTopBarBlackSearch: IconButton(infoTopBarSearch) {
 	icon: icon {{ "top_bar_search", windowBoldFg }};
 	iconOver: icon {{ "top_bar_search", windowBoldFg }};
-	ripple: universalRippleAnimation;
-}
-infoTopBarColoredGroup: IconButton(infoTopBarSearch) {
-	icon: icon {{ "menu/admin", groupCallMembersFg }};
-	iconOver: icon {{ "menu/admin", groupCallMembersFg }};
-	iconPosition: point(15px, -1px);
 	ripple: universalRippleAnimation;
 }
 infoTopBarBlackGroup: IconButton(infoTopBarSearch) {

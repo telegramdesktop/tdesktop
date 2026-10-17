@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_passkey_deserialize.h"
 #include "lang/lang_keys.h"
 #include "platform/platform_webauthn.h"
-#include "settings/cloud_password/settings_cloud_password_common.h"
 #include "ui/layers/generic_box.h"
 #include "ui/layers/show.h"
 #include "ui/widgets/fields/password_input.h"
@@ -170,17 +169,28 @@ void ShowMessage(const QString &text) {
 				? tr::lng_passkey_pin_invalid()
 				: tr::lng_passkey_pin_about()),
 			st::boxLabel));
-		const auto field = Settings::CloudPassword::AddPasswordField(
-			box->verticalLayout(),
-			tr::lng_passkey_pin_placeholder(),
-			QString());
+		const auto &fieldSt = st::defaultInputField;
+		const auto row = box->addRow(object_ptr<Ui::RpWidget>(box));
+		row->resize(row->width(), fieldSt.heightMin);
+		const auto field = Ui::CreateChild<Ui::PasswordInput>(
+			row,
+			fieldSt,
+			tr::lng_passkey_pin_placeholder());
+		row->sizeValue() | rpl::on_next([=](QSize size) {
+			field->resize(size.width(), field->height());
+		}, row->lifetime());
 		box->setFocusCallback([=] { field->setFocusFast(); });
-		box->addButton(tr::lng_passkey_confirm(), [=] {
+		const auto confirm = [=] {
 			const auto pin = field->getLastText();
-			if (!pin.isEmpty()) {
-				submit(pin);
+			if (pin.isEmpty()) {
+				field->setFocus();
+				field->showError();
+				return;
 			}
-		});
+			submit(pin);
+		};
+		QObject::connect(field, &Ui::MaskedInputField::submitted, confirm);
+		box->addButton(tr::lng_passkey_confirm(), confirm);
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 		box->boxClosing() | rpl::on_next([=] {
 			cancel();

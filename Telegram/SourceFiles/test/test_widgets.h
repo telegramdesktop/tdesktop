@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QWidget>
 
+namespace Ui {
+class InputField;
+} // namespace Ui
+
 namespace Test {
 
 // Telegram's custom widgets do not declare Q_OBJECT, so
@@ -47,9 +51,38 @@ template <typename T>
 	not_null<QWidget*> root,
 	const QString &name);
 
+// In-situ overlay hooks can publish the exact live object created by the
+// product instead of rediscovering layer-owned/custom widgets from a window
+// tree. Every replacement advances |generation|; dead QObjects resolve as
+// unavailable. Publish calls are runtime no-ops unless Test::Active().
+struct LiveWidgetSnapshot {
+	QWidget *widget = nullptr;
+	int generation = 0;
+};
+
+struct LiveActionSnapshot {
+	bool available = false;
+	int generation = 0;
+	int invocationCount = 0;
+	bool repeatable = false;
+};
+
+void PublishLiveWidget(
+	const QString &key,
+	not_null<QWidget*> widget);
+[[nodiscard]] LiveWidgetSnapshot ReadLiveWidget(const QString &key);
+
+void PublishLiveAction(
+	const QString &key,
+	not_null<QObject*> context,
+	Fn<void()> action,
+	bool repeatable = false);
+[[nodiscard]] LiveActionSnapshot ReadLiveAction(const QString &key);
+[[nodiscard]] bool InvokeLiveAction(const QString &key);
+
 // Input delivery and settlement contract.
 //
-// Click, TypeText and PressKey deliver their events synchronously with
+// The input helpers deliver their events synchronously with
 // QApplication::sendEvent from the calling (runner-stage) context. During
 // each dispatch postponed-call processing is deferred, so a product
 // fix-up queued by the event can never run mid-signal-emission, where
@@ -67,8 +100,7 @@ template <typename T>
 // at a matching internal unwind INSIDE the sent event's own signal
 // emission — both unlike real top-level input.
 //
-// Guarantee: when a helper returns, postponed text fix-ups (for example
-// Ui::CreateTonAmountInput's FixTonAmountInput rewrite) have run AND
+// Guarantee: when a helper returns, postponed text fix-ups have run AND
 // their own change handling has run, so both the widget's document and
 // the field's cached text state (InputField::getLastText) show the
 // product's rewritten text. The drain covers Ui::PostponeCall only:
@@ -76,16 +108,203 @@ template <typename T>
 // need bounded waits. If a drained call destroys the target widget, the
 // helper skips its remaining events and returns.
 //
+// Pointer model: the harness has no pointer, so Click and Drag end
+// with a QEvent::Leave, which leaves the widget they were given
+// pointerless. Give them the widget that accepts the press: an ignored
+// mouse event walks up the parent chain in QApplication::notify, so a
+// click aimed at a non-accepting child sets Over on the ancestor
+// button that took the press while the leave reaches only the child,
+// and that ancestor stays hovered. The leave is also inert while
+// StateFlag::Down is still set, because leaveEventHook returns before
+// setOver on that branch. Without the leave
+// Ui::AbstractButton::mousePressEvent's
+// checkIfOver() latches StateFlag::Over for the rest of the process,
+// Ui::RoundButton::paintEvent keeps painting textBgOver, and a later
+// Test::DeriveBand under the style's normal fill returns ok=0 with no
+// rows — an absence reading for a widget plainly on screen. Qt does
+// not re-deliver an unhandled Leave to ancestors the way it
+// re-delivers an ignored mouse or key event, so the leave stays on the
+// target — but on the target it is an ordinary event. It runs that
+// widget's own leaveEventHook, its direct parent's
+// enterFromChildEvent, every subscriber of the target's
+// RpWidget::events() stream, and every installed event filter. Two
+// that matter: Ui::Menu::ItemBase deselects a menu entry on Leave, so
+// clicking one no longer leaves it highlighted; and Ui::Tooltip keeps
+// an application-wide filter for the life of the process, so any
+// synthetic click starts its hide-by-leave timer. A widget that was
+// never hovered keeps its Over unchanged, because setOver returns
+// early on an unchanged value.
+//
+// DropText is the one exception to "after each delivered event": it
+// settles once after its drag-enter + drop pair, because a drain between
+// the two could destroy a viewport QDragManager still points at (see its
+// comment).
+//
 // Use Test::Settle for programmatic mutations; SettlePostponedCalls
 // remains the bare drain.
 
 // Synthesizes a full mouse press + release on the widget, at its center by
-// default. Drives the same event path as a real click.
+// default, then a QEvent::Leave, so a completed click leaves no hover
+// behind. Drives the same event path as a real click.
 void Click(not_null<QWidget*> widget, std::optional<QPoint> point = {});
 
-// Synthesizes key press + release pairs carrying the text, one character at
-// a time, into the widget.
+// Synthesizes key press + release pairs carrying one Unicode grapheme at a
+// time. Surrogate pairs and joined emoji are never split between events.
 void TypeText(not_null<QWidget*> widget, const QString &text);
+
+// Delivers one input-method commit. Prefer this when the behavior under test
+// is text insertion itself rather than physical key handling.
+void CommitText(not_null<QWidget*> widget, const QString &text);
+
+// Synthesizes a left-button drag in widget-local coordinates. Intermediate
+// mouse moves retain Qt::LeftButton in buttons(), matching a real drag.
+// Like Click, it ends with a QEvent::Leave, so the drag leaves no hover
+// behind.
+//
+// A drag whose start the target queues - both message lists queue
+// performDrag() with InvokeQueued once the pointer leaves the pressed item
+// or passes the drag distance - is released before that call runs, so the
+// drag never starts. Such a drag needs Test::AppendQueuedStartDrag
+// (test_queued_drag.h).
+void Drag(
+	not_null<QWidget*> widget,
+	QPoint from,
+	QPoint to,
+	int steps = 8,
+	Qt::KeyboardModifiers modifiers = Qt::NoModifier);
+
+// The two halves Drag is made of: Drag is DragPressAndMoves, then
+// DragRelease when the first answered true (false means the widget died
+// during the press or a move, and nothing more was sent). They deliver the
+// same events through the same settle as Drag, and are exported for
+// Test::AppendQueuedStartDrag (test_queued_drag.h), which returns to the
+// event loop between them. A scenario uses Drag or that helper, never the
+// halves by hand: a press and moves without their release leave the
+// target's button down across turns.
+[[nodiscard]] bool DragPressAndMoves(
+	not_null<QWidget*> widget,
+	QPoint from,
+	QPoint to,
+	int steps = 8,
+	Qt::KeyboardModifiers modifiers = Qt::NoModifier);
+
+// The release at |to| and the same QEvent::Leave as Click and Drag.
+void DragRelease(
+	not_null<QWidget*> widget,
+	QPoint to,
+	Qt::KeyboardModifiers modifiers = Qt::NoModifier);
+
+// Synthesizes a wheel event at |point| in the named widget's coordinates
+// (the widget centre by default). |angleDelta| uses Qt's native
+// eighths-of-a-degree convention (120 is one wheel step).
+//
+// A stack-built QWheelEvent sent with QApplication::sendEvent is not
+// spontaneous, and Qt 6's QApplication::notify therefore does not climb
+// parentWidget() the way a real wheel does. The helper replays that
+// ladder itself: a fresh event per widget, accepted reset by the
+// constructor, continuing while sendEvent returns false or the event is
+// ignored, stopping at isWindow() or Qt::WA_NoMousePropagation.
+// QAbstractScrollArea::event returns false for Wheel without ignoring,
+// so a delivery to the scroll area itself is recorded in |inert| and is
+// never |delivered|. The viewport is the widget that actually consumes
+// a wheel aimed at a covering child. The helper neither Notes nor Fails;
+// the caller reads the return, as with WindowActivation.
+struct WheelDelivery {
+	bool delivered = false;
+	QString receiver;
+	QString inert;
+	QString refusal;
+};
+
+WheelDelivery Wheel(
+	not_null<QWidget*> widget,
+	QPoint angleDelta,
+	std::optional<QPoint> point = {});
+[[nodiscard]] QString WheelDeliveryDetails(const WheelDelivery &reading);
+
+// Hands |text| to a Ui::InputField the way a paste does, without the
+// system clipboard. It exists because the clipboard read back empty right
+// after setText on the Windows host of
+// 2026/09/29/keep-the-focused-word-field-in-view-when-importing-a-wallet
+// (work/test.md, Run 1, Tests 9 and 10), so every paste check there was
+// left undecided.
+//
+// Route: a stack QMimeData carrying |text|, a QDragEnterEvent and then a
+// QDropEvent, both sent to field->rawTextEdit()->viewport(). The viewport's
+// QAbstractScrollAreaFilter hands them to QTextEdit::dragEnterEvent and
+// InputField::dropEventInner, which reach canInsertFromMimeDataInner and
+// insertFromMimeDataInner - so the field's setMimeDataHook, or the field's
+// own insertion when the hook leaves it, which is where Ctrl+V also ends.
+//
+// Qt routing (qapplication.cpp, QApplication::notify): the enter must come
+// first, because a Drop goes only to QDragManager's current target, which
+// only an accepted DragEnter sets; with no target a Drop is discarded. An
+// ignored DragEnter climbs parentWidget() to the first enabled ancestor
+// that accepts drops (a chat's file-drop area, for instance), and the Drop
+// then goes there. The helper therefore sends the drop only when the
+// field's own viewport accepted the enter, and for the duration of the
+// pair it installs an application event filter (a shield) that withholds
+// every drag event from any receiver other than that viewport. No other
+// widget ever sees the enter or the drop; |shielded| names every widget Qt
+// would have offered them to. An enter that was not accepted is balanced
+// with a QDragLeaveEvent to the viewport, as Qt itself does.
+//
+// The pair runs inside ONE Test::Settle, not one per event: an accepted
+// enter makes the viewport QDragManager's raw (unguarded) current target,
+// and a drain between the enter and the drop could run product code that
+// destroys the field while the manager still points at it. The drop or the
+// leave clears the target before any postponed call runs, and the single
+// drain afterwards still leaves getLastText() settled.
+//
+// The text goes in at the caret (the drop point is the cursor rectangle's
+// centre); unlike a paste, a selection is NOT replaced
+// (QWidgetTextControl::dropEvent moves the cursor to the drop point).
+//
+// Not covered: it does NOT exercise the clipboard read of a Paste
+// accessory (QGuiApplication::clipboard()->text() in its click callback)
+// or of Ctrl+V (QTextEdit::paste). A check whose subject is that read
+// still needs a host where the clipboard reads back. The helper neither
+// reads nor writes the system clipboard.
+//
+// Side effects: InputField::dropEventInner calls window()->raise() and
+// window()->activateWindow() after the drop. On macOS QCocoaWindow::raise
+// also activates the application unless QT_MAC_SET_RAISE_PROCESS=0, so a
+// shown field's window, and the app, come to the front; a never-shown
+// top-level is unaffected. The viewport keeps Qt::WA_UnderMouse after a
+// delivered drop (only Leave or DragLeave clears it), as a real drop under
+// the pointer would.
+//
+// |delivered| is exactly enterAccepted && dropAccepted. A refusal is
+// returned, never logged: the helper neither Notes nor Fails, and the
+// caller judges the reading, as with WheelDelivery. |fieldAlive| reports a
+// field destroyed by the final drain; that is not a refusal.
+// TextDropDetails never prints the dropped text or the field's text,
+// because a campaign may drop real secret words.
+enum class TextDropRefusal {
+	None,
+	ViewportRefusesDrops,
+	EnterNotAccepted,
+	DropNotAccepted,
+};
+
+struct TextDrop {
+	bool delivered = false;
+	bool enterAccepted = false;
+	bool dropSent = false;
+	bool dropAccepted = false;
+	bool fieldAlive = false;
+	int textLength = 0;
+	int fieldLengthBefore = 0;
+	int fieldLengthAfter = 0;
+	QString target;
+	QStringList shielded;
+	TextDropRefusal refusal = TextDropRefusal::None;
+	QString reason;
+};
+
+[[nodiscard]] QString TextDropRefusalName(TextDropRefusal refusal);
+TextDrop DropText(not_null<Ui::InputField*> field, const QString &text);
+[[nodiscard]] QString TextDropDetails(const TextDrop &reading);
 
 void PressKey(
 	not_null<QWidget*> widget,
@@ -101,5 +320,74 @@ void Settle(Fn<void()> action);
 // Runs every pending Ui::PostponeCall (see the contract above) — the
 // bare drain, with no defer around anything.
 void SettlePostponedCalls();
+
+// Injects window activation through the QPA seam the platform plugin itself
+// reports through, so a focus-routed affordance can be driven on a console
+// where the window is never active in Qt's sense.
+//
+// QWidget::setFocus() walks the focus_child chain unconditionally, but only
+// its if (f->isActiveWindow()) branch promotes the target to
+// QApplication::focusWidget(), and isActiveWindow() ends in a fallback to
+// QPlatformWindow::isActive() (qwidget.cpp) - so it takes the
+// platform window not being active, on a locked console, or on macOS after a
+// default workspace.py test-run launch, which does not activate the client,
+// for setFocus() to "succeed" while hasFocus() and isActiveWindow() keep
+// reading false - no error, no event, just absence - and every affordance
+// routed on them silently does nothing. Clearing only the QPA focus window
+// does not reproduce that where the OS window is still active. Runs 2 and 7
+// of 2026/08/30/replace-wallet-with-new-or-imported paid for that.
+// Window::Controller::activate() (window/window_controller.h) is not the
+// answer: it asks the window manager, which on a locked console does not
+// comply, which is why the injection goes through the QPA seam instead.
+//
+// Run 7 added the second half: the platform de-activates the window again
+// asynchronously, between event-loop turns. In that one run an activation
+// used in the same synchronous block as its dependent action worked, while
+// a one-shot activation read back across polled turns was already gone. So
+// a one-shot arrangement expected to survive across polled turns is a
+// forbidden technique - assert activation in the same turn as the action,
+// and re-assert it on every poll of a bounded wait.
+//
+// Calling ForceWindowActive from a stage's until is a deliberate, narrow
+// exception to the README's stage contract, which says a readiness must be
+// pure: it mutates only which window Qt considers focused, never product
+// state, it is idempotent and repeatable, and it encodes no expected
+// product result. Its note is capped to every kActivationNoteEvery-th call,
+// and |attempts| and |notes| are process-wide counts carried in every
+// reading, so the flake stays visible without flooding a 50ms-tick log.
+inline constexpr auto kActivationNoteEvery = 10;
+
+// For the values ForceWindowActive and ClearWindowActive return, |injected|
+// is true exactly when |refusal| is empty, and a refusal is returned rather
+// than logged: only the caller knows whether a window the helper could not
+// resolve is a failure of the run or an expected reading.
+// ReadWindowActivation injects nothing, so it always answers injected=false
+// and fills |refusal| only when there is no window to activate through -
+// never read its |injected| as "activation is in force".
+struct WindowActivation {
+	bool injected = false;
+	bool focusWindowSet = false;
+	bool activeWindow = false;
+	int attempts = 0;
+	int notes = 0;
+	QString identity;
+	QString refusal;
+};
+
+[[nodiscard]] WindowActivation ReadWindowActivation(
+	QWidget *widget = nullptr);
+WindowActivation ForceWindowActive(QWidget *widget = nullptr);
+
+// Deliberately clears the application's focus window through the same seam,
+// so a self-test can reach the failing shape instead of describing it. Never
+// call this from a scenario, and never leave a stage with it in force.
+WindowActivation ClearWindowActive();
+
+// The one formatter both the helper's own note and every self-test Check
+// detail print, so a pass and a refusal carry the same fields. It takes the
+// reading rather than re-reading, because |attempts| and |notes| move on
+// every call and a re-read would print numbers no verdict was made against.
+[[nodiscard]] QString WindowActivationDetails(
+	const WindowActivation &reading);
 
 } // namespace Test

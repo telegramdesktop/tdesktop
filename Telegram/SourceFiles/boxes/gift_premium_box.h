@@ -27,10 +27,6 @@ struct UniqueGift;
 struct GiftUpgradeSpinner;
 } // namespace Data
 
-namespace Main {
-class Session;
-} // namespace Main
-
 namespace Settings {
 struct CreditsEntryBoxStyleOverrides;
 } // namespace Settings
@@ -68,10 +64,6 @@ void ResolveGiveawayInfo(
 	MsgId messageId,
 	std::optional<Data::GiveawayStart> start,
 	std::optional<Data::GiveawayResults> results);
-
-[[nodiscard]] QString TonAddressUrl(
-	not_null<Main::Session*> session,
-	const QString &address);
 
 void AddStarGiftTable(
 	std::shared_ptr<ChatHelpers::Show> show,

@@ -46,7 +46,10 @@ void VideoUserpicPlayer::clear() {
 	_peer = nullptr;
 }
 
-QImage VideoUserpicPlayer::frame(QSize size, not_null<PeerData*> peer) {
+QImage VideoUserpicPlayer::frame(
+		QSize size,
+		not_null<PeerData*> peer,
+		bool paused) {
 	if (!_streamed
 		|| !_streamed->player().ready()
 		|| _streamed->player().videoSize().isEmpty()
@@ -90,7 +93,9 @@ QImage VideoUserpicPlayer::frame(QSize size, not_null<PeerData*> peer) {
 			_monoforumMask);
 		q.end();
 	}
-	_streamed->markFrameShown();
+	if (!paused) {
+		_streamed->markFrameShown();
+	}
 	return result;
 }
 

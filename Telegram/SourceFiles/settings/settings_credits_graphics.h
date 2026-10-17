@@ -138,6 +138,11 @@ struct CreditsEntryBoxStyleOverrides {
 };
 [[nodiscard]] CreditsEntryBoxStyleOverrides DarkCreditsEntryBoxStyle();
 
+struct UniqueGiftCoverActions {
+	Fn<void()> transfer;
+	Fn<void()> sell;
+};
+
 [[nodiscard]] rpl::producer<CreditsAmount> UniqueGiftResalePrice(
 	std::shared_ptr<Data::UniqueGift> unique,
 	bool forceTon = false);
@@ -152,7 +157,8 @@ void GenericCreditsEntryBox(
 	std::shared_ptr<ChatHelpers::Show> show,
 	const Data::CreditsHistoryEntry &e,
 	const Data::SubscriptionEntry &s,
-	CreditsEntryBoxStyleOverrides st = {});
+	CreditsEntryBoxStyleOverrides st = {},
+	std::shared_ptr<const UniqueGiftCoverActions> actions = nullptr);
 void GenericCreditsEntryBody(
 	not_null<Ui::GenericBox*> box,
 	std::shared_ptr<ChatHelpers::Show> show,
@@ -200,7 +206,8 @@ void GlobalStarGiftBox(
 	std::shared_ptr<ChatHelpers::Show> show,
 	const Data::StarGift &data,
 	StarGiftResaleInfo resale,
-	CreditsEntryBoxStyleOverrides st = {});
+	CreditsEntryBoxStyleOverrides st = {},
+	std::shared_ptr<const UniqueGiftCoverActions> actions = nullptr);
 
 [[nodiscard]] Data::CreditsHistoryEntry SavedStarGiftEntry(
 	not_null<PeerData*> owner,

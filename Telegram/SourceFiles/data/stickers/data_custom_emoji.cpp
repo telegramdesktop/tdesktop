@@ -506,9 +506,16 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 			i->second->updatePreview(std::move(preview));
 		}
 	}
+	const auto defaultWidth = st::emojiSize + 2 * st::emojiPadding;
+	const auto width = (tag == SizeTag::Normal && !sizeOverride)
+		? std::max(
+			defaultWidth,
+			Ui::Emoji::GetCustomSizeNormal())
+		: defaultWidth;
 	return std::make_unique<Ui::CustomEmoji::Object>(
 		i->second.get(),
-		std::move(update));
+		std::move(update),
+		width);
 }
 
 Ui::Text::CustomEmojiFactory CustomEmojiManager::factory(

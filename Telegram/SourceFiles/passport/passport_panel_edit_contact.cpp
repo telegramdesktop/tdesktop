@@ -305,6 +305,7 @@ void PanelEditContact::setupControls(
 			fieldStyle,
 			std::move(fieldPlaceholder),
 			data);
+		_field->setInputMethodHints(_scheme.inputHints);
 	}
 
 	_field->move(0, 0);

@@ -27,7 +27,7 @@ StreamedFileDownloader::StreamedFileDownloader(
 	MTP::DcId dcId,
 	Data::FileOrigin origin,
 	Cache::Key cacheKey,
-	MediaKey fileLocationKey,
+	std::optional<MediaKey> fileLocationKey,
 	std::shared_ptr<Reader> reader,
 
 	// For FileLoader

@@ -5,7 +5,7 @@ body {
 	padding: 0 16px 48px;
 	background: #ffffff;
 	color: #000000;
-	font: 12px/18px 'Open Sans', "Lucida Grande", "Lucida Sans Unicode",
+	font: 16px/24px 'Open Sans', "Lucida Grande", "Lucida Sans Unicode",
 		Arial, Helvetica, Verdana, sans-serif;
 }
 article {
@@ -17,12 +17,12 @@ article {
 a { color: #168acd; text-decoration: none; }
 a:hover { text-decoration: underline; }
 h1, h2, h3, h4, h5, h6 { font-weight: 700; margin: 12px 0 6px; }
-h1 { font-size: 20px; line-height: 26px; }
-h2 { font-size: 18px; line-height: 24px; }
-h3 { font-size: 16px; line-height: 22px; }
-h4 { font-size: 15px; line-height: 21px; }
-h5 { font-size: 14px; line-height: 20px; }
-h6 { font-size: 13px; line-height: 19px; }
+h1 { font-size: 36px; line-height: 50px; }
+h2 { font-size: 32px; line-height: 44px; }
+h3 { font-size: 27px; line-height: 38px; }
+h4 { font-size: 23px; line-height: 33px; }
+h5 { font-size: 21px; line-height: 30px; }
+h6 { font-size: 18px; line-height: 26px; }
 p { margin: 0 0 12px; }
 .byline, footer { display: block; color: #70777b; }
 hr { border: none; border-top: 1px solid #e3e6e8; margin: 24px 0; }
@@ -60,8 +60,6 @@ aside {
 	margin: 0 0 12px;
 	text-align: center;
 	font-style: italic;
-	font-size: 16px;
-	line-height: 22px;
 }
 blockquote cite, aside cite, figcaption cite {
 	display: block;
@@ -172,6 +170,7 @@ table { border-collapse: collapse; margin: 0 0 4px; }
 td, th { padding: 6px 10px; text-align: start; }
 table.bordered td, table.bordered th { border: 1px solid #e3e6e8; }
 table.striped tr:nth-child(even) { background: #f5f7f8; }
+table.compact td, table.compact th { padding-top: 3px; padding-bottom: 3px; }
 details {
 	margin: 0 0 12px;
 	border: 1px solid #e3e6e8;
@@ -263,7 +262,7 @@ span.anchor { display: inline; }
 @media (prefers-color-scheme: dark) {
 	body { background: #1a2026; color: #ffffff; }
 	a { color: #4db8ff; }
-	.byline, .footer, figcaption, blockquote cite, .audio-meta,
+	.byline, footer, figcaption, blockquote cite, .audio-meta,
 	.related-desc, .related-meta { color: #91979e; }
 	hr { border-top-color: #2c333d; }
 	code { color: #ff8aac; background: #2c333d; }

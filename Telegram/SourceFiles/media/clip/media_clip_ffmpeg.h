@@ -48,6 +48,7 @@ public:
 
 	bool isGifv() const;
 	bool isWebmSticker() const;
+	bool hasAudio() const;
 
 	~FFMpegReaderImplementation();
 
@@ -103,8 +104,7 @@ private:
 
 	int _width = 0;
 	int _height = 0;
-	SwsContext *_swsContext = nullptr;
-	QSize _swsSize;
+	FFmpeg::SwscalePointer _swsContext;
 
 	crl::time _frameMs = 0;
 	int _nextFrameDelay = 0;

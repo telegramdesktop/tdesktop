@@ -43,6 +43,7 @@ object_ptr<RpWidget> MakeFeatureListEntry(
 	title->show();
 	about->show();
 	about->setLinksTrusted();
+	about->setTryMakeSimilarLines(feature.similarLines);
 	widget->widthValue(
 	) | rpl::on_next([=](int width) {
 		const auto left = st::infoStarsFeatureLabelLeft;

@@ -474,7 +474,7 @@ void ChatSwitchProcess::layout(QSize size) {
 	for (auto row = 0; row != _shownRows; ++row) {
 		auto left = padding.left();
 		for (auto column = 0; column != _shownPerRow; ++column) {
-			auto &entry = _entries[index++];
+			const auto &entry = _entries[index++];
 			entry.button->moveToLeft(left, top, _inner.width());
 			entry.button->show();
 			left += st::chatSwitchSize.width();

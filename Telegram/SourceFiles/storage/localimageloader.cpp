@@ -20,8 +20,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "editor/scene/scene_item_sticker.h"
 #include "editor/scene/scene.h"
+#include "editor/video/video_editor_common.h"
 #include "media/audio/media_audio.h"
 #include "media/clip/media_clip_reader.h"
+#include "media/media_video_encode.h"
 #include "mtproto/facade.h"
 #include "lottie/lottie_animation.h"
 #include "history/history.h"
@@ -34,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 #include "lang/lang_keys.h"
 #include "storage/file_download.h"
+#include "storage/storage_folder_archive.h"
 #include "storage/storage_media_prepare.h"
 #include "window/themes/window_theme_preview.h"
 #include "mainwidget.h"
@@ -108,6 +111,11 @@ struct PreparedFileThumbnail {
 	return (filesize > kThumbnailUploadBySize)
 		|| (ranges::find(kThumbnailKnownMimes, filemime.toLower())
 			== end(kThumbnailKnownMimes));
+}
+
+[[nodiscard]] QString Mp4FileName(const QString &name) {
+	const auto dot = name.lastIndexOf('.');
+	return ((dot > 0) ? name.mid(0, dot) : name) + u".mp4"_q;
 }
 
 [[nodiscard]] PreparedFileThumbnail FinalizeFileThumbnail(
@@ -362,6 +370,37 @@ void TaskQueueWorker::onTaskAdded() {
 SendingAlbum::SendingAlbum() : groupId(base::RandomValue<uint64>()) {
 }
 
+bool SendingAlbum::preparedMusicBatching() const {
+	return musicPreparedBatching;
+}
+
+bool SendingAlbum::preparedMusicReady() const {
+	return preparedMusicBatching()
+		&& !items.empty()
+		&& ranges::all_of(items, [](const Item &item) {
+			return item.prepared != nullptr;
+		});
+}
+
+std::shared_ptr<FilePrepareResult> SendingAlbum::preparedMusicSample() const {
+	const auto it = ranges::find_if(items, [](const Item &item) {
+		return item.prepared != nullptr;
+	});
+	return (it == end(items)) ? nullptr : it->prepared;
+}
+
+std::vector<std::shared_ptr<FilePrepareResult>> SendingAlbum::takePreparedMusic() {
+	auto result = std::vector<std::shared_ptr<FilePrepareResult>>();
+	if (!preparedMusicReady()) {
+		return result;
+	}
+	result.reserve(items.size());
+	for (auto &item : items) {
+		result.push_back(std::move(item.prepared));
+	}
+	return result;
+}
+
 void SendingAlbum::fillMedia(
 		not_null<HistoryItem*> item,
 		const MTPInputMedia &media,
@@ -407,8 +446,20 @@ void SendingAlbum::removeItem(not_null<HistoryItem*> item) {
 	}
 }
 
+void SendingAlbum::removeTask(TaskId taskId) {
+	const auto i = ranges::find(items, taskId, &Item::taskId);
+	Assert(i != end(items));
+	items.erase(i);
+}
+
 SendingAlbum::Item::Item(TaskId taskId)
 : taskId(taskId) {
+}
+
+FilePrepareResult::~FilePrepareResult() {
+	if (!transcodedTempPath.isEmpty()) {
+		QFile::remove(transcodedTempPath);
+	}
 }
 
 FilePrepareResult::FilePrepareResult(FilePrepareDescriptor &&descriptor)
@@ -470,7 +521,10 @@ FileLoadTask::FileLoadTask(Args &&args)
 , _caption(std::move(args.caption))
 , _spoiler(args.spoiler)
 , _forceFile(args.forceFile)
-, _sendLargePhotos(args.sendLargePhotos) {
+, _sendLargePhotos(args.sendLargePhotos)
+, _animationJob(std::move(args.animationJob))
+, _animationAsGif(args.animationAsGif)
+, _archive(std::move(args.archive)) {
 	Expects(_to.options.scheduled
 		|| _to.options.shortcutId
 		|| !_to.replaceMediaOf
@@ -568,10 +622,9 @@ bool FileLoadTask::CheckForSong(
 	return true;
 }
 
-bool FileLoadTask::CheckForVideo(
+bool FileLoadTask::IsVideoFile(
 		const QString &filepath,
-		const QByteArray &content,
-		std::unique_ptr<Ui::PreparedFileInformation> &result) {
+		const QString &filemime) {
 	static const auto mimes = {
 		u"video/mp4"_q,
 		u"video/quicktime"_q,
@@ -582,7 +635,14 @@ bool FileLoadTask::CheckForVideo(
 		u".m4v"_q,
 		u".webm"_q,
 	};
-	if (!CheckMimeOrExtensions(filepath, result->filemime, mimes, extensions)) {
+	return CheckMimeOrExtensions(filepath, filemime, mimes, extensions);
+}
+
+bool FileLoadTask::CheckForVideo(
+		const QString &filepath,
+		const QByteArray &content,
+		std::unique_ptr<Ui::PreparedFileInformation> &result) {
+	if (!IsVideoFile(filepath, result->filemime)) {
 		return false;
 	}
 
@@ -675,6 +735,51 @@ void FileLoadTask::process(ProcessArgs &&args) {
 		}
 	}
 
+	auto animationPreparing = false;
+	if (_animationJob) {
+		const auto still = _forceFile
+			? nullptr
+			: std::get_if<Media::Encode::StillSource>(&_animationJob->source);
+		auto preview = QImage();
+		if (_information) {
+			const auto media = &_information->media;
+			if (const auto image = std::get_if<
+					Ui::PreparedFileInformation::Image>(media)) {
+				preview = std::move(image->data);
+			}
+		}
+		if (still && !still->base.isNull() && still->duration > 0) {
+			if (preview.isNull()) {
+				preview = still->base;
+			} else if (preview.size() != still->base.size()) {
+				preview = preview.scaled(
+					still->base.size(),
+					Qt::IgnoreAspectRatio,
+					Qt::SmoothTransformation);
+			}
+			const auto gif = _animationAsGif && still->music.empty();
+			auto information = std::make_unique<
+				Ui::PreparedFileInformation>();
+			information->filemime = "video/mp4";
+			information->media = Ui::PreparedFileInformation::Video{
+				.isGifv = gif,
+				.supportsStreaming = true,
+				.hasAudio = !still->music.empty(),
+				.duration = still->duration,
+				.thumbnail = std::move(preview),
+				.modifications = { .gif = gif },
+			};
+			_information = std::move(information);
+			_content = QByteArray();
+			_filepath = QString();
+			_type = SendMediaType::File;
+			_displayName = u"animation.mp4"_q;
+			_result->animationJob = _animationJob;
+			animationPreparing = true;
+		}
+		_animationJob = nullptr;
+	}
+
 	QString filename, filemime;
 	qint64 filesize = 0;
 	QByteArray filedata;
@@ -719,6 +824,31 @@ void FileLoadTask::process(ProcessArgs &&args) {
 			}
 			isAnimation = image->animated;
 		}
+	} else if (animationPreparing) {
+		const auto video = std::get_if<Ui::PreparedFileInformation::Video>(
+			&_information->media);
+		const auto seconds = std::max(
+			int64(video->duration / 1000),
+			int64(1));
+		filesize = seconds * 200'000;
+		filename = filedialogDefaultName(
+			u"animation"_q,
+			u".mp4"_q,
+			QString(),
+			true);
+		filemime = "video/mp4";
+	} else if (_archive) {
+		if (auto entries = Storage::GatherArchiveEntries(*_archive)) {
+			filesize = Storage::ArchiveSizeEstimate(*entries);
+			_result->archiveEntries
+				= std::make_shared<Storage::ArchiveEntries>(
+					std::move(*entries));
+		}
+		filename = _displayName.isEmpty()
+			? u"Archive.zip"_q
+			: _displayName;
+		filemime = u"application/zip"_q;
+		_result->archive = _archive;
 	} else if (!_content.isEmpty()) {
 		filesize = _content.size();
 		if (isVoice) {
@@ -788,7 +918,7 @@ void FileLoadTask::process(ProcessArgs &&args) {
 			fullimagebytes = fullimageformat = QByteArray();
 		}
 	}
-	_result->filesize = qMin(filesize, qint64(UINT_MAX));
+	_result->filesize = std::min(filesize, qint64(UINT_MAX));
 
 	if (!filesize || filesize > kFileSizePremiumLimit) {
 		return;
@@ -861,22 +991,95 @@ void FileLoadTask::process(ProcessArgs &&args) {
 			isVideo = true;
 			auto coverWidth = video->thumbnail.width();
 			auto coverHeight = video->thumbnail.height();
+			auto realSeconds = video->duration / 1000.;
+			const auto gif = video->modifications.gif && !_forceFile;
+			const auto convertForGif = gif
+				&& video->isGifv
+				&& (filemime != u"video/mp4"_q);
+			const auto convert = (!Core::IsMimeSentAsVideo(filemime)
+					|| convertForGif)
+				&& !video->isWebmSticker
+				&& (filesize < Media::Encode::MaxTranscodeSourceSize());
+			if (!_forceFile
+				&& !video->thumbnail.isNull()
+				&& (convert
+					|| Editor::VideoEdited(
+						video->modifications,
+						video->thumbnail.size(),
+						video->duration,
+						video->hasAudio))) {
+				auto source = Editor::ComposeVideoSource(
+					_filepath,
+					video->modifications,
+					{},
+					false);
+				source.bytes = _filepath.isEmpty() ? _content : QByteArray();
+				const auto target = Media::Encode::TranscodedSize(
+					source,
+					video->thumbnail.size());
+				if (!target.isEmpty()) {
+					const auto duration = Media::Encode::TranscodedDuration(
+						source,
+						video->duration);
+					coverWidth = target.width();
+					coverHeight = target.height();
+					realSeconds = duration / 1000.;
+					video->thumbnail = Editor::ImageModified(
+						base::take(video->thumbnail),
+						video->modifications.geometry
+					).scaled(
+						target,
+						Qt::IgnoreAspectRatio,
+						Qt::SmoothTransformation);
+					_result->videoCoverOffset = std::clamp(
+						video->modifications.cover
+							- video->modifications.from,
+						crl::time(0),
+						duration);
+					_result->videoSource = std::make_shared<
+						Media::Encode::VideoSource>(std::move(source));
+
+					filemime = u"video/mp4"_q;
+					filename = Mp4FileName(filename);
+					if (!_displayName.isEmpty()) {
+						_displayName = Mp4FileName(_displayName);
+					}
+					attributes[0] = MTP_documentAttributeFilename(
+						MTP_string(_displayName.isEmpty()
+							? filename
+							: _displayName));
+					video->supportsStreaming = true;
+				}
+			}
+			if (!_forceFile && !_result->videoSource) {
+				_result->videoCoverOffset = std::clamp(
+					video->modifications.cover,
+					crl::time(0),
+					video->duration);
+			}
 			if (!_forceFile) {
-				if (video->isGifv && !_album) {
+				if (gif && !_album && (filemime == u"video/mp4"_q)) {
 					attributes.push_back(MTP_documentAttributeAnimated());
 				}
 				auto flags = MTPDdocumentAttributeVideo::Flags(0);
 				if (video->supportsStreaming) {
 					flags |= MTPDdocumentAttributeVideo::Flag::f_supports_streaming;
 				}
-				const auto realSeconds = video->duration / 1000.;
+				if (gif) {
+					flags |= MTPDdocumentAttributeVideo::Flag::f_nosound;
+				}
+				const auto startTs = _result->videoCoverOffset;
+				if (startTs > 0) {
+					using Flag = MTPDdocumentAttributeVideo::Flag;
+					flags |= Flag::f_video_start_ts;
+				}
 				attributes.push_back(MTP_documentAttributeVideo(
 					MTP_flags(flags),
 					MTP_double(realSeconds),
 					MTP_int(coverWidth),
 					MTP_int(coverHeight),
 					MTPint(),
-					MTPdouble(),
+					MTP_double(startTs / 1000.),
 					MTPstring()));
 			}
 
@@ -1051,8 +1254,9 @@ void FileLoadTask::finish() {
 	const auto premium = session->user()->isPremium();
 	if (!_result || !_result->filesize || _result->filesize < 0) {
 		Ui::show(
-			Ui::MakeInformBox(
-				tr::lng_send_image_empty(tr::now, lt_name, _filepath)),
+			Ui::MakeInformBox((_result && _result->archive)
+				? tr::lng_folder_archive_failed(tr::now)
+				: tr::lng_send_image_empty(tr::now, lt_name, _filepath)),
 			Ui::LayerOption::KeepOther);
 		removeFromAlbum();
 	} else if (_result->filesize > kFileSizePremiumLimit
@@ -1061,7 +1265,22 @@ void FileLoadTask::finish() {
 			Box(FileSizeLimitBox, session, _result->filesize, nullptr),
 			Ui::LayerOption::KeepOther);
 		removeFromAlbum();
+	} else if (_album && _album->preparedMusicBatching()) {
+		const auto it = ranges::find(_album->items, id(), &SendingAlbum::Item::taskId);
+		Assert(it != _album->items.end());
+
+		it->prepared = _result;
+		if (_album->preparedMusicReady()) {
+			Api::SendConfirmedFile(session, _result);
+		}
 	} else {
+		if (const auto &job = _result->animationJob) {
+			_result->attachedStickers = job->attachedStickerIds
+				| ranges::views::transform([&](uint64 id) {
+					return session->data().document(id)->mtpInput();
+				})
+				| ranges::to_vector;
+		}
 		Api::SendConfirmedFile(session, _result);
 	}
 }
@@ -1079,11 +1298,11 @@ void FileLoadTask::removeFromAlbum() {
 	if (!_album) {
 		return;
 	}
-	const auto proj = [](const SendingAlbum::Item &item) {
-		return item.taskId;
-	};
-	const auto it = ranges::find(_album->items, id(), proj);
-	Assert(it != _album->items.end());
-
-	_album->items.erase(it);
+	const auto session = _session.get();
+	_album->removeTask(id());
+	if (session && _album->preparedMusicReady()) {
+		if (const auto sample = _album->preparedMusicSample()) {
+			Api::SendConfirmedFile(session, sample);
+		}
+	}
 }

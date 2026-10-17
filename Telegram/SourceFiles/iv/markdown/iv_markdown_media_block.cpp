@@ -513,6 +513,14 @@ double MediaBlock::mediaPixelScale() const {
 	return _mediaPixelScale;
 }
 
+void MediaBlock::setBubbleRounding(Ui::BubbleRounding rounding) {
+	_bubbleRounding = rounding;
+}
+
+Ui::BubbleRounding MediaBlock::bubbleRounding() const {
+	return _bubbleRounding;
+}
+
 void MediaBlock::requestRepaint(QRect articleRect) const {
 	if (_host) {
 		_host->requestRepaint(articleRect);
@@ -568,13 +576,13 @@ std::shared_ptr<MediaBlock> CreateVideoMediaBlock(
 	return nullptr;
 }
 
-std::shared_ptr<MediaBlock> CreateAudioMediaBlock(
-		const PreparedAudioBlockData &prepared,
+std::shared_ptr<MediaBlock> CreateDocumentMediaBlock(
+		const PreparedDocumentBlockData &prepared,
 		const std::shared_ptr<MediaRuntime> &mediaRuntime,
 		const style::Markdown &st) {
 	if (mediaRuntime) {
 		if (const auto hosted = mediaRuntime->hostedMediaBlockFactory()) {
-			if (const auto block = hosted->createAudio(prepared)) {
+			if (const auto block = hosted->createDocument(prepared)) {
 				block->setLayoutStyle(st);
 				return block;
 			}

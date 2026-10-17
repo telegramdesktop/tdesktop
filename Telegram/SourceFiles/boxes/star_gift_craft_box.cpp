@@ -907,7 +907,7 @@ void ShowSelectGiftBox(
 		attr.radial->setGeometry(0, 0, single, single);
 
 		btn->setClickedCallback([=] {
-			auto &a = state->attrs[idx];
+			const auto &a = state->attrs[idx];
 			if (state->tooltip) {
 				state->tooltip->toggleAnimated(false);
 			}
@@ -997,7 +997,7 @@ void ShowSelectGiftBox(
 			: single;
 
 		for (auto i = 0; i != 8; ++i) {
-			auto &attr = state->attrs[i];
+			const auto &attr = state->attrs[i];
 			if (i < count) {
 				const auto inRow1 = (i < row1);
 				const auto rowItems = inRow1 ? row1 : row2;

@@ -202,6 +202,9 @@ void EditFolderFavoriteLinkBox(not_null<Ui::GenericBox*> box) {
 		st::defaultInputField,
 		tr::lng_info_link_label(),
 		FavoriteLink.value()));
+	field->setInputMethodHints(Qt::ImhUrlCharactersOnly
+		| Qt::ImhNoAutoUppercase
+		| Qt::ImhNoPredictiveText);
 	box->setFocusCallback([=] { field->setFocusFast(); });
 	const auto submit = [=] {
 		const auto link = field->getLastText().trimmed();

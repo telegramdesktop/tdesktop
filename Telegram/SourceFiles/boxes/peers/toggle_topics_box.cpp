@@ -66,7 +66,7 @@ LayoutButton::LayoutButton(
 			_activeAnimation.value(_active ? 1. : 0.));
 	};
 	const auto iconSize = st::topicsLayoutButtonIconSize;
-	auto [iconWidget, iconAnimate] = Settings::CreateLottieIcon(
+	auto [iconWidget, iconAnimate, iconAnimating] = Settings::CreateLottieIcon(
 		this,
 		{
 			.name = (type == LayoutType::Tabs

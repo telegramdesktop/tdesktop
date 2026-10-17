@@ -44,6 +44,8 @@ public:
 	rpl::producer<QString> title() override;
 	rpl::producer<bool> desiredShadowVisibility() const override;
 	void showFinished() override;
+	void fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) override;
+	[[nodiscard]] rpl::producer<> topBarMenuFilledChanges() const override;
 
 	void setInternalState(
 		const QRect &geometry,

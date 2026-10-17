@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/media/history_view_media_generic.h"
+#include "info/peer_gifts/info_peer_gifts_common.h"
 
 class Painter;
 
@@ -29,17 +30,33 @@ class Element;
 class MediaGeneric;
 class MediaGenericPart;
 
+struct UniqueGiftMediaDescriptor {
+	std::shared_ptr<Data::UniqueGift> gift;
+	TextWithEntities message;
+	QString messagePlaceholder;
+	PeerData *messageAuthor = nullptr;
+	bool upgrade = false;
+	bool skipViewAction = false;
+};
+
 [[nodiscard]] auto GenerateUniqueGiftMedia(
 	not_null<Element*> parent,
 	Element *replacing,
-	std::shared_ptr<Data::UniqueGift> gift)
+	UniqueGiftMediaDescriptor descriptor)
 -> Fn<void(
 	not_null<MediaGeneric*>,
 	Fn<void(std::unique_ptr<MediaGenericPart>)>)>;
 
+struct UniqueGiftBgCache {
+	base::flat_map<float64, QImage> patternCache;
+	QImage badgeCache;
+	Info::PeerGifts::GiftBadge badgeKey;
+};
+
 [[nodiscard]] auto UniqueGiftBg(
 	not_null<Element*> view,
-	std::shared_ptr<Data::UniqueGift> gift)
+	std::shared_ptr<Data::UniqueGift> gift,
+	std::shared_ptr<UniqueGiftBgCache> cache = nullptr)
 -> Fn<void(
 	Painter&,
 	const Ui::ChatPaintContext&,

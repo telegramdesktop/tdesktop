@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/openssl_help.h"
 
 #include <QtCore/QDataStream>
+#include <QtCore/QtEndian>
 
 namespace MTP {
 
@@ -145,7 +146,7 @@ void AuthKey::countKeyId() {
 	const auto hash = openssl::Sha1(_key);
 
 	// Lower 64 bits = 8 bytes of 20 byte SHA1 hash.
-	_keyId = *reinterpret_cast<const KeyId*>(hash.data() + 12);
+	_keyId = qFromUnaligned<KeyId>(hash.data() + 12);
 }
 
 void aesIgeEncryptRaw(const void *src, void *dst, uint32 len, const void *key, const void *iv) {

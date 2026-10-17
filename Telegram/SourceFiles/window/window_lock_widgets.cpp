@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/platform/base_platform_info.h"
 #include "base/call_delayed.h"
+#include "base/openssl_help.h"
 #include "base/system_unlock.h"
 #include "lang/lang_keys.h"
 #include "storage/storage_domain.h"
@@ -37,6 +38,30 @@ namespace {
 constexpr auto kSystemUnlockDelay = crl::time(1000);
 
 } // namespace
+
+PasscodeAttempt TryPasscode(
+		const QString &passcode,
+		Fn<void(bool correct)> done) {
+	if (passcode.isEmpty()) {
+		return PasscodeAttempt::Empty;
+	} else if (!passcodeCanTry()) {
+		return PasscodeAttempt::Flood;
+	}
+	auto utf8 = passcode.toUtf8();
+	const auto cleanse = gsl::finally([&] {
+		OPENSSL_cleanse(utf8.data(), utf8.size());
+	});
+	auto counted = [done = std::move(done)](bool correct) {
+		if (!correct && Core::App().passcodeLocked()) {
+			cSetPasscodeBadTries(cPasscodeBadTries() + 1);
+			cSetPasscodeLastTry(crl::now());
+		}
+		done(correct);
+	};
+	return Core::App().domain().tryPasscode(utf8, std::move(counted))
+		? PasscodeAttempt::Started
+		: PasscodeAttempt::Busy;
+}
 
 LockWidget::LockWidget(QWidget *parent, not_null<Controller*> window)
 : RpWidget(parent)
@@ -258,30 +283,29 @@ void PasscodeLockWidget::paintContent(QPainter &p) {
 }
 
 void PasscodeLockWidget::submit() {
-	if (_passcode->text().isEmpty()) {
+	auto done = crl::guard(this, [=](bool correct) {
+		setDeriving(false);
+		if (correct) {
+			Core::App().unlockPasscode(); // Destroys this widget.
+		} else {
+			error();
+		}
+	});
+	switch (TryPasscode(_passcode->text(), std::move(done))) {
+	case PasscodeAttempt::Empty:
 		_passcode->showError();
 		return;
-	}
-	if (!passcodeCanTry()) {
+	case PasscodeAttempt::Flood:
 		_error = tr::lng_flood_error(tr::now);
 		_passcode->showError();
 		update();
 		return;
-	}
-
-	const auto passcode = _passcode->text().toUtf8();
-	auto &domain = Core::App().domain();
-	const auto correct = domain.started()
-		? domain.local().checkPasscode(passcode)
-		: (domain.start(passcode) == Storage::StartResult::Success);
-	if (!correct) {
-		cSetPasscodeBadTries(cPasscodeBadTries() + 1);
-		cSetPasscodeLastTry(crl::now());
-		error();
+	case PasscodeAttempt::Busy:
+		return;
+	case PasscodeAttempt::Started:
+		setDeriving(true);
 		return;
 	}
-
-	Core::App().unlockPasscode(); // Destroys this widget.
 }
 
 void PasscodeLockWidget::error() {
@@ -289,6 +313,18 @@ void PasscodeLockWidget::error() {
 	_passcode->selectAll();
 	_passcode->showError();
 	update();
+}
+
+void PasscodeLockWidget::setDeriving(bool deriving) {
+	_passcode->setDisabled(deriving);
+	_submit->setDisabled(deriving);
+	_submit->setAttribute(Qt::WA_TransparentForMouseEvents, deriving);
+	_submit->setTextFgOverride(deriving
+		? std::make_optional(st::passcodeSubmit.numbersTextFg->c)
+		: std::nullopt);
+	if (!deriving) {
+		_passcode->setFocusFast();
+	}
 }
 
 void PasscodeLockWidget::changed() {
@@ -466,7 +502,9 @@ void TermsBox::prepare() {
 
 void TermsBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-		_agreeClicks.fire({});
+		if (!e->isAutoRepeat()) {
+			triggerButton(0);
+		}
 	} else {
 		BoxContent::keyPressEvent(e);
 	}

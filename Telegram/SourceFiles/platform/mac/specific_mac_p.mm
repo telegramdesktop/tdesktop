@@ -31,9 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #if __has_include(<QtCore/QOperatingSystemVersion>)
 #include <QtCore/QOperatingSystemVersion>
 #endif // __has_include(<QtCore/QOperatingSystemVersion>)
-#if QT_VERSION < QT_VERSION_CHECK(6, 6, 0)
-#include <qpa/qwindowsysteminterface.h>
-#endif // Qt < 6.6.0
 #include <Cocoa/Cocoa.h>
 #include <CoreFoundation/CFURL.h>
 #include <IOKit/IOKitLib.h>
@@ -107,6 +104,7 @@ void SetupDockMenu() {
 - (void) applicationDidBecomeActive:(NSNotification *)aNotification;
 - (void) applicationDidResignActive:(NSNotification *)aNotification;
 - (void) receiveWakeNote:(NSNotification*)note;
+- (void) receiveSleepNote:(NSNotification*)note;
 
 - (void) ignoreApplicationActivationRightNow;
 
@@ -165,6 +163,7 @@ ApplicationDelegate *_sharedDelegate = nil;
 		return;
 	}
 	Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+		Core::App().notifySystemSleep();
 		Core::App().checkLocalTime();
 
 		LOG(("Audio Info: "
@@ -173,9 +172,16 @@ ApplicationDelegate *_sharedDelegate = nil;
 
 #if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
 		Core::App().settings().setSystemDarkMode(Platform::IsDarkMode());
-#elif QT_VERSION < QT_VERSION_CHECK(6, 6, 0) // Qt < 6.5.0
-		QWindowSystemInterface::handleThemeChange();
-#endif // Qt < 6.6.0
+#endif // Qt < 6.5.0
+	});
+}
+
+- (void) receiveSleepNote:(NSNotification*)aNotification {
+	if (!Core::IsAppLaunched()) {
+		return;
+	}
+	Core::Sandbox::Instance().customEnterFromEventLoop([&] {
+		Core::App().notifySystemSleep();
 	});
 }
 
@@ -235,6 +241,10 @@ void objc_start() {
 		addObserver: _sharedDelegate
 		selector: @selector(receiveWakeNote:)
 		name: NSWorkspaceDidWakeNotification object: NULL];
+	[[[NSWorkspace sharedWorkspace] notificationCenter]
+		addObserver: _sharedDelegate
+		selector: @selector(receiveSleepNote:)
+		name: NSWorkspaceWillSleepNotification object: NULL];
 
 	crl::on_main([=] { SetupDockMenu(); });
 }

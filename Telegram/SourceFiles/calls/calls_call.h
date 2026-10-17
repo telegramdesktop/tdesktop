@@ -228,6 +228,19 @@ public:
 	crl::time getDurationMs() const;
 	float64 getWaitingSoundPeakValue() const;
 
+	[[nodiscard]] bool ratingRequested() const {
+		return _ratingRequested;
+	}
+	[[nodiscard]] bool ratingInPanel() const {
+		return _ratingInPanel;
+	}
+	[[nodiscard]] int discardedDuration() const {
+		return _discardedDuration;
+	}
+	void takeRatingToPanel();
+	void setRating(int rating);
+	void finishRating();
+
 	void applyUserConfirmation();
 	void answer();
 	void hangup(
@@ -290,6 +303,7 @@ private:
 			= MTP_phoneCallDiscardReasonDisconnect(),
 		Data::GroupCall *migrateCall = nullptr);
 	void finishByMigration(const QString &slug);
+	void showRatingBox();
 	void startOutgoing();
 	void startIncoming();
 	void startWaitingTrack();
@@ -362,6 +376,10 @@ private:
 
 	CallId _id = 0;
 	uint64 _accessHash = 0;
+	int _rating = 0;
+	int _discardedDuration = 0;
+	bool _ratingRequested = false;
+	bool _ratingInPanel = false;
 	uint64 _keyFingerprint = 0;
 
 	CallId _conferenceId = 0;

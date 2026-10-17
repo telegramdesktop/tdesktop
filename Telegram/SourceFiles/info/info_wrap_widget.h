@@ -188,6 +188,7 @@ private:
 	void showNewContent(
 		not_null<ContentMemento*> memento,
 		const Window::SectionShow &params);
+	void subscribeToThreadDestroyed();
 	bool returnToFirstStackFrame(
 		not_null<ContentMemento*> memento,
 		const Window::SectionShow &params);
@@ -219,14 +220,18 @@ private:
 	bool requireTopBarSearch() const;
 
 	void addTopBarMenuButton();
+	[[nodiscard]] bool topBarMenuHasActions() const;
 	void addProfileCallsButton();
-	void showTopBarMenu(bool check);
+	void showTopBarMenu();
 
 	const bool _isSeparatedWindow = false;
 
 	rpl::variable<Wrap> _wrap;
+	// Declared before _content, so that it outlives it: the content widgets
+	// hold the controller by a raw pointer and are destroyed first.
 	std::unique_ptr<Controller> _controller;
 	object_ptr<ContentWidget> _content = { nullptr };
+	bool _mementoTaken = false;
 	int _additionalScroll = 0;
 	int _maxVisibleHeight = 0;
 	bool _expanding = false;
@@ -243,6 +248,7 @@ private:
 
 	std::vector<StackItem> _historyStack;
 	rpl::event_stream<> _removeRequests;
+	rpl::lifetime _threadDestroyedLifetime;
 	bool _shortcutsSetup = false;
 
 	rpl::event_stream<rpl::producer<int>> _desiredHeights;

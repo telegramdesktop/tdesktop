@@ -53,7 +53,7 @@ private:
 
 	const std::unique_ptr<base::Platform::SystemMediaControls> _controls;
 
-	std::vector<std::shared_ptr<Data::DocumentMedia>> _cachedMediaView;
+	std::shared_ptr<Data::DocumentMedia> _cachedMediaView;
 	Ui::PeerUserpicView _cachedUserpicView;
 	std::unique_ptr<Streaming::Instance> _streamed;
 	AudioMsgId _lastAudioMsgId;

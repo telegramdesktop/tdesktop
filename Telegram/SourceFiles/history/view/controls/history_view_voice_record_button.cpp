@@ -150,7 +150,7 @@ void VoiceRecordButton::init() {
 				const auto index = (state == Type::Record)
 					? kVoiceIconIndex
 					: kRoundIconIndex;
-				auto &icon = _voiceRoundIcons[index];
+				const auto &icon = _voiceRoundIcons[index];
 				if (!icon) {
 					initVoiceRoundIcon(index);
 				}

@@ -74,9 +74,11 @@ private:
 
 	int recountHeight();
 	void refreshHeight();
+	void refreshMinId();
 
 	Type _type = Type{};
 	not_null<ListSectionDelegate*> _delegate;
+	UniversalMsgId _minId = 0;
 
 	bool _hasFloatingHeader = false;
 	Ui::Text::String _header;

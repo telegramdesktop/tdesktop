@@ -445,14 +445,6 @@ void InlineList::flipToRight() {
 	}
 }
 
-int InlineList::placeAndResizeGetHeight(QRect available) {
-	const auto result = resizeGetHeight(available.width());
-	for (auto &button : _buttons) {
-		button.geometry.translate(available.x(), 0);
-	}
-	return result;
-}
-
 void InlineList::paint(
 		Painter &p,
 		const PaintContext &context,
@@ -627,7 +619,7 @@ void InlineList::paint(
 			p.setOpacity(1.);
 		}
 	}
-	if (!animations.empty()) {
+	if (!animations.empty() && context.reactionInfo) {
 		const auto now = context.now;
 		context.reactionInfo->effectPaint = [
 			now,

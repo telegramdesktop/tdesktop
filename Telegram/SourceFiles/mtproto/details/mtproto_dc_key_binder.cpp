@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "scheme.h"
 
 #include <QtCore/QPointer>
+#include <QtCore/QtEndian>
 
 namespace MTP::details {
 namespace {
@@ -58,9 +59,8 @@ namespace {
 	constexpr auto kMessageKeyBytes = 4 * sizeof(mtpPrime);
 	constexpr auto kPrefix = (kAuthKeyIdBytes + kMessageKeyBytes);
 	auto encrypted = QByteArray(kPrefix + sizeInBytes, Qt::Uninitialized);
-	*reinterpret_cast<uint64*>(encrypted.data()) = persistentKey->keyId();
-	*reinterpret_cast<MTPint128*>(encrypted.data() + kMessageKeyPosition)
-		= msgKey;
+	qToUnaligned(persistentKey->keyId(), encrypted.data());
+	qToUnaligned(msgKey, encrypted.data() + kMessageKeyPosition);
 
 	aesIgeEncrypt_oldmtp(
 		serialized->constData(),

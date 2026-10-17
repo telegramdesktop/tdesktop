@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/dragging_scroll_manager.h"
 #include "ui/widgets/middle_click_autoscroll.h"
 #include "ui/widgets/tooltip.h"
-#include "ui/widgets/scroll_area.h"
+#include "ui/widgets/elastic_scroll.h"
 #include "ui/userpic_view.h"
 #include "history/history_message_selection.h"
 #include "history/history_inner_widget_accessibility.h"
@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct ClickContext;
 struct ClickHandlerContext;
+struct HistorySelectedTextParts;
 
 namespace Data {
 struct Group;
@@ -45,6 +46,7 @@ enum class ElementChatMode : char;
 class ElementOverlayHost;
 class EmptyPainter;
 class Element;
+class GramReadLine;
 class TranslateTracker;
 class ReadMetricsTracker;
 struct PinnedId;
@@ -128,6 +130,7 @@ public:
 	QString accessibilityChildName(int index) const override;
 	QAccessible::State accessibilityChildState(int index) const override;
 	QAccessible::Role accessibilityChildRole() const override;
+	QAccessible::Role accessibilityChildRoleAt(int index) const override;
 	QRect accessibilityChildRect(int index) const override;
 	int accessibilityChildColumnCount(int row) const override;
 	QAccessible::Role accessibilityChildSubItemRole() const override;
@@ -159,15 +162,12 @@ public:
 		const QVector<MTPMessage> &messages);
 
 	[[nodiscard]] TextForMimeData getSelectedText() const;
+	[[nodiscard]] Iv::RichPageBlocksSlice getSelectedRichBlocks() const;
 
 	void touchScrollUpdated(const QPoint &screenPos);
 
 	void setItemsRevealHeight(int revealHeight);
 	void changeItemsRevealHeight(int revealHeight);
-	void setPullBottomInset(int inset);
-	[[nodiscard]] int pullBottomInset() const {
-		return _pullBottomInset;
-	}
 	void checkActivation();
 	void recountHistoryGeometry(bool initial = false);
 	void updateSize();
@@ -184,6 +184,7 @@ public:
 		-> HistoryView::TopBarWidget::SelectedState;
 	void clearSelected(bool onlyTextSelection = false);
 	[[nodiscard]] MessageIdsList getSelectedItems() const;
+	[[nodiscard]] MessageIdsList getSelectedForwardItems() const;
 	[[nodiscard]] auto getSelectedEphemeral() const
 		-> std::vector<not_null<HistoryItem*>>;
 	[[nodiscard]] bool hasSelectedItems() const;
@@ -238,6 +239,7 @@ public:
 	void elementStartEffect(
 		not_null<const Element*> view,
 		Element *replacing);
+	HistoryView::GramReadLine *elementGramReadLine();
 
 	void startEffectOnRead(not_null<HistoryItem*> item);
 	void updateBotInfo(bool recount = true);
@@ -470,6 +472,7 @@ private:
 		not_null<HistoryItem*> item) const;
 	[[nodiscard]] MessageSelection getSelectedTextSelection(
 		not_null<HistoryItem*> item) const;
+	[[nodiscard]] HistorySelectedTextParts getSelectedTextParts() const;
 	[[nodiscard]] bool isPressInSelectedText(
 		not_null<const Element*> view,
 		TextState state) const;
@@ -537,7 +540,7 @@ private:
 	void reportAsGroup(FullMsgId itemId);
 	void blockSenderItem(FullMsgId itemId);
 	void blockSenderAsGroup(FullMsgId itemId);
-	void copySelectedText();
+	void copySelectedText(bool withImageText = false);
 	void editCaptionUploadLayer(not_null<HistoryItem*> item);
 
 	[[nodiscard]] auto reactionButtonParameters(
@@ -595,7 +598,6 @@ private:
 	int _historyMarginTop = 0;
 	int _historyMarginBottom = 0;
 	int _revealHeight = 0;
-	int _pullBottomInset = 0;
 	int _forumThreadBarWidth = 0;
 	Ui::PeerUserpicView _forumThreadBarUserpicView;
 
@@ -630,6 +632,7 @@ private:
 	std::optional<Data::ReportInput> _chooseForReportReason;
 
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
+	std::unique_ptr<HistoryView::GramReadLine> _gramReadLine;
 	QPainterPath _highlightPathCache;
 	bool _isChatWide = false;
 	bool _removeFromUserpics = false;

@@ -126,20 +126,22 @@ void StoryMention::draw(
 
 	const auto thumbnail = QRectF(geometry.marginsRemoved(
 		QMargins(padding, padding, padding, padding)));
-	const auto added = 0.5 * (_unread
+	const auto unread = _unread
+		&& (_parent->context() != Context::MediaEditor);
+	const auto added = 0.5 * (unread
 		? st::storyMentionUnreadSkipTwice
 		: st::storyMentionReadSkipTwice);
 	const auto outline = thumbnail.marginsAdded(
 		QMarginsF(added, added, added, added));
-	if (_unread && _paletteVersion != style::PaletteVersion()) {
+	if (unread && _paletteVersion != style::PaletteVersion()) {
 		_paletteVersion = style::PaletteVersion();
 		_unreadBrush = QBrush(Ui::UnreadStoryOutlineGradient(outline));
 	}
 	auto readColor = context.st->msgServiceFg()->c;
 	readColor.setAlphaF(std::min(1. * readColor.alphaF(), kReadOutlineAlpha));
 	p.setPen(QPen(
-		_unread ? _unreadBrush : QBrush(readColor),
-		0.5 * (_unread
+		unread ? _unreadBrush : QBrush(readColor),
+		0.5 * (unread
 			? st::storyMentionUnreadStrokeTwice
 			: st::storyMentionReadStrokeTwice)));
 	p.setBrush(Qt::NoBrush);

@@ -7,24 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/layers/box_content.h"
-#include "base/timer.h"
-#include "mtproto/sender.h"
 #include "data/stickers/data_stickers_set.h"
-#include "ui/effects/animations.h"
-
-namespace style {
-struct RippleAnimation;
-struct PeerListItem;
-} // namespace style
+#include "mtproto/sender.h"
+#include "ui/layers/box_content.h"
 
 namespace Ui {
-class PlainShadow;
-class RippleAnimation;
 class SettingsSlider;
 class SlideAnimation;
-class CrossButton;
-class BoxContentDivider;
 } // namespace Ui
 
 namespace ChatHelpers {
@@ -36,17 +25,8 @@ class Session;
 } // namespace Main
 
 namespace Data {
-class DocumentMedia;
 enum class StickersType : uchar;
 } // namespace Data
-
-namespace Lottie {
-class SinglePlayer;
-} // namespace Lottie
-
-namespace Stickers {
-class Set;
-} // namespace Stickers
 
 class StickersBox final : public Ui::BoxContent {
 public:
@@ -95,7 +75,7 @@ private:
 		Tab() = default;
 
 		template <typename ...Args>
-		Tab(int index, Args&&... args);
+		Tab(int index, Args &&...args);
 
 		object_ptr<Inner> takeWidget();
 		void returnWidget(object_ptr<Inner> widget);
@@ -104,7 +84,7 @@ private:
 		[[nodiscard]] int index() const;
 
 		void saveScrollTop();
-		int scrollTop() const {
+		[[nodiscard]] int scrollTop() const {
 			return _scrollTop;
 		}
 
@@ -122,10 +102,10 @@ private:
 	void updateTabsGeometry();
 	void switchTab();
 	void installSet(uint64 setId);
-	int topSkip() const;
+	[[nodiscard]] int topSkip() const;
 	void saveChanges();
 
-	QPixmap grabContentCache();
+	[[nodiscard]] QPixmap grabContentCache();
 
 	void installDone(const MTPmessages_StickerSetInstallResult &result) const;
 	void installFail(const MTP::Error &error, uint64 setId);
@@ -138,10 +118,10 @@ private:
 		uint64 offsetId);
 	void showAttachedStickers();
 
-	const Data::StickersSetsOrder &archivedSetsOrder() const;
-	Data::StickersSetsOrder &archivedSetsOrderRef() const;
+	[[nodiscard]] const Data::StickersSetsOrder &archivedSetsOrder() const;
+	[[nodiscard]] Data::StickersSetsOrder &archivedSetsOrderRef() const;
 
-	std::array<Inner*, 5> widgets() const;
+	[[nodiscard]] std::array<Inner*, 5> widgets() const;
 
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const not_null<Main::Session*> _session;
@@ -172,7 +152,6 @@ private:
 	ChannelData *_megagroupSet = nullptr;
 
 	std::unique_ptr<Ui::SlideAnimation> _slideAnimation;
-	object_ptr<Ui::PlainShadow> _titleShadow = { nullptr };
 
 	mtpRequestId _archivedRequestId = 0;
 	bool _archivedLoaded = false;

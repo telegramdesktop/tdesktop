@@ -127,10 +127,11 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 //			+ ((1. - st::stickerPreviewMin) * shown)) / 2.) * 2
 //			+ int(h % 2), 1);
 	}
-	if (_backgroundMargins.isNull()) {
-		p.fillRect(r, st::stickerPreviewBg);
-	} else {
-		p.fillRect(rect() - _backgroundMargins, st::stickerPreviewBg);
+	if (_paintBackground) {
+		const auto bg = _backgroundMargins.isNull()
+			? r
+			: (rect() - _backgroundMargins);
+		p.fillRect(bg, st::stickerPreviewBg);
 	}
 	if (!_customPadding.isNull()) {
 		p.translate(0, _customPadding.top());
@@ -314,6 +315,17 @@ void MediaPreviewWidget::setCustomRadius(int radius) {
 	update();
 }
 
+void MediaPreviewWidget::setMaxContentSize(int size) {
+	_maxContentSize = size;
+	_cachedSize = QSize();
+	update();
+}
+
+void MediaPreviewWidget::setPaintBackground(bool paint) {
+	_paintBackground = paint;
+	update();
+}
+
 void MediaPreviewWidget::setCustomDuration(crl::time duration) {
 	_customDuration = duration;
 }
@@ -362,13 +374,16 @@ QSize MediaPreviewWidget::currentDimensions() const {
 				result = QSize(gif->width(), gif->height());
 			}
 		}
+		const auto max = _maxContentSize
+			? _maxContentSize
+			: st::maxStickerSize;
 		if (_document->sticker()) {
-			box = QSize(st::maxStickerSize, st::maxStickerSize);
+			box = QSize(max, max);
 			if (_document->isPremiumSticker()) {
 				result = (box /= kPremiumDownscale);
 			}
 		} else {
-			box = QSize(2 * st::maxStickerSize, 2 * st::maxStickerSize);
+			box = QSize(2 * max, 2 * max);
 		}
 	}
 	result = QSize(

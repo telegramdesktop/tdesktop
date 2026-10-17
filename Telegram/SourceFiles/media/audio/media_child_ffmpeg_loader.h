@@ -17,6 +17,7 @@ struct ExternalSoundData {
 	FFmpeg::FramePointer frame;
 	crl::time duration = 0;
 	float64 speed = 1.; // 0.5 <= speed <= 2.
+	float64 volume = 1.; // 0. <= volume <= 1.
 };
 
 struct ExternalSoundPart {

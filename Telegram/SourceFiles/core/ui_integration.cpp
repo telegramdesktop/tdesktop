@@ -284,6 +284,10 @@ QString UiIntegration::emojiCacheFolder() {
 	return cWorkingDir() + "tdata/emoji";
 }
 
+QString UiIntegration::fontsCacheFolder() {
+	return cWorkingDir() + "tdata/fonts";
+}
+
 QString UiIntegration::openglCheckFilePath() {
 	return OpenGLCheckFilePath();
 }
@@ -320,6 +324,9 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 	const auto my = std::any_cast<Core::TextContextDetails>(&context.other);
 	switch (data.type) {
 	case EntityType::Url:
+		if (data.data.startsWith(u"internal:"_q, Qt::CaseInsensitive)) {
+			return nullptr;
+		}
 		return (!data.data.isEmpty()
 			&& UrlClickHandler::IsSuspicious(data.data))
 			? std::make_shared<HiddenUrlClickHandler>(data.data)
@@ -393,6 +400,8 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 		return (my && my->session)
 			? std::make_shared<BankCardClickHandler>(my->session, data.text)
 			: nullptr;
+	case EntityType::TonAddress:
+		return std::make_shared<TonAddressClickHandler>(data.text);
 	case EntityType::FormattedDate: {
 		const auto [date, flags] = DeserializeFormattedDateData(data.data);
 		if (date) {
@@ -404,8 +413,13 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 }
 
 bool UiIntegration::handleUrlClick(
-		const QString &url,
+		const QString &original,
 		const QVariant &context) {
+	// Only our own token may be added below, never one that came with it,
+	// unless the url itself was given to us by the server for this login.
+	const auto url = context.value<ClickHandlerContext>().keepWebAuthTokens
+		? original
+		: UrlWithoutWebAuthTokens(original);
 	const auto local = Core::TryConvertUrlToLocal(url);
 	if (Core::InternalPassportOrOAuthLink(local)) {
 		return true;
@@ -436,7 +450,7 @@ bool UiIntegration::handleUrlClick(
 	const auto domain = DomainForAutoLogin(parsed);
 	const auto skip = context.value<ClickHandlerContext>().skipBotAutoLogin;
 	if (skip || !BotAutoLogin(url, domain, context)) {
-		File::OpenUrl(
+		File::OpenUrlWithOwnAutoLogin(
 			UrlWithAutoLoginToken(url, std::move(parsed), domain, context));
 	}
 	return true;

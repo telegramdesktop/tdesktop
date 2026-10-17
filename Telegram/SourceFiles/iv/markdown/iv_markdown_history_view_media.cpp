@@ -49,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/basic_click_handlers.h"
 #include "window/window_session_controller.h"
 
+#include "rpl/event_stream.h"
 #include "rpl/filter.h"
 #include "rpl/lifetime.h"
 
@@ -364,8 +365,9 @@ private:
 	const bool _spoiler = false;
 	const bool _editMode = false;
 	const std::shared_ptr<IvHistoryViewMediaHost> _host;
-	const std::vector<std::shared_ptr<void>> _keepAlive;
+	std::vector<std::shared_ptr<void>> _keepAlive;
 	std::unique_ptr<HistoryView::Media> _media;
+	rpl::lifetime _itemDeathLifetime;
 	QRect _geometry;
 	int _requestedWidth = 0;
 	bool _supported = false;
@@ -395,6 +397,14 @@ IvHistoryViewBlock::IvHistoryViewBlock(
 		_media->initDimensions();
 	}
 	_supported = _media && probeSupport();
+
+	// We outlive the view our media is parented to, so drop the media while
+	// that view is still alive. The kept alive Data::Media objects are
+	// parented to the dying item as well, their destructors use it.
+	_host->itemDeath() | rpl::on_next([this] {
+		_media = nullptr;
+		_keepAlive.clear();
+	}, _itemDeathLifetime);
 }
 
 IvHistoryViewBlock::~IvHistoryViewBlock() {
@@ -459,6 +469,7 @@ void IvHistoryViewBlock::paint(
 	p.translate(_geometry.topLeft());
 	auto local = context.translated(-_geometry.topLeft());
 	local.clip = visible.translated(-_geometry.topLeft());
+	_media->setBubbleRounding(bubbleRounding());
 	_media->draw(p, local);
 	p.restore();
 }
@@ -546,7 +557,7 @@ bool IvHistoryViewBlock::acceptsVoiceSeekHandler(
 	return _supported
 		&& _media
 		&& alive()
-		&& (_kind == IvHistoryViewMediaKind::Audio)
+		&& (_kind == IvHistoryViewMediaKind::DocumentRow)
 		&& std::dynamic_pointer_cast<VoiceSeekClickHandler>(handler);
 }
 
@@ -666,7 +677,7 @@ IvHistoryViewHit IvHistoryViewBlock::classifyHandler(
 		result.link = handler;
 		return result;
 	}
-	if (_kind == IvHistoryViewMediaKind::Audio
+	if (_kind == IvHistoryViewMediaKind::DocumentRow
 		&& std::dynamic_pointer_cast<DocumentOpenClickHandler>(handler)) {
 		result.link = handler;
 		return result;
@@ -708,7 +719,7 @@ bool IvHistoryViewBlock::probeSupport() {
 	case IvHistoryViewMediaKind::GroupedMedia:
 		return supportsHitClassification();
 	case IvHistoryViewMediaKind::Map:
-	case IvHistoryViewMediaKind::Audio:
+	case IvHistoryViewMediaKind::DocumentRow:
 		return true;
 	}
 	return false;
@@ -874,6 +885,19 @@ private:
 		not_null<HistoryView::Media*> media,
 		int shift) const;
 
+	void paintFrame(
+		Painter &p,
+		const MarkdownArticlePaintContext &context,
+		QRect visible,
+		const style::MarkdownGroupedMedia &st) const;
+
+	void paintRoundedFrame(
+		Painter &p,
+		const MarkdownArticlePaintContext &context,
+		QRect visible,
+		const style::MarkdownGroupedMedia &st,
+		Images::CornersMaskRef mask) const;
+
 	[[nodiscard]] bool probeSupport();
 
 	void mediaPixelScaleUpdated() override;
@@ -883,7 +907,7 @@ private:
 	const uint64 _stableId = 0;
 	const QString _copyText;
 	const std::shared_ptr<IvHistoryViewMediaHost> _host;
-	const std::vector<std::shared_ptr<void>> _keepAlive;
+	std::vector<std::shared_ptr<void>> _keepAlive;
 	const base::flat_map<
 		uint64,
 		std::shared_ptr<PhotoRuntime>> _groupedPhotoRuntimes;
@@ -895,6 +919,7 @@ private:
 	const ::Data::FileOrigin _fileOrigin;
 	const bool _editMode = false;
 	std::vector<std::unique_ptr<HistoryView::Media>> _slides;
+	rpl::lifetime _itemDeathLifetime;
 	std::vector<QSize> _slideOriginalSizes;
 	QRect _geometry;
 	QRect _previousRect;
@@ -916,6 +941,7 @@ private:
 	bool _supported = false;
 	MediaBlockHost *_registeredBridgeHost = nullptr;
 	mutable SlideshowDotsBackdrop _dotsBackdrop;
+	mutable QImage _frameCache;
 	base::flat_map<int, SlidePreload> _preloads;
 	rpl::lifetime _downloadLifetime;
 	int _residencyIndex = -1;
@@ -936,6 +962,17 @@ IvHistoryViewSlideshowBlock::IvHistoryViewSlideshowBlock(
 , _fileOrigin(descriptor.fileOrigin)
 , _editMode(descriptor.editMode)
 , _slideOriginalSizes(std::move(descriptor.slideOriginalSizes)) {
+	// Subscribed before the loop below, which can return early with some
+	// slides already created. We outlive the view they are parented to, so
+	// they must be dropped while it is still alive. Nulled in place rather
+	// than erased, so the slide indices stay valid.
+	_host->itemDeath() | rpl::on_next([this] {
+		for (auto &media : _slides) {
+			media = nullptr;
+		}
+		_keepAlive.clear();
+	}, _itemDeathLifetime);
+
 	_slides.reserve(descriptor.slideMediaFactories.size());
 	for (const auto &factory : descriptor.slideMediaFactories) {
 		auto media = factory ? factory(_host->view()) : nullptr;
@@ -1094,6 +1131,7 @@ bool IvHistoryViewSlideshowBlock::hasHeavyPart() const {
 }
 
 void IvHistoryViewSlideshowBlock::unloadHeavyPart() {
+	_frameCache = QImage();
 	if (!alive()) {
 		return;
 	}
@@ -1694,24 +1732,12 @@ void IvHistoryViewSlideshowBlock::paintSlide(
 	p.restore();
 }
 
-void IvHistoryViewSlideshowBlock::paint(
+void IvHistoryViewSlideshowBlock::paintFrame(
 		Painter &p,
-		const MarkdownArticlePaintContext &context) const {
+		const MarkdownArticlePaintContext &context,
+		QRect visible,
+		const style::MarkdownGroupedMedia &st) const {
 	const auto media = activeMedia();
-	if (!media || _geometry.isEmpty()) {
-		return;
-	}
-	const auto visible = context.clip.intersected(_geometry);
-	if (visible.isEmpty()) {
-		return;
-	}
-	const auto &st = context.paintMarkdownStyle(layoutStyle()).groupedMedia;
-	p.save();
-	p.setClipRect(visible);
-	p.setClipPath(
-		RoundedRectPath(_geometry, st.radius),
-		Qt::IntersectClip);
-
 	const auto count = int(_slides.size());
 	const auto transition = _slideAnimation.animating()
 		&& (_transitionFrom >= 0)
@@ -1797,7 +1823,60 @@ void IvHistoryViewSlideshowBlock::paint(
 			st,
 			_dotsBackdrop);
 	}
-	p.restore();
+}
+
+void IvHistoryViewSlideshowBlock::paintRoundedFrame(
+		Painter &p,
+		const MarkdownArticlePaintContext &context,
+		QRect visible,
+		const style::MarkdownGroupedMedia &st,
+		Images::CornersMaskRef mask) const {
+	const auto ratio = style::DevicePixelRatio();
+	const auto size = _geometry.size() * ratio;
+	if (_frameCache.size() != size) {
+		_frameCache = QImage(size, QImage::Format_ARGB32_Premultiplied);
+	}
+	_frameCache.setDevicePixelRatio(ratio);
+	_frameCache.fill(Qt::transparent);
+	auto q = Painter(&_frameCache);
+	q.setFont(p.font());
+	q.setPen(p.pen());
+	q.setBrush(p.brush());
+	q.setRenderHints(p.renderHints());
+	q.setInactive(p.inactive());
+	q.setTextPalette(p.textPalette());
+	q.translate(-_geometry.topLeft());
+	q.setClipRect(visible);
+	paintFrame(q, context, visible, st);
+	q.end();
+	_frameCache = Images::Round(std::move(_frameCache), mask);
+	p.drawImage(_geometry, _frameCache);
+}
+
+void IvHistoryViewSlideshowBlock::paint(
+		Painter &p,
+		const MarkdownArticlePaintContext &context) const {
+	const auto media = activeMedia();
+	if (!media || _geometry.isEmpty()) {
+		return;
+	}
+	const auto visible = context.clip.intersected(_geometry);
+	if (visible.isEmpty()) {
+		return;
+	}
+	const auto &st = context.paintMarkdownStyle(layoutStyle()).groupedMedia;
+	const auto mask = HistoryView::MediaRoundingMask(bubbleRounding());
+	if (mask.empty()) {
+		p.save();
+		p.setClipRect(visible);
+		p.setClipPath(
+			RoundedRectPath(_geometry, st.radius),
+			Qt::IntersectClip);
+		paintFrame(p, context, visible, st);
+		p.restore();
+	} else {
+		paintRoundedFrame(p, context, visible, st, mask);
+	}
 	const auto that = const_cast<IvHistoryViewSlideshowBlock*>(this);
 	that->_painted = true;
 	that->updatePreloads();
@@ -1883,6 +1962,7 @@ struct IvHistoryViewMediaHost::State {
 	bool itemDead = false;
 	bool itemTornDown = false;
 	rpl::lifetime itemDeathLifetime;
+	rpl::event_stream<> itemDeaths;
 };
 
 IvHistoryViewMediaHost::State::State(
@@ -1955,6 +2035,13 @@ void IvHistoryViewMediaHost::State::handleItemDeath() {
 	itemDead = true;
 	itemDeathLifetime.destroy();
 	bridgeLifetime.destroy();
+
+	// Blocks outlive the view and own medias parented to it, so they must
+	// drop them while it is still alive: ~Photo / ~Gif call
+	// _parent->checkHeavyPart(), which is what takes the view back out of
+	// Data::Session::_heavyViewParts.
+	itemDeaths.fire({});
+
 	view = nullptr;
 	realView = nullptr;
 	owned = {};
@@ -2005,6 +2092,10 @@ const QString &IvHistoryViewMediaHost::pageUrl() const {
 
 bool IvHistoryViewMediaHost::needsViewRequestBridge() const {
 	return _state->needsViewRequestBridge;
+}
+
+rpl::producer<> IvHistoryViewMediaHost::itemDeath() const {
+	return _state->itemDeaths.events();
 }
 
 void IvHistoryViewMediaHost::registerViewRequestBridge(MediaBlockHost *host) {
@@ -2064,13 +2155,13 @@ IvHistoryViewMediaBlockFactory::IvHistoryViewMediaBlockFactory(
 	base::weak_ptr<Window::SessionController> controller,
 	PhotoFactory createPhoto,
 	VideoFactory createVideo,
-	AudioFactory createAudio,
+	DocumentBlockFactory createDocument,
 	MapFactory createMap,
 	GroupedMediaFactory createGroupedMedia)
 : _controller(std::move(controller))
 , _createPhoto(std::move(createPhoto))
 , _createVideo(std::move(createVideo))
-, _createAudio(std::move(createAudio))
+, _createDocument(std::move(createDocument))
 , _createMap(std::move(createMap))
 , _createGroupedMedia(std::move(createGroupedMedia)) {
 }
@@ -2085,9 +2176,9 @@ std::shared_ptr<MediaBlock> IvHistoryViewMediaBlockFactory::createVideo(
 	return create(prepared, _createVideo);
 }
 
-std::shared_ptr<MediaBlock> IvHistoryViewMediaBlockFactory::createAudio(
-		const PreparedAudioBlockData &prepared) const {
-	return create(prepared, _createAudio);
+std::shared_ptr<MediaBlock> IvHistoryViewMediaBlockFactory::createDocument(
+		const PreparedDocumentBlockData &prepared) const {
+	return create(prepared, _createDocument);
 }
 
 std::shared_ptr<MediaBlock> IvHistoryViewMediaBlockFactory::createMap(

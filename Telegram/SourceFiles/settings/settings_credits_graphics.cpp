@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "core/click_handler_types.h" // UrlClickHandler
+#include "core/ton_explorer_url.h"
 #include "core/ui_integration.h"
 #include "data/components/credits.h"
 #include "data/components/recent_shared_media_gifts.h"
@@ -322,7 +323,7 @@ void AddViewMediaHandler(
 			fake.push_back(std::make_unique<Data::MediaPhoto>(
 				state->item,
 				owner->photo(item.id),
-				false)); // spoiler
+				Data::MediaPhoto::Args()));
 		} else {
 			const auto document = owner->document(item.id);
 			const auto item = state->item;
@@ -1163,7 +1164,7 @@ void FillUniqueGiftMenu(
 	if (!unique) {
 		return;
 	}
-	if (unique->canBeTheme) {
+	if (unique->canBeTheme && show->canResolveWindow()) {
 		menu->addAction(tr::lng_gift_transfer_set_theme(tr::now), [=] {
 			if (const auto window = show->resolveWindow()) {
 				SetThemeFromUniqueGift(window, unique);
@@ -1363,7 +1364,8 @@ void GenericCreditsEntryCover(
 		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::CreditsHistoryEntry &e,
 		const Data::SubscriptionEntry &s,
-		CreditsEntryBoxStyleOverrides st = {}) {
+		CreditsEntryBoxStyleOverrides st = {},
+		std::shared_ptr<const UniqueGiftCoverActions> actions = nullptr) {
 	const auto session = &show->session();
 	const auto owner = &session->data();
 	const auto isStarGift = e.stargift || e.soldOutInfo;
@@ -1396,6 +1398,25 @@ void GenericCreditsEntryCover(
 		: e.barePeerId
 		? owner->peer(PeerId(e.barePeerId)).get()
 		: nullptr;
+	auto message = rpl::producer<Ui::UniqueGiftCoverMessage>();
+	if (uniqueGift && e.hasGiftComment && !e.description.empty()) {
+		auto sender = static_cast<PeerData*>(session->user().get());
+		auto hidden = true;
+		if (!e.anonymous && e.bareGiftMessageAuthorId) {
+			const auto loaded = owner->peerLoaded(
+				PeerId(e.bareGiftMessageAuthorId));
+			if (loaded && !loaded->isServiceUser()) {
+				sender = loaded;
+				hidden = false;
+			}
+		}
+		message = rpl::single(Ui::UniqueGiftCoverMessage{
+			.text = e.description,
+			.placeholder = QString(),
+			.sender = sender,
+			.hidden = hidden,
+		});
+	}
 	if (uniqueGift) {
 		const auto forceTon = e.giftResaleForceTon;
 		const auto cover = Ui::UniqueGiftCover{ *uniqueGift };
@@ -1408,12 +1429,29 @@ void GenericCreditsEntryCover(
 				ShowUniqueGiftSellBox(show, e.uniqueGift, savedId, wearSt);
 			}
 			: Fn<void()>();
+		auto coverActions = std::vector<Ui::UniqueGiftCoverAction>();
+		if (actions && actions->transfer) {
+			coverActions.push_back({
+				.text = tr::lng_gift_transfer_button(),
+				.icon = &st::menuIconReplace,
+				.callback = actions->transfer,
+			});
+		}
+		if (actions && actions->sell) {
+			coverActions.push_back({
+				.text = tr::lng_gift_transfer_sell(),
+				.icon = &st::menuIconTagSell,
+				.callback = actions->sell,
+			});
+		}
 		AddUniqueGiftCover(content, rpl::single(cover), {
 			.numberText = (uniqueGift->number > 0)
 				? rpl::single(u"#"_q + Lang::FormatCountDecimal(uniqueGift->number))
 				: rpl::producer<QString>(),
 			.resalePrice = UniqueGiftResalePrice(e.uniqueGift, forceTon),
 			.resaleClick = resaleClick,
+			.actions = std::move(coverActions),
+			.message = std::move(message),
 		});
 		if (e.bareGiftOwnerId == session->userPeerId().value) {
 			if (const auto fromId = PeerId(e.barePeerId)) {
@@ -1470,7 +1508,7 @@ void GenericCreditsEntryCover(
 			? st::creditsHistoryEntryStarGiftSize
 			: st::creditsHistoryEntryGiftStickerSize));
 		const auto state = icon->lifetime().make_state<State>();
-		auto &packs = session->giftBoxStickersPacks();
+		const auto &packs = session->giftBoxStickersPacks();
 		const auto document = starGiftSticker
 			? starGiftSticker
 			: e.credits.ton()
@@ -1553,8 +1591,9 @@ void GenericCreditsEntryBox(
 		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::CreditsHistoryEntry &e,
 		const Data::SubscriptionEntry &s,
-		CreditsEntryBoxStyleOverrides st) {
-	GenericCreditsEntryCover(box, show, e, s, st);
+		CreditsEntryBoxStyleOverrides st,
+		std::shared_ptr<const UniqueGiftCoverActions> actions) {
+	GenericCreditsEntryCover(box, show, e, s, st, std::move(actions));
 	GenericCreditsEntryBody(box, show, e, s, nullptr, st);
 }
 
@@ -2049,7 +2088,7 @@ void GenericCreditsEntryBody(
 				st::creditsBoxAboutDivider),
 			style::al_top);
 		label->setClickHandlerFilter([=](const auto &...) {
-			UrlClickHandler::Open(TonAddressUrl(session, address));
+			UrlClickHandler::Open(Core::TonExplorerUrl(session, address));
 			return false;
 		});
 	};
@@ -2669,7 +2708,8 @@ void UniqueGiftValueBox(
 			style::al_top);
 	};
 
-	if (const auto count = value->forSaleOnTelegram; count > 0) {
+	if (const auto count = value->forSaleOnTelegram
+		; count > 0 && show->canResolveWindow()) {
 		addAvailability(
 			count,
 			tr::lng_gift_value_telegram
@@ -2765,7 +2805,8 @@ void GlobalStarGiftBox(
 		std::shared_ptr<ChatHelpers::Show> show,
 		const Data::StarGift &data,
 		StarGiftResaleInfo resale,
-		CreditsEntryBoxStyleOverrides st) {
+		CreditsEntryBoxStyleOverrides st,
+		std::shared_ptr<const UniqueGiftCoverActions> actions) {
 	const auto selfId = show->session().userPeerId();
 	const auto ownerId = data.unique ? data.unique->ownerId.value : 0;
 	const auto hostId = data.unique ? data.unique->hostId.value : 0;
@@ -2792,7 +2833,8 @@ void GlobalStarGiftBox(
 			.gift = true,
 		},
 		Data::SubscriptionEntry(),
-		st);
+		st,
+		std::move(actions));
 }
 
 Data::CreditsHistoryEntry SavedStarGiftEntry(
@@ -2814,6 +2856,7 @@ Data::CreditsHistoryEntry SavedStarGiftEntry(
 		.bareGiftStickerId = data.info.document->id,
 		.bareGiftOwnerId = ownerId.value,
 		.bareGiftHostId = hostId.value,
+		.bareGiftMessageAuthorId = data.anonymous ? 0 : data.fromId.value,
 		.bareActorId = data.fromId.value,
 		.bareEntryOwnerId = chatGiftPeer ? chatGiftPeer->id.value : 0,
 		.giftChannelSavedId = data.manageId.chatSavedId(),
@@ -2837,6 +2880,7 @@ Data::CreditsHistoryEntry SavedStarGiftEntry(
 		.savedToProfile = !data.hidden,
 		.fromGiftsList = true,
 		.canUpgradeGift = data.upgradable,
+		.hasGiftComment = !data.message.empty(),
 		.in = data.mine,
 		.gift = true,
 	};
@@ -2925,6 +2969,9 @@ void ShowStarGiftViewBox(
 		.bareGiftHostId = hostId.value,
 		.bareGiftReleasedById = (data.stargiftReleasedBy
 			? data.stargiftReleasedBy->id.value
+			: 0),
+		.bareGiftMessageAuthorId = (data.messageAuthor
+			? data.messageAuthor->id.value
 			: 0),
 		.bareActorId = (toChannel ? data.channelFrom->id.value : 0),
 		.bareEntryOwnerId = (toChannel ? data.channel->id.value : 0),

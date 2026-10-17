@@ -40,6 +40,8 @@ InfoTopBar {
 	titleWithSubtitlePosition: point;
 	subtitle: FlatLabel;
 	subtitlePosition: point;
+	badge: FlatLabel;
+	badgeSkip: pixels;
 	bg: color;
 	mediaCancel: IconButton;
 	mediaActionsSkip: pixels;
@@ -214,8 +216,8 @@ infoTopBarSaveStories: IconButton(infoTopBarForward) {
 	iconOver: icon {{ "info/info_stories_to_profile", boxTitleCloseFgOver }};
 }
 infoTopBarArchiveStories: IconButton(infoTopBarForward) {
-	icon: icon {{ "info/info_stories_to_archive", boxTitleCloseFg }};
-	iconOver: icon {{ "info/info_stories_to_archive", boxTitleCloseFgOver }};
+	icon: icon {{ "menu/archive", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/archive", boxTitleCloseFgOver }};
 }
 infoTopBarPinStories: IconButton(infoTopBarForward) {
 	icon: icon {{ "menu/pin", boxTitleCloseFg }};
@@ -236,8 +238,13 @@ infoTopBar: InfoTopBar {
 	titleWithSubtitlePosition: point(16px, 8px);
 	subtitle: FlatLabel(defaultFlatLabel) {
 		textFg: windowSubTextFg;
+		maxHeight: 20px;
 	}
 	subtitlePosition: point(16px, 28px);
+	badge: FlatLabel(defaultFlatLabel) {
+		textFg: windowSubTextFg;
+	}
+	badgeSkip: 8px;
 	bg: windowBg;
 	mediaCancel: infoTopBarMediaCancel;
 	mediaActionsSkip: 4px;
@@ -329,8 +336,8 @@ infoLayerTopBarSaveStories: IconButton(infoLayerTopBarForward) {
 	iconOver: icon {{ "info/info_stories_to_profile", boxTitleCloseFgOver }};
 }
 infoLayerTopBarArchiveStories: IconButton(infoLayerTopBarForward) {
-	icon: icon {{ "info/info_stories_to_archive", boxTitleCloseFg }};
-	iconOver: icon {{ "info/info_stories_to_archive", boxTitleCloseFgOver }};
+	icon: icon {{ "menu/archive", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/archive", boxTitleCloseFgOver }};
 }
 infoLayerTopBarPinStories: IconButton(infoLayerTopBarForward) {
 	icon: icon {{ "menu/pin", boxTitleCloseFg }};
@@ -371,6 +378,7 @@ infoProfileBirthdayDigitSize: 64px;
 
 
 infoProfileTopBarActionButtonBgOpacity: 0.16;
+infoProfileTopBarBackdropRippleOpacity: 0.125;
 infoProfileTopBarActionButtonSize: 52px;
 infoProfileTopBarActionButtonIconSize: 23px;
 infoProfileTopBarActionButtonLottieSize: infoProfileTopBarActionButtonIconSize - 0px;
@@ -746,6 +754,7 @@ managePeerButton: SettingsCountButton {
 	iconPosition: point(20px, 5px);
 	label: FlatLabel(defaultFlatLabel) {
 		textFg: windowActiveTextFg;
+		maxHeight: 20px;
 	}
 	labelPosition: point(25px, 12px);
 }
@@ -1000,6 +1009,10 @@ inviteLinkThreeDots: IconButton(defaultIconButton) {
 inviteLinkFieldPadding: margins(22px, 7px, 22px, 14px);
 inviteLinkFieldLabel: FlatLabel(defaultFlatLabel) {
 	align: align(center);
+	maxHeight: 20px;
+}
+inviteLinkFieldLabelLeft: FlatLabel(inviteLinkFieldLabel) {
+	align: align(left);
 }
 
 inviteLinkButton: RoundButton(defaultActiveButton) {
@@ -1285,6 +1298,7 @@ collectionEmptyTitle: FlatLabel(boxTitle) {
 }
 collectionEmptyText: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
+	minWidth: 256px;
 }
 collectionEmptyButton: RoundButton(defaultActiveButton) {
 	width: -96px;

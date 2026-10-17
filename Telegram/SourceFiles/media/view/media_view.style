@@ -203,6 +203,9 @@ mediaviewPopupMenu: PopupMenu(defaultPopupMenu) {
 	menu: mediaviewMenu;
 	animation: mediaviewPanelAnimation;
 }
+mediaviewSponsorInfoMenu: PopupMenu(mediaviewPopupMenu) {
+	maxHeight: 420px;
+}
 mediaviewDropdownMenu: DropdownMenu(defaultDropdownMenu) {
 	menu: mediaviewMenu;
 	wrap: InnerDropdown(defaultInnerDropdown) {
@@ -269,6 +272,9 @@ mediaviewTextTop: 26px;
 mediaviewControlSize: 90px;
 mediaviewIconSize: size(46px, 54px);
 mediaviewIconOver: 36px;
+
+mediaviewTtlSkip: 16px;
+mediaviewTtlTooltipSkip: 8px;
 
 mediaviewWaitHide: 1100;
 mediaviewHideDuration: 600;
@@ -655,6 +661,15 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 	categoriesBgOver: storiesComposeBgOver;
 	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", storiesComposeBg }};
 	fadeRight: icon {{ "fade_horizontal", storiesComposeBg }};
+	photoButtonIcon: icon {{
+		"photo_editor/camera-24x24",
+		storiesComposeWhiteText
+	}};
+	audioButtonIcon: icon {{
+		"photo_editor/widget_music",
+		storiesComposeWhiteText
+	}};
+	linkButtonIcon: icon {{ "limits/links", storiesComposeWhiteText }};
 	menu: storiesPopupMenuWithIcons;
 	menuAttention: storiesMenuWithIconsAttention;
 	expandedSeparator: mediaviewWideMenuSeparator;
@@ -706,6 +721,7 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 		menuSetShare: icon {{ "menu/share", storiesComposeWhiteText }};
 		menuSetCopyLink: icon {{ "menu/link", storiesComposeWhiteText }};
 		menuSetRemove: icon {{ "menu/delete", storiesComposeWhiteText }};
+		menuEmojiStatus: icon {{ "menu/emoji", storiesComposeWhiteText }};
 		menuEmojiCopy: icon {{ "menu/copy", storiesComposeWhiteText }};
 		menuEmojiViewPack: icon {{ "menu/all_media", storiesComposeWhiteText }};
 		menuEmojiRemoveRecent: icon {{ "menu/cancel", storiesComposeWhiteText }};
@@ -716,6 +732,8 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 		menuBelow: icon {{ "menu/link_below", storiesComposeWhiteText }};
 		menuAbove: icon {{ "menu/link_above", storiesComposeWhiteText }};
 		menuQualityHigh: icon {{ "menu/quality_hd", storiesComposeWhiteText }};
+		menuCover: icon {{ "menu/edit", storiesComposeWhiteText }};
+		menuCoverRemove: icon {{ "menu/cancel", storiesComposeWhiteText }};
 		menuPrice: icon {{ "menu/earn", storiesComposeWhiteText }};
 		menuEditStars: icon {{ "chat/input_paid", storiesComposeWhiteText, point(-8px, -8px) }};
 
@@ -971,6 +989,16 @@ mediaviewEmojiPan: EmojiPan(storiesEmojiPan) {
 		labelFgActive: storiesComposeBlue;
 		rippleBg: groupCallMenuBgOver;
 		rippleBgActive: groupCallMenuBgOver;
+	}
+	search: TabbedSearch(storiesEmojiTabbedSearch) {
+		outer: groupCallMenuBg;
+		bg: groupCallMenuBgOver;
+		bgActive: groupCallMenuBgRipple;
+		fadeLeft: icon {{
+			"fade_horizontal-flip_horizontal",
+			groupCallMenuBgOver
+		}};
+		fadeRight: icon {{ "fade_horizontal", groupCallMenuBgOver }};
 	}
 }
 

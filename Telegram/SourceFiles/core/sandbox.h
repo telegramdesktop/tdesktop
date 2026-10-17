@@ -81,7 +81,11 @@ protected:
 	bool event(QEvent *e) override;
 
 private:
-	typedef QPair<QLocalSocket*, QByteArray> LocalClient;
+	struct LocalClient {
+		QLocalSocket *socket = nullptr;
+		QByteArray buffer;
+		bool externalUrlReceived = false;
+	};
 	typedef QList<LocalClient> LocalClients;
 
 	struct PostponedCall {

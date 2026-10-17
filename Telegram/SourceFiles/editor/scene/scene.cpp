@@ -7,28 +7,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/scene/scene.h"
 
+#include "editor/photo_editor_common.h"
+#include "editor/scene/scene_item_animated.h"
 #include "editor/scene/scene_item_canvas.h"
 #include "editor/scene/scene_item_line.h"
 #include "editor/scene/scene_item_shape.h"
-#include "editor/scene/scene_item_sticker.h"
 #include "editor/scene/scene_item_text.h"
-#include "editor/scene/scene_emoji_document.h"
+#include "editor/scene/scene_text_editing.h"
+#include "editor/video/video_clip.h"
 #include "ui/image/image_prepare.h"
+#include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/rp_widget.h"
 #include "styles/style_editor.h"
 
-#include <QGraphicsSceneContextMenuEvent>
 #include <QGraphicsSceneMouseEvent>
-#include <QGraphicsTextItem>
-#include <QGraphicsView>
-#include <QTextCursor>
-#include <QTextDocument>
 #include <QtMath>
 
 namespace Editor {
-namespace {
-
-using ItemPtr = std::shared_ptr<NumberedItem>;
 
 class ItemAction : public NumberedItem {
 public:
@@ -36,6 +32,10 @@ public:
 
 	virtual void apply() = 0;
 	virtual void revert() = 0;
+
+	ItemAction *asAction() override {
+		return this;
+	}
 
 	QRectF boundingRect() const override {
 		return QRectF();
@@ -74,6 +74,10 @@ private:
 		NumberedItem::Status status = Status::Normal;
 	} _saved, _keeped;
 };
+
+namespace {
+
+using ItemPtr = std::shared_ptr<NumberedItem>;
 
 class ItemEraser final : public ItemAction {
 public:
@@ -153,60 +157,51 @@ bool SkipMouseEvent(not_null<QGraphicsSceneMouseEvent*> event) {
 	return event->isAccepted() || (event->button() == Qt::RightButton);
 }
 
-constexpr auto kPaddingFactor = 0.4;
-constexpr auto kMaxWidthFactor = 0.8;
-constexpr auto kMinWidthFactor = 0.16;
-constexpr auto kIdealWidthExtra = 2;
-constexpr auto kScaleThreshold = 0.01;
 constexpr auto kShapeDragThreshold = 4.;
 constexpr auto kShapeSnapAngle = 45.;
 constexpr auto kDraftShapeOpacity = 0.5;
+constexpr auto kStickyGuideDuration = crl::time(150);
+constexpr auto kItemsBaseZ = 9000.;
 
-class TextEditProxy final : public QGraphicsTextItem {
+} // namespace
+
+class Scene::StickyGuidesItem final : public QGraphicsItem {
 public:
-	using QGraphicsTextItem::QGraphicsTextItem;
-
-	Fn<void()> onFinish;
-	Fn<void()> onCancel;
-
-protected:
-	void keyPressEvent(QKeyEvent *event) override {
-		if (event->key() == Qt::Key_Escape) {
-			fire(onCancel);
-			return;
-		}
-		QGraphicsTextItem::keyPressEvent(event);
+	explicit StickyGuidesItem(not_null<Scene*> scene)
+	: _scene(scene) {
+		setAcceptedMouseButtons(Qt::NoButton);
+		setZValue(kItemsBaseZ - 1.);
 	}
 
-	void focusOutEvent(QFocusEvent *event) override {
-		QGraphicsTextItem::focusOutEvent(event);
-		fire(onFinish);
+	QRectF boundingRect() const override {
+		return _scene->canvasRect() + Margins(_scene->stickyGuideMargin());
 	}
 
-	void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override {
-		event->accept();
+	void paint(
+			QPainter *p,
+			const QStyleOptionGraphicsItem *,
+			QWidget *) override {
+		_scene->paintStickyGuide(*p, Qt::Horizontal);
+		_scene->paintStickyGuide(*p, Qt::Vertical);
+	}
+
+	void updateGeometry() {
+		prepareGeometryChange();
 	}
 
 private:
-	void fire(Fn<void()> &callback) {
-		if (!callback) {
-			return;
-		}
-		const auto cb = std::exchange(callback, nullptr);
-		onFinish = nullptr;
-		onCancel = nullptr;
-		crl::on_main(cb);
-	}
-};
+	const not_null<Scene*> _scene;
 
-} // namespace
+};
 
 Scene::Scene(const QRectF &rect)
 : QGraphicsScene(rect)
 , _canvas(std::make_shared<ItemCanvas>())
-, _lastZ(std::make_shared<float64>(9000.)) {
+, _lastZ(std::make_shared<float64>(kItemsBaseZ))
+, _stickyGuides(std::make_unique<StickyGuidesItem>(this))
+, _textEdit(std::make_unique<TextEditController>(this)) {
 	QGraphicsScene::addItem(_canvas.get());
-	_canvas->clearPixmap();
+	QGraphicsScene::addItem(_stickyGuides.get());
 
 	_canvas->grabContentRequests(
 	) | rpl::on_next([=](ItemCanvas::Content &&content) {
@@ -287,6 +282,7 @@ Scene::Scene(const QRectF &rect)
 			}
 			const auto canvasVisible = _canvas->isVisible();
 			_canvas->setVisible(false);
+			_stickyGuides->setVisible(false);
 			{
 				auto p = QPainter(&source);
 				render(
@@ -295,6 +291,7 @@ Scene::Scene(const QRectF &rect)
 					QRectF(captureRect),
 					Qt::IgnoreAspectRatio);
 			}
+			_stickyGuides->setVisible(true);
 			_canvas->setVisible(canvasVisible);
 			auto blurred = Images::BlurLargeImage(
 				std::move(source),
@@ -342,6 +339,9 @@ Scene::Scene(const QRectF &rect)
 		&QGraphicsScene::selectionChanged,
 		[=] {
 			const auto selected = selectedItems();
+			if (!selected.empty()) {
+				setAudioSelected(false);
+			}
 			auto *textItem = (ItemText*)(nullptr);
 			auto *shapeItem = (ItemShape*)(nullptr);
 			if (selected.size() == 1) {
@@ -367,20 +367,35 @@ Scene::Scene(const QRectF &rect)
 					_shapeItemDeselections.fire({});
 				}
 			}
+			refreshVideoClipSelection();
 		});
 }
 
-void Scene::cancelDrawing() {
-	if (_textEdit.proxy) {
-		finishTextEditing(false);
+void Scene::refreshVideoClipSelection() {
+	const auto selected = selectedItems();
+	auto clip = std::shared_ptr<VideoClip>();
+	if (selected.size() == 1) {
+		if (const auto item = itemShared(selected.front())) {
+			if (const auto raw = item->videoClip()) {
+				clip = std::shared_ptr<VideoClip>(item, raw);
+			}
+		}
 	}
+	if (clip.get() == _selectedVideoClip) {
+		return;
+	}
+	_selectedVideoClip = clip.get();
+	updateVideoClipsSound();
+	_videoClipSelections.fire(std::move(clip));
+}
+
+void Scene::cancelDrawing() {
+	_textEdit->finishEditing(false);
 	_canvas->cancelDrawing();
 }
 
 void Scene::cancelTextEditing() {
-	if (_textEdit.proxy) {
-		finishTextEditing(false, false);
-	}
+	_textEdit->finishEditing(false, false);
 }
 
 void Scene::addItem(ItemPtr item) {
@@ -388,12 +403,15 @@ void Scene::addItem(ItemPtr item) {
 		return;
 	}
 	item->setNumber(_itemNumber++);
-	if (item->scene() != this) {
-		QGraphicsScene::addItem(item.get());
-	}
 	const auto raw = item.get();
 	_items.push_back(std::move(item));
 	_itemsByPointer.emplace(raw, _items.back());
+	if (raw->scene() != this) {
+		QGraphicsScene::addItem(raw);
+	}
+	if (raw->videoClip()) {
+		checkDurationsLink();
+	}
 	_addsItem.fire({});
 }
 
@@ -409,10 +427,21 @@ void Scene::removeItem(not_null<QGraphicsItem*> item) {
 
 void Scene::removeItem(const ItemPtr &item) {
 	item->setStatus(NumberedItem::Status::Removed);
+	if (item->videoClip()) {
+		checkDurationsLink();
+	}
 	_removesItem.fire({});
 }
 
+void Scene::videoClipChanged(not_null<NumberedItem*> item) {
+	checkDurationsLink();
+	if (item->isSelected()) {
+		refreshVideoClipSelection();
+	}
+}
+
 void Scene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+	setAudioSelected(false);
 	if (_shapeTool.pending) {
 		if (event->button() == Qt::LeftButton) {
 			event->accept();
@@ -428,23 +457,124 @@ void Scene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 			return;
 		}
 	}
-	if (_textEdit.proxy) {
-		const auto clickOnProxy = _textEdit.proxy->contains(
-			_textEdit.proxy->mapFromScene(event->scenePos()));
-		if (!clickOnProxy) {
-			finishTextEditing(true);
-			QGraphicsScene::mousePressEvent(event);
-			capturePlacements();
-			return;
-		}
+	if (_textEdit->editing()
+		&& !_textEdit->proxyContains(event->scenePos())) {
+		_textEdit->finishEditing(true);
+		QGraphicsScene::mousePressEvent(event);
+		capturePlacements();
+		return;
 	}
 
 	QGraphicsScene::mousePressEvent(event);
 	capturePlacements();
-	if (SkipMouseEvent(event) || !sceneRect().contains(event->scenePos())) {
+	if (SkipMouseEvent(event)
+		|| !_canvas->drawableRect().contains(event->scenePos())) {
 		return;
 	}
 	_canvas->handleMousePressEvent(event);
+}
+
+void Scene::setCanvasRect(const QRectF &rect) {
+	if (_canvasRect == rect) {
+		return;
+	}
+	_stickyGuides->updateGeometry();
+	_canvasRect = rect;
+	_canvas->setCanvasRect(canvasRect());
+}
+
+QRectF Scene::canvasRect() const {
+	return _canvasRect.isNull() ? sceneRect() : _canvasRect;
+}
+
+void Scene::setStickyGuides(
+		std::optional<float64> x,
+		std::optional<float64> y) {
+	setStickyGuide(Qt::Horizontal, x);
+	setStickyGuide(Qt::Vertical, y);
+}
+
+void Scene::setStickyGuide(
+		Qt::Orientation orientation,
+		std::optional<float64> position) {
+	auto &guide = (orientation == Qt::Horizontal)
+		? _stickyGuideX
+		: _stickyGuideY;
+	const auto shown = position.has_value();
+	if (!shown && !guide.shown) {
+		return;
+	}
+	const auto was = stickyGuideRect(orientation);
+	if (shown) {
+		guide.position = *position;
+	}
+	if (guide.shown != shown) {
+		guide.shown = shown;
+		guide.animation.start(
+			[=] { _stickyGuides->update(stickyGuideRect(orientation)); },
+			shown ? 0. : 1.,
+			shown ? 1. : 0.,
+			kStickyGuideDuration);
+	}
+	_stickyGuides->update(was);
+	_stickyGuides->update(stickyGuideRect(orientation));
+}
+
+void Scene::hideStickyGuides() {
+	for (const auto guide : { &_stickyGuideX, &_stickyGuideY }) {
+		guide->animation.stop();
+		guide->shown = false;
+	}
+	_stickyGuides->update();
+}
+
+float64 Scene::stickyGuideMargin() const {
+	const auto zoom = (_currentZoom > 0.) ? _currentZoom : 1.;
+	return st::photoEditorStickyLineWidth / zoom;
+}
+
+QRectF Scene::stickyGuideRect(Qt::Orientation orientation) const {
+	const auto &guide = (orientation == Qt::Horizontal)
+		? _stickyGuideX
+		: _stickyGuideY;
+	const auto canvas = canvasRect();
+	const auto margin = stickyGuideMargin();
+	return (orientation == Qt::Horizontal)
+		? QRectF(
+			guide.position - margin,
+			canvas.top(),
+			margin * 2,
+			canvas.height())
+		: QRectF(
+			canvas.left(),
+			guide.position - margin,
+			canvas.width(),
+			margin * 2);
+}
+
+void Scene::paintStickyGuide(
+		QPainter &p,
+		Qt::Orientation orientation) const {
+	const auto &guide = (orientation == Qt::Horizontal)
+		? _stickyGuideX
+		: _stickyGuideY;
+	const auto opacity = guide.animation.value(guide.shown ? 1. : 0.);
+	if (opacity <= 0.) {
+		return;
+	}
+	const auto canvas = canvasRect();
+	auto color = QColor(Qt::white);
+	color.setAlphaF(opacity);
+	p.setPen(QPen(color, stickyGuideMargin()));
+	if (orientation == Qt::Horizontal) {
+		p.drawLine(
+			QPointF(guide.position, canvas.top()),
+			QPointF(guide.position, canvas.bottom()));
+	} else {
+		p.drawLine(
+			QPointF(canvas.left(), guide.position),
+			QPointF(canvas.right(), guide.position));
+	}
 }
 
 void Scene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
@@ -455,7 +585,7 @@ void Scene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
 	}
 	QGraphicsScene::mouseReleaseEvent(event);
 	commitPlacements();
-	if (SkipMouseEvent(event) || _textEdit.proxy) {
+	if (SkipMouseEvent(event) || _textEdit->editing()) {
 		return;
 	}
 	_canvas->handleMouseReleaseEvent(event);
@@ -468,7 +598,7 @@ void Scene::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 		return;
 	}
 	QGraphicsScene::mouseMoveEvent(event);
-	if (SkipMouseEvent(event) || _textEdit.proxy) {
+	if (SkipMouseEvent(event) || _textEdit->editing()) {
 		return;
 	}
 	_canvas->handleMouseMoveEvent(event);
@@ -485,11 +615,10 @@ void Scene::setPendingShape(std::optional<PendingShape> pending) {
 	_shapeTool.pending = std::move(pending);
 	const auto now = _shapeTool.pending.has_value();
 	if (now) {
-		if (_textEdit.proxy) {
-			finishTextEditing(true);
-		}
+		_textEdit->finishEditing(true);
 		clearSelection();
 		clearFocus();
+		setAudioSelected(false);
 	}
 	if (was != now) {
 		_pendingShapeStates.fire_copy(now);
@@ -647,19 +776,22 @@ void Scene::applyBrush(const QColor &color, float64 size, Brush::Tool tool) {
 void Scene::setTextDefaults(
 		const QColor &color,
 		float64 fontSize,
-		int style) {
-	_textColor = color;
-	_textFontSize = fontSize;
-	_textStyle = style;
+		TextStyle style,
+		TextTypeface typeface,
+		TextAlignment alignment) {
+	_textEdit->setDefaults(color, fontSize, style, typeface, alignment);
+}
+
+void Scene::applyTextPrefs(const TextPrefs &prefs) {
+	_textEdit->applyPrefs(prefs);
+}
+
+void Scene::noteTextItemPrefs(not_null<ItemText*> item) {
+	_textEdit->noteItemPrefs(item);
 }
 
 void Scene::setTextColor(const QColor &color) {
-	_textColor = color;
-	if (_textEdit.proxy) {
-		_textEdit.proxy->setDefaultTextColor(EffectiveTextColor(
-			color,
-			static_cast<TextStyle>(_textEditStyle)));
-	}
+	_textEdit->setColor(color);
 }
 
 void Scene::setSelectedTextColor(const QColor &color) {
@@ -683,7 +815,11 @@ void Scene::setSelectedShapeBrush(
 }
 
 rpl::producer<QColor> Scene::textColorRequests() const {
-	return _textColorRequests.events();
+	return _textEdit->colorRequests();
+}
+
+rpl::producer<TextPrefs> Scene::textPrefsUsed() const {
+	return _textEdit->prefsUsed();
 }
 
 rpl::producer<QColor> Scene::textItemSelections() const {
@@ -695,7 +831,7 @@ rpl::producer<> Scene::textItemDeselections() const {
 }
 
 rpl::producer<bool> Scene::textEditStates() const {
-	return _textEditStates.events();
+	return _textEdit->editStates();
 }
 
 rpl::producer<QColor> Scene::shapeItemSelections() const {
@@ -704,6 +840,11 @@ rpl::producer<QColor> Scene::shapeItemSelections() const {
 
 rpl::producer<> Scene::shapeItemDeselections() const {
 	return _shapeItemDeselections.events();
+}
+
+auto Scene::videoClipSelections() const
+-> rpl::producer<std::shared_ptr<VideoClip>> {
+	return _videoClipSelections.events();
 }
 
 void Scene::setBlurSource(Fn<QImage(QRect)> source) {
@@ -731,13 +872,206 @@ std::vector<ItemPtr> Scene::items(
 	return copyItems;
 }
 
+bool Scene::hasAnimatedItems() const {
+	for (const auto &item : _items) {
+		const auto animated = item->isNormalStatus()
+			? item->asAnimated()
+			: nullptr;
+		if (animated && animated->animated() && animated->hasContent()) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool Scene::hasAnimatedResult() const {
+	return (_audio != nullptr) || hasAnimatedItems();
+}
+
+void Scene::updateVideoClipsSound() {
+	const auto apply = [&](bool enabled) {
+		for (const auto &item : _items) {
+			const auto clip = item->videoClip();
+			if (clip && ((clip == _selectedVideoClip) == enabled)) {
+				clip->setSoundEnabled(enabled);
+			}
+		}
+	};
+	apply(false);
+	apply(true);
+}
+
+bool Scene::hasSoundResult() const {
+	if (_audio && (_audio->volume > 0.)) {
+		return true;
+	}
+	for (const auto &item : _items) {
+		const auto clip = item->videoClip();
+		if (clip
+			&& item->isNormalStatus()
+			&& clip->animated()
+			&& clip->sounding()) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void Scene::releaseAnimations() {
+	for (const auto &item : _items) {
+		if (const auto animated = item->asAnimated()) {
+			animated->releasePlayers();
+		}
+	}
+}
+
+void Scene::setAudio(std::shared_ptr<AudioTrack> audio) {
+	if (audio && audio->empty()) {
+		audio = nullptr;
+	}
+	if (_audio == audio) {
+		return;
+	}
+	_audio = std::move(audio);
+	if (!_audio) {
+		setAudioSelected(false);
+	}
+	_audioChanges.fire({});
+	checkDurationsLink();
+}
+
+std::shared_ptr<AudioTrack> Scene::audio() const {
+	return _audio;
+}
+
+rpl::producer<> Scene::audioChanges() const {
+	return _audioChanges.events();
+}
+
+void Scene::setAudioSelected(bool selected) {
+	if (selected && !_audio) {
+		return;
+	} else if (_audioSelected == selected) {
+		return;
+	}
+	if (selected) {
+		setPendingShape(std::nullopt);
+		_textEdit->finishEditing(true);
+		clearSelection();
+		clearFocus();
+	}
+	_audioSelected = selected;
+	_audioSelectedChanges.fire_copy(selected);
+}
+
+bool Scene::audioSelected() const {
+	return _audioSelected;
+}
+
+rpl::producer<bool> Scene::audioSelectedChanges() const {
+	return _audioSelectedChanges.events();
+}
+
+bool Scene::canEqualizeDurations() const {
+	if (!_audio) {
+		return false;
+	}
+	for (const auto &item : _items) {
+		if (item->isNormalStatus() && item->videoClip()) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void Scene::equalizeDurations() {
+	auto shortest = _audio ? _audio->length() : crl::time(0);
+	for (const auto &item : _items) {
+		const auto clip = item->isNormalStatus()
+			? item->videoClip()
+			: nullptr;
+		if (clip) {
+			const auto loop = clip->loopDuration();
+			if (loop > 0 && (!shortest || loop < shortest)) {
+				shortest = loop;
+			}
+		}
+	}
+	matchDurations(shortest);
+}
+
+void Scene::matchDurations(crl::time duration) {
+	auto clips = std::vector<VideoClip*>();
+	auto shortest = duration;
+	if (_audio) {
+		shortest = std::min(shortest, _audio->duration - _audio->from);
+	}
+	for (const auto &item : _items) {
+		const auto clip = item->isNormalStatus()
+			? item->videoClip()
+			: nullptr;
+		const auto full = clip ? clip->duration() : crl::time(0);
+		if (full > 0) {
+			shortest = std::min(shortest, full - clip->trim().from);
+			clips.push_back(clip);
+		}
+	}
+	if (shortest <= 0) {
+		return;
+	}
+	for (const auto clip : clips) {
+		const auto from = clip->trim().from;
+		clip->setTrim({ from, from + shortest });
+	}
+	if (_audio) {
+		_audio->till = _audio->from + shortest;
+	}
+}
+
+bool Scene::durationsLinked() const {
+	return _durationsLinked;
+}
+
+void Scene::setDurationsLinked(bool linked) {
+	if (_durationsLinked == linked) {
+		return;
+	}
+	_durationsLinked = linked;
+	if (linked) {
+		equalizeDurations();
+	}
+}
+
+rpl::producer<> Scene::durationsLinkChanges() const {
+	return _durationsLinkChanges.events();
+}
+
+void Scene::checkDurationsLink() {
+	if (_durationsLinked && !canEqualizeDurations()) {
+		_durationsLinked = false;
+	} else if (_durationsLinked) {
+		equalizeDurations();
+	}
+	_durationsLinkChanges.fire({});
+}
+
 std::shared_ptr<float64> Scene::lastZ() const {
 	return _lastZ;
+}
+
+Scene::ItemPtr Scene::itemShared(QGraphicsItem *item) const {
+	const auto it = _itemsByPointer.find(item);
+	return (it != end(_itemsByPointer)) ? it->second : nullptr;
+}
+
+float64 Scene::currentZoom() const {
+	return _currentZoom;
 }
 
 void Scene::updateZoom(float64 zoom) {
 	_currentZoom = zoom;
 	_canvas->updateZoom(zoom);
+	_stickyGuides->updateGeometry();
 	for (const auto &item : items()) {
 		if (item->type() >= ItemBase::Type) {
 			static_cast<ItemBase*>(item.get())->updateZoom(zoom);
@@ -762,10 +1096,13 @@ void Scene::performUndo() {
 		return item->isNormalStatus() && item->undoable();
 	});
 	if (it != filtered.end()) {
-		if (const auto action = dynamic_cast<ItemAction*>(it->get())) {
+		if (const auto action = (*it)->asAction()) {
 			action->revert();
 		}
 		(*it)->setStatus(NumberedItem::Status::Undid);
+		if ((*it)->videoClip()) {
+			checkDurationsLink();
+		}
 	}
 }
 
@@ -774,10 +1111,13 @@ void Scene::performRedo() {
 
 	const auto it = ranges::find_if(filtered, &NumberedItem::isUndidStatus);
 	if (it != filtered.end()) {
-		if (const auto action = dynamic_cast<ItemAction*>(it->get())) {
+		if (const auto action = (*it)->asAction()) {
 			action->apply();
 		}
 		(*it)->setStatus(NumberedItem::Status::Normal);
+		if ((*it)->videoClip()) {
+			checkDurationsLink();
+		}
 	}
 }
 
@@ -823,6 +1163,11 @@ void Scene::removeIf(Fn<bool(const ItemPtr &)> proj) {
 			// Scene loses ownership of an item.
 			// It seems for some reason this line causes a crash. =(
 			// QGraphicsScene::removeItem(item.get());
+			item->setSelected(false);
+			item->setVisible(false);
+			if (const auto animated = item->asAnimated()) {
+				animated->releasePlayers();
+			}
 		} else {
 			copy.push_back(item);
 		}
@@ -843,8 +1188,12 @@ void Scene::clearRedoList() {
 }
 
 void Scene::save(SaveState state) {
-	if (_textEdit.proxy) {
-		finishTextEditing(true);
+	_textEdit->finishEditing(true);
+	for (const auto &item : _items) {
+		if (item->isNormalStatus()
+			&& (item->type() == ItemText::Type)) {
+			static_cast<ItemText*>(item.get())->bakeScale();
+		}
 	}
 
 	removeIf([](const ItemPtr &item) {
@@ -856,8 +1205,16 @@ void Scene::save(SaveState state) {
 	for (const auto &item : _items) {
 		item->save(state);
 	}
+	auto &saved = (state == SaveState::Keep) ? _keptAudio : _savedAudio;
+	saved = _audio ? std::make_shared<AudioTrack>(*_audio) : nullptr;
+	auto &savedLinked = (state == SaveState::Keep)
+		? _keptDurationsLinked
+		: _savedDurationsLinked;
+	savedLinked = _durationsLinked;
+	setAudioSelected(false);
 	clearSelection();
 	cancelDrawing();
+	hideStickyGuides();
 }
 
 void Scene::restore(SaveState state) {
@@ -868,279 +1225,25 @@ void Scene::restore(SaveState state) {
 	for (const auto &item : _items) {
 		item->restore(state);
 	}
+	const auto &saved = (state == SaveState::Keep)
+		? _keptAudio
+		: _savedAudio;
+	setAudioSelected(false);
+	setAudio(saved ? std::make_shared<AudioTrack>(*saved) : nullptr);
+	_durationsLinked = (state == SaveState::Keep)
+		? _keptDurationsLinked
+		: _savedDurationsLinked;
+	checkDurationsLink();
 	clearSelection();
 	cancelDrawing();
 }
 
-void Scene::setTextEditing(bool editing, bool notify) {
-	if (_textEditing == editing) {
-		return;
-	}
-	_textEditing = editing;
-	if (notify) {
-		_textEditStates.fire_copy(editing);
-	}
-}
-
-void Scene::setupTextProxy(
-		QGraphicsTextItem *proxy,
-		const QColor &color,
-		float64 fontSize) {
-	proxy->setTextInteractionFlags(Qt::TextEditorInteraction);
-	proxy->setDefaultTextColor(color);
-
-	auto *emojiDoc = new EmojiDocument(proxy);
-	emojiDoc->setDocumentMargin(0);
-	proxy->setDocument(emojiDoc);
-
-	auto font = QFont();
-	font.setPixelSize(int(fontSize));
-	font.setWeight(QFont::DemiBold);
-	proxy->setFont(font);
-
-	{
-		auto option = emojiDoc->defaultTextOption();
-		option.setAlignment(Qt::AlignCenter);
-		emojiDoc->setDefaultTextOption(option);
-	}
-}
-
-void Scene::createTextAtCenter(int rotation) {
-	if (_textEdit.proxy) {
-		return;
-	}
-
-	const auto generation = ++_textEditGeneration;
-
-	clearSelection();
-	cancelDrawing();
-	setTextEditing(true);
-	_textEditStyle = _textStyle;
-
-	_textEdit.proxy.reset(new TextEditProxy());
-	const auto proxy = _textEdit.proxy.get();
-	setupTextProxy(
-		proxy,
-		EffectiveTextColor(
-			_textColor,
-			static_cast<TextStyle>(_textEditStyle)),
-		_textFontSize);
-
-	const auto emojiDoc = proxy->document();
-	const auto shortSide = std::min(
-		sceneRect().width(),
-		sceneRect().height());
-	const auto padding = int(_textFontSize * kPaddingFactor);
-	const auto maxTextWidth = std::max(
-		int(shortSide * kMaxWidthFactor) - 2 * padding,
-		1);
-	const auto minTextWidth = std::clamp(
-		int(shortSide * kMinWidthFactor) - 2 * padding,
-		1,
-		maxTextWidth);
-	const auto sceneCenter = sceneRect().center();
-	const auto adjustWidth = [=] {
-		emojiDoc->setTextWidth(maxTextWidth);
-		const auto ideal = int(std::ceil(emojiDoc->idealWidth()));
-		const auto width = std::clamp(
-			ideal + kIdealWidthExtra,
-			minTextWidth,
-			maxTextWidth);
-		proxy->setTextWidth(width);
-		const auto anchor = QPointF(width / 2., 0.);
-		proxy->setTransformOriginPoint(anchor);
-		proxy->setPos(sceneCenter - anchor);
-	};
-	adjustWidth();
-	proxy->setRotation(rotation);
-
-	QObject::connect(emojiDoc, &QTextDocument::contentsChanged, [=] {
-		ReplaceEmoji(emojiDoc);
-		adjustWidth();
-	});
-
-	QGraphicsScene::addItem(proxy);
-	proxy->setZValue((*_lastZ)++);
-	proxy->setFocus();
-	if (!views().isEmpty()) {
-		views().first()->setFocus();
-	}
-
-	const auto raw = static_cast<TextEditProxy*>(proxy);
-	raw->onFinish = crl::guard(this, [=] {
-		if (generation == _textEditGeneration) {
-			finishTextEditing(true);
-		}
-	});
-	raw->onCancel = crl::guard(this, [=] {
-		if (generation == _textEditGeneration) {
-			finishTextEditing(false);
-		}
-	});
-
-	_textEdit.item.reset();
-	_textColorRequests.fire_copy(_textColor);
+void Scene::createTextAtCenter(int rotation, bool flipped) {
+	_textEdit->createAtCenter(rotation, flipped);
 }
 
 void Scene::startTextEditing(ItemText *item) {
-	if (_textEdit.proxy) {
-		finishTextEditing(true);
-	}
-	if (!item) {
-		return;
-	}
-
-	const auto generation = ++_textEditGeneration;
-
-	cancelDrawing();
-	setTextEditing(true);
-	_textEditStyle = int(item->textStyle());
-
-	_textEdit.proxy.reset(new TextEditProxy());
-	const auto proxy = _textEdit.proxy.get();
-	setupTextProxy(
-		proxy,
-		EffectiveTextColor(item->color(), item->textStyle()),
-		item->fontSize());
-
-	proxy->setPlainText(item->text());
-	ReplaceEmoji(proxy->document());
-
-	const auto emojiDoc = proxy->document();
-	const auto shortSide = std::min(
-		sceneRect().width(),
-		sceneRect().height());
-	const auto padding = int(item->fontSize() * kPaddingFactor);
-	const auto maxTextWidth = std::max(
-		int(shortSide * kMaxWidthFactor) - 2 * padding,
-		1);
-	const auto minTextWidth = std::clamp(
-		int(shortSide * kMinWidthFactor) - 2 * padding,
-		1,
-		maxTextWidth);
-	const auto anchor = item->scenePos();
-	const auto adjustWidth = [=] {
-		emojiDoc->setTextWidth(maxTextWidth);
-		const auto ideal = int(std::ceil(emojiDoc->idealWidth()));
-		const auto width = std::clamp(
-			ideal + kIdealWidthExtra,
-			minTextWidth,
-			maxTextWidth);
-		proxy->setTextWidth(width);
-		const auto center = proxy->boundingRect().center();
-		proxy->setTransformOriginPoint(center);
-		proxy->setPos(anchor - center);
-	};
-	adjustWidth();
-
-	QObject::connect(emojiDoc, &QTextDocument::contentsChanged, [=] {
-		ReplaceEmoji(emojiDoc);
-		adjustWidth();
-	});
-
-	const auto scale = item->editScale();
-	proxy->setRotation(item->rotation());
-	if (std::abs(scale - 1.) > kScaleThreshold) {
-		proxy->setScale(scale);
-	}
-
-	QGraphicsScene::addItem(proxy);
-	proxy->setZValue((*_lastZ)++);
-	proxy->setFocus();
-
-	auto cursor = proxy->textCursor();
-	cursor.select(QTextCursor::Document);
-	proxy->setTextCursor(cursor);
-
-	item->setVisible(false);
-
-	const auto raw = static_cast<TextEditProxy*>(proxy);
-	raw->onFinish = crl::guard(this, [=] {
-		if (generation == _textEditGeneration) {
-			finishTextEditing(true);
-		}
-	});
-	raw->onCancel = crl::guard(this, [=] {
-		if (generation == _textEditGeneration) {
-			finishTextEditing(false);
-		}
-	});
-
-	const auto it = _itemsByPointer.find(item);
-	_textEdit.item = (it != end(_itemsByPointer))
-		? it->second
-		: std::weak_ptr<NumberedItem>();
-	_textColorRequests.fire_copy(item->color());
-}
-
-void Scene::finishTextEditing(bool save, bool notify) {
-	if (!_textEdit.proxy) {
-		return;
-	}
-
-	const auto text = save
-		? RecoverTextFromDocument(_textEdit.proxy->document()).trimmed()
-		: QString();
-	const auto proxyRect = _textEdit.proxy->boundingRect();
-	const auto proxyCenter = _textEdit.proxy->mapToScene(proxyRect.center());
-	const auto proxyRotation = int(_textEdit.proxy->rotation());
-	const auto lockedItem = _textEdit.item.lock();
-	auto *existingItem = lockedItem
-		? static_cast<ItemText*>(lockedItem.get())
-		: (ItemText*)(nullptr);
-
-	const auto raw = static_cast<TextEditProxy*>(_textEdit.proxy.get());
-	raw->onFinish = nullptr;
-	raw->onCancel = nullptr;
-	QGraphicsScene::removeItem(_textEdit.proxy.get());
-	_textEdit.proxy = nullptr;
-	_textEdit.item.reset();
-	setTextEditing(false, notify);
-
-	const auto defaultStyle = static_cast<TextStyle>(_textStyle);
-
-	if (!text.isEmpty()) {
-		if (existingItem) {
-			existingItem->setText(text);
-			existingItem->setVisible(true);
-		} else {
-			const auto imageSize = sceneRect().size().toSize();
-			const auto contentSize = ItemText::computeContentSize(
-				text,
-				_textFontSize,
-				imageSize,
-				defaultStyle);
-			const auto zoom = (_currentZoom > 0.) ? _currentZoom : 1.;
-			const auto handleInflate = int(
-				std::ceil(st::photoEditorItemHandleSize / zoom));
-			const auto size = std::max(
-				contentSize.width() + handleInflate,
-				1);
-			auto data = ItemBase::Data{
-				.initialZoom = zoom,
-				.zPtr = _lastZ,
-				.size = size,
-				.x = int(proxyCenter.x()),
-				.y = int(proxyCenter.y()),
-				.rotation = proxyRotation,
-				.imageSize = imageSize,
-			};
-			auto item = std::make_shared<ItemText>(
-				text,
-				_textColor,
-				_textFontSize,
-				defaultStyle,
-				imageSize,
-				std::move(data));
-			addItem(item);
-		}
-	} else if (existingItem) {
-		if (save) {
-			removeItem(existingItem);
-		} else {
-			existingItem->setVisible(true);
-		}
-	}
+	_textEdit->startEditing(item);
 }
 
 Scene::~Scene() {
@@ -1150,6 +1253,7 @@ Scene::~Scene() {
 		QGraphicsScene::removeItem(pending.get());
 	}
 	QGraphicsScene::removeItem(_canvas.get());
+	QGraphicsScene::removeItem(_stickyGuides.get());
 	for (const auto &item : items()) {
 		QGraphicsScene::removeItem(item.get());
 	}

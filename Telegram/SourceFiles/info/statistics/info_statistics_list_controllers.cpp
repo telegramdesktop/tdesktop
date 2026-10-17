@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/toggle_arrow.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+#include "ui/style/style_core_palette.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/text/text_utilities.h"
@@ -124,7 +125,7 @@ struct PublicForwardsDescriptor final {
 struct MembersDescriptor final {
 	not_null<Main::Session*> session;
 	Fn<void(not_null<PeerData*>)> showPeerInfo;
-	Data::SupergroupStatistics data;
+	Data::StatisticsLists data;
 };
 
 struct BoostsDescriptor final {
@@ -140,6 +141,7 @@ struct CreditsDescriptor final {
 	bool in = false;
 	bool out = false;
 	bool subscription = false;
+	bool currency = false;
 };
 
 class PeerListRowWithFullId : public PeerListRow {
@@ -216,7 +218,7 @@ private:
 
 	const not_null<Main::Session*> _session;
 	Fn<void(not_null<PeerData*>)> _showPeerInfo;
-	Data::SupergroupStatistics _data;
+	Data::StatisticsLists _data;
 	int _limit = 0;
 
 };
@@ -1009,10 +1011,7 @@ void CreditsRow::init() {
 				TextWithEntities()
 					.append(Info::ChannelEarn::MinorPart(_entry.credits))
 					.append(QChar(' '))
-					.append(
-						Ui::Text::SingleCustomEmoji(_entry.in
-							? u"ton:in"_q
-							: u"ton:out"_q)),
+					.append(Ui::Text::SingleCustomEmoji(u"ton"_q)),
 				kMarkupTextOptions,
 				_context);
 		}
@@ -1129,6 +1128,8 @@ void CreditsRow::rightActionPaint(
 		? st::creditsStroke
 		: _entry.in
 		? st::boxTextFgGood
+		: _entry.credits.ton()
+		? st::windowBoldFg
 		: st::menuIconAttentionColor);
 	const auto xMinor = outerWidth - _rightMinorText.maxWidth() - rightSkip;
 	_rightMinorText.draw(p, Ui::Text::PaintContext{
@@ -1202,11 +1203,13 @@ public:
 private:
 	struct IconCache {
 		QImage credits;
-		QImage tonIn;
-		QImage tonOut;
+		QImage ton;
+		int tonPaletteVersion = 0;
+		const style::palette *tonPaletteOverride = nullptr;
 	};
 
 	void applySlice(const Data::CreditsStatusSlice &slice);
+	[[nodiscard]] QImage tonIcon();
 
 	const not_null<Main::Session*> _session;
 	const bool _subscription;
@@ -1230,7 +1233,7 @@ CreditsController::CreditsController(CreditsDescriptor d)
 : _session(&d.peer->session())
 , _subscription(d.subscription)
 , _entryClickedCallback(std::move(d.entryClickedCallback))
-, _api(d.peer, d.in, d.out)
+, _api(d.peer, d.in, d.out, d.currency)
 , _firstSlice(std::move(d.firstSlice))
 , _context([&]() -> Ui::Text::MarkedContext {
 	const auto height = st::creditsHistoryRowRightStyle.font->height
@@ -1249,20 +1252,11 @@ CreditsController::CreditsController(CreditsDescriptor d)
 					_iconCache.credits),
 				QPoint(-st::lineWidth, st::lineWidth));
 		}
-		if (data.startsWith(u"ton"_q)) {
-			const auto in = data.split(u":"_q)[1].startsWith(u"in"_q);
-			auto &slot = in ? _iconCache.tonIn : _iconCache.tonOut;
-			if (slot.isNull()) {
-				slot = Ui::Earn::IconCurrencyColored(
-					st::tonFieldIconSize,
-					(in
-						? st::boxTextFgGood->c
-						: st::menuIconAttentionColor->c));
-			}
+		if (data == u"ton"_q) {
 			return MakeWrappedEmoji<Ui::Text::ShiftedEmoji>(
-				std::make_unique<Ui::CustomEmoji::Internal>(
-					data.toString(),
-					slot),
+				std::make_unique<Ui::Text::PaletteDependentCustomEmoji>(
+					[=] { return tonIcon(); },
+					data.toString()),
 				QPoint(0, st::lineWidth));
 		}
 		const auto desc = DeserializeCreditsRowDescriptionData(
@@ -1369,6 +1363,21 @@ void CreditsController::applySlice(const Data::CreditsStatusSlice &slice) {
 	delegate()->peerListRefreshRows();
 }
 
+QImage CreditsController::tonIcon() {
+	const auto version = style::PaletteVersion();
+	const auto overridden = style::main_palette::CurrentOverride();
+	if (_iconCache.ton.isNull()
+		|| _iconCache.tonPaletteVersion != version
+		|| _iconCache.tonPaletteOverride != overridden) {
+		_iconCache.ton = Ui::Earn::IconCurrencyTwoTone(
+			st::tonFieldIconSize,
+			st::windowActiveTextFg->c);
+		_iconCache.tonPaletteVersion = version;
+		_iconCache.tonPaletteOverride = overridden;
+	}
+	return _iconCache.ton;
+}
+
 void CreditsController::rowClicked(not_null<PeerListRow*> row) {
 	if (_entryClickedCallback) {
 		const auto r = static_cast<const CreditsRow*>(row.get());
@@ -1428,7 +1437,7 @@ void AddPublicForwards(
 }
 
 void AddMembersList(
-		Data::SupergroupStatistics data,
+		Data::StatisticsLists data,
 		not_null<Ui::VerticalLayout*> container,
 		Fn<void(not_null<PeerData*>)> showPeerInfo,
 		not_null<PeerData*> peer,
@@ -1534,7 +1543,8 @@ void AddCreditsHistoryList(
 		not_null<PeerData*> bot,
 		bool in,
 		bool out,
-		bool subs) {
+		bool subs,
+		bool currency) {
 	struct State final {
 		State(CreditsDescriptor d) : controller(std::move(d)) {
 		}
@@ -1543,7 +1553,15 @@ void AddCreditsHistoryList(
 		CreditsController controller;
 	};
 	const auto state = container->lifetime().make_state<State>(
-		CreditsDescriptor{ firstSlice, callback, bot, in, out, subs });
+		CreditsDescriptor{
+			firstSlice,
+			callback,
+			bot,
+			in,
+			out,
+			subs,
+			currency,
+		});
 	if (subs) {
 		state->subscriptionDelegate.emplace();
 		state->subscriptionDelegate->setUiShow(show);

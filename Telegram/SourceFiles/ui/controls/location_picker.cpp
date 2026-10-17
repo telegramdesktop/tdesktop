@@ -763,6 +763,10 @@ LocationPicker::LocationPicker(Descriptor &&descriptor)
 	std::move(
 		descriptor.closeRequests
 	) | rpl::on_next([=] {
+		// Close the webview before the panel: destroying the widget tree
+		// calls DestroyWindow() on the HWND the WebView2 controller is
+		// still attached to, which re-enters the window procedure.
+		base::take(_webview);
 		_window = nullptr;
 		delete this;
 	}, _lifetime);
@@ -891,6 +895,7 @@ void LocationPicker::setupWebview() {
 		Webview::WindowConfig{
 			.opaqueBg = st::windowBg->c,
 			.storageId = _webviewStorageId,
+			.dataRequestRedirectHost = u"api.mapbox.com"_q,
 			.safe = true,
 		});
 	const auto raw = _webview.get();
@@ -952,7 +957,7 @@ void LocationPicker::setupWebview() {
 		raw->widget()->setGeometry(QRect(QPoint(), size));
 	}, _container->lifetime());
 
-	raw->setNavigationStartHandler([=](const QString &uri, bool newWindow) {
+	raw->setNavigationPolicyHandler([=](const QString &uri, bool newWindow) {
 		return true;
 	});
 	raw->setNavigationDoneHandler([=](bool success) {
@@ -1162,7 +1167,7 @@ bool LocationPicker::venuesFromCache(
 		Core::GeoLocation location,
 		QString query) {
 	const auto normalized = NormalizeVenuesQuery(query);
-	auto &cache = _venuesCache[normalized];
+	const auto &cache = _venuesCache[normalized];
 	const auto i = ranges::find_if(cache, [&](const VenuesCacheEntry &v) {
 		return AreTheSame(v.location, location);
 	});
@@ -1201,7 +1206,7 @@ void LocationPicker::venuesRequest(
 		MTP_string(username),
 		MTP_string()
 	)).done([=](const MTPcontacts_ResolvedPeer &result) {
-		auto &data = result.data();
+		const auto &data = result.data();
 		_session->data().processUsers(data.vusers());
 		_session->data().processChats(data.vchats());
 		const auto peer = _session->data().peerLoaded(
@@ -1348,6 +1353,10 @@ void LocationPicker::activate() {
 
 void LocationPicker::close() {
 	crl::on_main(this, [=] {
+		// Close the webview before the panel: destroying the widget tree
+		// calls DestroyWindow() on the HWND the WebView2 controller is
+		// still attached to, which re-enters the window procedure.
+		base::take(_webview);
 		_window = nullptr;
 		delete this;
 	});

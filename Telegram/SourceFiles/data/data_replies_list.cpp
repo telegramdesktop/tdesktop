@@ -231,7 +231,7 @@ void RepliesList::appendClientSideMessages(MessagesSlice &slice) {
 		ranges::sort(slice.ids);
 		return;
 	}
-	auto &owner = _history->owner();
+	const auto &owner = _history->owner();
 	auto dates = std::vector<TimeId>();
 	dates.reserve(slice.ids.size());
 	for (const auto &id : slice.ids) {

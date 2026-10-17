@@ -34,7 +34,9 @@ public:
 private:
 	bool eventHook(QEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
+	void keyReleaseEvent(QKeyEvent *e) override;
 	int resizeGetHeight(int newWidth) override;
+	void forwardKeyEvent(not_null<QKeyEvent*> e);
 
 	void start();
 	void cacheBackground();
@@ -53,6 +55,8 @@ private:
 	crl::time _lastAreaChangeTime = 0;
 	bool _backgroundCaching = false;
 	bool _backgroundNight = false;
+	bool _forwardingKeyEvent = false;
+	bool _keyEventIgnored = false;
 
 };
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dependency Watch"
+  short_description: "Track dependency releases and missing upstream fixes"
+  default_prompt: "Use $dependency-watch to audit freshly fetched origin/dev and report pressing updates before the review-someday list."

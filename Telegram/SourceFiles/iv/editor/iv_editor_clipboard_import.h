@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "iv/editor/iv_editor_clipboard.h"
 #include "iv/iv_rich_page.h"
+#include "ui/chat/attach/attach_prepare.h"
 
 #include <optional>
 
@@ -47,9 +49,14 @@ inline constexpr auto kImportedMediaPlaceholderLimit = 4096;
 		: std::nullopt;
 }
 
+struct ImportedLocalMedia {
+	QString path;
+	QByteArray content;
+};
+
 struct BlocksImportResult {
 	std::vector<RichPage::Block> blocks;
-	QStringList localMediaPaths;
+	std::vector<ImportedLocalMedia> localMedia;
 	bool truncated = false;
 };
 
@@ -63,13 +70,51 @@ struct BlocksImportResult {
 	not_null<const QMimeData*> data,
 	const TableImportLimits &limits);
 
+[[nodiscard]] bool RichBlocksCarryStructure(
+	const std::vector<RichPage::Block> &blocks);
+
+[[nodiscard]] bool MimeDataHasRichStructure(
+	not_null<Main::Session*> session,
+	not_null<const QMimeData*> data,
+	const RichMessageLimits &limits);
+
+[[nodiscard]] bool TextHasMarkdownStructure(
+	const QString &text,
+	const RichMessageLimits &limits);
+
 [[nodiscard]] std::optional<BlocksImportResult> BlocksFromMimeData(
 	not_null<Main::Session*> session,
 	not_null<const QMimeData*> data,
 	const RichMessageLimits &limits,
 	int usedBlocks);
 
+[[nodiscard]] std::optional<BlocksImportResult> BlocksFromMarkdown(
+	const QString &text,
+	const RichMessageLimits &limits,
+	int usedBlocks,
+	bool *beyondComposeField = nullptr);
+
+[[nodiscard]] std::optional<TextWithTags> ComposeFieldMarkdown(
+	not_null<Main::Session*> session,
+	const QString &text,
+	const RichMessageLimits &limits);
+
 [[nodiscard]] bool MimeDataLooksLikeExportedHtml(
+	not_null<const QMimeData*> data);
+
+[[nodiscard]] std::optional<ClipboardData> BlockClipboardDataFromRichText(
+	TextWithEntities text);
+
+[[nodiscard]] std::optional<ClipboardData> BlockClipboardDataFromFieldTags(
+	not_null<const QMimeData*> data);
+
+[[nodiscard]] std::optional<Ui::PreparedList> PreparedMediaFromClipboard(
+	not_null<const QMimeData*> data,
+	bool premium);
+
+[[nodiscard]] bool IsAcceptableDropMedia(not_null<const QMimeData*> data);
+
+[[nodiscard]] bool CanPrepareMediaFromClipboard(
 	not_null<const QMimeData*> data);
 
 } // namespace Iv::Editor
