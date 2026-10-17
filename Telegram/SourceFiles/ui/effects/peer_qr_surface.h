@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/effects/animations.h"
+#include "ui/effects/peer_qr_emoji_field.h"
 #include "ui/rp_widget.h"
 
 namespace Ui {
@@ -18,9 +19,11 @@ struct PeerQrAppearance {
 	float64 patternOpacity = 0.;
 	QColor edge;
 	QColor center;
+	std::vector<QString> emoji;
+	QColor background;
 
 	[[nodiscard]] bool empty() const {
-		return colors.empty() && !center.isValid();
+		return colors.empty() && !center.isValid() && emoji.empty();
 	}
 
 	friend inline bool operator==(
@@ -32,6 +35,7 @@ struct PeerQrColors {
 	QColor ink;
 	QColor foreground;
 	QColor control;
+	QColor glass;
 
 	friend inline bool operator==(
 		const PeerQrColors &,
@@ -52,6 +56,7 @@ struct PeerQrImageArgs {
 	int shadowRadius = 0;
 	int shadowShift = 0;
 	int patternHeight = 0;
+	PeerQrEmojiRest emoji;
 };
 
 [[nodiscard]] QImage RenderPeerQrImage(PeerQrImageArgs args);
@@ -68,6 +73,7 @@ public:
 	void setCardGeometry(QRect card);
 	void setCardPlacement(QPointF topLeft, float64 scale);
 	void setAppearance(PeerQrAppearance appearance, anim::type animated);
+	void setEmojiSource(PeerQrEmojiSource source);
 	void startAnimations();
 
 	[[nodiscard]] const PeerQrAppearance &appearance() const;
@@ -92,6 +98,10 @@ private:
 		float64 farthest = 0.;
 		crl::time startedAt = 0;
 	};
+	struct InkBlend {
+		PeerQrColors from;
+		crl::time startedAt = 0;
+	};
 
 	void loadPattern();
 	void composeNow();
@@ -99,6 +109,13 @@ private:
 	void refreshQr();
 	void recolorQr();
 	void setShownColors(const PeerQrColors &colors);
+	void ensureField();
+	[[nodiscard]] PeerQrColors computeColors() const;
+	void refreshColors(bool animated);
+	void refreshShadow();
+	void refreshFieldClock();
+	[[nodiscard]] crl::time fieldElapsed(crl::time now) const;
+	void paintField(QPainter &p, crl::time now);
 	void updateWave(crl::time now);
 	void paintWave(QPainter &p, crl::time now) const;
 	[[nodiscard]] QImage currentPicture(crl::time now) const;
@@ -127,15 +144,23 @@ private:
 	QRect _cardGeometry;
 	std::optional<CardPlacement> _cardPlacement;
 	std::optional<Wave> _wave;
+	PeerQrEmojiSource _emojiSource;
+	std::unique_ptr<PeerQrEmojiField> _field;
+	std::optional<InkBlend> _inkBlend;
 	QPointF _driftOffset;
 	crl::time _startedAt = 0;
 	crl::time _driftTime = 0;
 	crl::time _backgroundRequestedAt = 0;
 	crl::time _patternShownAt = 0;
 	crl::time _bounceStartedAt = 0;
+	crl::time _dipStartedAt = 0;
+	crl::time _fieldFrozenAt = 0;
+	crl::time _fieldShift = 0;
 	uint32 _backgroundGeneration = 0;
 	bool _backgroundComposing = false;
 	bool _blooming = false;
+	bool _fieldLeaving = false;
+	bool _entryPending = false;
 	Animations::Basic _animation;
 
 };

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_share_themes.h"
 #include "apiwrap.h"
 #include "base/weak_ptr.h"
+#include "data/data_message_reaction_id.h"
 #include "data/data_peer.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -21,6 +22,8 @@ namespace Info::Profile {
 namespace {
 
 using ThemeType = Ui::PeerQrThemeKey::Type;
+
+constexpr auto kMaxEmojiKeys = 6;
 
 [[nodiscard]] QString ErrorText(const MTP::Error &error) {
 	return MTP::IgnoreError(error)
@@ -55,6 +58,39 @@ using ThemeType = Ui::PeerQrThemeKey::Type;
 	};
 }
 
+[[nodiscard]] std::vector<QString> EmojiKeys(
+		const std::vector<Data::ReactionId> &emojis) {
+	auto result = std::vector<QString>();
+	for (const auto &id : emojis) {
+		if (int(result.size()) == kMaxEmojiKeys) {
+			break;
+		} else if (id.empty() || id.paid()) {
+			continue;
+		}
+		auto key = Data::ReactionEntityData(id);
+		if (!ranges::contains(result, key)) {
+			result.push_back(std::move(key));
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] std::optional<Data::ShareTheme> EmojiTheme(
+		const std::vector<QString> &keys) {
+	auto emojis = std::vector<Data::ReactionId>();
+	emojis.reserve(keys.size());
+	for (const auto &key : keys) {
+		auto id = Data::ReactionFromEntityData(key);
+		if (!id.empty() && !id.paid()) {
+			emojis.push_back(std::move(id));
+		}
+	}
+	if (emojis.empty()) {
+		return std::nullopt;
+	}
+	return Data::ShareThemeEmoji{ std::move(emojis) };
+}
+
 [[nodiscard]] Ui::PeerQrSwatch ResolveSwatch(
 		not_null<Main::Session*> session,
 		const Data::ShareTheme &theme,
@@ -80,17 +116,27 @@ using ThemeType = Ui::PeerQrThemeKey::Type;
 				? BackdropAppearance(*i)
 				: Ui::PeerQrAppearance()),
 		};
+	}, [](const Data::ShareThemeEmoji &data) {
+		auto keys = EmojiKeys(data.emojis);
+		if (keys.empty()) {
+			return Ui::PeerQrSwatch{ .key = { .type = ThemeType::Other } };
+		}
+		return Ui::PeerQrSwatch{
+			.key = { .type = ThemeType::Emoji, .emoji = keys },
+			.appearance = { .emoji = std::move(keys) },
+		};
 	}, [](const auto &) {
 		return Ui::PeerQrSwatch{ .key = { .type = ThemeType::Other } };
 	});
 }
 
 [[nodiscard]] std::optional<Data::ShareTheme> ThemeFromKey(
-		Ui::PeerQrThemeKey key) {
+		const Ui::PeerQrThemeKey &key) {
 	switch (key.type) {
 	case ThemeType::Default: return Data::ShareThemeDefault();
 	case ThemeType::Color: return Data::ShareThemeColor{ key.id };
 	case ThemeType::Backdrop: return Data::ShareThemeBackdrop{ key.id };
+	case ThemeType::Emoji: return EmojiTheme(key.emoji);
 	case ThemeType::Other: return std::nullopt;
 	}
 	Unexpected("Type in ThemeFromKey.");

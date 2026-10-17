@@ -7088,6 +7088,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_no_paid_token_toast_expired" = "Code expired, fee is back";
 "lng_no_paid_token_toast_expiring" = "This code is about to expire.";
 "lng_qr_box_colors" = "Colors";
+"lng_qr_box_emoji" = "Emoji";
+"lng_qr_box_emoji_limit#one" = "You can choose up to {count} emoji.";
+"lng_qr_box_emoji_limit#other" = "You can choose up to {count} emoji.";
 
 "lng_exceptions_list_title" = "Exceptions";
 "lng_removed_list_title" = "Removed users";

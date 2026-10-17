@@ -508,7 +508,7 @@ EmojiListWidget::EmojiListWidget(
 , _freeEffects(std::move(descriptor.freeEffects))
 , _customTextColor(std::move(descriptor.customTextColor))
 , _overBg(st::emojiPanRadius, st().overBg)
-, _markedBg(st::emojiPanRadius, st::stickersEmojiPickerSelectedBg)
+, _markedBg(st::emojiPanRadius, st().markedBg)
 , _premiumMark(std::make_unique<StickerPremiumMark>(
 	&session(),
 	st::emojiPremiumLock))
@@ -1484,6 +1484,12 @@ void EmojiListWidget::setMarkedCustomIds(base::flat_set<DocumentId> ids) {
 		_markedCustomIds = std::move(ids);
 		update();
 	}
+}
+
+void EmojiListWidget::setMarkedCustomPainter(
+		Fn<void(QPainter&, QRect, DocumentId)> painter) {
+	_markedCustomPainter = std::move(painter);
+	update();
 }
 
 void EmojiListWidget::repaintCustom(uint64 setId) {
@@ -2567,6 +2573,12 @@ void EmojiListWidget::paint(
 					} else {
 						const auto set = info.section - _staticCount;
 						drawCustom(p, context, w, set, index);
+					}
+					if (marked && _markedCustomPainter && !_grabbingChosen) {
+						_markedCustomPainter(
+							p,
+							style::rtlrect(QRect(w, st::emojiPanArea), width()),
+							lookupCustomEmoji(index, info.section).document->id);
 					}
 				}
 			}

@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/peer_qr_colors_panel.h"
 
-#include "ui/effects/premium_3d_support.h"
+#include "ui/effects/peer_qr_panel.h"
 #include "ui/image/image_prepare.h"
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/color_contrast.h"
@@ -21,12 +21,6 @@ namespace {
 constexpr auto kColumns = 6;
 constexpr auto kRows = 3;
 constexpr auto kPeek = 0.4;
-constexpr auto kOpenDuration = crl::time(420);
-constexpr auto kCloseDuration = crl::time(360);
-constexpr auto kCurveX1 = 0.16;
-constexpr auto kCurveY1 = 1.;
-constexpr auto kCurveX2 = 0.3;
-constexpr auto kCurveY2 = 1.;
 constexpr auto kRowInDelay = crl::time(60);
 constexpr auto kRowInDuration = crl::time(220);
 constexpr auto kRowOutDelay = crl::time(20);
@@ -35,7 +29,6 @@ constexpr auto kContentFadeDuration = crl::time(220);
 constexpr auto kRowMinScale = 0.85;
 constexpr auto kRingDuration = crl::time(220);
 constexpr auto kRingMinScale = 0.8;
-constexpr auto kGlassAlpha = 0.25;
 constexpr auto kHairlineContrast = 1.5;
 constexpr auto kHairlineAlpha = 0.15;
 constexpr auto kHairlineWidthRatio = 2.;
@@ -143,7 +136,10 @@ struct Circle {
 
 class PeerQrColorsPanel::Inner final : public RpWidget {
 public:
-	Inner(QWidget *parent, not_null<PeerQrColorsPanel*> panel);
+	Inner(
+		QWidget *parent,
+		not_null<PeerQrColorsPanel*> panel,
+		not_null<PeerQrPanel*> container);
 
 	void setSwatches(std::vector<PeerQrSwatch> swatches);
 	void setSelected(std::optional<PeerQrThemeKey> key, anim::type animated);
@@ -172,6 +168,7 @@ private:
 	void paintFades(QPainter &p, QSize viewport) const;
 
 	const not_null<PeerQrColorsPanel*> _panel;
+	const not_null<PeerQrPanel*> _container;
 	std::vector<Circle> _circles;
 	std::optional<PeerQrThemeKey> _selected;
 	Animations::Simple _ring;
@@ -186,9 +183,11 @@ private:
 
 PeerQrColorsPanel::Inner::Inner(
 	QWidget *parent,
-	not_null<PeerQrColorsPanel*> panel)
+	not_null<PeerQrColorsPanel*> panel,
+	not_null<PeerQrPanel*> container)
 : RpWidget(parent)
-, _panel(panel) {
+, _panel(panel)
+, _container(container) {
 	setMouseTracking(true);
 }
 
@@ -240,7 +239,7 @@ void PeerQrColorsPanel::Inner::setSelected(
 	_wasIndex = std::exchange(_selectedIndex, index);
 	if (animated == anim::type::normal
 		&& !anim::Disabled()
-		&& !_panel->isHidden()) {
+		&& !_container->isHidden()) {
 		_ring.start(
 			[=] { update(); },
 			0.,
@@ -292,8 +291,8 @@ void PeerQrColorsPanel::Inner::paintEvent(QPaintEvent *e) {
 	{
 		auto p = QPainter(&_canvas);
 		auto hq = PainterHighQualityEnabler(p);
-		p.setClipPath(
-			_panel->glassPath().translated(-QPointF(scroll->pos())));
+		p.setClipPath(_container->glassPath().translated(
+			-QPointF(scroll->mapTo(_container.get(), QPoint()))));
 		p.translate(0, -top);
 		paintRows(p, top, top + viewport.height());
 		p.resetTransform();
@@ -420,7 +419,7 @@ void PeerQrColorsPanel::Inner::paintFades(
 }
 
 void PeerQrColorsPanel::Inner::mouseMoveEvent(QMouseEvent *e) {
-	setOver((_panel->_shown && insideGlass(e->pos()))
+	setOver((_container->phase().shown && insideGlass(e->pos()))
 		? circleAt(e->pos())
 		: -1);
 }
@@ -428,8 +427,9 @@ void PeerQrColorsPanel::Inner::mouseMoveEvent(QMouseEvent *e) {
 void PeerQrColorsPanel::Inner::mousePressEvent(QMouseEvent *e) {
 	if (!insideGlass(e->pos())) {
 		_pressed = -1;
-		_panel->_outsidePresses.fire({});
-	} else if (e->button() == Qt::LeftButton && _panel->_shown) {
+		_container->pressOutside();
+	} else if (e->button() == Qt::LeftButton
+		&& _container->phase().shown) {
 		_pressed = circleAt(e->pos());
 	}
 }
@@ -438,7 +438,7 @@ void PeerQrColorsPanel::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	const auto pressed = std::exchange(_pressed, -1);
 	if (pressed < 0
 		|| e->button() != Qt::LeftButton
-		|| !_panel->_shown
+		|| !_container->phase().shown
 		|| !insideGlass(e->pos())
 		|| circleAt(e->pos()) != pressed) {
 		return;
@@ -495,21 +495,20 @@ int PeerQrColorsPanel::Inner::circleAt(QPoint point) const {
 }
 
 bool PeerQrColorsPanel::Inner::insideGlass(QPoint point) const {
-	return _panel->insideGlass(mapTo(_panel.get(), point));
+	return _container->insideGlass(mapTo(_container.get(), point));
 }
 
 RowState PeerQrColorsPanel::Inner::rowState(
 		int fromTop,
 		int fromBottom) const {
-	if (!_panel->_animation.animating()) {
+	const auto phase = _container->phase();
+	if (!phase.animating) {
 		return RowState();
+	} else if (phase.shown) {
+		return RowIn(fromBottom, phase.elapsed);
 	}
-	const auto elapsed = crl::now() - _panel->_toggledAt;
-	if (_panel->_shown) {
-		return RowIn(fromBottom, elapsed);
-	}
-	auto result = RowOut(fromTop, elapsed);
-	if (const auto opened = _panel->_openedAtClose) {
+	auto result = RowOut(fromTop, phase.elapsed);
+	if (const auto opened = phase.openedAtClose) {
 		const auto in = RowIn(fromBottom, *opened);
 		result.opacity *= in.opacity;
 		result.scale *= in.scale;
@@ -540,16 +539,17 @@ void PeerQrColorsPanel::Inner::validateCircle(Circle &circle) {
 		_size / 2. - st::peerQrSwatchRingInset);
 }
 
-PeerQrColorsPanel::PeerQrColorsPanel(not_null<QWidget*> parent)
-: RpWidget(parent)
+PeerQrColorsPanel::PeerQrColorsPanel(not_null<PeerQrPanel*> panel)
+: RpWidget(panel)
 , _scroll(CreateChild<ElasticScroll>(this, st::peerQrPanelScroll))
 , _inner(_scroll->setOwnedWidget(
-	object_ptr<Inner>(_scroll.get(), this)).data())
-, _animation([=](crl::time now) { return animationCallback(now); }) {
-	_scroll->scrollTopValue() | rpl::on_next([=] {
+	object_ptr<Inner>(_scroll.get(), this, panel)).data()) {
+	rpl::merge(
+		_scroll->scrollTopValue() | rpl::to_empty,
+		panel->progressValue() | rpl::to_empty
+	) | rpl::on_next([=] {
 		_inner->update();
 	}, lifetime());
-	hide();
 }
 
 PeerQrColorsPanel::~PeerQrColorsPanel() = default;
@@ -571,152 +571,17 @@ void PeerQrColorsPanel::setSelected(
 	_inner->setSelected(key, animated);
 }
 
-void PeerQrColorsPanel::setIslandRect(QRect island) {
-	if (_island == island) {
-		return;
-	}
-	_island = island;
-	if (_progress.current() < 1.) {
-		updateAll();
-	}
-}
-
-void PeerQrColorsPanel::setColors(const PeerQrColors &colors) {
-	if (_islandColor == colors.control) {
-		return;
-	}
-	_islandColor = colors.control;
-	if (_progress.current() < 1.) {
-		update();
-	}
-}
-
-void PeerQrColorsPanel::toggle(bool shown, anim::type animated) {
-	if (_shown == shown) {
-		return;
-	}
-	const auto now = crl::now();
-	_openedAtClose = (!shown && _animation.animating())
-		? std::make_optional(now - _toggledAt)
-		: std::nullopt;
-	_shown = shown;
-	_toggledAt = now;
-	_progressFrom = _progress.current();
-	if (shown) {
-		show();
-		_inner->scrollToSelected();
-	}
-	if (animated == anim::type::normal && !anim::Disabled()) {
-		_animation.start();
-		updateAll();
-	} else {
-		_animation.stop();
-		finishToggle();
-	}
-}
-
-bool PeerQrColorsPanel::toggled() const {
-	return _shown;
-}
-
-rpl::producer<float64> PeerQrColorsPanel::progressValue() const {
-	return _progress.value();
+void PeerQrColorsPanel::scrollToSelected() {
+	_inner->scrollToSelected();
 }
 
 rpl::producer<PeerQrThemeKey> PeerQrColorsPanel::picks() const {
 	return _picks.events();
 }
 
-rpl::producer<> PeerQrColorsPanel::outsidePresses() const {
-	return _outsidePresses.events();
-}
-
-void PeerQrColorsPanel::paintEvent(QPaintEvent *e) {
-	auto p = QPainter(this);
-	auto hq = PainterHighQualityEnabler(p);
-	p.fillPath(glassPath(), glassColor());
-}
-
 void PeerQrColorsPanel::resizeEvent(QResizeEvent *e) {
 	_scroll->setGeometry(rect());
 	_inner->resizeToWidth(width());
-}
-
-void PeerQrColorsPanel::mousePressEvent(QMouseEvent *e) {
-	if (!insideGlass(e->pos())) {
-		_outsidePresses.fire({});
-	}
-}
-
-bool PeerQrColorsPanel::animationCallback(crl::time now) {
-	const auto duration = _shown ? kOpenDuration : kCloseDuration;
-	const auto progress = (now - _toggledAt) / float64(duration);
-	if (progress >= 1.) {
-		finishToggle();
-		return false;
-	}
-	const auto eased = Premium::CubicBezier(
-		kCurveX1,
-		kCurveY1,
-		kCurveX2,
-		kCurveY2,
-		std::max(progress, 0.));
-	const auto target = _shown ? 1. : 0.;
-	_progress = _progressFrom + (target - _progressFrom) * eased;
-	updateAll();
-	return true;
-}
-
-void PeerQrColorsPanel::finishToggle() {
-	_openedAtClose = std::nullopt;
-	_progress = _shown ? 1. : 0.;
-	if (!_shown) {
-		hide();
-	}
-	updateAll();
-}
-
-void PeerQrColorsPanel::updateAll() {
-	update();
-	_inner->update();
-}
-
-QRectF PeerQrColorsPanel::glassRect() const {
-	const auto progress = _progress.current();
-	const auto from = QRectF(_island.translated(-pos()));
-	const auto till = QRectF(rect());
-	const auto lerp = [&](float64 a, float64 b) {
-		return a + (b - a) * progress;
-	};
-	return QRectF(
-		lerp(from.x(), till.x()),
-		lerp(from.y(), till.y()),
-		lerp(from.width(), till.width()),
-		lerp(from.height(), till.height()));
-}
-
-QPainterPath PeerQrColorsPanel::glassPath() const {
-	const auto glass = glassRect();
-	const auto radius = std::min(
-		_island.height() / 2.
-			+ (st::peerQrPanelRadius - _island.height() / 2.)
-				* _progress.current(),
-		std::min(glass.width(), glass.height()) / 2.);
-	auto result = QPainterPath();
-	result.addRoundedRect(glass, radius, radius);
-	return result;
-}
-
-QColor PeerQrColorsPanel::glassColor() const {
-	auto glass = QColor(255, 255, 255);
-	glass.setAlphaF(kGlassAlpha);
-	return _islandColor.isValid()
-		? anim::color(_islandColor, glass, _progress.current())
-		: glass;
-}
-
-bool PeerQrColorsPanel::insideGlass(QPoint point) const {
-	return glassPath().contains(QPointF(point));
 }
 
 } // namespace Ui

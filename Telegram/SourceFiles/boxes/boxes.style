@@ -611,6 +611,15 @@ peerQrColors: IconButton(peerQrButton) {
 	iconOver: icon {{ "menu/colors", windowFg }};
 	rippleAreaPosition: point(4px, 0px);
 }
+peerQrEmoji: IconButton(peerQrColors) {
+	icon: icon {{ "menu/emoji", windowFg }};
+	iconOver: icon {{ "menu/emoji", windowFg }};
+}
+peerQrNightMode: IconButton(peerQrButton) {
+	icon: icon {{ "menu/header_mode_night", windowFg }};
+	iconOver: icon {{ "menu/header_mode_night", windowFg }};
+}
+peerQrDayModeIcon: icon {{ "menu/header_mode_day", windowFg }};
 peerQrPanelMargin: 10px;
 peerQrPanelPadding: 11px;
 peerQrPanelRadius: 24px;
@@ -623,6 +632,12 @@ peerQrSwatchSkip: 12px;
 peerQrSwatchRing: 2px;
 peerQrSwatchRingInset: 6px;
 peerQrSwatchRise: 8px;
+peerQrEmojiSkipX: 82px;
+peerQrEmojiSkipY: 67px;
+peerQrEmojiSize: 36px;
+peerQrEmojiOffsetMin: 3px;
+peerQrEmojiOffsetMax: 10px;
+peerQrEmojiBob: 3px;
 
 foldersMenu: PopupMenu(popupMenuWithIcons) {
 	maxHeight: 320px;

@@ -122,6 +122,7 @@ EmojiPan {
 	trendingSubheaderFg: color;
 	trendingUnreadFg: color;
 	overBg: color;
+	markedBg: color;
 	pathBg: color;
 	pathFg: color;
 	textFg: color;
@@ -803,6 +804,7 @@ defaultEmojiPan: EmojiPan {
 	trendingSubheaderFg: stickersTrendingSubheaderFg;
 	trendingUnreadFg: stickersFeaturedUnreadBg;
 	overBg: emojiPanHover;
+	markedBg: stickersEmojiPickerSelectedBg;
 	pathBg: windowBgRipple;
 	pathFg: windowBgOver;
 	textFg: windowFg;

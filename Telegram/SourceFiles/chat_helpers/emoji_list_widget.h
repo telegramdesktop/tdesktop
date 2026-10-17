@@ -154,6 +154,8 @@ public:
 	void provideRecent(const std::vector<EmojiStatusId> &customRecentList);
 
 	void setMarkedCustomIds(base::flat_set<DocumentId> ids);
+	void setMarkedCustomPainter(
+		Fn<void(QPainter&, QRect, DocumentId)> painter);
 
 	void setSearchRightReserved(int value);
 
@@ -536,6 +538,7 @@ private:
 	Ui::RoundRect _overBg;
 	Ui::RoundRect _markedBg;
 	base::flat_set<DocumentId> _markedCustomIds;
+	Fn<void(QPainter&, QRect, DocumentId)> _markedCustomPainter;
 	QImage _searchExpandCache;
 
 	std::unique_ptr<StickerPremiumMark> _premiumMark;

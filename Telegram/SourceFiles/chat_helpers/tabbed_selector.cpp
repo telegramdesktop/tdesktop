@@ -1162,6 +1162,16 @@ void TabbedSelector::setMarkedCustomIds(
 	}
 }
 
+void TabbedSelector::setMarkedCustomPainter(
+		Fn<void(QPainter&, QRect, DocumentId)> painter) {
+	for (const auto &tab : _tabs) {
+		if (tab.type() == SelectorTab::Emoji) {
+			const auto emoji = static_cast<EmojiListWidget*>(tab.widget());
+			emoji->setMarkedCustomPainter(painter);
+		}
+	}
+}
+
 void TabbedSelector::checkRestrictedPeer() {
 	if (_currentPeer) {
 		const auto error = (_currentTabType == SelectorTab::Stickers)

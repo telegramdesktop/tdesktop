@@ -1344,6 +1344,8 @@ PRIVATE
     info/profile/info_profile_members_controllers.h
     info/profile/info_profile_phone_menu.cpp
     info/profile/info_profile_phone_menu.h
+    info/profile/info_profile_qr_emoji.cpp
+    info/profile/info_profile_qr_emoji.h
     info/profile/info_profile_section_stack.cpp
     info/profile/info_profile_section_stack.h
     info/profile/info_profile_share_theme.cpp
@@ -2177,6 +2179,10 @@ PRIVATE
     ui/effects/message_sending_animation_controller.h
     ui/effects/peer_qr_colors_panel.cpp
     ui/effects/peer_qr_colors_panel.h
+    ui/effects/peer_qr_emoji_field.cpp
+    ui/effects/peer_qr_emoji_field.h
+    ui/effects/peer_qr_panel.cpp
+    ui/effects/peer_qr_panel.h
     ui/effects/peer_qr_pill.cpp
     ui/effects/peer_qr_pill.h
     ui/effects/peer_qr_surface.cpp

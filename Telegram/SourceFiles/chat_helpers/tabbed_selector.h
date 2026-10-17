@@ -167,6 +167,8 @@ public:
 	void provideRecentEmoji(
 		const std::vector<EmojiStatusId> &customRecentList);
 	void setMarkedCustomIds(const base::flat_set<DocumentId> &ids);
+	void setMarkedCustomPainter(
+		Fn<void(QPainter&, QRect, DocumentId)> painter);
 	void setSearchRightReserved(int value);
 
 	void hideFinished();
