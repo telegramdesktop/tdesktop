@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "lang/lang_tag.h"
+#include "ui/text/text_utilities.h"
 #include "ui/abstract_button.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
@@ -41,6 +42,12 @@ constexpr auto kSlashTillX = 0.74;
 constexpr auto kSlashTillY = 0.25;
 constexpr auto kSlashWidth = 0.095;
 constexpr auto kSlashGap = 0.065;
+constexpr auto kEdgeDepth = 0.1;
+constexpr auto kEdgeCrest = 0.25;
+constexpr auto kEdgeJitter = 0.2;
+constexpr auto kEdgeMagnitude = Range{ 0.85, 1.15 };
+constexpr auto kEdgeDrift = 3.;
+constexpr auto kEdgeSamples = 32;
 constexpr auto kDustSize = Range{ 1.4, 3. };
 constexpr auto kSparkSize = Range{ 0.7, 1.4 };
 constexpr auto kChunkSize = Range{ 3., 4.5 };
@@ -57,22 +64,21 @@ constexpr auto kFillLife = LifeRange{ crl::time(300), crl::time(500) };
 constexpr auto kFillDrag = 3.;
 constexpr auto kFillLift = 20.;
 constexpr auto kFillCeiling = 40.;
-constexpr auto kFizzRate = 110.;
-constexpr auto kFizzSize = Range{ 0.8, 1.5 };
-constexpr auto kFizzBand = 5.;
-constexpr auto kFizzVelocityX = Range{ 10., 30. };
-constexpr auto kFizzVelocityY = Range{ 4., 14. };
-constexpr auto kFizzLife = LifeRange{ crl::time(250), crl::time(500) };
-constexpr auto kTrailRate = 70.;
-constexpr auto kTrailSparkShare = 0.12;
-constexpr auto kTrailSize = Range{ 0.8, 1.5 };
-constexpr auto kTrailVelocityX = Range{ 40., 110. };
-constexpr auto kTrailVelocityY = Range{ 10., 40. };
-constexpr auto kTrailLift = Range{ 26., 60. };
-constexpr auto kTrailWobble = Range{ 4., 7. };
-constexpr auto kTrailWobbleAmplitude = 2.;
-constexpr auto kTrailLife = LifeRange{ crl::time(600), crl::time(1300) };
-constexpr auto kTrailCeiling = 48.;
+constexpr auto kEmberRate = 32.;
+constexpr auto kEmberEdgeShare = 0.25;
+constexpr auto kEmberEdgeBand = 3.;
+constexpr auto kEmberFeed = 10.;
+constexpr auto kEmberInset = 1.5;
+constexpr auto kEmberSize = Range{ 1.1, 1.7 };
+constexpr auto kEmberHaloShare = 0.2;
+constexpr auto kEmberDriftX = Range{ 4., 10. };
+constexpr auto kEmberDriftY = Range{ -2., 2. };
+constexpr auto kEmberSpeedX = Range{ 27., 54. };
+constexpr auto kEmberSpeedY = Range{ 14., 35. };
+constexpr auto kEmberResponse = 6.;
+constexpr auto kEmberReach = 60.;
+constexpr auto kEmberLife = LifeRange{ crl::time(1600), crl::time(2800) };
+constexpr auto kCeiling = 48.;
 constexpr auto kShatterCount = 260;
 constexpr auto kShatterGrid = 3.;
 constexpr auto kShatterSpeed = Range{ 60., 200. };
@@ -90,7 +96,7 @@ constexpr auto kMaxParticles = 400;
 }
 
 [[nodiscard]] int ExtendAbove() {
-	return int(std::ceil(Dp(kTrailCeiling)));
+	return int(std::ceil(Dp(kCeiling)));
 }
 
 [[nodiscard]] float64 RandomIn(ParticlesRandom &random, Range range) {
@@ -145,7 +151,46 @@ constexpr auto kMaxParticles = 400;
 	return std::clamp((y - ceiling) / Dp(kCeilingSoftness), 0., 1.);
 }
 
-[[nodiscard]] QImage PrepareStarBox(const QColor &color, bool crossed) {
+[[nodiscard]] float64 EdgeRandom(uint32 seed, int node, int salt) {
+	return PeerQrHash(seed + uint32(2 * node + salt) * 0x9E3779B9U)
+		/ 4294967296.;
+}
+
+[[nodiscard]] float64 EdgeOffset(
+		float64 y,
+		float64 height,
+		float64 depth,
+		float64 seconds,
+		uint32 seed) {
+	if (depth <= 0.) {
+		return 0.;
+	}
+	const auto step = kEdgeCrest * height / 2.;
+	const auto u = y / step + kEdgeDrift * seconds;
+	const auto position = [&](int node) {
+		return node + kEdgeJitter * (2. * EdgeRandom(seed, node, 0) - 1.);
+	};
+	const auto value = [&](int node) {
+		const auto &magnitude = kEdgeMagnitude;
+		return ((node & 1) ? 1. : -1.)
+			* (magnitude.from
+				+ (magnitude.till - magnitude.from)
+					* EdgeRandom(seed, node, 1));
+	};
+	auto node = int(std::floor(u));
+	if (position(node) > u) {
+		--node;
+	} else if (position(node + 1) <= u) {
+		++node;
+	}
+	const auto from = position(node);
+	const auto progress = (u - from) / (position(node + 1) - from);
+	const auto smooth = (1. - std::cos(progress * M_PI)) / 2.;
+	const auto left = value(node);
+	return (left + (value(node + 1) - left) * smooth) * depth / 2.;
+}
+
+[[nodiscard]] QImage PrepareCrossedStar(const QColor &color) {
 	const auto ratio = style::DevicePixelRatio();
 	const auto box = st::peerQrPillStarBox;
 	const auto &star = st::peerQrPillStar;
@@ -158,21 +203,19 @@ constexpr auto kMaxParticles = 400;
 	p.drawImage(
 		QPoint((box - star.width()) / 2, (box - star.height()) / 2),
 		star.instance(color));
-	if (crossed) {
-		auto hq = PainterHighQualityEnabler(p);
-		const auto from = QPointF(kSlashFromX, 0.5 + kSlashFromY) * box;
-		const auto till = QPointF(kSlashTillX, 0.5 + kSlashTillY) * box;
-		p.setCompositionMode(QPainter::CompositionMode_Clear);
-		p.setPen(QPen(
-			Qt::black,
-			(kSlashWidth + 2. * kSlashGap) * box,
-			Qt::SolidLine,
-			Qt::RoundCap));
-		p.drawLine(from, till);
-		p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-		p.setPen(QPen(color, kSlashWidth * box, Qt::SolidLine, Qt::RoundCap));
-		p.drawLine(from, till);
-	}
+	auto hq = PainterHighQualityEnabler(p);
+	const auto from = QPointF(kSlashFromX, 0.5 + kSlashFromY) * box;
+	const auto till = QPointF(kSlashTillX, 0.5 + kSlashTillY) * box;
+	p.setCompositionMode(QPainter::CompositionMode_Clear);
+	p.setPen(QPen(
+		Qt::black,
+		(kSlashWidth + 2. * kSlashGap) * box,
+		Qt::SolidLine,
+		Qt::RoundCap));
+	p.drawLine(from, till);
+	p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+	p.setPen(QPen(color, kSlashWidth * box, Qt::SolidLine, Qt::RoundCap));
+	p.drawLine(from, till);
 	p.end();
 	return result;
 }
@@ -182,6 +225,7 @@ constexpr auto kMaxParticles = 400;
 struct PeerQrPill::Particle {
 	QPointF position;
 	QPointF velocity;
+	QPointF release;
 	QPointF origin;
 	float64 lift = 0.;
 	float64 drag = 0.;
@@ -189,18 +233,20 @@ struct PeerQrPill::Particle {
 	float64 radius = 0.;
 	float64 ceiling = 0.;
 	float64 fade = 0.;
-	float64 wobbleFrequency = 0.;
-	float64 wobblePhase = 0.;
-	float64 wobbleAmplitude = 0.;
+	float64 reach = 0.;
+	float64 response = 0.;
 	float64 halo = 0.;
 	crl::time born = 0;
 	crl::time life = 0;
 	crl::time gravityAfter = 0;
+	bool confined = false;
 };
 
 struct PeerQrPill::Frame {
 	QRectF pill;
 	float64 edge = 0.;
+	float64 edgeDepth = 0.;
+	float64 edgeSeconds = 0.;
 	float64 fill = 0.;
 	float64 fillAlpha = 1.;
 	float64 feeAlpha = 0.;
@@ -213,9 +259,8 @@ struct PeerQrPill::Frame {
 PeerQrPill::PeerQrPill(not_null<QWidget*> parent, PeerQrColors colors)
 : RpWidget(parent)
 , _colors(std::move(colors))
-, _feeStar(PrepareStarBox(_colors.foreground, false))
-, _crossedInk(PrepareStarBox(_colors.ink, true))
-, _crossedForeground(PrepareStarBox(_colors.foreground, true))
+, _crossedInk(PrepareCrossedStar(_colors.ink))
+, _crossedForeground(PrepareCrossedStar(_colors.foreground))
 , _button(base::make_unique_q<AbstractButton>(parent))
 , _freeText(st::peerQrPillFont, [=] { updatePill(); })
 , _animation([=](crl::time now) { return animationCallback(now); })
@@ -235,9 +280,8 @@ void PeerQrPill::setColors(PeerQrColors colors) {
 		return;
 	}
 	_colors = std::move(colors);
-	_feeStar = PrepareStarBox(_colors.foreground, false);
-	_crossedInk = PrepareStarBox(_colors.ink, true);
-	_crossedForeground = PrepareStarBox(_colors.foreground, true);
+	_crossedInk = PrepareCrossedStar(_colors.ink);
+	_crossedForeground = PrepareCrossedStar(_colors.foreground);
 	update();
 }
 
@@ -253,11 +297,17 @@ void PeerQrPill::setPillPosition(int centerX, int top) {
 }
 
 void PeerQrPill::showFee(int amount) {
-	_feeText = tr::lng_no_paid_token_pill_fee(
-		tr::now,
-		lt_amount,
-		Lang::FormatCountDecimal(amount));
-	_feeWidth = st::peerQrPillFont->width(_feeText);
+	_feeText.setMarkedText(
+		st::peerQrPillTextStyle,
+		tr::lng_no_paid_token_pill_remove_fee(
+			tr::now,
+			lt_emoji,
+			Text::IconEmoji(
+				&st::peerQrPillStarEmoji,
+				QString(QChar(0x2B50))),
+			lt_amount,
+			tr::marked(Lang::FormatCountDecimal(amount)),
+			tr::marked));
 	if (_mode == Mode::Temporary || _mode == Mode::Permanent) {
 		startTransition(Transition::Shatter, crl::now());
 	}
@@ -271,6 +321,7 @@ void PeerQrPill::showTemporary(crl::time arrival, crl::time deadline) {
 	_mode = Mode::Temporary;
 	_arrival = arrival;
 	_deadline = deadline;
+	_edgeSeed = base::RandomValue<uint32>();
 	_seconds = CountdownSeconds(deadline - now);
 	_freeText.setText(
 		CountdownText(_seconds),
@@ -365,6 +416,12 @@ PeerQrPill::Frame PeerQrPill::computeFrame(crl::time now) const {
 		result.glassAlpha = sweep ? 0. : 1.;
 		result.feeAlpha = sweep ? std::max(0., 1. - kFeeDim * eased) : 0.;
 		result.feeClipped = sweep;
+		if (_mode == Mode::Temporary && !filling) {
+			result.edgeDepth = std::max(
+				float64(st::lineWidth),
+				kEdgeDepth * result.pill.height());
+			result.edgeSeconds = (now - _arrival) / 1000.;
+		}
 		if (filling || (_transition == Transition::Retext)) {
 			result.scale = PeerQrBounceScale(
 				float64(elapsed) / kBounceDuration);
@@ -388,11 +445,22 @@ float64 PeerQrPill::targetWidth() const {
 	const auto free = (_mode == Mode::Temporary)
 		|| (_mode == Mode::Permanent);
 	const auto &padding = st::peerQrPillPadding;
-	return padding.left()
-		+ st::peerQrPillStarBox
-		+ st::peerQrPillStarSkip
-		+ (free ? _freeText.width() : float64(_feeWidth))
-		+ padding.right();
+	const auto content = free
+		? (st::peerQrPillStarBox
+			+ st::peerQrPillStarSkip
+			+ _freeText.width())
+		: float64(_feeText.maxWidth());
+	return padding.left() + content + padding.right();
+}
+
+float64 PeerQrPill::edgeAt(const Frame &frame, float64 y) const {
+	const auto &pill = frame.pill;
+	return frame.edge + EdgeOffset(
+		y - pill.y(),
+		pill.height(),
+		frame.edgeDepth,
+		frame.edgeSeconds,
+		_edgeSeed);
 }
 
 float64 PeerQrPill::targetFill(crl::time now) const {
@@ -409,7 +477,7 @@ float64 PeerQrPill::targetFill(crl::time now) const {
 
 QString PeerQrPill::stateText() const {
 	switch (_mode) {
-	case Mode::Fee: return _feeText;
+	case Mode::Fee: return _feeText.toString();
 	case Mode::Temporary: return CountdownText(std::max(_seconds, 0));
 	case Mode::Permanent: return tr::lng_no_paid_token_pill_permanent(tr::now);
 	case Mode::Hidden: break;
@@ -434,6 +502,9 @@ void PeerQrPill::startTransition(Transition transition, crl::time now) {
 	_transitionStartedAt = now;
 	_transition = anim::Disabled() ? Transition::None : transition;
 	_fillCarry = 0.;
+	_particles.erase(
+		ranges::remove_if(_particles, &Particle::confined),
+		end(_particles));
 	if (_transition == Transition::Sweep) {
 		const auto &pill = frame.pill;
 		for (auto i = 0; i != kFillBurst; ++i) {
@@ -492,7 +563,7 @@ bool PeerQrPill::animationCallback(crl::time now) {
 	}
 	const auto frame = computeFrame(now);
 	emitParticles(frame, seconds, now);
-	stepParticles(seconds, now);
+	stepParticles(frame, seconds, now);
 	refreshCountdown(now);
 	refreshButton(frame);
 	updateDirty(frame);
@@ -542,8 +613,8 @@ void PeerQrPill::updatePill() {
 void PeerQrPill::updateDirty(const Frame &frame) {
 	auto dirty = ScaledRect(frame.pill, frame.scale);
 	for (const auto &particle : _particles) {
-		const auto radius = particle.wobbleAmplitude
-			+ particle.radius * ((particle.halo > 0.) ? kHaloScale : 1.);
+		const auto radius = particle.radius
+			* ((particle.halo > 0.) ? kHaloScale : 1.);
 		dirty = dirty.united(QRectF(
 			particle.position - QPointF(radius, radius),
 			QSizeF(2. * radius, 2. * radius)));
@@ -564,13 +635,9 @@ void PeerQrPill::emitParticles(
 			spawnFill(frame, frame.edge, now);
 		}
 	} else if (_mode == Mode::Temporary && frame.fill > 0.) {
-		_fizzCarry += kFizzRate * seconds;
-		for (; _fizzCarry >= 1.; _fizzCarry -= 1.) {
-			spawnFizz(frame, now);
-		}
-		_trailCarry += kTrailRate * seconds;
-		for (; _trailCarry >= 1.; _trailCarry -= 1.) {
-			spawnTrail(frame, now);
+		_emberCarry += kEmberRate * seconds;
+		for (; _emberCarry >= 1.; _emberCarry -= 1.) {
+			spawnEmber(frame, now);
 		}
 	}
 }
@@ -603,50 +670,46 @@ void PeerQrPill::spawnFill(const Frame &frame, float64 x, crl::time now) {
 	});
 }
 
-void PeerQrPill::spawnFizz(const Frame &frame, crl::time now) {
+void PeerQrPill::spawnEmber(const Frame &frame, crl::time now) {
 	if (int(_particles.size()) >= kMaxParticles) {
 		return;
 	}
 	const auto &pill = frame.pill;
-	_particles.push_back({
-		.position = QPointF(
-			frame.edge - _random.value() * Dp(kFizzBand),
-			pill.y() + _random.value() * pill.height()),
-		.velocity = QPointF(
-			Dp(RandomIn(_random, kFizzVelocityX)),
-			-Dp(RandomIn(_random, kFizzVelocityY))),
-		.radius = Dp(RandomIn(_random, kFizzSize)) / 2.,
-		.ceiling = pill.y() - Dp(kFillCeiling),
-		.born = now,
-		.life = RandomIn(_random, kFizzLife),
-	});
-}
-
-void PeerQrPill::spawnTrail(const Frame &frame, crl::time now) {
-	if (int(_particles.size()) >= kMaxParticles) {
+	const auto radius = pill.height() / 2.;
+	const auto inset = Dp(kEmberInset);
+	const auto y = _random.value(
+		pill.y() + inset,
+		pill.y() + pill.height() - inset);
+	const auto row = y - pill.y() - radius;
+	const auto cap = pill.x()
+		+ pill.width()
+		- radius
+		+ std::sqrt(std::max(radius * radius - row * row, 0.));
+	const auto edge = edgeAt(frame, y);
+	const auto feed = (_random.value() >= kEmberEdgeShare);
+	const auto from = feed ? std::max(edge, cap - Dp(kEmberFeed)) : edge;
+	const auto till = feed ? cap : std::min(edge + Dp(kEmberEdgeBand), cap);
+	const auto position = QPointF(_random.value(from, till), y);
+	if (from >= till || !InsidePill(pill, position)) {
 		return;
 	}
-	const auto &pill = frame.pill;
-	const auto position = QPointF(
-		frame.edge,
-		pill.y() + _random.value() * pill.height());
-	const auto spark = (_random.value() < kTrailSparkShare);
+	const auto halo = (_random.value() < kEmberHaloShare);
 	_particles.push_back({
 		.position = position,
 		.velocity = QPointF(
-			Dp(RandomIn(_random, kTrailVelocityX)),
-			-Dp(RandomIn(_random, kTrailVelocityY))),
-		.origin = position,
-		.lift = Dp(RandomIn(_random, kTrailLift)),
-		.radius = Dp(RandomIn(_random, kTrailSize)) / 2.,
-		.ceiling = pill.y() - Dp(kTrailCeiling),
-		.fade = Dp(kTrailCeiling),
-		.wobbleFrequency = RandomIn(_random, kTrailWobble),
-		.wobblePhase = _random.value() * 2. * M_PI,
-		.wobbleAmplitude = Dp(kTrailWobbleAmplitude),
-		.halo = spark ? kHaloAlpha : 0.,
+			Dp(RandomIn(_random, kEmberDriftX)),
+			Dp(RandomIn(_random, kEmberDriftY))),
+		.release = QPointF(
+			Dp(RandomIn(_random, kEmberSpeedX)),
+			-Dp(RandomIn(_random, kEmberSpeedY))),
+		.radius = Dp(RandomIn(_random, kEmberSize)) / 2.,
+		.ceiling = pill.y() - Dp(kCeiling),
+		.reach = Dp(kEmberReach),
+		.response = kEmberResponse,
+		.halo = halo ? kHaloAlpha : 0.,
 		.born = now,
-		.life = RandomIn(_random, kTrailLife),
+		.life = RandomIn(_random, kEmberLife),
+		.confined = true,
 	});
 }
 
@@ -687,7 +750,7 @@ void PeerQrPill::spawnShatter(const Frame &frame, crl::time now) {
 			.drag = kShatterDrag,
 			.gravity = Dp(kShatterGravity),
 			.radius = Dp(RandomIn(_random, size)) / 2.,
-			.ceiling = pill.y() - Dp(kTrailCeiling),
+			.ceiling = pill.y() - Dp(kCeiling),
 			.halo = spark ? kHaloAlpha : 0.,
 			.born = now,
 			.life = RandomIn(_random, kShatterLife),
@@ -696,8 +759,22 @@ void PeerQrPill::spawnShatter(const Frame &frame, crl::time now) {
 	}
 }
 
-void PeerQrPill::stepParticles(float64 seconds, crl::time now) {
+void PeerQrPill::stepParticles(
+		const Frame &frame,
+		float64 seconds,
+		crl::time now) {
 	for (auto &particle : _particles) {
+		// WHY: embers smoulder inside the burnt glass and take the stream's
+		// velocity only once out, so the stream leaves the pill's right end.
+		if (particle.confined && !InsidePill(frame.pill, particle.position)) {
+			particle.confined = false;
+			particle.origin = particle.position;
+			particle.fade = particle.reach;
+		}
+		if (!particle.confined && particle.response > 0.) {
+			particle.velocity += (particle.release - particle.velocity)
+				* std::min(1., particle.response * seconds);
+		}
 		particle.velocity *= std::max(0., 1. - particle.drag * seconds);
 		auto acceleration = -particle.lift;
 		if (now - particle.born >= particle.gravityAfter) {
@@ -722,24 +799,25 @@ void PeerQrPill::paintPill(QPainter &p, const Frame &frame) const {
 	p.setBrush(_colors.control);
 	p.drawRoundedRect(pill, radius, radius);
 
-	const auto right = pill.x() + pill.width();
-	const auto white = QRectF(
-		pill.x(),
-		pill.y(),
-		frame.edge - pill.x(),
-		pill.height());
-	const auto glass = QRectF(
-		frame.edge,
-		pill.y(),
-		right - frame.edge,
-		pill.height());
+	const auto top = pill.y() - 1.;
+	const auto bottom = pill.y() + pill.height() + 1.;
+	auto white = QPainterPath(QPointF(0., top));
+	auto glass = QPainterPath(QPointF(width(), top));
+	for (auto i = 0; i <= kEdgeSamples; ++i) {
+		const auto y = top + (bottom - top) * i / kEdgeSamples;
+		const auto point = QPointF(edgeAt(frame, y), y);
+		white.lineTo(point);
+		glass.lineTo(point);
+	}
+	white.lineTo(0., bottom);
+	glass.lineTo(width(), bottom);
+	white.closeSubpath();
+	glass.closeSubpath();
 	if (frame.fill > 0. && frame.fillAlpha > 0.) {
 		auto color = QColor(255, 255, 255);
 		color.setAlphaF(kFillOpacity * frame.fillAlpha);
 		p.save();
-		p.setClipRect(
-			white.marginsAdded({ radius, radius, 0., radius }),
-			Qt::IntersectClip);
+		p.setClipPath(white, Qt::IntersectClip);
 		p.setBrush(color);
 		p.drawRoundedRect(pill, radius, radius);
 		p.restore();
@@ -754,24 +832,31 @@ void PeerQrPill::paintPill(QPainter &p, const Frame &frame) const {
 		pill.y() + (pill.height() - font->height) / 2.);
 	if (frame.feeAlpha > 0.) {
 		p.save();
-		p.setClipRect(frame.feeClipped ? glass : pill, Qt::IntersectClip);
+		p.setClipRect(pill, Qt::IntersectClip);
+		if (frame.feeClipped) {
+			p.setClipPath(glass, Qt::IntersectClip);
+		}
 		p.setOpacity(frame.feeAlpha);
-		p.drawImage(star, _feeStar);
-		p.setFont(font);
 		p.setPen(_colors.foreground);
-		p.drawText(QPointF(text.x(), text.y() + font->ascent), _feeText);
+		_feeText.draw(p, {
+			.position = QPoint(
+				int(pill.x()) + st::peerQrPillPadding.left(),
+				int(base::SafeRound(text.y()))),
+			.availableWidth = _feeText.maxWidth(),
+		});
 		p.restore();
 	}
 	const auto paintFree = [&](
-			const QRectF &clip,
+			const QPainterPath &clip,
 			const QImage &image,
 			const QColor &color,
 			float64 alpha) {
-		if (alpha <= 0. || clip.isEmpty()) {
+		if (alpha <= 0.) {
 			return;
 		}
 		p.save();
-		p.setClipRect(clip, Qt::IntersectClip);
+		p.setClipRect(pill, Qt::IntersectClip);
+		p.setClipPath(clip, Qt::IntersectClip);
 		p.setOpacity(alpha);
 		p.drawImage(star, image);
 		_freeText.draw(
@@ -801,10 +886,7 @@ void PeerQrPill::paintParticles(QPainter &p, crl::time now) const {
 			continue;
 		}
 		const auto radius = particle.radius * falloff;
-		const auto wobble = particle.wobbleAmplitude * std::sin(
-			2. * M_PI * particle.wobbleFrequency * age / 1000.
-				+ particle.wobblePhase);
-		const auto center = particle.position + QPointF(wobble, 0.);
+		const auto &center = particle.position;
 		if (particle.halo > 0.) {
 			color.setAlphaF(alpha * particle.halo);
 			p.setBrush(color);

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/drifting_particles.h"
 #include "ui/effects/peer_qr_surface.h"
+#include "ui/text/text.h"
 #include "ui/rp_widget.h"
 
 namespace Ui {
@@ -46,6 +47,7 @@ private:
 
 	[[nodiscard]] Frame computeFrame(crl::time now) const;
 	[[nodiscard]] float64 targetWidth() const;
+	[[nodiscard]] float64 edgeAt(const Frame &frame, float64 y) const;
 	[[nodiscard]] float64 targetFill(crl::time now) const;
 	[[nodiscard]] QString stateText() const;
 	[[nodiscard]] Transition freeTransition() const;
@@ -62,21 +64,19 @@ private:
 
 	void emitParticles(const Frame &frame, float64 seconds, crl::time now);
 	void spawnFill(const Frame &frame, float64 x, crl::time now);
-	void spawnFizz(const Frame &frame, crl::time now);
-	void spawnTrail(const Frame &frame, crl::time now);
+	void spawnEmber(const Frame &frame, crl::time now);
 	void spawnShatter(const Frame &frame, crl::time now);
-	void stepParticles(float64 seconds, crl::time now);
+	void stepParticles(const Frame &frame, float64 seconds, crl::time now);
 
 	void paintPill(QPainter &p, const Frame &frame) const;
 	void paintParticles(QPainter &p, crl::time now) const;
 
 	PeerQrColors _colors;
-	QImage _feeStar;
 	QImage _crossedInk;
 	QImage _crossedForeground;
 	base::unique_qptr<AbstractButton> _button;
 	AnimatedString _freeText;
-	QString _feeText;
+	Text::String _feeText;
 	std::vector<Particle> _particles;
 	ParticlesRandom _random;
 	Animations::Basic _animation;
@@ -89,9 +89,8 @@ private:
 	float64 _widthFrom = 0.;
 	float64 _fillFrom = 0.;
 	float64 _fillCarry = 0.;
-	float64 _fizzCarry = 0.;
-	float64 _trailCarry = 0.;
-	int _feeWidth = 0;
+	float64 _emberCarry = 0.;
+	uint32 _edgeSeed = 0;
 	int _centerX = 0;
 	int _seconds = -1;
 	Mode _mode = Mode::Hidden;

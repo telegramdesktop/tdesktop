@@ -595,6 +595,13 @@ peerQrPillPadding: margins(10px, 0px, 13px, 0px);
 peerQrPillStarBox: 14px;
 peerQrPillStarSkip: 2px;
 peerQrPillStar: icon {{ "premium/star-11x11", windowFg }};
+peerQrPillTextStyle: TextStyle(defaultTextStyle) {
+	font: peerQrPillFont;
+}
+peerQrPillStarEmoji: IconEmoji {
+	icon: peerQrPillStar;
+	padding: margins(1px, 5px, 0px, 0px);
+}
 peerQrMenuReset: icon {{ "chat/refresh-24x24", menuIconColor }};
 peerQrMenuTimerOff: icon {{ "menu/timer_off-24x24", menuIconColor }};
 peerQrMenuAboutFont: font(12px);

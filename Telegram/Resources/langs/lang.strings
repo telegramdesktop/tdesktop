@@ -7072,7 +7072,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_no_paid_token_invalid" = "This free messages link is invalid or has expired.";
 "lng_no_paid_token_user_invalid" = "This free messages link can't be used.";
 "lng_no_paid_token_applied" = "You can now message {user} for free.";
-"lng_no_paid_token_pill_fee" = "{amount} · Remove message fee";
+"lng_no_paid_token_pill_remove_fee" = "Remove {emoji} {amount} fee";
 "lng_no_paid_token_pill_temporary" = "Free · Expires in {time}";
 "lng_no_paid_token_pill_permanent" = "Free · No time limit";
 "lng_no_paid_token_menu_reset" = "Reset Code";
