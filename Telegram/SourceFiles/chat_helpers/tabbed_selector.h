@@ -264,6 +264,7 @@ private:
 	bool hasMasksTab() const;
 	Tab createTab(SelectorTab type, int index);
 
+	void refreshRounding();
 	void paintSlideFrame(QPainter &p);
 	void paintBgRoundedPart(QPainter &p);
 	void paintContent(QPainter &p);

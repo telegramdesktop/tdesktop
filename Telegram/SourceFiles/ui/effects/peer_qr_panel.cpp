@@ -39,6 +39,22 @@ constexpr auto kGlassAlpha = 0.25;
 	return anim::easeOutCubic(1., std::clamp(progress, 0., 1.));
 }
 
+// Only whole pixels inside the arc, so the glass hairline stays uncovered.
+[[nodiscard]] QRegion InnerRoundedRegion(QSize size, int radius) {
+	const auto width = size.width();
+	const auto height = size.height();
+	radius = std::max(std::min({ radius, width / 2, height / 2 }), 0);
+	auto result = QRegion(0, radius, width, height - 2 * radius);
+	for (auto row = 0; row != radius; ++row) {
+		const auto dy = radius - row;
+		const auto inset = int(std::ceil(
+			radius - std::sqrt(float64(radius * radius - dy * dy))));
+		result += QRect(inset, row, width - 2 * inset, 1);
+		result += QRect(inset, height - row - 1, width - 2 * inset, 1);
+	}
+	return result;
+}
+
 } // namespace
 
 PeerQrPanel::PeerQrPanel(not_null<QWidget*> parent)
@@ -77,7 +93,7 @@ void PeerQrPanel::setContent(
 	_content = content;
 	_kind = kind;
 	_contentCache = QImage();
-	content->setGeometry(contentGeometry());
+	updateContentGeometry();
 	if (kind == PeerQrPanelContent::Opaque) {
 		content->setVisible(_shown && !_animation.animating());
 	}
@@ -176,7 +192,7 @@ void PeerQrPanel::paintEvent(QPaintEvent *e) {
 
 void PeerQrPanel::resizeEvent(QResizeEvent *e) {
 	if (_content) {
-		_content->setGeometry(contentGeometry());
+		updateContentGeometry();
 	}
 }
 
@@ -222,6 +238,16 @@ void PeerQrPanel::updateAll() {
 	update();
 	if (_content && _kind == PeerQrPanelContent::Animated) {
 		_content->update();
+	}
+}
+
+void PeerQrPanel::updateContentGeometry() {
+	const auto geometry = contentGeometry();
+	_content->setGeometry(geometry);
+	if (_kind == PeerQrPanelContent::Opaque) {
+		_content->setMask(InnerRoundedRegion(
+			geometry.size(),
+			st::peerQrPanelRadius - st::lineWidth));
 	}
 }
 

@@ -52,6 +52,7 @@ private:
 	[[nodiscard]] bool animationCallback(crl::time now);
 	void finishToggle();
 	void updateAll();
+	void updateContentGeometry();
 	[[nodiscard]] QRect contentGeometry() const;
 	[[nodiscard]] QRectF glassRect() const;
 	[[nodiscard]] float64 glassRadius(QRectF glass) const;
