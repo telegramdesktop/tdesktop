@@ -2657,6 +2657,8 @@ if (MSVC)
     )
     target_link_options(Telegram
     PRIVATE
+        # Keep delay-load protection across Qt variants with different imports.
+        /IGNORE:4199
         /DELAYLOAD:secur32.dll
         /DELAYLOAD:winmm.dll
         /DELAYLOAD:ws2_32.dll
@@ -2675,12 +2677,15 @@ if (MSVC)
         /DELAYLOAD:uxtheme.dll
         /DELAYLOAD:crypt32.dll
         /DELAYLOAD:bcrypt.dll
+        /DELAYLOAD:ncrypt.dll
         /DELAYLOAD:netapi32.dll
         /DELAYLOAD:mpr.dll
         /DELAYLOAD:imm32.dll
+        /DELAYLOAD:hid.dll
         /DELAYLOAD:userenv.dll
         /DELAYLOAD:wtsapi32.dll
         /DELAYLOAD:propsys.dll
+        /DELAYLOAD:uiautomationcore.dll
     )
     if (QT_VERSION GREATER 6)
         if (NOT build_winarm)
