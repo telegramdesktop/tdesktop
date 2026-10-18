@@ -696,7 +696,6 @@ void MoveToMyGiftsBox(
 				st::walletSendUserErrorLabel)),
 		margins(0),
 		style::al_justify);
-	refusal->entity()->setTryMakeSimilarLines(true);
 	refusal->toggleOn(flow->refusalValue(
 	) | rpl::map([](const QString &text) {
 		return !text.isEmpty();

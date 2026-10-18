@@ -495,7 +495,7 @@ giftMoveToWalletPath: FlatLabel(giftMoveToWalletAppear) {
 }
 giftMoveToWalletMenuEmoji: IconEmoji {
 	icon: icon{{ "wallet/menu_bars-16x16", windowSubTextFg }};
-	padding: margins(1px, 2px, 1px, 0px);
+	padding: margins(-1px, 2px, 1px, 0px);
 }
 giftMoveToWalletArrowEmoji: IconEmoji {
 	icon: icon{{ "dialogs/dialogs_topic_arrow", windowSubTextFg }};
@@ -511,6 +511,7 @@ giftMoveToWalletCollectiblesEmoji: IconEmoji(giftMoveToWalletMoneyEmoji) {
 giftMoveToGiftsUserpic: icon{{ "wallet/move_to_gifts-24x24", historyPeerUserpicFg }};
 giftMoveToGiftsProfileEmoji: IconEmoji(giftMoveToWalletMoneyEmoji) {
 	icon: icon{{ "menu/profile-16x16", windowSubTextFg }};
+	padding: margins(-1px, 3px, 1px, 0px);
 }
 
 uniqueGiftValuePrice: FlatLabel(defaultFlatLabel) {
