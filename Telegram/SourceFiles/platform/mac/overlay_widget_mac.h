@@ -46,6 +46,7 @@ private:
 	void activate(Control control);
 	void resolveNative();
 	void updateNativeMovable();
+	void updateWindowLevel();
 	void updateStyles(bool fullscreen);
 	void refreshButtons(bool fullscreen);
 
