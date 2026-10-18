@@ -26,7 +26,6 @@ constexpr auto kFileChunkSize = 128 * 1024;
 constexpr auto kFileRequestsCount = 2;
 //constexpr auto kFileNextRequestDelay = crl::time(20);
 constexpr auto kFileRequestsCountFast = 8;
-constexpr auto kFileRequestsCountFastMax = 64;
 constexpr auto kChatsSliceLimit = 100;
 constexpr auto kMessagesSliceLimit = 100;
 constexpr auto kTopPeerSliceLimit = 100;
@@ -426,9 +425,7 @@ base::options::option<int> FasterExportDownloadCountOption({
 	.id = kOptionExportFasterDownloadCount,
 	.name = "Faster export downloads: request count",
 	.description = "Number of parallel requests in flight when"
-		" \"Faster export downloads\" is on. Add the"
-		" \"export-faster-download-count\" key with the wanted integer"
-		" to the Export/Import experimental settings code.",
+		" \"Faster export downloads\" is on. Choose between 1 and 64.",
 	.defaultValue = kFileRequestsCountFast,
 });
 
@@ -3522,7 +3519,7 @@ void ApiWrap::loadFilePartFast() {
 		: std::clamp(
 			FasterExportDownloadCountOption.value(),
 			1,
-			kFileRequestsCountFastMax);
+			kExportDownloadRequestsMax);
 	while (int(_fileProcess->requests.size()) < maxInFlight
 		&& (_fileProcess->size <= 0
 			|| _fileProcess->offset < _fileProcess->size)) {

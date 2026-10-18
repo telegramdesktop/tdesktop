@@ -41,6 +41,9 @@ class Stats;
 struct Settings;
 
 extern const char kOptionExportFasterDownload[];
+extern const char kOptionExportFasterDownloadCount[];
+
+inline constexpr auto kExportDownloadRequestsMax = 64;
 
 class ApiWrap {
 public:
