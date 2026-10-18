@@ -5943,6 +5943,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_share_messages_to_many_chats#other" = "Messages forwarded to **{count} chats**.";
 
 "lng_contact_phone" = "Phone Number";
+"lng_contact_link_invalid" = "This link is invalid or has expired.";
 "lng_enter_contact_data" = "New Contact";
 "lng_contact_mobile_hidden" = "Mobile hidden";
 "lng_contact_phone_after" = "Phone number will be visible once {user} adds you as a contact.";

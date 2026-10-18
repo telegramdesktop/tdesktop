@@ -579,6 +579,31 @@ bool OpenTonConnectQuery(
 	return true;
 }
 
+bool ResolveContactToken(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto params = url_parse_params(
+		match->captured(1),
+		qthelp::UrlParamNameTransform::ToLower);
+	const auto token = params.value(u"token"_q);
+	if (token.isEmpty()) {
+		controller->showToast(tr::lng_contact_link_invalid(tr::now));
+		return true;
+	}
+	const auto myContext = context.value<ClickHandlerContext>();
+	controller->window().activate();
+	controller->showPeerByLink(Window::PeerByLinkInfo{
+		.contactToken = token,
+		.noPaidToken = params.value(u"free"_q),
+		.clickFromMessageId = myContext.itemId,
+	});
+	return true;
+}
+
 bool ResolveUsernameOrPhone(
 		Window::SessionController *controller,
 		const Match &match,
@@ -1880,6 +1905,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 			ResolveUsernameOrPhone
 		},
 		{
+			u"^contact/?(?:\\?([^#]*))?(?:#.*)?$"_q,
+			ResolveContactToken
+		},
+		{
 			u"^privatepost/?\\?(.+)(#|$)"_q,
 			ResolvePrivatePost
 		},
@@ -2068,7 +2097,18 @@ QString TryConvertUrlToLocal(QString url) {
 	auto telegramMeMatch = regex_match(u"^(https?://)?(www\\.)?(telegram\\.(me|dog)|t\\.me)/(.+)$"_q, url, matchOptions);
 	if (telegramMeMatch) {
 		const auto query = telegramMeMatch->capturedView(5);
-		if (const auto phoneMatch = regex_match(u"^\\+([0-9]+)(\\?|$)"_q, query, matchOptions)) {
+		if (const auto contactMatch = regex_match(
+				u"^contact/([^?#]*)(?:\\?([^#]*))?(?:#.*)?$"_q,
+				query,
+				matchOptions)) {
+			const auto token = QUrl::fromPercentEncoding(
+				contactMatch->captured(1).toUtf8());
+			const auto encoded = QString::fromLatin1(
+				QUrl::toPercentEncoding(token, ":"));
+			const auto params = contactMatch->captured(2);
+			return u"tg://contact?token="_q + encoded
+				+ (params.isEmpty() ? QString() : '&' + params);
+		} else if (const auto phoneMatch = regex_match(u"^\\+([0-9]+)(\\?|$)"_q, query, matchOptions)) {
 			const auto params = query.mid(phoneMatch->captured(0).size()).toString();
 			return u"tg://resolve?phone="_q + phoneMatch->captured(1) + (params.isEmpty() ? QString() : '&' + params);
 		} else if (const auto joinChatMatch = regex_match(u"^(joinchat/|\\+|\\%20)([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"_q, query, matchOptions)) {

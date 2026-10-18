@@ -39,6 +39,7 @@ struct PeerByLinkInfo {
 	std::variant<QString, ChannelId> usernameOrId;
 	QString phone;
 	QString chatLinkSlug;
+	QString contactToken;
 	MsgId messageId = ShowAtUnreadMsgId;
 	QByteArray pollOption;
 	QString storyParam;

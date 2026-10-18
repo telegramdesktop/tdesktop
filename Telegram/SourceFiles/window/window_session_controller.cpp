@@ -427,6 +427,16 @@ bool SessionNavigation::showFrozenError() {
 
 void SessionNavigation::showPeerByLink(const PeerByLinkInfo &info) {
 	Core::App().hideMediaView();
+	if (!info.contactToken.isEmpty()) {
+		_api.request(base::take(_resolveRequestId)).cancel();
+		resolveContactToken(info.contactToken, [=](not_null<PeerData*> peer) {
+			ApplyNoPaidToken(this, peer, info.noPaidToken, [=] {
+				showPeerByLinkResolved(peer, info);
+			});
+		});
+		return;
+	}
+	cancelContactTokenResolve();
 	if (!info.phone.isEmpty()) {
 		resolvePhone(info.phone, [=](not_null<PeerData*> peer) {
 			ApplyNoPaidToken(this, peer, info.noPaidToken, [=] {

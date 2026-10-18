@@ -10,24 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_global_privacy.h"
 #include "api/api_premium.h"
 #include "apiwrap.h"
-#include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_response.h"
 
 namespace Info::Profile {
 namespace {
-
-[[nodiscard]] QString FallbackLink(
-		not_null<Main::Session*> session,
-		const QString &token) {
-	const auto user = session->user();
-	const auto username = user->username();
-	return session->createInternalLinkFull(
-		(username.isEmpty() ? (u"+"_q + user->phone()) : username)
-		+ u"?free="_q
-		+ token);
-}
 
 [[nodiscard]] QString ErrorText(const MTP::Error &error) {
 	return MTP::IgnoreError(error)
@@ -60,9 +48,7 @@ void RequestFreeMessagesCode(
 		.temporary = temporary,
 	}, [=](const Api::NoPaidMessagesToken &result) {
 		done({
-			.link = (result.url.isEmpty()
-				? FallbackLink(session, result.token)
-				: result.url),
+			.link = result.url,
 			.expires = temporary ? result.expires : TimeId(),
 		});
 	}, [=](const MTP::Error &error) {
