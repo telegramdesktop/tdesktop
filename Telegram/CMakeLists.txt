@@ -2225,6 +2225,8 @@ PRIVATE
     wallet/wallet_amount_painter.h
     wallet/wallet_api.cpp
     wallet/wallet_api.h
+    wallet/wallet_card_colors.cpp
+    wallet/wallet_card_colors.h
     wallet/wallet_card_drag.cpp
     wallet/wallet_card_drag.h
     wallet/wallet_card_editor.cpp

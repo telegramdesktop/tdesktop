@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/basic_click_handlers.h"
 #include "ui/painter.h"
 #include "wallet/wallet_address.h"
+#include "wallet/wallet_card_colors.h"
 #include "wallet/wallet_card_drag.h"
 #include "wallet/wallet_card_flight.h"
 #include "wallet/wallet_card_look.h"
@@ -185,6 +186,7 @@ private:
 	const CardHost _host;
 	Info::PeerGifts::Delegate _delegate;
 	const QSize _singleMin;
+	CardColorToast _colorToast;
 	std::vector<CollectibleRecord> _records;
 	base::flat_map<QString, Square> _squares;
 	base::flat_set<QString> _onCard;
@@ -561,6 +563,8 @@ void Activate(
 		return tr::lng_wallet_collectible_not_owned(tr::now);
 	} else if (type == u"WALLET_UNAVAILABLE"_q) {
 		return tr::lng_wallet_unavailable(tr::now);
+	} else if (type == u"WALLET_CARD_BG_NOT_ALLOWED"_q) {
+		return tr::lng_wallet_card_color_not_allowed(tr::now);
 	} else if (MTP::IsFloodError(type)) {
 		return tr::lng_flood_error(tr::now);
 	}
@@ -577,7 +581,8 @@ CollectiblesGrid::CollectiblesGrid(
 , _media(std::move(media))
 , _host(std::move(host))
 , _delegate(&_show->session(), Info::PeerGifts::GiftButtonMode::Minimal)
-, _singleMin(_delegate.buttonSize()) {
+, _singleMin(_delegate.buttonSize())
+, _colorToast(_show) {
 	setMouseTracking(true);
 
 	_media->repaint(
@@ -1193,7 +1198,9 @@ void CollectiblesGrid::showCardMenu(const QString &address, QPoint point) {
 	}
 	const auto add = !ownCard().contains(address);
 	const auto apply = !colorSource(address);
-	if (apply && _host.prepareColor) {
+	const auto collections = CardColorCollections(&_show->session());
+	const auto allowed = CardColorAllowed(_records[index], collections);
+	if (apply && allowed && _host.prepareColor) {
 		const auto sticker = Data::WalletCardSticker{
 			.address = address,
 			.gift = _records[index].gift,
@@ -1201,12 +1208,14 @@ void CollectiblesGrid::showCardMenu(const QString &address, QPoint point) {
 		_host.prepareColor(ResolveCardLook({ sticker }, address));
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
-	_menu->addAction(
-		Ui::Text::FixAmpersandInAction(apply
-			? tr::lng_wallet_card_apply_color(tr::now)
-			: tr::lng_wallet_card_remove_color(tr::now)),
-		[=] { colorAction(address, apply); },
-		&st::menuIconPalette);
+	if (!apply || !collections.empty()) {
+		_menu->addAction(
+			Ui::Text::FixAmpersandInAction(apply
+				? tr::lng_wallet_card_apply_color(tr::now)
+				: tr::lng_wallet_card_remove_color(tr::now)),
+			[=] { colorAction(address, apply); },
+			&st::menuIconPalette);
+	}
 	_menu->addAction(
 		Ui::Text::FixAmpersandInAction(add
 			? tr::lng_wallet_card_add(tr::now)
@@ -1239,9 +1248,16 @@ void CollectiblesGrid::colorAction(const QString &address, bool apply) {
 		|| _leaving == address
 		|| colorSource(address) == apply) {
 		return;
-	} else if (apply && !ownCard().contains(address)) {
-		addToCard(_records[index], true);
-		return;
+	}
+	if (apply) {
+		const auto collections = CardColorCollections(&_show->session());
+		if (!CardColorAllowed(_records[index], collections)) {
+			_colorToast.show(collections, _records);
+			return;
+		} else if (!ownCard().contains(address)) {
+			addToCard(_records[index], true);
+			return;
+		}
 	}
 	auto &own = ownCard();
 	auto desired = own.shown();
