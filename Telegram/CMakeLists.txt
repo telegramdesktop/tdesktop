@@ -2213,6 +2213,8 @@ PRIVATE
     ui/peer/video_userpic_player.h
     wallet/wallet_address.cpp
     wallet/wallet_address.h
+    wallet/wallet_address_label.cpp
+    wallet/wallet_address_label.h
     wallet/wallet_amount_field.cpp
     wallet/wallet_amount_field.h
     wallet/wallet_amount_painter.cpp

@@ -71,6 +71,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/table_layout.h"
+#include "wallet/wallet_content.h"
 #include "window/window_peer_menu.h" // ShowChooseRecipientBox.
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
@@ -1547,21 +1548,14 @@ void AddStarGiftTable(
 				tr::lng_gift_unique_owner(),
 				rpl::single(TextWithEntities{ unique->ownerName }));
 		} else if (auto address = unique->ownerAddress; !address.isEmpty()) {
-			auto label = MakeMaybeMultilineTokenValue(table, address, st);
-			label->setClickHandlerFilter([=](const auto &...) {
-				TextUtilities::SetClipboardText(
-					TextForMimeData::Simple(FixupTransactionId(address)));
-				show->showToast({
-					.text = { tr::lng_gift_unique_address_copied(tr::now) },
-					.iconLottie = u"toast/copy"_q,
-					.iconLottieSize = st::toastLottieIconSize,
-				});
-				return false;
-			});
 			AddTableRow(
 				table,
 				tr::lng_gift_unique_owner(),
-				std::move(label));
+				Wallet::AddressValueLabel(
+					table,
+					show,
+					address,
+					st.tableValueAddress));
 		}
 
 		if (const auto hostId = PeerId(entry.bareGiftHostId)) {

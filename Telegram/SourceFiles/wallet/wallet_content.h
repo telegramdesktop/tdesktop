@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class UserData;
 
+namespace style {
+struct FlatLabel;
+} // namespace style
+
 namespace Data {
 struct UniqueGift;
 } // namespace Data
@@ -130,7 +134,8 @@ struct ActionRowArgs {
 [[nodiscard]] object_ptr<Ui::FlatLabel> AddressValueLabel(
 	not_null<QWidget*> parent,
 	std::shared_ptr<Ui::Show> show,
-	const QString &address);
+	const QString &address,
+	const style::FlatLabel *styleOverride = nullptr);
 
 // The address in groups of four on a rounded plate, a spinner until known.
 void AddAddressPlate(

@@ -97,6 +97,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "wallet/wallet_address.h"
+#include "wallet/wallet_address_label.h"
 #include "wallet/wallet_amount_field.h"
 #include "wallet/wallet_amount_painter.h"
 #include "wallet/wallet_card_angle.h"
@@ -1156,18 +1157,6 @@ QString EncryptedCommentLabel::accessibilityName() {
 	return friendly;
 }
 
-[[nodiscard]] TextWithEntities DetailsAddressValue(
-		const QString &address) {
-	auto groups = QStringList();
-	for (auto offset = 0; offset < address.size(); offset += kAddressGroup) {
-		groups.append(address.mid(offset, kAddressGroup));
-	}
-	return Ui::Text::Wrapped(
-		{ groups.join(QChar(' ')) },
-		EntityType::Code,
-		{});
-}
-
 [[nodiscard]] Fn<void()> CopyAddressCallback(
 		std::shared_ptr<Ui::Show> show,
 		const QString &address) {
@@ -1196,12 +1185,12 @@ Fn<void()> CopyTextCallback(
 object_ptr<Ui::FlatLabel> AddressValueLabel(
 		not_null<QWidget*> parent,
 		std::shared_ptr<Ui::Show> show,
-		const QString &address) {
-	auto result = object_ptr<Ui::FlatLabel>(
-		parent,
-		rpl::single(DetailsAddressValue(address)),
-		st::walletDetailsAddressLabel);
-	result->setTryMakeSimilarLines(true);
+		const QString &address,
+		const style::FlatLabel *styleOverride) {
+	const auto &st = styleOverride
+		? *styleOverride
+		: st::walletDetailsAddressLabel;
+	auto result = MakeAddressLabel(parent, address, st);
 	const auto copy = CopyAddressCallback(std::move(show), address);
 	result->setClickHandlerFilter([=](const auto &...) {
 		copy();

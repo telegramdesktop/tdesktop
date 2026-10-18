@@ -1289,6 +1289,7 @@ CreditsEntryBoxStyleOverrides DarkCreditsEntryBoxStyle() {
 		.menu = &st::mediaviewPopupMenu,
 		.table = &st::darkGiftTable,
 		.tableValueMultiline = &st::darkGiftTableValueMultiline,
+		.tableValueAddress = &st::darkGiftTableAddress,
 		.tableValueMessage = &st::darkGiftTableMessage,
 		.link = &st::darkGiftLink,
 		.share = &st::darkGiftShare,

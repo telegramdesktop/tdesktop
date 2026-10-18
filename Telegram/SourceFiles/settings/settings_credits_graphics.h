@@ -118,6 +118,7 @@ struct CreditsEntryBoxStyleOverrides {
 	const style::PopupMenu *menu = nullptr;
 	const style::Table *table = nullptr;
 	const style::FlatLabel *tableValueMultiline = nullptr;
+	const style::FlatLabel *tableValueAddress = nullptr;
 	const style::FlatLabel *tableValueMessage = nullptr;
 	const style::icon *link = nullptr;
 	const style::icon *share = nullptr;
