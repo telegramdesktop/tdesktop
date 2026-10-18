@@ -68,14 +68,12 @@ struct LabelInk {
 struct Scene {
 	QImage sharp;
 	QImage empty;
-	QImage content;
 	std::optional<QRect> slot;
 };
 
 struct Parts {
 	QImage card;
 	QImage button;
-	QImage label;
 };
 
 class CardView final : public Ui::LayerWidget {
@@ -131,8 +129,9 @@ private:
 	void acquireSlot();
 	bool checkOrigin();
 	void loseSlot();
-	void paintTransition(QPainter &p, const CardViewFrame &frame) const;
-	void paintSlot(QPainter &p, float64 lift) const;
+	void paintTransition(QPainter &p, const CardViewFrame &frame);
+	void paintSlot(QPainter &p, float64 lift);
+	void paintLabel(QPainter &p, float64 opacity);
 	void paintButton(QPainter &p, float64 progress) const;
 	void paintCard(QPainter &p, const CardViewFrame &frame) const;
 	void startShowing();
@@ -417,7 +416,6 @@ CardView::CardView(
 	_backdrop.changes(
 	) | rpl::on_next([=] {
 		refreshLabelInk();
-		queueParts();
 	}, lifetime());
 
 	style::PaletteChanged(
@@ -511,6 +509,7 @@ void CardView::paintEvent(QPaintEvent *e) {
 			releaseHeld();
 		}
 	}
+	checkOrigin();
 	_painted = _motion.frame(_elapsed, places());
 	paintTransition(p, _painted);
 }
@@ -618,9 +617,6 @@ Parts CardView::grabParts() const {
 		.button = (_button->isHidden()
 			? QImage()
 			: Ui::GrabWidgetToImage(_button)),
-		.label = (_label
-			? Ui::GrabWidgetToImage(_content, labelPlate())
-			: QImage()),
 	};
 }
 
@@ -941,7 +937,6 @@ void CardView::acceptScene(QImage sharp) {
 	_scene = {
 		.sharp = std::move(sharp),
 		.empty = slot ? origin->grabEmpty() : QImage(),
-		.content = slot ? origin->grabContent() : QImage(),
 		.slot = slot,
 	};
 	if (_phase == Phase::Opening && !_started) {
@@ -991,7 +986,7 @@ void CardView::loseSlot() {
 
 void CardView::paintTransition(
 		QPainter &p,
-		const CardViewFrame &frame) const {
+		const CardViewFrame &frame) {
 	if (!_scene.sharp.isNull()) {
 		p.drawImage(rect(), _scene.sharp);
 	}
@@ -1003,31 +998,42 @@ void CardView::paintTransition(
 		p.setOpacity(frame.blur);
 		_backdrop.paint(p);
 	}
-	if (frame.label > 0. && !_parts.label.isNull()) {
-		p.setOpacity(frame.label);
-		p.drawImage(
-			labelPlate().topLeft() + _content->pos(),
-			_parts.label);
-	}
+	paintLabel(p, frame.label);
 	p.setOpacity(1.);
 	paintButton(p, frame.button);
 	paintCard(p, frame);
 }
 
-void CardView::paintSlot(QPainter &p, float64 lift) const {
-	if (!_scene.slot) {
+void CardView::paintSlot(QPainter &p, float64 lift) {
+	const auto origin = _origin.data();
+	if (!_scene.slot || UsableSlot(this, origin) != _scene.slot) {
 		return;
 	}
 	const auto slot = *_scene.slot;
 	p.drawImage(slot.topLeft(), _scene.empty);
 	if (lift < 1.) {
+		const auto ratio = style::DevicePixelRatio();
+		const auto shift = std::round(lift * slot.height() * ratio) / ratio;
 		p.save();
 		p.setClipRect(slot);
-		p.drawImage(
-			QPointF(slot.x(), slot.y() - lift * slot.height()),
-			_scene.content);
+		p.translate(slot.x(), slot.y() - shift);
+		origin->paintContentAlone(p);
 		p.restore();
 	}
+}
+
+void CardView::paintLabel(QPainter &p, float64 opacity) {
+	if (!_label || opacity <= 0.) {
+		return;
+	}
+	const auto origin = _content->pos();
+	if (_labelInk.plate > 0.) {
+		p.setOpacity(opacity);
+		PaintLabelPlate(p, labelPlate().translated(origin), _labelInk.plate);
+	}
+	p.setOpacity(1.);
+	_label->setOpacity(opacity);
+	Ui::RenderWidget(p, _label, _label->pos() + origin);
 }
 
 void CardView::paintButton(QPainter &p, float64 progress) const {
@@ -1131,6 +1137,9 @@ void CardView::finishShowing() {
 	_animation.stop();
 	_scene = Scene();
 	_parts = Parts();
+	if (_label) {
+		_label->setOpacity(1.);
+	}
 	_content->show();
 	update();
 }
@@ -1252,6 +1261,7 @@ void CardView::closeView() {
 		_content->hide();
 		target = places();
 		from = CardViewRestFrame(target);
+		_painted = from;
 	} else if (!UsableSlot(this, _origin.data())) {
 		target.slot = std::nullopt;
 	}

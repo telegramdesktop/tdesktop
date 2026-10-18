@@ -120,20 +120,15 @@ QImage BalancePill::grabEmpty() {
 	return Ui::GrabWidgetToImage(parentWidget(), geometry());
 }
 
-QImage BalancePill::grabContent() const {
-	const auto ratio = style::DevicePixelRatio();
-	auto result = QImage(
-		size() * ratio,
-		QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(ratio);
-	result.fill(Qt::transparent);
-	if (_opacity > 0.) {
-		auto p = QPainter(&result);
-		auto hq = PainterHighQualityEnabler(p);
-		p.setOpacity(_opacity);
-		paintContent(p);
+void BalancePill::paintContentAlone(QPainter &p) const {
+	if (_opacity <= 0.) {
+		return;
 	}
-	return result;
+	auto hq = PainterHighQualityEnabler(p);
+	const auto was = p.opacity();
+	p.setOpacity(was * _opacity);
+	paintContent(p);
+	p.setOpacity(was);
 }
 
 void BalancePill::setContent(const QString &label, int64 balance) {

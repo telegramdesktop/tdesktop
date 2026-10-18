@@ -24,7 +24,7 @@ public:
 	void place(int outerWidth, int statusTop, float64 progress);
 	[[nodiscard]] bool actionable() const;
 	[[nodiscard]] QImage grabEmpty();
-	[[nodiscard]] QImage grabContent() const;
+	void paintContentAlone(QPainter &p) const;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
