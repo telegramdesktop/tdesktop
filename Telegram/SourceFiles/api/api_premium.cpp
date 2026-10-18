@@ -548,7 +548,7 @@ void Premium::exportNoPaidMessagesToken(
 		const auto &data = result.data();
 		done({
 			.token = qs(data.vtoken()),
-			.url = qs(data.vurl().value_or_empty()),
+			.url = qs(data.vurl()),
 			.expires = data.vexpires().value_or_empty(),
 		});
 	}).fail([=](const MTP::Error &error) {

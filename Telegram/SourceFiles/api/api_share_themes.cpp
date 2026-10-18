@@ -27,16 +27,18 @@ constexpr auto kRefreshEach = 3600 * crl::time(1000);
 	using Result = Data::ShareTheme;
 	return theme.match([](const MTPDshareThemeDefault &) -> Result {
 		return Data::ShareThemeDefault();
-	}, [](const MTPDshareThemeEmoji &data) -> Result {
-		const auto &list = data.vemojis().v;
-		auto emojis = std::vector<Data::ReactionId>();
-		emojis.reserve(list.size());
-		for (const auto &reaction : list) {
-			emojis.push_back(Data::ReactionFromMTP(reaction));
+	}, [](const MTPDshareThemeEmojiBackdrop &data) -> Result {
+		if (const auto list = data.vemojis(); list && !list->v.isEmpty()) {
+			auto emojis = std::vector<Data::ReactionId>();
+			emojis.reserve(list->v.size());
+			for (const auto &reaction : list->v) {
+				emojis.push_back(Data::ReactionFromMTP(reaction));
+			}
+			return Data::ShareThemeEmoji{ std::move(emojis) };
+		} else if (const auto id = data.vbackdrop_id()) {
+			return Data::ShareThemeBackdrop{ id->v };
 		}
-		return Data::ShareThemeEmoji{ std::move(emojis) };
-	}, [](const MTPDshareThemeColor &data) -> Result {
-		return Data::ShareThemeColor{ data.vcolor_id().v };
+		return Data::ShareThemeDefault();
 	}, [&](const MTPDshareThemeGift &data) -> Result {
 		auto gift = FromTL(session, data.vstargift());
 		if (!gift || !gift->unique) {
@@ -47,12 +49,11 @@ constexpr auto kRefreshEach = 3600 * crl::time(1000);
 	}, [](const MTPDinputShareThemeGift &) -> Result {
 		LOG(("API Error: inputShareThemeGift in getShareTheme result."));
 		return Data::ShareThemeDefault();
-	}, [](const MTPDshareThemeBackdrop &data) -> Result {
-		return Data::ShareThemeBackdrop{ data.vbackdrop_id().v };
 	});
 }
 
 [[nodiscard]] MTPShareTheme Serialize(const Data::ShareTheme &theme) {
+	using Flag = MTPDshareThemeEmojiBackdrop::Flag;
 	return v::match(theme, [](const Data::ShareThemeDefault &) {
 		return MTP_shareThemeDefault();
 	}, [](const Data::ShareThemeEmoji &data) {
@@ -61,12 +62,15 @@ constexpr auto kRefreshEach = 3600 * crl::time(1000);
 		for (const auto &id : data.emojis) {
 			emojis.push_back(Data::ReactionToMTP(id));
 		}
-		return MTP_shareThemeEmoji(
+		return MTP_shareThemeEmojiBackdrop(
+			MTP_flags(Flag::f_emojis),
+			MTPint(),
 			MTP_vector<MTPReaction>(std::move(emojis)));
-	}, [](const Data::ShareThemeColor &data) {
-		return MTP_shareThemeColor(MTP_int(data.colorId));
 	}, [](const Data::ShareThemeBackdrop &data) {
-		return MTP_shareThemeBackdrop(MTP_int(data.backdropId));
+		return MTP_shareThemeEmojiBackdrop(
+			MTP_flags(Flag::f_backdrop_id),
+			MTP_int(data.backdropId),
+			MTPVector<MTPReaction>());
 	}, [](const Data::ShareThemeGift &data) {
 		Expects(data.savedId || data.gift.unique);
 

@@ -19,7 +19,6 @@ class PeerQrPanel;
 struct PeerQrThemeKey {
 	enum class Type : uchar {
 		Default,
-		Color,
 		Backdrop,
 		Emoji,
 		Other,

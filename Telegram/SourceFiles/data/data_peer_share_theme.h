@@ -26,14 +26,6 @@ struct ShareThemeEmoji {
 		const ShareThemeEmoji &) = default;
 };
 
-struct ShareThemeColor {
-	int colorId = 0;
-
-	friend inline bool operator==(
-		const ShareThemeColor &,
-		const ShareThemeColor &) = default;
-};
-
 struct ShareThemeBackdrop {
 	int backdropId = 0;
 
@@ -58,7 +50,6 @@ struct ShareThemeGift {
 using ShareTheme = std::variant<
 	ShareThemeDefault,
 	ShareThemeEmoji,
-	ShareThemeColor,
 	ShareThemeBackdrop,
 	ShareThemeGift>;
 

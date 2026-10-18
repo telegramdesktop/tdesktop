@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_share_theme.h"
 
-#include "api/api_peer_colors.h"
 #include "api/api_share_themes.h"
 #include "apiwrap.h"
 #include "base/weak_ptr.h"
@@ -16,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_response.h"
-#include "window/themes/window_theme.h"
 
 namespace Info::Profile {
 namespace {
@@ -31,23 +29,6 @@ constexpr auto kMaxEmojiKeys = 6;
 		: MTP::IsFloodError(error)
 		? tr::lng_flood_error(tr::now)
 		: error.type();
-}
-
-[[nodiscard]] std::optional<Ui::PeerQrAppearance> ColorAppearance(
-		not_null<Main::Session*> session,
-		int colorId) {
-	if (colorId < 0 || colorId > std::numeric_limits<uint8>::max()) {
-		return std::nullopt;
-	}
-	const auto set = session->api().peerColors().colorProfileFor(
-		uint8(colorId));
-	if (!set || set->bg.empty()) {
-		return std::nullopt;
-	}
-	return Ui::PeerQrAppearance{
-		.edge = set->bg.front(),
-		.center = (set->bg.size() > 1) ? set->bg[1] : set->bg.front(),
-	};
 }
 
 [[nodiscard]] Ui::PeerQrAppearance BackdropAppearance(
@@ -213,19 +194,10 @@ constexpr auto kMaxEmojiKeys = 6;
 }
 
 [[nodiscard]] Ui::PeerQrSwatch ResolveSwatch(
-		not_null<Main::Session*> session,
 		const Data::ShareTheme &theme,
 		const std::vector<Data::UniqueGiftBackdrop> &backdrops) {
 	return v::match(theme, [&](const Data::ShareThemeDefault &) {
 		return DefaultSwatch(backdrops);
-	}, [&](const Data::ShareThemeColor &data) {
-		return Ui::PeerQrSwatch{
-			.key = { .type = ThemeType::Color, .id = data.colorId },
-			.appearance = ColorAppearance(
-				session,
-				data.colorId
-			).value_or(Ui::PeerQrAppearance()),
-		};
 	}, [&](const Data::ShareThemeBackdrop &data) {
 		const auto i = ranges::find(
 			backdrops,
@@ -255,7 +227,6 @@ constexpr auto kMaxEmojiKeys = 6;
 		const Ui::PeerQrThemeKey &key) {
 	switch (key.type) {
 	case ThemeType::Default: return Data::ShareThemeDefault();
-	case ThemeType::Color: return Data::ShareThemeColor{ key.id };
 	case ThemeType::Backdrop: return Data::ShareThemeBackdrop{ key.id };
 	case ThemeType::Emoji: return EmojiTheme(key.emoji);
 	case ThemeType::Other: return std::nullopt;
@@ -306,16 +277,12 @@ rpl::producer<QrServedTheme> QrServedThemeValue(not_null<PeerData*> peer) {
 			) | rpl::filter([](const std::optional<Data::ShareTheme> &theme) {
 				return theme.has_value();
 			}),
-			session->api().peerColors().suggestedProfileValue(),
-			themes.backdropsValue(),
-			Window::Theme::IsNightModeValue()
+			themes.backdropsValue()
 		) | rpl::map([=](
 				const std::optional<Data::ShareTheme> &theme,
-				const std::vector<uint8> &,
-				const std::vector<Data::UniqueGiftBackdrop> &backdrops,
-				bool) {
+				const std::vector<Data::UniqueGiftBackdrop> &backdrops) {
 			return QrServedTheme{
-				.swatch = ResolveSwatch(session, *theme, backdrops),
+				.swatch = ResolveSwatch(*theme, backdrops),
 				.kept = state->kept,
 			};
 		}) | rpl::distinct_until_changed(
