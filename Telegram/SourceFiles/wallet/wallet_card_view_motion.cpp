@@ -262,6 +262,7 @@ std::optional<QTransform> CardViewTransform(
 void CardViewMotion::open(const CardViewPlaces &places) {
 	_from = CardViewFrame();
 	_loss = std::nullopt;
+	_rebase = std::nullopt;
 	_insertDuration = 0.;
 	_closing = false;
 	_slot = ValidCardViewSlot(places);
@@ -270,9 +271,12 @@ void CardViewMotion::open(const CardViewPlaces &places) {
 void CardViewMotion::close(
 		const CardViewFrame &from,
 		const CardViewPlaces &places) {
-	const auto slot = from.patch ? ComputeSlot(places) : std::nullopt;
+	const auto slot = (from.patch && from.card.opacity > 0.)
+		? ComputeSlot(places)
+		: std::nullopt;
 	_from = from;
 	_loss = std::nullopt;
+	_rebase = std::nullopt;
 	_insertDuration = !slot
 		? 0.
 		: (from.slide < 1.)
@@ -280,14 +284,19 @@ void CardViewMotion::close(
 		: float64(kCloseSlideDuration);
 	_closing = true;
 	_slot = slot.has_value();
+	if ((from.rebase < 1. || !_slot) && cardEnd() > 0.) {
+		_rebase = Rebase{ from, places, 0., cardEnd() };
+	}
 }
 
 void CardViewMotion::loseSlot(
 		const CardViewFrame &painted,
-		crl::time elapsed) {
+		crl::time elapsed,
+		const CardViewPlaces &places) {
 	if (!_slot) {
 		return;
 	}
+	const auto continuing = painted.card.opacity > 0. && elapsed < cardEnd();
 	_loss = Loss{
 		.card = painted.card,
 		.slot = painted.slot,
@@ -295,6 +304,56 @@ void CardViewMotion::loseSlot(
 		.at = elapsed,
 	};
 	_slot = false;
+	if (_closing && !continuing) {
+		_loss->card.opacity = 0.;
+	}
+	_rebase = continuing
+		? std::make_optional(Rebase{
+			painted,
+			places,
+			float64(elapsed),
+			cardEnd(),
+		})
+		: std::nullopt;
+}
+
+bool CardViewMotion::retarget(
+		const CardViewFrame &painted,
+		crl::time elapsed,
+		const CardViewPlaces &places) {
+	const auto end = cardEnd();
+	if ((_slot && !ValidCardViewSlot(places))
+		|| (!_slot && !_loss && !_closing)
+		|| painted.card.opacity <= 0.
+		|| elapsed >= end) {
+		return false;
+	}
+	if (_loss && !_closing) {
+		_loss = Loss{
+			.card = painted.card,
+			.slot = painted.slot,
+			.clip = painted.clip,
+			.at = elapsed,
+		};
+	}
+	_rebase = Rebase{ painted, places, float64(elapsed), end };
+	return true;
+}
+
+float64 CardViewMotion::cardEnd() const {
+	if (!_closing) {
+		return float64(kSlideDuration + kTurnDuration);
+	} else if (_loss) {
+		return (_loss->card.opacity > 0.)
+			? float64(_loss->at + kFallbackDuration)
+			: 0.;
+	}
+	const auto delay = _from.finished ? kCloseCardDelay : 0;
+	return !_slot
+		? ((_from.card.opacity > 0.) ? delay + kFallbackDuration : 0.)
+		: delay
+			+ ((_from.slide < 1.) ? 0. : _from.glide * kCloseFlightDuration)
+			+ _insertDuration;
 }
 
 bool CardViewMotion::usesSlot() const {
@@ -305,7 +364,26 @@ CardViewFrame CardViewMotion::frame(
 		crl::time elapsed,
 		const CardViewPlaces &places) const {
 	const auto time = float64(elapsed);
-	return _closing ? closing(time, places) : opening(time, places);
+	const auto &target = (_rebase && time < _rebase->end)
+		? _rebase->places
+		: places;
+	auto result = _closing ? closing(time, target) : opening(time, target);
+	if (_rebase && time < _rebase->end) {
+		const auto &from = _rebase->from;
+		const auto progress = FlightEaseOut(
+			Ramp(time, _rebase->at, _rebase->end - _rebase->at));
+		if (_slot) {
+			result.card = Mix(from.card, result.card, progress);
+			result.slot = QRectF(
+				from.slot.topLeft()
+					+ (result.slot.topLeft() - from.slot.topLeft()) * progress,
+				from.slot.size()
+					+ (result.slot.size() - from.slot.size()) * progress);
+			result.clip = from.clip + (result.clip - from.clip) * progress;
+		}
+		result.rebase = progress;
+	}
+	return result;
 }
 
 CardViewFrame CardViewMotion::opening(
@@ -330,7 +408,9 @@ CardViewFrame CardViewMotion::opening(
 		const auto arrival = float64(kSlideDuration + kTurnDuration);
 		const auto progress = FlightEaseOut(
 			Ramp(time, lost, arrival - lost));
-		result.card = Mix(_loss->card, RestPose(places.rest), progress);
+		result.card = (_loss->card.opacity > 0.)
+			? Mix(_loss->card, RestPose(places.rest), progress)
+			: _loss->card;
 		result.slot = _loss->slot;
 		result.clip = _loss->clip * (1. - progress);
 		result.glide = progress;
@@ -372,7 +452,9 @@ CardViewFrame CardViewMotion::closing(
 	const auto buttonDelay = rested ? float64(kCloseButtonDelay) : 0.;
 	const auto buttonDuration = _from.button * kCloseButtonDuration;
 	const auto cardDelay = rested ? float64(kCloseCardDelay) : 0.;
-	const auto from = rested ? RestPose(places.rest) : _from.card;
+	const auto from = (rested && slot)
+		? RestPose(places.rest)
+		: _from.card;
 	auto result = CardViewFrame{
 		.dim = _from.dim * (1. - Ramp(time, blurDuration, dimDuration)),
 		.blur = _from.blur * (1. - Ramp(time, 0., blurDuration)),

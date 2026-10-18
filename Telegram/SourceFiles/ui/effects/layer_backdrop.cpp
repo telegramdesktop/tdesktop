@@ -68,9 +68,11 @@ void PaintSpecialLayerBackground(QPainter &p, QRect outer, QRect box) {
 	}
 	const auto clip = topCorners || bottomCorners;
 	if (clip) {
+		p.save();
 		p.setClipRegion(QRegion(outer)
 			- box.marginsRemoved({ st::boxRadius, 0, st::boxRadius, 0 })
-			- box.marginsRemoved({ 0, st::boxRadius, 0, st::boxRadius }));
+			- box.marginsRemoved({ 0, st::boxRadius, 0, st::boxRadius }),
+			Qt::IntersectClip);
 	}
 	Shadow::paint(
 		p,
@@ -80,17 +82,17 @@ void PaintSpecialLayerBackground(QPainter &p, QRect outer, QRect box) {
 		SpecialLayerShadowCorners(),
 		sides);
 	if (clip) {
-		p.setClipping(false);
+		p.restore();
 	}
 	p.fillRect(outer, st::layerBg);
 }
 
-[[nodiscard]] std::vector<QPointer<QWidget>> ShownChildren(
+[[nodiscard]] std::vector<QPointer<QWidget>> DirectChildren(
 		not_null<QWidget*> parent) {
 	auto result = std::vector<QPointer<QWidget>>();
 	for (const auto child : parent->children()) {
 		const auto widget = qobject_cast<QWidget*>(child);
-		if (widget && !widget->isWindow() && !widget->isHidden()) {
+		if (widget) {
 			result.emplace_back(widget);
 		}
 	}
@@ -121,125 +123,78 @@ void RenderPart(
 		QWidget::DrawChildren);
 }
 
-[[nodiscard]] bool ComposeSpecialScene(
-		QPainter &p,
-		not_null<QWidget*> target,
-		not_null<QWidget*> stack,
-		const QPointer<QWidget> &underlying,
-		const std::vector<QPointer<QWidget>> &children,
-		QRect capture) {
+} // namespace
+
+QImage CaptureUnderLayer(
+		not_null<LayerWidget*> layer,
+		LayerWidget *underlying,
+		Fn<void()> beforeRender) {
+	const auto weak = QPointer<LayerWidget>(layer);
+	auto stack = QPointer<QWidget>(layer->parentWidget());
+	auto target = QPointer<QWidget>(stack ? stack->parentWidget() : nullptr);
+	const auto special = QPointer<LayerWidget>(underlying);
+	if (!target) {
+		return QImage();
+	}
+	SendPendingMoveResizeEvents(target.data());
+	if (!weak) {
+		return QImage();
+	}
+	stack = weak->parentWidget();
+	target = stack ? stack->parentWidget() : nullptr;
+	if (!target) {
+		return QImage();
+	}
+	if (beforeRender) {
+		beforeRender();
+	}
+	if (!weak || !stack || !target) {
+		return QImage();
+	}
+	const auto capture = QRect(
+		stack->pos() + weak->pos(),
+		weak->size());
 	const auto origin = capture.topLeft();
-	const auto intact = [&] {
-		return underlying
-			&& (underlying->parentWidget() == stack.get())
-			&& !underlying->isHidden()
-			&& (ShownChildren(target) == children);
-	};
+	const auto ratio = style::DevicePixelRatio();
+	auto image = QImage(
+		capture.size() * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	image.setDevicePixelRatio(ratio);
+	image.fill(Qt::transparent);
+	auto p = QPainter(&image);
+	RenderWidget(p, target.data(), QPoint(), capture, QWidget::IgnoreMask);
+	const auto children = DirectChildren(target.data());
 	for (const auto &child : children) {
-		if (!intact()) {
-			return false;
-		} else if (child == stack.get()) {
+		if (!child
+			|| child->parentWidget() != target
+			|| child->isHidden()
+			|| child->isWindow()
+			|| !child->updatesEnabled()) {
+			continue;
+		} else if (child != stack) {
+			RenderPart(p, child.data(), child->pos(), capture, origin);
+		} else if (special
+			&& special->parentWidget() == stack
+			&& !special->isHidden()
+			&& !special->isWindow()
+			&& special->updatesEnabled()) {
 			p.save();
 			p.translate(stack->pos() - origin);
 			PaintSpecialLayerBackground(
 				p,
 				stack->rect(),
-				underlying->geometry());
+				special->geometry());
 			p.restore();
 			RenderPart(
 				p,
-				underlying.data(),
-				stack->pos() + underlying->pos(),
+				special.data(),
+				stack->pos() + special->pos(),
 				capture.intersected(stack->geometry()),
 				origin);
-		} else {
-			RenderPart(p, child.data(), child->pos(), capture, origin);
 		}
-	}
-	return intact();
-}
-
-[[nodiscard]] QImage CaptureScene(
-		not_null<LayerWidget*> layer,
-		LayerWidget *underlying,
-		bool specialOnly) {
-	const auto stack = layer->parentWidget();
-	const auto target = stack->parentWidget();
-	SendPendingMoveResizeEvents(target);
-
-	const auto ratio = style::DevicePixelRatio();
-	auto image = QImage(
-		layer->size() * ratio,
-		QImage::Format_ARGB32_Premultiplied);
-	image.setDevicePixelRatio(ratio);
-
-	const auto shown = !stack->isHidden();
-	const auto special = shown
-		&& underlying
-		&& (underlying->parentWidget() == stack)
-		&& !underlying->isHidden();
-	if (specialOnly && !special) {
-		return QImage();
-	}
-	const auto focused = shown && InFocusChain(stack);
-	const auto focus = (special && focused)
-		? QPointer<QWidget>(stack->window()->focusWidget())
-		: QPointer<QWidget>();
-	const auto children = special
-		? ShownChildren(target)
-		: std::vector<QPointer<QWidget>>();
-	const auto weakUnderlying = QPointer<QWidget>(
-		special ? underlying : nullptr);
-	if (shown) {
-		if (focused) {
-			target->setFocus();
-		}
-		stack->hide();
-	}
-	const auto capture = layer->geometry();
-	const auto flags = special
-		? QWidget::RenderFlags(QWidget::IgnoreMask)
-		: (QWidget::DrawChildren | QWidget::IgnoreMask);
-	auto p = QPainter(&image);
-	RenderWidget(p, target, QPoint(), capture, flags);
-	if (shown) {
-		stack->show();
-		if (focus) {
-			focus->setFocus();
-		} else if (focused) {
-			if (layer->isHidden()) {
-				stack->setFocus();
-			} else {
-				layer->setInnerFocus();
-			}
-		}
-	}
-	if (special
-		&& !ComposeSpecialScene(
-			p,
-			target,
-			stack,
-			weakUnderlying,
-			children,
-			capture)) {
-		return QImage();
 	}
 	p.end();
 	return image;
-}
-
-} // namespace
-
-QImage CaptureUnderLayer(
-		not_null<LayerWidget*> layer,
-		LayerWidget *underlying) {
-	const auto weak = QPointer<LayerWidget>(underlying);
-	auto result = CaptureScene(layer, underlying, false);
-	if (result.isNull() && weak) {
-		// A child hiding itself while being painted has settled by now.
-		result = CaptureScene(layer, weak.data(), true);
-	}
-	return result;
 }
 
 LayerBackdrop::LayerBackdrop(
@@ -262,13 +217,20 @@ LayerBackdrop::LayerBackdrop(
 }
 
 void LayerBackdrop::start() {
-	const auto night = IsNightMode();
-	auto image = _capture();
+	start(_capture());
+}
+
+void LayerBackdrop::start(QImage image) {
 	if (image.isNull()) {
 		return;
 	}
+	_fade.stop();
+	_timer.cancel();
+	_back = QImage();
+	_next = QImage();
+	const auto night = IsNightMode();
 	_night = night;
-	_readyGeneration = _generation;
+	_readyGeneration = ++_generation;
 	_image = ProcessBackground(
 		std::move(image),
 		_overlayAlpha(night),

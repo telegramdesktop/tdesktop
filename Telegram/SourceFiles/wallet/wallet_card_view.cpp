@@ -65,15 +65,53 @@ struct LabelInk {
 	float64 plate = 0.;
 };
 
+struct OriginObservation {
+	QPointer<QWidget> origin;
+	QPointer<QWidget> parent;
+	QPointer<QWidget> window;
+	QPointer<QWidget> underlying;
+	QRect geometry;
+	QRegion clipped;
+	QSize size;
+	int ratio = 1;
+	uint64 appearance = 0;
+	bool present = false;
+	bool sameWindow = false;
+	bool visible = false;
+	bool actionable = false;
+	bool special = false;
+
+	friend bool operator==(
+		const OriginObservation &,
+		const OriginObservation &) = default;
+};
+
 struct Scene {
 	QImage sharp;
 	QImage empty;
 	std::optional<QRect> slot;
+	QRect rest;
+	OriginObservation origin;
 };
 
 struct Parts {
 	QImage card;
 	QImage button;
+};
+
+struct Placement {
+	QRect button;
+	QRect label;
+	int cardWidth = 0;
+};
+
+struct Foreground {
+	Parts parts;
+	CardViewPlaces places;
+	Placement placement;
+	QString text;
+	QColor ink;
+	QColor plate;
 };
 
 class CardView final : public Ui::LayerWidget {
@@ -104,7 +142,10 @@ private:
 		not_null<Ui::LayerStackWidget*> stack) const;
 	[[nodiscard]] Ui::LayerWidget *underlyingLayer() const;
 	[[nodiscard]] QImage captureScene();
-	[[nodiscard]] QImage captureSharp();
+	[[nodiscard]] QImage captureSharp(Scene &scene, uint64 &revision);
+	[[nodiscard]] OriginObservation observeOrigin() const;
+	[[nodiscard]] bool exposed() const;
+	[[nodiscard]] Foreground foreground() const;
 	[[nodiscard]] CardViewPlaces places() const;
 	[[nodiscard]] Parts grabParts() const;
 	[[nodiscard]] bool holding() const;
@@ -125,19 +166,31 @@ private:
 	void refreshButton();
 	void refreshButtonColors();
 	void refreshLabelInk();
-	void acceptScene(QImage sharp);
-	void acquireSlot();
-	bool checkOrigin();
+	void acceptScene(Scene scene, uint64 revision);
+	void acquireSlot(bool force = false);
+	void checkOrigin();
 	void loseSlot();
-	void paintTransition(QPainter &p, const CardViewFrame &frame);
+	void paintTransition(
+		QPainter &p,
+		const CardViewFrame &frame,
+		const Foreground &shown);
 	void paintSlot(QPainter &p, float64 lift);
-	void paintLabel(QPainter &p, float64 opacity);
-	void paintButton(QPainter &p, float64 progress) const;
-	void paintCard(QPainter &p, const CardViewFrame &frame) const;
+	void applyLabel(const Foreground &shown);
+	void paintLabel(QPainter &p, float64 opacity, const Foreground &shown);
+	void paintButton(
+		QPainter &p,
+		float64 progress,
+		const Foreground &shown) const;
+	void paintCard(
+		QPainter &p,
+		const CardViewFrame &frame,
+		const QImage &image) const;
 	void startShowing();
 	void finishShowing();
 	void finishAtOnce();
 	void releaseHeld();
+	void finishGuard();
+	void queueDeferred();
 	void refreshParts();
 	void queueParts();
 	void queueRefresh();
@@ -160,10 +213,24 @@ private:
 	Parts _parts;
 	CardViewMotion _motion;
 	CardViewFrame _painted;
+	Foreground _displayed;
+	Placement _rebasePlacement;
+	QString _labelText;
+	QString _labelAppliedText;
+	QColor _labelAppliedInk;
 	LabelInk _labelInk;
 	crl::time _started = 0;
 	crl::time _elapsed = 0;
 	Phase _phase = Phase::Preparing;
+	uint64 _sceneRevision = 1;
+	uint64 _acceptedRevision = 0;
+	bool _busy = false;
+	bool _closeQueued = false;
+	bool _finishQueued = false;
+	bool _removeQueued = false;
+	bool _deferredQueued = false;
+	bool _slotLost = false;
+	Fn<void()> _removeDone;
 	bool _captureDeferred = false;
 	bool _refreshQueued = false;
 	bool _partsQueued = false;
@@ -309,10 +376,10 @@ void PaintRestingStickers(
 	return std::min(plate.height() / 2., float64(x + y + std::min(x, y)));
 }
 
-void PaintLabelPlate(QPainter &p, QRect plate, float64 level) {
+void PaintLabelPlate(QPainter &p, QRect plate, const QColor &color) {
 	auto hq = PainterHighQualityEnabler(p);
 	p.setPen(Qt::NoPen);
-	p.setBrush(PlateColor(level));
+	p.setBrush(color);
 	const auto radius = PlateRadius(plate);
 	p.drawRoundedRect(plate, radius, radius);
 }
@@ -456,20 +523,23 @@ CardView::~CardView() {
 
 void CardView::parentResized() {
 	resizeToWidth(parentWidget()->width());
-	const auto started = _backdrop.started();
-	if (!started) {
-		prepare();
-	}
 	layoutContent();
-	if (started) {
-		queueRefresh();
+	queueRefresh();
+	if (!_busy && (!_backdrop.started() || _phase == Phase::Preparing)) {
+		prepare();
 	}
 }
 
 void CardView::showFinished() {
 	if (base::take(_captureDeferred)) {
 		_backdrop.invalidate();
+		queueRefresh();
 	}
+	if (_busy) {
+		_refreshQueued = true;
+		return;
+	}
+	prepare();
 	if (_phase == Phase::Preparing && _backdrop.started()) {
 		startShowing();
 	}
@@ -489,29 +559,128 @@ int CardView::resizeGetHeight(int newWidth) {
 }
 
 void CardView::paintEvent(QPaintEvent *e) {
-	auto p = QPainter(this);
+	if (_busy || _removing) {
+		return;
+	}
+	const auto alive = QPointer<CardView>(this);
+	if (_phase == Phase::Shown && !_backdrop.started()) {
+		prepare();
+	}
+	if (_phase != Phase::Shown) {
+		acquireSlot();
+		if (!alive || _removing) {
+			return;
+		}
+		if (_closeQueued && !_started && _phase != Phase::Shown) {
+			_removeQueued = true;
+			_closeQueued = false;
+		}
+		if (_finishQueued && _phase == Phase::Closing) {
+			_removeQueued = true;
+		}
+		if (_removeQueued) {
+			auto p = QPainter(this);
+			p.drawImage(rect(), _scene.sharp);
+			queueDeferred();
+			return;
+		} else if (base::take(_finishQueued)) {
+			finishShowing();
+		} else if (_phase == Phase::Preparing && _backdrop.started()) {
+			startShowing();
+		}
+	}
+	if (_phase == Phase::Preparing || !exposed()) {
+		return;
+	}
+	_busy = true;
+	const auto weak = QPointer<CardView>(this);
+	const auto guard = gsl::finally([=] {
+		if (weak) {
+			weak->finishGuard();
+		}
+	});
 	if (_phase == Phase::Shown) {
+		auto p = QPainter(this);
 		_backdrop.paint(p);
 		return;
-	} else if (_phase == Phase::Preparing
-		|| (_phase == Phase::Opening && !_started && !checkOrigin())) {
-		if (!_scene.sharp.isNull()) {
+	}
+	const auto first = !_started;
+	if (first) {
+		_elapsed = 0;
+	}
+	if (!holding() && !_removeQueued && !_finishQueued) {
+		// Hidden card children, like the look's emoji, repaint unannounced.
+		auto card = Ui::GrabWidgetToImage(_card);
+		if (!weak) {
+			return;
+		}
+		_parts.card = std::move(card);
+	}
+	if (_closeQueued && first) {
+		_removeQueued = true;
+		_closeQueued = false;
+	}
+	if (_removeQueued || _finishQueued) {
+		auto p = QPainter(this);
+		if (_removeQueued || _phase == Phase::Closing) {
 			p.drawImage(rect(), _scene.sharp);
+		} else {
+			if (_label) {
+				_label->setOpacity(1.);
+			}
+			_backdrop.paint(p);
+			Ui::RenderWidget(p, _content, _content->pos());
 		}
 		return;
-	} else if (!_started) {
+	}
+	const auto frame = _closeQueued
+		? _painted
+		: _motion.frame(_elapsed, places());
+	const auto live = foreground();
+	const auto hold = holding() || _closeQueued;
+	auto shown = hold ? _displayed : live;
+	if (!hold && frame.rebase < 1.) {
+		const auto mix = [&](QRect from, QRect to) {
+			return QRect(
+				from.topLeft() + (to.topLeft() - from.topLeft()) * frame.rebase,
+				to.size());
+		};
+		shown.placement.button = mix(
+			_rebasePlacement.button,
+			shown.placement.button);
+		shown.placement.label = mix(
+			_rebasePlacement.label,
+			shown.placement.label);
+		shown.placement.cardWidth = anim::interpolate(
+			_rebasePlacement.cardWidth,
+			shown.placement.cardWidth,
+			frame.rebase);
+	}
+	applyLabel(shown);
+	{
+		auto p = QPainter(this);
+		paintTransition(p, frame, shown);
+	}
+	if (!weak) {
+		return;
+	}
+	_painted = frame;
+	_displayed = std::move(shown);
+	if (first) {
 		// WHY: the clock starts at the first painted frame, so that frame
 		// is the start pose however long the capture and its paint took.
 		_started = crl::now();
-		_elapsed = 0;
 		_animation.start();
-		if (_phase == Phase::Closing) {
-			releaseHeld();
+	}
+	applyLabel(live);
+	if (frame.finished) {
+		_animation.stop();
+		if (_phase == Phase::Opening) {
+			_finishQueued = true;
+		} else {
+			_removeQueued = true;
 		}
 	}
-	checkOrigin();
-	_painted = _motion.frame(_elapsed, places());
-	paintTransition(p, _painted);
 }
 
 void CardView::keyPressEvent(QKeyEvent *e) {
@@ -539,6 +708,7 @@ void CardView::mousePressEvent(QMouseEvent *e) {
 
 void CardView::closeHook() {
 	_removing = true;
+	_animation.stop();
 }
 
 Ui::LayerStackWidget *CardView::stack() const {
@@ -563,7 +733,10 @@ bool CardView::onlyLayer(not_null<Ui::LayerStackWidget*> stack) const {
 Ui::LayerWidget *CardView::underlyingLayer() const {
 	const auto origin = _origin.data();
 	if (origin && (origin->window() == window())) {
-		return EnclosingLayer(origin);
+		const auto layer = EnclosingLayer(origin);
+		if (layer != this) {
+			return layer;
+		}
 	}
 	const auto stack = this->stack();
 	if (!stack) {
@@ -579,35 +752,102 @@ Ui::LayerWidget *CardView::underlyingLayer() const {
 }
 
 QImage CardView::captureScene() {
-	auto result = captureSharp();
-	if (result.isNull() || _phase == Phase::Shown) {
+	const auto weak = QPointer<CardView>(this);
+	if (_busy || !exposed()) {
+		_captureDeferred = true;
+		_refreshQueued = true;
+		return QImage();
+	}
+	acquireSlot(true);
+	return (weak && exposed()) ? _scene.sharp : QImage();
+}
+
+QImage CardView::captureSharp(Scene &scene, uint64 &revision) {
+	const auto weak = QPointer<CardView>(this);
+	return Ui::CaptureUnderLayer(this, underlyingLayer(), [&] {
+		const auto origin = _origin.data();
+		if (UsableSlot(this, origin)) {
+			scene.empty = origin->grabEmpty();
+		}
+		if (!weak) {
+			return;
+		}
+		scene.origin = observeOrigin();
+		scene.slot = UsableSlot(this, _origin.data());
+		scene.rest = _card->geometry().translated(_content->pos());
+		revision = _sceneRevision;
+		_refreshQueued = false;
+	});
+}
+
+OriginObservation CardView::observeOrigin() const {
+	const auto origin = _origin.data();
+	const auto underlying = underlyingLayer();
+	auto result = OriginObservation{
+		.origin = origin,
+		.parent = origin ? origin->parentWidget() : nullptr,
+		.window = origin ? origin->window() : nullptr,
+		.underlying = underlying,
+		.size = size(),
+		.ratio = style::DevicePixelRatio(),
+		.appearance = origin ? origin->appearanceRevision() : 0,
+		.present = (origin != nullptr),
+		.sameWindow = origin && (origin->window() == window()),
+		.visible = origin && origin->isVisible(),
+		.actionable = origin && origin->actionable(),
+		.special = underlying
+			&& underlying->parentWidget() == parentWidget()
+			&& !underlying->isHidden(),
+	};
+	if (!result.sameWindow) {
 		return result;
-	} else if (holding()) {
-		queueRefresh();
-	} else {
-		acceptScene(result);
+	}
+	result.geometry = QRect(
+		mapFrom(window(), origin->mapTo(window(), QPoint())),
+		origin->size());
+	auto region = QRegion(origin->rect());
+	for (auto widget = static_cast<QWidget*>(origin);;) {
+		region &= widget->rect();
+		if (!widget->mask().isEmpty()) {
+			region &= widget->mask();
+		}
+		if (widget->isWindow()) {
+			result.clipped = region.translated(mapFrom(widget, QPoint()));
+			break;
+		}
+		region.translate(widget->pos());
+		widget = widget->parentWidget();
 	}
 	return result;
 }
 
-QImage CardView::captureSharp() {
-	if (covered()) {
-		_captureDeferred = true;
-		return QImage();
-	}
-	auto result = Ui::CaptureUnderLayer(this, underlyingLayer());
-	if (result.isNull() && _backdrop.started()) {
-		crl::on_main(this, [=] {
-			_backdrop.invalidate();
-		});
-	}
-	return result;
+bool CardView::exposed() const {
+	return !covered()
+		&& !size().isEmpty()
+		&& window()->isVisible()
+		&& !window()->isMinimized();
+}
+
+Foreground CardView::foreground() const {
+	const auto origin = _content->pos();
+	return {
+		.parts = _parts,
+		.places = places(),
+		.placement = {
+			.button = _button->geometry().translated(origin),
+			.label = _label ? _label->geometry().translated(origin) : QRect(),
+			.cardWidth = _card->width(),
+		},
+		.text = _labelText,
+		.ink = _labelInk.color,
+		.plate = PlateColor(_labelInk.plate),
+	};
 }
 
 CardViewPlaces CardView::places() const {
 	return {
-		.rest = _card->geometry().translated(_content->pos()),
-		.slot = _scene.slot,
+		.rest = _scene.rest,
+		.slot = _slotLost ? std::nullopt : _scene.slot,
 	};
 }
 
@@ -658,7 +898,7 @@ QImage CardView::sampleLabelBackground(float64 plate) const {
 	p.translate(-area.topLeft());
 	_backdrop.paint(p);
 	if (plate > 0.) {
-		PaintLabelPlate(p, labelPlate().translated(origin), plate);
+		PaintLabelPlate(p, labelPlate().translated(origin), PlateColor(plate));
 	}
 	p.end();
 	return result;
@@ -683,7 +923,7 @@ void CardView::setupContent() {
 	) | rpl::on_next([=] {
 		if (_label && _labelInk.plate > 0.) {
 			auto p = QPainter(_content);
-			PaintLabelPlate(p, labelPlate(), _labelInk.plate);
+			PaintLabelPlate(p, labelPlate(), PlateColor(_labelInk.plate));
 		}
 	}, _content->lifetime());
 
@@ -804,17 +1044,18 @@ void CardView::setupLabel() {
 
 	tr::lng_wallet_profile_balance_public(
 	) | rpl::on_next([=](const QString &text) {
+		_labelText = text;
+		_labelAppliedText = text;
 		_label->setText(text);
 		contentResized();
 	}, _label->lifetime());
 }
 
 void CardView::prepare() {
-	_backdrop.start();
-	if (!_backdrop.started()) {
-		crl::on_main(this, [=] {
-			remove();
-		});
+	if (!_backdrop.started()
+		|| _phase == Phase::Preparing
+		|| (_phase == Phase::Opening && !_started)) {
+		acquireSlot();
 	}
 }
 
@@ -831,6 +1072,7 @@ void CardView::placeContent() {
 	const auto cardWidth = _card->naturalWidth();
 	const auto cardHeight = _card->height();
 	const auto buttonShown = !_button->isHidden();
+	const auto buttonSize = _button->size();
 	if (buttonShown) {
 		const auto limit = outer.width() - 2 * skip;
 		_button->setFullWidth(0);
@@ -875,6 +1117,9 @@ void CardView::placeContent() {
 	}
 	_content->update();
 	_placing = false;
+	if (_button->size() != buttonSize) {
+		queueParts();
+	}
 }
 
 void CardView::contentResized() {
@@ -917,6 +1162,13 @@ void CardView::refreshLabelInk() {
 	if (!_label || !_backdrop.started()) {
 		return;
 	}
+	const auto busy = std::exchange(_busy, true);
+	const auto weak = QPointer<CardView>(this);
+	const auto guard = gsl::finally([=] {
+		if (!busy && weak) {
+			weak->finishGuard();
+		}
+	});
 	const auto was = _labelInk.plate;
 	auto ink = computeLabelInk();
 	if ((ink.plate > 0.) != (was > 0.)) {
@@ -925,68 +1177,96 @@ void CardView::refreshLabelInk() {
 		ink = computeLabelInk();
 	}
 	_labelInk = ink;
+	_labelAppliedInk = ink.color;
 	_label->setTextColorOverride(ink.color);
 	if (ink.plate != was) {
 		_content->update();
 	}
 }
 
-void CardView::acceptScene(QImage sharp) {
-	const auto origin = _origin.data();
-	const auto slot = UsableSlot(this, origin);
-	_scene = {
-		.sharp = std::move(sharp),
-		.empty = slot ? origin->grabEmpty() : QImage(),
-		.slot = slot,
-	};
-	if (_phase == Phase::Opening && !_started) {
-		_motion.open(places());
-	} else if (!ValidCardViewSlot(places())) {
-		loseSlot();
+void CardView::acceptScene(Scene scene, uint64 revision) {
+	const auto old = places();
+	_scene = std::move(scene);
+	_acceptedRevision = revision;
+	if (!_backdrop.started()
+		|| _phase == Phase::Preparing
+		|| (_phase == Phase::Opening && !_started)) {
+		_backdrop.start(_scene.sharp);
+		refreshLabelInk();
+		_scene.rest = _card->geometry().translated(_content->pos());
+		if (_phase != Phase::Shown) {
+			_motion.open(places());
+		}
+	} else if (_phase != Phase::Shown) {
+		const auto target = places();
+		if (_motion.usesSlot() && !ValidCardViewSlot(target)) {
+			loseSlot();
+		} else if ((old.slot != target.slot || old.rest != target.rest)
+			&& _motion.retarget(_painted, _elapsed, target)) {
+			_rebasePlacement = _displayed.placement;
+		}
 	}
 	update();
 }
 
-void CardView::acquireSlot() {
-	if (UsableSlot(this, _origin.data()) == _scene.slot) {
+void CardView::acquireSlot(bool force) {
+	if (_busy) {
+		_refreshQueued = true;
+		return;
+	} else if (!exposed()) {
+		_captureDeferred = true;
 		return;
 	}
-	auto sharp = captureSharp();
-	if (sharp.isNull()) {
-		_scene.slot = std::nullopt;
-	} else {
-		acceptScene(std::move(sharp));
+	if (!force) {
+		checkOrigin();
 	}
+	if (!force
+		&& _sceneRevision == _acceptedRevision
+		&& !_scene.sharp.isNull()) {
+		_refreshQueued = false;
+		return;
+	}
+	_busy = true;
+	const auto weak = QPointer<CardView>(this);
+	const auto guard = gsl::finally([=] {
+		if (weak) {
+			weak->finishGuard();
+		}
+	});
+	_captureDeferred = false;
+	auto scene = Scene();
+	auto revision = _sceneRevision;
+	scene.sharp = captureSharp(scene, revision);
+	if (!weak || _removing) {
+		return;
+	}
+	if (!exposed()) {
+		_captureDeferred = true;
+		return;
+	}
+	Assert(!scene.sharp.isNull());
+	acceptScene(std::move(scene), revision);
 }
 
-bool CardView::checkOrigin() {
-	const auto live = UsableSlot(this, _origin.data());
-	if (live == _scene.slot) {
-		return true;
-	} else if (!live) {
-		loseSlot();
-		_scene.slot = std::nullopt;
-		if (_phase == Phase::Opening && !_started) {
-			_motion.open(places());
-		}
-	}
-	if (covered()) {
-		_captureDeferred = true;
-	} else {
+void CardView::checkOrigin() {
+	if (observeOrigin() != _scene.origin
+		|| _card->geometry().translated(_content->pos()) != _scene.rest) {
 		queueRefresh();
 	}
-	return !_scene.slot;
 }
 
 void CardView::loseSlot() {
-	if (_started && _motion.usesSlot()) {
-		_motion.loseSlot(_painted, _elapsed);
+	if (_motion.usesSlot()) {
+		_slotLost = true;
+		_motion.loseSlot(_painted, _elapsed, places());
+		_rebasePlacement = _displayed.placement;
 	}
 }
 
 void CardView::paintTransition(
 		QPainter &p,
-		const CardViewFrame &frame) {
+		const CardViewFrame &frame,
+		const Foreground &shown) {
 	if (!_scene.sharp.isNull()) {
 		p.drawImage(rect(), _scene.sharp);
 	}
@@ -998,10 +1278,10 @@ void CardView::paintTransition(
 		p.setOpacity(frame.blur);
 		_backdrop.paint(p);
 	}
-	paintLabel(p, frame.label);
+	paintLabel(p, frame.label, shown);
 	p.setOpacity(1.);
-	paintButton(p, frame.button);
-	paintCard(p, frame);
+	paintButton(p, frame.button, shown);
+	paintCard(p, frame, shown.parts.card);
 }
 
 void CardView::paintSlot(QPainter &p, float64 lift) {
@@ -1022,43 +1302,74 @@ void CardView::paintSlot(QPainter &p, float64 lift) {
 	}
 }
 
-void CardView::paintLabel(QPainter &p, float64 opacity) {
+void CardView::applyLabel(const Foreground &shown) {
+	if (!_label) {
+		return;
+	}
+	if (_labelAppliedText != shown.text) {
+		_labelAppliedText = shown.text;
+		_label->setText(shown.text);
+	}
+	const auto geometry = shown.placement.label.translated(-_content->pos());
+	if (_label->width() != geometry.width()) {
+		_label->resizeToWidth(geometry.width());
+	}
+	if (_label->geometry() != geometry) {
+		_label->setGeometry(geometry);
+	}
+	if (_labelAppliedInk != shown.ink) {
+		_labelAppliedInk = shown.ink;
+		_label->setTextColorOverride(shown.ink);
+	}
+}
+
+void CardView::paintLabel(
+		QPainter &p,
+		float64 opacity,
+		const Foreground &shown) {
 	if (!_label || opacity <= 0.) {
 		return;
 	}
-	const auto origin = _content->pos();
-	if (_labelInk.plate > 0.) {
+	if (shown.plate.alpha() > 0) {
 		p.setOpacity(opacity);
-		PaintLabelPlate(p, labelPlate().translated(origin), _labelInk.plate);
+		PaintLabelPlate(
+			p,
+			shown.placement.label.marginsAdded(st::walletCardViewLabelPlatePadding),
+			shown.plate);
 	}
 	p.setOpacity(1.);
 	_label->setOpacity(opacity);
-	Ui::RenderWidget(p, _label, _label->pos() + origin);
+	Ui::RenderWidget(p, _label, shown.placement.label.topLeft());
 }
 
-void CardView::paintButton(QPainter &p, float64 progress) const {
-	const auto shown = FlightEaseOut(progress);
-	if (_parts.button.isNull() || shown <= 0.) {
+void CardView::paintButton(
+		QPainter &p,
+		float64 progress,
+		const Foreground &shown) const {
+	const auto opacity = FlightEaseOut(progress);
+	if (shown.parts.button.isNull() || opacity <= 0.) {
 		return;
 	}
-	const auto rest = _button->geometry().translated(_content->pos());
+	const auto rest = shown.placement.button;
 	p.save();
-	if (shown < 1.) {
+	if (opacity < 1.) {
 		const auto center = QRectF(rest).center();
-		const auto rise = kButtonRise * _card->width() * (1. - shown);
-		const auto scale = kButtonScale + (1. - kButtonScale) * shown;
+		const auto rise = kButtonRise * shown.placement.cardWidth * (1. - opacity);
+		const auto scale = kButtonScale + (1. - kButtonScale) * opacity;
 		p.setRenderHint(QPainter::SmoothPixmapTransform);
-		p.setOpacity(shown);
+		p.setOpacity(opacity);
 		p.translate(center.x(), center.y() + rise);
 		p.scale(scale, scale);
 		p.translate(-center.x(), -center.y());
 	}
-	p.drawImage(rest.topLeft(), _parts.button);
+	p.drawImage(rest.topLeft(), shown.parts.button);
 	p.restore();
 }
 
-void CardView::paintCard(QPainter &p, const CardViewFrame &frame) const {
-	const auto &image = _parts.card;
+void CardView::paintCard(
+		QPainter &p,
+		const CardViewFrame &frame,
+		const QImage &image) const {
 	if (image.isNull() || frame.card.opacity <= 0.) {
 		return;
 	}
@@ -1098,45 +1409,55 @@ void CardView::paintCard(QPainter &p, const CardViewFrame &frame) const {
 bool CardView::tick(crl::time now) {
 	if (_phase != Phase::Opening && _phase != Phase::Closing) {
 		return false;
+	} else if (_busy) {
+		return true;
 	}
 	_elapsed = std::max(now - _started, crl::time());
 	checkOrigin();
 	update();
-	const auto frame = _motion.frame(_elapsed, places());
-	if (anim::Disabled() || frame.finished) {
-		if (_phase == Phase::Opening) {
-			finishShowing();
-		} else {
-			Ui::PostponeCall(this, [=] {
-				remove();
-			});
+	if (anim::Disabled()) {
+		finishAtOnce();
+		return false;
+	} else if (_motion.frame(_elapsed, places()).finished) {
+		if (!exposed()) {
+			if (_phase == Phase::Opening) {
+				finishShowing();
+			} else {
+				_removeQueued = true;
+				queueDeferred();
+			}
 		}
 		return false;
-	} else if (frame.card.opacity > 0.) {
-		// Hidden card children, like the look's emoji, repaint unannounced.
-		_parts.card = Ui::GrabWidgetToImage(_card);
 	}
 	return true;
 }
 
 void CardView::startShowing() {
-	if (anim::Disabled()) {
+	if (_busy) {
+		_refreshQueued = true;
+		return;
+	} else if (anim::Disabled()) {
 		finishShowing();
 		return;
 	}
-	acquireSlot();
-	_parts = grabParts();
-	_motion.open(places());
 	_phase = Phase::Opening;
+	refreshParts();
 	update();
 }
 
 void CardView::finishShowing() {
+	if (_busy) {
+		_finishQueued = true;
+		return;
+	}
 	_phase = Phase::Shown;
 	_started = 0;
 	_animation.stop();
 	_scene = Scene();
 	_parts = Parts();
+	_displayed = Foreground();
+	_refreshQueued = false;
+	_partsQueued = false;
 	if (_label) {
 		_label->setOpacity(1.);
 	}
@@ -1145,66 +1466,124 @@ void CardView::finishShowing() {
 }
 
 void CardView::finishAtOnce() {
+	if (_busy) {
+		_finishQueued = true;
+		return;
+	}
 	if (_phase == Phase::Closing) {
 		_animation.stop();
-		Ui::PostponeCall(this, [=] {
-			remove();
-		});
-	} else if (_phase == Phase::Opening
-		|| (_phase == Phase::Preparing && _backdrop.started())) {
+		_removeQueued = true;
+		queueDeferred();
+	} else if (_phase == Phase::Opening || _phase == Phase::Preparing) {
 		finishShowing();
 	}
 }
 
+void CardView::finishGuard() {
+	_busy = false;
+	queueDeferred();
+}
+
+void CardView::queueDeferred() {
+	if (_busy || _removing || _deferredQueued) {
+		return;
+	}
+	const auto work = _removeQueued
+		|| _finishQueued
+		|| _closeQueued
+		|| (_refreshQueued && exposed())
+		|| (_partsQueued && !holding());
+	if (!work) {
+		return;
+	}
+	_deferredQueued = true;
+	Ui::PostponeCall(this, [=] {
+		_deferredQueued = false;
+		if (_busy || _removing) {
+			return;
+		} else if (base::take(_removeQueued)) {
+			remove(base::take(_removeDone));
+			return;
+		} else if (base::take(_finishQueued)) {
+			if (_phase == Phase::Closing) {
+				remove();
+				return;
+			}
+			finishShowing();
+		}
+		if (base::take(_closeQueued)) {
+			closeView();
+			return;
+		}
+		if (_captureDeferred && exposed()) {
+			_captureDeferred = false;
+			_backdrop.invalidate();
+		}
+		releaseHeld();
+	});
+}
+
 void CardView::releaseHeld() {
-	if (base::take(_refreshQueued)) {
-		_partsQueued = false;
-		queueRefresh();
-	} else if (base::take(_partsQueued)) {
-		queueParts();
+	if (_refreshQueued && exposed()) {
+		refreshTransition();
+	}
+	if (!holding() && base::take(_partsQueued)) {
+		refreshParts();
 	}
 }
 
 void CardView::refreshParts() {
-	if (!_parts.card.isNull()) {
-		_parts = grabParts();
-		update();
+	if (_busy || holding()) {
+		_partsQueued = true;
+		return;
+	} else if (_phase == Phase::Shown || _removing) {
+		return;
 	}
+	_busy = true;
+	const auto weak = QPointer<CardView>(this);
+	const auto guard = gsl::finally([=] {
+		if (weak) {
+			weak->finishGuard();
+		}
+	});
+	auto parts = grabParts();
+	if (!weak) {
+		return;
+	}
+	_parts = std::move(parts);
+	update();
 }
 
 void CardView::queueParts() {
-	if (_parts.card.isNull() || _partsQueued) {
+	if (_phase == Phase::Shown || _removing) {
 		return;
 	}
 	_partsQueued = true;
-	crl::on_main(this, [=] {
-		if (!holding() && base::take(_partsQueued)) {
-			refreshParts();
-		}
-	});
+	queueDeferred();
 }
 
 void CardView::queueRefresh() {
-	if (_phase == Phase::Shown || _refreshQueued) {
+	++_sceneRevision;
+	if (_phase == Phase::Shown || _removing) {
 		return;
 	}
+	if (!_refreshQueued
+		&& (_started || _phase == Phase::Closing)) {
+		_backdrop.invalidate();
+	}
 	_refreshQueued = true;
-	crl::on_main(this, [=] {
-		if (!holding() && base::take(_refreshQueued)) {
-			refreshTransition();
-		}
-	});
+	queueDeferred();
 }
 
 void CardView::refreshTransition() {
 	if (_phase == Phase::Shown || _removing) {
+		_refreshQueued = false;
 		return;
 	}
-	auto sharp = captureSharp();
-	if (!sharp.isNull()) {
-		acceptScene(std::move(sharp));
+	acquireSlot();
+	if (_phase == Phase::Preparing && _backdrop.started()) {
+		startShowing();
 	}
-	refreshParts();
 }
 
 void CardView::activate() {
@@ -1238,38 +1617,79 @@ void CardView::activate() {
 void CardView::closeView() {
 	if (_phase == Phase::Closing || _removing) {
 		return;
+	} else if (_busy) {
+		_closeQueued = true;
+		return;
+	}
+	if (base::take(_finishQueued)) {
+		finishShowing();
 	}
 	const auto shown = (_phase == Phase::Shown);
 	const auto painted = (_phase == Phase::Opening) && (_started != 0);
-	_phase = Phase::Closing;
-	_started = 0;
-	_animation.stop();
-	if (covered() || anim::Disabled() || (!shown && !painted)) {
+	if (!exposed() || anim::Disabled() || (!shown && !painted)) {
 		remove();
 		return;
 	}
-	auto from = _painted;
-	auto target = places();
+	const auto alive = QPointer<CardView>(this);
 	if (shown) {
-		auto sharp = Ui::CaptureUnderLayer(this, underlyingLayer());
-		if (sharp.isNull()) {
-			remove();
+		checkOrigin();
+		acquireSlot(true);
+		if (!alive || _removeQueued) {
 			return;
 		}
-		acceptScene(std::move(sharp));
-		_parts = grabParts();
+		_busy = true;
+		const auto weak = QPointer<CardView>(this);
+		const auto guard = gsl::finally([=] {
+			if (weak) {
+				weak->finishGuard();
+			}
+		});
+		auto parts = grabParts();
+		if (!weak) {
+			return;
+		}
+		_parts = std::move(parts);
 		_content->hide();
-		target = places();
-		from = CardViewRestFrame(target);
-		_painted = from;
-	} else if (!UsableSlot(this, _origin.data())) {
-		target.slot = std::nullopt;
+		_scene.rest = _card->geometry().translated(_content->pos());
+		_painted = CardViewRestFrame(places());
+		_displayed = foreground();
 	}
-	_motion.close(from, target);
+	const auto from = _painted;
+	auto old = _displayed.places;
+	if (_slotLost) {
+		old.slot = std::nullopt;
+	}
+	_motion.close(from, old);
+	_rebasePlacement = _displayed.placement;
+	_phase = Phase::Closing;
+	_started = 0;
+	_elapsed = 0;
+	_animation.stop();
+	const auto target = places();
+	if (_motion.usesSlot() && !ValidCardViewSlot(target)) {
+		loseSlot();
+	} else if (old.slot != target.slot || old.rest != target.rest) {
+		if (_motion.retarget(from, 0, target)) {
+			_rebasePlacement = _displayed.placement;
+		}
+	}
+	acquireSlot();
+	if (!alive) {
+		return;
+	}
+	if (anim::Disabled()) {
+		finishAtOnce();
+	}
 	update();
 }
 
 void CardView::remove(Fn<void()> done) {
+	if (_busy) {
+		_removeQueued = true;
+		_removeDone = std::move(done);
+		_animation.stop();
+		return;
+	}
 	const auto stack = this->stack();
 	if (!stack || _removing) {
 		return;

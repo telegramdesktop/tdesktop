@@ -18,7 +18,8 @@ class RpWidget;
 
 [[nodiscard]] QImage CaptureUnderLayer(
 	not_null<LayerWidget*> layer,
-	LayerWidget *underlying = nullptr);
+	LayerWidget *underlying = nullptr,
+	Fn<void()> beforeRender = nullptr);
 
 class LayerBackdrop final : public base::has_weak_ptr {
 public:
@@ -28,6 +29,7 @@ public:
 		Fn<int(bool night)> overlayAlpha);
 
 	void start();
+	void start(QImage image);
 	[[nodiscard]] bool started() const;
 	void invalidate();
 

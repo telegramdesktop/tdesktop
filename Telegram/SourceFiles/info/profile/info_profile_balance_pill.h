@@ -23,6 +23,7 @@ public:
 
 	void place(int outerWidth, int statusTop, float64 progress);
 	[[nodiscard]] bool actionable() const;
+	[[nodiscard]] uint64 appearanceRevision() const;
 	[[nodiscard]] QImage grabEmpty();
 	void paintContentAlone(QPainter &p) const;
 
@@ -50,6 +51,7 @@ private:
 	int _arrowTop = 0;
 	int _outerWidth = 0;
 	int _top = 0;
+	uint64 _appearanceRevision = 0;
 	bool _contentHidden = false;
 
 };

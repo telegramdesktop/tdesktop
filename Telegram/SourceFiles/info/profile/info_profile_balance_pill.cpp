@@ -60,8 +60,10 @@ BalancePill::BalancePill(
 	std::move(
 		edgeColor
 	) | rpl::on_next([=](std::optional<QColor> color) {
-		_edgeColor = color;
-		refreshIcon();
+		if (_edgeColor != color || _icon.isNull()) {
+			_edgeColor = color;
+			refreshIcon();
+		}
 	}, lifetime());
 
 	style::PaletteChanged(
@@ -90,6 +92,7 @@ void BalancePill::place(int outerWidth, int statusTop, float64 progress) {
 		1.);
 	if (_opacity != opacity) {
 		_opacity = opacity;
+		++_appearanceRevision;
 		update();
 	}
 	const auto transparent = (_opacity <= 0.);
@@ -110,6 +113,10 @@ void BalancePill::place(int outerWidth, int statusTop, float64 progress) {
 
 bool BalancePill::actionable() const {
 	return !isHidden() && (_opacity > 0.);
+}
+
+uint64 BalancePill::appearanceRevision() const {
+	return _appearanceRevision;
 }
 
 QImage BalancePill::grabEmpty() {
@@ -133,14 +140,24 @@ void BalancePill::paintContentAlone(QPainter &p) const {
 
 void BalancePill::setContent(const QString &label, int64 balance) {
 	if (balance <= 0) {
+		if (!isHidden()) {
+			++_appearanceRevision;
+		}
 		hide();
 		return;
+	}
+	const auto parts = BalanceParts(balance);
+	if (isHidden()
+		|| _label != label
+		|| _amount.parts().whole != parts.whole
+		|| _amount.parts().fraction != parts.fraction) {
+		++_appearanceRevision;
 	}
 	_label = label;
 	_amount.setContent({
 		.big = st::infoProfileBalancePillAmountFont,
 		.small = st::infoProfileBalancePillFractionFont,
-	}, BalanceParts(balance));
+	}, parts);
 	refreshGeometry();
 	accessibilityNameChanged();
 	update();
@@ -148,6 +165,7 @@ void BalancePill::setContent(const QString &label, int64 balance) {
 }
 
 void BalancePill::refreshIcon() {
+	++_appearanceRevision;
 	const auto tint = _edgeColor
 		? Ui::BlendColors(
 			*_edgeColor,

@@ -37,6 +37,7 @@ struct CardViewFrame {
 	float64 blur = 0.;
 	float64 label = 0.;
 	float64 button = 0.;
+	float64 rebase = 1.;
 	bool patch = false;
 	bool finished = false;
 };
@@ -51,7 +52,14 @@ class CardViewMotion final {
 public:
 	void open(const CardViewPlaces &places);
 	void close(const CardViewFrame &from, const CardViewPlaces &places);
-	void loseSlot(const CardViewFrame &painted, crl::time elapsed);
+	void loseSlot(
+		const CardViewFrame &painted,
+		crl::time elapsed,
+		const CardViewPlaces &places);
+	[[nodiscard]] bool retarget(
+		const CardViewFrame &painted,
+		crl::time elapsed,
+		const CardViewPlaces &places);
 
 	[[nodiscard]] bool usesSlot() const;
 	[[nodiscard]] CardViewFrame frame(
@@ -66,6 +74,14 @@ private:
 		crl::time at = 0;
 	};
 
+	struct Rebase {
+		CardViewFrame from;
+		CardViewPlaces places;
+		float64 at = 0.;
+		float64 end = 0.;
+	};
+
+	[[nodiscard]] float64 cardEnd() const;
 	[[nodiscard]] CardViewFrame opening(
 		float64 time,
 		const CardViewPlaces &places) const;
@@ -75,6 +91,7 @@ private:
 
 	CardViewFrame _from;
 	std::optional<Loss> _loss;
+	std::optional<Rebase> _rebase;
 	float64 _insertDuration = 0.;
 	bool _closing = false;
 	bool _slot = false;
