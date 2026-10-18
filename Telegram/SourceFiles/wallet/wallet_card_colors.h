@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "mtproto/sender.h"
 
+#include "styles/style_widgets.h"
+
 class DocumentData;
 
 namespace Data {
@@ -62,6 +64,8 @@ private:
 	void cleanup();
 
 	const std::shared_ptr<Main::SessionShow> _show;
+	style::complex_color _linkFg;
+	style::Toast _st;
 	MTP::Sender _api;
 	base::flat_map<QString, Metadata> _metadata;
 	base::flat_map<QString, mtpRequestId> _requests;

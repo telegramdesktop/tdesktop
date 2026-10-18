@@ -94,8 +94,11 @@ bool CardColorAllowed(
 
 CardColorToast::CardColorToast(std::shared_ptr<Main::SessionShow> show)
 : _show(std::move(show))
+, _linkFg([] { return st::mediaviewTextLinkFg->c; })
+, _st(st::defaultMultilineToast)
 , _api(&_show->session().mtp())
 , _timeout([=] { showResolved(); }) {
+	_st.palette.linkFg = _linkFg.color();
 	_show->session().data().sessionDataAboutToBeCleared(
 	) | rpl::on_next([=] {
 		cleanup();
@@ -215,7 +218,7 @@ void CardColorToast::showResolved() {
 			+ QString::number(links.size());
 		names.push_back(Data::SingleCustomEmoji(
 			metadata.sticker
-		).append(QChar(0xA0)).append(tr::link(metadata.title, url)));
+		).append(u' ').append(tr::link(metadata.title, url)));
 		links.push_back({ url, metadata.giftId, metadata.title });
 	}
 	auto text = names.empty()
@@ -241,6 +244,7 @@ void CardColorToast::showResolved() {
 		.textContext = Core::TextContext({ .session = &_show->session() }),
 		.filter = crl::guard(this, filter),
 		.icon = &st::walletCardColorToastIcon,
+		.st = &_st,
 		.duration = kToastDuration,
 	});
 }
