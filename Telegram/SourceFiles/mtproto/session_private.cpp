@@ -2113,7 +2113,6 @@ mtpBuffer SessionPrivate::ungzip(
 		const auto res = inflate(&stream, Z_NO_FLUSH);
 		if (res != Z_OK && res != Z_STREAM_END) {
 			LOG(("RPC Error: could not unpack gziped data, code: %1").arg(res));
-			DEBUG_LOG(("RPC Error: bad gzip: %1").arg(Logs::mb(packed.v.constData(), packedLen).str()));
 			return {};
 		} else if (res == Z_STREAM_END) {
 			break;
@@ -2126,7 +2125,6 @@ mtpBuffer SessionPrivate::ungzip(
 		const auto badSize = result.size() * sizeof(mtpPrime)
 			- stream.avail_out;
 		LOG(("RPC Error: bad length of unpacked data %1").arg(badSize));
-		DEBUG_LOG(("RPC Error: bad unpacked data %1").arg(Logs::mb(result.data(), badSize).str()));
 		return {};
 	}
 	result.resize(result.size() - (stream.avail_out >> 2));

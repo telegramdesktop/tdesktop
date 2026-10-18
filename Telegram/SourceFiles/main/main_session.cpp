@@ -305,6 +305,13 @@ void Session::setTmpPassword(const QByteArray &password, TimeId validUntil) {
 	}
 }
 
+void Session::dropTmpPassword(const QByteArray &password) {
+	if (_tmpPassword == password) {
+		_tmpPassword = QByteArray();
+		_tmpPasswordValidUntil = 0;
+	}
+}
+
 QByteArray Session::validTmpPassword() const {
 	return (_tmpPasswordValidUntil
 		>= base::unixtime::now() + kTmpPasswordReserveTime)

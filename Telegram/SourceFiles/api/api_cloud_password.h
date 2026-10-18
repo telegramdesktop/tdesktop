@@ -30,7 +30,8 @@ public:
 	using ResetRetryDate = int;
 	explicit CloudPassword(not_null<ApiWrap*> api);
 
-	void reload();
+	void reload(
+		Fn<void(std::optional<Core::CloudPasswordState>)> callback = nullptr);
 	void clearUnconfirmedPassword();
 	rpl::producer<Core::CloudPasswordState> state() const;
 	std::optional<Core::CloudPasswordState> stateCurrent() const;
@@ -65,7 +66,9 @@ private:
 	void apply(Core::CloudPasswordState state);
 
 	MTP::Sender _api;
-	mtpRequestId _requestId = 0;
+	mtpRequestId _reloadRequestId = 0;
+	mtpRequestId _cancelEmailRequestId = 0;
+	std::vector<Fn<void(std::optional<Core::CloudPasswordState>)>> _callbacks;
 	std::unique_ptr<Core::CloudPasswordState> _state;
 	rpl::event_stream<Core::CloudPasswordState> _stateChanges;
 
