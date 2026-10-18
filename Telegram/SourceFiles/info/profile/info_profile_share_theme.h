@@ -11,6 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class PeerData;
 
+namespace Data {
+struct UniqueGift;
+struct ShareThemeGift;
+} // namespace Data
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -29,6 +34,8 @@ struct QrServedTheme {
 [[nodiscard]] auto QrThemeSwatchesValue(not_null<Main::Session*> session)
 -> rpl::producer<std::vector<Ui::PeerQrSwatch>>;
 
+[[nodiscard]] Ui::PeerQrSwatch QrGiftSwatch(const Data::UniqueGift &gift);
+
 [[nodiscard]] rpl::producer<QrServedTheme> QrServedThemeValue(
 	not_null<PeerData*> peer);
 
@@ -38,6 +45,12 @@ struct QrServedTheme {
 void SaveQrTheme(
 	not_null<PeerData*> peer,
 	Ui::PeerQrThemeKey key,
+	Fn<void()> done,
+	Fn<void(QString)> fail);
+
+void SaveQrGiftTheme(
+	not_null<PeerData*> peer,
+	const Data::ShareThemeGift &theme,
 	Fn<void()> done,
 	Fn<void(QString)> fail);
 

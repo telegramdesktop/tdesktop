@@ -55,13 +55,8 @@ struct Tile {
 	int pick = 0;
 };
 
-[[nodiscard]] uint32 NodeHash(int row, int column, uint32 salt) {
-	const auto seeded = PeerQrHash(salt * 0x9E3779B9U + uint32(row));
-	return PeerQrHash(seeded ^ (uint32(column) * 0x85EBCA6BU));
-}
-
 [[nodiscard]] float64 NodeRandom(int row, int column, Salt salt) {
-	return NodeHash(row, column, uint32(salt)) / 4294967296.;
+	return PeerQrNodeHash(row, column, uint32(salt)) / 4294967296.;
 }
 
 [[nodiscard]] int PickIndex(int row, int column, int count) {
@@ -112,26 +107,19 @@ void EnumerateTiles(
 			const auto flat = origin + QPointF(
 				(column + shift) * metrics.skipX + radius * std::cos(angle),
 				row * metrics.skipY + radius * std::sin(angle) + bob);
-			const auto place = falloff.place(flat);
-			if (place.scale < kScaleCutoff) {
-				continue;
-			}
 			const auto scale = kNodeScaleMin
 				+ (kNodeScaleMax - kNodeScaleMin) * random(Salt::Scale);
-			const auto size = metrics.size * tier * scale * place.scale;
-			const auto extent = size / M_SQRT2;
-			const auto bounds = QRectF(
-				place.position - QPointF(extent, extent),
-				QSizeF(2. * extent, 2. * extent));
-			if (!bounds.intersects(falloff.area)) {
+			const auto size = metrics.size * tier * scale;
+			const auto place = PeerQrPlaceItem(falloff, flat, size);
+			if (!place) {
 				continue;
 			}
 			const auto tilt = kTiltMax * (2. * random(Salt::Tilt) - 1.);
 			const auto sway = kSwayAngle * std::sin(
 				kSwaySpeed * seconds + 2. * M_PI * random(Salt::Sway));
 			callback(Tile{
-				.center = place.position,
-				.size = size,
+				.center = place->position,
+				.size = size * place->scale,
 				.rotation = tilt + sway,
 				.delay = random(Salt::Delay),
 				.row = row,
@@ -140,60 +128,6 @@ void EnumerateTiles(
 			});
 		}
 	}
-}
-
-[[nodiscard]] QImage RenderStill(
-		not_null<Text::CustomEmoji*> emoji,
-		int frameSize,
-		QColor textColor) {
-	const auto ratio = style::DevicePixelRatio();
-	auto result = QImage(
-		QSize(frameSize, frameSize) * ratio,
-		QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(ratio);
-	result.fill(Qt::transparent);
-	auto p = QPainter(&result);
-	emoji->paint(p, {
-		.textColor = textColor,
-		.internal = { .forceFirstFrame = true },
-	});
-	p.end();
-	return result;
-}
-
-[[nodiscard]] QRectF CullArea(QRectF card) {
-	const auto x = card.width() * kCardShrink / 2.;
-	const auto y = card.height() * kCardShrink / 2.;
-	return card.marginsRemoved({ x, y, x, y });
-}
-
-// WHY: the card's corner radius is unknown here; a tile inside the ellipse
-// inscribed in the dipped card is covered for any reasonable radius.
-[[nodiscard]] bool Covered(const QRectF &cull, QPointF center, float64 size) {
-	if (cull.isEmpty()) {
-		return false;
-	}
-	const auto radius = size / M_SQRT2;
-	const auto middle = cull.center();
-	const auto x = (std::abs(center.x() - middle.x()) + radius)
-		/ (cull.width() / 2.);
-	const auto y = (std::abs(center.y() - middle.y()) + radius)
-		/ (cull.height() / 2.);
-	return (x * x + y * y) <= 1.;
-}
-
-void ApplyTileTransform(
-		QPainter &p,
-		const QTransform &base,
-		const Tile &tile,
-		float64 size,
-		float64 frame) {
-	auto transform = base;
-	transform.translate(tile.center.x(), tile.center.y());
-	transform.rotate(tile.rotation);
-	transform.scale(size / frame, size / frame);
-	transform.translate(-frame / 2., -frame / 2.);
-	p.setTransform(transform);
 }
 
 [[nodiscard]] float64 PopScale(crl::time now, crl::time start) {
@@ -225,6 +159,84 @@ uint32 PeerQrHash(uint32 value) {
 	return value;
 }
 
+uint32 PeerQrNodeHash(int row, int column, uint32 salt) {
+	const auto seeded = PeerQrHash(salt * 0x9E3779B9U + uint32(row));
+	return PeerQrHash(seeded ^ (uint32(column) * 0x85EBCA6BU));
+}
+
+QImage PeerQrRenderStill(
+		not_null<Text::CustomEmoji*> art,
+		int frameSize,
+		QColor textColor) {
+	const auto ratio = style::DevicePixelRatio();
+	auto result = QImage(
+		QSize(frameSize, frameSize) * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
+	result.fill(Qt::transparent);
+	auto p = QPainter(&result);
+	art->paint(p, {
+		.textColor = textColor,
+		.internal = { .forceFirstFrame = true },
+	});
+	p.end();
+	return result;
+}
+
+void PeerQrApplyItemTransform(
+		QPainter &p,
+		const QTransform &base,
+		QPointF center,
+		float64 rotation,
+		float64 size,
+		float64 frame) {
+	auto transform = base;
+	transform.translate(center.x(), center.y());
+	transform.rotate(rotation);
+	transform.scale(size / frame, size / frame);
+	transform.translate(-frame / 2., -frame / 2.);
+	p.setTransform(transform);
+}
+
+std::optional<PeerQrLayerPlace> PeerQrPlaceItem(
+		const PeerQrLayerFalloff &falloff,
+		QPointF flat,
+		float64 size) {
+	const auto place = falloff.place(flat);
+	if (place.scale < kScaleCutoff) {
+		return std::nullopt;
+	}
+	const auto extent = size * place.scale / M_SQRT2;
+	const auto bounds = QRectF(
+		place.position - QPointF(extent, extent),
+		QSizeF(2. * extent, 2. * extent));
+	if (!bounds.intersects(falloff.area)) {
+		return std::nullopt;
+	}
+	return place;
+}
+
+QRectF PeerQrCardCull(QRectF card) {
+	const auto x = card.width() * kCardShrink / 2.;
+	const auto y = card.height() * kCardShrink / 2.;
+	return card.marginsRemoved({ x, y, x, y });
+}
+
+// WHY: the card's corner radius is unknown here; a tile inside the ellipse
+// inscribed in the dipped card is covered for any reasonable radius.
+bool PeerQrCovered(const QRectF &cull, QPointF center, float64 size) {
+	if (cull.isEmpty()) {
+		return false;
+	}
+	const auto radius = size / M_SQRT2;
+	const auto middle = cull.center();
+	const auto x = (std::abs(center.x() - middle.x()) + radius)
+		/ (cull.width() / 2.);
+	const auto y = (std::abs(center.y() - middle.y()) + radius)
+		/ (cull.height() / 2.);
+	return (x * x + y * y) <= 1.;
+}
+
 PeerQrEmojiMetrics PeerQrEmojiMetrics::Live() {
 	return {
 		.skipX = float64(st::peerQrEmojiSkipX),
@@ -246,17 +258,23 @@ void PaintPeerQrEmojiRest(
 	if (!count) {
 		return;
 	}
-	const auto cull = CullArea(card);
+	const auto cull = PeerQrCardCull(card);
 	p.save();
 	p.setRenderHint(QPainter::SmoothPixmapTransform);
 	const auto base = p.transform();
 	const auto paint = [&](const Tile &tile) {
 		const auto &still = rest.stills[tile.pick];
-		if (still.isNull() || Covered(cull, tile.center, tile.size)) {
+		if (still.isNull() || PeerQrCovered(cull, tile.center, tile.size)) {
 			return;
 		}
 		const auto frame = QRectF(QPointF(), QSizeF(still.size()));
-		ApplyTileTransform(p, base, tile, tile.size, frame.width());
+		PeerQrApplyItemTransform(
+			p,
+			base,
+			tile.center,
+			tile.rotation,
+			tile.size,
+			frame.width());
 		p.drawImage(frame, still);
 	};
 	EnumerateTiles(falloff, origin, rest.metrics, count, 0., paint);
@@ -378,7 +396,7 @@ void PeerQrEmojiField::paint(QPainter &p, const PeerQrEmojiPaint &args) {
 	const auto entryAt = *_entryAt;
 	const auto instant = anim::Disabled();
 	const auto frame = float64(_source.frameSize);
-	const auto cull = CullArea(args.card);
+	const auto cull = PeerQrCardCull(args.card);
 	const auto appearAt = [&](const Pick &pick, const Tile &tile) {
 		return std::max(entryAt, pick.readyAt)
 			+ crl::time(kEntryStagger * tile.delay);
@@ -388,10 +406,18 @@ void PeerQrEmojiField::paint(QPainter &p, const PeerQrEmojiPaint &args) {
 	const auto base = p.transform();
 	const auto draw = [&](const Pick &pick, const Tile &tile, float64 scale) {
 		const auto size = tile.size * scale;
-		if (!pick.emoji || size <= 0. || Covered(cull, tile.center, size)) {
+		if (!pick.emoji
+			|| size <= 0.
+			|| PeerQrCovered(cull, tile.center, size)) {
 			return;
 		}
-		ApplyTileTransform(p, base, tile, size, frame);
+		PeerQrApplyItemTransform(
+			p,
+			base,
+			tile.center,
+			tile.rotation,
+			size,
+			frame);
 		pick.emoji->paint(p, {
 			.textColor = _textColor,
 			.now = now,
@@ -454,7 +480,7 @@ PeerQrEmojiRest PeerQrEmojiField::prepareRest(
 			&& pick.readyAt
 			&& (_source.frameSize > 0);
 		stills.push_back(shown
-			? RenderStill(pick.emoji.get(), _source.frameSize, _textColor)
+			? PeerQrRenderStill(pick.emoji.get(), _source.frameSize, _textColor)
 			: QImage());
 	}
 	return { .stills = std::move(stills), .metrics = metrics };

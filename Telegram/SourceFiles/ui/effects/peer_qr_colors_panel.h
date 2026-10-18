@@ -20,10 +20,11 @@ struct PeerQrThemeKey {
 	enum class Type : uchar {
 		Default,
 		Backdrop,
-		Other,
+		Gift,
 	};
 	Type type = Type::Default;
 	int id = 0;
+	uint64 gift = 0;
 	std::vector<QString> emoji;
 
 	friend inline bool operator==(
@@ -38,6 +39,32 @@ struct PeerQrSwatch {
 	friend inline bool operator==(
 		const PeerQrSwatch &,
 		const PeerQrSwatch &) = default;
+};
+
+[[nodiscard]] bool PeerQrRingNeedsHairline(QColor color);
+
+class PeerQrSelectionRing final {
+public:
+	void select(
+		int index,
+		anim::type animated,
+		bool visible,
+		Fn<void()> repaint);
+	void reset(int index);
+	[[nodiscard]] int selectedIndex() const;
+	void paint(
+		QPainter &p,
+		int index,
+		QRectF rect,
+		float64 minScale,
+		bool hairline,
+		std::optional<float64> radius = std::nullopt) const;
+
+private:
+	Animations::Simple _animation;
+	int _selectedIndex = -1;
+	int _wasIndex = -1;
+
 };
 
 class PeerQrColorsPanel final : public RpWidget {

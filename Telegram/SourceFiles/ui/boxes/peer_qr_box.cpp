@@ -15,11 +15,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "info/profile/info_profile_free_codes.h"
 #include "info/profile/info_profile_qr_emoji.h"
+#include "info/profile/info_profile_qr_gifts.h"
 #include "info/profile/info_profile_share_theme.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
 #include "settings/settings_common.h"
 #include "ui/effects/peer_qr_colors_panel.h"
+#include "ui/effects/peer_qr_gifts_panel.h"
 #include "ui/effects/peer_qr_panel.h"
 #include "ui/effects/peer_qr_pill.h"
 #include "ui/effects/peer_qr_surface.h"
@@ -79,7 +81,13 @@ struct AppearanceState {
 	PeerQrPanel *colorsPanel = nullptr;
 	PeerQrColorsPanel *colors = nullptr;
 	PeerQrPanel *emojiPanel = nullptr;
+	PeerQrPanel *giftsPanel = nullptr;
+	PeerQrGiftsPanel *gifts = nullptr;
 	std::optional<Info::Profile::QrEmojiPicker> picker;
+	Fn<void(
+		const PeerQrThemeKey&,
+		Fn<void()>,
+		Fn<void(QString)>)> saveGift;
 	RpWidget *island = nullptr;
 	std::vector<PeerQrSwatch> swatches;
 	std::vector<QString> emojiPicks;
@@ -91,6 +99,7 @@ struct AppearanceState {
 	bool canSave = false;
 	bool sideShown = true;
 	bool shown = false;
+	bool giftsActive = false;
 	float64 progress = 0.;
 };
 
@@ -411,7 +420,9 @@ void RenderCardImage(
 	}
 	auto args = surface->prepareImage();
 	const auto ink = args.colors.ink;
-	const auto stills = args.emoji.stills;
+	auto stills = args.emoji.stills;
+	stills.push_back(args.gift.model);
+	stills.push_back(args.gift.symbol);
 	const auto offset = args.layerOffset;
 	if (!state->image.isNull()
 		&& state->imageLink == state->link
@@ -749,15 +760,17 @@ void SetupFreeCodes(
 	});
 }
 
-[[nodiscard]] OpenLayout ComputeOpenLayout(QSize outer, QSize card) {
+[[nodiscard]] OpenLayout ComputeOpenLayout(
+		QSize outer,
+		QSize card,
+		int panelHeight) {
 	const auto margin = st::peerQrPanelMargin;
 	const auto width = outer.width() - 2 * margin;
-	const auto height = PeerQrColorsPanel::HeightForWidth(width);
 	const auto panel = QRect(
 		margin,
-		outer.height() - margin - height,
+		outer.height() - margin - panelHeight,
 		width,
-		height);
+		panelHeight);
 	const auto pillTop = panel.y()
 		- st::peerQrPanelSkip
 		- st::peerQrPillHeight;
@@ -795,7 +808,7 @@ void SetupFreeCodes(
 
 [[nodiscard]] PeerQrSwatch BackdropHalf(
 		const std::optional<PeerQrSwatch> &swatch) {
-	if (!swatch || swatch->key.type == PeerQrThemeKey::Type::Other) {
+	if (!swatch || swatch->key.type == PeerQrThemeKey::Type::Gift) {
 		return DefaultLookSwatch();
 	}
 	auto result = *swatch;
@@ -812,10 +825,18 @@ void SetupFreeCodes(
 	return backdrop;
 }
 
+[[nodiscard]] std::array<PeerQrPanel*, 3> Panels(
+		not_null<const AppearanceState*> appearance) {
+	return {
+		appearance->colorsPanel,
+		appearance->emojiPanel,
+		appearance->giftsPanel,
+	};
+}
+
 [[nodiscard]] PeerQrPanel *OpenPanel(
 		not_null<const AppearanceState*> appearance) {
-	const auto panels = { appearance->colorsPanel, appearance->emojiPanel };
-	for (const auto panel : panels) {
+	for (const auto panel : Panels(appearance)) {
 		if (panel && panel->toggled()) {
 			return panel;
 		}
@@ -845,10 +866,16 @@ void ShowSwatch(
 		animated);
 	const auto &key = swatch.key;
 	auto selected = std::optional<PeerQrThemeKey>();
-	if (key.type != PeerQrThemeKey::Type::Other) {
+	auto selectedGift = std::optional<PeerQrThemeKey>();
+	if (key.type == PeerQrThemeKey::Type::Gift) {
+		selectedGift = PeerQrThemeKey{ .type = key.type, .gift = key.gift };
+	} else {
 		selected = PeerQrThemeKey{ .type = key.type, .id = key.id };
 	}
 	appearance->colors->setSelected(std::move(selected), animated);
+	if (const auto gifts = appearance->gifts) {
+		gifts->setSelected(std::move(selectedGift), animated);
+	}
 }
 
 void ApplyServedTheme(
@@ -890,6 +917,16 @@ void ChooseEmoji(
 	ApplyEmojiPicks(surface, appearance);
 }
 
+void ChooseGift(
+		not_null<PeerQrSurface*> surface,
+		not_null<AppearanceState*> appearance,
+		const PeerQrSwatch &swatch) {
+	SetEmojiPicks(appearance, {});
+	appearance->chosen = swatch;
+	appearance->pending = std::nullopt;
+	ShowSwatch(surface, appearance, swatch, anim::type::normal);
+}
+
 void SaveAppearance(
 		not_null<GenericBox*> box,
 		not_null<PeerQrSurface*> surface,
@@ -916,10 +953,21 @@ void SaveAppearance(
 	};
 	const auto reset = crl::guard(box, clear);
 	const auto show = box->uiShow();
+	const auto send = [=](Fn<void()> done, Fn<void(QString)> fail) {
+		if (key.type == PeerQrThemeKey::Type::Gift && appearance->saveGift) {
+			appearance->saveGift(key, std::move(done), std::move(fail));
+		} else {
+			Info::Profile::SaveQrTheme(
+				peer,
+				key,
+				std::move(done),
+				std::move(fail));
+		}
+	};
 	appearance->saving = key;
 	// WHY: a pick only previews, so browsing the circles sends nothing;
 	// the choice is saved once, when the panel or the box closes.
-	Info::Profile::SaveQrTheme(peer, key, crl::guard(box, [=] {
+	send(crl::guard(box, [=] {
 		clear();
 		appearance->served = swatch;
 		if (!appearance->chosen) {
@@ -944,6 +992,9 @@ void RevertToServed(
 		appearance->current = std::nullopt;
 		surface->setAppearance(PeerQrDefaultAppearance(), anim::type::normal);
 		appearance->colors->setSelected(std::nullopt, anim::type::normal);
+		if (const auto gifts = appearance->gifts) {
+			gifts->setSelected(std::nullopt, anim::type::normal);
+		}
 	}
 }
 
@@ -992,6 +1043,78 @@ void SetupEmojiPanel(
 	});
 }
 
+[[nodiscard]] Fn<void()> SetupGiftList(
+		not_null<GenericBox*> box,
+		not_null<PeerQrSurface*> surface,
+		not_null<AppearanceState*> appearance,
+		not_null<PeerData*> peer,
+		Window::SessionController *controller) {
+	const auto gifts = appearance->gifts;
+	auto list = Info::Profile::CreateQrGiftList(
+		peer,
+		controller,
+		box->lifetime());
+	std::move(
+		list.slices
+	) | rpl::on_next([=](Info::Profile::QrGiftsSlice &&slice) {
+		gifts->setGifts(std::move(slice.gifts), slice.complete);
+	}, box->lifetime());
+	std::move(list.browseShown) | rpl::on_next([=](bool shown) {
+		gifts->setBrowseShown(shown);
+	}, box->lifetime());
+	gifts->loadMoreRequests(
+	) | rpl::on_next(std::move(list.loadMore), box->lifetime());
+	gifts->browseRequests(
+	) | rpl::on_next(std::move(list.browse), box->lifetime());
+	gifts->picks() | rpl::on_next([=](const PeerQrSwatch &swatch) {
+		ChooseGift(surface, appearance, swatch);
+	}, box->lifetime());
+	appearance->saveGift = std::move(list.save);
+	return std::move(list.refresh);
+}
+
+void SetupGiftsPanel(
+		not_null<GenericBox*> box,
+		not_null<PeerQrSurface*> surface,
+		not_null<AppearanceState*> appearance,
+		not_null<PeerData*> peer,
+		Window::SessionController *controller,
+		not_null<PeerQrButton*> button,
+		Fn<void(not_null<PeerQrPanel*>)> openPanel) {
+	const auto container = CreateChild<PeerQrPanel>(surface.get());
+	const auto gifts = CreateChild<PeerQrGiftsPanel>(container);
+	container->setContent(gifts, PeerQrPanelContent::Masked);
+	appearance->giftsPanel = container;
+	appearance->gifts = gifts;
+
+	surface->colorsValue() | rpl::on_next([=](const PeerQrColors &colors) {
+		container->setColors(colors.control, colors.glass);
+		gifts->setColors(colors);
+	}, container->lifetime());
+	Info::Profile::QrGiftSourceValue(
+		&peer->session()
+	) | rpl::on_next([=](PeerQrGiftSource &&source) {
+		gifts->setSource(std::move(source));
+	}, gifts->lifetime());
+
+	const auto refresh = box->lifetime().make_state<Fn<void()>>();
+	Info::Profile::QrThemeCanSaveValue(
+		peer
+	) | rpl::filter([](bool can) {
+		return can;
+	}) | rpl::take(1) | rpl::on_next([=] {
+		*refresh = SetupGiftList(box, surface, appearance, peer, controller);
+	}, box->lifetime());
+
+	button->setClickedCallback([=] {
+		if (*refresh) {
+			(*refresh)();
+		}
+		openPanel(container);
+		gifts->scrollToSelected();
+	});
+}
+
 void SetupAppearance(
 		not_null<GenericBox*> box,
 		not_null<PeerQrSurface*> surface,
@@ -1003,7 +1126,7 @@ void SetupAppearance(
 	const auto appearance = &state->appearance;
 	const auto withEmoji = controller
 		&& (&controller->session() == &peer->session());
-	const auto island = AddIsland(surface, withEmoji ? 2 : 1);
+	const auto island = AddIsland(surface, withEmoji ? 3 : 2);
 	const auto colorsButton = AddIslandButton(
 		island,
 		surface,
@@ -1026,23 +1149,6 @@ void SetupAppearance(
 	) | rpl::on_next([=](std::vector<PeerQrSwatch> &&swatches) {
 		appearance->swatches = std::move(swatches);
 		colors->setSwatches(appearance->swatches);
-	}, box->lifetime());
-
-	Info::Profile::QrServedThemeValue(
-		peer
-	) | rpl::on_next([=](Info::Profile::QrServedTheme &&theme) {
-		appearance->served = theme.swatch;
-		if (appearance->chosen) {
-			return;
-		} else if (theme.kept || appearance->shown) {
-			ApplyServedTheme(
-				surface,
-				appearance,
-				theme.swatch,
-				theme.kept ? anim::type::instant : anim::type::normal);
-		} else {
-			appearance->pending = std::move(theme.swatch);
-		}
 	}, box->lifetime());
 
 	colors->picks() | rpl::on_next([=](PeerQrThemeKey key) {
@@ -1103,6 +1209,37 @@ void SetupAppearance(
 				tr::lng_qr_box_emoji(tr::now)),
 			openPanel);
 	}
+	SetupGiftsPanel(
+		box,
+		surface,
+		appearance,
+		peer,
+		withEmoji ? controller : nullptr,
+		AddIslandButton(
+			island,
+			surface,
+			withEmoji ? 2 : 1,
+			st::peerQrGift,
+			tr::lng_qr_box_gifts(tr::now)),
+		openPanel);
+
+	Info::Profile::QrServedThemeValue(
+		peer
+	) | rpl::on_next([=](Info::Profile::QrServedTheme &&theme) {
+		appearance->served = theme.swatch;
+		if (appearance->chosen) {
+			return;
+		} else if (theme.kept || appearance->shown) {
+			ApplyServedTheme(
+				surface,
+				appearance,
+				theme.swatch,
+				theme.kept ? anim::type::instant : anim::type::normal);
+		} else {
+			appearance->pending = std::move(theme.swatch);
+		}
+	}, box->lifetime());
+
 	Info::Profile::QrThemeCanSaveValue(peer) | rpl::on_next([=](bool can) {
 		appearance->canSave = can;
 		if (!can) {
@@ -1114,6 +1251,7 @@ void SetupAppearance(
 		refreshControls();
 	}, box->lifetime());
 	const auto emojiPanel = appearance->emojiPanel;
+	const auto giftsPanel = appearance->giftsPanel;
 	rpl::merge(
 		surface->events() | rpl::filter([](not_null<QEvent*> e) {
 			return (e->type() == QEvent::MouseButtonPress);
@@ -1123,9 +1261,10 @@ void SetupAppearance(
 				&& (static_cast<QKeyEvent*>(e.get())->key() == Qt::Key_Escape);
 		}) | rpl::to_empty,
 		container->outsidePresses(),
-		(emojiPanel ? emojiPanel->outsidePresses() : rpl::never<>())
+		(emojiPanel ? emojiPanel->outsidePresses() : rpl::never<>()),
+		(giftsPanel ? giftsPanel->outsidePresses() : rpl::never<>())
 	) | rpl::on_next(closePanel, box->lifetime());
-	for (const auto panel : { container, emojiPanel }) {
+	for (const auto panel : Panels(appearance)) {
 		if (!panel) {
 			continue;
 		}
@@ -1202,6 +1341,11 @@ void FillPeerQrBox(
 		) | rpl::on_next([=](PeerQrEmojiSource &&source) {
 			surface->setEmojiSource(std::move(source));
 		}, box->lifetime());
+		Info::Profile::QrGiftSourceValue(
+			&peer->session()
+		) | rpl::on_next([=](PeerQrGiftSource &&source) {
+			surface->setGiftSource(std::move(source));
+		}, box->lifetime());
 		SetupAppearance(box, surface, state, peer, controller, copy, share);
 		Info::Profile::UsernameValue(
 			peer,
@@ -1269,21 +1413,31 @@ void FillPeerQrBox(
 		surface->setCardGeometry(card);
 		surface->resize(width, height);
 		if (const auto island = state->appearance.island) {
-			const auto open = ComputeOpenLayout(
-				QSize(width, height),
-				card.size());
-			const auto progress = state->appearance.progress;
+			const auto &appearance = state->appearance;
+			const auto outer = QSize(width, height);
+			const auto panelWidth = width - 2 * st::peerQrPanelMargin;
+			const auto table = ComputeOpenLayout(
+				outer,
+				card.size(),
+				PeerQrColorsPanel::HeightForWidth(panelWidth));
+			const auto gifts = appearance.gifts;
+			const auto giftsOpen = gifts
+				? ComputeOpenLayout(
+					outer,
+					card.size(),
+					gifts->openHeight(panelWidth))
+				: table;
+			const auto &open = appearance.giftsActive ? giftsOpen : table;
+			const auto progress = appearance.progress;
 			const auto lerp = [&](float64 from, float64 till) {
 				return from + (till - from) * progress;
 			};
 			island->moveToLeft((width - island->width()) / 2, rowTop, width);
-			const auto panels = {
-				state->appearance.colorsPanel,
-				state->appearance.emojiPanel,
-			};
-			for (const auto panel : panels) {
+			for (const auto panel : Panels(&appearance)) {
 				if (panel) {
-					panel->setGeometry(open.panel);
+					panel->setGeometry((panel == appearance.giftsPanel)
+						? giftsOpen.panel
+						: table.panel);
 					panel->setIslandRect(island->geometry());
 				}
 			}
@@ -1314,13 +1468,27 @@ void FillPeerQrBox(
 	surface->widthValue() | rpl::on_next(relayout, surface->lifetime());
 	if (const auto panel = state->appearance.colorsPanel) {
 		const auto emoji = state->appearance.emojiPanel;
+		const auto gifts = state->appearance.giftsPanel;
 		rpl::combine(
 			panel->progressValue(),
-			emoji ? emoji->progressValue() : rpl::single(0.)
-		) | rpl::on_next([=](float64 colorsShown, float64 emojiShown) {
-			state->appearance.progress = std::max(colorsShown, emojiShown);
+			emoji ? emoji->progressValue() : rpl::single(0.),
+			gifts ? gifts->progressValue() : rpl::single(0.)
+		) | rpl::on_next([=](
+				float64 colorsShown,
+				float64 emojiShown,
+				float64 giftsShown) {
+			auto &appearance = state->appearance;
+			appearance.progress = std::max({
+				colorsShown,
+				emojiShown,
+				giftsShown,
+			});
+			appearance.giftsActive = (giftsShown > 0.);
 			relayout();
 		}, box->lifetime());
+	}
+	if (const auto gifts = state->appearance.gifts) {
+		gifts->openHeightChanges() | rpl::on_next(relayout, box->lifetime());
 	}
 
 	close->setClickedCallback([=] {

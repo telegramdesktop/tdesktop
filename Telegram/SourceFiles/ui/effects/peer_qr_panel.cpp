@@ -94,7 +94,7 @@ void PeerQrPanel::setContent(
 	_kind = kind;
 	_contentCache = QImage();
 	updateContentGeometry();
-	if (kind == PeerQrPanelContent::Opaque) {
+	if (masked()) {
 		content->setVisible(_shown && !_animation.animating());
 	}
 	updateAll();
@@ -115,7 +115,7 @@ void PeerQrPanel::toggle(bool shown, anim::type animated) {
 		show();
 	}
 	if (animated == anim::type::normal && !anim::Disabled()) {
-		if (_content && _kind == PeerQrPanelContent::Opaque) {
+		if (_content && masked()) {
 			_contentCache = GrabWidgetToImage(_content);
 			_content->hide();
 		}
@@ -169,7 +169,7 @@ void PeerQrPanel::paintEvent(QPaintEvent *e) {
 	auto hq = PainterHighQualityEnabler(p);
 	const auto path = glassPath();
 	p.fillPath(path, glassColor());
-	if (_kind != PeerQrPanelContent::Opaque) {
+	if (!masked()) {
 		return;
 	}
 	if (!_contentCache.isNull()) {
@@ -178,6 +178,9 @@ void PeerQrPanel::paintEvent(QPaintEvent *e) {
 		p.setOpacity(contentOpacity(crl::now()));
 		p.drawImage(contentGeometry().topLeft(), _contentCache);
 		p.restore();
+	}
+	if (_kind != PeerQrPanelContent::Opaque) {
+		return;
 	}
 	const auto glass = glassRect();
 	const auto half = st::lineWidth / 2.;
@@ -223,7 +226,7 @@ bool PeerQrPanel::animationCallback(crl::time now) {
 
 void PeerQrPanel::finishToggle() {
 	_openedAtClose = std::nullopt;
-	if (_content && _kind == PeerQrPanelContent::Opaque) {
+	if (_content && masked()) {
 		_contentCache = QImage();
 		_content->setVisible(_shown);
 	}
@@ -244,16 +247,21 @@ void PeerQrPanel::updateAll() {
 void PeerQrPanel::updateContentGeometry() {
 	const auto geometry = contentGeometry();
 	_content->setGeometry(geometry);
-	if (_kind == PeerQrPanelContent::Opaque) {
+	if (masked()) {
 		_content->setMask(InnerRoundedRegion(
 			geometry.size(),
 			st::peerQrPanelRadius - st::lineWidth));
 	}
 }
 
+bool PeerQrPanel::masked() const {
+	return (_kind == PeerQrPanelContent::Opaque)
+		|| (_kind == PeerQrPanelContent::Masked);
+}
+
 QRect PeerQrPanel::contentGeometry() const {
 	const auto line = st::lineWidth;
-	return (_kind == PeerQrPanelContent::Opaque)
+	return masked()
 		? rect().marginsRemoved({ line, line, line, line })
 		: rect();
 }

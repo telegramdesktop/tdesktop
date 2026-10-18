@@ -15,6 +15,7 @@ namespace Ui {
 enum class PeerQrPanelContent {
 	Animated,
 	Opaque,
+	Masked,
 };
 
 struct PeerQrPanelPhase {
@@ -53,6 +54,7 @@ private:
 	void finishToggle();
 	void updateAll();
 	void updateContentGeometry();
+	[[nodiscard]] bool masked() const;
 	[[nodiscard]] QRect contentGeometry() const;
 	[[nodiscard]] QRectF glassRect() const;
 	[[nodiscard]] float64 glassRadius(QRectF glass) const;

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_share_themes.h"
 #include "apiwrap.h"
 #include "base/weak_ptr.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_message_reaction_id.h"
 #include "data/data_peer.h"
 #include "lang/lang_keys.h"
@@ -122,14 +123,16 @@ constexpr auto kMaxEmojiKeys = 6;
 		result.key.emoji = keys;
 		result.appearance.emoji = std::move(keys);
 		return result;
-	}, [](const auto &) {
-		return Ui::PeerQrSwatch{ .key = { .type = ThemeType::Other } };
+	}, [](const Data::ShareThemeGift &data) {
+		return data.gift.unique
+			? QrGiftSwatch(*data.gift.unique)
+			: DefaultSwatch();
 	});
 }
 
 [[nodiscard]] std::optional<Data::ShareTheme> ThemeFromKey(
 		const Ui::PeerQrThemeKey &key) {
-	if (key.type == ThemeType::Other) {
+	if (key.type == ThemeType::Gift) {
 		return std::nullopt;
 	}
 	auto result = Data::ShareThemeEmojiBackdrop{
@@ -142,6 +145,22 @@ constexpr auto kMaxEmojiKeys = 6;
 		return Data::ShareThemeDefault();
 	}
 	return result;
+}
+
+void SaveShareTheme(
+		not_null<PeerData*> peer,
+		Data::ShareTheme theme,
+		Fn<void()> done,
+		Fn<void(QString)> fail) {
+	peer->session().api().shareThemes().save(
+		peer,
+		std::move(theme),
+		std::move(done),
+		[=](const MTP::Error &error) {
+			if (fail) {
+				fail(ErrorText(error));
+			}
+		});
 }
 
 } // namespace
@@ -161,6 +180,23 @@ auto QrThemeSwatchesValue(not_null<Main::Session*> session)
 		}
 		return result;
 	}) | rpl::distinct_until_changed();
+}
+
+Ui::PeerQrSwatch QrGiftSwatch(const Data::UniqueGift &gift) {
+	return {
+		.key = { .type = ThemeType::Gift, .gift = gift.id },
+		.appearance = {
+			.edge = gift.backdrop.edgeColor,
+			.center = gift.backdrop.centerColor,
+			.gift = {
+				.id = gift.id,
+				.model = Data::SerializeCustomEmojiId(gift.model.document),
+				.pattern = Data::SerializeCustomEmojiId(
+					gift.pattern.document),
+				.patternColor = gift.backdrop.patternColor,
+			},
+		},
+	};
 }
 
 rpl::producer<QrServedTheme> QrServedThemeValue(not_null<PeerData*> peer) {
@@ -221,15 +257,19 @@ void SaveQrTheme(
 	if (!theme) {
 		return;
 	}
-	peer->session().api().shareThemes().save(
+	SaveShareTheme(
 		peer,
 		std::move(*theme),
 		std::move(done),
-		[=](const MTP::Error &error) {
-			if (fail) {
-				fail(ErrorText(error));
-			}
-		});
+		std::move(fail));
+}
+
+void SaveQrGiftTheme(
+		not_null<PeerData*> peer,
+		const Data::ShareThemeGift &theme,
+		Fn<void()> done,
+		Fn<void(QString)> fail) {
+	SaveShareTheme(peer, theme, std::move(done), std::move(fail));
 }
 
 } // namespace Info::Profile

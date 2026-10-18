@@ -621,6 +621,10 @@ peerQrEmoji: IconButton(peerQrColors) {
 	icon: icon {{ "menu/emoji", windowFg }};
 	iconOver: icon {{ "menu/emoji", windowFg }};
 }
+peerQrGift: IconButton(peerQrColors) {
+	icon: icon {{ "menu/gift_premium", windowFg }};
+	iconOver: icon {{ "menu/gift_premium", windowFg }};
+}
 peerQrPanelMargin: 10px;
 peerQrPanelPadding: 11px;
 peerQrPanelRadius: 24px;
@@ -642,6 +646,40 @@ peerQrEmojiBob: 3px;
 peerQrLayerBand: 98px;
 peerQrLayerGlideBrake: 9px;
 peerQrLayerGlideMax: 900px;
+peerQrGiftModelSize: 78px;
+peerQrGiftModelSkipX: 150px;
+peerQrGiftModelSkipY: 132px;
+peerQrGiftModelOffset: 16px;
+peerQrGiftModelFrame: 116px;
+peerQrGiftSymbolSize: 20px;
+peerQrGiftSymbolSkipX: 39px;
+peerQrGiftSymbolSkipY: 33px;
+peerQrGiftSymbolJitterX: 17px;
+peerQrGiftSymbolJitterY: 14px;
+peerQrGiftSkip: 9px;
+peerQrGiftRadius: 14px;
+peerQrGiftsEmptyPadding: margins(16px, 8px, 16px, 12px);
+peerQrGiftsEmptySticker: 80px;
+peerQrGiftsEmptyTitleSkip: 4px;
+peerQrGiftsEmptyTextSkip: 2px;
+peerQrGiftsEmptyTextWidth: 240px;
+peerQrGiftsEmptyButtonSkip: 10px;
+peerQrGiftsEmptyTitle: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(15px semibold);
+	}
+}
+peerQrGiftsEmptyText: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	minWidth: 100px;
+}
+peerQrGiftsBrowse: RoundButton(defaultActiveButton) {
+	width: -40px;
+	height: 34px;
+	textTop: 8px;
+	fullRadius: true;
+}
 
 foldersMenu: PopupMenu(popupMenuWithIcons) {
 	maxHeight: 320px;

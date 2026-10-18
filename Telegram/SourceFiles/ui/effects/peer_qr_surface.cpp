@@ -918,6 +918,12 @@ QImage RenderPeerQrImage(PeerQrImageArgs args) {
 			card.center() + args.layerOffset,
 			card,
 			args.emoji);
+		PaintPeerQrGiftRest(
+			p,
+			falloff,
+			card.center() + args.layerOffset,
+			card,
+			args.gift);
 		p.translate(args.margin, args.margin);
 		PaintCard(p, layout, content, CardFrame());
 	}
@@ -948,6 +954,13 @@ PeerQrSurface::PeerQrSurface(
 			_appearance.emoji,
 			PeerQrEmojiChange::Instant,
 			crl::now());
+	}
+	if (_appearance.gift) {
+		_giftField = std::make_unique<PeerQrGiftField>(
+			_giftSource,
+			_appearance.gift,
+			crl::guard(this, [=] { update(); }),
+			true);
 	}
 }
 
@@ -1048,12 +1061,19 @@ void PeerQrSurface::setAppearance(
 	}
 	const auto wave = animatedNow && !_cardGeometry.isEmpty();
 	auto from = wave ? currentPicture(now) : QImage();
-	if (wave && _fieldLeaving) {
+	if (wave && (_fieldLeaving || _giftLeaving)) {
 		auto p = QPainter(&from);
-		paintField(p, now);
+		if (_fieldLeaving) {
+			paintField(p, now);
+		}
+		if (_giftLeaving) {
+			paintGift(p, _giftLeaving.get(), now, true);
+		}
 		p.end();
-		_field = nullptr;
-		_fieldLeaving = false;
+		if (base::take(_fieldLeaving)) {
+			_field = nullptr;
+		}
+		_giftLeaving = nullptr;
 	}
 	_appearance = std::move(appearance);
 	if (isEmoji) {
@@ -1076,6 +1096,21 @@ void PeerQrSurface::setAppearance(
 			_field = nullptr;
 		}
 	}
+	if (_giftField && _giftField->look() != _appearance.gift) {
+		_giftLeaving = base::take(_giftField);
+	}
+	if (!wave) {
+		_giftLeaving = nullptr;
+	}
+	if (_appearance.gift && !_giftField) {
+		_giftField = std::make_unique<PeerQrGiftField>(
+			_giftSource,
+			_appearance.gift,
+			crl::guard(this, [=] { update(); }),
+			!wave);
+		_entryPending = _entryPending || wave;
+		checkAnimation();
+	}
 	_colors = ComputePeerQrColors(_appearance);
 	composeNow();
 	if (isEmoji) {
@@ -1084,7 +1119,7 @@ void PeerQrSurface::setAppearance(
 	if (!wave) {
 		_wave = std::nullopt;
 		if (base::take(_entryPending)) {
-			_field->startEntry(now);
+			startFieldEntry(now);
 		}
 		setShownColors(_colors);
 		return;
@@ -1106,6 +1141,16 @@ void PeerQrSurface::setEmojiSource(PeerQrEmojiSource source) {
 	_emojiSource = source;
 	if (_field) {
 		_field->setSource(std::move(source));
+	}
+}
+
+void PeerQrSurface::setGiftSource(PeerQrGiftSource source) {
+	_giftSource = std::move(source);
+	if (_giftField) {
+		_giftField->setSource(_giftSource);
+	}
+	if (_giftLeaving) {
+		_giftLeaving->setSource(_giftSource);
 	}
 }
 
@@ -1174,6 +1219,19 @@ PeerQrImageArgs PeerQrSurface::prepareImage() const {
 				.bob = metric(st::peerQrEmojiBob),
 			})
 			: PeerQrEmojiRest()),
+		.gift = (_giftField
+			? _giftField->prepareRest({
+				.modelSize = metric(st::peerQrGiftModelSize),
+				.modelSkipX = metric(st::peerQrGiftModelSkipX),
+				.modelSkipY = metric(st::peerQrGiftModelSkipY),
+				.modelOffset = metric(st::peerQrGiftModelOffset),
+				.symbolSize = metric(st::peerQrGiftSymbolSize),
+				.symbolSkipX = metric(st::peerQrGiftSymbolSkipX),
+				.symbolSkipY = metric(st::peerQrGiftSymbolSkipY),
+				.symbolJitterX = metric(st::peerQrGiftSymbolJitterX),
+				.symbolJitterY = metric(st::peerQrGiftSymbolJitterY),
+			})
+			: PeerQrGiftRest()),
 		.layerOffset = _layer.offset()
 			* (kImageScale * 100. / style::Scale()),
 		.layerBand = metric(st::peerQrLayerBand),
@@ -1199,6 +1257,12 @@ void PeerQrSurface::paintEvent(QPaintEvent *e) {
 	}
 	if (_field) {
 		paintField(p, now);
+	}
+	if (_giftLeaving) {
+		paintGift(p, _giftLeaving.get(), now, true);
+	}
+	if (_giftField) {
+		paintGift(p, _giftField.get(), now, false);
 	}
 	const auto still = anim::Disabled();
 	const auto elapsed = (_startedAt > 0) ? (now - _startedAt) : 0;
@@ -1286,6 +1350,7 @@ bool PeerQrSurface::animationCallback(crl::time now) {
 		_dipStartedAt = 0;
 	}
 	const auto whole = (_field && (!frozen || _field->animating(now)))
+		|| (_giftField && (!frozen || _giftField->animating(now)))
 		|| (layerShown() && _layer.animating());
 	const auto refresh = [&](QRect region) {
 		if (whole) {
@@ -1531,13 +1596,13 @@ PeerQrLayerFalloff PeerQrSurface::layerFalloff() const {
 }
 
 bool PeerQrSurface::layerShown() const {
-	return _field && !_fieldLeaving;
+	return (_field && !_fieldLeaving) || (_giftField != nullptr);
 }
 
-void PeerQrSurface::paintField(QPainter &p, crl::time now) {
-	auto clip = QPainterPath();
-	clip.addRoundedRect(QRectF(rect()), st::boxRadius, st::boxRadius);
-	if (_fieldLeaving && _wave) {
+QPainterPath PeerQrSurface::fieldClip(crl::time now, bool leaving) const {
+	auto result = QPainterPath();
+	result.addRoundedRect(QRectF(rect()), st::boxRadius, st::boxRadius);
+	if (leaving && _wave) {
 		const auto progress = std::clamp(
 			float64(now - _wave->startedAt) / kWaveDuration,
 			0.,
@@ -1545,20 +1610,51 @@ void PeerQrSurface::paintField(QPainter &p, crl::time now) {
 		const auto radius = WaveRadius(_wave->farthest, progress);
 		auto circle = QPainterPath();
 		circle.addEllipse(_wave->center, radius, radius);
-		clip = clip.subtracted(circle);
+		result = result.subtracted(circle);
 	}
-	auto hq = PainterHighQualityEnabler(p);
-	p.save();
-	p.setClipPath(clip);
-	_field->paint(p, {
+	return result;
+}
+
+PeerQrEmojiPaint PeerQrSurface::fieldArgs(crl::time now) const {
+	return {
 		.falloff = layerFalloff(),
 		.origin = QRectF(_cardGeometry).center() + _layer.offset(),
 		.card = cardRect(),
 		.now = now,
 		.elapsed = fieldElapsed(now),
 		.paused = PowerSaving::On(PowerSaving::kEmojiReactions),
-	});
+	};
+}
+
+void PeerQrSurface::paintField(QPainter &p, crl::time now) {
+	auto hq = PainterHighQualityEnabler(p);
+	p.save();
+	p.setClipPath(fieldClip(now, _fieldLeaving));
+	_field->paint(p, fieldArgs(now));
 	p.restore();
+}
+
+void PeerQrSurface::paintGift(
+		QPainter &p,
+		not_null<PeerQrGiftField*> field,
+		crl::time now,
+		bool leaving) {
+	auto args = fieldArgs(now);
+	args.paused = PowerSaving::On(PowerSaving::kStickersChat);
+	auto hq = PainterHighQualityEnabler(p);
+	p.save();
+	p.setClipPath(fieldClip(now, leaving));
+	field->paint(p, args);
+	p.restore();
+}
+
+void PeerQrSurface::startFieldEntry(crl::time now) {
+	if (_field && !_fieldLeaving) {
+		_field->startEntry(now);
+	}
+	if (_giftField) {
+		_giftField->startEntry(now);
+	}
 }
 
 void PeerQrSurface::updateWave(crl::time now) {
@@ -1571,13 +1667,14 @@ void PeerQrSurface::updateWave(crl::time now) {
 	const auto radius = WaveRadius(_wave->farthest, progress);
 	if (_entryPending && radius >= _wave->farthest) {
 		_entryPending = false;
-		_field->startEntry(now);
+		startFieldEntry(now);
 	}
 	if (progress >= 1.) {
 		_wave = std::nullopt;
 		if (base::take(_fieldLeaving)) {
 			_field = nullptr;
 		}
+		_giftLeaving = nullptr;
 		setShownColors(_colors);
 		return;
 	}

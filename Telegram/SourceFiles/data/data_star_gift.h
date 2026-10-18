@@ -376,6 +376,10 @@ enum class MyUniqueType {
 	OnlyOwned,
 };
 
+[[nodiscard]] rpl::producer<MyGiftsDescriptor> PeerUniqueGiftsSlice(
+	not_null<PeerData*> peer,
+	MyUniqueType type,
+	QString offset = QString());
 [[nodiscard]] rpl::producer<MyGiftsDescriptor> MyUniqueGiftsSlice(
 	not_null<Main::Session*> session,
 	MyUniqueType type,

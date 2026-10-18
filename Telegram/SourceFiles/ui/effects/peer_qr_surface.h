@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/animations.h"
 #include "ui/effects/peer_qr_emoji_field.h"
+#include "ui/effects/peer_qr_gift_field.h"
 #include "ui/rp_widget.h"
 
 namespace Ui {
@@ -17,9 +18,10 @@ struct PeerQrAppearance {
 	QColor edge;
 	QColor center;
 	std::vector<QString> emoji;
+	PeerQrGiftLook gift;
 
 	[[nodiscard]] bool empty() const {
-		return !center.isValid() && emoji.empty();
+		return !center.isValid() && emoji.empty() && !gift;
 	}
 
 	friend inline bool operator==(
@@ -54,6 +56,7 @@ struct PeerQrImageArgs {
 	int shadowRadius = 0;
 	int shadowShift = 0;
 	PeerQrEmojiRest emoji;
+	PeerQrGiftRest gift;
 	QPointF layerOffset;
 	float64 layerBand = 0.;
 };
@@ -73,6 +76,7 @@ public:
 	void setCardPlacement(QPointF topLeft, float64 scale);
 	void setAppearance(PeerQrAppearance appearance, anim::type animated);
 	void setEmojiSource(PeerQrEmojiSource source);
+	void setGiftSource(PeerQrGiftSource source);
 	void startAnimations();
 
 	[[nodiscard]] const PeerQrAppearance &appearance() const;
@@ -111,7 +115,15 @@ private:
 	[[nodiscard]] crl::time fieldElapsed(crl::time now) const;
 	[[nodiscard]] PeerQrLayerFalloff layerFalloff() const;
 	[[nodiscard]] bool layerShown() const;
+	[[nodiscard]] QPainterPath fieldClip(crl::time now, bool leaving) const;
+	[[nodiscard]] PeerQrEmojiPaint fieldArgs(crl::time now) const;
 	void paintField(QPainter &p, crl::time now);
+	void paintGift(
+		QPainter &p,
+		not_null<PeerQrGiftField*> field,
+		crl::time now,
+		bool leaving);
+	void startFieldEntry(crl::time now);
 	void updateWave(crl::time now);
 	void paintWave(QPainter &p, crl::time now) const;
 	[[nodiscard]] QImage currentPicture(crl::time now) const;
@@ -142,6 +154,9 @@ private:
 	std::optional<Wave> _wave;
 	PeerQrEmojiSource _emojiSource;
 	std::unique_ptr<PeerQrEmojiField> _field;
+	PeerQrGiftSource _giftSource;
+	std::unique_ptr<PeerQrGiftField> _giftField;
+	std::unique_ptr<PeerQrGiftField> _giftLeaving;
 	PeerQrLayerMotion _layer;
 	crl::time _startedAt = 0;
 	crl::time _bounceStartedAt = 0;

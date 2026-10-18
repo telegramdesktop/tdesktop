@@ -117,15 +117,13 @@ struct Circle {
 	}
 	const auto ratio = image.devicePixelRatio();
 	const auto center = QPointF(image.width(), image.height()) / 2.;
-	const auto white = QColor(255, 255, 255);
 	for (auto i = 0; i != kHairlineSamples; ++i) {
 		const auto angle = 2. * M_PI * i / kHairlineSamples;
 		const auto point = center
 			+ QPointF(std::cos(angle), std::sin(angle)) * radius * ratio;
 		const auto x = std::clamp(int(point.x()), 0, image.width() - 1);
 		const auto y = std::clamp(int(point.y()), 0, image.height() - 1);
-		if (CountContrast(white, image.pixelColor(x, y))
-			< kHairlineContrast) {
+		if (PeerQrRingNeedsHairline(image.pixelColor(x, y))) {
 			return true;
 		}
 	}
@@ -164,22 +162,102 @@ private:
 	void validateCircle(Circle &circle);
 	void paintRows(QPainter &p, int from, int till);
 	void paintCircle(QPainter &p, int index);
-	void paintRing(QPainter &p, int index, QPointF center) const;
+	void paintRing(QPainter &p, int index) const;
 	void paintFades(QPainter &p, QSize viewport) const;
 
 	const not_null<PeerQrColorsPanel*> _panel;
 	const not_null<PeerQrPanel*> _container;
 	std::vector<Circle> _circles;
 	std::optional<PeerQrThemeKey> _selected;
-	Animations::Simple _ring;
+	PeerQrSelectionRing _ring;
 	QImage _canvas;
 	float64 _size = 0.;
-	int _selectedIndex = -1;
-	int _wasIndex = -1;
 	int _over = -1;
 	int _pressed = -1;
 
 };
+
+bool PeerQrRingNeedsHairline(QColor color) {
+	return CountContrast(QColor(255, 255, 255), color) < kHairlineContrast;
+}
+
+void PeerQrSelectionRing::select(
+		int index,
+		anim::type animated,
+		bool visible,
+		Fn<void()> repaint) {
+	if (_selectedIndex == index) {
+		return;
+	}
+	_wasIndex = std::exchange(_selectedIndex, index);
+	if (animated == anim::type::normal && !anim::Disabled() && visible) {
+		_animation.start(repaint, 0., 1., kRingDuration, anim::easeOutCubic);
+	} else {
+		_animation.stop();
+	}
+	repaint();
+}
+
+void PeerQrSelectionRing::reset(int index) {
+	_selectedIndex = index;
+	_wasIndex = -1;
+	_animation.stop();
+}
+
+int PeerQrSelectionRing::selectedIndex() const {
+	return _selectedIndex;
+}
+
+void PeerQrSelectionRing::paint(
+		QPainter &p,
+		int index,
+		QRectF rect,
+		float64 minScale,
+		bool hairline,
+		std::optional<float64> radius) const {
+	const auto selected = (index == _selectedIndex);
+	if (!selected && (index != _wasIndex || !_animation.animating())) {
+		return;
+	}
+	const auto progress = _animation.value(1.);
+	const auto line = float64(st::peerQrSwatchRing);
+	const auto rest = float64(st::peerQrSwatchRingInset);
+	const auto inset = selected ? rest : (rest + (line / 2. - rest) * progress);
+	const auto width = selected ? line : (line * (1. - progress));
+	const auto opacity = selected ? progress : 1.;
+	if (width <= 0. || opacity <= 0.) {
+		return;
+	}
+	auto ring = rect.marginsRemoved({ inset, inset, inset, inset });
+	auto corner = radius ? (*radius - inset) : 0.;
+	if (selected) {
+		const auto scale = minScale + (1. - minScale) * progress;
+		const auto size = ring.size() * scale;
+		ring = QRectF(
+			ring.center() - QPointF(size.width(), size.height()) / 2.,
+			size);
+		corner *= scale;
+	}
+	const auto stroke = [&] {
+		if (radius) {
+			p.drawRoundedRect(ring, corner, corner);
+		} else {
+			p.drawEllipse(ring);
+		}
+	};
+	const auto was = p.opacity();
+	p.setOpacity(was * opacity);
+	p.setBrush(Qt::NoBrush);
+	if (hairline) {
+		p.setPen(QPen(
+			anim::with_alpha(QColor(0, 0, 0), kHairlineAlpha),
+			width * kHairlineWidthRatio));
+		stroke();
+	}
+	p.setPen(QPen(QColor(255, 255, 255), width));
+	stroke();
+	p.setOpacity(was);
+}
 
 PeerQrColorsPanel::Inner::Inner(
 	QWidget *parent,
@@ -216,9 +294,7 @@ void PeerQrColorsPanel::Inner::setSwatches(
 		circles.push_back(std::move(circle));
 	}
 	_circles = std::move(circles);
-	_selectedIndex = indexOf(_selected);
-	_wasIndex = -1;
-	_ring.stop();
+	_ring.reset(indexOf(_selected));
 	_pressed = -1;
 	setOver(-1);
 	resizeToWidth(width());
@@ -232,31 +308,17 @@ void PeerQrColorsPanel::Inner::setSelected(
 		return;
 	}
 	_selected = key;
-	const auto index = indexOf(key);
-	if (_selectedIndex == index) {
-		return;
-	}
-	_wasIndex = std::exchange(_selectedIndex, index);
-	if (animated == anim::type::normal
-		&& !anim::Disabled()
-		&& !_container->isHidden()) {
-		_ring.start(
-			[=] { update(); },
-			0.,
-			1.,
-			kRingDuration,
-			anim::easeOutCubic);
-	} else {
-		_ring.stop();
-	}
-	update();
+	_ring.select(indexOf(key), animated, !_container->isHidden(), [=] {
+		update();
+	});
 }
 
 void PeerQrColorsPanel::Inner::scrollToSelected() {
-	if (_selectedIndex < 0) {
+	const auto index = _ring.selectedIndex();
+	if (index < 0) {
 		return;
 	}
-	const auto rect = circleRect(_selectedIndex);
+	const auto rect = circleRect(index);
 	const auto padding = st::peerQrPanelPadding;
 	_panel->_scroll->scrollToY(
 		int(std::floor(rect.y())) - padding,
@@ -351,41 +413,16 @@ void PeerQrColorsPanel::Inner::paintCircle(QPainter &p, int index) {
 			/ circle.image.devicePixelRatio();
 		p.drawImage(center - QPointF(side, side) / 2., circle.image);
 	}
-	paintRing(p, index, center);
+	paintRing(p, index);
 }
 
-void PeerQrColorsPanel::Inner::paintRing(
-		QPainter &p,
-		int index,
-		QPointF center) const {
-	const auto selected = (index == _selectedIndex);
-	if (!selected && (index != _wasIndex || !_ring.animating())) {
-		return;
-	}
-	const auto progress = _ring.value(1.);
-	const auto outer = _size / 2.;
-	const auto line = float64(st::peerQrSwatchRing);
-	const auto rest = outer - st::peerQrSwatchRingInset;
-	const auto radius = selected
-		? (rest * (kRingMinScale + (1. - kRingMinScale) * progress))
-		: (rest + (outer - line / 2. - rest) * progress);
-	const auto width = selected ? line : (line * (1. - progress));
-	const auto opacity = selected ? progress : 1.;
-	if (width <= 0. || opacity <= 0.) {
-		return;
-	}
-	const auto was = p.opacity();
-	p.setOpacity(was * opacity);
-	p.setBrush(Qt::NoBrush);
-	if (_circles[index].hairline) {
-		auto hairline = QColor(0, 0, 0);
-		hairline.setAlphaF(kHairlineAlpha);
-		p.setPen(QPen(hairline, width * kHairlineWidthRatio));
-		p.drawEllipse(center, radius, radius);
-	}
-	p.setPen(QPen(QColor(255, 255, 255), width));
-	p.drawEllipse(center, radius, radius);
-	p.setOpacity(was);
+void PeerQrColorsPanel::Inner::paintRing(QPainter &p, int index) const {
+	_ring.paint(
+		p,
+		index,
+		circleRect(index),
+		kRingMinScale,
+		_circles[index].hairline);
 }
 
 void PeerQrColorsPanel::Inner::paintFades(

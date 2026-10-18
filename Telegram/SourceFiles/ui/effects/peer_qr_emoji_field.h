@@ -17,6 +17,27 @@ struct MarkedContext;
 namespace Ui {
 
 [[nodiscard]] uint32 PeerQrHash(uint32 value);
+[[nodiscard]] uint32 PeerQrNodeHash(int row, int column, uint32 salt);
+[[nodiscard]] QImage PeerQrRenderStill(
+	not_null<Text::CustomEmoji*> art,
+	int frameSize,
+	QColor textColor);
+void PeerQrApplyItemTransform(
+	QPainter &p,
+	const QTransform &base,
+	QPointF center,
+	float64 rotation,
+	float64 size,
+	float64 frame);
+[[nodiscard]] std::optional<PeerQrLayerPlace> PeerQrPlaceItem(
+	const PeerQrLayerFalloff &falloff,
+	QPointF flat,
+	float64 size);
+[[nodiscard]] QRectF PeerQrCardCull(QRectF card);
+[[nodiscard]] bool PeerQrCovered(
+	const QRectF &cull,
+	QPointF center,
+	float64 size);
 
 using PeerQrEmojiFactory = Fn<std::unique_ptr<Text::CustomEmoji>(
 	QStringView,
