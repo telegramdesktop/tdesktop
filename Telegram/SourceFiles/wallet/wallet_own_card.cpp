@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "wallet/wallet_own_card.h"
 
-#include "apiwrap.h"
 #include "data/data_changes.h"
 #include "data/data_star_gift.h"
 #include "data/data_user.h"
@@ -19,6 +18,8 @@ namespace Wallet {
 namespace {
 
 using Data::WalletCardSticker;
+
+constexpr auto kPreserveAppearanceDuration = crl::time(60000);
 
 [[nodiscard]] auto SameNftAs(const QString &address) {
 	return [canonical = CanonicalAddress(address)](
@@ -142,6 +143,21 @@ rpl::producer<OwnCardFailure> OwnCard::failures() const {
 	return _failures.events();
 }
 
+void OwnCard::applyFullUserCard(std::optional<Data::WalletCard> card) {
+	const auto self = _session->user();
+	const auto current = self->walletCard();
+	// Profile reads can lag behind a successful card mutation.
+	if (card && current
+		&& (_pending || crl::now() < _preserveAppearanceUntil)
+		&& (CanonicalAddress(card->address)
+			== CanonicalAddress(current->address))) {
+		card->stickers = current->stickers;
+		card->backgroundAddress = current->backgroundAddress;
+		card->stickersComplete = current->stickersComplete;
+	}
+	self->setWalletCard(std::move(card));
+}
+
 OwnCardChange OwnCard::add(WalletCardSticker sticker) {
 	auto desired = shown();
 	if (ranges::any_of(desired.stickers, SameNftAs(sticker.address))) {
@@ -201,6 +217,7 @@ void OwnCard::send() {
 	Expects(_pending.has_value());
 
 	_sent = *_pending;
+	_preserveAppearanceUntil = crl::now() + kPreserveAppearanceDuration;
 	_requestId = _api.request(
 		Serialize(_sent)
 	).done([=](const MTPwallet_Card &result) {
@@ -217,9 +234,8 @@ void OwnCard::send() {
 
 void OwnCard::done(const MTPwallet_Card &result) {
 	const auto self = _session->user();
+	_preserveAppearanceUntil = crl::now() + kPreserveAppearanceDuration;
 	self->setWalletCard(Data::ParseWalletCard(_session, result));
-	// A full user requested before this answer must not override it.
-	_session->api().reloadFullPeer(self);
 
 	if (!_pending
 		|| SameWire(*_pending, _sent)

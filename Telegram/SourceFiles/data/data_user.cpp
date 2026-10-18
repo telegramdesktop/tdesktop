@@ -39,6 +39,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_peer_photo.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
+#include "wallet/wallet_own_card.h"
+#include "wallet/wallet_session.h"
 #include "window/notifications_manager.h"
 
 namespace {
@@ -1136,10 +1138,14 @@ void ApplyUserUpdate(
 		update.is_noforwards_my_enabled(),
 		update.is_noforwards_peer_enabled());
 
-	if (const auto card = update.vwallet_card()) {
-		user->setWalletCard(ParseWalletCard(&user->session(), *card));
+	const auto card = update.vwallet_card();
+	auto parsed = card
+		? std::optional(ParseWalletCard(&user->session(), *card))
+		: std::nullopt;
+	if (user->isSelf()) {
+		user->session().wallet().ownCard().applyFullUserCard(std::move(parsed));
 	} else {
-		user->setWalletCard(std::nullopt);
+		user->setWalletCard(std::move(parsed));
 	}
 
 	user->fullUpdated();

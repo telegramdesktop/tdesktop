@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "crl/crl_time.h"
 #include "data/data_user_wallet_card.h"
 #include "mtproto/sender.h"
 #include "rpl/variable.h"
@@ -53,6 +54,8 @@ public:
 	[[nodiscard]] rpl::producer<OwnCardState> shownValue() const;
 	[[nodiscard]] rpl::producer<OwnCardFailure> failures() const;
 
+	void applyFullUserCard(std::optional<Data::WalletCard> card);
+
 	[[nodiscard]] OwnCardChange add(Data::WalletCardSticker sticker);
 	[[nodiscard]] OwnCardChange remove(const QString &address);
 	[[nodiscard]] OwnCardChange save(OwnCardState desired);
@@ -70,6 +73,7 @@ private:
 	std::optional<OwnCardState> _pending;
 	OwnCardState _sent;
 	mtpRequestId _requestId = 0;
+	crl::time _preserveAppearanceUntil = 0;
 	rpl::variable<OwnCardState> _shown;
 	rpl::event_stream<OwnCardFailure> _failures;
 	rpl::lifetime _lifetime;
