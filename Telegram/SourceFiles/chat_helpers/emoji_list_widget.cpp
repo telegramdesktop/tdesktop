@@ -611,8 +611,22 @@ EmojiListWidget::EmojiListWidget(
 		Data::AmPremiumValue(&session()),
 		session().premiumPossibleValue()
 	) | rpl::skip(1) | rpl::on_next([=] {
+		if (_features.allCustomEmojiPremium) {
+			const auto required = !session().premium();
+			for (const auto sets : { &_searchSets, &_searchShortcutSets }) {
+				for (auto &set : *sets) {
+					if (set.premiumRequired != required) {
+						set.premiumRequired = required;
+						set.ripple.reset();
+					}
+				}
+			}
+		}
 		refreshCustom();
 		resizeToWidth(width());
+		if (_features.allCustomEmojiPremium) {
+			updateSelected();
+		}
 	}, lifetime());
 
 	rpl::single(
@@ -1246,6 +1260,8 @@ bool EmojiListWidget::addSearchShortcut(not_null<Data::StickersSet*> set) {
 		.title = set->title,
 		.list = std::move(list),
 		.canRemove = installed,
+		.premiumRequired = _features.allCustomEmojiPremium
+			&& !session().premium(),
 	});
 	return true;
 }
@@ -1298,6 +1314,8 @@ void EmojiListWidget::fillSelectedSearchShortcut() {
 			set->count),
 		.list = std::move(list),
 		.canRemove = installed,
+		.premiumRequired = _features.allCustomEmojiPremium
+			&& !session().premium(),
 	});
 }
 
@@ -3164,7 +3182,9 @@ QRect EmojiListWidget::colorButtonRect(const SectionInfo &info) const {
 bool EmojiListWidget::hasRemoveButton(int index) const {
 	if (_searchMode) {
 		if (index > 0 && index <= int(_searchSets.size())) {
-			return searchSetBySection(index).canRemove;
+			const auto &set = searchSetBySection(index);
+			return set.canRemove
+				&& !(_features.allCustomEmojiPremium && set.premiumRequired);
 		}
 		return false;
 	}
@@ -3225,6 +3245,21 @@ QRect EmojiListWidget::addButtonRect(int index) const {
 	return buttonRect(sectionInfo(index), _add);
 }
 
+bool EmojiListWidget::hasUnlockButton(int index) const {
+	if (_searchMode) {
+		if (index > 0 && index <= int(_searchSets.size())) {
+			return searchSetBySection(index).premiumRequired;
+		}
+		return false;
+	}
+	if (index < _staticCount
+		|| index >= _staticCount + _custom.size()) {
+		return false;
+	}
+	const auto &set = _custom[index - _staticCount];
+	return set.premiumRequired;
+}
+
 QRect EmojiListWidget::unlockButtonRect(int index) const {
 	Expects((_searchMode
 			&& index > 0
@@ -3272,6 +3307,9 @@ QRect EmojiListWidget::buttonRect(
 }
 
 auto EmojiListWidget::rightButton(int index) const -> const RightButton & {
+	if (_features.allCustomEmojiPremium && hasUnlockButton(index)) {
+		return _unlock;
+	}
 	if (_searchMode) {
 		Expects(index > 0 && index <= int(_searchSets.size()));
 
@@ -3501,11 +3539,13 @@ void EmojiListWidget::refreshCustom() {
 	auto old = base::take(_custom);
 	const auto session = &this->session();
 	const auto premiumPossible = session->premiumPossible();
-	const auto onlyUnicodeEmoji = _onlyUnicodeEmoji || !premiumPossible;
+	const auto allCustomEmojiPremium = _features.allCustomEmojiPremium;
+	const auto onlyUnicodeEmoji = _onlyUnicodeEmoji
+		|| (!allCustomEmojiPremium && !premiumPossible);
 	const auto premiumMayBeBought = (!onlyUnicodeEmoji)
-		&& premiumPossible
+		&& (allCustomEmojiPremium || premiumPossible)
 		&& !session->premium()
-		&& !_allowWithoutPremium;
+		&& (allCustomEmojiPremium || !_allowWithoutPremium);
 	const auto owner = &session->data();
 	const auto &sets = owner->stickers().sets();
 	const auto push = [&](uint64 setId, bool installed) {
@@ -3544,7 +3584,7 @@ void EmojiListWidget::refreshCustom() {
 		if (!megagroup && sortAsInstalled != installed) {
 			return;
 		}
-		auto premium = false;
+		auto premium = allCustomEmojiPremium;
 		const auto &list = it->second->stickers;
 		const auto i = ranges::find(old, setId, &CustomSet::id);
 		if (i != end(old)) {
@@ -3868,10 +3908,12 @@ std::vector<StickerIcon> EmojiListWidget::fillIcons() {
 		if (custom.id == Data::Stickers::MegagroupSetId) {
 			result.emplace_back(Data::Stickers::MegagroupSetId);
 			result.back().megagroup = _megagroupSet;
-			continue;
+		} else {
+			const auto set = custom.set;
+			result.emplace_back(set, custom.thumbnailDocument, esize, esize);
 		}
-		const auto set = custom.set;
-		result.emplace_back(set, custom.thumbnailDocument, esize, esize);
+		result.back().premiumRequired = _features.allCustomEmojiPremium
+			&& custom.premiumRequired;
 	}
 	return result;
 }

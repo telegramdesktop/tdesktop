@@ -15,8 +15,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_message_reaction_id.h"
 #include "data/data_message_reactions.h"
+#include "data/data_peer_values.h"
 #include "data/data_session.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "settings/sections/settings_premium.h"
 #include "ui/effects/animations.h"
 #include "ui/text/text.h"
 #include "ui/painter.h"
@@ -142,7 +145,6 @@ void AddInitial(
 
 [[nodiscard]] std::vector<DocumentId> CollectDocuments(
 		not_null<Main::Session*> session,
-		bool premium,
 		not_null<PickerState*> state) {
 	state->docToReaction.clear();
 	state->reactionToDoc.clear();
@@ -152,18 +154,20 @@ void AddInitial(
 		state->docToReaction.emplace(document, id);
 		state->reactionToDoc.emplace(id, document);
 	};
+	const auto premium = session->premium();
 	const auto possible = Data::LookupPossibleReactions(session);
 	auto listed = std::vector<DocumentId>();
 	for (const auto &reaction : possible.recent) {
 		const auto &id = reaction->id;
-		if (!id.paid() && (premium || !id.custom())) {
+		if (!id.paid()
+			&& (premium || (!id.custom() && !reaction->premium))) {
 			const auto document = reaction->selectAnimation->id;
 			remember(id, document);
 			listed.push_back(document);
 		}
 	}
 	auto result = std::vector<DocumentId>();
-	for (const auto &id : state->initial) {
+	const auto addInitial = [&](const Data::ReactionId &id) {
 		const auto document = PickDocument(session, state, id);
 		if (document
 			&& !ranges::contains(listed, document)
@@ -172,6 +176,14 @@ void AddInitial(
 				remember(id, document);
 			}
 			result.push_back(document);
+		}
+	};
+	for (const auto &id : state->initial) {
+		addInitial(id);
+	}
+	if (!premium) {
+		for (const auto &key : state->picks) {
+			addInitial(ParseKey(key));
 		}
 	}
 	for (const auto document : listed) {
@@ -232,6 +244,23 @@ void ApplyPicks(
 	return (id.empty() || id.paid())
 		? QString()
 		: Data::ReactionEntityData(id);
+}
+
+[[nodiscard]] bool CanChooseKey(
+		not_null<Main::Session*> session,
+		not_null<const PickerState*> state,
+		const QString &key) {
+	if (ranges::contains(state->picks, key) || session->premium()) {
+		return true;
+	}
+	const auto id = ParseKey(key);
+	if (id.empty() || id.paid() || id.custom()) {
+		return false;
+	}
+	const auto &all = session->data().reactions().list(
+		Data::Reactions::Type::All);
+	const auto i = ranges::find(all, id, &Data::Reaction::id);
+	return (i != end(all)) && !i->premium;
 }
 
 [[nodiscard]] float64 PopProgress(crl::time shownAt, crl::time now) {
@@ -424,23 +453,20 @@ QrEmojiPicker CreateQrEmojiPicker(
 	using Selector = ChatHelpers::TabbedSelector;
 	const auto session = &controller->session();
 	const auto reactions = &session->data().reactions();
-	const auto premium = session->premium();
+	const auto show = controller->uiShow();
 	const auto selector = Ui::CreateChild<Selector>(
 		parent.get(),
 		ChatHelpers::TabbedSelectorDescriptor{
-			.show = controller->uiShow(),
-			.st = (premium ? st::peerQrEmojiPan : st::peerQrRecentEmojiPan),
+			.show = show,
+			.st = st::peerQrEmojiPan,
 			.level = Window::GifPauseReason::Layer,
-			.mode = (premium
-				? Selector::Mode::FullReactions
-				: Selector::Mode::RecentReactions),
+			.mode = Selector::Mode::FullReactions,
+			.features = { .allCustomEmojiPremium = true },
 		});
 	const auto state = selector->lifetime().make_state<PickerState>();
 	state->picks = picks;
 	AddInitial(session, state, picks);
-	if (premium) {
-		selector->setAllowEmojiWithoutPremium(false);
-	}
+	selector->setAllowEmojiWithoutPremium(false);
 	selector->setRoundRadius(st::peerQrPanelRadius - st::lineWidth);
 	selector->setDropDown(true);
 	selector->setMarkedCustomPainter([=](
@@ -466,7 +492,7 @@ QrEmojiPicker CreateQrEmojiPicker(
 		return !state->shownAt.empty();
 	});
 	const auto refresh = [=] {
-		auto documents = CollectDocuments(session, premium, state);
+		auto documents = CollectDocuments(session, state);
 		if (state->provided != documents) {
 			state->provided = std::move(documents);
 			selector->provideRecentEmoji(
@@ -482,11 +508,14 @@ QrEmojiPicker CreateQrEmojiPicker(
 		reactions->defaultUpdates(),
 		reactions->favoriteUpdates()
 	) | rpl::on_next(refresh, selector->lifetime());
+	Data::AmPremiumValue(
+		session
+	) | rpl::skip(1) | rpl::on_next(refresh, selector->lifetime());
 
 	const auto strip = Ui::CreateChild<PicksStrip>(
 		selector,
 		session,
-		(premium ? st::peerQrEmojiPan : st::peerQrRecentEmojiPan).markedBg);
+		st::peerQrEmojiPan.markedBg);
 	strip->setPicks(state->picks, false);
 	strip->raise();
 	selector->sizeValue() | rpl::on_next([=](QSize size) {
@@ -504,6 +533,15 @@ QrEmojiPicker CreateQrEmojiPicker(
 		return ChosenKey(state, data.document->id);
 	}) | rpl::filter([](const QString &key) {
 		return !key.isEmpty();
+	}) | rpl::filter([=](const QString &key) {
+		if (CanChooseKey(session, state, key)) {
+			return true;
+		}
+		Settings::ShowPremiumPromoToast(
+			show,
+			tr::link(tr::lng_animated_emoji_text(tr::now, tr::rich)),
+			u"animated_emoji"_q);
+		return false;
 	}) | rpl::before_next([=](const QString &key) {
 		state->clicked.emplace(key);
 	});
@@ -524,6 +562,7 @@ QrEmojiPicker CreateQrEmojiPicker(
 		}),
 		.setShown = crl::guard(selector, [=](bool shown) {
 			if (shown) {
+				refresh();
 				selector->afterShown();
 			} else {
 				selector->beforeHiding();

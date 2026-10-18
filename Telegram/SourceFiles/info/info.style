@@ -1364,14 +1364,6 @@ peerQrEmojiPan: EmojiPan(statusEmojiPan) {
 	audioButtonIcon: icon {{ "photo_editor/widget_music", windowFg }};
 	linkButtonIcon: icon {{ "limits/links", windowFg }};
 }
-peerQrRecentEmojiPan: EmojiPan(backgroundEmojiPan) {
-	markedBg: windowBgRipple;
-	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanCategories }};
-	fadeRight: icon {{ "fade_horizontal", emojiPanCategories }};
-	photoButtonIcon: icon {{ "photo_editor/camera-24x24", windowFg }};
-	audioButtonIcon: icon {{ "photo_editor/widget_music", windowFg }};
-	linkButtonIcon: icon {{ "limits/links", windowFg }};
-}
 peerQrEmojiBadgeSize: 14px;
 peerQrEmojiBadgeInset: 6px;
 peerQrEmojiBadgeFont: font(11px semibold);

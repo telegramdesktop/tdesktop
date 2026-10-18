@@ -1450,6 +1450,7 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
 			? _owner->processDocument(*data.varound_animation()).get()
 			: nullptr),
 		.active = !data.is_inactive(),
+		.premium = data.is_premium(),
 	});
 }
 

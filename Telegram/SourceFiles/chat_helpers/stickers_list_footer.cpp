@@ -1318,6 +1318,36 @@ void StickersListFooter::paintSetIcon(
 		paintSetIconToCache(p, context, info, now, paused);
 		p.translate(-info.adjustedLeft, -_iconsTop);
 	}
+	if (icon.premiumRequired) {
+		p.save();
+		if (context.expanding && icon.custom) {
+			const auto center = QPoint(
+				info.adjustedLeft + _singleWidth / 2,
+				_iconsTop + st().footer / 2);
+			p.translate(center);
+			p.scale(context.progress, context.progress);
+			p.translate(-center);
+		}
+		const auto &lock = st::emojiPremiumLock;
+		const auto size = std::max(lock.width(), lock.height())
+			+ 2 * st::lineWidth;
+		const auto area = QRect(
+			info.adjustedLeft + _areaPosition.x(),
+			_iconsTop + _areaPosition.y(),
+			st().iconArea,
+			st().iconArea);
+		const auto badge = QRect(
+			area.x() + (rtl() ? 0 : area.width() - size),
+			area.y() + area.height() - size,
+			size,
+			size);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st().headerFg);
+		p.drawEllipse(badge);
+		lock.paintInCenter(p, badge);
+		p.restore();
+	}
 	if (context.expanding) {
 		if (icon.custom) {
 			p.translate(-expandingShift);

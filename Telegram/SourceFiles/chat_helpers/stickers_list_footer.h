@@ -99,6 +99,7 @@ struct StickerIcon {
 	mutable Ui::PeerUserpicView megagroupUserpic;
 	int pixw = 0;
 	int pixh = 0;
+	bool premiumRequired : 1 = false;
 	mutable rpl::lifetime lifetime;
 };
 

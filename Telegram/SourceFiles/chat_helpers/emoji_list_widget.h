@@ -438,6 +438,7 @@ private:
 	[[nodiscard]] QRect removeButtonRect(const SectionInfo &info) const;
 	[[nodiscard]] bool hasAddButton(int index) const;
 	[[nodiscard]] QRect addButtonRect(int index) const;
+	[[nodiscard]] bool hasUnlockButton(int index) const;
 	[[nodiscard]] QRect unlockButtonRect(int index) const;
 	[[nodiscard]] bool hasButton(int index) const;
 	[[nodiscard]] QRect buttonRect(int index) const;
