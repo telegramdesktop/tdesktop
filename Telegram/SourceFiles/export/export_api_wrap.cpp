@@ -538,6 +538,7 @@ struct ApiWrap::FileProcess {
 	};
 	std::deque<Request> requests;
 	mtpRequestId requestId = 0;
+	bool fasterDownload = false;
 	std::vector<int64> referenceRefreshWaiting;
 };
 
@@ -1884,9 +1885,10 @@ void ApiWrap::requestMessagesCount(int localSplitIndex) {
 			error("Unexpected messagesNotModified received.");
 			return;
 		}
+		const auto from = _settings->singlePeerFrom;
 		const auto skipSplit = !Data::SingleMessageAfter(
 			result,
-			_settings->singlePeerFrom);
+			(from > 0) ? (from - 1) : 0);
 		if (skipSplit) {
 			// No messages from the requested range, skip this split.
 			messagesCountLoaded(localSplitIndex, 0);
@@ -1947,17 +1949,7 @@ void ApiWrap::skipFile(uint64 randomId) {
 		return;
 	}
 	LOG(("Export Info: File skipped."));
-	if (FasterExportDownloadOption.value()) {
-		if (const auto requestId = base::take(_fileProcess->requestId)) {
-			_mtp.request(requestId).cancel();
-		}
-		cancelPendingFileRequests();
-		base::take(_fileProcess)->done(QString());
-		return;
-	}
-	Assert(!_fileProcess->requests.empty());
-	Assert(_fileProcess->requestId != 0);
-	_mtp.request(base::take(_fileProcess->requestId)).cancel();
+	cancelPendingFileRequests();
 	base::take(_fileProcess)->done(QString());
 }
 
@@ -3490,7 +3482,7 @@ void ApiWrap::loadFile(
 
 	loadFilePart();
 
-	if (FasterExportDownloadOption.value()) {
+	if (_fileProcess->fasterDownload) {
 		Ensures(!_fileProcess->requests.empty());
 		return;
 	}
@@ -3514,6 +3506,7 @@ auto ApiWrap::prepareFileProcess(
 	result->size = file.size;
 	result->origin = origin;
 	result->randomId = base::RandomValue<uint64>();
+	result->fasterDownload = FasterExportDownloadOption.value();
 	return result;
 }
 
@@ -3555,12 +3548,14 @@ void ApiWrap::clearFileRequestId(int64 offset) {
 }
 
 void ApiWrap::loadFilePart() {
-	if (FasterExportDownloadOption.value()) {
+	if (!_fileProcess) {
+		return;
+	}
+	if (_fileProcess->fasterDownload) {
 		loadFilePartFast();
 		return;
 	}
-	if (!_fileProcess
-		|| _fileProcess->requestId
+	if (_fileProcess->requestId
 		|| _fileProcess->requests.size() >= kFileRequestsCount
 		|| (_fileProcess->size > 0
 			&& _fileProcess->offset >= _fileProcess->size)) {
@@ -3606,7 +3601,7 @@ void ApiWrap::filePartDone(int64 offset, const MTPupload_File &result) {
 			error("Empty bytes received in file part.");
 			return;
 		}
-		if (FasterExportDownloadOption.value()) {
+		if (_fileProcess->fasterDownload) {
 			cancelPendingFileRequests();
 		}
 		const auto result = _fileProcess->file.writeBlock({});
@@ -3658,6 +3653,10 @@ void ApiWrap::filePartDone(int64 offset, const MTPupload_File &result) {
 void ApiWrap::cancelPendingFileRequests() {
 	Expects(_fileProcess != nullptr);
 
+	if (const auto requestId = base::take(_fileProcess->requestId)) {
+		_mtp.request(requestId).cancel();
+	}
+
 	for (auto &request : _fileProcess->requests) {
 		if (const auto requestId = base::take(request.requestId)) {
 			_mtp.request(requestId).cancel();
@@ -3696,7 +3695,7 @@ void ApiWrap::filePartRetryReference(
 	Expects(_fileProcess->requestId == 0);
 
 	_fileProcess->location = std::move(location);
-	if (FasterExportDownloadOption.value()) {
+	if (_fileProcess->fasterDownload) {
 		retryFilePartRequest(offset);
 		const auto waiting = base::take(
 			_fileProcess->referenceRefreshWaiting);
@@ -3717,7 +3716,7 @@ void ApiWrap::filePartRetryReference(
 void ApiWrap::filePartRefreshReference(int64 offset) {
 	Expects(_fileProcess != nullptr);
 
-	if (FasterExportDownloadOption.value()
+	if (_fileProcess->fasterDownload
 		&& _fileProcess->requestId != 0) {
 		_fileProcess->referenceRefreshWaiting.push_back(offset);
 		return;
@@ -3987,9 +3986,7 @@ void ApiWrap::filePartUnavailable() {
 
 	LOG(("Export Error: File unavailable."));
 
-	if (FasterExportDownloadOption.value()) {
-		cancelPendingFileRequests();
-	}
+	cancelPendingFileRequests();
 	base::take(_fileProcess)->done(QString());
 }
 
