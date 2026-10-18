@@ -13,24 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <zlib.h>
 
 namespace MTP::details {
-namespace {
-
-[[nodiscard]] bool HasCredentials(const DumpToTextBuffer &to) {
-	const auto text = QByteArray::fromRawData(to.p, to.size);
-	const auto markers = std::array{
-		"tmp_password: ",
-		"{ inputCheckPasswordSRP",
-		"{ payments_starGiftWithdrawalUrl",
-	};
-	for (const auto marker : markers) {
-		if (text.contains(marker)) {
-			return true;
-		}
-	}
-	return false;
-}
-
-} // namespace
 
 bool DumpToTextCore(DumpToTextBuffer &to, const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons, uint32 level, mtpPrime vcons) {
 	switch (mtpTypeId(cons)) {
@@ -181,9 +163,9 @@ bool DumpToTextCore(DumpToTextBuffer &to, const mtpPrime *&from, const mtpPrime 
 QString DumpToText(const mtpPrime *&from, const mtpPrime *end) {
 	DumpToTextBuffer to;
 	[[maybe_unused]] bool result = DumpToTextType(to, from, end, mtpc_core_message);
-	if (HasCredentials(to)) {
-		return u"[CREDENTIALS OMITTED]"_q;
-	}
+	// WHY: Debugging requires full structure; never hide objects or containers.
+	// Future redaction may hide only leaf values, at any depth, explicitly marked
+	// by object/field metadata passed to lib_tl's Python codegen.
 	return QString::fromUtf8(to.p, to.size);
 }
 
