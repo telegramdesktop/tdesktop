@@ -54,6 +54,8 @@ struct PeerQrImageArgs {
 	int shadowRadius = 0;
 	int shadowShift = 0;
 	PeerQrEmojiRest emoji;
+	QPointF layerOffset;
+	float64 layerBand = 0.;
 };
 
 [[nodiscard]] QImage RenderPeerQrImage(PeerQrImageArgs args);
@@ -80,6 +82,9 @@ public:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
 
 private:
 	struct Card;
@@ -104,6 +109,8 @@ private:
 	void ensureField();
 	void refreshFieldClock();
 	[[nodiscard]] crl::time fieldElapsed(crl::time now) const;
+	[[nodiscard]] PeerQrLayerFalloff layerFalloff() const;
+	[[nodiscard]] bool layerShown() const;
 	void paintField(QPainter &p, crl::time now);
 	void updateWave(crl::time now);
 	void paintWave(QPainter &p, crl::time now) const;
@@ -135,6 +142,7 @@ private:
 	std::optional<Wave> _wave;
 	PeerQrEmojiSource _emojiSource;
 	std::unique_ptr<PeerQrEmojiField> _field;
+	PeerQrLayerMotion _layer;
 	crl::time _startedAt = 0;
 	crl::time _bounceStartedAt = 0;
 	crl::time _dipStartedAt = 0;

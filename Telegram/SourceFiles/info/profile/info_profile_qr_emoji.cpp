@@ -17,18 +17,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_message_reactions.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
+#include "ui/effects/animations.h"
 #include "ui/text/text.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
+#include "ui/rp_widget.h"
 #include "window/window_session_controller.h"
 
 #include "styles/style_basic.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 
 namespace Info::Profile {
 namespace {
 
 using SizeTag = Data::CustomEmojiManager::SizeTag;
+
+constexpr auto kBadgePopDuration = crl::time(110);
+constexpr auto kBadgeAlpha = 0.6;
 
 struct PickerState {
 	std::vector<Data::ReactionId> initial;
@@ -38,6 +45,35 @@ struct PickerState {
 	base::flat_map<DocumentId, Data::ReactionId> docToReaction;
 	base::flat_map<Data::ReactionId, DocumentId> reactionToDoc;
 	base::flat_map<DocumentId, int> order;
+	base::flat_map<DocumentId, crl::time> shownAt;
+	Ui::Animations::Basic popping;
+};
+
+class PicksStrip final : public Ui::RpWidget {
+public:
+	PicksStrip(
+		not_null<QWidget*> parent,
+		not_null<Main::Session*> session,
+		const style::color &fill);
+
+	void setPicks(const std::vector<QString> &keys, bool animated);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	struct Slot {
+		QString key;
+		std::unique_ptr<Ui::Text::CustomEmoji> emoji;
+		crl::time shownAt = 0;
+	};
+
+	const not_null<Main::Session*> _session;
+	const style::color &_fill;
+	std::vector<Slot> _slots;
+	Ui::Animations::Simple _width;
+	int _frameSize = 0;
+
 };
 
 [[nodiscard]] Data::ReactionId ParseKey(QStringView key) {
@@ -146,6 +182,18 @@ void AddInitial(
 	return result;
 }
 
+template <typename Predicate>
+void EraseShownIf(not_null<PickerState*> state, Predicate &&predicate) {
+	auto &shownAt = state->shownAt;
+	for (auto i = begin(shownAt); i != end(shownAt);) {
+		if (predicate(i->first, i->second)) {
+			i = shownAt.erase(i);
+		} else {
+			++i;
+		}
+	}
+}
+
 void ApplyPicks(
 		not_null<Main::Session*> session,
 		not_null<PickerState*> state,
@@ -165,6 +213,9 @@ void ApplyPicks(
 	}
 	const auto reordered = (state->order != order);
 	state->order = std::move(order);
+	EraseShownIf(state, [&](DocumentId document, crl::time) {
+		return !state->order.contains(document);
+	});
 	selector->setMarkedCustomIds(marked);
 	if (reordered) {
 		selector->update();
@@ -183,25 +234,31 @@ void ApplyPicks(
 		: Data::ReactionEntityData(id);
 }
 
-void PaintPickBadge(QPainter &p, QRect area, int order) {
+[[nodiscard]] float64 PopProgress(crl::time shownAt, crl::time now) {
+	return shownAt
+		? std::clamp((now - shownAt) / float64(kBadgePopDuration), 0., 1.)
+		: 1.;
+}
+
+void PaintPickBadge(QPainter &p, QRect area, int order, float64 shown) {
+	if (shown <= 0.) {
+		return;
+	}
 	const auto size = st::peerQrEmojiBadgeSize;
 	const auto inset = st::peerQrEmojiBadgeInset;
-	const auto stroke = st::peerQrEmojiBadgeStroke;
 	const auto x = style::RightToLeft()
 		? (area.x() + inset)
 		: (area.x() + area.width() - inset);
-	const auto disc = QRect(
-		x - size / 2,
-		area.y() + inset - size / 2,
-		size,
-		size);
+	const auto scale = anim::easeOutCubic(1., shown);
+	const auto disc = QRect(-size / 2, -size / 2, size, size);
 	auto hq = PainterHighQualityEnabler(p);
+	p.translate(x, area.y() + inset);
+	p.scale(scale, scale);
+	p.setOpacity(p.opacity() * scale);
 	p.setPen(Qt::NoPen);
-	p.setBrush(st::emojiPanBg);
-	p.drawEllipse(disc.marginsAdded({ stroke, stroke, stroke, stroke }));
-	p.setBrush(st::windowBgActive);
+	p.setBrush(anim::with_alpha(QColor(0, 0, 0), kBadgeAlpha));
 	p.drawEllipse(disc);
-	p.setPen(st::windowFgActive);
+	p.setPen(QColor(255, 255, 255));
 	p.setFont(st::peerQrEmojiBadgeFont);
 	p.drawText(disc, QString::number(order), style::al_center);
 }
@@ -224,6 +281,138 @@ void PaintPickBadge(QPainter &p, QRect area, int order) {
 			context.repaint,
 			SizeTag::Isolated)
 		: nullptr;
+}
+
+[[nodiscard]] std::vector<QString> AddedKeys(
+		const std::vector<QString> &was,
+		const std::vector<QString> &now) {
+	return now | ranges::views::filter([&](const QString &key) {
+		return !ranges::contains(was, key);
+	}) | ranges::to_vector;
+}
+
+void StartPops(
+		not_null<Main::Session*> session,
+		not_null<PickerState*> state,
+		const std::vector<QString> &added) {
+	const auto now = crl::now();
+	auto started = false;
+	for (const auto &key : added) {
+		const auto id = ParseKey(key);
+		const auto document = id
+			? PickDocument(session, state, id)
+			: DocumentId();
+		if (document && state->order.contains(document)) {
+			state->shownAt[document] = now;
+			started = true;
+		}
+	}
+	if (started) {
+		state->popping.start();
+	}
+}
+
+[[nodiscard]] int WidthFor(int count) {
+	return 2 * st::peerQrEmojiStripPadding
+		+ count * st::peerQrEmojiStripSkip;
+}
+
+PicksStrip::PicksStrip(
+	not_null<QWidget*> parent,
+	not_null<Main::Session*> session,
+	const style::color &fill)
+: RpWidget(parent)
+, _session(session)
+, _fill(fill)
+, _frameSize(Data::FrameSizeFromTag(SizeTag::Isolated)
+	/ style::DevicePixelRatio()) {
+	setAttribute(Qt::WA_TransparentForMouseEvents);
+}
+
+void PicksStrip::setPicks(const std::vector<QString> &keys, bool animated) {
+	const auto from = _width.value(WidthFor(int(_slots.size())));
+	const auto now = crl::now();
+	auto slots = std::vector<Slot>();
+	slots.reserve(keys.size());
+	for (const auto &key : keys) {
+		const auto i = ranges::find(_slots, key, &Slot::key);
+		if (i != end(_slots) && i->emoji) {
+			slots.push_back(std::move(*i));
+			continue;
+		}
+		slots.push_back({
+			.key = key,
+			.emoji = CreateFieldEmoji(_session, key, {
+				.repaint = [=] { update(); },
+			}),
+			.shownAt = animated ? now : crl::time(),
+		});
+	}
+	_slots = std::move(slots);
+	if (animated) {
+		_width.start(
+			[=] { update(); },
+			from,
+			WidthFor(int(_slots.size())),
+			kBadgePopDuration);
+	} else {
+		_width.stop();
+	}
+	setVisible(!_slots.empty());
+	update();
+}
+
+void PicksStrip::paintEvent(QPaintEvent *e) {
+	if (_slots.empty() || _frameSize <= 0) {
+		return;
+	}
+	auto p = QPainter(this);
+	const auto count = int(_slots.size());
+	const auto capsuleWidth = _width.value(WidthFor(count));
+	const auto capsuleHeight = float64(st::peerQrEmojiStripHeight);
+	const auto capsule = QRectF(
+		(width() - capsuleWidth) / 2.,
+		(height() - capsuleHeight) / 2.,
+		capsuleWidth,
+		capsuleHeight);
+	const auto radius = capsuleHeight / 2.;
+	auto path = QPainterPath();
+	path.addRoundedRect(capsule, radius, radius);
+	{
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(_fill);
+		p.drawPath(path);
+	}
+	p.setClipPath(path);
+	p.setRenderHint(QPainter::SmoothPixmapTransform);
+
+	const auto now = crl::now();
+	const auto paused = PowerSaving::On(PowerSaving::kEmojiReactions);
+	const auto frame = float64(_frameSize);
+	const auto skip = st::peerQrEmojiStripSkip;
+	const auto left = capsule.x() + st::peerQrEmojiStripPadding + skip / 2.;
+	const auto base = p.transform();
+	for (auto i = 0; i != count; ++i) {
+		const auto &slot = _slots[i];
+		const auto shown = anim::easeOutCubic(
+			1.,
+			PopProgress(slot.shownAt, now));
+		const auto size = st::peerQrEmojiStripSize * shown;
+		if (!slot.emoji || size <= 0.) {
+			continue;
+		}
+		auto transform = base;
+		transform.translate(left + i * skip, capsule.center().y());
+		transform.scale(size / frame, size / frame);
+		transform.translate(-frame / 2., -frame / 2.);
+		p.setTransform(transform);
+		slot.emoji->paint(p, {
+			.textColor = st::windowFg->c,
+			.now = now,
+			.paused = paused,
+		});
+	}
 }
 
 } // namespace
@@ -260,10 +449,21 @@ QrEmojiPicker CreateQrEmojiPicker(
 			DocumentId document) {
 		const auto i = state->order.find(document);
 		if (i != end(state->order)) {
+			const auto j = state->shownAt.find(document);
+			const auto shown = (j != end(state->shownAt))
+				? PopProgress(j->second, crl::now())
+				: 1.;
 			p.save();
-			PaintPickBadge(p, area, i->second);
+			PaintPickBadge(p, area, i->second, shown);
 			p.restore();
 		}
+	});
+	state->popping.init([=](crl::time now) {
+		selector->update();
+		EraseShownIf(state, [&](DocumentId, crl::time at) {
+			return (now - at >= kBadgePopDuration);
+		});
+		return !state->shownAt.empty();
 	});
 	const auto refresh = [=] {
 		auto documents = CollectDocuments(session, premium, state);
@@ -283,6 +483,22 @@ QrEmojiPicker CreateQrEmojiPicker(
 		reactions->favoriteUpdates()
 	) | rpl::on_next(refresh, selector->lifetime());
 
+	const auto strip = Ui::CreateChild<PicksStrip>(
+		selector,
+		session,
+		(premium ? st::peerQrEmojiPan : st::peerQrRecentEmojiPan).markedBg);
+	strip->setPicks(state->picks, false);
+	strip->raise();
+	selector->sizeValue() | rpl::on_next([=](QSize size) {
+		strip->setGeometry(
+			0,
+			(size.height()
+				- st::peerQrEmojiStripBottom
+				- st::peerQrEmojiStripHeight),
+			size.width(),
+			st::peerQrEmojiStripHeight);
+	}, strip->lifetime());
+
 	auto chosen = selector->customEmojiChosen(
 	) | rpl::map([=](const ChatHelpers::FileChosen &data) {
 		return ChosenKey(state, data.document->id);
@@ -296,9 +512,15 @@ QrEmojiPicker CreateQrEmojiPicker(
 		.chosen = std::move(chosen),
 		.setPicks = crl::guard(selector, [=](
 				const std::vector<QString> &keys) {
+			const auto animated = !selector->isHidden() && !anim::Disabled();
+			const auto added = animated
+				? AddedKeys(state->picks, keys)
+				: std::vector<QString>();
 			state->picks = keys;
 			AddInitial(session, state, keys);
 			refresh();
+			strip->setPicks(keys, animated);
+			StartPops(session, state, added);
 		}),
 		.setShown = crl::guard(selector, [=](bool shown) {
 			if (shown) {

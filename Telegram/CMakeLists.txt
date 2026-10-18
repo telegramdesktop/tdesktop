@@ -2181,6 +2181,8 @@ PRIVATE
     ui/effects/peer_qr_colors_panel.h
     ui/effects/peer_qr_emoji_field.cpp
     ui/effects/peer_qr_emoji_field.h
+    ui/effects/peer_qr_layer.cpp
+    ui/effects/peer_qr_layer.h
     ui/effects/peer_qr_panel.cpp
     ui/effects/peer_qr_panel.h
     ui/effects/peer_qr_pill.cpp

@@ -166,7 +166,7 @@ This atlas divides Telegram Desktop's sources into named areas, ordered from fou
 
 ### ui/effects — product animations and decorative graphics
 - Paths: `SourceFiles/ui/effects/`, `SourceFiles/info/channel_statistics/earn/earn_icons*`, `SourceFiles/info/channel_statistics/boosts/giveaway/boost_badge*`
-- Thanos deletion, typing and sending animations, reaction and emoji fly, particles, skeletons, round checkboxes, the animated peer QR share card with its payment-free pill, the panel container, the colours panel and the emoji field, and the Premium, Stars and TON visuals: limit bubbles, badges, 3D stars and coins, currency icons. It must not own the boxes or pages that show them. Today it also builds the Premium limits comparison box (`ShowListBox` in `premium_graphics.cpp`), whose only caller is `premium_preview_box`; that belongs in `premium`.
+- Thanos deletion, typing and sending animations, reaction and emoji fly, particles, skeletons, round checkboxes, the animated peer QR share card with its payment-free pill, the panel container, the colours panel, the emoji field and the draggable, edge-scaled layer its items live in, and the Premium, Stars and TON visuals: limit bubbles, badges, 3D stars and coins, currency icons. It must not own the boxes or pages that show them. Today it also builds the Premium limits comparison box (`ShowListBox` in `premium_graphics.cpp`), whose only caller is `premium_preview_box`; that belongs in `premium`.
 
 ### ui/boxes — reusable box bodies
 - Paths: `SourceFiles/ui/boxes/`, `SourceFiles/info/channel_statistics/boosts/giveaway/select_countries_box*`

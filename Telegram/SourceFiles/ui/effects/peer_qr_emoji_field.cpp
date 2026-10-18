@@ -24,15 +24,7 @@ constexpr auto kTiltMax = 13.;
 constexpr auto kSwayAngle = 4.;
 constexpr auto kSwaySpeed = 0.3;
 constexpr auto kBobSpeed = 0.45;
-constexpr auto kHeading = 225.;
-constexpr auto kWanderAmplitude = 1.2;
-constexpr auto kWanderSpeed = 0.025;
-constexpr auto kWanderSlowAmplitude = 0.6;
-constexpr auto kWanderSlowSpeed = 0.016;
-constexpr auto kWanderSlowPhase = 1.;
-constexpr auto kDriftStep = crl::time(1000);
-constexpr auto kLensCutoff = 0.08;
-constexpr auto kLensReach = 2.53;
+constexpr auto kScaleCutoff = 0.05;
 constexpr auto kCardShrink = 0.03;
 constexpr auto kEntryStagger = crl::time(60);
 constexpr auto kPopDuration = crl::time(315);
@@ -51,11 +43,6 @@ enum class Salt : uint32 {
 	Sway,
 	Bob,
 	Delay,
-};
-
-struct LensPoint {
-	float64 position = 0.;
-	float64 slope = 1.;
 };
 
 struct Tile {
@@ -77,20 +64,6 @@ struct Tile {
 	return NodeHash(row, column, uint32(salt)) / 4294967296.;
 }
 
-[[nodiscard]] LensPoint Lens(float64 u, float64 half, float64 band) {
-	const auto linear = half - band;
-	const auto beyond = std::abs(u) - linear;
-	if (beyond <= 0. || band <= 0.) {
-		return { .position = u };
-	}
-	const auto slope = std::exp(-beyond / band);
-	const auto position = linear + band * (1. - slope);
-	return {
-		.position = (u < 0.) ? -position : position,
-		.slope = slope,
-	};
-}
-
 [[nodiscard]] int PickIndex(int row, int column, int count) {
 	const auto q = column - (row - (row & 1)) / 2;
 	const auto index = (q - row) % count;
@@ -99,35 +72,30 @@ struct Tile {
 
 template <typename Callback>
 void EnumerateTiles(
-		QRectF area,
+		const PeerQrLayerFalloff &falloff,
 		QPointF origin,
 		const PeerQrEmojiMetrics &metrics,
 		int count,
-		QPointF drift,
 		float64 seconds,
 		Callback &&callback) {
 	if (count <= 0 || metrics.skipX <= 0. || metrics.skipY <= 0.) {
 		return;
 	}
-	const auto center = area.center();
-	const auto halfX = area.width() / 2.;
-	const auto halfY = area.height() / 2.;
-	const auto wobble = metrics.offsetMax + metrics.bob;
-	const auto reachX = halfX + kLensReach * metrics.skipX + wobble;
-	const auto reachY = halfY + kLensReach * metrics.skipY + wobble;
-	const auto start = origin + drift;
+	const auto reach = falloff.reach(metrics.offsetMax
+		+ metrics.bob
+		+ metrics.size * kBigTier * kNodeScaleMax / 2.);
 	const auto rowFrom = int(std::ceil(
-		(center.y() - reachY - start.y()) / metrics.skipY));
+		(reach.top() - origin.y()) / metrics.skipY));
 	const auto rowTill = int(std::floor(
-		(center.y() + reachY - start.y()) / metrics.skipY));
+		(reach.bottom() - origin.y()) / metrics.skipY));
 	for (auto row = rowFrom; row <= rowTill; ++row) {
 		const auto odd = (row & 1) != 0;
 		const auto shift = odd ? 0.5 : 0.;
 		const auto tier = odd ? kSmallTier : kBigTier;
 		const auto columnFrom = int(std::ceil(
-			(center.x() - reachX - start.x()) / metrics.skipX - shift));
+			(reach.left() - origin.x()) / metrics.skipX - shift));
 		const auto columnTill = int(std::floor(
-			(center.x() + reachX - start.x()) / metrics.skipX - shift));
+			(reach.right() - origin.x()) / metrics.skipX - shift));
 		for (auto column = columnFrom; column <= columnTill; ++column) {
 			const auto random = [&](Salt salt) {
 				return NodeRandom(row, column, salt);
@@ -141,27 +109,29 @@ void EnumerateTiles(
 			const auto angle = 2. * M_PI * random(Salt::Angle);
 			const auto bob = metrics.bob * std::sin(
 				kBobSpeed * seconds + 2. * M_PI * random(Salt::Bob));
-			const auto x = start.x()
-				+ (column + shift) * metrics.skipX
-				+ radius * std::cos(angle);
-			const auto y = start.y()
-				+ row * metrics.skipY
-				+ radius * std::sin(angle)
-				+ bob;
-			const auto lensX = Lens(x - center.x(), halfX, metrics.skipX);
-			const auto lensY = Lens(y - center.y(), halfY, metrics.skipY);
-			const auto multiplier = lensX.slope * lensY.slope;
-			if (multiplier < kLensCutoff) {
+			const auto flat = origin + QPointF(
+				(column + shift) * metrics.skipX + radius * std::cos(angle),
+				row * metrics.skipY + radius * std::sin(angle) + bob);
+			const auto place = falloff.place(flat);
+			if (place.scale < kScaleCutoff) {
 				continue;
 			}
 			const auto scale = kNodeScaleMin
 				+ (kNodeScaleMax - kNodeScaleMin) * random(Salt::Scale);
+			const auto size = metrics.size * tier * scale * place.scale;
+			const auto extent = size / M_SQRT2;
+			const auto bounds = QRectF(
+				place.position - QPointF(extent, extent),
+				QSizeF(2. * extent, 2. * extent));
+			if (!bounds.intersects(falloff.area)) {
+				continue;
+			}
 			const auto tilt = kTiltMax * (2. * random(Salt::Tilt) - 1.);
 			const auto sway = kSwayAngle * std::sin(
 				kSwaySpeed * seconds + 2. * M_PI * random(Salt::Sway));
 			callback(Tile{
-				.center = center + QPointF(lensX.position, lensY.position),
-				.size = metrics.size * tier * scale * multiplier,
+				.center = place.position,
+				.size = size,
 				.rotation = tilt + sway,
 				.delay = random(Salt::Delay),
 				.row = row,
@@ -263,13 +233,12 @@ PeerQrEmojiMetrics PeerQrEmojiMetrics::Live() {
 		.offsetMin = float64(st::peerQrEmojiOffsetMin),
 		.offsetMax = float64(st::peerQrEmojiOffsetMax),
 		.bob = float64(st::peerQrEmojiBob),
-		.drift = float64(st::peerQrDriftSpeed),
 	};
 }
 
 void PaintPeerQrEmojiRest(
 		QPainter &p,
-		QRectF area,
+		const PeerQrLayerFalloff &falloff,
 		QPointF origin,
 		QRectF card,
 		const PeerQrEmojiRest &rest) {
@@ -290,7 +259,7 @@ void PaintPeerQrEmojiRest(
 		ApplyTileTransform(p, base, tile, tile.size, frame.width());
 		p.drawImage(frame, still);
 	};
-	EnumerateTiles(area, origin, rest.metrics, count, QPointF(), 0., paint);
+	EnumerateTiles(falloff, origin, rest.metrics, count, 0., paint);
 	p.restore();
 }
 
@@ -394,7 +363,6 @@ void PeerQrEmojiField::setTextColor(QColor color) {
 void PeerQrEmojiField::paint(QPainter &p, const PeerQrEmojiPaint &args) {
 	const auto metrics = PeerQrEmojiMetrics::Live();
 	const auto now = args.now;
-	advanceDrift(args.elapsed, metrics.drift);
 	refreshReady(now);
 	if (_changedAt && now >= _changedAt + kSwapDuration) {
 		finishSwap();
@@ -453,11 +421,10 @@ void PeerQrEmojiField::paint(QPainter &p, const PeerQrEmojiPaint &args) {
 		}
 	};
 	EnumerateTiles(
-		args.area,
+		args.falloff,
 		args.origin,
 		metrics,
 		int(_picks.size()),
-		_drift,
 		args.elapsed / 1000.,
 		paintTile);
 	p.restore();
@@ -509,23 +476,6 @@ const PeerQrEmojiField::Pick *PeerQrEmojiField::findPick(
 		}
 	}
 	return nullptr;
-}
-
-void PeerQrEmojiField::advanceDrift(crl::time elapsed, float64 speed) {
-	if (elapsed < _driftElapsed) {
-		_driftElapsed = elapsed;
-	}
-	while (_driftElapsed < elapsed) {
-		const auto step = std::min(elapsed - _driftElapsed, kDriftStep);
-		const auto middle = (_driftElapsed + step / 2.) / 1000.;
-		const auto wander = kWanderAmplitude * std::sin(kWanderSpeed * middle)
-			+ kWanderSlowAmplitude * std::sin(
-				kWanderSlowSpeed * middle + kWanderSlowPhase);
-		const auto heading = kHeading * M_PI / 180. + wander;
-		_drift += QPointF(std::cos(heading), std::sin(heading))
-			* (speed * step / 1000.);
-		_driftElapsed += step;
-	}
 }
 
 void PeerQrEmojiField::refreshReady(crl::time now) {

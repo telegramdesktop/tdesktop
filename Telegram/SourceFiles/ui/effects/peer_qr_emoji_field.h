@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/effects/peer_qr_layer.h"
+
 namespace Ui::Text {
 class CustomEmoji;
 struct MarkedContext;
@@ -32,7 +34,6 @@ struct PeerQrEmojiMetrics {
 	float64 offsetMin = 0.;
 	float64 offsetMax = 0.;
 	float64 bob = 0.;
-	float64 drift = 0.;
 
 	[[nodiscard]] static PeerQrEmojiMetrics Live();
 };
@@ -44,7 +45,7 @@ struct PeerQrEmojiRest {
 
 void PaintPeerQrEmojiRest(
 	QPainter &p,
-	QRectF area,
+	const PeerQrLayerFalloff &falloff,
 	QPointF origin,
 	QRectF card,
 	const PeerQrEmojiRest &rest);
@@ -56,7 +57,7 @@ enum class PeerQrEmojiChange {
 };
 
 struct PeerQrEmojiPaint {
-	QRectF area;
+	PeerQrLayerFalloff falloff;
 	QPointF origin;
 	QRectF card;
 	crl::time now = 0;
@@ -92,7 +93,6 @@ private:
 	[[nodiscard]] std::unique_ptr<Text::CustomEmoji> createEmoji(
 		const QString &key) const;
 	[[nodiscard]] const Pick *findPick(const QString &key) const;
-	void advanceDrift(crl::time elapsed, float64 speed);
 	void refreshReady(crl::time now);
 	void finishSwap();
 
@@ -103,8 +103,6 @@ private:
 	std::vector<Pick> _leaving;
 	crl::time _changedAt = 0;
 	std::optional<crl::time> _entryAt;
-	QPointF _drift;
-	crl::time _driftElapsed = 0;
 	QColor _textColor;
 
 };

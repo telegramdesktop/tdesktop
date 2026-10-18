@@ -111,6 +111,7 @@ struct BoxState {
 	PeerQrAppearance imageAppearance;
 	QColor imageInk;
 	std::vector<QImage> imageStills;
+	QPointF imageOffset;
 	base::weak_qptr<BoxContent> shareBox;
 	FreeCodesState free;
 	AppearanceState appearance;
@@ -411,12 +412,14 @@ void RenderCardImage(
 	auto args = surface->prepareImage();
 	const auto ink = args.colors.ink;
 	const auto stills = args.emoji.stills;
+	const auto offset = args.layerOffset;
 	if (!state->image.isNull()
 		&& state->imageLink == state->link
 		&& state->imageUsername == state->username
 		&& state->imageAppearance == surface->appearance()
 		&& state->imageInk == ink
-		&& state->imageStills == stills) {
+		&& state->imageStills == stills
+		&& state->imageOffset == offset) {
 		done(state->image);
 		return;
 	}
@@ -437,6 +440,7 @@ void RenderCardImage(
 			state->imageAppearance = appearance;
 			state->imageInk = ink;
 			state->imageStills = stills;
+			state->imageOffset = offset;
 			done(image);
 		});
 	});
@@ -867,7 +871,6 @@ void ApplyEmojiPicks(
 }
 
 void ChooseEmoji(
-		not_null<GenericBox*> box,
 		not_null<PeerQrSurface*> surface,
 		not_null<AppearanceState*> appearance,
 		const QString &key) {
@@ -875,13 +878,10 @@ void ChooseEmoji(
 	const auto i = ranges::find(picks, key);
 	if (i != end(picks)) {
 		picks.erase(i);
-	} else if (int(picks.size()) >= kMaxEmojiPicks) {
-		box->uiShow()->showToast(tr::lng_qr_box_emoji_limit(
-			tr::now,
-			lt_count,
-			kMaxEmojiPicks));
-		return;
 	} else {
+		if (int(picks.size()) >= kMaxEmojiPicks) {
+			picks.erase(picks.begin());
+		}
 		picks.push_back(key);
 	}
 	if (appearance->picker) {
@@ -948,7 +948,6 @@ void RevertToServed(
 }
 
 void SetupEmojiPanel(
-		not_null<GenericBox*> box,
 		not_null<PeerQrSurface*> surface,
 		not_null<AppearanceState*> appearance,
 		not_null<Window::SessionController*> controller,
@@ -984,7 +983,7 @@ void SetupEmojiPanel(
 				appearance->emojiPicks);
 			container->setContent(picker.widget, PeerQrPanelContent::Opaque);
 			std::move(picker.chosen) | rpl::on_next([=](const QString &key) {
-				ChooseEmoji(box, surface, appearance, key);
+				ChooseEmoji(surface, appearance, key);
 			}, picker.widget->lifetime());
 			appearance->picker.emplace(std::move(picker));
 		}
@@ -1093,7 +1092,6 @@ void SetupAppearance(
 	});
 	if (withEmoji) {
 		SetupEmojiPanel(
-			box,
 			surface,
 			appearance,
 			controller,

@@ -633,12 +633,15 @@ peerQrSwatchSkip: 12px;
 peerQrSwatchRing: 2px;
 peerQrSwatchRingInset: 6px;
 peerQrSwatchRise: 8px;
-peerQrEmojiSkipX: 82px;
-peerQrEmojiSkipY: 67px;
-peerQrEmojiSize: 36px;
+peerQrEmojiSkipX: 80px;
+peerQrEmojiSkipY: 66px;
+peerQrEmojiSize: 32px;
 peerQrEmojiOffsetMin: 3px;
 peerQrEmojiOffsetMax: 10px;
 peerQrEmojiBob: 3px;
+peerQrLayerBand: 98px;
+peerQrLayerGlideBrake: 9px;
+peerQrLayerGlideMax: 900px;
 
 foldersMenu: PopupMenu(popupMenuWithIcons) {
 	maxHeight: 320px;

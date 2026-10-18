@@ -1373,6 +1373,10 @@ peerQrRecentEmojiPan: EmojiPan(backgroundEmojiPan) {
 	linkButtonIcon: icon {{ "limits/links", windowFg }};
 }
 peerQrEmojiBadgeSize: 14px;
-peerQrEmojiBadgeStroke: 2px;
-peerQrEmojiBadgeInset: 9px;
-peerQrEmojiBadgeFont: font(10px semibold);
+peerQrEmojiBadgeInset: 6px;
+peerQrEmojiBadgeFont: font(11px semibold);
+peerQrEmojiStripHeight: 44px;
+peerQrEmojiStripSkip: 34px;
+peerQrEmojiStripSize: 26px;
+peerQrEmojiStripPadding: 9px;
+peerQrEmojiStripBottom: 18px;

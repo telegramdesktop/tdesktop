@@ -907,11 +907,15 @@ QImage RenderPeerQrImage(PeerQrImageArgs args) {
 		.gradientRadius = kGradientRadiusToCard * args.cardWidth,
 	});
 	if (!result.isNull()) {
+		const auto falloff = PeerQrLayerFalloff{
+			.area = QRectF(QPointF(), QSizeF(size)),
+			.band = args.layerBand,
+		};
 		auto p = QPainter(&result);
 		PaintPeerQrEmojiRest(
 			p,
-			QRectF(QPointF(), QSizeF(size)),
-			card.center(),
+			falloff,
+			card.center() + args.layerOffset,
 			card,
 			args.emoji);
 		p.translate(args.margin, args.margin);
@@ -1168,9 +1172,11 @@ PeerQrImageArgs PeerQrSurface::prepareImage() const {
 				.offsetMin = metric(st::peerQrEmojiOffsetMin),
 				.offsetMax = metric(st::peerQrEmojiOffsetMax),
 				.bob = metric(st::peerQrEmojiBob),
-				.drift = metric(st::peerQrDriftSpeed),
 			})
 			: PeerQrEmojiRest()),
+		.layerOffset = _layer.offset()
+			* (kImageScale * 100. / style::Scale()),
+		.layerBand = metric(st::peerQrLayerBand),
 	};
 }
 
@@ -1187,7 +1193,11 @@ void PeerQrSurface::paintEvent(QPaintEvent *e) {
 	}
 	if (_cardGeometry.isEmpty()) {
 		return;
-	} else if (_field) {
+	}
+	if (layerShown()) {
+		_layer.advance(now, fieldElapsed(now), st::peerQrDriftSpeed);
+	}
+	if (_field) {
 		paintField(p, now);
 	}
 	const auto still = anim::Disabled();
@@ -1226,6 +1236,35 @@ void PeerQrSurface::paintEvent(QPaintEvent *e) {
 	PaintCard(p, _card->layout, _card->content, frame);
 }
 
+void PeerQrSurface::mousePressEvent(QMouseEvent *e) {
+	if (e->button() == Qt::LeftButton
+		&& layerShown()
+		&& !cardRect().contains(QPointF(e->pos()))) {
+		_layer.press(e->pos(), crl::now());
+	} else {
+		e->ignore();
+	}
+}
+
+void PeerQrSurface::mouseMoveEvent(QMouseEvent *e) {
+	if (_layer.pressed()) {
+		_layer.move(e->pos(), crl::now());
+		update();
+	} else {
+		e->ignore();
+	}
+}
+
+void PeerQrSurface::mouseReleaseEvent(QMouseEvent *e) {
+	if (e->button() == Qt::LeftButton && _layer.pressed()) {
+		_layer.release(crl::now(), !anim::Disabled());
+		checkAnimation();
+		update();
+	} else {
+		e->ignore();
+	}
+}
+
 void PeerQrSurface::composeNow() {
 	++_backgroundGeneration;
 	applyBackground(prepareBackground()());
@@ -1246,7 +1285,8 @@ bool PeerQrSurface::animationCallback(crl::time now) {
 	if (_dipStartedAt && (still || now >= _dipStartedAt + kDipDuration)) {
 		_dipStartedAt = 0;
 	}
-	const auto whole = _field && (!frozen || _field->animating(now));
+	const auto whole = (_field && (!frozen || _field->animating(now)))
+		|| (layerShown() && _layer.animating());
 	const auto refresh = [&](QRect region) {
 		if (whole) {
 			update();
@@ -1483,6 +1523,17 @@ crl::time PeerQrSurface::fieldElapsed(crl::time now) const {
 	return std::max(till - _startedAt - _fieldShift, crl::time());
 }
 
+PeerQrLayerFalloff PeerQrSurface::layerFalloff() const {
+	return {
+		.area = QRectF(rect()),
+		.band = float64(st::peerQrLayerBand),
+	};
+}
+
+bool PeerQrSurface::layerShown() const {
+	return _field && !_fieldLeaving;
+}
+
 void PeerQrSurface::paintField(QPainter &p, crl::time now) {
 	auto clip = QPainterPath();
 	clip.addRoundedRect(QRectF(rect()), st::boxRadius, st::boxRadius);
@@ -1500,8 +1551,8 @@ void PeerQrSurface::paintField(QPainter &p, crl::time now) {
 	p.save();
 	p.setClipPath(clip);
 	_field->paint(p, {
-		.area = QRectF(rect()),
-		.origin = QRectF(_cardGeometry).center(),
+		.falloff = layerFalloff(),
+		.origin = QRectF(_cardGeometry).center() + _layer.offset(),
 		.card = cardRect(),
 		.now = now,
 		.elapsed = fieldElapsed(now),
