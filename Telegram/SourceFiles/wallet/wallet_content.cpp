@@ -10545,7 +10545,8 @@ void ShowWrongSecretWords(
 					st::walletAddressPlateSkip,
 					padding.right(),
 					padding.bottom()),
-				kAddressGroupsPerLine);
+				kAddressGroupsPerLine,
+				box->uiShow());
 		}
 		box->addButton(tr::lng_bot_download_retry(), [=] {
 			box->closeBox();
@@ -13120,7 +13121,8 @@ void WalletConflictBox(
 						st::walletAddressPlateSkip,
 						st::boxRowPadding.right(),
 						st::walletAddressPlateSkip),
-					kAddressGroupsPerLine);
+					kAddressGroupsPerLine,
+					box->uiShow());
 			} else {
 				Ui::AddSkip(content);
 			}

@@ -604,7 +604,7 @@ void MoveToWalletBox(
 			padding.right(),
 			0),
 		kPlateGroupsPerLine,
-		nullptr,
+		show,
 		plateShown());
 	plate->toggleOn(plateShown());
 	plate->finishAnimating();
