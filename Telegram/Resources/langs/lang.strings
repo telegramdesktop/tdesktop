@@ -4497,6 +4497,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_transfer_to_wallet_text" = "Transfer this gift to your blockchain wallet?";
 "lng_gift_transfer_to_wallet_appear" = "It will appear in";
 "lng_gift_transfer_to_wallet_path_icons" = "{menu} {arrow} {money} {arrow_next} {collectibles}";
+"lng_gift_transfer_to_wallet_keep_on_profile" = "Keep showing on my profile";
 "lng_gift_transfer_to_wallet_button" = "Move";
 "lng_gift_transfer_to_wallet_done" = "Gift moved to your wallet.";
 "lng_gift_transfer_to_wallet_view" = "View";

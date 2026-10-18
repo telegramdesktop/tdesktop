@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "payments/payments_checkout_process.h"
 #include "settings/settings_common.h"
+#include "storage/storage_account.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/custom_emoji_toast_icon.h"
 #include "ui/controls/sub_tabs.h"
@@ -50,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/basic_click_handlers.h"
@@ -77,6 +79,7 @@ constexpr auto kPlateGroupsPerLine = 4;
 constexpr auto kMovedToWalletToastDuration = 5 * crl::time(1000);
 constexpr auto kTmpPasswordPeriod = 10 * TimeId(60);
 constexpr auto kPasswordStateTimeout = 10 * crl::time(1000);
+constexpr auto kGiftMoveKeepOnProfilePref = "gift_move_keep_on_profile"_cs;
 
 struct ExportOption {
 	object_ptr<Ui::RpWidget> content = { nullptr };
@@ -542,7 +545,7 @@ void MoveToWalletBox(
 		base::weak_qptr<PeerListBox> chooser,
 		std::shared_ptr<Data::UniqueGift> gift,
 		Data::SavedStarGiftId savedId,
-		bool keepOnProfile) {
+		bool shownOnProfile) {
 	struct MoveState {
 		rpl::variable<bool> busy;
 		uint64 expectId = 0;
@@ -623,8 +626,20 @@ void MoveToWalletBox(
 			st::giftMoveToWalletPath),
 		QMargins(padding.left(), 0, padding.right(), padding.bottom()),
 		style::al_justify);
+	const auto checkbox = shownOnProfile
+		? box->addRow(
+			object_ptr<Ui::Checkbox>(
+				box,
+				tr::lng_gift_transfer_to_wallet_keep_on_profile(),
+				session->local().readPref<bool>(kGiftMoveKeepOnProfilePref, true),
+				st::defaultBoxCheckbox),
+			st::boxRowPadding + QMargins(0, padding.top(), 0, padding.bottom()))
+		: nullptr;
+	if (checkbox) {
+		checkbox->setAllowTextLines(0);
+	}
 
-	const auto finish = [=] {
+	const auto finish = [=](bool keepOnProfile) {
 		if (state->finished) {
 			return;
 		}
@@ -662,7 +677,7 @@ void MoveToWalletBox(
 		}
 		state->watching = false;
 	};
-	const auto arm = [=] {
+	const auto arm = [=](bool keepOnProfile) {
 		disarm();
 		state->expectId = wallet->expectIncomingCollectible([=](
 				const Gram::NftItem &item) {
@@ -671,18 +686,19 @@ void MoveToWalletBox(
 			state->expectId = 0;
 			state->watching = false;
 			if (state->withdrawn) {
-				finish();
+				finish(keepOnProfile);
 			}
 		});
 		state->watching = (state->expectId != 0);
 	};
 	const auto withdraw = [=](
+			bool keepOnProfile,
 			const QByteArray &tmpPassword,
 			Fn<void()> done,
 			Fn<void(const MTP::Error &)> fail) {
 		state->busy = true;
 		using Flag = MTPpayments_WithdrawStarGift::Flag;
-		arm();
+		arm(keepOnProfile);
 		session->api().request(MTPpayments_WithdrawStarGift(
 			MTP_flags(keepOnProfile ? Flag::f_keep_on_profile : Flag()),
 			Api::InputSavedStarGiftId(savedId, gift),
@@ -699,7 +715,7 @@ void MoveToWalletBox(
 			fail(error);
 		}).send();
 	};
-	const auto withdrawn = [=] {
+	const auto withdrawn = [=](bool keepOnProfile) {
 		state->withdrawn = true;
 		state->busy = true;
 		if (!keepOnProfile) {
@@ -709,7 +725,7 @@ void MoveToWalletBox(
 			});
 		}
 		if (!state->watching) {
-			finish();
+			finish(keepOnProfile);
 		}
 	};
 	const auto failed = [=](const MTP::Error &error) {
@@ -731,10 +747,25 @@ void MoveToWalletBox(
 			|| state->withdrawn) {
 			return;
 		}
+		const auto keepOnProfile = checkbox && checkbox->checked();
+		if (checkbox) {
+			session->local().writePref<bool>(
+				kGiftMoveKeepOnProfilePref,
+				keepOnProfile);
+		}
 		state->busy = true;
 		RequestWithGiftPassword(window, box, {
-			.send = withdraw,
-			.succeeded = withdrawn,
+			.send = [=](
+					const QByteArray &tmpPassword,
+					Fn<void()> done,
+					Fn<void(const MTP::Error &)> fail) {
+				withdraw(
+					keepOnProfile,
+					tmpPassword,
+					std::move(done),
+					std::move(fail));
+			},
+			.succeeded = [=] { withdrawn(keepOnProfile); },
 			.failed = failed,
 			.dismissed = [=] {
 				if (!state->withdrawn) {
