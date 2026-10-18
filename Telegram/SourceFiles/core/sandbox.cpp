@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QSessionManager>
 #include <QtGui/QScreen>
 #include <QtGui/qpa/qplatformscreen.h>
+#include <QtWidgets/private/qapplication_p.h>
 
 namespace Core {
 namespace {
@@ -775,6 +776,18 @@ bool Sandbox::notify(QObject *receiver, QEvent *e) {
 	}
 
 	const auto wrap = createEventNestingLevel();
+	if (e->type() == QEvent::Wheel
+		&& e->spontaneous()
+		&& receiver->isWidgetType()) {
+		const auto wheel = static_cast<QWheelEvent*>(e);
+		auto &grabber = QApplicationPrivate::wheel_widget;
+		if (grabber
+			&& (!grabber->isVisible()
+				|| wheel->phase() == Qt::NoScrollPhase)) {
+			// Qt retains the wheel grab when a gesture loses its ScrollEnd.
+			grabber = nullptr;
+		}
+	}
 	if (e->type() == QEvent::UpdateRequest) {
 		const auto weak = QPointer<QObject>(receiver);
 		_widgetUpdateRequests.fire({});
