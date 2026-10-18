@@ -27,7 +27,7 @@ namespace Wallet {
 
 struct CollectibleTransfer;
 
-void AddMoveToMyGiftsRow(
+[[nodiscard]] bool AddMoveToMyGiftsRow(
 	not_null<Ui::VerticalLayout*> container,
 	std::shared_ptr<Main::SessionShow> show,
 	std::shared_ptr<const CollectibleTransfer> collectible,

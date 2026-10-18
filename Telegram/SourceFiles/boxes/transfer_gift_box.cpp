@@ -520,11 +520,16 @@ void ExportOnBlockchain(
 			return Ui::Text::IconEmoji(emoji).append(' ').append(text);
 		});
 	};
-	return tr::lng_gift_transfer_to_wallet_path(
+	const auto arrow = Ui::Text::IconEmoji(&st::giftMoveToWalletArrowEmoji);
+	return tr::lng_gift_transfer_to_wallet_path_icons(
 		lt_menu,
-		rpl::single(Ui::Text::IconEmoji(&st::walletFirstMenuEmoji)),
+		rpl::single(Ui::Text::IconEmoji(&st::giftMoveToWalletMenuEmoji)),
+		lt_arrow,
+		rpl::single(arrow),
 		lt_money,
 		tr::lng_wallet_menu() | prefixed(&st::giftMoveToWalletMoneyEmoji),
+		lt_arrow_next,
+		rpl::single(arrow),
 		lt_collectibles,
 		tr::lng_wallet_rows_collectibles(
 		) | prefixed(&st::giftMoveToWalletCollectiblesEmoji),
@@ -609,13 +614,15 @@ void MoveToWalletBox(
 			padding.left(),
 			st::walletAddressPlateSkip,
 			padding.right(),
-			0));
+			0),
+		style::al_justify);
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
 			CollectiblesPathText(),
 			st::giftMoveToWalletPath),
-		QMargins(padding.left(), 0, padding.right(), padding.bottom()));
+		QMargins(padding.left(), 0, padding.right(), padding.bottom()),
+		style::al_justify);
 
 	const auto finish = [=] {
 		if (state->finished) {

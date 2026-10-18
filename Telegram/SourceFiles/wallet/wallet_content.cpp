@@ -6341,6 +6341,7 @@ rpl::producer<bool> RecentMoneyRecipientsController::shownValue() const {
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeRecentMoneyRecipientsList(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
+		bool hasMoveToMyGiftsRow,
 		rpl::producer<bool> hidden,
 		Fn<void(not_null<UserData*>)> choose) {
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -6354,6 +6355,9 @@ rpl::producer<bool> RecentMoneyRecipientsController::shownValue() const {
 			std::move(show),
 			std::move(choose));
 
+	if (hasMoveToMyGiftsRow) {
+		Ui::AddSkip(container);
+	}
 	const auto header = container->add(object_ptr<Ui::RpWidget>(container));
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		header,
@@ -9503,7 +9507,7 @@ void WalletSendRecipientBox(
 			0));
 	errorWrap->toggleOn(state->invalid.value());
 	errorWrap->finishAnimating();
-	AddMoveToMyGiftsRow(
+	const auto hasMoveToMyGiftsRow = AddMoveToMyGiftsRow(
 		recipient,
 		show,
 		collectible,
@@ -9511,6 +9515,7 @@ void WalletSendRecipientBox(
 	recipient->add(MakeRecentMoneyRecipientsList(
 		box,
 		show,
+		hasMoveToMyGiftsRow,
 		state->recentHidden.value(),
 		choose));
 

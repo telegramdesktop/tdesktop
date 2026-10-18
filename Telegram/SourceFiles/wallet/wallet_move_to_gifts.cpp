@@ -297,10 +297,12 @@ void AccountCard::paintEvent(QPaintEvent *e) {
 			return Ui::Text::IconEmoji(emoji).append(' ').append(text);
 		});
 	};
-	return tr::lng_gift_transfer_to_gifts_path(
+	return tr::lng_gift_transfer_to_gifts_path_icons(
 		lt_profile,
 		tr::lng_menu_my_profile(
 		) | prefixed(&st::giftMoveToGiftsProfileEmoji),
+		lt_arrow,
+		rpl::single(Ui::Text::IconEmoji(&st::giftMoveToWalletArrowEmoji)),
 		lt_gifts,
 		tr::lng_peer_gifts_title(
 		) | prefixed(&st::giftMoveToWalletCollectiblesEmoji),
@@ -652,13 +654,15 @@ void MoveToMyGiftsBox(
 			box,
 			tr::lng_gift_transfer_to_gifts_appear(),
 			st::giftMoveToWalletAppear),
-		margins(st::walletAddressPlateSkip));
+		margins(st::walletAddressPlateSkip),
+		style::al_justify);
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,
 			MyGiftsPathText(),
 			st::giftMoveToWalletPath),
-		margins(0));
+		margins(0),
+		style::al_justify);
 
 	auto feeAmount = flow->feeValue(
 	) | rpl::filter([](std::optional<int64> fee) {
@@ -675,7 +679,8 @@ void MoveToMyGiftsBox(
 					lt_amount,
 					std::move(feeAmount)),
 				st::walletSendUserBalanceLabel)),
-		margins(0));
+		margins(0),
+		style::al_justify);
 	fee->toggleOn(flow->feeValue(
 	) | rpl::map([](std::optional<int64> fee) {
 		return fee.has_value();
@@ -689,7 +694,8 @@ void MoveToMyGiftsBox(
 				box,
 				flow->refusalValue(),
 				st::walletSendUserErrorLabel)),
-		margins(0));
+		margins(0),
+		style::al_justify);
 	refusal->entity()->setTryMakeSimilarLines(true);
 	refusal->toggleOn(flow->refusalValue(
 	) | rpl::map([](const QString &text) {
@@ -767,13 +773,13 @@ void OpenHeldGiftTransfer(
 
 } // namespace
 
-void AddMoveToMyGiftsRow(
+bool AddMoveToMyGiftsRow(
 		not_null<Ui::VerticalLayout*> container,
 		std::shared_ptr<Main::SessionShow> show,
 		std::shared_ptr<const CollectibleTransfer> collectible,
 		rpl::producer<bool> hidden) {
 	if (!collectible || collectible->slug.isEmpty() || !collectible->unique) {
-		return;
+		return false;
 	}
 	const auto wrap = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -804,6 +810,7 @@ void AddMoveToMyGiftsRow(
 	wrap->toggleOn(
 		std::move(hidden) | rpl::map(!rpl::mappers::_1),
 		anim::type::instant);
+	return true;
 }
 
 void ShowAddressHeldGiftTransfer(
