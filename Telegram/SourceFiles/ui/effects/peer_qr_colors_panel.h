@@ -20,7 +20,6 @@ struct PeerQrThemeKey {
 	enum class Type : uchar {
 		Default,
 		Backdrop,
-		Emoji,
 		Other,
 	};
 	Type type = Type::Default;

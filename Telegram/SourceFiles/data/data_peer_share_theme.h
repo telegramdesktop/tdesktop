@@ -18,20 +18,13 @@ struct ShareThemeDefault {
 		const ShareThemeDefault &) = default;
 };
 
-struct ShareThemeEmoji {
+struct ShareThemeEmojiBackdrop {
+	std::optional<int> backdropId;
 	std::vector<ReactionId> emojis;
 
 	friend inline bool operator==(
-		const ShareThemeEmoji &,
-		const ShareThemeEmoji &) = default;
-};
-
-struct ShareThemeBackdrop {
-	int backdropId = 0;
-
-	friend inline bool operator==(
-		const ShareThemeBackdrop &,
-		const ShareThemeBackdrop &) = default;
+		const ShareThemeEmojiBackdrop &,
+		const ShareThemeEmojiBackdrop &) = default;
 };
 
 struct ShareThemeGift {
@@ -49,8 +42,7 @@ struct ShareThemeGift {
 
 using ShareTheme = std::variant<
 	ShareThemeDefault,
-	ShareThemeEmoji,
-	ShareThemeBackdrop,
+	ShareThemeEmojiBackdrop,
 	ShareThemeGift>;
 
 } // namespace Data

@@ -17,7 +17,6 @@ struct PeerQrAppearance {
 	QColor edge;
 	QColor center;
 	std::vector<QString> emoji;
-	QColor background;
 
 	[[nodiscard]] bool empty() const {
 		return !center.isValid() && emoji.empty();
@@ -96,10 +95,6 @@ private:
 		float64 farthest = 0.;
 		crl::time startedAt = 0;
 	};
-	struct InkBlend {
-		PeerQrColors from;
-		crl::time startedAt = 0;
-	};
 
 	void composeNow();
 	void refreshCard();
@@ -107,9 +102,6 @@ private:
 	void recolorQr();
 	void setShownColors(const PeerQrColors &colors);
 	void ensureField();
-	[[nodiscard]] PeerQrColors computeColors() const;
-	void refreshColors(bool animated);
-	void refreshShadow();
 	void refreshFieldClock();
 	[[nodiscard]] crl::time fieldElapsed(crl::time now) const;
 	void paintField(QPainter &p, crl::time now);
@@ -143,7 +135,6 @@ private:
 	std::optional<Wave> _wave;
 	PeerQrEmojiSource _emojiSource;
 	std::unique_ptr<PeerQrEmojiField> _field;
-	std::optional<InkBlend> _inkBlend;
 	crl::time _startedAt = 0;
 	crl::time _bounceStartedAt = 0;
 	crl::time _dipStartedAt = 0;

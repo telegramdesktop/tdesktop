@@ -44,120 +44,36 @@ constexpr auto kMaxEmojiKeys = 6;
 	return (BackdropAppearance(backdrop) == Ui::PeerQrDefaultAppearance());
 }
 
-[[nodiscard]] Ui::PeerQrSwatch DefaultSwatch(
+[[nodiscard]] std::optional<int> DefaultBackdropId(
 		const std::vector<Data::UniqueGiftBackdrop> &backdrops) {
 	const auto i = ranges::find_if(backdrops, IsDefaultBackdrop);
-	const auto found = (i != end(backdrops));
-	return {
-		.key = {
-			.type = found ? ThemeType::Backdrop : ThemeType::Default,
-			.id = found ? i->id : 0,
-		},
-		.appearance = Ui::PeerQrDefaultAppearance(),
-	};
+	return (i != end(backdrops)) ? std::make_optional(i->id) : std::nullopt;
 }
 
-[[nodiscard]] int PanelPosition(const QString &name) {
-	static const auto kOrder = std::vector<QString>{
-		u"Black"_q,
-		u"Onyx Black"_q,
-		u"Gunmetal"_q,
-		u"Midnight Blue"_q,
-		u"Steel Grey"_q,
-		u"Roman Silver"_q,
-		u"Raspberry"_q,
-		u"Carmine"_q,
-		u"Fire Engine"_q,
-		u"Burnt Sienna"_q,
-		u"Tomato"_q,
-		u"Copper"_q,
-		u"Persimmon"_q,
-		u"Orange"_q,
-		u"Caramel"_q,
-		u"Mustard"_q,
-		u"Old Gold"_q,
-		u"Satin Gold"_q,
-		u"Amber"_q,
-		u"Pure Gold"_q,
-		u"Lemongrass"_q,
-		u"Malachite"_q,
-		u"Shamrock Green"_q,
-		u"Mint Green"_q,
-		u"Emerald"_q,
-		u"Pacific Green"_q,
-		u"Jade Green"_q,
-		u"Deep Cyan"_q,
-		u"Celtic Blue"_q,
-		u"Cobalt Blue"_q,
-		u"Neon Blue"_q,
-		u"Cyberpunk"_q,
-		u"Electric Indigo"_q,
-		u"Lavender"_q,
-		u"Grape"_q,
-		u"French Violet"_q,
-		u"Purple"_q,
-		u"Electric Purple"_q,
-		u"Fandango"_q,
-		u"Mexican Pink"_q,
-		u"Burgundy"_q,
-		u"Rosewood"_q,
-		u"Chestnut"_q,
-		u"Coral Red"_q,
-		u"Strawberry"_q,
-		u"Mystic Pearl"_q,
-		u"Carrot Juice"_q,
-		u"Light Olive"_q,
-		u"Khaki Green"_q,
-		u"Camo Green"_q,
-		u"Pistachio"_q,
-		u"Hunter Green"_q,
-		u"Pine Green"_q,
-		u"Gunship Green"_q,
-		u"Tactical Pine"_q,
-		u"Aquamarine"_q,
-		u"Pacific Cyan"_q,
-		u"Turquoise"_q,
-		u"Moonstone"_q,
-		u"Sky Blue"_q,
-		u"Azure Blue"_q,
-		u"Sapphire"_q,
-		u"Silver Blue"_q,
-		u"Indigo Dye"_q,
-		u"French Blue"_q,
-		u"Navy Blue"_q,
-		u"English Violet"_q,
-		u"Dark Lilac"_q,
-		u"Seal Brown"_q,
-		u"Chocolate"_q,
-		u"Cappuccino"_q,
-		u"Desert Sand"_q,
-		u"Dark Green"_q,
-		u"Ranger Green"_q,
-		u"Marine Blue"_q,
-		u"Ivory White"_q,
-		u"Platinum"_q,
-		u"Battleship Grey"_q,
-		u"Rifle Green"_q,
-		u"Feldgrau"_q,
-	};
-	const auto trimmed = name.trimmed();
-	const auto i = ranges::find_if(kOrder, [&](const QString &listed) {
-		return !listed.compare(trimmed, Qt::CaseInsensitive);
-	});
-	return int(i - begin(kOrder));
+[[nodiscard]] Ui::PeerQrSwatch DefaultSwatch() {
+	return { .appearance = Ui::PeerQrDefaultAppearance() };
 }
 
-[[nodiscard]] auto PanelOrder(
-		const std::vector<Data::UniqueGiftBackdrop> &backdrops)
--> std::vector<not_null<const Data::UniqueGiftBackdrop*>> {
-	using Entry = std::pair<int, not_null<const Data::UniqueGiftBackdrop*>>;
-	auto entries = std::vector<Entry>();
-	entries.reserve(backdrops.size());
-	for (const auto &backdrop : backdrops) {
-		entries.emplace_back(PanelPosition(backdrop.name), &backdrop);
+// WHY: the default circle sends no backdrop_id, so a served backdrop_id
+// naming the default backdrop must read as that circle, or choosing the
+// circle again would save.
+[[nodiscard]] Ui::PeerQrSwatch BackdropSwatch(
+		int id,
+		const std::vector<Data::UniqueGiftBackdrop> &backdrops,
+		std::optional<int> defaultId) {
+	if (defaultId == id) {
+		return DefaultSwatch();
 	}
-	ranges::stable_sort(entries, ranges::less(), &Entry::first);
-	return entries | ranges::views::values | ranges::to_vector;
+	const auto i = ranges::find(
+		backdrops,
+		id,
+		&Data::UniqueGiftBackdrop::id);
+	return {
+		.key = { .type = ThemeType::Backdrop, .id = id },
+		.appearance = ((i != end(backdrops))
+			? BackdropAppearance(*i)
+			: Ui::PeerQrDefaultAppearance()),
+	};
 }
 
 [[nodiscard]] std::vector<QString> EmojiKeys(
@@ -177,47 +93,35 @@ constexpr auto kMaxEmojiKeys = 6;
 	return result;
 }
 
-[[nodiscard]] std::optional<Data::ShareTheme> EmojiTheme(
+[[nodiscard]] std::vector<Data::ReactionId> EmojiIds(
 		const std::vector<QString> &keys) {
-	auto emojis = std::vector<Data::ReactionId>();
-	emojis.reserve(keys.size());
+	auto result = std::vector<Data::ReactionId>();
+	result.reserve(keys.size());
 	for (const auto &key : keys) {
 		auto id = Data::ReactionFromEntityData(key);
 		if (!id.empty() && !id.paid()) {
-			emojis.push_back(std::move(id));
+			result.push_back(std::move(id));
 		}
 	}
-	if (emojis.empty()) {
-		return std::nullopt;
-	}
-	return Data::ShareThemeEmoji{ std::move(emojis) };
+	return result;
 }
 
 [[nodiscard]] Ui::PeerQrSwatch ResolveSwatch(
 		const Data::ShareTheme &theme,
 		const std::vector<Data::UniqueGiftBackdrop> &backdrops) {
-	return v::match(theme, [&](const Data::ShareThemeDefault &) {
-		return DefaultSwatch(backdrops);
-	}, [&](const Data::ShareThemeBackdrop &data) {
-		const auto i = ranges::find(
-			backdrops,
-			data.backdropId,
-			&Data::UniqueGiftBackdrop::id);
-		return Ui::PeerQrSwatch{
-			.key = { .type = ThemeType::Backdrop, .id = data.backdropId },
-			.appearance = ((i != end(backdrops))
-				? BackdropAppearance(*i)
-				: Ui::PeerQrAppearance()),
-		};
-	}, [](const Data::ShareThemeEmoji &data) {
+	return v::match(theme, [](const Data::ShareThemeDefault &) {
+		return DefaultSwatch();
+	}, [&](const Data::ShareThemeEmojiBackdrop &data) {
+		auto result = data.backdropId
+			? BackdropSwatch(
+				*data.backdropId,
+				backdrops,
+				DefaultBackdropId(backdrops))
+			: DefaultSwatch();
 		auto keys = EmojiKeys(data.emojis);
-		if (keys.empty()) {
-			return Ui::PeerQrSwatch{ .key = { .type = ThemeType::Other } };
-		}
-		return Ui::PeerQrSwatch{
-			.key = { .type = ThemeType::Emoji, .emoji = keys },
-			.appearance = { .emoji = std::move(keys) },
-		};
+		result.key.emoji = keys;
+		result.appearance.emoji = std::move(keys);
+		return result;
 	}, [](const auto &) {
 		return Ui::PeerQrSwatch{ .key = { .type = ThemeType::Other } };
 	});
@@ -225,13 +129,19 @@ constexpr auto kMaxEmojiKeys = 6;
 
 [[nodiscard]] std::optional<Data::ShareTheme> ThemeFromKey(
 		const Ui::PeerQrThemeKey &key) {
-	switch (key.type) {
-	case ThemeType::Default: return Data::ShareThemeDefault();
-	case ThemeType::Backdrop: return Data::ShareThemeBackdrop{ key.id };
-	case ThemeType::Emoji: return EmojiTheme(key.emoji);
-	case ThemeType::Other: return std::nullopt;
+	if (key.type == ThemeType::Other) {
+		return std::nullopt;
 	}
-	Unexpected("Type in ThemeFromKey.");
+	auto result = Data::ShareThemeEmojiBackdrop{
+		.emojis = EmojiIds(key.emoji),
+	};
+	if (key.type == ThemeType::Backdrop) {
+		result.backdropId = key.id;
+	}
+	if (!result.backdropId && result.emojis.empty()) {
+		return Data::ShareThemeDefault();
+	}
+	return result;
 }
 
 } // namespace
@@ -240,16 +150,14 @@ auto QrThemeSwatchesValue(not_null<Main::Session*> session)
 -> rpl::producer<std::vector<Ui::PeerQrSwatch>> {
 	return session->api().shareThemes().backdropsValue(
 	) | rpl::map([](const std::vector<Data::UniqueGiftBackdrop> &backdrops) {
+		const auto defaultId = DefaultBackdropId(backdrops);
 		auto result = std::vector<Ui::PeerQrSwatch>();
 		result.reserve(backdrops.size() + 1);
-		if (ranges::none_of(backdrops, IsDefaultBackdrop)) {
-			result.push_back(DefaultSwatch(backdrops));
+		if (!defaultId) {
+			result.push_back(DefaultSwatch());
 		}
-		for (const auto backdrop : PanelOrder(backdrops)) {
-			result.push_back({
-				.key = { .type = ThemeType::Backdrop, .id = backdrop->id },
-				.appearance = BackdropAppearance(*backdrop),
-			});
+		for (const auto &backdrop : backdrops) {
+			result.push_back(BackdropSwatch(backdrop.id, backdrops, defaultId));
 		}
 		return result;
 	}) | rpl::distinct_until_changed();

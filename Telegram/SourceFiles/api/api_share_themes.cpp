@@ -28,17 +28,21 @@ constexpr auto kRefreshEach = 3600 * crl::time(1000);
 	return theme.match([](const MTPDshareThemeDefault &) -> Result {
 		return Data::ShareThemeDefault();
 	}, [](const MTPDshareThemeEmojiBackdrop &data) -> Result {
-		if (const auto list = data.vemojis(); list && !list->v.isEmpty()) {
-			auto emojis = std::vector<Data::ReactionId>();
-			emojis.reserve(list->v.size());
-			for (const auto &reaction : list->v) {
-				emojis.push_back(Data::ReactionFromMTP(reaction));
-			}
-			return Data::ShareThemeEmoji{ std::move(emojis) };
-		} else if (const auto id = data.vbackdrop_id()) {
-			return Data::ShareThemeBackdrop{ id->v };
+		auto result = Data::ShareThemeEmojiBackdrop();
+		if (const auto id = data.vbackdrop_id()) {
+			result.backdropId = id->v;
 		}
-		return Data::ShareThemeDefault();
+		if (const auto list = data.vemojis()) {
+			result.emojis.reserve(list->v.size());
+			for (const auto &reaction : list->v) {
+				result.emojis.push_back(Data::ReactionFromMTP(reaction));
+			}
+		}
+		if (!result.backdropId && result.emojis.empty()) {
+			LOG(("API Error: Empty shareThemeEmojiBackdrop."));
+			return Data::ShareThemeDefault();
+		}
+		return result;
 	}, [&](const MTPDshareThemeGift &data) -> Result {
 		auto gift = FromTL(session, data.vstargift());
 		if (!gift || !gift->unique) {
@@ -56,21 +60,21 @@ constexpr auto kRefreshEach = 3600 * crl::time(1000);
 	using Flag = MTPDshareThemeEmojiBackdrop::Flag;
 	return v::match(theme, [](const Data::ShareThemeDefault &) {
 		return MTP_shareThemeDefault();
-	}, [](const Data::ShareThemeEmoji &data) {
+	}, [](const Data::ShareThemeEmojiBackdrop &data) {
 		auto emojis = QVector<MTPReaction>();
 		emojis.reserve(data.emojis.size());
 		for (const auto &id : data.emojis) {
 			emojis.push_back(Data::ReactionToMTP(id));
 		}
+		if (!data.backdropId && emojis.isEmpty()) {
+			return MTP_shareThemeDefault();
+		}
+		const auto flags = (data.backdropId ? Flag::f_backdrop_id : Flag())
+			| (emojis.isEmpty() ? Flag() : Flag::f_emojis);
 		return MTP_shareThemeEmojiBackdrop(
-			MTP_flags(Flag::f_emojis),
-			MTPint(),
+			MTP_flags(flags),
+			MTP_int(data.backdropId.value_or(0)),
 			MTP_vector<MTPReaction>(std::move(emojis)));
-	}, [](const Data::ShareThemeBackdrop &data) {
-		return MTP_shareThemeEmojiBackdrop(
-			MTP_flags(Flag::f_backdrop_id),
-			MTP_int(data.backdropId),
-			MTPVector<MTPReaction>());
 	}, [](const Data::ShareThemeGift &data) {
 		Expects(data.savedId || data.gift.unique);
 

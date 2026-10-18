@@ -621,11 +621,6 @@ peerQrEmoji: IconButton(peerQrColors) {
 	icon: icon {{ "menu/emoji", windowFg }};
 	iconOver: icon {{ "menu/emoji", windowFg }};
 }
-peerQrNightMode: IconButton(peerQrButton) {
-	icon: icon {{ "menu/header_mode_night", windowFg }};
-	iconOver: icon {{ "menu/header_mode_night", windowFg }};
-}
-peerQrDayModeIcon: icon {{ "menu/header_mode_day", windowFg }};
 peerQrPanelMargin: 10px;
 peerQrPanelPadding: 11px;
 peerQrPanelRadius: 24px;

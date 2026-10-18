@@ -17,10 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_message_reactions.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
-#include "ui/style/style_core_palette.h"
 #include "ui/text/text.h"
 #include "ui/painter.h"
-#include "window/themes/window_themes_embedded.h"
 #include "window/window_session_controller.h"
 
 #include "styles/style_basic.h"
@@ -40,10 +38,6 @@ struct PickerState {
 	base::flat_map<DocumentId, Data::ReactionId> docToReaction;
 	base::flat_map<Data::ReactionId, DocumentId> reactionToDoc;
 	base::flat_map<DocumentId, int> order;
-};
-
-struct BackgroundsState final : base::has_weak_ptr {
-	Fn<void(QrEmojiBackgrounds)> done;
 };
 
 [[nodiscard]] Data::ReactionId ParseKey(QStringView key) {
@@ -232,12 +226,6 @@ void PaintPickBadge(QPainter &p, QRect area, int order) {
 		: nullptr;
 }
 
-[[nodiscard]] QColor PaletteWindowBg(bool dark) {
-	auto palette = std::make_unique<style::palette>();
-	Window::Theme::PreparePaletteCallback(dark, {})(*palette);
-	return palette->windowBg()->c;
-}
-
 } // namespace
 
 QrEmojiPicker CreateQrEmojiPicker(
@@ -344,27 +332,6 @@ rpl::producer<Ui::PeerQrEmojiSource> QrEmojiSourceValue(
 				/ style::DevicePixelRatio()),
 		};
 	});
-}
-
-rpl::producer<QrEmojiBackgrounds> QrEmojiBackgroundsValue() {
-	return [](auto consumer) {
-		auto result = rpl::lifetime();
-		const auto state = result.make_state<BackgroundsState>();
-		state->done = [=](QrEmojiBackgrounds backgrounds) {
-			consumer.put_next(std::move(backgrounds));
-		};
-		const auto weak = base::make_weak(state);
-		crl::async([=] {
-			const auto backgrounds = QrEmojiBackgrounds{
-				.light = PaletteWindowBg(false),
-				.dark = PaletteWindowBg(true),
-			};
-			crl::on_main(weak, [=] {
-				weak->done(backgrounds);
-			});
-		});
-		return result;
-	};
 }
 
 } // namespace Info::Profile

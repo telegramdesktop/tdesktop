@@ -30,11 +30,6 @@ struct QrEmojiPicker {
 	Fn<void(bool)> setShown;
 };
 
-struct QrEmojiBackgrounds {
-	QColor light;
-	QColor dark;
-};
-
 [[nodiscard]] QrEmojiPicker CreateQrEmojiPicker(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Window::SessionController*> controller,
@@ -42,7 +37,5 @@ struct QrEmojiBackgrounds {
 
 [[nodiscard]] rpl::producer<Ui::PeerQrEmojiSource> QrEmojiSourceValue(
 	not_null<Main::Session*> session);
-
-[[nodiscard]] rpl::producer<QrEmojiBackgrounds> QrEmojiBackgroundsValue();
 
 } // namespace Info::Profile

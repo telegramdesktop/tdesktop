@@ -32,7 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
-#include "ui/color_contrast.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "window/window_controller.h"
@@ -76,25 +75,19 @@ struct FreeCodesState {
 	base::weak_ptr<Toast::Instance> toast;
 };
 
-class PeerQrButton;
-
 struct AppearanceState {
 	PeerQrPanel *colorsPanel = nullptr;
 	PeerQrColorsPanel *colors = nullptr;
 	PeerQrPanel *emojiPanel = nullptr;
 	std::optional<Info::Profile::QrEmojiPicker> picker;
 	RpWidget *island = nullptr;
-	PeerQrButton *toggle = nullptr;
 	std::vector<PeerQrSwatch> swatches;
 	std::vector<QString> emojiPicks;
-	Info::Profile::QrEmojiBackgrounds backgrounds;
-	std::optional<PeerQrThemeKey> current;
+	std::optional<PeerQrSwatch> current;
 	std::optional<PeerQrSwatch> served;
 	std::optional<PeerQrSwatch> chosen;
 	std::optional<PeerQrThemeKey> saving;
 	std::optional<PeerQrSwatch> pending;
-	std::optional<bool> dark;
-	bool backgroundsReady = false;
 	bool canSave = false;
 	bool sideShown = true;
 	bool shown = false;
@@ -792,28 +785,27 @@ void SetupFreeCodes(
 	return (i != end(swatches)) ? &*i : nullptr;
 }
 
-[[nodiscard]] PeerQrSwatch DefaultLookSwatch(
-		not_null<const AppearanceState*> appearance) {
-	const auto look = PeerQrDefaultAppearance();
-	const auto &swatches = appearance->swatches;
-	const auto i = ranges::find(swatches, look, &PeerQrSwatch::appearance);
-	return (i != end(swatches)) ? *i : PeerQrSwatch{ .appearance = look };
+[[nodiscard]] PeerQrSwatch DefaultLookSwatch() {
+	return { .appearance = PeerQrDefaultAppearance() };
 }
 
-[[nodiscard]] QColor EmojiBackground(
-		not_null<const AppearanceState*> appearance) {
-	if (!appearance->dark) {
-		return st::windowBg->c;
+[[nodiscard]] PeerQrSwatch BackdropHalf(
+		const std::optional<PeerQrSwatch> &swatch) {
+	if (!swatch || swatch->key.type == PeerQrThemeKey::Type::Other) {
+		return DefaultLookSwatch();
 	}
-	return *appearance->dark
-		? appearance->backgrounds.dark
-		: appearance->backgrounds.light;
+	auto result = *swatch;
+	result.key.emoji.clear();
+	result.appearance.emoji.clear();
+	return result;
 }
 
-[[nodiscard]] PeerQrAppearance EmojiAppearance(
-		std::vector<QString> keys,
-		QColor background) {
-	return { .emoji = std::move(keys), .background = background };
+[[nodiscard]] PeerQrSwatch WithEmoji(
+		PeerQrSwatch backdrop,
+		std::vector<QString> picks) {
+	backdrop.key.emoji = picks;
+	backdrop.appearance.emoji = std::move(picks);
+	return backdrop;
 }
 
 [[nodiscard]] PeerQrPanel *OpenPanel(
@@ -827,19 +819,32 @@ void SetupFreeCodes(
 	return nullptr;
 }
 
-void ApplyAppearance(
+void SetEmojiPicks(
+		not_null<AppearanceState*> appearance,
+		std::vector<QString> picks) {
+	appearance->emojiPicks = std::move(picks);
+	if (appearance->picker) {
+		appearance->picker->setPicks(appearance->emojiPicks);
+	}
+}
+
+void ShowSwatch(
 		not_null<PeerQrSurface*> surface,
 		not_null<AppearanceState*> appearance,
-		PeerQrAppearance value,
+		const PeerQrSwatch &swatch,
 		anim::type animated) {
-	if (const auto toggle = appearance->toggle) {
-		const auto emoji = !value.emoji.empty();
-		const auto day = emoji && !IsLightBackground(value.background);
-		const auto icon = day ? &st::peerQrDayModeIcon : nullptr;
-		toggle->setIconOverride(icon, icon);
-		toggle->setVisible(emoji && appearance->canSave);
+	appearance->current = swatch;
+	surface->setAppearance(
+		(swatch.appearance.empty()
+			? PeerQrDefaultAppearance()
+			: swatch.appearance),
+		animated);
+	const auto &key = swatch.key;
+	auto selected = std::optional<PeerQrThemeKey>();
+	if (key.type != PeerQrThemeKey::Type::Other) {
+		selected = PeerQrThemeKey{ .type = key.type, .id = key.id };
 	}
-	surface->setAppearance(std::move(value), animated);
+	appearance->colors->setSelected(std::move(selected), animated);
 }
 
 void ApplyServedTheme(
@@ -847,51 +852,18 @@ void ApplyServedTheme(
 		not_null<AppearanceState*> appearance,
 		const PeerQrSwatch &swatch,
 		anim::type animated) {
-	using Type = PeerQrThemeKey::Type;
-	const auto emoji = (swatch.key.type == Type::Emoji);
-	if (emoji) {
-		appearance->emojiPicks = swatch.key.emoji;
-		if (appearance->picker) {
-			appearance->picker->setPicks(appearance->emojiPicks);
-		}
-	}
-	appearance->current = (swatch.key.type == Type::Other)
-		? std::optional<PeerQrThemeKey>()
-		: swatch.key;
-	auto value = emoji
-		? EmojiAppearance(swatch.key.emoji, EmojiBackground(appearance))
-		: swatch.appearance.empty()
-		? PeerQrDefaultAppearance()
-		: swatch.appearance;
-	ApplyAppearance(surface, appearance, std::move(value), animated);
-	appearance->colors->setSelected(
-		emoji ? std::nullopt : appearance->current,
-		animated);
+	SetEmojiPicks(appearance, swatch.key.emoji);
+	ShowSwatch(surface, appearance, swatch, animated);
 }
 
 void ApplyEmojiPicks(
 		not_null<PeerQrSurface*> surface,
 		not_null<AppearanceState*> appearance) {
-	const auto &picks = appearance->emojiPicks;
-	const auto empty = picks.empty();
-	appearance->chosen = empty
-		? DefaultLookSwatch(appearance)
-		: PeerQrSwatch{
-			.key = { .type = PeerQrThemeKey::Type::Emoji, .emoji = picks },
-			.appearance = { .emoji = picks },
-		};
-	appearance->current = appearance->chosen->key;
+	appearance->chosen = WithEmoji(
+		BackdropHalf(appearance->current),
+		appearance->emojiPicks);
 	appearance->pending = std::nullopt;
-	ApplyAppearance(
-		surface,
-		appearance,
-		(empty
-			? PeerQrDefaultAppearance()
-			: EmojiAppearance(picks, EmojiBackground(appearance))),
-		anim::type::normal);
-	appearance->colors->setSelected(
-		empty ? appearance->current : std::nullopt,
-		anim::type::normal);
+	ShowSwatch(surface, appearance, *appearance->chosen, anim::type::normal);
 }
 
 void ChooseEmoji(
@@ -965,62 +937,14 @@ void RevertToServed(
 		not_null<PeerQrSurface*> surface,
 		not_null<AppearanceState*> appearance) {
 	appearance->chosen = std::nullopt;
-	appearance->dark = std::nullopt;
-	const auto &served = appearance->served;
-	if (!served || served->key.type != PeerQrThemeKey::Type::Emoji) {
-		appearance->emojiPicks.clear();
-		if (appearance->picker) {
-			appearance->picker->setPicks({});
-		}
-	}
-	if (served) {
+	if (const auto &served = appearance->served) {
 		ApplyServedTheme(surface, appearance, *served, anim::type::normal);
 	} else {
+		SetEmojiPicks(appearance, {});
 		appearance->current = std::nullopt;
-		ApplyAppearance(
-			surface,
-			appearance,
-			PeerQrDefaultAppearance(),
-			anim::type::normal);
+		surface->setAppearance(PeerQrDefaultAppearance(), anim::type::normal);
 		appearance->colors->setSelected(std::nullopt, anim::type::normal);
 	}
-}
-
-void SetupNightToggle(
-		not_null<GenericBox*> box,
-		not_null<PeerQrSurface*> surface,
-		not_null<AppearanceState*> appearance) {
-	const auto toggle = AddButton(
-		surface,
-		st::peerQrNightMode,
-		tr::lng_menu_night_mode(tr::now));
-	toggle->hide();
-	appearance->toggle = toggle;
-	const auto reapply = [=](anim::type animated) {
-		const auto &emoji = surface->appearance().emoji;
-		ApplyAppearance(
-			surface,
-			appearance,
-			EmojiAppearance(emoji, EmojiBackground(appearance)),
-			animated);
-	};
-	toggle->setClickedCallback([=] {
-		const auto &current = surface->appearance();
-		if (appearance->backgroundsReady && !current.emoji.empty()) {
-			appearance->dark = IsLightBackground(current.background);
-			reapply(anim::type::normal);
-		}
-	});
-	Info::Profile::QrEmojiBackgroundsValue(
-	) | rpl::on_next([=](Info::Profile::QrEmojiBackgrounds backgrounds) {
-		appearance->backgrounds = backgrounds;
-		appearance->backgroundsReady = true;
-	}, box->lifetime());
-	style::PaletteChanged() | rpl::on_next([=] {
-		if (!appearance->dark && !surface->appearance().emoji.empty()) {
-			reapply(anim::type::instant);
-		}
-	}, box->lifetime());
 }
 
 void SetupEmojiPanel(
@@ -1065,11 +989,6 @@ void SetupEmojiPanel(
 			appearance->picker.emplace(std::move(picker));
 		}
 		appearance->picker->setPicks(appearance->emojiPicks);
-		const auto current = appearance->current;
-		if (!appearance->emojiPicks.empty()
-			&& (!current || current->type != PeerQrThemeKey::Type::Emoji)) {
-			ApplyEmojiPicks(surface, appearance);
-		}
 		openPanel(container);
 	});
 }
@@ -1103,8 +1022,6 @@ void SetupAppearance(
 		container->setColors(value.control, value.glass);
 	}, container->lifetime());
 
-	SetupNightToggle(box, surface, appearance);
-
 	Info::Profile::QrThemeSwatchesValue(
 		&peer->session()
 	) | rpl::on_next([=](std::vector<PeerQrSwatch> &&swatches) {
@@ -1131,24 +1048,18 @@ void SetupAppearance(
 
 	colors->picks() | rpl::on_next([=](PeerQrThemeKey key) {
 		if (const auto swatch = FindSwatch(appearance->swatches, key)) {
-			appearance->chosen = *swatch;
-			appearance->current = key;
+			appearance->chosen = WithEmoji(*swatch, appearance->emojiPicks);
 			appearance->pending = std::nullopt;
-			ApplyAppearance(
+			ShowSwatch(
 				surface,
 				appearance,
-				swatch->appearance,
+				*appearance->chosen,
 				anim::type::normal);
-			colors->setSelected(key, anim::type::normal);
 		}
 	}, box->lifetime());
 
 	const auto refreshControls = [=] {
 		island->setVisible(appearance->sideShown && appearance->canSave);
-		if (const auto toggle = appearance->toggle) {
-			toggle->setVisible(appearance->canSave
-				&& !surface->appearance().emoji.empty());
-		}
 	};
 	const auto setSideShown = [=](bool shown) {
 		appearance->sideShown = shown;
@@ -1198,7 +1109,7 @@ void SetupAppearance(
 		appearance->canSave = can;
 		if (!can) {
 			closePanel();
-			if (appearance->chosen || appearance->dark) {
+			if (appearance->chosen) {
 				RevertToServed(surface, appearance);
 			}
 		}
@@ -1344,9 +1255,6 @@ void FillPeerQrBox(
 		const auto rowTop = bottom + st::peerQrCardSkip;
 		const auto height = rowTop + copy->height() + skip;
 		close->moveToRight(skip, skip, width);
-		if (const auto toggle = state->appearance.toggle) {
-			toggle->moveToLeft(skip, skip, width);
-		}
 		copy->moveToLeft(skip, rowTop, width);
 		if (share) {
 			share->moveToRight(skip, rowTop, width);

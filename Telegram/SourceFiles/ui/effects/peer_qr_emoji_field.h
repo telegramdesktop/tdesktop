@@ -79,8 +79,6 @@ public:
 	void paint(QPainter &p, const PeerQrEmojiPaint &args);
 
 	[[nodiscard]] bool animating(crl::time now) const;
-	[[nodiscard]] std::optional<QColor> accent() const;
-	[[nodiscard]] rpl::producer<> accentChanges() const;
 	[[nodiscard]] PeerQrEmojiRest prepareRest(
 		PeerQrEmojiMetrics metrics) const;
 
@@ -88,9 +86,7 @@ private:
 	struct Pick {
 		QString key;
 		std::unique_ptr<Text::CustomEmoji> emoji;
-		std::optional<QColor> accent;
 		crl::time readyAt = 0;
-		bool measured = false;
 	};
 
 	[[nodiscard]] std::unique_ptr<Text::CustomEmoji> createEmoji(
@@ -110,7 +106,6 @@ private:
 	QPointF _drift;
 	crl::time _driftElapsed = 0;
 	QColor _textColor;
-	rpl::event_stream<> _accentChanges;
 
 };
 

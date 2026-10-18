@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/animation_value.h"
 #include "ui/text/text_custom_emoji.h"
-#include "ui/color_contrast.h"
 
 #include "styles/style_boxes.h"
 
@@ -42,9 +41,6 @@ constexpr auto kPopDelay = crl::time(135);
 constexpr auto kSwapStagger = crl::time(300);
 constexpr auto kSwapDuration = kSwapStagger
 	+ std::max(kShrinkDuration, kPopDelay + kPopDuration);
-constexpr auto kAccentAlpha = 0.5;
-constexpr auto kHueBins = 24;
-constexpr auto kAchromatic = 0.03;
 
 enum class Salt : uint32 {
 	Empty = 1,
@@ -174,83 +170,6 @@ void EnumerateTiles(
 			});
 		}
 	}
-}
-
-[[nodiscard]] std::optional<QColor> ComputeEmojiAccent(const QImage &still) {
-	struct Sample {
-		Lab lab;
-		int bin = 0;
-	};
-	const auto image = still.convertToFormat(QImage::Format_ARGB32);
-	auto samples = std::vector<Sample>();
-	samples.reserve(image.width() * image.height());
-	auto histogram = std::array<float64, kHueBins>();
-	auto chroma = 0.;
-	for (auto y = 0; y != image.height(); ++y) {
-		const auto line = reinterpret_cast<const QRgb*>(
-			image.constScanLine(y));
-		for (auto x = 0; x != image.width(); ++x) {
-			const auto pixel = line[x];
-			if (qAlpha(pixel) < kAccentAlpha * 255.) {
-				continue;
-			}
-			const auto lab = ToLab(
-				QColor(qRed(pixel), qGreen(pixel), qBlue(pixel)));
-			const auto value = Chroma(lab);
-			const auto bin = std::min(
-				int(Hue(lab) * kHueBins / 360.),
-				kHueBins - 1);
-			histogram[bin] += value;
-			chroma += value;
-			samples.push_back({ .lab = lab, .bin = bin });
-		}
-	}
-	if (samples.empty()) {
-		return std::nullopt;
-	}
-	const auto count = float64(samples.size());
-	if (chroma / count < kAchromatic) {
-		auto lightness = 0.;
-		for (const auto &sample : samples) {
-			lightness += sample.lab.lightness;
-		}
-		return FromLch(lightness / count, 0., 0.);
-	}
-	const auto wrap = [](int bin) {
-		return (bin + kHueBins) % kHueBins;
-	};
-	auto peak = 0;
-	auto best = 0.;
-	for (auto bin = 0; bin != kHueBins; ++bin) {
-		const auto weight = histogram[wrap(bin - 1)]
-			+ histogram[bin]
-			+ histogram[wrap(bin + 1)];
-		if (weight > best) {
-			best = weight;
-			peak = bin;
-		}
-	}
-	auto sum = Lab();
-	auto taken = 0;
-	for (const auto &sample : samples) {
-		const auto distance = std::abs(sample.bin - peak);
-		if (std::min(distance, kHueBins - distance) > 1) {
-			continue;
-		}
-		sum.lightness += sample.lab.lightness;
-		sum.a += sample.lab.a;
-		sum.b += sample.lab.b;
-		++taken;
-	}
-	if (!taken) {
-		return std::nullopt;
-	}
-	const auto mean = Lab{
-		.lightness = sum.lightness / taken,
-		.a = sum.a / taken,
-		.b = sum.b / taken,
-	};
-	return FromLch(mean.lightness, Chroma(mean), Hue(mean));
 }
 
 [[nodiscard]] QImage RenderStill(
@@ -469,13 +388,7 @@ void PeerQrEmojiField::startEntry(crl::time now) {
 }
 
 void PeerQrEmojiField::setTextColor(QColor color) {
-	if (_textColor == color) {
-		return;
-	}
 	_textColor = color;
-	for (auto &pick : _picks) {
-		pick.measured = false;
-	}
 }
 
 void PeerQrEmojiField::paint(QPainter &p, const PeerQrEmojiPaint &args) {
@@ -565,14 +478,6 @@ bool PeerQrEmojiField::animating(crl::time now) const {
 	});
 }
 
-std::optional<QColor> PeerQrEmojiField::accent() const {
-	return _picks.empty() ? std::nullopt : _picks.front().accent;
-}
-
-rpl::producer<> PeerQrEmojiField::accentChanges() const {
-	return _accentChanges.events();
-}
-
 PeerQrEmojiRest PeerQrEmojiField::prepareRest(
 		PeerQrEmojiMetrics metrics) const {
 	auto stills = std::vector<QImage>();
@@ -627,26 +532,10 @@ void PeerQrEmojiField::refreshReady(crl::time now) {
 	if (_source.frameSize <= 0) {
 		return;
 	}
-	const auto was = accent();
 	for (auto &pick : _picks) {
-		if (!pick.emoji) {
-			continue;
-		} else if (!pick.readyAt) {
-			if (!pick.emoji->ready()) {
-				continue;
-			}
+		if (pick.emoji && !pick.readyAt && pick.emoji->ready()) {
 			pick.readyAt = now;
 		}
-		if (!pick.measured) {
-			pick.measured = true;
-			pick.accent = ComputeEmojiAccent(RenderStill(
-				pick.emoji.get(),
-				_source.frameSize,
-				_textColor));
-		}
-	}
-	if (accent() != was) {
-		_accentChanges.fire({});
 	}
 }
 
