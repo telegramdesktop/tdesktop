@@ -32,6 +32,7 @@ public:
 	void invalidate();
 
 	void paint(QPainter &p) const;
+	void paintDim(QPainter &p, float64 opacity) const;
 	[[nodiscard]] rpl::producer<> changes() const;
 
 private:

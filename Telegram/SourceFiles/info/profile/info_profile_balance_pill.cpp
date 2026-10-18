@@ -112,6 +112,30 @@ bool BalancePill::actionable() const {
 	return !isHidden() && (_opacity > 0.);
 }
 
+QImage BalancePill::grabEmpty() {
+	const auto was = std::exchange(_contentHidden, true);
+	const auto restore = gsl::finally([&] {
+		_contentHidden = was;
+	});
+	return Ui::GrabWidgetToImage(parentWidget(), geometry());
+}
+
+QImage BalancePill::grabContent() const {
+	const auto ratio = style::DevicePixelRatio();
+	auto result = QImage(
+		size() * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
+	result.fill(Qt::transparent);
+	if (_opacity > 0.) {
+		auto p = QPainter(&result);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setOpacity(_opacity);
+		paintContent(p);
+	}
+	return result;
+}
+
 void BalancePill::setContent(const QString &label, int64 balance) {
 	if (balance <= 0) {
 		hide();
@@ -188,20 +212,30 @@ void BalancePill::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 	auto hq = PainterHighQualityEnabler(p);
 	p.setOpacity(_opacity);
+	paintBackground(p);
+	if (!_contentHidden) {
+		paintContent(p);
+	}
+}
 
-	const auto colored = _edgeColor.has_value();
-	const auto fg = colored
-		? st::groupCallMembersFg->c
-		: st::windowBoldFg->c;
+void BalancePill::paintBackground(QPainter &p) const {
 	const auto radius = height() / 2.;
 	p.setPen(Qt::NoPen);
-	p.setBrush(colored
-		? anim::with_alpha(fg, st::infoProfileBalancePillColoredBgOpacity)
+	p.setBrush(_edgeColor
+		? anim::with_alpha(
+			st::groupCallMembersFg->c,
+			st::infoProfileBalancePillColoredBgOpacity)
 		: anim::with_alpha(
 			st::boxBg->c,
 			1. - st::infoProfileTopBarActionButtonBgOpacity));
 	p.drawRoundedRect(rect(), radius, radius);
+}
 
+void BalancePill::paintContent(QPainter &p) const {
+	const auto colored = _edgeColor.has_value();
+	const auto fg = colored
+		? st::groupCallMembersFg->c
+		: st::windowBoldFg->c;
 	const auto &padding = st::infoProfileBalancePillPadding;
 	if (!_labelShown.isEmpty()) {
 		p.setFont(st::infoProfileBalancePillLabelFont);

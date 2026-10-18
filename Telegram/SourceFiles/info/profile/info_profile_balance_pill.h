@@ -23,6 +23,8 @@ public:
 
 	void place(int outerWidth, int statusTop, float64 progress);
 	[[nodiscard]] bool actionable() const;
+	[[nodiscard]] QImage grabEmpty();
+	[[nodiscard]] QImage grabContent() const;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -33,6 +35,8 @@ private:
 	void setContent(const QString &label, int64 balance);
 	void refreshIcon();
 	void refreshGeometry();
+	void paintBackground(QPainter &p) const;
+	void paintContent(QPainter &p) const;
 
 	Wallet::AmountPainter _amount;
 	std::optional<QColor> _edgeColor;
@@ -46,6 +50,7 @@ private:
 	int _arrowTop = 0;
 	int _outerWidth = 0;
 	int _top = 0;
+	bool _contentHidden = false;
 
 };
 

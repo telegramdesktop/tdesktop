@@ -30,12 +30,16 @@ constexpr auto kFadeBackgroundDuration = crl::time(200);
 	return (st::windowBg->c.lightnessF() < 0.5);
 }
 
+[[nodiscard]] QColor OverlayColor(int alpha) {
+	return QColor(16, 16, 16, alpha);
+}
+
 [[nodiscard]] QImage ProcessBackground(QImage image, int alpha, int scale) {
 	const auto size = image.size();
 	auto p = QPainter(&image);
 	p.fillRect(
 		QRect(QPoint(), image.size() / image.devicePixelRatio()),
-		QColor(16, 16, 16, alpha));
+		OverlayColor(alpha));
 	p.end();
 	return Images::DitherImage(
 		Images::BlurLargeImage(
@@ -284,16 +288,29 @@ void LayerBackdrop::paint(QPainter &p) const {
 	const auto target = _owner->rect();
 	const auto faded = _fade.value(1.);
 	if (faded < 1.) {
+		const auto opacity = p.opacity();
+		const auto shown = opacity * faded;
+		// The painter's opacity applies once to the cross-faded pair.
+		p.setOpacity(opacity * (1. - faded) / (1. - shown));
 		p.drawImage(target, _back);
 		if (faded > 0.) {
-			const auto opacity = p.opacity();
-			p.setOpacity(opacity * faded);
+			p.setOpacity(shown);
 			p.drawImage(target, _image);
-			p.setOpacity(opacity);
 		}
+		p.setOpacity(opacity);
 	} else {
 		p.drawImage(target, _image);
 	}
+}
+
+void LayerBackdrop::paintDim(QPainter &p, float64 opacity) const {
+	if (opacity <= 0.) {
+		return;
+	}
+	const auto was = p.opacity();
+	p.setOpacity(was * opacity);
+	p.fillRect(_owner->rect(), OverlayColor(_overlayAlpha(IsNightMode())));
+	p.setOpacity(was);
 }
 
 rpl::producer<> LayerBackdrop::changes() const {
