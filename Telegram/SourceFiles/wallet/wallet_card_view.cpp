@@ -472,7 +472,13 @@ QImage CardView::captureScene() {
 		return QImage();
 	}
 	auto result = Ui::CaptureUnderLayer(this, underlyingLayer());
-	if (_phase != Phase::Shown) {
+	if (result.isNull()) {
+		if (_backdrop.started()) {
+			crl::on_main(this, [=] {
+				_backdrop.invalidate();
+			});
+		}
+	} else if (_phase != Phase::Shown) {
 		_sharp = result;
 	}
 	return result;
