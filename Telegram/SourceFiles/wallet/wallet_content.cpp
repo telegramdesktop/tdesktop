@@ -14255,13 +14255,19 @@ void Content::setupContent() {
 	const auto rowsTopSkip = column->add(Ui::CreateSlideSkipWidget(
 		column,
 		st::walletRowsTopSkip));
-	rowsTopSkip->toggleOn(rpl::combine(
+	rpl::combine(
 		std::move(collectiblesShown),
 		wallet->collectiblesTabValue(),
 		HistoryShownValue(&_show->session())
-	) | rpl::map([](bool available, bool collectibles, bool history) {
-		return history || (available && collectibles);
-	}));
+	) | rpl::on_next([=](bool available, bool collectibles, bool history) {
+		const auto skip = collectibles
+			? st::walletRowsTopSkip
+			: st::walletTransactionsTopSkip;
+		rowsTopSkip->wrapped()->setPadding({ 0, 0, 0, skip });
+		rowsTopSkip->toggle(
+			history || (available && collectibles),
+			anim::type::normal);
+	}, rowsTopSkip->lifetime());
 	rowsTopSkip->finishAnimating();
 
 	const auto listWrap = column->add(

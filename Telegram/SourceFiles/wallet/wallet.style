@@ -148,6 +148,7 @@ walletAboutFeesIcon: icon{{ "menu/no_fees-24x24", windowBoldFg }};
 walletAboutChainIcon: icon{{ "menu/blockchain_verified-24x24", windowBoldFg }};
 
 walletRowsTopSkip: 16px;
+walletTransactionsTopSkip: 5px;
 walletAboutBottomSkip: walletRowsTopSkip;
 walletRowPadding: margins(76px, 6px, 20px, 6px);
 walletRowIconSize: 46px;
@@ -230,6 +231,8 @@ walletUnlockPromptLoading: InfiniteRadialAnimation(walletBusyBoxLoading) {
 walletUnlockPromptPadding: margins(0px, 12px, 0px, 4px);
 
 walletTabsSlider: SettingsSlider(defaultTabsSlider) {
+	height: 39px;
+	barTop: 36px;
 	padding: 12px;
 	strictSkip: 24px;
 }
