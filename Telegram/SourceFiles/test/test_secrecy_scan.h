@@ -127,11 +127,20 @@ struct SecrecySource {
 	QString control; // this source's extra known-present control
 };
 
+enum class LaunchLogSelection {
+	Unspecified,
+	Complete,
+	InvalidTimes,
+	ReversedWindow,
+	CappedWindow,
+};
+
 struct SecrecyLaunchLogs {
 	std::vector<SecrecySource> sources; // every candidate with its identity
 	QDateTime launchStart;
 	QDateTime scanAt;
 	int candidates = 0; // window candidates, both DebugLogs kinds
+	LaunchLogSelection selection = LaunchLogSelection::Unspecified;
 };
 
 // Pure selection: the test log at |evidenceDir|/test_log.txt, the app log

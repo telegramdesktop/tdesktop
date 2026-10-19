@@ -2083,6 +2083,7 @@ PRIVATE
     test/test_log.h
     test/test_log_lines.cpp
     test/test_log_lines.h
+    test/test_log_scan_internal.h
     test/test_mapped_target.cpp
     test/test_mapped_target.h
     test/test_marking_read.cpp
@@ -2103,6 +2104,9 @@ PRIVATE
     test/test_post_paint.h
     test/test_probe.cpp
     test/test_probe.h
+    test/test_publication_identity_scan.cpp
+    test/test_publication_identity_scan.h
+    test/test_publication_identity_scan_self_test.cpp
     test/test_queued_drag.cpp
     test/test_queued_drag.h
     test/test_rpc_fixture.cpp

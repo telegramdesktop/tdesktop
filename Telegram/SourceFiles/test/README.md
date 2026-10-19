@@ -625,6 +625,7 @@ clicking.
 | `test_wallet_ready.h` | Judge one reading of the wallet's freshness stamp — the one `applyState()` writes when the server's wallet state reaches this client — refuse a stamp that was never written, wait for a stamped state under a bounded deadline that names what it observed, and re-run the instrument's own positive/negative/recovery self-test. |
 | `test_wallet_intercept.h` | The controlled Gram wallet fixture's shared request intercept, so a wallet campaign calls it instead of copying `GramIntercept` overlay code. The overlay pastes one hook, quoted in the header, as the first statement of `MTP::details::Session::sendPrepared`: `Test::InterceptWalletRequest(_instance, request)`, returning when it answers true. That is the single main-thread funnel into a session's send map, every `Instance::Private` resend included, and the module itself adds no production seam. `ControlledWalletIntercept()` is the process-global `WalletIntercept`: `arm(&session->mtp())` suppresses and records every request of that instance; `seal()` suppresses `wallet.sendTransfer` and a provider POST `/api/v2/jsonRPC` whose JSON `method` is `sendBoc` (the product's `IsSendBocRequest`, here `IsWalletTransferRequest`) from any instance for the rest of the process; `disarm()` lets every other constructor pass. Held `toncenter.performApiRequest` provider calls are released through their real registered callbacks with a controlled `rpc_error 400 TIMEOUT`, which `Wallet::Api::IsTimeoutError` classifies as the host's own expiry (`kTimeout`), from the first drain through every box and press; a campaign turns releasing off only for a deliberate hold and then answers those calls itself, posting from `onRegistered`. `AppendWalletEngineDrain` releases everything held, leaves the release on and waits for the pure `readiness()`: the engine worker idle by the overlay's own counters (an absent worker is an idle reading, a missing reading refuses), no provider call held, and none registered, released or answered for 1500 ms, longer than the 1000 ms comment-recipient retry delay. `CheckNoEarlierProviderCallHeld` gates the press. A refusal of either is a fixture gate (`TEST_FLAW`), never a product `FAIL`. `teardown(quiesce)` runs seal, stop releasing, release the held provider calls, cancel the other suppressed requests, the caller's quiesce, disarm - the seal before the disarm, because the source run disarmed first and its queued fixture send's routed `wallet.sendTransfer` reached test DC 2 - and is idempotent from `Runner::onFinish`. The overlay fixes the fixture route when the send is queued (`Test::GramOwns(this)` captured before `_engine->run`), so a fixture send that enters the engine after disarm never takes the real engine path. Own self-test on private intercepts, with no network, no account, no session and no `MTP::Instance`: `AppendWalletInterceptSelfTest`. |
 | `test_gram_reconcile.h` | The README's P0 fixture reconciliation ("Account fixture secrets"): `ReconcileGramAccount` / the one-stage `AppendGramReconcile` reconcile the golden `test_gram_account.txt` with the marked live copy's own custody through the product's local reveal and restore only - `NoOp`, case (b) `RewroteFromReveal`, case (a) `RestoredFromFile`, or a refusal by a named `GramReconcileGate` that writes nothing - and print one public `GRAM_RECONCILE:` row; `GramReconcileResult::phrases` and `GramCustodySecretTokens` hand the secrets to the secrecy scan in memory; `GramReconcileDrive` is the self-test seam. Its own acceptance on the marked live copy is `AppendGramReconcileSelfTest`. |
+| `test_publication_identity_scan.h` | Separate public-presentation and launch-log coverage audits: `ReadPublicationIdentity` / `CheckPublicationIdentity` check explicit supplied public identities; `ReadLaunchLogEnumeration` / `CheckLaunchLogEnumeration` establish controlled coverage only. Fixed `PublicationIdentityRows` / `LaunchLogEnumerationRows` contain classifications and counts. Neither proves fixture secrecy. `AppendPublicationIdentityScanSelfTest` registers six synchronous, session-free stages over synthetic log trees, independently of the eleven strict-secret stages. See the finite grammar and refusals below. |
 | `test_secrecy_scan.h` | Prove that no fixture secret reached the logs: `CheckSecrecy` takes phrases, short secrets and tokens once, selects the test log, the app log (`Logs::full()`) and this launch's `DebugLogs` parts by identity (the day index in the first line, never a last-write time), counts only what the client wrote (plain lines and `Send` dump entries; `Recv` hits are reported with their schema site), reports every client-written short-secret hit in a plain line at its `<file>\|<head>\|<field>` site (the message head and the name of the field whose whole value the hit is), lets a campaign declare computed fields (`SecrecyScanArgs::computedFields`, message head and field name) whose exact-value hits are reported in `SECRECY_COMPUTED` and never decide, carries the MTProto transport's own integer-only `DEBUG_LOG` lines itself (each format, its source file and which of its numbers the client computes) so that a hit that is exactly a computed number's whole integer is reported there too with no declaration, refuses to certify a zero without a planted nonce, named controls and passing canaries, and prints counts and public identifiers only (`SECRECY_SCAN`, `SECRECY_WINDOW`, `SECRECY_CLASS`, `SECRECY_RECEIVED`, `SECRECY_COMPUTED`). Its `SECRECY: <class>` reports are `DiscriminatingScan` rows, so they follow the number-format request of `test_log.h` like every converted helper row, while its `SECRECY_*` rows and its three checks keep ordinary integers in both modes. Its session-free self-test over synthetic log trees is `AppendSecrecyScanSelfTest`, which also covers the number format of overlay telemetry, the shared helpers' numbers in both formats and the carried transport lines. |
 | `test_scenario.cpp` | The only permanent overlay slot; the repository version remains a no-op. |
 
@@ -826,6 +827,138 @@ Never delete or reset the marked live copy while a campaign may have left a
 rotation in flight or unrewritten: SETUP keeps a marked live copy, and only a
 manual wipe or `test-account-reset` discards it — and with it the only copy of
 a not-yet-rewritten signing half.
+
+**Public identity and log coverage are separate claims.** The helpers in
+`test_publication_identity_scan.h` answer two different questions. A
+`LaunchLogEnumerationReading::decided` result establishes which declared
+launch log classes were read with controls; it has no `clean` or secret
+verdict. A `PublicationIdentityReading` decides whether supported complete
+presentations of explicitly supplied public inputs occur in those bytes.
+Its `clean` result requires decided coverage, valid supplied scope, completed
+bounded parsing, passing matcher controls and zero findings. Neither result
+proves that fixture secrets were audited. Only `ReadSecrecy` / `CheckSecrecy`
+with usable supplied fixture secrets can support that claim; an empty secret
+set remains undecided and not clean.
+
+A late synchronous campaign stage can use the actual wrappers directly:
+
+```cpp
+Test::CheckLaunchLogEnumeration();
+Test::CheckPublicationIdentity({
+    .identity = {
+        .firstName = u"Ada"_q,
+        .lastName = u"Syntheticriver"_q,
+        .username = u"synthetic_public_handle"_q,
+        .phone = u"+15551234567"_q,
+        .userId = u"7"_q,
+    },
+});
+```
+
+These example identities are synthetic. The helper never discovers an
+account identity or reads a credential fixture. Each wrapper plants a fresh
+public control through `Note`, `LOG` and `MTP_LOG`, then uses
+`SelectThisLaunchLogs`. `CheckPublicationIdentity` takes
+`PublicationIdentityScanArgs`, whose `logs` member is
+`LaunchLogEnumerationArgs`; both wrappers support its optional
+`testLogControl`, `appLogControl`, `debugLogControl`, `mtpLogControl` and
+`earlierParts`. The pure readers instead take an actual
+`SecrecyLaunchLogs`, a nonempty planted control and optional enumeration
+arguments, without planting or printing anything:
+
+```cpp
+const auto logs = Test::SelectThisLaunchLogs({});
+const auto coverage = Test::ReadLaunchLogEnumeration(logs, plantedControl);
+const auto identity = Test::ReadPublicationIdentity(
+    suppliedIdentity,
+    logs,
+    plantedControl);
+```
+
+`plantedControl` must already be present in every required class. The four
+mandatory ordered rows are `TestLog`, `AppLog`, `DebugLog` and `MtpLog`, even
+when a class has no source. Coverage reuses the strict reader's accepted
+bytes: TestLog file, supplied main-log text, and quarter-hour DebugLogs parts
+whose first line is their own day index. Window parts start at their last
+`NEW LOGGING INSTANCE STARTED!!!` banner. No modification time participates.
+`MtpLog` requires both Send and Recv headers regardless of source display
+name; every required class needs an actual accepted readable source, the
+planted control, and any requested named control. Enable DebugLogs for real
+campaigns, since absent MTP logging cannot establish coverage.
+
+Only selector metadata marked complete can decide coverage. Invalid or
+reversed times, an unspecified/manual selection, the 200-quarter cap,
+inconsistent candidate inventories, unreadable sources, absent classes or
+controls all refuse by fixed scan/class categories. Exactly 200 quarters is
+complete when the next quarter is beyond the end time; 201 quarters is
+capped. A missing or foreign window candidate alongside an accepted
+controlled part stays visible in counts without claiming its bytes were
+examined. Unreadability still refuses. Explicit `EarlierParts` are scanned
+whole and require a valid part name, valid matching day and their own
+nonempty present per-part control; they are never inferred from other files.
+
+The identity grammar is finite and applies only to supplied descriptors:
+
+- **Profile:** a complete multipart display name with Unicode
+  letter/number/mark/underscore boundaries, or supplied `first_name` and
+  `last_name` strings in one recognized TL `user` object. An isolated
+  one-part name is insufficient; a structured one-part profile also needs a
+  supplied username, phone or id matched in that same object. Names use NFC,
+  Unicode case folding and collapsed whitespace, with at most 256 UTF-16
+  units per supplied component. Objects, siblings, entries and sources do
+  not share profile fields.
+- **Username/link:** the complete supplied username as a bounded token,
+  `@username`, `t.me/username`, `http[s]://t.me/username`,
+  `http[s]://telegram.me/username` or `tg://resolve?domain=username`.
+  A complete username path component in screenshot metadata counts too.
+  Longer handles, partial names and underscore continuations do not count;
+  overlapping spellings of one occurrence count once. Inputs use ASCII
+  letters, digits and underscores, include at least one letter, are at most
+  64 characters and match with ASCII case folding.
+- **Phone:** the complete international number, canonical or with ASCII
+  spaces, balanced nonnested parentheses and hyphens, or full digits at a
+  plain `phone` label or recognized `user.phone` field. The descriptor is
+  `+` and one to fifteen ASCII digits, starting with a nonzero digit.
+  Candidate-local normalization never joins arbitrary numbers across a log
+  line. Suffixes, partial numbers and longer digit runs do not count.
+- **User id:** an exact canonical positive decimal of at most twenty ASCII
+  digits, at plain `user_id=<decimal>` / `user_id: <decimal>`, or the TL
+  owner/field pairs `user.id`, `userEmpty.id`, `userFull.id`,
+  `peerUser.user_id`, `inputPeerUser.user_id`, `inputUser.user_id`.
+  The innermost object owns the field. Tiny positive ids still count there;
+  generic `id`, wrong-parent fields, request ids, timing, coordinates,
+  counters and transport integers do not count. Caller-defined schemas and
+  computed-field exemptions are unavailable.
+
+The TL writer grammar is `{ constructor`, `field: value`, `}` with quoted
+strings. It decodes `\\`, `\"`, `\n` and the logger's visible separator
+escapes `\u000A`, `\u000B`, `\u000C`, `\u000D`, `\u001C`, `\u001D`,
+`\u001E`, `\u0085`, `\u2028`, `\u2029` deliberately, without repeatedly
+decoding escaped backslashes. Quotes keep braces and apparent fields inside
+strings from changing ownership. Each physical TestLog row is an entry;
+visible separators can encode a multiline profile within that row. The
+additional parser state is bounded to 32 object frames, 4096 decoded UTF-16
+units per string and 256 logical lines per open profile. Relevant
+unterminated strings/profiles, unsupported escapes, lost object scope and
+limit exhaustion refuse with fixed parser categories, including at entry,
+source and final EOF boundaries. Empty/unusable supplied scope or any
+nonempty malformed/over-limit descriptor refuses, even if another supplied
+family is usable. Every usable family also needs its independent positive
+and coincidence-negative in-memory matcher controls.
+
+Plain, Send **and Recv** presentations count for identity publication; server
+origin is no exemption. Identity has no computed-field exemptions. These
+are bounded claims about the supplied identities and supported shapes,
+not a general PII detector or an audit of unread credentials.
+`LOG_ENUMERATION_*` and `PUBLICATION_IDENTITY_*` rows contain only fixed
+class/family/selection/refusal names and counts. They never echo identities,
+controls, paths, source names or matched lines. Wrapper nonce setup is a
+separate `PUBLICATION_AUDIT_CONTROL` row. Fixed schema words or small counts
+may coincide with a supplied tiny name/id; that coincidence is not value
+emission. `AppendPublicationIdentityScanSelfTest` independently exercises
+coincidences, presentations, enumeration, accepted selection, claim
+separation, parser bounds and actual formatter/wrapper output, without an
+account or network.
 
 **Proving no fixture secret reached the logs.** A funded-wallet campaign proves that no recovery word, 2SV password, custody
 record id or secret ref reached the test log, the app log or `DebugLogs` by

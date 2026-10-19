@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_agent.h"
 #include "test/test_animation_clock.h"
 #include "test/test_log.h"
+#include "test/test_log_scan_internal.h"
 #include "test/test_post_paint.h"
 #include "test/test_probe.h"
 #include "test/test_runner.h"
@@ -1131,7 +1132,9 @@ public:
 		const QString &planted,
 		const QString &control,
 		SecrecyClassReading &reading,
-		const QString &file);
+		const QString &file,
+		Internal::LogScanObserver *observer,
+		bool strict);
 
 	void feed(const QString &line);
 
@@ -1141,6 +1144,8 @@ private:
 	const QString _control;
 	const QString _file; // public name, printed in plain-line sites
 	SecrecyClassReading &_reading;
+	Internal::LogScanObserver *_observer = nullptr;
+	bool _strict = true;
 	DumpTracker _dump;
 	QString _run;
 
@@ -1470,29 +1475,38 @@ LineFeed::LineFeed(
 	const QString &planted,
 	const QString &control,
 	SecrecyClassReading &reading,
-	const QString &file)
+	const QString &file,
+	Internal::LogScanObserver *observer,
+	bool strict)
 : _matcher(matcher)
 , _planted(planted)
 , _control(control)
 , _file(file)
-, _reading(reading) {
+, _reading(reading)
+, _observer(observer)
+, _strict(strict) {
 }
 
 void LineFeed::feed(const QString &line) {
 	++_reading.lines;
+	if (_observer && _observer->line) {
+		_observer->line(line, IsEntryHeader(line) || IsMainLogStart(line));
+	}
 	if (IsEntryHeader(line)) {
 		_run.clear();
 	}
 	auto context = _dump.begin(line, _reading);
 	context.file = &_file;
-	_matcher.line(line, context, _run, _reading);
+	if (_strict) {
+		_matcher.line(line, context, _run, _reading);
+		_dump.end(line);
+	}
 	if (!_planted.isEmpty() && line.contains(_planted)) {
 		++_reading.plantedHits;
 	}
 	if (!_control.isEmpty() && line.contains(_control)) {
 		++_reading.controlHits;
 	}
-	_dump.end(line);
 }
 
 [[nodiscard]] QString ChopLineEnd(QString line) {
@@ -1509,8 +1523,13 @@ void ScanText(
 		const QString &planted,
 		const QString &control,
 		SecrecyClassReading &reading,
-		const QString &file = QString()) {
-	auto feed = LineFeed(matcher, planted, control, reading, file);
+		const QString &file = QString(),
+		Internal::LogScanObserver *observer = nullptr,
+		bool strict = true) {
+	if (observer && observer->beginSource) {
+		observer->beginSource(reading.cls);
+	}
+	auto feed = LineFeed(matcher, planted, control, reading, file, observer, strict);
 	const auto size = int(text.size());
 	auto from = 0;
 	while (from < size) {
@@ -1540,7 +1559,9 @@ FileScan ScanFile(
 		const QString &planted,
 		const QString &control,
 		SecrecyClassReading &reading,
-		const QString &name) {
+		const QString &name,
+		Internal::LogScanObserver *observer = nullptr,
+		bool strict = true) {
 	auto result = FileScan();
 	auto file = QFile(path);
 	if (!file.open(QIODevice::ReadOnly)) {
@@ -1558,7 +1579,10 @@ FileScan ScanFile(
 		}
 		file.seek(0);
 	}
-	auto feed = LineFeed(matcher, planted, control, reading, name);
+	if (observer && observer->beginSource) {
+		observer->beginSource(reading.cls);
+	}
+	auto feed = LineFeed(matcher, planted, control, reading, name, observer, strict);
 	auto index = 0;
 	while (!file.atEnd()) {
 		++index;
@@ -1743,7 +1767,9 @@ void ReadSource(
 		const SecrecySource &source,
 		const SecrecyMatcher &matcher,
 		const QString &planted,
-		SecrecyClassReading &reading) {
+		SecrecyClassReading &reading,
+		Internal::LogScanObserver *observer = nullptr,
+		bool strict = true) {
 	if (source.invalidName) {
 		++reading.invalidNames;
 		return;
@@ -1771,7 +1797,9 @@ void ReadSource(
 			planted,
 			source.control,
 			reading,
-			source.name);
+			source.name,
+			observer,
+			strict);
 	} else {
 		const auto scan = ScanFile(
 			source.path,
@@ -1780,7 +1808,9 @@ void ReadSource(
 			planted,
 			source.control,
 			reading,
-			source.name);
+			source.name,
+			observer,
+			strict);
 		if (!scan.opened) {
 			++reading.unreadable;
 			return;
@@ -5308,7 +5338,9 @@ SecrecyLaunchLogs SelectLaunchLogs(
 			? PartIdentity::Missing
 			: PartIdentity::Accepted),
 	});
+	result.selection = LaunchLogSelection::InvalidTimes;
 	if (launchStart.isValid() && scanAt.isValid()) {
+		const auto reversed = (scanAt < launchStart);
 		const auto time = launchStart.time();
 		auto part = QDateTime(
 			launchStart.date(),
@@ -5336,6 +5368,11 @@ SecrecyLaunchLogs SelectLaunchLogs(
 				++result.candidates;
 			}
 		}
+		result.selection = reversed
+			? LaunchLogSelection::ReversedWindow
+			: (part <= scanAt)
+			? LaunchLogSelection::CappedWindow
+			: LaunchLogSelection::Complete;
 	}
 	for (const auto &part : earlier) {
 		auto source = SecrecySource{
@@ -5377,19 +5414,16 @@ SecrecyLaunchLogs SelectThisLaunchLogs(
 		earlier);
 }
 
-SecrecyReading ReadSecrecy(
-		const SecrecySecrets &secrets,
+Internal::LogScanReading Internal::ReadLogClasses(
 		const SecrecyLaunchLogs &logs,
 		const QString &plantedControl,
-		const std::vector<SecrecyComputedField> &computedFields) {
-	auto result = SecrecyReading();
-	result.launchStart = logs.launchStart;
-	result.scanAt = logs.scanAt;
-	result.candidates = logs.candidates;
-
-	const auto usable = UsableSecrets(secrets, &result);
-	const auto matcher = SecrecyMatcher(usable, computedFields);
-	ReadCanaries(usable, result);
+		const SecrecySecrets *usable,
+		const std::vector<SecrecyComputedField> &computedFields,
+		LogScanObserver *observer) {
+	auto result = LogScanReading();
+	const auto matcher = SecrecyMatcher(
+		usable ? *usable : SecrecySecrets(),
+		computedFields);
 
 	auto order = std::vector<SecrecyClass>{
 		SecrecyClass::TestLog,
@@ -5411,6 +5445,7 @@ SecrecyReading ReadSecrecy(
 			}
 			++reading.candidates;
 			if (IsWindowClass(cls)) {
+				++result.candidates;
 				result.candidateIdentities.push_back(source.name
 					+ QChar('=')
 					+ PartIdentityName(source.identity));
@@ -5421,15 +5456,51 @@ SecrecyReading ReadSecrecy(
 				case PartIdentity::Accepted: ++result.accepted; break;
 				}
 			}
-			ReadSource(source, matcher, plantedControl, reading);
+			ReadSource(
+				source,
+				matcher,
+				plantedControl,
+				reading,
+				observer,
+				usable != nullptr);
 		}
 		DecideClass(reading);
+		result.classes.push_back(std::move(reading));
+	}
+
+	return result;
+}
+
+SecrecyReading ReadSecrecy(
+		const SecrecySecrets &secrets,
+		const SecrecyLaunchLogs &logs,
+		const QString &plantedControl,
+		const std::vector<SecrecyComputedField> &computedFields) {
+	auto result = SecrecyReading();
+	result.launchStart = logs.launchStart;
+	result.scanAt = logs.scanAt;
+	result.candidates = logs.candidates;
+
+	const auto usable = UsableSecrets(secrets, &result);
+	ReadCanaries(usable, result);
+
+	auto scan = Internal::ReadLogClasses(
+		logs,
+		plantedControl,
+		&usable,
+		computedFields);
+	result.classes = std::move(scan.classes);
+	result.accepted = scan.accepted;
+	result.foreign = scan.foreign;
+	result.missing = scan.missing;
+	result.unreadable = scan.unreadable;
+	result.candidateIdentities = std::move(scan.candidateIdentities);
+	for (const auto &reading : result.classes) {
 		if (!reading.decided) {
-			result.undecidedClasses.push_back(SecrecyClassName(cls)
+			result.undecidedClasses.push_back(SecrecyClassName(reading.cls)
 				+ u": "_q
 				+ reading.undecidedReason);
 		}
-		result.classes.push_back(std::move(reading));
 	}
 
 	if (!result.phrasesGiven && !result.shortGiven && !result.tokensGiven) {
