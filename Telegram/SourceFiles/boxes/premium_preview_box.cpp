@@ -1692,6 +1692,9 @@ void DoubledLimitsPreviewBox(
 			premium,
 		});
 	}
+	entries.erase(ranges::remove_if(entries, [](const auto &entry) {
+		return (entry.leftNumber >= entry.rightNumber);
+	}), end(entries));
 	Ui::Premium::ShowListBox(
 		box,
 		st::defaultPremiumLimits,
