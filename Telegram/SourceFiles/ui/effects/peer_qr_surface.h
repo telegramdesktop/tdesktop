@@ -72,6 +72,7 @@ public:
 		const QString &link,
 		anim::type animated = anim::type::instant);
 	void setUsername(const QString &username);
+	void setCountdown(const QString &countdown);
 	void setCardGeometry(QRect card);
 	void setCardPlacement(QPointF topLeft, float64 scale);
 	void setAppearance(PeerQrAppearance appearance, anim::type animated);
@@ -92,6 +93,7 @@ protected:
 
 private:
 	struct Card;
+	struct Countdown;
 	struct CardPlacement {
 		QPointF topLeft;
 		float64 scale = 1.;
@@ -107,6 +109,7 @@ private:
 
 	void composeNow();
 	void refreshCard();
+	void refreshUsername(anim::type animated = anim::type::instant);
 	void refreshQr();
 	void recolorQr();
 	void setShownColors(const PeerQrColors &colors);
@@ -126,6 +129,7 @@ private:
 	void startFieldEntry(crl::time now);
 	void updateWave(crl::time now);
 	void paintWave(QPainter &p, crl::time now) const;
+	void paintCountdown(QPainter &p);
 	[[nodiscard]] QImage currentPicture(crl::time now) const;
 	void checkAnimation();
 	[[nodiscard]] bool animationCallback(crl::time now);
@@ -138,12 +142,14 @@ private:
 	[[nodiscard]] float64 cardScale() const;
 	[[nodiscard]] QRect logoRect() const;
 	[[nodiscard]] QRect cardUpdateRect() const;
+	[[nodiscard]] QRect labelUpdateRect() const;
 
 	PeerQrAppearance _appearance;
 	PeerQrColors _colors;
 	PeerQrColors _shownColors;
 	rpl::event_stream<PeerQrColors> _colorsChanges;
 	const std::unique_ptr<Card> _card;
+	std::unique_ptr<Countdown> _countdown;
 	const std::array<QImage, 4> _corners;
 	QImage _background;
 	QPointF _backgroundCenter;

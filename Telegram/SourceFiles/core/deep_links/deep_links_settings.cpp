@@ -166,16 +166,7 @@ Result HandleQrCode(const Context &ctx, bool highlightShare) {
 		ctx.controller->setHighlightControlId(u"self-qr-code/share"_q);
 	}
 
-	const auto user = ctx.controller->session().user();
-	if (!user->username().isEmpty()) {
-		ShowQrBox(ctx.controller);
-	} else {
-		const auto controller = ctx.controller;
-		controller->uiShow()->show(Box(
-			UsernamesBoxWithCallback,
-			user,
-			[=] { ShowQrBox(controller); }));
-	}
+	ShowQrBox(ctx.controller);
 	return Result::Handled;
 }
 

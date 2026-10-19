@@ -139,6 +139,10 @@ rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user) {
 	});
 }
 
+QString PublicLinkByPhone(not_null<UserData*> user) {
+	return user->session().createInternalLinkFull('+' + user->phone());
+}
+
 rpl::producer<TextWithEntities> PhoneOrHiddenValue(not_null<UserData*> user) {
 	return rpl::combine(
 		PhoneValue(user),

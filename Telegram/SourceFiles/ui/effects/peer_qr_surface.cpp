@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/weak_qptr.h"
 #include "qr/qr_generate.h"
+#include "ui/effects/animated_string.h"
 #include "ui/image/image_prepare.h"
 #include "ui/color_contrast.h"
 #include "ui/painter.h"
@@ -810,7 +811,8 @@ void PaintCard(
 		QPainter &p,
 		const CardLayout &layout,
 		const CardContent &content,
-		const CardFrame &frame) {
+		const CardFrame &frame,
+		bool paintUsername = true) {
 	p.drawImage(content.shadowPosition, content.shadow);
 	auto hq = PainterHighQualityEnabler(p);
 	p.setPen(Qt::NoPen);
@@ -834,7 +836,7 @@ void PaintCard(
 		p.drawEllipse(layout.logo);
 		PaintPlane(p, layout.logo, content.plane, frame.plane);
 	}
-	if (!content.username.lines.isEmpty()) {
+	if (paintUsername && !content.username.lines.isEmpty()) {
 		PaintUsername(p, layout.band, content.username, content.ink);
 	}
 }
@@ -846,6 +848,11 @@ struct PeerQrSurface::Card {
 	CardContent content;
 	std::optional<QrSwap> swap;
 	QImage qrMask;
+};
+
+struct PeerQrSurface::Countdown {
+	style::font font = st::peerQrUsernameLarge;
+	std::vector<std::unique_ptr<AnimatedString>> glyphs;
 };
 
 int PeerQrCardHeight(int cardWidth, bool withUsername) {
@@ -974,7 +981,7 @@ void PeerQrSurface::setLink(const QString &link, anim::type animated) {
 		&& !anim::Disabled()
 		&& (_startedAt > 0)
 		&& !_cardGeometry.isEmpty()
-		&& !_card->content.qr.isNull();
+		&& !link.isEmpty();
 	if (swap) {
 		const auto startedAt = crl::now() + kSwapDelay;
 		_card->swap = QrSwap{
@@ -995,9 +1002,34 @@ void PeerQrSurface::setLink(const QString &link, anim::type animated) {
 }
 
 void PeerQrSurface::setUsername(const QString &username) {
+	const auto wasCountdown = (_countdown != nullptr);
+	_countdown = nullptr;
 	if (_username != username) {
 		_username = username;
 		refreshCard();
+	} else if (wasCountdown) {
+		update(labelUpdateRect());
+	}
+}
+
+void PeerQrSurface::setCountdown(const QString &countdown) {
+	if (_countdown && _username == countdown) {
+		return;
+	}
+	const auto instant = !_countdown
+		|| (_username == u"0:00"_q)
+		|| (countdown == u"0:00"_q)
+		|| anim::Disabled();
+	const auto layoutChanged = _username.isEmpty() != countdown.isEmpty();
+	if (!_countdown) {
+		_countdown = std::make_unique<Countdown>();
+	}
+	_username = countdown;
+	if (layoutChanged) {
+		refreshCard();
+	} else {
+		refreshUsername(instant ? anim::type::instant : anim::type::normal);
+		update(labelUpdateRect());
 	}
 }
 
@@ -1297,7 +1329,45 @@ void PeerQrSurface::paintEvent(QPaintEvent *e) {
 			p.translate(-center);
 		}
 	}
-	PaintCard(p, _card->layout, _card->content, frame);
+	PaintCard(p, _card->layout, _card->content, frame, !_countdown);
+	if (_countdown) {
+		paintCountdown(p);
+	}
+}
+
+void PeerQrSurface::paintCountdown(QPainter &p) {
+	const auto &fit = _card->content.username;
+	if (fit.lines.isEmpty()) {
+		return;
+	}
+	const auto &font = _countdown->font;
+	const auto scale = float64(fit.font.pixelSize()) / font->f.pixelSize();
+	const auto metrics = QFontMetricsF(fit.font);
+	const auto height = metrics.height();
+	const auto &band = _card->layout.band;
+	auto top = band.y() + (band.height() - fit.lines.size() * height) / 2.;
+	auto index = 0;
+	p.save();
+	p.setClipRect(band, Qt::IntersectClip);
+	for (const auto &line : fit.lines) {
+		const auto left = band.x()
+			+ (band.width() - metrics.horizontalAdvance(line)) / 2.;
+		for (auto i = 0; i != line.size(); ++i) {
+			const auto &glyph = _countdown->glyphs[index++];
+			if (anim::Disabled()) {
+				glyph->finishAnimating();
+			}
+			p.save();
+			p.translate(
+				left + metrics.horizontalAdvance(line.left(i)),
+				top + metrics.ascent() - font->ascent * scale);
+			p.scale(scale, scale);
+			glyph->draw(p, 0, 0, _shownColors.ink);
+			p.restore();
+		}
+		top += height;
+	}
+	p.restore();
 }
 
 void PeerQrSurface::mousePressEvent(QMouseEvent *e) {
@@ -1478,6 +1548,27 @@ QRect PeerQrSurface::cardUpdateRect() const {
 		{ grow, grow, grow, grow }).toAlignedRect();
 }
 
+QRect PeerQrSurface::labelUpdateRect() const {
+	if (_cardGeometry.isEmpty()) {
+		return rect();
+	}
+	const auto now = crl::now();
+	const auto bounce = (!anim::Disabled() && _bounceStartedAt)
+		? PeerQrBounceScale(float64(now - _bounceStartedAt) / kBounceDuration)
+		: 1.;
+	const auto scale = anim::Disabled()
+		? 1.
+		: bounce * DipScale(_dipStartedAt, now);
+	const auto center = QRectF(QPointF(), QSizeF(_card->layout.size)).center();
+	auto transform = QTransform();
+	transform.translate(cardRect().x(), cardRect().y());
+	transform.scale(cardScale(), cardScale());
+	transform.translate(center.x(), center.y());
+	transform.scale(scale, scale);
+	transform.translate(-center.x(), -center.y());
+	return transform.mapRect(QRectF(_card->layout.band)).toAlignedRect();
+}
+
 void PeerQrSurface::refreshCard() {
 	if (_cardGeometry.isEmpty()) {
 		*_card = Card();
@@ -1493,18 +1584,62 @@ void PeerQrSurface::refreshCard() {
 		st::peerQrCardShadowRadius,
 		st::peerQrCardShadowShift,
 		style::DevicePixelRatio());
-	content.username = FitUsername(
+	*_card = Card{ layout, std::move(content) };
+	refreshUsername();
+	update();
+}
+
+void PeerQrSurface::refreshUsername(anim::type animated) {
+	if (_cardGeometry.isEmpty()) {
+		return;
+	}
+	const auto &previous = _card->content.username;
+	auto fit = FitUsername(
 		_username,
-		width - 2 * st::peerQrUsernameSkip,
-		layout.band.height(),
+		_cardGeometry.width() - 2 * st::peerQrUsernameSkip,
+		_card->layout.band.height(),
 		{
 			st::peerQrUsernameLarge->f,
 			st::peerQrUsernameMedium->f,
 			st::peerQrUsernameSmall->f,
 		},
 		st::peerQrUsernameMin);
-	*_card = Card{ layout, std::move(content) };
-	update();
+	const auto animate = (animated == anim::type::normal)
+		&& !anim::Disabled()
+		&& (fit.font == previous.font)
+		&& (fit.lines.size() == previous.lines.size());
+	_card->content.username = std::move(fit);
+	if (!_countdown) {
+		return;
+	}
+	const auto &fitted = _card->content.username;
+	_countdown->font = st::peerQrUsernameSmall;
+	for (const auto &font : {
+		st::peerQrUsernameLarge,
+		st::peerQrUsernameMedium,
+		st::peerQrUsernameSmall,
+	}) {
+		if (font->f == fitted.font) {
+			_countdown->font = font;
+			break;
+		}
+	}
+	const auto text = _card->content.username.lines.join(QString());
+	auto &glyphs = _countdown->glyphs;
+	const auto sameSize = (text.size() == glyphs.size());
+	glyphs.resize(text.size());
+	for (auto i = 0; i != text.size(); ++i) {
+		if (!glyphs[i]) {
+			glyphs[i] = std::make_unique<AnimatedString>(
+				_countdown->font,
+				[=] { update(labelUpdateRect()); },
+				AnimatedString::Options{
+					.preserveIndex = true,
+					.enforceByLetter = true,
+				});
+		}
+		glyphs[i]->setText(text.mid(i, 1), animate && sameSize);
+	}
 }
 
 void PeerQrSurface::refreshQr() {

@@ -230,13 +230,9 @@ Cover::Cover(
 	_qrButton->setClickedCallback([=, show = controller->uiShow()] {
 		Ui::DefaultShowFillPeerQrBoxCallback(show, _user);
 	});
-	Info::Profile::UsernamesValue(
-		_user
-	) | rpl::on_next([=](const auto &usernames) {
-		_qrButton->setVisible(!usernames.empty());
-		refreshNameGeometry(width());
-		refreshQrButtonGeometry(width());
-	}, _qrButton->lifetime());
+	_qrButton->show();
+	refreshNameGeometry(width());
+	refreshQrButtonGeometry(width());
 }
 
 Cover::~Cover() = default;

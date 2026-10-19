@@ -1348,6 +1348,8 @@ PRIVATE
     info/profile/info_profile_qr_emoji.h
     info/profile/info_profile_qr_gifts.cpp
     info/profile/info_profile_qr_gifts.h
+    info/profile/info_profile_qr_link.cpp
+    info/profile/info_profile_qr_link.h
     info/profile/info_profile_section_stack.cpp
     info/profile/info_profile_section_stack.h
     info/profile/info_profile_share_theme.cpp

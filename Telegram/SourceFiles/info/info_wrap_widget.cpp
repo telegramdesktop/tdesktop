@@ -477,18 +477,16 @@ void WrapWidget::setupTopBarMenuToggle() {
 		} else if (section.settingsType() == ::Settings::InformationId()) {
 			const auto controller = _controller->parentController();
 			const auto self = controller->session().user();
-			if (!self->username().isEmpty()) {
-				const auto show = controller->uiShow();
-				const auto &st = (wrap() == Wrap::Layer)
-					? st::infoLayerTopBarQr
-					: st::infoTopBarQr;
-				const auto button = _topBar->addButton(
-					base::make_unique_q<Ui::IconButton>(_topBar, st));
-				button->setAccessibleName(tr::lng_group_invite_context_qr(tr::now));
-				button->addClickHandler([show, self] {
-					Ui::DefaultShowFillPeerQrBoxCallback(show, self);
-				});
-			}
+			const auto show = controller->uiShow();
+			const auto &st = (wrap() == Wrap::Layer)
+				? st::infoLayerTopBarQr
+				: st::infoTopBarQr;
+			const auto button = _topBar->addButton(
+				base::make_unique_q<Ui::IconButton>(_topBar, st));
+			button->setAccessibleName(tr::lng_group_invite_context_qr(tr::now));
+			button->addClickHandler([show, self] {
+				Ui::DefaultShowFillPeerQrBoxCallback(show, self);
+			});
 		}
 		setupShortcuts();
 	} else if (key.storiesPeer()

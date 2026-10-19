@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_free_codes.h"
 #include "info/profile/info_profile_qr_emoji.h"
 #include "info/profile/info_profile_qr_gifts.h"
+#include "info/profile/info_profile_qr_link.h"
 #include "info/profile/info_profile_share_theme.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
@@ -43,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
 
+#include <QtCore/QDateTime>
 #include <QtCore/QMimeData>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QtEvents>
@@ -60,19 +62,23 @@ enum class FreeMode {
 	Permanent,
 };
 
+struct LinkExpiry {
+	TimeId expires = 0;
+	crl::time deadline = 0;
+	bool freeCode = false;
+};
+
 struct FreeCodesState {
 	FreeMode mode = FreeMode::Fee;
 	PeerQrPill *pill = nullptr;
 	int price = 0;
 	uint32 generation = 0;
-	bool requesting = false;
+	uint32 menuGeneration = 0;
+	std::optional<Info::Profile::FreeCodeRequest> requesting;
 	TimeId expires = 0;
-	TimeId shareExpires = 0;
 	crl::time arrival = 0;
 	crl::time deadline = 0;
-	crl::time shareDeadline = 0;
 	base::Timer expireTimer;
-	base::Timer shareCutoffTimer;
 	base::unique_qptr<PopupMenu> menu;
 	base::weak_ptr<Toast::Instance> toast;
 };
@@ -110,18 +116,34 @@ struct OpenLayout {
 	int pillTop = 0;
 };
 
+struct ImageSnapshot {
+	QString link;
+	QString username;
+	Info::Profile::OwnQrLinkKind kind = Info::Profile::OwnQrLinkKind::Username;
+	FreeMode mode = FreeMode::Fee;
+	uint32 generation = 0;
+	uint32 clockGeneration = 0;
+	LinkExpiry expiry;
+	PeerQrAppearance appearance;
+	QColor ink;
+	std::vector<QImage> stills;
+	QPointF offset;
+};
+
 struct BoxState {
 	QString link;
 	QString plainLink;
 	QString username;
+	Info::Profile::OwnQrLinkKind kind = Info::Profile::OwnQrLinkKind::Username;
+	TimeId plainExpires = 0;
+	crl::time plainDeadline = 0;
+	uint32 clockGeneration = 0;
+	rpl::variable<bool> temporaryOnly = false;
 	QImage image;
-	QString imageLink;
-	QString imageUsername;
-	PeerQrAppearance imageAppearance;
-	QColor imageInk;
-	std::vector<QImage> imageStills;
-	QPointF imageOffset;
+	ImageSnapshot imageSnapshot;
 	base::weak_qptr<BoxContent> shareBox;
+	LinkExpiry shareExpiry;
+	base::Timer shareCutoffTimer;
 	FreeCodesState free;
 	AppearanceState appearance;
 	bool rendering = false;
@@ -409,54 +431,6 @@ int AboutAction::contentHeight() const {
 	return result;
 }
 
-void RenderCardImage(
-		not_null<GenericBox*> box,
-		not_null<PeerQrSurface*> surface,
-		not_null<BoxState*> state,
-		not_null<PeerQrButton*> button,
-		Fn<void(QImage)> done) {
-	if (state->rendering) {
-		return;
-	}
-	auto args = surface->prepareImage();
-	const auto ink = args.colors.ink;
-	auto stills = args.emoji.stills;
-	stills.push_back(args.gift.model);
-	stills.push_back(args.gift.symbol);
-	const auto offset = args.layerOffset;
-	if (!state->image.isNull()
-		&& state->imageLink == state->link
-		&& state->imageUsername == state->username
-		&& state->imageAppearance == surface->appearance()
-		&& state->imageInk == ink
-		&& state->imageStills == stills
-		&& state->imageOffset == offset) {
-		done(state->image);
-		return;
-	}
-	state->rendering = true;
-	button->setBusy(true);
-	const auto link = state->link;
-	const auto username = state->username;
-	const auto appearance = surface->appearance();
-	const auto weak = base::make_weak(box);
-	crl::async([=, args = std::move(args)]() mutable {
-		auto image = RenderPeerQrImage(std::move(args));
-		crl::on_main(weak, [=, image = std::move(image)] {
-			state->rendering = false;
-			button->setBusy(false);
-			state->image = image;
-			state->imageLink = link;
-			state->imageUsername = username;
-			state->imageAppearance = appearance;
-			state->imageInk = ink;
-			state->imageStills = stills;
-			state->imageOffset = offset;
-			done(image);
-		});
-	});
-}
-
 void ShowFreeToast(
 		not_null<QWidget*> parent,
 		not_null<BoxState*> state,
@@ -482,52 +456,77 @@ void ShowFreeToast(
 }
 
 [[nodiscard]] crl::time DeadlineFor(TimeId expires, crl::time now) {
-	return now + (expires - base::unixtime::now()) * crl::time(1000);
+	return now + base::unixtime::parse(expires).toMSecsSinceEpoch()
+		- QDateTime::currentMSecsSinceEpoch();
+}
+
+[[nodiscard]] LinkExpiry EffectiveExpiry(not_null<BoxState*> state) {
+	const auto &free = state->free;
+	return (free.mode == FreeMode::Temporary)
+		? LinkExpiry{ free.expires, free.deadline, true }
+		: (free.mode == FreeMode::Fee)
+		? LinkExpiry{ state->plainExpires, state->plainDeadline }
+		: LinkExpiry();
 }
 
 void ShowExpiringToast(
 		not_null<QWidget*> parent,
-		not_null<BoxState*> state) {
+		not_null<BoxState*> state,
+		bool freeCode) {
 	ShowFreeToast(parent, state, {
-		.text = tr::lng_no_paid_token_toast_expiring(tr::now, tr::marked),
+		.text = (freeCode
+			? tr::lng_no_paid_token_toast_expiring(tr::now, tr::marked)
+			: tr::lng_peer_qr_link_expiring(tr::now, tr::marked)),
 		.icon = &st::peerQrToastTimer,
 	});
 }
 
 [[nodiscard]] bool RefuseExpiring(
 		not_null<QWidget*> parent,
-		not_null<BoxState*> state) {
-	const auto &free = state->free;
-	if (free.mode != FreeMode::Temporary
-		|| free.deadline - crl::now() > kShareCutoff) {
+		not_null<BoxState*> state,
+		const LinkExpiry &expiry) {
+	if (!expiry.expires || expiry.deadline - crl::now() > kShareCutoff) {
 		return false;
 	}
-	ShowExpiringToast(parent, state);
+	ShowExpiringToast(parent, state, expiry.freeCode);
 	return true;
 }
 
+[[nodiscard]] bool RefuseImage(
+		not_null<QWidget*> parent,
+		not_null<BoxState*> state) {
+	if (state->free.requesting) {
+		return true;
+	} else if (state->link.isEmpty()) {
+		ShowFreeToast(parent, state, {
+			.text = tr::lng_peer_qr_link_unavailable(tr::now, tr::marked),
+		});
+		return true;
+	}
+	return RefuseExpiring(parent, state, EffectiveExpiry(state));
+}
+
 void CloseShareBox(not_null<QWidget*> parent, not_null<BoxState*> state) {
-	auto &free = state->free;
-	free.shareExpires = 0;
-	free.shareCutoffTimer.cancel();
-	if (const auto strong = state->shareBox.get()) {
+	const auto expiry = base::take(state->shareExpiry);
+	const auto strong = base::take(state->shareBox).get();
+	state->shareCutoffTimer.cancel();
+	if (strong) {
 		strong->closeBox();
-		ShowExpiringToast(parent, state);
+		ShowExpiringToast(parent, state, expiry.freeCode);
 	}
 }
 
 void ScheduleShareCutoff(
 		not_null<QWidget*> parent,
 		not_null<BoxState*> state) {
-	auto &free = state->free;
-	if (!free.shareExpires || !state->shareBox) {
-		free.shareExpires = 0;
-		free.shareCutoffTimer.cancel();
+	if (!state->shareExpiry.expires || !state->shareBox) {
+		state->shareExpiry = {};
+		state->shareCutoffTimer.cancel();
 		return;
 	}
-	const auto left = free.shareDeadline - kShareCutoff - crl::now();
+	const auto left = state->shareExpiry.deadline - kShareCutoff - crl::now();
 	if (left > 0) {
-		free.shareCutoffTimer.callOnce(left, Qt::PreciseTimer);
+		state->shareCutoffTimer.callOnce(left, Qt::PreciseTimer);
 	} else {
 		CloseShareBox(parent, state);
 	}
@@ -536,13 +535,88 @@ void ScheduleShareCutoff(
 void TrackShareBox(
 		not_null<QWidget*> parent,
 		not_null<BoxState*> state,
-		base::weak_qptr<BoxContent> box) {
-	auto &free = state->free;
-	const auto temporary = (free.mode == FreeMode::Temporary);
+		base::weak_qptr<BoxContent> box,
+		LinkExpiry expiry) {
 	state->shareBox = std::move(box);
-	free.shareExpires = temporary ? free.expires : TimeId();
-	free.shareDeadline = temporary ? free.deadline : crl::time();
+	state->shareExpiry = expiry;
 	ScheduleShareCutoff(parent, state);
+}
+
+[[nodiscard]] bool ImageIsCurrent(
+		not_null<PeerQrSurface*> surface,
+		not_null<BoxState*> state,
+		const ImageSnapshot &snapshot) {
+	return !snapshot.link.isEmpty()
+		&& snapshot.link == state->link
+		&& snapshot.kind == state->kind
+		&& snapshot.mode == state->free.mode
+		&& snapshot.generation == state->free.generation
+		&& snapshot.expiry.expires == EffectiveExpiry(state).expires
+		&& snapshot.appearance == surface->appearance();
+}
+
+void RenderCardImage(
+		not_null<GenericBox*> box,
+		not_null<PeerQrSurface*> surface,
+		not_null<BoxState*> state,
+		not_null<PeerQrButton*> button,
+		Fn<void(QImage, const ImageSnapshot&)> done) {
+	if (state->rendering || RefuseImage(surface, state)) {
+		return;
+	}
+	auto args = surface->prepareImage();
+	auto snapshot = ImageSnapshot{
+		.link = state->link,
+		.username = state->username,
+		.kind = state->kind,
+		.mode = state->free.mode,
+		.generation = state->free.generation,
+		.clockGeneration = state->clockGeneration,
+		.expiry = EffectiveExpiry(state),
+		.appearance = surface->appearance(),
+		.ink = args.colors.ink,
+		.stills = args.emoji.stills,
+		.offset = args.layerOffset,
+	};
+	snapshot.stills.push_back(args.gift.model);
+	snapshot.stills.push_back(args.gift.symbol);
+	const auto &cached = state->imageSnapshot;
+	if (!state->image.isNull()
+		&& ImageIsCurrent(surface, state, cached)
+		&& cached.username == snapshot.username
+		&& cached.ink == snapshot.ink
+		&& cached.stills == snapshot.stills
+		&& cached.offset == snapshot.offset) {
+		done(state->image, cached);
+		return;
+	}
+	state->rendering = true;
+	button->setBusy(true);
+	const auto weak = base::make_weak(box);
+	crl::async([=, args = std::move(args)]() mutable {
+		auto image = RenderPeerQrImage(std::move(args));
+		crl::on_main(weak, [=, image = std::move(image)] {
+			state->rendering = false;
+			button->setBusy(false);
+			if (image.isNull()
+				|| !ImageIsCurrent(surface, state, snapshot)
+				|| RefuseImage(surface, state)) {
+				return;
+			}
+			auto expiry = snapshot.expiry;
+			if (snapshot.clockGeneration != state->clockGeneration) {
+				expiry.deadline = EffectiveExpiry(state).deadline;
+			}
+			if (RefuseExpiring(surface, state, expiry)) {
+				return;
+			}
+			state->image = image;
+			state->imageSnapshot = snapshot;
+			state->imageSnapshot.expiry = expiry;
+			state->imageSnapshot.clockGeneration = state->clockGeneration;
+			done(image, state->imageSnapshot);
+		});
+	});
 }
 
 void SetupFreeCodes(
@@ -569,19 +643,45 @@ void SetupFreeCodes(
 			std::max(free->deadline - crl::now(), crl::time()),
 			Qt::PreciseTimer);
 	};
-	const auto dropPending = [=] {
-		++free->generation;
-		free->requesting = false;
-		free->expireTimer.cancel();
+	const auto dropMenu = [=] {
+		++free->menuGeneration;
 		if (const auto menu = free->menu.get()) {
 			menu->hideMenu(true);
 		}
+	};
+	const auto dropPending = [=] {
+		++free->generation;
+		free->requesting = std::nullopt;
+		dropMenu();
+	};
+	const auto applyFee = [=] {
+		free->mode = FreeMode::Fee;
+		free->expireTimer.cancel();
+		pill->showFee(free->price);
+		applyLink(state->plainLink);
+	};
+	const auto returnToFee = [=] {
+		dropPending();
+		applyFee();
 	};
 	const auto applyCode = [=](
 			Request what,
 			const Info::Profile::FreeCode &code) {
 		const auto now = crl::now();
-		if (what == Request::Temporary || what == Request::ResetTemporary) {
+		const auto temporary = (what == Request::Temporary)
+			|| (what == Request::ResetTemporary);
+		if (code.link.isEmpty()
+			|| (temporary && code.expires <= base::unixtime::now())) {
+			if (what == Request::ResetTemporary
+				|| what == Request::ResetPermanent) {
+				returnToFee();
+			}
+			ShowFreeToast(surface, state, {
+				.text = tr::lng_peer_qr_link_unavailable(tr::now, tr::marked),
+			});
+			return;
+		}
+		if (temporary) {
 			free->mode = FreeMode::Temporary;
 			free->expires = code.expires;
 			free->arrival = now;
@@ -608,17 +708,22 @@ void SetupFreeCodes(
 		});
 	};
 	const auto request = [=](Request what) {
-		if (free->requesting) {
+		const auto permanent = (what == Request::Permanent)
+			|| (what == Request::ResetPermanent);
+		if (free->requesting
+			|| free->price <= 0
+			|| (permanent && state->temporaryOnly.current())) {
 			return;
 		}
-		free->requesting = true;
-		const auto generation = free->generation;
+		dropMenu();
+		free->requesting = what;
+		const auto generation = ++free->generation;
 		const auto current = [=] {
-			if (free->generation != generation) {
+			if (free->generation != generation || !free->requesting) {
 				return false;
 			}
-			free->requesting = false;
-			return true;
+			free->requesting = std::nullopt;
+			return !permanent || !state->temporaryOnly.current();
 		};
 		Info::Profile::RequestFreeMessagesCode(
 			&peer->session(),
@@ -636,14 +741,9 @@ void SetupFreeCodes(
 				}
 			}));
 	};
-	const auto returnToFee = [=] {
-		dropPending();
-		free->mode = FreeMode::Fee;
-		pill->showFee(free->price);
-		applyLink(state->plainLink);
-	};
 	const auto showMenu = [=] {
 		const auto temporary = (free->mode == FreeMode::Temporary);
+		const auto generation = free->menuGeneration;
 		free->menu = base::make_unique_q<PopupMenu>(
 			box,
 			st::popupMenuWithIcons);
@@ -651,27 +751,38 @@ void SetupFreeCodes(
 		menu->addAction(
 			tr::lng_no_paid_token_menu_reset(tr::now),
 			[=] {
+				if (free->menuGeneration != generation) {
+					return;
+				}
 				request(temporary
 					? Request::ResetTemporary
 					: Request::ResetPermanent);
 			},
 			&st::peerQrMenuReset);
-		menu->addAction(base::make_unique_q<AboutAction>(
-			menu->menu(),
-			menu->st().menu,
-			(temporary
-				? tr::lng_no_paid_token_menu_disable_timer(tr::now)
-				: tr::lng_no_paid_token_menu_enable_timer(tr::now)),
-			(temporary
-				? tr::lng_no_paid_token_menu_disable_timer_about(tr::now)
-				: tr::lng_no_paid_token_menu_enable_timer_about(tr::now)),
-			(temporary ? &st::peerQrMenuTimerOff : &st::menuIconTimer),
-			[=] {
-				request(temporary ? Request::Permanent : Request::Temporary);
-			}));
+		if (!state->temporaryOnly.current()) {
+			menu->addAction(base::make_unique_q<AboutAction>(
+				menu->menu(),
+				menu->st().menu,
+				(temporary
+					? tr::lng_no_paid_token_menu_disable_timer(tr::now)
+					: tr::lng_no_paid_token_menu_enable_timer(tr::now)),
+				(temporary
+					? tr::lng_no_paid_token_menu_disable_timer_about(tr::now)
+					: tr::lng_no_paid_token_menu_enable_timer_about(tr::now)),
+				(temporary ? &st::peerQrMenuTimerOff : &st::menuIconTimer),
+				[=] {
+					if (free->menuGeneration != generation) {
+						return;
+					}
+					request(temporary ? Request::Permanent : Request::Temporary);
+				}));
+		}
 		menu->addAction(
 			tr::lng_no_paid_token_menu_restore(tr::now),
 			[=] {
+				if (free->menuGeneration != generation) {
+					return;
+				}
 				returnToFee();
 				ShowFreeToast(surface, state, {
 					.text = tr::lng_no_paid_token_toast_restored(
@@ -706,9 +817,6 @@ void SetupFreeCodes(
 			});
 		}
 	});
-	free->shareCutoffTimer.setCallback([=] {
-		CloseShareBox(surface, state);
-	});
 	base::unixtime::updates() | rpl::on_next([=] {
 		const auto now = crl::now();
 		if (free->mode == FreeMode::Temporary) {
@@ -716,9 +824,18 @@ void SetupFreeCodes(
 			pill->setDeadline(free->deadline);
 			scheduleExpiry();
 		}
-		if (free->shareExpires) {
-			free->shareDeadline = DeadlineFor(free->shareExpires, now);
-			ScheduleShareCutoff(surface, state);
+	}, box->lifetime());
+	state->temporaryOnly.value() | rpl::on_next([=](bool only) {
+		dropMenu();
+		if (!only) {
+			return;
+		}
+		if (free->requesting == Request::Permanent
+			|| free->requesting == Request::ResetPermanent) {
+			dropPending();
+		}
+		if (free->mode == FreeMode::Permanent) {
+			applyFee();
 		}
 	}, box->lifetime());
 
@@ -733,6 +850,7 @@ void SetupFreeCodes(
 			return;
 		}
 		dropPending();
+		free->expireTimer.cancel();
 		if (free->mode != FreeMode::Fee) {
 			free->mode = FreeMode::Fee;
 			applyLink(state->plainLink);
@@ -749,15 +867,6 @@ void SetupFreeCodes(
 			showMenu();
 		}
 	}, pill->lifetime());
-
-	box->lifetime().add([=] {
-		// the cut-off timer dies with the box, so must the share box it guards
-		if (free->shareExpires) {
-			if (const auto strong = state->shareBox.get()) {
-				strong->closeBox();
-			}
-		}
-	});
 }
 
 [[nodiscard]] OpenLayout ComputeOpenLayout(
@@ -1301,6 +1410,7 @@ void FillPeerQrBox(
 	box->verticalLayout()->resizeToWidth(st::peerQrBoxWidth);
 
 	const auto peerBox = peer && !customLink;
+	const auto ownBox = peerBox && peer->isSelf();
 	const auto state = box->lifetime().make_state<BoxState>();
 	const auto surface = box->addRow(
 		object_ptr<PeerQrSurface>(box, PeerQrDefaultAppearance()),
@@ -1315,6 +1425,7 @@ void FillPeerQrBox(
 		tr::lng_group_invite_context_copy(tr::now));
 	const auto window = Core::App().findWindow(box);
 	const auto controller = window ? window->sessionController() : nullptr;
+	const auto weakBox = base::make_weak(box);
 	const auto weakController = base::make_weak(controller);
 	const auto share = controller
 		? AddButton(
@@ -1331,7 +1442,28 @@ void FillPeerQrBox(
 	if (aboutLabel) {
 		aboutLabel->setTryMakeSimilarLines(true);
 	}
-	if (peerBox && peer->isSelf()) {
+	state->shareCutoffTimer.setCallback([=] {
+		CloseShareBox(surface, state);
+	});
+	base::unixtime::updates() | rpl::on_next([=] {
+		const auto now = crl::now();
+		++state->clockGeneration;
+		if (state->plainExpires) {
+			state->plainDeadline = DeadlineFor(state->plainExpires, now);
+		}
+		auto &cached = state->imageSnapshot;
+		if (cached.expiry.expires) {
+			cached.expiry.deadline = DeadlineFor(cached.expiry.expires, now);
+			cached.clockGeneration = state->clockGeneration;
+		}
+		if (state->shareExpiry.expires) {
+			state->shareExpiry.deadline = DeadlineFor(
+				state->shareExpiry.expires,
+				now);
+			ScheduleShareCutoff(surface, state);
+		}
+	}, box->lifetime());
+	if (ownBox) {
 		SetupFreeCodes(box, surface, state, peer);
 	}
 
@@ -1347,30 +1479,60 @@ void FillPeerQrBox(
 			surface->setGiftSource(std::move(source));
 		}, box->lifetime());
 		SetupAppearance(box, surface, state, peer, controller, copy, share);
-		Info::Profile::UsernameValue(
-			peer,
-			true
-		) | rpl::on_next([=](const TextWithEntities &username) {
-			state->username = username.text.toUpper();
-			surface->setUsername(state->username);
-		}, box->lifetime());
+		if (!ownBox) {
+			Info::Profile::UsernameValue(
+				peer,
+				true
+			) | rpl::on_next([=](const TextWithEntities &username) {
+				state->username = username.text.toUpper();
+				surface->setUsername(state->username);
+			}, box->lifetime());
+		}
 	}
-	QrLinkValue(
-		peer,
-		customLink
-	) | rpl::on_next([=](const QString &link) {
-		state->plainLink = link;
-		if (state->free.mode == FreeMode::Fee) {
+	if (ownBox) {
+		Info::Profile::OwnQrLinkValue(&peer->session(), [=](QString error) {
+			if (!error.isEmpty()) {
+				ShowFreeToast(surface, state, { .text = tr::marked(error) });
+			}
+		}) | rpl::on_next([=](const Info::Profile::OwnQrLink &value) {
+			if (state->plainExpires != value.expires) {
+				state->plainDeadline = value.expires
+					? DeadlineFor(value.expires, crl::now())
+					: crl::time();
+			}
+			state->plainLink = value.link;
+			state->kind = value.kind;
+			state->plainExpires = value.expires;
+			state->username = value.label;
+			const auto contact = (value.kind
+				== Info::Profile::OwnQrLinkKind::Contact);
+			if (contact) {
+				surface->setCountdown(value.label);
+			} else {
+				surface->setUsername(value.label);
+			}
+			if (state->free.mode == FreeMode::Fee) {
+				state->link = value.link;
+				surface->setLink(value.link, anim::type::normal);
+			}
+			state->temporaryOnly = contact;
+		}, box->lifetime());
+	} else {
+		QrLinkValue(
+			peer,
+			customLink
+		) | rpl::on_next([=](const QString &link) {
+			state->plainLink = link;
 			state->link = link;
 			surface->setLink(link);
-		}
-		if (link.isEmpty()) {
-			box->showFinishes() | rpl::on_next([=] {
+			if (link.isEmpty()) {
+				box->showFinishes() | rpl::on_next([=] {
+					box->closeBox();
+				}, box->lifetime());
 				box->closeBox();
-			}, box->lifetime());
-			box->closeBox();
-		}
-	}, box->lifetime());
+			}
+		}, box->lifetime());
+	}
 
 	const auto relayout = [=] {
 		const auto width = surface->width();
@@ -1494,26 +1656,26 @@ void FillPeerQrBox(
 	close->setClickedCallback([=] {
 		box->closeBox();
 	});
-	const auto refuseImage = [=] {
-		return state->free.requesting || RefuseExpiring(surface, state);
-	};
-	const auto dropRendered = [=] {
-		return refuseImage()
-			|| (state->imageLink != state->link)
-			|| (state->imageAppearance != surface->appearance());
+	const auto dropRendered = [=](const ImageSnapshot &snapshot) {
+		return !ImageIsCurrent(surface, state, snapshot)
+			|| RefuseImage(surface, state)
+			|| RefuseExpiring(surface, state, snapshot.expiry);
 	};
 	copy->setClickedCallback([=] {
-		if (refuseImage()) {
+		if (RefuseImage(surface, state)) {
 			return;
 		}
-		RenderCardImage(box, surface, state, copy, [=](QImage image) {
-			if (dropRendered()) {
+		RenderCardImage(box, surface, state, copy, [=](
+				QImage image,
+				const ImageSnapshot &snapshot) {
+			if (dropRendered(snapshot)) {
 				return;
 			}
 			auto mime = std::make_unique<QMimeData>();
 			mime->setImageData(std::move(image));
+			const auto show = box->uiShow();
 			QGuiApplication::clipboard()->setMimeData(mime.release());
-			box->uiShow()->showToast({
+			show->showToast({
 				.text = { tr::lng_group_invite_qr_copied(tr::now) },
 				.iconLottie = u"toast/copy"_q,
 				.iconLottieSize = st::toastLottieIconSize,
@@ -1522,25 +1684,43 @@ void FillPeerQrBox(
 	});
 	if (share) {
 		share->setClickedCallback([=] {
-			if (refuseImage()) {
+			if (RefuseImage(surface, state)) {
 				return;
 			}
-			RenderCardImage(box, surface, state, share, [=](QImage image) {
-				if (dropRendered()) {
+			RenderCardImage(box, surface, state, share, [=](
+						QImage image,
+						const ImageSnapshot &snapshot) {
+				if (dropRendered(snapshot)) {
 					return;
 				}
 				if (const auto strong = weakController.get()) {
-					TrackShareBox(
-						surface,
-						state,
-						FastShareImage(
-							strong->uiShow(),
-							std::move(image),
-							state->imageLink));
+					const auto expiry = snapshot.expiry;
+					const auto link = snapshot.link;
+					const auto shared = FastShareImage(
+						strong->uiShow(),
+						std::move(image),
+						link);
+					if (weakBox) {
+						TrackShareBox(surface, state, shared, expiry);
+					} else if (expiry.expires) {
+						if (const auto orphaned = shared.get()) {
+							orphaned->closeBox();
+						}
+					}
 				}
 			});
 		});
 	}
+	box->lifetime().add([=] {
+		// the cut-off timer dies with the box, so must the share box it guards
+		state->shareCutoffTimer.cancel();
+		state->free.expireTimer.cancel();
+		if (state->shareExpiry.expires) {
+			if (const auto strong = base::take(state->shareBox).get()) {
+				strong->closeBox();
+			}
+		}
+	});
 
 	box->showFinishes(
 	) | rpl::take(1) | rpl::on_next([=] {
@@ -1563,7 +1743,7 @@ void FillPeerQrBox(
 void DefaultShowFillPeerQrBoxCallback(
 		std::shared_ptr<Ui::Show> show,
 		PeerData *peer) {
-	if (peer && !peer->username().isEmpty()) {
+	if (peer && (peer->isSelf() || !peer->username().isEmpty())) {
 		show->show(Box(
 			Ui::FillPeerQrBox,
 			peer,

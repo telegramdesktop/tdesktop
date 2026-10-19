@@ -7088,6 +7088,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_no_paid_token_toast_restored" = "Message fee restored";
 "lng_no_paid_token_toast_expired" = "Code expired, fee is back";
 "lng_no_paid_token_toast_expiring" = "This code is about to expire.";
+"lng_peer_qr_link_expiring" = "This link is about to expire.";
+"lng_peer_qr_link_unavailable" = "This link is unavailable. Please reopen the QR code to try again.";
 "lng_qr_box_colors" = "Colors";
 "lng_qr_box_emoji" = "Emoji";
 "lng_qr_box_gifts" = "Gifts";
