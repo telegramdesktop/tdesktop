@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/view/media_view_pip_rhi.h"
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 
 #include "ui/rhi/rhi_shader.h"
 #include "ui/widgets/shadow.h"
@@ -1179,4 +1179,4 @@ Rect Pip::RendererRhi::transformRect(const QRect &raster) const {
 
 } // namespace Media::View
 
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API

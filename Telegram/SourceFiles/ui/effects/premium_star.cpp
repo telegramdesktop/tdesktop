@@ -13,9 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "base/random.h"
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 #include <QRhiWidget>
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 
 namespace Ui::Premium {
 namespace {
@@ -49,7 +49,7 @@ bool Star::Supported() {
 void Star::setColors(QColor gradient1, QColor gradient2) {
 	_gradient1 = gradient1;
 	_gradient2 = gradient2;
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	if (_renderer) {
 		_renderer->setColors(_gradient1, _gradient2);
 	}
@@ -58,7 +58,7 @@ void Star::setColors(QColor gradient1, QColor gradient2) {
 
 void Star::setGolden(bool golden) {
 	_golden = golden;
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	if (_renderer) {
 		_renderer->setGolden(_golden);
 	}
@@ -94,7 +94,7 @@ void Star::setPaused(bool paused) {
 void Star::freeze() {
 	stopAnimation();
 	_pausedAt = crl::now();
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	const auto w = surfaceWidget();
 	if (!w || w->isHidden()) {
 		return;
@@ -108,7 +108,7 @@ void Star::freeze() {
 	pushState();
 	w->update();
 	update();
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 }
 
 void Star::unfreeze() {
@@ -140,7 +140,7 @@ QWidget *Star::surfaceWidget() const {
 }
 
 void Star::ensureSurface() {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	if (_surface) {
 		return;
 	}
@@ -162,7 +162,7 @@ void Star::ensureSurface() {
 		w->setGeometry(rect());
 		w->hide();
 	}
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 }
 
 void Star::startAnimation() {
@@ -258,7 +258,7 @@ void Star::tick(crl::time now) {
 }
 
 void Star::pushState() {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	if (_renderer) {
 		_renderer->setState({
 			.yaw = float(_yaw),
@@ -268,7 +268,7 @@ void Star::pushState() {
 			.alpha = _paused ? 0.f : float(_fadeIn * _opacity),
 		});
 	}
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 }
 
 void Star::frame() {

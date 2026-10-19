@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/premium_diamond_renderer.h"
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 
 #include "ui/effects/premium_3d_mesh.h"
 #include "base/debug_log.h"
@@ -313,4 +313,4 @@ void DiamondRenderer::releaseResources() {
 
 } // namespace Ui::Premium
 
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API

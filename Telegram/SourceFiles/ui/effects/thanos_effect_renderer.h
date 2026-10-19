@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QImage>
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 
 class QRhi;
 class QRhiBuffer;
@@ -127,4 +127,4 @@ private:
 
 } // namespace Ui
 
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API

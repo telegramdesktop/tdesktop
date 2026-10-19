@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/group/calls_group_viewport_rhi.h"
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 
 #include "calls/group/calls_group_viewport_tile.h"
 #include "calls/group/calls_group_members_row.h"
@@ -1831,4 +1831,4 @@ void Viewport::RendererRhi::validateUserpicFrame(
 
 } // namespace Calls::Group
 
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API

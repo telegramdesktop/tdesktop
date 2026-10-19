@@ -1413,7 +1413,7 @@ QImage Pip::currentVideoFrameImage() const {
 
 Ui::GL::ChosenRenderer Pip::chooseRenderer(
 		Ui::GL::Capabilities capabilities) {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	if (Ui::GL::WidgetsRhiSupported()) {
 		LOG(("Renderer: [QRhi] (PipPanel)"));
 		_opengl = true;

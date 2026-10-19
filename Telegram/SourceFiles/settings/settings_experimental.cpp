@@ -448,7 +448,7 @@ void SetupExperimental(
 				Ui::GL::kOptionForceANGLE,
 				Ui::GL::kOptionEnableVulkanRhi,
 				Core::kOptionFreeType,
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 				Ui::kOptionKineticScroller,
 #endif
 				Window::kOptionDisableTouchbar,

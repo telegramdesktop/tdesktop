@@ -12,9 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "base/debug_log.h"
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 #include <QRhiWidget>
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 
 namespace Ui::Premium {
 namespace {
@@ -73,7 +73,7 @@ void Object3dCover::setPaused(bool paused) {
 void Object3dCover::freeze() {
 	stopAnimation();
 	_pausedAt = crl::now();
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	const auto w = surfaceWidget();
 	if (!w || w->isHidden()) {
 		return;
@@ -87,7 +87,7 @@ void Object3dCover::freeze() {
 	pushState();
 	w->update();
 	update();
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 }
 
 void Object3dCover::unfreeze() {
@@ -132,7 +132,7 @@ QWidget *Object3dCover::surfaceWidget() const {
 }
 
 void Object3dCover::ensureSurface() {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	if (_surface) {
 		return;
 	}
@@ -153,7 +153,7 @@ void Object3dCover::ensureSurface() {
 		w->setGeometry(rect());
 		w->hide();
 	}
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 }
 
 void Object3dCover::startAnimation() {

@@ -22,9 +22,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <limits>
 #include <new>
 
-#ifdef LIB_FFMPEG_USE_QT_PRIVATE_API
+#ifndef DESKTOP_APP_DISABLE_PRIVATE_QT_API
 #include <private/qdrawhelper_p.h>
-#endif // LIB_FFMPEG_USE_QT_PRIVATE_API
+#endif // !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 
 extern "C" {
 #include <libavutil/opt.h>
@@ -143,28 +143,28 @@ void UnPremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 	[[maybe_unused]] const auto udst = reinterpret_cast<uint*>(dst);
 	const auto usrc = reinterpret_cast<const uint*>(src);
 
-#ifndef LIB_FFMPEG_USE_QT_PRIVATE_API
+#ifdef DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	for (auto i = 0; i != intsCount; ++i) {
 		udst[i] = qUnpremultiply(usrc[i]);
 	}
-#else // !LIB_FFMPEG_USE_QT_PRIVATE_API
+#else // DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	static const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
 	layout->storeFromARGB32PM(dst, usrc, 0, intsCount, nullptr, nullptr);
-#endif // LIB_FFMPEG_USE_QT_PRIVATE_API
+#endif // !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 }
 
 void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 	const auto udst = reinterpret_cast<uint*>(dst);
 	[[maybe_unused]] const auto usrc = reinterpret_cast<const uint*>(src);
 
-#ifndef LIB_FFMPEG_USE_QT_PRIVATE_API
+#ifdef DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	for (auto i = 0; i != intsCount; ++i) {
 		udst[i] = qPremultiply(usrc[i]);
 	}
-#else // !LIB_FFMPEG_USE_QT_PRIVATE_API
+#else // DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	static const auto layout = &qPixelLayouts[QImage::Format_ARGB32];
 	layout->fetchToARGB32PM(udst, src, 0, intsCount, nullptr, nullptr);
-#endif // LIB_FFMPEG_USE_QT_PRIVATE_API
+#endif // !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 }
 
 #if !defined Q_OS_WIN && !defined Q_OS_MAC

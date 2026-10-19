@@ -285,6 +285,7 @@ enum class TextDropRefusal {
 	ViewportRefusesDrops,
 	EnterNotAccepted,
 	DropNotAccepted,
+	Unsupported,
 };
 
 struct TextDrop {

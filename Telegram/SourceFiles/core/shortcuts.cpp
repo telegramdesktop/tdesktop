@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/event_filter.h"
 #include "base/parse_helper.h"
+#include "base/qt/qt_possible_keys.h"
 #include "core/application.h"
 #include "core/version.h"
 #include "mainwindow.h"
@@ -20,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QAction>
 #include <QShortcut>
-#include <QtGui/private/qkeymapper_p.h>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QJsonArray>
@@ -398,7 +398,7 @@ bool Manager::handles(const QKeySequence &sequence) const {
 bool Manager::matchesCommand(
 		not_null<QKeyEvent*> event,
 		Command command) const {
-	for (const auto &combination : QKeyMapper::possibleKeys(event)) {
+	for (const auto &combination : base::PossibleKeys(event)) {
 		const auto i = _shortcuts.find(QKeySequence(combination));
 		if (i == end(_shortcuts)) {
 			continue;

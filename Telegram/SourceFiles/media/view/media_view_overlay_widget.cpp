@@ -6394,7 +6394,7 @@ void OverlayWidget::tryStartTextRecognition() {
 
 Ui::GL::ChosenRenderer OverlayWidget::chooseRenderer(
 		Ui::GL::Backend backend) {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	if (backend == Ui::GL::Backend::QRhi) {
 		_opengl = true;
 		return {
@@ -6402,7 +6402,7 @@ Ui::GL::ChosenRenderer OverlayWidget::chooseRenderer(
 			.backend = Ui::GL::Backend::QRhi,
 		};
 	}
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	_opengl = (backend == Ui::GL::Backend::OpenGL);
 	return {
 		.renderer = (_opengl

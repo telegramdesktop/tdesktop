@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/thanos_effect_renderer.h"
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 
 #include "ui/rhi/rhi_shader.h"
 #include "ui/rp_widget.h"
@@ -828,4 +828,4 @@ void ThanosEffectRenderer::releaseResources() {
 
 } // namespace Ui
 
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API

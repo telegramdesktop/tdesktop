@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/sections/settings_shortcuts.h"
 
 #include "base/event_filter.h"
+#include "base/qt/qt_possible_keys.h"
 #include "core/application.h"
 #include "core/shortcuts.h"
 #include "lang/lang_keys.h"
@@ -25,8 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
-
-#include <private/qkeymapper_p.h>
 
 namespace Settings {
 namespace {
@@ -455,7 +454,7 @@ struct SetupShortcutsResult {
 			const auto r = [&] {
 				auto result = int(k);
 				if (m & Qt::ShiftModifier) {
-					const auto keys = QKeyMapper::possibleKeys(key);
+					const auto keys = base::PossibleKeys(key);
 					for (const auto &possible : keys) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
 						if (possible.keyboardModifiers() == m) {

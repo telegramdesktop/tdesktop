@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 
 bool ThanosEffect::Supported() {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	if (PowerSaving::On(PowerSaving::kChatEffects)
 		|| PowerSaving::On(PowerSaving::kAnimations)) {
 		return false;
@@ -44,7 +44,7 @@ bool ThanosEffect::WindowVisible(QWidget *window) {
 }
 
 void ThanosEffect::WarmUp() {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	if (PowerSaving::On(PowerSaving::kChatEffects)
 		|| PowerSaving::On(PowerSaving::kAnimations)) {
 		return;
@@ -72,7 +72,7 @@ QWidget *ThanosEffect::surfaceWidget() const {
 }
 
 void ThanosEffect::ensureSurface() {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	if (_surface) {
 		return;
 	}
@@ -163,7 +163,7 @@ void ThanosEffect::hideSurface() {
 }
 
 void ThanosEffect::finishNow() {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	if (!_renderer || !_renderer->hasActiveItems()) {
 		return;
 	}
@@ -173,7 +173,7 @@ void ThanosEffect::finishNow() {
 }
 
 void ThanosEffect::addItem(QImage snapshot, QRect rect) {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	ensureSurface();
 	if (!_renderer) {
 		return;
@@ -191,7 +191,7 @@ void ThanosEffect::addItem(QImage snapshot, QRect rect) {
 }
 
 bool ThanosEffect::animating() const {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	return _renderer && _renderer->hasActiveItems();
 #else
 	return false;

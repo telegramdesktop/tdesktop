@@ -32,13 +32,13 @@ Diamond::Diamond(QWidget *parent)
 Diamond::~Diamond() = default;
 
 std::unique_ptr<Ui::GL::Renderer> Diamond::createRenderer() {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	auto renderer = std::make_unique<DiamondRenderer>();
 	_renderer = renderer.get();
 	return renderer;
-#else // Qt >= 6.7
+#else // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	return nullptr;
-#endif // Qt < 6.7
+#endif // Qt < 6.7 || DESKTOP_APP_DISABLE_PRIVATE_QT_API
 }
 
 void Diamond::applyState(
@@ -47,7 +47,7 @@ void Diamond::applyState(
 		float time,
 		float alpha,
 		bool night) {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	if (_renderer) {
 		_renderer->setState({
 			.yaw = yaw,
@@ -57,7 +57,7 @@ void Diamond::applyState(
 			.night = night,
 		});
 	}
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 }
 
 } // namespace Ui::Premium

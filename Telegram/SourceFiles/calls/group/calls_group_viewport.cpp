@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_viewport_tile.h"
 #include "calls/group/calls_group_viewport_opengl.h"
 #include "calls/group/calls_group_viewport_raster.h"
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 #include "calls/group/calls_group_viewport_rhi.h"
 #include "ui/rhi/rhi_renderer.h"
 #endif
@@ -909,7 +909,7 @@ void Viewport::setPressed(Selection value) {
 }
 
 Ui::GL::ChosenRenderer Viewport::chooseRenderer(Ui::GL::Backend backend) {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	if (backend == Ui::GL::Backend::QRhi) {
 		_opengl = true;
 		_qrhi = true;
@@ -934,7 +934,7 @@ Ui::GL::ChosenRenderer Viewport::chooseRenderer(Ui::GL::Backend backend) {
 }
 
 std::unique_ptr<Ui::GL::Renderer> Viewport::makeRenderer() {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	if (_qrhi) {
 		return std::make_unique<RendererRhi>(this);
 	}
@@ -1024,7 +1024,7 @@ void Viewport::borrowedPaint(Painter &p, const QRegion &clip) {
 	_borrowedRenderer->paintFallback(p, clip, Ui::GL::Backend::Raster);
 }
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 Ui::Rhi::Renderer *Viewport::ensureBorrowedRhi(
 		QRhi *rhi,
 		QRhiRenderTarget *rt,
