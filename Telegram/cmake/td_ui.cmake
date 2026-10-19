@@ -393,8 +393,6 @@ PRIVATE
     statistics/widgets/point_details_widget.cpp
     statistics/widgets/point_details_widget.h
 
-    ui/boxes/auto_delete_settings.cpp
-    ui/boxes/auto_delete_settings.h
     ui/boxes/boost_box.cpp
     ui/boxes/boost_box.h
     ui/boxes/calendar_box.cpp

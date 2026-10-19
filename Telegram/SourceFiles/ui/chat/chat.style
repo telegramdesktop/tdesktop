@@ -605,33 +605,6 @@ videoIcon: icon {
 	{ "media_video_play", videoPlayIconFg, point(12px, 12px) },
 };
 
-SliderForTTL {
-	font: font;
-	textFg: color;
-	pointSize: pixels;
-	chosenSize: pixels;
-	skip: pixels;
-	stroke: pixels;
-	activeFg: color;
-	inactiveFg: color;
-	dashOn: pixels;
-	dashOff: pixels;
-}
-
-defaultSliderForTTL: SliderForTTL {
-	font: normalFont;
-	textFg: windowSubTextFg;
-	pointSize: 6px;
-	chosenSize: 12px;
-	skip: 8px;
-	stroke: 2px;
-	activeFg: mediaPlayerActiveFg;
-	inactiveFg: mediaPlayerInactiveFg;
-	dashOn: 8px;
-	dashOff: 5px;
-}
-ttlDividerLabelPadding: margins(22px, 10px, 22px, 19px);
-
 ttlItemPadding: margins(0px, 4px, 0px, 4px);
 ttlItemTimerFont: font(12px);
 
