@@ -1676,6 +1676,8 @@ win:
 else: # qt > '6'
     qtAngleCmake = os.path.realpath(os.path.join(
         scriptPath, '../../../cmake/external/angle/qt.cmake')).replace('\\', '/')
+    # checkouts share Libraries, so the cache key gets the content, not the path
+    modifiedEnv['QT_ANGLE_CMAKE'] = qtAngleCmake
     branch = 'v$QT' + ('-lts-lgpl' if qt.startswith('6.2.') else '')
     stage('qt_' + qt, """
     git clone -b """ + branch + """ https://github.com/qt/qt5.git qt_$QT
@@ -1685,7 +1687,7 @@ depends:patches/qtbase_""" + qt + """/*.patch
 depends:patches/qtsvg_""" + qt + """/*.patch
 win32_win64:
 depends:qt6_windows7/*.patch
-depends:""" + qtAngleCmake + """
+version:""" + computeFileHash(qtAngleCmake) + """
 mac:
     if [ -d "../patches/qt6_highsierra" ]; then
         find "$PWD/../patches/qt6_highsierra" -maxdepth 1 -name "*.patch" -print0 | sort -z | xargs -0 git -C qtbase apply -v
@@ -1795,7 +1797,7 @@ win:
         -D ZLIB_WINAPI ^
         -- ^
 win32_win64:
-        -D CMAKE_PROJECT_QtBase_INCLUDE:FILEPATH=""" + '"' + qtAngleCmake + '"' + """ ^
+        -D CMAKE_PROJECT_QtBase_INCLUDE:FILEPATH="%QT_ANGLE_CMAKE%" ^
         -D DESKTOP_APP_ANGLE_DIR:PATH="%LIBS_DIR%\\tg_angle" ^
 win:
         -D OPENSSL_FOUND=1 ^
