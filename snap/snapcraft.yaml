@@ -21,6 +21,7 @@ apps:
       - camera
       - hardware-observe
       - home
+      - login-session-observe
       - network
       - network-bind
       - network-status
