@@ -3213,21 +3213,6 @@ QRect EmojiListWidget::addButtonRect(int index) const {
 	return buttonRect(sectionInfo(index), _add);
 }
 
-bool EmojiListWidget::hasUnlockButton(int index) const {
-	if (_searchMode) {
-		if (index > 0 && index <= int(_searchSets.size())) {
-			return searchSetBySection(index).premiumRequired;
-		}
-		return false;
-	}
-	if (index < _staticCount
-		|| index >= _staticCount + _custom.size()) {
-		return false;
-	}
-	const auto &set = _custom[index - _staticCount];
-	return set.premiumRequired;
-}
-
 QRect EmojiListWidget::unlockButtonRect(int index) const {
 	Expects((_searchMode
 			&& index > 0

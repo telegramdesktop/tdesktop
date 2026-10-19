@@ -4079,12 +4079,6 @@ const Data::StickersSetsOrder &StickersListWidget::defaultSetsOrder() const {
 		: session().data().stickers().setsOrder();
 }
 
-Data::StickersSetsOrder &StickersListWidget::defaultSetsOrderRef() {
-	return _isMasks
-		? session().data().stickers().maskSetsOrderRef()
-		: session().data().stickers().setsOrderRef();
-}
-
 bool StickersListWidget::mySetsEmpty() const {
 	return _mySets.empty();
 }
