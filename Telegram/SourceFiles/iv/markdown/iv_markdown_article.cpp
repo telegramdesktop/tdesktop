@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/algorithm.h"
 #include "data/data_file_click_handler.h"
+#include "iv/markdown/iv_markdown_article_caption_hit.h"
 #include "iv/markdown/iv_markdown_article_layout_structure.h"
 #include "iv/markdown/iv_markdown_article_paint.h"
 #include "iv/markdown/iv_markdown_article_quote.h"
@@ -4718,6 +4719,20 @@ MarkdownArticleHitTestResult MarkdownArticle::Impl::hitTestSegments(
 			result.valid()) {
 			return result;
 		}
+	}
+	const auto band = HitScrolledCaptionBand(
+		_segments,
+		span,
+		point,
+		[&](int index) {
+			const auto owner = findHorizontalScrollOwner(index);
+			return owner ? owner->block : nullptr;
+		},
+		[&](const SelectableSegment &segment) {
+			return HitTextSegment(segment, point, flags);
+		});
+	if (band.valid()) {
+		return band;
 	}
 	if (flags & Ui::Text::StateRequest::Flag::LookupSymbol) {
 		return HitSegmentFallback(_segments, span, point);

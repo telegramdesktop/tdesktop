@@ -87,6 +87,8 @@ PRIVATE
     iv/markdown/iv_markdown_common.h
     iv/markdown/iv_markdown_article.cpp
     iv/markdown/iv_markdown_article.h
+    iv/markdown/iv_markdown_article_caption_hit.cpp
+    iv/markdown/iv_markdown_article_caption_hit.h
     iv/markdown/iv_markdown_article_layout_blocks.cpp
     iv/markdown/iv_markdown_article_layout_blocks.h
     iv/markdown/iv_markdown_article_layout_structure.cpp

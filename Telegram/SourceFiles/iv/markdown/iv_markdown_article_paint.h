@@ -21,6 +21,10 @@ struct MarkdownArticlePaintContext;
 	QRect viewport);
 [[nodiscard]] std::optional<QRect> ChildrenPaintClip(
 	const LaidOutBlock &block);
+[[nodiscard]] std::optional<QRect> DescendantPaintClip(
+	const LaidOutBlock &ancestor,
+	const LaidOutBlock *block,
+	QRect clip);
 [[nodiscard]] QColor NonPullquoteQuoteCaptionColor(
 	const MarkdownArticlePaintContext &context,
 	const style::Markdown &st);

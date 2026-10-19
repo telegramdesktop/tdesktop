@@ -384,23 +384,6 @@ struct QuoteHighlightTarget {
 	return result;
 }
 
-[[nodiscard]] std::optional<QRect> DescendantPaintClip(
-		const LaidOutBlock &ancestor,
-		const LaidOutBlock *block,
-		QRect clip) {
-	if (const auto own = ChildrenPaintClip(ancestor)) {
-		clip = clip.intersected(*own);
-	}
-	for (const auto &child : ancestor.children) {
-		if (&child == block) {
-			return clip;
-		} else if (const auto found = DescendantPaintClip(child, block, clip)) {
-			return found;
-		}
-	}
-	return std::nullopt;
-}
-
 [[nodiscard]] QRect VisibleSegmentRect(
 		const SelectableSegment &segment,
 		QRect outer,
