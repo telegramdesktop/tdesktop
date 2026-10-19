@@ -1994,24 +1994,6 @@ void Session::requestDocumentViewRepaint(
 	}
 }
 
-void Session::requestPollViewRepaint(not_null<const PollData*> poll) {
-	if (const auto i = _pollViews.find(poll); i != _pollViews.end()) {
-		for (const auto &view : i->second) {
-			requestViewResize(view);
-		}
-	}
-}
-
-void Session::requestTodoListViewRepaint(
-		not_null<const TodoListData*> todolist) {
-	if (const auto i = _todoListViews.find(todolist)
-		; i != _todoListViews.end()) {
-		for (const auto &view : i->second) {
-			requestViewResize(view);
-		}
-	}
-}
-
 void Session::documentLoadProgress(not_null<DocumentData*> document) {
 	requestDocumentViewRepaint(document);
 	_documentLoadProgress.fire_copy(document);
@@ -3678,13 +3660,6 @@ bool Session::unreadBadgeMutedIgnoreOne(Dialogs::Key key) const {
 		? key.entry()->chatListUnreadState()
 		: Dialogs::UnreadState();
 	return computeUnreadBadgeMuted(_chatsList.unreadState() - remove);
-}
-
-int Session::unreadOnlyMutedBadge() const {
-	const auto state = _chatsList.unreadState();
-	return Core::App().settings().countUnreadMessages()
-		? state.messagesMuted
-		: state.chatsMuted;
 }
 
 rpl::producer<> Session::unreadBadgeChanges() const {
