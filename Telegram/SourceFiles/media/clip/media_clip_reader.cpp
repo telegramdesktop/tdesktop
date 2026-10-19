@@ -531,6 +531,7 @@ public:
 				return error();
 			}
 			frame()->positionMs = _implementation->frameRealTime();
+			frame()->when = ms;
 
 			_width = frame()->original.width();
 			_height = frame()->original.height();
