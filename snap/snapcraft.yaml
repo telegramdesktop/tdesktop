@@ -124,7 +124,7 @@ parts:
   patches:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
-    source-commit: 4811dda9fcabbf9cd8cab585d4df2379d81edf04
+    source-commit: fe957833b84525e634a8d776a7f834ed536d9a21
     plugin: nil
     override-pull: |
       craftctl default
@@ -432,6 +432,7 @@ parts:
       craftctl default
       QT="$(grep 'set(QT_REPO_MODULE_VERSION' qtbase/.cmake.conf | sed -r 's/.*"(.*)".*/\1/')"
       find $CRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git -C qtbase apply
+      find $CRAFT_STAGE/patches/qtsvg_${QT} -type f -print0 | sort -z | xargs -r0 git -C qtsvg apply
       find $CRAFT_STAGE/patches/qtwayland_${QT} -type f -print0 | sort -z | xargs -r0 git -C qtwayland apply
     prime: [-./*]
     after:

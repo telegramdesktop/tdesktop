@@ -161,7 +161,7 @@ RUN <<EOF
 git init patches
 cd patches
 git remote add origin https://github.com/desktop-app/patches.git
-git fetch --depth=1 origin 4811dda9fcabbf9cd8cab585d4df2379d81edf04
+git fetch --depth=1 origin fe957833b84525e634a8d776a7f834ed536d9a21
 git reset --hard FETCH_HEAD
 rm -rf .git
 EOF
@@ -876,6 +876,7 @@ cd qt5
 git submodule update --init --recursive --depth=1 \
 	qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools
 find $PWD/../patches/qtbase_$QT -type f -print0 | sort -z | xargs -r0 git -C qtbase apply
+find $PWD/../patches/qtsvg_$QT -type f -print0 | sort -z | xargs -r0 git -C qtsvg apply
 find $PWD/../patches/qtwayland_$QT -type f -print0 | sort -z | xargs -r0 git -C qtwayland apply
 cmake -B build . \
 	-DCMAKE_INSTALL_PREFIX=/usr/local \
