@@ -41,9 +41,7 @@ namespace {
 		|| (owner == segment.block)
 		|| (owner->kind != PreparedBlockKind::Details)
 		|| (owner->horizontalScrollLeft <= 0)
-		|| owner->scrollViewportRect.contains(point)
-		|| ((segment.leaf != &segment.block->leaf)
-			&& (point.x() >= owner->scrollViewportRect.x()))) {
+		|| owner->scrollViewportRect.contains(point)) {
 		return std::nullopt;
 	}
 	const auto clip = DescendantPaintClip(
