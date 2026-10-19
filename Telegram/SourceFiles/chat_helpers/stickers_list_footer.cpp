@@ -1310,43 +1310,13 @@ void StickersListFooter::paintSetIcon(
 			p.translate(-center);
 		}
 	}
-	if (icon.sticker) {
+	if (icon.sticker || icon.premiumRequired) {
 		prepareSetIcon(context, info, now, paused);
 		p.drawImage(info.adjustedLeft, _iconsTop, _setIconCache);
 	} else {
 		p.translate(info.adjustedLeft, _iconsTop);
 		paintSetIconToCache(p, context, info, now, paused);
 		p.translate(-info.adjustedLeft, -_iconsTop);
-	}
-	if (icon.premiumRequired) {
-		p.save();
-		if (context.expanding && icon.custom) {
-			const auto center = QPoint(
-				info.adjustedLeft + _singleWidth / 2,
-				_iconsTop + st().footer / 2);
-			p.translate(center);
-			p.scale(context.progress, context.progress);
-			p.translate(-center);
-		}
-		const auto &lock = st::emojiPremiumLock;
-		const auto size = std::max(lock.width(), lock.height())
-			+ 2 * st::lineWidth;
-		const auto area = QRect(
-			info.adjustedLeft + _areaPosition.x(),
-			_iconsTop + _areaPosition.y(),
-			st().iconArea,
-			st().iconArea);
-		const auto badge = QRect(
-			area.x() + (rtl() ? 0 : area.width() - size),
-			area.y() + area.height() - size,
-			size,
-			size);
-		auto hq = PainterHighQualityEnabler(p);
-		p.setPen(Qt::NoPen);
-		p.setBrush(st().headerFg);
-		p.drawEllipse(badge);
-		lock.paintInCenter(p, badge);
-		p.restore();
 	}
 	if (context.expanding) {
 		if (icon.custom) {
@@ -1365,19 +1335,37 @@ void StickersListFooter::prepareSetIcon(
 	_setIconCache.fill(Qt::transparent);
 	auto p = Painter(&_setIconCache);
 	paintSetIconToCache(p, context, info, now, paused);
-	if (!_icons[info.index].sticker) {
-		return;
-	}
-	// Rounding the corners.
+	const auto &icon = _icons[info.index];
 	auto hq = PainterHighQualityEnabler(p);
-	p.setCompositionMode(QPainter::CompositionMode_Source);
-	p.setBrush(Qt::NoBrush);
-	auto pen = QPen(Qt::transparent);
-	pen.setWidth(style::ConvertScaleExact(4.));
-	p.setPen(pen);
 	const auto area = st().iconArea;
 	auto rect = QRect(_areaPosition, QSize(area, area));
-	p.drawRoundedRect(rect, st::emojiPanRadius, st::emojiPanRadius);
+	if (icon.sticker) {
+		// Rounding the corners.
+		p.setCompositionMode(QPainter::CompositionMode_Source);
+		p.setBrush(Qt::NoBrush);
+		auto pen = QPen(Qt::transparent);
+		pen.setWidth(style::ConvertScaleExact(4.));
+		p.setPen(pen);
+		p.drawRoundedRect(rect, st::emojiPanRadius, st::emojiPanRadius);
+	}
+	if (!icon.premiumRequired) {
+		return;
+	}
+	const auto &lock = st::emojiPremiumLock;
+	const auto size = std::max(lock.width(), lock.height())
+		+ 2 * st::lineWidth;
+	const auto badge = QRect(
+		rect.x() + (rtl() ? 0 : rect.width() - size),
+		rect.y() + rect.height() - size,
+		size,
+		size);
+	// The lock is cut through the icon, so it shows the panel behind.
+	p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+	p.setPen(Qt::NoPen);
+	p.setBrush(st().headerFg);
+	p.drawEllipse(badge);
+	p.setCompositionMode(QPainter::CompositionMode_DestinationOut);
+	lock.paintInCenter(p, badge);
 }
 
 void StickersListFooter::paintSetIconToCache(

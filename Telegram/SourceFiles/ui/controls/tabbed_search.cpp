@@ -68,6 +68,7 @@ private:
 	}
 
 	const style::TabbedSearch &_st;
+	const not_null<QWidget*> _pill;
 	const Text::CustomEmojiFactory _factory;
 
 	std::vector<Button> _buttons;
@@ -94,6 +95,7 @@ GroupsStrip::GroupsStrip(
 	Text::CustomEmojiFactory factory)
 : RpWidget(parent)
 , _st(st)
+, _pill(parent)
 , _factory(std::move(factory)) {
 	init(std::move(groups));
 }
@@ -172,6 +174,14 @@ void GroupsStrip::set(std::vector<EmojiGroup> list) {
 
 void GroupsStrip::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
+	if (!_st.outer->c.alpha()) {
+		const auto pill = QRect(mapFrom(_pill.get(), QPoint()), _pill->size());
+		const auto radius = pill.height() / 2.;
+		auto path = QPainterPath();
+		path.addRoundedRect(pill, radius, radius);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setClipPath(path);
+	}
 	auto index = 0;
 	const auto single = _st.groupWidth;
 	const auto skip = _st.groupSkip;
@@ -429,8 +439,18 @@ void SearchWithGroups::scrollGroupsTo(int left) {
 }
 
 void SearchWithGroups::initEdges() {
+	const auto floating = !_st.outer->c.alpha();
 	paintRequest() | rpl::on_next([=](QRect clip) {
-		QPainter(this).fillRect(clip, _st.bg);
+		auto p = QPainter(this);
+		if (floating) {
+			auto hq = PainterHighQualityEnabler(p);
+			p.setPen(Qt::NoPen);
+			p.setBrush(_st.bg);
+			const auto radius = height() / 2.;
+			p.drawRoundedRect(rect(), radius, radius);
+		} else {
+			p.fillRect(clip, _st.bg);
+		}
 	}, lifetime());
 
 	const auto makeEdge = [&](bool left) {
@@ -455,8 +475,10 @@ void SearchWithGroups::initEdges() {
 				QRect(left ? 0 : _rounding.width() - half, 0, half, size));
 		}, edge->lifetime());
 	};
-	makeEdge(true);
-	makeEdge(false);
+	if (!floating) {
+		makeEdge(true);
+		makeEdge(false);
+	}
 
 	_fadeOpacity.changes(
 	) | rpl::on_next([=] {
@@ -469,7 +491,20 @@ void SearchWithGroups::initEdges() {
 		p.setOpacity(_fadeOpacity.current());
 		const auto fill = QRect(0, 0, _fadeLeftStart, _st.height);
 		if (fill.intersects(clip)) {
-			p.fillRect(fill, _st.bg);
+			if (floating) {
+				p.setClipRect(fill);
+				auto hq = PainterHighQualityEnabler(p);
+				p.setPen(Qt::NoPen);
+				p.setBrush(_st.bg);
+				const auto radius = _st.height / 2.;
+				p.drawRoundedRect(
+					QRect(0, 0, width(), _st.height),
+					radius,
+					radius);
+				p.setClipping(false);
+			} else {
+				p.fillRect(fill, _st.bg);
+			}
 		}
 		const auto icon = QRect(
 			_fadeLeftStart,

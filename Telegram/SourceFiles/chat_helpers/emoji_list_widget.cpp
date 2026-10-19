@@ -2475,11 +2475,13 @@ void EmojiListWidget::paint(
 			}
 			const auto top = info.top + st().headerTop;
 			if (info.premiumRequired) {
-				st::emojiPremiumRequired.paint(
-					p,
-					st().headerLockLeft - st().margin.left(),
-					top,
-					width());
+				const auto &lock = st::emojiPremiumRequired;
+				const auto left = st().headerLockLeft - st().margin.left();
+				if (st().bg->c.alpha() > 0) {
+					lock.paint(p, left, top, width());
+				} else {
+					lock.paint(p, left, top, width(), st().headerFg->c);
+				}
 			}
 			const auto textBaseline = top + st::emojiPanHeaderFont->ascent;
 			p.setFont(st::emojiPanHeaderFont);
@@ -2626,13 +2628,24 @@ void EmojiListWidget::drawCollapsedBadge(
 	const auto buttonx = position.x() + (_singleSize.width() - buttonw) / 2;
 	const auto buttony = position.y() + (_singleSize.height() - buttonh) / 2;
 	const auto textOffset = (normal <= available) ? 0 : -st::lineWidth;
-	_collapsedBg.paint(p, QRect(buttonx, buttony, buttonw, buttonh));
-	p.setPen(this->st().bg);
-	p.setFont(st.style.font);
-	p.drawText(
-		buttonx + (buttonw - textWidth) / 2 + textOffset,
-		(buttony + st.textTop + st.style.font->ascent),
-		text);
+	const auto rect = QRect(buttonx, buttony, buttonw, buttonh);
+	const auto textLeft = buttonx + (buttonw - textWidth) / 2 + textOffset;
+	const auto textBaseline = buttony + st.textTop + st.style.font->ascent;
+	if (this->st().bg->c.alpha() > 0) {
+		_collapsedBg.paint(p, rect);
+		p.setPen(this->st().bg);
+		p.setFont(st.style.font);
+		p.drawText(textLeft, textBaseline, text);
+		return;
+	}
+	// A transparent panel has no colour to write the count in, so cut it out.
+	auto pill = QPainterPath();
+	pill.addRoundedRect(rect, st.height / 2, st.height / 2);
+	auto cut = QPainterPath();
+	cut.setFillRule(Qt::WindingFill);
+	cut.addText(textLeft, textBaseline, st.style.font, text);
+	auto hq = PainterHighQualityEnabler(p);
+	p.fillPath(pill.subtracted(cut), this->st().headerFg);
 }
 
 void EmojiListWidget::drawRecent(
