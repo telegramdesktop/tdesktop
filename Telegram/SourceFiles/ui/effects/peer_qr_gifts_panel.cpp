@@ -454,13 +454,13 @@ void PeerQrGiftsPanel::Inner::paintEvent(QPaintEvent *e) {
 	auto hq = PainterHighQualityEnabler(p);
 	const auto clip = e->rect();
 	const auto margin = int(std::ceil(_size)) + st::peerQrGiftSkip;
-	const auto near = clip.marginsAdded({ 0, margin, 0, margin });
+	const auto nearby = clip.marginsAdded({ 0, margin, 0, margin });
 	const auto now = crl::now();
 	const auto paused = PowerSaving::On(PowerSaving::kStickersPanel)
 		|| !_container->phase().shown;
 	for (auto i = 0, count = int(_tiles.size()); i != count; ++i) {
 		const auto rect = tileRect(i);
-		if (!rect.intersects(near)) {
+		if (!rect.intersects(nearby)) {
 			continue;
 		}
 		ensureArt(_tiles[i]);
