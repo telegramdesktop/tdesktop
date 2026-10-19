@@ -539,7 +539,12 @@ QrEmojiPicker CreateQrEmojiPicker(
 		}
 		Settings::ShowPremiumPromoToast(
 			show,
-			tr::link(tr::lng_animated_emoji_text(tr::now, tr::rich)),
+			tr::lng_animated_emoji_subscribe(
+				tr::now,
+				lt_link,
+				tr::link(
+					tr::bold(tr::lng_animated_emoji_subscribe_link(tr::now))),
+				tr::marked),
 			u"animated_emoji"_q);
 		return false;
 	}) | rpl::before_next([=](const QString &key) {

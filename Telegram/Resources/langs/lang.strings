@@ -292,6 +292,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sticker_premium_text" = "This set contains premium stickers like this one.";
 "lng_sticker_premium_view" = "View";
 "lng_animated_emoji_text" = "Subscribe to **Telegram Premium** to unlock this emoji.";
+"lng_animated_emoji_subscribe" = "Subscribe to {link} to unlock this emoji.";
+"lng_animated_emoji_subscribe_link" = "Telegram Premium";
 "lng_animated_emoji_saved" = "Try sending these emoji in **Saved Messages** for free to test.";
 "lng_animated_emoji_saved_open" = "Open";
 
