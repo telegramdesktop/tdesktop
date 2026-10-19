@@ -3,6 +3,7 @@ import io
 import json
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import textwrap
 from types import SimpleNamespace
@@ -455,7 +456,7 @@ class VerifyTests(unittest.TestCase):
 
         def verify():
             return subprocess.run(
-                ['python3', str(script), '--repo', str(repo.root), 'verify', identity],
+                [sys.executable, str(script), '--repo', str(repo.root), 'verify', identity],
                 capture_output=True, text=True)
 
         before = verify()
@@ -467,7 +468,7 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(after.returncode, 0, after.stdout + after.stderr)
         self.assertIn('resolved', after.stdout)
         typo = subprocess.run(
-            ['python3', str(script), '--repo', str(repo.root), 'verify', 'clone:000000000000'],
+            [sys.executable, str(script), '--repo', str(repo.root), 'verify', 'clone:000000000000'],
             capture_output=True, text=True)
         self.assertEqual(typo.returncode, 2)
         self.assertIn('unknown', typo.stdout)
