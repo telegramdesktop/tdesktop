@@ -16,7 +16,6 @@ constexpr auto kSpinDuration = crl::time(10540);
 constexpr auto kRespinDelay = crl::time(0);
 constexpr auto kEnterSpinDelay = crl::time(500);
 constexpr auto kClockPeriod = 600.; // a whole number of 6s light loops
-constexpr auto kFadeInDuration = 0.22;
 constexpr auto kSampleCount = 4; // MSAA — smooths the faceted silhouette.
 
 } // namespace
@@ -27,7 +26,6 @@ Diamond::Diamond(QWidget *parent)
 	.respinDelay = kRespinDelay,
 	.enterSpinDelay = kEnterSpinDelay,
 	.period = kClockPeriod,
-	.fadeInDuration = kFadeInDuration,
 	.spinEaseOut = false,
 	.invertDrag = true,
 	.sampleCount = kSampleCount,

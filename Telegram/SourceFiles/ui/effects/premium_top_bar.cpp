@@ -140,15 +140,6 @@ TopBar::TopBar(
 		_star3d->flungStrength() | rpl::on_next([=](float64 strength) {
 			_particles3d->fling(strength);
 		}, lifetime());
-		if (descriptor.showFinished) {
-			std::move(
-				descriptor.showFinished
-			) | rpl::on_next([=] {
-				if (_star3d) {
-					_star3d->startEnter();
-				}
-			}, lifetime());
-		}
 	} else if (descriptor.use3dDiamond && Diamond::Supported()) {
 		_diamond3d = CreateChild<Diamond>(this);
 		_particles3d = std::make_unique<StarParticles>([=](
@@ -166,6 +157,17 @@ TopBar::TopBar(
 		});
 		_coin3d->flungStrength() | rpl::on_next([=](float64 strength) {
 			_particles3d->fling(strength);
+		}, lifetime());
+	}
+	if (descriptor.showFinished && (_star3d || _diamond3d)) {
+		std::move(
+			descriptor.showFinished
+		) | rpl::on_next([=] {
+			if (_star3d) {
+				_star3d->startEnter();
+			} else if (_diamond3d) {
+				_diamond3d->startEnter();
+			}
 		}, lifetime());
 	}
 

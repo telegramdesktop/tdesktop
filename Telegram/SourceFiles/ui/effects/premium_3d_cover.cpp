@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/premium_3d_support.h"
 #include "ui/gl/gl_surface.h"
+#include "base/call_delayed.h"
 #include "base/random.h"
 #include "base/debug_log.h"
 
@@ -24,6 +25,8 @@ constexpr auto kDragPitch = 0.05;
 constexpr auto kMaxFrameDelta = crl::time(66);
 constexpr auto kMsInSecond = 1000.;
 constexpr auto kBackDuration = crl::time(600);
+constexpr auto kEnterDelay = crl::time(200);
+constexpr auto kEnterYaw = -360.;
 constexpr auto kTapInDuration = crl::time(220);
 constexpr auto kTapBase = 40;
 constexpr auto kTapRandom = 30;
@@ -36,8 +39,7 @@ constexpr auto kOvershootTension = 2.;
 Object3dCover::Object3dCover(QWidget *parent, Descriptor descriptor)
 : RpWidget(parent)
 , _descriptor(descriptor)
-, _animation([=] { frame(); })
-, _fadeIn((descriptor.fadeInDuration > 0.) ? 0. : 1.) {
+, _animation([=] { frame(); }) {
 }
 
 Object3dCover::~Object3dCover() = default;
@@ -129,6 +131,22 @@ void Object3dCover::setNight(bool night) {
 	}
 }
 
+void Object3dCover::startEnter() {
+	if (_enterStarted) {
+		return;
+	}
+	_enterStarted = true;
+	base::call_delayed(kEnterDelay, this, [=] {
+		if (isHidden() || _dragging) {
+			return;
+		}
+		// A whole turn back to the shown pose, so nothing jumps.
+		_yaw += kEnterYaw;
+		startAnimation();
+		startBackSpring();
+	});
+}
+
 rpl::producer<float64> Object3dCover::flungStrength() const {
 	return _flung.events();
 }
@@ -159,6 +177,9 @@ void Object3dCover::ensureSurface() {
 		w->setGeometry(rect());
 		w->hide();
 	}
+	// WHY: show animations grab a frame before the first tick, and that
+	// frame must match the one the live surface continues from.
+	pushState();
 #endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 }
 
@@ -177,9 +198,6 @@ void Object3dCover::stopAnimation() {
 void Object3dCover::advance(float64 dt) {
 	_time += dt;
 	_time -= _descriptor.period * std::floor(_time / _descriptor.period);
-	if (_fadeIn < 1.) {
-		_fadeIn = std::min(_fadeIn + dt / _descriptor.fadeInDuration, 1.);
-	}
 }
 
 void Object3dCover::applyChannel(Channel channel, float64 value) {
@@ -254,7 +272,7 @@ void Object3dCover::pushState() {
 		float(_yaw),
 		float(_pitch),
 		float(_time),
-		_paused ? 0.f : float(_opacity * _fadeIn),
+		_paused ? 0.f : float(_opacity),
 		_night);
 }
 

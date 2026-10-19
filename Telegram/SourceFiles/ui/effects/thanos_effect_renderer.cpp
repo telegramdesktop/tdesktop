@@ -34,6 +34,11 @@ constexpr auto kDisappearDuration
 constexpr auto kMaxParticleCount = uint32_t(120000);
 static_assert(kMaxParticleCount < (1u << 30));
 
+// Each particle float takes its own R32F texel: compute shaders can load
+// and store four-channel images only on D3D11 GPUs with an optional feature.
+constexpr auto kStateTexels = 3; // offset.x, offset.y, lifetime.
+constexpr auto kVelocityTexels = 2;
+
 const float kQuadVertices[kQuadVertexCount * 2] = {
 	0.f, 0.f,
 	1.f, 0.f,
@@ -176,7 +181,7 @@ void ThanosEffectRenderer::initialize(
 	_placeholderSampler->create();
 
 	_placeholderStateTexture = rhi->newTexture(
-		QRhiTexture::RGBA32F,
+		QRhiTexture::R32F,
 		QSize(1, 1),
 		1,
 		QRhiTexture::UsedWithLoadStore);
@@ -621,8 +626,10 @@ ThanosEffectRenderer::AnimatingItem ThanosEffectRenderer::createAnimatingItem(
 	result.sampler = sampler;
 
 	auto *stateTex = _rhi->newTexture(
-		QRhiTexture::RGBA32F,
-		QSize(int(result.particleCountX), int(result.particleCountY)),
+		QRhiTexture::R32F,
+		QSize(
+			int(result.particleCountX) * kStateTexels,
+			int(result.particleCountY)),
 		1,
 		QRhiTexture::UsedWithLoadStore);
 	if (!stateTex->create()) {
@@ -633,8 +640,10 @@ ThanosEffectRenderer::AnimatingItem ThanosEffectRenderer::createAnimatingItem(
 	result.particleStateTexture = stateTex;
 
 	auto *velocityTex = _rhi->newTexture(
-		QRhiTexture::RGBA32F,
-		QSize(int(result.particleCountX), int(result.particleCountY)),
+		QRhiTexture::R32F,
+		QSize(
+			int(result.particleCountX) * kVelocityTexels,
+			int(result.particleCountY)),
 		1,
 		QRhiTexture::UsedWithLoadStore);
 	if (!velocityTex->create()) {

@@ -483,7 +483,10 @@ void DiamondRenderer::render(
 
 	cb->setGraphicsPipeline(_sparklePipeline);
 	cb->setViewport(viewport);
-	cb->setBlendConstants(QColor::fromRgbF(0., 0., 0., _state.alpha));
+	// D3D11 has no constant alpha factor, QRhi gives it the whole constant,
+	// so the color channels carry the same alpha.
+	const auto alpha = _state.alpha;
+	cb->setBlendConstants(QColor::fromRgbF(alpha, alpha, alpha, alpha));
 	for (auto i = 0; i != kSparkleDraws; ++i) {
 		const auto mesh = (i == 0) ? kMainSparkleMesh : kSmallSparkleMesh;
 		cb->setShaderResources(_sparkleSrb[i]);
