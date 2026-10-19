@@ -1200,13 +1200,6 @@ void HistoryItem::updateServiceDependent(bool force) {
 	}
 }
 
-MsgId HistoryItem::dependencyMsgId() const {
-	if (auto dependent = GetServiceDependentData()) {
-		return dependent->msgId;
-	}
-	return replyToId();
-}
-
 void HistoryItem::checkBuyButton() {
 	if (const auto invoice = _media ? _media->invoice() : nullptr) {
 		if (invoice->receiptMsgId) {
@@ -1486,15 +1479,6 @@ bool HistoryItem::areCommentsUnread() const {
 			peerFromChannel(views->commentsMegagroupId))
 		: _history.get();
 	return !group || (views->commentsMaxId > group->inboxReadTillId());
-}
-
-FullMsgId HistoryItem::commentsItemId() const {
-	if (const auto views = Get<HistoryMessageViews>()) {
-		return FullMsgId(
-			PeerId(views->commentsMegagroupId),
-			views->commentsRootId);
-	}
-	return FullMsgId();
 }
 
 void HistoryItem::setCommentsItemId(FullMsgId id) {
@@ -2374,13 +2358,6 @@ Data::ForumTopic *HistoryItem::topic() const {
 		}
 	}
 	return nullptr;
-}
-
-void HistoryItem::refreshMainView() {
-	if (const auto view = mainView()) {
-		_history->owner().notifyHistoryChangeDelayed(_history);
-		view->refreshInBlock();
-	}
 }
 
 void HistoryItem::removeMainView(Data::ViewRemovalReason reason) {

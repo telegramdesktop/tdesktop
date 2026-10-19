@@ -1053,10 +1053,6 @@ void History::clearUnreadReactionsFor(
 	}
 }
 
-int History::unreadPollVotesCount() const {
-	return _unreadPollVotesCount;
-}
-
 void History::setUnreadPollVotesCount(int count) {
 	if (_unreadPollVotesCount == count) {
 		return;
@@ -1064,11 +1060,6 @@ void History::setUnreadPollVotesCount(int count) {
 	const auto notifier = unreadStateChangeNotifier(
 		useMyUnreadInParent());
 	_unreadPollVotesCount = count;
-	_unreadPollVotesCountChanges.fire_copy(count);
-}
-
-rpl::producer<int> History::unreadPollVotesCountChanges() const {
-	return _unreadPollVotesCountChanges.events();
 }
 
 void History::clearUnreadPollVotesFor(MsgId topicRootId) {
@@ -2768,10 +2759,6 @@ void History::destroyUnreadBar() {
 	}
 }
 
-void History::unsetFirstUnreadMessage() {
-	_firstUnreadView = nullptr;
-}
-
 HistoryView::Element *History::unreadBar() const {
 	return _unreadBarView;
 }
@@ -4298,15 +4285,6 @@ HistoryItem *History::joinedMessageInstance() const {
 void History::removeJoinedMessage() {
 	if (_joinedMessage) {
 		_joinedMessage->destroy();
-	}
-}
-
-void History::removeNewPeerMessages() {
-	if (_newPeerNameChange) {
-		_newPeerNameChange->destroy();
-	}
-	if (_newPeerPhotoChange) {
-		_newPeerPhotoChange->destroy();
 	}
 }
 
