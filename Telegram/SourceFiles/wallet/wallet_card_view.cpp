@@ -1339,7 +1339,10 @@ void CardView::paintLabel(
 	}
 	p.setOpacity(1.);
 	_label->setOpacity(opacity);
-	Ui::RenderWidget(p, _label, shown.placement.label.topLeft());
+	p.save();
+	p.translate(shown.placement.label.topLeft());
+	Ui::RenderWidget(p, _label, QPoint());
+	p.restore();
 }
 
 void CardView::paintButton(
