@@ -244,7 +244,6 @@ private:
 		Data::File *file,
 		const QString &relativePath);
 	bool loadMessageEmojiProgress(FileProgress progress);
-	void loadMessageEmojiDone(uint64 id, const QString &relativePath);
 	void finishMessagesSlice();
 	void finishMessages();
 

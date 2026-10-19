@@ -2870,17 +2870,6 @@ bool ApiWrap::loadMessageEmojiProgress(FileProgress progress) {
 	return loadMessageFileProgress(_chatProcess->fileIndex, progress);
 }
 
-void ApiWrap::loadMessageEmojiDone(uint64 id, const QString &relativePath) {
-	const auto i = _resolvedCustomEmoji.find(id);
-	if (i != end(_resolvedCustomEmoji)) {
-		i->second.file.relativePath = relativePath;
-		if (relativePath.isEmpty()) {
-			i->second.file.skipReason = Data::File::SkipReason::Unavailable;
-		}
-	}
-	loadNextMessageFile();
-}
-
 bool ApiWrap::loadTopicEmojiProgress(FileProgress progress) {
 	Expects(_topicProcess != nullptr);
 
