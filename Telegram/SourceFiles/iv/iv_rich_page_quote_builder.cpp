@@ -306,7 +306,6 @@ private:
 		Piece inner,
 		const MTPRichText &old,
 		int depth);
-	[[nodiscard]] std::optional<QString> label(const Shape &shape, int depth);
 	[[nodiscard]] bool advance(qsizetype length);
 	[[nodiscard]] Piece fail();
 	[[nodiscard]] MTPRichText cutPlain(const QString &text, int from) const;
@@ -390,11 +389,13 @@ Cutter::Piece Cutter::whole(const MTPRichText &text, int depth) {
 	case ShapeKind::Image:
 		return {};
 	case ShapeKind::Button: {
-		const auto plain = label(shape, depth);
-		if (!plain || !advance(plain->size()) || plain->isEmpty()) {
+		// a label's formatting is compared exactly, only the button as text
+		const auto from = _offset;
+		auto inner = whole(*shape.inner, depth + 1);
+		if (_failed || !inner.text || _offset == from) {
 			return {};
 		}
-		return { MTP_textPlain(MTP_string(*plain)), false };
+		return { std::move(inner.text), false };
 	}
 	case ShapeKind::Date:
 	case ShapeKind::Wrapper: {
@@ -441,16 +442,19 @@ Cutter::Piece Cutter::partial(
 		const Shape &shape,
 		int depth) {
 	switch (shape.kind) {
-	case ShapeKind::Plain:
-	case ShapeKind::Button: {
-		const auto plain = (shape.kind == ShapeKind::Plain)
-			? std::make_optional(shape.text)
-			: label(shape, depth);
+	case ShapeKind::Plain: {
 		const auto from = _offset;
-		if (!plain || !advance(plain->size())) {
+		if (!advance(shape.text.size())) {
 			return {};
 		}
-		return { cutPlain(*plain, from), false };
+		return { cutPlain(shape.text, from), false };
+	}
+	case ShapeKind::Button: {
+		auto inner = visit(*shape.inner, depth + 1);
+		if (_failed || !inner.text) {
+			return fail();
+		}
+		return { std::move(inner.text), false };
 	}
 	case ShapeKind::Wrapper: {
 		auto inner = visit(*shape.inner, depth + 1);
@@ -518,15 +522,6 @@ Cutter::Piece Cutter::diff(
 			was.text.value_or(MTP_textEmpty())),
 		false,
 	};
-}
-
-std::optional<QString> Cutter::label(const Shape &shape, int depth) {
-	auto result = Measured();
-	if (!Measure(*shape.inner, depth + 1, false, &result)) {
-		_failed = true;
-		return std::nullopt;
-	}
-	return std::move(result.text);
 }
 
 bool Cutter::advance(qsizetype length) {
