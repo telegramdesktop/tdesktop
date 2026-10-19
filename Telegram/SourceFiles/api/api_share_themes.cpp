@@ -51,7 +51,7 @@ constexpr auto kRefreshEach = 3600 * crl::time(1000);
 		}
 		return Data::ShareThemeGift{ .gift = std::move(*gift) };
 	}, [](const MTPDinputShareThemeGift &) -> Result {
-		LOG(("API Error: inputShareThemeGift in getShareTheme result."));
+		LOG(("API Error: inputShareThemeGift in full peer share_theme."));
 		return Data::ShareThemeDefault();
 	});
 }
@@ -92,37 +92,18 @@ ShareThemes::ShareThemes(not_null<ApiWrap*> api)
 
 ShareThemes::~ShareThemes() = default;
 
-void ShareThemes::request(
+void ShareThemes::apply(
 		not_null<PeerData*> peer,
-		Fn<void(const Data::ShareTheme &)> done,
-		Fn<void(const MTP::Error &)> fail) {
-	auto &entry = _requests[peer];
-	if (done) {
-		entry.done.push_back(std::move(done));
-	}
-	if (fail) {
-		entry.fail.push_back(std::move(fail));
-	}
-	if (entry.id) {
+		const MTPShareTheme *theme) {
+	auto parsed = theme
+		? Parse(_session, *theme)
+		: Data::ShareTheme(Data::ShareThemeDefault());
+	const auto i = _kept.find(peer);
+	if (i != end(_kept) && i->second == parsed) {
 		return;
 	}
-	entry.id = _api.request(MTPmessages_GetShareTheme(
-		peer->input()
-	)).done([=](const MTPShareTheme &result) {
-		const auto theme = Parse(_session, result);
-		_kept[peer] = theme;
-		if (const auto taken = _requests.take(peer)) {
-			for (const auto &callback : taken->done) {
-				callback(theme);
-			}
-		}
-	}).fail([=](const MTP::Error &error) {
-		if (const auto taken = _requests.take(peer)) {
-			for (const auto &callback : taken->fail) {
-				callback(error);
-			}
-		}
-	}).send();
+	_kept[peer] = std::move(parsed);
+	_updates.fire_copy(peer);
 }
 
 std::optional<Data::ShareTheme> ShareThemes::kept(
@@ -132,6 +113,10 @@ std::optional<Data::ShareTheme> ShareThemes::kept(
 		return std::nullopt;
 	}
 	return i->second;
+}
+
+rpl::producer<not_null<PeerData*>> ShareThemes::updates() const {
+	return _updates.events();
 }
 
 bool ShareThemes::CanSave(not_null<PeerData*> peer) {

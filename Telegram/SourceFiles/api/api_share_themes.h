@@ -24,12 +24,10 @@ public:
 	explicit ShareThemes(not_null<ApiWrap*> api);
 	~ShareThemes();
 
-	void request(
-		not_null<PeerData*> peer,
-		Fn<void(const Data::ShareTheme &)> done,
-		Fn<void(const MTP::Error &)> fail = nullptr);
+	void apply(not_null<PeerData*> peer, const MTPShareTheme *theme);
 	[[nodiscard]] std::optional<Data::ShareTheme> kept(
 		not_null<PeerData*> peer) const;
+	[[nodiscard]] rpl::producer<not_null<PeerData*>> updates() const;
 
 	[[nodiscard]] static bool CanSave(not_null<PeerData*> peer);
 	[[nodiscard]] static rpl::producer<bool> CanSaveValue(
@@ -44,19 +42,13 @@ public:
 		-> rpl::producer<std::vector<Data::UniqueGiftBackdrop>>;
 
 private:
-	struct Request {
-		mtpRequestId id = 0;
-		std::vector<Fn<void(const Data::ShareTheme &)>> done;
-		std::vector<Fn<void(const MTP::Error &)>> fail;
-	};
-
 	void requestBackdrops();
 	void applyBackdrops(const MTPDshareThemeBackdrops &data);
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
-	base::flat_map<not_null<PeerData*>, Request> _requests;
 	base::flat_map<not_null<PeerData*>, Data::ShareTheme> _kept;
+	rpl::event_stream<not_null<PeerData*>> _updates;
 	base::flat_map<not_null<PeerData*>, mtpRequestId> _saveRequests;
 	rpl::variable<std::vector<Data::UniqueGiftBackdrop>> _backdrops;
 	crl::time _backdropsRequestedAt = 0;

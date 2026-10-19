@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_share_themes.h"
 #include "apiwrap.h"
-#include "base/weak_ptr.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_message_reaction_id.h"
 #include "data/data_peer.h"
@@ -204,16 +203,17 @@ rpl::producer<QrServedTheme> QrServedThemeValue(not_null<PeerData*> peer) {
 		auto lifetime = rpl::lifetime();
 
 		struct State {
-			base::has_weak_ptr guard;
 			rpl::variable<std::optional<Data::ShareTheme>> theme;
 			bool kept = false;
 		};
 		const auto state = lifetime.make_state<State>();
 		const auto session = &peer->session();
-		auto &themes = session->api().shareThemes();
-		if (auto kept = themes.kept(peer)) {
+		const auto themes = &session->api().shareThemes();
+		if (auto kept = themes->kept(peer)) {
 			state->kept = true;
 			state->theme = std::move(kept);
+		} else {
+			session->api().requestFullPeer(peer);
 		}
 
 		rpl::combine(
@@ -221,7 +221,7 @@ rpl::producer<QrServedTheme> QrServedThemeValue(not_null<PeerData*> peer) {
 			) | rpl::filter([](const std::optional<Data::ShareTheme> &theme) {
 				return theme.has_value();
 			}),
-			themes.backdropsValue()
+			themes->backdropsValue()
 		) | rpl::map([=](
 				const std::optional<Data::ShareTheme> &theme,
 				const std::vector<Data::UniqueGiftBackdrop> &backdrops) {
@@ -234,11 +234,13 @@ rpl::producer<QrServedTheme> QrServedThemeValue(not_null<PeerData*> peer) {
 			consumer.put_next(std::move(value));
 		}, lifetime);
 
-		themes.request(peer, crl::guard(&state->guard, [=](
-				const Data::ShareTheme &theme) {
+		themes->updates(
+		) | rpl::filter(
+			rpl::mappers::_1 == peer
+		) | rpl::on_next([=] {
 			state->kept = false;
-			state->theme.force_assign(theme);
-		}));
+			state->theme = themes->kept(peer);
+		}, lifetime);
 
 		return lifetime;
 	};
