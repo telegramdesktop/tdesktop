@@ -506,6 +506,7 @@ void GiftButton::setDocument(not_null<DocumentData*> document) {
 
 	const auto destroyed = base::take(_player);
 	_playerDocument = nullptr;
+	_createPlayer = nullptr;
 	_playbackIndex = 0;
 	_playbackRest = QImage();
 	if (_firstFrameShown && _playback == GiftButtonPlayback::Once) {
@@ -514,13 +515,7 @@ void GiftButton::setDocument(not_null<DocumentData*> document) {
 	if (_kept) {
 		*_kept = KeptFrame();
 	}
-	_mediaLifetime = rpl::single() | rpl::then(
-		document->session().downloaderTaskFinished()
-	) | rpl::filter([=] {
-		return media->loaded();
-	}) | rpl::on_next([=] {
-		_mediaLifetime.destroy();
-
+	const auto create = [=] {
 		auto result = std::unique_ptr<HistoryView::StickerPlayer>();
 		const auto sticker = document->sticker();
 		if (sticker->isLottie()) {
@@ -545,6 +540,24 @@ void GiftButton::setDocument(not_null<DocumentData*> document) {
 		_playerDocument = media->owner();
 		_player = std::move(result);
 		update();
+	};
+	_mediaLifetime = rpl::single() | rpl::then(
+		document->session().downloaderTaskFinished()
+	) | rpl::filter([=] {
+		return media->loaded();
+	}) | rpl::on_next([=] {
+		_mediaLifetime.destroy();
+		if (_playback == GiftButtonPlayback::Hover
+			|| !document->sticker()->isWebm()) {
+			create();
+			return;
+		}
+		_playerDocument = media->owner();
+		_createPlayer = [=] {
+			create();
+			_player->setRepaintCallback([=] { pendingPlayerRepaint(); });
+		};
+		update();
 	});
 	if (_playerDocument) {
 		_mediaLifetime.destroy();
@@ -552,6 +565,7 @@ void GiftButton::setDocument(not_null<DocumentData*> document) {
 }
 
 void GiftButton::stepPlayback(QImage &frame, int index, bool paused) {
+	_createPlayer = nullptr;
 	if (!_firstFrameShown) {
 		_firstFrameShown = true;
 		_firstFrameShows.fire({});
@@ -584,6 +598,26 @@ bool GiftButton::playbackSettled(int index) const {
 	return (_playback != GiftButtonPlayback::Hover)
 		&& ((index < _playbackIndex)
 			|| (!index && _playback == GiftButtonPlayback::Rest));
+}
+
+void GiftButton::pendingPlayerRepaint() {
+	// Qt holds all paints while the window is unmapped, e.g. occluded.
+	if (!_createPlayer
+		|| (window()->testAttribute(Qt::WA_Mapped)
+			&& !visibleRegion().isEmpty())) {
+		update();
+		return;
+	}
+	// A reader never pauses itself before its first frame is shown.
+	crl::on_main(this, [=] {
+		const auto mapped = window()->testAttribute(Qt::WA_Mapped);
+		if (_createPlayer && (!mapped || visibleRegion().isEmpty())) {
+			_player = nullptr;
+			if (!mapped) {
+				update();
+			}
+		}
+	});
 }
 
 void GiftButton::captureFirstFrame(const QImage &frame, int index) {
@@ -869,6 +903,7 @@ void GiftButton::restorePlayer(
 		_player = std::move(player);
 		_playerDocument = document;
 		_player->setRepaintCallback([=] { update(); });
+		_createPlayer = nullptr;
 		if (_playbackRest.isNull()) {
 			_playbackRest = std::move(firstFrame);
 		}
@@ -1145,6 +1180,8 @@ void GiftButton::paint(QPainter &p, float64 craftProgress) {
 			_player->markFrameShown();
 		}
 		size = frame.size() / style::DevicePixelRatio();
+	} else if (!_player && _createPlayer) {
+		_createPlayer();
 	}
 	if (!frame.isNull()) {
 		const auto target = QRect(

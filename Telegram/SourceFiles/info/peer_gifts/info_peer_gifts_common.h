@@ -249,6 +249,7 @@ private:
 	void setDocument(not_null<DocumentData*> document);
 	void stepPlayback(QImage &frame, int index, bool paused);
 	[[nodiscard]] bool playbackSettled(int index) const;
+	void pendingPlayerRepaint();
 	void captureFirstFrame(const QImage &frame, int index);
 	[[nodiscard]] QImage silhouetteFrame(
 		const QImage &frame,
@@ -299,6 +300,7 @@ private:
 	QMargins _extend;
 	int _playbackIndex = 0;
 	QImage _playbackRest;
+	Fn<void()> _createPlayer;
 
 	DocumentData *_resolvedDocument = nullptr;
 
