@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/controls/tabbed_search.h"
 
+#include "base/event_filter.h"
 #include "base/qt_signal_producer.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/fields/input_field.h"
@@ -18,7 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "styles/style_chat_helpers.h"
 
+#include <QtGui/QStyleHints>
 #include <QtWidgets/QApplication>
+#include <QtWidgets/QScrollBar>
+#include <QtWidgets/QStyle>
 #include <QtWidgets/QTextEdit>
 
 namespace Ui {
@@ -96,6 +100,37 @@ private:
 
 [[nodiscard]] int FadeLeftStart(const style::TabbedSearch &st) {
 	return st.search.iconPosition.x() + st.search.icon.width();
+}
+
+[[nodiscard]] base::EventFilterResult AnswerCaretRects(
+		not_null<QTextEdit*> edit,
+		not_null<QEvent*> e,
+		int width) {
+	using Result = base::EventFilterResult;
+	if (e->type() != QEvent::InputMethodQuery) {
+		return Result::Continue;
+	}
+	const auto query = static_cast<QInputMethodQueryEvent*>(e.get());
+	const auto queries = query->queries();
+	const auto rects = Qt::ImCursorRectangle | Qt::ImAnchorRectangle;
+	if (!(queries & rects)) {
+		return Result::Continue;
+	}
+	for (auto bit = 1U; bit != 0; bit <<= 1) {
+		const auto q = Qt::InputMethodQuery(bit);
+		if (!queries.testFlag(q)) {
+			continue;
+		}
+		auto value = edit->inputMethodQuery(q);
+		if (rects.testFlag(q)) {
+			auto rect = value.toRectF();
+			rect.setWidth(width);
+			value = rect;
+		}
+		query->setValue(q, value);
+	}
+	query->accept();
+	return Result::Cancel;
 }
 
 GroupsStrip::GroupsStrip(
@@ -364,6 +399,12 @@ anim::type SearchWithGroups::animated() const {
 
 void SearchWithGroups::initField() {
 	_fieldCursorWidth = _field->rawTextEdit()->cursorWidth();
+	if (Floating(_st)) {
+		// WHY: Qt inverts pixels under its caret, unseen on a mid-grey pill,
+		// and its zero-width caret rect misplaces input method windows.
+		_field->rawTextEdit()->setCursorWidth(0);
+		initCaret();
+	}
 	_field->changes(
 	) | rpl::on_next([=] {
 		const auto last = FieldQuery(_field);
@@ -397,6 +438,75 @@ void SearchWithGroups::initField() {
 		_groups->toggle(empty, animated());
 		resizeToWidth(width());
 	}, lifetime());
+}
+
+void SearchWithGroups::initCaret() {
+	_caret = CreateChild<RpWidget>(this);
+	_caret->setAttribute(Qt::WA_TransparentForMouseEvents);
+	_caret->paintRequest() | rpl::on_next([=] {
+		if (_caretOn) {
+			QPainter(_caret).fillRect(_caret->rect(), _st.field.textFg);
+		}
+	}, _caret->lifetime());
+
+	_caretBlink.setCallback([=] {
+		const auto blinkSelected = QApplication::style()->styleHint(
+			QStyle::SH_BlinkCursorWhenTextSelected);
+		_caretOn = !_caretOn
+			&& (blinkSelected || !_field->textCursor().hasSelection());
+		updateCaret();
+	});
+
+	const auto edit = _field->rawTextEdit();
+	rpl::merge(
+		_field->focusedChanges() | rpl::to_empty,
+		_field->changes(),
+		base::qt_signal_producer(
+			edit.get(),
+			&QTextEdit::cursorPositionChanged)
+	) | rpl::on_next([=] {
+		restartCaretBlink();
+	}, lifetime());
+	base::qt_signal_producer(
+		edit->horizontalScrollBar(),
+		&QScrollBar::valueChanged
+	) | rpl::on_next([=] {
+		updateCaret();
+	}, lifetime());
+
+	base::install_event_filter(edit, [edit, width = _fieldCursorWidth](
+			not_null<QEvent*> e) {
+		return AnswerCaretRects(edit, e, width);
+	});
+
+	restartCaretBlink();
+}
+
+void SearchWithGroups::restartCaretBlink() {
+	_caretOn = _field->hasFocus();
+	const auto interval = QGuiApplication::styleHints()->cursorFlashTime() / 2;
+	if (_caretOn && interval > 0) {
+		_caretBlink.callEach(interval);
+	} else {
+		_caretBlink.cancel();
+	}
+	updateCaret();
+}
+
+void SearchWithGroups::updateCaret() {
+	if (!_caret) {
+		return;
+	}
+	const auto edit = _field->rawTextEdit();
+	const auto viewport = edit->viewport();
+	const auto origin = viewport->mapTo(this, QPoint());
+	const auto cursor = edit->cursorRect();
+	_caret->setGeometry(QRect(
+		origin + cursor.topLeft(),
+		QSize(_fieldCursorWidth, cursor.height())
+	).intersected(QRect(origin, viewport->size())));
+	_caret->setVisible(!_fieldPushed && _field->hasFocus());
+	_caret->update();
 }
 
 void SearchWithGroups::initGroups() {
@@ -569,6 +679,9 @@ void SearchWithGroups::initButtons() {
 		scrollGroupsToStart();
 	}, _field->lifetime());
 	_field->raise();
+	if (_caret) {
+		_caret->raise();
+	}
 	_fade->raise();
 	_search->raise();
 	_back->raise();
@@ -703,12 +816,9 @@ void SearchWithGroups::moveGroupsTo(int width, int to) {
 	_field->moveToLeft(fieldLeft, 0);
 
 	if (Floating(_st)) {
-		const auto pushed = (fieldLeft < _fadeLeftStart);
-		_field->setPlaceholderHidden(pushed);
-		if (std::exchange(_fieldPushed, pushed) != pushed) {
-			_field->rawTextEdit()->setCursorWidth(
-				pushed ? 0 : _fieldCursorWidth);
-		}
+		_fieldPushed = (fieldLeft < _fadeLeftStart);
+		_field->setPlaceholderHidden(_fieldPushed);
+		updateCaret();
 	} else if (fieldLeft >= _fadeLeftStart) {
 		if (!_fade->isHidden()) {
 			_fade->hide();
