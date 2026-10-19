@@ -332,13 +332,6 @@ constexpr auto kTonConnectChallengeAnswerSize = 32;
 	return ok ? std::make_optional(result) : std::nullopt;
 }
 
-[[nodiscard]] std::optional<uint64> DecimalUint64(
-		const std::string &value) {
-	auto ok = false;
-	const auto result = QString::fromStdString(value).toULongLong(&ok);
-	return ok ? std::make_optional(result) : std::nullopt;
-}
-
 void FinishHistoryWaiters(std::vector<Fn<void()>> callbacks) {
 	for (const auto &callback : callbacks) {
 		callback();
@@ -1882,52 +1875,6 @@ void SetDirectedAmount(
 	item.incoming = fold ? false : incoming;
 }
 
-[[nodiscard]] std::optional<TransferItem> HistoryItemFromEngine(
-		const engine::ActivityItem &item,
-		const std::optional<TransferWalletIdentity> &identity) {
-	constexpr auto kMaxTimestamp = uint64(std::numeric_limits<TimeId>::max());
-	const auto amount = DecimalInt64(item.amount_nanograms);
-	const auto fee = DecimalInt64(item.transaction_fee_nanograms);
-	const auto lt = DecimalUint64(item.logical_time);
-	if (!amount || !fee || !lt || (item.timestamp > kMaxTimestamp)) {
-		LOG(("Wallet Error: engine activity item %1 has a bad number."
-			).arg(QString::fromStdString(item.id)));
-		return std::nullopt;
-	}
-	auto result = TransferItem();
-	result.source = TransferItem::Source::Engine;
-	result.id = QString::fromStdString(item.id);
-	result.walletIdentity = identity;
-	result.kind = TransferItem::Kind::Transfer;
-	if (item.counterparty) {
-		result.counterparty = CanonicalAddress(
-			QString::fromStdString(*item.counterparty));
-	}
-	SetDirectedAmount(
-		result,
-		*amount,
-		(item.direction == engine::ActivityDirection::kReceived));
-	result.feeNano = *fee;
-	if (item.encrypted_comment) {
-		result.commentEncrypted = true;
-		result.encryptedPayload = QByteArray::fromStdString(
-			*item.encrypted_comment);
-		if (!result.encryptedPayload.isEmpty()) {
-			result.encryptedFormat = TransferItem::EncryptedFormat::EngineBodyBoc;
-		}
-	} else if (item.comment) {
-		result.comment = QString::fromStdString(*item.comment);
-	}
-	result.date = TimeId(item.timestamp);
-	result.lt = *lt;
-	result.traceId = QByteArray::fromBase64(
-		QByteArray::fromStdString(item.transaction_hash));
-	result.status = (item.status == engine::ActivityStatus::kSuccess)
-		? TransferItem::Status::Success
-		: TransferItem::Status::Failure;
-	return result;
-}
-
 [[nodiscard]] TransferItem HistoryItemFromServer(
 		const MTPWalletTransaction &item,
 		const std::optional<TransferWalletIdentity> &identity) {
@@ -2158,19 +2105,6 @@ QByteArray DecodeServerEncryptedComment(const QString &encoded) {
 	return std::move(decoded.decoded);
 }
 
-std::vector<TransferItem> HistoryFromEngine(
-		const std::vector<engine::ActivityItem> &items,
-		std::optional<TransferWalletIdentity> identity) {
-	auto result = std::vector<TransferItem>();
-	result.reserve(items.size());
-	for (const auto &item : items) {
-		if (auto mapped = HistoryItemFromEngine(item, identity)) {
-			result.push_back(std::move(*mapped));
-		}
-	}
-	return result;
-}
-
 std::vector<TransferItem> HistoryFromServer(
 		const QVector<MTPWalletTransaction> &list,
 		std::optional<TransferWalletIdentity> identity) {
@@ -2387,7 +2321,6 @@ Session::Session(not_null<Main::Session*> session)
 		}
 	}, _commentLifetime);
 	transferWalletIdentityChanges() | rpl::on_next([=] {
-		_lastReceipt.reset();
 		const auto hadSubmission = _submission
 			|| _pending
 			|| (_sendState.current() != SendState::Idle);
@@ -5559,10 +5492,6 @@ rpl::producer<> Session::keyProtectionUpdates() const {
 	return vault().protectionChanges();
 }
 
-void Session::notifyKeyProtectionChanged(bool vaultKeyStillUnusable) {
-	vault().notifyProtectionChanged(vaultKeyStillUnusable);
-}
-
 bool Session::vaultKeyUnusable() const {
 	return vault().unusable();
 }
@@ -8304,11 +8233,6 @@ std::optional<PendingSendInfo> Session::pendingSend() const {
 		: std::nullopt;
 }
 
-auto Session::lastTransferReceipt() const
--> const std::optional<TransferReceipt> & {
-	return _lastReceipt;
-}
-
 const TransferItem *Session::submittedShown(
 		const SubmittedTransfer &entry) const {
 	if (entry.generation != _networkGeneration
@@ -9448,7 +9372,6 @@ void Session::startSend(
 		++owner->second;
 	}
 	++_sendRevision;
-	_lastReceipt.reset();
 	const auto userId = args.userId;
 	const auto weak = base::make_weak(_engine.get());
 	const auto current = [=, this] {
@@ -10079,7 +10002,6 @@ bool Session::applySubmittedUpdate(
 			&& (!_submission->receipt
 				|| _submission->receipt->messageHash.isEmpty())) {
 			_submission->receipt = receipt;
-			_lastReceipt = receipt;
 			changed = true;
 		}
 		if (record && (!record->messageHash || record->messageHash->isEmpty())) {
@@ -10738,7 +10660,6 @@ void Session::clearSubmittedTransfers() {
 	_submitted.clear();
 	_pending.reset();
 	retireSubmission();
-	_lastReceipt.reset();
 	_lastLookupOperationId.clear();
 	_unresolvedOperationId.clear();
 	_windowSend.clear();

@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_unlock.h"
 
 namespace wallet_engine {
-struct ActivityItem;
 struct SendMessageBody;
 struct SendSnapshot;
 struct WalletClient;
@@ -232,7 +231,6 @@ struct TransferItem {
 	EncryptedFormat encryptedFormat = EncryptedFormat::Unavailable;
 	QByteArray encryptedPayload;
 	std::optional<TimeId> date;
-	quint64 lt = 0;
 	QByteArray traceId;
 	QByteArray externalHashNorm;
 	QString failureReason;
@@ -447,10 +445,6 @@ struct SendArgs {
 // The 32 hash bytes in base64 or hex, or nothing for another shape.
 [[nodiscard]] QByteArray TransactionHashFromServer(const QString &value);
 
-[[nodiscard]] std::vector<TransferItem> HistoryFromEngine(
-	const std::vector<wallet_engine::ActivityItem> &items,
-	std::optional<TransferWalletIdentity> identity = std::nullopt);
-
 [[nodiscard]] std::vector<TransferItem> HistoryFromServer(
 	const QVector<MTPWalletTransaction> &list,
 	std::optional<TransferWalletIdentity> identity = std::nullopt);
@@ -561,7 +555,6 @@ public:
 	// never reconciles a passcode while an install is only armed. A failed
 	// reset can preserve unusable state when it announces its terminal result.
 	[[nodiscard]] rpl::producer<> keyProtectionUpdates() const;
-	void notifyKeyProtectionChanged(bool vaultKeyStillUnusable = false);
 
 	void resetCustodyAfterForgottenPasscode(Fn<void(CustodyResetResult)> done);
 
@@ -837,8 +830,6 @@ public:
 	[[nodiscard]] SendState sendState() const;
 	[[nodiscard]] rpl::producer<SendState> sendStateValue() const;
 	[[nodiscard]] std::optional<PendingSendInfo> pendingSend() const;
-	[[nodiscard]] auto lastTransferReceipt() const
-		-> const std::optional<TransferReceipt> &;
 	[[nodiscard]] std::vector<TransferItem> submittedTransactions() const;
 	[[nodiscard]] auto listedSubmittedTransactions() const
 	-> std::vector<ListedSubmittedTransfer>;
@@ -1332,7 +1323,6 @@ private:
 	std::vector<SubmittedTransfer> _submitted;
 	std::shared_ptr<SubmittedLookup> _lookup;
 	std::string _lastLookupOperationId;
-	std::optional<TransferReceipt> _lastReceipt;
 	bool _previewPending = false;
 	std::unique_ptr<PreviewState> _preview;
 

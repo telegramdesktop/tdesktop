@@ -159,11 +159,6 @@ void Api::cancelRequest(mtpRequestId requestId) {
 	}
 }
 
-
-bool Api::hasPendingRequests() const {
-	return _pendingCount > 0;
-}
-
 MTP::ShiftedDcId Api::shiftedDcId() const {
 	const auto dcId = _session->serverConfig().webFileDcId;
 	if (dcId <= 0 || dcId >= MTP::kDcShift) {
