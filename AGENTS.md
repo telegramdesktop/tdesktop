@@ -362,6 +362,9 @@ publication at a construction seam).
   implementation notes out of the commit message; put a short durable note
   under `tasks/<task-id>.md` only when useful. Do not copy commit hashes into
   that note or any AI task artifact; the task id is the cross-repository link.
+- Never create backup branches or tags before a rebase, reorder, squash or any
+  other history rewrite. The branch reflog keeps the old tip; report its sha
+  as the undo path instead.
 
 ## Local Storage Serialization
 
