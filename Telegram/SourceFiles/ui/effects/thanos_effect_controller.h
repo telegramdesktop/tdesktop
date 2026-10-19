@@ -108,6 +108,7 @@ private:
 	void notePendingRemoval(int height, int top, int dateHeight);
 	void startCollapseAnimation(int height, int itemTop, int dateHeight);
 	void collapseAnimationCallback();
+	void handleEffectFailure();
 	void syncCollapseGapsToHost();
 	void ensureScrollBaseline();
 

@@ -140,6 +140,7 @@ void ThanosEffectRenderer::initialize(
 
 	if (!rhi->isFeatureSupported(QRhi::Compute)) {
 		LOG(("ThanosEffect: Compute shaders not supported, disabled"));
+		_creationFailed = true;
 		return;
 	}
 

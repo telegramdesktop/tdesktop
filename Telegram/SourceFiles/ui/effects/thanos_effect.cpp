@@ -20,9 +20,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
+bool ThanosEffectFailedOnce = false;
+
 bool ThanosEffect::Supported() {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
-	if (PowerSaving::On(PowerSaving::kChatEffects)
+	if (ThanosEffectFailedOnce
+		|| PowerSaving::On(PowerSaving::kChatEffects)
 		|| PowerSaving::On(PowerSaving::kAnimations)) {
 		return false;
 	}
@@ -59,6 +62,11 @@ void ThanosEffect::WarmUp() {
 ThanosEffect::ThanosEffect(not_null<QWidget*> parent)
 : _parent(parent)
 , _animation([=] {
+	if (_renderer && _renderer->failed()) {
+		ThanosEffectFailedOnce = true;
+		hideSurface();
+		return;
+	}
 	if (const auto w = surfaceWidget()) {
 		w->update();
 	}
@@ -200,6 +208,10 @@ bool ThanosEffect::animating() const {
 
 rpl::producer<> ThanosEffect::allDone() const {
 	return _allDone.events();
+}
+
+bool ThanosEffect::FailedOnce() {
+	return ThanosEffectFailedOnce;
 }
 
 void ThanosEffect::setGeometry(QRect rect) {

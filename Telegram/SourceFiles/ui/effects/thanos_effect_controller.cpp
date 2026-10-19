@@ -372,6 +372,10 @@ void ThanosEffectController::startCollapseAnimation(
 }
 
 void ThanosEffectController::collapseAnimationCallback() {
+	if (ThanosEffect::FailedOnce()) {
+		handleEffectFailure();
+		return;
+	}
 	const auto progress = _collapseAnimation.value(1.);
 
 	auto sumOriginal = 0;
@@ -456,6 +460,34 @@ void ThanosEffectController::applyPrependBaseline(int contentHeight) {
 	if (delta > 0) {
 		shiftGaps(delta);
 	}
+}
+
+void ThanosEffectController::handleEffectFailure() {
+	_preCaptured.clear();
+	_announcedRemoval.clear();
+	_pending.clear();
+	_pendingAttempts = 0;
+
+	auto sumOriginal = 0;
+	for (const auto &gap : _collapseGaps) {
+		sumOriginal += gap.originalHeight;
+	}
+	_collapseAnimation.stop();
+	_collapseGaps.clear();
+	_renderGaps.clear();
+	_gapsShift = 0;
+	_prependPending = false;
+	_delegate.collapseGapsUpdated();
+	if (sumOriginal > 0) {
+		if (_wasAtBottom) {
+			_delegate.scrollToY(_delegate.scrollTopMax());
+		} else {
+			_delegate.scrollToY(std::max(_savedScrollTop - sumOriginal, 0));
+		}
+	}
+	_restoreScrollPending = false;
+	_wasAtBottom = false;
+	_collapseAnimation = {};
 }
 
 void ThanosEffectController::syncCollapseGapsToHost() {

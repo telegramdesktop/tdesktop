@@ -62,6 +62,9 @@ public:
 	[[nodiscard]] bool hasActiveItems() const;
 
 	rpl::producer<> allDone() const;
+	[[nodiscard]] bool failed() const {
+		return _creationFailed;
+	}
 
 private:
 	struct AnimatingItem {
