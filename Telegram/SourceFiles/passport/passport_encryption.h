@@ -21,17 +21,6 @@ bytes::vector DecryptSecureSecret(
 bytes::vector SerializeData(const std::map<QString, QString> &data);
 std::map<QString, QString> DeserializeData(bytes::const_span bytes);
 
-struct DataError {
-	// QByteArray - bad existing scan with such file_hash
-	// QString - bad data field value with such key
-	// std::nullopt - additional scan required
-	std::variant<v::null_t, QByteArray, QString> key;
-	QString type; // personal_details, passport, etc.
-	QString text;
-
-};
-std::vector<DataError> DeserializeErrors(bytes::const_span json);
-
 struct EncryptedData {
 	bytes::vector secret;
 	bytes::vector hash;
@@ -48,10 +37,6 @@ bytes::vector DecryptData(
 	bytes::const_span encrypted,
 	bytes::const_span dataHash,
 	bytes::const_span dataSecret);
-
-bytes::vector PrepareValueHash(
-	bytes::const_span dataHash,
-	bytes::const_span valueSecret);
 
 bytes::vector EncryptValueSecret(
 	bytes::const_span valueSecret,
