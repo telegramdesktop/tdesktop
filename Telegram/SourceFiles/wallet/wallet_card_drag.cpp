@@ -31,6 +31,11 @@ constexpr auto kScaleOutDuration = crl::time(180);
 constexpr auto kDriftDecay = crl::time(35);
 constexpr auto kVelocityWindow = crl::time(50);
 
+struct PreparedFrame {
+	QImage image;
+	float64 scale = 1.;
+};
+
 [[nodiscard]] FlightPose Interpolate(
 		const FlightPose &from,
 		const FlightPose &to,
@@ -41,6 +46,19 @@ constexpr auto kVelocityWindow = crl::time(50);
 		.side = from.side + (to.side - from.side) * along,
 		.rotation = from.rotation + turn * along,
 	};
+}
+
+[[nodiscard]] PreparedFrame PrepareFrame(QImage frame, bool outline) {
+	if (!outline || frame.isNull()) {
+		return { .image = std::move(frame) };
+	}
+	const auto extent = std::max(frame.width(), frame.height());
+	auto image = CardStickerOutlined(
+		std::move(frame),
+		style::DevicePixelRatio());
+	const auto scale = std::max(image.width(), image.height())
+		/ float64(extent);
+	return { .image = std::move(image), .scale = scale };
 }
 
 } // namespace
@@ -54,12 +72,10 @@ struct DraggedGift::Frame {
 
 class DraggedGift::Layer final : public Ui::RpWidget {
 public:
-	Layer(
-		not_null<Ui::RpWidget*> body,
-		int titleExtension,
-		QImage image);
+	explicit Layer(DraggedGiftArgs &&args);
 
 	void setFrame(const Frame &frame);
+	[[nodiscard]] TravelArtwork takeArtwork();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -67,27 +83,51 @@ protected:
 private:
 	[[nodiscard]] bool sync();
 	[[nodiscard]] QTransform transform(const Frame &frame) const;
+	[[nodiscard]] QRectF imageRect(float64 side) const;
+	[[nodiscard]] QRect mappedArea(const Frame &frame) const;
+	void setImage(PreparedFrame prepared);
+	bool advance();
+	void presented();
+	void rest();
 
 	const not_null<Ui::RpWidget*> _body;
 	const int _titleExtension = 0;
-	const QImage _image;
+	const bool _outline = false;
+	TravelArtwork _artwork;
+	float64 _scale = 1.;
+	float64 _restScale = 1.;
 	std::optional<Frame> _frame;
 	QPoint _origin;
 	QRect _area;
 
 };
 
-DraggedGift::Layer::Layer(
-	not_null<Ui::RpWidget*> body,
-	int titleExtension,
-	QImage image)
-: RpWidget(body->window())
-, _body(body)
-, _titleExtension(titleExtension)
-, _image(std::move(image)) {
+DraggedGift::Layer::Layer(DraggedGiftArgs &&args)
+: RpWidget(args.body->window())
+, _body(args.body)
+, _titleExtension(args.titleExtension)
+, _outline(args.outline)
+, _artwork({
+	.playback = {
+		.player = std::move(args.player),
+		.frameSize = args.frameSize,
+		.side = std::max(args.frameSize.width(), args.frameSize.height()),
+	},
+	.document = args.document,
+}) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 	MarkTravelLayer(this);
-	body->geometryValue() | rpl::on_next([=] {
+	auto rest = PrepareFrame(std::move(args.firstFrame), _outline);
+	_artwork.rest = rest.image;
+	_restScale = rest.scale;
+	setImage(args.image.isNull()
+		? std::move(rest)
+		: PrepareFrame(std::move(args.image), _outline));
+	if (_artwork.playback.player) {
+		BindStickerPlayback(_artwork.playback, [=] { update(_area); });
+		advance();
+	}
+	_body->geometryValue() | rpl::on_next([=] {
 		if (_frame) {
 			setFrame(*_frame);
 		} else if (sync()) {
@@ -98,13 +138,17 @@ DraggedGift::Layer::Layer(
 
 void DraggedGift::Layer::setFrame(const Frame &frame) {
 	const auto moved = sync();
-	const auto area = transform(frame)
-		.mapRect(FlightImageRect(_image, frame.pose.side))
-		.toAlignedRect()
-		.marginsAdded({ 1, 1, 1, 1 });
+	const auto area = mappedArea(frame);
 	_frame = frame;
 	update(moved ? rect() : _area.united(area));
 	_area = area;
+}
+
+TravelArtwork DraggedGift::Layer::takeArtwork() {
+	if (const auto player = _artwork.playback.player.get()) {
+		player->setRepaintCallback(nullptr);
+	}
+	return base::take(_artwork);
 }
 
 bool DraggedGift::Layer::sync() {
@@ -126,15 +170,81 @@ QTransform DraggedGift::Layer::transform(const Frame &frame) const {
 		.scale(frame.scaleX, frame.scaleY);
 }
 
+QRectF DraggedGift::Layer::imageRect(float64 side) const {
+	return FlightImageRect(_artwork.playback.frame, side * _scale);
+}
+
+QRect DraggedGift::Layer::mappedArea(const Frame &frame) const {
+	return transform(frame)
+		.mapRect(imageRect(frame.pose.side))
+		.toAlignedRect()
+		.marginsAdded({ 1, 1, 1, 1 });
+}
+
+void DraggedGift::Layer::setImage(PreparedFrame prepared) {
+	_artwork.playback.frame = std::move(prepared.image);
+	_scale = prepared.scale;
+	if (!_frame) {
+		return;
+	}
+	const auto area = mappedArea(*_frame);
+	if (area != _area) {
+		update(_area.united(area));
+		_area = area;
+	}
+}
+
+bool DraggedGift::Layer::advance() {
+	if (!_artwork.playback.player) {
+		return false;
+	} else if (TravelArtworkPaused()) {
+		rest();
+		return false;
+	}
+	auto step = AdvanceStickerPlayback(_artwork.playback, crl::now());
+	if (step.finished) {
+		rest();
+		return false;
+	} else if (!step.fresh.isNull()) {
+		setImage(PrepareFrame(std::move(step.fresh), _outline));
+	}
+	return step.show;
+}
+
+void DraggedGift::Layer::presented() {
+	if (!PresentStickerPlayback(_artwork.playback)) {
+		rest();
+	}
+}
+
+void DraggedGift::Layer::rest() {
+	auto &playback = _artwork.playback;
+	playback.player = nullptr;
+	playback.index = 0;
+	playback.advanced = false;
+	playback.awaitingFrame = false;
+	if (!_artwork.rest.isNull()) {
+		setImage({ .image = _artwork.rest, .scale = _restScale });
+	}
+}
+
 void DraggedGift::Layer::paintEvent(QPaintEvent *e) {
 	if (!_frame) {
+		return;
+	}
+	const auto playing = advance();
+	const auto &image = _artwork.playback.frame;
+	if (image.isNull()) {
 		return;
 	}
 	auto p = QPainter(this);
 	auto hq = PainterHighQualityEnabler(p);
 	p.setOpacity(_frame->opacity);
 	p.setTransform(transform(*_frame), true);
-	p.drawImage(FlightImageRect(_image, _frame->pose.side), _image);
+	p.drawImage(imageRect(_frame->pose.side), image);
+	if (playing) {
+		presented();
+	}
 }
 
 DraggedGift::DraggedGift(DraggedGiftArgs &&args)
@@ -148,11 +258,8 @@ DraggedGift::DraggedGift(DraggedGiftArgs &&args)
 , _origin(args.origin)
 , _animation([=](crl::time now) { return tick(now); }) {
 	_scaleTo = liftScale();
-	if (!args.image.isNull()) {
-		_layer = base::make_unique_q<Layer>(
-			args.body,
-			args.titleExtension,
-			std::move(args.image));
+	if (!args.image.isNull() || !args.firstFrame.isNull()) {
+		_layer = base::make_unique_q<Layer>(std::move(args));
 	}
 	apply({ .pose = followPose(_scaleStarted) });
 	if (_layer) {
@@ -178,6 +285,10 @@ float64 DraggedGift::liftScale() const {
 	return (_origin == DraggedGiftSource::Card)
 		? kCardLiftScale
 		: kSquareLiftScale;
+}
+
+TravelArtwork DraggedGift::takeArtwork() {
+	return _layer ? _layer->takeArtwork() : base::take(_artwork);
 }
 
 void DraggedGift::move(QPointF cursor) {
@@ -408,6 +519,7 @@ void DraggedGift::complete(bool arrived) {
 	_phase = Phase::Done;
 	_animation.stop();
 	if (const auto layer = _layer.release()) {
+		_artwork = layer->takeArtwork();
 		// WHY: completion can run inside Qt's hide or deactivation pass over
 		// the window's children, which keeps a raw pointer to this layer.
 		layer->hide();

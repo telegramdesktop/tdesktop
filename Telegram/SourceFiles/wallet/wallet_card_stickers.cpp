@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/effects/star_burst.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "wallet/wallet_address.h"
 #include "wallet/wallet_card_space.h"
 #include "wallet/wallet_own_card.h"
@@ -71,15 +72,6 @@ struct OutlineSpan {
 	int till = 0;
 	int column = 0;
 	QRgb value = 0;
-};
-
-struct Playback {
-	std::unique_ptr<HistoryView::StickerPlayer> player;
-	QImage frame;
-	int side = 0;
-	int index = 0;
-	bool advanced = false;
-	bool awaitingFrame = false;
 };
 
 [[nodiscard]] QSize FrameSize(not_null<DocumentData*> document, int side) {
@@ -537,19 +529,6 @@ void DrawFrameRow(QRgb *to, const QRgb *from, int width) {
 	return result;
 }
 
-[[nodiscard]] QImage Outlined(QImage frame, int ratio) {
-	frame = std::move(frame).convertToFormat(
-		QImage::Format_ARGB32_Premultiplied);
-	const auto outline = CardStickerOutline(
-		std::max(frame.width(), frame.height()));
-	auto grid = OutlineSites(frame, outline);
-	OutlineDistances(grid, outline);
-	OutlineAlphas(grid, outline);
-	auto result = OutlineStroke(grid, frame, outline);
-	result.setDevicePixelRatio(ratio);
-	return result;
-}
-
 [[nodiscard]] QSizeF LogicalSize(const QImage &image) {
 	return QSizeF(image.size()) / image.devicePixelRatio();
 }
@@ -624,11 +603,12 @@ struct CardStickers::Entry {
 	QString canonical;
 	std::shared_ptr<Data::DocumentMedia> media;
 	std::unique_ptr<HistoryView::StickerPlayer> player;
-	std::optional<Playback> playback;
+	std::optional<StickerPlayback> playback;
 	QImage image;
 	int imageSide = 0;
 	int side = 0;
 	int ratio = 0;
+	bool handed = false;
 	rpl::lifetime loading;
 };
 
@@ -655,6 +635,69 @@ auto OwnCardStickersValue(not_null<Main::Session*> session)
 	) | rpl::map([](const OwnCardState &state) {
 		return state.stickers;
 	}) | rpl::distinct_until_changed();
+}
+
+QImage CardStickerOutlined(QImage frame, int ratio) {
+	frame = std::move(frame).convertToFormat(
+		QImage::Format_ARGB32_Premultiplied);
+	const auto outline = CardStickerOutline(
+		std::max(frame.width(), frame.height()));
+	auto grid = OutlineSites(frame, outline);
+	OutlineDistances(grid, outline);
+	OutlineAlphas(grid, outline);
+	auto result = OutlineStroke(grid, frame, outline);
+	result.setDevicePixelRatio(ratio);
+	return result;
+}
+
+bool TravelArtworkPaused() {
+	return anim::Disabled() || PowerSaving::On(PowerSaving::kStickersChat);
+}
+
+void BindStickerPlayback(StickerPlayback &playback, Fn<void()> repaint) {
+	const auto raw = &playback;
+	playback.player->setRepaintCallback([=] {
+		raw->awaitingFrame = false;
+		repaint();
+	});
+}
+
+StickerPlaybackStep AdvanceStickerPlayback(
+		StickerPlayback &playback,
+		crl::time now) {
+	const auto player = playback.player.get();
+	if (!player || playback.awaitingFrame || !player->ready()) {
+		return {};
+	}
+	auto info = player->frame(
+		playback.frameSize,
+		QColor(0, 0, 0, 0),
+		false,
+		now,
+		false);
+	if (info.image.isNull()) {
+		return {};
+	} else if (playback.advanced
+		&& (info.index == 0 || info.index < playback.index)) {
+		return { .finished = true };
+	}
+	auto result = StickerPlaybackStep{ .show = true };
+	if (playback.frame.isNull() || info.index != playback.index) {
+		result.fresh = std::move(info.image);
+		playback.index = info.index;
+	}
+	return result;
+}
+
+bool PresentStickerPlayback(StickerPlayback &playback) {
+	const auto player = playback.player.get();
+	if (player->framesCount() == 1) {
+		return false;
+	} else if (player->markFrameShown()) {
+		playback.advanced = true;
+		playback.awaitingFrame = true;
+	}
+	return true;
 }
 
 CardSpace CurrentCardSpace(
@@ -737,17 +780,21 @@ void CardStickers::release(const QString &address) {
 void CardStickers::land(
 		const QString &address,
 		float64 fromScale,
-		QImage frame) {
+		QImage frame,
+		TravelArtwork artwork) {
 	const auto canonical = CanonicalAddress(address);
 	if (canonical.isEmpty()) {
 		return;
 	}
 	const auto ended = _holds.remove(canonical);
 	dropLanding(canonical);
-	if (!anim::Disabled() && lookup(canonical)) {
+	const auto entry = lookup(canonical);
+	if (!anim::Disabled() && entry) {
 		_landings.push_back({
 			.address = canonical,
-			.frame = std::move(frame),
+			.frame = (frame.isNull()
+				? artwork.playback.frame
+				: std::move(frame)),
 			.burst = Ui::StarBurst::Make(LandingBurstDescriptor()),
 			.started = crl::now(),
 			.fromScale = (std::isfinite(fromScale) && fromScale > 0.)
@@ -757,6 +804,9 @@ void CardStickers::land(
 		if (!_landingAnimation.animating()) {
 			_landingAnimation.start();
 		}
+	}
+	if (entry) {
+		adoptArtwork(entry, std::move(artwork));
 	}
 	invalidate();
 	refreshArriving();
@@ -815,19 +865,17 @@ void CardStickers::play(const QString &address) {
 	if (!sticker || !sticker->isAnimated()) {
 		return;
 	}
-	entry->playback = Playback{
+	entry->playback = StickerPlayback{
 		.player = MakePlayer(
 			entry->document,
 			entry->media->bytes(),
 			entry->side,
 			entry->ratio),
+		.frameSize = FrameSize(entry->document, entry->side),
 		.side = entry->side,
 	};
-	const auto playback = &*entry->playback;
-	playback->player->setRepaintCallback([=] {
-		playback->awaitingFrame = false;
-		invalidate();
-	});
+	entry->handed = false;
+	BindStickerPlayback(*entry->playback, [=] { invalidate(); });
 }
 
 void CardStickers::stopPlayback() {
@@ -920,7 +968,9 @@ bool CardStickers::validate(not_null<Entry*> entry) {
 void CardStickers::prepare(not_null<Entry*> entry, int side) {
 	entry->loading.destroy();
 	entry->player = nullptr;
-	entry->playback.reset();
+	if (!entry->handed) {
+		entry->playback.reset();
+	}
 	entry->side = side;
 	entry->ratio = _layerRatio;
 	if (!side) {
@@ -959,9 +1009,32 @@ void CardStickers::capture(not_null<Entry*> entry) {
 		true).image;
 	entry->player = nullptr;
 	if (!frame.isNull()) {
-		entry->image = Outlined(std::move(frame), entry->ratio);
+		entry->image = CardStickerOutlined(std::move(frame), entry->ratio);
 		entry->imageSide = entry->side;
 	}
+}
+
+void CardStickers::adoptArtwork(
+		not_null<Entry*> entry,
+		TravelArtwork &&artwork) {
+	auto &playback = artwork.playback;
+	if (artwork.document != entry->document || playback.side <= 0) {
+		return;
+	} else if (validate(entry)) {
+		_layerValid = false;
+	}
+	if (entry->image.isNull() && !artwork.rest.isNull()) {
+		entry->image = std::move(artwork.rest);
+		entry->imageSide = playback.side;
+	}
+	if (!playback.player
+		|| playback.frameSize.isEmpty()
+		|| TravelArtworkPaused()) {
+		return;
+	}
+	entry->playback = std::move(playback);
+	entry->handed = true;
+	BindStickerPlayback(*entry->playback, [=] { invalidate(); });
 }
 
 void CardStickers::compose(crl::time now) {
@@ -1014,40 +1087,26 @@ void CardStickers::compose(crl::time now) {
 bool CardStickers::advance(not_null<Entry*> entry, crl::time now) {
 	if (!entry->playback) {
 		return false;
-	} else if (anim::Disabled()) {
+	} else if (entry->handed ? TravelArtworkPaused() : anim::Disabled()) {
 		entry->playback.reset();
 		return false;
 	}
 	auto &playback = *entry->playback;
-	if (playback.awaitingFrame || !playback.player->ready()) {
-		return false;
-	}
-	auto info = playback.player->frame(
-		FrameSize(entry->document, playback.side),
-		QColor(0, 0, 0, 0),
-		false,
-		now,
-		false);
-	if (info.image.isNull()) {
-		return false;
-	} else if (playback.advanced
-		&& (info.index == 0 || info.index < playback.index)) {
+	auto step = AdvanceStickerPlayback(playback, now);
+	if (step.finished) {
 		entry->playback.reset();
 		return false;
-	} else if (playback.frame.isNull() || info.index != playback.index) {
-		playback.frame = Outlined(std::move(info.image), entry->ratio);
-		playback.index = info.index;
+	} else if (!step.fresh.isNull()) {
+		playback.frame = CardStickerOutlined(
+			std::move(step.fresh),
+			entry->ratio);
 	}
-	return true;
+	return step.show;
 }
 
 void CardStickers::presented(not_null<Entry*> entry) {
-	auto &playback = *entry->playback;
-	if (playback.player->framesCount() == 1) {
+	if (!PresentStickerPlayback(*entry->playback)) {
 		entry->playback.reset();
-	} else if (playback.player->markFrameShown()) {
-		playback.advanced = true;
-		playback.awaitingFrame = true;
 	}
 }
 

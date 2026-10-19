@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 #include "ui/effects/animations.h"
 #include "wallet/wallet_card_flight.h"
+#include "wallet/wallet_card_stickers.h"
 
 namespace Ui {
 class RpWidget;
@@ -31,6 +32,11 @@ struct DraggedGiftArgs {
 	QPointF grab;
 	DraggedGiftSource origin = DraggedGiftSource::Square;
 	Fn<void(const FlightPose &pose)> moved;
+	std::unique_ptr<HistoryView::StickerPlayer> player;
+	QImage firstFrame;
+	DocumentData *document = nullptr;
+	QSize frameSize;
+	bool outline = false;
 };
 
 class DraggedGift final {
@@ -41,6 +47,7 @@ public:
 	[[nodiscard]] FlightPose pose() const;
 	[[nodiscard]] bool following() const;
 	[[nodiscard]] float64 liftScale() const;
+	[[nodiscard]] TravelArtwork takeArtwork();
 
 	void move(QPointF cursor);
 	void resize(float64 scale);
@@ -90,6 +97,7 @@ private:
 	void complete(bool arrived);
 
 	base::unique_qptr<Layer> _layer;
+	TravelArtwork _artwork;
 	Fn<std::optional<FlightPose>()> _target;
 	Fn<void(bool arrived)> _done;
 	Fn<void(const FlightPose &pose)> _moved;

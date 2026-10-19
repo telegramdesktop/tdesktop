@@ -8,8 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/weak_ptr.h"
+#include "history/view/media/history_view_sticker_player_abstract.h"
 #include "ui/effects/animations.h"
 #include "wallet/wallet_card_space.h"
+
+class DocumentData;
 
 namespace Data {
 struct WalletCardSticker;
@@ -27,9 +30,39 @@ namespace Wallet {
 
 struct CardLook;
 
+struct StickerPlayback {
+	std::unique_ptr<HistoryView::StickerPlayer> player;
+	QImage frame;
+	QSize frameSize;
+	int side = 0;
+	int index = 0;
+	bool advanced = false;
+	bool awaitingFrame = false;
+};
+
+struct StickerPlaybackStep {
+	QImage fresh;
+	bool show = false;
+	bool finished = false;
+};
+
+struct TravelArtwork {
+	StickerPlayback playback;
+	DocumentData *document = nullptr;
+	QImage rest;
+};
+
 void RefreshOwnCard(not_null<Main::Session*> session);
 [[nodiscard]] auto OwnCardStickersValue(not_null<Main::Session*> session)
 -> rpl::producer<std::vector<Data::WalletCardSticker>>;
+[[nodiscard]] QImage CardStickerOutlined(QImage frame, int ratio);
+
+[[nodiscard]] bool TravelArtworkPaused();
+void BindStickerPlayback(StickerPlayback &playback, Fn<void()> repaint);
+[[nodiscard]] StickerPlaybackStep AdvanceStickerPlayback(
+	StickerPlayback &playback,
+	crl::time now);
+[[nodiscard]] bool PresentStickerPlayback(StickerPlayback &playback);
 
 class CardStickers final : public base::has_weak_ptr {
 public:
@@ -46,7 +79,8 @@ public:
 	void land(
 		const QString &address,
 		float64 fromScale = 1.,
-		QImage frame = QImage());
+		QImage frame = QImage(),
+		TravelArtwork artwork = TravelArtwork());
 	void preview(const QString &address, const Data::StoryArea &area);
 	void clearPreview();
 	void play(const QString &address);
@@ -68,6 +102,7 @@ private:
 	void prepare(not_null<Entry*> entry, int side);
 	void createPlayer(not_null<Entry*> entry);
 	void capture(not_null<Entry*> entry);
+	void adoptArtwork(not_null<Entry*> entry, TravelArtwork &&artwork);
 	void compose(crl::time now);
 	[[nodiscard]] bool advance(not_null<Entry*> entry, crl::time now);
 	void presented(not_null<Entry*> entry);

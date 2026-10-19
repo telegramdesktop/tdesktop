@@ -103,7 +103,8 @@ private:
 	};
 	struct Drag {
 		QString address;
-		QImage frame;
+		DocumentData *document = nullptr;
+		QImage firstFrame;
 		uint64 generation = 0;
 		std::unique_ptr<DraggedGift> gift;
 	};
@@ -144,7 +145,8 @@ private:
 	void landSticker(
 		const QString &address,
 		float64 fromScale = 1.,
-		QImage frame = QImage());
+		QImage frame = QImage(),
+		TravelArtwork artwork = TravelArtwork());
 	void setReturning(const QString &address, bool returning);
 	void setLifted(const QString &address);
 	void setLeaving(const QString &address, bool leaving);
@@ -161,6 +163,7 @@ private:
 		QPointF local);
 	void landDrag(uint64 generation, std::optional<float64> releasedSide);
 	void returnDrag();
+	void restoreSquare(uint64 generation);
 	void vanishDrag();
 	void dragFinished(uint64 generation);
 	void finishTravel();
@@ -188,6 +191,7 @@ private:
 	const QSize _singleMin;
 	CardColorToast _colorToast;
 	std::vector<CollectibleRecord> _records;
+	base::flat_set<QString> _seen;
 	base::flat_map<QString, Square> _squares;
 	base::flat_set<QString> _onCard;
 	base::unique_qptr<Ui::PopupMenu> _menu;
@@ -801,24 +805,33 @@ void CollectiblesGrid::startDrag(QPoint global) {
 	_press.draggable = false;
 	const auto address = _press.address;
 	const auto source = dragSource(address);
-	const auto frame = source ? squareFrame(address) : QImage();
+	const auto i = source ? _squares.find(address) : end(_squares);
+	const auto button = (i != end(_squares)) ? i->second.gift.get() : nullptr;
+	auto player = button ? button->takePlayer() : nullptr;
+	const auto frame = button ? button->currentStickerFrame() : QImage();
 	if (frame.isNull()) {
 		return;
 	}
+	const auto document = i->second.record.gift->document.get();
 	const auto press = base::take(_press);
 	holdSticker(address);
 	setLifted(address);
 	_drag = Drag{
 		.address = address,
-		.frame = frame,
+		.document = document,
+		.firstFrame = frame,
 		.generation = ++_lastDragGeneration,
 		.gift = std::make_unique<DraggedGift>(DraggedGiftArgs{
 			.body = _host.body,
 			.titleExtension = st::separatePanelTitleHeight,
-			.image = frame,
 			.source = *source,
 			.cursor = _host.body->mapFromGlobal(global),
 			.grab = press.grab,
+			.player = std::move(player),
+			.firstFrame = frame,
+			.document = document,
+			.frameSize = st::giftBoxStickerSize,
+			.outline = true,
 		}),
 	};
 	if (_host.bring) {
@@ -875,8 +888,8 @@ void CollectiblesGrid::dropDrag(const FlightPose &released) {
 	if (!kind) {
 		returnDrag();
 	} else if (*kind == CardDropKind::InPlace) {
-		_drag.gift = nullptr;
 		landDrag(generation, released.side);
+		_drag.gift = nullptr;
 	} else {
 		_drag.gift->settle([=] {
 			return shownPose(address);
@@ -924,11 +937,12 @@ void CollectiblesGrid::landDrag(
 		return;
 	}
 	const auto address = _drag.address;
+	auto artwork = _drag.gift ? _drag.gift->takeArtwork() : TravelArtwork();
 	if (const auto target = shownPose(address)) {
 		const auto scale = releasedSide
 			? (*releasedSide / target->side)
 			: 1.;
-		landSticker(address, scale, _drag.frame);
+		landSticker(address, scale, QImage(), std::move(artwork));
 	} else {
 		releaseSticker(address);
 	}
@@ -944,10 +958,27 @@ void CollectiblesGrid::returnDrag() {
 	}
 	_drag.gift->returnTo([=] {
 		return squarePose(address);
-	}, [=](bool) {
+	}, [=](bool arrived) {
+		if (arrived) {
+			restoreSquare(generation);
+		}
 		dragFinished(generation);
 	});
 	releaseSticker(address);
+}
+
+void CollectiblesGrid::restoreSquare(uint64 generation) {
+	if (_drag.generation != generation || !_drag.gift || !_drag.document) {
+		return;
+	}
+	auto artwork = _drag.gift->takeArtwork();
+	const auto i = _squares.find(_drag.address);
+	if (i != end(_squares) && i->second.gift) {
+		i->second.gift->restorePlayer(
+			not_null(_drag.document),
+			std::move(artwork.playback.player),
+			_drag.firstFrame);
+	}
 }
 
 void CollectiblesGrid::vanishDrag() {
@@ -1464,10 +1495,15 @@ void CollectiblesGrid::releaseSticker(const QString &address) {
 void CollectiblesGrid::landSticker(
 		const QString &address,
 		float64 fromScale,
-		QImage frame) {
+		QImage frame,
+		TravelArtwork artwork) {
 	_held.remove(address);
 	if (const auto painter = _host.painter.get()) {
-		painter->land(address, fromScale, std::move(frame));
+		painter->land(
+			address,
+			fromScale,
+			std::move(frame),
+			std::move(artwork));
 	}
 }
 
@@ -1587,6 +1623,7 @@ auto CollectiblesGrid::createGiftButton(const QString &address)
 		this,
 		&_delegate);
 	const auto raw = result.get();
+	raw->setKeepFirstFrame(true);
 	raw->setClickedCallback([=] {
 		activate(address);
 	});
@@ -1601,6 +1638,13 @@ auto CollectiblesGrid::createGiftButton(const QString &address)
 		} else if (e->type() == QEvent::MouseButtonRelease) {
 			mouseReleaseEvent(e);
 		}
+	}, raw->lifetime());
+	raw->setPlayback(_seen.contains(address)
+		? Info::PeerGifts::GiftButtonPlayback::Rest
+		: Info::PeerGifts::GiftButtonPlayback::Once);
+	raw->firstFrameShown(
+	) | rpl::on_next([=] {
+		_seen.emplace(address);
 	}, raw->lifetime());
 	raw->show();
 	return result;
