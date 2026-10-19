@@ -68,6 +68,7 @@ public:
 	void setLoading(bool loading);
 	void stealFocus();
 	void returnFocus();
+	void refreshColors();
 
 	[[nodiscard]] static int IconSizeOverride();
 
@@ -101,6 +102,7 @@ private:
 	QPointer<RpWidget> _rightEdge;
 	rpl::variable<float64> _fadeOpacity = 0.;
 	int _fadeLeftStart = 0;
+	int _fieldCursorWidth = 0;
 
 	rpl::variable<int> _fieldPlaceholderWidth;
 	rpl::variable<bool> _fieldEmpty = true;
@@ -113,6 +115,7 @@ private:
 	rpl::variable<std::vector<QString>> _debouncedQuery;
 	rpl::variable<QString> _chosenGroup;
 	base::Timer _debounceTimer;
+	bool _fieldPushed = false;
 	bool _inited = false;
 
 };
@@ -137,6 +140,7 @@ public:
 	void stealFocus();
 	void returnFocus();
 	void setRightReserved(int value);
+	void refreshColors();
 
 private:
 	void updateSearchGeometry();

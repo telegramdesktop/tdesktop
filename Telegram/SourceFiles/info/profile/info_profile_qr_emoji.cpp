@@ -41,6 +41,11 @@ constexpr auto kBadgePopDuration = crl::time(110);
 constexpr auto kBadgeAlpha = 0.6;
 constexpr auto kHoverAlpha = 0.08;
 constexpr auto kMarkedAlpha = 0.16;
+constexpr auto kFillAlpha = 0.2;
+constexpr auto kWeakAlpha = 0.88;
+constexpr auto kChosenAlpha = 0.4;
+constexpr auto kThumbAlpha = 0.6;
+constexpr auto kThumbOverAlpha = 0.8;
 
 struct PickerState {
 	std::vector<Data::ReactionId> initial;
@@ -59,7 +64,8 @@ public:
 	PicksStrip(
 		not_null<QWidget*> parent,
 		not_null<Main::Session*> session,
-		const style::color &fill);
+		const style::color &fill,
+		const style::color &ink);
 
 	void setPicks(const std::vector<QString> &keys, bool animated);
 
@@ -75,6 +81,7 @@ private:
 
 	const not_null<Main::Session*> _session;
 	const style::color &_fill;
+	const style::color &_ink;
 	std::vector<Slot> _slots;
 	Ui::Animations::Simple _width;
 	int _frameSize = 0;
@@ -87,6 +94,11 @@ struct PickerStyle {
 	style::owned_color ink;
 	style::owned_color hover;
 	style::owned_color marked;
+	style::owned_color fill;
+	style::owned_color weak;
+	style::owned_color chosen;
+	style::owned_color thumb;
+	style::owned_color thumbOver;
 	style::EmojiPan pan;
 };
 
@@ -360,10 +372,12 @@ void StartPops(
 PicksStrip::PicksStrip(
 	not_null<QWidget*> parent,
 	not_null<Main::Session*> session,
-	const style::color &fill)
+	const style::color &fill,
+	const style::color &ink)
 : RpWidget(parent)
 , _session(session)
 , _fill(fill)
+, _ink(ink)
 , _frameSize(Data::FrameSizeFromTag(SizeTag::Isolated)
 	/ style::DevicePixelRatio()) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -448,24 +462,11 @@ void PicksStrip::paintEvent(QPaintEvent *e) {
 		transform.translate(-frame / 2., -frame / 2.);
 		p.setTransform(transform);
 		slot.emoji->paint(p, {
-			.textColor = st::windowFg->c,
+			.textColor = _ink->c,
 			.now = now,
 			.paused = paused,
 		});
 	}
-}
-
-PickerStyle::PickerStyle()
-: ink(QColor(255, 255, 255))
-, hover(anim::with_alpha(QColor(255, 255, 255), kHoverAlpha))
-, marked(anim::with_alpha(QColor(255, 255, 255), kMarkedAlpha))
-, pan(st::peerQrEmojiPan) {
-	pan.headerFg = ink.color();
-	pan.textFg = ink.color();
-	pan.tabs.labelFg = ink.color();
-	pan.overBg = hover.color();
-	pan.markedBg = marked.color();
-	pan.categoriesBgOver = marked.color();
 }
 
 void ApplyPickerColors(
@@ -474,6 +475,44 @@ void ApplyPickerColors(
 	picker->ink.update(foreground);
 	picker->hover.update(anim::with_alpha(foreground, kHoverAlpha));
 	picker->marked.update(anim::with_alpha(foreground, kMarkedAlpha));
+	picker->fill.update(anim::with_alpha(foreground, kFillAlpha));
+	picker->weak.update(anim::with_alpha(foreground, kWeakAlpha));
+	picker->chosen.update(anim::with_alpha(foreground, kChosenAlpha));
+	picker->thumb.update(anim::with_alpha(foreground, kThumbAlpha));
+	picker->thumbOver.update(anim::with_alpha(foreground, kThumbOverAlpha));
+}
+
+PickerStyle::PickerStyle()
+: ink(QColor(255, 255, 255))
+, hover(QColor(255, 255, 255))
+, marked(QColor(255, 255, 255))
+, fill(QColor(255, 255, 255))
+, weak(QColor(255, 255, 255))
+, chosen(QColor(255, 255, 255))
+, thumb(QColor(255, 255, 255))
+, thumbOver(QColor(255, 255, 255))
+, pan(st::peerQrEmojiPan) {
+	pan.headerFg = ink.color();
+	pan.textFg = ink.color();
+	pan.tabs.labelFg = ink.color();
+	pan.overBg = hover.color();
+	pan.markedBg = marked.color();
+	pan.categoriesBgOver = marked.color();
+	pan.scroll.bg = st::transparent;
+	pan.scroll.bgOver = marked.color();
+	pan.scroll.barBg = thumb.color();
+	pan.scroll.barBgOver = thumbOver.color();
+	auto &search = pan.search;
+	search.bg = fill.color();
+	search.bgActive = chosen.color();
+	search.fg = weak.color();
+	search.fgActive = ink.color();
+	search.field.textFg = ink.color();
+	search.field.placeholderFg = weak.color();
+	search.field.placeholderFgActive = weak.color();
+	search.cancel.crossFg = ink.color();
+	search.cancel.crossFgOver = ink.color();
+	ApplyPickerColors(this, QColor(255, 255, 255));
 }
 
 } // namespace
@@ -553,7 +592,8 @@ QrEmojiPicker CreateQrEmojiPicker(
 	const auto strip = Ui::CreateChild<PicksStrip>(
 		selector,
 		session,
-		st::peerQrEmojiStripBg);
+		pickerStyle->fill.color(),
+		pickerStyle->ink.color());
 	strip->setPicks(state->picks, false);
 	strip->raise();
 	selector->sizeValue() | rpl::on_next([=](QSize size) {
@@ -614,6 +654,7 @@ QrEmojiPicker CreateQrEmojiPicker(
 		.setColors = crl::guard(selector, [=](
 				const Ui::PeerQrColors &colors) {
 			ApplyPickerColors(pickerStyle.get(), colors.foreground);
+			selector->refreshSearchColors();
 			selector->update();
 		}),
 	};

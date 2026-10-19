@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 
 #include <QtWidgets/QApplication>
+#include <QtWidgets/QTextEdit>
 
 namespace Ui {
 namespace {
@@ -61,6 +62,7 @@ private:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 
+	void paintButtons(QPainter &p, QRect clip);
 	void fireChosenGroup();
 
 	static inline auto FindById(auto &&buttons, QStringView id) {
@@ -86,6 +88,14 @@ private:
 		return { last };
 	}
 	return {};
+}
+
+[[nodiscard]] bool Floating(const style::TabbedSearch &st) {
+	return !st.outer->c.alpha();
+}
+
+[[nodiscard]] int FadeLeftStart(const style::TabbedSearch &st) {
+	return st.search.iconPosition.x() + st.search.icon.width();
 }
 
 GroupsStrip::GroupsStrip(
@@ -174,7 +184,11 @@ void GroupsStrip::set(std::vector<EmojiGroup> list) {
 
 void GroupsStrip::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
-	if (!_st.outer->c.alpha()) {
+	if (!Floating(_st)) {
+		paintButtons(p, e->rect());
+		return;
+	}
+	{
 		const auto pill = QRect(mapFrom(_pill.get(), QPoint()), _pill->size());
 		const auto radius = pill.height() / 2.;
 		auto path = QPainterPath();
@@ -182,11 +196,36 @@ void GroupsStrip::paintEvent(QPaintEvent *e) {
 		auto hq = PainterHighQualityEnabler(p);
 		p.setClipPath(path);
 	}
+	const auto fade = mapFrom(_pill.get(), QPoint(FadeLeftStart(_st), 0)).x();
+	const auto ramp = _st.fadeLeft.width();
+	if (fade + ramp <= 0) {
+		paintButtons(p, e->rect());
+		return;
+	} else if (size().isEmpty()) {
+		return;
+	}
+	// A translucent pill can't be painted over, so the fade erases the icons.
+	const auto ratio = style::DevicePixelRatio();
+	auto layer = QImage(size() * ratio, QImage::Format_ARGB32_Premultiplied);
+	layer.setDevicePixelRatio(ratio);
+	layer.fill(Qt::transparent);
+	auto q = QPainter(&layer);
+	paintButtons(q, e->rect());
+	q.setCompositionMode(QPainter::CompositionMode_DestinationOut);
+	const auto erase = QColor(0, 0, 0);
+	if (fade > 0) {
+		q.fillRect(QRect(0, 0, fade, height()), erase);
+	}
+	_st.fadeLeft.fill(q, QRect(fade, 0, ramp, height()), erase);
+	q.end();
+	p.drawImage(0, 0, layer);
+}
+
+void GroupsStrip::paintButtons(QPainter &p, QRect clip) {
 	auto index = 0;
 	const auto single = _st.groupWidth;
 	const auto skip = _st.groupSkip;
 	const auto height = this->height();
-	const auto clip = e->rect();
 	const auto now = crl::now();
 	for (const auto &button : _buttons) {
 		const auto left = index * single;
@@ -324,6 +363,7 @@ anim::type SearchWithGroups::animated() const {
 }
 
 void SearchWithGroups::initField() {
+	_fieldCursorWidth = _field->rawTextEdit()->cursorWidth();
 	_field->changes(
 	) | rpl::on_next([=] {
 		const auto last = FieldQuery(_field);
@@ -362,8 +402,7 @@ void SearchWithGroups::initField() {
 void SearchWithGroups::initGroups() {
 	const auto widget = static_cast<GroupsStrip*>(_groups->entity());
 
-	const auto &search = _st.search;
-	_fadeLeftStart = search.iconPosition.x() + search.icon.width();
+	_fadeLeftStart = FadeLeftStart(_st);
 	_groups->move(_fadeLeftStart + _st.defaultFieldWidth, 0);
 	widget->resize(widget->width(), _st.height);
 	widget->widthValue(
@@ -439,7 +478,7 @@ void SearchWithGroups::scrollGroupsTo(int left) {
 }
 
 void SearchWithGroups::initEdges() {
-	const auto floating = !_st.outer->c.alpha();
+	const auto floating = Floating(_st);
 	paintRequest() | rpl::on_next([=](QRect clip) {
 		auto p = QPainter(this);
 		if (floating) {
@@ -491,20 +530,7 @@ void SearchWithGroups::initEdges() {
 		p.setOpacity(_fadeOpacity.current());
 		const auto fill = QRect(0, 0, _fadeLeftStart, _st.height);
 		if (fill.intersects(clip)) {
-			if (floating) {
-				p.setClipRect(fill);
-				auto hq = PainterHighQualityEnabler(p);
-				p.setPen(Qt::NoPen);
-				p.setBrush(_st.bg);
-				const auto radius = _st.height / 2.;
-				p.drawRoundedRect(
-					QRect(0, 0, width(), _st.height),
-					radius,
-					radius);
-				p.setClipping(false);
-			} else {
-				p.fillRect(fill, _st.bg);
-			}
+			p.fillRect(fill, _st.bg);
 		}
 		const auto icon = QRect(
 			_fadeLeftStart,
@@ -516,6 +542,9 @@ void SearchWithGroups::initEdges() {
 		}
 	}, _fade->lifetime());
 	_fade->setAttribute(Qt::WA_TransparentForMouseEvents);
+	if (floating) {
+		_fade->hide();
+	}
 
 	style::PaletteChanged(
 	) | rpl::on_next([=] {
@@ -544,6 +573,9 @@ void SearchWithGroups::initButtons() {
 	_search->raise();
 	_back->raise();
 	_cancel->raise();
+	if (Floating(_st)) {
+		refreshColors();
+	}
 }
 
 void SearchWithGroups::ensureRounding(int size, float64 ratio) {
@@ -599,6 +631,17 @@ void SearchWithGroups::returnFocus() {
 		}
 		_focusTakenFrom = nullptr;
 	}
+}
+
+void SearchWithGroups::refreshColors() {
+	_field->updatePalette();
+	if (Floating(_st)) {
+		_field->document()->clearUndoRedoStacks();
+		const auto icon = _st.fgActive->c;
+		_search->entity()->setIconColorOverride(icon);
+		_back->entity()->setIconColorOverride(icon);
+	}
+	update();
 }
 
 int SearchWithGroups::IconSizeOverride() {
@@ -659,7 +702,14 @@ void SearchWithGroups::moveGroupsTo(int width, int to) {
 		: _fadeLeftStart;
 	_field->moveToLeft(fieldLeft, 0);
 
-	if (fieldLeft >= _fadeLeftStart) {
+	if (Floating(_st)) {
+		const auto pushed = (fieldLeft < _fadeLeftStart);
+		_field->setPlaceholderHidden(pushed);
+		if (std::exchange(_fieldPushed, pushed) != pushed) {
+			_field->rawTextEdit()->setCursorWidth(
+				pushed ? 0 : _fieldCursorWidth);
+		}
+	} else if (fieldLeft >= _fadeLeftStart) {
 		if (!_fade->isHidden()) {
 			_fade->hide();
 		}
@@ -725,6 +775,10 @@ void TabbedSearch::setRightReserved(int value) {
 	}
 	_rightReserved = value;
 	updateSearchGeometry();
+}
+
+void TabbedSearch::refreshColors() {
+	_search.refreshColors();
 }
 
 rpl::producer<> TabbedSearch::escapes() const {

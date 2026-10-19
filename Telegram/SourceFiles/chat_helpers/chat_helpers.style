@@ -135,6 +135,7 @@ EmojiPan {
 	expandedSeparator: MenuSeparator;
 	tabs: SettingsSlider;
 	search: TabbedSearch;
+	scroll: ScrollArea;
 	searchMargin: margins;
 	searchPacksTop: pixels;
 	searchPackWidth: pixels;
@@ -783,6 +784,14 @@ defaultEmojiPanAbout: FlatLabel(defaultFlatLabel) {
 		font: font(11px);
 	}
 }
+emojiScroll: ScrollArea(defaultSolidScroll) {
+	deltat: 3px;
+	deltab: 3px;
+	round: -1px;
+	width: 7px;
+	deltax: 2px;
+	hiding: 0;
+}
 defaultEmojiPan: EmojiPan {
 	margin: margins(7px, 0px, 7px, 0px);
 	padding: margins(7px, 0px, 4px, 7px);
@@ -820,6 +829,7 @@ defaultEmojiPan: EmojiPan {
 	}
 	tabs: emojiTabs;
 	search: defaultTabbedSearch;
+	scroll: emojiScroll;
 	searchMargin: margins(1px, 11px, 2px, 5px);
 	searchPacksTop: 0px;
 	searchPackWidth: 70px;
@@ -956,14 +966,6 @@ userpicBuilderEmojiPan: EmojiPan(statusEmojiPan) {
 }
 reactPanelEmojiPan: EmojiPan(userpicBuilderEmojiPan) {
 	searchMargin: margins(1px, 10px, 2px, 6px);
-}
-emojiScroll: ScrollArea(defaultSolidScroll) {
-	deltat: 3px;
-	deltab: 3px;
-	round: -1px;
-	width: 7px;
-	deltax: 2px;
-	hiding: 0;
 }
 reactPanelScroll: ScrollArea(emojiScroll) {
 	deltab: 7px;

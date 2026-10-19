@@ -670,6 +670,12 @@ void EmojiListWidget::setSearchRightReserved(int value) {
 	}
 }
 
+void EmojiListWidget::refreshSearchColors() {
+	if (_search) {
+		_search->refreshColors();
+	}
+}
+
 rpl::producer<std::vector<QString>> EmojiListWidget::searchQueries() const {
 	return _searchQueries.events();
 }

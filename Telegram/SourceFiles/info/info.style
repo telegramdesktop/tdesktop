@@ -1363,25 +1363,11 @@ peerQrEmojiPan: EmojiPan(statusEmojiPan) {
 	fadeRight: icon {{ "fade_horizontal", transparent }};
 	search: TabbedSearch(defaultTabbedSearch) {
 		outer: transparent;
-		fg: boxTitleAdditionalFg;
-		fgActive: emojiSubIconFgActive;
-		fadeLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanHover }};
-		fadeRight: icon {{ "fade_horizontal", emojiPanHover }};
-		field: InputField(defaultTabbedSearchField) {
-			placeholderFg: boxTitleAdditionalFg;
-			placeholderFgActive: boxTitleAdditionalFg;
-		}
-		search: IconButton(defaultTabbedSearchButton) {
-			icon: icon{{ "emoji/emoji_search_input", emojiSubIconFgActive }};
-			iconOver: icon{{ "emoji/emoji_search_input", emojiSubIconFgActive }};
-		}
+		fadeLeft: icon {{ "fade_horizontal-flip_horizontal", transparent }};
+		fadeRight: icon {{ "fade_horizontal", transparent }};
 		back: IconButton(defaultTabbedSearchBack) {
 			icon: icon{{ "emoji/emoji_back", emojiSubIconFgActive }};
 			iconOver: icon{{ "emoji/emoji_back", emojiSubIconFgActive }};
-		}
-		cancel: CrossButton(defaultTabbedSearchCancel) {
-			crossFg: emojiSubIconFgActive;
-			crossFgOver: emojiSubIconFgActive;
 		}
 	}
 	photoButtonIcon: icon {{ "photo_editor/camera-24x24", windowFg }};
@@ -1396,4 +1382,3 @@ peerQrEmojiStripSkip: 34px;
 peerQrEmojiStripSize: 26px;
 peerQrEmojiStripPadding: 9px;
 peerQrEmojiStripBottom: 18px;
-peerQrEmojiStripBg: windowBgRipple;

@@ -170,6 +170,7 @@ public:
 	void setMarkedCustomPainter(
 		Fn<void(QPainter&, QRect, DocumentId)> painter);
 	void setSearchRightReserved(int value);
+	void refreshSearchColors();
 
 	void hideFinished();
 	void showStarted();
