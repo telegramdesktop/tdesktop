@@ -166,7 +166,6 @@ private:
 	[[nodiscard]] float64 showListenAnimationRatio() const;
 	[[nodiscard]] float64 activeAnimationRatio() const;
 
-	void computeAndSetLockProgress(QPoint globalPos);
 	[[nodiscard]] float64 calcLockProgress(QPoint globalPos);
 
 	[[nodiscard]] bool peekTTLState() const;
