@@ -83,6 +83,8 @@ struct FreeCodesState {
 	base::weak_ptr<Toast::Instance> toast;
 };
 
+class PeerQrButton;
+
 struct AppearanceState {
 	PeerQrPanel *colorsPanel = nullptr;
 	PeerQrColorsPanel *colors = nullptr;
@@ -95,6 +97,7 @@ struct AppearanceState {
 		Fn<void()>,
 		Fn<void(QString)>)> saveGift;
 	RpWidget *island = nullptr;
+	std::vector<not_null<PeerQrButton*>> controls;
 	std::vector<PeerQrSwatch> swatches;
 	std::vector<QString> emojiPicks;
 	std::optional<PeerQrSwatch> current;
@@ -103,7 +106,7 @@ struct AppearanceState {
 	std::optional<PeerQrThemeKey> saving;
 	std::optional<PeerQrSwatch> pending;
 	bool canSave = false;
-	bool sideShown = true;
+	bool panelShown = false;
 	bool shown = false;
 	bool giftsActive = false;
 	float64 progress = 0.;
@@ -155,6 +158,7 @@ public:
 
 	void setColors(QColor disc, QColor icon);
 	void setBusy(bool busy);
+	void setOpacity(float64 opacity);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -163,6 +167,7 @@ private:
 	InfiniteRadialAnimation _loading;
 	QColor _disc;
 	QColor _icon;
+	float64 _opacity = 1.;
 	bool _busy = false;
 
 };
@@ -209,7 +214,6 @@ PeerQrButton::PeerQrButton(QWidget *parent, const style::IconButton &st)
 void PeerQrButton::setColors(QColor disc, QColor icon) {
 	_disc = disc;
 	_icon = icon;
-	setIconColorOverride(icon);
 	update();
 }
 
@@ -226,10 +230,19 @@ void PeerQrButton::setBusy(bool busy) {
 	update();
 }
 
+void PeerQrButton::setOpacity(float64 opacity) {
+	if (_opacity == opacity) {
+		return;
+	}
+	_opacity = opacity;
+	update();
+}
+
 void PeerQrButton::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+	p.setOpacity(_opacity);
 	const auto disc = rect();
 	{
-		auto p = QPainter(this);
 		auto hq = PainterHighQualityEnabler(p);
 		const auto radius = disc.height() / 2.;
 		p.setPen(Qt::NoPen);
@@ -251,7 +264,8 @@ void PeerQrButton::paintEvent(QPaintEvent *e) {
 			return;
 		}
 	}
-	IconButton::paintEvent(e);
+	paintRipple(p, st().rippleAreaPosition);
+	st().icon.paintInCenter(p, disc, _icon);
 }
 
 AboutAction::AboutAction(
@@ -384,6 +398,7 @@ int AboutAction::contentHeight() const {
 
 [[nodiscard]] not_null<RpWidget*> AddIsland(
 		not_null<PeerQrSurface*> surface,
+		not_null<const AppearanceState*> appearance,
 		int buttons) {
 	const auto result = CreateChild<RpWidget>(surface.get());
 	result->resize(
@@ -393,6 +408,10 @@ int AboutAction::contentHeight() const {
 		result->update();
 	}, result->lifetime());
 	result->paintRequest() | rpl::on_next([=] {
+		// a panel's glass grows from this pill and takes its place
+		if (appearance->panelShown) {
+			return;
+		}
 		auto p = QPainter(result);
 		auto hq = PainterHighQualityEnabler(p);
 		const auto radius = result->height() / 2.;
@@ -405,6 +424,7 @@ int AboutAction::contentHeight() const {
 
 [[nodiscard]] not_null<PeerQrButton*> AddIslandButton(
 		not_null<RpWidget*> island,
+		not_null<AppearanceState*> appearance,
 		not_null<PeerQrSurface*> surface,
 		int index,
 		const style::IconButton &st,
@@ -418,6 +438,7 @@ int AboutAction::contentHeight() const {
 		result->setColors(QColor(Qt::transparent), colors.foreground);
 	}, result->lifetime());
 	result->setAccessibleName(name);
+	appearance->controls.push_back(result);
 	return result;
 }
 
@@ -953,6 +974,22 @@ void SetupFreeCodes(
 	return nullptr;
 }
 
+void RefreshControls(not_null<AppearanceState*> appearance) {
+	Expects(appearance->island != nullptr);
+
+	const auto island = appearance->island;
+	const auto opacity = 1. - appearance->progress;
+	const auto shown = (opacity > 0.);
+	const auto blocked = appearance->panelShown;
+	for (const auto control : appearance->controls) {
+		control->setOpacity(opacity);
+		control->setVisible(shown);
+		control->setAttribute(Qt::WA_TransparentForMouseEvents, blocked);
+	}
+	island->setVisible(shown && appearance->canSave);
+	island->setAttribute(Qt::WA_TransparentForMouseEvents, blocked);
+}
+
 void SetEmojiPicks(
 		not_null<AppearanceState*> appearance,
 		std::vector<QString> picks) {
@@ -1233,11 +1270,16 @@ void SetupAppearance(
 		not_null<PeerQrButton*> copy,
 		PeerQrButton *share) {
 	const auto appearance = &state->appearance;
+	appearance->controls.push_back(copy);
+	if (share) {
+		appearance->controls.push_back(share);
+	}
 	const auto withEmoji = controller
 		&& (&controller->session() == &peer->session());
-	const auto island = AddIsland(surface, withEmoji ? 3 : 2);
+	const auto island = AddIsland(surface, appearance, withEmoji ? 3 : 2);
 	const auto colorsButton = AddIslandButton(
 		island,
+		appearance,
 		surface,
 		0,
 		st::peerQrColors,
@@ -1272,22 +1314,16 @@ void SetupAppearance(
 		}
 	}, box->lifetime());
 
-	const auto refreshControls = [=] {
-		island->setVisible(appearance->sideShown && appearance->canSave);
-	};
-	const auto setSideShown = [=](bool shown) {
-		appearance->sideShown = shown;
-		copy->setVisible(shown);
-		if (share) {
-			share->setVisible(shown);
-		}
-		refreshControls();
+	const auto setPanelShown = [=](bool shown) {
+		appearance->panelShown = shown;
+		island->update();
+		RefreshControls(appearance);
 	};
 	const auto openPanel = [=](not_null<PeerQrPanel*> panel) {
-		if (OpenPanel(appearance)) {
+		if (appearance->panelShown) {
 			return;
 		}
-		setSideShown(false);
+		setPanelShown(true);
 		box->setCloseByEscape(false);
 		panel->toggle(true, anim::type::normal);
 	};
@@ -1312,6 +1348,7 @@ void SetupAppearance(
 			controller,
 			AddIslandButton(
 				island,
+				appearance,
 				surface,
 				1,
 				st::peerQrEmoji,
@@ -1326,11 +1363,19 @@ void SetupAppearance(
 		withEmoji ? controller : nullptr,
 		AddIslandButton(
 			island,
+			appearance,
 			surface,
 			withEmoji ? 2 : 1,
 			st::peerQrGift,
 			tr::lng_qr_box_gifts(tr::now)),
 		openPanel);
+
+	// the controls fade above the panels' glass, never under it
+	island->raise();
+	copy->raise();
+	if (share) {
+		share->raise();
+	}
 
 	Info::Profile::QrServedThemeValue(
 		peer
@@ -1357,7 +1402,7 @@ void SetupAppearance(
 				RevertToServed(surface, appearance);
 			}
 		}
-		refreshControls();
+		RefreshControls(appearance);
 	}, box->lifetime());
 	const auto emojiPanel = appearance->emojiPanel;
 	const auto giftsPanel = appearance->giftsPanel;
@@ -1386,7 +1431,7 @@ void SetupAppearance(
 					box->setCloseByEscape(true);
 				}
 			});
-			setSideShown(true);
+			setPanelShown(false);
 		}, box->lifetime());
 	}
 
@@ -1646,6 +1691,7 @@ void FillPeerQrBox(
 				giftsShown,
 			});
 			appearance.giftsActive = (giftsShown > 0.);
+			RefreshControls(&appearance);
 			relayout();
 		}, box->lifetime());
 	}
