@@ -2114,13 +2114,6 @@ Data::Thread *Suggestions::updateFromChannelsDrag(QPoint globalPosition) {
 	return fromListId(_recommendations->updateFromParentDrag(globalPosition));
 }
 
-Data::Thread *Suggestions::updateFromAppsDrag(QPoint globalPosition) {
-	if (const auto id = _recentApps->updateFromParentDrag(globalPosition)) {
-		return fromListId(id);
-	}
-	return fromListId(_popularApps->updateFromParentDrag(globalPosition));
-}
-
 Data::Thread *Suggestions::fromListId(uint64 peerListRowId) {
 	return peerListRowId
 		? _controller->session().data().history(PeerId(peerListRowId)).get()

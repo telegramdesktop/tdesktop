@@ -4862,10 +4862,6 @@ Data::Forum *InnerWidget::shownForum() const {
 	return _openedForum;
 }
 
-Data::CommunityInfo *InnerWidget::shownCommunity() const {
-	return _openedCommunity;
-}
-
 bool InnerWidget::needCollapsedRowsRefresh() const {
 	const auto archive = !_shownList->empty()
 		? _shownList->begin()->get()->folder()
@@ -5639,19 +5635,6 @@ void InnerWidget::preloadRowsData() {
 			}
 		}
 	}
-}
-
-bool InnerWidget::chooseCollapsedRow(Qt::KeyboardModifiers modifiers) {
-	if (_state != WidgetState::Default) {
-		return false;
-	} else if ((_collapsedSelected < 0)
-		|| (_collapsedSelected >= _collapsedRows.size())) {
-		return false;
-	}
-	const auto &row = _collapsedRows[_collapsedSelected];
-	Assert(row->folder != nullptr);
-	_controller->openFolder(row->folder);
-	return true;
 }
 
 void InnerWidget::switchToFilter(FilterId filterId) {
