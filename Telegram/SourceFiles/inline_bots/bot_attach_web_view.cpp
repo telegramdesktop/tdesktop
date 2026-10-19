@@ -1611,6 +1611,7 @@ bool WebViewInstance::botHandleLocalUri(QString uri, bool keepOpen) {
 	if (Core::InternalPassportOrOAuthLink(local)) {
 		return true;
 	} else if (!local.startsWith(u"tg://"_q, Qt::CaseInsensitive)
+		&& !Core::IsGetPremiumLocalUrl(local)
 		&& !local.startsWith(u"tonsite://"_q, Qt::CaseInsensitive)
 		&& !local.startsWith(u"ton://"_q, Qt::CaseInsensitive)) {
 		return false;

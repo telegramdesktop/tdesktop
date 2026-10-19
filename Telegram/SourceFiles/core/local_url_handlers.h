@@ -46,6 +46,7 @@ struct LocalUrlHandler {
 [[nodiscard]] const std::vector<LocalUrlHandler> &InternalUrlHandlers();
 
 [[nodiscard]] QString TryConvertUrlToLocal(QString url);
+[[nodiscard]] bool IsGetPremiumLocalUrl(const QString &url);
 
 [[nodiscard]] bool IsMiniAppUrl(const QString &url);
 

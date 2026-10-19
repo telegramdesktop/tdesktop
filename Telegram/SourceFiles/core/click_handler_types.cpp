@@ -627,7 +627,10 @@ void BotGameUrlClickHandler::onClick(ClickContext context) const {
 		: nullptr;
 	const auto media = item ? item->media() : nullptr;
 	const auto game = media ? media->game() : nullptr;
-	if (url.startsWith(u"tg://"_q, Qt::CaseInsensitive) || !_bot || !game) {
+	if (url.startsWith(u"tg://"_q, Qt::CaseInsensitive)
+		|| Core::IsGetPremiumLocalUrl(url)
+		|| !_bot
+		|| !game) {
 		openLink();
 		return;
 	}

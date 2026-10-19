@@ -1256,7 +1256,9 @@ void Application::checkStartUrls() {
 				return false;
 			} else if (_lastActivePrimaryWindow) {
 				const auto local = TryConvertUrlToLocal(url.toString());
-				return !openLocalUrl(local, {});
+				return IsGetPremiumLocalUrl(local)
+					? !openInternalUrl(local, {})
+					: !openLocalUrl(local, {});
 			}
 			return true;
 		}) | ranges::to<QList<QUrl>>;
