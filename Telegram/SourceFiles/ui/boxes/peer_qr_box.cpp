@@ -1114,14 +1114,13 @@ void SetupEmojiPanel(
 		not_null<PeerQrButton*> button,
 		Fn<void(not_null<PeerQrPanel*>)> openPanel) {
 	const auto container = CreateChild<PeerQrPanel>(surface.get());
+	container->setRadius(st::emojiPanRadius);
 	appearance->emojiPanel = container;
-	const auto refreshColors = [=](const PeerQrColors &colors) {
-		container->setColors(colors.control, st::emojiPanBg->c);
-	};
-	surface->colorsValue(
-	) | rpl::on_next(refreshColors, container->lifetime());
-	style::PaletteChanged() | rpl::on_next([=] {
-		refreshColors(surface->colors());
+	surface->colorsValue() | rpl::on_next([=](const PeerQrColors &colors) {
+		container->setColors(colors.control, colors.glass);
+		if (appearance->picker) {
+			appearance->picker->setColors(colors);
+		}
 	}, container->lifetime());
 	container->progressValue() | rpl::filter([](float64 progress) {
 		return (progress >= 1.);
@@ -1141,7 +1140,8 @@ void SetupEmojiPanel(
 				container,
 				strong,
 				appearance->emojiPicks);
-			container->setContent(picker.widget, PeerQrPanelContent::Opaque);
+			picker.setColors(surface->colors());
+			container->setContent(picker.widget, PeerQrPanelContent::Masked);
 			std::move(picker.chosen) | rpl::on_next([=](const QString &key) {
 				ChooseEmoji(surface, appearance, key);
 			}, picker.widget->lifetime());

@@ -39,7 +39,7 @@ constexpr auto kGlassAlpha = 0.25;
 	return anim::easeOutCubic(1., std::clamp(progress, 0., 1.));
 }
 
-// Only whole pixels inside the arc, so the glass hairline stays uncovered.
+// Only whole pixels inside the arc, so content never covers the glass edge.
 [[nodiscard]] QRegion InnerRoundedRegion(QSize size, int radius) {
 	const auto width = size.width();
 	const auto height = size.height();
@@ -60,6 +60,7 @@ constexpr auto kGlassAlpha = 0.25;
 PeerQrPanel::PeerQrPanel(not_null<QWidget*> parent)
 : RpWidget(parent)
 , _openColor(DefaultOpenColor())
+, _radius(st::peerQrPanelRadius)
 , _animation([=](crl::time now) { return animationCallback(now); }) {
 	hide();
 }
@@ -82,6 +83,17 @@ void PeerQrPanel::setColors(QColor island, QColor open) {
 	}
 	_islandColor = island;
 	_openColor = open;
+	update();
+}
+
+void PeerQrPanel::setRadius(int radius) {
+	if (_radius == radius) {
+		return;
+	}
+	_radius = radius;
+	if (_content) {
+		updateContentGeometry();
+	}
 	update();
 }
 
@@ -179,18 +191,6 @@ void PeerQrPanel::paintEvent(QPaintEvent *e) {
 		p.drawImage(contentGeometry().topLeft(), _contentCache);
 		p.restore();
 	}
-	if (_kind != PeerQrPanelContent::Opaque) {
-		return;
-	}
-	const auto glass = glassRect();
-	const auto half = st::lineWidth / 2.;
-	const auto radius = std::max(glassRadius(glass) - half, 0.);
-	p.setPen(QPen(st::shadowFg->c, st::lineWidth));
-	p.setBrush(Qt::NoBrush);
-	p.drawRoundedRect(
-		glass.marginsRemoved({ half, half, half, half }),
-		radius,
-		radius);
 }
 
 void PeerQrPanel::resizeEvent(QResizeEvent *e) {
@@ -250,13 +250,12 @@ void PeerQrPanel::updateContentGeometry() {
 	if (masked()) {
 		_content->setMask(InnerRoundedRegion(
 			geometry.size(),
-			st::peerQrPanelRadius - st::lineWidth));
+			_radius - st::lineWidth));
 	}
 }
 
 bool PeerQrPanel::masked() const {
-	return (_kind == PeerQrPanelContent::Opaque)
-		|| (_kind == PeerQrPanelContent::Masked);
+	return (_kind == PeerQrPanelContent::Masked);
 }
 
 QRect PeerQrPanel::contentGeometry() const {
@@ -283,7 +282,7 @@ QRectF PeerQrPanel::glassRect() const {
 float64 PeerQrPanel::glassRadius(QRectF glass) const {
 	return std::min(
 		_island.height() / 2.
-			+ (st::peerQrPanelRadius - _island.height() / 2.)
+			+ (_radius - _island.height() / 2.)
 				* _progress.current(),
 		std::min(glass.width(), glass.height()) / 2.);
 }

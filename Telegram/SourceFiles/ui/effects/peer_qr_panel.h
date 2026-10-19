@@ -14,7 +14,6 @@ namespace Ui {
 
 enum class PeerQrPanelContent {
 	Animated,
-	Opaque,
 	Masked,
 };
 
@@ -32,6 +31,7 @@ public:
 
 	void setIslandRect(QRect island);
 	void setColors(QColor island, QColor open);
+	void setRadius(int radius);
 	void setContent(not_null<RpWidget*> content, PeerQrPanelContent kind);
 	void toggle(bool shown, anim::type animated);
 
@@ -66,6 +66,7 @@ private:
 	QRect _island;
 	QColor _islandColor;
 	QColor _openColor;
+	int _radius = 0;
 	RpWidget *_content = nullptr;
 	PeerQrPanelContent _kind = PeerQrPanelContent::Animated;
 	QImage _contentCache;

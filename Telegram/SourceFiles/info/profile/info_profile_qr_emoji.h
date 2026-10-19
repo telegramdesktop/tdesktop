@@ -15,6 +15,7 @@ class Session;
 
 namespace Ui {
 class RpWidget;
+struct PeerQrColors;
 } // namespace Ui
 
 namespace Window {
@@ -28,6 +29,7 @@ struct QrEmojiPicker {
 	rpl::producer<QString> chosen;
 	Fn<void(const std::vector<QString>&)> setPicks;
 	Fn<void(bool)> setShown;
+	Fn<void(const Ui::PeerQrColors&)> setColors;
 };
 
 [[nodiscard]] QrEmojiPicker CreateQrEmojiPicker(

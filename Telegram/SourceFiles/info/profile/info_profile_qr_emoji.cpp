@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "settings/sections/settings_premium.h"
 #include "ui/effects/animations.h"
+#include "ui/effects/peer_qr_surface.h"
 #include "ui/text/text.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
@@ -28,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 
 #include "styles/style_basic.h"
-#include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 
@@ -39,6 +39,8 @@ using SizeTag = Data::CustomEmojiManager::SizeTag;
 
 constexpr auto kBadgePopDuration = crl::time(110);
 constexpr auto kBadgeAlpha = 0.6;
+constexpr auto kHoverAlpha = 0.08;
+constexpr auto kMarkedAlpha = 0.16;
 
 struct PickerState {
 	std::vector<Data::ReactionId> initial;
@@ -77,6 +79,15 @@ private:
 	Ui::Animations::Simple _width;
 	int _frameSize = 0;
 
+};
+
+struct PickerStyle {
+	PickerStyle();
+
+	style::owned_color ink;
+	style::owned_color hover;
+	style::owned_color marked;
+	style::EmojiPan pan;
 };
 
 [[nodiscard]] Data::ReactionId ParseKey(QStringView key) {
@@ -444,6 +455,27 @@ void PicksStrip::paintEvent(QPaintEvent *e) {
 	}
 }
 
+PickerStyle::PickerStyle()
+: ink(QColor(255, 255, 255))
+, hover(anim::with_alpha(QColor(255, 255, 255), kHoverAlpha))
+, marked(anim::with_alpha(QColor(255, 255, 255), kMarkedAlpha))
+, pan(st::peerQrEmojiPan) {
+	pan.headerFg = ink.color();
+	pan.textFg = ink.color();
+	pan.tabs.labelFg = ink.color();
+	pan.overBg = hover.color();
+	pan.markedBg = marked.color();
+	pan.categoriesBgOver = marked.color();
+}
+
+void ApplyPickerColors(
+		not_null<PickerStyle*> picker,
+		QColor foreground) {
+	picker->ink.update(foreground);
+	picker->hover.update(anim::with_alpha(foreground, kHoverAlpha));
+	picker->marked.update(anim::with_alpha(foreground, kMarkedAlpha));
+}
+
 } // namespace
 
 QrEmojiPicker CreateQrEmojiPicker(
@@ -454,20 +486,26 @@ QrEmojiPicker CreateQrEmojiPicker(
 	const auto session = &controller->session();
 	const auto reactions = &session->data().reactions();
 	const auto show = controller->uiShow();
+	const auto pickerStyle = std::make_shared<PickerStyle>();
 	const auto selector = Ui::CreateChild<Selector>(
 		parent.get(),
 		ChatHelpers::TabbedSelectorDescriptor{
 			.show = show,
-			.st = st::peerQrEmojiPan,
+			.st = pickerStyle->pan,
 			.level = Window::GifPauseReason::Layer,
 			.mode = Selector::Mode::FullReactions,
+			.customTextColor = [=] { return pickerStyle->ink.color()->c; },
 			.features = { .allCustomEmojiPremium = true },
 		});
+	// WHY: the selector's children keep references into pan until
+	// ~QWidget deletes them; this connection is released only in
+	// ~QObject, after that, so pan outlives the whole subtree.
+	QObject::connect(selector, &QObject::destroyed, [pickerStyle] {});
 	const auto state = selector->lifetime().make_state<PickerState>();
 	state->picks = picks;
 	AddInitial(session, state, picks);
 	selector->setAllowEmojiWithoutPremium(false);
-	selector->setRoundRadius(st::peerQrPanelRadius - st::lineWidth);
+	selector->setRoundRadius(st::emojiPanRadius - st::lineWidth);
 	selector->setDropDown(true);
 	selector->setMarkedCustomPainter([=](
 			QPainter &p,
@@ -515,7 +553,7 @@ QrEmojiPicker CreateQrEmojiPicker(
 	const auto strip = Ui::CreateChild<PicksStrip>(
 		selector,
 		session,
-		st::peerQrEmojiPan.markedBg);
+		st::peerQrEmojiStripBg);
 	strip->setPicks(state->picks, false);
 	strip->raise();
 	selector->sizeValue() | rpl::on_next([=](QSize size) {
@@ -572,6 +610,11 @@ QrEmojiPicker CreateQrEmojiPicker(
 			} else {
 				selector->beforeHiding();
 			}
+		}),
+		.setColors = crl::guard(selector, [=](
+				const Ui::PeerQrColors &colors) {
+			ApplyPickerColors(pickerStyle.get(), colors.foreground);
+			selector->update();
 		}),
 	};
 }
