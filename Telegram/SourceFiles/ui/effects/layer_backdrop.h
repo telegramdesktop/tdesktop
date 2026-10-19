@@ -21,6 +21,10 @@ class RpWidget;
 	LayerWidget *underlying = nullptr,
 	Fn<void()> beforeRender = nullptr);
 
+// Content covered by a layer skips its paint as overlapped, except while
+// CaptureUnderLayer renders it.
+[[nodiscard]] bool CapturingUnderLayer();
+
 class LayerBackdrop final : public base::has_weak_ptr {
 public:
 	LayerBackdrop(

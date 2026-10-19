@@ -228,6 +228,7 @@ void ShowWalletConflict(
 
 [[nodiscard]] QString SendErrorText(SendError error, int64 minTransferNano);
 void ShowWalletKeyChanged(std::shared_ptr<Main::SessionShow> show);
+void ShowWalletHowItWorks(std::shared_ptr<Main::SessionShow> show);
 
 // The message, then the error type a real user's report should carry.
 [[nodiscard]] QString ErrorWithType(

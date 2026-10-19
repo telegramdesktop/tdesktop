@@ -16,8 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
+#include "ui/controls/ton_common.h"
 #include "ui/effects/layer_backdrop.h"
 #include "ui/layers/layer_widget.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/painter.h"
@@ -58,6 +60,13 @@ enum class Phase : uchar {
 	Opening,
 	Shown,
 	Closing,
+};
+
+enum class ButtonMode : uchar {
+	None,
+	HowItWorks,
+	SendMoney,
+	OpenWallet,
 };
 
 struct LabelInk {
@@ -149,7 +158,7 @@ private:
 	[[nodiscard]] CardViewPlaces places() const;
 	[[nodiscard]] Parts grabParts() const;
 	[[nodiscard]] bool holding() const;
-	[[nodiscard]] bool canActivate() const;
+	[[nodiscard]] ButtonMode computeButtonMode() const;
 	[[nodiscard]] QRect labelPlate() const;
 	[[nodiscard]] QImage sampleLabelBackground(float64 plate) const;
 	[[nodiscard]] LabelInk computeLabelInk() const;
@@ -206,6 +215,7 @@ private:
 	Ui::LayerBackdrop _backdrop;
 	rpl::variable<Data::WalletCard> _data;
 	rpl::variable<CardLook> _look;
+	rpl::variable<ButtonMode> _buttonMode;
 	Ui::RpWidget *_card = nullptr;
 	Ui::RoundButton *_button = nullptr;
 	Ui::FlatLabel *_label = nullptr;
@@ -361,6 +371,84 @@ void PaintRestingStickers(
 	p.setOpacity(fold.opacity);
 	p.setTransform(fold.transform, true);
 	stickers->paint(p, fold.rest);
+}
+
+[[nodiscard]] rpl::producer<TextWithEntities> ButtonText(ButtonMode mode) {
+	switch (mode) {
+	case ButtonMode::HowItWorks:
+		return tr::lng_wallet_profile_how_works(tr::marked);
+	case ButtonMode::SendMoney:
+		return tr::lng_wallet_profile_send_money(
+		) | rpl::map([](const QString &text) {
+			return Ui::Text::IconEmoji(
+				&st::walletCardViewSendIcon
+			).append(text);
+		});
+	case ButtonMode::OpenWallet:
+		return tr::lng_wallet_details_open_wallet(tr::marked);
+	case ButtonMode::None:
+		break;
+	}
+	return rpl::single(TextWithEntities());
+}
+
+[[nodiscard]] rpl::producer<QString> LabelText(
+		not_null<UserData*> user,
+		rpl::producer<int64> balance) {
+	if (user->isSelf()) {
+		return tr::lng_wallet_profile_balance_public();
+	}
+	return rpl::combine(
+		Info::Profile::NameValue(user),
+		std::move(balance)
+	) | rpl::map([](const QString &name, int64 balance) {
+		// The same digits as the card's amount shows.
+		const auto amount = Ui::FormatTonAmount(balance).wholeString
+			+ ((balance % Ui::kNanosInOne)
+				? GramMinorPart(balance)
+				: QString());
+		return (balance > 0)
+			? tr::lng_wallet_profile_balance_owns(
+				lt_count,
+				rpl::single(balance / float64(Ui::kNanosInOne))
+					| tr::to_count(),
+				lt_name,
+				rpl::single(name),
+				lt_amount,
+				rpl::single(amount))
+			: tr::lng_wallet_profile_balance_none(
+				lt_name,
+				rpl::single(name));
+	}) | rpl::flatten_latest();
+}
+
+void PaintButtonOutline(QPainter &p, QRect button) {
+	const auto outline = st::walletCardViewButtonOutline;
+	const auto rect = button.marginsAdded(
+		{ outline, outline, outline, outline });
+	const auto radius = rect.height() / 2.;
+	auto hq = PainterHighQualityEnabler(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::windowBg);
+	p.drawRoundedRect(rect, radius, radius);
+}
+
+// The outline travels with the button through the transition frames.
+[[nodiscard]] QImage OutlinedButton(const QImage &button) {
+	const auto outline = st::walletCardViewButtonOutline;
+	const auto size = ImageSize(button);
+	const auto ratio = style::DevicePixelRatio();
+	auto result = QImage(
+		(size + QSize(2 * outline, 2 * outline)) * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
+	result.fill(Qt::transparent);
+	auto p = QPainter(&result);
+	const auto inner = QRect(QPoint(outline, outline), size);
+	PaintButtonOutline(p, inner);
+	p.drawImage(inner, button);
+	p.end();
+	return result;
 }
 
 [[nodiscard]] QColor PlateColor(float64 level) {
@@ -856,7 +944,7 @@ Parts CardView::grabParts() const {
 		.card = Ui::GrabWidgetToImage(_card),
 		.button = (_button->isHidden()
 			? QImage()
-			: Ui::GrabWidgetToImage(_button)),
+			: OutlinedButton(Ui::GrabWidgetToImage(_button))),
 	};
 }
 
@@ -864,16 +952,24 @@ bool CardView::holding() const {
 	return (_phase == Phase::Closing) && !_started;
 }
 
-bool CardView::canActivate() const {
+ButtonMode CardView::computeButtonMode() const {
 	const auto session = &_user->session();
-	if (&_controller->session() != session) {
-		return false;
+	if (&_controller->session() != session
+		|| session->supportMode()
+		|| !session->appConfig().walletAvailable()) {
+		return ButtonMode::None;
 	} else if (_user->isSelf()) {
-		return !session->supportMode()
-			&& session->appConfig().walletAvailable();
+		return ButtonMode::OpenWallet;
 	}
-	return (session->data().userLoaded(peerToUser(_user->id)) == _user)
-		&& CanOfferSendMoney(_user);
+	const auto presence = session->wallet().presenceCurrent();
+	if (presence == Presence::Missing
+		|| presence == Presence::Provisioning) {
+		return ButtonMode::HowItWorks;
+	}
+	return ((session->data().userLoaded(peerToUser(_user->id)) == _user)
+			&& CanOfferSendMoney(_user))
+		? ButtonMode::SendMoney
+		: ButtonMode::None;
 }
 
 QRect CardView::labelPlate() const {
@@ -915,15 +1011,16 @@ LabelInk CardView::computeLabelInk() const {
 void CardView::setupContent() {
 	setupCard();
 	setupButton();
-	if (_user->isSelf()) {
-		setupLabel();
-	}
+	setupLabel();
 
 	_content->paintRequest(
 	) | rpl::on_next([=] {
-		if (_label && _labelInk.plate > 0.) {
-			auto p = QPainter(_content);
+		auto p = QPainter(_content);
+		if (_labelInk.plate > 0.) {
 			PaintLabelPlate(p, labelPlate(), PlateColor(_labelInk.plate));
+		}
+		if (!_button->isHidden()) {
+			PaintButtonOutline(p, _button->geometry());
 		}
 	}, _content->lifetime());
 
@@ -1000,7 +1097,8 @@ void CardView::setupButton() {
 		rpl::single(QString()),
 		st::walletSendButton);
 	_button->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
-	_button->setVisible(canActivate());
+	_buttonMode = computeButtonMode();
+	_button->setVisible(_buttonMode.current() != ButtonMode::None);
 	_button->setClickedCallback([=] {
 		Ui::PostponeCall(this, [=] {
 			activate();
@@ -1017,6 +1115,7 @@ void CardView::setupButton() {
 	rpl::merge(
 		session->appConfig().value(),
 		wallet.stateKnownValue() | rpl::to_empty,
+		wallet.presenceValue() | rpl::to_empty,
 		wallet.userAddresses().unavailableValue() | rpl::to_empty,
 		_user->flagsValue() | rpl::to_empty,
 		session->changes().peerUpdates(
@@ -1027,11 +1126,12 @@ void CardView::setupButton() {
 		refreshButton();
 	}, _button->lifetime());
 
-	(_user->isSelf()
-		? tr::lng_wallet_details_open_wallet()
-		: tr::lng_wallet_profile_send_money()
-	) | rpl::on_next([=](const QString &text) {
-		_button->setText(rpl::single(text));
+	_buttonMode.value(
+	) | rpl::map(
+		ButtonText
+	) | rpl::flatten_latest(
+	) | rpl::on_next([=](TextWithEntities text) {
+		_button->setText(rpl::single(std::move(text)));
 		contentResized();
 	}, _button->lifetime());
 }
@@ -1042,7 +1142,12 @@ void CardView::setupLabel() {
 		st::walletCardViewLabel);
 	_label->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	tr::lng_wallet_profile_balance_public(
+	LabelText(
+		_user,
+		_data.value(
+		) | rpl::map([](const Data::WalletCard &card) {
+			return card.balance;
+		}) | rpl::distinct_until_changed()
 	) | rpl::on_next([=](const QString &text) {
 		_labelText = text;
 		_labelAppliedText = text;
@@ -1089,10 +1194,13 @@ void CardView::placeContent() {
 	};
 	const auto till = outer.height() - skip - below - cardHeight;
 	if (_label) {
-		_label->resizeToWidth(st::walletCardViewLabelWidth);
+		// Other users' text breaks its own lines.
+		const auto labelWidth = _user->isSelf()
+			? st::walletCardViewLabelWidth
+			: std::min(_label->textMaxWidth(), cardWidth);
+		_label->resizeToWidth(labelWidth);
 		if (skip + above() > till) {
-			_label->resizeToWidth(
-				std::max(cardWidth, st::walletCardViewLabelWidth));
+			_label->resizeToWidth(std::max(cardWidth, labelWidth));
 		}
 	}
 	const auto from = skip + above();
@@ -1130,13 +1238,12 @@ void CardView::contentResized() {
 }
 
 void CardView::refreshButton() {
-	const auto shown = canActivate();
-	if (_button->isHidden() == !shown) {
+	const auto mode = computeButtonMode();
+	if (_buttonMode.current() == mode) {
 		return;
 	}
-	_button->setVisible(shown);
-	layoutContent();
-	queueParts();
+	_button->setVisible(mode != ButtonMode::None);
+	_buttonMode = mode;
 }
 
 void CardView::refreshButtonColors() {
@@ -1365,7 +1472,10 @@ void CardView::paintButton(
 		p.scale(scale, scale);
 		p.translate(-center.x(), -center.y());
 	}
-	p.drawImage(rest.topLeft(), shown.parts.button);
+	const auto outline = st::walletCardViewButtonOutline;
+	p.drawImage(
+		rest.topLeft() - QPoint(outline, outline),
+		shown.parts.button);
 	p.restore();
 }
 
@@ -1592,13 +1702,14 @@ void CardView::refreshTransition() {
 void CardView::activate() {
 	if (_phase != Phase::Shown || _removing) {
 		return;
-	} else if (!canActivate()) {
+	}
+	const auto mode = computeButtonMode();
+	if (mode == ButtonMode::None || mode != _buttonMode.current()) {
 		refreshButton();
 		return;
 	}
 	const auto user = _user;
 	const auto userId = peerToUser(user->id);
-	const auto own = user->isSelf();
 	const auto weakController = base::make_weak(_controller);
 	const auto weakSession = base::make_weak(&user->session());
 	remove([=] {
@@ -1609,10 +1720,21 @@ void CardView::activate() {
 			|| &controller->session() != session
 			|| &user->session() != session) {
 			return;
-		} else if (own) {
+		}
+		switch (mode) {
+		case ButtonMode::OpenWallet:
 			ShowWallet(session);
-		} else if (session->data().userLoaded(userId) == user) {
-			OpenSendMoney(controller, user);
+			break;
+		case ButtonMode::HowItWorks:
+			ShowWalletHowItWorks(controller->uiShow());
+			break;
+		case ButtonMode::SendMoney:
+			if (session->data().userLoaded(userId) == user) {
+				OpenSendMoney(controller, user);
+			}
+			break;
+		case ButtonMode::None:
+			break;
 		}
 	});
 }

@@ -116,6 +116,12 @@ walletCardViewLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
 walletCardViewLabelPlatePadding: margins(12px, 6px, 12px, 6px);
+walletCardViewButtonOutline: 3px;
+// Painted in the button's text color.
+walletCardViewSendIcon: IconEmoji {
+	icon: icon{{ "payments/ton_emoji-18x18", activeButtonFg }};
+	padding: margins(0px, 1px, 5px, 0px);
+}
 walletCardViewDimDay: 0.07;
 walletCardViewDimNight: 0.25;
 walletIslandMargin: margins(20px, 0px, 20px, 0px);

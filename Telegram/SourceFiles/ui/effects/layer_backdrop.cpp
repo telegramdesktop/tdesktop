@@ -25,6 +25,8 @@ constexpr auto kCacheBackgroundFastTimeout = crl::time(200);
 constexpr auto kCacheBackgroundFullTimeout = crl::time(1000);
 constexpr auto kFadeBackgroundDuration = crl::time(200);
 
+auto CapturingDepth = 0;
+
 // Thread: Main.
 [[nodiscard]] bool IsNightMode() {
 	return (st::windowBg->c.lightnessF() < 0.5);
@@ -161,6 +163,10 @@ QImage CaptureUnderLayer(
 		QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(ratio);
 	image.fill(Qt::transparent);
+	++CapturingDepth;
+	const auto restore = gsl::finally([] {
+		--CapturingDepth;
+	});
 	auto p = QPainter(&image);
 	RenderWidget(p, target.data(), QPoint(), capture, QWidget::IgnoreMask);
 	const auto children = DirectChildren(target.data());
@@ -195,6 +201,10 @@ QImage CaptureUnderLayer(
 	}
 	p.end();
 	return image;
+}
+
+bool CapturingUnderLayer() {
+	return (CapturingDepth > 0);
 }
 
 LayerBackdrop::LayerBackdrop(

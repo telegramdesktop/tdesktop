@@ -382,10 +382,13 @@ TopBar::TopBar(
 	&& descriptor.source != Source::Stories
 	&& descriptor.source != Source::Preview
 	&& (_wrap.current() != Wrap::Side || !_peer->isNotificationsUser()))
-, _balanceReserve((_source == Source::Profile
-		&& _peer->isUser()
-		&& !_savedMessages
-		&& !_topic)
+, _hasBalance(_peer->isUser()
+	&& !_savedMessages
+	&& !_topic
+	&& (_source == Source::Profile
+		|| (_source == Source::Stories && _peer->isSelf())))
+// Without the action buttons the pill fits the gap below the status.
+, _balanceReserve((_hasBalance && _hasActions)
 	? st::infoProfileTopBarBalanceReserve
 	: 0)
 , _minForProgress([&] {
@@ -491,7 +494,7 @@ TopBar::TopBar(
 	}
 
 	bindStatus();
-	if (_balanceReserve) {
+	if (_hasBalance) {
 		const auto user = _peer->asUser();
 		_balancePill = std::make_unique<BalancePill>(
 			this,

@@ -128,18 +128,18 @@ struct Capture {
 }
 
 [[nodiscard]] std::optional<QPoint> SnappedOffset(const QTransform &device) {
-	const auto near = [](float64 value, float64 target) {
+	const auto nearly = [](float64 value, float64 target) {
 		return std::abs(value - target) < kSnapEpsilon;
 	};
 	const auto x = std::round(device.dx());
 	const auto y = std::round(device.dy());
 	if (!device.isAffine()
-		|| !near(device.m11(), 1.)
-		|| !near(device.m22(), 1.)
-		|| !near(device.m12(), 0.)
-		|| !near(device.m21(), 0.)
-		|| !near(device.dx(), x)
-		|| !near(device.dy(), y)) {
+		|| !nearly(device.m11(), 1.)
+		|| !nearly(device.m22(), 1.)
+		|| !nearly(device.m12(), 0.)
+		|| !nearly(device.m21(), 0.)
+		|| !nearly(device.dx(), x)
+		|| !nearly(device.dy(), y)) {
 		return std::nullopt;
 	}
 	return QPoint(int(x), int(y));

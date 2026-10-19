@@ -8975,6 +8975,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_profile_send_money" = "Send Money";
 "lng_wallet_profile_balance" = "Balance:";
 "lng_wallet_profile_balance_public" = "Your balance is public due to blockchain transparency.";
+"lng_wallet_profile_balance_owns#one" = "{name} owns {amount} Gram\non the TON blockchain.";
+"lng_wallet_profile_balance_owns#other" = "{name} owns {amount} Grams\non the TON blockchain.";
+"lng_wallet_profile_balance_none" = "{name} doesn't own\nany Grams yet.";
+"lng_wallet_profile_how_works" = "How does it work?";
 "lng_wallet_send_user_title" = "Send to {user}";
 "lng_wallet_send_user_unavailable" = "This user can't receive Grams.";
 "lng_wallet_send_user_load_error" = "The recipient's wallet couldn't be loaded.";

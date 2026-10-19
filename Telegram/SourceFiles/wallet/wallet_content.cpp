@@ -6054,6 +6054,10 @@ void ShowWalletKeyChanged(std::shared_ptr<Main::SessionShow> show) {
 	ShowKeyChangedBox(show, tr::lng_wallet_send_key_changed_text());
 }
 
+void ShowWalletHowItWorks(std::shared_ptr<Main::SessionShow> show) {
+	show->showBox(Box(WalletHowItWorksBox, &show->session()));
+}
+
 QString ErrorWithType(const QString &message, const QString &error) {
 	return error.isEmpty()
 		? message
