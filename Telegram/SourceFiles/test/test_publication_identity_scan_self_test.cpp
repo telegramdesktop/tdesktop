@@ -1037,7 +1037,7 @@ void SelfAuditSeparation() {
 		Inject(fixture, SecrecyClass::MtpLog, body);
 		CheckParserRefusal(RunFixture(fixture), name, refusal);
 	}
-	for (const auto boundary : { u"entry"_q, u"source"_q }) {
+	for (const auto &boundary : { u"entry"_q, u"source"_q }) {
 		auto fixture = CleanFixture();
 		fixture.parts[u"log_10_00.txt"_q].push_back(
 			Entry(u"{ user first_name: \"Li\""_q));
