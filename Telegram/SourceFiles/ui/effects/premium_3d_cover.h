@@ -21,8 +21,11 @@ public:
 	struct Descriptor {
 		crl::time spinDuration = 0;
 		crl::time respinDelay = 0;
+		crl::time enterSpinDelay = 0;
 		float64 period = 0.;
+		float64 fadeInDuration = 0.;
 		bool spinEaseOut = false;
+		bool invertDrag = false;
 		int sampleCount = 4;
 	};
 
@@ -106,6 +109,7 @@ private:
 	float64 _yaw = 0.;
 	float64 _pitch = 0.;
 	float64 _time = 0.;
+	float64 _fadeIn = 1.;
 	float64 _opacity = 1.;
 	bool _night = false;
 

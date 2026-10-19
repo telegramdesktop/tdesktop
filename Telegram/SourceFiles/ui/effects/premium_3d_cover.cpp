@@ -28,6 +28,7 @@ constexpr auto kTapInDuration = crl::time(220);
 constexpr auto kTapBase = 40;
 constexpr auto kTapRandom = 30;
 constexpr auto kTapMaxMove = 4;
+constexpr auto kTapMaxYaw = 10.;
 constexpr auto kOvershootTension = 2.;
 
 } // namespace
@@ -35,7 +36,8 @@ constexpr auto kOvershootTension = 2.;
 Object3dCover::Object3dCover(QWidget *parent, Descriptor descriptor)
 : RpWidget(parent)
 , _descriptor(descriptor)
-, _animation([=] { frame(); }) {
+, _animation([=] { frame(); })
+, _fadeIn((descriptor.fadeInDuration > 0.) ? 0. : 1.) {
 }
 
 Object3dCover::~Object3dCover() = default;
@@ -83,6 +85,10 @@ void Object3dCover::freeze() {
 	if (image.isNull()) {
 		return;
 	}
+	// WHY: QRhiWidget never tags its grab premultiplied, while every cover
+	// renderer outputs premultiplied colour; painting it as straight alpha
+	// darkens the anti-aliased edges and the sparkle glow of the paused frame.
+	image.reinterpretAsFormat(QImage::Format_RGBA8888_Premultiplied);
 	_frozen = std::move(image);
 	pushState();
 	w->update();
@@ -171,6 +177,9 @@ void Object3dCover::stopAnimation() {
 void Object3dCover::advance(float64 dt) {
 	_time += dt;
 	_time -= _descriptor.period * std::floor(_time / _descriptor.period);
+	if (_fadeIn < 1.) {
+		_fadeIn = std::min(_fadeIn + dt / _descriptor.fadeInDuration, 1.);
+	}
 }
 
 void Object3dCover::applyChannel(Channel channel, float64 value) {
@@ -245,7 +254,7 @@ void Object3dCover::pushState() {
 		float(_yaw),
 		float(_pitch),
 		float(_time),
-		_paused ? 0.f : float(_opacity),
+		_paused ? 0.f : float(_opacity * _fadeIn),
 		_night);
 }
 
@@ -328,7 +337,7 @@ void Object3dCover::startTapTilt(QPoint position) {
 	auto gesture = Gesture();
 	gesture.tracks.push_back({
 		.channel = Channel::Yaw,
-		.values = { 0., toYaw },
+		.values = { _yaw, toYaw },
 		.duration = kTapInDuration,
 		.easing = Easing::EaseOutQuint,
 	});
@@ -341,7 +350,7 @@ void Object3dCover::startTapTilt(QPoint position) {
 	});
 	gesture.tracks.push_back({
 		.channel = Channel::Pitch,
-		.values = { 0., toPitch },
+		.values = { _pitch, toPitch },
 		.duration = kTapInDuration,
 		.easing = Easing::EaseOutQuint,
 	});
@@ -378,7 +387,7 @@ void Object3dCover::showEvent(QShowEvent *e) {
 		_entered = true;
 		_yaw = _pitch = 0.;
 		_gesture.reset();
-		scheduleIdle(0);
+		scheduleIdle(_descriptor.enterSpinDelay);
 	}
 	startAnimation();
 }
@@ -411,8 +420,9 @@ void Object3dCover::mouseMoveEvent(QMouseEvent *e) {
 		_moved = true;
 	}
 	const auto shift = pos - _lastDragPos;
-	_yaw += -shift.x() * kDragYaw;
-	_pitch += -shift.y() * kDragPitch;
+	const auto direction = _descriptor.invertDrag ? 1. : -1.;
+	_yaw += direction * shift.x() * kDragYaw;
+	_pitch += direction * shift.y() * kDragPitch;
 	_lastDragPos = pos;
 }
 
@@ -421,7 +431,7 @@ void Object3dCover::mouseReleaseEvent(QMouseEvent *e) {
 		return;
 	}
 	_dragging = false;
-	if (_moved) {
+	if (_moved || std::abs(_yaw) > kTapMaxYaw) {
 		startBackSpring();
 	} else {
 		startTapTilt(_pressPos);

@@ -13,6 +13,15 @@
     <file alias="art/premium/flecks.png">../../art/premium/flecks.png</file>
     <file alias="art/premium/star_texture.svg">../../art/premium/star_texture.svg</file>
     <file alias="art/premium/coin_border.png">../../art/premium/coin_border.png</file>
+    <file alias="art/premium/diamond/anchors.bin">../../art/premium/diamond/anchors.bin</file>
+    <file alias="art/premium/diamond/camera.bin">../../art/premium/diamond/camera.bin</file>
+    <file alias="art/premium/diamond/facetProjection.bin">../../art/premium/diamond/facetProjection.bin</file>
+    <file alias="art/premium/diamond/frames.bin">../../art/premium/diamond/frames.bin</file>
+    <file alias="art/premium/diamond/main.bin">../../art/premium/diamond/main.bin</file>
+    <file alias="art/premium/diamond/planes.bin">../../art/premium/diamond/planes.bin</file>
+    <file alias="art/premium/diamond/small.bin">../../art/premium/diamond/small.bin</file>
+    <file alias="art/premium/diamond/vertices.bin">../../art/premium/diamond/vertices.bin</file>
+    <file alias="art/premium/diamond/widths.bin">../../art/premium/diamond/widths.bin</file>
     <file alias="day-blue.tdesktop-theme">../../day-blue.tdesktop-theme</file>
     <file alias="night.tdesktop-theme">../../night.tdesktop-theme</file>
     <file alias="night-green.tdesktop-theme">../../night-green.tdesktop-theme</file>
