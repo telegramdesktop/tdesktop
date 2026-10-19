@@ -56,8 +56,6 @@ public:
 
 	void applyFullUserCard(std::optional<Data::WalletCard> card);
 
-	[[nodiscard]] OwnCardChange add(Data::WalletCardSticker sticker);
-	[[nodiscard]] OwnCardChange remove(const QString &address);
 	[[nodiscard]] OwnCardChange save(OwnCardState desired);
 
 private:
@@ -79,5 +77,9 @@ private:
 	rpl::lifetime _lifetime;
 
 };
+
+[[nodiscard]] bool RemoveOwnCardSticker(
+	OwnCardState &state,
+	const QString &address);
 
 } // namespace Wallet

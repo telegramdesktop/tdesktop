@@ -8943,7 +8943,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_card_saved_profile" = "This gift is shown on your profile. Hide it there to put it on your card.";
 "lng_wallet_card_save_error" = "Couldn't save your card.";
 "lng_wallet_card_not_ready" = "Your card isn't ready to edit. Please try again.";
-"lng_wallet_card_no_space" = "There is no free space on this card.";
 "lng_wallet_card_color_only" = "Only {collections} gifts can be used to change the color of your card.";
 "lng_wallet_card_color_and_one" = "{all}, {one}";
 "lng_wallet_card_color_and_last" = "{all} and {one}";

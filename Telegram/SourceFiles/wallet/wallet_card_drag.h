@@ -46,14 +46,11 @@ public:
 
 	[[nodiscard]] FlightPose pose() const;
 	[[nodiscard]] bool following() const;
-	[[nodiscard]] float64 liftScale() const;
 	[[nodiscard]] TravelArtwork takeArtwork();
 
 	void move(QPointF cursor);
-	void resize(float64 scale);
 	void settle(
 		Fn<std::optional<FlightPose>()> target,
-		bool squash,
 		Fn<void(bool arrived)> done);
 	void returnTo(
 		Fn<std::optional<FlightPose>()> square,
@@ -69,13 +66,13 @@ private:
 	enum class Phase : uchar {
 		Following,
 		Settling,
-		Squashing,
 		Returning,
 		Vanishing,
 		ScalingOut,
 		Done,
 	};
 
+	[[nodiscard]] float64 liftScale() const;
 	[[nodiscard]] crl::time liftDuration() const;
 	[[nodiscard]] float64 followScale(crl::time now) const;
 	[[nodiscard]] FlightPose followPose(crl::time now) const;
@@ -112,8 +109,6 @@ private:
 	crl::time _started = 0;
 	crl::time _scaleStarted = 0;
 	crl::time _sampledAt = 0;
-	float64 _scaleFrom = 1.;
-	float64 _scaleTo = 1.;
 	DraggedGiftSource _origin = DraggedGiftSource::Square;
 	Phase _phase = Phase::Following;
 	Ui::Animations::Basic _animation;

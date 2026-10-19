@@ -28,6 +28,7 @@ class RpWidget;
 namespace Wallet {
 
 class OwnCard;
+struct OwnCardState;
 
 struct CardEditorArgs {
 	std::shared_ptr<Main::SessionShow> show;
@@ -75,12 +76,11 @@ private:
 	void finishClick(const Press &press, QPointF point);
 	void startMove(QPointF global);
 	[[nodiscard]] bool updateMove(QPointF global);
-	[[nodiscard]] float64 liveScale(const Press &press, QPointF local) const;
 	void finishMove(const Press &press, QPointF global);
 	void dropMoved(const Press &press, QPointF point);
 	void removeMoved(bool collectibles);
 	void returnMoved();
-	void settleMoved(bool land, bool squash);
+	void settleMoved(bool land);
 	void settled(uint64 generation, bool land);
 	void removed(uint64 generation);
 	void retireTravel();
@@ -90,12 +90,14 @@ private:
 	[[nodiscard]] OwnCardChange saveArea(
 		const QString &address,
 		Data::StoryArea area);
+	[[nodiscard]] OwnCardChange saveStacked(OwnCardState desired);
 	void reconcile(const std::vector<Data::WalletCardSticker> &stickers);
 	void select(const QString &address);
 	void cancelPress();
 	void clear();
 	void abandon(std::unique_ptr<Press> press);
 	void releaseGrab();
+	void updateGrip();
 	void refresh();
 	[[nodiscard]] bool moving() const;
 	[[nodiscard]] bool current(uint64 generation) const;
@@ -106,7 +108,6 @@ private:
 	[[nodiscard]] std::optional<Data::StoryArea> decorationArea() const;
 	[[nodiscard]] std::optional<FlightPose> cardPose(
 		const QString &address) const;
-	[[nodiscard]] CardSpace spaceWithout(const QString &address) const;
 	[[nodiscard]] QRectF listsArea() const;
 	[[nodiscard]] QPointF bodyPoint(QPointF global) const;
 	[[nodiscard]] OwnCard &ownCard() const;
@@ -121,6 +122,7 @@ private:
 	std::unique_ptr<Press> _press;
 	std::unique_ptr<Travel> _travel;
 	QString _selected;
+	QString _gripped;
 	QRect _painted;
 	uint64 _lastGeneration = 0;
 	bool _transactions = false;

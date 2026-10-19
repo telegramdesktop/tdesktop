@@ -16,6 +16,8 @@ constexpr auto kStripDarker = 1.6;
 constexpr auto kStripLighter = 3.;
 constexpr auto kMaxLuminance = 1.05 / kTextContrast - 0.05;
 constexpr auto kLinearKnee = 0.03928;
+constexpr auto kMarkCast = 99. / 255.; // The diamond art's strongest facet.
+constexpr auto kMarkHueStrength = 0.3;
 
 struct Linear {
 	float64 red = 0.;
@@ -80,29 +82,71 @@ struct Placement {
 		+ 0.0722 * linear.blue;
 }
 
-[[nodiscard]] QColor WithLuminance(const QColor &color, float64 target) {
+[[nodiscard]] Linear WithLuminance(const Linear &linear, float64 target) {
 	const auto goal = std::clamp(target, 0., 1.);
-	const auto linear = ToLinear(color);
 	const auto luminance = Luminance(linear);
 	const auto top = std::max({ linear.red, linear.green, linear.blue });
 	if (luminance > 0. && top * goal <= luminance) {
 		const auto scale = goal / luminance;
-		return FromLinear({
+		return {
 			linear.red * scale,
 			linear.green * scale,
 			linear.blue * scale,
-		});
+		};
 	}
 	const auto full = (top > 0.)
 		? Linear{ linear.red / top, linear.green / top, linear.blue / top }
 		: Linear();
 	const auto from = Luminance(full);
 	const auto mix = std::clamp((goal - from) / (1. - from), 0., 1.);
-	return FromLinear({
+	return {
 		full.red + (1. - full.red) * mix,
 		full.green + (1. - full.green) * mix,
 		full.blue + (1. - full.blue) * mix,
+	};
+}
+
+[[nodiscard]] QColor WithLuminance(const QColor &color, float64 target) {
+	return FromLinear(WithLuminance(ToLinear(color), target));
+}
+
+[[nodiscard]] QRgb TintMarkPixel(
+		QRgb pixel,
+		const Linear &hue,
+		float64 amount) {
+	const auto color = qUnpremultiply(pixel);
+	const auto red = qRed(color);
+	const auto green = qGreen(color);
+	const auto blue = qBlue(color);
+	const auto top = std::max({ red, green, blue });
+	const auto bottom = std::min({ red, green, blue });
+	if (top == bottom) {
+		return pixel;
+	}
+	const auto cast = std::min((top - bottom) / (top * kMarkCast), 1.);
+	const auto &channels = LinearChannels();
+	const auto linear = Linear{
+		channels[red],
+		channels[green],
+		channels[blue],
+	};
+	const auto luminance = Luminance(linear);
+	const auto hued = WithLuminance(hue, luminance);
+	const auto strength = kMarkHueStrength * cast;
+	const auto mix = [&](float64 from, float64 toward) {
+		const auto corrected = luminance + (toward - luminance) * strength;
+		return from + (corrected - from) * amount;
+	};
+	const auto result = FromLinear(Linear{
+		mix(linear.red, hued.red),
+		mix(linear.green, hued.green),
+		mix(linear.blue, hued.blue),
 	});
+	return qPremultiply(qRgba(
+		result.red(),
+		result.green(),
+		result.blue(),
+		qAlpha(color)));
 }
 
 [[nodiscard]] std::vector<Interval> AllowedIntervals(
@@ -217,6 +261,64 @@ QColor CardStripInk(const CardTint &tint) {
 	return WithLuminance(
 		tint.dark,
 		(darker >= 0.) ? darker : (shifted * kStripLighter - 0.05));
+}
+
+CardMarkTint MixCardMarkTint(
+		const CardMarkTint &from,
+		const CardMarkTint &to,
+		float64 progress) {
+	if (progress <= 0.) {
+		return from;
+	} else if (progress >= 1.) {
+		return to;
+	}
+	const auto amount = from.amount + (to.amount - from.amount) * progress;
+	if (from.amount <= 0. || to.amount <= 0.) {
+		return { (from.amount > 0.) ? from.hue : to.hue, amount };
+	}
+	const auto first = ToLinear(from.hue);
+	const auto second = ToLinear(to.hue);
+	const auto mix = [&](float64 was, float64 now) {
+		return was + (now - was) * progress;
+	};
+	return {
+		FromLinear({
+			mix(first.red, second.red),
+			mix(first.green, second.green),
+			mix(first.blue, second.blue),
+		}),
+		amount,
+	};
+}
+
+QImage CardMarkTinter::apply(const QImage &frame, const CardMarkTint &tint) {
+	if (frame.isNull() || tint.amount <= 0. || !tint.hue.isValid()) {
+		return frame;
+	}
+	const auto key = frame.cacheKey();
+	if (_key == key && _tint == tint && !_result.isNull()) {
+		return _result;
+	}
+	const auto source = frame.convertToFormat(
+		QImage::Format_ARGB32_Premultiplied);
+	if (_result.size() != source.size() || !_result.isDetached()) {
+		_result = QImage(source.size(), QImage::Format_ARGB32_Premultiplied);
+	}
+	_result.setDevicePixelRatio(source.devicePixelRatio());
+	const auto hue = ToLinear(tint.hue);
+	const auto amount = std::min(tint.amount, 1.);
+	const auto width = source.width();
+	for (auto y = 0; y != source.height(); ++y) {
+		const auto from = reinterpret_cast<const QRgb*>(
+			source.constScanLine(y));
+		const auto to = reinterpret_cast<QRgb*>(_result.scanLine(y));
+		for (auto x = 0; x != width; ++x) {
+			to[x] = TintMarkPixel(from[x], hue, amount);
+		}
+	}
+	_key = key;
+	_tint = tint;
+	return _result;
 }
 
 } // namespace Wallet

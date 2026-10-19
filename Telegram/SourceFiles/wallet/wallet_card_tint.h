@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include <QtGui/QColor>
+#include <QtGui/QImage>
 
 namespace Wallet {
 
@@ -16,6 +17,26 @@ struct CardTint {
 	QColor dark;
 
 	friend inline bool operator==(const CardTint &, const CardTint &) = default;
+};
+
+struct CardMarkTint {
+	QColor hue;
+	float64 amount = 0.;
+
+	friend inline bool operator==(
+		const CardMarkTint &,
+		const CardMarkTint &) = default;
+};
+
+class CardMarkTinter final {
+public:
+	[[nodiscard]] QImage apply(const QImage &frame, const CardMarkTint &tint);
+
+private:
+	QImage _result;
+	CardMarkTint _tint;
+	qint64 _key = 0;
+
 };
 
 [[nodiscard]] float64 CardLuminance(QRgb color);
@@ -27,5 +48,9 @@ struct CardTint {
 	const std::vector<QColor> &surfaces);
 [[nodiscard]] QColor CardTintAt(const CardTint &tint, float64 level);
 [[nodiscard]] QColor CardStripInk(const CardTint &tint);
+[[nodiscard]] CardMarkTint MixCardMarkTint(
+	const CardMarkTint &from,
+	const CardMarkTint &to,
+	float64 progress);
 
 } // namespace Wallet

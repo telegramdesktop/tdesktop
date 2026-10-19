@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_card_editor.h"
 
 #include "data/data_user_wallet_card.h"
-#include "lang/lang_keys.h"
 #include "main/session/session_show.h"
 #include "main/main_session.h"
 #include "ui/abstract_button.h"
@@ -50,11 +49,6 @@ struct CardPose {
 	QPointF center;
 	float64 side = 0.;
 	float64 rotation = 0.;
-};
-
-struct Landing {
-	CardPose pose;
-	bool chip = false;
 };
 
 struct Frame {
@@ -114,9 +108,38 @@ struct Frame {
 		card);
 }
 
+[[nodiscard]] Data::StoryArea MovedArea(
+		Data::StoryArea area,
+		QPointF center,
+		QSize card) {
+	area.geometry.moveCenter(QPointF(
+		center.x() / card.width(),
+		center.y() / card.height()));
+	return area;
+}
+
+[[nodiscard]] Data::StoryArea HandledArea(
+		Data::StoryArea area,
+		const CardPose &from,
+		const CardPose &pose,
+		QSize card) {
+	if (std::abs(pose.side - from.side) >= kSamePose) {
+		return LandedArea(pose, card);
+	}
+	area.rotation = NormalizedRotation(pose.rotation);
+	return area;
+}
+
 [[nodiscard]] bool OnCard(const CardFold &fold, QPointF point) {
 	return Presented(fold)
 		&& CardFoldOutline(fold).containsPoint(point, Qt::OddEvenFill);
+}
+
+[[nodiscard]] bool OnChip(const CardFold &fold, QPointF point) {
+	const auto local = CardFoldLocal(fold, point);
+	return Presented(fold)
+		&& local
+		&& QRectF(CardQrRect(fold.rest.width())).contains(*local);
 }
 
 [[nodiscard]] Zone ChooseZone(
@@ -135,42 +158,6 @@ struct Frame {
 		return Zone::Collectibles;
 	}
 	return transactions ? Zone::Transactions : Zone::None;
-}
-
-[[nodiscard]] std::optional<Landing> ResolveMove(
-		const CardSpace &space,
-		const CardPose &shown,
-		const CardPose &intended) {
-	if (SamePose(intended, shown)) {
-		return Landing{ .pose = shown };
-	}
-	const auto drop = ResolveCardMove(
-		space,
-		intended.center,
-		intended.side,
-		intended.rotation);
-	if (!drop) {
-		return std::nullopt;
-	}
-	const auto chip = (drop->kind == CardDropKind::Chip);
-	return Landing{
-		.pose = {
-			.center = drop->center,
-			.side = drop->side,
-			.rotation = chip ? 0. : intended.rotation,
-		},
-		.chip = chip,
-	};
-}
-
-[[nodiscard]] float64 FitScale(
-		float64 fitted,
-		float64 side,
-		float64 least,
-		float64 lifted) {
-	return (side > 0. && fitted > 0. && fitted >= least)
-		? (fitted / side)
-		: lifted;
 }
 
 [[nodiscard]] std::optional<FlightPose> StickerPose(
@@ -353,6 +340,7 @@ CardStickerEditor::~CardStickerEditor() {
 	_lifetime.destroy();
 	const auto travel = base::take(_travel);
 	abandon(base::take(_press));
+	updateGrip();
 	if (!travel) {
 		return;
 	} else if (travel->stage != TravelStage::Finished) {
@@ -364,7 +352,7 @@ CardStickerEditor::~CardStickerEditor() {
 		}
 	}
 	if (travel->gift->following()) {
-		travel->gift->settle(nullptr, false, nullptr);
+		travel->gift->settle(nullptr, nullptr);
 	}
 	travel->gift->finish();
 }
@@ -448,7 +436,11 @@ base::EventFilterResult CardStickerEditor::mousePress(
 	const auto fold = _host.fold();
 	const auto global = e->globalPosition();
 	const auto point = bodyPoint(global);
-	if (handleAt(fold, point)) {
+	if (OnChip(fold, point)) {
+		// Deselecting may move the input, so let it take this press first.
+		crl::on_main(this, [=] { select(QString()); });
+		return Result::Continue;
+	} else if (handleAt(fold, point)) {
 		startPress(global.toPoint(), point, _selected, true);
 		return Result::Cancel;
 	}
@@ -570,6 +562,7 @@ void CardStickerEditor::startPress(
 		.handle = handle,
 	});
 	_input->grabMouse();
+	updateGrip();
 }
 
 bool CardStickerEditor::updateHandle(
@@ -589,7 +582,7 @@ bool CardStickerEditor::updateHandle(
 		press.local,
 		*cursor,
 		CardStickerMinimumSide(press.from.side, card),
-		float64(std::min(card.width(), card.height())),
+		CardStickerPreferredSide(card),
 		shift ? std::make_optional(press.pose.side) : std::nullopt);
 	if (!pose) {
 		return false;
@@ -617,30 +610,12 @@ void CardStickerEditor::finishHandle(const Press &press) {
 		clearPreview();
 		return;
 	}
-	const auto &pose = press.pose;
-	const auto side = FreeSideAt(
-		spaceWithout(press.address),
-		pose.center,
-		pose.side,
-		pose.rotation);
-	if (side <= 0. || side < CardStickerMinimumSide(pose.side, card)) {
-		clearPreview();
-		_show->showToast(tr::lng_wallet_card_no_space(tr::now));
-		return;
-	}
-	const auto landed = CardPose{
-		.center = pose.center,
-		.side = side,
-		.rotation = pose.rotation,
-	};
-	if (SamePose(landed, AreaPose(*area, card))) {
-		clearPreview();
-		return;
-	}
-	const auto change = saveArea(press.address, LandedArea(landed, card));
+	const auto change = saveArea(
+		press.address,
+		HandledArea(*area, press.from, press.pose, card));
 	if (change == OwnCardChange::Applied) {
 		if (const auto painter = _host.painter.get()) {
-			painter->land(press.address, pose.side / side);
+			painter->land(press.address);
 		}
 	}
 	clearPreview();
@@ -694,37 +669,11 @@ void CardStickerEditor::startMove(QPointF global) {
 }
 
 bool CardStickerEditor::updateMove(QPointF global) {
-	const auto fold = _host.fold();
-	const auto point = bodyPoint(global);
-	const auto local = CardFoldLocal(fold, point);
-	if (!_press || !moving() || !Presented(fold) || !local) {
+	if (!_press || !moving() || !Presented(_host.fold())) {
 		return false;
 	}
-	_travel->gift->move(point);
-	_travel->gift->resize(liveScale(*_press, *local));
+	_travel->gift->move(bodyPoint(global));
 	return true;
-}
-
-float64 CardStickerEditor::liveScale(
-		const Press &press,
-		QPointF local) const {
-	const auto &gift = *_travel->gift;
-	const auto lifted = gift.liftScale();
-	const auto fold = _host.fold();
-	if (!OnCard(fold, gift.pose().center)) {
-		return lifted;
-	}
-	const auto &from = press.from;
-	const auto fitted = FreeSideAt(
-		spaceWithout(press.address),
-		from.center + (local - press.local),
-		lifted * from.side,
-		from.rotation);
-	return FitScale(
-		fitted,
-		from.side,
-		CardStickerMinimumSide(from.side, fold.rest.size()),
-		lifted);
 }
 
 void CardStickerEditor::finishMove(const Press &press, QPointF global) {
@@ -753,29 +702,30 @@ void CardStickerEditor::dropMoved(const Press &press, QPointF point) {
 	const auto card = fold.rest.size();
 	const auto local = CardFoldLocal(fold, point);
 	const auto area = shownArea(press.address);
-	if (!local || !area) {
+	const auto center = local
+		? CardStickerClampedCenter(
+			press.from.center + (*local - press.local),
+			card)
+		: std::nullopt;
+	if (!center || !area) {
 		returnMoved();
 		return;
 	}
 	const auto shown = AreaPose(*area, card);
-	const auto landing = ResolveMove(spaceWithout(press.address), shown, {
-		.center = press.from.center + (*local - press.local),
-		.side = press.from.side,
-		.rotation = press.from.rotation,
-	});
-	if (!landing) {
-		_show->showToast(tr::lng_wallet_card_no_space(tr::now));
-		returnMoved();
-		return;
-	} else if (SamePose(landing->pose, shown)) {
+	const auto landed = CardPose{
+		.center = *center,
+		.side = shown.side,
+		.rotation = shown.rotation,
+	};
+	if (SamePose(landed, shown)) {
 		returnMoved();
 		return;
 	}
 	const auto change = saveArea(
 		press.address,
-		LandedArea(landing->pose, card));
+		MovedArea(*area, *center, card));
 	if (change == OwnCardChange::Applied) {
-		settleMoved(true, landing->chip);
+		settleMoved(true);
 	} else {
 		showRefusal(change);
 		returnMoved();
@@ -791,11 +741,14 @@ void CardStickerEditor::removeMoved(bool collectibles) {
 			CardStickerSide(*area, _host.fold().rest.size()),
 			style::DevicePixelRatio())
 		: 1.;
-	// WHY: remove() emits the shown set synchronously, and the reconcile
+	// WHY: the save emits the shown set synchronously, and the reconcile
 	// it runs would abort a travel whose sticker vanished unless it already
 	// reads as removing.
 	_travel->stage = TravelStage::Removing;
-	const auto change = ownCard().remove(address);
+	auto desired = ownCard().shown();
+	const auto change = RemoveOwnCardSticker(desired, address)
+		? saveStacked(std::move(desired))
+		: OwnCardChange::Unchanged;
 	if (!current(generation)) {
 		return;
 	} else if (change != OwnCardChange::Applied) {
@@ -827,10 +780,10 @@ void CardStickerEditor::removeMoved(bool collectibles) {
 }
 
 void CardStickerEditor::returnMoved() {
-	settleMoved(false, false);
+	settleMoved(false);
 }
 
-void CardStickerEditor::settleMoved(bool land, bool squash) {
+void CardStickerEditor::settleMoved(bool land) {
 	if (!_travel || !_travel->gift->following()) {
 		return;
 	}
@@ -839,7 +792,7 @@ void CardStickerEditor::settleMoved(bool land, bool squash) {
 	_squares.leaving(address, false);
 	_travel->gift->settle([=] {
 		return cardPose(address);
-	}, squash, [=](bool arrived) {
+	}, [=](bool arrived) {
 		settled(generation, land && arrived);
 	});
 }
@@ -866,6 +819,7 @@ void CardStickerEditor::removed(uint64 generation) {
 	}
 	const auto address = _travel->address;
 	retireTravel();
+	updateGrip();
 	_squares.leaving(address, false);
 }
 
@@ -909,8 +863,7 @@ void CardStickerEditor::showRefusal(OwnCardChange change) {
 OwnCardChange CardStickerEditor::saveArea(
 		const QString &address,
 		Data::StoryArea area) {
-	auto &own = ownCard();
-	auto desired = own.shown();
+	auto desired = ownCard().shown();
 	const auto same = [&](const Data::WalletCardSticker &sticker) {
 		return (CanonicalAddress(sticker.address) == address);
 	};
@@ -919,8 +872,18 @@ OwnCardChange CardStickerEditor::saveArea(
 		return OwnCardChange::Unchanged;
 	}
 	area.radius = i->area.radius;
+	if (i->area == area) {
+		return OwnCardChange::Unchanged;
+	}
 	i->area = area;
-	return own.save(std::move(desired));
+	return saveStacked(std::move(desired));
+}
+
+OwnCardChange CardStickerEditor::saveStacked(OwnCardState desired) {
+	if (const auto painter = _host.painter.get()) {
+		StackCardStickers(desired.stickers, painter->stack());
+	}
+	return ownCard().save(std::move(desired));
 }
 
 void CardStickerEditor::reconcile(
@@ -988,6 +951,25 @@ void CardStickerEditor::releaseGrab() {
 	}
 }
 
+void CardStickerEditor::updateGrip() {
+	const auto desired = _press
+		? _press->address
+		: (_travel && _travel->stage == TravelStage::Held)
+		? _travel->address
+		: QString();
+	const auto was = std::exchange(_gripped, desired);
+	if (was == desired) {
+		return;
+	} else if (const auto painter = _host.painter.get()) {
+		if (!desired.isEmpty()) {
+			painter->grip(desired);
+		}
+		if (!was.isEmpty()) {
+			painter->ungrip(was);
+		}
+	}
+}
+
 void CardStickerEditor::refresh() {
 	const auto fold = _host.fold();
 	const auto presented = Presented(fold);
@@ -997,6 +979,7 @@ void CardStickerEditor::refresh() {
 	} else if (moving()) {
 		showLeaving(_travel->gift->pose().center);
 	}
+	updateGrip();
 	const auto handle = float64(st::photoEditorItemHandleSize);
 	const auto area = presented ? decorationArea() : std::nullopt;
 	const auto frame = area ? ComputeFrame(fold, *area, handle) : std::nullopt;
@@ -1057,10 +1040,13 @@ QString CardStickerEditor::stickerAt(
 	}
 	const auto card = fold.rest.size();
 	const auto ratio = style::DevicePixelRatio();
-	for (const auto &placed : ranges::views::reverse(_placed)) {
-		if (painter->shown(placed.address)
-			&& CardStickerContains(placed.area, card, ratio, *local)) {
-			return placed.address;
+	const auto stack = painter->stack();
+	for (const auto &address : stack | ranges::views::reverse) {
+		const auto area = shownArea(address);
+		if (area
+			&& painter->shown(address)
+			&& CardStickerContains(*area, card, ratio, *local)) {
+			return address;
 		}
 	}
 	return QString();
@@ -1090,20 +1076,6 @@ std::optional<FlightPose> CardStickerEditor::cardPose(
 	return area
 		? StickerPose(_host.fold(), *area, style::DevicePixelRatio())
 		: std::nullopt;
-}
-
-CardSpace CardStickerEditor::spaceWithout(const QString &address) const {
-	auto others = std::vector<Data::WalletCardSticker>();
-	others.reserve(_placed.size());
-	for (const auto &placed : _placed) {
-		if (placed.address != address) {
-			others.push_back({
-				.address = placed.address,
-				.area = placed.area,
-			});
-		}
-	}
-	return CurrentCardSpace(_host, others);
 }
 
 QRectF CardStickerEditor::listsArea() const {

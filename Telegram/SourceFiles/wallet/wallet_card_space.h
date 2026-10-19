@@ -41,34 +41,10 @@ struct CardTextLayout {
 	int nameMax = 0;
 };
 
-struct CardSpace {
-	QSize card;
-	std::vector<QRectF> guarded;
-	std::vector<QRectF> stickers;
-	float64 touch = 0.;
-	int ratio = 1;
-};
-
-enum class CardDropKind : uchar {
-	InPlace,
-	Moved,
-	Chip,
-};
-
-struct CardDrop {
-	QPointF center;
-	float64 side = 0.;
-	CardDropKind kind = CardDropKind::InPlace;
-};
-
 [[nodiscard]] QRect CardQrRect(int cardWidth);
 [[nodiscard]] CardTextLayout ComputeCardTextLayout(
 	QSize card,
 	const style::font &nameFont);
-[[nodiscard]] QRect CardNameRect(
-	const CardTextLayout &layout,
-	int nameWidth,
-	int nameHeight);
 
 [[nodiscard]] CardFold ComputeCardFold(QRect cardRest, float64 fold);
 [[nodiscard]] QPolygonF CardFoldOutline(const CardFold &fold);
@@ -87,6 +63,10 @@ struct CardDrop {
 [[nodiscard]] int CardStickerOutline(int frameSide);
 [[nodiscard]] float64 CardStickerOuterSide(int side, int ratio);
 [[nodiscard]] float64 CardStickerMinimumSide(float64 side, QSize card);
+[[nodiscard]] float64 CardStickerPreferredSide(QSize card);
+[[nodiscard]] std::optional<QPointF> CardStickerClampedCenter(
+	QPointF center,
+	QSize card);
 [[nodiscard]] bool CardStickerContains(
 	const Data::StoryArea &area,
 	QSize card,
@@ -97,27 +77,7 @@ struct CardDrop {
 	float64 side,
 	float64 rotation,
 	QSize card);
-
-[[nodiscard]] CardSpace ComputeCardSpace(
-	QSize card,
-	const std::vector<QRectF> &protectedAreas,
-	const std::vector<Data::StoryArea> &stickers,
-	float64 touch,
-	int ratio);
-[[nodiscard]] float64 FreeSideAt(
-	const CardSpace &space,
-	QPointF center,
-	float64 limit,
-	float64 rotation);
-[[nodiscard]] std::optional<Data::StoryArea> AutoPlace(
-	const CardSpace &space);
-[[nodiscard]] std::optional<CardDrop> ResolveCardDrop(
-	const CardSpace &space,
-	QPointF center);
-[[nodiscard]] std::optional<CardDrop> ResolveCardMove(
-	const CardSpace &space,
-	QPointF center,
-	float64 side,
-	float64 rotation);
+[[nodiscard]] std::optional<Data::StoryArea> CardStickerDefaultArea(
+	QSize card);
 
 } // namespace Wallet

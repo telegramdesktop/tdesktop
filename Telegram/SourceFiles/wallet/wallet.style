@@ -67,13 +67,17 @@ walletCardQrRight: 42px;
 walletCardQrTop: 72px;
 walletCardQrIcon: icon{{ "menu/qr_code", windowSubTextFg }};
 walletCardInfoIcon: icon{{ "menu/info", windowSubTextFg }};
-walletCardStickerTouch: 4px;
 walletCardStickerRingWidth: 1px;
 walletCardColorToastIcon: icon {{ "menu/palette", toastFg }};
 walletCardFloatShadow: BoxShadow {
 	blurRadius: 18px;
 	offset: point(0px, 2px);
 	opacity: 0.22;
+}
+walletCardForegroundShadow: BoxShadow {
+	blurRadius: 3px;
+	offset: point(0px, 1px);
+	opacity: 0.45;
 }
 walletChatCardMarkTop: 29px;
 walletChatCardMarkSize: 42px;

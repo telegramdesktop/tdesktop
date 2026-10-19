@@ -76,6 +76,9 @@ public:
 
 	void hold(const QString &address);
 	void release(const QString &address);
+	void grip(const QString &address);
+	void ungrip(const QString &address);
+	void raise(const QString &address);
 	void land(
 		const QString &address,
 		float64 fromScale = 1.,
@@ -89,7 +92,9 @@ public:
 	[[nodiscard]] bool shown(const QString &address) const;
 	[[nodiscard]] bool held(const QString &address) const;
 	[[nodiscard]] QImage image(const QString &address) const;
+	[[nodiscard]] std::vector<QString> stack() const;
 	[[nodiscard]] rpl::producer<bool> arrivingValue() const;
+	[[nodiscard]] rpl::producer<bool> grippedValue() const;
 	[[nodiscard]] rpl::producer<QString> releases() const;
 
 private:
@@ -98,6 +103,8 @@ private:
 	struct Preview;
 
 	void apply(std::vector<Data::WalletCardSticker> &&stickers);
+	[[nodiscard]] std::vector<not_null<Entry*>> ordered() const;
+	void lowerRejected();
 	[[nodiscard]] bool validate(not_null<Entry*> entry);
 	void prepare(not_null<Entry*> entry, int side);
 	void createPlayer(not_null<Entry*> entry);
@@ -130,8 +137,12 @@ private:
 	std::vector<Landing> _landings;
 	std::unique_ptr<Preview> _preview;
 	base::flat_set<QString> _holds;
+	base::flat_set<QString> _grips;
+	base::flat_set<QString> _rejectedGrips;
+	std::vector<QString> _raised;
 	Ui::Animations::Basic _landingAnimation;
 	rpl::variable<bool> _arriving;
+	rpl::variable<bool> _gripped;
 	rpl::event_stream<QString> _releases;
 	QImage _layer;
 	QSize _layerSize;
@@ -145,13 +156,12 @@ struct CardHost {
 	not_null<Ui::RpWidget*> body;
 	base::weak_ptr<CardStickers> painter;
 	Fn<CardFold()> fold;
-	Fn<std::vector<QRectF>()> protectedAreas;
 	Fn<void()> bring;
 	Fn<void(const CardLook&)> prepareColor;
 };
 
-[[nodiscard]] CardSpace CurrentCardSpace(
-	const CardHost &host,
-	const std::vector<Data::WalletCardSticker> &stickers);
+void StackCardStickers(
+	std::vector<Data::WalletCardSticker> &stickers,
+	const std::vector<QString> &stack);
 
 } // namespace Wallet

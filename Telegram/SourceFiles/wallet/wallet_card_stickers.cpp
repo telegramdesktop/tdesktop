@@ -700,17 +700,14 @@ bool PresentStickerPlayback(StickerPlayback &playback) {
 	return true;
 }
 
-CardSpace CurrentCardSpace(
-		const CardHost &host,
-		const std::vector<Data::WalletCardSticker> &stickers) {
-	return ComputeCardSpace(
-		host.fold().rest.size(),
-		host.protectedAreas(),
-		stickers | ranges::views::transform(
-			&Data::WalletCardSticker::area
-		) | ranges::to_vector,
-		st::walletCardStickerTouch,
-		style::DevicePixelRatio());
+void StackCardStickers(
+		std::vector<Data::WalletCardSticker> &stickers,
+		const std::vector<QString> &stack) {
+	const auto position = [&](const Data::WalletCardSticker &sticker) {
+		return ranges::find(stack, CanonicalAddress(sticker.address))
+			- begin(stack);
+	};
+	ranges::stable_sort(stickers, ranges::less(), position);
 }
 
 CardStickers::CardStickers(
@@ -724,6 +721,11 @@ CardStickers::CardStickers(
 		stickers
 	) | rpl::on_next([=](std::vector<Data::WalletCardSticker> &&list) {
 		apply(std::move(list));
+	}, _lifetime);
+
+	session->wallet().ownCard().failures(
+	) | rpl::on_next([=] {
+		lowerRejected();
 	}, _lifetime);
 }
 
@@ -775,6 +777,37 @@ void CardStickers::release(const QString &address) {
 		refreshArriving();
 		_releases.fire_copy(canonical);
 	}
+}
+
+void CardStickers::grip(const QString &address) {
+	const auto canonical = CanonicalAddress(address);
+	if (canonical.isEmpty() || !_grips.emplace(canonical).second) {
+		return;
+	}
+	raise(canonical);
+	_gripped = true;
+}
+
+void CardStickers::ungrip(const QString &address) {
+	const auto canonical = CanonicalAddress(address);
+	if (!_grips.remove(canonical)) {
+		return;
+	} else if (_rejectedGrips.remove(canonical)) {
+		_raised.erase(ranges::remove(_raised, canonical), end(_raised));
+		invalidate();
+	}
+	_gripped = !_grips.empty();
+}
+
+void CardStickers::raise(const QString &address) {
+	const auto canonical = CanonicalAddress(address);
+	if (canonical.isEmpty()
+		|| (!_raised.empty() && _raised.back() == canonical)) {
+		return;
+	}
+	_raised.erase(ranges::remove(_raised, canonical), end(_raised));
+	_raised.push_back(canonical);
+	invalidate();
 }
 
 void CardStickers::land(
@@ -913,8 +946,20 @@ QImage CardStickers::image(const QString &address) const {
 	return entry->image;
 }
 
+std::vector<QString> CardStickers::stack() const {
+	auto result = std::vector<QString>();
+	for (const auto entry : ordered()) {
+		result.push_back(entry->canonical);
+	}
+	return result;
+}
+
 rpl::producer<bool> CardStickers::arrivingValue() const {
 	return _arriving.value();
+}
+
+rpl::producer<bool> CardStickers::grippedValue() const {
+	return _gripped.value();
 }
 
 rpl::producer<QString> CardStickers::releases() const {
@@ -944,10 +989,37 @@ void CardStickers::apply(std::vector<Data::WalletCardSticker> &&stickers) {
 	_landings.erase(ranges::remove_if(_landings, [&](const Landing &landing) {
 		return !lookup(landing.address);
 	}), end(_landings));
+	_raised.erase(ranges::remove_if(_raised, [&](const QString &canonical) {
+		return !lookup(canonical) && !_holds.contains(canonical);
+	}), end(_raised));
 	if (_preview && !lookup(_preview->address)) {
 		_preview = nullptr;
 		refreshArriving();
 	}
+	invalidate();
+}
+
+std::vector<not_null<CardStickers::Entry*>> CardStickers::ordered() const {
+	auto result = std::vector<not_null<Entry*>>();
+	result.reserve(_entries.size());
+	for (const auto &entry : _entries) {
+		if (!ranges::contains(_raised, entry->canonical)) {
+			result.push_back(entry.get());
+		}
+	}
+	for (const auto &canonical : _raised) {
+		if (const auto entry = lookup(canonical)) {
+			result.push_back(entry);
+		}
+	}
+	return result;
+}
+
+void CardStickers::lowerRejected() {
+	_raised.erase(ranges::remove_if(_raised, [&](const QString &canonical) {
+		return !_grips.contains(canonical);
+	}), end(_raised));
+	_rejectedGrips = _grips;
 	invalidate();
 }
 
@@ -1061,25 +1133,24 @@ void CardStickers::compose(crl::time now) {
 		st::walletCardRadius,
 		st::walletCardRadius);
 	p.setClipPath(clip);
-	for (const auto &entry : _entries) {
+	for (const auto entry : ordered()) {
 		if (_holds.contains(entry->canonical)) {
 			continue;
 		}
-		const auto raw = entry.get();
-		const auto playing = advance(raw, now);
+		const auto playing = advance(entry, now);
 		const auto landing = ranges::find(
 			_landings,
 			entry->canonical,
 			&Landing::address);
 		if (_preview && _preview->address == entry->canonical) {
-			paintArt(p, raw, _preview->area, 1.);
+			paintArt(p, entry, _preview->area, 1.);
 		} else if (landing != end(_landings)) {
-			paintLanding(p, raw, *landing, now);
+			paintLanding(p, entry, *landing, now);
 		} else {
-			paintArt(p, raw, entry->data.area, 1.);
+			paintArt(p, entry, entry->data.area, 1.);
 		}
 		if (playing) {
-			presented(raw);
+			presented(entry);
 		}
 	}
 }

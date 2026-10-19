@@ -103,6 +103,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_card_angle.h"
 #include "wallet/wallet_card_editor.h"
 #include "wallet/wallet_card_float.h"
+#include "wallet/wallet_card_foreground.h"
 #include "wallet/wallet_card_gradient.h"
 #include "wallet/wallet_card_space.h"
 #include "wallet/wallet_card_stickers.h"
@@ -376,6 +377,7 @@ private:
 	SingleQueuedInvokation _loadMoreCheck;
 	std::unique_ptr<BalanceInk> _ink;
 	std::unique_ptr<CardStickers> _cardStickers;
+	std::unique_ptr<CardForeground> _cardForeground;
 	std::unique_ptr<CardFloat> _cardFloat;
 	std::unique_ptr<CardStickerEditor> _cardEditor;
 	std::unique_ptr<WindowLookTransition> _cardLook;
@@ -417,16 +419,18 @@ public:
 
 	void setFold(const CardFold &fold);
 	[[nodiscard]] const CardFold &fold() const;
-	[[nodiscard]] std::vector<QRectF> protectedAreas(
-		const BalanceInk &ink) const;
 	void paintFold(
 		Painter &p,
 		const CardFold &fold,
 		not_null<QWidget*> paintOwner);
+	void liftForeground();
+	void paintForeground(Painter &p, const CardFold &fold);
 	void invalidateCache();
+	[[nodiscard]] rpl::producer<> invalidations() const;
 	void followCursor();
 	void setLook(CardLook look, CardLookChange change = {});
 	[[nodiscard]] rpl::producer<bool> lookTransitionValue() const;
+	[[nodiscard]] CardMarkTint markTint(const BalanceInk &ink) const;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -437,6 +441,7 @@ private:
 		not_null<QWidget*> paintOwner,
 		QRectF rect);
 	void paintContent(Painter &p, float64 angle);
+	void paintFace(Painter &p);
 	void validateCache(float64 angle);
 	void refreshAddress();
 
@@ -447,10 +452,12 @@ private:
 	QString _addressLine2;
 	CardFold _fold;
 	QPointer<QWidget> _paintOwner;
+	rpl::event_stream<> _invalidations;
 	CardLookTransition _look;
 	QImage _cache;
 	float64 _cacheAngle = 0.;
 	std::unique_ptr<CardAngle> _angle;
+	bool _lifted = false;
 
 };
 
@@ -467,6 +474,12 @@ enum class BalanceStyle : uchar {
 	Exact,
 };
 
+enum class BalanceInkPart : uchar {
+	Both,
+	Card,
+	Outside,
+};
+
 class BalanceInk final {
 public:
 	BalanceInk();
@@ -477,13 +490,15 @@ public:
 		BalanceStyle style = BalanceStyle::Balance);
 	void setOuterWidth(int outerWidth);
 	void playMark(Fn<void()> repaint);
+	void setMarkTint(Fn<CardMarkTint()> tint);
 	void refresh();
 
 	void paint(
 		QPainter &p,
 		const CardFold &fold,
 		const QRegion &cardOutline,
-		QRect clip) const;
+		QRect clip,
+		BalanceInkPart part = BalanceInkPart::Both) const;
 
 	[[nodiscard]] QRect boundingRect(const CardFold &fold) const;
 	[[nodiscard]] QRect markRect(QRect cardRest) const;
@@ -513,6 +528,8 @@ private:
 
 	std::unique_ptr<Lottie::Icon> _markLottie;
 	Fn<void()> _markRepaint;
+	Fn<CardMarkTint()> _markTint;
+	mutable CardMarkTinter _markTinter;
 	Wallet::AmountPainter _painter;
 	QPainterPath _fiat;
 	QImage _markCard;
@@ -13489,6 +13506,10 @@ void BalanceInk::playMark(Fn<void()> repaint) {
 		_markLottie->framesCount() - 1);
 }
 
+void BalanceInk::setMarkTint(Fn<CardMarkTint()> tint) {
+	_markTint = std::move(tint);
+}
+
 void BalanceInk::refresh() {
 	const auto &fiatFont = st::walletCardFiatLabel.style.font;
 	const auto exact = (_style != BalanceStyle::Balance);
@@ -13612,9 +13633,10 @@ void BalanceInk::paintMark(
 		if (!_markLottie->animating() && _markLottie->frameIndex() != 0) {
 			_markLottie->jumpTo(0, _markRepaint);
 		}
+		const auto frame = _markLottie->frame();
 		p.drawImage(
 			markDrawRect(fold, _markFrame, _markLottieVisible),
-			_markLottie->frame());
+			_markTint ? _markTinter.apply(frame, _markTint()) : frame);
 	} else {
 		p.drawImage(markDrawRect(fold, monoBox, _markMonoVisible), mono);
 	}
@@ -13663,10 +13685,11 @@ void BalanceInk::paint(
 		QPainter &p,
 		const CardFold &fold,
 		const QRegion &cardOutline,
-		QRect clip) const {
+		QRect clip,
+		BalanceInkPart part) const {
 	const auto ink = boundingRect(fold);
 	const auto inside = cardOutline.intersected(QRegion(clip));
-	if (inside.intersects(ink)) {
+	if (part != BalanceInkPart::Outside && inside.intersects(ink)) {
 		p.save();
 		p.setClipRegion(inside, Qt::IntersectClip);
 		paintPass(
@@ -13679,7 +13702,7 @@ void BalanceInk::paint(
 		p.restore();
 	}
 	const auto outside = QRegion(clip) - inside;
-	if (outside.intersects(ink)) {
+	if (part != BalanceInkPart::Card && outside.intersects(ink)) {
 		p.save();
 		p.setClipRegion(outside, Qt::IntersectClip);
 		paintPass(
@@ -13826,6 +13849,16 @@ void Card::invalidateCache() {
 	} else {
 		update();
 	}
+	_invalidations.fire({});
+}
+
+rpl::producer<> Card::invalidations() const {
+	return _invalidations.events();
+}
+
+void Card::liftForeground() {
+	_lifted = true;
+	invalidateCache();
 }
 
 void Card::followCursor() {
@@ -13840,6 +13873,11 @@ void Card::setLook(CardLook look, CardLookChange change) {
 
 rpl::producer<bool> Card::lookTransitionValue() const {
 	return _look.runningValue();
+}
+
+CardMarkTint Card::markTint(const BalanceInk &ink) const {
+	const auto card = QRect(QPoint(), restRect().size());
+	return _look.markTint(card, ink.markRect(card));
 }
 
 float64 Card::paintAngle(not_null<QWidget*> paintOwner, QRectF rect) {
@@ -13916,7 +13954,27 @@ void Card::paintFold(
 	p.restore();
 }
 
+void Card::paintForeground(Painter &p, const CardFold &fold) {
+	if (!_lifted || !fold.valid || fold.opacity <= 0.) {
+		return;
+	}
+	p.save();
+	auto hq = PainterHighQualityEnabler(p);
+	p.setOpacity(p.opacity() * fold.opacity);
+	p.setTransform(fold.transform, true);
+	p.translate(fold.rest.topLeft());
+	paintFace(p);
+	p.restore();
+}
+
 void Card::paintContent(Painter &p, float64 angle) {
+	_look.paint(p, QRect(QPoint(), restRect().size()), angle);
+	if (!_lifted) {
+		paintFace(p);
+	}
+}
+
+void Card::paintFace(Painter &p) {
 	const auto size = restRect().size();
 	const auto qr = CardQrRect(size.width());
 	const auto layout = ComputeCardTextLayout(size, _nameStyle.font);
@@ -13938,32 +13996,7 @@ void Card::paintContent(Painter &p, float64 angle) {
 			q.restore();
 		}
 	};
-	_look.paint(p, QRect(QPoint(), size), angle, foreground);
-}
-
-std::vector<QRectF> Card::protectedAreas(const BalanceInk &ink) const {
-	const auto size = restRect().size();
-	const auto rest = ComputeCardFold(QRect(QPoint(), size), 0.);
-	const auto layout = ComputeCardTextLayout(size, _nameStyle.font);
-	const auto &font = layout.addressFont;
-	const auto stripRight = size.width() - st::walletCardAddressRight;
-	const auto stripHeight = std::max(
-		font->width(_addressLine1),
-		font->width(_addressLine2));
-	return {
-		ink.amountRect(rest),
-		ink.fiatRect(rest),
-		QRectF(CardQrRect(size.width())),
-		CardNameRect(
-			layout,
-			_name.maxWidth(),
-			_nameStyle.font->height),
-		QRectF(
-			layout.stripLeft,
-			st::walletCardAddressSkip,
-			stripRight - layout.stripLeft,
-			stripHeight),
-	};
+	_look.paintForeground(p, QRect(QPoint(), size), foreground);
 }
 
 Content::Content(
@@ -14546,7 +14579,6 @@ void Content::setupContent() {
 		.body = this,
 		.painter = base::make_weak(_cardStickers),
 		.fold = [=] { return cardFold(); },
-		.protectedAreas = [=] { return _card->protectedAreas(*_ink); },
 		.bring = [=] { _cardFloat->bring(); },
 		.prepareColor = [=](const CardLook &look) { _palette->prepare(look); },
 	};
@@ -14918,20 +14950,32 @@ void Content::setupProtectRow() {
 
 void Content::setupBalance() {
 	_ink = std::make_unique<BalanceInk>();
+	_ink->setMarkTint([=] { return _card->markTint(*_ink); });
 
 	_pinnedBalance = Ui::CreateChild<Ui::RpWidget>(_pinned);
 	_pinnedBalance->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_pinnedBalance->show();
 	_pinnedBalance->raise();
+	const auto repaintCard = [=] {
+		_pinnedBalance->update(_card->geometry());
+		if (_cardFloat) {
+			_cardFloat->update();
+		}
+	};
 	_cardStickers = std::make_unique<CardStickers>(
 		&_show->session(),
 		OwnCardStickersValue(&_show->session()),
-		[=] {
-			_pinnedBalance->update(_card->geometry());
-			if (_cardFloat) {
-				_cardFloat->update();
-			}
-		});
+		repaintCard);
+	_cardForeground = std::make_unique<CardForeground>(CardForegroundArgs{
+		.paint = [=](Painter &p, const CardFold &fold, QRect clip) {
+			_card->paintForeground(p, fold);
+			_ink->paint(p, fold, cardOutline(), clip, BalanceInkPart::Card);
+		},
+		.repaint = repaintCard,
+		.hidden = _cardStickers->grippedValue(),
+		.changes = _card->invalidations(),
+	});
+	_card->liftForeground();
 	_cardLook = std::make_unique<WindowLookTransition>(
 		WindowLookTransitionArgs{
 			.session = &_show->session(),
@@ -14950,7 +14994,7 @@ void Content::setupBalance() {
 			QRect clip) {
 		auto hq = PainterHighQualityEnabler(p);
 		if (clip.intersects(_ink->boundingRect(fold))) {
-			_ink->paint(p, fold, cardOutline(), clip);
+			_ink->paint(p, fold, cardOutline(), clip, BalanceInkPart::Outside);
 		}
 		if (fold.valid && fold.opacity > 0.) {
 			p.save();
@@ -14958,6 +15002,7 @@ void Content::setupBalance() {
 			p.setTransform(fold.transform, true);
 			_cardStickers->paint(p, fold.rest);
 			p.restore();
+			_cardForeground->paint(p, fold);
 			if (_cardEditor) {
 				_cardEditor->paint(p, fold);
 			}
@@ -15012,7 +15057,7 @@ void Content::setupBalance() {
 	const auto repaintBalance = [=] {
 		_pinnedBalance->update();
 		_titleBalance->update();
-		_cardFloat->update();
+		_cardForeground->invalidate();
 		_paintedInk = _ink->boundingRect(cardFold());
 	};
 
@@ -15053,7 +15098,7 @@ void Content::setupBalance() {
 		_pinnedBalance->update(mark);
 		_titleBalance->update(
 			mark.translated(0, st::separatePanelTitleHeight));
-		_cardFloat->update();
+		_cardForeground->invalidate();
 	});
 }
 

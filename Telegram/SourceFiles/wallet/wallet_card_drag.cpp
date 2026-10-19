@@ -21,8 +21,6 @@ constexpr auto kCardLiftScale = 1.28;
 constexpr auto kCardLiftDuration = crl::time(100);
 constexpr auto kCardReturnDuration = crl::time(140);
 constexpr auto kSettleDuration = crl::time(110);
-constexpr auto kSquashWide = 0.11;
-constexpr auto kSquashTall = 0.22;
 constexpr auto kReturnFade = 0.5;
 constexpr auto kReturnFadeDuration = crl::time(100);
 constexpr auto kVanishDuration = crl::time(150);
@@ -66,8 +64,6 @@ struct PreparedFrame {
 struct DraggedGift::Frame {
 	FlightPose pose;
 	float64 opacity = 1.;
-	float64 scaleX = 1.;
-	float64 scaleY = 1.;
 };
 
 class DraggedGift::Layer final : public Ui::RpWidget {
@@ -166,8 +162,7 @@ QTransform DraggedGift::Layer::transform(const Frame &frame) const {
 	const auto center = QPointF(_origin) + frame.pose.center;
 	return QTransform()
 		.translate(center.x(), center.y())
-		.rotate(frame.pose.rotation)
-		.scale(frame.scaleX, frame.scaleY);
+		.rotate(frame.pose.rotation);
 }
 
 QRectF DraggedGift::Layer::imageRect(float64 side) const {
@@ -257,7 +252,6 @@ DraggedGift::DraggedGift(DraggedGiftArgs &&args)
 , _sampledAt(_scaleStarted)
 , _origin(args.origin)
 , _animation([=](crl::time now) { return tick(now); }) {
-	_scaleTo = liftScale();
 	if (!args.image.isNull() || !args.firstFrame.isNull()) {
 		_layer = base::make_unique_q<Layer>(std::move(args));
 	}
@@ -281,12 +275,6 @@ bool DraggedGift::following() const {
 	return (_phase == Phase::Following);
 }
 
-float64 DraggedGift::liftScale() const {
-	return (_origin == DraggedGiftSource::Card)
-		? kCardLiftScale
-		: kSquareLiftScale;
-}
-
 TravelArtwork DraggedGift::takeArtwork() {
 	return _layer ? _layer->takeArtwork() : base::take(_artwork);
 }
@@ -305,31 +293,10 @@ void DraggedGift::move(QPointF cursor) {
 	follow(now);
 }
 
-void DraggedGift::resize(float64 scale) {
-	if (!following()
-		|| !std::isfinite(scale)
-		|| scale <= 0.
-		|| scale == _scaleTo) {
-		return;
-	}
-	const auto now = crl::now();
-	_scaleFrom = followScale(now);
-	_scaleTo = scale;
-	_scaleStarted = now;
-	follow(now);
-	if (!anim::Disabled() && !_animation.animating()) {
-		_animation.start();
-	}
-}
-
 void DraggedGift::settle(
 		Fn<std::optional<FlightPose>()> target,
-		bool squash,
 		Fn<void(bool arrived)> done) {
-	travel(
-		squash ? Phase::Squashing : Phase::Settling,
-		std::move(target),
-		std::move(done));
+	travel(Phase::Settling, std::move(target), std::move(done));
 }
 
 void DraggedGift::returnTo(
@@ -353,6 +320,12 @@ void DraggedGift::finish() {
 	complete(disappearing() || (_target && ValidFlightPose(_target())));
 }
 
+float64 DraggedGift::liftScale() const {
+	return (_origin == DraggedGiftSource::Card)
+		? kCardLiftScale
+		: kSquareLiftScale;
+}
+
 crl::time DraggedGift::liftDuration() const {
 	return (_origin == DraggedGiftSource::Card)
 		? kCardLiftDuration
@@ -363,7 +336,7 @@ float64 DraggedGift::followScale(crl::time now) const {
 	const auto progress = anim::Disabled()
 		? 1.
 		: ((now - _scaleStarted) / float64(liftDuration()));
-	return _scaleFrom + (_scaleTo - _scaleFrom) * FlightEaseOut(progress);
+	return 1. + (liftScale() - 1.) * FlightEaseOut(progress);
 }
 
 FlightPose DraggedGift::followPose(crl::time now) const {
@@ -394,8 +367,7 @@ bool DraggedGift::disappearing() const {
 crl::time DraggedGift::duration() const {
 	const auto card = (_origin == DraggedGiftSource::Card);
 	switch (_phase) {
-	case Phase::Settling:
-	case Phase::Squashing: return kSettleDuration;
+	case Phase::Settling: return kSettleDuration;
 	case Phase::Returning:
 		return card ? kCardReturnDuration : kSquareReturnDuration;
 	case Phase::Vanishing: return kVanishDuration;
@@ -435,10 +407,6 @@ DraggedGift::Frame DraggedGift::travelFrame(
 	if (_phase == Phase::Returning) {
 		const auto fade = std::min(elapsed / kReturnFadeDuration, 1.);
 		result.opacity = 1. - kReturnFade * std::sin(M_PI * fade);
-	} else if (_phase == Phase::Squashing) {
-		const auto left = 1. - std::clamp(progress, 0., 1.);
-		result.scaleX = 1. + kSquashWide * left * left;
-		result.scaleY = 1. - kSquashTall * left * left;
 	}
 	return result;
 }

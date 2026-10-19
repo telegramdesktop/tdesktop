@@ -149,6 +149,7 @@ private:
 		TravelArtwork artwork = TravelArtwork());
 	void setReturning(const QString &address, bool returning);
 	void setLifted(const QString &address);
+	void setGripped(const QString &address);
 	void setLeaving(const QString &address, bool leaving);
 	void refreshSquare(const QString &address);
 	[[nodiscard]] std::optional<FlightPose> dragSource(
@@ -158,16 +159,17 @@ private:
 	void endGesture(std::optional<QPoint> release);
 	void clearPress();
 	void dropDrag(const FlightPose &released);
-	[[nodiscard]] std::optional<CardDropKind> addDragged(
+	[[nodiscard]] bool addDragged(
 		std::shared_ptr<const Data::StarGift> gift,
 		QPointF local);
-	void landDrag(uint64 generation, std::optional<float64> releasedSide);
+	void landDrag(uint64 generation, float64 releasedSide);
 	void returnDrag();
 	void restoreSquare(uint64 generation);
 	void vanishDrag();
 	void dragFinished(uint64 generation);
 	void finishTravel();
 	[[nodiscard]] OwnCard &ownCard() const;
+	[[nodiscard]] OwnCardState stackedCard() const;
 	[[nodiscard]] bool colorSource(const QString &address) const;
 	[[nodiscard]] QImage squareFrame(const QString &address) const;
 	[[nodiscard]] std::optional<Data::StoryArea> shownArea(
@@ -200,6 +202,7 @@ private:
 	base::flat_set<QString> _returning;
 	Drag _drag;
 	QString _lifted;
+	QString _gripped;
 	QString _leaving;
 	uint64 _lastFlightId = 0;
 	uint64 _lastDragGeneration = 0;
@@ -630,6 +633,7 @@ CollectiblesGrid::CollectiblesGrid(
 CollectiblesGrid::~CollectiblesGrid() {
 	_drag = Drag();
 	_flights.clear();
+	setGripped(QString());
 	if (const auto painter = _host.painter.get()) {
 		for (const auto &address : _held) {
 			painter->release(address);
@@ -834,6 +838,7 @@ void CollectiblesGrid::startDrag(QPoint global) {
 			.outline = true,
 		}),
 	};
+	setGripped(address);
 	if (_host.bring) {
 		_host.bring();
 	}
@@ -884,64 +889,57 @@ void CollectiblesGrid::dropDrag(const FlightPose &released) {
 		returnDrag();
 		return;
 	}
-	const auto kind = addDragged(gift, *local);
-	if (!kind) {
+	if (!addDragged(gift, *local)) {
 		returnDrag();
-	} else if (*kind == CardDropKind::InPlace) {
-		landDrag(generation, released.side);
-		_drag.gift = nullptr;
-	} else {
-		_drag.gift->settle([=] {
-			return shownPose(address);
-		}, (*kind == CardDropKind::Chip), [=](bool) {
-			landDrag(generation, std::nullopt);
-		});
+		return;
 	}
+	landDrag(generation, released.side);
+	_drag.gift = nullptr;
 }
 
-std::optional<CardDropKind> CollectiblesGrid::addDragged(
+bool CollectiblesGrid::addDragged(
 		std::shared_ptr<const Data::StarGift> gift,
 		QPointF local) {
 	auto &own = ownCard();
 	const auto stickers = own.shown().stickers;
+	const auto card = _host.fold().rest.size();
+	const auto center = CardStickerClampedCenter(local, card);
 	if (!own.ready()) {
 		showRefusal(OwnCardChange::NotReady);
-		return std::nullopt;
+		return false;
 	} else if (int(stickers.size()) >= Data::kWalletCardMaxStickers) {
 		showRefusal(OwnCardChange::Limit);
-		return std::nullopt;
+		return false;
+	} else if (!center) {
+		return false;
 	}
-	const auto space = CurrentCardSpace(_host, stickers);
-	const auto drop = ResolveCardDrop(space, local);
-	if (!drop) {
-		_show->showToast(tr::lng_wallet_card_no_space(tr::now));
-		return std::nullopt;
-	}
-	const auto change = own.add({
+	auto desired = stackedCard();
+	desired.stickers.push_back({
 		.address = _drag.address,
-		.area = CardStickerArea(drop->center, drop->side, 0., space.card),
+		.area = CardStickerArea(
+			*center,
+			CardStickerPreferredSide(card),
+			0.,
+			card),
 		.gift = std::move(gift),
 	});
+	const auto change = own.save(std::move(desired));
 	if (change != OwnCardChange::Applied) {
 		showRefusal(change);
-		return std::nullopt;
+		return false;
 	}
 	setLifted(QString());
-	return drop->kind;
+	return true;
 }
 
-void CollectiblesGrid::landDrag(
-		uint64 generation,
-		std::optional<float64> releasedSide) {
+void CollectiblesGrid::landDrag(uint64 generation, float64 releasedSide) {
 	if (_drag.generation != generation) {
 		return;
 	}
 	const auto address = _drag.address;
 	auto artwork = _drag.gift ? _drag.gift->takeArtwork() : TravelArtwork();
 	if (const auto target = shownPose(address)) {
-		const auto scale = releasedSide
-			? (*releasedSide / target->side)
-			: 1.;
+		const auto scale = releasedSide / target->side;
 		landSticker(address, scale, QImage(), std::move(artwork));
 	} else {
 		releaseSticker(address);
@@ -994,6 +992,7 @@ void CollectiblesGrid::dragFinished(uint64 generation) {
 		return;
 	}
 	setLifted(QString());
+	setGripped(QString());
 	crl::on_main(this, [=] {
 		if (_drag.generation == generation) {
 			_drag = Drag();
@@ -1290,10 +1289,9 @@ void CollectiblesGrid::colorAction(const QString &address, bool apply) {
 			return;
 		}
 	}
-	auto &own = ownCard();
-	auto desired = own.shown();
+	auto desired = stackedCard();
 	desired.background = apply ? address : QString();
-	showRefusal(own.save(std::move(desired)));
+	showRefusal(ownCard().save(std::move(desired)));
 }
 
 void CollectiblesGrid::addToCard(
@@ -1301,40 +1299,36 @@ void CollectiblesGrid::addToCard(
 		bool color) {
 	auto &own = ownCard();
 	const auto stickers = own.shown().stickers;
+	const auto area = CardStickerDefaultArea(_host.fold().rest.size());
 	if (!own.ready()) {
 		showRefusal(OwnCardChange::NotReady);
 		return;
 	} else if (int(stickers.size()) >= Data::kWalletCardMaxStickers) {
 		showRefusal(OwnCardChange::Limit);
 		return;
-	}
-	const auto area = AutoPlace(CurrentCardSpace(_host, stickers));
-	if (!area) {
-		_show->showToast(tr::lng_wallet_card_no_space(tr::now));
+	} else if (!area) {
 		return;
 	}
 	const auto address = record.address;
 	auto frame = squareFrame(address);
 	cancelFlight(address);
 	holdSticker(address);
-	auto sticker = Data::WalletCardSticker{
+	auto desired = stackedCard();
+	desired.stickers.push_back({
 		.address = address,
 		.area = *area,
 		.gift = record.gift,
-	};
-	const auto change = [&] {
-		if (!color) {
-			return own.add(std::move(sticker));
-		}
-		auto desired = own.shown();
-		desired.stickers.push_back(std::move(sticker));
+	});
+	if (color) {
 		desired.background = address;
-		return own.save(std::move(desired));
-	}();
+	}
+	const auto change = own.save(std::move(desired));
 	if (change != OwnCardChange::Applied) {
 		releaseSticker(address);
 		showRefusal(change);
 		return;
+	} else if (const auto painter = _host.painter.get()) {
+		painter->raise(address);
 	}
 	flyToCard(address, std::move(frame));
 }
@@ -1351,7 +1345,10 @@ void CollectiblesGrid::removeFromCard(const QString &address) {
 	auto frame = squareFrame(address);
 	dropFlight(address);
 	setReturning(address, true);
-	const auto change = own.remove(address);
+	auto desired = stackedCard();
+	const auto change = RemoveOwnCardSticker(desired, address)
+		? own.save(std::move(desired))
+		: OwnCardChange::Unchanged;
 	releaseSticker(address);
 	if (change != OwnCardChange::Applied) {
 		setReturning(address, false);
@@ -1474,6 +1471,7 @@ void CollectiblesGrid::dropFlight(const QString &address) {
 	if (_drag.gift && !_drag.gift->following() && _drag.address == address) {
 		_drag = Drag();
 		setLifted(QString());
+		setGripped(QString());
 	}
 }
 
@@ -1524,6 +1522,20 @@ void CollectiblesGrid::setLifted(const QString &address) {
 	}
 }
 
+void CollectiblesGrid::setGripped(const QString &address) {
+	const auto was = std::exchange(_gripped, address);
+	if (was == address) {
+		return;
+	} else if (const auto painter = _host.painter.get()) {
+		if (!address.isEmpty()) {
+			painter->grip(address);
+		}
+		if (!was.isEmpty()) {
+			painter->ungrip(was);
+		}
+	}
+}
+
 void CollectiblesGrid::setLeaving(const QString &address, bool leaving) {
 	if (!leaving && _leaving != address) {
 		return;
@@ -1546,6 +1558,14 @@ void CollectiblesGrid::refreshSquare(const QString &address) {
 
 OwnCard &CollectiblesGrid::ownCard() const {
 	return _show->session().wallet().ownCard();
+}
+
+OwnCardState CollectiblesGrid::stackedCard() const {
+	auto result = ownCard().shown();
+	if (const auto painter = _host.painter.get()) {
+		StackCardStickers(result.stickers, painter->stack());
+	}
+	return result;
 }
 
 bool CollectiblesGrid::colorSource(const QString &address) const {

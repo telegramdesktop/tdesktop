@@ -51,7 +51,8 @@ public:
 
 	[[nodiscard]] bool setLook(CardLook look);
 	void paint(QPainter &p, const QRect &card, float64 angle);
-	[[nodiscard]] QColor stripInk() const;
+	[[nodiscard]] QColor stripInk();
+	[[nodiscard]] CardMarkTint markTint();
 
 private:
 	void validateTint();
@@ -62,6 +63,7 @@ private:
 	CardBackground _background;
 	std::vector<QColor> _surfaces;
 	QColor _ink;
+	QColor _markHue;
 	std::unique_ptr<Ui::Text::CustomEmoji> _emoji;
 	base::flat_map<float64, QImage> _symbols;
 	int _symbolsRatio = 0;

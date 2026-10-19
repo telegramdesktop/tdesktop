@@ -52,11 +52,14 @@ public:
 	~CardLookTransition();
 
 	void setLook(CardLook look, CardLookChange change = {});
-	void paint(
+	void paint(Painter &p, const QRect &card, float64 angle);
+	void paintForeground(
 		Painter &p,
 		const QRect &card,
-		float64 angle,
 		const Fn<void(Painter&, QColor)> &foreground);
+	[[nodiscard]] CardMarkTint markTint(
+		const QRect &card,
+		const QRect &mark) const;
 	[[nodiscard]] rpl::producer<bool> runningValue() const;
 
 private:
@@ -65,14 +68,18 @@ private:
 
 	[[nodiscard]] static float64 Progress(const Layer &layer, crl::time now);
 
+	[[nodiscard]] Frame prepare(const QPainter &p, const QRect &card) const;
 	[[nodiscard]] int settledIndex(crl::time now) const;
 	[[nodiscard]] bool step(crl::time now);
 	void prune(crl::time now);
 	void settle();
 	void refresh();
-	void compose(
+	void paintBackground(
+		Painter &p,
 		const Frame &frame,
-		const Fn<void(Painter&, QColor)> &foreground);
+		int index,
+		float64 angle);
+	void compose(const Frame &frame, const Fn<void(Painter&, int)> &layer);
 	void reveal(const Layer &layer, const Frame &frame);
 
 	const Fn<void()> _repaint;

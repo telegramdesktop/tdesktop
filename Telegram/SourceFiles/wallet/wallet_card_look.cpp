@@ -175,8 +175,12 @@ void CardLookPainter::paint(QPainter &p, const QRect &card, float64 angle) {
 	}
 }
 
-QColor CardLookPainter::stripInk() const {
-	return _look.brand() ? st::windowActiveTextFg->c : _ink;
+QColor CardLookPainter::stripInk() {
+	if (_look.brand()) {
+		return st::windowActiveTextFg->c;
+	}
+	validateTint();
+	return _ink;
 }
 
 void CardLookPainter::validateTint() {
@@ -194,7 +198,16 @@ void CardLookPainter::validateTint() {
 	_tintValid = true;
 	const auto tint = ComputeCardTint(_look.center, _look.edge, _surfaces);
 	_ink = CardStripInk(tint);
+	_markHue = CardReferenceColor(tint);
 	_background.setTint(tint);
+}
+
+CardMarkTint CardLookPainter::markTint() {
+	if (_look.brand()) {
+		return {};
+	}
+	validateTint();
+	return { .hue = _markHue, .amount = 1. };
 }
 
 void CardLookPainter::paintPattern(QPainter &p, const QRect &card) {

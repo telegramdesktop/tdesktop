@@ -81,6 +81,24 @@ struct Disc {
 	};
 }
 
+[[nodiscard]] float64 MarkCoverage(
+		const QRect &card,
+		const QRect &mark,
+		const CardLookChange &change,
+		float64 progress) {
+	if (change.reveal != CardLookReveal::Wave) {
+		return CardLookFadeValue(progress);
+	}
+	const auto disc = WaveDisc(card, change, progress);
+	if (disc.radius <= 0.) {
+		return 0.;
+	}
+	const auto half = std::max(mark.width(), mark.height()) / 2.;
+	const auto inside = disc.radius
+		- QLineF(disc.center, QRectF(mark).center()).length();
+	return std::clamp((inside + half) / std::max(2. * half, 1.), 0., 1.);
+}
+
 [[nodiscard]] QRect DevicePixels(const QPainter &p, const QRect &card) {
 	const auto &device = p.deviceTransform();
 	return (card.isEmpty() || !device.isInvertible())
@@ -201,7 +219,6 @@ struct CardLookTransition::Frame {
 	QRect pixels;
 	QTransform transform;
 	float64 ratio = 1.;
-	float64 angle = 0.;
 	crl::time now = 0;
 	int from = 0;
 };
@@ -257,31 +274,31 @@ void CardLookTransition::setLook(CardLook look, CardLookChange change) {
 void CardLookTransition::paint(
 		Painter &p,
 		const QRect &card,
-		float64 angle,
-		const Fn<void(Painter&, QColor)> &foreground) {
-	const auto now = crl::now();
-	const auto from = settledIndex(now);
-	const auto base = _layers[from].painter.get();
-	const auto pixels = (from + 1 < int(_layers.size()))
-		? DevicePixels(p, card)
-		: QRect();
-	if (pixels.isEmpty()) {
-		base->paint(p, card, angle);
-		foreground(p, base->stripInk());
+		float64 angle) {
+	const auto frame = prepare(p, card);
+	if (frame.pixels.isEmpty()) {
+		_layers[frame.from].painter->paint(p, card, angle);
 		return;
 	}
-	const auto frame = Frame{
-		.card = card,
-		.pixels = pixels,
-		.transform = p.deviceTransform()
-			* QTransform::fromTranslate(-pixels.x(), -pixels.y()),
-		.ratio = p.paintEngine()->paintDevice()->devicePixelRatio(),
-		.angle = angle,
-		.now = now,
-		.from = from,
-	};
-	compose(frame, foreground);
-	DrawDevicePixels(p, pixels, _composed);
+	compose(frame, [&](Painter &q, int index) {
+		paintBackground(q, frame, index, angle);
+	});
+	DrawDevicePixels(p, frame.pixels, _composed);
+}
+
+void CardLookTransition::paintForeground(
+		Painter &p,
+		const QRect &card,
+		const Fn<void(Painter&, QColor)> &foreground) {
+	const auto frame = prepare(p, card);
+	if (frame.pixels.isEmpty()) {
+		foreground(p, _layers[frame.from].painter->stripInk());
+		return;
+	}
+	compose(frame, [&](Painter &q, int index) {
+		foreground(q, _layers[index].painter->stripInk());
+	});
+	DrawDevicePixels(p, frame.pixels, _composed);
 }
 
 rpl::producer<bool> CardLookTransition::runningValue() const {
@@ -293,6 +310,28 @@ float64 CardLookTransition::Progress(const Layer &layer, crl::time now) {
 	return (duration > 0)
 		? std::clamp((now - layer.started) / float64(duration), 0., 1.)
 		: 1.;
+}
+
+CardLookTransition::Frame CardLookTransition::prepare(
+		const QPainter &p,
+		const QRect &card) const {
+	const auto now = crl::now();
+	const auto from = settledIndex(now);
+	const auto pixels = (from + 1 < int(_layers.size()))
+		? DevicePixels(p, card)
+		: QRect();
+	if (pixels.isEmpty()) {
+		return { .card = card, .now = now, .from = from };
+	}
+	return {
+		.card = card,
+		.pixels = pixels,
+		.transform = p.deviceTransform()
+			* QTransform::fromTranslate(-pixels.x(), -pixels.y()),
+		.ratio = p.paintEngine()->paintDevice()->devicePixelRatio(),
+		.now = now,
+		.from = from,
+	};
 }
 
 int CardLookTransition::settledIndex(crl::time now) const {
@@ -336,33 +375,39 @@ void CardLookTransition::refresh() {
 	_running = (_layers.size() > 1);
 }
 
+void CardLookTransition::paintBackground(
+		Painter &p,
+		const Frame &frame,
+		int index,
+		float64 angle) {
+	_layers[index].painter->paint(p, frame.card, angle);
+	const auto count = int(_layers.size());
+	for (auto i = std::max(index, frame.from + 1); i != count; ++i) {
+		const auto &above = _layers[i];
+		const auto progress = Progress(above, frame.now);
+		const auto disc = WaveDisc(frame.card, above.change, progress);
+		if (disc.radius > 0.) {
+			PaintCardLookRim(
+				p,
+				disc.center,
+				disc.radius,
+				frame.card.width());
+		}
+	}
+}
+
 void CardLookTransition::compose(
 		const Frame &frame,
-		const Fn<void(Painter&, QColor)> &foreground) {
-	const auto count = int(_layers.size());
+		const Fn<void(Painter&, int)> &layer) {
 	const auto draw = [&](QImage &image, int index) {
 		PrepareScratch(image, frame.pixels.size(), frame.ratio);
 		auto q = Painter(&image);
 		auto hq = PainterHighQualityEnabler(q);
 		SetDeviceTransform(q, frame.transform);
-		auto &look = *_layers[index].painter;
-		look.paint(q, frame.card, frame.angle);
-		for (auto i = std::max(index, frame.from + 1); i != count; ++i) {
-			const auto &above = _layers[i];
-			const auto progress = Progress(above, frame.now);
-			const auto disc = WaveDisc(frame.card, above.change, progress);
-			if (disc.radius > 0.) {
-				PaintCardLookRim(
-					q,
-					disc.center,
-					disc.radius,
-					frame.card.width());
-			}
-		}
-		foreground(q, look.stripInk());
+		layer(q, index);
 	};
 	draw(_composed, frame.from);
-	for (auto i = frame.from + 1; i != count; ++i) {
+	for (auto i = frame.from + 1; i != int(_layers.size()); ++i) {
 		draw(_scratch, i);
 		reveal(_layers[i], frame);
 	}
@@ -389,6 +434,22 @@ void CardLookTransition::reveal(const Layer &layer, const Frame &frame) {
 		q.setClipPath(frame.transform.map(path));
 	}
 	q.drawImage(rect, _scratch, rect);
+}
+
+CardMarkTint CardLookTransition::markTint(
+		const QRect &card,
+		const QRect &mark) const {
+	const auto now = crl::now();
+	const auto from = settledIndex(now);
+	auto result = _layers[from].painter->markTint();
+	for (auto i = from + 1; i != int(_layers.size()); ++i) {
+		const auto &layer = _layers[i];
+		result = MixCardMarkTint(
+			result,
+			layer.painter->markTint(),
+			MarkCoverage(card, mark, layer.change, Progress(layer, now)));
+	}
+	return result;
 }
 
 CardLookFollower::CardLookFollower(CardLookFollowerArgs &&args)

@@ -158,28 +158,6 @@ void OwnCard::applyFullUserCard(std::optional<Data::WalletCard> card) {
 	self->setWalletCard(std::move(card));
 }
 
-OwnCardChange OwnCard::add(WalletCardSticker sticker) {
-	auto desired = shown();
-	if (ranges::any_of(desired.stickers, SameNftAs(sticker.address))) {
-		return OwnCardChange::Unchanged;
-	}
-	desired.stickers.push_back(std::move(sticker));
-	return save(std::move(desired));
-}
-
-OwnCardChange OwnCard::remove(const QString &address) {
-	auto desired = shown();
-	const auto i = ranges::find_if(desired.stickers, SameNftAs(address));
-	if (i == end(desired.stickers)) {
-		return OwnCardChange::Unchanged;
-	}
-	desired.stickers.erase(i);
-	if (SentBackground(desired).isEmpty()) {
-		desired.background = QString();
-	}
-	return save(std::move(desired));
-}
-
 OwnCardChange OwnCard::save(OwnCardState desired) {
 	if (!ready()) {
 		return OwnCardChange::NotReady;
@@ -257,6 +235,18 @@ void OwnCard::discard(OwnCardFailure failure) {
 	failure.left = Missing(before.stickers, after.stickers);
 	failure.returned = Missing(after.stickers, before.stickers);
 	_failures.fire(std::move(failure));
+}
+
+bool RemoveOwnCardSticker(OwnCardState &state, const QString &address) {
+	const auto i = ranges::find_if(state.stickers, SameNftAs(address));
+	if (i == end(state.stickers)) {
+		return false;
+	}
+	state.stickers.erase(i);
+	if (SentBackground(state).isEmpty()) {
+		state.background = QString();
+	}
+	return true;
 }
 
 } // namespace Wallet
