@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common_session.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/text/text_utilities.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
@@ -623,7 +624,7 @@ public:
 		not_null<Window::SessionController*> controller);
 	~Shortcuts();
 
-	void showFinished() override;
+	void setInnerFocus() override;
 
 	[[nodiscard]] rpl::producer<QString> title() override;
 
@@ -634,6 +635,7 @@ private:
 	void setupContent();
 
 	std::unique_ptr<Ui::SearchFieldController> _searchController;
+	QPointer<Ui::InputField> _searchField;
 	Fn<void(const QString &query)> _applyFilter;
 	Fn<void()> _save;
 	QPointer<Ui::RpWidget> _resetButton;
@@ -662,6 +664,7 @@ base::weak_qptr<Ui::RpWidget> Shortcuts::createPinnedToTop(
 	auto search = CreateSectionSearchRow(parent);
 	_searchController = std::move(search.controller);
 	const auto row = search.row;
+	_searchField = search.field;
 
 	_searchController->queryChanges(
 	) | rpl::on_next([=](const QString &query) {
@@ -738,8 +741,12 @@ void Shortcuts::setupContent() {
 	Ui::ResizeFitChild(this, content);
 }
 
-void Shortcuts::showFinished() {
-	Section<Shortcuts>::showFinished();
+void Shortcuts::setInnerFocus() {
+	if (_searchField) {
+		_searchField->setFocus();
+	} else {
+		setFocus();
+	}
 }
 
 const auto kMeta = BuildHelper({
