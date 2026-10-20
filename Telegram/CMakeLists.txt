@@ -2118,6 +2118,8 @@ PRIVATE
     test/test_scenario.cpp
     test/test_secrecy_scan.cpp
     test/test_secrecy_scan.h
+    test/test_session_gate.cpp
+    test/test_session_gate.h
     test/test_style.cpp
     test/test_style.h
     test/test_text_drop.cpp

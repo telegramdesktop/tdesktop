@@ -24,7 +24,13 @@ Keep the repository's `test_scenario.cpp` a no-op outside the saved overlay.
 
 Read the [runner contract](docs/helpers/test_runner.md) before writing stages;
 it includes the narrowly documented activation exception to a pure wait.
-Startup/session/chats gates are opt-in: select only those the fixture needs.
+Startup/session/chats waits are opt-in: select only those the fixture needs.
+
+Every scenario first passes the [session gate](docs/helpers/test_session_gate.md),
+which refuses authorized non-Test accounts unless the task explicitly permits
+production legs. Configure `UseTestSession` and its restore stage when the
+fixture needs an account switch. `SetupScenario` only registers stages,
+releases and gate options; the gate does not guard actions taken during setup.
 
 ## Exact objects and actions
 

@@ -26,6 +26,25 @@ starts an asynchronous chat-background re-cache that must not still be
 painting at quit (see the `d->allThreads.isEmpty()` row under “Failure
 diagnosis” below).
 
+The Test-session helper's account restore is such a stage too:
+`Test::AppendTestSessionRestore` is the scenario's last stage and waits for
+the re-shown window to settle, while the helper's finish verification in
+`Runner::finish()` runs after every `onFinish` callback and is only the
+backstop of a run whose restore stage did not run or did not finish. When
+that backstop does switch the account back, or the scenario watchdog ends
+the run while the restore stage is still waiting its drain, `finish()` waits
+what is left of that post-switch drain, yielding to the event loop and
+waiting again when its timer arrives before the drain's recorded end, and
+only then checks a fresh reading before its `kFinishDrainDelay` wait,
+`SCENARIO_RESULT`, `TEST_COMPLETE` and `Core::Quit()`; its quit fuse is
+armed before that wait, with the deadline extended by it. The drain
+mitigates the re-cache and does not prove it finished; `finish()` goes on at
+once only when the restore is already settled - nothing was switched back,
+or the restore stage waited its drain and checked a fresh reading. Because
+the restore stage runs before the `onFinish` releases, every release of
+such a scenario holds the exact Test session or object it acts on and never
+re-reads `domain().active()` at finish.
+
 Skipping the hook costs a whole run. A leaked `State` whose two
 `rpl::lifetime`s were never released kept observers subscribed to
 `Storage::Facade`'s and `Data::Session`'s streams while `~Main::Session` tore

@@ -63,6 +63,27 @@ Do not put all three waits in every scenario preamble. An injected box,
 helper oracle, or direct production seam often needs none of the account or
 chats gates.
 
+Before the first stage begins, `Runner::start()` runs the session gate
+([`test_session_gate.h`](../../test_session_gate.h)) for every scenario, self-test packs included. It
+writes one row per account,
+`NOTE: SESSION_GATE: account index=<i> authorized=<0|1> environment=<Production|Test> primary=<0|1> active=<0|1>`,
+then a `reading` row, and on a pass a `decision pass` row and nothing else:
+it changes no result when every authorized account that the primary window,
+its shown session and `domain().active()` select is on the Test environment,
+or when no account is authorized. When one of them selects an authorized
+account on another environment, it writes exactly one
+`TEST_RESULT: FAIL: fixture gate: session gate - case=...` row naming that
+environment before any `TEST_STEP`, and every stage then reads
+`TEST_RESULT: N/A: <stage> - fixture gate: session gate refused the scenario (case=<case>)`
+with none of its callbacks run; the run still reaches `TEST_COMPLETE`. The
+gate decides once, at start, and is not a continuous
+account lock: code that `SetupScenario` itself executes is not a stage and is
+not gated, so `SetupScenario` only appends stages, registers releases and
+configures the gate, and no stage may switch the primary window or
+`domain().active()` to another account behind it. The one account switch
+the harness makes is the Test-session helper's (`Test::UseTestSession`),
+inside the gate and before any stage, undone by its last stage.
+
 ## Related guidance
 
 [Scenario design](../scenarios.md); [overlay example](../overlay-example.md); [teardown](../teardown.md); [failure diagnosis](../diagnostics.md).
