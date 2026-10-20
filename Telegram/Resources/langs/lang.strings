@@ -726,6 +726,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_shortcuts" = "Keyboard shortcuts";
 
 "lng_shortcuts_reset" = "Reset to default";
+"lng_shortcuts_reset_sure" = "Are you sure you want to reset all keyboard shortcuts to their default values?";
 "lng_shortcuts_recording" = "Recording...";
 "lng_shortcuts_add_another" = "Add another";
 

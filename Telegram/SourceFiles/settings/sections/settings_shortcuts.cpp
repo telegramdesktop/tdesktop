@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/sections/settings_chat.h"
 #include "settings/settings_builder.h"
 #include "settings/settings_common_session.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -485,14 +486,21 @@ struct SetupShortcutsResult {
 		st::settingsButtonNoIcon));
 	reset->setClickedCallback([=] {
 		stopRecording();
-		for (auto &entry : state->entries) {
-			if (entry.now != entry.original) {
-				entry.now = entry.original;
-				fill(entry);
-			}
-		}
-		checkModified();
-		S::ResetToDefaults();
+		controller->show(Ui::MakeConfirmBox({
+			.text = tr::lng_shortcuts_reset_sure(),
+			.confirmed = crl::guard(content, [=](Fn<void()> close) {
+				for (auto &entry : state->entries) {
+					if (entry.now != entry.original) {
+						entry.now = entry.original;
+						fill(entry);
+					}
+				}
+				checkModified();
+				S::ResetToDefaults();
+				close();
+			}),
+			.confirmText = tr::lng_shortcuts_reset(),
+		}));
 	});
 	AddSkip(modifiedInner);
 	AddDivider(modifiedInner);
