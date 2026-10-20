@@ -481,6 +481,12 @@ enum class BalanceInkPart : uchar {
 	Outside,
 };
 
+enum class BalanceInkLayer : uchar {
+	All,
+	Primary,
+	Secondary,
+};
+
 class BalanceInk final {
 public:
 	BalanceInk();
@@ -499,7 +505,8 @@ public:
 		const CardFold &fold,
 		const QRegion &cardOutline,
 		QRect clip,
-		BalanceInkPart part = BalanceInkPart::Both) const;
+		BalanceInkPart part = BalanceInkPart::Both,
+		BalanceInkLayer layer = BalanceInkLayer::All) const;
 
 	[[nodiscard]] QRect boundingRect(const CardFold &fold) const;
 	[[nodiscard]] QRect markRect(QRect cardRest) const;
@@ -524,7 +531,8 @@ private:
 		const BalancePalette &palette,
 		const QImage &mark,
 		bool card,
-		float64 secondaryOpacity) const;
+		float64 secondaryOpacity,
+		BalanceInkLayer layer) const;
 	[[nodiscard]] QTransform groupTransform(const CardFold &fold) const;
 
 	std::unique_ptr<Lottie::Icon> _markLottie;
@@ -13651,16 +13659,24 @@ void BalanceInk::paintPass(
 		const BalancePalette &palette,
 		const QImage &mark,
 		bool card,
-		float64 secondaryOpacity) const {
+		float64 secondaryOpacity,
+		BalanceInkLayer layer) const {
+	const auto primary = (layer != BalanceInkLayer::Secondary);
+	const auto secondary = (layer != BalanceInkLayer::Primary);
 	p.save();
 	p.setTransform(groupTransform(fold), true);
-	paintMark(p, fold.fold, mark, card);
+	if (primary) {
+		paintMark(p, fold.fold, mark, card);
+	}
 	_painter.paint(p, {
-		.digits = palette.amount,
+		.digits = primary ? palette.amount : QColor(Qt::transparent),
 		.ticker = palette.secondary,
-		.tickerOpacity = secondaryOpacity,
+		.tickerOpacity = secondary ? secondaryOpacity : 0.,
 	});
 	p.restore();
+	if (!secondary) {
+		return;
+	}
 
 	const auto fiat = fiatRect(fold);
 	const auto fiatScale = BalanceFiatScale(fold.fold);
@@ -13689,10 +13705,14 @@ void BalanceInk::paint(
 		const CardFold &fold,
 		const QRegion &cardOutline,
 		QRect clip,
-		BalanceInkPart part) const {
+		BalanceInkPart part,
+		BalanceInkLayer layer) const {
 	const auto ink = boundingRect(fold);
 	const auto inside = cardOutline.intersected(QRegion(clip));
 	if (part != BalanceInkPart::Outside && inside.intersects(ink)) {
+		const auto secondaryOpacity = (layer == BalanceInkLayer::Secondary)
+			? 1.
+			: st::walletCardSecondaryOpacity;
 		p.save();
 		p.setClipRegion(inside, Qt::IntersectClip);
 		paintPass(
@@ -13701,7 +13721,8 @@ void BalanceInk::paint(
 			CardBalancePalette(),
 			_markCard,
 			true,
-			st::walletCardSecondaryOpacity);
+			secondaryOpacity,
+			layer);
 		p.restore();
 	}
 	const auto outside = QRegion(clip) - inside;
@@ -13714,7 +13735,8 @@ void BalanceInk::paint(
 			SettledBalancePalette(),
 			_markSettled,
 			false,
-			1.);
+			1.,
+			layer);
 		p.restore();
 	}
 }
@@ -14996,7 +15018,28 @@ void Content::setupBalance() {
 	_cardForeground = std::make_unique<CardForeground>(CardForegroundArgs{
 		.paint = [=](Painter &p, const CardFold &fold, QRect clip) {
 			_card->paintForeground(p, fold);
-			_ink->paint(p, fold, cardOutline(), clip, BalanceInkPart::Card);
+			_ink->paint(
+				p,
+				fold,
+				cardOutline(),
+				clip,
+				BalanceInkPart::Card,
+				BalanceInkLayer::Primary);
+		},
+		.halo = {
+			.area = [=](const CardFold &fold) {
+				return _ink->boundingRect(fold);
+			},
+			.paint = [=](Painter &p, const CardFold &fold, QRect clip) {
+				_ink->paint(
+					p,
+					fold,
+					cardOutline(),
+					clip,
+					BalanceInkPart::Card,
+					BalanceInkLayer::Secondary);
+			},
+			.tint = [=] { return _card->markTint(*_ink); },
 		},
 		.repaint = repaintCard,
 		.changes = _card->invalidations(),

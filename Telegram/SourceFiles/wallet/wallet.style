@@ -82,6 +82,7 @@ walletCardForegroundShadow: BoxShadow {
 	offset: point(0px, 1px);
 	opacity: 0.45;
 }
+walletCardForegroundHalo: 4px;
 walletChatCardMarkTop: 29px;
 walletChatCardMarkSize: 42px;
 // The animation paints over its layout slot, centred on it, so rows stay put.
