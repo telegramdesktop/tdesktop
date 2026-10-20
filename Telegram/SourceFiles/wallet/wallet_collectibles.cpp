@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "base/call_delayed.h"
+#include "base/event_filter.h"
 #include "base/weak_qptr.h"
 #include "boxes/star_gift_box.h"
 #include "boxes/star_gift_cover_box.h"
@@ -57,6 +58,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_wallet.h"
 
+#include <QtGui/QContextMenuEvent>
 #include <QtWidgets/QApplication>
 
 namespace Wallet {
@@ -1873,6 +1875,22 @@ auto CollectiblesGrid::createGiftButton(const QString &address)
 	) | rpl::on_next([=](QPoint point) {
 		showCardMenu(address, point);
 	}, raw->lifetime());
+	base::install_event_filter(raw, [=](not_null<QEvent*> e) {
+		if (e->type() != QEvent::ContextMenu) {
+			return base::EventFilterResult::Continue;
+		}
+		const auto context = static_cast<QContextMenuEvent*>(e.get());
+		if (context->reason() != QContextMenuEvent::Mouse) {
+			return base::EventFilterResult::Continue;
+		}
+		// Shadow extends overlap neighbours, so the point picks the square.
+		const auto global = context->globalPos();
+		const auto index = squareAt(mapFromGlobal(global));
+		if (index >= 0) {
+			showCardMenu(_records[index].address, global);
+		}
+		return base::EventFilterResult::Cancel;
+	});
 	raw->mouseEvents(
 	) | rpl::on_next([=](QMouseEvent *e) {
 		if (e->type() == QEvent::MouseButtonPress) {
