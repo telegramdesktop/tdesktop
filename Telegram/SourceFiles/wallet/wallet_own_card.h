@@ -58,6 +58,9 @@ public:
 
 	[[nodiscard]] OwnCardChange save(OwnCardState desired);
 
+	[[nodiscard]] bool cardDecorationHintDone() const;
+	void finishCardDecorationHint();
+
 private:
 	[[nodiscard]] OwnCardState confirmed() const;
 	void refresh();

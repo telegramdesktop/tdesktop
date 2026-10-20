@@ -8971,6 +8971,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_card_color_and_one" = "{all}, {one}";
 "lng_wallet_card_color_and_last" = "{all} and {one}";
 "lng_wallet_card_color_not_allowed" = "This gift can't be set as the card background.";
+"lng_wallet_card_drag_hint" = "Drag this collectible onto your card to decorate it.";
 "lng_wallet_chip_gift" = "Collectible gift";
 "lng_wallet_chip_username" = "Collectible username";
 "lng_wallet_chip_number" = "Anonymous Number";

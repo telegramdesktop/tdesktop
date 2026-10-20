@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_response.h"
+#include "storage/storage_account.h"
 #include "wallet/wallet_address.h"
 
 namespace Wallet {
@@ -20,6 +21,7 @@ namespace {
 using Data::WalletCardSticker;
 
 constexpr auto kPreserveAppearanceDuration = crl::time(60000);
+constexpr auto kCardDecorationHintDonePref = "wallet_card_drag_hint_hidden"_cs;
 
 [[nodiscard]] auto SameNftAs(const QString &address) {
 	return [canonical = CanonicalAddress(address)](
@@ -172,6 +174,16 @@ OwnCardChange OwnCard::save(OwnCardState desired) {
 	return OwnCardChange::Applied;
 }
 
+bool OwnCard::cardDecorationHintDone() const {
+	return _session->local().readPref<bool>(kCardDecorationHintDonePref);
+}
+
+void OwnCard::finishCardDecorationHint() {
+	if (!cardDecorationHintDone()) {
+		_session->local().writePref<bool>(kCardDecorationHintDonePref, true);
+	}
+}
+
 OwnCardState OwnCard::confirmed() const {
 	const auto card = _session->user()->walletCard();
 	return card
@@ -180,7 +192,11 @@ OwnCardState OwnCard::confirmed() const {
 }
 
 void OwnCard::refresh() {
-	_shown = shown();
+	auto state = shown();
+	if (!state.stickers.empty()) {
+		finishCardDecorationHint();
+	}
+	_shown = std::move(state);
 }
 
 void OwnCard::apply(OwnCardState desired) {

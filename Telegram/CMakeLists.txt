@@ -2290,6 +2290,8 @@ PRIVATE
     wallet/wallet_collectible_record.h
     wallet/wallet_collectibles.cpp
     wallet/wallet_collectibles.h
+    wallet/wallet_collectibles_hint.cpp
+    wallet/wallet_collectibles_hint.h
     wallet/wallet_comment.cpp
     wallet/wallet_comment.h
     wallet/wallet_content.cpp

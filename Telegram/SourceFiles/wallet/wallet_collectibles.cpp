@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_card_stickers.h"
 #include "wallet/wallet_chat_show.h"
 #include "wallet/wallet_collectible_media.h"
+#include "wallet/wallet_collectibles_hint.h"
 #include "wallet/wallet_content.h"
 #include "wallet/wallet_own_card.h"
 #include "wallet/wallet_palette.h"
@@ -131,6 +132,7 @@ private:
 	[[nodiscard]] QRect squareRect(int index) const;
 	[[nodiscard]] int squareAt(QPoint point) const;
 	[[nodiscard]] int indexOf(const QString &address) const;
+	[[nodiscard]] std::optional<QRect> hintTarget() const;
 
 	void invalidateWindows();
 	void refreshWindows();
@@ -244,6 +246,7 @@ private:
 	int _mediaFrom = -1;
 	int _mediaTill = -1;
 	bool _over = false;
+	std::unique_ptr<CollectiblesHint> _hint;
 
 };
 
@@ -646,15 +649,34 @@ CollectiblesGrid::CollectiblesGrid(
 
 	events(
 	) | rpl::filter([](not_null<QEvent*> e) {
-		return (e->type() == QEvent::Hide)
+		return (e->type() == QEvent::Show)
+			|| (e->type() == QEvent::Hide)
 			|| (e->type() == QEvent::WindowDeactivate);
-	}) | rpl::on_next([=] {
+	}) | rpl::on_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::Show) {
+			// Ancestors finish their layout only after this event.
+			crl::on_main(this, [=] {
+				if (_hint) {
+					_hint->refresh();
+				}
+			});
+			return;
+		}
 		endGesture(std::nullopt);
 		finishTravel();
+		if (_hint && e->type() == QEvent::Hide) {
+			_hint->refresh();
+		}
 	}, lifetime());
+
+	_hint = std::make_unique<CollectiblesHint>(
+		_host.body,
+		&_show->session(),
+		[=] { return hintTarget(); });
 }
 
 CollectiblesGrid::~CollectiblesGrid() {
+	_hint = nullptr;
 	_drag = Drag();
 	_flights.clear();
 	setGripped(QString());
@@ -863,6 +885,9 @@ void CollectiblesGrid::startDrag(QPoint global) {
 		}),
 	};
 	setGripped(address);
+	if (_hint) {
+		_hint->record();
+	}
 	if (_host.bring) {
 		_host.bring();
 	}
@@ -1099,6 +1124,29 @@ int CollectiblesGrid::indexOf(const QString &address) const {
 	return (i != end(_records)) ? int(i - begin(_records)) : -1;
 }
 
+std::optional<QRect> CollectiblesGrid::hintTarget() const {
+	const auto gift = [](const CollectibleRecord &record) {
+		return (record.gift != nullptr);
+	};
+	const auto i = ranges::find_if(_records, gift);
+	if (i == end(_records)) {
+		return std::nullopt;
+	}
+	const auto j = _squares.find(i->address);
+	const auto button = (j != end(_squares)) ? j->second.gift.get() : nullptr;
+	if (!button || !button->isVisible()) {
+		return std::nullopt;
+	}
+	const auto index = int(i - begin(_records));
+	const auto shown = button->visibleRegion().translated(button->pos())
+		& squareRect(index);
+	const auto inner = shown.boundingRect();
+	if (inner.isEmpty()) {
+		return std::nullopt;
+	}
+	return QRect(mapTo(_host.body.get(), inner.topLeft()), inner.size());
+}
+
 void CollectiblesGrid::invalidateWindows() {
 	_squaresFrom = _squaresTill = -1;
 	_mediaFrom = _mediaTill = -1;
@@ -1107,6 +1155,9 @@ void CollectiblesGrid::invalidateWindows() {
 void CollectiblesGrid::refreshWindows() {
 	refreshSquares();
 	refreshMediaWindow();
+	if (_hint) {
+		_hint->refresh();
+	}
 }
 
 void CollectiblesGrid::refreshSquares() {
