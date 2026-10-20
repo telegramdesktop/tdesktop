@@ -805,6 +805,23 @@ void MyWidget::paintEvent(QPaintEvent *e) {
 }
 ```
 
+## Input Method Hints
+
+A field for typed content tells the input method what it is for: call `setInputMethodHints` right after creating it (`Ui::InputField` forwards the hints to its inner editor; `Ui::MaskedInputField` subclasses set them in the constructor). Combinations already used in the code:
+
+- URL: `Qt::ImhUrlCharactersOnly | Qt::ImhNoAutoUppercase | Qt::ImhNoPredictiveText`
+- E-mail: `Qt::ImhEmailCharactersOnly | Qt::ImhNoAutoUppercase | Qt::ImhNoPredictiveText`
+- Phone: `Qt::ImhDialableCharactersOnly | Qt::ImhNoPredictiveText`
+- Digits only (codes, date and time parts): `Qt::ImhDigitsOnly | Qt::ImhNoPredictiveText`
+- Numbers with separators (amounts, timestamps): `Qt::ImhFormattedNumbersOnly | Qt::ImhNoPredictiveText`
+- Latin identifiers (usernames, file extensions, keys): `Qt::ImhLatinOnly | Qt::ImhNoAutoUppercase | Qt::ImhNoPredictiveText`
+- Add `Qt::ImhSensitiveData` to one-time codes and to secrets shown in clear text, such as recovery phrase words
+- Free text (names, titles, comments, search) gets no hints; `Ui::PasswordInput` sets its own
+
+Prefer the hint that says what the field is for, as long as it works or at least doesn't conflict with what works. To see what works, check every consumer on every platform tdesktop ships at the Qt version in use: the Qt platform plugins (windows, cocoa, xcb, wayland) and the input context plugins, including the bundled ones (fcitx5-qt). If the semantic hint conflicts, pick what works. Hints don't filter input: the field still drops unwanted characters itself.
+
+As of 2026-10-20, `Qt::ImhDate` and `Qt::ImhTime` do nothing anywhere tdesktop runs. Qt on Wayland sends them as the date/time content purpose, but no Wayland on-screen keyboard implements those purposes (Qt Virtual Keyboard, which Plasma Keyboard is built on, GNOME Shell, Squeekboard). Qt reads them on none of tdesktop's other platforms (Windows, macOS, X11), and neither does the bundled fcitx5-qt. Used instead of the digit hints, they lose the digit layouts, so date and time fields use the digit hints above.
+
 ## Localization
 
 ### String Definitions
