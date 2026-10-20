@@ -370,6 +370,9 @@ uniqueAttributePercentPadding: margins(4px, 0px, 4px, 0px);
 uniqueGiftActionHeight: 56px;
 uniqueGiftActionIconTop: 7px;
 uniqueGiftActionTextTop: 32px;
+uniqueGiftActionNameSmall: TextStyle(uniqueAttributeName) {
+	font: font(10px semibold);
+}
 uniqueAttributeModel: RoundButton(defaultLightButton) {
 	textFg: windowBoldFg;
 	textFgOver: windowBoldFg;

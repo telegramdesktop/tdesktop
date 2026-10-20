@@ -57,6 +57,7 @@ class GenericBox;
 class RpWidget;
 class VerticalLayout;
 class PopupMenu;
+struct UniqueGiftCoverAction;
 } // namespace Ui
 
 namespace Settings {
@@ -141,7 +142,8 @@ struct CreditsEntryBoxStyleOverrides {
 
 struct UniqueGiftCoverActions {
 	Fn<void()> transfer;
-	Fn<void()> sell;
+	Fn<std::vector<Ui::UniqueGiftCoverAction>(
+		not_null<Ui::GenericBox*>)> extra;
 	Fn<void(not_null<Ui::GenericBox*>)> aboveButtons;
 };
 

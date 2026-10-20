@@ -69,6 +69,9 @@ walletCardQrIcon: icon{{ "menu/qr_code", windowSubTextFg }};
 walletCardInfoIcon: icon{{ "menu/info", windowSubTextFg }};
 walletCardStickerRingWidth: 1px;
 walletCardColorToastIcon: icon {{ "menu/palette", toastFg }};
+walletCoverColorOffIcon: icon{{ "wallet/palette_off-24x24", menuIconColor }};
+walletCoverCardAddIcon: icon{{ "wallet/card_add-24x24", menuIconColor }};
+walletCoverCardOffIcon: icon{{ "wallet/card_off-24x24", menuIconColor }};
 walletCardFloatShadow: BoxShadow {
 	blurRadius: 18px;
 	offset: point(0px, 2px);

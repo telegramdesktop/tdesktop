@@ -1533,16 +1533,14 @@ void GenericCreditsEntryCover(
 		if (actions && actions->transfer) {
 			coverActions.push_back({
 				.text = tr::lng_gift_transfer_button(),
-				.icon = &st::menuIconReplace,
+				.icon = rpl::single(&st::menuIconReplace),
 				.callback = actions->transfer,
 			});
 		}
-		if (actions && actions->sell) {
-			coverActions.push_back({
-				.text = tr::lng_gift_transfer_sell(),
-				.icon = &st::menuIconTagSell,
-				.callback = actions->sell,
-			});
+		if (actions && actions->extra) {
+			for (auto &action : actions->extra(box)) {
+				coverActions.push_back(std::move(action));
+			}
 		}
 		AddUniqueGiftCover(content, rpl::single(cover), {
 			.numberText = (uniqueGift->number > 0)

@@ -29,8 +29,10 @@ struct UniqueGiftCoverMessage {
 
 struct UniqueGiftCoverAction {
 	rpl::producer<QString> text;
-	const style::icon *icon = nullptr;
+	rpl::producer<const style::icon*> icon;
 	Fn<void()> callback;
+	rpl::producer<bool> faded;
+	rpl::producer<bool> shown;
 };
 
 struct UniqueGiftCoverArgs {

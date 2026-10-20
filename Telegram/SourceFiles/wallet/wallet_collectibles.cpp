@@ -8,8 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_collectibles.h"
 
 #include "apiwrap.h"
+#include "base/call_delayed.h"
 #include "base/weak_qptr.h"
 #include "boxes/star_gift_box.h"
+#include "boxes/star_gift_cover_box.h"
 #include "data/data_session.h"
 #include "data/data_star_gift.h"
 #include "data/data_user_wallet_card.h"
@@ -18,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_hardcoded.h"
 #include "lang/lang_keys.h"
 #include "main/session/session_show.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_response.h"
 #include "settings/settings_credits_graphics.h"
@@ -60,6 +63,17 @@ namespace {
 
 constexpr auto kPreloadScreens = 3;
 constexpr auto kPreloadRows = 2;
+
+struct CoverCardState {
+	bool onCard = false;
+	bool source = false;
+	bool allowed = false;
+	bool listed = false;
+
+	friend inline bool operator==(
+		const CoverCardState &,
+		const CoverCardState &) = default;
+};
 
 class CollectiblesGrid final : public Ui::RpWidget {
 public:
@@ -125,7 +139,20 @@ private:
 	void applyOnCard(const std::vector<Data::WalletCardSticker> &stickers);
 	void applySquare(Square &square, const CollectibleRecord &record);
 	void activate(const QString &address);
+	[[nodiscard]] std::optional<CoverCardState> coverState(
+		const QString &address) const;
+	[[nodiscard]] std::vector<Ui::UniqueGiftCoverAction> coverActions(
+		not_null<Ui::GenericBox*> box,
+		const QString &address);
+	void coverColorPressed(
+		not_null<Ui::GenericBox*> box,
+		const QString &address);
+	void coverCardPressed(
+		not_null<Ui::GenericBox*> box,
+		const QString &address);
+	void closeCoverThen(not_null<Ui::GenericBox*> box, Fn<void()> action);
 	void showCardMenu(const QString &address, QPoint point);
+	void prepareColor(int index);
 	void cardAction(const QString &address, bool add);
 	void colorAction(const QString &address, bool apply);
 	void addToCard(const CollectibleRecord &record, bool color = false);
@@ -511,8 +538,9 @@ void AddShowInGiftsCheckbox(
 void Activate(
 		std::shared_ptr<Main::SessionShow> show,
 		std::shared_ptr<CollectibleMedia> media,
-		const CollectibleRecord &item) {
-	const auto sellUrl = CollectibleFragmentUrl(item);
+		const CollectibleRecord &item,
+		Fn<std::vector<Ui::UniqueGiftCoverAction>(
+			not_null<Ui::GenericBox*>)> extra) {
 	if (item.gift) {
 		const auto weak = std::weak_ptr(media);
 		const auto address = item.address;
@@ -524,11 +552,7 @@ void Activate(
 				ShowCollectibleTransfer(show, strong, address, slug, unique);
 			}
 		};
-		if (!sellUrl.isEmpty()) {
-			actions->sell = [=] {
-				UrlClickHandler::Open(sellUrl);
-			};
-		}
+		actions->extra = std::move(extra);
 		actions->aboveButtons = [=](not_null<Ui::GenericBox*> box) {
 			if (unique) {
 				AddShowInGiftsCheckbox(box, show, unique);
@@ -548,7 +572,7 @@ void Activate(
 		show,
 		std::move(media),
 		item,
-		sellUrl));
+		CollectibleFragmentUrl(item)));
 }
 
 [[nodiscard]] QString CardLimitText() {
@@ -1212,8 +1236,147 @@ void CollectiblesGrid::activate(const QString &address) {
 	const auto index = indexOf(address);
 	if (index >= 0) {
 		const auto record = _records[index];
-		Activate(_show, _media, record);
+		const auto weak = base::make_weak(this);
+		const auto extra = [=](not_null<Ui::GenericBox*> box) {
+			const auto strong = weak.get();
+			return strong
+				? strong->coverActions(box, address)
+				: std::vector<Ui::UniqueGiftCoverAction>();
+		};
+		Activate(_show, _media, record, extra);
 	}
+}
+
+std::optional<CoverCardState> CollectiblesGrid::coverState(
+		const QString &address) const {
+	const auto index = indexOf(address);
+	if (index < 0 || !_records[index].gift) {
+		return std::nullopt;
+	}
+	const auto collections = CardColorCollections(&_show->session());
+	return CoverCardState{
+		.onCard = ownCard().contains(address),
+		.source = colorSource(address),
+		.allowed = CardColorAllowed(_records[index], collections),
+		.listed = !collections.empty(),
+	};
+}
+
+std::vector<Ui::UniqueGiftCoverAction> CollectiblesGrid::coverActions(
+		not_null<Ui::GenericBox*> box,
+		const QString &address) {
+	const auto initial = coverState(address);
+	if (!initial) {
+		return {};
+	}
+	const auto weak = base::make_weak(this);
+	const auto state = box->lifetime().make_state<
+		rpl::variable<CoverCardState>>(*initial);
+	rpl::merge(
+		ownCard().shownValue() | rpl::to_empty,
+		_show->session().appConfig().refreshed()
+	) | rpl::on_next([=] {
+		if (const auto strong = weak.get()) {
+			if (const auto now = strong->coverState(address)) {
+				*state = *now;
+			}
+		}
+	}, box->lifetime());
+	const auto flag = [=](auto test) {
+		return state->value()
+			| rpl::map(test)
+			| rpl::distinct_until_changed();
+	};
+	flag([](const CoverCardState &now) {
+		return !now.source && now.allowed;
+	}) | rpl::filter([](bool available) {
+		return available;
+	}) | rpl::on_next([=] {
+		if (const auto strong = weak.get()) {
+			const auto index = strong->indexOf(address);
+			if (index >= 0) {
+				strong->prepareColor(index);
+			}
+		}
+	}, box->lifetime());
+	const auto source = [](const CoverCardState &now) {
+		return now.source;
+	};
+	const auto onCard = [](const CoverCardState &now) {
+		return now.onCard;
+	};
+	auto result = std::vector<Ui::UniqueGiftCoverAction>();
+	result.push_back({
+		.text = flag(source) | rpl::map([](bool remove) {
+			return remove
+				? tr::lng_wallet_card_remove_color()
+				: tr::lng_wallet_card_apply_color();
+		}) | rpl::flatten_latest(),
+		.icon = flag(source) | rpl::map([](bool remove) {
+			return remove
+				? &st::walletCoverColorOffIcon
+				: &st::menuIconPalette;
+		}),
+		.callback = crl::guard(this, [=] {
+			coverColorPressed(box, address);
+		}),
+		.faded = flag([](const CoverCardState &now) {
+			return !now.source && !now.allowed;
+		}),
+		.shown = flag([](const CoverCardState &now) {
+			return now.source || now.listed;
+		}),
+	});
+	result.push_back({
+		.text = flag(onCard) | rpl::map([](bool remove) {
+			return remove
+				? tr::lng_wallet_card_remove()
+				: tr::lng_wallet_card_add();
+		}) | rpl::flatten_latest(),
+		.icon = flag(onCard) | rpl::map([](bool remove) {
+			return remove
+				? &st::walletCoverCardOffIcon
+				: &st::walletCoverCardAddIcon;
+		}),
+		.callback = crl::guard(this, [=] {
+			coverCardPressed(box, address);
+		}),
+	});
+	return result;
+}
+
+void CollectiblesGrid::coverColorPressed(
+		not_null<Ui::GenericBox*> box,
+		const QString &address) {
+	const auto now = coverState(address);
+	if (!now || _leaving == address) {
+		return;
+	}
+	const auto apply = !now->source;
+	if (apply && !now->allowed) {
+		colorAction(address, true);
+		return;
+	}
+	closeCoverThen(box, [=] { colorAction(address, apply); });
+}
+
+void CollectiblesGrid::coverCardPressed(
+		not_null<Ui::GenericBox*> box,
+		const QString &address) {
+	const auto now = coverState(address);
+	if (!now || _leaving == address) {
+		return;
+	}
+	const auto add = !now->onCard;
+	closeCoverThen(box, [=] { cardAction(address, add); });
+}
+
+void CollectiblesGrid::closeCoverThen(
+		not_null<Ui::GenericBox*> box,
+		Fn<void()> action) {
+	const auto weak = base::make_weak(this);
+	box->closeBox();
+	base::call_delayed(st::boxDuration, weak, std::move(action));
 }
 
 void CollectiblesGrid::showCardMenu(const QString &address, QPoint point) {
@@ -1230,12 +1393,8 @@ void CollectiblesGrid::showCardMenu(const QString &address, QPoint point) {
 	const auto apply = !colorSource(address);
 	const auto collections = CardColorCollections(&_show->session());
 	const auto allowed = CardColorAllowed(_records[index], collections);
-	if (apply && allowed && _host.prepareColor) {
-		const auto sticker = Data::WalletCardSticker{
-			.address = address,
-			.gift = _records[index].gift,
-		};
-		_host.prepareColor(ResolveCardLook({ sticker }, address));
+	if (apply && allowed) {
+		prepareColor(index);
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
 	if (!apply || allowed) {
@@ -1254,6 +1413,18 @@ void CollectiblesGrid::showCardMenu(const QString &address, QPoint point) {
 		&st::menuIconStickers);
 	const auto scope = WindowPaletteScope(_menu.get());
 	_menu->popup(point);
+}
+
+void CollectiblesGrid::prepareColor(int index) {
+	if (!_host.prepareColor) {
+		return;
+	}
+	const auto &record = _records[index];
+	const auto sticker = Data::WalletCardSticker{
+		.address = record.address,
+		.gift = record.gift,
+	};
+	_host.prepareColor(ResolveCardLook({ sticker }, record.address));
 }
 
 void CollectiblesGrid::cardAction(const QString &address, bool add) {
