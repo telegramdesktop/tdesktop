@@ -552,7 +552,7 @@ peerQrUsernameSkip: 18px;
 peerQrUsernameLarge: font(36px bold);
 peerQrUsernameMedium: font(30px bold);
 peerQrUsernameSmall: font(23px bold);
-peerQrUsernameMin: 14px;
+peerQrUsernameMin: 13px;
 peerQrCardShadowRadius: 21px;
 peerQrCardShadowShift: 7px;
 peerQrPillSkip: 13px;

@@ -336,6 +336,17 @@ struct BackgroundRequest {
 	return { text.left(best), text.mid(best) };
 }
 
+[[nodiscard]] bool LinesFit(
+		const QStringList &lines,
+		const QFontMetricsF &metrics,
+		int available,
+		int bandHeight) {
+	return (lines.size() * metrics.height() <= bandHeight)
+		&& ranges::all_of(lines, [&](const QString &line) {
+			return metrics.horizontalAdvance(line) <= available;
+		});
+}
+
 [[nodiscard]] UsernameFit FitUsername(
 		const QString &text,
 		int available,
@@ -345,22 +356,28 @@ struct BackgroundRequest {
 	if (text.isEmpty()) {
 		return {};
 	}
+	const auto single = QStringList{ text };
+	const auto fitsLine = [&](const QFont &font) {
+		return LinesFit(single, QFontMetricsF(font), available, bandHeight);
+	};
 	for (const auto &font : steps) {
-		const auto metrics = QFontMetricsF(font);
-		if (metrics.horizontalAdvance(text) <= available
-			&& metrics.height() <= bandHeight) {
-			return { .font = font, .lines = { text } };
+		if (fitsLine(font)) {
+			return { .font = font, .lines = single };
 		}
 	}
 	auto font = steps.back();
-	for (auto size = font.pixelSize(); ; --size) {
+	const auto small = font.pixelSize();
+	for (auto size = small - 1; size >= floorPixelSize; --size) {
+		font.setPixelSize(size);
+		if (fitsLine(font)) {
+			return { .font = font, .lines = single };
+		}
+	}
+	for (auto size = small; ; --size) {
 		font.setPixelSize(size);
 		const auto metrics = QFontMetricsF(font);
 		auto lines = SplitInTwoLines(text, metrics);
-		const auto fits = (2 * metrics.height() <= bandHeight)
-			&& ranges::all_of(lines, [&](const QString &line) {
-				return metrics.horizontalAdvance(line) <= available;
-			});
+		const auto fits = LinesFit(lines, metrics, available, bandHeight);
 		if (fits || size <= floorPixelSize) {
 			return { .font = font, .lines = std::move(lines) };
 		}
@@ -1242,16 +1259,36 @@ PeerQrImageArgs PeerQrSurface::prepareImage() const {
 	};
 	const auto width = scaled(st::peerQrCardWidth);
 	const auto layout = ComputeCardLayout(width, !_username.isEmpty());
-	auto fit = FitUsername(
-		_username,
-		width - 2 * scaled(st::peerQrUsernameSkip),
-		layout.band.height(),
-		{
-			scaledFont(st::peerQrUsernameLarge),
-			scaledFont(st::peerQrUsernameMedium),
-			scaledFont(st::peerQrUsernameSmall),
-		},
-		scaled(st::peerQrUsernameMin));
+	const auto available = width - 2 * scaled(st::peerQrUsernameSkip);
+	auto fit = UsernameFit();
+	if (_cardGeometry.isEmpty()) {
+		fit = FitUsername(
+			_username,
+			available,
+			layout.band.height(),
+			{
+				scaledFont(st::peerQrUsernameLarge),
+				scaledFont(st::peerQrUsernameMedium),
+				scaledFont(st::peerQrUsernameSmall),
+			},
+			scaled(st::peerQrUsernameMin));
+	} else if (!_card->content.username.lines.isEmpty()) {
+		fit = _card->content.username;
+		// WHY: the image keeps the screen's lines, and Qt advances do not scale
+		// exactly, so a converted size that overflows shrinks until it fits.
+		for (auto pixels = scaled(fit.font.pixelSize()); ; --pixels) {
+			fit.font.setPixelSize(pixels);
+			const auto metrics = QFontMetricsF(fit.font);
+			const auto fits = LinesFit(
+				fit.lines,
+				metrics,
+				available,
+				layout.band.height());
+			if (fits || pixels <= 1) {
+				break;
+			}
+		}
+	}
 	return {
 		.appearance = _appearance,
 		.colors = _colors,
