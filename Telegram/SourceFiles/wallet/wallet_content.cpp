@@ -1198,13 +1198,11 @@ object_ptr<Ui::FlatLabel> AddressValueLabel(
 	const auto &st = styleOverride
 		? *styleOverride
 		: st::walletDetailsAddressLabel;
-	auto result = MakeAddressLabel(parent, address, st);
-	const auto copy = CopyAddressCallback(std::move(show), address);
-	result->setClickHandlerFilter([=](const auto &...) {
-		copy();
-		return false;
-	});
-	return result;
+	return MakeAddressLabel(
+		parent,
+		address,
+		st,
+		CopyAddressCallback(std::move(show), address));
 }
 
 namespace {

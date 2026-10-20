@@ -20,20 +20,24 @@ public:
 	AddressLabel(
 		QWidget *parent,
 		const QString &address,
-		const style::FlatLabel &st);
+		const style::FlatLabel &st,
+		Fn<void()> clicked);
 
 protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
+	void setLines(const QStringList &lines);
+
 	const QString _address;
+	const ClickHandlerPtr _link;
 	int _unwrappedWidth = 0;
 	int _lineCount = 0;
 	bool _refreshing = true;
 
 };
 
-[[nodiscard]] TextWithEntities DetailsAddressValue(
+[[nodiscard]] QStringList DetailsAddressLines(
 		const QString &address,
 		const style::font &font,
 		int width) {
@@ -43,45 +47,54 @@ private:
 	}
 	const auto count = int(groups.size());
 	for (auto lines = 1; lines <= count; ++lines) {
-		auto result = tr::marked();
+		auto result = QStringList();
 		auto fits = true;
 		auto offset = 0;
 		for (auto i = 0; i != lines; ++i) {
 			const auto size = (count / lines) + (i < count % lines ? 1 : 0);
-			const auto line = groups.mid(offset, size).join(QChar(' '));
+			result.append(groups.mid(offset, size).join(QChar(' ')));
 			offset += size;
-			if (i) {
-				result.text += QChar('\n');
-			}
-			result.entities.push_back({
-				EntityType::Code,
-				int(result.text.size()),
-				int(line.size()),
-			});
-			result.text += line;
-			fits = fits && (width <= 0 || font->width(line) <= width);
+			fits = fits && (width <= 0 || font->width(result.back()) <= width);
 		}
 		if (fits || lines == count) {
 			return result;
 		}
 	}
-	return tr::marked();
+	return {};
+}
+
+[[nodiscard]] TextWithEntities DetailsAddressValue(const QStringList &lines) {
+	auto result = tr::marked(lines.join(QChar('\n')));
+	if (result.empty()) {
+		return result;
+	}
+	// WHY: a Code entity spanning newlines gets no click handler, so one
+	// link over all lines makes the whole address a single press target.
+	result.entities.push_back({
+		EntityType::Code,
+		0,
+		int(result.text.size()),
+	});
+	return tr::link(std::move(result), 1);
 }
 
 AddressLabel::AddressLabel(
 	QWidget *parent,
 	const QString &address,
-	const style::FlatLabel &st)
+	const style::FlatLabel &st,
+	Fn<void()> clicked)
 : FlatLabel(parent, st)
-, _address(address) {
-	const auto text = DetailsAddressValue(
-		_address,
-		st.style.font->monospace(),
-		0);
-	_lineCount = int(text.entities.size());
-	setMarkedText(text);
+, _address(address)
+, _link(std::make_shared<LambdaClickHandler>(std::move(clicked))) {
+	setLines(DetailsAddressLines(_address, st.style.font->monospace(), 0));
 	_unwrappedWidth = textMaxWidth();
 	_refreshing = false;
+}
+
+void AddressLabel::setLines(const QStringList &lines) {
+	_lineCount = int(lines.size());
+	setMarkedText(DetailsAddressValue(lines));
+	setLink(1, _link);
 }
 
 int AddressLabel::resizeGetHeight(int newWidth) {
@@ -90,14 +103,12 @@ int AddressLabel::resizeGetHeight(int newWidth) {
 	}
 	_refreshing = true;
 	const auto guard = gsl::finally([&] { _refreshing = false; });
-	const auto text = DetailsAddressValue(
+	const auto lines = DetailsAddressLines(
 		_address,
 		st().style.font->monospace(),
 		newWidth);
-	const auto lines = int(text.entities.size());
-	if (_lineCount != lines) {
-		_lineCount = lines;
-		setMarkedText(text);
+	if (_lineCount != int(lines.size())) {
+		setLines(lines);
 		setNaturalWidth(_unwrappedWidth);
 	}
 	return FlatLabel::resizeGetHeight(newWidth);
@@ -108,8 +119,9 @@ int AddressLabel::resizeGetHeight(int newWidth) {
 object_ptr<Ui::FlatLabel> MakeAddressLabel(
 		not_null<QWidget*> parent,
 		const QString &address,
-		const style::FlatLabel &st) {
-	return object_ptr<AddressLabel>(parent, address, st);
+		const style::FlatLabel &st,
+		Fn<void()> clicked) {
+	return object_ptr<AddressLabel>(parent, address, st, std::move(clicked));
 }
 
 } // namespace Wallet

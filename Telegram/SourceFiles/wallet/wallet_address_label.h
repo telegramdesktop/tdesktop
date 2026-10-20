@@ -22,6 +22,7 @@ namespace Wallet {
 [[nodiscard]] object_ptr<Ui::FlatLabel> MakeAddressLabel(
 	not_null<QWidget*> parent,
 	const QString &address,
-	const style::FlatLabel &st);
+	const style::FlatLabel &st,
+	Fn<void()> clicked);
 
 } // namespace Wallet
