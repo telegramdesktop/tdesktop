@@ -981,7 +981,7 @@ void RefreshControls(not_null<AppearanceState*> appearance) {
 	const auto opacity = 1. - appearance->progress;
 	const auto shown = (opacity > 0.);
 	const auto blocked = appearance->panelShown;
-	for (const auto control : appearance->controls) {
+	for (const auto &control : appearance->controls) {
 		control->setOpacity(opacity);
 		control->setVisible(shown);
 		control->setAttribute(Qt::WA_TransparentForMouseEvents, blocked);
