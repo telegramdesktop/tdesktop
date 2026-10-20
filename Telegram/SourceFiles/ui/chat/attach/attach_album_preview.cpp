@@ -471,10 +471,6 @@ void AlbumPreview::paintFiles(Painter &p, QRect clip) const {
 	}
 }
 
-AlbumThumbnail *AlbumPreview::thumbUnderCursor() {
-	return findThumb(mapFromGlobal(QCursor::pos()));
-}
-
 void AlbumPreview::deleteThumbByIndex(int index) {
 	if (index < 0) {
 		return;

@@ -360,40 +360,6 @@ bool InsertTextOnImageCancel(const QString &text) {
 	return !text.isEmpty() && !text.startsWith(u"data:image"_q);
 }
 
-PreparedList PreparedList::Reordered(
-		PreparedList &&list,
-		std::vector<int> order) {
-	Expects(list.error == PreparedList::Error::None);
-	Expects(list.files.size() == order.size());
-
-	auto result = PreparedList(list.error, list.errorData);
-	result.files.reserve(list.files.size());
-	for (auto index : order) {
-		result.files.push_back(std::move(list.files[index]));
-	}
-	return result;
-}
-
-void PreparedList::mergeToEnd(PreparedList &&other, bool cutToAlbumSize) {
-	if (error != Error::None) {
-		return;
-	}
-	if (other.error != Error::None) {
-		error = other.error;
-		errorData = other.errorData;
-		return;
-	}
-	files.reserve(std::min(
-		size_t(cutToAlbumSize ? kMaxAlbumCount : INT_MAX),
-		files.size() + other.files.size()));
-	for (auto &file : other.files) {
-		if (cutToAlbumSize && files.size() == kMaxAlbumCount) {
-			break;
-		}
-		files.push_back(std::move(file));
-	}
-}
-
 int64 PreparedList::memoryUsage() const {
 	auto result = int64();
 	for (const auto &file : files) {

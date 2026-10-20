@@ -145,11 +145,6 @@ struct PreparedList {
 	PreparedList(PreparedList &&other) = default;
 	PreparedList &operator=(PreparedList &&other) = default;
 
-	[[nodiscard]] static PreparedList Reordered(
-		PreparedList &&list,
-		std::vector<int> order);
-	void mergeToEnd(PreparedList &&other, bool cutToAlbumSize = false);
-
 	[[nodiscard]] bool canAddCaption(bool compress) const;
 	[[nodiscard]] bool canMoveCaption(
 		bool sendingAlbum,
