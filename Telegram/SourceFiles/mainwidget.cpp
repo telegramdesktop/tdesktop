@@ -1983,10 +1983,6 @@ Window::SectionSlideParams MainWidget::prepareHistoryAnimation(PeerId historyPee
 	return prepareShowAnimation(historyPeerId != 0, false);
 }
 
-Window::SectionSlideParams MainWidget::prepareDialogsAnimation() {
-	return prepareShowAnimation(false, false);
-}
-
 void MainWidget::showNewSection(
 		std::shared_ptr<Window::SectionMemento> memento,
 		const SectionShow &params) {
@@ -2164,10 +2160,6 @@ bool MainWidget::isPrimary() const {
 
 bool MainWidget::isMainSectionShown() const {
 	return _mainSection || _history->peer();
-}
-
-bool MainWidget::isThirdSectionShown() const {
-	return _thirdSection != nullptr;
 }
 
 Dialogs::RowDescriptor MainWidget::resolveChatNext(

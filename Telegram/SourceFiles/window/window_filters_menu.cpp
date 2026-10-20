@@ -540,16 +540,6 @@ const style::SideBarButton &FiltersMenu::buttonStyle() const {
 	return st::windowFiltersButton;
 }
 
-base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareAll() {
-	return prepareButton(
-		_container,
-		0,
-		{},
-		Ui::FilterIcon::All,
-		false,
-		true);
-}
-
 base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		not_null<Ui::VerticalLayout*> container,
 		FilterId id,

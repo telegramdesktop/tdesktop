@@ -483,8 +483,6 @@ public:
 
 	void setDialogsEntryState(Dialogs::EntryState state);
 	[[nodiscard]] Dialogs::EntryState dialogsEntryStateCurrent() const;
-	[[nodiscard]] auto dialogsEntryStateValue() const
-		-> rpl::producer<Dialogs::EntryState>;
 	bool switchInlineQuery(
 		Dialogs::EntryState to,
 		not_null<UserData*> bot,
