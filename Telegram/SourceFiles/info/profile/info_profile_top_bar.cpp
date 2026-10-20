@@ -3192,7 +3192,9 @@ void TopBar::updateVideoUserpic() {
 	}
 	if (!_videoUserpicPlayer) {
 		_videoUserpicPlayer = std::make_unique<Ui::VideoUserpicPlayer>([=] {
-			update();
+			if (!_gifPausedChecker()) {
+				update();
+			}
 		});
 	}
 	_videoUserpicPlayer->setup(_peer, photo);

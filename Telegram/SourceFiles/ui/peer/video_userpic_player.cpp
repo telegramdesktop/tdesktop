@@ -172,10 +172,16 @@ void VideoUserpicPlayer::handleUpdate(
 void VideoUserpicPlayer::handleError(::Media::Streaming::Error &&error) {
 	_streamedPhoto->setVideoPlaybackFailed();
 	clear();
+	if (_repaint) {
+		_repaint();
+	}
 }
 
 void VideoUserpicPlayer::streamingReady(
 		::Media::Streaming::Information &&info) {
+	if (_repaint) {
+		_repaint();
+	}
 }
 
 } // namespace Ui
