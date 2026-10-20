@@ -144,14 +144,6 @@ void ReadMetricsTracker::setScreenActive(bool active) {
 	refreshPaused(crl::now());
 }
 
-void ReadMetricsTracker::pauseTracking() {
-	setScreenActive(false);
-}
-
-void ReadMetricsTracker::resumeTracking() {
-	setScreenActive(true);
-}
-
 void ReadMetricsTracker::onTimeout() {
 	sync(crl::now());
 }

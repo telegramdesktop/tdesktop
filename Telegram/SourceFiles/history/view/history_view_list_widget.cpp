@@ -5917,10 +5917,6 @@ void ListWidget::replyToMessageRequestNotify(
 	_requestedToReplyToMessage.fire({ std::move(to), forceAnotherChat });
 }
 
-rpl::producer<FullMsgId> ListWidget::readMessageRequested() const {
-	return _requestedToReadMessage.events();
-}
-
 rpl::producer<FullMsgId> ListWidget::showMessageRequested() const {
 	return _requestedToShowMessage.events();
 }
