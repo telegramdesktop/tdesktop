@@ -1238,7 +1238,7 @@ void CollectiblesGrid::showCardMenu(const QString &address, QPoint point) {
 		_host.prepareColor(ResolveCardLook({ sticker }, address));
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
-	if (!apply || !collections.empty()) {
+	if (!apply || allowed) {
 		_menu->addAction(
 			Ui::Text::FixAmpersandInAction(apply
 				? tr::lng_wallet_card_apply_color(tr::now)
