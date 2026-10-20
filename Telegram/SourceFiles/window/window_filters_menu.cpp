@@ -770,16 +770,16 @@ void FiltersMenu::showMenu(QPoint position, FilterId id) {
 			.isAttention = true,
 		});
 	} else {
+		addAction(
+			tr::lng_filters_setup_menu(tr::now),
+			crl::guard(&_outer, [=] { openFiltersSettings(); }),
+			&st::menuIconEdit);
+
 		MarkAsReadMenu::AddChatListAction(
 			_session,
 			MarkAsReadMenu::ChatListKind::AllChats,
 			[=] { return _session->session().data().chatsList(); },
 			addAction);
-
-		addAction(
-			tr::lng_filters_setup_menu(tr::now),
-			crl::guard(&_outer, [=] { openFiltersSettings(); }),
-			&st::menuIconEdit);
 	}
 	if (_popupMenu->empty()) {
 		_popupMenu = nullptr;

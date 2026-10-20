@@ -228,7 +228,9 @@ void AddChatListAction(
 		}
 	};
 	addAction(
-		tr::lng_context_mark_read(tr::now),
+		(kind == ChatListKind::AllChats
+			? tr::lng_context_mark_read_all(tr::now)
+			: tr::lng_context_mark_read(tr::now)),
 		std::move(callback),
 		&st::menuIconMarkRead);
 }
