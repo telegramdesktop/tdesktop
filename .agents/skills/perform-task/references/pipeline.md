@@ -383,7 +383,9 @@ Run sequentially:
    optional `tasks/TASK_ID.md` source note), stages exactly those paths,
    writes and validates the exact three-line message, and with `--mark-green`
    moves the retained-implementation refs — replacing manual staging and the
-   separate `source-mark-green` call. An implementation bug creates the next
+   separate `source-mark-green` call. It then mirrors the new tip to the
+   checkout's `ai-<checkout-tag>` branch (see [Telegram commits](#telegram-commits)).
+   An implementation bug creates the next
    committed attempt through the same helper; keep the same `Task:` locator on
    every attempt. When assessment and general review prove the requested
    outcome was already present, leave the source checkout at `BASE_REF`, skip
@@ -685,6 +687,18 @@ deterministic call. Commit an intended submodule first, manually, only when
 its preflight was clean and all of its changes belong to this task, then stage
 the superproject pointer; the helper refuses dirty submodule pointers so an
 unintended one can never slip into an attempt.
+
+After every commit, `source-commit` force-pushes the checkout's `HEAD` to
+`refs/heads/ai-<checkout-tag>` on the `private` remote, for example
+`ai-pc-d-tdesktop`. That branch only mirrors the checkout's latest task commit,
+pre-approval attempts and fixes after testing included, so other checkouts can
+look at work in progress. Nobody works on it and it is never a lineage source:
+the checkout stays on whatever branch it has checked out, and the next commit
+from any branch overwrites the mirror. A checkout without a `private` remote
+skips the mirror. A failed or timed-out push only shows up in the helper's
+`mirror` result: it never fails the commit or blocks the task, so note it in
+the result `NOTES:` and continue. Do not push the mirror by hand, with a lease,
+or from any other point in the workflow.
 
 Every implementation or implementation-fix commit message is exactly:
 

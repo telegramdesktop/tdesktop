@@ -75,6 +75,9 @@ TEST_COMPLETE_MARKER = "TEST_COMPLETE"
 STALE_CRASH_DIR = "stale-crash"
 CRASHPAD_COMPLETED_DIR = "completed"
 CONSOLE_COMMAND_TIMEOUT = 2.0
+MIRROR_REMOTE = "private"
+MIRROR_BRANCH_PREFIX = "ai-"
+MIRROR_PUSH_TIMEOUT = 120.0
 WAIT_IDLE_MAX_DEFAULT = 600.0
 LSAPPINFO_ASN_PATTERN = re.compile(r"ASN:0x[0-9a-fA-F]+-0x[0-9a-fA-F]+:")
 LSAPPINFO_NAME_PATTERN = re.compile(r'"(.*)"\s+ASN:')
@@ -3468,6 +3471,48 @@ def gitlink_paths(source, paths):
 	return result
 
 
+def mirror_source_head(config):
+	tag = config.get("checkout_tag")
+	if not tag:
+		return {"pushed": False, "skipped": "no checkout tag"}
+	source = Path(config["source_root"])
+	remotes = run_git(source, "remote").stdout.split()
+	if MIRROR_REMOTE not in remotes:
+		return {"pushed": False, "skipped": f"no {MIRROR_REMOTE} remote"}
+	branch = MIRROR_BRANCH_PREFIX + tag
+	result = {"remote": MIRROR_REMOTE, "branch": branch}
+	try:
+		push = subprocess.run(
+			[
+				"git", "-C", str(source), "push", "--force", "--quiet",
+				MIRROR_REMOTE, f"HEAD:refs/heads/{branch}",
+			],
+			stdin=subprocess.DEVNULL,
+			stdout=subprocess.PIPE,
+			stderr=subprocess.PIPE,
+			text=True,
+			timeout=MIRROR_PUSH_TIMEOUT,
+			env={
+				**os.environ,
+				"GIT_TERMINAL_PROMPT": "0",
+				"GCM_INTERACTIVE": "never",
+			},
+		)
+	except subprocess.TimeoutExpired:
+		return {
+			**result,
+			"pushed": False,
+			"error": f"push timed out after {MIRROR_PUSH_TIMEOUT:g} s",
+		}
+	if push.returncode:
+		return {
+			**result,
+			"pushed": False,
+			"error": push.stderr.strip() or push.stdout.strip(),
+		}
+	return {**result, "pushed": True}
+
+
 def command_source_commit(args):
 	config, slot = task_action_config(args)
 	source = Path(config["source_root"])
@@ -3524,9 +3569,11 @@ def command_source_commit(args):
 	validate_task_commit(source, "HEAD", args.task)
 	if args.mark_green:
 		mark_source_green(config, args.task)
+	mirror = mirror_source_head(config)
 	print(json.dumps({
 		"committed": dirty,
 		"marked_green": bool(args.mark_green),
+		"mirror": mirror,
 		"subject": subject,
 		"task": args.task,
 	}, indent=2, sort_keys=True))

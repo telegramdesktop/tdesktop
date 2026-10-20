@@ -4313,6 +4313,90 @@ class MechanicsTest(unittest.TestCase):
 			self.assertTrue(verified["valid"])
 			self.assertEqual(verified["subject"], "Correct peer actions")
 
+	def test_source_commit_force_mirrors_head_to_the_checkout_branch(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			source, slot, work, config = source_repo_with_task(root)
+			config["checkout_tag"] = "macbook-twork"
+			mirror = root / "mirror.git"
+			git(root, "init", "-q", "--bare", str(mirror))
+			git(source, "remote", "add", "private", str(mirror))
+			(work / "owned-paths.txt").write_text(
+				"tracked.txt\n", encoding="utf-8",
+			)
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				(source / "tracked.txt").write_text("first\n", encoding="utf-8")
+				first = run_command(
+					workspace.command_source_commit,
+					task=TASK_ID,
+					subject="Correct peer actions",
+					mark_green=False,
+				)
+				self.assertEqual(first["mirror"], {
+					"branch": "ai-macbook-twork",
+					"pushed": True,
+					"remote": "private",
+				})
+				self.assertEqual(
+					git(mirror, "rev-parse", "refs/heads/ai-macbook-twork"),
+					git(source, "rev-parse", "HEAD"),
+				)
+				git(source, "reset", "-q", "--hard", "HEAD~1")
+				(source / "tracked.txt").write_text("second\n", encoding="utf-8")
+				second = run_command(
+					workspace.command_source_commit,
+					task=TASK_ID,
+					subject="Correct peer actions again",
+					mark_green=False,
+				)
+			self.assertTrue(second["mirror"]["pushed"])
+			self.assertEqual(
+				git(mirror, "rev-parse", "refs/heads/ai-macbook-twork"),
+				git(source, "rev-parse", "HEAD"),
+			)
+			self.assertEqual(
+				git(mirror, "for-each-ref", "--format=%(refname)"),
+				"refs/heads/ai-macbook-twork",
+			)
+
+	def test_source_commit_keeps_the_commit_when_the_mirror_is_unavailable(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			source, slot, work, config = source_repo_with_task(root)
+			config["checkout_tag"] = "macbook-twork"
+			(work / "owned-paths.txt").write_text(
+				"tracked.txt\n", encoding="utf-8",
+			)
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				(source / "tracked.txt").write_text("first\n", encoding="utf-8")
+				skipped = run_command(
+					workspace.command_source_commit,
+					task=TASK_ID,
+					subject="Correct peer actions",
+					mark_green=False,
+				)
+				self.assertEqual(skipped["mirror"], {
+					"pushed": False,
+					"skipped": "no private remote",
+				})
+				git(source, "remote", "add", "private", str(root / "missing.git"))
+				(source / "tracked.txt").write_text("second\n", encoding="utf-8")
+				failed = run_command(
+					workspace.command_source_commit,
+					task=TASK_ID,
+					subject="Correct peer actions again",
+					mark_green=False,
+				)
+			self.assertFalse(failed["mirror"]["pushed"])
+			self.assertEqual(failed["mirror"]["branch"], "ai-macbook-twork")
+			self.assertTrue(failed["mirror"]["error"])
+			self.assertEqual(git(source, "rev-list", "--count", "HEAD"), "3")
+			self.assertEqual(git(source, "status", "--porcelain"), "")
+
 	def test_source_commit_stages_a_removed_tracked_file(self):
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary)
