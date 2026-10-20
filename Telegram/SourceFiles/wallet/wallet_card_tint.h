@@ -48,6 +48,7 @@ private:
 	const std::vector<QColor> &surfaces);
 [[nodiscard]] QColor CardTintAt(const CardTint &tint, float64 level);
 [[nodiscard]] QColor CardStripInk(const CardTint &tint);
+[[nodiscard]] QColor CardInkSurround(const QColor &card, const QColor &ink);
 [[nodiscard]] CardMarkTint MixCardMarkTint(
 	const CardMarkTint &from,
 	const CardMarkTint &to,

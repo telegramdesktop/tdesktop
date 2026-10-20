@@ -1001,6 +1001,10 @@ std::vector<QString> CardStickers::stack() const {
 	return result;
 }
 
+const QImage &CardStickers::settledLayer() const {
+	return _layer;
+}
+
 rpl::producer<bool> CardStickers::arrivingValue() const {
 	return _arriving.value();
 }

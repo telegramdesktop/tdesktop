@@ -20,7 +20,6 @@ namespace Wallet {
 namespace {
 
 constexpr auto kSecondaryLift = 0.7;
-constexpr auto kHaloShade = 0.15;
 constexpr auto kHaloSpread = 8U;
 
 [[nodiscard]] bool SameFold(const CardFold &a, const CardFold &b) {
@@ -45,14 +44,14 @@ void MakeShadowMask(QImage &image, float64 opacity) {
 	}
 }
 
-// WHY: a plain blur leaves the ring next to the glyphs half transparent, so
-// a bright gift shows through it; the blurred coverage is amplified to keep
-// the halo solid next to the glyphs and soft only at its outer edge.
 void MakeSecondary(
 		QImage &image,
+		const QImage &gifts,
 		QColor ink,
 		QColor halo,
 		float64 opacity) {
+	Expects(gifts.size() == image.size());
+
 	const auto alpha = uint32(std::clamp(
 		int(base::SafeRound(opacity * 255.)),
 		0,
@@ -67,11 +66,20 @@ void MakeSecondary(
 	const auto width = image.width();
 	for (auto y = 0; y != image.height(); ++y) {
 		const auto row = reinterpret_cast<uint32*>(image.scanLine(y));
+		const auto giftsRow = reinterpret_cast<const uint32*>(
+			gifts.constScanLine(y));
 		for (auto x = 0; x != width; ++x) {
 			const auto glyph = row[x] >> 24;
+			// Amplified, or a bright gift shows through the ring by the glyphs.
 			const auto spread = std::min((row[x] & 0xFFU) * kHaloSpread, 255U);
+			// WHY: no single colour matches the cursor-following card sweep,
+			// so on the bare card any halo reads as a darker plate; the halo
+			// is kept to the settled gifts.
+			const auto gift = giftsRow[x] >> 24;
 			const auto cover = (glyph + spread * (255U - glyph) / 255U)
 				* alpha
+				/ 255U
+				* gift
 				/ 255U;
 			const auto under = cover * (255U - glyph) / 255U;
 			row[x] = ((glyph + under) << 24)
@@ -108,16 +116,22 @@ void CardForeground::paint(QPainter &p, const CardFold &fold) {
 
 void CardForeground::validate(const CardFold &fold) {
 	const auto ratio = style::DevicePixelRatio();
-	if (_valid && _ratio == ratio && SameFold(_fold, fold)) {
+	const auto gifts = _halo.gifts();
+	const auto giftsKey = gifts.cacheKey();
+	if (_valid
+		&& _ratio == ratio
+		&& _giftsKey == giftsKey
+		&& SameFold(_fold, fold)) {
 		return;
 	}
 	_valid = true;
 	_fold = fold;
 	_ratio = ratio;
-	compose();
+	_giftsKey = giftsKey;
+	compose(gifts);
 }
 
-void CardForeground::compose() {
+void CardForeground::compose(const QImage &gifts) {
 	const auto &st = st::walletCardForegroundShadow;
 	const auto card = _fold.quad.boundingRect().toAlignedRect();
 	const auto bounds = card.marginsAdded(Ui::BoxShadow::ExtendFor(st));
@@ -144,7 +158,7 @@ void CardForeground::compose() {
 	}
 	_cache = Images::BlurLargeImage(std::move(_cache), st.blurRadius * _ratio);
 	MakeShadowMask(_cache, st.opacity);
-	composeSecondary(bounds);
+	composeSecondary(bounds, gifts);
 
 	auto outside = QPainterPath();
 	outside.addRect(QRectF(QPointF(), QSizeF(bounds.size())));
@@ -162,7 +176,7 @@ void CardForeground::compose() {
 	q.fillPath(outside, Qt::black);
 }
 
-void CardForeground::composeSecondary(QRect bounds) {
+void CardForeground::composeSecondary(QRect bounds, const QImage &gifts) {
 	const auto radius = st::walletCardForegroundHalo;
 	const auto area = _halo.area(_fold).marginsAdded(
 		{ radius, radius, radius, radius }
@@ -173,11 +187,20 @@ void CardForeground::composeSecondary(QRect bounds) {
 	}
 	const auto size = area.size() * _ratio;
 	_secondaryOrigin = area.topLeft();
-	if (_secondary.size() != size || _secondary.devicePixelRatio() != _ratio) {
-		_secondary = QImage(size, QImage::Format_ARGB32_Premultiplied);
-		_secondary.setDevicePixelRatio(_ratio);
+	for (const auto image : { &_secondary, &_secondaryGifts }) {
+		if (image->size() != size || image->devicePixelRatio() != _ratio) {
+			*image = QImage(size, QImage::Format_ARGB32_Premultiplied);
+			image->setDevicePixelRatio(_ratio);
+		}
+		image->fill(Qt::transparent);
 	}
-	_secondary.fill(Qt::transparent);
+	if (!gifts.isNull()) {
+		auto q = QPainter(&_secondaryGifts);
+		auto hq = PainterHighQualityEnabler(q);
+		q.translate(-_secondaryOrigin);
+		q.setTransform(_fold.transform, true);
+		q.drawImage(QRectF(_fold.rest), gifts);
+	}
 	{
 		auto q = Painter(&_secondary);
 		auto hq = PainterHighQualityEnabler(q);
@@ -195,10 +218,12 @@ void CardForeground::composeSecondary(QRect bounds) {
 		{ .hue = CardReferenceColor(), .amount = 1. },
 		{ .hue = tint.hue, .amount = 1. },
 		tint.amount).hue;
+	const auto ink = anim::color(card, st::activeButtonFg, kSecondaryLift);
 	MakeSecondary(
 		_secondary,
-		anim::color(card, st::activeButtonFg, kSecondaryLift),
-		anim::color(card, QColor(0, 0, 0), kHaloShade),
+		_secondaryGifts,
+		ink,
+		CardInkSurround(card, ink),
 		_fold.opacity);
 }
 

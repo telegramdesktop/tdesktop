@@ -15040,6 +15040,7 @@ void Content::setupBalance() {
 					BalanceInkLayer::Secondary);
 			},
 			.tint = [=] { return _card->markTint(*_ink); },
+			.gifts = [=] { return _cardStickers->settledLayer(); },
 		},
 		.repaint = repaintCard,
 		.changes = _card->invalidations(),

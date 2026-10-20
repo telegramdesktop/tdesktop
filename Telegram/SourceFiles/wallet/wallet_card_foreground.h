@@ -18,6 +18,7 @@ struct CardForegroundHalo {
 	Fn<QRect(const CardFold&)> area;
 	Fn<void(Painter&, const CardFold&, QRect)> paint;
 	Fn<CardMarkTint()> tint;
+	Fn<QImage()> gifts;
 };
 
 struct CardForegroundArgs {
@@ -36,8 +37,8 @@ public:
 
 private:
 	void validate(const CardFold &fold);
-	void compose();
-	void composeSecondary(QRect bounds);
+	void compose(const QImage &gifts);
+	void composeSecondary(QRect bounds, const QImage &gifts);
 
 	const Fn<void(Painter&, const CardFold&, QRect)> _paint;
 	const CardForegroundHalo _halo;
@@ -46,8 +47,10 @@ private:
 	QImage _content;
 	QImage _cache;
 	QImage _secondary;
+	QImage _secondaryGifts;
 	QPoint _origin;
 	QPoint _secondaryOrigin;
+	qint64 _giftsKey = 0;
 	int _ratio = 0;
 	bool _valid = false;
 	rpl::lifetime _lifetime;

@@ -14,6 +14,7 @@ constexpr auto kTextContrast = 3.1;
 constexpr auto kSurfaceContrast = 1.55;
 constexpr auto kStripDarker = 1.6;
 constexpr auto kStripLighter = 3.;
+constexpr auto kInkSurroundContrast = 2.8;
 constexpr auto kMaxLuminance = 1.05 / kTextContrast - 0.05;
 constexpr auto kLinearKnee = 0.03928;
 constexpr auto kMarkCast = 99. / 255.; // The diamond art's strongest facet.
@@ -261,6 +262,14 @@ QColor CardStripInk(const CardTint &tint) {
 	return WithLuminance(
 		tint.dark,
 		(darker >= 0.) ? darker : (shifted * kStripLighter - 0.05));
+}
+
+QColor CardInkSurround(const QColor &card, const QColor &ink) {
+	const auto most = (CardLuminance(ink.rgb()) + 0.05) / kInkSurroundContrast
+		- 0.05;
+	return (CardLuminance(card.rgb()) <= most)
+		? card
+		: WithLuminance(card, most);
 }
 
 CardMarkTint MixCardMarkTint(

@@ -94,6 +94,7 @@ public:
 	[[nodiscard]] bool held(const QString &address) const;
 	[[nodiscard]] QImage image(const QString &address) const;
 	[[nodiscard]] std::vector<QString> stack() const;
+	[[nodiscard]] const QImage &settledLayer() const;
 	[[nodiscard]] rpl::producer<bool> arrivingValue() const;
 	[[nodiscard]] rpl::producer<QString> releases() const;
 
