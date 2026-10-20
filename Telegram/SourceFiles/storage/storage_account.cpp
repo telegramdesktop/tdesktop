@@ -1805,10 +1805,6 @@ bool Account::hasDraftCursors(PeerId peer) {
 	return _draftCursorsMap.contains(peer);
 }
 
-bool Account::hasDraft(PeerId peer) {
-	return _draftsMap.contains(peer);
-}
-
 void Account::writeFileLocation(MediaKey location, const Core::FileLocation &local) {
 	if (local.fname.isEmpty()) {
 		return;

@@ -55,33 +55,6 @@ std::optional<StorageImageLocation> readLegacyStorageImageLocationOrTag(
 		height);
 }
 
-int storageImageLocationSize(const StorageImageLocation &location) {
-	// Modern image location tag + (size + content) of the serialization.
-	return sizeof(qint32) * 2 + location.serializeSize();
-}
-
-void writeStorageImageLocation(
-		QDataStream &stream,
-		const StorageImageLocation &location) {
-	stream << kModernImageLocationTag << location.serialize();
-}
-
-std::optional<StorageImageLocation> readStorageImageLocation(
-		int streamAppVersion,
-		QDataStream &stream) {
-	const auto legacy = readLegacyStorageImageLocationOrTag(
-		streamAppVersion,
-		stream);
-	if (legacy) {
-		return legacy;
-	}
-	auto serialized = QByteArray();
-	stream >> serialized;
-	return (stream.status() == QDataStream::Ok)
-		? StorageImageLocation::FromSerialized(serialized)
-		: std::nullopt;
-}
-
 int imageLocationSize(const ImageLocation &location) {
 	// Modern image location tag + (size + content) of the serialization.
 	return sizeof(qint32) * 2 + location.serializeSize();
