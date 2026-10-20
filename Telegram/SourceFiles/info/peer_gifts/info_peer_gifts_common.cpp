@@ -519,11 +519,17 @@ void GiftButton::setDocument(not_null<DocumentData*> document) {
 		auto result = std::unique_ptr<HistoryView::StickerPlayer>();
 		const auto sticker = document->sticker();
 		if (sticker->isLottie()) {
+			// A kept cover is never re-rendered, so it needs device pixels.
+			const auto keepsCover = _kept
+				|| (_playback != GiftButtonPlayback::Hover);
+			const auto box = keepsCover
+				? (stickerSize() * style::DevicePixelRatio())
+				: stickerSize();
 			result = std::make_unique<HistoryView::LottiePlayer>(
 				ChatHelpers::LottiePlayerFromDocument(
 					media.get(),
 					ChatHelpers::StickerLottieSize::InlineResults,
-					stickerSize(),
+					box,
 					Lottie::Quality::High));
 		} else if (sticker->isWebm()) {
 			result = std::make_unique<HistoryView::WebmPlayer>(
