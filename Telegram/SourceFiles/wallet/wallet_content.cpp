@@ -15001,7 +15001,6 @@ void Content::setupBalance() {
 			_ink->paint(p, fold, cardOutline(), clip, BalanceInkPart::Card);
 		},
 		.repaint = repaintCard,
-		.hidden = _cardStickers->grippedValue(),
 		.changes = _card->invalidations(),
 	});
 	_card->liftForeground();
@@ -15026,12 +15025,9 @@ void Content::setupBalance() {
 			_ink->paint(p, fold, cardOutline(), clip, BalanceInkPart::Outside);
 		}
 		if (fold.valid && fold.opacity > 0.) {
-			p.save();
-			p.setOpacity(fold.opacity);
-			p.setTransform(fold.transform, true);
-			_cardStickers->paint(p, fold.rest);
-			p.restore();
+			_cardStickers->paint(p, fold);
 			_cardForeground->paint(p, fold);
+			_cardStickers->paintAbove(p, fold);
 			if (_cardEditor) {
 				_cardEditor->paint(p, fold);
 			}

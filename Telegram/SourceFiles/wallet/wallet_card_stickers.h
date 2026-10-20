@@ -72,7 +72,8 @@ public:
 		Fn<void()> repaint);
 	~CardStickers();
 
-	void paint(QPainter &p, QRect rest);
+	void paint(QPainter &p, const CardFold &fold);
+	void paintAbove(QPainter &p, const CardFold &fold) const;
 
 	void hold(const QString &address);
 	void release(const QString &address);
@@ -94,12 +95,12 @@ public:
 	[[nodiscard]] QImage image(const QString &address) const;
 	[[nodiscard]] std::vector<QString> stack() const;
 	[[nodiscard]] rpl::producer<bool> arrivingValue() const;
-	[[nodiscard]] rpl::producer<bool> grippedValue() const;
 	[[nodiscard]] rpl::producer<QString> releases() const;
 
 private:
 	struct Entry;
 	struct Landing;
+	struct Sinking;
 	struct Preview;
 
 	void apply(std::vector<Data::WalletCardSticker> &&stickers);
@@ -125,29 +126,39 @@ private:
 		crl::time now) const;
 	[[nodiscard]] Entry *find(const QString &address) const;
 	[[nodiscard]] Entry *lookup(const QString &canonical) const;
-	void dropLanding(const QString &canonical);
+	void dropArrival(const QString &canonical);
 	void pruneLandings(crl::time now);
 	[[nodiscard]] bool landingStep(crl::time now);
+	void sink(const QString &canonical, crl::time now);
+	[[nodiscard]] float64 sinkCover(
+		const QString &canonical,
+		crl::time now) const;
+	void pruneSinkings(crl::time now);
+	[[nodiscard]] bool sinkStep(crl::time now);
 	void refreshArriving();
 	void invalidate();
+	void invalidateAbove();
 
 	const not_null<Main::Session*> _session;
 	const Fn<void()> _repaint;
 	std::vector<std::unique_ptr<Entry>> _entries;
 	std::vector<Landing> _landings;
+	std::vector<Sinking> _sinkings;
 	std::unique_ptr<Preview> _preview;
 	base::flat_set<QString> _holds;
 	base::flat_set<QString> _grips;
 	base::flat_set<QString> _rejectedGrips;
 	std::vector<QString> _raised;
 	Ui::Animations::Basic _landingAnimation;
+	Ui::Animations::Basic _sinkAnimation;
 	rpl::variable<bool> _arriving;
-	rpl::variable<bool> _gripped;
 	rpl::event_stream<QString> _releases;
 	QImage _layer;
+	QImage _above;
 	QSize _layerSize;
 	int _layerRatio = 0;
 	bool _layerValid = false;
+	bool _aboveValid = false;
 	rpl::lifetime _lifetime;
 
 };

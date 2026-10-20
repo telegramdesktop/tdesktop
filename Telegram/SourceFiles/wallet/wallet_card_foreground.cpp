@@ -17,8 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Wallet {
 namespace {
 
-constexpr auto kFadeDuration = crl::time(300);
-
 [[nodiscard]] bool SameFold(const CardFold &a, const CardFold &b) {
 	return (a.rest == b.rest)
 		&& (a.quad == b.quad)
@@ -46,17 +44,8 @@ void MakeShadowMask(QImage &image, float64 opacity) {
 CardForeground::CardForeground(CardForegroundArgs &&args)
 : _paint(std::move(args.paint))
 , _repaint(std::move(args.repaint)) {
-	std::move(args.hidden) | rpl::on_next([=](bool hidden) {
-		setHidden(hidden);
-	}, _lifetime);
 	std::move(args.changes) | rpl::on_next([=] {
 		invalidate();
-	}, _lifetime);
-	anim::Disables() | rpl::filter([=](bool disabled) {
-		return disabled && _animation.animating();
-	}) | rpl::on_next([=] {
-		_animation.stop();
-		_repaint();
 	}, _lifetime);
 }
 
@@ -66,36 +55,11 @@ void CardForeground::invalidate() {
 }
 
 void CardForeground::paint(QPainter &p, const CardFold &fold) {
-	const auto opacity = _animation.value(_target);
-	if (opacity <= 0. || !fold.valid || fold.opacity <= 0.) {
+	if (!fold.valid || fold.opacity <= 0.) {
 		return;
 	}
 	validate(fold);
-	const auto was = p.opacity();
-	p.setOpacity(was * opacity);
 	p.drawImage(_origin, _cache);
-	p.setOpacity(was);
-}
-
-void CardForeground::setHidden(bool hidden) {
-	const auto target = hidden ? 0. : 1.;
-	if (_target == target) {
-		return;
-	}
-	const auto from = _animation.value(_target);
-	_target = target;
-	if (anim::Disabled() || from == target) {
-		_animation.stop();
-		_repaint();
-		return;
-	}
-	const auto duration = std::abs(target - from) * kFadeDuration;
-	_animation.start(
-		[=] { _repaint(); },
-		from,
-		target,
-		crl::time(std::ceil(duration)),
-		anim::sineInOut);
 }
 
 void CardForeground::validate(const CardFold &fold) {

@@ -368,9 +368,7 @@ void PaintRestingStickers(
 		return;
 	}
 	auto hq = PainterHighQualityEnabler(p);
-	p.setOpacity(fold.opacity);
-	p.setTransform(fold.transform, true);
-	stickers->paint(p, fold.rest);
+	stickers->paint(p, fold);
 }
 
 [[nodiscard]] rpl::producer<TextWithEntities> ButtonText(ButtonMode mode) {

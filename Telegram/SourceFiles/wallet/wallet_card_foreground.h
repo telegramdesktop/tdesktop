@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/effects/animations.h"
 #include "wallet/wallet_card_space.h"
 
 class Painter;
@@ -17,7 +16,6 @@ namespace Wallet {
 struct CardForegroundArgs {
 	Fn<void(Painter&, const CardFold&, QRect)> paint;
 	Fn<void()> repaint;
-	rpl::producer<bool> hidden;
 	rpl::producer<> changes;
 };
 
@@ -29,7 +27,6 @@ public:
 	void paint(QPainter &p, const CardFold &fold);
 
 private:
-	void setHidden(bool hidden);
 	void validate(const CardFold &fold);
 	void compose();
 
@@ -40,9 +37,7 @@ private:
 	QImage _cache;
 	QPoint _origin;
 	int _ratio = 0;
-	float64 _target = 1.;
 	bool _valid = false;
-	Ui::Animations::Simple _animation;
 	rpl::lifetime _lifetime;
 
 };

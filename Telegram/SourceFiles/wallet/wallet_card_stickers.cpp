@@ -47,6 +47,7 @@ constexpr auto kSparkleLifeMax = crl::time(150);
 constexpr auto kRingStartScale = 1.2;
 constexpr auto kRingGrowth = 0.8;
 constexpr auto kRingOpacity = 0.6;
+constexpr auto kSinkDuration = crl::time(300);
 
 struct OutlineGrid {
 	int step = 0;
@@ -595,6 +596,35 @@ void PaintSticker(
 	p.restore();
 }
 
+void ClipToCard(QPainter &p, QSize card) {
+	auto clip = QPainterPath();
+	clip.addRoundedRect(
+		QRectF(QPointF(), QSizeF(card)),
+		st::walletCardRadius,
+		st::walletCardRadius);
+	p.setClipPath(clip);
+}
+
+void PrepareLayer(QImage &layer, QSize size, int ratio) {
+	const auto pixels = size * ratio;
+	if (layer.size() != pixels || layer.devicePixelRatio() != ratio) {
+		layer = QImage(pixels, QImage::Format_ARGB32_Premultiplied);
+		layer.setDevicePixelRatio(ratio);
+	}
+	layer.fill(Qt::transparent);
+}
+
+void PaintLayer(QPainter &p, const CardFold &fold, const QImage &layer) {
+	if (layer.isNull()) {
+		return;
+	}
+	p.save();
+	p.setOpacity(fold.opacity);
+	p.setTransform(fold.transform, true);
+	p.drawImage(QRectF(fold.rest), layer);
+	p.restore();
+}
+
 } // namespace
 
 struct CardStickers::Entry {
@@ -618,6 +648,11 @@ struct CardStickers::Landing {
 	std::unique_ptr<Ui::StarBurst> burst;
 	crl::time started = 0;
 	float64 fromScale = 1.;
+};
+
+struct CardStickers::Sinking {
+	QString address;
+	crl::time started = 0;
 };
 
 struct CardStickers::Preview {
@@ -716,7 +751,8 @@ CardStickers::CardStickers(
 	Fn<void()> repaint)
 : _session(session)
 , _repaint(std::move(repaint))
-, _landingAnimation([=](crl::time now) { return landingStep(now); }) {
+, _landingAnimation([=](crl::time now) { return landingStep(now); })
+, _sinkAnimation([=](crl::time now) { return sinkStep(now); }) {
 	std::move(
 		stickers
 	) | rpl::on_next([=](std::vector<Data::WalletCardSticker> &&list) {
@@ -731,29 +767,34 @@ CardStickers::CardStickers(
 
 CardStickers::~CardStickers() = default;
 
-void CardStickers::paint(QPainter &p, QRect rest) {
+void CardStickers::paint(QPainter &p, const CardFold &fold) {
 	const auto ratio = style::DevicePixelRatio();
-	if (_layerSize != rest.size() || _layerRatio != ratio) {
-		_layerSize = rest.size();
+	const auto size = fold.rest.size();
+	if (_layerSize != size || _layerRatio != ratio) {
+		_layerSize = size;
 		_layerRatio = ratio;
-		_layerValid = false;
+		_layerValid = _aboveValid = false;
 	}
 	for (const auto &entry : _entries) {
 		if (validate(entry.get())) {
-			_layerValid = false;
+			_layerValid = _aboveValid = false;
 		}
 	}
 	const auto now = crl::now();
 	if (!_landings.empty()) {
 		pruneLandings(now);
-		_layerValid = false;
 	}
-	if (!_layerValid) {
+	if (!_landings.empty() || !_sinkings.empty()) {
+		_aboveValid = false;
+	}
+	if (!_layerValid || !_aboveValid) {
 		compose(now);
 	}
-	if (!_layer.isNull()) {
-		p.drawImage(QRectF(rest), _layer);
-	}
+	PaintLayer(p, fold, _layer);
+}
+
+void CardStickers::paintAbove(QPainter &p, const CardFold &fold) const {
+	PaintLayer(p, fold, _above);
 }
 
 void CardStickers::hold(const QString &address) {
@@ -762,7 +803,7 @@ void CardStickers::hold(const QString &address) {
 		return;
 	}
 	_holds.emplace(canonical);
-	dropLanding(canonical);
+	dropArrival(canonical);
 	if (const auto entry = lookup(canonical)) {
 		entry->playback.reset();
 	}
@@ -773,6 +814,7 @@ void CardStickers::hold(const QString &address) {
 void CardStickers::release(const QString &address) {
 	const auto canonical = CanonicalAddress(address);
 	if (_holds.remove(canonical)) {
+		sink(canonical, crl::now());
 		invalidate();
 		refreshArriving();
 		_releases.fire_copy(canonical);
@@ -785,18 +827,14 @@ void CardStickers::grip(const QString &address) {
 		return;
 	}
 	raise(canonical);
-	_gripped = true;
 }
 
 void CardStickers::ungrip(const QString &address) {
 	const auto canonical = CanonicalAddress(address);
-	if (!_grips.remove(canonical)) {
-		return;
-	} else if (_rejectedGrips.remove(canonical)) {
+	if (_grips.remove(canonical) && _rejectedGrips.remove(canonical)) {
 		_raised.erase(ranges::remove(_raised, canonical), end(_raised));
 		invalidate();
 	}
-	_gripped = !_grips.empty();
 }
 
 void CardStickers::raise(const QString &address) {
@@ -820,7 +858,7 @@ void CardStickers::land(
 		return;
 	}
 	const auto ended = _holds.remove(canonical);
-	dropLanding(canonical);
+	dropArrival(canonical);
 	const auto entry = lookup(canonical);
 	if (!anim::Disabled() && entry) {
 		_landings.push_back({
@@ -865,18 +903,27 @@ void CardStickers::preview(
 		clearPreview();
 		return;
 	}
-	dropLanding(entry->canonical);
+	dropArrival(entry->canonical);
+	const auto entering = !_preview
+		|| (_preview->address != entry->canonical);
 	if (!_preview) {
 		_preview = std::make_unique<Preview>();
 	}
 	_preview->address = entry->canonical;
 	_preview->area = area;
-	invalidate();
+	if (entering) {
+		invalidate();
+	} else {
+		invalidateAbove();
+	}
 	refreshArriving();
 }
 
 void CardStickers::clearPreview() {
-	if (base::take(_preview)) {
+	if (const auto preview = base::take(_preview)) {
+		if (!ranges::contains(_landings, preview->address, &Landing::address)) {
+			sink(preview->address, crl::now());
+		}
 		invalidate();
 		refreshArriving();
 	}
@@ -958,10 +1005,6 @@ rpl::producer<bool> CardStickers::arrivingValue() const {
 	return _arriving.value();
 }
 
-rpl::producer<bool> CardStickers::grippedValue() const {
-	return _gripped.value();
-}
-
 rpl::producer<QString> CardStickers::releases() const {
 	return _releases.events();
 }
@@ -989,6 +1032,9 @@ void CardStickers::apply(std::vector<Data::WalletCardSticker> &&stickers) {
 	_landings.erase(ranges::remove_if(_landings, [&](const Landing &landing) {
 		return !lookup(landing.address);
 	}), end(_landings));
+	_sinkings.erase(ranges::remove_if(_sinkings, [&](const Sinking &sinking) {
+		return !lookup(sinking.address);
+	}), end(_sinkings));
 	_raised.erase(ranges::remove_if(_raised, [&](const QString &canonical) {
 		return !lookup(canonical) && !_holds.contains(canonical);
 	}), end(_raised));
@@ -1093,7 +1139,7 @@ void CardStickers::adoptArtwork(
 	if (artwork.document != entry->document || playback.side <= 0) {
 		return;
 	} else if (validate(entry)) {
-		_layerValid = false;
+		_layerValid = _aboveValid = false;
 	}
 	if (entry->image.isNull() && !artwork.rest.isNull()) {
 		entry->image = std::move(artwork.rest);
@@ -1110,47 +1156,85 @@ void CardStickers::adoptArtwork(
 }
 
 void CardStickers::compose(crl::time now) {
-	_layerValid = true;
-	const auto shown = [&](const std::unique_ptr<Entry> &entry) {
-		return !entry->image.isNull() && !_holds.contains(entry->canonical);
+	const auto below = !_layerValid;
+	const auto above = !_aboveValid;
+	_layerValid = _aboveValid = true;
+	struct Lifted {
+		not_null<Entry*> entry;
+		const Landing *landing = nullptr;
+		float64 cover = 0.;
 	};
-	if (_layerSize.isEmpty()
-		|| (_landings.empty() && !ranges::any_of(_entries, shown))) {
+	auto lower = std::vector<not_null<Entry*>>();
+	auto upper = std::vector<Lifted>();
+	auto shown = false;
+	if (!_layerSize.isEmpty()) {
+		for (const auto &entry : ordered()) {
+			if (_holds.contains(entry->canonical)) {
+				continue;
+			}
+			const auto landing = ranges::find(
+				_landings,
+				entry->canonical,
+				&Landing::address);
+			const auto previewed = _preview
+				&& (_preview->address == entry->canonical);
+			if (previewed || landing != end(_landings)) {
+				upper.push_back({
+					.entry = entry,
+					.landing = previewed ? nullptr : &*landing,
+				});
+				continue;
+			}
+			lower.push_back(entry);
+			shown = shown || !entry->image.isNull();
+			const auto cover = sinkCover(entry->canonical, now);
+			if (cover > 0.) {
+				upper.push_back({ .entry = entry, .cover = cover });
+			}
+		}
+	}
+	if (below && !shown) {
 		_layer = QImage();
-		return;
-	}
-	const auto size = _layerSize * _layerRatio;
-	if (_layer.size() != size || _layer.devicePixelRatio() != _layerRatio) {
-		_layer = QImage(size, QImage::Format_ARGB32_Premultiplied);
-		_layer.setDevicePixelRatio(_layerRatio);
-	}
-	_layer.fill(Qt::transparent);
-	auto p = QPainter(&_layer);
-	auto hq = PainterHighQualityEnabler(p);
-	auto clip = QPainterPath();
-	clip.addRoundedRect(
-		QRectF(QPointF(), QSizeF(_layerSize)),
-		st::walletCardRadius,
-		st::walletCardRadius);
-	p.setClipPath(clip);
-	for (const auto &entry : ordered()) {
-		if (_holds.contains(entry->canonical)) {
-			continue;
-		}
-		const auto playing = advance(entry, now);
-		const auto landing = ranges::find(
-			_landings,
-			entry->canonical,
-			&Landing::address);
-		if (_preview && _preview->address == entry->canonical) {
-			paintArt(p, entry, _preview->area, 1.);
-		} else if (landing != end(_landings)) {
-			paintLanding(p, entry, *landing, now);
-		} else {
+	} else if (below) {
+		PrepareLayer(_layer, _layerSize, _layerRatio);
+		auto p = QPainter(&_layer);
+		auto hq = PainterHighQualityEnabler(p);
+		ClipToCard(p, _layerSize);
+		for (const auto &entry : lower) {
+			const auto playing = advance(entry, now);
 			paintArt(p, entry, entry->data.area, 1.);
+			if (playing) {
+				presented(entry);
+			}
 		}
-		if (playing) {
-			presented(entry);
+	}
+	if (above && upper.empty()) {
+		_above = QImage();
+	} else if (above) {
+		PrepareLayer(_above, _layerSize, _layerRatio);
+		auto p = QPainter(&_above);
+		auto hq = PainterHighQualityEnabler(p);
+		ClipToCard(p, _layerSize);
+		for (const auto &lifted : upper) {
+			const auto entry = lifted.entry;
+			if (lifted.cover > 0.) {
+				// WHY: a sinking gift is also in the lower layer, so this
+				// copy fades out to fade the card data in over it, with the
+				// frame that layer drew.
+				p.setOpacity(lifted.cover);
+				paintArt(p, entry, entry->data.area, 1.);
+				p.setOpacity(1.);
+				continue;
+			}
+			const auto playing = advance(entry, now);
+			if (lifted.landing) {
+				paintLanding(p, entry, *lifted.landing, now);
+			} else {
+				paintArt(p, entry, _preview->area, 1.);
+			}
+			if (playing) {
+				presented(entry);
+			}
 		}
 	}
 }
@@ -1242,14 +1326,19 @@ CardStickers::Entry *CardStickers::lookup(const QString &canonical) const {
 	return (i != end(_entries)) ? i->get() : nullptr;
 }
 
-void CardStickers::dropLanding(const QString &canonical) {
+void CardStickers::dropArrival(const QString &canonical) {
 	_landings.erase(
 		ranges::remove(_landings, canonical, &Landing::address),
 		end(_landings));
+	_sinkings.erase(
+		ranges::remove(_sinkings, canonical, &Sinking::address),
+		end(_sinkings));
 }
 
 void CardStickers::pruneLandings(crl::time now) {
 	const auto disabled = anim::Disabled();
+	const auto was = _landings.size();
+	auto finished = std::vector<QString>();
 	_landings.erase(ranges::remove_if(_landings, [&](const Landing &landing) {
 		if (disabled) {
 			return true;
@@ -1257,15 +1346,25 @@ void CardStickers::pruneLandings(crl::time now) {
 			return false;
 		}
 		const auto entry = lookup(landing.address);
-		return !entry || !entry->image.isNull() || landing.frame.isNull();
+		const auto ended = !entry
+			|| !entry->image.isNull()
+			|| landing.frame.isNull();
+		if (ended) {
+			finished.push_back(landing.address);
+		}
+		return ended;
 	}), end(_landings));
+	if (_landings.size() != was) {
+		_layerValid = _aboveValid = false;
+	}
+	for (const auto &address : finished) {
+		sink(address, now);
+	}
 }
 
 bool CardStickers::landingStep(crl::time now) {
-	if (anim::Disabled()) {
-		_landings.clear();
-	}
-	invalidate();
+	pruneLandings(now);
+	invalidateAbove();
 	const auto active = ranges::any_of(_landings, [&](const Landing &landing) {
 		return now - landing.started < kLandingDuration;
 	});
@@ -1276,6 +1375,58 @@ bool CardStickers::landingStep(crl::time now) {
 	return active;
 }
 
+void CardStickers::sink(const QString &canonical, crl::time now) {
+	const auto entry = lookup(canonical);
+	if (!entry || entry->image.isNull() || anim::Disabled()) {
+		return;
+	}
+	_sinkings.erase(
+		ranges::remove(_sinkings, canonical, &Sinking::address),
+		end(_sinkings));
+	_sinkings.push_back({ .address = canonical, .started = now });
+	_aboveValid = false;
+	if (!_sinkAnimation.animating()) {
+		_sinkAnimation.start();
+	}
+}
+
+float64 CardStickers::sinkCover(
+		const QString &canonical,
+		crl::time now) const {
+	const auto i = ranges::find(_sinkings, canonical, &Sinking::address);
+	if (i == end(_sinkings)) {
+		return 0.;
+	}
+	const auto progress = (now - i->started) / float64(kSinkDuration);
+	return 1. - anim::sineInOut(1., std::clamp(progress, 0., 1.));
+}
+
+void CardStickers::pruneSinkings(crl::time now) {
+	const auto disabled = anim::Disabled();
+	const auto was = _sinkings.size();
+	const auto finished = [&](const Sinking &sinking) {
+		return disabled
+			|| (now - sinking.started >= kSinkDuration)
+			|| !lookup(sinking.address);
+	};
+	_sinkings.erase(
+		ranges::remove_if(_sinkings, finished),
+		end(_sinkings));
+	if (_sinkings.size() != was) {
+		_aboveValid = false;
+	}
+}
+
+bool CardStickers::sinkStep(crl::time now) {
+	pruneSinkings(now);
+	invalidateAbove();
+	if (_sinkings.empty()) {
+		_sinkAnimation.stop();
+		return false;
+	}
+	return true;
+}
+
 void CardStickers::refreshArriving() {
 	_arriving = _landingAnimation.animating()
 		|| !_holds.empty()
@@ -1283,7 +1434,12 @@ void CardStickers::refreshArriving() {
 }
 
 void CardStickers::invalidate() {
-	_layerValid = false;
+	_layerValid = _aboveValid = false;
+	_repaint();
+}
+
+void CardStickers::invalidateAbove() {
+	_aboveValid = false;
 	_repaint();
 }
 
