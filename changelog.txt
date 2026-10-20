@@ -1,3 +1,11 @@
+7.3.2 (20.10.26)
+
+- Reply with quotes to rich messages.
+- Move your unique gifts to your Money card on the TON blockchain.
+- Decorate your Money card with your unique gifts.
+- QR code design for public usernames.
+- Migrate to Qt 6 on Windows.
+
 7.3.1 (09.10.26)
 
 - Fix wallet encryption with Windows Hello sometimes failing.
