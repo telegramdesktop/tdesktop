@@ -52,15 +52,20 @@ constexpr auto kBloomDuration = crl::time(800);
 constexpr auto kBloomSpread = 0.6;
 constexpr auto kFlyInDuration = crl::time(500);
 constexpr auto kLoopPeriod = crl::time(900);
-constexpr auto kPlaneMinScale = 0.61;
-constexpr auto kPlaneRise = 0.12;
-constexpr auto kPlaneTurn = 15.;
+constexpr auto kPlaneMinWidth = 0.44;
+constexpr auto kPlaneAxisAngle = 35.;
+constexpr auto kPlaneAxisX = 0.452;
+constexpr auto kPlaneAxisY = 0.394;
+constexpr auto kPlaneTurn = 8.6;
 constexpr auto kFlyInOffset = 0.55;
 constexpr auto kFlyInScale = 0.5;
-constexpr auto kStreakAlpha = 0.35;
+constexpr auto kStreakAlpha = 0.18;
 constexpr auto kStreakLength = 0.45;
 constexpr auto kStreakWidth = 0.05;
-constexpr auto kStreakLanes = std::array{ -0.45, 0.2, 0.57 };
+constexpr auto kStreakTravel = 2.5;
+constexpr auto kStreakSourceAngle = 39.;
+constexpr auto kStreakSourceDistance = 2.5;
+constexpr auto kStreakLanes = std::array{ -0.78, -0.58, 0.66, -0.38, 0.80 };
 constexpr auto kSwapDelay = crl::time(40);
 constexpr auto kSwapDuration = crl::time(450);
 constexpr auto kSwapTravel = crl::time(350);
@@ -116,6 +121,7 @@ struct QrSwap {
 struct PlaneState {
 	QPointF shift;
 	float64 scale = 1.;
+	float64 width = 1.;
 	float64 rotation = 0.;
 	float64 opacity = 1.;
 	float64 streaks = 0.;
@@ -547,6 +553,7 @@ void PaintWaveGlow(
 [[nodiscard]] PlaneState ComputePlaneState(
 		crl::time elapsed,
 		float64 radius) {
+	const auto travel = float64(elapsed % kLoopPeriod) / kLoopPeriod;
 	if (elapsed < kFlyInDuration) {
 		const auto progress = float64(elapsed) / kFlyInDuration;
 		const auto eased = anim::easeOutCubic(1., progress);
@@ -555,17 +562,18 @@ void PaintWaveGlow(
 			.shift = QPointF(-offset, offset),
 			.scale = kFlyInScale + (1. - kFlyInScale) * eased,
 			.opacity = std::min(2. * progress, 1.),
+			.streaks = progress,
+			.travel = travel,
 		};
 	}
 	const auto phase = float64((elapsed - kFlyInDuration) % kLoopPeriod)
 		/ kLoopPeriod;
-	const auto shrink = (1. - std::cos(2. * M_PI * phase)) / 2.;
+	const auto roll = (1. - std::cos(2. * M_PI * phase)) / 2.;
 	return {
-		.shift = QPointF(0., -kPlaneRise * radius * shrink),
-		.scale = 1. - (1. - kPlaneMinScale) * shrink,
-		.rotation = -kPlaneTurn * shrink,
-		.streaks = shrink,
-		.travel = phase,
+		.width = 1. - (1. - kPlaneMinWidth) * roll,
+		.rotation = -kPlaneTurn * roll,
+		.streaks = 1.,
+		.travel = travel,
 	};
 }
 
@@ -581,9 +589,12 @@ void PaintWaveGlow(
 void PaintStreaks(QPainter &p, const QRect &logo, const PlaneState &state) {
 	const auto radius = logo.width() / 2.;
 	const auto center = QRectF(logo).center();
-	const auto along = QPointF(1., -1.) / M_SQRT2;
-	const auto across = QPointF(1., 1.) / M_SQRT2;
 	const auto half = kStreakLength * radius / 2.;
+	const auto angle = kStreakSourceAngle * M_PI / 180.;
+	const auto distance = kStreakSourceDistance * radius;
+	// Lanes share one vanishing point, so no two streaks cross in the circle.
+	const auto source = center
+		+ QPointF(std::cos(angle), -std::sin(angle)) * distance;
 	auto color = QColor(255, 255, 255);
 	color.setAlphaF(kStreakAlpha * state.streaks);
 	p.setPen(QPen(
@@ -593,10 +604,14 @@ void PaintStreaks(QPainter &p, const QRect &logo, const PlaneState &state) {
 		Qt::RoundCap));
 	const auto count = int(kStreakLanes.size());
 	for (auto i = 0; i != count; ++i) {
+		const auto lane = angle
+			+ std::asin(kStreakLanes[i] / kStreakSourceDistance);
+		const auto along = QPointF(std::cos(lane), -std::sin(lane));
+		const auto foot = source
+			- along * QPointF::dotProduct(source - center, along);
 		const auto travel = std::fmod(state.travel + float64(i) / count, 1.);
-		const auto middle = center
-			+ across * (kStreakLanes[i] * radius)
-			+ along * (radius * (1. - 2. * travel));
+		const auto middle = foot
+			+ along * (kStreakTravel * radius * (0.5 - travel));
 		p.drawLine(middle - along * half, middle + along * half);
 	}
 }
@@ -612,6 +627,9 @@ void PaintPlane(
 	const auto center = QPointF(
 		logo.x() + logo.width() * kPlaneCenterX,
 		logo.y() + logo.height() * kPlaneCenterY);
+	const auto anchor = QPointF(
+		logo.x() + logo.width() * kPlaneAxisX,
+		logo.y() + logo.height() * kPlaneAxisY);
 	auto circle = QPainterPath();
 	circle.addEllipse(logo);
 	p.save();
@@ -620,9 +638,12 @@ void PaintPlane(
 		PaintStreaks(p, logo, state);
 	}
 	p.translate(center + state.shift);
-	p.rotate(state.rotation);
 	p.scale(state.scale, state.scale);
-	p.translate(-center);
+	p.translate(anchor - center);
+	p.rotate(state.rotation - kPlaneAxisAngle);
+	p.scale(1., state.width);
+	p.rotate(kPlaneAxisAngle);
+	p.translate(-anchor);
 	p.setOpacity(state.opacity);
 	p.drawImage(logo, plane);
 	p.restore();
