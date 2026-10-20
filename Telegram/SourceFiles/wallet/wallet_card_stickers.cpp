@@ -948,7 +948,7 @@ QImage CardStickers::image(const QString &address) const {
 
 std::vector<QString> CardStickers::stack() const {
 	auto result = std::vector<QString>();
-	for (const auto entry : ordered()) {
+	for (const auto &entry : ordered()) {
 		result.push_back(entry->canonical);
 	}
 	return result;
@@ -1133,7 +1133,7 @@ void CardStickers::compose(crl::time now) {
 		st::walletCardRadius,
 		st::walletCardRadius);
 	p.setClipPath(clip);
-	for (const auto entry : ordered()) {
+	for (const auto &entry : ordered()) {
 		if (_holds.contains(entry->canonical)) {
 			continue;
 		}
