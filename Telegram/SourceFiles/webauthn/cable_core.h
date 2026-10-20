@@ -239,12 +239,6 @@ private:
 
 };
 
-[[nodiscard]] std::optional<HandshakeResult> RespondToHandshake(
-	ByteSpan psk32,
-	ByteSpan peerIdentityX962,
-	ByteSpan message,
-	Bytes *outResponse);
-
 struct QRKey {
 	EcKeyPtr identity;
 	std::array<uint8_t, kQRSecretSize> secret = {};
@@ -257,7 +251,6 @@ struct QRKey {
 	int64_t nowUnixSeconds);
 
 [[nodiscard]] std::string BytesToDigits(ByteSpan bytes);
-[[nodiscard]] std::optional<Bytes> DigitsToBytes(const std::string &digits);
 
 struct EidComponents {
 	std::array<uint8_t, kNonceSize> nonce = {};
