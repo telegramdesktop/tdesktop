@@ -10,8 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 #include "data/data_stories.h"
 #include "info/stories/info_stories_common.h"
-#include "ui/rp_widget.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/wrap/slide_wrap.h"
+#include "ui/rp_widget.h"
 
 namespace Data {
 struct StoryAlbum;
@@ -33,10 +34,6 @@ enum class SelectionAction;
 namespace Info::Media {
 class ListWidget;
 } // namespace Info::Media
-
-namespace Info::Profile {
-struct Section;
-} // namespace Info::Profile
 
 namespace Window {
 class SessionNavigation;
@@ -125,9 +122,9 @@ private:
 	void createAboutArchive();
 
 	void startTop();
-	[[nodiscard]] Profile::Section makeArchiveButton();
-	[[nodiscard]] Profile::Section makeRecentButton();
-	[[nodiscard]] Profile::Section makeGiftsButton();
+	[[nodiscard]] object_ptr<Ui::SlideWrap<>> makeArchiveButton();
+	[[nodiscard]] object_ptr<Ui::SlideWrap<>> makeRecentButton();
+	[[nodiscard]] object_ptr<Ui::SlideWrap<>> makeGiftsButton();
 	void finalizeTop(bool addAlbumsSkip = true);
 
 	void refreshAlbumsTabs();

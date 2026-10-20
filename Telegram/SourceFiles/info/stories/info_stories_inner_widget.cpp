@@ -320,22 +320,36 @@ void InnerWidget::createProfileTop() {
 		{ v::null });
 
 	stack.addPlainSeparator();
-	stack.add(makeGiftsButton());
-	stack.add(makeArchiveButton());
-	stack.add(makeRecentButton());
+	const auto addButton = [&](object_ptr<Ui::SlideWrap<>> button) {
+		const auto raw = button.data();
+		stack.add({
+			.widget = std::move(button),
+			.shown = raw->toggledValue(),
+		});
+		return raw;
+	};
+	const auto buttons = {
+		addButton(makeGiftsButton()),
+		addButton(makeArchiveButton()),
+		addButton(makeRecentButton()),
+	};
 	stack.finalize();
+	// Layout insertion shows even wrappers whose initial toggle is off.
+	for (const auto button : buttons) {
+		button->finishAnimating();
+	}
 
 	finalizeTop(false);
 }
 
 void InnerWidget::createButtons() {
 	startTop();
-	_top->add(makeArchiveButton().widget);
-	_top->add(makeRecentButton().widget);
+	_top->add(makeArchiveButton())->finishAnimating();
+	_top->add(makeRecentButton())->finishAnimating();
 	finalizeTop();
 }
 
-Profile::Section InnerWidget::makeArchiveButton() {
+object_ptr<Ui::SlideWrap<>> InnerWidget::makeArchiveButton() {
 	Expects(_top != nullptr);
 
 	const auto stories = &_peer->owner().stories();
@@ -387,13 +401,10 @@ Profile::Section InnerWidget::makeArchiveButton() {
 		archive,
 		st::infoIconMediaStoriesArchive,
 		st::infoSharedMediaButtonIconPosition)->show();
-	return Profile::Section{
-		.widget = std::move(wrap),
-		.shown = archiveWrap->toggledValue(),
-	};
+	return wrap;
 }
 
-Profile::Section InnerWidget::makeRecentButton() {
+object_ptr<Ui::SlideWrap<>> InnerWidget::makeRecentButton() {
 	Expects(_top != nullptr);
 
 	auto wrap = object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
@@ -450,13 +461,10 @@ Profile::Section InnerWidget::makeRecentButton() {
 	) | rpl::map([](const Content &content) {
 		return !content.elements.empty();
 	}));
-	return Profile::Section{
-		.widget = std::move(wrap),
-		.shown = recentWrap->toggledValue(),
-	};
+	return wrap;
 }
 
-Profile::Section InnerWidget::makeGiftsButton() {
+object_ptr<Ui::SlideWrap<>> InnerWidget::makeGiftsButton() {
 	Expects(_top != nullptr);
 
 	const auto user = _peer->asUser();
@@ -497,10 +505,7 @@ Profile::Section InnerWidget::makeGiftsButton() {
 		gifts,
 		st::infoIconMediaGifts,
 		st::infoSharedMediaButtonIconPosition)->show();
-	return Profile::Section{
-		.widget = std::move(wrap),
-		.shown = giftsWrap->toggledValue(),
-	};
+	return wrap;
 }
 
 bool InnerWidget::hasFlexibleTopBar() const {
