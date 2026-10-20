@@ -338,6 +338,13 @@ uniqueCraftButton: IconButton(uniqueMenuButton) {
 	icon: icon{{ "chat/filled_forge-24x24", videoPlayIconFg }};
 	iconOver: icon{{ "chat/filled_forge-24x24", videoPlayIconFg }};
 }
+regularGiftMenuButton: IconButton(boxTitleMenu) {
+	width: 40px;
+	rippleAreaPosition: point(0px, 4px);
+
+	icon: icon {{ "title_menu_dots", boxTitleCloseFg }};
+	iconOver: icon {{ "title_menu_dots", boxTitleCloseFgOver }};
+}
 uniqueGiftSenderBadge: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;
 	palette: TextPalette(defaultTextPalette) {

@@ -4581,6 +4581,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_sell_removed" = "{name} is removed from sale.";
 "lng_gift_menu_show" = "Show";
 "lng_gift_menu_hide" = "Hide";
+"lng_gift_menu_delete" = "Delete Gift";
+"lng_gift_delete_sure_text" = "Do you want to delete this gift?\n\nIt will disappear from your profile and can't be restored.";
+"lng_gift_deleted" = "Gift Deleted";
 "lng_gift_wear_title" = "Wear {name}";
 "lng_gift_wear_about" = "and get these benefits:";
 "lng_gift_wear_badge_title" = "Radiant Badge";

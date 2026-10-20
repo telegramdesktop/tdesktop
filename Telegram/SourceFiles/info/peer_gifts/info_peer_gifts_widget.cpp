@@ -462,11 +462,13 @@ void InnerWidget::subscribeToUpdates() {
 		applyUpdateTo(_all, update);
 		if (update.action == Action::Pin
 			|| update.action == Action::Unpin
+			|| update.action == Action::Convert
+			|| update.action == Action::Transfer
 			|| update.action == Action::Delete) {
 			for (auto &[_, entries] : _perCollection) {
 				applyUpdateTo(entries, update);
 			}
-		};
+		}
 	}, lifetime());
 }
 
@@ -482,24 +484,32 @@ void InnerWidget::applyUpdateTo(
 			? entry.gift.info.unique->slug
 			: QString();
 	};
+	const auto removal = (update.action == Action::Convert)
+		|| (update.action == Action::Transfer)
+		|| (update.action == Action::Delete);
+	auto &list = removal ? entries.list : *_list;
 	const auto i = update.id
-		? ranges::find(*_list, update.id, savedId)
-		: ranges::find(*_list, update.slug, bySlug);
-	if (i == end(*_list)) {
+		? ranges::find(list, update.id, savedId)
+		: ranges::find(list, update.slug, bySlug);
+	if (i == end(list)) {
 		return;
 	}
-	const auto index = int(i - begin(*_list));
-	if (update.action == Action::Convert
-		|| update.action == Action::Transfer
-		|| update.action == Action::Delete) {
-		_list->erase(i);
+	const auto index = int(i - begin(list));
+	if (removal) {
+		list.erase(i);
 		if (entries.total > 0) {
 			--entries.total;
+		}
+		if (&entries != _entries.get()) {
+			return;
 		}
 		for (auto &view : _views) {
 			if (view.index >= index) {
 				--view.index;
 			}
+		}
+		if (list.empty()) {
+			refreshAbout();
 		}
 	} else if (update.action == Action::Save
 		|| update.action == Action::Unsave) {
