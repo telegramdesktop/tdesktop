@@ -234,6 +234,7 @@ private:
 	Ui::RpWidgetWrap * const _borrowed = nullptr;
 	QRect _borrowedGeometry;
 	std::unique_ptr<Ui::GL::Renderer> _borrowedRenderer;
+	QRhi *_borrowedRhi = nullptr;
 	QMetaObject::Connection _borrowedConnection;
 
 	rpl::lifetime _lifetime;

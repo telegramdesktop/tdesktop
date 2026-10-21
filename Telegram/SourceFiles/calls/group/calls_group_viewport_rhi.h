@@ -110,7 +110,7 @@ private:
 		QSize size;
 	};
 
-	void createPipelines();
+	[[nodiscard]] bool createPipelines();
 	void ensureNoiseTexture();
 	void validateDatas();
 	void validateOutlineAnimation(

@@ -99,7 +99,7 @@ private:
 	};
 
 	void createShadowTexture();
-	void createPipelines();
+	[[nodiscard]] bool createPipelines();
 	void validateControls();
 	void invalidateControls();
 

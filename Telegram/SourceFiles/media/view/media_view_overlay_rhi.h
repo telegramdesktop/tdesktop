@@ -95,7 +95,7 @@ private:
 		not_null<const style::icon*> icon;
 	};
 
-	void createPipelines();
+	[[nodiscard]] bool createPipelines();
 	void validateControlsFade();
 	void validateControls();
 	void invalidateControls();
@@ -186,7 +186,7 @@ private:
 	QSize _chromaSize;
 	bool _chromaNV12 = false;
 	bool _usingExternalVideoTextures = false;
-	int _trackFrameIndex = 0;
+	int _trackFrameIndex = -1;
 	int _streamedIndex = 0;
 
 	struct PoolTexture {
