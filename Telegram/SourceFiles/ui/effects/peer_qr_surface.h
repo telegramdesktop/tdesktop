@@ -73,7 +73,7 @@ public:
 		anim::type animated = anim::type::instant);
 	void setUsername(const QString &username);
 	void setCountdown(const QString &countdown);
-	void setCardGeometry(QRect card);
+	void setCardGeometry(QRect card, QRectF centerReach);
 	void setCardPlacement(QPointF topLeft, float64 scale);
 	void setAppearance(PeerQrAppearance appearance, anim::type animated);
 	void setEmojiSource(PeerQrEmojiSource source);
@@ -107,6 +107,10 @@ private:
 	struct CardPlacement {
 		QPointF topLeft;
 		float64 scale = 1.;
+	};
+	struct Background {
+		QImage image;
+		QPointF center;
 	};
 	struct Wave {
 		QImage from;
@@ -170,10 +174,13 @@ private:
 	void checkAnimation();
 	[[nodiscard]] bool animationCallback(crl::time now);
 	[[nodiscard]] QPointF gradientCenter() const;
+	[[nodiscard]] QRectF gradientReach(QPointF center) const;
+	[[nodiscard]] QRect backgroundSource(QPointF center) const;
 	[[nodiscard]] bool backgroundStale() const;
-	[[nodiscard]] Fn<QImage()> prepareBackground();
+	[[nodiscard]] Fn<Background()> prepareBackground() const;
 	void requestBackground();
-	void applyBackground(QImage image);
+	void applyBackground(Background background);
+	void paintBackground(QPainter &p, QRect area) const;
 	[[nodiscard]] QRegion covered() const;
 	void updateField();
 	[[nodiscard]] QRectF cardRect() const;
@@ -189,12 +196,11 @@ private:
 	rpl::event_stream<not_null<QTouchEvent*>> _touchPresses;
 	const std::unique_ptr<Card> _card;
 	std::unique_ptr<Countdown> _countdown;
-	const std::array<QImage, 4> _corners;
-	QImage _background;
-	QPointF _backgroundCenter;
+	Background _background;
 	QString _link;
 	QString _username;
 	QRect _cardGeometry;
+	QRectF _cardReach;
 	std::optional<CardPlacement> _cardPlacement;
 	std::optional<Wave> _wave;
 	PeerQrEmojiSource _emojiSource;

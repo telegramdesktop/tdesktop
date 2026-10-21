@@ -957,6 +957,20 @@ void SetupFreeCodes(
 	};
 }
 
+[[nodiscard]] QRectF ExtendCardReach(
+		QRectF reach,
+		const OpenLayout &open,
+		QSize card) {
+	const auto center = QRectF(open.card, QSizeF(card) * open.scale).center();
+	return QRectF(
+		QPointF(
+			std::min(reach.left(), center.x()),
+			std::min(reach.top(), center.y())),
+		QPointF(
+			std::max(reach.right(), center.x()),
+			std::max(reach.bottom(), center.y())));
+}
+
 [[nodiscard]] const PeerQrSwatch *FindSwatch(
 		const std::vector<PeerQrSwatch> &swatches,
 		PeerQrThemeKey key) {
@@ -1688,8 +1702,8 @@ void FillPeerQrBox(
 				skip + (close->height() - titleLabel->height()) / 2,
 				width);
 		}
-		surface->setCardGeometry(card);
-		surface->resize(width, height);
+		const auto rest = QRectF(card).center();
+		auto reach = QRectF(rest, rest);
 		if (const auto island = state->appearance.island) {
 			const auto &appearance = state->appearance;
 			const auto outer = QSize(width, height);
@@ -1705,6 +1719,8 @@ void FillPeerQrBox(
 					card.size(),
 					gifts->openHeight(panelWidth))
 				: table;
+			reach = ExtendCardReach(reach, table, card.size());
+			reach = ExtendCardReach(reach, giftsOpen, card.size());
 			const auto &open = appearance.giftsActive ? giftsOpen : table;
 			const auto progress = appearance.progress;
 			const auto lerp = [&](float64 from, float64 till) {
@@ -1726,6 +1742,8 @@ void FillPeerQrBox(
 				lerp(1., open.scale));
 			pillTop = lerp(pillTop, open.pillTop);
 		}
+		surface->setCardGeometry(card, reach);
+		surface->resize(width, height);
 		if (const auto pill = state->free.pill) {
 			pill->setPillPosition(width / 2, int(std::round(pillTop)));
 		}
