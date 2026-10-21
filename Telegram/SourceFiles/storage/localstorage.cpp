@@ -609,7 +609,8 @@ void writeUpdateManifest(
 		|| f.write(signature) != signature.size()
 		|| f.write(manifest) != manifest.size()
 		|| !f.commit()) {
-		LOG(("Storage Error: Could not write the update manifest."));
+		LOG(("Storage Error: Could not write the update manifest: %1."
+			).arg(f.errorString()));
 	}
 }
 
