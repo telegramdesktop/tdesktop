@@ -1523,14 +1523,20 @@ void CollectiblesGrid::addToCard(
 		bool color) {
 	auto &own = ownCard();
 	const auto stickers = own.shown().stickers;
-	const auto area = CardStickerDefaultArea(_host.fold().rest.size());
 	if (!own.ready()) {
 		showRefusal(OwnCardChange::NotReady);
 		return;
 	} else if (int(stickers.size()) >= Data::kWalletCardMaxStickers) {
 		showRefusal(OwnCardChange::Limit);
 		return;
-	} else if (!area) {
+	}
+	const auto area = CardStickerAutoArea(
+		stickers | ranges::views::transform(
+			&Data::WalletCardSticker::area
+		) | ranges::to_vector,
+		_host.fold().rest.size(),
+		style::DevicePixelRatio());
+	if (!area) {
 		return;
 	}
 	const auto address = record.address;
