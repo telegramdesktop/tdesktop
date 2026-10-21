@@ -14633,6 +14633,7 @@ void Content::setupContent() {
 		.header = _pinned,
 		.squares = AddCollectiblesList(
 			collectiblesWrap->entity()->page(),
+			_scroll.data(),
 			_show,
 			media,
 			host),
