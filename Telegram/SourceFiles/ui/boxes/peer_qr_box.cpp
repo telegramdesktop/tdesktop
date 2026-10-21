@@ -1006,6 +1006,17 @@ void SetupFreeCodes(
 	return nullptr;
 }
 
+[[nodiscard]] QRegion CoveredByPanels(
+		not_null<const AppearanceState*> appearance) {
+	auto result = QRegion();
+	for (const auto panel : Panels(appearance)) {
+		if (panel) {
+			result += panel->interiorRegion().translated(panel->pos());
+		}
+	}
+	return result;
+}
+
 void RefreshControls(not_null<AppearanceState*> appearance) {
 	Expects(appearance->island != nullptr);
 
@@ -1414,6 +1425,7 @@ void SetupAppearance(
 			st::peerQrGift,
 			tr::lng_qr_box_gifts(tr::now)),
 		openPanel);
+	surface->setCovered([=] { return CoveredByPanels(appearance); });
 
 	// the controls fade above the panels' glass, never under it
 	island->raise();

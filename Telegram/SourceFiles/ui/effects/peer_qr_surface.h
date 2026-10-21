@@ -90,6 +90,7 @@ public:
 		not_null<QWidget*> control,
 		Fn<QPainterPath()> shape,
 		Fn<float64()> opacity = nullptr);
+	void setCovered(Fn<QRegion()> covered);
 
 protected:
 	bool eventHook(QEvent *e) override;
@@ -130,12 +131,18 @@ private:
 	[[nodiscard]] bool layerShown() const;
 	[[nodiscard]] QPainterPath fieldClip(crl::time now, bool leaving) const;
 	[[nodiscard]] PeerQrEmojiPaint fieldArgs(crl::time now) const;
-	void paintField(QPainter &p, crl::time now);
+	void clipField(
+		QPainter &p,
+		crl::time now,
+		bool leaving,
+		const QPainterPath &shown) const;
+	void paintField(QPainter &p, crl::time now, const QPainterPath &shown);
 	void paintGift(
 		QPainter &p,
 		not_null<PeerQrGiftField*> field,
 		crl::time now,
-		bool leaving);
+		bool leaving,
+		const QPainterPath &shown);
 	[[nodiscard]] ControlShapes controlShapes(QRect clip) const;
 	void paintLayers(
 		QPainter &p,
@@ -151,7 +158,11 @@ private:
 		QPainter &p,
 		crl::time now,
 		const QPainterPath &clean) const;
-	void paintClean(QPainter &p, crl::time now) const;
+	void paintClean(
+		QPainter &p,
+		crl::time now,
+		QRect area,
+		const std::vector<QRect> &parts) const;
 	void paintCountdown(QPainter &p);
 	[[nodiscard]] QImage currentPicture(crl::time now, bool clean) const;
 	[[nodiscard]] bool handleTouch(not_null<QTouchEvent*> e);
@@ -163,6 +174,8 @@ private:
 	[[nodiscard]] Fn<QImage()> prepareBackground();
 	void requestBackground();
 	void applyBackground(QImage image);
+	[[nodiscard]] QRegion covered() const;
+	void updateField();
 	[[nodiscard]] QRectF cardRect() const;
 	[[nodiscard]] float64 cardScale() const;
 	[[nodiscard]] QRect logoRect() const;
@@ -192,6 +205,7 @@ private:
 	PeerQrLayerMotion _layer;
 	std::optional<int> _touchId;
 	std::vector<Control> _controls;
+	Fn<QRegion()> _covered;
 	crl::time _startedAt = 0;
 	crl::time _bounceStartedAt = 0;
 	crl::time _dipStartedAt = 0;

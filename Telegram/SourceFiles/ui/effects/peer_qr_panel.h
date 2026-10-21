@@ -39,6 +39,7 @@ public:
 	[[nodiscard]] PeerQrPanelPhase phase() const;
 	[[nodiscard]] QPainterPath glassPath() const;
 	[[nodiscard]] bool insideGlass(QPoint point) const;
+	[[nodiscard]] QRegion interiorRegion() const;
 	void pressOutside();
 
 	[[nodiscard]] rpl::producer<float64> progressValue() const;
