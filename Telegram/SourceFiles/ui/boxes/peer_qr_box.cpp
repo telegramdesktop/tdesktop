@@ -1228,7 +1228,11 @@ void SetupGiftsPanel(
 		not_null<PeerQrButton*> button,
 		Fn<void(not_null<PeerQrPanel*>)> openPanel) {
 	const auto container = CreateChild<PeerQrPanel>(surface.get());
-	const auto gifts = CreateChild<PeerQrGiftsPanel>(container);
+	const auto gifts = CreateChild<PeerQrGiftsPanel>(
+		container,
+		(peer->isSelf()
+			? tr::lng_qr_box_gifts_empty_about()
+			: tr::lng_qr_box_gifts_empty_about_chat()));
 	container->setContent(gifts, PeerQrPanelContent::Masked);
 	appearance->giftsPanel = container;
 	appearance->gifts = gifts;

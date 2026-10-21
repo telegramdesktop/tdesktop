@@ -19,7 +19,9 @@ class PeerQrPanel;
 
 class PeerQrGiftsPanel final : public RpWidget {
 public:
-	explicit PeerQrGiftsPanel(not_null<PeerQrPanel*> panel);
+	PeerQrGiftsPanel(
+		not_null<PeerQrPanel*> panel,
+		rpl::producer<QString> emptyAbout);
 	~PeerQrGiftsPanel();
 
 	[[nodiscard]] int openHeight(int width) const;

@@ -7100,6 +7100,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_qr_box_gifts" = "Gifts";
 "lng_qr_box_gifts_empty_title" = "No gifts yet";
 "lng_qr_box_gifts_empty_about" = "Use any collectible gift you own to style your QR code.";
+"lng_qr_box_gifts_empty_about_chat" = "There are no collectible gifts here yet.";
 "lng_qr_box_gifts_browse" = "Browse Gifts";
 
 "lng_exceptions_list_title" = "Exceptions";
