@@ -83,9 +83,11 @@ public:
 	[[nodiscard]] const PeerQrAppearance &appearance() const;
 	[[nodiscard]] const PeerQrColors &colors() const;
 	[[nodiscard]] rpl::producer<PeerQrColors> colorsValue() const;
+	[[nodiscard]] rpl::producer<not_null<QTouchEvent*>> touchPresses() const;
 	[[nodiscard]] PeerQrImageArgs prepareImage() const;
 
 protected:
+	bool eventHook(QEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -131,6 +133,8 @@ private:
 	void paintWave(QPainter &p, crl::time now) const;
 	void paintCountdown(QPainter &p);
 	[[nodiscard]] QImage currentPicture(crl::time now) const;
+	[[nodiscard]] bool handleTouch(not_null<QTouchEvent*> e);
+	void stopTouchSwipe();
 	void checkAnimation();
 	[[nodiscard]] bool animationCallback(crl::time now);
 	[[nodiscard]] QPointF gradientCenter() const;
@@ -148,6 +152,7 @@ private:
 	PeerQrColors _colors;
 	PeerQrColors _shownColors;
 	rpl::event_stream<PeerQrColors> _colorsChanges;
+	rpl::event_stream<not_null<QTouchEvent*>> _touchPresses;
 	const std::unique_ptr<Card> _card;
 	std::unique_ptr<Countdown> _countdown;
 	const std::array<QImage, 4> _corners;
@@ -164,6 +169,7 @@ private:
 	std::unique_ptr<PeerQrGiftField> _giftField;
 	std::unique_ptr<PeerQrGiftField> _giftLeaving;
 	PeerQrLayerMotion _layer;
+	std::optional<int> _touchId;
 	crl::time _startedAt = 0;
 	crl::time _bounceStartedAt = 0;
 	crl::time _dipStartedAt = 0;

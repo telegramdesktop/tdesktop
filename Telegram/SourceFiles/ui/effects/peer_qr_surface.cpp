@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/peer_qr_surface.h"
 
+#include "base/qt/qt_common_adapters.h"
 #include "base/weak_qptr.h"
 #include "qr/qr_generate.h"
 #include "ui/effects/animated_string.h"
@@ -985,6 +986,7 @@ PeerQrSurface::PeerQrSurface(
 , _card(std::make_unique<Card>())
 , _corners(Images::CornersMask(st::boxRadius))
 , _animation([=](crl::time now) { return animationCallback(now); }) {
+	setAttribute(Qt::WA_AcceptTouchEvents);
 	sizeValue() | rpl::skip(1) | rpl::on_next([=] {
 		composeNow();
 	}, lifetime());
@@ -1244,6 +1246,10 @@ rpl::producer<PeerQrColors> PeerQrSurface::colorsValue() const {
 	return _colorsChanges.events_starting_with_copy(_shownColors);
 }
 
+rpl::producer<not_null<QTouchEvent*>> PeerQrSurface::touchPresses() const {
+	return _touchPresses.events();
+}
+
 PeerQrImageArgs PeerQrSurface::prepareImage() const {
 	const auto scaled = [](int value) {
 		const auto recovered = value * 100. / style::Scale();
@@ -1428,10 +1434,31 @@ void PeerQrSurface::paintCountdown(QPainter &p) {
 	p.restore();
 }
 
+bool PeerQrSurface::eventHook(QEvent *e) {
+	const auto type = e->type();
+	if (type == QEvent::TouchBegin
+		|| type == QEvent::TouchUpdate
+		|| type == QEvent::TouchEnd
+		|| type == QEvent::TouchCancel) {
+		const auto touch = static_cast<QTouchEvent*>(e);
+		const auto device = touch->device();
+		if (device
+			&& device->type() == base::TouchDevice::TouchScreen
+			&& handleTouch(touch)) {
+			touch->accept();
+			return true;
+		}
+	} else if (type == QEvent::WindowDeactivate) {
+		stopTouchSwipe();
+	}
+	return RpWidget::eventHook(e);
+}
+
 void PeerQrSurface::mousePressEvent(QMouseEvent *e) {
 	if (e->button() == Qt::LeftButton
 		&& layerShown()
-		&& !cardRect().contains(QPointF(e->pos()))) {
+		&& !cardRect().contains(QPointF(e->pos()))
+		&& !_touchId) {
 		_layer.press(e->pos(), crl::now());
 	} else {
 		e->ignore();
@@ -1439,7 +1466,7 @@ void PeerQrSurface::mousePressEvent(QMouseEvent *e) {
 }
 
 void PeerQrSurface::mouseMoveEvent(QMouseEvent *e) {
-	if (_layer.pressed()) {
+	if (_layer.pressed() && !_touchId) {
 		_layer.move(e->pos(), crl::now());
 		update();
 	} else {
@@ -1448,12 +1475,77 @@ void PeerQrSurface::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void PeerQrSurface::mouseReleaseEvent(QMouseEvent *e) {
-	if (e->button() == Qt::LeftButton && _layer.pressed()) {
+	if (e->button() == Qt::LeftButton && _layer.pressed() && !_touchId) {
 		_layer.release(crl::now(), !anim::Disabled());
 		checkAnimation();
 		update();
 	} else {
 		e->ignore();
+	}
+}
+
+bool PeerQrSurface::handleTouch(not_null<QTouchEvent*> e) {
+	const auto &points = e->touchPoints();
+	switch (e->type()) {
+	case QEvent::TouchBegin: {
+		stopTouchSwipe();
+		_touchId = std::nullopt;
+		if (points.isEmpty() || !layerShown() || _layer.pressed()) {
+			return false;
+		}
+		const auto &point = points.front();
+		const auto position = point.pos();
+		if (cardRect().contains(position) || childAt(position.toPoint())) {
+			return false;
+		}
+		_touchId = point.id();
+		_layer.press(position, crl::now());
+		_touchPresses.fire_copy(e);
+		return true;
+	}
+	case QEvent::TouchUpdate:
+	case QEvent::TouchEnd: {
+		if (!_touchId) {
+			return false;
+		}
+		const auto i = ranges::find(
+			points,
+			*_touchId,
+			&QTouchEvent::TouchPoint::id);
+		if (i != points.end() && _layer.pressed()) {
+			const auto state = int(i->state());
+			if (state == int(Qt::TouchPointMoved)) {
+				_layer.move(i->pos(), crl::now());
+				update();
+			} else if (state == int(Qt::TouchPointReleased)) {
+				_layer.release(crl::now(), !anim::Disabled());
+				checkAnimation();
+				update();
+			}
+		}
+		if (e->type() == QEvent::TouchEnd) {
+			stopTouchSwipe();
+			_touchId = std::nullopt;
+		}
+		// Qt synthesizes mouse events from any touch event left unaccepted.
+		return true;
+	}
+	case QEvent::TouchCancel:
+		if (!_touchId) {
+			return false;
+		}
+		stopTouchSwipe();
+		_touchId = std::nullopt;
+		return true;
+	default:
+		return false;
+	}
+}
+
+void PeerQrSurface::stopTouchSwipe() {
+	if (_touchId && _layer.pressed()) {
+		_layer.release(crl::now(), false);
+		update();
 	}
 }
 

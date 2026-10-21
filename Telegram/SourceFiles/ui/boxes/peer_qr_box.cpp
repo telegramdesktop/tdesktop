@@ -1414,6 +1414,7 @@ void SetupAppearance(
 		surface->events() | rpl::filter([](not_null<QEvent*> e) {
 			return (e->type() == QEvent::MouseButtonPress);
 		}) | rpl::to_empty,
+		surface->touchPresses() | rpl::to_empty,
 		box->events() | rpl::filter([](not_null<QEvent*> e) {
 			return (e->type() == QEvent::KeyPress)
 				&& (static_cast<QKeyEvent*>(e.get())->key() == Qt::Key_Escape);
@@ -1464,6 +1465,19 @@ void FillPeerQrBox(
 	const auto surface = box->addRow(
 		object_ptr<PeerQrSurface>(box, PeerQrDefaultAppearance()),
 		style::margins());
+	surface->touchPresses(
+	) | rpl::on_next([=](not_null<QTouchEvent*> e) {
+		// stops a kinetic scroll left running by an earlier touch
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+		auto cancel = QTouchEvent(
+			QEvent::TouchCancel,
+			const_cast<QTouchDevice*>(e->device()));
+#else // Qt < 6.0.0
+		auto cancel = QTouchEvent(QEvent::TouchCancel, e->pointingDevice());
+#endif // Qt >= 6.0.0
+		cancel.setTimestamp(e->timestamp());
+		box->sendScrollViewportEvent(&cancel);
+	}, box->lifetime());
 	const auto close = AddButton(
 		surface,
 		st::peerQrClose,
