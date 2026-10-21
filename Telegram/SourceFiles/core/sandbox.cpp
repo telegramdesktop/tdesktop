@@ -630,7 +630,9 @@ void Sandbox::readClients() {
 				}
 				startUrls.append(url);
 				if (!activationRequired) {
-					activationRequired = StartUrlRequiresActivate(url.toString());
+					// WHY: without Application the passcode state is unknown.
+					activationRequired = !Core::IsAppLaunched()
+						|| StartUrlRequiresActivate(url.toString());
 				}
 			}
 			replies.push_back({ socket, activationRequired });
