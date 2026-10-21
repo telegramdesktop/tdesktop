@@ -521,7 +521,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 917cb11da1f4a431c3f0054ca2b3c344fabdf4d6
+    git checkout 8cb6c81e74b8e2c4da0e500c4d05acffb342f97e
 mac:
     sed -i '' "s/10.13/$MACOSX_DEPLOYMENT_TARGET/g" macos_meson_*.txt
     git clone https://github.com/desktop-app/qt6_highsierra_patches.git qt6_highsierra
