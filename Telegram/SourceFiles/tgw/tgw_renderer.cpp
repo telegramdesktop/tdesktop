@@ -7,15 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tgw/tgw_renderer.h"
 
+#include "base/platform/base_platform_info.h"
 #include "renderer-litehtml/src/renderer.h"
 #include "tgw/tgw_backend.h"
 #include "tgw/tgw_cursor.h"
-#include "tgw/tgw_input.h"
 #include "tgw/tgw_painter.h"
 #include "twidget/json.h"
+#include "twidget/sdk_policy.h"
 #include "ui/style/style_core_scale.h"
 
-#include <charconv>
 #include <mutex>
 
 namespace Tgw {
@@ -33,7 +33,7 @@ public:
 	void postLoaded();
 	void postMessage(twidget::Json message);
 	void postTheme(bool dark);
-	void postBridgeCall(RendererCore::BridgeCall call);
+	void postLinkRequest(RendererCore::LinkRequest request);
 
 private:
 	[[nodiscard]] RendererCore *current() const;
@@ -47,8 +47,8 @@ private:
 
 namespace {
 
-constexpr auto kMinHeight = 24.;
-constexpr auto kMaxHeight = 900.;
+constexpr auto kMinHeight = 50.;
+constexpr auto kMaxHeight = 600.;
 constexpr auto kFallbackWidth = 1.;
 constexpr auto kReadyMessage = "{\"type\":\"ready\"}";
 constexpr auto kMinWakeDelay = crl::time(1);
@@ -61,9 +61,11 @@ constexpr auto kHoverMove = 0;
 constexpr auto kHoverLeave = 1;
 constexpr auto kMousePointer = 0;
 constexpr auto kTapSlop = 8.;
-constexpr auto kWheelPixels = 0;
 constexpr auto kLocalQueryId = 0;
-constexpr auto kWheelSuffix = std::string_view(":wheel");
+constexpr auto kDomAlt = 1;
+constexpr auto kDomCtrl = 2;
+constexpr auto kDomMeta = 4;
+constexpr auto kDomShift = 8;
 
 class HostRenderer final : public twidget::Renderer {
 public:
@@ -191,17 +193,6 @@ void Append(
 	return stats.builds - stats.patched;
 }
 
-[[nodiscard]] int64 PreventedWheelTarget(const std::string &key) {
-	if (key.size() <= kWheelSuffix.size() || !key.ends_with(kWheelSuffix)) {
-		return 0;
-	}
-	const auto from = key.data();
-	const auto till = from + (key.size() - kWheelSuffix.size());
-	auto result = int64();
-	const auto [last, error] = std::from_chars(from, till, result);
-	return (error == std::errc() && last == till) ? result : 0;
-}
-
 HostRenderer::HostRenderer(std::shared_ptr<HostLink> link)
 : _link(std::move(link)) {
 }
@@ -251,6 +242,23 @@ int CanvasFontRenderer::canvas_font(
 }
 
 } // namespace
+
+int DomModifiers(Qt::KeyboardModifiers modifiers) {
+	const auto mac = Platform::IsMac();
+	const auto bits = std::array{
+		std::pair(Qt::AltModifier, kDomAlt),
+		std::pair(mac ? Qt::MetaModifier : Qt::ControlModifier, kDomCtrl),
+		std::pair(mac ? Qt::ControlModifier : Qt::MetaModifier, kDomMeta),
+		std::pair(Qt::ShiftModifier, kDomShift),
+	};
+	auto result = 0;
+	for (const auto &[modifier, bit] : bits) {
+		if (modifiers.testFlag(modifier)) {
+			result |= bit;
+		}
+	}
+	return result;
+}
 
 HostLink::HostLink(not_null<RendererCore*> core)
 : _core(core) {
@@ -321,10 +329,10 @@ void HostLink::postTheme(bool dark) {
 	});
 }
 
-void HostLink::postBridgeCall(RendererCore::BridgeCall call) {
-	crl::on_main([link = shared_from_this(), call = std::move(call)] {
+void HostLink::postLinkRequest(RendererCore::LinkRequest request) {
+	crl::on_main([link = shared_from_this(), request = std::move(request)] {
 		if (const auto core = link->current()) {
-			core->hostBridgeCall(call);
+			core->hostLinkRequest(request);
 		}
 	});
 }
@@ -363,12 +371,17 @@ twidget::RendererFactory RendererCore::hostFactory() const {
 	};
 }
 
-auto RendererCore::hostBridgeHandler() const
--> Fn<void(const std::string &method, const std::string &arguments)> {
-	return [link = _link](
-			const std::string &method,
-			const std::string &arguments) {
-		link->postBridgeCall({ method, arguments });
+auto RendererCore::hostActionHandler() const
+-> Fn<void(const twidget::WidgetAction &action)> {
+	return [link = _link](const twidget::WidgetAction &action) {
+		using Action = twidget::WidgetAction;
+		const auto telegram = (action.kind == Action::OpenTelegramLink);
+		if (telegram || action.kind == Action::OpenLink) {
+			link->postLinkRequest({
+				.url = action.url,
+				.telegram = telegram,
+			});
+		}
 	};
 }
 
@@ -404,7 +417,6 @@ bool RendererCore::acceptsInput() const {
 void RendererCore::pointerEnter() {
 	if (acceptsInput()) {
 		_pointer.over = true;
-		HoverWheel(this);
 	}
 }
 
@@ -424,7 +436,6 @@ void RendererCore::pointerMove(QPointF point, int modifiers) {
 		return;
 	}
 	_pointer.over = _pointer.hovering = true;
-	HoverWheel(this);
 	auto out = _renderer->hover(kHoverMove, point.x(), point.y(), modifiers);
 	const auto restyled = trackHover() || !wasDirty;
 	inputDone(std::move(out), wasDirty, restyled);
@@ -432,7 +443,6 @@ void RendererCore::pointerMove(QPointF point, int modifiers) {
 
 void RendererCore::pointerLeave() {
 	_cursor = nullptr;
-	UnhoverWheel(this);
 	if (!acceptsInput()) {
 		return;
 	}
@@ -458,7 +468,6 @@ void RendererCore::pointerPress(QPointF point, int modifiers) {
 	_pointer.over = _pointer.hovering = _pointer.pressed = true;
 	_pointer.moved = false;
 	_pointer.active = true;
-	HoverWheel(this);
 	inputDone(std::move(out), wasDirty, true);
 }
 
@@ -507,54 +516,6 @@ bool RendererCore::handCursorAt(QPointF point) {
 		_cursor = std::make_unique<CursorStyles>(_renderer->dpr());
 	}
 	return _cursor->pointer(*_renderer, hit, hover, active);
-}
-
-void RendererCore::wheel(QPointF delta, int modifiers) {
-	if (!acceptsInput() || !_listensWheel || delta.isNull()) {
-		return;
-	}
-	const auto wasDirty = _renderer->dirty();
-	auto out = _renderer->wheel(
-		_pointer.position.x(),
-		_pointer.position.y(),
-		delta.x(),
-		delta.y(),
-		kWheelPixels,
-		modifiers);
-	inputDone(std::move(out), wasDirty, false);
-}
-
-bool RendererCore::wheelPrevented() {
-	return acceptsInput()
-		&& !_wheelPrevented.empty()
-		&& _wheelPrevented.contains(elementAt(_pointer.position));
-}
-
-void RendererCore::key(
-		bool down,
-		const std::string &key,
-		const std::string &code,
-		bool repeat,
-		int modifiers) {
-	if (!acceptsInput()) {
-		return;
-	}
-	const auto wasDirty = _renderer->dirty();
-	auto out = _renderer->key(
-		down ? "keydown" : "keyup",
-		key,
-		code,
-		repeat,
-		modifiers);
-	inputDone(std::move(out), wasDirty, false);
-}
-
-bool RendererCore::takesKeys() const {
-	return _takesKeys;
-}
-
-rpl::producer<> RendererCore::keysReleased() const {
-	return _keysReleased.events();
 }
 
 void RendererCore::setWidth(double width) {
@@ -633,8 +594,8 @@ rpl::producer<RendererCore::Changes> RendererCore::updates() const {
 	return _updates.events();
 }
 
-rpl::producer<RendererCore::BridgeCall> RendererCore::bridgeCalls() const {
-	return _bridgeCalls.events();
+rpl::producer<RendererCore::LinkRequest> RendererCore::linkRequests() const {
+	return _linkRequests.events();
 }
 
 void RendererCore::hostLoaded() {
@@ -685,10 +646,6 @@ void RendererCore::hostMessage(const twidget::Json &message) {
 		}
 	} else if (type == "anim") {
 		changes |= Change::Repaint;
-	} else if (type == "listen") {
-		learnListen(message["types"]);
-	} else if (type == "preventDefault") {
-		learnPrevented(message["keys"]);
 	}
 	if (!wasDirty && _renderer->dirty()) {
 		changes |= Change::Repaint;
@@ -705,32 +662,9 @@ void RendererCore::hostTheme(bool dark) {
 	finish(out, Change::Repaint);
 }
 
-void RendererCore::hostBridgeCall(const BridgeCall &call) {
+void RendererCore::hostLinkRequest(const LinkRequest &request) {
 	if (!_stopped) {
-		_bridgeCalls.fire_copy(call);
-	}
-}
-
-void RendererCore::learnListen(const twidget::Json &types) {
-	auto keys = false;
-	auto wheel = false;
-	for (const auto &type : types.arr()) {
-		const auto &name = type.asString();
-		keys = keys || (name == "keydown") || (name == "keyup");
-		wheel = wheel || (name == "wheel");
-	}
-	_listensWheel = wheel;
-	if (std::exchange(_takesKeys, keys) && !keys) {
-		_keysReleased.fire({});
-	}
-}
-
-void RendererCore::learnPrevented(const twidget::Json &keys) {
-	_wheelPrevented.clear();
-	for (const auto &key : keys.arr()) {
-		if (const auto target = PreventedWheelTarget(key.asString())) {
-			_wheelPrevented.emplace(target);
-		}
+		_linkRequests.fire_copy(request);
 	}
 }
 
@@ -801,8 +735,6 @@ void RendererCore::resetInput() {
 void RendererCore::releaseInput() {
 	_cursor = nullptr;
 	_pointer = Pointer();
-	UnhoverWheel(this);
-	_keysReleased.fire({});
 }
 
 bool RendererCore::canTick() const {

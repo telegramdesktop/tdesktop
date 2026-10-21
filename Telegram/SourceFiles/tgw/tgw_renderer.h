@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace twidget {
 class Json;
+struct WidgetAction;
 } // namespace twidget
 
 namespace twlite {
@@ -27,6 +28,8 @@ class CursorStyles;
 class HostLink;
 class QtBackend;
 
+[[nodiscard]] int DomModifiers(Qt::KeyboardModifiers modifiers);
+
 class RendererCore final : public base::has_weak_ptr {
 public:
 	enum class Change : uchar {
@@ -38,17 +41,17 @@ public:
 	friend inline constexpr bool is_flag_type(Change) { return true; }
 	using Changes = base::flags<Change>;
 
-	struct BridgeCall {
-		std::string method;
-		std::string arguments;
+	struct LinkRequest {
+		std::string url;
+		bool telegram = false;
 	};
 
 	RendererCore(double width, double dpr);
 	~RendererCore();
 
 	[[nodiscard]] twidget::RendererFactory hostFactory() const;
-	[[nodiscard]] auto hostBridgeHandler() const
-	-> Fn<void(const std::string &method, const std::string &arguments)>;
+	[[nodiscard]] auto hostActionHandler() const
+	-> Fn<void(const twidget::WidgetAction &action)>;
 
 	void detach();
 	[[nodiscard]] bool attached() const;
@@ -64,16 +67,6 @@ public:
 	[[nodiscard]] bool pressed() const;
 	[[nodiscard]] bool claimed() const;
 	[[nodiscard]] bool handCursorAt(QPointF point);
-	void wheel(QPointF delta, int modifiers);
-	[[nodiscard]] bool wheelPrevented();
-	void key(
-		bool down,
-		const std::string &key,
-		const std::string &code,
-		bool repeat,
-		int modifiers);
-	[[nodiscard]] bool takesKeys() const;
-	[[nodiscard]] rpl::producer<> keysReleased() const;
 
 	void setWidth(double width);
 	[[nodiscard]] double width() const;
@@ -87,7 +80,7 @@ public:
 	void dropFrame();
 
 	[[nodiscard]] rpl::producer<Changes> updates() const;
-	[[nodiscard]] rpl::producer<BridgeCall> bridgeCalls() const;
+	[[nodiscard]] rpl::producer<LinkRequest> linkRequests() const;
 
 private:
 	friend class HostLink;
@@ -110,9 +103,7 @@ private:
 	void hostLoaded();
 	void hostMessage(const twidget::Json &message);
 	void hostTheme(bool dark);
-	void hostBridgeCall(const BridgeCall &call);
-	void learnListen(const twidget::Json &types);
-	void learnPrevented(const twidget::Json &keys);
+	void hostLinkRequest(const LinkRequest &request);
 
 	[[nodiscard]] int64 elementAt(QPointF point);
 	[[nodiscard]] bool trackHover();
@@ -149,9 +140,7 @@ private:
 	std::string _pendingSize;
 	QString _stopReason;
 	rpl::event_stream<Changes> _updates;
-	rpl::event_stream<BridgeCall> _bridgeCalls;
-	rpl::event_stream<> _keysReleased;
-	base::flat_set<int64> _wheelPrevented;
+	rpl::event_stream<LinkRequest> _linkRequests;
 	std::unique_ptr<CursorStyles> _cursor;
 	Pointer _pointer;
 	Changes _postedChanges;
@@ -163,8 +152,6 @@ private:
 	bool _onScreen = false;
 	bool _frameRequested = false;
 	bool _stepBusy = false;
-	bool _takesKeys = false;
-	bool _listensWheel = false;
 
 };
 

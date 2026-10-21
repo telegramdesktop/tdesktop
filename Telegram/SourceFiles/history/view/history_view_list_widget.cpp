@@ -62,7 +62,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "media/player/media_player_instance.h"
 #include "dialogs/ui/dialogs_video_userpic.h"
-#include "tgw/tgw_input.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/elastic_scroll.h"
@@ -610,7 +609,6 @@ ListWidget::ListWidget(
 				Qt::ScrollPhase phase) {
 			return consumeScrollAction(delta, phase);
 		});
-		scroll->setCustomWheelProcess(Tgw::ConsumeWheel);
 	}
 	if (_readMetricsTracker) {
 		Core::App().inAppKeyPressed(

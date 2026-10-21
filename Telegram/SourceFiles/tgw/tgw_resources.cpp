@@ -33,10 +33,8 @@ struct Script {
 };
 
 struct Package {
-	QByteArray manifest;
 	Script sandbox;
 	Script validator;
-	std::vector<Script> libraries;
 };
 
 struct State {
@@ -49,10 +47,6 @@ struct State {
 [[nodiscard]] State &Current() {
 	static auto result = State();
 	return result;
-}
-
-[[nodiscard]] QString ManifestName() {
-	return u"libraries.json"_q;
 }
 
 [[nodiscard]] QByteArray ReadAsset(const QString &name) {
@@ -114,26 +108,15 @@ struct State {
 }
 
 [[nodiscard]] std::optional<Package> ReadPackage() {
-	auto result = Package{ .manifest = ReadSource(ManifestName()) };
-	if (result.manifest.isEmpty()) {
-		LOG(("Tgw Error: Missing packaged '%1'.").arg(ManifestName()));
-		return std::nullopt;
-	}
 	auto sandbox = ReadScript(u"sandbox-bundle"_q);
 	auto validator = ReadScript(u"validator-bundle"_q);
 	if (!sandbox || !validator) {
 		return std::nullopt;
 	}
-	result.sandbox = std::move(*sandbox);
-	result.validator = std::move(*validator);
-	for (const auto &name : { u"libs/chart.umd"_q, u"libs/d3.min"_q }) {
-		auto library = ReadScript(name);
-		if (!library) {
-			return std::nullopt;
-		}
-		result.libraries.push_back(std::move(*library));
-	}
-	return result;
+	return Package{
+		.sandbox = std::move(*sandbox),
+		.validator = std::move(*validator),
+	};
 }
 
 [[nodiscard]] bool WriteAsset(const QString &path, const QByteArray &bytes) {
@@ -156,20 +139,12 @@ struct State {
 [[nodiscard]] bool WritePackage(
 		const QString &folder,
 		const Package &package) {
-	if (!QDir().mkpath(folder + u"/libs"_q)) {
-		LOG(("Tgw Error: Could not create '%1/libs'.").arg(folder));
-		return false;
-	} else if (!WriteAsset(folder + '/' + ManifestName(), package.manifest)
-		|| !WriteScript(folder, package.sandbox)
-		|| !WriteScript(folder, package.validator)) {
+	if (!QDir().mkpath(folder)) {
+		LOG(("Tgw Error: Could not create '%1'.").arg(folder));
 		return false;
 	}
-	for (const auto &library : package.libraries) {
-		if (!WriteScript(folder, library)) {
-			return false;
-		}
-	}
-	return true;
+	return WriteScript(folder, package.sandbox)
+		&& WriteScript(folder, package.validator);
 }
 
 [[nodiscard]] std::shared_ptr<twidget::SandboxResources> Load(
@@ -198,48 +173,17 @@ template <typename Bytes>
 	return Same(script.source, source) && Same(script.bytecode, bytecode);
 }
 
-[[nodiscard]] const Script *FindLibrary(
-		const Package &package,
-		const twidget::BundledLibrary &library) {
-	const auto path = u"libs/"_q + QString::fromStdString(library.file);
-	for (const auto &script : package.libraries) {
-		if (script.name + u".js"_q == path) {
-			return &script;
-		}
-	}
-	return nullptr;
-}
-
 [[nodiscard]] bool CheckLoaded(
 		const twidget::SandboxResources &resources,
 		const Package &package) {
-	if (!SameScript(
+	return SameScript(
 			package.sandbox,
 			resources.sandboxBundle,
 			resources.sandboxBytecode)
-		|| !SameScript(
+		&& SameScript(
 			package.validator,
 			resources.validatorBundle,
-			resources.validatorBytecode)
-		|| (resources.libraries.size() != package.libraries.size())) {
-		return false;
-	}
-	auto found = base::flat_set<const Script*>();
-	for (const auto &library : resources.libraries) {
-		const auto script = FindLibrary(package, library);
-		if (!script || !found.emplace(script).second) {
-			return false;
-		}
-		const auto source = resources.librarySource(library);
-		if (!source
-			|| !SameScript(
-				*script,
-				*source,
-				resources.libraryBytecode(library))) {
-			return false;
-		}
-	}
-	return true;
+			resources.validatorBytecode);
 }
 
 [[nodiscard]] std::shared_ptr<twidget::SandboxResources> Prepare(

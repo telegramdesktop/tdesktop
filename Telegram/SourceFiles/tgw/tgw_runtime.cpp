@@ -82,9 +82,9 @@ struct Job {
 	std::shared_ptr<twidget::SandboxResources> resources;
 	std::shared_ptr<twidget::IntlProvider> intl;
 	twidget::RendererFactory factory;
-	Fn<void(const std::string &, const std::string &)> bridge;
+	Fn<void(const twidget::WidgetAction &)> action;
 	twidget::WidgetHostOptions options;
-	std::string theme;
+	twidget::WidgetTheme theme;
 	std::string stoppedLabel;
 	Slot slot;
 	double width = 0.;
@@ -185,11 +185,13 @@ void HostDeleter::operator()(twidget::WidgetHost *host) const {
 	return int(std::ceil(css * style::Scale() / 100.));
 }
 
-[[nodiscard]] std::string ThemeName(bool dark) {
-	return dark ? "dark" : "light";
+[[nodiscard]] twidget::WidgetTheme ThemeFor(bool dark) {
+	return { .colorScheme = dark ? "dark" : "light" };
 }
 
-void ApplyTheme(twidget::WidgetHost &host, const std::string &theme) {
+void ApplyTheme(
+		twidget::WidgetHost &host,
+		const twidget::WidgetTheme &theme) {
 	const auto apply = [&] {
 		host.onHostThread([&] {
 			host.setTheme(theme);
@@ -209,7 +211,9 @@ void ApplyTheme(twidget::WidgetHost &host, const std::string &theme) {
 	auto result = twidget::WidgetHostOptions{
 		.visible = visible,
 		.devicePixelRatio = ratio,
+		.policy = "strict",
 		.features = { "webAnimations" },
+		.locale = UiLanguageTag().toStdString(),
 	};
 	result.cpuLimitMs *= kCpuLimitScale;
 	return result;
@@ -410,7 +414,7 @@ void AppendTail(
 				std::move(job.factory),
 				std::move(job.intl)),
 			HostDeleter{ std::move(job.slot) });
-		host->onBridgeCall = std::move(job.bridge);
+		host->onAction = std::move(job.action);
 		host->stoppedLabel = std::move(job.stoppedLabel);
 		return { .host = std::move(host) };
 	} catch (const std::exception &e) {
@@ -949,9 +953,9 @@ void Runtime::construct(
 		.resources = std::move(resources),
 		.intl = CreateIntl(),
 		.factory = _live->hostFactory(),
-		.bridge = _live->hostBridgeHandler(),
+		.action = _live->hostActionHandler(),
 		.options = DefaultHostOptions(ratio, _visible),
-		.theme = ThemeName(_dark),
+		.theme = ThemeFor(_dark),
 		.stoppedLabel = tr::lng_tgw_stopped(tr::now).toStdString(),
 		.slot = std::make_shared<Reservation>([] { Check(); }),
 		.width = width,
@@ -1071,9 +1075,9 @@ void Runtime::subscribeLive() {
 		}
 	}, _liveLifetime);
 
-	renderer->bridgeCalls(
-	) | rpl::on_next([=](const RendererCore::BridgeCall &call) {
-		bridgeCall(renderer, call.method, call.arguments);
+	renderer->linkRequests(
+	) | rpl::on_next([=](const RendererCore::LinkRequest &request) {
+		linkRequested(renderer, request.url, request.telegram);
 	}, _liveLifetime);
 }
 
@@ -1100,21 +1104,23 @@ void Runtime::coreStopped(not_null<RendererCore*> renderer) {
 	displayChanged(true);
 }
 
-void Runtime::bridgeCall(
+void Runtime::linkRequested(
 		not_null<RendererCore*> renderer,
-		const std::string &method,
-		const std::string &arguments) {
+		const std::string &url,
+		bool telegram) {
 	if (_state != State::Live
 		|| renderer.get() != _live.get()
 		|| !renderer->attached()) {
 		return;
 	}
 	if (!queryVisible()) {
-		addNote(u"Bridge call refused, the widget is not visible."_q);
+		addNote(u"Link refused, the widget is not visible."_q);
 		return;
 	}
 	const auto weak = base::make_weak(this);
-	const auto result = _bridge->call(method, arguments);
+	const auto result = _bridge->openLink(
+		QString::fromStdString(url),
+		telegram);
 	if (weak) {
 		addNote(result);
 	}
@@ -1146,7 +1152,7 @@ void Runtime::syncHostTheme() {
 	crl::async([
 		host = _host,
 		pointer = _host->pointer,
-		theme = ThemeName(_dark)
+		theme = ThemeFor(_dark)
 	]() mutable {
 		ApplyTheme(*pointer, theme);
 		pointer = nullptr;

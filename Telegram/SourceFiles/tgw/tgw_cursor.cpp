@@ -8,6 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_cursor.h"
 
 #include "renderer-litehtml/src/renderer.h"
+#include "renderer-litehtml/src/theme.h"
+#include "twidget/json.h"
+#include "tw_ua_stylesheet.h"
 
 #include <litehtml.h>
 
@@ -50,7 +53,12 @@ dialog:not([open]){display:none}
 )css";
 
 [[nodiscard]] const std::string &MasterStyles() {
-	static const auto result = std::string(litehtml::master_css) + kUaExtra;
+	// Built as in twlite::Renderer::apply_theme(); no theme value sets a cursor.
+	static const auto result = std::string(litehtml::master_css)
+		+ kUaExtra
+		+ twlite::theme::unwrap_where(twlite::theme::substitute(
+			TW_UA_STYLESHEET,
+			twlite::theme::variables(twidget::Json::object())));
 	return result;
 }
 

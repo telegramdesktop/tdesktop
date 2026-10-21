@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "profile/profile_back_button.h"
 #include "core/shortcuts.h"
 #include "info/profile/info_profile_values.h"
-#include "tgw/tgw_input.h"
 #include "ui/chat/chat_style.h"
 #include "ui/controls/jump_down_button.h"
 #include "ui/controls/swipe_handler.h"
@@ -321,7 +320,6 @@ Widget::Widget(
 
 	_scroll->setHandleTouch(false);
 	_scroll->lockWheelDirection();
-	_scroll->setCustomWheelProcess(Tgw::ConsumeWheel);
 	_inner = _scroll->setOwnedWidget(
 		object_ptr<InnerWidget>(this, controller, channel));
 	_inner->lower();

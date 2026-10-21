@@ -115,10 +115,10 @@ private:
 	void subscribeLive();
 	void coreUpdated(not_null<RendererCore*> renderer, bool repaint);
 	void coreStopped(not_null<RendererCore*> renderer);
-	void bridgeCall(
+	void linkRequested(
 		not_null<RendererCore*> renderer,
-		const std::string &method,
-		const std::string &arguments);
+		const std::string &url,
+		bool telegram);
 
 	void syncHostVisibility();
 	void syncHostTheme();

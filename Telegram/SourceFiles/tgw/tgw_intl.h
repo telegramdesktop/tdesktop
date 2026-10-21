@@ -13,6 +13,7 @@ class IntlProvider;
 
 namespace Tgw {
 
+[[nodiscard]] QString UiLanguageTag();
 [[nodiscard]] std::shared_ptr<twidget::IntlProvider> CreateIntl();
 
 } // namespace Tgw

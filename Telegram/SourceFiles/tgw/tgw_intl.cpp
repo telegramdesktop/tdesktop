@@ -7,8 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tgw/tgw_intl.h"
 
+#include "lang/lang_instance.h"
+#include "lang/lang_keys.h"
 #include "twidget/intl.h"
 #include "twidget/json.h"
+#include "twidget/sdk_policy.h"
 #include "ui/text/format_values.h"
 
 #include <QtCore/QCollator>
@@ -112,7 +115,7 @@ struct Formatted {
 
 class Intl final : public twidget::IntlProvider {
 public:
-	Intl(QLocale system, QString systemTimeZone);
+	Intl(QLocale fallback, QString systemTimeZone);
 
 	std::string format(const twidget::Json &request) override;
 
@@ -122,7 +125,7 @@ private:
 		const QLocale &locale,
 		const twidget::Json &options) const;
 
-	const QLocale _system;
+	const QLocale _fallback;
 	const QString _systemTimeZone;
 	twidget::BasicIntl _basic;
 
@@ -801,6 +804,41 @@ void InsertMissing(
 		DatePattern(locale, ParseDateRequest(request)));
 }
 
+// BasicIntl indexes its name tables with this conversion's unchecked result.
+[[nodiscard]] bool BasicCanConvert(const twidget::Json &value) {
+	using Limits = std::numeric_limits<time_t>;
+	const auto milliseconds = value.asNumber();
+	if (!std::isfinite(milliseconds)) {
+		return true;
+	}
+	const auto seconds = std::floor(milliseconds / 1000);
+	if (seconds < double(Limits::min())
+		|| seconds >= std::ldexp(1., Limits::digits)) {
+		return false;
+	}
+	const auto time = time_t(seconds);
+	auto parts = tm();
+#ifdef Q_OS_WIN
+	const auto converted = !gmtime_s(&parts, &time);
+#else
+	const auto converted = (gmtime_r(&time, &parts) != nullptr);
+#endif // Q_OS_WIN
+	return converted
+		&& (parts.tm_mon >= 0)
+		&& (parts.tm_mon < 12)
+		&& (parts.tm_wday >= 0)
+		&& (parts.tm_wday < 7);
+}
+
+[[nodiscard]] std::string LiteralParts(const QString &text) {
+	auto part = twidget::Json::object();
+	part.set("type", "literal");
+	part.set("value", text.toStdString());
+	auto result = twidget::Json::array();
+	result.push(std::move(part));
+	return result.dump();
+}
+
 [[nodiscard]] std::optional<int> DigitsOption(
 		const twidget::Json &options,
 		std::string_view key,
@@ -1022,8 +1060,8 @@ void InsertMissing(
 	return result;
 }
 
-Intl::Intl(QLocale system, QString systemTimeZone)
-: _system(std::move(system))
+Intl::Intl(QLocale fallback, QString systemTimeZone)
+: _fallback(std::move(fallback))
 , _systemTimeZone(std::move(systemTimeZone)) {
 }
 
@@ -1057,8 +1095,10 @@ std::string Intl::format(const twidget::Json &request) {
 			? locale.toUpper(text)
 			: locale.toLower(text);
 		return result.toStdString();
+	} else if (kind == "dateParts" && !BasicCanConvert(request["value"])) {
+		return LiteralParts(FormatDate(locale, request));
 	}
-	return std::string();
+	return _basic.format(request);
 }
 
 QLocale Intl::resolveLocale(const twidget::Json &locale) const {
@@ -1071,7 +1111,7 @@ QLocale Intl::resolveLocale(const twidget::Json &locale) const {
 			return result;
 		}
 	}
-	return _system;
+	return _fallback;
 }
 
 std::string Intl::dateOptions(
@@ -1090,9 +1130,23 @@ std::string Intl::dateOptions(
 
 } // namespace
 
+QString UiLanguageTag() {
+	const auto draft = u"-raw"_q;
+	auto result = Lang::GetInstance().cloudLangCode(
+		Lang::Pack::Current
+	).toLower();
+	result.replace(QChar('_'), QChar('-'));
+	if (result.endsWith(draft)) {
+		result.chop(draft.size());
+	}
+	return twidget::sdk::checkLocale(result.toStdString())
+		? result
+		: Lang::DefaultLanguageId();
+}
+
 std::shared_ptr<twidget::IntlProvider> CreateIntl() {
 	return std::make_shared<Intl>(
-		QLocale::system(),
+		QLocale(UiLanguageTag()),
 		QString::fromLatin1(QTimeZone::systemTimeZoneId()));
 }
 

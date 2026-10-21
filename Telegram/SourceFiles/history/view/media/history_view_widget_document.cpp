@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "lang/lang_keys.h"
 #include "tgw/tgw_document.h"
-#include "tgw/tgw_input.h"
 #include "tgw/tgw_renderer.h"
 #include "tgw/tgw_runtime.h"
 #include "ui/chat/chat_style.h"
@@ -474,9 +473,6 @@ void WidgetDocument::pressCard() {
 	core->pointerPress(cssPoint(_pointerPoint), CurrentModifiers());
 	if (core->claimed()) {
 		setCardClaimed(true);
-	}
-	if (core->takesKeys()) {
-		Tgw::GrantKeys(core);
 	}
 }
 

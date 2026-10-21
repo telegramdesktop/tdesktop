@@ -10,6 +10,7 @@
 # protocol to a renderer. Its JavaScript bundles live next to it in
 # packages/desktop/WidgetJS. Only the library sources are compiled here; the
 # package's own CMakeLists always builds its harness and tests as well.
+# IcuIntl (src/icu_intl.cpp, linking icu) is not built; Telegram's own IntlProvider answers.
 # There is no packaged branch: no distribution ships this library.
 
 add_library(lib_widget_sandbox STATIC)
@@ -44,6 +45,7 @@ PRIVATE
     include/twidget/renderer.h
     include/twidget/resources.h
     include/twidget/sandbox_engine.h
+    include/twidget/sdk_policy.h
     include/twidget/trusted_validator.h
     include/twidget/widget_host.h
     src/cpu_budget.cpp
@@ -52,6 +54,7 @@ PRIVATE
     src/quickjs_context.cpp
     src/resources.cpp
     src/sandbox_engine.cpp
+    src/sdk_policy.cpp
     src/trusted_validator.cpp
     src/widget_host.cpp
 )
