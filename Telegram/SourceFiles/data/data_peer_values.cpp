@@ -135,12 +135,6 @@ inline auto RestrictionsValue(
 	return FlagsValueWithMask(RestrictionsValue(channel), mask);
 }
 
-inline auto RestrictionValue(
-		not_null<ChannelData*> channel,
-		ChatRestriction flag) {
-	return SingleFlagValue(RestrictionsValue(channel), flag);
-}
-
 inline auto DefaultRestrictionsValue(not_null<ChannelData*> channel) {
 	return channel->defaultRestrictionsValue();
 }
