@@ -68,6 +68,7 @@ public:
 
 	void setWidth(int width);
 	void setBubbleColor(const QColor &color);
+	void setWindow(not_null<QWidget*> window);
 	void painted();
 	void unload();
 
@@ -142,7 +143,9 @@ private:
 	QString _stopReason;
 	QString _summary;
 	Fn<void(const QString &text)> _logDone;
+	QPointer<QWidget> _window;
 	rpl::lifetime _liveLifetime;
+	rpl::lifetime _windowLifetime;
 	std::optional<int> _shownHeight;
 	std::optional<QRgb> _bubbleColor;
 	uint64 _hiddenSerial = 0;
@@ -159,6 +162,7 @@ private:
 	bool _dark = false;
 	bool _hostDark = false;
 	bool _painted = false;
+	bool _windowKnown = false;
 	bool _stopFatal = false;
 	bool _widthPosted = false;
 	bool _summaryLast = false;

@@ -72,6 +72,13 @@ struct PatternColor {
 	return PatternAverageColor(pattern->pixmap);
 }
 
+[[nodiscard]] QWidget *PaintWidget(const QPainter &p) {
+	const auto device = p.device();
+	return (device && device->devType() == QInternal::Widget)
+		? static_cast<QWidget*>(device)
+		: nullptr;
+}
+
 [[nodiscard]] int CurrentModifiers() {
 	return Tgw::DomModifiers(QGuiApplication::keyboardModifiers());
 }
@@ -229,6 +236,9 @@ void WidgetDocument::draw(Painter &p, const PaintContext &context) const {
 		return;
 	}
 	_runtime->setBubbleColor(BubbleColor(context));
+	if (const auto widget = PaintWidget(p)) {
+		_runtime->setWindow(widget->window());
+	}
 	ensureDataMediaCreated();
 	const auto loaded = _dataMedia->loaded();
 	if (!loaded) {

@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tgw/tgw_runtime.h"
 
+#include "base/event_filter.h"
+#include "base/qt_signal_producer.h"
 #include "core/application.h"
 #include "data/data_session.h"
 #include "history/history.h"
@@ -471,6 +473,7 @@ Runtime::Runtime(RuntimeDescriptor &&descriptor)
 }
 
 Runtime::~Runtime() {
+	_windowLifetime.destroy();
 	auto &list = Runtimes().list;
 	list.erase(ranges::remove(list, not_null<Runtime*>(this)), end(list));
 	invalidate_weak_ptrs(this);
@@ -572,6 +575,32 @@ void Runtime::setBubbleColor(const QColor &color) {
 	syncHostTheme();
 }
 
+void Runtime::setWindow(not_null<QWidget*> window) {
+	if (_window == window.get()) {
+		return;
+	}
+	_windowLifetime.destroy();
+	_window = window.get();
+	_windowKnown = true;
+	base::install_event_filter(window, [](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type == QEvent::Show
+			|| type == QEvent::Hide
+			|| type == QEvent::WindowStateChange) {
+			PostCheck();
+		}
+		return base::EventFilterResult::Continue;
+	}, _windowLifetime);
+	base::qt_signal_producer(
+		window.get(),
+		&QObject::destroyed
+	) | rpl::on_next([=] {
+		_window = nullptr;
+		PostCheck();
+	}, _windowLifetime);
+	PostCheck();
+}
+
 void Runtime::painted() {
 	if (heavy() || (stopped() && _displayDeferred)) {
 		if (!_visible) {
@@ -588,6 +617,9 @@ void Runtime::painted() {
 }
 
 void Runtime::unload() {
+	_windowLifetime.destroy();
+	_window = nullptr;
+	_windowKnown = false;
 	_painted = false;
 	_queueSerial = 0;
 	if (heavy()) {
@@ -852,6 +884,10 @@ bool Runtime::wantsStart() const {
 }
 
 bool Runtime::queryVisible() const {
+	if (_windowKnown
+		&& (!_window || _window->isHidden() || _window->isMinimized())) {
+		return false;
+	}
 	return _item->history()->owner().queryItemVisibility(
 		_item,
 		_view.get());
@@ -1073,8 +1109,7 @@ void Runtime::bridgeCall(
 		|| !renderer->attached()) {
 		return;
 	}
-	const auto owner = &_item->history()->owner();
-	if (!owner->queryItemVisibility(_item, _view.get())) {
+	if (!queryVisible()) {
 		addNote(u"Bridge call refused, the widget is not visible."_q);
 		return;
 	}
