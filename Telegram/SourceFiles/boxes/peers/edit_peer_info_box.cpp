@@ -536,7 +536,7 @@ private:
 	void submitTitle();
 	void submitDescription();
 	void deleteWithConfirmation();
-	void deleteChannel();
+	void deletePeer();
 	void editReactions();
 
 	[[nodiscard]] std::optional<Saving> validate() const;
@@ -1577,7 +1577,9 @@ void Controller::fillManageSection() {
 		&& isChannel
 		&& channel->canPostMessages();
 	const auto canEditStickers = isChannel && channel->canEditStickers();
-	const auto canDeleteChannel = isChannel && channel->canDelete();
+	const auto canDelete = isChannel
+		? channel->canDelete()
+		: chat->amCreator();
 	const auto canEditColorIndex = isChannel && channel->canEditEmoji();
 	const auto canViewOrEditDiscussionLink = isChannel
 		&& (channel->discussionLink()
@@ -1825,7 +1827,7 @@ void Controller::fillManageSection() {
 		fillCommunitySection();
 	}
 
-	if ((canEditStickers || canDeleteChannel) && !communityEligible) {
+	if ((canEditStickers || canDelete) && !communityEligible) {
 		::AddSkip(_controls.buttonsLayout);
 	}
 
@@ -1833,7 +1835,7 @@ void Controller::fillManageSection() {
 		_controls.buttonsLayout->add(createStickersEdit());
 	}
 
-	if (canDeleteChannel) {
+	if (canDelete) {
 		AddButtonDelete(
 			_controls.buttonsLayout,
 			(_isGroup
@@ -1843,7 +1845,7 @@ void Controller::fillManageSection() {
 		);
 	}
 
-	if (canEditStickers || canDeleteChannel) {
+	if (canEditStickers || canDelete) {
 		::AddSkip(_controls.buttonsLayout);
 	}
 }
@@ -3066,14 +3068,11 @@ void Controller::savePhoto() {
 }
 
 void Controller::deleteWithConfirmation() {
-	const auto channel = _peer->asChannel();
-	Assert(channel != nullptr);
-
 	const auto text = (_isGroup
 		? tr::lng_sure_delete_group
 		: tr::lng_sure_delete_channel)(tr::now);
 	const auto deleteCallback = crl::guard(this, [=] {
-		deleteChannel();
+		deletePeer();
 	});
 	_navigation->parentController()->show(
 		Ui::MakeConfirmBox({
@@ -3084,18 +3083,24 @@ void Controller::deleteWithConfirmation() {
 		}));
 }
 
-void Controller::deleteChannel() {
-	Expects(_peer->isChannel());
+void Controller::deletePeer() {
+	Expects(_peer->isChat() || _peer->isChannel());
 
-	const auto channel = _peer->asChannel();
-	const auto chat = channel->migrateFrom();
+	const auto peer = _peer;
+	const auto chat = peer->asChat();
+	const auto channel = peer->asChannel();
+	const auto migrated = channel ? channel->migrateFrom() : nullptr;
 
-	const auto session = &_peer->session();
+	const auto session = &peer->session();
 
 	_navigation->parentController()->hideLayer();
-	Core::App().closeChatFromWindows(channel);
+	Core::App().closeChatFromWindows(peer);
 	if (chat) {
-		session->api().deleteConversation(chat, false);
+		session->api().deleteConversation(chat, true);
+		return;
+	}
+	if (migrated) {
+		session->api().deleteConversation(migrated, false);
 	}
 	session->api().request(MTPchannels_DeleteChannel(
 		channel->inputChannel()
