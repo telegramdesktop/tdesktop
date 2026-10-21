@@ -3388,7 +3388,8 @@ bool HistoryItem::allowsEdit(TimeId now) const {
 bool HistoryItem::allowsEditMedia() const {
 	return !awaitingVideoProcessing()
 		&& !richPage()
-		&& (!_media || _media->allowsEditMedia() || _media->webpage());
+		&& (!_media || _media->allowsEditMedia() || _media->webpage())
+		&& !isWelcomeTemplate();
 }
 
 bool HistoryItem::canBeEdited() const {
