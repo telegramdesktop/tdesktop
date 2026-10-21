@@ -277,10 +277,20 @@ bool FocusAssistBlocks = false;
 
 // Thanks https://www.withinrafael.com/2019/09/19/determine-if-your-app-is-in-a-focus-assist-profiles-priority-list/
 void QueryFocusAssist() {
+	static auto unavailable = false;
+	if (unavailable) {
+		return;
+	}
+	auto error = HRESULT();
 	const auto quietHoursSettings = base::WinRT::TryCreateInstance<
 		IQuietHoursSettings
-	>(CLSID_QuietHoursSettings, CLSCTX_LOCAL_SERVER);
+	>(CLSID_QuietHoursSettings, CLSCTX_LOCAL_SERVER, nullptr, &error);
 	if (!quietHoursSettings) {
+		if (error == REGDB_E_CLASSNOTREG) {
+			unavailable = true;
+			LOG(("Focus Assist: Class not registered, "
+				"disabling queries until restart."));
+		}
 		if (FocusAssistBlocks) {
 			LOG(("Focus Assist: Unavailable."));
 			FocusAssistBlocks = false;
