@@ -655,6 +655,8 @@ void Manager::buildWindowMenu(QMenu *window) {
 				w->widget()->showFromTray();
 			}
 		});
+
+	[NSApp setWindowsMenu:window->toNSMenu()];
 }
 
 void Manager::buildMenu() {
@@ -686,6 +688,7 @@ void Manager::create() {
 void Manager::destroy() {
 	_scheduledUpdate.reset();
 	_lifetime.destroy();
+	[NSApp setWindowsMenu:nil];
 	_menuBar.reset();
 	_file = _edit = _window = nullptr;
 	_languageBound = false;
