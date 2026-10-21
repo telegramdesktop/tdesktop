@@ -235,6 +235,7 @@ photoEditorKeysCapStyle: TextStyle(semiboldTextStyle) {
 }
 photoEditorKeysCapHeight: 20px;
 photoEditorKeysCapMinWidth: 22px;
+photoEditorKeysCapMaxWidth: 120px;
 photoEditorKeysCapPadding: 6px;
 photoEditorKeysCapRadius: 4px;
 photoEditorKeysCapSkip: 4px;

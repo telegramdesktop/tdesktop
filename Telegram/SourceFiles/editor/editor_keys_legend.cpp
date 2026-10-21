@@ -235,6 +235,7 @@ using Ui::KeysLegend::DeleteKey;
 		.capStyle = &st::photoEditorKeysCapStyle,
 		.capHeight = st::photoEditorKeysCapHeight,
 		.capMinWidth = st::photoEditorKeysCapMinWidth,
+		.capMaxWidth = st::photoEditorKeysCapMaxWidth,
 		.capPadding = st::photoEditorKeysCapPadding,
 		.capRadius = st::photoEditorKeysCapRadius,
 		.capSkip = st::photoEditorKeysCapSkip,

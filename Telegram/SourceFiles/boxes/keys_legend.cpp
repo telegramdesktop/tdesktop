@@ -262,8 +262,8 @@ using KeysMap = base::flat_map<QKeySequence, base::flat_set<Command>>;
 				tr::lng_keys_legend_media_play(tr::now),
 			},
 			{
-				{ tr::lng_keys_legend_hold(tr::now), SpaceKey() },
-				tr::lng_keys_legend_media_2x(tr::now),
+				{ SpaceKey() },
+				tr::lng_keys_legend_media_2x_hold(tr::now),
 			},
 			{
 				{ u"\u2190"_q, u"\u2192"_q },
@@ -314,11 +314,8 @@ using KeysMap = base::flat_map<QKeySequence, base::flat_set<Command>>;
 				tr::lng_keys_legend_media_double(tr::now),
 			},
 			{
-				{
-					tr::lng_keys_legend_hold(tr::now),
-					tr::lng_keys_legend_click(tr::now),
-				},
-				tr::lng_keys_legend_media_hold(tr::now),
+				{ tr::lng_keys_legend_click(tr::now) },
+				tr::lng_keys_legend_media_speed_scrub(tr::now),
 			},
 			{
 				{ AltKey(), u"\u2190"_q },
@@ -440,6 +437,7 @@ using KeysMap = base::flat_map<QKeySequence, base::flat_set<Command>>;
 		.capStyle = &st::keysLegendCapStyle,
 		.capHeight = st::keysLegendCapHeight,
 		.capMinWidth = st::keysLegendCapMinWidth,
+		.capMaxWidth = st::keysLegendCapMaxWidth,
 		.capPadding = st::keysLegendCapPadding,
 		.capRadius = st::keysLegendCapRadius,
 		.capSkip = st::keysLegendCapSkip,
@@ -540,9 +538,10 @@ int Columns::resizeGetHeight(int newWidth) {
 	const auto columnWidth = std::max(
 		(avail - (count - 1) * gap) / count,
 		1);
-	const auto textWidth = std::max(
+	const auto textWidth = std::clamp(
 		columnWidth - _capsWidth - st.textSkip,
-		st.textMinWidth);
+		st.textMinWidth,
+		st.textWidth);
 
 	auto heights = std::vector<int>(count, 0);
 	for (auto i = 0; i < int(_prepared.size()); ++i) {
@@ -550,7 +549,7 @@ int Columns::resizeGetHeight(int newWidth) {
 		auto height = section.title.minHeight() + st.titleSkip;
 		for (const auto &row : section.rows) {
 			height += std::max(
-				st.capHeight,
+				CapsMaxHeight(row.caps, st.capHeight),
 				row.text.countHeight(textWidth)
 			) + st.rowSkip;
 		}
@@ -593,11 +592,17 @@ void Columns::paintEvent(QPaintEvent *e) {
 		top += section.title.minHeight() + st.titleSkip;
 		for (const auto &row : section.rows) {
 			const auto textHeight = row.text.countHeight(_textWidth);
-			const auto rowHeight = std::max(st.capHeight, textHeight);
+			const auto rowHeight = std::max(
+				CapsMaxHeight(row.caps, st.capHeight),
+				textHeight);
 			auto capLeft = left;
-			const auto capTop = top + (rowHeight - st.capHeight) / 2;
 			for (const auto &cap : row.caps) {
-				PaintCap(p, cap, capLeft, capTop, st);
+				PaintCap(
+					p,
+					cap,
+					capLeft,
+					top + (rowHeight - cap.height) / 2,
+					st);
 				capLeft += cap.width + st.capSkip;
 			}
 			p.setPen(*st.textFg);
@@ -641,10 +646,21 @@ void KeysLegendLayer::parentResized() {
 	const auto margin = (parentSize.width() < st::keysLegendCompactWidth)
 		? 0
 		: st::keysLegendOuterMargin;
-	const auto maxWidth = 2 * st::keysLegendPanelPadding
-		+ 3 * st::keysLegendColumnMin
-		+ 2 * st::keysLegendColumnGap;
-	const auto width = std::min(parentSize.width() - 2 * margin, maxWidth);
+	const auto padding = st::keysLegendPanelPadding;
+	const auto gap = st::keysLegendColumnGap;
+	const auto maxWidthFor = [&](int columns) {
+		return 2 * padding
+			+ columns * st::keysLegendColumnMax
+			+ (columns - 1) * gap;
+	};
+	auto width = std::min(
+		parentSize.width() - 2 * margin,
+		maxWidthFor(3));
+	const auto count = std::clamp(
+		(width - 2 * padding + gap) / (st::keysLegendColumnMin + gap),
+		1,
+		3);
+	width = std::min(width, maxWidthFor(count));
 	_columns->resizeToWidth(width);
 	const auto fullHeight = st::keysLegendHeaderHeight + _columns->height();
 	const auto height = std::min(parentSize.height() - 2 * margin, fullHeight);
