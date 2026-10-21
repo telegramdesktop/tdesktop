@@ -79,14 +79,17 @@ FilteredCommandLineArguments::FilteredCommandLineArguments(
 		pushArgument(argv[i]);
 	}
 
-#if defined Q_OS_WIN || defined Q_OS_MAC
+#ifdef Q_OS_WIN
+	// WHY: as in Qt 5, GDI draws at dpr 1 following the system smoothing,
+	// and unlike DirectWrite it doesn't keep every font file mapped.
+	pushArgument("-platform");
+	pushArgument((OptionFreeType.value() || OptionHighDpiDownscale.value())
+		? "windows:fontengine=freetype"
+		: "windows:fontengine=gdi");
+#elif defined Q_OS_MAC
 	if (OptionFreeType.value() || OptionHighDpiDownscale.value()) {
 		pushArgument("-platform");
-#ifdef Q_OS_WIN
-		pushArgument("windows:fontengine=freetype");
-#else // Q_OS_WIN
 		pushArgument("cocoa:fontengine=freetype");
-#endif // !Q_OS_WIN
 	}
 #endif // Q_OS_WIN || Q_OS_MAC
 
