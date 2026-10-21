@@ -26,9 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QKeyEvent>
-#include <QtWidgets/QLineEdit>
-#include <QtWidgets/QPlainTextEdit>
-#include <QtWidgets/QTextEdit>
 
 namespace {
 
@@ -689,17 +686,6 @@ void KeysLegendLayer::paintEvent(QPaintEvent *e) {
 
 } // namespace
 
-bool TextEntryHasText(not_null<QObject*> object) {
-	if (const auto edit = qobject_cast<QPlainTextEdit*>(object)) {
-		return !edit->toPlainText().isEmpty();
-	} else if (const auto edit = qobject_cast<QTextEdit*>(object)) {
-		return !edit->toPlainText().isEmpty();
-	} else if (const auto edit = qobject_cast<QLineEdit*>(object)) {
-		return !edit->text().isEmpty();
-	}
-	return false;
-}
-
 bool HandleKeysLegendHotkey(
 		not_null<Core::Application*> app,
 		not_null<QObject*> object,
@@ -717,18 +703,19 @@ bool HandleKeysLegendHotkey(
 		: nullptr;
 	if (!widget) {
 		return false;
-	} else if (const auto focus = QGuiApplication::focusObject()) {
-		const auto entry = focus->inherits("QLineEdit")
+	}
+	const auto focus = QGuiApplication::focusObject();
+	if (focus
+		&& (focus->inherits("QLineEdit")
 			|| focus->inherits("QTextEdit")
-			|| focus->inherits("QPlainTextEdit");
-		// Empty field means auto-focus, the legend hotkey wins there.
-		if (entry && TextEntryHasText(focus)) {
-			return false;
-		}
+			|| focus->inherits("QPlainTextEdit"))) {
+		return false;
 	}
 	const auto window = app->activeWindow();
 	if (!window || widget->window() != window->widget()) {
 		return false;
+	} else if (event->isAutoRepeat()) {
+		return true;
 	}
 	ShowKeysLegend(window);
 	return true;
