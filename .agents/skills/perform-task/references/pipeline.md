@@ -348,10 +348,11 @@ Run sequentially:
    build tree.
 5. **Review.** Run the adaptive review/fix loop from the phase prompts. Launch
    the first independent general reviewer and all five standard lens reviewers
-   against the task and complete diff without sharing findings. The general
-   reviewer examines every changed file in full; each lens either proves
-   `NOT_APPLICABLE` from the complete diff or performs its relevant focused
-   review. General synthesis confirms or drops findings, rejects unsupported
+   against the task and complete diff without sharing findings; a harness task
+   starts with the general reviewer alone (see [Harness tasks](#harness-tasks)).
+   The general reviewer examines every changed file in full; each lens either
+   proves `NOT_APPLICABLE` from the complete diff or performs its relevant
+   focused review. General synthesis confirms or drops findings, rejects unsupported
    bailouts, and writes the single `review1.md` the fix phase implements. Only
    material blocking findings cause a fix. After a fix, preserve every prior
    approval that the fix did not invalidate: run one focused general review of
@@ -398,8 +399,10 @@ Every unfinished task follows one adaptive implementation path. Task size,
 repository location, and whether Telegram is eventually launched do not select
 a profile. The one exception is a code-health task of class Q0, Q1 or Q2,
 which runs the [mechanical lane](mechanical-lane.md): its class bounds the
-change to what a tool can prove. Before editing, Phase 2 assessment records
-the task's actual failure surfaces and writes both of these contracts:
+change to what a tool can prove. A [harness task](#harness-tasks) keeps this
+path, with its review scaled to code no user runs. Before editing, Phase 2
+assessment records the task's actual failure surfaces and writes both of these
+contracts:
 
 ```text
 Expected surfaces:
@@ -422,11 +425,51 @@ a recall checklist for their initial applicability scan. Assessment rejects
 ceremony as well as under-testing: it removes evidence checks that cannot be
 affected by the task.
 
+### Harness tasks
+
+A harness task changes test or workflow infrastructure, not the product. Every
+change it retains qualifies for the `[ai]` subject prefix under "Commits" in
+`AGENTS.md`: the permanent test harness in `Telegram/SourceFiles/test/` with
+the build lines that register its files, `.agents/`, `.claude/`, `.grok/`, and
+other AI testing infrastructure. No user runs this code; its users are the
+tests and agents that call it. Phase 1 records `Code: harness` or
+`Code: product` in the plan, and assessment checks that against the planned
+owned paths. When the work turns out to need a product change, the task
+becomes `Code: product`, and its next review round is the complete initial
+fanout over the whole diff.
+
+A harness task runs the same phases and the same review-to-agreement loop,
+scaled to what the code is for:
+
+- **Plan.** Build the smallest helper that gives the consumers it names
+  (tasks, tests, agents) correct results. Support for hypothetical callers,
+  misuse no consumer performs, framework edge cases no consumer reaches, and
+  defensive teardown for them stay out. Assessment rejects a plan whose
+  machinery is several times what those consumers need.
+- **Review.** The initial review is the general reviewer alone. It adds the
+  security lens when the diff deletes or overwrites files, starts processes, or
+  touches accounts, credentials or data outside the run's sandbox, and any
+  other lens or domain specialist only for a concrete risk it names. Focused
+  rounds follow the ordinary rules.
+- **Blocking bar.** A finding blocks only when the harness can give a consumer
+  a wrong result (a false pass or fail, a wrong reading), crash or hang a run,
+  damage anything outside the run's sandbox, change product behavior, or break
+  the build or a repository rule. Robustness against misuse no consumer
+  performs, teardown order in cases no consumer reaches, and polish are
+  non-blocking notes. Every review, synthesis, focused review and convergence
+  prompt of a harness task carries this bar (phase prompts, "Harness tasks").
+- **Models.** On Codex, the plan assessment, every review and synthesis, the
+  convergence assessments and the evidence assessments of a harness task run
+  on `gpt-6.1-sol` ([phase effort](../../../shared/phase-effort.md#lens-models)).
+- **Evidence.** The harness self-test, or one consumer run, shows that the
+  helper gives its consumers what they need.
+
 ### Initial review fanout
 
 The initial review of a task **that produced a source diff** includes one
-independent **general** reviewer and all five standard lenses. Start them
-together when capacity permits; under a slot limit, keep the complete set
+independent **general** reviewer and all five standard lenses; a
+[harness task](#harness-tasks) starts with the general reviewer alone. Start
+them together when capacity permits; under a slot limit, keep the complete set
 queued and start the next lens as soon as a slot opens. The general reviewer
 and lenses do not read one another's findings.
 

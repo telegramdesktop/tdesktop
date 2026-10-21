@@ -27,7 +27,8 @@ Select effort with [phase effort](phase-effort.md) and pass it as `--effort`
 (`medium`, `high` or `xhigh`; review and assessment phases default to
 `xhigh`). Pass `--model` only where
 [lens models](phase-effort.md#lens-models) pin one (the reuse, structure and
-performance lenses); otherwise the leaf uses the model configured for the
+performance lenses, and every review and assessment leaf of a harness task);
+otherwise the leaf uses the model configured for the
 user's Codex CLI. Record the effort and any pinned model in the phase result
 `NOTES:`.
 

@@ -46,6 +46,12 @@ those was a crash, lifetime or security defect; lifetime and security did
 catch such defects alone. When the pinned model is unavailable, run the lens
 on the configured model and record that in the phase result `NOTES:`.
 
+A harness task (perform-task pipeline, "Harness tasks") changes code no user
+runs, so on a Codex model all of its review and assessment leaves run on
+`gpt-6.1-sol`: the plan assessment, the general review and synthesis, every
+lens, the convergence assessments and the evidence assessments. Its other
+phases keep the configured model.
+
 ## Apply on the current host
 
 - **Codex:** When the exposed spawn schema supports it, pass
