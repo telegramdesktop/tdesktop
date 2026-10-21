@@ -32,7 +32,6 @@ bool UnpackDictionary(const QString &path, int langId);
 bool RemoveDictionary(int langId);
 [[nodiscard]] bool IsEn(int langId);
 
-bool WriteDefaultDictionary();
 std::vector<Dict> Dictionaries();
 rpl::producer<> DictionariesChanged();
 void RefreshDictionariesManifest(not_null<Main::Session*> session);
