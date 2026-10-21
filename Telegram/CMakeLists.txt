@@ -2168,6 +2168,8 @@ PRIVATE
     test/test_text_reads.h
     test/test_toast_capture.cpp
     test/test_toast_capture.h
+    test/test_touch.cpp
+    test/test_touch.h
     test/test_transfer.cpp
     test/test_transfer.h
     test/test_via_window.cpp

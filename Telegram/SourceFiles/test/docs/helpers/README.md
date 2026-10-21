@@ -25,6 +25,7 @@ should call.
 | [test_queued_drag](test_queued_drag.md) | API | Deliver queued drag starts before the synthetic release |
 | [test_qpa_mouse](test_qpa_mouse.md) | API | Mouse press, move and release through Qt's platform layer and window routing, for widgets that grab the mouse; a drag stage that waits for queued work before its release and leaves no button, grab or hover |
 | [test_qpa_mouse_self_test](test_qpa_mouse_self_test.md) | Self-test | Self-test for QPA grab routing, the drag stage's wait and refusals, coordinates, double clicks and clean end state |
+| [test_touch](test_touch.md) | API | Registered touchscreen and touchpad input through Qt's platform layer |
 | [test_text_drop](test_text_drop.md) | Self-test | Self-test for text-drop routing |
 | [test_clipboard](test_clipboard.md) | API | Clipboard round-trip and classified read-back |
 | [test_console_lock](test_console_lock.md) | API | Current console-lock classification |
