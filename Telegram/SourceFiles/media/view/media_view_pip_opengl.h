@@ -107,6 +107,7 @@ private:
 	quint64 _cacheKey = 0;
 	int _trackFrameIndex = 0;
 	bool _chromaNV12 = false;
+	GLenum _nv12ChromaFormat = GL_RG;
 
 	Ui::GL::Image _radialImage;
 	Ui::GL::Image _controlsImage;

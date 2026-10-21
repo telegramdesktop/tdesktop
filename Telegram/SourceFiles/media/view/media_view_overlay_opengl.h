@@ -141,6 +141,7 @@ private:
 	int _trackFrameIndex = 0;
 	int _streamedIndex = 0;
 	bool _chromaNV12 = false;
+	GLenum _nv12ChromaFormat = GL_RG;
 
 	Ui::GL::Image _controlsFadeImage;
 	Ui::GL::Image _radialImage;
