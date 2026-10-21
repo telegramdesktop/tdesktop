@@ -85,6 +85,11 @@ public:
 	[[nodiscard]] rpl::producer<PeerQrColors> colorsValue() const;
 	[[nodiscard]] rpl::producer<not_null<QTouchEvent*>> touchPresses() const;
 	[[nodiscard]] PeerQrImageArgs prepareImage() const;
+	// the child's control tint lands on the clean backdrop inside its shape
+	void addControl(
+		not_null<QWidget*> control,
+		Fn<QPainterPath()> shape,
+		Fn<float64()> opacity = nullptr);
 
 protected:
 	bool eventHook(QEvent *e) override;
@@ -96,12 +101,15 @@ protected:
 private:
 	struct Card;
 	struct Countdown;
+	struct Control;
+	struct ControlShapes;
 	struct CardPlacement {
 		QPointF topLeft;
 		float64 scale = 1.;
 	};
 	struct Wave {
 		QImage from;
+		QImage clean;
 		PeerQrColors colorsFrom;
 		QColor tint;
 		QPointF center;
@@ -128,11 +136,24 @@ private:
 		not_null<PeerQrGiftField*> field,
 		crl::time now,
 		bool leaving);
+	[[nodiscard]] ControlShapes controlShapes(QRect clip) const;
+	void paintLayers(
+		QPainter &p,
+		crl::time now,
+		const QPainterPath &shown);
+	void paintFadingUnderlays(
+		QPainter &p,
+		crl::time now,
+		const ControlShapes &controls) const;
 	void startFieldEntry(crl::time now);
 	void updateWave(crl::time now);
-	void paintWave(QPainter &p, crl::time now) const;
+	void paintWave(
+		QPainter &p,
+		crl::time now,
+		const QPainterPath &clean) const;
+	void paintClean(QPainter &p, crl::time now) const;
 	void paintCountdown(QPainter &p);
-	[[nodiscard]] QImage currentPicture(crl::time now) const;
+	[[nodiscard]] QImage currentPicture(crl::time now, bool clean) const;
 	[[nodiscard]] bool handleTouch(not_null<QTouchEvent*> e);
 	void stopTouchSwipe();
 	void checkAnimation();
@@ -170,6 +191,7 @@ private:
 	std::unique_ptr<PeerQrGiftField> _giftLeaving;
 	PeerQrLayerMotion _layer;
 	std::optional<int> _touchId;
+	std::vector<Control> _controls;
 	crl::time _startedAt = 0;
 	crl::time _bounceStartedAt = 0;
 	crl::time _dipStartedAt = 0;

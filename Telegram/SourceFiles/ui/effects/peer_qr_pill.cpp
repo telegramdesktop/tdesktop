@@ -367,6 +367,17 @@ QRect PeerQrPill::pillGeometry() const {
 		: computeFrame(crl::now()).pill.toAlignedRect().translated(pos());
 }
 
+QPainterPath PeerQrPill::pillPath() const {
+	auto result = QPainterPath();
+	if (_mode != Mode::Hidden) {
+		const auto frame = computeFrame(frameTime());
+		const auto pill = ScaledRect(frame.pill, frame.scale);
+		const auto radius = pill.height() / 2.;
+		result.addRoundedRect(pill, radius, radius);
+	}
+	return result;
+}
+
 rpl::producer<> PeerQrPill::clicks() const {
 	return _button->clicks() | rpl::to_empty;
 }
@@ -375,7 +386,7 @@ void PeerQrPill::paintEvent(QPaintEvent *e) {
 	if (_mode == Mode::Hidden) {
 		return;
 	}
-	const auto now = crl::now();
+	const auto now = frameTime();
 	const auto frame = computeFrame(now);
 	auto p = QPainter(this);
 	auto hq = PainterHighQualityEnabler(p);
@@ -439,6 +450,10 @@ PeerQrPill::Frame PeerQrPill::computeFrame(crl::time now) const {
 	}
 	result.edge = result.pill.x() + result.fill * result.pill.width();
 	return result;
+}
+
+crl::time PeerQrPill::frameTime() const {
+	return _animation.animating() ? _lastStep : crl::now();
 }
 
 float64 PeerQrPill::targetWidth() const {

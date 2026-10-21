@@ -159,6 +159,7 @@ public:
 	void setColors(QColor disc, QColor icon);
 	void setBusy(bool busy);
 	void setOpacity(float64 opacity);
+	[[nodiscard]] float64 opacity() const;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -236,6 +237,10 @@ void PeerQrButton::setOpacity(float64 opacity) {
 	}
 	_opacity = opacity;
 	update();
+}
+
+float64 PeerQrButton::opacity() const {
+	return _opacity;
 }
 
 void PeerQrButton::paintEvent(QPaintEvent *e) {
@@ -384,16 +389,35 @@ int AboutAction::contentHeight() const {
 	return rpl::single(QString());
 }
 
+[[nodiscard]] QPainterPath PillPath(QRect rect) {
+	const auto radius = rect.height() / 2.;
+	auto result = QPainterPath();
+	result.addRoundedRect(QRectF(rect), radius, radius);
+	return result;
+}
+
 [[nodiscard]] not_null<PeerQrButton*> AddButton(
 		not_null<PeerQrSurface*> surface,
 		const style::IconButton &st,
-		const QString &name) {
+		const QString &name,
+		bool fading = false) {
 	const auto result = CreateChild<PeerQrButton>(surface.get(), st);
 	surface->colorsValue() | rpl::on_next([=](const PeerQrColors &colors) {
 		result->setColors(colors.control, colors.foreground);
 	}, result->lifetime());
+	surface->addControl(
+		result,
+		[=] { return PillPath(result->rect()); },
+		fading ? Fn<float64()>([=] { return result->opacity(); }) : nullptr);
 	result->setAccessibleName(name);
 	return result;
+}
+
+[[nodiscard]] not_null<PeerQrButton*> AddFadingButton(
+		not_null<PeerQrSurface*> surface,
+		const style::IconButton &st,
+		const QString &name) {
+	return AddButton(surface, st, name, true);
 }
 
 [[nodiscard]] not_null<RpWidget*> AddIsland(
@@ -407,6 +431,11 @@ int AboutAction::contentHeight() const {
 	surface->colorsValue() | rpl::on_next([=] {
 		result->update();
 	}, result->lifetime());
+	surface->addControl(result, [=] {
+		return appearance->panelShown
+			? QPainterPath()
+			: PillPath(result->rect());
+	});
 	result->paintRequest() | rpl::on_next([=] {
 		// a panel's glass grows from this pill and takes its place
 		if (appearance->panelShown) {
@@ -651,6 +680,9 @@ void SetupFreeCodes(
 		surface.get(),
 		surface->colors());
 	free->pill = pill;
+	surface->addControl(pill, [=] {
+		return pill->pillPath();
+	});
 	surface->colorsValue() | rpl::on_next([=](PeerQrColors colors) {
 		pill->setColors(std::move(colors));
 	}, pill->lifetime());
@@ -1144,13 +1176,22 @@ void RevertToServed(
 	}
 }
 
+[[nodiscard]] not_null<PeerQrPanel*> AddPanel(
+		not_null<PeerQrSurface*> surface) {
+	const auto result = CreateChild<PeerQrPanel>(surface.get());
+	surface->addControl(result, [=] {
+		return result->glassPath();
+	});
+	return result;
+}
+
 void SetupEmojiPanel(
 		not_null<PeerQrSurface*> surface,
 		not_null<AppearanceState*> appearance,
 		not_null<Window::SessionController*> controller,
 		not_null<PeerQrButton*> button,
 		Fn<void(not_null<PeerQrPanel*>)> openPanel) {
-	const auto container = CreateChild<PeerQrPanel>(surface.get());
+	const auto container = AddPanel(surface);
 	container->setRadius(st::emojiPanRadius);
 	appearance->emojiPanel = container;
 	surface->colorsValue() | rpl::on_next([=](const PeerQrColors &colors) {
@@ -1227,7 +1268,7 @@ void SetupGiftsPanel(
 		Window::SessionController *controller,
 		not_null<PeerQrButton*> button,
 		Fn<void(not_null<PeerQrPanel*>)> openPanel) {
-	const auto container = CreateChild<PeerQrPanel>(surface.get());
+	const auto container = AddPanel(surface);
 	const auto gifts = CreateChild<PeerQrGiftsPanel>(
 		container,
 		(peer->isSelf()
@@ -1288,7 +1329,7 @@ void SetupAppearance(
 		0,
 		st::peerQrColors,
 		tr::lng_qr_box_colors(tr::now));
-	const auto container = CreateChild<PeerQrPanel>(surface.get());
+	const auto container = AddPanel(surface);
 	const auto colors = CreateChild<PeerQrColorsPanel>(container);
 	container->setContent(colors, PeerQrPanelContent::Animated);
 	appearance->island = island;
@@ -1482,7 +1523,7 @@ void FillPeerQrBox(
 		surface,
 		st::peerQrClose,
 		tr::lng_close(tr::now));
-	const auto copy = AddButton(
+	const auto copy = AddFadingButton(
 		surface,
 		st::peerQrCopy,
 		tr::lng_group_invite_context_copy(tr::now));
@@ -1491,7 +1532,7 @@ void FillPeerQrBox(
 	const auto weakBox = base::make_weak(box);
 	const auto weakController = base::make_weak(controller);
 	const auto share = controller
-		? AddButton(
+		? AddFadingButton(
 			surface,
 			st::peerQrShare,
 			tr::lng_group_invite_context_share(tr::now)).get()
