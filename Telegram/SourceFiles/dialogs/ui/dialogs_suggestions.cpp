@@ -1410,6 +1410,9 @@ Suggestions::Suggestions(
 Suggestions::~Suggestions() = default;
 
 void Suggestions::setupTabs() {
+	// Switching a tab changes the search scope and can run new searches, so
+	// the arrows only browse these tabs, committing on Enter / Space.
+	_tabs->setAccessibilityActivateOnBrowse(false);
 	_tabsScroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
 		const auto pixelDelta = e->pixelDelta();
 		const auto angleDelta = e->angleDelta();
@@ -1443,6 +1446,12 @@ void Suggestions::setupTabs() {
 		if (was != index) {
 			scrollToIndex(index, anim::type::normal);
 		}
+	}, _tabs->lifetime());
+	// Browsing with a screen reader moves through the tabs without
+	// activating one, so the browsed tab is brought into view by itself.
+	_tabs->accessibilitySectionBrowsed(
+	) | rpl::on_next([=](int index) {
+		scrollToIndex(index, anim::type::normal);
 	}, _tabs->lifetime());
 
 	const auto shadow = Ui::CreateChild<Ui::PlainShadow>(this);
