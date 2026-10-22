@@ -560,6 +560,10 @@ class StateTests(unittest.TestCase):
         ledger = json.loads((self.state / 'ledger.json').read_text(encoding='utf-8'))
         self.assertEqual(ledger['commit'], self.commit)
         self.assertTrue((self.state / ledger['run'] / 'report.md').is_file())
+        self.assertTrue((self.state / ledger['run'] / 'harness.md').is_file())
+        harness_data = json.loads((self.state / ledger['run'] / 'harness.json').read_text())
+        self.assertEqual(harness_data['commit'], self.commit)
+        self.assertFalse(harness_data['coverage']['available'])
         self.assertTrue((self.published / '.local' / 'snapshots'
                          / f'{self.commit}.json').is_file())
         _, output = self.run_health(health.command_scan, state=str(self.state))
