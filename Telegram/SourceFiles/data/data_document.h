@@ -234,7 +234,6 @@ public:
 
 	[[nodiscard]] bool hasVideoThumbnail() const;
 	[[nodiscard]] bool videoThumbnailLoading() const;
-	[[nodiscard]] bool videoThumbnailFailed() const;
 	void loadVideoThumbnail(Data::FileOrigin origin);
 	[[nodiscard]] const ImageLocation &videoThumbnailLocation() const;
 	[[nodiscard]] int videoThumbnailByteSize() const;
