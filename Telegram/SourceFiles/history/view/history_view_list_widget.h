@@ -698,6 +698,7 @@ private:
 	void rememberScrollAnchor();
 	void saveScrollState();
 	void restoreScrollState();
+	void applyScrollTopState();
 
 	[[nodiscard]] bool jumpToBottomInsteadOfUnread() const;
 	void showAroundPosition(
