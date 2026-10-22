@@ -515,7 +515,9 @@ SendError FileRestrictionError(
 		}
 		break;
 	case Type::Video:
-		if (const auto error = file.isGifv() ? gifs : videos) {
+		if (const auto error = (file.isGifv() || file.sendsVideoAsGif())
+				? gifs
+				: videos) {
 			return error;
 		}
 		break;
