@@ -567,6 +567,10 @@ HistoryWidget::HistoryWidget(
 		showPremiumToast(document);
 		return false;
 	});
+	_field->setOpenLinkCallback(DefaultOpenLinkCallback(
+		controller->uiShow(),
+		_field,
+		{ .inAppLinks = true }));
 	InitMessageFieldFade(_field, st::historyComposeField.textBg);
 
 	setupFastButtonMode();
