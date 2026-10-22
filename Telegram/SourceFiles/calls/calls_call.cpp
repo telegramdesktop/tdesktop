@@ -520,7 +520,12 @@ rpl::producer<Webrtc::DeviceResolvedId> Call::captureMuteDeviceId() {
 
 void Call::setMuted(bool mute) {
 	_muted = mute;
-	if (_instance) {
+	if (_screenWithAudio && _screenAudioControl) {
+		_screenAudioControl->setMicrophoneMuted(mute);
+		if (_instance) {
+			_instance->setMuteMicrophone(false);
+		}
+	} else if (_instance) {
 		_instance->setMuteMicrophone(mute);
 	}
 }
@@ -1187,9 +1192,19 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 				sendSignalingData(bytes);
 			});
 		},
-		.createAudioDeviceModule = Webrtc::AudioDeviceModuleCreator(
-			saveSetDeviceIdCallback),
 	};
+
+	_screenAudioControl = std::make_shared<Webrtc::MixingAudioControl>();
+	if (_screenWithAudio) {
+		_screenAudioControl->setLoopbackEnabled(true);
+		if (_muted.current()) {
+			_screenAudioControl->setMicrophoneMuted(true);
+		}
+	}
+	descriptor.createAudioDeviceModule
+		= Webrtc::MixingAudioDeviceModuleCreator(
+			Webrtc::AudioDeviceModuleCreator(saveSetDeviceIdCallback),
+			_screenAudioControl);
 	if (Logs::DebugEnabled()) {
 		const auto callLogFolder = cWorkingDir() + u"DebugLogs"_q;
 		const auto callLogPath = callLogFolder + u"/last_call_log.txt"_q;
@@ -1237,8 +1252,8 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 	}
 
 	const auto raw = _instance.get();
-	if (_muted.current()) {
-		raw->setMuteMicrophone(_muted.current());
+	if (_muted.current() && !_screenWithAudio) {
+		raw->setMuteMicrophone(true);
 	}
 
 	raw->setIncomingVideoOutput(_videoIncoming->sink());
@@ -1493,6 +1508,13 @@ void Call::toggleScreenSharing(
 		}
 		_videoCaptureDeviceId = QString();
 		_videoCaptureIsScreencast = false;
+		if (_screenWithAudio && _screenAudioControl) {
+			_screenAudioControl->setMicrophoneMuted(false);
+			_screenAudioControl->setLoopbackEnabled(false);
+			if (_muted.current() && _instance) {
+				_instance->setMuteMicrophone(true);
+			}
+		}
 		_screenWithAudio = false;
 		if (_systemAudioCapture) {
 			_systemAudioCapture->stop();
@@ -1507,6 +1529,15 @@ void Call::toggleScreenSharing(
 	_videoCaptureIsScreencast = true;
 	_videoCaptureDeviceId = *uniqueId;
 	_screenWithAudio = withAudio;
+	if (_screenAudioControl) {
+		_screenAudioControl->setLoopbackEnabled(withAudio);
+		if (withAudio && _muted.current()) {
+			_screenAudioControl->setMicrophoneMuted(true);
+			if (_instance) {
+				_instance->setMuteMicrophone(false);
+			}
+		}
+	}
 	if (_videoCapture) {
 		_videoCapture->switchToDevice(uniqueId->toStdString(), true);
 		if (_instance) {
@@ -1695,6 +1726,7 @@ void Call::handleControllerError(const QString &error) {
 }
 
 void Call::destroyController() {
+	_screenAudioControl = nullptr;
 	_instanceLifetime.destroy();
 	Core::App().mediaDevices().setCaptureMuteTracker(this, false);
 	if (_systemAudioCapture) {
