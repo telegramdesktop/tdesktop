@@ -970,7 +970,7 @@ void Runtime::construct(
 	auto job = Job{
 		.read = std::move(reader->read),
 		.resources = std::move(resources),
-		.intl = CreateIntl(),
+		.intl = CreateHostIntl(),
 		.factory = _live->hostFactory(),
 		.action = _live->hostActionHandler(),
 		.options = DefaultHostOptions(ratio, _visible),

@@ -10,7 +10,7 @@
 # protocol to a renderer. Its JavaScript bundles live next to it in
 # packages/desktop/WidgetJS. Only the library sources are compiled here; the
 # package's own CMakeLists always builds its harness and tests as well.
-# IcuIntl (src/icu_intl.cpp, linking icu) is not built; Telegram's own IntlProvider answers.
+# On Windows IcuIntl (src/icu_intl.cpp) is built too, linking icu; Telegram delay-loads icu.dll.
 # There is no packaged branch: no distribution ships this library.
 
 add_library(lib_widget_sandbox STATIC)
@@ -70,7 +70,12 @@ PUBLIC
 )
 
 if (WIN32)
-    target_link_libraries(lib_widget_sandbox PUBLIC bcrypt)
+    nice_target_sources(lib_widget_sandbox ${widget_sandbox_loc}
+    PRIVATE
+        include/twidget/icu_intl.h
+        src/icu_intl.cpp
+    )
+    target_link_libraries(lib_widget_sandbox PUBLIC bcrypt icu)
 elseif (LINUX)
     find_package(Threads REQUIRED)
     target_link_libraries(lib_widget_sandbox PUBLIC Threads::Threads)

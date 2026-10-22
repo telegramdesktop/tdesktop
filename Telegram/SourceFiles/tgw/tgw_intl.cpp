@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
+#include "platform/platform_system_intl.h"
 #include "twidget/intl.h"
 #include "twidget/json.h"
 #include "twidget/sdk_policy.h"
@@ -804,8 +805,10 @@ void InsertMissing(
 		DatePattern(locale, ParseDateRequest(request)));
 }
 
+} // namespace
+
 // BasicIntl indexes its name tables with this conversion's unchecked result.
-[[nodiscard]] bool BasicCanConvert(const twidget::Json &value) {
+bool BasicCanConvert(const twidget::Json &value) {
 	using Limits = std::numeric_limits<time_t>;
 	const auto milliseconds = value.asNumber();
 	if (!std::isfinite(milliseconds)) {
@@ -829,6 +832,8 @@ void InsertMissing(
 		&& (parts.tm_wday >= 0)
 		&& (parts.tm_wday < 7);
 }
+
+namespace {
 
 [[nodiscard]] std::string LiteralParts(const QString &text) {
 	auto part = twidget::Json::object();
@@ -1148,6 +1153,13 @@ std::shared_ptr<twidget::IntlProvider> CreateIntl() {
 	return std::make_shared<Intl>(
 		QLocale(UiLanguageTag()),
 		QString::fromLatin1(QTimeZone::systemTimeZoneId()));
+}
+
+std::shared_ptr<twidget::IntlProvider> CreateHostIntl() {
+	if (auto system = Platform::CreateSystemIntl(UiLanguageTag())) {
+		return system;
+	}
+	return CreateIntl();
 }
 
 } // namespace Tgw

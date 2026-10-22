@@ -9,11 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace twidget {
 class IntlProvider;
+class Json;
 } // namespace twidget
 
 namespace Tgw {
 
 [[nodiscard]] QString UiLanguageTag();
 [[nodiscard]] std::shared_ptr<twidget::IntlProvider> CreateIntl();
+[[nodiscard]] std::shared_ptr<twidget::IntlProvider> CreateHostIntl();
+[[nodiscard]] bool BasicCanConvert(const twidget::Json &value);
 
 } // namespace Tgw

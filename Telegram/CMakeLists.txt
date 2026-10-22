@@ -1864,6 +1864,7 @@ PRIVATE
     platform/win/overlay_widget_win.h
     platform/win/specific_win.cpp
     platform/win/specific_win.h
+    platform/win/system_intl_win.cpp
     platform/win/translate_provider_win.h
     platform/win/tray_win.cpp
     platform/win/tray_win.h
@@ -1890,6 +1891,7 @@ PRIVATE
     platform/platform_overlay_widget.cpp
     platform/platform_overlay_widget.h
     platform/platform_specific.h
+    platform/platform_system_intl.h
     platform/platform_translate_provider.h
     platform/platform_tray.h
     platform/platform_webauthn.h
@@ -2856,6 +2858,7 @@ if (MSVC)
         /DELAYLOAD:wtsapi32.dll
         /DELAYLOAD:propsys.dll
         /DELAYLOAD:uiautomationcore.dll
+        /DELAYLOAD:icu.dll
     )
     if (QT_VERSION GREATER 6)
         if (NOT build_winarm)
