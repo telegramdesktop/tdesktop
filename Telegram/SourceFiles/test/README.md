@@ -89,6 +89,10 @@ funded wallet, including its required reconciliation and secrecy-scan links.
 For public-identity or log-coverage checks, read the separate
 [publication audit contract](docs/helpers/test_publication_identity_scan.md);
 neither establishes fixture secrecy.
+A credential the product hands to an OS launcher, such as a token URL, is
+declared with the launch fuse's
+[private expectation](docs/helpers/test_launch_fuse.md#private-expectations),
+which matches it exactly and prints only its label and `scheme://host`.
 A required missing fixture is a blocker; do not substitute fabricated proof,
 reset the funded wallet or discard a possibly unrewritten rotation.
 

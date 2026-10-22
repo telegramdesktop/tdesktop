@@ -48,7 +48,7 @@ should call.
 | [test_history_fixtures](test_history_fixtures.md) | API | Lifetime-owned history service-message fixtures |
 | [test_notify_override](test_notify_override.md) | API | Local notify-setting override and restoration |
 | [test_custom_emoji](test_custom_emoji.md) | API | Explicitly registered ready emoji fixture |
-| [test_launch_fuse](test_launch_fuse.md) | API | Assert intended OS launches while blocking them |
+| [test_launch_fuse](test_launch_fuse.md) | API | Assert intended OS launches while blocking them; report a credential-bearing one by label |
 | [test_open_handoff](test_open_handoff.md) | API | Observe document-open handoff without OS launch |
 | [test_transfer](test_transfer.md) | API | Observe document transfer success/failure |
 | [test_web_cache](test_web_cache.md) | API | Clear the exact web-document cache entry |
