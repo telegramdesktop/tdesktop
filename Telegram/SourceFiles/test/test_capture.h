@@ -74,8 +74,12 @@ private:
 	QString _pendingReason;
 };
 
-// Saves under ScreenshotsDir(), appends .png when missing, emits the
-// SCREENSHOT marker, and returns the absolute path (empty on failure).
+// Saves a PNG under ScreenshotsDir(), appending .png when missing, and
+// returns its absolute path. A null image or a failed write returns empty
+// and logs nothing. A successful save logs SCREENSHOT: "<relative>", the
+// path relative to EvidenceDir() with \ and " backslash-escaped, so the log
+// never names the host evidence root. Escaping and resolution:
+// docs/helpers/test_capture.md, "Saved images and the SCREENSHOT marker".
 QString SaveImage(const QImage &image, const QString &name);
 
 // Grab + blank-check + save as one evidence-grade capture: a hidden widget,

@@ -528,6 +528,8 @@ so it can never run against real account data. The overlay must:
   `SCREENSHOT` / `TEST_COMPLETE` markers the external runner parses. Never hand-roll marker
   strings or log files. The runner reads `TEST_COMPLETE` as a whole line, so a stage name, note
   or check detail that quotes the marker inside a longer line is safe and never ends the run.
+  A `SCREENSHOT` row names its image relative to the evidence directory; the grammar and its
+  resolution base are in `Telegram/SourceFiles/test/docs/helpers/test_capture.md`.
 - **Capture the target tightly** with `CaptureWidget`/`CaptureRect` — the specific widget /
   row / glyph, unambiguously in frame at usable resolution. A full-window grab that leaves the
   target clipped, off-screen, or thumbnail-sized is NOT acceptable evidence — if the target
@@ -663,10 +665,11 @@ command, environment, exit-code, log, artifact and control evidence.
   exits non-zero, and emits no JSON. A malformed `--env` value (no `=`, or an empty name), or one
   naming `QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM`, is refused the same way before SETUP,
   with nothing created. If a dump cannot be moved, `test-run` leaves it in place,
-  records `"to": null` (a null destination), and continues to launch. Then read each `SCREENSHOT:`
-  image and judge it, save the binary overlay patch, and restore only inventoried overlay paths
-  (`overlay-save` — the patch must be saved before that restore). The runner only gathers evidence;
-  ASSESS below stays the agent's own adversarial judgement.
+  records `"to": null` (a null destination), and continues to launch. Then read each image the
+  report lists in `markers.screenshots` (already resolved against the run directory; the log's
+  `SCREENSHOT:` row itself is relative) and judge it, save the binary overlay patch, and restore
+  only inventoried overlay paths (`overlay-save` — the patch must be saved before that restore).
+  The runner only gathers evidence; ASSESS below stays the agent's own adversarial judgement.
   - **Launch activation (macOS).** Two things activate a client at launch, and the default stops
     both for an app bundle's main executable. Qt's cocoa plugin activates it when it finishes
     launching (`applicationDidFinishLaunching`, `qcocoaapplicationdelegate.mm`) unless

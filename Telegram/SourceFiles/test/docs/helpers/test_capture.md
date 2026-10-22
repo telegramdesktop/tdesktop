@@ -8,7 +8,8 @@ Source contract: [test_capture.h](../../test_capture.h).
 
 ## Use when
 
-Prepared grabs, paint owners and mapped targets. Read the contract below and the source header before use.
+Prepared grabs, paint owners, mapped targets and saved images with their
+`SCREENSHOT` marker. Read the contract below and the source header before use.
 
 ## Contract and usage
 
@@ -22,6 +23,57 @@ for a frame cropped to the box content, crops, zoom, contact sheets,
 window-mapped capture for widgets that paint no opaque background of their
 own; a **toast** goes to `test_toast_capture.h` instead, whose frame cannot
 compose the surface beneath it.
+
+## Saved images and the SCREENSHOT marker
+
+`SaveImage(image, name)` writes `image` as a PNG to `ScreenshotsDir()` plus
+`name`, appending `.png` unless `name` already ends with it in any case, and
+returns that absolute path. The capture helpers on this page save through
+it. A null image or a failed write, such as a missing parent directory or a
+name the file system refuses, returns an empty string and writes no marker.
+Callers use the return value; none of them reads the marker.
+
+A successful save appends exactly one row to `test_log.txt`:
+
+```text
+SCREENSHOT: "screenshots/<file>"
+```
+
+- **Value.** The returned path without its `EvidenceDir()` prefix: the
+  `screenshots/` folder and the saved file name, with Qt's `/` separators.
+  The row never names the host evidence root, so a host directory that
+  happens to equal a fixture identity no longer reaches a publication audit
+  through screenshot metadata.
+- **Escaping.** `SaveImage` writes each `\` as `\\`, then each `"` as `\"`.
+  `LogRaw` then writes each of its ten line separators (U+000A, U+000B,
+  U+000C, U+000D, U+001C, U+001D, U+001E, U+0085, U+2028, U+2029) as an
+  uppercase `\uXXXX` token ([test_log](test_log.md)). Every other character,
+  leading and trailing spaces and non-ASCII text included, stays literal
+  UTF-8. The backslash is doubled first, so a name holding the literal text
+  `\u000A` is written `\\u000A` and never reads back as a line feed.
+- **Resolution base.** The evidence directory is `EvidenceDir()`, the
+  directory holding `test_log.txt`: `TDESKTOP_TEST_EVIDENCE_DIR` when set,
+  otherwise `test_evidence` in the working directory. `workspace.py test-run`
+  sets that variable to its resolved `--run-dir`. `EvidenceDir()` followed
+  by the decoded value is exactly the returned path.
+- **Reading.** Decode only a payload that is one whole quoted string in this
+  grammar. Read it once, left to right: `\\` is `\`, `\"` is `"` and each
+  of the ten uppercase tokens is its separator. Join the result to the
+  evidence directory. `parse_test_log` in
+  `.agents/skills/process-inbox/scripts/workspace.py` does exactly this, so
+  the `test-run` report's `markers.screenshots` lists openable absolute
+  paths, in log order.
+- **Historical rows.** Logs written before this grammar carry the unquoted
+  absolute path (`SCREENSHOT: /...`, `C:/...`, `//host/...`). The reader
+  returns those verbatim and untrimmed, as it does any payload outside the
+  grammar: an unterminated quote, another escape, a lowercase or
+  non-separator `\u` token, or text after the closing quote. No old report
+  is rewritten.
+
+The relative value still carries the caller's own image name. A complete
+identity placed in that name is a real presentation, and
+[`CheckPublicationIdentity`](test_publication_identity_scan.md) counts it;
+only the incidental host path is gone.
 
 ## Capture and visual assertions
 
@@ -125,6 +177,29 @@ scaled tokens, never from literals recorded at 100%. Rects from different
 widgets never share an origin by accident — map both through one declared
 frame (`Ui::MapFrom`, `mapToGlobal`) before comparing, cropping, or
 clicking.
+
+## Verification
+
+The marker grammar has a producer check and a reader check.
+
+- `AppendPublicationIdentityScanSelfTest` ends with the
+  `publication_self_screenshot_marker` stage
+  ([self-test](test_publication_identity_scan_self_test.md)). It saves five
+  probes through the real `SaveImage`: a plain name; Unicode text padded by
+  two spaces on each side; a quote; the literal text `\u000A`; and a
+  backslash followed by all ten separators and a quote. It compares each
+  row's appended bytes with an independently written row, and each return
+  value and reloaded image with the expected path and probe pixels. The
+  stage applies only when `EvidenceDir()` has exactly one directory
+  component named `synthetic_marker_collision_handle`; otherwise it is
+  `TEST_RESULT: N/A` and proves nothing.
+- From `.agents/skills/process-inbox/scripts`,
+  `python3 -m unittest workspace_test -k parse_test_log -k test_run_reports_complete_markers`
+  decodes the same five rows with LF and CRLF terminators, keeps historical
+  POSIX, drive and UNC payloads and malformed quoted payloads verbatim, and
+  resolves a fake `test-run` row against that report's `run_dir`.
+
+Record executed results in the change's evidence.
 
 ## Related guidance
 

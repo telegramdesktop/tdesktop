@@ -79,6 +79,11 @@ MIRROR_REMOTE = "private"
 MIRROR_BRANCH_PREFIX = "ai-"
 MIRROR_PUSH_TIMEOUT = 120.0
 WAIT_IDLE_MAX_DEFAULT = 600.0
+# Test::SaveImage's grammar: Telegram/SourceFiles/test/docs/helpers/test_capture.md
+SCREENSHOT_MARKER_PATTERN = re.compile(
+	r'"(?:[^"\\]|\\[\\"]|\\u(?:000[ABCD]|001[CDE]|0085|202[89]))*"'
+)
+SCREENSHOT_ESCAPE_PATTERN = re.compile(r"\\(u[0-9A-F]{4}|.)")
 LSAPPINFO_ASN_PATTERN = re.compile(r"ASN:0x[0-9a-fA-F]+-0x[0-9a-fA-F]+:")
 LSAPPINFO_NAME_PATTERN = re.compile(r'"(.*)"\s+ASN:')
 LAUNCH_ACTIVATION_VARIABLE = "QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM"
@@ -2775,7 +2780,20 @@ def command_build_lock_recover(args):
 		sys.exit(2)
 
 
-def parse_test_log(text):
+def screenshot_marker_path(payload, evidence_dir):
+	# Historical absolute markers and malformed quoted text stay verbatim.
+	if not SCREENSHOT_MARKER_PATTERN.fullmatch(payload):
+		return payload
+
+	def unescape(match):
+		token = match.group(1)
+		return chr(int(token[1:], 16)) if len(token) > 1 else token
+
+	relative = SCREENSHOT_ESCAPE_PATTERN.sub(unescape, payload[1:-1])
+	return str(Path(evidence_dir) / relative)
+
+
+def parse_test_log(text, evidence_dir):
 	steps = []
 	passed = []
 	failed = []
@@ -2791,7 +2809,10 @@ def parse_test_log(text):
 		elif line.startswith("TEST_RESULT: N/A: "):
 			skipped.append(line[len("TEST_RESULT: N/A: "):])
 		elif line.startswith("SCREENSHOT: "):
-			screenshots.append(line[len("SCREENSHOT: "):])
+			screenshots.append(screenshot_marker_path(
+				line[len("SCREENSHOT: "):],
+				evidence_dir,
+			))
 	return {
 		"steps": steps,
 		"pass": passed,
@@ -3500,7 +3521,7 @@ def command_test_run(args):
 		"launch_method": "exec" if bundle is None else "background",
 		"launcher_exit_code": launcher_exit_code,
 		"log_path": str(log_path) if log_path.is_file() else None,
-		"markers": parse_test_log(log_text),
+		"markers": parse_test_log(log_text, run_dir),
 		"outcome": outcome,
 		"portable_root": str(portable),
 		"run_dir": str(run_dir),

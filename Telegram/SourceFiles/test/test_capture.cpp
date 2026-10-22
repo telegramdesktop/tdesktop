@@ -411,7 +411,10 @@ QString SaveImage(const QImage &image, const QString &name) {
 	if (!image.save(path, "PNG")) {
 		return QString();
 	}
-	LogRaw(u"SCREENSHOT: %1"_q.arg(path));
+	const auto relative = path.mid(EvidenceDir().size())
+		.replace(QChar('\\'), u"\\\\"_q)
+		.replace(QChar('"'), u"\\\""_q);
+	LogRaw(u"SCREENSHOT: \""_q + relative + QChar('"'));
 	return path;
 }
 

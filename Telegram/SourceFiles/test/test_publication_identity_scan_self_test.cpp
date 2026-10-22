@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "test/test_publication_identity_scan.h"
 
+#include "test/test_capture.h"
 #include "test/test_log.h"
 #include "test/test_runner.h"
 
@@ -1273,6 +1274,235 @@ void SelfPublicationOutput() {
 	}
 }
 
+// The synthetic identity the marker stage's evidence root is named after,
+// so an absolute screenshot path in the log would present it.
+const auto kCollisionHandle = u"synthetic_marker_collision_handle"_q;
+
+// Windows cannot save a file name holding '"', '\\' or a control character.
+#ifdef Q_OS_WIN
+constexpr auto kPosixOnlyNamesMayRefuse = true;
+#else // Q_OS_WIN
+constexpr auto kPosixOnlyNamesMayRefuse = false;
+#endif // Q_OS_WIN
+
+struct MarkerProbe {
+	QString label;
+	QString name;
+	QString row;
+	bool posixOnly = false;
+};
+
+struct ProbeSave {
+	QString path;
+	QByteArray appended;
+	QByteArray row;
+	bool fresh = false;
+	bool exists = false;
+	bool returnMatches = false;
+};
+
+[[nodiscard]] QString CollisionRootSkipReason() {
+	const auto components = int(ranges::count(
+		EvidenceDir().split(QChar('/')),
+		kCollisionHandle));
+	return (components == 1)
+		? QString()
+		: u"evidence root collision components=%1, required=1"_q
+			.arg(components);
+}
+
+// Six opaque, pairwise distinct pixels, so a reloaded file that is
+// transposed, cropped or re-encoded lossily cannot compare equal.
+[[nodiscard]] QImage MarkerProbeImage() {
+	auto result = QImage(3, 2, QImage::Format_RGB32);
+	for (auto y = 0; y != result.height(); ++y) {
+		for (auto x = 0; x != result.width(); ++x) {
+			result.setPixel(x, y, qRgb(40 + x * 80, 60 + y * 120, 220 - x * 70));
+		}
+	}
+	return result;
+}
+
+// The rows are transcribed by hand, never produced by the writer's escaping:
+// \\ and \" come from SaveImage, the ten \uXXXX tokens from LogRaw.
+[[nodiscard]] std::vector<MarkerProbe> MarkerProbes() {
+	return {
+		{
+			u"plain"_q,
+			u"screenshot_marker_plain"_q,
+			uR"(SCREENSHOT: "screenshots/screenshot_marker_plain.png")"_q,
+		},
+		{
+			u"padded Unicode"_q,
+			u"  screenshot marker "
+				u"\u0441\u043A\u0440\u0438\u043D\u0448\u043E\u0442_\U0001F600  "_q,
+			u"SCREENSHOT: \"screenshots/  screenshot marker "
+				u"\u0441\u043A\u0440\u0438\u043D\u0448\u043E\u0442_\U0001F600"
+				u"  .png\""_q,
+		},
+		{
+			u"quote"_q,
+			u"screenshot_marker_quote_\"_"_q,
+			uR"(SCREENSHOT: "screenshots/screenshot_marker_quote_\"_.png")"_q,
+			true,
+		},
+		{
+			u"literal escape"_q,
+			uR"(screenshot_marker_literal_\u000A_)"_q,
+			uR"(SCREENSHOT: "screenshots/screenshot_marker_literal_\\u000A_.png")"_q,
+			true,
+		},
+		{
+			u"mixed separators"_q,
+			u"screenshot_marker_mixed_\\"
+				u"\n\v\f\r\x1C\x1D\x1E\x85\u2028\u2029\""_q,
+			uR"(SCREENSHOT: "screenshots/screenshot_marker_mixed_\\)"
+				uR"(\u000A\u000B\u000C\u000D\u001C\u001D\u001E\u0085)"
+				uR"(\u2028\u2029\".png")"_q,
+			true,
+		},
+	};
+}
+
+// SaveImage with the bytes it appended to the real log: |row| is them minus
+// exactly one LF or CRLF terminator, empty when none ends them.
+[[nodiscard]] ProbeSave SaveProbe(const QImage &image, const QString &name) {
+	const auto target = ScreenshotsDir() + name + u".png"_q;
+	auto result = ProbeSave{ .fresh = !QFileInfo::exists(target) };
+	const auto mark = QFileInfo(EvidenceDir() + u"test_log.txt"_q).size();
+	result.path = SaveImage(image, name);
+	result.appended = Appended(mark);
+	result.row = result.appended.endsWith("\r\n")
+		? result.appended.chopped(2)
+		: result.appended.endsWith('\n')
+		? result.appended.chopped(1)
+		: QByteArray();
+	result.exists = QFileInfo::exists(target);
+	result.returnMatches = (result.path == target);
+	return result;
+}
+
+[[nodiscard]] bool SamePixels(const QImage &loaded, const QImage &probe) {
+	if (loaded.size() != probe.size()) {
+		return false;
+	}
+	for (auto y = 0; y != probe.height(); ++y) {
+		for (auto x = 0; x != probe.width(); ++x) {
+			if (loaded.pixel(x, y) != probe.pixel(x, y)) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+[[nodiscard]] bool Refused(const ProbeSave &save) {
+	return save.fresh
+		&& save.path.isEmpty()
+		&& save.appended.isEmpty()
+		&& !save.exists;
+}
+
+[[nodiscard]] ProbeSave CheckMarkerSave(
+		const MarkerProbe &probe,
+		const QImage &image) {
+	const auto save = SaveProbe(image, probe.name);
+	const auto saved = !save.path.isEmpty();
+	const auto rowMatches = !save.row.isEmpty()
+		&& (save.row == probe.row.toUtf8());
+	const auto absolute = QDir::isAbsolutePath(save.path);
+	const auto pixelsMatch = saved && SamePixels(QImage(save.path), image);
+	const auto refusalAllowed = probe.posixOnly && kPosixOnlyNamesMayRefuse;
+	Check(
+		saved
+			? (save.fresh
+				&& rowMatches
+				&& save.returnMatches
+				&& absolute
+				&& save.exists
+				&& pixelsMatch)
+			: (refusalAllowed && Refused(save)),
+		u"publication self-test: screenshot marker "_q + probe.label + u" save"_q,
+		u"fresh=%1 saved=%2 appended_bytes=%3 row_matches=%4 "
+		"return_matches=%5 absolute=%6 pixels_match=%7"_q
+			.arg(save.fresh ? 1 : 0)
+			.arg(saved ? 1 : 0)
+			.arg(save.appended.size())
+			.arg(rowMatches ? 1 : 0)
+			.arg(save.returnMatches ? 1 : 0)
+			.arg(absolute ? 1 : 0)
+			.arg(pixelsMatch ? 1 : 0));
+	return save;
+}
+
+// One actual marker row in a controlled synthetic tree, scanned for the
+// collision handle alone, so CheckCounts expects one control family.
+[[nodiscard]] Result ReadMarkerRow(const QString &row) {
+	auto fixture = CleanFixture();
+	fixture.test.push_back(row);
+	return RunFixture(fixture, { .username = kCollisionHandle });
+}
+
+void CheckMarkerRefusal(
+		const QString &label,
+		const QImage &image,
+		const QString &name) {
+	const auto save = SaveProbe(image, name);
+	Check(
+		Refused(save),
+		u"publication self-test: screenshot marker "_q + label + u" refused"_q,
+		u"fresh=%1 return_empty=%2 appended_bytes=%3 file_exists=%4"_q
+			.arg(save.fresh ? 1 : 0)
+			.arg(save.path.isEmpty() ? 1 : 0)
+			.arg(save.appended.size())
+			.arg(save.exists ? 1 : 0));
+}
+
+void SelfScreenshotMarker() {
+	const auto image = MarkerProbeImage();
+	auto paths = QStringList();
+	for (const auto &probe : MarkerProbes()) {
+		const auto save = CheckMarkerSave(probe, image);
+		if (!save.path.isEmpty()) {
+			CheckCounts(
+				ReadMarkerRow(QString::fromUtf8(save.row)),
+				u"screenshot marker "_q + probe.label + u" strict reading"_q,
+				SecrecyClass::TestLog,
+				{},
+				1);
+		}
+		paths.push_back(save.path);
+	}
+
+	// The plain probe leads MarkerProbes(); this row is never logged.
+	CheckCounts(
+		ReadMarkerRow(u"SCREENSHOT: "_q + paths.front()),
+		u"screenshot marker plain as a historical absolute row"_q,
+		SecrecyClass::TestLog,
+		{ .usernames = 1 },
+		1);
+	const auto handleProbe = MarkerProbe{
+		.label = u"handle-named"_q,
+		.name = kCollisionHandle,
+		.row = uR"(SCREENSHOT: "screenshots/synthetic_marker_collision_handle.png")"_q,
+	};
+	const auto handle = CheckMarkerSave(handleProbe, image);
+	CheckCounts(
+		ReadMarkerRow(QString::fromUtf8(handle.row)),
+		u"screenshot marker handle-named strict reading"_q,
+		SecrecyClass::TestLog,
+		{ .usernames = 1 },
+		1);
+	CheckMarkerRefusal(
+		u"null image"_q,
+		QImage(),
+		u"screenshot_marker_null_image"_q);
+	CheckMarkerRefusal(
+		u"missing parent"_q,
+		image,
+		u"screenshot_marker_missing_parent/probe"_q);
+}
+
 } // namespace
 
 void AppendPublicationIdentityScanSelfTest(not_null<Runner*> runner) {
@@ -1291,6 +1521,12 @@ void AppendPublicationIdentityScanSelfTest(not_null<Runner*> runner) {
 			.timeout = kDefaultStageTimeout,
 		});
 	}
+	runner->add({
+		.name = u"publication_self_screenshot_marker"_q,
+		.skipReason = CollisionRootSkipReason,
+		.then = SelfScreenshotMarker,
+		.timeout = kDefaultStageTimeout,
+	});
 }
 
 } // namespace Test

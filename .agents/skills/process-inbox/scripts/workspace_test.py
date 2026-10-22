@@ -1730,6 +1730,7 @@ def write_complete_markers_exe(path):
 		'echo "TEST_STEP: open settings" >> "$LOG"\n'
 		'echo "TEST_RESULT: PASS: row painted" >> "$LOG"\n'
 		'echo "SCREENSHOT: /tmp/fake.png" >> "$LOG"\n'
+		"echo 'SCREENSHOT: \"screenshots/fake shot.png\"' >> \"$LOG\"\n"
 		'echo "TEST_COMPLETE" >> "$LOG"\n'
 		"exit 0\n"
 	), (
@@ -1737,6 +1738,7 @@ def write_complete_markers_exe(path):
 		'echo TEST_STEP: open settings>>"%LOG%"\n'
 		'echo TEST_RESULT: PASS: row painted>>"%LOG%"\n'
 		'echo SCREENSHOT: /tmp/fake.png>>"%LOG%"\n'
+		'echo SCREENSHOT: "screenshots/fake shot.png">>"%LOG%"\n'
 		'echo TEST_COMPLETE>>"%LOG%"\n'
 		"exit /b 0\n"
 	))
@@ -2717,7 +2719,10 @@ class MechanicsTest(unittest.TestCase):
 			self.assertEqual(result["exit_code"], 0)
 			self.assertEqual(result["account"], "fresh-copy")
 			self.assertEqual(result["markers"]["pass"], ["row painted"])
-			self.assertEqual(result["markers"]["screenshots"], ["/tmp/fake.png"])
+			self.assertEqual(result["markers"]["screenshots"], [
+				"/tmp/fake.png",
+				str(Path(result["run_dir"]) / "screenshots" / "fake shot.png"),
+			])
 			self.assertFalse(result["crash_report_fresh"])
 
 	def test_test_run_redirects_the_launch_for_a_portable_root(self):
@@ -3109,12 +3114,75 @@ class MechanicsTest(unittest.TestCase):
 			"TEST_RESULT: PASS: applied stage - ran=1",
 			"TEST_RESULT: FAIL: other stage - ran=0",
 			"SCREENSHOT: /tmp/fake.png",
-		]))
+		]), Path("/synthetic/evidence"))
 		self.assertEqual(markers["skipped"], ["skipped stage - applies=0"])
 		self.assertEqual(markers["pass"], ["applied stage - ran=1"])
 		self.assertEqual(markers["fail"], ["other stage - ran=0"])
 		self.assertEqual(markers["steps"], ["gated stage self-test: arm"])
 		self.assertEqual(markers["screenshots"], ["/tmp/fake.png"])
+
+	def test_parse_test_log_resolves_quoted_screenshot_markers(self):
+		# Rows as Test::SaveImage and LogRaw write them, transcribed by hand.
+		rows = [
+			(
+				'SCREENSHOT: "screenshots/screenshot_marker_plain.png"',
+				"screenshot_marker_plain.png",
+			),
+			(
+				'SCREENSHOT: "screenshots/  screenshot marker '
+				'\u0441\u043a\u0440\u0438\u043d\u0448\u043e\u0442_\U0001f600'
+				'  .png"',
+				"  screenshot marker "
+				"\u0441\u043a\u0440\u0438\u043d\u0448\u043e\u0442_\U0001f600"
+				"  .png",
+			),
+			(
+				r'SCREENSHOT: "screenshots/screenshot_marker_quote_\"_.png"',
+				'screenshot_marker_quote_"_.png',
+			),
+			(
+				r'SCREENSHOT: "screenshots/screenshot_marker_literal_\\u000A_.png"',
+				r"screenshot_marker_literal_\u000A_.png",
+			),
+			(
+				r'SCREENSHOT: "screenshots/screenshot_marker_mixed_\\\u000A\u000B'
+				r'\u000C\u000D\u001C\u001D\u001E\u0085\u2028\u2029\".png"',
+				"screenshot_marker_mixed_\\"
+				"\n\x0b\x0c\r\x1c\x1d\x1e\x85\u2028\u2029\".png",
+			),
+		]
+		evidence = Path("/synthetic/evidence root")
+		expected = [str(evidence / "screenshots" / name) for _, name in rows]
+		for terminator in ("\n", "\r\n"):
+			text = "".join(row + terminator for row, _ in rows)
+			markers = workspace.parse_test_log(text, evidence)
+			self.assertEqual(markers["screenshots"], expected, repr(terminator))
+
+	def test_parse_test_log_keeps_historical_and_malformed_screenshots(self):
+		payloads = [
+			"/tmp/fake.png",
+			r"/run/screenshots/a\u000Ab.png",
+			r'/run/screenshots/a\"b.png',
+			"C:/run/screenshots/a b.png",
+			"//host/share/run/screenshots/a.png",
+			r"\\host\share\run\screenshots\a.png",
+			'"screenshots/a.png',
+			r'"screenshots/a\tb.png"',
+			r'"screenshots/a\u0041b.png"',
+			r'"screenshots/a\u000ab.png"',
+			r'"screenshots/a\u000"',
+			r'"screenshots/a.png\"',
+			'"screenshots/a"b.png"',
+			'"screenshots/a.png" trailing',
+			'"screenshots/a.png" ',
+			' "screenshots/a.png"',
+		]
+		for terminator in ("\n", "\r\n"):
+			text = "".join(
+				"SCREENSHOT: " + payload + terminator for payload in payloads
+			)
+			markers = workspace.parse_test_log(text, Path("/synthetic/evidence"))
+			self.assertEqual(markers["screenshots"], payloads, repr(terminator))
 
 	def test_log_marks_complete_reads_the_marker_as_a_whole_line(self):
 		for text in [

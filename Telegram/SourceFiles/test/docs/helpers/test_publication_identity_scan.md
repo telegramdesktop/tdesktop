@@ -17,9 +17,12 @@ Separate public-presentation and launch-log coverage audits:
 public identities; `ReadLaunchLogEnumeration` / `CheckLaunchLogEnumeration`
 establish controlled coverage only. Fixed `PublicationIdentityRows` /
 `LaunchLogEnumerationRows` contain classifications and counts. Neither proves
-fixture secrecy. `AppendPublicationIdentityScanSelfTest` registers six
-synchronous, session-free stages over synthetic log trees, independently of
-the eleven strict-secret stages. See the finite grammar and refusals below.
+fixture secrecy. `AppendPublicationIdentityScanSelfTest` registers seven
+synchronous, session-free stages, independently of the eleven strict-secret
+stages: six over synthetic log trees, and a seventh over actual screenshot
+markers that applies only when the evidence root has exactly one
+`synthetic_marker_collision_handle` directory component. See the finite
+grammar and refusals below.
 
 ## Claims, coverage and identity grammar
 
@@ -106,8 +109,12 @@ The identity grammar is finite and applies only to supplied descriptors:
   `@username`, `t.me/username`, `http[s]://t.me/username`,
   `http[s]://telegram.me/username` or `tg://resolve?domain=username`.
   A complete username path component in screenshot metadata counts too.
-  Longer handles, partial names and underscore continuations do not count;
-  overlapping spellings of one occurrence count once. Inputs use ASCII
+  `SaveImage` markers are relative to the evidence directory
+  ([grammar](test_capture.md#saved-images-and-the-screenshot-marker)), so a
+  host directory no longer appears in them, but a username in the caller's
+  own image name still counts. Longer handles, partial names and underscore
+  continuations do not count; overlapping spellings of one occurrence count
+  once. Inputs use ASCII
   letters, digits and underscores, include at least one letter, are at most
   64 characters and match with ASCII case folding.
 - **Phone:** the complete international number, canonical or with ASCII
@@ -153,7 +160,10 @@ may coincide with a supplied tiny name/id; that coincidence is not value
 emission. `AppendPublicationIdentityScanSelfTest` independently exercises
 coincidences, presentations, enumeration, accepted selection, claim
 separation, parser bounds and actual formatter/wrapper output, without an
-account or network.
+account or network. Under its collision-named evidence root it also reads
+actual `SaveImage` markers: the relative rows are clean, the same file's
+historical absolute row and a deliberately handle-named file each count
+once.
 
 ## Related guidance
 
