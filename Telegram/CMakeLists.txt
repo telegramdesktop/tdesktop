@@ -1103,6 +1103,8 @@ PRIVATE
     history/view/media/history_view_unique_gift.h
     history/view/media/history_view_unsupported_notice.cpp
     history/view/media/history_view_unsupported_notice.h
+    history/view/media/history_view_unsupported_widget.cpp
+    history/view/media/history_view_unsupported_widget.h
     history/view/media/history_view_userpic_suggestion.cpp
     history/view/media/history_view_userpic_suggestion.h
     history/view/media/history_view_video_message_seek.cpp
@@ -2202,6 +2204,8 @@ PRIVATE
     tgw/tgw_intl.h
     tgw/tgw_log_box.cpp
     tgw/tgw_log_box.h
+    tgw/tgw_media.cpp
+    tgw/tgw_media.h
     tgw/tgw_painter.cpp
     tgw/tgw_painter.h
     tgw/tgw_painter_filters.cpp

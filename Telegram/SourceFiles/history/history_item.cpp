@@ -87,6 +87,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_non_panel_process.h" // ProcessNonPanelPaymentFormFactory.
 #include "platform/platform_notifications_manager.h"
 #include "spellcheck/spellcheck_highlight_syntax.h"
+#include "tgw/tgw_media.h"
 
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"
@@ -559,8 +560,14 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 	}, [](const MTPDmessageMediaVideoStream &) -> Result {
 		// Live stories.
 		return nullptr;
-	}, [](const MTPDmessageMediaWidget &) -> Result {
-		return nullptr; // #TODO widgets
+	}, [&](const MTPDmessageMediaWidget &media) -> Result {
+		return std::make_unique<Tgw::WidgetMedia>(
+			item,
+			Tgw::Anchors{
+				.width = media.vwidth().v,
+				.height = media.vheight().v,
+			},
+			media.vpayload().v);
 	}, [](const MTPDmessageMediaEmpty &) -> Result {
 		return nullptr;
 	}, [](const MTPDmessageMediaUnsupported &) -> Result {
