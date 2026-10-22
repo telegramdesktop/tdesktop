@@ -892,6 +892,60 @@ command, environment, exit-code, log, artifact and control evidence.
     activating the app by `Test::KeepWindowExposed`
     (`Telegram/SourceFiles/test/test_window_exposure.h`) either way; the gate itself cannot prevent
     that occlusion.
+  - **Host load gate (Windows).** `--host-load` waits before the launch, within a bound and without
+    stopping or otherwise touching any process, until no build-tool process runs (from any checkout
+    or user) and the other processes' CPU has stayed below a threshold, then samples their CPU from
+    the launch until the client's process ends. `--host-load-threshold <percent>` (default 15, above
+    0 and at most 100), `--host-load-hold <seconds>` (default 5, positive),
+    `--host-load-max <seconds>` (default 600, zero or more) and `--host-load-interval <seconds>`
+    (default 1, at least 0.1) tune it and do nothing without it; an invalid value is refused before
+    SETUP with nothing created. Load is a percent of the whole machine: the CPU time the other
+    processes used in a sample's interval over that interval times `logical_processors`
+    (`os.cpu_count()`), so one busy thread on 16 logical processors reads 6.25. "Other" excludes
+    `test-run`'s own process (`excluded.test_run_pid`) and the launched client's process tree
+    (`client_pid`, and every member seen, by `name` and `pid`, in `client_processes`; a descendant
+    stays excluded after the process between it and the client exits, a reused pid does not inherit
+    the exclusion). The build tools are the build-lock names `cl`, `cmake`, `cvtres`, `link`, `moc`,
+    `msbuild`, `ninja`, `rc`, `rcc` and `uic` `.exe`, compared case-insensitively, but not
+    `mspdbsrv.exe`, the PDB server that outlives the build that started it: it never holds the wait,
+    and its CPU still counts. MSBuild worker nodes that an IDE or `/nodeReuse` keeps alive after a
+    build are `MSBuild.exe` processes and hold the wait to its bound, named in `build_tools_seen`.
+    The wait takes a baseline reading, then one sample per interval; a sample with a build tool or
+    with the others at or above the threshold restarts the hold, and the wait is met once the
+    samples have stayed clear for `--host-load-hold` seconds. When `--host-load-max` elapses first
+    the client launches anyway with `met: false`; no pause runs past the bound, and
+    `--host-load-max 0` takes the baseline only and launches at once. The wait runs after the
+    `--wait-idle` gate (both are recorded), the account setup, the straggler kill, the stale-crash
+    move and the crash snapshots, right before the launch, so its condition is the last one
+    established; it counts toward none of `--deadline`, `--quiet` or `duration_seconds`, and a
+    missing executable, portable root or golden folder fails before any reading. It can add up to
+    `--host-load-max` seconds before the launch: size the command's timeout for that, or run it in
+    the background. `host_load` is `null` without the flag; otherwise it echoes `threshold_percent`,
+    `hold_seconds`, `max_seconds` and `interval_seconds` and records `logical_processors`,
+    `excluded`, `unsupported`, `wait` (`met`, `waited_seconds`, `build_tools_seen` by `name` and
+    `pid`, the last five samples in `last_samples`, `error`), `trace` (`samples`, `mean_percent`,
+    `max_percent`, `over_threshold` - the samples at or above the threshold - `build_tools_seen`,
+    `error`) and `samples_file`. A sample holds `seconds` (the end of its interval, from the wait's
+    or the trace's start), `others_percent`, `top` (up to three other processes with a nonzero
+    share, by `name`, `pid` and `percent`) and `build_tools`; the named
+    `<EVIDENCE_DIR>/host_load_samples.jsonl` holds every wait sample and then every trace sample,
+    one JSON object per line with `phase` `"wait"` or `"trace"`. A failed wait reading ends the wait
+    with `met: null` and the reason in `wait.error` (`<Type>: <message>`), and the client launches;
+    a failed trace reading ends the trace with `trace.error` and keeps the samples taken before it;
+    a failed file write leaves `samples_file` `null` with the reason in `samples_file_error`; a
+    client that ends within the first interval leaves `samples: 0` with `null` mean and maximum,
+    which is no measurement, not a quiet launch. Off Windows `unsupported` gives the reason, the
+    parameters are echoed, every other field is `null`, and the launch is not delayed. The readings
+    never fail the command and never change `outcome`, `verdict_hint` or any other field. The
+    sampler stays inside `test-run`: one `NtQuerySystemInformation` process snapshot per reading, no
+    helper process, no handle to another process, and `test-run` starts no process while it waits or
+    samples, so the sampler's few milliseconds per reading are `test-run`'s own CPU and excluded
+    with it. A process that starts and ends between two readings is never seen, CPU a process uses
+    after its last reading is lost, and the interval in which the client ends is not sampled, so a
+    short burst reads low and a short-lived build tool can be missed. Every launch whose wall-clock
+    timing is compared against another launch uses `--host-load`, and the assessor reads its `wait`,
+    its `trace` and the series' `top` contributors before counting it; whether a loaded launch
+    counts stays the assessor's judgement.
 
 ### Crashes & assertions (always launch the test binary with `-testagent`)
 

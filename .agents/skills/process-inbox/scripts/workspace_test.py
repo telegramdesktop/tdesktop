@@ -2,14 +2,18 @@
 
 import contextlib
 import datetime
+import hashlib
 import io
 import json
 import os
 from pathlib import Path
 import plistlib
+import shutil
 import signal
 import subprocess
+import sys
 import tempfile
+import threading
 import time
 from types import SimpleNamespace
 import unittest
@@ -1927,6 +1931,11 @@ def run_test_run(exe, run_dir, **overrides):
 		"grace": 5.0,
 		"wait_idle": None,
 		"wait_idle_max": workspace.WAIT_IDLE_MAX_DEFAULT,
+		"host_load": False,
+		"host_load_threshold": workspace.HOST_LOAD_THRESHOLD_DEFAULT,
+		"host_load_hold": workspace.HOST_LOAD_HOLD_DEFAULT,
+		"host_load_max": workspace.HOST_LOAD_MAX_DEFAULT,
+		"host_load_interval": workspace.HOST_LOAD_INTERVAL_DEFAULT,
 		"activate": False,
 		"env": None,
 	}
@@ -2042,6 +2051,174 @@ class FakeConsole:
 			),
 		):
 			yield self
+
+
+needs_windows = unittest.skipUnless(
+	os.name == "nt", "the host-load sampler is implemented on Windows only",
+)
+HOST_LOAD_FIXTURE_TIMEOUT = 60.0
+BURN_SCRIPT = """\
+import json, os, sys, time
+seconds, record = float(sys.argv[1]), sys.argv[2]
+def save(path, **values):
+	with open(path + ".tmp", "w") as file:
+		json.dump({"pid": os.getpid(), **values}, file)
+	os.replace(path + ".tmp", path)
+start, cpu = time.monotonic(), time.process_time()
+save(record + ".ready", start=start)
+while time.monotonic() - start < seconds:
+	pass
+save(record, start=start, end=time.monotonic(), cpu=time.process_time() - cpu)
+"""
+
+
+def write_burn_script(directory):
+	script = directory / "burn.py"
+	script.write_text(BURN_SCRIPT, encoding="utf-8")
+	return script
+
+
+def write_python_client(path, *arguments):
+	command = subprocess.list2cmdline([sys.executable, "-I", *arguments])
+	return write_fake_exe(path, (
+		f"{command}\n"
+		'echo "TEST_COMPLETE" >> "$TDESKTOP_TEST_EVIDENCE_DIR/test_log.txt"\n'
+		"exit 0\n"
+	), (
+		f"{command}\n"
+		'echo TEST_COMPLETE>>"%TDESKTOP_TEST_EVIDENCE_DIR%\\test_log.txt"\n'
+		"exit /b 0\n"
+	))
+
+
+def owned_process(test, argv):
+	process = subprocess.Popen(argv, stdout=subprocess.DEVNULL)
+
+	def close():
+		if process.poll() is None:
+			process.kill()
+		process.wait()
+
+	test.addCleanup(close)
+	return process
+
+
+def start_burner(test, script, seconds, record):
+	process = owned_process(
+		test, [sys.executable, "-I", str(script), str(seconds), str(record)],
+	)
+	ready = Path(f"{record}.ready")
+	deadline = time.monotonic() + HOST_LOAD_FIXTURE_TIMEOUT
+	while not ready.is_file():
+		if process.poll() is not None or time.monotonic() > deadline:
+			test.fail(f"burner {process.pid} never got ready: {process.poll()}")
+		time.sleep(0.01)
+	return process
+
+
+def read_json(path):
+	return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def host_load_test_options(bound=30.0):
+	return {
+		"host_load": True,
+		"host_load_threshold": 12.5 / os.cpu_count(),
+		"host_load_hold": 0.5,
+		"host_load_max": bound,
+		"host_load_interval": 0.25,
+	}
+
+
+def host_load_series(result):
+	series = {"wait": [], "trace": []}
+	text = Path(result["host_load"]["samples_file"]).read_text(encoding="utf-8")
+	for line in text.splitlines():
+		sample = json.loads(line)
+		series[sample.pop("phase")].append(sample)
+	return series
+
+
+def cpu_percent_within(work, start, end):
+	# one thread spends at most its wall time outside the window
+	overlap = max(0.0, min(work["end"], end) - max(work["start"], start))
+	inside = work["cpu"] - (work["end"] - work["start"] - overlap)
+	return 100 * inside / ((end - start) * os.cpu_count())
+
+
+class ProcessScope:
+	def __init__(self):
+		self.real = workspace.windows_process_snapshot
+		self.seen = {}
+
+	def snapshot(self, size):
+		size, records = self.real(size)
+		root = os.getpid()
+		kept = {root: records[root]}
+		grown = True
+		while grown:
+			grown = False
+			for pid, record in records.items():
+				parent = kept.get(record["parent_pid"])
+				if (
+					pid not in kept
+					and parent is not None
+					and parent["created"] <= record["created"]
+				):
+					kept[pid] = record
+					grown = True
+		self.seen.update(kept)
+		return size, kept
+
+	def installed(self):
+		return mock.patch.object(
+			workspace, "windows_process_snapshot", side_effect=self.snapshot,
+		)
+
+
+class FakeClock:
+	def __init__(self):
+		self.now = 0.0
+		self.sleeps = []
+
+	def __call__(self):
+		return self.now
+
+	def sleep(self, seconds):
+		self.sleeps.append(seconds)
+		self.now += seconds
+
+
+def fake_host_load_monitor(hold=2.0, bound=30.0):
+	with (
+		mock.patch.object(
+			workspace, "host_load_unsupported_reason", return_value=None,
+		),
+		mock.patch.object(workspace.os, "cpu_count", return_value=16),
+	):
+		return workspace.HostLoadMonitor({
+			"hold_seconds": hold,
+			"interval_seconds": 1.0,
+			"max_seconds": bound,
+			"threshold_percent": 6.25,
+		})
+
+
+def patch_monitor(name, side_effect=None):
+	return mock.patch.object(
+		workspace.HostLoadMonitor, name, autospec=True, side_effect=side_effect,
+	)
+
+
+def load_snapshots(pid, loads):
+	cpu = 0
+	step = 0
+	while True:
+		yield workspace.HOST_LOAD_SNAPSHOT_SIZE, {pid: {
+			"cpu": cpu, "created": 1, "name": "other.exe", "parent_pid": 1,
+		}}
+		cpu += loads[min(step, len(loads) - 1)] * 10**7
+		step += 1
 
 
 class SourcePreparationTest(unittest.TestCase):
@@ -3757,6 +3934,675 @@ class MechanicsTest(unittest.TestCase):
 				)
 			self.assertEqual(console.sleeps, [])
 			self.assertFalse((debug / workspace.PORTABLE_LIVE).exists())
+
+	@needs_windows
+	def test_test_run_host_load_waits_out_a_burner_and_ignores_a_busy_client(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			script = write_burn_script(root)
+			busy = root / "client.json"
+			exe = write_python_client(
+				debug / "Telegram", str(script), "1.5", str(busy),
+			)
+			scope = ProcessScope()
+			burners = []
+			marks = {}
+			real_wait = workspace.HostLoadMonitor.wait
+			real_start = workspace.HostLoadMonitor.start_trace
+
+			def wait(monitor):
+				marks["live"] = (debug / workspace.PORTABLE_LIVE).is_dir()
+				burners.append(start_burner(self, script, 1.5, root / "burner.json"))
+				marks["wait"] = time.monotonic()
+				return real_wait(monitor)
+
+			def start_trace(monitor, process):
+				marks["client"] = process.pid
+				real_start(monitor, process)
+				marks["trace"] = monitor.trace_origin
+
+			with (
+				scope.installed(),
+				patch_monitor("wait", wait),
+				patch_monitor("start_trace", start_trace),
+			):
+				result = run_test_run(exe, root / "run1", **host_load_test_options())
+			self.assertEqual(burners[0].wait(HOST_LOAD_FIXTURE_TIMEOUT), 0)
+			burner = read_json(root / "burner.json")
+			client = read_json(busy)
+			host = result["host_load"]
+			threshold = host["threshold_percent"]
+			series = host_load_series(result)
+			self.assertLessEqual(
+				{os.getpid(), burner["pid"], marks["client"], client["pid"]},
+				set(scope.seen),
+			)
+			self.assertTrue(marks["live"])
+			self.assertGreaterEqual(burner["end"] - burner["start"], 1.5)
+			self.assertIs(host["wait"]["met"], True)
+			self.assertGreaterEqual(
+				marks["wait"] + host["wait"]["waited_seconds"],
+				burner["end"] - 0.001,
+			)
+			self.assertTrue(any(
+				sample["others_percent"] > threshold
+				and burner["pid"] in [entry["pid"] for entry in sample["top"]]
+				for sample in series["wait"]
+			), series["wait"])
+			trace = host["trace"]
+			self.assertGreaterEqual(trace["samples"], 3)
+			self.assertEqual(trace["over_threshold"], 0, series["trace"])
+			self.assertLess(trace["max_percent"], threshold)
+			self.assertIsNone(trace["error"])
+			excluded = host["excluded"]
+			self.assertEqual(excluded["test_run_pid"], os.getpid())
+			self.assertEqual(excluded["client_pid"], marks["client"])
+			self.assertLessEqual(
+				{marks["client"], client["pid"]},
+				{entry["pid"] for entry in excluded["client_processes"]},
+			)
+			trace_end = marks["trace"] + series["trace"][-1]["seconds"]
+			self.assertGreater(
+				cpu_percent_within(client, marks["trace"], trace_end), threshold,
+			)
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "complete")
+
+	@needs_windows
+	def test_test_run_host_load_launches_at_its_bound_and_traces_a_burner(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			script = write_burn_script(root)
+			exe = write_python_client(
+				debug / "Telegram", "-c", "import time; time.sleep(2)",
+			)
+			scope = ProcessScope()
+			burners = []
+			marks = {}
+			real_wait = workspace.HostLoadMonitor.wait
+			real_start = workspace.HostLoadMonitor.start_trace
+
+			def wait(monitor):
+				burners.append(start_burner(self, script, 4.0, root / "burner.json"))
+				return real_wait(monitor)
+
+			def start_trace(monitor, process):
+				marks["launch"] = time.monotonic()
+				marks["client"] = process.pid
+				real_start(monitor, process)
+
+			with (
+				scope.installed(),
+				patch_monitor("wait", wait),
+				patch_monitor("start_trace", start_trace),
+			):
+				result = run_test_run(
+					exe, root / "run1", **host_load_test_options(bound=0.75),
+				)
+			self.assertEqual(burners[0].wait(HOST_LOAD_FIXTURE_TIMEOUT), 0)
+			burner = read_json(root / "burner.json")
+			host = result["host_load"]
+			threshold = host["threshold_percent"]
+			series = host_load_series(result)
+			self.assertLessEqual(
+				{os.getpid(), burner["pid"], marks["client"]}, set(scope.seen),
+			)
+			self.assertGreaterEqual(burner["end"] - burner["start"], 4.0)
+			self.assertGreater(burner["end"], marks["launch"])
+			self.assertIs(host["wait"]["met"], False)
+			self.assertGreaterEqual(host["wait"]["waited_seconds"], 0.75)
+			trace = host["trace"]
+			self.assertGreaterEqual(trace["samples"], 3)
+			self.assertGreater(trace["mean_percent"], threshold)
+			self.assertGreater(trace["max_percent"], threshold)
+			self.assertGreater(trace["over_threshold"], 0)
+			self.assertTrue(any(
+				burner["pid"] in [entry["pid"] for entry in sample["top"]]
+				for sample in series["trace"]
+			), series["trace"])
+			self.assertEqual(
+				Path(host["samples_file"]),
+				Path(result["run_dir"]) / workspace.HOST_LOAD_SAMPLES_FILE,
+			)
+			self.assertEqual(series["wait"], host["wait"]["last_samples"])
+			values = [sample["others_percent"] for sample in series["trace"]]
+			self.assertEqual(len(values), trace["samples"])
+			self.assertEqual(max(values), trace["max_percent"])
+			self.assertAlmostEqual(
+				sum(values) / len(values), trace["mean_percent"], delta=0.01,
+			)
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "complete")
+
+	@needs_windows
+	def test_test_run_host_load_quiet_control_ignores_its_own_cpu(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			exe = write_python_client(
+				debug / "Telegram", "-c", "import time; time.sleep(2)",
+			)
+			scope = ProcessScope()
+			marks = {}
+			data = bytes(8 << 20)
+			burning = threading.Event()
+			stop = threading.Event()
+			self.addCleanup(stop.set)
+			hashed = {}
+
+			def hash_in_this_process():
+				start, cpu = time.monotonic(), time.thread_time()
+				burning.set()
+				while not stop.is_set():
+					hashlib.sha256(data).digest()
+				hashed.update(
+					start=start, end=time.monotonic(), cpu=time.thread_time() - cpu,
+				)
+
+			worker = threading.Thread(target=hash_in_this_process, daemon=True)
+			real_start = workspace.HostLoadMonitor.start_trace
+			real_stop = workspace.HostLoadMonitor.stop_trace
+
+			def start_trace(monitor, process):
+				marks["client"] = process.pid
+				worker.start()
+				self.assertTrue(burning.wait(HOST_LOAD_FIXTURE_TIMEOUT))
+				real_start(monitor, process)
+				marks["trace"] = monitor.trace_origin
+
+			def stop_trace(monitor):
+				stop.set()
+				if worker.is_alive():
+					worker.join(HOST_LOAD_FIXTURE_TIMEOUT)
+				real_stop(monitor)
+
+			with (
+				scope.installed(),
+				patch_monitor("start_trace", start_trace),
+				patch_monitor("stop_trace", stop_trace),
+			):
+				result = run_test_run(exe, root / "run1", **host_load_test_options())
+			self.assertFalse(worker.is_alive())
+			host = result["host_load"]
+			threshold = host["threshold_percent"]
+			series = host_load_series(result)
+			self.assertLessEqual({os.getpid(), marks["client"]}, set(scope.seen))
+			self.assertIs(host["wait"]["met"], True)
+			self.assertLessEqual(
+				host["wait"]["waited_seconds"], 0.5 + 0.25 + 0.5,
+				"hold plus one interval plus 0.5 s of scheduling slack",
+			)
+			trace = host["trace"]
+			self.assertGreaterEqual(trace["samples"], 3)
+			self.assertEqual(trace["over_threshold"], 0, series["trace"])
+			self.assertLess(trace["max_percent"], threshold)
+			self.assertIsNone(trace["error"])
+			trace_end = marks["trace"] + series["trace"][-1]["seconds"]
+			self.assertGreater(
+				cpu_percent_within(hashed, marks["trace"], trace_end), threshold,
+			)
+			client_children = [
+				entry for entry in host["excluded"]["client_processes"]
+				if entry["pid"] != marks["client"]
+			]
+			self.assertTrue(client_children, host["excluded"])
+			self.assertEqual(result["verdict_hint"], "complete")
+
+	@needs_windows
+	def test_test_run_host_load_waits_while_a_build_tool_runs(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			tool = root / "tools" / "cl.exe"
+			tool.parent.mkdir()
+			shutil.copyfile(
+				Path(os.environ["SystemRoot"]) / "System32" / "PING.EXE", tool,
+			)
+			scope = ProcessScope()
+			tools = []
+			marks = {}
+			real_wait = workspace.HostLoadMonitor.wait
+			real_start = workspace.HostLoadMonitor.start_trace
+
+			def wait(monitor):
+				tools.append(owned_process(self, [str(tool), "-n", "3", "127.0.0.1"]))
+				return real_wait(monitor)
+
+			def start_trace(monitor, process):
+				marks["tool_exit"] = tools[0].poll()
+				real_start(monitor, process)
+
+			with (
+				scope.installed(),
+				patch_monitor("wait", wait),
+				patch_monitor("start_trace", start_trace),
+			):
+				result = run_test_run(exe, root / "run1", **host_load_test_options())
+			stand_in = {"name": "cl.exe", "pid": tools[0].pid}
+			host = result["host_load"]
+			series = host_load_series(result)
+			self.assertIn(tools[0].pid, scope.seen)
+			self.assertEqual(marks["tool_exit"], 0)
+			self.assertIs(host["wait"]["met"], True)
+			self.assertIn(stand_in, host["wait"]["build_tools_seen"])
+			self.assertTrue(any(
+				stand_in in sample["build_tools"]
+				and sample["others_percent"] < host["threshold_percent"]
+				for sample in series["wait"]
+			), series["wait"])
+			self.assertEqual(result["verdict_hint"], "complete")
+
+	@needs_windows
+	def test_windows_process_snapshot_grows_and_reads_this_process(self):
+		size, records = workspace.windows_process_snapshot(64)
+		me = records[os.getpid()]
+		self.assertGreater(size, 64)
+		self.assertNotIn(0, records)
+		self.assertEqual(me["parent_pid"], os.getppid())
+		self.assertTrue(me["name"])
+		self.assertGreater(me["cpu"], 0)
+		self.assertGreater(me["created"], 0)
+
+	def test_host_load_wait_meets_its_hold_and_bound(self):
+		other = os.getpid() + 1
+		for name, hold, bound, loads, met, percents, sleeps in (
+			(
+				"busy then calm", 2.0, 30.0, [2, 2, 2, 0],
+				True, [12.5, 12.5, 12.5, 0.0, 0.0], [1.0] * 5,
+			),
+			(
+				"busy restarts the hold", 2.0, 30.0, [0, 2, 0],
+				True, [0.0, 12.5, 0.0, 0.0], [1.0] * 4,
+			),
+			("quiet", 2.0, 30.0, [0], True, [0.0, 0.0], [1.0] * 2),
+			("the threshold is busy", 2.0, 4.0, [1], False, [6.25] * 4, [1.0] * 4),
+			("no wait", 2.0, 0.0, [0], False, [], []),
+			("bound below an interval", 2.0, 0.5, [0], False, [0.0], [0.5]),
+			("hold beyond the bound", 5.0, 3.0, [0], False, [0.0] * 3, [1.0] * 3),
+		):
+			with self.subTest(name):
+				clock = FakeClock()
+				monitor = fake_host_load_monitor(hold, bound)
+				with mock.patch.object(
+					workspace, "windows_process_snapshot",
+					side_effect=load_snapshots(other, loads),
+				):
+					result = monitor.wait(clock=clock, sleep=clock.sleep)
+				self.assertIs(result["met"], met)
+				self.assertIsNone(result["error"])
+				self.assertEqual(
+					[sample["others_percent"] for sample in result["last_samples"]],
+					percents,
+				)
+				self.assertEqual(clock.sleeps, sleeps)
+				self.assertEqual(result["waited_seconds"], sum(sleeps))
+
+	def test_host_load_sample_math_and_process_identities(self):
+		me = os.getpid()
+		(
+			other, client, child, grandchild, newcomer, adopted, tool, server,
+			helper, orphan, outsider,
+		) = range(me + 1, me + 12)
+
+		def process(cpu, created, name, parent=1):
+			return {
+				"cpu": round(cpu * 10**7),
+				"created": created,
+				"name": name,
+				"parent_pid": parent,
+			}
+
+		identities = [
+			({
+				me: process(0, 1, "python.exe"),
+				other: process(0, 2, "other.exe"),
+				client: process(0, 3, "cmd.exe", me),
+				child: process(0, 4, "python.exe", client),
+			}, None, [], []),
+			({
+				me: process(5, 1, "python.exe"),
+				other: process(1, 2, "other.exe"),
+				client: process(2, 3, "cmd.exe", me),
+				child: process(3, 4, "python.exe", client),
+			}, 6.25, [(other, 6.25)], []),
+			({
+				me: process(9, 1, "python.exe"),
+				other: process(1, 2, "other.exe"),
+				client: process(3, 3, "cmd.exe", me),
+				grandchild: process(2, 5, "python.exe", child),
+				newcomer: process(0.5, 6, "new.exe"),
+			}, 3.125, [(newcomer, 3.125)], []),
+			({
+				me: process(12, 1, "python.exe"),
+				other: process(0.25, 7, "reused.exe"),
+				client: process(0.5, 8, "reused.exe"),
+				grandchild: process(4, 5, "python.exe", child),
+				newcomer: process(0.5, 6, "new.exe"),
+				adopted: process(1, 9, "adopted.exe", client),
+			}, 10.9375, [(adopted, 6.25), (client, 3.125), (other, 1.5625)], []),
+			({
+				me: process(12, 1, "python.exe"),
+				grandchild: process(4, 5, "python.exe", child),
+				tool: process(0, 10, "Cl.Exe"),
+				server: process(1, 11, "MSPDBSRV.EXE"),
+			}, 6.25, [(server, 6.25)], [{"name": "Cl.Exe", "pid": tool}]),
+		]
+		reused_parent = [
+			({
+				me: process(0, 1, "python.exe"),
+				client: process(0, 3, "cmd.exe", me),
+				helper: process(0, 20, "helper.exe", client),
+			}, None, [], []),
+			({
+				me: process(0, 1, "python.exe"),
+				client: process(0, 3, "cmd.exe", me),
+				helper: process(0, 30, "other.exe"),
+				orphan: process(1, 25, "python.exe", helper),
+				outsider: process(1, 40, "burner.exe", helper),
+			}, 6.25, [(outsider, 6.25)], []),
+			({
+				me: process(0, 1, "python.exe"),
+				client: process(0, 3, "cmd.exe", me),
+				helper: process(0, 50, "reused.exe"),
+				orphan: process(2, 25, "python.exe", helper),
+				outsider: process(2, 40, "burner.exe", helper),
+			}, 6.25, [(outsider, 6.25)], []),
+		]
+		for name, steps, members in (
+			("identities", identities, {(client, 3), (child, 4), (grandchild, 5)}),
+			(
+				"reused external parent", reused_parent,
+				{(client, 3), (helper, 20), (orphan, 25)},
+			),
+		):
+			clock = FakeClock()
+			monitor = fake_host_load_monitor()
+			monitor.client_pid = client
+			with mock.patch.object(
+				workspace, "windows_process_snapshot",
+				side_effect=[(64, records) for records, *_ in steps],
+			):
+				for index, (_, percent, top, tools) in enumerate(steps):
+					with self.subTest(name, step=index):
+						_, seen_tools, seen_percent, seen_top = monitor._observe(clock)
+						self.assertEqual(seen_percent, percent)
+						self.assertEqual(
+							[(entry["pid"], entry["percent"]) for entry in seen_top or []],
+							top,
+						)
+						self.assertEqual(seen_tools, tools)
+					clock.sleep(1.0)
+			with self.subTest(name, client=True):
+				self.assertEqual(set(monitor.client), members)
+
+	def test_test_run_host_load_stays_off_without_its_flag(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			plain = ["workspace.py", "test-run", "--exe", str(exe), "--run-dir"]
+			with mock.patch("sys.argv", [*plain, str(root / "run0")]):
+				args = workspace.parse_args()
+			self.assertEqual(
+				(
+					args.host_load, args.host_load_threshold, args.host_load_hold,
+					args.host_load_max, args.host_load_interval,
+				),
+				(False, 15.0, 5.0, 600.0, 1.0),
+			)
+			for index, extra in enumerate((
+				[],
+				["--host-load-threshold", "50", "--host-load-max", "0"],
+			)):
+				with (
+					self.subTest(extra=extra),
+					mock.patch("sys.argv", [*plain, str(root / f"run{index}"), *extra]),
+				):
+					options = dict(vars(workspace.parse_args()))
+					with mock.patch.object(
+						workspace, "HostLoadMonitor",
+						side_effect=AssertionError("HostLoadMonitor constructed"),
+					) as monitor:
+						result = run_command(options.pop("handler"), **options)
+					monitor.assert_not_called()
+					self.assertIsNone(result["host_load"])
+					self.assertEqual(result["outcome"], "exited")
+					self.assertEqual(result["verdict_hint"], "complete")
+
+	def test_test_run_host_load_records_an_unsupported_host(self):
+		reason = "host-load sampling needs Windows, this host is linux"
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			sleeps = []
+			real_wait = workspace.HostLoadMonitor.wait
+
+			def wait(monitor):
+				return real_wait(monitor, sleep=sleeps.append)
+
+			with (
+				mock.patch.object(
+					workspace, "host_load_unsupported_reason", return_value=reason,
+				),
+				mock.patch.object(workspace, "windows_process_snapshot") as snapshot,
+				patch_monitor("wait", wait),
+				patch_monitor("_trace") as trace,
+			):
+				result = run_test_run(exe, root / "run1", host_load=True)
+			snapshot.assert_not_called()
+			trace.assert_not_called()
+			self.assertEqual(sleeps, [])
+			self.assertEqual(result["host_load"], {
+				"excluded": None,
+				"hold_seconds": 5.0,
+				"interval_seconds": 1.0,
+				"logical_processors": None,
+				"max_seconds": 600.0,
+				"samples_file": None,
+				"samples_file_error": None,
+				"threshold_percent": 15.0,
+				"trace": None,
+				"unsupported": reason,
+				"wait": None,
+			})
+			self.assertFalse(
+				(root / "run1" / workspace.HOST_LOAD_SAMPLES_FILE).exists()
+			)
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "complete")
+
+	def test_test_run_host_load_refuses_bad_values_before_setup(self):
+		nan, inf = float("nan"), float("inf")
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			run_dir = root / "run1"
+			for name, values in (
+				("threshold", (0.0, -1.0, 100.5, nan, inf)),
+				("hold", (0.0, -1.0, nan, inf)),
+				("max", (-1.0, nan, inf)),
+				("interval", (0.05, 0.0, -1.0, nan, inf)),
+			):
+				for value in values:
+					with (
+						self.subTest(option=name, value=value),
+						mock.patch.object(workspace, "HostLoadMonitor") as monitor,
+					):
+						with self.assertRaisesRegex(
+							workspace.WorkspaceError, f"^--host-load-{name} ",
+						):
+							run_test_run(
+								exe, run_dir,
+								host_load=True, **{f"host_load_{name}": value},
+							)
+						monitor.assert_not_called()
+						self.assertFalse(run_dir.exists())
+						self.assertFalse((debug / workspace.PORTABLE_LIVE).exists())
+
+	def test_test_run_host_load_prerequisites_fail_before_any_reading(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = root / "out" / "Debug"
+			exe = write_complete_markers_exe(debug / "Telegram")
+			for name, launched, overrides, error in (
+				("executable", root / "Telegram.exe", {}, "^Test executable"),
+				(
+					"portable root", exe, {"portable_root": str(root / "none")},
+					"^Portable root",
+				),
+				("golden", exe, {}, "^Missing golden"),
+			):
+				with (
+					self.subTest(name),
+					mock.patch.object(workspace, "HostLoadMonitor") as monitor,
+				):
+					with self.assertRaisesRegex(workspace.WorkspaceError, error):
+						run_test_run(
+							launched, root / "run1", host_load=True, **overrides,
+						)
+					monitor.assert_not_called()
+			self.assertFalse((debug / workspace.PORTABLE_LIVE).exists())
+
+	def test_test_run_host_load_waits_after_the_idle_gate_and_setup(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			live = debug / workspace.PORTABLE_LIVE
+			events = []
+			real_setup = workspace.setup_test_account
+			real_kill = workspace.kill_processes_with_executable
+			real_wait = workspace.HostLoadMonitor.wait
+			real_start = workspace.HostLoadMonitor.start_trace
+
+			def setup(portable):
+				events.append("setup")
+				return real_setup(portable)
+
+			def kill(path):
+				events.append("stragglers")
+				return real_kill(path)
+
+			def wait(monitor):
+				events.append(("host wait", live.is_dir()))
+				return real_wait(monitor)
+
+			def start_trace(monitor, process):
+				events.append("launch")
+				real_start(monitor, process)
+
+			console = FakeConsole(
+				lambda now: now + 0.5,
+				on_sleep=lambda seconds: events.append(("idle gate", live.exists())),
+			)
+			quiet = {os.getpid() + 1: {
+				"cpu": 0, "created": 1, "name": "idle.exe", "parent_pid": 1,
+			}}
+			with (
+				console.installed(),
+				mock.patch.object(
+					workspace, "setup_test_account", side_effect=setup,
+				),
+				mock.patch.object(
+					workspace, "kill_processes_with_executable", side_effect=kill,
+				),
+				mock.patch.object(
+					workspace, "host_load_unsupported_reason", return_value=None,
+				),
+				mock.patch.object(
+					workspace, "windows_process_snapshot", return_value=(64, quiet),
+				),
+				patch_monitor("wait", wait),
+				patch_monitor("start_trace", start_trace),
+			):
+				result = run_test_run(
+					exe, root / "run1", wait_idle=1.0, wait_idle_max=10.0,
+					host_load=True, host_load_hold=2.0, host_load_interval=0.5,
+				)
+			self.assertEqual(events, [
+				("idle gate", False),
+				"setup",
+				"stragglers",
+				("host wait", True),
+				"launch",
+				"stragglers",
+			])
+			self.assertIs(result["wait_idle"]["met"], True)
+			self.assertIs(result["host_load"]["wait"]["met"], True)
+			self.assertLess(
+				result["duration_seconds"],
+				result["host_load"]["wait"]["waited_seconds"],
+			)
+			self.assertEqual(result["verdict_hint"], "complete")
+
+	def test_test_run_host_load_keeps_readings_past_a_failed_one(self):
+		refusal = "OSError: snapshot refused"
+		quiet = {os.getpid() + 1: {
+			"cpu": 0, "created": 1, "name": "idle.exe", "parent_pid": 1,
+		}}
+		for failing in (("wait", 1), ("trace", 3)):
+			with (
+				self.subTest(failing=failing),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				root = Path(temporary)
+				debug = make_portable_root(root)
+				exe = write_python_client(
+					debug / "Telegram", "-c", "import time; time.sleep(1)",
+				)
+				reads = []
+				alive_at_report = []
+				real_start = workspace.HostLoadMonitor.start_trace
+				real_report = workspace.HostLoadMonitor.report
+
+				def snapshot(size):
+					reads.append("trace" if "launch" in reads else "wait")
+					if (reads[-1], reads.count(reads[-1])) == failing:
+						raise OSError("snapshot refused")
+					return size, quiet
+
+				def start_trace(monitor, process):
+					reads.append("launch")
+					real_start(monitor, process)
+
+				def report(monitor, run_dir):
+					alive_at_report.append(monitor.worker.is_alive())
+					return real_report(monitor, run_dir)
+
+				with (
+					mock.patch.object(
+						workspace, "host_load_unsupported_reason", return_value=None,
+					),
+					mock.patch.object(
+						workspace, "windows_process_snapshot", side_effect=snapshot,
+					),
+					patch_monitor("start_trace", start_trace),
+					patch_monitor("report", report),
+				):
+					result = run_test_run(
+						exe, root / "run1",
+						host_load=True, host_load_hold=0.2, host_load_interval=0.1,
+					)
+				wait = result["host_load"]["wait"]
+				trace = result["host_load"]["trace"]
+				if failing[0] == "wait":
+					self.assertIsNone(wait["met"])
+					self.assertEqual(wait["error"], refusal)
+					self.assertEqual(wait["last_samples"], [])
+					self.assertIsNone(trace["error"])
+				else:
+					self.assertIs(wait["met"], True)
+					self.assertIsNone(wait["error"])
+					self.assertEqual(trace["samples"], 1)
+					self.assertEqual(trace["error"], refusal)
+				self.assertEqual(alive_at_report, [False])
+				self.assertEqual(result["outcome"], "exited")
+				self.assertEqual(result["verdict_hint"], "complete")
 
 	def test_portable_root_for_prefers_app_bundle_parent(self):
 		with tempfile.TemporaryDirectory() as temporary:
