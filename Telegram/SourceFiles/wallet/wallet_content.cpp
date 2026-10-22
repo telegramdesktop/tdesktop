@@ -14041,8 +14041,8 @@ void Card::paintFace(Painter &p) {
 			q.save();
 			q.translate(layout.addressBaseline, st::walletCardAddressSkip);
 			q.rotate(90);
-			q.drawText(0, 0, _addressLine1);
-			q.drawText(0, -layout.addressFont->height, _addressLine2);
+			q.drawText(0, -layout.addressFont->height, _addressLine1);
+			q.drawText(0, 0, _addressLine2);
 			q.restore();
 		}
 	};
