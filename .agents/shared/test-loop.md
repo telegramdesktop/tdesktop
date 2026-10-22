@@ -286,7 +286,7 @@ is the rotated wallet's, in BOTH copies — the marked live copy and the golden 
 the empty line and each copy's own address line; that golden write is the one owner-decided
 exception to the read-only golden folder. Because the golden `tdata` is never modified while the
 file is, the next campaign's P0 reconciles them in process through `Test::ReconcileGramAccount`
-(`Telegram/SourceFiles/test/README.md`, "Account fixture secrets"): fewer local words than the
+(`Telegram/SourceFiles/test/docs/helpers/test_gram_reconcile.md`): fewer local words than the
 file restores custody from the file through the product's own import, and a differing local
 reveal with an equal or greater count rewrites the file from the local reveal. Never delete or
 reset the marked live copy while a campaign may have left a rotation in flight or unrewritten:
@@ -472,85 +472,15 @@ The repository carries a permanent test harness under
 `Telegram/SourceFiles/test/` — always compiled, runtime-gated on `-testagent`
 (`Test::Active()`), with all of its `#ifdef`s inside the harness itself:
 
-**Read `Telegram/SourceFiles/test/README.md` completely before designing,
-authoring, or recovering an overlay.** It is the decision guide for stage
-semantics, exact-object publication, input targeting, capture selection, the
-specialized helpers, and first-run diagnostics. Then read the headers for the
-helpers selected by the design. Search the directory before writing local
-scaffolding.
-
-- `test_runner.h` — the staged scenario engine: `Stage{name, run, until, then, timeout}`,
-  `waitEvent`, `waitForSessionReady`, the normal bounded non-fatal `waitForChatsLoaded()`, and
-  explicit strict `waitForChatsLoadedStrict()`; timing out an ordinary `Stage` ends the whole
-  scenario, while the wall-clock watchdog (default 120s; `TDESKTOP_TEST_WATCHDOG` override in seconds, 1..600, otherwise the default; the armed duration is logged at scenario start)
-  guarantees `TEST_COMPLETE` + quit on every exit path including timeout. `actOnWidget` waits for
-  and lifetime-guards the exact target before acting once. `captureAndInspect` saves the accepted
-  prepared frame and then runs numeric/raster assertions against that same widget and image.
-- `test_log.h` — evidence dir from `TDESKTOP_TEST_EVIDENCE_DIR` (the workspace `test-run`
-  helper sets it), flushed absolute-path logging, `Step/Pass/Fail/Check/Note`, `CheckNear`
-  tolerance assertions, `LogGeometry`, the standard markers.
-- `test_widgets.h` — `FindAll<T>`/`FindFirst<T>`/`FindVisible<T>` (the `dynamic_cast`-based
-  finders that avoid the guaranteed `findChildren<CustomWidget*>` crash), `Click`, `TypeText`,
-  `CommitText`, `PressKey`, `Drag`, and `Wheel` via real Qt events, plus generation-counted,
-  lifetime-guarded `PublishLiveWidget` / `PublishLiveAction` seams for exact layer-owned objects;
-  each delivered event runs with postponed-call processing
-  deferred and is followed by a drain of every pending `Ui::PostponeCall` to empty, so
-  postponed input fix-ups AND their own change handling are settled when the helper returns;
-  wrap programmatic `setText` in `Test::Settle`.
-- `test_capture.h` — `CaptureWidget`/`CaptureRect` (visibility check, `QWidget::grab()` so
-  floating elements and locked desktops cannot occlude, automatic blank-image FAIL, geometry
-  log, `SCREENSHOT` marker), plus `PreparedWidgetCapture`; `Runner::captureWidget` polls an
-  exact target until it has a valid painted frame and saves that same accepted frame,
-  `Crop`/`Zoom`/`ContactSheet` for tight same-scale evidence.
-- `test_ink.h`, `test_style.h`, and `test_panel.h` — painted-ink/contrast measurement, settled
-  palette baselines, and detection of a `Ui::SeparatePanel` show-animation cache.
-- `test_messages.h`, `test_transfer.h`, `test_open_handoff.h`, and `test_launch_fuse.h` — direct
-  sent-message, document-transfer, document-open, and safely blocked OS-launch oracles. Prefer
-  these established task-specific observers over reconstructing the same state in a scenario.
-- `test_agent.h` — `Test::Fire(name)` / `HasFired(name)` named waitpoints;
-  `launch_finished` fires at the end of `Application::run()`. `TDESKTOP_TEST_SCALE` is applied
-  by the harness at startup, and on macOS the harness holds the App Nap opt-out for the whole run
-  (`TDESKTOP_TEST_APP_NAP=allow` leaves it off; see Launch activation).
-- `test_scenario.cpp` — the overlay-owned slot: it defines `Test::SetupScenario(runner)` and
-  is a no-op in the repository.
-
-A minimal scenario shape:
-
-```cpp
-void SetupScenario(not_null<Runner*> runner) {
-	runner->waitEvent(u"launch_finished"_q);
-	runner->actOnWidget(
-		u"activate the published target"_q,
-		[] { return Test::ReadLiveWidget(u"task.target"_q).widget; },
-		[](QWidget *widget) { Test::Click(widget); },
-		[](QWidget *widget) {
-			return widget->isVisible() && widget->isEnabled();
-		},
-		Test::kDefaultStageTimeout,
-		[](QWidget *widget) {
-			return u"visible=%1 enabled=%2 size=%3x%4"_q
-				.arg(widget->isVisible())
-				.arg(widget->isEnabled())
-				.arg(widget->width())
-				.arg(widget->height());
-		});
-	runner->captureAndInspect(
-		u"target_surface"_q,
-		[] { return Test::ReadLiveWidget(u"task.surface"_q).widget; },
-		[](QWidget *widget) {
-			return widget->property("contentGeneration").toInt() > 0;
-		},
-		[](QWidget *widget, const QImage &image) {
-			Test::LogGeometry(u"surface"_q, widget->geometry());
-			Test::Check(
-				image.width() >= widget->width(),
-				u"capture covers the surface width"_q,
-				u"image=%1 widget=%2"_q
-					.arg(image.width())
-					.arg(widget->width()));
-		});
-}
-```
+**Read the short `Telegram/SourceFiles/test/README.md` before designing,
+authoring, or recovering an overlay.** Follow its task-specific links to the
+selected helper references in `test/docs/` and read those helpers' headers.
+Do not load the whole reference directory or diagnostic history. Account,
+media, input and capture prerequisites remain required when the design uses
+them; on recovery, search the diagnostic guide for the observed signature.
+Search the helper index before writing local scaffolding. For an initial
+scenario shape, use `test/docs/overlay-example.md` on demand. When adding or
+changing a permanent helper, follow `test/docs/adding-helpers.md`.
 
 **The overlay starts by replacing `test_scenario.cpp` with the task's scenario.** Author the
 scenario fresh against the CURRENT implementation from the task's check design; never re-implement
@@ -794,7 +724,7 @@ command, environment, exit-code, log, artifact and control evidence.
     `Test::KeepWindowExposed` (the not-marking-read and post-paint self-tests do that for the
     primary window themselves); focus-routed actions need `Test::ForceWindowActive`. Only the
     launch's own activation is suppressed: product flows and some self-tests still request
-    activation (`Telegram/SourceFiles/test/README.md`, Input helpers), and after a background launch
+    activation (`Telegram/SourceFiles/test/docs/launch.md`), and after a background launch
     the window server may grant or refuse that request - on this host it granted it about 11 s after
     launch in two default runs and refused it about 20 s after launch in a third, under a condition
     those runs did not establish (`2026/10/08/launch-the-testagent-client-without-activating-it`,

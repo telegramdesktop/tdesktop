@@ -390,4 +390,5 @@ This atlas divides Telegram Desktop's sources into named areas, ordered from fou
 
 ### test — test tooling
 - Paths: `SourceFiles/test/`, `SourceFiles/tests/`
+- Start with the short `test/README.md`; helper contracts and task-specific guides live under `test/docs/`. New or changed helper documentation follows `test/docs/adding-helpers.md`.
 - The Debug-only `-testagent` harness (scenario runner, evidence log, session and RPC fixtures, widget probes and pixel captures, wallet fixtures and the secrecy scan) and the standalone unit tests for the text engine and the updater. Product code must not depend on it. Today it also exposes hooks that `core/application.cpp`, `data_document.cpp`, `mtp_instance.cpp` and `platform_file_utilities.cpp` call directly; those belong behind seams owned by the calling areas.

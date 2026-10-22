@@ -128,9 +128,9 @@ Before planning or editing:
    stage is either replaced by an equally direct instrument or recorded under
    `Unverified:` with its expected exposure; never silently weaken the oracle.
    A selected check that must pass the account's two-step verification has
-   the `2svpassword.txt` fixture (`Telegram/SourceFiles/test/README.md`,
-   "Account fixture secrets") as a prerequisite. Gate its presence — existence
-   only, never its value — before Phase 4 editing and again before the
+   the `2svpassword.txt` fixture as a prerequisite (see
+   `Telegram/SourceFiles/test/docs/account-fixtures.md`). Gate its presence —
+   existence only, never its value — before Phase 4 editing and again before the
    evidence campaign. When it is absent, do not author, build, launch, or
    degrade the campaign around it and do not export the legs as coverage
    debt: publish the task-local `Block` at once — `Blocker-Type: test`,
@@ -809,12 +809,12 @@ Before an instrument runs, gate only its own prerequisites:
   account, safe path-scoped process control, and test harness;
 - a check that must pass the account's two-step verification needs the
   `2svpassword.txt` fixture, read at runtime through `Test::TwoStepPassword()`
-  (`Telegram/SourceFiles/test/README.md`, "Account fixture secrets"); its
+  (`Telegram/SourceFiles/test/docs/account-fixtures.md`); its
   absence is the task blocker of Phase 3 step 5, never a degraded run, and
   the value never enters overlay code, artifacts, logs, or prompts;
 - a check that the task declares needs the funded golden wallet needs the
   `test_gram_account.txt` fixture, read at runtime through
-  `Test::GramAccount()` (same README section): the file present, the served
+  `Test::GramAccount()` (same account-fixtures guide): the file present, the served
   `walletState.address` equal to the file's at campaign start (a mismatch
   FAILS the run, never `/wallet_reset`), and the balance covering every
   planned live leg plus a margin before any spend — a missing file or a
@@ -826,11 +826,13 @@ Before an instrument runs, gate only its own prerequisites:
 - another platform's unavailable toolchain is recorded as an exact
   `Unverified:` exposure, not simulated by an unrelated local command.
 
-When a Telegram overlay or app launch is selected, read
-`Telegram/SourceFiles/test/README.md` completely and then the chosen helper
-headers. Read `references/computer-use-testing.md` when selecting or operating
-a UI driver. Retain all shared task-derived oracle, layout measurement,
-watchdog, crash/assertion, hang, account, and evidence rules, with these
+When a Telegram overlay or app launch is selected, read the short
+`Telegram/SourceFiles/test/README.md`, then the task-relevant references it
+links and the chosen helper headers. Do not load the whole helper catalog or
+diagnostic history; required fixture and instrument prerequisites still apply.
+For permanent helper changes, follow `test/docs/adding-helpers.md`.
+Read `references/computer-use-testing.md` when selecting or operating a UI
+driver. Retain all shared task-derived oracle, layout measurement, watchdog, crash/assertion, hang, account, and evidence rules, with these
 external-task adaptations:
 
 - Prefer an overlay in
