@@ -69,7 +69,8 @@
 	url = https://github.com/TelegramMessenger/tgcalls.git
 [submodule "Telegram/lib_webview"]
 	path = Telegram/lib_webview
-	url = https://github.com/desktop-app/lib_webview.git
+	url = https://github.com/cnt0/lib_webview.git
+	branch = proxy-settings
 [submodule "Telegram/ThirdParty/kimageformats"]
 	path = Telegram/ThirdParty/kimageformats
 	url = https://github.com/KDE/kimageformats.git
