@@ -319,6 +319,8 @@ void InnerWidget::fillHistory() {
 					inner,
 					st::defaultTabsSlider)),
 			st::boxRowPadding);
+		slider->entity()->setAccessibleName(
+			tr::lng_channel_earn_history_title(tr::now));
 		slider->toggle(!hasOneTab, anim::type::instant);
 
 		auto tabBySection = std::vector<int>{ 0 };
