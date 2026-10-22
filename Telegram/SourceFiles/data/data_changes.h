@@ -320,8 +320,6 @@ public:
 	[[nodiscard]] rpl::producer<PeerUpdate> peerFlagsValue(
 		not_null<PeerData*> peer,
 		PeerUpdate::Flags flags) const;
-	[[nodiscard]] rpl::producer<PeerUpdate> realtimePeerUpdates(
-		PeerUpdate::Flag flag) const;
 
 	void historyUpdated(
 		not_null<History*> history,
@@ -334,8 +332,6 @@ public:
 	[[nodiscard]] rpl::producer<HistoryUpdate> historyFlagsValue(
 		not_null<History*> history,
 		HistoryUpdate::Flags flags) const;
-	[[nodiscard]] rpl::producer<HistoryUpdate> realtimeHistoryUpdates(
-		HistoryUpdate::Flag flag) const;
 
 	void topicUpdated(
 		not_null<ForumTopic*> topic,
@@ -348,8 +344,6 @@ public:
 	[[nodiscard]] rpl::producer<TopicUpdate> topicFlagsValue(
 		not_null<ForumTopic*> topic,
 		TopicUpdate::Flags flags) const;
-	[[nodiscard]] rpl::producer<TopicUpdate> realtimeTopicUpdates(
-		TopicUpdate::Flag flag) const;
 	void topicRemoved(not_null<ForumTopic*> topic);
 
 	void sublistUpdated(
@@ -360,11 +354,6 @@ public:
 	[[nodiscard]] rpl::producer<SublistUpdate> sublistUpdates(
 		not_null<SavedSublist*> sublist,
 		SublistUpdate::Flags flags) const;
-	[[nodiscard]] rpl::producer<SublistUpdate> sublistFlagsValue(
-		not_null<SavedSublist*> sublist,
-		SublistUpdate::Flags flags) const;
-	[[nodiscard]] rpl::producer<SublistUpdate> realtimeSublistUpdates(
-		SublistUpdate::Flag flag) const;
 	void sublistRemoved(not_null<SavedSublist*> sublist);
 
 	void messageUpdated(
@@ -392,8 +381,6 @@ public:
 	[[nodiscard]] rpl::producer<EntryUpdate> entryFlagsValue(
 		not_null<Dialogs::Entry*> entry,
 		EntryUpdate::Flags flags) const;
-	[[nodiscard]] rpl::producer<EntryUpdate> realtimeEntryUpdates(
-		EntryUpdate::Flag flag) const;
 	void entryRemoved(not_null<Dialogs::Entry*> entry);
 
 	void storyUpdated(
@@ -404,11 +391,6 @@ public:
 	[[nodiscard]] rpl::producer<StoryUpdate> storyUpdates(
 		not_null<Story*> story,
 		StoryUpdate::Flags flags) const;
-	[[nodiscard]] rpl::producer<StoryUpdate> storyFlagsValue(
-		not_null<Story*> story,
-		StoryUpdate::Flags flags) const;
-	[[nodiscard]] rpl::producer<StoryUpdate> realtimeStoryUpdates(
-		StoryUpdate::Flag flag) const;
 
 	void chatAdminChanged(
 		not_null<PeerData*> peer,

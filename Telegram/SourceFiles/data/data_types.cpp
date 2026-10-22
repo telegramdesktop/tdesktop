@@ -124,16 +124,6 @@ PeerId PeerFromMessage(const MTPmessage &message) {
 	});
 }
 
-MTPDmessage::Flags FlagsFromMessage(const MTPmessage &message) {
-	return message.match([](const MTPDmessageEmpty &) {
-		return MTPDmessage::Flags(0);
-	}, [](const MTPDmessage &data) {
-		return data.vflags().v;
-	}, [](const MTPDmessageService &data) {
-		return mtpCastFlags(data.vflags().v);
-	});
-}
-
 MsgId IdFromMessage(const MTPmessage &message) {
 	return message.match([](const auto &data) {
 		return data.vid().v;
