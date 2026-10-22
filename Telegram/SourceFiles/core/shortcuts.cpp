@@ -200,6 +200,10 @@ public:
 		Command command,
 		std::optional<Command> restore);
 	void resetToDefaults();
+	void restoreDefaultFor(
+		QKeySequence was,
+		QKeySequence now,
+		Command command);
 
 private:
 	void fillDefaults();
@@ -357,6 +361,25 @@ void Manager::resetToDefaults() {
 		for (const auto command : commands) {
 			set(sequence, command, false);
 		}
+	}
+	writeCustomFile();
+}
+
+void Manager::restoreDefaultFor(
+		QKeySequence was,
+		QKeySequence now,
+		Command command) {
+	if (!was.isEmpty()) {
+		remove(was, command);
+	}
+	if (now.isEmpty()) {
+		writeCustomFile();
+		return;
+	}
+	if (_shortcuts.contains(now)) {
+		set(now, command, false);
+	} else {
+		set(now, command, true);
 	}
 	writeCustomFile();
 }
@@ -1042,6 +1065,13 @@ void Change(
 
 void ResetToDefaults() {
 	Data.resetToDefaults();
+}
+
+void RestoreDefaultFor(
+		QKeySequence was,
+		QKeySequence now,
+		Command command) {
+	Data.restoreDefaultFor(was, now, command);
 }
 
 bool MatchesCommand(not_null<QKeyEvent*> event, Command command) {
