@@ -216,6 +216,9 @@ void ApplyTheme(
 		.locale = UiLanguageTag().toStdString(),
 	};
 	result.cpuLimitMs *= kCpuLimitScale;
+	// After boot a task's query budget is the quota left; the rate is kept.
+	result.cpuQuotaMs *= kCpuLimitScale;
+	result.cpuQuotaWindowMs *= kCpuLimitScale;
 	return result;
 }
 
