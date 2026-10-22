@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/streaming/media_streaming_utility.h"
 
+#include "media/streaming/media_streaming_color.h"
 #include "media/streaming/media_streaming_common.h"
 #include "ui/image/image_prepare.h"
 #include "ui/painter.h"
@@ -135,7 +136,8 @@ QImage ConvertFrame(
 		Stream &stream,
 		not_null<AVFrame*> frame,
 		QSize resize,
-		QImage storage) {
+		QImage storage,
+		const FrameColor &color) {
 	const auto frameSize = QSize(frame->width, frame->height);
 	if (frameSize.isEmpty()) {
 		LOG(("Streaming Error: Bad frame size %1,%2"
@@ -179,48 +181,19 @@ QImage ConvertFrame(
 			to += deltaTo;
 			from += deltaFrom;
 		}
-	} else {
-		stream.swscale = MakeSwscalePointer(
+	} else if (!ConvertFrameToARGB32(
 			frame,
-			resize,
-			&stream.swscale);
-		if (!stream.swscale) {
-			return QImage();
-		}
-
-		// AV_NUM_DATA_POINTERS defined in AVFrame struct
-		uint8_t *data[AV_NUM_DATA_POINTERS] = { storage.bits(), nullptr };
-		int linesize[AV_NUM_DATA_POINTERS] = { int(storage.bytesPerLine()), 0 };
-
-		sws_scale(
-			stream.swscale.get(),
-			frame->data,
-			frame->linesize,
-			0,
-			frame->height,
-			data,
-			linesize);
-
-		if (frame->format == AV_PIX_FMT_YUVA420P) {
-			FFmpeg::PremultiplyInplace(storage);
-		}
+			frame->format,
+			color,
+			storage,
+			stream.swscale)) {
+		return QImage();
+	} else if (frame->format == AV_PIX_FMT_YUVA420P) {
+		FFmpeg::PremultiplyInplace(storage);
 	}
 
 	FFmpeg::ClearFrameMemory(frame);
 	return storage;
-}
-
-FrameYUV ExtractYUV(Stream &stream, AVFrame *frame) {
-	return {
-		.size = { frame->width, frame->height },
-		.chromaSize = {
-			AV_CEIL_RSHIFT(frame->width, 1), // SWScale does that.
-			AV_CEIL_RSHIFT(frame->height, 1)
-		},
-		.y = { .data = frame->data[0], .stride = frame->linesize[0] },
-		.u = { .data = frame->data[1], .stride = frame->linesize[1] },
-		.v = { .data = frame->data[2], .stride = frame->linesize[2] },
-	};
 }
 
 void PaintFrameOuter(QPainter &p, const QRect &inner, QSize outer) {

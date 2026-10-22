@@ -599,7 +599,8 @@ private:
 	[[nodiscard]] bool streamingRequiresControls() const;
 	[[nodiscard]] QImage videoFrame() const; // ARGB (changes prepare format)
 	[[nodiscard]] QImage currentVideoFrameImage() const; // RGB (may convert)
-	[[nodiscard]] Streaming::FrameWithInfo videoFrameWithInfo() const; // YUV
+	[[nodiscard]] Streaming::FrameWithInfo videoFrameWithInfo(
+		bool hdr) const; // YUV
 	[[nodiscard]] int streamedIndex() const;
 	[[nodiscard]] QImage transformedShownContent() const;
 	[[nodiscard]] QImage transformShownContent(
