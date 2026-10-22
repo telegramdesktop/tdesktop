@@ -3205,6 +3205,53 @@ void ConsiderStructuralListItemDropTargets(
 	return false;
 }
 
+[[nodiscard]] const QString &CollapsibleBlockId(const PreparedBlock &block) {
+	static const auto kNone = QString();
+	return (block.kind == PreparedBlockKind::Details)
+		? block.anchorId
+		: (block.kind == PreparedBlockKind::Quote)
+		? block.collapseToggleId
+		: kNone;
+}
+
+void AppendCollapsibleBlockText(const PreparedBlock &block, QString *to) {
+	to->append(block.text.text).append(QChar::LineFeed);
+	for (const auto &child : block.children) {
+		AppendCollapsibleBlockText(child, to);
+	}
+}
+
+void CollectCollapsedBlocks(
+		const std::vector<PreparedBlock> &blocks,
+		MarkdownArticleCollapsed *to) {
+	for (const auto &block : blocks) {
+		if (!CollapsibleBlockId(block).isEmpty()) {
+			auto section = MarkdownArticleCollapsedSection{
+				.kind = block.kind,
+				.collapsed = block.collapsed,
+			};
+			if (block.kind == PreparedBlockKind::Details) {
+				section.title = block.text.text;
+			}
+			AppendCollapsibleBlockText(block, &section.text);
+			to->push_back(std::move(section));
+		}
+		CollectCollapsedBlocks(block.children, to);
+	}
+}
+
+void ApplyCollapsedBlocks(
+		std::vector<PreparedBlock> *blocks,
+		const MarkdownArticleCollapsed &sections,
+		int *index) {
+	for (auto &block : *blocks) {
+		if (!CollapsibleBlockId(block).isEmpty()) {
+			block.collapsed = sections[(*index)++].collapsed;
+		}
+		ApplyCollapsedBlocks(&block.children, sections, index);
+	}
+}
+
 [[nodiscard]] bool PreparedBlockHasAnchor(
 		const PreparedBlock &block,
 		const QString &anchorId) {
@@ -3756,6 +3803,39 @@ void CollectCodeBlockHighlightKeys(
 
 } // namespace
 
+void RestoreCollapsed(
+		MarkdownArticleContent *content,
+		const MarkdownArticleCollapsed &collapsed) {
+	if (collapsed.empty()) {
+		return;
+	}
+	auto sections = MarkdownArticleCollapsed();
+	CollectCollapsedBlocks(content->blocks.blocks, &sections);
+	auto used = std::vector<bool>(collapsed.size());
+	auto restored = std::vector<bool>(sections.size());
+	const auto restore = [&](auto same) {
+		for (auto i = 0; i != int(sections.size()); ++i) {
+			for (auto j = 0; !restored[i] && j != int(collapsed.size()); ++j) {
+				if (!used[j] && same(sections[i], collapsed[j])) {
+					sections[i].collapsed = collapsed[j].collapsed;
+					restored[i] = used[j] = true;
+				}
+			}
+		}
+	};
+	using Section = MarkdownArticleCollapsedSection;
+	restore([](const Section &a, const Section &b) {
+		return (a.kind == b.kind) && (a.text == b.text);
+	});
+	restore([](const Section &a, const Section &b) {
+		return (a.kind == PreparedBlockKind::Details)
+			&& (b.kind == PreparedBlockKind::Details)
+			&& (a.title == b.title);
+	});
+	auto index = 0;
+	ApplyCollapsedBlocks(&content->blocks.blocks, sections, &index);
+}
+
 PlaceholderBlockRuntime::PlaceholderBlockRuntime(Fn<void()> repaint)
 : clickHandler(std::make_shared<LambdaClickHandler>([] {
 }))
@@ -3904,6 +3984,8 @@ public:
 	[[nodiscard]] bool toggleDetails(const QString &anchorId);
 
 	[[nodiscard]] bool toggleBlockquote(const QString &toggleId);
+
+	[[nodiscard]] MarkdownArticleCollapsed collapsed() const;
 
 	[[nodiscard]] bool segmentIsText(int index) const;
 
@@ -5032,6 +5114,12 @@ bool MarkdownArticle::Impl::toggleBlockquote(const QString &toggleId) {
 	}
 	invalidateLayout();
 	return true;
+}
+
+MarkdownArticleCollapsed MarkdownArticle::Impl::collapsed() const {
+	auto result = MarkdownArticleCollapsed();
+	CollectCollapsedBlocks(_content.blocks.blocks, &result);
+	return result;
 }
 
 bool MarkdownArticle::Impl::segmentIsText(int index) const {
@@ -7229,6 +7317,10 @@ bool MarkdownArticle::toggleDetails(const QString &anchorId) {
 
 bool MarkdownArticle::toggleBlockquote(const QString &toggleId) {
 	return _impl->toggleBlockquote(toggleId);
+}
+
+MarkdownArticleCollapsed MarkdownArticle::collapsed() const {
+	return _impl->collapsed();
 }
 
 bool MarkdownArticle::segmentIsText(int index) const {
