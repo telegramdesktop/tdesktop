@@ -767,6 +767,10 @@ bool Sandbox::notify(QObject *receiver, QEvent *e) {
 	if (e->type() == QEvent::UpdateRequest) {
 		const auto weak = QPointer<QObject>(receiver);
 		_widgetUpdateRequests.fire({});
+		// WHY: main queue tasks drained above entered from the event loop at
+		// this level, else paint events below would run postponed calls
+		// right after themselves, while Qt still uses the painted widget.
+		checkForEmptyLoopNestingLevel();
 		if (!weak) {
 			return true;
 		}
