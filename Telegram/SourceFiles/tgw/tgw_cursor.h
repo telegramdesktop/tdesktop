@@ -21,11 +21,13 @@ namespace Tgw {
 // Stopgap until twlite::Renderer exposes the cursor its document computes.
 class CursorStyles final {
 public:
-	explicit CursorStyles(double dpr);
+	CursorStyles(
+		double dpr,
+		const std::vector<std::pair<std::string, std::string>> &variables);
 	~CursorStyles();
 
 	[[nodiscard]] bool pointer(
-		const twlite::Renderer &renderer,
+		twlite::Renderer &renderer,
 		int64 hit,
 		int64 hover,
 		int64 active);
@@ -33,11 +35,12 @@ public:
 private:
 	class Container;
 
-	[[nodiscard]] bool refresh(const twlite::Renderer &renderer);
+	[[nodiscard]] bool refresh(twlite::Renderer &renderer);
 	void rebuild(double width, int height);
 	void index();
 
 	const std::unique_ptr<Container> _container;
+	const std::string _master;
 	std::shared_ptr<litehtml::document> _document;
 	std::unordered_map<int64, std::shared_ptr<litehtml::element>> _elements;
 	std::string _html;

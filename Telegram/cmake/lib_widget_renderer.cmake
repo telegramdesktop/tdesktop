@@ -4,16 +4,17 @@
 # For license and copyright information please follow this link:
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
-# The shared litehtml renderer core from ThirdParty/widget-sandbox
-# (apps/renderer-litehtml): it applies validated widget operations to a
+# TwidgetCore from ThirdParty/twidget (Sources/TwidgetCore/src), the renderer
+# core twidget's platforms share: it applies validated widget operations to a
 # document laid out by twidget's litehtml fork, answers layout queries, runs
-# animations, canvas and input, and records a display list the platform
-# paints. Built in fork mode (TW_LITEHTML_TWIDGET) against lib_litehtml; the
+# animations, canvas, input and text selection, and records a display list the
+# platform paints. Built as twidget's own twidget_core target is, in fork mode
+# (TW_LITEHTML_TWIDGET) against lib_litehtml, the only litehtml we build; the
 # per-platform backends are not compiled, our Qt backend replaces them.
-# The profile's UA layer (tables.uaStylesheet of packages/core/profile.json) is
-# generated at configure time into tw_ua_stylesheet.h, as the copy's own
-# CMakeLists does.
-# Consumers include its headers as "renderer-litehtml/src/<name>.h".
+# The profile's UA layer (tables.uaStylesheet of widget-sandbox's
+# packages/core/profile.json) is generated at configure time into
+# tw_ua_stylesheet.h, as twidget's own CMakeLists does.
+# Consumers include its headers as "TwidgetCore/src/<name>.h".
 # There is no packaged branch: no distribution ships this library.
 
 add_library(lib_widget_renderer STATIC)
@@ -22,10 +23,11 @@ init_target(lib_widget_renderer "(external)")
 add_library(tdesktop::lib_widget_renderer ALIAS lib_widget_renderer)
 
 set(widget_sandbox_root ${third_party_loc}/widget-sandbox)
-set(widget_renderer_loc ${widget_sandbox_root}/apps/renderer-litehtml/src)
+set(widget_renderer_root ${third_party_loc}/twidget/Sources)
+set(widget_renderer_loc ${widget_renderer_root}/TwidgetCore/src)
 
 if (NOT EXISTS ${widget_renderer_loc}/renderer.cpp)
-    message(FATAL_ERROR "widget-sandbox sources are missing, run 'git submodule update --init --recursive'.")
+    message(FATAL_ERROR "twidget sources are missing, run 'git submodule update --init --recursive'.")
 endif()
 
 set(widget_renderer_gen ${CMAKE_CURRENT_BINARY_DIR}/widget_renderer_gen)
@@ -66,18 +68,23 @@ PRIVATE
     canvas_ops.h
     compositor.cpp
     compositor.h
+    computed_style.cpp
+    computed_style.h
     css.cpp
     css.h
     display_list.h
+    encode.cpp
+    filters.cpp
+    filters.h
+    png.cpp
+    png.h
     renderer.cpp
     renderer.h
-    theme.cpp
-    theme.h
 )
 
 target_include_directories(lib_widget_renderer
 PUBLIC
-    ${widget_sandbox_root}/apps
+    ${widget_renderer_root}
     ${widget_sandbox_root}/packages/desktop/sandbox/include
     ${widget_renderer_gen}
 PRIVATE
@@ -95,6 +102,7 @@ PUBLIC
 )
 
 if (MSVC)
+    target_compile_definitions(lib_widget_renderer PRIVATE _CRT_SECURE_NO_WARNINGS)
     target_link_libraries(lib_widget_renderer PRIVATE lib_widget_renderer_warnings_off)
 else()
     target_compile_options(lib_widget_renderer PRIVATE -w)

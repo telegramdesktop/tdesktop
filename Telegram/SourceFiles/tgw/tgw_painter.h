@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "renderer-litehtml/src/display_list.h"
+#include "TwidgetCore/src/display_list.h"
 
 namespace Tgw {
 

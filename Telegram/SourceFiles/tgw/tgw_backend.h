@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "renderer-litehtml/src/backend.h"
+#include "TwidgetCore/src/backend.h"
 
 #include <QtGui/QFontMetricsF>
 
@@ -35,6 +35,7 @@ public:
 		float size,
 		int weight,
 		bool italic,
+		const std::string &features,
 		twlite::FontMetrics &out) override;
 	void delete_font(int font) override;
 	float text_width(int font, const std::string &text) override;
@@ -79,11 +80,13 @@ private:
 	struct CachedFont {
 		int id = 0;
 		twlite::FontMetrics metrics;
+		bool sharedWithCore = false;
 	};
 
 	[[nodiscard]] int makeFont(FontKey key, twlite::FontMetrics &out);
 	[[nodiscard]] int admitCanvasFont(
 		FontKey key,
+		bool sharedWithCore,
 		twlite::FontMetrics &out);
 	[[nodiscard]] int refuseCanvasFont(twlite::FontMetrics &out);
 

@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tgw/tgw_backend.h"
 
-#include "renderer-litehtml/src/css.h"
 #include "tgw/tgw_canvas.h"
+#include "TwidgetCore/src/css.h"
 #include "ui/image/svg_safety.h"
 
 #include <QtCore/QBuffer>
@@ -1818,9 +1818,10 @@ int QtBackend::create_font(
 		float size,
 		int weight,
 		bool italic,
+		const std::string&,
 		twlite::FontMetrics &out) {
 	const auto key = ResolveFont(families, size, weight, italic);
-	return _canvasText ? admitCanvasFont(key, out) : makeFont(key, out);
+	return _canvasText ? admitCanvasFont(key, true, out) : makeFont(key, out);
 }
 
 int QtBackend::makeFont(FontKey key, twlite::FontMetrics &out) {
@@ -1950,7 +1951,7 @@ int QtBackend::canvasFont(
 	}
 	const auto i = _canvasSpellings.find(css);
 	if (i != end(_canvasSpellings)) {
-		return admitCanvasFont(i->second, metrics);
+		return admitCanvasFont(i->second, false, metrics);
 	} else if (_canvasParsesLeft <= 0) {
 		return refuseCanvasFont(metrics);
 	}
@@ -1966,7 +1967,7 @@ int QtBackend::canvasFont(
 		_canvasSpellings.clear();
 	}
 	_canvasSpellings.emplace(css, key);
-	return admitCanvasFont(key, metrics);
+	return admitCanvasFont(key, false, metrics);
 }
 
 void QtBackend::setCanvasText(bool enabled) {
@@ -1974,18 +1975,26 @@ void QtBackend::setCanvasText(bool enabled) {
 }
 
 void QtBackend::releaseCanvasFonts() {
-	for (const auto &entry : _canvasFonts) {
-		_fonts.remove(entry.second.id);
+	for (auto i = begin(_canvasFonts); i != end(_canvasFonts);) {
+		if (i->second.sharedWithCore) {
+			++i;
+		} else {
+			_fonts.remove(i->second.id);
+			i = _canvasFonts.erase(i);
+		}
 	}
-	_canvasFonts.clear();
 	_canvasSpellings.clear();
 	_canvasFontsLeft = 0;
 	_canvasParsesLeft = 0;
 }
 
-int QtBackend::admitCanvasFont(FontKey key, twlite::FontMetrics &out) {
+int QtBackend::admitCanvasFont(
+		FontKey key,
+		bool sharedWithCore,
+		twlite::FontMetrics &out) {
 	const auto i = _canvasFonts.find(key);
 	if (i != end(_canvasFonts)) {
+		i->second.sharedWithCore |= sharedWithCore;
 		out = i->second.metrics;
 		return i->second.id;
 	} else if (_canvasFontsLeft <= 0
@@ -1993,7 +2002,8 @@ int QtBackend::admitCanvasFont(FontKey key, twlite::FontMetrics &out) {
 		return refuseCanvasFont(out);
 	}
 	const auto id = makeFont(key, out);
-	_canvasFonts.emplace(key, CachedFont{ id, out });
+	twlite::set_em_box(out, out.ascent, out.descent, float(key.second));
+	_canvasFonts.emplace(key, CachedFont{ id, out, sharedWithCore });
 	--_canvasFontsLeft;
 	return id;
 }

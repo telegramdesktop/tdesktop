@@ -8,12 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_renderer.h"
 
 #include "base/platform/base_platform_info.h"
-#include "renderer-litehtml/src/renderer.h"
 #include "tgw/tgw_backend.h"
 #include "tgw/tgw_cursor.h"
 #include "tgw/tgw_painter.h"
 #include "twidget/json.h"
 #include "twidget/sdk_policy.h"
+#include "TwidgetCore/src/css.h"
+#include "TwidgetCore/src/renderer.h"
 #include "ui/style/style_core_scale.h"
 
 #include <mutex>
@@ -111,6 +112,12 @@ private:
 	return int(std::min(side, uint32(std::numeric_limits<int>::max())));
 }
 
+[[nodiscard]] QSize DeviceSize(const twlite::Renderer &renderer) {
+	return QSize(
+		DeviceSide(renderer.px_width()),
+		DeviceSide(renderer.px_height()));
+}
+
 [[nodiscard]] crl::time WakeDelay(double seconds) {
 	return crl::time(std::clamp(
 		std::ceil(seconds * 1000.),
@@ -133,11 +140,13 @@ private:
 	return result;
 }
 
-[[nodiscard]] twidget::Json ElementAtQuery(QPointF point) {
-	auto query = twidget::Json::object();
-	query.set("q", "elementFromPoint");
-	query.set("x", point.x());
-	query.set("y", point.y());
+[[nodiscard]] twidget::Json SchemeTheme(bool dark) {
+	auto result = twidget::Json::object();
+	result.set("colorScheme", dark ? "dark" : "light");
+	return result;
+}
+
+[[nodiscard]] twidget::Json LocalQuery(twidget::Json query) {
 	auto result = twidget::Json::object();
 	result.set("type", "query");
 	result.set("qid", kLocalQueryId);
@@ -145,12 +154,30 @@ private:
 	return result;
 }
 
+[[nodiscard]] twidget::Json ElementAtQuery(QPointF point) {
+	auto query = twidget::Json::object();
+	query.set("q", "elementFromPoint");
+	query.set("x", point.x());
+	query.set("y", point.y());
+	return LocalQuery(std::move(query));
+}
+
+[[nodiscard]] twidget::Json ViewportQuery() {
+	auto query = twidget::Json::object();
+	query.set("q", "viewport");
+	return LocalQuery(std::move(query));
+}
+
+[[nodiscard]] auto OfType(std::string_view type) {
+	return [=](const twidget::Json &message) {
+		return (message["type"].asString() == type);
+	};
+}
+
 [[nodiscard]] twidget::Json TakeMessage(
 		std::vector<twidget::Json> &out,
 		std::string_view type) {
-	const auto i = ranges::find_if(out, [&](const twidget::Json &message) {
-		return (message["type"].asString() == type);
-	});
+	const auto i = ranges::find_if(out, OfType(type));
 	if (i == end(out)) {
 		return twidget::Json();
 	}
@@ -350,7 +377,8 @@ RendererCore::RendererCore(double width, double dpr)
 	false,
 	_backend.get()))
 , _clock([=] { return step(); })
-, _wake([=] { wake(); }) {
+, _wake([=] { wake(); })
+, _themeVariables(twlite::css::theme_variables(SchemeTheme(false))) {
 }
 
 RendererCore::~RendererCore() {
@@ -513,7 +541,9 @@ bool RendererCore::handCursorAt(QPointF point) {
 		? hover
 		: 0;
 	if (!_cursor) {
-		_cursor = std::make_unique<CursorStyles>(_renderer->dpr());
+		_cursor = std::make_unique<CursorStyles>(
+			_renderer->dpr(),
+			_themeVariables);
 	}
 	return _cursor->pointer(*_renderer, hit, hover, active);
 }
@@ -561,26 +591,25 @@ not_null<twlite::Renderer*> RendererCore::renderer() const {
 }
 
 const QImage &RendererCore::frame() {
-	const auto size = QSize(
-		DeviceSide(_renderer->px_width()),
-		DeviceSide(_renderer->px_height()));
 	const auto ratio = style::DevicePixelRatio();
 	if (!_renderer->dirty()
-		&& (_frameSize == size)
+		&& (_frameSize == DeviceSize(*_renderer))
 		&& (_frame.isNull() || _frame.devicePixelRatio() == ratio)) {
 		return _frame;
 	}
-	// WHY: the display list names backend font handles that the next
-	// rebuild deletes, so it is rasterized at once and only the pixels
-	// are kept.
-	_frame = PaintFrame(
-		_renderer->paint(),
-		*_backend,
-		size,
-		_renderer->dpr());
+	const auto builds = _renderer->stats().builds;
+	// WHY: the display list names backend font handles that a later build
+	// may delete with an idle face, so it is rasterized at once and only
+	// the pixels are kept.
+	const auto list = _renderer->paint();
+	const auto size = DeviceSize(*_renderer);
+	_frame = PaintFrame(list, *_backend, size, _renderer->dpr());
 	_frameSize = size;
 	if (!_frame.isNull()) {
 		_frame.setDevicePixelRatio(ratio);
+	}
+	if (_renderer->stats().builds != builds) {
+		flushQueued(); // paint() holds its build's output for the next call
 	}
 	return _frame;
 }
@@ -629,10 +658,16 @@ void RendererCore::hostMessage(const twidget::Json &message) {
 		releaseInput();
 		finish({}, Change::Stopped | Change::Repaint);
 		return;
+	} else if (type == "theme") {
+		_themeReceived = true;
+		noteTheme(message["theme"]);
 	}
 	const auto wasDirty = _renderer->dirty();
 	const auto measure = (type == "query")
 		&& (message["query"]["q"].asString() == "measureText");
+	if (measure) {
+		flushQueued();
+	}
 	_backend->beginCanvasBatch();
 	_backend->setCanvasText(measure);
 	const auto out = _renderer->receive(message);
@@ -656,6 +691,8 @@ void RendererCore::hostMessage(const twidget::Json &message) {
 void RendererCore::hostTheme(bool dark) {
 	if (_stopped) {
 		return;
+	} else if (!_themeReceived) {
+		noteTheme(SchemeTheme(dark));
 	}
 	auto out = std::vector<twidget::Json>();
 	_renderer->set_theme(dark, out);
@@ -665,6 +702,14 @@ void RendererCore::hostTheme(bool dark) {
 void RendererCore::hostLinkRequest(const LinkRequest &request) {
 	if (!_stopped) {
 		_linkRequests.fire_copy(request);
+	}
+}
+
+void RendererCore::noteTheme(const twidget::Json &theme) {
+	auto variables = twlite::css::theme_variables(theme);
+	if (_themeVariables != variables) {
+		_themeVariables = std::move(variables);
+		_cursor = nullptr;
 	}
 }
 
@@ -735,6 +780,16 @@ void RendererCore::resetInput() {
 void RendererCore::releaseInput() {
 	_cursor = nullptr;
 	_pointer = Pointer();
+}
+
+void RendererCore::flushQueued() {
+	if (_detached || _stopped) {
+		return;
+	}
+	auto out = _renderer->receive(ViewportQuery());
+	out.erase(ranges::remove_if(out, OfType("result")), end(out));
+	notifyPosted(forwardAll(out));
+	refreshClock();
 }
 
 bool RendererCore::canTick() const {

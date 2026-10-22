@@ -7,9 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tgw/tgw_cursor.h"
 
-#include "renderer-litehtml/src/renderer.h"
-#include "renderer-litehtml/src/theme.h"
-#include "twidget/json.h"
+#include "TwidgetCore/src/css.h"
+#include "TwidgetCore/src/renderer.h"
 #include "tw_ua_stylesheet.h"
 
 #include <litehtml.h>
@@ -32,34 +31,40 @@ constexpr auto kPointerCursor = "pointer";
 constexpr auto kIdAttribute = "data-twid";
 constexpr auto kIdSelector = "[data-twid]";
 
-// Byte-for-byte copy of UA_EXTRA in renderer-litehtml/src/renderer.cpp.
+// Byte-for-byte copy of UA_EXTRA in TwidgetCore/src/renderer.cpp.
 constexpr auto kUaExtra = R"css(
 button,input,select,textarea,meter,progress{box-sizing:border-box}
-input,select,textarea,button{display:inline-block;border:1px solid #8f8f8f;border-radius:3px;background:#fff;color:#000;padding:2px 6px;font:13.333px -apple-system,system-ui,sans-serif;min-height:1.8em;min-width:2em;vertical-align:middle}
-button{background:#efefef;padding:1px 6px;text-align:center}
+input,select,textarea{display:inline-block;border:1px solid #8f8f8f;border-radius:3px;background:#fff;color:#000;padding:2px 6px;font:13.333px -apple-system,system-ui,sans-serif;min-height:1.8em;min-width:2em;vertical-align:middle}
+:where(button){display:inline-block;text-align:center}
 input[type=checkbox],input[type=radio]{min-width:13px;width:13px;height:13px;min-height:13px;padding:0;margin:3px 3px 3px 4px;vertical-align:middle}
 input[type=radio]{border-radius:50%}
 input[type=range]{border:none;background:transparent;padding:0}
 input[type=color]{width:50px;height:27px;padding:2px}
 input[type=hidden]{display:none}
-textarea{display:block;min-height:3em;white-space:pre-wrap}
+textarea{display:block;min-height:3em;white-space:pre-wrap;overflow-wrap:break-word}
 progress,meter{display:inline-block;width:10em;height:1em;background:#e6e6e6;border-radius:2px}
 canvas{display:inline-block;background:transparent}
 svg{display:inline-block}
-details>summary{display:block;cursor:pointer}
+details{display:block}
+details>summary:first-of-type{display:list-item;list-style:disclosure-closed inside;cursor:pointer}
+details[open]>summary:first-of-type{list-style-type:disclosure-open}
 details:not([open])>*:not(summary){display:none}
 dialog:not([open]){display:none}
+[dir=rtl]{direction:rtl}
+[dir=ltr]{direction:ltr}
+q::before{content:open-quote}
+q::after{content:close-quote}
 [hidden]{display:none}
 )css";
 
-[[nodiscard]] const std::string &MasterStyles() {
+[[nodiscard]] std::string MasterStyles(
+		const std::vector<std::pair<std::string, std::string>> &variables) {
 	// Built as in twlite::Renderer::apply_theme(); no theme value sets a cursor.
-	static const auto result = std::string(litehtml::master_css)
+	return std::string(litehtml::master_css)
 		+ kUaExtra
-		+ twlite::theme::unwrap_where(twlite::theme::substitute(
+		+ twlite::css::unwrap_where(twlite::css::substitute_variables(
 			TW_UA_STYLESHEET,
-			twlite::theme::variables(twidget::Json::object())));
-	return result;
+			variables));
 }
 
 [[nodiscard]] std::shared_ptr<litehtml::element> Lookup(
@@ -405,8 +410,11 @@ void CursorStyles::Container::get_language(
 	culture.clear();
 }
 
-CursorStyles::CursorStyles(double dpr)
-: _container(std::make_unique<Container>(dpr)) {
+CursorStyles::CursorStyles(
+	double dpr,
+	const std::vector<std::pair<std::string, std::string>> &variables)
+: _container(std::make_unique<Container>(dpr))
+, _master(MasterStyles(variables)) {
 }
 
 CursorStyles::~CursorStyles() {
@@ -415,7 +423,7 @@ CursorStyles::~CursorStyles() {
 }
 
 bool CursorStyles::pointer(
-		const twlite::Renderer &renderer,
+		twlite::Renderer &renderer,
 		int64 hit,
 		int64 hover,
 		int64 active) {
@@ -438,7 +446,7 @@ bool CursorStyles::pointer(
 	return element && (element->css().get_cursor() == kPointerCursor);
 }
 
-bool CursorStyles::refresh(const twlite::Renderer &renderer) {
+bool CursorStyles::refresh(twlite::Renderer &renderer) {
 	const auto builds = renderer.stats().builds;
 	if (_document && _builds == builds) {
 		return false;
@@ -488,7 +496,7 @@ void CursorStyles::rebuild(double width, int height) {
 	_document = litehtml::document::createUpdatableFromString(
 		_html,
 		_container.get(),
-		MasterStyles());
+		_master);
 	index();
 }
 
