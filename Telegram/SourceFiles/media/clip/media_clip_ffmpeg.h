@@ -89,6 +89,7 @@ private:
 	AVFormatContext *_fmtContext = nullptr;
 	AVCodecContext *_codecContext = nullptr;
 	int _streamId = 0;
+	int _colorPeak = 0;
 	FFmpeg::FramePointer _frame;
 	int _frameIndex = -1;
 	bool _opened = false;

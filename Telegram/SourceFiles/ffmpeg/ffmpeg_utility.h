@@ -200,10 +200,6 @@ using SwscalePointer = std::unique_ptr<SwsContext, SwscaleDeleter>;
 	QSize dstSize,
 	int dstFormat,
 	SwscalePointer *existing = nullptr);
-[[nodiscard]] SwscalePointer MakeSwscalePointer(
-	not_null<AVFrame*> frame,
-	QSize resize,
-	SwscalePointer *existing = nullptr);
 
 struct SwresampleDeleter {
 	AVSampleFormat srcFormat = AV_SAMPLE_FMT_NONE;

@@ -1781,10 +1781,10 @@ QImage Pip::videoFrame(const FrameRequest &request) const {
 	return _instance->frame(request);
 }
 
-Streaming::FrameWithInfo Pip::videoFrameWithInfo() const {
+Streaming::FrameWithInfo Pip::videoFrameWithInfo(bool hdr) const {
 	Expects(canUseVideoFrame());
 
-	return _instance->frameWithInfo();
+	return _instance->frameWithInfo(hdr);
 }
 
 QImage Pip::staticContent() const {
