@@ -104,15 +104,11 @@ private:
 	void hostMessage(const twidget::Json &message);
 	void hostTheme(bool dark);
 	void hostLinkRequest(const LinkRequest &request);
-	void noteTheme(const twidget::Json &theme);
 
 	[[nodiscard]] int64 elementAt(QPointF point);
-	[[nodiscard]] bool trackHover();
+	void trackHover();
 	[[nodiscard]] std::vector<twidget::Json> leaveHover();
-	void inputDone(
-		std::vector<twidget::Json> out,
-		bool wasDirty,
-		bool restyled);
+	void inputDone(const std::vector<twidget::Json> &out, bool wasDirty);
 	void resetInput();
 	void releaseInput();
 	void flushQueued();
@@ -143,11 +139,9 @@ private:
 	QString _stopReason;
 	rpl::event_stream<Changes> _updates;
 	rpl::event_stream<LinkRequest> _linkRequests;
-	std::vector<std::pair<std::string, std::string>> _themeVariables;
 	std::unique_ptr<CursorStyles> _cursor;
 	Pointer _pointer;
 	Changes _postedChanges;
-	bool _themeReceived = false;
 	bool _ready = false;
 	bool _detached = false;
 	bool _hasContent = false;

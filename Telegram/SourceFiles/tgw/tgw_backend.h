@@ -27,7 +27,7 @@ public:
 		const std::string &kind,
 		const std::string &detail)>;
 
-	QtBackend(float64 ratio, Diagnostic diagnostic);
+	explicit QtBackend(Diagnostic diagnostic);
 	~QtBackend();
 
 	int create_font(
@@ -66,7 +66,6 @@ public:
 	[[nodiscard]] int canvasFont(
 		const std::string &css,
 		twlite::FontMetrics &metrics);
-	void setCanvasText(bool enabled);
 	void releaseCanvasFonts();
 
 private:
@@ -80,17 +79,12 @@ private:
 	struct CachedFont {
 		int id = 0;
 		twlite::FontMetrics metrics;
-		bool sharedWithCore = false;
 	};
 
 	[[nodiscard]] int makeFont(FontKey key, twlite::FontMetrics &out);
-	[[nodiscard]] int admitCanvasFont(
-		FontKey key,
-		bool sharedWithCore,
-		twlite::FontMetrics &out);
+	[[nodiscard]] int admitCanvasFont(FontKey key, twlite::FontMetrics &out);
 	[[nodiscard]] int refuseCanvasFont(twlite::FontMetrics &out);
 
-	const float64 _ratio = 1.;
 	const Diagnostic _diagnostic;
 	base::flat_map<int, QtFont> _fonts;
 	base::flat_map<int, Image> _images;
@@ -101,7 +95,6 @@ private:
 	int _lastFontId = 0;
 	int _canvasFontsLeft = 0;
 	int _canvasParsesLeft = 0;
-	bool _canvasText = false;
 	bool _canvasFontLimitNoted = false;
 
 };

@@ -18,12 +18,10 @@ class Renderer;
 
 namespace Tgw {
 
-// Stopgap until twlite::Renderer exposes the cursor its document computes.
+// A point query, as twlite::Renderer::cursor() is the last delivered move's.
 class CursorStyles final {
 public:
-	CursorStyles(
-		double dpr,
-		const std::vector<std::pair<std::string, std::string>> &variables);
+	explicit CursorStyles(double dpr);
 	~CursorStyles();
 
 	[[nodiscard]] bool pointer(
@@ -40,7 +38,7 @@ private:
 	void index();
 
 	const std::unique_ptr<Container> _container;
-	const std::string _master;
+	std::string _master;
 	std::shared_ptr<litehtml::document> _document;
 	std::unordered_map<int64, std::shared_ptr<litehtml::element>> _elements;
 	std::string _html;

@@ -7,9 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tgw/tgw_cursor.h"
 
-#include "TwidgetCore/src/css.h"
 #include "TwidgetCore/src/renderer.h"
-#include "tw_ua_stylesheet.h"
 
 #include <litehtml.h>
 
@@ -30,42 +28,6 @@ constexpr auto kColorIndex = 256;
 constexpr auto kPointerCursor = "pointer";
 constexpr auto kIdAttribute = "data-twid";
 constexpr auto kIdSelector = "[data-twid]";
-
-// Byte-for-byte copy of UA_EXTRA in TwidgetCore/src/renderer.cpp.
-constexpr auto kUaExtra = R"css(
-button,input,select,textarea,meter,progress{box-sizing:border-box}
-input,select,textarea{display:inline-block;border:1px solid #8f8f8f;border-radius:3px;background:#fff;color:#000;padding:2px 6px;font:13.333px -apple-system,system-ui,sans-serif;min-height:1.8em;min-width:2em;vertical-align:middle}
-:where(button){display:inline-block;text-align:center}
-input[type=checkbox],input[type=radio]{min-width:13px;width:13px;height:13px;min-height:13px;padding:0;margin:3px 3px 3px 4px;vertical-align:middle}
-input[type=radio]{border-radius:50%}
-input[type=range]{border:none;background:transparent;padding:0}
-input[type=color]{width:50px;height:27px;padding:2px}
-input[type=hidden]{display:none}
-textarea{display:block;min-height:3em;white-space:pre-wrap;overflow-wrap:break-word}
-progress,meter{display:inline-block;width:10em;height:1em;background:#e6e6e6;border-radius:2px}
-canvas{display:inline-block;background:transparent}
-svg{display:inline-block}
-details{display:block}
-details>summary:first-of-type{display:list-item;list-style:disclosure-closed inside;cursor:pointer}
-details[open]>summary:first-of-type{list-style-type:disclosure-open}
-details:not([open])>*:not(summary){display:none}
-dialog:not([open]){display:none}
-[dir=rtl]{direction:rtl}
-[dir=ltr]{direction:ltr}
-q::before{content:open-quote}
-q::after{content:close-quote}
-[hidden]{display:none}
-)css";
-
-[[nodiscard]] std::string MasterStyles(
-		const std::vector<std::pair<std::string, std::string>> &variables) {
-	// Built as in twlite::Renderer::apply_theme(); no theme value sets a cursor.
-	return std::string(litehtml::master_css)
-		+ kUaExtra
-		+ twlite::css::unwrap_where(twlite::css::substitute_variables(
-			TW_UA_STYLESHEET,
-			variables));
-}
 
 [[nodiscard]] std::shared_ptr<litehtml::element> Lookup(
 		const Elements &elements,
@@ -410,11 +372,8 @@ void CursorStyles::Container::get_language(
 	culture.clear();
 }
 
-CursorStyles::CursorStyles(
-	double dpr,
-	const std::vector<std::pair<std::string, std::string>> &variables)
-: _container(std::make_unique<Container>(dpr))
-, _master(MasterStyles(variables)) {
+CursorStyles::CursorStyles(double dpr)
+: _container(std::make_unique<Container>(dpr)) {
 }
 
 CursorStyles::~CursorStyles() {
@@ -453,14 +412,17 @@ bool CursorStyles::refresh(twlite::Renderer &renderer) {
 	}
 	_builds = builds;
 	const auto &html = renderer.last_html();
+	const auto &master = renderer.master_css();
 	const auto width = renderer.width();
 	const auto height = renderer.viewport_height();
-	const auto sized = (_width == width) && (_height == height);
-	if (_document && sized && (_html == html)) {
+	const auto same = (_master == master)
+		&& (_width == width)
+		&& (_height == height);
+	if (_document && same && (_html == html)) {
 		return false;
 	}
 	_html = html;
-	if (_document && sized) {
+	if (_document && same) {
 		const auto hover = ChainOf(Lookup(_elements, _hover));
 		const auto active = ChainOf(Lookup(_elements, _active));
 		auto changed = false;
@@ -482,6 +444,7 @@ bool CursorStyles::refresh(twlite::Renderer &renderer) {
 			return hoverCleared || activeCleared;
 		}
 	}
+	_master = master;
 	rebuild(width, height);
 	return false;
 }

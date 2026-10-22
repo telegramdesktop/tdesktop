@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_painter.h"
 #include "twidget/json.h"
 #include "twidget/sdk_policy.h"
-#include "TwidgetCore/src/css.h"
 #include "TwidgetCore/src/renderer.h"
 #include "ui/style/style_core_scale.h"
 
@@ -129,20 +128,6 @@ private:
 	auto result = twidget::Json::object();
 	result.set("type", "frame");
 	result.set("time", twlite::Renderer::clock() * 1000.);
-	return result;
-}
-
-[[nodiscard]] twidget::Json EmptyAnimMessage() {
-	auto result = twidget::Json::object();
-	result.set("type", "anim");
-	result.set("now", twlite::Renderer::clock() * 1000.);
-	result.set("anims", twidget::Json::array());
-	return result;
-}
-
-[[nodiscard]] twidget::Json SchemeTheme(bool dark) {
-	auto result = twidget::Json::object();
-	result.set("colorScheme", dark ? "dark" : "light");
 	return result;
 }
 
@@ -367,7 +352,6 @@ void HostLink::postLinkRequest(RendererCore::LinkRequest request) {
 RendererCore::RendererCore(double width, double dpr)
 : _link(std::make_shared<HostLink>(this))
 , _backend(std::make_unique<QtBackend>(
-	dpr,
 	[link = _link](const std::string &kind, const std::string &detail) {
 		link->diag(kind, detail);
 	}))
@@ -377,8 +361,7 @@ RendererCore::RendererCore(double width, double dpr)
 	false,
 	_backend.get()))
 , _clock([=] { return step(); })
-, _wake([=] { wake(); })
-, _themeVariables(twlite::css::theme_variables(SchemeTheme(false))) {
+, _wake([=] { wake(); }) {
 }
 
 RendererCore::~RendererCore() {
@@ -459,14 +442,16 @@ void RendererCore::pointerMove(QPointF point, int modifiers) {
 		auto out = Touch(*_renderer, kTouchMove, point, modifiers);
 		_pointer.moved = _pointer.moved
 			|| OutsideSlop(point, _pointer.origin);
-		const auto restyled = (_pointer.moved && trackHover()) || !wasDirty;
-		inputDone(std::move(out), wasDirty, restyled);
+		if (_pointer.moved) {
+			trackHover();
+		}
+		inputDone(out, wasDirty);
 		return;
 	}
 	_pointer.over = _pointer.hovering = true;
 	auto out = _renderer->hover(kHoverMove, point.x(), point.y(), modifiers);
-	const auto restyled = trackHover() || !wasDirty;
-	inputDone(std::move(out), wasDirty, restyled);
+	trackHover();
+	inputDone(out, wasDirty);
 }
 
 void RendererCore::pointerLeave() {
@@ -479,7 +464,7 @@ void RendererCore::pointerLeave() {
 		return;
 	}
 	const auto wasDirty = _renderer->dirty();
-	inputDone(leaveHover(), wasDirty, true);
+	inputDone(leaveHover(), wasDirty);
 }
 
 void RendererCore::pointerPress(QPointF point, int modifiers) {
@@ -496,7 +481,7 @@ void RendererCore::pointerPress(QPointF point, int modifiers) {
 	_pointer.over = _pointer.hovering = _pointer.pressed = true;
 	_pointer.moved = false;
 	_pointer.active = true;
-	inputDone(std::move(out), wasDirty, true);
+	inputDone(out, wasDirty);
 }
 
 void RendererCore::pointerRelease(QPointF point, int modifiers) {
@@ -512,7 +497,7 @@ void RendererCore::pointerRelease(QPointF point, int modifiers) {
 	if (!_pointer.over) {
 		Append(out, leaveHover());
 	}
-	inputDone(std::move(out), wasDirty, true);
+	inputDone(out, wasDirty);
 }
 
 bool RendererCore::hovered() const {
@@ -541,9 +526,7 @@ bool RendererCore::handCursorAt(QPointF point) {
 		? hover
 		: 0;
 	if (!_cursor) {
-		_cursor = std::make_unique<CursorStyles>(
-			_renderer->dpr(),
-			_themeVariables);
+		_cursor = std::make_unique<CursorStyles>(_renderer->dpr());
 	}
 	return _cursor->pointer(*_renderer, hit, hover, active);
 }
@@ -658,20 +641,10 @@ void RendererCore::hostMessage(const twidget::Json &message) {
 		releaseInput();
 		finish({}, Change::Stopped | Change::Repaint);
 		return;
-	} else if (type == "theme") {
-		_themeReceived = true;
-		noteTheme(message["theme"]);
 	}
 	const auto wasDirty = _renderer->dirty();
-	const auto measure = (type == "query")
-		&& (message["query"]["q"].asString() == "measureText");
-	if (measure) {
-		flushQueued();
-	}
 	_backend->beginCanvasBatch();
-	_backend->setCanvasText(measure);
 	const auto out = _renderer->receive(message);
-	_backend->setCanvasText(false);
 	auto changes = Changes();
 	if (type == "ops" && !message["ops"].arr().empty()) {
 		changes |= Change::Repaint;
@@ -691,8 +664,6 @@ void RendererCore::hostMessage(const twidget::Json &message) {
 void RendererCore::hostTheme(bool dark) {
 	if (_stopped) {
 		return;
-	} else if (!_themeReceived) {
-		noteTheme(SchemeTheme(dark));
 	}
 	auto out = std::vector<twidget::Json>();
 	_renderer->set_theme(dark, out);
@@ -705,14 +676,6 @@ void RendererCore::hostLinkRequest(const LinkRequest &request) {
 	}
 }
 
-void RendererCore::noteTheme(const twidget::Json &theme) {
-	auto variables = twlite::css::theme_variables(theme);
-	if (_themeVariables != variables) {
-		_themeVariables = std::move(variables);
-		_cursor = nullptr;
-	}
-}
-
 int64 RendererCore::elementAt(QPointF point) {
 	auto out = _renderer->receive(ElementAtQuery(point));
 	const auto result = TakeMessage(out, "result")["result"].asNumber();
@@ -720,7 +683,7 @@ int64 RendererCore::elementAt(QPointF point) {
 	return int64(result);
 }
 
-bool RendererCore::trackHover() {
+void RendererCore::trackHover() {
 	const auto parsed = ParsedDocuments(*_renderer);
 	if (_pointer.parsed != parsed) {
 		_pointer.parsed = parsed;
@@ -728,11 +691,10 @@ bool RendererCore::trackHover() {
 		_pointer.active = false;
 	}
 	if (_pointer.hover == _pointer.hit) {
-		return false;
+		return;
 	}
 	_pointer.hover = _pointer.hit;
 	_pointer.active = false;
-	return true;
 }
 
 std::vector<twidget::Json> RendererCore::leaveHover() {
@@ -743,15 +705,8 @@ std::vector<twidget::Json> RendererCore::leaveHover() {
 }
 
 void RendererCore::inputDone(
-		std::vector<twidget::Json> out,
-		bool wasDirty,
-		bool restyled) {
-	if (restyled && _renderer->dirty()) {
-		// WHY: hover() and touch() restyle :hover and :active without the
-		// core's animate(), so a transition on them would snap; an empty anim
-		// message runs it and the transition starts from the old value.
-		Append(out, _renderer->receive(EmptyAnimMessage()));
-	}
+		const std::vector<twidget::Json> &out,
+		bool wasDirty) {
 	auto changes = forwardAll(out);
 	if (!wasDirty && _renderer->dirty()) {
 		changes |= Change::Repaint;
@@ -772,7 +727,7 @@ void RendererCore::resetInput() {
 			Append(out, leaveHover());
 		}
 		_pointer = Pointer();
-		inputDone(std::move(out), wasDirty, false);
+		inputDone(out, wasDirty);
 	}
 	releaseInput();
 }

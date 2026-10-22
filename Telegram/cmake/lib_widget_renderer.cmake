@@ -86,8 +86,8 @@ target_include_directories(lib_widget_renderer
 PUBLIC
     ${widget_renderer_root}
     ${widget_sandbox_root}/packages/desktop/sandbox/include
-    ${widget_renderer_gen}
 PRIVATE
+    ${widget_renderer_gen}
     ${widget_renderer_loc}
 )
 
