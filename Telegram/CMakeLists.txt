@@ -2102,6 +2102,8 @@ PRIVATE
     test/test_panel.h
     test/test_post_paint.cpp
     test/test_post_paint.h
+    test/test_press_origin.cpp
+    test/test_press_origin.h
     test/test_probe.cpp
     test/test_probe.h
     test/test_publication_identity_scan.cpp

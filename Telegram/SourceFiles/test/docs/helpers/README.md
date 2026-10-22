@@ -35,6 +35,7 @@ should call.
 | [test_via_window](test_via_window.md) | Self-test | Self-test for window-mapped captures |
 | [test_toast_capture](test_toast_capture.md) | API | Isolated toast-subtree captures |
 | [test_hover](test_hover.md) | Self-test | Self-test for click/drag hover cleanup |
+| [test_press_origin](test_press_origin.md) | Self-test | Self-test for press-point ripple origins |
 | [test_activation](test_activation.md) | Self-test | Self-test for injected window activation |
 | [test_box_button](test_box_button.md) | API | Resolve and click shell footer buttons |
 | [test_ink](test_ink.md) | API | Painted bands, ink, color and contrast measurements |
