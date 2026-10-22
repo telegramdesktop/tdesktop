@@ -18,6 +18,7 @@ public:
 	PaintAllowance();
 
 	[[nodiscard]] bool chargeElements(int64 count);
+	[[nodiscard]] bool chargeStops(int64 count);
 	[[nodiscard]] bool chargeFill(
 		const QPainter &painter,
 		const QPainterPath &path,

@@ -2204,6 +2204,8 @@ PRIVATE
     tgw/tgw_log_box.h
     tgw/tgw_painter.cpp
     tgw/tgw_painter.h
+    tgw/tgw_painter_filters.cpp
+    tgw/tgw_painter_filters.h
     tgw/tgw_renderer.cpp
     tgw/tgw_renderer.h
     tgw/tgw_resources.cpp

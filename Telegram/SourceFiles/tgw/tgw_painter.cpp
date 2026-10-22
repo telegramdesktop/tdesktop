@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_painter.h"
 
 #include "tgw/tgw_backend.h"
+#include "tgw/tgw_painter_filters.h"
 #include "ui/image/image_prepare.h"
 
 namespace Tgw {
@@ -16,6 +17,9 @@ namespace {
 constexpr auto kMaxFrameBytes = int64(64 * 1024 * 1024);
 constexpr auto kMaxLayerBytes = int64(128 * 1024 * 1024);
 constexpr auto kMaxLayerWork = int64(256 * 1024 * 1024);
+constexpr auto kMaxFilterWork = int64(1 << 23);
+constexpr auto kFilterPassWork = int64(4096);
+constexpr auto kMaxFilterScratch = int64(64 * 1024 * 1024);
 constexpr auto kPixelBytes = 4;
 constexpr auto kDeviceMargin = float64(1 << 20);
 constexpr auto kInkMargin = 2.;
@@ -37,6 +41,8 @@ constexpr auto kMaxPathElements = int64(1 << 18);
 constexpr auto kMaxPathEdges = int64(1 << 20);
 constexpr auto kMaxPathWork = int64(1 << 27);
 constexpr auto kElementWork = int64(256);
+constexpr auto kStopWork = int64(256);
+constexpr auto kStopBytes = int64(4 * sizeof(QGradientStop));
 constexpr auto kShapeWork = 4096.;
 constexpr auto kDashPointWork = 256.;
 constexpr auto kCurveThreshold = 0.25;
@@ -247,16 +253,20 @@ private:
 		Group,
 		Layer,
 		Hidden,
+		Filter,
 	};
 	struct Entry {
 		EntryKind kind = EntryKind::Clip;
 		bool saved = false;
+		bool filter = false;
 	};
 	struct Layer {
 		QImage image;
 		QPainter painter;
 		QPoint origin;
 		float64 opacity = 1.;
+		std::shared_ptr<const twlite::Filters> filters;
+		float64 filterScale = 0.;
 	};
 
 	[[nodiscard]] bool execute(const twlite::Command &command);
@@ -274,20 +284,25 @@ private:
 		QRgb color);
 	void fillShadow(const ShadowSource &source, QRgb color);
 	void clipShadow(const ShadowSource &source);
-	void pushClip(const twlite::Command &command);
+	[[nodiscard]] bool pushClip(const twlite::Command &command);
 	void popClip();
 	[[nodiscard]] bool pushGroup(const twlite::Command &command);
+	[[nodiscard]] bool pushFilter(const twlite::Command &command);
 	[[nodiscard]] bool pushLayer(
 		const QTransform &world,
 		float64 opacity,
-		const QRectF &ink);
+		const QRect &area);
+	[[nodiscard]] bool admitFilter(const FilterCost &cost, int64 bytes);
+	[[nodiscard]] bool drawBackdrop(const twlite::Command &command);
 	void pushHidden();
 	void popGroup();
+	void popFilter();
 	void popEntry(bool composite);
 	void popLayer(bool composite);
 	void unwind(bool composite);
 
 	void clipToRect(const QRectF &rect);
+	[[nodiscard]] bool clipToPath(const twlite::Path &source);
 	[[nodiscard]] QPainter &painter() const;
 	[[nodiscard]] QPoint origin() const;
 	[[nodiscard]] QRectF bounded(const QRectF &rect) const;
@@ -303,7 +318,9 @@ private:
 	size_t _group = 0;
 	int64 _layerBytes = 0;
 	int64 _layerWork = 0;
+	int64 _filterWork = kMaxFilterWork;
 	int _hidden = 0;
+	bool _refused = false;
 
 };
 
@@ -352,12 +369,18 @@ private:
 		QPainter &parent,
 		QPoint origin,
 		const QPaintDevice &frame,
-		const QRectF &ink) {
-	if (ink.isEmpty()) {
+		const QRectF &ink,
+		float64 spread) {
+	const auto visible = VisibleRect(parent);
+	if (ink.isEmpty() || visible.isEmpty()) {
 		return QRect();
 	}
 	auto result = QRectF(0., 0., frame.width(), frame.height());
-	result = result.intersected(VisibleRect(parent).translated(origin));
+	result = result.intersected(visible.translated(origin).adjusted(
+		-spread,
+		-spread,
+		spread,
+		spread));
 	result = result.intersected(ink.adjusted(
 		-kInkMargin,
 		-kInkMargin,
@@ -374,6 +397,23 @@ private:
 	return (std::hypot(a + d, c - b) + std::hypot(a - d, b + c)) / 2.;
 }
 
+[[nodiscard]] float64 Spread(const QMarginsF &reach) {
+	return std::max({
+		reach.left(),
+		reach.top(),
+		reach.right(),
+		reach.bottom(),
+	});
+}
+
+[[nodiscard]] float64 DeviceSpread(
+		float64 spread,
+		const QPaintDevice &frame) {
+	const auto result = spread + kInkMargin;
+	const auto most = float64(frame.width()) + frame.height();
+	return (result < most) ? result : most;
+}
+
 [[nodiscard]] bool Structural(twlite::Cmd kind) {
 	using Cmd = twlite::Cmd;
 	constexpr auto kinds = std::array{
@@ -381,6 +421,8 @@ private:
 		Cmd::ClipPop,
 		Cmd::GroupPush,
 		Cmd::GroupPop,
+		Cmd::FilterPush,
+		Cmd::FilterPop,
 	};
 	return ranges::contains(kinds, kind);
 }
@@ -413,12 +455,15 @@ private:
 	return QColor(color.r, color.g, color.b, color.a);
 }
 
-[[nodiscard]] QRectF ToRect(const twlite::Rect &rect) {
-	const auto finite = std::isfinite(rect.x)
+[[nodiscard]] bool FiniteRect(const twlite::Rect &rect) {
+	return std::isfinite(rect.x)
 		&& std::isfinite(rect.y)
 		&& std::isfinite(rect.w)
 		&& std::isfinite(rect.h);
-	return (finite && !rect.empty())
+}
+
+[[nodiscard]] QRectF ToRect(const twlite::Rect &rect) {
+	return (FiniteRect(rect) && !rect.empty())
 		? QRectF(rect.x, rect.y, rect.w, rect.h)
 		: QRectF();
 }
@@ -731,23 +776,49 @@ private:
 	return -1;
 }
 
-[[nodiscard]] QBrush PathBrush(const twlite::Path &path) {
-	const auto gradient = path.stops.empty() ? 0 : path.gradient;
+[[nodiscard]] QBrush PaintBrush(
+		int kind,
+		QPointF from,
+		QPointF to,
+		float64 radius,
+		QPointF focal,
+		const std::vector<twlite::Stop> &stops,
+		twlite::Color color) {
+	const auto gradient = stops.empty() ? 0 : kind;
 	switch (gradient) {
-	case 1:
-		return LinearBrush(
-			QPointF(path.x1, path.y1),
-			QPointF(path.x2, path.y2),
-			path.stops);
-	case 2:
-		return RadialBrush(
-			QPointF(path.x1, path.y1),
-			path.r,
-			path.r,
-			QPointF(path.fx, path.fy),
-			path.stops);
+	case 1: return LinearBrush(from, to, stops);
+	case 2: return RadialBrush(from, radius, radius, focal, stops);
 	}
-	return SolidBrush(path.fill_color);
+	return SolidBrush(color);
+}
+
+[[nodiscard]] QBrush PathBrush(const twlite::Path &path) {
+	return PaintBrush(
+		path.gradient,
+		QPointF(path.x1, path.y1),
+		QPointF(path.x2, path.y2),
+		path.r,
+		QPointF(path.fx, path.fy),
+		path.stops,
+		path.fill_color);
+}
+
+[[nodiscard]] QBrush StrokeBrush(const twlite::Path &path) {
+	const auto &g = path.sg;
+	return PaintBrush(
+		path.stroke_gradient,
+		QPointF(g[0], g[1]),
+		QPointF(g[2], g[3]),
+		g[4],
+		QPointF(g[5], g[6]),
+		path.stroke_stops,
+		path.stroke_color);
+}
+
+[[nodiscard]] int64 StrokeStops(const twlite::Path &path) {
+	const auto gradient = (path.stroke_gradient == 1)
+		|| (path.stroke_gradient == 2);
+	return (path.stroke && gradient) ? int64(path.stroke_stops.size()) : 0;
 }
 
 [[nodiscard]] float64 MiterLimit(const twlite::Path &path) {
@@ -758,7 +829,7 @@ private:
 
 [[nodiscard]] QPen PathPen(const twlite::Path &path) {
 	auto result = QPen(
-		ToColor(path.stroke_color),
+		StrokeBrush(path),
 		float64(path.stroke_width),
 		Qt::SolidLine,
 		PathCap(path.line_cap),
@@ -1183,8 +1254,8 @@ void Include(Bounds &bounds, QPointF point) {
 		return QRectF();
 	}
 	const auto stroked = path.stroke
-		&& path.stroke_color.a
-		&& ValidWidth(path.stroke_width);
+		&& ValidWidth(path.stroke_width)
+		&& (path.stroke_color.a || StrokeStops(path) > 0);
 	const auto reach = stroked
 		? StrokeReach(path.stroke_width, MiterLimit(path))
 		: 0.;
@@ -1240,10 +1311,13 @@ void Include(Bounds &bounds, QPointF point) {
 	case Cmd::Text: return TextInk(command, backend);
 	case Cmd::Path: return command.path ? PathInk(*command.path) : QRectF();
 	case Cmd::Shadow: return ShadowInk(command, stretch);
+	case Cmd::Backdrop: return rect;
 	case Cmd::ClipPush:
 	case Cmd::ClipPop:
 	case Cmd::GroupPush:
-	case Cmd::GroupPop: break;
+	case Cmd::GroupPop:
+	case Cmd::FilterPush:
+	case Cmd::FilterPop: break;
 	}
 	return QRectF();
 }
@@ -1251,14 +1325,36 @@ void Include(Bounds &bounds, QPointF point) {
 [[nodiscard]] QRectF DeviceInk(
 		const QTransform &world,
 		const QRectF &rect,
-		const QRectF &frame) {
+		const QRectF &frame,
+		const QMarginsF &reach = QMarginsF()) {
 	if (rect.isEmpty()) {
 		return QRectF();
 	}
 	const auto result = world.mapRect(rect);
-	return (Finite(result.topLeft()) && Finite(result.bottomRight()))
-		? result.intersected(frame)
-		: frame;
+	if (!Finite(result.topLeft()) || !Finite(result.bottomRight())) {
+		return frame;
+	}
+	const auto most = frame.width() + frame.height();
+	const auto capped = [&](float64 value) {
+		return (value < most) ? value : most;
+	};
+	return result.adjusted(
+		-capped(reach.left()),
+		-capped(reach.top()),
+		capped(reach.right()),
+		capped(reach.bottom())).intersected(frame);
+}
+
+[[nodiscard]] QRectF FilterInk(
+		const twlite::Command &command,
+		const QTransform &world,
+		const QRectF &frame) {
+	const auto &chain = command.filter;
+	const auto scale = std::sqrt(std::abs(world.determinant()));
+	const auto reach = (chain && UsableFilters(*chain))
+		? FilterReach(*chain, scale)
+		: QMarginsF();
+	return DeviceInk(world, ToRect(command.rect), frame, reach);
 }
 
 [[nodiscard]] std::vector<QRectF> GroupInks(
@@ -1310,10 +1406,12 @@ void Include(Bounds &bounds, QPointF point) {
 			&& !stack.back().hidden
 			&& !stack.back().ink.contains(frame)) {
 			auto &top = stack.back();
-			top.ink |= DeviceInk(
-				top.world,
-				CommandInk(command, backend, MaxStretch(top.world)),
-				frame);
+			top.ink |= (command.kind == twlite::Cmd::FilterPush)
+				? FilterInk(command, top.world, frame)
+				: DeviceInk(
+					top.world,
+					CommandInk(command, backend, MaxStretch(top.world)),
+					frame);
 		}
 	}
 	while (stack.size() > 1) {
@@ -1849,13 +1947,27 @@ Executor::Executor(
 }
 
 bool Executor::run(const twlite::DisplayList &list) {
+	using Cmd = twlite::Cmd;
+	auto passes = int64();
 	for (const auto &command : list) {
-		if (command.kind == twlite::Cmd::Path
-			&& command.path
-			&& !_allowance.chargeElements(int64(command.path->ops.size()))) {
-			return false;
+		const auto vector = (command.kind == Cmd::Path)
+			|| (command.kind == Cmd::ClipPush);
+		const auto filter = (command.kind == Cmd::FilterPush)
+			|| (command.kind == Cmd::Backdrop);
+		if (vector && command.path) {
+			const auto &path = *command.path;
+			if (!_allowance.chargeElements(int64(path.ops.size()))
+				|| !_allowance.chargeStops(StrokeStops(path))) {
+				return false;
+			}
+		} else if (filter && command.filter && !command.filter->empty()) {
+			++passes;
 		}
 	}
+	if (passes > _filterWork / kFilterPassWork) {
+		return false;
+	}
+	_filterWork -= passes * kFilterPassWork;
 	const auto device = _root.device();
 	_inks = GroupInks(
 		list,
@@ -1863,13 +1975,13 @@ bool Executor::run(const twlite::DisplayList &list) {
 		_root.worldTransform(),
 		QRectF(0., 0., device->width(), device->height()));
 	for (const auto &command : list) {
-		if (!execute(command)) {
+		if (!execute(command) || _refused) {
 			unwind(false);
 			return false;
 		}
 	}
 	unwind(true);
-	return true;
+	return !_refused;
 }
 
 bool Executor::execute(const twlite::Command &command) {
@@ -1887,12 +1999,15 @@ bool Executor::execute(const twlite::Command &command) {
 	case Cmd::Linear:
 	case Cmd::Radial:
 	case Cmd::Conic: fillShape(command, BackgroundBrush(command)); break;
-	case Cmd::ClipPush: pushClip(command); break;
+	case Cmd::ClipPush: return pushClip(command);
 	case Cmd::ClipPop: popClip(); break;
 	case Cmd::Path: return drawPath(command);
 	case Cmd::GroupPush: return pushGroup(command);
 	case Cmd::GroupPop: popGroup(); break;
 	case Cmd::Shadow: return drawShadow(command);
+	case Cmd::FilterPush: return pushFilter(command);
+	case Cmd::FilterPop: popFilter(); break;
+	case Cmd::Backdrop: return drawBackdrop(command);
 	}
 	return true;
 }
@@ -2030,12 +2145,13 @@ bool Executor::drawPath(const twlite::Command &command) {
 		}
 		p.fillPath(path, brush);
 	}
-	if (!source->stroke
-		|| !source->stroke_color.a
-		|| !ValidWidth(source->stroke_width)) {
+	if (!source->stroke || !ValidWidth(source->stroke_width)) {
 		return true;
 	}
 	const auto pen = PathPen(*source);
+	if (pen.brush().style() == Qt::NoBrush) {
+		return true;
+	}
 	auto dashes = DashPattern(source->dashes);
 	if (dashes.empty()) {
 		if (!_allowance.chargeStroke(p, path, pen)) {
@@ -2164,14 +2280,77 @@ void Executor::clipShadow(const ShadowSource &source) {
 	painter().setClipPath(path, Qt::IntersectClip);
 }
 
-void Executor::pushClip(const twlite::Command &command) {
+bool Executor::drawBackdrop(const twlite::Command &command) {
+	const auto &chain = command.filter;
+	if (!chain || chain->empty()) {
+		return true;
+	} else if (!UsableFilters(*chain) || !FiniteRect(command.rect)) {
+		return false;
+	}
+	const auto rect = ToRect(command.rect);
+	if (rect.isEmpty()) {
+		return true;
+	}
+	auto &p = painter();
+	const auto local = p.combinedTransform();
+	const auto scale = std::sqrt(std::abs(local.determinant()));
+	const auto corners = NormalizedCorners(rect, command.radii);
+	if (!corners || !Finite(local) || !std::isfinite(scale)) {
+		return false;
+	}
+	const auto target = dynamic_cast<QImage*>(p.device());
+	if (!target || !local.isInvertible()) {
+		return true;
+	}
+	const auto spread = Spread(FilterReach(*chain, scale));
+	const auto sample = DeviceInk(
+		local,
+		rect,
+		QRectF(target->rect()),
+		QMarginsF(spread, spread, spread, spread));
+	const auto from = LayerArea(
+		p,
+		QPoint(),
+		*target,
+		sample,
+		DeviceSpread(spread, *target));
+	if (from.isEmpty()) {
+		return true;
+	}
+	const auto bytes = LayerBytes(from.size());
+	const auto cost = MeasureFilters(*chain, from.size(), scale);
+	if (!cost || !admitFilter(*cost, bytes)) {
+		return false;
+	}
+	_layerWork += bytes;
+	auto copy = target->copy(from);
+	if (copy.isNull() || !ApplyFilters(copy, *chain, scale)) {
+		return false;
+	}
+	p.save();
+	if (Rounded(*corners)) {
+		p.setClipPath(RoundedPath(rect, *corners), Qt::IntersectClip);
+	} else {
+		clipToRect(rect);
+	}
+	p.setWorldTransform(QTransform());
+	p.setCompositionMode(QPainter::CompositionMode_Source);
+	p.drawImage(from.topLeft(), copy);
+	p.restore();
+	return true;
+}
+
+bool Executor::pushClip(const twlite::Command &command) {
 	if (_hidden > 0) {
 		_stack.push_back({ .kind = EntryKind::Clip });
-		return;
+		return true;
 	}
 	auto &p = painter();
 	p.save();
 	_stack.push_back({ .kind = EntryKind::Clip, .saved = true });
+	if (command.path) {
+		return clipToPath(*command.path);
+	}
 	const auto rect = ToRect(command.rect);
 	const auto corners = rect.isEmpty()
 		? std::nullopt
@@ -2183,6 +2362,7 @@ void Executor::pushClip(const twlite::Command &command) {
 	} else {
 		clipToRect(rect);
 	}
+	return true;
 }
 
 void Executor::popClip() {
@@ -2201,7 +2381,8 @@ bool Executor::pushGroup(const twlite::Command &command) {
 		pushHidden();
 		return true;
 	} else if (command.opacity < 1.f) {
-		return pushLayer(*world, command.opacity, ink);
+		const auto area = LayerArea(p, origin(), *_root.device(), ink, 0.);
+		return pushLayer(*world, command.opacity, area);
 	}
 	p.save();
 	p.setWorldTransform(*world);
@@ -2209,17 +2390,64 @@ bool Executor::pushGroup(const twlite::Command &command) {
 	return true;
 }
 
+bool Executor::pushFilter(const twlite::Command &command) {
+	const auto &chain = command.filter;
+	if (_hidden > 0 || !chain || chain->empty()) {
+		_stack.push_back({ .kind = EntryKind::Filter, .filter = true });
+		return true;
+	} else if (!UsableFilters(*chain) || !FiniteRect(command.rect)) {
+		return false;
+	}
+	auto &p = painter();
+	const auto offset = origin();
+	const auto device = p.combinedTransform()
+		* QTransform::fromTranslate(offset.x(), offset.y());
+	const auto scale = std::sqrt(std::abs(device.determinant()));
+	if (!Finite(device) || !std::isfinite(scale)) {
+		return false;
+	}
+	const auto &frame = *_root.device();
+	const auto rect = ToRect(command.rect);
+	const auto reach = FilterReach(*chain, scale);
+	const auto area = (rect.isEmpty() || !(scale > 0.))
+		? QRect()
+		: LayerArea(
+			p,
+			offset,
+			frame,
+			DeviceInk(
+				device,
+				rect,
+				QRectF(0., 0., frame.width(), frame.height()),
+				reach),
+			DeviceSpread(Spread(reach), frame));
+	if (area.isEmpty()) {
+		pushHidden();
+		_stack.back().filter = true;
+		return true;
+	}
+	const auto cost = MeasureFilters(*chain, area.size(), scale);
+	if (!cost
+		|| !admitFilter(*cost, LayerBytes(area.size()))
+		|| !pushLayer(p.worldTransform(), 1., area)) {
+		return false;
+	}
+	auto &layer = *_layers.back();
+	layer.filters = chain;
+	layer.filterScale = scale;
+	_stack.back().filter = true;
+	return true;
+}
+
 bool Executor::pushLayer(
 		const QTransform &world,
 		float64 opacity,
-		const QRectF &ink) {
-	auto &parent = painter();
-	const auto offset = origin();
-	const auto area = LayerArea(parent, offset, *_root.device(), ink);
+		const QRect &area) {
 	if (area.isEmpty()) {
 		pushHidden();
 		return true;
 	}
+	const auto offset = origin();
 	const auto bytes = LayerBytes(area.size());
 	if (bytes > kMaxLayerBytes - _layerBytes
 		|| bytes > kMaxLayerWork - _layerWork) {
@@ -2248,6 +2476,19 @@ bool Executor::pushLayer(
 	return true;
 }
 
+bool Executor::admitFilter(const FilterCost &cost, int64 bytes) {
+	const auto total = bytes + cost.scratch;
+	if (cost.work > _filterWork
+		|| cost.scratch > kMaxFilterScratch
+		|| total > kMaxLayerBytes - _layerBytes
+		|| total > kMaxLayerWork - _layerWork) {
+		return false;
+	}
+	_filterWork -= cost.work;
+	_layerWork += cost.scratch;
+	return true;
+}
+
 void Executor::pushHidden() {
 	++_hidden;
 	_stack.push_back({ .kind = EntryKind::Hidden });
@@ -2255,7 +2496,7 @@ void Executor::pushHidden() {
 
 void Executor::popGroup() {
 	const auto group = [](const Entry &entry) {
-		return (entry.kind != EntryKind::Clip);
+		return (entry.kind != EntryKind::Clip) && !entry.filter;
 	};
 	if (!ranges::any_of(_stack, group)) {
 		return;
@@ -2264,6 +2505,20 @@ void Executor::popGroup() {
 		popEntry(true);
 	}
 	popEntry(true);
+}
+
+void Executor::popFilter() {
+	for (auto i = _stack.size(); i != 0; --i) {
+		const auto entry = _stack[i - 1];
+		if (entry.filter) {
+			while (_stack.size() >= i) {
+				popEntry(true);
+			}
+			return;
+		} else if (entry.kind != EntryKind::Clip) {
+			return;
+		}
+	}
 }
 
 void Executor::popEntry(bool composite) {
@@ -2284,7 +2539,11 @@ void Executor::popLayer(bool composite) {
 	_layers.pop_back();
 	layer->painter.end();
 	_layerBytes -= LayerBytes(layer->image.size());
-	if (!composite) {
+	if (!composite || _refused) {
+		return;
+	} else if (layer->filters
+		&& !ApplyFilters(layer->image, *layer->filters, layer->filterScale)) {
+		_refused = true;
 		return;
 	}
 	auto &parent = painter();
@@ -2303,6 +2562,19 @@ void Executor::unwind(bool composite) {
 
 void Executor::clipToRect(const QRectF &rect) {
 	painter().setClipRect(bounded(rect), Qt::IntersectClip);
+}
+
+bool Executor::clipToPath(const twlite::Path &source) {
+	auto &p = painter();
+	const auto path = VectorPath(source.ops, source.points, source.evenodd);
+	if (path.isEmpty()) {
+		p.setClipRect(QRectF(), Qt::IntersectClip);
+		return true;
+	} else if (!_allowance.chargeFill(p, path, QBrush(Qt::SolidPattern))) {
+		return false;
+	}
+	p.setClipPath(path, Qt::IntersectClip);
+	return true;
 }
 
 QPainter &Executor::painter() const {
@@ -2349,6 +2621,17 @@ bool PaintAllowance::chargeElements(int64 count) {
 	}
 	_elements -= count;
 	_work -= count * kElementWork;
+	return true;
+}
+
+bool PaintAllowance::chargeStops(int64 count) {
+	if (count < 0
+		|| count > _work / kStopWork
+		|| count > _flattenBytes / kStopBytes) {
+		return false;
+	}
+	_work -= count * kStopWork;
+	_flattenBytes -= count * kStopBytes;
 	return true;
 }
 
