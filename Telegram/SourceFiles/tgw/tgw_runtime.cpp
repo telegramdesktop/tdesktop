@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "platform/platform_specific.h"
 #include "renderer-litehtml/src/renderer.h"
 #include "tgw/tgw_bridge.h"
 #include "tgw/tgw_document.h"
@@ -99,6 +100,7 @@ struct Registry {
 	std::vector<not_null<Runtime*>> list;
 	base::flat_set<not_null<Main::Session*>> sessions;
 	Fn<void()> exitRetry;
+	rpl::lifetime applicationLifetime;
 	uint64 hiddenSerial = 0;
 	uint64 queueSerial = 0;
 	uint64 hostSerial = 0;
@@ -109,6 +111,7 @@ struct Registry {
 	bool drainPosted = false;
 	bool disabled = false;
 	bool draining = false;
+	bool applicationHidden = false;
 };
 
 [[nodiscard]] Registry &Runtimes() {
@@ -476,13 +479,25 @@ Runtime::Runtime(RuntimeDescriptor &&descriptor)
 , _repaint(std::move(descriptor.repaint))
 , _heavyChanged(std::move(descriptor.heavyChanged))
 , _bridge(std::make_unique<Bridge>(descriptor.item)) {
-	Runtimes().list.emplace_back(this);
+	auto &registry = Runtimes();
+	if (registry.list.empty()) {
+		Platform::ApplicationHiddenValue(
+		) | rpl::on_next([](bool hidden) {
+			Runtimes().applicationHidden = hidden;
+			PostCheck();
+		}, registry.applicationLifetime);
+	}
+	registry.list.emplace_back(this);
 }
 
 Runtime::~Runtime() {
 	_windowLifetime.destroy();
-	auto &list = Runtimes().list;
+	auto &registry = Runtimes();
+	auto &list = registry.list;
 	list.erase(ranges::remove(list, not_null<Runtime*>(this)), end(list));
+	if (list.empty()) {
+		registry.applicationLifetime.destroy();
+	}
 	invalidate_weak_ptrs(this);
 	_liveLifetime.destroy();
 	if (_live) {
@@ -891,8 +906,9 @@ bool Runtime::wantsStart() const {
 }
 
 bool Runtime::queryVisible() const {
-	if (_windowKnown
-		&& (!_window || _window->isHidden() || _window->isMinimized())) {
+	if (Runtimes().applicationHidden
+		|| (_windowKnown
+			&& (!_window || _window->isHidden() || _window->isMinimized()))) {
 		return false;
 	}
 	return _item->history()->owner().queryItemVisibility(

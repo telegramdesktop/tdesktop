@@ -20,6 +20,10 @@ inline bool CheckAppTranslocation() {
 inline void IgnoreApplicationActivationRightNow() {
 }
 
+inline rpl::producer<bool> ApplicationHiddenValue() {
+	return rpl::single(false);
+}
+
 inline int64 ClipboardChangeCount() {
 	return 0;
 }
