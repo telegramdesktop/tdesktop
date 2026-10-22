@@ -923,10 +923,12 @@ FrameWithInfo Player::frameWithInfo(
 	return _video->frameWithInfo(request, instance);
 }
 
-FrameWithInfo Player::frameWithInfo(const Instance *instance) const {
+FrameWithInfo Player::frameWithInfo(
+		const Instance *instance,
+		bool hdr) const {
 	Expects(_video != nullptr);
 
-	return _video->frameWithInfo(instance);
+	return _video->frameWithInfo(instance, hdr);
 }
 
 QImage Player::currentFrameImage() const {

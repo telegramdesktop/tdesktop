@@ -592,18 +592,6 @@ SwscalePointer MakeSwscalePointer(
 		{ srcSize, srcFormat, dstSize, dstFormat });
 }
 
-SwscalePointer MakeSwscalePointer(
-		not_null<AVFrame*> frame,
-		QSize resize,
-		SwscalePointer *existing) {
-	return MakeSwscalePointer(
-		QSize(frame->width, frame->height),
-		frame->format,
-		resize,
-		AV_PIX_FMT_BGRA,
-		existing);
-}
-
 void SwresampleDeleter::operator()(SwrContext *value) {
 	if (value) {
 		swr_free(&value);
