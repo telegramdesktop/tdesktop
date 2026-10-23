@@ -23,6 +23,9 @@ class Session;
 } // namespace Main
 
 namespace Export {
+namespace Data {
+struct DialogInfo;
+} // namespace Data
 namespace View {
 
 constexpr auto kSizeValueCount = 100;
@@ -94,6 +97,8 @@ private:
 		not_null<Ui::VerticalLayout*> container);
 	void chooseFolder();
 	void chooseFormat();
+	void chooseForums();
+	void chooseForumTopics(const Data::DialogInfo &chat);
 	void refreshButtons(
 		not_null<Ui::RpWidget*> container,
 		bool canStart);
