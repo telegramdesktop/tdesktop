@@ -376,6 +376,7 @@ public:
 		not_null<HistoryItem*> item) const;
 	[[nodiscard]] MessageSelection getSelectedTextSelection(
 		not_null<HistoryItem*> item) const;
+	void clearSelected();
 	void cancelSelection();
 	void selectItem(not_null<HistoryItem*> item);
 	void selectItemAsGroup(not_null<HistoryItem*> item);
@@ -803,7 +804,6 @@ private:
 	SelectionModeResult inSelectionMode() const;
 	bool overSelectedItems() const;
 	void clearTextSelection();
-	void clearSelected();
 	void setTextSelection(
 		not_null<Element*> view,
 		MessageSelection selection);
