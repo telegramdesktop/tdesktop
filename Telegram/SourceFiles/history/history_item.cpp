@@ -8379,16 +8379,19 @@ void HistoryItem::processAction(const MTPMessageAction &action) {
 			std::move(fields));
 	}, [&](const MTPDmessageActionSuggestBirthday &data) {
 		const auto &fields = data.vbirthday().data();
-		_media = std::make_unique<Data::MediaGiftBox>(
-			this,
-			_from,
-			Data::GiftCode{
-				.count = Data::Birthday(
-					fields.vday().v,
-					fields.vmonth().v,
-					fields.vyear().value_or_empty()).serialize(),
-				.type = Data::GiftType::BirthdaySuggest,
-			});
+		const auto birthday = Data::Birthday(
+			fields.vday().v,
+			fields.vmonth().v,
+			fields.vyear().value_or_empty());
+		if (birthday) {
+			_media = std::make_unique<Data::MediaGiftBox>(
+				this,
+				_from,
+				Data::GiftCode{
+					.count = birthday.serialize(),
+					.type = Data::GiftType::BirthdaySuggest,
+				});
+		}
 	}, [&](const MTPDmessageActionStarGiftPurchaseOffer &data) {
 		if (const auto suggestion = Get<HistoryMessageSuggestion>()) {
 			Assert(suggestion->gift != nullptr);
