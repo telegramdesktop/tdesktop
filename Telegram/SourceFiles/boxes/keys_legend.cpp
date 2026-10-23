@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "core/application.h"
 #include "core/shortcuts.h"
+#include "editor/editor_layer_widget.h"
+#include "editor/photo_editor.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "ui/controls/keys_legend.h"
@@ -700,6 +702,16 @@ void KeysLegendLayer::paintEvent(QPaintEvent *e) {
 		Qt::AlignLeft | Qt::AlignVCenter);
 }
 
+[[nodiscard]] bool InsideMediaEditor(not_null<QWidget*> widget) {
+	for (auto parent = widget.get(); parent; parent = parent->parentWidget()) {
+		if (dynamic_cast<Editor::PhotoEditor*>(parent)
+			|| dynamic_cast<Editor::LayerWidget*>(parent)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 } // namespace
 
 bool HandleKeysLegendHotkey(
@@ -729,6 +741,8 @@ bool HandleKeysLegendHotkey(
 	}
 	const auto window = app->activeWindow();
 	if (!window || widget->window() != window->widget()) {
+		return false;
+	} else if (InsideMediaEditor(widget)) {
 		return false;
 	} else if (event->isAutoRepeat()) {
 		return true;
