@@ -99,6 +99,7 @@ PUBLIC
 target_link_libraries(lib_widget_renderer
 PUBLIC
     tdesktop::lib_litehtml
+    tdesktop::lib_widget_sandbox
 )
 
 if (MSVC)
