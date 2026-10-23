@@ -19,6 +19,10 @@ Keep the repository's `test_scenario.cpp` a no-op outside the saved overlay.
   `actOnWidget` and lifetime guards over resolving another instance.
 - `skipReason` names an inapplicable prerequisite, never a failing result.
   `timeoutDetails` reports the last identity, geometry and state.
+- Compose stages that depend on a fixture prerequisite inside
+  `Runner::addGated`, so helper-appended stages inherit its first refusal
+  before resolving anything; declare restoration with `Runner::addRecovery`
+  ([gated groups](docs/helpers/test_runner.md#gated-groups-and-recovery-stages)).
 - Assert and log measured values on both passing and failing paths. A helper
   refusal or undecidable reading is not evidence of product success.
 
@@ -111,6 +115,9 @@ Register idempotent release of subscriptions, watchers and timers with
 `Runner::onFinish`; a final stage can be skipped by timeout or watchdog.
 Restore asynchronous UI state in a settling stage, not during quit. Read
 [teardown](docs/teardown.md) when retaining state or changing the environment.
+Mutate and restore a server fixture only through the
+[fixture transaction](docs/helpers/test_fixture_transaction.md), which reads
+before writing, waits the server's deadline and keeps a resumable record.
 
 ## Failure diagnosis
 

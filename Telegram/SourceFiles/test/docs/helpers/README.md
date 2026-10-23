@@ -10,8 +10,8 @@ should call.
 | Module | Kind | Use |
 | --- | --- | --- |
 | [test_agent](test_agent.md) | API | Runtime gate, startup overrides and fixture access |
-| [test_runner](test_runner.md) | API | Stages, bounded readiness and exact-object actions |
-| [test_gated_stage](test_gated_stage.md) | Self-test | Self-test for explicit gated skips |
+| [test_runner](test_runner.md) | API | Stages, gated groups, bounded readiness and exact-object actions |
+| [test_gated_stage](test_gated_stage.md) | Self-test | Self-tests for explicit and inherited gated skips |
 | [test_session_gate](test_session_gate.md) | API | Test-account gate, switching, restoration and explicit production legs |
 | [test_log](test_log.md) | API | Evidence logs, assertions and telemetry formatting |
 | [test_log_lines](test_log_lines.md) | Self-test | Self-test for one physical record per log call |
@@ -55,6 +55,7 @@ should call.
 | [test_web_cache](test_web_cache.md) | API | Clear the exact web-document cache entry |
 | [test_rpc_retry](test_rpc_retry.md) | API | Observe server-error resends |
 | [test_rpc_fixture](test_rpc_fixture.md) | API | Boxed controlled RPC replies |
+| [test_fixture_transaction](test_fixture_transaction.md) | API | Read-before-write server fixture changes with rate deadlines and a resumable restoration record |
 | [test_wallet_ready](test_wallet_ready.md) | API | Judge served wallet freshness |
 | [test_wallet_intercept](test_wallet_intercept.md) | API | Controlled wallet request interception |
 | [test_gram_reconcile](test_gram_reconcile.md) | API | Reconcile golden-wallet custody and words |

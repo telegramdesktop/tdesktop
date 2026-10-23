@@ -2065,6 +2065,8 @@ PRIVATE
     test/test_corner_patch.h
     test/test_custom_emoji.cpp
     test/test_custom_emoji.h
+    test/test_fixture_transaction.cpp
+    test/test_fixture_transaction.h
     test/test_gated_stage.cpp
     test/test_gated_stage.h
     test/test_gram_reconcile.cpp

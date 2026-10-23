@@ -9,6 +9,10 @@
   guarantees `TEST_COMPLETE` + quit on every exit path including timeout. `actOnWidget` waits for
   and lifetime-guards the exact target before acting once. `captureAndInspect` saves the accepted
   prepared frame and then runs numeric/raster assertions against that same widget and image.
+  `addGated(gate, compose)` gives every stage appended while `compose` runs, helper stages
+  included, an inherited fixture gate whose first refusal the whole group keeps, and
+  `addRecovery` appends a restoration stage that keeps only its own `skipReason` inside such a
+  group (see [gated groups](helpers/test_runner.md#gated-groups-and-recovery-stages)).
 - `test_log.h` — evidence dir from `TDESKTOP_TEST_EVIDENCE_DIR` (the workspace `test-run`
   helper sets it), flushed absolute-path logging, `Step/Pass/Fail/Check/Note`, `CheckNear`
   tolerance assertions, `LogGeometry`, the standard markers.

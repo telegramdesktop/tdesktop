@@ -8,15 +8,18 @@ Source contract: [test_runner.h](../../test_runner.h).
 
 ## Use when
 
-Stages, bounded readiness and exact-object actions. Read the contract below and the source header before use.
+Stages, gated groups, bounded readiness and exact-object actions. Read the contract below and the source header before use.
 
 ## Contract and usage
 
 Stages, bounded waits, exact-widget actions, prepared capture/inspection
 (`captureAndInspect` takes an optional trailing `skipReason` for its stage),
-first-class gated skips (`skipReason`), `onFinish` release hook (and its
-finish-release self-test), watchdog (`TDESKTOP_TEST_WATCHDOG` in seconds) and
-termination.
+first-class gated skips (`skipReason`), an inherited fixture gate for a
+composed group of stages (`addGated`) with explicitly declared restoration
+stages (`addRecovery`, see
+[gated groups and recovery stages](#gated-groups-and-recovery-stages)),
+`onFinish` release hook (and its finish-release self-test), watchdog
+(`TDESKTOP_TEST_WATCHDOG` in seconds) and termination.
 
 ## The stage contract
 
@@ -83,6 +86,130 @@ configures the gate, and no stage may switch the primary window or
 `domain().active()` to another account behind it. The one account switch
 the harness makes is the Test-session helper's (`Test::UseTestSession`),
 inside the gate and before any stage, undone by its last stage.
+
+## Gated groups and recovery stages
+
+`Runner::addGated(gate, compose)` shares one fixture prerequisite with a
+composed group of stages. It calls `compose` once, synchronously, before
+`start()`, and every stage appended while it runs inherits `gate`: stages
+added through `add`, the sugar waits, `actOnWidget`, `captureWidget`,
+`captureAndInspect`, and every stage that an `Append*` or `Capture*` helper
+given the runner appends, because all of them append through
+`Runner::add()`. A helper needs no skip parameter of its own to be gated.
+
+When an inherited stage begins, `Runner::beginStage()` reads its reason in
+this order, and the first non-empty answer wins:
+
+| Order | Reason | Read when |
+| --- | --- | --- |
+| 1 | The session gate's refusal | Always: `Runner::start()` replaces every stage's reason through `RefusedStage`, so on a refusal nothing below is read. |
+| 2 | The outermost open group's gate | The session gate passed. |
+| 3 | Each nested group's gate, outer to inner | Every outer gate answered empty. |
+| 4 | The stage's own `skipReason` (for `captureAndInspect`, its trailing parameter) | Every group gate answered empty. |
+
+A non-empty answer writes `TEST_RESULT: N/A: <stage> - <reason>`, counts in
+`SkippedCount()` and in `SCENARIO_RESULT`'s skipped clause, and skips `run`,
+`until` and `then`: the stage resolves no widget, polls no readiness,
+dispatches no action and takes no capture. The gates after it and the
+stage's own `skipReason` are not called at all.
+
+Each group latches its first refusal. Its gate is read again at every stage
+begin while it answers empty; its first non-empty answer is then kept for
+every later stage of that group. A gate that later answers another reason
+(an incidental `target does not exist`) or empty again (a restoration that
+cleared the overlay's state) changes nothing, so every row of the group
+names the first useful refusal. A nested group latches its own answer and
+is never read while an outer group refuses.
+
+The gate is read when each stage begins, not at composition, so the
+prerequisite must be settled by an earlier stage: await an asynchronous
+answer (a fixture write, a media gate) in that stage's `until` and set the
+state the gate reads in its `then`. A gate reading a request that is still
+running answers empty and lets the dependent stage run.
+
+Not inherited: stages appended after `compose` returns, `addRecovery`
+stages, `onFinish` callbacks registered during `compose`, and any work
+`compose` does other than appending. Building a widget, arming a timer or
+sending a request inside `compose` happens at composition whatever the gate
+later answers: put such work in a gated stage's `run`, and release what
+composition acquired through `onFinish`.
+
+`Runner::addRecovery(stage)` appends `stage` with only its own
+`skipReason`, even inside an open group. That reason is the restoration's
+own recovery policy, typically whether an obligation is owed; recovery is
+never inferred from a skipped stage. Use it for restoration between the
+legs of a campaign-wide group: leg 1's restoration runs after leg 1's
+prerequisite refused, while leg 2's stages still read leg 1's first refusal.
+Outside a group `addRecovery` behaves like `add` and keeps the stage
+independent if a later edit moves it into a group. A restoration helper that
+appends through `add`, `Test::AppendTestSessionRestore` among them, inherits
+the gate when called inside `compose`: call it after the group. The session
+gate's refusal still skips a recovery stage, as it skips every stage.
+
+The appended-helper pitfall: a per-stage `skipReason` reaches only the stage
+it is set on. Setting it on an overlay's own wrapper stages, or passing it
+to `captureAndInspect` or `CapturePopupMenu`, never reaches the stages that
+`actOnWidget` or another helper appends. In Run 2 of
+`2026/10/17/open-ones-own-qr-box-without-a-username-with-temporary-only-codes`
+a genuine `FLOOD_WAIT_13` refused a privacy fixture write; the overlay's
+wrapper stages read N/A, but its direct `actOnWidget` steps ran anyway, a
+later reopen timed out, and that timeout ended the run before the ordinary
+restoration stages. The overlay's gate was also a plain string that later
+stages overwrote, so the first refusal was lost. Compose such stages in
+`addGated` instead.
+
+`onFinish` is unaffected: gating skips stages, never releases. A group
+refused to the end of the run reaches `finish()` from the `beginStage()`
+skip loop, and the `onFinish` callbacks run once, as on every other finish
+path. A genuine timeout of an applicable gated stage, one whose gate
+answered empty, is still a `stage timed out` FAIL.
+
+A minimal sketch; `ApplyPremise`, `PremiseSettled`, `PremiseHolds`,
+`PremiseText`, `RestorePremise`, `PremiseRestored` and `AppendTargetChecks`
+stand for the overlay's own code:
+
+```cpp
+struct State {
+	QString gate;
+	bool owed = false;
+};
+const auto state = std::make_shared<State>();
+runner->add({
+	.name = u"fixture: apply the premise"_q,
+	.run = [=] { state->owed = ApplyPremise(); },
+	.until = [] { return PremiseSettled(); },
+	.then = [=] {
+		const auto holds = PremiseHolds();
+		Test::Check(holds, u"fixture gate: premise holds"_q, PremiseText());
+		if (!holds) {
+			state->gate = u"fixture gate: premise not established"_q;
+		}
+	},
+});
+runner->addGated([=] { return state->gate; }, [&] {
+	runner->actOnWidget(
+		u"open the target"_q,
+		[] { return Test::ReadLiveWidget(u"task.target"_q).widget; },
+		[](QWidget *widget) { Test::Click(widget); });
+	AppendTargetChecks(runner); // Its stages inherit the gate too.
+	runner->addRecovery({
+		.name = u"restore the premise"_q,
+		.skipReason = [=] {
+			return state->owed
+				? QString()
+				: u"applies=0: nothing to restore"_q;
+		},
+		.run = [] { RestorePremise(); },
+		.until = [] { return PremiseRestored(); },
+	});
+});
+```
+
+A server fixture such as privacy rules is applied and restored through the
+[fixture transaction](test_fixture_transaction.md#minimal-use), whose page
+shows the same shape with a real read-before-write transaction. The
+behavior is measured by `Test::AppendStageGroupGateSelfTest`
+([its page](test_gated_stage.md#appendstagegroupgateselftest)).
 
 ## Related guidance
 

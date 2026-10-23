@@ -45,6 +45,21 @@ the restore stage runs before the `onFinish` releases, every release of
 such a scenario holds the exact Test session or object it acts on and never
 re-reads `domain().active()` at finish.
 
+A server fixture restoration - privacy rules, a username - is an
+asynchronous stage too: it sends requests and accepts only a fresh read
+equal to the original, so it never runs inside `onFinish`. Declare it with
+`Runner::addRecovery` when it is composed inside a `Runner::addGated` group,
+so a refused prerequisite never skips it
+([gated groups](helpers/test_runner.md#gated-groups-and-recovery-stages)).
+The [fixture transaction](helpers/test_fixture_transaction.md) registers its
+own `onFinish` release through `Test::OpenFixtureTransaction`: on every
+finish path it cancels its deadline timer and makes every outstanding
+request answer and scheduled retry a no-op, without touching its record. A
+restoration the run did not finish - a stage timeout, the watchdog, a rate
+refusal past the bound - therefore stays pending in the obligation record of
+the live portable copy, and the next launch that opens the same label must
+restore it before any new transition.
+
 Skipping the hook costs a whole run. A leaked `State` whose two
 `rpl::lifetime`s were never released kept observers subscribed to
 `Storage::Facade`'s and `Data::Session`'s streams while `~Main::Session` tore
