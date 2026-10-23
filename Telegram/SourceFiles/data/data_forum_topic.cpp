@@ -188,15 +188,6 @@ int32 ForumGeneralIconColor(const QColor &color) {
 		| (uint32(color.alpha() == 255 ? 0 : color.alpha()) << 24));
 }
 
-QColor ParseForumGeneralIconColor(int32 value) {
-	const auto alpha = uint32(value) >> 24;
-	return QColor(
-		(value >> 16) & 0xFF,
-		(value >> 8) & 0xFF,
-		value & 0xFF,
-		alpha ? alpha : 255);
-}
-
 QString TopicIconEmojiEntity(TopicIconDescriptor descriptor) {
 	return IsForumGeneralIconTitle(descriptor.title)
 		? u"topic_general:"_q + QString::number(uint32(descriptor.colorId))

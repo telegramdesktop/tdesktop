@@ -180,10 +180,6 @@ not_null<PeerData*> SavedSublist::sublistPeer() const {
 	return _sublistHistory->peer;
 }
 
-bool SavedSublist::isHiddenAuthor() const {
-	return sublistPeer()->isSavedHiddenAuthor();
-}
-
 rpl::producer<> SavedSublist::destroyed() const {
 	using namespace rpl::mappers;
 	return rpl::merge(
