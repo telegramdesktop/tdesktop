@@ -688,7 +688,7 @@ bool ResolveUsernameOrPhone(
 	const auto validPhone = [](const QString &phone) {
 		return qthelp::regex_match(u"^[0-9]+$"_q, phone, {}).valid();
 	};
-	if (domain == u"telegrampassport"_q) {
+	if (domainParam == u"telegrampassport"_q) {
 		return ShowPassportForm(controller, params);
 	} else if (!validDomain(domain) && !validPhone(phone)) {
 		return false;
@@ -2277,7 +2277,10 @@ struct InternalLinkCheckResult {
 	if (!urlTrimmed.startsWith(u"tg://"_q, Qt::CaseInsensitive)) {
 		return {};
 	}
-	const auto command = base::StringViewMid(urlTrimmed, u"tg://"_q.size());
+	const auto command = base::StringViewMid(
+		urlTrimmed,
+		u"tg://"_q.size(),
+		8192);
 
 	using namespace qthelp;
 	const auto matchOptions = RegExOption::CaseInsensitive;
