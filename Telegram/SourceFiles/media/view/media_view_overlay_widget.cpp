@@ -210,16 +210,24 @@ constexpr auto kStorySavePromoDuration = 3 * crl::time(1000);
 
 class PipDelegate final : public Pip::Delegate {
 public:
-	PipDelegate(QWidget *parent, not_null<Main::Session*> session);
+	PipDelegate(
+		QWidget *parent,
+		not_null<Main::Session*> session,
+		Fn<bool(int)> canNavigate,
+		Fn<void(int)> navigate);
 
 	void pipSaveGeometry(QByteArray geometry) override;
 	QByteArray pipLoadGeometry() override;
 	float64 pipPlaybackSpeed() override;
 	QWidget *pipParentWidget() override;
+	bool pipCanNavigate(int delta) override;
+	void pipNavigate(int delta) override;
 
 private:
 	QWidget *_parent = nullptr;
 	not_null<Main::Session*> _session;
+	const Fn<bool(int)> _canNavigate;
+	const Fn<void(int)> _navigate;
 
 };
 
@@ -243,9 +251,23 @@ private:
 	};
 }
 
-PipDelegate::PipDelegate(QWidget *parent, not_null<Main::Session*> session)
+PipDelegate::PipDelegate(
+	QWidget *parent,
+	not_null<Main::Session*> session,
+	Fn<bool(int)> canNavigate,
+	Fn<void(int)> navigate)
 : _parent(parent)
-, _session(session) {
+, _session(session)
+, _canNavigate(std::move(canNavigate))
+, _navigate(std::move(navigate)) {
+}
+
+bool PipDelegate::pipCanNavigate(int delta) {
+	return _canNavigate(delta);
+}
+
+void PipDelegate::pipNavigate(int delta) {
+	_navigate(delta);
 }
 
 void PipDelegate::pipSaveGeometry(QByteArray geometry) {
@@ -490,6 +512,17 @@ struct OverlayWidget::Streamed {
 };
 
 struct OverlayWidget::PipWrap {
+	struct Navigation {
+		HistoryItem *item = nullptr;
+		MsgId topicRootId = 0;
+		PeerId monoforumPeerId = 0;
+		bool showDrawButton = false;
+		base::weak_ptr<Window::Controller> openedFrom;
+		std::optional<SharedMediaWithLastSlice> sharedMedia;
+		std::optional<InstantViewItems> items;
+		std::optional<int> index;
+	};
+
 	PipWrap(
 		QWidget *parent,
 		not_null<DocumentData*> document,
@@ -499,11 +532,16 @@ struct OverlayWidget::PipWrap {
 		VideoQuality quality,
 		std::shared_ptr<Streaming::Document> shared,
 		FnMut<void()> closeAndContinue,
-		FnMut<void()> destroy);
+		FnMut<void()> destroy,
+		Navigation navigation,
+		Fn<void(int)> navigate);
 
 	PipWrap(const PipWrap &other) = delete;
 	PipWrap &operator=(const PipWrap &other) = delete;
 
+	[[nodiscard]] Entity entity(int delta) const;
+
+	Navigation navigation;
 	PipDelegate delegate;
 	Pip wrapped;
 	rpl::lifetime lifetime;
@@ -633,8 +671,15 @@ OverlayWidget::PipWrap::PipWrap(
 	VideoQuality quality,
 	std::shared_ptr<Streaming::Document> shared,
 	FnMut<void()> closeAndContinue,
-	FnMut<void()> destroy)
-: delegate(parent, &document->session())
+	FnMut<void()> destroy,
+	Navigation navigation,
+	Fn<void(int)> navigate)
+: navigation(std::move(navigation))
+, delegate(
+	parent,
+	&document->session(),
+	[=](int delta) { return !v::is_null(entity(delta).data); },
+	std::move(navigate))
 , wrapped(
 	&delegate,
 	document,
@@ -645,6 +690,46 @@ OverlayWidget::PipWrap::PipWrap(
 	std::move(shared),
 	std::move(closeAndContinue),
 	std::move(destroy)) {
+}
+
+OverlayWidget::Entity OverlayWidget::PipWrap::entity(int delta) const {
+	const auto item = navigation.item;
+	if (!item) {
+		return { v::null, nullptr };
+	}
+	const auto topicRootId = navigation.topicRootId;
+	const auto monoforumPeerId = navigation.monoforumPeerId;
+	if (const auto &slice = navigation.sharedMedia) {
+		const auto current = slice->indexOf(item->fullId());
+		const auto index = current ? (*current + delta) : -1;
+		if (index < 0 || index >= slice->size()) {
+			return { v::null, nullptr };
+		}
+		const auto value = (*slice)[index];
+		const auto id = std::get_if<FullMsgId>(&value);
+		const auto found = id ? item->history()->owner().message(*id) : nullptr;
+		if (const auto media = found ? found->media() : nullptr) {
+			if (const auto photo = media->photo()) {
+				return { photo, found, topicRootId, monoforumPeerId };
+			} else if (const auto document = media->document()) {
+				return { document, found, topicRootId, monoforumPeerId };
+			}
+		}
+	} else if (const auto &items = navigation.items) {
+		const auto index = navigation.index
+			? (*navigation.index + delta)
+			: -1;
+		if (index < 0 || index >= items->size()) {
+			return { v::null, nullptr };
+		}
+		const auto &media = (*items)[index];
+		if (const auto document = std::get_if<DocumentData*>(&media)) {
+			return { *document, item, topicRootId, monoforumPeerId };
+		} else if (const auto photo = std::get_if<PhotoData*>(&media)) {
+			return { *photo, item, topicRootId, monoforumPeerId };
+		}
+	}
+	return { v::null, nullptr };
 }
 
 OverlayWidget::OverlayWidget()
@@ -4544,6 +4629,7 @@ void OverlayWidget::show(OpenRequest request) {
 	const auto contextPeer = request.peer();
 	const auto contextTopicRootId = request.topicRootId();
 	const auto contextMonoforumPeerId = request.monoforumPeerId();
+	const auto pipGeneration = _pipGeneration;
 	_drawButtonEnabled = request.showDrawButton();
 	if (!request.continueStreaming() && !request.startTime() && !_reShow) {
 		if (_message && (_message == contextItem)) {
@@ -4642,6 +4728,9 @@ void OverlayWidget::show(OpenRequest request) {
 	}
 	if (const auto controller = request.controller()) {
 		_openedFrom = base::make_weak(&controller->window());
+		if (_pip && (_pipGeneration != pipGeneration)) {
+			_pip->navigation.openedFrom = _openedFrom;
+		}
 	}
 }
 
@@ -5818,6 +5907,48 @@ void OverlayWidget::applyVideoQuality(VideoQuality value) {
 	}
 }
 
+void OverlayWidget::pipNavigate(int delta) {
+	const auto generation = _pipGeneration;
+	InvokeQueued(_widget, [=] {
+		if (!_pip || _pipGeneration != generation) {
+			return;
+		}
+		const auto entity = _pip->entity(delta);
+		const auto showDrawButton = _pip->navigation.showDrawButton;
+		const auto openedFrom = _pip->navigation.openedFrom;
+		const auto photo = std::get_if<not_null<PhotoData*>>(&entity.data);
+		const auto document = std::get_if<not_null<DocumentData*>>(
+			&entity.data);
+		if (!photo && !document) {
+			return;
+		}
+		_pip = nullptr;
+		_openedFrom = openedFrom;
+		const auto window = findWindow(false);
+		_reShow = true;
+		if (photo) {
+			show(OpenRequest(
+				window,
+				*photo,
+				entity.item,
+				entity.topicRootId,
+				entity.monoforumPeerId,
+				showDrawButton));
+		} else {
+			show(OpenRequest(
+				window,
+				*document,
+				entity.item,
+				entity.topicRootId,
+				entity.monoforumPeerId,
+				false,
+				0,
+				showDrawButton));
+		}
+		_reShow = false;
+	});
+}
+
 void OverlayWidget::switchToPip() {
 	Expects(_streamed != nullptr);
 	Expects(_document != nullptr);
@@ -5836,7 +5967,29 @@ void OverlayWidget::switchToPip() {
 			monoforumPeerId,
 			true));
 	};
+	const auto key = _instantViewMediaData
+		? std::optional<SharedMediaKey>()
+		: sharedMediaKey();
+	auto navigation = PipWrap::Navigation{
+		.item = _message,
+		.topicRootId = topicRootId,
+		.monoforumPeerId = monoforumPeerId,
+		.showDrawButton = _drawButtonEnabled,
+		.openedFrom = _openedFrom,
+	};
+	if (_instantViewMediaData) {
+		navigation.items = _instantViewMediaData;
+		navigation.index = _index;
+	} else if (key) {
+		if (_sharedMedia && _sharedMediaDataKey == _sharedMedia->key) {
+			navigation.sharedMedia = _sharedMediaData;
+		}
+	} else if (_collageData) {
+		navigation.items = _collageData->items;
+		navigation.index = _index;
+	}
 	_showAsPip = true;
+	++_pipGeneration;
 	_pip = std::make_unique<PipWrap>(
 		_window,
 		document,
@@ -5846,9 +5999,24 @@ void OverlayWidget::switchToPip() {
 		_quality,
 		_streamed->instance.shared(),
 		closeAndContinue,
-		[=] { _pip = nullptr; });
+		[=] { _pip = nullptr; },
+		std::move(navigation),
+		[=](int delta) { pipNavigate(delta); });
 
 	if (const auto raw = _message) {
+		if (key) {
+			const auto pip = _pip.get();
+			SharedMediaWithLastViewer(
+				&raw->history()->session(),
+				*key,
+				kIdsLimit,
+				kIdsLimit
+			) | rpl::on_next([=](SharedMediaWithLastSlice &&update) {
+				pip->navigation.sharedMedia = std::move(update);
+				pip->wrapped.navigationChanged();
+			}, pip->lifetime);
+		}
+
 		raw->history()->owner().itemRemoved(
 		) | rpl::filter([=](not_null<const HistoryItem*> item) {
 			return (raw == item);
