@@ -36,7 +36,7 @@ constexpr auto kMaxUsersPerInvite = 100;
 
 // How many messages from chat history server should forward to user,
 // that was added to this chat.
-constexpr auto kForwardMessagesOnAdd = 100;
+constexpr auto kForwardMessagesOnAdd = 250;
 
 std::vector<ChatParticipant> ParseList(
 		const ChatParticipants::TLMembers &data,
