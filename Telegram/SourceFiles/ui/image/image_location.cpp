@@ -463,10 +463,14 @@ Storage::Cache::Key StorageFileLocation::cacheKey() const {
 	switch (_type) {
 	case Type::Legacy:
 	case Type::PeerPhoto:
-	case Type::StickerSetThumb:
 		return Key{
 			shifted | sliced | (uint64(uint32(_localId)) << 16),
 			_volumeId };
+
+	case Type::StickerSetThumb:
+		return Key{
+			shifted | sliced | (uint64(uint32(_localId)) << 16),
+			_id };
 
 	case Type::Encrypted:
 	case Type::Secure:
@@ -513,8 +517,8 @@ Storage::Cache::Key StorageFileLocation::bigFileBaseCacheKey() const {
 		const auto high = (uint64(uint32(_localId)) << 24)
 			| ((uint64(_type) + 1) << 16)
 			| ((uint64(_dcId) & 0xFFULL) << 8)
-			| (_volumeId >> 56);
-		const auto low = (_volumeId << 8);
+			| (_id >> 56);
+		const auto low = (_id << 8);
 
 		Ensures((low & 0xFFULL) == 0);
 		return Storage::Cache::Key{ high, low };
