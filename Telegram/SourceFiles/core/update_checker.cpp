@@ -755,7 +755,11 @@ void HttpChecker::gotResponse() {
 	}
 
 	cSetLastUpdateCheck(base::unixtime::now());
+	const auto weak = base::make_weak(this);
 	const auto response = _reply->readAll();
+	if (!weak) {
+		return;
+	}
 	clearSentRequest();
 
 	if (response.size() >= kMaxResponseSize || !handleResponse(response)) {
@@ -785,15 +789,20 @@ void HttpChecker::clearSentRequest() {
 	reply->disconnect(reply, &QNetworkReply::finished, nullptr, nullptr);
 	reply->disconnect(reply, &QNetworkReply::errorOccurred, nullptr, nullptr);
 	reply->abort();
+	reply->disconnect();
 	reply->deleteLater();
-	_manager = nullptr;
+	_manager.release()->deleteLater();
 }
 
 void HttpChecker::gotFailure(QNetworkReply::NetworkError e) {
 	LOG(("Update Error: "
 		"could not get current version %1").arg(e));
 	if (const auto reply = base::take(_reply)) {
+		reply->disconnect(reply, &QNetworkReply::readyRead, nullptr, nullptr);
+		reply->disconnect(reply, &QNetworkReply::finished, nullptr, nullptr);
+		reply->disconnect(reply, &QNetworkReply::errorOccurred, nullptr, nullptr);
 		reply->deleteLater();
+		_manager.release()->deleteLater();
 	}
 
 	fail();
