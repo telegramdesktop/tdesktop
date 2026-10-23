@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/call_delayed.h"
 #include "base/base_file_utilities.h"
+#include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
 #include "base/random.h"
 #include "base/timer_rpl.h"
@@ -88,6 +89,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "wallet/wallet_panel.h"
 #include "wallet/wallet_session.h"
+#include "wallet/wallet_ton_connect_link.h"
 #include "wallet/wallet_user_addresses.h"
 #include "webview/webview_dialog.h"
 #include "webview/webview_interface.h"
@@ -110,6 +112,36 @@ namespace {
 constexpr auto kProlongTimeout = 60 * crl::time(1000);
 constexpr auto kRefreshBotsTimeout = 60 * 60 * crl::time(1000);
 constexpr auto kPopularAppBotsLimit = 100;
+
+[[nodiscard]] bool LocalUriRequiresUserAction(const QString &local) {
+	if (local.startsWith(u"ton://"_q, Qt::CaseInsensitive)
+		|| local.startsWith(u"tonsite://"_q, Qt::CaseInsensitive)) {
+		return true;
+	} else if (!local.startsWith(u"tg://"_q, Qt::CaseInsensitive)) {
+		return false;
+	}
+	using namespace qthelp;
+	const auto options = RegExOption::CaseInsensitive;
+	const auto command = QStringView(local).trimmed().mid(5);
+	if (regex_match(u"^sendgrams/?(\\?.+)?(#|$)"_q, command, options)) {
+		return true;
+	}
+	const auto resolve = regex_match(
+		u"^resolve/?\\?(.+)(#|$)"_q,
+		command,
+		options);
+	if (!resolve) {
+		return false;
+	}
+	const auto params = url_parse_params(
+		resolve->captured(1),
+		UrlParamNameTransform::ToLower);
+	return !params.value(u"domain"_q).compare(
+			u"sendgrams"_q,
+			Qt::CaseInsensitive)
+		&& Wallet::TonConnectStartParamQuery(
+			params.value(u"startapp"_q)).has_value();
+}
 
 [[nodiscard]] QImage PaintButtonEmojiFrame(
 		Ui::Text::CustomEmoji &emoji,
@@ -1608,7 +1640,7 @@ void WebViewInstance::botDownloadsAction(
 }
 
 bool WebViewInstance::botHandleLocalUri(QString uri, bool keepOpen) {
-	const auto local = Core::TryConvertUrlToLocal(uri);
+	const auto local = Core::TryConvertUrlToLocal(uri).left(8192);
 	if (Core::InternalPassportOrOAuthLink(local)) {
 		return true;
 	} else if (!local.startsWith(u"tg://"_q, Qt::CaseInsensitive)
@@ -1617,25 +1649,32 @@ bool WebViewInstance::botHandleLocalUri(QString uri, bool keepOpen) {
 		&& !local.startsWith(u"ton://"_q, Qt::CaseInsensitive)) {
 		return false;
 	}
-	const auto bot = _bot;
-	const auto context = std::make_shared<WebViewContext>(_context);
-	if (!keepOpen) {
-		botClose();
-	}
-	crl::on_main([=] {
-		if (bot->session().windows().empty()) {
-			Core::App().domain().activate(&bot->session().account());
+	const auto open = crl::guard(this, [=] {
+		const auto bot = _bot;
+		const auto context = std::make_shared<WebViewContext>(_context);
+		if (!keepOpen) {
+			botClose();
 		}
-		const auto window = !bot->session().windows().empty()
-			? bot->session().windows().front().get()
-			: nullptr;
-		context->controller = window;
-		const auto variant = QVariant::fromValue(ClickHandlerContext{
-			.sessionWindow = window,
-			.botWebviewContext = context,
+		crl::on_main([=] {
+			if (bot->session().windows().empty()) {
+				Core::App().domain().activate(&bot->session().account());
+			}
+			const auto window = !bot->session().windows().empty()
+				? bot->session().windows().front().get()
+				: nullptr;
+			context->controller = window;
+			const auto variant = QVariant::fromValue(ClickHandlerContext{
+				.sessionWindow = window,
+				.botWebviewContext = context,
+			});
+			UrlClickHandler::Open(local, variant);
 		});
-		UrlClickHandler::Open(local, variant);
 	});
+	if (LocalUriRequiresUserAction(local)) {
+		_panel->requestOpenLink(uri, open);
+	} else {
+		open();
+	}
 	return true;
 }
 

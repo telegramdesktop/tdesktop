@@ -2948,10 +2948,14 @@ void Panel::openExternalLink(const QJsonObject &args) {
 			File::OpenUrl(url);
 		}
 	};
+	requestOpenLink(url, open);
+}
+
+void Panel::requestOpenLink(const QString &url, Fn<void()> open) {
 	if (allowOpenLink()) {
 		open();
 	} else {
-		confirmExternalLink(url, open);
+		confirmExternalLink(url, std::move(open));
 	}
 }
 

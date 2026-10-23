@@ -165,6 +165,7 @@ public:
 	void requestActivate();
 	void toggleProgress(bool shown);
 	void requestWindowClose();
+	void requestOpenLink(const QString &url, Fn<void()> open);
 	[[nodiscard]] bool isActiveWindow() const;
 
 	void showBox(object_ptr<BoxContent> box);
