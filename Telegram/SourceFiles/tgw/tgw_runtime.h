@@ -56,7 +56,7 @@ public:
 
 	[[nodiscard]] not_null<HistoryView::Element*> view() const;
 	[[nodiscard]] not_null<HistoryItem*> item() const;
-	[[nodiscard]] const QByteArray &html() const;
+	[[nodiscard]] bool matchesHtml(const QByteArray &html) const;
 	[[nodiscard]] State state() const;
 	[[nodiscard]] bool heavy() const;
 	[[nodiscard]] bool stopped() const;
@@ -82,7 +82,8 @@ private:
 	struct Host;
 
 	[[nodiscard]] static std::shared_ptr<MessageMemory> RememberMessage(
-		not_null<HistoryItem*> item);
+		not_null<HistoryItem*> item,
+		const QByteArray &html);
 	static void PostCheck();
 	static void Check();
 	static void RefreshVisibility();
@@ -97,10 +98,13 @@ private:
 	static void ThemeDone(const std::shared_ptr<Host> &host);
 	[[nodiscard]] static Runtime *FindVictim();
 
+	[[nodiscard]] bool currentContent() const;
+	[[nodiscard]] bool crashedOut() const;
 	[[nodiscard]] bool startable() const;
 	[[nodiscard]] bool wantsStart() const;
 	[[nodiscard]] bool queryVisible() const;
 
+	void breakCrashRun();
 	void start();
 	void release();
 	void resourcesReady(
@@ -112,6 +116,7 @@ private:
 		std::shared_ptr<twidget::WidgetHost> host,
 		const QString &error);
 	void retire(State state);
+	void stopForCrashes();
 	void fail(const QString &error);
 	void failResources();
 
@@ -153,6 +158,7 @@ private:
 	rpl::lifetime _liveLifetime;
 	rpl::lifetime _windowLifetime;
 	std::optional<int> _shownHeight;
+	const uint64 _contentSerial = 0;
 	uint64 _hiddenSerial = 0;
 	uint64 _queueSerial = 0;
 	uint64 _lastHost = 0;

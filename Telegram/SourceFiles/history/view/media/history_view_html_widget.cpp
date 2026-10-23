@@ -97,7 +97,7 @@ HtmlWidget::~HtmlWidget() {
 
 std::unique_ptr<Tgw::Runtime> HtmlWidget::takeRuntime(
 		const QByteArray &html) {
-	if (!_runtime || _runtime->html() != html) {
+	if (!_runtime || !_runtime->matchesHtml(html)) {
 		return nullptr;
 	}
 	_heavy = false;
@@ -218,13 +218,13 @@ void HtmlWidget::draw(Painter &p, const PaintContext &context) const {
 			p.restore();
 		}
 	}
+	if (visible) {
+		_runtime->painted();
+	}
 	const auto state = _runtime->state();
 	if (state == Tgw::Runtime::State::Stopped
 		|| state == Tgw::Runtime::State::Failed) {
 		drawStopped(p, context, card);
-	}
-	if (visible) {
-		_runtime->painted();
 	}
 }
 

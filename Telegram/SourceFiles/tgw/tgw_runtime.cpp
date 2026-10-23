@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "tgw/tgw_bridge.h"
 #include "tgw/tgw_intl.h"
+#include "tgw/tgw_media.h"
 #include "tgw/tgw_renderer.h"
 #include "tgw/tgw_resources.h"
 #include "tgw/tgw_theme.h"
@@ -30,11 +31,18 @@ namespace Tgw {
 
 struct MessageMemory {
 	std::optional<double> height;
+	QByteArray html;
+	// WHY: equal bytes prove no ownership after an A -> B -> A edit, so each
+	// runtime keeps the serial of the content it was built for, and a host of
+	// older content never changes the crash count of the newer content.
+	uint64 contentSerial = 0;
+	int crashes = 0;
 };
 
 namespace {
 
 constexpr auto kMaxAlive = 8;
+constexpr auto kMaxCrashes = 2;
 constexpr auto kMaxNotes = 100;
 constexpr auto kMaxLogLine = 240;
 constexpr auto kMaxNoteLength = kMaxLogLine + 16;
@@ -125,6 +133,30 @@ struct Registry {
 [[nodiscard]] Registry &Runtimes() {
 	static auto result = Registry();
 	return result;
+}
+
+void RememberHtml(MessageMemory &memory, const QByteArray &html) {
+	if (memory.html != html) {
+		memory.html = html;
+		++memory.contentSerial;
+		memory.crashes = 0;
+	}
+}
+
+void RememberItemHtml(
+		not_null<Main::Session*> session,
+		not_null<const HistoryItem*> item) {
+	auto &sessions = Runtimes().sessions;
+	const auto i = sessions.find(session);
+	if (i == end(sessions)) {
+		return;
+	}
+	const auto j = i->second.find(item);
+	if (j == end(i->second)) {
+		return;
+	} else if (const auto media = dynamic_cast<WidgetMedia*>(item->media())) {
+		RememberHtml(*j->second, media->html());
+	}
 }
 
 [[nodiscard]] bool Busy() {
@@ -442,9 +474,10 @@ Runtime::Runtime(RuntimeDescriptor &&descriptor)
 , _repaint(std::move(descriptor.repaint))
 , _heavyChanged(std::move(descriptor.heavyChanged))
 , _bridge(std::make_unique<Bridge>(descriptor.item))
-, _memory(RememberMessage(descriptor.item))
+, _memory(RememberMessage(descriptor.item, _html))
 , _theme(std::make_shared<twidget::WidgetTheme>())
 , _hostTheme(_theme)
+, _contentSerial(_memory->contentSerial)
 , _maxHeight(kMaxHeight) {
 	Expects(!_html.isEmpty());
 
@@ -470,6 +503,7 @@ Runtime::~Runtime() {
 	}
 	invalidate_weak_ptrs(this);
 	_liveLifetime.destroy();
+	breakCrashRun();
 	if (_live) {
 		_live->detach();
 	}
@@ -509,8 +543,8 @@ not_null<HistoryItem*> Runtime::item() const {
 	return _item;
 }
 
-const QByteArray &Runtime::html() const {
-	return _html;
+bool Runtime::matchesHtml(const QByteArray &html) const {
+	return currentContent() && (_html == html);
 }
 
 Runtime::State Runtime::state() const {
@@ -561,6 +595,9 @@ void Runtime::attachView(
 	_heavyChanged = std::move(heavyChanged);
 	if (_live) {
 		_live->resetInput();
+	}
+	if (stopped()) {
+		release();
 	}
 	PostCheck();
 }
@@ -619,6 +656,9 @@ void Runtime::painted() {
 			PostCheck();
 		}
 		return;
+	} else if (!stopped() && (_state != State::Failed) && crashedOut()) {
+		stopForCrashes();
+		return;
 	} else if (!startable()) {
 		return;
 	}
@@ -632,8 +672,9 @@ void Runtime::unload() {
 	_windowKnown = false;
 	_painted = false;
 	_queueSerial = 0;
-	if (heavy()) {
-		release();
+	const auto wasHeavy = heavy();
+	release();
+	if (wasHeavy) {
 		addNote(u"Released with the unloaded messages."_q);
 	}
 	if (_still) {
@@ -653,6 +694,11 @@ QString Runtime::logText() const {
 			_stopFatal ? u" (fatal)"_q : QString(),
 			_stopReason));
 	}
+	lines.push_back(currentContent()
+		? u"Crashes in a row: %1 of %2."_q.arg(
+			QString::number(_memory->crashes),
+			QString::number(kMaxCrashes))
+		: u"Crashes not counted, the message has newer HTML."_q);
 	const auto updating = _logDone ? u", updating"_q : QString();
 	if (_summaryHost) {
 		const auto current = _host && (_host->id == _summaryHost);
@@ -689,13 +735,18 @@ void Runtime::requestLog(Fn<void(const QString &text)> done) {
 }
 
 std::shared_ptr<MessageMemory> Runtime::RememberMessage(
-		not_null<HistoryItem*> item) {
+		not_null<HistoryItem*> item,
+		const QByteArray &html) {
 	const auto session = &item->history()->session();
 	auto &sessions = Runtimes().sessions;
 	if (!sessions.contains(session)) {
 		session->data().itemVisibilitiesUpdates(
 		) | rpl::on_next([] {
 			PostCheck();
+		}, session->lifetime());
+		session->data().itemViewRefreshRequest(
+		) | rpl::on_next([=](not_null<const HistoryItem*> refreshed) {
+			RememberItemHtml(session, refreshed);
 		}, session->lifetime());
 		session->data().itemRemoved(
 		) | rpl::on_next([=](not_null<const HistoryItem*> removed) {
@@ -713,6 +764,7 @@ std::shared_ptr<MessageMemory> Runtime::RememberMessage(
 	if (!memory) {
 		memory = std::make_shared<MessageMemory>();
 	}
+	RememberHtml(*memory, html);
 	return memory;
 }
 
@@ -810,6 +862,7 @@ void Runtime::RefreshVisibility() {
 	auto changed = std::vector<not_null<Runtime*>>();
 	for (const auto &runtime : registry.list) {
 		if ((runtime->heavy()
+				|| runtime->stopped()
 				|| runtime->_painted
 				|| runtime->_displayDeferred)
 			&& (runtime->queryVisible() != runtime->_visible)) {
@@ -820,6 +873,9 @@ void Runtime::RefreshVisibility() {
 		runtime->_visible = !runtime->_visible;
 		if (!runtime->_visible) {
 			runtime->_hiddenSerial = ++registry.hiddenSerial;
+			if (runtime->stopped()) {
+				runtime->release();
+			}
 		}
 		runtime->syncHostVisibility();
 	}
@@ -896,9 +952,19 @@ Runtime *Runtime::FindVictim() {
 	return result;
 }
 
+bool Runtime::currentContent() const {
+	return (_memory->contentSerial == _contentSerial);
+}
+
+bool Runtime::crashedOut() const {
+	return currentContent() && (_memory->crashes >= kMaxCrashes);
+}
+
 bool Runtime::startable() const {
 	return (_state != State::Stopped)
 		&& (_state != State::Failed)
+		&& currentContent()
+		&& !crashedOut()
 		&& !Runtimes().draining
 		&& !Core::Quitting();
 }
@@ -918,12 +984,24 @@ bool Runtime::queryVisible() const {
 		_view.get());
 }
 
+void Runtime::breakCrashRun() {
+	if (_state == State::Live
+		&& _live->hasContent()
+		&& !_live->stopped()
+		&& currentContent()
+		&& (_memory->crashes < kMaxCrashes)) {
+		_memory->crashes = 0;
+	}
+}
+
 void Runtime::start() {
 	if (heavy() || !startable()) {
 		return;
 	}
 	const auto generation = ++_generation;
 	_state = State::Waiting;
+	_stopReason = QString();
+	_stopFatal = false;
 	addNote(u"Starting."_q);
 	heavyStateChanged(false);
 	PrepareResources(crl::guard(this, [=](
@@ -934,6 +1012,9 @@ void Runtime::start() {
 
 void Runtime::release() {
 	if (heavy()) {
+		breakCrashRun();
+		retire(State::Released);
+	} else if (stopped() && currentContent() && !crashedOut()) {
 		retire(State::Released);
 	}
 }
@@ -946,8 +1027,12 @@ void Runtime::resourcesReady(
 	} else if (!resources) {
 		failResources();
 		return;
-	} else if (Core::Quitting()) {
+	} else if (Core::Quitting() || !currentContent()) {
 		release();
+		return;
+	} else if (crashedOut()) {
+		stopForCrashes();
+		displayChanged(true);
 		return;
 	}
 	construct(std::move(resources));
@@ -1002,8 +1087,12 @@ void Runtime::constructed(
 	} else if (!host) {
 		fail(error);
 		return;
-	} else if (Core::Quitting()) {
+	} else if (Core::Quitting() || !currentContent()) {
 		release();
+		return;
+	} else if (crashedOut()) {
+		stopForCrashes();
+		displayChanged(true);
 		return;
 	} else if (!SameTheme(*_hostTheme, *_theme)) {
 		// Its engine would boot in the stale theme ahead of setTheme().
@@ -1055,6 +1144,13 @@ void Runtime::retire(State state) {
 	}
 }
 
+void Runtime::stopForCrashes() {
+	_stopReason = u"%1 crashes in a row."_q.arg(kMaxCrashes);
+	_stopFatal = false;
+	retire(State::Stopped);
+	addNote(u"Stopped: "_q + _stopReason);
+}
+
 void Runtime::fail(const QString &error) {
 	retire(State::Failed);
 	addNote(error);
@@ -1102,11 +1198,26 @@ void Runtime::coreStopped(not_null<RendererCore*> renderer) {
 	}
 	_stopReason = Clip(renderer->stopReason());
 	_stopFatal = renderer->stopFatal();
+	auto limitReached = false;
+	if (_stopFatal
+		&& currentContent()
+		&& (_memory->crashes < kMaxCrashes)) {
+		limitReached = (++_memory->crashes == kMaxCrashes);
+	}
+	// A scroll away may not have reached the posted Check() yet.
+	_visible = queryVisible();
 	retire(State::Stopped);
 	addNote(u"Stopped%1: %2"_q.arg(
 		_stopFatal ? u" (fatal)"_q : QString(),
 		_stopReason));
 	displayChanged(true);
+	if (!_visible) {
+		release();
+	}
+	if (limitReached) {
+		// Other views of the message apply the limit only when painted.
+		_item->history()->owner().requestItemRepaint(_item);
+	}
 }
 
 void Runtime::linkRequested(
