@@ -1851,7 +1851,7 @@ SessionPrivate::HandleResult SessionPrivate::handleOneReceived(
 	} return HandleResult::Success;
 
 	case mtpc_rpc_result: {
-		if (from + 3 > end) {
+		if (end - from < 4) {
 			return HandleResult::ParseError;
 		}
 		auto response = mtpBuffer();
