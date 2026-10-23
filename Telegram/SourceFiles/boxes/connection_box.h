@@ -126,6 +126,7 @@ private:
 	void share(const ProxyData &proxy, bool qr = false);
 	void saveDelayed();
 	void refreshChecker(Item &item);
+	void processCheckerQueue();
 
 	void replaceItemWith(
 		std::vector<Item>::iterator which,
@@ -138,6 +139,8 @@ private:
 	Core::SettingsProxy &_settings;
 	int _idCounter = 0;
 	std::vector<Item> _list;
+	std::deque<int> _checkerQueue;
+	bool _processingCheckerQueue = false;
 	rpl::event_stream<ItemView> _views;
 	base::Timer _saveTimer;
 	rpl::event_stream<ProxyData::Settings> _proxySettingsChanges;
