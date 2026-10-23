@@ -539,7 +539,7 @@ private:
 	MsgId _repliesKeyboardHiddenId = 0;
 	HistoryItem *_repliesRoot = nullptr;
 	Data::ForumTopic *_topic = nullptr;
-	mutable Data::ForumTopic *_creatingBotTopic = nullptr;
+	mutable base::weak_ptr<Data::ForumTopic> _creatingBotTopic;
 	mutable bool _newTopicDiscarded = false;
 	std::shared_ptr<Data::RepliesList> _replies;
 	rpl::lifetime _repliesLifetime;

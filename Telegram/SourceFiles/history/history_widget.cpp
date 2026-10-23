@@ -1138,15 +1138,16 @@ HistoryWidget::HistoryWidget(
 
 	session().api().sendActions(
 	) | rpl::filter([=](const Api::SendAction &action) {
-		if (_creatingBotTopic
-			&& action.history == _creatingBotTopic->owningHistory()
-			&& action.replyTo.topicRootId == _creatingBotTopic->rootId()) {
+		const auto creating = _creatingBotTopic.get();
+		if (creating
+			&& action.history == creating->owningHistory()
+			&& action.replyTo.topicRootId == creating->rootId()) {
 			// Guard 'this' (the call reads _creatingBotTopic) and re-check
 			// the topic: it may be gone or already handled by another call.
-			const auto weak = base::make_weak(_creatingBotTopic);
+			const auto weak = _creatingBotTopic;
 			Ui::PostponeCall(this, [=] {
 				using namespace HistoryView;
-				const auto topic = base::take(_creatingBotTopic);
+				const auto topic = base::take(_creatingBotTopic).get();
 				if (!topic || topic != weak.get()) {
 					return;
 				}
@@ -3706,9 +3707,11 @@ void HistoryWidget::setHistory(History *history) {
 		const auto wasMigrated = base::take(_migrated);
 		unloadHeavyViewParts(wasHistory);
 		unloadHeavyViewParts(wasMigrated);
-		if (const auto wasCreatingBotTopic = base::take(_creatingBotTopic)) {
-			wasCreatingBotTopic->forum()->discardCreatingId(
-				wasCreatingBotTopic->rootId());
+		if (const auto wasCreatingBotTopic = base::take(_creatingBotTopic).get()) {
+			if (wasCreatingBotTopic->creating()) {
+				wasCreatingBotTopic->forum()->discardCreatingId(
+					wasCreatingBotTopic->rootId());
+			}
 		}
 	}
 	if (history) {
@@ -5754,18 +5757,22 @@ Api::SendAction HistoryWidget::prepareSendAction(
 			if (readyRootId) {
 				result.replyTo.topicRootId = readyRootId;
 			} else {
-				if (!_creatingBotTopic) {
-					_creatingBotTopic = forum->reserveNewBotTopic();
+				const auto existing = _creatingBotTopic.get();
+				const auto topic = existing
+					? existing
+					: forum->reserveNewBotTopic();
+				const auto rootId = topic->rootId();
+				if (!existing) {
+					_creatingBotTopic = topic;
 					auto draft = _history->forwardDraft(MsgId(0), PeerId());
 					if (!draft.ids.empty()) {
 						_history->setForwardDraft(MsgId(0), PeerId(), {});
 						_history->setForwardDraft(
-							_creatingBotTopic->rootId(),
+							rootId,
 							PeerId(),
 							std::move(draft));
 					}
 				}
-				const auto rootId = _creatingBotTopic->rootId();
 				if (!result.replyTo.messageId) {
 					result.replyTo.messageId = FullMsgId(
 						_history->peer->id,
