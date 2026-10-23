@@ -2220,6 +2220,9 @@ PRIVATE
     tgw/tgw_storage.h
     tgw/tgw_theme.cpp
     tgw/tgw_theme.h
+    tgw/tgw_touch.cpp
+    tgw/tgw_touch.h
+    tgw/tgw_touch_lists.cpp
     ui/boxes/edit_invite_link_session.cpp
     ui/boxes/edit_invite_link_session.h
     ui/boxes/emoji_stake_box.cpp

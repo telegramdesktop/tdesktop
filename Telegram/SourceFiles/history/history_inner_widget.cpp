@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_text.h"
 #include "payments/payments_reaction_process.h"
 #include "tgw/tgw_log_box.h"
+#include "tgw/tgw_touch.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/menu/menu_multiline_action.h"
 #include "ui/widgets/popup_menu.h"
@@ -397,6 +398,7 @@ HistoryInner::HistoryInner(
 	std::make_unique<HistoryView::ReplyButton::Manager>(
 		[=](QRect updated) { update(updated); }))
 , _touchSelectTimer([=] { onTouchSelect(); })
+, _widgetTouch(Tgw::ListTouch::Create(this))
 , _touchScrollTimer([=] { onTouchScrollTimer(); })
 , _touchElastic(scroll, [=](QPoint d, bool) { return _widget->touchScroll(d); })
 , _middleClickAutoscroll(
@@ -807,6 +809,7 @@ void HistoryInner::setupSwipeReplyAndBack() {
 		) | rpl::map([](bool selecting, Ui::ElasticScrollPosition position) {
 			return selecting || (position.overscroll > 0);
 		}),
+		.handoff = _widgetTouch->swipeHandoff(),
 		.skipWheelEvent = [=](not_null<QWheelEvent*> event) {
 			const auto delta = Ui::ScrollDelta(event);
 			if (std::abs(delta.x()) <= std::abs(delta.y())) {
@@ -1238,6 +1241,9 @@ void HistoryInner::enumerateForumThreadBars(Method method) {
 
 	enumerateItems<EnumItemsDirection::BottomToTop>(barCallback);
 }
+
+template void HistoryInner::enumerateDates(Tgw::ListTouch::Floating);
+template void HistoryInner::enumerateForumThreadBars(Tgw::ListTouch::Floating);
 
 auto HistoryInner::computeRenderSelection(
 		not_null<const SelectedItems*> selected,
@@ -2043,6 +2049,7 @@ void HistoryInner::touchDeaccelerate(int32 elapsed) {
 }
 
 void HistoryInner::touchEvent(QTouchEvent *e) {
+	const auto bridge = Tgw::TouchBridge();
 	if (e->type() == QEvent::TouchCancel) { // cancel
 		if (!_touchInProgress) {
 			return;
@@ -2056,6 +2063,7 @@ void HistoryInner::touchEvent(QTouchEvent *e) {
 		touchResetSpeed();
 		_touchMaybeSelecting = false;
 		mouseActionCancel();
+		_widgetTouch->cancel();
 		_touchElastic.finish(true);
 		return;
 	}
@@ -2072,6 +2080,7 @@ void HistoryInner::touchEvent(QTouchEvent *e) {
 			e->accept();
 			return; // ignore mouse press, that was hiding context menu
 		}
+		_widgetTouch->retire();
 		if (_touchInProgress || e->touchPoints().isEmpty()) {
 			return;
 		}
@@ -2087,8 +2096,10 @@ void HistoryInner::touchEvent(QTouchEvent *e) {
 			_touchStart = _touchPos;
 		} else {
 			_touchScroll = false;
-			_touchMaybeSelecting = true;
-			_touchSelectTimer.callOnce(QApplication::startDragTime());
+			if (!_widgetTouch->begin(_touchPos)) {
+				_touchMaybeSelecting = true;
+				_touchSelectTimer.callOnce(QApplication::startDragTime());
+			}
 		}
 		_touchSelect = false;
 		_touchStart = _touchPrevPos = _touchPos;
@@ -2097,9 +2108,15 @@ void HistoryInner::touchEvent(QTouchEvent *e) {
 	case QEvent::TouchUpdate: {
 		if (!_touchInProgress) {
 			return;
+		}
+		const auto widget = _widgetTouch->update(_touchPos);
+		if (widget == false) {
+			return;
 		} else if (_touchSelect) {
 			mouseActionUpdate(_touchPos);
-		} else if (!_touchScroll && (_touchPos - _touchStart).manhattanLength() >= QApplication::startDragDistance()) {
+		} else if (!_touchScroll
+			&& widget.value_or((_touchPos - _touchStart).manhattanLength()
+				>= QApplication::startDragDistance())) {
 			_touchSelectTimer.cancel();
 			_touchMaybeSelecting = false;
 			_touchScroll = true;
@@ -2127,6 +2144,8 @@ void HistoryInner::touchEvent(QTouchEvent *e) {
 		const auto notMoved = (_touchPos - _touchStart).manhattanLength()
 			< QApplication::startDragDistance();
 		auto weak = base::make_weak(this);
+		const auto widget = _widgetTouch->end(_touchPos);
+		_touchScroll = widget.value_or(_touchScroll);
 		if (_touchSelect) {
 			if (notMoved || _touchMaybeSelecting.current()) {
 				mouseActionFinish(_touchPos, Qt::RightButton, true);
@@ -2158,7 +2177,7 @@ void HistoryInner::touchEvent(QTouchEvent *e) {
 				_touchWaitingAcceleration = false;
 				_touchPrevPosValid = false;
 			}
-		} else if (notMoved) { // One short tap is like left mouse click.
+		} else if (notMoved && !widget) { // One short tap is like left mouse click.
 			mouseActionStart(_touchPos, Qt::LeftButton, true);
 			mouseActionFinish(_touchPos, Qt::LeftButton, true);
 		}
@@ -5410,6 +5429,7 @@ std::vector<not_null<HistoryItem*>> HistoryInner::getSelectedEphemeral() const {
 }
 
 void HistoryInner::onTouchSelect() {
+	const auto bridge = Tgw::TouchBridge();
 	_touchSelect = true;
 	_touchMaybeSelecting = true;
 	mouseActionStart(_touchPos, Qt::LeftButton, true);

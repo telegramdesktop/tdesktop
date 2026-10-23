@@ -75,6 +75,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_user.h"
 #include "tgw/tgw_log_box.h"
+#include "tgw/tgw_touch.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -347,7 +348,31 @@ InnerWidget::InnerWidget(
 		- st::historyAdminLogEmptyPadding.left())
 , _antiSpamValidator(_controller, _channel)
 , _touchSelectTimer([=] { onTouchSelect(); })
-, _touchScrollTimer([=] { onTouchScrollTimer(); }) {
+, _touchScrollTimer([=] { onTouchScrollTimer(); })
+, _widgetTouch(std::make_unique<Tgw::WidgetTouch>(Tgw::WidgetTouchArgs{
+	.list = this,
+	.viewAt = [=](QPoint point) {
+		auto result = (Element*)nullptr;
+		enumerateItems<EnumItemsDirection::TopToBottom>([&](
+				not_null<Element*> view,
+				int itemtop,
+				int itembottom) {
+			if (point.y() >= itembottom) {
+				return true;
+			} else if (point.y() >= itemtop) {
+				result = view.get();
+			}
+			return false;
+		});
+		return result;
+	},
+	.mapToItem = [=](QPoint point, const Element *view) {
+		return mapPointToItem(point, view);
+	},
+	.menu = [=](not_null<QContextMenuEvent*> e) { showContextMenu(e, true); },
+	.resetSpeed = [=] { touchResetSpeed(); },
+	.dropTouch = [=] { _touchInProgress = false; },
+})) {
 	Window::ChatThemeValueFromPeer(
 		controller,
 		channel
@@ -453,6 +478,10 @@ rpl::producer<> InnerWidget::cancelSignal() const {
 
 rpl::producer<int> InnerWidget::newEventsCountValue() const {
 	return _newEventsCount.value();
+}
+
+Ui::Controls::SwipeHandoff InnerWidget::touchSwipeHandoff() {
+	return _widgetTouch->swipeHandoff();
 }
 
 void InnerWidget::resetNewEventsCount() {
@@ -3303,6 +3332,7 @@ bool InnerWidget::eventHook(QEvent *e) {
 }
 
 void InnerWidget::onTouchSelect() {
+	const auto bridge = Tgw::TouchBridge();
 	_touchSelect = true;
 	mouseActionStart(_touchPos, Qt::LeftButton);
 }
@@ -3409,6 +3439,7 @@ void InnerWidget::touchDeaccelerate(int32 elapsed) {
 }
 
 void InnerWidget::touchEvent(QTouchEvent *e) {
+	const auto bridge = Tgw::TouchBridge();
 	if (e->type() == QEvent::TouchCancel) {
 		if (!_touchInProgress) {
 			return;
@@ -3418,6 +3449,7 @@ void InnerWidget::touchEvent(QTouchEvent *e) {
 		_touchScroll = _touchSelect = false;
 		_touchScrollState = Ui::TouchScrollState::Manual;
 		mouseActionCancel();
+		_widgetTouch->cancel();
 		return;
 	}
 
@@ -3432,6 +3464,7 @@ void InnerWidget::touchEvent(QTouchEvent *e) {
 			e->accept();
 			return;
 		}
+		_widgetTouch->retire();
 		if (_touchInProgress || e->touchPoints().isEmpty()) {
 			return;
 		}
@@ -3445,7 +3478,9 @@ void InnerWidget::touchEvent(QTouchEvent *e) {
 			_touchStart = _touchPos;
 		} else {
 			_touchScroll = false;
-			_touchSelectTimer.callOnce(QApplication::startDragTime());
+			if (!_widgetTouch->begin(_touchPos)) {
+				_touchSelectTimer.callOnce(QApplication::startDragTime());
+			}
 		}
 		_touchSelect = false;
 		_touchStart = _touchPrevPos = _touchPos;
@@ -3454,11 +3489,16 @@ void InnerWidget::touchEvent(QTouchEvent *e) {
 	case QEvent::TouchUpdate: {
 		if (!_touchInProgress) {
 			return;
-		} else if (_touchSelect) {
+		}
+		const auto widget = _widgetTouch->update(_touchPos);
+		if (widget == false) {
+			return;
+		}
+		if (_touchSelect) {
 			mouseActionUpdate(_touchPos);
 		} else if (!_touchScroll
-				&& (_touchPos - _touchStart).manhattanLength()
-					>= QApplication::startDragDistance()) {
+				&& widget.value_or((_touchPos - _touchStart).manhattanLength()
+					>= QApplication::startDragDistance())) {
 			_touchSelectTimer.cancel();
 			_touchScroll = true;
 			touchUpdateSpeed();
@@ -3484,6 +3524,8 @@ void InnerWidget::touchEvent(QTouchEvent *e) {
 		const auto notMoved = (_touchPos - _touchStart).manhattanLength()
 			< QApplication::startDragDistance();
 		auto weak = base::make_weak(this);
+		const auto widget = _widgetTouch->end(_touchPos);
+		_touchScroll = widget.value_or(_touchScroll);
 		if (_touchSelect) {
 			if (notMoved) {
 				mouseActionFinish(_touchPos, Qt::RightButton);
@@ -3509,7 +3551,7 @@ void InnerWidget::touchEvent(QTouchEvent *e) {
 				_touchWaitingAcceleration = false;
 				_touchPrevPosValid = false;
 			}
-		} else if (notMoved) {
+		} else if (notMoved && !widget) {
 			mouseActionStart(_touchPos, Qt::LeftButton);
 			mouseActionFinish(_touchPos, Qt::LeftButton);
 		}

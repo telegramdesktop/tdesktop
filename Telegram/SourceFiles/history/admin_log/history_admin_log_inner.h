@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/admin_log/history_admin_log_filter_value.h"
 #include "history/history_view_highlight_manager.h"
 #include "menu/menu_antispam_validator.h"
+#include "ui/controls/swipe_handler.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/widgets/tooltip.h"
@@ -41,6 +42,10 @@ class ChatTheme;
 struct PeerUserpicView;
 struct ChatPaintContext;
 } // namespace Ui
+
+namespace Tgw {
+class WidgetTouch;
+} // namespace Tgw
 
 namespace Window {
 class SessionController;
@@ -77,6 +82,7 @@ public:
 	[[nodiscard]] rpl::producer<int> scrollToSignal() const;
 	[[nodiscard]] rpl::producer<> cancelSignal() const;
 	[[nodiscard]] rpl::producer<int> newEventsCountValue() const;
+	[[nodiscard]] Ui::Controls::SwipeHandoff touchSwipeHandoff();
 	void resetNewEventsCount();
 
 	[[nodiscard]] not_null<ChannelData*> channel() const {
@@ -469,6 +475,7 @@ private:
 
 	base::Timer _touchSelectTimer;
 	base::Timer _touchScrollTimer;
+	std::unique_ptr<Tgw::WidgetTouch> _widgetTouch;
 
 	// Touch scroll support.
 	bool _touchScroll = false;

@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_renderer.h"
 #include "tgw/tgw_runtime.h"
 #include "ui/chat/chat_style.h"
+#include "ui/style/style_core_direction.h"
 #include "ui/style/style_core_scale.h"
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
@@ -102,7 +103,6 @@ std::unique_ptr<Tgw::Runtime> HtmlWidget::takeRuntime(
 	}
 	_heavy = false;
 	_cardHovered = false;
-	_cardClaimed = false;
 	return base::take(_runtime);
 }
 
@@ -183,6 +183,19 @@ Tgw::RendererCore *HtmlWidget::pointerCore() const {
 QPointF HtmlWidget::cssPoint(QPoint point) const {
 	const auto local = point - cardRect().topLeft();
 	return QPointF(local) * (kCssPercent / style::Scale());
+}
+
+Tgw::RendererCore *HtmlWidget::touchCore(QPoint point) const {
+	return cardRect().contains(point) ? pointerCore() : nullptr;
+}
+
+QPointF HtmlWidget::gesturePoint(QPoint point) const {
+	const auto css = cssPoint(point);
+	if (!style::RightToLeft()) {
+		return css;
+	}
+	const auto width = cardRect().width() * (kCssPercent / style::Scale());
+	return QPointF(width - css.x(), css.y());
 }
 
 void HtmlWidget::draw(Painter &p, const PaintContext &context) const {
@@ -299,12 +312,6 @@ bool HtmlWidget::toggleSelectionByHandlerClick(
 	return (p == _cardLink);
 }
 
-bool HtmlWidget::allowTextSelectionByHandler(
-		const ClickHandlerPtr &p,
-		bool fromTouch) const {
-	return fromTouch && (p == _cardLink) && !_cardClaimed;
-}
-
 bool HtmlWidget::dragItemByHandler(const ClickHandlerPtr &p) const {
 	return false;
 }
@@ -342,13 +349,8 @@ void HtmlWidget::clickHandlerPressedChanged(
 }
 
 void HtmlWidget::pressCard() {
-	const auto core = pointerCore();
-	if (!core) {
-		return;
-	}
-	core->pointerPress(cssPoint(_pointerPoint), CurrentModifiers());
-	if (core->claimed()) {
-		_cardClaimed = true;
+	if (const auto core = pointerCore()) {
+		core->pointerPress(cssPoint(_pointerPoint), CurrentModifiers());
 	}
 }
 
@@ -359,7 +361,6 @@ void HtmlWidget::releaseCard() {
 			core->pointerLeave();
 		}
 	}
-	_cardClaimed = false;
 }
 
 bool HtmlWidget::hasHeavyPart() const {

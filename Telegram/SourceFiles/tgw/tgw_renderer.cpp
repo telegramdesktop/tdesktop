@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_backend.h"
 #include "tgw/tgw_cursor.h"
 #include "tgw/tgw_painter.h"
+#include "tgw/tgw_touch.h"
 #include "twidget/json.h"
 #include "twidget/sdk_policy.h"
 #include "TwidgetCore/src/renderer.h"
@@ -58,7 +59,7 @@ constexpr auto kTouchCancel = 3;
 constexpr auto kHoverMove = 0;
 constexpr auto kHoverLeave = 1;
 constexpr auto kMousePointer = 0;
-constexpr auto kTapSlop = 8.;
+constexpr auto kFingerPointer = 1;
 constexpr auto kLocalQueryId = 0;
 constexpr auto kDomAlt = 1;
 constexpr auto kDomCtrl = 2;
@@ -204,6 +205,16 @@ private:
 	return result;
 }
 
+[[nodiscard]] twidget::WidgetGestureClaim GestureClaim(
+		const twidget::Json &message) {
+	const auto &y = message["y"];
+	return {
+		.x = message["x"].asBool(),
+		.y = y.isBool() ? y.asBool() : message["wants"].asBool(),
+		.hold = message["hold"].asBool(),
+	};
+}
+
 void Append(
 		std::vector<twidget::Json> &to,
 		std::vector<twidget::Json> &&from) {
@@ -217,20 +228,22 @@ void Append(
 		twlite::Renderer &renderer,
 		int action,
 		QPointF point,
-		int modifiers) {
+		int modifiers,
+		int pointer = kMousePointer) {
 	return renderer.touch(
 		action,
 		point.x(),
 		point.y(),
-		kMousePointer,
+		pointer,
 		true,
-		true,
+		(pointer == kMousePointer),
 		modifiers);
 }
 
 [[nodiscard]] bool OutsideSlop(QPointF point, QPointF origin) {
-	return (std::abs(point.x() - origin.x()) >= kTapSlop)
-		|| (std::abs(point.y() - origin.y()) >= kTapSlop);
+	const auto delta = point - origin;
+	return std::hypot(delta.x(), delta.y())
+		> twidget::gesture::TOUCH_SLOP_PX;
 }
 
 [[nodiscard]] int ParsedDocuments(const twlite::Renderer &renderer) {
@@ -459,13 +472,13 @@ bool RendererCore::acceptsInput() const {
 }
 
 void RendererCore::pointerEnter() {
-	if (acceptsInput()) {
+	if (acceptsInput() && !TouchBridge::Active()) {
 		_pointer.over = true;
 	}
 }
 
 void RendererCore::pointerMove(QPointF point, int modifiers) {
-	if (!acceptsInput()) {
+	if (!acceptsInput() || TouchBridge::Active()) {
 		return;
 	}
 	_pointer.position = point;
@@ -501,13 +514,13 @@ void RendererCore::pointerLeave() {
 }
 
 void RendererCore::pointerPress(QPointF point, int modifiers) {
-	if (!acceptsInput()) {
+	if (!acceptsInput() || TouchBridge::Active()) {
 		return;
 	}
 	const auto hit = elementAt(point);
 	const auto wasDirty = _renderer->dirty();
 	auto out = Touch(*_renderer, kTouchDown, point, modifiers);
-	_pointer.claimed = TakeMessage(out, "gesture")["wants"].asBool();
+	out.erase(ranges::remove_if(out, OfType("gesture")), end(out));
 	_pointer.position = _pointer.origin = point;
 	_pointer.hit = _pointer.hover = _pointer.press = hit;
 	_pointer.parsed = ParsedDocuments(*_renderer);
@@ -522,15 +535,67 @@ void RendererCore::pointerRelease(QPointF point, int modifiers) {
 		return;
 	}
 	const auto wasDirty = _renderer->dirty();
-	auto out = Touch(*_renderer, kTouchUp, point, modifiers);
+	// A finger's press elsewhere took this one: it ends with no click.
+	auto out = TouchBridge::Active()
+		? Touch(*_renderer, kTouchCancel, _pointer.position, 0)
+		: Touch(*_renderer, kTouchUp, point, modifiers);
 	_pointer.position = point;
 	_pointer.press = 0;
-	_pointer.pressed = _pointer.claimed = false;
+	_pointer.pressed = false;
 	_pointer.moved = _pointer.active = false;
 	if (!_pointer.over) {
 		Append(out, leaveHover());
 	}
 	inputDone(out, wasDirty);
+}
+
+std::optional<twidget::WidgetGestureClaim> RendererCore::fingerPress(
+		QPointF point,
+		int modifiers) {
+	if (!acceptsInput() || _finger.pressed) {
+		return std::nullopt;
+	}
+	const auto wasDirty = _renderer->dirty();
+	auto out = Touch(*_renderer, kTouchDown, point, modifiers, kFingerPointer);
+	const auto claim = GestureClaim(TakeMessage(out, "gesture"));
+	_finger = { .position = point, .pressed = true };
+	inputDone(out, wasDirty);
+	return claim;
+}
+
+void RendererCore::fingerMove(QPointF point, int modifiers) {
+	if (!_finger.pressed || !acceptsInput() || point == _finger.position) {
+		return;
+	}
+	_finger.position = point;
+	const auto wasDirty = _renderer->dirty();
+	inputDone(
+		Touch(*_renderer, kTouchMove, point, modifiers, kFingerPointer),
+		wasDirty);
+}
+
+void RendererCore::fingerRelease(QPointF point, int modifiers) {
+	if (!_finger.pressed || !acceptsInput()) {
+		return;
+	}
+	const auto wasDirty = _renderer->dirty();
+	auto out = (point != _finger.position)
+		? Touch(*_renderer, kTouchMove, point, modifiers, kFingerPointer)
+		: std::vector<twidget::Json>();
+	_finger = Finger();
+	Append(out, Touch(*_renderer, kTouchUp, point, modifiers, kFingerPointer));
+	inputDone(out, wasDirty);
+}
+
+void RendererCore::fingerCancel() {
+	if (!_finger.pressed || !acceptsInput()) {
+		return;
+	}
+	const auto position = base::take(_finger).position;
+	const auto wasDirty = _renderer->dirty();
+	inputDone(
+		Touch(*_renderer, kTouchCancel, position, 0, kFingerPointer),
+		wasDirty);
 }
 
 bool RendererCore::hovered() const {
@@ -541,8 +606,8 @@ bool RendererCore::pressed() const {
 	return _pointer.pressed;
 }
 
-bool RendererCore::claimed() const {
-	return _pointer.claimed;
+bool RendererCore::fingerPressed() const {
+	return _finger.pressed;
 }
 
 bool RendererCore::handCursorAt(QPointF point) {
@@ -773,15 +838,24 @@ void RendererCore::inputDone(
 void RendererCore::resetInput() {
 	if (!_detached
 		&& !_stopped
-		&& (_pointer.pressed || _pointer.hovering)) {
+		&& (_pointer.pressed || _pointer.hovering || _finger.pressed)) {
 		const auto wasDirty = _renderer->dirty();
 		auto out = _pointer.pressed
 			? Touch(*_renderer, kTouchCancel, _pointer.position, 0)
 			: std::vector<twidget::Json>();
+		if (_finger.pressed) {
+			Append(out, Touch(
+				*_renderer,
+				kTouchCancel,
+				_finger.position,
+				0,
+				kFingerPointer));
+		}
 		if (_pointer.hovering) {
 			Append(out, leaveHover());
 		}
 		_pointer = Pointer();
+		_finger = Finger();
 		inputDone(out, wasDirty);
 	}
 	releaseInput();
@@ -790,6 +864,7 @@ void RendererCore::resetInput() {
 void RendererCore::releaseInput() {
 	_cursor = nullptr;
 	_pointer = Pointer();
+	_finger = Finger();
 }
 
 void RendererCore::flushQueued() {

@@ -62,6 +62,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "media/player/media_player_instance.h"
 #include "dialogs/ui/dialogs_video_userpic.h"
+#include "tgw/tgw_touch.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/elastic_scroll.h"
@@ -553,6 +554,9 @@ void ListWidget::enumerateForumThreadBars(Method method) {
 	enumerateItems<EnumItemsDirection::BottomToTop>(barCallback);
 }
 
+template void ListWidget::enumerateDates(Tgw::ListTouch::Floating);
+template void ListWidget::enumerateForumThreadBars(Tgw::ListTouch::Floating);
+
 ListWidget::ListWidget(
 	QWidget *parent,
 	not_null<Main::Session*> session,
@@ -590,6 +594,7 @@ ListWidget::ListWidget(
 	[=](const HistoryItem *item) { return viewForItem(item); },
 	[=](const Element *view) { repaintItem(view); })
 , _touchSelectTimer([=] { onTouchSelect(); })
+, _widgetTouch(Tgw::ListTouch::Create(this))
 , _touchScrollTimer([=] { onTouchScrollTimer(); })
 , _touchElastic(_delegate->listScrollArea(), [=](QPoint d, bool pressed) {
 	return _delegate->listScrollTo(_visibleTop - d.y(), !pressed);
@@ -4738,6 +4743,7 @@ void ListWidget::touchDeaccelerate(int32 elapsed) {
 }
 
 void ListWidget::touchEvent(QTouchEvent *e) {
+	const auto bridge = Tgw::TouchBridge();
 	if (e->type() == QEvent::TouchCancel) { // cancel
 		if (!_touchInProgress) return;
 		_touchInProgress = false;
@@ -4749,6 +4755,7 @@ void ListWidget::touchEvent(QTouchEvent *e) {
 		touchResetSpeed();
 		_touchMaybeSelecting = false;
 		mouseActionCancel();
+		_widgetTouch->cancel();
 		_touchElastic.finish(true);
 		return;
 	}
@@ -4765,6 +4772,7 @@ void ListWidget::touchEvent(QTouchEvent *e) {
 			e->accept();
 			return; // ignore mouse press, that was hiding context menu
 		}
+		_widgetTouch->retire();
 		if (_touchInProgress) return;
 		if (e->touchPoints().isEmpty()) return;
 
@@ -4780,8 +4788,10 @@ void ListWidget::touchEvent(QTouchEvent *e) {
 			_touchStart = _touchPos;
 		} else {
 			_touchScroll = false;
-			_touchMaybeSelecting = true;
-			_touchSelectTimer.callOnce(QApplication::startDragTime());
+			if (!_widgetTouch->begin(_touchPos)) {
+				_touchMaybeSelecting = true;
+				_touchSelectTimer.callOnce(QApplication::startDragTime());
+			}
 		}
 		_touchSelect = false;
 		_touchStart = _touchPrevPos = _touchPos;
@@ -4789,9 +4799,14 @@ void ListWidget::touchEvent(QTouchEvent *e) {
 
 	case QEvent::TouchUpdate: {
 		if (!_touchInProgress) return;
-		if (_touchSelect) {
+		const auto widget = _widgetTouch->update(_touchPos);
+		if (widget == false) {
+			return;
+		} else if (_touchSelect) {
 			mouseActionUpdate(_touchPos);
-		} else if (!_touchScroll && (_touchPos - _touchStart).manhattanLength() >= QApplication::startDragDistance()) {
+		} else if (!_touchScroll
+			&& widget.value_or((_touchPos - _touchStart).manhattanLength()
+				>= QApplication::startDragDistance())) {
 			_touchSelectTimer.cancel();
 			_touchMaybeSelecting = false;
 			_touchScroll = true;
@@ -4820,6 +4835,8 @@ void ListWidget::touchEvent(QTouchEvent *e) {
 		auto weak = base::make_weak(this);
 		const auto notMoved = (_touchPos - _touchStart).manhattanLength()
 			< QApplication::startDragDistance();
+		const auto widget = _widgetTouch->end(_touchPos);
+		_touchScroll = widget.value_or(_touchScroll);
 		if (_touchSelect) {
 			if (notMoved || _touchMaybeSelecting.current()) {
 				mouseActionFinish(_touchPos, Qt::RightButton);
@@ -4851,7 +4868,7 @@ void ListWidget::touchEvent(QTouchEvent *e) {
 				_touchWaitingAcceleration = false;
 				_touchPrevPosValid = false;
 			}
-		} else if (notMoved) { // One short tap is like left mouse click.
+		} else if (notMoved && !widget) { // One short tap is like left mouse click.
 			mouseActionStart(_touchPos, Qt::LeftButton, true);
 			mouseActionFinish(_touchPos, Qt::LeftButton);
 		}
@@ -4997,6 +5014,7 @@ void ListWidget::updateDragSelection() {
 }
 
 void ListWidget::onTouchSelect() {
+	const auto bridge = Tgw::TouchBridge();
 	_touchSelect = true;
 	_touchMaybeSelecting = true;
 	mouseActionStart(_touchPos, Qt::LeftButton, true);

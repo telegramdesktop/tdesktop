@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
+#include "ui/controls/swipe_handler.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/message_sending_history.h"
@@ -72,6 +73,11 @@ namespace HistoryView::ReplyButton {
 class Manager;
 struct ButtonParameters;
 } // namespace HistoryView::ReplyButton
+
+namespace Tgw {
+class ListTouch;
+class WidgetTouch;
+} // namespace Tgw
 
 namespace Window {
 struct SectionShow;
@@ -404,6 +410,7 @@ public:
 
 	void touchScrollUpdated(const QPoint &screenPos);
 	[[nodiscard]] rpl::producer<bool> touchMaybeSelectingValue() const;
+	[[nodiscard]] Ui::Controls::SwipeHandoff touchSwipeHandoff();
 
 	[[nodiscard]] std::optional<int> skippedAtTop() const;
 	[[nodiscard]] std::optional<int> skippedAtBottom() const;
@@ -622,6 +629,8 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
+	friend class Tgw::ListTouch;
+
 	[[nodiscard]] static int SelectionViewOffset(
 		not_null<const ListWidget*> inner,
 		not_null<const Element*> view);
@@ -1116,6 +1125,7 @@ private:
 	QPoint _touchStart, _touchPrevPos, _touchPos;
 	rpl::variable<bool> _touchMaybeSelecting;
 	base::Timer _touchSelectTimer;
+	std::unique_ptr<Tgw::WidgetTouch> _widgetTouch;
 
 	Ui::DraggingScrollManager _selectScroll;
 

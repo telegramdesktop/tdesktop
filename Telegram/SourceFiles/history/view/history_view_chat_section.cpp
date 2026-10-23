@@ -1994,6 +1994,7 @@ void ChatWidget::setupSwipeReplyAndBack() {
 		.update = std::move(update),
 		.init = std::move(init),
 		.dontStart = _inner->touchMaybeSelectingValue(),
+		.handoff = _inner->touchSwipeHandoff(),
 		.skipWheelEvent = [=](not_null<QWheelEvent*> event) {
 			const auto delta = Ui::ScrollDelta(event);
 			if (std::abs(delta.x()) <= std::abs(delta.y())) {

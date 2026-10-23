@@ -66,6 +66,11 @@ class Manager;
 struct ButtonParameters;
 } // namespace HistoryView::ReplyButton
 
+namespace Tgw {
+class ListTouch;
+class WidgetTouch;
+} // namespace Tgw
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -315,6 +320,8 @@ protected:
 	void contextMenuEvent(QContextMenuEvent *e) override;
 
 private:
+	friend class Tgw::ListTouch;
+
 	[[nodiscard]] std::vector<Element*> accessibleElements() const;
 	[[nodiscard]] int accessibilityUnreadBarIndex() const;
 	void toggleMessageSelection();
@@ -688,6 +695,7 @@ private:
 	QPoint _touchStart, _touchPrevPos, _touchPos;
 	rpl::variable<bool> _touchMaybeSelecting;
 	base::Timer _touchSelectTimer;
+	std::unique_ptr<Tgw::WidgetTouch> _widgetTouch;
 
 	Ui::DraggingScrollManager _selectScroll;
 

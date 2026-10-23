@@ -34,13 +34,13 @@ public:
 
 	[[nodiscard]] bool toggleSelectionByHandlerClick(
 		const ClickHandlerPtr &p) const override;
-	[[nodiscard]] bool allowTextSelectionByHandler(
-		const ClickHandlerPtr &p,
-		bool fromTouch) const override;
 	[[nodiscard]] bool dragItemByHandler(
 		const ClickHandlerPtr &p) const override;
 	[[nodiscard]] bool keepFocusByHandler(
 		const ClickHandlerPtr &p) const override;
+	[[nodiscard]] Tgw::RendererCore *touchCore(QPoint point) const;
+	[[nodiscard]] QPointF cssPoint(QPoint point) const;
+	[[nodiscard]] QPointF gesturePoint(QPoint point) const;
 
 	void clickHandlerActiveChanged(
 		const ClickHandlerPtr &p,
@@ -74,7 +74,6 @@ private:
 	[[nodiscard]] int infoHeight() const;
 	[[nodiscard]] Tgw::RendererCore *interactiveCore() const;
 	[[nodiscard]] Tgw::RendererCore *pointerCore() const;
-	[[nodiscard]] QPointF cssPoint(QPoint point) const;
 	void pressCard();
 	void releaseCard();
 	void drawStopped(
@@ -91,7 +90,6 @@ private:
 	QPoint _pointerPoint;
 	mutable bool _heavy = false;
 	bool _cardHovered = false;
-	bool _cardClaimed = false;
 
 };
 

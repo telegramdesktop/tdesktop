@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "base/timer.h"
 #include "base/weak_ptr.h"
+#include "twidget/gesture_policy.h"
 #include "twidget/renderer.h"
 #include "ui/effects/animations.h"
 #include "ui/image/image_prepare.h"
@@ -68,10 +69,16 @@ public:
 	void pointerLeave();
 	void pointerPress(QPointF point, int modifiers);
 	void pointerRelease(QPointF point, int modifiers);
+	[[nodiscard]] std::optional<twidget::WidgetGestureClaim> fingerPress(
+		QPointF point,
+		int modifiers);
+	void fingerMove(QPointF point, int modifiers);
+	void fingerRelease(QPointF point, int modifiers);
+	void fingerCancel();
 	void resetInput();
 	[[nodiscard]] bool hovered() const;
 	[[nodiscard]] bool pressed() const;
-	[[nodiscard]] bool claimed() const;
+	[[nodiscard]] bool fingerPressed() const;
 	[[nodiscard]] bool handCursorAt(QPointF point);
 
 	void setWidth(double width);
@@ -104,9 +111,12 @@ private:
 		bool over = false;
 		bool hovering = false;
 		bool pressed = false;
-		bool claimed = false;
 		bool moved = false;
 		bool active = false;
+	};
+	struct Finger {
+		QPointF position;
+		bool pressed = false;
 	};
 
 	void hostLoaded();
@@ -151,6 +161,7 @@ private:
 	rpl::event_stream<LinkRequest> _linkRequests;
 	std::unique_ptr<CursorStyles> _cursor;
 	Pointer _pointer;
+	Finger _finger;
 	Changes _postedChanges;
 	bool _ready = false;
 	bool _detached = false;

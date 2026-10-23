@@ -555,6 +555,7 @@ void Widget::setupSwipeReply() {
 		.scroll = _scroll.data(),
 		.update = std::move(update),
 		.init = std::move(init),
+		.handoff = _inner->touchSwipeHandoff(),
 	});
 }
 
