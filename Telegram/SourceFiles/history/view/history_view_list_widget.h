@@ -581,6 +581,10 @@ public:
 		quintptr identity) const override;
 	void accessibilityChildSetFocus(quintptr identity) override;
 	void accessibilityChildActivate(quintptr identity) override;
+	bool accessibilityChildSubItemSupportsActions(
+		int row,
+		int column) const override;
+	void accessibilityChildSubItemActivate(quintptr identity, int column) override;
 
 	~ListWidget();
 
