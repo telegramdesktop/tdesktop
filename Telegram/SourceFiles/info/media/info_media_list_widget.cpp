@@ -386,11 +386,6 @@ rpl::producer<std::optional<int>> ListWidget::fullCountValue() const {
 	return _fullCountUpdates.events_starting_with(fullCount());
 }
 
-auto ListWidget::globalMediaSliceView() const
--> const std::optional<GlobalMediaSliceView> & {
-	return _globalMediaSliceView;
-}
-
 auto ListWidget::globalMediaSliceViewValue() const
 -> rpl::producer<std::optional<GlobalMediaSliceView>> {
 	return _globalMediaSliceViewChanges.events_starting_with_copy(
