@@ -47,6 +47,17 @@ void ConfirmDontWarnBox(
 		rpl::producer<QString> &&check,
 		rpl::producer<QString> &&confirm,
 		Fn<void(bool)> callback) {
+	if (!check) {
+		Ui::ConfirmBox(box, {
+			.text = std::move(text),
+			.confirmed = [=] {
+				box->closeBox();
+				callback(false);
+			},
+			.confirmText = std::move(confirm),
+		});
+		return;
+	}
 	auto checkbox = object_ptr<Ui::Checkbox>(
 		box.get(),
 		std::move(check),
@@ -129,9 +140,12 @@ void LaunchWithWarning(
 				lt_extension,
 				rpl::single(tr::bold('.' + extension)),
 				tr::marked);
-	auto check = (isIpReveal
-		? tr::lng_launch_exe_dont_ask
-		: tr::lng_launch_dont_ask)();
+	const auto canRemember = isIpReveal || !extension.contains(' ');
+	auto check = !canRemember
+		? rpl::producer<QString>()
+		: isIpReveal
+		? tr::lng_launch_exe_dont_ask()
+		: tr::lng_launch_dont_ask();
 	auto confirm = ((nameType == Core::NameType::Executable)
 		? tr::lng_launch_exe_sure
 		: tr::lng_launch_other_sure)();
