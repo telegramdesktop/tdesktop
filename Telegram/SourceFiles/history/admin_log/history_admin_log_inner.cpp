@@ -1020,6 +1020,15 @@ void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 }
 
 void InnerWidget::restoreState(not_null<SectionMemento*> memento) {
+	_api.request(base::take(_preloadUpRequestId)).cancel();
+	_api.request(base::take(_preloadDownRequestId)).cancel();
+	_api.request(base::take(_newEventsRequestId)).cancel();
+	_upLoaded = _downLoaded = true;
+	_filterChanged = true;
+	clearDisplayItems(DisplayPointerScope::All);
+	_itemsByRealMsgId.clear();
+	_itemDates.clear();
+
 	// OwnedItem::refreshView may call requestItemResize.
 	// So we postpone resizing until all views are created.
 	_items.clear();
