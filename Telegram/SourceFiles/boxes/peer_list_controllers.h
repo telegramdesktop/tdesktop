@@ -256,6 +256,8 @@ public:
 		return !_stories;
 	}
 
+	[[nodiscard]] QString accessibilityName() const override;
+
 	enum class SortMode {
 		Alphabet,
 		Online,
@@ -313,6 +315,8 @@ public:
 
 	QString savedMessagesChatStatus() const override;
 
+	[[nodiscard]] QString accessibilityName() const override;
+
 protected:
 	void prepareViewHook() override;
 	std::unique_ptr<Row> createRow(not_null<History*> history) override;
@@ -367,6 +371,8 @@ public:
 	void prepare() override;
 	void loadMoreRows() override;
 	std::unique_ptr<PeerListRow> createSearchRow(PeerListRowId id) override;
+
+	[[nodiscard]] QString accessibilityName() const override;
 
 	[[nodiscard]] static std::unique_ptr<PeerListRow> MakeRow(
 		not_null<Data::ForumTopic*> topic);
@@ -443,6 +449,8 @@ public:
 	void prepare() override;
 	void loadMoreRows() override;
 	std::unique_ptr<PeerListRow> createSearchRow(PeerListRowId id) override;
+
+	[[nodiscard]] QString accessibilityName() const override;
 
 private:
 	void refreshRows(bool initial = false);
