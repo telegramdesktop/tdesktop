@@ -1454,12 +1454,6 @@ void Call::setState(State state) {
 //	}
 //}
 
-void Call::setAudioDuckingEnabled(bool enabled) {
-	if (_instance) {
-		_instance->setAudioOutputDuckingEnabled(enabled);
-	}
-}
-
 bool Call::isSharingVideo() const {
 	return (_videoOutgoing->state() != Webrtc::VideoState::Inactive);
 }
@@ -1470,10 +1464,6 @@ bool Call::isSharingCamera() const {
 
 bool Call::isSharingScreen() const {
 	return _videoCaptureIsScreencast && isSharingVideo();
-}
-
-QString Call::cameraSharingDeviceId() const {
-	return isSharingCamera() ? _videoCaptureDeviceId : QString();
 }
 
 QString Call::screenSharingDeviceId() const {
@@ -1665,18 +1655,6 @@ void Call::finish(
 	}).fail(crl::guard(weak, [this, finalState] {
 		setState(finalState);
 	})).send();
-}
-
-void Call::setStateQueued(State state) {
-	crl::on_main(this, [=] {
-		setState(state);
-	});
-}
-
-void Call::setFailedQueued(const QString &error) {
-	crl::on_main(this, [=] {
-		handleControllerError(error);
-	});
 }
 
 void Call::handleRequestError(const QString &error) {

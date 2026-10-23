@@ -1049,13 +1049,6 @@ std::shared_ptr<tgcalls::VideoCaptureInterface> Instance::getVideoCapture(
 	return result;
 }
 
-const ConferenceInvites &Instance::conferenceInvites(
-		CallId conferenceId) const {
-	static const auto kEmpty = ConferenceInvites();
-	const auto i = _conferenceInvites.find(conferenceId);
-	return (i != end(_conferenceInvites)) ? i->second : kEmpty;
-}
-
 void Instance::registerConferenceInvite(
 		CallId conferenceId,
 		not_null<UserData*> user,

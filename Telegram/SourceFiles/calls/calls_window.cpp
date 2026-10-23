@@ -130,14 +130,6 @@ void Window::setControlsShown(float64 shown) {
 #endif // Q_OS_MAC
 }
 
-int Window::controlsWrapTop() const {
-#ifndef Q_OS_MAC
-	return _controls->wrap.y();
-#else // Q_OS_MAC
-	return 0;
-#endif // Q_OS_MAC
-}
-
 Ui::RpWidget *Window::controlsWrap() const {
 #ifndef Q_OS_MAC
 	return &_controls->wrap;
