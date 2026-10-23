@@ -8075,6 +8075,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_photo_editor_audio_remove" = "Remove Audio";
 "lng_photo_editor_trim_shortest" = "Trim to shortest";
 
+"lng_video_editor_gif_too_large" = "Videos larger than {size} can't be converted to a GIF";
+
 "lng_photo_editor_keys_tooltip" = "Keyboard shortcuts";
 "lng_photo_editor_keys_gesture" = "{modifier}-{gesture}";
 "lng_photo_editor_keys_gesture_drag" = "drag";
