@@ -27,6 +27,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/color_contrast.h"
 
 namespace Tgw {
+
+struct MessageMemory {
+	std::optional<double> height;
+};
+
 namespace {
 
 constexpr auto kMaxAlive = 8;
@@ -96,9 +101,13 @@ struct Built {
 	QString error;
 };
 
+using MessageMemories = base::flat_map<
+	not_null<const HistoryItem*>,
+	std::shared_ptr<MessageMemory>>;
+
 struct Registry {
 	std::vector<not_null<Runtime*>> list;
-	base::flat_set<not_null<Main::Session*>> sessions;
+	base::flat_map<not_null<Main::Session*>, MessageMemories> sessions;
 	Fn<void()> exitRetry;
 	rpl::lifetime applicationLifetime;
 	uint64 hiddenSerial = 0;
@@ -175,16 +184,8 @@ void HostDeleter::operator()(twidget::WidgetHost *host) const {
 	});
 }
 
-[[nodiscard]] double CssWidth(int width) {
-	return width * 100. / style::Scale();
-}
-
 [[nodiscard]] double CoreRatio() {
 	return style::DevicePixelRatio() * style::Scale() / 100.;
-}
-
-[[nodiscard]] int LogicalHeight(double css) {
-	return int(std::ceil(css * style::Scale() / 100.));
 }
 
 [[nodiscard]] twidget::WidgetTheme ThemeFor(bool dark) {
@@ -444,9 +445,12 @@ Runtime::Runtime(RuntimeDescriptor &&descriptor)
 , _resize(std::move(descriptor.resize))
 , _repaint(std::move(descriptor.repaint))
 , _heavyChanged(std::move(descriptor.heavyChanged))
-, _bridge(std::make_unique<Bridge>(descriptor.item)) {
+, _bridge(std::make_unique<Bridge>(descriptor.item))
+, _memory(RememberMessage(descriptor.item))
+, _maxHeight(kMaxHeight) {
 	Expects(!_html.isEmpty());
 
+	_shownHeight = height();
 	auto &registry = Runtimes();
 	if (registry.list.empty()) {
 		Platform::ApplicationHiddenValue(
@@ -527,7 +531,8 @@ bool Runtime::stopped() const {
 
 std::optional<int> Runtime::height() const {
 	const auto shown = core();
-	const auto css = shown ? shown->height() : std::optional<double>();
+	const auto reported = shown ? shown->height() : std::optional<double>();
+	const auto css = reported ? reported : _memory->height;
 	return css ? std::make_optional(LogicalHeight(*css)) : std::nullopt;
 }
 
@@ -562,15 +567,16 @@ void Runtime::attachView(
 	PostCheck();
 }
 
-void Runtime::setWidth(int width) {
-	if (_width == width) {
+void Runtime::setSize(int width, double maxHeight) {
+	if (_width == width && _maxHeight == maxHeight) {
 		return;
 	}
 	_width = width;
-	if ((_live || _still) && !_widthPosted) {
-		_widthPosted = true;
+	_maxHeight = maxHeight;
+	if ((_live || _still) && !_sizePosted) {
+		_sizePosted = true;
 		crl::on_main(this, [=] {
-			applyWidth();
+			applySize();
 		});
 	}
 }
@@ -620,10 +626,8 @@ void Runtime::painted() {
 		return;
 	} else if (!startable()) {
 		return;
-	} else if (!_painted) {
-		_painted = true;
-		SubscribeSession(&_item->history()->session());
 	}
+	_painted = true;
 	PostCheck();
 }
 
@@ -689,17 +693,32 @@ void Runtime::requestLog(Fn<void(const QString &text)> done) {
 	}
 }
 
-void Runtime::SubscribeSession(not_null<Main::Session*> session) {
-	if (!Runtimes().sessions.emplace(session).second) {
-		return;
+std::shared_ptr<MessageMemory> Runtime::RememberMessage(
+		not_null<HistoryItem*> item) {
+	const auto session = &item->history()->session();
+	auto &sessions = Runtimes().sessions;
+	if (!sessions.contains(session)) {
+		session->data().itemVisibilitiesUpdates(
+		) | rpl::on_next([] {
+			PostCheck();
+		}, session->lifetime());
+		session->data().itemRemoved(
+		) | rpl::on_next([=](not_null<const HistoryItem*> removed) {
+			auto &registry = Runtimes();
+			const auto i = registry.sessions.find(session);
+			if (i != end(registry.sessions)) {
+				i->second.remove(removed);
+			}
+		}, session->lifetime());
+		session->lifetime().add([=] {
+			Runtimes().sessions.remove(session);
+		});
 	}
-	session->data().itemVisibilitiesUpdates(
-	) | rpl::on_next([] {
-		PostCheck();
-	}, session->lifetime());
-	session->lifetime().add([=] {
-		Runtimes().sessions.remove(session);
-	});
+	auto &memory = sessions[session][item];
+	if (!memory) {
+		memory = std::make_shared<MessageMemory>();
+	}
+	return memory;
 }
 
 void Runtime::PostCheck() {
@@ -941,9 +960,10 @@ void Runtime::resourcesReady(
 
 void Runtime::construct(
 		std::shared_ptr<twidget::SandboxResources> resources) {
-	const auto width = CssWidth(_width);
+	const auto width = CssFromLogical(_width);
 	const auto ratio = CoreRatio();
 	_live = std::make_unique<RendererCore>(width, ratio);
+	_live->setMaxHeight(_maxHeight);
 	subscribeLive();
 	_state = State::Constructing;
 	_hostVisible = _visible;
@@ -1006,10 +1026,11 @@ void Runtime::constructed(
 	_logDone = nullptr;
 	_state = State::Live;
 	addNote(u"Started."_q);
-	const auto width = CssWidth(_width);
+	const auto width = CssFromLogical(_width);
 	if (_live->width() != width) {
 		_live->setWidth(width);
 	}
+	_live->setMaxHeight(_maxHeight);
 	syncHostVisibility();
 	_host->pointer->start();
 }
@@ -1160,21 +1181,28 @@ void Runtime::ThemeDone(const std::shared_ptr<Host> &host) {
 	JobDone();
 }
 
-void Runtime::applyWidth() {
-	_widthPosted = false;
-	const auto width = CssWidth(_width);
+void Runtime::applySize() {
+	_sizePosted = false;
+	const auto width = CssFromLogical(_width);
 	auto repaint = false;
-	if (_still && _still->width() != width) {
+	if (_still) {
 		_still->setWidth(width);
+		_still->setMaxHeight(_maxHeight);
 		repaint = (_still.get() == core());
 	}
-	if (_live && _live->width() != width) {
+	if (_live) {
 		_live->setWidth(width);
+		_live->setMaxHeight(_maxHeight);
 	}
 	displayChanged(repaint);
 }
 
 void Runtime::displayChanged(bool repaint) {
+	if (const auto shown = core()) {
+		if (const auto reported = shown->height()) {
+			_memory->height = reported;
+		}
+	}
 	const auto now = height();
 	const auto resize = (_shownHeight != now);
 	if (!resize && !repaint) {
@@ -1244,6 +1272,18 @@ void Runtime::applySample(
 		const auto done = base::take(_logDone);
 		done(logText());
 	}
+}
+
+double CssFromLogical(int logical) {
+	return logical * 100. / style::Scale();
+}
+
+int LogicalHeight(double css) {
+	return int(std::ceil(css * style::Scale() / 100.));
+}
+
+int LogicalWidth(double css) {
+	return int(std::round(css * style::Scale() / 100.));
 }
 
 Runtime *FindRuntime(not_null<const HistoryView::Element*> view) {

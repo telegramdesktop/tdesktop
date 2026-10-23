@@ -15,10 +15,6 @@ namespace HistoryView {
 class Element;
 } // namespace HistoryView
 
-namespace Main {
-class Session;
-} // namespace Main
-
 namespace twidget {
 class SandboxResources;
 class WidgetHost;
@@ -28,6 +24,7 @@ namespace Tgw {
 
 class Bridge;
 class RendererCore;
+struct MessageMemory;
 
 struct RuntimeDescriptor {
 	not_null<HistoryView::Element*> view;
@@ -71,7 +68,7 @@ public:
 		Fn<void()> resize,
 		Fn<void()> repaint,
 		Fn<void()> heavyChanged);
-	void setWidth(int width);
+	void setSize(int width, double maxHeight);
 	void setBubbleColor(const QColor &color);
 	void setWindow(not_null<QWidget*> window);
 	void painted();
@@ -83,7 +80,8 @@ public:
 private:
 	struct Host;
 
-	static void SubscribeSession(not_null<Main::Session*> session);
+	[[nodiscard]] static std::shared_ptr<MessageMemory> RememberMessage(
+		not_null<HistoryItem*> item);
 	static void PostCheck();
 	static void Check();
 	static void RefreshVisibility();
@@ -126,7 +124,7 @@ private:
 
 	void syncHostVisibility();
 	void syncHostTheme();
-	void applyWidth();
+	void applySize();
 	void displayChanged(bool repaint);
 	void postShownDisplay();
 	void heavyStateChanged(bool wasHeavy);
@@ -140,6 +138,7 @@ private:
 	Fn<void()> _repaint;
 	Fn<void()> _heavyChanged;
 	const std::unique_ptr<Bridge> _bridge;
+	const std::shared_ptr<MessageMemory> _memory;
 	std::shared_ptr<Host> _host;
 	std::unique_ptr<RendererCore> _live;
 	std::unique_ptr<RendererCore> _still;
@@ -158,6 +157,7 @@ private:
 	uint64 _summaryHost = 0;
 	uint64 _summaryRequest = 0;
 	uint64 _logHost = 0;
+	double _maxHeight = 0.;
 	int _generation = 0;
 	int _width = 0;
 	State _state = State::Idle;
@@ -168,12 +168,16 @@ private:
 	bool _painted = false;
 	bool _windowKnown = false;
 	bool _stopFatal = false;
-	bool _widthPosted = false;
+	bool _sizePosted = false;
 	bool _summaryLast = false;
 	bool _displayDeferred = false;
 	bool _displayPosted = false;
 
 };
+
+[[nodiscard]] double CssFromLogical(int logical);
+[[nodiscard]] int LogicalHeight(double css);
+[[nodiscard]] int LogicalWidth(double css);
 
 [[nodiscard]] Runtime *FindRuntime(
 	not_null<const HistoryView::Element*> view);

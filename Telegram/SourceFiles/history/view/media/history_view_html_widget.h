@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/media/history_view_media.h"
+#include "tgw/tgw_media.h"
 
 namespace Tgw {
 class RendererCore;
@@ -21,6 +22,7 @@ public:
 	HtmlWidget(
 		not_null<Element*> parent,
 		not_null<HistoryItem*> realParent,
+		Tgw::Anchors anchors,
 		QByteArray html,
 		Element *replacing);
 	~HtmlWidget();
@@ -51,6 +53,7 @@ public:
 	}
 	bool needsBubble() const override;
 	bool customInfoLayout() const override;
+	bool enforceBubbleWidth() const override;
 
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
@@ -61,9 +64,9 @@ private:
 
 	[[nodiscard]] std::unique_ptr<Tgw::Runtime> takeRuntime(
 		const QByteArray &html);
-	[[nodiscard]] QMargins cardMargins() const;
 	[[nodiscard]] QRect cardRect() const;
-	[[nodiscard]] int countHeight() const;
+	[[nodiscard]] int cardHeight() const;
+	[[nodiscard]] double maxCssHeight() const;
 	[[nodiscard]] int infoHeight() const;
 	[[nodiscard]] Tgw::RendererCore *interactiveCore() const;
 	[[nodiscard]] Tgw::RendererCore *pointerCore() const;
@@ -74,8 +77,10 @@ private:
 		Painter &p,
 		const PaintContext &context,
 		QRect card) const;
+	void runtimeHeightChanged();
 	void runtimeHeavyChanged();
 
+	const Tgw::Anchors _anchors;
 	std::unique_ptr<Tgw::Runtime> _runtime;
 	const ClickHandlerPtr _cardLink;
 	QPoint _pointerPoint;

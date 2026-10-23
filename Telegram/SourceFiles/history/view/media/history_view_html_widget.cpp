@@ -86,15 +86,17 @@ struct PatternColor {
 HtmlWidget::HtmlWidget(
 	not_null<Element*> parent,
 	not_null<HistoryItem*> realParent,
+	Tgw::Anchors anchors,
 	QByteArray html,
 	Element *replacing)
 : Media(parent)
+, _anchors(anchors)
 , _cardLink(std::make_shared<LambdaClickHandler>([] {})) {
 	auto descriptor = Tgw::RuntimeDescriptor{
 		.view = parent,
 		.item = realParent,
 		.html = std::move(html),
-		.resize = [=] { history()->owner().requestViewResize(_parent); },
+		.resize = [=] { runtimeHeightChanged(); },
 		.repaint = [=] { _parent->repaint(); },
 		.heavyChanged = [=] { runtimeHeavyChanged(); },
 	};
@@ -141,17 +143,23 @@ std::unique_ptr<Tgw::Runtime> HtmlWidget::takeRuntime(
 }
 
 QSize HtmlWidget::countOptimalSize() {
-	return { st::msgMaxWidth, countHeight() };
+	const auto cardWidth = (_anchors.width > 0)
+		? std::min(
+			Tgw::LogicalWidth(std::clamp(
+				double(_anchors.width),
+				Tgw::kMinWidth,
+				Tgw::CssFromLogical(st::msgMaxWidth))),
+			st::msgMaxWidth)
+		: st::msgMaxWidth;
+	return { cardWidth, cardHeight() + infoHeight() };
 }
 
 QSize HtmlWidget::countCurrentSize(int newWidth) {
-	const auto margins = cardMargins();
+	const auto cardWidth = std::min(newWidth, maxWidth());
 	if (_runtime) {
-		_runtime->setWidth(std::max(
-			newWidth - margins.left() - margins.right(),
-			0));
+		_runtime->setSize(cardWidth, maxCssHeight());
 	}
-	return { newWidth, countHeight() };
+	return { cardWidth, cardHeight() + infoHeight() };
 }
 
 bool HtmlWidget::needsBubble() const {
@@ -162,25 +170,29 @@ bool HtmlWidget::customInfoLayout() const {
 	return false;
 }
 
-QMargins HtmlWidget::cardMargins() const {
-	return {
-		st::msgPadding.left(),
-		isBubbleTop() ? st::msgPadding.top() : 0,
-		st::msgPadding.right(),
-		isBubbleBottom() ? st::msgPadding.bottom() : 0,
-	};
+bool HtmlWidget::enforceBubbleWidth() const {
+	return true;
 }
 
 QRect HtmlWidget::cardRect() const {
-	const auto full = QRect(0, 0, width(), height() - infoHeight());
-	return full.marginsRemoved(cardMargins());
+	return QRect(0, 0, width(), height() - infoHeight());
 }
 
-int HtmlWidget::countHeight() const {
-	const auto margins = cardMargins();
+int HtmlWidget::cardHeight() const {
+	if (_anchors.height > 0) {
+		return Tgw::LogicalHeight(maxCssHeight());
+	}
 	const auto shown = _runtime ? _runtime->height() : std::nullopt;
-	const auto content = shown.value_or(st::tgwPlaceholderHeight);
-	return margins.top() + content + margins.bottom() + infoHeight();
+	return shown.value_or(st::tgwPlaceholderHeight);
+}
+
+double HtmlWidget::maxCssHeight() const {
+	return (_anchors.height > 0)
+		? std::clamp(
+			double(_anchors.height),
+			Tgw::kMinHeight,
+			Tgw::kMaxHeight)
+		: Tgw::kMaxHeight;
 }
 
 int HtmlWidget::infoHeight() const {
@@ -189,7 +201,9 @@ int HtmlWidget::infoHeight() const {
 		|| _parent->hidesBottomInfo()) {
 		return 0;
 	}
-	return st::tgwBubbleInfoSkip + _parent->skipBlockHeight();
+	return st::tgwBubbleInfoSkip
+		+ _parent->skipBlockHeight()
+		+ st::msgPadding.bottom();
 }
 
 Tgw::RendererCore *HtmlWidget::interactiveCore() const {
@@ -222,15 +236,19 @@ void HtmlWidget::draw(Painter &p, const PaintContext &context) const {
 	}
 
 	const auto visible = card.intersects(context.clip);
-	const auto core = visible ? _runtime->core() : nullptr;
-	const auto frame = core ? core->frame() : QImage();
-	if (frame.isNull()) {
-		p.fillRect(card, context.messageStyle()->msgWaveformInactive);
-	} else {
-		p.save();
-		p.setClipRect(card, Qt::IntersectClip);
-		p.drawImage(card.topLeft(), frame);
-		p.restore();
+	if (const auto core = visible ? _runtime->core() : nullptr) {
+		const auto square = infoHeight()
+			? RectParts(RectPart::FullBottom)
+			: RectParts();
+		const auto &frame = core->frame(
+			MediaRoundingMask(adjustedBubbleRounding(square)),
+			card.size());
+		if (!frame.isNull()) {
+			p.save();
+			p.setClipRect(card, Qt::IntersectClip);
+			p.drawImage(card.topLeft(), frame);
+			p.restore();
+		}
 	}
 	const auto state = _runtime->state();
 	if (state == Tgw::Runtime::State::Stopped
@@ -379,6 +397,14 @@ void HtmlWidget::unloadHeavyPart() {
 	_heavy = false;
 	if (_runtime) {
 		_runtime->unload();
+	}
+}
+
+void HtmlWidget::runtimeHeightChanged() {
+	if (_anchors.height > 0) {
+		_parent->repaint();
+	} else {
+		history()->owner().requestViewResize(_parent);
 	}
 }
 

@@ -170,6 +170,7 @@ std::unique_ptr<HistoryView::Media> WidgetMedia::createView(
 			return std::make_unique<HistoryView::HtmlWidget>(
 				message,
 				realParent,
+				_anchors,
 				html,
 				replacing);
 		}

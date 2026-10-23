@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "twidget/renderer.h"
 #include "ui/effects/animations.h"
+#include "ui/image/image_prepare.h"
 
 namespace twidget {
 class Json;
@@ -27,6 +28,10 @@ namespace Tgw {
 class CursorStyles;
 class HostLink;
 class QtBackend;
+
+inline constexpr auto kMinWidth = 200.;
+inline constexpr auto kMinHeight = 50.;
+inline constexpr auto kMaxHeight = 600.;
 
 [[nodiscard]] int DomModifiers(Qt::KeyboardModifiers modifiers);
 
@@ -70,6 +75,7 @@ public:
 	[[nodiscard]] bool handCursorAt(QPointF point);
 
 	void setWidth(double width);
+	void setMaxHeight(double height);
 	[[nodiscard]] double width() const;
 	[[nodiscard]] std::optional<double> height() const;
 	[[nodiscard]] bool hasContent() const;
@@ -77,7 +83,9 @@ public:
 	[[nodiscard]] const QString &stopReason() const;
 	[[nodiscard]] bool stopFatal() const;
 	[[nodiscard]] not_null<twlite::Renderer*> renderer() const;
-	[[nodiscard]] const QImage &frame();
+	[[nodiscard]] const QImage &frame(
+		Images::CornersMaskRef corners,
+		QSize cardArea);
 	void dropFrame();
 
 	[[nodiscard]] rpl::producer<Changes> updates() const;
@@ -134,6 +142,8 @@ private:
 	base::Timer _wake;
 	QImage _frame;
 	QSize _frameSize;
+	QSize _frameArea;
+	Images::CornersMaskRef _frameCorners;
 	std::optional<double> _height;
 	std::string _pendingSize;
 	QString _stopReason;

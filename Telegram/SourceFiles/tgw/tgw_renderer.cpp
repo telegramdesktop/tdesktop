@@ -47,8 +47,6 @@ private:
 
 namespace {
 
-constexpr auto kMinHeight = 50.;
-constexpr auto kMaxHeight = 600.;
 constexpr auto kFallbackWidth = 1.;
 constexpr auto kReadyMessage = "{\"type\":\"ready\"}";
 constexpr auto kMinWakeDelay = crl::time(1);
@@ -115,6 +113,41 @@ private:
 	return QSize(
 		DeviceSide(renderer.px_width()),
 		DeviceSide(renderer.px_height()));
+}
+
+[[nodiscard]] QImage RoundFrame(
+		QImage &&frame,
+		Images::CornersMaskRef corners,
+		QSize card) {
+	const auto bounds = QRect(QPoint(), frame.size());
+	for (auto i = 0; i != 4; ++i) {
+		const auto mask = corners.p[i];
+		if (!mask
+			|| (mask->width() > card.width())
+			|| (mask->height() > card.height())) {
+			continue;
+		}
+		const auto right = (i == Images::kTopRight)
+			|| (i == Images::kBottomRight);
+		const auto bottom = (i == Images::kBottomLeft)
+			|| (i == Images::kBottomRight);
+		const auto patch = QRect(
+			QPoint(
+				right ? (card.width() - mask->width()) : 0,
+				bottom ? (card.height() - mask->height()) : 0),
+			mask->size());
+		const auto target = patch.intersected(bounds);
+		if (target.isEmpty()) {
+			continue;
+		}
+		const auto part = (target == patch)
+			? *mask
+			: mask->copy(target.translated(-patch.topLeft()));
+		auto single = Images::CornersMaskRef();
+		single.p[Images::kTopLeft] = &part;
+		frame = Images::Round(std::move(frame), single, target);
+	}
+	return std::move(frame);
 }
 
 [[nodiscard]] crl::time WakeDelay(double seconds) {
@@ -545,6 +578,19 @@ void RendererCore::setWidth(double width) {
 	finish(out, changes);
 }
 
+void RendererCore::setMaxHeight(double height) {
+	const auto wasDirty = _renderer->dirty();
+	const auto was = DeviceSize(*_renderer);
+	auto out = std::vector<twidget::Json>();
+	_renderer->set_max_height(height, out);
+	auto changes = Changes();
+	if ((DeviceSize(*_renderer) != was)
+		|| (!wasDirty && _renderer->dirty())) {
+		changes |= Change::Repaint;
+	}
+	finish(out, changes);
+}
+
 double RendererCore::width() const {
 	return _renderer->width();
 }
@@ -573,10 +619,14 @@ not_null<twlite::Renderer*> RendererCore::renderer() const {
 	return _renderer.get();
 }
 
-const QImage &RendererCore::frame() {
+const QImage &RendererCore::frame(
+		Images::CornersMaskRef corners,
+		QSize cardArea) {
 	const auto ratio = style::DevicePixelRatio();
 	if (!_renderer->dirty()
 		&& (_frameSize == DeviceSize(*_renderer))
+		&& (_frameCorners == corners)
+		&& (_frameArea == cardArea)
 		&& (_frame.isNull() || _frame.devicePixelRatio() == ratio)) {
 		return _frame;
 	}
@@ -588,7 +638,10 @@ const QImage &RendererCore::frame() {
 	const auto size = DeviceSize(*_renderer);
 	_frame = PaintFrame(list, *_backend, size, _renderer->dpr());
 	_frameSize = size;
+	_frameCorners = corners;
+	_frameArea = cardArea;
 	if (!_frame.isNull()) {
+		_frame = RoundFrame(std::move(_frame), corners, cardArea * ratio);
 		_frame.setDevicePixelRatio(ratio);
 	}
 	if (_renderer->stats().builds != builds) {
@@ -600,6 +653,8 @@ const QImage &RendererCore::frame() {
 void RendererCore::dropFrame() {
 	_frame = QImage();
 	_frameSize = QSize();
+	_frameArea = QSize();
+	_frameCorners = Images::CornersMaskRef();
 }
 
 rpl::producer<RendererCore::Changes> RendererCore::updates() const {
