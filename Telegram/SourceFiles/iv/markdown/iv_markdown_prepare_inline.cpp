@@ -44,25 +44,9 @@ enum class RawInlineTag {
 void FinalizePreparedExternalLink(
 		PreparedLink *link,
 		QStringView renderedText) {
-	if (!link
-		|| link->kind != PreparedLinkKind::External
-		|| (link->entityType != EntityType::Url
-			&& link->entityType != EntityType::Email)) {
-		return;
+	if (link && link->kind == PreparedLinkKind::External) {
+		FinalizePreparedUrlLink(link, renderedText);
 	}
-	if (renderedText == QStringView(ExternalLinkDisplayText(*link))) {
-		return;
-	}
-	if (link->entityType == EntityType::Email) {
-		link->shown = EntityLinkShown::Partial;
-		return;
-	}
-	if (UrlClickHandler::EncodeForOpening(renderedText.toString())
-		== link->target) {
-		link->shown = EntityLinkShown::Partial;
-		return;
-	}
-	link->entityType = EntityType::CustomUrl;
 }
 
 [[nodiscard]] bool RangeContains(

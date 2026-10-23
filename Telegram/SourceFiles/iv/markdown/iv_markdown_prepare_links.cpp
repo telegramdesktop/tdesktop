@@ -253,6 +253,11 @@ void FinalizePreparedUrlLink(
 			&& link->entityType != EntityType::Email)) {
 		return;
 	}
+	if (link->entityType == EntityType::Url
+		&& UrlClickHandler::IsSuspicious(renderedText.toString())) {
+		link->entityType = EntityType::CustomUrl;
+		return;
+	}
 	if (renderedText == QStringView(ExternalLinkDisplayText(*link))) {
 		return;
 	}
