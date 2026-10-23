@@ -74,6 +74,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/userpic_button.h"
 #include "ui/delayed_activation.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/image/svg_safety.h"
 #include "ui/painter.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/text/text_utilities.h"
@@ -875,7 +876,7 @@ void MenuBotIcon::validate() {
 		if (!_media || !_media->loaded()) {
 			return;
 		}
-		auto icon = QSvgRenderer(_media->bytes());
+		auto icon = QSvgRenderer(Images::SanitizeSvg(_media->bytes()));
 		_mask = QImage(wanted, QImage::Format_ARGB32_Premultiplied);
 		_mask.setDevicePixelRatio(style::DevicePixelRatio());
 		_mask.fill(Qt::transparent);
