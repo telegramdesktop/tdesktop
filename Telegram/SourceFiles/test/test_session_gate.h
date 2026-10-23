@@ -50,9 +50,14 @@ struct Stage;
 // included. It is a startup gate, not a continuous account lock: code that
 // SetupScenario itself executes is not a stage and is not gated, so
 // SetupScenario only appends stages, registers releases and configures the
-// gate, and no stage may switch the primary window or domain().active() to
-// another account behind it. The one account switch the harness makes is
-// the Test-session helper's, inside the gate, before any stage (below).
+// gate. Once the gate passed, a stage may switch accounts through the
+// product's own Main::Domain::activate(), for example to the production
+// account a declaration authorized; acting as a non-Test account still needs
+// that declaration. Such a stage owns the switch back before the run ends:
+// activate() persists the active index into the copy, and a copy left
+// opening on a non-Test account refuses the next undeclared scenario. The
+// harness's own switch is the Test-session helper's, inside the gate, before
+// any stage (below).
 //
 // What it reads (ReadSessionGate). Public core APIs only: whether
 // Main::Domain::started(); for every entry of Main::Domain::accounts() its
@@ -166,8 +171,9 @@ struct ProductionLegs {
 // (invalid-declaration), and one made after the gate decided changes
 // nothing and only writes a NOTE. A valid declaration lets an authorized
 // non-Test selected session run, with the declaration row naming the
-// environment it accepted; it switches no account and does not waive an
-// unreadable domain or an unreadable selection. It is mutually exclusive
+// environment it accepted. It switches no account itself (a stage may, see
+// above) and does not waive an unreadable domain or an unreadable selection.
+// It is mutually exclusive
 // with Test::UseTestSession: a scenario requesting both is refused
 // (helper-with-declaration).
 void DeclareProductionLegs(not_null<Runner*> runner, ProductionLegs legs);

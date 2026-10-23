@@ -82,9 +82,11 @@ with none of its callbacks run; the run still reaches `TEST_COMPLETE`. The
 gate decides once, at start, and is not a continuous
 account lock: code that `SetupScenario` itself executes is not a stage and is
 not gated, so `SetupScenario` only appends stages, registers releases and
-configures the gate, and no stage may switch the primary window or
-`domain().active()` to another account behind it. The one account switch
-the harness makes is the Test-session helper's (`Test::UseTestSession`),
+configures the gate. Once the gate passed, a stage may switch accounts
+through the product's `Main::Domain::activate()`, for example to the
+production account a declaration authorized (acting as a non-Test account
+still needs that declaration), and owns switching back before the run ends.
+The harness's own switch is the Test-session helper's (`Test::UseTestSession`),
 inside the gate and before any stage, undone by its last stage.
 
 ## Gated groups and recovery stages

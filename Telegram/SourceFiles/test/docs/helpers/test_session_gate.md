@@ -34,9 +34,13 @@ callbacks runs; `test-session`, `no-authorized-account`,
 never-default production-leg declaration for a task that itself authorizes
 legs on a production-environment account: made once in `SetupScenario` with
 non-empty single-line labels (an invalid, repeated or foreign one refuses
-without echoing them), it switches no account, waives neither an unstarted
-domain nor an unreadable selection, and logs `production-leg declaration
-task=[...] legs=[...] accepted=<environment>`.
+without echoing them), it switches no account itself, waives neither an
+unstarted domain nor an unreadable selection, and logs `production-leg
+declaration task=[...] legs=[...] accepted=<environment>`. When the copy opens
+on a Test account, a stage switches to the authorized production account with
+`Main::Domain::activate()` after the gate passed and switches back before the
+run ends; `activate()` persists the active index, so a copy left on production
+refuses the next undeclared scenario.
 
 ## Test-session helper
 
