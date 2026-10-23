@@ -341,6 +341,10 @@ bool HtmlWidget::dragItemByHandler(const ClickHandlerPtr &p) const {
 	return false;
 }
 
+bool HtmlWidget::keepFocusByHandler(const ClickHandlerPtr &p) const {
+	return (p == _cardLink);
+}
+
 void HtmlWidget::clickHandlerActiveChanged(
 		const ClickHandlerPtr &p,
 		bool active) {

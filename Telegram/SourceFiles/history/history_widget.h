@@ -181,7 +181,7 @@ public:
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 
 	bool isItemCompletelyHidden(HistoryItem *item) const;
-	void updateTopBarSelection();
+	void updateTopBarSelection(bool keepFocus = false);
 	void updateTopBarChooseForReport();
 	bool handleDrawToReplyRequest(Data::DrawToReplyRequest request);
 

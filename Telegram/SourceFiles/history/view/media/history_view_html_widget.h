@@ -38,6 +38,8 @@ public:
 		bool fromTouch) const override;
 	[[nodiscard]] bool dragItemByHandler(
 		const ClickHandlerPtr &p) const override;
+	[[nodiscard]] bool keepFocusByHandler(
+		const ClickHandlerPtr &p) const override;
 
 	void clickHandlerActiveChanged(
 		const ClickHandlerPtr &p,

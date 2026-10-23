@@ -420,7 +420,10 @@ private:
 		bool fromTouch = false);
 	void mouseActionUpdate();
 	void mouseActionUpdate(const QPoint &screenPos);
-	void mouseActionFinish(const QPoint &screenPos, Qt::MouseButton button);
+	void mouseActionFinish(
+		const QPoint &screenPos,
+		Qt::MouseButton button,
+		bool fromTouch = false);
 	void mouseActionCancel();
 	std::unique_ptr<QMimeData> prepareDrag();
 	void performDrag();

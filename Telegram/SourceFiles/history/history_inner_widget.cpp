@@ -2129,7 +2129,7 @@ void HistoryInner::touchEvent(QTouchEvent *e) {
 		auto weak = base::make_weak(this);
 		if (_touchSelect) {
 			if (notMoved || _touchMaybeSelecting.current()) {
-				mouseActionFinish(_touchPos, Qt::RightButton);
+				mouseActionFinish(_touchPos, Qt::RightButton, true);
 				auto contextMenu = QContextMenuEvent(
 					QContextMenuEvent::Mouse,
 					mapFromGlobal(_touchPos),
@@ -2160,7 +2160,7 @@ void HistoryInner::touchEvent(QTouchEvent *e) {
 			}
 		} else if (notMoved) { // One short tap is like left mouse click.
 			mouseActionStart(_touchPos, Qt::LeftButton, true);
-			mouseActionFinish(_touchPos, Qt::LeftButton);
+			mouseActionFinish(_touchPos, Qt::LeftButton, true);
 		}
 		if (weak) {
 			_touchSelectTimer.cancel();
@@ -2577,7 +2577,8 @@ void HistoryInner::viewRemoved(not_null<const Element*> view) {
 
 void HistoryInner::mouseActionFinish(
 		const QPoint &screenPos,
-		Qt::MouseButton button) {
+		Qt::MouseButton button,
+		bool fromTouch) {
 	mouseActionUpdate(screenPos);
 
 	const auto toggleByHandler = [&](const ClickHandlerPtr &handler) {
@@ -2587,7 +2588,13 @@ void HistoryInner::mouseActionFinish(
 		return false;
 	};
 
-	const auto wasPressed = bool(ClickHandler::getPressed());
+	const auto pressed = ClickHandler::getPressed();
+	const auto pressedView = Element::PressedLink();
+	const auto keepFocus = !fromTouch
+		&& pressedView
+		&& pressedView->media()
+		&& pressedView->media()->keepFocusByHandler(pressed);
+	const auto wasPressed = bool(pressed);
 	auto activated = ClickHandler::unpressed();
 	if (const auto view = Element::HoveredLink()) {
 		if (wasPressed && !activated && view == Element::Moused()) {
@@ -2704,7 +2711,7 @@ void HistoryInner::mouseActionFinish(
 	_mouseSelectType = TextSelectType::Letters;
 	_mouseTextAnchor = TextState();
 	_selectScroll.cancel();
-	_widget->updateTopBarSelection();
+	_widget->updateTopBarSelection(keepFocus);
 
 	if (QGuiApplication::clipboard()->supportsSelection()
 		&& hasSelectedText()

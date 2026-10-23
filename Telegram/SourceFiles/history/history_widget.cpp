@@ -11244,7 +11244,7 @@ void HistoryWidget::updateTopBarChooseForReport() {
 	updateControlsGeometry();
 }
 
-void HistoryWidget::updateTopBarSelection() {
+void HistoryWidget::updateTopBarSelection(bool keepFocus) {
 	if (!_list) {
 		_topBar->showSelected(HistoryView::TopBarWidget::SelectedState {});
 		return;
@@ -11277,7 +11277,8 @@ void HistoryWidget::updateTopBarSelection() {
 		: tr::lng_report_messages_none(tr::now, tr::upper));
 	updateControlsVisibility();
 	updateHistoryGeometry();
-	if (!controller()->isLayerShown()
+	if (!keepFocus
+		&& !controller()->isLayerShown()
 		&& !Core::App().passcodeLocked()) {
 		if (isSearching() && !_nonEmptySelection) {
 			_composeSearch->setInnerFocus();
