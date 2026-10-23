@@ -338,10 +338,8 @@ bool NameTypeAllowsThumbnail(NameType type) {
 
 bool IsIpRevealingPath(const QString &filepath) {
 	static const auto kExtensions = [] {
-		auto joined = u"htm html svg m4v m3u m3u8 xhtml xml kml kmz xspf"_q;
-#ifdef Q_OS_WIN
-		joined += u" wpl"_q;
-#endif // Q_OS_WIN
+		auto joined = u"htm html svg m4v m3u m3u8 xhtml xml kml kmz "
+			"xspf wpl"_q;
 #ifdef Q_OS_MAC
 		joined += u" docx dotx docm dotm"_q;
 		joined += u" xlsx xltx xlsm xltm xlsb"_q;
