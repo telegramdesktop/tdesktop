@@ -75,7 +75,7 @@ from the panel's `sizeValue()`. Its children, all opaque:
 
 | Child | Owner-local geometry | Role |
 | --- | --- | --- |
-| First and second child | `(0, 0, 3row, row)` and `(3row, 0, 3row, row)` | Exact paint owners of group A. Each paint stamps a record: child, generation, the observing sampler's `receiptMark()` (its receipt index for this paint), start, end and whether a fixture capture was running. |
+| First and second child | `(0, 0, 3row, row)` and `(3row, 0, 3row, row)` | Exact paint owners of group A. Each paint stamps a record: child, generation, the observing sampler's `receiptMark()` (its receipt index for this paint), start and end both in milliseconds and in the fixture sequence, and whether a fixture capture was running. |
 | Gradient | `(row, row, w, row)` | Static horizontal `QLinearGradient` from `st::windowBgActive` to `st::attentionButtonFg`. `w` is the smallest width in `[4row, 5row]` whose truncated stop-table increment `1023 * 256 / (w * dpr)` has a fractional part in `[0.25, 0.75]`, else `4row`. |
 | Scroll | `(0, 2row, 6row, height - 3row)` | Real `Ui::ScrollArea`, horizontal bar off, content of five alternating rows at content y `row / 2 + i * row`. |
 | Overlay | `(0, height - row, 6row, row)` | The bottom overlay that keeps the scroll viewport above the owner's bottom. |
@@ -100,17 +100,32 @@ settle stage that waits until no record ended for 100 ms (bounded at
 ### Group A: coordinated samplers
 
 Two samplers, one per child, share one `PostPaintCaptureScope`. Each action
-counts its call, then takes one `GrabWidget` of P with the fixture's
-capture flag set: a composite capture that synchronously paints both
-children. The group runs inside its own `addGated` paint gate.
+first records its call - the row seq the sampler passes it and the fixture
+sequence at its entry and exit - and counts it, then takes one `GrabWidget`
+of P with the fixture's capture flag set: a composite capture that
+synchronously paints both children. The group runs inside its own
+`addGated` paint gate.
+
+Every order decision of A1, A2 and A4 is made in the fixture sequence,
+never in milliseconds. One counter is incremented at each child paint's
+start and end and at each action's entry and exit, and each arm's marks
+read it (`requestSeq=`). The sampler calls the action right after it reads
+the row's `lo`, so an action's entry is "the sample ran". `crl::now()`
+stamps decide only the bounds, windows and quiet periods: two causally
+ordered events microseconds apart often share one millisecond, so a strict
+comparison of their stamps fails a correct history and a non-strict one
+cannot refuse a wrong order. Records print `seq=<start>..<end>`, readings
+`actions=[<row>:<entry>..<exit>]`, and a row with no recorded action call
+is refused by name (`no action call for row seq=<n>`, also `acted=` in the
+readings), never passed.
 
 | Stage | Expected verdict |
 | --- | --- |
 | A1 idle control | Both samplers' 500 ms windows open and nothing requests a paint; `firstReceiptSince(mark)` refuses with `absent-receipt` for both. A stray paint is named in the details. |
-| A1 one requested paint | A 3000 ms window on the first sampler, a mark, one `update()` of the first child. The first receipt is `Product`, index `mark + 1`, matched by the first child's own non-capture record with that index, received at or after the request, and followed by a row whose `paintAt` is that receipt and whose `lo` is after the paint ended. Otherwise this Check FAILs and sets the paint gate (`no product paint receipt within 3000 ms: absent-receipt: ...`), so A2 to A5 read N/A by that name. |
-| A2 coordinated | 1200 ms windows on both, one `update()` on each child. Each child has exactly one product record and one row, `covered=1`, `paintAt` and `lastPaintAt` equal to that record's receipt, `lo` after the paint's end and within 250 ms of it; each child has at least two capture records, every one a `Capture` receipt; the last row's `hi` is at least 500 ms before the window closes; receipts since the mark reconcile one to one with the records. |
+| A1 one requested paint | A 3000 ms window on the first sampler, a mark, one `update()` of the first child. The first receipt is `Product`, index `mark + 1`, matched by the first child's own non-capture record with that index, which started after the marks, and followed by a row whose `paintAt` is that receipt and whose action began after that record ended. Otherwise this Check FAILs and sets the paint gate (`no product paint receipt within 3000 ms: absent-receipt: ...`), so A2 to A5 read N/A by that name. |
+| A2 coordinated | 1200 ms windows on both, one `update()` on each child. Each child has exactly one product record and one row, `covered=1`, `paintAt` and `lastPaintAt` equal to that record's receipt, its action begun after the record ended and its `lo` within 250 ms of the record's end; each child has at least two capture records, every one a `Capture` receipt; the last row's `hi` is at least 500 ms before the window closes; receipts since the mark reconcile one to one with the records. |
 | A3 instance-local control | Two samplers without a scope whose actions grab only for their first four calls (a cap on the recursion), a 600 ms window, one `update()` of the first child. Passes when the defect shows: at least one capture paint of the second child is a `Product` receipt to its sampler, and exactly one real paint yields more rows than that. |
-| A4 coalesced | An arm filter installed after the first sampler's filter runs first and, on the first non-capture paint, posts a call R ahead of the queued sample; R calls `repaint()`, a synchronous paint that joins the pending sample, and the first capture paint calls `update()` once. Premise: the second product record started before the first row's `lo` (`coalescing premise: repaint() was not synchronous` otherwise). Checks: three product records and two rows; row 1 `covered=2` with the receipts of records 1 and 2, row 2 `covered=1` for record 3, which started after row 1's `hi`; every record of both children matches its receipt kind. |
+| A4 coalesced | An arm filter installed after the first sampler's filter runs first and, on the first non-capture paint, posts a call R ahead of the queued sample; R calls `repaint()`, a synchronous paint that joins the pending sample, and the first capture paint calls `update()` once. Premise: the second product record ended before the first row's action began (`coalescing premise: the second product paint did not end before the first sample's action began - repaint() deferred` otherwise, or `coalescing premise: no action call for row seq=<n>` when that row has none). Checks: three product records and two rows, each row with its action call; row 1 `covered=2` with the receipts of records 1 and 2, record 2 ended before row 1's action began; row 2 `covered=1` for record 3, which started after row 1's action returned and ended before row 2's action began; every record of both children matches its receipt kind. |
 | A5 replacement | An arm filter on the second child posts a call D ahead of its sampler's queued sample. D reads the premise, destroys that generation, starts a replacement sampler (same scope, 1000 ms window) on a new generation at the same geometry, and only then shows it. Checks: the premise (one generation-1 product paint, a sample pending, no row); after the destruction no generation-1 action call or row, stop reason `owner-destroyed`, `receiptMark()` unchanged and nothing pending; every generation-2 record indexes the replacement sampler's receipts from 1 and its rows cover only generation-2 product paints. The next stage runs and releases the stopped sampler. |
 | Group A: release | Outside the paint gate: every sampler is released while the children it observed are still alive. |
 
@@ -161,8 +176,11 @@ Three premise refusals are FAIL rows instead: the fixture gate (every
 gated stage then reads N/A), the A1 first receipt (A2 to A5 then read N/A)
 and the A4 coalescing premise. Each is a test flaw to diagnose - for A1 the
 `caffeinate` wrapper, the exposure reading and the panel's mapping; for A4
-whether the panel gained a texture child or lost its mapping, which defers
-`repaint()` - never a reason to loosen a check.
+a deferred `repaint()`, since the premise is the exact sequence order: the
+second product paint ended after the first sample's action began, so check
+whether the panel gained a texture child or lost its mapping, either of
+which defers `repaint()` (a `no action call` refusal instead names a row
+whose action was never recorded) - never a reason to loosen a check.
 
 ## Lifetime and cleanup
 

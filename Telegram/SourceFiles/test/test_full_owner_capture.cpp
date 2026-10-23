@@ -107,12 +107,17 @@ enum class Child {
 // paint (0 while none observes it), |capture| the fixture's own flag that a
 // group A action sets around its composite grab, so the records tell
 // product paints from capture paints without trusting any sampler.
+// |startSeq| and |endSeq| are the fixture sequence (Stamp) taken beside
+// |start| and |end|: they, not the milliseconds, order a paint against an
+// action call or an arm's marks.
 struct PaintRecord {
 	Child child = Child::First;
 	int generation = 0;
 	int receipt = 0;
+	int startSeq = 0;
 	crl::time start = 0;
 	crl::time end = 0;
+	int endSeq = 0;
 	bool capture = false;
 };
 
@@ -130,15 +135,28 @@ struct Fixture {
 	std::array<int, 2> generation = {};
 	std::array<PostPaintSampler*, 2> observed = {};
 	std::vector<PaintRecord> records;
+	int sequence = 0;
 	bool capturing = false;
 	bool repaintOnCapture = false;
 };
 
+// One call of a group A sampler's action: the |row| seq the sampler passed
+// it, which is that row's PostPaintSample::seq, and the fixture sequence at
+// the action's entry and at its exit. The sampler runs the action right
+// after it reads the row's lo, so |entry| is "the sample ran".
+struct ActionCall {
+	int row = 0;
+	int entry = 0;
+	int exit = 0;
+};
+
 // One group A sampler, the child generation it observes and the calls its
-// action received, counted before the action looks at anything.
+// action received, counted and recorded before the action looks at
+// anything.
 struct Observer {
 	std::unique_ptr<PostPaintSampler> sampler;
 	QPointer<QWidget> owner;
+	std::vector<ActionCall> actions;
 	Child child = Child::First;
 	int generation = 0;
 	int calls = 0;
@@ -148,12 +166,14 @@ struct Observer {
 };
 
 // Taken immediately before an arm's update() calls: the arm's sampling
-// window, the request time and the ends of the record history and of the
-// row and receipt histories of the observers of both children.
+// window, the request time and fixture sequence, and the ends of the record
+// history and of the row and receipt histories of the observers of both
+// children.
 struct ArmMarks {
 	crl::time from = 0;
 	crl::time till = 0;
 	crl::time requestedAt = 0;
+	int requestSeq = 0;
 	int records = 0;
 	std::array<int, 2> rows = {};
 	std::array<int, 2> receipts = {};
@@ -169,15 +189,19 @@ struct ReplaceReading {
 };
 
 // One child generation's view of an arm: its records since the arm's
-// mark, the rows and receipts of its observer since the same mark, and
-// the reconciliation of the two (empty when they agree).
+// mark, the rows, receipts and action calls of its observer since the same
+// mark, the reconciliation of records and receipts (empty when they agree)
+// and the named refusal of a row without an action call (empty when every
+// row has one).
 struct ChildReading {
 	std::vector<PaintRecord> records;
 	std::vector<PaintRecord> products;
 	std::vector<PaintRecord> captures;
 	std::vector<PostPaintSample> rows;
 	std::vector<PostPaintReceipt> receipts;
+	std::vector<ActionCall> actions;
 	QString reconcile;
+	QString unacted;
 };
 
 struct PaintGroup {
@@ -322,6 +346,17 @@ void PaintFill(not_null<Ui::RpWidget*> widget, const style::color &color) {
 	});
 }
 
+// The fixture sequence: one counter, incremented at each child paint's
+// start and end and at each group A action's entry and exit, and read by
+// each arm's marks. It is the exact causal order of those events. crl::now()
+// milliseconds decide bounds, windows and quiet periods only: two causally
+// ordered events microseconds apart often share one millisecond, so a
+// strict comparison of their stamps fails a correct history and a
+// non-strict one cannot refuse a wrong order.
+[[nodiscard]] int Stamp(not_null<Fixture*> fixture) {
+	return ++fixture->sequence;
+}
+
 void PaintGradient(not_null<Ui::RpWidget*> widget) {
 	widget->setAttribute(Qt::WA_OpaquePaintEvent);
 	widget->paintOn([=](QPainter &p) {
@@ -336,7 +371,8 @@ void PaintGradient(not_null<Ui::RpWidget*> widget) {
 // fixed when it is set up, so a replacement child stamps its own records.
 // It is not shown here: a replacement is shown only after its observer
 // exists. The observing sampler's filter runs before this paintEvent, so
-// its receiptMark() read here is this paint's receipt index.
+// its receiptMark() read here is this paint's receipt index; the fixture
+// sequence is stamped at the paint's start and end.
 void SetupChild(
 		not_null<Fixture*> fixture,
 		not_null<Ui::RpWidget*> widget,
@@ -349,6 +385,7 @@ void SetupChild(
 	widget->setGeometry(ChildGeometry(child));
 	widget->paintOn([=](QPainter &p) {
 		const auto start = crl::now();
+		const auto startSeq = Stamp(fixture);
 		const auto observed = fixture->observed[ChildIndex(child)];
 		const auto receipt = observed ? observed->receiptMark() : 0;
 		p.fillRect(widget->rect(), color);
@@ -360,8 +397,10 @@ void SetupChild(
 			.child = child,
 			.generation = generation,
 			.receipt = receipt,
+			.startSeq = startSeq,
 			.start = start,
 			.end = crl::now(),
+			.endSeq = Stamp(fixture),
 			.capture = capture,
 		});
 	});
@@ -665,13 +704,27 @@ void AppendFixtureStage(not_null<Runner*> runner, not_null<State*> state) {
 }
 
 [[nodiscard]] QString RecordText(const PaintRecord &record) {
-	return u"%1/g%2 receipt=%3 paint=%4..%5 capture=%6"_q
+	return u"%1/g%2 receipt=%3 paint=%4..%5 seq=%6..%7 capture=%8"_q
 		.arg(ChildName(record.child))
 		.arg(record.generation)
 		.arg(record.receipt)
 		.arg(record.start)
 		.arg(record.end)
+		.arg(record.startSeq)
+		.arg(record.endSeq)
 		.arg(record.capture ? 1 : 0);
+}
+
+// "<row>:<entry>..<exit>", the fixture sequence of one action call.
+[[nodiscard]] QString ActionText(const ActionCall &action) {
+	return u"%1:%2..%3"_q
+		.arg(action.row)
+		.arg(action.entry)
+		.arg(action.exit);
+}
+
+[[nodiscard]] QString NoActionText(int rowSeq) {
+	return u"no action call for row seq=%1"_q.arg(rowSeq);
 }
 
 [[nodiscard]] QString SampleText(const PostPaintSample &sample) {
@@ -787,6 +840,51 @@ template <typename Value, typename Format>
 	return (receipt.index > 0) && (receipt.kind == kind);
 }
 
+// The call the observer's action received for its row |rowSeq|, or null
+// when it recorded none.
+[[nodiscard]] const ActionCall *FindAction(
+		const Observer &observer,
+		int rowSeq) {
+	const auto i = ranges::find(observer.actions, rowSeq, &ActionCall::row);
+	return (i != end(observer.actions)) ? &*i : nullptr;
+}
+
+// The action calls since a row mark: a call made after mark() was taken
+// receives a row seq above it.
+[[nodiscard]] std::vector<ActionCall> ActionsSince(
+		const Observer &observer,
+		int mark) {
+	auto result = std::vector<ActionCall>();
+	for (const auto &action : observer.actions) {
+		if (action.row > mark) {
+			result.push_back(action);
+		}
+	}
+	return result;
+}
+
+// The named refusal of the first of |rows| without an action call, empty
+// when every row has one.
+[[nodiscard]] QString MissingActionRefusal(
+		const Observer &observer,
+		const std::vector<PostPaintSample> &rows) {
+	for (const auto &row : rows) {
+		if (!FindAction(observer, row.seq)) {
+			return NoActionText(row.seq);
+		}
+	}
+	return QString();
+}
+
+[[nodiscard]] QString RowActionText(
+		const Observer &observer,
+		const PostPaintSample &row) {
+	const auto action = FindAction(observer, row.seq);
+	return action
+		? (u"action="_q + ActionText(*action))
+		: (u"action={"_q + NoActionText(row.seq) + u"}"_q);
+}
+
 [[nodiscard]] QString ObserverText(const Observer &observer) {
 	return u"%1/g%2 calls=%3 grabs=%4 nullImages=%5 sampler{%6}"_q
 		.arg(ChildName(observer.child))
@@ -838,10 +936,12 @@ template <typename Value, typename Format>
 			observer.generation),
 		.rows = RowsSince(observer, marks.rows[index]),
 		.receipts = ReceiptsSince(observer, marks.receipts[index]),
+		.actions = ActionsSince(observer, marks.rows[index]),
 	};
 	result.products = RecordsOfKind(result.records, false);
 	result.captures = RecordsOfKind(result.records, true);
 	result.reconcile = ReconcileRefusal(result.records, result.receipts);
+	result.unacted = MissingActionRefusal(observer, result.rows);
 	return result;
 }
 
@@ -850,11 +950,15 @@ template <typename Value, typename Format>
 		u"products=%1"_q.arg(ListText(reading.products, RecordText)),
 		u"captures=%1"_q.arg(int(reading.captures.size())),
 		u"rows=%1"_q.arg(ListText(reading.rows, SampleText)),
+		u"actions=%1"_q.arg(ListText(reading.actions, ActionText)),
 		u"receipts=%1"_q.arg(
 			ListText(reading.receipts, PostPaintReceiptText)),
 		u"reconcile=%1"_q.arg(reading.reconcile.isEmpty()
 			? u"ok"_q
 			: reading.reconcile),
+		u"acted=%1"_q.arg(reading.unacted.isEmpty()
+			? u"ok"_q
+			: reading.unacted),
 	}.join(u" "_q);
 }
 
@@ -868,6 +972,7 @@ template <typename Value, typename Format>
 		.from = from,
 		.till = till,
 		.requestedAt = crl::now(),
+		.requestSeq = fixture.sequence,
 		.records = int(fixture.records.size()),
 		.rows = { RowMark(first), RowMark(second) },
 		.receipts = { ReceiptMark(first), ReceiptMark(second) },
@@ -875,11 +980,12 @@ template <typename Value, typename Format>
 }
 
 [[nodiscard]] QString MarksText(const ArmMarks &marks) {
-	return u"window=[%1,%2) requestedAt=%3 marks{records=%4 rows=%5,%6 "
-		u"receipts=%7,%8}"_q
+	return u"window=[%1,%2) requestedAt=%3 requestSeq=%4 marks{records=%5 "
+		u"rows=%6,%7 receipts=%8,%9}"_q
 		.arg(marks.from)
 		.arg(marks.till)
 		.arg(marks.requestedAt)
+		.arg(marks.requestSeq)
 		.arg(marks.records)
 		.arg(marks.rows[0])
 		.arg(marks.rows[1])
@@ -922,15 +1028,23 @@ template <typename Value, typename Format>
 	}.join(u" "_q);
 }
 
-// Every group A sampler's action. The call is counted first, so a call
-// made after the observed generation died is still counted; then, while
-// that generation and the composite owner live, one GrabWidget of the
-// owner, which synchronously paints both children. A capped observer grabs
-// for its first kControlCaptures calls only: the bound on the recursion
-// the instance-local guard lets through.
+// Every group A sampler's action. The call is recorded first, with the row
+// seq it was given and the fixture sequence at its entry and, on every
+// return, at its exit, and counted, so a call made after the observed
+// generation died is still recorded and counted; then, while that
+// generation and the composite owner live, one GrabWidget of the owner,
+// which synchronously paints both children. A capped observer grabs for
+// its first kControlCaptures calls only: the bound on the recursion the
+// instance-local guard lets through.
 void TakeCompositeCapture(
 		not_null<Fixture*> fixture,
-		not_null<Observer*> observer) {
+		not_null<Observer*> observer,
+		int seq) {
+	const auto call = int(observer->actions.size());
+	observer->actions.push_back({ .row = seq, .entry = Stamp(fixture) });
+	const auto leave = gsl::finally([&] {
+		observer->actions[call].exit = Stamp(fixture);
+	});
 	++observer->calls;
 	const auto owner = fixture->owner.data();
 	const auto spent = observer->capped
@@ -967,8 +1081,8 @@ void StartObserver(
 	observer->sampler = std::make_unique<PostPaintSampler>(
 		name,
 		widget.get(),
-		[=](int) {
-			TakeCompositeCapture(fixture, observer);
+		[=](int seq) {
+			TakeCompositeCapture(fixture, observer, seq);
 		},
 		std::move(scope));
 	fixture->observed[ChildIndex(child)] = observer->sampler.get();
@@ -1064,8 +1178,9 @@ void CheckIdleControl(const State &state) {
 }
 
 // The exact first receipt after one update(): a product receipt, the very
-// next index, the first child's own record of that paint, and the row
-// sampling it after it returned. Any failure sets the paint gate.
+// next index, the first child's own record of that paint, started after
+// the marks, and the row sampling it, whose action began after the paint
+// ended, both in the fixture sequence. Any failure sets the paint gate.
 void CheckFirstReceipt(not_null<State*> state) {
 	auto &paint = state->paint;
 	const auto &marks = paint.marks;
@@ -1088,12 +1203,14 @@ void CheckFirstReceipt(not_null<State*> state) {
 	});
 	const auto matched = received && (record != end(records));
 	const auto sampled = received && (row != end(rows));
+	const auto action = sampled ? FindAction(paint.first, row->seq) : nullptr;
 	const auto ok = received
 		&& (receipt.index == mark + 1)
 		&& matched
-		&& (receipt.at >= marks.requestedAt)
+		&& (record->startSeq > marks.requestSeq)
 		&& sampled
-		&& (row->lo >= record->end);
+		&& action
+		&& (record->endSeq < action->entry);
 	Check(
 		ok,
 		u"full-owner capture self-test: A1 first receipt: one update() "
@@ -1108,8 +1225,17 @@ void CheckFirstReceipt(not_null<State*> state) {
 			u"record{"_q
 				+ (matched ? RecordText(*record) : u"-"_q)
 				+ u"}"_q,
-			u"row{"_q + (sampled ? SampleText(*row) : u"-"_q) + u"}"_q,
+			u"row{"_q
+				+ (sampled
+					? (SampleText(*row)
+						+ u" "_q
+						+ RowActionText(paint.first, *row))
+					: u"-"_q)
+				+ u"}"_q,
 			u"records=%1"_q.arg(ListText(records, RecordText)),
+			u"actions=%1"_q.arg(ListText(
+				ActionsSince(paint.first, marks.rows[0]),
+				ActionText)),
 			ConsoleLockText(ReadConsoleLock()),
 			ExposureText(*state),
 			u"sampler{"_q + ObserverText(paint.first) + u"}"_q,
@@ -1126,8 +1252,9 @@ void CheckFirstReceipt(not_null<State*> state) {
 }
 
 // One sample covering exactly the child's one product paint: that paint's
-// receipt is the row's paintAt and lastPaintAt, and the row was taken
-// after the paint returned, within kSampleBound.
+// receipt is the row's paintAt and lastPaintAt, the row's action began
+// after the paint ended in the fixture sequence, and the row's lo is within
+// kSampleBound of the paint's end.
 [[nodiscard]] bool SampledOnce(
 		const ChildReading &reading,
 		const Observer &observer) {
@@ -1137,12 +1264,14 @@ void CheckFirstReceipt(not_null<State*> state) {
 	const auto &product = reading.products.front();
 	const auto &row = reading.rows.front();
 	const auto receipt = FindReceipt(observer, product.receipt);
+	const auto action = FindAction(observer, row.seq);
 	return (receipt.index > 0)
 		&& (receipt.kind == PostPaintReceiptKind::Product)
 		&& (row.covered == 1)
 		&& (row.paintAt == receipt.at)
 		&& (row.lastPaintAt == receipt.at)
-		&& (row.lo >= product.end)
+		&& action
+		&& (product.endSeq < action->entry)
 		&& (row.lo - product.end <= kSampleBound);
 }
 
@@ -1261,6 +1390,10 @@ void CheckInstanceLocal(const State &state) {
 		details);
 }
 
+// Every order decision of arm A4 is in the fixture sequence: the second
+// product paint ended before the first row's action began (the premise),
+// and the third started after that action returned and ended before the
+// second row's action began. A row without an action call refuses by name.
 void CheckCoalesced(const State &state) {
 	const auto &paint = state.paint;
 	const auto &marks = paint.marks;
@@ -1278,6 +1411,13 @@ void CheckCoalesced(const State &state) {
 		return (found.index > 0)
 			&& (found.kind == PostPaintReceiptKind::Product);
 	};
+	const auto action = [&](int i) {
+		return (i < int(rows.size()))
+			? FindAction(paint.first, rows[i].seq)
+			: nullptr;
+	};
+	const auto a0 = action(0);
+	const auto a1 = action(1);
 	const auto details = QStringList{
 		MarksText(marks),
 		u"repaintPosted=%1"_q.arg(paint.armPosted ? 1 : 0),
@@ -1287,8 +1427,12 @@ void CheckCoalesced(const State &state) {
 	}.join(u" "_q);
 	const auto premise = paint.armPosted
 		&& (products.size() >= 2)
-		&& !rows.empty()
-		&& (products[1].start < rows.front().lo);
+		&& a0
+		&& (products[1].endSeq < a0->entry);
+	const auto refusal = (!rows.empty() && !a0)
+		? NoActionText(rows.front().seq)
+		: (u"the second product paint did not end before the first "
+			u"sample's action began - repaint() deferred"_q);
 	Check(
 		premise,
 		u"full-owner capture self-test: A4 coalesced: premise: the posted "
@@ -1296,22 +1440,23 @@ void CheckCoalesced(const State &state) {
 		u"sample ran"_q,
 		premise
 			? details
-			: (u"coalescing premise: repaint() was not synchronous - "_q
-				+ details));
+			: (u"coalescing premise: "_q + refusal + u" - "_q + details));
 	const auto coalesced = (int(products.size()) == kCoalescedPaints)
 		&& (int(rows.size()) == kCoalescedRows)
+		&& a0
+		&& a1
 		&& product(0)
 		&& product(1)
 		&& product(2)
 		&& (rows[0].covered == 2)
 		&& (rows[0].paintAt == receipt(0).at)
 		&& (rows[0].lastPaintAt == receipt(1).at)
-		&& (rows[0].lo >= products[1].end)
+		&& (products[1].endSeq < a0->entry)
 		&& (rows[1].covered == 1)
 		&& (rows[1].paintAt == receipt(2).at)
 		&& (rows[1].lastPaintAt == receipt(2).at)
-		&& (products[2].start >= rows[0].hi)
-		&& (rows[1].lo >= products[2].end);
+		&& (products[2].startSeq > a0->exit)
+		&& (products[2].endSeq < a1->entry);
 	Check(
 		coalesced,
 		u"full-owner capture self-test: A4 coalesced: the two coalesced real "
