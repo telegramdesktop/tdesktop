@@ -755,13 +755,17 @@ void Controller::setupDeleteContactButton() {
 			tr::now,
 			lt_contact,
 			_user->name());
+		const auto user = _user;
+		const auto weak = base::make_weak(_box);
 		const auto deleteSure = [=](Fn<void()> &&close) {
 			close();
-			_user->session().api().request(MTPcontacts_DeleteContacts(
-				MTP_vector<MTPInputUser>(1, _user->inputUser())
+			user->session().api().request(MTPcontacts_DeleteContacts(
+				MTP_vector<MTPInputUser>(1, user->inputUser())
 			)).done([=](const MTPUpdates &result) {
-				_user->session().api().applyUpdates(result);
-				_box->closeBox();
+				user->session().api().applyUpdates(result);
+				if (const auto box = weak.get()) {
+					box->closeBox();
+				}
 			}).send();
 		};
 		_window->show(Ui::MakeConfirmBox({
