@@ -99,6 +99,7 @@ Choose the narrowest helper that captures the real paint owner:
 | Box content cropped inside a layer | `CaptureInLayerRoot` |
 | Open `Ui::PopupMenu` | `CapturePopupMenu`, a supplementary frame taken only while the menu is still open; its action texts and lifecycle come from `OpenContextMenu` (`test_menu.h`), which reads the menu in the turn that built it and grabs no pixels |
 | Toast whose frame must not compose the product surface painted beneath it | `CaptureToastSubtree` |
+| Toast saved as visual proof of its painted text or link | `ReadToastContent` + `CaptureToastContent` (`test_toast_capture.h`), which save the exact frame whose labels and pens were measured painted ([painted-content captures](test_toast_capture.md#painted-content-captures)) |
 | Other widget that paints no opaque background of its own: a fade-in wrapper that is a child widget, such as `Ui::ImportantTooltip` | `CaptureViaWindow` |
 | A `Ui::Tooltip`, which is `RpWidget(nullptr)` and so its own top-level window that `CaptureViaWindow` refuses | Find it in `QApplication::topLevelWidgets()` (`dynamic_cast<Ui::Tooltip*>`, visible only), read its text from `accessibilityName()`, capture it with `CaptureWidget` |
 | Exact accepted frame plus numeric/raster assertions | `Runner::captureAndInspect` |

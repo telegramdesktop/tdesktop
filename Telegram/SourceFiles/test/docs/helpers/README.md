@@ -18,7 +18,7 @@ should call.
 | [test_text_reads](test_text_reads.md) | API | Space-normalized text assertions |
 | [test_lang_pack](test_lang_pack.md) | API | Temporary language overrides and restoration |
 | [test_probe](test_probe.md) | API | Windowed observations and correlated requests |
-| [test_widgets](test_widgets.md) | API | Typed discovery, live publications and input events |
+| [test_widgets](test_widgets.md) | API | Typed discovery, a button's own disabled state, live publications and input events |
 | [test_wheel](test_wheel.md) | Self-test | Self-test for wheel delivery |
 | [test_queued_drag](test_queued_drag.md) | API | Deliver queued drag starts before the synthetic release |
 | [test_text_drop](test_text_drop.md) | Self-test | Self-test for text-drop routing |
@@ -35,12 +35,12 @@ should call.
 | [test_window_exposure](test_window_exposure.md) | API | Keep covered windows painting without activation |
 | [test_layer_root](test_layer_root.md) | Self-test | Self-test for the painting-layer resolver |
 | [test_via_window](test_via_window.md) | Self-test | Self-test for window-mapped captures |
-| [test_toast_capture](test_toast_capture.md) | API | Isolated toast-subtree captures |
+| [test_toast_capture](test_toast_capture.md) | API | Isolated toast-subtree captures, shown/hiding/gone toast state with a bounded gone wait, and painted-content captures |
 | [test_hover](test_hover.md) | Self-test | Self-test for click/drag hover cleanup |
 | [test_press_origin](test_press_origin.md) | Self-test | Self-test for press-point ripple origins |
 | [test_activation](test_activation.md) | Self-test | Self-test for injected window activation |
 | [test_box_button](test_box_button.md) | API | Resolve and click shell footer buttons |
-| [test_ink](test_ink.md) | API | Painted bands, ink, color and contrast measurements |
+| [test_ink](test_ink.md) | API | Painted bands, ink, colour and contrast, glyph cores on flat and gradient grounds, isolated glyph bounds |
 | [test_style](test_style.md) | API | Settled palette samples and baseline checks |
 | [test_palette](test_palette.md) | API | Switch and restore palettes while respecting system following |
 | [test_panel](test_panel.md) | API | Separate-panel discovery, show-cache readiness and typed fixture sizing |

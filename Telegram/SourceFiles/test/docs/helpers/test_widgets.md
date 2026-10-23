@@ -8,13 +8,15 @@ Source contract: [test_widgets.h](../../test_widgets.h).
 
 ## Use when
 
-Typed discovery, live publications and input events. Read the contract below and the source header before use.
+Typed discovery, a button's own disabled state, live publications and input events. Read the contract below and the source header before use.
 
 ## Contract and usage
 
-Safe typed discovery, live object/action publication, input, postponed-call
-settlement, QPA-injected window activation, wheel delivery along Qt's parent
-ladder with a named `WheelDelivery` refusal, clipboard-free text drop into a
+Safe typed discovery, a `Ui::AbstractButton`'s own disabled flag read beside
+`QWidget::isEnabled()` (`ReadButtonState`, the readiness of a button target),
+live object/action publication, input, postponed-call settlement,
+QPA-injected window activation, wheel delivery along Qt's parent ladder with
+a named `WheelDelivery` refusal, clipboard-free text drop into a
 `Ui::InputField` with a named `TextDrop` refusal, and a press-point ripple
 origin for a click (`ClickWithPressOrigin`, a `PressOrigin` reading with named
 refusals, printed by `PressOriginDetails`).
@@ -36,7 +38,7 @@ callbacks with no returned pointer, use the live publication helpers:
 
 ```cpp
 // In an inventoried Debug overlay hunk at the real construction seam.
-Test::PublishLiveWidget(u"gift.composer"_q, composer);
+Test::PublishLiveWidget(u"gift.send"_q, sendButton);
 Test::PublishLiveAction(
 	u"gift.confirm"_q,
 	box,
@@ -44,21 +46,23 @@ Test::PublishLiveAction(
 
 // In test_scenario.cpp.
 runner->actOnWidget(
-	u"open current composer"_q,
-	[] { return Test::ReadLiveWidget(u"gift.composer"_q).widget; },
+	u"click the published send button"_q,
+	[] { return Test::ReadLiveWidget(u"gift.send"_q).widget; },
 	[](QWidget *widget) { Test::Click(widget); },
 	[](QWidget *widget) {
-		return widget->isVisible() && widget->isEnabled();
+		return Test::ReadButtonState(widget).usable();
 	},
 	Test::kDefaultStageTimeout,
 	[](QWidget *widget) {
-		return u"visible=%1 enabled=%2 size=%3x%4"_q
-			.arg(widget->isVisible())
-			.arg(widget->isEnabled())
-			.arg(widget->width())
-			.arg(widget->height());
+		return Test::ButtonStateDetails(Test::ReadButtonState(widget));
 	});
 ```
+
+The readiness is the button's own state, not `isVisible() && isEnabled()`:
+a button the product blocked with `setDisabled()` still answers
+`isEnabled()` true ([below](#a-buttons-own-disabled-state)). Publish the
+button itself, not a wrapper around it, because `ReadButtonState` refuses a
+widget that is not a `Ui::AbstractButton`.
 
 Each publication advances a generation. A destroyed context makes its widget
 or action unavailable. Actions are one-shot by default; pass `true` only for
@@ -88,6 +92,52 @@ call through the `QWidget*`. Every other `Ui::RpWindow` forward, such as
 declare, such as `showMaximized()`, `windowState()` or `geometry()`, is
 the same `QWidget` member through either type. The full-screen row under
 [failure diagnosis](../diagnostics.md) gives the skip's measured consequence on Windows.
+
+## A button's own disabled state
+
+`Ui::AbstractButton::setDisabled(bool)` (`ui/abstract_button.h`) sets the
+button's own `StateFlag::Disabled`, which only `isDisabled()` reads back.
+`QWidget::isEnabled()` is untouched, so a button the product blocks - a
+Move button behind `setDisabled(busy || !pressable)` - still answers
+`isEnabled()` true, and `isVisible() && isEnabled()` reads it ready. The
+member is not virtual and does not override Qt's `QWidget::setDisabled`
+slot; it hides it, as the `Ui::RpWindow` members above hide theirs. Called
+through a `QWidget*`, the Qt slot runs instead: it moves `isEnabled()` and
+leaves the own flag clear. Drive a button through its own static type and
+read it with `Test::ReadButtonState(widget)` (`test_widgets.h`):
+
+| Field | Reading |
+| --- | --- |
+| `disabled` | `isDisabled()`, the product's own block |
+| `enabled` | `QWidget::isEnabled()`, the Qt-level control read beside it |
+| `visible` | `QWidget::isVisible()` |
+| `identity` | The handed widget's `WidgetDescription`, taken in that call |
+| `refusal` | Empty on a read button |
+
+The three flags are read independently in one call. `usable()` needs a read
+button that is visible, enabled and not disabled; it is the readiness of a
+button target in `until` or `actOnWidget`, as in the example above. A
+disabled but visible button is a product state: assert `disabled` in
+`then`, with `isEnabled` printed beside it, rather than waiting on it.
+
+Refusals make `read()` false and the reading never `usable()`, and on them
+`disabled` is not read:
+`no widget was handed to the button-state reading` and
+`not a Ui::AbstractButton, so it carries no own disabled flag: <identity>`.
+`ButtonStateDetails` prints
+`button=<identity> ownDisabled=<0|1|none> isEnabled=<0|1> visible=<0|1> usable=<0|1>`,
+then ` - <refusal>` on a refused reading; pass it as a check's `details` so
+both verdicts print it. The reading logs nothing, holds no pointer and needs
+no cleanup. `ReadBoxButtons` reads each shell footer button through it
+([test_box_button](test_box_button.md)); for those, keep using
+`BoxButtonReady` / `BoxButtonDisabled` / `BoxButtonHidden`.
+
+Verification: `AppendButtonStateSelfTest` (`test_box_button.h`) toggles a
+real `Ui::RoundButton` on the primary window. `setDisabled(true)` reads
+`ownDisabled=1 isEnabled=1 usable=0` and `setDisabled(false)` reads
+`ownDisabled=0 isEnabled=1 usable=1`; `QWidget::setEnabled(false)` moves
+only the control column (`ownDisabled=0 isEnabled=0`); a null widget and
+the primary window's widget refuse by name. It has no deliberate FAIL.
 
 ## Input helpers
 

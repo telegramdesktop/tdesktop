@@ -80,6 +80,43 @@ void PublishLiveAction(
 [[nodiscard]] LiveActionSnapshot ReadLiveAction(const QString &key);
 [[nodiscard]] bool InvokeLiveAction(const QString &key);
 
+// A button's own disabled state, read beside Qt's.
+// Ui::AbstractButton::setDisabled sets StateFlag::Disabled, which only
+// isDisabled() reads back, and it hides QWidget::setDisabled instead of
+// overriding it: called through a QWidget* the Qt slot runs instead. So a
+// button the product blocked still answers QWidget::isEnabled() true, and
+// isVisible() && isEnabled() is no readiness test for it.
+//
+// |disabled| is isDisabled(), |enabled| is QWidget::isEnabled() and
+// |visible| is QWidget::isVisible(), each read independently in one call;
+// usable() needs a read button that is visible, enabled and not disabled.
+// A null widget, or one that is not a Ui::AbstractButton, is refused by
+// name in |refusal|: |disabled| is then not read (ButtonStateDetails prints
+// it as none) and the reading is never usable(). The reading logs nothing
+// and holds no pointer; |identity| is the WidgetDescription taken in that
+// call. Reference: docs/helpers/test_widgets.md, "A button's own disabled
+// state".
+struct ButtonStateReading {
+	bool disabled = false;
+	bool enabled = false;
+	bool visible = false;
+	QString identity;
+	QString refusal;
+
+	[[nodiscard]] bool read() const {
+		return refusal.isEmpty();
+	}
+	[[nodiscard]] bool usable() const {
+		return read() && visible && enabled && !disabled;
+	}
+};
+
+[[nodiscard]] ButtonStateReading ReadButtonState(QWidget *widget);
+
+// button=<identity> ownDisabled=<0|1|none> isEnabled=<0|1> visible=<0|1>
+// usable=<0|1>, then " - <refusal>" when the reading was refused.
+[[nodiscard]] QString ButtonStateDetails(const ButtonStateReading &reading);
+
 // Input delivery and settlement contract.
 //
 // The input helpers deliver their events synchronously with

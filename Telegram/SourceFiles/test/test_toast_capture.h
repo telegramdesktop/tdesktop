@@ -7,9 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "test/test_ink.h"
 #include "test/test_runner.h"
 
+#include <crl/crl_time.h>
+
 #include <QtCore/QPointer>
+#include <QtCore/QStringList>
 #include <QtGui/QImage>
 #include <QtWidgets/QWidget>
 
@@ -17,8 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Test {
 
-// The one capture for a toast, and the only one whose saved frame cannot
-// hold the product surface the toast was drawn over.
+// The toast captures, and the only ones whose saved frames cannot hold
+// the product surface the toast was drawn over.
 //
 // Test::CaptureViaWindow grabs the toast's window cropped to the toast's
 // rect mapped into it. That is the right answer to blankness and the wrong
@@ -87,7 +91,12 @@ struct ToastSubtreeReading {
 // over every top level widget rather than one root, because a toast is
 // parented wherever Ui::Toast::Show was called. FindLiveToast() answers
 // that single toast, and nullptr when the walk finds zero of them or more
-// than one - an ambiguous answer is refused rather than guessed.
+// than one - an ambiguous answer is refused rather than guessed. "Live"
+// means visible in the walk, and that includes a toast that
+// Instance::hideAnimated() is fading: it stays visible until
+// Instance::hide() runs at the end of the fade (durationFadeOut, 1000 ms
+// for st::defaultToast). Read shown, hiding and gone apart through
+// ReadToastState below.
 [[nodiscard]] std::vector<QWidget*> FindLiveToasts();
 [[nodiscard]] QWidget *FindLiveToast();
 
@@ -109,7 +118,8 @@ struct ToastSubtreeReading {
 // timeout rather than in a grab of something else. ToastSubtreeReady is the
 // settled-show term: it is true once the sampled frame matches
 // st::toastBg's own settled blend over the harness base, which no mid-fade
-// frame does.
+// frame does. It is a background term only and says nothing about the
+// toast's painted children (see ReadToastContent).
 [[nodiscard]] QImage GrabToastSubtree(
 	QWidget *widget,
 	QRect requested = QRect());
@@ -120,7 +130,10 @@ struct ToastSubtreeReading {
 // no widget, a root that is not the live toast, an invisible or empty
 // target, or a rect outside the toast's geometry. A Note and never a FAIL
 // on an unsettled or blank frame, because the decisive oracle for a toast
-// is textual and this capture corroborates it.
+// is textual and this capture corroborates it. It qualifies background
+// settledness only, so it also saves a settled frame whose text, icon and
+// link were never painted; a toast saved as visual proof of its painted
+// content goes through ReadToastContent and CaptureToastContent below.
 bool CaptureToastSubtree(
 	not_null<QWidget*> widget,
 	const QString &name,
@@ -137,6 +150,246 @@ void CheckToastReads(
 	QWidget *widget,
 	const QString &expected,
 	const QString &what);
+
+// A toast's phase, measured from outside. The shown level and
+// Instance::_hiding are private (toast_widget.h, toast.h), so the phase is
+// read from the FindLiveToasts() walk and from the settled-background
+// measurement ToastSubtreeReady takes, over a chain of readings:
+// - toast-gone: the widget is destroyed or no longer in the walk. Final: a
+//   reread of a gone reading stays gone without a grab.
+// - toast-shown: in the walk, and its toast-rooted grab measures
+//   st::toastBg's settled blend - exactly ToastSubtreeReady's term, so it
+//   says nothing about the painted children.
+// - toast-hiding: in the walk and measured below the settled blend after an
+//   earlier reading of the same chain measured it shown; a toast drops
+//   below its full level again only through hideAnimated().
+// - toast-unsettled: in the walk, below the settled blend, and never
+//   measured shown in this chain - a fade-in, or a fade-out whose chain
+//   started mid-way, which one frame cannot tell apart.
+// - toast-unresolved: no widget, or one that is not a
+//   Ui::Toast::internal::Widget, so there is nothing to read; |refusal|
+//   names the case. A null widget - for example a FindLiveToast() that
+//   refused an ambiguity - is unresolved and never gone. Final too.
+// Start a chain with ReadToastState(widget) while the toast is still shown
+// and continue it with RereadToastState(previous) on every poll; a reading
+// of a live toast takes one grab. A chain first read mid-fade answers
+// toast-unsettled, never toast-hiding.
+//
+// Limits. Hiding is read from the first grab measurably below the settled
+// blend: in the turn hideAnimated() is called the fade has run no frame,
+// and for the first part of the linear fade the frame stays inside the
+// settled tolerance - about 6% of the fade-out on a light palette, about
+// 20% on a dark one - so the reading still answers toast-shown there. A
+// toast shown with Config::attach slides at full opacity and reads shown
+// until gone. A toast whose window is hidden leaves the walk and reads
+// gone, which is the walk's own limit.
+//
+// |settledPermille| is the sampled share of the last grab, -1 when the
+// reading took none; |identity| is the handed widget's WidgetDescription,
+// refreshed by every live reading, and |text| the ReadToastText of the
+// first reading; |readings| counts the readings of the chain. Reference:
+// docs/helpers/test_toast_capture.md.
+enum class ToastPhase {
+	Unresolved,
+	Unsettled,
+	Shown,
+	Hiding,
+	Gone,
+};
+[[nodiscard]] QString ToastPhaseName(ToastPhase phase);
+
+struct ToastStateReading {
+	QPointer<QWidget> toast;
+	ToastPhase phase = ToastPhase::Unresolved;
+	bool live = false;
+	bool seenShown = false;
+	int settledPermille = -1;
+	int readings = 0;
+	QString identity;
+	QString text;
+	QString refusal;
+};
+[[nodiscard]] ToastStateReading ReadToastState(QWidget *widget);
+[[nodiscard]] ToastStateReading RereadToastState(
+	const ToastStateReading &previous);
+[[nodiscard]] QString ToastStateDetails(const ToastStateReading &reading);
+
+inline constexpr auto kToastGoneMargin = crl::time(500);
+
+// The bounded wait for gone, a pure reading of the chain given the
+// caller's own elapsed time: it rereads |previous| once. |waited| 0 never
+// refuses. Once |waited| >= |bound| a toast that is not gone answers
+// "toast-not-gone: <identity> "<text>" still <phase> after <waited> ms
+// (bound <bound> ms); live toasts: [...]", and |live| lists every toast the
+// walk still holds as "<identity> "<text>"". An unresolved chain answers
+// "toast-unresolved: <refusal>" at once. A gone toast never refuses, so
+// gone() past the bound is still gone and the caller compares |waited|
+// with |bound|. Poll it from |until| returning done(), so the stage ends
+// on the answer and never in a stage timeout, carry |state| into the next
+// poll, and assert gone() and the refusal in |then|. After hideAnimated(),
+// bound the wait by durationFadeOut * anim::SlowMultiplier() +
+// kToastGoneMargin.
+struct ToastGoneWait {
+	ToastStateReading state;
+	crl::time waited = 0;
+	crl::time bound = 0;
+	QStringList live;
+	QString refusal;
+
+	[[nodiscard]] bool gone() const {
+		return state.phase == ToastPhase::Gone;
+	}
+	[[nodiscard]] bool done() const {
+		return gone() || !refusal.isEmpty();
+	}
+};
+[[nodiscard]] ToastGoneWait ReadToastGoneWait(
+	const ToastStateReading &previous,
+	crl::time waited,
+	crl::time bound);
+[[nodiscard]] QString ToastGoneWaitDetails(const ToastGoneWait &wait);
+
+// The toast-state readings measuring themselves on real Ui::Toasts of
+// their own, parented to the primary window: a fresh toast reads unsettled
+// and then shown once its show settles; right after hideAnimated() it reads
+// hiding while the walk still counts it, then gone within the fade-out plus
+// kToastGoneMargin; a default-duration toast left alone reads shown until
+// its duration ends, then hiding, then gone; a toast never hidden ends the
+// bounded wait in a named toast-not-gone refusal that names it; null and
+// non-toast widgets read toast-unresolved. The first stage records the
+// fixture gate - a primary window, and no other live toast the walk would
+// count - and the stages after it are composed in Runner::addGated on that
+// refusal; the three fade stages are N/A by name under anim::Disabled().
+// Teardown is a Runner::addRecovery stage that hides every toast it
+// showed. It needs no session, chats list, network or account fixture and
+// emits no deliberate failure: every refusal is observed through the pure
+// readings and asserted as a passing Check.
+void AppendToastStateSelfTest(not_null<Runner*> runner);
+
+// Painted-content readiness: the contract for a toast frame saved as
+// visual proof of its text or link. ToastSubtreeReady's settled background
+// does not establish painted children. While the shown level is below 1,
+// Widget::paintEvent draws a proxy and calls disableChildrenPaintOnce(),
+// which sets Qt::WA_UpdatesDisabled on the toast's direct child widgets -
+// the Content wrapper holding the body Ui::FlatLabel and the icon - until
+// a Ui::PostponeCall restore runs (toggleChildrenPaint() and
+// scheduleChildrenPaintRestore() in toast_widget.cpp), and QWidget::render,
+// which every toast-rooted grab goes through, skips a child whose updates
+// are disabled (QWidgetPrivate::paintSiblingsRecursive). A full-level grab
+// taken between the two holds the settled rounded background and no text,
+// icon or link, while ReadToastText - model state - still matches the
+// phrase. That signature is what this contract refuses.
+//
+// ReadToastContent resolves the root through ReadToastSubtree and takes
+// exactly one grab, on which it measures the settled term and the content
+// terms together. Content: every Ui::FlatLabel of the toast with a
+// non-empty accessibilityName() holds at least kMinInkPixels pixels at
+// least kInkDelta from the settled blend inside its rect, and each pen in
+// |pens| has at least kMinInkPixels pixels within kSameTolerance inside the
+// label rects (test_ink.h). The first failing term names the state:
+// - content-refused: the root was refused; |reason| is ReadToastSubtree's
+//   refusal, no grab is taken and |image| is null.
+// - content-unsettled: the sampled background is not st::toastBg's settled
+//   blend yet.
+// - content-no-labels: no labelled Ui::FlatLabel, as in a custom-content
+//   toast, which is unsupported and never qualifies.
+// - content-not-painted: a label rect holds less content ink than the
+//   floor.
+// - content-pen-missing: a pen has fewer pixels than the floor.
+// - content-qualified: every term holds; |reason| is "none".
+// content-unread is a frame no reading filled. The icon is not qualified.
+// |childrenPaintDisabled| counts the toast's direct child widgets with
+// updatesEnabled() false just before the grab, -1 when none was taken: a
+// diagnostic of the cause, never a term. |labels| are device-pixel rects
+// in |image|, |labelInk| their content-ink counts and |penPixels| the
+// counts of |pens|, all empty when nothing was measured.
+//
+// The wait is a pure reading of the caller's elapsed time: |waited| 0
+// never expires; once |waited| >= |bound| a frame that is not qualified is
+// |expired|, keeps its failing |state| and reads "content-wait-expired
+// after <waited> ms (bound <bound> ms): <state> - <reason>". Poll it from
+// |until| returning decided(), keep the frame, and assert qualified() in
+// |then|, so a toast that never paints ends in that named diagnostic and
+// never in a stage timeout. Draining postponed calls
+// (Test::SettlePostponedCalls) runs lib_ui's restore.
+//
+// CaptureToastContent saves exactly |accepted.image| - the pixels the
+// reading measured - and takes no second grab, so readiness and saving
+// qualify the same image. It logs the toast's GEOMETRY row while the toast
+// is alive and the SCREENSHOT row; a frame that is not qualified(), or one
+// that cannot be written, is a loud Fail and nothing is saved. Reference:
+// docs/helpers/test_toast_capture.md.
+enum class ToastContentState {
+	Unread,
+	Refused,
+	Unsettled,
+	NoLabels,
+	NotPainted,
+	PenMissing,
+	Qualified,
+};
+[[nodiscard]] QString ToastContentStateName(ToastContentState state);
+
+inline constexpr auto kToastContentBound = crl::time(2000);
+
+struct ToastContentFrame {
+	ToastSubtreeReading reading;
+	QImage image;
+	int settledPermille = 0;
+	bool settled = false;
+	int childrenPaintDisabled = -1;
+	std::vector<QRect> labels;
+	std::vector<int> labelInk;
+	std::vector<InkCandidate> pens;
+	std::vector<int> penPixels;
+	crl::time waited = 0;
+	crl::time bound = 0;
+	bool expired = false;
+	ToastContentState state = ToastContentState::Unread;
+	QString reason;
+
+	[[nodiscard]] bool qualified() const {
+		return state == ToastContentState::Qualified;
+	}
+	[[nodiscard]] bool decided() const {
+		return qualified() || expired;
+	}
+};
+[[nodiscard]] ToastContentFrame ReadToastContent(
+	QWidget *widget,
+	std::vector<InkCandidate> pens = {},
+	crl::time waited = 0,
+	crl::time bound = kToastContentBound);
+
+// "toast content: target=<identity|<none>> frame=<rect> state=<name>
+// settled=<n|none>/1000 childrenPaintDisabled=<n|none> labels=<n>
+// labelInk=[...] floor=<kMinInkPixels> pens=[<name>=<n|none> ...]
+// waited=<ms> bound=<ms> expired=<0|1> - <reason>".
+[[nodiscard]] QString ToastContentDetails(const ToastContentFrame &frame);
+bool CaptureToastContent(
+	const ToastContentFrame &accepted,
+	const QString &name);
+
+// The painted-content contract measuring itself on real toasts shown
+// through one Ui::Show of the primary window (Window::Controller::uiShow()),
+// so every repeat is Ui::Show::showToast's own: it hides the previous toast
+// animated and shows the next while the previous one still fades. Over a
+// synthetic sentinel surface moved beneath each toast, a plain toast and
+// three repeated rich toasts - bold words, a link and an action - are
+// accepted with their text and link pens painted, checked again in each
+// saved PNG reloaded pixel for pixel. The missing-paint signature is
+// reproduced on the third rich toast through lib_ui's own lifecycle
+// (setShownLevel(0.5), one toast-rooted grab, setShownLevel(1.)) - settled,
+// read-back matching, no paint - and refused, while CaptureToastSubtree,
+// the settled-only control, saves it; children kept without paint end the
+// bounded wait in content-wait-expired, and null and ancestor roots refuse
+// with no grab. The first stage records the fixture gate - a primary
+// window, no other live toast, sentinel tones clear of the palette - and
+// the stages after it are composed in Runner::addGated on that refusal;
+// teardown is a Runner::addRecovery stage that hides every toast it
+// showed. It calls no toast-state or glyph reading, needs no session,
+// chats list, network or account fixture, and emits no deliberate failure.
+void AppendToastContentCaptureSelfTest(not_null<Runner*> runner);
 
 // This module measuring itself, in seven stages, over a synthetic
 // sentinel-bearing surface it paints and a real Ui::Toast of its own.

@@ -17,7 +17,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QPainter>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <map>
 
 namespace Test {
 namespace {
@@ -932,7 +934,185 @@ namespace {
 		: reading.reason;
 }
 
+[[nodiscard]] QColor ExactModeColor(const QImage &image, QRect clip) {
+	auto backgroundCounts = std::vector<std::pair<QRgb, int>>();
+	for (auto y = clip.top(); y <= clip.bottom(); ++y) {
+		for (auto x = clip.left(); x <= clip.right(); ++x) {
+			const auto color = image.pixelColor(x, y);
+			const auto rgb = qRgb(color.red(), color.green(), color.blue());
+			auto found = false;
+			for (auto &one : backgroundCounts) {
+				if (one.first == rgb) {
+					++one.second;
+					found = true;
+					break;
+				}
+			}
+			if (!found && (backgroundCounts.size() < 8192)) {
+				backgroundCounts.push_back({ rgb, 1 });
+			}
+		}
+	}
+	auto bestBackground = -1;
+	auto backgroundRgb = QRgb(0);
+	for (const auto &one : backgroundCounts) {
+		if (one.second > bestBackground) {
+			bestBackground = one.second;
+			backgroundRgb = one.first;
+		}
+	}
+	return QColor::fromRgb(backgroundRgb);
+}
+
+struct GlyphInkPixel {
+	QRgb color = 0;
+	QRgb background = 0;
+};
+
+struct SurroundBackground {
+	int left = 0;
+	double topRow = 0.;
+	double bottomRow = 0.;
+	std::vector<std::array<int, 3>> top;
+	std::vector<std::array<int, 3>> bottom;
+	QColor mean;
+	int spread = -1;
+	QString refusal;
+
+	[[nodiscard]] QRgb at(int x, int y) const;
+};
+
+QRgb SurroundBackground::at(int x, int y) const {
+	const auto &above = top[x - left];
+	const auto &below = bottom[x - left];
+	const auto t = (y - topRow) / (bottomRow - topRow);
+	const auto channel = [&](int index) {
+		return int(base::SafeRound(
+			above[index] + (below[index] - above[index]) * t));
+	};
+	return qRgb(channel(0), channel(1), channel(2));
+}
+
+[[nodiscard]] int Median(std::vector<int> values) {
+	const auto middle = values.begin() + values.size() / 2;
+	std::nth_element(values.begin(), middle, values.end());
+	return *middle;
+}
+
+[[nodiscard]] std::vector<std::array<int, 3>> StripMedians(
+		const QImage &image,
+		QRect clip,
+		int firstRow) {
+	auto result = std::vector<std::array<int, 3>>();
+	result.reserve(clip.width());
+	auto values = std::array<std::vector<int>, 3>();
+	for (auto x = clip.left(); x <= clip.right(); ++x) {
+		for (auto &channel : values) {
+			channel.clear();
+		}
+		for (auto y = firstRow; y != firstRow + kGlyphSurroundStrip; ++y) {
+			const auto color = image.pixelColor(x, y);
+			values[0].push_back(color.red());
+			values[1].push_back(color.green());
+			values[2].push_back(color.blue());
+		}
+		result.push_back({
+			Median(values[0]),
+			Median(values[1]),
+			Median(values[2]),
+		});
+	}
+	return result;
+}
+
+[[nodiscard]] std::vector<std::array<int, 3>> SmoothColumns(
+		const std::vector<std::array<int, 3>> &columns) {
+	const auto count = int(columns.size());
+	auto result = std::vector<std::array<int, 3>>();
+	result.reserve(count);
+	auto values = std::vector<int>();
+	for (auto i = 0; i != count; ++i) {
+		const auto from = std::max(i - kGlyphSurroundSmooth, 0);
+		const auto till = std::min(i + kGlyphSurroundSmooth + 1, count);
+		auto smoothed = std::array<int, 3>();
+		for (auto channel = 0; channel != 3; ++channel) {
+			values.clear();
+			for (auto j = from; j != till; ++j) {
+				values.push_back(columns[j][channel]);
+			}
+			smoothed[channel] = Median(values);
+		}
+		result.push_back(smoothed);
+	}
+	return result;
+}
+
+// Strips are taken over |band|'s rows and |clip|'s columns, so a band cut
+// by the image's top or bottom edge refuses instead of shrinking its strips.
+[[nodiscard]] SurroundBackground MeasureSurround(
+		const QImage &image,
+		QRect band,
+		QRect clip) {
+	auto result = SurroundBackground();
+	const auto aboveFrom = band.top() - kGlyphSurroundGap - kGlyphSurroundStrip;
+	const auto aboveTill = band.top() - kGlyphSurroundGap;
+	const auto belowFrom = band.bottom() + 1 + kGlyphSurroundGap;
+	const auto belowTill = belowFrom + kGlyphSurroundStrip;
+	if ((aboveFrom < 0) || (belowTill > image.height())) {
+		result.refusal = u"the surround strips the background is measured "
+			"from lie outside the image: band="_q
+			+ RectText(band)
+			+ u" image="_q
+			+ RectText(image.rect())
+			+ u" rows above=%1..%2 below=%3..%4"_q
+				.arg(aboveFrom)
+				.arg(aboveTill - 1)
+				.arg(belowFrom)
+				.arg(belowTill - 1);
+		return result;
+	}
+	result.left = clip.left();
+	result.topRow = (aboveFrom + aboveTill - 1) / 2.;
+	result.bottomRow = (belowFrom + belowTill - 1) / 2.;
+	result.top = SmoothColumns(StripMedians(image, clip, aboveFrom));
+	result.bottom = SmoothColumns(StripMedians(image, clip, belowFrom));
+	auto sums = std::array<qint64, 3>();
+	auto lowest = std::array<int, 3>{ 255, 255, 255 };
+	auto highest = std::array<int, 3>{ 0, 0, 0 };
+	for (auto y = clip.top(); y <= clip.bottom(); ++y) {
+		for (auto x = clip.left(); x <= clip.right(); ++x) {
+			const auto rgb = result.at(x, y);
+			const int value[3] = { qRed(rgb), qGreen(rgb), qBlue(rgb) };
+			for (auto channel = 0; channel != 3; ++channel) {
+				sums[channel] += value[channel];
+				lowest[channel] = std::min(lowest[channel], value[channel]);
+				highest[channel] = std::max(highest[channel], value[channel]);
+			}
+		}
+	}
+	const auto pixels = qint64(clip.width()) * clip.height();
+	const auto mean = [&](int channel) {
+		return int((sums[channel] + pixels / 2) / pixels);
+	};
+	result.mean = QColor(mean(0), mean(1), mean(2));
+	result.spread = std::max({
+		highest[0] - lowest[0],
+		highest[1] - lowest[1],
+		highest[2] - lowest[2] });
+	return result;
+}
+
 } // namespace
+
+QString GlyphBackgroundName(GlyphBackground source) {
+	switch (source) {
+	case GlyphBackground::BandMode:
+		return u"band-mode"_q;
+	case GlyphBackground::Surround:
+		return u"surround"_q;
+	}
+	return u"missing"_q;
+}
 
 QString GlyphCoreStateName(GlyphCoreState state) {
 	switch (state) {
@@ -944,6 +1124,8 @@ QString GlyphCoreStateName(GlyphCoreState state) {
 		return u"no-paint"_q;
 	case GlyphCoreState::NoSolidCore:
 		return u"no-solid-core"_q;
+	case GlyphCoreState::NoBackground:
+		return u"core-no-background"_q;
 	case GlyphCoreState::Measured:
 		return u"core-measured"_q;
 	}
@@ -1000,8 +1182,10 @@ GlyphCoreSolid GlyphCore::solidAt(int index) const {
 GlyphCore ReadGlyphCore(
 		const QImage &image,
 		QRect band,
-		std::vector<InkCandidate> pens) {
+		std::vector<InkCandidate> pens,
+		GlyphBackground source) {
 	auto result = GlyphCore();
+	result.source = source;
 	result.pens = std::move(pens);
 	result.solid.assign(result.pens.size(), -1);
 	const auto clip = band.intersected(image.rect());
@@ -1014,48 +1198,43 @@ GlyphCore ReadGlyphCore(
 			+ RectText(image.rect());
 		return result;
 	}
+	const auto surround = (source == GlyphBackground::Surround);
+	auto measured = SurroundBackground();
+	if (surround) {
+		measured = MeasureSurround(image, band, clip);
+		if (!measured.refusal.isEmpty()) {
+			result.band = clip;
+			result.state = GlyphCoreState::NoBackground;
+			result.reason = measured.refusal;
+			return result;
+		}
+	}
 	result.ok = true;
 	result.band = clip;
-	auto backgroundCounts = std::vector<std::pair<QRgb, int>>();
-	for (auto y = clip.top(); y <= clip.bottom(); ++y) {
-		for (auto x = clip.left(); x <= clip.right(); ++x) {
-			const auto color = image.pixelColor(x, y);
-			const auto rgb = qRgb(color.red(), color.green(), color.blue());
-			++result.total;
-			auto found = false;
-			for (auto &one : backgroundCounts) {
-				if (one.first == rgb) {
-					++one.second;
-					found = true;
-					break;
-				}
-			}
-			if (!found && (backgroundCounts.size() < 8192)) {
-				backgroundCounts.push_back({ rgb, 1 });
-			}
-		}
+	result.total = clip.width() * clip.height();
+	if (surround) {
+		result.background = measured.mean;
+		result.backgroundSpread = measured.spread;
+	} else {
+		result.background = ExactModeColor(image, clip);
+		result.backgroundSpread = 0;
 	}
-	auto bestBackground = -1;
-	auto backgroundRgb = QRgb(0);
-	for (const auto &one : backgroundCounts) {
-		if (one.second > bestBackground) {
-			bestBackground = one.second;
-			backgroundRgb = one.first;
-		}
-	}
-	result.background = QColor::fromRgb(backgroundRgb);
+	const auto bandBackground = result.background.rgb();
 	auto strongest = 0;
-	auto ink = std::vector<QRgb>();
+	auto ink = std::vector<GlyphInkPixel>();
 	for (auto y = clip.top(); y <= clip.bottom(); ++y) {
 		for (auto x = clip.left(); x <= clip.right(); ++x) {
 			const auto color = image.pixelColor(x, y);
 			const auto rgb = qRgb(color.red(), color.green(), color.blue());
+			const auto background = surround
+				? measured.at(x, y)
+				: bandBackground;
 			const auto delta = ChannelDelta(
 				QColor::fromRgb(rgb),
-				result.background);
+				QColor::fromRgb(background));
 			strongest = std::max(strongest, delta);
 			if (delta >= kInkDelta) {
-				ink.push_back(rgb);
+				ink.push_back({ rgb, background });
 			}
 		}
 	}
@@ -1067,15 +1246,13 @@ GlyphCore ReadGlyphCore(
 			"is no glyph ink to read a pen from"_q;
 		return result;
 	}
-	const int base[3] = {
-		result.background.red(),
-		result.background.green(),
-		result.background.blue(),
-	};
-	int extreme[3] = { base[0], base[1], base[2] };
+	int extreme[3] = { 0, 0, 0 };
 	int bestAbs[3] = { -1, -1, -1 };
-	for (const auto rgb : ink) {
+	for (const auto &pixel : ink) {
+		const auto rgb = pixel.color;
+		const auto bg = pixel.background;
 		const int value[3] = { qRed(rgb), qGreen(rgb), qBlue(rgb) };
+		const int base[3] = { qRed(bg), qGreen(bg), qBlue(bg) };
 		for (auto channel = 0; channel != 3; ++channel) {
 			const auto distance = std::abs(value[channel] - base[channel]);
 			if (distance > bestAbs[channel]) {
@@ -1086,10 +1263,10 @@ GlyphCore ReadGlyphCore(
 	}
 	const auto extremeColor = QColor(extreme[0], extreme[1], extreme[2]);
 	auto cores = std::vector<QRgb>();
-	for (const auto rgb : ink) {
-		if (ChannelDelta(QColor::fromRgb(rgb), extremeColor)
+	for (const auto &pixel : ink) {
+		if (ChannelDelta(QColor::fromRgb(pixel.color), extremeColor)
 			<= kGlyphCoreTolerance) {
-			cores.push_back(rgb);
+			cores.push_back(pixel.color);
 		}
 	}
 	if (cores.empty()) {
@@ -1178,7 +1355,15 @@ QString FormatGlyphCore(const GlyphCore &reading) {
 		+ RectText(reading.band)
 		+ u" bg="_q
 		+ background
-		+ u" kGlyphCoreTolerance="_q
+		+ u" bgSource="_q
+		+ GlyphBackgroundName(reading.source);
+	if (reading.source == GlyphBackground::Surround) {
+		text += u" bgSpread="_q
+			+ ((reading.backgroundSpread < 0)
+				? u"none"_q
+				: QString::number(reading.backgroundSpread));
+	}
+	text += u" kGlyphCoreTolerance="_q
 		+ QString::number(kGlyphCoreTolerance)
 		+ u" strongest="_q
 		+ strongest
@@ -1192,6 +1377,254 @@ QString FormatGlyphCore(const GlyphCore &reading) {
 		text += u" "_q + listed;
 	}
 	return text + u" reason="_q + reason;
+}
+
+namespace {
+
+constexpr auto kListedComponents = 8;
+
+[[nodiscard]] QString IsolatedReason(const IsolatedGlyph &reading) {
+	return reading.reason.isEmpty()
+		? u"this reading was never scanned"_q
+		: reading.reason;
+}
+
+[[nodiscard]] bool ReachesCoverage(
+		QColor color,
+		QColor background,
+		QColor pen) {
+	const auto dr = pen.red() - background.red();
+	const auto dg = pen.green() - background.green();
+	const auto db = pen.blue() - background.blue();
+	const auto norm = dr * dr + dg * dg + db * db;
+	const auto dot = (color.red() - background.red()) * dr
+		+ (color.green() - background.green()) * dg
+		+ (color.blue() - background.blue()) * db;
+	return (norm > 0) && (double(dot) >= kIsolatedGlyphCoverage * norm);
+}
+
+// |mask| is band-local, row by row; the bounds are in image coordinates.
+[[nodiscard]] std::vector<IsolatedGlyphComponent> ConnectedComponents(
+		std::vector<uchar> mask,
+		QRect band) {
+	const auto width = band.width();
+	const auto height = band.height();
+	auto result = std::vector<IsolatedGlyphComponent>();
+	auto pending = std::vector<int>();
+	for (auto start = 0; start != int(mask.size()); ++start) {
+		if (!mask[start]) {
+			continue;
+		}
+		mask[start] = 0;
+		pending.assign(1, start);
+		auto left = width;
+		auto top = height;
+		auto right = -1;
+		auto bottom = -1;
+		for (auto i = 0; i != int(pending.size()); ++i) {
+			const auto x = pending[i] % width;
+			const auto y = pending[i] / width;
+			left = std::min(left, x);
+			top = std::min(top, y);
+			right = std::max(right, x);
+			bottom = std::max(bottom, y);
+			for (auto dy = -1; dy <= 1; ++dy) {
+				for (auto dx = -1; dx <= 1; ++dx) {
+					const auto nx = x + dx;
+					const auto ny = y + dy;
+					if ((nx < 0)
+						|| (nx >= width)
+						|| (ny < 0)
+						|| (ny >= height)) {
+						continue;
+					}
+					const auto index = ny * width + nx;
+					if (mask[index]) {
+						mask[index] = 0;
+						pending.push_back(index);
+					}
+				}
+			}
+		}
+		result.push_back({
+			.bounds = QRect(
+				band.x() + left,
+				band.y() + top,
+				right - left + 1,
+				bottom - top + 1),
+			.pixels = int(pending.size()),
+			.interior = (left > 0)
+				&& (top > 0)
+				&& (right < width - 1)
+				&& (bottom < height - 1),
+		});
+	}
+	return result;
+}
+
+} // namespace
+
+QString IsolatedGlyphStateName(IsolatedGlyphState state) {
+	switch (state) {
+	case IsolatedGlyphState::Unread:
+		return u"glyph-unread"_q;
+	case IsolatedGlyphState::BandOutsideImage:
+		return u"glyph-band-outside-image"_q;
+	case IsolatedGlyphState::NoInk:
+		return u"glyph-no-ink"_q;
+	case IsolatedGlyphState::NoPen:
+		return u"glyph-no-pen"_q;
+	case IsolatedGlyphState::Clipped:
+		return u"glyph-clipped"_q;
+	case IsolatedGlyphState::Ambiguous:
+		return u"glyph-ambiguous"_q;
+	case IsolatedGlyphState::Isolated:
+		return u"glyph-isolated"_q;
+	}
+	return u"missing"_q;
+}
+
+IsolatedGlyphBox IsolatedGlyph::readBounds() const {
+	auto result = IsolatedGlyphBox();
+	if (state != IsolatedGlyphState::Isolated) {
+		result.refusal = u"this reading ("_q
+			+ IsolatedGlyphStateName(state)
+			+ u") isolated no glyph: "_q
+			+ IsolatedReason(*this);
+		return result;
+	}
+	result.bounds = bounds;
+	return result;
+}
+
+IsolatedGlyph ReadIsolatedGlyph(const QImage &image, QRect band) {
+	auto result = IsolatedGlyph();
+	result.band = band;
+	if (band.isEmpty() || !image.rect().contains(band)) {
+		result.state = IsolatedGlyphState::BandOutsideImage;
+		result.reason = u"the band must lie wholly inside the image, so no "
+			"glyph pixel was read: band="_q
+			+ RectText(band)
+			+ u" image="_q
+			+ RectText(image.rect());
+		return result;
+	}
+	const auto core = ReadGlyphCore(image, band);
+	if (core.state == GlyphCoreState::NoPaint) {
+		result.state = IsolatedGlyphState::NoInk;
+		result.reason = u"the band-mode glyph core found no ink: "_q
+			+ GlyphReason(core);
+		return result;
+	}
+	const auto modal = core.readModal();
+	if (!modal.read()) {
+		result.state = IsolatedGlyphState::NoPen;
+		result.reason = u"the band-mode glyph core read no pen: "_q
+			+ modal.refusal;
+		return result;
+	}
+	result.background = core.background;
+	result.pen = modal.color;
+	auto mask = std::vector<uchar>(band.width() * band.height());
+	auto inkPixels = 0;
+	for (auto y = 0; y != band.height(); ++y) {
+		for (auto x = 0; x != band.width(); ++x) {
+			const auto color = image.pixelColor(band.x() + x, band.y() + y);
+			if (ReachesCoverage(color, result.background, result.pen)) {
+				mask[y * band.width() + x] = 1;
+				++inkPixels;
+			}
+		}
+	}
+	result.ok = true;
+	result.inkPixels = inkPixels;
+	if (!inkPixels) {
+		result.state = IsolatedGlyphState::NoInk;
+		result.reason = u"no band pixel reaches the declared coverage of the "
+			"pen"_q;
+		return result;
+	}
+	result.components = ConnectedComponents(std::move(mask), band);
+	auto largestInterior = -1;
+	auto largestBoundary = 0;
+	for (auto i = 0; i != int(result.components.size()); ++i) {
+		const auto &component = result.components[i];
+		if (!component.interior) {
+			largestBoundary = std::max(largestBoundary, component.pixels);
+			continue;
+		}
+		++result.interior;
+		if ((largestInterior < 0)
+			|| (component.pixels
+				> result.components[largestInterior].pixels)) {
+			largestInterior = i;
+		}
+	}
+	const auto count = int(result.components.size());
+	if (largestInterior < 0) {
+		result.state = IsolatedGlyphState::Clipped;
+		result.reason = u"all %1 ink components touch the band edge, so the "
+			"band cuts the glyph or holds only a neighbour's fragments"_q
+			.arg(count);
+	} else if (largestBoundary
+		>= result.components[largestInterior].pixels) {
+		result.state = IsolatedGlyphState::Clipped;
+		result.reason = u"a boundary component of %1 pixels is at least as "
+			"large as the largest interior one of %2 pixels, so the band "
+			"cuts the dominant glyph"_q
+			.arg(largestBoundary)
+			.arg(result.components[largestInterior].pixels);
+	} else if (result.interior > 1) {
+		result.state = IsolatedGlyphState::Ambiguous;
+		result.reason = u"%1 interior components: the band holds several "
+			"glyphs or a disconnected one, which this reader neither unions "
+			"nor chooses between"_q
+			.arg(result.interior);
+	} else {
+		result.state = IsolatedGlyphState::Isolated;
+		result.bounds = result.components[largestInterior].bounds;
+		result.reason = u"none"_q;
+	}
+	return result;
+}
+
+QString FormatIsolatedGlyph(const IsolatedGlyph &reading) {
+	const auto box = reading.readBounds();
+	const auto count = int(reading.components.size());
+	const auto measured = [&](int value) {
+		return reading.ok ? QString::number(value) : u"none"_q;
+	};
+	auto text = u"state="_q
+		+ IsolatedGlyphStateName(reading.state)
+		+ u" band="_q
+		+ RectText(reading.band)
+		+ u" bg="_q
+		+ (reading.background.isValid()
+			? ColorHex(reading.background)
+			: u"none"_q)
+		+ u" pen="_q
+		+ (reading.pen.isValid() ? ColorHex(reading.pen) : u"none"_q)
+		+ u" coverage="_q
+		+ QString::number(kIsolatedGlyphCoverage, 'f', 2)
+		+ u" ink="_q
+		+ measured(reading.inkPixels)
+		+ u" components="_q
+		+ measured(count)
+		+ u" interior="_q
+		+ measured(reading.interior)
+		+ u" bounds="_q
+		+ (box.read() ? RectText(box.bounds) : u"none"_q);
+	for (auto i = 0; i != std::min(count, kListedComponents); ++i) {
+		const auto &component = reading.components[i];
+		text += u" component=%1 pixels=%2 interior=%3"_q
+			.arg(RectText(component.bounds))
+			.arg(component.pixels)
+			.arg(component.interior ? 1 : 0);
+	}
+	if (count > kListedComponents) {
+		text += u" more=%1"_q.arg(count - kListedComponents);
+	}
+	return text + u" reason="_q + IsolatedReason(reading);
 }
 
 namespace {
@@ -1565,6 +1998,23 @@ void AppendChromaticRasterSelfTest(not_null<Runner*> runner) {
 	});
 }
 
+[[nodiscard]] std::vector<QString> ShippedInkStateNames() {
+	return {
+		u"not-scanned"_q,
+		u"outside-image"_q,
+		u"no-rows-in-band"_q,
+		u"candidates-collide"_q,
+		u"no-ink"_q,
+		u"classified"_q,
+		u"background-collinear"_q,
+		u"raster-outside-band"_q,
+		u"no-chromatic"_q,
+		u"below-density"_q,
+		u"found"_q,
+		u"missing"_q,
+	};
+}
+
 void AppendGlyphCoreSelfTest(not_null<Runner*> runner) {
 	runner->add({
 		.name = u"glyph-core self-test: neutral and link strokes on both "
@@ -1776,20 +2226,7 @@ void AppendGlyphCoreSelfTest(not_null<Runner*> runner) {
 				pens);
 			const auto outsideModal = outside.readModal();
 			const auto outsideText = FormatGlyphCore(outside);
-			const auto shipped = std::vector<QString>{
-				u"not-scanned"_q,
-				u"outside-image"_q,
-				u"no-rows-in-band"_q,
-				u"candidates-collide"_q,
-				u"no-ink"_q,
-				u"classified"_q,
-				u"background-collinear"_q,
-				u"raster-outside-band"_q,
-				u"no-chromatic"_q,
-				u"below-density"_q,
-				u"found"_q,
-				u"missing"_q,
-			};
+			const auto shipped = ShippedInkStateNames();
 			const auto flatName = GlyphCoreStateName(flat.state);
 			const auto fringeName = GlyphCoreStateName(fringe.state);
 			const auto outsideName = GlyphCoreStateName(outside.state);
@@ -1880,6 +2317,787 @@ void AppendGlyphCoreSelfTest(not_null<Runner*> runner) {
 						fringe.reason,
 						outsideName,
 						forbidden));
+		},
+	});
+}
+
+struct SurroundFixture {
+	QImage image;
+	QRect band;
+	QColor pen;
+	int drawn = 0;
+};
+
+struct ExactColorCounts {
+	int pen = 0;
+	int rival = 0;
+};
+
+// Bilinear between four wallpaper colours, so it is linear in y for a fixed
+// x and the surround interpolation is exact; every seventh diagonal is
+// lifted 20% toward white, which stays below kInkDelta.
+[[nodiscard]] QColor GradientGround(QPoint point, QSize size) {
+	constexpr auto kCorners = std::array<std::array<int, 3>, 4>{ {
+		{ 0xc7, 0xd2, 0x8b }, // top-left
+		{ 0xe6, 0xee, 0xdc }, // top-right, the lightest in every channel
+		{ 0x8b, 0xc7, 0xa0 }, // bottom-left
+		{ 0xb4, 0xcd, 0xd6 }, // bottom-right
+	} };
+	const auto u = point.x() / double(size.width() - 1);
+	const auto v = point.y() / double(size.height() - 1);
+	const auto lifted = (((point.x() + point.y()) % 7) == 0);
+	auto value = std::array<int, 3>();
+	for (auto channel = 0; channel != 3; ++channel) {
+		const auto blended = kCorners[0][channel] * (1. - u) * (1. - v)
+			+ kCorners[1][channel] * u * (1. - v)
+			+ kCorners[2][channel] * (1. - u) * v
+			+ kCorners[3][channel] * u * v;
+		value[channel] = int(base::SafeRound(blended));
+		if (lifted) {
+			value[channel] = int(base::SafeRound(
+				value[channel] + (255 - value[channel]) * 0.2));
+		}
+	}
+	return QColor(value[0], value[1], value[2]);
+}
+
+// The glyph is exact-pen strokes inside the band with no antialiasing: two
+// 100x3 bars joined by five 3x16 stems, 840 pixels that never overlap.
+// The band's surround strips, rows 18-25 and 54-61, hold only the ground.
+[[nodiscard]] SurroundFixture PaintSurroundFixture(
+		Fn<QColor(QPoint, QSize)> ground) {
+	auto result = SurroundFixture{
+		.image = QImage(QSize(160, 80), QImage::Format_ARGB32_Premultiplied),
+		.band = QRect(16, 28, 128, 24),
+		.pen = QColor(0x00, 0x3a, 0x24),
+	};
+	const auto size = result.image.size();
+	for (auto y = 0; y != size.height(); ++y) {
+		for (auto x = 0; x != size.width(); ++x) {
+			result.image.setPixelColor(x, y, ground(QPoint(x, y), size));
+		}
+	}
+	auto strokes = std::vector<QRect>{
+		QRect(22, 29, 100, 3),
+		QRect(22, 48, 100, 3),
+	};
+	for (auto i = 0; i != 5; ++i) {
+		strokes.push_back(QRect(24 + 20 * i, 32, 3, 16));
+	}
+	for (const auto &stroke : strokes) {
+		for (auto y = stroke.top(); y <= stroke.bottom(); ++y) {
+			for (auto x = stroke.left(); x <= stroke.right(); ++x) {
+				result.image.setPixelColor(x, y, result.pen);
+				++result.drawn;
+			}
+		}
+	}
+	return result;
+}
+
+// Counted apart from ReadGlyphCore: the pen's exact count in |band| and the
+// largest exact count of any other colour there.
+[[nodiscard]] ExactColorCounts CountExactColors(
+		const QImage &image,
+		QRect band,
+		QColor pen) {
+	auto counts = std::map<QRgb, int>();
+	const auto clip = band.intersected(image.rect());
+	for (auto y = clip.top(); y <= clip.bottom(); ++y) {
+		for (auto x = clip.left(); x <= clip.right(); ++x) {
+			++counts[image.pixelColor(x, y).rgb()];
+		}
+	}
+	auto result = ExactColorCounts();
+	for (const auto &[rgb, count] : counts) {
+		if (rgb == pen.rgb()) {
+			result.pen = count;
+		} else {
+			result.rival = std::max(result.rival, count);
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] bool GradientArmHolds(
+		const GlyphCore &reading,
+		QColor pen,
+		int penPixels) {
+	const auto modal = reading.readModal();
+	const auto solid = reading.solidAt(0);
+	return (reading.state == GlyphCoreState::Measured)
+		&& modal.read()
+		&& (ChannelDelta(modal.color, pen) <= kGlyphCoreTolerance)
+		&& solid.read()
+		&& (solid.count == penPixels);
+}
+
+void AppendGlyphSurroundSelfTest(not_null<Runner*> runner) {
+	runner->add({
+		.name = u"glyph-core surround self-test: a dark pen over a "
+			"patterned gradient"_q,
+		.run = [] {
+			const auto fixture = PaintSurroundFixture(GradientGround);
+			const auto pen = fixture.pen;
+			const auto pens = std::vector<InkCandidate>{
+				{ u"text"_q, pen },
+			};
+			const auto exact = CountExactColors(
+				fixture.image,
+				fixture.band,
+				pen);
+			const auto surround = ReadGlyphCore(
+				fixture.image,
+				fixture.band,
+				pens,
+				GlyphBackground::Surround);
+			const auto bandMode = ReadGlyphCore(
+				fixture.image,
+				fixture.band,
+				pens);
+			const auto bandModal = bandMode.readModal();
+			const auto surroundText = FormatGlyphCore(surround);
+			const auto bandText = FormatGlyphCore(bandMode);
+			const auto quoted = u"surround: "_q
+				+ surroundText
+				+ u" || band-mode: "_q
+				+ bandText;
+			Note(u"glyph-core surround self-test: no window, session, chats "
+				"list, network, account or wallet - a synthetic four-colour "
+				"gradient with a pattern"_q);
+			Check(
+				(exact.pen == fixture.drawn)
+					&& (exact.pen > exact.rival)
+					&& (bandMode.state == GlyphCoreState::Measured),
+				u"fixture gate: the drawn pen is the band's most frequent "
+				"exact colour and the band-mode reading measures a core"_q,
+				u"penPixels=%1 drawn=%2 mostFrequentOther=%3 band-mode: %4"_q
+					.arg(exact.pen)
+					.arg(fixture.drawn)
+					.arg(exact.rival)
+					.arg(bandText));
+			Check(
+				GradientArmHolds(surround, pen, fixture.drawn)
+					&& (surround.source == GlyphBackground::Surround)
+					&& (surround.backgroundSpread > 0)
+					&& (ChannelDelta(surround.background, pen) >= kInkDelta)
+					&& surroundText.contains(u"bgSource=surround"_q)
+					&& surroundText.contains(u"bgSpread="_q)
+					&& surroundText.contains(u"modal="_q + ColorHex(pen)),
+				u"read against its surround the gradient arm holds: the "
+				"modal core is the pen, every drawn pen pixel is a solid "
+				"core, and the background is the wallpaper's"_q,
+				quoted);
+			Check(
+				(bandMode.source == GlyphBackground::BandMode)
+					&& (ColorHex(bandMode.background) == ColorHex(pen))
+					&& bandModal.read()
+					&& (ChannelDelta(bandModal.color, pen)
+						> kGlyphCoreTolerance)
+					&& bandText.contains(u"bgSource=band-mode"_q)
+					&& !bandText.contains(u"bgSpread="_q)
+					&& !GradientArmHolds(bandMode, pen, fixture.drawn),
+				u"revert control: the band-mode rule reads the pen as the "
+				"background and a wallpaper colour as the modal, so the "
+				"same arm fails with the fix reverted"_q,
+				quoted);
+		},
+	});
+	runner->add({
+		.name = u"glyph-core surround self-test: the same glyph over a flat "
+			"fill reads alike from both sources"_q,
+		.run = [] {
+			const auto fill = QColor(0xc8, 0xd2, 0x8b);
+			const auto fixture = PaintSurroundFixture([=](QPoint, QSize) {
+				return fill;
+			});
+			const auto pen = fixture.pen;
+			const auto pens = std::vector<InkCandidate>{
+				{ u"text"_q, pen },
+			};
+			const auto surround = ReadGlyphCore(
+				fixture.image,
+				fixture.band,
+				pens,
+				GlyphBackground::Surround);
+			const auto bandMode = ReadGlyphCore(
+				fixture.image,
+				fixture.band,
+				pens);
+			const auto surroundModal = surround.readModal();
+			const auto bandModal = bandMode.readModal();
+			const auto surroundText = FormatGlyphCore(surround);
+			const auto bandText = FormatGlyphCore(bandMode);
+			Note(u"glyph-core surround self-test: no window, session, chats "
+				"list, network, account or wallet - a synthetic flat fill"_q);
+			Check(
+				(surround.state == GlyphCoreState::Measured)
+					&& (bandMode.state == GlyphCoreState::Measured)
+					&& surroundModal.read()
+					&& bandModal.read()
+					&& (ColorHex(surroundModal.color) == ColorHex(pen))
+					&& (ColorHex(bandModal.color) == ColorHex(pen))
+					&& (ColorHex(surround.background) == ColorHex(fill))
+					&& (ColorHex(bandMode.background) == ColorHex(fill))
+					&& (surround.backgroundSpread == 0)
+					&& (bandMode.backgroundSpread == 0)
+					&& (surround.cores == fixture.drawn)
+					&& (surround.cores == bandMode.cores)
+					&& (surround.modalCount == bandMode.modalCount)
+					&& (surround.strongest == bandMode.strongest)
+					&& surroundText.contains(u"bgSource=surround bgSpread=0"_q)
+					&& bandText.contains(u"bgSource=band-mode"_q),
+				u"over a flat fill both sources read the pen as the modal "
+				"core and the fill as the background, with equal cores, "
+				"modal count and strongest distance"_q,
+				u"surround: "_q
+					+ surroundText
+					+ u" || band-mode: "_q
+					+ bandText);
+		},
+	});
+	runner->add({
+		.name = u"glyph-core surround self-test: a surround strip outside "
+			"the image refuses by name"_q,
+		.run = [] {
+			const auto fixture = PaintSurroundFixture(GradientGround);
+			const auto band = QRect(16, 4, 128, 24);
+			const auto pens = std::vector<InkCandidate>{
+				{ u"text"_q, fixture.pen },
+			};
+			const auto refused = ReadGlyphCore(
+				fixture.image,
+				band,
+				pens,
+				GlyphBackground::Surround);
+			const auto refusedModal = refused.readModal();
+			const auto refusedSolid = refused.solidAt(0);
+			const auto refusedText = FormatGlyphCore(refused);
+			const auto bandMode = ReadGlyphCore(fixture.image, band, pens);
+			const auto bandText = FormatGlyphCore(bandMode);
+			const auto outside = ReadGlyphCore(
+				fixture.image,
+				QRect(200, 200, 8, 8),
+				pens,
+				GlyphBackground::Surround);
+			const auto outsideText = FormatGlyphCore(outside);
+			const auto earlier = std::array{
+				GlyphCoreState::Unread,
+				GlyphCoreState::OutsideBand,
+				GlyphCoreState::NoPaint,
+				GlyphCoreState::NoSolidCore,
+				GlyphCoreState::Measured,
+			};
+			auto shipped = ShippedInkStateNames();
+			for (const auto state : earlier) {
+				shipped.push_back(GlyphCoreStateName(state));
+			}
+			const auto name = GlyphCoreStateName(refused.state);
+			auto distinct = true;
+			auto forbidden = QString();
+			for (const auto &one : shipped) {
+				if (name == one) {
+					distinct = false;
+				}
+				if (!forbidden.isEmpty()) {
+					forbidden += u", "_q;
+				}
+				forbidden += one;
+			}
+			Note(u"glyph-core surround self-test: no window, session, chats "
+				"list, network, account or wallet - the gradient image read "
+				"through a band whose upper strip lies above it"_q);
+			Check(
+				!refused.ok
+					&& (refused.state == GlyphCoreState::NoBackground)
+					&& (refused.source == GlyphBackground::Surround)
+					&& !refused.background.isValid()
+					&& (refused.backgroundSpread == -1)
+					&& (refused.strongest == -1)
+					&& !refusedModal.read()
+					&& !refusedModal.color.isValid()
+					&& (refusedModal.count == -1)
+					&& (refusedModal.cores == -1)
+					&& refusedModal.refusal.contains(u"core-no-background"_q)
+					&& !refusedSolid.read()
+					&& (refusedSolid.count == -1)
+					&& refusedSolid.refusal.contains(u"core-no-background"_q)
+					&& refused.reason.contains(u"surround strips"_q)
+					&& refused.reason.contains(u"above=-6..1"_q),
+				u"a band whose upper surround strip lies above the image "
+				"refuses by name and hands back no background, colour or "
+				"count"_q,
+				refusedText
+					+ u" | "_q
+					+ refusedModal.refusal
+					+ u" | "_q
+					+ refusedSolid.refusal);
+			Check(
+				refusedText.contains(u"state=core-no-background"_q)
+					&& refusedText.contains(u"bg=none"_q)
+					&& refusedText.contains(u"bgSource=surround"_q)
+					&& refusedText.contains(u"bgSpread=none"_q)
+					&& refusedText.contains(u"strongest=none"_q)
+					&& refusedText.contains(u"modal=none"_q)
+					&& refusedText.contains(u"text=none"_q)
+					&& !refusedText.contains(u"modal=#"_q),
+				u"the core-no-background format names its source and prints "
+				"every refused colour and count as none"_q,
+				refusedText);
+			Check(
+				bandMode.ok
+					&& (bandMode.source == GlyphBackground::BandMode)
+					&& bandMode.background.isValid()
+					&& (bandMode.state != GlyphCoreState::NoBackground)
+					&& (bandMode.state != GlyphCoreState::OutsideBand),
+				u"control: the band-mode reading of the same band scans it "
+				"and establishes a background, so the refusal is the "
+				"surround's"_q,
+				bandText);
+			Check(
+				!outside.ok
+					&& (outside.state == GlyphCoreState::OutsideBand)
+					&& (outside.source == GlyphBackground::Surround)
+					&& outsideText.contains(u"state=core-outside-band"_q)
+					&& outsideText.contains(u"bgSource=surround"_q),
+				u"a band that misses the image answers core-outside-band "
+				"before any surround is measured"_q,
+				outsideText);
+			Check(
+				distinct
+					&& (name == u"core-no-background"_q)
+					&& (GlyphBackgroundName(GlyphBackground::BandMode)
+						!= GlyphBackgroundName(GlyphBackground::Surround)),
+				u"the core-no-background name differs from every state the "
+				"module already ships"_q,
+				u"name=%1 forbidden=[%2]"_q.arg(name, forbidden));
+		},
+	});
+}
+
+struct IsolationFixture {
+	QImage image;
+	QColor ground;
+	QColor pen;
+};
+
+// The night ground and neutral pen of the glyph-core stage, on 96x96.
+[[nodiscard]] IsolationFixture MakeIsolationFixture() {
+	auto result = IsolationFixture{
+		.image = QImage(QSize(96, 96), QImage::Format_ARGB32_Premultiplied),
+		.ground = QColor(0x17, 0x21, 0x2b),
+		.pen = QColor(0x70, 0x84, 0x99),
+	};
+	result.image.fill(result.ground);
+	return result;
+}
+
+void FillRects(
+		QImage &image,
+		const std::vector<QRect> &rects,
+		QColor color) {
+	auto p = QPainter(&image);
+	for (const auto &rect : rects) {
+		p.fillRect(rect, color);
+	}
+}
+
+[[nodiscard]] QRect UnitedRects(const std::vector<QRect> &rects) {
+	auto result = QRect();
+	for (const auto &rect : rects) {
+		result = result.united(rect);
+	}
+	return result;
+}
+
+// Two 6x40 stems 34 apart joined by two diagonals of 2x4 steps that meet
+// in the middle: one 8-connected component, 40x40 from |origin|.
+[[nodiscard]] std::vector<QRect> CapitalM(QPoint origin) {
+	auto result = std::vector<QRect>{
+		QRect(origin, QSize(6, 40)),
+		QRect(origin + QPoint(34, 0), QSize(6, 40)),
+	};
+	const auto step = QSize(2, 4);
+	for (auto i = 0; i != 7; ++i) {
+		result.push_back(QRect(origin + QPoint(6 + 2 * i, 4 * i), step));
+		result.push_back(QRect(origin + QPoint(32 - 2 * i, 4 * i), step));
+	}
+	return result;
+}
+
+// The following glyph's body lies right of the band QRect(10, 0, 52, 88);
+// only its arm and its descender foot reach the band's last column.
+[[nodiscard]] std::vector<QRect> NeighbourOverhang() {
+	return {
+		QRect(64, 26, 8, 52),
+		QRect(61, 36, 4, 1),
+		QRect(61, 75, 6, 3),
+	};
+}
+
+[[nodiscard]] QColor Blend(QColor ground, QColor pen, double share) {
+	const auto channel = [&](int from, int to) {
+		return int(base::SafeRound(from + (to - from) * share));
+	};
+	return QColor(
+		channel(ground.red(), pen.red()),
+		channel(ground.green(), pen.green()),
+		channel(ground.blue(), pen.blue()));
+}
+
+// The advance-cell reader the isolation replaces: the union of every band
+// pixel at the declared coverage, whichever glyph it belongs to.
+[[nodiscard]] QRect ContaminatedUnion(
+		const QImage &image,
+		QRect band,
+		QColor background,
+		QColor pen) {
+	auto result = QRect();
+	for (auto y = band.top(); y <= band.bottom(); ++y) {
+		for (auto x = band.left(); x <= band.right(); ++x) {
+			if (ReachesCoverage(image.pixelColor(x, y), background, pen)) {
+				result = result.united(QRect(x, y, 1, 1));
+			}
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] bool IsolatedRefused(
+		const IsolatedGlyph &reading,
+		IsolatedGlyphState state) {
+	const auto name = IsolatedGlyphStateName(state);
+	const auto box = reading.readBounds();
+	const auto text = FormatIsolatedGlyph(reading);
+	return (reading.state == state)
+		&& !box.read()
+		&& box.bounds.isEmpty()
+		&& reading.bounds.isEmpty()
+		&& box.refusal.contains(name)
+		&& text.contains(u"state="_q + name)
+		&& text.contains(u"bounds=none"_q);
+}
+
+[[nodiscard]] QString IsolatedRefusalText(const IsolatedGlyph &reading) {
+	return FormatIsolatedGlyph(reading)
+		+ u" | "_q
+		+ reading.readBounds().refusal;
+}
+
+void AppendIsolatedGlyphSelfTest(not_null<Runner*> runner) {
+	runner->add({
+		.name = u"isolated-glyph self-test: a capital beside a neighbour's "
+			"boundary overhang, a clean capital and the declared coverage"_q,
+		.run = [] {
+			const auto band = QRect(10, 0, 52, 88);
+			const auto capital = CapitalM(QPoint(16, 26));
+			const auto expected = UnitedRects(capital);
+			auto overhang = MakeIsolationFixture();
+			FillRects(overhang.image, capital, overhang.pen);
+			FillRects(overhang.image, NeighbourOverhang(), overhang.pen);
+			auto clean = MakeIsolationFixture();
+			FillRects(clean.image, capital, clean.pen);
+			auto coverage = MakeIsolationFixture();
+			const auto weak = QRect(15, 26, 1, 40);
+			const auto strong = QRect(56, 26, 1, 40);
+			FillRects(coverage.image, capital, coverage.pen);
+			FillRects(
+				coverage.image,
+				{ weak },
+				Blend(coverage.ground, coverage.pen, 0.4));
+			FillRects(
+				coverage.image,
+				{ strong },
+				Blend(coverage.ground, coverage.pen, 0.6));
+			const auto coverageExpected = expected.united(strong);
+			const auto contaminated = ContaminatedUnion(
+				overhang.image,
+				band,
+				overhang.ground,
+				overhang.pen);
+			const auto cleanUnion = ContaminatedUnion(
+				clean.image,
+				band,
+				clean.ground,
+				clean.pen);
+			const auto reading = ReadIsolatedGlyph(overhang.image, band);
+			const auto cleanReading = ReadIsolatedGlyph(clean.image, band);
+			const auto coverageReading = ReadIsolatedGlyph(
+				coverage.image,
+				band);
+			const auto box = reading.readBounds();
+			const auto cleanBox = cleanReading.readBounds();
+			const auto coverageBox = coverageReading.readBounds();
+			const auto text = FormatIsolatedGlyph(reading);
+			const auto cleanText = FormatIsolatedGlyph(cleanReading);
+			const auto coverageText = FormatIsolatedGlyph(coverageReading);
+			Note(u"isolated-glyph self-test: no window, session, chats list, "
+				"network, account or wallet - synthetic capitals on the night "
+				"ground"_q);
+			Check(
+				(expected == QRect(16, 26, 40, 40))
+					&& (contaminated == QRect(16, 26, 46, 52))
+					&& (contaminated != expected)
+					&& (cleanUnion == expected),
+				u"control: the contaminated all-ink union of the advance cell "
+				"takes in the neighbour's overhang instead of the drawn "
+				"capital, and on the clean capital it is exact"_q,
+				u"drawn=%1 contaminatedUnion=%2 cleanUnion=%3"_q.arg(
+					RectText(expected),
+					RectText(contaminated),
+					RectText(cleanUnion)));
+			Check(
+				reading.ok
+					&& (reading.state == IsolatedGlyphState::Isolated)
+					&& box.read()
+					&& (box.bounds == expected)
+					&& (reading.bounds == expected)
+					&& (int(reading.components.size()) == 3)
+					&& (reading.interior == 1)
+					&& (ColorHex(reading.background)
+						== ColorHex(overhang.ground))
+					&& (ColorHex(reading.pen) == ColorHex(overhang.pen))
+					&& text.contains(u"state=glyph-isolated"_q)
+					&& text.contains(u"coverage=0.50"_q)
+					&& text.contains(u"components=3 interior=1 bounds="_q
+						+ RectText(expected))
+					&& text.contains(
+						u"component=61,36 1x1 pixels=1 interior=0"_q)
+					&& text.contains(
+						u"component=61,75 1x3 pixels=3 interior=0"_q),
+				u"beside the neighbour's boundary overhang the reading "
+				"isolates the complete capital and reports the bounds the "
+				"stage drew, the overhang as boundary fragments"_q,
+				text);
+			Check(
+				(cleanReading.state == IsolatedGlyphState::Isolated)
+					&& cleanBox.read()
+					&& (cleanBox.bounds == expected)
+					&& (int(cleanReading.components.size()) == 1)
+					&& (cleanReading.interior == 1)
+					&& cleanText.contains(u"bounds="_q + RectText(expected)),
+				u"a clean single capital measures the bounds the stage drew"_q,
+				cleanText);
+			Check(
+				(coverageReading.state == IsolatedGlyphState::Isolated)
+					&& coverageBox.read()
+					&& (coverageExpected == QRect(16, 26, 41, 40))
+					&& (coverageBox.bounds == coverageExpected)
+					&& (int(coverageReading.components.size()) == 1)
+					&& coverageText.contains(u"coverage=0.50"_q),
+				u"at the fixed declared coverage a 60% blend column joins the "
+				"capital and a 40% blend column does not"_q,
+				u"expected=%1 weak=%2 strong=%3 "_q.arg(
+					RectText(coverageExpected),
+					RectText(weak),
+					RectText(strong))
+					+ coverageText);
+		},
+	});
+	runner->add({
+		.name = u"isolated-glyph self-test: named refusals with no usable "
+			"bounds"_q,
+		.run = [] {
+			const auto band = QRect(10, 0, 52, 88);
+			const auto cut = QRect(30, 0, 52, 88);
+			const auto capital = CapitalM(QPoint(16, 26));
+			const auto flat = MakeIsolationFixture();
+			auto single = MakeIsolationFixture();
+			FillRects(single.image, capital, single.pen);
+			auto speck = MakeIsolationFixture();
+			FillRects(speck.image, capital, speck.pen);
+			FillRects(speck.image, { QRect(70, 10, 2, 2) }, speck.pen);
+			auto pair = MakeIsolationFixture();
+			FillRects(pair.image, capital, pair.pen);
+			FillRects(pair.image, { QRect(66, 26, 6, 40) }, pair.pen);
+			auto dotted = MakeIsolationFixture();
+			FillRects(
+				dotted.image,
+				{ QRect(40, 30, 6, 6), QRect(40, 40, 6, 26) },
+				dotted.pen);
+			auto fragment = MakeIsolationFixture();
+			FillRects(fragment.image, capital, fragment.pen);
+			FillRects(fragment.image, { QRect(58, 70, 2, 3) }, fragment.pen);
+			auto fringe = MakeIsolationFixture();
+			FillRects(
+				fringe.image,
+				{ QRect(20, 30, 30, 2) },
+				QColor(200, 60, 60));
+			FillRects(
+				fringe.image,
+				{ QRect(20, 40, 30, 2) },
+				QColor(60, 200, 60));
+			FillRects(
+				fringe.image,
+				{ QRect(20, 50, 30, 2) },
+				QColor(60, 60, 200));
+			const auto noInk = ReadIsolatedGlyph(flat.image, band);
+			const auto outside = ReadIsolatedGlyph(
+				single.image,
+				QRect(60, 0, 52, 88));
+			const auto clipped = ReadIsolatedGlyph(single.image, cut);
+			const auto dominated = ReadIsolatedGlyph(speck.image, cut);
+			const auto twoCapitals = ReadIsolatedGlyph(
+				pair.image,
+				QRect(10, 0, 70, 88));
+			const auto disconnected = ReadIsolatedGlyph(dotted.image, band);
+			const auto contaminated = ReadIsolatedGlyph(fragment.image, band);
+			const auto noPen = ReadIsolatedGlyph(fringe.image, band);
+			Note(u"isolated-glyph self-test: no window, session, chats list, "
+				"network, account or wallet - synthetic bands that cannot "
+				"isolate one glyph"_q);
+			Check(
+				IsolatedRefused(noInk, IsolatedGlyphState::NoInk)
+					&& !noInk.ok
+					&& (noInk.inkPixels == -1)
+					&& noInk.reason.contains(u"no glyph ink"_q)
+					&& FormatIsolatedGlyph(noInk).contains(u"ink=none"_q),
+				u"a flat band refuses glyph-no-ink"_q,
+				IsolatedRefusalText(noInk));
+			Check(
+				IsolatedRefused(outside, IsolatedGlyphState::BandOutsideImage)
+					&& !outside.ok
+					&& !outside.background.isValid()
+					&& !outside.pen.isValid()
+					&& outside.reason.contains(u"wholly inside the image"_q)
+					&& FormatIsolatedGlyph(outside).contains(
+						u"bg=none pen=none"_q),
+				u"a band reaching past the image refuses "
+				"glyph-band-outside-image"_q,
+				IsolatedRefusalText(outside));
+			Check(
+				IsolatedRefused(clipped, IsolatedGlyphState::Clipped)
+					&& clipped.ok
+					&& (clipped.interior == 0)
+					&& !clipped.components.empty(),
+				u"a band cutting the capital refuses glyph-clipped"_q,
+				IsolatedRefusalText(clipped));
+			Check(
+				IsolatedRefused(dominated, IsolatedGlyphState::Clipped)
+					&& (dominated.interior == 1)
+					&& dominated.reason.contains(u"at least as large"_q),
+				u"the same cut beside an interior speck still refuses "
+				"glyph-clipped instead of taking the only interior "
+				"component"_q,
+				IsolatedRefusalText(dominated));
+			Check(
+				IsolatedRefused(twoCapitals, IsolatedGlyphState::Ambiguous)
+					&& (twoCapitals.interior == 2),
+				u"two complete capitals in one band refuse glyph-ambiguous"_q,
+				IsolatedRefusalText(twoCapitals));
+			Check(
+				IsolatedRefused(disconnected, IsolatedGlyphState::Ambiguous)
+					&& (disconnected.interior == 2),
+				u"a disconnected i, stem and dot, is unsupported and refuses "
+				"glyph-ambiguous rather than being unioned"_q,
+				IsolatedRefusalText(disconnected));
+			Check(
+				IsolatedRefused(contaminated, IsolatedGlyphState::Ambiguous)
+					&& (contaminated.interior == 2),
+				u"an overhang fragment clear of the band edge refuses "
+				"glyph-ambiguous rather than manufacturing a metric"_q,
+				IsolatedRefusalText(contaminated));
+			Check(
+				IsolatedRefused(noPen, IsolatedGlyphState::NoPen)
+					&& !noPen.ok
+					&& noPen.reason.contains(u"no-solid-core"_q),
+				u"ink with no solid core refuses glyph-no-pen"_q,
+				IsolatedRefusalText(noPen));
+			const auto states = std::array{
+				IsolatedGlyphState::Unread,
+				IsolatedGlyphState::BandOutsideImage,
+				IsolatedGlyphState::NoInk,
+				IsolatedGlyphState::NoPen,
+				IsolatedGlyphState::Clipped,
+				IsolatedGlyphState::Ambiguous,
+				IsolatedGlyphState::Isolated,
+			};
+			const auto cores = std::array{
+				GlyphCoreState::Unread,
+				GlyphCoreState::OutsideBand,
+				GlyphCoreState::NoPaint,
+				GlyphCoreState::NoSolidCore,
+				GlyphCoreState::NoBackground,
+				GlyphCoreState::Measured,
+			};
+			auto shipped = QStringList();
+			for (const auto &one : ShippedInkStateNames()) {
+				shipped.push_back(one);
+			}
+			for (const auto state : cores) {
+				shipped.push_back(GlyphCoreStateName(state));
+			}
+			auto names = QStringList();
+			auto distinct = true;
+			for (const auto state : states) {
+				const auto name = IsolatedGlyphStateName(state);
+				if (names.contains(name) || shipped.contains(name)) {
+					distinct = false;
+				}
+				names.push_back(name);
+			}
+			Check(
+				distinct,
+				u"every isolated-glyph state name differs from the others and "
+				"from every state the module already ships"_q,
+				u"names=[%1] shipped=[%2]"_q.arg(
+					names.join(u", "_q),
+					shipped.join(u", "_q)));
+		},
+	});
+	runner->add({
+		.name = u"isolated-glyph self-test: expected metrics stay with the "
+			"caller"_q,
+		.run = [] {
+			const auto band = QRect(10, 0, 52, 88);
+			const auto capital = CapitalM(QPoint(16, 26));
+			auto overhang = MakeIsolationFixture();
+			FillRects(overhang.image, capital, overhang.pen);
+			FillRects(overhang.image, NeighbourOverhang(), overhang.pen);
+			const auto before = ReadIsolatedGlyph(overhang.image, band);
+			const auto beforeText = FormatIsolatedGlyph(before);
+			const auto box = before.readBounds();
+			const auto heightAgrees = [&](int expected) {
+				return box.read() && (box.bounds.height() == expected);
+			};
+			const auto centreAgrees = [&](double expected) {
+				const auto centre = box.bounds.y() + box.bounds.height() / 2.;
+				return box.read() && (std::abs(centre - expected) <= 0.5);
+			};
+			const auto height40 = heightAgrees(40);
+			const auto height30 = heightAgrees(30);
+			const auto centre46 = centreAgrees(46.);
+			const auto centre40 = centreAgrees(40.);
+			const auto after = ReadIsolatedGlyph(overhang.image, band);
+			const auto afterText = FormatIsolatedGlyph(after);
+			Note(u"isolated-glyph self-test: no window, session, chats list, "
+				"network, account or wallet - two caller expectations over "
+				"one synthetic overhang band"_q);
+			Check(
+				height40 && !height30 && centre46 && !centre40,
+				u"control: the caller's own assertions decide the metric - "
+				"expected cap height 40 agrees and 30 does not, expected "
+				"centre 46 agrees and 40 does not"_q,
+				u"bounds=%1 height40=%2 height30=%3 centre46=%4 "
+				"centre40=%5"_q
+					.arg(box.read() ? RectText(box.bounds) : u"none"_q)
+					.arg(height40 ? 1 : 0)
+					.arg(height30 ? 1 : 0)
+					.arg(centre46 ? 1 : 0)
+					.arg(centre40 ? 1 : 0));
+			Check(
+				(before.state == IsolatedGlyphState::Isolated)
+					&& (before.bounds == UnitedRects(capital))
+					&& (after.bounds == before.bounds)
+					&& (afterText == beforeText),
+				u"the reading taken before and after those opposite verdicts "
+				"is identical: the reader takes only the image and the band, "
+				"no expected height, centre or metric"_q,
+				u"signature=ReadIsolatedGlyph(const QImage &image, QRect band) "
+				"before: "_q
+					+ beforeText
+					+ u" || after: "_q
+					+ afterText);
 		},
 	});
 }
@@ -2339,6 +3557,8 @@ void AppendDeriveBandSelfTest(not_null<Runner*> runner) {
 	AppendBackgroundCollinearSelfTest(runner);
 	AppendChromaticRasterSelfTest(runner);
 	AppendGlyphCoreSelfTest(runner);
+	AppendGlyphSurroundSelfTest(runner);
+	AppendIsolatedGlyphSelfTest(runner);
 }
 
 } // namespace Test
