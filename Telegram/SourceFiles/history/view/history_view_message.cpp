@@ -1565,6 +1565,9 @@ QSize Message::performCountOptimalSize() {
 				minHeight += st::mediaInBubbleSkip;
 			}
 		}
+		if (_viewButton && mediaDisplayed && _invertMedia && withVisibleText) {
+			minHeight += st::mediaInBubbleSkip;
+		}
 		if (!mediaOnTop) {
 			minHeight += st::msgPadding.top();
 			if (mediaDisplayed) minHeight += st::mediaInBubbleSkip;
@@ -3167,9 +3170,10 @@ void Message::paintRichText(
 			rect.width(),
 			std::max(shownHeight - rich->edgeSkips().top(), 0)));
 	}
+	const auto visibleHeight = std::max(rect.height(), 0);
 	rich->article.setVisibleTopBottom(
-		std::clamp(viewportClip.top(), 0, rect.height()),
-		std::clamp(viewportClip.bottom() + 1, 0, rect.height()));
+		std::clamp(viewportClip.top(), 0, visibleHeight),
+		std::clamp(viewportClip.bottom() + 1, 0, visibleHeight));
 	auto articleContext = Iv::Markdown::MarkdownArticlePaintContext(
 		context).translated(-rect.topLeft());
 	if (context.messageSelection && context.messageSelection->isRichPage()) {
@@ -6813,6 +6817,12 @@ int Message::resizeContentGetHeight(int newWidth) {
 				if (mediaDisplayed) {
 					newHeight += st::mediaInBubbleSkip;
 				}
+			}
+			if (_viewButton
+				&& mediaDisplayed
+				&& _invertMedia
+				&& withVisibleText) {
+				newHeight += st::mediaInBubbleSkip;
 			}
 			if (!mediaOnTop) {
 				newHeight += st::msgPadding.top();
