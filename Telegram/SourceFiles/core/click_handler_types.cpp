@@ -425,7 +425,7 @@ QString UrlWithoutWebAuthTokens(const QString &url) {
 		host.chop(1);
 	}
 	// Stripping a foreign token is always safe, so check the widest list.
-	if (host.isEmpty() || !HostInAnyWhitelist(host)) {
+	if (!host.isEmpty() && !HostInAnyWhitelist(host)) {
 		return url;
 	}
 	const auto query = WithoutWebAuthTokenParams(
