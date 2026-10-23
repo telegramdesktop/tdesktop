@@ -3923,7 +3923,9 @@ void Session::photoApplyFields(
 		}
 		const auto area = [](const MTPVideoSize &size) {
 			return size.match([](const MTPDvideoSize &data) {
-				return data.vsize().v ? (data.vw().v * data.vh().v) : 0;
+				return (data.vsize().v > 0)
+					? (data.vw().v * data.vh().v)
+					: 0;
 			}, [](const MTPDvideoSizeEmojiMarkup &) {
 				return 0;
 			}, [](const MTPDvideoSizeStickerMarkup &) {
