@@ -948,15 +948,6 @@ bool ShowInviteLink(
 	return true;
 }
 
-bool OpenExternalLink(
-		Window::SessionController *controller,
-		const Match &match,
-		const QVariant &context) {
-	return Ui::Integration::Instance().handleUrlClick(
-		match->captured(1),
-		context);
-}
-
 bool CopyPeerId(
 		Window::SessionController *controller,
 		const Match &match,
@@ -1989,10 +1980,6 @@ const std::vector<LocalUrlHandler> &InternalUrlHandlers() {
 		{
 			u"^show_invite_link/?\\?link=([a-zA-Z0-9_\\+\\/\\=\\-]+)(&|$)"_q,
 			ShowInviteLink
-		},
-		{
-			u"^url:(.+)$"_q,
-			OpenExternalLink
 		},
 		{
 			u"^copy:(.+)$"_q,
