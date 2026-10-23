@@ -399,7 +399,7 @@ void ResolveChannel(
 		const QString &username,
 		Fn<void(const MTPInputChannel &channel)> done,
 		Fn<void()> fail) {
-	const auto failed = [&] {
+	const auto failed = [=] {
 		LOG(("Dedicated MTP Error: Channel '%1' resolve failed."
 			).arg(username));
 		fail();
