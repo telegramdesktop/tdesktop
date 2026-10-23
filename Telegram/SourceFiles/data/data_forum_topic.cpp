@@ -790,7 +790,9 @@ void ForumTopic::applyTitle(const QString &title) {
 	_title = title;
 	invalidateTitleWithIcon();
 	_defaultIcon = QImage();
+	const auto oldFirstLetters = base::take(_titleFirstLetters);
 	indexTitleParts();
+	_list->indexed()->entryNameChanged(FilterId(), this, oldFirstLetters);
 	updateChatListEntry();
 	session().changes().topicUpdated(this, UpdateFlag::Title);
 }

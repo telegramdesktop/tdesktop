@@ -9,8 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_list.h"
 
-class History;
-
 namespace Dialogs {
 
 struct RowsByLetter;
@@ -41,6 +39,10 @@ public:
 	void peerNameChanged(
 		FilterId filterId,
 		not_null<PeerData*> peer,
+		const base::flat_set<QChar> &oldChars);
+	void entryNameChanged(
+		FilterId filterId,
+		Key key,
 		const base::flat_set<QChar> &oldChars);
 
 	void remove(Key key, Row *replacedBy = nullptr);
@@ -89,7 +91,7 @@ private:
 		const base::flat_set<QChar> &oldChars);
 	void adjustNames(
 		FilterId filterId,
-		not_null<History*> history,
+		Key key,
 		const base::flat_set<QChar> &oldChars);
 
 	SortMode _sortMode = SortMode();

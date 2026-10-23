@@ -52,6 +52,16 @@ SavedMessages::SavedMessages(
 	if (_owningHistory && _owningHistory->inChatList()) {
 		preloadSublists();
 	}
+
+	session().changes().realtimeNameUpdates(
+	) | rpl::on_next([=](const NameUpdate &update) {
+		if (const auto sublist = sublistLoaded(update.peer)) {
+			_chatsList.indexed()->entryNameChanged(
+				FilterId(),
+				sublist,
+				update.oldFirstLetters);
+		}
+	}, _lifetime);
 }
 
 void SavedMessages::clear() {

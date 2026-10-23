@@ -112,6 +112,15 @@ void IndexedList::peerNameChanged(
 	}
 }
 
+void IndexedList::entryNameChanged(
+		FilterId filterId,
+		Key key,
+		const base::flat_set<QChar> &oldLetters) {
+	Expects(_sortMode == SortMode::Date);
+
+	adjustNames(filterId, key, oldLetters);
+}
+
 void IndexedList::adjustByName(
 		Key key,
 		const base::flat_set<QChar> &oldLetters) {
@@ -151,15 +160,15 @@ void IndexedList::adjustByName(
 
 void IndexedList::adjustNames(
 		FilterId filterId,
-		not_null<History*> history,
+		Key key,
 		const base::flat_set<QChar> &oldLetters) {
-	const auto key = Dialogs::Key(history);
 	auto mainRow = _list.getRow(key);
 	if (!mainRow) return;
 
+	const auto entry = key.entry();
 	auto toRemove = oldLetters;
 	auto toAdd = base::flat_set<QChar>();
-	for (const auto &ch : key.entry()->chatListFirstLetters()) {
+	for (const auto &ch : entry->chatListFirstLetters()) {
 		auto j = toRemove.find(ch);
 		if (j == toRemove.cend()) {
 			toAdd.insert(ch);
@@ -169,7 +178,7 @@ void IndexedList::adjustNames(
 	}
 	for (auto ch : toRemove) {
 		if (_sortMode == SortMode::Date) {
-			history->removeChatListEntryByLetter(filterId, ch);
+			entry->removeChatListEntryByLetter(filterId, ch);
 		}
 		if (auto it = _index.find(ch); it != _index.cend()) {
 			it->second.remove(key, mainRow);
@@ -182,7 +191,7 @@ void IndexedList::adjustNames(
 		}
 		auto row = j->second.addToEnd(key);
 		if (_sortMode == SortMode::Date) {
-			history->addChatListEntryByLetter(filterId, ch, row);
+			entry->addChatListEntryByLetter(filterId, ch, row);
 		}
 	}
 	++_dateVersion;
