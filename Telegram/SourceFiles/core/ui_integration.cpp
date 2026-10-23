@@ -139,6 +139,29 @@ const auto kBadPrefix = u"http://"_q;
 	return cWorkingDir() + "tdata/angle_backend";
 }
 
+[[nodiscard]] bool IsBotCommand(const QString &text) {
+	if (text.size() < 2 || text.size() > 98 || text.front() != '/') {
+		return false;
+	}
+	const auto command = QStringView(text).mid(1);
+	const auto at = command.indexOf('@');
+	const auto name = (at < 0) ? command : command.left(at);
+	const auto bot = (at < 0) ? QStringView() : command.mid(at + 1);
+	if (name.isEmpty()
+		|| name.size() > 64
+		|| (at >= 0 && (bot.size() < 3 || bot.size() > 32))) {
+		return false;
+	}
+	const auto valid = [](QChar ch) {
+		const auto value = ch.unicode();
+		return (value >= 'A' && value <= 'Z')
+			|| (value >= 'a' && value <= 'z')
+			|| (value >= '0' && value <= '9')
+			|| (value == '_');
+	};
+	return ranges::all_of(name, valid) && ranges::all_of(bot, valid);
+}
+
 [[nodiscard]] Ui::Text::FormattedDateResult FormatDateRelative(TimeId date) {
 	const auto now = base::unixtime::now();
 	const auto delta = int64(date) - int64(now);
@@ -363,7 +386,9 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 			: nullptr;
 
 	case EntityType::BotCommand:
-		return std::make_shared<BotCommandClickHandler>(data.data);
+		return IsBotCommand(data.data)
+			? std::make_shared<BotCommandClickHandler>(data.data)
+			: nullptr;
 
 	case EntityType::Hashtag:
 		using HashtagMentionType = TextContextDetails::HashtagMentionType;
