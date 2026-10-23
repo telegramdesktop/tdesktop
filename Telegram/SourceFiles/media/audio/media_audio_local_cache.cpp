@@ -245,7 +245,7 @@ constexpr auto kFrameSize = 4096;
 				swrContext.get(),
 				outFrame->data,
 				kFrameSize,
-				(const uint8_t**)frame->data,
+				(const uint8_t**)frame->extended_data,
 				frame->nb_samples);
 			if (error) {
 				LogError("swr_convert", error);
