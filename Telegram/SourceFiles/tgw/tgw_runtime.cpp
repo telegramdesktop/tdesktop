@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_media.h"
 #include "tgw/tgw_renderer.h"
 #include "tgw/tgw_resources.h"
+#include "tgw/tgw_storage.h"
 #include "tgw/tgw_theme.h"
 #include "twidget/widget_host.h"
 #include "TwidgetCore/src/renderer.h"
@@ -97,6 +98,9 @@ struct Job {
 	std::shared_ptr<twidget::IntlProvider> intl;
 	twidget::RendererFactory factory;
 	Fn<void(const twidget::WidgetAction &)> action;
+	Fn<void(
+		const std::string &,
+		const std::map<std::string, std::string> &)> storage;
 	twidget::WidgetHostOptions options;
 	twidget::WidgetTheme theme;
 	std::string stoppedLabel;
@@ -445,6 +449,7 @@ void AppendTail(
 				std::move(job.intl)),
 			HostDeleter{ std::move(job.slot) });
 		host->onAction = std::move(job.action);
+		host->onStorageCommit = std::move(job.storage);
 		host->stoppedLabel = std::move(job.stoppedLabel);
 		return { .host = std::move(host) };
 	} catch (const std::exception &e) {
@@ -461,6 +466,7 @@ struct Runtime::Host {
 	HostPointer pointer;
 	base::weak_ptr<Runtime> owner;
 	uint64 id = 0;
+	uint64 storage = 0;
 	bool sampling = false;
 	bool theming = false;
 	bool retired = false;
@@ -511,6 +517,7 @@ Runtime::~Runtime() {
 		PostCheck();
 	}
 	if (const auto host = base::take(_host)) {
+		StorageHostRetired(host->storage);
 		host->retired = true;
 		Sample(host);
 	}
@@ -970,7 +977,11 @@ bool Runtime::startable() const {
 }
 
 bool Runtime::wantsStart() const {
-	return _painted && _visible && !heavy() && startable();
+	return _painted
+		&& _visible
+		&& !heavy()
+		&& startable()
+		&& !StorageRetiring(_item);
 }
 
 bool Runtime::queryVisible() const {
@@ -1034,6 +1045,12 @@ void Runtime::resourcesReady(
 		stopForCrashes();
 		displayChanged(true);
 		return;
+	} else if (StorageRetiring(_item)) {
+		release();
+		addNote(u"Released, an earlier sandbox is still handing over "
+			"its storage."_q);
+		_repaint();
+		return;
 	}
 	construct(std::move(resources));
 }
@@ -1048,16 +1065,27 @@ void Runtime::construct(
 	_state = State::Constructing;
 	_hostVisible = _visible;
 	_hostTheme = _theme;
+	auto options = DefaultHostOptions(ratio, _visible);
+	options.storage = StoredAreas(_item);
+	auto storage = OpenStorageHost(_item);
+	const auto id = storage.id;
 	auto job = Job{
 		.html = _html,
 		.resources = std::move(resources),
 		.intl = CreateHostIntl(),
 		.factory = _live->hostFactory(),
 		.action = _live->hostActionHandler(),
-		.options = DefaultHostOptions(ratio, _visible),
+		.storage = std::move(storage.commit),
+		.options = std::move(options),
 		.theme = *_theme,
 		.stoppedLabel = tr::lng_tgw_stopped(tr::now).toStdString(),
-		.slot = std::make_shared<Reservation>([] { Check(); }),
+		// WHY: the slot is freed after ~WidgetHost delivered its last commits,
+		// which were posted to main before, so the host leaves the store only
+		// after they were applied and before the next Check() starts anyone.
+		.slot = std::make_shared<Reservation>([id] {
+			StorageHostReleased(id);
+			Check();
+		}),
 		.width = width,
 	};
 	const auto weak = base::make_weak(this);
@@ -1070,7 +1098,8 @@ void Runtime::construct(
 				strong->constructed(
 					generation,
 					base::take(built.host),
-					built.error);
+					built.error,
+					id);
 			}
 			built.host = nullptr;
 			JobDone();
@@ -1081,7 +1110,8 @@ void Runtime::construct(
 void Runtime::constructed(
 		int generation,
 		std::shared_ptr<twidget::WidgetHost> host,
-		const QString &error) {
+		const QString &error,
+		uint64 storage) {
 	if (generation != _generation || _state != State::Constructing) {
 		return;
 	} else if (!host) {
@@ -1100,11 +1130,17 @@ void Runtime::constructed(
 		addNote(u"Released, the theme changed before it started."_q);
 		_repaint();
 		return;
+	} else if (StorageHostStale(storage)) {
+		release();
+		addNote(u"Released, its storage changed before it started."_q);
+		_repaint();
+		return;
 	}
 	_host = std::make_shared<Host>(Host{
 		.pointer = std::move(host),
 		.owner = base::make_weak(this),
 		.id = ++Runtimes().hostSerial,
+		.storage = storage,
 	});
 	_lastHost = _host->id;
 	_logDone = nullptr;
@@ -1135,6 +1171,7 @@ void Runtime::retire(State state) {
 		}
 	}
 	if (const auto host = base::take(_host)) {
+		StorageHostRetired(host->storage);
 		host->retired = true;
 		Sample(host);
 	}

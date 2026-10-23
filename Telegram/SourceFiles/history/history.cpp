@@ -71,6 +71,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 #include "storage/storage_account.h"
 #include "support/support_helper.h"
+#include "tgw/tgw_storage.h"
 #include "ui/image/image.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
@@ -4504,6 +4505,7 @@ void History::clear(ClearType type, bool markEmpty) {
 }
 
 void History::clearUpTill(MsgId availableMinId) {
+	Tgw::ClearHistoryStorage(this, availableMinId);
 	auto remove = std::vector<not_null<HistoryItem*>>();
 	remove.reserve(_items.size());
 	for (const auto &item : _items) {

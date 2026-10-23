@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/view/stack_linear_chart_common.h"
 #include "storage/storage_account.h"
 #include "storage/cache/storage_cache_database.h"
+#include "tgw/tgw_storage.h"
 #include "ui/text/format_values.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
@@ -1765,6 +1766,7 @@ void LocalStorage::startClearing() {
 		_db->clear();
 		_dbBig->clear();
 		Ui::Emoji::ClearIrrelevantCache();
+		Tgw::ClearStorage(_session);
 		return;
 	}
 	for (auto i = 0; i != kChartPartsCount; ++i) {

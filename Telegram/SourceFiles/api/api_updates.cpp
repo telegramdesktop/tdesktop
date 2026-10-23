@@ -67,6 +67,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 #include "calls/calls_instance.h"
 #include "base/unixtime.h"
+#include "tgw/tgw_storage.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "wallet/wallet_panel.h"
@@ -1716,6 +1717,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 						newId);
 					if (existing && !local->mainView()) {
 						const auto history = local->history();
+						Tgw::MoveStorage(local, existing);
 						local->destroy();
 						history->requestChatListMessage();
 					} else {

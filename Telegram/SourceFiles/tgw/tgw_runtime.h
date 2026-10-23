@@ -114,7 +114,8 @@ private:
 	void constructed(
 		int generation,
 		std::shared_ptr<twidget::WidgetHost> host,
-		const QString &error);
+		const QString &error,
+		uint64 storage);
 	void retire(State state);
 	void stopForCrashes();
 	void fail(const QString &error);
