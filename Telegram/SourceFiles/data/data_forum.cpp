@@ -78,7 +78,7 @@ Forum::~Forum() {
 		}
 	}
 	if (_staleRequestId) {
-		session().api().request(_staleRequestId).cancel();
+		owner().histories().cancelRequest(_staleRequestId);
 	}
 	if (_requestId) {
 		session().api().request(_requestId).cancel();

@@ -71,7 +71,7 @@ void SavedMessages::clear() {
 		}
 	}
 	if (const auto requestId = base::take(_staleRequestId)) {
-		session().api().request(requestId).cancel();
+		owner().histories().cancelRequest(requestId);
 	}
 
 	auto &storage = session().storage();
