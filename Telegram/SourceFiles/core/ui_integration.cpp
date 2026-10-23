@@ -337,6 +337,11 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 			? std::make_shared<HiddenUrlClickHandler>(data.data)
 			: Integration::createLinkHandler(data, context);
 
+	case EntityType::Email:
+		return UrlClickHandler::IsEmail(data.data)
+			? Integration::createLinkHandler(data, context)
+			: nullptr;
+
 	case EntityType::BotCommand:
 		return std::make_shared<BotCommandClickHandler>(data.data);
 
