@@ -772,6 +772,11 @@ void SubsectionTabs::track() {
 			if (_around == topic) {
 				_around = _history;
 				refreshSlice();
+			} else if (ranges::contains(
+					_slice,
+					not_null<Data::Thread*>(topic),
+					&Item::thread)) {
+				refreshSlice();
 			}
 		}, _lifetime);
 
