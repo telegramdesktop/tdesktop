@@ -7,11 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "history/view/media/history_view_file.h"
-
-namespace Data {
-class DocumentMedia;
-} // namespace Data
+#include "history/view/media/history_view_media.h"
 
 namespace Tgw {
 class RendererCore;
@@ -20,13 +16,14 @@ class Runtime;
 
 namespace HistoryView {
 
-class WidgetDocument final : public File {
+class HtmlWidget final : public Media {
 public:
-	WidgetDocument(
+	HtmlWidget(
 		not_null<Element*> parent,
 		not_null<HistoryItem*> realParent,
-		not_null<DocumentData*> document);
-	~WidgetDocument();
+		QByteArray html,
+		Element *replacing);
+	~HtmlWidget();
 
 	void draw(Painter &p, const PaintContext &context) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
@@ -46,62 +43,43 @@ public:
 		const ClickHandlerPtr &p,
 		bool pressed) override;
 
-	DocumentData *getDocument() const override {
-		return _data;
-	}
-
 	bool hideMessageText() const override {
 		return false;
 	}
+	bool allowsFastShare() const override {
+		return true;
+	}
 	bool needsBubble() const override;
-	bool unwrapped() const override;
 	bool customInfoLayout() const override;
-	QPoint resolveCustomInfoRightBottom() const override;
 
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
-
-protected:
-	float64 dataProgress() const override;
-	bool dataFinished() const override;
-	bool dataLoaded() const override;
 
 private:
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 
-	[[nodiscard]] bool bareKeepsBubble() const;
+	[[nodiscard]] std::unique_ptr<Tgw::Runtime> takeRuntime(
+		const QByteArray &html);
 	[[nodiscard]] QMargins cardMargins() const;
 	[[nodiscard]] QRect cardRect() const;
 	[[nodiscard]] int countHeight() const;
 	[[nodiscard]] int infoHeight() const;
-	[[nodiscard]] bool infoBelowCard() const;
-	[[nodiscard]] std::optional<QRect> rightActionRect() const;
+	[[nodiscard]] Tgw::RendererCore *interactiveCore() const;
 	[[nodiscard]] Tgw::RendererCore *pointerCore() const;
 	[[nodiscard]] QPointF cssPoint(QPoint point) const;
 	void pressCard();
 	void releaseCard();
-	void setCardClaimed(bool claimed);
-	void drawFilename(
-		Painter &p,
-		QRect card,
-		const style::color &fg) const;
 	void drawStopped(
 		Painter &p,
 		const PaintContext &context,
 		QRect card) const;
-	void ensureDataMediaCreated() const;
-	void requestFallback() const;
 	void runtimeHeavyChanged();
 
-	const not_null<DocumentData*> _data;
-	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	std::unique_ptr<Tgw::Runtime> _runtime;
 	const ClickHandlerPtr _cardLink;
 	QPoint _pointerPoint;
-	const bool _bare = false;
-	const bool _hideReply = false;
-	mutable bool _fallbackRequested = false;
+	mutable bool _heavy = false;
 	bool _cardHovered = false;
 	bool _cardClaimed = false;
 

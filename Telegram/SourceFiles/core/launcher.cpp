@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/version.h"
 #include "base/concurrent_timer.h"
 #include "base/options.h"
-#include "tgw/tgw_document.h"
+#include "tgw/tgw_option.h"
 
 #include <QtCore/QLoggingCategory>
 #include <QtCore/QStandardPaths>

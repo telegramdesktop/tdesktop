@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/weak_ptr.h"
 
-class DocumentData;
 class HistoryItem;
 
 namespace HistoryView {
@@ -33,7 +32,7 @@ class RendererCore;
 struct RuntimeDescriptor {
 	not_null<HistoryView::Element*> view;
 	not_null<HistoryItem*> item;
-	not_null<DocumentData*> document;
+	QByteArray html;
 	Fn<void()> resize;
 	Fn<void()> repaint;
 	Fn<void()> heavyChanged;
@@ -59,6 +58,7 @@ public:
 
 	[[nodiscard]] not_null<HistoryView::Element*> view() const;
 	[[nodiscard]] not_null<HistoryItem*> item() const;
+	[[nodiscard]] const QByteArray &html() const;
 	[[nodiscard]] State state() const;
 	[[nodiscard]] bool heavy() const;
 	[[nodiscard]] bool stopped() const;
@@ -66,6 +66,11 @@ public:
 	[[nodiscard]] RendererCore *core() const;
 	[[nodiscard]] RendererCore *interactive() const;
 
+	void attachView(
+		not_null<HistoryView::Element*> view,
+		Fn<void()> resize,
+		Fn<void()> repaint,
+		Fn<void()> heavyChanged);
 	void setWidth(int width);
 	void setBubbleColor(const QColor &color);
 	void setWindow(not_null<QWidget*> window);
@@ -105,11 +110,10 @@ private:
 	void construct(std::shared_ptr<twidget::SandboxResources> resources);
 	void constructed(
 		int generation,
-		int source,
 		std::shared_ptr<twidget::WidgetHost> host,
 		const QString &error);
 	void retire(State state);
-	void failContent(const QString &error, std::optional<int> source);
+	void fail(const QString &error);
 	void failResources();
 
 	void subscribeLive();
@@ -129,12 +133,12 @@ private:
 	void addNote(const QString &text);
 	void applySample(uint64 host, uint64 request, bool last, QString text);
 
-	const not_null<HistoryView::Element*> _view;
+	not_null<HistoryView::Element*> _view;
 	const not_null<HistoryItem*> _item;
-	const not_null<DocumentData*> _document;
-	const Fn<void()> _resize;
-	const Fn<void()> _repaint;
-	const Fn<void()> _heavyChanged;
+	const QByteArray _html;
+	Fn<void()> _resize;
+	Fn<void()> _repaint;
+	Fn<void()> _heavyChanged;
 	const std::unique_ptr<Bridge> _bridge;
 	std::shared_ptr<Host> _host;
 	std::unique_ptr<RendererCore> _live;

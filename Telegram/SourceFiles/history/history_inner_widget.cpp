@@ -3193,9 +3193,6 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			&& Menu::HasRateTranscribeItem(item)) {
 			rateTranscriptionItem = item;
 		}
-		if (const auto view = item ? item->mainView() : nullptr) {
-			Tgw::AddLogAction(_menu, view, controller->uiShow());
-		}
 	};
 
 #ifdef _DEBUG // Sometimes we need to save emoji to files.
@@ -3737,6 +3734,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 							}, &st::menuIconTranslate);
 						}
 					}
+				}
+				if (view) {
+					Tgw::AddLogAction(_menu, view, controller->uiShow());
 				}
 			}
 		}

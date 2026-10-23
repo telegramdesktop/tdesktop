@@ -435,7 +435,6 @@ void AddDocumentActions(
 		not_null<Ui::PopupMenu*> menu,
 		not_null<DocumentData*> document,
 		HistoryItem *item,
-		const Element *view,
 		not_null<ListWidget*> list) {
 	if (document->loading()) {
 		menu->addAction(tr::lng_context_cancel_download(tr::now), [=] {
@@ -527,9 +526,6 @@ void AddDocumentActions(
 		menu,
 		document,
 		[=] { return list->showCopyRestrictionForSelected(); });
-	if (view) {
-		Tgw::AddLogAction(menu, view, controller->uiShow());
-	}
 }
 
 void AddPostLinkAction(
@@ -1858,7 +1854,7 @@ void FillContextMenuItems(
 	if (lnkPhoto && request.selectedItems.empty()) {
 		AddPhotoActions(result, lnkPhoto, item, list);
 	} else if (lnkDocument) {
-		AddDocumentActions(result, lnkDocument, item, view, list);
+		AddDocumentActions(result, lnkDocument, item, list);
 	} else if (poll) {
 		const auto context = list->elementContext();
 		AddPollActions(
@@ -1893,7 +1889,7 @@ void FillContextMenuItems(
 			}
 		}
 		if (const auto document = media ? media->getDocument() : nullptr) {
-			AddDocumentActions(result, document, view->data(), view, list);
+			AddDocumentActions(result, document, view->data(), list);
 		}
 		if (!link && (view->hasVisibleText() || mediaHasTextForCopy)) {
 			if (!list->hasCopyRestriction(view->data())) {
@@ -1938,6 +1934,7 @@ void FillContextMenuItems(
 				}, &st::menuIconTranslate);
 			}
 		}
+		Tgw::AddLogAction(result, view, list->controller()->uiShow());
 	}
 
 	AddCopyLinkAction(result, link);

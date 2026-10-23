@@ -11,13 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt_signal_producer.h"
 #include "core/application.h"
 #include "data/data_session.h"
+#include "history/view/history_view_element.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "platform/platform_specific.h"
 #include "tgw/tgw_bridge.h"
-#include "tgw/tgw_document.h"
 #include "tgw/tgw_intl.h"
 #include "tgw/tgw_renderer.h"
 #include "tgw/tgw_resources.h"
@@ -79,7 +79,7 @@ struct HostDeleter {
 using HostPointer = std::shared_ptr<twidget::WidgetHost>;
 
 struct Job {
-	Fn<QByteArray()> read;
+	QByteArray html;
 	std::shared_ptr<twidget::SandboxResources> resources;
 	std::shared_ptr<twidget::IntlProvider> intl;
 	twidget::RendererFactory factory;
@@ -109,7 +109,6 @@ struct Registry {
 	int jobs = 0;
 	bool checkPosted = false;
 	bool drainPosted = false;
-	bool disabled = false;
 	bool draining = false;
 	bool applicationHidden = false;
 };
@@ -405,14 +404,10 @@ void AppendTail(
 }
 
 [[nodiscard]] Built Build(Job job) {
-	const auto html = job.read();
-	if (html.isEmpty()) {
-		return { .error = u"Could not read the widget file."_q };
-	}
 	try {
 		auto host = HostPointer(
 			new twidget::WidgetHost(
-				std::string(html.constData(), size_t(html.size())),
+				std::string(job.html.constData(), size_t(job.html.size())),
 				std::move(job.theme),
 				job.width,
 				job.options,
@@ -431,35 +426,6 @@ void AppendTail(
 	}
 }
 
-void PostRefresh(not_null<HistoryItem*> item) {
-	const auto session = &item->history()->session();
-	const auto id = item->fullId();
-	crl::on_main(session, [=] {
-		const auto owner = &session->data();
-		if (const auto found = owner->message(id)) {
-			owner->requestItemViewRefresh(found);
-		}
-	});
-}
-
-void DisableAll() {
-	auto &registry = Runtimes();
-	if (registry.disabled) {
-		return;
-	}
-	registry.disabled = true;
-	auto items = std::vector<WidgetItemId>();
-	items.reserve(registry.list.size());
-	for (const auto &runtime : registry.list) {
-		const auto item = runtime->item();
-		items.push_back({
-			.session = &item->history()->session(),
-			.id = item->fullId(),
-		});
-	}
-	DisableWidgetViews(items);
-}
-
 } // namespace
 
 struct Runtime::Host {
@@ -474,11 +440,13 @@ struct Runtime::Host {
 Runtime::Runtime(RuntimeDescriptor &&descriptor)
 : _view(descriptor.view)
 , _item(descriptor.item)
-, _document(descriptor.document)
+, _html(std::move(descriptor.html))
 , _resize(std::move(descriptor.resize))
 , _repaint(std::move(descriptor.repaint))
 , _heavyChanged(std::move(descriptor.heavyChanged))
 , _bridge(std::make_unique<Bridge>(descriptor.item)) {
+	Expects(!_html.isEmpty());
+
 	auto &registry = Runtimes();
 	if (registry.list.empty()) {
 		Platform::ApplicationHiddenValue(
@@ -539,6 +507,10 @@ not_null<HistoryItem*> Runtime::item() const {
 	return _item;
 }
 
+const QByteArray &Runtime::html() const {
+	return _html;
+}
+
 Runtime::State Runtime::state() const {
 	return _state;
 }
@@ -571,6 +543,23 @@ RendererCore *Runtime::interactive() const {
 		&& live->acceptsInput())
 		? live
 		: nullptr;
+}
+
+void Runtime::attachView(
+		not_null<HistoryView::Element*> view,
+		Fn<void()> resize,
+		Fn<void()> repaint,
+		Fn<void()> heavyChanged) {
+	Expects(view->data() == _item);
+
+	_view = view;
+	_resize = std::move(resize);
+	_repaint = std::move(repaint);
+	_heavyChanged = std::move(heavyChanged);
+	if (_live) {
+		_live->resetInput();
+	}
+	PostCheck();
 }
 
 void Runtime::setWidth(int width) {
@@ -896,7 +885,6 @@ Runtime *Runtime::FindVictim() {
 bool Runtime::startable() const {
 	return (_state != State::Stopped)
 		&& (_state != State::Failed)
-		&& !Runtimes().disabled
 		&& !Runtimes().draining
 		&& !Core::Quitting();
 }
@@ -953,13 +941,6 @@ void Runtime::resourcesReady(
 
 void Runtime::construct(
 		std::shared_ptr<twidget::SandboxResources> resources) {
-	auto reader = PrepareContentReader(_document);
-	if (!reader) {
-		failContent(
-			u"The widget file changed or is unavailable."_q,
-			std::nullopt);
-		return;
-	}
 	const auto width = CssWidth(_width);
 	const auto ratio = CoreRatio();
 	_live = std::make_unique<RendererCore>(width, ratio);
@@ -968,7 +949,7 @@ void Runtime::construct(
 	_hostVisible = _visible;
 	_hostDark = _dark;
 	auto job = Job{
-		.read = std::move(reader->read),
+		.html = _html,
 		.resources = std::move(resources),
 		.intl = CreateHostIntl(),
 		.factory = _live->hostFactory(),
@@ -981,7 +962,6 @@ void Runtime::construct(
 	};
 	const auto weak = base::make_weak(this);
 	const auto generation = _generation;
-	const auto source = reader->generation;
 	++Runtimes().jobs;
 	crl::async([=, job = std::move(job)]() mutable {
 		auto built = Build(std::move(job));
@@ -989,7 +969,6 @@ void Runtime::construct(
 			if (const auto strong = weak.get()) {
 				strong->constructed(
 					generation,
-					source,
 					base::take(built.host),
 					built.error);
 			}
@@ -1001,13 +980,12 @@ void Runtime::construct(
 
 void Runtime::constructed(
 		int generation,
-		int source,
 		std::shared_ptr<twidget::WidgetHost> host,
 		const QString &error) {
 	if (generation != _generation || _state != State::Constructing) {
 		return;
 	} else if (!host) {
-		failContent(error, source);
+		fail(error);
 		return;
 	} else if (Core::Quitting()) {
 		release();
@@ -1061,23 +1039,15 @@ void Runtime::retire(State state) {
 	}
 }
 
-void Runtime::failContent(
-		const QString &error,
-		std::optional<int> source) {
+void Runtime::fail(const QString &error) {
 	retire(State::Failed);
 	addNote(error);
-	if (source) {
-		LOG(("Tgw Error: %1").arg(error));
-		MarkContentUnavailable(_document, *source, _item->fullId());
-	} else {
-		PostRefresh(_item);
-	}
+	LOG(("Tgw Error: %1").arg(error));
+	displayChanged(true);
 }
 
 void Runtime::failResources() {
-	retire(State::Failed);
-	addNote(u"The sandbox resources are unavailable."_q);
-	DisableAll();
+	fail(u"The sandbox resources are unavailable."_q);
 }
 
 void Runtime::subscribeLive() {

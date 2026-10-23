@@ -1050,6 +1050,8 @@ PRIVATE
     history/view/media/history_view_giveaway.h
     history/view/media/history_view_gram_transfer.cpp
     history/view/media/history_view_gram_transfer.h
+    history/view/media/history_view_html_widget.cpp
+    history/view/media/history_view_html_widget.h
     history/view/media/history_view_invoice.cpp
     history/view/media/history_view_invoice.h
     history/view/media/history_view_large_emoji.cpp
@@ -1113,8 +1115,6 @@ PRIVATE
     history/view/media/history_view_video_status.h
     history/view/media/history_view_web_page.cpp
     history/view/media/history_view_web_page.h
-    history/view/media/history_view_widget_document.cpp
-    history/view/media/history_view_widget_document.h
     history/view/reactions/history_view_reactions.cpp
     history/view/reactions/history_view_reactions.h
     history/view/reactions/history_view_reactions_button.cpp
@@ -2198,14 +2198,14 @@ PRIVATE
     tgw/tgw_canvas.h
     tgw/tgw_cursor.cpp
     tgw/tgw_cursor.h
-    tgw/tgw_document.cpp
-    tgw/tgw_document.h
     tgw/tgw_intl.cpp
     tgw/tgw_intl.h
     tgw/tgw_log_box.cpp
     tgw/tgw_log_box.h
     tgw/tgw_media.cpp
     tgw/tgw_media.h
+    tgw/tgw_option.cpp
+    tgw/tgw_option.h
     tgw/tgw_painter.cpp
     tgw/tgw_painter.h
     tgw/tgw_painter_filters.cpp

@@ -16,6 +16,8 @@ struct Anchors {
 	int height = 0;
 };
 
+[[nodiscard]] QByteArray UnpackPayload(const QByteArray &payload);
+
 class WidgetMedia final : public Data::Media {
 public:
 	WidgetMedia(
@@ -28,6 +30,7 @@ public:
 
 	[[nodiscard]] Anchors anchors() const;
 	[[nodiscard]] const QByteArray &payload() const;
+	[[nodiscard]] const QByteArray &html() const;
 
 	ItemPreview toPreview(ToPreviewOptions options) const override;
 	TextWithEntities notificationText() const override;
@@ -44,6 +47,7 @@ public:
 private:
 	Anchors _anchors;
 	QByteArray _payload;
+	mutable std::optional<QByteArray> _html;
 
 };
 

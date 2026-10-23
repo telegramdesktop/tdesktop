@@ -63,6 +63,7 @@ public:
 	void pointerLeave();
 	void pointerPress(QPointF point, int modifiers);
 	void pointerRelease(QPointF point, int modifiers);
+	void resetInput();
 	[[nodiscard]] bool hovered() const;
 	[[nodiscard]] bool pressed() const;
 	[[nodiscard]] bool claimed() const;
@@ -109,7 +110,6 @@ private:
 	void trackHover();
 	[[nodiscard]] std::vector<twidget::Json> leaveHover();
 	void inputDone(const std::vector<twidget::Json> &out, bool wasDirty);
-	void resetInput();
 	void releaseInput();
 	void flushQueued();
 

@@ -631,7 +631,7 @@ void RendererCore::hostMessage(const twidget::Json &message) {
 		refreshClock();
 		return;
 	} else if (type == "frozen") {
-		// WHY: WidgetDocument::drawStopped() paints the themed stop pill; the
+		// WHY: HtmlWidget::drawStopped() paints the themed stop pill; the
 		// core's own freeze would rebuild its badge and fatal dimming into
 		// the last frame, so the core never sees this message.
 		_stopped = true;
