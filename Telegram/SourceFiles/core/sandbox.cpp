@@ -50,6 +50,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Core {
 namespace {
 
+constexpr auto kLocalClientBufferLimit = 1024 * 1024;
+
 #if defined Q_OS_LINUX && QT_VERSION >= QT_VERSION_CHECK(6, 2, 0)
 // WHY: the abstract socket namespace has no file permissions, so any process
 // in the network namespace can connect; the peer credentials restore the
@@ -592,6 +594,12 @@ void Sandbox::readClients() {
 			continue;
 		}
 		client->buffer.append(socket->readAll());
+		if (client->buffer.size() > kLocalClientBufferLimit) {
+			LOG(("Sandbox Error: local socket client buffer overflow."));
+			client->buffer.clear();
+			socket->abort(); // emits disconnected, so client is gone now
+			continue;
+		}
 		if (client->buffer.size()) {
 			QString cmds(QString::fromLatin1(client->buffer));
 			int32 from = 0, l = cmds.length();
