@@ -112,6 +112,25 @@ const auto kBadPrefix = u"http://"_q;
 	return true;
 }
 
+[[nodiscard]] bool SchemeRequiresConfirmation(const QString &url) {
+	if (UrlClickHandler::IsEmail(url)) {
+		return false;
+	}
+	const auto opened = UrlClickHandler::EncodeForOpening(url);
+	const auto scheme = opened.left(opened.indexOf(':')).toLower();
+	static const auto allowed = std::array{
+		u"http"_q,
+		u"https"_q,
+		u"ftp"_q,
+		u"itmss"_q,
+		u"tg"_q,
+		u"tonsite"_q,
+		u"ton"_q,
+		u"tc"_q,
+	};
+	return !ranges::contains(allowed, scheme);
+}
+
 [[nodiscard]] QString OpenGLCheckFilePath() {
 	return cWorkingDir() + "tdata/opengl_crash_check";
 }
@@ -328,7 +347,8 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 			return nullptr;
 		}
 		return (!data.data.isEmpty()
-			&& UrlClickHandler::IsSuspicious(data.data))
+			&& (UrlClickHandler::IsSuspicious(data.data)
+				|| SchemeRequiresConfirmation(data.data)))
 			? std::make_shared<HiddenUrlClickHandler>(data.data)
 			: Integration::createLinkHandler(data, context);
 

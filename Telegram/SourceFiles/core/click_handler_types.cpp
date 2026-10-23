@@ -205,7 +205,9 @@ constexpr auto kReminderSetToastDuration = 4 * crl::time(1000);
 [[nodiscard]] bool HiddenUrlRequiresConfirmation(
 		const QUrl &url,
 		const ClickHandlerContext &my) {
-	return !HostInDomains(url.host(), WhitelistedDomains(my))
+	const auto scheme = url.scheme().toLower();
+	return (scheme != u"https"_q && scheme != u"http"_q)
+		|| !HostInDomains(url.host(), WhitelistedDomains(my))
 		|| IsTelegramShortLinkHost(url);
 }
 

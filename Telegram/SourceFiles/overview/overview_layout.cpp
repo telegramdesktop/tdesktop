@@ -88,9 +88,14 @@ using ::Media::ValidFrameSize;
 }
 
 [[nodiscard]] ClickHandlerPtr MakeUrlHandler(const QString &url) {
-	return UrlClickHandler::IsSuspicious(url)
-		? std::make_shared<HiddenUrlClickHandler>(url)
-		: std::make_shared<UrlClickHandler>(url, false);
+	return Ui::Integration::Instance().createLinkHandler(
+		EntityLinkData{
+			.text = url,
+			.data = url,
+			.type = EntityType::Url,
+			.shown = EntityLinkShown::Partial,
+		},
+		Ui::Text::MarkedContext());
 }
 
 void OpenPreferringIv(
