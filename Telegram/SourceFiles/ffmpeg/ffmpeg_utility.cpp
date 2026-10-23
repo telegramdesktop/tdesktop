@@ -44,8 +44,6 @@ void _libdrm_so_tramp_resolve_all(void) __attribute__((weak));
 namespace FFmpeg {
 namespace {
 
-// See https://github.com/telegramdesktop/tdesktop/issues/7225
-constexpr auto kAlignImageBy = 64;
 constexpr auto kImageFormat = QImage::Format_ARGB32_Premultiplied;
 constexpr auto kMaxScaleByAspectRatio = 16;
 constexpr auto kAvioBlockSize = 4096;
@@ -100,23 +98,24 @@ void AlignedImageBufferCleanupHandler(void *data) {
 
 [[nodiscard]] bool ComputeAlignedFrameStorageLayout(
 		QSize size,
+		int minBytesPerLine,
 		AlignedFrameStorageLayout *out) {
 	const auto width = size.width();
 	const auto height = size.height();
-	if (width <= 0 || height <= 0) {
+	if (width <= 0 || height <= 0 || minBytesPerLine < 0) {
 		return false;
 	}
-	const auto widthAlign = kAlignImageBy / kPixelBytesSize;
-	const auto widthRemainder = width % widthAlign;
-	const auto widthPadding = widthRemainder
-		? (widthAlign - widthRemainder)
-		: 0;
-	const auto alignedWidth = int64_t(width) + widthPadding;
-	const auto bytesPerLine = int64_t(alignedWidth) * kPixelBytesSize;
+	const auto requested = std::max(
+		int64_t(width) * kPixelBytesSize,
+		int64_t(minBytesPerLine));
+	const auto remainder = requested % kAlignImageBy;
+	const auto bytesPerLine = remainder
+		? (requested + kAlignImageBy - remainder)
+		: requested;
 	if (bytesPerLine > kMaxFrameStorageBytes) {
 		return false;
 	}
-	const auto totalBytes = int64_t(bytesPerLine) * height + kAlignImageBy;
+	const auto totalBytes = bytesPerLine * height + kAlignImageBy;
 	if (totalBytes > kMaxFrameStorageBytes) {
 		return false;
 	}
@@ -790,18 +789,32 @@ QSize TransposeSizeByRotation(QSize size, int rotation) {
 	return RotationSwapWidthHeight(rotation) ? size.transposed() : size;
 }
 
-bool GoodStorageForFrame(const QImage &storage, QSize size) {
-	return !storage.isNull()
-		&& (storage.format() == kImageFormat)
-		&& (storage.size() == size)
-		&& storage.isDetached()
-		&& IsAlignedImage(storage);
+bool GoodStorageForFrame(
+		const QImage &storage,
+		QSize size,
+		int minBytesPerLine) {
+	if (storage.isNull()
+		|| (storage.format() != kImageFormat)
+		|| (storage.size() != size)
+		|| !storage.isDetached()
+		|| !IsAlignedImage(storage)) {
+		return false;
+	} else if (minBytesPerLine <= 0) {
+		return true;
+	}
+	const auto bytesPerLine = storage.bytesPerLine();
+	if (bytesPerLine < minBytesPerLine
+		|| bytesPerLine > kMaxFrameStorageBytes) {
+		return false;
+	}
+	auto layout = AlignedFrameStorageLayout();
+	return ComputeAlignedFrameStorageLayout(size, int(bytesPerLine), &layout);
 }
 
 // Create a QImage of desired size where all the data is properly aligned.
-QImage CreateFrameStorage(QSize size) {
+QImage CreateFrameStorage(QSize size, int minBytesPerLine) {
 	auto layout = AlignedFrameStorageLayout();
-	if (!ComputeAlignedFrameStorageLayout(size, &layout)) {
+	if (!ComputeAlignedFrameStorageLayout(size, minBytesPerLine, &layout)) {
 		return {};
 	}
 	// Not `new (std::nothrow)`: the operator new handler installed by
