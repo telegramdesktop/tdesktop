@@ -175,6 +175,14 @@ FrameGenerator::Frame FrameGenerator::Impl::renderCurrent(
 		size.transpose();
 	}
 	const auto scaled = QSize(width, height).scaled(size, mode);
+	if (scaled.isEmpty()) {
+		LOG(("Webm Error: Bad scaled frame size %1x%2 -> %3x%4"
+			).arg(width
+			).arg(height
+			).arg(scaled.width()
+			).arg(scaled.height()));
+		return {};
+	}
 	if (!GoodStorageForFrame(storage, size)) {
 		storage = CreateFrameStorage(size);
 		if (storage.isNull()) {
@@ -212,7 +220,10 @@ FrameGenerator::Frame FrameGenerator::Impl::renderCurrent(
 			dstSize,
 			dstFormat,
 			&_scale);
-		Assert(_scale != nullptr);
+		if (!_scale) {
+			LOG(("Webm Error: Unable to create sws context."));
+			return {};
+		}
 
 		// AV_NUM_DATA_POINTERS defined in AVFrame struct
 		uint8_t *dstData[AV_NUM_DATA_POINTERS] = { dst, nullptr };
