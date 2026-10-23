@@ -28,6 +28,7 @@ should call.
 | [test_mapped_target](test_mapped_target.md) | Self-test | Self-test for full mapped-target visibility |
 | [test_post_paint](test_post_paint.md) | API | Samples after real product paints |
 | [test_animation_clock](test_animation_clock.md) | API | Deterministic elapsed-time animation frames |
+| [test_paint_stream](test_paint_stream.md) | API | Whole-owner QPicture streams and manifest for optimized replay timing |
 | [test_corner_patch](test_corner_patch.md) | API | Rounded-corner comparisons and controls |
 | [test_marking_read](test_marking_read.md) | API | Prevent primary-window read marking |
 | [test_window_exposure](test_window_exposure.md) | API | Keep covered windows painting without activation |

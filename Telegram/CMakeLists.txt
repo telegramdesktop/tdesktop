@@ -2098,6 +2098,7 @@ PRIVATE
     test/test_notify_override.h
     test/test_open_handoff.cpp
     test/test_open_handoff.h
+    test/test_paint_stream.h
     test/test_palette.cpp
     test/test_palette.h
     test/test_panel.cpp

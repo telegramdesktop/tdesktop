@@ -102,6 +102,16 @@ target come from `.agents/shared/evidence/ninja_target.py` resolving the exact
 consuming output; a glob, a basename or a `compdb`/`compdb-targets` listing is
 not proof of consumption. See [ninja-target-evidence.md](ninja-target-evidence.md).
 
+Before a campaign relies on a standalone component executable, gate the exact
+file with `.agents/shared/evidence/native_exec.py`; a successful link or a
+header naming the host architecture does not show that it runs natively. See
+[native-execution.md](evidence/native-execution.md). A whole-widget paint cost
+records the real owner and replays it in gated optimized Qt
+([paint-replay.md](evidence/paint-replay.md)); a timed motion window is judged
+by declared state coverage, exact identities and handler-time origins
+([motion-window.md](evidence/motion-window.md)), never by a minimum record
+count.
+
 Use Telegram only when it adds causal coverage. App behavior that lives in the
 client normally requires the Debug binary and instrumented execution. Visible
 claims additionally require captures. Isolated library or build behavior may be

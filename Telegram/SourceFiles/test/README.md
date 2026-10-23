@@ -63,6 +63,9 @@ Read [capture selection](docs/helpers/test_capture.md), then select only the
 needed [ink](docs/helpers/test_ink.md), [post-paint](docs/helpers/test_post_paint.md),
 [clocked-frame](docs/helpers/test_animation_clock.md) or
 [corner](docs/helpers/test_corner_patch.md) reference.
+Time a whole widget's paint by recording the real owner with
+[paint streams](docs/helpers/test_paint_stream.md) and replaying it in
+optimized Qt; a Debug paint timing is not a paint cost.
 
 ## Helper catalog
 
