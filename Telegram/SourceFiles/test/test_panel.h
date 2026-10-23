@@ -282,30 +282,54 @@ void LogPanelWalk(const QString &name, const PanelWalk &reading);
 // (0x8) is independent of the size mode and never refuses, so an active
 // normal panel (state 8) is sizable.
 //
+// PanelSizeModeStates is the effective state the sizing helpers decide on:
+// |states| unchanged, except on macOS for a fixed-size panel at its fixed
+// size (|minimum| == |maximum| == |outer|), where it clears
+// Qt::WindowMaximized. Qt cocoa reports NSWindow.zoomed as
+// Qt::WindowMaximized (QCocoaWindow::windowState() in qcocoawindow.mm), and
+// AppKit reads a window whose minimum equals its maximum as zoomed, because
+// the zoom frame is clamped to its only possible size. So a shown
+// fixed-size frameless panel reads 2 (10 when active) with nothing having
+// maximized it, and can read 0 after a programmatic resize or move. That
+// bit is derived from the frame and the constraints, which these helpers
+// restore exactly, and a zoom cannot change such a frame. Minimized and
+// fullscreen are never cleared, Qt::WindowActive is kept, Maximized stays
+// on any other frame, and on every other platform nothing is cleared.
+//
 // GrowPanelInnerHeight records the panel's outer geometry, body
 // (innerGeometry()), current inner request
 // (rect().marginsRemoved(computePadding()).size()), minimum and maximum
-// size and full windowState() first, so a refused sizing still prints full
-// telemetry. It then refuses, first applicable, "not a top-level window",
-// "hidden", the size-mode refusal, "resizable panel" (minimum != maximum:
-// setInnerSize defaults allowResize to false and would silently make it
-// fixed and drop its resize edges) and "no height increase requested"
-// (|extra| <= 0). Otherwise it calls setInnerSize(request + 0x|extra|) and
-// the sizing is owed. It never activates the panel, raises it or changes
-// its window state.
+// size and full raw windowState() first, so a refused sizing still prints
+// full telemetry. It then refuses, first applicable, "not a top-level
+// window", "hidden", the size-mode refusal of the recorded frame's
+// effective state (PanelSizeModeRefusal(PanelSizeModeStates(...))),
+// "resizable panel" (minimum != maximum: setInnerSize defaults allowResize
+// to false and would silently make it fixed and drop its resize edges) and
+// "no height increase requested" (|extra| <= 0). Otherwise it calls
+// setInnerSize(request + 0x|extra|) and the sizing is owed. It never
+// activates the panel, raises it or changes its window state.
 //
 // Geometry settles asynchronously on macOS: wait for PanelSizingApplied
 // (current request == |applied|, body height grown by exactly |extra|,
-// full state unchanged) and, after RestorePanelSizing, for
-// PanelSizingRestored (nothing owed, and geometry, inner geometry, minimum,
-// maximum and full state equal the recorded values) in a pure |until|;
-// both are pure. RestorePanelSizing is idempotent: when owed it calls
+// effective state unchanged) and, after RestorePanelSizing, for
+// PanelSizingRestored (nothing owed, geometry, inner geometry, request,
+// minimum and maximum equal to the recorded values and the effective
+// state equal to the recorded one) in a pure |until|; both are pure. The
+// effective state is the size mode plus the Qt::WindowActive bit: the raw
+// macOS zoom reading flips on the helper's own setInnerSize, and recreating
+// it would need showMaximized(), a window-state change these helpers never
+// make. RestorePanelSizing is idempotent: when owed it calls
 // setInnerSize(request) and move(outer.topLeft()) on a live panel and
 // clears |owed|, and a panel already gone owes nothing. Call it from
 // Runner::onFinish before the panel is destroyed. Reference:
 // docs/helpers/test_panel.md, "Sizing an oversized panel fixture".
 [[nodiscard]] QString WindowStatesText(Qt::WindowStates states);
 [[nodiscard]] QString PanelSizeModeRefusal(Qt::WindowStates states);
+[[nodiscard]] Qt::WindowStates PanelSizeModeStates(
+	Qt::WindowStates states,
+	QSize outer,
+	QSize minimum,
+	QSize maximum);
 
 struct PanelSizing {
 	QPointer<Ui::SeparatePanel> panel;
@@ -327,9 +351,11 @@ struct PanelSizing {
 void RestorePanelSizing(PanelSizing &sizing);
 [[nodiscard]] bool PanelSizingRestored(const PanelSizing &sizing);
 
-// "panel=<identity> frozen={outer= body= request= min= max= state=}
-// now={...} applied=<WxH|none> owed=<0|1> refusal=<refusal|none>", with
-// now=<gone> once the panel is destroyed.
+// "panel=<identity> frozen={outer= body= request= min= max= state=
+// effective=} now={...} applied=<WxH|none> owed=<0|1>
+// refusal=<refusal|none>", with now=<gone> once the panel is destroyed.
+// state= is the raw windowState() and effective= its PanelSizeModeStates on
+// that frame, so a cleared zoom bit is always visible.
 [[nodiscard]] QString PanelSizingText(const PanelSizing &sizing);
 
 // This module measuring itself over a synthetic top level

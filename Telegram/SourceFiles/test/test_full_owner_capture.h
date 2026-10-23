@@ -55,7 +55,9 @@ class Runner;
 // - group C, Part C: C1 a crop past the owner, C2 the viewport-clipped row
 //   with its owner-only and owner-as-origin premises, C3 the joint Part C x
 //   Part D typed reading (deleted with either part), C4 the pure size-mode
-//   classifier, C5 growth through setInnerSize by a measured extra, C6 the
+//   classifier and the effective state PanelSizeModeStates hands it (the
+//   macOS fixed-size zoom bit cleared on a fixed frame at its size only),
+//   C5 growth through setInnerSize by a measured extra, C6 the
 //   same crop and row accepted whole, C7 the normal restore and C8 a second
 //   growth restored by the finish-path call; both restores are
 //   Runner::addRecovery stages that run whenever a sizing is owed.

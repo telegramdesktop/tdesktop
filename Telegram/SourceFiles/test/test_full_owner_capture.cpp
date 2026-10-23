@@ -247,6 +247,28 @@ struct CropWidgets {
 	Ui::RpWidget *clipped = nullptr;
 };
 
+// A frame a pure C4 arm reads the sizing gate on: the outer size and the
+// constraints PanelSizeModeStates decides the effective state from.
+struct GateFrame {
+	QSize outer;
+	QSize minimum;
+	QSize maximum;
+};
+
+// One pure C4 reading: the effective state of a raw state on a GateFrame,
+// the refusal the sizing setup gives it, and both printed.
+struct GateReading {
+	Qt::WindowStates effective = Qt::WindowNoState;
+	QString refusal;
+	QString text;
+};
+
+// The arms of one C4 Check: their readings and whether every one held.
+struct GateArms {
+	QStringList texts;
+	bool held = true;
+};
+
 struct State {
 	Fixture fixture;
 	PaintGroup paint;
@@ -2387,8 +2409,77 @@ void CheckJointTypedReading(const State &state) {
 		MappedTargetDetails(descendant));
 }
 
+[[nodiscard]] QString SizeText(QSize size) {
+	return u"%1x%2"_q.arg(size.width()).arg(size.height());
+}
+
+[[nodiscard]] GateReading ReadGate(
+		Qt::WindowStates states,
+		const GateFrame &frame) {
+	auto result = GateReading{
+		.effective = PanelSizeModeStates(
+			states,
+			frame.outer,
+			frame.minimum,
+			frame.maximum),
+	};
+	result.refusal = PanelSizeModeRefusal(result.effective);
+	result.text = u"%1 outer=%2 min=%3 max=%4 effective=%5: %6"_q
+		.arg(WindowStatesText(states))
+		.arg(SizeText(frame.outer))
+		.arg(SizeText(frame.minimum))
+		.arg(SizeText(frame.maximum))
+		.arg(WindowStatesText(result.effective))
+		.arg(result.refusal.isEmpty() ? u"sizable"_q : result.refusal);
+	return result;
+}
+
+// An arm expected sizable holds when the gate clears the Maximized bit
+// alone and accepts; one expected refused, when it keeps every bit and
+// refuses.
+void ReadGateArm(
+		GateArms &arms,
+		Qt::WindowStates states,
+		const GateFrame &frame,
+		bool sizable) {
+	const auto reading = ReadGate(states, frame);
+	auto cleared = states;
+	cleared.setFlag(Qt::WindowMaximized, false);
+	const auto held = sizable
+		? (reading.refusal.isEmpty() && (reading.effective == cleared))
+		: (!reading.refusal.isEmpty() && (reading.effective == states));
+	arms.held = arms.held && held;
+	arms.texts.push_back(reading.text);
+}
+
+// C4: the live panel's raw state, the effective state the sizing setup
+// reads from it on its current frame, and that setup's decision.
+void NoteLiveSizeMode(const State &state) {
+	const auto panel = state.fixture.panel.get();
+	if (!panel) {
+		Note(u"full-owner capture self-test: C4 size modes: live panel "
+			u"state <gone>"_q);
+		return;
+	}
+	const auto raw = panel->windowState();
+	const auto frame = GateFrame{
+		.outer = panel->geometry().size(),
+		.minimum = panel->minimumSize(),
+		.maximum = panel->maximumSize(),
+	};
+	const auto reading = ReadGate(raw, frame);
+	Note(u"full-owner capture self-test: C4 size modes: live panel state %1 "
+		u"effective=%2 outer=%3 min=%4 max=%5 refusal=%6"_q
+		.arg(WindowStatesText(raw))
+		.arg(WindowStatesText(reading.effective))
+		.arg(SizeText(frame.outer))
+		.arg(SizeText(frame.minimum))
+		.arg(SizeText(frame.maximum))
+		.arg(reading.refusal.isEmpty() ? u"none"_q : reading.refusal));
+}
+
 // C4, pure: the classifier the sizing setup refuses through.
-void CheckSizeModes(const State &state) {
+void CheckSizeModeClassifier() {
 	const auto sizable = std::array<Qt::WindowStates, 2>{
 		Qt::WindowNoState,
 		Qt::WindowActive,
@@ -2422,13 +2513,6 @@ void CheckSizeModes(const State &state) {
 				+ (refusal.isEmpty() ? u"sizable"_q : refusal));
 		}
 	}
-	const auto panel = state.fixture.panel.get();
-	const auto live = panel ? panel->windowState() : Qt::WindowStates();
-	const auto liveRefusal = PanelSizeModeRefusal(live);
-	Note(u"full-owner capture self-test: C4 size modes: live panel state %1 "
-		u"refusal=%2"_q.arg(
-			panel ? WindowStatesText(live) : u"<gone>"_q,
-			liveRefusal.isEmpty() ? u"none"_q : liveRefusal));
 	Check(
 		accepted,
 		u"full-owner capture self-test: C4 size modes: a normal and an "
@@ -2441,6 +2525,93 @@ void CheckSizeModes(const State &state) {
 		u"and fullscreen are each refused, alone and with "
 		u"Qt::WindowActive"_q,
 		refusedText.join(u"; "_q));
+}
+
+// C4, pure: the effective state the sizing setup hands that classifier.
+// Only on macOS, and only for a fixed-size frame at its fixed size, is the
+// Maximized bit cleared, so every arm here fails if that rule widens,
+// narrows or reaches another platform.
+void CheckFixedSizeZoom() {
+	const auto row = Row();
+	const auto fixed = QSize(row * kPanelSide, row * kPanelSide);
+	const auto atSize = GateFrame{
+		.outer = fixed,
+		.minimum = fixed,
+		.maximum = fixed,
+	};
+	const auto zoomed = std::array<Qt::WindowStates, 2>{
+		Qt::WindowMaximized,
+		Qt::WindowMaximized | Qt::WindowActive,
+	};
+#ifdef Q_OS_MAC
+	const auto taller = fixed + QSize(0, row);
+	const auto resizable = GateFrame{
+		.outer = fixed,
+		.minimum = fixed,
+		.maximum = taller,
+	};
+	const auto elsewhere = GateFrame{
+		.outer = taller,
+		.minimum = fixed,
+		.maximum = fixed,
+	};
+	const auto modes = std::array<Qt::WindowStates, 4>{
+		Qt::WindowMinimized,
+		Qt::WindowMinimized | Qt::WindowActive,
+		Qt::WindowFullScreen,
+		Qt::WindowFullScreen | Qt::WindowActive,
+	};
+	auto cleared = GateArms();
+	auto zoom = GateArms();
+	for (const auto states : zoomed) {
+		ReadGateArm(cleared, states, atSize, true);
+		ReadGateArm(zoom, states, resizable, false);
+		ReadGateArm(zoom, states, elsewhere, false);
+	}
+	auto kept = GateArms();
+	for (const auto states : modes) {
+		ReadGateArm(kept, states, atSize, false);
+	}
+	Check(
+		cleared.held,
+		u"full-owner capture self-test: C4 size modes: on macOS a fixed-size "
+		u"panel at its fixed size reading maximized, alone or with "
+		u"Qt::WindowActive, is sizable with its Active bit kept - Qt cocoa "
+		u"reports NSWindow.zoomed, which such a window always is, as "
+		u"Qt::WindowMaximized"_q,
+		cleared.texts.join(u"; "_q));
+	Check(
+		zoom.held,
+		u"full-owner capture self-test: C4 size modes: on macOS the same "
+		u"maximized readings are refused when the minimum differs from the "
+		u"maximum or the outer size from the fixed size, where a zoom does "
+		u"change the frame"_q,
+		zoom.texts.join(u"; "_q));
+	Check(
+		kept.held,
+		u"full-owner capture self-test: C4 size modes: on macOS minimized and "
+		u"fullscreen are never cleared - each is refused on a fixed frame at "
+		u"its size, alone and with Qt::WindowActive"_q,
+		kept.texts.join(u"; "_q));
+#else // Q_OS_MAC
+	auto refused = GateArms();
+	for (const auto states : zoomed) {
+		ReadGateArm(refused, states, atSize, false);
+	}
+	Check(
+		refused.held,
+		u"full-owner capture self-test: C4 size modes: off macOS no bit is "
+		u"cleared - maximized, alone and with Qt::WindowActive, is refused "
+		u"on a fixed frame at its size"_q,
+		refused.texts.join(u"; "_q));
+#endif // Q_OS_MAC
+}
+
+// C4, pure apart from its NOTE: the classifier, then the effective state.
+void CheckSizeModes(const State &state) {
+	NoteLiveSizeMode(state);
+	CheckSizeModeClassifier();
+	CheckFixedSizeZoom();
 }
 
 // The extra height that fits both the clipped row with the bottom reserve
@@ -2498,7 +2669,19 @@ void GrowPanel(not_null<State*> state) {
 			: sizing.refusal);
 }
 
-// Two sizings froze the same frame of the same panel.
+// The effective state a sizing froze, the one the sizing helpers compare.
+[[nodiscard]] Qt::WindowStates FrozenEffectiveState(
+		const PanelSizing &sizing) {
+	return PanelSizeModeStates(
+		sizing.state,
+		sizing.outer.size(),
+		sizing.minimum,
+		sizing.maximum);
+}
+
+// Two sizings froze the same frame of the same panel. The state compared is
+// the effective one: the raw macOS zoom reading of a fixed-size panel flips
+// on the helper's own resize, so C8 can freeze 0 where C5 froze 2.
 [[nodiscard]] bool SameFrozenFrame(
 		const PanelSizing &a,
 		const PanelSizing &b) {
@@ -2508,7 +2691,7 @@ void GrowPanel(not_null<State*> state) {
 		&& (a.request == b.request)
 		&& (a.minimum == b.minimum)
 		&& (a.maximum == b.maximum)
-		&& (a.state == b.state);
+		&& (FrozenEffectiveState(a) == FrozenEffectiveState(b));
 }
 
 [[nodiscard]] QString GrowthText(const State &state) {
@@ -2528,8 +2711,8 @@ void GrowPanel(not_null<State*> state) {
 
 // The growth was applied through setInnerSize with full telemetry: every
 // frozen value recorded, the request grown by exactly the extra, the body
-// grown by it and the full window state unchanged. It froze the original
-// frame: trivially for C5, which records it, and measured for C8.
+// grown by it and the effective window state unchanged. It froze the
+// original frame: trivially for C5, which records it, and measured for C8.
 void CheckGrowth(not_null<State*> state, const QString &what) {
 	auto &crop = state->crop;
 	const auto &sizing = state->sizing;
@@ -2667,15 +2850,16 @@ void CheckGrownAccepted(const State &state) {
 }
 
 // C7: the frozen values are the original frame, so restored means the
-// exact original outer and body geometry, constraints and full state.
+// exact original outer and body geometry, request, constraints and
+// effective state.
 void CheckNormalRestore(not_null<State*> state) {
 	LayoutFixture(&state->fixture);
 	Check(
 		PanelSizingRestored(state->sizing)
 			&& SameFrozenFrame(state->sizing, state->crop.original),
 		u"full-owner capture self-test: C7 normal restore: the panel's exact "
-		u"original outer and body geometry, minimum and maximum size and "
-		u"full window state are restored"_q,
+		u"original outer and body geometry, inner request, minimum and "
+		u"maximum size and effective window state are restored"_q,
 		RestoreText(*state));
 	const auto widgets = ReadCropWidgets(state->fixture);
 	if (!widgets.panel) {
@@ -2707,7 +2891,8 @@ void CheckAbortRestore(const State &state) {
 			&& SameFrozenFrame(state.sizing, state.crop.original),
 		u"full-owner capture self-test: C8 controlled abort: the finish-path "
 		u"release restores the panel's exact original outer and body "
-		u"geometry, minimum and maximum size and full window state"_q,
+		u"geometry, inner request, minimum and maximum size and effective "
+		u"window state"_q,
 		RestoreText(state));
 }
 
@@ -2773,8 +2958,8 @@ void AppendGrowStages(not_null<Runner*> runner, not_null<State*> state) {
 				state,
 				u"full-owner capture self-test: C5 grow: the typed panel's "
 				u"inner height grows by the measured extra through "
-				u"setInnerSize, with full telemetry and its window state "
-				u"unchanged"_q);
+				u"setInnerSize, with full telemetry and its effective window "
+				u"state unchanged"_q);
 		},
 		.timeoutDetails = [=] {
 			return GrowthText(*state);

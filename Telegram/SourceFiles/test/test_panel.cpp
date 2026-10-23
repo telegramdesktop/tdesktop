@@ -58,6 +58,14 @@ const auto kEmptyDifferenceText = u"the walk ran and the difference across "
 const auto kDifferenceText = u"the walk ran and the difference across the "
 	"mark is "_q;
 
+// Qt cocoa reports NSWindow.zoomed, always true for a fixed-size window at
+// its size, as Qt::WindowMaximized; see PanelSizeModeStates in the header.
+#ifdef Q_OS_MAC
+constexpr auto kFixedSizeReadsZoomed = true;
+#else // Q_OS_MAC
+constexpr auto kFixedSizeReadsZoomed = false;
+#endif // Q_OS_MAC
+
 struct Watch {
 	crl::time started = 0;
 	crl::time deadline = 0;
@@ -132,18 +140,29 @@ struct PanelFrame {
 	};
 }
 
+// The size mode plus Qt::WindowActive the sizing decides and compares on.
+[[nodiscard]] Qt::WindowStates EffectiveState(const PanelFrame &frame) {
+	return PanelSizeModeStates(
+		frame.state,
+		frame.outer.size(),
+		frame.minimum,
+		frame.maximum);
+}
+
 [[nodiscard]] QString SizeText(const QSize &size) {
 	return u"%1x%2"_q.arg(size.width()).arg(size.height());
 }
 
 [[nodiscard]] QString PanelFrameText(const PanelFrame &frame) {
-	return u"outer=%1 body=%2 request=%3 min=%4 max=%5 state=%6"_q
+	return u"outer=%1 body=%2 request=%3 min=%4 max=%5 state=%6 "
+		u"effective=%7"_q
 		.arg(RectText(frame.outer))
 		.arg(RectText(frame.body))
 		.arg(SizeText(frame.request))
 		.arg(SizeText(frame.minimum))
 		.arg(SizeText(frame.maximum))
-		.arg(WindowStatesText(frame.state));
+		.arg(WindowStatesText(frame.state))
+		.arg(WindowStatesText(EffectiveState(frame)));
 }
 
 // The size-mode bits set in |states|, never Qt::WindowActive.
@@ -464,6 +483,19 @@ QString PanelSizeModeRefusal(Qt::WindowStates states) {
 			WindowStatesText(states));
 }
 
+Qt::WindowStates PanelSizeModeStates(
+		Qt::WindowStates states,
+		QSize outer,
+		QSize minimum,
+		QSize maximum) {
+	if (kFixedSizeReadsZoomed
+		&& (minimum == maximum)
+		&& (outer == minimum)) {
+		states.setFlag(Qt::WindowMaximized, false);
+	}
+	return states;
+}
+
 PanelSizing GrowPanelInnerHeight(
 		not_null<Ui::SeparatePanel*> panel,
 		int extra) {
@@ -477,7 +509,7 @@ PanelSizing GrowPanelInnerHeight(
 		.maximum = frame.maximum,
 		.state = frame.state,
 	};
-	const auto sizeMode = PanelSizeModeRefusal(frame.state);
+	const auto sizeMode = PanelSizeModeRefusal(EffectiveState(frame));
 	if (!panel->isWindow()) {
 		result.refusal = u"not a top-level window: %1"_q.arg(
 			WidgetDescription(panel));
@@ -512,7 +544,7 @@ bool PanelSizingApplied(const PanelSizing &sizing) {
 	const auto extra = sizing.applied.height() - sizing.request.height();
 	return (frame.request == sizing.applied)
 		&& (frame.body.height() == sizing.body.height() + extra)
-		&& (frame.state == sizing.state);
+		&& (EffectiveState(frame) == EffectiveState(FrozenFrame(sizing)));
 }
 
 void RestorePanelSizing(PanelSizing &sizing) {
@@ -533,9 +565,10 @@ bool PanelSizingRestored(const PanelSizing &sizing) {
 	const auto frame = ReadPanelFrame(panel);
 	return (frame.outer == sizing.outer)
 		&& (frame.body == sizing.body)
+		&& (frame.request == sizing.request)
 		&& (frame.minimum == sizing.minimum)
 		&& (frame.maximum == sizing.maximum)
-		&& (frame.state == sizing.state);
+		&& (EffectiveState(frame) == EffectiveState(FrozenFrame(sizing)));
 }
 
 QString PanelSizingText(const PanelSizing &sizing) {
