@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "data/data_histories.h"
 #include "data/data_peer.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "history/history.h"
 #include "history/view/history_view_chat_preview.h"
@@ -45,9 +46,14 @@ bool ChatPreviewManager::show(
 		QPointer<QWidget> parentOverride,
 		std::optional<QPoint> positionOverride) {
 	cancelScheduled();
+	_menu = nullptr;
 	_topicLifetime.destroy();
 	if (const auto topic = row.key.topic()) {
 		_topicLifetime = topic->destroyed() | rpl::on_next([=] {
+			_menu = nullptr;
+		});
+	} else if (const auto sublist = row.key.sublist()) {
+		_topicLifetime = sublist->destroyed() | rpl::on_next([=] {
 			_menu = nullptr;
 		});
 	} else if (!row.key) {

@@ -1026,6 +1026,13 @@ ChatPreview MakeChatPreview(
 				strong->hideMenu(true);
 			}
 		}, menu->lifetime());
+	} else if (const auto sublist = thread->asSublist()) {
+		const auto weak = base::make_weak(menu);
+		sublist->destroyed() | rpl::on_next([weak] {
+			if (const auto strong = weak.get()) {
+				strong->hideMenu(true);
+			}
+		}, menu->lifetime());
 	}
 
 #ifdef Q_OS_WIN
