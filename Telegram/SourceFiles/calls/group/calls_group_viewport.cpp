@@ -294,7 +294,8 @@ void Viewport::add(
 		VideoTileTrack track,
 		rpl::producer<QSize> trackSize,
 		rpl::producer<bool> pinned,
-		bool self) {
+		bool self,
+		bool shown) {
 	// Tiles are added async (see Panel::setupVideo), so a quick
 	// deactivate + activate of the same endpoint queues two additions,
 	// while the removal between them is a no-op (no tile added yet).
@@ -307,7 +308,8 @@ void Viewport::add(
 		std::move(trackSize),
 		std::move(pinned),
 		[=] { updateMyWidgetPart(); },
-		self));
+		self,
+		shown));
 
 	_tiles.back()->trackSizeValue(
 	) | rpl::filter([](QSize size) {

@@ -95,7 +95,8 @@ public:
 		VideoTileTrack track,
 		rpl::producer<QSize> trackSize,
 		rpl::producer<bool> pinned,
-		bool self);
+		bool self,
+		bool shown);
 	void remove(const VideoEndpoint &endpoint);
 	void removeByRow(not_null<MembersRow*> row);
 	void showLarge(const VideoEndpoint &endpoint);
