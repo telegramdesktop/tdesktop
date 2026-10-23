@@ -18,6 +18,7 @@ struct RectWithText {
 
 struct Result {
 	std::vector<RectWithText> items;
+	QSize coordinateSize;
 	bool success = false;
 
 	inline operator bool() const {

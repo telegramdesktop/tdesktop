@@ -272,6 +272,15 @@ QWidget *PipDelegate::pipParentWidget() {
 		: result;
 }
 
+[[nodiscard]] QSize BoundDisplaySize(
+		QSize size,
+		int limit = kMaxDisplayImageSize) {
+	size = size.expandedTo(QSize(1, 1));
+	return (size.width() > limit || size.height() > limit)
+		? size.scaled(limit, limit, Qt::KeepAspectRatio).expandedTo(QSize(1, 1))
+		: size;
+}
+
 [[nodiscard]] QImage PrepareStaticImage(Images::ReadArgs &&args) {
 	auto read = Images::Read(std::move(args));
 	return (read.image.width() > kMaxDisplayImageSize
@@ -1503,7 +1512,7 @@ QSize OverlayWidget::videoSize() const {
 	const auto use = (_document && _chosenQuality != _document)
 		? _chosenQuality->dimensions
 		: _streamed->instance.info().video.size;
-	return flipSizeByRotation(use);
+	return flipSizeByRotation(BoundDisplaySize(use));
 }
 
 bool OverlayWidget::streamingRequiresControls() const {
@@ -1560,6 +1569,13 @@ bool OverlayWidget::documentBubbleShown() const {
 }
 
 void OverlayWidget::setStaticContent(QImage image) {
+	if (image.width() > kMaxDisplayImageSize
+		|| image.height() > kMaxDisplayImageSize) {
+		image = image.scaled(
+			BoundDisplaySize(image.size()),
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
+	}
 	constexpr auto kGood = QImage::Format_ARGB32_Premultiplied;
 	if (!image.isNull()
 		&& image.format() != kGood
@@ -1572,6 +1588,7 @@ void OverlayWidget::setStaticContent(QImage image) {
 	}
 	_staticContent = std::move(image);
 	_staticContentTransparent = IsSemitransparent(_staticContent);
+	refreshRecognitionResult();
 }
 
 bool OverlayWidget::contentShown() const {
@@ -4777,7 +4794,9 @@ void OverlayWidget::displayDocument(
 				setStaticContent(image->original());
 			} else if (const auto thumbnail = _documentMedia->thumbnail()) {
 				setStaticContent(thumbnail->pix(
-					_document->dimensions,
+					BoundDisplaySize(
+						_document->dimensions,
+						kMaxDisplayImageSize / style::DevicePixelRatio()),
 					{ .options = Images::Option::Blur }
 				).toImage());
 			}
@@ -5132,7 +5151,7 @@ void OverlayWidget::initStreamingThumbnail() {
 		: _document
 		? _documentMedia->thumbnailInline()
 		: _photoMedia->thumbnailInline();
-	const auto size = _photo
+	auto size = _photo
 		? QSize(
 			_photo->videoLocation(Data::PhotoSize::Large).width(),
 			_photo->videoLocation(Data::PhotoSize::Large).height())
@@ -5141,7 +5160,9 @@ void OverlayWidget::initStreamingThumbnail() {
 		: _document->dimensions;
 	if (size.isEmpty()) {
 		return;
-	} else if (!_streamedQualityChangeFrame.isNull()) {
+	}
+	size = BoundDisplaySize(size);
+	if (!_streamedQualityChangeFrame.isNull()) {
 		setStaticContent(_streamedQualityChangeFrame.scaled(
 			size,
 			Qt::IgnoreAspectRatio,
@@ -6238,8 +6259,10 @@ void OverlayWidget::validatePhotoImage(Image *image, bool blurred) {
 	} else if (!_staticContent.isNull() && (blurred || !_blurred)) {
 		return;
 	}
-	const auto use = flipSizeByRotation({ _width, _height })
-		* style::DevicePixelRatio();
+	const auto ratio = style::DevicePixelRatio();
+	const auto use = BoundDisplaySize(
+		flipSizeByRotation({ _width, _height }),
+		kMaxDisplayImageSize / ratio) * ratio;
 	setStaticContent(image->pixNoCache(
 		use,
 		{ .options = (blurred ? Images::Option::Blur : Images::Option()) }
@@ -6316,7 +6339,7 @@ void OverlayWidget::tryStartTextRecognition() {
 		_recognitionRetryOnLarge = false;
 		const auto changed = (_recognitionResult.success != cached->second.success)
 			|| (_recognitionResult.items.size() != cached->second.items.size());
-		_recognitionResult = cached->second;
+		refreshRecognitionResult();
 		if (changed) {
 			updateControls();
 		}
@@ -6377,7 +6400,7 @@ void OverlayWidget::tryStartTextRecognition() {
 				_recognitionPendingPhotoId = 0;
 				_recognitionPendingDocumentId = 0;
 			}
-			(*cache)[id] = result;
+			(*cache)[id] = std::move(result);
 			const auto stillSame = _session
 				&& (_session->uniqueId() == id.sessionUniqueId)
 				&& (id.photoId
@@ -6386,10 +6409,30 @@ void OverlayWidget::tryStartTextRecognition() {
 			if (!stillSame) {
 				return;
 			}
-			_recognitionResult = std::move(result);
+			refreshRecognitionResult();
 			updateControls();
 		});
 	});
+}
+
+void OverlayWidget::refreshRecognitionResult() {
+	const auto cache = RecognitionCache();
+	if (_stories || !cache || !_session || (!_photo && !_document)) {
+		return;
+	}
+	const auto id = RecognitionId{
+		.sessionUniqueId = _session->uniqueId(),
+		.photoId = _photo ? _photo->id : PhotoId(),
+		.documentId = _photo ? DocumentId() : _document->id,
+	};
+	const auto cached = cache->find(id);
+	if (cached == cache->end()) {
+		return;
+	}
+	_recognitionResult = ScaleRecognitionResult(
+		cached->second,
+		_staticContent.size() / style::DevicePixelRatio());
+	_recognition.setSources(&_recognitionResult, &_staticContent);
 }
 
 Ui::GL::ChosenRenderer OverlayWidget::chooseRenderer(

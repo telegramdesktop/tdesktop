@@ -56,6 +56,9 @@ Result RecognizeText(const QImage &image) {
 
 			if (success && !error) {
 				const auto imageSize = image.extent.size;
+				result.coordinateSize = QSize(
+					style::ConvertScale(imageSize.width),
+					style::ConvertScale(imageSize.height));
 				for (VNRecognizedTextObservation *obs in request.results) {
 					VNRecognizedText *recognizedText = [obs
 						topCandidates:1].firstObject;
