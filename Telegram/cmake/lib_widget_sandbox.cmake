@@ -38,6 +38,7 @@ endif()
 nice_target_sources(lib_widget_sandbox ${widget_sandbox_loc}
 PRIVATE
     include/twidget/cpu_budget.h
+    include/twidget/gesture_policy.h
     include/twidget/intl.h
     include/twidget/js_thread.h
     include/twidget/json.h
@@ -49,6 +50,7 @@ PRIVATE
     include/twidget/trusted_validator.h
     include/twidget/widget_host.h
     src/cpu_budget.cpp
+    src/gesture_policy.cpp
     src/intl.cpp
     src/js_thread.cpp
     src/quickjs_context.cpp

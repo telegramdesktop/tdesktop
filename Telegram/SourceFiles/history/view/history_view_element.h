@@ -677,7 +677,8 @@ public:
 	[[nodiscard]] virtual bool toggleSelectionByHandlerClick(
 		const ClickHandlerPtr &handler) const;
 	[[nodiscard]] virtual bool allowTextSelectionByHandler(
-		const ClickHandlerPtr &handler) const;
+		const ClickHandlerPtr &handler,
+		bool fromTouch) const;
 
 	[[nodiscard]] bool usesBubblePattern(const PaintContext &context) const;
 

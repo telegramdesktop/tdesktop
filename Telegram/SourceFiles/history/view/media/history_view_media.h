@@ -159,7 +159,8 @@ public:
 	[[nodiscard]] virtual bool toggleSelectionByHandlerClick(
 		const ClickHandlerPtr &p) const = 0;
 	[[nodiscard]] virtual bool allowTextSelectionByHandler(
-		const ClickHandlerPtr &p) const;
+		const ClickHandlerPtr &p,
+		bool fromTouch) const;
 
 	[[nodiscard]] virtual TextSelection adjustSelection(
 			TextSelection selection,

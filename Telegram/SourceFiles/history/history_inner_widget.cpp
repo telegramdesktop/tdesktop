@@ -2159,7 +2159,7 @@ void HistoryInner::touchEvent(QTouchEvent *e) {
 				_touchPrevPosValid = false;
 			}
 		} else if (notMoved) { // One short tap is like left mouse click.
-			mouseActionStart(_touchPos, Qt::LeftButton);
+			mouseActionStart(_touchPos, Qt::LeftButton, true);
 			mouseActionFinish(_touchPos, Qt::LeftButton);
 		}
 		if (weak) {
@@ -2260,7 +2260,10 @@ void HistoryInner::mousePressEvent(QMouseEvent *e) {
 	mouseActionStart(e->globalPos(), e->button());
 }
 
-void HistoryInner::mouseActionStart(const QPoint &screenPos, Qt::MouseButton button) {
+void HistoryInner::mouseActionStart(
+		const QPoint &screenPos,
+		Qt::MouseButton button,
+		bool fromTouch) {
 	mouseActionUpdate(screenPos);
 	if (button != Qt::LeftButton) return;
 
@@ -2285,7 +2288,9 @@ void HistoryInner::mouseActionStart(const QPoint &screenPos, Qt::MouseButton but
 	const auto pressed = ClickHandler::getPressed();
 	if (pressed
 		&& (!Element::Hovered()
-			|| !Element::Hovered()->allowTextSelectionByHandler(pressed))) {
+			|| !Element::Hovered()->allowTextSelectionByHandler(
+				pressed,
+				fromTouch))) {
 		_mouseAction = MouseAction::PrepareDrag;
 	} else if (hasSelectedItems()) {
 		if (_dragStateItem
@@ -5400,7 +5405,7 @@ std::vector<not_null<HistoryItem*>> HistoryInner::getSelectedEphemeral() const {
 void HistoryInner::onTouchSelect() {
 	_touchSelect = true;
 	_touchMaybeSelecting = true;
-	mouseActionStart(_touchPos, Qt::LeftButton);
+	mouseActionStart(_touchPos, Qt::LeftButton, true);
 }
 
 auto HistoryInner::reactionButtonParameters(

@@ -414,7 +414,10 @@ private:
 	void scrollDateHideByTimer();
 	void scrollDateCheckDownward();
 	bool canHaveFromUserpics() const;
-	void mouseActionStart(const QPoint &screenPos, Qt::MouseButton button);
+	void mouseActionStart(
+		const QPoint &screenPos,
+		Qt::MouseButton button,
+		bool fromTouch = false);
 	void mouseActionUpdate();
 	void mouseActionUpdate(const QPoint &screenPos);
 	void mouseActionFinish(const QPoint &screenPos, Qt::MouseButton button);

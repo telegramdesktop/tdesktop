@@ -332,12 +332,13 @@ bool HtmlWidget::toggleSelectionByHandlerClick(
 }
 
 bool HtmlWidget::allowTextSelectionByHandler(
-		const ClickHandlerPtr &p) const {
-	return (p == _cardLink) && !_cardClaimed;
+		const ClickHandlerPtr &p,
+		bool fromTouch) const {
+	return fromTouch && (p == _cardLink) && !_cardClaimed;
 }
 
 bool HtmlWidget::dragItemByHandler(const ClickHandlerPtr &p) const {
-	return (p == _cardLink) && !_cardClaimed;
+	return false;
 }
 
 void HtmlWidget::clickHandlerActiveChanged(

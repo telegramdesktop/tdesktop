@@ -34,7 +34,8 @@ public:
 	[[nodiscard]] bool toggleSelectionByHandlerClick(
 		const ClickHandlerPtr &p) const override;
 	[[nodiscard]] bool allowTextSelectionByHandler(
-		const ClickHandlerPtr &p) const override;
+		const ClickHandlerPtr &p,
+		bool fromTouch) const override;
 	[[nodiscard]] bool dragItemByHandler(
 		const ClickHandlerPtr &p) const override;
 

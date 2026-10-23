@@ -733,7 +733,8 @@ private:
 
 	void mouseActionStart(
 		const QPoint &globalPosition,
-		Qt::MouseButton button);
+		Qt::MouseButton button,
+		bool fromTouch = false);
 	void mouseActionUpdate(const QPoint &globalPosition);
 	void mouseActionUpdate();
 	void mouseActionFinish(

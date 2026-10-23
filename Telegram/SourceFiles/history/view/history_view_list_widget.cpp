@@ -4852,7 +4852,7 @@ void ListWidget::touchEvent(QTouchEvent *e) {
 				_touchPrevPosValid = false;
 			}
 		} else if (notMoved) { // One short tap is like left mouse click.
-			mouseActionStart(_touchPos, Qt::LeftButton);
+			mouseActionStart(_touchPos, Qt::LeftButton, true);
 			mouseActionFinish(_touchPos, Qt::LeftButton);
 		}
 		if (weak) {
@@ -4999,7 +4999,7 @@ void ListWidget::updateDragSelection() {
 void ListWidget::onTouchSelect() {
 	_touchSelect = true;
 	_touchMaybeSelecting = true;
-	mouseActionStart(_touchPos, Qt::LeftButton);
+	mouseActionStart(_touchPos, Qt::LeftButton, true);
 }
 
 void ListWidget::updateDragSelection(
@@ -5148,7 +5148,8 @@ void ListWidget::clearDragSelection() {
 
 void ListWidget::mouseActionStart(
 		const QPoint &globalPosition,
-		Qt::MouseButton button) {
+		Qt::MouseButton button,
+		bool fromTouch) {
 	mouseActionUpdate(globalPosition);
 	if (button != Qt::LeftButton) {
 		return;
@@ -5175,7 +5176,9 @@ void ListWidget::mouseActionStart(
 	if (pressed
 		&& (!_overElement
 			|| _overState.pointState == PointState::Outside
-			|| !_overElement->allowTextSelectionByHandler(pressed))) {
+			|| !_overElement->allowTextSelectionByHandler(
+				pressed,
+				fromTouch))) {
 		_mouseAction = MouseAction::PrepareDrag;
 	} else if (inSelectionMode().inSelectionMode) {
 		if (overSelectedItems()) {

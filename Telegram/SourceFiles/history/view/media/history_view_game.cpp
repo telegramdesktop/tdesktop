@@ -452,7 +452,9 @@ bool Game::toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const {
 	return _attach && _attach->toggleSelectionByHandlerClick(p);
 }
 
-bool Game::allowTextSelectionByHandler(const ClickHandlerPtr &p) const {
+bool Game::allowTextSelectionByHandler(
+		const ClickHandlerPtr &p,
+		bool fromTouch) const {
 	return (p == _openl);
 }
 
