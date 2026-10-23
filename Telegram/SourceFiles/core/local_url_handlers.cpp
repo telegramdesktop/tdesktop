@@ -372,7 +372,11 @@ bool ShareUrl(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
 	const auto url = params.value(u"url"_q);
-	if (url.isEmpty() || url.trimmed().startsWith('@')) {
+	const auto start = ranges::find_if(url, [](QChar ch) {
+		return !ch.isSpace()
+			&& (ch != QChar::ObjectReplacementCharacter);
+	});
+	if (url.isEmpty() || (start != url.cend() && *start == '@')) {
 		// Don't allow to insert an inline bot query by share url link.
 		return false;
 	}
