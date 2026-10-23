@@ -777,7 +777,9 @@ AVRational ValidateAspectRatio(AVRational aspect) {
 QSize CorrectByAspect(QSize size, AVRational aspect) {
 	Expects(IsValidAspectRatio(aspect));
 
-	return QSize(size.width() * av_q2d(aspect), size.height());
+	return QSize(
+		std::max(int(size.width() * av_q2d(aspect)), 1),
+		size.height());
 }
 
 bool RotationSwapWidthHeight(int rotation) {
