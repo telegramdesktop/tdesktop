@@ -351,6 +351,9 @@ private:
 
 	void setupRoot();
 	void setupTopicViewer();
+	void setupInChatSounds();
+	void playIncomingInChatSound(not_null<HistoryItem*> item);
+	void playOutgoingInChatSound(FullMsgId newId, MsgId oldId);
 	void subscribeToTopic();
 	void subscribeToSublist();
 	void setTopic(Data::ForumTopic *topic);
