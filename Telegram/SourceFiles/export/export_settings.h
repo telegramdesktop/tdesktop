@@ -98,6 +98,10 @@ struct Settings {
 		return singlePeer.type() != mtpc_inputPeerEmpty;
 	}
 
+	bool hasDateLimits() const {
+		return (singlePeerFrom > 0) || (singlePeerTill > 0);
+	}
+
 	bool onlySingleTopic() const {
 		return onlySinglePeer() && singleTopicRootId != 0;
 	}
