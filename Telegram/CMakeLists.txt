@@ -2216,6 +2216,8 @@ PRIVATE
     tgw/tgw_resources.h
     tgw/tgw_runtime.cpp
     tgw/tgw_runtime.h
+    tgw/tgw_theme.cpp
+    tgw/tgw_theme.h
     ui/boxes/edit_invite_link_session.cpp
     ui/boxes/edit_invite_link_session.h
     ui/boxes/emoji_stake_box.cpp

@@ -21,10 +21,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_intl.h"
 #include "tgw/tgw_renderer.h"
 #include "tgw/tgw_resources.h"
+#include "tgw/tgw_theme.h"
 #include "twidget/widget_host.h"
 #include "TwidgetCore/src/renderer.h"
 #include "ui/style/style_core_scale.h"
-#include "ui/color_contrast.h"
 
 namespace Tgw {
 
@@ -186,10 +186,6 @@ void HostDeleter::operator()(twidget::WidgetHost *host) const {
 
 [[nodiscard]] double CoreRatio() {
 	return style::DevicePixelRatio() * style::Scale() / 100.;
-}
-
-[[nodiscard]] twidget::WidgetTheme ThemeFor(bool dark) {
-	return { .colorScheme = dark ? "dark" : "light" };
 }
 
 void ApplyTheme(
@@ -447,6 +443,8 @@ Runtime::Runtime(RuntimeDescriptor &&descriptor)
 , _heavyChanged(std::move(descriptor.heavyChanged))
 , _bridge(std::make_unique<Bridge>(descriptor.item))
 , _memory(RememberMessage(descriptor.item))
+, _theme(std::make_shared<twidget::WidgetTheme>())
+, _hostTheme(_theme)
 , _maxHeight(kMaxHeight) {
 	Expects(!_html.isEmpty());
 
@@ -581,14 +579,11 @@ void Runtime::setSize(int width, double maxHeight) {
 	}
 }
 
-void Runtime::setBubbleColor(const QColor &color) {
-	const auto rgba = color.rgba();
-	if (_bubbleColor == rgba) {
+void Runtime::setTheme(std::shared_ptr<const twidget::WidgetTheme> theme) {
+	if (SameTheme(*_theme, *theme)) {
 		return;
 	}
-	_bubbleColor = rgba;
-	_dark = (Ui::CountContrast(color, QColor(255, 255, 255))
-		> Ui::CountContrast(color, QColor(0, 0, 0)));
+	_theme = std::move(theme);
 	syncHostTheme();
 }
 
@@ -967,7 +962,7 @@ void Runtime::construct(
 	subscribeLive();
 	_state = State::Constructing;
 	_hostVisible = _visible;
-	_hostDark = _dark;
+	_hostTheme = _theme;
 	auto job = Job{
 		.html = _html,
 		.resources = std::move(resources),
@@ -975,7 +970,7 @@ void Runtime::construct(
 		.factory = _live->hostFactory(),
 		.action = _live->hostActionHandler(),
 		.options = DefaultHostOptions(ratio, _visible),
-		.theme = ThemeFor(_dark),
+		.theme = *_theme,
 		.stoppedLabel = tr::lng_tgw_stopped(tr::now).toStdString(),
 		.slot = std::make_shared<Reservation>([] { Check(); }),
 		.width = width,
@@ -1010,7 +1005,7 @@ void Runtime::constructed(
 	} else if (Core::Quitting()) {
 		release();
 		return;
-	} else if (_hostDark != _dark) {
+	} else if (!SameTheme(*_hostTheme, *_theme)) {
 		// Its engine would boot in the stale theme ahead of setTheme().
 		release();
 		addNote(u"Released, the theme changed before it started."_q);
@@ -1150,21 +1145,20 @@ void Runtime::syncHostVisibility() {
 }
 
 void Runtime::syncHostTheme() {
-	if (!_host || _host->theming || _hostDark == _dark) {
+	if (!_host || _host->theming || SameTheme(*_hostTheme, *_theme)) {
 		return;
 	}
-	_hostDark = _dark;
+	_hostTheme = _theme;
 	_host->theming = true;
-	addNote(_dark
-		? u"Switched to the dark theme."_q
-		: u"Switched to the light theme."_q);
+	addNote(u"Switched to a new %1 theme."_q.arg(
+		QString::fromStdString(_hostTheme->colorScheme)));
 	++Runtimes().jobs;
 	crl::async([
 		host = _host,
 		pointer = _host->pointer,
-		theme = ThemeFor(_dark)
+		theme = _hostTheme
 	]() mutable {
-		ApplyTheme(*pointer, theme);
+		ApplyTheme(*pointer, *theme);
 		pointer = nullptr;
 		crl::on_main([host = std::move(host)] {
 			ThemeDone(host);

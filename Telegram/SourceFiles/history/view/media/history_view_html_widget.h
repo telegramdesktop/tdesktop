@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/media/history_view_media.h"
 #include "tgw/tgw_media.h"
+#include "tgw/tgw_theme.h"
 
 namespace Tgw {
 class RendererCore;
@@ -86,6 +87,7 @@ private:
 	const Tgw::Anchors _anchors;
 	std::unique_ptr<Tgw::Runtime> _runtime;
 	const ClickHandlerPtr _cardLink;
+	mutable Tgw::ThemeKey _themeKey;
 	QPoint _pointerPoint;
 	mutable bool _heavy = false;
 	bool _cardHovered = false;

@@ -18,6 +18,7 @@ class Element;
 namespace twidget {
 class SandboxResources;
 class WidgetHost;
+struct WidgetTheme;
 } // namespace twidget
 
 namespace Tgw {
@@ -69,7 +70,7 @@ public:
 		Fn<void()> repaint,
 		Fn<void()> heavyChanged);
 	void setSize(int width, double maxHeight);
-	void setBubbleColor(const QColor &color);
+	void setTheme(std::shared_ptr<const twidget::WidgetTheme> theme);
 	void setWindow(not_null<QWidget*> window);
 	void painted();
 	void unload();
@@ -140,6 +141,8 @@ private:
 	const std::unique_ptr<Bridge> _bridge;
 	const std::shared_ptr<MessageMemory> _memory;
 	std::shared_ptr<Host> _host;
+	std::shared_ptr<const twidget::WidgetTheme> _theme;
+	std::shared_ptr<const twidget::WidgetTheme> _hostTheme;
 	std::unique_ptr<RendererCore> _live;
 	std::unique_ptr<RendererCore> _still;
 	std::vector<QString> _notes;
@@ -150,7 +153,6 @@ private:
 	rpl::lifetime _liveLifetime;
 	rpl::lifetime _windowLifetime;
 	std::optional<int> _shownHeight;
-	std::optional<QRgb> _bubbleColor;
 	uint64 _hiddenSerial = 0;
 	uint64 _queueSerial = 0;
 	uint64 _lastHost = 0;
@@ -163,8 +165,6 @@ private:
 	State _state = State::Idle;
 	bool _visible = false;
 	bool _hostVisible = false;
-	bool _dark = false;
-	bool _hostDark = false;
 	bool _painted = false;
 	bool _windowKnown = false;
 	bool _stopFatal = false;

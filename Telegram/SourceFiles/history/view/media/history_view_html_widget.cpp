@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_renderer.h"
 #include "tgw/tgw_runtime.h"
 #include "ui/chat/chat_style.h"
-#include "ui/chat/chat_theme.h"
 #include "ui/style/style_core_scale.h"
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
@@ -28,42 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-constexpr auto kPatternColors = 4;
 constexpr auto kCssPercent = 100.;
-
-struct PatternColor {
-	qint64 key = 0;
-	QColor color;
-};
-
-[[nodiscard]] QColor PatternAverageColor(const QPixmap &pattern) {
-	static auto cache = std::array<PatternColor, kPatternColors>();
-	const auto key = pattern.cacheKey();
-	for (const auto &entry : cache) {
-		if (entry.key == key) {
-			return entry.color;
-		}
-	}
-	std::rotate(begin(cache), end(cache) - 1, end(cache));
-	cache.front() = {
-		.key = key,
-		.color = Ui::CountAverageColor(
-			pattern.toImage().convertToFormat(
-				QImage::Format_ARGB32_Premultiplied)),
-	};
-	return cache.front().color;
-}
-
-[[nodiscard]] QColor BubbleColor(const PaintContext &context) {
-	const auto pattern = context.bubblesPattern;
-	if (!context.outbg
-		|| !pattern
-		|| context.viewport.isEmpty()
-		|| pattern->pixmap.size().isEmpty()) {
-		return context.st->messageStyle(context.outbg, false).msgBg->c;
-	}
-	return PatternAverageColor(pattern->pixmap);
-}
 
 [[nodiscard]] QWidget *PaintWidget(const QPainter &p) {
 	const auto device = p.device();
@@ -226,7 +190,11 @@ void HtmlWidget::draw(Painter &p, const PaintContext &context) const {
 	if (card.isEmpty() || !_runtime) {
 		return;
 	}
-	_runtime->setBubbleColor(BubbleColor(context));
+	const auto themeKey = Tgw::BubbleThemeKey(context);
+	if (_themeKey != themeKey) {
+		_themeKey = themeKey;
+		_runtime->setTheme(Tgw::BubbleTheme(context));
+	}
 	if (const auto widget = PaintWidget(p)) {
 		_runtime->setWindow(widget->window());
 	}
