@@ -8758,6 +8758,7 @@ bool OverlayWidget::filterApplicationEvent(
 			return true;
 		} else if (event == QKeySequence::SaveAs
 			|| event == QKeySequence::Save) {
+			event -> accept();
 			return true;
 		}
 		return false;
