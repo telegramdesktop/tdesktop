@@ -313,19 +313,22 @@ struct ParticipantVideoParams {
 			return false;
 		}
 		const auto &list = data.vsource_groups().v;
-		if (list.size() != was.ssrcGroups.size()) {
-			return false;
-		}
+		const auto count = int(was.ssrcGroups.size());
 		auto index = 0;
 		for (const auto &group : list) {
 			const auto equal = group.match([&](
 					const MTPDgroupCallParticipantVideoSourceGroup &data) {
+				const auto list = data.vsources().v;
+				if (list.isEmpty()) {
+					return true; // ParseVideoParams() drops such groups.
+				} else if (index >= count) {
+					return false;
+				}
 				const auto &group = was.ssrcGroups[index++];
 				if (gsl::make_span(data.vsemantics().v)
 					!= gsl::make_span(group.semantics)) {
 					return false;
 				}
-				const auto list = data.vsources().v;
 				if (list.size() != group.ssrcs.size()) {
 					return false;
 				}
@@ -341,7 +344,7 @@ struct ParticipantVideoParams {
 				return false;
 			}
 		}
-		return true;
+		return (index == count);
 	});
 }
 
@@ -361,6 +364,9 @@ struct ParticipantVideoParams {
 			group.match([&](
 					const MTPDgroupCallParticipantVideoSourceGroup &data) {
 				const auto &list = data.vsources().v;
+				if (list.isEmpty()) {
+					return; // tgcalls reads the first ssrc of a group.
+				}
 				auto ssrcs = std::vector<uint32_t>();
 				ssrcs.reserve(list.size());
 				for (const auto &ssrc : list) {
