@@ -229,7 +229,7 @@ private:
 		const MTPVector<MTPFileHash> &result,
 		mtpRequestId requestId);
 
-	void partLoaded(int64 offset, const QByteArray &bytes);
+	bool partLoaded(int64 offset, const QByteArray &bytes);
 
 	bool partFailed(const MTP::Error &error, mtpRequestId requestId);
 	bool normalPartFailed(
