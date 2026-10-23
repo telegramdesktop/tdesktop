@@ -1,5 +1,5 @@
-<p align="center">
-  <img src="logo.png" alt="Multigram Logo" width="450">
+<img width="540" height="101" alt="изображение" src="https://github.com/user-attachments/assets/892a91b4-993e-44e8-bb73-a7fe20e8006f" /><p align="center">
+  <img src="logo_multigram.png" alt="Multigram Logo" width="450">
 </p>
 
 <h3 align="center">Современный и продвинутый кастомный десктопный клиент на базе Telegram</h3>
