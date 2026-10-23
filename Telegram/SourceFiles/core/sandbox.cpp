@@ -42,8 +42,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QSessionManager>
 #include <QtGui/QScreen>
 
+#if defined Q_OS_LINUX && QT_VERSION >= QT_VERSION_CHECK(6, 2, 0)
+#include <sys/socket.h>
+#include <unistd.h>
+#endif // Q_OS_LINUX && Qt >= 6.2.0
+
 namespace Core {
 namespace {
+
+#if defined Q_OS_LINUX && QT_VERSION >= QT_VERSION_CHECK(6, 2, 0)
+// WHY: the abstract socket namespace has no file permissions, so any process
+// in the network namespace can connect; the peer credentials restore the
+// per-user boundary that the socket file gave on the other platforms.
+[[nodiscard]] bool LocalClientAllowed(not_null<QLocalSocket*> socket) {
+	auto credentials = ucred();
+	auto size = socklen_t(sizeof(credentials));
+	const auto descriptor = int(socket->socketDescriptor());
+	return (descriptor >= 0)
+		&& !getsockopt(
+			descriptor,
+			SOL_SOCKET,
+			SO_PEERCRED,
+			&credentials,
+			&size)
+		&& (credentials.uid == geteuid());
+}
+#else // Q_OS_LINUX && Qt >= 6.2.0
+[[nodiscard]] bool LocalClientAllowed(not_null<QLocalSocket*>) {
+	return true;
+}
+#endif // Q_OS_LINUX && Qt >= 6.2.0
 
 base::options::toggle OptionDeadlockDetector({
 	.id = kOptionDeadlockDetector,
@@ -518,6 +546,13 @@ void Sandbox::socketDisconnected() {
 void Sandbox::newInstanceConnected() {
 	DEBUG_LOG(("Sandbox Info: new local socket connected"));
 	for (auto client = _localServer.nextPendingConnection(); client; client = _localServer.nextPendingConnection()) {
+		if (!LocalClientAllowed(client)) {
+			LOG(("Sandbox Warning: local socket client of another user "
+				"rejected."));
+			client->close();
+			client->deleteLater();
+			continue;
+		}
 		_localClients.push_back(LocalClient{ .socket = client });
 		connect(
 			client,
