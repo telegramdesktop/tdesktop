@@ -522,10 +522,27 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 			return result;
 		}()));
 	} else {
-		const auto parsedUrl = url.startsWith(u"tonsite://"_q)
-			? QUrl(url)
-			: QUrl::fromUserInput(url);
 		auto my = context.value<ClickHandlerContext>();
+		const auto isEmail = UrlClickHandler::IsEmail(url);
+		const auto external = QUrl(url);
+		const auto parsedUrl = external.scheme().isEmpty()
+			? QUrl::fromUserInput(url)
+			: external;
+		if (!isEmail
+			&& (!external.isValid()
+				|| !parsedUrl.isValid()
+				|| parsedUrl.isLocalFile()
+				|| !File::IsUrlSchemeAllowed(parsedUrl.scheme()))) {
+			if (my.show) {
+				my.show->showToast(tr::lng_open_link_unsupported(tr::now));
+			} else {
+				File::ShowUnsupportedUrl();
+			}
+			return;
+		}
+		if (!isEmail) {
+			url = QString::fromUtf8(parsedUrl.toEncoded());
+		}
 		auto openContext = context;
 		const auto forceConfirmation = my.forceExternalUrlConfirmation
 			&& my.ignoreIv;

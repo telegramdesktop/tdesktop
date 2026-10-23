@@ -118,17 +118,10 @@ const auto kBadPrefix = u"http://"_q;
 	}
 	const auto opened = UrlClickHandler::EncodeForOpening(url);
 	const auto scheme = opened.left(opened.indexOf(':')).toLower();
-	static const auto allowed = std::array{
-		u"http"_q,
-		u"https"_q,
-		u"ftp"_q,
-		u"itmss"_q,
-		u"tg"_q,
-		u"tonsite"_q,
-		u"ton"_q,
-		u"tc"_q,
-	};
-	return !ranges::contains(allowed, scheme);
+	return !opened.startsWith(u"tc://"_q, Qt::CaseInsensitive)
+		&& (!File::IsUrlSchemeAllowed(scheme)
+			|| scheme == u"mailto"_q
+			|| scheme == u"tel"_q);
 }
 
 [[nodiscard]] QString OpenGLCheckFilePath() {
