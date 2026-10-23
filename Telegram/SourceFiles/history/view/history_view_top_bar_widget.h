@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "ui/unread_badge.h"
+#include "ui/widgets/tooltip.h"
 #include "ui/effects/animations.h"
 #include "base/timer.h"
 #include "base/object_ptr.h"
@@ -51,7 +52,9 @@ class SendActionPainter;
 
 [[nodiscard]] QString SwitchToChooseFromQuery();
 
-class TopBarWidget final : public Ui::RpWidget {
+class TopBarWidget final
+	: public Ui::RpWidget
+	, private Ui::AbstractTooltipShower {
 public:
 	struct SelectedState {
 		bool textSelected = false;
@@ -137,6 +140,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
+	bool event(QEvent *e) override;
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
 	int resizeGetHeight(int newWidth) override;
@@ -202,6 +206,10 @@ private:
 	void updateOnlineDisplay();
 	void updateOnlineDisplayTimer();
 	void updateOnlineDisplayIn(crl::time timeout);
+
+	QString tooltipText() const override;
+	QPoint tooltipPos() const override;
+	bool tooltipWindowActive() const override;
 
 	void infoClicked();
 	void backClicked();
@@ -286,6 +294,8 @@ private:
 	rpl::event_stream<> _cancelChooseForReport;
 
 	rpl::lifetime _backLifetime;
+
+	QString _tooltipText;
 
 };
 
