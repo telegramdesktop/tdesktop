@@ -891,8 +891,7 @@ void FormattedDateClickHandler::onClick(ClickContext context) const {
 			tr::lng_context_set_reminder(tr::now),
 			[date, itemId, show] {
 				const auto session = &show->session();
-				const auto item = session->data().message(itemId);
-				if (!item) {
+				if (!session->data().message(itemId)) {
 					return;
 				}
 				const auto self = session->user();
@@ -906,6 +905,10 @@ void FormattedDateClickHandler::onClick(ClickContext context) const {
 					show,
 					SendMenu::Details{ .type = SendMenu::Type::Reminder },
 					[=](Api::SendOptions options) {
+						const auto item = session->data().message(itemId);
+						if (!item) {
+							return;
+						}
 						auto action = Api::SendAction(history, options);
 						action.clearDraft = false;
 						action.generateLocal = false;
