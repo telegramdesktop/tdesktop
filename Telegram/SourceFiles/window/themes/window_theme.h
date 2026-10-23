@@ -38,6 +38,7 @@ struct ThemeParams;
 namespace Window {
 namespace Theme {
 
+inline constexpr auto kThemeFileSizeLimit = 5 * 1024 * 1024;
 inline constexpr auto kThemeSchemeSizeLimit = 1024 * 1024;
 inline constexpr auto kThemeBackgroundSizeLimit = 4 * 1024 * 1024;
 

@@ -1274,6 +1274,8 @@ void DocumentData::save(
 		if (fromCloud == LoadFromCloudOrLocal) {
 			_loader->permitLoadFromCloud();
 		}
+	} else if (toFile.isEmpty() && size > Storage::kMaxFileInMemory) {
+		return;
 	} else {
 		status = FileReady;
 		auto reader = owner().streaming().sharedReader(this, origin, true);

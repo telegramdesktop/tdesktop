@@ -718,7 +718,7 @@ void CloudList::refreshColors(Element &element) {
 		|| ((element.id() == currentId)
 			&& (!document || !document->isTheme()))) {
 		element.check->setColors(ColorsFromCurrentTheme());
-	} else if (document) {
+	} else if (document && document->size <= kThemeFileSizeLimit) {
 		element.media = document ? document->createMediaView() : nullptr;
 		document->save(
 			Data::FileOriginTheme(theme.id, theme.accessHash),
