@@ -1364,13 +1364,18 @@ void DocumentData::handleLoaderUpdates() {
 			}));
 		} else if (error.failureReason == FailureReason::FileWriteFailure) {
 			if (!Core::App().settings().downloadPath().isEmpty()) {
-				Core::App().settings().setDownloadPathBookmark(QByteArray());
-				Core::App().settings().setDownloadPath(QString());
-				Core::App().saveSettingsDelayed();
 				InvokeQueued(qApp, [] {
-					Ui::show(
+					static auto box = base::weak_qptr<Ui::GenericBox>();
+					static auto nextWarningAt = crl::time();
+					const auto now = crl::now();
+					if (box || now < nextWarningAt) {
+						return;
+					}
+					nextWarningAt = now + 60 * crl::time(1000);
+					box = Ui::show(
 						Ui::MakeInformBox(
-							tr::lng_download_path_failed(tr::now)));
+							tr::lng_download_path_failed(tr::now)),
+						Ui::LayerOption::KeepOther);
 				});
 			}
 		}
