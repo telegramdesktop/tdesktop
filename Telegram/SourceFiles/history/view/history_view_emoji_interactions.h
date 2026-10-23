@@ -55,6 +55,7 @@ public:
 		not_null<const Element*> view,
 		Element *replacing);
 	void cancelPremiumEffect(not_null<const Element*> view);
+	void viewRemoved(not_null<const Element*> view);
 	void visibleAreaUpdated(int visibleTop, int visibleBottom);
 
 	void playEffectOnRead(not_null<const Element*> view);

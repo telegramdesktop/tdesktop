@@ -5801,6 +5801,7 @@ void ListWidget::viewReplaced(not_null<const Element*> was, Element *now) {
 	if (_overlayHost) {
 		_overlayHost->viewGone(was);
 	}
+	_emojiInteractions->viewRemoved(was);
 	if (_visibleTopItem == was) _visibleTopItem = now;
 	if (_scrollDateLastItem == was) _scrollDateLastItem = now;
 	if (_overElement == was) _overElement = now;
