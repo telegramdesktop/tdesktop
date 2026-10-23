@@ -172,6 +172,9 @@ public:
 		not_null<Data::Thread*> thread,
 		not_null<const QMimeData*> data,
 		bool forumResolved = false);
+	void textDrop(
+		not_null<Data::Thread*> thread,
+		not_null<const QMimeData*> data);
 
 	void sendBotCommand(Bot::SendCommandRequest request);
 	void hideSingleUseKeyboard(FullMsgId replyToId);

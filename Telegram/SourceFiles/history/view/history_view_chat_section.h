@@ -156,6 +156,7 @@ public:
 
 	bool confirmSendingFiles(const QStringList &files) override;
 	bool confirmSendingFiles(not_null<const QMimeData*> data) override;
+	void insertTextAtCursor(const QString &text) override;
 	bool notify_switchInlineBotButtonReceived(
 		const QString &query,
 		UserData *samePeerBot,

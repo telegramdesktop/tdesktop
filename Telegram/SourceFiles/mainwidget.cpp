@@ -42,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_saved_windows.h"
 #include "window/window_separate_id.h"
 #include "window/window_slide_animation.h"
+#include "window/window_text_drop.h"
 #include "window/window_history_hider.h"
 #include "window/window_controller.h"
 #include "window/window_peer_menu.h"
@@ -740,6 +741,24 @@ bool MainWidget::filesOrForwardDrop(
 			: _history->confirmSendingFiles(data));
 		return true;
 	}
+}
+
+void MainWidget::textDrop(
+		not_null<Data::Thread*> thread,
+		not_null<const QMimeData*> data) {
+	const auto text = data->text();
+	if (text.isEmpty()) {
+		return;
+	}
+	Window::DropTextToThread(
+		_controller,
+		thread,
+		text,
+		[=](const QString &text) {
+			(_mainSection
+				? _mainSection->insertTextAtCursor(text)
+				: _history->insertTextAtCursor(text));
+		});
 }
 
 bool MainWidget::notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo) {

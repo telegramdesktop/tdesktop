@@ -4069,6 +4069,12 @@ bool ChatWidget::confirmSendingFiles(not_null<const QMimeData*> data) {
 	return confirmSendingFiles(data, std::nullopt);
 }
 
+void ChatWidget::insertTextAtCursor(const QString &text) {
+	if (const auto field = _composeControls->fieldForMention()) {
+		Menu::InsertTextAtCursor(field, text);
+	}
+}
+
 bool ChatWidget::confirmSendingFiles(
 		const QStringList &files,
 		const QString &insertTextOnCancel) {

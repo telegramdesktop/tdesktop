@@ -3846,6 +3846,9 @@ void Widget::dragEnterEvent(QDragEnterEvent *e) {
 	} else if (ComputeMimeDataState(data) != MimeDataState::None) {
 		e->setDropAction(Qt::CopyAction);
 		e->accept();
+	} else if (data->hasText()) {
+		e->setDropAction(Qt::CopyAction);
+		e->accept();
 	}
 	_chooseByDragTimer.cancel();
 }
@@ -3900,6 +3903,8 @@ void Widget::updateDragInScroll(bool inScroll) {
 }
 
 void Widget::dropEvent(QDropEvent *e) {
+	using namespace Storage;
+
 	_chooseByDragTimer.cancel();
 	if (_scroll->geometry().contains(e->pos())) {
 		const auto globalPosition = mapToGlobal(e->pos());
@@ -3909,9 +3914,14 @@ void Widget::dropEvent(QDropEvent *e) {
 		if (thread) {
 			e->setDropAction(Qt::CopyAction);
 			e->accept();
-			controller()->content()->filesOrForwardDrop(
-				thread,
-				e->mimeData());
+			const auto data = e->mimeData();
+			if (!data->hasFormat(u"application/x-td-forward"_q)
+				&& ComputeMimeDataState(data) == MimeDataState::None
+				&& data->hasText()) {
+				controller()->content()->textDrop(thread, data);
+			} else {
+				controller()->content()->filesOrForwardDrop(thread, data);
+			}
 			if (!thread->owningHistory()->isForum()) {
 				hideChildList();
 			}

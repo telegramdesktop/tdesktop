@@ -209,6 +209,8 @@ public:
 	virtual bool confirmSendingFiles(not_null<const QMimeData*> data) {
 		return false;
 	}
+	virtual void insertTextAtCursor(const QString &text) {
+	}
 
 	virtual bool notify_switchInlineBotButtonReceived(
 			const QString &query,
