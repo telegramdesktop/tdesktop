@@ -20,44 +20,73 @@ namespace FFmpeg {
 namespace {
 
 constexpr auto kMaxArea = 1920 * 1080 * 4;
+constexpr auto kShortGapBytes = 64;
 
 using ::Media::ValidFrameSize;
 
-[[nodiscard]] bool ValidSourcePlanes(not_null<AVFrame*> frame, int format) {
+struct SourceRecipe {
+	int format = AV_PIX_FMT_NONE;
+	int width = 0;
+	int height = 0;
+	bool ok = false;
+	bool palette = false;
+	std::array<int, 4> visibleBytes = {};
+	std::array<int64_t, 4> maxStride = {};
+};
+
+[[nodiscard]] SourceRecipe DeriveSourceRecipe(
+		int format,
+		int width,
+		int height) {
+	auto result = SourceRecipe{
+		.format = format,
+		.width = width,
+		.height = height,
+	};
 	const auto pixelFormat = AVPixelFormat(format);
 	const auto desc = av_pix_fmt_desc_get(pixelFormat);
-	auto visible = std::array<int, 4>{};
 	if (!desc
 		|| av_image_fill_linesizes(
-			visible.data(),
+			result.visibleBytes.data(),
 			pixelFormat,
-			frame->width) < 0) {
-		return false;
+			width) < 0) {
+		return result;
 	}
-	const auto palette = (desc->flags & AV_PIX_FMT_FLAG_PAL) != 0;
+	result.palette = (desc->flags & AV_PIX_FMT_FLAG_PAL) != 0;
 	const auto maxPlaneBytes = int64_t(std::numeric_limits<int>::max())
 		/ kPixelBytesSize;
-	for (auto plane = 0; plane != int(visible.size()); ++plane) {
+	for (auto plane = 0; plane != int(result.maxStride.size()); ++plane) {
+		const auto shift = (plane == 1 || plane == 2)
+			? desc->log2_chroma_h
+			: 0;
+		const auto rows = AV_CEIL_RSHIFT(height, shift);
+		if (rows <= 0) {
+			return result;
+		}
+		result.maxStride[plane] = maxPlaneBytes / rows;
+	}
+	result.ok = true;
+	return result;
+}
+
+[[nodiscard]] bool MatchesSourceRecipe(
+		not_null<AVFrame*> frame,
+		const SourceRecipe &recipe) {
+	for (auto plane = 0; plane != int(recipe.visibleBytes.size()); ++plane) {
 		const auto data = frame->data[plane];
 		const auto stride = frame->linesize[plane];
-		if (palette && plane == 1) {
+		const auto visible = recipe.visibleBytes[plane];
+		if (recipe.palette && plane == 1) {
 			if (!data) {
 				return false;
 			}
-			continue;
-		} else if (!visible[plane]) {
+		} else if (!visible) {
 			continue;
 		} else if (!data
 			|| !stride
 			|| stride == std::numeric_limits<int>::min()
-			|| std::abs(stride) < visible[plane]) {
-			return false;
-		}
-		const auto shift = (plane == 1 || plane == 2)
-			? desc->log2_chroma_h
-			: 0;
-		const auto rows = AV_CEIL_RSHIFT(frame->height, shift);
-		if (int64_t(rows) * std::abs(stride) > maxPlaneBytes) {
+			|| std::abs(stride) < visible
+			|| std::abs(stride) > recipe.maxStride[plane]) {
 			return false;
 		}
 	}
@@ -89,6 +118,9 @@ private:
 
 	void readNextFrame();
 	void resolveNextFrameTiming();
+	[[nodiscard]] bool validSourcePlanes(
+		not_null<AVFrame*> frame,
+		int format);
 
 	[[nodiscard]] QString wrapError(int result) const;
 
@@ -115,6 +147,7 @@ private:
 	ReadFrame _next;
 	CodecPointer _codec;
 	SwscalePointer _scale;
+	SourceRecipe _sourceRecipe;
 	QImage _rotationStorage;
 
 	int _streamId = 0;
@@ -204,6 +237,20 @@ int64_t FrameGenerator::Impl::seek(int64_t offset, int whence) {
 	return now;
 }
 
+bool FrameGenerator::Impl::validSourcePlanes(
+		not_null<AVFrame*> frame,
+		int format) {
+	if (_sourceRecipe.format != format
+		|| _sourceRecipe.width != frame->width
+		|| _sourceRecipe.height != frame->height) {
+		_sourceRecipe = DeriveSourceRecipe(
+			format,
+			frame->width,
+			frame->height);
+	}
+	return _sourceRecipe.ok && MatchesSourceRecipe(frame, _sourceRecipe);
+}
+
 FrameGenerator::Frame FrameGenerator::Impl::renderCurrent(
 		QImage storage,
 		QSize size,
@@ -244,7 +291,7 @@ FrameGenerator::Frame FrameGenerator::Impl::renderCurrent(
 	const auto srcFormat = (frame->format == AV_PIX_FMT_NONE)
 		? _codec->pix_fmt
 		: frame->format;
-	if (!ValidSourcePlanes(frame, srcFormat)) {
+	if (!validSourcePlanes(frame, srcFormat)) {
 		LOG(("Webm Error: Bad frame planes, format %1.").arg(srcFormat));
 		return {};
 	}
@@ -282,15 +329,24 @@ FrameGenerator::Frame FrameGenerator::Impl::renderCurrent(
 		working = CreateFrameStorage(size, minPitch);
 	}
 	auto bits = working.bits();
-	if (bits && !GoodStorageForFrame(working, size, minPitch)) {
-		working = CreateFrameStorage(size, minPitch);
-		bits = working.bits();
-	}
-	if (!bits || !GoodStorageForFrame(working, size, minPitch)) {
+	if (!bits) {
 		LOG(("Webm Error: Bad frame storage %1x%2."
 			).arg(size.width()
 			).arg(size.height()));
 		return {};
+	}
+	const auto address = reinterpret_cast<uintptr_t>(bits);
+	if ((working.bytesPerLine() < minPitch)
+		|| (address % kAlignImageBy != 0)
+		|| (working.bytesPerLine() % kAlignImageBy != 0)) {
+		working = CreateFrameStorage(size, minPitch);
+		bits = working.bits();
+		if (!bits || !GoodStorageForFrame(working, size, minPitch)) {
+			LOG(("Webm Error: Bad frame storage %1x%2."
+				).arg(size.width()
+				).arg(size.height()));
+			return {};
+		}
 	}
 	const auto pitch = int(working.bytesPerLine());
 	const auto line = int(visibleBytes);
@@ -346,7 +402,18 @@ FrameGenerator::Frame FrameGenerator::Impl::renderCurrent(
 	const auto lastRow = first + int64_t(scaled.height() - 1) * pitch;
 	const auto end = bits + int64_t(size.height()) * pitch;
 	memset(bits, 0, first - bits);
-	if (gap > 0) {
+	if (gap > 0
+		&& gap <= kShortGapBytes
+		&& !(gap % kPixelBytesSize)
+		&& !(line % kPixelBytesSize)) {
+		const auto words = gap / kPixelBytesSize;
+		for (auto row = first; row != lastRow; row += pitch) {
+			const auto to = reinterpret_cast<uint32*>(row + line);
+			for (auto i = 0; i != words; ++i) {
+				to[i] = 0;
+			}
+		}
+	} else if (gap > 0) {
 		for (auto row = first; row != lastRow; row += pitch) {
 			memset(row + line, 0, gap);
 		}

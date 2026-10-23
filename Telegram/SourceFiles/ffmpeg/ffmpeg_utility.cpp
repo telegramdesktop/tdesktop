@@ -807,8 +807,8 @@ bool GoodStorageForFrame(
 		|| bytesPerLine > kMaxFrameStorageBytes) {
 		return false;
 	}
-	auto layout = AlignedFrameStorageLayout();
-	return ComputeAlignedFrameStorageLayout(size, int(bytesPerLine), &layout);
+	return int64_t(bytesPerLine) * size.height() + kAlignImageBy
+		<= kMaxFrameStorageBytes;
 }
 
 // Create a QImage of desired size where all the data is properly aligned.
