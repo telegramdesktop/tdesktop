@@ -106,6 +106,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "layout/layout_document_generic_preview.h"
+#include "platform/platform_file_utilities.h"
 #include "platform/platform_overlay_widget.h"
 #include "platform/platform_specific.h"
 #include "storage/file_download.h"
@@ -3356,16 +3357,24 @@ void OverlayWidget::saveAs() {
 				true,
 				alreadyDir);
 			if (!file.isEmpty() && file != location.name()) {
+				auto saved = false;
 				if (bytes.isEmpty()) {
 					QFile(file).remove();
-					QFile(location.name()).copy(file);
+					saved = QFile(location.name()).copy(file);
 				} else {
-					QFile f(file);
-					if (f.open(QIODevice::WriteOnly)) {
-						f.write(bytes);
+					auto output = QFile(file);
+					if (output.open(QIODevice::WriteOnly)
+						&& output.write(bytes) == bytes.size()
+						&& output.flush()) {
+						output.close();
+						saved = true;
 					}
 				}
-				if (_message) {
+				if (saved) {
+					Platform::File::PostprocessDownloaded(
+						QFileInfo(file).absoluteFilePath());
+				}
+				if (saved && _message) {
 					auto &manager = Core::App().downloadManager();
 					manager.addLoaded({
 						.item = _message,
@@ -3404,8 +3413,12 @@ void OverlayWidget::saveAs() {
 					QFile f(result);
 					if (!result.isEmpty()
 						&& _photo == photo
-						&& f.open(QIODevice::WriteOnly)) {
-						f.write(bytes);
+						&& f.open(QIODevice::WriteOnly)
+						&& f.write(bytes) == bytes.size()
+						&& f.flush()) {
+						f.close();
+						Platform::File::PostprocessDownloaded(
+							QFileInfo(f).absoluteFilePath());
 					}
 				}));
 		} else {

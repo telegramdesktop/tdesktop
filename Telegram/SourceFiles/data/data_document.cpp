@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "media/streaming/media_streaming_loader_mtproto.h"
 #include "media/streaming/media_streaming_loader_local.h"
+#include "platform/platform_file_utilities.h"
 #include "storage/localstorage.h"
 #include "storage/storage_account.h"
 #include "storage/streamed_file_downloader.h"
@@ -1234,11 +1235,16 @@ void DocumentData::save(
 		const auto &l = location(true);
 		if (!toFile.isEmpty()) {
 			if (!media->bytes().isEmpty()) {
-				QFile f(toFile);
-				if (f.open(QIODevice::WriteOnly)) {
-					f.write(media->bytes());
-					f.close();
+				const auto &bytes = media->bytes();
+				auto file = QFile(toFile);
+				if (!file.open(QIODevice::WriteOnly)
+					|| file.write(bytes) != bytes.size()
+					|| !file.flush()) {
+					return;
 				}
+				file.close();
+				Platform::File::PostprocessDownloaded(
+					QFileInfo(file).absoluteFilePath());
 
 				setLocation(Core::FileLocation(toFile));
 				session().local().writeFileLocation(
@@ -1249,7 +1255,11 @@ void DocumentData::save(
 				const auto &alreadyName = l.name();
 				if (alreadyName != toFile) {
 					QFile(toFile).remove();
-					copied = QFile(alreadyName).copy(toFile);
+					if (QFile(alreadyName).copy(toFile)) {
+						Platform::File::PostprocessDownloaded(
+							QFileInfo(toFile).absoluteFilePath());
+						copied = true;
+					}
 				}
 				l.accessDisable();
 				if (copied) {
@@ -1501,10 +1511,13 @@ bool DocumentData::saveFromDataChecked() {
 	}
 	auto file = QFile(path);
 	if (!file.open(QIODevice::WriteOnly)
-		|| file.write(bytes) != bytes.size()) {
+		|| file.write(bytes) != bytes.size()
+		|| !file.flush()) {
 		return false;
 	}
 	file.close();
+	Platform::File::PostprocessDownloaded(
+		QFileInfo(file).absoluteFilePath());
 	_location = Core::FileLocation(path);
 	session().local().writeFileLocation(mediaKey(), _location);
 	return true;
