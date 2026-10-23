@@ -277,7 +277,9 @@ constexpr auto kReminderSetToastDuration = 4 * crl::time(1000);
 
 [[nodiscard]] bool RequiresConfirmationAfterIvFallback(const QUrl &url) {
 	const auto host = url.host().toLower();
-	return (host == u"telegra.ph"_q) || (host == u"te.legra.ph"_q);
+	return (host == u"telegra.ph"_q)
+		|| (host == u"te.legra.ph"_q)
+		|| (host == u"graph.org"_q);
 }
 
 // Possible context owners: media viewer, profile, history widget.
