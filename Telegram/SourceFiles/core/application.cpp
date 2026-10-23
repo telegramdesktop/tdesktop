@@ -915,6 +915,12 @@ void Application::setCurrentProxy(
 	my.setSelected(proxy);
 	my.setSettings(settings);
 	const auto now = current();
+	if (_badProxyConfiguration && *_badProxyConfiguration != now) {
+		_badProxyConfiguration.reset();
+		if (const auto box = base::take(_badProxyDisableBox)) {
+			box->closeBox();
+		}
+	}
 	refreshGlobalProxy();
 	_proxyChanges.fire({ was, now });
 	my.connectionTypeChangesNotify();
@@ -935,19 +941,31 @@ auto Application::proxyChanges() const -> rpl::producer<ProxyChange> {
 	return _proxyChanges.events();
 }
 
-void Application::badMtprotoConfigurationError() {
-	if (settings().proxy().isEnabled() && !_badProxyDisableBox) {
-		const auto disableCallback = [=] {
-			setCurrentProxy(
-				settings().proxy().selected(),
-				MTP::ProxyData::Settings::System);
-		};
-		_badProxyDisableBox = Ui::show(
-			Ui::MakeInformBox(Lang::Hard::ProxyConfigError()));
-		_badProxyDisableBox->boxClosing(
-		) | rpl::on_next(
-			disableCallback,
-			_badProxyDisableBox->lifetime());
+void Application::badMtprotoConfigurationError(const MTP::ProxyData &proxy) {
+	const auto &current = settings().proxy();
+	if (_badProxyDisableBox
+		|| _badProxyConfiguration == proxy
+		|| !current.isEnabled()
+		|| current.selected() != proxy) {
+		return;
+	}
+	_badProxyConfiguration = proxy;
+	_badProxyDisableBox = Ui::show(Ui::MakeConfirmBox({
+		.text = Lang::Hard::ProxyConfigError(),
+		.confirmed = [=](Fn<void()> close) {
+			close();
+			const auto &current = settings().proxy();
+			if (current.isEnabled() && current.selected() == proxy) {
+				setCurrentProxy(
+					current.selected(),
+					MTP::ProxyData::Settings::System);
+			}
+		},
+		.confirmText = tr::lng_proxy_disable(),
+		.cancelText = tr::lng_cancel(),
+	}), Ui::LayerOption::KeepOther);
+	if (!_badProxyDisableBox) {
+		_badProxyConfiguration.reset();
 	}
 }
 

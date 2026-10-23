@@ -27,7 +27,7 @@ inline QString ClearPathFailed() {
 }
 
 inline QString ProxyConfigError() {
-	return u"The proxy you are using is not configured correctly and will be disabled. Please find another one."_q;
+	return u"The proxy you are using is not configured correctly. Do you want to disable it and use your system connection settings?"_q;
 }
 
 inline QString NoAuthorizationBot() {
