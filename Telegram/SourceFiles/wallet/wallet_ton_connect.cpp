@@ -43,6 +43,7 @@ struct CharRange {
 };
 
 constexpr auto kBidiControls = std::array{
+	CharRange{ 0x061C, 0x061C },
 	CharRange{ 0x200E, 0x200F },
 	CharRange{ 0x202A, 0x202E },
 	CharRange{ 0x2066, 0x2069 },

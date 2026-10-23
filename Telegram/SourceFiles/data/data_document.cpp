@@ -108,6 +108,14 @@ void UpdateStickerSetIdentifier(
 		: attributesQuality;
 }
 
+[[nodiscard]] bool IsBidiControl(QChar ch) {
+	const auto code = ch.unicode();
+	return (code == 0x061C) // ALM, LRM/RLM, LRE..RLO with PDF, LRI..PDI.
+		|| (code == 0x200E || code == 0x200F)
+		|| (code >= 0x202A && code <= 0x202E)
+		|| (code >= 0x2066 && code <= 0x2069);
+}
+
 } // namespace
 
 QString FileNameUnsafe(
@@ -1171,18 +1179,10 @@ void DocumentData::setFileName(const QString &remoteFileName) {
 	// We don't want LTR/RTL mark/embedding/override/isolate chars
 	// in filenames, because they introduce a security issue, when
 	// an executable "Fil[x]gepj.exe" may look like "Filexe.jpeg".
-	QChar controls[] = {
-		QChar(0x200E), // LTR Mark
-		QChar(0x200F), // RTL Mark
-		QChar(0x202A), // LTR Embedding
-		QChar(0x202B), // RTL Embedding
-		QChar(0x202D), // LTR Override
-		QChar(0x202E), // RTL Override
-		QChar(0x2066), // LTR Isolate
-		QChar(0x2067), // RTL Isolate
-	};
-	for (const auto &ch : controls) {
-		_filename = std::move(_filename).replace(ch, "_");
+	for (auto &ch : _filename) {
+		if (IsBidiControl(ch)) {
+			ch = '_';
+		}
 	}
 	_nameType = Core::DetectNameType(_filename);
 }
