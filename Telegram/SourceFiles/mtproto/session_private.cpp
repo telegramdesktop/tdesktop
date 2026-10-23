@@ -1338,7 +1338,8 @@ void SessionPrivate::handleReceived() {
 			return restart();
 		}
 
-		if ((messageLength > kMaxMessageLength)
+		if ((messageLength < kIntSize)
+			|| (messageLength > kMaxMessageLength)
 			|| (messageLength & 0x03)
 			|| (paddingSize < kMinPaddingSize)
 			|| (paddingSize > kMaxPaddingSize)) {
