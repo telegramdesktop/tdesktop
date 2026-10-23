@@ -138,6 +138,7 @@ public:
 		SendPreparedMessageRequest request) = 0;
 	virtual void botRequestChat(RequestChatRequest request) = 0;
 	virtual void botVerifyAge(int age) = 0;
+	virtual void botOpenTermsOfService() = 0;
 	virtual void botOpenPrivacyPolicy() = 0;
 	virtual void botClose() = 0;
 };

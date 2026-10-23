@@ -2295,12 +2295,16 @@ void DetailsFiller::addMainApp(not_null<UserData*> user) {
 		}
 		return text;
 	});
-	auto setup = [url](not_null<Ui::FlatLabel*> label) {
+	auto setup = [url, controller](not_null<Ui::FlatLabel*> label) {
 		label->setClickHandlerFilter([=](
 				const ClickHandlerPtr &link,
 				Qt::MouseButton) {
 			if (link && link->url() == url) {
-				UrlClickHandler::Open(url);
+				HiddenUrlClickHandler::OpenTranslated(
+					tr::lng_mini_apps_tos_url,
+					QVariant::fromValue(ClickHandlerContext{
+						.sessionWindow = controller,
+					}));
 				return false;
 			}
 			return true;
@@ -3084,7 +3088,10 @@ void ActionsFiller::addBotCommandActions(not_null<UserData*> user) {
 			}
 		}
 		if (!sendBotCommand(u"privacy"_q)) {
-			openUrl(tr::lng_profile_bot_privacy_url(tr::now));
+			HiddenUrlClickHandler::OpenTranslatedWithIv(
+				&user->session(),
+				tr::lng_profile_bot_privacy_url,
+				makeOtherContext());
 		}
 	};
 	AddActionButton(

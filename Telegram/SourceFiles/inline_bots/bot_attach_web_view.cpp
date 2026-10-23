@@ -2326,6 +2326,16 @@ void WebViewInstance::botVerifyAge(int age) {
 	}
 }
 
+void WebViewInstance::botOpenTermsOfService() {
+	HiddenUrlClickHandler::OpenTranslated(
+		tr::lng_mini_apps_tos_url,
+		QVariant::fromValue(ClickHandlerContext{
+			.sessionWindow = _context.controller,
+			.show = uiShow(),
+			.peer = _bot,
+		}));
+}
+
 void WebViewInstance::botOpenPrivacyPolicy() {
 	const auto bot = _bot;
 	const auto weak = _context.controller;
@@ -2376,7 +2386,10 @@ void WebViewInstance::botOpenPrivacyPolicy() {
 		}
 	}
 	if (!sendCommand()) {
-		openUrl(tr::lng_profile_bot_privacy_url(tr::now));
+		HiddenUrlClickHandler::OpenTranslatedWithIv(
+			_session,
+			tr::lng_profile_bot_privacy_url,
+			makeOtherContext(false));
 	}
 }
 

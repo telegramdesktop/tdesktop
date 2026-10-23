@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/history_item.h"
 #include "inline_bots/bot_attach_web_view.h"
+#include "iv/iv_instance.h"
 #include "data/data_game.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
@@ -55,6 +56,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kReminderSetToastDuration = 4 * crl::time(1000);
+
+[[nodiscard]] QString TranslatedUrl(tr::phrase<> phrase) {
+	const auto url = phrase(tr::now);
+	const auto parsed = QUrl(url, QUrl::StrictMode);
+	const auto scheme = parsed.scheme();
+	return (parsed.isValid()
+		&& !parsed.host().isEmpty()
+		&& (scheme == u"http"_q || scheme == u"https"_q))
+		? url
+		: Lang::GetOriginalValue(phrase.base);
+}
 
 // QUrl keeps punycode for hosts outside its IDN whitelist.
 [[nodiscard]] QString DisplayUrlWithUnicodeHost(const QUrl &url) {
@@ -462,6 +474,30 @@ QString HiddenUrlClickHandler::copyToClipboardContextItemText() const {
 QString HiddenUrlClickHandler::dragText() const {
 	const auto result = HiddenUrlClickHandler::copyToClipboardText();
 	return result.startsWith(u"internal:"_q) ? QString() : result;
+}
+
+void HiddenUrlClickHandler::OpenTranslated(
+		tr::phrase<> phrase,
+		QVariant context) {
+	Open(TranslatedUrl(phrase), std::move(context));
+}
+
+void HiddenUrlClickHandler::OpenTranslatedWithIv(
+		not_null<Main::Session*> session,
+		tr::phrase<> phrase,
+		QVariant context) {
+	const auto url = TranslatedUrl(phrase);
+	const auto parsed = QUrl(url);
+	auto my = context.value<ClickHandlerContext>();
+	my.forceExternalUrlConfirmation = my.forceExternalUrlConfirmation
+		|| (!base::IsCtrlPressed()
+			&& (UrlRequiresConfirmation(session, parsed)
+				|| IsTelegramShortLinkHost(parsed)
+				|| RequiresConfirmationAfterIvFallback(parsed)));
+	Core::App().iv().openWithIvPreferred(
+		session,
+		url,
+		QVariant::fromValue(my));
 }
 
 void HiddenUrlClickHandler::Open(QString url, QVariant context) {

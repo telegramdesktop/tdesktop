@@ -1707,7 +1707,7 @@ bool Panel::showWebview(Args &&args, const Webview::ThemeParams &params) {
 			}
 		},
 		.terms = [=] {
-			File::OpenUrl(tr::lng_mini_apps_tos_url(tr::now));
+			_delegate->botOpenTermsOfService();
 		},
 		.privacy = [=] {
 			_delegate->botOpenPrivacyPolicy();
@@ -2027,7 +2027,7 @@ void Panel::handleExternalShellMenuAction(const QString &id) {
 			}
 		},
 		.terms = [=] {
-			File::OpenUrl(tr::lng_mini_apps_tos_url(tr::now));
+			_delegate->botOpenTermsOfService();
 		},
 		.privacy = [=] {
 			_delegate->botOpenPrivacyPolicy();

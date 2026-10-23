@@ -2102,9 +2102,12 @@ void GenericCreditsEntryBody(
 				st::creditsBoxAbout),
 			style::al_top);
 		about->setClickHandlerFilter([=](const auto &...) {
-			Core::App().iv().openWithIvPreferred(
+			HiddenUrlClickHandler::OpenTranslatedWithIv(
 				session,
-				tr::lng_paid_about_link_url(tr::now));
+				tr::lng_paid_about_link_url,
+				QVariant::fromValue(ClickHandlerContext{
+					.show = show,
+				}));
 			return false;
 		});
 		if (e.giftRefunded) {

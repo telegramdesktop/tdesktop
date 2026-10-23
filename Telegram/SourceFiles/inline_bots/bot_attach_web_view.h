@@ -333,6 +333,7 @@ private:
 	void botResolveButtonEmoji(
 		Ui::BotWebView::ResolveButtonEmojiRequest request) override;
 	void botVerifyAge(int age) override;
+	void botOpenTermsOfService() override;
 	void botOpenPrivacyPolicy() override;
 	void botClose() override;
 
