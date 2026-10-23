@@ -3619,8 +3619,7 @@ int LayoutBlocks(
 		const LayoutNestedBlocksCallback &layoutNestedBlocks) {
 	if (!block
 		|| MissingRetainedLeaf(prepared.embedPost.author, block->labelLeaf)
-		|| MissingRetainedLeaf(prepared.embedPost.dateText, block->subtitleLeaf)
-		|| (prepared.embedPost.authorPhotoId && !block->photoRuntime)) {
+		|| MissingRetainedLeaf(prepared.embedPost.dateText, block->subtitleLeaf)) {
 		return std::nullopt;
 	}
 	ClearBlockGeometry(block);
