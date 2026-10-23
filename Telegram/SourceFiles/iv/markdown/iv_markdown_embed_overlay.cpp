@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/padding_wrap.h"
+#include "core/core_webview_proxy.h"
 #include "webview/webview_data_stream_memory.h"
 #include "webview/webview_embed.h"
 #include "webview/webview_interface.h"
@@ -498,6 +499,7 @@ Webview::WindowConfig EmbedOverlay::makeWindowConfig() const {
 		.initialSize = UsesExternalWindow(_mode)
 			? externalInitialSize()
 			: QSize(),
+		.proxySettings = Core::CurrentWebviewProxy(),
 	};
 }
 
@@ -527,6 +529,7 @@ void EmbedOverlay::ensureWebview() {
 		return;
 	}
 	const auto generation = ++_webviewGeneration;
+	const auto proxySettings = Core::CurrentWebviewProxy();
 	_webview = std::make_unique<Webview::Window>(
 		_webviewParent ? _webviewParent.data() : this,
 		makeWindowConfig());
@@ -538,6 +541,12 @@ void EmbedOverlay::ensureWebview() {
 		return;
 	}
 	widget->hide();
+
+	Core::WebviewProxyChangesFrom(
+		proxySettings
+	) | rpl::on_next([=] {
+		closeEmbed();
+	}, _webview->lifetime());
 	QObject::connect(widget, &QObject::destroyed, this, [=] {
 		if (_webviewGeneration != generation
 			|| !_webview
