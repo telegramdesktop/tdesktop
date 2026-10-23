@@ -3907,7 +3907,9 @@ void Session::photoApplyFields(
 			sizes,
 			std::greater<>(),
 			level);
-		return (level(*result) == kInvalidIndex) ? sizes.end() : result;
+		return (result == sizes.end() || level(*result) == kInvalidIndex)
+			? sizes.end()
+			: result;
 	};
 	const auto image = [&](const QByteArray &levels) {
 		const auto i = find(levels);
