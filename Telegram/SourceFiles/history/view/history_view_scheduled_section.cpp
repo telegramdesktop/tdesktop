@@ -140,6 +140,10 @@ object_ptr<Window::SectionWidget> ScheduledMemento::createWidget(
 	return result;
 }
 
+Data::ForumTopic *ScheduledMemento::topicForRemoveRequests() const {
+	return _forumTopic;
+}
+
 ScheduledWidget::ScheduledWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,

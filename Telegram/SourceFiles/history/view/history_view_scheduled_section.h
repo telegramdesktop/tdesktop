@@ -346,9 +346,11 @@ public:
 		return _sentToScheduledId;
 	}
 
+	Data::ForumTopic *topicForRemoveRequests() const override;
+
 private:
 	const not_null<History*> _history;
-	const Data::ForumTopic *_forumTopic;
+	Data::ForumTopic *_forumTopic;
 	ListMemento _list;
 	MsgId _sentToScheduledId = 0;
 
