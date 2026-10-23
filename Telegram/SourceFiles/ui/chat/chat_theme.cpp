@@ -1019,6 +1019,9 @@ QImage PrepareImageForTiled(const QImage &prepared) {
 		width * repeatTimesX,
 		height * repeatTimesY,
 		QImage::Format_ARGB32_Premultiplied);
+	if (result.isNull()) {
+		return prepared;
+	}
 	result.setDevicePixelRatio(prepared.devicePixelRatio());
 	auto imageForTiledBytes = result.bits();
 	auto bytesInLine = width * sizeof(uint32);

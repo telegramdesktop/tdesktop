@@ -358,7 +358,7 @@ bool LoadTheme(
 			auto reader = QImageReader(&check);
 			const auto size = reader.size();
 			if (size.isEmpty()
-				|| (size.width() * size.height() > kBackgroundSizeLimit)) {
+				|| (int64(size.width()) * size.height() > kBackgroundSizeLimit)) {
 				LOG(("Theme Error: bad background image size in the theme file."));
 				return false;
 			}
@@ -366,6 +366,7 @@ bool LoadTheme(
 				.content = backgroundContent,
 				.forceOpaque = true,
 			}).image;
+			background = Ui::PreprocessBackgroundImage(std::move(background));
 			if (background.isNull()) {
 				LOG(("Theme Error: could not read background image in the theme file."));
 				return false;
@@ -419,7 +420,14 @@ bool InitializeFromCache(
 		QDataStream stream(cache.background);
 		QImageReader reader(stream.device());
 		reader.setAutoTransform(true);
-		if (!reader.read(&background) || background.isNull()) {
+		const auto size = reader.size();
+		if (size.isEmpty()
+			|| (int64(size.width()) * size.height() > kBackgroundSizeLimit)
+			|| !reader.read(&background)) {
+			return false;
+		}
+		background = Ui::PreprocessBackgroundImage(std::move(background));
+		if (background.isNull()) {
 			return false;
 		}
 	}
