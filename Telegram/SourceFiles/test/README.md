@@ -63,6 +63,13 @@ and the selected module's reference for clipboard, menu or other special input.
 Capture the real paint owner and the complete requested rectangle. Keep
 readiness separate from the expected pixels; save the accepted frame before
 asserting on it. Report logical versus image pixels and DPR explicitly.
+Strict comparisons keep one render owner, origin and extent
+([strict path](docs/helpers/test_capture.md#strict-same-state-comparisons));
+crop a full-owner render only through the
+[checked crop](docs/helpers/test_capture.md#checked-full-owner-crops); bind
+child rects to their [coordinate owner](docs/helpers/test_capture.md#coordinate-owners-of-mapped-rectangles);
+coordinated samplers share a
+[capture scope](docs/helpers/test_post_paint.md#coordinated-samplers-and-receipts).
 Read [capture selection](docs/helpers/test_capture.md), then select only the
 needed [ink](docs/helpers/test_ink.md), [post-paint](docs/helpers/test_post_paint.md),
 [clocked-frame](docs/helpers/test_animation_clock.md) or

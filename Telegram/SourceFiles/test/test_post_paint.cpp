@@ -50,6 +50,15 @@ constexpr auto kGrabFreeLead = crl::time(40);
 	return false;
 }
 
+[[nodiscard]] QString ReceiptKindText(PostPaintReceiptKind kind) {
+	switch (kind) {
+	case PostPaintReceiptKind::Product: return u"product"_q;
+	case PostPaintReceiptKind::Untracked: return u"untracked"_q;
+	case PostPaintReceiptKind::Capture: return u"capture"_q;
+	}
+	Unexpected("Kind in Test::ReceiptKindText.");
+}
+
 } // namespace
 
 QString PostPaintSampleText(const PostPaintSample &sample) {
@@ -91,13 +100,30 @@ QString PostPaintStopText(
 	return text;
 }
 
+QString PostPaintReceiptText(const PostPaintReceipt &receipt) {
+	return u"receipt index=%1 at=%2 kind=%3"_q
+		.arg(receipt.index)
+		.arg(receipt.at)
+		.arg(ReceiptKindText(receipt.kind));
+}
+
+bool PostPaintFirstReceipt::received() const {
+	return refusal.isEmpty() && (receipt.index > 0);
+}
+
+bool PostPaintCaptureScope::capturing() const {
+	return (_depth > 0);
+}
+
 PostPaintSampler::PostPaintSampler(
 	QString name,
 	not_null<QWidget*> owner,
-	Fn<void(int seq)> sample)
+	Fn<void(int seq)> sample,
+	std::shared_ptr<PostPaintCaptureScope> scope)
 : _name(std::move(name))
 , _owner(owner.get())
-, _sample(std::move(sample)) {
+, _sample(std::move(sample))
+, _scope(std::move(scope)) {
 	const auto filter = base::install_event_filter(owner, [=](
 			not_null<QEvent*> e) {
 		if (e->type() == QEvent::Paint) {
@@ -131,15 +157,18 @@ void PostPaintSampler::paintReceived() {
 	if (!_stopReason.isEmpty()) {
 		return;
 	}
-	if (_sampling) {
+	const auto now = crl::now();
+	if (_sampling || (_scope && _scope->capturing())) {
 		++_ignored;
+		receive(now, PostPaintReceiptKind::Capture);
 		return;
 	}
-	const auto now = crl::now();
 	++_paints;
 	if (!sampling(now) || grabFree(now)) {
+		receive(now, PostPaintReceiptKind::Untracked);
 		return;
 	}
+	receive(now, PostPaintReceiptKind::Product);
 	if (_pending) {
 		++_pendingCovered;
 		_pendingLastAt = now;
@@ -150,6 +179,14 @@ void PostPaintSampler::paintReceived() {
 	_pendingFirstAt = now;
 	_pendingLastAt = now;
 	post();
+}
+
+void PostPaintSampler::receive(crl::time at, PostPaintReceiptKind kind) {
+	_receipts.push_back({
+		.index = int(_receipts.size()) + 1,
+		.at = at,
+		.kind = kind,
+	});
 }
 
 void PostPaintSampler::post() {
@@ -181,7 +218,18 @@ void PostPaintSampler::runPending() {
 	const auto weak = base::make_weak(this);
 	_sampling = true;
 	row.lo = crl::now();
-	_sample(row.seq);
+	{
+		const auto scope = _scope;
+		if (scope) {
+			++scope->_depth;
+		}
+		const auto leave = gsl::finally([&] {
+			if (scope) {
+				--scope->_depth;
+			}
+		});
+		_sample(row.seq);
+	}
 	row.hi = crl::now();
 	if (!weak) {
 		return;
@@ -239,6 +287,43 @@ std::vector<PostPaintSample> PostPaintSampler::samplesSince(int mark) const {
 	return result;
 }
 
+int PostPaintSampler::receiptMark() const {
+	return int(_receipts.size());
+}
+
+std::vector<PostPaintReceipt> PostPaintSampler::receiptsSince(
+		int mark) const {
+	auto result = std::vector<PostPaintReceipt>();
+	for (const auto &receipt : _receipts) {
+		if (receipt.index > mark) {
+			result.push_back(receipt);
+		}
+	}
+	return result;
+}
+
+PostPaintFirstReceipt PostPaintSampler::firstReceiptSince(
+		int mark,
+		PostPaintReceiptKind kind) const {
+	for (const auto &receipt : _receipts) {
+		if ((receipt.index > mark) && (receipt.kind == kind)) {
+			return { .receipt = receipt };
+		}
+	}
+	const auto last = _receipts.empty()
+		? u"none"_q
+		: PostPaintReceiptText(_receipts.back());
+	return {
+		.refusal = u"absent-receipt: no %1 receipt since mark %2 "
+			"(receipts=%3, last=%4, stop=%5)"_q
+			.arg(ReceiptKindText(kind))
+			.arg(mark)
+			.arg(int(_receipts.size()))
+			.arg(last)
+			.arg(_stopReason.isEmpty() ? u"-"_q : _stopReason),
+	};
+}
+
 bool PostPaintSampler::pending() const {
 	return _pending;
 }
@@ -260,7 +345,10 @@ QString PostPaintSampler::details() const {
 			.arg(_dropped)
 			.arg(int(_windows.size()))
 			.arg(int(_grabFree.size()))
-			.arg(_longest);
+			.arg(_longest)
+		+ u" scope=%1 receipts=%2"_q
+			.arg(_scope ? u"shared"_q : u"local"_q)
+			.arg(int(_receipts.size()));
 }
 
 namespace {

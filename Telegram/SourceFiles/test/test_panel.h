@@ -17,6 +17,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <optional>
 #include <vector>
 
+namespace Ui {
+class SeparatePanel;
+} // namespace Ui
+
 namespace Test {
 
 class Runner;
@@ -256,6 +260,77 @@ void LogPanelWalk(const QString &name, const PanelWalk &reading);
 // -> Test::CheckTextReads, composed at the call site the way
 // test_via_window.cpp already writes it, and this module deliberately
 // promotes no panel label-join idiom for it.
+
+// Sizing an oversized panel fixture: grow a shown, typed Ui::SeparatePanel
+// so a fixture taller than its first inner size becomes measurable, then
+// restore it exactly.
+//
+// Typed on purpose. Ui::SeparatePanel is a Ui::RpWidget, not a
+// Ui::RpWindow: its size goes through setInnerSize (whose size includes
+// the title), and once the panel has a geometry that call takes
+// updateGeometry - outer = request + padding, setFixedSize, no move and no
+// available-height clamp - never initGeometry's clamp and centring. The
+// Ui::RpWindow static-dispatch rule (setGeometry and friends hidden by
+// non-virtual members) applies to a Ui::RpWindow only; a panel's move() is
+// the plain QWidget member. Hold the fixture as QPointer<Ui::SeparatePanel>.
+//
+// WindowStatesText prints the full Qt::WindowStates value with its flag
+// names, "<int> (<size mode>[+active])", where the size mode is "normal" or
+// the set minimized/maximized/fullscreen bits joined with '+'.
+// PanelSizeModeRefusal is empty unless a Qt::WindowMinimized,
+// Qt::WindowMaximized or Qt::WindowFullScreen bit is set; Qt::WindowActive
+// (0x8) is independent of the size mode and never refuses, so an active
+// normal panel (state 8) is sizable.
+//
+// GrowPanelInnerHeight records the panel's outer geometry, body
+// (innerGeometry()), current inner request
+// (rect().marginsRemoved(computePadding()).size()), minimum and maximum
+// size and full windowState() first, so a refused sizing still prints full
+// telemetry. It then refuses, first applicable, "not a top-level window",
+// "hidden", the size-mode refusal, "resizable panel" (minimum != maximum:
+// setInnerSize defaults allowResize to false and would silently make it
+// fixed and drop its resize edges) and "no height increase requested"
+// (|extra| <= 0). Otherwise it calls setInnerSize(request + 0x|extra|) and
+// the sizing is owed. It never activates the panel, raises it or changes
+// its window state.
+//
+// Geometry settles asynchronously on macOS: wait for PanelSizingApplied
+// (current request == |applied|, body height grown by exactly |extra|,
+// full state unchanged) and, after RestorePanelSizing, for
+// PanelSizingRestored (nothing owed, and geometry, inner geometry, minimum,
+// maximum and full state equal the recorded values) in a pure |until|;
+// both are pure. RestorePanelSizing is idempotent: when owed it calls
+// setInnerSize(request) and move(outer.topLeft()) on a live panel and
+// clears |owed|, and a panel already gone owes nothing. Call it from
+// Runner::onFinish before the panel is destroyed. Reference:
+// docs/helpers/test_panel.md, "Sizing an oversized panel fixture".
+[[nodiscard]] QString WindowStatesText(Qt::WindowStates states);
+[[nodiscard]] QString PanelSizeModeRefusal(Qt::WindowStates states);
+
+struct PanelSizing {
+	QPointer<Ui::SeparatePanel> panel;
+	QRect outer;
+	QRect body;
+	QSize request;
+	QSize minimum;
+	QSize maximum;
+	Qt::WindowStates state = Qt::WindowNoState;
+	QSize applied;
+	QString refusal;
+	bool owed = false;
+};
+
+[[nodiscard]] PanelSizing GrowPanelInnerHeight(
+	not_null<Ui::SeparatePanel*> panel,
+	int extra);
+[[nodiscard]] bool PanelSizingApplied(const PanelSizing &sizing);
+void RestorePanelSizing(PanelSizing &sizing);
+[[nodiscard]] bool PanelSizingRestored(const PanelSizing &sizing);
+
+// "panel=<identity> frozen={outer= body= request= min= max= state=}
+// now={...} applied=<WxH|none> owed=<0|1> refusal=<refusal|none>", with
+// now=<gone> once the panel is destroyed.
+[[nodiscard]] QString PanelSizingText(const PanelSizing &sizing);
 
 // This module measuring itself over a synthetic top level
 // Ui::SeparatePanel it creates, shows and takes down inside the stages

@@ -8,7 +8,9 @@ Source contract: [test_post_paint.h](../../test_post_paint.h).
 
 ## Use when
 
-Samples after real product paints. Read the contract below and the source header before use.
+Samples after real product paints, coordinated samplers sharing a capture
+scope, and per-paint receipts for reconciliation and first-paint controls.
+Read the contract below and the source header before use.
 
 ## Contract and usage
 
@@ -17,7 +19,11 @@ paints instead of on a timer. A `base::install_event_filter` on the owner sees
 each `QEvent::Paint`; a product paint inside a `sampleDuring` window posts at
 most one queued sample that runs after the paint returned, and later paints
 share a pending one (`covered`); a recursion guard ignores the paints the
-sampler's own action causes; `grabFreeDuring` windows, with a lead of the
+sampler's own action causes, and a shared `PostPaintCaptureScope` extends
+it to the actions of every member
+([coordinated samplers](#coordinated-samplers-and-receipts)); every paint
+the filter sees is one receipt, read through `receiptMark()` /
+`receiptsSince()` / `firstReceiptSince()`; `grabFreeDuring` windows, with a lead of the
 longest action so far and at least 40 ms, take no sample and count the queued
 ones they drop (`dropped=`); the owner is held weakly and its destruction logs
 one `kind=stop reason=owner-destroyed` row; rows are read through `mark()` /
@@ -80,8 +86,9 @@ received during the action: a grab delivers `QEvent::Paint` to the owner
 through `QWidget::render`, so a sample never posts another, while an owner
 that requests a repaint from every paint keeps being sampled because it
 keeps painting. Any other grab of the owner or of an ancestor taken inside a
-sampling window looks like a product paint: route it through the action or
-take it outside the windows. There is no timer fallback, so nothing is
+sampling window looks like a product paint, unless it is the action of a
+sampler sharing this sampler's capture scope (below): route it through such
+an action or take it outside the windows. There is no timer fallback, so nothing is
 sampled without a product paint; a frame of an idle surface is a plain grab
 taken outside the windows. The owner is held weakly. When it is destroyed, a
 pending sample does nothing and the sampler logs one `kind=stop
@@ -102,3 +109,119 @@ reads both formats. `details()` and the empty-window note (`NOTE: <name>:
 ignored an empty sampling|grab-free window from=<ms> till=<ms>`) keep
 ordinary integers either way. Confirm with
 `AppendPostPaintSamplerSelfTest`.
+
+## Coordinated samplers and receipts
+
+One sampler per child of a composite owner whose action grabs the whole
+composite is the coordinated case. The grab paints every child
+synchronously through `QWidget::render`, and each sampler's own recursion
+guard covers only its own action, so without coordination the other
+children's samplers count those harness paints as product paints and post
+samples whose grabs paint the first child again. In
+`2026/10/18/tighten-money-tabs-without-moving-the-transactions-title`
+(`work/test.md`, "Independent discovered harness follow-up") such samplers
+classified harness paints as product paints and recursively queued more
+composite samples; the disposable recovery shared a capture flag and
+published each paint's receipt through owner properties.
+
+**The scope.** Create one `std::make_shared<Test::PostPaintCaptureScope>()`
+and hand it to every member's constructor. A member enters the scope around
+its action, and every member checks the scope as well as its own flag, so a
+paint any member receives while any member's action runs is a `Capture`
+receipt: counted in `ignored=`, never sampled, never joined to a pending
+sample. Only members' actions are excluded. A paint received outside them is
+classified as before, including a later paint that a capture paint
+requested with `update()`, which is a genuine product paint and is sampled.
+The scope is left when the action returns, even when the action destroyed
+the sampler, and `scope->capturing()` answers whether some member's action
+is running. Samplers that share no scope, and every sampler built without
+one, keep the instance-local guard alone: to them another sampler's grab of
+their owner is a product paint. `details()` ends with `scope=shared|local
+receipts=<n>`.
+
+**Receipts.** While the sampler is live, every paint its filter sees is one
+`PostPaintReceipt {index, at, kind}`, classified at receipt; a stopped
+sampler records none, and receipts never change a row or the stop row.
+
+| Kind | Meaning |
+| --- | --- |
+| `Product` | A counted product paint (`paints=`) that posted a sample or joined the pending one; its `at` is the row's `paintAt` or `lastPaintAt`. |
+| `Untracked` | A counted product paint outside every sampling window or inside a grab-free window, its lead included; no sample follows it. |
+| `Capture` | A paint caused by this sampler's own action or by the action of any sampler sharing its scope, counted in `ignored=`. |
+
+`index` is 1-based in receipt order. Read receipts the way rows are read:
+take `receiptMark()` immediately before the action under test and pass it
+to `receiptsSince(mark)`. The sampler's filter runs before the owner's
+`paintEvent`, so `receiptMark()` read inside that `paintEvent` is this
+paint's index: stamp it in the caller's own paint records and reconcile
+them to the receipts one to one by index, with a capture record exactly
+where the receipt is `Capture`, never by position or by counting.
+`PostPaintReceiptText` prints `receipt index=<n> at=<ms>
+kind=product|untracked|capture` in ordinary integers, as does the refusal
+below, whatever `Test::RequestTelemetryNumbers()` asked for rows.
+
+**The first-receipt pitfall.** An exposed idle window has promised no
+paint: being shown or exposed is not a paint request, and time passing is
+not one either. In Recovery plan 1 of the same campaign the ledger recorded
+zero exact-owner paints in a 500 ms window, `[9016,9516)`, of an idle exposed
+surface whose later endpoint had correct geometry; the overlay had never
+asked it to update. To prove an owner paints, open a sampling window
+(outside one the paint is `Untracked`, and `firstReceiptSince` looks for
+`Product` by default), take `receiptMark()`, call `update()` on the owner
+once and wait in a pure `until` for `firstReceiptSince(mark).received()`.
+Without one the reading is the named refusal `absent-receipt: no <kind>
+receipt since mark <m> (receipts=<n>, last=<receipt or none>, stop=<reason
+or ->)`, which is a failed control, never a pass. Visibility, elapsed time
+or a `Capture` receipt - a grab paints whether or not the window would - is
+never a first-paint control.
+
+```cpp
+// One sampler per child, one shared scope; the action grabs the composite.
+state->scope = std::make_shared<Test::PostPaintCaptureScope>();
+const auto grab = [=](int) {
+	state->frames.push_back(Test::GrabWidget(state->composite.data()));
+};
+state->first = std::make_unique<Test::PostPaintSampler>(
+	u"first"_q,
+	state->firstChild.data(),
+	grab,
+	state->scope);
+state->second = std::make_unique<Test::PostPaintSampler>(
+	u"second"_q,
+	state->secondChild.data(),
+	grab,
+	state->scope);
+
+// The first-paint control: one requested paint, its exact first receipt.
+runner->add({
+	.name = u"the first child paints after one update()"_q,
+	.run = [=] {
+		state->till = crl::now() + 3000;
+		state->first->sampleDuring(crl::now(), state->till);
+		state->mark = state->first->receiptMark();
+		state->firstChild->update();
+	},
+	.until = [=] {
+		return state->first->firstReceiptSince(state->mark).received()
+			|| (crl::now() >= state->till);
+	},
+	.then = [=] {
+		const auto first = state->first->firstReceiptSince(state->mark);
+		Test::Check(
+			first.received(),
+			u"the first child painted after one update()"_q,
+			first.received()
+				? Test::PostPaintReceiptText(first.receipt)
+				: first.refusal);
+	},
+});
+```
+
+Release every sampler before the widgets they observe, and read receipts
+and rows before releasing a sampler: it keeps no history after it is gone.
+Confirm with `AppendFullOwnerCaptureSelfTest`
+([self-test](test_full_owner_capture.md)): its arm A2 shows a shared scope
+excluding every composite capture paint while one real update on each child
+yields exactly one bounded sample, and arm A3, the same composite capture
+through samplers without a scope, passes only when it exposes the defect -
+a capture paint taken for a product paint and recursive extra samples.

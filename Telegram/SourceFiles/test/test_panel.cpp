@@ -24,6 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QStringList>
 #include <QtWidgets/QApplication>
 
+#include <array>
+
 #include "styles/style_layers.h"
 
 namespace Test {
@@ -95,6 +97,69 @@ void LogSettle(
 		return ReadPanelShowState(panel) == PanelShowState::Live;
 	}
 	return false;
+}
+
+// One reading of everything a panel sizing records and restores.
+struct PanelFrame {
+	QRect outer;
+	QRect body;
+	QSize request;
+	QSize minimum;
+	QSize maximum;
+	Qt::WindowStates state = Qt::WindowNoState;
+};
+
+[[nodiscard]] PanelFrame ReadPanelFrame(not_null<Ui::SeparatePanel*> panel) {
+	return {
+		.outer = panel->geometry(),
+		.body = panel->innerGeometry(),
+		.request = panel->rect().marginsRemoved(
+			panel->computePadding()).size(),
+		.minimum = panel->minimumSize(),
+		.maximum = panel->maximumSize(),
+		.state = panel->windowState(),
+	};
+}
+
+[[nodiscard]] PanelFrame FrozenFrame(const PanelSizing &sizing) {
+	return {
+		.outer = sizing.outer,
+		.body = sizing.body,
+		.request = sizing.request,
+		.minimum = sizing.minimum,
+		.maximum = sizing.maximum,
+		.state = sizing.state,
+	};
+}
+
+[[nodiscard]] QString SizeText(const QSize &size) {
+	return u"%1x%2"_q.arg(size.width()).arg(size.height());
+}
+
+[[nodiscard]] QString PanelFrameText(const PanelFrame &frame) {
+	return u"outer=%1 body=%2 request=%3 min=%4 max=%5 state=%6"_q
+		.arg(RectText(frame.outer))
+		.arg(RectText(frame.body))
+		.arg(SizeText(frame.request))
+		.arg(SizeText(frame.minimum))
+		.arg(SizeText(frame.maximum))
+		.arg(WindowStatesText(frame.state));
+}
+
+// The size-mode bits set in |states|, never Qt::WindowActive.
+[[nodiscard]] QStringList SizeModeNames(Qt::WindowStates states) {
+	const auto modes = std::array{
+		std::make_pair(Qt::WindowMinimized, u"minimized"_q),
+		std::make_pair(Qt::WindowMaximized, u"maximized"_q),
+		std::make_pair(Qt::WindowFullScreen, u"fullscreen"_q),
+	};
+	auto result = QStringList();
+	for (const auto &[flag, name] : modes) {
+		if (states.testFlag(flag)) {
+			result.push_back(name);
+		}
+	}
+	return result;
 }
 
 // The self-test's own fixture. The titles are ASCII literals and never
@@ -374,6 +439,116 @@ void LogPanelWalk(const QString &name, const PanelWalk &reading) {
 			: u"none"_q)
 		.arg(reading.certified() ? 1 : 0)
 		.arg(reading.certified() ? u"none"_q : reading.refusal));
+}
+
+QString WindowStatesText(Qt::WindowStates states) {
+	auto names = SizeModeNames(states);
+	if (names.isEmpty()) {
+		names.push_back(u"normal"_q);
+	}
+	if (states.testFlag(Qt::WindowActive)) {
+		names.push_back(u"active"_q);
+	}
+	return u"%1 (%2)"_q.arg(states.toInt()).arg(names.join(QChar('+')));
+}
+
+QString PanelSizeModeRefusal(Qt::WindowStates states) {
+	const auto modes = SizeModeNames(states);
+	if (modes.isEmpty()) {
+		return QString();
+	}
+	return u"size mode %1: state=%2 - a minimized, maximized or fullscreen "
+		u"panel is not sized through setInnerSize; Qt::WindowActive is "
+		u"independent of the size mode and never refuses"_q.arg(
+			modes.join(QChar('+')),
+			WindowStatesText(states));
+}
+
+PanelSizing GrowPanelInnerHeight(
+		not_null<Ui::SeparatePanel*> panel,
+		int extra) {
+	const auto frame = ReadPanelFrame(panel);
+	auto result = PanelSizing{
+		.panel = panel.get(),
+		.outer = frame.outer,
+		.body = frame.body,
+		.request = frame.request,
+		.minimum = frame.minimum,
+		.maximum = frame.maximum,
+		.state = frame.state,
+	};
+	const auto sizeMode = PanelSizeModeRefusal(frame.state);
+	if (!panel->isWindow()) {
+		result.refusal = u"not a top-level window: %1"_q.arg(
+			WidgetDescription(panel));
+	} else if (panel->isHidden()) {
+		result.refusal = u"hidden: %1"_q.arg(WidgetDescription(panel));
+	} else if (!sizeMode.isEmpty()) {
+		result.refusal = sizeMode;
+	} else if (frame.minimum != frame.maximum) {
+		result.refusal = u"resizable panel: minimum=%1 maximum=%2 - "
+			u"setInnerSize would reset allowResize"_q.arg(
+				SizeText(frame.minimum),
+				SizeText(frame.maximum));
+	} else if (extra <= 0) {
+		result.refusal = u"no height increase requested: extra=%1"_q.arg(
+			extra);
+	}
+	if (!result.refusal.isEmpty()) {
+		return result;
+	}
+	result.applied = frame.request + QSize(0, extra);
+	panel->setInnerSize(result.applied);
+	result.owed = true;
+	return result;
+}
+
+bool PanelSizingApplied(const PanelSizing &sizing) {
+	const auto panel = sizing.panel.data();
+	if (!panel || !sizing.owed || !sizing.refusal.isEmpty()) {
+		return false;
+	}
+	const auto frame = ReadPanelFrame(panel);
+	const auto extra = sizing.applied.height() - sizing.request.height();
+	return (frame.request == sizing.applied)
+		&& (frame.body.height() == sizing.body.height() + extra)
+		&& (frame.state == sizing.state);
+}
+
+void RestorePanelSizing(PanelSizing &sizing) {
+	if (!base::take(sizing.owed)) {
+		return;
+	}
+	if (const auto panel = sizing.panel.data()) {
+		panel->setInnerSize(sizing.request);
+		panel->move(sizing.outer.topLeft());
+	}
+}
+
+bool PanelSizingRestored(const PanelSizing &sizing) {
+	const auto panel = sizing.panel.data();
+	if (!panel || sizing.owed) {
+		return false;
+	}
+	const auto frame = ReadPanelFrame(panel);
+	return (frame.outer == sizing.outer)
+		&& (frame.body == sizing.body)
+		&& (frame.minimum == sizing.minimum)
+		&& (frame.maximum == sizing.maximum)
+		&& (frame.state == sizing.state);
+}
+
+QString PanelSizingText(const PanelSizing &sizing) {
+	const auto panel = sizing.panel.data();
+	return u"panel=%1 frozen={%2} now=%3 applied=%4 owed=%5 refusal=%6"_q
+		.arg(panel ? WidgetDescription(panel) : u"<gone>"_q)
+		.arg(PanelFrameText(FrozenFrame(sizing)))
+		.arg(panel
+			? (u"{"_q + PanelFrameText(ReadPanelFrame(panel)) + u"}"_q)
+			: u"<gone>"_q)
+		.arg(sizing.applied.isValid() ? SizeText(sizing.applied) : u"none"_q)
+		.arg(sizing.owed ? 1 : 0)
+		.arg(sizing.refusal.isEmpty() ? u"none"_q : sizing.refusal);
 }
 
 void AppendSeparatePanelWalkSelfTest(not_null<Runner*> runner) {

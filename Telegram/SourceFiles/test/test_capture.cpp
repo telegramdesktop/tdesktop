@@ -28,6 +28,9 @@ constexpr auto kCoverageSamples = 32;
 constexpr auto kUnpaintedMinPermille = 100;
 constexpr auto kBackgroundOwnerHops = 6;
 constexpr auto kWalkedChainHead = 3;
+constexpr auto kStrictDepth = 32;
+constexpr auto kChannelBits = 8;
+constexpr auto kChannelMask = quint32(0xFF);
 
 [[nodiscard]] QString WithPngExtension(const QString &name) {
 	return name.endsWith(u".png"_q, Qt::CaseInsensitive)
@@ -199,8 +202,17 @@ constexpr auto kWalkedChainHead = 3;
 	return nullptr;
 }
 
+// Qt's ancestry stops at the window, so a widget of another top level is
+// never inside |owner|.
+[[nodiscard]] bool InsideOwner(
+		not_null<QWidget*> owner,
+		not_null<QWidget*> widget) {
+	return (owner == widget) || owner->isAncestorOf(widget);
+}
+
 [[nodiscard]] QString MappedTargetText(const MappedTarget &reading) {
-	return u"mapped-target: %1 local=%2 mapped=%3 inViewport=%4 viewport=%5%6"_q
+	return u"mapped-target: %1 local=%2 mapped=%3 inViewport=%4 viewport=%5"
+		u"%6%7"_q
 		.arg(reading.identity.isEmpty() ? u"<none>"_q : reading.identity)
 		.arg(RectText(reading.local))
 		.arg(RectText(reading.mapped))
@@ -208,9 +220,39 @@ constexpr auto kWalkedChainHead = 3;
 		.arg(reading.viewport
 			? WidgetDescription(reading.viewport.data())
 			: u"<none>"_q)
+		.arg(reading.binding.isEmpty()
+			? QString()
+			: u" binding=%1"_q.arg(reading.binding))
 		.arg(reading.refusal.isEmpty()
 			? QString()
 			: u" - %1"_q.arg(reading.refusal));
+}
+
+// WidgetDescription takes not_null, so a destroyed painted widget prints
+// as <gone>.
+[[nodiscard]] QString MappedRectText(const MappedRect &target) {
+	const auto widget = target.widget();
+	return u"%1 %2 rect=%3"_q.arg(
+		target.parentRelative() ? u"in parent of"_q : u"local to"_q,
+		widget ? WidgetDescription(widget) : u"<gone>"_q,
+		RectText(target.rect()));
+}
+
+// A refusal of the typed reading itself, before any mapping: the requested
+// rect and the bound rect stay printable, nothing is resolved.
+[[nodiscard]] MappedTarget TypedRefusal(
+		not_null<QWidget*> owner,
+		const MappedRect &target,
+		QString refusal) {
+	const auto origin = target.origin();
+	return {
+		.local = target.rect(),
+		.identity = u"origin=%1 owner=%2"_q.arg(
+			origin ? WidgetDescription(origin) : u"<none>"_q,
+			WidgetDescription(owner)),
+		.refusal = std::move(refusal),
+		.binding = MappedRectText(target),
+	};
 }
 
 [[nodiscard]] QString ViaWindowText(const WindowMappedCapture &reading) {
@@ -226,6 +268,98 @@ constexpr auto kWalkedChainHead = 3;
 		.arg(reading.refusal.isEmpty()
 			? QString()
 			: u" - %1"_q.arg(reading.refusal));
+}
+
+[[nodiscard]] QString InvalidRenderText(const StrictRender &render) {
+	if (!render.refusal.isEmpty()) {
+		return u"the render was refused"_q;
+	} else if (!render.owner) {
+		return u"the render owner is gone"_q;
+	}
+	return u"the render has no image"_q;
+}
+
+// The first applicable refusal name, empty when the two records describe
+// the same render path and comparable images.
+[[nodiscard]] QString StrictRefusal(
+		const StrictRender &a,
+		const StrictRender &b) {
+	if (!a.valid()) {
+		return u"invalid-a: %1"_q.arg(InvalidRenderText(a));
+	} else if (!b.valid()) {
+		return u"invalid-b: %1"_q.arg(InvalidRenderText(b));
+	} else if (a.owner != b.owner) {
+		return u"render-owner-differs"_q;
+	} else if (a.rendered != b.rendered) {
+		return u"render-path-differs: rendered=%1 vs %2"_q.arg(
+			RectText(a.rendered),
+			RectText(b.rendered));
+	} else if (a.crop != b.crop) {
+		return u"crop-differs: crop=%1 vs %2"_q.arg(
+			RectText(a.crop),
+			RectText(b.crop));
+	} else if (a.image.size() != b.image.size()) {
+		return u"decoded-size-differs: %1x%2 vs %3x%4"_q
+			.arg(a.image.width())
+			.arg(a.image.height())
+			.arg(b.image.width())
+			.arg(b.image.height());
+	} else if (a.image.devicePixelRatio() != b.image.devicePixelRatio()) {
+		return u"dpr-differs: %1 vs %2"_q
+			.arg(a.image.devicePixelRatio())
+			.arg(b.image.devicePixelRatio());
+	} else if (a.image.format() != b.image.format()) {
+		return u"format-differs: %1 vs %2"_q
+			.arg(int(a.image.format()))
+			.arg(int(b.image.format()));
+	} else if (a.image.depth() != kStrictDepth) {
+		return u"unsupported-depth: %1"_q.arg(a.image.depth());
+	}
+	return QString();
+}
+
+[[nodiscard]] bool StrictComparable(const QImage &a, const QImage &b) {
+	return !a.isNull()
+		&& (a.size() == b.size())
+		&& (a.devicePixelRatio() == b.devicePixelRatio())
+		&& (a.format() == b.format())
+		&& (a.depth() == kStrictDepth);
+}
+
+// Every 32-bit pixel value of two comparable images, line by line, so a
+// padded bytesPerLine is never read as pixels.
+[[nodiscard]] StrictComparison CountStrictPixels(
+		const QImage &a,
+		const QImage &b) {
+	auto result = StrictComparison{
+		.compared = a.width() * a.height(),
+		.differing = 0,
+		.maxChannelDelta = 0,
+	};
+	for (auto y = 0; y != a.height(); ++y) {
+		const auto lineA = reinterpret_cast<const quint32*>(
+			a.constScanLine(y));
+		const auto lineB = reinterpret_cast<const quint32*>(
+			b.constScanLine(y));
+		for (auto x = 0; x != a.width(); ++x) {
+			const auto valueA = lineA[x];
+			const auto valueB = lineB[x];
+			if (valueA == valueB) {
+				continue;
+			} else if (!result.differing) {
+				result.first = QPoint(x, y);
+			}
+			++result.differing;
+			for (auto shift = 0; shift != kStrictDepth; shift += kChannelBits) {
+				const auto channelA = int((valueA >> shift) & kChannelMask);
+				const auto channelB = int((valueB >> shift) & kChannelMask);
+				result.maxChannelDelta = std::max(
+					result.maxChannelDelta,
+					std::abs(channelA - channelB));
+			}
+		}
+	}
+	return result;
 }
 
 } // namespace
@@ -363,6 +497,88 @@ bool PreparedWidgetCapture::prepare(
 		reading.owner->mapToGlobal(reading.mapped.topLeft()),
 		reading.mapped.size());
 	_pendingReason = QString();
+	return true;
+}
+
+bool PreparedWidgetCapture::prepare(
+		QWidget *owner,
+		const MappedRect &target) {
+	const auto reading = ReadMappedTarget(owner, target);
+	if (!reading.resolved()) {
+		invalidate(reading.refusal);
+		return false;
+	}
+	return prepare(
+		reading.owner.data(),
+		reading.origin.data(),
+		target.rect());
+}
+
+bool PreparedWidgetCapture::prepareCrop(
+		QWidget *owner,
+		QWidget *descendant,
+		const QRect &crop) {
+	invalidate(QString());
+	if (!owner || !descendant) {
+		invalidate(u"no painted owner or descendant was handed to the "
+			u"checked full-owner crop: owner=%1 descendant=%2"_q.arg(
+				owner ? WidgetDescription(owner) : u"<none>"_q,
+				descendant ? WidgetDescription(descendant) : u"<none>"_q));
+		return false;
+	} else if (descendant == owner) {
+		invalidate(u"owner-as-origin substitution: %1 cannot certify a "
+			u"descendant's scroll viewport"_q.arg(WidgetDescription(owner)));
+		return false;
+	} else if (!InsideOwner(owner, descendant)) {
+		invalidate(u"descendant is not inside the painted owner: "
+			u"descendant=%1 owner=%2"_q.arg(
+				WidgetDescription(descendant),
+				WidgetDescription(owner)));
+		return false;
+	}
+	const auto reading = ReadMappedTarget(
+		owner,
+		descendant,
+		descendant->rect());
+	if (!reading.resolved()) {
+		invalidate(u"descendant: "_q + reading.refusal);
+		return false;
+	}
+	const auto misframed = MisframedDetails(owner, crop);
+	if (!misframed.isEmpty()) {
+		invalidate(u"crop: %1 owner=%2"_q.arg(
+			misframed,
+			WidgetDescription(owner)));
+		return false;
+	} else if (!prepare(owner)) {
+		return false;
+	}
+	const auto pixels = DevicePixelRect(crop, _image.devicePixelRatio());
+	if (!_image.rect().contains(pixels)) {
+		invalidate(u"device crop is not fully inside the full-owner render: "
+			u"requested=%1 pixels=%2 image=%3x%4 dpr=%5 owner=%6"_q
+			.arg(RectText(crop))
+			.arg(RectText(pixels))
+			.arg(_image.width())
+			.arg(_image.height())
+			.arg(_image.devicePixelRatio())
+			.arg(WidgetDescription(owner)));
+		return false;
+	}
+	const auto cropped = Crop(_image, pixels);
+	if (cropped.size() != pixels.size()) {
+		invalidate(u"cropped extent requested=%1x%2 actual=%3x%4: "
+			u"crop=%5 owner=%6"_q
+			.arg(pixels.width())
+			.arg(pixels.height())
+			.arg(cropped.width())
+			.arg(cropped.height())
+			.arg(RectText(crop))
+			.arg(WidgetDescription(owner)));
+		return false;
+	}
+	_image = cropped;
+	_globalGeometry = QRect(owner->mapToGlobal(crop.topLeft()), crop.size());
 	return true;
 }
 
@@ -594,6 +810,107 @@ bool CaptureMappedTarget(
 		name);
 }
 
+MappedRect::MappedRect(
+	not_null<QWidget*> widget,
+	const QRect &rect,
+	bool parentRelative)
+: _widget(widget.get())
+, _rect(rect)
+, _parentRelative(parentRelative) {
+}
+
+MappedRect MappedRect::Local(not_null<QWidget*> widget, const QRect &rect) {
+	return MappedRect(widget, rect, false);
+}
+
+MappedRect MappedRect::InParent(
+		not_null<QWidget*> widget,
+		const QRect &rect) {
+	return MappedRect(widget, rect, true);
+}
+
+QWidget *MappedRect::widget() const {
+	return _widget.data();
+}
+
+QWidget *MappedRect::origin() const {
+	const auto widget = _widget.data();
+	if (!widget || !_parentRelative) {
+		return widget;
+	}
+	return widget->isWindow() ? nullptr : widget->parentWidget();
+}
+
+QRect MappedRect::rect() const {
+	return _rect;
+}
+
+bool MappedRect::parentRelative() const {
+	return _parentRelative;
+}
+
+MappedTarget ReadMappedTarget(QWidget *owner, const MappedRect &target) {
+	const auto painted = target.widget();
+	const auto origin = target.origin();
+	const auto rect = target.rect();
+	if (!owner || !painted) {
+		auto result = ReadMappedTarget(owner, origin, rect);
+		result.binding = MappedRectText(target);
+		return result;
+	} else if (!origin) {
+		return TypedRefusal(owner, target, u"detached: %1 has no parent "
+			u"coordinate space (no parent widget, or it is a window), so a "
+			u"parent-relative rect has no coordinate owner"_q.arg(
+				WidgetDescription(painted)));
+	} else if (!InsideOwner(owner, painted)) {
+		return TypedRefusal(owner, target, u"wrong owner: painted %1 is not "
+			u"%2 or inside it"_q.arg(
+				WidgetDescription(painted),
+				WidgetDescription(owner)));
+	} else if (target.parentRelative() && !painted->isVisible()) {
+		return TypedRefusal(owner, target, u"painted widget is not visible: "
+			u"painted=%1 owner=%2 - its parent-relative rect would map "
+			u"through the parent alone"_q.arg(
+				WidgetDescription(painted),
+				WidgetDescription(owner)));
+	}
+	const auto bounds = target.parentRelative()
+		? painted->geometry()
+		: painted->rect();
+	if (!rect.isEmpty() && !bounds.contains(rect)) {
+		return TypedRefusal(owner, target, u"coordinate mismatch: "
+			u"requested=%1 space=%2 origin=%3 painted=%4 bounds=%5 owner=%6 "
+			u"would map to %7 - a parent-relative rect handed as local (or "
+			u"the reverse) applies the position twice"_q
+			.arg(RectText(rect))
+			.arg(target.parentRelative() ? u"parent"_q : u"local"_q)
+			.arg(WidgetDescription(origin))
+			.arg(WidgetDescription(painted))
+			.arg(RectText(bounds))
+			.arg(WidgetDescription(owner))
+			.arg(RectText(Ui::MapFrom(owner, origin, rect))));
+	}
+	auto result = ReadMappedTarget(owner, origin, rect);
+	result.binding = MappedRectText(target);
+	return result;
+}
+
+bool CaptureMappedTarget(
+		QWidget *owner,
+		const MappedRect &target,
+		const QString &name) {
+	const auto reading = ReadMappedTarget(owner, target);
+	if (!reading.resolved()) {
+		Fail(u"capture %1"_q.arg(name), reading.refusal);
+		return false;
+	}
+	return CaptureMappedTarget(
+		reading.owner.data(),
+		reading.origin.data(),
+		target.rect(),
+		name);
+}
+
 PaintingLayerRootResult PaintingLayerRoot(QWidget *box) {
 	if (!box) {
 		return {
@@ -702,9 +1019,124 @@ bool CaptureViaWindow(not_null<QWidget*> widget, const QString &name) {
 	return !SaveImage(image, name).isEmpty();
 }
 
+bool StrictRender::valid() const {
+	return owner && refusal.isEmpty() && !image.isNull();
+}
+
+StrictRender RenderStrict(
+		QWidget *owner,
+		const QRect &rendered,
+		const QRect &crop) {
+	auto result = StrictRender{
+		.rendered = rendered,
+		.crop = crop,
+	};
+	if (!owner) {
+		result.refusal = u"no render owner was handed to the strict "
+			u"render"_q;
+		return result;
+	}
+	result.identity = WidgetDescription(owner);
+	if (rendered.isEmpty()) {
+		result.refusal = u"rendered rect is empty: rendered=%1 owner=%2"_q
+			.arg(RectText(rendered), result.identity);
+		return result;
+	}
+	const auto misframed = MisframedDetails(owner, rendered);
+	if (!misframed.isEmpty()) {
+		result.refusal = u"rendered rect is not fully inside the render "
+			u"owner: owner=%1 - %2"_q.arg(result.identity, misframed);
+		return result;
+	} else if (crop.isEmpty() || !rendered.contains(crop)) {
+		result.refusal = u"crop is not fully inside the rendered rect: "
+			u"requested=%1 rendered=%2 owner=%3"_q.arg(
+				RectText(crop),
+				RectText(rendered),
+				result.identity);
+		return result;
+	}
+	const auto image = GrabRect(owner, rendered);
+	result.pixels = DevicePixelRect(
+		crop.translated(-rendered.topLeft()),
+		image.devicePixelRatio());
+	if (!image.rect().contains(result.pixels)) {
+		result.refusal = u"device crop is not fully inside the render: "
+			u"pixels=%1 image=%2x%3 dpr=%4 owner=%5"_q
+			.arg(RectText(result.pixels))
+			.arg(image.width())
+			.arg(image.height())
+			.arg(image.devicePixelRatio())
+			.arg(result.identity);
+		return result;
+	}
+	result.image = Crop(image, result.pixels);
+	result.owner = owner;
+	return result;
+}
+
+QString StrictRenderText(const StrictRender &render) {
+	return u"owner=%1 rendered=%2 crop=%3 pixels=%4 image=%5x%6 dpr=%7 "
+		u"format=%8%9"_q
+		.arg(render.identity.isEmpty() ? u"<none>"_q : render.identity)
+		.arg(RectText(render.rendered))
+		.arg(RectText(render.crop))
+		.arg(RectText(render.pixels))
+		.arg(render.image.width())
+		.arg(render.image.height())
+		.arg(render.image.devicePixelRatio())
+		.arg(int(render.image.format()))
+		.arg(render.refusal.isEmpty()
+			? QString()
+			: u" refusal=%1"_q.arg(render.refusal));
+}
+
+bool StrictComparison::equal() const {
+	return refusal.isEmpty() && (compared > 0) && (differing == 0);
+}
+
+StrictComparison CompareStrict(
+		const StrictRender &a,
+		const StrictRender &b) {
+	auto result = StrictComparable(a.image, b.image)
+		? CountStrictPixels(a.image, b.image)
+		: StrictComparison();
+	const auto refusal = StrictRefusal(a, b);
+	if (!refusal.isEmpty()) {
+		result.refusal = u"%1 - a={%2} b={%3}"_q.arg(
+			refusal,
+			StrictRenderText(a),
+			StrictRenderText(b));
+	}
+	return result;
+}
+
+QString StrictComparisonText(const StrictComparison &comparison) {
+	return u"compared=%1 differing=%2 maxChannelDelta=%3 first=%4,%5 "
+		u"equal=%6%7"_q
+		.arg(comparison.compared)
+		.arg(comparison.differing)
+		.arg(comparison.maxChannelDelta)
+		.arg(comparison.first.x())
+		.arg(comparison.first.y())
+		.arg(comparison.equal() ? 1 : 0)
+		.arg(comparison.refusal.isEmpty()
+			? QString()
+			: u" refusal=%1"_q.arg(comparison.refusal));
+}
+
 QImage Crop(const QImage &image, const QRect &pixelRect) {
 	const auto bounded = pixelRect.intersected(image.rect());
 	return bounded.isEmpty() ? QImage() : image.copy(bounded);
+}
+
+QRect DevicePixelRect(const QRect &logical, qreal ratio) {
+	const auto left = int(std::floor(logical.x() * ratio));
+	const auto top = int(std::floor(logical.y() * ratio));
+	const auto right = int(std::ceil(
+		(logical.x() + logical.width()) * ratio));
+	const auto bottom = int(std::ceil(
+		(logical.y() + logical.height()) * ratio));
+	return QRect(left, top, right - left, bottom - top);
 }
 
 QImage Zoom(const QImage &image, int factor) {

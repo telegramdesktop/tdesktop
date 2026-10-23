@@ -40,12 +40,16 @@ constexpr auto kSkipBands = 4;
 struct Fixture {
 	base::unique_qptr<Ui::RpWidget> owner;
 	base::unique_qptr<Ui::RpWidget> stray;
+	base::unique_qptr<Ui::RpWidget> detached;
 	Ui::ElasticScroll *elastic = nullptr;
 	Ui::ScrollArea *area = nullptr;
 	Ui::RpWidget *elasticOrigin = nullptr;
 	Ui::RpWidget *elasticChild = nullptr;
 	Ui::RpWidget *areaOrigin = nullptr;
 	Ui::RpWidget *areaChild = nullptr;
+	Ui::RpWidget *strayBand = nullptr;
+	Ui::RpWidget *translated = nullptr;
+	Ui::RpWidget *overhang = nullptr;
 	QRect elasticLocal;
 	QRect areaLocal;
 };
@@ -69,6 +73,17 @@ struct Fixture {
 void PaintFill(not_null<Ui::RpWidget*> widget, const style::color &color) {
 	widget->paintOn([=](QPainter &p) {
 		p.fillRect(widget->rect(), color);
+	});
+}
+
+// Two halves of strongly different lightness, so LooksBlank accepts the
+// frame: st::windowBgActive and st::attentionButtonFg differ by too little.
+void PaintSplit(not_null<Ui::RpWidget*> widget) {
+	widget->paintOn([=](QPainter &p) {
+		p.fillRect(widget->rect(), st::attentionButtonFg);
+		p.fillRect(
+			QRect(0, 0, widget->width() / 2, widget->height()),
+			st::windowFg);
 	});
 }
 
@@ -120,6 +135,19 @@ void PaintFill(not_null<Ui::RpWidget*> widget, const style::color &color) {
 	area->setOwnedWidget(std::move(areaInner));
 	area->show();
 
+	// Inside the header band at a nonzero x and y, so its parent-relative
+	// geometry handed as child-local maps to a doubled position that still
+	// fits the owner: containment alone accepts it.
+	const auto translated = Ui::CreateChild<Ui::RpWidget>(owner);
+	translated->setGeometry(row, row / 4, row * 2, row / 2);
+	PaintSplit(translated);
+	translated->show();
+
+	const auto overhang = Ui::CreateChild<Ui::RpWidget>(owner);
+	overhang->setGeometry(width - row, row / 4, row * 2, row / 2);
+	PaintFill(overhang, st::attentionButtonFg);
+	overhang->show();
+
 	owner->show();
 	Ui::SendPendingMoveResizeEvents(elastic);
 	if (const auto content = elastic->widget()) {
@@ -136,6 +164,8 @@ void PaintFill(not_null<Ui::RpWidget*> widget, const style::color &color) {
 	fixture.elasticChild = elasticChild;
 	fixture.areaOrigin = areaOrigin;
 	fixture.areaChild = areaChild;
+	fixture.translated = translated;
+	fixture.overhang = overhang;
 	fixture.elasticLocal = elasticChild->geometry();
 	fixture.areaLocal = areaChild->geometry();
 
@@ -149,7 +179,278 @@ void PaintFill(not_null<Ui::RpWidget*> widget, const style::color &color) {
 	band->show();
 	stray->show();
 	Ui::SendPendingMoveResizeEvents(stray);
+	fixture.strayBand = band;
+
+	// A parentless widget, never shown: no window and no coordinate owner.
+	fixture.detached = base::make_unique_q<Ui::RpWidget>();
+	fixture.detached->resize(row * 2, row / 2);
 	return true;
+}
+
+// The typed children are raw pointers into the owner and the stray, so
+// they live exactly while those do.
+[[nodiscard]] bool TypedFixtureAlive(const Fixture &fixture) {
+	if (fixture.owner && fixture.stray && fixture.detached) {
+		return true;
+	}
+	Check(
+		false,
+		u"typed mapped rects: the fixture is alive"_q,
+		u"owner=%1 stray=%2 detached=%3"_q
+			.arg(fixture.owner ? 1 : 0)
+			.arg(fixture.stray ? 1 : 0)
+			.arg(fixture.detached ? 1 : 0));
+	return false;
+}
+
+// One physical target, the translated child, in both valid coordinate
+// spaces, then the doubled-position premise and the wrong pairings.
+void CheckTypedEquality(const Fixture &fixture) {
+	if (!TypedFixtureAlive(fixture)) {
+		return;
+	}
+	const auto owner = fixture.owner.get();
+	const auto translated = fixture.translated;
+	const auto local = translated->rect();
+	const auto geometry = translated->geometry();
+	const auto expected = Ui::MapFrom(owner, translated, local);
+	const auto asLocal = ReadMappedTarget(
+		owner,
+		MappedRect::Local(translated, local));
+	const auto asParent = ReadMappedTarget(
+		owner,
+		MappedRect::InParent(translated, geometry));
+	Check(
+		(translated->x() != 0)
+			&& (translated->y() != 0)
+			&& asLocal.resolved()
+			&& asParent.resolved()
+			&& (asLocal.mapped == asParent.mapped)
+			&& (asLocal.mapped == expected)
+			&& (asLocal.mapped.size() == translated->size()),
+		u"typed Local and InParent rects of one translated child map to "
+		"the same full bounds in the painted owner, equal to the "
+		"independent Ui::MapFrom of the child's own rect"_q,
+		u"pos=%1,%2 expected=%3 local={%4} parent={%5}"_q
+			.arg(translated->x())
+			.arg(translated->y())
+			.arg(RectText(expected))
+			.arg(MappedTargetDetails(asLocal))
+			.arg(MappedTargetDetails(asParent)));
+
+	const auto doubled = ReadMappedTarget(owner, translated, geometry);
+	Check(
+		doubled.resolved()
+			&& (doubled.mapped == geometry.translated(translated->pos()))
+			&& (doubled.mapped != expected),
+		u"premise: the untyped reading of the child's parent-relative "
+		"geometry with the child as origin resolves at the doubled "
+		"position, so containment alone accepts it"_q,
+		u"expected=%1 doubled={%2}"_q.arg(
+			RectText(expected),
+			MappedTargetDetails(doubled)));
+
+	const auto failuresBefore = FailureCount();
+	const auto wrong = ReadMappedTarget(
+		owner,
+		MappedRect::Local(translated, geometry));
+	auto probe = PreparedWidgetCapture();
+	const auto prepared = probe.prepare(
+		owner,
+		MappedRect::Local(translated, geometry));
+	const auto reverse = ReadMappedTarget(
+		owner,
+		MappedRect::InParent(translated, local));
+	const auto failuresAfter = FailureCount();
+	Check(
+		!wrong.resolved()
+			&& wrong.refusal.startsWith(u"coordinate mismatch"_q)
+			&& wrong.refusal.contains(RectText(geometry))
+			&& wrong.refusal.contains(RectText(local))
+			&& wrong.refusal.contains(WidgetDescription(translated))
+			&& wrong.refusal.contains(WidgetDescription(owner)),
+		u"typed: the child's parent-relative geometry handed as child-local "
+		"is refused as a coordinate mismatch naming the requested rect, "
+		"the child's own bounds, the origin and painted child and the "
+		"owner"_q,
+		MappedTargetDetails(wrong));
+	Check(
+		!prepared
+			&& !probe.widget()
+			&& probe.image().isNull()
+			&& (probe.pendingReason() == wrong.refusal)
+			&& (failuresAfter == failuresBefore),
+		u"typed: prepare stores the same coordinate-mismatch refusal, "
+		"accepts no frame and logs no failure"_q,
+		u"failures=%1->%2 reason=%3"_q
+			.arg(failuresBefore)
+			.arg(failuresAfter)
+			.arg(probe.pendingReason()));
+	Check(
+		!reverse.resolved()
+			&& reverse.refusal.startsWith(u"coordinate mismatch"_q),
+		u"typed: the reverse pairing, the child's own rect handed as "
+		"parent-relative, is refused too"_q,
+		MappedTargetDetails(reverse));
+}
+
+// The typed reading keeps every complete-target refusal: clipped by the
+// owner or by the viewport with the full requested size mapped, detached,
+// wrong owner, a hidden parent-relative child, blank and nonpainting root.
+void CheckTypedRefusals(const Fixture &fixture) {
+	if (!TypedFixtureAlive(fixture)) {
+		return;
+	}
+	const auto owner = fixture.owner.get();
+	const auto stray = fixture.stray.get();
+	const auto detached = fixture.detached.get();
+	const auto failuresBefore = FailureCount();
+
+	const auto overhang = ReadMappedTarget(
+		owner,
+		MappedRect::Local(fixture.overhang, fixture.overhang->rect()));
+	Check(
+		!overhang.resolved()
+			&& overhang.refusal.contains(
+				u"not fully inside the painted owner"_q)
+			&& (overhang.mapped.size() == fixture.overhang->size()),
+		u"typed: a child hanging over the owner's edge is refused whole, "
+		"and the stored mapping keeps the full requested size"_q,
+		MappedTargetDetails(overhang));
+
+	const auto clipped = ReadMappedTarget(
+		owner,
+		MappedRect::Local(fixture.elasticChild, fixture.elasticChild->rect()));
+	Check(
+		!clipped.resolved()
+			&& clipped.refusal.contains(u"relevant viewport"_q)
+			&& (clipped.mapped.size() == fixture.elasticChild->size()),
+		u"typed: the ElasticScroll child scrolled back to the top is "
+		"refused by its viewport, with the full mapped size"_q,
+		MappedTargetDetails(clipped));
+
+	const auto parentless = ReadMappedTarget(
+		owner,
+		MappedRect::InParent(detached, detached->geometry()));
+	Check(
+		!parentless.resolved()
+			&& parentless.refusal.startsWith(u"detached"_q),
+		u"typed: a parent-relative rect of a parentless widget is refused "
+		"as detached"_q,
+		MappedTargetDetails(parentless));
+
+	const auto foreign = ReadMappedTarget(
+		owner,
+		MappedRect::Local(detached, detached->rect()));
+	const auto band = ReadMappedTarget(
+		owner,
+		MappedRect::Local(fixture.strayBand, fixture.strayBand->rect()));
+	Check(
+		!foreign.resolved()
+			&& foreign.refusal.startsWith(u"wrong owner"_q)
+			&& !band.resolved()
+			&& band.refusal.startsWith(u"wrong owner"_q),
+		u"typed: a detached widget and a painted widget of another owner "
+		"are refused as the wrong owner"_q,
+		u"detached={%1} band={%2}"_q.arg(
+			MappedTargetDetails(foreign),
+			MappedTargetDetails(band)));
+
+	fixture.translated->hide();
+	const auto hidden = ReadMappedTarget(
+		owner,
+		MappedRect::InParent(
+			fixture.translated,
+			fixture.translated->geometry()));
+	fixture.translated->show();
+	Check(
+		!hidden.resolved()
+			&& hidden.refusal.startsWith(u"painted widget is not visible"_q),
+		u"typed: a hidden child's parent-relative rect is refused although "
+		"its parent shows"_q,
+		MappedTargetDetails(hidden));
+
+	auto blank = PreparedWidgetCapture();
+	const auto blankReady = blank.prepare(
+		stray,
+		MappedRect::Local(fixture.strayBand, fixture.strayBand->rect()));
+	auto unpainted = PreparedWidgetCapture();
+	const auto unpaintedReady = unpainted.prepare(
+		stray,
+		MappedRect::Local(stray, stray->rect()));
+	const auto failuresAfter = FailureCount();
+	Check(
+		!blankReady && blank.pendingReason().contains(u"looks blank"_q),
+		u"typed: prepare of a uniform band still refuses it as blank"_q,
+		blank.pendingReason());
+	Check(
+		!unpaintedReady
+			&& unpainted.pendingReason().contains(
+				u"render root paints no background"_q),
+		u"typed: prepare of a nonpainting root still refuses it as a "
+		"capture root"_q,
+		unpainted.pendingReason());
+	Check(
+		failuresAfter == failuresBefore,
+		u"typed: every refusal above is stored, none logs a failure"_q,
+		u"failures=%1->%2"_q.arg(failuresBefore).arg(failuresAfter));
+}
+
+// The valid painted crop through the shared capture path, from both
+// coordinate spaces of the same translated child.
+void CheckTypedCrop(const Fixture &fixture) {
+	if (!TypedFixtureAlive(fixture)) {
+		return;
+	}
+	const auto owner = fixture.owner.get();
+	const auto translated = fixture.translated;
+	const auto local = MappedRect::Local(translated, translated->rect());
+	const auto parent = MappedRect::InParent(
+		translated,
+		translated->geometry());
+	auto localCapture = PreparedWidgetCapture();
+	const auto localReady = localCapture.prepare(owner, local);
+	auto parentCapture = PreparedWidgetCapture();
+	const auto parentReady = parentCapture.prepare(owner, parent);
+	const auto localReading = ReadMappedTarget(owner, local);
+	const auto parentReading = ReadMappedTarget(owner, parent);
+	const auto &image = localCapture.image();
+	const auto ratio = image.devicePixelRatio();
+	const auto expected = translated->size() * ratio;
+	Check(
+		localReady
+			&& (localCapture.widget() == owner)
+			&& (image.size() == expected),
+		u"typed: prepare of the translated child's own rect accepts the "
+		"painted owner with the child's complete extent at the image's "
+		"ratio"_q,
+		u"image=%1x%2 expected=%3x%4 dpr=%5 reason=%6 reading={%7}"_q
+			.arg(image.width())
+			.arg(image.height())
+			.arg(expected.width())
+			.arg(expected.height())
+			.arg(ratio)
+			.arg(localCapture.pendingReason())
+			.arg(MappedTargetDetails(localReading)));
+	Check(
+		parentReady
+			&& (parentCapture.widget() == owner)
+			&& localReading.resolved()
+			&& parentReading.resolved()
+			&& (parentReading.mapped == localReading.mapped)
+			&& !image.isNull()
+			&& (parentCapture.image() == image),
+		u"typed: prepare of the same child's parent-relative geometry "
+		"accepts the same mapping and a byte-equal image"_q,
+		u"reason=%1 local={%2} parent={%3}"_q
+			.arg(parentCapture.pendingReason())
+			.arg(MappedTargetDetails(localReading))
+			.arg(MappedTargetDetails(parentReading)));
+	Check(
+		CaptureMappedTarget(owner, local, u"mapped_target_typed_local"_q),
+		u"typed: CaptureMappedTarget saves the translated child's complete "
+		"frame"_q,
+		MappedTargetDetails(localReading));
 }
 
 } // namespace
@@ -492,21 +793,68 @@ void AppendMappedTargetSelfTest(not_null<Runner*> runner) {
 	});
 
 	runner->add({
+		.name = u"mapped-target self-test: typed coordinate owners map one "
+			"translated child identically"_q,
+		.then = [=] {
+			if (state->built) {
+				CheckTypedEquality(state->fixture);
+			}
+		},
+		.timeoutDetails = details,
+	});
+
+	runner->add({
+		.name = u"mapped-target self-test: typed refusals: clipped, "
+			"detached, wrong owner, hidden, blank and nonpainting root"_q,
+		.run = [=] {
+			if (!state->built) {
+				return;
+			}
+			state->fixture.elastic->scrollToY(0);
+			Ui::SendPendingMoveResizeEvents(state->fixture.elastic);
+			if (const auto content = state->fixture.elastic->widget()) {
+				Ui::SendPendingMoveResizeEvents(content);
+			}
+		},
+		.then = [=] {
+			if (state->built) {
+				CheckTypedRefusals(state->fixture);
+			}
+		},
+		.timeoutDetails = details,
+	});
+
+	runner->add({
+		.name = u"mapped-target self-test: typed painted crop"_q,
+		.then = [=] {
+			if (state->built) {
+				CheckTypedCrop(state->fixture);
+			}
+		},
+		.timeoutDetails = details,
+	});
+
+	runner->add({
 		.name = u"mapped-target self-test: teardown"_q,
 		.run = [=] {
 			state->fixture.owner = nullptr;
 			state->fixture.stray = nullptr;
+			state->fixture.detached = nullptr;
 			state->fixture.elastic = nullptr;
 			state->fixture.area = nullptr;
 			state->fixture.elasticOrigin = nullptr;
 			state->fixture.elasticChild = nullptr;
 			state->fixture.areaOrigin = nullptr;
 			state->fixture.areaChild = nullptr;
+			state->fixture.strayBand = nullptr;
+			state->fixture.translated = nullptr;
+			state->fixture.overhang = nullptr;
 			Note(u"mapped-target self-test: fixture released, owner=%1 "
-				u"stray=%2 elastic=%3"_q
+				u"stray=%2 elastic=%3 detached=%4"_q
 				.arg(state->fixture.owner ? 1 : 0)
 				.arg(state->fixture.stray ? 1 : 0)
-				.arg(state->fixture.elastic ? 1 : 0));
+				.arg(state->fixture.elastic ? 1 : 0)
+				.arg(state->fixture.detached ? 1 : 0));
 		},
 	});
 }

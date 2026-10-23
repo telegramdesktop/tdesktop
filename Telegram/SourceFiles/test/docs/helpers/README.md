@@ -24,9 +24,10 @@ should call.
 | [test_text_drop](test_text_drop.md) | Self-test | Self-test for text-drop routing |
 | [test_clipboard](test_clipboard.md) | API | Clipboard round-trip and classified read-back |
 | [test_console_lock](test_console_lock.md) | API | Current console-lock classification |
-| [test_capture](test_capture.md) | API | Prepared grabs, paint owners, mapped targets and saved-image markers |
-| [test_mapped_target](test_mapped_target.md) | Self-test | Self-test for full mapped-target visibility |
-| [test_post_paint](test_post_paint.md) | API | Samples after real product paints |
+| [test_capture](test_capture.md) | API | Prepared grabs, paint owners, mapped targets with typed coordinate owners, strict comparisons, checked full-owner crops and saved-image markers |
+| [test_mapped_target](test_mapped_target.md) | Self-test | Self-test for full mapped-target visibility and typed coordinate owners |
+| [test_post_paint](test_post_paint.md) | API | Samples after real product paints, shared capture scopes and paint receipts |
+| [test_full_owner_capture](test_full_owner_capture.md) | Self-test | Self-test for coordinated samplers, strict renders, checked full-owner crops and panel sizing |
 | [test_animation_clock](test_animation_clock.md) | API | Deterministic elapsed-time animation frames |
 | [test_paint_stream](test_paint_stream.md) | API | Whole-owner QPicture streams and manifest for optimized replay timing |
 | [test_corner_patch](test_corner_patch.md) | API | Rounded-corner comparisons and controls |
@@ -42,7 +43,7 @@ should call.
 | [test_ink](test_ink.md) | API | Painted bands, ink, color and contrast measurements |
 | [test_style](test_style.md) | API | Settled palette samples and baseline checks |
 | [test_palette](test_palette.md) | API | Switch and restore palettes while respecting system following |
-| [test_panel](test_panel.md) | API | Separate-panel discovery and show-cache readiness |
+| [test_panel](test_panel.md) | API | Separate-panel discovery, show-cache readiness and typed fixture sizing |
 | [test_menu](test_menu.md) | API | Same-turn menu readings, actions and captures |
 | [test_chat_menu](test_chat_menu.md) | API | Attribute chat-list context menus to the exact message |
 | [test_messages](test_messages.md) | API | Observe matching sent server messages |
