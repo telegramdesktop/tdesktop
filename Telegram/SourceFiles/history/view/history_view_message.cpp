@@ -1499,7 +1499,6 @@ QSize Message::performCountOptimalSize() {
 		const auto forwarded = item->Get<HistoryMessageForwarded>();
 		const auto via = item->Get<HistoryMessageVia>();
 		const auto entry = logEntryOriginal();
-		const auto check = factcheckBlock();
 		if (forwarded) {
 			forwarded->create(via, item);
 		}
@@ -1509,6 +1508,7 @@ QSize Message::performCountOptimalSize() {
 			mediaDisplayed = media->isDisplayed();
 			media->initDimensions();
 		}
+		const auto check = factcheckBlock();
 		if (check) {
 			check->initDimensions();
 		}
