@@ -1061,14 +1061,21 @@ void Options::initOptionField(not_null<Ui::InputField*> field) {
 			_emojiPanelLifetime.destroy();
 			emojiPanel->selector()->emojiChosen(
 			) | rpl::on_next([=](ChatHelpers::EmojiChosen data) {
-				if (field->hasFocus()) {
+				if (emojiPanel->selector()->emojiChosenFor(field)) {
 					Ui::InsertEmojiAtCursor(field->textCursor(), data.emoji);
+				}
+			}, _emojiPanelLifetime);
+			emojiPanel->selector()->backspaces(
+			) | rpl::on_next([=](
+					not_null<ChatHelpers::BackspaceRequest*> request) {
+				if (emojiPanel->selector()->emojiChosenFor(field)) {
+					request->erased = ChatHelpers::EraseBeforeCursor(field);
 				}
 			}, _emojiPanelLifetime);
 			if (isPremium) {
 				emojiPanel->selector()->customEmojiChosen(
 				) | rpl::on_next([=](ChatHelpers::FileChosen data) {
-					if (field->hasFocus()) {
+					if (emojiPanel->selector()->emojiChosenFor(field)) {
 						Data::InsertCustomEmoji(field, data.document);
 					}
 				}, _emojiPanelLifetime);
@@ -1404,14 +1411,21 @@ not_null<Ui::InputField*> CreatePollBox::setupQuestion(
 		emojiToggle->show();
 		emojiPanel->selector()->emojiChosen(
 		) | rpl::on_next([=](ChatHelpers::EmojiChosen data) {
-			if (question->hasFocus()) {
+			if (emojiPanel->selector()->emojiChosenFor(question)) {
 				Ui::InsertEmojiAtCursor(question->textCursor(), data.emoji);
+			}
+		}, emojiToggle->lifetime());
+		emojiPanel->selector()->backspaces(
+		) | rpl::on_next([=](
+				not_null<ChatHelpers::BackspaceRequest*> request) {
+			if (emojiPanel->selector()->emojiChosenFor(question)) {
+				request->erased = ChatHelpers::EraseBeforeCursor(question);
 			}
 		}, emojiToggle->lifetime());
 		if (isPremium) {
 			emojiPanel->selector()->customEmojiChosen(
 			) | rpl::on_next([=](ChatHelpers::FileChosen data) {
-				if (question->hasFocus()) {
+				if (emojiPanel->selector()->emojiChosenFor(question)) {
 					Data::InsertCustomEmoji(question, data.document);
 				}
 			}, emojiToggle->lifetime());
@@ -1477,16 +1491,24 @@ not_null<Ui::InputField*> CreatePollBox::setupDescription(
 			}
 			emojiPanel->selector()->emojiChosen(
 			) | rpl::on_next([=](ChatHelpers::EmojiChosen data) {
-				if (description->hasFocus()) {
+				if (emojiPanel->selector()->emojiChosenFor(description)) {
 					Ui::InsertEmojiAtCursor(
 						description->textCursor(),
 						data.emoji);
 				}
 			}, emojiToggle->lifetime());
+			emojiPanel->selector()->backspaces(
+			) | rpl::on_next([=](
+					not_null<ChatHelpers::BackspaceRequest*> request) {
+				if (emojiPanel->selector()->emojiChosenFor(description)) {
+					request->erased = ChatHelpers::EraseBeforeCursor(
+						description);
+				}
+			}, emojiToggle->lifetime());
 			if (isPremium) {
 				emojiPanel->selector()->customEmojiChosen(
 				) | rpl::on_next([=](ChatHelpers::FileChosen data) {
-					if (description->hasFocus()) {
+					if (emojiPanel->selector()->emojiChosenFor(description)) {
 						Data::InsertCustomEmoji(description, data.document);
 					}
 				}, emojiToggle->lifetime());
