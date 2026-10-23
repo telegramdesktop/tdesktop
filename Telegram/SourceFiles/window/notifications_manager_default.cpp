@@ -486,8 +486,22 @@ void Manager::doMaybeFlashBounce(Fn<void()> flashBounce) {
 }
 
 void Manager::doUpdateAll() {
+	const auto locked = Core::App().passcodeLocked();
+	auto unlinked = false;
 	for (const auto &notification : _notifications) {
-		notification->updateNotifyDisplay();
+		if (locked
+			&& (notification->isReplying() || notification->isUnlinked())) {
+			notification->hide();
+			if (notification->unlinkHistory()) {
+				unlinked = true;
+			}
+		} else {
+			notification->updateNotifyDisplay();
+		}
+	}
+	if (unlinked) {
+		_positionsOutdated = true;
+		showNextFromQueue();
 	}
 }
 
@@ -1107,7 +1121,7 @@ void Notification::toggleActionButtons(bool visible) {
 }
 
 void Notification::showReplyField() {
-	if (!_item) {
+	if (!canReply()) {
 		return;
 	}
 	raise();

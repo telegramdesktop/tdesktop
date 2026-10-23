@@ -1417,7 +1417,9 @@ Window::SessionController *Manager::openNotificationMessage(
 void Manager::notificationReplied(
 		NotificationId id,
 		const TextWithTags &reply) {
-	if (!id.contextId.sessionId || !id.contextId.peerId) {
+	if (!id.contextId.sessionId
+		|| !id.contextId.peerId
+		|| Core::App().passcodeLocked()) {
 		return;
 	}
 
@@ -1460,7 +1462,9 @@ void Manager::notificationReplied(
 void Manager::notificationActionActivated(
 		NotificationId id,
 		const QString &actionId) {
-	if (actionId == u"markAsRead"_q) {
+	if (Core::App().passcodeLocked()) {
+		return;
+	} else if (actionId == u"markAsRead"_q) {
 		notificationReplied(id, {});
 		return;
 	}
