@@ -931,7 +931,7 @@ void Call::finishByMigration(const QString &slug) {
 	setState(State::MigrationHangingUp);
 	const auto limit = 5;
 	const auto session = &_user->session();
-	session->api().request(MTPphone_GetGroupCall(
+	_api.request(MTPphone_GetGroupCall(
 		MTP_inputGroupCallSlug(MTP_string(slug)),
 		MTP_int(limit)
 	)).done([=](const MTPphone_GroupCall &result) {
