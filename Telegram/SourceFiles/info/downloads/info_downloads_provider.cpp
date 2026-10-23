@@ -329,6 +329,9 @@ std::vector<ListSection> Provider::fillSections(
 			section.addItem(layout);
 		}
 	}
+	if (section.empty()) {
+		return {};
+	}
 	section.finishSection();
 	return result;
 }
