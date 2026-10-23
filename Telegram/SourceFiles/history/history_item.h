@@ -832,6 +832,8 @@ private:
 	int _boostsApplied = 0;
 	int _starsPaid = 0;
 	BusinessShortcutId _shortcutId = 0;
+	// Service-styled regular messages still accept ordinary content updates.
+	bool _isServiceMessage = false;
 
 	MessageGroupId _groupId = MessageGroupId();
 	EffectId _effectId = 0;

@@ -661,6 +661,7 @@ HistoryItem::HistoryItem(
 	.from = data.vfrom_id() ? peerFromMTP(*data.vfrom_id()) : PeerId(0),
 	.date = data.vdate().v,
 }) {
+	_isServiceMessage = true;
 	data.vaction().match([&](const MTPDmessageActionPhoneCall &data) {
 		createComponents(CreateConfig());
 		_media = std::make_unique<Data::MediaCall>(
@@ -691,6 +692,7 @@ HistoryItem::HistoryItem(
 	PreparedServiceText{ tr::lng_message_empty(
 		tr::now,
 		tr::marked) }) {
+	_isServiceMessage = false;
 }
 
 HistoryItem::HistoryItem(
@@ -699,6 +701,7 @@ HistoryItem::HistoryItem(
 	PreparedServiceText &&message,
 	PhotoData *photo)
 : HistoryItem(history, fields) {
+	_isServiceMessage = true;
 	setServiceText(std::move(message));
 	if (photo) {
 		_media = std::make_unique<Data::MediaPhoto>(
@@ -2382,6 +2385,9 @@ void HistoryItem::clearMainView() {
 }
 
 void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
+	if (_isServiceMessage) {
+		return;
+	}
 	history()->session().ephemeralMessages().revertAnchored(this);
 
 	int keyboardTop = -1;
@@ -2580,6 +2586,9 @@ void HistoryItem::setStoryFields(not_null<Data::Story*> story) {
 }
 
 void HistoryItem::applyEdition(const MTPDmessageService &message) {
+	if (message.vaction().type() == mtpc_messageActionPhoneCall) {
+		return;
+	}
 	const auto wasNfr = Get<HistoryServiceNoForwardsRequest>();
 	const auto wasActionTaken = wasNfr && wasNfr->actionTaken;
 	const auto wasSublist = savedSublist();
@@ -2612,6 +2621,7 @@ void HistoryItem::applyEdition(const MTPDmessageService &message) {
 		finishEditionToEmpty();
 		_flags &= ~MessageFlag::DisplayFromChecked;
 	} else if (message.vaction().type() == mtpc_messageActionConferenceCall) {
+		_isServiceMessage = true;
 		removeFromSharedMediaIndex();
 		const auto owner = &history()->owner();
 		const auto &data = message.vaction().c_messageActionConferenceCall();
@@ -2778,6 +2788,9 @@ void HistoryItem::applyStreamedDraftFinish(const MTPDmessage &data) {
 }
 
 void HistoryItem::applySentMessage(const MTPDmessage &data) {
+	if (_isServiceMessage) {
+		return;
+	}
 	history()->session().ephemeralMessages().revertAnchored(this);
 
 	if (data.is_invert_media()) {
@@ -2872,6 +2885,9 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 }
 
 void HistoryItem::updateSentContent(const MTPDmessage &data) {
+	if (_isServiceMessage) {
+		return;
+	}
 	updateSentContent({
 		qs(data.vmessage()),
 		Api::EntitiesFromMTP(
@@ -2884,6 +2900,9 @@ void HistoryItem::applySentMessage(
 		const QString &text,
 		const MTPDupdateShortSentMessage &data,
 		bool wasAlready) {
+	if (_isServiceMessage) {
+		return;
+	}
 	const auto existingRichPage = Get<HistoryMessageRichPageSource>();
 	updateSentContent({
 		text,
@@ -2913,6 +2932,9 @@ void HistoryItem::updateSentContent(
 		const TextWithEntities &textWithEntities,
 		const MTPMessageMedia *media,
 		const MTPRichMessage *richMessage) {
+	if (_isServiceMessage) {
+		return;
+	}
 	updateSentContent(
 		textWithEntities,
 		media,
@@ -2924,7 +2946,7 @@ void HistoryItem::updateSentContent(
 		const MTPMessageMedia *media,
 		std::shared_ptr<const Iv::RichPage> richPage,
 		std::shared_ptr<const Iv::RichPage> preservedFullPage) {
-	if (isEditingMedia()) {
+	if (_isServiceMessage || isEditingMedia()) {
 		return;
 	}
 	const auto mediaCheck = media
@@ -3038,6 +3060,7 @@ void HistoryItem::clearMediaAsExpired() {
 	}
 	unarmMediaDestroy();
 	auto &owner = _history->owner();
+	const auto wasServiceMessage = _isServiceMessage;
 	if (const auto document = media->document()) {
 		document->cancel();
 		if (const auto active = document->activeMediaView()) {
@@ -3047,6 +3070,7 @@ void HistoryItem::clearMediaAsExpired() {
 		owner.cache().remove(document->goodThumbnailCacheKey());
 
 		applyEditionToHistoryCleared();
+		_isServiceMessage = wasServiceMessage;
 		auto text = (document->isVideoFile()
 			? tr::lng_ttl_video_expired
 			: document->isVoiceMessage()
@@ -3058,6 +3082,7 @@ void HistoryItem::clearMediaAsExpired() {
 		_flags |= MessageFlag::ReactionsAllowed;
 	} else if (const auto photo = media->photo()) {
 		applyEditionToHistoryCleared();
+		_isServiceMessage = wasServiceMessage;
 		photo->clearLocalCache();
 		updateServiceText({
 			tr::lng_ttl_photo_expired(tr::now, tr::marked)
@@ -5736,6 +5761,7 @@ void HistoryItem::createServiceFromMtp(const MTPDmessage &message) {
 }
 
 void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
+	_isServiceMessage = true;
 	AddComponents(HistoryServiceData::Bit());
 
 	const auto &action = message.vaction();
