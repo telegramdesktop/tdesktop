@@ -823,6 +823,10 @@ void TopBar::updateCollectibleStatus() {
 		}
 		return std::nullopt;
 	}();
+	// Updating one badge can relayout neighbors that still use the old styles.
+	const auto oldBotVerifySt = std::move(_botVerifySt);
+	const auto oldBadgeSt = std::move(_badgeSt);
+	const auto oldVerifiedSt = std::move(_verifiedSt);
 	if (verifiedFg) {
 		const auto copyStVerified = [&](const style::InfoPeerBadge &st) {
 			auto result = std::make_unique<style::InfoPeerBadge>(
