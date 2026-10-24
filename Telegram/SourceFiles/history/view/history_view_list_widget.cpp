@@ -62,6 +62,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "media/player/media_player_instance.h"
 #include "dialogs/ui/dialogs_video_userpic.h"
+#include "tgw/tgw_selection.h"
 #include "tgw/tgw_touch.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
@@ -595,6 +596,7 @@ ListWidget::ListWidget(
 	[=](const Element *view) { repaintItem(view); })
 , _touchSelectTimer([=] { onTouchSelect(); })
 , _widgetTouch(Tgw::ListTouch::Create(this))
+, _widgetSelection(Tgw::ListSelection::Create(this))
 , _touchScrollTimer([=] { onTouchScrollTimer(); })
 , _touchElastic(_delegate->listScrollArea(), [=](QPoint d, bool pressed) {
 	return _delegate->listScrollTo(_visibleTop - d.y(), !pressed);
@@ -1843,6 +1845,7 @@ MessageIdsList ListWidget::collectSelectedIds() const {
 
 void ListWidget::pushSelectedItems() {
 	_delegate->listSelectionChanged(collectSelectedItems());
+	Tgw::RefreshNativeCopy();
 }
 
 void ListWidget::removeItemSelection(
@@ -2247,7 +2250,9 @@ void ListWidget::clearTextSelection() {
 		_selectedTextItem = nullptr;
 		_selectedTextSelection = MessageSelection();
 		_selectedText = TextForMimeData();
+		Tgw::RefreshNativeCopy();
 	}
+	_widgetSelection->clear();
 }
 
 void ListWidget::setTextSelection(
@@ -2267,6 +2272,7 @@ void ListWidget::setTextSelection(
 		? view->selectedText(selection)
 		: TextForMimeData();
 	repaintItem(view);
+	Tgw::RefreshNativeCopy();
 	if (!_wasSelectedText && !_selectedText.empty()) {
 		_wasSelectedText = true;
 		setFocus();
@@ -2322,16 +2328,9 @@ bool ListWidget::hasCopyMediaRestriction(not_null<HistoryItem*> item) const {
 }
 
 bool ListWidget::showCopyRestriction(HistoryItem *item) {
-	const auto type = _delegate->listCopyRestrictionType(item);
-	if (type == CopyRestrictionType::None) {
-		return false;
-	}
-	_delegate->listUiShow()->showToast((type == CopyRestrictionType::Channel)
-		? tr::lng_error_nocopy_channel(tr::now)
-		: (type == CopyRestrictionType::User)
-		? tr::lng_error_nocopy_user(tr::now)
-		: tr::lng_error_nocopy_group(tr::now));
-	return true;
+	return Tgw::ShowCopyRestriction(
+		_delegate->listCopyRestrictionType(item),
+		[=] { return _delegate->listUiShow(); });
 }
 
 bool ListWidget::showCopyMediaRestriction(not_null<HistoryItem*> item) {
@@ -2352,7 +2351,8 @@ bool ListWidget::hasCopyRestrictionForSelected() const {
 		return true;
 	}
 	if (_selected.empty()) {
-		if (_selectedTextItem && _selectedTextItem->forbidsForward()) {
+		if ((_selectedTextItem && _selectedTextItem->forbidsForward())
+			|| _widgetSelection->copyRestricted()) {
 			return true;
 		}
 	}
@@ -2368,7 +2368,8 @@ bool ListWidget::hasCopyRestrictionForSelected() const {
 
 bool ListWidget::showCopyRestrictionForSelected() {
 	if (_selected.empty()) {
-		if (_selectedTextItem && showCopyRestriction(_selectedTextItem)) {
+		if ((_selectedTextItem && showCopyRestriction(_selectedTextItem))
+			|| Tgw::ListSelection::ShowRestriction(this)) {
 			return true;
 		}
 	}
@@ -3875,8 +3876,10 @@ HistorySelectedTextParts ListWidget::getSelectedTextParts() const {
 	if (selected.empty()) {
 		if (const auto view = viewForItem(_selectedTextItem)) {
 			return { .texts = { view->selectedText(_selectedTextSelection) } };
+		} else if (_selectedTextItem) {
+			return { .texts = { _selectedText } };
 		}
-		return { .texts = { _selectedText } };
+		return { .texts = { _widgetSelection->text() } };
 	}
 
 	const auto richContext = (selected.size() > 1);
@@ -4229,20 +4232,22 @@ void ListWidget::keyPressEvent(QKeyEvent *e) {
 	}
 
 	if (key == Qt::Key_Escape || key == Qt::Key_Back) {
-		if (hasSelectedText() || hasSelectedItems()) {
+		if (hasSelectedText()
+			|| hasSelectedItems()
+			|| _widgetSelection->has()) {
 			cancelSelection();
 		} else {
 			_delegate->listCancelRequest();
 		}
 	} else if (e == QKeySequence::Copy
-		&& (hasSelectedText() || hasSelectedItems())
+		&& canCopySelected()
 		&& !showCopyRestriction()
-		&& !hasCopyRestrictionForSelected()) {
+		&& (_widgetSelection->has() || !hasCopyRestrictionForSelected())) {
 		copySelectedText();
 	} else if (IsCopyWithImageTextShortcut(e, &session())
-		&& (hasSelectedText() || hasSelectedItems())
+		&& canCopySelected()
 		&& !showCopyRestriction()
-		&& !hasCopyRestrictionForSelected()) {
+		&& (_widgetSelection->has() || !hasCopyRestrictionForSelected())) {
 		copySelectedText(true);
 #ifdef Q_OS_MAC
 	} else if (key == Qt::Key_E
@@ -4383,6 +4388,7 @@ void ListWidget::validateTrippleClickStartTime() {
 
 void ListWidget::contextMenuEvent(QContextMenuEvent *e) {
 	showContextMenu(e);
+	_widgetSelection->watch(_menu.get());
 }
 
 void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
@@ -4603,6 +4609,7 @@ void ListWidget::reactionChosen(ChosenReaction reaction) {
 }
 
 void ListWidget::mousePressEvent(QMouseEvent *e) {
+	_widgetSelection->listPress(e->button(), bool(_menu));
 	if (_menu) {
 		e->accept();
 		return; // ignore mouse press, that was hiding context menu
@@ -4768,6 +4775,7 @@ void ListWidget::touchEvent(QTouchEvent *e) {
 
 	switch (e->type()) {
 	case QEvent::TouchBegin: {
+		_widgetSelection->dismiss();
 		if (_menu) {
 			e->accept();
 			return; // ignore mouse press, that was hiding context menu
@@ -5174,6 +5182,7 @@ void ListWidget::mouseActionStart(
 	}
 
 	ClickHandler::pressed();
+	_widgetSelection->press();
 	if (_pressState != _overState) {
 		if (_pressState.itemId != _overState.itemId) {
 			repaintItem(_pressState.itemId);
@@ -5340,6 +5349,7 @@ void ListWidget::mouseActionFinish(
 
 	const auto wasPressed = bool(ClickHandler::getPressed());
 	auto activated = ClickHandler::unpressed();
+	_widgetSelection->release();
 	if (const auto view = Element::HoveredLink()) {
 		if (wasPressed && !activated && view == _overElement) {
 			view->updatePressed(_overState.point);
@@ -5480,6 +5490,7 @@ void ListWidget::mouseActionUpdate() {
 			}
 		}
 	}
+	_widgetSelection->update();
 
 	const auto reactionState = _reactionsManager
 		? _reactionsManager->buttonTextState(point)

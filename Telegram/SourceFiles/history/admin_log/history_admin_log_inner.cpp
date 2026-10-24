@@ -75,6 +75,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_user.h"
 #include "tgw/tgw_log_box.h"
+#include "tgw/tgw_selection.h"
 #include "tgw/tgw_touch.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
@@ -372,7 +373,8 @@ InnerWidget::InnerWidget(
 	.menu = [=](not_null<QContextMenuEvent*> e) { showContextMenu(e, true); },
 	.resetSpeed = [=] { touchResetSpeed(); },
 	.dropTouch = [=] { _touchInProgress = false; },
-})) {
+}))
+, _widgetSelection(Tgw::ListSelection::Create(this)) {
 	Window::ChatThemeValueFromPeer(
 		controller,
 		channel
@@ -1697,8 +1699,10 @@ void InnerWidget::clearDisplayPointers(DisplayPointerScope pointerScope) {
 		_mouseAction = MouseAction::None;
 	}
 	if (clearMember(_selectedItem)) {
-		_selectedItem = nullptr;
 		_selectedTextSelection = MessageSelection();
+		if (base::take(_selectedItem) && !_beingDestroyed) {
+			Tgw::RefreshNativeCopy();
+		}
 	}
 	if (displayPointerMatches(Element::Hovered(), pointerScope)) {
 		Element::Hovered(nullptr);
@@ -2091,10 +2095,15 @@ TextForMimeData InnerWidget::getSelectedText() const {
 		: TextForMimeData();
 }
 
+bool InnerWidget::canCopySelected() const {
+	return (_selectedItem && !_selectedTextSelection.empty())
+		|| _widgetSelection->has();
+}
+
 void InnerWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Back) {
 		_cancelSignal.fire({});
-	} else if (e == QKeySequence::Copy && _selectedItem != nullptr) {
+	} else if (e == QKeySequence::Copy && canCopySelected()) {
 		copySelectedText();
 #ifdef Q_OS_MAC
 	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
@@ -2132,6 +2141,7 @@ void InnerWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 
 void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 	showContextMenu(e);
+	_widgetSelection->watch(_menu.get());
 }
 
 void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
@@ -2300,6 +2310,7 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				}, &st::menuIconTranslate);
 			}
 		} else {
+			Tgw::ListSelection::FillMenu(this, item);
 			if (item && !isUponSelected) {
 				const auto media = view->media();
 				const auto mediaHasTextForCopy = media && media->hasTextForCopy();
@@ -2398,6 +2409,12 @@ void InnerWidget::copyContextImage(not_null<PhotoData*> photo) {
 }
 
 void InnerWidget::copySelectedText() {
+	if (_widgetSelection->has()) {
+		if (!_widgetSelection->showCopyRestriction()) {
+			TextUtilities::SetClipboardText(_widgetSelection->text());
+		}
+		return;
+	}
 	TextUtilities::SetClipboardText(getSelectedText());
 }
 
@@ -2818,6 +2835,7 @@ bool InnerWidget::canRestrict() const {
 }
 
 void InnerWidget::mousePressEvent(QMouseEvent *e) {
+	_widgetSelection->listPress(e->button(), bool(_menu));
 	if (_menu) {
 		e->accept();
 		return; // ignore mouse press, that was hiding context menu
@@ -2864,6 +2882,7 @@ void InnerWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton butt
 	if (button != Qt::LeftButton) return;
 
 	ClickHandler::pressed();
+	_widgetSelection->press();
 	if (Element::Pressed() != Element::Hovered()) {
 		repaintItem(Element::Pressed());
 		Element::Pressed(Element::Hovered());
@@ -2955,6 +2974,7 @@ void InnerWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton but
 
 	const auto wasPressed = bool(ClickHandler::getPressed());
 	auto activated = ClickHandler::unpressed();
+	_widgetSelection->release();
 	if (const auto view = Element::HoveredLink()) {
 		if (wasPressed && !activated && view == Element::Moused()) {
 			const auto position = mapFromGlobal(_mousePosition);
@@ -3023,6 +3043,7 @@ void InnerWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton but
 			}
 		}
 	}
+	Tgw::RefreshNativeCopy();
 	_mouseAction = MouseAction::None;
 	_mouseActionItem = nullptr;
 	_mouseSelectType = TextSelectType::Letters;
@@ -3049,6 +3070,7 @@ void InnerWidget::updateSelected() {
 		const auto adjustedPoint = mapPointToItem(mousePosition, pressedView);
 		pressedView->updatePressed(adjustedPoint);
 	}
+	_widgetSelection->update();
 
 	auto itemPoint = QPoint();
 	auto begin = std::rbegin(_displayItems), end = std::rend(_displayItems);
@@ -3460,6 +3482,7 @@ void InnerWidget::touchEvent(QTouchEvent *e) {
 
 	switch (e->type()) {
 	case QEvent::TouchBegin: {
+		_widgetSelection->dismiss();
 		if (_menu) {
 			e->accept();
 			return;

@@ -2216,6 +2216,9 @@ PRIVATE
     tgw/tgw_resources.h
     tgw/tgw_runtime.cpp
     tgw/tgw_runtime.h
+    tgw/tgw_selection.cpp
+    tgw/tgw_selection.h
+    tgw/tgw_selection_lists.cpp
     tgw/tgw_storage.cpp
     tgw/tgw_storage.h
     tgw/tgw_theme.cpp

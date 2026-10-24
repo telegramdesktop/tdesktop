@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_text.h"
 #include "payments/payments_reaction_process.h"
 #include "tgw/tgw_log_box.h"
+#include "tgw/tgw_selection.h"
 #include "tgw/tgw_touch.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/menu/menu_multiline_action.h"
@@ -399,6 +400,7 @@ HistoryInner::HistoryInner(
 		[=](QRect updated) { update(updated); }))
 , _touchSelectTimer([=] { onTouchSelect(); })
 , _widgetTouch(Tgw::ListTouch::Create(this))
+, _widgetSelection(Tgw::ListSelection::Create(this))
 , _touchScrollTimer([=] { onTouchScrollTimer(); })
 , _touchElastic(scroll, [=](QPoint d, bool) { return _widget->touchScroll(d); })
 , _middleClickAutoscroll(
@@ -1317,6 +1319,7 @@ void HistoryInner::clearTextSelection() {
 		_selectedTextSelection = MessageSelection();
 		_selectedText = TextForMimeData();
 	}
+	_widgetSelection->clear();
 }
 
 void HistoryInner::setTextSelection(
@@ -2076,6 +2079,7 @@ void HistoryInner::touchEvent(QTouchEvent *e) {
 
 	switch (e->type()) {
 	case QEvent::TouchBegin: {
+		_widgetSelection->dismiss();
 		if (_menu) {
 			e->accept();
 			return; // ignore mouse press, that was hiding context menu
@@ -2255,6 +2259,7 @@ not_null<HistoryItem*> HistoryInner::lookupItemByPoint(
 }
 
 void HistoryInner::mousePressEvent(QMouseEvent *e) {
+	_widgetSelection->listPress(e->button(), bool(_menu));
 	if (_menu) {
 		e->accept();
 		return; // ignore mouse press, that was hiding context menu
@@ -2287,6 +2292,7 @@ void HistoryInner::mouseActionStart(
 	if (button != Qt::LeftButton) return;
 
 	ClickHandler::pressed();
+	_widgetSelection->press();
 	if (Element::Pressed() != Element::Hovered()) {
 		repaintItem(Element::Pressed());
 		Element::Pressed(Element::Hovered());
@@ -2615,6 +2621,7 @@ void HistoryInner::mouseActionFinish(
 		&& pressedView->media()->keepFocusByHandler(pressed);
 	const auto wasPressed = bool(pressed);
 	auto activated = ClickHandler::unpressed();
+	_widgetSelection->release();
 	if (const auto view = Element::HoveredLink()) {
 		if (wasPressed && !activated && view == Element::Moused()) {
 			const auto point = _widget->clampMousePosition(
@@ -2848,6 +2855,7 @@ HistoryView::SelectedQuote HistoryInner::selectedQuote(
 
 void HistoryInner::contextMenuEvent(QContextMenuEvent *e) {
 	showContextMenu(e);
+	_widgetSelection->watch(_menu.get());
 }
 
 void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
@@ -3667,6 +3675,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			addItemActions(item, editItem);
 		} else {
 			addReplyAction(partItemOrLeader);
+			Tgw::ListSelection::FillMenu(this, item);
 			addTodoListAction(partItemOrLeader);
 			addItemActions(item, albumPartItem);
 			if (item && !isUponSelected) {
@@ -4039,9 +4048,10 @@ bool HistoryInner::hasCopyRestrictionForSelected() const {
 			return true;
 		}
 	}
-	return hasSelectedText()
-		&& _selectedTextItem
-		&& _selectedTextItem->forbidsForward();
+	const auto textItem = hasSelectedText()
+		? _selectedTextItem
+		: _widgetSelection->item();
+	return textItem && textItem->forbidsForward();
 }
 
 bool HistoryInner::showCopyRestrictionForSelected() {
@@ -4050,9 +4060,10 @@ bool HistoryInner::showCopyRestrictionForSelected() {
 			return true;
 		}
 	}
-	return hasSelectedText()
-		&& _selectedTextItem
-		&& showCopyRestriction(_selectedTextItem);
+	const auto textItem = hasSelectedText()
+		? _selectedTextItem
+		: _widgetSelection->item();
+	return textItem && showCopyRestriction(textItem);
 }
 
 void HistoryInner::copySelectedText(bool withImageText) {
@@ -4200,8 +4211,10 @@ HistorySelectedTextParts HistoryInner::getSelectedTextParts() const {
 	if (selected.empty()) {
 		if (const auto view = viewByItem(_selectedTextItem)) {
 			return { .texts = { view->selectedText(_selectedTextSelection) } };
+		} else if (_selectedTextItem) {
+			return { .texts = { _selectedText } };
 		}
-		return { .texts = { _selectedText } };
+		return { .texts = { _widgetSelection->text() } };
 	}
 
 	const auto richContext = (selected.size() > 1);
@@ -5091,7 +5104,8 @@ auto HistoryInner::nextItem(Element *view) -> Element* {
 
 bool HistoryInner::canCopySelected() const {
 	return hasSelectedItems()
-		|| (hasSelectedText() && !_selectedTextSelection.empty());
+		|| (hasSelectedText() && !_selectedTextSelection.empty())
+		|| _widgetSelection->has();
 }
 
 bool HistoryInner::canDeleteSelected() const {
@@ -5352,8 +5366,9 @@ auto HistoryInner::getSelectionState() const
 			++result.canForwardCount;
 		}
 	}
-	result.textSelected = hasSelectedText()
-		&& !_selectedTextSelection.empty();
+	result.textSelected = (hasSelectedText()
+			&& !_selectedTextSelection.empty())
+		|| _widgetSelection->has();
 	return result;
 }
 
@@ -5368,6 +5383,7 @@ void HistoryInner::clearSelected(bool onlyTextSelection) {
 		clearTextSelection();
 		changed = true;
 	}
+	changed = _widgetSelection->clear() || changed;
 	if (changed) {
 		_widget->updateTopBarSelection();
 		_widget->update();
@@ -5500,6 +5516,7 @@ void HistoryInner::mouseActionUpdate() {
 			pressedView->updatePressed(mapPointToItem(mousePos, pressedView));
 		}
 	}
+	_widgetSelection->update();
 
 	auto m = QPoint();
 

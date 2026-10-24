@@ -44,6 +44,8 @@ struct ChatPaintContext;
 } // namespace Ui
 
 namespace Tgw {
+class ListSelection;
+class WidgetSelection;
 class WidgetTouch;
 } // namespace Tgw
 
@@ -84,6 +86,7 @@ public:
 	[[nodiscard]] rpl::producer<int> newEventsCountValue() const;
 	[[nodiscard]] Ui::Controls::SwipeHandoff touchSwipeHandoff();
 	void resetNewEventsCount();
+	[[nodiscard]] bool canCopySelected() const;
 
 	[[nodiscard]] not_null<ChannelData*> channel() const {
 		return _channel;
@@ -211,6 +214,8 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
+	friend class Tgw::ListSelection;
+
 	using Element = HistoryView::Element;
 	enum class Direction {
 		Up,
@@ -476,6 +481,7 @@ private:
 	base::Timer _touchSelectTimer;
 	base::Timer _touchScrollTimer;
 	std::unique_ptr<Tgw::WidgetTouch> _widgetTouch;
+	std::unique_ptr<Tgw::WidgetSelection> _widgetSelection;
 
 	// Touch scroll support.
 	bool _touchScroll = false;

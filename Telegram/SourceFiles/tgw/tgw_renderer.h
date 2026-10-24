@@ -80,6 +80,9 @@ public:
 	[[nodiscard]] bool pressed() const;
 	[[nodiscard]] bool fingerPressed() const;
 	[[nodiscard]] bool handCursorAt(QPointF point);
+	[[nodiscard]] bool hasSelection() const;
+	[[nodiscard]] QString selectedText() const;
+	void clearSelection();
 
 	void setWidth(double width);
 	void setMaxHeight(double height);

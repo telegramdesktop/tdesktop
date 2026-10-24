@@ -444,6 +444,7 @@ auto RendererCore::hostActionHandler() const
 
 void RendererCore::detach() {
 	resetInput();
+	_renderer->clear_selection();
 	_detached = true;
 	_pendingSize = std::string();
 	refreshClock();
@@ -627,6 +628,23 @@ bool RendererCore::handCursorAt(QPointF point) {
 		_cursor = std::make_unique<CursorStyles>(_renderer->dpr());
 	}
 	return _cursor->pointer(*_renderer, hit, hover, active);
+}
+
+bool RendererCore::hasSelection() const {
+	return !_detached && !_stopped && _renderer->has_selection();
+}
+
+QString RendererCore::selectedText() const {
+	return (_detached || _stopped)
+		? QString()
+		: QString::fromStdString(_renderer->selected_text());
+}
+
+void RendererCore::clearSelection() {
+	const auto wasDirty = _renderer->dirty();
+	if (_renderer->clear_selection()) {
+		inputDone({}, wasDirty);
+	}
 }
 
 void RendererCore::setWidth(double width) {

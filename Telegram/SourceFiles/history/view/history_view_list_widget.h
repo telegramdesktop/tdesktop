@@ -75,7 +75,9 @@ struct ButtonParameters;
 } // namespace HistoryView::ReplyButton
 
 namespace Tgw {
+class ListSelection;
 class ListTouch;
+class WidgetSelection;
 class WidgetTouch;
 } // namespace Tgw
 
@@ -388,6 +390,7 @@ public:
 
 	[[nodiscard]] TextForMimeData getSelectedText() const;
 	[[nodiscard]] Iv::RichPageBlocksSlice getSelectedRichBlocks() const;
+	[[nodiscard]] bool canCopySelected() const;
 	void copySelectedText(bool withImageText = false);
 	[[nodiscard]] MessageIdsList getSelectedIds() const;
 	[[nodiscard]] SelectedItems getSelectedItems() const;
@@ -395,6 +398,8 @@ public:
 		not_null<HistoryItem*> item) const;
 	[[nodiscard]] MessageSelection getSelectedTextSelection(
 		not_null<HistoryItem*> item) const;
+	[[nodiscard]] bool hasWidgetSelection(
+		not_null<const HistoryItem*> item) const;
 	void clearSelected();
 	void clearTextSelection();
 	void cancelSelection();
@@ -629,6 +634,7 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
+	friend class Tgw::ListSelection;
 	friend class Tgw::ListTouch;
 
 	[[nodiscard]] static int SelectionViewOffset(
@@ -1126,6 +1132,7 @@ private:
 	rpl::variable<bool> _touchMaybeSelecting;
 	base::Timer _touchSelectTimer;
 	std::unique_ptr<Tgw::WidgetTouch> _widgetTouch;
+	std::unique_ptr<Tgw::WidgetSelection> _widgetSelection;
 
 	Ui::DraggingScrollManager _selectScroll;
 
