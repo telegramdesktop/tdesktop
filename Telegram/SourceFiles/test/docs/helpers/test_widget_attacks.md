@@ -242,11 +242,19 @@ complete and clean (the positive control); the same row refused by a
 fixture check after its renderer was built, with its click and watch
 skipped, is ran, keeps its reason in the refusal, lists `fixture-refused`
 and `watch-missing`, and is neither complete nor clean; the clean row with
-one renderer violation and no leak is complete and not clean. Executed
-checks: the first
-executing campaign is recorded by the evidence of
-`2026/10/24/audit-the-widget-attack-corpus-through-a-validated-ops-tap`;
-until it is, everything above is a proposed check.
+one renderer violation and no leak is complete and not clean.
+
+**Evidence.** Executed on macOS arm64 Debug against the Test account's
+Twsteg megagroup in the evidence campaign of
+`2026/10/24/audit-the-widget-attack-corpus-through-a-validated-ops-tap` (its
+`work/test.md`), at widget-sandbox `v0.1.2`: the self-check and the three
+verdict controls passed, and one launch of 289 s ran all 99 attack files.
+Every file ran in the chat's own `HistoryInner`; 94 were live and each got
+one click observed as a trusted click; 5 died by the runtime limits (the same
+5 files the reference `--attacks` run reports), 3 of them before loading.
+There were no leaks, notes, scan gaps, renderer violations or layers, and an
+external loopback listener received the 8 controls of the launch and nothing
+else. Windows and all other platforms have not run it.
 
 ## Related guidance
 

@@ -251,10 +251,17 @@ session has, and disarms them before it returns:
   factories and its wrapper recording.
 
 Every expected value is a literal of the self-check, not derived from the tap.
-Executed checks: the first executing campaign of this self-check and of the
-corpus run is recorded by the evidence of
-`2026/10/24/audit-the-widget-attack-corpus-through-a-validated-ops-tap`; until
-it is, everything above is a proposed check.
+
+**Evidence.** Executed on macOS arm64 Debug in the evidence campaign of
+`2026/10/24/audit-the-widget-attack-corpus-through-a-validated-ops-tap` (its
+`work/test.md`), at widget-sandbox `v0.1.2` and twidget "Document
+widget-sandbox v0.1.2's gesture policy and 166/1/0": all 22 self-check rows
+passed in the real binary, and the control read 2 leaks, 1 note, 2 batches
+and 5 ops. Through the seam the same launch tapped one product renderer for
+each of the 99 attack widgets, scanned 7330 validated batches with no scan
+gap, and every factory and wrapper finished before its final reading. The
+copied scanner functions compared byte for byte with the tag. Windows and
+all other platforms have not run it; the code is portable.
 
 ## Related guidance
 
