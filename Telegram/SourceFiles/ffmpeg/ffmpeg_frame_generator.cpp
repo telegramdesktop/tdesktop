@@ -20,7 +20,6 @@ namespace FFmpeg {
 namespace {
 
 constexpr auto kMaxArea = 1920 * 1080 * 4;
-constexpr auto kShortGapBytes = 64;
 
 using ::Media::ValidFrameSize;
 
@@ -31,7 +30,7 @@ struct SourceRecipe {
 	bool ok = false;
 	bool palette = false;
 	std::array<int, 4> visibleBytes = {};
-	std::array<int64_t, 4> maxStride = {};
+	std::array<int, 4> maxStride = {};
 };
 
 [[nodiscard]] SourceRecipe DeriveSourceRecipe(
@@ -53,7 +52,7 @@ struct SourceRecipe {
 		return result;
 	}
 	result.palette = (desc->flags & AV_PIX_FMT_FLAG_PAL) != 0;
-	const auto maxPlaneBytes = int64_t(std::numeric_limits<int>::max())
+	const auto maxPlaneBytes = std::numeric_limits<int>::max()
 		/ kPixelBytesSize;
 	for (auto plane = 0; plane != int(result.maxStride.size()); ++plane) {
 		const auto shift = (plane == 1 || plane == 2)
@@ -74,19 +73,22 @@ struct SourceRecipe {
 		const SourceRecipe &recipe) {
 	for (auto plane = 0; plane != int(recipe.visibleBytes.size()); ++plane) {
 		const auto data = frame->data[plane];
-		const auto stride = frame->linesize[plane];
-		const auto visible = recipe.visibleBytes[plane];
 		if (recipe.palette && plane == 1) {
 			if (!data) {
 				return false;
 			}
-		} else if (!visible) {
 			continue;
-		} else if (!data
-			|| !stride
-			|| stride == std::numeric_limits<int>::min()
-			|| std::abs(stride) < visible
-			|| std::abs(stride) > recipe.maxStride[plane]) {
+		}
+		const auto visible = recipe.visibleBytes[plane];
+		if (!visible) {
+			continue;
+		}
+		const auto stride = frame->linesize[plane];
+		if (!data || !stride || stride == std::numeric_limits<int>::min()) {
+			return false;
+		}
+		const auto magnitude = std::abs(stride);
+		if (magnitude < visible || magnitude > recipe.maxStride[plane]) {
 			return false;
 		}
 	}
@@ -302,7 +304,7 @@ FrameGenerator::Frame FrameGenerator::Impl::renderCurrent(
 	const auto dx = (size.width() - scaled.width()) / 2;
 	const auto dy = (size.height() - scaled.height()) / 2;
 	const auto aligned = [](int64_t bytes) {
-		return (bytes + kAlignImageBy - 1) / kAlignImageBy * kAlignImageBy;
+		return (bytes + kAlignImageBy - 1) & ~int64_t(kAlignImageBy - 1);
 	};
 	const auto canvasBytes = int64_t(size.width()) * kPixelBytesSize;
 	const auto visibleBytes = int64_t(scaled.width()) * kPixelBytesSize;
@@ -322,33 +324,34 @@ FrameGenerator::Frame FrameGenerator::Impl::renderCurrent(
 	const auto minPitch = int(neededPitch);
 
 	const auto rotated = (_rotation != 0);
-	auto working = rotated
-		? base::take(_rotationStorage)
-		: std::move(storage);
-	if (!GoodStorageForFrame(working, size, minPitch)) {
-		working = CreateFrameStorage(size, minPitch);
+	if (rotated) {
+		storage = base::take(_rotationStorage);
 	}
-	auto bits = working.bits();
+	if (!GoodStorageForFrame(storage, size, minPitch)) {
+		storage = CreateFrameStorage(size, minPitch);
+	}
+	auto bits = storage.bits();
 	if (!bits) {
 		LOG(("Webm Error: Bad frame storage %1x%2."
 			).arg(size.width()
 			).arg(size.height()));
 		return {};
 	}
-	const auto address = reinterpret_cast<uintptr_t>(bits);
-	if ((working.bytesPerLine() < minPitch)
-		|| (address % kAlignImageBy != 0)
-		|| (working.bytesPerLine() % kAlignImageBy != 0)) {
-		working = CreateFrameStorage(size, minPitch);
-		bits = working.bits();
-		if (!bits || !GoodStorageForFrame(working, size, minPitch)) {
+	auto bytesPerLine = storage.bytesPerLine();
+	if ((bytesPerLine < minPitch)
+		|| (reinterpret_cast<uintptr_t>(bits) % kAlignImageBy != 0)
+		|| (bytesPerLine % kAlignImageBy != 0)) {
+		storage = CreateFrameStorage(size, minPitch);
+		bits = storage.bits();
+		if (!bits || !GoodStorageForFrame(storage, size, minPitch)) {
 			LOG(("Webm Error: Bad frame storage %1x%2."
 				).arg(size.width()
 				).arg(size.height()));
 			return {};
 		}
+		bytesPerLine = storage.bytesPerLine();
 	}
-	const auto pitch = int(working.bytesPerLine());
+	const auto pitch = int(bytesPerLine);
 	const auto line = int(visibleBytes);
 	const auto first = bits + (int64_t(dy) * pitch + shiftBytes);
 	const auto src = frame->data[0];
@@ -398,29 +401,25 @@ FrameGenerator::Frame FrameGenerator::Impl::renderCurrent(
 			return {};
 		}
 	}
-	const auto gap = pitch - line;
+	// Pitch slack past the canvas width is not visible, it is not cleared.
 	const auto lastRow = first + int64_t(scaled.height() - 1) * pitch;
-	const auto end = bits + int64_t(size.height()) * pitch;
-	memset(bits, 0, first - bits);
-	if (gap > 0
-		&& gap <= kShortGapBytes
-		&& !(gap % kPixelBytesSize)
-		&& !(line % kPixelBytesSize)) {
-		const auto words = gap / kPixelBytesSize;
+	if (first != bits) {
+		memset(bits, 0, first - bits);
+	}
+	if (shiftBytes + visibleBytes < canvasBytes || shiftBytes > 0) {
 		for (auto row = first; row != lastRow; row += pitch) {
-			const auto to = reinterpret_cast<uint32*>(row + line);
-			for (auto i = 0; i != words; ++i) {
-				to[i] = 0;
-			}
-		}
-	} else if (gap > 0) {
-		for (auto row = first; row != lastRow; row += pitch) {
-			memset(row + line, 0, gap);
+			memset(row + line, 0, pitch - line);
 		}
 	}
-	memset(lastRow + line, 0, end - (lastRow + line));
+	const auto tail = lastRow + line;
+	const auto end = (dy + scaled.height() < size.height())
+		? (bits + int64_t(size.height()) * pitch)
+		: (lastRow - shiftBytes + canvasBytes);
+	if (end != tail) {
+		memset(tail, 0, end - tail);
+	}
 	if (withAlpha) {
-		PremultiplyInplace(working);
+		PremultiplyInplace(storage);
 	}
 
 	const auto duration = _next.frame
@@ -429,14 +428,14 @@ FrameGenerator::Frame FrameGenerator::Impl::renderCurrent(
 	if (!rotated) {
 		return {
 			.duration = duration,
-			.image = std::move(working),
+			.image = std::move(storage),
 			.last = !_next.frame,
 		};
 	}
 	auto transform = QTransform();
 	transform.rotate(_rotation);
 	// Qt's rotated output has an ordinary pitch, so the canvas stays private.
-	_rotationStorage = std::move(working);
+	_rotationStorage = std::move(storage);
 	auto image = _rotationStorage.transformed(transform);
 	if (image.isNull()) {
 		LOG(("Webm Error: Unable to rotate frame %1x%2."
