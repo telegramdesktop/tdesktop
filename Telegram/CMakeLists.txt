@@ -2189,6 +2189,10 @@ PRIVATE
     test/test_web_cache.h
     test/test_wheel.cpp
     test/test_wheel.h
+    test/test_widget_attacks.cpp
+    test/test_widget_attacks.h
+    test/test_widget_ops.cpp
+    test/test_widget_ops.h
     test/test_widgets.cpp
     test/test_widgets.h
     test/test_window_exposure.cpp
