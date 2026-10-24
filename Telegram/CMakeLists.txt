@@ -2224,6 +2224,8 @@ PRIVATE
     tgw/tgw_selection_lists.cpp
     tgw/tgw_storage.cpp
     tgw/tgw_storage.h
+    tgw/tgw_storage_disk.cpp
+    tgw/tgw_storage_disk.h
     tgw/tgw_theme.cpp
     tgw/tgw_theme.h
     tgw/tgw_touch.cpp

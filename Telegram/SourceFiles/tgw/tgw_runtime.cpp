@@ -1069,6 +1069,7 @@ void Runtime::construct(
 	options.storage = StoredAreas(_item);
 	auto storage = OpenStorageHost(_item);
 	const auto id = storage.id;
+	StorageHostVisibility(id, _hostVisible);
 	auto job = Job{
 		.html = _html,
 		.resources = std::move(resources),
@@ -1289,6 +1290,7 @@ void Runtime::syncHostVisibility() {
 	if (_host && _hostVisible != _visible) {
 		_hostVisible = _visible;
 		_host->pointer->setVisible(_visible);
+		StorageHostVisibility(_host->storage, _visible);
 	}
 }
 

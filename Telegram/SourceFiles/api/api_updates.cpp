@@ -2636,6 +2636,10 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateChannelAvailableMessages: {
 		const auto &d = update.c_updateChannelAvailableMessages();
+		Tgw::ClearHistoryStorage(
+			&session(),
+			peerFromChannel(d.vchannel_id()),
+			d.vavailable_min_id().v);
 		if (const auto channel = session().data().channelLoaded(d.vchannel_id())) {
 			channel->setAvailableMinId(d.vavailable_min_id().v);
 			if (const auto history = session().data().historyLoaded(channel)) {

@@ -1766,7 +1766,7 @@ void LocalStorage::startClearing() {
 		_db->clear();
 		_dbBig->clear();
 		Ui::Emoji::ClearIrrelevantCache();
-		Tgw::ClearStorage(_session);
+		Tgw::EraseStorage(&_session->account());
 		return;
 	}
 	for (auto i = 0; i != kChartPartsCount; ++i) {
