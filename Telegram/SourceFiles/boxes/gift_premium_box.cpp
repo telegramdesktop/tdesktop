@@ -71,6 +71,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/table_layout.h"
+#include "wallet/wallet_address.h"
 #include "wallet/wallet_content.h"
 #include "window/window_peer_menu.h" // ShowChooseRecipientBox.
 #include "window/window_session_controller.h"
@@ -200,6 +201,25 @@ using SpinnerState = Data::GiftUpgradeSpinner::State;
 			: st.tableValueMultiline
 			? *st.tableValueMultiline
 			: st::giveawayGiftCodeValueMultiline));
+}
+
+[[nodiscard]] object_ptr<Ui::FlatLabel> MakeOwnerDomainValue(
+		not_null<Ui::TableLayout*> table,
+		std::shared_ptr<ChatHelpers::Show> show,
+		const QString &domain) {
+	auto result = object_ptr<Ui::FlatLabel>(
+		table,
+		rpl::single(tr::link(domain)),
+		table->st().defaultValue);
+	const auto copy = Wallet::CopyTextCallback(
+		std::move(show),
+		domain,
+		tr::lng_gift_unique_address_copied(tr::now));
+	result->setClickHandlerFilter([=](const auto &...) {
+		copy();
+		return false;
+	});
+	return result;
 }
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakePriceWithChangePercentValue(
@@ -1548,14 +1568,18 @@ void AddStarGiftTable(
 				tr::lng_gift_unique_owner(),
 				rpl::single(TextWithEntities{ unique->ownerName }));
 		} else if (auto address = unique->ownerAddress; !address.isEmpty()) {
+			// WHY: the owner may come as a TON DNS name like "name.t.me",
+			// which must not be split into address groups.
 			AddTableRow(
 				table,
 				tr::lng_gift_unique_owner(),
-				Wallet::AddressValueLabel(
-					table,
-					show,
-					address,
-					st.tableValueAddress));
+				(Wallet::ParseAddress(address)
+					? Wallet::AddressValueLabel(
+						table,
+						show,
+						address,
+						st.tableValueAddress)
+					: MakeOwnerDomainValue(table, show, address)));
 		}
 
 		if (const auto hostId = PeerId(entry.bareGiftHostId)) {

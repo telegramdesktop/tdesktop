@@ -112,5 +112,8 @@ def declares(line, pattern):
     used after `=` or `(` on its line."""
     if line[:1].isspace() or line.startswith((',', ':')):
         return False
-    before = line[:pattern.search(line).start()]
+    mention = pattern.search(line)
+    if mention is None:
+        return False
+    before = line[:mention.start()]
     return '=' not in before and '(' not in before

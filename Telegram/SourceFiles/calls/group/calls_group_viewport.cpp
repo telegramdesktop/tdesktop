@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 #include "calls/group/calls_group_viewport_rhi.h"
 #include "ui/rhi/rhi_renderer.h"
+#include <rhi/qrhi.h>
 #endif
 #include "calls/group/calls_group_common.h"
 #include "calls/group/calls_group_call.h"
@@ -1014,6 +1015,11 @@ void Viewport::ensureBorrowedCleared() {
 	Expects(_borrowed != nullptr);
 	Expects(!_opengl);
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
+	if (const auto rhi = base::take(_borrowedRhi)) {
+		rhi->removeCleanupCallback(this);
+	}
+#endif
 	base::take(_borrowedRenderer);
 }
 
@@ -1036,6 +1042,20 @@ Ui::Rhi::Renderer *Viewport::ensureBorrowedRhi(
 	}
 	if (const auto r = dynamic_cast<Ui::Rhi::Renderer*>(
 			_borrowedRenderer.get())) {
+		if (_borrowedRhi != rhi) {
+			if (_borrowedRhi) {
+				_borrowedRhi->removeCleanupCallback(this);
+			}
+			r->releaseResources();
+			_borrowedRhi = rhi;
+			rhi->addCleanupCallback(this, [=](QRhi*) {
+				_borrowedRhi = nullptr;
+				if (const auto renderer = dynamic_cast<Ui::Rhi::Renderer*>(
+						_borrowedRenderer.get())) {
+					renderer->releaseResources();
+				}
+			});
+		}
 		r->initialize(rhi, rt, cb);
 		return r;
 	}
@@ -1055,7 +1075,11 @@ void Viewport::borrowedPaintOnscreen(
 		QRhi *rhi,
 		QRhiRenderTarget *rt,
 		QRhiCommandBuffer *cb) {
-	if (const auto r = ensureBorrowedRhi(rhi, rt, cb)) {
+	if (_borrowedRhi != rhi) {
+		return;
+	}
+	if (const auto r = dynamic_cast<Ui::Rhi::Renderer*>(
+			_borrowedRenderer.get())) {
 		r->renderOnscreen(rhi, rt, cb);
 	}
 }

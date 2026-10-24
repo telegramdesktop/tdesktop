@@ -151,9 +151,6 @@ struct AllowedReactions {
 [[nodiscard]] PeerData *PeerFromInputMTP(
 	not_null<Session*> owner,
 	const MTPInputPeer &input);
-[[nodiscard]] UserData *UserFromInputMTP(
-	not_null<Session*> owner,
-	const MTPInputUser &input);
 
 [[nodiscard]] Ui::ColorCollectible ParseColorCollectible(
 	const MTPDpeerColorCollectible &data);

@@ -247,8 +247,4 @@ Ui::Text::PaletteDependentEmoji IconCreditsEmojiSmall() {
 	});
 }
 
-Ui::Text::PaletteDependentEmoji IconCurrencyEmojiSmall() {
-	return IconCreditsEmoji({});
-}
-
 } // namespace Ui::Earn

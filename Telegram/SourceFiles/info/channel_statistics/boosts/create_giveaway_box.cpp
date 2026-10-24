@@ -837,7 +837,7 @@ void CreateGiveawayBox(
 			const auto &values = isCredits
 				? creditsOptionWinners(credits)
 				: availablePresets;
-			const auto count = values.size();
+			const auto count = int(values.size());
 			if (count <= 1) {
 				return;
 			}

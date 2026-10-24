@@ -2,6 +2,7 @@ import contextlib
 import io
 import json
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -71,6 +72,35 @@ APP = dedent('''
     } // namespace App
 ''')
 
+PANEL = dedent('''
+    #include "low/low.h"
+
+    namespace Low {
+
+    class Panel {
+    public:
+    	void resize(int width);
+    	void finalizeLayout(int width);
+
+    private:
+    	int _width = 0;
+
+    };
+
+    void Panel::resize(int width) {
+    	if (_width != width) {
+    		finalizeLayout(width);
+    	}
+    }
+
+    // keeps the width positive, as std::max(width, 1) does in callers
+    void Panel::finalizeLayout(int width) {
+    	_width = width;
+    }
+
+    } // namespace Low
+''')
+
 
 class Repo:
     def __init__(self, files):
@@ -88,11 +118,14 @@ class Repo:
             ['git', '-C', str(self.root), *args],
             capture_output=True, check=True).stdout.decode()
 
-    def write(self, files):
+    def write(self, files, newline=None):
         for path, text in files.items():
             target = self.root / path
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(text, encoding='utf-8')
+            if newline is None:
+                target.write_text(text, encoding='utf-8')
+            else:
+                target.write_bytes(text.replace('\n', newline).encode('utf-8'))
 
     def remove(self, path):
         (self.root / path).unlink()
@@ -174,6 +207,18 @@ class TextTests(unittest.TestCase):
         lines = cpp_text.code_lines('/*\nThis file is part of X\n*/\nint a = 0;')
         self.assertEqual([cpp_text.normalize(line) for line in lines],
                          ['', '', '', 'int a = 0;'])
+
+    def test_numeric_literal_letters_are_not_names(self):
+        literals = ('1e-4', '0x1F', '10ull', '0.5f', '.5f', '0b1010', '0x1.fp+2F',
+                    "1'000ULL", '1e+4', '42_units')
+        for literal in literals:
+            with self.subTest(literal=literal):
+                line = f'constexpr auto kScaled1 = kBaseStep * {literal} + kBaseStep;'
+                self.assertEqual(review.identifiers(line),
+                                 ['constexpr', 'auto', 'kScaled1', 'kBaseStep', 'kBaseStep'])
+
+    def test_nonmatching_pattern_does_not_declare(self):
+        self.assertFalse(metrics.declares('constexpr auto kEpsilon = 1e-4;', re.compile(r'\be\b')))
 
 
 class GraphTests(unittest.TestCase):
@@ -412,6 +457,33 @@ class CheckTests(unittest.TestCase):
         orphans = [w.split(':')[0] for w in warnings if 'last use' in w]
         self.assertEqual(sorted(orphans), ['lng_unique_label', 'menuIconUnique'], warnings)
 
+    def test_removed_numeric_literals_keep_the_check_running(self):
+        src = 'Telegram/SourceFiles/'
+        constants = ('constexpr auto kEpsilon = 1e-4;\nconstexpr auto kMask = 0x1F;\n'
+                     'constexpr auto kLimit = 10ull;\nconstexpr auto kHalf = 0.5f;\n\n')
+        self.repo.write({src + 'low/low.cpp': LOW.replace(
+            'namespace Low {\n\n', 'namespace Low {\n\n' + constants)})
+        self.repo.git('commit', '-qam', 'Constants.')
+        self.repo.write({src + 'low/low.cpp': LOW})
+        self.assertEqual(self.run_check(), ([], []))
+
+    def test_last_use_beside_a_numeric_literal_reports_orphan(self):
+        src = 'Telegram/SourceFiles/'
+        step = 'constexpr auto kBaseStep = 4;\n'
+        scaled = 'constexpr auto kScaled = kBaseStep * 1e-4;\n'
+        self.repo.write({src + 'low/low.cpp': LOW.replace(
+            'namespace Low {\n\n', 'namespace Low {\n\n' + step + scaled + '\n')})
+        self.repo.git('commit', '-qam', 'Scaled.')
+        self.repo.write({src + 'low/low.cpp': LOW.replace(
+            'namespace Low {\n\n', 'namespace Low {\n\n' + step + '\n')})
+        errors, warnings = self.run_check()
+        self.assertEqual(errors, [])
+        self.assertEqual(len(warnings), 1, warnings)
+        self.assertTrue(warnings[0].startswith('kBaseStep:'), warnings)
+        self.assertIn('the change removed its last use; only its definition remains',
+                      warnings[0], warnings)
+        self.assertIn(src + 'low/low.cpp', warnings[0], warnings)
+
     def test_removed_style_definition_still_used_is_reported(self):
         src = 'Telegram/SourceFiles/'
         style = 'menuIconGone: icon {{ "menu/gone", menuIconColor }};\n'
@@ -445,6 +517,51 @@ class CheckTests(unittest.TestCase):
         })
         _, warnings = self.run_check()
         self.assertFalse(any(w.startswith('Twice:') for w in warnings), warnings)
+
+    def commit_panel(self):
+        path = 'Telegram/SourceFiles/low/panel.cpp'
+        self.repo.write({'.gitattributes': '* text=auto\n', path: PANEL}, newline='\n')
+        self.assertNotIn(b'\r\n', (self.repo.root / path).read_bytes())
+        self.repo.git('add', '-A')
+        self.repo.git('commit', '-qm', 'Panel.')
+        self.assertNotIn('\r\n', self.repo.git('show', 'HEAD:' + path))
+        return path
+
+    def test_crlf_tree_keeps_a_commented_definition(self):
+        path = self.commit_panel()
+        grown = PANEL.replace('} // namespace Low\n',
+                              'int Unrelated() {\n\treturn 0;\n}\n\n} // namespace Low\n')
+        self.repo.write({path: grown}, newline='\r\n')
+        self.assertIn(b'\r\n', (self.repo.root / path).read_bytes())
+        crlf = self.run_check()
+        self.repo.write({path: grown}, newline='\n')
+        self.assertNotIn(b'\r\n', (self.repo.root / path).read_bytes())
+        lf = self.run_check()
+        with self.subTest('CRLF keeps the definition'):
+            self.assertFalse(any('definition removed' in w for w in crlf[1]), crlf[1])
+        with self.subTest('CRLF equals LF'):
+            self.assertEqual(crlf, lf)
+        with self.subTest('LF is clean'):
+            self.assertEqual(lf, ([], []))
+
+    def test_crlf_tree_still_reports_a_removed_definition(self):
+        path = self.commit_panel()
+        definition = ('// keeps the width positive, as std::max(width, 1) does in callers\n'
+                      'void Panel::finalizeLayout(int width) {\n\t_width = width;\n}\n\n')
+        removed = PANEL.replace(definition, '')
+        self.assertNotEqual(removed, PANEL)
+        self.repo.write({path: removed}, newline='\r\n')
+        self.assertIn(b'\r\n', (self.repo.root / path).read_bytes())
+        crlf = self.run_check()
+        self.repo.write({path: removed}, newline='\n')
+        self.assertNotIn(b'\r\n', (self.repo.root / path).read_bytes())
+        lf = self.run_check()
+        errors, warnings = crlf
+        self.assertEqual(errors, [])
+        self.assertEqual(len(warnings), 1, warnings)
+        self.assertTrue(warnings[0].startswith('finalizeLayout:'), warnings)
+        self.assertIn('definition removed but still mentioned', warnings[0], warnings)
+        self.assertEqual(crlf, lf)
 
 
 class VerifyTests(unittest.TestCase):
@@ -560,6 +677,10 @@ class StateTests(unittest.TestCase):
         ledger = json.loads((self.state / 'ledger.json').read_text(encoding='utf-8'))
         self.assertEqual(ledger['commit'], self.commit)
         self.assertTrue((self.state / ledger['run'] / 'report.md').is_file())
+        self.assertTrue((self.state / ledger['run'] / 'harness.md').is_file())
+        harness_data = json.loads((self.state / ledger['run'] / 'harness.json').read_text())
+        self.assertEqual(harness_data['commit'], self.commit)
+        self.assertFalse(harness_data['coverage']['available'])
         self.assertTrue((self.published / '.local' / 'snapshots'
                          / f'{self.commit}.json').is_file())
         _, output = self.run_health(health.command_scan, state=str(self.state))

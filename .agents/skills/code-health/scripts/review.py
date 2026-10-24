@@ -35,7 +35,7 @@ DEFAULTS = re.compile(r'([\w>*&] [*&]?\w+) = [^,(){}]+(?=[,)])')
 CONTROL = ('if ', 'for ', 'while ', 'switch ', 'return ', '} else')
 DECLARATION = re.compile(r'^(?!return )[\w:<>*&\[\], ]+ [*&]?~?\w+\(')
 NOT_TYPE = r'(?!(?:return|co_return|else|case|throw|new|delete|co_await|not|and|or)\b)'
-IDENT = re.compile(r'[A-Za-z_]\w*')
+TOKEN = re.compile(r"\.?[0-9](?:[eEpP][+-]|[\w.]|'\w)*|([A-Za-z_]\w*)")
 CODE_WORDS = frozenset('''
     auto bool break case catch char class const constexpr continue default
     delete double else enum explicit false float for friend if inline int long
@@ -243,6 +243,12 @@ def mention_lines(text):
     return [line.split('//')[0] for line in cpp_text.code_lines(text)]
 
 
+def identifiers(text):
+    """Names in `text`, in order; letters inside a numeric literal such as
+    `1e-4`, `0x1F`, `10ull` or `0.5f` belong to the number."""
+    return [name for name in TOKEN.findall(text) if name]
+
+
 def defines(path, line, name):
     """Whether this mention of `name` declares or defines it rather than
     using it: its key in the language file, its entry in a `.style` file, or
@@ -282,11 +288,11 @@ def orphaned(tree, base, staged):
     used = set()
     for path, (minus, plus) in diff_lines(tree.repo, base, staged).items():
         for line in minus:
-            names = set(IDENT.findall(line.split('//')[0]))
+            names = set(identifiers(line.split('//')[0]))
             removed.update(names)
             used |= {name for name in names if not defines(path, line, name)}
         for line in plus:
-            added.update(IDENT.findall(line.split('//')[0]))
+            added.update(identifiers(line.split('//')[0]))
     candidates = {
         name for name, count in removed.items()
         if count > added.get(name, 0) and name in used and len(name) >= 4
@@ -298,7 +304,7 @@ def orphaned(tree, base, staged):
     for path, text in tree.files.items():
         if not tracked_path(path):
             continue
-        for name in set(IDENT.findall(text)) & candidates:
+        for name in set(identifiers(text)) & candidates:
             files.setdefault(name, []).append(path)
     result = []
     for name in sorted(candidates):

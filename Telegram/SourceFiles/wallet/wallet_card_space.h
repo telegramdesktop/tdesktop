@@ -77,7 +77,9 @@ struct CardTextLayout {
 	float64 side,
 	float64 rotation,
 	QSize card);
-[[nodiscard]] std::optional<Data::StoryArea> CardStickerDefaultArea(
-	QSize card);
+[[nodiscard]] std::optional<Data::StoryArea> CardStickerAutoArea(
+	const std::vector<Data::StoryArea> &shown,
+	QSize card,
+	int ratio);
 
 } // namespace Wallet

@@ -128,9 +128,9 @@ Before planning or editing:
    stage is either replaced by an equally direct instrument or recorded under
    `Unverified:` with its expected exposure; never silently weaken the oracle.
    A selected check that must pass the account's two-step verification has
-   the `2svpassword.txt` fixture (`Telegram/SourceFiles/test/README.md`,
-   "Account fixture secrets") as a prerequisite. Gate its presence — existence
-   only, never its value — before Phase 4 editing and again before the
+   the `2svpassword.txt` fixture as a prerequisite (see
+   `Telegram/SourceFiles/test/docs/account-fixtures.md`). Gate its presence —
+   existence only, never its value — before Phase 4 editing and again before the
    evidence campaign. When it is absent, do not author, build, launch, or
    degrade the campaign around it and do not export the legs as coverage
    debt: publish the task-local `Block` at once — `Blocker-Type: test`,
@@ -348,10 +348,11 @@ Run sequentially:
    build tree.
 5. **Review.** Run the adaptive review/fix loop from the phase prompts. Launch
    the first independent general reviewer and all five standard lens reviewers
-   against the task and complete diff without sharing findings. The general
-   reviewer examines every changed file in full; each lens either proves
-   `NOT_APPLICABLE` from the complete diff or performs its relevant focused
-   review. General synthesis confirms or drops findings, rejects unsupported
+   against the task and complete diff without sharing findings; a harness task
+   starts with the general reviewer alone (see [Harness tasks](#harness-tasks)).
+   The general reviewer examines every changed file in full; each lens either
+   proves `NOT_APPLICABLE` from the complete diff or performs its relevant
+   focused review. General synthesis confirms or drops findings, rejects unsupported
    bailouts, and writes the single `review1.md` the fix phase implements. Only
    material blocking findings cause a fix. After a fix, preserve every prior
    approval that the fix did not invalidate: run one focused general review of
@@ -383,7 +384,9 @@ Run sequentially:
    optional `tasks/TASK_ID.md` source note), stages exactly those paths,
    writes and validates the exact three-line message, and with `--mark-green`
    moves the retained-implementation refs — replacing manual staging and the
-   separate `source-mark-green` call. An implementation bug creates the next
+   separate `source-mark-green` call. It then mirrors the new tip to the
+   checkout's `ai-<checkout-tag>` branch (see [Telegram commits](#telegram-commits)).
+   An implementation bug creates the next
    committed attempt through the same helper; keep the same `Task:` locator on
    every attempt. When assessment and general review prove the requested
    outcome was already present, leave the source checkout at `BASE_REF`, skip
@@ -396,8 +399,10 @@ Every unfinished task follows one adaptive implementation path. Task size,
 repository location, and whether Telegram is eventually launched do not select
 a profile. The one exception is a code-health task of class Q0, Q1 or Q2,
 which runs the [mechanical lane](mechanical-lane.md): its class bounds the
-change to what a tool can prove. Before editing, Phase 2 assessment records
-the task's actual failure surfaces and writes both of these contracts:
+change to what a tool can prove. A [harness task](#harness-tasks) keeps this
+path, with its review scaled to code no user runs. Before editing, Phase 2
+assessment records the task's actual failure surfaces and writes both of these
+contracts:
 
 ```text
 Expected surfaces:
@@ -420,11 +425,51 @@ a recall checklist for their initial applicability scan. Assessment rejects
 ceremony as well as under-testing: it removes evidence checks that cannot be
 affected by the task.
 
+### Harness tasks
+
+A harness task changes test or workflow infrastructure, not the product. Every
+change it retains qualifies for the `[ai]` subject prefix under "Commits" in
+`AGENTS.md`: the permanent test harness in `Telegram/SourceFiles/test/` with
+the build lines that register its files, `.agents/`, `.claude/`, `.grok/`, and
+other AI testing infrastructure. No user runs this code; its users are the
+tests and agents that call it. Phase 1 records `Code: harness` or
+`Code: product` in the plan, and assessment checks that against the planned
+owned paths. When the work turns out to need a product change, the task
+becomes `Code: product`, and its next review round is the complete initial
+fanout over the whole diff.
+
+A harness task runs the same phases and the same review-to-agreement loop,
+scaled to what the code is for:
+
+- **Plan.** Build the smallest helper that gives the consumers it names
+  (tasks, tests, agents) correct results. Support for hypothetical callers,
+  misuse no consumer performs, framework edge cases no consumer reaches, and
+  defensive teardown for them stay out. Assessment rejects a plan whose
+  machinery is several times what those consumers need.
+- **Review.** The initial review is the general reviewer alone. It adds the
+  security lens when the diff deletes or overwrites files, starts processes, or
+  touches accounts, credentials or data outside the run's sandbox, and any
+  other lens or domain specialist only for a concrete risk it names. Focused
+  rounds follow the ordinary rules.
+- **Blocking bar.** A finding blocks only when the harness can give a consumer
+  a wrong result (a false pass or fail, a wrong reading), crash or hang a run,
+  damage anything outside the run's sandbox, change product behavior, or break
+  the build or a repository rule. Robustness against misuse no consumer
+  performs, teardown order in cases no consumer reaches, and polish are
+  non-blocking notes. Every review, synthesis, focused review and convergence
+  prompt of a harness task carries this bar (phase prompts, "Harness tasks").
+- **Models.** On Codex, the plan assessment, every review and synthesis, the
+  convergence assessments and the evidence assessments of a harness task run
+  on `gpt-6.1-sol` ([phase effort](../../../shared/phase-effort.md#lens-models)).
+- **Evidence.** The harness self-test, or one consumer run, shows that the
+  helper gives its consumers what they need.
+
 ### Initial review fanout
 
 The initial review of a task **that produced a source diff** includes one
-independent **general** reviewer and all five standard lenses. Start them
-together when capacity permits; under a slot limit, keep the complete set
+independent **general** reviewer and all five standard lenses; a
+[harness task](#harness-tasks) starts with the general reviewer alone. Start
+them together when capacity permits; under a slot limit, keep the complete set
 queued and start the next lens as soon as a slot opens. The general reviewer
 and lenses do not read one another's findings.
 
@@ -686,6 +731,18 @@ its preflight was clean and all of its changes belong to this task, then stage
 the superproject pointer; the helper refuses dirty submodule pointers so an
 unintended one can never slip into an attempt.
 
+After every commit, `source-commit` force-pushes the checkout's `HEAD` to
+`refs/heads/ai-<checkout-tag>` on the `private` remote, for example
+`ai-pc-d-tdesktop`. That branch only mirrors the checkout's latest task commit,
+pre-approval attempts and fixes after testing included, so other checkouts can
+look at work in progress. Nobody works on it and it is never a lineage source:
+the checkout stays on whatever branch it has checked out, and the next commit
+from any branch overwrites the mirror. A checkout without a `private` remote
+skips the mirror. A failed or timed-out push only shows up in the helper's
+`mirror` result: it never fails the commit or blocks the task, so note it in
+the result `NOTES:` and continue. Do not push the mirror by hand, with a lease,
+or from any other point in the workflow.
+
 Every implementation or implementation-fix commit message is exactly:
 
 ```text
@@ -752,12 +809,12 @@ Before an instrument runs, gate only its own prerequisites:
   account, safe path-scoped process control, and test harness;
 - a check that must pass the account's two-step verification needs the
   `2svpassword.txt` fixture, read at runtime through `Test::TwoStepPassword()`
-  (`Telegram/SourceFiles/test/README.md`, "Account fixture secrets"); its
+  (`Telegram/SourceFiles/test/docs/account-fixtures.md`); its
   absence is the task blocker of Phase 3 step 5, never a degraded run, and
   the value never enters overlay code, artifacts, logs, or prompts;
 - a check that the task declares needs the funded golden wallet needs the
   `test_gram_account.txt` fixture, read at runtime through
-  `Test::GramAccount()` (same README section): the file present, the served
+  `Test::GramAccount()` (same account-fixtures guide): the file present, the served
   `walletState.address` equal to the file's at campaign start (a mismatch
   FAILS the run, never `/wallet_reset`), and the balance covering every
   planned live leg plus a margin before any spend — a missing file or a
@@ -769,11 +826,13 @@ Before an instrument runs, gate only its own prerequisites:
 - another platform's unavailable toolchain is recorded as an exact
   `Unverified:` exposure, not simulated by an unrelated local command.
 
-When a Telegram overlay or app launch is selected, read
-`Telegram/SourceFiles/test/README.md` completely and then the chosen helper
-headers. Read `references/computer-use-testing.md` when selecting or operating
-a UI driver. Retain all shared task-derived oracle, layout measurement,
-watchdog, crash/assertion, hang, account, and evidence rules, with these
+When a Telegram overlay or app launch is selected, read the short
+`Telegram/SourceFiles/test/README.md`, then the task-relevant references it
+links and the chosen helper headers. Do not load the whole helper catalog or
+diagnostic history; required fixture and instrument prerequisites still apply.
+For permanent helper changes, follow `test/docs/adding-helpers.md`.
+Read `references/computer-use-testing.md` when selecting or operating a UI
+driver. Retain all shared task-derived oracle, layout measurement, watchdog, crash/assertion, hang, account, and evidence rules, with these
 external-task adaptations:
 
 - Prefer an overlay in

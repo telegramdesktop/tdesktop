@@ -194,12 +194,13 @@ void Pip::RendererGL::init(QOpenGLFunctions &f) {
 			FragmentRoundToShadow(),
 		}));
 
+	_nv12ChromaFormat = TwoComponentTextureFormat();
 	_nv12Program.emplace();
 	LinkProgram(
 		&*_nv12Program,
 		_texturedVertexShader,
 		FragmentShader({
-			FragmentSampleNV12Texture(),
+			FragmentSampleNV12Texture(_nv12ChromaFormat),
 			FragmentApplyFade(),
 			FragmentRoundToShadow(),
 		}));
@@ -345,8 +346,8 @@ void Pip::RendererGL::paintTransformedVideoFrame(
 	_textures.bind(*_f, 2);
 	if (upload) {
 		uploadTexture(
-			nv12 ? GL_RG : GL_ALPHA,
-			nv12 ? GL_RG : GL_ALPHA,
+			nv12 ? _nv12ChromaFormat : GL_ALPHA,
+			nv12 ? _nv12ChromaFormat : GL_ALPHA,
 			yuv->chromaSize,
 			nv12changed ? QSize() : _chromaSize,
 			yuv->u.stride / (nv12 ? 2 : 1),

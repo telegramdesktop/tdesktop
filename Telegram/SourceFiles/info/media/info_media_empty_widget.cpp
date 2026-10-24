@@ -73,7 +73,9 @@ void EmptyWidget::setSearchQuery(const QString &query) {
 				? tr::lng_media_link_empty(tr::now)
 				: tr::lng_media_link_empty_search(tr::now);
 		case Type::RoundVoiceFile:
-			return tr::lng_media_audio_empty(tr::now);
+			return query.isEmpty()
+				? tr::lng_media_audio_empty(tr::now)
+				: tr::lng_media_audio_empty_search(tr::now);
 		}
 		Unexpected("Bad type in EmptyWidget::setSearchQuery()");
 	}());

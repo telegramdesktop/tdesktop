@@ -1994,6 +1994,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_media_song_empty_search" = "No music files found";
 "lng_media_file_empty_search" = "No files found";
 "lng_media_link_empty_search" = "No shared links found";
+"lng_media_audio_empty_search" = "No voice messages found";
 
 "lng_manage_group_title" = "Manage group";
 "lng_manage_channel_title" = "Manage Channel";
@@ -7100,6 +7101,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_qr_box_gifts" = "Gifts";
 "lng_qr_box_gifts_empty_title" = "No gifts yet";
 "lng_qr_box_gifts_empty_about" = "Use any collectible gift you own to style your QR code.";
+"lng_qr_box_gifts_empty_about_chat" = "There are no collectible gifts here yet.";
 "lng_qr_box_gifts_browse" = "Browse Gifts";
 
 "lng_exceptions_list_title" = "Exceptions";
@@ -8140,11 +8142,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_keys_legend_paste_plain" = "Paste as plain text";
 
 "lng_keys_legend_media_play" = "Play or pause";
-"lng_keys_legend_hold" = "Hold";
 "lng_keys_legend_click" = "Click";
 "lng_keys_legend_drag" = "Drag";
 "lng_keys_legend_wheel" = "Wheel";
-"lng_keys_legend_media_2x" = "2x speed";
+"lng_keys_legend_media_2x_hold" = "Hold space for 2x speed";
 "lng_keys_legend_media_nav" = "Previous or next media";
 "lng_keys_legend_media_escape" = "Close the viewer";
 "lng_keys_legend_media_fullscreen_escape" = "Exit fullscreen";
@@ -8159,7 +8160,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_keys_legend_media_save" = "Save media";
 "lng_keys_legend_media_fit" = "Fit to screen";
 "lng_keys_legend_media_double" = "Toggle fullscreen";
-"lng_keys_legend_media_hold" = "Speed up playback, drag to scrub the speed";
+"lng_keys_legend_media_speed_scrub" = "Hold to speed up playback, drag to scrub the speed";
 "lng_keys_legend_media_chapter_prev" = "Previous chapter";
 "lng_keys_legend_media_chapter_next" = "Next chapter";
 

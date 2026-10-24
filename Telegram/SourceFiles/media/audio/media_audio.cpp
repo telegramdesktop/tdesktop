@@ -796,21 +796,6 @@ Streaming::TimePoint Mixer::getExternalSyncTimePoint(
 	return result;
 }
 
-crl::time Mixer::getExternalCorrectedTime(const AudioMsgId &audio, crl::time frameMs, crl::time systemMs) {
-	auto result = frameMs;
-	const auto type = audio.type();
-
-	QMutexLocker lock(&AudioMutex);
-	const auto track = trackForType(type);
-	if (track && track->state.id == audio && track->lastUpdateWhen > 0) {
-		result = static_cast<crl::time>(track->lastUpdatePosition);
-		if (systemMs > track->lastUpdateWhen) {
-			result += (systemMs - track->lastUpdateWhen);
-		}
-	}
-	return result;
-}
-
 void Mixer::externalSoundProgress(const AudioMsgId &audio) {
 	const auto type = audio.type();
 

@@ -14,6 +14,7 @@ class SessionShow;
 } // namespace Main
 
 namespace Ui {
+class ScrollArea;
 class VerticalLayout;
 } // namespace Ui
 
@@ -32,6 +33,7 @@ struct CollectiblesSquares {
 
 [[nodiscard]] CollectiblesSquares AddCollectiblesList(
 	not_null<Ui::VerticalLayout*> container,
+	not_null<Ui::ScrollArea*> scroll,
 	std::shared_ptr<Main::SessionShow> show,
 	std::shared_ptr<CollectibleMedia> media,
 	CardHost host);

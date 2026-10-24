@@ -164,6 +164,13 @@ bool PeerQrPanel::insideGlass(QPoint point) const {
 	return glassPath().contains(QPointF(point));
 }
 
+QRegion PeerQrPanel::interiorRegion() const {
+	// field frames change nothing in these whole pixels of the open glass
+	return (!isHidden() && _progress.current() >= 1.)
+		? InnerRoundedRegion(size(), _radius)
+		: QRegion();
+}
+
 void PeerQrPanel::pressOutside() {
 	_outsidePresses.fire({});
 }

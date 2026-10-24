@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_chat_participants.h"
 #include "api/api_cloud_password.h"
-#include "apiwrap.h"
 #include "base/unixtime.h"
 #include "boxes/filters/edit_filter_chats_list.h"
 #include "boxes/passcode_box.h"
@@ -255,7 +254,8 @@ void LegacyParticipantsController::loadMoreRows() {
 void SelectFutureOwnerbox(
 		not_null<Ui::GenericBox*> box,
 		not_null<PeerData*> peer,
-		not_null<UserData*> user) {
+		not_null<UserData*> user,
+		Fn<void()> leaveChat) {
 	const auto content = box->verticalLayout();
 	const auto channel = peer->asChannel();
 	const auto chat = peer->asChat();
@@ -345,9 +345,9 @@ void SelectFutureOwnerbox(
 			st::attentionBoxButton),
 		st::boxRowPadding,
 		style::al_justify);
-	leave->setClickedCallback([=, revoke = false] {
-		peer->session().api().deleteConversation(peer, revoke);
+	leave->setClickedCallback([=] {
 		box->closeBox();
+		leaveChat();
 	});
 	select->setClickedCallback([=] {
 		const auto window = Core::App().findWindow(box);
@@ -499,11 +499,10 @@ void SelectFutureOwnerbox(
 							user,
 							selectBox->uiShow(),
 							[=](std::shared_ptr<Ui::Show> show) {
-								const auto revoke = false;
-								peer->session().api().deleteConversation(
-									peer,
-									revoke);
+								// The calls below may destroy this lambda.
+								const auto leave = leaveChat;
 								show->hideLayer();
+								leave();
 							})->start();
 					}
 				});

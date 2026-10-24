@@ -27,7 +27,7 @@ decisions:
   the scanned commit, the totals and `run`, the latest run's directory;
 - `history.jsonl`: one line of totals per run;
 - `runs/<stamp>-<commit>/`: the scan's `report.md` and the run's
-  `summary.md` and `proposals.md`;
+  `summary.md` and `proposals.md`, plus `harness.md` and `harness.json`;
 - `ignored.json`: findings the owner declined, with the reason and date;
 - `audits.json`: audit results and suspended class and area pairs;
 - `surveys/<area>/<date>/` and `atlas/<stamp>-<commit>/`: drafts for the
@@ -60,7 +60,9 @@ Once a day, from any checkout:
 2. Claim the day with `health-publish --message "Record code health scan of
    <commit>" --drop-on-conflict`. `dropped: true` means another checkout
    published today's scan first: stop without routing anything.
-3. Audit, survey when one is due, then write the summary and proposals
+3. Read the daily harness inventory and follow
+   [helper lifecycle review](references/harness-lifecycle.md); review retirement
+   candidates at most once a week. Audit, survey when one is due, then write the summary and proposals
    (below) and route what the trust rules allow.
 4. Publish with `health-publish --message "Publish code health report for
    <date>"`.
@@ -92,6 +94,10 @@ header, and what an edit to each header recompiles), include edges that
 cross CMake target boundaries, headless test coverage, stale area maps, and
 agent cost per area (hours from `Start` to `Approve` and review rounds of
 tasks whose commits touched the area, read from `../ai-tdesktop`).
+It also records harness helper age, independent archived task consumption,
+internal consumers, open-task references, source size and documentation weight.
+The [harness reference](references/harness-lifecycle.md) defines the coverage
+limits and the 90-day review triggers. Sparse use alone is never Q0 proof.
 
 Scan daily; propose when the code-health budget has room; survey at most
 one area a week. Surveys and audits read the code at the scanned commit, not
@@ -247,10 +253,14 @@ empty:
 1. **Got worse or needs a decision**: new layering violations, newly
    oversized files, build work up more than 1% since the previous run, new
    duplicated blocks of 20+ lines, failed audits, invariants or maps awaiting
-   approval, and this run's proposals with their routing state.
+   approval, new or changed harness retention/documentation findings, and this
+   run's proposals with their routing state. Link `harness.md` and name any
+   blocked or deferred helper review; unavailable usage is not zero use.
 2. **Trends**: changes in the totals since the previous run and over 30 days,
    the five areas with the highest agent cost, and progress of open
-   code-health tasks.
+   code-health tasks. Include helper count, source lines, mandatory README
+   bytes, on-demand documentation bytes and retention-candidate changes; the
+   first run of these metrics is a baseline, not growth from zero.
 
 End with one coverage line: scanned ref and commit, skipped submodules, and
 whether agent cost was available.

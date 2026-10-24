@@ -330,6 +330,17 @@ publication at a construction seam).
   production files — but they are exceptions and each new one needs a solid,
   stated reason. "The test needed it" is not one.
 
+## Harness documentation
+
+Keep `Telegram/SourceFiles/test/README.md` a short mandatory guide, under
+8 KiB. When adding or changing a harness helper, follow
+`Telegram/SourceFiles/test/docs/adding-helpers.md`: add or update one helper
+index row and its on-demand reference, and keep the source header focused on
+its callable contract. Detailed examples, platform caveats and diagnostic
+history belong in the references, not in the mandatory README. Overlay work
+reads that guide, the references selected by the task and their headers;
+never require reading every helper page.
+
 ## Text File Format
 
 - On Windows, keep project text files with CRLF line endings.

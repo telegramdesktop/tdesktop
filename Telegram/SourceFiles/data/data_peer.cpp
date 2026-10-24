@@ -233,20 +233,6 @@ PeerData *PeerFromInputMTP(
 	});
 }
 
-UserData *UserFromInputMTP(
-		not_null<Session*> owner,
-		const MTPInputUser &input) {
-	return input.match([&](const MTPDinputUser &data) {
-		const auto user = owner->user(data.vuser_id().v);
-		user->setAccessHash(data.vaccess_hash().v);
-		return user.get();
-	}, [&](const MTPDinputUserSelf &data) {
-		return owner->session().user().get();
-	}, [](const auto &data) {
-		return (UserData*)nullptr;
-	});
-}
-
 Ui::ColorCollectible ParseColorCollectible(
 		const MTPDpeerColorCollectible &data) {
 	return {

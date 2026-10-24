@@ -126,7 +126,6 @@ public:
 
 	[[nodiscard]] auto loadingList() const
 		-> ranges::any_view<const DownloadingId*, ranges::category::input>;
-	[[nodiscard]] DownloadProgress loadingProgress() const;
 	[[nodiscard]] rpl::producer<> loadingListChanges() const;
 	[[nodiscard]] auto loadingProgressValue() const
 		-> rpl::producer<DownloadProgress>;

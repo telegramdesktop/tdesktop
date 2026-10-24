@@ -1,3 +1,17 @@
+7.3.3 (21.10.26)
+
+- Show TON DNS gift owners as links, not address groups.
+- Fix green video tint when using D3D9 backend with ANGLE on Windows.
+- Fix transparent unusable media viewer with ANGLE on Windows.
+- Fix inability to type '?' showing Shortcuts legend instead.
+- Fix text rendering ignoring system settings on Windows.
+- Fix Chinese characters not showing on older Windows.
+- Fix possible crash in context loss on Windows.
+- Fix respecting Focus Mode on Windows.
+- Fix menu translation on macOS.
+- Fix several other crashes.
+- Add DESKTOP_APP_DISABLE_PRIVATE_QT_API build option. (allows to build tdesktop without the need to rebuild on Qt updates at the price of feature degradation and KWindowSystem dependency)
+
 7.3.2 (20.10.26)
 
 - Reply with quotes to rich messages.

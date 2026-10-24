@@ -32,7 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "qr/qr_generate.h"
 #include "settings/settings_credits_graphics.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/boxes/edit_invite_link.h"
@@ -72,8 +71,6 @@ namespace {
 
 constexpr auto kFirstPage = 20;
 constexpr auto kPerPage = 100;
-// constexpr auto kShareQrSize = 768;
-// constexpr auto kShareQrPadding = 16;
 constexpr auto kMaxShownJoined = 3;
 
 using LinkData = Api::InviteLink;
@@ -296,111 +293,6 @@ private:
 [[nodiscard]] bool ClosingLinkBox(const LinkData &updated, bool revoked) {
 	return updated.link.isEmpty() || (!revoked && updated.revoked);
 }
-
-#if 0
-
-QImage QrExact(const Qr::Data &data, int pixel, QColor color) {
-	const auto image = [](int size) {
-		auto result = QImage(
-			size,
-			size,
-			QImage::Format_ARGB32_Premultiplied);
-		result.fill(Qt::transparent);
-		{
-			QPainter p(&result);
-			const auto skip = size / 12;
-			const auto logoSize = size - 2 * skip;
-			p.drawImage(
-				skip,
-				skip,
-				Window::LogoNoMargin().scaled(
-					logoSize,
-					logoSize,
-					Qt::IgnoreAspectRatio,
-					Qt::SmoothTransformation));
-		}
-		return result;
-	};
-	return Qr::ReplaceCenter(
-		Qr::Generate(data, pixel, color),
-		image(Qr::ReplaceSize(data, pixel)));
-}
-
-QImage Qr(const Qr::Data &data, int pixel, int max = 0) {
-	Expects(data.size > 0);
-
-	if (max > 0 && data.size * pixel > max) {
-		pixel = std::max(max / data.size, 1);
-	}
-	return QrExact(data, pixel * style::DevicePixelRatio(), st::windowFg->c);
-}
-
-QImage Qr(const QString &text, int pixel, int max) {
-	return Qr(Qr::Encode(text), pixel, max);
-}
-
-QImage QrForShare(const QString &text) {
-	const auto data = Qr::Encode(text);
-	const auto size = (kShareQrSize - 2 * kShareQrPadding);
-	const auto image = QrExact(data, size / data.size, Qt::black);
-	auto result = QImage(
-		kShareQrPadding * 2 + image.width(),
-		kShareQrPadding * 2 + image.height(),
-		QImage::Format_ARGB32_Premultiplied);
-	result.fill(Qt::white);
-	{
-		auto p = QPainter(&result);
-		p.drawImage(kShareQrPadding, kShareQrPadding, image);
-	}
-	return result;
-}
-
-void QrBox(
-		not_null<Ui::GenericBox*> box,
-		const QString &link,
-		rpl::producer<QString> title,
-		rpl::producer<QString> about,
-		Fn<void(QImage, std::shared_ptr<Ui::Show>)> share) {
-	box->setTitle(std::move(title));
-
-	box->addButton(tr::lng_about_done(), [=] { box->closeBox(); });
-
-	const auto copyCallback = [=, show = box->uiShow()] {
-		share(QrForShare(link), show);
-	};
-
-	const auto qr = Qr(
-		link,
-		st::inviteLinkQrPixel,
-		st::boxWidth - st::boxRowPadding.left() - st::boxRowPadding.right());
-	const auto size = qr.width() / style::DevicePixelRatio();
-	const auto height = st::inviteLinkQrSkip * 2 + size;
-	const auto container = box->addRow(
-		object_ptr<Ui::BoxContentDivider>(box, height),
-		st::inviteLinkQrMargin);
-	const auto button = Ui::CreateChild<Ui::AbstractButton>(container);
-	button->resize(size, size);
-	button->paintRequest(
-	) | rpl::on_next([=] {
-		QPainter(button).drawImage(QRect(0, 0, size, size), qr);
-	}, button->lifetime());
-	container->widthValue(
-	) | rpl::on_next([=](int width) {
-		button->move((width - size) / 2, st::inviteLinkQrSkip);
-	}, button->lifetime());
-	button->setClickedCallback(copyCallback);
-
-	box->addRow(
-		object_ptr<Ui::FlatLabel>(
-			box,
-			std::move(about),
-			st::boxLabel),
-		st::inviteLinkQrValuePadding);
-
-	box->addLeftButton(tr::lng_group_invite_context_copy(), copyCallback);
-}
-
-#endif
 
 Controller::Controller(
 	not_null<PeerData*> peer,

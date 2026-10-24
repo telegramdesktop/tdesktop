@@ -146,7 +146,8 @@ public:
 	Inner(
 		QWidget *parent,
 		not_null<PeerQrGiftsPanel*> panel,
-		not_null<PeerQrPanel*> container);
+		not_null<PeerQrPanel*> container,
+		rpl::producer<QString> emptyAbout);
 
 	[[nodiscard]] bool fitsContent() const;
 	[[nodiscard]] int contentHeight(int width) const;
@@ -214,7 +215,8 @@ private:
 PeerQrGiftsPanel::Inner::Inner(
 	QWidget *parent,
 	not_null<PeerQrGiftsPanel*> panel,
-	not_null<PeerQrPanel*> container)
+	not_null<PeerQrPanel*> container,
+	rpl::producer<QString> emptyAbout)
 : RpWidget(parent)
 , _panel(panel)
 , _container(container)
@@ -225,7 +227,7 @@ PeerQrGiftsPanel::Inner::Inner(
 	st::peerQrGiftsEmptyTitle))
 , _text(CreateChild<FlatLabel>(
 	this,
-	tr::lng_qr_box_gifts_empty_about(),
+	std::move(emptyAbout),
 	st::peerQrGiftsEmptyText))
 , _browse(CreateChild<RoundButton>(
 	this,
@@ -638,11 +640,16 @@ void PeerQrGiftsPanel::Inner::setOver(int index) {
 	setCursor((index >= 0) ? style::cur_pointer : style::cur_default);
 }
 
-PeerQrGiftsPanel::PeerQrGiftsPanel(not_null<PeerQrPanel*> panel)
+PeerQrGiftsPanel::PeerQrGiftsPanel(
+	not_null<PeerQrPanel*> panel,
+	rpl::producer<QString> emptyAbout)
 : RpWidget(panel)
 , _scroll(CreateChild<ElasticScroll>(this, st::peerQrPanelScroll))
-, _inner(_scroll->setOwnedWidget(
-	object_ptr<Inner>(_scroll.get(), this, panel)).data()) {
+, _inner(_scroll->setOwnedWidget(object_ptr<Inner>(
+	_scroll.get(),
+	this,
+	panel,
+	std::move(emptyAbout))).data()) {
 	_scroll->scrollTopValue() | rpl::on_next([=] {
 		_inner->checkLoadMore();
 	}, lifetime());

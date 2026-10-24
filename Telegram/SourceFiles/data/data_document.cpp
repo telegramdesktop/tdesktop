@@ -909,10 +909,6 @@ bool DocumentData::videoThumbnailLoading() const {
 	return _videoThumbnail.loader != nullptr;
 }
 
-bool DocumentData::videoThumbnailFailed() const {
-	return (_videoThumbnail.flags & Data::CloudFile::Flag::Failed);
-}
-
 void DocumentData::loadVideoThumbnail(Data::FileOrigin origin) {
 	const auto autoLoading = false;
 	const auto finalCheck = [=] {

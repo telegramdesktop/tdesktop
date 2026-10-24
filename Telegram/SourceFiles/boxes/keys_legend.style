@@ -20,7 +20,8 @@ keysLegendPanelPadding: 24px;
 keysLegendOuterMargin: 32px;
 keysLegendCompactWidth: 520px;
 keysLegendColumnMin: 320px;
-keysLegendColumnGap: 16px;
+keysLegendColumnMax: 440px;
+keysLegendColumnGap: 32px;
 keysLegendSectionSkip: 18px;
 keysLegendHeaderHeight: 56px;
 keysLegendCloseSkip: 12px;
@@ -38,6 +39,7 @@ keysLegendCapStyle: TextStyle(semiboldTextStyle) {
 }
 keysLegendCapHeight: 20px;
 keysLegendCapMinWidth: 22px;
+keysLegendCapMaxWidth: 120px;
 keysLegendCapPadding: 6px;
 keysLegendCapRadius: 4px;
 keysLegendCapSkip: 4px;

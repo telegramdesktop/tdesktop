@@ -34,6 +34,7 @@ public:
 	void hidePill();
 
 	[[nodiscard]] QRect pillGeometry() const;
+	[[nodiscard]] QPainterPath pillPath() const;
 	[[nodiscard]] rpl::producer<> clicks() const;
 
 protected:
@@ -46,6 +47,7 @@ private:
 	struct Frame;
 
 	[[nodiscard]] Frame computeFrame(crl::time now) const;
+	[[nodiscard]] crl::time frameTime() const;
 	[[nodiscard]] float64 targetWidth() const;
 	[[nodiscard]] float64 edgeAt(const Frame &frame, float64 y) const;
 	[[nodiscard]] float64 targetFill(crl::time now) const;

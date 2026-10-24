@@ -47,7 +47,6 @@ public:
 		return RpWidget::resizeToWidth(newWidth);
 	}
 
-	[[nodiscard]] bool maximizeSize() const;
 	[[nodiscard]] bool singleUse() const;
 	[[nodiscard]] bool persistent() const;
 

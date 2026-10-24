@@ -558,6 +558,9 @@ void Session::clear() {
 	_contactsList.clear();
 	for (const auto &[id, folder] : _folders) {
 		folder->clearChatsList();
+
+		// Folders outlive clear(), don't leave them with dangling rows.
+		removeChatListEntry(folder.get());
 	}
 	_chatsList.clear();
 	_chatsFilters->clear();

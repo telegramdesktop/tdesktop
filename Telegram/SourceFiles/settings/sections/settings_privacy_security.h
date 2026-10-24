@@ -31,7 +31,6 @@ object_ptr<Ui::BoxContent> EditCloudPasswordBox(
 object_ptr<Ui::BoxContent> ClearPaymentInfoBox(
 	not_null<::Main::Session*> session);
 void OpenFileConfirmationsBox(not_null<Ui::GenericBox*> box);
-void RemoveCloudPassword(not_null<Window::SessionController*> session);
 object_ptr<Ui::BoxContent> CloudPasswordAppOutdatedBox();
 
 not_null<Ui::SettingsButton*> AddPrivacyButton(

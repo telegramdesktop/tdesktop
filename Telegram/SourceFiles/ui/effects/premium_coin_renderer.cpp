@@ -123,25 +123,41 @@ void CoinRenderer::initialize(
 
 	const auto border = LoadBorderTexture();
 	_borderTexture = rhi->newTexture(QRhiTexture::RGBA8, border.size());
-	_borderTexture->create();
+	if (!_borderTexture->create()) {
+		_creationFailed = true;
+		releaseResources();
+		return;
+	}
 	_borderSampler = rhi->newSampler(
 		QRhiSampler::Linear,
 		QRhiSampler::Linear,
 		QRhiSampler::None,
 		QRhiSampler::ClampToEdge,
 		QRhiSampler::ClampToEdge);
-	_borderSampler->create();
+	if (!_borderSampler->create()) {
+		_creationFailed = true;
+		releaseResources();
+		return;
+	}
 
 	const auto flecks = LoadObject3dFlecksTexture();
 	_flecksTexture = rhi->newTexture(QRhiTexture::RGBA8, flecks.size());
-	_flecksTexture->create();
+	if (!_flecksTexture->create()) {
+		_creationFailed = true;
+		releaseResources();
+		return;
+	}
 	_flecksSampler = rhi->newSampler(
 		QRhiSampler::Linear,
 		QRhiSampler::Linear,
 		QRhiSampler::None,
 		QRhiSampler::Repeat,
 		QRhiSampler::Repeat);
-	_flecksSampler->create();
+	if (!_flecksSampler->create()) {
+		_creationFailed = true;
+		releaseResources();
+		return;
+	}
 
 	if (!createPipeline(rt)) {
 		LOG(("PremiumCoin: pipeline creation failed, disabling effect"));

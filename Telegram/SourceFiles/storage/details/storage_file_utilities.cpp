@@ -143,9 +143,19 @@ bool WriteManager::writeNow(WriteEntry &&entry) {
 	const auto open = [&](auto &file, char postfix) {
 		return this->open(file, entry, postfix);
 	};
+	auto writeError = QString();
 	const auto write = [&](auto &file) {
-		return file.write(entry.data) == entry.data.size()
-			&& file.write(entry.md5) == entry.md5.size();
+		writeError = QString();
+		if (file.write(entry.data) == entry.data.size()
+			&& file.write(entry.md5) == entry.md5.size()) {
+			return true;
+		}
+		// close() and commit() drop the reason of a failed unbuffered write.
+		writeError = file.errorString();
+		return false;
+	};
+	const auto reason = [&](const QFileDevice &file) {
+		return writeError.isEmpty() ? file.errorString() : writeError;
 	};
 	const auto safe = path('s');
 	const auto simple = path('0');
@@ -159,11 +169,13 @@ bool WriteManager::writeNow(WriteEntry &&entry) {
 			const auto ok = written
 				&& (save.error() == QFileDevice::NoError);
 			if (!ok) {
-				LOG(("Storage Error: Could not write '%1'.").arg(safe));
+				LOG(("Storage Error: Could not write '%1': %2."
+					).arg(safe, reason(save)));
 			}
 			return ok;
 		}
-		LOG(("Storage Error: Could not commit '%1'.").arg(safe));
+		LOG(("Storage Error: Could not commit '%1': %2."
+			).arg(safe, reason(save)));
 	}
 	QFile plain;
 	if (open(plain, '0')) {
@@ -174,7 +186,8 @@ bool WriteManager::writeNow(WriteEntry &&entry) {
 		const auto ok = written
 			&& (plain.error() == QFileDevice::NoError);
 		if (!ok) {
-			LOG(("Storage Error: Could not write '%1'.").arg(simple));
+			LOG(("Storage Error: Could not write '%1': %2."
+				).arg(simple, reason(plain)));
 			QFile::remove(simple);
 			return false;
 		}
@@ -182,10 +195,10 @@ bool WriteManager::writeNow(WriteEntry &&entry) {
 		if (base::Platform::RenameWithOverwrite(simple, safe)) {
 			return true;
 		}
+		const auto renameError = qt_error_string();
 		QFile::remove(safe);
-		LOG(("Storage Error: Could not rename '%1' to '%2', removing.").arg(
-			simple,
-			safe));
+		LOG(("Storage Error: Could not rename '%1' to '%2' (%3), removing."
+			).arg(simple, safe, renameError));
 	}
 	return false;
 }
@@ -233,7 +246,8 @@ bool WriteManager::open(File &file, const WriteEntry &entry, char postfix) {
 	const auto name = path(entry, postfix);
 	file.setFileName(name);
 	if (!writeHeader(entry.basePath, file)) {
-		LOG(("Storage Error: Could not open '%1' for writing.").arg(name));
+		LOG(("Storage Error: Could not open '%1' for writing: %2."
+			).arg(name, file.errorString()));
 		return false;
 	}
 	return true;

@@ -8,7 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_collectibles.h"
 
 #include "apiwrap.h"
+#include "base/qt/qt_common_adapters.h"
 #include "base/call_delayed.h"
+#include "base/event_filter.h"
+#include "base/timer.h"
 #include "base/weak_qptr.h"
 #include "boxes/star_gift_box.h"
 #include "boxes/star_gift_cover_box.h"
@@ -33,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/scroll_area.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/basic_click_handlers.h"
@@ -57,6 +61,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_wallet.h"
 
+#include <QtGui/QContextMenuEvent>
+#include <QtGui/QWindow>
 #include <QtWidgets/QApplication>
 
 namespace Wallet {
@@ -64,6 +70,32 @@ namespace {
 
 constexpr auto kPreloadScreens = 3;
 constexpr auto kPreloadRows = 2;
+
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+using TouchScreenKey = const QTouchDevice*;
+using TouchScreenDevice = TouchScreenKey;
+
+[[nodiscard]] TouchScreenKey DeviceOf(not_null<QTouchEvent*> e) {
+	return e->device();
+}
+
+[[nodiscard]] QTouchEvent TouchCancelFrom(TouchScreenDevice device) {
+	return QTouchEvent(
+		QEvent::TouchCancel,
+		const_cast<QTouchDevice*>(device));
+}
+#else // Qt < 6.0.0
+using TouchScreenKey = const QPointingDevice*;
+using TouchScreenDevice = QPointer<const QPointingDevice>;
+
+[[nodiscard]] TouchScreenKey DeviceOf(not_null<QTouchEvent*> e) {
+	return e->pointingDevice();
+}
+
+[[nodiscard]] QTouchEvent TouchCancelFrom(const TouchScreenDevice &device) {
+	return QTouchEvent(QEvent::TouchCancel, device.data());
+}
+#endif // Qt >= 6.0.0
 
 struct CoverCardState {
 	bool onCard = false;
@@ -80,6 +112,7 @@ class CollectiblesGrid final : public Ui::RpWidget {
 public:
 	CollectiblesGrid(
 		QWidget *parent,
+		not_null<Ui::ScrollArea*> scroll,
 		std::shared_ptr<Main::SessionShow> show,
 		std::shared_ptr<CollectibleMedia> media,
 		CardHost host);
@@ -93,6 +126,7 @@ protected:
 	void visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) override;
+	bool eventHook(QEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
@@ -122,6 +156,19 @@ private:
 		QImage firstFrame;
 		uint64 generation = 0;
 		std::unique_ptr<DraggedGift> gift;
+	};
+	enum class TouchPhase {
+		Waiting,
+		Held,
+		Ignored,
+	};
+	struct Touch {
+		QString address;
+		QPoint origin;
+		TouchScreenDevice device = {};
+		int id = 0;
+		TouchPhase phase = TouchPhase::Waiting;
+		bool moved = false;
 	};
 
 	[[nodiscard]] int rowsCount() const;
@@ -184,9 +231,22 @@ private:
 	[[nodiscard]] std::optional<FlightPose> dragSource(
 		const QString &address) const;
 	[[nodiscard]] bool dragFollowing() const;
+	void pressAt(const QString &address, QPoint global);
+	void pointerMoved(QPoint global);
 	void startDrag(QPoint global);
 	void endGesture(std::optional<QPoint> release);
 	void clearPress();
+	[[nodiscard]] bool touchOwned() const;
+	[[nodiscard]] int touchContacts() const;
+	[[nodiscard]] bool takeTouch(not_null<QTouchEvent*> e);
+	void handleTouch(not_null<QTouchEvent*> e);
+	void holdTouch();
+	void moveHeldTouch(QPoint global);
+	void finishHeldTouch(QPoint global);
+	void finishWaitingTouch(not_null<QTouchEvent*> e);
+	void interruptTouch();
+	void watchTouchWindow();
+	void observeTouchFrame(not_null<QEvent*> e);
 	void dropDrag(const FlightPose &released);
 	[[nodiscard]] bool addDragged(
 		std::shared_ptr<const Data::StarGift> gift,
@@ -215,6 +275,7 @@ private:
 		const QString &address);
 	void paintThumb(not_null<QWidget*> thumb, const QString &address);
 
+	const not_null<Ui::ScrollArea*> _scroll;
 	const std::shared_ptr<Main::SessionShow> _show;
 	const std::shared_ptr<CollectibleMedia> _media;
 	const CardHost _host;
@@ -246,6 +307,11 @@ private:
 	int _mediaFrom = -1;
 	int _mediaTill = -1;
 	bool _over = false;
+	bool _scrollPressing = false;
+	std::vector<std::pair<TouchScreenDevice, int>> _touchContacts;
+	std::optional<Touch> _touch;
+	base::Timer _touchTimer;
+	base::unique_qptr<QObject> _touchFilter;
 	std::unique_ptr<CollectiblesHint> _hint;
 
 };
@@ -605,19 +671,55 @@ void Activate(
 	return ErrorWithType(tr::lng_wallet_card_save_error(tr::now), type);
 }
 
+[[nodiscard]] QTouchEvent *TouchScreenEvent(not_null<QEvent*> e) {
+	const auto type = e->type();
+	if (type != QEvent::TouchBegin
+		&& type != QEvent::TouchUpdate
+		&& type != QEvent::TouchEnd
+		&& type != QEvent::TouchCancel) {
+		return nullptr;
+	}
+	const auto touch = static_cast<QTouchEvent*>(e.get());
+	const auto device = touch->device();
+	return (device && device->type() == base::TouchDevice::TouchScreen)
+		? touch
+		: nullptr;
+}
+
+void SendTouchCancel(
+		not_null<Ui::ScrollArea*> scroll,
+		const TouchScreenDevice &device) {
+	if (device) {
+		auto cancel = TouchCancelFrom(device);
+		scroll->viewportEvent(&cancel);
+	}
+}
+
 CollectiblesGrid::CollectiblesGrid(
 	QWidget *parent,
+	not_null<Ui::ScrollArea*> scroll,
 	std::shared_ptr<Main::SessionShow> show,
 	std::shared_ptr<CollectibleMedia> media,
 	CardHost host)
 : RpWidget(parent)
+, _scroll(scroll)
 , _show(std::move(show))
 , _media(std::move(media))
 , _host(std::move(host))
 , _delegate(&_show->session(), Info::PeerGifts::GiftButtonMode::Minimal)
 , _singleMin(_delegate.buttonSize())
-, _colorToast(_show) {
+, _colorToast(_show)
+, _touchTimer([=] { holdTouch(); }) {
 	setMouseTracking(true);
+	setAttribute(Qt::WA_AcceptTouchEvents);
+
+	_scroll->touchMaybePressing(
+	) | rpl::on_next([=](bool pressing) {
+		_scrollPressing = pressing;
+		if (!pressing && _touch && _touch->phase == TouchPhase::Waiting) {
+			_touchTimer.cancel();
+		}
+	}, lifetime());
 
 	_media->repaint(
 	) | rpl::on_next([=](const QString &address) {
@@ -654,6 +756,7 @@ CollectiblesGrid::CollectiblesGrid(
 			|| (e->type() == QEvent::WindowDeactivate);
 	}) | rpl::on_next([=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::Show) {
+			watchTouchWindow();
 			// Ancestors finish their layout only after this event.
 			crl::on_main(this, [=] {
 				if (_hint) {
@@ -662,6 +765,7 @@ CollectiblesGrid::CollectiblesGrid(
 			});
 			return;
 		}
+		interruptTouch();
 		endGesture(std::nullopt);
 		finishTravel();
 		if (_hint && e->type() == QEvent::Hide) {
@@ -756,8 +860,19 @@ void CollectiblesGrid::visibleTopBottomUpdated(
 	}
 }
 
+bool CollectiblesGrid::eventHook(QEvent *e) {
+	const auto touch = TouchScreenEvent(e);
+	if (touch
+		&& (touch->type() != QEvent::TouchBegin || takeTouch(touch))) {
+		touch->accept();
+		handleTouch(touch);
+		return true;
+	}
+	return RpWidget::eventHook(e);
+}
+
 void CollectiblesGrid::mousePressEvent(QMouseEvent *e) {
-	if (e->button() != Qt::LeftButton) {
+	if (e->button() != Qt::LeftButton || touchOwned()) {
 		return;
 	}
 	endGesture(std::nullopt);
@@ -767,23 +882,17 @@ void CollectiblesGrid::mousePressEvent(QMouseEvent *e) {
 	if (index < 0) {
 		return;
 	}
-	const auto address = _records[index].address;
-	const auto source = dragSource(address);
-	_press = Press{
-		.address = address,
-		.origin = global,
-		.grab = (source
-			? (QPointF(_host.body->mapFromGlobal(global)) - source->center)
-			: QPointF()),
-		.draggable = source.has_value(),
-		.grabbed = source.has_value(),
-	};
-	if (source) {
+	pressAt(_records[index].address, global);
+	if (_press.draggable) {
+		_press.grabbed = true;
 		grabMouse();
 	}
 }
 
 void CollectiblesGrid::mouseMoveEvent(QMouseEvent *e) {
+	if (touchOwned()) {
+		return;
+	}
 	const auto over = (squareAt(e->pos()) >= 0);
 	if (_over != over) {
 		_over = over;
@@ -799,18 +908,11 @@ void CollectiblesGrid::mouseMoveEvent(QMouseEvent *e) {
 		endGesture(std::nullopt);
 		return;
 	}
-	const auto global = e->globalPos();
-	if (following) {
-		_drag.gift->move(_host.body->mapFromGlobal(global));
-	} else if (_press.draggable
-		&& ((global - _press.origin).manhattanLength()
-			>= QApplication::startDragDistance())) {
-		startDrag(global);
-	}
+	pointerMoved(e->globalPos());
 }
 
 void CollectiblesGrid::mouseReleaseEvent(QMouseEvent *e) {
-	if (e->button() != Qt::LeftButton) {
+	if (e->button() != Qt::LeftButton || touchOwned()) {
 		return;
 	}
 	const auto global = e->globalPos();
@@ -824,6 +926,200 @@ void CollectiblesGrid::mouseReleaseEvent(QMouseEvent *e) {
 	const auto index = squareAt(mapFromGlobal(global));
 	if (index >= 0 && _records[index].address == press.address) {
 		activate(press.address);
+	}
+}
+
+bool CollectiblesGrid::touchOwned() const {
+	return _touch && (_touch->phase != TouchPhase::Ignored);
+}
+
+int CollectiblesGrid::touchContacts() const {
+	auto result = 0;
+	for (const auto &[device, contacts] : _touchContacts) {
+		result += contacts;
+	}
+	return result;
+}
+
+bool CollectiblesGrid::takeTouch(not_null<QTouchEvent*> e) {
+	const auto device = DeviceOf(e);
+	if (_touch && _touch->device && _touch->device != device) {
+		interruptTouch();
+		return false;
+	}
+	interruptTouch();
+	_touch = std::nullopt;
+	const auto &points = e->touchPoints();
+	if (points.size() != 1
+		|| touchContacts() > 1
+		|| !_press.address.isEmpty()
+		|| dragFollowing()) {
+		return false;
+	}
+	const auto &point = points.front();
+	const auto origin = point.screenPos().toPoint();
+	const auto index = squareAt(mapFromGlobal(origin));
+	if (index < 0 || !dragSource(_records[index].address)) {
+		return false;
+	}
+	_touch = Touch{
+		.address = _records[index].address,
+		.origin = origin,
+		.device = device,
+		.id = point.id(),
+	};
+	return true;
+}
+
+void CollectiblesGrid::handleTouch(not_null<QTouchEvent*> e) {
+	const auto type = e->type();
+	if (!_touch || _touch->device != DeviceOf(e)) {
+		return;
+	} else if (type == QEvent::TouchCancel) {
+		interruptTouch();
+		_touch = std::nullopt;
+		return;
+	}
+	const auto &points = e->touchPoints();
+	const auto i = ranges::find(
+		points,
+		_touch->id,
+		&QTouchEvent::TouchPoint::id);
+	if (points.size() != 1 || i == points.end()) {
+		interruptTouch();
+	}
+	const auto end = (type == QEvent::TouchEnd);
+	switch (_touch->phase) {
+	case TouchPhase::Waiting:
+		if (end) {
+			finishWaitingTouch(e);
+		} else {
+			_scroll->viewportEvent(e);
+			if (type == QEvent::TouchBegin && _scrollPressing) {
+				_touchTimer.callOnce(QApplication::startDragTime());
+			}
+		}
+		break;
+	case TouchPhase::Held: {
+		const auto global = i->screenPos().toPoint();
+		moveHeldTouch(global);
+		if (end) {
+			finishHeldTouch(global);
+		}
+	} break;
+	case TouchPhase::Ignored:
+		if (end) {
+			_touch = std::nullopt;
+		}
+		break;
+	}
+}
+
+void CollectiblesGrid::holdTouch() {
+	if (!_touch || _touch->phase != TouchPhase::Waiting) {
+		return;
+	}
+	finishTravel();
+	const auto address = _touch->address;
+	const auto origin = _touch->origin;
+	const auto index = squareAt(mapFromGlobal(origin));
+	if (index < 0
+		|| _records[index].address != address
+		|| !dragSource(address)) {
+		return;
+	}
+	pressAt(address, origin);
+	_touch->phase = TouchPhase::Held;
+	SendTouchCancel(_scroll, _touch->device);
+}
+
+void CollectiblesGrid::moveHeldTouch(QPoint global) {
+	if ((global - _touch->origin).manhattanLength()
+		>= QApplication::startDragDistance()) {
+		_touch->moved = true;
+	}
+	pointerMoved(global);
+}
+
+void CollectiblesGrid::finishHeldTouch(QPoint global) {
+	const auto still = !base::take(_touch)->moved;
+	const auto address = base::take(_press).address;
+	endGesture(global);
+	if (still) {
+		showCardMenu(address, global);
+	}
+}
+
+void CollectiblesGrid::finishWaitingTouch(not_null<QTouchEvent*> e) {
+	const auto touch = *base::take(_touch);
+	_touchTimer.cancel();
+	const auto index = squareAt(mapFromGlobal(touch.origin));
+	// The scroll clicks whatever square has moved under the finger.
+	if (_scrollPressing
+		&& (index < 0 || _records[index].address != touch.address)) {
+		SendTouchCancel(_scroll, touch.device);
+		return;
+	}
+	_scroll->viewportEvent(e);
+}
+
+void CollectiblesGrid::interruptTouch() {
+	if (!touchOwned()) {
+		return;
+	}
+	const auto waiting = (_touch->phase == TouchPhase::Waiting);
+	_touch->phase = TouchPhase::Ignored;
+	_touchTimer.cancel();
+	if (waiting) {
+		SendTouchCancel(_scroll, _touch->device);
+	} else {
+		endGesture(std::nullopt);
+	}
+}
+
+void CollectiblesGrid::watchTouchWindow() {
+	_touchContacts.clear();
+	_touchFilter = nullptr;
+	// WHY: Qt splits a second finger over a sibling widget away from the
+	// grid, so only the window's own frames show every finger down.
+	if (const auto handle = window()->windowHandle()) {
+		_touchFilter.reset(base::install_event_filter(
+			handle,
+			[=](not_null<QEvent*> e) {
+				observeTouchFrame(e);
+				return base::EventFilterResult::Continue;
+			}));
+	}
+}
+
+void CollectiblesGrid::observeTouchFrame(not_null<QEvent*> e) {
+	const auto touch = TouchScreenEvent(e);
+	if (!touch) {
+		return;
+	}
+	const auto device = DeviceOf(touch);
+	const auto contacts = int(ranges::count_if(
+		touch->touchPoints(),
+		[](const QTouchEvent::TouchPoint &point) {
+			return (int(point.state()) != int(Qt::TouchPointReleased));
+		}));
+	const auto outdated = [&](const auto &entry) {
+		return !entry.first || (entry.first == device);
+	};
+	_touchContacts.erase(
+		ranges::remove_if(_touchContacts, outdated),
+		end(_touchContacts));
+	if (contacts > 0) {
+		_touchContacts.emplace_back(device, contacts);
+	} else if (_touch && !touchOwned() && _touch->device == device) {
+		_touch = std::nullopt;
+	}
+	if (_touch && !_touch->device) {
+		interruptTouch();
+		_touch = std::nullopt;
+	}
+	if (touchContacts() > 1) {
+		interruptTouch();
 	}
 }
 
@@ -849,6 +1145,28 @@ std::optional<FlightPose> CollectiblesGrid::dragSource(
 
 bool CollectiblesGrid::dragFollowing() const {
 	return _drag.gift && _drag.gift->following();
+}
+
+void CollectiblesGrid::pressAt(const QString &address, QPoint global) {
+	const auto source = dragSource(address);
+	_press = Press{
+		.address = address,
+		.origin = global,
+		.grab = (source
+			? (QPointF(_host.body->mapFromGlobal(global)) - source->center)
+			: QPointF()),
+		.draggable = source.has_value(),
+	};
+}
+
+void CollectiblesGrid::pointerMoved(QPoint global) {
+	if (dragFollowing()) {
+		_drag.gift->move(_host.body->mapFromGlobal(global));
+	} else if (_press.draggable
+		&& ((global - _press.origin).manhattanLength()
+			>= QApplication::startDragDistance())) {
+		startDrag(global);
+	}
 }
 
 void CollectiblesGrid::startDrag(QPoint global) {
@@ -1521,14 +1839,20 @@ void CollectiblesGrid::addToCard(
 		bool color) {
 	auto &own = ownCard();
 	const auto stickers = own.shown().stickers;
-	const auto area = CardStickerDefaultArea(_host.fold().rest.size());
 	if (!own.ready()) {
 		showRefusal(OwnCardChange::NotReady);
 		return;
 	} else if (int(stickers.size()) >= Data::kWalletCardMaxStickers) {
 		showRefusal(OwnCardChange::Limit);
 		return;
-	} else if (!area) {
+	}
+	const auto area = CardStickerAutoArea(
+		stickers | ranges::views::transform(
+			&Data::WalletCardSticker::area
+		) | ranges::to_vector,
+		_host.fold().rest.size(),
+		style::DevicePixelRatio());
+	if (!area) {
 		return;
 	}
 	const auto address = record.address;
@@ -1873,6 +2197,22 @@ auto CollectiblesGrid::createGiftButton(const QString &address)
 	) | rpl::on_next([=](QPoint point) {
 		showCardMenu(address, point);
 	}, raw->lifetime());
+	base::install_event_filter(raw, [=](not_null<QEvent*> e) {
+		if (e->type() != QEvent::ContextMenu) {
+			return base::EventFilterResult::Continue;
+		}
+		const auto context = static_cast<QContextMenuEvent*>(e.get());
+		if (context->reason() != QContextMenuEvent::Mouse) {
+			return base::EventFilterResult::Continue;
+		}
+		// Shadow extends overlap neighbours, so the point picks the square.
+		const auto global = context->globalPos();
+		const auto index = squareAt(mapFromGlobal(global));
+		if (index >= 0) {
+			showCardMenu(_records[index].address, global);
+		}
+		return base::EventFilterResult::Cancel;
+	});
 	raw->mouseEvents(
 	) | rpl::on_next([=](QMouseEvent *e) {
 		if (e->type() == QEvent::MouseButtonPress) {
@@ -1958,12 +2298,14 @@ QString OwnCardRefusalText(OwnCardChange change) {
 
 CollectiblesSquares AddCollectiblesList(
 		not_null<Ui::VerticalLayout*> container,
+		not_null<Ui::ScrollArea*> scroll,
 		std::shared_ptr<Main::SessionShow> show,
 		std::shared_ptr<CollectibleMedia> media,
 		CardHost host) {
 	const auto wallet = &show->session().wallet();
 	const auto grid = container->add(object_ptr<CollectiblesGrid>(
 		container,
+		scroll,
 		std::move(show),
 		std::move(media),
 		std::move(host)));

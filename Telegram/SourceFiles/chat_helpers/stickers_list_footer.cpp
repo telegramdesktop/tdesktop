@@ -1142,7 +1142,8 @@ void StickersListFooter::refreshIconsGeometry(
 	_iconState.animation.stop();
 	if (_icons.size() > 1
 		&& _icons[1].setId == EmojiSectionSetId(EmojiSection::People)) {
-		_singleWidth = (width() - _iconsLeft - _iconsRight) / _icons.size();
+		_singleWidth = (width() - _iconsLeft - _iconsRight)
+			/ int(_icons.size());
 	} else {
 		_singleWidth = st().iconWidth;
 	}

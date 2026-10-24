@@ -521,7 +521,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout fe957833b84525e634a8d776a7f834ed536d9a21
+    git checkout 845a383f7abe8e44f92dfdcd566d603066ec2696
 mac:
     sed -i '' "s/10.13/$MACOSX_DEPLOYMENT_TARGET/g" macos_meson_*.txt
     git clone https://github.com/desktop-app/qt6_highsierra_patches.git qt6_highsierra
@@ -1588,7 +1588,7 @@ if win and qt >= '6':
 win32_win64:
     git clone https://github.com/desktop-app/qt6_windows7_patches.git qt6_windows7
     cd qt6_windows7
-    git checkout bf64e7264237ffd371493f1780ef71d3f41373c9
+    git checkout 9ce1ffe051161a22f7e78f715b042c773f868e59
 """)
 
 if win:
@@ -1596,7 +1596,7 @@ if win:
 win32_win64:
     git clone https://github.com/desktop-app/tg_angle.git
     cd tg_angle
-    git checkout b34c4dc879d115d34794a657c7fa5f6bb34bc10a
+    git checkout 9fd174a91e6155d1006c5f427366b23006f5d899
     cmake -B out ^
         -DTG_ANGLE_SPECIAL_TARGET=%SPECIAL_TARGET% ^
         -DTG_ANGLE_ZLIB_INCLUDE_PATH=%LIBS_DIR%/zlib

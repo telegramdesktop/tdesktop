@@ -388,10 +388,6 @@ int BotKeyboard::resizeGetHeight(int newWidth) {
 	return _height;
 }
 
-bool BotKeyboard::maximizeSize() const {
-	return _maximizeSize;
-}
-
 bool BotKeyboard::singleUse() const {
 	return _singleUse;
 }

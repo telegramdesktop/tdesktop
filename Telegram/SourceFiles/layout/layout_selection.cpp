@@ -41,14 +41,3 @@ TextSelection AddGroupItemSelection(
 		0xFFFF,
 		IsSubGroupSelection(selection) ? (selection.to | bit) : bit);
 }
-
-TextSelection RemoveGroupItemSelection(
-		TextSelection selection,
-		int index) {
-	Expects(index >= 0 && index < kMaxGroupSelectionItems);
-
-	const auto bit = uint16(1U << index);
-	return IsSubGroupSelection(selection)
-		? TextSelection(0xFFFF, selection.to & ~bit)
-		: selection;
-}

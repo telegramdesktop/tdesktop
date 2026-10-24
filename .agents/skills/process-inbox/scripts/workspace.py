@@ -75,6 +75,9 @@ TEST_COMPLETE_MARKER = "TEST_COMPLETE"
 STALE_CRASH_DIR = "stale-crash"
 CRASHPAD_COMPLETED_DIR = "completed"
 CONSOLE_COMMAND_TIMEOUT = 2.0
+MIRROR_REMOTE = "private"
+MIRROR_BRANCH_PREFIX = "ai-"
+MIRROR_PUSH_TIMEOUT = 120.0
 WAIT_IDLE_MAX_DEFAULT = 600.0
 LSAPPINFO_ASN_PATTERN = re.compile(r"ASN:0x[0-9a-fA-F]+-0x[0-9a-fA-F]+:")
 LSAPPINFO_NAME_PATTERN = re.compile(r'"(.*)"\s+ASN:')
@@ -93,6 +96,18 @@ BUILD_LOCK_PROCESS_NAMES = {
 	"rcc.exe",
 	"uic.exe",
 }
+# mspdbsrv.exe idles on after the build it served; its CPU still counts
+HOST_LOAD_BUILD_TOOLS = BUILD_LOCK_PROCESS_NAMES - {"mspdbsrv.exe"}
+HOST_LOAD_THRESHOLD_DEFAULT = 15.0
+HOST_LOAD_HOLD_DEFAULT = 5.0
+HOST_LOAD_MAX_DEFAULT = 600.0
+HOST_LOAD_INTERVAL_DEFAULT = 1.0
+HOST_LOAD_INTERVAL_MIN = 0.1
+HOST_LOAD_SNAPSHOT_SIZE = 1 << 21
+HOST_LOAD_SNAPSHOT_ATTEMPTS = 8
+HOST_LOAD_LAST_SAMPLES = 5
+HOST_LOAD_TOP = 3
+HOST_LOAD_SAMPLES_FILE = "host_load_samples.jsonl"
 
 
 class WorkspaceError(RuntimeError):
@@ -2358,6 +2373,101 @@ def windows_process_records():
 	return records
 
 
+def windows_process_snapshot(size):
+	if sys.platform != "win32":
+		raise OSError(f"process snapshots need Windows, this host is {sys.platform}")
+	import ctypes
+	from ctypes import wintypes
+
+	class UnicodeString(ctypes.Structure):
+		_fields_ = [
+			("length", wintypes.USHORT),
+			("maximum_length", wintypes.USHORT),
+			("buffer", ctypes.c_void_p),
+		]
+
+	class ProcessEntry(ctypes.Structure):
+		_fields_ = [
+			("next_entry_offset", wintypes.ULONG),
+			("number_of_threads", wintypes.ULONG),
+			("working_set_private_size", ctypes.c_longlong),
+			("hard_fault_count", wintypes.ULONG),
+			("number_of_threads_high_watermark", wintypes.ULONG),
+			("cycle_time", ctypes.c_ulonglong),
+			("create_time", ctypes.c_longlong),
+			("user_time", ctypes.c_longlong),
+			("kernel_time", ctypes.c_longlong),
+			("image_name", UnicodeString),
+			("base_priority", wintypes.LONG),
+			("unique_process_id", ctypes.c_void_p),
+			("inherited_from_unique_process_id", ctypes.c_void_p),
+		]
+
+	query = ctypes.WinDLL("ntdll").NtQuerySystemInformation
+	query.argtypes = [
+		wintypes.ULONG,
+		ctypes.c_void_p,
+		wintypes.ULONG,
+		ctypes.POINTER(wintypes.ULONG),
+	]
+	query.restype = wintypes.LONG
+	needed = wintypes.ULONG()
+	for _ in range(HOST_LOAD_SNAPSHOT_ATTEMPTS):
+		buffer = ctypes.create_string_buffer(size)
+		status = query(5, buffer, size, ctypes.byref(needed)) & 0xFFFFFFFF
+		if status not in (0xC0000004, 0xC0000023):
+			break
+		size = max(needed.value + needed.value // 4, size * 2)
+	else:
+		raise OSError(
+			"NtQuerySystemInformation still wanted a larger buffer after "
+			f"{HOST_LOAD_SNAPSHOT_ATTEMPTS} attempts"
+		)
+	if status:
+		raise OSError(f"NtQuerySystemInformation failed with status 0x{status:08X}")
+	returned = needed.value
+	if not 0 < returned <= size:
+		raise OSError(f"NtQuerySystemInformation returned {returned} of {size} bytes")
+	base = ctypes.addressof(buffer)
+	entry_size = ctypes.sizeof(ProcessEntry)
+	records = {}
+	offset = 0
+	while True:
+		if offset + entry_size > returned:
+			raise OSError(f"process entry at {offset} overruns {returned} bytes")
+		entry = ProcessEntry.from_buffer(buffer, offset)
+		image = entry.image_name
+		if image.length % 2:
+			raise OSError(f"process entry at {offset} has an odd name length")
+		if image.buffer:
+			start = image.buffer - base
+			if start < 0 or start + image.length > returned:
+				raise OSError(f"process entry at {offset} names outside the buffer")
+			name = ctypes.wstring_at(image.buffer, image.length // 2)
+		elif image.length:
+			raise OSError(f"process entry at {offset} has a null nonempty name")
+		else:
+			name = ""
+		pid = entry.unique_process_id or 0
+		if pid in records:
+			raise OSError(f"process snapshot lists pid {pid} twice")
+		if pid:
+			records[pid] = {
+				"cpu": entry.user_time + entry.kernel_time,
+				"created": entry.create_time,
+				"name": name,
+				"parent_pid": entry.inherited_from_unique_process_id or 0,
+			}
+		if not entry.next_entry_offset:
+			break
+		if entry.next_entry_offset < entry_size:
+			raise OSError(f"process entry at {offset} links backward or overlaps")
+		offset += entry.next_entry_offset
+	if not records:
+		raise OSError("process snapshot listed no process")
+	return size, records
+
+
 def locking_process_ids(paths):
 	if sys.platform != "win32" or not paths:
 		return [], None
@@ -2876,6 +2986,306 @@ def wait_for_console_idle(required, bound, clock=time.monotonic, sleep=time.slee
 	return result
 
 
+def host_load_parameters(args):
+	if not args.host_load:
+		return None
+	if not 0 < args.host_load_threshold <= 100:
+		raise WorkspaceError(
+			"--host-load-threshold must be a percent above 0 and at most 100"
+		)
+	if not 0 < args.host_load_hold < float("inf"):
+		raise WorkspaceError("--host-load-hold must be a positive number of seconds")
+	if not 0 <= args.host_load_max < float("inf"):
+		raise WorkspaceError("--host-load-max must be zero or more seconds")
+	if not HOST_LOAD_INTERVAL_MIN <= args.host_load_interval < float("inf"):
+		raise WorkspaceError(
+			f"--host-load-interval must be at least {HOST_LOAD_INTERVAL_MIN:g} "
+			"seconds and finite"
+		)
+	return {
+		"hold_seconds": float(args.host_load_hold),
+		"interval_seconds": float(args.host_load_interval),
+		"max_seconds": float(args.host_load_max),
+		"threshold_percent": float(args.host_load_threshold),
+	}
+
+
+def host_load_unsupported_reason():
+	if sys.platform == "win32":
+		return None
+	return f"host-load sampling needs Windows, this host is {sys.platform}"
+
+
+def host_load_tools_json(seen):
+	return [
+		{"name": name, "pid": pid}
+		for name, pid in sorted(seen, key=lambda tool: (tool[0].casefold(), tool[1]))
+	]
+
+
+def host_load_sample_json(sample, **extra):
+	return {
+		"build_tools": sample["build_tools"],
+		"others_percent": round(sample["others_percent"], 2),
+		"seconds": round(sample["seconds"], 3),
+		"top": [
+			{**entry, "percent": round(entry["percent"], 2)}
+			for entry in sample["top"]
+		],
+		**extra,
+	}
+
+
+def host_load_error(error):
+	return f"{type(error).__name__}: {error}"
+
+
+class HostLoadMonitor:
+	def __init__(self, parameters):
+		self.parameters = parameters
+		self.threshold = parameters["threshold_percent"]
+		self.hold = parameters["hold_seconds"]
+		self.bound = parameters["max_seconds"]
+		self.interval = parameters["interval_seconds"]
+		self.unsupported = host_load_unsupported_reason()
+		self.processors = os.cpu_count()
+		self.test_run_pid = os.getpid()
+		self.size = HOST_LOAD_SNAPSHOT_SIZE
+		self.previous = None
+		self.client_pid = None
+		self.client_root_checked = False
+		self.client = {}
+		self.incarnations = {}
+		self.wait_result = None
+		self.wait_samples = []
+		self.wait_tools = set()
+		self.trace_origin = None
+		self.trace_samples = []
+		self.trace_tools = set()
+		self.trace_error = None
+		self.stop_event = threading.Event()
+		self.worker = None
+
+	def _excluded(self, pid, record):
+		return pid == self.test_run_pid or (pid, record["created"]) in self.client
+
+	def _client_child(self, record):
+		parent = record["parent_pid"]
+		earlier = [
+			created
+			for created in self.incarnations.get(parent, ())
+			if created <= record["created"]
+		]
+		return bool(earlier) and (parent, max(earlier)) in self.client
+
+	def _grow_client(self, records):
+		if self.client_pid is None:
+			return
+		if not self.client_root_checked:
+			self.client_root_checked = True
+			root = records.get(self.client_pid)
+			if root is not None:
+				self.client[(self.client_pid, root["created"])] = root["name"]
+		for pid, record in records.items():
+			self.incarnations.setdefault(pid, set()).add(record["created"])
+		grown = True
+		while grown:
+			grown = False
+			for pid, record in records.items():
+				identity = (pid, record["created"])
+				if identity not in self.client and self._client_child(record):
+					self.client[identity] = record["name"]
+					grown = True
+
+	def _observe(self, clock):
+		previous, self.previous = self.previous, None
+		count = self.processors
+		if type(count) is not int or count < 1:
+			raise ValueError(f"the logical processor count is unknown: {count!r}")
+		self.size, records = windows_process_snapshot(self.size)
+		taken = clock()
+		self._grow_client(records)
+		others = {
+			pid: record
+			for pid, record in records.items()
+			if not self._excluded(pid, record)
+		}
+		tools = sorted(
+			(
+				{"name": record["name"], "pid": pid}
+				for pid, record in others.items()
+				if record["name"].casefold() in HOST_LOAD_BUILD_TOOLS
+			),
+			key=lambda tool: (tool["name"].casefold(), tool["pid"]),
+		)
+		percent = top = None
+		if previous is not None:
+			elapsed = taken - previous[0]
+			if not elapsed > 0:
+				raise ValueError(f"the clock did not advance between snapshots: {elapsed!r}")
+			scale = elapsed * 1e7 * count
+			deltas = []
+			for pid, record in others.items():
+				prior = previous[1].get(pid)
+				delta = (
+					record["cpu"] - prior["cpu"]
+					if prior is not None and prior["created"] == record["created"]
+					else record["cpu"]
+				)
+				if delta > 0:
+					deltas.append((delta, pid, record["name"]))
+			percent = 100 * sum(delta for delta, _, _ in deltas) / scale
+			deltas.sort(key=lambda item: (-item[0], item[1]))
+			top = [
+				{"name": name, "percent": 100 * delta / scale, "pid": pid}
+				for delta, pid, name in deltas[:HOST_LOAD_TOP]
+			]
+		self.previous = (taken, records)
+		return taken, tools, percent, top
+
+	def wait(self, clock=time.monotonic, sleep=time.sleep):
+		if self.unsupported:
+			return None
+		met = None
+		error = None
+		self.previous = None
+		start = clock()
+		calm_since = None
+		while True:
+			try:
+				taken, tools, percent, top = self._observe(clock)
+			except Exception as failure:
+				error = host_load_error(failure)
+				break
+			self.wait_tools.update((tool["name"], tool["pid"]) for tool in tools)
+			elapsed = taken - start
+			if percent is None:
+				calm_since = taken
+			else:
+				self.wait_samples.append({
+					"build_tools": tools,
+					"others_percent": percent,
+					"seconds": elapsed,
+					"top": top,
+				})
+				if tools or percent >= self.threshold:
+					calm_since = taken
+				elif taken - calm_since >= self.hold and elapsed <= self.bound:
+					met = True
+					break
+			remaining = self.bound - elapsed
+			if remaining <= 0:
+				met = False
+				break
+			sleep(min(self.interval, remaining))
+		self.wait_result = {
+			"build_tools_seen": host_load_tools_json(self.wait_tools),
+			"error": error,
+			"last_samples": [
+				host_load_sample_json(sample)
+				for sample in self.wait_samples[-HOST_LOAD_LAST_SAMPLES:]
+			],
+			"met": met,
+			"waited_seconds": round(clock() - start, 3),
+		}
+		return self.wait_result
+
+	def start_trace(self, process):
+		if self.unsupported:
+			return
+		self.client_pid = process.pid
+		self.trace_origin = time.monotonic()
+		self.previous = None
+		try:
+			self._observe(time.monotonic)
+			self.worker = threading.Thread(
+				target=self._trace,
+				args=(process,),
+				name="host-load-trace",
+				daemon=True,
+			)
+			self.worker.start()
+		except Exception as failure:
+			self.trace_error = host_load_error(failure)
+
+	def _trace(self, process):
+		while not self.stop_event.wait(self.interval):
+			try:
+				if process.poll() is not None:
+					return
+				taken, tools, percent, top = self._observe(time.monotonic)
+			except Exception as failure:
+				self.trace_error = host_load_error(failure)
+				return
+			self.trace_tools.update((tool["name"], tool["pid"]) for tool in tools)
+			self.trace_samples.append({
+				"build_tools": tools,
+				"others_percent": percent,
+				"seconds": taken - self.trace_origin,
+				"top": top,
+			})
+
+	def stop_trace(self):
+		self.stop_event.set()
+		if self.worker is not None and self.worker.is_alive():
+			self.worker.join()
+
+	def report(self, run_dir):
+		self.stop_trace()
+		report = {
+			**self.parameters,
+			"excluded": None,
+			"logical_processors": None,
+			"samples_file": None,
+			"samples_file_error": None,
+			"trace": None,
+			"unsupported": self.unsupported,
+			"wait": None,
+		}
+		if self.unsupported:
+			return report
+		values = [sample["others_percent"] for sample in self.trace_samples]
+		report.update({
+			"excluded": {
+				"client_pid": self.client_pid,
+				"client_processes": [
+					{"name": name, "pid": pid}
+					for (pid, _), name in sorted(self.client.items())
+				],
+				"test_run_pid": self.test_run_pid,
+			},
+			"logical_processors": self.processors,
+			"trace": {
+				"build_tools_seen": host_load_tools_json(self.trace_tools),
+				"error": self.trace_error,
+				"max_percent": round(max(values), 2) if values else None,
+				"mean_percent": round(sum(values) / len(values), 2) if values else None,
+				"over_threshold": sum(value >= self.threshold for value in values),
+				"samples": len(values),
+			},
+			"wait": self.wait_result,
+		})
+		path = run_dir / HOST_LOAD_SAMPLES_FILE
+		lines = [
+			json.dumps(host_load_sample_json(sample, phase=phase), sort_keys=True)
+			for phase, samples in (
+				("wait", self.wait_samples),
+				("trace", self.trace_samples),
+			)
+			for sample in samples
+		]
+		try:
+			path.write_text(
+				"".join(line + "\n" for line in lines),
+				encoding="utf-8",
+				newline="\n",
+			)
+			report["samples_file"] = str(path)
+		except OSError as failure:
+			report["samples_file_error"] = host_load_error(failure)
+		return report
+
+
 def command_test_run(args):
 	extra_environment = parse_env_values(args.env)
 	if LAUNCH_ACTIVATION_VARIABLE in extra_environment:
@@ -2888,6 +3298,7 @@ def command_test_run(args):
 			raise WorkspaceError("--wait-idle must be a positive number of seconds")
 		if not 0 <= args.wait_idle_max < float("inf"):
 			raise WorkspaceError("--wait-idle-max must be zero or more seconds")
+	host_load = host_load_parameters(args)
 	exe = resolved_exe(args.exe)
 	run_dir = Path(args.run_dir).expanduser().resolve()
 	run_dir.mkdir(parents=True, exist_ok=True)
@@ -2949,6 +3360,9 @@ def command_test_run(args):
 			"--args", *launch_args,
 		]
 
+	monitor = HostLoadMonitor(host_load) if host_load is not None else None
+	if monitor is not None:
+		monitor.wait()
 	_, input_before = console_input_reading()
 	launched_at = time.time()
 	with executable_killed_on_abort(exe), contextlib.ExitStack() as streams:
@@ -2965,6 +3379,9 @@ def command_test_run(args):
 			env=environment,
 			cwd=str(portable),
 		)
+		if monitor is not None:
+			streams.callback(monitor.stop_trace)
+			monitor.start_trace(process)
 		outcome = None
 		exit_code = None
 		complete_seen_at = None
@@ -3002,6 +3419,8 @@ def command_test_run(args):
 				break
 		process.wait()
 		ended_at = time.time()
+		if monitor is not None:
+			monitor.stop_trace()
 		stragglers_after = kill_processes_with_executable(exe)
 	launcher_exit_code = None
 	if bundle is not None:
@@ -3055,6 +3474,7 @@ def command_test_run(args):
 		and input_after["idle_seconds"] is not None
 		else None
 	)
+	host_load_report = monitor.report(run_dir) if monitor is not None else None
 
 	print(json.dumps({
 		"account": account,
@@ -3072,6 +3492,7 @@ def command_test_run(args):
 		"exe": str(exe),
 		"exit_code": exit_code,
 		"golden_root": str(portable_root_for(exe, None) / PORTABLE_GOLDEN),
+		"host_load": host_load_report,
 		"input_after": input_after,
 		"input_before": input_before,
 		"input_during_run": input_during_run,
@@ -3468,6 +3889,48 @@ def gitlink_paths(source, paths):
 	return result
 
 
+def mirror_source_head(config):
+	tag = config.get("checkout_tag")
+	if not tag:
+		return {"pushed": False, "skipped": "no checkout tag"}
+	source = Path(config["source_root"])
+	remotes = run_git(source, "remote").stdout.split()
+	if MIRROR_REMOTE not in remotes:
+		return {"pushed": False, "skipped": f"no {MIRROR_REMOTE} remote"}
+	branch = MIRROR_BRANCH_PREFIX + tag
+	result = {"remote": MIRROR_REMOTE, "branch": branch}
+	try:
+		push = subprocess.run(
+			[
+				"git", "-C", str(source), "push", "--force", "--quiet",
+				MIRROR_REMOTE, f"HEAD:refs/heads/{branch}",
+			],
+			stdin=subprocess.DEVNULL,
+			stdout=subprocess.PIPE,
+			stderr=subprocess.PIPE,
+			text=True,
+			timeout=MIRROR_PUSH_TIMEOUT,
+			env={
+				**os.environ,
+				"GIT_TERMINAL_PROMPT": "0",
+				"GCM_INTERACTIVE": "never",
+			},
+		)
+	except subprocess.TimeoutExpired:
+		return {
+			**result,
+			"pushed": False,
+			"error": f"push timed out after {MIRROR_PUSH_TIMEOUT:g} s",
+		}
+	if push.returncode:
+		return {
+			**result,
+			"pushed": False,
+			"error": push.stderr.strip() or push.stdout.strip(),
+		}
+	return {**result, "pushed": True}
+
+
 def command_source_commit(args):
 	config, slot = task_action_config(args)
 	source = Path(config["source_root"])
@@ -3524,9 +3987,11 @@ def command_source_commit(args):
 	validate_task_commit(source, "HEAD", args.task)
 	if args.mark_green:
 		mark_source_green(config, args.task)
+	mirror = mirror_source_head(config)
 	print(json.dumps({
 		"committed": dirty,
 		"marked_green": bool(args.mark_green),
+		"mirror": mirror,
 		"subject": subject,
 		"task": args.task,
 	}, indent=2, sort_keys=True))
@@ -5497,6 +5962,15 @@ def parse_args():
 	test_run.add_argument("--grace", type=float, default=15.0)
 	test_run.add_argument("--wait-idle", type=float)
 	test_run.add_argument("--wait-idle-max", type=float, default=WAIT_IDLE_MAX_DEFAULT)
+	test_run.add_argument("--host-load", action="store_true")
+	test_run.add_argument(
+		"--host-load-threshold", type=float, default=HOST_LOAD_THRESHOLD_DEFAULT
+	)
+	test_run.add_argument("--host-load-hold", type=float, default=HOST_LOAD_HOLD_DEFAULT)
+	test_run.add_argument("--host-load-max", type=float, default=HOST_LOAD_MAX_DEFAULT)
+	test_run.add_argument(
+		"--host-load-interval", type=float, default=HOST_LOAD_INTERVAL_DEFAULT
+	)
 	test_run.add_argument("--activate", action="store_true")
 	test_run.add_argument("--env", action="append")
 	test_run.set_defaults(handler=command_test_run)

@@ -111,6 +111,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_chat_show.h"
 #include "wallet/wallet_collectible_media.h"
 #include "wallet/wallet_collectibles.h"
+#include "wallet/wallet_collectibles_viewport.h"
 #include "wallet/wallet_comment.h"
 #include "wallet/wallet_custody.h"
 #include "wallet/wallet_diamond_flight.h"
@@ -14040,8 +14041,8 @@ void Card::paintFace(Painter &p) {
 			q.save();
 			q.translate(layout.addressBaseline, st::walletCardAddressSkip);
 			q.rotate(90);
-			q.drawText(0, 0, _addressLine1);
-			q.drawText(0, -layout.addressFont->height, _addressLine2);
+			q.drawText(0, -layout.addressFont->height, _addressLine1);
+			q.drawText(0, 0, _addressLine2);
 			q.restore();
 		}
 	};
@@ -14332,20 +14333,14 @@ void Content::setupContent() {
 
 	const auto rowsTopSkip = column->add(Ui::CreateSlideSkipWidget(
 		column,
-		st::walletRowsTopSkip));
-	rpl::combine(
+		st::walletTransactionsTopSkip));
+	rowsTopSkip->toggleOn(rpl::combine(
 		std::move(collectiblesShown),
 		wallet->collectiblesTabValue(),
 		HistoryShownValue(&_show->session())
-	) | rpl::on_next([=](bool available, bool collectibles, bool history) {
-		const auto skip = collectibles
-			? st::walletRowsTopSkip
-			: st::walletTransactionsTopSkip;
-		rowsTopSkip->wrapped()->setPadding({ 0, 0, 0, skip });
-		rowsTopSkip->toggle(
-			history || (available && collectibles),
-			anim::type::normal);
-	}, rowsTopSkip->lifetime());
+	) | rpl::map([](bool available, bool collectibles, bool history) {
+		return history || (available && collectibles);
+	}));
 	rowsTopSkip->finishAnimating();
 
 	const auto listWrap = column->add(
@@ -14621,9 +14616,9 @@ void Content::setupContent() {
 	listWrap->finishAnimating();
 
 	const auto collectiblesWrap = column->add(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		object_ptr<Ui::SlideWrap<CollectiblesViewport>>(
 			column,
-			object_ptr<Ui::VerticalLayout>(column)));
+			object_ptr<CollectiblesViewport>(column, listWrap, rowsTopSkip)));
 	const auto host = CardHost{
 		.body = this,
 		.painter = base::make_weak(_cardStickers),
@@ -14637,7 +14632,8 @@ void Content::setupContent() {
 		.input = _cardButton,
 		.header = _pinned,
 		.squares = AddCollectiblesList(
-			collectiblesWrap->entity(),
+			collectiblesWrap->entity()->page(),
+			_scroll.data(),
 			_show,
 			media,
 			host),

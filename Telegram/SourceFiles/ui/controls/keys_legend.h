@@ -45,6 +45,7 @@ struct St {
 	const style::TextStyle *capStyle = nullptr;
 	int capHeight = 0;
 	int capMinWidth = 0;
+	int capMaxWidth = 0;
 	int capPadding = 0;
 	int capRadius = 0;
 	int capSkip = 0;
@@ -61,7 +62,20 @@ struct St {
 struct Cap {
 	QString text;
 	int width = 0;
+	int height = 0;
 };
+
+[[nodiscard]] inline int CapsMaxHeight(
+		const std::vector<Cap> &caps,
+		int fallback) {
+	auto result = fallback;
+	for (const auto &cap : caps) {
+		if (cap.height > result) {
+			result = cap.height;
+		}
+	}
+	return result;
+}
 
 [[nodiscard]] Cap MakeCap(const QString &text, const St &st);
 void PaintCap(QPainter &p, const Cap &cap, int x, int y, const St &st);

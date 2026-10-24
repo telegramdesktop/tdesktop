@@ -133,7 +133,9 @@ void PublishLiveAction(
 // an application-wide filter for the life of the process, so any
 // synthetic click starts its hide-by-leave timer. A widget that was
 // never hovered keeps its Over unchanged, because setOver returns
-// early on an unchanged value.
+// early on an unchanged value. ClickWithPressOrigin is the one helper
+// that lends a press a pointer's origin, and it still ends with the
+// same leave.
 //
 // DropText is the one exception to "after each delivered event": it
 // settles once after its drag-enter + drop pair, because a drain between
@@ -147,6 +149,178 @@ void PublishLiveAction(
 // default, then a QEvent::Leave, so a completed click leaves no hover
 // behind. Drives the same event path as a real click.
 void Click(not_null<QWidget*> widget, std::optional<QPoint> point = {});
+
+// Click whose press starts the pressed button's own ripple at |point|, as
+// a real pointer press there would. Ui::RippleButton::onStateChanged
+// starts its press ripple at prepareRippleStartPosition(), and every class
+// computes that as mapFromGlobal(QCursor::pos()) on itself plus its own
+// offset and containment guard. The harness has no pointer, so a plain
+// Click starts the ripple where the owner's real mouse happens to be -
+// usually far outside the button - or starts none. Run 2 of
+// 2026/10/20/replace-sell-with-card-and-color-actions-on-the-wallet-gift-cover
+// read changedPixels=[0,0] in its ~40 and ~120 ms press frames for exactly
+// that reason; 2026/08/03/redesign-add-funds-and-buy-grams and
+// 2026/08/10/correct-streamed-draft-stop-colour-and-lookups had worked
+// around it by moving the real cursor with QCursor::setPos, which changes
+// hover on the owner's desktop and is forbidden. Added by
+// 2026/10/20/let-harness-presses-start-button-ripples-at-the-press-point;
+// its self-test is Test::AppendPressOriginSelfTest (test_press_origin.h).
+//
+// What it substitutes: only the origin prepareRippleStartPosition() reads.
+// The ripple, its mask, colour, timing and paint, and the class's own
+// offset and guard all stay the button's, and nothing is recomputed per
+// class: a Ui::IconButton pressed inside the button but outside its
+// ripple area starts no ripple, as a pointer press there would.
+//
+// Mechanism, all inside one Test::Settle action: read QCursor::pos(); take
+// the floating target->mapFromGlobal(QPointF(cursor)) and move the target
+// alone (public QWidget::move) by that mapping minus |point|, each axis
+// rounded, so that the target's own mapFromGlobal(QCursor::pos()) reads
+// |point| - the floating mapping, because a displacement taken from the
+// already rounded QPoint mapping lands one pixel off on a half-pixel
+// high-DPI window; verify that read; deliver Click's own press event
+// (local |point|, global the target's real mapToGlobal(point), read before
+// the move); move the target back. Only then does Settle drain the
+// postponed calls. A non-native child's own geometry() is part of
+// QWidget's global mapping up to the first QWindow, so the move shifts the
+// target's mapping by exactly the displacement, whatever a platform
+// sources QCursor::pos() from. The release, at the restored position, and
+// the closing QEvent::Leave are Click's, through the same settle. The real
+// cursor is only read, never set.
+//
+// For the press only, an event filter installed on the target last (Qt
+// runs it before every earlier object filter) withholds the target's own
+// two QEvent::Move - the facility's move and its move back; a move the
+// press handler makes passes through - so RpWidget::geometryValue() owners
+// and the earlier object filters never see the transient move, and it
+// counts every QEvent::Paint that reaches the target while it is
+// displaced. Qt::WA_Moved and Qt::WA_PendingMoveEvent are restored
+// afterwards. Qt::WA_NoMousePropagation is set for the press only, so a
+// press the target does not accept stops at the target instead of
+// reaching its parent with a position taken from the displaced frame.
+//
+// What can observe the displaced state:
+// - the press handler itself, synchronously: the target's and its
+//   descendants' pos(), geometry(), mapToGlobal() and mapFromGlobal() read
+//   the displaced frame - that is the substitution - so a handler that
+//   places a popup from the target's mapToGlobal() on press places it at
+//   the real cursor; QWidget::update() calls made there are stored
+//   widget-relative and painted at the restored position;
+// - application-level event filters still see the two QEvent::Move (none
+//   of tdesktop's application-wide filters acts on a child widget's Move),
+//   and an object filter the press handler installs on the target during
+//   the press runs before the facility's and sees the move back;
+// - accessibility: two LocationChanged notifications while an assistive
+//   client is connected (QAccessible::isActive()); clients query bounds
+//   asynchronously, after the restore;
+// - nothing else: no paint, UpdateRequest, timer, crl::on_main or
+//   InvokeQueued call can run while the target is displaced, because no
+//   event loop turns, and every Ui::PostponeCall the press queues runs in
+//   Settle's drain after the restore. A handler that calls repaint() or
+//   processEvents() is the only exception, and |paintsWhileDisplaced|
+//   reports it.
+//
+// Hover caveat: like Click, it ends with the QEvent::Leave, and the leave
+// cancels the press's hover highlight before it paints (Ui::IconButton's
+// hover animation restarts 1->0 from its still-zero value,
+// Ui::RoundButton's isOver() is false again before any paint), so press
+// frames show the ripple without the hover highlight.
+//
+// Not for drags: Drag and Test::AppendQueuedStartDrag keep the
+// cursor-derived origin. A drag-start path can reach a nested
+// QDrag::exec() loop from product code, which must never run while a
+// target is displaced.
+//
+// Refusals (PressOriginRefusalName); each of the first four comes before
+// anything is moved or sent:
+// - top-level-target: the target is a window; moving it would move a real
+//   OS window;
+// - native-target: the target, or a descendant inside its window (separate
+//   windows parented below it are skipped, since they do not move with
+//   it), has internalWinId() or Qt::WA_NativeWindow; moving it would move
+//   a real platform window, and a native target maps through its own
+//   QWindow. |reason| names the native widget;
+// - disabled-target: QWidget::event drops a disabled widget's mouse events
+//   and the press would propagate to an ancestor;
+// - point-outside: |point| lies outside the target's rect(), where no
+//   pointer press reaches this widget;
+// - origin-unreachable: after the move the target's
+//   mapFromGlobal(QCursor::pos()) still is not |point| - a transformed
+//   ancestor, a cursor that moved between the two reads, or a |point|
+//   coordinate of 0 met on an exact half pixel; the target is moved back
+//   and nothing is sent.
+// No refusal depends on where the cursor is: the displacement is plain
+// arithmetic on whatever QCursor::pos() returns, even off every screen.
+//
+// The reading. The helper neither Notes nor Fails; the caller judges the
+// returned reading, as with TextDrop, and PressOriginDetails prints all of
+// it on one line:
+// - |pressSent|: the press reached the target;
+// - |delivered|: press, release and leave each reached a live target, as
+//   in Click;
+// - |displaced|: the target was moved (false when the cursor already
+//   mapped to |point|);
+// - |restored|: the target's position is back where it was, after the
+//   press or after an origin-unreachable refusal (false after the four
+//   early refusals, which move nothing, and when the press destroyed the
+//   target);
+// - |pressAccepted|: the target accepted the press;
+// - |targetAlive|: the target is alive when the helper returns;
+// - |cursorStable|: |cursorAfter| equals |cursorBefore|;
+// - |geometryChangedByPress|: the press handler moved or resized the
+//   target. A moved target keeps the handler's position, its Qt::WA_Moved
+//   and Qt::WA_PendingMoveEvent included; a target that was only resized
+//   keeps its new size and still gets its position back;
+// - |moveEventsWithheld|: QEvent::Move withheld from the target (2 for a
+//   visible displaced target, 0 for a hidden one or when not displaced);
+// - |paintsWhileDisplaced|: QEvent::Paint that reached the target while
+//   it was displaced (expected 0);
+// - |point|: the press point in the target's coordinates (its centre by
+//   default);
+// - |cursorBefore|, |cursorAfter|: QCursor::pos() read before the move and
+//   right after the press;
+// - |displacement|: how far the target was moved;
+// - |originSeen|: target->mapFromGlobal(QCursor::pos()) read after the
+//   move, right before the press - the expression the classes evaluate;
+// - |pressGlobal|: the press event's global position, the target's real
+//   mapToGlobal(point);
+// - |target|: WidgetDescription of the target; |reason|: why it refused.
+enum class PressOriginRefusal {
+	None,
+	TopLevelTarget,
+	NativeTarget,
+	DisabledTarget,
+	PointOutside,
+	OriginUnreachable,
+};
+
+struct PressOrigin {
+	bool pressSent = false;
+	bool delivered = false;
+	bool displaced = false;
+	bool restored = false;
+	bool pressAccepted = false;
+	bool targetAlive = false;
+	bool cursorStable = false;
+	bool geometryChangedByPress = false;
+	int moveEventsWithheld = 0;
+	int paintsWhileDisplaced = 0;
+	QPoint point;
+	QPoint cursorBefore;
+	QPoint cursorAfter;
+	QPoint displacement;
+	QPoint originSeen;
+	QPoint pressGlobal;
+	QString target;
+	PressOriginRefusal refusal = PressOriginRefusal::None;
+	QString reason;
+};
+
+PressOrigin ClickWithPressOrigin(
+	not_null<QWidget*> widget,
+	std::optional<QPoint> point = {});
+[[nodiscard]] QString PressOriginRefusalName(PressOriginRefusal refusal);
+[[nodiscard]] QString PressOriginDetails(const PressOrigin &reading);
 
 // Synthesizes key press + release pairs carrying one Unicode grapheme at a
 // time. Surrogate pairs and joined emoji are never split between events.

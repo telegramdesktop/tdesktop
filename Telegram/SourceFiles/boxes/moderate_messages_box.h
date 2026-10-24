@@ -49,7 +49,10 @@ void CreateModerateMessagesBox(
 
 [[nodiscard]] bool CanCreateModerateMessagesBox(const HistoryItemsList &);
 
-void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer);
+void DeleteChatBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<PeerData*> peer,
+	Fn<void(Fn<void()> leave)> leaveAsCreator);
 void DeleteSublistBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Data::SavedSublist*> sublist);

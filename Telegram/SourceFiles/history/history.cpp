@@ -1904,6 +1904,16 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 		checkLocalMessages();
 		return;
 	}
+	if (const auto newest = maxMsgId()) {
+		// WHY: a stale latest-page answer can arrive after older messages
+		// were loaded; prepending it would break the order of blocks.
+		const auto older = [&](const MTPMessage &message) {
+			return IdFromMessage(message) <= newest;
+		};
+		if (ranges::none_of(slice, older)) {
+			return;
+		}
+	}
 
 	if (const auto added = createItems(slice); !added.empty()) {
 		addCreatedOlderSlice(added);

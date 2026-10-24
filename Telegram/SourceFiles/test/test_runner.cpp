@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_agent.h"
 #include "test/test_capture.h"
 #include "test/test_log.h"
+#include "test/test_session_gate.h"
 #include "base/call_delayed.h"
 #include "core/application.h"
 #include "data/data_session.h"
@@ -187,7 +188,7 @@ void ObserveChatsLoadedDeadline(
 // exists it therefore reports the overrun instead of aborting, and leaves
 // a post-marker wedge to the parent's grace kill and to
 // Core::DeadlockDetector. A run with no marker still aborts.
-void ResolveQuitFuse(crl::time deadline) {
+void ResolveQuitFuse(crl::time deadline, crl::time fuse) {
 	const auto completedAt = CompletedAt();
 	if (!completedAt) {
 		std::abort();
@@ -195,9 +196,43 @@ void ResolveQuitFuse(crl::time deadline) {
 	const auto now = crl::now();
 	LogRaw(u"TEARDOWN_SLOW: the completion marker is already written, not "
 		"aborting; fuseMs=%1 overdueMs=%2 sinceCompleteMs=%3"_q
-			.arg(qint64(kAbortAfterQuit))
+			.arg(qint64(fuse))
 			.arg(qint64(std::max(crl::time(0), now - deadline)))
 			.arg(qint64(now - completedAt)));
+}
+
+void ScheduleCompletion() {
+	base::call_delayed(kFinishDrainDelay, [] {
+		const auto failures = FailureCount();
+		const auto skipped = SkippedCount();
+		LogRaw(u"SCENARIO_RESULT: %1 (failures: %2%3)"_q.arg(
+			failures ? u"FAIL"_q : u"PASS"_q,
+			QString::number(failures),
+			skipped
+				? u", skipped: %1"_q.arg(skipped)
+				: QString()));
+		Complete();
+		Core::Quit();
+	});
+}
+
+// Waits |left| of the Test-session helper's post-switch drain, then asks
+// FinishSessionGateAfterDrain again: a timer that arrives before the
+// drain's recorded end only waits what it answers is still left, so
+// neither the drain's fresh check nor the completion comes early. The
+// re-armed wait ends at the same recorded deadline that Runner::finish()
+// already added to its quit fuse. Capturing |runner| relies on the
+// function-static Runner of Test::Start(), which outlives every timer.
+void CompleteAfterSessionDrain(not_null<Runner*> runner, crl::time left) {
+	if (!left) {
+		ScheduleCompletion();
+		return;
+	}
+	QTimer::singleShot(int(left), Qt::PreciseTimer, [=] {
+		CompleteAfterSessionDrain(
+			runner,
+			FinishSessionGateAfterDrain(runner));
+	});
 }
 
 } // namespace
@@ -382,6 +417,12 @@ void Runner::start() {
 		finish();
 	});
 	_watchdog.callOnce(WatchdogTimeout());
+	const auto refusal = ApplySessionGate(this, ReadSessionGate());
+	if (!refusal.isEmpty()) {
+		for (auto &stage : _stages) {
+			stage = RefusedStage(std::move(stage), refusal);
+		}
+	}
 	beginStage();
 	if (_finished) {
 		return;
@@ -456,22 +497,13 @@ void Runner::finish() {
 	for (const auto &callback : releases) {
 		callback();
 	}
-	const auto fuseDeadline = crl::now() + kAbortAfterQuit;
-	QTimer::singleShot(int(kAbortAfterQuit), [=] {
-		ResolveQuitFuse(fuseDeadline);
+	const auto settle = FinishSessionGate(this);
+	const auto fuse = settle + kAbortAfterQuit;
+	const auto fuseDeadline = crl::now() + fuse;
+	QTimer::singleShot(int(fuse), [=] {
+		ResolveQuitFuse(fuseDeadline, fuse);
 	});
-	base::call_delayed(kFinishDrainDelay, [] {
-		const auto failures = FailureCount();
-		const auto skipped = SkippedCount();
-		LogRaw(u"SCENARIO_RESULT: %1 (failures: %2%3)"_q.arg(
-			failures ? u"FAIL"_q : u"PASS"_q,
-			QString::number(failures),
-			skipped
-				? u", skipped: %1"_q.arg(skipped)
-				: QString()));
-		Complete();
-		Core::Quit();
-	});
+	CompleteAfterSessionDrain(this, settle);
 }
 
 void Start() {

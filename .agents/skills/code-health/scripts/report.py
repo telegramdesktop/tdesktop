@@ -9,6 +9,7 @@ import clones
 import cmake_model
 import cpp_text
 import history
+import harness
 import includes
 import metrics
 
@@ -38,6 +39,8 @@ CLASS_BY_KIND = {
     'stale-map': 'map',
     'unmapped': 'map',
     'stale-atlas': 'map',
+    'harness-retention': 'decision',
+    'harness-docs': 'decision',
 }
 MAP_PATH = re.compile(r'`([\w./-]+\.(?:cpp|h|mm|style))`')
 
@@ -70,6 +73,7 @@ def snapshot(tree, queue=None, churn_days=180, cost_days=120):
     layering = graph.layering()
     unused = metrics.unused_candidates(tree)
     tested = model.tested_files()
+    harness_data = harness.inspect(tree, queue)
 
     for path, entry in files.items():
         entry['area'] = area_of(path)
@@ -138,6 +142,17 @@ def snapshot(tree, queue=None, churn_days=180, cost_days=120):
         totals['tasks'] = len(tasks)
         totals['task_hours_median'] = round(
             statistics.median(t['hours'] for t in tasks.values()), 2)
+    totals.update({
+        'harness_modules': len(harness_data['modules']),
+        'harness_lines': sum(row['source_lines'] for row in harness_data['modules']),
+        'harness_reference_bytes': harness_data['reference_bytes'],
+    })
+    if harness_data['readme_bytes'] is not None:
+        totals['harness_readme_bytes'] = harness_data['readme_bytes']
+    if (harness_data['coverage']['available']
+            and not harness_data['coverage']['shallow_source_history']):
+        totals['harness_review_candidates'] = sum(
+            bool(row['review_reasons']) for row in harness_data['modules'])
     return {
         'schema_version': 1,
         'ref': tree.ref,
@@ -154,6 +169,7 @@ def snapshot(tree, queue=None, churn_days=180, cost_days=120):
         'tasks': tasks,
         'maps': map_references(tree),
         'atlas': atlas.check(sources_atlas, tree) if sources_atlas else None,
+        'harness': harness_data,
     }
 
 
@@ -305,10 +321,27 @@ def findings(snap):
                     'hotspot': data['hotspot'],
                 })
             result[f'untested-hot-area:{area}']['area'] = area
+    harness_data = snap.get('harness', {})
+    for row in harness_data.get('modules', ()):
+        if row['review_reasons']:
+            add('harness-retention', row['module'],
+                row['module'] + ': ' + '; '.join(row['review_reasons']),
+                row['paths'], row['source_lines'] / 1000, row)
+    if harness_data.get('modules') and (
+            harness_data['readme_bytes'] is None
+            or harness_data['readme_bytes'] >= harness.README_LIMIT
+            or harness_data['missing_references']):
+        add('harness-docs', harness.README,
+            'Harness documentation exceeds its guide budget or lacks indexed references',
+            [harness.README], 1, {
+                'readme_bytes': harness_data['readme_bytes'],
+                'limit': harness.README_LIMIT,
+                'missing_references': harness_data['missing_references'],
+            })
     return result
 
 
-def merge(previous, current, checked_at):
+def merge(previous, current, checked_at, unavailable=()):
     """Carry first-seen dates and mark vanished findings resolved."""
     ledger = {}
     old = previous.get('findings', {}) if previous else {}
@@ -322,7 +355,11 @@ def merge(previous, current, checked_at):
     for identity, finding in old.items():
         if identity in ledger:
             continue
-        if finding.get('status') in ('open', 'ignored'):
+        if finding.get('kind') in unavailable and finding.get('status') != 'resolved':
+            ledger[identity] = dict(finding, status=(
+                'ignored' if finding.get('status') == 'ignored' else 'unverified'))
+            continue
+        if finding.get('status') in ('open', 'ignored', 'unverified'):
             finding = dict(finding, status='resolved', resolved_at=checked_at)
         if finding.get('resolved_at', checked_at) >= cutoff:
             ledger[identity] = finding
@@ -352,6 +389,11 @@ def markdown(snap, ledger, previous):
         ('unused_candidates', 'Unused-function candidates'),
         ('tested_lines', 'Lines in headless test targets'),
         ('task_hours_median', 'Median task hours (Start→Approve)'),
+        ('harness_modules', 'Harness modules'),
+        ('harness_lines', 'Harness source lines'),
+        ('harness_readme_bytes', 'Mandatory harness README bytes'),
+        ('harness_reference_bytes', 'On-demand harness documentation bytes'),
+        ('harness_review_candidates', 'Harness retention review candidates'),
     ]
     for key, label in labels:
         if key not in totals:
@@ -420,4 +462,12 @@ def markdown(snap, ledger, previous):
     out += ['', 'Heaviest units (header lines compiled beyond the PCH):', '']
     for path, entry in units:
         out.append(f'- {short(path)}: {entry["weight"]:,}')
+    if 'harness' in snap:
+        coverage = snap['harness']['coverage']
+        out += ['', '## Harness lifecycle', '',
+                'See [the helper inventory](harness.md) and [consumer evidence](harness.json). '
+                'Retention findings are review signals, not Q0 deletion proof.',
+                'Usage/age coverage: ' + ('available' if coverage['available']
+                                         and not coverage['shallow_source_history']
+                                      else 'unavailable; prior retention findings are unverified') + '.']
     return '\n'.join(out) + '\n'

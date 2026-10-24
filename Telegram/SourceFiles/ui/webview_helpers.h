@@ -21,10 +21,6 @@ namespace Ui {
 	const base::flat_map<QByteArray, tr::phrase<>> &phrases,
 	int zoom,
 	bool nightTheme = false);
-[[nodiscard]] QByteArray ComputeSemiTransparentOverStyle(
-	const QByteArray &name,
-	const style::color &over,
-	const style::color &bg);
 
 [[nodiscard]] QByteArray EscapeForAttribute(QByteArray value);
 [[nodiscard]] QByteArray EscapeForScriptString(QByteArray value);

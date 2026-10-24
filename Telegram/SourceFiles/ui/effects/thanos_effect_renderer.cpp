@@ -148,30 +148,50 @@ void ThanosEffectRenderer::initialize(
 		QRhiBuffer::Immutable,
 		QRhiBuffer::VertexBuffer,
 		sizeof(kQuadVertices));
-	_quadVertexBuffer->create();
+	if (!_quadVertexBuffer->create()) {
+		_creationFailed = true;
+		releaseResources();
+		return;
+	}
 
 	_computeInitUniformBuffer = rhi->newBuffer(
 		QRhiBuffer::Dynamic,
 		QRhiBuffer::UniformBuffer,
 		sizeof(ComputeInitUniforms));
-	_computeInitUniformBuffer->create();
+	if (!_computeInitUniformBuffer->create()) {
+		_creationFailed = true;
+		releaseResources();
+		return;
+	}
 
 	_computeUpdateUniformBuffer = rhi->newBuffer(
 		QRhiBuffer::Dynamic,
 		QRhiBuffer::UniformBuffer,
 		sizeof(ComputeUpdateUniforms));
-	_computeUpdateUniformBuffer->create();
+	if (!_computeUpdateUniformBuffer->create()) {
+		_creationFailed = true;
+		releaseResources();
+		return;
+	}
 
 	_renderUniformBuffer = rhi->newBuffer(
 		QRhiBuffer::Dynamic,
 		QRhiBuffer::UniformBuffer,
 		sizeof(RenderUniforms));
-	_renderUniformBuffer->create();
+	if (!_renderUniformBuffer->create()) {
+		_creationFailed = true;
+		releaseResources();
+		return;
+	}
 
 	_placeholderTexture = rhi->newTexture(
 		QRhiTexture::RGBA8,
 		QSize(1, 1));
-	_placeholderTexture->create();
+	if (!_placeholderTexture->create()) {
+		_creationFailed = true;
+		releaseResources();
+		return;
+	}
 
 	_placeholderSampler = rhi->newSampler(
 		QRhiSampler::Linear,
@@ -179,14 +199,22 @@ void ThanosEffectRenderer::initialize(
 		QRhiSampler::None,
 		QRhiSampler::ClampToEdge,
 		QRhiSampler::ClampToEdge);
-	_placeholderSampler->create();
+	if (!_placeholderSampler->create()) {
+		_creationFailed = true;
+		releaseResources();
+		return;
+	}
 
 	_placeholderStateTexture = rhi->newTexture(
 		QRhiTexture::R32F,
 		QSize(1, 1),
 		1,
 		QRhiTexture::UsedWithLoadStore);
-	_placeholderStateTexture->create();
+	if (!_placeholderStateTexture->create()) {
+		_creationFailed = true;
+		releaseResources();
+		return;
+	}
 
 	_placeholderStateSampler = rhi->newSampler(
 		QRhiSampler::Nearest,
@@ -194,7 +222,11 @@ void ThanosEffectRenderer::initialize(
 		QRhiSampler::None,
 		QRhiSampler::ClampToEdge,
 		QRhiSampler::ClampToEdge);
-	_placeholderStateSampler->create();
+	if (!_placeholderStateSampler->create()) {
+		_creationFailed = true;
+		releaseResources();
+		return;
+	}
 
 	if (!createPipelines(rt)) {
 		LOG(("ThanosEffect: pipeline creation failed, disabling effect"));
@@ -238,7 +270,9 @@ bool ThanosEffectRenderer::createPipelines(QRhiRenderTarget *rt) {
 			_placeholderStateTexture,
 			0),
 	});
-	_computeInitSrbLayout->create();
+	if (!_computeInitSrbLayout->create()) {
+		return false;
+	}
 
 	_computeInitPipeline = _rhi->newComputePipeline();
 	_computeInitPipeline->setShaderStage(
@@ -265,7 +299,9 @@ bool ThanosEffectRenderer::createPipelines(QRhiRenderTarget *rt) {
 			_placeholderStateTexture,
 			0),
 	});
-	_computeUpdateSrbLayout->create();
+	if (!_computeUpdateSrbLayout->create()) {
+		return false;
+	}
 
 	_computeUpdatePipeline = _rhi->newComputePipeline();
 	_computeUpdatePipeline->setShaderStage(
@@ -293,7 +329,9 @@ bool ThanosEffectRenderer::createPipelines(QRhiRenderTarget *rt) {
 			_placeholderStateTexture,
 			_placeholderStateSampler),
 	});
-	_renderSrbLayout->create();
+	if (!_renderSrbLayout->create()) {
+		return false;
+	}
 
 	_renderPipeline = _rhi->newGraphicsPipeline();
 	_renderPipeline->setShaderStages({

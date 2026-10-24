@@ -286,7 +286,7 @@ is the rotated wallet's, in BOTH copies — the marked live copy and the golden 
 the empty line and each copy's own address line; that golden write is the one owner-decided
 exception to the read-only golden folder. Because the golden `tdata` is never modified while the
 file is, the next campaign's P0 reconciles them in process through `Test::ReconcileGramAccount`
-(`Telegram/SourceFiles/test/README.md`, "Account fixture secrets"): fewer local words than the
+(`Telegram/SourceFiles/test/docs/helpers/test_gram_reconcile.md`): fewer local words than the
 file restores custody from the file through the product's own import, and a differing local
 reveal with an equal or greater count rewrites the file from the local reveal. Never delete or
 reset the marked live copy while a campaign may have left a rotation in flight or unrewritten:
@@ -472,85 +472,15 @@ The repository carries a permanent test harness under
 `Telegram/SourceFiles/test/` — always compiled, runtime-gated on `-testagent`
 (`Test::Active()`), with all of its `#ifdef`s inside the harness itself:
 
-**Read `Telegram/SourceFiles/test/README.md` completely before designing,
-authoring, or recovering an overlay.** It is the decision guide for stage
-semantics, exact-object publication, input targeting, capture selection, the
-specialized helpers, and first-run diagnostics. Then read the headers for the
-helpers selected by the design. Search the directory before writing local
-scaffolding.
-
-- `test_runner.h` — the staged scenario engine: `Stage{name, run, until, then, timeout}`,
-  `waitEvent`, `waitForSessionReady`, the normal bounded non-fatal `waitForChatsLoaded()`, and
-  explicit strict `waitForChatsLoadedStrict()`; timing out an ordinary `Stage` ends the whole
-  scenario, while the wall-clock watchdog (default 120s; `TDESKTOP_TEST_WATCHDOG` override in seconds, 1..600, otherwise the default; the armed duration is logged at scenario start)
-  guarantees `TEST_COMPLETE` + quit on every exit path including timeout. `actOnWidget` waits for
-  and lifetime-guards the exact target before acting once. `captureAndInspect` saves the accepted
-  prepared frame and then runs numeric/raster assertions against that same widget and image.
-- `test_log.h` — evidence dir from `TDESKTOP_TEST_EVIDENCE_DIR` (the workspace `test-run`
-  helper sets it), flushed absolute-path logging, `Step/Pass/Fail/Check/Note`, `CheckNear`
-  tolerance assertions, `LogGeometry`, the standard markers.
-- `test_widgets.h` — `FindAll<T>`/`FindFirst<T>`/`FindVisible<T>` (the `dynamic_cast`-based
-  finders that avoid the guaranteed `findChildren<CustomWidget*>` crash), `Click`, `TypeText`,
-  `CommitText`, `PressKey`, `Drag`, and `Wheel` via real Qt events, plus generation-counted,
-  lifetime-guarded `PublishLiveWidget` / `PublishLiveAction` seams for exact layer-owned objects;
-  each delivered event runs with postponed-call processing
-  deferred and is followed by a drain of every pending `Ui::PostponeCall` to empty, so
-  postponed input fix-ups AND their own change handling are settled when the helper returns;
-  wrap programmatic `setText` in `Test::Settle`.
-- `test_capture.h` — `CaptureWidget`/`CaptureRect` (visibility check, `QWidget::grab()` so
-  floating elements and locked desktops cannot occlude, automatic blank-image FAIL, geometry
-  log, `SCREENSHOT` marker), plus `PreparedWidgetCapture`; `Runner::captureWidget` polls an
-  exact target until it has a valid painted frame and saves that same accepted frame,
-  `Crop`/`Zoom`/`ContactSheet` for tight same-scale evidence.
-- `test_ink.h`, `test_style.h`, and `test_panel.h` — painted-ink/contrast measurement, settled
-  palette baselines, and detection of a `Ui::SeparatePanel` show-animation cache.
-- `test_messages.h`, `test_transfer.h`, `test_open_handoff.h`, and `test_launch_fuse.h` — direct
-  sent-message, document-transfer, document-open, and safely blocked OS-launch oracles. Prefer
-  these established task-specific observers over reconstructing the same state in a scenario.
-- `test_agent.h` — `Test::Fire(name)` / `HasFired(name)` named waitpoints;
-  `launch_finished` fires at the end of `Application::run()`. `TDESKTOP_TEST_SCALE` is applied
-  by the harness at startup, and on macOS the harness holds the App Nap opt-out for the whole run
-  (`TDESKTOP_TEST_APP_NAP=allow` leaves it off; see Launch activation).
-- `test_scenario.cpp` — the overlay-owned slot: it defines `Test::SetupScenario(runner)` and
-  is a no-op in the repository.
-
-A minimal scenario shape:
-
-```cpp
-void SetupScenario(not_null<Runner*> runner) {
-	runner->waitEvent(u"launch_finished"_q);
-	runner->actOnWidget(
-		u"activate the published target"_q,
-		[] { return Test::ReadLiveWidget(u"task.target"_q).widget; },
-		[](QWidget *widget) { Test::Click(widget); },
-		[](QWidget *widget) {
-			return widget->isVisible() && widget->isEnabled();
-		},
-		Test::kDefaultStageTimeout,
-		[](QWidget *widget) {
-			return u"visible=%1 enabled=%2 size=%3x%4"_q
-				.arg(widget->isVisible())
-				.arg(widget->isEnabled())
-				.arg(widget->width())
-				.arg(widget->height());
-		});
-	runner->captureAndInspect(
-		u"target_surface"_q,
-		[] { return Test::ReadLiveWidget(u"task.surface"_q).widget; },
-		[](QWidget *widget) {
-			return widget->property("contentGeneration").toInt() > 0;
-		},
-		[](QWidget *widget, const QImage &image) {
-			Test::LogGeometry(u"surface"_q, widget->geometry());
-			Test::Check(
-				image.width() >= widget->width(),
-				u"capture covers the surface width"_q,
-				u"image=%1 widget=%2"_q
-					.arg(image.width())
-					.arg(widget->width()));
-		});
-}
-```
+**Read the short `Telegram/SourceFiles/test/README.md` before designing,
+authoring, or recovering an overlay.** Follow its task-specific links to the
+selected helper references in `test/docs/` and read those helpers' headers.
+Do not load the whole reference directory or diagnostic history. Account,
+media, input and capture prerequisites remain required when the design uses
+them; on recovery, search the diagnostic guide for the observed signature.
+Search the helper index before writing local scaffolding. For an initial
+scenario shape, use `test/docs/overlay-example.md` on demand. When adding or
+changing a permanent helper, follow `test/docs/adding-helpers.md`.
 
 **The overlay starts by replacing `test_scenario.cpp` with the task's scenario.** Author the
 scenario fresh against the CURRENT implementation from the task's check design; never re-implement
@@ -794,7 +724,7 @@ command, environment, exit-code, log, artifact and control evidence.
     `Test::KeepWindowExposed` (the not-marking-read and post-paint self-tests do that for the
     primary window themselves); focus-routed actions need `Test::ForceWindowActive`. Only the
     launch's own activation is suppressed: product flows and some self-tests still request
-    activation (`Telegram/SourceFiles/test/README.md`, Input helpers), and after a background launch
+    activation (`Telegram/SourceFiles/test/docs/launch.md`), and after a background launch
     the window server may grant or refuse that request - on this host it granted it about 11 s after
     launch in two default runs and refused it about 20 s after launch in a third, under a condition
     those runs did not establish (`2026/10/08/launch-the-testagent-client-without-activating-it`,
@@ -892,6 +822,60 @@ command, environment, exit-code, log, artifact and control evidence.
     activating the app by `Test::KeepWindowExposed`
     (`Telegram/SourceFiles/test/test_window_exposure.h`) either way; the gate itself cannot prevent
     that occlusion.
+  - **Host load gate (Windows).** `--host-load` waits before the launch, within a bound and without
+    stopping or otherwise touching any process, until no build-tool process runs (from any checkout
+    or user) and the other processes' CPU has stayed below a threshold, then samples their CPU from
+    the launch until the client's process ends. `--host-load-threshold <percent>` (default 15, above
+    0 and at most 100), `--host-load-hold <seconds>` (default 5, positive),
+    `--host-load-max <seconds>` (default 600, zero or more) and `--host-load-interval <seconds>`
+    (default 1, at least 0.1) tune it and do nothing without it; an invalid value is refused before
+    SETUP with nothing created. Load is a percent of the whole machine: the CPU time the other
+    processes used in a sample's interval over that interval times `logical_processors`
+    (`os.cpu_count()`), so one busy thread on 16 logical processors reads 6.25. "Other" excludes
+    `test-run`'s own process (`excluded.test_run_pid`) and the launched client's process tree
+    (`client_pid`, and every member seen, by `name` and `pid`, in `client_processes`; a descendant
+    stays excluded after the process between it and the client exits, a reused pid does not inherit
+    the exclusion). The build tools are the build-lock names `cl`, `cmake`, `cvtres`, `link`, `moc`,
+    `msbuild`, `ninja`, `rc`, `rcc` and `uic` `.exe`, compared case-insensitively, but not
+    `mspdbsrv.exe`, the PDB server that outlives the build that started it: it never holds the wait,
+    and its CPU still counts. MSBuild worker nodes that an IDE or `/nodeReuse` keeps alive after a
+    build are `MSBuild.exe` processes and hold the wait to its bound, named in `build_tools_seen`.
+    The wait takes a baseline reading, then one sample per interval; a sample with a build tool or
+    with the others at or above the threshold restarts the hold, and the wait is met once the
+    samples have stayed clear for `--host-load-hold` seconds. When `--host-load-max` elapses first
+    the client launches anyway with `met: false`; no pause runs past the bound, and
+    `--host-load-max 0` takes the baseline only and launches at once. The wait runs after the
+    `--wait-idle` gate (both are recorded), the account setup, the straggler kill, the stale-crash
+    move and the crash snapshots, right before the launch, so its condition is the last one
+    established; it counts toward none of `--deadline`, `--quiet` or `duration_seconds`, and a
+    missing executable, portable root or golden folder fails before any reading. It can add up to
+    `--host-load-max` seconds before the launch: size the command's timeout for that, or run it in
+    the background. `host_load` is `null` without the flag; otherwise it echoes `threshold_percent`,
+    `hold_seconds`, `max_seconds` and `interval_seconds` and records `logical_processors`,
+    `excluded`, `unsupported`, `wait` (`met`, `waited_seconds`, `build_tools_seen` by `name` and
+    `pid`, the last five samples in `last_samples`, `error`), `trace` (`samples`, `mean_percent`,
+    `max_percent`, `over_threshold` - the samples at or above the threshold - `build_tools_seen`,
+    `error`) and `samples_file`. A sample holds `seconds` (the end of its interval, from the wait's
+    or the trace's start), `others_percent`, `top` (up to three other processes with a nonzero
+    share, by `name`, `pid` and `percent`) and `build_tools`; the named
+    `<EVIDENCE_DIR>/host_load_samples.jsonl` holds every wait sample and then every trace sample,
+    one JSON object per line with `phase` `"wait"` or `"trace"`. A failed wait reading ends the wait
+    with `met: null` and the reason in `wait.error` (`<Type>: <message>`), and the client launches;
+    a failed trace reading ends the trace with `trace.error` and keeps the samples taken before it;
+    a failed file write leaves `samples_file` `null` with the reason in `samples_file_error`; a
+    client that ends within the first interval leaves `samples: 0` with `null` mean and maximum,
+    which is no measurement, not a quiet launch. Off Windows `unsupported` gives the reason, the
+    parameters are echoed, every other field is `null`, and the launch is not delayed. The readings
+    never fail the command and never change `outcome`, `verdict_hint` or any other field. The
+    sampler stays inside `test-run`: one `NtQuerySystemInformation` process snapshot per reading, no
+    helper process, no handle to another process, and `test-run` starts no process while it waits or
+    samples, so the sampler's few milliseconds per reading are `test-run`'s own CPU and excluded
+    with it. A process that starts and ends between two readings is never seen, CPU a process uses
+    after its last reading is lost, and the interval in which the client ends is not sampled, so a
+    short burst reads low and a short-lived build tool can be missed. Every launch whose wall-clock
+    timing is compared against another launch uses `--host-load`, and the assessor reads its `wait`,
+    its `trace` and the series' `top` contributors before counting it; whether a loaded launch
+    counts stays the assessor's judgement.
 
 ### Crashes & assertions (always launch the test binary with `-testagent`)
 

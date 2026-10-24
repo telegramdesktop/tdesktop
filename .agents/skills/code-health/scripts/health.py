@@ -24,6 +24,7 @@ import atlas
 import cmake_model
 import cpp_text
 import includes
+import harness
 import metrics
 import report
 import review
@@ -104,7 +105,10 @@ def command_scan(args):
     queue = args.queue if args.queue and Path(args.queue).is_dir() else None
     snap = report.snapshot(tree, queue)
     current = report.findings(snap)
-    ledger = report.merge(previous, current, snap['checked_at_utc'])
+    coverage = snap['harness']['coverage']
+    unavailable = (() if coverage['available'] and not coverage['shallow_source_history']
+                   else ('harness-retention',))
+    ledger = report.merge(previous, current, snap['checked_at_utc'], unavailable)
     for identity in (load(source / 'ignored.json') or {}):
         if identity in ledger and ledger[identity]['status'] == 'open':
             ledger[identity]['status'] = 'ignored'
@@ -115,6 +119,9 @@ def command_scan(args):
     else:
         run = Path(tempfile.mkdtemp(prefix='code-health-'))
     (run / 'report.md').write_text(text, encoding='utf-8')
+    (run / 'harness.json').write_text(
+        json.dumps(snap['harness'], indent=1, sort_keys=True) + '\n', encoding='utf-8')
+    (run / 'harness.md').write_text(harness.markdown(snap['harness']), encoding='utf-8')
     if state:
         cache_snapshot(args, snap)
         latest = {
@@ -142,6 +149,7 @@ def command_scan(args):
         'run_directory': str(run),
         'ledger': str(state / 'ledger.json') if state else None,
         'open_findings': opened,
+        'harness_report': str(run / 'harness.md'),
         'totals': snap['totals'],
     }, indent=2))
     return 0

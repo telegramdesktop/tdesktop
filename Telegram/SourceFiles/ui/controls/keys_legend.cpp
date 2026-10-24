@@ -52,17 +52,96 @@ QString SpaceKey() {
 	return u"Space"_q;
 }
 
+namespace {
+
+constexpr auto kCapMaxLines = 2;
+constexpr auto kMeasureBound = 10000;
+
+[[nodiscard]] QRectF MeasureCapText(
+		const style::font &font,
+		const QString &text,
+		int inner) {
+	return font->metrics().boundingRect(
+		QRectF(0, 0, inner, kMeasureBound),
+		Qt::TextWordWrap | Qt::AlignHCenter,
+		text);
+}
+
+[[nodiscard]] bool CapTextFits(
+		const style::font &font,
+		const QString &text,
+		int inner,
+		int maxHeight) {
+	const auto bound = MeasureCapText(font, text, inner);
+	return bound.width() <= inner && bound.height() <= maxHeight;
+}
+
+[[nodiscard]] QString ElidedCapText(
+		const style::font &font,
+		const QString &text,
+		int inner,
+		int maxHeight) {
+	auto flat = text;
+	flat.replace(u'\n', u' ');
+	if (CapTextFits(font, flat, inner, maxHeight)) {
+		return flat;
+	}
+	const auto ellipsis = QString(QChar(0x2026));
+	auto from = 0;
+	auto to = flat.size();
+	while (to - from > 1) {
+		const auto mid = (from + to) / 2;
+		if (CapTextFits(font, flat.left(mid) + ellipsis, inner, maxHeight)) {
+			from = mid;
+		} else {
+			to = mid;
+		}
+	}
+	const auto cut = flat.left(from);
+	const auto space = cut.lastIndexOf(u' ');
+	return ((space > 0) ? cut.left(space) : cut) + ellipsis;
+}
+
+} // namespace
+
 Cap MakeCap(const QString &text, const St &st) {
+	const auto &font = st.capStyle->font;
+	const auto multiline = text.contains(u'\n');
+	const auto width = std::max(
+		font->width(text) + 2 * st.capPadding,
+		st.capMinWidth);
+	if (!multiline
+		&& (st.capMaxWidth <= 0 || width <= st.capMaxWidth)) {
+		return { .text = text, .width = width, .height = st.capHeight };
+	}
+	const auto inner = std::max(
+		(st.capMaxWidth > 0)
+			? (st.capMaxWidth - 2 * st.capPadding)
+			: kMeasureBound,
+		1);
+	const auto maxLinesHeight = kCapMaxLines * font->height;
+	auto result = text;
+	auto bound = MeasureCapText(font, result, inner);
+	if (bound.width() > inner || bound.height() > maxLinesHeight) {
+		result = ElidedCapText(font, result, inner, maxLinesHeight);
+		bound = MeasureCapText(font, result, inner);
+	}
+	const auto vpad = std::max((st.capHeight - font->height) / 2, 0);
+	const auto fitted = int(std::ceil(bound.width())) + 2 * st.capPadding;
 	return {
-		.text = text,
-		.width = std::max(
-			st.capStyle->font->width(text) + 2 * st.capPadding,
-			st.capMinWidth),
+		.text = result,
+		.width = (st.capMaxWidth > 0)
+			? std::clamp(fitted, st.capMinWidth, st.capMaxWidth)
+			: std::max(fitted, st.capMinWidth),
+		.height = std::max(
+			st.capHeight,
+			int(std::ceil(bound.height())) + 2 * vpad),
 	};
 }
 
 void PaintCap(QPainter &p, const Cap &cap, int x, int y, const St &st) {
-	const auto rect = QRect(x, y, cap.width, st.capHeight);
+	const auto height = cap.height ? cap.height : st.capHeight;
+	const auto rect = QRect(x, y, cap.width, height);
 	const auto radius = st.capRadius;
 	auto hq = PainterHighQualityEnabler(p);
 	p.setPen(QPen(*st.capBorder, st::lineWidth));
@@ -73,7 +152,13 @@ void PaintCap(QPainter &p, const Cap &cap, int x, int y, const St &st) {
 		radius);
 	p.setPen(*st.capFg);
 	p.setFont(st.capStyle->font);
-	p.drawText(rect, cap.text, style::al_center);
+	const auto direction = p.layoutDirection();
+	p.setLayoutDirection(Qt::LeftToRight);
+	p.drawText(
+		rect.adjusted(st.capPadding, 0, -st.capPadding, 0),
+		Qt::AlignCenter | Qt::TextWordWrap,
+		cap.text);
+	p.setLayoutDirection(direction);
 }
 
 namespace {
@@ -175,7 +260,7 @@ int SectionItem::contentHeight() const {
 	}
 	for (const auto &row : _rows) {
 		result += std::max(
-			_legend.capHeight,
+			CapsMaxHeight(row.caps, _legend.capHeight),
 			row.text.countHeight(_textWidth));
 	}
 	return result + (int(_rows.size()) - 1) * _legend.rowSkip;
@@ -203,13 +288,16 @@ void SectionItem::paintEvent(QPaintEvent *e) {
 	for (const auto &row : _rows) {
 		const auto textHeight = row.text.countHeight(_textWidth);
 		const auto rowHeight = std::max(
-			_legend.capHeight,
+			CapsMaxHeight(row.caps, _legend.capHeight),
 			textHeight);
 		auto capLeft = padding.left();
-		const auto capTop = top
-			+ (rowHeight - _legend.capHeight) / 2;
 		for (const auto &cap : row.caps) {
-			PaintCap(p, cap, capLeft, capTop, _legend);
+			PaintCap(
+				p,
+				cap,
+				capLeft,
+				top + (rowHeight - cap.height) / 2,
+				_legend);
 			capLeft += cap.width + _legend.capSkip;
 		}
 		p.setPen(*_legend.textFg);

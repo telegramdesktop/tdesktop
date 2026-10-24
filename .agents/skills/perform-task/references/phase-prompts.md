@@ -115,14 +115,15 @@ Do not restate the full context, plan, diff, or long reasoning in the chat reply
 ## Artifact-Based Completion Checks
 
 - Phase 1 is complete only when `context.md` exists and is non-empty, `plan.md`
-  exists and contains a `## Status` section, and no unintended source edits
-  were made. A project amendment is optional. For a `Visual: layout` task,
+  exists, records `Code: harness` or `Code: product`, and contains a
+  `## Status` section, and no unintended source edits were made. A project
+  amendment is optional. For a `Visual: layout` task,
   `visual.md` must also satisfy the visual design completion check below.
 - Phase 3 is complete only when `plan.md` contains both `Phases:` in the Status section and `Assessed: yes`, records a rejection outcome (`Fast-Path: rejected` or `Approach: rejected`) that sends the performer back to a fresh Phase 1 leaf, or records `Scope: split-required` and has a complete `split-proposal.md` that stops source work for queue rescoping.
 - Phase 4 is complete only when the target phase checkbox changed to checked and the touched-file list matches the owned write set, or the blocker explains any mismatch.
 - Phase 5 is complete only when the build outcome is known and the build checkbox is updated on success.
-- An initial Phase 6 lens is complete only when all five `review1-<lens>.md` reports exist with `## Verdict: NOT_APPLICABLE | CLEAN | FINDINGS` and a non-empty `## Checked` section. `NOT_APPLICABLE` must tie its proof to the complete diff; `CLEAN`/`FINDINGS` must name the relevant full files and adjacent surfaces reviewed.
-- Initial Phase 6 general review is complete only when `review1-general.md` and `review1.md` exist with a `## Verdict:` line, a non-empty `## Coverage` section, all five lens reports are accepted or an unsupported bailout has been rerun, and every evidence check is reconciled against the actual diff.
+- An initial Phase 6 lens is complete only when all five `review1-<lens>.md` reports (on a harness task, the lenses the general reviewer named) exist with `## Verdict: NOT_APPLICABLE | CLEAN | FINDINGS` and a non-empty `## Checked` section. `NOT_APPLICABLE` must tie its proof to the complete diff; `CLEAN`/`FINDINGS` must name the relevant full files and adjacent surfaces reviewed.
+- Initial Phase 6 general review is complete only when `review1-general.md` and `review1.md` exist with a `## Verdict:` line, a non-empty `## Coverage` section, all five lens reports (on a harness task, the named ones) are accepted or an unsupported bailout has been rerun, and every evidence check is reconciled against the actual diff.
 - A focused Phase 6 review is complete only when `review<R>-focused.md` and `review<R>.md` name the fix paths and invariants, account for every carried-forward and invalidated approval, account for every rerun specialist, and reconcile only invalidated evidence checks. A convergence assessment is complete only with its loop map, one exact disposition from the pipeline and that disposition's next action: open blockers, rulings and the next checkpoint for `CONTINUE`, the boundary and replacement approach for `REPLAN_CURRENT`, or a split proposal.
 - Phase 6b is complete only when the requested fixes were applied and the post-fix build outcome is known.
 - Phase 3 is additionally incomplete until `test-design.md` exists, covers
@@ -212,6 +213,14 @@ The plan.md should contain:
 
 ## Task
 <one-line summary>
+Code: <harness | product>
+<harness only when every planned change qualifies for the `[ai]` subject
+prefix under "Commits" in AGENTS.md: the test harness in
+`Telegram/SourceFiles/test/` with its build registration, `.agents/`,
+`.claude/`, `.grok/` or other AI testing infrastructure that no user runs. For
+harness, name the tasks, tests or agents that will use it, and size the plan
+to what they need from it: no support for hypothetical callers, misuse or edge
+cases none of them reaches.>
 
 ## Approach
 <high-level description of the implementation approach. Name the closest
@@ -329,10 +338,18 @@ Assess the plan:
    - New files are not the problem: a focused file bounding a coherent role
      beats both growing a mega-module and scattering through one; judge
      whether the boundary does work, not whether it is new.
+   - Harness code: check the plan's `Code:` line against its planned paths;
+     any product path makes it `Code: product`. This is harness or testing
+     code no user runs, so for `Code: harness` judge the plan against the
+     consumers it names: what they need from it, correct. Support for
+     hypothetical callers, misuse, framework edge cases and defensive teardown
+     that no consumer reaches comes out of the plan, and the self-test proves
+     what the consumers rely on, not every case the framework allows.
 5. Expected surfaces: record the surfaces this task is likely to touch and the
    escalations they would imply, as a recall note for the reviewers. Do not
    select or omit standard lenses here — all five independently scan the task
-   and complete diff, then decide their own applicability.
+   and complete diff, then decide their own applicability; on a harness task
+   the general reviewer names the lenses it needs.
 6. Evidence design: map every acceptance criterion and material shipped risk to
    the most direct practical instrument that can detect the negative. Allow
    static readings, commands/artifacts, unit tests, a standalone probe or
@@ -547,6 +564,31 @@ A wording or style suggestion is non-blocking unless it causes incorrect
 behavior, unsafe use, misleading build instructions, a repository-rule
 violation, or a material maintenance defect.
 
+### Harness tasks
+
+When plan.md says `Code: harness` (pipeline, "Harness tasks"), the initial
+review starts with the general reviewer alone. On pass 1 it writes the lenses
+it needs under `Lenses:` in `review1-general.md`, or `Lenses: none`. With
+`Lenses: none`, the same pass writes `review1.md`. Otherwise run only the
+named lenses, then call the general reviewer back for pass 2 as above. Focused
+rounds and convergence follow the ordinary rules.
+
+Append the harness bar to the prompt of every lens, general review, synthesis,
+focused re-review and convergence assessment of a harness task. On Codex these
+leaves run on `gpt-6.1-sol`.
+
+~~~text
+HARNESS BAR. This task changes harness or testing code that no user runs
+(plan.md `Code: harness`). Its users are the tests, tasks and agents plan.md
+names. A finding is BLOCKING only when the harness can give one of them a
+wrong result (a false pass or fail, a wrong reading), crash or hang a run,
+damage anything outside the run's sandbox, change product behavior, or break
+the build or a repository rule. Robustness against misuse no consumer
+performs, teardown order in cases no consumer reaches, support for
+hypothetical callers, and polish are NON_BLOCKING notes. Where this bar and
+the ordinary blocking rule differ, this bar decides.
+~~~
+
 ### Shared specialist preamble
 
 ~~~text
@@ -735,8 +777,16 @@ independent Checked, evidence reconciliation, findings, and pass-1 status, but
 do not write `review1.md` yet. Then return so the performer can call you back for
 synthesis after every standard lens report exists.
 
-On pass 2, account for all five lenses. Confirm every finding against the code
-and drop it when the concrete failure does not hold. Accept `NOT_APPLICABLE`
+When the harness bar is appended, no lens is running. On pass 1 write under
+`Lenses:` each lens this diff needs, with its concrete risk, or
+`Lenses: none`. Name security when the diff deletes or overwrites files,
+starts processes, or touches accounts, credentials or data outside the run's
+sandbox, and another lens or a domain specialist only for a risk you can
+state. With `Lenses: none`, also write `review1.md` now; there is no pass 2.
+
+On pass 2, account for all five lenses (on a harness task, the named ones).
+Confirm every finding against the code and drop it when the concrete failure
+does not hold. Accept `NOT_APPLICABLE`
 only when its complete-diff proof establishes that no owned mechanism changed.
 If that proof contradicts a hunk or is merely a severity estimate, write
 `Incomplete lens: <name> — <owned mechanism>` and return without an
@@ -943,7 +993,9 @@ leaf and must not delegate.
 Read the task, final diff, plan.md, test-design.md, test.md, every prior recovery
 plan, the raw evidence for the latest run, and the universal evidence-loop
 directness rules. When an app overlay is involved, also read its saved inventory
-and Telegram/SourceFiles/test/README.md.
+and the short Telegram/SourceFiles/test/README.md. Follow its links only for the
+selected helpers and the observed failure signature, and read their headers;
+do not load all helper references or the whole diagnostic history.
 
 The latest failure signature is:
 <FAILURE_SIGNATURE>
