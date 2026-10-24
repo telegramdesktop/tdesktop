@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "platform/platform_specific.h"
+#include "test/test_widget_ops.h"
 #include "tgw/tgw_bridge.h"
 #include "tgw/tgw_intl.h"
 #include "tgw/tgw_media.h"
@@ -1074,7 +1075,10 @@ void Runtime::construct(
 		.html = _html,
 		.resources = std::move(resources),
 		.intl = CreateHostIntl(),
-		.factory = _live->hostFactory(),
+		// leak and conformance checks need the validated ops only renderers get
+		.factory = Test::TapWidgetRenderer(
+			_item->globalId(),
+			_live->hostFactory()),
 		.action = _live->hostActionHandler(),
 		.storage = std::move(storage.commit),
 		.options = std::move(options),
