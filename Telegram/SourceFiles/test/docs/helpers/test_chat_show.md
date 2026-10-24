@@ -218,14 +218,18 @@ The module's behavioral self-test is
 rows, expected verdict and teardown are on its own page,
 [test_chat_show_self_test](test_chat_show_self_test.md).
 
-**Evidence.** Pending: the first run of the self-test and of the module's
-first consumer belongs to the evidence campaign of
-`2026/10/24/show-a-list-message-fully-in-view-ready-and-hovered-in-the-harness`,
-on macOS arm64 Debug against a Test-account megagroup; this section is
-updated with what actually ran. So far only the Debug build of the module and
-its self-test has been checked. Windows and all other platforms are
-untested: the code is portable, and the window exposure helper is a no-op
-there.
+**Evidence.** Executed on macOS arm64 Debug against a Test-account megagroup,
+in the evidence campaign of
+`2026/10/24/show-a-list-message-fully-in-view-ready-and-hovered-in-the-harness`
+(its `work/test.md`). All thirteen self-test legs passed with no stage timeout:
+far above and far below in each of the three lists, the later-layout
+correction, `no-view` in each list, and `cannot-fit`, `out-of-view` and
+`not-ready` on the ListWidget. The first consumer showed an out-of-view widget
+card in a History-mode ChatWidget, with its live-and-painted readiness and a
+hover at the press point, then took a queued-start drag that selected and
+copied exactly `sentence, this bold word too,`. Windows and all other
+platforms have not run it: the code is portable, and the window exposure
+helper is a no-op there.
 
 ## Related guidance
 

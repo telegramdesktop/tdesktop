@@ -225,7 +225,7 @@ struct ChatListShow {
 // cannot-fit, out-of-view (a disabled scroll) and not-ready controls. A
 // failed fixture gate is a named FAIL and makes its dependent stages N/A.
 // Its release is registered with Runner::onFinish before anything
-// changes; stages, rows and teardown: docs/helpers/test_chat_show.md.
+// changes; stages, rows and teardown: docs/helpers/test_chat_show_self_test.md.
 void AppendChatListShowSelfTest(not_null<Runner*> runner, PeerId channel);
 
 // Self-test access, not for overlays: the helper's own reads of a list,
