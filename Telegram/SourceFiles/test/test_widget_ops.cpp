@@ -12,10 +12,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_agent.h"
 #include "twidget/json.h"
 
+#include <QtCore/QJsonArray>
+#include <QtCore/QJsonDocument>
+#include <QtCore/QJsonObject>
+#include <QtCore/QJsonValue>
 #include <QtCore/QStringList>
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstring>
 #include <exception>
 #include <map>
@@ -33,6 +38,11 @@ constexpr auto kDetailBytes = 240;
 
 // WidgetHost's kRenderAckQid: the qid of the host's own post-load query.
 constexpr auto kAckQid = -1;
+
+constexpr auto kResultAttribute = "data-conformance";
+
+// Integral doubles are exact up to 2^53; node ids stay far below.
+constexpr auto kMaxNodeId = 9007199254740992.;
 
 // The block below, from its "Anything in the validated ops" comment to the
 // end of scanForLeaks(), is a verbatim copy of widget-sandbox's
@@ -105,9 +115,19 @@ static void scanForLeaks(const Json& op, std::vector<std::string>& leaks, std::v
 
 } // namespace Upstream
 
+// An op of CLIENTS.md's result reader: an <html> adoption, or a
+// `data-conformance` value for element |id|, in batch order.
+struct ResultOp {
+	int64 id = 0;
+	std::string value;
+	bool adopt = false;
+};
+
 struct HostScan {
 	std::vector<std::string> leaks;
 	std::vector<std::string> notes;
+	std::vector<ResultOp> results;
+	std::optional<std::string> theme;
 	std::string gap;
 	int ops = 0;
 	bool gapped = false;
@@ -128,22 +148,29 @@ struct RendererSeen {
 
 class WidgetOpsTap final {
 public:
-	void factorySelected();
+	// Returns the selection's 1-based index, its host's generation.
+	[[nodiscard]] int factorySelected();
 	void factoryCompleted(bool threw);
 	void factoryReleased();
-	void wrapperBuilt();
+	void wrapperBuilt(int selection, const std::string &theme);
 	void wrapperDestroyed();
 
 	// Parse and scan outside the lock, merge under it; never call out.
-	void hostMessage(const std::string &json);
+	void hostMessage(int selection, const std::string &json);
+	void themeSet(int selection, const std::string &theme);
 	void rendererMessage(const std::string &json);
 
 	void markEvents();
 	[[nodiscard]] WidgetOpsReading read() const;
+	[[nodiscard]] WidgetOpsLatest latest() const;
 
 private:
+	// Under the lock: false, counted as stale, for an older host's wrapper.
+	[[nodiscard]] bool current(int selection);
+
 	mutable std::mutex _mutex;
 	WidgetOpsReading _reading;
+	WidgetOpsLatest _latest;
 
 };
 
@@ -157,7 +184,9 @@ class TapRenderer final : public twidget::Renderer {
 public:
 	TapRenderer(
 		std::unique_ptr<twidget::Renderer> inner,
-		std::shared_ptr<WidgetOpsTap> tap);
+		std::shared_ptr<WidgetOpsTap> tap,
+		int selection,
+		const std::string &theme);
 	~TapRenderer();
 
 	void load() override;
@@ -172,21 +201,24 @@ private:
 
 	std::unique_ptr<twidget::Renderer> _inner;
 	const std::shared_ptr<WidgetOpsTap> _tap;
+	const int _selection = 0;
 
 };
 
 // Shared by every copy of one wrapping factory: released with the last.
 class FactorySelection final {
 public:
-	explicit FactorySelection(std::shared_ptr<WidgetOpsTap> tap);
+	FactorySelection(std::shared_ptr<WidgetOpsTap> tap, int index);
 	FactorySelection(const FactorySelection &other) = delete;
 	FactorySelection &operator=(const FactorySelection &other) = delete;
 	~FactorySelection();
 
 	[[nodiscard]] const std::shared_ptr<WidgetOpsTap> &tap() const;
+	[[nodiscard]] int index() const;
 
 private:
 	const std::shared_ptr<WidgetOpsTap> _tap;
+	const int _index = 0;
 
 };
 
@@ -294,8 +326,92 @@ constexpr auto kLeakStyle = "el.style: url(https://127.0.0.1:9999/leak.css)";
 constexpr auto kNoteData = "attr data-x (inert URL inside a data: payload): "
 	"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'/>";
 
+// The conformance probe check's own legs and their expected values.
+
+constexpr auto kOldAdopt = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"el","id":2,"tag":"html","attrs":[["data-conformance",)json"
+	R"json("{\"id\":\"probe/old\",\"status\":\"running\"}"]],)json"
+	R"json("adopt":"html"}]})json";
+constexpr auto kOldDone = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"attr","id":2,"name":"data-conformance",)json"
+	R"json("value":"{\"id\":\"probe/old\",\"status\":\"done\"}"}]})json";
+constexpr auto kNewAdopt = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"el","id":2,"tag":"html","attrs":[],"adopt":"html"}]})json";
+constexpr auto kNewRunning = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"attr","id":2,"name":"data-conformance",)json"
+	R"json("value":"{\"id\":\"probe/new\",\"status\":\"running\"}"}]})json";
+constexpr auto kReadopt = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"el","id":6,"tag":"html","attrs":[],"adopt":"html"},)json"
+	R"json({"op":"attr","id":2,"name":"data-conformance",)json"
+	R"json("value":"{\"id\":\"probe/new\",\"status\":\"done\"}"}]})json";
+constexpr auto kThemeMessage = R"json({"type":"theme","theme":{)json"
+	R"json("colorScheme":"light","params":{"bg_color":"#ffffff",)json"
+	R"json("text_color":"#000000"},"button":{"radius":"8px"},)json"
+	R"json("text":{"fontSize":14}}})json";
+
+constexpr auto kOldDoneValue = R"json({"id":"probe/old","status":"done"})json";
+constexpr auto kNewRunningValue
+	= R"json({"id":"probe/new","status":"running"})json";
+constexpr auto kHtmlId = 2;
+constexpr auto kReadoptHtmlId = 6;
+constexpr auto kProbeTextChars = 400;
+
 [[nodiscard]] bool IsAck(const twidget::Json &qid) {
 	return qid.isNumber() && (qid.asInt() == kAckQid);
+}
+
+[[nodiscard]] std::optional<int64> NodeId(const twidget::Json &op) {
+	const auto &id = op["id"];
+	const auto value = id.asNumber();
+	if (!id.isNumber() || !(std::abs(value) < kMaxNodeId)) {
+		return std::nullopt;
+	}
+	return int64(value);
+}
+
+// CLIENTS.md's "Reading the ops": an `el` op adopting <html> with its
+// `data-conformance` attributes, and every `attr` op of that name, whose
+// element is matched against the adopted id only when merged.
+void ReadResultOps(const twidget::Json &op, std::vector<ResultOp> &to) {
+	const auto id = NodeId(op);
+	if (!id) {
+		return;
+	}
+	const auto &kind = op["op"].asString();
+	if (kind == "el" && op["adopt"].asString() == "html") {
+		to.push_back({ .id = *id, .adopt = true });
+		for (const auto &pair : op["attrs"].arr()) {
+			if (pair[size_t(0)].asString() == kResultAttribute) {
+				to.push_back({
+					.id = *id,
+					.value = pair[size_t(1)].asString(),
+				});
+			}
+		}
+	} else if (kind == "attr" && op["name"].asString() == kResultAttribute) {
+		to.push_back({ .id = *id, .value = op["value"].asString() });
+	}
+}
+
+void ClearResult(WidgetOpsLatest &latest) {
+	if (latest.conformance) {
+		latest.conformance = std::nullopt;
+		++latest.serial;
+	}
+}
+
+void ApplyResults(WidgetOpsLatest &latest, std::vector<ResultOp> &&results) {
+	for (auto &op : results) {
+		if (op.adopt) {
+			ClearResult(latest);
+			latest.adopted = true;
+			latest.htmlId = op.id;
+		} else if (latest.adopted && (op.id == latest.htmlId)) {
+			latest.conformance = std::move(op.value);
+			++latest.updates;
+			++latest.serial;
+		}
+	}
 }
 
 [[nodiscard]] HostScan ScanHostMessage(const std::string &json) {
@@ -320,7 +436,10 @@ constexpr auto kNoteData = "attr data-x (inert URL inside a data: payload): "
 		for (const auto &op : ops.arr()) {
 			++result.ops;
 			Upstream::scanForLeaks(op, result.leaks, result.notes);
+			ReadResultOps(op, result.results);
 		}
+	} else if (type == "theme") {
+		result.theme = json;
 	} else if (type == "query") {
 		result.ack = IsAck(message["qid"]);
 	} else if (type == "frozen") {
@@ -379,6 +498,7 @@ using ArmedMap = std::map<GlobalMsgId, std::shared_ptr<WidgetOpsTap>>;
 
 std::unique_ptr<twidget::Renderer> BuildTapped(
 		const std::shared_ptr<WidgetOpsTap> &tap,
+		int selection,
 		const twidget::RendererFactory &factory,
 		std::shared_ptr<twidget::SandboxResources> resources,
 		const std::string &theme,
@@ -395,20 +515,27 @@ std::unique_ptr<twidget::Renderer> BuildTapped(
 		// WidgetHost throws on a null renderer, as it would without the tap.
 		return inner;
 	}
-	return std::make_unique<TapRenderer>(std::move(inner), tap);
+	return std::make_unique<TapRenderer>(
+		std::move(inner),
+		tap,
+		selection,
+		theme);
 }
 
 [[nodiscard]] twidget::RendererFactory WrapFactory(
 		std::shared_ptr<WidgetOpsTap> tap,
+		int index,
 		twidget::RendererFactory factory) {
 	const auto selection = std::make_shared<FactorySelection>(
-		std::move(tap));
+		std::move(tap),
+		index);
 	return [selection, factory = std::move(factory)](
 			std::shared_ptr<twidget::SandboxResources> resources,
 			const std::string &theme,
 			double width) {
 		return BuildTapped(
 			selection->tap(),
+			selection->index(),
 			factory,
 			std::move(resources),
 			theme,
@@ -418,9 +545,12 @@ std::unique_ptr<twidget::Renderer> BuildTapped(
 
 TapRenderer::TapRenderer(
 	std::unique_ptr<twidget::Renderer> inner,
-	std::shared_ptr<WidgetOpsTap> tap)
+	std::shared_ptr<WidgetOpsTap> tap,
+	int selection,
+	const std::string &theme)
 : _inner(std::move(inner))
-, _tap(std::move(tap)) {
+, _tap(std::move(tap))
+, _selection(selection) {
 	_inner->onMessage = [this](const std::string &json) {
 		received(json);
 	};
@@ -429,7 +559,7 @@ TapRenderer::TapRenderer(
 			const std::string &detail) {
 		diagnosed(kind, detail);
 	};
-	_tap->wrapperBuilt();
+	_tap->wrapperBuilt(_selection, theme);
 }
 
 TapRenderer::~TapRenderer() {
@@ -444,11 +574,12 @@ void TapRenderer::load() {
 }
 
 void TapRenderer::send(const std::string &json) {
-	_tap->hostMessage(json);
+	_tap->hostMessage(_selection, json);
 	_inner->send(json);
 }
 
 void TapRenderer::setTheme(const std::string &theme) {
+	_tap->themeSet(_selection, theme);
 	_inner->setTheme(theme);
 }
 
@@ -475,8 +606,11 @@ void TapRenderer::diagnosed(
 	}
 }
 
-FactorySelection::FactorySelection(std::shared_ptr<WidgetOpsTap> tap)
-: _tap(std::move(tap)) {
+FactorySelection::FactorySelection(
+	std::shared_ptr<WidgetOpsTap> tap,
+	int index)
+: _tap(std::move(tap))
+, _index(index) {
 }
 
 FactorySelection::~FactorySelection() {
@@ -485,6 +619,10 @@ FactorySelection::~FactorySelection() {
 
 const std::shared_ptr<WidgetOpsTap> &FactorySelection::tap() const {
 	return _tap;
+}
+
+int FactorySelection::index() const {
+	return _index;
 }
 
 StubRenderer::StubRenderer(std::shared_ptr<StubState> state)
@@ -562,6 +700,11 @@ std::unique_ptr<twidget::Renderer> StubFactory::operator()(
 // an id. The session values only tell the self-check's own ids apart.
 constexpr auto kSelfCheckSession = uint64(1);
 constexpr auto kOtherSession = uint64(2);
+
+// The conformance probe check's ids; its fixture cases count from the last.
+constexpr auto kProbeReplacementIndex = 11;
+constexpr auto kProbeThemeIndex = 12;
+constexpr auto kProbeCaseIndex = 21;
 
 [[nodiscard]] GlobalMsgId SelfCheckId(
 		int index,
@@ -1166,11 +1309,436 @@ void CheckSessions(WidgetOpsSelfCheck &result) {
 	DisarmWidgetOpsTap(second);
 }
 
+// One case of probe-fixture.json, its `expect` kept as the fixture has it.
+struct ProbeCase {
+	QString name;
+	std::vector<std::string> messages;
+	QJsonValue htmlId;
+	QJsonValue updates;
+	QJsonValue finalValue;
+	QJsonValue awaitingTargets;
+};
+
+struct ProbeFixture {
+	std::vector<ProbeCase> cases;
+	QString error;
+};
+
+[[nodiscard]] ProbeFixture ParseProbeFixture(const QByteArray &bytes) {
+	auto result = ProbeFixture();
+	auto error = QJsonParseError();
+	const auto document = QJsonDocument::fromJson(bytes, &error);
+	if (error.error != QJsonParseError::NoError) {
+		result.error = u"unparsable: "_q + error.errorString();
+		return result;
+	}
+	const auto cases = document.object().value(u"cases"_q).toArray();
+	for (auto i = 0; i != int(cases.size()); ++i) {
+		const auto object = cases[i].toObject();
+		const auto expect = object.value(u"expect"_q).toObject();
+		auto parsed = ProbeCase{
+			.name = object.value(u"name"_q).toString(),
+			.htmlId = expect.value(u"htmlId"_q),
+			.updates = expect.value(u"updates"_q),
+			.finalValue = expect.value(u"final"_q),
+			.awaitingTargets = expect.value(u"awaitingTargets"_q),
+		};
+		const auto messages = object.value(u"messages"_q).toArray();
+		for (const auto &message : messages) {
+			if (message.isString()) {
+				parsed.messages.push_back(message.toString().toStdString());
+			}
+		}
+		if (parsed.messages.empty()
+			|| (int(parsed.messages.size()) != int(messages.size()))
+			|| !parsed.htmlId.isDouble()
+			|| !parsed.updates.isDouble()
+			|| !parsed.finalValue.isObject()) {
+			result.error = u"case %1 lacks string messages, a numeric "
+				"htmlId and updates, or an object final"_q.arg(i + 1);
+			return result;
+		}
+		result.cases.push_back(std::move(parsed));
+	}
+	if (result.cases.empty()) {
+		result.error = u"no cases"_q;
+	}
+	return result;
+}
+
+// Undefined unless |value| is a JSON object, as a published result is.
+[[nodiscard]] QJsonValue ParsedResult(
+		const std::optional<std::string> &value) {
+	if (!value) {
+		return QJsonValue(QJsonValue::Undefined);
+	}
+	auto error = QJsonParseError();
+	const auto document = QJsonDocument::fromJson(
+		QByteArray::fromStdString(*value),
+		&error);
+	return (error.error == QJsonParseError::NoError && document.isObject())
+		? QJsonValue(document.object())
+		: QJsonValue(QJsonValue::Undefined);
+}
+
+[[nodiscard]] QString JsonText(const QJsonValue &value) {
+	const auto compact = [](const QJsonDocument &document) {
+		return QString::fromUtf8(document.toJson(QJsonDocument::Compact));
+	};
+	const auto text = value.isObject()
+		? compact(QJsonDocument(value.toObject()))
+		: value.isArray()
+		? compact(QJsonDocument(value.toArray()))
+		: value.isDouble()
+		? QString::number(value.toDouble())
+		: value.isString()
+		? value.toString()
+		: value.isUndefined()
+		? u"none"_q
+		: u"null"_q;
+	return text.left(kProbeTextChars);
+}
+
+[[nodiscard]] QString LatestText(const WidgetOpsLatest &latest) {
+	const auto conformance = latest.conformance
+		? QString::fromStdString(*latest.conformance).left(kProbeTextChars)
+		: u"none"_q;
+	return QStringList{
+		u"generation="_q + QString::number(latest.generation),
+		u"adopted="_q + Flag(latest.adopted),
+		u"htmlId="_q + QString::number(latest.htmlId),
+		u"updates="_q + QString::number(latest.updates),
+		u"serial="_q + QString::number(latest.serial),
+		u"scheme=["_q + QString::fromStdString(latest.scheme) + u"]"_q,
+		u"schemeChanges="_q + QString::number(latest.schemeChanges),
+		u"staleUpdates="_q + QString::number(latest.staleUpdates),
+		(u"themeMessageBytes="_q
+			+ QString::number(int(latest.themeMessage.size()))),
+		u"conformance=["_q + conformance + u"]"_q,
+	}.join(QChar(' '));
+}
+
+[[nodiscard]] int CountOf(
+		const std::vector<StubCall> &log,
+		const std::string &text) {
+	const auto matches = [&](const StubCall &call) {
+		return (call.text == text);
+	};
+	return int(std::count_if(log.begin(), log.end(), matches));
+}
+
+void SendTo(
+		const std::unique_ptr<twidget::Renderer> &wrapper,
+		const std::string &json) {
+	if (wrapper) {
+		wrapper->send(json);
+	}
+}
+
+void AddProbeRow(
+		std::vector<WidgetOpsSelfCheckRow> &rows,
+		bool passed,
+		const QString &name,
+		const QString &details) {
+	rows.push_back({
+		.name = u"widget conformance probe: "_q + name,
+		.details = details,
+		.passed = passed,
+	});
+}
+
+// Reads ReadWidgetOpsLatest() after every message, as a runner polls it.
+void CheckProbeCase(
+		std::vector<WidgetOpsSelfCheckRow> &rows,
+		const ProbeCase &probe,
+		int index) {
+	const auto id = SelfCheckId(kProbeCaseIndex + index);
+	const auto tap = ArmWidgetOpsTap(id);
+	const auto state = std::make_shared<StubState>();
+	auto factory = TapWidgetRenderer(id, StubFactory{ state });
+	auto wrapper = factory(
+		std::make_shared<twidget::SandboxResources>(),
+		kTheme,
+		kWidth);
+	auto awaitingTargets = QJsonValue(QJsonValue::Undefined);
+	auto serial = ReadWidgetOpsLatest(*tap).serial;
+	for (const auto &message : probe.messages) {
+		SendTo(wrapper, message);
+		const auto latest = ReadWidgetOpsLatest(*tap);
+		if (latest.serial == serial) {
+			continue;
+		}
+		serial = latest.serial;
+		const auto value = ParsedResult(latest.conformance).toObject();
+		if (value.value(u"status"_q).toString() == u"awaiting"_q) {
+			awaitingTargets = value.value(u"targets"_q);
+		}
+	}
+	const auto latest = ReadWidgetOpsLatest(*tap);
+	auto expected = std::vector<Expected>();
+	for (const auto &message : probe.messages) {
+		expected.push_back({ "renderer.send " + message });
+	}
+	const auto difference = SequenceDifference(
+		state->log,
+		expected,
+		std::this_thread::get_id(),
+		std::thread::id());
+	wrapper = nullptr;
+	factory = nullptr;
+	DisarmWidgetOpsTap(id);
+
+	const auto label = u"case %1 (%2): "_q.arg(
+		QString::number(index + 1),
+		probe.name);
+	const auto finalValue = ParsedResult(latest.conformance);
+	AddProbeRow(
+		rows,
+		latest.adopted
+			&& (double(latest.htmlId) == probe.htmlId.toDouble())
+			&& (double(latest.updates) == probe.updates.toDouble()),
+		label + u"the html id and the count of values"_q,
+		u"htmlId=%1 expected=%2 updates=%3 expected=%4 {%5}"_q.arg(
+			QString::number(latest.htmlId),
+			JsonText(probe.htmlId),
+			QString::number(latest.updates),
+			JsonText(probe.updates),
+			LatestText(latest)));
+	AddProbeRow(
+		rows,
+		finalValue.isObject() && (finalValue == probe.finalValue),
+		label + u"the last value is the expected final one"_q,
+		u"final=%1 expected=%2"_q.arg(
+			JsonText(finalValue),
+			JsonText(probe.finalValue)));
+	if (!probe.awaitingTargets.isUndefined()) {
+		AddProbeRow(
+			rows,
+			(awaitingTargets == probe.awaitingTargets),
+			label + u"the targets published while awaiting"_q,
+			u"targets=%1 expected=%2"_q.arg(
+				JsonText(awaitingTargets),
+				JsonText(probe.awaitingTargets)));
+	}
+	AddProbeRow(
+		rows,
+		difference.isEmpty(),
+		label + u"every message forwarded once with its exact bytes"_q,
+		u"messages=%1 difference=[%2]"_q.arg(
+			QString::number(int(probe.messages.size())),
+			difference));
+}
+
+// Both hosts adopt <html> under one id, as fresh sandboxes of one widget do,
+// so a retiring host's late value would land on the newer one if merged.
+void CheckProbeReplacement(std::vector<WidgetOpsSelfCheckRow> &rows) {
+	const auto id = SelfCheckId(kProbeReplacementIndex);
+	const auto tap = ArmWidgetOpsTap(id);
+	const auto resources = std::make_shared<twidget::SandboxResources>();
+	const auto oldState = std::make_shared<StubState>();
+	auto oldFactory = TapWidgetRenderer(id, StubFactory{ oldState });
+	auto oldWrapper = oldFactory(resources, kNextTheme, kWidth);
+	SendTo(oldWrapper, kOldAdopt);
+	SendTo(oldWrapper, kOldDone);
+	const auto before = ReadWidgetOpsLatest(*tap);
+
+	const auto newState = std::make_shared<StubState>();
+	auto newFactory = TapWidgetRenderer(id, StubFactory{ newState });
+	const auto selected = ReadWidgetOpsLatest(*tap);
+	SendTo(oldWrapper, kOldAdopt);
+	auto newWrapper = newFactory(resources, kTheme, kWidth);
+	SendTo(newWrapper, kNewAdopt);
+	SendTo(newWrapper, kNewRunning);
+	const auto own = ReadWidgetOpsLatest(*tap);
+
+	SendTo(oldWrapper, kOldDone);
+	SendTo(oldWrapper, kControlBatch);
+	if (oldWrapper) {
+		oldWrapper->setTheme(kNextTheme);
+	}
+	SendTo(oldWrapper, kThemeMessage);
+	const auto late = ReadWidgetOpsLatest(*tap);
+	const auto lateReading = ReadWidgetOps(*tap);
+	const auto sent = std::string("renderer.send ");
+	const auto themed = std::string("renderer.setTheme ") + kNextTheme;
+	const auto oldForwarded = (CountOf(oldState->log, sent + kOldAdopt) == 2)
+		&& (CountOf(oldState->log, sent + kOldDone) == 2)
+		&& (CountOf(oldState->log, sent + kThemeMessage) == 1)
+		&& (CountOf(oldState->log, themed) == 1);
+
+	SendTo(newWrapper, kReadopt);
+	const auto readopted = ReadWidgetOpsLatest(*tap);
+
+	newWrapper = nullptr;
+	oldWrapper = nullptr;
+	newFactory = nullptr;
+	oldFactory = nullptr;
+	const auto finished = ReadWidgetOps(*tap);
+	DisarmWidgetOpsTap(id);
+
+	AddProbeRow(
+		rows,
+		(before.generation == 1)
+			&& (before.conformance == std::string(kOldDoneValue))
+			&& (before.htmlId == kHtmlId)
+			&& (before.updates == 2)
+			&& (selected.generation == 2)
+			&& !selected.conformance
+			&& !selected.adopted
+			&& (selected.updates == 0)
+			&& selected.scheme.empty()
+			&& (selected.serial == before.serial + 1),
+		u"selecting a newer host clears the older host's done result "
+		"before the newer one is built"_q,
+		u"before{%1} selected{%2}"_q.arg(
+			LatestText(before),
+			LatestText(selected)));
+	AddProbeRow(
+		rows,
+		(own.generation == 2)
+			&& own.adopted
+			&& (own.htmlId == kHtmlId)
+			&& (own.conformance == std::string(kNewRunningValue))
+			&& (own.updates == 1)
+			&& (own.serial == selected.serial + 1)
+			&& (own.scheme == kTheme)
+			&& (own.staleUpdates == 1),
+		u"the newer host reads its own adoption and value from one, "
+		"whatever the older host adopted after the selection"_q,
+		LatestText(own));
+	AddProbeRow(
+		rows,
+		(late.generation == 2)
+			&& (late.conformance == std::string(kNewRunningValue))
+			&& (late.htmlId == kHtmlId)
+			&& (late.updates == 1)
+			&& (late.serial == own.serial)
+			&& (late.scheme == kTheme)
+			&& (late.schemeChanges == 0)
+			&& late.themeMessage.empty()
+			&& (late.staleUpdates == 4)
+			&& (lateReading.batches == 7)
+			&& (lateReading.leaks == 2)
+			&& oldForwarded,
+		u"the older host's late value, theme message and setTheme() are "
+		"forwarded and its batches scanned, but the newer host's reading "
+		"keeps its own"_q,
+		u"late{%1} oldForwarded=%2 %3"_q.arg(
+			LatestText(late),
+			Flag(oldForwarded),
+			ReadingText(lateReading)));
+	AddProbeRow(
+		rows,
+		readopted.adopted
+			&& (readopted.htmlId == kReadoptHtmlId)
+			&& !readopted.conformance
+			&& (readopted.updates == 1)
+			&& (readopted.serial == late.serial + 1),
+		u"a later adoption without a value clears it, and the earlier "
+		"html id no longer matches"_q,
+		LatestText(readopted));
+	AddProbeRow(
+		rows,
+		(finished.factoriesSelected == 2)
+			&& (finished.factoriesReleased == 2)
+			&& (finished.wrappersBuilt == 2)
+			&& (finished.wrappersDestroyed == 2)
+			&& (finished.batches == 8)
+			&& (finished.leaks == 2)
+			&& (finished.notes == 1)
+			&& (finished.scanGaps == 0),
+		u"the final reading scanned both hosts' batches, and both "
+		"finished"_q,
+		ReadingText(finished));
+}
+
+void CheckProbeTheme(std::vector<WidgetOpsSelfCheckRow> &rows) {
+	const auto id = SelfCheckId(kProbeThemeIndex);
+	const auto tap = ArmWidgetOpsTap(id);
+	const auto state = std::make_shared<StubState>();
+	auto factory = TapWidgetRenderer(id, StubFactory{ state });
+	const auto selected = ReadWidgetOpsLatest(*tap);
+	auto wrapper = factory(
+		std::make_shared<twidget::SandboxResources>(),
+		kTheme,
+		kWidth);
+	const auto built = ReadWidgetOpsLatest(*tap);
+	auto switched = WidgetOpsLatest();
+	auto repeated = WidgetOpsLatest();
+	if (wrapper) {
+		wrapper->setTheme(kNextTheme);
+		switched = ReadWidgetOpsLatest(*tap);
+		wrapper->setTheme(kNextTheme);
+		repeated = ReadWidgetOpsLatest(*tap);
+	}
+	SendTo(wrapper, kThemeMessage);
+	const auto themed = ReadWidgetOpsLatest(*tap);
+	const auto reading = ReadWidgetOps(*tap);
+	const auto themeCalls = CountOf(
+		state->log,
+		std::string("renderer.setTheme ") + kNextTheme);
+	const auto themeSends = CountOf(
+		state->log,
+		std::string("renderer.send ") + kThemeMessage);
+	wrapper = nullptr;
+	factory = nullptr;
+	DisarmWidgetOpsTap(id);
+
+	AddProbeRow(
+		rows,
+		(selected.generation == 1)
+			&& selected.scheme.empty()
+			&& (built.scheme == kTheme)
+			&& (built.schemeChanges == 0)
+			&& (state->factoryCalls == 1)
+			&& (state->theme == kTheme),
+		u"a new host's scheme is the theme its factory was given, passed "
+		"on once"_q,
+		u"selected{%1} built{%2} factoryCalls=%3 factoryTheme=%4"_q.arg(
+			LatestText(selected),
+			LatestText(built),
+			QString::number(state->factoryCalls),
+			QString::fromStdString(state->theme)));
+	AddProbeRow(
+		rows,
+		(switched.scheme == kNextTheme)
+			&& (switched.schemeChanges == 1)
+			&& (repeated.scheme == kNextTheme)
+			&& (repeated.schemeChanges == 1)
+			&& (themeCalls == 2),
+		u"each setTheme() is forwarded once, and only a new scheme counts "
+		"as a change"_q,
+		u"switched{%1} repeated{%2} forwarded=%3"_q.arg(
+			LatestText(switched),
+			LatestText(repeated),
+			QString::number(themeCalls)));
+	AddProbeRow(
+		rows,
+		(themed.themeMessage == kThemeMessage)
+			&& (themeSends == 1)
+			&& (reading.hostMessages == 1)
+			&& (reading.batches == 0)
+			&& (reading.scanGaps == 0),
+		u"the host's theme message is kept byte for byte and forwarded "
+		"once, not as a batch"_q,
+		u"kept=%1 forwarded=%2 %3"_q.arg(
+			Flag(themed.themeMessage == kThemeMessage),
+			QString::number(themeSends),
+			ReadingText(reading)));
+}
+
 } // namespace
 
-void WidgetOpsTap::factorySelected() {
+int WidgetOpsTap::factorySelected() {
 	auto lock = std::lock_guard(_mutex);
-	++_reading.factoriesSelected;
+	const auto index = ++_reading.factoriesSelected;
+	ClearResult(_latest);
+	auto next = WidgetOpsLatest();
+	next.generation = index;
+	next.serial = _latest.serial;
+	next.staleUpdates = _latest.staleUpdates;
+	_latest = std::move(next);
+	return index;
 }
 
 void WidgetOpsTap::factoryCompleted(bool threw) {
@@ -1186,9 +1754,12 @@ void WidgetOpsTap::factoryReleased() {
 	++_reading.factoriesReleased;
 }
 
-void WidgetOpsTap::wrapperBuilt() {
+void WidgetOpsTap::wrapperBuilt(int selection, const std::string &theme) {
 	auto lock = std::lock_guard(_mutex);
 	++_reading.wrappersBuilt;
+	if (current(selection)) {
+		_latest.scheme = theme;
+	}
 }
 
 void WidgetOpsTap::wrapperDestroyed() {
@@ -1196,7 +1767,7 @@ void WidgetOpsTap::wrapperDestroyed() {
 	++_reading.wrappersDestroyed;
 }
 
-void WidgetOpsTap::hostMessage(const std::string &json) {
+void WidgetOpsTap::hostMessage(int selection, const std::string &json) {
 	auto scan = ScanHostMessage(json);
 	auto lock = std::lock_guard(_mutex);
 	auto &reading = _reading;
@@ -1219,6 +1790,30 @@ void WidgetOpsTap::hostMessage(const std::string &json) {
 	if (scan.frozen) {
 		++reading.fatalFrozen;
 	}
+	if ((scan.results.empty() && !scan.theme) || !current(selection)) {
+		return;
+	}
+	ApplyResults(_latest, std::move(scan.results));
+	if (scan.theme) {
+		_latest.themeMessage = std::move(*scan.theme);
+	}
+}
+
+void WidgetOpsTap::themeSet(int selection, const std::string &theme) {
+	auto lock = std::lock_guard(_mutex);
+	if (!current(selection) || (_latest.scheme == theme)) {
+		return;
+	}
+	_latest.scheme = theme;
+	++_latest.schemeChanges;
+}
+
+bool WidgetOpsTap::current(int selection) {
+	if (selection == _latest.generation) {
+		return true;
+	}
+	++_latest.staleUpdates;
+	return false;
 }
 
 void WidgetOpsTap::rendererMessage(const std::string &json) {
@@ -1256,6 +1851,11 @@ WidgetOpsReading WidgetOpsTap::read() const {
 	return _reading;
 }
 
+WidgetOpsLatest WidgetOpsTap::latest() const {
+	auto lock = std::lock_guard(_mutex);
+	return _latest;
+}
+
 twidget::RendererFactory TapWidgetRenderer(
 		GlobalMsgId id,
 		twidget::RendererFactory factory) {
@@ -1267,8 +1867,8 @@ twidget::RendererFactory TapWidgetRenderer(
 	if (i == end(armed)) {
 		return factory;
 	}
-	i->second->factorySelected();
-	return WrapFactory(i->second, std::move(factory));
+	const auto index = i->second->factorySelected();
+	return WrapFactory(i->second, index, std::move(factory));
 }
 
 std::shared_ptr<WidgetOpsTap> ArmWidgetOpsTap(GlobalMsgId id) {
@@ -1285,6 +1885,10 @@ void DisarmWidgetOpsTap(GlobalMsgId id) {
 
 WidgetOpsReading ReadWidgetOps(const WidgetOpsTap &tap) {
 	return tap.read();
+}
+
+WidgetOpsLatest ReadWidgetOpsLatest(const WidgetOpsTap &tap) {
+	return tap.latest();
 }
 
 void MarkWidgetOpsEvents(WidgetOpsTap &tap) {
@@ -1307,6 +1911,37 @@ WidgetOpsSelfCheck RunWidgetOpsSelfCheck() {
 	CheckThrowing(result);
 	CheckSessions(result);
 	return result;
+}
+
+auto RunWidgetConformanceProbeCheck(const QByteArray &fixture)
+-> std::vector<WidgetOpsSelfCheckRow> {
+	auto rows = std::vector<WidgetOpsSelfCheckRow>();
+	const auto active = Active();
+	AddProbeRow(
+		rows,
+		active,
+		u"the harness is active, so the seam can tap"_q,
+		u"active=%1"_q.arg(Flag(active)));
+	if (!active) {
+		return rows;
+	}
+	const auto parsed = ParseProbeFixture(fixture);
+	AddProbeRow(
+		rows,
+		parsed.error.isEmpty(),
+		u"the probe fixture parses into its cases"_q,
+		u"bytes=%1 cases=%2 error=[%3]"_q.arg(
+			QString::number(fixture.size()),
+			QString::number(int(parsed.cases.size())),
+			parsed.error));
+	if (parsed.error.isEmpty()) {
+		for (auto i = 0; i != int(parsed.cases.size()); ++i) {
+			CheckProbeCase(rows, parsed.cases[i], i);
+		}
+	}
+	CheckProbeReplacement(rows);
+	CheckProbeTheme(rows);
+	return rows;
 }
 
 } // namespace Test

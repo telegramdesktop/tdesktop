@@ -17,7 +17,10 @@ HTML file becomes a local outgoing `messageMediaWidget` message in the legacy
 [test_widget_ops](test_widget_ops.md), it is shown with
 [test_chat_show](test_chat_show.md), clicked once when live and watched for
 1500 ms, as the reference `--attacks` loop in widget-sandbox's
-`packages/desktop/harness/main.cpp` does.
+`packages/desktop/harness/main.cpp` does. Its fixture gates, message
+injection, card readings, runtime log, network controls and release are the
+shared [widget fixture](test_widget_fixture.md)'s; the corpus, the verdicts,
+the stages per file and the rows are the pack's own.
 
 Caller: the evidence campaign of
 `2026/10/24/audit-the-widget-attack-corpus-through-a-validated-ops-tap`, and
@@ -28,7 +31,8 @@ Use something else when:
 - one widget's validated ops are enough: arm a tap yourself
   ([test_widget_ops](test_widget_ops.md));
 - the question is conformance (manifests, gestures, pixels): that is the
-  conformance runner's, not this pack's;
+  conformance runner's ([test_widget_conformance](test_widget_conformance.md)),
+  not this pack's;
 - the claim is about network requests: this pack only sends the positive
   controls; the listener that observes them, and the source audit of the
   routes a loopback listener cannot see, are the campaign's.
@@ -254,7 +258,9 @@ one click observed as a trusted click; 5 died by the runtime limits (the same
 5 files the reference `--attacks` run reports), 3 of them before loading.
 There were no leaks, notes, scan gaps, renderer violations or layers, and an
 external loopback listener received the 8 controls of the launch and nothing
-else. Windows and all other platforms have not run it.
+else. Windows and all other platforms have not run it. That campaign ran the
+pack before its fixture moved into [test_widget_fixture](test_widget_fixture.md);
+the move's own verification is listed there.
 
 ## Related guidance
 
@@ -264,4 +270,6 @@ else. Windows and all other platforms have not run it.
 [chat-list show before input](test_chat_show.md);
 [input helpers](test_widgets.md#input-helpers);
 [launch fuse](test_launch_fuse.md);
-[validated-ops tap](test_widget_ops.md).
+[validated-ops tap](test_widget_ops.md);
+[shared widget fixture](test_widget_fixture.md);
+[widget conformance runner](test_widget_conformance.md).

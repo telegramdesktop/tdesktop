@@ -2191,6 +2191,17 @@ PRIVATE
     test/test_wheel.h
     test/test_widget_attacks.cpp
     test/test_widget_attacks.h
+    test/test_widget_conformance.cpp
+    test/test_widget_conformance.h
+    test/test_widget_conformance_actions.cpp
+    test/test_widget_conformance_actions.h
+    test/test_widget_conformance_bridge.cpp
+    test/test_widget_conformance_bridge.h
+    test/test_widget_conformance_input.cpp
+    test/test_widget_conformance_input.h
+    test/test_widget_conformance_state.h
+    test/test_widget_fixture.cpp
+    test/test_widget_fixture.h
     test/test_widget_ops.cpp
     test/test_widget_ops.h
     test/test_widgets.cpp

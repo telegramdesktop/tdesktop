@@ -2,7 +2,7 @@
 
 [Harness guide](../../README.md) · [Helper index](README.md)
 
-Type: Reusable API, with a focused self-check.
+Type: Reusable API, with focused self-checks.
 Source contract: [test_widget_ops.h](../../test_widget_ops.h).
 
 ## Use when
@@ -20,11 +20,20 @@ post-load ack, the renderer's answer to it, a fatal `frozen`, renderer
 `violation` messages and trusted renderer events, and it says when no factory
 call or wrapper of the message is still pending.
 
+The same scan also reads what a conformance widget publishes:
+`ReadWidgetOpsLatest()` returns the last `data-conformance` value of the
+adopted `<html>`, as widget-sandbox's `packages/conformance/CLIENTS.md`
+("Reading the ops") reads it, with the scheme and the `theme` message the
+newest host gave its renderer.
+
 Callers: the attack-corpus audit of
 `2026/10/24/audit-the-widget-attack-corpus-through-a-validated-ops-tap`, and
-next the conformance runner of
-`2026/10/24/run-the-widget-conformance-sets-through-the-chat-list-and-report`,
-which reads its results from the same ops.
+the conformance runner of
+`2026/10/24/run-the-widget-conformance-sets-through-the-chat-list-and-report`
+([test_widget_conformance](test_widget_conformance.md)), which reads its
+results, scheme and theme message with `ReadWidgetOpsLatest()` and checks
+that reader against the package's `probe-fixture.json` with
+`RunWidgetConformanceProbeCheck()`.
 
 Use something else when:
 
@@ -62,6 +71,22 @@ Use something else when:
 - **Not measured.** The tap sees no network request: it observes what
   reaches the renderer and what the renderer answers. It does not tell
   whether a card is live, painted or interactive now.
+- **The latest result is the newest host's.** Each wrapping factory handed
+  out for the message starts a new `generation`, and the latest fields
+  restart with it: its result, html id, value count, scheme and theme message
+  are cleared before it builds its renderer, so an older host's `done` never
+  completes a newer host's load. Whatever an older host's wrapper still sends
+  afterwards is forwarded and, for batches, scanned as always; a result, a
+  `theme` message or a `setTheme()` among it leaves the latest fields alone
+  and is counted in `staleUpdates`.
+  `generation` above 1 names a run in which more than one host was
+  constructed; the latest fields, like `Tgw::Runtime`'s log, cover only the
+  last of them.
+- **The value is raw.** `conformance` is the attribute text, not checked to
+  be JSON; the caller parses it and can cache that by `generation` and
+  `serial`. A later `el` op adopting `<html>` without the attribute clears
+  it, a `data-conformance` before the adoption or on another element is
+  ignored, and so is a `rattr`, as the `CLIENTS.md` reader does.
 
 ## Minimal use
 
@@ -111,13 +136,56 @@ runner->add({
 });
 ```
 
-The self-check is run from one stage and turned into checks by its caller:
+A conformance widget's result is waited for on the latest reading, parsed by
+the caller and kept with the generation it came from:
+
+```cpp
+runner->add({
+	.name = u"wait for the widget's result"_q,
+	.run = [=] { state->loadedAt = crl::now(); },
+	.until = [=] {
+		const auto latest = Test::ReadWidgetOpsLatest(*state->tap);
+		if (latest.serial != state->serial) {
+			state->serial = latest.serial;
+			state->generation = latest.generation;
+			state->result = latest.conformance
+				? QJsonDocument::fromJson(
+					QByteArray::fromStdString(*latest.conformance)).object()
+				: QJsonObject();
+		}
+		const auto status = state->result.value(u"status"_q).toString();
+		return (status == u"done"_q)
+			|| (crl::now() - state->loadedAt > kResultBound);
+	},
+	.then = [=] {
+		const auto latest = Test::ReadWidgetOpsLatest(*state->tap);
+		Test::Check(
+			latest.generation == 1,
+			u"one host ran the widget"_q,
+			u"generation=%1"_q.arg(latest.generation));
+	},
+	.timeout = kResultBound + Test::kDefaultStageTimeout,
+});
+```
+
+The self-checks are run from one stage each and turned into checks by their
+caller; the probe check gets the bytes of the pinned `probe-fixture.json`:
 
 ```cpp
 runner->add({
 	.name = u"widget ops self-check"_q,
 	.run = [] {
 		for (const auto &row : Test::RunWidgetOpsSelfCheck().rows) {
+			Test::Check(row.passed, row.name, row.details);
+		}
+	},
+});
+runner->add({
+	.name = u"widget conformance probe check"_q,
+	.run = [=] {
+		const auto rows = Test::RunWidgetConformanceProbeCheck(
+			state->probeFixture);
+		for (const auto &row : rows) {
 			Test::Check(row.passed, row.name, row.details);
 		}
 	},
@@ -161,6 +229,32 @@ can still build a renderer, and no tap renderer can still receive a batch.
 `wrappersBuilt == wrappersDestroyed == 0` alone is not that: a Build worker may
 not have called its factory yet. Readings before that point are diagnostic.
 
+### The latest result
+
+`ReadWidgetOpsLatest(tap)` returns a `WidgetOpsLatest` snapshot taken under
+the same lock, safe from any thread. Every field but `serial` and
+`staleUpdates` describes the host of `generation` alone.
+
+| Field | Meaning |
+| --- | --- |
+| `generation` | The 1-based count of wrapping factories selected for the message when the newest was; 0 before any. |
+| `adopted`, `htmlId` | Whether an `el` op with `"adopt":"html"` reached this host's renderer, and its `id`. |
+| `conformance` | The last `data-conformance` value: the adopting op's attribute, replaced by each later `attr` op on `htmlId`. Empty before the first value, from a newer selection on, and after a later adoption without one. |
+| `updates` | Values this host published; the probe fixture's `updates`. A clear is not a value. |
+| `serial` | Advances on every change of `conformance`, a clear included; never reset. |
+| `scheme` | The theme argument of this host's factory, then each `setTheme()`; empty until its wrapper is built. |
+| `schemeChanges` | `setTheme()` calls of this host that changed `scheme`; a repeated scheme is forwarded but not counted. |
+| `themeMessage` | The raw `{"type":"theme",...}` message last sent to this host's renderer: the bubble's palette, button and text tokens. |
+| `staleUpdates` | Messages with an adoption, a `data-conformance` attribute or a theme, `setTheme()` calls and wrapper builds of an older host after a newer one was selected; ignored above. |
+
+The result fields follow `CLIENTS.md` and twidget's reference runner
+(`tools/conformance`, `OffscreenRenderer::probe()`), apart from two
+deliberate clears: a newer host's selection and a later value-less adoption
+leave no value, where a reader that only remembers the last published value
+would keep the older one. Neither happens in a healthy run; a caller that
+sees `generation` above 1 names it rather than trusting a result or a
+runtime log to cover every host.
+
 ## Threads and lifetime
 
 - `TapWidgetRenderer()`, `ArmWidgetOpsTap()` and `DisarmWidgetOpsTap()` run on
@@ -168,11 +262,14 @@ not have called its factory yet. Readings before that point are diagnostic.
   `GlobalMsgId`, is main-only.
 - The wrapping factory runs on the host's Build worker and calls the product
   factory there, once, with the same resources, theme and width. It captures
-  the product factory and the tap, nothing else: no `WidgetHost` pointer and
-  no weak pointer.
+  the product factory, the tap and its selection's index, nothing else: no
+  `WidgetHost` pointer and no weak pointer. Selecting it on main starts the
+  latest reading's new generation; the wrapper it builds records the theme
+  argument as that generation's scheme.
 - The tap renderer forwards `load()`, `send()`, `setTheme()`, `setWidth()` and
   `destroy()` directly on the host thread, in order, with no queue; `send()`
-  scans first and then forwards the very same string. Renderer callbacks are
+  scans first and then forwards the very same string, and `setTheme()`
+  records the scheme first and then forwards it. Renderer callbacks are
   forwarded on whatever thread the product renderer calls them from
   (`HostLink` calls them on main, under its own mutex), reading the tap's own
   `onMessage` / `onDiag` at call time, because `WidgetHost` assigns those
@@ -252,6 +349,37 @@ session has, and disarms them before it returns:
 
 Every expected value is a literal of the self-check, not derived from the tap.
 
+`Test::RunWidgetConformanceProbeCheck(fixture)` checks the latest reading the
+same way, through the real wrapper around the stub, under other peer-0 ids,
+and disarms them before it returns:
+
+- every case of the `probe-fixture.json` bytes its caller read from the
+  pinned package, its messages sent one by one and the reading taken after
+  each, as a runner polls it: the html id and the count of values equal the
+  case's `htmlId` and `updates`, the last value parses to its `final`, the
+  targets of the last `awaiting` value equal its `awaitingTargets` where the
+  case has them, and every message reaches the stub once with its exact
+  bytes. Every expected value is read from the fixture, never from the tap;
+  the cases at `v0.1.2` are a value on the adopting op replaced by two `attr`
+  ops (html id 2, 3 values, final `done`, targets of the `awaiting` one), the
+  same attribute on another element ignored, and an `attr` before the
+  adoption ignored;
+- a replacement host, with literal expectations, both hosts adopting
+  `<html>` as id 2 as fresh sandboxes of one widget do: selecting a second
+  factory clears the first host's `done` before the second builds; the
+  second reads its own adoption and value from 1 although the first adopted
+  again with a value after the selection; then the first wrapper's late
+  `done` on id 2, the scanner's control batch, a `setTheme()` to the other
+  scheme and a `theme` message are all forwarded and the batch scanned
+  (2 leaks), but the newer reading keeps its value, scheme and empty theme
+  message, with `staleUpdates` 4; a later value-less adoption clears the
+  value and the earlier html id stops matching; both hosts end final with
+  all 8 batches scanned;
+- the factory's theme becomes the new host's scheme, with no change counted;
+  each `setTheme()` is forwarded once, a new scheme counts one change and a
+  repeated one none; a `theme` message is kept byte for byte, forwarded once
+  and counted as a host message but not as a batch.
+
 **Evidence.** Executed on macOS arm64 Debug in the evidence campaign of
 `2026/10/24/audit-the-widget-attack-corpus-through-a-validated-ops-tap` (its
 `work/test.md`), at widget-sandbox `v0.1.2` and twidget "Document
@@ -263,10 +391,23 @@ gap, and every factory and wrapper finished before its final reading. The
 copied scanner functions compared byte for byte with the tag. Windows and
 all other platforms have not run it; the code is portable.
 
+The latest reading and `RunWidgetConformanceProbeCheck()` were added by
+`2026/10/24/run-the-widget-conformance-sets-through-the-chat-list-and-report`
+and compiled in the macOS arm64 Debug build, with the copied scanner block
+still byte for byte the tag's. Outside the app, this file built with stub
+session and harness headers passed all 22 self-check rows and all 20 probe
+rows against the `v0.1.2` fixture, and the expected rows failed for a fixture
+whose first case expects 4 values and for five mutations of the reader: no
+generation check, no clear on a newer selection, none on a re-adoption,
+every `setTheme()` a change, and values from any element. The rows run in
+the real binary in that task's conformance campaign, which records them.
+
 ## Related guidance
 
 [Scenario composition](../scenarios.md);
 [scenario teardown](../teardown.md);
 [chat-list show before input](test_chat_show.md);
 [input helpers](test_widgets.md#input-helpers);
-[launch fuse](test_launch_fuse.md).
+[launch fuse](test_launch_fuse.md);
+[widget attack audit](test_widget_attacks.md);
+[widget conformance runner](test_widget_conformance.md).

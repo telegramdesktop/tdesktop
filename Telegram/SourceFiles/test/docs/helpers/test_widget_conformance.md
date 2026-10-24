@@ -1,0 +1,727 @@
+# test_widget_conformance
+
+[Harness guide](../../README.md) · [Helper index](README.md)
+
+Type: Reusable API (a permanent stage pack), with internal modules.
+Source contract: [test_widget_conformance.h](../../test_widget_conformance.h).
+Internal to it, documented below:
+[test_widget_conformance_state.h](../../test_widget_conformance_state.h),
+[test_widget_conformance_actions.h](../../test_widget_conformance_actions.h),
+[test_widget_conformance_input.h](../../test_widget_conformance_input.h)
+([timed pointer sequences](#timed-pointer-sequences)) and
+[test_widget_conformance_bridge.h](../../test_widget_conformance_bridge.h)
+([bridge calls and uncaught errors](#bridge-calls-and-uncaught-errors)).
+
+## Use when
+
+A scenario measures the desktop client with widget-sandbox's
+`packages/conformance` set and needs the run file that the package's
+`tools/report.mjs` turns into the report. `Test::AppendWidgetConformance`
+appends the whole linear runner. Each selected manifest entry becomes, per
+theme, a local outgoing `messageMediaWidget` message with width anchor 390 in
+the legacy `HistoryInner` of a Test chat, shown in the product's own
+`HtmlWidget` view through the [shared widget fixture](test_widget_fixture.md);
+its result is the last `data-conformance` value of its host's validated ops,
+read through [test_widget_ops](test_widget_ops.md); an auto entry's scripted
+actions are real Qt input sent to that `HistoryInner`, so the bubble's own
+press handling and recognizers take them; its stages are cropped at 2x from
+the list's own paint; and the runs are written as one run file of the
+`desktop` / `twidget-core` renderer. It follows the package's `CLIENTS.md`
+("The runner, step by step", "Reading the ops"). twidget's
+`tools/conformance` runner is a comparative reference only: its off-screen
+Direct2D renderer and bare bubble are not the app's view, input or paint.
+
+Caller: the evidence campaign of
+`2026/10/24/run-the-widget-conformance-sets-through-the-chat-list-and-report`,
+and reruns of it at a widget-sandbox or twidget pin move.
+
+Use something else when:
+
+- the question is whether hostile widgets leak or reach the network: that is
+  [test_widget_attacks](test_widget_attacks.md); the two packs can share a
+  launch, each with its own fixture and its own control token;
+- one widget's result or ops are enough: arm a tap and read
+  `ReadWidgetOpsLatest()` ([test_widget_ops](test_widget_ops.md));
+- the report is wanted: `report.mjs`, the schema validation and any assembly
+  of launches run on the files afterwards; the pack writes no report.
+
+## Preconditions and limits
+
+- **Session and chat.** Append it after the overlay's `waitEvent`,
+  `waitForSessionReady` and `waitForChatsLoaded`, with `Test::UseTestSession`
+  and `Test::AppendTestSessionRestore` around it when the copy may open on
+  another account ([test_session_gate](test_session_gate.md)). `chat` is
+  loaded in the Test session the primary window shows, with its folder known
+  and no unread messages; the fixture gates it, shows the window normally,
+  keeps it exposed and opens the chat in its legacy `HistoryInner`
+  ([test_widget_fixture](test_widget_fixture.md)). A failed gate skips every
+  run by name. The pack hardcodes no chat, path or port.
+- **The compose field.** The chat's field must be ordinary and empty: no
+  draft text, no message being edited, no edit draft, no rich cloud draft, no
+  voice recording, no forward draft. Each run reads it before its injection
+  and each key action again before its key, and refuses
+  (`compose-not-ordinary`) rather than clearing someone's draft.
+- **The focus oracle.** Before each injection the runner calls
+  `HistoryWidget::setInnerFocus()` of the exact legacy `HistoryWidget` that
+  owns the fixture's list, and the window's `focusWidget()` must then be that
+  field's editor (`focus-not-compose` otherwise). `QWidget::setFocus()` sets
+  an inactive window's focus child, so nothing activates the window, which
+  would mark the chat read. The oracle is that window focus child alone:
+  `QApplication::focusWidget()` and the window's activation are recorded
+  (`applicationFocus`, `windowActive`), never required, and no OS focus is
+  claimed. `chatFocused` (`CLIENTS.md`'s D4) is whether the window's focus
+  child is still that editor when the first result wait ends, before any
+  input; `focusHolder` names the holder when it is not. A run whose field was
+  never focused leaves `chatFocused` out.
+- **Package.** `package` is the absolute `packages/conformance` directory of
+  the pinned widget-sandbox. While the stages are appended the pack reads
+  `manifest.json`, `probe-fixture.json` and each selected entry's HTML, and
+  nothing else; `refs/`, `catalogue.json`, `run.schema.json` and `tools/`
+  are the report's. A missing or invalid manifest or probe fixture refuses
+  every run by name before anything is injected. A selected entry that is
+  malformed (no id, set, file or light/dark themes, `widths` without 390,
+  actions that are not objects, a host check that is not an object with an
+  id, a stage without a name, themes or a rect in whole CSS px) or whose HTML
+  is unreadable or empty is not run, by name.
+  `framework` and `engine` go into the run file as given: the campaign names
+  the tag and the twidget pin, and an empty one fails a Check.
+- **The matrix.** The task's matrix is every auto entry in both themes,
+  whatever its manifest `themes`, at 390 CSS px, and every visual entry only
+  in its manifest themes. At `v0.1.2` that is 40 auto and 37 visual entries
+  (20 visual and 17 client SDK). One run is omitted:
+  `auto/20-client-behaviour` in dark, while its manifest entry still gives
+  the reason - its id, `themes: ["light"]` and a first action switching the
+  chat to dark. Its scenario starts in light and switches dark and back
+  itself, so a dark start's first action changes nothing and its theme-switch
+  check could only fail by the runner's doing; the maintainers' web runner
+  and twidget's reference keep it to light. A pin at which any of those
+  premises changes runs the dark start. The run file's `omittedRuns` and
+  `notes` state the omission, its reason and that a file with every other
+  auto run has 79 auto runs, not the 80 of the requested 40 x 2: a departure
+  from that criterion, never to be reported as meeting it without this
+  reconciliation. 37 of the 39 dark auto runs are of light-only entries; they
+  go beyond `CLIENTS.md`'s loop over each entry's own themes (42 auto runs at
+  `v0.1.2`), `report.mjs` counts their checks and skips their stages by each
+  stage's own themes, and `matrix.extraDark` and a note say so. The visual
+  set gives 37 light and 4 dark runs.
+- **Visual entries are load checks.** No actions, no crops, no wait after
+  actions: a visual run waits for `done` or `awaiting` (the SDK's mini harness
+  and some visual pages wait for a person's input) and records its result,
+  load, death, errors, bridge calls, height and focus like any run.
+  `report.mjs` takes no verdict evidence from them; its summary shows each
+  visual id's light run first, so read dark records in the run file.
+- **Production configuration.** The pack configures no host: every widget
+  host gets `DefaultHostOptions()` of `tgw_runtime.cpp`, policy `strict` and
+  features `webAnimations`, which the run file states as `policy` and
+  `features` (a source fact, not a per-run reading). The measured core width
+  must be 390 within 0.01 CSS px, or the run carries `width-mismatch` (the
+  anchor was not honoured, or the chat column is too narrow); the light runs
+  go in the app's day palette and the dark ones in its night palette, and a
+  renderer scheme other than the run's theme is `scheme-mismatch`. Both are
+  measured after the result wait, never waited for. The bubble's palette,
+  button and text tokens are the product's own; each run records the raw
+  `theme` message its renderer got. The default themes must tell day from
+  night, or the palette switch refuses `sample-unchanged` and that theme's
+  runs do not run.
+- **Waits.** From the load show: an auto entry without actions waits up to
+  20 s for `done`, one with actions for `done` or `awaiting`, and a visual
+  entry for either. A death, a failure, the message gone or the bound ends the
+  wait with that outcome, recorded and not refused: the report judges what the
+  widget published, and a dead or unloaded run fails every check. After the
+  actions the runner waits up to 10 s for `done`.
+- **2x.** The stage crops need the device pixel ratio times the interface
+  scale to be 200 % (a Retina display at 100 %, say), and the accepted image
+  of each snapshot must be exactly twice its CSS size. Anything else refuses
+  every stage of the run `not-2x`; no frame is upscaled.
+- **One host per run.** A run whose tap selected more than one host factory
+  (a restart after a crash, a re-creation) still reports its result: the
+  newest value, or the older host's last one when the newer cleared it
+  (`result.retained`). Its bridge and error reading is refused
+  (`summary-multiple-hosts`), and a host replaced between its first
+  `visible` action and a later one is `host-replaced`.
+- **Time.** Every wait ends in its stage with a named reading: 8 s layout,
+  10 s per show, 20 s result, 350 ms gaps, the planned time of each timed
+  sequence, 4 s per palette settle, 4 s theme and visibility waits, 10 s done,
+  3 s log, 10 s host barrier, each with `kDefaultStageTimeout` more as the
+  stage timeout. The runner's watchdog (`TDESKTOP_TEST_WATCHDOG`, at most
+  600 s) is a real process-lifetime limit ([scenario design](../scenarios.md)).
+  When one launch cannot hold the selection, split it with `themes`, `sets`
+  or `ids`, each launch with its own fresh output directory. A run file holds
+  only its launch's runs and its notes say the selection was narrowed;
+  `report.mjs` writes one `<platform>-<renderer>.json` per renderer, so
+  partitions are combined into one renderer file before the report. The pack
+  has no merge, resume or load-existing code.
+- **Not measured.** Widths 360 and 430 (the width is fixed at 390), other
+  platforms, whole-process network traffic, pixels of the visual set, and
+  whether `framework` names the checked-out tag. The real cursor is not
+  moved: the lists resolve `QCursor::pos()` on enter, resize and scroll
+  ([chat-list show](test_chat_show.md)), which the action readings make
+  visible but cannot prevent.
+
+## Minimal use
+
+In the disposable overlay's `SetupScenario`:
+
+```cpp
+void SetupScenario(not_null<Runner*> runner) {
+	const auto session = Test::UseTestSession(runner);
+	runner->waitEvent(u"launch_finished"_q);
+	runner->waitForSessionReady();
+	runner->waitForChatsLoaded();
+	Test::AppendWidgetConformance(runner, {
+		.package = u"<absolute packages/conformance directory>"_q,
+		.chat = <the Test chat's PeerId>,
+		.output = u"<absolute directory, absent or empty>"_q,
+		.framework = u"<the widget-sandbox tag>"_q,
+		.engine = u"<the twidget pin, by its subject>"_q,
+		.themes = qEnvironmentVariable("<THEMES>").split(
+			QChar(','),
+			Qt::SkipEmptyParts),
+		.token = qEnvironmentVariable("<TOKEN>"),
+		.ports = { <port>, <port> },
+	});
+	Test::AppendTestSessionRestore(runner, session);
+}
+```
+
+The pack Checks its own outcome; read its `CONFORMANCE_TOTALS` row and the
+run file, then run `node <package>/tools/report.mjs --out <dir>
+<output>/run.json` on the final renderer file.
+
+## Stages
+
+Every stage name, Check and Note of the pack starts `widget conformance: `,
+after `palette switch: ` or `palette restore: ` in the palette helpers'
+stages; the show helper's stages are `show in chat list: widget conformance
+<key> <what>`. A run's key is `<id>|<theme>|390`. In order:
+
+- `tap, result reader, summary reader and run file self-check`, `report the
+  package, the selection and the output`;
+- the fixture's `capture the baseline and show the window normally`, `keep
+  the window exposed`, `open the chat in the legacy HistoryWidget`, then
+  `watch the session for outgoing messages` and `network control before the
+  first widget`;
+- per theme, light first: `palette restore: widget conformance: before the
+  dark runs` (from the second phase on), `palette switch: widget conformance:
+  the <theme> runs` and `judge the palette of the <theme> runs`, then every
+  run of that theme in manifest order:
+  - `<key>: inject the fillers above the widget`, only for a run with a
+    `visible` action;
+  - `<key>: focus the chat's input field`, `<key>: arm the tap and inject the
+    widget message`, `show in chat list: widget conformance <key> load` (the
+    card's top 48 CSS px, so the list counts it visible and its host starts;
+    no hover), `<key>: wait for the result, a death or a failure`;
+  - with actions: `<key>: start the actions`, each action's stages
+    ([Actions](#actions)), `<key>: close the last action` and `<key>: wait
+    for done after the actions`;
+  - with stages in its theme: `show in chat list: widget conformance <key>
+    snapshot` and `<key>: snapshot the stages at 2x and crop them`;
+  - `<key>: read the runtime log and the card height` and `<key>: remove the
+    message and wait for its hosts`;
+- `network control after the last widget`, `palette restore: widget
+  conformance: after the last run`, `judge the palette after the last run`,
+  `stop watching for outgoing messages`, `totals and the run file`, and the
+  fixture's `teardown` and `settle after the teardown`.
+
+A press is sent in the run of the stage right after its show, which
+revalidates the accepted list, view, core, card geometry and targets first.
+
+## Actions
+
+Performed only for an auto run whose first wait ended `awaiting` and whose
+widget had not died; in any other run every action not skipped as
+unperformable keeps the refusal `not-awaiting`. Each action but `wait` starts
+with `action #<i> <kind>: keep the gap`: at least 350 ms since the previous
+action's last input (`CLIENTS.md`'s "about 350 ms"; none before the first; a
+manifest `wait` is no input and keeps only its own interval). At the gap's
+end the runner hides any layer shown over the chat (an `openLink`
+confirmation) at once, confirming nothing, closes the previous action's
+event window, requires the widget to be live (`not-live`), marks the tap's
+trusted events and resolves a pointer action's targets from the newest value.
+
+A target is the centre of `targets[name]`, or a CSS point `[x, y]`; a drag's
+`to` with `by` adds its delta to the start, otherwise it names a target. CSS
+px map to the card at the interface scale, and the action's show brings the
+card's full width over its targets' band (8 CSS px more each way) into view,
+ready and hovered at the start point. At the press the targets are resolved
+again: one that moved more than 0.5 CSS px is `target-moved`.
+
+| Action | Route through the app | Reading |
+| --- | --- | --- |
+| `tap` | `Test::Click` on the list at the target: press, release, leave | `point`, `listAlive` |
+| `press`, `drag`, `dblclick`, `rightclick` | a [timed pointer sequence](#timed-pointer-sequences) on the list; `press` without `ms` holds 400 ms, `drag` without `steps` takes 10 | `sequence`, `menuBuilt` |
+| `hover` | the action show's own enter and move at the target; no leave, the pointer stays until the next action | `point`, `show` |
+| `wheel` | `Test::Wheel` at the target with angle delta `(0, -round(dy * 1.2))` (Chromium's 100 CSS px per 120 units), then a leave | `wheel`: the `WheelDelivery` |
+| `key` | `Enter` as `Test::PressKey(Qt::Key_Return)`, no text; `Space` and one printable character as `Test::TypeText`; sent to the window's focus child | `receiver`, `focusMoved`, `typed`, `cleared`, `composeBefore`, `composeAfter` |
+| `theme` | restore of the palette chain's last switch, then `AppendPaletteSwitch` to the day (`light`) or night (`dark`) palette, then up to 4 s for the newest host's scheme to reach the target | `palette`, `widgetTheme` |
+| `visible: false` | one `Ui::ElasticScroll::scrollToY` of the list's own scroll putting the view's top 8 px below the viewport, then up to 4 s for the runtime to count it hidden | `before`, `scrollTo`, `after`, `runtimeVisible`, hosts |
+| `visible: true` | `AppendShowInChatList` of the card's top band, then up to 4 s for the runtime to count it visible | `show`, `after`, `runtimeVisible`, hosts |
+| `wait` | a stage of `wait` ms | `waitedMs`, `afterLastInputMs` |
+
+Every pointer action but `hover` ends with a leave, a refused one included. A
+pointer action's reading also has its `target`, its show and the card it
+accepted. Every action's has its manifest entry and its times (`gapMs`,
+`beganMs`, `firstEventMs`, `lastEventMs`, `sinceLastInputMs`), and once its
+gap ended on a live widget `trusted`: the tap's trusted renderer events from
+the mark at its gap's end to the next action's, so its show's hover and the
+widget's late reaction are in it (types, moves, the moves between the first
+`pointerdown` and its `pointerup` or `pointercancel`).
+
+- **Keys** go where the OS sends a key, the window's focus child, only into
+  an ordinary empty field: a focus child that is not the editor is recorded
+  (`focusMoved`), never redirected. Whatever the key typed is cleared in the
+  same stage, before the event loop runs the field's queued typing update,
+  so no typing action goes out; an Enter meets an empty field.
+- **Themes** keep one palette obligation outstanding at a time: each phase and
+  each theme action restores the chain's last switch, then switches, so a
+  later phase and each theme action make exactly one real palette change,
+  whichever palette the launch began in (the first phase's switch changes
+  nothing when the launch already shows that palette). These palette stages
+  run whenever the launch runs, even for a run or an action that is refused,
+  so the chain never loses its obligation. Checks: each restore (when its
+  switch succeeded), each switch, exactly one transition to the target per
+  theme action, and after the final restore the launch's night mode, follow
+  flag and `windowBg` sample.
+- **Visibility.** A run with a `visible` action (`auto/20` in light at
+  `v0.1.2`) gets four 40-line local outgoing text messages right above its
+  widget, registered at setup and destroyed with it, so the list can scroll
+  the card wholly off screen within one viewport, inside the distance at which
+  `HistoryInner` keeps heavy parts loaded. The runtime's own answer is its
+  private `_visible`, read through a test-only accessor. The same runtime,
+  tap generation and factory count must hold across both actions; a different
+  host is `host-replaced`, since a restarted host would not measure the pause.
+
+Only an action this build cannot perform at all is skipped, into
+`skippedActions` with its reason in `skippedReasons`: a key other than
+`Enter`, `Space` or one printable character, a theme other than light or
+dark, a `visible` that is not boolean, a `wait` that is not a non-negative
+number, or none of `CLIENTS.md`'s action keys. At `v0.1.2` none is.
+
+Every other unperformed action keeps a named refusal in `actions[].refusal`
+and fails the totals: `not-performed` (never reached), `not-awaiting`,
+`not-live`, `target-unresolved`, `show-refused`, `revalidation-failed`,
+`target-moved`, `input-not-delivered`, `receiver-gone`,
+`compose-not-ordinary`, `no-focus-child`, `palette-refused`,
+`palette-transitions`, `no-list`, `no-room`, `still-in-view`. Input that was
+delivered and that the product then rejected is performed and recorded,
+never skipped or refused: a right click for which no menu was built, a
+widget whose scheme did not follow the palette (`widgetTheme.reached`
+false), a runtime still counting itself visible off screen. The widget's own
+checks then carry it into the report as a discrepancy. The action stages add
+three run refusals: `too-few-moves`, when `auto/23-gestures`'s `mid` drag
+reached the widget as fewer than the 3 trusted `pointermove` events with the
+button down its check needs (the runner's timing, never the widget's
+verdict), `host-replaced` and `fillers-refused`.
+
+## Stage snapshot and crops
+
+After the actions and the done wait, an auto run with stages in its theme
+gets one snapshot of the union of those stages' rects, in CSS px from the
+widget's top-left, mapped onto the current card. Its show needs
+`WidgetCardReady()` (live, its interactive core current, attached and
+accepting input, a frame cut for the card size) and hovers nothing. The next
+stage revalidates the view, core and geometry, then captures the shown rect
+of the list with `PreparedWidgetCapture` ([test_capture](test_capture.md)):
+the list's own paint, accepted only when visible, non-empty, not blank and a
+valid paint root. The image must be exactly `2w x 2h` of the union's CSS
+size. It is saved as `cards/<id>.<theme>.png`; in these file names every
+character of the id and the stage name but ASCII letters, digits, `-` and
+`_` becomes `_`.
+
+Each stage is then cut at its manifest rect, never at the rect the widget
+published for it (logged beside as `widgetRect`): the pixel rect
+`((x, y) - snapshotOrigin) * 2` of size `2w x 2h`, where `snapshotOrigin` is
+the union's CSS top-left. It is converted to `QImage::Format_RGB32`, saved
+as `crops/<id>.<theme>.<stage>.png` and its size read back from the file.
+The run's stage entry has `crop`, `rect` and `capture` (manifest rect,
+widget rect, origin, pixel rect, logical rect, size). A stage without a crop
+carries only its refusal as `detail`, which `report.mjs` judges as having no
+crop: `not-captured`, `not-2x`, `not-live` (died or did not load),
+`show-refused`, `capture-refused`, `out-of-bounds` (the rect outside the
+painted card or the snapshot), `write-failed`. Any of them fails the totals;
+a skipped crop is never a completed measurement.
+
+## Readings and refusals
+
+**The run file** is `<output>/run.json` (`EvidenceDir() + "conformance"`
+when `output` is empty), written with `QSaveFile` by the totals stage, or by
+`Runner::onFinish` when that stage did not run; its `writtenBy` says which.
+It has the schema's `platform` `desktop`, `renderer` `twidget-core` (the
+report's `desktop-twidget-core.json`), `engine` (the campaign's text naming
+the twidget pin, the app version, OS, CPU, Qt, "TwidgetCore painted by tgw's
+QtBackend (QPainter)", device pixel ratio and interface scale), `framework`,
+`policy`, `features`, `date` (UTC, at setup) and `runs`; and the extras
+`locale`, `environment`, `notes`, `omittedRuns`, `incompleteRuns`, `matrix`,
+`selection`, `selfCheck`, `palette`, `paletteRestore` and
+`unexpectedOutgoing`. The schema forbids no extra field.
+
+`runs` holds only completed runs: measured through their log, with a final
+tap reading, and not refused by the package or the fixture (a malformed
+entry, unreadable HTML, a refused injection, no widget card of the list's
+own). Every other selected run is in `incompleteRuns` with the state it
+reached and why, never written as a completed run. A completed run can
+still carry runner refusals; they fail the totals. Its fields:
+
+- `id`, `theme`, `width` (the measured core width rounded, or 390 with
+  `widthMeasured` false), `loaded` (the host's post-load ack answered),
+  `dead` (null, a fatal `frozen`, a stopped runtime, the summary's `Died:`
+  reason other than `terminated`, or "died, reason not observed"), `status`
+  and `checks` verbatim from the reported value;
+- `stages` as above; `observed`: `bridge` (`{method, args}`, `args` a JSON
+  array), `height` (the card's height in CSS px before the removal),
+  `chatFocused`, `focusHolder`, and `syntheticInput` false: the input goes
+  through the list's own handlers as real Qt events, and TwidgetCore marks
+  every event it forwards trusted, so `report.mjs` judges the gesture-gated
+  host checks; `errors` (the console's uncaught errors); `skippedActions`;
+- `host`, only while the bridge calls are unknown (below);
+- extras: `key`, `set`, `skippedReasons`, `actions`, `runnerRefusals`
+  (`{name, detail}`), `result` (`present`, `error`, generation, serial,
+  values, html id, `retained`), `tap` (the final counts and leak and gap
+  examples), `focus`, `view` (list, load-show and final view, core, card,
+  core width, scheme, scheme changes, generation, theme message), `load`
+  (show, outcome, waits), `log` (source, summary provenance, the summary
+  reading's counts), `contentHeight`, `layers` and, with stages,
+  `snapshot`.
+
+An observation that was not made is left out, never filled in: `bridge` and
+`errors` appear only when the [summary](#bridge-calls-and-uncaught-errors)
+established them, `chatFocused` only when the field was focused, `height`
+only when the card was measured.
+
+**Unknown bridge calls in the report.** `report.mjs` counts a missing
+`observed.bridge` as no calls (`observed.bridge ?? []` in its `hostChecks()`)
+and reads no `runnerRefusals`, so leaving `bridge` out alone would turn an
+unknown history into zero-call passes (`input.user-activation`,
+`input.prevent-default`, `input.key-gesture`) and zero-call failures
+(`tw.open-link`, `html.el.a-external`, `limit.haptic-rate`). A run whose
+bridge calls are unknown (its reading refused, or never read) therefore also
+carries the schema's `host`, which `report.mjs` takes in place of judging
+`observed`:
+`ConformanceHostFieldsOf()` in `test_widget_conformance_bridge.cpp` judges
+every host check of the run's manifest entry as `hostChecks()` does, with its
+order and texts, except that a check counting bridge calls is `skip`,
+`bridge calls not observed (runner refusal: <names>)` or `(the run's runtime
+summary was not read)`, the way `hostChecks()` skips an unobserved height.
+Its catalogue IDs then get no verdict from that run, neither pass nor fail.
+The height and focus checks keep their judgements (`behaviour.auto-height`,
+`js.focus`), and the runner refusal still fails the totals. A run with a
+bridge reading, of no call or of calls, carries no `host`: `report.mjs` judges
+its `observed` itself. A run without `observed.bridge` always has `host`.
+
+Run refusals (`runnerRefusals`), each failing the totals:
+`compose-unavailable`, `compose-not-ordinary`, `focus-not-compose`,
+`load-show-refused`, `width-mismatch`, `width-unmeasured`, `scheme-mismatch`,
+`scheme-unmeasured`, `height-unmeasured`, `card-write-failed`,
+`too-few-moves`, `host-replaced`, `fillers-refused`, and the summary
+reader's. A result value that is not a
+JSON object, not published for this run's id, or whose `checks` is not an
+array is not used; `result.error` names why.
+
+**Rows**, each `NOTE: <marker>: <compact JSON>`:
+
+| Row | Fields |
+| --- | --- |
+| `CONFORMANCE_PACKAGE` | `dir`, `error`, `framework`, `engine`, `tests`, `probeFixtureBytes`, `selection`, `invalid`, `refused`, `runs` (every key), `omittedRuns`, `matrix`, `output`, `outputError`, `network`. |
+| `CONFORMANCE_ENVIRONMENT`, `CONFORMANCE_NET_CONTROL` | The fixture's rows. |
+| `CONFORMANCE_FILLERS` | `run`, `injected`, `fillers`. |
+| `CONFORMANCE_ACTION` | `run`, `index`, `kind`, `performed`, `refusal`, `skipReason`, `reading`. |
+| `CONFORMANCE_ACTIONS` | `run`, `actions`, `performed`, `notPerformed`, `elapsedMs`. |
+| `CONFORMANCE_SNAPSHOT` | The run's `snapshot` and every stage's crop, refusal and capture. |
+| `CONFORMANCE_LOG` | `run`, `source`, `summaryState`, `summary`, `pending`, `waitedMs`, `chars`, `truncated`, `text` (its first 32768 characters). |
+| `CONFORMANCE_RUN` | The run's entry, plus `item`, `completed`, `progress`, `notRun`, `barrierMs`, `itemGone`, `fixture`. |
+| `CONFORMANCE_OUTGOING` | An outgoing message the runner did not inject: `run`, `id`, `wallMs`, `inChat`, `local`, `regular`, `service`. |
+| `CONFORMANCE_TOTALS` | `path`, counts and named lists of completed, incomplete, loaded, dead, focus, refusals, actions, crops, leaks, gaps, violations, unfinished hosts, accepted `openTelegramLink` calls and layers; `absences` (`leaks`, `gaps`, `telegramLinks`: `selected`, `covered`, `found`, `certified`, `uncovered`); `abort`, `palette`, the self-check, and the run file's `written`, `file`, `bytes` and `error`. |
+
+The show helper Notes each show's reading and the palette helpers their
+`PALETTE_SWITCH:` and `PALETTE_RESTORE:` rows.
+
+**Checks.** The self-check rows; the package was read; every requested
+theme, set and id is the manifest's and `framework` and `engine` are named;
+every selected entry is well formed and its HTML read; the selection holds a
+run; the output directory is fresh and ready; the fixture's gates and
+controls; the palette judgements; no outgoing message the runner did not
+inject; the run file is written. The totals stage, never a run file written
+from `onFinish`, then Checks that every selected run completed, every
+completed run was `chatFocused`, none carries a runner refusal, every
+scripted action was performed or skipped as unperformable, every requested
+crop was saved, the copied `--attacks` scan discriminates
+(`DiscriminatingScan`, the self-check's control leaks as its control) and no
+widget leaked a URL into its validated ops, no scan gap, every run's hosts
+finished before its final reading, no host accepted an `openTelegramLink`
+call (no scripted action asks for one, and it would leave the bubble through
+the app's t.me route), and `CheckNoBlockedLaunches`.
+
+The three absences (no leak, no scan gap, no accepted `openTelegramLink`)
+pass only over readings that cover every selected run
+(`JudgeConformanceAbsences()`): the scan's control leaks prove it can match,
+not that it saw the widgets, and an empty count of runs never read is no
+absence. A run covers the leak absence with a final reading of a tap that
+wrapped a host, no scan gap and at least one scanned validated batch; the gap
+absence with a final reading of a tap that wrapped a host; the
+`openTelegramLink` absence with its bridge calls. Otherwise it is named in
+the Check's `uncovered=[<key>: <why>]` (no tap was armed, the tap wrapped no
+host, the reading is not final, scan gaps, no batch scanned, the bridge
+reading refused or never read) and the absence fails, its counts kept; an
+empty selection certifies nothing either. Deaths, failed loads,
+missed statuses, console limits, renderer violations and the layers hidden
+over the runs are recorded, not failed: they are the widget's or the
+product's, judged by the report. A totals pass is the runner's
+completeness, never the client's conformance.
+
+**Network.** Each run's tap is armed before its message exists and read
+final after its hosts finished, so every validated batch of every host is
+scanned. The fixture sends loopback TCP and UDP controls before the first
+widget and after the last; only an external listener's record of them is
+the positive control, and the listener sees only those ports. The pack never
+confirms a layer and never follows a link.
+
+## Lifetime and cleanup
+
+`Runner::onFinish` is registered before any stage. On every exit path it
+stops the outgoing-message watcher, aborts every pointer sequence still
+running (its held buttons released and the list left), keeps every
+incomplete run's last tap reading, runs the fixture's idempotent release
+(every tap disarmed by its kept key, every widget and filler message
+destroyed by id, the controls closed, the list left, the option, chat and
+window state restored), then writes the run file and the totals row without
+the totals stage's Checks when that stage did not run. A run whose hosts did
+not finish within 10 s of its removal stops every later injection, by name.
+
+The palette chain's final restore is a stage before the fixture's teardown;
+[test_palette](test_palette.md)'s own finish backstop restores an
+outstanding switch if a launch is cut. The palette helpers persist settings
+as their reference documents: `KeepApplied()` writes the settings when the
+mode changed and, on a first switch, the other mode's theme slot, and a
+restore saves the settings. Run on a disposable portable copy.
+
+The messages are local client-id messages, never sent; their Web Storage
+never reaches the disk. A key's typed text is cleared in its own stage; the
+window's focus child is left on the compose field; the scroll position is
+not restored. The output directory keeps `run.json`, `cards/` and `crops/`.
+
+## Timed pointer sequences
+
+`test_widget_conformance_input.{h,cpp}`, `Test::ConformancePointer`: the
+manifest's `press`, `drag`, `dblclick` and `rightclick` as mouse events sent
+to the chat's own `HistoryInner`, spaced in real time by a `base::Timer`.
+Only the action stages use it. A held button needs the widget core's clock to
+run while it is down, and TwidgetCore keeps only a pointer's latest move until
+its next frame (twidget's `docs/TWIDGET_CORE.md`,
+`Sources/TwidgetCore/src/renderer.cpp`), so
+`Test::Drag`'s synchronous burst reaches a widget as one move. Taps, the
+wheel and keys stay with [test_widgets](test_widgets.md#input-helpers).
+
+- **Arguments.** `list` must be the legacy `HistoryInner`; `from`, and a
+  drag's `to`, are list-local logical px inside its rect (the runner passes
+  the action show's hover point). `hold` is a press's ms, `steps` a drag's
+  moves (10 when not positive). `item` answers the message a right click's
+  menu must belong to; `observe` is called right before and after every
+  event and must only read (the runner reads the core's `pressed()` and
+  `hovered()`).
+- **Plans.** `press`: press, then the release once `hold` ms passed since the
+  press was handled. `drag`: press, `steps` moves from `from` towards `to`
+  with the left button held, each at least 24 ms after the event before it,
+  then the release at `to` 24 ms after the last move. `dblclick`: press,
+  release 40 ms later, `MouseButtonDblClick` 60 ms after that and its release
+  40 ms later, the order `QWidgetWindow` gives a widget. `rightclick`: the
+  right press and, 60 ms later, its release, with
+  `Test::OpenChatListContextMenu` ([test_chat_menu](test_chat_menu.md)) for
+  `item` at `from` in the turn of the press on a press trigger and of the
+  release on a release trigger, as `QWidgetWindow` sends the context-menu
+  event. The trigger is read as `tgw_touch.cpp`'s `MenuOnRelease()` reads it:
+  `QStyleHints::contextMenuTrigger()` from Qt 6.8, `Platform::IsWindows()`
+  before.
+- **Delivery.** Each event is a `QMouseEvent` with its local and global
+  position, Qt's button and buttons (a press and a double click include their
+  button, a release excludes it) and no modifiers, sent with
+  `QApplication::sendEvent` inside `Test::Settle`. A drag on a widget card
+  presses the card's own link, which has no drag text, so
+  `HistoryInner::prepareDrag()` makes no mime data and no platform drag
+  starts.
+- **Timing.** Every gap runs from the end of the previous event's handling,
+  `Settle`'s drain included, and an event goes out only once the whole-ms
+  clock is past its due time; a timer that fires early is re-armed. An event
+  with a gap always gets an event-loop turn of its own, so an overdue move is
+  sent late, never in one burst with the next. A late timer may lengthen a
+  hold or a drag and never shortens one. `ConformancePointerPlannedMs()` is
+  the sum of the planned gaps; the runner's stage timeout is that plus
+  `kDefaultStageTimeout`.
+- **Menus.** A menu the reader built and attributed is hidden at once
+  (`Ui::PopupMenu::hideMenu(true)`); a refused one is left to the reader,
+  which hides only what it built. The reader's enter resolves the real cursor
+  first (`HistoryInner`'s `enterEventHook`), and its leave ends the list's
+  hover even while the right button is still down. Every completed sequence
+  ends with a leave: its own, or on a release trigger the reader's.
+- **Reading.** `ConformancePointerReading`: every event as sent (its
+  observations, local and global points, `gap`, `due`, `at` and `handled` in
+  ms from the first send, its event-loop `turn`, button, buttons, the buttons
+  held after it, `delivered`, `accepted`, `aborting`); `elapsed`, from the
+  first press's handling to the last release's send, the least time a button
+  was down; `minGap`, `maxLate`, `moves`; for a right click `trigger`, the
+  menu reading, `menuHidden` and `menuAfter`; `left`, `complete`, `aborted`,
+  `heldAtEnd`. `delivered()` is finished, complete and unrefused.
+  `ConformancePointerJson()` is the whole reading, the action's `sequence`.
+- **Refusals.** Before anything is sent: `no-list`, `not-history-inner`,
+  `point-outside`. Later: `receiver-gone` (the list was destroyed before an
+  event or by its own handler; the buttons it held are named) and `aborted`.
+  The runner refuses an undelivered sequence `input-not-delivered` (a menu
+  event the reader refused before delivery among them); a delivered right
+  click for which the product built no menu is product behaviour.
+- **Abort.** `abort()` cancels the timer, sends a release for every button
+  still held and a leave, and ends the sequence aborted; with a button held
+  and the list already gone it ends `receiver-gone`. Destroying a sequence
+  cancels its timer and sends nothing. The runner aborts from `onFinish`
+  before the fixture's release removes the messages.
+
+## Bridge calls and uncaught errors
+
+`test_widget_conformance_bridge.{h,cpp}`: `ReadConformanceSummary(log,
+hosts)` reads `observed.bridge` and `errors` from the raw text `Summarize()`
+in `tgw_runtime.cpp` leaves in `Tgw::Runtime::_summary`, which the fixture
+keeps as `WidgetRuntimeLog::summary` with its provenance
+([test_widget_fixture](test_widget_fixture.md)). Bridge calls never cross the
+renderer seam the tap wraps, and `Runtime::Host` is defined only in
+`tgw_runtime.cpp`, so this summary is the one route to the host's
+`diagnostics()` from the harness. The outer `Runtime::logText()` is never
+parsed: it appends `Notes:` after the summary, and a lookalike section there
+would pass for the genuine one.
+
+- **Provenance.** Only a `Fresh` summary (read in the `requestLog()`
+  callback, right after the host's sample was stored) or a `Final` one (the
+  last host's final sample) of a run whose tap selected exactly one host
+  factory is read. Otherwise nothing is: `summary-unavailable` (absent, or no
+  factory selected), `summary-stale`, `summary-multiple-hosts`.
+- **The bridge section** runs from the last line that is exactly `Bridge
+  calls: N.` to the end, since `Summarize()` appends it last: the formatter's
+  `... K earlier entries not shown.` line, then one `<method>: <args JSON>`
+  line per accepted call, which no newline can split. The method must be one
+  `sdk::checkBridgeCall()` accepts (`ready`, `openLink`, `openTelegramLink`,
+  `haptic`) and the arguments must parse as a JSON array. Refusals:
+  `bridge-section-missing`, `bridge-section-ambiguous` (a line that is no
+  call line), `bridge-unknown-method`, `bridge-args-clipped` (the formatter
+  cut them at 240 characters), `bridge-args-not-array`,
+  `bridge-count-mismatch` (N is not the lines plus K), `bridge-tail-omitted`
+  (K above 0), `bridge-host-saturated` (N at `WidgetHost`'s 1000-call record
+  cap). Any of them leaves `observed.bridge` out: calls are never presumed
+  from a count, kept from a refused section or written as strings.
+- **The console section** is the one line of the form `Console: N
+  entries[, the host dropped all later ones].` before the bridge header, up
+  to it. An entry starts at `<level>: ` (`log`, `info`, `warn`, `error`,
+  `debug`); any other line continues the entry before it, as a stack line
+  does. `errors` are the `error` entries whose text starts `Uncaught `, read
+  whole; a logged `console.error` is none. `console-ambiguous` refuses the
+  section when not exactly one line has the header's form, a continuation
+  comes before any entry, or the entries are not the N - K shown, and
+  `errors` is then left out: a continued line that reads as an entry cannot
+  be told from one, and no error is invented. The bridge is read
+  independently.
+- **Limits.** Each summary field is cut at 240 characters (`kMaxLogLine`),
+  the console tail at 24 KB and the bridge tail at 16 KB (`kConsoleBytes`,
+  `kBridgeBytes`), and the host records its first 1000 calls
+  (`kMaxRecordedCalls` in widget-sandbox's `widget_host.cpp`). Console
+  entries not shown, a host that dropped later entries and clipped error texts
+  are readings (`consoleOmitted`, `consoleDropped`, `errorsClipped`, the
+  totals' `consoleLimits`), not refusals; the bridge's limits are refusals.
+  None is expected at `v0.1.2`, whose accepted calls are short `ready`, link
+  and `haptic` arrays; a refusal is incomplete evidence, never zero calls,
+  in the run file's `host` as in the totals' absences
+  ([Readings and refusals](#readings-and-refusals)).
+
+## Verification
+
+The pack's first stage runs, as Checks: `RunWidgetOpsSelfCheck()` (its
+scanner control is the leak scan's control in the totals);
+`RunWidgetConformanceProbeCheck()` on the package's `probe-fixture.json`
+([test_widget_ops](test_widget_ops.md)); two result-reader controls on
+literal readings (this run's value taken with its checks verbatim once per
+generation and serial; another run's id, text that is no JSON object and
+checks that are no array refused, and a newer host's clear leaving no
+value); `RunConformanceSummaryCheck()` on literal `Summarize()`-format texts
+(calls in order with array arguments and one multi-line uncaught error while
+a logged error is none; clipped and non-array arguments refused; a missing
+section, a count mismatch, omitted calls, the host cap and an unknown method
+refused; console lookalikes of a bridge section, a console header and an
+error line before a genuine `Bridge calls: 0.` giving zero calls and no
+invented error; a lookalike section in the outer log's notes never read;
+stale, absent and multi-host summaries refused);
+`RunConformanceObservationCheck()` (no observed bridge and every host check
+judged, the bridge-counting ones skipped naming why with no count, for
+refused, stale, multi-host, clipped, omitted, sectionless and unread
+readings, against the host checks of the pinned manifest's four entries that
+have them; height and focus judged as `hostChecks()` does, in and out of
+bounds, unmeasured, kept, moved with and without a holder, expected failures
+and synthetic input; measured empty and exact calls as `observed.bridge` with
+no `host`; with a good scan control, runs without a tap, hostless,
+zero-batch, non-final and gapped left uncovered, runs read in full certified,
+no control or no run certifying nothing; refused and unread bridge readings
+uncovered, one of several or all); three run-file controls (a completed run
+with the schema's fields, verbatim checks, array arguments, a refused stage
+without a crop or judgement and only a true skip in `skippedActions`; an
+incomplete run only in `incompleteRuns` and an omission in `omittedRuns` and
+the notes; a refused bridge reading through `RunFileObject()` with its
+manifest entry's checks in `host`, and a reading of no call without); and a
+totals control (`CountTallies()` over runs no tap was armed for, one without
+a bridge reading, beside a good scan control).
+
+Executed so far, by
+`2026/10/24/run-the-widget-conformance-sets-through-the-chat-list-and-report`
+(its evidence records the commands and output): the macOS arm64 Debug
+`Telegram` build after each phase, and four checks outside the app, with
+stand-in harness headers and static Qt 6.11.2:
+
+- the selection and run-file model, before the per-run stages existed: the
+  full selection gave 120 runs (40 light and 39 dark auto, `auto/20` dark
+  omitted with its note, 37 light and 4 dark visual); that run file, still
+  without completed runs, validated against `run.schema.json` with a
+  task-local interpreter of its keywords, and `report.mjs` exited 0; four of
+  five mutations of the reader and the model failed their rows, and the fifth,
+  dropping the omission's first-action premise, changes nothing at `v0.1.2`;
+- the summary reader: its six rows, and summaries made by a verbatim copy of
+  `Summarize()` (a multi-line uncaught error, 5000 console entries, 40
+  clipped calls, 1000 haptics, a console lookalike, a kind detail holding a
+  console header, a dead host's `openTelegramLink`); four mutations (the
+  outer text parsed, the first header taken, no entry count, calls kept
+  despite refusals) failed their rows;
+- the pointer sequences: 18 rows on a real `QApplication` with a stand-in
+  list and menu reader, clean in six runs, and seven mutations caught (moves
+  in one burst, no re-arm, gaps from the send, the trigger ignored, the menu
+  not hidden, an abort without its release, moves without the button). The
+  real `HistoryInner`, `HtmlWidget`, widget core and menu reader were not in
+  it;
+- the observation and absence functions, after the review that found
+  refused bridge readings reaching `report.mjs` as zero calls: the bridge
+  module's eleven rows, and its serialized run entries (six refusals, an
+  unread reading, measured empty and exact calls, four observation variants)
+  through the pinned `report.mjs`, imported and as a command: every
+  bridge-counting check `skip` with no count, its catalogue IDs `skip`, every
+  other check equal to `hostChecks()`'s own judgement of the same `observed`,
+  the measured cases judged by `report.mjs` itself, all valid against
+  `run.schema.json`; the same runs without `host` gave the review's false
+  zero-call passes and failures. Seven mutations (no `host`, zero batches or
+  non-final readings or unknown bridges counted as covered, no control
+  needed, another holder fallback, the console refusal kept) failed their
+  rows, and the first and the sixth the round trip too. `RunObject()`,
+  `CountTallies()` and the totals' Checks were not in it.
+
+Not yet executed: the pack in the real binary - its self-check stage, gates,
+runs, actions, crops, run file and report. The task's packed evidence
+campaign runs them and records the results in that task's `work/test.md`;
+until it has, this pack has produced no measurement of the client. Windows
+has not built it; the code is portable C++ and Qt.
+
+## Related guidance
+
+[Shared widget fixture](test_widget_fixture.md);
+[validated-ops tap](test_widget_ops.md);
+[widget attack audit](test_widget_attacks.md);
+[chat-list show before input](test_chat_show.md);
+[chat-list context menus](test_chat_menu.md);
+[palette switch and restore](test_palette.md);
+[capture selection](test_capture.md);
+[input helpers](test_widgets.md#input-helpers);
+[window exposure](test_window_exposure.md);
+[launch fuse](test_launch_fuse.md);
+[session gate](test_session_gate.md);
+[scenario design](../scenarios.md);
+[scenario teardown](../teardown.md);
+[chat-list resolution](../chat-lists.md).

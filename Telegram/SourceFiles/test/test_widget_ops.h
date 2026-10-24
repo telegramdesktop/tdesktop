@@ -10,15 +10,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_msg_id.h"
 #include "twidget/renderer.h"
 
+#include <QtCore/QByteArray>
 #include <QtCore/QString>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 // The validated-ops tap of a widget message's sandbox host: what
 // twidget::WidgetHost sends the product renderer, scanned with widget-sandbox's
-// --attacks leak definition. Reference: docs/helpers/test_widget_ops.md.
+// --attacks leak definition and read for the conformance result.
+// Reference: docs/helpers/test_widget_ops.md.
 
 namespace Test {
 
@@ -99,6 +102,41 @@ struct WidgetOpsReading {
 	int fatalFrozen = 0;
 };
 
+// What the newest host selected for one tap was last told: its widget's
+// result, read as CLIENTS.md's "Reading the ops" does, and the scheme and
+// theme its renderer got. Every field but `serial` and `staleUpdates`
+// describes the host of `generation` alone and restarts with a newer one.
+struct WidgetOpsLatest {
+	// The last `data-conformance` value of the adopted <html>: set by the
+	// adopting `el` op's attribute, replaced by each later `attr` op on that
+	// id. Raw attribute text, not checked to be JSON. Empty before the first
+	// value, once a newer host is selected, and after a later adoption
+	// without one; a `rattr` is ignored, as CLIENTS.md's reader does.
+	std::optional<std::string> conformance;
+	// The raw `{"type":"theme",...}` host message last sent to its renderer.
+	std::string themeMessage;
+	// The scheme its renderer was given: the factory's theme argument, then
+	// each setTheme(). Empty until its wrapper is built.
+	std::string scheme;
+	// The id of the adopting `el` op, while `adopted`.
+	int64 htmlId = 0;
+	// The 1-based count of wrapping factories selected for the message when
+	// this host's was: above 1, more than one host was constructed for it,
+	// and these fields, like a runtime's log, cover only the last.
+	int generation = 0;
+	// Values this host published, the probe fixture's `updates`.
+	int updates = 0;
+	// Advances whenever `conformance` changes, a clear included; never reset.
+	int serial = 0;
+	// setTheme() calls of this host that changed `scheme`.
+	int schemeChanges = 0;
+	// Host messages with an adoption, a `data-conformance` attribute or a
+	// theme, setTheme() calls and builds of an older host's wrapper after a
+	// newer host was selected: ignored above, counted here; never reset.
+	int staleUpdates = 0;
+	bool adopted = false;
+};
+
 // Main thread. Arms |id|, the session-qualified id the message's
 // HistoryItem::globalId() will return, for every host constructed for it
 // from now on and returns its tap; arming an armed id returns the tap it
@@ -116,6 +154,10 @@ void DisarmWidgetOpsTap(GlobalMsgId id);
 // once factoriesReleased == factoriesSelected and wrappersDestroyed ==
 // wrappersBuilt; only a reading taken after that is final.
 [[nodiscard]] WidgetOpsReading ReadWidgetOps(const WidgetOpsTap &tap);
+
+// Any thread. A snapshot taken under the tap's lock; a caller that parses
+// `conformance` can cache the result by `generation` and `serial`.
+[[nodiscard]] WidgetOpsLatest ReadWidgetOpsLatest(const WidgetOpsTap &tap);
 
 // Any thread. Restarts the trusted event fields, right before a click.
 void MarkWidgetOpsEvents(WidgetOpsTap &tap);
@@ -143,5 +185,19 @@ struct WidgetOpsSelfCheck {
 // other). Disarms its ids before it returns. The caller turns each row
 // into a Check().
 [[nodiscard]] WidgetOpsSelfCheck RunWidgetOpsSelfCheck();
+
+// Main thread, synchronous, needs Active(). |fixture| is the bytes of
+// widget-sandbox's packages/conformance/probe-fixture.json, which gives each
+// case's expected values. Feeds each case's messages through a wrapper that
+// TapWidgetRenderer() builds around a stub product renderer under message
+// ids of peer 0 and compares ReadWidgetOpsLatest() with the case's `expect`:
+// htmlId, updates, final and awaitingTargets. Two legs with literal
+// expectations follow: a replacement host (a newer selection clears the
+// result; a retiring wrapper's late result, theme and setTheme() are
+// ignored but its batches scanned; a later adoption without a value clears
+// it) and the factory theme, setTheme() and theme message. Disarms its ids
+// before it returns. The caller turns each row into a Check().
+[[nodiscard]] auto RunWidgetConformanceProbeCheck(const QByteArray &fixture)
+-> std::vector<WidgetOpsSelfCheckRow>;
 
 } // namespace Test
