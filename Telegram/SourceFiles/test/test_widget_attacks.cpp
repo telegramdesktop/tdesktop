@@ -1240,14 +1240,14 @@ void ProcessPendingLayout(History *history) {
 		&& IsClientMsgId(item->id);
 }
 
-// The widget payload's gzip wrapping, the format Tgw::UnpackPayload reads.
-[[nodiscard]] QByteArray Gzip(const QByteArray &data) {
+// The widget payload as the server packs it, PHP gzcompress($html, 9).
+[[nodiscard]] QByteArray Zlib(const QByteArray &data) {
 	auto stream = z_stream();
 	if (deflateInit2(
 			&stream,
-			Z_DEFAULT_COMPRESSION,
+			Z_BEST_COMPRESSION,
 			Z_DEFLATED,
-			16 + MAX_WBITS,
+			MAX_WBITS,
 			8,
 			Z_DEFAULT_STRATEGY) != Z_OK) {
 		return QByteArray();
@@ -1276,7 +1276,7 @@ void Inject(AuditState &state, AttackFile &file) {
 	file.startMs = WallNow();
 	const auto history = state.history.get();
 	const auto inner = state.list.data();
-	const auto payload = Gzip(file.html);
+	const auto payload = Zlib(file.html);
 	auto missing = QStringList();
 	if (!history || !history->loadedAtBottom()) {
 		missing.push_back(u"the history is gone or not loaded at its "
@@ -1286,7 +1286,7 @@ void Inject(AuditState &state, AttackFile &file) {
 		missing.push_back(u"the HistoryInner is not shown"_q);
 	}
 	if (payload.isEmpty() || (Tgw::UnpackPayload(payload) != file.html)) {
-		missing.push_back(u"the gzip payload does not unpack to the file's "
+		missing.push_back(u"the zlib payload does not unpack to the file's "
 			u"bytes"_q);
 	}
 	if (!missing.isEmpty()) {
