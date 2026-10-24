@@ -45,7 +45,8 @@ QByteArray UnpackPayload(const QByteArray &payload) {
 		return QByteArray();
 	}
 	auto stream = z_stream();
-	if (inflateInit2(&stream, 16 + MAX_WBITS) != Z_OK) {
+	// The server sends zlib; older messages still need gzip support.
+	if (inflateInit2(&stream, 32 + MAX_WBITS) != Z_OK) {
 		return QByteArray();
 	}
 	const auto guard = gsl::finally([&] { inflateEnd(&stream); });
