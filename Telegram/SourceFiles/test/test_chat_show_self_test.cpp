@@ -1681,7 +1681,7 @@ void CheckDestroyed(
 		not_null<QWidget*> list,
 		not_null<Ui::ElasticScroll*> scroll) {
 	const auto height = placement.visible.height();
-	const auto far = placement.viewShown
+	const auto alreadyFar = placement.viewShown
 		&& (height > 0)
 		&& (FarDistance(leg.type, placement.rect, placement.visible)
 			>= height);
@@ -1689,8 +1689,8 @@ void CheckDestroyed(
 		? scroll->scrollTopMax()
 		: 0;
 	switch (leg.type) {
-	case LegType::FarAbove: return far ? -1 : scroll->scrollTopMax();
-	case LegType::FarBelow: return far ? -1 : 0;
+	case LegType::FarAbove: return alreadyFar ? -1 : scroll->scrollTopMax();
+	case LegType::FarBelow: return alreadyFar ? -1 : 0;
 	case LegType::LaterLayout:
 		return (placement.viewShown && placement.inVisible) ? away : -1;
 	case LegType::OutOfView:
