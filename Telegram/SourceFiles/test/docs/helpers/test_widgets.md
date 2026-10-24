@@ -188,6 +188,9 @@ shield is not armed.
 The harness has no pointer. No helper leaves a hover behind, and every
 measurement is taken as if no cursor exists — assert a hovered state by
 setting it deliberately, not by relying on a click's residue. The one
+deliberate exception is `AppendShowInChatList` asked for a `hover`: it
+leaves its enter and move on the chat list for the next stage's press
+([test_chat_show](test_chat_show.md)). The one other
 helper that enters a widget, `OpenChatListContextMenu`, does so only for
 its own call: its `QEnterEvent` sets the chat list's `_mouseActive` (the
 list's `enterEventHook` also resolves the real `QCursor::pos()`, which the

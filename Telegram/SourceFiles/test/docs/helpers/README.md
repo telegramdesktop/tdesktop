@@ -52,6 +52,8 @@ should call.
 | [test_panel](test_panel.md) | API | Separate-panel discovery, show-cache readiness and typed fixture sizing |
 | [test_menu](test_menu.md) | API | Same-turn menu readings, actions, keyboard activation of accessible custom rows, and captures |
 | [test_chat_menu](test_chat_menu.md) | API | Attribute chat-list context menus to the exact message |
+| [test_chat_show](test_chat_show.md) | API | Show a chat-list message wholly in view, painted, ready and hovered before input |
+| [test_chat_show_self_test](test_chat_show_self_test.md) | Self-test | Self-test for chat-list show acceptance, re-correction and named refusals |
 | [test_messages](test_messages.md) | API | Observe matching sent server messages |
 | [test_history_fixtures](test_history_fixtures.md) | API | Lifetime-owned history service-message fixtures |
 | [test_notify_override](test_notify_override.md) | API | Local notify-setting override and restoration |

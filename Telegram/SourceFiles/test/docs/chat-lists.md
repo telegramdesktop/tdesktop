@@ -36,9 +36,13 @@ and prove the candidate owns the message:
 - accept a candidate only when its own lookup answers for the exact message:
   `list->viewByPosition(item->position())` must return an `Element` whose
   `data()` is that item and whose `delegate()` is that same list;
-- scroll with the product's own entry points, `showThread` and then the list's
-  `showAtPosition`; decide where the row sits with the list's public
-  `elementIntersectsRange(view, from, till)`, and frame it with
+- navigate with the product's own entry points, `showThread` and then the
+  list's `showAtPosition`, to load and slice around the message; once the list
+  shows its own view, put that view (or a rectangle in it) wholly in view,
+  laid out, painted, ready and optionally hovered before input with
+  `Test::AppendShowInChatList` ([test_chat_show](helpers/test_chat_show.md)),
+  not a local scroll-and-wait; decide where the row sits with the list's
+  public `elementIntersectsRange(view, from, till)`, and frame it with
   `Test::CaptureMappedRect`.
 
 `item->mainView()` is not the `Element` the visible section owns, so it is
