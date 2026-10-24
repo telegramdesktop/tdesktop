@@ -60,6 +60,8 @@ constexpr auto kHoverMove = 0;
 constexpr auto kHoverLeave = 1;
 constexpr auto kMousePointer = 0;
 constexpr auto kFingerPointer = 1;
+constexpr auto kPrimaryButton = 0;
+constexpr auto kSecondaryButton = 2;
 constexpr auto kLocalQueryId = 0;
 constexpr auto kDomAlt = 1;
 constexpr auto kDomCtrl = 2;
@@ -229,7 +231,8 @@ void Append(
 		int action,
 		QPointF point,
 		int modifiers,
-		int pointer = kMousePointer) {
+		int pointer = kMousePointer,
+		int button = kPrimaryButton) {
 	return renderer.touch(
 		action,
 		point.x(),
@@ -237,7 +240,8 @@ void Append(
 		pointer,
 		true,
 		(pointer == kMousePointer),
-		modifiers);
+		modifiers,
+		button);
 }
 
 [[nodiscard]] bool OutsideSlop(QPointF point, QPointF origin) {
@@ -518,16 +522,12 @@ void RendererCore::pointerPress(QPointF point, int modifiers) {
 	if (!acceptsInput() || TouchBridge::Active()) {
 		return;
 	}
+	menuRelease(modifiers);
 	const auto hit = elementAt(point);
 	const auto wasDirty = _renderer->dirty();
 	auto out = Touch(*_renderer, kTouchDown, point, modifiers);
 	out.erase(ranges::remove_if(out, OfType("gesture")), end(out));
-	_pointer.position = _pointer.origin = point;
-	_pointer.hit = _pointer.hover = _pointer.press = hit;
-	_pointer.parsed = ParsedDocuments(*_renderer);
-	_pointer.over = _pointer.hovering = _pointer.pressed = true;
-	_pointer.moved = false;
-	_pointer.active = true;
+	holdPointer(point, hit, false);
 	inputDone(out, wasDirty);
 }
 
@@ -542,12 +542,60 @@ void RendererCore::pointerRelease(QPointF point, int modifiers) {
 		: Touch(*_renderer, kTouchUp, point, modifiers);
 	_pointer.position = point;
 	_pointer.press = 0;
-	_pointer.pressed = false;
+	_pointer.pressed = _pointer.secondary = false;
 	_pointer.moved = _pointer.active = false;
 	if (!_pointer.over) {
 		Append(out, leaveHover());
 	}
 	inputDone(out, wasDirty);
+}
+
+bool RendererCore::menuPress(QPointF point, int modifiers) {
+	if (!acceptsInput()
+		|| TouchBridge::Active()
+		|| _pointer.pressed
+		|| _finger.pressed) {
+		return false;
+	}
+	const auto hit = elementAt(point);
+	if (hasSelection()) {
+		const auto synced = (_pointer.parsed == ParsedDocuments(*_renderer));
+		const auto hover = synced ? _pointer.hover : 0;
+		// A core press drops the selection: keep it unless the hold is claimed.
+		if (!cursorStyles().hold(*_renderer, hit, hover).value_or(false)) {
+			return false;
+		}
+	}
+	const auto wasDirty = _renderer->dirty();
+	auto out = Touch(
+		*_renderer,
+		kTouchDown,
+		point,
+		modifiers,
+		kMousePointer,
+		kSecondaryButton);
+	const auto claim = GestureClaim(TakeMessage(out, "gesture"));
+	const auto verdict = twidget::GestureArbiter().down(
+		double(crl::now()),
+		point.x(),
+		point.y(),
+		claim,
+		twidget::PointerKind::Mouse,
+		kSecondaryButton);
+	const auto taken = (verdict.owner == twidget::GestureOwner::Widget);
+	if (taken) {
+		holdPointer(point, hit, true);
+	} else {
+		Append(out, Touch(*_renderer, kTouchCancel, point, 0));
+	}
+	inputDone(out, wasDirty);
+	return taken;
+}
+
+void RendererCore::menuRelease(int modifiers) {
+	if (_pointer.secondary) {
+		pointerRelease(_pointer.position, modifiers);
+	}
 }
 
 std::optional<twidget::WidgetGestureClaim> RendererCore::fingerPress(
@@ -624,10 +672,7 @@ bool RendererCore::handCursorAt(QPointF point) {
 	const auto active = (synced && _pointer.active && hover == _pointer.hover)
 		? hover
 		: 0;
-	if (!_cursor) {
-		_cursor = std::make_unique<CursorStyles>(_renderer->dpr());
-	}
-	return _cursor->pointer(*_renderer, hit, hover, active);
+	return cursorStyles().pointer(*_renderer, hit, hover, active);
 }
 
 bool RendererCore::hasSelection() const {
@@ -819,6 +864,23 @@ int64 RendererCore::elementAt(QPointF point) {
 	const auto result = TakeMessage(out, "result")["result"].asNumber();
 	notifyPosted(forwardAll(out));
 	return int64(result);
+}
+
+CursorStyles &RendererCore::cursorStyles() {
+	if (!_cursor) {
+		_cursor = std::make_unique<CursorStyles>(_renderer->dpr());
+	}
+	return *_cursor;
+}
+
+void RendererCore::holdPointer(QPointF point, int64 hit, bool secondary) {
+	_pointer.position = _pointer.origin = point;
+	_pointer.hit = _pointer.hover = _pointer.press = hit;
+	_pointer.parsed = ParsedDocuments(*_renderer);
+	_pointer.over = _pointer.hovering = _pointer.pressed = true;
+	_pointer.moved = false;
+	_pointer.active = !secondary;
+	_pointer.secondary = secondary;
 }
 
 void RendererCore::trackHover() {

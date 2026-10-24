@@ -363,6 +363,16 @@ void HtmlWidget::releaseCard() {
 	}
 }
 
+Tgw::RendererCore *HtmlWidget::menuPress(const ClickHandlerPtr &link) {
+	if (link != _cardLink || ClickHandler::getPressed()) {
+		return nullptr;
+	}
+	const auto core = pointerCore();
+	const auto taken = core
+		&& core->menuPress(cssPoint(_pointerPoint), CurrentModifiers());
+	return taken ? core : nullptr;
+}
+
 bool HtmlWidget::hasHeavyPart() const {
 	return _heavy || (_runtime && _runtime->heavy());
 }

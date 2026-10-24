@@ -69,6 +69,8 @@ public:
 	void pointerLeave();
 	void pointerPress(QPointF point, int modifiers);
 	void pointerRelease(QPointF point, int modifiers);
+	[[nodiscard]] bool menuPress(QPointF point, int modifiers);
+	void menuRelease(int modifiers);
 	[[nodiscard]] std::optional<twidget::WidgetGestureClaim> fingerPress(
 		QPointF point,
 		int modifiers);
@@ -116,6 +118,7 @@ private:
 		bool pressed = false;
 		bool moved = false;
 		bool active = false;
+		bool secondary = false;
 	};
 	struct Finger {
 		QPointF position;
@@ -128,6 +131,8 @@ private:
 	void hostLinkRequest(const LinkRequest &request);
 
 	[[nodiscard]] int64 elementAt(QPointF point);
+	[[nodiscard]] CursorStyles &cursorStyles();
+	void holdPointer(QPointF point, int64 hit, bool secondary);
 	void trackHover();
 	[[nodiscard]] std::vector<twidget::Json> leaveHover();
 	void inputDone(const std::vector<twidget::Json> &out, bool wasDirty);

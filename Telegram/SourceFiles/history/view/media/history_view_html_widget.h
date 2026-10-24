@@ -39,6 +39,7 @@ public:
 	[[nodiscard]] bool keepFocusByHandler(
 		const ClickHandlerPtr &p) const override;
 	[[nodiscard]] Tgw::RendererCore *touchCore(QPoint point) const;
+	[[nodiscard]] Tgw::RendererCore *menuPress(const ClickHandlerPtr &link);
 	[[nodiscard]] QPointF cssPoint(QPoint point) const;
 	[[nodiscard]] QPointF gesturePoint(QPoint point) const;
 

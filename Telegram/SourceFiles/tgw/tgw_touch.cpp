@@ -7,11 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tgw/tgw_touch.h"
 
+#include "base/platform/base_platform_info.h"
 #include "history/view/media/history_view_html_widget.h"
 #include "history/view/history_view_element.h"
 #include "tgw/tgw_renderer.h"
+#include "ui/click_handler.h"
 
 #include <QtGui/QGuiApplication>
+#include <QtGui/QStyleHints>
 
 namespace Tgw {
 namespace {
@@ -26,6 +29,15 @@ auto BridgeDepth = 0;
 
 [[nodiscard]] int Modifiers() {
 	return DomModifiers(QGuiApplication::keyboardModifiers());
+}
+
+[[nodiscard]] bool MenuOnRelease() {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
+	return (QGuiApplication::styleHints()->contextMenuTrigger()
+		== Qt::ContextMenuTrigger::Release);
+#else // Qt >= 6.8.0
+	return Platform::IsWindows();
+#endif // Qt < 6.8.0
 }
 
 } // namespace
@@ -55,6 +67,7 @@ WidgetTouch::WidgetTouch(WidgetTouchArgs &&args)
 
 WidgetTouch::~WidgetTouch() {
 	finish();
+	releaseMenu();
 }
 
 bool WidgetTouch::begin(QPoint global) {
@@ -131,6 +144,48 @@ void WidgetTouch::retire() {
 	cancel();
 	_dropTouch();
 	_resetSpeed();
+}
+
+void WidgetTouch::mousePress(Qt::MouseButton button) {
+	if (button != Qt::RightButton) {
+		return;
+	} else if (_menuAhead) {
+		_menuAhead = false;
+		return;
+	}
+	decideMenu();
+	_menuPending = true;
+}
+
+bool WidgetTouch::mouseMenu(not_null<QContextMenuEvent*> e) {
+	if (e->reason() != QContextMenuEvent::Mouse) {
+		return false;
+	} else if (_menuPending) {
+		_menuPending = false;
+		return _menuTaken;
+	} else if (!(QGuiApplication::mouseButtons() & Qt::RightButton)) {
+		return false;
+	}
+	// WHY: on a press trigger the second press of a right double click
+	// reaches here before its double click event, which an opened menu
+	// may take instead, so this early decision expires if not consumed.
+	decideMenu();
+	_menuAhead = true;
+	crl::on_main(this, [=] {
+		_menuAhead = false;
+	});
+	return _menuTaken;
+}
+
+void WidgetTouch::mouseRelease(Qt::MouseButton button) {
+	if (button != Qt::RightButton) {
+		return;
+	}
+	_menuAhead = false;
+	if (!MenuOnRelease()) {
+		_menuPending = false;
+	}
+	releaseMenu();
 }
 
 Ui::Controls::SwipeHandoff WidgetTouch::swipeHandoff() {
@@ -323,6 +378,25 @@ void WidgetTouch::finish() {
 	_core = nullptr;
 	_owner = Owner::None;
 	_released = false;
+}
+
+void WidgetTouch::decideMenu() {
+	releaseMenu();
+	const auto view = HistoryView::Element::HoveredLink();
+	const auto widget = view
+		? dynamic_cast<HistoryView::HtmlWidget*>(view->media())
+		: nullptr;
+	const auto core = widget
+		? widget->menuPress(ClickHandler::getActive())
+		: nullptr;
+	_menuCore = base::make_weak(core);
+	_menuTaken = (core != nullptr);
+}
+
+void WidgetTouch::releaseMenu() {
+	if (const auto core = base::take(_menuCore).get()) {
+		core->menuRelease(Modifiers());
+	}
 }
 
 } // namespace Tgw

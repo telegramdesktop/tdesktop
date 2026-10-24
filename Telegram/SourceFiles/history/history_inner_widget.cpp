@@ -2289,7 +2289,10 @@ void HistoryInner::mouseActionStart(
 		Qt::MouseButton button,
 		bool fromTouch) {
 	mouseActionUpdate(screenPos);
-	if (button != Qt::LeftButton) return;
+	if (button != Qt::LeftButton) {
+		_widgetTouch->mousePress(button);
+		return;
+	}
 
 	ClickHandler::pressed();
 	_widgetSelection->press();
@@ -2762,11 +2765,13 @@ void HistoryInner::mouseReleaseEvent(QMouseEvent *e) {
 		return;
 	}
 	if (_middleClickAutoscroll.active()) {
+		_widgetTouch->mouseRelease(e->button());
 		e->accept();
 		return;
 	}
 	registerReadMetricsActivity();
 	mouseActionFinish(e->globalPos(), e->button());
+	_widgetTouch->mouseRelease(e->button());
 	if (!rect().contains(e->pos())) {
 		leaveEvent(e);
 	}
@@ -2854,6 +2859,13 @@ HistoryView::SelectedQuote HistoryInner::selectedQuote(
 }
 
 void HistoryInner::contextMenuEvent(QContextMenuEvent *e) {
+	if (e->reason() == QContextMenuEvent::Mouse) {
+		mouseActionUpdate(e->globalPos());
+	}
+	if (_widgetTouch->mouseMenu(e)) {
+		e->accept();
+		return;
+	}
 	showContextMenu(e);
 	_widgetSelection->watch(_menu.get());
 }

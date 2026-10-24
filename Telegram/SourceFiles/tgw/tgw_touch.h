@@ -58,6 +58,10 @@ public:
 	void cancel();
 	void retire();
 
+	void mousePress(Qt::MouseButton button);
+	[[nodiscard]] bool mouseMenu(not_null<QContextMenuEvent*> e);
+	void mouseRelease(Qt::MouseButton button);
+
 	[[nodiscard]] Ui::Controls::SwipeHandoff swipeHandoff();
 
 private:
@@ -83,6 +87,8 @@ private:
 	void hold();
 	void lose();
 	void finish();
+	void decideMenu();
+	void releaseMenu();
 
 	const not_null<QWidget*> _list;
 	const Fn<HistoryView::Element*(QPoint)> _viewAt;
@@ -95,9 +101,13 @@ private:
 	base::Timer _holdTimer;
 	base::weak_ptr<HistoryView::HtmlWidget> _widget;
 	base::weak_ptr<RendererCore> _core;
+	base::weak_ptr<RendererCore> _menuCore;
 	QPoint _last;
 	Owner _owner = Owner::None;
 	bool _released = false;
+	bool _menuPending : 1 = false;
+	bool _menuTaken : 1 = false;
+	bool _menuAhead : 1 = false;
 
 };
 

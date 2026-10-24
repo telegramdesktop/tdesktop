@@ -29,10 +29,15 @@ public:
 		int64 hit,
 		int64 hover,
 		int64 active);
+	[[nodiscard]] std::optional<bool> hold(
+		twlite::Renderer &renderer,
+		int64 hit,
+		int64 hover);
 
 private:
 	class Container;
 
+	void sync(twlite::Renderer &renderer, int64 hover, int64 active);
 	[[nodiscard]] bool refresh(twlite::Renderer &renderer);
 	void rebuild(double width, int height);
 	void index();

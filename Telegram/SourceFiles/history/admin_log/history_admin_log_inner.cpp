@@ -2140,6 +2140,13 @@ void InnerWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 }
 
 void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
+	if (e->reason() == QContextMenuEvent::Mouse) {
+		mouseActionUpdate(e->globalPos());
+	}
+	if (_widgetTouch->mouseMenu(e)) {
+		e->accept();
+		return;
+	}
 	showContextMenu(e);
 	_widgetSelection->watch(_menu.get());
 }
@@ -2853,6 +2860,7 @@ void InnerWidget::mouseMoveEvent(QMouseEvent *e) {
 
 void InnerWidget::mouseReleaseEvent(QMouseEvent *e) {
 	mouseActionFinish(e->globalPos(), e->button());
+	_widgetTouch->mouseRelease(e->button());
 	if (!rect().contains(e->pos())) {
 		leaveEvent(e);
 	}
@@ -2879,7 +2887,10 @@ void InnerWidget::leaveEventHook(QEvent *e) {
 
 void InnerWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton button) {
 	mouseActionUpdate(screenPos);
-	if (button != Qt::LeftButton) return;
+	if (button != Qt::LeftButton) {
+		_widgetTouch->mousePress(button);
+		return;
+	}
 
 	ClickHandler::pressed();
 	_widgetSelection->press();
