@@ -18,6 +18,7 @@ should call.
 | [test_text_reads](test_text_reads.md) | API | Space-normalized text assertions |
 | [test_lang_pack](test_lang_pack.md) | API | Temporary language overrides and restoration |
 | [test_probe](test_probe.md) | API | Windowed observations and correlated requests |
+| [test_expiry_window](test_expiry_window.md) | API | Served-expiry observations bound to a live owner, generation and link; frozen cutoff windows and boundary polls with named refusals |
 | [test_widgets](test_widgets.md) | API | Typed discovery, a button's own disabled state, live publications and input events |
 | [test_wheel](test_wheel.md) | Self-test | Self-test for wheel delivery |
 | [test_queued_drag](test_queued_drag.md) | API | Deliver queued drag starts before the synthetic release |
