@@ -4014,9 +4014,6 @@ void HistoryInner::copySelectedText(bool withImageText) {
 		.blocks = getSelectedRichBlocks(),
 		.withImageText = withImageText,
 	});
-	if (hasSelectedItems()) {
-		clearSelected();
-	}
 }
 
 void HistoryInner::editCaptionUploadLayer(not_null<HistoryItem*> item) {
