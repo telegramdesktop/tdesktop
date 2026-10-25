@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/admin_log/history_admin_log_filter_value.h"
 #include "history/history_view_highlight_manager.h"
 #include "menu/menu_antispam_validator.h"
+#include "tgw/tgw_scroll.h"
 #include "ui/controls/swipe_handler.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
@@ -97,10 +98,7 @@ public:
 	// Set the correct scroll position after being resized.
 	void restoreScrollPosition();
 
-	void resizeToWidth(int newWidth, int minHeight) {
-		_minHeight = minHeight;
-		return RpWidget::resizeToWidth(newWidth);
-	}
+	void resizeToWidth(int newWidth, int minHeight);
 
 	void saveState(not_null<SectionMemento*> memento);
 	void restoreState(not_null<SectionMemento*> memento);
@@ -214,6 +212,7 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
+	friend class Tgw::ListScroll;
 	friend class Tgw::ListSelection;
 
 	using Element = HistoryView::Element;
@@ -296,9 +295,11 @@ private:
 	struct ScrollAnchor {
 		Element *view = nullptr;
 		int delta = 0;
+		Tgw::ScrollSnapshot snapshot;
 	};
 	[[nodiscard]] ScrollAnchor captureScrollAnchor() const;
-	[[nodiscard]] int computeScrollFromAnchor(ScrollAnchor anchor) const;
+	[[nodiscard]] int computeScrollFromAnchor(
+		const ScrollAnchor &anchor) const;
 	void updateSize();
 	void updateMinMaxIds();
 	void updateEmptyText();

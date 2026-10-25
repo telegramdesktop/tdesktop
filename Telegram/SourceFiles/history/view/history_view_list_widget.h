@@ -75,6 +75,7 @@ struct ButtonParameters;
 } // namespace HistoryView::ReplyButton
 
 namespace Tgw {
+class ListScroll;
 class ListSelection;
 class ListTouch;
 class WidgetSelection;
@@ -634,6 +635,7 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
+	friend class Tgw::ListScroll;
 	friend class Tgw::ListSelection;
 	friend class Tgw::ListTouch;
 

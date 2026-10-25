@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "tgw/tgw_renderer.h"
 #include "tgw/tgw_runtime.h"
+#include "tgw/tgw_scroll.h"
 #include "ui/chat/chat_style.h"
 #include "ui/style/style_core_direction.h"
 #include "ui/style/style_core_scale.h"
@@ -70,7 +71,12 @@ HtmlWidget::HtmlWidget(
 		: nullptr;
 	const auto heavy = previous && previous->_heavy;
 	if (previous) {
+		_placed = previous->handoffGeometry();
+		_placedReplaced = _placed.has_value();
 		_runtime = previous->takeRuntime(descriptor.html);
+		if (!_runtime && _placed) {
+			_placed->serial = 0;
+		}
 	}
 	if (_runtime) {
 		_heavy = heavy;
@@ -106,6 +112,83 @@ std::unique_ptr<Tgw::Runtime> HtmlWidget::takeRuntime(
 	return base::take(_runtime);
 }
 
+std::optional<HtmlWidgetGeometry> HtmlWidget::handoffGeometry() const {
+	auto result = placement();
+	if (!result) {
+		return currentGeometry();
+	} else if (!placedTopValid()) {
+		result->y = rowTop();
+	}
+	return result;
+}
+
+std::optional<HtmlWidgetGeometry> HtmlWidget::currentGeometry() const {
+	const auto consumed = _runtime ? _runtime->heightLayout() : std::nullopt;
+	if (!consumed || _parent->height() <= 0) {
+		return std::nullopt;
+	}
+	return HtmlWidgetGeometry{
+		.bubble = _parent->innerGeometry(),
+		.y = rowTop(),
+		.height = _parent->height(),
+		.card = consumed->height,
+		.serial = consumed->serial,
+	};
+}
+
+std::optional<HtmlWidgetGeometry> HtmlWidget::placement() const {
+	if (!_placed) {
+		return std::nullopt;
+	} else if (_placedEpoch) {
+		return (_placedEpoch == ownerEpoch()) ? _placed : std::nullopt;
+	}
+	const auto kept = _placedReplaced
+		|| (_placed->height == _parent->height());
+	return kept ? _placed : std::nullopt;
+}
+
+bool HtmlWidget::placedTopValid() const {
+	// Only history blocks move rows before their list restores the scroll.
+	return _placedReplaced
+		|| (_parent->block() && (_placedAt == ownerEpoch()));
+}
+
+uint32 HtmlWidget::ownerEpoch() const {
+	return Tgw::ListScroll::Epoch(_parent->delegate());
+}
+
+int HtmlWidget::rowTop() const {
+	const auto block = _parent->block();
+	return _parent->y() + (block ? block->y() : 0);
+}
+
+std::optional<HtmlWidgetLayout> HtmlWidget::heightLayout() const {
+	if (_anchors.height > 0 || !_runtime) {
+		return std::nullopt;
+	}
+	const auto placed = placement();
+	const auto moved = (placed && placedTopValid())
+		? (rowTop() - placed->y)
+		: 0;
+	return HtmlWidgetLayout{
+		.consumed = _runtime->heightLayout(),
+		.runtime = base::make_weak(_runtime.get()),
+		.placed = placed ? placed : currentGeometry(),
+		.moved = moved,
+	};
+}
+
+void HtmlWidget::rememberPlacement() const {
+	if (_anchors.height > 0 || _parent->pendingResize()) {
+		return;
+	} else if (const auto now = currentGeometry()) {
+		_placed = now;
+		_placedEpoch = 0;
+		_placedAt = ownerEpoch();
+		_placedReplaced = false;
+	}
+}
+
 QSize HtmlWidget::countOptimalSize() {
 	const auto cardWidth = (_anchors.width > 0)
 		? std::min(
@@ -120,10 +203,17 @@ QSize HtmlWidget::countOptimalSize() {
 
 QSize HtmlWidget::countCurrentSize(int newWidth) {
 	const auto cardWidth = std::min(newWidth, maxWidth());
-	if (_runtime) {
-		_runtime->setSize(cardWidth, maxCssHeight());
+	if (!_runtime) {
+		return { cardWidth, cardHeight() + infoHeight() };
 	}
-	return { cardWidth, cardHeight() + infoHeight() };
+	_runtime->setSize(cardWidth, maxCssHeight());
+	const auto card = cardHeight();
+	_runtime->laidOut(card);
+	if (!_placedEpoch) {
+		// The shown geometry stays the old one until a list positions this.
+		_placedEpoch = ownerEpoch();
+	}
+	return { cardWidth, card + infoHeight() };
 }
 
 bool HtmlWidget::needsBubble() const {
@@ -203,6 +293,7 @@ void HtmlWidget::draw(Painter &p, const PaintContext &context) const {
 	if (card.isEmpty() || !_runtime) {
 		return;
 	}
+	rememberPlacement();
 	const auto themeKey = Tgw::BubbleThemeKey(context);
 	if (_themeKey != themeKey) {
 		_themeKey = themeKey;

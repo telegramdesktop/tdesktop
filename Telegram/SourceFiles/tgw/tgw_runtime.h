@@ -27,6 +27,17 @@ class Bridge;
 class RendererCore;
 struct MessageMemory;
 
+enum class HeightChange : uchar {
+	Own,
+	Client,
+};
+
+struct HeightLayout {
+	int serial = 0;
+	int height = 0;
+	HeightChange change = HeightChange::Client;
+};
+
 struct RuntimeDescriptor {
 	not_null<HistoryView::Element*> view;
 	not_null<HistoryItem*> item;
@@ -63,6 +74,7 @@ public:
 	[[nodiscard]] std::optional<int> height() const;
 	[[nodiscard]] RendererCore *core() const;
 	[[nodiscard]] RendererCore *interactive() const;
+	[[nodiscard]] std::optional<HeightLayout> heightLayout() const;
 
 	void attachView(
 		not_null<HistoryView::Element*> view,
@@ -70,6 +82,7 @@ public:
 		Fn<void()> repaint,
 		Fn<void()> heavyChanged);
 	void setSize(int width, double maxHeight);
+	void laidOut(int height);
 	void setTheme(std::shared_ptr<const twidget::WidgetTheme> theme);
 	void setWindow(not_null<QWidget*> window);
 	void painted();
@@ -122,7 +135,10 @@ private:
 	void failResources();
 
 	void subscribeLive();
-	void coreUpdated(not_null<RendererCore*> renderer, bool repaint);
+	void coreUpdated(
+		not_null<RendererCore*> renderer,
+		bool repaint,
+		bool finished);
 	void coreStopped(not_null<RendererCore*> renderer);
 	void linkRequested(
 		not_null<RendererCore*> renderer,
@@ -132,6 +148,8 @@ private:
 	void syncHostVisibility();
 	void syncHostTheme();
 	void applySize();
+	[[nodiscard]] int effectiveHeight() const;
+	void markHeight(bool client);
 	void displayChanged(bool repaint);
 	void postShownDisplay();
 	void heavyStateChanged(bool wasHeavy);
@@ -169,6 +187,7 @@ private:
 	double _maxHeight = 0.;
 	int _generation = 0;
 	int _width = 0;
+	HeightLayout _layout;
 	State _state = State::Idle;
 	bool _visible = false;
 	bool _hostVisible = false;
@@ -179,6 +198,7 @@ private:
 	bool _displayDeferred = false;
 	bool _displayPosted = false;
 	bool _sizing = false;
+	bool _clientPending = false;
 
 };
 

@@ -147,6 +147,11 @@ using AiTooltipManager = ComposeTooltipManager;
 struct VoiceToSend;
 } // namespace HistoryView::Controls
 
+namespace Tgw {
+class ListScroll;
+struct ScrollSnapshot;
+} // namespace Tgw
+
 class BotKeyboard;
 class HistoryInner;
 
@@ -694,7 +699,7 @@ private:
 	void scheduleListReveal(not_null<ListRevealHold*> hold);
 	void finishListReveal(not_null<ListRevealHold*> hold);
 	void resumeListReveal();
-	void updateListSize();
+	bool updateListSize(const Tgw::ScrollSnapshot *restore = nullptr);
 	void startItemRevealAnimations();
 	void revealItemsCallback();
 	void liftItemReveal(not_null<HistoryItem*> item, int lift);
@@ -747,6 +752,7 @@ private:
 	void setEditMsgId(MsgId msgId);
 
 	friend class HistoryInner;
+	friend class Tgw::ListScroll;
 	HistoryItem *getItemFromHistoryOrMigrated(MsgId genericMsgId) const;
 	void animatedScrollToItem(MsgId msgId);
 	void animatedScrollToY(int scrollTo, HistoryItem *attachTo = nullptr);

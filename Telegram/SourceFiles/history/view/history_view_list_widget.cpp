@@ -62,6 +62,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "media/player/media_player_instance.h"
 #include "dialogs/ui/dialogs_video_userpic.h"
+#include "tgw/tgw_scroll.h"
 #include "tgw/tgw_selection.h"
 #include "tgw/tgw_touch.h"
 #include "ui/layers/generic_box.h"
@@ -908,6 +909,7 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 	}
 
 	saveScrollState();
+	const auto saved = Tgw::ListScroll::CaptureSaved(this);
 
 	const auto wasKnownTillEnd = _itemsKnownTillEnd;
 	const auto scrolledTillEnd = _itemsKnownTillEnd
@@ -1017,6 +1019,7 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 	}
 	const auto markLastAsRead = (scrolledTillEnd && markingMessagesRead());
 	checkUnreadBarCreation(markLastAsRead);
+	Tgw::ListScroll::Keep(this, saved);
 	restoreScrollState();
 	if (_sendingLanding.active) {
 		auto &landing = _sendingLanding;
@@ -2893,8 +2896,10 @@ void ListWidget::resizeToWidth(int newWidth, int minHeight) {
 	if (width() != newWidth && _overlayHost) {
 		_overlayHost->hide();
 	}
+	const auto snapshot = Tgw::ListScroll::Capture(this);
 	_minHeight = minHeight;
 	RpWidget::resizeToWidth(newWidth);
+	Tgw::ListScroll::Keep(this, snapshot);
 	restoreScrollPosition();
 	if (_thanosController) {
 		_thanosController->pinScroll();
@@ -6299,7 +6304,9 @@ void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
 	}
 
 	saveScrollState();
+	const auto saved = Tgw::ListScroll::CaptureSaved(this);
 	const auto guard = gsl::finally([&] {
+		Tgw::ListScroll::Keep(this, saved);
 		restoreScrollState();
 	});
 

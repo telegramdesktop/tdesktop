@@ -9,14 +9,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/media/history_view_media.h"
 #include "tgw/tgw_media.h"
+#include "tgw/tgw_runtime.h"
 #include "tgw/tgw_theme.h"
 
-namespace Tgw {
-class RendererCore;
-class Runtime;
-} // namespace Tgw
-
 namespace HistoryView {
+
+struct HtmlWidgetGeometry {
+	QRect bubble;
+	int y = 0;
+	int height = 0;
+	int card = 0;
+	int serial = 0;
+};
+
+struct HtmlWidgetLayout {
+	std::optional<Tgw::HeightLayout> consumed;
+	base::weak_ptr<Tgw::Runtime> runtime;
+	std::optional<HtmlWidgetGeometry> placed;
+	int moved = 0;
+};
 
 class HtmlWidget final : public Media {
 public:
@@ -42,6 +53,8 @@ public:
 	[[nodiscard]] Tgw::RendererCore *menuPress(const ClickHandlerPtr &link);
 	[[nodiscard]] QPointF cssPoint(QPoint point) const;
 	[[nodiscard]] QPointF gesturePoint(QPoint point) const;
+	[[nodiscard]] std::optional<HtmlWidgetLayout> heightLayout() const;
+	void rememberPlacement() const;
 
 	void clickHandlerActiveChanged(
 		const ClickHandlerPtr &p,
@@ -69,6 +82,12 @@ private:
 
 	[[nodiscard]] std::unique_ptr<Tgw::Runtime> takeRuntime(
 		const QByteArray &html);
+	[[nodiscard]] std::optional<HtmlWidgetGeometry> handoffGeometry() const;
+	[[nodiscard]] std::optional<HtmlWidgetGeometry> currentGeometry() const;
+	[[nodiscard]] std::optional<HtmlWidgetGeometry> placement() const;
+	[[nodiscard]] bool placedTopValid() const;
+	[[nodiscard]] uint32 ownerEpoch() const;
+	[[nodiscard]] int rowTop() const;
 	[[nodiscard]] QRect cardRect() const;
 	[[nodiscard]] int cardHeight() const;
 	[[nodiscard]] double maxCssHeight() const;
@@ -89,8 +108,12 @@ private:
 	const ClickHandlerPtr _cardLink;
 	mutable Tgw::ThemeKey _themeKey;
 	QPoint _pointerPoint;
+	mutable std::optional<HtmlWidgetGeometry> _placed;
+	mutable uint32 _placedEpoch = 0;
+	mutable uint32 _placedAt = 0;
 	mutable bool _heavy = false;
 	bool _cardHovered = false;
+	mutable bool _placedReplaced = false;
 
 };
 

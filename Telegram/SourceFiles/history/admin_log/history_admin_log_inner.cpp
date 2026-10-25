@@ -1043,11 +1043,19 @@ void InnerWidget::expandGroupContaining(not_null<HistoryItem*> item) {
 		}
 		if (group.eventCount > 3
 			&& !_expandedGroups.contains(group.eventId)) {
+			const auto anchor = captureScrollAnchor();
 			_expandedGroups.insert(group.eventId);
 			clearDisplayPointers(DisplayPointerScope::All);
 			_skipScrollRestore = true;
 			rebuildDisplayItems();
 			_skipScrollRestore = false;
+			const auto shift = Tgw::ListScroll::Adjust(
+				this,
+				anchor.snapshot,
+				computeScrollFromAnchor(anchor)).difference;
+			if (shift) {
+				_scrollToSignal.fire_copy(_visibleTop + shift);
+			}
 		}
 		return;
 	}
@@ -1381,7 +1389,10 @@ void InnerWidget::addEvents(Direction direction, const QVector<MTPChannelAdminLo
 			_skipUnreadEventPrune = false;
 		});
 		_skipUnreadEventPrune = !up;
-		_scrollToSignal.fire_copy(computeScrollFromAnchor(anchor));
+		_scrollToSignal.fire_copy(Tgw::ListScroll::Adjust(
+			this,
+			anchor.snapshot,
+			computeScrollFromAnchor(anchor)).target);
 	}
 	update();
 }
@@ -1641,13 +1652,16 @@ void InnerWidget::toggleDeleteGroup(uint64 groupEventId) {
 	rebuildDisplayItems();
 	_skipScrollRestore = false;
 
-	const auto scrollTarget = anchor.view
-		? computeScrollFromAnchor(anchor)
-		: scrollBefore;
+	const auto shift = Tgw::ListScroll::Adjust(
+		this,
+		anchor.snapshot,
+		anchor.view ? computeScrollFromAnchor(anchor) : scrollBefore);
+	const auto scrollFrom = scrollBefore + shift.difference;
+	const auto scrollTarget = shift.target;
 
-	_scrollToSignal.fire_copy(scrollBefore);
-	if (scrollBefore != scrollTarget) {
-		const auto from = scrollBefore;
+	_scrollToSignal.fire_copy(scrollFrom);
+	if (scrollFrom != scrollTarget) {
+		const auto from = scrollFrom;
 		const auto to = scrollTarget;
 		_toggleAnimation.start(
 			[=] { _scrollToSignal.fire_copy(anim::interpolate(
@@ -1805,8 +1819,15 @@ void InnerWidget::rebuildDisplayItems() {
 	updateSize();
 }
 
+void InnerWidget::resizeToWidth(int newWidth, int minHeight) {
+	const auto snapshot = Tgw::ListScroll::Capture(this);
+	_minHeight = minHeight;
+	RpWidget::resizeToWidth(newWidth);
+	Tgw::ListScroll::Keep(this, snapshot);
+}
+
 void InnerWidget::updateSize() {
-	RpWidget::resizeToWidth(width());
+	resizeToWidth(width(), _minHeight);
 	restoreScrollPosition();
 	updateVisibleTopItem();
 	checkPreloadMore();
@@ -1846,6 +1867,7 @@ auto InnerWidget::captureScrollAnchor() const -> ScrollAnchor {
 	if (_displayItems.empty()) {
 		return {};
 	}
+	auto snapshot = Tgw::ListScroll::Capture(this);
 	// Skip summaries — they get a fresh HistoryItem on every rebuild.
 	auto begin = std::rbegin(_displayItems);
 	auto end = std::rend(_displayItems);
@@ -1856,7 +1878,7 @@ auto InnerWidget::captureScrollAnchor() const -> ScrollAnchor {
 	for (auto it = from; it != end; ++it) {
 		const auto view = it->view;
 		if (_itemEventIds.contains(view->data())) {
-			return { view, _visibleTop - itemTop(view) };
+			return { view, _visibleTop - itemTop(view), std::move(snapshot) };
 		}
 	}
 	auto it = from;
@@ -1864,13 +1886,13 @@ auto InnerWidget::captureScrollAnchor() const -> ScrollAnchor {
 		--it;
 		const auto view = it->view;
 		if (_itemEventIds.contains(view->data())) {
-			return { view, _visibleTop - itemTop(view) };
+			return { view, _visibleTop - itemTop(view), std::move(snapshot) };
 		}
 	}
-	return {};
+	return { nullptr, 0, std::move(snapshot) };
 }
 
-int InnerWidget::computeScrollFromAnchor(ScrollAnchor anchor) const {
+int InnerWidget::computeScrollFromAnchor(const ScrollAnchor &anchor) const {
 	if (!anchor.view) {
 		return ScrollMax;
 	}

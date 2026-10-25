@@ -29,6 +29,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "TwidgetCore/src/renderer.h"
 #include "ui/style/style_core_scale.h"
 
+#include "styles/style_tgw.h"
+
 namespace Tgw {
 
 struct MessageMemory {
@@ -590,6 +592,10 @@ RendererCore *Runtime::interactive() const {
 		: nullptr;
 }
 
+std::optional<HeightLayout> Runtime::heightLayout() const {
+	return _layout.serial ? std::make_optional(_layout) : std::nullopt;
+}
+
 void Runtime::attachView(
 		not_null<HistoryView::Element*> view,
 		Fn<void()> resize,
@@ -619,6 +625,24 @@ void Runtime::setSize(int width, double maxHeight) {
 	if (_live || _still) {
 		applySize();
 	}
+}
+
+void Runtime::laidOut(int height) {
+	const auto pending = base::take(_clientPending);
+	if (_layout.serial && (_layout.height == height)) {
+		return;
+	}
+	const auto own = _layout.serial
+		&& !pending
+		&& _visible
+		&& _live
+		&& _live->loaded()
+		&& _live->height().has_value();
+	_layout = HeightLayout{
+		.serial = _layout.serial + 1,
+		.height = height,
+		.change = own ? HeightChange::Own : HeightChange::Client,
+	};
 }
 
 void Runtime::setTheme(std::shared_ptr<const twidget::WidgetTheme> theme) {
@@ -881,6 +905,8 @@ void Runtime::RefreshVisibility() {
 			if (runtime->stopped()) {
 				runtime->release();
 			}
+		} else {
+			runtime->markHeight(true);
 		}
 		runtime->syncHostVisibility();
 	}
@@ -1215,7 +1241,8 @@ void Runtime::subscribeLive() {
 			coreUpdated(
 				renderer,
 				bool(changes
-					& (Change::Repaint | Change::Content | Change::Loaded)));
+					& (Change::Repaint | Change::Content | Change::Loaded)),
+				bool(changes & Change::Loaded));
 		}
 	}, _liveLifetime);
 
@@ -1225,7 +1252,10 @@ void Runtime::subscribeLive() {
 	}, _liveLifetime);
 }
 
-void Runtime::coreUpdated(not_null<RendererCore*> renderer, bool repaint) {
+void Runtime::coreUpdated(
+		not_null<RendererCore*> renderer,
+		bool repaint,
+		bool finished) {
 	if (renderer.get() != _live.get() || !renderer->loaded()) {
 		return;
 	}
@@ -1233,6 +1263,9 @@ void Runtime::coreUpdated(not_null<RendererCore*> renderer, bool repaint) {
 		renderer->takeFrameFrom(*_still);
 	}
 	_still = nullptr;
+	if (finished) {
+		markHeight(true);
+	}
 	displayChanged(repaint);
 }
 
@@ -1337,6 +1370,7 @@ void Runtime::applySize() {
 	// requested from here would re-enter that same layout.
 	_sizing = true;
 	const auto guard = gsl::finally([&] { _sizing = false; });
+	const auto was = effectiveHeight();
 	const auto width = CssFromLogical(_width);
 	if (_still) {
 		_still->setWidth(width);
@@ -1347,6 +1381,22 @@ void Runtime::applySize() {
 		_live->setMaxHeight(_maxHeight);
 	}
 	displayChanged(false);
+	markHeight(effectiveHeight() != was);
+}
+
+int Runtime::effectiveHeight() const {
+	return height().value_or(st::tgwPlaceholderHeight);
+}
+
+void Runtime::markHeight(bool client) {
+	// WHY: a list may lay a new height out before its notification, or with
+	// none at all, so a client cause stays pending until a layout consumes
+	// the difference it made or the height is back at the consumed one.
+	if (_layout.serial && (_layout.height == effectiveHeight())) {
+		_clientPending = false;
+	} else if (client) {
+		_clientPending = true;
+	}
 }
 
 void Runtime::displayChanged(bool repaint) {
@@ -1356,6 +1406,9 @@ void Runtime::displayChanged(bool repaint) {
 		}
 	}
 	const auto now = height();
+	const auto hidden = !_visible
+		&& (_state == State::Live || _state == State::Stopped);
+	markHeight(hidden);
 	if (_sizing) {
 		_shownHeight = now;
 		return;
@@ -1363,8 +1416,7 @@ void Runtime::displayChanged(bool repaint) {
 	const auto resize = (_shownHeight != now);
 	if (!resize && !repaint) {
 		return;
-	} else if (!_visible
-		&& (_state == State::Live || _state == State::Stopped)) {
+	} else if (hidden) {
 		_displayDeferred = true;
 		return;
 	}
