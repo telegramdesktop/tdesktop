@@ -75,6 +75,7 @@ public:
 		QPointF point,
 		int modifiers);
 	void fingerMove(QPointF point, int modifiers);
+	void fingerHold();
 	void fingerRelease(QPointF point, int modifiers);
 	void fingerCancel();
 	void resetInput();

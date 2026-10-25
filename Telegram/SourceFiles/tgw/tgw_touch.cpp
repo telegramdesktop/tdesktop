@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QGuiApplication>
 #include <QtGui/QStyleHints>
 
+#include <chrono>
+
 namespace Tgw {
 namespace {
 
@@ -23,8 +25,12 @@ constexpr auto kMinHoldDelay = crl::time(1);
 
 auto BridgeDepth = 0;
 
+// WHY: the same steady_clock reading as TwidgetCore's arbiter, taken after
+// the core's down, so a hold awarded here is due by the core's clock and
+// RendererCore::fingerHold() delivers its contextmenu before any cancel.
 [[nodiscard]] double Now() {
-	return double(crl::now());
+	const auto now = std::chrono::steady_clock::now().time_since_epoch();
+	return std::chrono::duration<double, std::milli>(now).count();
 }
 
 [[nodiscard]] int Modifiers() {
@@ -267,15 +273,14 @@ void WidgetTouch::step(QPoint global) {
 	}
 	_last = global;
 	const auto at = mediaPoint(widget, global);
-	if (_owner == Owner::Pending) {
-		const auto lead = widget->gesturePoint(at);
-		const auto verdict = _arbiter.move(Now(), lead.x(), lead.y());
-		if (!verdict) {
-			lose();
-			return;
-		}
-		decide(*verdict);
+	// A hold the widget won is still locked by its first move past the slop.
+	const auto lead = widget->gesturePoint(at);
+	const auto verdict = _arbiter.move(Now(), lead.x(), lead.y());
+	if (!verdict) {
+		lose();
+		return;
 	}
+	decide(*verdict);
 	if (_owner == Owner::Pending || _owner == Owner::Widget) {
 		core->fingerMove(widget->cssPoint(at), Modifiers());
 	}
@@ -318,6 +323,11 @@ void WidgetTouch::decide(const twidget::GestureVerdict &verdict) {
 	_holdTimer.cancel();
 	if (verdict.owner == twidget::GestureOwner::Widget) {
 		_owner = Owner::Widget;
+		if (verdict.event == twidget::GestureEvent::ContextMenu) {
+			if (const auto core = held()) {
+				core->fingerHold();
+			}
+		}
 		return;
 	}
 	if (const auto core = held()) {

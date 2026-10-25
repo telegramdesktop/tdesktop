@@ -209,10 +209,8 @@ private:
 
 [[nodiscard]] twidget::WidgetGestureClaim GestureClaim(
 		const twidget::Json &message) {
-	const auto &y = message["y"];
 	return {
 		.x = message["x"].asBool(),
-		.y = y.isBool() ? y.asBool() : message["wants"].asBool(),
 		.hold = message["hold"].asBool(),
 	};
 }
@@ -621,6 +619,14 @@ void RendererCore::fingerMove(QPointF point, int modifiers) {
 	inputDone(
 		Touch(*_renderer, kTouchMove, point, modifiers, kFingerPointer),
 		wasDirty);
+}
+
+void RendererCore::fingerHold() {
+	if (!_finger.pressed || !acceptsInput()) {
+		return;
+	}
+	const auto wasDirty = _renderer->dirty();
+	inputDone(_renderer->tick(), wasDirty);
 }
 
 void RendererCore::fingerRelease(QPointF point, int modifiers) {
