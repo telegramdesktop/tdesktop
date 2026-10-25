@@ -1361,6 +1361,17 @@ void Instance::updatePlaybackSpeed() {
 	}
 }
 
+void Instance::setPlaybackSpeed(float64 speed) {
+	if (const auto data = getData(getActiveType())) {
+		if (!data->current.changeablePlaybackSpeed()) {
+			return;
+		}
+		if (const auto streamed = data->streamed.get()) {
+			streamed->instance.setSpeed(speed);
+		}
+	}
+}
+
 void Instance::emitUpdate(AudioMsgId::Type type) {
 	emitUpdate(type, [](const AudioMsgId &playing) { return true; });
 }

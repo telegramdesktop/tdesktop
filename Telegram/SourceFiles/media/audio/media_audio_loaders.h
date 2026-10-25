@@ -52,6 +52,7 @@ private:
 	void videoSoundAdded();
 	[[nodiscard]] Mixer::Track::WithSpeed rebufferOnSpeedChange(
 		const SetupLoaderResult &setup);
+	[[nodiscard]] int64 freshSpeedDependentPosition(Mixer::Track *track);
 
 	void emitError(AudioMsgId::Type type);
 	AudioMsgId clear(AudioMsgId::Type type);

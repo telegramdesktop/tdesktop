@@ -26,6 +26,10 @@ namespace Media::Player {
 namespace {
 
 constexpr auto kSpeedDebounceTimeout = crl::time(1000);
+constexpr auto kSpeedBoostHoldDelay = crl::time(200);
+constexpr auto kSpeedBoostValue = 2.0;
+constexpr auto kSpeedBoostThrottle = crl::time(200);
+constexpr auto kSpeedBoostSettle = crl::time(120);
 
 [[nodiscard]] float64 SpeedToSliderValue(float64 speed) {
 	return (speed - kSpeedMin) / (kSpeedMax - kSpeedMin);
@@ -768,7 +772,9 @@ SpeedController::SpeedController(
 	Expects(_qualities.empty() || (_lookupQuality && _changeQuality));
 
 	button->setClickedCallback([=] {
-		if (_lookup && !_lookupQuality && !_changeQuality) {
+		if (base::take(_speedBoostConsumedClick)) {
+			return;
+		} else if (_lookup && !_lookupQuality && !_changeQuality) {
 			toggleDefault();
 			save();
 			if (const auto current = menu()) {
@@ -793,6 +799,7 @@ rpl::producer<float64> SpeedController::realtimeValue() const {
 }
 
 void SpeedController::reloadFromLookup() {
+	stopSpeedBoost();
 	if (const auto lookup = _lookup) {
 		setSpeed(lookup(false));
 		_speed = lookup(true);
@@ -832,6 +839,128 @@ void SpeedController::save() {
 		change(speed());
 	}
 	_saved.fire({});
+}
+
+void SpeedController::setApplySpeed(Fn<void(float64)> apply) {
+	_applySpeed = std::move(apply);
+	if (!_applySpeed || !_lookup) {
+		return;
+	}
+	_speedBoostTimer.setCallback([=] {
+		startSpeedBoost();
+	});
+	_speedBoostSettleTimer.setCallback([=] {
+		commitSpeedBoost();
+	});
+	button()->events(
+	) | rpl::filter([=](not_null<QEvent*> e) {
+		const auto type = e->type();
+		return (type == QEvent::MouseButtonPress)
+			|| (type == QEvent::MouseButtonRelease)
+			|| (type == QEvent::MouseMove);
+	}) | rpl::on_next([=](not_null<QEvent*> e) {
+		handleSpeedBoostEvent(e.get());
+	}, button()->lifetime());
+}
+
+void SpeedController::showMenu() {
+	if (_speedBoostActive) {
+		return;
+	}
+	WithDropdownController::showMenu();
+}
+
+void SpeedController::handleSpeedBoostEvent(not_null<QEvent*> e) {
+	const auto mouse = static_cast<QMouseEvent*>(e.get());
+	switch (e->type()) {
+	case QEvent::MouseButtonPress:
+		if (mouse->button() == Qt::LeftButton) {
+			_speedBoostConsumedClick = false;
+			_speedBoostLastPosition = mouse->pos();
+			_speedBoostTimer.callOnce(kSpeedBoostHoldDelay);
+		}
+		break;
+	case QEvent::MouseButtonRelease:
+		if (mouse->button() == Qt::LeftButton) {
+			_speedBoostTimer.cancel();
+			if (_speedBoostActive) {
+				_speedBoostConsumedClick = true;
+				stopSpeedBoost();
+			}
+		}
+		break;
+	case QEvent::MouseMove: {
+		if (!(mouse->buttons() & Qt::LeftButton)) {
+			return;
+		}
+		const auto position = mouse->pos();
+		const auto delta = position.x() - _speedBoostLastPosition.x();
+		_speedBoostLastPosition = position;
+		if (!_speedBoostActive) {
+			return;
+		}
+		const auto perUnit = float64(st::mediaPlayerSpeedBoostDragPerUnit);
+		if (perUnit <= 0.) {
+			return;
+		}
+		const auto speed = std::clamp(
+			_speedBoostSpeed + delta / perUnit,
+			kSpeedMin,
+			kSpeedMax);
+		_speedBoostSpeed = speed;
+		_speedChanged.fire_copy(speed);
+		if (speed != _speedBoostAppliedSpeed) {
+			if (crl::now() - _speedBoostLastCommit >= kSpeedBoostThrottle) {
+				_speedBoostSettleTimer.cancel();
+				commitSpeedBoost();
+			} else {
+				_speedBoostSettleTimer.callOnce(kSpeedBoostSettle);
+			}
+		} else {
+			_speedBoostSettleTimer.cancel();
+		}
+	} break;
+	default:
+		break;
+	}
+}
+
+void SpeedController::startSpeedBoost() {
+	if (_speedBoostActive || !_applySpeed) {
+		return;
+	}
+	_speedBoostActive = true;
+	_speedBoostSpeed = kSpeedBoostValue;
+	_speedBoostAppliedSpeed = kSpeedBoostValue;
+	_speedBoostLastCommit = crl::now();
+	_speedBoostSettleTimer.cancel();
+	_applySpeed(_speedBoostSpeed);
+	_speedChanged.fire_copy(_speedBoostSpeed);
+	if (const auto current = menu()) {
+		current->hideFast();
+	}
+}
+
+void SpeedController::stopSpeedBoost() {
+	if (!_speedBoostActive) {
+		return;
+	}
+	_speedBoostActive = false;
+	_speedBoostTimer.cancel();
+	_speedBoostSettleTimer.cancel();
+	if (_applySpeed && _lookup) {
+		_applySpeed(_lookup(false));
+	}
+	_speedChanged.fire_copy(speed());
+}
+
+void SpeedController::commitSpeedBoost() {
+	if (!_speedBoostActive || _speedBoostAppliedSpeed == _speedBoostSpeed) {
+		return;
+	}
+	_speedBoostAppliedSpeed = _speedBoostSpeed;
+	_speedBoostLastCommit = crl::now();
+	_applySpeed(_speedBoostSpeed);
 }
 
 void SpeedController::setQuality(VideoQuality quality) {

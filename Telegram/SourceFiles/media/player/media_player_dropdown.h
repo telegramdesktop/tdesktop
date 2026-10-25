@@ -90,7 +90,7 @@ public:
 	void setOtherDropdownCheck(Fn<bool(QPoint globalPosition)> check);
 
 protected:
-	void showMenu();
+	virtual void showMenu();
 
 private:
 	virtual void fillMenu(not_null<Ui::DropdownMenu*> menu) = 0;
@@ -147,9 +147,11 @@ public:
 	[[nodiscard]] rpl::producer<float64> realtimeValue() const;
 	void reloadFromLookup();
 	void setQualities(std::vector<VideoQuality> qualities);
+	void setApplySpeed(Fn<void(float64)> apply);
 
 private:
 	void fillMenu(not_null<Ui::DropdownMenu*> menu) override;
+	void showMenu() override;
 
 	[[nodiscard]] float64 speed() const;
 	[[nodiscard]] bool isDefault() const;
@@ -159,9 +161,23 @@ private:
 	void setQuality(VideoQuality quality);
 	void save();
 
+	void handleSpeedBoostEvent(not_null<QEvent*> e);
+	void startSpeedBoost();
+	void stopSpeedBoost();
+	void commitSpeedBoost();
+
 	const style::MediaSpeedButton &_st;
 	Fn<float64(bool lastNonDefault)> _lookup;
 	Fn<void(float64)> _change;
+	Fn<void(float64)> _applySpeed;
+	base::Timer _speedBoostTimer;
+	base::Timer _speedBoostSettleTimer;
+	QPoint _speedBoostLastPosition;
+	crl::time _speedBoostLastCommit = 0;
+	float64 _speedBoostSpeed = kSpedUpDefault;
+	float64 _speedBoostAppliedSpeed = kSpedUpDefault;
+	bool _speedBoostActive = false;
+	bool _speedBoostConsumedClick = false;
 	float64 _speed = kSpedUpDefault;
 	bool _isDefault = true;
 	rpl::event_stream<float64> _speedChanged;

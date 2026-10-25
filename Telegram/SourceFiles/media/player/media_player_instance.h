@@ -152,6 +152,7 @@ public:
 	void cancelSeeking(AudioMsgId::Type type);
 
 	void updatePlaybackSpeed();
+	void setPlaybackSpeed(float64 speed);
 
 	[[nodiscard]] bool nextAvailable(AudioMsgId::Type type) const;
 	[[nodiscard]] bool previousAvailable(AudioMsgId::Type type) const;
