@@ -2061,6 +2061,8 @@ PRIVATE
     test/test_clipboard.h
     test/test_console_lock.cpp
     test/test_console_lock.h
+    test/test_controller_ready.cpp
+    test/test_controller_ready.h
     test/test_corner_patch.cpp
     test/test_corner_patch.h
     test/test_custom_emoji.cpp

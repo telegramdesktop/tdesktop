@@ -43,6 +43,9 @@ Visibility alone does not prove identity, ownership or unobscured geometry.
 Publish exact live objects/actions when descendant searches are ambiguous;
 keep lifetime guards across stages and preserve a window's concrete type.
 Read [object publication and input contracts](docs/helpers/test_widgets.md).
+Resolve another account's or a separate window's controller from the window
+registry with [test_controller_ready](docs/helpers/test_controller_ready.md),
+never from activation history.
 
 ## Resolving a chat's message list
 

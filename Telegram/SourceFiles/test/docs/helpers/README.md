@@ -13,6 +13,7 @@ should call.
 | [test_runner](test_runner.md) | API | Stages, gated groups, bounded readiness and exact-object actions |
 | [test_gated_stage](test_gated_stage.md) | Self-test | Self-tests for explicit and inherited gated skips |
 | [test_session_gate](test_session_gate.md) | API | Test-account gate, switching, restoration and explicit production legs |
+| [test_controller_ready](test_controller_ready.md) | API | Exact account/session window controllers from the window registry, observation-only readiness with named refusals and one guarded action |
 | [test_log](test_log.md) | API | Evidence logs, assertions and telemetry formatting |
 | [test_log_lines](test_log_lines.md) | Self-test | Self-test for one physical record per log call |
 | [test_text_reads](test_text_reads.md) | API | Space-normalized text assertions |
