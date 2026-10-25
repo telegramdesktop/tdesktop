@@ -175,10 +175,10 @@ private:
 	bool _painted = false;
 	bool _windowKnown = false;
 	bool _stopFatal = false;
-	bool _sizePosted = false;
 	bool _summaryLast = false;
 	bool _displayDeferred = false;
 	bool _displayPosted = false;
+	bool _sizing = false;
 
 };
 

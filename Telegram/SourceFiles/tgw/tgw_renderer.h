@@ -43,6 +43,7 @@ public:
 		Height = (1 << 1),
 		Content = (1 << 2),
 		Stopped = (1 << 3),
+		Loaded = (1 << 4),
 	};
 	friend inline constexpr bool is_flag_type(Change) { return true; }
 	using Changes = base::flags<Change>;
@@ -92,14 +93,17 @@ public:
 	[[nodiscard]] double width() const;
 	[[nodiscard]] std::optional<double> height() const;
 	[[nodiscard]] bool hasContent() const;
+	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] bool stopped() const;
 	[[nodiscard]] const QString &stopReason() const;
 	[[nodiscard]] bool stopFatal() const;
 	[[nodiscard]] not_null<twlite::Renderer*> renderer() const;
 	[[nodiscard]] const QImage &frame(
 		Images::CornersMaskRef corners,
-		QSize cardArea);
+		QSize cardArea,
+		bool autoHeight);
 	void dropFrame();
+	void takeFrameFrom(RendererCore &other);
 
 	[[nodiscard]] rpl::producer<Changes> updates() const;
 	[[nodiscard]] rpl::producer<LinkRequest> linkRequests() const;
@@ -138,6 +142,7 @@ private:
 	[[nodiscard]] std::vector<twidget::Json> leaveHover();
 	void inputDone(const std::vector<twidget::Json> &out, bool wasDirty);
 	void releaseInput();
+	[[nodiscard]] std::vector<twidget::Json> takeSettled();
 	void flushQueued();
 
 	[[nodiscard]] bool canTick() const;
@@ -175,6 +180,8 @@ private:
 	bool _ready = false;
 	bool _detached = false;
 	bool _hasContent = false;
+	bool _acked = false;
+	bool _loaded = false;
 	bool _stopped = false;
 	bool _stopFatal = false;
 	bool _onScreen = false;

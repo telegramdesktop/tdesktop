@@ -577,7 +577,7 @@ std::optional<int> Runtime::height() const {
 }
 
 RendererCore *Runtime::core() const {
-	return (_live && _live->hasContent()) ? _live.get() : _still.get();
+	return (_live && _live->loaded()) ? _live.get() : _still.get();
 }
 
 RendererCore *Runtime::interactive() const {
@@ -616,11 +616,8 @@ void Runtime::setSize(int width, double maxHeight) {
 	}
 	_width = width;
 	_maxHeight = maxHeight;
-	if ((_live || _still) && !_sizePosted) {
-		_sizePosted = true;
-		crl::on_main(this, [=] {
-			applySize();
-		});
+	if (_live || _still) {
+		applySize();
 	}
 }
 
@@ -1169,9 +1166,12 @@ void Runtime::retire(State state) {
 	_liveLifetime.destroy();
 	if (_live) {
 		_live->detach();
-		if (_live->hasContent()) {
+		if (_live->loaded()) {
 			_still = std::move(_live);
+			_displayDeferred = _displayDeferred
+				|| (height() != _shownHeight);
 		} else {
+			addNote(u"Its start did not finish."_q);
 			_live = nullptr;
 		}
 	}
@@ -1214,7 +1214,8 @@ void Runtime::subscribeLive() {
 		} else {
 			coreUpdated(
 				renderer,
-				bool(changes & (Change::Repaint | Change::Content)));
+				bool(changes
+					& (Change::Repaint | Change::Content | Change::Loaded)));
 		}
 	}, _liveLifetime);
 
@@ -1225,13 +1226,14 @@ void Runtime::subscribeLive() {
 }
 
 void Runtime::coreUpdated(not_null<RendererCore*> renderer, bool repaint) {
-	if (renderer.get() != _live.get()) {
+	if (renderer.get() != _live.get() || !renderer->loaded()) {
 		return;
 	}
-	if (_still && renderer->hasContent()) {
-		_still = nullptr;
+	if (_still) {
+		renderer->takeFrameFrom(*_still);
 	}
-	displayChanged(repaint && (renderer.get() == core()));
+	_still = nullptr;
+	displayChanged(repaint);
 }
 
 void Runtime::coreStopped(not_null<RendererCore*> renderer) {
@@ -1330,19 +1332,21 @@ void Runtime::ThemeDone(const std::shared_ptr<Host> &host) {
 }
 
 void Runtime::applySize() {
-	_sizePosted = false;
+	// WHY: the list layout that calls HtmlWidget::countCurrentSize() lays
+	// the new height out right after setSize(), so a resize or a repaint
+	// requested from here would re-enter that same layout.
+	_sizing = true;
+	const auto guard = gsl::finally([&] { _sizing = false; });
 	const auto width = CssFromLogical(_width);
-	auto repaint = false;
 	if (_still) {
 		_still->setWidth(width);
 		_still->setMaxHeight(_maxHeight);
-		repaint = (_still.get() == core());
 	}
 	if (_live) {
 		_live->setWidth(width);
 		_live->setMaxHeight(_maxHeight);
 	}
-	displayChanged(repaint);
+	displayChanged(false);
 }
 
 void Runtime::displayChanged(bool repaint) {
@@ -1352,6 +1356,10 @@ void Runtime::displayChanged(bool repaint) {
 		}
 	}
 	const auto now = height();
+	if (_sizing) {
+		_shownHeight = now;
+		return;
+	}
 	const auto resize = (_shownHeight != now);
 	if (!resize && !repaint) {
 		return;

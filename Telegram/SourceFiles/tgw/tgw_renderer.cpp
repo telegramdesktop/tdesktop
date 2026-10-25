@@ -63,6 +63,8 @@ constexpr auto kFingerPointer = 1;
 constexpr auto kPrimaryButton = 0;
 constexpr auto kSecondaryButton = 2;
 constexpr auto kLocalQueryId = 0;
+// Mirrors the private twidget::WidgetHost::kRenderAckQid, its post-load query.
+constexpr auto kLoadAckQueryId = -1;
 constexpr auto kDomAlt = 1;
 constexpr auto kDomCtrl = 2;
 constexpr auto kDomMeta = 4;
@@ -116,6 +118,16 @@ private:
 	return QSize(
 		DeviceSide(renderer.px_width()),
 		DeviceSide(renderer.px_height()));
+}
+
+[[nodiscard]] bool FitsCard(
+		QSize frame,
+		QSize card,
+		int ratio,
+		bool autoHeight) {
+	return (std::abs(frame.width() - card.width()) <= ratio)
+		&& (!autoHeight
+			|| (std::abs(frame.height() - card.height()) <= ratio));
 }
 
 [[nodiscard]] QImage RoundFrame(
@@ -449,6 +461,9 @@ void RendererCore::detach() {
 	_renderer->clear_selection();
 	_detached = true;
 	_pendingSize = std::string();
+	if (_loaded) {
+		notifyPosted(forwardAll(takeSettled()));
+	}
 	refreshClock();
 	_link->close();
 	_backend->releaseCanvasFonts();
@@ -737,6 +752,10 @@ bool RendererCore::hasContent() const {
 	return _hasContent;
 }
 
+bool RendererCore::loaded() const {
+	return _loaded;
+}
+
 bool RendererCore::stopped() const {
 	return _stopped;
 }
@@ -755,13 +774,16 @@ not_null<twlite::Renderer*> RendererCore::renderer() const {
 
 const QImage &RendererCore::frame(
 		Images::CornersMaskRef corners,
-		QSize cardArea) {
+		QSize cardArea,
+		bool autoHeight) {
 	const auto ratio = style::DevicePixelRatio();
 	if (!_renderer->dirty()
 		&& (_frameSize == DeviceSize(*_renderer))
 		&& (_frameCorners == corners)
 		&& (_frameArea == cardArea)
-		&& (_frame.isNull() || _frame.devicePixelRatio() == ratio)) {
+		&& (_frame.isNull()
+			|| ((_frame.devicePixelRatio() == ratio)
+				&& (_frame.size() == _frameSize)))) {
 		return _frame;
 	}
 	const auto builds = _renderer->stats().builds;
@@ -770,15 +792,32 @@ const QImage &RendererCore::frame(
 	// the pixels are kept.
 	const auto list = _renderer->paint();
 	const auto size = DeviceSize(*_renderer);
+	const auto settled = (_renderer->stats().builds != builds);
+	const auto card = cardArea * ratio;
+	if (!FitsCard(size, card, ratio, autoHeight)) {
+		// A size the list has not laid out yet keeps this card's picture.
+		if (settled) {
+			flushQueued();
+		}
+		const auto keep = !_frame.isNull()
+			&& (_frameArea == cardArea)
+			&& (_frameCorners == corners)
+			&& (_frame.devicePixelRatio() == ratio)
+			&& FitsCard(_frame.size(), card, ratio, autoHeight);
+		if (!keep) {
+			dropFrame();
+		}
+		return _frame;
+	}
 	_frame = PaintFrame(list, *_backend, size, _renderer->dpr());
 	_frameSize = size;
 	_frameCorners = corners;
 	_frameArea = cardArea;
 	if (!_frame.isNull()) {
-		_frame = RoundFrame(std::move(_frame), corners, cardArea * ratio);
+		_frame = RoundFrame(std::move(_frame), corners, card);
 		_frame.setDevicePixelRatio(ratio);
 	}
-	if (_renderer->stats().builds != builds) {
+	if (settled) {
 		flushQueued(); // paint() holds its build's output for the next call
 	}
 	return _frame;
@@ -789,6 +828,13 @@ void RendererCore::dropFrame() {
 	_frameSize = QSize();
 	_frameArea = QSize();
 	_frameCorners = Images::CornersMaskRef();
+}
+
+void RendererCore::takeFrameFrom(RendererCore &other) {
+	_frame = base::take(other._frame);
+	_frameSize = base::take(other._frameSize);
+	_frameArea = base::take(other._frameArea);
+	_frameCorners = base::take(other._frameCorners);
 }
 
 rpl::producer<RendererCore::Changes> RendererCore::updates() const {
@@ -833,7 +879,7 @@ void RendererCore::hostMessage(const twidget::Json &message) {
 	}
 	const auto wasDirty = _renderer->dirty();
 	_backend->beginCanvasBatch();
-	const auto out = _renderer->receive(message);
+	auto out = _renderer->receive(message);
 	auto changes = Changes();
 	if (type == "ops" && !message["ops"].arr().empty()) {
 		changes |= Change::Repaint;
@@ -843,6 +889,17 @@ void RendererCore::hostMessage(const twidget::Json &message) {
 		}
 	} else if (type == "anim") {
 		changes |= Change::Repaint;
+	} else if (type == "query"
+		&& message["qid"].isNumber()
+		&& (message["qid"].asInt() == kLoadAckQueryId)) {
+		_acked = true;
+	}
+	if (_acked && _hasContent && !_loaded) {
+		_loaded = true;
+		changes |= Change::Loaded;
+		if (type == "ops") {
+			Append(out, takeSettled());
+		}
 	}
 	if (!wasDirty && _renderer->dirty()) {
 		changes |= Change::Repaint;
@@ -953,13 +1010,17 @@ void RendererCore::releaseInput() {
 	_finger = Finger();
 }
 
+std::vector<twidget::Json> RendererCore::takeSettled() {
+	auto out = _renderer->receive(ViewportQuery());
+	out.erase(ranges::remove_if(out, OfType("result")), end(out));
+	return out;
+}
+
 void RendererCore::flushQueued() {
 	if (_detached || _stopped) {
 		return;
 	}
-	auto out = _renderer->receive(ViewportQuery());
-	out.erase(ranges::remove_if(out, OfType("result")), end(out));
-	notifyPosted(forwardAll(out));
+	notifyPosted(forwardAll(takeSettled()));
 	refreshClock();
 }
 

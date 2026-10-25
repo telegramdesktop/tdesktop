@@ -223,7 +223,8 @@ void HtmlWidget::draw(Painter &p, const PaintContext &context) const {
 			: RectParts();
 		const auto &frame = core->frame(
 			MediaRoundingMask(adjustedBubbleRounding(square)),
-			card.size());
+			card.size(),
+			(_anchors.height <= 0));
 		if (!frame.isNull()) {
 			p.save();
 			p.setClipRect(card, Qt::IntersectClip);
