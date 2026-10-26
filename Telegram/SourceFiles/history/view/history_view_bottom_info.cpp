@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"
+#include "styles/style_tgw.h"
 
 namespace HistoryView {
 namespace {
@@ -160,6 +161,30 @@ bool BottomInfo::isWide() const {
 		|| _data.tonStake;
 }
 
+QRect BottomInfo::networkMarkerRect() const {
+	if (!(_data.flags & Data::Flag::NetworkMarker)) {
+		return QRect();
+	}
+	auto right = width() - _authorEditedDate.maxWidth();
+	if (_data.flags & Data::Flag::OutLayout) {
+		right -= st::historySendStateSpace;
+	}
+	if (_data.flags & Data::Flag::Silent) {
+		right -= st::historySilentWidth;
+	}
+	if (_data.flags & Data::Flag::Ephemeral) {
+		right -= st::historyEphemeralStateWidth;
+	}
+	if (_data.flags & Data::Flag::Pinned) {
+		right -= st::historyPinWidth;
+	}
+	return QRect(
+		right - st::tgwNetworkMarkerWidth,
+		0,
+		st::tgwNetworkMarkerWidth,
+		st::msgDateFont->height);
+}
+
 TextState BottomInfo::textState(
 		not_null<const Message*> view,
 		QPoint position) const {
@@ -168,6 +193,13 @@ TextState BottomInfo::textState(
 	if (const auto link = replayEffectLink(view, position)) {
 		result.link = link;
 		return result;
+	}
+	if (networkMarkerRect().contains(position)) {
+		const auto media = view->media();
+		if (const auto link = media ? media->networkMarkerLink() : nullptr) {
+			result.link = link;
+			return result;
+		}
 	}
 	const auto textWidth = _authorEditedDate.maxWidth();
 	auto withTicksWidth = textWidth;
@@ -179,6 +211,9 @@ TextState BottomInfo::textState(
 		const auto right = width()
 			- withTicksWidth
 			- ((_data.flags & Data::Flag::Pinned) ? st::historyPinWidth : 0)
+			- ((_data.flags & Data::Flag::NetworkMarker)
+				? st::tgwNetworkMarkerWidth
+				: 0)
 			- st::historyViewsSpace
 			- st::historyViewsWidth
 			- viewsWidth;
@@ -271,6 +306,7 @@ void BottomInfo::paint(
 		const PaintContext &context) const {
 	const auto st = context.st;
 	const auto stm = context.messageStyle();
+	const auto infoColor = p.pen().color();
 
 	auto right = position.x() + width();
 	const auto firstLineBottom = position.y() + st::msgDateFont->height;
@@ -335,6 +371,14 @@ void BottomInfo::paint(
 			right,
 			firstLineBottom + st::historyPinTop,
 			outerWidth);
+	}
+	if (_data.flags & Data::Flag::NetworkMarker) {
+		right = position.x() + networkMarkerRect().x();
+		st::tgwNetworkMarkerIcon.paint(
+			p,
+			QPoint(right, firstLineBottom) + st::tgwNetworkMarkerPosition,
+			outerWidth,
+			infoColor);
 	}
 	if (!_views.isEmpty()) {
 		const auto viewsWidth = _views.maxWidth();
@@ -607,6 +651,9 @@ QSize BottomInfo::countOptimalSize() {
 	if (_data.flags & Data::Flag::Pinned) {
 		width += st::historyPinWidth;
 	}
+	if (_data.flags & Data::Flag::NetworkMarker) {
+		width += st::tgwNetworkMarkerWidth;
+	}
 	if (_data.flags & Data::Flag::Silent) {
 		width += st::historySilentWidth;
 	}
@@ -720,6 +767,11 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 		&& (!message->media()
 			|| !message->media()->drawsOwnEphemeralBadge())) {
 		result.flags |= Flag::Ephemeral;
+	}
+	if (const auto media = message->media()) {
+		if (media->networkMarkerLink()) {
+			result.flags |= Flag::NetworkMarker;
+		}
 	}
 	if (!item->history()->peer->isUser()) {
 		const auto mine = PaidInformation{

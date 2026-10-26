@@ -9333,6 +9333,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_tgw_stopped" = "Widget stopped";
 "lng_tgw_log" = "Widget log";
+"lng_tgw_network_marker" = "A tap on this widget may send data to the bot's server.";
 "lng_in_dlg_widget" = "Widget";
 
 // Keys finished
