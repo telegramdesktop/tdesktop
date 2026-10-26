@@ -8756,8 +8756,9 @@ bool OverlayWidget::filterApplicationEvent(
 		} else if (key == Qt::Key_0 && ctrl) {
 			zoomReset();
 			return true;
-		} else if (event == QKeySequence::SaveAs
-			|| event == QKeySequence::Save) {
+		} else if ((event == QKeySequence::SaveAs
+			|| event == QKeySequence::Save)
+			&& isActive()) {
 			event -> accept();
 			return true;
 		}
