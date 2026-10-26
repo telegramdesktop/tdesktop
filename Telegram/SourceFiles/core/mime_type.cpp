@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/mime_type.h"
 
+#include "base/platform/base_platform_info.h"
 #include "core/utils.h"
 #include "ui/image/image_prepare.h"
 
@@ -41,6 +42,21 @@ namespace {
 		const QString &joined) {
 	const auto list = joined.split(' ');
 	return base::flat_set<QString>(list.begin(), list.end());
+}
+
+[[nodiscard]] bool IsAny(const QMimeType &type, const QStringList &names) {
+	const auto aliases = type.aliases();
+	return ranges::any_of(names, [&](const QString &name) {
+		return (type.name() == name) || aliases.contains(name);
+	});
+}
+
+[[nodiscard]] bool InheritsAny(
+		const QMimeType &type,
+		const QStringList &names) {
+	return ranges::any_of(names, [&](const QString &name) {
+		return type.inherits(name);
+	});
 }
 
 } // namespace
@@ -328,7 +344,7 @@ bool NameTypeAllowsThumbnail(NameType type) {
 		|| type == NameType::ThemeFile;
 }
 
-bool IsIpRevealingPath(const QString &filepath) {
+LaunchType DetectLaunchType(const QString &filepath) {
 	static const auto kExtensions = [] {
 		auto joined = u"htm html svg m4v m3u m3u8 xhtml xml kml kmz "
 			"xspf wpl"_q;
@@ -348,13 +364,47 @@ bool IsIpRevealingPath(const QString &filepath) {
 		return base::flat_set<QString>(list.begin(), list.end());
 	}();
 
-	return ranges::binary_search(
-		kExtensions,
-		FileExtension(filepath).toLower()
-	) || ranges::binary_search(
-		kMimeTypes,
-		QMimeDatabase().mimeTypeForFile(QFileInfo(filepath)).name()
-	);
+	auto result = LaunchType{
+		.extension = FileExtension(filepath).toLower(),
+		.nameType = DetectNameType(filepath),
+	};
+	if (result.nameType == NameType::Executable) {
+		return result;
+	} else if (ranges::binary_search(kExtensions, result.extension)) {
+		result.ipRevealing = true;
+		return result;
+	}
+	const auto type = QMimeDatabase().mimeTypeForFile(QFileInfo(filepath));
+	result.ipRevealing = ranges::binary_search(kMimeTypes, type.name());
+	if (!Platform::IsLinux()
+		|| !QMimeDatabase().mimeTypesForFileName(filepath).isEmpty()) {
+		return result;
+	}
+	static const auto kIpFamilies = u"text/html image/svg+xml "
+		"application/vnd.google-earth.kml+xml "
+		"application/vnd.google-earth.kmz application/xml "
+		"application/xhtml+xml application/xspf+xml audio/x-mpegurl "
+		"application/vnd.apple.mpegurl application/vnd.ms-wpl"_q.split(' ');
+	static const auto kExecutableTypes = u"application/x-executable "
+		"application/x-pie-executable application/x-desktop"_q.split(' ');
+	static const auto kExecutableFamilies = u"application/x-shellscript "
+		"application/vnd.debian.binary-package application/x-rpm"_q.split(' ');
+	static const auto kUnknownFamilies = u"audio/x-scpls audio/x-ms-asx "
+		"application/x-executable application/x-sharedlib "
+		"application/x-ms-dos-executable application/x-msdownload "
+		"application/vnd.flatpak application/vnd.flatpak.ref "
+		"application/vnd.flatpak.repo"_q.split(' ');
+	if (InheritsAny(type, kIpFamilies)) {
+		result.ipRevealing = true;
+	} else if (IsAny(type, kExecutableTypes)
+		|| InheritsAny(type, kExecutableFamilies)) {
+		result.nameType = NameType::Executable;
+		result.byContent = true;
+	} else if (InheritsAny(type, kUnknownFamilies)) {
+		result.nameType = NameType::Unknown;
+		result.byContent = true;
+	}
+	return result;
 }
 
 } // namespace Core

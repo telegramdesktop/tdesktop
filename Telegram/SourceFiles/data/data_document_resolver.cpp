@@ -90,19 +90,14 @@ void LaunchWithWarning(
 		// not_null<Window::Controller*> controller,
 		const QString &name,
 		HistoryItem *item) {
-	const auto nameType = Core::DetectNameType(name);
-	const auto isIpReveal = (nameType != Core::NameType::Executable)
-		&& Core::IsIpRevealingPath(name);
-	const auto extension = Core::FileExtension(name).toLower();
+	const auto type = Core::DetectLaunchType(name);
+	const auto nameType = type.nameType;
+	const auto extension = type.extension;
 
 	auto &app = Core::App();
 	auto &settings = app.settings();
-	const auto warn = LauncherWouldWarn(
-		settings,
-		nameType,
-		isIpReveal,
-		extension,
-		item);
+	const auto isIpReveal = type.ipRevealing && settings.ipRevealWarning();
+	const auto warn = LauncherWouldWarn(settings, type, item);
 	if (extension.isEmpty()) {
 		// If you launch a file without extension, like "test", in case
 		// there is an executable file with the same name in this folder,
@@ -140,7 +135,8 @@ void LaunchWithWarning(
 				lt_extension,
 				rpl::single(tr::bold('.' + extension)),
 				tr::marked);
-	const auto canRemember = isIpReveal || !extension.contains(' ');
+	const auto canRemember = isIpReveal
+		|| (!type.byContent && !extension.contains(' '));
 	auto check = !canRemember
 		? rpl::producer<QString>()
 		: isIpReveal
@@ -198,17 +194,16 @@ ImageOpenCheck CheckImageOpenInApp(
 
 bool LauncherWouldWarn(
 		const Core::Settings &settings,
-		Core::NameType nameType,
-		bool isIpReveal,
-		const QString &extension,
+		const Core::LaunchType &type,
 		HistoryItem *item) {
 	if (item && item->history()->peer->isVerified()) {
 		return false;
 	}
-	return (isIpReveal && settings.ipRevealWarning())
-		|| ((nameType == Core::NameType::Executable
-			|| nameType == Core::NameType::Unknown)
-			&& !settings.noWarningExtensions().contains(extension));
+	return (type.ipRevealing && settings.ipRevealWarning())
+		|| ((type.nameType == Core::NameType::Executable
+			|| type.nameType == Core::NameType::Unknown)
+			&& (type.byContent
+				|| !settings.noWarningExtensions().contains(type.extension)));
 }
 
 base::binary_guard ReadBackgroundImageAsync(

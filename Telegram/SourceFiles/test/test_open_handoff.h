@@ -39,6 +39,7 @@ struct OpenHandoff {
 	bool pathExists = false;
 	bool markdownCandidate = false;
 	bool ipRevealing = false;
+	bool byContent = false;
 	bool ipRevealWarning = false;
 	bool noWarningExtension = false;
 	bool peerVerified = false;
