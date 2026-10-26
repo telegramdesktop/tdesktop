@@ -8,7 +8,7 @@ Source contract: [test_menu.h](../../test_menu.h).
 
 ## Use when
 
-Same-turn menu readings, actions and captures. Read the contract below and the source header before use.
+Same-turn menu readings, actions and captures. Read the contract below and the source header before use. A custom `Ui::Menu::ItemBase` row whose `QAction` carries no text is activated by its full accessible name and real keys instead: [Accessible custom rows](#accessible-custom-rows).
 
 ## Contract and usage
 
@@ -75,6 +75,132 @@ stays queued, and the at-build observer, which runs exactly once, after the
 handler ran and before a `Ui::PostponeCall` marker the handler queued drained,
 with the marker run by the time the reader returns, and is not called for a
 receiver destroyed before the call (`receiver-gone`).
+
+## Accessible custom rows
+
+### When to use it
+
+A custom row keeps its label and callback on the `Ui::Menu::ItemBase` rather
+than on its `QAction`. `AboutAction` (`ui/boxes/peer_qr_box.cpp`) owns a dummy
+`QAction` with no text, paints its text and its about line itself, and
+answers `accessibilityName()` with `<text>, <about>`. `TriggerContextMenuAction`
+matches `QAction::text()`, so it correctly refuses such a row's text as
+`no-such-action`. Do not retry it with an empty string: beside another such
+row that is ambiguous, and otherwise it triggers the dummy action directly
+instead of through the row. Do not pick the row by index or by a prefix of
+its name either. Use `ReadMenuItem(popup, fullName)` and
+`ActivateMenuItem(reading)` for such a row, and keep
+`TriggerContextMenuAction` for ordinary `QAction` entries.
+
+### Preconditions and limits
+
+Read and activate in the turn that opened the popup, in the same stage action.
+On an unattended console a popup may be closed before the next turn. The
+popup must be open and ready (`PopupMenuReady`); a closed one is refused, and
+the helper never reopens it. For a context menu, pass `reading.menu.data()`
+from `OpenContextMenu`, or `reading.menu.menu.data()` from a `built()`
+`OpenChatListContextMenu` reading. The name is the row's whole
+`accessibilityName()`: for `AboutAction` its text, a comma and a space, and
+its about line. The helper does not hover, activate a window,
+turn the event loop or deliver posted events. Submenu entries and custom rows
+that ignore Return are outside its consumers and are not supported.
+
+### Minimal use
+
+```cpp
+runner->add({
+	.name = u"timer row"_q,
+	.run = [=] {
+		const auto menu = Test::OpenContextMenu(state->receiver, state->point);
+		const auto row = Test::ReadMenuItem(
+			menu.menu.data(),
+			state->text + u", "_q + state->about);
+		const auto key = Test::ActivateMenuItem(row);
+		Test::Check(
+			key.activated(),
+			u"timer row: Return sent to the exact accessible row"_q,
+			Test::MenuItemReadingDetails(row)
+				+ u" "_q
+				+ Test::MenuItemActivationDetails(key));
+	},
+	.then = [=] {
+		// Assert the product's own outcome here, or wait for it in a bounded
+		// until of a later stage.
+	},
+});
+```
+
+### Readings and refusals
+
+`ReadMenuItem` walks the popup's current `Ui::Menu`. Each non-separator action
+resolves to its row through `Menu::itemForAction`, and `names` lists every
+row's name. Exactly one enabled exact match is `found()`. Only then does the
+reading hold the row and its `QAction`, beside the popup and the Menu, as
+`QPointer`s. Its refusals are `menu-gone` (no live `Ui::PopupMenu`),
+`no-such-item` (no row has this full name; an empty name matches none),
+`several-items` (an ambiguous name binds no row) and `item-disabled`.
+
+`ActivateMenuItem` sends nothing for a refused reading and returns its refusal.
+Before any key and after every Down it checks the binding, in this order:
+
+- `menu-gone`: the popup was destroyed.
+- `menu-replaced`: the popup's current Menu is another one. `stashContent`
+  does that while the old rows stay alive, so liveness alone never suffices.
+- `item-gone`: the row was destroyed, even if a row of the same name exists.
+- `item-stale`: the row's `QAction` died, or the row left the Menu, answers
+  another action, is no longer mapped from it or was renamed.
+- `several-items` or `item-disabled`: a recheck by name. The recheck never
+  adopts the target it finds.
+- `menu-gone`: the popup is no longer open for input.
+
+It then sends `Qt::Key_Down` through `Test::PressKey` until the captured row is
+the Menu's selected row with source Keyboard. It sends at most `bound` Downs,
+the Menu's action count with separators. A screen reader preselects the first
+enabled row from the keyboard, so `steps` may be zero for that row. A row still unselected at the bound is
+`not-selected`, and no Return is sent. Otherwise exactly one `Qt::Key_Return`
+follows the last passing check. `MenuItemReadingDetails` and
+`MenuItemActivationDetails` print the recorded values and pointer liveness.
+
+### Lifetime and timing
+
+A reading owns nothing and stays printable after its objects die. Nothing is
+read after the Return, because the product may destroy the menu from it:
+`activated()` means the key was sent, never that a callback ran or a product
+state changed. Return reaches the row's `handleKeyPress`, its
+`setClicked(Keyboard)`, `PopupMenu::handleTriggered` and finally
+`QAction::trigger()`. A callback connected with `ItemBase::setActionTriggered`
+is direct, so it has run when the helper returns. One made by
+`Ui::Menu::CreateAction` is queued, so it runs a turn later. Assert the
+product outcome in a later `then` or a bounded wait. The helper owns nothing
+and needs no cleanup; the selection its Downs moved and the menu's close on
+Return are the product's own.
+
+### Verification
+
+`AppendMenuItemActivationSelfTest` is the design-level proof of this route.
+It runs in five Runner stages over popups of its own, parented to the primary
+window, with one empty-`QAction` custom row class modeled on `AboutAction`:
+
+1. Lookup: the custom row's exact binding and full name, an ordinary sibling
+   found through the same walk, `no-such-item` for a missing name and for the
+   label alone, `several-items` for two identical names, `item-disabled`, no
+   key for those refusals, and the old trigger's `no-such-action`.
+2. Activation: the target follows an ordinary row, a separator and a disabled
+   row. Its callback runs exactly once, inside it the row is selected from the
+   keyboard, and no other callback runs.
+3. Lifetime before input: a destroyed row (`item-gone`), a destroyed popup
+   (`menu-gone`) and a stashed Menu (`menu-replaced`), each beside a fresh
+   reading of a same-named replacement and with no key or callback.
+4. Across keyboard input: a tripwire row's Keyboard selection queues a
+   guarded `Ui::PostponeCall`, which the Down's settlement drains. It
+   destroys the popup (`menu-gone`) or stashes its Menu (`menu-replaced`). No
+   Return is sent and no callback runs.
+5. Teardown, which `Runner::onFinish` repeats.
+
+It needs no account, session or network. A missing primary window fails its
+first fixture-gate Check, and the later stages but the teardown are N/A.
+Approval needs every Check to PASS with no N/A. This page describes that
+design; executed results belong to the run's task evidence.
 
 ## Related guidance
 

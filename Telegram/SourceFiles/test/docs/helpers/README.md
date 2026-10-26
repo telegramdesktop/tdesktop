@@ -49,7 +49,7 @@ should call.
 | [test_style](test_style.md) | API | Settled palette samples and baseline checks |
 | [test_palette](test_palette.md) | API | Switch and restore palettes while respecting system following |
 | [test_panel](test_panel.md) | API | Separate-panel discovery, show-cache readiness and typed fixture sizing |
-| [test_menu](test_menu.md) | API | Same-turn menu readings, actions and captures |
+| [test_menu](test_menu.md) | API | Same-turn menu readings, actions, keyboard activation of accessible custom rows, and captures |
 | [test_chat_menu](test_chat_menu.md) | API | Attribute chat-list context menus to the exact message |
 | [test_messages](test_messages.md) | API | Observe matching sent server messages |
 | [test_history_fixtures](test_history_fixtures.md) | API | Lifetime-owned history service-message fixtures |

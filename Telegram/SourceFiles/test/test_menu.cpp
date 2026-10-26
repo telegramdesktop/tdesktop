@@ -22,15 +22,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/menu/menu_common.h"
+#include "ui/widgets/menu/menu_item_base.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/painter.h"
+#include "ui/qt_object_factory.h"
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
 #include "window/window_controller.h"
 
 #include <QtGui/QGuiApplication>
+#include <QtGui/QKeyEvent>
 #include <QtGui/QWindow>
 #include <QtWidgets/QApplication>
 #include <QAction>
+
+#include "styles/style_widgets.h"
 
 namespace Test {
 namespace {
@@ -1608,6 +1614,869 @@ void AppendContextMenuReaderSelfTest(not_null<Runner*> runner) {
 				.arg(state->elsewhere ? 1 : 0)
 				.arg(state->premiseOwner ? 1 : 0)
 				.arg(state->marker ? 1 : 0));
+		},
+	});
+}
+
+namespace {
+
+const auto kItemAbout = u"Harness item description"_q;
+const auto kItemTarget = u"Harness item Target"_q;
+const auto kItemDisabled = u"Harness item Disabled"_q;
+const auto kItemTwin = u"Harness item Twin"_q;
+const auto kItemAbsent = u"Harness item Absent"_q;
+const auto kItemOrdinary = u"Harness item Ordinary"_q;
+const auto kItemTripwire = u"Harness item Tripwire"_q;
+
+// The shape of AboutAction (ui/boxes/peer_qr_box.cpp) this route exists for:
+// its own QAction with no text, a "<label>, <about>" accessible name, Return
+// on the selected row clicking it from the keyboard, and the callback
+// connected directly to that QAction. Painted with the Menu's style only.
+class HarnessCustomRow final : public Ui::Menu::ItemBase {
+public:
+	HarnessCustomRow(
+		not_null<Ui::Menu::Menu*> parent,
+		const QString &label,
+		bool enabled,
+		Fn<void()> callback);
+
+	QString accessibilityName() override;
+
+	bool isEnabled() const override;
+	not_null<QAction*> action() const override;
+
+	void handleKeyPress(not_null<QKeyEvent*> e) override;
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	int contentHeight() const override;
+
+	const not_null<QAction*> _dummyAction;
+	const style::Menu &_st;
+	const QString _label;
+	const bool _enabled = false;
+
+};
+
+// A lookup control that must refuse: its reading and the keys it sent.
+struct MenuItemProbe {
+	MenuItemReading reading;
+	MenuItemActivation keys;
+};
+
+// The lookup stage's popup; the target counts its own callback, every other
+// row counts into |otherRuns|.
+struct MenuItemLookup {
+	base::unique_qptr<Ui::PopupMenu> popup;
+	QPointer<Ui::Menu::ItemBase> target;
+	QPointer<Ui::Menu::ItemBase> sibling;
+	MenuItemReading exact;
+	MenuItemReading ordinary;
+	MenuItemProbe missing;
+	MenuItemProbe prefix;
+	MenuItemProbe duplicate;
+	MenuItemProbe disabled;
+	MenuTrigger label;
+	int targetRuns = 0;
+	int otherRuns = 0;
+};
+
+// One activation case. A replacement popup or row goes into |replacement|
+// and |fresh|, never over the original handles under test.
+struct MenuItemCase {
+	base::unique_qptr<Ui::PopupMenu> popup;
+	base::unique_qptr<Ui::PopupMenu> replacement;
+	QPointer<Ui::Menu::ItemBase> target;
+	QPointer<Ui::Menu::ItemBase> fresh;
+	MenuItemReading reading;
+	MenuItemReading freshReading;
+	MenuItemActivation activation;
+	int targetRuns = 0;
+	int targetRunsAtReturn = 0;
+	int freshRuns = 0;
+	int otherRuns = 0;
+	int mutations = 0;
+	int mutationsAtReturn = 0;
+	bool keyboardAtCallback = false;
+};
+
+struct MenuItemSelfTest {
+	MenuItemLookup lookup;
+	MenuItemCase activation;
+	MenuItemCase itemGone;
+	MenuItemCase popupGone;
+	MenuItemCase stashed;
+	MenuItemCase downPopupGone;
+	MenuItemCase downStashed;
+	QPointer<QWidget> parent;
+	QString gate;
+	QPoint at;
+};
+
+// The captured Menu and row, while a reading's binding still holds.
+struct BoundRow {
+	Ui::Menu::Menu *menu = nullptr;
+	Ui::Menu::ItemBase *item = nullptr;
+};
+
+[[nodiscard]] QString FullItemName(const QString &label) {
+	return label + u", "_q + kItemAbout;
+}
+
+HarnessCustomRow::HarnessCustomRow(
+	not_null<Ui::Menu::Menu*> parent,
+	const QString &label,
+	bool enabled,
+	Fn<void()> callback)
+: ItemBase(parent, parent->st())
+, _dummyAction(Ui::CreateChild<QAction>(parent.get()))
+, _st(parent->st())
+, _label(label)
+, _enabled(enabled) {
+	fitToMenuWidth();
+	setActionTriggered(std::move(callback));
+	const auto &font = _st.itemStyle.font;
+	const auto text = std::max(font->width(_label), font->width(kItemAbout));
+	setMinWidth(std::clamp(
+		_st.itemPadding.left() + text + _st.itemPadding.right(),
+		_st.widthMin,
+		_st.widthMax));
+}
+
+QString HarnessCustomRow::accessibilityName() {
+	return FullItemName(_label);
+}
+
+bool HarnessCustomRow::isEnabled() const {
+	return _enabled;
+}
+
+not_null<QAction*> HarnessCustomRow::action() const {
+	return _dummyAction;
+}
+
+void HarnessCustomRow::handleKeyPress(not_null<QKeyEvent*> e) {
+	const auto key = e->key();
+	if (isSelected() && (key == Qt::Key_Enter || key == Qt::Key_Return)) {
+		setClicked(Ui::Menu::TriggeredSource::Keyboard);
+	}
+}
+
+void HarnessCustomRow::paintEvent(QPaintEvent *e) {
+	auto p = Painter(this);
+	const auto &padding = _st.itemPadding;
+	const auto &font = _st.itemStyle.font;
+	p.fillRect(rect(), isSelected() ? _st.itemBgOver : _st.itemBg);
+	p.setFont(font);
+	p.setPen(_enabled ? _st.itemFg : _st.itemFgDisabled);
+	p.drawTextLeft(padding.left(), padding.top(), width(), _label);
+	p.setPen(_st.itemFgShortcut);
+	p.drawTextLeft(
+		padding.left(),
+		padding.top() + font->height,
+		width(),
+		kItemAbout);
+}
+
+int HarnessCustomRow::contentHeight() const {
+	return _st.itemPadding.top()
+		+ 2 * _st.itemStyle.font->height
+		+ _st.itemPadding.bottom();
+}
+
+// Before any key and after every Down. The recheck by name confirms only
+// uniqueness and enabled state; the row it finds is never adopted.
+[[nodiscard]] BoundRow ValidateBinding(
+		const MenuItemReading &reading,
+		MenuItemActivation &result) {
+	using Refusal = MenuItemRefusal;
+	const auto refuse = [&](Refusal refusal, const QString &reason) {
+		result.refusal = refusal;
+		result.reason = reason;
+		return BoundRow();
+	};
+	const auto popup = dynamic_cast<Ui::PopupMenu*>(reading.popup.data());
+	const auto menu = popup ? popup->menu().get() : nullptr;
+	const auto item = dynamic_cast<Ui::Menu::ItemBase*>(reading.item.data());
+	const auto action = qobject_cast<QAction*>(reading.action.data());
+	if (!popup) {
+		return refuse(Refusal::MenuGone, u"the captured popup is gone"_q);
+	} else if (menu != reading.menu.data()) {
+		return refuse(
+			Refusal::MenuReplaced,
+			u"the popup's current Ui::Menu is not the captured one"_q);
+	} else if (!item) {
+		return refuse(Refusal::ItemGone, u"the captured row is gone"_q);
+	}
+	const auto stale = !action
+		? u"its QAction was destroyed"_q
+		: (item->parentWidget() != menu)
+		? u"it left the captured Menu"_q
+		: (item->action().get() != action)
+		? u"it answers another QAction"_q
+		: (menu->itemForAction(action) != item)
+		? u"the Menu maps its QAction to another row"_q
+		: (item->accessibilityName() != reading.name)
+		? u"its accessible name changed"_q
+		: QString();
+	if (!stale.isEmpty()) {
+		return refuse(Refusal::ItemStale, u"the captured row: "_q + stale);
+	}
+	const auto current = ReadMenuItem(popup, reading.name);
+	if (!current.found()) {
+		return refuse(current.refusal, current.reason);
+	} else if (!PopupMenuReady(popup)) {
+		return refuse(Refusal::MenuGone, u"the popup is not open for input"_q);
+	}
+	return { .menu = menu, .item = item };
+}
+
+[[nodiscard]] MenuItemProbe Probe(
+		not_null<Ui::PopupMenu*> popup,
+		const QString &name) {
+	auto reading = ReadMenuItem(popup, name);
+	auto keys = ActivateMenuItem(reading);
+	return { .reading = std::move(reading), .keys = std::move(keys) };
+}
+
+[[nodiscard]] Fn<void()> Counter(not_null<int*> count) {
+	return [=] {
+		++*count;
+	};
+}
+
+[[nodiscard]] base::unique_qptr<Ui::PopupMenu> MakeItemPopup(
+		not_null<QWidget*> parent) {
+	auto result = base::make_unique_q<Ui::PopupMenu>(parent.get());
+	// Owned by the fixture until teardown: hiding never deletes it, and
+	// destroying it never reactivates the primary window.
+	result->deleteOnHide(false);
+	result->discardParentReActivate();
+	return result;
+}
+
+not_null<Ui::Menu::ItemBase*> AddCustomRow(
+		not_null<Ui::PopupMenu*> popup,
+		const QString &label,
+		Fn<void()> callback,
+		bool enabled = true) {
+	const auto action = popup->addAction(
+		base::make_unique_q<HarnessCustomRow>(
+			popup->menu(),
+			label,
+			enabled,
+			std::move(callback)));
+	return popup->menu()->itemForAction(action);
+}
+
+// The ordinary row goes first, so a screen reader's preselection of the
+// first enabled row never selects the tripwire. Returns the tripwire row.
+not_null<Ui::Menu::ItemBase*> OpenCase(
+		not_null<MenuItemSelfTest*> state,
+		not_null<MenuItemCase*> c) {
+	c->popup = MakeItemPopup(state->parent.data());
+	const auto popup = c->popup.get();
+	popup->addAction(kItemOrdinary, Counter(&c->otherRuns));
+	const auto tripwire = popup->addAction(
+		kItemTripwire,
+		Counter(&c->otherRuns));
+	c->target = AddCustomRow(
+		popup,
+		kItemTarget,
+		Counter(&c->targetRuns)).get();
+	popup->popup(state->at);
+	c->reading = ReadMenuItem(popup, FullItemName(kItemTarget));
+	return popup->menu()->itemForAction(tripwire);
+}
+
+void StashTwin(not_null<MenuItemCase*> c) {
+	c->popup->stashContent([=](not_null<Ui::PopupMenu*> popup) {
+		c->fresh = AddCustomRow(
+			popup,
+			kItemTarget,
+			Counter(&c->freshRuns)).get();
+	});
+}
+
+// The mutation is queued, never run inside the selection emission:
+// ItemBase::setSelected uses the row after it fires, and Test::PressKey
+// drains the queue once the Down's delivery has unwound.
+void ArmTripwire(
+		not_null<MenuItemCase*> c,
+		not_null<Ui::Menu::ItemBase*> tripwire,
+		Fn<void()> mutation) {
+	const auto popup = c->popup.get();
+	tripwire->selects(
+	) | rpl::filter([](const Ui::Menu::CallbackData &data) {
+		return data.selected
+			&& (data.source == Ui::Menu::TriggeredSource::Keyboard);
+	}) | rpl::take(1) | rpl::on_next([=](const Ui::Menu::CallbackData &) {
+		Ui::PostponeCall(popup, [=] {
+			++c->mutations;
+			mutation();
+		});
+	}, tripwire->lifetime());
+}
+
+// Activates the original reading, then reads the replacement row, if any.
+void ActivateCase(not_null<MenuItemCase*> c) {
+	c->activation = ActivateMenuItem(c->reading);
+	c->mutationsAtReturn = c->mutations;
+	c->targetRunsAtReturn = c->targetRuns;
+	const auto current = c->replacement
+		? c->replacement.get()
+		: c->popup.get();
+	if (!c->fresh.isNull()) {
+		c->freshReading = ReadMenuItem(current, FullItemName(kItemTarget));
+	}
+	if (current) {
+		current->hideMenu(true);
+	}
+}
+
+void RecordTargetCallback(not_null<MenuItemCase*> c) {
+	++c->targetRuns;
+	const auto row = c->target.data();
+	const auto popup = c->popup.get();
+	c->keyboardAtCallback = row
+		&& popup
+		&& (popup->menu()->findSelectedAction() == row)
+		&& (row->lastTriggeredSource()
+			== Ui::Menu::TriggeredSource::Keyboard);
+}
+
+void RunLookup(not_null<MenuItemSelfTest*> state) {
+	const auto window = Core::App().activePrimaryWindow();
+	const auto parent = window ? window->widget().get() : nullptr;
+	Check(
+		parent != nullptr,
+		u"menu item self-test: fixture gate: a primary window to parent the "
+		"popups to"_q,
+		parent ? QString() : u"Core::App().activePrimaryWindow() is null"_q);
+	if (!parent) {
+		state->gate = u"fixture gate: Core::App().activePrimaryWindow() is "
+			"null, so the self-test popups have no window to belong to"_q;
+		return;
+	}
+	state->parent = parent;
+	state->at = parent->mapToGlobal(parent->rect().center());
+	const auto lookup = &state->lookup;
+	lookup->popup = MakeItemPopup(parent);
+	const auto popup = lookup->popup.get();
+	const auto other = Counter(&lookup->otherRuns);
+	const auto ordinary = popup->addAction(kItemOrdinary, other);
+	lookup->sibling = popup->menu()->itemForAction(ordinary);
+	lookup->target = AddCustomRow(
+		popup,
+		kItemTarget,
+		Counter(&lookup->targetRuns)).get();
+	AddCustomRow(popup, kItemDisabled, other, false);
+	AddCustomRow(popup, kItemTwin, other);
+	AddCustomRow(popup, kItemTwin, other);
+	popup->popup(state->at);
+	lookup->exact = ReadMenuItem(popup, FullItemName(kItemTarget));
+	lookup->ordinary = ReadMenuItem(popup, kItemOrdinary);
+	lookup->missing = Probe(popup, FullItemName(kItemAbsent));
+	lookup->prefix = Probe(popup, kItemTarget);
+	lookup->duplicate = Probe(popup, FullItemName(kItemTwin));
+	lookup->disabled = Probe(popup, FullItemName(kItemDisabled));
+	auto context = ContextMenuReading();
+	context.menu = popup;
+	lookup->label = TriggerContextMenuAction(context, kItemTarget);
+	popup->hideMenu(true);
+}
+
+// The target follows an ordinary row, a separator and a disabled row, so
+// the route must acquire its selection through real input.
+void RunActivation(not_null<MenuItemSelfTest*> state) {
+	const auto c = &state->activation;
+	c->popup = MakeItemPopup(state->parent.data());
+	const auto popup = c->popup.get();
+	popup->addAction(kItemOrdinary, Counter(&c->otherRuns));
+	popup->addSeparator();
+	AddCustomRow(popup, kItemDisabled, Counter(&c->otherRuns), false);
+	c->target = AddCustomRow(popup, kItemTarget, [=] {
+		RecordTargetCallback(c);
+	}).get();
+	popup->popup(state->at);
+	c->reading = ReadMenuItem(popup, FullItemName(kItemTarget));
+	ActivateCase(c);
+}
+
+void RunLifetimeBeforeInput(not_null<MenuItemSelfTest*> state) {
+	const auto gone = &state->itemGone;
+	OpenCase(state, gone);
+	gone->popup->clearActions();
+	gone->fresh = AddCustomRow(
+		gone->popup.get(),
+		kItemTarget,
+		Counter(&gone->freshRuns)).get();
+	ActivateCase(gone);
+
+	const auto popupGone = &state->popupGone;
+	OpenCase(state, popupGone);
+	popupGone->popup = nullptr;
+	popupGone->replacement = MakeItemPopup(state->parent.data());
+	popupGone->fresh = AddCustomRow(
+		popupGone->replacement.get(),
+		kItemTarget,
+		Counter(&popupGone->freshRuns)).get();
+	popupGone->replacement->popup(state->at);
+	ActivateCase(popupGone);
+
+	const auto stashed = &state->stashed;
+	OpenCase(state, stashed);
+	StashTwin(stashed);
+	ActivateCase(stashed);
+}
+
+void RunAcrossInput(not_null<MenuItemSelfTest*> state) {
+	const auto destroyed = &state->downPopupGone;
+	const auto destroyedTripwire = OpenCase(state, destroyed);
+	ArmTripwire(destroyed, destroyedTripwire, [=] {
+		destroyed->popup = nullptr;
+	});
+	ActivateCase(destroyed);
+
+	const auto stashed = &state->downStashed;
+	const auto stashedTripwire = OpenCase(state, stashed);
+	ArmTripwire(stashed, stashedTripwire, [=] {
+		StashTwin(stashed);
+	});
+	ActivateCase(stashed);
+}
+
+[[nodiscard]] QString CaseDetails(
+		const QString &name,
+		const MenuItemCase &c) {
+	return u"case=\"%1\" reading={%2} activation={%3} fresh={%4}"_q.arg(
+		name,
+		MenuItemReadingDetails(c.reading),
+		MenuItemActivationDetails(c.activation),
+		MenuItemReadingDetails(c.freshReading))
+		+ u" targetAlive=%1 freshAlive=%2 targetRuns=%3 "
+		"targetRunsAtReturn=%4 freshRuns=%5 otherRuns=%6 mutations=%7 "
+		"mutationsAtReturn=%8 keyboardAtCallback=%9"_q
+			.arg(c.target.isNull() ? 0 : 1)
+			.arg(c.fresh.isNull() ? 0 : 1)
+			.arg(c.targetRuns)
+			.arg(c.targetRunsAtReturn)
+			.arg(c.freshRuns)
+			.arg(c.otherRuns)
+			.arg(c.mutations)
+			.arg(c.mutationsAtReturn)
+			.arg(c.keyboardAtCallback ? 1 : 0);
+}
+
+// The original was found and a fresh reading finds the same-named
+// replacement, yet the original refuses with no key and nothing ran.
+[[nodiscard]] bool RefusedBeforeInput(
+		const MenuItemCase &c,
+		MenuItemRefusal refusal) {
+	return c.reading.found()
+		&& (c.activation.refusal == refusal)
+		&& !c.activation.steps
+		&& !c.activation.returnSent
+		&& c.freshReading.found()
+		&& !c.fresh.isNull()
+		&& (c.freshReading.item.data() == c.fresh.data())
+		&& !c.targetRuns
+		&& !c.freshRuns
+		&& !c.otherRuns;
+}
+
+// The tripwire's mutation ran once, inside the settlement of a Down the
+// route sent, and the route refused with no Return and nothing ran.
+[[nodiscard]] bool RefusedAcrossInput(
+		const MenuItemCase &c,
+		MenuItemRefusal refusal) {
+	return c.reading.found()
+		&& (c.mutationsAtReturn == 1)
+		&& (c.mutations == 1)
+		&& (c.activation.refusal == refusal)
+		&& (c.activation.steps > 0)
+		&& (c.activation.steps <= c.activation.bound)
+		&& !c.activation.returnSent
+		&& !c.targetRuns
+		&& !c.freshRuns
+		&& !c.otherRuns;
+}
+
+void CheckLookup(not_null<MenuItemSelfTest*> state) {
+	if (!state->gate.isEmpty()) {
+		return;
+	}
+	const auto &lookup = state->lookup;
+	const auto popup = lookup.popup.get();
+	const auto target = lookup.target.data();
+	const auto quiet = !lookup.targetRuns && !lookup.otherRuns;
+	const auto runs = u" targetRuns=%1 otherRuns=%2"_q
+		.arg(lookup.targetRuns)
+		.arg(lookup.otherRuns);
+	const auto bound = [&](
+			const MenuItemReading &reading,
+			Ui::Menu::ItemBase *item) {
+		return reading.found()
+			&& (reading.matches == 1)
+			&& popup
+			&& item
+			&& (reading.popup.data() == popup)
+			&& (reading.menu.data() == popup->menu().get())
+			&& (reading.item.data() == item)
+			&& (reading.action.data() == item->action().get());
+	};
+	using Refusal = MenuItemRefusal;
+	const auto refused = [&](
+			const MenuItemProbe &probe,
+			Refusal refusal,
+			int matches) {
+		return (probe.reading.refusal == refusal)
+			&& (probe.reading.matches == matches)
+			&& probe.reading.item.isNull()
+			&& probe.reading.action.isNull()
+			&& (probe.keys.refusal == refusal)
+			&& !probe.keys.steps
+			&& !probe.keys.returnSent
+			&& quiet;
+	};
+	const auto details = [&](const MenuItemProbe &probe) {
+		return MenuItemReadingDetails(probe.reading)
+			+ u" "_q
+			+ MenuItemActivationDetails(probe.keys)
+			+ runs;
+	};
+	const auto text = target ? target->action()->text() : u"(gone)"_q;
+	const auto name = target ? target->accessibilityName() : QString();
+	Check(
+		text.isEmpty() && (name == FullItemName(kItemTarget)),
+		u"menu item self-test: lookup: the custom row's QAction has no "
+		"text, and its accessible name is its label and description"_q,
+		u"actionText=\"%1\" accessibleName=\"%2\""_q.arg(text, name));
+	Check(
+		bound(lookup.exact, target)
+			&& bound(lookup.ordinary, lookup.sibling.data())
+			&& quiet,
+		u"menu item self-test: lookup: the full name binds exactly the "
+		"custom row, its QAction, the popup and its current Menu, and the "
+		"same walk finds the ordinary sibling"_q,
+		MenuItemReadingDetails(lookup.exact)
+			+ u" sibling={"_q
+			+ MenuItemReadingDetails(lookup.ordinary)
+			+ u"}"_q
+			+ runs);
+	Check(
+		(lookup.label.refusal == MenuTriggerRefusal::NoSuchAction)
+			&& !lookup.label.triggered
+			&& quiet,
+		u"menu item self-test: lookup: TriggerContextMenuAction refuses the "
+		"custom row's label as no-such-action"_q,
+		MenuTriggerDetails(lookup.label) + runs);
+	Check(
+		refused(lookup.missing, Refusal::NoSuchItem, 0)
+			&& lookup.missing.reading.names.contains(
+				FullItemName(kItemTarget)),
+		u"menu item self-test: lookup: a missing full name refuses "
+		"no-such-item and sends no key"_q,
+		details(lookup.missing));
+	Check(
+		refused(lookup.prefix, Refusal::NoSuchItem, 0),
+		u"menu item self-test: lookup: the label without its description "
+		"refuses no-such-item and sends no key"_q,
+		details(lookup.prefix));
+	Check(
+		refused(lookup.duplicate, Refusal::SeveralItems, 2),
+		u"menu item self-test: lookup: two rows with one full name refuse "
+		"several-items and send no key"_q,
+		details(lookup.duplicate));
+	Check(
+		refused(lookup.disabled, Refusal::ItemDisabled, 1),
+		u"menu item self-test: lookup: a disabled row refuses item-disabled "
+		"and sends no key"_q,
+		details(lookup.disabled));
+}
+
+void CheckActivation(const MenuItemCase &c) {
+	const auto details = CaseDetails(u"activation"_q, c);
+	Check(
+		c.reading.found()
+			&& c.activation.activated()
+			&& (c.activation.steps >= 0)
+			&& (c.activation.steps <= c.activation.bound)
+			&& (c.targetRunsAtReturn == 1)
+			&& (c.targetRuns == 1)
+			&& c.keyboardAtCallback,
+		u"menu item self-test: activation: real Down and Return keys ran "
+		"the custom row's callback exactly once, by the helper's return and "
+		"still a turn later, with the fixture's own row selected from the "
+		"keyboard"_q,
+		details);
+	Check(
+		!c.otherRuns,
+		u"menu item self-test: activation: neither the ordinary sibling nor "
+		"the disabled row ran its callback"_q,
+		details);
+}
+
+void CheckLifetimeBeforeInput(not_null<MenuItemSelfTest*> state) {
+	const auto &gone = state->itemGone;
+	Check(
+		RefusedBeforeInput(gone, MenuItemRefusal::ItemGone)
+			&& gone.target.isNull()
+			&& (gone.freshReading.popup.data() == gone.popup.get()),
+		u"menu item self-test: destroyed row: refused item-gone with no key, "
+		"beside a same-named row in the same popup"_q,
+		CaseDetails(u"destroyed row"_q, gone));
+	const auto &popupGone = state->popupGone;
+	Check(
+		RefusedBeforeInput(popupGone, MenuItemRefusal::MenuGone)
+			&& popupGone.reading.popup.isNull()
+			&& (popupGone.freshReading.popup.data()
+				== popupGone.replacement.get()),
+		u"menu item self-test: destroyed popup: refused menu-gone with no "
+		"key, beside a same-named row in another popup"_q,
+		CaseDetails(u"destroyed popup"_q, popupGone));
+	const auto &stashed = state->stashed;
+	const auto current = stashed.popup.get();
+	Check(
+		RefusedBeforeInput(stashed, MenuItemRefusal::MenuReplaced)
+			&& !stashed.target.isNull()
+			&& !stashed.reading.menu.isNull()
+			&& current
+			&& (current->menu().get() != stashed.reading.menu.data())
+			&& (stashed.freshReading.menu.data() == current->menu().get()),
+		u"menu item self-test: stashed menu: refused menu-replaced with no "
+		"key while the row lives, beside a same-named row in the new "
+		"Menu"_q,
+		CaseDetails(u"stashed menu"_q, stashed));
+}
+
+void CheckAcrossInput(not_null<MenuItemSelfTest*> state) {
+	const auto &destroyed = state->downPopupGone;
+	Check(
+		RefusedAcrossInput(destroyed, MenuItemRefusal::MenuGone)
+			&& destroyed.reading.popup.isNull(),
+		u"menu item self-test: popup destroyed across Down: refused "
+		"menu-gone after the Down whose settlement destroyed it, with no "
+		"Return"_q,
+		CaseDetails(u"popup destroyed across Down"_q, destroyed));
+	const auto &stashed = state->downStashed;
+	const auto current = stashed.popup.get();
+	Check(
+		RefusedAcrossInput(stashed, MenuItemRefusal::MenuReplaced)
+			&& !stashed.target.isNull()
+			&& current
+			&& (current->menu().get() != stashed.reading.menu.data())
+			&& stashed.freshReading.found()
+			&& !stashed.fresh.isNull()
+			&& (stashed.freshReading.item.data() == stashed.fresh.data()),
+		u"menu item self-test: menu stashed across Down: refused "
+		"menu-replaced after the Down whose settlement replaced it, while "
+		"the row lives and a fresh reading finds another row, with no "
+		"Return"_q,
+		CaseDetails(u"menu stashed across Down"_q, stashed));
+}
+
+// Idempotent: the teardown stage and Runner::onFinish both call it.
+int ReleaseMenuItemFixture(not_null<MenuItemSelfTest*> state) {
+	auto released = 0;
+	const auto release = [&](base::unique_qptr<Ui::PopupMenu> &popup) {
+		if (const auto raw = popup.get()) {
+			raw->hideMenu(true);
+			++released;
+		}
+		popup = nullptr;
+	};
+	release(state->lookup.popup);
+	const auto cases = {
+		&state->activation,
+		&state->itemGone,
+		&state->popupGone,
+		&state->stashed,
+		&state->downPopupGone,
+		&state->downStashed,
+	};
+	for (const auto c : cases) {
+		release(c->popup);
+		release(c->replacement);
+	}
+	return released;
+}
+
+} // namespace
+
+QString MenuItemRefusalName(MenuItemRefusal refusal) {
+	switch (refusal) {
+	case MenuItemRefusal::None: return u"none"_q;
+	case MenuItemRefusal::MenuGone: return u"menu-gone"_q;
+	case MenuItemRefusal::MenuReplaced: return u"menu-replaced"_q;
+	case MenuItemRefusal::NoSuchItem: return u"no-such-item"_q;
+	case MenuItemRefusal::SeveralItems: return u"several-items"_q;
+	case MenuItemRefusal::ItemDisabled: return u"item-disabled"_q;
+	case MenuItemRefusal::ItemGone: return u"item-gone"_q;
+	case MenuItemRefusal::ItemStale: return u"item-stale"_q;
+	case MenuItemRefusal::NotSelected: return u"not-selected"_q;
+	}
+	Unexpected("Refusal in Test::MenuItemRefusalName.");
+}
+
+MenuItemReading ReadMenuItem(
+		QWidget *popup,
+		const QString &accessibleName) {
+	auto result = MenuItemReading();
+	result.name = accessibleName;
+	const auto popupMenu = dynamic_cast<Ui::PopupMenu*>(popup);
+	if (!popupMenu) {
+		result.refusal = MenuItemRefusal::MenuGone;
+		result.reason = u"no live Ui::PopupMenu was handed to the reader"_q;
+		return result;
+	}
+	const auto menu = popupMenu->menu().get();
+	result.popup = popupMenu;
+	result.menu = menu;
+	auto match = static_cast<Ui::Menu::ItemBase*>(nullptr);
+	for (const auto action : menu->actions()) {
+		if (action->isSeparator()) {
+			continue;
+		} else if (const auto item = menu->itemForAction(action)) {
+			const auto name = item->accessibilityName();
+			result.names.push_back(name);
+			if (!accessibleName.isEmpty() && (name == accessibleName)) {
+				++result.matches;
+				match = item;
+			}
+		}
+	}
+	if (!match) {
+		result.refusal = MenuItemRefusal::NoSuchItem;
+		result.reason = u"no row of the current Ui::Menu has exactly this "
+			"full accessible name (an empty name matches none)"_q;
+	} else if (result.matches > 1) {
+		result.refusal = MenuItemRefusal::SeveralItems;
+		result.reason = u"several rows have exactly this full accessible "
+			"name, so none is bound"_q;
+	} else if (!match->isEnabled() || match->isDisabled()) {
+		result.refusal = MenuItemRefusal::ItemDisabled;
+		result.reason = u"the row is disabled, so keys cannot select it"_q;
+	} else {
+		result.item = match;
+		result.action = match->action().get();
+	}
+	return result;
+}
+
+MenuItemActivation ActivateMenuItem(const MenuItemReading &reading) {
+	auto result = MenuItemActivation();
+	result.name = reading.name;
+	if (!reading.found()) {
+		result.refusal = reading.refusal;
+		result.reason = u"the reading was refused, so no key was sent"_q;
+		return result;
+	}
+	auto row = ValidateBinding(reading, result);
+	if (!row.item) {
+		return result;
+	}
+	result.bound = int(row.menu->actions().size());
+	while ((row.menu->findSelectedAction() != row.item)
+		|| (row.item->lastTriggeredSource()
+			!= Ui::Menu::TriggeredSource::Keyboard)) {
+		if (result.steps == result.bound) {
+			result.refusal = MenuItemRefusal::NotSelected;
+			result.reason = u"the captured row was not Keyboard-selected "
+				"after a whole cycle of Down keys, so no Return was sent"_q;
+			return result;
+		}
+		PressKey(reading.popup.data(), Qt::Key_Down);
+		++result.steps;
+		row = ValidateBinding(reading, result);
+		if (!row.item) {
+			return result;
+		}
+	}
+	// Nothing captured is touched after this: the Return may destroy it.
+	PressKey(reading.popup.data(), Qt::Key_Return);
+	result.returnSent = true;
+	return result;
+}
+
+QString MenuItemReadingDetails(const MenuItemReading &reading) {
+	const auto alive = [](const auto &pointer) {
+		return pointer.isNull() ? 0 : 1;
+	};
+	// One substitution per field, so a name carrying a %N marker is never
+	// re-substituted by a later arg().
+	const auto fields = QStringList{
+		u"name=\"%1\""_q.arg(reading.name),
+		u"found=%1"_q.arg(reading.found() ? 1 : 0),
+		u"refusal=%1"_q.arg(MenuItemRefusalName(reading.refusal)),
+		u"matches=%1"_q.arg(reading.matches),
+		u"popupAlive=%1"_q.arg(alive(reading.popup)),
+		u"menuAlive=%1"_q.arg(alive(reading.menu)),
+		u"itemAlive=%1"_q.arg(alive(reading.item)),
+		u"actionAlive=%1"_q.arg(alive(reading.action)),
+		u"names=[%1]"_q.arg(reading.names.join(u" | "_q)),
+	};
+	const auto line = u"menu item: "_q + fields.join(u" "_q);
+	return reading.reason.isEmpty()
+		? line
+		: (line + u" - "_q + reading.reason);
+}
+
+QString MenuItemActivationDetails(const MenuItemActivation &activation) {
+	const auto fields = QStringList{
+		u"name=\"%1\""_q.arg(activation.name),
+		u"activated=%1"_q.arg(activation.activated() ? 1 : 0),
+		u"refusal=%1"_q.arg(MenuItemRefusalName(activation.refusal)),
+		u"steps=%1"_q.arg(activation.steps),
+		u"bound=%1"_q.arg(activation.bound),
+		u"returnSent=%1"_q.arg(activation.returnSent ? 1 : 0),
+	};
+	const auto line = u"menu item activation: "_q + fields.join(u" "_q);
+	return activation.reason.isEmpty()
+		? line
+		: (line + u" - "_q + activation.reason);
+}
+
+void AppendMenuItemActivationSelfTest(not_null<Runner*> runner) {
+	// Every fixture row's callback points into the state, which outlives the
+	// rows: they die with their popups at teardown or in onFinish.
+	const auto state = std::make_shared<MenuItemSelfTest>();
+	runner->onFinish([=] { ReleaseMenuItemFixture(state.get()); });
+	const auto gate = [=] {
+		return state->gate;
+	};
+	runner->add({
+		.name = u"menu item self-test: lookup"_q,
+		.run = [=] { RunLookup(state.get()); },
+		.then = [=] { CheckLookup(state.get()); },
+	});
+	runner->add({
+		.name = u"menu item self-test: activation"_q,
+		.skipReason = gate,
+		.run = [=] { RunActivation(state.get()); },
+		.then = [=] { CheckActivation(state->activation); },
+	});
+	runner->add({
+		.name = u"menu item self-test: lifetime before input"_q,
+		.skipReason = gate,
+		.run = [=] { RunLifetimeBeforeInput(state.get()); },
+		.then = [=] { CheckLifetimeBeforeInput(state.get()); },
+	});
+	runner->add({
+		.name = u"menu item self-test: across keyboard input"_q,
+		.skipReason = gate,
+		.run = [=] { RunAcrossInput(state.get()); },
+		.then = [=] { CheckAcrossInput(state.get()); },
+	});
+	runner->add({
+		.name = u"menu item self-test: teardown"_q,
+		.run = [=] {
+			// No gate, so it also runs after the fixture gate fired.
+			const auto released = ReleaseMenuItemFixture(state.get());
+			Note(u"menu item self-test: fixture released, popups=%1"_q
+				.arg(released));
 		},
 	});
 }
