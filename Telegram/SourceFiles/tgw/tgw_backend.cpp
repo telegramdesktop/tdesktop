@@ -9,9 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "tgw/tgw_canvas.h"
 #include "TwidgetCore/src/css.h"
+#include "TwidgetCore/src/png.h"
 
 #include <QtCore/QBuffer>
 #include <QtGui/QImageReader>
+#include <QtGui/QPainter>
+
+#include <zlib.h>
 
 #include "styles/style_basic.h"
 
@@ -39,6 +43,11 @@ constexpr auto kDataPrefix = std::string_view("data:");
 constexpr auto kBase64 = std::string_view("base64");
 constexpr auto kGifFormat = std::string_view("gif");
 constexpr auto kGifScreenOffset = 6;
+constexpr auto kPngFormat = std::string_view("png");
+constexpr auto kPngSignature = std::string_view("\x89PNG\r\n\x1a\n", 8);
+constexpr auto kPngChunkFrame = 12;
+constexpr auto kPngHeaderOffset = 16;
+constexpr auto kPngHeaderSize = 13;
 
 constexpr auto kFontWeights = std::array{
 	QFont::Thin,
@@ -307,7 +316,110 @@ struct ImageCharges {
 	return ValidImageSize(size) && (ImageBytes(size) <= budget);
 }
 
-[[nodiscard]] DecodedImage ReadRaster(
+[[nodiscard]] uint32 ReadUInt32(const QByteArray &bytes, qsizetype at) {
+	auto result = uint32();
+	for (auto i = 0; i != 4; ++i) {
+		result = (result << 8) | uint32(uchar(bytes[at + i]));
+	}
+	return result;
+}
+
+void AppendUInt32(QByteArray &bytes, uint32 value) {
+	for (auto shift = 24; shift >= 0; shift -= 8) {
+		bytes.append(char(uchar(value >> shift)));
+	}
+}
+
+void AppendPngChunk(
+		QByteArray &png,
+		std::string_view type,
+		const QByteArray &data) {
+	AppendUInt32(png, uint32(data.size()));
+	const auto from = png.size();
+	png.append(type.data(), qsizetype(type.size()));
+	png.append(data);
+	AppendUInt32(png, uint32(crc32(
+		0,
+		reinterpret_cast<const Bytef*>(png.constData() + from),
+		uInt(png.size() - from))));
+}
+
+// The rows before the damage, of a PNG that png_intact_rows() measured.
+[[nodiscard]] QByteArray IntactPng(const QByteArray &bytes, size_t rows) {
+	const auto header = bytes.mid(kPngHeaderOffset, kPngHeaderSize);
+	const auto width = ReadUInt32(header, 0);
+	const auto depth = uint64(uchar(header[8]));
+	const auto type = uchar(header[9]);
+	const auto channels = (type == 2)
+		? 3
+		: (type == 4)
+		? 2
+		: (type == 6)
+		? 4
+		: 1;
+	const auto stride = (uint64(width) * channels * depth + 7) / 8 + 1;
+	auto before = QByteArray();
+	auto compressed = QByteArray();
+	auto at = qsizetype(kPngSignature.size());
+	while (at + kPngChunkFrame <= bytes.size()) {
+		const auto size = qsizetype(ReadUInt32(bytes, at));
+		if (size > bytes.size() - at - kPngChunkFrame) {
+			break;
+		}
+		const auto chunk = bytes.mid(at + 4, 4);
+		if (chunk == "IEND") {
+			break;
+		} else if (chunk == "IDAT") {
+			compressed.append(bytes.constData() + at + 8, size);
+		} else if (chunk != "IHDR" && compressed.isEmpty()) {
+			before.append(bytes.constData() + at, size + kPngChunkFrame);
+		}
+		at += size + kPngChunkFrame;
+	}
+	auto unpacked = QByteArray(qsizetype(stride * rows), Qt::Uninitialized);
+	auto stream = z_stream();
+	if (inflateInit(&stream) != Z_OK) {
+		return QByteArray();
+	}
+	stream.next_in = reinterpret_cast<Bytef*>(compressed.data());
+	stream.avail_in = uInt(compressed.size());
+	stream.next_out = reinterpret_cast<Bytef*>(unpacked.data());
+	stream.avail_out = uInt(unpacked.size());
+	// The damage ends the stream: the rows inflated before it are kept.
+	inflate(&stream, Z_FINISH);
+	const auto kept = (uint64(unpacked.size()) - stream.avail_out) / stride;
+	inflateEnd(&stream);
+	if (!kept) {
+		return QByteArray();
+	}
+	unpacked.truncate(qsizetype(kept * stride));
+	auto packed = QByteArray(
+		qsizetype(compressBound(uLong(unpacked.size()))),
+		Qt::Uninitialized);
+	auto packedSize = uLongf(packed.size());
+	if (compress(
+			reinterpret_cast<Bytef*>(packed.data()),
+			&packedSize,
+			reinterpret_cast<const Bytef*>(unpacked.constData()),
+			uLong(unpacked.size())) != Z_OK) {
+		return QByteArray();
+	}
+	packed.truncate(qsizetype(packedSize));
+	auto shortened = QByteArray();
+	AppendUInt32(shortened, width);
+	AppendUInt32(shortened, uint32(kept));
+	shortened.append(header.mid(8));
+	auto result = QByteArray(
+		kPngSignature.data(),
+		qsizetype(kPngSignature.size()));
+	AppendPngChunk(result, "IHDR", shortened);
+	result.append(before);
+	AppendPngChunk(result, "IDAT", packed);
+	AppendPngChunk(result, "IEND", QByteArray());
+	return result;
+}
+
+[[nodiscard]] DecodedImage DecodeRaster(
 		QByteArray bytes,
 		std::string_view format,
 		int64 budget) {
@@ -336,6 +448,46 @@ struct ImageCharges {
 	}
 	const auto intrinsic = QSizeF(image.size());
 	return { std::move(image), intrinsic };
+}
+
+// WHY: Chromium shows a damaged PNG's rows before the damage and leaves
+// the rest transparent, where Qt's decoder refuses the whole image.
+[[nodiscard]] DecodedImage DecodeDamagedPng(
+		const QByteArray &bytes,
+		size_t intact,
+		int64 budget) {
+	const auto size = QSizeF(
+		ReadUInt32(bytes, kPngHeaderOffset),
+		ReadUInt32(bytes, kPngHeaderOffset + 4));
+	if (!ValidImageSize(size) || (ImageBytes(size) > budget)) {
+		return {};
+	}
+	auto image = QImage(size.toSize(), QImage::Format_ARGB32_Premultiplied);
+	image.fill(Qt::transparent);
+	const auto rows = intact
+		? DecodeRaster(IntactPng(bytes, intact), kPngFormat, budget)
+		: DecodedImage();
+	if (!rows.image.isNull()) {
+		auto p = QPainter(&image);
+		p.setCompositionMode(QPainter::CompositionMode_Source);
+		p.drawImage(0, 0, rows.image);
+	}
+	return { std::move(image), size };
+}
+
+[[nodiscard]] DecodedImage ReadRaster(
+		QByteArray bytes,
+		std::string_view format,
+		int64 budget) {
+	if (format == kPngFormat) {
+		const auto intact = twlite::png_intact_rows(
+			reinterpret_cast<const uint8_t*>(bytes.constData()),
+			size_t(bytes.size()));
+		if (intact != SIZE_MAX) {
+			return DecodeDamagedPng(bytes, intact, budget);
+		}
+	}
+	return DecodeRaster(std::move(bytes), format, budget);
 }
 
 } // namespace
