@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <xdpopenuri/xdpopenuri.hpp>
 #include <xdprequest/xdprequest.hpp>
 
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/un.h>
@@ -603,6 +604,31 @@ QString SingleInstanceLocalServerName(const QString &hash) {
 		+ '-'
 		+ QCoreApplication::applicationName();
 #endif // !Q_OS_LINUX || Qt < 6.2.0
+}
+
+// WHY: abstract sockets have no file permissions, and another user can
+// bind a predictable socket path first, so both endpoints must verify
+// their peer before exchanging single-instance records.
+bool LocalSocketPeerAllowed(qintptr descriptor) {
+#ifdef Q_OS_LINUX
+	auto credentials = ucred();
+	auto size = socklen_t(sizeof(credentials));
+	return (descriptor >= 0)
+		&& !getsockopt(
+			int(descriptor),
+			SOL_SOCKET,
+			SO_PEERCRED,
+			&credentials,
+			&size)
+		&& (size == sizeof(credentials))
+		&& (credentials.uid == geteuid());
+#else // Q_OS_LINUX
+	auto uid = uid_t();
+	auto gid = gid_t();
+	return (descriptor >= 0)
+		&& !getpeereid(int(descriptor), &uid, &gid)
+		&& (uid == geteuid());
+#endif // !Q_OS_LINUX
 }
 
 #if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)

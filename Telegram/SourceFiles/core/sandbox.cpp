@@ -42,38 +42,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QSessionManager>
 #include <QtGui/QScreen>
 
-#if defined Q_OS_LINUX && QT_VERSION >= QT_VERSION_CHECK(6, 2, 0)
-#include <sys/socket.h>
-#include <unistd.h>
-#endif // Q_OS_LINUX && Qt >= 6.2.0
-
 namespace Core {
 namespace {
 
 constexpr auto kLocalClientBufferLimit = 1024 * 1024;
-
-#if defined Q_OS_LINUX && QT_VERSION >= QT_VERSION_CHECK(6, 2, 0)
-// WHY: the abstract socket namespace has no file permissions, so any process
-// in the network namespace can connect; the peer credentials restore the
-// per-user boundary that the socket file gave on the other platforms.
-[[nodiscard]] bool LocalClientAllowed(not_null<QLocalSocket*> socket) {
-	auto credentials = ucred();
-	auto size = socklen_t(sizeof(credentials));
-	const auto descriptor = int(socket->socketDescriptor());
-	return (descriptor >= 0)
-		&& !getsockopt(
-			descriptor,
-			SOL_SOCKET,
-			SO_PEERCRED,
-			&credentials,
-			&size)
-		&& (credentials.uid == geteuid());
-}
-#else // Q_OS_LINUX && Qt >= 6.2.0
-[[nodiscard]] bool LocalClientAllowed(not_null<QLocalSocket*>) {
-	return true;
-}
-#endif // Q_OS_LINUX && Qt >= 6.2.0
 
 base::options::toggle OptionDeadlockDetector({
 	.id = kOptionDeadlockDetector,
@@ -257,6 +229,10 @@ int Sandbox::stopRunningInstance() {
 		LOG(("Cleanup: connect error %1.").arg(_localSocket.error()));
 		return 1;
 	}
+	if (!Platform::LocalSocketPeerAllowed(_localSocket.socketDescriptor())) {
+		LOG(("Cleanup: untrusted socket peer."));
+		return 1;
+	}
 	_localSocket.write("CMD:quit;");
 	if (!_localSocket.waitForBytesWritten(int(kCleanupIpcTimeout))) {
 		LOG(("Cleanup: could not send the quit command."));
@@ -402,6 +378,12 @@ bool Sandbox::event(QEvent *e) {
 }
 
 void Sandbox::socketConnected() {
+	if (!Platform::LocalSocketPeerAllowed(_localSocket.socketDescriptor())) {
+		LOG(("Socket %1 has an untrusted peer, quitting..."
+			).arg(_localServerName));
+		_localSocket.disconnectFromServer();
+		return Quit();
+	}
 	LOG(("Socket connected, this is not the first application instance, sending show command..."));
 	_secondInstance = true;
 
@@ -548,7 +530,7 @@ void Sandbox::socketDisconnected() {
 void Sandbox::newInstanceConnected() {
 	DEBUG_LOG(("Sandbox Info: new local socket connected"));
 	for (auto client = _localServer.nextPendingConnection(); client; client = _localServer.nextPendingConnection()) {
-		if (!LocalClientAllowed(client)) {
+		if (!Platform::LocalSocketPeerAllowed(client->socketDescriptor())) {
 			LOG(("Sandbox Warning: local socket client of another user "
 				"rejected."));
 			client->close();

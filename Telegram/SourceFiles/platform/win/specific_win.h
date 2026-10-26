@@ -49,6 +49,10 @@ void ActivateOtherProcess(uint64 processId, uint64 windowId);
 
 [[nodiscard]] bool WaitForProcessExit(uint64 processId, crl::time timeout);
 
+inline bool LocalSocketPeerAllowed(qintptr) {
+	return true;
+}
+
 inline QString ApplicationIconName() {
 	return {};
 }
