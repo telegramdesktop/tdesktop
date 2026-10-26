@@ -190,6 +190,10 @@ TextForMimeData WidgetMedia::clipboardText() const {
 	return TextForMimeData();
 }
 
+bool WidgetMedia::forceForwardedInfo() const {
+	return true;
+}
+
 bool WidgetMedia::updateInlineResultMedia(const MTPMessageMedia &media) {
 	return false;
 }

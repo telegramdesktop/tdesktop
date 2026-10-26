@@ -757,7 +757,10 @@ HistoryItem::HistoryItem(
 	auto config = CreateConfig();
 
 	const auto originalMedia = original->media();
-	const auto dropForwardInfo = fields.ignoreForwardFrom
+	// drop_author never applies to widgets: the server keeps their header.
+	const auto ignoreForwardFrom = fields.ignoreForwardFrom
+		&& !dynamic_cast<const Tgw::WidgetMedia*>(originalMedia);
+	const auto dropForwardInfo = ignoreForwardFrom
 		|| original->computeDropForwardedInfo();
 	const auto topicRootId = fields.replyTo.topicRootId;
 	config.reply.messageId = config.reply.topMessageId = topicRootId;
