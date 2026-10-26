@@ -792,6 +792,64 @@ void ProcessPendingLayout(History *history) {
 	return result;
 }
 
+// Each set flag, and each present field even when it is empty or zero.
+[[nodiscard]] MTPDmessageMediaWidget::Flags MediaFlags(
+		const WidgetMessageFields &fields) {
+	using Flag = MTPDmessageMediaWidget::Flag;
+	const auto &flags = fields.flags;
+	const auto &state = fields.state;
+	return (flags.isCopy ? Flag::f_is_copy : Flag())
+		| (flags.canQuery ? Flag::f_can_query : Flag())
+		| (flags.backgroundQuery ? Flag::f_background_query : Flag())
+		| (state.publicData ? Flag::f_public_data : Flag())
+		| (state.chatData ? Flag::f_chat_data : Flag())
+		| (fields.widgetId ? Flag::f_widget_id : Flag());
+}
+
+[[nodiscard]] WidgetMessageFields MediaFields(
+		not_null<const Tgw::WidgetMedia*> media) {
+	const auto &fields = media->fields();
+	return {
+		.flags = fields.flags,
+		.state = fields.state,
+		.widgetId = fields.widgetId,
+	};
+}
+
+// Absent and present-empty bytes differ, and so do an absent and a zero id.
+[[nodiscard]] bool SameFields(
+		const WidgetMessageFields &a,
+		const WidgetMessageFields &b) {
+	return (a.flags == b.flags)
+		&& (a.state == b.state)
+		&& (a.widgetId == b.widgetId);
+}
+
+[[nodiscard]] QString BytesText(const std::optional<QByteArray> &value) {
+	return value ? NumberText(value->size()) : u"none"_q;
+}
+
+// Sizes, never the state's contents.
+[[nodiscard]] QString FieldsText(const WidgetMessageFields &fields) {
+	auto flags = QStringList();
+	if (fields.flags.isCopy) {
+		flags.push_back(u"copy"_q);
+	}
+	if (fields.flags.canQuery) {
+		flags.push_back(u"query"_q);
+	}
+	if (fields.flags.backgroundQuery) {
+		flags.push_back(u"background"_q);
+	}
+	return u"flags=%1 chat=%2 public=%3 widgetId=%4"_q.arg(
+		(flags.isEmpty() ? u"none"_q : flags.join(u"|"_q)),
+		BytesText(fields.state.chatData),
+		BytesText(fields.state.publicData),
+		(fields.widgetId
+			? QString::number(*fields.widgetId)
+			: u"none"_q));
+}
+
 [[nodiscard]] bool Registered(
 		const WidgetFixture &state,
 		const WidgetFixtureMessage &message) {
@@ -1385,9 +1443,11 @@ QString InjectWidgetMessage(
 		WidgetFixtureMessage &message,
 		const QByteArray &html,
 		int width,
-		int height) {
+		int height,
+		const WidgetMessageFields &fields) {
 	StartFixtureWait(message.wait);
 	message.html = html;
+	message.fields = fields;
 	const auto history = state.history.get();
 	const auto payload = Zlib(message.html);
 	auto missing = InjectionMissing(state, message);
@@ -1409,13 +1469,14 @@ QString InjectWidgetMessage(
 		LocalFields(history, message.id.msg),
 		tr::marked(),
 		MTP_messageMediaWidget(
-			MTP_flags(MTPDmessageMediaWidget::Flags(0)),
+			MTP_flags(MediaFlags(fields)),
 			MTP_int(width),
 			MTP_int(height),
 			MTP_bytes(payload),
-			MTPbytes(),
-			MTPbytes(),
-			MTPlong()));
+			MTP_bytes(fields.state.publicData.value_or(QByteArray())),
+			MTP_long(0),
+			MTP_bytes(fields.state.chatData.value_or(QByteArray())),
+			MTP_long(fields.widgetId.value_or(0))));
 	const auto got = item->globalId();
 	auto result = QString();
 	if (got != message.key) {
@@ -1500,12 +1561,20 @@ QString CheckWidgetMessage(
 		missing.push_back(u"its media is not a Tgw::WidgetMedia holding the "
 			u"file's bytes"_q);
 	}
+	if (media) {
+		const auto fields = MediaFields(media);
+		if (!SameFields(fields, message.fields)) {
+			missing.push_back(u"its media's flags, state or widget id are "
+				u"not the injected ones (the media has %1)"_q.arg(
+					FieldsText(fields)));
+		}
+	}
 	if (!view || card.isEmpty()) {
 		missing.push_back(u"the list shows no laid-out HtmlWidget card of "
 			u"its own for it"_q);
 	}
 	message.shape = u"id=%1 local=%2 regular=%3 out=%4 clientMsgId=%5 "
-		u"widgetMedia=%6 htmlMatches=%7 payload=%8 %9"_q.arg(
+		u"widgetMedia=%6 htmlMatches=%7 payload=%8 %9 %10"_q.arg(
 			IdText(message.id),
 			FlagText(item && item->isLocal()),
 			FlagText(item && item->isRegular()),
@@ -1514,6 +1583,7 @@ QString CheckWidgetMessage(
 			FlagText(media != nullptr),
 			FlagText(media && (media->html() == message.html)),
 			NumberText(message.payloadBytes),
+			FieldsText(message.fields),
 			message.wait.details);
 	return missing.isEmpty()
 		? QString()

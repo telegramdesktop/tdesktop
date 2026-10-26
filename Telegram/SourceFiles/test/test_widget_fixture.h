@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_msg_id.h"
 #include "data/data_peer_id.h"
 #include "test/test_widget_ops.h"
+#include "tgw/tgw_media.h"
 #include "tgw/tgw_runtime.h"
 
 #include <QtCore/QByteArray>
@@ -21,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QStringList>
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 class History;
@@ -44,8 +46,9 @@ class ElasticScroll;
 // HistoryInner of the primary window, shown normally and kept exposed
 // without activation, local outgoing widget and text messages with tapped
 // widget ops, card readings, the runtime log, loopback network controls and
-// one idempotent release. Internal dependency, not for overlays; contract
-// and callers: docs/helpers/test_widget_fixture.md.
+// one idempotent release. Internal dependency of those two packs (and of
+// one task's scoped evidence overlay), not a general overlay fixture;
+// contract and callers: docs/helpers/test_widget_fixture.md.
 
 namespace Test {
 
@@ -115,14 +118,24 @@ struct WidgetRuntimeLog {
 	bool received = false;
 };
 
+// The layer-233 fields of an injected widget message's media besides its
+// anchors and payload, sent as given; by default no flag, state or id.
+struct WidgetMessageFields {
+	Tgw::WidgetFlags flags;
+	Tgw::WidgetState state;
+	std::optional<uint64> widgetId;
+};
+
 // One message record, registered by AddWidgetFixtureMessage() before
 // anything is injected for it. |id|, and for a widget |key| and |tap|, are
 // set before History::addNewLocalMessage() can notify observers; the
-// session-qualified |key| is kept for every disarm. |shape| describes the
-// injected message, |layers| when a layer was hidden over it.
+// session-qualified |key| is kept for every disarm. |fields| are the
+// injected media fields, |shape| describes the injected message, |layers|
+// when a layer was hidden over it.
 struct WidgetFixtureMessage {
 	QString name;
 	QByteArray html;
+	WidgetMessageFields fields;
 	QString shape;
 	QStringList layers;
 	FullMsgId id;
@@ -222,15 +235,18 @@ void AppendWidgetFixtureClose(
 
 // Starts |message|'s wait, arms the tap for the id the injection uses and
 // adds a local outgoing client-id widget message of |html| with the width
-// and height anchors (0 is auto), then processes the pending layout.
-// Returns empty, or the refusal ("not injected: ..." when nothing was
-// added).
+// and height anchors (0 is auto), then processes the pending layout. The
+// media carries |fields| as given (an absent field stays unset, a present
+// empty one or a zero id is sent), the record keeps them and
+// CheckWidgetMessage() reads them back. Returns empty, or the refusal
+// ("not injected: ..." when nothing was added).
 [[nodiscard]] QString InjectWidgetMessage(
 	WidgetFixture &fixture,
 	WidgetFixtureMessage &message,
 	const QByteArray &html,
 	int width,
-	int height);
+	int height,
+	const WidgetMessageFields &fields = {});
 
 // The same for a local outgoing client-id text message, no tap. Its layout
 // is settled when the next widget message's WidgetMessageLaidOut() is.
@@ -246,7 +262,8 @@ void AppendWidgetFixtureClose(
 	WidgetFixtureMessage &message);
 
 // After WidgetMessageLaidOut(): fills |shape|; returns empty, or "no
-// HtmlWidget view: ..." naming what is not a local widget message card.
+// HtmlWidget view: ..." naming what is not a local widget message card,
+// including media fields other than the injected |fields|.
 [[nodiscard]] QString CheckWidgetMessage(
 	const WidgetFixture &fixture,
 	WidgetFixtureMessage &message);

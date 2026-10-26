@@ -16,12 +16,16 @@ Callers: `Test::AppendWidgetAttackAudit` in `test_widget_attacks.cpp`
 ([test_widget_attacks](test_widget_attacks.md)), and
 `Test::AppendWidgetConformance` in `test_widget_conformance.cpp`, with its
 action stages in `test_widget_conformance_actions.cpp`
-([test_widget_conformance](test_widget_conformance.md)). Overlays use those
-packs, not this module. An absence of direct overlay includes does not mean
-it is unused.
+([test_widget_conformance](test_widget_conformance.md)). The scoped evidence
+overlay of
+`2026/10/26/move-widgets-to-widget-sandbox-v0-2-2-and-give-them-their-state-and-message-context`
+also drives it directly, to inject local widget messages with a message
+kind's media fields and read their hosts. Other overlays use the two packs,
+not this module. An absence of direct overlay includes does not mean it is
+unused.
 
 It is not a general fixture framework: it exposes only the operations its
-two callers make. Selection, verdicts, stage assembly and rows stay in each
+callers make. Selection, verdicts, stage assembly and rows stay in each
 pack, and so do pack-specific readings such as the attack audit's death-line
 parse of the log.
 
@@ -56,12 +60,22 @@ parse of the log.
   `WidgetFixtureOwns()` already answers for the message inside the
   history's new-item notification. The widget's width and height anchors
   are parameters (the attack audit passes 0 and 0, auto; the conformance
-  runner 390 and 0). The message is a local outgoing client-id message,
-  never sent; its Web Storage never reaches the disk. `InjectTextMessage()`
-  adds a local outgoing client-id text message of the same shape, without a
-  tap; it is laid out with the history, so the next widget message's
-  `WidgetMessageLaidOut()` covers it. The conformance runner injects its
-  fillers above a widget that scrolls off screen this way.
+  runner 390 and 0). The media's other layer-233 fields are an optional
+  `WidgetMessageFields`: `Tgw::WidgetFlags` (`isCopy`, `canQuery`,
+  `backgroundQuery`), `Tgw::WidgetState` (raw `chatData` and `publicData`
+  bytes) and `widgetId`. The default is no flag, state or id, which is what
+  the two packs pass. They are sent as given, never validated or derived:
+  each true flag and each present field sets its TL flag, so a present
+  empty `chatData` or `publicData` and a present zero `widgetId` reach the
+  media as present, distinct from absent. The record keeps them in
+  `WidgetFixtureMessage::fields`. The message is a local outgoing client-id
+  message, never sent, and a history entry, so it cannot stand for a Recent
+  Actions, scheduled or quick-reply entry; its Web Storage never reaches the
+  disk. `InjectTextMessage()` adds a local outgoing client-id text message
+  of the same shape, without a tap; it is laid out with the history, so the
+  next widget message's `WidgetMessageLaidOut()` covers it. The conformance
+  runner injects its fillers above a widget that scrolls off screen this
+  way.
 - **Card.** `ReadWidgetCard()` only reads: the `HtmlWidget` card rectangle,
   the runtime state, whether the interactive core is the current core,
   attached and accepting input, and whether its cached frame was cut for the
@@ -87,7 +101,7 @@ parse of the log.
 | Operation | Reading or refusal |
 | --- | --- |
 | `InjectWidgetMessage` | Empty, `not injected: ...` (not registered, history gone or not at its bottom, list not shown, payload does not unpack) with nothing added, or `the injected message got id ..., not the armed ...`. |
-| `CheckWidgetMessage` | Fills `shape`; empty, or `no HtmlWidget view: ...` (not a local outgoing client-id message, not a `Tgw::WidgetMedia` of the bytes, no laid-out card of the list's own). |
+| `CheckWidgetMessage` | Fills `shape`; empty, or `no HtmlWidget view: ...` (not a local outgoing client-id message, not a `Tgw::WidgetMedia` of the bytes, `its media's flags, state or widget id are not the injected ones (the media has ...)` comparing `Tgw::WidgetMedia::fields()` with the record, absent and present-empty bytes and an absent and a zero id told apart, no laid-out card of the list's own). `shape` includes the record's `flags=<copy\|query\|background or none> chat=<bytes or none> public=<bytes or none> widgetId=<id or none>`: sizes, never the state's contents (`chat=0` is present and empty). |
 | `RuntimeLogDecided` / `FinishRuntimeLog` | `log.source`: `requestLog`, `logText` (the runtime kept no callback), `logText-at-bound`, `unavailable`; `log.chars`, `log.pending`. |
 | `log.summary` | The raw `Tgw::Runtime::_summary` (the `Summarize()` text) with `log.summaryState`. |
 | `RevalidateWidgetCard` | Empty, or what changed: show refused, list gone, no hover, view gone or another, card not ready, core, card or view geometry. |
@@ -139,8 +153,13 @@ campaign, which records its results in that task's `work/test.md`; until it
 runs, the fixture after the move has no executed app evidence. The summary
 reading and the text injection are the conformance runner's
 ([test_widget_conformance](test_widget_conformance.md)), and they too run
-in the app first in that campaign. Windows has not built it; the code is
-portable.
+in the app first in that campaign. The media-field parameter
+(`WidgetMessageFields`) is to be verified by the evidence campaign of the
+task named above: its field round trips, including present-empty state and
+a present zero id, and the packs' default calls; that task's evidence
+records the result. Until it runs, only the macOS Debug build of the
+parameter and its two unchanged callers is executed. Windows has not built
+it; the code is portable.
 
 ## Related guidance
 

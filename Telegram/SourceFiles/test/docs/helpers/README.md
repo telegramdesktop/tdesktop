@@ -57,7 +57,7 @@ should call.
 | [test_widget_ops](test_widget_ops.md) | API | Tap a widget message's validated ops: the `--attacks` leak scan, and the latest conformance result, scheme and theme message |
 | [test_widget_attacks](test_widget_attacks.md) | API | Run widget-sandbox's attack corpus through the chat list with tapped ops, one click each and loopback network controls |
 | [test_widget_conformance](test_widget_conformance.md) | API | Run widget-sandbox's conformance sets through the chat list with real input and 2x stage crops, into the run file `report.mjs` reads |
-| [test_widget_fixture](test_widget_fixture.md) | Internal dependency | Shared live-chat fixture of the widget stage packs: gates, local widget messages, cards, runtime log, controls and release |
+| [test_widget_fixture](test_widget_fixture.md) | Internal dependency | Shared live-chat fixture of the widget stage packs: gates, local widget messages with their media fields, cards, runtime log, controls and release |
 | [test_messages](test_messages.md) | API | Observe matching sent server messages |
 | [test_history_fixtures](test_history_fixtures.md) | API | Lifetime-owned history service-message fixtures |
 | [test_notify_override](test_notify_override.md) | API | Local notify-setting override and restoration |
