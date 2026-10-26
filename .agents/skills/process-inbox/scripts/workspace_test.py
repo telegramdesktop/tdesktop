@@ -69,6 +69,24 @@ class CommitHashArtifactTests(unittest.TestCase):
 					path.write_text(value, encoding="utf-8")
 					workspace.ensure_no_persisted_commit_hashes(root)
 
+	def test_exempts_supplied_inputs_only(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			report = root / "input" / "ANT-2026-TEST" / "REPORT.md"
+			report.parent.mkdir(parents=True)
+			report.write_text("Commit:   abcdef1234567", encoding="utf-8")
+			workspace.ensure_no_persisted_commit_hashes(root, exempt=("input",))
+			with self.assertRaises(workspace.WorkspaceError):
+				workspace.ensure_no_persisted_commit_hashes(root)
+			result = root / "work" / "input" / "result.md"
+			result.parent.mkdir(parents=True)
+			result.write_text("Commit: abcdef1", encoding="utf-8")
+			with self.assertRaises(workspace.WorkspaceError):
+				workspace.ensure_no_persisted_commit_hashes(
+					root,
+					exempt=("input",),
+				)
+
 
 class FrozenDate(datetime.date):
 	@classmethod

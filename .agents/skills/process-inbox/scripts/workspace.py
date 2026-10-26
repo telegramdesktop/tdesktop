@@ -1972,11 +1972,13 @@ def validate_source_state(config, task_id, expected_commit):
 			validate_task_commit(source, green, task_id)
 
 
-def ensure_no_persisted_commit_hashes(root):
+def ensure_no_persisted_commit_hashes(root, exempt=()):
 	text_suffixes = {".json", ".log", ".md", ".txt", ".yaml", ".yml"}
 	paths = [root] if root.is_file() else sorted(root.rglob("*"))
 	for path in paths:
 		if not path.is_file() or path.suffix.lower() not in text_suffixes:
+			continue
+		if path != root and path.relative_to(root).parts[0] in exempt:
 			continue
 		try:
 			text = path.read_text(encoding="utf-8-sig")
@@ -4467,7 +4469,8 @@ def command_finish(args):
 			"An approved task must retain work/test.md as adaptive evidence: "
 			f"{result_path.parent / 'test.md'}"
 		)
-	ensure_no_persisted_commit_hashes(result_path.parents[1])
+	# Supplied inputs stay byte-exact, so a hash quoted there is not ours.
+	ensure_no_persisted_commit_hashes(result_path.parents[1], exempt=("input",))
 	source_note = Path(config["source_root"]) / "tasks" / f"{args.task}.md"
 	if source_note.is_file():
 		ensure_no_persisted_commit_hashes(source_note)
