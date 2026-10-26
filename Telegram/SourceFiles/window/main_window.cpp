@@ -66,6 +66,8 @@ namespace Window {
 namespace {
 
 constexpr auto kSaveWindowPositionTimeout = crl::time(1000);
+constexpr auto kRestorePositionTimeout = crl::time(2000);
+constexpr auto kRestorePositionAttempts = 3;
 
 using Core::WindowPosition;
 
@@ -404,6 +406,7 @@ QImage WithSmallCounter(QImage image, CounterLayerArgs &&args) {
 MainWindow::MainWindow(not_null<Controller*> controller)
 : _controller(controller)
 , _positionUpdatedTimer([=] { savePosition(); })
+, _restoringPositionTimer([=] { _restoringPosition = false; })
 , _outdated(Ui::CreateOutdatedBar(body(), cWorkingDir()))
 , _screenReaderBar(Ui::CreateScreenReaderBar(body(), [=] {
 	controller->show(Ui::MakeConfirmBox({
@@ -831,7 +834,8 @@ void MainWindow::firstShow() {
 		show();
 		return;
 	}
-	const auto geometry = countInitialGeometry(initialPosition());
+	const auto position = initialPosition();
+	const auto geometry = countInitialGeometry(position);
 	DEBUG_LOG(("Window Pos: Setting first %1, %2, %3, %4"
 		).arg(geometry.x()
 		).arg(geometry.y()
@@ -839,9 +843,33 @@ void MainWindow::firstShow() {
 		).arg(geometry.height()));
 	setGeometry(geometry);
 	show();
+	_restoredPosition = position;
+	_restoredGeometry = geometry;
+	_restoreAttempts = 0;
+	_restoringPosition = true;
+	_restoringPositionTimer.callOnce(kRestorePositionTimeout);
 }
 
 void MainWindow::positionUpdated() {
+	if (_restoringPosition
+		&& !isMinimized()
+		&& !isMaximized()
+		&& !isFullScreen()
+		&& (geometry().width() > _restoredGeometry.width()
+			|| geometry().height() > _restoredGeometry.height())) {
+		if (++_restoreAttempts > kRestorePositionAttempts) {
+			_restoringPosition = false;
+			_restoringPositionTimer.cancel();
+		} else {
+			_restoredGeometry = countInitialGeometry(_restoredPosition);
+			DEBUG_LOG(("Window Pos: Restoring %1, %2, %3, %4 after a move"
+				).arg(_restoredGeometry.x()
+				).arg(_restoredGeometry.y()
+				).arg(_restoredGeometry.width()
+				).arg(_restoredGeometry.height()));
+			setGeometry(_restoredGeometry);
+		}
+	}
 	_positionUpdatedTimer.callOnce(kSaveWindowPositionTimeout);
 }
 
