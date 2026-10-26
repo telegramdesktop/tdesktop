@@ -35,6 +35,7 @@ public:
 	void postMessage(twidget::Json message);
 	void postTheme(bool dark);
 	void postLinkRequest(RendererCore::LinkRequest request);
+	void postBotRequest(RendererCore::BotRequest request);
 
 private:
 	[[nodiscard]] RendererCore *current() const;
@@ -265,6 +266,10 @@ void Append(
 	return stats.builds - stats.patched;
 }
 
+void RespondFailed(const RendererCore::Respond &respond) {
+	respond({ .failure = twidget::WidgetRequestFailure::Failed });
+}
+
 HostRenderer::HostRenderer(std::shared_ptr<HostLink> link)
 : _link(std::move(link)) {
 }
@@ -409,6 +414,16 @@ void HostLink::postLinkRequest(RendererCore::LinkRequest request) {
 	});
 }
 
+void HostLink::postBotRequest(RendererCore::BotRequest request) {
+	crl::on_main([link = shared_from_this(), request = std::move(request)] {
+		if (const auto core = link->current()) {
+			core->hostBotRequest(request);
+		} else {
+			RespondFailed(request.respond);
+		}
+	});
+}
+
 RendererCore::RendererCore(double width, double dpr)
 : _link(std::make_shared<HostLink>(this))
 , _backend(std::make_unique<QtBackend>(
@@ -453,6 +468,17 @@ auto RendererCore::hostActionHandler() const
 				.telegram = telegram,
 			});
 		}
+	};
+}
+
+RendererCore::RequestHandler RendererCore::hostRequestHandler() const {
+	return [link = _link](
+			const twidget::WidgetRequest &request,
+			Respond respond) {
+		link->postBotRequest({
+			.data = request.data,
+			.respond = std::move(respond),
+		});
 	};
 }
 
@@ -845,6 +871,10 @@ rpl::producer<RendererCore::LinkRequest> RendererCore::linkRequests() const {
 	return _linkRequests.events();
 }
 
+rpl::producer<RendererCore::BotRequest> RendererCore::botRequests() const {
+	return _botRequests.events();
+}
+
 void RendererCore::hostLoaded() {
 	if (_ready || _stopped) {
 		return;
@@ -919,6 +949,14 @@ void RendererCore::hostTheme(bool dark) {
 void RendererCore::hostLinkRequest(const LinkRequest &request) {
 	if (!_stopped) {
 		_linkRequests.fire_copy(request);
+	}
+}
+
+void RendererCore::hostBotRequest(const BotRequest &request) {
+	if (_stopped || !_botRequests.has_consumers()) {
+		RespondFailed(request.respond);
+	} else {
+		_botRequests.fire_copy(request);
 	}
 }
 

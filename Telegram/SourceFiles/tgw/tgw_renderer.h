@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace twidget {
 class Json;
 struct WidgetAction;
+struct WidgetRequest;
+struct WidgetRequestOutcome;
 } // namespace twidget
 
 namespace twlite {
@@ -47,10 +49,18 @@ public:
 	};
 	friend inline constexpr bool is_flag_type(Change) { return true; }
 	using Changes = base::flags<Change>;
+	using Respond = Fn<void(const twidget::WidgetRequestOutcome &outcome)>;
+	using RequestHandler = Fn<void(
+		const twidget::WidgetRequest &request,
+		Respond respond)>;
 
 	struct LinkRequest {
 		std::string url;
 		bool telegram = false;
+	};
+	struct BotRequest {
+		std::string data;
+		Respond respond;
 	};
 
 	RendererCore(double width, double dpr);
@@ -59,6 +69,7 @@ public:
 	[[nodiscard]] twidget::RendererFactory hostFactory() const;
 	[[nodiscard]] auto hostActionHandler() const
 	-> Fn<void(const twidget::WidgetAction &action)>;
+	[[nodiscard]] RequestHandler hostRequestHandler() const;
 
 	void detach();
 	[[nodiscard]] bool attached() const;
@@ -107,6 +118,7 @@ public:
 
 	[[nodiscard]] rpl::producer<Changes> updates() const;
 	[[nodiscard]] rpl::producer<LinkRequest> linkRequests() const;
+	[[nodiscard]] rpl::producer<BotRequest> botRequests() const;
 
 private:
 	friend class HostLink;
@@ -134,6 +146,7 @@ private:
 	void hostMessage(const twidget::Json &message);
 	void hostTheme(bool dark);
 	void hostLinkRequest(const LinkRequest &request);
+	void hostBotRequest(const BotRequest &request);
 
 	[[nodiscard]] int64 elementAt(QPointF point);
 	[[nodiscard]] CursorStyles &cursorStyles();
@@ -173,6 +186,7 @@ private:
 	QString _stopReason;
 	rpl::event_stream<Changes> _updates;
 	rpl::event_stream<LinkRequest> _linkRequests;
+	rpl::event_stream<BotRequest> _botRequests;
 	std::unique_ptr<CursorStyles> _cursor;
 	Pointer _pointer;
 	Finger _finger;

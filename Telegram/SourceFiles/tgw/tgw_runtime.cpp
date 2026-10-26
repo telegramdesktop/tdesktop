@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_resources.h"
 #include "tgw/tgw_storage.h"
 #include "tgw/tgw_theme.h"
+#include "twidget/sdk_policy.h"
 #include "twidget/widget_host.h"
 #include "TwidgetCore/src/renderer.h"
 #include "ui/style/style_core_scale.h"
@@ -102,6 +103,7 @@ struct Job {
 	std::shared_ptr<twidget::IntlProvider> intl;
 	twidget::RendererFactory factory;
 	Fn<void(const twidget::WidgetAction &)> action;
+	RendererCore::RequestHandler request;
 	Fn<void(
 		const std::string &,
 		const std::map<std::string, std::string> &)> storage;
@@ -514,6 +516,7 @@ void AppendTail(
 				std::move(job.intl)),
 			HostDeleter{ std::move(job.slot) });
 		host->onAction = std::move(job.action);
+		host->onRequest = std::move(job.request);
 		host->onStorageCommit = std::move(job.storage);
 		host->stoppedLabel = std::move(job.stoppedLabel);
 		return { .host = std::move(host) };
@@ -1172,6 +1175,7 @@ void Runtime::construct(
 			_item->globalId(),
 			_live->hostFactory()),
 		.action = _live->hostActionHandler(),
+		.request = _live->hostRequestHandler(),
 		.storage = std::move(storage.commit),
 		.options = std::move(options),
 		.theme = *_theme,
@@ -1319,6 +1323,11 @@ void Runtime::subscribeLive() {
 	) | rpl::on_next([=](const RendererCore::LinkRequest &request) {
 		linkRequested(renderer, request.url, request.telegram);
 	}, _liveLifetime);
+
+	renderer->botRequests(
+	) | rpl::on_next([=](const RendererCore::BotRequest &request) {
+		botRequested(renderer, request.data, request.respond);
+	}, _liveLifetime);
 }
 
 void Runtime::coreUpdated(
@@ -1386,6 +1395,19 @@ void Runtime::linkRequested(
 	if (weak) {
 		addNote(result);
 	}
+}
+
+void Runtime::botRequested(
+		not_null<RendererCore*> renderer,
+		const std::string &data,
+		Fn<void(const twidget::WidgetRequestOutcome &outcome)> respond) {
+	if (_state != State::Live
+		|| renderer.get() != _live.get()
+		|| !renderer->attached()) {
+		respond({ .failure = twidget::WidgetRequestFailure::Failed });
+		return;
+	}
+	_bridge->request(data, std::move(respond));
 }
 
 void Runtime::syncHostVisibility() {
