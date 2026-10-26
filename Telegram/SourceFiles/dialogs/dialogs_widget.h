@@ -319,8 +319,10 @@ private:
 	struct CancelSearchOptions {
 		bool forceFullCancel = false;
 		bool jumpBackToSearchedChat = false;
+		bool leaveSearch = false;
 	};
 	bool cancelSearch(CancelSearchOptions options);
+	void escape(CancelSearchOptions options);
 
 	MTP::Sender _api;
 
