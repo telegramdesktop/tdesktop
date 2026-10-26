@@ -154,12 +154,15 @@ runs, the fixture after the move has no executed app evidence. The summary
 reading and the text injection are the conformance runner's
 ([test_widget_conformance](test_widget_conformance.md)), and they too run
 in the app first in that campaign. The media-field parameter
-(`WidgetMessageFields`) is to be verified by the evidence campaign of the
-task named above: its field round trips, including present-empty state and
-a present zero id, and the packs' default calls; that task's evidence
-records the result. Until it runs, only the macOS Debug build of the
-parameter and its two unchanged callers is executed. Windows has not built
-it; the code is portable.
+(`WidgetMessageFields`) ran in the macOS arm64 Debug client in the evidence
+campaign of the task named above (its `work/test.md`, Runs 1-3): the
+attack audit's 105 default calls each read back `flags=none chat=none
+public=none widgetId=none`, and 16 injections with given fields in a
+private chat, a basic group, a supergroup and a channel kept every flag,
+state byte and presence and id as given, a present empty `chatData`, an
+absent field and a present zero `widgetId` included, with
+`CheckWidgetMessage()` passing for each. Windows has not
+built it; the code is portable.
 
 ## Related guidance
 
