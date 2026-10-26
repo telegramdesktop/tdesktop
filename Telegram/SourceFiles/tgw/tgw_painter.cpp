@@ -27,6 +27,7 @@ constexpr auto kKappa = 0.5522847498;
 constexpr auto kStopEpsilon = 1e-4;
 constexpr auto kMiterLimit = 4.;
 constexpr auto kMaxDashSteps = int64(1 << 17);
+constexpr auto kDotStep = 1e-3;
 constexpr auto kMaxFlattenBytes = int64(64 * 1024 * 1024);
 constexpr auto kMaxCurvePoints = int64(512);
 constexpr auto kPolygonReserve = int64(16);
@@ -144,7 +145,8 @@ public:
 		float64 offset,
 		float64 scale,
 		const QRectF &visible,
-		int64 &budget);
+		int64 &budget,
+		bool dots);
 
 	[[nodiscard]] bool add(const QPolygonF &polygon);
 	[[nodiscard]] const QPainterPath &result() const;
@@ -161,6 +163,7 @@ private:
 	const float64 _scale = 1.;
 	const QRectF _visible;
 	int64 &_budget;
+	const bool _dots = false;
 	QPainterPath _result;
 	size_t _index = 0;
 	float64 _left = 0.;
@@ -1496,13 +1499,15 @@ Dasher::Dasher(
 		float64 offset,
 		float64 scale,
 		const QRectF &visible,
-		int64 &budget)
+		int64 &budget,
+		bool dots)
 : _pattern(std::move(pattern))
 , _period(ranges::accumulate(_pattern, 0.))
 , _offset(Wrap(offset, _period))
 , _scale(scale)
 , _visible(visible)
-, _budget(budget) {
+, _budget(budget)
+, _dots(dots) {
 }
 
 bool Dasher::add(const QPolygonF &polygon) {
@@ -1589,7 +1594,10 @@ bool Dasher::walk(QPointF from, QPointF to, float64 length) {
 			_left -= rest;
 			return true;
 		} else if (on) {
-			line(start, from + delta * ((done + _left) / length));
+			// WHY: QPainterPath drops a line to the point it is at, but
+			// a dash of no length is a dot under round or square caps.
+			const auto step = (_dots && !(_left > 0.)) ? kDotStep : _left;
+			line(start, from + delta * ((done + step) / length));
 			_drawing = false;
 		}
 		done += _left;
@@ -2690,7 +2698,8 @@ bool PaintAllowance::strokeDashes(
 		offset,
 		scale,
 		visible,
-		_dashSteps);
+		_dashSteps,
+		pen.capStyle() != Qt::FlatCap);
 	const auto scaled = QTransform::fromScale(scale, scale);
 	if (!ReserveFlattening(path, _flattenBytes)) {
 		return false;
