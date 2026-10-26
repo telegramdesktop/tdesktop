@@ -14,23 +14,68 @@ namespace Tgw {
 struct Anchors {
 	int width = 0;
 	int height = 0;
+
+	friend inline bool operator==(Anchors, Anchors) = default;
+};
+
+struct WidgetFlags {
+	bool isCopy = false;
+	bool canQuery = false;
+	bool backgroundQuery = false;
+
+	friend inline bool operator==(WidgetFlags, WidgetFlags) = default;
+};
+
+struct WidgetState {
+	std::optional<QByteArray> chatData;
+	std::optional<QByteArray> publicData;
+
+	friend inline bool operator==(
+		const WidgetState &,
+		const WidgetState &) = default;
+};
+
+struct WidgetFields {
+	Anchors anchors;
+	QByteArray payload;
+	WidgetState state;
+	std::optional<uint64> widgetId;
+	WidgetFlags flags;
+
+	friend inline bool operator==(
+		const WidgetFields &,
+		const WidgetFields &) = default;
+};
+
+enum class ChatType : uchar {
+	None,
+	Private,
+	Group,
+	Supergroup,
+	Channel,
+};
+
+struct MessageContext {
+	WidgetFlags flags;
+	ChatType chatType = ChatType::None;
+
+	friend inline bool operator==(MessageContext, MessageContext) = default;
 };
 
 [[nodiscard]] QByteArray UnpackPayload(const QByteArray &payload);
+[[nodiscard]] WidgetFields ParseWidgetFields(
+	const MTPDmessageMediaWidget &data);
 
 class WidgetMedia final : public Data::Media {
 public:
-	WidgetMedia(
-		not_null<HistoryItem*> parent,
-		Anchors anchors,
-		QByteArray payload);
+	WidgetMedia(not_null<HistoryItem*> parent, WidgetFields fields);
 
 	std::unique_ptr<Data::Media> clone(
 		not_null<HistoryItem*> parent) override;
 
-	[[nodiscard]] Anchors anchors() const;
-	[[nodiscard]] const QByteArray &payload() const;
+	[[nodiscard]] const WidgetFields &fields() const;
 	[[nodiscard]] const QByteArray &html() const;
+	[[nodiscard]] MessageContext context() const;
 
 	ItemPreview toPreview(ToPreviewOptions options) const override;
 	TextWithEntities notificationText() const override;
@@ -45,8 +90,7 @@ public:
 		HistoryView::Element *replacing = nullptr) override;
 
 private:
-	Anchors _anchors;
-	QByteArray _payload;
+	WidgetFields _fields;
 	mutable std::optional<QByteArray> _html;
 
 };

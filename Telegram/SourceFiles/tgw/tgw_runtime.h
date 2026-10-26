@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/weak_ptr.h"
+#include "tgw/tgw_media.h"
 
 class HistoryItem;
 
@@ -42,6 +43,7 @@ struct RuntimeDescriptor {
 	not_null<HistoryView::Element*> view;
 	not_null<HistoryItem*> item;
 	QByteArray html;
+	MessageContext context;
 	Fn<void()> resize;
 	Fn<void()> repaint;
 	Fn<void()> heavyChanged;
@@ -67,7 +69,9 @@ public:
 
 	[[nodiscard]] not_null<HistoryView::Element*> view() const;
 	[[nodiscard]] not_null<HistoryItem*> item() const;
-	[[nodiscard]] bool matchesHtml(const QByteArray &html) const;
+	[[nodiscard]] bool matches(
+		const QByteArray &html,
+		const MessageContext &context) const;
 	[[nodiscard]] State state() const;
 	[[nodiscard]] bool heavy() const;
 	[[nodiscard]] bool stopped() const;
@@ -159,6 +163,7 @@ private:
 	not_null<HistoryView::Element*> _view;
 	const not_null<HistoryItem*> _item;
 	const QByteArray _html;
+	const MessageContext _context;
 	Fn<void()> _resize;
 	Fn<void()> _repaint;
 	Fn<void()> _heavyChanged;

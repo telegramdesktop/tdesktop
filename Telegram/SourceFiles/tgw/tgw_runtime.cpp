@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt_signal_producer.h"
 #include "core/application.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "history/view/history_view_element.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -260,6 +261,67 @@ void ApplyTheme(
 	return result;
 }
 
+[[nodiscard]] std::optional<std::string> HostBytes(
+		const std::optional<QByteArray> &value) {
+	return value
+		? std::make_optional(
+			std::string(value->constData(), size_t(value->size())))
+		: std::nullopt;
+}
+
+[[nodiscard]] twidget::WidgetData HostData(not_null<HistoryItem*> item) {
+	const auto media = dynamic_cast<WidgetMedia*>(item->media());
+	if (!media) {
+		return {};
+	}
+	const auto &state = media->fields().state;
+	return {
+		.chatData = HostBytes(state.chatData),
+		.publicData = HostBytes(state.publicData),
+	};
+}
+
+[[nodiscard]] std::optional<std::string> ViewerText(const QString &value) {
+	return value.isEmpty()
+		? std::nullopt
+		: std::make_optional(value.toStdString());
+}
+
+[[nodiscard]] twidget::WidgetViewer HostViewer(not_null<UserData*> user) {
+	return {
+		.id = int64(peerToUser(user->id).bare),
+		.firstName = ViewerText(user->firstName),
+		.lastName = ViewerText(user->lastName),
+		.username = ViewerText(user->username()),
+		.isPremium = user->isPremium(),
+	};
+}
+
+[[nodiscard]] std::string ChatTypeName(ChatType type) {
+	switch (type) {
+	case ChatType::None: return std::string();
+	case ChatType::Private: return "private";
+	case ChatType::Group: return "group";
+	case ChatType::Supergroup: return "supergroup";
+	case ChatType::Channel: return "channel";
+	}
+	Unexpected("ChatType in Tgw::ChatTypeName.");
+}
+
+[[nodiscard]] twidget::WidgetContext HostContext(
+		const MessageContext &context,
+		not_null<UserData*> self) {
+	return {
+		.isCopy = context.flags.isCopy,
+		.canQuery = context.flags.canQuery,
+		.backgroundQuery = context.flags.backgroundQuery,
+		.chatType = ChatTypeName(context.chatType),
+		.viewer = (context.flags.canQuery
+			? std::make_optional(HostViewer(self))
+			: std::nullopt),
+	};
+}
+
 [[nodiscard]] QString Clip(QString text, int length = kMaxLogLine) {
 	if (text.size() <= length) {
 		return text;
@@ -479,6 +541,7 @@ Runtime::Runtime(RuntimeDescriptor &&descriptor)
 : _view(descriptor.view)
 , _item(descriptor.item)
 , _html(std::move(descriptor.html))
+, _context(descriptor.context)
 , _resize(std::move(descriptor.resize))
 , _repaint(std::move(descriptor.repaint))
 , _heavyChanged(std::move(descriptor.heavyChanged))
@@ -553,8 +616,10 @@ not_null<HistoryItem*> Runtime::item() const {
 	return _item;
 }
 
-bool Runtime::matchesHtml(const QByteArray &html) const {
-	return currentContent() && (_html == html);
+bool Runtime::matches(
+		const QByteArray &html,
+		const MessageContext &context) const {
+	return currentContent() && (_html == html) && (_context == context);
 }
 
 Runtime::State Runtime::state() const {
@@ -1091,6 +1156,10 @@ void Runtime::construct(
 	_hostTheme = _theme;
 	auto options = DefaultHostOptions(ratio, _visible);
 	options.storage = StoredAreas(_item);
+	options.data = HostData(_item);
+	options.context = HostContext(
+		_context,
+		_item->history()->session().user());
 	auto storage = OpenStorageHost(_item);
 	const auto id = storage.id;
 	StorageHostVisibility(id, _hostVisible);

@@ -36,6 +36,7 @@ public:
 		not_null<HistoryItem*> realParent,
 		Tgw::Anchors anchors,
 		QByteArray html,
+		Tgw::MessageContext context,
 		Element *replacing);
 	~HtmlWidget();
 
@@ -81,7 +82,8 @@ private:
 	QSize countCurrentSize(int newWidth) override;
 
 	[[nodiscard]] std::unique_ptr<Tgw::Runtime> takeRuntime(
-		const QByteArray &html);
+		const QByteArray &html,
+		const Tgw::MessageContext &context);
 	[[nodiscard]] std::optional<HtmlWidgetGeometry> handoffGeometry() const;
 	[[nodiscard]] std::optional<HtmlWidgetGeometry> currentGeometry() const;
 	[[nodiscard]] std::optional<HtmlWidgetGeometry> placement() const;

@@ -563,11 +563,7 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 	}, [&](const MTPDmessageMediaWidget &media) -> Result {
 		return std::make_unique<Tgw::WidgetMedia>(
 			item,
-			Tgw::Anchors{
-				.width = media.vwidth().v,
-				.height = media.vheight().v,
-			},
-			media.vpayload().v);
+			Tgw::ParseWidgetFields(media));
 	}, [](const MTPDmessageMediaEmpty &) -> Result {
 		return nullptr;
 	}, [](const MTPDmessageMediaUnsupported &) -> Result {

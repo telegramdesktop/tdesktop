@@ -7,10 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tgw/tgw_media.h"
 
+#include "data/data_peer.h"
 #include "dialogs/ui/dialogs_message_view.h"
 #include "history/view/media/history_view_html_widget.h"
 #include "history/view/media/history_view_unsupported_widget.h"
 #include "history/view/history_view_item_preview.h"
+#include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "tgw/tgw_option.h"
@@ -36,6 +38,16 @@ constexpr auto kInitialUnpackedSize = qsizetype(16 * 1024);
 [[nodiscard]] qsizetype GrownSize(qsizetype size) {
 	const auto limit = QByteArray::maxSize();
 	return (size > limit / 2) ? limit : (size * 2);
+}
+
+[[nodiscard]] ChatType ChatTypeOf(not_null<PeerData*> peer) {
+	return peer->isUser()
+		? ChatType::Private
+		: peer->isChat()
+		? ChatType::Group
+		: peer->isMegagroup()
+		? ChatType::Supergroup
+		: ChatType::Channel;
 }
 
 } // namespace
@@ -85,39 +97,70 @@ QByteArray UnpackPayload(const QByteArray &payload) {
 	return result;
 }
 
-WidgetMedia::WidgetMedia(
-	not_null<HistoryItem*> parent,
-	Anchors anchors,
-	QByteArray payload)
+WidgetFields ParseWidgetFields(const MTPDmessageMediaWidget &data) {
+	const auto chat = data.vchat_data();
+	const auto shared = data.vpublic_data();
+	const auto id = data.vwidget_id();
+	return {
+		.anchors = {
+			.width = data.vwidth().v,
+			.height = data.vheight().v,
+		},
+		.payload = data.vpayload().v,
+		.state = {
+			.chatData = chat ? std::make_optional(chat->v) : std::nullopt,
+			.publicData = shared ? std::make_optional(shared->v) : std::nullopt,
+		},
+		.widgetId = id ? std::make_optional(id->v) : std::nullopt,
+		.flags = {
+			.isCopy = data.is_is_copy(),
+			.canQuery = data.is_can_query(),
+			.backgroundQuery = data.is_background_query(),
+		},
+	};
+}
+
+WidgetMedia::WidgetMedia(not_null<HistoryItem*> parent, WidgetFields fields)
 : Media(parent)
-, _anchors(anchors)
-, _payload(std::move(payload)) {
+, _fields(std::move(fields)) {
 }
 
 std::unique_ptr<Data::Media> WidgetMedia::clone(
 		not_null<HistoryItem*> parent) {
-	auto result = std::make_unique<WidgetMedia>(parent, _anchors, _payload);
+	auto result = std::make_unique<WidgetMedia>(parent, _fields);
 	result->_html = _html;
 	return result;
 }
 
-Anchors WidgetMedia::anchors() const {
-	return _anchors;
-}
-
-const QByteArray &WidgetMedia::payload() const {
-	return _payload;
+const WidgetFields &WidgetMedia::fields() const {
+	return _fields;
 }
 
 const QByteArray &WidgetMedia::html() const {
 	if (!_html) {
-		_html = UnpackPayload(_payload);
+		_html = UnpackPayload(_fields.payload);
 		if (_html->isEmpty()) {
 			LOG(("Tgw Error: Could not unpack a widget payload of %1 bytes."
-				).arg(_payload.size()));
+				).arg(_fields.payload.size()));
 		}
 	}
 	return *_html;
+}
+
+MessageContext WidgetMedia::context() const {
+	const auto item = parent();
+	auto flags = _fields.flags;
+	if (!item->isHistoryEntry()) {
+		// Its requests could not name it in the user's coordinates.
+		flags.canQuery = false;
+		flags.backgroundQuery = false;
+	}
+	return {
+		.flags = flags,
+		.chatType = (flags.isCopy
+			? ChatType::None
+			: ChatTypeOf(item->history()->peer)),
+	};
 }
 
 HistoryView::ItemPreview WidgetMedia::toPreview(
@@ -153,9 +196,7 @@ bool WidgetMedia::updateInlineResultMedia(const MTPMessageMedia &media) {
 
 bool WidgetMedia::updateSentMedia(const MTPMessageMedia &media) {
 	return media.match([&](const MTPDmessageMediaWidget &data) {
-		return (data.vwidth().v == _anchors.width)
-			&& (data.vheight().v == _anchors.height)
-			&& (data.vpayload().v == _payload);
+		return (ParseWidgetFields(data) == _fields);
 	}, [](const auto &) {
 		return false;
 	});
@@ -171,8 +212,9 @@ std::unique_ptr<HistoryView::Media> WidgetMedia::createView(
 			return std::make_unique<HistoryView::HtmlWidget>(
 				message,
 				realParent,
-				_anchors,
+				_fields.anchors,
 				html,
+				context(),
 				replacing);
 		}
 	}

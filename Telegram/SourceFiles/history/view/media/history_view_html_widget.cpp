@@ -54,6 +54,7 @@ HtmlWidget::HtmlWidget(
 	not_null<HistoryItem*> realParent,
 	Tgw::Anchors anchors,
 	QByteArray html,
+	Tgw::MessageContext context,
 	Element *replacing)
 : Media(parent)
 , _anchors(anchors)
@@ -62,6 +63,7 @@ HtmlWidget::HtmlWidget(
 		.view = parent,
 		.item = realParent,
 		.html = std::move(html),
+		.context = context,
 		.resize = [=] { runtimeHeightChanged(); },
 		.repaint = [=] { _parent->repaint(); },
 		.heavyChanged = [=] { runtimeHeavyChanged(); },
@@ -73,7 +75,7 @@ HtmlWidget::HtmlWidget(
 	if (previous) {
 		_placed = previous->handoffGeometry();
 		_placedReplaced = _placed.has_value();
-		_runtime = previous->takeRuntime(descriptor.html);
+		_runtime = previous->takeRuntime(descriptor.html, descriptor.context);
 		if (!_runtime && _placed) {
 			_placed->serial = 0;
 		}
@@ -103,8 +105,9 @@ HtmlWidget::~HtmlWidget() {
 }
 
 std::unique_ptr<Tgw::Runtime> HtmlWidget::takeRuntime(
-		const QByteArray &html) {
-	if (!_runtime || !_runtime->matchesHtml(html)) {
+		const QByteArray &html,
+		const Tgw::MessageContext &context) {
+	if (!_runtime || !_runtime->matches(html, context)) {
 		return nullptr;
 	}
 	_heavy = false;
