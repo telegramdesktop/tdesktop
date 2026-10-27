@@ -70,9 +70,36 @@ struct Kept {
 	int shift = 0;
 };
 
+struct ExpansionLayout {
+	std::vector<std::optional<int>> cards;
+	int range = 0;
+};
+
+struct ExpansionState {
+	std::vector<ScrollBubble> above;
+	std::vector<ExpansionLayout> layouts;
+	int scrollTop = 0;
+};
+
+using ExpansionStates = base::flat_map<
+	not_null<const AdminLog::InnerWidget*>,
+	ExpansionState>;
+
 [[nodiscard]] OwnerStates &Owners() {
 	static auto result = OwnerStates();
 	return result;
+}
+
+[[nodiscard]] ExpansionStates &Expansions() {
+	static auto result = ExpansionStates();
+	return result;
+}
+
+[[nodiscard]] ExpansionState *ExpansionOf(
+		not_null<const AdminLog::InnerWidget*> list) {
+	auto &expansions = Expansions();
+	const auto i = expansions.find(list);
+	return (i != end(expansions)) ? &i->second : nullptr;
 }
 
 void Advance(
@@ -182,10 +209,12 @@ void EnumerateUp(History *migrated, History *history, Method method) {
 }
 
 void Positioned(const ScrollSnapshot &snapshot) {
-	for (const auto &was : snapshot.bubbles) {
-		const auto view = was.view.get();
-		if (const auto widget = view ? WidgetOf(view) : nullptr) {
-			widget->rememberPlacement();
+	for (const auto bubbles : { &snapshot.bubbles, &snapshot.above }) {
+		for (const auto &was : *bubbles) {
+			const auto view = was.view.get();
+			if (const auto widget = view ? WidgetOf(view) : nullptr) {
+				widget->rememberPlacement();
+			}
 		}
 	}
 }
@@ -435,6 +464,67 @@ template <typename Resolver>
 	return AnyChanged(snapshot, resolve)
 		? std::make_optional(max)
 		: std::nullopt;
+}
+
+template <typename Resolver>
+[[nodiscard]] int AboveChange(
+		const ScrollSnapshot &snapshot,
+		Resolver &&resolve) {
+	auto result = 0;
+	for (const auto &was : snapshot.above) {
+		if (const auto now = resolve(was)) {
+			result += now->consumed.height - was.card;
+		}
+	}
+	return result;
+}
+
+template <typename Shown>
+void RecordLayout(ExpansionState &state, int range, Shown &&shown) {
+	auto cards = std::vector<std::optional<int>>();
+	cards.reserve(state.above.size());
+	for (const auto &was : state.above) {
+		const auto view = was.view.get();
+		const auto layout = (view && shown(view))
+			? LayoutOf(view)
+			: std::nullopt;
+		cards.push_back((layout && layout->consumed)
+			? std::make_optional(layout->consumed->height)
+			: std::nullopt);
+	}
+	state.layouts.push_back({ .cards = std::move(cards), .range = range });
+}
+
+template <typename Resolver>
+[[nodiscard]] int ExpandedAbove(
+		const ExpansionState &state,
+		Resolver &&resolve,
+		int scrollTop) {
+	const auto count = int(state.above.size());
+	auto finals = std::vector<std::optional<int>>(count);
+	auto control = state.scrollTop;
+	auto changed = false;
+	for (auto i = 0; i != count; ++i) {
+		const auto &was = state.above[i];
+		if (const auto now = resolve(was)) {
+			finals[i] = now->consumed.height;
+			control += now->consumed.height - was.card;
+			changed = true;
+		}
+	}
+	if (!changed) {
+		return 0;
+	}
+	for (const auto &layout : state.layouts) {
+		auto range = layout.range;
+		for (auto i = 0; i != count; ++i) {
+			if (finals[i] && layout.cards[i]) {
+				range += *finals[i] - *layout.cards[i];
+			}
+		}
+		control = std::min(control, std::max(range, 0));
+	}
+	return control - scrollTop;
 }
 
 template <typename Entries>
@@ -802,6 +892,10 @@ bool ListScroll::Keep(
 	if (!snapshot.direct) {
 		const auto kept = KeepAnchor(snapshot, resolve);
 		if (kept) {
+			if (snapshot.atEnd) {
+				// before the anchor: its scroll notification forgets it
+				widget->_scroll->absorbBottomOverscroll(kept->target);
+			}
 			const auto in = kept->view->history();
 			in->scrollTopItem = kept->view;
 			in->scrollTopOffset = kept->target - kept->top;
@@ -813,6 +907,7 @@ bool ListScroll::Keep(
 		return snapshot.atEnd && kept;
 	} else if (snapshot.atEnd) {
 		if (const auto kept = KeepTop(snapshot, resolve)) {
+			widget->_scroll->absorbBottomOverscroll(kept->target);
 			scrollTo(kept->target);
 			return true;
 		} else if (AnyChanged(snapshot, resolve)) {
@@ -960,6 +1055,12 @@ void ListScroll::Keep(
 	};
 	if (!snapshot.saved) {
 		if (const auto kept = KeepAnchor(snapshot, resolve)) {
+			const auto scroll = snapshot.atEnd
+				? list->_delegate->listScrollArea()
+				: nullptr;
+			if (scroll) {
+				scroll->absorbBottomOverscroll(kept->target);
+			}
 			list->_visibleTopItem = kept->view;
 			list->_visibleTopFromItem = kept->target - kept->top;
 		}
@@ -1036,6 +1137,60 @@ ScrollSnapshot ListScroll::Capture(
 	return result;
 }
 
+void ListScroll::CaptureAbove(
+		not_null<const AdminLog::InnerWidget*> list,
+		const Element *anchor,
+		ScrollSnapshot &snapshot) {
+	const auto top = list->_visibleTop;
+	const auto bottom = list->_visibleBottom;
+	if (!anchor
+		|| !Scrollable(top, bottom, list->height(), list->_minHeight)
+		|| list->_skipScrollRestore) {
+		return;
+	}
+	const auto &entries = list->_displayItems;
+	const auto index = IndexOf(entries, anchor);
+	if (index < 0) {
+		return;
+	}
+	const auto captured = [&](const ScrollBubble &bubble) {
+		return ranges::contains(
+			snapshot.bubbles,
+			bubble.item,
+			&ScrollBubble::item);
+	};
+	for (auto i = index + 1, count = int(entries.size()); i != count; ++i) {
+		const auto view = entries[i].view;
+		const auto bubble = Describe(view, list->itemTop(view));
+		if (bubble && !captured(*bubble)) {
+			snapshot.above.push_back(*bubble);
+		}
+	}
+}
+
+ListScroll::Expansion::Expansion(const AdminLog::InnerWidget *list)
+: _list(list) {
+}
+
+ListScroll::Expansion::~Expansion() {
+	if (_list) {
+		Expansions().remove(not_null{ _list });
+	}
+}
+
+ListScroll::Expansion ListScroll::TrackExpansion(
+		not_null<const AdminLog::InnerWidget*> list,
+		const ScrollSnapshot &snapshot) {
+	if (snapshot.above.empty()) {
+		return Expansion(nullptr);
+	}
+	const auto inserted = Expansions().try_emplace(list, ExpansionState{
+		.above = snapshot.above,
+		.scrollTop = list->_visibleTop,
+	}).second;
+	return Expansion(inserted ? list.get() : nullptr);
+}
+
 Element *ListScroll::Displayed(
 		not_null<AdminLog::InnerWidget*> list,
 		FullMsgId id) {
@@ -1053,6 +1208,14 @@ void ListScroll::Keep(
 		Advance(list, list->lifetime());
 		Positioned(snapshot);
 	});
+	if (const auto tracked = ExpansionOf(list)) {
+		RecordLayout(
+			*tracked,
+			list->height() - list->_itemsTop - list->_minHeight,
+			[&](not_null<Element*> view) {
+				return (list->viewForItem(view->data()) == view.get());
+			});
+	}
 	if (snapshot.bubbles.empty()) {
 		return;
 	}
@@ -1065,6 +1228,12 @@ void ListScroll::Keep(
 	if (index < 0) {
 		return;
 	}
+	const auto scroll = snapshot.atEnd
+		? dynamic_cast<Ui::ElasticScroll*>(list->parentWidget())
+		: nullptr;
+	if (scroll) {
+		scroll->absorbBottomOverscroll(kept->target);
+	}
 	const auto max = std::max(list->height() - list->_minHeight, 0);
 	const auto target = std::clamp(kept->target, 0, max);
 	list->_visibleTopItem = kept->view;
@@ -1075,26 +1244,42 @@ void ListScroll::Keep(
 ScrollShift ListScroll::Adjust(
 		not_null<AdminLog::InnerWidget*> list,
 		const ScrollSnapshot &snapshot,
-		int target) {
+		int target,
+		const Expansion *expansion) {
 	const auto positioned = gsl::finally([&] {
 		Advance(list, list->lifetime());
 		Positioned(snapshot);
 	});
-	const auto unchanged = ScrollShift{ .target = target };
+	// WHY: every caller has just rebuilt the display, so the view map holds
+	// exactly the displayed items and needs no rescan for each above entry.
+	const auto &owner = list->_history->owner();
+	const auto resolve = [&](const ScrollBubble &was) {
+		const auto item = owner.message(was.item);
+		const auto view = item ? list->viewForItem(item) : nullptr;
+		return Resolve(was, view, view ? list->itemTop(view) : -1);
+	};
+	const auto tracked = (expansion && (expansion->_list == list.get()))
+		? ExpansionOf(list)
+		: nullptr;
+	const auto above = tracked
+		? ExpandedAbove(*tracked, resolve, list->_visibleTop)
+		: AboveChange(snapshot, resolve);
+	const auto unchanged = ScrollShift{ .target = target, .above = above };
 	if (snapshot.bubbles.empty()) {
 		return unchanged;
 	}
-	const auto resolve = [&](const ScrollBubble &was) {
-		const auto view = Displayed(list, was.item);
-		return Resolve(was, view, view ? list->itemTop(view) : -1);
-	};
 	const auto max = std::max(list->height() - list->_minHeight, 0);
 	const auto from = std::clamp(target, 0, max);
 	const auto adjusted = LocalTarget(snapshot, resolve, from, max);
 	const auto result = adjusted ? std::clamp(*adjusted, 0, max) : from;
-	return (result != from)
-		? ScrollShift{ .target = result, .difference = result - from }
-		: unchanged;
+	if (result == from) {
+		return unchanged;
+	}
+	return ScrollShift{
+		.target = result,
+		.difference = result - from,
+		.above = above,
+	};
 }
 
 Fn<std::optional<int>()> ListScroll::Placement(

@@ -53,6 +53,7 @@ struct ScrollBubble {
 
 struct ScrollSnapshot {
 	std::vector<ScrollBubble> bubbles;
+	std::vector<ScrollBubble> above;
 	int scrollTop = 0;
 	int viewport = 0;
 	bool atEnd = false;
@@ -63,10 +64,26 @@ struct ScrollSnapshot {
 struct ScrollShift {
 	int target = 0;
 	int difference = 0;
+	int above = 0; // for starting positions only, targets already include it
 };
 
 class ListScroll final {
 public:
+	class Expansion final {
+	public:
+		Expansion(const Expansion &other) = delete;
+		Expansion &operator=(const Expansion &other) = delete;
+		~Expansion();
+
+	private:
+		friend class ListScroll;
+
+		explicit Expansion(const AdminLog::InnerWidget *list);
+
+		const AdminLog::InnerWidget *_list = nullptr;
+
+	};
+
 	[[nodiscard]] static uint32 Epoch(
 		not_null<const HistoryView::ElementDelegate*> owner);
 	[[nodiscard]] static uint32 Consumed(
@@ -117,13 +134,21 @@ public:
 
 	[[nodiscard]] static ScrollSnapshot Capture(
 		not_null<const AdminLog::InnerWidget*> list);
+	static void CaptureAbove(
+		not_null<const AdminLog::InnerWidget*> list,
+		const HistoryView::Element *anchor,
+		ScrollSnapshot &snapshot);
+	[[nodiscard]] static Expansion TrackExpansion(
+		not_null<const AdminLog::InnerWidget*> list,
+		const ScrollSnapshot &snapshot);
 	static void Keep(
 		not_null<AdminLog::InnerWidget*> list,
 		const ScrollSnapshot &snapshot);
 	[[nodiscard]] static ScrollShift Adjust(
 		not_null<AdminLog::InnerWidget*> list,
 		const ScrollSnapshot &snapshot,
-		int target);
+		int target,
+		const Expansion *expansion = nullptr);
 	[[nodiscard]] static Fn<std::optional<int>()> Placement(
 		not_null<AdminLog::InnerWidget*> list,
 		FullMsgId id,

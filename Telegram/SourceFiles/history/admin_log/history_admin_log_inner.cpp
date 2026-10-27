@@ -1069,7 +1069,11 @@ void InnerWidget::expandGroupContaining(not_null<HistoryItem*> item) {
 		}
 		if (group.eventCount > 3
 			&& !_expandedGroups.contains(group.eventId)) {
-			const auto anchor = captureScrollAnchor();
+			auto anchor = captureScrollAnchor();
+			Tgw::ListScroll::CaptureAbove(this, anchor.view, anchor.snapshot);
+			const auto expansion = Tgw::ListScroll::TrackExpansion(
+				this,
+				anchor.snapshot);
 			_expandedGroups.insert(group.eventId);
 			clearDisplayPointers(DisplayPointerScope::All);
 			_skipScrollRestore = true;
@@ -1078,9 +1082,11 @@ void InnerWidget::expandGroupContaining(not_null<HistoryItem*> item) {
 			const auto shift = Tgw::ListScroll::Adjust(
 				this,
 				anchor.snapshot,
-				computeScrollFromAnchor(anchor)).difference;
-			if (shift) {
-				_scrollToSignal.fire_copy(_visibleTop + shift);
+				computeScrollFromAnchor(anchor),
+				&expansion);
+			const auto delta = shift.difference + shift.above;
+			if (delta) {
+				_scrollToSignal.fire_copy(_visibleTop + delta);
 			}
 		}
 		return;
@@ -1664,7 +1670,8 @@ void InnerWidget::toggleDeleteGroup(uint64 groupEventId) {
 	_toggleAnimation.stop();
 
 	const auto scrollBefore = _visibleTop;
-	const auto anchor = captureScrollAnchor();
+	auto anchor = captureScrollAnchor();
+	Tgw::ListScroll::CaptureAbove(this, anchor.view, anchor.snapshot);
 
 	if (_expandedGroups.contains(groupEventId)) {
 		_expandedGroups.erase(groupEventId);
@@ -1682,7 +1689,7 @@ void InnerWidget::toggleDeleteGroup(uint64 groupEventId) {
 		this,
 		anchor.snapshot,
 		anchor.view ? computeScrollFromAnchor(anchor) : scrollBefore);
-	const auto scrollFrom = scrollBefore + shift.difference;
+	const auto scrollFrom = scrollBefore + shift.difference + shift.above;
 	const auto scrollTarget = shift.target;
 
 	_scrollToSignal.fire_copy(scrollFrom);
