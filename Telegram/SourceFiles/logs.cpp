@@ -483,19 +483,6 @@ bool instanceChecked() {
 	return true;
 }
 
-void multipleInstances() {
-	if (LogsInMemory) {
-		Assert(LogsInMemory != DeletedLogsInMemory);
-		delete LogsInMemory;
-	}
-	LogsInMemory = DeletedLogsInMemory;
-
-	if (Logs::DebugEnabled()) {
-		LOG(("WARNING: debug logs are not written in multiple instances mode!"));
-	}
-	LogsBeforeSingleInstanceChecked.clear();
-}
-
 void closeMain() {
 	LOG(("Explicitly closing main log and finishing crash handlers."));
 	if (LogsData) {

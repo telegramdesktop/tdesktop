@@ -22,7 +22,6 @@ bool started();
 void finish();
 
 bool instanceChecked();
-void multipleInstances();
 
 void closeMain();
 

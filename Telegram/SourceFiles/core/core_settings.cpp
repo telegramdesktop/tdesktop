@@ -1478,12 +1478,6 @@ rpl::producer<QString> Settings::deviceModelChanges() const {
 	});
 }
 
-rpl::producer<QString> Settings::deviceModelValue() const {
-	return customDeviceModelValue() | rpl::map([=] {
-		return deviceModel();
-	});
-}
-
 int Settings::thirdColumnWidth() const {
 	return _thirdColumnWidth.current();
 }

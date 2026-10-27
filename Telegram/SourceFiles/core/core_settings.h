@@ -838,12 +838,8 @@ public:
 	[[nodiscard]] rpl::producer<QString> customDeviceModelChanges() const {
 		return _customDeviceModel.changes();
 	}
-	[[nodiscard]] rpl::producer<QString> customDeviceModelValue() const {
-		return _customDeviceModel.value();
-	}
 	[[nodiscard]] QString deviceModel() const;
 	[[nodiscard]] rpl::producer<QString> deviceModelChanges() const;
-	[[nodiscard]] rpl::producer<QString> deviceModelValue() const;
 
 	void setPlayerRepeatMode(Media::RepeatMode mode) {
 		_playerRepeatMode = mode;
