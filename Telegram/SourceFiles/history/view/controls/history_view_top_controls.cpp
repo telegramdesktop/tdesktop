@@ -290,10 +290,6 @@ void TopControls::setRepliesRootVisible(bool shown) {
 	}
 }
 
-rpl::producer<bool> TopControls::repliesRootVisibleValue() const {
-	return _repliesRootVisible.value();
-}
-
 void TopControls::updatePinnedViewer() {
 	if (_scroll->isHidden() || !_pinnedTracker) {
 		return;

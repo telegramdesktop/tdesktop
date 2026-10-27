@@ -84,7 +84,6 @@ public:
 	void setRepliesRootId(MsgId repliesRootId);
 	void setTopic(Data::ForumTopic *topic);
 	void setRepliesRootVisible(bool shown);
-	[[nodiscard]] rpl::producer<bool> repliesRootVisibleValue() const;
 	void updatePinnedViewer();
 	void checkLastPinnedClickedIdReset(int wasScrollTop, int nowScrollTop);
 	void addTranslatedItems(not_null<TranslateTracker*> tracker);
