@@ -2261,6 +2261,11 @@ void PeerMenuDeleteTopicWithConfirmation(
 	};
 	const auto controller = navigation->parentController();
 	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+		topic->destroyed(
+		) | rpl::on_next([=] {
+			box->closeBox();
+		}, box->lifetime());
+
 		Ui::AddSkip(box->verticalLayout());
 		Ui::IconWithTitle(
 			box->verticalLayout(),
