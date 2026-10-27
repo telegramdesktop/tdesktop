@@ -8295,9 +8295,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_request_peer_requirements" = "Requirements";
 "lng_request_peer_rights" = "You must have these admin rights: {rights}.";
 "lng_request_peer_rights_and" = "{rights} and {last}";
+"lng_request_peer_rights_other" = "other administrator rights";
 "lng_request_peer_confirm" = "Are you sure you want to send {chat} to {bot}?";
 "lng_request_peer_confirm_add" = "This will also add {bot} to {chat}.";
+"lng_request_peer_confirm_add_maybe" = "This will also add {bot} to {chat} if it is not already a member.";
 "lng_request_peer_confirm_rights" = "This will also add {bot} to {chat} with the following rights: {rights}.";
+"lng_request_peer_confirm_many#one" = "Are you sure you want to send {count} chat to {bot}?";
+"lng_request_peer_confirm_many#other" = "Are you sure you want to send {count} chats to {bot}?";
 "lng_request_peer_confirm_send" = "Send";
 "lng_request_user_title" = "Choose User";
 "lng_request_users_title" = "Choose Users";
@@ -8325,6 +8329,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_request_group_manage_video_chats" = "manage video chats";
 "lng_request_group_anonymous" = "remain anonymous";
 "lng_request_group_add_admins" = "add new admins";
+"lng_request_group_post_stories" = "post stories";
+"lng_request_group_edit_stories" = "edit stories of others";
+"lng_request_group_delete_stories" = "delete stories of others";
 "lng_request_group_create" = "Create a New Group for This";
 "lng_request_channel_title" = "Choose a Channel";
 "lng_request_channel_no" = "No such channels";
@@ -8340,6 +8347,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_request_channel_manage_livestreams" = "manage live streams";
 "lng_request_channel_manage_direct" = "manage direct messages";
 "lng_request_channel_add_admins" = "add new admins";
+"lng_request_channel_post_stories" = "post stories";
+"lng_request_channel_edit_stories" = "edit stories of others";
+"lng_request_channel_delete_stories" = "delete stories of others";
 "lng_request_channel_create" = "Create a New Channel for This";
 
 "lng_userpic_builder_color_subtitle" = "Choose background";

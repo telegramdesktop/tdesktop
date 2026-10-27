@@ -118,7 +118,8 @@ public:
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<UserData*> bot,
 		RequestPeerQuery query,
-		Fn<void(not_null<PeerData*>)> done);
+		Fn<void(not_null<PeerData*>)> done,
+		Fn<void(QString, Fn<void()>)> creationConfirm);
 
 protected:
 	void prepare() override;
@@ -134,6 +135,7 @@ private:
 		const std::vector<not_null<PeerData*>> &users);
 	void submitName();
 	void submit();
+	void performCreate(const QString &title, const QString &description);
 	void checkInviteLink();
 	void channelReady();
 
@@ -150,6 +152,7 @@ private:
 	bool _mustBePublic = false;
 	UserData *_canAddBot = nullptr;
 	Fn<void(not_null<PeerData*>)> _done;
+	Fn<void(QString, Fn<void()>)> _creationConfirm;
 
 	object_ptr<Ui::UserpicButton> _photo = { nullptr };
 	object_ptr<Ui::InputField> _title = { nullptr };
