@@ -547,7 +547,8 @@ void SavedMessages::applySublistDeleted(not_null<PeerData*> sublistPeer) {
 	const auto history = owningHistory();
 	history->destroyMessagesBySublist(sublistPeer);
 	session().changes().sublistRemoved(raw);
-	_sublists.erase(i);
+	// Callbacks above may insert sublists, invalidating i.
+	_sublists.erase(sublistPeer);
 
 	session().storage().unload(Storage::SharedMediaUnloadThread(
 		_owningHistory->peer->id,

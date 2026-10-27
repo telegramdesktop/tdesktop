@@ -243,7 +243,8 @@ void Forum::applyTopicDeleted(MsgId rootId) {
 	session().changes().entryUpdated(
 		raw,
 		Data::EntryUpdate::Flag::Destroyed);
-	_topics.erase(i);
+	// Callbacks above may insert topics, invalidating i.
+	_topics.erase(rootId);
 
 	_history->destroyMessagesByTopic(rootId);
 	if (rootId) {
