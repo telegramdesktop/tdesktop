@@ -48,7 +48,7 @@ parse of the log.
 - **Gates.** `AppendWidgetFixtureOpen` appends "capture the baseline and show
   the window normally", "keep the window exposed" and "open the chat in the
   legacy HistoryWidget": the window's session is on the Test environment,
-  `Tgw::Enabled()`, no layer is shown, the window is not hidden, no proxy the
+  no layer is shown, the window is not hidden, no proxy the
   account can use points at a loopback control port, the window is shown
   normally and exposed ([test_window_exposure](test_window_exposure.md)),
   nothing activates it, and the chat opens in the background in its own

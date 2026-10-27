@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "storage/details/storage_file_utilities.h"
-#include "tgw/tgw_option.h"
 #include "tgw/tgw_storage_disk.h"
 #include "twidget/sdk_policy.h"
 
@@ -509,9 +508,6 @@ void StartStorage(not_null<Main::Session*> session) {
 	}
 	const auto folder = StorageFolder(&session->account());
 	auto key = session->local().peekLegacyLocalKey();
-	if (!Enabled() && (!key || !QDir(folder).exists())) {
-		return;
-	}
 	const auto store = sessions.emplace(
 		session,
 		std::make_unique<Store>()).first->second.get();

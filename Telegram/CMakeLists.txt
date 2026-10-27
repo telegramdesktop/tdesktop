@@ -2234,8 +2234,6 @@ PRIVATE
     tgw/tgw_log_box.h
     tgw/tgw_media.cpp
     tgw/tgw_media.h
-    tgw/tgw_option.cpp
-    tgw/tgw_option.h
     tgw/tgw_painter.cpp
     tgw/tgw_painter.h
     tgw/tgw_painter_filters.cpp

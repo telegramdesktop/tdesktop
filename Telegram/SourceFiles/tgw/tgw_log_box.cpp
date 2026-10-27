@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tgw/tgw_log_box.h"
 
+#include "core/update_channel.h"
 #include "lang/lang_keys.h"
 #include "tgw/tgw_runtime.h"
 #include "ui/layers/generic_box.h"
@@ -19,6 +20,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Tgw {
 namespace {
+
+#ifdef _DEBUG
+constexpr auto kLogAvailable = true;
+#else
+constexpr auto kLogAvailable = Core::BuildIsCanary;
+#endif // _DEBUG
 
 void LogBox(not_null<Ui::GenericBox*> box, base::weak_ptr<Runtime> weak) {
 	const auto text = box->lifetime().make_state<rpl::variable<QString>>();
@@ -49,7 +56,7 @@ void AddLogAction(
 		not_null<Ui::PopupMenu*> menu,
 		not_null<const HistoryView::Element*> view,
 		std::shared_ptr<Ui::Show> show) {
-	const auto runtime = FindRuntime(view);
+	const auto runtime = kLogAvailable ? FindRuntime(view) : nullptr;
 	if (!runtime) {
 		return;
 	}

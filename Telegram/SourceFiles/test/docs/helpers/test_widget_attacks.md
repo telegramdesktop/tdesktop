@@ -46,7 +46,7 @@ Use something else when:
   loaded in the Test session the primary window shows, with its folder known
   and no unread messages; the pack hardcodes no chat, path or port.
 - **Fixture gates.** The window's session is on the Test environment,
-  `Tgw::Enabled()`, no layer is shown, the window is not hidden, no proxy the
+  no layer is shown, the window is not hidden, no proxy the
   account can use (the selected one, and the rotation list when rotation is on)
   points at a loopback control port, the window is shown normally and exposed
   ([test_window_exposure](test_window_exposure.md)), and the chat opens in its

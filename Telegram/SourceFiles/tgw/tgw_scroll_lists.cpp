@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_widget.h"
 #include "main/main_session.h"
-#include "tgw/tgw_option.h"
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/ui_utility.h"
@@ -105,9 +104,6 @@ using ExpansionStates = base::flat_map<
 void Advance(
 		not_null<const ElementDelegate*> owner,
 		rpl::lifetime &lifetime) {
-	if (!Enabled()) {
-		return;
-	}
 	auto &owners = Owners();
 	const auto i = owners.find(owner);
 	if (i != end(owners)) {
@@ -182,8 +178,7 @@ void EnumerateUp(History *migrated, History *history, Method method) {
 		History *history,
 		bool inited,
 		not_null<Ui::ElasticScroll*> scroll) {
-	return Enabled()
-		&& list
+	return list
 		&& history
 		&& inited
 		&& (scroll->scrollTopMax() > 0);
@@ -194,7 +189,7 @@ void EnumerateUp(History *migrated, History *history, Method method) {
 		int bottom,
 		int height,
 		int minHeight) {
-	return Enabled() && (top < bottom) && (height > minHeight);
+	return (top < bottom) && (height > minHeight);
 }
 
 [[nodiscard]] const HistoryView::HtmlWidget *WidgetOf(
@@ -678,9 +673,6 @@ void ListScroll::WatchInput(
 		Fn<bool(QPoint, Qt::ScrollPhase)> crossAxis,
 		bool locked,
 		Fn<bool(not_null<QWheelEvent*>)> wheelProcess) {
-	if (!Enabled()) {
-		return;
-	}
 	struct State {
 		Ui::ScrollDirectionLock lock;
 		bool pending = false;
@@ -735,9 +727,6 @@ void ListScroll::WatchInput(
 void ListScroll::WatchInput(
 		not_null<Ui::ScrollArea*> scroll,
 		Fn<void()> input) {
-	if (!Enabled()) {
-		return;
-	}
 	struct State {
 		QEvent::Type touch = QEvent::None;
 		bool scrolling = false;

@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
-#include "tgw/tgw_option.h"
 #include "tgw/tgw_state.h"
 #include "ui/text/text_utilities.h"
 
@@ -235,17 +234,15 @@ std::unique_ptr<HistoryView::Media> WidgetMedia::createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
 		HistoryView::Element *replacing) {
-	if (Enabled()) {
-		const auto &html = this->html();
-		if (!html.isEmpty()) {
-			return std::make_unique<HistoryView::HtmlWidget>(
-				message,
-				realParent,
-				_fields.anchors,
-				html,
-				context(),
-				replacing);
-		}
+	const auto &html = this->html();
+	if (!html.isEmpty()) {
+		return std::make_unique<HistoryView::HtmlWidget>(
+			message,
+			realParent,
+			_fields.anchors,
+			html,
+			context(),
+			replacing);
 	}
 	return std::make_unique<HistoryView::UnsupportedWidget>(message);
 }

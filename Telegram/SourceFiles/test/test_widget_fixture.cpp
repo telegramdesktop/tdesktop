@@ -39,7 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_widgets.h"
 #include "test/test_window_exposure.h"
 #include "tgw/tgw_media.h"
-#include "tgw/tgw_option.h"
 #include "tgw/tgw_renderer.h"
 #include "ui/widgets/elastic_scroll.h"
 #include "window/window_controller.h"
@@ -422,7 +421,6 @@ void GateCheck(
 		u"hidden=%1"_q.arg(FlagText(state.windowHidden)),
 		u"use-new-chat-view=%1"_q.arg(FlagText(state.optionFound)),
 		u"baseline={%1}"_q.arg(state.baselineChat),
-		u"widgetMessages=%1"_q.arg(FlagText(Tgw::Enabled())),
 		u"folderKnown=%1"_q.arg(FlagText(history && history->folderKnown())),
 		u"unread=%1"_q.arg(known
 			? NumberText(history->unreadCount())
@@ -466,10 +464,6 @@ void GateCheck(
 	if (session->account().mtp().environment() != MTP::Environment::Test) {
 		missing.push_back(u"the window's session is not on the Test "
 			u"environment"_q);
-	}
-	if (!Tgw::Enabled()) {
-		missing.push_back(u"widget messages are disabled, so a widget "
-			u"message gets no HtmlWidget view"_q);
 	}
 	if (controller->isLayerShown()) {
 		missing.push_back(u"a layer is shown over the chat"_q);
