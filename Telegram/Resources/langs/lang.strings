@@ -7710,6 +7710,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_article_limit_buttons" = "The article row has too many buttons.";
 "lng_article_table_truncated" = "The pasted table didn't fit and was truncated.";
 "lng_article_paste_truncated" = "The pasted content didn't fit and was truncated.";
+"lng_article_paste_attach_files#one" = "Pasting this content will attach {count} file from your computer to the message:";
+"lng_article_paste_attach_files#other" = "Pasting this content will attach {count} files from your computer to the message:";
 "lng_article_submit_empty" = "The article can't be empty.";
 "lng_article_premium_required" = "Subscribe to {link} to be able to send rich articles.";
 "lng_article_premium_required_link" = "Telegram Premium";

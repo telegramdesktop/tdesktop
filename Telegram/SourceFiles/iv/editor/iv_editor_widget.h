@@ -679,6 +679,7 @@ private:
 		const BlocksImportResult &imported,
 		not_null<const QMimeData*> data) const
 	-> std::optional<BlocksImportResult>;
+	void confirmImportedLocalMedia(BlocksImportResult &&imported);
 	void resolveImportedLocalMedia(BlocksImportResult &&imported);
 	[[nodiscard]] bool handleIvClipboardMime(
 		not_null<const QMimeData*> data,

@@ -52,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_file_utilities.h"
 #include "spellcheck/spellcheck_highlight_syntax.h"
 #include "storage/storage_media_prepare.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
@@ -2132,7 +2133,11 @@ auto Widget::markdownForLiteralHtmlImport(
 
 void Widget::pasteImportedBlocks(BlocksImportResult &&imported) {
 	if (!imported.localMedia.empty()) {
-		resolveImportedLocalMedia(std::move(imported));
+		if (CanPasteWithoutConfirmation(imported)) {
+			resolveImportedLocalMedia(std::move(imported));
+		} else {
+			confirmImportedLocalMedia(std::move(imported));
+		}
 		return;
 	}
 	if (!imported.blocks.empty()) {
@@ -2143,6 +2148,88 @@ void Widget::pasteImportedBlocks(BlocksImportResult &&imported) {
 	if (imported.truncated) {
 		_show->showToast(tr::lng_article_paste_truncated(tr::now));
 	}
+}
+
+namespace {
+
+constexpr auto kConfirmPathsLabelLimit = 16 * 1024; // text parses 32k max
+
+void ConfirmImportedMediaBox(
+		not_null<Ui::GenericBox*> box,
+		const QStringList &paths,
+		Fn<void(bool confirmed)> done) {
+	Ui::ConfirmBox(box, {
+		.text = tr::lng_article_paste_attach_files(
+			tr::now,
+			lt_count,
+			paths.size()),
+		.confirmed = [=](Fn<void()> close) {
+			close();
+			done(true);
+		},
+		.cancelled = [=](Fn<void()> close) {
+			close();
+			done(false);
+		},
+		.confirmText = tr::lng_continue(),
+	});
+	const auto padding = st::boxPadding;
+	const auto lineHeight = st::boxLabel.style.font->height;
+	const auto addChunk = [&](const QString &text, bool last) {
+		const auto label = box->addRow(
+			object_ptr<Ui::FlatLabel>(box, text, st::boxLabel),
+			QMargins(
+				padding.left(),
+				0,
+				padding.right(),
+				last ? padding.bottom() : lineHeight));
+		label->setSelectable(true);
+		label->setBreakEverywhere(true);
+	};
+	auto chunk = QString();
+	for (auto i = 0; i != paths.size(); ++i) {
+		const auto line = u"%1. %2"_q.arg(i + 1).arg(paths[i]);
+		if (!chunk.isEmpty()
+			&& chunk.size() + line.size() > kConfirmPathsLabelLimit) {
+			addChunk(chunk, false);
+			chunk = QString();
+		}
+		if (!chunk.isEmpty()) {
+			chunk += u"\n\n"_q;
+		}
+		chunk += line;
+	}
+	addChunk(chunk, true);
+}
+
+} // namespace
+
+void Widget::confirmImportedLocalMedia(BlocksImportResult &&imported) {
+	if (!_show) {
+		imported.blocks = DropImportedMediaPlaceholders(
+			std::move(imported.blocks),
+			{});
+		imported.localMedia.clear();
+		pasteImportedBlocks(std::move(imported));
+		return;
+	}
+	const auto paths = ImportedMediaPathsToConfirm(imported);
+	const auto shared = std::make_shared<BlocksImportResult>(
+		std::move(imported));
+	const auto weak = QPointer<Widget>(this);
+	if (_keyboardStructuralSelectionActive) {
+		releaseKeyboard();
+	}
+	_show->showBox(Box(ConfirmImportedMediaBox, paths, [=](bool confirmed) {
+		if (!weak) {
+			return;
+		} else if (weak->_keyboardStructuralSelectionActive) {
+			weak->grabKeyboard();
+		}
+		if (confirmed) {
+			weak->resolveImportedLocalMedia(std::move(*shared));
+		}
+	}));
 }
 
 void Widget::resolveImportedLocalMedia(BlocksImportResult &&imported) {
