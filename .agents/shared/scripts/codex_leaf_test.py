@@ -59,8 +59,14 @@ def emit(event):
     sys.stdout.flush()
 
 
-life = hold_life()
 argv = sys.argv[1:]
+if argv == ['--version']:
+    print('codex-cli fake')
+    sys.exit(0)
+if argv == ['login', 'status']:
+    print('Logged in; home %s' % os.environ.get('CODEX_HOME'))
+    sys.exit(0)
+life = hold_life()
 if argv[:1] != ['exec']:
     sys.exit(2)
 directive = json.loads(sys.stdin.read() or '{}')
@@ -80,6 +86,7 @@ if directive.get('marker'):
             'cwd': os.getcwd(),
             'thread': thread,
             'GIT_CONFIG_PARAMETERS': os.environ.get('GIT_CONFIG_PARAMETERS'),
+            'CODEX_HOME': os.environ.get('CODEX_HOME'),
         }, f)
     os.replace(temporary, directive['marker'])
 deadline = time.time() + EXPIRY
@@ -427,9 +434,12 @@ class LeafCase(unittest.TestCase):
         self.root = os.path.realpath(
             tempfile.mkdtemp(prefix='codex-leaf-test-'))
         self.addCleanup(self.remove_root)
-        for folder in ('bin', 'cwd', 'gates', 'hooks', 'lives', 'markers',
-                'prompts', 'runs'):
+        for folder in ('bin', 'cwd', 'gates', 'home', 'hooks', 'lives',
+                'markers', 'prompts', 'runs'):
             os.mkdir(os.path.join(self.root, folder))
+        self.home = os.path.join(self.root, 'home')
+        self.work_home = os.path.join(self.home, '.codex-accounts', 'work')
+        os.makedirs(self.work_home)
         self.run_dir = os.path.join(self.root, 'runs')
         self.cwd = os.path.join(self.root, 'cwd')
         self.fake = os.path.join(self.root, 'bin', 'fake_codex.py')
@@ -448,12 +458,14 @@ class LeafCase(unittest.TestCase):
             os.chmod(self.binary, 0o755)
         self.env = {key: value for key, value in os.environ.items()
             if not key.startswith('CODEX_LEAF_')
-            and key != 'GIT_CONFIG_PARAMETERS'}
+            and key not in ('GIT_CONFIG_PARAMETERS', 'CODEX_HOME')}
         python_path = [os.path.join(self.root, 'hooks')]
         if self.env.get('PYTHONPATH'):
             python_path.append(self.env['PYTHONPATH'])
         self.env.update({
             'CODEX_BIN': self.binary,
+            'HOME': self.home,
+            'USERPROFILE': self.home,
             'CODEX_LEAF_START_GRACE': str(GRACE),
             'CODEX_LEAF_POLL': '0.05',
             'CODEX_LEAF_RETRY': '2',
@@ -1356,6 +1368,8 @@ class OrdinaryLeafTest(LeafCase):
         self.assertEqual(marker['argv'][1:], expected[1:])
         self.assertEqual(marker['GIT_CONFIG_PARAMETERS'], "'safe.directory=*'")
         self.assertEqual(state['max_minutes'], 120)
+        self.assertEqual(state['codex_home'], self.work_home)
+        self.assertEqual(marker['CODEX_HOME'], self.work_home)
 
 
 @unittest.skipIf(WINDOWS, 'a bare executable fake needs a POSIX shebang')
@@ -1447,6 +1461,64 @@ class ResumedLeafTest(LeafCase):
         self.assertEqual(self.entries('b'), [])
         self.release(hold)
         self.assert_done('s')
+
+
+class HomeTest(LeafCase):
+    def check(self, *flags, env=None):
+        result = self.run_helper('check', *flags, env=env)
+        return result, json.loads(result.out)
+
+    def test_check_reads_the_login_of_the_chosen_home(self):
+        result, reply = self.check()
+        self.assertEqual(result.code, 0, result)
+        self.assertEqual((reply['home'], reply['login']),
+            (self.work_home, 'Logged in; home %s' % self.work_home))
+        result, reply = self.check('--home', 'default',
+            env={'CODEX_HOME': self.cwd})
+        self.assertEqual(result.code, 0, result)
+        self.assertEqual((reply['home'], reply['login']),
+            ('default', 'Logged in; home %s' % self.cwd))
+
+    def test_missing_work_home_fails_check_and_start(self):
+        os.rmdir(self.work_home)
+        result, reply = self.check()
+        self.assertEqual(result.code, 1, result)
+        self.assertIs(reply['ok'], False)
+        self.assertIn('codex home %s does not exist' % self.work_home,
+            reply['reason'])
+        self.assert_error(self.start('a', self.directive()), 'home-missing')
+        self.assertEqual(self.entries('a'), [])
+        self.assertEqual(self.markers(), 0)
+
+    def test_default_home_keeps_the_environment(self):
+        directive = self.directive()
+        result = self.start('a', directive, '--home', 'default',
+            env={'CODEX_HOME': self.cwd})
+        self.assertEqual(result.code, 0, result)
+        self.assert_done('a')
+        self.assertIsNone(self.state('a')['codex_home'])
+        self.assertEqual(self.marker(directive)['CODEX_HOME'], self.cwd)
+
+    def test_resume_runs_in_the_source_home(self):
+        self.assertEqual(self.start('w', self.directive()).code, 0)
+        self.assertEqual(
+            self.start('d', self.directive(), '--home', 'default').code, 0)
+        self.assert_done('w')
+        self.assert_done('d')
+        with self.locked('d'):
+            state = codex_leaf.read_state(self.run_dir, 'd')
+            del state['codex_home']
+            codex_leaf.write_state(self.run_dir, 'd', state)
+        on_work, on_default = self.directive(), self.directive()
+        self.assertEqual(self.start('w2', on_work, '--resume', 'w',
+            '--home', 'default').code, 0)
+        self.assertEqual(self.start('d2', on_default, '--resume', 'd').code, 0)
+        self.assert_done('w2')
+        self.assert_done('d2')
+        self.assertEqual(self.state('w2')['codex_home'], self.work_home)
+        self.assertEqual(self.marker(on_work)['CODEX_HOME'], self.work_home)
+        self.assertIsNone(self.state('d2')['codex_home'])
+        self.assertIsNone(self.marker(on_default)['CODEX_HOME'])
 
 
 class StartupFailureTest(LeafCase):

@@ -55,9 +55,11 @@ skill or reference. Use the Agent tool for those workers; do not start Claude
 subprocesses through Bash.
 
 Decide the review provider once at startup, per the adapter's review and
-assessment provider: `native` when the arguments ask not to use Codex,
-otherwise `codex`. Put `Review provider: <codex|native>` in every performer
-prompt. A Codex opt-out is not a batch specification.
+assessment provider: `native` when the arguments ask for the host's own model
+("use your model for review") or not to use Codex, `codex-default` when they
+ask for it ("use codex-default for review"), otherwise `codex`. Put `Review
+provider: <codex|codex-default|native>` in every performer prompt. A review
+provider choice is not a batch specification.
 
 The arguments are the batch specification. They always restrict the batch to
 the tasks they select; ordering words only order those tasks:

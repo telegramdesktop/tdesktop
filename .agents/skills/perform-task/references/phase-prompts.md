@@ -56,11 +56,11 @@ every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
 - If a returned leaf fails its completion check, retry that disposable phase
   once in a fresh Agent with more specific instructions before stopping to
   ask the user.
-- With the `codex` review provider, Phase 3, every Phase 6 review and the
-  convergence and campaign-cap assessments run as Codex CLI leaves instead:
-  start the leaves of one step together, block on `codex_leaf.py wait`, then
-  validate the same completion checks. The general reviewer's pass-2
-  synthesis resumes its pass-1 leaf with `--resume`.
+- With the `codex` or `codex-default` review provider, Phase 3, every Phase 6
+  review and the convergence and campaign-cap assessments run as Codex CLI
+  leaves instead: start the leaves of one step together, block on
+  `codex_leaf.py wait`, then validate the same completion checks. The general
+  reviewer's pass-2 synthesis resumes its pass-1 leaf with `--resume`.
 
 ### Grok Build: blocking spawn, depth one
 
@@ -1170,10 +1170,11 @@ For review iterations, include the iteration and lens in the file name, for exam
    small shell summaries and the completion checks above.
 4. Write the result log from the validated outcome and the compact reply block.
 
-For a review or assessment phase under the `codex` review provider, replace
-step 2 with one `codex_leaf.py start` per leaf — working directory
-`WORK_DIR`, `workspace-write` sandbox, `--no-project-doc`, the selected
-`--effort`, `--model` where the effort policy's lens models pin one, and the
+For a review or assessment phase under the `codex` or `codex-default` review
+provider, replace step 2 with one `codex_leaf.py start` per leaf — working
+directory `WORK_DIR`, `workspace-write` sandbox, `--no-project-doc`, the
+selected `--effort`, `--model` where the effort policy's lens models pin one,
+`--home default` under `codex-default`, and the
 Codex CLI leaves preamble before the prompt — followed by
 foreground `codex_leaf.py wait` calls until they all finish. Steps 3 and 4 are
 unchanged; the compact reply is the leaf's `<name>.last.md`.

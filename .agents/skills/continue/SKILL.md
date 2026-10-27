@@ -126,9 +126,9 @@ select:
   waiting on dependencies. Blocked tasks are not pending.
 
 This checkout's blocked and legacy-reserved tasks join only when the
-specification selects them, by name or by a description they match. A Codex
-opt-out such as "no codex" is not a specification, and neither is a purely
-procedural argument.
+specification selects them, by name or by a description they match. A review
+provider choice such as "use your model for review" or "use codex-default for
+review" is not a specification, and neither is a purely procedural argument.
 
 Without a specification, stop after the read-only `queue` call, before
 publishing leftovers, recovering consolidations, routing a split, or touching
