@@ -4577,11 +4577,15 @@ void ComposeControls::initVoiceRecordBar() {
 				return true;
 			});
 		_preview
-			&& (_previewShown || _preview->draft().removed)
+			&& (_previewShown
+				|| _preview->draft().removed
+				|| _preview->disabled())
 			&& request->check(Command::ToggleWebPagePreview, 1)
 			&& request->handle([=] {
 				if (_previewShown) {
 					_preview->apply({ .removed = true });
+				} else if (_preview->disabled()) {
+					_preview->setDisabled(false);
 				} else {
 					_preview->apply({}, true);
 				}
