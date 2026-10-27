@@ -75,7 +75,6 @@ public:
 
 	[[nodiscard]] rpl::producer<> recentUpdates() const;
 	[[nodiscard]] rpl::producer<> defaultUpdates() const;
-	[[nodiscard]] rpl::producer<> channelDefaultUpdates() const;
 	[[nodiscard]] rpl::producer<> collectiblesUpdates() const;
 
 	void set(EmojiStatusId id, TimeId until = 0);
@@ -137,7 +136,6 @@ private:
 	rpl::event_stream<> _recentUpdated;
 	rpl::event_stream<> _defaultUpdated;
 	rpl::event_stream<> _coloredUpdated;
-	rpl::event_stream<> _channelDefaultUpdated;
 	rpl::event_stream<> _channelColoredUpdated;
 	rpl::event_stream<> _collectiblesUpdated;
 
