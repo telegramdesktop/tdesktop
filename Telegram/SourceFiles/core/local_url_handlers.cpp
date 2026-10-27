@@ -61,6 +61,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_privacy_controllers.h"
 #include "settings/sections/settings_premium.h"
 #include "storage/storage_account.h"
+#include "storage/storage_shared_media.h"
 #include "mainwidget.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
@@ -572,6 +573,41 @@ bool ShowWallPaper(
 	return result;
 }
 
+std::optional<Storage::SharedMediaType> ParseSharedMediaType(
+		const QString &value) {
+	using Type = Storage::SharedMediaType;
+	const auto lowered = value.toLower();
+	if (lowered == u"media"_q) {
+		return Type::PhotoVideo;
+	} else if (lowered == u"photos"_q) {
+		return Type::Photo;
+	} else if (lowered == u"videos"_q) {
+		return Type::Video;
+	} else if (lowered == u"gifs"_q) {
+		return Type::GIF;
+	} else if (lowered == u"files"_q) {
+		return Type::File;
+	} else if (lowered == u"music"_q) {
+		return Type::MusicFile;
+	} else if (lowered == u"links"_q) {
+		return Type::Link;
+	} else if (lowered == u"voice"_q) {
+		return Type::RoundVoiceFile;
+	} else if (lowered == u"polls"_q) {
+		return Type::Poll;
+	}
+	return std::nullopt;
+}
+
+bool SidebarRequested(const QMap<QString, QString> &params) {
+	const auto value = params.value(u"sidebar"_q);
+	if (value.isEmpty()) {
+		return params.contains(u"sidebar"_q);
+	}
+	return value.compare(u"false"_q, Qt::CaseInsensitive) != 0
+		&& value != u"0"_q;
+}
+
 bool OpenTonConnectQuery(
 		not_null<Window::SessionController*> controller,
 		const QString &query) {
@@ -694,6 +730,8 @@ bool ResolveUsernameOrPhone(
 		return false;
 	}
 	using ResolveType = Window::ResolveType;
+	const auto sharedMediaTab = ParseSharedMediaType(
+		params.value(u"tab"_q));
 	auto resolveType = params.contains(u"profile"_q)
 		? ResolveType::Profile
 		: ResolveType::Default;
@@ -767,6 +805,8 @@ bool ResolveUsernameOrPhone(
 		.storyParam = storyParam,
 		.storyAlbumId = storyAlbumId,
 		.giftCollectionId = giftCollectionId,
+		.sharedMediaTab = sharedMediaTab,
+		.sidebar = SidebarRequested(params),
 		.videoTimestamp = (!videot.isEmpty()
 			? ParseVideoTimestamp(videot)
 			: std::optional<TimeId>()),
@@ -846,6 +886,8 @@ bool ResolvePrivatePost(
 		.usernameOrId = channelId,
 		.messageId = msgId,
 		.pollOption = pollOption,
+		.sharedMediaTab = ParseSharedMediaType(params.value(u"tab"_q)),
+		.sidebar = SidebarRequested(params),
 		.repliesInfo = commentId
 			? Window::RepliesByLinkInfo{
 				Window::CommentId{ commentId }

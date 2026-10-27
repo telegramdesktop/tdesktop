@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "info/global_media/info_global_media_widget.h"
 #include "info/profile/info_profile_widget.h"
+#include "info/profile/tabs/adapters/info_profile_tab_media.h"
 #include "info/profile/tabs/info_profile_tabs_host.h"
 #include "info/media/info_media_widget.h"
 #include "info/members/info_members_widget.h"
@@ -204,6 +205,24 @@ std::shared_ptr<Memento> Memento::Default(not_null<PeerData*> peer) {
 		return std::make_shared<Memento>(&peer->owner().savedMessages());
 	}
 	return std::make_shared<Memento>(peer, DefaultSection(peer));
+}
+
+std::shared_ptr<Memento> Memento::ProfileWithMediaTab(
+		not_null<PeerData*> peer,
+		Storage::SharedMediaType mediaTab) {
+	// Same section the plain ?profile link opens on this peer.
+	auto result = std::make_shared<Memento>(peer);
+	const auto profile = dynamic_cast<Profile::Memento*>(
+		result->content().get());
+	if (profile) {
+		auto tabs = std::make_unique<Profile::TabsState>();
+		// The polls tab descriptor uses its own literal id.
+		tabs->activeId = (mediaTab == Storage::SharedMediaType::Poll)
+			? u"media:polls"_q
+			: Profile::MediaTabId(mediaTab);
+		profile->setTabsState(std::move(tabs));
+	}
+	return result;
 }
 
 std::shared_ptr<ContentMemento> Memento::DefaultContent(

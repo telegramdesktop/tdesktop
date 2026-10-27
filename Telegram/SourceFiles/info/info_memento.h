@@ -88,6 +88,9 @@ public:
 	}
 
 	static std::shared_ptr<Memento> Default(not_null<PeerData*> peer);
+	static std::shared_ptr<Memento> ProfileWithMediaTab(
+		not_null<PeerData*> peer,
+		Storage::SharedMediaType mediaTab);
 
 	~Memento();
 

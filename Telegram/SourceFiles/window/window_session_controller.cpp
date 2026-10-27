@@ -633,6 +633,41 @@ void SessionNavigation::showMessageByLinkResolved(
 	}
 }
 
+namespace {
+
+void OpenPeerWithSidebar(
+		not_null<SessionNavigation*> navigation,
+		not_null<PeerData*> peer,
+		std::optional<Storage::SharedMediaType> media,
+		const SectionShow &params,
+		MsgId msgId) {
+	auto &settings = Core::App().settings();
+	const auto tabbedPinned = settings.tabbedSelectorSectionEnabled();
+	settings.setThirdSectionInfoEnabled(true);
+	if (tabbedPinned) {
+		settings.setTabbedSelectorSectionEnabled(true);
+	}
+	Core::App().saveSettingsDelayed();
+	const auto controller = navigation->parentController();
+	if (!controller->adaptive().isThreeColumn()) {
+		controller->resizeForThirdSection();
+	}
+	if (tabbedPinned) {
+		settings.setTabbedReplacedWithInfo(true);
+	}
+	if (const auto forum = peer->forum()) {
+		controller->showForum(forum, params, msgId);
+	} else {
+		navigation->showPeerHistory(peer, params, msgId);
+	}
+	auto memento = media
+		? std::make_shared<Info::Memento>(peer, Info::Section(*media))
+		: Info::Memento::Default(peer);
+	navigation->showSection(std::move(memento), params.withThirdColumn());
+}
+
+} // namespace
+
 void SessionNavigation::showPeerByLinkResolved(
 		not_null<PeerData*> peer,
 		const PeerByLinkInfo &info) {
@@ -699,8 +734,23 @@ void SessionNavigation::showPeerByLinkResolved(
 	} else if (const auto commentId = std::get_if<CommentId>(&replies)) {
 		const auto history = peer->owner().history(peer);
 		showRepliesForMessage(history, msgId, commentId->id, params);
+	} else if (info.sidebar && resolveType == ResolveType::Default) {
+		OpenPeerWithSidebar(this, peer, info.sharedMediaTab, params, msgId);
 	} else if (resolveType == ResolveType::Profile) {
-		showPeerInfo(peer, params);
+		if (const auto media = info.sharedMediaTab) {
+			showSection(
+				Info::Memento::ProfileWithMediaTab(peer, *media),
+				params);
+		} else {
+			showPeerInfo(peer, params);
+		}
+	} else if (resolveType == ResolveType::Default
+		&& info.sharedMediaTab) {
+		showSection(
+			std::make_shared<Info::Memento>(
+				peer,
+				Info::Section(*info.sharedMediaTab)),
+			params);
 	} else if (resolveType == ResolveType::HashtagSearch) {
 		searchMessages(info.text, peer->owner().history(peer));
 	} else if (info.storyParam == u"live"_q) {
@@ -2756,6 +2806,13 @@ void SessionController::resizeForThirdSection() {
 
 	auto &settings = Core::App().settings();
 	auto layout = computeColumnLayout();
+	const auto oneColumn
+		= (layout.windowLayout == Adaptive::WindowLayout::OneColumn);
+	// WHY: a one-column window grows back to three columns, so the
+	// deficit covers the dialogs and chat columns (third one included).
+	const auto deficit = oneColumn
+		? (minimalThreeColumnWidth() - layout.bodyWidth)
+		: 0;
 	auto tabbedSelectorSectionEnabled
 		= settings.tabbedSelectorSectionEnabled();
 	auto thirdSectionInfoEnabled
@@ -2763,8 +2820,8 @@ void SessionController::resizeForThirdSection() {
 	settings.setTabbedSelectorSectionEnabled(false);
 	settings.setThirdSectionInfoEnabled(false);
 
-	auto wanted = countThirdColumnWidthFromRatio(layout.bodyWidth);
-	auto minimal = st::columnMinimalWidthThird;
+	auto wanted = countThirdColumnWidthFromRatio(layout.bodyWidth) + deficit;
+	auto minimal = deficit ? deficit : st::columnMinimalWidthThird;
 	auto extendBy = wanted;
 	auto extendedBy = [&] {
 		// Best - extend by third column without moving the window.
@@ -2783,7 +2840,9 @@ void SessionController::resizeForThirdSection() {
 	}();
 	if (extendedBy) {
 		if (extendBy != settings.thirdColumnWidth()) {
-			settings.setThirdColumnWidth(extendBy);
+			settings.setThirdColumnWidth(std::max(
+				extendBy - deficit,
+				st::columnMinimalWidthThird));
 		}
 		const auto nochat = !mainSectionShown();
 		auto newBodyWidth = layout.bodyWidth + extendedBy;
@@ -2792,7 +2851,9 @@ void SessionController::resizeForThirdSection() {
 			(currentRatio * layout.bodyWidth) / newBodyWidth,
 			nochat);
 	}
-	auto savedValue = (extendedBy == extendBy) ? -1 : extendedBy;
+	auto savedValue = (extendedBy == extendBy && !oneColumn)
+		? -1
+		: extendedBy;
 	settings.setThirdSectionExtendedBy(savedValue);
 
 	settings.setTabbedSelectorSectionEnabled(

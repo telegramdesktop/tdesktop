@@ -18,6 +18,8 @@ extern const char kOptionProfileMediaTabsExpanded[];
 [[nodiscard]] rpl::producer<bool> MediaTabsExpandedValue();
 void SetMediaTabsExpanded(bool expanded);
 
+[[nodiscard]] QString MediaTabId(Storage::SharedMediaType type);
+
 [[nodiscard]] MediaTabDescriptor MakeMediaTabDescriptor(
 	Storage::SharedMediaType type,
 	rpl::producer<bool> shown);
