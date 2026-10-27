@@ -98,6 +98,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/tooltip.h"
 #include "ui/wrap/fade_wrap.h"
 #include "wallet/wallet_card_view.h"
+#include "wallet/wallet_panel.h"
 #include "window/themes/window_theme.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
@@ -502,7 +503,12 @@ TopBar::TopBar(
 			_edgeColor.value());
 		const auto pill = _balancePill.get();
 		pill->setClickedCallback([=] {
-			if (pill->actionable()) {
+			if (!pill->actionable()) {
+				return;
+			}
+			if (user->isSelf() && !user->walletCard()) {
+				Wallet::ShowWallet(&user->session());
+			} else {
 				Wallet::ShowCardView(controller, user, pill);
 			}
 		});

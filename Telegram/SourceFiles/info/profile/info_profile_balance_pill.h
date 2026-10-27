@@ -33,7 +33,7 @@ protected:
 	QString accessibilityName() override;
 
 private:
-	void setContent(const QString &label, int64 balance);
+	void setContent(const QString &label, std::optional<int64> balance);
 	void refreshIcon();
 	void refreshGeometry();
 	void paintBackground(QPainter &p) const;

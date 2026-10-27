@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user_wallet_card.h"
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "lang/lang_keys.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "ui/controls/ton_common.h"
 #include "ui/effects/animation_value.h"
@@ -19,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
 #include "wallet/wallet_fiat.h"
+#include "wallet/wallet_session.h"
 
 #include "styles/style_info.h"
 #include "styles/style_info_profile_top_bar.h"
@@ -39,6 +41,44 @@ constexpr auto kFadeStart = 0.6;
 			? Wallet::GramMinorPart(balance)
 			: QString(),
 	};
+}
+
+[[nodiscard]] rpl::producer<std::optional<int64>> ProfileBalanceValue(
+		not_null<UserData*> user) {
+	auto cardBalance = user->session().changes().peerFlagsValue(
+		user,
+		Data::PeerUpdate::Flag::WalletCard
+	) | rpl::map([=]() -> std::optional<int64> {
+		const auto card = user->walletCard();
+		if (!card || card->balance < 0
+			|| (!user->isSelf() && !card->balance)) {
+			return std::nullopt;
+		}
+		return card->balance;
+	});
+	if (!user->isSelf()) {
+		return cardBalance;
+	}
+	const auto session = &user->session();
+	return rpl::combine(
+		std::move(cardBalance),
+		session->wallet().presenceValue(),
+		session->wallet().balanceNanoValue(),
+		session->appConfig().value() | rpl::map([=] {
+			return session->appConfig().walletAvailable();
+		})
+	) | rpl::map([=](
+			std::optional<int64> card,
+			Wallet::Presence presence,
+			int64 balance,
+			bool available) -> std::optional<int64> {
+		if (user->walletCard()) {
+			return card;
+		}
+		return (available && presence == Wallet::Presence::Ready && balance >= 0)
+			? std::make_optional(balance)
+			: std::nullopt;
+	});
 }
 
 } // namespace
@@ -73,14 +113,10 @@ BalancePill::BalancePill(
 
 	rpl::combine(
 		tr::lng_wallet_profile_balance(),
-		user->session().changes().peerFlagsValue(
-			user,
-			Data::PeerUpdate::Flag::WalletCard
-		) | rpl::map([=] {
-			const auto card = user->walletCard();
-			return card ? card->balance : int64();
-		}) | rpl::distinct_until_changed()
-	) | rpl::on_next([=](const QString &label, int64 balance) {
+		ProfileBalanceValue(user) | rpl::distinct_until_changed()
+	) | rpl::on_next([=](
+			const QString &label,
+			std::optional<int64> balance) {
 		setContent(label, balance);
 	}, lifetime());
 }
@@ -138,15 +174,17 @@ void BalancePill::paintContentAlone(QPainter &p) const {
 	p.setOpacity(was);
 }
 
-void BalancePill::setContent(const QString &label, int64 balance) {
-	if (balance <= 0) {
+void BalancePill::setContent(
+		const QString &label,
+		std::optional<int64> balance) {
+	if (!balance) {
 		if (!isHidden()) {
 			++_appearanceRevision;
 		}
 		hide();
 		return;
 	}
-	const auto parts = BalanceParts(balance);
+	const auto parts = BalanceParts(*balance);
 	if (isHidden()
 		|| _label != label
 		|| _amount.parts().whole != parts.whole
