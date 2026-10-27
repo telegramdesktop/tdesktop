@@ -53,6 +53,7 @@ public:
 	using RequestHandler = Fn<void(
 		const twidget::WidgetRequest &request,
 		Respond respond)>;
+	using CopyHandler = Fn<void(const std::string &text)>;
 
 	struct LinkRequest {
 		std::string url;
@@ -70,6 +71,7 @@ public:
 	[[nodiscard]] auto hostActionHandler() const
 	-> Fn<void(const twidget::WidgetAction &action)>;
 	[[nodiscard]] RequestHandler hostRequestHandler() const;
+	[[nodiscard]] CopyHandler hostCopyHandler() const;
 
 	void detach();
 	[[nodiscard]] bool attached() const;
@@ -119,6 +121,7 @@ public:
 	[[nodiscard]] rpl::producer<Changes> updates() const;
 	[[nodiscard]] rpl::producer<LinkRequest> linkRequests() const;
 	[[nodiscard]] rpl::producer<BotRequest> botRequests() const;
+	[[nodiscard]] rpl::producer<std::string> copyRequests() const;
 
 private:
 	friend class HostLink;
@@ -147,6 +150,7 @@ private:
 	void hostTheme(bool dark);
 	void hostLinkRequest(const LinkRequest &request);
 	void hostBotRequest(const BotRequest &request);
+	void hostCopyText(const std::string &text);
 
 	[[nodiscard]] int64 elementAt(QPointF point);
 	[[nodiscard]] CursorStyles &cursorStyles();
@@ -187,6 +191,7 @@ private:
 	rpl::event_stream<Changes> _updates;
 	rpl::event_stream<LinkRequest> _linkRequests;
 	rpl::event_stream<BotRequest> _botRequests;
+	rpl::event_stream<std::string> _copyRequests;
 	std::unique_ptr<CursorStyles> _cursor;
 	Pointer _pointer;
 	Finger _finger;

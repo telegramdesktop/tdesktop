@@ -20,11 +20,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "twidget/sdk_policy.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/labels.h"
 #include "window/window_controller.h"
 #include "window/window_separate_id.h"
 #include "window/window_session_controller.h"
 
+#include <QtGui/QClipboard>
+#include <QtGui/QGuiApplication>
+
+#include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
 
 namespace Tgw {
@@ -34,6 +39,7 @@ namespace {
 // nothing more until it completes, so an unanswered request fails after
 // twice the server's wait for the bot.
 constexpr auto kRequestTimeout = crl::time(30000);
+constexpr auto kCopiedToastLines = 4;
 
 using Failure = twidget::WidgetRequestFailure;
 
@@ -150,6 +156,28 @@ QString Bridge::openLink(const QString &url, bool telegram) {
 	};
 	HiddenUrlClickHandler::Open(url, QVariant::fromValue(context));
 	return u"openTelegramLink: passed to the app's t.me handling"_q;
+}
+
+QString Bridge::copyText(const QString &text, not_null<QWidget*> window) {
+	const auto controller = ControllerOf(
+		Core::App().findWindow(window),
+		&_item->history()->session());
+	if (!controller) {
+		return u"copyText: refused, no window of this account shows it"_q;
+	}
+	// Protected chats copy too: the text is the bot's, not message content.
+	QGuiApplication::clipboard()->setText(text);
+	controller->showToast({
+		.text = tr::lng_tgw_copied(
+			tr::now,
+			lt_text,
+			tr::marked(text),
+			tr::marked),
+		.maxlines = kCopiedToastLines,
+		.iconLottie = u"toast/copy"_q,
+		.iconLottieSize = st::toastLottieIconSize,
+	});
+	return u"copyText: copied %1 UTF-16 units"_q.arg(text.size());
 }
 
 void Bridge::request(const std::string &data, Respond respond) {

@@ -153,6 +153,9 @@ private:
 		not_null<RendererCore*> renderer,
 		const std::string &data,
 		Fn<void(const twidget::WidgetRequestOutcome &outcome)> respond);
+	void copyRequested(
+		not_null<RendererCore*> renderer,
+		const std::string &text);
 
 	void syncHostVisibility();
 	void syncHostTheme();

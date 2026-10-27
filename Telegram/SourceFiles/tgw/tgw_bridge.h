@@ -30,6 +30,9 @@ public:
 	~Bridge();
 
 	[[nodiscard]] QString openLink(const QString &url, bool telegram);
+	[[nodiscard]] QString copyText(
+		const QString &text,
+		not_null<QWidget*> window);
 	void request(const std::string &data, Respond respond);
 
 private:

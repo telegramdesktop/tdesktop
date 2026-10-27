@@ -31,6 +31,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "TwidgetCore/src/renderer.h"
 #include "ui/style/style_core_scale.h"
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#include <QtCore/QStringDecoder>
+#else // Qt >= 6.0.0
+#include <QtCore/QTextCodec>
+#endif // Qt < 6.0.0
+
 #include "styles/style_tgw.h"
 
 namespace Tgw {
@@ -104,6 +110,7 @@ struct Job {
 	twidget::RendererFactory factory;
 	Fn<void(const twidget::WidgetAction &)> action;
 	RendererCore::RequestHandler request;
+	RendererCore::CopyHandler copy;
 	Fn<void(
 		const std::string &,
 		const std::map<std::string, std::string> &)> storage;
@@ -341,6 +348,23 @@ void ApplyTheme(
 	return Clip(QString::fromUtf8(text.data(), int(size)));
 }
 
+// fromStdString() strips a leading U+FEFF, and the copy must be exact.
+[[nodiscard]] QString DecodeCopiedText(const std::string &text) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+	auto decoder = QStringDecoder(
+		QStringDecoder::Utf8,
+		QStringDecoder::Flag::Stateless
+			| QStringDecoder::Flag::ConvertInitialBom);
+	return decoder(text);
+#else // Qt >= 6.0.0
+	auto state = QTextCodec::ConverterState(QTextCodec::IgnoreHeader);
+	return QTextCodec::codecForName("UTF-8")->toUnicode(
+		text.data(),
+		int(text.size()),
+		&state);
+#endif // Qt < 6.0.0
+}
+
 [[nodiscard]] QString YesNo(bool value) {
 	return value ? u"yes"_q : u"no"_q;
 }
@@ -517,6 +541,7 @@ void AppendTail(
 			HostDeleter{ std::move(job.slot) });
 		host->onAction = std::move(job.action);
 		host->onRequest = std::move(job.request);
+		host->onCopyText = std::move(job.copy);
 		host->onStorageCommit = std::move(job.storage);
 		host->stoppedLabel = std::move(job.stoppedLabel);
 		return { .host = std::move(host) };
@@ -1176,6 +1201,7 @@ void Runtime::construct(
 			_live->hostFactory()),
 		.action = _live->hostActionHandler(),
 		.request = _live->hostRequestHandler(),
+		.copy = _live->hostCopyHandler(),
 		.storage = std::move(storage.commit),
 		.options = std::move(options),
 		.theme = *_theme,
@@ -1328,6 +1354,11 @@ void Runtime::subscribeLive() {
 	) | rpl::on_next([=](const RendererCore::BotRequest &request) {
 		botRequested(renderer, request.data, request.respond);
 	}, _liveLifetime);
+
+	renderer->copyRequests(
+	) | rpl::on_next([=](const std::string &text) {
+		copyRequested(renderer, text);
+	}, _liveLifetime);
 }
 
 void Runtime::coreUpdated(
@@ -1408,6 +1439,30 @@ void Runtime::botRequested(
 		return;
 	}
 	_bridge->request(data, std::move(respond));
+}
+
+void Runtime::copyRequested(
+		not_null<RendererCore*> renderer,
+		const std::string &text) {
+	if (_state != State::Live
+		|| renderer.get() != _live.get()
+		|| !renderer->attached()) {
+		return;
+	}
+	if (!queryVisible()) {
+		addNote(u"Copy refused, the widget is not visible."_q);
+		return;
+	}
+	const auto window = _window.data();
+	if (!window) {
+		addNote(u"Copy refused, the widget has no window."_q);
+		return;
+	}
+	const auto weak = base::make_weak(this);
+	const auto result = _bridge->copyText(DecodeCopiedText(text), window);
+	if (weak) {
+		addNote(result);
+	}
 }
 
 void Runtime::syncHostVisibility() {
