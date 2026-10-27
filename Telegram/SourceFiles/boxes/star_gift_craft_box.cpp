@@ -673,7 +673,8 @@ void ShowSelectGiftBox(
 		Fn<void(GiftForCraft)> chosen,
 		std::vector<GiftForCraft> selected,
 		Fn<void()> boxClosed,
-		bool firstSlot) {
+		bool firstSlot,
+		bool allowResale = true) {
 	struct Entry {
 		Data::SavedStarGift gift;
 		GiftButton *button = nullptr;
@@ -752,10 +753,14 @@ void ShowSelectGiftBox(
 		state->craftLifetime.destroy();
 
 		state->craft = std::move(info);
-		if (state->resale.giftId) {
+		if (!allowResale || state->resale.giftId) {
 			show();
 		}
 	});
+
+	if (!allowResale) {
+		return;
+	}
 
 	state->resaleLifetime = Data::ResaleGiftsSlice(
 		session,
@@ -1694,10 +1699,24 @@ void ShowGiftCraftInfoBox(
 		box->addButton(tr::lng_gift_craft_start_button(), [=] {
 			const auto auctions = &controller->session().giftAuctions();
 			const auto show = crl::guard(box, [=] {
-				ShowGiftCraftBox(
-					controller,
-					{ GiftForCraft{ gift, savedId } },
-					false);
+				const auto initial = GiftForCraft{ gift, savedId };
+				if (gift->giftAddress.isEmpty()) {
+					ShowGiftCraftBox(controller, { initial }, false);
+				} else {
+					ShowSelectGiftBox(
+						controller,
+						gift->initialGiftId,
+						crl::guard(controller, [=](GiftForCraft primary) {
+							ShowGiftCraftBox(
+								controller,
+								{ primary, initial },
+								false);
+						}),
+						{ initial },
+						[] {},
+						true,
+						false);
+				}
 				box->closeBox();
 			});
 			if (auctions->attributes(gift->initialGiftId)) {
