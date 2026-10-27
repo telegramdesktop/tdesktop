@@ -39,12 +39,19 @@ struct WidgetFields {
 	Anchors anchors;
 	QByteArray payload;
 	WidgetState state;
+	std::optional<uint64> publicDataHash;
 	std::optional<uint64> widgetId;
 	WidgetFlags flags;
 
 	friend inline bool operator==(
 		const WidgetFields &,
 		const WidgetFields &) = default;
+};
+
+struct WidgetStateEdit {
+	std::optional<QByteArray> chatData;
+	std::optional<QByteArray> publicData;
+	std::optional<uint64> publicDataHash;
 };
 
 enum class ChatType : uchar {
@@ -69,6 +76,7 @@ struct MessageContext {
 class WidgetMedia final : public Data::Media {
 public:
 	WidgetMedia(not_null<HistoryItem*> parent, WidgetFields fields);
+	~WidgetMedia();
 
 	std::unique_ptr<Data::Media> clone(
 		not_null<HistoryItem*> parent) override;
@@ -76,6 +84,7 @@ public:
 	[[nodiscard]] const WidgetFields &fields() const;
 	[[nodiscard]] const QByteArray &html() const;
 	[[nodiscard]] MessageContext context() const;
+	bool applyState(const WidgetStateEdit &edit);
 
 	ItemPreview toPreview(ToPreviewOptions options) const override;
 	TextWithEntities notificationText() const override;

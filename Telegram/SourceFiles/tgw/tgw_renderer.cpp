@@ -37,6 +37,7 @@ public:
 	void postLinkRequest(RendererCore::LinkRequest request);
 	void postBotRequest(RendererCore::BotRequest request);
 	void postCopyText(std::string text);
+	void postWatch(bool on);
 
 private:
 	[[nodiscard]] RendererCore *current() const;
@@ -433,6 +434,14 @@ void HostLink::postCopyText(std::string text) {
 	});
 }
 
+void HostLink::postWatch(bool on) {
+	crl::on_main([link = shared_from_this(), on] {
+		if (const auto core = link->current()) {
+			core->hostWatch(on);
+		}
+	});
+}
+
 RendererCore::RendererCore(double width, double dpr)
 : _link(std::make_shared<HostLink>(this))
 , _backend(std::make_unique<QtBackend>(
@@ -494,6 +503,12 @@ RendererCore::RequestHandler RendererCore::hostRequestHandler() const {
 RendererCore::CopyHandler RendererCore::hostCopyHandler() const {
 	return [link = _link](const std::string &text) {
 		link->postCopyText(text);
+	};
+}
+
+RendererCore::WatchHandler RendererCore::hostWatchHandler() const {
+	return [link = _link](bool on) {
+		link->postWatch(on);
 	};
 }
 
@@ -894,6 +909,10 @@ rpl::producer<std::string> RendererCore::copyRequests() const {
 	return _copyRequests.events();
 }
 
+rpl::producer<bool> RendererCore::watchChanges() const {
+	return _watchChanges.events();
+}
+
 void RendererCore::hostLoaded() {
 	if (_ready || _stopped) {
 		return;
@@ -982,6 +1001,12 @@ void RendererCore::hostBotRequest(const BotRequest &request) {
 void RendererCore::hostCopyText(const std::string &text) {
 	if (!_stopped) {
 		_copyRequests.fire_copy(text);
+	}
+}
+
+void RendererCore::hostWatch(bool on) {
+	if (!_stopped) {
+		_watchChanges.fire_copy(on);
 	}
 }
 

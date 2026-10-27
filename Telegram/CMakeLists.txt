@@ -2240,6 +2240,8 @@ PRIVATE
     tgw/tgw_selection.cpp
     tgw/tgw_selection.h
     tgw/tgw_selection_lists.cpp
+    tgw/tgw_state.cpp
+    tgw/tgw_state.h
     tgw/tgw_storage.cpp
     tgw/tgw_storage.h
     tgw/tgw_storage_disk.cpp

@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_media.h"
 #include "tgw/tgw_renderer.h"
 #include "tgw/tgw_resources.h"
+#include "tgw/tgw_state.h"
 #include "tgw/tgw_storage.h"
 #include "tgw/tgw_theme.h"
 #include "twidget/sdk_policy.h"
@@ -111,6 +112,7 @@ struct Job {
 	Fn<void(const twidget::WidgetAction &)> action;
 	RendererCore::RequestHandler request;
 	RendererCore::CopyHandler copy;
+	RendererCore::WatchHandler watch;
 	Fn<void(
 		const std::string &,
 		const std::map<std::string, std::string> &)> storage;
@@ -123,6 +125,7 @@ struct Job {
 
 struct Built {
 	HostPointer host;
+	twidget::WidgetData data;
 	QString error;
 };
 
@@ -542,9 +545,13 @@ void AppendTail(
 		host->onAction = std::move(job.action);
 		host->onRequest = std::move(job.request);
 		host->onCopyText = std::move(job.copy);
+		host->onWatchPublicData = std::move(job.watch);
 		host->onStorageCommit = std::move(job.storage);
 		host->stoppedLabel = std::move(job.stoppedLabel);
-		return { .host = std::move(host) };
+		return {
+			.host = std::move(host),
+			.data = std::move(job.options.data),
+		};
 	} catch (const std::exception &e) {
 		return {
 			.error = u"Could not create the sandbox: %1"_q.arg(
@@ -563,6 +570,7 @@ struct Runtime::Host {
 	bool sampling = false;
 	bool theming = false;
 	bool retired = false;
+	bool watching = false;
 };
 
 Runtime::Runtime(RuntimeDescriptor &&descriptor)
@@ -614,6 +622,9 @@ Runtime::~Runtime() {
 		StorageHostRetired(host->storage);
 		host->retired = true;
 		Sample(host);
+		if (host->watching) {
+			WatchersChanged();
+		}
 	}
 }
 
@@ -634,6 +645,38 @@ bool Runtime::IsExitPrevent(Fn<void()> retry) {
 	// A JS task may still call into app statics until its engine is joined.
 	Runtimes().exitRetry = std::move(retry);
 	return true;
+}
+
+void Runtime::StateChanged(
+		const base::flat_set<not_null<HistoryItem*>> &items) {
+	if (items.empty()) {
+		return;
+	}
+	for (const auto &runtime : Runtimes().list) {
+		if (runtime->_host && items.contains(runtime->_item)) {
+			runtime->syncHostData();
+		}
+	}
+}
+
+auto Runtime::WatchingOnScreen()
+-> std::vector<not_null<HistoryItem*>> {
+	auto result = std::vector<not_null<HistoryItem*>>();
+	const auto &registry = Runtimes();
+	if (registry.draining || Core::Quitting()) {
+		return result;
+	}
+	for (const auto &runtime : registry.list) {
+		if (runtime->_state == State::Live
+			&& runtime->_host
+			&& runtime->_host->watching
+			&& runtime->_live->attached()
+			&& runtime->_visible
+			&& runtime->queryVisible()) {
+			result.push_back(runtime->_item);
+		}
+	}
+	return result;
 }
 
 not_null<HistoryView::Element*> Runtime::view() const {
@@ -707,6 +750,10 @@ void Runtime::attachView(
 		release();
 	}
 	PostCheck();
+	syncHostData();
+	if (_host && _host->watching) {
+		WatchersChanged();
+	}
 }
 
 void Runtime::setSize(int width, double maxHeight) {
@@ -870,6 +917,18 @@ std::shared_ptr<MessageMemory> Runtime::RememberMessage(
 		) | rpl::on_next([=](not_null<const HistoryItem*> refreshed) {
 			RememberItemHtml(session, refreshed);
 		}, session->lifetime());
+		session->data().itemIdChanged(
+		) | rpl::on_next([=](const Data::Session::IdChange &change) {
+			const auto item = session->data().message(change.newId);
+			const auto watching = [&](not_null<Runtime*> runtime) {
+				return (runtime->_item.get() == item)
+					&& runtime->_host
+					&& runtime->_host->watching;
+			};
+			if (ranges::any_of(Runtimes().list, watching)) {
+				WatchersChanged();
+			}
+		}, session->lifetime());
 		session->data().itemRemoved(
 		) | rpl::on_next([=](not_null<const HistoryItem*> removed) {
 			auto &registry = Runtimes();
@@ -991,7 +1050,11 @@ void Runtime::RefreshVisibility() {
 			changed.push_back(runtime);
 		}
 	}
+	auto watched = false;
 	for (const auto &runtime : changed) {
+		if (runtime->_host && runtime->_host->watching) {
+			watched = true;
+		}
 		runtime->_visible = !runtime->_visible;
 		if (!runtime->_visible) {
 			runtime->_hiddenSerial = ++registry.hiddenSerial;
@@ -1002,6 +1065,9 @@ void Runtime::RefreshVisibility() {
 			runtime->markHeight(true);
 		}
 		runtime->syncHostVisibility();
+	}
+	if (watched) {
+		WatchersChanged();
 	}
 }
 
@@ -1202,6 +1268,7 @@ void Runtime::construct(
 		.action = _live->hostActionHandler(),
 		.request = _live->hostRequestHandler(),
 		.copy = _live->hostCopyHandler(),
+		.watch = _live->hostWatchHandler(),
 		.storage = std::move(storage.commit),
 		.options = std::move(options),
 		.theme = *_theme,
@@ -1225,6 +1292,7 @@ void Runtime::construct(
 				strong->constructed(
 					generation,
 					base::take(built.host),
+					built.data,
 					built.error,
 					id);
 			}
@@ -1237,6 +1305,7 @@ void Runtime::construct(
 void Runtime::constructed(
 		int generation,
 		std::shared_ptr<twidget::WidgetHost> host,
+		const twidget::WidgetData &data,
 		const QString &error,
 		uint64 storage) {
 	if (generation != _generation || _state != State::Constructing) {
@@ -1260,6 +1329,12 @@ void Runtime::constructed(
 	} else if (StorageHostStale(storage)) {
 		release();
 		addNote(u"Released, its storage changed before it started."_q);
+		_repaint();
+		return;
+	} else if (data != HostData(_item)) {
+		// Its scripts would read the stale data ahead of setData().
+		release();
+		addNote(u"Released, its data changed before it started."_q);
 		_repaint();
 		return;
 	}
@@ -1304,6 +1379,9 @@ void Runtime::retire(State state) {
 		StorageHostRetired(host->storage);
 		host->retired = true;
 		Sample(host);
+		if (host->watching) {
+			WatchersChanged();
+		}
 	}
 	heavyStateChanged(wasHeavy);
 	if (wasHeavy) {
@@ -1358,6 +1436,11 @@ void Runtime::subscribeLive() {
 	renderer->copyRequests(
 	) | rpl::on_next([=](const std::string &text) {
 		copyRequested(renderer, text);
+	}, _liveLifetime);
+
+	renderer->watchChanges(
+	) | rpl::on_next([=](bool on) {
+		watchChanged(renderer, on);
 	}, _liveLifetime);
 }
 
@@ -1465,6 +1548,18 @@ void Runtime::copyRequested(
 	}
 }
 
+void Runtime::watchChanged(not_null<RendererCore*> renderer, bool on) {
+	if (_state != State::Live
+		|| renderer.get() != _live.get()
+		|| !renderer->attached()
+		|| !_host
+		|| (_host->watching == on)) {
+		return;
+	}
+	_host->watching = on;
+	WatchersChanged();
+}
+
 void Runtime::syncHostVisibility() {
 	if (_live) {
 		_live->setOnScreen(_visible);
@@ -1508,6 +1603,12 @@ void Runtime::ThemeDone(const std::shared_ptr<Host> &host) {
 		owner->syncHostTheme();
 	}
 	JobDone();
+}
+
+void Runtime::syncHostData() {
+	if (_host) {
+		_host->pointer->setData(HostData(_item));
+	}
 }
 
 void Runtime::applySize() {

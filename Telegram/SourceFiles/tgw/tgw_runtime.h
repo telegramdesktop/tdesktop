@@ -18,6 +18,7 @@ class Element;
 
 namespace twidget {
 class SandboxResources;
+struct WidgetData;
 class WidgetHost;
 struct WidgetRequestOutcome;
 struct WidgetTheme;
@@ -67,6 +68,10 @@ public:
 
 	[[nodiscard]] static bool IsQuitPrevent();
 	[[nodiscard]] static bool IsExitPrevent(Fn<void()> retry);
+	static void StateChanged(
+		const base::flat_set<not_null<HistoryItem*>> &items);
+	[[nodiscard]] static auto WatchingOnScreen()
+	-> std::vector<not_null<HistoryItem*>>;
 
 	[[nodiscard]] not_null<HistoryView::Element*> view() const;
 	[[nodiscard]] not_null<HistoryItem*> item() const;
@@ -132,6 +137,7 @@ private:
 	void constructed(
 		int generation,
 		std::shared_ptr<twidget::WidgetHost> host,
+		const twidget::WidgetData &data,
 		const QString &error,
 		uint64 storage);
 	void retire(State state);
@@ -156,9 +162,11 @@ private:
 	void copyRequested(
 		not_null<RendererCore*> renderer,
 		const std::string &text);
+	void watchChanged(not_null<RendererCore*> renderer, bool on);
 
 	void syncHostVisibility();
 	void syncHostTheme();
+	void syncHostData();
 	void applySize();
 	[[nodiscard]] int effectiveHeight() const;
 	void markHeight(bool client);

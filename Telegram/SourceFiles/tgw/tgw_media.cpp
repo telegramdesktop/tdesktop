@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "tgw/tgw_option.h"
+#include "tgw/tgw_state.h"
 #include "ui/text/text_utilities.h"
 
 #include <zlib.h>
@@ -100,6 +101,7 @@ QByteArray UnpackPayload(const QByteArray &payload) {
 WidgetFields ParseWidgetFields(const MTPDmessageMediaWidget &data) {
 	const auto chat = data.vchat_data();
 	const auto shared = data.vpublic_data();
+	const auto hash = data.vpublic_data_hash();
 	const auto id = data.vwidget_id();
 	return {
 		.anchors = {
@@ -111,6 +113,7 @@ WidgetFields ParseWidgetFields(const MTPDmessageMediaWidget &data) {
 			.chatData = chat ? std::make_optional(chat->v) : std::nullopt,
 			.publicData = shared ? std::make_optional(shared->v) : std::nullopt,
 		},
+		.publicDataHash = hash ? std::make_optional(hash->v) : std::nullopt,
 		.widgetId = id ? std::make_optional(id->v) : std::nullopt,
 		.flags = {
 			.isCopy = data.is_is_copy(),
@@ -123,6 +126,11 @@ WidgetFields ParseWidgetFields(const MTPDmessageMediaWidget &data) {
 WidgetMedia::WidgetMedia(not_null<HistoryItem*> parent, WidgetFields fields)
 : Media(parent)
 , _fields(std::move(fields)) {
+	RegisterCarrier(this);
+}
+
+WidgetMedia::~WidgetMedia() {
+	UnregisterCarrier(this);
 }
 
 std::unique_ptr<Data::Media> WidgetMedia::clone(
@@ -161,6 +169,23 @@ MessageContext WidgetMedia::context() const {
 			? ChatType::None
 			: ChatTypeOf(item->history()->peer)),
 	};
+}
+
+bool WidgetMedia::applyState(const WidgetStateEdit &edit) {
+	auto &state = _fields.state;
+	auto changed = false;
+	if (edit.chatData && state.chatData != edit.chatData) {
+		state.chatData = edit.chatData;
+		changed = true;
+	}
+	if (edit.publicData
+		&& (state.publicData != edit.publicData
+			|| _fields.publicDataHash != edit.publicDataHash)) {
+		state.publicData = edit.publicData;
+		_fields.publicDataHash = edit.publicDataHash;
+		changed = true;
+	}
+	return changed;
 }
 
 HistoryView::ItemPreview WidgetMedia::toPreview(
