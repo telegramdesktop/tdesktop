@@ -55,6 +55,28 @@ QString TimeString(QTime time) {
 	).arg(time.minute(), 2, 10, QLatin1Char('0'));
 }
 
+QDate DateFollowingTimeWheel(
+		QDate date,
+		QTime was,
+		QTime now,
+		QDateTime minimum,
+		QDate maxDate) {
+	const auto minDate = minimum.date();
+	if (!was.isValid()) {
+		return date;
+	} else if (was.hour() == 23
+		&& now.hour() == 0
+		&& QDateTime(date, now) < minimum) {
+		return std::clamp(date.addDays(1), minDate, maxDate);
+	} else if (was.hour() == 0
+		&& now.hour() == 23
+		&& date == minDate.addDays(1)
+		&& QDateTime(minDate, now) >= minimum) {
+		return std::clamp(date.addDays(-1), minDate, maxDate);
+	}
+	return date;
+}
+
 class RepeatButton final : public Ui::RippleButton {
 public:
 	explicit RepeatButton(not_null<QWidget*> parent);
@@ -202,6 +224,27 @@ ChooseDateTimeBoxDescriptor ChooseDateTimeBox(
 		}
 		return base::EventFilterResult::Continue;
 	});
+
+	const auto lastTime = box->lifetime().make_state<QTime>(
+		parsed.time());
+	state->time->value(
+	) | rpl::on_next([=](const QString &value) {
+		const auto parts = value.split(':');
+		if (parts.size() != 2) {
+			return;
+		}
+		const auto time = QTime(parts[0].toInt(), parts[1].toInt());
+		if (!time.isValid()) {
+			return;
+		}
+		state->date = DateFollowingTimeWheel(
+			state->date.current(),
+			*lastTime,
+			time,
+			base::unixtime::parse(min()),
+			maxDate());
+		*lastTime = time;
+	}, state->time->lifetime());
 
 	state->at->widthValue() | rpl::on_next([=](int width) {
 		const auto full = st::scheduleDateWidth
