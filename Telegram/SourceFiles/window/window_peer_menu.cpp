@@ -2672,7 +2672,11 @@ void PeerMenuEditTodoList(
 			result.options,
 			crl::guard(weak, [=] { weak->closeBox(); }),
 			crl::guard(weak, [=](const QString &error) {
-				weak->submitFailed(error);
+				if (error == u"MESSAGE_NOT_MODIFIED"_q) {
+					weak->closeBox();
+				} else {
+					weak->submitFailed(error);
+				}
 			}));
 	}, box->lifetime());
 	controller->show(std::move(box), Ui::LayerOption::CloseOther);
