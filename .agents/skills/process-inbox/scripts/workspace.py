@@ -103,6 +103,19 @@ BUILD_LOCK_PROCESS_NAMES = {
 }
 # mspdbsrv.exe idles on after the build it served; its CPU still counts
 HOST_LOAD_BUILD_TOOLS = BUILD_LOCK_PROCESS_NAMES - {"mspdbsrv.exe"}
+# Xcode's build services can idle on like mspdbsrv.exe, so only their CPU counts
+HOST_LOAD_MACOS_BUILD_TOOLS = {
+	"clang",
+	"cmake",
+	"ld",
+	"libtool",
+	"moc",
+	"ninja",
+	"rcc",
+	"swift-frontend",
+	"uic",
+	"xcodebuild",
+}
 HOST_LOAD_THRESHOLD_DEFAULT = 15.0
 HOST_LOAD_HOLD_DEFAULT = 5.0
 HOST_LOAD_MAX_DEFAULT = 600.0
@@ -2475,6 +2488,251 @@ def windows_process_snapshot(size):
 	return size, records
 
 
+def macos_system_library():
+	if sys.platform != "darwin":
+		raise OSError(f"process snapshots need macOS, this host is {sys.platform}")
+	import ctypes
+
+	integer, pointer, port = ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32
+	library = ctypes.CDLL("/usr/lib/libSystem.B.dylib", use_errno=True)
+	for name, result, arguments in (
+		("proc_listallpids", integer, [pointer, integer]),
+		("proc_pidinfo", integer, [integer, integer, ctypes.c_uint64, pointer, integer]),
+		("proc_pidpath", integer, [integer, pointer, ctypes.c_uint32]),
+		("responsibility_get_pid_responsible_for_pid", integer, [integer]),
+		("mach_timebase_info", integer, [pointer]),
+		("mach_host_self", port, []),
+		(
+			"host_processor_info",
+			integer,
+			[
+				port,
+				integer,
+				ctypes.POINTER(ctypes.c_uint32),
+				ctypes.POINTER(ctypes.POINTER(ctypes.c_uint32)),
+				ctypes.POINTER(ctypes.c_uint32),
+			],
+		),
+		("vm_deallocate", integer, [port, ctypes.c_size_t, ctypes.c_size_t]),
+		("mach_port_deallocate", integer, [port, port]),
+	):
+		function = getattr(library, name)
+		function.restype = result
+		function.argtypes = arguments
+	return library, port.in_dll(library, "mach_task_self_").value
+
+
+def macos_unique_id_reader(library):
+	import ctypes
+
+	class UniqueIdentifiers(ctypes.Structure):
+		_fields_ = [
+			("uuid", ctypes.c_uint8 * 16),
+			("unique_id", ctypes.c_uint64),
+			("parent_unique_id", ctypes.c_uint64),
+			("id_version", ctypes.c_int32),
+			("original_parent_id_version", ctypes.c_int32),
+			("reserved2", ctypes.c_uint64),
+			("reserved3", ctypes.c_uint64),
+		]
+
+	identifiers = UniqueIdentifiers()
+	size = ctypes.sizeof(identifiers)
+	if size != 56:
+		raise OSError(f"UniqueIdentifiers is {size} bytes, not 56")
+
+	def unique_id(pid):
+		filled = library.proc_pidinfo(pid, 17, 0, ctypes.byref(identifiers), size)
+		return identifiers.unique_id if filled == size else None
+
+	return unique_id
+
+
+def macos_process_snapshot():
+	library, task_self = macos_system_library()
+	import ctypes
+
+	class Timebase(ctypes.Structure):
+		_fields_ = [("numer", ctypes.c_uint32), ("denom", ctypes.c_uint32)]
+
+	class ShortBsdInfo(ctypes.Structure):
+		_fields_ = [
+			("pid", ctypes.c_uint32),
+			("ppid", ctypes.c_uint32),
+			("pgid", ctypes.c_uint32),
+			("status", ctypes.c_uint32),
+			("comm", ctypes.c_char * 16),
+			("flags", ctypes.c_uint32),
+			("uid", ctypes.c_uint32),
+			("gid", ctypes.c_uint32),
+			("ruid", ctypes.c_uint32),
+			("rgid", ctypes.c_uint32),
+			("svuid", ctypes.c_uint32),
+			("svgid", ctypes.c_uint32),
+			("rfu", ctypes.c_uint32),
+		]
+
+	class TaskInfo(ctypes.Structure):
+		_fields_ = [
+			("virtual_size", ctypes.c_uint64),
+			("resident_size", ctypes.c_uint64),
+			("total_user", ctypes.c_uint64),
+			("total_system", ctypes.c_uint64),
+			("threads_user", ctypes.c_uint64),
+			("threads_system", ctypes.c_uint64),
+			("policy", ctypes.c_int32),
+			("faults", ctypes.c_int32),
+			("pageins", ctypes.c_int32),
+			("cow_faults", ctypes.c_int32),
+			("messages_sent", ctypes.c_int32),
+			("messages_received", ctypes.c_int32),
+			("syscalls_mach", ctypes.c_int32),
+			("syscalls_unix", ctypes.c_int32),
+			("csw", ctypes.c_int32),
+			("threadnum", ctypes.c_int32),
+			("numrunning", ctypes.c_int32),
+			("priority", ctypes.c_int32),
+		]
+
+	timebase, short, task = Timebase(), ShortBsdInfo(), TaskInfo()
+	for structure, expected in ((timebase, 8), (short, 64), (task, 96)):
+		size = ctypes.sizeof(structure)
+		if size != expected:
+			raise OSError(f"{type(structure).__name__} is {size} bytes, not {expected}")
+	short_size, task_size = ctypes.sizeof(short), ctypes.sizeof(task)
+	status = library.mach_timebase_info(ctypes.byref(timebase))
+	if status or timebase.numer < 1 or timebase.denom < 1:
+		raise OSError(
+			f"mach_timebase_info failed with {status}: "
+			f"{timebase.numer}/{timebase.denom}"
+		)
+	numer, divisor = timebase.numer, timebase.denom * 100
+	estimate = library.proc_listallpids(None, 0)
+	if estimate < 1:
+		raise OSError(ctypes.get_errno(), "proc_listallpids gave no process estimate")
+	capacity = estimate + estimate // 4 + 64
+	for _ in range(HOST_LOAD_SNAPSHOT_ATTEMPTS):
+		pids = (ctypes.c_int * capacity)()
+		listed = library.proc_listallpids(pids, ctypes.sizeof(pids))
+		if listed < capacity:
+			break
+		capacity *= 2
+	else:
+		raise OSError(
+			"proc_listallpids still filled its buffer after "
+			f"{HOST_LOAD_SNAPSHOT_ATTEMPTS} attempts"
+		)
+	if listed < 0:
+		raise OSError(ctypes.get_errno(), "proc_listallpids failed")
+	if not listed:
+		raise OSError("proc_listallpids listed no process")
+	listing = pids[:listed]
+	if len(set(listing)) != listed:
+		raise OSError("proc_listallpids listed a pid twice")
+	unique_id = macos_unique_id_reader(library)
+	records = {}
+	for pid in listing:
+		if not pid:
+			continue
+		created = unique_id(pid)
+		if created is None:
+			continue
+		filled = library.proc_pidinfo(pid, 13, 0, ctypes.byref(short), short_size)
+		if filled != short_size or short.pid != pid:
+			continue
+		name = short.comm.decode("utf-8", "replace")
+		parent_pid = short.ppid
+		# other users refuse task info, so their CPU reaches only the machine counter
+		filled = library.proc_pidinfo(pid, 4, 0, ctypes.byref(task), task_size)
+		cpu = (
+			(task.total_user + task.total_system) * numer // divisor
+			if filled == task_size
+			else None
+		)
+		if unique_id(pid) == created:
+			records[pid] = {
+				"cpu": cpu,
+				"created": created,
+				"name": name,
+				"parent_pid": parent_pid,
+			}
+	if not records:
+		raise OSError("process snapshot read no process")
+	clock_ticks = os.sysconf("SC_CLK_TCK")
+	if clock_ticks < 1:
+		raise OSError(f"SC_CLK_TCK is {clock_ticks}")
+	host = library.mach_host_self()
+	if not host:
+		raise OSError("mach_host_self returned no port")
+	try:
+		processors = ctypes.c_uint32()
+		array = ctypes.POINTER(ctypes.c_uint32)()
+		words = ctypes.c_uint32()
+		status = library.host_processor_info(
+			host,
+			2,
+			ctypes.byref(processors),
+			ctypes.byref(array),
+			ctypes.byref(words),
+		)
+		if status:
+			raise OSError(f"host_processor_info failed with {status}")
+		if not array:
+			raise OSError("host_processor_info returned no processor array")
+		try:
+			if processors.value < 1 or words.value != processors.value * 4:
+				raise OSError(
+					f"host_processor_info returned {words.value} words for "
+					f"{processors.value} processors"
+				)
+			ticks = array[:words.value]
+		finally:
+			status = library.vm_deallocate(
+				task_self,
+				ctypes.cast(array, ctypes.c_void_p).value,
+				words.value * ctypes.sizeof(ctypes.c_uint32),
+			)
+			if status:
+				raise OSError(f"vm_deallocate failed with {status}")
+	finally:
+		status = library.mach_port_deallocate(task_self, host)
+		if status:
+			raise OSError(f"mach_port_deallocate failed with {status}")
+	busy = sum(ticks[0::4]) + sum(ticks[1::4]) + sum(ticks[3::4])
+	return records, busy * 10**7 // clock_ticks
+
+
+def macos_process_details(pid):
+	library, _ = macos_system_library()
+	import ctypes
+
+	details = {"created": None, "path": None, "responsible": None}
+	unique_id = macos_unique_id_reader(library)
+	created = unique_id(pid)
+	if created is None:
+		return details
+	buffer = ctypes.create_string_buffer(4096)
+	length = library.proc_pidpath(pid, buffer, ctypes.sizeof(buffer))
+	path = buffer.value
+	responsible_pid = library.responsibility_get_pid_responsible_for_pid(pid)
+	responsible_id = unique_id(responsible_pid) if responsible_pid > 0 else None
+	if unique_id(pid) != created:
+		return details
+	details["created"] = created
+	if length > 0 and len(path) == length:
+		details["path"] = os.fsdecode(path)
+	if responsible_id is not None:
+		details["responsible"] = (responsible_pid, responsible_id)
+	return details
+
+
+def host_process_snapshot(size):
+	if sys.platform == "darwin":
+		return (size, *macos_process_snapshot())
+	size, records = windows_process_snapshot(size)
+	return size, records, None
+
+
 def locking_process_ids(paths):
 	if sys.platform != "win32" or not paths:
 		return [], None
@@ -3033,10 +3291,11 @@ def host_load_parameters(args):
 	}
 
 
-def host_load_unsupported_reason():
-	if sys.platform == "win32":
+def host_load_unsupported_reason(platform=None):
+	platform = sys.platform if platform is None else platform
+	if platform in ("win32", "darwin"):
 		return None
-	return f"host-load sampling needs Windows, this host is {sys.platform}"
+	return f"host-load sampling needs Windows or macOS, this host is {platform}"
 
 
 def host_load_tools_json(seen):
@@ -3047,7 +3306,7 @@ def host_load_tools_json(seen):
 
 
 def host_load_sample_json(sample, **extra):
-	return {
+	serialized = {
 		"build_tools": sample["build_tools"],
 		"others_percent": round(sample["others_percent"], 2),
 		"seconds": round(sample["seconds"], 3),
@@ -3057,6 +3316,9 @@ def host_load_sample_json(sample, **extra):
 		],
 		**extra,
 	}
+	if "unattributed_percent" in sample:
+		serialized["unattributed_percent"] = round(sample["unattributed_percent"], 2)
+	return serialized
 
 
 def host_load_error(error):
@@ -3064,18 +3326,25 @@ def host_load_error(error):
 
 
 class HostLoadMonitor:
-	def __init__(self, parameters):
+	def __init__(self, parameters, background_exe=None):
 		self.parameters = parameters
 		self.threshold = parameters["threshold_percent"]
 		self.hold = parameters["hold_seconds"]
 		self.bound = parameters["max_seconds"]
 		self.interval = parameters["interval_seconds"]
 		self.unsupported = host_load_unsupported_reason()
+		self.build_tools = (
+			HOST_LOAD_MACOS_BUILD_TOOLS
+			if sys.platform == "darwin"
+			else HOST_LOAD_BUILD_TOOLS
+		)
+		self.background_exe = None if background_exe is None else str(background_exe)
 		self.processors = os.cpu_count()
 		self.test_run_pid = os.getpid()
 		self.size = HOST_LOAD_SNAPSHOT_SIZE
 		self.previous = None
 		self.client_pid = None
+		self.launcher_created = None
 		self.client_root_checked = False
 		self.client = {}
 		self.incarnations = {}
@@ -3101,16 +3370,50 @@ class HostLoadMonitor:
 		]
 		return bool(earlier) and (parent, max(earlier)) in self.client
 
+	def _grow_background(self, records):
+		if self.launcher_created is None:
+			return
+		live = {
+			(pid, record["created"])
+			for pid, record in records.items()
+			if (pid, record["created"]) in self.client
+		}
+		candidates = sorted(
+			(record["created"], pid)
+			for pid, record in records.items()
+			if record["created"] > self.launcher_created
+		)
+		for created, pid in candidates:
+			identity = (pid, created)
+			if identity in self.client:
+				continue
+			if not self._client_child(records[pid]):
+				details = macos_process_details(pid)
+				# WHY: launchd starts the client's helpers with ppid 1 and their own
+				# executables, so only the responsible process ties them to it; an
+				# identity alive in this reading cannot be a reused pid.
+				if details["created"] != created or (
+					details["path"] != self.background_exe
+					and details["responsible"] not in live
+				):
+					continue
+			self.client[identity] = records[pid]["name"]
+			live.add(identity)
+
 	def _grow_client(self, records):
 		if self.client_pid is None:
 			return
 		if not self.client_root_checked:
-			self.client_root_checked = True
 			root = records.get(self.client_pid)
 			if root is not None:
 				self.client[(self.client_pid, root["created"])] = root["name"]
+				self.launcher_created = root["created"]
+			self.client_root_checked = root is not None or self.background_exe is None
 		for pid, record in records.items():
 			self.incarnations.setdefault(pid, set()).add(record["created"])
+		if self.background_exe is not None:
+			self._grow_background(records)
+			return
 		grown = True
 		while grown:
 			grown = False
@@ -3120,12 +3423,20 @@ class HostLoadMonitor:
 					self.client[identity] = record["name"]
 					grown = True
 
+	@staticmethod
+	def _delta(record, prior):
+		if prior is None or prior["created"] != record["created"]:
+			return record["cpu"]
+		if record["cpu"] is None or prior["cpu"] is None:
+			return None
+		return record["cpu"] - prior["cpu"]
+
 	def _observe(self, clock):
 		previous, self.previous = self.previous, None
 		count = self.processors
 		if type(count) is not int or count < 1:
 			raise ValueError(f"the logical processor count is unknown: {count!r}")
-		self.size, records = windows_process_snapshot(self.size)
+		self.size, records, busy = host_process_snapshot(self.size)
 		taken = clock()
 		self._grow_client(records)
 		others = {
@@ -3137,34 +3448,43 @@ class HostLoadMonitor:
 			(
 				{"name": record["name"], "pid": pid}
 				for pid, record in others.items()
-				if record["name"].casefold() in HOST_LOAD_BUILD_TOOLS
+				if record["name"].casefold() in self.build_tools
 			),
 			key=lambda tool: (tool["name"].casefold(), tool["pid"]),
 		)
-		percent = top = None
+		percent = top = unattributed = None
 		if previous is not None:
-			elapsed = taken - previous[0]
+			before, prior_records, prior_busy = previous
+			elapsed = taken - before
 			if not elapsed > 0:
 				raise ValueError(f"the clock did not advance between snapshots: {elapsed!r}")
 			scale = elapsed * 1e7 * count
+			readable = excluded = 0
 			deltas = []
-			for pid, record in others.items():
-				prior = previous[1].get(pid)
-				delta = (
-					record["cpu"] - prior["cpu"]
-					if prior is not None and prior["created"] == record["created"]
-					else record["cpu"]
-				)
-				if delta > 0:
+			for pid, record in records.items():
+				delta = self._delta(record, prior_records.get(pid))
+				if delta is None or delta <= 0:
+					continue
+				readable += delta
+				if pid in others:
 					deltas.append((delta, pid, record["name"]))
-			percent = 100 * sum(delta for delta, _, _ in deltas) / scale
+				else:
+					excluded += delta
+			if busy is None or prior_busy is None:
+				percent = 100 * sum(delta for delta, _, _ in deltas) / scale
+			else:
+				machine = busy - prior_busy
+				if machine < 0:
+					raise ValueError(f"the machine CPU counter went backwards: {machine!r}")
+				percent = 100 * max(0, machine - excluded) / scale
+				unattributed = 100 * max(0, machine - readable) / scale
 			deltas.sort(key=lambda item: (-item[0], item[1]))
 			top = [
 				{"name": name, "percent": 100 * delta / scale, "pid": pid}
 				for delta, pid, name in deltas[:HOST_LOAD_TOP]
 			]
-		self.previous = (taken, records)
-		return taken, tools, percent, top
+		self.previous = (taken, records, busy)
+		return taken, tools, percent, top, unattributed
 
 	def wait(self, clock=time.monotonic, sleep=time.sleep):
 		if self.unsupported:
@@ -3176,7 +3496,7 @@ class HostLoadMonitor:
 		calm_since = None
 		while True:
 			try:
-				taken, tools, percent, top = self._observe(clock)
+				taken, tools, percent, top, unattributed = self._observe(clock)
 			except Exception as failure:
 				error = host_load_error(failure)
 				break
@@ -3185,12 +3505,15 @@ class HostLoadMonitor:
 			if percent is None:
 				calm_since = taken
 			else:
-				self.wait_samples.append({
+				sample = {
 					"build_tools": tools,
 					"others_percent": percent,
 					"seconds": elapsed,
 					"top": top,
-				})
+				}
+				if unattributed is not None:
+					sample["unattributed_percent"] = unattributed
+				self.wait_samples.append(sample)
 				if tools or percent >= self.threshold:
 					calm_since = taken
 				elif taken - calm_since >= self.hold and elapsed <= self.bound:
@@ -3236,17 +3559,20 @@ class HostLoadMonitor:
 			try:
 				if process.poll() is not None:
 					return
-				taken, tools, percent, top = self._observe(time.monotonic)
+				taken, tools, percent, top, unattributed = self._observe(time.monotonic)
 			except Exception as failure:
 				self.trace_error = host_load_error(failure)
 				return
 			self.trace_tools.update((tool["name"], tool["pid"]) for tool in tools)
-			self.trace_samples.append({
+			sample = {
 				"build_tools": tools,
 				"others_percent": percent,
 				"seconds": taken - self.trace_origin,
 				"top": top,
-			})
+			}
+			if unattributed is not None:
+				sample["unattributed_percent"] = unattributed
+			self.trace_samples.append(sample)
 
 	def stop_trace(self):
 		self.stop_event.set()
@@ -3298,11 +3624,7 @@ class HostLoadMonitor:
 			for sample in samples
 		]
 		try:
-			path.write_text(
-				"".join(line + "\n" for line in lines),
-				encoding="utf-8",
-				newline="\n",
-			)
+			path.write_bytes("".join(line + "\n" for line in lines).encode("utf-8"))
 			report["samples_file"] = str(path)
 		except OSError as failure:
 			report["samples_file_error"] = host_load_error(failure)
@@ -3383,7 +3705,11 @@ def command_test_run(args):
 			"--args", *launch_args,
 		]
 
-	monitor = HostLoadMonitor(host_load) if host_load is not None else None
+	monitor = (
+		HostLoadMonitor(host_load, None if bundle is None else exe)
+		if host_load is not None
+		else None
+	)
 	if monitor is not None:
 		monitor.wait()
 	_, input_before = console_input_reading()

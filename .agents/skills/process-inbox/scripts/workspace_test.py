@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
 import contextlib
+import ctypes
 import datetime
 import hashlib
 import io
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import plistlib
 import shutil
 import signal
@@ -2074,21 +2075,124 @@ class FakeConsole:
 
 
 needs_windows = unittest.skipUnless(
-	os.name == "nt", "the host-load sampler is implemented on Windows only",
+	os.name == "nt", "the Windows process reader runs on Windows only",
+)
+needs_macos = unittest.skipUnless(
+	sys.platform == "darwin", "the macOS process reader runs on macOS only",
+)
+needs_host_load_reader = unittest.skipUnless(
+	sys.platform in ("win32", "darwin"),
+	"the host-load sampler reads processes on Windows and macOS only",
 )
 HOST_LOAD_FIXTURE_TIMEOUT = 60.0
 BURN_SCRIPT = """\
 import json, os, sys, time
 seconds, record = float(sys.argv[1]), sys.argv[2]
+shared = getattr(time, "CLOCK_UPTIME_RAW", None)
+def now():
+	return time.monotonic() if shared is None else time.clock_gettime(shared)
 def save(path, **values):
 	with open(path + ".tmp", "w") as file:
 		json.dump({"pid": os.getpid(), **values}, file)
 	os.replace(path + ".tmp", path)
-start, cpu = time.monotonic(), time.process_time()
+start, cpu = now(), time.process_time()
 save(record + ".ready", start=start)
-while time.monotonic() - start < seconds:
+while now() - start < seconds:
 	pass
-save(record, start=start, end=time.monotonic(), cpu=time.process_time() - cpu)
+save(record, start=start, end=now(), cpu=time.process_time() - cpu)
+"""
+SLEEPER_SOURCE = """\
+#include <errno.h>
+#include <stdlib.h>
+#include <time.h>
+
+int main(int argc, char **argv) {
+	if (argc != 2) {
+		return 2;
+	}
+	double seconds = atof(argv[1]);
+	struct timespec left = {
+		(time_t)seconds,
+		(long)((seconds - (time_t)seconds) * 1e9),
+	};
+	while (nanosleep(&left, &left) != 0) {
+		if (errno != EINTR) {
+			return 1;
+		}
+	}
+	return 0;
+}
+"""
+BACKGROUND_CLIENT_SOURCE = """\
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+static const char *setting(const char *name) {
+	const char *value = getenv(name);
+	if (!value || !*value) {
+		exit(2);
+	}
+	return value;
+}
+
+static int save(const char *path, const char *mode, const char *text) {
+	FILE *file = fopen(path, mode);
+	if (!file) {
+		return -1;
+	}
+	int written = fputs(text, file);
+	return (fclose(file) != 0 || written < 0) ? -1 : 0;
+}
+
+int main(void) {
+	const char *announced = setting("HOST_LOAD_CLIENT_PID_FILE");
+	const char *python = setting("HOST_LOAD_HELPER_PYTHON");
+	const char *script = setting("HOST_LOAD_HELPER_SCRIPT");
+	const char *seconds = setting("HOST_LOAD_HELPER_SECONDS");
+	const char *record = setting("HOST_LOAD_HELPER_RECORD");
+	const char *evidence = setting("TDESKTOP_TEST_EVIDENCE_DIR");
+	char temporary[4096], marker[4096], text[64], byte;
+	int fds[2], status;
+	ssize_t got;
+	if (snprintf(temporary, sizeof(temporary), "%s.tmp", announced) >= (int)sizeof(temporary)
+		|| snprintf(marker, sizeof(marker), "%s/test_log.txt", evidence) >= (int)sizeof(marker)
+		|| snprintf(text, sizeof(text), "{\\"pid\\": %d}", (int)getpid()) >= (int)sizeof(text)
+		|| save(temporary, "w", text) != 0
+		|| rename(temporary, announced) != 0
+		|| pipe(fds) != 0) {
+		return 1;
+	}
+	pid_t middle = fork();
+	if (middle < 0) {
+		return 1;
+	}
+	if (middle == 0) {
+		pid_t parent = getpid();
+		pid_t helper = fork();
+		if (helper == 0) {
+			close(fds[0]);
+			while (getppid() == parent) {
+				usleep(1000);
+			}
+			execl(python, python, "-I", script, seconds, record, (char *)NULL);
+			_exit(write(fds[1], "e", 1) == 1 ? 126 : 127);
+		}
+		_exit(helper < 0 ? 1 : 0);
+	}
+	close(fds[1]);
+	if (waitpid(middle, &status, 0) != middle
+		|| !WIFEXITED(status)
+		|| WEXITSTATUS(status) != 0) {
+		return 1;
+	}
+	do {
+		got = read(fds[0], &byte, 1);
+	} while (got < 0 && errno == EINTR);
+	return (got != 0 || save(marker, "a", "TEST_COMPLETE\\n") != 0) ? 1 : 0;
+}
 """
 
 
@@ -2096,6 +2200,38 @@ def write_burn_script(directory):
 	script = directory / "burn.py"
 	script.write_text(BURN_SCRIPT, encoding="utf-8")
 	return script
+
+
+def compile_c_fixture(path, source):
+	path.parent.mkdir(parents=True, exist_ok=True)
+	subprocess.run(
+		["/usr/bin/xcrun", "clang", "-x", "c", "-o", str(path), "-"],
+		input=source,
+		text=True,
+		check=True,
+	)
+	return path
+
+
+def compile_background_client(bundle):
+	contents = bundle / "Contents"
+	exe = compile_c_fixture(
+		contents / "MacOS" / "Telegram", BACKGROUND_CLIENT_SOURCE,
+	)
+	(contents / "Info.plist").write_bytes(
+		plistlib.dumps({"CFBundleExecutable": exe.name})
+	)
+	return exe
+
+
+def background_client_env(script, seconds, record, announced):
+	return [
+		f"HOST_LOAD_CLIENT_PID_FILE={announced}",
+		f"HOST_LOAD_HELPER_PYTHON={sys.executable}",
+		f"HOST_LOAD_HELPER_SCRIPT={script}",
+		f"HOST_LOAD_HELPER_SECONDS={seconds}",
+		f"HOST_LOAD_HELPER_RECORD={record}",
+	]
 
 
 def write_python_client(path, *arguments):
@@ -2140,6 +2276,16 @@ def read_json(path):
 	return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
+def read_burn_record(path):
+	record = read_json(path)
+	shared = getattr(time, "CLOCK_UPTIME_RAW", None)
+	offset = 0.0 if shared is None else time.clock_gettime(shared) - time.monotonic()
+	for key in ("start", "end"):
+		if key in record:
+			record[key] -= offset
+	return record
+
+
 def host_load_test_options(bound=30.0):
 	return {
 		"host_load": True,
@@ -2167,14 +2313,36 @@ def cpu_percent_within(work, start, end):
 
 
 class ProcessScope:
-	def __init__(self):
-		self.real = workspace.windows_process_snapshot
+	def __init__(self, announced=()):
+		self.announced = [Path(path) for path in announced]
+		self.real = (
+			workspace.windows_process_snapshot
+			if os.name == "nt"
+			else workspace.macos_process_snapshot
+		)
+		self.announced_created = {}
 		self.seen = {}
 
 	def snapshot(self, size):
 		size, records = self.real(size)
+		return size, self.scoped(records)
+
+	def macos_snapshot(self):
+		records, _ = self.real()
+		return self.scoped(records), None
+
+	def scoped(self, records):
 		root = os.getpid()
 		kept = {root: records[root]}
+		for path in self.announced:
+			if not path.is_file():
+				continue
+			pid = read_json(path)["pid"]
+			record = records.get(pid)
+			if record is not None and self.announced_created.setdefault(
+				pid, record["created"],
+			) == record["created"]:
+				kept[pid] = record
 		grown = True
 		while grown:
 			grown = False
@@ -2188,11 +2356,15 @@ class ProcessScope:
 					kept[pid] = record
 					grown = True
 		self.seen.update(kept)
-		return size, kept
+		return kept
 
 	def installed(self):
+		if os.name == "nt":
+			return mock.patch.object(
+				workspace, "windows_process_snapshot", side_effect=self.snapshot,
+			)
 		return mock.patch.object(
-			workspace, "windows_process_snapshot", side_effect=self.snapshot,
+			workspace, "macos_process_snapshot", side_effect=self.macos_snapshot,
 		)
 
 
@@ -2209,7 +2381,7 @@ class FakeClock:
 		self.now += seconds
 
 
-def fake_host_load_monitor(hold=2.0, bound=30.0):
+def fake_host_load_monitor(hold=2.0, bound=30.0, background_exe=None):
 	with (
 		mock.patch.object(
 			workspace, "host_load_unsupported_reason", return_value=None,
@@ -2221,7 +2393,7 @@ def fake_host_load_monitor(hold=2.0, bound=30.0):
 			"interval_seconds": 1.0,
 			"max_seconds": bound,
 			"threshold_percent": 6.25,
-		})
+		}, background_exe)
 
 
 def patch_monitor(name, side_effect=None):
@@ -2236,7 +2408,7 @@ def load_snapshots(pid, loads):
 	while True:
 		yield workspace.HOST_LOAD_SNAPSHOT_SIZE, {pid: {
 			"cpu": cpu, "created": 1, "name": "other.exe", "parent_pid": 1,
-		}}
+		}}, None
 		cpu += loads[min(step, len(loads) - 1)] * 10**7
 		step += 1
 
@@ -4021,7 +4193,7 @@ class MechanicsTest(unittest.TestCase):
 			self.assertEqual(console.sleeps, [])
 			self.assertFalse((debug / workspace.PORTABLE_LIVE).exists())
 
-	@needs_windows
+	@needs_host_load_reader
 	def test_test_run_host_load_waits_out_a_burner_and_ignores_a_busy_client(self):
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary).resolve()
@@ -4055,8 +4227,8 @@ class MechanicsTest(unittest.TestCase):
 			):
 				result = run_test_run(exe, root / "run1", **host_load_test_options())
 			self.assertEqual(burners[0].wait(HOST_LOAD_FIXTURE_TIMEOUT), 0)
-			burner = read_json(root / "burner.json")
-			client = read_json(busy)
+			burner = read_burn_record(root / "burner.json")
+			client = read_burn_record(busy)
 			host = result["host_load"]
 			threshold = host["threshold_percent"]
 			series = host_load_series(result)
@@ -4095,7 +4267,7 @@ class MechanicsTest(unittest.TestCase):
 			self.assertEqual(result["outcome"], "exited")
 			self.assertEqual(result["verdict_hint"], "complete")
 
-	@needs_windows
+	@needs_host_load_reader
 	def test_test_run_host_load_launches_at_its_bound_and_traces_a_burner(self):
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary).resolve()
@@ -4128,7 +4300,7 @@ class MechanicsTest(unittest.TestCase):
 					exe, root / "run1", **host_load_test_options(bound=0.75),
 				)
 			self.assertEqual(burners[0].wait(HOST_LOAD_FIXTURE_TIMEOUT), 0)
-			burner = read_json(root / "burner.json")
+			burner = read_burn_record(root / "burner.json")
 			host = result["host_load"]
 			threshold = host["threshold_percent"]
 			series = host_load_series(result)
@@ -4162,7 +4334,7 @@ class MechanicsTest(unittest.TestCase):
 			self.assertEqual(result["outcome"], "exited")
 			self.assertEqual(result["verdict_hint"], "complete")
 
-	@needs_windows
+	@needs_host_load_reader
 	def test_test_run_host_load_quiet_control_ignores_its_own_cpu(self):
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary).resolve()
@@ -4236,17 +4408,22 @@ class MechanicsTest(unittest.TestCase):
 			self.assertTrue(client_children, host["excluded"])
 			self.assertEqual(result["verdict_hint"], "complete")
 
-	@needs_windows
+	@needs_host_load_reader
 	def test_test_run_host_load_waits_while_a_build_tool_runs(self):
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary).resolve()
 			debug = make_portable_root(root)
 			exe = write_complete_markers_exe(debug / "Telegram")
-			tool = root / "tools" / "cl.exe"
-			tool.parent.mkdir()
-			shutil.copyfile(
-				Path(os.environ["SystemRoot"]) / "System32" / "PING.EXE", tool,
-			)
+			if os.name == "nt":
+				tool = root / "tools" / "cl.exe"
+				tool.parent.mkdir()
+				shutil.copyfile(
+					Path(os.environ["SystemRoot"]) / "System32" / "PING.EXE", tool,
+				)
+				arguments = ["-n", "3", "127.0.0.1"]
+			else:
+				tool = compile_c_fixture(root / "tools" / "clang", SLEEPER_SOURCE)
+				arguments = ["2"]
 			scope = ProcessScope()
 			tools = []
 			marks = {}
@@ -4254,7 +4431,7 @@ class MechanicsTest(unittest.TestCase):
 			real_start = workspace.HostLoadMonitor.start_trace
 
 			def wait(monitor):
-				tools.append(owned_process(self, [str(tool), "-n", "3", "127.0.0.1"]))
+				tools.append(owned_process(self, [str(tool), *arguments]))
 				return real_wait(monitor)
 
 			def start_trace(monitor, process):
@@ -4267,7 +4444,7 @@ class MechanicsTest(unittest.TestCase):
 				patch_monitor("start_trace", start_trace),
 			):
 				result = run_test_run(exe, root / "run1", **host_load_test_options())
-			stand_in = {"name": "cl.exe", "pid": tools[0].pid}
+			stand_in = {"name": tool.name, "pid": tools[0].pid}
 			host = result["host_load"]
 			series = host_load_series(result)
 			self.assertIn(tools[0].pid, scope.seen)
@@ -4281,6 +4458,128 @@ class MechanicsTest(unittest.TestCase):
 			), series["wait"])
 			self.assertEqual(result["verdict_hint"], "complete")
 
+	@needs_macos
+	def test_test_run_host_load_excludes_a_background_client_and_its_helper(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			script = write_burn_script(root)
+			exe = compile_background_client(debug / "Telegram.app")
+			for outside in (False, True):
+				with self.subTest(outside=outside):
+					run = root / ("outside" if outside else "quiet")
+					run.mkdir()
+					announced = run / "client.json"
+					helped = run / "helper.json"
+					burned = run / "burner.json"
+					scope = ProcessScope([announced, f"{helped}.ready"])
+					burners = []
+					marks = {}
+					real_wait = workspace.HostLoadMonitor.wait
+					real_start = workspace.HostLoadMonitor.start_trace
+
+					def wait(monitor):
+						waited = real_wait(monitor)
+						if outside:
+							burners.append(start_burner(self, script, 2.0, burned))
+						return waited
+
+					def start_trace(monitor, process):
+						marks["launcher"] = process.pid
+						real_start(monitor, process)
+						marks["trace"] = monitor.trace_origin
+
+					with (
+						scope.installed(),
+						patch_monitor("wait", wait),
+						patch_monitor("start_trace", start_trace),
+					):
+						result = run_test_run(
+							exe, run / "evidence",
+							env=background_client_env(script, 1.5, helped, announced),
+							**host_load_test_options(),
+						)
+					client = read_json(announced)["pid"]
+					helper = read_burn_record(helped)
+					host = result["host_load"]
+					threshold = host["threshold_percent"]
+					series = host_load_series(result)
+					trace = host["trace"]
+					excluded = host["excluded"]
+					members = {
+						(entry["name"], entry["pid"])
+						for entry in excluded["client_processes"]
+					}
+					self.assertEqual(result["launch_method"], "background")
+					self.assertLessEqual(
+						{marks["launcher"], client, helper["pid"]}, set(scope.seen),
+					)
+					orphan = scope.seen[helper["pid"]]
+					self.assertEqual(scope.seen[marks["launcher"]]["name"], "open")
+					self.assertEqual(scope.seen[client]["name"], exe.name)
+					self.assertEqual(orphan["parent_pid"], 1)
+					self.assertNotEqual(orphan["name"], exe.name)
+					self.assertEqual(excluded["client_pid"], marks["launcher"])
+					self.assertEqual(excluded["test_run_pid"], os.getpid())
+					self.assertLessEqual({
+						("open", marks["launcher"]),
+						(exe.name, client),
+						(orphan["name"], helper["pid"]),
+					}, members)
+					self.assertEqual(set(host), {
+						"excluded", "hold_seconds", "interval_seconds",
+						"logical_processors", "max_seconds", "samples_file",
+						"samples_file_error", "threshold_percent", "trace",
+						"unsupported", "wait",
+					})
+					self.assertIsNone(host["unsupported"])
+					self.assertEqual(host["logical_processors"], os.cpu_count())
+					self.assertIsNone(host["samples_file_error"])
+					self.assertEqual(
+						Path(host["samples_file"]),
+						Path(result["run_dir"]) / workspace.HOST_LOAD_SAMPLES_FILE,
+					)
+					self.assertIs(host["wait"]["met"], True)
+					self.assertEqual(
+						series["wait"][-workspace.HOST_LOAD_LAST_SAMPLES:],
+						host["wait"]["last_samples"],
+					)
+					self.assertIsNone(trace["error"])
+					self.assertGreaterEqual(trace["samples"], 3)
+					values = [sample["others_percent"] for sample in series["trace"]]
+					self.assertEqual(len(values), trace["samples"])
+					self.assertEqual(max(values), trace["max_percent"])
+					self.assertAlmostEqual(
+						sum(values) / len(values), trace["mean_percent"], delta=0.01,
+					)
+					trace_end = marks["trace"] + series["trace"][-1]["seconds"]
+					self.assertGreater(
+						cpu_percent_within(helper, marks["trace"], trace_end), threshold,
+					)
+					if outside:
+						self.assertEqual(burners[0].wait(HOST_LOAD_FIXTURE_TIMEOUT), 0)
+						burner = read_burn_record(burned)
+						self.assertIn(burner["pid"], scope.seen)
+						self.assertNotIn(burner["pid"], {pid for _, pid in members})
+						self.assertGreater(
+							cpu_percent_within(burner, marks["trace"], trace_end),
+							threshold,
+						)
+						self.assertGreater(trace["mean_percent"], threshold)
+						self.assertGreater(trace["max_percent"], threshold)
+						self.assertGreater(trace["over_threshold"], 0)
+						self.assertTrue(any(
+							burner["pid"] in [entry["pid"] for entry in sample["top"]]
+							for sample in series["trace"]
+						), series["trace"])
+					else:
+						self.assertEqual(trace["over_threshold"], 0, series["trace"])
+						self.assertLess(trace["max_percent"], threshold)
+					self.assertEqual(result["outcome"], "exited")
+					self.assertIsNone(result["exit_code"])
+					self.assertEqual(result["launcher_exit_code"], 0)
+					self.assertEqual(result["verdict_hint"], "complete")
+
 	@needs_windows
 	def test_windows_process_snapshot_grows_and_reads_this_process(self):
 		size, records = workspace.windows_process_snapshot(64)
@@ -4291,6 +4590,178 @@ class MechanicsTest(unittest.TestCase):
 		self.assertTrue(me["name"])
 		self.assertGreater(me["cpu"], 0)
 		self.assertGreater(me["created"], 0)
+
+	@needs_macos
+	def test_macos_process_snapshot_reads_processes_and_the_machine(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			tool = compile_c_fixture(
+				Path(temporary).resolve() / "host-load-sleeper", SLEEPER_SOURCE,
+			)
+			sleeper = owned_process(self, [str(tool), "1"])
+			records, busy = workspace.macos_process_snapshot()
+			mine = workspace.macos_process_details(os.getpid())
+			child = workspace.macos_process_details(sleeper.pid)
+			self.assertEqual(sleeper.wait(HOST_LOAD_FIXTURE_TIMEOUT), 0)
+		me = records[os.getpid()]
+		spawned = records[sleeper.pid]
+		launchd = records[1]
+		self.assertNotEqual(os.geteuid(), 0)
+		self.assertNotIn(0, records)
+		self.assertEqual(me["parent_pid"], os.getppid())
+		self.assertEqual(me["name"], Path(mine["path"]).name[:15])
+		self.assertGreater(me["cpu"], 0)
+		self.assertEqual(me["created"], mine["created"])
+		self.assertEqual(spawned["parent_pid"], os.getpid())
+		self.assertEqual(spawned["name"], tool.name[:15])
+		self.assertIsNotNone(spawned["cpu"])
+		self.assertGreater(spawned["created"], me["created"])
+		self.assertEqual(child["created"], spawned["created"])
+		self.assertEqual(child["path"], str(tool))
+		self.assertIsNotNone(mine["responsible"])
+		self.assertEqual(child["responsible"], mine["responsible"])
+		responsible, identity = mine["responsible"]
+		self.assertEqual(records[responsible]["created"], identity)
+		self.assertEqual(
+			(launchd["name"], launchd["cpu"], launchd["parent_pid"]),
+			("launchd", None, 0),
+		)
+		self.assertIsInstance(busy, int)
+		self.assertGreater(busy, 0)
+
+	@needs_macos
+	def test_macos_process_snapshot_releases_its_host_port_and_cpu_array(self):
+		library, task_self = workspace.macos_system_library()
+		for inconsistent in (0, 1):
+			with self.subTest(inconsistent=inconsistent):
+				hosts = []
+				arrays = []
+				spy = mock.Mock(wraps=library)
+
+				def host_self():
+					hosts.append(library.mach_host_self())
+					return hosts[-1]
+
+				def processor_info(host, flavor, processors, array, words):
+					status = library.host_processor_info(
+						host, flavor, processors, array, words,
+					)
+					arrays.append((
+						ctypes.cast(array._obj, ctypes.c_void_p).value,
+						words._obj.value * ctypes.sizeof(ctypes.c_uint32),
+					))
+					processors._obj.value += inconsistent
+					return status
+
+				spy.mach_host_self.side_effect = host_self
+				spy.host_processor_info.side_effect = processor_info
+				with mock.patch.object(
+					workspace, "macos_system_library", return_value=(spy, task_self),
+				):
+					if inconsistent:
+						with self.assertRaisesRegex(
+							OSError, "^host_processor_info returned ",
+						):
+							workspace.macos_process_snapshot()
+					else:
+						records, busy = workspace.macos_process_snapshot()
+						self.assertIn(os.getpid(), records)
+						self.assertGreater(busy, 0)
+				self.assertEqual(len(hosts), 1)
+				self.assertEqual(len(arrays), 1)
+				address, size = arrays[0]
+				self.assertTrue(address)
+				self.assertGreater(size, 0)
+				self.assertEqual(
+					spy.vm_deallocate.call_args_list,
+					[mock.call(task_self, address, size)],
+				)
+				self.assertEqual(
+					spy.mach_port_deallocate.call_args_list,
+					[mock.call(task_self, hosts[0])],
+				)
+
+	@needs_macos
+	def test_host_load_reads_one_busy_thread_as_one_processor(self):
+		monitor = workspace.HostLoadMonitor(workspace.host_load_parameters(
+			SimpleNamespace(**host_load_test_options()),
+		))
+		scope = ProcessScope()
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			burner = start_burner(
+				self, write_burn_script(root), 1.4, root / "burner.json",
+			)
+			with scope.installed():
+				baseline = monitor._observe(time.monotonic)
+				time.sleep(1.0)
+				observed = monitor._observe(time.monotonic)
+			self.assertEqual(burner.wait(HOST_LOAD_FIXTURE_TIMEOUT), 0)
+			work = read_burn_record(root / "burner.json")
+		start, end = baseline[0], observed[0]
+		self.assertIn(burner.pid, scope.seen)
+		self.assertLess(work["start"], start)
+		self.assertGreater(work["end"], end)
+		duty = cpu_percent_within(work, start, end) * os.cpu_count() / 100
+		self.assertGreaterEqual(
+			duty, 0.9,
+			f"the burner ran {duty:.2f} of a processor between the readings, "
+			"too starved for this run to check the units",
+		)
+		shares = {entry["pid"]: entry["percent"] for entry in observed[3]}
+		expected = 100 / monitor.processors
+		self.assertIn(burner.pid, shares, observed)
+		self.assertAlmostEqual(shares[burner.pid], expected, delta=expected * 0.1)
+		self.assertIsNone(observed[4])
+
+	@needs_macos
+	def test_host_load_counts_machine_cpu_no_process_explains(self):
+		monitor = workspace.HostLoadMonitor(workspace.host_load_parameters(
+			SimpleNamespace(**host_load_test_options()),
+		))
+		readings = []
+		real = workspace.host_process_snapshot
+
+		def snapshot(size):
+			readings.append(real(size))
+			return readings[-1]
+
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			script = write_burn_script(root)
+			record = root / "burner.json"
+			with mock.patch.object(
+				workspace, "host_process_snapshot", side_effect=snapshot,
+			):
+				baseline = monitor._observe(time.monotonic)
+				burner = owned_process(
+					self, [sys.executable, "-I", str(script), "2.0", str(record)],
+				)
+				self.assertEqual(burner.wait(HOST_LOAD_FIXTURE_TIMEOUT), 0)
+				observed = monitor._observe(time.monotonic)
+			work = read_burn_record(record)
+		count = monitor.processors
+		scale = (observed[0] - baseline[0]) * 10**7 * count
+		machine = readings[1][2] - readings[0][2]
+		burned = work["cpu"] * 10**7
+		allowance = count * 3 * 10**7 // os.sysconf("SC_CLK_TCK") + 10**5
+		stated = (
+			f"machine {machine / 10**7:.3f} s, burner {work['cpu']:.3f} s, "
+			f"allowance {allowance / 10**7:.3f} s: one tick per logical "
+			"processor and counted state, and 10 ms of read skew"
+		)
+		self.assertNotEqual(os.geteuid(), 0)
+		self.assertEqual(len(readings), 2)
+		for _, records, _ in readings:
+			self.assertNotIn(burner.pid, records)
+			self.assertEqual(
+				(records[1]["name"], records[1]["cpu"]), ("launchd", None),
+			)
+		self.assertLess(baseline[0], work["start"])
+		self.assertLess(work["end"], observed[0])
+		self.assertGreaterEqual(machine, burned - allowance, stated)
+		self.assertLessEqual(machine, scale + allowance, stated)
+		self.assertGreaterEqual(observed[2] * scale / 100, burned - allowance, stated)
+		self.assertTrue(0 <= observed[4] < float("inf"), observed)
 
 	def test_host_load_wait_meets_its_hold_and_bound(self):
 		other = os.getpid() + 1
@@ -4313,7 +4784,7 @@ class MechanicsTest(unittest.TestCase):
 				clock = FakeClock()
 				monitor = fake_host_load_monitor(hold, bound)
 				with mock.patch.object(
-					workspace, "windows_process_snapshot",
+					workspace, "host_process_snapshot",
 					side_effect=load_snapshots(other, loads),
 				):
 					result = monitor.wait(clock=clock, sleep=clock.sleep)
@@ -4406,14 +4877,18 @@ class MechanicsTest(unittest.TestCase):
 		):
 			clock = FakeClock()
 			monitor = fake_host_load_monitor()
+			monitor.build_tools = workspace.HOST_LOAD_BUILD_TOOLS
 			monitor.client_pid = client
 			with mock.patch.object(
-				workspace, "windows_process_snapshot",
-				side_effect=[(64, records) for records, *_ in steps],
+				workspace, "host_process_snapshot",
+				side_effect=[(64, records, None) for records, *_ in steps],
 			):
 				for index, (_, percent, top, tools) in enumerate(steps):
 					with self.subTest(name, step=index):
-						_, seen_tools, seen_percent, seen_top = monitor._observe(clock)
+						(
+							_, seen_tools, seen_percent, seen_top, unattributed,
+						) = monitor._observe(clock)
+						self.assertIsNone(unattributed)
 						self.assertEqual(seen_percent, percent)
 						self.assertEqual(
 							[(entry["pid"], entry["percent"]) for entry in seen_top or []],
@@ -4423,6 +4898,368 @@ class MechanicsTest(unittest.TestCase):
 					clock.sleep(1.0)
 			with self.subTest(name, client=True):
 				self.assertEqual(set(monitor.client), members)
+
+	def test_host_load_machine_counter_math(self):
+		me = os.getpid()
+		other, client, newcomer, launchd = me + 1, me + 2, me + 3, 1
+
+		def process(cpu, created, name, parent=1):
+			return {
+				"cpu": None if cpu is None else round(cpu * 10**7),
+				"created": created,
+				"name": name,
+				"parent_pid": parent,
+			}
+
+		first = {
+			me: process(0, 10, "Python"),
+			other: process(0, 11, "other"),
+			client: process(0, 12, "Telegram", me),
+			launchd: process(None, 1, "launchd", 0),
+		}
+		second = {
+			me: process(0.5, 10, "Python"),
+			other: process(1, 11, "other"),
+			client: process(1, 12, "Telegram", me),
+			launchd: process(None, 1, "launchd", 0),
+		}
+		for name, steps in (
+			("no machine counter", [
+				("baseline", first, None, None, None, []),
+				("readable others only", second, None, 6.25, None, [(other, 6.25)]),
+			]),
+			("machine counter", [
+				("baseline", first, 100, None, None, []),
+				(
+					"busy above the readable sum less self and client",
+					second, 104, 15.625, 9.375, [(other, 6.25)],
+				),
+				(
+					"a newcomer's lifetime above the busy delta",
+					{
+						**second,
+						other: process(3, 11, "other"),
+						newcomer: process(3, 13, "clangd"),
+					},
+					106.5, 15.625, 0.0, [(newcomer, 18.75), (other, 12.5)],
+				),
+				(
+					"readable to unreadable and unreadable to readable",
+					{
+						**second,
+						other: process(None, 11, "other"),
+						launchd: process(7, 1, "launchd", 0),
+						newcomer: process(3, 13, "clangd"),
+					},
+					107.5, 6.25, 6.25, [],
+				),
+				(
+					"excluded cpu above the busy delta",
+					{
+						**second,
+						client: process(4, 12, "Telegram", me),
+						launchd: process(7, 1, "launchd", 0),
+						newcomer: process(3, 13, "clangd"),
+					},
+					108.5, 0.0, 0.0, [],
+				),
+				(
+					"a reused client pid is other load",
+					{
+						**second,
+						client: process(0.5, 14, "reused"),
+						launchd: process(7, 1, "launchd", 0),
+						newcomer: process(3, 13, "clangd"),
+					},
+					109.5, 6.25, 3.125, [(client, 3.125)],
+				),
+			]),
+		):
+			clock = FakeClock()
+			monitor = fake_host_load_monitor()
+			monitor.client_pid = client
+			with mock.patch.object(
+				workspace, "host_process_snapshot",
+				side_effect=[
+					(64, records, None if busy is None else round(busy * 10**7))
+					for _, records, busy, *_ in steps
+				],
+			):
+				for label, _, _, percent, unattributed, top in steps:
+					with self.subTest(name, step=label):
+						(
+							_, _, seen_percent, seen_top, seen_unattributed,
+						) = monitor._observe(clock)
+						self.assertEqual(seen_percent, percent)
+						self.assertEqual(seen_unattributed, unattributed)
+						self.assertEqual(
+							[(entry["pid"], entry["percent"]) for entry in seen_top or []],
+							top,
+						)
+					clock.sleep(1.0)
+		clock = FakeClock()
+		monitor = fake_host_load_monitor()
+		with mock.patch.object(
+			workspace, "host_process_snapshot",
+			side_effect=[(64, first, 10**9), (64, first, 10**9 - 1)],
+		):
+			result = monitor.wait(clock=clock, sleep=clock.sleep)
+		self.assertIsNone(result["met"])
+		self.assertRegex(result["error"], "^ValueError: .*backwards")
+		self.assertEqual(result["last_samples"], [])
+
+	def test_host_load_samples_add_unattributed_cpu_only_with_a_counter(self):
+		me, other = os.getpid(), os.getpid() + 1
+
+		def readings(counter):
+			step = 0
+			while True:
+				yield 64, {
+					me: {"cpu": 0, "created": 10, "name": "Python", "parent_pid": 1},
+					other: {
+						"cpu": step * 123456, "created": 11, "name": "other",
+						"parent_pid": 1,
+					},
+				}, None if counter is None else step * counter
+				step += 1
+
+		for counter, others, extra in (
+			(1234567, 0.77, {"unattributed_percent": 0.69}),
+			(None, 0.08, {}),
+		):
+			with (
+				self.subTest(counter=counter),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				clock = FakeClock()
+				monitor = fake_host_load_monitor()
+				process = SimpleNamespace(
+					pid=other + 1, poll=iter([None, None, 0]).__next__,
+				)
+				with mock.patch.object(
+					workspace, "host_process_snapshot", side_effect=readings(counter),
+				):
+					wait = monitor.wait(clock=clock, sleep=clock.sleep)
+					monitor.interval = 0.01
+					monitor.start_trace(process)
+					monitor.worker.join(HOST_LOAD_FIXTURE_TIMEOUT)
+				report = monitor.report(Path(temporary))
+				expected = [
+					{
+						"build_tools": [],
+						"others_percent": others,
+						"seconds": seconds,
+						"top": [{"name": "other", "percent": 0.08, "pid": other}],
+						**extra,
+					}
+					for seconds in (1.0, 2.0)
+				]
+				self.assertIs(wait["met"], True)
+				self.assertEqual(wait["last_samples"], expected)
+				self.assertIsNone(report["trace"]["error"])
+				self.assertEqual(report["trace"]["samples"], 2)
+				text = Path(report["samples_file"]).read_text(encoding="utf-8")
+				lines = [json.loads(line) for line in text.splitlines()]
+				self.assertEqual(
+					[line.pop("phase") for line in lines],
+					["wait", "wait", "trace", "trace"],
+				)
+				self.assertEqual(lines[:2], expected)
+				for line in lines[2:]:
+					self.assertEqual(
+						set(line),
+						{"build_tools", "others_percent", "seconds", "top", *extra},
+					)
+
+	def test_host_load_background_client_identities(self):
+		me = os.getpid()
+		exe = "/Applications/Telegram.app/Contents/MacOS/Telegram"
+		(
+			launcher, old, client, unrelated, helper, child, grandchild,
+			wrong_responsible, wrong_id, newer, adopted, stale,
+		) = range(me + 1, me + 13)
+
+		def process(created, name, parent=1):
+			return {"cpu": 0, "created": created, "name": name, "parent_pid": parent}
+
+		def details(created=None, path=None, responsible=None):
+			return {"created": created, "path": path, "responsible": responsible}
+
+		started = {
+			me: process(10, "Python"),
+			old: process(5, "Telegram"),
+			launcher: process(100, "open", me),
+			client: process(101, "xpcproxy"),
+			unrelated: process(102, "other"),
+			helper: process(103, "Python"),
+		}
+		joined = {
+			(launcher, 100), (client, 101), (helper, 103), (child, 104),
+			(grandchild, 105),
+		}
+		steps = [
+			(
+				"the launcher is not read yet",
+				{me: process(10, "Python"), old: process(5, "Telegram")},
+				{old: details(5, exe, (old, 5))},
+				[],
+				set(),
+			),
+			(
+				"the client before its exec and a missed helper lookup",
+				started,
+				{
+					old: details(5, exe, (old, 5)),
+					client: details(101, "/usr/libexec/xpcproxy", (client, 101)),
+					unrelated: details(102, "/bin/other", (unrelated, 102)),
+				},
+				[client, unrelated, helper],
+				{(launcher, 100)},
+			),
+			(
+				"the client, its helper and their descendants join together",
+				{
+					**started,
+					client: process(101, "Telegram"),
+					child: process(104, "Telegram", client),
+					grandchild: process(105, "sh", helper),
+					wrong_responsible: process(106, "agent"),
+					wrong_id: process(107, "Telegram"),
+				},
+				{
+					old: details(5, exe, (old, 5)),
+					client: details(101, exe, (client, 101)),
+					unrelated: details(102, "/bin/other", (unrelated, 102)),
+					helper: details(103, "/usr/bin/python3", (client, 101)),
+					wrong_responsible: details(106, "/bin/agent", (client, 999)),
+					wrong_id: details(555, exe, (client, 101)),
+				},
+				[client, unrelated, helper, wrong_responsible, wrong_id],
+				joined,
+			),
+			(
+				"reused launcher and client pids inherit nothing",
+				{
+					me: process(10, "Python"),
+					old: process(5, "Telegram"),
+					helper: process(103, "Python"),
+					grandchild: process(105, "sh", helper),
+					client: process(200, "reused"),
+					newer: process(201, "newer"),
+					adopted: process(202, "adopted"),
+					launcher: process(203, "open"),
+					stale: process(204, "stale"),
+				},
+				{
+					old: details(5, exe, (old, 5)),
+					client: details(200, "/bin/reused", (client, 200)),
+					newer: details(201, "/bin/newer", (client, 200)),
+					adopted: details(202, "/bin/adopted", (helper, 103)),
+					launcher: details(203, "/usr/bin/open", (launcher, 203)),
+					stale: details(204, "/bin/stale", (client, 101)),
+				},
+				[client, newer, adopted, launcher, stale],
+				joined | {(adopted, 202)},
+			),
+		]
+		clock = FakeClock()
+		monitor = fake_host_load_monitor(background_exe=PurePosixPath(exe))
+		monitor.client_pid = launcher
+		self.assertEqual(monitor.background_exe, exe)
+		lookups = []
+		answers = {}
+
+		def lookup(pid):
+			lookups.append(pid)
+			return answers.get(pid, details())
+
+		with mock.patch.object(
+			workspace, "macos_process_details", side_effect=lookup,
+		):
+			for label, records, replies, looked_up, members in steps:
+				answers.clear()
+				answers.update(replies)
+				lookups.clear()
+				with (
+					self.subTest(label),
+					mock.patch.object(
+						workspace, "host_process_snapshot",
+						return_value=(64, records, None),
+					),
+				):
+					monitor._observe(clock)
+					self.assertEqual(lookups, looked_up)
+					self.assertEqual(set(monitor.client), members)
+				clock.sleep(1.0)
+		self.assertEqual(monitor.launcher_created, 100)
+		for root, readings, members in (
+			(launcher, [steps[0][1], steps[2][1]], set()),
+			(client, [steps[2][1]], {(client, 101), (child, 104)}),
+		):
+			with (
+				self.subTest("a direct launch", root=root),
+				mock.patch.object(workspace, "macos_process_details") as never,
+			):
+				clock = FakeClock()
+				direct = fake_host_load_monitor()
+				direct.client_pid = root
+				for records in readings:
+					with mock.patch.object(
+						workspace, "host_process_snapshot",
+						return_value=(64, records, None),
+					):
+						direct._observe(clock)
+					clock.sleep(1.0)
+				never.assert_not_called()
+				self.assertEqual(set(direct.client), members)
+
+	def test_host_load_supports_windows_and_macos_with_their_own_tools(self):
+		self.assertIsNone(workspace.host_load_unsupported_reason("win32"))
+		self.assertIsNone(workspace.host_load_unsupported_reason("darwin"))
+		self.assertEqual(
+			workspace.host_load_unsupported_reason("linux"),
+			"host-load sampling needs Windows or macOS, this host is linux",
+		)
+		self.assertEqual(
+			workspace.host_load_unsupported_reason(),
+			workspace.host_load_unsupported_reason(sys.platform),
+		)
+		windows = workspace.HOST_LOAD_BUILD_TOOLS
+		macos = workspace.HOST_LOAD_MACOS_BUILD_TOOLS
+		self.assertEqual(
+			windows, workspace.BUILD_LOCK_PROCESS_NAMES - {"mspdbsrv.exe"},
+		)
+		self.assertTrue(all(name.endswith(".exe") for name in windows), windows)
+		self.assertLessEqual({"clang", "cmake", "ld", "xcodebuild"}, macos)
+		self.assertTrue(all(
+			name == name.casefold() and len(name) <= 15 and not name.endswith(".exe")
+			for name in macos
+		), macos)
+		me = os.getpid()
+		records = {
+			pid: {"cpu": cpu, "created": pid - me + 1, "name": name, "parent_pid": 1}
+			for pid, cpu, name in (
+				(me, 0, "Python"),
+				(me + 1, None, "Clang"),
+				(me + 2, 0, "clangd"),
+				(me + 3, 0, "SWBBuildService"),
+				(me + 4, None, "XCBBuildService"),
+				(me + 5, 0, "CL.EXE"),
+			)
+		}
+		for platform, tools, gating in (
+			("darwin", macos, [{"name": "Clang", "pid": me + 1}]),
+			("win32", windows, [{"name": "CL.EXE", "pid": me + 5}]),
+		):
+			with self.subTest(platform):
+				with mock.patch.object(workspace.sys, "platform", platform):
+					monitor = fake_host_load_monitor()
+				self.assertIs(monitor.build_tools, tools)
+				with mock.patch.object(
+					workspace, "host_process_snapshot",
+					return_value=(64, records, None),
+				):
+					self.assertEqual(monitor._observe(FakeClock())[1], gating)
 
 	def test_test_run_host_load_stays_off_without_its_flag(self):
 		with tempfile.TemporaryDirectory() as temporary:
@@ -4459,7 +5296,7 @@ class MechanicsTest(unittest.TestCase):
 					self.assertEqual(result["verdict_hint"], "complete")
 
 	def test_test_run_host_load_records_an_unsupported_host(self):
-		reason = "host-load sampling needs Windows, this host is linux"
+		reason = workspace.host_load_unsupported_reason("linux")
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary)
 			debug = make_portable_root(root)
@@ -4474,7 +5311,7 @@ class MechanicsTest(unittest.TestCase):
 				mock.patch.object(
 					workspace, "host_load_unsupported_reason", return_value=reason,
 				),
-				mock.patch.object(workspace, "windows_process_snapshot") as snapshot,
+				mock.patch.object(workspace, "host_process_snapshot") as snapshot,
 				patch_monitor("wait", wait),
 				patch_monitor("_trace") as trace,
 			):
@@ -4601,7 +5438,7 @@ class MechanicsTest(unittest.TestCase):
 					workspace, "host_load_unsupported_reason", return_value=None,
 				),
 				mock.patch.object(
-					workspace, "windows_process_snapshot", return_value=(64, quiet),
+					workspace, "host_process_snapshot", return_value=(64, quiet, None),
 				),
 				patch_monitor("wait", wait),
 				patch_monitor("start_trace", start_trace),
@@ -4650,7 +5487,7 @@ class MechanicsTest(unittest.TestCase):
 					reads.append("trace" if "launch" in reads else "wait")
 					if (reads[-1], reads.count(reads[-1])) == failing:
 						raise OSError("snapshot refused")
-					return size, quiet
+					return size, quiet, None
 
 				def start_trace(monitor, process):
 					reads.append("launch")
@@ -4665,7 +5502,7 @@ class MechanicsTest(unittest.TestCase):
 						workspace, "host_load_unsupported_reason", return_value=None,
 					),
 					mock.patch.object(
-						workspace, "windows_process_snapshot", side_effect=snapshot,
+						workspace, "host_process_snapshot", side_effect=snapshot,
 					),
 					patch_monitor("start_trace", start_trace),
 					patch_monitor("report", report),

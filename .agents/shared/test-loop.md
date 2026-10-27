@@ -835,60 +835,102 @@ command, environment, exit-code, log, artifact and control evidence.
     activating the app by `Test::KeepWindowExposed`
     (`Telegram/SourceFiles/test/test_window_exposure.h`) either way; the gate itself cannot prevent
     that occlusion.
-  - **Host load gate (Windows).** `--host-load` waits before the launch, within a bound and without
+  - **Host load gate.** `--host-load` waits before the launch, within a bound and without
     stopping or otherwise touching any process, until no build-tool process runs (from any checkout
     or user) and the other processes' CPU has stayed below a threshold, then samples their CPU from
-    the launch until the client's process ends. `--host-load-threshold <percent>` (default 15, above
-    0 and at most 100), `--host-load-hold <seconds>` (default 5, positive),
-    `--host-load-max <seconds>` (default 600, zero or more) and `--host-load-interval <seconds>`
-    (default 1, at least 0.1) tune it and do nothing without it; an invalid value is refused before
-    SETUP with nothing created. Load is a percent of the whole machine: the CPU time the other
-    processes used in a sample's interval over that interval times `logical_processors`
-    (`os.cpu_count()`), so one busy thread on 16 logical processors reads 6.25. "Other" excludes
-    `test-run`'s own process (`excluded.test_run_pid`) and the launched client's process tree
-    (`client_pid`, and every member seen, by `name` and `pid`, in `client_processes`; a descendant
-    stays excluded after the process between it and the client exits, a reused pid does not inherit
-    the exclusion). The build tools are the build-lock names `cl`, `cmake`, `cvtres`, `link`, `moc`,
+    the launch until the client's process ends; it reads processes on Windows and macOS.
+    `--host-load-threshold <percent>` (default 15, above 0 and at most 100),
+    `--host-load-hold <seconds>` (default 5, positive), `--host-load-max <seconds>` (default 600,
+    zero or more) and `--host-load-interval <seconds>` (default 1, at least 0.1) tune it and do
+    nothing without it; an invalid value is refused before SETUP with nothing created. Load is a
+    percent of the whole machine: the CPU time the other processes used in a sample's interval over
+    that interval times `logical_processors` (`os.cpu_count()`), so one busy thread on 16 logical
+    processors reads 6.25. "Other" excludes `test-run`'s own process (`excluded.test_run_pid`) and
+    the launched client's process tree (`client_pid`, and every member seen, by `name` and `pid`, in
+    `client_processes`; a descendant stays excluded after the process between it and the client
+    exits, a reused pid does not inherit the exclusion). A build tool is a process whose name is on
+    the platform's list below, whatever its CPU. The wait takes a baseline reading, then one sample
+    per interval; a sample with a build tool or with the others at or above the threshold restarts
+    the hold, and the wait is met once the samples have stayed clear for `--host-load-hold` seconds.
+    When `--host-load-max` elapses first the client launches anyway with `met: false`; no pause
+    runs past the bound, and `--host-load-max 0` takes the baseline only and launches at once. The
+    wait runs after the `--wait-idle` gate (both are recorded), the account setup, the straggler
+    kill, the stale-crash move and the crash snapshots, right before the launch, so its condition is
+    the last one established; it counts toward none of `--deadline`, `--quiet` or
+    `duration_seconds`, and a missing executable, portable root or golden folder fails before any
+    reading. It can add up to `--host-load-max` seconds before the launch: size the command's
+    timeout for that, or run it in the background. `host_load` is `null` without the flag;
+    otherwise it echoes `threshold_percent`, `hold_seconds`, `max_seconds` and `interval_seconds`
+    and records `logical_processors`, `excluded`, `unsupported`, `wait` (`met`, `waited_seconds`,
+    `build_tools_seen` by `name` and `pid`, the last five samples in `last_samples`, `error`),
+    `trace` (`samples`, `mean_percent`, `max_percent`, `over_threshold` - the samples at or above
+    the threshold - `build_tools_seen`, `error`) and `samples_file`. A sample holds `seconds` (the
+    end of its interval, from the wait's or the trace's start), `others_percent`, `top` (up to three
+    other processes with a nonzero share, by `name`, `pid` and `percent`) and `build_tools`, plus
+    `unattributed_percent` on macOS (below); the named `<EVIDENCE_DIR>/host_load_samples.jsonl`
+    holds every wait sample and then every trace sample, one JSON object per line with `phase`
+    `"wait"` or `"trace"`. A failed wait reading ends the wait with `met: null` and the reason in
+    `wait.error` (`<Type>: <message>`), and the client launches; a failed trace reading ends the
+    trace with `trace.error` and keeps the samples taken before it; a failed file write leaves
+    `samples_file` `null` with the reason in `samples_file_error`; a client that ends within the
+    first interval leaves `samples: 0` with `null` mean and maximum, which is no measurement, not a
+    quiet launch. On any other host, Linux included, `unsupported` gives the reason, the parameters
+    are echoed, every other field is `null`, and the launch is not delayed. The readings never fail
+    the command and never change `outcome`, `verdict_hint` or any other field. The sampler stays
+    inside `test-run`: no helper process, and `test-run` starts no process while it waits or
+    samples, so the sampler's own CPU is `test-run`'s and excluded with it. The interval in which
+    the launched process (`client_pid`) ends is not sampled. On Windows a reading is one
+    `NtQuerySystemInformation` process snapshot of a few milliseconds, with no handle to another
+    process; the build tools are the build-lock names `cl`, `cmake`, `cvtres`, `link`, `moc`,
     `msbuild`, `ninja`, `rc`, `rcc` and `uic` `.exe`, compared case-insensitively, but not
-    `mspdbsrv.exe`, the PDB server that outlives the build that started it: it never holds the wait,
-    and its CPU still counts. MSBuild worker nodes that an IDE or `/nodeReuse` keeps alive after a
-    build are `MSBuild.exe` processes and hold the wait to its bound, named in `build_tools_seen`.
-    The wait takes a baseline reading, then one sample per interval; a sample with a build tool or
-    with the others at or above the threshold restarts the hold, and the wait is met once the
-    samples have stayed clear for `--host-load-hold` seconds. When `--host-load-max` elapses first
-    the client launches anyway with `met: false`; no pause runs past the bound, and
-    `--host-load-max 0` takes the baseline only and launches at once. The wait runs after the
-    `--wait-idle` gate (both are recorded), the account setup, the straggler kill, the stale-crash
-    move and the crash snapshots, right before the launch, so its condition is the last one
-    established; it counts toward none of `--deadline`, `--quiet` or `duration_seconds`, and a
-    missing executable, portable root or golden folder fails before any reading. It can add up to
-    `--host-load-max` seconds before the launch: size the command's timeout for that, or run it in
-    the background. `host_load` is `null` without the flag; otherwise it echoes `threshold_percent`,
-    `hold_seconds`, `max_seconds` and `interval_seconds` and records `logical_processors`,
-    `excluded`, `unsupported`, `wait` (`met`, `waited_seconds`, `build_tools_seen` by `name` and
-    `pid`, the last five samples in `last_samples`, `error`), `trace` (`samples`, `mean_percent`,
-    `max_percent`, `over_threshold` - the samples at or above the threshold - `build_tools_seen`,
-    `error`) and `samples_file`. A sample holds `seconds` (the end of its interval, from the wait's
-    or the trace's start), `others_percent`, `top` (up to three other processes with a nonzero
-    share, by `name`, `pid` and `percent`) and `build_tools`; the named
-    `<EVIDENCE_DIR>/host_load_samples.jsonl` holds every wait sample and then every trace sample,
-    one JSON object per line with `phase` `"wait"` or `"trace"`. A failed wait reading ends the wait
-    with `met: null` and the reason in `wait.error` (`<Type>: <message>`), and the client launches;
-    a failed trace reading ends the trace with `trace.error` and keeps the samples taken before it;
-    a failed file write leaves `samples_file` `null` with the reason in `samples_file_error`; a
-    client that ends within the first interval leaves `samples: 0` with `null` mean and maximum,
-    which is no measurement, not a quiet launch. Off Windows `unsupported` gives the reason, the
-    parameters are echoed, every other field is `null`, and the launch is not delayed. The readings
-    never fail the command and never change `outcome`, `verdict_hint` or any other field. The
-    sampler stays inside `test-run`: one `NtQuerySystemInformation` process snapshot per reading, no
-    helper process, no handle to another process, and `test-run` starts no process while it waits or
-    samples, so the sampler's few milliseconds per reading are `test-run`'s own CPU and excluded
-    with it. A process that starts and ends between two readings is never seen, CPU a process uses
-    after its last reading is lost, and the interval in which the client ends is not sampled, so a
-    short burst reads low and a short-lived build tool can be missed. Every launch whose wall-clock
-    timing is compared against another launch uses `--host-load`, and the assessor reads its `wait`,
-    its `trace` and the series' `top` contributors before counting it; whether a loaded launch
-    counts stays the assessor's judgement.
+    `mspdbsrv.exe`, the PDB server that outlives the build that started it: it never holds the
+    wait, and its CPU still counts. MSBuild worker nodes that an IDE or `/nodeReuse` keeps alive
+    after a build are `MSBuild.exe` processes and hold the wait to its bound, named in
+    `build_tools_seen`. A Windows process that starts and ends between two readings is never seen,
+    and CPU a process uses after its last reading is lost, so a short burst reads low and a
+    short-lived build tool can be missed. On macOS a reading is unprivileged, read-only and
+    in-process (no task port, no signal): `proc_listallpids`, then `proc_pidinfo` per process for
+    its kernel name (the name of the file it exec'd, at most 15 characters: `clang++` and `cc` run
+    as `clang`, `swiftc` as `swift-frontend`), its parent, the kernel's unique id of the process
+    (larger for a later process, kept across `exec`, never reused) and its task times, which are
+    Mach absolute-time units converted with `mach_timebase_info` (125/3 ns each on Apple Silicon,
+    not nanoseconds); then one machine counter, `host_processor_info`'s user, system and nice time
+    of every logical processor in whole ticks of 1/`SC_CLK_TCK` second. macOS refuses an
+    unprivileged process the task times of root's and other users' processes, so `others_percent`
+    is the machine's busy CPU in the interval less the readable CPU of `test-run` and the client
+    tree, never below zero, and `unattributed_percent` (in `last_samples` and the series, never on
+    Windows) is the busy CPU no readable process explains: root's and other users' processes, the
+    kernel, and processes that started and ended between two readings. `top` names only readable
+    processes (`test-run`'s user's), while a build tool's name holds the wait whoever owns it, and
+    a machine counter that runs backwards fails its reading. A direct `--activate` launch follows
+    the client's tree by parent as on Windows. On the default background launch (Launch
+    activation, above) the client is not `test-run`'s descendant and `client_pid` is `open`'s pid:
+    each reading checks, in creation order, every process created after `open` that is not yet a
+    member, and it joins when its parent is a member, when its executable path is the bundle's main
+    executable, or when its responsible process (`responsibility_get_pid_responsible_for_pid`) is a
+    member alive in that reading with the same unique id, which takes in helpers launchd starts for
+    the client, such as Crashpad's handler, and a forked helper that exec'd another program and was
+    orphaned; a process that does not match yet, for example before it execs the bundle, is checked
+    again at the next reading, and a member stays excluded by pid and unique id. The macOS build
+    tools are `clang`, `cmake`, `ld`, `libtool`, `moc`, `ninja`, `rcc`, `swift-frontend`, `uic`
+    and `xcodebuild`, compared case-insensitively, so a `cmake --build out` run holds the wait
+    through `cmake` and `xcodebuild`. Xcode's build services `SWBBuildService` and
+    `XCBBuildService` and the `clangd` language server are left out on purpose: a service the IDE
+    may keep alive between builds, or an editor's server, would otherwise hold every launch to its
+    bound, and their CPU still counts. What macOS cannot see: CPU of an excluded process the reader
+    has lost, such as the client's in the interval in which it exits, cannot be subtracted and
+    counts as other and unattributed load; a client descendant whose parent exits before a reading
+    sees it is launchd's child and joins only by responsibility, which a direct launch cannot use
+    because the client's helpers stay responsible to the terminal that started `test-run`; the
+    machine counter is whole ticks per processor and state, and the processes and the counter are
+    read at slightly different moments of a reading, so a short interval can read a little high or
+    low; a build tool that starts and ends between readings is missed by name; and a bundle whose
+    main executable is a script runs as its interpreter (`/bin/sh`), whose path never matches, so
+    neither it nor its children are discovered and their CPU counts as other load. Every launch
+    whose wall-clock timing is compared against another launch uses `--host-load`, and the assessor
+    reads its `wait`, its `trace` and the series' `top` contributors, and on macOS
+    `unattributed_percent`, before counting it; whether a loaded launch counts stays the assessor's
+    judgement.
 
 ### Crashes & assertions (always launch the test binary with `-testagent`)
 
