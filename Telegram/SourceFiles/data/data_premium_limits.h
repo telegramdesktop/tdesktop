@@ -22,7 +22,6 @@ public:
 
 	[[nodiscard]] int similarChannelsDefault() const;
 	[[nodiscard]] int similarChannelsPremium() const;
-	[[nodiscard]] int similarChannelsCurrent() const;
 
 	[[nodiscard]] int gifsDefault() const;
 	[[nodiscard]] int gifsPremium() const;
@@ -38,7 +37,6 @@ public:
 
 	[[nodiscard]] int dialogShareableFiltersDefault() const;
 	[[nodiscard]] int dialogShareableFiltersPremium() const;
-	[[nodiscard]] int dialogShareableFiltersCurrent() const;
 
 	[[nodiscard]] int dialogFiltersChatsDefault() const;
 	[[nodiscard]] int dialogFiltersChatsPremium() const;
@@ -46,7 +44,6 @@ public:
 
 	[[nodiscard]] int dialogFiltersLinksDefault() const;
 	[[nodiscard]] int dialogFiltersLinksPremium() const;
-	[[nodiscard]] int dialogFiltersLinksCurrent() const;
 
 	[[nodiscard]] int dialogsPinnedDefault() const;
 	[[nodiscard]] int dialogsPinnedPremium() const;
@@ -74,7 +71,6 @@ public:
 
 	[[nodiscard]] int uploadMaxDefault() const;
 	[[nodiscard]] int uploadMaxPremium() const;
-	[[nodiscard]] int uploadMaxCurrent() const;
 
 	[[nodiscard]] int aboutLengthDefault() const;
 	[[nodiscard]] int aboutLengthPremium() const;
