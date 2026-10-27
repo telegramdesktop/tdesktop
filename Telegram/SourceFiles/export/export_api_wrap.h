@@ -40,6 +40,11 @@ class Stats;
 
 struct Settings;
 
+extern const char kOptionExportFasterDownload[];
+extern const char kOptionExportFasterDownloadCount[];
+
+inline constexpr auto kExportDownloadRequestsMax = 64;
+
 class ApiWrap {
 public:
 	ApiWrap(
@@ -214,6 +219,7 @@ private:
 		int offsetId,
 		int addOffset,
 		int limit,
+		int offsetDate,
 		FnMut<void(MTPmessages_Messages&&)> done);
 	void startMessagesSlice(Data::MessagesSlice &&slice);
 	void resumeMessagesSlice();
@@ -288,9 +294,14 @@ private:
 		Fn<bool(FileProgress)> progress,
 		FnMut<void(QString)> done);
 	void loadFilePart();
+	void loadFilePartFast();
 	void filePartDone(int64 offset, const MTPupload_File &result);
+	void clearFileRequestId(int64 offset);
+	void cancelPendingFileRequests();
+	void filePartFailed(int64 offset, const MTP::Error &result);
 	void filePartUnavailable();
 	[[nodiscard]] QString filePartMediaFolder() const;
+	void retryFilePartRequest(int64 offset);
 	void filePartRetryReference(
 		int64 offset,
 		Data::FileLocation location);
@@ -324,6 +335,10 @@ private:
 	[[nodiscard]] auto fileRequest(
 		const Data::FileLocation &location,
 		int64 offset);
+	[[nodiscard]] auto fileRequestFast(
+		const Data::FileLocation &location,
+		int64 offset);
+	[[nodiscard]] mtpRequestId sendFilePartFast(int64 offset);
 
 	void error(const MTP::Error &error);
 	void error(const QString &text);
