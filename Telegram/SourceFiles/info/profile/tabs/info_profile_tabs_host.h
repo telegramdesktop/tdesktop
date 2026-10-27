@@ -44,7 +44,6 @@ public:
 	TabsHost(not_null<QWidget*> parent, Descriptor descriptor);
 	~TabsHost();
 
-	[[nodiscard]] rpl::producer<MediaTabContent*> activeTabValue() const;
 	[[nodiscard]] rpl::producer<TabTopBarBindings> activeTabBindings();
 	[[nodiscard]] rpl::producer<Ui::ScrollToRequest> scrollToRequests() const;
 
