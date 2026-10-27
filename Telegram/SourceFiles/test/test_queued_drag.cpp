@@ -35,17 +35,14 @@ constexpr auto kSelfTestBound = crl::time(300);
 constexpr auto kControlWait = crl::time(2000);
 constexpr auto kSelfTestSteps = 8;
 
-// Everything one appended stage owns. The markers hold it by shared_ptr,
-// so a marker that runs after the stage finished writes only these flags,
-// never the reading.
+// Everything one appended stage owns. |markers| is set once they are
+// posted; a marker that runs after the stage finished writes only that
+// object, never the reading.
 struct QueuedStartDragDriver {
 	QueuedStartDragArgs args;
 	std::shared_ptr<QueuedStartDrag> reading;
+	std::shared_ptr<const QueuedWorkMarkers> markers;
 	QPointer<QWidget> target;
-	crl::time postedAt = 0;
-	bool waiting = false;
-	bool qtQueueRan = false;
-	bool mainQueueRan = false;
 };
 
 // Record: the subject and the control. DestroyWhileWaiting: once past the
@@ -219,10 +216,9 @@ void DragProbe::postQueuedCalls() {
 	return value ? u"1"_q : u"0"_q;
 }
 
-void StartQueuedStartDrag(
-		const std::shared_ptr<QueuedStartDragDriver> &driver) {
-	const auto &args = driver->args;
-	auto &reading = *driver->reading;
+void StartQueuedStartDrag(QueuedStartDragDriver &driver) {
+	const auto &args = driver.args;
+	auto &reading = *driver.reading;
 	const auto resolved = args.resolve
 		? args.resolve()
 		: QueuedStartDragTarget();
@@ -237,7 +233,7 @@ void StartQueuedStartDrag(
 			u"sent"_q;
 		return;
 	}
-	driver->target = widget;
+	driver.target = widget;
 	reading.target = WidgetDescription(widget);
 	if (!DragPressAndMoves(
 			widget,
@@ -251,35 +247,29 @@ void StartQueuedStartDrag(
 		return;
 	}
 	reading.movesDelivered = true;
-	driver->postedAt = crl::now();
-	driver->waiting = true;
 
 	// Posted after every call the press and the moves queued, so each runs
 	// after them in its own FIFO queue. The Qt marker's context is the
 	// target, so the target's death drops it together with the target's own
 	// queued calls; the crl marker is guarded by the target.
-	InvokeQueued(widget, [driver] {
-		driver->qtQueueRan = true;
-	});
-	crl::on_main(widget, [driver] {
-		driver->mainQueueRan = true;
-	});
+	driver.markers = PostQueuedWorkMarkers(widget);
 }
 
 [[nodiscard]] bool QueuedStartDragSettled(
 		const QueuedStartDragDriver &driver) {
-	return !driver.waiting
+	const auto markers = driver.markers.get();
+	return !markers
 		|| !driver.target
-		|| (driver.qtQueueRan && driver.mainQueueRan)
-		|| (crl::now() - driver.postedAt >= driver.args.bound);
+		|| markers->ran()
+		|| (crl::now() - markers->postedAt >= driver.args.bound);
 }
 
 void FinishQueuedStartDrag(QueuedStartDragDriver &driver) {
 	auto &reading = *driver.reading;
-	reading.qtQueueRan = driver.qtQueueRan;
-	reading.mainQueueRan = driver.mainQueueRan;
-	if (driver.waiting) {
-		reading.waitedMs = crl::now() - driver.postedAt;
+	if (const auto markers = driver.markers.get()) {
+		reading.qtQueueRan = markers->qtQueueRan;
+		reading.mainQueueRan = markers->mainQueueRan;
+		reading.waitedMs = crl::now() - markers->postedAt;
 		const auto queues = u"qtQueue=%1 mainQueue=%2"_q.arg(
 			FlagText(reading.qtQueueRan),
 			FlagText(reading.mainQueueRan));
@@ -638,7 +628,7 @@ std::shared_ptr<const QueuedStartDrag> AppendQueuedStartDrag(
 		.name = u"queued-start drag: %1"_q.arg(driver->args.name),
 		.skipReason = driver->args.skipReason,
 		.run = [=] {
-			StartQueuedStartDrag(driver);
+			StartQueuedStartDrag(*driver);
 		},
 		.until = [=] {
 			return QueuedStartDragSettled(*driver);
@@ -653,6 +643,19 @@ std::shared_ptr<const QueuedStartDrag> AppendQueuedStartDrag(
 		},
 	});
 	return driver->reading;
+}
+
+std::shared_ptr<const QueuedWorkMarkers> PostQueuedWorkMarkers(
+		not_null<QObject*> context) {
+	const auto result = std::make_shared<QueuedWorkMarkers>();
+	result->postedAt = crl::now();
+	InvokeQueued(context.get(), [result] {
+		result->qtQueueRan = true;
+	});
+	crl::on_main(context.get(), [result] {
+		result->mainQueueRan = true;
+	});
+	return result;
 }
 
 void AppendQueuedStartDragSelfTest(not_null<Runner*> runner) {

@@ -34,6 +34,21 @@ is refused `no-target`; and a probe that swallows the queued calls aimed at it
 is refused `bound-expired` after the bound and still gets its release and
 leave. It needs no session, network or account, and starts no `QDrag`.
 
+## Shared queued-work markers
+
+The two markers the stage waits for are exported for other helpers that need
+the same wait: `PostQueuedWorkMarkers(context)` posts one
+`InvokeQueued(context, ...)` and one `crl::on_main(context, ...)`, in that
+order, and returns a `QueuedWorkMarkers` whose `postedAt` is the posting time
+and whose `qtQueueRan` and `mainQueueRan` flags each marker sets when it runs;
+`ran()` is both. Posted after an input's delivery and drain, `ran()` means what
+the header's "The guarantee" paragraph states, with the exclusions it names.
+The context's death drops both markers unrun, and since they hold only the
+returned object, a marker that runs late cannot change a reading its stage
+already froze. Callers: `AppendQueuedStartDrag`, and `Test::AppendQpaMouseDrag`
+([test_qpa_mouse.h](../../test_qpa_mouse.h)), which posts them to its target
+after the last QPA move's settle and waits for them before the release.
+
 ## Related guidance
 
 [Input delivery and the required safety hook](test_widgets.md#input-helpers);

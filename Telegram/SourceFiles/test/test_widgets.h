@@ -179,6 +179,14 @@ struct ButtonStateReading {
 // the two could destroy a viewport QDragManager still points at (see its
 // comment).
 //
+// Provenance: Settle holds a Test::HarnessInputScope (test_console_shield.h)
+// around its action and closes it before the drain, so an armed console
+// shield passes every event delivered there as harness input - each
+// helper's sent events, the shortcut or input-method events they produce,
+// and an overlay's own spontaneous QWindowSystemInterface delivery wrapped
+// in Settle. Nothing changes while the shield is not armed. Reference:
+// docs/helpers/test_widgets.md, "Input helpers".
+//
 // Use Test::Settle for programmatic mutations; SettlePostponedCalls
 // remains the bare drain.
 
@@ -376,7 +384,10 @@ void CommitText(not_null<QWidget*> widget, const QString &text);
 // performDrag() with InvokeQueued once the pointer leaves the pressed item
 // or passes the drag distance - is released before that call runs, so the
 // drag never starts. Such a drag needs Test::AppendQueuedStartDrag
-// (test_queued_drag.h).
+// (test_queued_drag.h). Drag sends every event to |widget| itself,
+// bypassing Qt's window routing, so moves never follow a grabMouse() made
+// elsewhere - a child that forwards only its press to a grabbing parent.
+// Such a gesture needs Test::AppendQpaMouseDrag (test_qpa_mouse.h).
 void Drag(
 	not_null<QWidget*> widget,
 	QPoint from,
@@ -523,10 +534,11 @@ void PressKey(
 	int key,
 	Qt::KeyboardModifiers modifiers = Qt::NoModifier);
 
-// Performs the action with postponed-call processing deferred, then runs
-// every pending Ui::PostponeCall to empty. The input helpers use it
-// around each delivered event; wrap programmatic text mutations
-// (InputField::setText) in it.
+// Performs the action with postponed-call processing deferred and a
+// Test::HarnessInputScope open, then closes the scope and runs every
+// pending Ui::PostponeCall to empty. The input helpers use it around each
+// delivered event; wrap programmatic text mutations (InputField::setText),
+// and any raw input delivery that must pass an armed console shield, in it.
 void Settle(Fn<void()> action);
 
 // Runs every pending Ui::PostponeCall (see the contract above) — the

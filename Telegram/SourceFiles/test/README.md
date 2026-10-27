@@ -60,6 +60,8 @@ postponed calls does not wait for timers, network or animations. A synthetic
 click is not a lasting hover. Read [input helpers](docs/helpers/test_widgets.md#input-helpers)
 for input, [launch behavior](docs/launch.md) for activation/background painting,
 and the selected module's reference for clipboard, menu or other special input.
+Drive grabbing widgets with [QPA mouse](docs/helpers/test_qpa_mouse.md); keep
+console input out with the [console shield](docs/helpers/test_console_shield.md).
 
 ## Capture and visual assertions
 

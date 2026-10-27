@@ -2063,6 +2063,8 @@ PRIVATE
     test/test_clipboard.h
     test/test_console_lock.cpp
     test/test_console_lock.h
+    test/test_console_shield.cpp
+    test/test_console_shield.h
     test/test_controller_ready.cpp
     test/test_controller_ready.h
     test/test_corner_patch.cpp
@@ -2124,6 +2126,9 @@ PRIVATE
     test/test_publication_identity_scan.cpp
     test/test_publication_identity_scan.h
     test/test_publication_identity_scan_self_test.cpp
+    test/test_qpa_mouse.cpp
+    test/test_qpa_mouse.h
+    test/test_qpa_mouse_self_test.cpp
     test/test_queued_drag.cpp
     test/test_queued_drag.h
     test/test_rpc_fixture.cpp

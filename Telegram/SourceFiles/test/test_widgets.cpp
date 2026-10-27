@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/sandbox.h"
 #include "test/test_agent.h"
 #include "test/test_capture.h"
+#include "test/test_console_shield.h"
 #include "test/test_log.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/abstract_button.h"
@@ -950,6 +951,7 @@ void Settle(Fn<void()> action) {
 		const auto guard = gsl::finally([&] {
 			sandbox.setPostponedCallsDeferred(false);
 		});
+		const auto harnessInput = HarnessInputScope();
 		action();
 	}
 	SettlePostponedCalls();
