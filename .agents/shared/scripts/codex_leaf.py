@@ -150,8 +150,8 @@ def codex_home(home):
 
 def missing_home(home):
     if home and not os.path.isdir(home):
-        return ('codex home %s does not exist; log in with CODEX_HOME=%s '
-            'codex login --device-auth' % (home, home))
+        return ('codex home %s does not exist; the user creates it and runs '
+            '`codex login --device-auth` with CODEX_HOME set to it' % home)
     return None
 
 

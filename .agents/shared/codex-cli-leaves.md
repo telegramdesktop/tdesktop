@@ -14,9 +14,13 @@ Codex keeps its login and session history in its home folder. `check` and
 `start` take `--home`:
 
 - `work`, the default, runs Codex with
-  `CODEX_HOME=~/.codex-accounts/work`, a login kept apart from the user's own;
+  `CODEX_HOME=~/.codex-accounts/work` (`%USERPROFILE%\.codex-accounts\work` on
+  Windows), a login kept apart from the user's own;
 - `default` leaves `CODEX_HOME` to the environment, which normally means
   `~/.codex`.
+
+Each home has its own `config.toml`, so the `work` home needs a copy of the
+user's settings, including the Windows sandbox mode on Windows.
 
 Pass `--home default` to `check` and every `start` when the invocation's
 review provider is `codex-default`, per the host adapter; otherwise omit it. A
