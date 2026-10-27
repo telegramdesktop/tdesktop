@@ -193,5 +193,46 @@ QString SendInvoice::getLayoutDescription(const Result *owner) const {
 	return qs(_media.c_messageMediaInvoice().vdescription());
 }
 
+SendWidget::SendWidget(
+	not_null<Main::Session*> session,
+	const MTPDbotInlineMessageWidget &data)
+: SendDataCommon(session)
+, _caption{
+	qs(data.vmessage()),
+	Api::EntitiesFromMTP(session, data.ventities().value_or_empty()),
+}
+, _invertMedia(data.is_invert_media()) {
+	using Flag = MTPDmessageMediaWidget::Flag;
+	_media = MTP_messageMediaWidget(
+		MTP_flags((data.vpublic_data() ? Flag::f_public_data : Flag(0))
+			| (data.vchat_data() ? Flag::f_chat_data : Flag(0))
+			| (data.vwidget_id() ? Flag::f_widget_id : Flag(0))),
+		data.vwidth(),
+		data.vheight(),
+		data.vpayload(),
+		MTP_bytes(data.vpublic_data().value_or_empty()),
+		MTP_long(data.vpublic_data_hash().value_or_empty()),
+		MTP_bytes(data.vchat_data().value_or_empty()),
+		MTP_long(data.vwidget_id().value_or_empty()));
+}
+
+bool SendWidget::isValid() const {
+	return true;
+}
+
+SendDataCommon::SentMessageFields SendWidget::getSentMessageFields() const {
+	return { .text = _caption, .media = _media };
+}
+
+not_null<HistoryItem*> SendWidget::makeMessage(
+		const Result *owner,
+		not_null<History*> history,
+		HistoryItemCommonFields &&fields) const {
+	if (_invertMedia) {
+		fields.flags |= MessageFlag::InvertMedia;
+	}
+	return SendDataCommon::makeMessage(owner, history, std::move(fields));
+}
+
 } // namespace internal
 } // namespace InlineBots

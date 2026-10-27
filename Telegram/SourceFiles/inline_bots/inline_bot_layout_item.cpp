@@ -152,6 +152,14 @@ std::unique_ptr<ItemBase> ItemBase::createLayout(
 			context,
 			std::move(result),
 			forceThumb);
+	case Type::Widget: {
+		// The list-wide hint misses thumbnails first seen on later pages.
+		const auto withThumb = forceThumb || result->hasThumbDisplay();
+		return std::make_unique<internal::Article>(
+			context,
+			std::move(result),
+			withThumb);
+	}
 	case Type::Game:
 		return std::make_unique<internal::Game>(context, std::move(result));
 	case Type::Contact:
