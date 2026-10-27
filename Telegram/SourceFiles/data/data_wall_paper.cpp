@@ -319,12 +319,6 @@ QString WallPaper::shareUrl(not_null<Main::Session*> session) const {
 	return params.isEmpty() ? base : (base + '?' + params.join('&'));
 }
 
-void WallPaper::loadDocumentThumbnail() const {
-	if (_document) {
-		_document->loadThumbnail(fileOrigin());
-	}
-}
-
 void WallPaper::loadDocument() const {
 	if (_document) {
 		_document->save(fileOrigin(), QString());
@@ -429,12 +423,6 @@ WallPaper WallPaper::withBlurred(bool blurred) const {
 WallPaper WallPaper::withPatternIntensity(int intensity) const {
 	auto result = *this;
 	result._intensity = intensity;
-	return result;
-}
-
-WallPaper WallPaper::withGradientRotation(int rotation) const {
-	auto result = *this;
-	result._rotation = rotation;
 	return result;
 }
 
