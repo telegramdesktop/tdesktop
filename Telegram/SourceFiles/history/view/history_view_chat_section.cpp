@@ -689,6 +689,9 @@ ChatWidget::ChatWidget(
 	) | rpl::on_next([=](const Data::MessageUpdate &update) {
 		if (update.item == _repliesRoot) {
 			_repliesRoot = nullptr;
+			if (_topControls) {
+				_topControls->repliesRootDestroyed();
+			}
 			updatePinnedVisibility();
 			if (!_topic) {
 				controller->showBackFromStack();

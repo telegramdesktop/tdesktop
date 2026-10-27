@@ -125,43 +125,58 @@ QImage PreviewImage::image(int size) {
 [[nodiscard]] rpl::producer<Ui::MessageBarContent> ContentByItem(
 		not_null<HistoryItem*> item,
 		Fn<void()> repaint) {
-	return item->history()->session().changes().messageFlagsValue(
-		item,
-		Data::MessageUpdate::Flag::Edited
-	) | rpl::map([=]() -> rpl::producer<Ui::MessageBarContent> {
-		const auto media = item->media();
-		if (!media || !media->hasReplyPreview()) {
-			return rpl::single(ContentWithoutPreview(item, repaint));
-		}
-		constexpr auto kFullLoaded = 2;
-		const auto loadedLevel = [=] {
-			constexpr auto kSomeLoaded = 1;
-			constexpr auto kNotLoaded = 0;
-			const auto preview = media->replyPreview();
-			return media->replyPreviewLoaded()
-				? kFullLoaded
-				: preview
-				? kSomeLoaded
-				: kNotLoaded;
-		};
-		return rpl::single(
-			loadedLevel()
-		) | rpl::then(
-			item->history()->session().downloaderTaskFinished(
-			) | rpl::map(loadedLevel)
-		) | rpl::distinct_until_changed(
-		) | rpl::take_while([=](int loadLevel) {
-			return loadLevel < kFullLoaded;
-		}) | rpl::then(
-			rpl::single(kFullLoaded)
-		) | rpl::map([=] {
-			return ContentWithPreview(
-				item,
-				media->replyPreview(),
-				media->hasSpoilerForPreview(),
-				repaint);
-		});
-	}) | rpl::flatten_latest();
+	const auto changes = &item->history()->session().changes();
+	return rpl::make_producer<Ui::MessageBarContent>([=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+		const auto itemLifetime = lifetime.make_state<rpl::lifetime>();
+		changes->messageUpdates(
+			item,
+			Data::MessageUpdate::Flag::Destroyed
+		) | rpl::on_next([=] {
+			itemLifetime->destroy();
+		}, *itemLifetime);
+		changes->messageFlagsValue(
+			item,
+			Data::MessageUpdate::Flag::Edited
+		) | rpl::map([=]() -> rpl::producer<Ui::MessageBarContent> {
+			const auto media = item->media();
+			if (!media || !media->hasReplyPreview()) {
+				return rpl::single(ContentWithoutPreview(item, repaint));
+			}
+			constexpr auto kFullLoaded = 2;
+			const auto loadedLevel = [=] {
+				constexpr auto kSomeLoaded = 1;
+				constexpr auto kNotLoaded = 0;
+				const auto preview = media->replyPreview();
+				return media->replyPreviewLoaded()
+					? kFullLoaded
+					: preview
+					? kSomeLoaded
+					: kNotLoaded;
+			};
+			return rpl::single(
+				loadedLevel()
+			) | rpl::then(
+				item->history()->session().downloaderTaskFinished(
+				) | rpl::map(loadedLevel)
+			) | rpl::distinct_until_changed(
+			) | rpl::take_while([=](int loadLevel) {
+				return loadLevel < kFullLoaded;
+			}) | rpl::then(
+				rpl::single(kFullLoaded)
+			) | rpl::map([=] {
+				return ContentWithPreview(
+					item,
+					media->replyPreview(),
+					media->hasSpoilerForPreview(),
+					repaint);
+			});
+		}) | rpl::flatten_latest(
+		) | rpl::on_next([=](Ui::MessageBarContent &&value) {
+			consumer.put_next(std::move(value));
+		}, *itemLifetime);
+		return lifetime;
+	});
 }
 
 [[nodiscard]] rpl::producer<Ui::MessageBarContent> ContentByItemId(

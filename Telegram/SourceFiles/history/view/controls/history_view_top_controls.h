@@ -84,6 +84,7 @@ public:
 	void setRepliesRootId(MsgId repliesRootId);
 	void setTopic(Data::ForumTopic *topic);
 	void setRepliesRootVisible(bool shown);
+	void repliesRootDestroyed();
 	void updatePinnedViewer();
 	void checkLastPinnedClickedIdReset(int wasScrollTop, int nowScrollTop);
 	void addTranslatedItems(not_null<TranslateTracker*> tracker);
@@ -96,6 +97,7 @@ private:
 	[[nodiscard]] PeerData *migratedPeer() const;
 	[[nodiscard]] bool showInForum() const;
 	void setupRootView();
+	void resetRepliesRootView();
 	void setupTopicReopenBar();
 	void setupTranslateBar();
 	void setupGroupCallBar();
@@ -169,6 +171,7 @@ private:
 	rpl::lifetime _pinnedLifetime;
 	bool _repliesRootViewInited = false;
 	bool _repliesRootViewInitScheduled = false;
+	bool _repliesRootDestroyed = false;
 	bool _modeSensitiveBarsInited = false;
 	bool _modeSensitiveShowInForum = false;
 	bool _modeSensitiveFullChat = false;
