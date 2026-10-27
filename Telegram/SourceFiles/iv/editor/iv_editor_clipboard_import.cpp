@@ -207,6 +207,15 @@ constexpr auto kMaxDataUriHeaderLength = 256;
 		: decoded;
 }
 
+// WHY: a UNC or device path makes the exists() check below open an SMB
+// session to the named host on Windows, leaking credentials on paste.
+[[nodiscard]] bool IsNetworkPath(const QString &path) {
+	const auto separator = [](QChar ch) {
+		return (ch == u'/') || (ch == u'\\');
+	};
+	return (path.size() > 1) && separator(path[0]) && separator(path[1]);
+}
+
 [[nodiscard]] QString LocalMediaPath(
 		const QString &source,
 		const QString &basePath) {
@@ -214,10 +223,14 @@ constexpr auto kMaxDataUriHeaderLength = 256;
 		return QString();
 	} else if (source.startsWith(u"file:"_q, Qt::CaseInsensitive)) {
 		const auto url = QUrl(source);
-		if (!url.isLocalFile()) {
+		if (!url.isLocalFile() || !url.host().isEmpty()) {
 			return QString();
 		}
-		const auto info = QFileInfo(url.toLocalFile());
+		const auto local = url.toLocalFile();
+		if (IsNetworkPath(local)) {
+			return QString();
+		}
+		const auto info = QFileInfo(local);
 		return (info.exists()
 			&& info.isFile()
 			&& LooksLikeMediaExtension(info.suffix()))
@@ -228,6 +241,9 @@ constexpr auto kMaxDataUriHeaderLength = 256;
 	}
 	const auto decoded = QUrl::fromPercentEncoding(source.toUtf8());
 	const auto absolute = QDir(basePath).absoluteFilePath(decoded);
+	if (IsNetworkPath(absolute)) {
+		return QString();
+	}
 	const auto info = QFileInfo(absolute);
 	if (!info.exists() || !info.isFile()) {
 		return QString();
