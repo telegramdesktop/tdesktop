@@ -151,7 +151,7 @@ constexpr auto kFillerLines = 40;
 // Logical px the view's top lies below the viewport after the scroll.
 constexpr auto kOffscreenMargin = 8;
 
-// auto/23-gestures's mid drag passes only with at least three pointermove
+// auto/23-gestures-b's mid drag passes only with at least three pointermove
 // events with buttons, which moves coalesced into one frame cannot give:
 // fewer is the runner's timing, never the widget's verdict.
 struct MoveRequirement {
@@ -161,7 +161,7 @@ struct MoveRequirement {
 };
 
 constexpr auto kMoveRequirements = std::array{
-	MoveRequirement{ "auto/23-gestures", "mid", 3 },
+	MoveRequirement{ "auto/23-gestures-b", "mid", 3 },
 };
 
 // The test-only private-member accessor of test_chat_show.cpp, kept

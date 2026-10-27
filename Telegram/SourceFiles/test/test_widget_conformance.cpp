@@ -26,12 +26,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_palette.h"
 #include "test/test_probe.h"
 #include "test/test_runner.h"
+#include "test/test_widget_bot.h"
 #include "test/test_widget_conformance_actions.h"
 #include "test/test_widget_conformance_bridge.h"
+#include "test/test_widget_conformance_context.h"
+#include "test/test_widget_conformance_pictures.h"
 #include "test/test_widget_conformance_state.h"
 #include "test/test_widget_fixture.h"
 #include "test/test_widget_ops.h"
 #include "tgw/tgw_intl.h"
+#include "tgw/tgw_media.h"
 #include "tgw/tgw_renderer.h"
 #include "tgw/tgw_runtime.h"
 #include "ui/style/style_core_scale.h"
@@ -95,11 +99,6 @@ constexpr auto kLoadBandCss = 48.;
 // CLIENTS.md's bound on done after a run's actions.
 constexpr auto kDoneBound = crl::time(10000);
 
-// Image pixels per CSS px of every stage snapshot and crop, CLIENTS.md's
-// 2x: it must come from the device pixel ratio and the interface scale
-// themselves, as no frame is ever upscaled.
-constexpr auto kCropScale = 2;
-
 // The runtime log is bounded by the product (kLogBytes); its row keeps the
 // head, which holds the state and diagnostic kinds.
 constexpr auto kMaxLogChars = 32768;
@@ -153,11 +152,17 @@ template struct PrivateMember<
 	&HistoryWidget::_voiceRecordBar>;
 
 // The run counts of the whole manifest and of this selection.
+// |permanentAuto| counts the manifest's auto runs omitted in every launch,
+// |elsewhereAuto| and |elsewhereVisual| this selection's runs left to a
+// launch on another chat.
 struct Matrix {
 	int autoTests = 0;
 	int visualTests = 0;
 	int clientsAutoRuns = 0;
 	int visualManifestRuns = 0;
+	int permanentAuto = 0;
+	int elsewhereAuto = 0;
+	int elsewhereVisual = 0;
 	int autoLight = 0;
 	int autoDark = 0;
 	int extraDark = 0;
@@ -266,6 +271,21 @@ bool UpdateResult(
 		widget = widget->parentWidget();
 	}
 	return nullptr;
+}
+
+// |text| with every character but ASCII letters, digits, '-' and '_'
+// replaced, for a file name.
+[[nodiscard]] QString FilePart(QString text) {
+	for (auto &ch : text) {
+		const auto plain = (ch.unicode() < 128)
+			&& (ch.isLetterOrNumber()
+				|| (ch == QChar('-'))
+				|| (ch == QChar('_')));
+		if (!plain) {
+			ch = QChar('_');
+		}
+	}
+	return text;
 }
 
 } // namespace
@@ -462,6 +482,84 @@ void JudgeRestore(
 	}
 }
 
+bool CropScaleHolds() {
+	return (style::DevicePixelRatio() * style::Scale() == kCropScale * 100);
+}
+
+// |css| in logical px, exact while CropScaleHolds(): the interface scale
+// is then 100 or 200.
+QRect LogicalFromCss(QRect css) {
+	const auto scale = style::Scale();
+	return QRect(
+		css.x() * scale / 100,
+		css.y() * scale / 100,
+		css.width() * scale / 100,
+		css.height() * scale / 100);
+}
+
+// Why no snapshot of the run can be taken at all, before any show.
+RunnerRefusal SnapshotBlock(const ConformanceRun &run) {
+	if (!CropScaleHolds()) {
+		const auto ratio = style::DevicePixelRatio();
+		const auto scale = style::Scale();
+		return {
+			.name = u"not-2x"_q,
+			.detail = u"device pixel ratio %1 at interface scale %2% paints "
+				u"%3 image px per CSS px, not %4, and no frame is "
+				u"upscaled"_q.arg(
+					NumberText(ratio),
+					NumberText(scale),
+					QString::number(ratio * scale / 100.),
+					NumberText(kCropScale)),
+		};
+	} else if (run.died) {
+		return {
+			.name = u"not-live"_q,
+			.detail = u"the widget died: "_q + run.dead,
+		};
+	} else if (!run.loaded) {
+		return {
+			.name = u"not-live"_q,
+			.detail = u"the widget did not load"_q,
+		};
+	}
+	return {};
+}
+
+QString FileBase(const ConformanceRun &run) {
+	return FilePart(run.id) + u"."_q + run.theme;
+}
+
+// Saves |image| as a PNG at |relative| under the output directory and
+// reads its size back from the file; empty, or what failed.
+QString SavePng(
+		const ConformanceState &state,
+		const QImage &image,
+		const QString &relative) {
+	if (!state.outputReady) {
+		return u"the output directory was never prepared"_q;
+	}
+	const auto path = QDir(state.outputDir).filePath(relative);
+	const auto dir = QFileInfo(path).absolutePath();
+	if (!QDir().mkpath(dir)) {
+		return u"the directory [%1] could not be created"_q.arg(dir);
+	} else if (!image.save(path, "PNG")) {
+		return u"QImage::save() could not write [%1]"_q.arg(path);
+	}
+	auto reader = QImageReader(path, "png");
+	const auto size = reader.size();
+	if (size != image.size()) {
+		return u"[%1] reads back as %2x%3, not %4x%5: %6"_q.arg(
+			path,
+			NumberText(size.width()),
+			NumberText(size.height()),
+			NumberText(image.width()),
+			NumberText(image.height()),
+			reader.errorString());
+	}
+	return QString();
+}
+
 namespace {
 
 [[nodiscard]] QString IdText(FullMsgId id) {
@@ -639,6 +737,8 @@ namespace {
 			result.stages.push_back(std::move(parsed));
 		}
 	}
+	ParseManifestMessage(object, result, problems);
+	ParseManifestBot(object, result, problems);
 	result.error = problems.join(u"; "_q);
 	return result;
 }
@@ -726,6 +826,15 @@ void ReadHtml(const ConformanceState &state, ManifestTest &test) {
 		u"reference runner run it in light only"_q;
 }
 
+// Why |test| is left out of |theme| in every launch: auto/20's dark start,
+// or an auto entry whose message is a preview. Empty for every other run.
+[[nodiscard]] QString PermanentOmission(
+		const ManifestTest &test,
+		const QString &theme) {
+	const auto reason = OmissionReason(test, theme);
+	return reason.isEmpty() ? PreviewOmission(test) : reason;
+}
+
 // The kind of a manifest action: the first of CLIENTS.md's action keys
 // it has, in CLIENTS.md's order (a QJsonObject keeps no key order).
 [[nodiscard]] QString ActionKind(const QJsonValue &action) {
@@ -788,8 +897,10 @@ void AddRun(ConformanceState &state, int index, const QString &theme) {
 }
 
 // For each selected theme, light first, every selected entry in manifest
-// order: an auto entry in both themes but the omitted run, a visual entry
-// only in its own themes.
+// order: an auto entry in both themes but its permanent omissions, a visual
+// entry only in its own themes. A well-formed run whose message context
+// this launch's chat cannot host, by its id's category, is omitted for a
+// launch on a fitting chat (|elsewhere|); nothing reads the account here.
 void SelectRuns(ConformanceState &state) {
 	const auto &args = state.args;
 	for (const auto &theme : args.themes) {
@@ -828,23 +939,26 @@ void SelectRuns(ConformanceState &state) {
 		state.themes.push_back(theme);
 		for (auto i = 0; i != int(state.tests.size()); ++i) {
 			const auto &test = state.tests[i];
-			if (!test.selected) {
+			const auto wanted = test.selected
+				&& ((test.set == u"auto"_q)
+					|| ((test.set == u"visual"_q)
+						&& test.themes.contains(theme)));
+			if (!wanted) {
 				continue;
-			} else if (test.set == u"visual"_q) {
-				if (test.themes.contains(theme)) {
-					AddRun(state, i, theme);
-				}
-			} else if (test.set == u"auto"_q) {
-				const auto reason = OmissionReason(test, theme);
-				if (reason.isEmpty()) {
-					AddRun(state, i, theme);
-				} else {
-					state.omitted.push_back({
-						.id = test.id,
-						.theme = theme,
-						.reason = reason,
-					});
-				}
+			}
+			const auto permanent = PermanentOmission(test, theme);
+			const auto partition = (permanent.isEmpty() && test.error.isEmpty())
+				? ChatPartition(test, args.chat)
+				: QString();
+			if (permanent.isEmpty() && partition.isEmpty()) {
+				AddRun(state, i, theme);
+			} else {
+				state.omitted.push_back({
+					.id = test.id,
+					.theme = theme,
+					.reason = permanent.isEmpty() ? partition : permanent,
+					.elsewhere = permanent.isEmpty(),
+				});
 			}
 		}
 	}
@@ -911,6 +1025,11 @@ void CaptureEnvironment(ConformanceState &state) {
 		if (test.set == u"auto"_q) {
 			++result.autoTests;
 			result.clientsAutoRuns += int(test.themes.size());
+			for (const auto &theme : { u"light"_q, u"dark"_q }) {
+				if (!PermanentOmission(test, theme).isEmpty()) {
+					++result.permanentAuto;
+				}
+			}
 		} else if (test.set == u"visual"_q) {
 			++result.visualTests;
 			result.visualManifestRuns += int(test.themes.size());
@@ -935,6 +1054,15 @@ void CaptureEnvironment(ConformanceState &state) {
 			}
 		}
 	}
+	for (const auto &omitted : state.omitted) {
+		if (!omitted.elsewhere) {
+			continue;
+		} else if (omitted.id.startsWith(u"auto/"_q)) {
+			++result.elsewhereAuto;
+		} else {
+			++result.elsewhereVisual;
+		}
+	}
 	return result;
 }
 
@@ -943,6 +1071,8 @@ void CaptureEnvironment(ConformanceState &state) {
 		{ u"autoTests"_q, matrix.autoTests },
 		{ u"visualTests"_q, matrix.visualTests },
 		{ u"requestedAutoRuns"_q, 2 * matrix.autoTests },
+		{ u"permanentAutoOmissions"_q, matrix.permanentAuto },
+		{ u"fullAutoRuns"_q, 2 * matrix.autoTests - matrix.permanentAuto },
 		{ u"clientsAutoRuns"_q, matrix.clientsAutoRuns },
 		{ u"visualManifestRuns"_q, matrix.visualManifestRuns },
 		{ u"autoLight"_q, matrix.autoLight },
@@ -951,18 +1081,22 @@ void CaptureEnvironment(ConformanceState &state) {
 		{ u"extraDark"_q, matrix.extraDark },
 		{ u"visualLight"_q, matrix.visualLight },
 		{ u"visualDark"_q, matrix.visualDark },
+		{ u"elsewhereAuto"_q, matrix.elsewhereAuto },
+		{ u"elsewhereVisual"_q, matrix.elsewhereVisual },
 	};
 }
 
 // The reconciliation the run file states, computed from the manifest and
-// the selection: the requested auto matrix, each omission and how it
-// departs from that matrix, the dark runs beyond the manifest's own
-// themes, the visual load checks and a narrowed selection.
+// the selection: the requested auto matrix, each omission and whether it
+// departs from that matrix, this launch's share of it, the dark runs
+// beyond the manifest's own themes, the visual load checks, the message
+// contexts, the requested pictures and a narrowed selection.
 [[nodiscard]] QStringList Notes(
 		const ConformanceState &state,
 		const Matrix &matrix) {
 	const auto &args = state.args;
 	const auto requested = 2 * matrix.autoTests;
+	const auto full = requested - matrix.permanentAuto;
 	auto result = QStringList();
 	result.push_back(u"auto: %1 light + %2 dark = %3 runs, each at %4 CSS "
 		u"px. The requested matrix is every auto test of the manifest in "
@@ -974,16 +1108,40 @@ void CaptureEnvironment(ConformanceState &state) {
 			NumberText(matrix.autoTests),
 			NumberText(requested)));
 	for (const auto &omitted : state.omitted) {
-		result.push_back(u"%1 in %2 is omitted: %3. This departs from the "
-			u"requested %4 x 2 matrix: with every other auto run of the "
-			u"manifest, a run file has %5 auto runs, not %6."_q.arg(
-				omitted.id,
-				omitted.theme,
-				omitted.reason,
-				NumberText(matrix.autoTests),
-				NumberText(requested - int(state.omitted.size())),
-				NumberText(requested)));
+		result.push_back(omitted.elsewhere
+			? u"%1 in %2 is not run in this launch: %3. This is no departure "
+				u"from the matrix: omittedRuns marks it elsewhere, for a "
+				u"launch on a fitting chat."_q.arg(
+					omitted.id,
+					omitted.theme,
+					omitted.reason)
+			: u"%1 in %2 is omitted: %3. This departs from the requested %4 "
+				u"x 2 matrix: with every other auto run of the manifest, a run "
+				u"file has %5 auto runs, not %6."_q.arg(
+					omitted.id,
+					omitted.theme,
+					omitted.reason,
+					NumberText(matrix.autoTests),
+					NumberText(full),
+					NumberText(requested)));
 	}
+	const auto permanentHere = std::count_if(
+		begin(state.omitted),
+		end(state.omitted),
+		[](const OmittedRun &omitted) { return !omitted.elsewhere; });
+	result.push_back(u"this launch, for its selection only: %1 auto runs and "
+		u"%2 of the manifest's %3 permanent auto omissions; %4 auto and %5 "
+		u"visual runs left to a launch on another chat, which subtract "
+		u"nothing from the matrix. The full auto matrix of %6 runs (%7 "
+		u"requested less the permanent omissions) comes only from every "
+		u"launch's runs together."_q.arg(
+			NumberText(matrix.autoLight + matrix.autoDark),
+			NumberText(permanentHere),
+			NumberText(matrix.permanentAuto),
+			NumberText(matrix.elsewhereAuto),
+			NumberText(matrix.elsewhereVisual),
+			NumberText(full),
+			NumberText(requested)));
 	if (matrix.extraDark > 0) {
 		result.push_back(u"%1 of the dark auto runs are of tests whose "
 			u"manifest themes do not include dark. They go beyond "
@@ -1016,6 +1174,8 @@ void CaptureEnvironment(ConformanceState &state) {
 		u"snapshot of the union of the run's stage rects, the chat list's "
 		u"own paint of the card at %1 image px per CSS px; cards/ holds "
 		u"each snapshot."_q.arg(NumberText(kCropScale)));
+	result.append(ContextNotes(state));
+	result.append(PictureNotes(state));
 	if (!args.themes.isEmpty() || !args.sets.isEmpty() || !args.ids.isEmpty()) {
 		result.push_back(u"this launch ran a selection (themes [%1], sets "
 			u"[%2], ids [%3]): runs outside it are not in this file."_q.arg(
@@ -1267,6 +1427,8 @@ void CaptureEnvironment(ConformanceState &state) {
 	if (!run.stages.empty()) {
 		result.insert(u"snapshot"_q, SnapshotObject(run));
 	}
+	InsertContextExtras(result, state, run);
+	InsertPictureExtra(result, run);
 	return result;
 }
 
@@ -1291,6 +1453,8 @@ void CaptureEnvironment(ConformanceState &state) {
 	if (run.message && run.message->tap) {
 		result.insert(u"tap"_q, TapObject(run.reading, run.readingFinal));
 	}
+	InsertContextExtras(result, state, run);
+	InsertPictureExtra(result, run);
 	return result;
 }
 
@@ -1302,6 +1466,7 @@ void CaptureEnvironment(ConformanceState &state) {
 			{ u"theme"_q, omitted.theme },
 			{ u"width"_q, kWidth },
 			{ u"reason"_q, omitted.reason },
+			{ u"elsewhere"_q, omitted.elsewhere },
 		});
 	}
 	return result;
@@ -1326,10 +1491,12 @@ void CaptureEnvironment(ConformanceState &state) {
 		{ u"themes"_q, Strings(state.args.themes) },
 		{ u"sets"_q, Strings(state.args.sets) },
 		{ u"ids"_q, Strings(state.args.ids) },
+		{ u"pictures"_q, Strings(state.args.pictures) },
 		{ u"runThemes"_q, Strings(state.themes) },
 		{ u"unknownThemes"_q, Strings(state.unknownThemes) },
 		{ u"unknownSets"_q, Strings(state.unknownSets) },
 		{ u"unknownIds"_q, Strings(state.unknownIds) },
+		{ u"unknownPictures"_q, Strings(state.unknownPictures) },
 	};
 }
 
@@ -1645,6 +1812,12 @@ void PrepareOutput(ConformanceState &state) {
 		.theme = u"dark"_q,
 		.reason = u"a control reason"_q,
 	});
+	control.omitted.push_back({
+		.id = u"auto/w"_q,
+		.theme = u"light"_q,
+		.reason = u"a control chat reason"_q,
+		.elsewhere = true,
+	});
 
 	const auto file = RunFileObject(control, u"self-check"_q);
 	const auto runs = file.value(u"runs"_q).toArray();
@@ -1695,17 +1868,28 @@ void PrepareOutput(ConformanceState &state) {
 		: incomplete.first().toObject();
 	const auto notes = file.value(u"notes"_q).toArray();
 	auto noted = false;
+	auto notedElsewhere = false;
 	for (const auto &note : notes) {
-		noted = noted
-			|| note.toString().startsWith(u"auto/z in dark is omitted: "_q);
+		const auto text = note.toString();
+		noted = noted || text.startsWith(u"auto/z in dark is omitted: "_q);
+		notedElsewhere = notedElsewhere
+			|| text.startsWith(
+				u"auto/w in light is not run in this launch: "_q);
 	}
+	const auto omitted = file.value(u"omittedRuns"_q).toArray();
+	const auto omission = [&](int index) {
+		return omitted.at(index).toObject();
+	};
 	const auto separated = (incomplete.size() == 1)
 		&& (cutEntry.value(u"key"_q).toString()
 			== RunKey(u"auto/y"_q, u"dark"_q))
 		&& (cutEntry.value(u"state"_q).toString() == u"injected"_q)
 		&& !cutEntry.value(u"reason"_q).toString().isEmpty()
-		&& (file.value(u"omittedRuns"_q).toArray().size() == 1)
+		&& (omitted.size() == 2)
+		&& (omission(0).value(u"elsewhere"_q) == QJsonValue(false))
+		&& (omission(1).value(u"elsewhere"_q) == QJsonValue(true))
 		&& noted
+		&& notedElsewhere
 		&& (file.value(u"platform"_q).toString() == u"desktop"_q)
 		&& (file.value(u"renderer"_q).toString() == u"twidget-core"_q)
 		&& (file.value(u"policy"_q).toString() == u"strict"_q)
@@ -1715,7 +1899,8 @@ void PrepareOutput(ConformanceState &state) {
 		separated,
 		u"run file self-check: a run that did not complete is only named "
 			u"in incompleteRuns, never written into runs, and an omission "
-			u"is stated in omittedRuns and the notes"_q,
+			u"is stated in omittedRuns and the notes, elsewhere true only "
+			u"for one left to a launch on another chat"_q,
 		CompactJson(QJsonObject{
 			{ u"incompleteRuns"_q, incomplete },
 			{ u"omittedRuns"_q, file.value(u"omittedRuns"_q) },
@@ -1810,12 +1995,145 @@ void PrepareOutput(ConformanceState &state) {
 		CompactJson(QJsonObject{ { u"runs"_q, runs } }));
 }
 
+// SelectRuns() of literal entries in a user's chat by its id, both
+// themes: the auto preview omitted in every launch with the owner's reason
+// naming both catalogue ids; the visual preview run as private with its
+// state and its untested preview leg; a group entry of each set left to a
+// launch on another chat, elsewhere in the state and in omittedRuns; the
+// matrix and the notes counting only the permanent omissions against it.
+[[nodiscard]] WidgetOpsSelfCheckRow CheckSelection() {
+	auto control = ConformanceState();
+	control.args.framework = u"v0.0.0"_q;
+	control.args.chat = peerFromUser(UserId(BareId(1)));
+	control.fixture = MakeWidgetFixture({ .chat = control.args.chat });
+	auto ids = QSet<QString>();
+	for (const auto json : {
+			R"({"id":"auto/p","set":"auto","file":"p.html",)"
+				R"("themes":["light"],"widths":[390],"message":)"
+				R"([{"kind":"preview","chat_data":"c","public_data":"p"}]})",
+			R"({"id":"auto/g","set":"auto","file":"g.html",)"
+				R"("themes":["light"],"widths":[390],"message":)"
+				R"([{"kind":"group"}]})",
+			R"({"id":"auto/d","set":"auto","file":"d.html",)"
+				R"("themes":["light"],"widths":[390]})",
+			R"({"id":"visual/p","set":"visual","file":"vp.html",)"
+				R"("themes":["light"],"widths":[390],"message":)"
+				R"([{"kind":"preview","chat_data":"c","public_data":"p"}]})",
+			R"({"id":"visual/g","set":"visual","file":"vg.html",)"
+				R"("themes":["light"],"widths":[390],"message":)"
+				R"([{"kind":"group"}]})" }) {
+		auto test = ParseTest(
+			QJsonDocument::fromJson(QByteArray(json)).object(),
+			ids);
+		test.html = QByteArray("<p>control</p>");
+		test.read = true;
+		control.tests.push_back(std::move(test));
+	}
+	SelectRuns(control);
+	auto runs = QStringList();
+	for (const auto &run : control.runs) {
+		runs.push_back(run.key);
+	}
+	auto omitted = QStringList();
+	for (const auto &entry : control.omitted) {
+		omitted.push_back(u"%1|%2|%3"_q.arg(
+			entry.id,
+			entry.theme,
+			entry.elsewhere ? u"elsewhere"_q : u"permanent"_q));
+	}
+	const auto preview = control.omitted.empty()
+		? QString()
+		: control.omitted.front().reason;
+	const auto file = RunFileObject(control, u"self-check"_q);
+	const auto matrix = file.value(u"matrix"_q).toObject();
+	auto message = QJsonObject();
+	for (const auto &entry : file.value(u"incompleteRuns"_q).toArray()) {
+		const auto object = entry.toObject();
+		if (object.value(u"id"_q).toString() == u"visual/p"_q) {
+			message = object.value(u"message"_q).toObject();
+		}
+	}
+	auto serialized = QJsonArray();
+	for (const auto &entry : file.value(u"omittedRuns"_q).toArray()) {
+		serialized.push_back(entry.toObject().value(u"elsewhere"_q));
+	}
+	auto permanentNote = false;
+	auto elsewhereNote = false;
+	auto previewNote = false;
+	for (const auto &note : file.value(u"notes"_q).toArray()) {
+		const auto text = note.toString();
+		permanentNote = permanentNote
+			|| (text.startsWith(u"auto/p in light is omitted: "_q)
+				&& text.contains(u"a run file has 4 auto runs, not 6"_q));
+		elsewhereNote = elsewhereNote
+			|| text.startsWith(u"auto/g in light is not run in this "_q);
+		previewNote = previewNote
+			|| text.startsWith(u"visual/p asks for a preview"_q);
+	}
+	const auto passed = control.invalid.isEmpty()
+		&& (runs == QStringList{
+			RunKey(u"auto/d"_q, u"light"_q),
+			RunKey(u"visual/p"_q, u"light"_q),
+			RunKey(u"auto/d"_q, u"dark"_q),
+		})
+		&& (omitted == QStringList{
+			u"auto/p|light|permanent"_q,
+			u"auto/g|light|elsewhere"_q,
+			u"visual/g|light|elsewhere"_q,
+			u"auto/p|dark|permanent"_q,
+			u"auto/g|dark|elsewhere"_q,
+		})
+		&& preview.contains(u"tw.preview"_q)
+		&& preview.contains(u"behaviour.preview"_q)
+		&& (serialized
+			== QJsonArray{ false, true, true, false, true })
+		&& (matrix.value(u"permanentAutoOmissions"_q).toInt() == 2)
+		&& (matrix.value(u"fullAutoRuns"_q).toInt() == 4)
+		&& (matrix.value(u"elsewhereAuto"_q).toInt() == 2)
+		&& (matrix.value(u"elsewhereVisual"_q).toInt() == 1)
+		&& (message.value(u"requestedKind"_q).toString() == u"preview"_q)
+		&& (message.value(u"kind"_q).toString() == u"private"_q)
+		&& (message.value(u"flags"_q).toObject()
+			== QJsonObject{
+				{ u"isCopy"_q, false },
+				{ u"canQuery"_q, true },
+				{ u"backgroundQuery"_q, true },
+			})
+		&& (message.value(u"state"_q).toObject()
+			== QJsonObject{
+				{ u"chatData"_q, u"c"_q },
+				{ u"publicData"_q, u"p"_q },
+			})
+		&& message.contains(u"previewLeg"_q)
+		&& !message.contains(u"derived"_q)
+		&& permanentNote
+		&& elsewhereNote
+		&& previewNote;
+	return SelfCheckRow(
+		passed,
+		u"selection self-check: in a user's chat an auto preview is omitted "
+			u"in every launch naming tw.preview and behaviour.preview, a "
+			u"visual preview runs as private with its state and its preview "
+			u"leg untested, group entries are left to another chat with "
+			u"elsewhere true, and only the permanent omissions count against "
+			u"the matrix"_q,
+		CompactJson(QJsonObject{
+			{ u"runs"_q, Strings(runs) },
+			{ u"omitted"_q, Strings(omitted) },
+			{ u"elsewhere"_q, serialized },
+			{ u"matrix"_q, matrix },
+			{ u"message"_q, message },
+			{ u"invalid"_q, Strings(control.invalid) },
+		}));
+}
+
 // Defined with the totals, which it controls.
 [[nodiscard]] WidgetOpsSelfCheckRow CheckTotalsCoverage();
 
-// The tap's own scanner and probe-fixture checks, then the pure result
-// reader, summary reader, observation, run file and totals controls; every
-// row is one Check.
+// The tap's own scanner checks, the played bot's, the tap's probe-fixture
+// checks, then the pure result reader, summary reader, observation, run
+// file, message context and bot table, selection, picture and totals
+// controls; every row is one Check.
 void RunSelfChecks(ConformanceState &state) {
 	auto failed = QStringList();
 	auto count = 0;
@@ -1831,6 +2149,9 @@ void RunSelfChecks(ConformanceState &state) {
 		take(row);
 	}
 	state.control = std::move(scanner.control);
+	for (const auto &row : RunWidgetBotSelfCheck()) {
+		take(row);
+	}
 	if (state.probeFixture.isEmpty()) {
 		take(SelfCheckRow(
 			false,
@@ -1854,6 +2175,13 @@ void RunSelfChecks(ConformanceState &state) {
 	}
 	for (const auto &row : CheckRunFileModel()) {
 		take(row);
+	}
+	for (const auto &row : RunContextCheck()) {
+		take(SelfCheckRow(row.passed, row.name, row.details));
+	}
+	take(CheckSelection());
+	for (const auto &row : RunPictureCheck()) {
+		take(SelfCheckRow(row.passed, row.name, row.details));
 	}
 	take(CheckRunFileHost());
 	take(CheckTotalsCoverage());
@@ -1925,14 +2253,29 @@ void ReadChatFocus(ConformanceRun &run) {
 	return (reading.ackQueries > 0) && (reading.ackResults > 0);
 }
 
+// A group run is refused, never injected, when the loaded chat turns out
+// a broadcast channel. The message gets its entry's context, no widget id.
 void InjectRun(ConformanceState &state, ConformanceRun &run) {
 	run.progress = u"injecting"_q;
+	const auto &test = state.tests[run.test];
+	const auto history = WidgetFixtureHistory(*state.fixture);
+	const auto wrong = history
+		? ChatRefusal(test, history->peer)
+		: QString();
+	if (!wrong.isEmpty()) {
+		run.notRun = u"not injected: "_q + wrong;
+		return;
+	}
 	const auto refusal = InjectWidgetMessage(
 		*state.fixture,
 		*run.message,
-		state.tests[run.test].html,
+		test.html,
 		kWidth,
-		0); // height
+		0, // height
+		test.message.fields);
+	if (run.message->key) {
+		run.bot = ArmWidgetBot(run.message->key, test.bot);
+	}
 	if (!refusal.isEmpty()) {
 		run.notRun = refusal;
 	}
@@ -1952,8 +2295,15 @@ void CheckInjected(const ConformanceState &state, ConformanceRun &run) {
 	const auto refusal = CheckWidgetMessage(*state.fixture, *run.message);
 	if (!refusal.isEmpty()) {
 		run.notRun = refusal;
-	} else {
-		run.progress = u"injected"_q;
+		return;
+	}
+	run.progress = u"injected"_q;
+	const auto item = WidgetFixtureItem(*state.fixture, run.message->id);
+	const auto media = item
+		? dynamic_cast<Tgw::WidgetMedia*>(item->media())
+		: nullptr;
+	if (media) {
+		run.context = media->context();
 	}
 }
 
@@ -2319,10 +2669,6 @@ void SaveReadings(ConformanceState &state) {
 // ---------------------------------------------------------------------
 // The stage snapshot and its crops.
 
-[[nodiscard]] bool CropScaleHolds() {
-	return (style::DevicePixelRatio() * style::Scale() == kCropScale * 100);
-}
-
 // The union of the run's stage rects, in CSS px from the widget's top-left.
 [[nodiscard]] QRect StageUnion(const ConformanceRun &run) {
 	auto result = QRect();
@@ -2332,52 +2678,12 @@ void SaveReadings(ConformanceState &state) {
 	return result;
 }
 
-// |css| in logical px, exact while CropScaleHolds(): the interface scale
-// is then 100 or 200.
-[[nodiscard]] QRect LogicalFromCss(QRect css) {
-	const auto scale = style::Scale();
-	return QRect(
-		css.x() * scale / 100,
-		css.y() * scale / 100,
-		css.width() * scale / 100,
-		css.height() * scale / 100);
-}
-
 // |css| on the current card of |view|, in |view|'s coordinates.
 [[nodiscard]] QRect SnapshotLocal(ChatListShowView view, QRect css) {
 	const auto card = WidgetCardLocal(view);
 	return card.isEmpty()
 		? QRect()
 		: LogicalFromCss(css).translated(card.topLeft());
-}
-
-// Why no snapshot of the run can be taken at all, before any show.
-[[nodiscard]] RunnerRefusal SnapshotBlock(const ConformanceRun &run) {
-	if (!CropScaleHolds()) {
-		const auto ratio = style::DevicePixelRatio();
-		const auto scale = style::Scale();
-		return {
-			.name = u"not-2x"_q,
-			.detail = u"device pixel ratio %1 at interface scale %2% paints "
-				u"%3 image px per CSS px, not %4, and no frame is "
-				u"upscaled"_q.arg(
-					NumberText(ratio),
-					NumberText(scale),
-					QString::number(ratio * scale / 100.),
-					NumberText(kCropScale)),
-		};
-	} else if (run.died) {
-		return {
-			.name = u"not-live"_q,
-			.detail = u"the widget died: "_q + run.dead,
-		};
-	} else if (!run.loaded) {
-		return {
-			.name = u"not-live"_q,
-			.detail = u"the widget did not load"_q,
-		};
-	}
-	return {};
 }
 
 [[nodiscard]] QString SnapshotSkip(
@@ -2413,55 +2719,6 @@ void RefuseSnapshot(
 			RefuseStage(stage, name, detail);
 		}
 	}
-}
-
-// |text| with every character but ASCII letters, digits, '-' and '_'
-// replaced, for a file name.
-[[nodiscard]] QString FilePart(QString text) {
-	for (auto &ch : text) {
-		const auto plain = (ch.unicode() < 128)
-			&& (ch.isLetterOrNumber()
-				|| (ch == QChar('-'))
-				|| (ch == QChar('_')));
-		if (!plain) {
-			ch = QChar('_');
-		}
-	}
-	return text;
-}
-
-[[nodiscard]] QString FileBase(const ConformanceRun &run) {
-	return FilePart(run.id) + u"."_q + run.theme;
-}
-
-// Saves |image| as a PNG at |relative| under the output directory and
-// reads its size back from the file; empty, or what failed.
-[[nodiscard]] QString SavePng(
-		const ConformanceState &state,
-		const QImage &image,
-		const QString &relative) {
-	if (!state.outputReady) {
-		return u"the output directory was never prepared"_q;
-	}
-	const auto path = QDir(state.outputDir).filePath(relative);
-	const auto dir = QFileInfo(path).absolutePath();
-	if (!QDir().mkpath(dir)) {
-		return u"the directory [%1] could not be created"_q.arg(dir);
-	} else if (!image.save(path, "PNG")) {
-		return u"QImage::save() could not write [%1]"_q.arg(path);
-	}
-	auto reader = QImageReader(path, "png");
-	const auto size = reader.size();
-	if (size != image.size()) {
-		return u"[%1] reads back as %2x%3, not %4x%5: %6"_q.arg(
-			path,
-			NumberText(size.width()),
-			NumberText(size.height()),
-			NumberText(image.width()),
-			NumberText(image.height()),
-			reader.errorString());
-	}
-	return QString();
 }
 
 // The rect the widget measured for a stage itself, as it published it.
@@ -2845,6 +3102,9 @@ void AppendRunEnd(
 		},
 		.run = [=] {
 			entry().progress = u"removing"_q;
+			if (entry().bot) {
+				DisarmWidgetBot(entry().message->key);
+			}
 			RemoveFixtureMessage(*state->fixture, *entry().message);
 			RemoveRunFillers(*state, entry());
 		},
@@ -3080,15 +3340,18 @@ void ReportPackage(ConformanceState &state) {
 		state.unknownThemes.isEmpty()
 			&& state.unknownSets.isEmpty()
 			&& state.unknownIds.isEmpty()
+			&& state.unknownPictures.isEmpty()
 			&& !state.args.framework.isEmpty()
 			&& !state.args.engine.isEmpty(),
-		Prefixed(u"every requested theme, set and id is the manifest's, and "
-			u"the framework tag and the twidget pin are named"_q),
-		u"unknownThemes=[%1] unknownSets=[%2] unknownIds=[%3] framework=[%4] "
-			u"engine=[%5]"_q.arg(
+		Prefixed(u"every requested theme, set and id is the manifest's, every "
+			u"requested picture a visual entry's, and the framework tag and "
+			u"the twidget pin are named"_q),
+		u"unknownThemes=[%1] unknownSets=[%2] unknownIds=[%3] "
+			u"unknownPictures=[%4] framework=[%5] engine=[%6]"_q.arg(
 				state.unknownThemes.join(u","_q),
 				state.unknownSets.join(u","_q),
 				state.unknownIds.join(u","_q),
+				state.unknownPictures.join(u","_q),
 				state.args.framework,
 				state.args.engine));
 	Check(
@@ -3446,6 +3709,7 @@ void CheckTallies(const ConformanceState &state, const Tallies &tallies) {
 			NumberText(tallies.crops),
 			NumberText(tallies.saved),
 			tallies.missingCrops.join(u"; "_q)));
+	CheckPictures(state);
 	// WHY: the scan's control leaks prove it can match, not that it saw
 	// the widgets: an absence holds only over runs whose readings cover it,
 	// every selected one, as JudgeConformanceAbsences() requires.
@@ -3529,6 +3793,7 @@ void WriteTotals(ConformanceState &state, const QString &path) {
 		{ u"crops"_q, tallies.crops },
 		{ u"cropsSaved"_q, tallies.saved },
 		{ u"cropsMissing"_q, Strings(tallies.missingCrops) },
+		{ u"pictures"_q, PictureTotals(state) },
 		{ u"bridgeObserved"_q, tallies.bridgeObserved },
 		{ u"leaks"_q, tallies.leaks },
 		{ u"leaking"_q, Strings(tallies.leaking) },
@@ -3588,16 +3853,23 @@ void AppendWidgetConformance(
 	});
 	ReadPackage(*state);
 	SelectRuns(*state);
+	SelectPictures(*state);
 
 	// Registered before anything is changed: every path that reaches
 	// Runner::finish() stops the watcher, ends a pointer sequence still
-	// running, keeps the taps' last readings, runs the same idempotent
-	// release, then writes the run file when the totals stage did not, so
-	// no selected run goes unreported.
+	// running, keeps the taps' last readings, disarms every played bot by
+	// its run's kept key (their records stay with the runs), runs the same
+	// idempotent release, then writes the run file when the totals stage
+	// did not, so no selected run goes unreported.
 	runner->onFinish([=] {
 		StopWatcher(*state);
 		AbortRunActions(*state, u"onFinish"_q);
 		SaveReadings(*state);
+		for (const auto &run : state->runs) {
+			if (run.bot) {
+				DisarmWidgetBot(run.message->key);
+			}
+		}
 		const auto release = ReleaseWidgetFixture(
 			*state->fixture,
 			u"onFinish"_q);
@@ -3651,6 +3923,7 @@ void AppendWidgetConformance(
 		AppendRunActions(runner, state, i);
 		AppendDoneWait(runner, state, i);
 		AppendSnapshot(runner, state, i);
+		AppendPictureBands(runner, state, i);
 		AppendRunEnd(runner, state, i);
 	}
 	AppendWidgetFixtureControls(

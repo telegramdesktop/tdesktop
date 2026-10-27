@@ -8,9 +8,14 @@ Internal to it, documented below:
 [test_widget_conformance_state.h](../../test_widget_conformance_state.h),
 [test_widget_conformance_actions.h](../../test_widget_conformance_actions.h),
 [test_widget_conformance_input.h](../../test_widget_conformance_input.h)
-([timed pointer sequences](#timed-pointer-sequences)) and
+([timed pointer sequences](#timed-pointer-sequences)),
 [test_widget_conformance_bridge.h](../../test_widget_conformance_bridge.h)
-([bridge calls and uncaught errors](#bridge-calls-and-uncaught-errors)).
+([bridge calls and uncaught errors](#bridge-calls-and-uncaught-errors)),
+[test_widget_conformance_context.h](../../test_widget_conformance_context.h)
+([message contexts](#message-contexts) and
+[played bot answers](#played-bot-answers)) and
+[test_widget_conformance_pictures.h](../../test_widget_conformance_pictures.h)
+([pictures](#pictures)).
 
 ## Use when
 
@@ -25,7 +30,9 @@ its result is the last `data-conformance` value of its host's validated ops,
 read through [test_widget_ops](test_widget_ops.md); an auto entry's scripted
 actions are real Qt input sent to that `HistoryInner`, so the bubble's own
 press handling and recognizers take them; its stages are cropped at 2x from
-the list's own paint; and the runs are written as one run file of the
+the list's own paint; a visual entry the caller asks a picture of gets its
+whole card captured at 2x in bands ([pictures](#pictures)); and the runs are
+written as one run file of the
 `desktop` / `twidget-core` renderer. It follows the package's `CLIENTS.md`
 ("The runner, step by step", "Reading the ops"). twidget's
 `tools/conformance` runner is a comparative reference only: its off-screen
@@ -33,7 +40,9 @@ Direct2D renderer and bare bubble are not the app's view, input or paint.
 
 Caller: the evidence campaign of
 `2026/10/24/run-the-widget-conformance-sets-through-the-chat-list-and-report`,
-and reruns of it at a widget-sandbox or twidget pin move.
+and reruns of it at a widget-sandbox or twidget pin move, such as
+`2026/10/26/report-the-desktop-conformance-at-widget-sandbox-v0-2-2` at
+`v0.2.3`.
 
 Use something else when:
 
@@ -55,7 +64,11 @@ Use something else when:
   and no unread messages; the fixture gates it, shows the window normally,
   keeps it exposed and opens the chat in its legacy `HistoryInner`
   ([test_widget_fixture](test_widget_fixture.md)). A failed gate skips every
-  run by name. The pack hardcodes no chat, path or port.
+  run by name. The pack hardcodes no chat, path or port. The chat's kind
+  decides which runs a launch hosts ([message contexts](#message-contexts)):
+  a private context a user's chat, a group one a basic group or a megagroup,
+  a copy any chat; the others are omitted from that launch, for a launch on
+  a fitting chat.
 - **The compose field.** The chat's field must be ordinary and empty: no
   draft text, no message being edited, no edit draft, no rich cloud draft, no
   voice recording, no forward draft. Each run reads it before its injection
@@ -81,35 +94,48 @@ Use something else when:
   every run by name before anything is injected. A selected entry that is
   malformed (no id, set, file or light/dark themes, `widths` without 390,
   actions that are not objects, a host check that is not an object with an
-  id, a stage without a name, themes or a rect in whole CSS px) or whose HTML
-  is unreadable or empty is not run, by name.
+  id, a stage without a name, themes or a rect in whole CSS px, a `message`
+  that is not a non-empty array whose first item is an object, a first spec
+  whose kind the runner does not implement or whose `chat_data` or
+  `public_data` is not a string, a `bot` table that is not an object of
+  objects with string `result`s) or whose HTML is unreadable or empty is not
+  run, by name.
   `framework` and `engine` go into the run file as given: the campaign names
   the tag and the twidget pin, and an empty one fails a Check.
 - **The matrix.** The task's matrix is every auto entry in both themes,
   whatever its manifest `themes`, at 390 CSS px, and every visual entry only
-  in its manifest themes. At `v0.1.2` that is 40 auto and 37 visual entries
-  (20 visual and 17 client SDK). One run is omitted:
+  in its manifest themes. At `v0.2.3` that is 51 auto and 46 visual entries
+  (20 visual and 26 client SDK): 102 requested auto runs. Three runs are
+  omitted in every launch (`elsewhere` false). One is
   `auto/20-client-behaviour` in dark, while its manifest entry still gives
   the reason - its id, `themes: ["light"]` and a first action switching the
   chat to dark. Its scenario starts in light and switches dark and back
   itself, so a dark start's first action changes nothing and its theme-switch
   check could only fail by the runner's doing; the maintainers' web runner
   and twidget's reference keep it to light. A pin at which any of those
-  premises changes runs the dark start. The run file's `omittedRuns` and
-  `notes` state the omission, its reason and that a file with every other
-  auto run has 79 auto runs, not the 80 of the requested 40 x 2: a departure
-  from that criterion, never to be reported as meeting it without this
-  reconciliation. 37 of the 39 dark auto runs are of light-only entries; they
-  go beyond `CLIENTS.md`'s loop over each entry's own themes (42 auto runs at
-  `v0.1.2`), `report.mjs` counts their checks and skips their stages by each
-  stage's own themes, and `matrix.extraDark` and a note say so. The visual
-  set gives 37 light and 4 dark runs.
+  premises changes runs the dark start. The other two are
+  `auto/26-context-preview` in both themes, whose message is a preview the
+  desktop does not build ([message contexts](#message-contexts)). The run
+  file's `omittedRuns` and `notes` state each omission, its reason and that
+  a file with every other auto run has 99 auto runs, not the 102 of the
+  requested 51 x 2: a departure from that criterion, never to be reported as
+  meeting it without this reconciliation; `matrix.permanentAutoOmissions`
+  and `matrix.fullAutoRuns` count the same from the manifest. 47 of the 49
+  dark auto runs are of light-only entries; they go beyond `CLIENTS.md`'s
+  loop over each entry's own themes (53 auto runs at `v0.2.3`), `report.mjs`
+  counts their checks and skips their stages by each stage's own themes,
+  and `matrix.extraDark` and a note say so. The visual set gives 46 light
+  and 4 dark runs. A run the launch's chat cannot host is omitted from that
+  launch only, `elsewhere` true, and subtracts nothing from the matrix; a
+  note states the launch's share for its selection alone, and only every
+  launch's runs together give the full matrix.
 - **Visual entries are load checks.** No actions, no crops, no wait after
   actions: a visual run waits for `done` or `awaiting` (the SDK's mini harness
   and some visual pages wait for a person's input) and records its result,
   load, death, errors, bridge calls, height and focus like any run.
   `report.mjs` takes no verdict evidence from them; its summary shows each
-  visual id's light run first, so read dark records in the run file.
+  visual id's light run first, so read dark records in the run file. A
+  requested [picture](#pictures) adds captures of the card, never a verdict.
 - **Production configuration.** The pack configures no host: every widget
   host gets `DefaultHostOptions()` of `tgw_runtime.cpp`, policy `strict` and
   features `webAnimations`, which the run file states as `policy` and
@@ -129,10 +155,11 @@ Use something else when:
   wait with that outcome, recorded and not refused: the report judges what the
   widget published, and a dead or unloaded run fails every check. After the
   actions the runner waits up to 10 s for `done`.
-- **2x.** The stage crops need the device pixel ratio times the interface
-  scale to be 200 % (a Retina display at 100 %, say), and the accepted image
-  of each snapshot must be exactly twice its CSS size. Anything else refuses
-  every stage of the run `not-2x`; no frame is upscaled.
+- **2x.** The stage crops and the picture bands need the device pixel ratio
+  times the interface scale to be 200 % (a Retina display at 100 %, say), and
+  the accepted image of each snapshot and band must be exactly twice its CSS
+  size. Anything else refuses every stage of the run, or the band, `not-2x`;
+  no frame is upscaled.
 - **One host per run.** A run whose tap selected more than one host factory
   (a restart after a crash, a re-creation) still reports its result: the
   newest value, or the older host's last one when the newer cleared it
@@ -151,8 +178,20 @@ Use something else when:
   `report.mjs` writes one `<platform>-<renderer>.json` per renderer, so
   partitions are combined into one renderer file before the report. The pack
   has no merge, resume or load-existing code.
+- **Message contexts.** Each run's message is injected with the flags of its
+  entry's first `message` spec's kind and that spec's state, an entry
+  without `message` with the private chat's context and no state; the
+  client derives the chat type and the viewer itself
+  ([message contexts](#message-contexts)).
+- **Played bot.** Every injected run's message is armed with its manifest
+  entry's `bot` table (empty without one) through
+  [test_widget_bot](test_widget_bot.md), so its widget's requests are
+  answered by the runner at `Tgw::Runtime::botRequested()`, never by
+  `Tgw::Bridge`, the server or a real bot
+  ([played bot answers](#played-bot-answers)).
 - **Not measured.** Widths 360 and 430 (the width is fixed at 390), other
-  platforms, whole-process network traffic, pixels of the visual set, and
+  platforms, whole-process network traffic, pixels of the visual set (a
+  requested picture is captured, never judged), and
   whether `framework` names the checked-out tag. The real cursor is not
   moved: the lists resolve `QCursor::pos()` on enter, resize and scroll
   ([chat-list show](test_chat_show.md)), which the action readings make
@@ -177,6 +216,7 @@ void SetupScenario(not_null<Runner*> runner) {
 		.themes = qEnvironmentVariable("<THEMES>").split(
 			QChar(','),
 			Qt::SkipEmptyParts),
+		.pictures = { u"<visual entry id>"_q },
 		.token = qEnvironmentVariable("<TOKEN>"),
 		.ports = { <port>, <port> },
 	});
@@ -208,7 +248,10 @@ stages; the show helper's stages are `show in chat list: widget conformance
   - `<key>: inject the fillers above the widget`, only for a run with a
     `visible` action;
   - `<key>: focus the chat's input field`, `<key>: arm the tap and inject the
-    widget message`, `show in chat list: widget conformance <key> load` (the
+    widget message` (with its entry's message context; it also arms the
+    played bot, in the same call, and refuses a group run in a broadcast
+    channel before anything is added),
+    `show in chat list: widget conformance <key> load` (the
     card's top 48 CSS px, so the list counts it visible and its host starts;
     no hover), `<key>: wait for the result, a death or a failure`;
   - with actions: `<key>: start the actions`, each action's stages
@@ -216,6 +259,9 @@ stages; the show helper's stages are `show in chat list: widget conformance
     for done after the actions`;
   - with stages in its theme: `show in chat list: widget conformance <key>
     snapshot` and `<key>: snapshot the stages at 2x and crop them`;
+  - with a requested picture, per band 0 and 1: `show in chat list: widget
+    conformance <key> picture band <band>` and `<key>: capture picture band
+    <band> at 2x` ([pictures](#pictures));
   - `<key>: read the runtime log and the card height` and `<key>: remove the
     message and wait for its hosts`;
 - `network control after the last widget`, `palette restore: widget
@@ -308,7 +354,7 @@ never skipped or refused: a right click for which no menu was built, a
 widget whose scheme did not follow the palette (`widgetTheme.reached`
 false), a runtime still counting itself visible off screen. The widget's own
 checks then carry it into the report as a discrepancy. The action stages add
-three run refusals: `too-few-moves`, when `auto/23-gestures`'s `mid` drag
+three run refusals: `too-few-moves`, when `auto/23-gestures-b`'s `mid` drag
 reached the widget as fewer than the 3 trusted `pointermove` events with the
 button down its check needs (the runner's timing, never the widget's
 verdict), `host-replaced` and `fillers-refused`.
@@ -341,6 +387,72 @@ crop: `not-captured`, `not-2x`, `not-live` (died or did not load),
 painted card or the snapshot), `write-failed`. Any of them fails the totals;
 a skipped crop is never a completed measurement.
 
+## Pictures
+
+`test_widget_conformance_pictures.{h,cpp}`. `pictures` names visual
+entries whose cards the caller wants as the list paints them, beside the
+package's `refs/visual/<id>.png`, as the corrected pictures of
+`2026/10/26/report-the-desktop-conformance-at-widget-sandbox-v0-2-2`. The
+list's viewport (500 logical px in the campaign) is shorter than the tallest
+of them (544 and 534 CSS px at 100 %), and the show helper refuses a rect
+taller than the visible area, so one capture cannot hold a card.
+
+- **Selection.** `SelectPictures()`, right after `SelectRuns()`: every run
+  of a named visual entry gets a requested picture of two bands, in each
+  theme it runs in. An id that is no visual entry of the manifest (an auto
+  id, or none) goes into `selection.unknownPictures` and fails the
+  selection Check; a visual entry this launch runs in no theme (another
+  `ids`, `sets` or `themes`, or left to another chat) gets a note and
+  nothing else; no `pictures` adds no stage, row, note, extra or Check.
+  `selection.pictures` keeps the argument as given.
+- **Bands.** Band 0 is the card's CSS rows from 0, band 1 those from 300,
+  each `min(300, height - y)` tall at the card's whole width: two bands hold
+  a card of up to 600 CSS px. A band the card ends above is not needed, its
+  show skipped, and no missing capture.
+- **Show and capture.** After the result wait and before the log and the
+  removal, per band: a show of the band's rows on the current card
+  (`WidgetCardLocal()`), with no hover, needing `WidgetCardReady()`; then,
+  in the next stage, the snapshot's revalidation of the view, core, card and
+  geometry the show accepted and one `PreparedWidgetCapture` of the shown
+  rect of the list, its own paint. The image must be exactly `2w x 2h` of
+  the band's CSS size, from the device pixel ratio and the interface scale,
+  and is saved unconverted as `pictures/<id>.<theme>.<band>.png`, its size
+  read back from the file.
+- **One host, one size.** Band 0 is the first capture: it keeps the card's
+  CSS size, its interactive core, the tap's host generation and the
+  `stages` the widget published then. Band 1 is placed on that card size
+  and joins only from the same core and generation, at the same card size,
+  right below band 0's saved rows; anything else is refused rather than
+  stitched from two hosts or geometries. The two bands are two moments of
+  one live card: an animation may differ between them.
+- **Refusals** (`refusal` and `detail` of a band without a file):
+  `not-captured` (never reached, or band 1 without a saved band 0 to be
+  placed on), `not-2x`, `not-live` (died or did not load), `show-refused`
+  (the show's refusal, `cannot-fit` in an environment whose viewport cannot
+  hold a band among them), `capture-refused` (the revalidation, a card that
+  is no whole number of CSS px, another core, generation or card size than
+  band 0's, a shown rect other than the band's, or the capture itself),
+  `write-failed`.
+
+Each run with a requested picture, completed or not, carries the extra
+`picture`; the runner judges no pixel of it, and `report.mjs` reads none:
+
+| Field | Meaning |
+| --- | --- |
+| `bandCss` | 300. |
+| `card` | The card's `[w, h]` CSS px at band 0, `null` without it. |
+| `core`, `generation` | Band 0's interactive core (an address, never dereferenced) and host generation. |
+| `stages` | The `stages` the widget published at band 0, `null` when none. |
+| `devicePixelRatio`, `interfaceScale` | At the last band. |
+| `complete`, `missing` | Whether every needed band is saved at its rows, the card holds no rows below band 1, and what is missing otherwise. |
+| `bands` | Per band: `band`, `needed` (`null` while band 0's card is unknown), `css`, `list` (the shown rect, the list's logical px), `card` (the accepted card in its view), `core`, `generation`, `image`, `file`, `refusal`, `detail`, `show`; a band not needed is `{band, needed: false}` alone. |
+
+The totals stage, when any picture was asked for, Checks that every selected
+run with a requested picture is `complete`. A run file written from
+`onFinish` keeps the bands taken so far without that Check. The task-local
+comparison stitches the bands of `complete` pictures and sets them beside
+the package's pictures.
+
 ## Readings and refusals
 
 **The run file** is `<output>/run.json` (`EvidenceDir() + "conformance"`
@@ -353,7 +465,15 @@ QtBackend (QPainter)", device pixel ratio and interface scale), `framework`,
 `policy`, `features`, `date` (UTC, at setup) and `runs`; and the extras
 `locale`, `environment`, `notes`, `omittedRuns`, `incompleteRuns`, `matrix`,
 `selection`, `selfCheck`, `palette`, `paletteRestore` and
-`unexpectedOutgoing`. The schema forbids no extra field.
+`unexpectedOutgoing`. The schema forbids no extra field. Each
+`omittedRuns` entry has `id`, `theme`, `width`, `reason` and `elsewhere`:
+true only for a run left to a launch on another chat, which a combination
+of launches may drop once another launch completed it; false for the
+manifest's own omissions, which stay. `matrix` has the manifest's
+`autoTests`, `visualTests`, `requestedAutoRuns`, `permanentAutoOmissions`,
+`fullAutoRuns`, `clientsAutoRuns` and `visualManifestRuns`, and this
+launch's `autoLight`, `autoDark`, `autoRuns`, `extraDark`, `visualLight`,
+`visualDark`, `elsewhereAuto` and `elsewhereVisual`.
 
 `runs` holds only completed runs: measured through their log, with a final
 tap reading, and not refused by the package or the fixture (a malformed
@@ -380,8 +500,12 @@ still carry runner refusals; they fail the totals. Its fields:
   examples), `focus`, `view` (list, load-show and final view, core, card,
   core width, scheme, scheme changes, generation, theme message), `load`
   (show, outcome, waits), `log` (source, summary provenance, the summary
-  reading's counts), `contentHeight`, `layers` and, with stages,
-  `snapshot`.
+  reading's counts), `contentHeight`, `layers`, `message`
+  ([message contexts](#message-contexts)), `bot`
+  ([played bot answers](#played-bot-answers)), with stages `snapshot`,
+  and with a requested picture `picture` ([pictures](#pictures)). An
+  incomplete run carries `message`, its `picture` when one was requested
+  and, once injected, `bot` too.
 
 An observation that was not made is left out, never filled in: `bridge` and
 `errors` appear only when the [summary](#bridge-calls-and-uncaught-errors)
@@ -427,16 +551,18 @@ array is not used; `result.error` names why.
 | `CONFORMANCE_ACTION` | `run`, `index`, `kind`, `performed`, `refusal`, `skipReason`, `reading`. |
 | `CONFORMANCE_ACTIONS` | `run`, `actions`, `performed`, `notPerformed`, `elapsedMs`. |
 | `CONFORMANCE_SNAPSHOT` | The run's `snapshot` and every stage's crop, refusal and capture. |
+| `CONFORMANCE_PICTURE` | After each band's capture stage: the band's entry of the `picture` extra, plus `run`, `pictureCard`, `pictureCore` and `pictureGeneration`. |
 | `CONFORMANCE_LOG` | `run`, `source`, `summaryState`, `summary`, `pending`, `waitedMs`, `chars`, `truncated`, `text` (its first 32768 characters). |
 | `CONFORMANCE_RUN` | The run's entry, plus `item`, `completed`, `progress`, `notRun`, `barrierMs`, `itemGone`, `fixture`. |
 | `CONFORMANCE_OUTGOING` | An outgoing message the runner did not inject: `run`, `id`, `wallMs`, `inChat`, `local`, `regular`, `service`. |
-| `CONFORMANCE_TOTALS` | `path`, counts and named lists of completed, incomplete, loaded, dead, focus, refusals, actions, crops, leaks, gaps, violations, unfinished hosts, accepted `openTelegramLink` calls and layers; `absences` (`leaks`, `gaps`, `telegramLinks`: `selected`, `covered`, `found`, `certified`, `uncovered`); `abort`, `palette`, the self-check, and the run file's `written`, `file`, `bytes` and `error`. |
+| `CONFORMANCE_TOTALS` | `path`, counts and named lists of completed, incomplete, loaded, dead, focus, refusals, actions, crops, pictures (`requested`, `complete`, `missing`), leaks, gaps, violations, unfinished hosts, accepted `openTelegramLink` calls and layers; `absences` (`leaks`, `gaps`, `telegramLinks`: `selected`, `covered`, `found`, `certified`, `uncovered`); `abort`, `palette`, the self-check, and the run file's `written`, `file`, `bytes` and `error`. |
 
 The show helper Notes each show's reading and the palette helpers their
 `PALETTE_SWITCH:` and `PALETTE_RESTORE:` rows.
 
 **Checks.** The self-check rows; the package was read; every requested
-theme, set and id is the manifest's and `framework` and `engine` are named;
+theme, set and id is the manifest's, every requested picture a visual
+entry's, and `framework` and `engine` are named;
 every selected entry is well formed and its HTML read; the selection holds a
 run; the output directory is fresh and ready; the fixture's gates and
 controls; the palette judgements; no outgoing message the runner did not
@@ -444,7 +570,8 @@ inject; the run file is written. The totals stage, never a run file written
 from `onFinish`, then Checks that every selected run completed, every
 completed run was `chatFocused`, none carries a runner refusal, every
 scripted action was performed or skipped as unperformable, every requested
-crop was saved, the copied `--attacks` scan discriminates
+crop was saved, every requested picture is complete (only when one was
+asked for), the copied `--attacks` scan discriminates
 (`DiscriminatingScan`, the self-check's control leaks as its control) and no
 widget leaked a URL into its validated ops, no scan gap, every run's hosts
 finished before its final reading, no host accepted an `openTelegramLink`
@@ -480,7 +607,8 @@ confirms a layer and never follows a link.
 `Runner::onFinish` is registered before any stage. On every exit path it
 stops the outgoing-message watcher, aborts every pointer sequence still
 running (its held buttons released and the list left), keeps every
-incomplete run's last tap reading, runs the fixture's idempotent release
+incomplete run's last tap reading, disarms every played bot by its run's kept
+key (the records stay with the runs), runs the fixture's idempotent release
 (every tap disarmed by its kept key, every widget and filler message
 destroyed by id, the controls closed, the list left, the option, chat and
 window state restored), then writes the run file and the totals row without
@@ -497,7 +625,137 @@ restore saves the settings. Run on a disposable portable copy.
 The messages are local client-id messages, never sent; their Web Storage
 never reaches the disk. A key's typed text is cleared in its own stage; the
 window's focus child is left on the compose field; the scroll position is
-not restored. The output directory keeps `run.json`, `cards/` and `crops/`.
+not restored. The output directory keeps `run.json`, `cards/`, `crops/`
+and, with requested pictures, `pictures/`.
+
+## Message contexts
+
+`test_widget_conformance_context.{h,cpp}` reads each manifest entry's
+`message` at setup (`ParseManifestMessage()`) as `CLIENTS.md` ("The message
+context") and the maintainers' web runner read it: only the first spec
+counts, by its `kind`; later specs are not run (`message.specs` counts
+them).
+
+| First spec's kind | isCopy / canQuery / backgroundQuery | Chat it needs |
+| --- | --- | --- |
+| no `message` | F / T / T, no state | a user's private chat |
+| `private` | F / T / T | a user's private chat |
+| `group` | F / T / F | a basic group or a megagroup |
+| `no-queries` | F / F / F | a user's private chat |
+| `copy` | T / F / F | any chat |
+| `live-copy` | T / T / F | any chat |
+| `preview` | run as `private`: F / T / T | a user's private chat |
+
+The flags are `WIDGET_MESSAGE_KINDS` of widget-sandbox's `sdk-policy.ts`,
+taken from the kind whatever the spec's `allow_queries` says. The spec's
+`chat_data` and `public_data` go into the media as given, as UTF-8: a
+missing one stays unset, an empty one is present and empty; a copy keeps
+the state it was sent with, and the framework drops a copy's `chatData`
+itself. No widget id is set, so nothing polls the message. A `message` that
+is not a non-empty array whose first item is an object, any other kind
+(`via-bot` included, which no `v0.2.3` entry asks for) and a state that is
+not a string make the entry malformed, by name. The runner sets neither the
+chat type nor the viewer: `WidgetMedia::context()` derives the chat type
+from the message's chat and flags, `HostContext()` in `tgw_runtime.cpp`
+gives the account's own user as viewer where `canQuery`, and the widget's
+own checks observe both, verbatim.
+
+**Chats.** `SelectRuns()` knows only the chat's `PeerId` and reads no
+account state: a run whose context needs a user's chat is selected only when
+the id is a user's, a group run only when it is a basic group's or a
+channel's, a copy always. Any other run is omitted from that launch with
+`elsewhere` true and its reason in `omittedRuns` and the notes; a launch on
+a fitting chat runs it, and only such omissions may be dropped when launches
+are combined. Right before a group run's injection `InjectRun()` reads the
+fixture's loaded peer: a broadcast channel is a wrong fixture, so the run is
+refused `not injected: ...` before anything is added and stays in
+`incompleteRuns`, failing the totals by name. At `v0.2.3` a launch in a
+user's private chat runs everything but `auto/26-context-group` and
+`visual/sdk/25-group-chat-state`, which a launch in a megagroup or basic
+group runs.
+
+**Previews.** The client builds no host with `context.preview` (inline
+results are listed as article rows) and the owner deferred preview hosts
+pending preview design mockups (2026-10-26), so the runner builds none
+either. An auto entry whose message is a preview (`auto/26-context-preview`)
+is omitted in every launch, in both themes, with that reason naming
+`tw.preview` and `behaviour.preview`. A visual one (`visual/sdk/23-preview`)
+loads as a private message with its state, as a load check, in a user's
+chat; its `message` extra records the requested kind `preview`, the kind
+`private` it ran as and the untested `previewLeg`, and a note says no
+preview context is claimed from it.
+
+**After the injection** `CheckInjected()` reads `WidgetMedia::context()` of
+the checked item into `ConformanceRun::context`: the flags and the chat
+type the client derived. `InsertContextExtras()` writes the run's `message`
+extra, for completed and incomplete runs of an entry whose kind was read,
+beside its `bot` extra; an observation not made stays out:
+
+| Field | Meaning |
+| --- | --- |
+| `requestedKind` | The first spec's kind, `private` without `message`. |
+| `kind` | The kind it ran as: `private` for a preview. |
+| `implicit` | No `message`: the private chat's context with no state. |
+| `specs` | The entry's specs; only the first is run. |
+| `flags` | `isCopy`, `canQuery`, `backgroundQuery` as injected. |
+| `state` | `chatData`, `publicData` as injected, `null` when unset. |
+| `widgetId` | `null`: never set. |
+| `previewLeg` | Only for a preview: why its preview leg is untested. |
+| `derived` | Only once read: the flags and `chatType` (`private`, `group`, `supergroup`, `channel`, or `null` for none) `WidgetMedia::context()` gave. |
+
+The notes state the first-spec and default rule, the launch's chat by its
+id and the chat types derived for its injected runs, each loaded preview's
+requested and effective context, and what the played bot answers and
+leaves unmeasured.
+
+## Played bot answers
+
+`test_widget_conformance_context.{h,cpp}` reads each manifest entry's `bot`
+table at setup (`ParseManifestBot()`): each entry's exact data and its
+`result` string, or none, for the played bot; every other key of an entry
+(`edit`, `editShared`, `repeat`, only in `visual/sdk` tables at `v0.2.3`) is
+named as unplayed, since the played bot edits no message and polls nothing.
+
+`InjectRun()` arms [test_widget_bot](test_widget_bot.md) for every run whose
+message was injected, an empty table included, in the same call right after
+`InjectWidgetMessage()` returned, under the message's kept session-qualified
+key. Nothing between them turns the event loop: the injection's layout
+notification is synchronous, the host is built only after a paint, an
+asynchronous `Build()` and `Runtime::constructed()`, and requests reach the
+main thread through `crl::on_main`, so no request of the message can come
+before the arming. The removal stage disarms by that key before
+`RemoveFixtureMessage()`, independently of the tap's `armed` flag, and
+`onFinish` disarms every held run before the fixture's release. The record
+stays with the run until the run file is written.
+
+A request is answered from the table as the reference bot answers it: the
+listed `result` with `{n}` (requests with that data for the message so far),
+`{from}` `Conformance` and `{time}` `12:00`; a listed entry without result and
+data not in the table without result. A request its message's context
+forbids (no `canQuery`, or no tap and no `backgroundQuery`) is refused by
+the framework's gate before the client and reaches no record.
+
+Each completed run, and each incomplete run that was injected, carries the
+extra `bot`, written by the same `InsertContextExtras()`; a run never
+injected has none and is never labelled played:
+
+| Field | Meaning |
+| --- | --- |
+| `armed` | true: armed from the injection to the removal. |
+| `played` | Whether any request was answered by the played bot. |
+| `scope` | `message-lifetime`: the requests of every host of the message. |
+| `hosts` | The run's tap reading's selected host factories. |
+| `table` | The entry's table: `{<data>: {"result": <text>}}`, `{}` without result. |
+| `unplayed` | `{data, operation}` of every operation not played. |
+| `requests` | `{data, listed, n, result, sinceArmedMs}` in arrival order, `result` null when none. |
+
+The record belongs to the message: a host restarted after a death or
+re-created adds to the same requests and its `n` continues, so with `hosts`
+above 1 the requests cannot say which host asked or published the run's
+result. Such a run keeps `result.generation` and `result.retained` and its
+summary's `summary-multiple-hosts` refusal; nothing retries it. The answers
+are played: `messages.getBotWidgetQueryAnswer`, its errors and deadline, the
+server and the bot are not measured by any run.
 
 ## Timed pointer sequences
 
@@ -631,6 +889,7 @@ would pass for the genuine one.
 
 The pack's first stage runs, as Checks: `RunWidgetOpsSelfCheck()` (its
 scanner control is the leak scan's control in the totals);
+`RunWidgetBotSelfCheck()` ([test_widget_bot](test_widget_bot.md#verification));
 `RunWidgetConformanceProbeCheck()` on the package's `probe-fixture.json`
 ([test_widget_ops](test_widget_ops.md)); two result-reader controls on
 literal readings (this run's value taken with its checks verbatim once per
@@ -658,10 +917,39 @@ uncovered, one of several or all); three run-file controls (a completed run
 with the schema's fields, verbatim checks, array arguments, a refused stage
 without a crop or judgement and only a true skip in `skippedActions`; an
 incomplete run only in `incompleteRuns` and an omission in `omittedRuns` and
-the notes; a refused bridge reading through `RunFileObject()` with its
-manifest entry's checks in `host`, and a reading of no call without); and a
-totals control (`CountTallies()` over runs no tap was armed for, one without
-a bridge reading, beside a good scan control).
+the notes, `elsewhere` true only for one left to another chat; a refused
+bridge reading through `RunFileObject()` with its
+manifest entry's checks in `host`, and a reading of no call without);
+`RunContextCheck()` on literal entries (the pinned kinds' flags whatever
+`allow_queries` says, with their state, a second spec not run and a preview
+run as private; no `message` the private context with no state; a
+copy-shaped spec keeping its state; an empty `chat_data` present beside a
+missing `public_data` unset; a `message` of the wrong shape, `via-bot`, a
+missing kind and a non-string state malformed by name; every kind's chat
+requirement over a user's chat, a basic group, a channel by its id, a
+megagroup and a broadcast, and `ChatPartition()` by id, though
+`ChatRefusal()`'s reading of a real loaded peer is not in it; a `bot`
+table's results, an entry
+without result and its `edit`, `editShared` and `repeat` read as unplayed,
+no `bot` an empty table, a `bot`, an entry and a `result` of the wrong type
+malformed by name; the extras of a run whose record played a listed and an
+unlisted request under a peer-0 id - its `bot` with its table, unplayed
+operation, host count and scope, its `message` with the derived context -
+beside a run never injected that has its requested context only);
+a selection control (`SelectRuns()` of literal entries in a user's chat by
+its id: the auto preview omitted in both themes naming both catalogue IDs,
+`elsewhere` false; the visual preview run as private with its state and
+`previewLeg`; group entries of both sets omitted with `elsewhere` true in
+the state and in `omittedRuns`; `matrix` and the notes counting only the
+permanent omissions against the matrix); `RunPictureCheck()` (requested
+visual, auto, unknown, unselected and no picture ids through
+`SelectPictures()` and the notes; the bands of a 544 CSS px card and the
+completeness of 336, 280 and 650 CSS px pictures, with band 1 refused,
+shifted, not needed or nothing captured; band 1 joining band 0 only from
+its core, host generation and card size after band 0 was saved); and a
+totals control
+(`CountTallies()` over runs no tap was armed for, one without a bridge
+reading, beside a good scan control).
 
 Executed so far, by
 `2026/10/24/run-the-widget-conformance-sets-through-the-chat-list-and-report`

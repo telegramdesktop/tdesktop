@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/basic_types.h"
+#include "test/test_widget_bot.h"
 #include "test/test_widget_conformance.h"
 #include "test/test_widget_conformance_bridge.h"
 #include "test/test_widget_fixture.h"
@@ -16,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QByteArray>
 #include <QtCore/QJsonArray>
 #include <QtCore/QJsonObject>
+#include <QtCore/QJsonValue>
 #include <QtCore/QPointer>
 #include <QtCore/QRect>
 #include <QtCore/QSize>
@@ -28,16 +30,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <optional>
 #include <vector>
 
+class QImage;
 class QWidget;
 
 namespace Ui {
 class InputField;
 } // namespace Ui
 
-// The widget conformance runner's state, shared by its two translation
-// units: test_widget_conformance.cpp (selection, the per-run pipeline,
-// snapshots and the run file) and test_widget_conformance_actions.cpp (the
-// scripted actions). Internal to them; reference:
+// The widget conformance runner's state, shared by its translation units:
+// test_widget_conformance.cpp (selection, the per-run pipeline, snapshots
+// and the run file), test_widget_conformance_actions.cpp (the scripted
+// actions), test_widget_conformance_context.cpp (message contexts and the
+// played bot's records) and test_widget_conformance_pictures.cpp (the
+// requested pictures' bands). Internal to them; reference:
 // docs/helpers/test_widget_conformance.md.
 
 namespace Test {
@@ -53,6 +58,11 @@ namespace Test::Conformance {
 // The show helper's own deadline for each show of the runner.
 inline constexpr auto kShowTimeout = crl::time(10000);
 
+// Image pixels per CSS px of every stage snapshot, crop and picture band,
+// CLIENTS.md's 2x: it must come from the device pixel ratio and the
+// interface scale themselves, as no frame is ever upscaled.
+inline constexpr auto kCropScale = 2;
+
 // One stage of a manifest entry: its rect in whole CSS px from the
 // widget's top-left, and the themes it is cropped in.
 struct ManifestStage {
@@ -61,9 +71,34 @@ struct ManifestStage {
 	QRect rect;
 };
 
+// What a manifest `bot` entry asks for besides its answer (`edit`,
+// `editShared`, `repeat`): named in the run file, never played.
+struct UnplayedBotOperation {
+	QString data;
+	QString operation;
+};
+
+// A manifest entry's message context, as ParseManifestMessage() reads it:
+// |kind| is its first `message` spec's kind as requested, "private" with
+// |implicit| for an entry without `message`, empty until it was read or
+// when the kind is malformed; |fields| are what its run's message is
+// injected with: the flags of the kind it runs as (a preview as private)
+// and that spec's `chat_data` / `public_data` as given, an absent one
+// unset, never a widget id. |specs| counts the entry's specs; only the
+// first is run.
+struct ManifestMessage {
+	QString kind;
+	WidgetMessageFields fields;
+	int specs = 0;
+	bool implicit = false;
+};
+
 // One manifest entry, as read at setup: only the fields the runner uses,
-// its actions and host checks kept as the manifest's own JSON. |error|
-// says why a selected entry cannot run, |htmlError| why its HTML cannot.
+// its actions and host checks kept as the manifest's own JSON. |message|
+// is the context its run's message gets. |bot| is its `bot` table as the
+// played bot answers it, empty without one, and |botUnplayed| what the
+// table asks for that is not played. |error| says why a selected entry
+// cannot run, |htmlError| why its HTML cannot.
 struct ManifestTest {
 	QString id;
 	QString set;
@@ -73,6 +108,9 @@ struct ManifestTest {
 	QJsonArray actions;
 	QJsonArray host;
 	std::vector<ManifestStage> stages;
+	ManifestMessage message;
+	WidgetBotTable bot;
+	std::vector<UnplayedBotOperation> botUnplayed;
 	QByteArray html;
 	QString error;
 	QString htmlError;
@@ -125,6 +163,41 @@ struct SnapshotReading {
 	QString detail;
 	int ratio = 0;
 	int scale = 0;
+};
+
+// One band of a run's picture: the card's rows |css|, in CSS px from the
+// widget's top-left at the card's whole width, the rect its show showed in
+// the list's logical px, the accepted image's size in pixels and its
+// |file| relative to the run file. |card| is what its show accepted (the
+// card's rect in its view, its core) and |generation| the tap's host
+// generation at its capture. |refusal| names why there is no file; a band
+// below the card is not needed and keeps none.
+struct PictureBand {
+	QRect css;
+	QRect list;
+	QSize image;
+	QString file;
+	QString refusal = u"not-captured"_q;
+	QString detail;
+	WidgetCardReading card;
+	std::shared_ptr<const ChatListShow> show;
+	int generation = 0;
+};
+
+// The picture of a run whose entry the caller asked one of (|requested|):
+// its possible bands, and from its first capture the card's size in CSS
+// px, its core and host generation, which every later band must match,
+// and the stage rects the widget published then (null when none). |ratio|
+// and |scale| are the device pixel ratio and the interface scale.
+struct PictureReading {
+	std::vector<PictureBand> bands;
+	QJsonValue stages;
+	QSize card;
+	quintptr core = 0;
+	int generation = 0;
+	int ratio = 0;
+	int scale = 0;
+	bool requested = false;
 };
 
 // One manifest action of an auto run. It stays not performed, with a
@@ -194,6 +267,12 @@ struct ConformanceActions;
 // the run (a restart after a death) cleared |result|. |palette| indexes
 // the palette phase it runs in. |fillers| are the local text messages a
 // run with a visible action gets above its widget, registered at setup.
+// |bot| is the played bot's record of the message, armed under the same
+// key in the injection's own call, null when nothing was injected, and
+// held until the run file is written. |context| is WidgetMedia::context()
+// of the injected item, the flags and chat type the client derived, read
+// once the injection was checked; unset otherwise. |picture| is requested
+// only for a visual run whose entry the caller asked a picture of.
 struct ConformanceRun {
 	QString id;
 	QString set;
@@ -203,6 +282,8 @@ struct ConformanceRun {
 	QString progress = u"not started"_q;
 	std::shared_ptr<WidgetFixtureMessage> message;
 	std::vector<std::shared_ptr<WidgetFixtureMessage>> fillers;
+	std::shared_ptr<WidgetBotRecord> bot;
+	std::optional<Tgw::MessageContext> context;
 	std::shared_ptr<ConformanceActions> live;
 	ConformanceResult result;
 	std::vector<StageReading> stages;
@@ -226,6 +307,7 @@ struct ConformanceRun {
 	std::shared_ptr<const ChatListShow> snapshotShow;
 	WidgetCardReading snapshotCard;
 	SnapshotReading snapshot;
+	PictureReading picture;
 	ComposeReading compose;
 	ViewReading view;
 	ConformanceResult retained;
@@ -267,10 +349,14 @@ struct OutgoingItem {
 	bool service = false;
 };
 
+// A run the selection left out. |elsewhere|: only because this launch's
+// chat cannot host its message context, so a launch on a fitting chat runs
+// it; otherwise the manifest's own omission, the same in every launch.
 struct OmittedRun {
 	QString id;
 	QString theme;
 	QString reason;
+	bool elsewhere = false;
 };
 
 struct ConformanceEnvironment {
@@ -297,6 +383,7 @@ struct ConformanceState {
 	QStringList unknownThemes;
 	QStringList unknownSets;
 	QStringList unknownIds;
+	QStringList unknownPictures;
 	QStringList invalid;
 	QByteArray probeFixture;
 	QString packageError;
@@ -337,7 +424,7 @@ struct ConformanceState {
 	QString abort;
 };
 
-// The helpers both translation units read the state with, defined in
+// The helpers the translation units read the state with, defined in
 // test_widget_conformance.cpp.
 
 // kPrefix, then |text|: every stage name, Check and Note of the runner.
@@ -378,5 +465,25 @@ void JudgeRestore(
 	const std::shared_ptr<const PaletteSwitch> &switched,
 	const std::shared_ptr<const PaletteRestore> &restore,
 	const QString &what);
+
+// The stage snapshot's capture helpers, shared with the picture bands.
+
+// Whether the device pixel ratio times the interface scale is
+// kCropScale * 100, so a capture is 2x without upscaling.
+[[nodiscard]] bool CropScaleHolds();
+// |css| in logical px, exact while CropScaleHolds().
+[[nodiscard]] QRect LogicalFromCss(QRect css);
+// Why no capture of |run| can be taken at all, before any show: not-2x
+// or not-live; an empty name when one can.
+[[nodiscard]] RunnerRefusal SnapshotBlock(const ConformanceRun &run);
+// "<id>.<theme>", every character of the id but ASCII letters, digits,
+// '-' and '_' replaced, for the run's file names.
+[[nodiscard]] QString FileBase(const ConformanceRun &run);
+// Saves |image| as a PNG at |relative| under the output directory and
+// reads its size back from the file; empty, or what failed.
+[[nodiscard]] QString SavePng(
+	const ConformanceState &state,
+	const QImage &image,
+	const QString &relative);
 
 } // namespace Test::Conformance
