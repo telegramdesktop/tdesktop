@@ -994,36 +994,62 @@ void InnerWidget::jumpToMessageInLog(
 
 	const auto top = itemTop(view);
 	const auto height = view->height();
-	const auto viewport = _visibleBottom - _visibleTop;
 	if (top >= _visibleTop && top + height <= _visibleBottom) {
 		return;
 	}
 	const auto from = _visibleTop;
-	const auto range = (highlight.richQuote && (height > viewport))
-		? HistoryView::FindHighlightYRange(view, _highlighter.state(item))
-		: HistoryView::HighlightYRange();
-	const auto target = std::clamp(
-		(range
-			? HistoryView::AdjustScrollForRange(top, viewport, range)
-			: (top - std::max(0, (viewport - height) / 2))),
-		0,
-		std::max(0, this->height() - viewport));
+	const auto target = jumpTarget(view, highlight);
 	if (from == target) {
 		return;
 	}
+	const auto consumed = [=] {
+		return Tgw::ListScroll::Consumed(this);
+	};
 	_scrollToAnimation.stop();
-	_scrollToAnimation.start(
+	Tgw::ListScroll::Input(this);
+	_scrollToFlight.start(
+		from,
+		target,
+		consumed,
+		consumed(),
+		[=] { return Tgw::ListScroll::Inputs(this); },
+		Tgw::ListScroll::Placement(this, item->fullId(), highlight));
+	_scrollToFlight.animate(
+		&_scrollToAnimation,
 		[=] {
-			_scrollToSignal.fire_copy(
-				anim::interpolate(
+			_scrollToFlight.frame(
+				0,
+				anim::interpolateToF(
 					from,
 					target,
-					_scrollToAnimation.value(1.)));
+					_scrollToAnimation.value(1.)),
+				_visibleTop,
+				!_scrollToAnimation.animating(),
+				[=](int top) { _scrollToSignal.fire_copy(top); });
 		},
 		0.,
 		1.,
 		st::slideDuration,
 		anim::easeOutCubic);
+}
+
+int InnerWidget::jumpTarget(
+		not_null<Element*> view,
+		const MessageHighlightId &highlight) const {
+	const auto top = itemTop(view);
+	const auto height = view->height();
+	const auto viewport = _visibleBottom - _visibleTop;
+	const auto range = (highlight.richQuote && (height > viewport))
+		? HistoryView::FindHighlightYRange(
+			view,
+			_highlighter.state(view->data()))
+		: HistoryView::HighlightYRange();
+	return std::clamp(
+		(range
+			? HistoryView::AdjustScrollForRange(top, viewport, range)
+			: (top - std::max(0, (viewport - height) / 2))),
+		0,
+		std::max(0, this->height() - viewport));
 }
 
 void InnerWidget::expandGroupContaining(not_null<HistoryItem*> item) {
@@ -3404,6 +3430,9 @@ void InnerWidget::onTouchScrollTimer() {
 		int32 elapsed = int32(nowTime - _touchTime);
 		QPoint delta = _touchSpeed * elapsed / 1000;
 		bool hasScrolled = !delta.isNull();
+		if (delta.y()) {
+			Tgw::ListScroll::Input(this);
+		}
 		if (hasScrolled) {
 			_scrollToSignal.fire_copy(_visibleTop - delta.y());
 		}
@@ -3621,6 +3650,9 @@ void InnerWidget::touchEvent(QTouchEvent *e) {
 
 void InnerWidget::touchScrollUpdated(const QPoint &screenPos) {
 	_touchPos = screenPos;
+	if ((_touchPos - _touchPrevPos).y()) {
+		Tgw::ListScroll::Input(this);
+	}
 	_scrollToSignal.fire_copy(_visibleTop - (_touchPos - _touchPrevPos).y());
 	touchUpdateSpeed();
 }

@@ -325,6 +325,9 @@ private:
 	void jumpToMessageInLog(
 		not_null<HistoryItem*> item,
 		MessageHighlightId highlight);
+	[[nodiscard]] int jumpTarget(
+		not_null<Element*> view,
+		const MessageHighlightId &highlight) const;
 	OwnedItem createGroupSummaryItem(
 		const DeleteGroup &group,
 		bool expanded);
@@ -417,6 +420,7 @@ private:
 	base::flat_set<uint64> _previousDeleteGroupAnchors;
 	base::flat_set<not_null<HistoryItem*>> _expandMarkupItems;
 	Ui::Animations::Simple _toggleAnimation;
+	Tgw::ScrollFlight _scrollToFlight;
 	Ui::Animations::Simple _scrollToAnimation;
 	bool _skipScrollRestore = false;
 	bool _skipUnreadEventPrune = false;

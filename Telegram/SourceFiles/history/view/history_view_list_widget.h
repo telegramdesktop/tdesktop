@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_inner_widget_accessibility.h"
 #include "history/history_view_highlight_manager.h"
 #include "history/history_view_top_toast.h"
+#include "tgw/tgw_scroll.h"
 
 struct ClickHandlerContext;
 struct HistorySelectedTextParts;
@@ -75,7 +76,6 @@ struct ButtonParameters;
 } // namespace HistoryView::ReplyButton
 
 namespace Tgw {
-class ListScroll;
 class ListSelection;
 class ListTouch;
 class WidgetSelection;
@@ -809,6 +809,7 @@ private:
 		int to,
 		Data::MessagePosition position,
 		anim::type animated,
+		Fn<std::optional<int>()> placement = nullptr,
 		crl::time duration = 0);
 	enum class AnimatedScroll {
 		Full,
@@ -820,6 +821,7 @@ private:
 		Data::MessagePosition attachPosition,
 		int delta,
 		AnimatedScroll type,
+		Fn<std::optional<int>()> placement = nullptr,
 		crl::time duration = 0);
 
 	void trySwitchToWordSelection();
@@ -1046,6 +1048,7 @@ private:
 	Element *_visibleTopItem = nullptr;
 	int _visibleTopFromItem = 0;
 	ScrollTopState _scrollTopState;
+	Tgw::ScrollFlight _scrollToFlight;
 	Ui::Animations::Simple _scrollToAnimation;
 	bool _scrollToBottomAnimation = false;
 	Fn<bool()> _overrideInitialScroll;

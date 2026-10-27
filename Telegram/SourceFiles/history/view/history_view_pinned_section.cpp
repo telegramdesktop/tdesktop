@@ -242,6 +242,7 @@ PinnedWidget::PinnedWidget(
 
 	_inner->scrollKeyEvents(
 	) | rpl::on_next([=](not_null<QKeyEvent*> e) {
+		Tgw::ListScroll::Input(_inner.data());
 		_scroll->keyPressEvent(e);
 	}, lifetime());
 

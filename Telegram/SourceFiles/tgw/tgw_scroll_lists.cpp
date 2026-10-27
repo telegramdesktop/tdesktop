@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tgw/tgw_scroll.h"
 
+#include "base/event_filter.h"
 #include "data/data_session.h"
 #include "history/admin_log/history_admin_log_inner.h"
 #include "history/view/media/history_view_html_widget.h"
@@ -19,13 +20,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "tgw/tgw_option.h"
 #include "ui/widgets/elastic_scroll.h"
+#include "ui/widgets/scroll_area.h"
+#include "ui/ui_utility.h"
+
+#include <QtWidgets/QScrollBar>
 
 namespace Tgw {
 namespace {
 
 using HistoryView::Element;
 using HistoryView::ElementDelegate;
-using OwnerEpochs = base::flat_map<not_null<const ElementDelegate*>, uint32>;
 
 constexpr auto kUnpositioned = uint32(1);
 
@@ -34,6 +38,22 @@ enum class Edge : uchar {
 	Bottom,
 	Below,
 };
+
+enum class Wheel : uchar {
+	Ignored,
+	Scrolls,
+	CrossAxisDecides,
+};
+
+struct OwnerState {
+	uint32 epoch = 0;
+	uint32 consumed = 0;
+	uint32 inputs = 0;
+};
+
+using OwnerStates = base::flat_map<
+	not_null<const ElementDelegate*>,
+	OwnerState>;
 
 struct Laid {
 	not_null<Element*> view;
@@ -49,8 +69,8 @@ struct Kept {
 	int target = 0;
 };
 
-[[nodiscard]] OwnerEpochs &Owners() {
-	static auto result = OwnerEpochs();
+[[nodiscard]] OwnerStates &Owners() {
+	static auto result = OwnerStates();
 	return result;
 }
 
@@ -63,10 +83,10 @@ void Advance(
 	auto &owners = Owners();
 	const auto i = owners.find(owner);
 	if (i != end(owners)) {
-		i->second = std::max(i->second + 1, kUnpositioned + 1);
+		i->second.epoch = std::max(i->second.epoch + 1, kUnpositioned + 1);
 		return;
 	}
-	owners.emplace(owner, kUnpositioned + 1);
+	owners.emplace(owner, OwnerState{ .epoch = kUnpositioned + 1 });
 	lifetime.add([=] {
 		Owners().remove(owner);
 	});
@@ -377,12 +397,259 @@ template <typename Entries>
 	return (i != end(entries)) ? int(i - begin(entries)) : -1;
 }
 
+[[nodiscard]] bool EmulatedTouch(not_null<QWheelEvent*> e) {
+	return (e->source() == Qt::MouseEventSynthesizedByApplication)
+		&& (e->phase() != Qt::NoScrollPhase)
+		&& (e->pixelDelta() == e->angleDelta());
+}
+
+[[nodiscard]] Wheel ClassifyWheel(
+		not_null<QWheelEvent*> e,
+		Ui::ScrollDirectionLock *lock,
+		QSize size,
+		bool crossAxis) {
+	const auto phase = e->phase();
+	const auto delta = Ui::ScrollDeltaF(e, EmulatedTouch(e));
+	const auto pixels = delta.toPoint();
+	const auto locked = lock
+		? lock->update(phase, delta)
+		: std::optional<Qt::Orientation>();
+	if (locked) {
+		return ((*locked == Qt::Vertical) && (pixels.y() != 0))
+			? Wheel::Scrolls
+			: Wheel::Ignored;
+	}
+	const auto multiply = e->modifiers()
+		& (Qt::ControlModifier | Qt::ShiftModifier);
+	const auto effective = multiply
+		? QPoint(
+			int(pixels.x() * std::max(size.width(), 120) / 120.),
+			int(pixels.y() * std::max(size.height(), 120) / 120.))
+		: pixels;
+	if (std::abs(effective.y()) <= std::abs(effective.x())) {
+		return Wheel::Ignored;
+	} else if (crossAxis
+		&& (!lock || (phase == Qt::NoScrollPhase))
+		&& (std::abs(delta.x()) > std::abs(delta.y()))) {
+		return Wheel::CrossAxisDecides;
+	}
+	return Wheel::Scrolls;
+}
+
+[[nodiscard]] bool KeyScrolls(not_null<QKeyEvent*> e) {
+	switch (e->key()) {
+	case Qt::Key_Up:
+	case Qt::Key_Down:
+		return !(e->modifiers() & (Qt::AltModifier | Qt::ControlModifier));
+	case Qt::Key_PageUp:
+	case Qt::Key_PageDown:
+	case Qt::Key_Home:
+	case Qt::Key_End:
+		return true;
+	}
+	return false;
+}
+
+[[nodiscard]] bool AreaWheelScrolls(not_null<QWheelEvent*> e) {
+	const auto angle = e->angleDelta();
+	return (angle.y() != 0) && (std::abs(angle.x()) <= std::abs(angle.y()));
+}
+
+[[nodiscard]] bool AreaStepScrolls(int action) {
+	switch (action) {
+	case QAbstractSlider::SliderSingleStepAdd:
+	case QAbstractSlider::SliderSingleStepSub:
+	case QAbstractSlider::SliderPageStepAdd:
+	case QAbstractSlider::SliderPageStepSub:
+		return true;
+	}
+	return false;
+}
+
+[[nodiscard]] bool Pressed(not_null<QEvent*> e) {
+	const auto type = e->type();
+	return (type == QEvent::MouseButtonPress)
+		|| (type == QEvent::MouseButtonDblClick);
+}
+
 } // namespace
 
 uint32 ListScroll::Epoch(not_null<const ElementDelegate*> owner) {
 	const auto &owners = Owners();
 	const auto i = owners.find(owner);
-	return (i != end(owners)) ? i->second : kUnpositioned;
+	return (i != end(owners)) ? i->second.epoch : kUnpositioned;
+}
+
+uint32 ListScroll::Consumed(not_null<const ElementDelegate*> owner) {
+	const auto &owners = Owners();
+	const auto i = owners.find(owner);
+	return (i != end(owners)) ? i->second.consumed : 0;
+}
+
+uint32 ListScroll::Consumed(not_null<const HistoryWidget*> widget) {
+	auto result = uint32();
+	for (const auto history : { widget->_migrated, widget->_history }) {
+		if (history) {
+			result += Consumed(history->delegateMixin()->delegate());
+		}
+	}
+	return result;
+}
+
+void ListScroll::Consume(not_null<const ElementDelegate*> owner) {
+	auto &owners = Owners();
+	const auto i = owners.find(owner);
+	if (i != end(owners)) {
+		++i->second.consumed;
+	}
+}
+
+uint32 ListScroll::Inputs(not_null<const ElementDelegate*> owner) {
+	const auto &owners = Owners();
+	const auto i = owners.find(owner);
+	return (i != end(owners)) ? i->second.inputs : 0;
+}
+
+uint32 ListScroll::Inputs(not_null<const HistoryWidget*> widget) {
+	auto result = uint32();
+	for (const auto history : { widget->_migrated, widget->_history }) {
+		if (history) {
+			result += Inputs(history->delegateMixin()->delegate());
+		}
+	}
+	return result;
+}
+
+void ListScroll::Input(not_null<const ElementDelegate*> owner) {
+	auto &owners = Owners();
+	const auto i = owners.find(owner);
+	if (i != end(owners)) {
+		++i->second.inputs;
+	}
+}
+
+void ListScroll::Input(not_null<const HistoryWidget*> widget) {
+	if (const auto history = widget->_history) {
+		Input(history->delegateMixin()->delegate());
+	}
+}
+
+void ListScroll::WatchInput(
+		not_null<Ui::ElasticScroll*> scroll,
+		Fn<void()> input,
+		Fn<bool(QPoint, Qt::ScrollPhase)> crossAxis,
+		bool locked,
+		Fn<bool(not_null<QWheelEvent*>)> wheelProcess) {
+	if (!Enabled()) {
+		return;
+	}
+	struct State {
+		Ui::ScrollDirectionLock lock;
+		bool pending = false;
+	};
+	const auto state = scroll->lifetime().make_state<State>();
+	scroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
+		if (wheelProcess && wheelProcess(e)) {
+			return true;
+		}
+		const auto wheel = ClassifyWheel(
+			e,
+			locked ? &state->lock : nullptr,
+			scroll->size(),
+			bool(crossAxis));
+		state->pending = (wheel == Wheel::CrossAxisDecides);
+		if (wheel == Wheel::Scrolls) {
+			input();
+		}
+		return false;
+	});
+	if (crossAxis) {
+		scroll->setCrossAxisWheelProcess([=](
+				QPoint delta,
+				Qt::ScrollPhase phase) {
+			const auto consumed = crossAxis(delta, phase);
+			if (base::take(state->pending) && !consumed) {
+				input();
+			}
+			return consumed;
+		});
+	}
+	base::install_event_filter(scroll, [=](not_null<QEvent*> e) {
+		if ((e->type() == QEvent::KeyPress)
+			&& scroll->widget()
+			&& KeyScrolls(static_cast<QKeyEvent*>(e.get()))) {
+			input();
+		}
+		return base::EventFilterResult::Continue;
+	});
+	for (const auto child : scroll->children()) {
+		if (const auto bar = dynamic_cast<Ui::ElasticScrollBar*>(child)) {
+			base::install_event_filter(bar, [=](not_null<QEvent*> e) {
+				if (Pressed(e)) {
+					input();
+				}
+				return base::EventFilterResult::Continue;
+			});
+		}
+	}
+}
+
+void ListScroll::WatchInput(
+		not_null<Ui::ScrollArea*> scroll,
+		Fn<void()> input) {
+	if (!Enabled()) {
+		return;
+	}
+	struct State {
+		QEvent::Type touch = QEvent::None;
+		bool scrolling = false;
+		bool landed = false;
+	};
+	const auto state = scroll->lifetime().make_state<State>();
+	scroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
+		if (AreaWheelScrolls(e)) {
+			input();
+		}
+		return false;
+	});
+	QObject::connect(
+		scroll->verticalScrollBar(),
+		&QAbstractSlider::actionTriggered,
+		scroll.get(),
+		[=](int action) {
+			if (AreaStepScrolls(action)) {
+				input();
+			}
+		});
+	scroll->setCustomTouchProcess([=](not_null<QTouchEvent*> e) {
+		// The area took the TouchBegin without a press: it caught a fling.
+		if (base::take(state->landed)) {
+			input();
+		}
+		state->touch = e->type();
+		state->landed = state->scrolling
+			&& (state->touch == QEvent::TouchBegin);
+		return false;
+	});
+	scroll->touchMaybePressing(
+	) | rpl::on_next([=](bool pressing) {
+		if (pressing) {
+			state->scrolling = state->landed = false;
+		} else if (state->touch == QEvent::TouchUpdate) {
+			state->scrolling = true;
+			input();
+		}
+	}, scroll->lifetime());
+	for (const auto child : scroll->children()) {
+		if (const auto bar = dynamic_cast<Ui::ScrollBar*>(child)) {
+			base::install_event_filter(bar, [=](not_null<QEvent*> e) {
+				if (Pressed(e) && (bar->height() > bar->width())) {
+					input();
+				}
+				return base::EventFilterResult::Continue;
+			});
+		}
+	}
 }
 
 ScrollSnapshot ListScroll::Capture(
@@ -513,6 +780,42 @@ bool ListScroll::Keep(
 	return false;
 }
 
+Fn<std::optional<int>()> ListScroll::Placement(
+		not_null<const HistoryWidget*> widget,
+		FullMsgId id) {
+	return [=] {
+		return Destination(widget, id);
+	};
+}
+
+std::optional<int> ListScroll::Destination(
+		not_null<const HistoryWidget*> widget,
+		FullMsgId id) {
+	const auto list = widget->_list.data();
+	if (!list || widget->hasPendingResizedItems()) {
+		return std::nullopt;
+	}
+	const auto max = widget->_scroll->scrollTopMax();
+	if (!id) {
+		return max;
+	}
+	const auto &owner = widget->session().data();
+	const auto item = owner.message(id);
+	const auto view = item ? item->mainView() : nullptr;
+	if (!view) {
+		return std::nullopt;
+	}
+	const auto group = owner.groups().find(item);
+	const auto leader = group ? group->items.front()->mainView() : nullptr;
+	const auto shown = leader ? leader : view;
+	if (!shown->block()
+		|| shown->pendingResize()
+		|| (list->itemTop(shown) < 0)) {
+		return std::nullopt;
+	}
+	return std::clamp(widget->itemTopForHighlight(view), 0, max);
+}
+
 ScrollSnapshot ListScroll::Capture(not_null<HistoryView::ListWidget*> list) {
 	const auto top = list->_visibleTop;
 	const auto bottom = list->_visibleBottom;
@@ -604,6 +907,31 @@ void ListScroll::Keep(
 	}
 }
 
+Fn<std::optional<int>()> ListScroll::Placement(
+		not_null<const HistoryView::ListWidget*> list,
+		Data::MessagePosition position) {
+	return [=] {
+		return Destination(list, position);
+	};
+}
+
+std::optional<int> ListScroll::Destination(
+		not_null<const HistoryView::ListWidget*> list,
+		Data::MessagePosition position) {
+	const auto pending = [](not_null<Element*> view) {
+		return view->pendingResize();
+	};
+	if (ranges::any_of(list->_items, pending)) {
+		return std::nullopt;
+	}
+	const auto top = list->scrollTopForPosition(position);
+	if (!top) {
+		return std::nullopt;
+	}
+	const auto viewport = list->_visibleBottom - list->_visibleTop;
+	return std::clamp(*top, 0, std::max(list->height() - viewport, 0));
+}
+
 ScrollSnapshot ListScroll::Capture(
 		not_null<const AdminLog::InnerWidget*> list) {
 	const auto top = list->_visibleTop;
@@ -692,6 +1020,26 @@ ScrollShift ListScroll::Adjust(
 	return (result != from)
 		? ScrollShift{ .target = result, .difference = result - from }
 		: unchanged;
+}
+
+Fn<std::optional<int>()> ListScroll::Placement(
+		not_null<AdminLog::InnerWidget*> list,
+		FullMsgId id,
+		MessageHighlightId highlight) {
+	return [=] {
+		return Destination(list, id, highlight);
+	};
+}
+
+std::optional<int> ListScroll::Destination(
+		not_null<AdminLog::InnerWidget*> list,
+		FullMsgId id,
+		const MessageHighlightId &highlight) {
+	const auto view = Displayed(list, id);
+	if (!view || view->pendingResize()) {
+		return std::nullopt;
+	}
+	return list->jumpTarget(view, highlight);
 }
 
 } // namespace Tgw

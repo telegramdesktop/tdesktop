@@ -230,9 +230,18 @@ QSize HtmlWidget::countCurrentSize(int newWidth) {
 	if (!_runtime) {
 		return { cardWidth, cardHeight() + infoHeight() };
 	}
+	const auto consumed = _runtime->heightLayout();
+	const auto previous = consumed
+		? std::make_optional(consumed->height)
+		: (_placedReplaced && _placed)
+		? std::make_optional(_placed->card)
+		: std::nullopt;
 	_runtime->setSize(cardWidth, maxCssHeight());
 	const auto card = cardHeight();
 	_runtime->laidOut(card);
+	if (_anchors.height <= 0 && previous && *previous != card) {
+		Tgw::ListScroll::Consume(_parent->delegate());
+	}
 	if (!_placedEpoch) {
 		// The shown geometry stays the old one until a list positions this.
 		_placedEpoch = ownerEpoch();

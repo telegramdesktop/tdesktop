@@ -374,6 +374,10 @@ ShortcutMessages::ShortcutMessages(
 		&controller->session(),
 		static_cast<ListDelegate*>(this));
 	_inner->overrideChatMode(ElementChatMode::Default);
+	const auto inner = _inner.data();
+	Tgw::ListScroll::WatchInput(
+		_scroll,
+		crl::guard(inner, [=] { Tgw::ListScroll::Input(inner); }));
 
 	_scroll->sizeValue() | rpl::filter([](QSize size) {
 		return !size.isEmpty();

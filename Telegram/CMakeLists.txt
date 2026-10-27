@@ -2234,6 +2234,7 @@ PRIVATE
     tgw/tgw_resources.h
     tgw/tgw_runtime.cpp
     tgw/tgw_runtime.h
+    tgw/tgw_scroll.cpp
     tgw/tgw_scroll.h
     tgw/tgw_scroll_lists.cpp
     tgw/tgw_selection.cpp

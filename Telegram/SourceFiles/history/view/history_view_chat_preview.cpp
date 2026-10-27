@@ -532,8 +532,15 @@ void Item::setupHistory() {
 	using Type = Ui::ElasticScroll::OverscrollType;
 	_scroll->setOverscrollTypes(Type::Real, Type::Real);
 
+	const auto inner = _inner.data();
+	Tgw::ListScroll::WatchInput(
+		_scroll.get(),
+		crl::guard(inner, [=] { Tgw::ListScroll::Input(inner); }),
+		nullptr,
+		false);
 	_inner->scrollKeyEvents(
 	) | rpl::on_next([=](not_null<QKeyEvent*> e) {
+		Tgw::ListScroll::Input(_inner.data());
 		_scroll->keyPressEvent(e);
 	}, lifetime());
 

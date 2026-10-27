@@ -612,11 +612,20 @@ ListWidget::ListWidget(
 	setAccessibleName(tr::lng_sr_message_list(tr::now));
 	if (const auto scroll = _delegate->listScrollArea()) {
 		scroll->lockWheelDirection();
-		scroll->setCrossAxisWheelProcess([=](
-				QPoint delta,
-				Qt::ScrollPhase phase) {
+		const auto crossAxis = [=](QPoint delta, Qt::ScrollPhase phase) {
 			return consumeScrollAction(delta, phase);
-		});
+		};
+		const auto wheelProcess = [=](not_null<QWheelEvent*> e) {
+			return processSendingLandingWheel(e);
+		};
+		scroll->setCrossAxisWheelProcess(crossAxis);
+		scroll->setCustomWheelProcess(wheelProcess);
+		Tgw::ListScroll::WatchInput(
+			scroll,
+			crl::guard(this, [=] { Tgw::ListScroll::Input(this); }),
+			crossAxis,
+			true,
+			wheelProcess);
 	}
 	if (_readMetricsTracker) {
 		Core::App().inAppKeyPressed(
@@ -1219,6 +1228,7 @@ void ListWidget::scrollTo(
 		Data::MessagePosition attachPosition,
 		int delta,
 		AnimatedScroll type,
+		Fn<std::optional<int>()> placement,
 		crl::time duration) {
 	_scrollToAnimation.stop();
 	_scrollToBottomAnimation = false;
@@ -1229,10 +1239,18 @@ void ListWidget::scrollTo(
 	const auto transition = (type == AnimatedScroll::Full)
 		? anim::sineInOut
 		: anim::easeOutCubic;
+	const auto consumed = [=] {
+		return Tgw::ListScroll::Consumed(this);
+	};
+	const auto inputs = [=] {
+		return Tgw::ListScroll::Inputs(this);
+	};
 	if (delta > 0 && scrollTop == height() - (_visibleBottom - _visibleTop)) {
 		// Animated scroll to bottom.
 		_scrollToBottomAnimation = true;
-		_scrollToAnimation.start(
+		_scrollToFlight.start(-delta, 0, consumed, consumed(), inputs, nullptr);
+		_scrollToFlight.animate(
+			&_scrollToAnimation,
 			[=] { scrollToAnimationCallback(FullMsgId(), 0); },
 			-delta,
 			0,
@@ -1242,15 +1260,27 @@ void ListWidget::scrollTo(
 	}
 	const auto index = findNearestItem(attachPosition);
 	Assert(index >= 0 && index < int(_items.size()));
-	const auto attachTo = _items[index];
-	const auto attachToId = attachTo->data()->fullId();
+	const auto attachToId = _items[index]->data()->fullId();
 	const auto initial = scrollTop - delta;
+	const auto count = consumed();
 	_delegate->listScrollTo(initial);
 
+	const auto attachTo = viewForItem(attachToId);
+	if (!attachTo) {
+		return;
+	}
 	const auto attachToTop = itemTop(attachTo);
 	const auto relativeStart = initial - attachToTop;
 	const auto relativeFinish = scrollTop - attachToTop;
-	_scrollToAnimation.start(
+	_scrollToFlight.start(
+		relativeStart,
+		relativeFinish,
+		consumed,
+		count,
+		inputs,
+		std::move(placement));
+	_scrollToFlight.animate(
+		&_scrollToAnimation,
 		[=] { scrollToAnimationCallback(attachToId, relativeFinish); },
 		relativeStart,
 		relativeFinish,
@@ -1296,19 +1326,24 @@ void ListWidget::scrollToCurrentVoiceMessage(
 		*scrollTop,
 		to->data()->position(),
 		*scrollTop - _visibleTop,
-		AnimatedScroll::Part);
+		AnimatedScroll::Part,
+		Tgw::ListScroll::Placement(this, to->data()->position()));
 }
 
 void ListWidget::scrollToAnimationCallback(
 		FullMsgId attachToId,
 		int relativeTo) {
+	const auto apply = [=](int top) {
+		_delegate->listScrollTo(top);
+	};
 	if (!attachToId) {
 		// Animated scroll to bottom.
-		const auto current = int(base::SafeRound(
-			_scrollToAnimation.value(0)));
-		_delegate->listScrollTo(height()
-			- (_visibleBottom - _visibleTop)
-			+ current);
+		_scrollToFlight.frame(
+			height() - (_visibleBottom - _visibleTop),
+			_scrollToAnimation.value(0),
+			_visibleTop,
+			!_scrollToAnimation.animating(),
+			apply);
 		return;
 	}
 	const auto attachTo = session().data().message(attachToId);
@@ -1316,9 +1351,12 @@ void ListWidget::scrollToAnimationCallback(
 	if (!attachToView) {
 		_scrollToAnimation.stop();
 	} else {
-		const auto current = int(base::SafeRound(_scrollToAnimation.value(
-			relativeTo)));
-		_delegate->listScrollTo(itemTop(attachToView) + current);
+		_scrollToFlight.frame(
+			itemTop(attachToView),
+			_scrollToAnimation.value(relativeTo),
+			_visibleTop,
+			!_scrollToAnimation.animating(),
+			apply);
 	}
 }
 
@@ -1469,7 +1507,11 @@ bool ListWidget::showAtPositionNow(
 		: (_bar.element && !_bar.hidden && _bar.focus)
 		? _bar.element->data()->position()
 		: Data::MaxMessagePosition;
-	computeScrollTo(*scrollTop, attachTo, params.animated);
+	computeScrollTo(
+		*scrollTop,
+		attachTo,
+		params.animated,
+		Tgw::ListScroll::Placement(this, position));
 	if (done) {
 		const auto found = !position.fullId.peer
 			|| !IsServerMsgId(position.fullId.msg)
@@ -1483,6 +1525,7 @@ void ListWidget::computeScrollTo(
 		int to,
 		Data::MessagePosition position,
 		anim::type animated,
+		Fn<std::optional<int>()> placement,
 		crl::time duration) {
 	const auto currentScrollHeight = (_visibleBottom - _visibleTop);
 	const auto currentScrollTop = _visibleTop;
@@ -1497,7 +1540,13 @@ void ListWidget::computeScrollTo(
 		: (std::abs(fullDelta) > limit)
 		? AnimatedScroll::Part
 		: AnimatedScroll::Full;
-	scrollTo(wanted, position, scrollDelta, type, duration);
+	scrollTo(
+		wanted,
+		position,
+		scrollDelta,
+		type,
+		std::move(placement),
+		duration);
 }
 
 void ListWidget::checkUnreadBarCreation(bool markLastAsRead) {
@@ -3060,6 +3109,7 @@ void ListWidget::scrollToBottomForSending() {
 			*top,
 			Data::MaxMessagePosition,
 			anim::type::normal,
+			nullptr,
 			st::itemRevealDuration);
 	}
 }
@@ -4660,6 +4710,8 @@ void ListWidget::onTouchScrollTimer() {
 			_touchPos);
 		if (consumedHorizontal) {
 			_horizontalScrollLocked = true;
+		} else if (!_horizontalScrollLocked && delta.y()) {
+			Tgw::ListScroll::Input(this);
 		}
 		const auto weak = base::make_weak(this);
 		const auto hasScrolled = consumedHorizontal
@@ -4965,9 +5017,13 @@ void ListWidget::touchScrollUpdated(const QPoint &screenPos) {
 			Qt::NoScrollPhase,
 			_touchPos)) {
 		_horizontalScrollLocked = true;
-	} else if (!_horizontalScrollLocked
-		&& !_touchElastic.drag(_touchPos - _touchPrevPos)) {
-		return;
+	} else if (!_horizontalScrollLocked) {
+		if ((_touchPos - _touchPrevPos).y()) {
+			Tgw::ListScroll::Input(this);
+		}
+		if (!_touchElastic.drag(_touchPos - _touchPrevPos)) {
+			return;
+		}
 	}
 	touchUpdateSpeed();
 }

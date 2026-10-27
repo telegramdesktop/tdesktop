@@ -1773,6 +1773,7 @@ void ChatWidget::setupComposeControls() {
 			}
 		}
 		_inner->sendingLandingUserScroll();
+		Tgw::ListScroll::Input(_inner.data());
 		_scroll->keyPressEvent(e);
 	}, lifetime());
 
@@ -1780,6 +1781,7 @@ void ChatWidget::setupComposeControls() {
 	) | rpl::on_next([=](not_null<QKeyEvent*> e) {
 		if (!_inner->lastMessageEditRequestNotify()) {
 			_inner->sendingLandingUserScroll();
+			Tgw::ListScroll::Input(_inner.data());
 			_scroll->keyPressEvent(e);
 		}
 	}, lifetime());
@@ -3870,9 +3872,6 @@ void ChatWidget::finishSending(const Api::SendOptions &options) {
 }
 
 void ChatWidget::setupSendingLanding() {
-	_scroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
-		return _inner->processSendingLandingWheel(e);
-	});
 	for (const auto child : _scroll->children()) {
 		if (const auto bar = dynamic_cast<Ui::ElasticScrollBar*>(child)) {
 			base::install_event_filter(bar, [=](not_null<QEvent*> e) {

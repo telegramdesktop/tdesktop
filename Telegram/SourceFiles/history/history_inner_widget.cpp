@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_text.h"
 #include "payments/payments_reaction_process.h"
 #include "tgw/tgw_log_box.h"
+#include "tgw/tgw_scroll.h"
 #include "tgw/tgw_selection.h"
 #include "tgw/tgw_touch.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
@@ -1950,6 +1951,8 @@ void HistoryInner::onTouchScrollTimer() {
 			Qt::NoScrollPhase);
 		if (consumedHorizontal) {
 			_horizontalScrollLocked = true;
+		} else if (!_horizontalScrollLocked && delta.y()) {
+			Tgw::ListScroll::Input(_widget);
 		}
 		const auto weak = base::make_weak(this);
 		const auto hasScrolled = consumedHorizontal
@@ -2229,9 +2232,13 @@ void HistoryInner::touchScrollUpdated(const QPoint &screenPos) {
 	_touchPos = screenPos;
 	if (consumeScrollAction(_touchPos - _touchPrevPos, Qt::NoScrollPhase)) {
 		_horizontalScrollLocked = true;
-	} else if (!_horizontalScrollLocked
-		&& !_touchElastic.drag(_touchPos - _touchPrevPos)) {
-		return;
+	} else if (!_horizontalScrollLocked) {
+		if ((_touchPos - _touchPrevPos).y()) {
+			Tgw::ListScroll::Input(_widget);
+		}
+		if (!_touchElastic.drag(_touchPos - _touchPrevPos)) {
+			return;
+		}
 	}
 	touchUpdateSpeed();
 }
