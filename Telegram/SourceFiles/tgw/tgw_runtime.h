@@ -35,10 +35,16 @@ enum class HeightChange : uchar {
 	Client,
 };
 
+enum class ResizeAnchor : uchar {
+	Top,
+	Bottom,
+};
+
 struct HeightLayout {
 	int serial = 0;
 	int height = 0;
 	HeightChange change = HeightChange::Client;
+	ResizeAnchor anchor = ResizeAnchor::Top;
 };
 
 struct RuntimeDescriptor {
@@ -169,6 +175,7 @@ private:
 	void syncHostData();
 	void applySize();
 	[[nodiscard]] int effectiveHeight() const;
+	[[nodiscard]] ResizeAnchor heightAnchor() const;
 	void markHeight(bool client);
 	void displayChanged(bool repaint);
 	void postShownDisplay();

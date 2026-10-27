@@ -67,6 +67,7 @@ struct Kept {
 	not_null<Element*> view;
 	int top = 0;
 	int target = 0;
+	int shift = 0;
 };
 
 [[nodiscard]] OwnerStates &Owners() {
@@ -113,6 +114,22 @@ void EnumerateDown(History *migrated, History *history, Method method) {
 				}
 			}
 		}
+	}
+}
+
+template <typename Method>
+void EnumerateDownFrom(
+		History *migrated,
+		History *history,
+		not_null<Element*> from,
+		Method method) {
+	for (auto view = from->nextInBlocks(); view; view = view->nextInBlocks()) {
+		if (!method(view)) {
+			return;
+		}
+	}
+	if (migrated && (from->history() == migrated)) {
+		EnumerateDown(nullptr, history, method);
 	}
 }
 
@@ -228,25 +245,32 @@ void Positioned(const ScrollSnapshot &snapshot) {
 }
 
 [[nodiscard]] bool OwnGrowth(const ScrollBubble &was, const Laid &now) {
+	// a bottom-anchored growth at the end follows it, which keeps its bottom
 	return (now.consumed.change == HeightChange::Own)
-		&& (now.consumed.height > was.card);
+		&& (now.consumed.height > was.card)
+		&& (now.consumed.anchor == ResizeAnchor::Top);
 }
 
-[[nodiscard]] std::optional<Edge> HolderEdge(
+[[nodiscard]] std::optional<Edge> KeptEdge(
 		const ScrollBubble &was,
-		HeightChange change,
+		const HeightLayout &consumed,
 		int scrollTop,
 		int viewport) {
 	const auto top = was.top + was.bubble.y();
 	const auto bottom = top + was.bubble.height();
+	const auto till = scrollTop + viewport;
 	if (bottom <= scrollTop) {
 		return Edge::Below;
-	} else if ((top < scrollTop)
-		&& (bottom <= scrollTop + viewport)
-		&& (change == HeightChange::Client)) {
-		return Edge::Bottom;
+	} else if (top >= till) {
+		return std::nullopt;
 	}
-	return std::nullopt;
+	const auto topInside = (top >= scrollTop);
+	const auto bottomInside = (bottom <= till);
+	const auto own = (consumed.change == HeightChange::Own);
+	const auto keepsBottom = (consumed.anchor == ResizeAnchor::Bottom)
+		? (own || bottomInside || !topInside)
+		: (!own && bottomInside && !topInside);
+	return keepsBottom ? std::make_optional(Edge::Bottom) : std::nullopt;
 }
 
 [[nodiscard]] int EdgeY(Edge edge, int top, int height, QRect bubble) {
@@ -267,20 +291,21 @@ void Positioned(const ScrollSnapshot &snapshot) {
 		- EdgeY(edge, was.top, was.height, was.bubble);
 }
 
-[[nodiscard]] int HolderShift(
+[[nodiscard]] int EdgeMove(
+		Edge edge,
+		const ScrollBubble &was,
+		const Laid &now) {
+	return EdgeY(edge, 0, now.height, now.bubble)
+		- EdgeY(edge, 0, was.height, was.bubble);
+}
+
+[[nodiscard]] int EdgeShift(
 		const ScrollBubble &was,
 		const Laid &now,
 		int scrollTop,
 		int viewport) {
-	const auto edge = HolderEdge(
-		was,
-		now.consumed.change,
-		scrollTop,
-		viewport);
-	return edge
-		? (EdgeY(*edge, 0, now.height, now.bubble)
-			- EdgeY(*edge, 0, was.height, was.bubble))
-		: 0;
+	const auto edge = KeptEdge(was, now.consumed, scrollTop, viewport);
+	return edge ? EdgeMove(*edge, was, now) : 0;
 }
 
 [[nodiscard]] bool AddAtEnd(
@@ -301,13 +326,30 @@ void Positioned(const ScrollSnapshot &snapshot) {
 	return (view->height() <= 0) || (top + view->height() > from);
 }
 
+[[nodiscard]] bool AddBelow(
+		ScrollSnapshot &result,
+		not_null<Element*> view,
+		int top) {
+	const auto till = result.scrollTop + result.viewport;
+	if (top < 0) {
+		return true;
+	} else if (const auto bubble = Describe(view, top)) {
+		if (bubble->top >= till) {
+			return false;
+		} else if (Intersects(*bubble, result.scrollTop, result.viewport)) {
+			result.bubbles.push_back(*bubble);
+		}
+		return true;
+	}
+	return (view->height() <= 0) || (top < till);
+}
+
 void AddHolder(
 		ScrollSnapshot &result,
 		not_null<Element*> view,
 		int top,
 		int offset) {
 	if (const auto bubble = Describe(view, top)) {
-		result.offset = offset;
 		result.scrollTop = bubble->top + offset;
 		result.bubbles.push_back(*bubble);
 	}
@@ -333,22 +375,31 @@ template <typename Resolver>
 }
 
 template <typename Resolver>
-[[nodiscard]] std::optional<Kept> KeepHolder(
+[[nodiscard]] std::optional<Kept> KeepEdge(
 		const ScrollSnapshot &snapshot,
 		Resolver &&resolve) {
-	const auto &was = snapshot.bubbles.front();
-	const auto now = resolve(was);
-	const auto shift = now
-		? HolderShift(was, *now, snapshot.scrollTop, snapshot.viewport)
-		: 0;
-	if (!shift) {
-		return std::nullopt;
+	for (const auto &was : snapshot.bubbles) {
+		const auto now = resolve(was);
+		if (!now) {
+			continue;
+		}
+		const auto edge = KeptEdge(
+			was,
+			now->consumed,
+			snapshot.scrollTop,
+			snapshot.viewport);
+		const auto shift = edge ? EdgeMove(*edge, was, *now) : 0;
+		if (!shift) {
+			return std::nullopt;
+		}
+		return Kept{
+			.view = now->view,
+			.top = now->top,
+			.target = Target(*edge, was, *now, snapshot.scrollTop),
+			.shift = shift,
+		};
 	}
-	return Kept{
-		.view = now->view,
-		.top = now->top,
-		.target = now->top + snapshot.offset + shift,
-	};
+	return std::nullopt;
 }
 
 template <typename Resolver>
@@ -357,7 +408,7 @@ template <typename Resolver>
 		Resolver &&resolve) {
 	return snapshot.atEnd
 		? KeepTop(snapshot, resolve)
-		: KeepHolder(snapshot, resolve);
+		: KeepEdge(snapshot, resolve);
 }
 
 template <typename Resolver>
@@ -376,11 +427,8 @@ template <typename Resolver>
 		int from,
 		int max) {
 	if (!snapshot.atEnd) {
-		const auto kept = KeepHolder(snapshot, resolve);
-		return kept
-			? std::make_optional(
-				from + kept->target - kept->top - snapshot.offset)
-			: std::nullopt;
+		const auto kept = KeepEdge(snapshot, resolve);
+		return kept ? std::make_optional(from + kept->shift) : std::nullopt;
 	} else if (const auto kept = KeepTop(snapshot, resolve)) {
 		return kept->target;
 	}
@@ -688,6 +736,10 @@ ScrollSnapshot ListScroll::Capture(
 	const auto top = view ? list->itemTop(view) : -1;
 	if (top >= 0) {
 		AddHolder(result, view, top, anchored->scrollTopOffset);
+		const auto add = [&](not_null<Element*> below) {
+			return AddBelow(result, below, list->itemTop(below));
+		};
+		EnumerateDownFrom(migrated, history, view, add);
 	}
 	return result;
 }
@@ -771,7 +823,7 @@ bool ListScroll::Keep(
 	auto shift = 0;
 	for (const auto &was : snapshot.bubbles) {
 		if (const auto now = resolve(was)) {
-			shift += HolderShift(was, *now, from, snapshot.viewport);
+			shift += EdgeShift(was, *now, from, snapshot.viewport);
 		}
 	}
 	if (shift) {
@@ -834,6 +886,14 @@ ScrollSnapshot ListScroll::Capture(not_null<HistoryView::ListWidget*> list) {
 	if (anchor) {
 		const auto from = list->_visibleTopFromItem;
 		AddHolder(result, anchor, list->itemTop(anchor), from);
+		const auto &items = list->_items;
+		const auto i = ranges::find(items, not_null{ anchor });
+		const auto below = (i != end(items)) ? (i + 1) : i;
+		for (const auto &view : ranges::make_subrange(below, end(items))) {
+			if (!AddBelow(result, view, list->itemTop(view))) {
+				break;
+			}
+		}
 		return result;
 	}
 	for (const auto &view : ranges::views::reverse(list->_items)) {
@@ -865,9 +925,17 @@ ScrollSnapshot ListScroll::CaptureSaved(
 		.viewport = bottom - top,
 		.saved = true,
 	};
-	const auto holder = list->findItemByY(top);
+	const auto &items = list->_items;
+	const auto index = list->findItemIndexByY(top);
+	const auto holder = items[index];
 	const auto y = list->itemTop(holder);
 	AddHolder(result, holder, y, top - y);
+	const auto below = begin(items) + index + 1;
+	for (const auto &view : ranges::make_subrange(below, end(items))) {
+		if (!AddBelow(result, view, list->itemTop(view))) {
+			break;
+		}
+	}
 	return result;
 }
 
@@ -899,7 +967,7 @@ void ListScroll::Keep(
 	}
 	auto &state = list->_scrollTopState;
 	const auto kept = state.item
-		? KeepHolder(snapshot, resolve)
+		? KeepEdge(snapshot, resolve)
 		: std::nullopt;
 	const auto index = kept ? list->findNearestItem(state.item) : -1;
 	if (index >= 0) {
@@ -950,6 +1018,13 @@ ScrollSnapshot ListScroll::Capture(
 	if (anchor) {
 		const auto from = list->_visibleTopFromItem;
 		AddHolder(result, anchor, list->itemTop(anchor), from);
+		const auto &entries = list->_displayItems;
+		for (auto i = IndexOf(entries, anchor) - 1; i >= 0; --i) {
+			const auto &entry = entries[i];
+			if (!AddBelow(result, entry.view, list->itemTop(entry.view))) {
+				break;
+			}
+		}
 		return result;
 	}
 	for (const auto &entry : list->_displayItems) {

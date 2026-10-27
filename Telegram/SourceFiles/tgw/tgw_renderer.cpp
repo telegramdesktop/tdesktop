@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_touch.h"
 #include "twidget/json.h"
 #include "twidget/sdk_policy.h"
+#include "twidget/widget_host.h"
 #include "TwidgetCore/src/renderer.h"
 #include "ui/style/style_core_scale.h"
 
@@ -28,8 +29,10 @@ public:
 	[[nodiscard]] bool attach(not_null<twidget::Renderer*> proxy);
 	void detach(not_null<twidget::Renderer*> proxy);
 	void close();
+	void bindHost(not_null<twidget::WidgetHost*> host);
 	void toHost(const std::string &json);
 	void diag(const std::string &kind, const std::string &detail);
+	[[nodiscard]] std::optional<bool> hostBottom() const;
 
 	void postLoaded();
 	void postMessage(twidget::Json message);
@@ -45,6 +48,7 @@ private:
 	const base::weak_ptr<RendererCore> _core;
 	mutable std::mutex _mutex;
 	twidget::Renderer *_proxy = nullptr;
+	twidget::WidgetHost *_host = nullptr;
 	bool _closed = false;
 
 };
@@ -356,6 +360,7 @@ void HostLink::detach(not_null<twidget::Renderer*> proxy) {
 	auto lock = std::lock_guard(_mutex);
 	if (_proxy == proxy.get()) {
 		_proxy = nullptr;
+		_host = nullptr;
 	}
 }
 
@@ -363,6 +368,14 @@ void HostLink::close() {
 	auto lock = std::lock_guard(_mutex);
 	_closed = true;
 	_proxy = nullptr;
+	_host = nullptr;
+}
+
+void HostLink::bindHost(not_null<twidget::WidgetHost*> host) {
+	auto lock = std::lock_guard(_mutex);
+	if (!_closed) {
+		_host = host.get();
+	}
 }
 
 void HostLink::toHost(const std::string &json) {
@@ -382,6 +395,25 @@ void HostLink::diag(const std::string &kind, const std::string &detail) {
 RendererCore *HostLink::current() const {
 	auto lock = std::lock_guard(_mutex);
 	return _closed ? nullptr : _core.get();
+}
+
+std::optional<bool> HostLink::hostBottom() const {
+	const auto host = [&] {
+		auto lock = std::lock_guard(_mutex);
+		return _host;
+	}();
+	if (!host) {
+		return std::nullopt;
+	}
+	auto result = false;
+	// WHY: the host tells of a new anchor only through onChange, which copies
+	// every console line first, so the anchor standing when a height is
+	// applied is read in place, under the host's own lock, with no copy.
+	host->waitUntil([&](const twidget::WidgetDiagnostics &diagnostics) {
+		result = (diagnostics.resizeAnchor == "bottom");
+		return true;
+	}, 0.);
+	return result;
 }
 
 void HostLink::postLoaded() {
@@ -510,6 +542,10 @@ RendererCore::WatchHandler RendererCore::hostWatchHandler() const {
 	return [link = _link](bool on) {
 		link->postWatch(on);
 	};
+}
+
+void RendererCore::bindHost(not_null<twidget::WidgetHost*> host) {
+	_link->bindHost(host);
 }
 
 void RendererCore::detach() {
@@ -804,6 +840,10 @@ std::optional<double> RendererCore::height() const {
 	return _height;
 }
 
+bool RendererCore::bottomAnchored() const {
+	return _heightBottom;
+}
+
 bool RendererCore::hasContent() const {
 	return _hasContent;
 }
@@ -965,6 +1005,8 @@ void RendererCore::hostMessage(const twidget::Json &message) {
 	if (_acked && _hasContent && !_loaded) {
 		_loaded = true;
 		changes |= Change::Loaded;
+		// a first height equal to the empty document's applies no change
+		bindHeightAnchor();
 		if (type == "ops") {
 			Append(out, takeSettled());
 		}
@@ -1209,8 +1251,15 @@ RendererCore::Changes RendererCore::applySize(
 	if (_height == clamped) {
 		return {};
 	}
+	bindHeightAnchor();
 	_height = clamped;
 	return Change::Height;
+}
+
+void RendererCore::bindHeightAnchor() {
+	if (const auto bottom = _link->hostBottom()) {
+		_heightBottom = *bottom;
+	}
 }
 
 void RendererCore::forward(const twidget::Json &message) {

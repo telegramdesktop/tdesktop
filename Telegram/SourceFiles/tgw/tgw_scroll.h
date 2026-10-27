@@ -55,7 +55,6 @@ struct ScrollSnapshot {
 	std::vector<ScrollBubble> bubbles;
 	int scrollTop = 0;
 	int viewport = 0;
-	int offset = 0;
 	bool atEnd = false;
 	bool direct = false;
 	bool saved = false;

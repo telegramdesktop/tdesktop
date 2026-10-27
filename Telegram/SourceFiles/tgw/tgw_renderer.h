@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace twidget {
 class Json;
+class WidgetHost;
 struct WidgetAction;
 struct WidgetRequest;
 struct WidgetRequestOutcome;
@@ -74,6 +75,7 @@ public:
 	[[nodiscard]] RequestHandler hostRequestHandler() const;
 	[[nodiscard]] CopyHandler hostCopyHandler() const;
 	[[nodiscard]] WatchHandler hostWatchHandler() const;
+	void bindHost(not_null<twidget::WidgetHost*> host);
 
 	void detach();
 	[[nodiscard]] bool attached() const;
@@ -107,6 +109,7 @@ public:
 	void setMaxHeight(double height);
 	[[nodiscard]] double width() const;
 	[[nodiscard]] std::optional<double> height() const;
+	[[nodiscard]] bool bottomAnchored() const;
 	[[nodiscard]] bool hasContent() const;
 	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] bool stopped() const;
@@ -177,6 +180,7 @@ private:
 	void finish(const std::vector<twidget::Json> &out, Changes changes);
 	[[nodiscard]] Changes forwardAll(const std::vector<twidget::Json> &out);
 	[[nodiscard]] Changes applySize(const twidget::Json &message);
+	void bindHeightAnchor();
 	void forward(const twidget::Json &message);
 	void notifyPosted(Changes changes);
 
@@ -206,6 +210,7 @@ private:
 	bool _hasContent = false;
 	bool _acked = false;
 	bool _loaded = false;
+	bool _heightBottom = false;
 	bool _stopped = false;
 	bool _stopFatal = false;
 	bool _onScreen = false;

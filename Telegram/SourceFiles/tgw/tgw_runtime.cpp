@@ -50,6 +50,7 @@ struct MessageMemory {
 	// older content never changes the crash count of the newer content.
 	uint64 contentSerial = 0;
 	int crashes = 0;
+	ResizeAnchor anchor = ResizeAnchor::Top;
 };
 
 namespace {
@@ -238,6 +239,10 @@ void HostDeleter::operator()(twidget::WidgetHost *host) const {
 
 [[nodiscard]] double CoreRatio() {
 	return style::DevicePixelRatio() * style::Scale() / 100.;
+}
+
+[[nodiscard]] ResizeAnchor AnchorOf(const RendererCore &core) {
+	return core.bottomAnchored() ? ResizeAnchor::Bottom : ResizeAnchor::Top;
 }
 
 void ApplyTheme(
@@ -782,6 +787,7 @@ void Runtime::laidOut(int height) {
 		.serial = _layout.serial + 1,
 		.height = height,
 		.change = own ? HeightChange::Own : HeightChange::Client,
+		.anchor = heightAnchor(),
 	};
 }
 
@@ -1354,6 +1360,7 @@ void Runtime::constructed(
 	}
 	_live->setMaxHeight(_maxHeight);
 	syncHostVisibility();
+	_live->bindHost(_host->pointer.get());
 	_host->pointer->start();
 }
 
@@ -1635,6 +1642,13 @@ int Runtime::effectiveHeight() const {
 	return height().value_or(st::tgwPlaceholderHeight);
 }
 
+ResizeAnchor Runtime::heightAnchor() const {
+	const auto shown = core();
+	return (shown && shown->height())
+		? AnchorOf(*shown)
+		: _memory->anchor;
+}
+
 void Runtime::markHeight(bool client) {
 	// WHY: a list may lay a new height out before its notification, or with
 	// none at all, so a client cause stays pending until a layout consumes
@@ -1650,6 +1664,7 @@ void Runtime::displayChanged(bool repaint) {
 	if (const auto shown = core()) {
 		if (const auto reported = shown->height()) {
 			_memory->height = reported;
+			_memory->anchor = AnchorOf(*shown);
 		}
 	}
 	const auto now = height();
