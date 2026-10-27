@@ -4030,12 +4030,12 @@ bool ChatWidget::notify_switchInlineBotButtonReceived(
 		return true;
 	} else if (const auto bot = _peer->asUser()) {
 		const auto to = bot->isBot()
-			? bot->botInfo->inlineReturnTo
+			? bot->botInfo->inlineReturnTo()
 			: Dialogs::EntryState();
 		if (!to.key.owningHistory()) {
 			return false;
 		}
-		bot->botInfo->inlineReturnTo = Dialogs::EntryState();
+		bot->botInfo->setInlineReturnTo(Dialogs::EntryState());
 		controller()->switchInlineQuery(to, bot, query);
 		return true;
 	}

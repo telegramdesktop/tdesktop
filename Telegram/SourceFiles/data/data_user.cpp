@@ -129,6 +129,15 @@ std::unique_ptr<Data::Forum> BotInfo::takeForumData() {
 	return nullptr;
 }
 
+void BotInfo::setInlineReturnTo(Dialogs::EntryState state) {
+	_inlineReturnThread = state.key.thread();
+	_inlineReturnTo = std::move(state);
+}
+
+Dialogs::EntryState BotInfo::inlineReturnTo() const {
+	return _inlineReturnThread ? _inlineReturnTo : Dialogs::EntryState();
+}
+
 Data::LastseenStatus LastseenFromMTP(
 		const MTPUserStatus &status,
 		Data::LastseenStatus currentStatus) {

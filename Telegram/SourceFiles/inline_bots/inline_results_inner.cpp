@@ -737,8 +737,8 @@ void Inner::switchPm() {
 		});
 	} else {
 		_inlineBot->botInfo->startToken = _switchPmStartToken;
-		_inlineBot->botInfo->inlineReturnTo
-			= _controller->dialogsEntryStateCurrent();
+		_inlineBot->botInfo->setInlineReturnTo(
+			_controller->dialogsEntryStateCurrent());
 		_controller->showPeerHistory(
 			_inlineBot,
 			Window::SectionShow::Way::ClearStack,

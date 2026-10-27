@@ -2677,12 +2677,12 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(
 		return true;
 	} else if (const auto bot = _peer ? _peer->asUser() : nullptr) {
 		const auto to = bot->isBot()
-			? bot->botInfo->inlineReturnTo
+			? bot->botInfo->inlineReturnTo()
 			: Dialogs::EntryState();
 		if (!to.key.owningHistory()) {
 			return false;
 		}
-		bot->botInfo->inlineReturnTo = Dialogs::EntryState();
+		bot->botInfo->setInlineReturnTo(Dialogs::EntryState());
 		controller()->switchInlineQuery(to, bot, query);
 		return true;
 	}
@@ -3322,7 +3322,7 @@ void HistoryWidget::showHistory(
 				if (const auto &info = user->botInfo) {
 					if (startBot || clearMaybeSendStart()) {
 						if (startBot && wasState.key) {
-							info->inlineReturnTo = wasState;
+							info->setInlineReturnTo(wasState);
 						}
 						sendBotStartCommand();
 						_history->clearLocalDraft(MsgId(), PeerId());
@@ -3595,7 +3595,7 @@ void HistoryWidget::showHistory(
 				if (startBot
 					|| (!_history->isEmpty() && clearMaybeSendStart())) {
 					if (startBot && wasState.key) {
-						info->inlineReturnTo = wasState;
+						info->setInlineReturnTo(wasState);
 					}
 					sendBotStartCommand();
 				}
