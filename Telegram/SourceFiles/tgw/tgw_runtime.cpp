@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "platform/platform_specific.h"
+#include "test/test_widget_bot.h"
 #include "test/test_widget_ops.h"
 #include "tgw/tgw_bridge.h"
 #include "tgw/tgw_emoji_images.h"
@@ -1575,6 +1576,10 @@ void Runtime::botRequested(
 		|| renderer.get() != _live.get()
 		|| !renderer->attached()) {
 		respond({ .failure = twidget::WidgetRequestFailure::Failed });
+		return;
+	}
+	// conformance runs play their bot here: the bridge refuses local messages
+	if (Test::PlayWidgetBot(_item->globalId(), data, respond)) {
 		return;
 	}
 	_bridge->request(data, std::move(respond));
