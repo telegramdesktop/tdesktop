@@ -966,6 +966,7 @@ WebViewInstance::WebViewInstance(WebViewDescriptor &&descriptor)
 , _session(&descriptor.bot->session())
 , _bot(descriptor.bot)
 , _context(ResolveContext(_bot, std::move(descriptor.context)))
+, _contextThread(_context.dialogsEntryState.key.thread())
 , _button(std::move(descriptor.button))
 , _source(std::move(descriptor.source))
 , _api(&_session->mtp()) {
@@ -1873,7 +1874,7 @@ void WebViewInstance::botSwitchInlineQuery(
 		|| !controller) {
 		return;
 	} else if (!types) {
-		if (_context.dialogsEntryState.key.owningHistory()) {
+		if (_contextThread) {
 			controller->switchInlineQuery(
 				_context.dialogsEntryState,
 				_bot,
