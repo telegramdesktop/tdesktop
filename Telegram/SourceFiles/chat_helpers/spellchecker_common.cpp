@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/weak_ptr.h"
 #include "base/zlib_help.h"
+#include "chat_helpers/spellchecker_locale_ids.h"
 #include "data/data_session.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
@@ -27,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "core/version.h"
 
+#include <QtCore/QFileInfo>
 #include <QtCore/QJsonArray>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
@@ -67,6 +69,7 @@ inline auto LanguageFromLocale(QLocale loc) {
 
 constexpr auto kDictionariesManifestChannel = "tdhbcfiles"_cs;
 constexpr auto kDictionariesManifestPostId = 2949;
+constexpr auto kDictionariesRev = 1;
 
 // Runtime-loaded dictionaries manifest. Kept in memory only: fetched from
 // the pinned JSON post the first time something actually needs it
@@ -106,7 +109,7 @@ std::vector<Dict> ParseManifest(const QByteArray &bytes) {
 	for (const auto &v : list) {
 		const auto obj = v.toObject();
 		auto d = Dict();
-		d.id = obj.value(u"id"_q).toInt();
+		d.id = LangIdFromManifest(obj.value(u"id"_q).toInt());
 		d.size = int64(obj.value(u"size"_q).toDouble());
 		d.name = obj.value(u"name"_q).toString();
 		const auto location = obj.value(u"location"_q).toString();
@@ -272,8 +275,12 @@ void SetBackgroundLoader(DictLoaderPtr loader) {
 void DownloadDictionaryInBackground(
 		not_null<Main::Session*> session,
 		int counter,
-		std::vector<int> langs) {
+		std::vector<int> langs,
+		Fn<void()> done = nullptr) {
 	if (counter >= langs.size()) {
+		if (done) {
+			done();
+		}
 		return;
 	}
 	const auto id = langs[counter];
@@ -294,7 +301,7 @@ void DownloadDictionaryInBackground(
 			}
 		}
 
-		DownloadDictionaryInBackground(session, counter, langs);
+		DownloadDictionaryInBackground(session, counter, langs, done);
 	};
 	if (DictionaryExists(id)) {
 		destroyer();
@@ -312,6 +319,146 @@ void DownloadDictionaryInBackground(
 		crl::guard(session, destroyer));
 	SetBackgroundLoader(std::move(sharedLoader));
 	BackgroundLoaderChanged.fire_copy(id);
+}
+
+[[nodiscard]] bool DeletableDictionaryFolder(const QString &folder) {
+	const auto root = DictionariesPath() + '/';
+	if (!folder.startsWith(root) || folder == root) {
+		return false;
+	}
+	const auto name = folder.mid(root.size()).chopped(1);
+	const auto entry = QFileInfo(QDir(DictionariesPath()), name);
+	return !name.isEmpty()
+		&& (name != u"."_q)
+		&& (name != u".."_q)
+		&& !name.contains('/')
+		&& !name.contains('\\')
+		&& !name.contains(':')
+		&& !entry.isSymLink()
+		&& !entry.isJunction();
+}
+
+[[nodiscard]] QString DictionaryStem(const QString &folder) {
+	auto dir = QDir(folder);
+	if (!dir.entryList(QDir::Dirs | QDir::NoDotAndDotDot).isEmpty()) {
+		return QString();
+	}
+	auto stem = QString();
+	for (const auto &file : dir.entryList(
+			QDir::Files | QDir::Hidden | QDir::System)) {
+		const auto dot = file.lastIndexOf('.');
+		if (dot <= 0) {
+			return QString();
+		}
+		const auto fileStem = file.mid(0, dot);
+		const auto ext = file.mid(dot + 1);
+		if (!ranges::contains(kDictExtensions, ext)) {
+			return QString();
+		} else if (stem.isEmpty()) {
+			stem = fileStem;
+		} else if (stem != fileStem) {
+			return QString();
+		}
+	}
+	return stem;
+}
+
+void RemoveDictionaryFiles(const QString &folder) {
+	const auto stem = DictionaryStem(folder);
+	if (stem.isEmpty()) {
+		return;
+	}
+	auto removed = true;
+	for (const auto ext : kDictExtensions) {
+		const auto path = folder + stem + '.' + ext;
+		if (QFile(path).exists() && !QFile(path).remove()) {
+			removed = false;
+		}
+	}
+	if (removed) {
+		QDir().rmdir(folder);
+	} else {
+		LOG(("Spellcheck Error: Could not remove dictionary files in '%1'."
+			).arg(folder));
+	}
+}
+
+void RemoveStaleDictionaries() {
+	auto root = QDir(DictionariesPath());
+	const auto folders = root.entryList(
+		QDir::Dirs | QDir::NoDotAndDotDot | QDir::NoSymLinks);
+	for (const auto &name : folders) {
+		const auto folder = root.filePath(name) + '/';
+		const auto complete = ranges::all_of(kDictExtensions, [&](auto ext) {
+			return QFile(folder + name + '.' + ext).exists();
+		});
+		if (!complete && DeletableDictionaryFolder(folder)) {
+			RemoveDictionaryFiles(folder);
+		}
+	}
+}
+
+void MigrateDictionaryIds() {
+	const auto settings = &Core::App().settings();
+	RemoveStaleDictionaries();
+	if (!settings->readPref<int>(kDictionariesIdSchemePref)) {
+		settings->writePref<int>(kDictionariesIdSchemePref, LocalIdScheme());
+		Core::App().saveSettingsDelayed();
+	}
+}
+
+[[nodiscard]] QString DictionariesRevPath() {
+	return DictionariesPath() + u"/.rev"_q;
+}
+
+[[nodiscard]] int ReadDictionariesRev() {
+	auto file = QFile(DictionariesRevPath());
+	if (!file.open(QIODevice::ReadOnly)) {
+		return 0;
+	}
+	auto ok = false;
+	const auto result = file.read(32).trimmed().toInt(&ok);
+	return ok ? result : 0;
+}
+
+void WriteDictionariesRev() {
+	EnsurePath();
+	auto file = QFile(DictionariesRevPath());
+	if (file.open(QIODevice::WriteOnly)) {
+		file.write(QByteArray::number(kDictionariesRev));
+	}
+}
+
+void ForceRefreshDictionaries(
+		not_null<Main::Session*> session,
+		Fn<void()> then) {
+	const auto enabled = Core::App().settings().dictionariesEnabled();
+	EnsureManifestThen(session, crl::guard(session, [=] {
+		if (DictionariesList.empty()) {
+			return;
+		}
+		DownloadDictionaryInBackground(session, 0, enabled, [=] {
+			Platform::Spellchecker::UpdateLanguages(
+				Core::App().settings().dictionariesEnabled());
+			const auto list = Core::App().settings().dictionariesEnabled();
+			// Ids the manifest doesn't carry can't be refreshed by it,
+			// so they don't hold the one-time revision back.
+			const auto complete = ranges::all_of(list, [](int id) {
+				return !IsSupportedLang(id)
+					|| ranges::all_of(kDictExtensions, [&](const auto ext) {
+						const auto name = Spellchecker::LocaleFromLangId(id)
+							.name();
+						const auto folder = DictPathByLangId(id) + '/';
+						const QFileInfo info(folder + name + '.' + ext);
+						return info.exists() && (info.size() > 0);
+					});
+			});
+			if (complete) {
+				WriteDictionariesRev();
+			}
+			then();
+		});
+	}));
 }
 
 void AddExceptions() {
@@ -458,7 +605,11 @@ bool RemoveDictionary(int langId) {
 	const auto folder = u"%1/%2/"_q.arg(
 		DictionariesPath(),
 		fileName);
-	return QDir(folder).removeRecursively();
+	if (!DeletableDictionaryFolder(folder)) {
+		return false;
+	}
+	RemoveDictionaryFiles(folder);
+	return !DictionaryExists(langId);
 }
 
 rpl::producer<QString> ButtonManageDictsState(
@@ -544,6 +695,7 @@ void Start(not_null<Main::Session*> session) {
 	// platform, including those using the system spellchecker, so the
 	// working dir must be set before the early return below.
 	Spellchecker::SetWorkingDirPath(DictionariesPath());
+	MigrateDictionaryIds();
 
 	if (Platform::Spellchecker::IsSystemSpellchecker()) {
 		Spellchecker::SupportedScriptsChanged()
@@ -594,25 +746,33 @@ void Start(not_null<Main::Session*> session) {
 			std::move(callback));
 	};
 
-	if (settings->autoDownloadDictionaries()) {
-		session->data().contactsLoaded().changes(
-		) | rpl::on_next([=](bool loaded) {
-			if (!loaded) {
+	session->data().contactsLoaded().changes(
+	) | rpl::on_next([=](bool loaded) {
+		if (!loaded) {
+			return;
+		}
+		const auto autoDownload = [=] {
+			if (!settings->autoDownloadDictionaries()) {
 				return;
 			}
 			const auto enabled = settings->dictionariesEnabled();
 			if (!enabled.empty()
 				&& ranges::all_of(enabled, &DictionaryExists)) {
-				// Every previously-enabled dictionary is already on
-				// disk; no manifest fetch, no network traffic.
 				return;
 			}
 			EnsureManifestThen(session, crl::guard(session, [=] {
 				DownloadDictionaryInBackground(
 					session, 0, DefaultLanguages());
 			}));
-		}, lifetime);
+		};
+		if (ReadDictionariesRev() < kDictionariesRev) {
+			ForceRefreshDictionaries(session, autoDownload);
+		} else {
+			autoDownload();
+		}
+	}, lifetime);
 
+	if (settings->autoDownloadDictionaries()) {
 		connectInput();
 	}
 

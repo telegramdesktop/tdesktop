@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "main/main_session_settings.h"
+#include "chat_helpers/spellchecker_locale_ids.h"
 
 #include "chat_helpers/tabbed_selector.h"
 #include "ui/widgets/fields/input_field.h"
@@ -195,7 +196,9 @@ QByteArray SessionSettings::serialize() const {
 	return result;
 }
 
-void SessionSettings::addFromSerialized(const QByteArray &serialized) {
+void SessionSettings::addFromSerialized(
+		const QByteArray &serialized,
+		int writerVersion) {
 	if (serialized.isEmpty()) {
 		return;
 	}
@@ -844,6 +847,23 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 		app.setSpellcheckerEnabled(appSpellcheckerEnabled == 1);
 		app.setVideoPlaybackSpeedSerialized(appVideoPlaybackSpeed);
 		app.setVideoPipGeometry(appVideoPipGeometry);
+		const auto local = Spellchecker::LocalIdScheme();
+		const auto scheme = Spellchecker::LangIdSchemeForAppVersion(
+			writerVersion);
+		if (scheme != local) {
+			auto converted = std::vector<int>();
+			for (const auto id : appDictionariesEnabled) {
+				const auto value = Spellchecker::ConvertLangId(
+					id,
+					scheme,
+					local);
+				if (!value || ranges::contains(converted, value)) {
+					continue;
+				}
+				converted.push_back(value);
+			}
+			appDictionariesEnabled = std::move(converted);
+		}
 		app.setDictionariesEnabled(std::move(appDictionariesEnabled));
 		app.setAutoDownloadDictionaries(appAutoDownloadDictionaries == 1);
 		app.setTabbedSelectorSectionEnabled(appTabbedSelectorSectionEnabled == 1);

@@ -537,6 +537,8 @@ PRIVATE
     chat_helpers/share_message_phrase_factory.h
     chat_helpers/spellchecker_common.cpp
     chat_helpers/spellchecker_common.h
+    chat_helpers/spellchecker_locale_ids.cpp
+    chat_helpers/spellchecker_locale_ids.h
     chat_helpers/stickers_dice_pack.cpp
     chat_helpers/stickers_dice_pack.h
     chat_helpers/stickers_emoji_pack.cpp
@@ -2081,6 +2083,8 @@ PRIVATE
     test/test_hover.h
     test/test_ink.cpp
     test/test_ink.h
+    test/test_lang_ids_migration.cpp
+    test/test_lang_ids_migration.h
     test/test_lang_pack.cpp
     test/test_lang_pack.h
     test/test_launch_fuse.cpp
