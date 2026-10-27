@@ -84,6 +84,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/controls/history_view_characters_limit.h"
 #include "history/view/controls/history_view_compose_ai_button.h"
 #include "history/view/controls/history_view_compose_ai_tooltip.h"
+#include "history/view/controls/history_view_bot_menu_hold.h"
 #include "history/view/controls/history_view_compose_media_edit_manager.h"
 #include "history/view/controls/history_view_compose_stash_hint.h"
 #include "history/view/controls/history_view_forward_panel.h"
@@ -5563,6 +5564,20 @@ bool ComposeControls::refreshBotMenuButton() {
 			},
 			[=] { updateControlsGeometry(_wrap->size()); },
 			session().data().customEmojiManager().factory());
+		_botMenu->lifetime().make_state<Controls::BotMenuHoldTracker>(
+			_botMenu.get(),
+			Controls::kBotMenuHoldDuration,
+			[=] {
+				if (!_autocomplete) {
+					return;
+				} else if (_autocomplete->isHidden()) {
+					_autocomplete->showFiltered(
+						_history->peer,
+						u"/"_q,
+						true);
+				}
+				_autocomplete->startPressDragSelect();
+			});
 		_botMenuPeer = bot->id;
 		orderControls();
 	}

@@ -99,6 +99,8 @@ public:
 
 	bool chooseSelected(ChooseMethod method) const;
 
+	void startPressDragSelect();
+
 	[[nodiscard]] bool stickersShown() const {
 		return !_srows.empty();
 	}

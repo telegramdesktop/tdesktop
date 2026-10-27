@@ -999,6 +999,8 @@ PRIVATE
     history/view/controls/history_view_draft_options.h
     history/view/controls/history_view_forward_panel.cpp
     history/view/controls/history_view_forward_panel.h
+    history/view/controls/history_view_bot_menu_hold.cpp
+    history/view/controls/history_view_bot_menu_hold.h
     history/view/controls/history_view_rich_draft_preview.cpp
     history/view/controls/history_view_rich_draft_preview.h
     history/view/controls/history_view_suggest_options.cpp

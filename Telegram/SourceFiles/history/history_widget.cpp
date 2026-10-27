@@ -119,6 +119,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/controls/history_view_characters_limit.h"
 #include "history/view/controls/history_view_compose_ai_button.h"
 #include "history/view/controls/history_view_compose_ai_tooltip.h"
+#include "history/view/controls/history_view_bot_menu_hold.h"
 #include "history/view/controls/history_view_compose_search.h"
 #include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/controls/history_view_draft_options.h"
@@ -7026,6 +7027,20 @@ bool HistoryWidget::updateCmdStartShown() {
 			},
 			[=] { updateFieldSize(); },
 			session().data().customEmojiManager().factory());
+		{
+			using namespace HistoryView::Controls;
+			_botMenu->lifetime().make_state<BotMenuHoldTracker>(
+				_botMenu.get(),
+				kBotMenuHoldDuration,
+				[=] {
+					if (!_autocomplete) {
+						return;
+					} else if (_autocomplete->isHidden()) {
+						_autocomplete->showFiltered(_peer, u"/"_q, true);
+					}
+					_autocomplete->startPressDragSelect();
+				});
+		}
 		_botMenuPeer = bot->id;
 		orderWidgets();
 	}
