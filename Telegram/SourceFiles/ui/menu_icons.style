@@ -220,8 +220,6 @@ menuIconRemovedUsers: icon {{ "menu/removed_users-24x24", menuIconColor }};
 menuIconWelcomeMessage: icon {{ "menu/welcome_message-24x24", menuIconColor }};
 menuIconStar: icon {{ "menu/star", menuIconColor }};
 
-menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
-menuIconTTLAnyTextPosition: point(11px, 22px);
 menuIconTTL: icon {{ "menu/auto_delete", menuIconColor }};
 
 menuIconMuteForAny: icon {{ "menu/mute_for_plain", menuIconColor }};

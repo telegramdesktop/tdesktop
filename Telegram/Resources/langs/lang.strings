@@ -2441,10 +2441,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_manage_messages_ttl_title" = "Auto-delete messages";
 "lng_manage_messages_ttl_disable" = "Disable";
-"lng_manage_messages_ttl_after1" = "1 day";
-"lng_manage_messages_ttl_after2" = "1 week";
-"lng_manage_messages_ttl_after3" = "1 month";
-"lng_manage_messages_ttl_after4" = "1 month";
 "lng_manage_messages_ttl_after_custom" = "Custom";
 "lng_manage_messages_ttl_menu" = "Auto-Delete";
 
