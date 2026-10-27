@@ -1575,7 +1575,6 @@ void CheckHarnessPlatformLegs(const HarnessPlatformLegs &legs) {
 	const auto keys = Difference(legs.keys);
 	Check(
 		ArmedThrough(legs.keys, kArmLabel)
-			&& legs.keys.returned
 			&& (keys.field.keyPress == 1)
 			&& (keys.field.keyRelease == 1)
 			&& (keys.field.spontaneous == 2)

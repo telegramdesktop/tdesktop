@@ -339,11 +339,21 @@ return completed in 186 ms with 23 ticks, without isolating which one was
 needed. The self-test repeats the gesture through direct
 `QWindowSystemInterface` calls with neither, with the settle only and with
 the wait only (`QPA_MOUSE_INGREDIENT` and `QPA_MOUSE_INGREDIENTS` rows).
-Pending: the measured ingredient result awaits the first self-test run of
-task `2026/10/20/shield-console-input-and-drive-mouse-grabbing-widgets-through-qpa`.
-Pending: the measured high-DPI coordinate result awaits the
-`QT_SCALE_FACTOR=2` self-test run of task
-`2026/10/20/shield-console-input-and-drive-mouse-grabbing-widgets-through-qpa`.
+In both launches of task
+`2026/10/20/shield-console-input-and-drive-mouse-grabbing-widgets-through-qpa`
+(default and `QT_SCALE_FACTOR=2`) every leg - raw, settle only, wait only and
+both - completed the probe's 200 ms release-started animation in 202-208 ms
+with 24-25 ticks: the probe did not reproduce Run 1's stall, so it
+establishes no cause and shows neither ingredient to be required. The helper
+keeps both, which cost nothing and match Run 2, without a claim that either
+was necessary.
+On that task's macOS Retina host the default launch read
+`devicePixelRatio()` 2 with conversion factor 1, an identity on which the
+unconverted control lands on the requested point too and decides nothing;
+the `QT_SCALE_FACTOR=2` launch read DPR 4 and factor 2, and the helper's
+press and release landed exactly on the requested point P (0 px error, local
+and global) while the unconverted control landed 47 px from it on the larger
+axis, at P / factor.
 
 ## Related guidance
 
