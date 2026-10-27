@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "base/timer.h"
 #include "base/bytes.h"
+#include "calls/group/calls_group_common.h"
 #include "mtproto/sender.h"
 #include "mtproto/mtproto_auth_key.h"
 #include "webrtc/webrtc_device_common.h"
@@ -338,6 +339,12 @@ public:
 
 	[[nodiscard]] auto otherParticipantStateValue() const
 		-> rpl::producer<Group::ParticipantState>;
+	[[nodiscard]] auto otherParticipantScreenStateValue() const
+		-> rpl::producer<Group::ParticipantState>;
+	[[nodiscard]] bool hasScreenShareAudio(
+		not_null<PeerData*> participantPeer);
+	[[nodiscard]] Group::ParticipantState participantScreenState(
+		not_null<PeerData*> participantPeer);
 
 	enum State {
 		Creating,
@@ -454,6 +461,8 @@ public:
 
 	void toggleMute(const Group::MuteRequest &data);
 	void changeVolume(const Group::VolumeRequest &data);
+	void toggleScreenMute(const Group::MuteRequest &data);
+	void changeScreenVolume(const Group::VolumeRequest &data);
 
 	void inviteUsers(
 		const std::vector<InviteRequest> &requests,
@@ -594,6 +603,11 @@ private:
 	void updateInstanceVolume(
 		const std::optional<Data::GroupCallParticipant> &was,
 		const Data::GroupCallParticipant &now);
+	[[nodiscard]] float64 effectiveParticipantVolume(
+		const Data::GroupCallParticipant &participant) const;
+	[[nodiscard]] float64 effectiveParticipantScreenVolume(
+		const Data::GroupCallParticipant &participant) const;
+	void applyScreenVolume(not_null<PeerData*> participantPeer);
 	void applyMeInCallLocally();
 	void startRejoin();
 	void rejoin();
@@ -731,7 +745,13 @@ private:
 	bool _acceptFields = false;
 
 	rpl::event_stream<Group::ParticipantState> _otherParticipantStateValue;
+	rpl::event_stream<Group::ParticipantState> _otherParticipantScreenStateValue;
 	std::vector<MTPGroupCallParticipant> _queuedSelfUpdates;
+	struct ScreenVolumeState {
+		int volume = Group::kDefaultVolume;
+		bool muted = false;
+	};
+	base::flat_map<not_null<PeerData*>, ScreenVolumeState> _screenVolumesByPeer;
 
 	CallId _id = 0;
 	CallId _accessHash = 0;
