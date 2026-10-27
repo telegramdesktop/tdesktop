@@ -38,7 +38,6 @@ public:
 		ShiftedDcId shiftedDcId);
 	~SessionPrivate();
 
-	[[nodiscard]] int32 getShiftedDcId() const;
 	void dcOptionsChanged();
 	void cdnConfigChanged();
 

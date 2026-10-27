@@ -348,10 +348,6 @@ void SessionPrivate::cdnConfigChanged() {
 	connectToServer(true);
 }
 
-int32 SessionPrivate::getShiftedDcId() const {
-	return _shiftedDcId;
-}
-
 void SessionPrivate::dcOptionsChanged() {
 	_retryTimeout = 1;
 	connectToServer(true);

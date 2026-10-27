@@ -544,10 +544,6 @@ bool ProxyData::operator!=(const ProxyData &other) const {
 	return !(*this == other);
 }
 
-bool ProxyData::ValidMtprotoPassword(const QString &password) {
-	return MtprotoPasswordStatus(password) == Status::Valid;
-}
-
 ProxyData::Status ProxyData::MtprotoPasswordStatus(const QString &password) {
 	if (IsHexMtprotoPassword(password)) {
 		return HexMtprotoPasswordStatus(password);

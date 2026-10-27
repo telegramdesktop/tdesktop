@@ -613,10 +613,6 @@ rpl::producer<CallFailure> Call::failures() const {
 	return _failures.events();
 }
 
-QByteArray Call::emojiHash() const {
-	return _emojiHash.current();
-}
-
 rpl::producer<QByteArray> Call::emojiHashValue() const {
 	return _emojiHash.value();
 }

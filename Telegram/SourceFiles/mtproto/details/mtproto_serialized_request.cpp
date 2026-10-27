@@ -91,13 +91,6 @@ void SerializedRequest::setSeqNo(uint32 seqNo) {
 	(*_data)[kSeqNoPosition] = mtpPrime(seqNo);
 }
 
-uint32 SerializedRequest::getSeqNo() const {
-	Expects(_data != nullptr);
-	Expects(_data->size() > kMessageBodyPosition);
-
-	return uint32((*_data)[kSeqNoPosition]);
-}
-
 void SerializedRequest::addPadding(bool forAuthKeyInner) {
 	Expects(_data != nullptr);
 	Expects(_data->size() > kMessageBodyPosition);
