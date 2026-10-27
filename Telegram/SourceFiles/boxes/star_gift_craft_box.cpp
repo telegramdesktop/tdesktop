@@ -1164,7 +1164,6 @@ void Craft(
 			inputs.push_back(
 				Api::InputSavedStarGiftId(gift.manageId, gift.unique));
 		}
-		const auto weak = base::make_weak(controller);
 		const auto session = &controller->session();
 		session->api().request(MTPpayments_CraftStarGift(
 			MTP_vector<MTPInputSavedStarGift>(inputs)
@@ -1177,7 +1176,7 @@ void Craft(
 				const auto action = (slug == input.unique->slug)
 					? Data::GiftUpdate::Action::Upgraded
 					: Data::GiftUpdate::Action::Delete;
-				controller->session().data().notifyGiftUpdate({
+				session->data().notifyGiftUpdate({
 					.id = input.manageId,
 					.slug = input.unique->slug,
 					.action = action,
