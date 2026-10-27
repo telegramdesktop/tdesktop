@@ -5945,6 +5945,23 @@ int Message::minWidthForMedia() const {
 	if (const auto keyboard = inlineReplyKeyboard()) {
 		accumulate_max(result, keyboard->naturalWidth());
 	}
+	if (Has<RightBadge>() && displayFromName() && drawBubble()) {
+		const auto from = displayFrom();
+		validateFromNameText(from);
+		const auto &name = from
+			? _fromName
+			: data()->displayHiddenSenderInfo()->nameText();
+		accumulate_max(
+			result,
+			st::msgPadding.left()
+				+ name.maxWidth()
+				+ (_fromNameStatus
+					? st::dialogsPremiumIcon.icon.width()
+					: 0)
+				+ st::msgPadding.right()
+				+ st::msgPadding.right()
+				+ rightBadgeWidth());
+	}
 	return result;
 }
 
