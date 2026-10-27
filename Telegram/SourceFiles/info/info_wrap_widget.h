@@ -195,13 +195,10 @@ private:
 	void setupTop();
 	void setupTopBarMenuToggle();
 	void createTopBar();
-	void highlightTopBar();
 	void setupShortcuts();
 
 	[[nodiscard]] bool willHaveBackButton(
 		const Window::SectionShow &params) const;
-
-	not_null<RpWidget*> topWidget() const;
 
 	QRect contentGeometry() const;
 	rpl::producer<int> desiredHeightForContent() const;

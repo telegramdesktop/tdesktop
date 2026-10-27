@@ -65,7 +65,6 @@ public:
 	void setTitle(TitleDescriptor descriptor);
 	void setStories(rpl::producer<Dialogs::Stories::Content> content);
 	void enableBackButton();
-	void highlight();
 
 	template <typename ButtonWidget>
 	ButtonWidget *addButton(base::unique_qptr<ButtonWidget> button) {
@@ -120,7 +119,6 @@ private:
 		Ui::FadeWrap<Ui::RpWidget> *button,
 		rpl::producer<bool> shown);
 	void removeButton(not_null<Ui::RpWidget*> button);
-	void startHighlightAnimation();
 	void updateControlsVisibility(anim::type animated);
 
 	[[nodiscard]] bool selectionMode() const;
@@ -135,8 +133,6 @@ private:
 	void updateSelectionState();
 	void createSelectionControls();
 
-	void performForward();
-	void performDelete();
 	void performToggleStoryPin();
 
 	void setSearchField(
@@ -159,8 +155,6 @@ private:
 
 	const style::InfoTopBar &_st;
 	std::optional<Ui::RoundRect> _roundRect;
-	Ui::Animations::Simple _a_highlight;
-	bool _highlight = false;
 	QPointer<Ui::FadeWrap<Ui::IconButton>> _back;
 	std::vector<base::unique_qptr<Ui::RpWidget>> _buttons;
 	QPointer<Ui::FadeWrap<Ui::FlatLabel>> _title;

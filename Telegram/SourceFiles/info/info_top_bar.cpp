@@ -505,40 +505,14 @@ void TopBar::updateStoriesGeometry(int newWidth) {
 void TopBar::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
-	auto highlight = _a_highlight.value(_highlight ? 1. : 0.);
-	if (_highlight && !_a_highlight.animating()) {
-		_highlight = false;
-		startHighlightAnimation();
-	}
 	if (!_roundRect) {
-		const auto brush = anim::brush(_st.bg, _st.highlightBg, highlight);
-		p.fillRect(e->rect(), brush);
-	} else if (highlight > 0.) {
-		p.setPen(Qt::NoPen);
-		p.setBrush(anim::brush(_st.bg, _st.highlightBg, highlight));
-		p.drawRoundedRect(
-			rect() + style::margins(0, 0, 0, _st.radius * 2),
-			_st.radius,
-			_st.radius);
+		p.fillRect(e->rect(), _st.bg);
 	} else {
 		_roundRect->paintSomeRounded(
 			p,
 			rect(),
 			RectPart::TopLeft | RectPart::TopRight);
 	}
-}
-
-void TopBar::highlight() {
-	_highlight = true;
-	startHighlightAnimation();
-}
-
-void TopBar::startHighlightAnimation() {
-	_a_highlight.start(
-		[this] { update(); },
-		_highlight ? 0. : 1.,
-		_highlight ? 1. : 0.,
-		_st.highlightDuration);
 }
 
 void TopBar::updateControlsVisibility(anim::type animated) {
@@ -874,14 +848,6 @@ bool TopBar::storiesTitle() const {
 
 bool TopBar::searchMode() const {
 	return _searchModeAvailable && _searchModeEnabled;
-}
-
-void TopBar::performForward() {
-	_selectionActionRequests.fire(SelectionAction::Forward);
-}
-
-void TopBar::performDelete() {
-	_selectionActionRequests.fire(SelectionAction::Delete);
 }
 
 } // namespace Info

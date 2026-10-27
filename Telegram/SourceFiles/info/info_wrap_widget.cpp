@@ -713,10 +713,6 @@ void WrapWidget::removeFromStack(const std::vector<Section> &sections) {
 	}
 }
 
-not_null<Ui::RpWidget*> WrapWidget::topWidget() const {
-	return _topBar;
-}
-
 void WrapWidget::showContent(object_ptr<ContentWidget> content) {
 	if (auto old = std::exchange(_content, std::move(content))) {
 		if (Ui::InFocusChain(old)) {
@@ -925,12 +921,6 @@ bool WrapWidget::showInternal(
 		return true;
 	}
 	return false;
-}
-
-void WrapWidget::highlightTopBar() {
-	if (_topBar) {
-		_topBar->highlight();
-	}
 }
 
 std::shared_ptr<Window::SectionMemento> WrapWidget::createMemento() {
