@@ -521,7 +521,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 3faaefc75787ca2378c0ae169372f7c7f79328a8
+    git checkout 8b1791a08893e84bc94b3d4ae274747d25852dab
 mac:
     sed -i '' "s/10.13/$MACOSX_DEPLOYMENT_TARGET/g" macos_meson_*.txt
     git clone https://github.com/desktop-app/qt6_highsierra_patches.git qt6_highsierra
@@ -1611,6 +1611,7 @@ if qt < '6':
     cd qt_$QT
     git submodule update --init --recursive --progress qtbase qtimageformats qtsvg
 depends:patches/qtbase_""" + qt + """/*.patch
+depends:patches/qtsvg_""" + qt + """/*.patch
 win:
     cd qtbase
     setlocal enabledelayedexpansion
@@ -1621,6 +1622,8 @@ win:
             exit /b 1
         )
     )
+    cd ..\\qtsvg
+    for %%i in (..\\..\\patches\\qtsvg_%QT%\\*) do git apply %%i -v || exit /b 1
     cd ..
 
     SET CONFIGURATIONS=-debug
