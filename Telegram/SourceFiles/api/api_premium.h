@@ -100,8 +100,6 @@ public:
 		-> const std::vector<not_null<DocumentData*>> &;
 	[[nodiscard]] rpl::producer<> stickersUpdated() const;
 
-	[[nodiscard]] auto cloudSet() const
-		-> const std::vector<not_null<DocumentData*>> &;
 	[[nodiscard]] rpl::producer<> cloudSetUpdated() const;
 
 	[[nodiscard]] auto helloStickers() const
@@ -170,7 +168,6 @@ private:
 
 	mtpRequestId _cloudSetRequestId = 0;
 	uint64 _cloudSetHash = 0;
-	std::vector<not_null<DocumentData*>> _cloudSet;
 	rpl::event_stream<> _cloudSetUpdated;
 
 	mtpRequestId _helloStickersRequestId = 0;

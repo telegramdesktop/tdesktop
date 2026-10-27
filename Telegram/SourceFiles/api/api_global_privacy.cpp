@@ -193,10 +193,6 @@ PeerId GlobalPrivacy::paidReactionShownPeerCurrent() const {
 	return _paidReactionShownPeer.current();
 }
 
-rpl::producer<PeerId> GlobalPrivacy::paidReactionShownPeer() const {
-	return _paidReactionShownPeer.value();
-}
-
 void GlobalPrivacy::updateArchiveAndMute(bool value) {
 	update(
 		value,

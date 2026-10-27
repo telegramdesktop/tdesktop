@@ -130,11 +130,6 @@ rpl::producer<> Premium::stickersUpdated() const {
 	return _stickersUpdated.events();
 }
 
-auto Premium::cloudSet() const
--> const std::vector<not_null<DocumentData*>> & {
-	return _cloudSet;
-}
-
 rpl::producer<> Premium::cloudSetUpdated() const {
 	return _cloudSetUpdated.events();
 }
@@ -253,12 +248,8 @@ void Premium::reloadCloudSet() {
 		}, [&](const MTPDmessages_stickers &data) {
 			_cloudSetHash = data.vhash().v;
 			const auto owner = &_session->data();
-			_cloudSet.clear();
 			for (const auto &sticker : data.vstickers().v) {
-				const auto document = owner->processDocument(sticker);
-				if (document->isPremiumSticker()) {
-					_cloudSet.push_back(document);
-				}
+				owner->processDocument(sticker);
 			}
 			_cloudSetUpdated.fire({});
 		});
