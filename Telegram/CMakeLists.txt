@@ -1210,8 +1210,6 @@ PRIVATE
     history/view/history_view_top_bar_widget.h
     history/view/history_view_view_button.cpp
     history/view/history_view_view_button.h
-    history/view/history_view_webpage_preview.cpp
-    history/view/history_view_webpage_preview.h
     history/view/history_view_welcome_messages_section.cpp
     history/view/history_view_welcome_messages_section.h
     history/history.cpp

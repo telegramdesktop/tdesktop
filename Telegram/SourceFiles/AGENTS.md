@@ -239,7 +239,7 @@ This atlas divides Telegram Desktop's sources into named areas, ordered from fou
 - Everything inside a bubble beyond text: photos, videos, GIFs, round videos, documents, voice, stickers, albums, web pages, polls, to-do lists, locations, games, invoices, calls, and service boxes for gifts, giveaways, suggestions and TON transfers. It must not own playback, downloads or the media viewer.
 
 ### history/compose — chat compose area
-- Paths: `SourceFiles/history/view/controls/`, `SourceFiles/history/view/history_view_webpage_preview*`, `SourceFiles/ui/controls/round_video_recorder*`, `SourceFiles/api/api_suggest_post*`
+- Paths: `SourceFiles/history/view/controls/`, `SourceFiles/ui/controls/round_video_recorder*`, `SourceFiles/api/api_suggest_post*`
 - The field with send, attach, emoji and bot-menu buttons, reply, edit and forward panels with draft options, link previews, voice and round recording, suggested-post options, the draft stash, media editing with covers, search in chat and the join, mute and unblock bars. It must not own reusable field helpers.
 
 ### history/reactions — reactions UI
