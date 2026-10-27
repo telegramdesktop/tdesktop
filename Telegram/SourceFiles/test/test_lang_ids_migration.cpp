@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "chat_helpers/spellchecker_locale_ids.h"
 #include "core/core_settings.h"
+#include "spellcheck/spellcheck_types.h"
 
 #include <QtCore/QLocale>
 
