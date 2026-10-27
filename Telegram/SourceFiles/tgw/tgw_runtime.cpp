@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "test/test_widget_ops.h"
 #include "tgw/tgw_bridge.h"
+#include "tgw/tgw_emoji_images.h"
 #include "tgw/tgw_intl.h"
 #include "tgw/tgw_media.h"
 #include "tgw/tgw_renderer.h"
@@ -601,6 +602,11 @@ Runtime::Runtime(RuntimeDescriptor &&descriptor)
 		) | rpl::on_next([](bool hidden) {
 			Runtimes().applicationHidden = hidden;
 			PostCheck();
+		}, registry.applicationLifetime);
+		EmojiRefreshes() | rpl::on_next([] {
+			for (const auto &runtime : Runtimes().list) {
+				runtime->emojiRefreshed();
+			}
 		}, registry.applicationLifetime);
 	}
 	registry.list.emplace_back(this);
@@ -1706,6 +1712,19 @@ void Runtime::postShownDisplay() {
 			displayChanged(true);
 		}
 	});
+}
+
+void Runtime::emojiRefreshed() {
+	if (!_live && !_still) {
+		return;
+	}
+	if (_live) {
+		_live->dropFrame();
+	}
+	if (_still) {
+		_still->dropFrame();
+	}
+	_repaint();
 }
 
 void Runtime::heavyStateChanged(bool wasHeavy) {

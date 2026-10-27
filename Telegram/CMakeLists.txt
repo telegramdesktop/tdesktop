@@ -2216,6 +2216,10 @@ PRIVATE
     tgw/tgw_canvas.h
     tgw/tgw_cursor.cpp
     tgw/tgw_cursor.h
+    tgw/tgw_emoji.cpp
+    tgw/tgw_emoji.h
+    tgw/tgw_emoji_images.cpp
+    tgw/tgw_emoji_images.h
     tgw/tgw_intl.cpp
     tgw/tgw_intl.h
     tgw/tgw_log_box.cpp

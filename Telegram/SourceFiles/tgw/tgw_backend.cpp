@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_backend.h"
 
 #include "tgw/tgw_canvas.h"
+#include "tgw/tgw_emoji.h"
 #include "TwidgetCore/src/css.h"
 #include "TwidgetCore/src/png.h"
 
@@ -512,10 +513,13 @@ int QtBackend::create_font(
 		bool italic,
 		const std::string&,
 		twlite::FontMetrics &out) {
-	return makeFont(ResolveFont(families, size, weight, italic), out);
+	return makeFont(ResolveFont(families, size, weight, italic), out, false);
 }
 
-int QtBackend::makeFont(FontKey key, twlite::FontMetrics &out) {
+int QtBackend::makeFont(
+		FontKey key,
+		twlite::FontMetrics &out,
+		bool canvas) {
 	const auto requested = key.second;
 	const auto pixels = int(std::clamp(
 		std::round(requested),
@@ -530,7 +534,7 @@ int QtBackend::makeFont(FontKey key, twlite::FontMetrics &out) {
 	out.x_height = float(metrics.xHeight() * scale);
 	out.zero_width = float(metrics.horizontalAdvance(QChar('0')) * scale);
 	const auto id = ++_lastFontId;
-	_fonts.emplace(id, QtFont{ font, metrics, scale });
+	_fonts.emplace(id, QtFont{ font, metrics, scale, canvas });
 	return id;
 }
 
@@ -543,9 +547,20 @@ float QtBackend::text_width(int font, const std::string &text) {
 	if (i == end(_fonts)) {
 		return 0.f;
 	}
+	const auto &entry = i->second;
 	const auto utf16 = QString::fromUtf8(text.data(), int(text.size()));
-	return float(i->second.metrics.horizontalAdvance(utf16)
-		* i->second.scale);
+	const auto cells = entry.canvas
+		? std::vector<EmojiCell>()
+		: FindEmojiCells(utf16);
+	if (cells.empty()) {
+		return float(entry.metrics.horizontalAdvance(utf16) * entry.scale);
+	}
+	const auto width = WalkTextWithEmoji(
+		entry.metrics,
+		utf16,
+		cells,
+		entry.font.pixelSize());
+	return float(width * entry.scale);
 }
 
 bool QtBackend::load_image(
@@ -673,7 +688,7 @@ int QtBackend::admitCanvasFont(FontKey key, twlite::FontMetrics &out) {
 		|| int(_canvasFonts.size()) >= kMaxCanvasFonts) {
 		return refuseCanvasFont(out);
 	}
-	const auto id = makeFont(key, out);
+	const auto id = makeFont(key, out, true);
 	twlite::set_em_box(out, out.ascent, out.descent, float(key.second));
 	_canvasFonts.emplace(key, CachedFont{ id, out });
 	--_canvasFontsLeft;

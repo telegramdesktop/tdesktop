@@ -179,6 +179,7 @@ private:
 	void markHeight(bool client);
 	void displayChanged(bool repaint);
 	void postShownDisplay();
+	void emojiRefreshed();
 	void heavyStateChanged(bool wasHeavy);
 	void addNote(const QString &text);
 	void applySample(uint64 host, uint64 request, bool last, QString text);

@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_painter.h"
 
 #include "tgw/tgw_backend.h"
+#include "tgw/tgw_emoji.h"
+#include "tgw/tgw_emoji_images.h"
 #include "tgw/tgw_painter_filters.h"
 #include "ui/image/image_prepare.h"
 
@@ -1230,6 +1232,43 @@ void Include(Bounds &bounds, QPointF point) {
 	return mask + scratch;
 }
 
+void DrawTextWithEmoji(
+		QPainter &p,
+		const QtFont &font,
+		const QString &text,
+		const std::vector<EmojiCell> &cells,
+		int alpha) {
+	const auto fontSize = float64(font.font.pixelSize());
+	const auto side = EmojiAdvance(fontSize)
+		* MaxStretch(p.combinedTransform());
+	const auto opacity = p.opacity();
+	const auto draw = [&](float64 x, const QString &piece, EmojiPtr emoji) {
+		if (!emoji) {
+			p.drawText(QPointF(x, 0.), piece);
+			return;
+		}
+		p.setOpacity(opacity * alpha / 255.);
+		PaintEmoji(p, emoji, EmojiBox(x, fontSize), side);
+		p.setOpacity(opacity);
+	};
+	WalkTextWithEmoji(font.metrics, text, cells, fontSize, draw);
+}
+
+[[nodiscard]] QRectF EmojiTextInk(
+		const QFontMetricsF &metrics,
+		const QString &text,
+		const std::vector<EmojiCell> &cells,
+		float64 fontSize) {
+	auto result = QRectF();
+	const auto add = [&](float64 x, const QString &piece, EmojiPtr emoji) {
+		result |= emoji
+			? EmojiBox(x, fontSize)
+			: metrics.boundingRect(piece).translated(x, 0.);
+	};
+	WalkTextWithEmoji(metrics, text, cells, fontSize, add);
+	return result;
+}
+
 [[nodiscard]] QRectF TextInk(
 		const twlite::Command &command,
 		const QtBackend &backend) {
@@ -1242,9 +1281,13 @@ void Include(Bounds &bounds, QPointF point) {
 	const auto text = QString::fromUtf8(
 		command.text.data(),
 		int(command.text.size()));
+	const auto cells = FindEmojiCells(text);
+	const auto ink = cells.empty()
+		? metrics.boundingRect(text)
+		: EmojiTextInk(metrics, text, cells, font->font.pixelSize());
 	auto transform = QTransform::fromTranslate(command.x, command.y);
 	transform.scale(font->scale, font->scale);
-	return transform.mapRect(metrics.boundingRect(text).adjusted(
+	return transform.mapRect(ink.adjusted(
 		-margin,
 		-margin,
 		margin,
@@ -2092,6 +2135,10 @@ void Executor::drawText(const twlite::Command &command) {
 		|| !reachable(baseline)) {
 		return;
 	}
+	const auto text = QString::fromUtf8(
+		command.text.data(),
+		int(command.text.size()));
+	const auto cells = FindEmojiCells(text);
 	auto &p = painter();
 	p.save();
 	p.translate(baseline);
@@ -2100,9 +2147,11 @@ void Executor::drawText(const twlite::Command &command) {
 	}
 	p.setFont(font->font);
 	p.setPen(ToColor(command.color));
-	p.drawText(
-		QPointF(),
-		QString::fromUtf8(command.text.data(), int(command.text.size())));
+	if (cells.empty()) {
+		p.drawText(QPointF(), text);
+	} else {
+		DrawTextWithEmoji(p, *font, text, cells, command.color.a);
+	}
 	p.restore();
 }
 

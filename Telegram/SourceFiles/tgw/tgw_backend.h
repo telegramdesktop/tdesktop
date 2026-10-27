@@ -19,6 +19,7 @@ struct QtFont {
 	QFont font;
 	QFontMetricsF metrics;
 	float64 scale = 1.;
+	bool canvas = false;
 };
 
 class QtBackend final : public twlite::Backend {
@@ -81,7 +82,10 @@ private:
 		twlite::FontMetrics metrics;
 	};
 
-	[[nodiscard]] int makeFont(FontKey key, twlite::FontMetrics &out);
+	[[nodiscard]] int makeFont(
+		FontKey key,
+		twlite::FontMetrics &out,
+		bool canvas);
 	[[nodiscard]] int admitCanvasFont(FontKey key, twlite::FontMetrics &out);
 	[[nodiscard]] int refuseCanvasFont(twlite::FontMetrics &out);
 
