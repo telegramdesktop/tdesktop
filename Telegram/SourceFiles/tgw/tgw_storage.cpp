@@ -62,6 +62,8 @@ using Matches = Fn<bool(FullMsgId, const StorageMeta &)>;
 struct Store {
 	Messages messages;
 	std::optional<StorageDisk> disk;
+	base::flat_set<FullMsgId> cut;
+	base::flat_set<FullMsgId> pending;
 	base::Timer writeTimer;
 	base::Timer expireTimer;
 };
@@ -90,6 +92,7 @@ std::atomic<uint64> StorageDeliverySerial = 0;
 	const auto store = Find(session);
 	return (store
 		&& (!store->messages.empty()
+			|| !store->pending.empty()
 			|| !Stores().hosts.empty()
 			|| (store->disk && !store->disk->empty())))
 		? store
@@ -230,6 +233,14 @@ void WriteAll(not_null<Main::Session*> session) {
 	}
 }
 
+void FinishWrites(not_null<Main::Session*> session) {
+	WriteAll(session);
+	const auto store = Find(session);
+	if (store && store->disk) {
+		store->disk->flush();
+	}
+}
+
 void Flush(const Host &host) {
 	if (!host.cut) {
 		WriteKey(host.session, host.key);
@@ -265,11 +276,16 @@ void Refresh(not_null<Main::Session*> session) {
 void Remember(
 		not_null<Main::Session*> session,
 		not_null<const HistoryItem*> item) {
-	const auto store = item->isHistoryEntry() ? Tracked(session) : nullptr;
+	const auto store = item->isHistoryEntry() ? Find(session) : nullptr;
 	if (!store) {
 		return;
 	}
 	const auto key = item->fullId();
+	store->cut.remove(key);
+	store->pending.remove(key);
+	if (!Tracked(session)) {
+		return;
+	}
 	const auto meta = MetaOf(item);
 	for (auto &[id, host] : Stores().hosts) {
 		if (host.session == session && host.key == key) {
@@ -304,11 +320,31 @@ void ClearIf(not_null<Main::Session*> session, Matches matches, Cut cut) {
 		}
 		host.clearedThrough = clearedThrough;
 		host.stale = true;
-		if (cut == Cut::All || (cut == Cut::Retired && host.retired)) {
+		if (cut == Cut::All) {
+			host.cut = true;
+			store->cut.emplace(host.key);
+		} else if (cut == Cut::Retired && host.retired) {
 			host.cut = true;
 		}
 	}
-	Remove(*store, selected);
+	if (cut == Cut::All) {
+		auto &pending = store->pending;
+		for (auto i = begin(pending); i != end(pending);) {
+			if (selected(*i, StorageMeta())) {
+				store->cut.emplace(*i);
+				i = pending.erase(i);
+			} else {
+				++i;
+			}
+		}
+	}
+	Remove(*store, [&](FullMsgId key, const StorageMeta &stored) {
+		const auto result = selected(key, stored);
+		if (result && cut == Cut::All) {
+			store->cut.emplace(key);
+		}
+		return result;
+	});
 }
 
 void ClearDestroyed(
@@ -364,6 +400,10 @@ void Move(
 	if (!store) {
 		return;
 	}
+	if (store->cut.remove(from)) {
+		store->cut.emplace(to);
+	}
+	store->pending.remove(from);
 	if (auto moved = Take(*store, from)) {
 		auto entry = Load(*store, to);
 		if (!entry) {
@@ -449,7 +489,7 @@ void Expire(not_null<Main::Session*> session) {
 
 void Forget(not_null<Main::Session*> session) {
 	auto &registry = Stores();
-	WriteAll(session);
+	FinishWrites(session);
 	registry.sessions.remove(session);
 	for (auto i = begin(registry.hosts); i != end(registry.hosts);) {
 		if (i->second.session == session) {
@@ -502,7 +542,7 @@ void StartStorage(not_null<Main::Session*> session) {
 	session->data().sessionDataAboutToBeCleared(
 	) | rpl::on_next([=] {
 		Refresh(session);
-		WriteAll(session);
+		FinishWrites(session);
 	}, session->lifetime());
 	session->lifetime().add([=] {
 		Forget(session);
@@ -526,6 +566,40 @@ twidget::WidgetStorage StoredAreas(not_null<HistoryItem*> item) {
 		.local = entry->local,
 		.session = entry->session,
 	};
+}
+
+std::optional<HeightRecord> StoredHeight(not_null<HistoryItem*> item) {
+	const auto session = Owner(item);
+	if (!session) {
+		return std::nullopt;
+	}
+	const auto store = Find(session);
+	return store->disk
+		? store->disk->height(item->fullId())
+		: std::nullopt;
+}
+
+void StoreHeight(not_null<HistoryItem*> item, HeightRecord height) {
+	const auto session = Owner(item);
+	if (!session) {
+		return;
+	}
+	const auto store = Find(session);
+	const auto key = item->fullId();
+	if (!store->disk || store->cut.contains(key)) {
+		return;
+	} else if (!IsServerMsgId(key.msg)) {
+		store->pending.emplace(key);
+		return;
+	}
+	const auto meta = MetaOf(item);
+	const auto previous = store->disk->lookup(key);
+	const auto expiryChanged = previous
+		? (previous->expires != meta.expires)
+		: (meta.expires > 0);
+	if (store->disk->setHeight(key, meta, height) && expiryChanged) {
+		ScheduleExpiry(*store);
+	}
 }
 
 bool StorageRetiring(not_null<HistoryItem*> item) {

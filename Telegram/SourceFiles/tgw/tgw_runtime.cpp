@@ -181,6 +181,34 @@ void RememberItemHtml(
 	}
 }
 
+[[nodiscard]] bool AutoHeight(not_null<const HistoryItem*> item) {
+	const auto media = dynamic_cast<WidgetMedia*>(item->media());
+	return media && (media->fields().anchors.height <= 0);
+}
+
+void StoreMemory(not_null<HistoryItem*> item, const MessageMemory &memory) {
+	if (memory.height && AutoHeight(item)) {
+		StoreHeight(item, {
+			.height = *memory.height,
+			.bottom = (memory.anchor == ResizeAnchor::Bottom),
+		});
+	}
+}
+
+void StoreItemMemory(
+		not_null<Main::Session*> session,
+		not_null<HistoryItem*> item) {
+	const auto &sessions = Runtimes().sessions;
+	const auto i = sessions.find(session);
+	if (i == end(sessions)) {
+		return;
+	}
+	const auto j = i->second.find(item);
+	if (j != end(i->second)) {
+		StoreMemory(item, *j->second);
+	}
+}
+
 [[nodiscard]] bool Busy() {
 	const auto &registry = Runtimes();
 	return (registry.jobs > 0) || (registry.reserved > 0);
@@ -765,6 +793,7 @@ void Runtime::attachView(
 	if (_host && _host->watching) {
 		WatchersChanged();
 	}
+	StoreMemory(_item, *_memory);
 }
 
 void Runtime::setSize(int width, double maxHeight) {
@@ -940,6 +969,9 @@ std::shared_ptr<MessageMemory> Runtime::RememberMessage(
 			if (ranges::any_of(Runtimes().list, watching)) {
 				WatchersChanged();
 			}
+			if (item) {
+				StoreItemMemory(session, item);
+			}
 		}, session->lifetime());
 		session->data().itemRemoved(
 		) | rpl::on_next([=](not_null<const HistoryItem*> removed) {
@@ -956,6 +988,17 @@ std::shared_ptr<MessageMemory> Runtime::RememberMessage(
 	auto &memory = sessions[session][item];
 	if (!memory) {
 		memory = std::make_shared<MessageMemory>();
+		const auto stored = AutoHeight(item)
+			? StoredHeight(item)
+			: std::nullopt;
+		if (stored
+			&& stored->height >= kMinHeight
+			&& stored->height <= kMaxHeight) {
+			memory->height = stored->height;
+			memory->anchor = stored->bottom
+				? ResizeAnchor::Bottom
+				: ResizeAnchor::Top;
+		}
 	}
 	RememberHtml(*memory, html);
 	return memory;
@@ -1669,8 +1712,12 @@ void Runtime::markHeight(bool client) {
 void Runtime::displayChanged(bool repaint) {
 	if (const auto shown = core()) {
 		if (const auto reported = shown->height()) {
-			_memory->height = reported;
-			_memory->anchor = AnchorOf(*shown);
+			const auto anchor = AnchorOf(*shown);
+			if (_memory->height != reported || _memory->anchor != anchor) {
+				_memory->height = reported;
+				_memory->anchor = anchor;
+				StoreMemory(_item, *_memory);
+			}
 		}
 	}
 	const auto now = height();

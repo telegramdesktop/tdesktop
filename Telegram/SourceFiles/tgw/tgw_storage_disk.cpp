@@ -11,10 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/details/storage_file_utilities.h"
 #include "twidget/sdk_policy.h"
 
+#include <cmath>
+
 namespace Tgw {
 namespace {
 
-constexpr auto kIndexVersion = quint32(1);
+constexpr auto kIndexVersion = quint32(2);
 constexpr auto kRecordVersion = quint32(1);
 constexpr auto kQuota = uint64(twidget::sdk::STORAGE_QUOTA_BYTES);
 constexpr auto kMaxPairs = kQuota + 1;
@@ -25,8 +27,10 @@ constexpr auto kMaxRecordSize = kRecordHeaderSize
 	+ kQuota;
 constexpr auto kIndexHeaderSize = uint64(
 	2 * sizeof(quint32) + sizeof(quint64));
-constexpr auto kIndexEntrySize = uint64(
+constexpr auto kIndexEntrySizeV1 = uint64(
 	6 * sizeof(quint64) + 2 * sizeof(qint32));
+constexpr auto kIndexEntrySize = kIndexEntrySizeV1
+	+ uint64(sizeof(double) + sizeof(quint32));
 constexpr auto kNullBytes = quint32(0xFFFFFFFF);
 constexpr auto kFileNameSize = 16;
 
@@ -150,7 +154,7 @@ std::optional<StorageMeta> StorageDisk::lookup(FullMsgId key) const {
 
 std::optional<StorageDisk::Area> StorageDisk::read(FullMsgId key) const {
 	const auto i = _entries.find(key);
-	if (i == end(_entries)) {
+	if (i == end(_entries) || !i->second.file) {
 		return std::nullopt;
 	}
 	auto file = FileReadDescriptor();
@@ -162,6 +166,13 @@ std::optional<StorageDisk::Area> StorageDisk::read(FullMsgId key) const {
 		return Area();
 	}
 	return result;
+}
+
+std::optional<HeightRecord> StorageDisk::height(FullMsgId key) const {
+	const auto i = _entries.find(key);
+	return (i != end(_entries) && i->second.height.height > 0.)
+		? std::make_optional(i->second.height)
+		: std::nullopt;
 }
 
 TimeId StorageDisk::nextExpiry() const {
@@ -183,22 +194,45 @@ bool StorageDisk::write(
 		return false;
 	}
 	auto i = _entries.find(key);
-	const auto added = (i == end(_entries));
-	if (added && local.empty()) {
-		return false;
-	} else if (added) {
-		i = _entries.emplace(key, Entry{
-			.file = generateFile(),
-			.meta = meta,
-		}).first;
+	if (i == end(_entries)) {
+		if (local.empty()) {
+			return false;
+		}
+		i = _entries.emplace(key, Entry()).first;
 	}
-	const auto changed = added || (i->second.meta != meta);
+	auto &entry = i->second;
+	const auto attach = !entry.file && !local.empty();
+	const auto changed = attach || (entry.meta != meta);
+	if (attach) {
+		entry.file = generateFile();
+	}
 	if (changed) {
-		i->second.meta = meta;
+		entry.meta = meta;
 		writeIndex();
 	}
-	writeRecord(i->second.file, local);
+	if (entry.file) {
+		writeRecord(entry.file, local);
+	}
 	return changed;
+}
+
+bool StorageDisk::setHeight(
+		FullMsgId key,
+		const StorageMeta &meta,
+		HeightRecord height) {
+	if (!Storable(key)
+		|| !std::isfinite(height.height)
+		|| (height.height <= 0.)) {
+		return false;
+	}
+	auto &entry = _entries[key];
+	if (entry.meta == meta && entry.height == height) {
+		return false;
+	}
+	entry.meta = meta;
+	entry.height = height;
+	_indexDirty = true;
+	return true;
 }
 
 bool StorageDisk::refresh(FullMsgId key, const StorageMeta &meta) {
@@ -229,16 +263,18 @@ bool StorageDisk::refresh(
 
 bool StorageDisk::remove(Fn<bool(FullMsgId, const StorageMeta &)> matches) {
 	auto paths = std::vector<QString>();
+	const auto was = _entries.size();
 	_entries.erase(
 		ranges::remove_if(_entries, [&](const auto &entry) {
 			if (!matches(entry.first, entry.second.meta)) {
 				return false;
+			} else if (entry.second.file) {
+				AppendRecordPaths(paths, _folder, entry.second.file);
 			}
-			AppendRecordPaths(paths, _folder, entry.second.file);
 			return true;
 		}),
 		end(_entries));
-	if (paths.empty()) {
+	if (_entries.size() == was) {
 		return false;
 	}
 	ScheduleRemoveFiles(std::move(paths));
@@ -246,8 +282,15 @@ bool StorageDisk::remove(Fn<bool(FullMsgId, const StorageMeta &)> matches) {
 	return true;
 }
 
+void StorageDisk::flush() {
+	if (_indexDirty) {
+		writeIndex();
+	}
+}
+
 void StorageDisk::erase() {
 	_entries.clear();
+	_indexDirty = false;
 	EraseStorageFolder(_folder);
 }
 
@@ -260,11 +303,12 @@ bool StorageDisk::readIndex() {
 	auto owner = quint64();
 	auto count = quint32();
 	file.stream >> version >> owner >> count;
+	const auto entrySize = (version > 1) ? kIndexEntrySize : kIndexEntrySizeV1;
 	if (!CheckStreamStatus(file.stream)
 		|| !version
 		|| version > kIndexVersion
 		|| owner != _owner
-		|| count * kIndexEntrySize > uint64(file.buffer.bytesAvailable())) {
+		|| count * entrySize > uint64(file.buffer.bytesAvailable())) {
 		return false;
 	}
 	auto entries = base::flat_map<FullMsgId, Entry>();
@@ -276,6 +320,7 @@ bool StorageDisk::readIndex() {
 		auto topicRootId = qint64();
 		auto sublistPeerId = quint64();
 		auto from = quint64();
+		auto anchor = quint32();
 		file.stream
 			>> peer
 			>> msg
@@ -285,17 +330,26 @@ bool StorageDisk::readIndex() {
 			>> topicRootId
 			>> sublistPeerId
 			>> from;
+		if (version > 1) {
+			file.stream >> entry.height.height >> anchor;
+		}
 		entry.meta.topicRootId = topicRootId;
 		entry.meta.sublistPeerId = DeserializePeerId(sublistPeerId);
 		entry.meta.from = DeserializePeerId(from);
+		entry.height.bottom = (anchor == 1);
+		const auto height = entry.height.height;
 		const auto key = FullMsgId(DeserializePeerId(peer), MsgId(msg));
 		if (!CheckStreamStatus(file.stream)
 			|| !Storable(key)
-			|| !entry.file
+			|| !std::isfinite(height)
+			|| (height < 0.)
+			|| (anchor > 1)
+			|| (!entry.file && height <= 0.)
 			|| !entries.emplace(key, entry).second) {
 			return false;
+		} else if (entry.file) {
+			files.push_back(entry.file);
 		}
-		files.push_back(entry.file);
 	}
 	ranges::sort(files);
 	if (ranges::adjacent_find(files) != end(files)) {
@@ -309,7 +363,9 @@ void StorageDisk::cleanup(const QStringList &names) {
 	auto list = std::vector<QString>();
 	list.reserve(_entries.size());
 	for (const auto &[key, entry] : _entries) {
-		list.push_back(ToFilePart(entry.file));
+		if (entry.file) {
+			list.push_back(ToFilePart(entry.file));
+		}
 	}
 	const auto files = base::flat_set<QString>(begin(list), end(list));
 	auto present = std::vector<QString>();
@@ -330,7 +386,8 @@ void StorageDisk::cleanup(const QStringList &names) {
 	const auto was = _entries.size();
 	_entries.erase(
 		ranges::remove_if(_entries, [&](const auto &entry) {
-			return !kept.contains(ToFilePart(entry.second.file));
+			const auto file = entry.second.file;
+			return file && !kept.contains(ToFilePart(file));
 		}),
 		end(_entries));
 	if (_entries.size() != was) {
@@ -339,6 +396,7 @@ void StorageDisk::cleanup(const QStringList &names) {
 }
 
 void StorageDisk::writeIndex() {
+	_indexDirty = false;
 	auto data = EncryptedDescriptor(
 		Reserve(kIndexHeaderSize + _entries.size() * kIndexEntrySize));
 	data.stream
@@ -355,7 +413,9 @@ void StorageDisk::writeIndex() {
 			<< qint32(meta.expires)
 			<< qint64(meta.topicRootId.bare)
 			<< quint64(SerializePeerId(meta.sublistPeerId))
-			<< quint64(SerializePeerId(meta.from));
+			<< quint64(SerializePeerId(meta.from))
+			<< double(entry.height.height)
+			<< quint32(entry.height.bottom ? 1 : 0);
 	}
 	auto file = FileWriteDescriptor(kIndexName, _folder);
 	file.writeEncrypted(data, _key);

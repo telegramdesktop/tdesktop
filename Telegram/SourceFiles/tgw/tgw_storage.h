@@ -33,10 +33,20 @@ struct StorageHost {
 		const std::map<std::string, std::string> &values)> commit;
 };
 
+struct HeightRecord {
+	double height = 0.;
+	bool bottom = false;
+
+	friend inline bool operator==(HeightRecord, HeightRecord) = default;
+};
+
 void StartStorage(not_null<Main::Session*> session);
 
 [[nodiscard]] twidget::WidgetStorage StoredAreas(
 	not_null<HistoryItem*> item);
+[[nodiscard]] std::optional<HeightRecord> StoredHeight(
+	not_null<HistoryItem*> item);
+void StoreHeight(not_null<HistoryItem*> item, HeightRecord height);
 [[nodiscard]] bool StorageRetiring(not_null<HistoryItem*> item);
 [[nodiscard]] StorageHost OpenStorageHost(not_null<HistoryItem*> item);
 [[nodiscard]] bool StorageHostStale(uint64 id);
