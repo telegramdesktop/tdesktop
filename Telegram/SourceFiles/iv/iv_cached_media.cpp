@@ -365,19 +365,6 @@ void CachedPagePhotoRuntime::releaseHeavyData() {
 	};
 }
 
-[[nodiscard]] ::Data::LocationPoint CachedPageMapPoint(
-		double latitude,
-		double longitude,
-		uint64 accessHash) {
-	const auto point = MTP_geoPoint(
-		MTP_flags(0),
-		MTP_double(longitude),
-		MTP_double(latitude),
-		MTP_long(accessHash),
-		MTP_int(0));
-	return ::Data::LocationPoint(point.c_geoPoint());
-}
-
 [[nodiscard]] bool CanHostNativeIvVideoDocument(
 		not_null<DocumentData*> document) {
 	return !document->isVideoMessage()
@@ -1455,17 +1442,20 @@ auto CachedPageMediaRuntime::hostedMediaBlockFactory() const
 		[session = _session, host](
 				Window::SessionController *controller,
 				const Markdown::PreparedMapBlockData &prepared) {
-			const auto mapSize = QSize(prepared.width, prepared.height);
-			const auto point = CachedPageMapPoint(
+			const auto point = ::Data::LocationPoint::FromCoordinates(
 				prepared.latitude,
 				prepared.longitude,
 				prepared.accessHash);
+			if (!point) {
+				return std::shared_ptr<Markdown::MediaBlock>();
+			}
+			const auto mapSize = QSize(prepared.width, prepared.height);
 			const auto mapImage = std::make_shared<::Data::CloudImage>(
 				session,
 				CachedPageMapImageData(
-					prepared.latitude,
-					prepared.longitude,
-					prepared.accessHash,
+					point->lat(),
+					point->lon(),
+					point->accessHash(),
 					mapSize,
 					prepared.zoom));
 			const auto mapImagePtr = mapImage.get();
@@ -1476,7 +1466,7 @@ auto CachedPageMediaRuntime::hostedMediaBlockFactory() const
 			descriptor.copyText = tr::lng_maps_point(tr::now);
 			descriptor.layoutHint = mapSize;
 			descriptor.host = host;
-			descriptor.mediaFactory = [mapImagePtr, point, mapSize](
+			descriptor.mediaFactory = [mapImagePtr, point = *point, mapSize](
 					not_null<HistoryView::Element*> view) {
 				return std::make_unique<HistoryView::Location>(
 					view,

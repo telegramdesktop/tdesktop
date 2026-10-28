@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "base/unixtime.h"
 #include "data/data_document.h"
+#include "data/data_location.h"
 #include "data/data_peer.h"
 #include "data/data_photo.h"
 #include "data/data_premium_limits.h"
@@ -2120,13 +2121,12 @@ void AppendBlock(
 		auto parsed = MakeBlock(BlockKind::Map);
 		parsed.width = NonZeroMapWidth(data.vw().v);
 		parsed.height = NonZeroMapHeight(data.vh().v);
-		parsed.zoom = data.vzoom().v;
-		data.vgeo().match([&](const MTPDgeoPoint &row) {
-			parsed.latitude = row.vlat().v;
-			parsed.longitude = row.vlong().v;
-			parsed.accessHash = row.vaccess_hash().v;
-		}, [](const auto &) {
-		});
+		if (const auto point = ::Data::LocationPoint::FromMTP(data.vgeo())) {
+			parsed.zoom = data.vzoom().v;
+			parsed.latitude = point->lat();
+			parsed.longitude = point->lon();
+			parsed.accessHash = point->accessHash();
+		}
 		parsed.caption = ParseCaption(data.vcaption(), context, index);
 		AdoptAnchor(&parsed.anchorId, &parsed.caption);
 		result->push_back(std::move(parsed));

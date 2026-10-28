@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/cache/storage_cache_types.h"
 #include "storage/serialize_common.h"
 #include "data/data_file_origin.h"
+#include "data/data_location.h"
 #include "base/overload.h"
 #include "main/main_session.h"
 
@@ -793,7 +794,9 @@ std::optional<StorageImageLocation> StorageImageLocation::FromSerialized(
 }
 
 QByteArray DownloadLocation::serialize() const {
-	if (!valid() || v::is<StorageFileLocation>(data)) {
+	if (!valid()) {
+		return QByteArray();
+	} else if (v::is<StorageFileLocation>(data)) {
 		return v::get<StorageFileLocation>(data).serialize();
 	}
 	auto result = QByteArray();
@@ -834,7 +837,9 @@ QByteArray DownloadLocation::serialize() const {
 }
 
 int DownloadLocation::serializeSize() const {
-	if (!valid() || v::is<StorageFileLocation>(data)) {
+	if (!valid()) {
+		return 0;
+	} else if (v::is<StorageFileLocation>(data)) {
 		return v::get<StorageFileLocation>(data).serializeSize();
 	}
 	auto result = sizeof(quint16) + sizeof(quint8) + sizeof(quint8);
@@ -889,6 +894,9 @@ std::optional<DownloadLocation> DownloadLocation::FromSerialized(
 		qint32 zoom = 0;
 		qint32 scale = 0;
 		stream >> lat >> lon >> access >> width >> height >> zoom >> scale;
+		if (!Data::ValidGeoCoordinates(lat, lon)) {
+			return std::nullopt;
+		}
 		return (stream.status() == QDataStream::Ok)
 			? std::make_optional(
 				DownloadLocation{ GeoPointLocation{
@@ -947,7 +955,9 @@ DownloadLocation DownloadLocation::convertToModernPeerPhoto(
 
 Storage::Cache::Key DownloadLocation::cacheKey() const {
 	return v::match(data, [](const GeoPointLocation &data) {
-		return Data::GeoPointCacheKey(data);
+		return Data::ValidGeoCoordinates(data.lat, data.lon)
+			? Data::GeoPointCacheKey(data)
+			: Storage::Cache::Key();
 	}, [](const StorageFileLocation &data) {
 		return data.valid()
 			? data.cacheKey()
@@ -975,7 +985,7 @@ Storage::Cache::Key DownloadLocation::bigFileBaseCacheKey() const {
 
 bool DownloadLocation::valid() const {
 	return v::match(data, [](const GeoPointLocation &data) {
-		return true;
+		return Data::ValidGeoCoordinates(data.lat, data.lon);
 	}, [](const StorageFileLocation &data) {
 		return data.valid();
 	}, [](const WebFileLocation &data) {

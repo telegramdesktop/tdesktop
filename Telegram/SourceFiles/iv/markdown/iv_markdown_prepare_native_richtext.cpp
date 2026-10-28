@@ -649,7 +649,12 @@ bool PrepareNativeIvMapBlock(
 		NativeIvPrepareState *state) {
 	const auto width = (data.width > 0) ? data.width : kDefaultMapWidth;
 	const auto height = (data.height > 0) ? data.height : kDefaultMapHeight;
-	if (data.zoom <= 0 || (!data.accessHash && !state->editMode)) {
+	const auto point = Data::LocationPoint::FromCoordinates(
+		data.latitude,
+		data.longitude);
+	if (!point
+		|| data.zoom <= 0
+		|| (!data.accessHash && !state->editMode)) {
 		return state->editMode
 			? PrepareNativeIvCanonicalPlaceholderBlock(
 				u"Map"_q,
@@ -681,10 +686,7 @@ bool PrepareNativeIvMapBlock(
 	block.map.width = width;
 	block.map.height = height;
 	block.map.zoom = data.zoom;
-	block.map.url = LocationClickHandler::Url(Data::LocationPoint(
-		data.latitude,
-		data.longitude,
-		Data::LocationPoint::NoAccessHash));
+	block.map.url = LocationClickHandler::Url(*point);
 	result->push_back(std::move(block));
 	return true;
 }

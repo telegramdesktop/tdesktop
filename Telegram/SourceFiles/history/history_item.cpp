@@ -365,32 +365,30 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 			qs(media.vphone_number()),
 			Data::SharedContact::ParseVcard(qs(media.vvcard())));
 	}, [&](const MTPDmessageMediaGeo &media) -> Result {
-		return media.vgeo().match([&](const MTPDgeoPoint &point) -> Result {
-			return std::make_unique<Data::MediaLocation>(
-				item,
-				Data::LocationPoint(point));
-		}, [](const MTPDgeoPointEmpty &) -> Result {
+		const auto point = Data::LocationPoint::FromMTP(media.vgeo());
+		if (!point) {
 			return nullptr;
-		});
+		}
+		return std::make_unique<Data::MediaLocation>(item, *point);
 	}, [&](const MTPDmessageMediaGeoLive &media) -> Result {
-		return media.vgeo().match([&](const MTPDgeoPoint &point) -> Result {
-			return std::make_unique<Data::MediaLocation>(
-				item,
-				Data::LocationPoint(point),
-				media.vperiod().v);
-		}, [](const MTPDgeoPointEmpty &) -> Result {
+		const auto point = Data::LocationPoint::FromMTP(media.vgeo());
+		if (!point) {
 			return nullptr;
-		});
+		}
+		return std::make_unique<Data::MediaLocation>(
+			item,
+			*point,
+			media.vperiod().v);
 	}, [&](const MTPDmessageMediaVenue &media) -> Result {
-		return media.vgeo().match([&](const MTPDgeoPoint &point) -> Result {
-			return std::make_unique<Data::MediaLocation>(
-				item,
-				Data::LocationPoint(point),
-				qs(media.vtitle()),
-				qs(media.vaddress()));
-		}, [](const MTPDgeoPointEmpty &data) -> Result {
+		const auto point = Data::LocationPoint::FromMTP(media.vgeo());
+		if (!point) {
 			return nullptr;
-		});
+		}
+		return std::make_unique<Data::MediaLocation>(
+			item,
+			*point,
+			qs(media.vtitle()),
+			qs(media.vaddress()));
 	}, [&](const MTPDmessageMediaPhoto &media) -> Result {
 		const auto photo = media.vphoto();
 		if (!photo) {
@@ -2460,6 +2458,9 @@ void HistoryItem::applyEdition(HistoryMessageEdition &&edition) {
 			refreshMedia(edition.mtpMedia);
 			if (_flags & MessageFlag::Legacy) {
 				_flags &= ~MessageFlag::Legacy;
+			}
+			if (_media && _media->location()) {
+				RemoveComponents(HistoryServiceData::Bit());
 			}
 		}
 	}

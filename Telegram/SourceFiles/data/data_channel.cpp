@@ -321,14 +321,15 @@ void ChannelData::setLocation(const MTPChannelLocation &data) {
 	const auto was = mgInfo->getLocation();
 	const auto wasValue = was ? *was : ChannelLocation();
 	data.match([&](const MTPDchannelLocation &data) {
-		data.vgeo_point().match([&](const MTPDgeoPoint &point) {
+		const auto point = Data::LocationPoint::FromMTP(data.vgeo_point());
+		if (point) {
 			mgInfo->setLocation({
 				qs(data.vaddress()),
-				Data::LocationPoint(point)
+				*point
 			});
-		}, [&](const MTPDgeoPointEmpty &) {
+		} else {
 			mgInfo->setLocation(ChannelLocation());
-		});
+		}
 	}, [&](const MTPDchannelLocationEmpty &) {
 		mgInfo->setLocation(ChannelLocation());
 	});

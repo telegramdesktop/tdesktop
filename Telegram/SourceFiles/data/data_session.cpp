@@ -4922,15 +4922,9 @@ not_null<PollData*> Session::processPoll(const MTPDmessageMediaPoll &data) {
 				media.document = processDocument(*document);
 			}
 		}, [&](const MTPDmessageMediaGeo &data) {
-			data.vgeo().match([&](const MTPDgeoPoint &point) {
-				media.geo = LocationPoint(point);
-			}, [](const MTPDgeoPointEmpty &) {
-			});
+			media.geo = LocationPoint::FromMTP(data.vgeo());
 		}, [&](const MTPDmessageMediaVenue &data) {
-			data.vgeo().match([&](const MTPDgeoPoint &point) {
-				media.geo = LocationPoint(point);
-			}, [](const MTPDgeoPointEmpty &) {
-			});
+			media.geo = LocationPoint::FromMTP(data.vgeo());
 		}, [](const auto &) {
 		});
 	}

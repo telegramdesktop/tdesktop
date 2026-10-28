@@ -153,7 +153,10 @@ public:
 		not_null<Main::Session*> session,
 		const MTPDgeoPoint &point)
 	: SendDataCommon(session)
-	, _location(point) {
+	, _location(Data::LocationPoint::FromCoordinates(
+		point.vlat().v,
+		point.vlong().v,
+		point.vaccess_hash().v)) {
 	}
 	SendGeo(
 		not_null<Main::Session*> session,
@@ -162,14 +165,17 @@ public:
 		std::optional<int> heading,
 		std::optional<int> proximityNotificationRadius)
 	: SendDataCommon(session)
-	, _location(point)
+	, _location(Data::LocationPoint::FromCoordinates(
+		point.vlat().v,
+		point.vlong().v,
+		point.vaccess_hash().v))
 	, _period(period)
 	, _heading(heading)
 	, _proximityNotificationRadius(proximityNotificationRadius){
 	}
 
 	bool isValid() const override {
-		return true;
+		return _location.has_value();
 	}
 
 	SentMessageFields getSentMessageFields() const override;
@@ -182,7 +188,7 @@ public:
 	}
 
 private:
-	Data::LocationPoint _location;
+	std::optional<Data::LocationPoint> _location;
 	std::optional<int> _period;
 	std::optional<int> _heading;
 	std::optional<int> _proximityNotificationRadius;
@@ -200,7 +206,10 @@ public:
 		const QString &title,
 		const QString &address)
 	: SendDataCommon(session)
-	, _location(point)
+	, _location(Data::LocationPoint::FromCoordinates(
+		point.vlat().v,
+		point.vlong().v,
+		point.vaccess_hash().v))
 	, _venueId(venueId)
 	, _provider(provider)
 	, _title(title)
@@ -208,7 +217,7 @@ public:
 	}
 
 	bool isValid() const override {
-		return true;
+		return _location.has_value();
 	}
 
 	SentMessageFields getSentMessageFields() const override;
@@ -221,7 +230,7 @@ public:
 	}
 
 private:
-	Data::LocationPoint _location;
+	std::optional<Data::LocationPoint> _location;
 	QString _venueId, _provider, _title, _address;
 
 };

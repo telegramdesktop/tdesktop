@@ -2600,13 +2600,15 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 			.geoToken = map[u"geo"_q],
 		};
 		const auto applyGeo = [=](float64 lat, float64 lon) {
-			const auto point = Data::LocationPoint(
+			const auto point = Data::LocationPoint::FromCoordinates(
 				lat,
-				lon,
-				Data::LocationPoint::NoAccessHash);
+				lon);
+			if (!point) {
+				return;
+			}
 			auto pollMedia = PollMedia();
 			pollMedia.geo = point;
-			const auto cloudImage = session->data().location(point);
+			const auto cloudImage = session->data().location(*point);
 			auto thumbnail = Ui::MakeGeoThumbnailWithPin(
 				cloudImage,
 				session,

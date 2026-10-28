@@ -91,26 +91,24 @@ using UpdateFlag = StoryUpdate::Flag;
 -> std::optional<StoryLocation> {
 	auto result = std::optional<StoryLocation>();
 	area.match([&](const MTPDmediaAreaVenue &data) {
-		data.vgeo().match([&](const MTPDgeoPoint &geo) {
+		if (const auto point = Data::LocationPoint::FromMTP(data.vgeo())) {
 			result.emplace(StoryLocation{
 				.area = ParseArea(data.vcoordinates()),
-				.point = Data::LocationPoint(geo),
+				.point = *point,
 				.title = qs(data.vtitle()),
 				.address = qs(data.vaddress()),
 				.provider = qs(data.vprovider()),
 				.venueId = qs(data.vvenue_id()),
 				.venueType = qs(data.vvenue_type()),
 			});
-		}, [](const MTPDgeoPointEmpty &) {
-		});
+		}
 	}, [&](const MTPDmediaAreaGeoPoint &data) {
-		data.vgeo().match([&](const MTPDgeoPoint &geo) {
+		if (const auto point = Data::LocationPoint::FromMTP(data.vgeo())) {
 			result.emplace(StoryLocation{
 				.area = ParseArea(data.vcoordinates()),
-				.point = Data::LocationPoint(geo),
+				.point = *point,
 			});
-		}, [](const MTPDgeoPointEmpty &) {
-		});
+		}
 	}, [&](const MTPDmediaAreaSuggestedReaction &data) {
 	}, [&](const MTPDmediaAreaChannelPost &data) {
 	}, [&](const MTPDmediaAreaUrl &data) {
