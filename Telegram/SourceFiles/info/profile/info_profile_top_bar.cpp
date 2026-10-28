@@ -1572,7 +1572,7 @@ void TopBar::setupUserpicButton(
 						ChosenType::Set,
 						tr::lng_profile_set_photo_for_from_clipboard);
 				}
-				if (controller && isUser) {
+				if (controller) {
 					const auto done = [=](UserpicBuilder::Result data) {
 						auto result = Api::PeerPhoto::UserPhoto{
 							base::take(data.image),
@@ -1586,10 +1586,12 @@ void TopBar::setupUserpicButton(
 					UserpicBuilder::AddEmojiBuilderAction(
 						controller,
 						menu->get(),
-						_peer->session().api().peerPhoto().emojiListValue(
-							Api::PeerPhoto::EmojiListType::Profile),
+						_peer->session().api().peerPhoto().emojiListValue(isUser
+							? Api::PeerPhoto::EmojiListType::Profile
+							: Api::PeerPhoto::EmojiListType::Group),
 						done,
-						false);
+						_peer->userpicShape()
+							== Ui::PeerUserpicShape::Forum);
 				}
 			}
 			if (!(*menu)->empty()) {
