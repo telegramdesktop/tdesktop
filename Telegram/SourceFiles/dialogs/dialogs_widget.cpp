@@ -144,6 +144,40 @@ public:
 	return false;
 }
 
+void ApplySearchResultsData(
+		not_null<Data::Session*> owner,
+		const MTPmessages_Messages &result,
+		PeerData *inPeer) {
+	const auto applyPeers = [&](const auto &data) {
+		owner->processUsers(data.vusers());
+		owner->processChats(data.vchats());
+	};
+	result.match([&](const MTPDmessages_messages &data) {
+		applyPeers(data);
+		if (inPeer) {
+			inPeer->processTopics(data.vtopics());
+		}
+	}, [&](const MTPDmessages_messagesSlice &data) {
+		applyPeers(data);
+		if (inPeer) {
+			inPeer->processTopics(data.vtopics());
+		}
+	}, [&](const MTPDmessages_channelMessages &data) {
+		applyPeers(data);
+		if (const auto channel = inPeer ? inPeer->asChannel() : nullptr) {
+			channel->ptsReceived(data.vpts().v);
+		} else {
+			LOG(("API Error: "
+				"received messages.channelMessages when no channel "
+				"was passed! (Widget::searchReceived)"));
+		}
+		if (inPeer) {
+			inPeer->processTopics(data.vtopics());
+		}
+	}, [](const MTPDmessages_messagesNotModified &) {
+	});
+}
+
 [[nodiscard]] QImage UpdateIcon() {
 	const auto iconSize = st::dialogsInstallUpdateIconSize;
 	const auto ratio = style::DevicePixelRatio();
@@ -3507,8 +3541,12 @@ void Widget::searchMore() {
 						MTP_int(0), // min_id
 						MTP_long(0)) // hash
 				).done([=](const MTPmessages_Messages &result) {
+					const auto weak = base::make_weak(this);
+					const auto historiesRequest = _historiesRequest;
 					searchReceived(type, result, process);
-					_historiesRequest = 0;
+					if (weak && _historiesRequest == historiesRequest) {
+						_historiesRequest = 0;
+					}
 					finish();
 				}).fail([=](const MTP::Error &error) {
 					searchFailed(type, error, process);
@@ -3561,8 +3599,12 @@ void Widget::searchMore() {
 					MTP_int(0), // min_id
 					MTP_long(0)) // hash
 			).done([=](const MTPmessages_Messages &result) {
+				const auto weak = base::make_weak(this);
+				const auto historiesRequest = _historiesRequest;
 				searchReceived(type, result, &_migratedProcess);
-				_historiesRequest = 0;
+				if (weak && _historiesRequest == historiesRequest) {
+					_historiesRequest = 0;
+				}
 				finish();
 			}).fail([=](const MTP::Error &error) {
 				searchFailed(type, error, &_migratedProcess);
@@ -3690,12 +3732,25 @@ void Widget::searchReceived(
 			process->queries.erase(i);
 		}
 	}
-	const auto inject = (type.start && !type.posts && !type.migrated)
-		? *_singleMessageSearch.lookup(_searchQuery)
-		: nullptr;
 	if (cacheResults && process->requestId) {
 		return;
 	}
+	if (!cacheResults) {
+		// Don't apply cached data!
+		const auto weak = base::make_weak(this);
+		const auto generation = _searchGeneration;
+		const auto owner = &session().data();
+		const auto inPeer = searchInPeer();
+		ApplySearchResultsData(owner, result, inPeer);
+
+		// Applying the data may destroy this widget or cancel its search.
+		if (!weak || _searchGeneration != generation) {
+			return;
+		}
+	}
+	const auto inject = (type.start && !type.posts && !type.migrated)
+		? *_singleMessageSearch.lookup(_searchQuery)
+		: nullptr;
 	if (type.start) {
 		process->lastPeer = nullptr;
 		process->lastId = 0;
@@ -3725,27 +3780,11 @@ void Widget::searchReceived(
 	};
 	auto fullCount = 0;
 	auto messages = result.match([&](const MTPDmessages_messages &data) {
-		if (!cacheResults) {
-			// Don't apply cached data!
-			session().data().processUsers(data.vusers());
-			session().data().processChats(data.vchats());
-			if (const auto peer = searchInPeer()) {
-				peer->processTopics(data.vtopics());
-			}
-		}
 		process->full = true;
 		auto list = processList(data.vmessages());
 		fullCount = list.size();
 		return list;
 	}, [&](const MTPDmessages_messagesSlice &data) {
-		if (!cacheResults) {
-			// Don't apply cached data!
-			session().data().processUsers(data.vusers());
-			session().data().processChats(data.vchats());
-			if (const auto peer = searchInPeer()) {
-				peer->processTopics(data.vtopics());
-			}
-		}
 		auto list = processList(data.vmessages());
 		const auto nextRate = data.vnext_rate();
 		const auto rateUpdated = nextRate
@@ -3762,25 +3801,6 @@ void Widget::searchReceived(
 		fullCount = data.vcount().v;
 		return list;
 	}, [&](const MTPDmessages_channelMessages &data) {
-		if (!cacheResults) {
-			// Don't apply cached data!
-			session().data().processUsers(data.vusers());
-			session().data().processChats(data.vchats());
-			if (const auto peer = searchInPeer()) {
-				if (const auto channel = peer->asChannel()) {
-					channel->ptsReceived(data.vpts().v);
-				} else {
-					LOG(("API Error: "
-						"received messages.channelMessages when no channel "
-						"was passed! (Widget::searchReceived)"));
-				}
-				peer->processTopics(data.vtopics());
-			} else {
-				LOG(("API Error: "
-					"received messages.channelMessages when no channel "
-					"was passed! (Widget::searchReceived)"));
-			}
-		}
 		auto list = processList(data.vmessages());
 		if (list.empty()) {
 			process->full = true;
@@ -5023,6 +5043,7 @@ void Widget::scrollToEntry(const RowDescriptor &entry) {
 }
 
 void Widget::cancelSearchRequest() {
+	++_searchGeneration;
 	session().api().request(base::take(_searchProcess.requestId)).cancel();
 	session().api().request(base::take(_migratedProcess.requestId)).cancel();
 	session().api().request(base::take(_postsProcess.requestId)).cancel();

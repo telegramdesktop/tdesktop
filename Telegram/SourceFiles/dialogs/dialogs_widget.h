@@ -448,6 +448,7 @@ private:
 	SearchProcessState _searchProcess;
 	SearchProcessState _migratedProcess;
 	SearchProcessState _postsProcess;
+	uint64 _searchGeneration = 0;
 	int _historiesRequest = 0; // Not real mtpRequestId.
 
 	Api::PeerSearch _peerSearch;
