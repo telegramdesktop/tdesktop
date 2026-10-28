@@ -214,7 +214,6 @@ private:
 	base::unique_qptr<QObject> _keyFilterInRecordingState;
 
 	Ui::BoxPointer _discardBox;
-	bool _warningShown = false;
 	bool _pauseInsteadSend = false;
 
 	rpl::variable<bool> _recording = false;

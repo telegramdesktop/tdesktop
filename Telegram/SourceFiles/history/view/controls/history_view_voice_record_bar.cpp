@@ -2759,7 +2759,7 @@ void VoiceRecordBar::startRecording() {
 			}
 			switch(e->type()) {
 			case QEvent::KeyPress: {
-				if (!_warningShown
+				if (!_discardBox
 					&& isRecordingLocked()
 					&& Ui::ShouldSubmit(
 						static_cast<QKeyEvent*>(e.get()),
@@ -3286,7 +3286,7 @@ void VoiceRecordBar::installListenStateFilter() {
 				_listen->playPause();
 				return Result::Cancel;
 			}
-			if (isEnter && !_warningShown) {
+			if (isEnter && !_discardBox) {
 				requestToSendWithOptions({});
 				return Result::Cancel;
 			}
@@ -3318,7 +3318,6 @@ void VoiceRecordBar::showDiscardBox(
 			hideAnimated();
 		}
 		close();
-		_warningShown = false;
 		if (callback) {
 			callback();
 		}
@@ -3335,7 +3334,6 @@ void VoiceRecordBar::showDiscardBox(
 		.confirmText = tr::lng_record_lock_discard(),
 		.confirmStyle = &st::attentionBoxButton,
 	}));
-	_warningShown = true;
 }
 
 bool VoiceRecordBar::createVideoRecorder() {
