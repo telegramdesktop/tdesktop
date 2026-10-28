@@ -517,8 +517,13 @@ void SessionNavigation::resolveChatLink(
 		_resolveRequestId = 0;
 		parentController()->hideLayer();
 		const auto &data = result.data();
-		_session->data().processUsers(data.vusers());
-		_session->data().processChats(data.vchats());
+		const auto weak = base::make_weak(this);
+		const auto owner = &_session->data();
+		owner->processUsers(data.vusers());
+		owner->processChats(data.vchats());
+		if (!weak) {
+			return;
+		}
 
 		using namespace Api;
 		const auto peerId = peerFromMTP(data.vpeer());
@@ -571,8 +576,13 @@ void SessionNavigation::resolveDone(
 	_resolveRequestId = 0;
 	parentController()->hideLayer();
 	result.match([&](const MTPDcontacts_resolvedPeer &data) {
-		_session->data().processUsers(data.vusers());
-		_session->data().processChats(data.vchats());
+		const auto weak = base::make_weak(this);
+		const auto owner = &_session->data();
+		owner->processUsers(data.vusers());
+		owner->processChats(data.vchats());
+		if (!weak) {
+			return;
+		}
 		if (const auto peerId = peerFromMTP(data.vpeer())) {
 			done(_session->data().peer(peerId));
 		}
@@ -598,7 +608,11 @@ void SessionNavigation::resolveChannelById(
 			MTP_inputChannel(MTP_long(channelId.bare), MTP_long(0)))
 	)).done([=](const MTPmessages_Chats &result) {
 		result.match([&](const auto &data) {
+			const auto weak = base::make_weak(this);
 			const auto peer = _session->data().processChats(data.vchats());
+			if (!weak) {
+				return;
+			}
 			if (peer && peer->id == peerFromChannel(channelId)) {
 				const auto channel = peer->asChannel();
 				if (channel->isForbidden() && !channel->isPublic()) {
@@ -1068,7 +1082,11 @@ void SessionNavigation::resolveConferenceCall(
 			const auto call = session().data().sharedConferenceCall(
 				data.vid().v,
 				data.vaccess_hash().v);
+			const auto weak = base::make_weak(this);
 			call->processFullCall(result);
+			if (!weak) {
+				return;
+			}
 			const auto join = [=](Fn<void()> close) {
 				const auto &appConfig = call->session().appConfig();
 				const auto conferenceLimit = appConfig.confcallSizeLimit();
@@ -1142,8 +1160,13 @@ void SessionNavigation::applyBoost(
 	_api.request(MTPpremium_GetMyBoosts(
 	)).done([=](const MTPpremium_MyBoosts &result) {
 		const auto &data = result.data();
-		_session->data().processUsers(data.vusers());
-		_session->data().processChats(data.vchats());
+		const auto weak = base::make_weak(this);
+		const auto owner = &_session->data();
+		owner->processUsers(data.vusers());
+		owner->processChats(data.vchats());
+		if (!weak) {
+			return;
+		}
 		const auto slots = ParseForChannelBoostSlots(
 			channel,
 			data.vmy_boosts().v);
@@ -1264,7 +1287,11 @@ void SessionNavigation::joinVoiceChatFromLink(
 	_resolveRequestId = _api.request(
 		MTPchannels_GetFullChannel(peer->asChannel()->inputChannel())
 	).done([=](const MTPmessages_ChatFull &result) {
+		const auto weak = base::make_weak(this);
 		_session->api().processFullPeer(peer, result);
+		if (!weak) {
+			return;
+		}
 		const auto call = peer->groupCall();
 		if (!call) {
 			bad();
@@ -1288,7 +1315,9 @@ void SessionNavigation::joinVoiceChatFromLink(
 				if (!now->loaded()) {
 					now->processFullCall(result);
 				}
-				join();
+				if (weak) {
+					join();
+				}
 			} else {
 				bad();
 			}
@@ -1337,9 +1366,11 @@ void SessionNavigation::showRepliesForMessage(
 	).done([=](const MTPmessages_DiscussionMessage &result) {
 		_showingRepliesRequestId = 0;
 		result.match([&](const MTPDmessages_discussionMessage &data) {
-			_session->data().processUsers(data.vusers());
-			_session->data().processChats(data.vchats());
-			_session->data().processMessages(
+			const auto weak = base::make_weak(this);
+			const auto owner = &_session->data();
+			owner->processUsers(data.vusers());
+			owner->processChats(data.vchats());
+			owner->processMessages(
 				data.vmessages(),
 				NewMessageType::Existing);
 			const auto list = data.vmessages().v;
@@ -1357,16 +1388,16 @@ void SessionNavigation::showRepliesForMessage(
 			}
 			auto item = deleted
 				? nullptr
-				: _session->data().message(peer, id);
+				: owner->message(peer, id);
 			if (comments && !item) {
 				return;
 			}
-			const auto &groups = _session->data().groups();
+			const auto &groups = owner->groups();
 			if (const auto group = item ? groups.find(item) : nullptr) {
 				item = group->items.front();
 			}
 			if (comments) {
-				const auto post = _session->data().message(postPeer, rootId);
+				const auto post = owner->message(postPeer, rootId);
 				if (post) {
 					post->setCommentsItemId(item->fullId());
 					if (const auto maxId = data.vmax_id()) {
@@ -1375,6 +1406,9 @@ void SessionNavigation::showRepliesForMessage(
 					post->setCommentsInboxReadTill(
 						data.vread_inbox_max_id().value_or_empty());
 				}
+			}
+			if (!weak) {
+				return;
 			}
 			if (deleted || item) {
 				using namespace HistoryView;
@@ -1648,6 +1682,22 @@ SessionController::SessionController(
 , _defaultChatTheme(std::make_shared<Ui::ChatTheme>())
 , _chatStyle(std::make_unique<Ui::ChatStyle>(session->colorIndicesValue())) {
 	init();
+
+	// WHY: the window keeps a raw pointer to its root topic or sublist, and
+	// subscribing before its sections lets this close destroy their later
+	// subscriptions before they run, so it stays the only rooted close.
+	if (const auto root = window->id().thread) {
+		const auto topic = root->asTopic();
+		const auto sublist = root->asSublist();
+		if (topic || sublist) {
+			auto destroyed = topic
+				? topic->destroyed()
+				: sublist->destroyed();
+			std::move(destroyed) | rpl::on_next([=] {
+				Core::App().closeWindow(_window);
+			}, _lifetime);
+		}
+	}
 
 	_chatStyleTheme = _defaultChatTheme;
 	_chatStyle->apply(_defaultChatTheme.get());
