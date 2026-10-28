@@ -23,6 +23,12 @@ is in progress. After routing new follow-ups, consolidate compatible unclaimed
 work in a fresh leaf worker. Delegate inbox planning and one-task execution; do
 not plan or implement Telegram changes in this scheduler session.
 
+A run often has nobody at the computer. After the startup report and any
+startup question about the specification, never ask the owner anything and
+never wait for an answer: decide, record the decision in the report, and
+continue. Work that genuinely needs the owner (credentials, money, a server
+change) is set aside and listed in the final report.
+
 This is the default development command and the successor to the old `task`
 and `implement` workflows. Inbox processing runs only when the specification
 asks for the inbox, at most once per invocation, and owns request splitting
@@ -125,6 +131,22 @@ select:
   the refreshed startup snapshot of canonical master, including tasks still
   waiting on dependencies. Blocked tasks are not pending.
 
+Projects are branch-bound: a project's tasks are performed on the branch
+named by its slug, and standalone tasks on any branch that is not a live
+project's. The queue JSON's `branch_project` names the project whose branch is
+checked out, or is null. Select only tasks the current branch can start: on a
+project branch, that project's tasks (so "all pending tasks" there means the
+project's pending tasks); elsewhere, standalone tasks. Report every selected
+task the branch cannot start with the branch it needs. A specification that
+names a project whose branch is not checked out stops at startup with that
+report: the owner checks project branches out, and the scheduler never
+switches onto or off one. Several checkouts may run the same project at once.
+
+The specification may also ask to rebase the project onto a base branch, such
+as `origin/dev` or `private/alpha`. Record it as `base_rebase` and pass
+`Base: <remote>/<branch>` to the first project task's performer in this
+invocation; later tasks only sync with the project branch.
+
 This checkout's blocked and legacy-reserved tasks join only when the
 specification selects them, by name or by a description they match. A review
 provider choice such as "use your model for review" or "use codex-default for
@@ -172,6 +194,13 @@ frozen batch.
 
 ### Source-lineage gate
 
+On a project branch, run `source-prepare` (below) before a lineage check that
+precedes a Start, or a Retry or pre-Phase-1 resume without owned source work.
+It fast-forwards the branch to `private/<slug>`, where other checkouts publish
+the project's approved work, so a prerequisite another checkout finished is
+present before the gate looks for it. An active task with owned work resumes
+as it is and meets newer project commits at its own `project-sync`.
+
 Before freezing the batch, inspect every prospective initial task's `task.md`
 and dependencies. For every approved task whose shipped code is a prerequisite,
 run:
@@ -187,12 +216,12 @@ in `depends_on`. Unfinished dependencies remain a readiness concern and appear
 separately; this gate checks the history of approved source work.
 
 If any prospective task reports `current_satisfies: false` at this startup
-gate, pause before freezing, starting, retrying, resuming, or switching
-branches. Report the current branch, missing source task ids, unavailable
-commits, and compatible local branches, then ask the human whether to rebase,
-bring the commit, switch the checkout, or change scope. Never create or route
-an integration task, and never cherry-pick, rebase, merge, or switch branches
-at this startup boundary. The exception is an already-active task whose saved
+gate, leave it out of the frozen batch and continue with the rest; do not
+switch branches for it. Report the current branch, missing source task ids,
+unavailable commits, and compatible local branches in the run's report, so the
+owner can rebase, bring the commit, switch the checkout, or change scope
+later. Never create or route an integration task, and never cherry-pick,
+rebase, merge, or switch branches at this startup boundary. The exception is an already-active task whose saved
 artifacts prove Phase 1 completed: it has crossed the task boundary, so resume
 the performer and let the after-Phase-1 rule publish the task-local Block.
 
@@ -208,8 +237,10 @@ cleanliness gate so stale submodules are updated and registered nested worktrees
 are ignored. Prefer a compatible branch appearing for the most remaining batch
 tasks; preserve recorded batch order. Do not create a branch or cherry-pick,
 rebase, or merge. After `git switch`, refresh `queue`, rerun `source-lineage`,
-`source-prepare` and `source-preflight`, then Start/Retry or resume. If no
-safe compatible local branch exists, stop and ask the human.
+`source-prepare` and `source-preflight`, then Start/Retry or resume. Never
+switch onto or off a project branch; `source-lineage` offers only branches the
+task may run on. If no safe compatible local branch exists, leave that task
+for a later invocation, report it, and continue with the rest of the batch.
 
 ### Mode 1: resume active work, then the specified tasks
 
@@ -418,9 +449,11 @@ Source checkout: <source_root>
 AI slot worktree: <slot_worktree>
 Checkout tag: <checkout_tag>
 Task: <task-id>
+Base: <remote>/<branch>   (only when this task carries the invocation's base_rebase)
 Own this task until it is approved, genuinely blocked, split-required, or
 reaches a global hard stop. You may use the bounded leaf delegation required by
-the skill. Do not select or start another task.
+the skill. Do not select or start another task. Never ask the owner a
+question: decide, record it in work/decisions.md, and continue.
 ```
 
 The performer is stateful. Never duplicate it. Wait for its final result using
@@ -486,14 +519,22 @@ defense for legacy state.
 
 An interruption or environment stop never becomes a convenience `Block`.
 After a genuine `Block`, add the task id to `attempted_blocked` and continue
-with independent work. A source-lineage mismatch first proven after Phase 1 is
+with independent work; for a project task the planner pass below routes
+around it. A source-lineage mismatch first proven after Phase 1 is
 such a genuine task-local Block: continue with batch tasks that do not depend
 on it and whose own lineage gates pass. A pre-Phase-1 lineage stop is not a
 Block or global hard stop; apply the safe mid-queue branch-switch rule above and
-resume the same performer. A dirty source checkout, a file-lock build failure that
-remains after `perform-task` exhausts the shared exact-checkout recovery,
-missing test account, unsafe publication conflict, or comparable global safety
-failure stops the loop. The first lock signature never stops the batch.
+resume the same performer. Dirty source the run cannot account for never
+stops the loop: save it with `workspace.py wip-save --reason "<what is
+unknown>"`, which commits it to a new side branch
+`wip/<branch>/<checkout-tag>/<time>` (tdesktop on `private`, submodules on
+their `origin`) and leaves the checkout clean, name that branch in the report,
+and continue. A file-lock build failure that remains after `perform-task`
+exhausts the shared exact-checkout recovery is retried with a growing delay.
+Only a server scheme mismatch (the server rejects the client's constructors,
+for example `INPUT_CONSTRUCTOR_INVALID`: the owner must update the scheme), a
+missing golden test account that cannot be recreated unattended, an unsafe
+publication conflict, or a comparable safety failure stops the loop.
 
 The missing `test_TelegramForcePortable` golden account is the only
 portable-folder global stop. All live/real folder combinations must be
@@ -506,7 +547,9 @@ artifact-based assessment.
 
 After every canonical `Approve` or `Block`, read `work/result.md`. Route
 whenever it lacks `work/discovered-routed.md` and either says
-`Discovered: present` or carries a non-`none` `Unverified:` value. Routing runs
+`Discovered: present` or carries a non-`none` `Unverified:` value. Route a
+project task's result every time, even without either: its routing worker is
+also the project's planner (below). Routing runs
 beside task selection, not before it: spawn the worker, then continue
 selecting and starting recorded batch work immediately. Keep at most one
 routing worker in flight, and never reach the invocation's normal stop while
@@ -575,7 +618,11 @@ task so it is not attempted on a branch without the project changes.
 
 Detach a discovered task to another project or to `project: null` only when the
 worker proves it remains coherent, implementable, and independently testable
-with the source project's changes absent or reverted. Touching shared code,
+with the source project's changes absent or reverted. For a defect the test is
+direct: one that reproduces on the project's base branch without the
+project's commits is upstream and goes to standalone work or the project it
+belongs to, and a project task that needs the fix depends on it; anything else
+stays in the project. Touching shared code,
 serving another surface, or having a broader title is not proof: projects
 record feature and code lineage, not exclusive file ownership. The discovery
 receipt must record the concrete independence evidence. If the source project
@@ -664,6 +711,40 @@ order. This is the only way the frozen batch grows. Apply the same rule
 transitively when a discovered task later reports its own follow-ups.
 Deduplicated references to pre-existing tasks and unrelated tasks observed in
 queue refreshes do not join the batch.
+
+## Plan the project
+
+For a project task the routing worker also plans the project. Tell it the
+project slug and to read the project's `project.md` and `tasks.md`, the source
+result and the results and `work/decisions.md` of the project's earlier tasks
+it needs. Beyond discovered routing it may:
+
+- rewrite an unclaimed `todo` task of the project whose assumptions the result
+  changed, or retire one the result made obsolete by removing its
+  `state.yaml` and appending a `## Retired` section that says why, updating
+  its dependents and the project index; never retire a task a split or
+  superseded record names as a successor;
+- add the tasks the result revealed;
+- route around a `Block`: another approach, a smaller task, or an `improve`
+  task (an `## Objective` section) for a threshold the code could not meet;
+- when the project has no open tasks left, compare the results with
+  `project.md` and plan the next round: the next part to migrate, a
+  differential test against the old implementation, an `improve` task; or
+  conclude that nothing left moves the project forward and record
+  `Project: complete` in the discovery receipt.
+
+`route-publish` refuses a revision of a task another checkout started since
+the worker read it, a revision of retired history, and a result that breaks
+the dependency, alias or split graphs; drop that revision and publish the
+rest.
+
+A planner pass interrupted before it published leaves its source result
+without `work/discovered-routed.md`. A planner pass covers the whole project,
+so only the latest one matters: for a project selection, at startup and again
+before the batch is judged empty, route the project's most recently finished
+task (its newest `Approve` or `Block` commit) when it lacks that marker. Tasks the
+planner creates join the batch like discovered tasks, so a project run keeps
+going until its planner records `Project: complete` and the batch drains.
 
 ## Consolidate pending tasks after discovery
 

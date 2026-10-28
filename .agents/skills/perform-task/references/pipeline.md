@@ -65,7 +65,7 @@ out/Debug/Telegram.app/Contents/MacOS/Telegram
 
 MAX_ATTEMPTS = 4
 MAX_TEST_RUNS = 12 per test campaign
-MAX_TEST_CAMPAIGNS = 2 total: one normal and at most one focused recovery
+MAX_TEST_CAMPAIGNS = 2: one normal and one focused recovery; each further focused campaign needs a cap assessment naming an untried direct strategy
 COMPUTER_USE_POLICY = auto | overlay-only | required
 ```
 
@@ -601,7 +601,9 @@ exactly one disposition:
   boundaries; write or update `split-proposal.md` and stop automatic work.
 - `HARD_STOP` — an exact unsafe or unavailable condition needs human action,
   such as a fix that needs funded value, credentials or a server change. Slow
-  convergence, a round count or a hard design is never a hard stop.
+  convergence, a round count or a hard design is never a hard stop. The task
+  publishes a `Block` naming that condition and is set aside for the owner;
+  the run continues with other work.
 
 A ruling settles a question the loop keeps reopening: which of two
 conflicting findings holds, or what the task requires where it is silent. The
@@ -894,10 +896,11 @@ For every instrument, assessment returns exactly one of:
 A `TEST_FLAW` recovery must remove an assumption or move closer to the changed
 surface. Do not repeat the same command, fixture, or overlay wording. The normal
 campaign cap is an assessment checkpoint: carry prior passes, isolate unmet
-checks, and choose at most one focused recovery campaign or document recovery
-exhaustion. A focused campaign that does not converge stops automatic work with
-an exact recoverable hard stop; it never starts a third campaign or converts the
-cap into approval/Block. An `IMPL_BUG` fix creates a new retained attempt, uses the same
+checks, and choose a focused recovery campaign or document recovery
+exhaustion. A focused campaign that does not converge goes to the final
+assessment in `.agents/shared/test-loop.md`, which names an untried direct
+strategy for one more campaign or records recovery exhaustion; it never waits
+for the owner and never converts the cap itself into approval or a Block. An `IMPL_BUG` fix creates a new retained attempt, uses the same
 focused general/invalidated-specialist review and convergence checkpoints as the
 pre-commit loop, and reruns only invalidated checks. It never restarts the
 initial complete-diff review simply because the attempt number changed.
@@ -928,6 +931,55 @@ implementation. Require current task base/run refs, keep the owned diff and any
 green commit in place, and inventory every owned path in `work/owned-paths.txt`.
 The publication helper seals that work in `work/carried-work.json`; the later
 split transaction rechecks the seal before assigning an implementation carrier.
+
+### Project branches
+
+Every project is performed on the branch named by its slug, in tdesktop and
+in each top-level submodule the project changes, and several checkouts may
+work on one project at once. A nested submodule's commit must already be on
+one of its remote branches; `project-push` refuses otherwise. Before publishing a project task's `Approve`:
+
+1. Run `workspace.py project-sync --task <TASK_ID>`, adding
+   `--onto <remote>/<branch>` when the scheduler passed `Base:` for this task.
+   It fetches `private`, replays only this task's own commits onto
+   `private/<slug>`, rebases the task's submodule commits onto each
+   submodule's `<slug>` branch and rewrites their pins, and refreshes
+   `BASE_REF`, `GREEN_REF` and `RUN_REF`. With `--onto` it then rebases the
+   whole project branch onto that base, its submodule commits onto the
+   commits the base pins. A replay conflict leaves the checkout as it was;
+   resolve it by reading both sides' intent, as the `/rebase` skill does,
+   then run `project-sync` again.
+2. When it reports `build_required`, build Debug. Nothing is rebuilt
+   otherwise. A failure in the project's own code is fixed by amending the
+   commit that introduced it: this task's commits after an ordinary sync, any
+   project commit after a base rebase. Use `git commit --fixup` and a
+   non-interactive autosquash rebase, then `source-begin` to refresh the
+   task refs. A failure in the base's own code, which does not build by
+   itself, is fixed in one new commit with a plain `Fix build.`-style subject
+   that touches only files no project commit changes; run `source-begin` so
+   the task refs include it, then
+   `project-sync --onto <base> --base-fix <commit>`, which moves it first on
+   the branch, directly on the base, and reports it as `base_fix`. When a sync
+   reports `rewrite_discarded`, another checkout published first and the base
+   rebase was undone: redo it with `--onto`, and redo its build fixes.
+3. Run `workspace.py project-push --task <TASK_ID>`, with `--rewritten` after
+   a base rebase, and `--base-fix <base_fix> --base <remote>/<branch>` when a
+   base fix exists: that fix is fast-forwarded onto the base branch first.
+   Submodule branches are pushed before tdesktop. After a base rebase the
+   new submodule commits go first to this checkout's own staging branch
+   `_staging/<slug>/<checkout-tag>`, so every pin is fetchable, then tdesktop
+   moves under its lease, then the submodule project branches; if one of
+   those fails, rerun `project-push` until it completes. A rejected push
+   means another checkout published first: go back to step 1.
+4. Only then run `finish`.
+
+A project task that is set aside with `Block` publishes nothing to the
+project branch. After its `Block` is published, keep each changed
+submodule's pinned commit with
+`git -C <submodule> update-ref refs/ai-tasks/<TASK_ID>/green <pin>`, then
+reset the branch to `BASE_REF` (`GREEN_REF` keeps the tdesktop commits) and
+update the submodules, so the next task starts clean. A retry first replays `BASE_REF..GREEN_REF` onto the
+current tip with `git cherry-pick`, then runs `source-begin`.
 
 Write `work/result.md` with exactly one value for every field:
 
@@ -1128,12 +1180,17 @@ delays finishing the work actually in hand.
 - A test campaign cap is not a clean blocked attempt. Preserve the overlay and
   evidence and run the cap assessment. The normal campaign may authorize one
   focused campaign; the focused campaign boundary either proves recovery
-  exhaustion or returns a recoverable hard stop instead of looping. The
+  exhaustion or goes to a fresh convergence assessment instead of looping;
+  it never waits for the owner. The
   publication helper rejects a test block whose report still says `TEST_FLAW`,
   cites the run cap, or lacks the required recovery-exhaustion record.
 - A Windows file-lock build error follows the shared bounded exact-checkout
-  recovery. Only exhaustion or an unsafe/non-owned holder stops the run and
-  asks the human; the task remains `in-progress`.
+  recovery, including its delayed retries. Only its exhausted or unsafe outcome
+  stops the run; the task remains `in-progress`.
+- Never ask the owner during a `continue` run. Decide, record the decision in
+  `work/decisions.md`, and continue. The only global stops are a server scheme
+  mismatch and a missing golden test account; unexplained dirty source goes to
+  `workspace.py wip-save` instead.
 - A locked macOS session and the resulting unavailable Computer Use driver
   never stop or block the task; continue with the complete in-binary overlay
   flow.

@@ -91,6 +91,16 @@ inbox into requests, then decide for each request whether to:
 - add one or more tasks to an existing project;
 - create a new project when durable shared context is useful.
 
+Every project is branch-bound: its tasks are performed on a branch named by
+its slug, in tdesktop and in each top-level submodule it changes, by checkouts the owner
+switched to that branch, several at once if the owner wants. Give a new
+project a short slug, one or two words such as `net` or `scale`, because it
+becomes a branch name; existing projects keep theirs. Plan a long or
+experimental project, such as a rewrite, as a task graph that can run for
+days: tasks that migrate one part each, differential tests against the old
+implementation, and `improve` tasks; the project planner extends it as
+results come in.
+
 Never create a task whose work is to move an existing source commit between
 branches: no backport, forward-port, cherry-pick, rebase, merge, branch sync,
 or equivalent integration task. Branch placement is human release/history
@@ -345,6 +355,14 @@ criteria outcome-focused. Name a required build, probe, app run, interaction,
 or screenshot only when that instrument is itself part of the requested result
 or no other instrument could decide the claim from the facts already known to
 the planner.
+
+An exploratory request, one that asks to make something faster or smoother
+with no exact end result, gets an `## Objective` section in place of
+acceptance for that objective: the metric and which direction is better, the
+measurement protocol with its noise threshold, the guardrails, and optionally
+a target. The performer runs it in the improve lane
+(`.agents/skills/perform-task/references/improve-lane.md`); missing the target
+never blocks it. Hard requirements stay acceptance criteria.
 
 For a new project, create `projects/<slug>/project.md` with a concise durable
 scope and `projects/<slug>/tasks.md` with task links. For an existing project,

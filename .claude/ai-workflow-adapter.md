@@ -168,15 +168,18 @@ boundaries in the Claude orchestrator rather than delegating the decision to a
 leaf:
 
 - The parent `continue` command runs the startup `source-lineage` scan before
-  freezing the batch. On a mismatch, report the lineage JSON and use
-  `AskUserQuestion` to pause for human direction. Do not start an Agent, switch
-  branches, or perform or route a cherry-pick, rebase, merge, backport,
+  freezing the batch. A mismatched task stays out of the batch and its lineage
+  JSON goes into the run's report; the rest of the batch proceeds. Do not
+  switch branches, or perform or route a cherry-pick, rebase, merge, backport,
   forward-port, or branch-sync task at this boundary.
 - Once the batch is frozen, the parent scheduler owns the shared skill's safe
   pre-Phase-1 branch switch. Use Bash only for the required cleanliness,
   recovery-ref, process, and `git worktree list --porcelain` checks and for
-  `git switch` to an existing compatible local branch. Never ask a performer or
-  leaf Agent to integrate history.
+  `git switch` to an existing compatible local branch. Never switch onto or off
+  a project branch (one named by a live project's slug): the owner checks those
+  out, and a project task's performer syncs it with `project-sync` and
+  `project-push` itself. Never ask a performer or leaf Agent to integrate
+  history beyond that sync.
 - When a synchronous performer returns the shared pre-Phase-1 lineage stop,
   switch safely in the parent and resume that Agent id when Claude exposes one.
   If it exposes no resumable id, start one replacement performer only after the

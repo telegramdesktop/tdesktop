@@ -45,6 +45,10 @@ read that file and, from `pipeline.md`, the Contract, Preflight, Telegram
 commits and Final AI state sections; skip the test-loop and Computer Use
 references.
 
+A task whose `task.md` has an `## Objective` section is exploratory: it runs
+the [improve lane](references/improve-lane.md) on top of the normal pipeline.
+Read that file too.
+
 ## Resolve the workspace and task
 
 Run from a Telegram Desktop checkout. Use the host's Python 3 command:
@@ -82,8 +86,18 @@ Inspect the resolved task, readiness, `other_active_task`, status, and owner.
 - If it is owned by another checkout, stop. Cross-checkout restart is a rare
   explicit human reassignment, never an implicit steal.
 - If its dependencies are unfinished, report them and stop without starting.
+- A project task starts only on a checkout whose current branch is the
+  project's slug, and a standalone task only on a branch that is not a live
+  project's; `start` and `retry` refuse otherwise. Never switch branches for
+  it: the owner checks project branches out. Report the refusal as a
+  pre-phase routing stop.
 - Inspect `task.md` for approved source-task prerequisites in addition to
-  `depends_on`, then run `workspace.py source-lineage --task <full-task-id>`
+  `depends_on`. Before a `start`, or a `retry` whose task retains no source
+  work, on a project branch first run `workspace.py source-prepare`, which
+  fast-forwards the branch to the work other checkouts published. A task that
+  is already `in-progress` resumes as it is; its work meets newer project
+  commits at `project-sync`. Then
+  run `workspace.py source-lineage --task <full-task-id>`
   with one `--require <source-task-id>` for each explicit prerequisite. Require
   `current_satisfies: true` before Phase 1. For `start` or `retry`, pass the same
   `--require` arguments so claiming is machine-gated too.
@@ -191,20 +205,35 @@ desired outcome was already present may finish without a source commit only
 after the same general review and evidence loop prove
 `Outcome: already-satisfied`.
 
+A project task syncs its work onto the shared project branch before its
+`Approve`, as `pipeline.md` "Project branches" describes; several checkouts
+may be working on the same project.
+
 Only a genuine exhausted task blocker produces a
-canonical `Block <full-task-id>` commit. Agent interruption, tool loss, and
-global environment stops leave the task `in-progress` with its task-scoped
-local state intact for the next invocation.
+canonical `Block <full-task-id>` commit. In a `continue` run a `Block` sets
+the task aside: the scheduler's project planner routes around it and the run
+goes on. Agent interruption and tool loss leave the task `in-progress` with
+its task-scoped local state intact for the next invocation.
+
+Never wait on the owner. A `continue` run often has nobody at the computer,
+so the performer and its leaves never ask the owner a question. Decide from
+the task, the project description and repository precedent, prefer existing
+behavior, record the question, the choice and the alternatives in
+`work/decisions.md`, and continue. A decision that should bind later tasks
+also goes into `work/project-amendment.md`. The owner reviews decisions
+afterwards; overturning one becomes a new task.
 
 A repeated evidence setup failure is not exhausted recovery by itself. Follow
 the shared directness ladder: forbid the failed command, fixture, probe, or
 capture technique and make the next run closer to the changed surface. The configured
 test-run cap closes one campaign: preserve prior passes, isolate the unmet
-checks, and start at most one focused recovery campaign unless a fresh
-assessment proves every direct strategy exhausted. A second campaign cap or a
-repeated non-converging focused signature stops automatic work for an explicit
-human/convergence decision; it does not start another campaign. A cap and a
-`TEST_FLAW` can never by themselves publish `BLOCKED` or approval.
+checks, and start a focused recovery campaign only when a fresh cap
+assessment names a direct strategy not yet tried; each further campaign needs
+another such assessment. When none remains, the assessment records recovery
+exhaustion, and the task is split, moved to the improve lane for a threshold
+the code cannot meet, or set aside with a `Block`. Nobody waits for the
+owner. A cap and a `TEST_FLAW` can never by themselves publish `BLOCKED` or
+approval.
 
 A pre-Runner crash or DeadlockDetector event is not an evidence setup failure merely
 because the scenario did not start. Apply the shared crash diagnostics and debugger
@@ -218,9 +247,19 @@ capture widgets or windows, quit, and assess the saved artifacts. Non-app
 instruments are unaffected.
 
 A Windows build-output lock is not an immediate environment stop. Follow the
-shared bounded recovery contract, including exact-path cleanup before builds.
-Only its exhausted or unsafe outcome is a global hard stop; it never becomes a
-task `Block`.
+shared bounded recovery contract, including exact-path cleanup before builds
+and its delayed retries. Only its exhausted or unsafe outcome stops the run;
+it never becomes a task `Block`.
+
+The global stops that remain are a server scheme mismatch (the server rejects
+the client's constructors, for example `INPUT_CONSTRUCTOR_INVALID`, or answers
+with constructors the client cannot parse: the owner must update the scheme)
+and a missing golden test account that cannot be recreated unattended. Dirty
+source the run cannot account for is never a reason to stop: save it with
+`workspace.py wip-save --reason "<what is unknown>"`, which commits it to a
+new side branch `wip/<branch>/<checkout-tag>/<time>` (tdesktop on `private`,
+submodules on their `origin`) and leaves the checkout clean, name that branch
+in the result, and continue.
 
 Do not report success from a source commit alone. The final AI commit must be
 canonical. Retry ordinary concurrent-master publication races until success.

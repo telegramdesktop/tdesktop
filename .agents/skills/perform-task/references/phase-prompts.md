@@ -54,8 +54,8 @@ every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
   or assessed-disjoint Phase 4 units —
   as parallel Agent calls in a single message so they run concurrently.
 - If a returned leaf fails its completion check, retry that disposable phase
-  once in a fresh Agent with more specific instructions before stopping to
-  ask the user.
+  once in a fresh Agent with more specific instructions, then once more
+  with the failure output; never stop to ask the user.
 - With the `codex` or `codex-default` review provider, Phase 3, every Phase 6
   review and the convergence and campaign-cap assessments run as Codex CLI
   leaves instead: start the leaves of one step together, block on
@@ -76,8 +76,8 @@ every applicable placeholder: `<TASK>`, `<TASK_ID>`, `<WORK_DIR>`,
   Run every phase as a same-session checklist. That is the supported
   depth-1 fallback, not a retry.
 - If a returned leaf fails its completion check, retry that disposable
-  phase once in a fresh `spawn_subagent` with more specific instructions
-  before stopping to ask the user.
+  phase once in a fresh `spawn_subagent` with more specific instructions,
+  then once more with the failure output; never stop to ask the user.
 
 ### Codex: wait for child completion
 
@@ -1033,10 +1033,10 @@ for independent confirmation.
 
 ## Evidence-Campaign-Cap Assessment
 
-At MAX_TEST_RUNS with an evidence flaw still open, use a fresh assessor. The
-first campaign cap may start one focused recovery campaign. A focused campaign
-cap or repeated non-converging focused signature is the final automatic
-checkpoint; it cannot start a third campaign.
+At MAX_TEST_RUNS with an evidence flaw still open, use a fresh assessor. Every
+campaign cap, and a repeated non-converging focused signature, gets this
+assessment. A further focused campaign runs only for a direct strategy no
+earlier campaign tried. Nobody waits for a human.
 
 ~~~text
 Read the task, final diff, plan.md, test-design.md, test.md, every run artifact,
@@ -1054,24 +1054,20 @@ Write <WORK_DIR>/test-cap-assessment-<C>.md:
 <each instrument or setup already attempted and forbidden, followed by the next
 safe strategy that executes the changed surface>
 
-## Verdict: FOCUSED_RECOVERY | RECOVERY_EXHAUSTED | HARD_STOP
+## Verdict: FOCUSED_RECOVERY | RECOVERY_EXHAUSTED
 
-Choose FOCUSED_RECOVERY only after the normal campaign and whenever a safer or
-more direct reading, command,
+Choose FOCUSED_RECOVERY whenever a safer or more direct reading, command,
 artifact inspection, unit, probe, component, Telegram log/overlay, physical
-interaction or visual capture can still decide an unmet check. The next
+interaction or visual capture that no earlier campaign tried can still decide
+an unmet check. Name it and forbid every technique already tried. The next
 campaign runs only unmet checks and their controls.
 
 Choose RECOVERY_EXHAUSTED only when every applicable instrument is unsafe,
-unavailable, or would bypass the task's changed surface. Time spent, a run cap,
+unavailable, already tried, or would bypass the task's changed surface, or
+when only the owner can provide what an unmet check needs (credentials,
+funded value, a server change): name exactly that. Time spent, a run cap,
 overlay complexity, a blank screenshot, or repeated identical failure is not
 exhaustion.
-
-At the focused campaign boundary, choose HARD_STOP when a plausible safe direct
-strategy remains but automatic recovery did not converge. Name that strategy,
-the exact prior proof retained, and the human/environment decision needed to
-continue. Leave the task in-progress; do not publish approval or Block and do
-not begin another campaign automatically.
 ~~~
 
 

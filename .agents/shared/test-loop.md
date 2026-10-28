@@ -32,8 +32,9 @@ parent is sure the particular phase contains nothing complex.
 - available commands, toolchains, targets, executables and UI-driver
   capabilities;
 - MAX_ATTEMPTS, MAX_TEST_RUNS, and MAX_TEST_CAMPAIGNS. The default campaign
-  bound is two total: one normal campaign and at most one focused recovery
-  campaign.
+  bound is two: one normal campaign and one focused recovery campaign. Each
+  further focused campaign needs a cap assessment naming a direct strategy
+  not yet tried.
 
 No instrument is globally mandatory. Its prerequisites become mandatory only
 after assessment selects a check that needs it.
@@ -171,14 +172,16 @@ campaign with a different instrument or prove every applicable strategy unsafe,
 unavailable, or non-causal in a Recovery exhaustion table. The focused campaign
 runs only unmet checks and their controls.
 
-Do not start a third campaign. At the focused campaign cap, or after the same
+Do not repeat a campaign. At the focused campaign cap, or after the same
 focused failure signature repeats without a new directness step, run one final
-independent assessment. It either records genuine recovery exhaustion or
-returns a hard stop naming the still-plausible direct strategy and the human or
-environment decision needed to continue. A cap, elapsed time, repeated failure,
-probe complexity, and a blank screenshot are not exhaustion and never become
-approval or a task `Block` by themselves; the hard stop leaves the task
-`in-progress` and recoverable.
+independent assessment. It never waits for a human. It either names an untried
+direct strategy, which runs as one more focused campaign whose own cap returns
+to this assessment, or records genuine recovery exhaustion. A check that only
+the owner could unblock (credentials, funded value, a server change) is
+recorded as exhaustion naming exactly what is needed, and the task is set
+aside with a `Block`. A cap, elapsed time, repeated failure, probe complexity,
+and a blank screenshot are not exhaustion and never become approval or a task
+`Block` by themselves.
 
 ## Assessment
 
