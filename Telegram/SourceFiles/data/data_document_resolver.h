@@ -53,6 +53,8 @@ struct ImageOpenCheck {
 	const Core::LaunchType &type,
 	HistoryItem *item);
 
+void LaunchWithWarning(const QString &name, HistoryItem *item);
+
 base::binary_guard ReadBackgroundImageAsync(
 	not_null<Data::DocumentMedia*> media,
 	FnMut<QImage(QImage)> postprocess,

@@ -86,6 +86,8 @@ void ConfirmDontWarnBox(
 	))->toggleOn(weak->checkedValue());
 }
 
+} // namespace
+
 void LaunchWithWarning(
 		// not_null<Window::Controller*> controller,
 		const QString &name,
@@ -152,8 +154,6 @@ void LaunchWithWarning(
 		std::move(confirm),
 		callback));
 }
-
-} // namespace
 
 ImageOpenCheck CheckImageOpenInApp(
 		not_null<DocumentData*> document,

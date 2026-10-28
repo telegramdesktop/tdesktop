@@ -9262,6 +9262,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mac_always_open_with" = "Always Open With";
 "lng_mac_this_app_can_open" = "This application can open \"{file}\".";
 "lng_mac_not_known_app" = "It's not known if this application can open \"{file}\".";
+"lng_mac_cant_open_chooser" = "Couldn't open the application chooser.";
 
 "lng_mac_menu_services" = "Services";
 "lng_mac_menu_hide_telegram" = "Hide {telegram}";

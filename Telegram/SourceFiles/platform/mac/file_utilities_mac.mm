@@ -82,6 +82,8 @@ QString strNeedToRefresh2() {
 
 	NSMenu *menu;
 
+	BOOL chooseProgram;
+
 }
 
 - (void) fillAppByUrl:(NSURL*)url bundle:(NSString**)bundle name:(NSString**)name version:(NSString**)version icon:(NSImage**)icon {
@@ -173,6 +175,7 @@ QString strNeedToRefresh2() {
 
 - (BOOL) popupAt:(NSPoint)point {
 	if (![apps count] && !defName) return NO;
+	chooseProgram = NO;
 	menu = [[NSMenu alloc] initWithTitle:@"Open With"];
 
 	int index = 0;
@@ -196,7 +199,7 @@ QString strNeedToRefresh2() {
 
 	[menu popUpMenuPositioningItem:nil atLocation:point inView:nil];
 
-	return YES;
+	return chooseProgram ? NO : YES;
 }
 
 - (void) itemChosen:(id)sender {
@@ -215,8 +218,8 @@ QString strNeedToRefresh2() {
 	}
 	if (url) {
 		[[NSWorkspace sharedWorkspace] openFile:toOpen withApplication:[url path]];
-	} else if (!Platform::File::UnsafeShowOpenWith(NS2QString(toOpen))) {
-		Platform::File::UnsafeLaunch(NS2QString(toOpen));
+	} else {
+		chooseProgram = YES;
 	}
 }
 
@@ -534,6 +537,11 @@ bool UnsafeShowOpenWith(const QString &filepath) {
 					}
 					[[NSWorkspace sharedWorkspace] openFile:file withApplication:[app path]];
 				}
+			} else if (result == NSModalResponseAbort) {
+				NSAlert *alert = [[NSAlert alloc] init];
+				[alert setMessageText:Q2NSString(tr::lng_mac_cant_open_chooser(tr::now))];
+				[alert runModal];
+				[alert release];
 			}
 			[selector release];
 			[button release];
@@ -546,7 +554,7 @@ bool UnsafeShowOpenWith(const QString &filepath) {
 		}];
 	}
 	@catch (NSException *exception) {
-		[[NSWorkspace sharedWorkspace] openFile:file];
+		return false;
 	}
 	@finally {
 	}
