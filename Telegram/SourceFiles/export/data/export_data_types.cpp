@@ -7,12 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "export/data/export_data_types.h"
 
+struct GeoPointLocation;
+
 #include "export/export_settings.h"
 #include "export/output/export_output_file.h"
 #include "base/base_file_utilities.h"
 #include "ui/text/format_values.h"
 #include "core/mime_type.h"
 #include "core/utils.h"
+#include "data/data_location.h"
 #include <QtCore/QDateTime>
 #include <QtCore/QTimeZone>
 #include <QtCore/QRegularExpression>
@@ -1601,9 +1604,13 @@ SharedContact ParseSharedContact(
 GeoPoint ParseGeoPoint(const MTPGeoPoint &data) {
 	auto result = GeoPoint();
 	data.match([&](const MTPDgeoPoint &data) {
-		result.latitude = data.vlat().v;
-		result.longitude = data.vlong().v;
-		result.valid = true;
+		const auto latitude = data.vlat().v;
+		const auto longitude = data.vlong().v;
+		if (::Data::ValidGeoCoordinates(latitude, longitude)) {
+			result.latitude = latitude;
+			result.longitude = longitude;
+			result.valid = true;
+		}
 	}, [](const MTPDgeoPointEmpty &data) {});
 	return result;
 }

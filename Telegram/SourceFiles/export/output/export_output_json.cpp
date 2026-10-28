@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/data/export_data_types.h"
 #include "core/utils.h"
 
+#include <cmath>
+
 #include <QtCore/QDateTime>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
@@ -1079,6 +1081,12 @@ QByteArray SerializeRichChannel(
 	return SerializeObject(context.json, values);
 }
 
+QByteArray SerializeRichCoordinate(float64 value) {
+	return std::isfinite(value)
+		? Data::NumberToString(value)
+		: QByteArray("null");
+}
+
 QByteArray SerializeRichMapPoint(
 		RichSerializeContext &context,
 		const Data::RichMapPoint &data) {
@@ -1097,10 +1105,10 @@ QByteArray SerializeRichMapPoint(
 	case Source::InputGeoPoint:
 		values.emplace_back(
 			"latitude",
-			Data::NumberToString(data.latitude));
+			SerializeRichCoordinate(data.latitude));
 		values.emplace_back(
 			"longitude",
-			Data::NumberToString(data.longitude));
+			SerializeRichCoordinate(data.longitude));
 		break;
 	}
 	if (data.accessHash) {
