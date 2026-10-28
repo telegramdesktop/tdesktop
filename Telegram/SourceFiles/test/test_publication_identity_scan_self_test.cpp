@@ -310,6 +310,17 @@ void CheckParserRefusal(
 		Details(result.identity));
 }
 
+void CheckExactParserRefusals(
+		const Result &result,
+		const QString &name,
+		const std::vector<PublicationIdentityRefusal> &refusals) {
+	Check(result.prepared && result.enumeration.decided
+		&& !result.identity.decided && !result.identity.clean
+		&& result.identity.refusals == refusals,
+		u"publication self-test: parser refuses exactly "_q + name,
+		Details(result.identity));
+}
+
 void SelfPublicationCoincidences() {
 	CheckCounts(RunFixture(CleanFixture()), u"controlled empty tree"_q);
 	const auto negatives = QStringList{
@@ -958,6 +969,130 @@ void SelfPublicationSelection() {
 	}
 }
 
+// webrtc's device lists open braces no TL object owns. Only their own
+// closers are accepted, while no object is open: any other unmatched closer
+// keeps its exact refusals, and no credit survives a named opener, an entry,
+// a TestLog row or a source.
+void SelfNonObjectBraces() {
+	const auto lost = std::vector{ PublicationIdentityRefusal::LostObjectScope };
+	const auto shapes = std::vector<std::pair<QString, QString>>{
+		{
+			u"single device list"_q,
+			u"Media Info: Type Playback, default: synthetic-speaker-0a1b, "
+				"list: { \"Synthetic Speaker\" <synthetic-speaker-0a1b> }, "
+				"full list refresh: true"_q,
+		},
+		{
+			u"multiple device list"_q,
+			u"Media Info: Type Capture, default: synthetic-mic-2c3d, "
+				"list: { \"Synthetic Microphone\" <synthetic-mic-2c3d>, "
+				"\"Synthetic Line In\" <synthetic-line-4e5f> }, "
+				"full list refresh: true"_q,
+		},
+		{
+			u"empty device list"_q,
+			u"Media Error: Can't sync default device for type Camera, "
+				"default: , list: {  }"_q,
+		},
+		{
+			u"digit-led braced name"_q,
+			u"Connecting local socket to /tmp/synthetic-6a7b-"
+				"{01234567-89AB-CDEF-0123-456789ABCDEF}.sock"_q,
+		},
+		{ u"lone unfinished text brace"_q, u"{ \"x\""_q },
+	};
+	const auto presentations = u"Media Info: Type Capture, "
+		"default: synthetic-mic-2c3d, list: { \"Li Syntheticriver "
+		"audit_example_handle +15551234567\" <synthetic-mic-2c3d> }, "
+		"full list refresh: true"_q;
+	for (const auto cls : kClasses) {
+		const auto suffix = QChar(' ') + SecrecyClassName(cls);
+		for (const auto &[name, body] : shapes) {
+			auto fixture = CleanFixture();
+			Inject(fixture, cls, body);
+			CheckCounts(RunFixture(fixture), name + suffix);
+		}
+		auto fixture = CleanFixture();
+		Inject(fixture, cls, presentations);
+		CheckCounts(
+			RunFixture(fixture),
+			u"device name presentations"_q + suffix,
+			cls,
+			{ .profiles = 1, .usernames = 1, .phones = 1 });
+		fixture = CleanFixture();
+		Inject(fixture, cls, u"{ \"x\" } }"_q);
+		CheckExactParserRefusals(
+			RunFixture(fixture),
+			u"extra closer after text brace"_q + suffix,
+			lost);
+		fixture = CleanFixture();
+		Inject(fixture, cls, u"{ \"x\""_q);
+		Inject(fixture, cls, u"}"_q);
+		CheckExactParserRefusals(
+			RunFixture(fixture),
+			u"text brace across entries"_q + suffix,
+			lost);
+	}
+	{
+		auto fixture = CleanFixture();
+		Inject(
+			fixture,
+			SecrecyClass::MtpLog,
+			u"{ msgs_ack } }"_q,
+			Placement::Recv);
+		CheckExactParserRefusals(
+			RunFixture(fixture),
+			u"second dump closer"_q,
+			lost);
+	}
+	{
+		// A text brace inside an object changes nothing: the inner closer
+		// still ends `other`, so `user` owns the following field.
+		auto fixture = CleanFixture();
+		Inject(
+			fixture,
+			SecrecyClass::MtpLog,
+			u"{ user { other { \"x\" } first_name: Li } }"_q);
+		CheckExactParserRefusals(
+			RunFixture(fixture, { .username = u"synthetic_absent_brace_handle"_q }),
+			u"nested text brace unquoted profile field"_q,
+			lost);
+		fixture = CleanFixture();
+		Inject(
+			fixture,
+			SecrecyClass::MtpLog,
+			u"{ user { other { \"x\" } note: \"synthetic\\q\" } }"_q);
+		CheckExactParserRefusals(
+			RunFixture(fixture, { .userId = u"7"_q }),
+			u"nested text brace relevant escape"_q,
+			{
+				PublicationIdentityRefusal::UnsupportedStringEscape,
+				PublicationIdentityRefusal::LostObjectScope,
+			});
+		fixture = CleanFixture();
+		Inject(
+			fixture,
+			SecrecyClass::MtpLog,
+			u"{ \"x\" { user first_name: \"Li\" { \"x\" } "
+				"last_name: \"Syntheticriver\" }"_q);
+		CheckExactParserRefusals(
+			RunFixture(fixture),
+			u"named object forfeits text brace"_q,
+			lost);
+	}
+	{
+		// A continuation line right after the day index: only the source
+		// boundary separates this closer from the earlier part's opener.
+		auto fixture = CleanFixture();
+		fixture.parts[u"log_10_00.txt"_q].push_back(Entry(u"{ \"x\""_q));
+		fixture.parts[u"log_10_15.txt"_q].insert(1, u"}"_q);
+		CheckExactParserRefusals(
+			RunFixture(fixture),
+			u"text brace across sources"_q,
+			lost);
+	}
+}
+
 void SelfAuditSeparation() {
 	{
 		auto fixture = CleanFixture();
@@ -1091,6 +1226,7 @@ void SelfAuditSeparation() {
 			u"{ other text: \"\\\\u000A } user_id: 7 { user\" }"_q);
 		CheckCounts(RunFixture(fixture), u"escaped backslash never decoded twice"_q);
 	}
+	SelfNonObjectBraces();
 }
 
 [[nodiscard]] QByteArray Appended(qint64 mark) {
@@ -1236,7 +1372,26 @@ void SelfPublicationOutput() {
 			u"bytes=%1 rows=%2 decided=%3"_q
 				.arg(bytes.size()).arg(rows.size()).arg(result->identity.decided));
 	}
+	// Both wrappers need this launch's MtpLog to hold a Send and a Recv
+	// header, which only real MTP traffic writes. The pure reading below
+	// plants and prints nothing; its empty control decides no coverage.
+	const auto preflight = ReadLaunchLogEnumeration(SelectThisLaunchLogs({}), {});
+	const auto mtp = preflight.find(SecrecyClass::MtpLog);
+	const auto sendHeaders = mtp ? mtp->sendHeaders : 0;
+	const auto recvHeaders = mtp ? mtp->recvHeaders : 0;
+	const auto applies = (sendHeaders > 0) && (recvHeaders > 0);
+	Note(u"PUBLICATION_SELF_WRAPPER_GATE: send_headers=%1 recv_headers=%2 "
+		"applies=%3"_q
+		.arg(sendHeaders)
+		.arg(recvHeaders)
+		.arg(int(applies)));
 	for (const auto identityWrapper : { false, true }) {
+		const auto name = u"publication self-test: actual healthy wrapper %1"_q
+			.arg(identityWrapper);
+		if (!applies) {
+			Skipped(name, u"this launch's MtpLog lacks a Send or Recv header"_q);
+			continue;
+		}
 		const auto mark = QFileInfo(EvidenceDir() + u"test_log.txt"_q).size();
 		const auto failures = FailureCount();
 		const auto ok = identityWrapper
@@ -1268,7 +1423,7 @@ void SelfPublicationOutput() {
 				u"publication-audit-control-"_q)
 			&& !resultRows.join(QChar('\n')).contains(
 				u"wrapper_absent_identity_f7c29d81"_q),
-			u"publication self-test: actual healthy wrapper %1"_q.arg(identityWrapper),
+			name,
 			u"bytes=%1 result_rows=%2 setup_rows=%3"_q
 				.arg(bytes.size()).arg(resultRows.size()).arg(setupRows));
 	}

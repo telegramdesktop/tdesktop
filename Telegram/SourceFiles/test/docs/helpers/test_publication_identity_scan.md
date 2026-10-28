@@ -19,10 +19,11 @@ establish controlled coverage only. Fixed `PublicationIdentityRows` /
 `LaunchLogEnumerationRows` contain classifications and counts. Neither proves
 fixture secrecy. `AppendPublicationIdentityScanSelfTest` registers seven
 synchronous, session-free stages, independently of the eleven strict-secret
-stages: six over synthetic log trees, and a seventh over actual screenshot
-markers that applies only when the evidence root has exactly one
-`synthetic_marker_collision_handle` directory component. See the finite
-grammar and refusals below.
+stages: six over synthetic log trees, the sixth also calling both actual
+wrappers only when this launch's MtpLog has a Send and a Recv header, and a
+seventh over actual screenshot markers that applies only when the evidence
+root has exactly one `synthetic_marker_collision_handle` directory
+component. See the finite grammar and refusals below.
 
 ## Claims, coverage and identity grammar
 
@@ -148,6 +149,25 @@ nonempty malformed/over-limit descriptor refuses, even if another supplied
 family is usable. Every usable family also needs its independent positive
 and coincidence-negative in-memory matcher controls.
 
+**Unmatched braces.** A `{` that is not followed, after spaces, by an ASCII
+letter, digit or underscore opens no object. Read while no object is open,
+it is counted as untyped text, as in webrtc's `Media Info` / `Media Error`
+device lists `list: { "<name>" <id>, ... }` and the empty `{  }`. A later
+`}` read while still no object is open then ends one untyped opener
+instead of refusing. Strings in such a list stay unowned strings, so a
+supplied name, username or phone inside a device name still counts.
+Opening any named object forfeits every earlier untyped opener, and an
+entry, TestLog row, source or final EOF boundary drops them silently; an
+unclosed untyped opener alone never refuses. Inside an object an untyped
+`{` is ignored as before: it opens no frame and takes no closer, so the
+next `}` still ends the innermost object. Every other unmatched closer
+still refuses `lost_object_scope`: a bare `}`, an extra closer after a
+balanced list or dump (`{ "x" } }`, `Recv: { msgs_ack } }`), a closer
+after a named object opened and closed since the untyped opener, and a
+closer whose untyped opener was in an earlier entry, TestLog row or
+source. An unquoted `user` profile field, a named object left open at a
+boundary, and every string, escape and limit refusal are unchanged.
+
 Plain, Send **and Recv** presentations count for identity publication; server
 origin is no exemption. Identity has no computed-field exemptions. These
 are bounded claims about the supplied identities and supported shapes,
@@ -157,13 +177,20 @@ class/family/selection/refusal names and counts. They never echo identities,
 controls, paths, source names or matched lines. Wrapper nonce setup is a
 separate `PUBLICATION_AUDIT_CONTROL` row. Fixed schema words or small counts
 may coincide with a supplied tiny name/id; that coincidence is not value
-emission. `AppendPublicationIdentityScanSelfTest` independently exercises
-coincidences, presentations, enumeration, accepted selection, claim
-separation, parser bounds and actual formatter/wrapper output, without an
-account or network. Under its collision-named evidence root it also reads
-actual `SaveImage` markers: the relative rows are clean, the same file's
-historical absolute row and a deliberately handle-named file each count
-once.
+emission. `AppendPublicationIdentityScanSelfTest`
+([self-test](test_publication_identity_scan_self_test.md)) independently
+exercises coincidences, presentations, enumeration, accepted selection,
+claim separation, parser bounds and actual formatter output over synthetic
+logs, without an account or network. Its actual wrapper checks need this
+launch's MtpLog to hold a Send and a Recv header, which only real MTP
+traffic writes. It reads both header counts without planting or printing a
+control and notes them in a fixed `PUBLICATION_SELF_WRAPPER_GATE` row.
+Without the pair, each wrapper check reports a fixed-reason
+`TEST_RESULT: N/A` and neither wrapper runs. With it, both must read
+healthy, and any other real-log refusal still fails. Under its
+collision-named evidence root it also reads actual `SaveImage` markers:
+the relative rows are clean, the same file's historical absolute row and a
+deliberately handle-named file each count once.
 
 ## Related guidance
 

@@ -20,9 +20,41 @@ overlays.
 `AppendPublicationIdentityScanSelfTest(runner)` adds seven synchronous
 stages. Six run over synthetic log trees: coincidences, supported
 presentations, enumeration, accepted selection, claim separation and
-formatter/wrapper output. It needs no account or network. The fixture uses
-`QTemporaryDir` to remove its log tree when the synchronous reading
-finishes.
+formatter output. These synthetic checks need no account or network. The
+fixture uses `QTemporaryDir` to remove its log tree when the synchronous
+reading finishes.
+
+The sixth stage, `publication_self_output`, ends with the actual
+`CheckLaunchLogEnumeration()` and `CheckPublicationIdentity()` wrappers over
+this launch's real logs. Their coverage needs a Send and a Recv header in
+this launch's MtpLog, which only real MTP traffic writes; an account or a
+session does not imply it. After its nine synthetic checks the stage reads
+both header counts through `ReadLaunchLogEnumeration(SelectThisLaunchLogs({}), {})`,
+which plants and prints nothing and whose empty control claims no
+coverage, then notes one fixed row:
+
+```text
+NOTE: PUBLICATION_SELF_WRAPPER_GATE: send_headers=<n> recv_headers=<n> applies=<0|1>
+```
+
+With either count zero (`applies=0`) neither wrapper runs, so no wrapper
+setup or result row follows; the stage's results end with exactly:
+
+```text
+TEST_RESULT: N/A: publication self-test: actual healthy wrapper 0 - this launch's MtpLog lacks a Send or Recv header
+TEST_RESULT: N/A: publication self-test: actual healthy wrapper 1 - this launch's MtpLog lacks a Send or Recv header
+```
+
+These N/A rows are results that establish nothing about the wrappers; the
+nine synthetic checks and their notes before the gate still apply, so a
+launch without the pair reads that stage with no FAIL. With both headers
+(`applies=1`) every wrapper assertion stays mandatory: each call returns
+healthy with no new failure, one setup and one scan row, exactly 16
+(coverage) or 36 (identity) appended lines, fixed rows and no presentation
+or control token. A real log can still refuse for another reason, such as
+a relevant string over the parser's limit, and that stays a FAIL. A
+campaign that needs the wrapper checks to run waits for the Send/Recv pair
+before appending the pack.
 
 The seventh stage, `publication_self_screenshot_marker`, protects
 `SaveImage`'s marker. It applies only when `EvidenceDir()` has exactly one
