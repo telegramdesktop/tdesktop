@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "overview/overview_checkbox.h"
 #include "overview/overview_layout_delegate.h"
+#include "apiwrap.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "core/ui_integration.h" // TextContext
@@ -2201,6 +2202,13 @@ Link::Link(
 	_titlew = st::semiboldFont->width(_title);
 
 	setupLinks(textWithEntities, mainUrl, mainType);
+
+	if (parent->hideLinks()) {
+		const auto peer = parent->history()->peer->migrateToOrMe();
+		if (!peer->barSettings()) {
+			peer->session().api().requestPeerSettings(peer);
+		}
+	}
 }
 
 void Link::setupLinks(
@@ -2519,8 +2527,9 @@ TextState Link::getState(
 		QPoint point,
 		StateRequest request) const {
 	int32 left = st::linksPhotoSize + st::linksPhotoPadding, top = st::linksMargin.top() + st::linksBorder, w = _width - left;
+	const auto linksHidden = parent()->hideLinks();
 	if (style::rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width).contains(point)) {
-		return { parent(), _photol };
+		return { parent(), linksHidden ? nullptr : _photol };
 	}
 
 	if (!_title.isEmpty() && _text.isEmpty() && _links.size() == 1) {
@@ -2533,7 +2542,7 @@ TextState Link::getState(
 				std::min(w, _titlew),
 				st::semiboldFont->height,
 				_width).contains(point)) {
-			return { parent(), _titlel };
+			return { parent(), linksHidden ? nullptr : _titlel };
 		}
 		top += st::webPageTitleFont->height;
 	}
@@ -2548,7 +2557,10 @@ TextState Link::getState(
 				std::min(w, width),
 				st::normalFont->height,
 				_width).contains(point)) {
-			return { parent(), link.handler };
+			// The chat keeps e-mails of such messages clickable.
+			const auto hidden = linksHidden
+				&& (link.type != EntityType::Email);
+			return { parent(), hidden ? nullptr : link.handler };
 		}
 		top += st::normalFont->height;
 	}
