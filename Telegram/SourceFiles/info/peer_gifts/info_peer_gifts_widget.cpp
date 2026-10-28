@@ -407,9 +407,15 @@ InnerWidget::InnerWidget(
 }
 
 void InnerWidget::switchTo(int collectionId) {
+	const auto entries = collectionId
+		? &_perCollection[collectionId]
+		: &_all;
+	if (entries != _entries.get() && _dragging.index >= 0) {
+		cancelDragging();
+	}
 	_collectionsLoadedCallback = nullptr;
 	_api.request(base::take(_loadMoreRequestId)).cancel();
-	_entries = collectionId ? &_perCollection[collectionId] : &_all;
+	_entries = entries;
 	_list = &_entries->list;
 	refreshButtons();
 	refreshAbout();
@@ -1144,8 +1150,10 @@ void InnerWidget::addGiftToCollection(
 		.collectionId = collectionId,
 		.added = { giftId },
 	};
+	const auto session = &_window->session();
+	const auto weak = base::make_weak(this);
 	using Flag = MTPpayments_UpdateStarGiftCollection::Flag;
-	_window->session().api().request(
+	session->api().request(
 		MTPpayments_UpdateStarGiftCollection(
 			MTP_flags(Flag::f_add_stargift),
 			_peer->input(),
@@ -1157,7 +1165,10 @@ void InnerWidget::addGiftToCollection(
 			}),
 			MTPVector<MTPInputSavedStarGift>())
 	).done([=](const MTPStarGiftCollection &result) {
-		_window->session().data().notifyGiftsUpdate(base::duplicate(changes));
+		session->data().notifyGiftsUpdate(base::duplicate(changes));
+		if (!weak) {
+			return;
+		}
 
 		const auto i = ranges::find(
 			_collections,
@@ -1639,8 +1650,10 @@ void InnerWidget::removeGiftFromCollection(
 		.collectionId = collectionId,
 		.removed = { giftId },
 	};
+	const auto session = &_window->session();
+	const auto weak = base::make_weak(this);
 	using Flag = MTPpayments_UpdateStarGiftCollection::Flag;
-	_window->session().api().request(
+	session->api().request(
 		MTPpayments_UpdateStarGiftCollection(
 			MTP_flags(Flag::f_delete_stargift),
 			_peer->input(),
@@ -1652,7 +1665,10 @@ void InnerWidget::removeGiftFromCollection(
 			MTPVector<MTPInputSavedStarGift>(),
 			MTPVector<MTPInputSavedStarGift>())
 	).done([=](const MTPStarGiftCollection &result) {
-		_window->session().data().notifyGiftsUpdate(base::duplicate(changes));
+		session->data().notifyGiftsUpdate(base::duplicate(changes));
+		if (!weak) {
+			return;
+		}
 
 		const auto i = ranges::find(
 			_collections,
