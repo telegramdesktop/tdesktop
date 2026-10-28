@@ -1266,7 +1266,7 @@ void ChatWidget::subscribeToTopic() {
 
 	_topic->destroyed(
 	) | rpl::on_next([=] {
-		closeCurrent();
+		topicDestroyed();
 	}, _topicLifetime);
 
 	if (!_topic->creating()) {
@@ -1317,6 +1317,16 @@ void ChatWidget::sublistDestroyed() {
 	closeCurrent();
 	if (weak && !id.hasChatsList()) {
 		Core::App().closeWindow(window);
+	}
+}
+
+void ChatWidget::topicDestroyed() {
+	const auto id = controller()->windowId();
+	if (id.chat() != _topic && !id.hasChatsList()) {
+		// Show the owning group here before the topic is freed.
+		showHistoryAfterThreadDestroyed(_history);
+	} else {
+		closeCurrent();
 	}
 }
 
