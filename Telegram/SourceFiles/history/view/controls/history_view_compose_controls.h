@@ -684,6 +684,8 @@ private:
 	rpl::lifetime _sessionLifetime;
 	rpl::lifetime _threadFieldVisibleLifetime;
 	rpl::lifetime _uploaderSubscriptions;
+	// Last, so the handler ends before any members it uses are destroyed.
+	rpl::lifetime _recordingStateLifetime;
 
 };
 
