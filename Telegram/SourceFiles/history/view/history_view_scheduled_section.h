@@ -224,6 +224,7 @@ private:
 	void clearProcessingVideoTracking(bool fast);
 
 	void setupComposeControls();
+	void topicDestroyed();
 
 	void setupDragArea();
 

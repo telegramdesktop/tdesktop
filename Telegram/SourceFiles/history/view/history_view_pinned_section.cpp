@@ -303,24 +303,7 @@ void PinnedWidget::threadDestroyed() {
 		Core::App().closeWindow(window);
 		return;
 	}
-	const auto weak = base::make_weak(this);
-	auto params = Window::SectionShow(
-		Window::SectionShow::Way::Backward,
-		anim::type::instant,
-		anim::activation::background);
-	params.preferCurrentWindow = true;
-	const auto showing = Core::App().windowForShowingHistory(_history->peer);
-	if (!showing || showing == window) {
-		controller()->showThread(_history, ShowAtUnreadMsgId, params);
-	}
-	if (!weak) {
-		return;
-	} else if (id.hasChatsList()) {
-		controller()->clearSectionStack(
-			params.withWay(Window::SectionShow::Way::ClearStack));
-	} else {
-		Core::App().closeWindow(window);
-	}
+	showHistoryAfterThreadDestroyed(_history);
 }
 
 void PinnedWidget::setupClearButton() {
