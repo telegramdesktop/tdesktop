@@ -1762,11 +1762,11 @@ SessionController::SessionController(
 			}
 		}
 		for (auto &entry : _chatEntryHistory) {
-			if (const auto topic = entry.key.topic()) {
-				if (topic->rootId() == change.oldId) {
-					entry.key = Dialogs::Key(
-						topic->forum()->topicFor(change.newId.msg));
-				}
+			const auto topic = entry.thread ? entry.row.key.topic() : nullptr;
+			if (topic && topic->rootId() == change.oldId) {
+				const auto real = topic->forum()->topicFor(change.newId.msg);
+				entry.row.key = Dialogs::Key(real);
+				entry.thread = real;
 			}
 		}
 	}, lifetime());
@@ -2481,7 +2481,8 @@ bool SessionController::chatEntryHistoryMove(int steps) {
 		return false;
 	}
 	_chatEntryHistoryPosition = position;
-	return jumpToChatListEntry(_chatEntryHistory[position]);
+	const auto &entry = _chatEntryHistory[position];
+	return entry.thread && jumpToChatListEntry(entry.row);
 }
 
 bool SessionController::jumpToChatListEntry(Dialogs::RowDescriptor row) {
@@ -2600,12 +2601,16 @@ Dialogs::RowDescriptor SessionController::resolveChatPrevious(
 }
 
 void SessionController::pushToChatEntryHistory(Dialogs::RowDescriptor row) {
-	if (!_chatEntryHistory.empty()
-		&& _chatEntryHistory[_chatEntryHistoryPosition] == row) {
-		return;
+	const auto thread = row.key.thread();
+	if (!_chatEntryHistory.empty()) {
+		const auto &current = _chatEntryHistory[_chatEntryHistoryPosition];
+		// A new topic can reuse a freed one's address.
+		if (current.row == row && current.thread.get() == thread) {
+			return;
+		}
 	}
 	_chatEntryHistory.resize(++_chatEntryHistoryPosition);
-	_chatEntryHistory.push_back(row);
+	_chatEntryHistory.push_back({ row, thread });
 	if (_chatEntryHistory.size() > kMaxChatEntryHistorySize) {
 		_chatEntryHistory.pop_front();
 		--_chatEntryHistoryPosition;

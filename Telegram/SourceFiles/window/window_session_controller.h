@@ -759,6 +759,10 @@ public:
 private:
 	struct CachedThemeKey;
 	struct CachedTheme;
+	struct ChatEntryHistoryItem {
+		Dialogs::RowDescriptor row;
+		base::weak_ptr<Data::Thread> thread;
+	};
 
 	void init();
 	void setupShortcuts();
@@ -854,7 +858,7 @@ private:
 	rpl::lifetime _activeHistoryLifetime;
 	rpl::variable<bool> _mainSectionShown = false;
 	rpl::variable<bool> _chatsForceDisplayWide = false;
-	std::deque<Dialogs::RowDescriptor> _chatEntryHistory;
+	std::deque<ChatEntryHistoryItem> _chatEntryHistory;
 	int _chatEntryHistoryPosition = -1;
 	bool _filtersActivated = false;
 
