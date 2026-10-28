@@ -89,12 +89,12 @@ using ::Media::ValidFrameSize;
 
 [[nodiscard]] ClickHandlerPtr MakeUrlHandler(
 		const QString &url,
-		bool hidden) {
+		EntityType type) {
 	return Ui::Integration::Instance().createLinkHandler(
 		EntityLinkData{
 			.text = url,
 			.data = url,
-			.type = hidden ? EntityType::CustomUrl : EntityType::Url,
+			.type = type,
 			.shown = EntityLinkShown::Partial,
 		},
 		Ui::Text::MarkedContext());
@@ -2051,23 +2051,28 @@ Link::Link(
 		const auto customUrl = entity.data();
 		const auto entityText = text.mid(entity.offset(), entity.length());
 		const auto url = customUrl.isEmpty() ? entityText : customUrl;
-		const auto hidden = (type == EntityType::CustomUrl)
-			&& !customUrl.isEmpty();
+		const auto linkType = (type != EntityType::CustomUrl)
+			? type
+			: customUrl.isEmpty()
+			? EntityType::Url
+			: EntityType::CustomUrl;
 		if (_links.empty()) {
 			mainUrl = url;
 		}
 		if (_page && !pageShown && type == EntityType::Url) {
 			pageShown = UrlMatchesWebPage(_page, url);
 		}
-		_links.push_back(LinkEntry(url, entityText, hidden));
+		_links.push_back(LinkEntry(url, entityText, linkType));
 	}
 	if (_links.empty()) {
 		if (const auto media = parent->media()) {
 			if (const auto webpage = media->webpage()) {
 				if (!webpage->displayUrl.isEmpty()
 					&& !webpage->url.isEmpty()) {
-					_links.push_back(
-						LinkEntry(webpage->displayUrl, webpage->url, false));
+					_links.push_back(LinkEntry(
+						webpage->displayUrl,
+						webpage->url,
+						EntityType::Url));
 					pageShown = true;
 				}
 			}
@@ -2096,11 +2101,13 @@ Link::Link(
 		}
 	}
 
-	const auto mainHidden = _page
-		? !pageShown
-		: (!_links.empty() && _links.front().hidden);
+	const auto mainType = _page
+		? (pageShown ? EntityType::Url : EntityType::CustomUrl)
+		: _links.empty()
+		? EntityType::Url
+		: _links.front().type;
 	const auto createHandler = [=](const QString &url) {
-		return MakeUrlHandler(url, mainHidden);
+		return MakeUrlHandler(url, mainType);
 	};
 	if (_page) {
 		mainUrl = _page->url;
@@ -2193,24 +2200,25 @@ Link::Link(
 	}
 	_titlew = st::semiboldFont->width(_title);
 
-	setupLinks(textWithEntities, mainUrl, mainHidden);
+	setupLinks(textWithEntities, mainUrl, mainType);
 }
 
 void Link::setupLinks(
 		const TextWithEntities &text,
 		const QString &mainUrl,
-		bool mainHidden) {
+		EntityType mainType) {
 	const auto page = _page;
 	const auto ivCapable = [=](const QString &url) {
 		return Iv::PreferForUri(url)
 			|| (page && page->iv && UrlMatchesWebPage(page, url));
 	};
-	const auto makeHandler = [&](const QString &url, bool iv, bool hidden) {
-		return hidden
-			? MakeUrlHandler(url, true)
-			: iv
+	const auto makeHandler = [&](
+			const QString &url,
+			bool iv,
+			EntityType type) {
+		return (iv && type == EntityType::Url)
 			? ClickHandlerPtr(std::make_shared<IvLink>(page, text, url))
-			: MakeUrlHandler(url, false);
+			: MakeUrlHandler(url, type);
 	};
 	static const auto kLinkOptions = TextParseOptions{
 		0,
@@ -2219,10 +2227,10 @@ void Link::setupLinks(
 		Qt::LayoutDirectionAuto,
 	};
 	for (auto &link : _links) {
-		const auto iv = link.hidden
+		const auto iv = (link.type == EntityType::CustomUrl)
 			? Iv::PreferForUri(link.url)
-			: ivCapable(link.url);
-		link.handler = makeHandler(link.url, iv, link.hidden);
+			: (link.type == EntityType::Url) && ivCapable(link.url);
+		link.handler = makeHandler(link.url, iv, link.type);
 		auto markup = iv
 			? Ui::Text::IconEmoji(&st::overviewLinkIvIcon)
 			: TextWithEntities();
@@ -2242,12 +2250,12 @@ void Link::setupLinks(
 		? mainUrl
 		: (page ? page->url : QString());
 	if (!titleUrl.isEmpty()) {
-		_titlel = makeHandler(titleUrl, ivCapable(titleUrl), mainHidden);
+		_titlel = makeHandler(titleUrl, ivCapable(titleUrl), mainType);
 	}
 
 	const auto mainIv = !mainUrl.isEmpty() && ivCapable(mainUrl);
-	if (mainIv && mainHidden) {
-		_photol = MakeUrlHandler(mainUrl, true);
+	if (mainIv && mainType != EntityType::Url) {
+		_photol = MakeUrlHandler(mainUrl, mainType);
 	} else if (mainIv) {
 		const auto previous = _photol;
 		_photol = std::make_shared<LambdaClickHandler>([=](
@@ -2291,7 +2299,7 @@ int32 Link::resizeGetHeight(int32 width) {
 	_width = std::min(width, _maxw);
 	int32 w = _width - st::linksPhotoSize - st::linksPhotoPadding;
 	for (const auto &link : _links) {
-		if (link.hidden) {
+		if (link.type == EntityType::CustomUrl) {
 			continue;
 		}
 		if (const auto handler = std::dynamic_pointer_cast<TextClickHandler>(
@@ -2554,10 +2562,10 @@ const style::RoundCheckbox &Link::checkboxStyle() const {
 Link::LinkEntry::LinkEntry(
 	const QString &url,
 	const QString &display,
-	bool hidden)
+	EntityType type)
 : url(url)
 , display(display)
-, hidden(hidden) {
+, type(type) {
 }
 
 // Copied from inline_bot_layout_internal.

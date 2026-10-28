@@ -541,7 +541,7 @@ private:
 	void setupLinks(
 		const TextWithEntities &text,
 		const QString &mainUrl,
-		bool mainHidden);
+		EntityType mainType);
 
 	ClickHandlerPtr _photol;
 	ClickHandlerPtr _titlel;
@@ -559,13 +559,16 @@ private:
 
 	struct LinkEntry {
 		LinkEntry() = default;
-		LinkEntry(const QString &url, const QString &display, bool hidden);
+		LinkEntry(
+			const QString &url,
+			const QString &display,
+			EntityType type);
 
 		QString url;
 		QString display;
 		Ui::Text::String text;
 		ClickHandlerPtr handler;
-		bool hidden = false;
+		EntityType type = EntityType::Url;
 	};
 	std::vector<LinkEntry> _links;
 
