@@ -7366,5 +7366,799 @@ class HealthWorktreeTest(unittest.TestCase):
 			self.run_json(workspace.command_health_publish, self.machines[0])
 
 
+
+PROJECT = "net"
+TASK_A = "2026/10/28/route-requests-through-the-new-session"
+TASK_B = "2026/10/28/retry-requests-after-a-reconnect"
+
+GIT_TEST_ENV = {
+	"GIT_CONFIG_COUNT": "3",
+	"GIT_CONFIG_KEY_0": "protocol.file.allow",
+	"GIT_CONFIG_VALUE_0": "always",
+	"GIT_CONFIG_KEY_1": "user.name",
+	"GIT_CONFIG_VALUE_1": "Workflow Test",
+	"GIT_CONFIG_KEY_2": "user.email",
+	"GIT_CONFIG_VALUE_2": "workflow@example.invalid",
+}
+
+
+def write_file(repo, name, text):
+	path = Path(repo) / name
+	path.parent.mkdir(parents=True, exist_ok=True)
+	path.write_text(text, encoding="utf-8")
+
+
+def project_slot(root, task_id, tag):
+	slot = Path(root) / f"slot-{tag}"
+	if not (slot / "projects" / PROJECT).exists():
+		write_project(slot, PROJECT)
+	directory = slot / "tasks" / task_id
+	directory.mkdir(parents=True)
+	(directory / "task.md").write_text("# Project task\n", encoding="utf-8")
+	(directory / "state.yaml").write_text(
+		f"""status: in-progress
+created: 2026-10-28
+project: {PROJECT}
+depends_on: []
+claimed_by: {tag}
+claimed_at: 2026-10-28T10:00:00+04:00
+claim_order: 1
+lease_until: null
+phase: implement
+inbox_receipt: receipts/2026/10/28/test.md
+""",
+		encoding="utf-8",
+	)
+	return slot
+
+
+def begin_task(source, task_id):
+	for name in ("base", "run"):
+		git(source, "update-ref", workspace.source_task_ref(task_id, name), "HEAD")
+
+
+def commit_task(source, task_id, name, module_name=None):
+	if module_name is not None:
+		module = Path(source) / "dep"
+		write_file(module, module_name, f"{module_name}\n")
+		git(module, "add", module_name)
+		git(module, "commit", "-m", f"Add {module_name}")
+		git(source, "add", "dep")
+	write_file(source, name, f"{name}\n")
+	git(source, "add", name)
+	git(source, "commit", "-m", f"Add {name}\n\nTask: {task_id}")
+	for ref in ("green", "run"):
+		git(source, "update-ref", workspace.source_task_ref(task_id, ref), "HEAD")
+
+
+class ProjectBranchTest(unittest.TestCase):
+	def setUp(self):
+		patcher = mock.patch.dict(os.environ, GIT_TEST_ENV)
+		patcher.start()
+		self.addCleanup(patcher.stop)
+		self.temp = tempfile.TemporaryDirectory()
+		self.addCleanup(self.temp.cleanup)
+		self.root = Path(self.temp.name).resolve()
+		self.private = self.root / "private.git"
+		self.dep = self.root / "dep.git"
+		for bare in (self.private, self.dep):
+			subprocess.run(
+				[
+					"git", "init", "--quiet", "--bare",
+					"--initial-branch=master", str(bare),
+				],
+				check=True,
+			)
+		seed_dep = self.root / "seed-dep"
+		git_repo(seed_dep)
+		write_file(seed_dep, "module.txt", "module\n")
+		git(seed_dep, "add", "module.txt")
+		git(seed_dep, "commit", "-m", "Create module")
+		git(seed_dep, "push", "--quiet", str(self.dep), "HEAD:refs/heads/master")
+		seed = self.root / "seed"
+		git_repo(seed)
+		write_file(seed, "Telegram/build/marker.txt", "build\n")
+		git(seed, "add", "Telegram")
+		git(seed, "commit", "-m", "Create baseline")
+		git(seed, "submodule", "add", "--quiet", str(self.dep), "dep")
+		git(seed, "commit", "-m", "Record dependency")
+		for branch in ("alpha", PROJECT):
+			git(seed, "push", "--quiet", str(self.private), f"HEAD:refs/heads/{branch}")
+
+	def clone(self, name):
+		path = self.root / name
+		subprocess.run(
+			[
+				"git", "clone", "--quiet", "--origin", "private",
+				"--branch", PROJECT, str(self.private), str(path),
+			],
+			check=True,
+		)
+		git(path, "submodule", "update", "--quiet", "--init")
+		return path
+
+	def run_task(self, handler, source, slot, tag, **arguments):
+		config = {
+			"source_root": str(source),
+			"slot_worktree": str(slot),
+			"checkout_tag": tag,
+		}
+		with mock.patch.object(
+			workspace, "task_action_config", return_value=(config, slot),
+		):
+			return run_command(handler, **arguments)
+
+	def two_checkouts(self):
+		first = self.clone("first")
+		second = self.clone("second")
+		first_slot = project_slot(self.root, TASK_A, "xps-first")
+		second_slot = project_slot(self.root, TASK_B, "xps-second")
+		begin_task(first, TASK_A)
+		begin_task(second, TASK_B)
+		commit_task(first, TASK_A, "first.txt", "first-module.txt")
+		commit_task(second, TASK_B, "second.txt", "second-module.txt")
+		return first, first_slot, second, second_slot
+
+	def sync(self, source, slot, tag, task, onto=None, base_fix=None):
+		return self.run_task(
+			workspace.command_project_sync, source, slot, tag,
+			task=task, onto=onto, base_fix=base_fix,
+		)
+
+	def push(self, source, slot, tag, task, rewritten=False, base_fix=None, base=None):
+		return self.run_task(
+			workspace.command_project_push, source, slot, tag,
+			task=task, rewritten=rewritten, base_fix=base_fix, base=base,
+		)
+
+	def test_parallel_checkouts_replay_their_own_work_onto_the_shared_branch(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		result = self.sync(first, first_slot, "xps-first", TASK_A)
+		self.assertFalse(result["build_required"])
+		self.push(first, first_slot, "xps-first", TASK_A)
+		shared = git(self.private, "rev-parse", f"refs/heads/{PROJECT}")
+		first_pin = git(first, "rev-parse", "HEAD:dep")
+		self.assertEqual(
+			git(self.dep, "rev-parse", f"refs/heads/{PROJECT}"), first_pin,
+		)
+
+		result = self.sync(second, second_slot, "xps-second", TASK_B)
+		self.assertTrue(result["synced"])
+		self.assertTrue(result["build_required"])
+		self.assertEqual(git(second, "rev-parse", "HEAD^"), shared)
+		self.assertEqual(git(second, "branch", "--show-current"), PROJECT)
+		pin = git(second, "rev-parse", "HEAD:dep")
+		self.assertEqual(git(second / "dep", "rev-parse", f"{pin}^"), first_pin)
+		self.assertEqual(git(second / "dep", "rev-parse", "HEAD"), pin)
+		self.assertEqual(task_refs(second, TASK_B), {
+			"base": shared,
+			"green": git(second, "rev-parse", "HEAD"),
+			"run": git(second, "rev-parse", "HEAD"),
+		})
+		self.assertEqual(workspace.source_changed_paths(second), [])
+
+		pushed = self.push(second, second_slot, "xps-second", TASK_B)
+		self.assertEqual(pushed["submodules"], ["dep"])
+		self.assertEqual(
+			git(self.private, "rev-parse", f"refs/heads/{PROJECT}"),
+			git(second, "rev-parse", "HEAD"),
+		)
+		self.assertEqual(git(self.dep, "rev-parse", f"refs/heads/{PROJECT}"), pin)
+
+	def test_push_refuses_a_branch_that_moved_since_the_sync(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		self.push(first, first_slot, "xps-first", TASK_A)
+		with self.assertRaises(workspace.WorkspaceError):
+			self.push(second, second_slot, "xps-second", TASK_B)
+
+	def advance_base(self):
+		base = self.root / "base"
+		subprocess.run(
+			[
+				"git", "clone", "--quiet", "--branch", "alpha",
+				str(self.private), str(base),
+			],
+			check=True,
+		)
+		git(base, "submodule", "update", "--quiet", "--init")
+		module = base / "dep"
+		write_file(module, "base-module.txt", "base\n")
+		git(module, "add", "base-module.txt")
+		git(module, "commit", "-m", "Advance module")
+		git(module, "push", "--quiet", "origin", "HEAD:refs/heads/master")
+		write_file(base, "base.txt", "base\n")
+		git(base, "add", "base.txt", "dep")
+		git(base, "commit", "-m", "Advance base")
+		git(base, "push", "--quiet", "origin", "HEAD:refs/heads/alpha")
+		return git(base, "rev-parse", "HEAD"), git(module, "rev-parse", "HEAD")
+
+	def test_rebase_onto_a_base_moves_submodule_work_onto_its_pin(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		self.push(first, first_slot, "xps-first", TASK_A)
+		self.sync(second, second_slot, "xps-second", TASK_B)
+		self.push(second, second_slot, "xps-second", TASK_B)
+		base_tip, base_pin = self.advance_base()
+
+		result = self.sync(
+			second, second_slot, "xps-second", TASK_B, onto="private/alpha",
+		)
+		self.assertTrue(result["rebased_onto_base"])
+		self.assertEqual(git(second, "rev-parse", "HEAD~2"), base_tip)
+		module = second / "dep"
+		pin = git(second, "rev-parse", "HEAD:dep")
+		self.assertEqual(git(module, "rev-parse", f"{pin}~2"), base_pin)
+		for name in ("base-module.txt", "first-module.txt", "second-module.txt"):
+			self.assertTrue((module / name).is_file(), name)
+
+		with self.assertRaises(workspace.WorkspaceError):
+			self.push(second, second_slot, "xps-second", TASK_B)
+		self.push(second, second_slot, "xps-second", TASK_B, rewritten=True)
+		self.assertEqual(
+			git(self.private, "rev-parse", f"refs/heads/{PROJECT}"),
+			git(second, "rev-parse", "HEAD"),
+		)
+		self.assertEqual(git(self.dep, "rev-parse", f"refs/heads/{PROJECT}"), pin)
+
+	def test_a_base_fix_goes_first_and_reaches_the_base_branch(self):
+		first, first_slot, _, _ = self.two_checkouts()
+		base_tip, _ = self.advance_base()
+		write_file(first, "fix.txt", "fix\n")
+		git(first, "add", "fix.txt")
+		git(first, "commit", "-m", "Fix build.")
+		fix = git(first, "rev-parse", "HEAD")
+		git(first, "update-ref", workspace.source_task_ref(TASK_A, "run"), "HEAD")
+
+		result = self.sync(
+			first, first_slot, "xps-first", TASK_A,
+			onto="private/alpha", base_fix=fix,
+		)
+		moved = result["base_fix"]
+		self.assertEqual(git(first, "rev-parse", f"{moved}^"), base_tip)
+		self.assertEqual(git(first, "log", "-1", "--format=%s", moved), "Fix build.")
+		self.assertEqual(git(first, "rev-parse", "HEAD^"), moved)
+		self.assertEqual(
+			task_refs(first, TASK_A)["green"], git(first, "rev-parse", "HEAD"),
+		)
+
+		self.push(
+			first, first_slot, "xps-first", TASK_A,
+			rewritten=True, base_fix=moved, base="private/alpha",
+		)
+		self.assertEqual(git(self.private, "rev-parse", "refs/heads/alpha"), moved)
+		self.push(
+			first, first_slot, "xps-first", TASK_A,
+			rewritten=True, base_fix=moved, base="private/alpha",
+		)
+
+	def test_a_base_fix_must_not_touch_project_files(self):
+		first, first_slot, _, _ = self.two_checkouts()
+		self.advance_base()
+		write_file(first, "first.txt", "fixed\n")
+		git(first, "commit", "-am", "Fix build.")
+		git(first, "update-ref", workspace.source_task_ref(TASK_A, "run"), "HEAD")
+		with self.assertRaises(workspace.WorkspaceError):
+			self.sync(
+				first, first_slot, "xps-first", TASK_A,
+				onto="private/alpha", base_fix="HEAD",
+			)
+
+	def test_tasks_start_only_on_their_project_branch(self):
+		first = self.clone("first")
+		slot = project_slot(self.root, TASK_A, "xps-first")
+		config = {"source_root": str(first)}
+		project_task = {"id": TASK_A, "project": PROJECT}
+		standalone = {"id": TASK_B, "project": None}
+		workspace.ensure_task_branch(config, slot, project_task)
+		with self.assertRaisesRegex(workspace.WorkspaceError, "non-project branch"):
+			workspace.ensure_task_branch(config, slot, standalone)
+		git(first, "switch", "--quiet", "-c", "alpha", "private/alpha")
+		workspace.ensure_task_branch(config, slot, standalone)
+		with self.assertRaisesRegex(workspace.WorkspaceError, "check out branch net"):
+			workspace.ensure_task_branch(config, slot, project_task)
+
+	def test_source_prepare_brings_a_project_branch_to_its_shared_tip(self):
+		first, first_slot, second, _ = self.two_checkouts()
+		self.push(first, first_slot, "xps-first", TASK_A)
+		third = self.clone("third")
+		git(first, "commit", "--allow-empty", "-m", f"Later\n\nTask: {TASK_A}")
+		git(first, "push", "--quiet", "private", f"HEAD:refs/heads/{PROJECT}")
+		with mock.patch.object(
+			workspace, "repository_config",
+			return_value={"ai_main": str(first_slot)},
+		):
+			self.assertTrue(workspace.update_project_branch(None, third))
+			self.assertEqual(
+				git(third, "rev-parse", "HEAD"), git(first, "rev-parse", "HEAD"),
+			)
+			self.assertFalse(workspace.update_project_branch(None, third))
+			with self.assertRaisesRegex(workspace.WorkspaceError, "lacks"):
+				workspace.update_project_branch(None, second)
+
+	def wip_save(self, source, second):
+		config = {"source_root": str(source), "checkout_tag": "xps-first"}
+		moment = datetime.datetime(2026, 10, 28, 17, 0, second)
+		clock = mock.Mock(wraps=datetime.datetime)
+		clock.now.return_value = moment
+		with mock.patch.object(workspace, "worktree_config", return_value=config), \
+				mock.patch.object(workspace.datetime, "datetime", clock):
+			return run_command(workspace.command_wip_save, reason="Unknown edits")
+
+	def test_wip_save_keeps_unexplained_changes_on_a_side_branch(self):
+		first = self.clone("first")
+		head = git(first, "rev-parse", "HEAD")
+		write_file(first, "stray.txt", "stray\n")
+		write_file(first / "dep", "module.txt", "edited\n")
+		result = self.wip_save(first, 1)
+		self.assertEqual(result["branch"], "wip/net/xps-first/20261028-170001")
+		self.assertEqual(result["repositories"], ["dep", "."])
+		self.assertEqual(git(first, "rev-parse", "HEAD"), head)
+		self.assertEqual(git(first, "branch", "--show-current"), PROJECT)
+		self.assertEqual(workspace.source_changed_paths(first), [])
+		saved = "refs/heads/" + result["branch"]
+		self.assertEqual(git(self.private, "show", f"{saved}:stray.txt"), "stray")
+		pin = git(self.private, "rev-parse", f"{saved}:dep")
+		self.assertEqual(git(self.dep, "show", f"{pin}:module.txt"), "edited")
+
+		write_file(first, "later.txt", "later\n")
+		second = self.wip_save(first, 2)
+		self.assertNotEqual(second["branch"], result["branch"])
+		self.assertEqual(git(self.private, "show", f"{saved}:stray.txt"), "stray")
+
+	def test_a_failed_wip_push_keeps_the_changes_in_place(self):
+		first = self.clone("first")
+		head = git(first, "rev-parse", "HEAD")
+		write_file(first, "stray.txt", "stray\n")
+		git(first, "remote", "set-url", "private", str(self.root / "missing.git"))
+		with self.assertRaises(workspace.WorkspaceError):
+			self.wip_save(first, 1)
+		self.assertEqual(git(first, "rev-parse", "HEAD"), head)
+		self.assertEqual(git(first, "branch", "--show-current"), PROJECT)
+		self.assertEqual(workspace.source_changed_paths(first), ["stray.txt"])
+
+	def test_a_rewritten_push_never_drops_work_it_did_not_incorporate(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		self.push(first, first_slot, "xps-first", TASK_A)
+		self.advance_base()
+		self.sync(second, second_slot, "xps-second", TASK_B, onto="private/alpha")
+		third = self.clone("third")
+		write_file(third, "third.txt", "third\n")
+		git(third, "add", "third.txt")
+		git(third, "commit", "-m", f"Third\n\nTask: {TASK_A}")
+		git(third, "push", "--quiet", "private", f"HEAD:refs/heads/{PROJECT}")
+		published = git(third, "rev-parse", "HEAD")
+		with self.assertRaises(workspace.WorkspaceError):
+			self.push(second, second_slot, "xps-second", TASK_B, rewritten=True)
+		self.assertEqual(
+			git(self.private, "rev-parse", f"refs/heads/{PROJECT}"), published,
+		)
+
+		result = self.sync(
+			second, second_slot, "xps-second", TASK_B, onto="private/alpha",
+		)
+		self.assertTrue(result["rewrite_discarded"])
+		self.assertTrue(result["build_required"])
+		self.assertEqual(git(second, "show", "HEAD:third.txt"), "third")
+		self.push(second, second_slot, "xps-second", TASK_B, rewritten=True)
+		self.assertEqual(
+			git(self.private, "show", f"refs/heads/{PROJECT}:third.txt"), "third",
+		)
+
+	def test_a_submodule_branch_ahead_of_its_parent_is_synced(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		orphan = git(first, "rev-parse", "HEAD:dep")
+		git(first / "dep", "push", "--quiet", "origin", f"{orphan}:refs/heads/{PROJECT}")
+		result = self.sync(second, second_slot, "xps-second", TASK_B)
+		self.assertTrue(result["synced"])
+		pin = git(second, "rev-parse", "HEAD:dep")
+		self.assertEqual(git(second / "dep", "rev-parse", f"{pin}^"), orphan)
+		self.push(second, second_slot, "xps-second", TASK_B)
+		self.assertEqual(git(self.dep, "rev-parse", f"refs/heads/{PROJECT}"), pin)
+
+	def test_a_base_fix_survives_an_incoming_sync(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		self.push(first, first_slot, "xps-first", TASK_A)
+		base_tip, _ = self.advance_base()
+		write_file(second, "fix.txt", "fix\n")
+		git(second, "add", "fix.txt")
+		git(second, "commit", "-m", "Fix build.")
+		fix = git(second, "rev-parse", "HEAD")
+		git(second, "update-ref", workspace.source_task_ref(TASK_B, "run"), "HEAD")
+		result = self.sync(
+			second, second_slot, "xps-second", TASK_B,
+			onto="private/alpha", base_fix=fix,
+		)
+		self.assertTrue(result["synced"])
+		self.assertEqual(git(second, "rev-parse", f"{result['base_fix']}^"), base_tip)
+		self.assertEqual(
+			git(second, "log", "-1", "--format=%s", result["base_fix"]), "Fix build.",
+		)
+
+	def test_a_submodule_conflict_restores_every_repository(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		write_file(first / "dep", "second-module.txt", "conflicting\n")
+		git(first / "dep", "add", "second-module.txt")
+		git(first / "dep", "commit", "--amend", "--no-edit")
+		git(first, "add", "dep")
+		git(first, "commit", "--amend", "--no-edit")
+		git(first, "update-ref", workspace.source_task_ref(TASK_A, "run"), "HEAD")
+		self.push(first, first_slot, "xps-first", TASK_A)
+		head = git(second, "rev-parse", "HEAD")
+		module_head = git(second / "dep", "rev-parse", "HEAD")
+		with self.assertRaisesRegex(workspace.WorkspaceError, "conflicts"):
+			self.sync(second, second_slot, "xps-second", TASK_B)
+		self.assertEqual(git(second, "rev-parse", "HEAD"), head)
+		self.assertEqual(git(second, "branch", "--show-current"), PROJECT)
+		self.assertEqual(git(second / "dep", "rev-parse", "HEAD"), module_head)
+		self.assertEqual(workspace.source_changed_paths(second), [])
+
+	def test_a_submodule_race_discards_the_pending_rebase(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		self.push(first, first_slot, "xps-first", TASK_A)
+		_, base_pin = self.advance_base()
+		self.sync(second, second_slot, "xps-second", TASK_B, onto="private/alpha")
+		other = self.clone("other")
+		module = other / "dep"
+		git(module, "checkout", "--quiet", "--detach", f"origin/{PROJECT}")
+		write_file(module, "other-module.txt", "other\n")
+		git(module, "add", "other-module.txt")
+		git(module, "commit", "-m", "Add other module work")
+		git(module, "push", "--quiet", "origin", f"HEAD:refs/heads/{PROJECT}")
+
+		result = self.sync(
+			second, second_slot, "xps-second", TASK_B, onto="private/alpha",
+		)
+		self.assertTrue(result["rewrite_discarded"])
+		self.assertTrue(result["rebased_onto_base"])
+		pin = git(second, "rev-parse", "HEAD:dep")
+		self.assertTrue(workspace.is_ancestor(second / "dep", base_pin, pin))
+		self.push(second, second_slot, "xps-second", TASK_B, rewritten=True)
+		self.assertEqual(git(self.dep, "rev-parse", f"refs/heads/{PROJECT}"), pin)
+
+	def test_wip_save_pushes_a_clean_submodule_at_a_new_commit(self):
+		first = self.clone("first")
+		module = first / "dep"
+		write_file(module, "committed.txt", "committed\n")
+		git(module, "add", "committed.txt")
+		git(module, "commit", "-m", "Local module commit")
+		local = git(module, "rev-parse", "HEAD")
+		result = self.wip_save(first, 3)
+		self.assertEqual(result["repositories"], ["dep", "."])
+		saved = "refs/heads/" + result["branch"]
+		self.assertEqual(git(self.private, "rev-parse", f"{saved}:dep"), local)
+		self.assertEqual(git(self.dep, "rev-parse", saved), local)
+		self.assertEqual(workspace.source_changed_paths(first), [])
+
+	def test_a_submodule_branch_created_after_a_rebase_discards_it(self):
+		first, first_slot, _, _ = self.two_checkouts()
+		_, base_pin = self.advance_base()
+		self.sync(first, first_slot, "xps-first", TASK_A, onto="private/alpha")
+		other = self.clone("other")
+		module = other / "dep"
+		write_file(module, "other-module.txt", "other\n")
+		git(module, "add", "other-module.txt")
+		git(module, "commit", "-m", "Add other module work")
+		git(module, "push", "--quiet", "origin", f"HEAD:refs/heads/{PROJECT}")
+		result = self.sync(first, first_slot, "xps-first", TASK_A, onto="private/alpha")
+		self.assertTrue(result["rewrite_discarded"])
+		pin = git(first, "rev-parse", "HEAD:dep")
+		self.assertTrue(workspace.is_ancestor(first / "dep", base_pin, pin))
+
+	def test_wip_save_keeps_staged_and_working_versions_apart(self):
+		first = self.clone("first")
+		write_file(first, "staged.txt", "staged\n")
+		git(first, "add", "staged.txt")
+		write_file(first, "staged.txt", "working\n")
+		result = self.wip_save(first, 4)
+		saved = "refs/heads/" + result["branch"]
+		self.assertEqual(git(self.private, "show", f"{saved}^:staged.txt"), "staged")
+		self.assertEqual(git(self.private, "show", f"{saved}:staged.txt"), "working")
+
+	def test_a_failed_wip_push_restores_the_staged_version(self):
+		first = self.clone("first")
+		write_file(first, "staged.txt", "staged\n")
+		git(first, "add", "staged.txt")
+		write_file(first, "staged.txt", "working\n")
+		git(first, "remote", "set-url", "private", str(self.root / "missing.git"))
+		with self.assertRaises(workspace.WorkspaceError):
+			self.wip_save(first, 5)
+		self.assertEqual(git(first, "show", ":staged.txt"), "staged")
+		self.assertEqual((first / "staged.txt").read_text(encoding="utf-8"), "working\n")
+
+	def test_wip_save_pushes_a_submodule_whose_new_pin_is_staged(self):
+		first = self.clone("first")
+		module = first / "dep"
+		write_file(module, "committed.txt", "committed\n")
+		git(module, "add", "committed.txt")
+		git(module, "commit", "-m", "Local module commit")
+		local = git(module, "rev-parse", "HEAD")
+		git(first, "add", "dep")
+		result = self.wip_save(first, 6)
+		self.assertEqual(result["repositories"], ["dep", "."])
+		self.assertEqual(git(self.dep, "rev-parse", "refs/heads/" + result["branch"]), local)
+
+	def test_a_split_carrier_keeps_its_inherited_commits(self):
+		first = self.clone("first")
+		begin_task(first, TASK_B)
+		commit_task(first, TASK_A, "inherited.txt")
+		commit_task(first, TASK_B, "carrier.txt")
+		start = git(first, "rev-parse", "HEAD~2")
+		workspace.reconcile_task_refs(first, TASK_B, TASK_A)
+		self.assertEqual(task_refs(first, TASK_B)["base"], start)
+
+	def test_a_failed_staged_commit_keeps_the_original_index(self):
+		first = self.clone("first")
+		write_file(first, "staged.txt", "staged\n")
+		git(first, "add", "staged.txt")
+		write_file(first, "staged.txt", "working\n")
+		hook = first / ".git" / "hooks" / "pre-commit"
+		hook.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+		hook.chmod(0o755)
+		with self.assertRaises(workspace.WorkspaceError):
+			self.wip_save(first, 7)
+		self.assertEqual(git(first, "show", ":staged.txt"), "staged")
+		self.assertEqual(git(first, "branch", "--show-current"), PROJECT)
+
+	def test_wip_save_pushes_a_staged_pin_the_submodule_left(self):
+		first = self.clone("first")
+		module = first / "dep"
+		committed = git(module, "rev-parse", "HEAD")
+		write_file(module, "staged-module.txt", "staged\n")
+		git(module, "add", "staged-module.txt")
+		git(module, "commit", "-m", "Staged module commit")
+		staged = git(module, "rev-parse", "HEAD")
+		git(first, "add", "dep")
+		git(module, "checkout", "--quiet", "--detach", committed)
+		result = self.wip_save(first, 8)
+		self.assertEqual(
+			git(self.dep, "rev-parse", "refs/heads/" + result["branch"] + "-staged"),
+			staged,
+		)
+
+	def test_a_clean_peer_follows_a_published_base_rebase(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		self.push(first, first_slot, "xps-first", TASK_A)
+		self.sync(second, second_slot, "xps-second", TASK_B)
+		self.push(second, second_slot, "xps-second", TASK_B)
+		peer = self.clone("peer")
+		self.advance_base()
+		self.sync(second, second_slot, "xps-second", TASK_B, onto="private/alpha")
+		self.push(second, second_slot, "xps-second", TASK_B, rewritten=True)
+		with mock.patch.object(
+			workspace, "repository_config",
+			return_value={"ai_main": str(first_slot)},
+		):
+			self.assertTrue(workspace.update_project_branch(None, peer))
+		self.assertEqual(
+			git(peer, "rev-parse", "HEAD"), git(second, "rev-parse", "HEAD"),
+		)
+
+	def test_a_local_merge_is_never_reset_away(self):
+		first, first_slot, second, _ = self.two_checkouts()
+		self.push(first, first_slot, "xps-first", TASK_A)
+		git(second, "switch", "--quiet", "-c", "side", "HEAD~1")
+		git(second, "commit", "--allow-empty", "-m", "Side")
+		git(second, "switch", "--quiet", PROJECT)
+		git(second, "merge", "--quiet", "--no-ff", "--no-edit", "side")
+		with mock.patch.object(
+			workspace, "repository_config",
+			return_value={"ai_main": str(first_slot)},
+		):
+			git(first, "commit", "--allow-empty", "-m", "Later")
+			git(first, "push", "--quiet", "private", f"HEAD:refs/heads/{PROJECT}")
+			with self.assertRaisesRegex(workspace.WorkspaceError, "merge"):
+				workspace.update_project_branch(None, second)
+
+	def test_a_rejected_rewrite_leaves_submodule_branches_alone(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		self.push(first, first_slot, "xps-first", TASK_A)
+		self.sync(second, second_slot, "xps-second", TASK_B)
+		self.push(second, second_slot, "xps-second", TASK_B)
+		self.advance_base()
+		third = self.clone("third")
+		module = third / "dep"
+		write_file(module, "third-module.txt", "third\n")
+		git(module, "add", "third-module.txt")
+		git(module, "commit", "-m", "Add third module work")
+		git(module, "push", "--quiet", "origin", f"HEAD:refs/heads/{PROJECT}")
+		self.sync(second, second_slot, "xps-second", TASK_B, onto="private/alpha")
+		git(third, "add", "dep")
+		git(third, "commit", "-m", f"Third\n\nTask: {TASK_A}")
+		git(third, "push", "--quiet", "private", f"HEAD:refs/heads/{PROJECT}")
+		published = git(module, "rev-parse", "HEAD")
+		with self.assertRaises(workspace.WorkspaceError):
+			self.push(second, second_slot, "xps-second", TASK_B, rewritten=True)
+		self.assertEqual(
+			git(self.dep, "rev-parse", f"refs/heads/{PROJECT}"), published,
+		)
+
+	def test_a_cancelled_wip_save_restores_the_checkout(self):
+		first = self.clone("first")
+		head = git(first, "rev-parse", "HEAD")
+		write_file(first, "stray.txt", "stray\n")
+		with mock.patch.object(
+			workspace, "push_branch", side_effect=KeyboardInterrupt,
+		):
+			with self.assertRaises(KeyboardInterrupt):
+				self.wip_save(first, 9)
+		self.assertEqual(git(first, "rev-parse", "HEAD"), head)
+		self.assertEqual(git(first, "branch", "--show-current"), PROJECT)
+		self.assertEqual(workspace.source_changed_paths(first), ["stray.txt"])
+
+	def test_wip_save_keeps_the_copy_of_a_staged_deletion(self):
+		first = self.clone("first")
+		write_file(first, "kept.txt", "kept\n")
+		git(first, "add", "kept.txt")
+		git(first, "commit", "-m", "Track kept")
+		git(first, "rm", "--quiet", "--cached", "kept.txt")
+		write_file(first, ".gitignore", "kept.txt\n")
+		git(first, "add", ".gitignore")
+		write_file(first, "kept.txt", "local copy\n")
+		result = self.wip_save(first, 10)
+		saved = "refs/heads/" + result["branch"]
+		self.assertEqual(git(self.private, "show", f"{saved}:.gitignore"), "kept.txt")
+		self.assertNotIn("kept.txt", git(self.private, "ls-tree", "--name-only", saved))
+		[copy] = result["local_copies"]
+		self.assertEqual(Path(copy).read_text(encoding="utf-8"), "local copy\n")
+		self.assertEqual(workspace.source_changed_paths(first), [])
+
+	def test_a_rewritten_push_stages_submodule_commits_first(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		self.push(first, first_slot, "xps-first", TASK_A)
+		self.sync(second, second_slot, "xps-second", TASK_B)
+		self.push(second, second_slot, "xps-second", TASK_B)
+		self.advance_base()
+		self.sync(second, second_slot, "xps-second", TASK_B, onto="private/alpha")
+		self.push(second, second_slot, "xps-second", TASK_B, rewritten=True)
+		pin = git(second, "rev-parse", "HEAD:dep")
+		self.assertEqual(
+			git(self.dep, "rev-parse", f"refs/heads/_staging/{PROJECT}/xps-second"),
+			pin,
+		)
+		self.assertEqual(git(self.dep, "rev-parse", f"refs/heads/{PROJECT}"), pin)
+
+	def test_source_prepare_refuses_local_commits_above_the_shared_tip(self):
+		first, first_slot, _, _ = self.two_checkouts()
+		peer = self.clone("peer")
+		git(peer, "commit", "--allow-empty", "-m", "Unexplained")
+		with mock.patch.object(
+			workspace, "repository_config",
+			return_value={"ai_main": str(first_slot)},
+		):
+			with self.assertRaisesRegex(workspace.WorkspaceError, "lacks"):
+				workspace.update_project_branch(None, peer)
+
+	def test_a_base_rebase_follows_pins_that_move_back(self):
+		first, first_slot, _, _ = self.two_checkouts()
+		module = first / "dep"
+		start = git(module, "rev-parse", "HEAD")
+		write_file(module, "later-module.txt", "later\n")
+		git(module, "add", "later-module.txt")
+		git(module, "commit", "-m", "Later module")
+		git(first, "add", "dep")
+		git(first, "commit", "-m", f"Move ahead\n\nTask: {TASK_A}")
+		git(module, "checkout", "--quiet", "--detach", start)
+		git(first, "add", "dep")
+		git(first, "commit", "-m", f"Move back\n\nTask: {TASK_A}")
+		for ref in ("green", "run"):
+			git(first, "update-ref", workspace.source_task_ref(TASK_A, ref), "HEAD")
+		_, base_pin = self.advance_base()
+		result = self.sync(first, first_slot, "xps-first", TASK_A, onto="private/alpha")
+		self.assertTrue(result["rebased_onto_base"])
+		pin = git(first, "rev-parse", "HEAD:dep")
+		self.assertEqual(git(module, "rev-parse", f"{pin}^"), base_pin)
+		self.assertTrue((module / "first-module.txt").is_file())
+		self.assertFalse((module / "later-module.txt").exists())
+		self.push(first, first_slot, "xps-first", TASK_A)
+		self.assertEqual(
+			git(self.dep, "show", f"refs/heads/{PROJECT}:later-module.txt"), "later",
+		)
+		self.assertTrue(workspace.is_ancestor(self.dep, pin, f"refs/heads/{PROJECT}"))
+
+	def test_a_split_carrier_inherits_the_sync_state(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		self.push(second, second_slot, "xps-second", TASK_B)
+		self.advance_base()
+		self.sync(first, first_slot, "xps-first", TASK_A, onto="private/alpha")
+		config = {"source_root": str(first)}
+		workspace.transfer_source_refs(config, TASK_A, TASK_B)
+		for name in ("shared", "rewrite-from", "base", "green", "run"):
+			self.assertIsNotNone(workspace.task_ref(first, TASK_B, name), name)
+		self.assertIsNotNone(workspace.task_ref(first / "dep", TASK_B, "shared"))
+		self.assertIsNone(workspace.task_ref(first / "dep", TASK_A, "shared"))
+
+	def test_wip_save_refuses_ignored_files_where_head_tracks_a_file(self):
+		first = self.clone("first")
+		head = git(first, "rev-parse", "HEAD")
+		git(first, "rm", "--quiet", "Telegram/build/marker.txt")
+		write_file(first, "Telegram/build/marker.txt/new.txt", "new\n")
+		write_file(first, "Telegram/build/marker.txt/.env", "secret\n")
+		write_file(first, ".gitignore", ".env\n")
+		with self.assertRaisesRegex(workspace.WorkspaceError, "tracks the file"):
+			self.wip_save(first, 11)
+		self.assertEqual(git(first, "rev-parse", "HEAD"), head)
+		self.assertTrue((first / "Telegram/build/marker.txt/.env").is_file())
+
+	def test_a_termination_signal_waits_for_the_running_git_command(self):
+		first = self.clone("first")
+		finished = []
+		real = subprocess.run
+
+		def slow_git(arguments, **options):
+			workspace._TERMINATION["pending"] = signal.SIGTERM
+			workspace.raise_pending_termination()
+			finished.append(arguments)
+			return real(arguments, **options)
+
+		with mock.patch.object(workspace.subprocess, "run", side_effect=slow_git):
+			with self.assertRaises(SystemExit):
+				workspace.run_git(first, "status", "--porcelain")
+		self.assertEqual(len(finished), 1)
+		self.assertIsNone(workspace._TERMINATION["pending"])
+
+	def test_lineage_never_offers_a_project_branch_switch(self):
+		first = self.clone("first")
+		slot = project_slot(self.root, TASK_A, "xps-first")
+		config = {"source_root": str(first)}
+		report = workspace.source_lineage_report(config, slot, TASK_A)
+		self.assertEqual(report["compatible_local_branches"], [])
+
+
+class RoutingRevisionTest(unittest.TestCase):
+	def test_routing_never_revises_a_started_task(self):
+		with tempfile.TemporaryDirectory() as temp:
+			repo = Path(temp)
+			git(repo, "init", "--quiet", "--initial-branch=master")
+			git(repo, "config", "user.name", "Workflow Test")
+			git(repo, "config", "user.email", "workflow@example.invalid")
+			ready = "2026/10/28/ready-task"
+			started = "2026/10/28/started-task"
+			source = "2026/10/28/source-task"
+			for task_id, status, owner in (
+				(ready, "todo", "null"),
+				(started, "in-progress", "xps-other"),
+				(source, "approved", "xps-first"),
+			):
+				write_file(repo, f"tasks/{task_id}/task.md", "# Task\n")
+				write_file(
+					repo, f"tasks/{task_id}/state.yaml",
+					f"status: {status}\nclaimed_by: {owner}\n",
+				)
+			git(repo, "add", ".")
+			git(repo, "commit", "--quiet", "-m", "Seed")
+			git(repo, "switch", "--quiet", "-c", "routing")
+			write_file(repo, f"tasks/{ready}/task.md", "# Revised\n")
+			write_file(repo, f"tasks/{source}/work/discovered-routed.md", "done\n")
+			write_file(repo, "tasks/2026/10/28/new-task/state.yaml", "status: todo\n")
+			git(repo, "add", ".")
+			git(repo, "commit", "--quiet", "-m", "Route")
+			workspace.ensure_revisions_unclaimed(repo)
+			write_file(repo, f"tasks/{started}/task.md", "# Revised\n")
+			git(repo, "commit", "--quiet", "-am", "Revise started")
+			with self.assertRaisesRegex(workspace.RebaseConflict, started):
+				workspace.ensure_revisions_unclaimed(repo)
+			git(repo, "reset", "--quiet", "--hard", "HEAD~1")
+			write_file(repo, f"tasks/{source}/task.md", "# Revised\n")
+			git(repo, "commit", "--quiet", "-am", "Revise source")
+			with self.assertRaisesRegex(workspace.RebaseConflict, source):
+				workspace.ensure_revisions_unclaimed(repo)
+			git(repo, "reset", "--quiet", "--hard", "HEAD~1")
+			git(repo, "config", "diff.renames", "true")
+			git(
+				repo, "mv", f"tasks/{started}",
+				"tasks/2026/10/28/moved-task",
+			)
+			git(repo, "commit", "--quiet", "-m", "Move started")
+			with self.assertRaisesRegex(workspace.RebaseConflict, started):
+				workspace.ensure_revisions_unclaimed(repo)
+			git(repo, "reset", "--quiet", "--hard", "HEAD~1")
+			git(repo, "switch", "--quiet", "master")
+			git(repo, "rm", "--quiet", f"tasks/{ready}/state.yaml")
+			git(repo, "commit", "--quiet", "-m", "Retire ready")
+			git(repo, "switch", "--quiet", "routing")
+			git(repo, "rebase", "--quiet", "master")
+			with self.assertRaisesRegex(workspace.RebaseConflict, "retired"):
+				workspace.ensure_revisions_unclaimed(repo)
+
+
 if __name__ == "__main__":
 	unittest.main()

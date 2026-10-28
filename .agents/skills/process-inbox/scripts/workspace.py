@@ -136,8 +136,31 @@ class RebaseConflict(WorkspaceError):
 	pass
 
 
+# Inside git_safe_termination() a termination signal is held while a git
+# command runs and raised once it has finished.
+_TERMINATION = {"git": 0, "pending": None}
+
+
+def raise_pending_termination():
+	signum = _TERMINATION["pending"]
+	if signum is not None and not _TERMINATION["git"]:
+		_TERMINATION["pending"] = None
+		if signum == signal.SIGINT:
+			raise KeyboardInterrupt
+		raise SystemExit(128 + signum)
+
+
+def run_git_process(arguments, **options):
+	_TERMINATION["git"] += 1
+	try:
+		return subprocess.run(arguments, **options)
+	finally:
+		_TERMINATION["git"] -= 1
+		raise_pending_termination()
+
+
 def run_git(path, *args, check=True):
-	result = subprocess.run(
+	result = run_git_process(
 		["git", "-C", str(path), *args],
 		stdout=subprocess.PIPE,
 		stderr=subprocess.PIPE,
@@ -809,13 +832,58 @@ def prepare_source(source):
 	return update
 
 
+def update_project_branch(args, source):
+	branch = current_branch(source)
+	if branch is None or MIRROR_REMOTE not in run_git(source, "remote").stdout.split():
+		return False
+	main = Path(repository_config(args)["ai_main"])
+	if branch not in live_project_slugs(main):
+		return False
+	tracking = f"refs/remotes/{MIRROR_REMOTE}/{branch}"
+	known = [resolved_ref(source, tracking)]
+	fetch_remote(source, MIRROR_REMOTE)
+	tip = remote_branch_tip(source, MIRROR_REMOTE, branch)
+	if tip is None or tip == resolved_ref(source, "HEAD"):
+		return False
+	if is_ancestor(source, tip):
+		raise WorkspaceError(
+			f"Branch {branch} has commits {MIRROR_REMOTE}/{branch} lacks; "
+			"publish or save them before starting another task"
+		)
+	if run_git(source, "rev-list", "--merges", f"{tip}..HEAD").stdout.strip():
+		raise WorkspaceError(
+			f"Branch {branch} has local merge commits; project branches stay linear"
+		)
+	known += run_git(
+		source, "reflog", "show", "--format=%H", tracking, check=False,
+	).stdout.split()
+	published = any(
+		value is not None and is_ancestor(source, "HEAD", value) for value in known
+	)
+	unpublished = not published and [
+		line for line in run_git(source, "cherry", tip, "HEAD").stdout.splitlines()
+		if line.startswith("+")
+	]
+	if unpublished:
+		raise WorkspaceError(
+			f"Branch {branch} has commits {MIRROR_REMOTE}/{branch} lacks; "
+			"sync or save them before starting another task"
+		)
+	protect_worktrees_from_submodule_target(source, tip)
+	run_git(source, "reset", "--quiet", "--hard", tip)
+	update_source_submodules(source)
+	return True
+
+
 def command_source_prepare(args):
 	source = source_root(args.source_root)
 	updated = prepare_source(source)
+	project_updated = update_project_branch(args, source)
 	print(json.dumps({
 		"source_root": str(source),
 		"source_clean": True,
 		"submodules_updated": updated,
+		"project_branch_updated": project_updated,
 	}, indent=2, sort_keys=True))
 
 
@@ -1497,6 +1565,8 @@ def command_queue(args):
 	inbox_file = main / "inbox" / "inbox.md"
 	result = {
 		**config,
+		"current_branch": current_branch(config.get("source_root")),
+		"branch_project": branch_project(config, slot),
 		"inbox_nonempty": (
 			inbox_file.is_file()
 			and bool(inbox_file.read_text(encoding="utf-8").strip())
@@ -1568,6 +1638,7 @@ def command_start(args):
 		raise WorkspaceError(
 			f"Task is not available todo work for this checkout: {args.task}"
 		)
+	ensure_task_branch(config, slot, task)
 	batch, batch_dropped = batch_task_order(
 		slot,
 		states,
@@ -1700,6 +1771,7 @@ def command_retry(args):
 		raise WorkspaceError(
 			f"Task is not blocked work owned by this checkout: {args.task}"
 		)
+	ensure_task_branch(config, slot, task)
 	if not task_ready(task, states):
 		raise WorkspaceError(f"Task has unfinished dependencies: {args.task}")
 	lineage = source_lineage_report(
@@ -1762,6 +1834,7 @@ def task_action_config(args, require_status="in-progress", allow_project=False):
 		raise WorkspaceError(
 			f"Task is not {require_status} work owned by this checkout: {args.task}"
 		)
+	ensure_task_branch(config, slot, task)
 	return config, slot
 
 
@@ -1903,9 +1976,14 @@ def source_lineage_report(config, slot, task_id, extra_requirements=()):
 		"--format=%(refname:short)",
 		"refs/heads",
 	).stdout.splitlines()
+	projects = live_project_slugs(slot)
+	current_branch_name = current_branch(source)
+	switchable = task["project"] is None and current_branch_name not in projects
 	compatible = [
 		branch for branch in branches
-		if all(
+		if switchable
+		and branch not in projects
+		and all(
 			commits and any(
 				is_ancestor(source, commit, branch)
 				for commit in commits
@@ -1913,14 +1991,9 @@ def source_lineage_report(config, slot, task_id, extra_requirements=()):
 			for commits in tips.values()
 		)
 	]
-	current_branch = run_git(
-		source,
-		"branch",
-		"--show-current",
-	).stdout.strip() or None
 	return {
 		"task": task_id,
-		"current_branch": current_branch,
+		"current_branch": current_branch_name,
 		"current_satisfies": not missing,
 		"unfinished_dependencies": unfinished,
 		"required_source_tasks": required,
@@ -2003,13 +2076,20 @@ def ensure_no_persisted_commit_hashes(root, exempt=()):
 			raise WorkspaceError(f"Persisted commit hash found in {path}")
 
 
+PROJECT_SYNC_REFS = ("shared", "rewrite-from")
+
+
 def delete_source_refs(config, task_id, retain_implementation=False):
 	source = Path(config["source_root"])
-	names = ("run",) if retain_implementation else ("run", "green", "base")
+	names = ("run",) if retain_implementation else (
+		"run", "green", "base", *PROJECT_SYNC_REFS,
+	)
 	for name in names:
 		value = source_task_ref(task_id, name)
 		if resolved_ref(source, value) is not None:
 			run_git(source, "update-ref", "-d", value)
+	if not retain_implementation:
+		clear_module_shared_refs(source, task_id)
 
 
 def transfer_source_refs(config, source_task, target_task):
@@ -2021,7 +2101,7 @@ def transfer_source_refs(config, source_task, target_task):
 		raise WorkspaceError(
 			f"Carried source refs are incomplete or stale for {source_task}"
 		)
-	for name in ("base", "green", "run"):
+	for name in ("base", "green", "run", *PROJECT_SYNC_REFS):
 		value = resolved_ref(source, source_task_ref(source_task, name))
 		target = source_task_ref(target_task, name)
 		if value is None:
@@ -2029,6 +2109,11 @@ def transfer_source_refs(config, source_task, target_task):
 				run_git(source, "update-ref", "-d", target)
 		else:
 			run_git(source, "update-ref", target, value)
+	for module in recorded_modules(source, source_task):
+		set_task_ref(
+			module, target_task, "shared", task_ref(module, source_task, "shared"),
+		)
+		set_task_ref(module, source_task, "shared", None)
 
 
 def command_source_begin(args):
@@ -2115,8 +2200,807 @@ def command_source_mark_green(args):
 	}, indent=2, sort_keys=True))
 
 
+# Every project is performed on a branch named by its slug: in tdesktop on
+# the private remote, and under the same name on the origin of every
+# submodule the project changes. Standalone tasks start only from branches
+# that are not a live project's.
+
+def current_branch(source):
+	if source is None:
+		return None
+	result = run_git(source, "branch", "--show-current", check=False)
+	return (not result.returncode and result.stdout.strip()) or None
+
+
+def live_project_slugs(root):
+	projects = Path(root) / "projects"
+	if not projects.is_dir():
+		return set()
+	return {
+		path.name for path in projects.iterdir()
+		if path.name != PROJECT_ARCHIVE_DIR and (path / "project.md").is_file()
+	}
+
+
+def branch_project(config, slot):
+	branch = current_branch(config.get("source_root"))
+	return branch if branch in live_project_slugs(slot) else None
+
+
+def ensure_task_branch(config, slot, task):
+	branch = current_branch(config.get("source_root"))
+	project = task["project"]
+	if project is not None:
+		if branch != project:
+			raise WorkspaceError(
+				f"{task['id']} belongs to project {project}: check out branch "
+				f"{project} in this checkout to start it (current branch: "
+				f"{branch or 'detached HEAD'})"
+			)
+	elif branch in live_project_slugs(slot):
+		raise WorkspaceError(
+			f"{task['id']} is standalone work, but branch {branch} belongs to "
+			f"project {branch}; start it from a non-project branch"
+		)
+
+
+def fetch_remote(repo, remote):
+	run_git(repo, "fetch", "--quiet", remote)
+
+
+def tree_gitlinks(repo, revision):
+	result = {}
+	for entry in run_git(repo, "ls-tree", "-r", "-z", revision).stdout.split("\0"):
+		if not entry:
+			continue
+		metadata, path = entry.split("\t", 1)
+		mode, _, value = metadata.split()
+		if mode == "160000":
+			result[path] = value
+	return result
+
+
+def linear_commits(repo, older, newer):
+	if run_git(repo, "rev-list", "--merges", f"{older}..{newer}").stdout.strip():
+		raise WorkspaceError(
+			f"Project history in {repo} contains a merge; it must stay linear"
+		)
+	return run_git(
+		repo, "rev-list", "--reverse", f"{older}..{newer}",
+	).stdout.split()
+
+
+def changed_files(repo, commit):
+	return set(literal_paths(
+		repo, "diff-tree", "--no-commit-id", "--name-only", "-r",
+		"--no-renames", f"{commit}^", commit,
+	))
+
+
+def changed_gitlinks(source, older, newer):
+	before = tree_gitlinks(source, older)
+	after = tree_gitlinks(source, newer)
+	return {
+		path: (before.get(path), pin)
+		for path, pin in after.items()
+		if before.get(path) not in (None, pin)
+	}
+
+
+def gitlink_changes(repo, commit):
+	"""The pins commit sets, by submodule path."""
+	tokens = run_git(
+		repo, "diff-tree", "-r", "-z", "--no-commit-id", "--raw", "--no-abbrev",
+		"--no-renames", f"{commit}^", commit,
+	).stdout.split("\0")
+	result = {}
+	for metadata, path in zip(tokens[0::2], tokens[1::2]):
+		fields = metadata.lstrip(":").split()
+		if len(fields) >= 4 and fields[1] == "160000":
+			result[path] = fields[3]
+	return result
+
+
+def submodule_ranges(source, older, commits):
+	"""Submodules whose pin any of commits sets, as (pin at older, newest pin).
+
+	The pins the commits set along one submodule must stay on one line of
+	history, which may move back and forth; the newest pin is the one every
+	other pin is an ancestor of.
+	"""
+	base = tree_gitlinks(source, older)
+	pins = {}
+	for commit in commits:
+		for path, pin in gitlink_changes(source, commit).items():
+			if path in base:
+				pins.setdefault(path, []).append(pin)
+	ranges = {}
+	for path, values in pins.items():
+		module = source / path
+		if not (module / ".git").exists():
+			raise WorkspaceError(f"Project commits change {path}, which is not initialized")
+		newest = base[path]
+		for pin in values:
+			if is_ancestor(module, newest, pin):
+				newest = pin
+			elif not is_ancestor(module, pin, newest):
+				raise WorkspaceError(
+					f"Project commits pin {path} on diverging histories; keep its "
+					"pins on one line of history"
+				)
+		if newest != base[path]:
+			ranges[path] = (base[path], newest)
+	return ranges
+
+
+def set_index_gitlink(repo, path, revision):
+	run_git(repo, "update-index", "--force-remove", "--", path)
+	run_git(repo, "update-index", "--add", "--cacheinfo", f"160000,{revision},{path}")
+
+
+def replay_commits(repo, commits, onto, adjust=None):
+	"""Cherry-pick commits onto a detached onto, keeping authors and messages.
+
+	A commit that becomes empty is dropped and maps to its predecessor.
+	Returns the new tip and a map from each replayed commit to its copy.
+	"""
+	run_git(repo, "checkout", "--quiet", "--detach", onto)
+	mapping = {}
+	tip = onto
+	for commit in commits:
+		pick = run_git(repo, "cherry-pick", "--no-commit", commit, check=False)
+		if pick.returncode and not literal_paths(
+			repo, "diff", "--name-only", "--diff-filter=U",
+		):
+			raise WorkspaceError(
+				f"Could not replay {commit} in {repo}: "
+				+ (pick.stderr.strip() or pick.stdout.strip())
+			)
+		if adjust is not None:
+			adjust(commit)
+		unmerged = literal_paths(repo, "diff", "--name-only", "--diff-filter=U")
+		if unmerged:
+			raise WorkspaceError(
+				f"Replaying {commit} in {repo} conflicts in: " + ", ".join(unmerged)
+			)
+		if run_git(repo, "diff", "--cached", "--quiet", check=False).returncode:
+			run_git(repo, "commit", "--quiet", "--no-edit", "-C", commit)
+			tip = resolved_ref(repo, "HEAD")
+		run_git(repo, "cherry-pick", "--quit", check=False)
+		mapping[commit] = tip
+	return tip, mapping
+
+
+def restore_repository(repo, branch, head):
+	run_git(repo, "cherry-pick", "--abort", check=False)
+	run_git(repo, "reset", "--quiet", "--hard")
+	if branch is not None:
+		run_git(repo, "checkout", "--quiet", "--force", branch)
+	else:
+		run_git(repo, "checkout", "--quiet", "--force", "--detach", head)
+
+
+def rewrite_project_history(source, commits, onto, ranges, targets):
+	"""Replay tdesktop commits onto onto, rebasing their submodule commits.
+
+	ranges maps a submodule path to the (older, newer) pins its project
+	commits span; targets maps it to the commit those are rebased onto. Every
+	pin a replayed commit sets is rewritten to its rebased copy. On failure
+	every touched repository is restored to where it was.
+	"""
+	branch = current_branch(source)
+	original = resolved_ref(source, "HEAD")
+	protect_worktrees_from_submodule_target(source, onto)
+	for path, (older, _) in ranges.items():
+		target = targets.get(path)
+		if target is not None and target != older:
+			protect_worktrees_from_submodule_target(source / path, target)
+	with git_safe_termination():
+		return replay_project_history(
+			source, commits, onto, ranges, targets, branch, original,
+		)
+
+
+def replay_project_history(source, commits, onto, ranges, targets, branch, original):
+	touched = []
+	pins = {}
+	try:
+		for path, (older, newer) in ranges.items():
+			target = targets.get(path)
+			if target is None or target == older:
+				continue
+			module = source / path
+			touched.append(
+				(module, current_branch(module), resolved_ref(module, "HEAD"))
+			)
+			_, mapping = replay_commits(
+				module, linear_commits(module, older, newer), target,
+			)
+			mapping[older] = target
+			pins[path] = mapping
+
+		def adjust(commit):
+			for path, mapping in pins.items():
+				pin = gitlink_at(source, commit, path)
+				if pin == gitlink_at(source, f"{commit}^", path):
+					continue
+				if pin not in mapping:
+					raise WorkspaceError(
+						f"{commit} pins {path} outside the project's submodule commits"
+					)
+				set_index_gitlink(source, path, mapping[pin])
+
+		tip, mapping = replay_commits(source, commits, onto, adjust)
+		run_git(source, "update-ref", f"refs/heads/{branch}", tip, original)
+		run_git(source, "checkout", "--quiet", branch)
+		update_source_submodules(source)
+	except BaseException:
+		for module, module_branch, head in reversed(touched):
+			restore_repository(module, module_branch, head)
+		if branch is not None:
+			run_git(source, "update-ref", f"refs/heads/{branch}", original)
+		restore_repository(source, branch, original)
+		update_source_submodules(source)
+		raise
+	return tip, mapping
+
+
+def gitlink_at(repo, revision, path):
+	entry = run_git(
+		repo, "--literal-pathspecs", "ls-tree", "-z", revision, "--", path,
+	).stdout.split("\0")[0]
+	if not entry:
+		return None
+	metadata = entry.split("\t", 1)[0].split()
+	return metadata[2] if metadata[0] == "160000" else None
+
+
+def task_ref(repo, task_id, name):
+	return resolved_ref(repo, source_task_ref(task_id, name))
+
+
+def set_task_ref(repo, task_id, name, value):
+	ref = source_task_ref(task_id, name)
+	if value is not None:
+		run_git(repo, "update-ref", ref, value)
+	elif resolved_ref(repo, ref) is not None:
+		run_git(repo, "update-ref", "-d", ref)
+
+
+def reconcile_task_refs(source, task_id, carried_from=None):
+	series = task_series_refs(source, task_id)
+	carried = (
+		task_series_refs(source, carried_from) if carried_from is not None else None
+	)
+	if series is None:
+		series = carried
+	elif carried is not None and carried[1] == series[0]:
+		series = (carried[0], series[1])
+	if series is None:
+		set_task_ref(source, task_id, "base", resolved_ref(source, "HEAD"))
+		set_task_ref(source, task_id, "green", None)
+	else:
+		set_task_ref(source, task_id, "base", series[0])
+		set_task_ref(source, task_id, "green", series[1])
+	set_task_ref(source, task_id, "run", resolved_ref(source, "HEAD"))
+
+
+def project_task_config(args):
+	config, slot = task_action_config(args)
+	source = Path(config["source_root"])
+	task = load_state(slot, state_path(slot, args.task))
+	if task["project"] is None:
+		raise WorkspaceError(f"{args.task} is standalone; it has no project branch")
+	ensure_task_branch(config, slot, task)
+	ensure_source_clean(source)
+	head = resolved_ref(source, "HEAD")
+	if task_ref(source, args.task, "run") != head:
+		raise WorkspaceError("Telegram HEAD no longer matches the task run ref")
+	if task_ref(source, args.task, "base") is None:
+		raise WorkspaceError("The local task baseline ref is missing")
+	if MIRROR_REMOTE not in run_git(source, "remote").stdout.split():
+		raise WorkspaceError(f"Project branches need a {MIRROR_REMOTE} remote")
+	return config, source, task
+
+
+def remote_branch_tip(repo, remote, branch):
+	return resolved_ref(repo, f"refs/remotes/{remote}/{branch}")
+
+
+def module_branch_tips(source, paths, project, tips):
+	for path in paths:
+		if path not in tips:
+			module = source / path
+			fetch_remote(module, "origin")
+			tips[path] = remote_branch_tip(module, "origin", project)
+	return tips
+
+
+def recorded_modules(source, task_id):
+	return [
+		source / path for path in tree_gitlinks(source, "HEAD")
+		if (source / path / ".git").exists()
+		and task_ref(source / path, task_id, "shared") is not None
+	]
+
+
+def recorded_module_tips_moved(source, task_id, project, rewrite_from):
+	modules = set(recorded_modules(source, task_id))
+	modules.update(
+		source / path for path in changed_gitlinks(source, rewrite_from, "HEAD")
+		if (source / path / ".git").exists()
+	)
+	for module in sorted(modules):
+		fetch_remote(module, "origin")
+		if remote_branch_tip(module, "origin", project) != task_ref(
+			module, task_id, "shared",
+		):
+			return True
+	return False
+
+
+def clear_module_shared_refs(source, task_id):
+	for module in recorded_modules(source, task_id):
+		set_task_ref(module, task_id, "shared", None)
+
+
+def command_project_sync(args):
+	"""Bring this task's work onto the shared project branch.
+
+	The shared tips a sync incorporates are recorded as the task's `shared`
+	refs (in tdesktop and in each project submodule), so that a push after a
+	base rebase leases against exactly what was incorporated. A base rebase
+	keeps the pre-rebase tip as `rewrite-from` until it is published; if the
+	shared branch moves first, that unpublished rewrite is discarded and
+	redone on the new history instead of overwriting it.
+	"""
+	config, source, task = project_task_config(args)
+	project = task["project"]
+	fetch_remote(source, MIRROR_REMOTE)
+	remote_tip = remote_branch_tip(source, MIRROR_REMOTE, project)
+	shared = task_ref(source, args.task, "shared")
+	fix = None
+	if args.base_fix:
+		fix = resolved_ref(source, args.base_fix)
+		if fix is None:
+			raise WorkspaceError(f"Unknown base fix commit: {args.base_fix}")
+	discarded = False
+	head = resolved_ref(source, "HEAD")
+	rewrite_from = task_ref(source, args.task, "rewrite-from")
+	if rewrite_from is not None and remote_tip == head:
+		set_task_ref(source, args.task, "rewrite-from", None)
+	elif rewrite_from is not None and (
+		remote_tip != shared
+		or recorded_module_tips_moved(source, args.task, project, rewrite_from)
+	):
+		protect_worktrees_from_submodule_target(source, rewrite_from)
+		run_git(source, "reset", "--quiet", "--hard", rewrite_from)
+		update_source_submodules(source)
+		set_task_ref(source, args.task, "rewrite-from", None)
+		clear_module_shared_refs(source, args.task)
+		reconcile_task_refs(source, args.task, task["carried_from"])
+		discarded = True
+		fix = None
+	head = resolved_ref(source, "HEAD")
+	base = task_ref(source, args.task, "base")
+	own = linear_commits(source, base, head)
+	ranges = submodule_ranges(source, base, own)
+	tips = module_branch_tips(source, ranges, project, {})
+	targets = {}
+	diverged = False
+	for path, (_, pin) in ranges.items():
+		module = source / path
+		pinned = gitlink_at(source, remote_tip, path) if remote_tip else None
+		tip = tips[path]
+		targets[path] = (
+			tip
+			if tip is not None and (pinned is None or is_ancestor(module, pinned, tip))
+			else pinned
+		)
+		if (
+			remote_tip != head
+			and tip is not None
+			and tip != task_ref(module, args.task, "shared")
+			and not is_ancestor(module, tip, pin)
+		):
+			diverged = True
+	moved = (
+		remote_tip is not None
+		and remote_tip != shared
+		and not is_ancestor(source, remote_tip, head)
+	)
+	synced = False
+	if moved or diverged:
+		head, mapping = rewrite_project_history(
+			source,
+			own,
+			remote_tip if moved else base,
+			ranges,
+			targets,
+		)
+		reconcile_task_refs(source, args.task, task["carried_from"])
+		if fix is not None:
+			fix = mapping.get(fix, fix)
+		synced = True
+	set_task_ref(source, args.task, "shared", remote_tip)
+	rebased = False
+	base_fix = None
+	if args.onto:
+		remote, _, name = args.onto.partition("/")
+		if not name:
+			raise WorkspaceError(f"--onto needs a remote branch, found {args.onto!r}")
+		fetch_remote(source, remote)
+		onto = remote_branch_tip(source, remote, name)
+		if onto is None:
+			raise WorkspaceError(f"Remote branch does not exist: {args.onto}")
+		fork = run_git(source, "merge-base", onto, head).stdout.strip()
+		commits = linear_commits(source, fork, head)
+		reorder = False
+		if fix is not None:
+			if fix not in commits:
+				raise WorkspaceError("The base fix is not a commit of this project branch")
+			others = [commit for commit in commits if commit != fix]
+			fixed = changed_files(source, fix)
+			if gitlink_changes(source, fix) or fixed & set().union(
+				*(changed_files(source, commit) for commit in others)
+			):
+				raise WorkspaceError(
+					"A base fix may touch only files no project commit changes"
+				)
+			reorder = commits[0] != fix
+			commits = [fix] + others
+		if fork != onto or reorder:
+			ranges = submodule_ranges(source, fork, commits)
+			module_branch_tips(source, ranges, project, tips)
+			if task_ref(source, args.task, "rewrite-from") is None:
+				set_task_ref(source, args.task, "rewrite-from", head)
+			head, mapping = rewrite_project_history(
+				source,
+				commits,
+				onto,
+				ranges,
+				{path: gitlink_at(source, onto, path) for path in ranges},
+			)
+			reconcile_task_refs(source, args.task, task["carried_from"])
+			rebased = True
+			if fix is not None and mapping[fix] != onto:
+				base_fix = mapping[fix]
+		elif fix is not None:
+			base_fix = fix
+	for path, tip in tips.items():
+		set_task_ref(source / path, args.task, "shared", tip)
+	print(json.dumps({
+		"task": args.task,
+		"branch": project,
+		"synced": synced,
+		"rebased_onto_base": rebased,
+		"rewrite_discarded": discarded,
+		"build_required": synced or rebased or discarded,
+		"base_fix": base_fix,
+	}, indent=2, sort_keys=True))
+
+
+def push_branch(repo, remote, revision, branch, lease=None, force=False):
+	arguments = ["push", "--quiet", remote]
+	if force:
+		arguments.insert(1, "--force")
+	elif lease is not None:
+		arguments.insert(1, f"--force-with-lease=refs/heads/{branch}:{lease}")
+	push = run_git(
+		repo, *arguments, f"{revision}:refs/heads/{branch}", check=False,
+	)
+	if push.returncode:
+		raise WorkspaceError(
+			f"Pushing {branch} from {repo} was rejected; rerun project-sync: "
+			+ (push.stderr.strip() or push.stdout.strip())
+		)
+
+
+def live_branch_tip(repo, remote, branch):
+	listed = run_git(repo, "ls-remote", remote, f"refs/heads/{branch}").stdout.split()
+	return listed[0] if listed else None
+
+
+def module_publications(source, head, project):
+	"""Top-level submodules whose pinned commit the project branch publishes.
+
+	A pin already on some remote branch needs nothing unless the submodule
+	has a project branch to keep up to date. Nested submodules are not
+	covered, so a pinned nested commit must already be on a remote branch.
+	"""
+	unpublished = run_git(
+		source, "rev-list", head, "--not",
+		f"--exclude={MIRROR_REMOTE}/{MIRROR_BRANCH_PREFIX}*",
+		f"--remotes={MIRROR_REMOTE}", "--remotes=origin",
+	).stdout.split()
+	newest = {}
+	for commit in unpublished:
+		for path, pin in gitlink_changes(source, commit).items():
+			module = source / path
+			if (module / ".git").exists() and (
+				path not in newest or is_ancestor(module, newest[path], pin)
+			):
+				newest[path] = pin
+	result = []
+	for path, pin in tree_gitlinks(source, head).items():
+		module = source / path
+		if not (module / ".git").exists():
+			continue
+		published = pin
+		if path in newest and is_ancestor(module, pin, newest[path]):
+			published = newest[path]
+		for revision in {pin, published}:
+			for nested, nested_pin in tree_gitlinks(module, revision).items():
+				child = module / nested
+				if (child / ".git").exists() and not run_git(
+					child, "branch", "--remotes", "--contains", nested_pin,
+					check=False,
+				).stdout.strip():
+					raise WorkspaceError(
+						f"{path}/{nested} is pinned at a commit on no remote branch; "
+						"project branches cover only top-level submodules, so "
+						"publish that nested commit first"
+					)
+		contained = bool(run_git(
+			module, "branch", "--remotes", "--contains", published,
+		).stdout.strip())
+		if contained and remote_branch_tip(module, "origin", project) is None:
+			continue
+		result.append((path, module, published, contained))
+	return result
+
+
+def command_project_push(args):
+	"""Publish the project branch: submodule branches, then tdesktop.
+
+	After a base rebase the order changes so that nothing shared moves until
+	tdesktop's lease holds: the new submodule commits go first to this
+	checkout's own staging branch _staging/<slug>/<checkout-tag>, outside the
+	project-slug grammar, which makes every pin fetchable, then
+	tdesktop moves, then the submodule project branches.
+	"""
+	config, source, task = project_task_config(args)
+	project = task["project"]
+	fetch_remote(source, MIRROR_REMOTE)
+	head = resolved_ref(source, "HEAD")
+	remote_tip = remote_branch_tip(source, MIRROR_REMOTE, project)
+	shared = task_ref(source, args.task, "shared")
+	rewritten = remote_tip is not None and not is_ancestor(source, remote_tip, head)
+	if rewritten and (not args.rewritten or remote_tip != shared):
+		raise WorkspaceError(
+			f"{MIRROR_REMOTE}/{project} has commits this branch lacks; rerun project-sync"
+		)
+	publications = module_publications(source, head, project)
+	if rewritten:
+		staging = f"_staging/{project}/{config['checkout_tag']}"
+		for _, module, pin, contained in publications:
+			if not contained:
+				push_branch(module, "origin", pin, staging, force=True)
+		push_branch(source, MIRROR_REMOTE, head, project, lease=shared)
+	modules = []
+	for path, module, pin, contained in publications:
+		fetch_remote(module, "origin")
+		tip = remote_branch_tip(module, "origin", project)
+		if tip is None:
+			if contained:
+				continue
+			push_branch(module, "origin", pin, project)
+		elif tip == pin or is_ancestor(module, pin, tip):
+			continue
+		elif is_ancestor(module, tip, pin):
+			push_branch(module, "origin", pin, project)
+		elif args.rewritten and (
+			tip == task_ref(module, args.task, "shared")
+			# Nobody published on top of this rewrite, so a commit there that
+			# the shared tdesktop branch does not pin is another checkout's
+			# unpublished half, which that checkout replays at its next sync.
+			or live_branch_tip(source, MIRROR_REMOTE, project) == head
+		):
+			push_branch(module, "origin", pin, project, lease=tip)
+		else:
+			raise WorkspaceError(
+				f"{path} branch {project} moved since project-sync; rerun project-sync"
+			)
+		modules.append(path)
+	if args.base_fix:
+		remote, _, name = (args.base or "").partition("/")
+		if not name:
+			raise WorkspaceError("--base-fix needs --base naming the remote branch")
+		fix = resolved_ref(source, args.base_fix)
+		fetch_remote(source, remote)
+		base_tip = remote_branch_tip(source, remote, name)
+		if base_tip != fix:
+			if resolved_ref(source, f"{fix}^") != base_tip:
+				raise WorkspaceError(
+					f"{args.base} moved past the base fix; rerun project-sync --onto"
+				)
+			push_branch(source, remote, fix, name)
+	if not rewritten:
+		push_branch(source, MIRROR_REMOTE, head, project)
+	set_task_ref(source, args.task, "shared", None)
+	set_task_ref(source, args.task, "rewrite-from", None)
+	clear_module_shared_refs(source, args.task)
+	print(json.dumps({
+		"task": args.task,
+		"branch": project,
+		"pushed": True,
+		"rewritten": rewritten,
+		"submodules": sorted(modules),
+		"base_fix_pushed": bool(args.base_fix),
+	}, indent=2, sort_keys=True))
+
+
+def wip_repositories(repo):
+	"""Repositories under repo to save, children before parents.
+
+	A repository with changes is saved. A clean submodule is saved too when
+	its HEAD moved from the pin its parent last committed and is on no remote
+	branch, so the parent's snapshot never pins a commit nobody can fetch.
+	"""
+	result = []
+	for path in indexed_gitlinks(repo):
+		module = Path(repo) / path
+		if module.resolve() != module or is_linked_worktree(repo, path + "/"):
+			raise WorkspaceError(
+				f"Cannot save {module}: it is a symlink or another checkout's worktree"
+			)
+		if not (module / ".git").exists():
+			continue
+		nested = wip_repositories(module)
+		if (
+			not nested
+			and resolved_ref(module, "HEAD") != gitlink_at(repo, "HEAD", path)
+			and not run_git(
+				module, "branch", "--remotes", "--contains", "HEAD",
+			).stdout.strip()
+		):
+			nested = [module]
+		result.extend(nested)
+	if source_changed_paths(repo):
+		result.append(Path(repo))
+	return result
+
+
+def command_wip_save(args):
+	"""Save source changes nobody can account for and leave the checkout clean.
+
+	Each repository to save, submodules before their parents, commits its
+	staged part and then its working tree on a detached HEAD and pushes the
+	result to a new branch wip/<branch>/<checkout-tag>/<time>: tdesktop to
+	private, submodules to their origin. An ignored working copy of a staged
+	deletion is never published; it is copied to ai-wip/<time>/ in the git
+	directory instead. Any failure, cancellation included, returns every
+	repository to its branch, index and working-tree contents.
+	"""
+	config = worktree_config(args, create=True)
+	source = Path(config["source_root"]).resolve()
+	repositories = wip_repositories(source)
+	if not repositories:
+		print(json.dumps({"saved": False}, indent=2, sort_keys=True))
+		return
+	for repo in repositories:
+		protect_worktrees_from_submodule_target(repo, "HEAD")
+		tracked = set(literal_paths(repo, "ls-tree", "-r", "--name-only", "HEAD"))
+		for ignored in literal_paths(
+			repo, "ls-files", "--others", "--ignored", "--exclude-standard",
+			"--directory",
+		):
+			parts = ignored.rstrip("/").split("/")
+			for depth in range(1, len(parts) + 1):
+				prefix = "/".join(parts[:depth])
+				if prefix in tracked and prefix != ignored:
+					raise WorkspaceError(
+						f"Cannot save {repo}: ignored {ignored} lies where HEAD "
+						f"tracks the file {prefix}, so cleaning would delete it"
+					)
+	branch = current_branch(source) or "detached"
+	stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+	name = f"wip/{branch}/{config['checkout_tag']}/{stamp}"
+	message = f"WIP on {branch} from {config['checkout_tag']}\n\n{args.reason}"
+	backups = Path(run_git(
+		source, "rev-parse", "--path-format=absolute", "--git-common-dir",
+	).stdout.strip()) / "ai-wip"
+	states = []
+	copies = []
+	with git_safe_termination():
+		save_wip(
+			source, repositories, name, message, stamp, config["checkout_tag"],
+			backups, states, copies,
+		)
+	print(json.dumps({
+		"saved": True,
+		"branch": name,
+		"repositories": [
+			"." if repo == source else repo.relative_to(source).as_posix()
+			for repo in repositories
+		],
+		"local_copies": [str(copy) for _, copy in copies],
+	}, indent=2, sort_keys=True))
+
+
+def save_wip(source, repositories, name, message, stamp, tag, backups, states, copies):
+	local = None
+	try:
+		for repo in repositories:
+			state = {
+				"repo": repo,
+				"branch": current_branch(repo),
+				"head": resolved_ref(repo, "HEAD"),
+				"index": run_git(repo, "write-tree").stdout.strip(),
+				"snapshot": None,
+			}
+			states.append(state)
+			for path, staged in indexed_gitlinks(repo).items():
+				child = repo / path
+				if (
+					(child / ".git").exists()
+					and staged not in (
+						gitlink_at(repo, "HEAD", path), resolved_ref(child, "HEAD"),
+					)
+					and not run_git(
+						child, "branch", "--remotes", "--contains", staged,
+						check=False,
+					).stdout.strip()
+				):
+					push_branch(child, "origin", staged, f"{name}-staged")
+			run_git(repo, "checkout", "--quiet", "--detach")
+			if run_git(repo, "diff", "--cached", "--quiet", check=False).returncode:
+				run_git(repo, "commit", "--quiet", "-m", f"{message}\n\nStaged part.")
+				for path in literal_paths(
+					repo, "diff", "--name-only", "--no-renames", "--diff-filter=D",
+					state["head"], "HEAD",
+				):
+					if os.path.lexists(repo / path) and not run_git(
+						repo, "check-ignore", "--quiet", "--", path, check=False,
+					).returncode:
+						if local is None:
+							backups.mkdir(parents=True, exist_ok=True)
+							local = Path(tempfile.mkdtemp(
+								prefix=f"{stamp}-{tag}-", dir=backups,
+							))
+						copy = local / repo.relative_to(source) / path
+						copy.parent.mkdir(parents=True, exist_ok=True)
+						shutil.copy2(repo / path, copy, follow_symlinks=False)
+						copies.append((repo / path, copy))
+			dirty = source_changed_paths(repo)
+			if dirty:
+				run_git(repo, "--literal-pathspecs", "add", "--all", "--", *dirty)
+			if run_git(repo, "diff", "--cached", "--quiet", check=False).returncode:
+				run_git(repo, "commit", "--quiet", "-m", message)
+			push_branch(
+				repo, MIRROR_REMOTE if repo == source else "origin", "HEAD", name,
+			)
+			state["snapshot"] = resolved_ref(repo, "HEAD")
+		for state in reversed(states):
+			if state["branch"] is not None:
+				run_git(state["repo"], "checkout", "--quiet", "--force", state["branch"])
+			else:
+				run_git(
+					state["repo"], "checkout", "--quiet", "--force", "--detach",
+					state["head"],
+				)
+		update_source_submodules(source)
+		ensure_source_clean(source)
+	except BaseException:
+		for state in reversed(states):
+			repo = state["repo"]
+			if state["snapshot"] is not None:
+				run_git(
+					repo, "checkout", "--quiet", "--force", "--detach",
+					state["snapshot"],
+				)
+			run_git(repo, "reset", "--quiet", "--mixed", state["head"])
+			run_git(repo, "read-tree", state["index"])
+			if state["branch"] is not None:
+				run_git(repo, "checkout", "--quiet", state["branch"])
+		for original, copy in copies:
+			original.parent.mkdir(parents=True, exist_ok=True)
+			shutil.copy2(copy, original, follow_symlinks=False)
+		raise
+
+
 def run_git_binary(path, *args):
-	result = subprocess.run(
+	result = run_git_process(
 		["git", "-C", str(path), *args],
 		stdout=subprocess.PIPE,
 		stderr=subprocess.PIPE,
@@ -2334,7 +3218,33 @@ def kill_processes_with_executable(exe):
 
 
 @contextlib.contextmanager
-def executable_killed_on_abort(exe):
+def git_safe_termination():
+	"""Raise SIGTERM, SIGHUP and SIGINT only between git commands.
+
+	Raising inside subprocess.run would kill a git command that may hold a
+	lock, leaving a repository the rollback cannot restore.
+	"""
+	replaced = {}
+	if threading.current_thread() is threading.main_thread():
+		def defer(signum, frame):
+			_TERMINATION["pending"] = signum
+			raise_pending_termination()
+		for name in ("SIGTERM", "SIGHUP", "SIGINT"):
+			number = getattr(signal, name, None)
+			if number is not None and signal.getsignal(number) in (
+				signal.SIG_DFL, signal.default_int_handler,
+			):
+				replaced[number] = signal.signal(number, defer)
+	try:
+		yield
+	finally:
+		for number, previous in replaced.items():
+			signal.signal(number, previous)
+
+
+@contextlib.contextmanager
+def termination_raises():
+	"""Turn SIGTERM and SIGHUP into SystemExit so cleanup handlers still run."""
 	replaced = {}
 	if threading.current_thread() is threading.main_thread():
 		for name in ("SIGTERM", "SIGHUP"):
@@ -2345,13 +3255,20 @@ def executable_killed_on_abort(exe):
 				)
 	try:
 		yield
-	except BaseException:
-		# a background client is not test-run's child: a group or tree kill of test-run misses it
-		kill_processes_with_executable(exe)
-		raise
 	finally:
 		for number, previous in replaced.items():
 			signal.signal(number, previous)
+
+
+@contextlib.contextmanager
+def executable_killed_on_abort(exe):
+	with termination_raises():
+		try:
+			yield
+		except BaseException:
+			# a background client is not test-run's child: a group or tree kill of test-run misses it
+			kill_processes_with_executable(exe)
+			raise
 
 
 def windows_process_records():
@@ -5893,6 +6810,55 @@ def command_route_ensure(args):
 	}, indent=2, sort_keys=True))
 
 
+def ensure_routing_valid(worktree):
+	ensure_revisions_unclaimed(worktree)
+	states = load_states(worktree)
+	superseded = load_superseded(worktree)
+	validate_dependency_graph(states)
+	validate_superseded_graph(worktree, states, superseded)
+	validate_split_graph(worktree, states, superseded, load_splits(worktree))
+
+
+def ensure_revisions_unclaimed(worktree):
+	revised = set()
+	for path in literal_paths(
+		worktree, "diff", "--name-only", "--no-renames", "master", "HEAD",
+	):
+		parts = path.split("/")
+		if (
+			len(parts) == 6
+			and parts[0] == "tasks"
+			and parts[5] in ("task.md", "state.yaml")
+		):
+			revised.add("/".join(parts[1:5]))
+	for task_id in sorted(revised):
+		before = run_git(
+			worktree, "show", f"master:tasks/{task_id}/state.yaml", check=False,
+		)
+		if before.returncode:
+			if not run_git(
+				worktree, "cat-file", "-e", f"master:tasks/{task_id}", check=False,
+			).returncode:
+				raise RebaseConflict(
+					f"{task_id} is retired history; leave its record unchanged"
+				)
+			continue
+		values = dict(
+			(key.strip(), value.strip())
+			for key, _, value in (
+				line.partition(":") for line in before.stdout.splitlines()
+			)
+		)
+		if (
+			parse_scalar(values.get("status", "null")) != "todo"
+			or parse_scalar(values.get("claimed_by", "null")) is not None
+		):
+			raise RebaseConflict(
+				f"{task_id} is no longer unclaimed todo work; drop its revision "
+				"from the routing commit"
+			)
+
+
 def command_route_publish(args):
 	config = routing_worktree_config(args, create=True)
 	worktree = Path(config["routing_worktree"])
@@ -5902,7 +6868,7 @@ def command_route_publish(args):
 	if not changes:
 		if not routing_unpublished_count(config):
 			raise WorkspaceError("The routing worktree has nothing to publish")
-		published = publish_routing(config)
+		published = publish_routing(config, ensure_routing_valid)
 		print(json.dumps({
 			"committed": False,
 			"published": bool(published),
@@ -5954,7 +6920,7 @@ def command_route_publish(args):
 			"-m",
 			f"Route follow-ups from {args.source_task}",
 		)
-	published = publish_routing(config)
+	published = publish_routing(config, ensure_routing_valid)
 	print(json.dumps({
 		"committed": committed,
 		"published": bool(published),
@@ -6271,8 +7237,28 @@ def parse_args():
 	source_verify_commit.set_defaults(handler=command_source_verify_commit)
 
 	source_prepare = subparsers.add_parser("source-prepare")
-	source_prepare.add_argument("--source-root")
+	add_common_arguments(source_prepare)
 	source_prepare.set_defaults(handler=command_source_prepare)
+
+	project_sync = subparsers.add_parser("project-sync")
+	add_common_arguments(project_sync)
+	project_sync.add_argument("--task", required=True)
+	project_sync.add_argument("--onto", metavar="REMOTE/BRANCH")
+	project_sync.add_argument("--base-fix", metavar="COMMIT")
+	project_sync.set_defaults(handler=command_project_sync)
+
+	project_push = subparsers.add_parser("project-push")
+	add_common_arguments(project_push)
+	project_push.add_argument("--task", required=True)
+	project_push.add_argument("--rewritten", action="store_true")
+	project_push.add_argument("--base-fix", metavar="COMMIT")
+	project_push.add_argument("--base", metavar="REMOTE/BRANCH")
+	project_push.set_defaults(handler=command_project_push)
+
+	wip_save = subparsers.add_parser("wip-save")
+	add_common_arguments(wip_save)
+	wip_save.add_argument("--reason", required=True)
+	wip_save.set_defaults(handler=command_wip_save)
 
 	source_preflight = subparsers.add_parser("source-preflight")
 	add_common_arguments(source_preflight)
