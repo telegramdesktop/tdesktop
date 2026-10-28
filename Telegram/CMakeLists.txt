@@ -607,6 +607,7 @@ PRIVATE
     core/local_url_handlers.h
     core/phone_click_handler.cpp
     core/phone_click_handler.h
+    core/private_temp_directory.h
     core/sandbox.cpp
     core/sandbox.h
     core/shortcuts.cpp

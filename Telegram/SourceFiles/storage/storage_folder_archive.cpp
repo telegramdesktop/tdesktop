@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/storage_folder_archive.h"
 
+#include "core/private_temp_directory.h"
 #include "platform/platform_file_utilities.h"
 #include "ui/chat/attach/attach_prepare.h"
 
@@ -155,9 +156,11 @@ private:
 }
 
 [[nodiscard]] QString ArchiveFileTemplate() {
-	const auto directory = ArchiveDirectory();
-	QDir().mkpath(directory);
-	return directory + u"/XXXXXX.zip"_q;
+	const auto directory = Core::PreparePrivateTempDirectory(
+		ArchiveDirectory());
+	return directory.isEmpty()
+		? QString()
+		: (directory + u"/XXXXXX.zip"_q);
 }
 
 [[nodiscard]] QString ArchiveRootName(const QString &folder) {
@@ -309,7 +312,11 @@ void FillEntryDate(const QDateTime &modified, zip_fileinfo *result) {
 		const std::vector<ArchiveEntry> &entries,
 		WriteState &state,
 		int64 limit) {
-	auto temp = QTemporaryFile(ArchiveFileTemplate());
+	const auto fileTemplate = ArchiveFileTemplate();
+	if (fileTemplate.isEmpty()) {
+		return { Status::Failed };
+	}
+	auto temp = QTemporaryFile(fileTemplate);
 	if (!temp.open()) {
 		return { Status::Failed };
 	}
@@ -516,9 +523,13 @@ ArchiveWriteResult WriteArchive(
 
 void ClearStaleArchiveFiles() {
 	crl::async([] {
+		const auto directory = ArchiveDirectory();
+		if (!Core::IsOwnTempDirectory(directory)) {
+			return;
+		}
 		const auto stale = QDateTime::currentDateTime().addSecs(
 			-kStaleArchiveTimeout);
-		const auto entries = QDir(ArchiveDirectory()).entryInfoList(
+		const auto entries = QDir(directory).entryInfoList(
 			QDir::Files | QDir::NoDotAndDotDot);
 		for (const auto &entry : entries) {
 			if (entry.lastModified() < stale) {

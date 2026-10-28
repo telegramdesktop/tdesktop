@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/media_video_encode.h"
 
+#include "core/private_temp_directory.h"
 #include "ffmpeg/ffmpeg_bytes_io_wrap.h"
 #include "ffmpeg/ffmpeg_frame_generator.h"
 #include "ffmpeg/ffmpeg_utility.h"
@@ -304,7 +305,11 @@ struct ColorDescription {
 		return {};
 	}
 
-	auto temp = QTemporaryFile(TempFileTemplate());
+	const auto fileTemplate = TempFileTemplate();
+	if (fileTemplate.isEmpty()) {
+		return {};
+	}
+	auto temp = QTemporaryFile(fileTemplate);
 	if (!temp.open()) {
 		return {};
 	}
@@ -385,7 +390,11 @@ struct ColorDescription {
 	if (mp4.isEmpty()) {
 		return {};
 	}
-	auto temp = QTemporaryFile(TempFileTemplate());
+	const auto fileTemplate = TempFileTemplate();
+	if (fileTemplate.isEmpty()) {
+		return {};
+	}
+	auto temp = QTemporaryFile(fileTemplate);
 	if (!temp.open() || temp.write(mp4) != mp4.size()) {
 		return {};
 	}
@@ -2103,8 +2112,12 @@ struct TranscodeAttempt {
 		}
 	}
 
-	auto temp = QTemporaryFile(
-		Media::Encode::TempFileTemplate(webm ? u"webm"_q : u"mp4"_q));
+	const auto fileTemplate = Media::Encode::TempFileTemplate(
+		webm ? u"webm"_q : u"mp4"_q);
+	if (fileTemplate.isEmpty()) {
+		return {};
+	}
+	auto temp = QTemporaryFile(fileTemplate);
 	if (!temp.open()) {
 		return {};
 	}
@@ -2673,14 +2686,10 @@ crl::time TranscodedDuration(
 }
 
 QString TempFileTemplate(const QString &extension) {
-	const auto directory = TempDirectory();
-	QDir().mkpath(directory);
-	QFile::setPermissions(
-		directory,
-		QFileDevice::ReadUser
-			| QFileDevice::WriteUser
-			| QFileDevice::ExeUser);
-	return directory + u"/XXXXXX."_q + extension;
+	const auto directory = Core::PreparePrivateTempDirectory(TempDirectory());
+	return directory.isEmpty()
+		? QString()
+		: (directory + u"/XXXXXX."_q + extension);
 }
 
 // Frame goes under the cut hole; picture alpha trims it to bubble shape.
@@ -2751,9 +2760,13 @@ Result RunWebmSticker(
 
 void ClearStaleTempFiles() {
 	crl::async([] {
+		const auto directory = TempDirectory();
+		if (!Core::IsOwnTempDirectory(directory)) {
+			return;
+		}
 		const auto stale = QDateTime::currentDateTime().addSecs(
 			-kStaleTempTimeout);
-		const auto entries = QDir(TempDirectory()).entryInfoList(
+		const auto entries = QDir(directory).entryInfoList(
 			QDir::Files | QDir::NoDotAndDotDot);
 		for (const auto &entry : entries) {
 			if (entry.lastModified() < stale) {

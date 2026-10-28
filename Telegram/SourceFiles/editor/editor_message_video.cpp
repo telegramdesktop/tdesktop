@@ -42,8 +42,12 @@ constexpr auto kMaxExtensionLength = 5;
 }
 
 [[nodiscard]] QString TempVideoPath(not_null<DocumentData*> document) {
-	auto temp = QTemporaryFile(
-		Media::Encode::TempFileTemplate(VideoExtension(document)));
+	const auto fileTemplate = Media::Encode::TempFileTemplate(
+		VideoExtension(document));
+	if (fileTemplate.isEmpty()) {
+		return QString();
+	}
+	auto temp = QTemporaryFile(fileTemplate);
 	if (!temp.open()) {
 		return QString();
 	}
