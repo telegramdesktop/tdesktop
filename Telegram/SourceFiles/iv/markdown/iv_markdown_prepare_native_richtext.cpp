@@ -130,6 +130,7 @@ void AddNativeIvPreparedLink(
 		std::vector<PreparedLink> *links,
 		int from,
 		int length,
+		bool replaced,
 		QString target,
 		uint64 webpageId = 0) {
 	if (!length || target.isEmpty()) {
@@ -140,7 +141,7 @@ void AddNativeIvPreparedLink(
 		return;
 	}
 	auto prepared = PreparedLink();
-	if (webpageId) {
+	if (webpageId && !replaced) {
 		prepared.index = uint16(index);
 		prepared.kind = PreparedLinkKind::InstantViewPage;
 		prepared.webpageId = webpageId;
@@ -152,7 +153,10 @@ void AddNativeIvPreparedLink(
 		|| prepared.kind == PreparedLinkKind::LocalFile) {
 		return;
 	}
-	FinalizePreparedUrlLink(&prepared, QStringView(text->text).mid(from, length));
+	// A label partly drawn replaced never shows its target.
+	FinalizePreparedUrlLink(
+		&prepared,
+		replaced ? QStringView() : QStringView(text->text).mid(from, length));
 	if (prepared.kind == PreparedLinkKind::InstantViewPage) {
 		text->entities.push_back(EntityInText(
 			EntityType::Colorized,
@@ -294,10 +298,28 @@ void AppendCanonicalNativeIvRichText(
 	result->text.text.append(source.text);
 	result->text.entities.reserve(
 		result->text.entities.size() + source.entities.size());
+	// A date draws replaced only where a factory renders it.
+	const auto dateFactory = state->result.mediaRuntime
+		&& state->result.mediaRuntime->textContext().formattedDateFactory;
+	auto replacedRanges = ReplacedTextRanges();
+	for (const auto &entity : source.entities) {
+		if (!EntityReplacesText(entity)
+			|| (entity.type() == EntityType::FormattedDate && !dateFactory)
+			|| !entity.validForText(int(source.text.size()))) {
+			continue;
+		}
+		replacedRanges.add(
+			entity.offset(),
+			entity.offset() + entity.length());
+	}
+	replacedRanges.prepare();
 	auto linkRanges = std::vector<std::pair<int, int>>();
 	for (const auto &entity : source.entities) {
 		const auto takesLink = DropNativeIvClickHandlerEntity(entity.type());
 		if (context.dropClickHandlers && takesLink) {
+			continue;
+		} else if (EntityReplacesText(entity)
+			&& !entity.validForText(int(source.text.size()))) {
 			continue;
 		}
 		const auto offset = entity.offset();
@@ -311,6 +333,9 @@ void AppendCanonicalNativeIvRichText(
 			if (!length) {
 				continue;
 			}
+			const auto replaced = replacedRanges.overlaps(
+				offset,
+				offset + length);
 			const auto decoded = Iv::DecodeRichPageLinkUrl(entity.data());
 			const auto count = result->links.size();
 			AddNativeIvPreparedLink(
@@ -318,6 +343,7 @@ void AppendCanonicalNativeIvRichText(
 				&result->links,
 				shift + offset,
 				length,
+				replaced,
 				decoded ? decoded->url : entity.data(),
 				decoded ? decoded->webpageId : 0);
 			if (collect && result->links.size() > count) {
