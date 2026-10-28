@@ -129,6 +129,7 @@ void ThanosEffectController::captureOnRemoval(
 		const auto saved = it->second;
 		_preCaptured.erase(it);
 		if (saved.top >= 0) {
+			ensureScrollBaseline();
 			notePendingRemoval(saved.height, saved.top, saved.dateHeight);
 		}
 		return;
@@ -444,13 +445,7 @@ void ThanosEffectController::shiftGaps(int delta) {
 }
 
 void ThanosEffectController::shiftScrollBaseline(int delta) {
-	// WHY: a relayout between a batch capture and its removals resets the
-	// flag, yet pre-captured removals still collapse against this baseline.
-	const auto inUse = _restoreScrollPending
-		|| !_preCaptured.empty()
-		|| !_pending.empty()
-		|| !_collapseGaps.empty();
-	if (inUse && !_wasAtBottom) {
+	if (_restoreScrollPending && !_wasAtBottom) {
 		_savedScrollTop += delta;
 	}
 }
