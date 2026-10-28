@@ -311,6 +311,14 @@ user to close that checkout's Telegram/debugger before rebuilding.
 1. **Always use Debug builds** - Release builds are extremely heavy
 2. **Don't build Release configuration** - it's too heavy for testing
 
+## Remote CI Build Validation (private-ci)
+
+Fast Debug build checks on Depot.dev (`.github/workflows/private-ci.yml`) run on
+`private-ci/<slug>` branches. Strictly on-demand: never push or babysit CI unless
+the user explicitly asks. Track with `gh run watch`, inspect with
+`gh run view --log-failed`. Amend your commit on your own build error; make a
+separate commit if broken by upstream. Delete the remote branch when green.
+
 ## Debug-Only Code
 
 Production translation units stay free of debug machinery. The permanent test

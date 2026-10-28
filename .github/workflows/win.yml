@@ -2,10 +2,12 @@ name: Windows.
 
 on:
   push:
-    # Pushes to the canary branches run only canary.yml, see there.
+    # Pushes to the canary or private-ci branches run their own workflows.
     branches-ignore:
       - public-canary
       - private-canary
+      - 'private-ci/**'
+      - 'private-ci-*'
     paths-ignore:
       - 'docs/**'
       - '**.md'
