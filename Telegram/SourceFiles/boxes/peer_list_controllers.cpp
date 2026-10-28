@@ -1099,10 +1099,14 @@ void ChooseTopicSearchController::searchOnServer() {
 		MTP_int(kSearchPerPage)
 	)).done([=](const MTPmessages_ForumTopics &result) {
 		_requestId = 0;
+		const auto weak = base::make_weak(this);
 		const auto savedTopicId = _offsetTopicId;
 		const auto byCreation = result.data().is_order_by_create_date();
-		_forum->applyReceivedTopics(result, [&](
+		const auto applied = _forum->applyReceivedTopics(result, [&](
 				not_null<Data::ForumTopic*> topic) {
+			if (!weak) {
+				return;
+			}
 			_offsetTopicId = topic->rootId();
 			if (byCreation) {
 				_offsetDate = topic->creationDate();
@@ -1115,6 +1119,9 @@ void ChooseTopicSearchController::searchOnServer() {
 			}
 			delegate()->peerListSearchAddRow(topic->rootId().bare);
 		});
+		if (!applied || !weak) {
+			return;
+		}
 		if (_offsetTopicId == savedTopicId) {
 			_allLoaded = true;
 		}

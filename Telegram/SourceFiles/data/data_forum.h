@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/weak_ptr.h"
 #include "dialogs/dialogs_main_list.h"
 
 class History;
@@ -34,7 +35,7 @@ struct ForumOffsets {
 		ForumOffsets) = default;
 };
 
-class Forum final {
+class Forum final : public base::has_weak_ptr {
 public:
 	explicit Forum(not_null<History*> history);
 	~Forum();
@@ -70,10 +71,10 @@ public:
 	[[nodiscard]] ForumTopic *enforceTopicFor(MsgId rootId);
 	[[nodiscard]] bool topicDeleted(MsgId rootId) const;
 
-	void applyReceivedTopics(
+	[[nodiscard]] bool applyReceivedTopics(
 		const MTPmessages_ForumTopics &topics,
 		ForumOffsets &updateOffsets);
-	void applyReceivedTopics(
+	[[nodiscard]] bool applyReceivedTopics(
 		const MTPmessages_ForumTopics &topics,
 		Fn<void(not_null<ForumTopic*>)> callback = nullptr);
 	void applyReceivedTopics(
