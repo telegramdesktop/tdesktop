@@ -134,8 +134,11 @@ object_ptr<Window::SectionWidget> ScheduledMemento::createWidget(
 	if (column == Window::Column::Third) {
 		return nullptr;
 	}
-	if (_forumTopic && _forumTopic->dying()) {
-		// A back navigation inside the topic's destruction must not rebuild it.
+	if (_forumTopic
+		&& (_forumTopic->dying() || _forumTopic->creating())) {
+		// WHY: a back navigation inside a dying topic's destruction must not
+		// rebuild it, and a topic being created is discarded, without
+		// destroyed(), by the chat this section replaces.
 		auto memento = ChatMemento(ChatViewId{ .history = _history });
 		return memento.createWidget(parent, controller, column, geometry);
 	}
