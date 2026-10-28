@@ -93,8 +93,12 @@ struct ChatListPlaceArgs {
 	crl::time timeout = crl::time(10000);
 };
 
-// Every refusal's reason and row carry each message's last geometry and
-// its reading, asked once more on the deciding sample.
+// Every refusal's CHAT_LIST_PLACE row carries each message's last
+// geometry and reading (element=none, visible=none when never read), each
+// alive message's reading asked once more on the deciding sample unless
+// the refusal is no-list. The reasons of cannot-fit and cannot-move-off
+// carry them for every message, that of reading-disagrees for each
+// message that disagreed; other reasons may carry less: read the row.
 // - no-list: no list, not one of the three lists, not owned by a
 //   Ui::ElasticScroll, or destroyed while the helper waited;
 // - no-target: no message id, an id the list's session does not know, or

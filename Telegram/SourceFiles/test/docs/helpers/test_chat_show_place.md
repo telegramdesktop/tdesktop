@@ -287,13 +287,20 @@ that no scroll, inner-resize or geometry signal announced can pass unseen.
   `window=` lists every mark inside the window, `sinceMs` from `from`, `-`
   for a reading not asked (a destroyed message).
 
-**Placement refusals.** Every reason and row carry each message's last
-geometry and its reading, asked once more on the deciding sample. Before
-the deadline the stage decides only an acceptance, the run's resolution
-refusals, a list or message destroyed while it waited, `cannot-fit` and
-`cannot-move-off`; at the deadline the first of `no-view`, `cannot-fit`,
-`cannot-move-off`, `out-of-place` and `reading-disagrees` that applies
-names the last sample.
+**Placement refusals.** The `CHAT_LIST_PLACE:` row always carries each
+message's last geometry and reading (`element=none`, `visible=none` when
+never read), each alive message's reading asked once more on the deciding
+sample for every refusal but `no-list`. The reasons of `cannot-fit` and
+`cannot-move-off` carry them for every message, that of
+`reading-disagrees` for each message that disagreed. Of the other reasons
+only `no-target` for a message destroyed while the stage waited and
+`no-view` at the deadline carry them, and `out-of-place` naming a message
+not placed carries those of the messages against the placement; otherwise
+read the row. Before the deadline the stage decides only an acceptance,
+the run's resolution refusals, a list or message destroyed while it
+waited, `cannot-fit` and `cannot-move-off`; at the deadline the first of
+`no-view`, `cannot-fit`, `cannot-move-off`, `out-of-place` and
+`reading-disagrees` that applies names the last sample.
 
 | Refusal | Meaning |
 | --- | --- |
@@ -427,16 +434,31 @@ timer (both feed one record); the placement refusals `out-of-place`,
 `no-list`, `no-target` and `no-view`, the horizontal `cannot-fit` branch and
 `cannot-move-off` below; the stay's `not-placed` and its record-ended
 `did-not-stay`. Proposed, not part of the self-test and not run: a
-disposable mutation build without the record timer and the queued samples
-(an ends-only record), under which the `moved away and back` judge must
-FAIL.
+disposable mutation build whose record samples only when a stay decides
+(no 100 ms timer and no queued samples; the stay's until takes one record
+sample once its window's end has passed), an ends-only record on which
+`moved away and back` stays over the excursion, so its judge must FAIL.
+Removing the timer and the queued samples alone would not reach that
+judge: `stayed on` would never see a sample at its window's end and would
+time out.
 
-**Evidence.** Built for macOS arm64 Debug. The self-test has not run yet;
-the evidence campaign of
+**Evidence.** Executed on macOS arm64 Debug against the Test account's
+Saved Messages in the legacy `HistoryInner`, in the evidence campaign of
 `2026/10/27/show-or-scroll-off-several-chat-list-messages-and-prove-they-stayed-in-the-harness`
-records it in that task's `work/test.md`, and until then no leg has an
-executed result. No consumer uses the helper yet; Windows and the other
-platforms have not built it, though the code is portable.
+(its `work/test.md`). All 73 Checks of the run's 36 stages passed, 72 of
+them the self-test's and one the overlay's chat gate, with no stage
+timeout and no `N/A`, so every leg passed: the accepted `on together`,
+`off below` and `off above`; the held `stayed on`, `stayed off below` and
+`stayed off above`; `did-not-stay` for `moved away and back` and
+`reading-disagrees` for `reading flipped`, each on a record that had just
+held; `reading-disagrees` for `stale reading`, `cannot-fit` for
+`cannot fit` and `cannot-move-off` for `cannot move off`; and the
+excursion's and the snapshot's gates. The cards' readings came from live
+runtimes' `queryVisible()` (`source=runtime state=live`), which the
+`snapshot` and `flip` readings derive from. The console was locked during
+the run, which no oracle depends on: no Check reads pixels or focus. No
+consumer uses the helper yet; Windows and the other platforms have not
+built it, though the code is portable.
 
 ## Related guidance
 
