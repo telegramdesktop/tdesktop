@@ -356,6 +356,7 @@ private:
 	void refreshDialogRow(RowDescriptor row);
 	bool updateEntryHeight(not_null<Entry*> entry);
 	void showSponsoredMenu(int peerSearchIndex, QPoint globalPos);
+	void closeMenuForRemovedRow();
 
 	void clearMouseSelection(bool clearSelection = false);
 	void deselectAllRows();
