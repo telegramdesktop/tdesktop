@@ -247,6 +247,39 @@ template <typename T>
 	return { Ui::FillAmountAndCurrency(amount, currency) };
 }
 
+[[nodiscard]] PreparedServiceText PrepareGiftCostText(
+		not_null<PeerData*> from,
+		not_null<PeerData*> peer,
+		bool isSelf,
+		int64 amount,
+		const QString &currency) {
+	auto result = PreparedServiceText();
+	const auto cost = AmountAndStarCurrency(amount, currency);
+	const auto anonymous = from->isServiceUser();
+	if (anonymous) {
+		result.text = tr::lng_action_gift_received_anonymous(
+			tr::now,
+			lt_cost,
+			cost,
+			tr::marked);
+	} else {
+		result.links.push_back(peer->createOpenLink());
+		result.text = isSelf
+			? tr::lng_action_gift_sent(tr::now,
+				lt_cost,
+				cost,
+				tr::marked)
+			: tr::lng_action_gift_received(
+				tr::now,
+				lt_user,
+				tr::link(peer->shortName(), 1), // Link 1.
+				lt_cost,
+				cost,
+				tr::marked);
+	}
+	return result;
+}
+
 [[nodiscard]] bool IsNavigableForInstantViewMedia(
 		DocumentData *document) {
 	Expects(document != nullptr);
@@ -6861,37 +6894,16 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 
 	auto prepareGiftPremium = [&](
 			const MTPDmessageActionGiftPremium &action) {
-		auto result = PreparedServiceText();
 		const auto session = &_history->session();
 		const auto isSelf = _from->isSelf();
 		const auto peer = isSelf ? _history->peer : _from;
 		session->giftBoxStickersPacks().load();
-		const auto amount = action.vamount().v;
-		const auto currency = qs(action.vcurrency());
-		const auto cost = AmountAndStarCurrency(amount, currency);
-		const auto anonymous = _from->isServiceUser();
-		if (anonymous) {
-			result.text = tr::lng_action_gift_received_anonymous(
-				tr::now,
-				lt_cost,
-				cost,
-				tr::marked);
-		} else {
-			result.links.push_back(peer->createOpenLink());
-			result.text = isSelf
-				? tr::lng_action_gift_sent(tr::now,
-					lt_cost,
-					cost,
-					tr::marked)
-				: tr::lng_action_gift_received(
-					tr::now,
-					lt_user,
-					tr::link(peer->shortName(), 1), // Link 1.
-					lt_cost,
-					cost,
-					tr::marked);
-		}
-		return result;
+		return PrepareGiftCostText(
+			_from,
+			peer,
+			isSelf,
+			action.vamount().v,
+			qs(action.vcurrency()));
 	};
 
 	auto prepareTopicCreate = [&](const MTPDmessageActionTopicCreate &action) {
@@ -7224,70 +7236,28 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 
 	auto prepareGiftStars = [&](
 			const MTPDmessageActionGiftStars &action) {
-		auto result = PreparedServiceText();
 		const auto isSelf = (_from->id == _from->session().userPeerId());
 		const auto peer = isSelf ? _history->peer : _from;
 		_history->session().giftBoxStickersPacks().load();
-		const auto amount = action.vamount().v;
-		const auto currency = qs(action.vcurrency());
-		const auto cost = AmountAndStarCurrency(amount, currency);
-		const auto anonymous = _from->isServiceUser();
-		if (anonymous) {
-			result.text = tr::lng_action_gift_received_anonymous(
-				tr::now,
-				lt_cost,
-				cost,
-				tr::marked);
-		} else {
-			result.links.push_back(peer->createOpenLink());
-			result.text = isSelf
-				? tr::lng_action_gift_sent(tr::now,
-					lt_cost,
-					cost,
-					tr::marked)
-				: tr::lng_action_gift_received(
-					tr::now,
-					lt_user,
-					tr::link(peer->shortName(), 1), // Link 1.
-					lt_cost,
-					cost,
-					tr::marked);
-		}
-		return result;
+		return PrepareGiftCostText(
+			_from,
+			peer,
+			isSelf,
+			action.vamount().v,
+			qs(action.vcurrency()));
 	};
 
 	auto prepareGiftTon = [&](
 			const MTPDmessageActionGiftTon &action) {
-		auto result = PreparedServiceText();
 		const auto isSelf = (_from->id == _from->session().userPeerId());
 		const auto peer = isSelf ? _history->peer : _from;
 		_history->session().giftBoxStickersPacks().tonLoad();
-		const auto amount = action.vamount().v;
-		const auto currency = qs(action.vcurrency());
-		const auto cost = AmountAndStarCurrency(amount, currency);
-		const auto anonymous = _from->isServiceUser();
-		if (anonymous) {
-			result.text = tr::lng_action_gift_received_anonymous(
-				tr::now,
-				lt_cost,
-				cost,
-				tr::marked);
-		} else {
-			result.links.push_back(peer->createOpenLink());
-			result.text = isSelf
-				? tr::lng_action_gift_sent(tr::now,
-					lt_cost,
-					cost,
-					tr::marked)
-				: tr::lng_action_gift_received(
-					tr::now,
-					lt_user,
-					tr::link(peer->shortName(), 1), // Link 1.
-					lt_cost,
-					cost,
-					tr::marked);
-		}
-		return result;
+		return PrepareGiftCostText(
+			_from,
+			peer,
+			isSelf,
+			action.vamount().v,
+			qs(action.vcurrency()));
 	};
 
 	auto prepareGiftPrize = [&](
