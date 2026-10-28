@@ -80,6 +80,16 @@ const style::InfoTopBar &TopBarStyle(Wrap wrap) {
 			&& controller->key().storiesPeer()->isSelf());
 }
 
+[[nodiscard]] bool CloseWindowRootedAt(
+		not_null<Window::SessionController*> controller,
+		not_null<Data::Thread*> thread) {
+	if (controller->windowId().thread != thread) {
+		return false;
+	}
+	Core::App().closeWindow(&controller->window());
+	return true;
+}
+
 [[nodiscard]] Fn<Ui::StringWithNumbers(int)> SelectedTitleForMedia(
 		Section::MediaType type) {
 	return [type](int count) {
@@ -153,17 +163,21 @@ WrapWidget::WrapWidget(
 
 void WrapWidget::subscribeToThreadDestroyed() {
 	_threadDestroyedLifetime.destroy();
-	_mementoThreadLifetime = nullptr;
+	_mementoThreadLifetimes.clear();
 	if (const auto topic = _controller->topic()) {
-		_mementoThreadLifetime = Memento::WatchThread(
+		_mementoThreadLifetimes.push_back(Memento::WatchThread(
 			topic,
-			topic->destroyed());
+			topic->destroyed()));
 		topic->destroyed(
 		) | rpl::on_next([=] {
 			if (_wrap.current() == Wrap::Layer) {
 				_controller->parentController()->hideSpecialLayer();
 			} else if (_wrap.current() == Wrap::Narrow) {
-				_controller->parentController()->showBackFromStack(
+				const auto parent = _controller->parentController();
+				if (CloseWindowRootedAt(parent, topic)) {
+					return;
+				}
+				parent->showBackFromStack(
 					Window::SectionShow(
 						anim::type::normal,
 						anim::activation::background));
@@ -172,14 +186,17 @@ void WrapWidget::subscribeToThreadDestroyed() {
 			}
 		}, _threadDestroyedLifetime);
 	} else if (const auto sublist = _controller->sublist()) {
-		_mementoThreadLifetime = Memento::WatchThread(
+		_mementoThreadLifetimes.push_back(Memento::WatchThread(
 			sublist,
-			sublist->destroyed());
+			sublist->destroyed()));
 		sublist->destroyed(
 		) | rpl::on_next([=] {
+			const auto parent = _controller->parentController();
+			if (CloseWindowRootedAt(parent, sublist)) {
+				return;
+			}
 			auto keep = base::take(_threadDestroyedLifetime);
 			auto removeRequests = base::take(_removeRequests);
-			const auto parent = _controller->parentController();
 			parent->hideSpecialLayer();
 			parent->showBackFromStack(
 				Window::SectionShow(
@@ -190,6 +207,50 @@ void WrapWidget::subscribeToThreadDestroyed() {
 				anim::type::instant));
 			removeRequests.fire({});
 		}, _threadDestroyedLifetime);
+	}
+	subscribeToStackThreadsDestroyed();
+}
+
+void WrapWidget::subscribeToStackThreadsDestroyed() {
+	auto topics = base::flat_set<not_null<Data::ForumTopic*>>();
+	auto sublists = base::flat_set<not_null<Data::SavedSublist*>>();
+	for (const auto &item : _historyStack) {
+		if (const auto topic = item.section->topic()) {
+			topics.emplace(topic);
+		} else if (const auto sublist = item.section->sublist()) {
+			sublists.emplace(sublist);
+		}
+	}
+	const auto remove = [=](not_null<Data::Thread*> thread) {
+		removeThreadFromStack(thread);
+	};
+	for (const auto &topic : topics) {
+		_mementoThreadLifetimes.push_back(Memento::WatchThread(
+			topic,
+			topic->destroyed(),
+			remove));
+	}
+	for (const auto &sublist : sublists) {
+		_mementoThreadLifetimes.push_back(Memento::WatchThread(
+			sublist,
+			sublist->destroyed(),
+			remove));
+	}
+}
+
+void WrapWidget::removeThreadFromStack(not_null<Data::Thread*> thread) {
+	const auto was = _historyStack.size();
+	for (auto i = begin(_historyStack); i != end(_historyStack);) {
+		const auto content = i->section.get();
+		if ((content->topic() == thread) || (content->sublist() == thread)) {
+			i = _historyStack.erase(i);
+		} else {
+			++i;
+		}
+	}
+	if (_historyStack.size() != was && !hasStackHistory() && _content) {
+		setupTop();
+		finishShowContent();
 	}
 }
 
@@ -948,7 +1009,7 @@ std::shared_ptr<Window::SectionMemento> WrapWidget::createMemento() {
 
 	return std::make_shared<Memento>(
 		std::move(stack),
-		base::take(_mementoThreadLifetime));
+		base::take(_mementoThreadLifetimes));
 }
 
 SendMenu::Details WrapWidget::sendMenuDetails() const {

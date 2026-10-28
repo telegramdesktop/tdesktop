@@ -49,6 +49,7 @@ class WrapWidget;
 
 struct MementoThreadLifetime {
 	Memento *memento = nullptr;
+	Fn<void(not_null<Data::Thread*>)> removeFromWrap;
 	rpl::lifetime lifetime;
 };
 
@@ -69,7 +70,8 @@ public:
 		Data::ReactionId selected);
 	explicit Memento(
 		std::vector<std::shared_ptr<ContentMemento>> stack,
-		std::unique_ptr<MementoThreadLifetime> threadLifetime = nullptr);
+		std::vector<std::unique_ptr<MementoThreadLifetime>> threadLifetimes
+			= {});
 
 	object_ptr<Window::SectionWidget> createWidget(
 		QWidget *parent,
@@ -102,7 +104,8 @@ public:
 		Storage::SharedMediaType mediaTab);
 	[[nodiscard]] static std::unique_ptr<MementoThreadLifetime> WatchThread(
 		not_null<Data::Thread*> thread,
-		rpl::producer<> destroyed);
+		rpl::producer<> destroyed,
+		Fn<void(not_null<Data::Thread*>)> removeFromWrap = nullptr);
 
 	~Memento();
 
@@ -146,7 +149,7 @@ private:
 	[[nodiscard]] History *removeDyingContent();
 
 	std::vector<std::shared_ptr<ContentMemento>> _stack;
-	std::unique_ptr<MementoThreadLifetime> _threadLifetime;
+	std::vector<std::unique_ptr<MementoThreadLifetime>> _threadLifetimes;
 	std::vector<base::weak_ptr<Data::Thread>> _prunedThreads;
 	rpl::event_stream<> _removeRequests;
 	rpl::lifetime _lifetime;

@@ -105,11 +105,12 @@ Memento::Memento(
 
 Memento::Memento(
 	std::vector<std::shared_ptr<ContentMemento>> stack,
-	std::unique_ptr<MementoThreadLifetime> threadLifetime)
+	std::vector<std::unique_ptr<MementoThreadLifetime>> threadLifetimes)
 : _stack(std::move(stack))
-, _threadLifetime(std::move(threadLifetime)) {
-	if (_threadLifetime) {
-		_threadLifetime->memento = this;
+, _threadLifetimes(std::move(threadLifetimes)) {
+	for (const auto &threadLifetime : _threadLifetimes) {
+		threadLifetime->memento = this;
+		threadLifetime->removeFromWrap = nullptr;
 	}
 	auto topics = base::flat_set<not_null<Data::ForumTopic*>>();
 	auto sublists = base::flat_set<not_null<Data::SavedSublist*>>();
@@ -136,9 +137,11 @@ Memento::Memento(
 
 std::unique_ptr<MementoThreadLifetime> Memento::WatchThread(
 		not_null<Data::Thread*> thread,
-		rpl::producer<> destroyed) {
+		rpl::producer<> destroyed,
+		Fn<void(not_null<Data::Thread*>)> removeFromWrap) {
 	auto result = std::make_unique<MementoThreadLifetime>();
 	const auto raw = result.get();
+	raw->removeFromWrap = std::move(removeFromWrap);
 
 	// WHY: made when the content is shown, before any section opened from
 	// it subscribes, so the saved memento drops the thread before such a
@@ -148,6 +151,8 @@ std::unique_ptr<MementoThreadLifetime> Memento::WatchThread(
 	) | rpl::on_next([=] {
 		if (const auto memento = raw->memento) {
 			memento->removeThread(thread);
+		} else if (const auto callback = raw->removeFromWrap) {
+			callback(thread);
 		}
 	}, raw->lifetime);
 	return result;

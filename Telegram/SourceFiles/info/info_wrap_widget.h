@@ -190,6 +190,8 @@ private:
 		not_null<ContentMemento*> memento,
 		const Window::SectionShow &params);
 	void subscribeToThreadDestroyed();
+	void subscribeToStackThreadsDestroyed();
+	void removeThreadFromStack(not_null<Data::Thread*> thread);
 	bool returnToFirstStackFrame(
 		not_null<ContentMemento*> memento,
 		const Window::SectionShow &params);
@@ -247,7 +249,7 @@ private:
 	std::vector<StackItem> _historyStack;
 	rpl::event_stream<> _removeRequests;
 	rpl::lifetime _threadDestroyedLifetime;
-	std::unique_ptr<MementoThreadLifetime> _mementoThreadLifetime;
+	std::vector<std::unique_ptr<MementoThreadLifetime>> _mementoThreadLifetimes;
 	bool _shortcutsSetup = false;
 
 	rpl::event_stream<rpl::producer<int>> _desiredHeights;
