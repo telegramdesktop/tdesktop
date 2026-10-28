@@ -167,7 +167,10 @@ Use something else when:
   (`summary-multiple-hosts`), and a host replaced between its first
   `visible` action and a later one is `host-replaced`.
 - **Time.** Every wait ends in its stage with a named reading: 8 s layout,
-  10 s per show, 20 s result, 350 ms gaps, the planned time of each timed
+  10 s per show, 8 s per floating-date wait before a capture (accepted after
+  3.35 s of an unchanged scroll, so each snapshot and band costs at least
+  that: about 80 s for a launch of 16 snapshots and 8 bands), 20 s result,
+  350 ms gaps, the planned time of each timed
   sequence, 4 s per palette settle, 4 s theme and visibility waits, 10 s done,
   3 s log, 10 s host barrier, each with `kDefaultStageTimeout` more as the
   stage timeout. The runner's watchdog (`TDESKTOP_TEST_WATCHDOG`, at most
@@ -258,9 +261,11 @@ stages; the show helper's stages are `show in chat list: widget conformance
     ([Actions](#actions)), `<key>: close the last action` and `<key>: wait
     for done after the actions`;
   - with stages in its theme: `show in chat list: widget conformance <key>
-    snapshot` and `<key>: snapshot the stages at 2x and crop them`;
+    snapshot`, `<key>: wait out the floating date before the snapshot` and
+    `<key>: snapshot the stages at 2x and crop them`;
   - with a requested picture, per band 0 and 1: `show in chat list: widget
-    conformance <key> picture band <band>` and `<key>: capture picture band
+    conformance <key> picture band <band>`, `<key>: wait out the floating
+    date before picture band <band>` and `<key>: capture picture band
     <band> at 2x` ([pictures](#pictures));
   - `<key>: read the runtime log and the card height` and `<key>: remove the
     message and wait for its hosts`;
@@ -365,11 +370,38 @@ After the actions and the done wait, an auto run with stages in its theme
 gets one snapshot of the union of those stages' rects, in CSS px from the
 widget's top-left, mapped onto the current card. Its show needs
 `WidgetCardReady()` (live, its interactive core current, attached and
-accepting input, a frame cut for the card size) and hovers nothing. The next
-stage revalidates the view, core and geometry, then captures the shown rect
-of the list with `PreparedWidgetCapture` ([test_capture](test_capture.md)):
-the list's own paint, accepted only when visible, non-empty, not blank and a
-valid paint root. The image must be exactly `2w x 2h` of the union's CSS
+accepting input, a frame cut for the card size) and hovers nothing.
+
+The next stage waits out the floating date. When a scroll moves the list
+up, `HistoryInner::scrollDateCheck()` shows the date of the top message
+over the viewport's top and hides it `kScrollDateHideTimeout` (1000 ms)
+later; when a scroll down moves the top message into another day (the
+chat's older messages above the fixture's card, say),
+`scrollDateCheckDownward()` shows it and keeps it for
+`kScrollDateHideOnDayCrossingTimeout` (3000 ms). Either hides with a fade
+of `st::historyDateFadeDuration` (200 ms), and a capture before that paints
+the badge over the card's top rows. So the wait, `AppendDateWait()` in the
+pictures module, samples the show's list's owning `Ui::ElasticScroll` on
+every runner tick from its run and accepts once it read the show's
+accepted `scrollTop` unchanged for 3350 ms (the longer timeout, the fade
+and 150 ms for the coarse timer and the fade's last frame), whichever way
+the list scrolled; any change restarts the count, and an earlier scroll is
+older than the run, so the count from the run is conservative. It is a
+condition, never a fixed sleep, and it reads only: no input, hover or
+scroll. A list or scroll gone, or 8 s without that, ends it unaccepted.
+Each snapshot and band therefore costs at least 3.35 s: launch 1 of
+`2026/10/26/report-the-desktop-conformance-at-widget-sandbox-v0-2-2`
+(16 snapshots and 8 bands) about 80 s more, still under the 600 s
+watchdog. The reading is the snapshot's
+`dateWait`: `{finished: false}` until it ended, then `finished`, `hidden`,
+`shownTop`, `top` (the last reading), `changes`, `stillMs`, `neededMs`,
+`waitedMs` and `detail`.
+
+The stage after it revalidates the view, core and geometry, refuses an
+unaccepted date wait, then captures the shown rect of the list with
+`PreparedWidgetCapture` ([test_capture](test_capture.md)): the list's own
+paint, accepted only when visible, non-empty, not blank and a valid paint
+root. The image must be exactly `2w x 2h` of the union's CSS
 size. It is saved as `cards/<id>.<theme>.png`; in these file names every
 character of the id and the stage name but ASCII letters, digits, `-` and
 `_` becomes `_`.
@@ -383,7 +415,8 @@ The run's stage entry has `crop`, `rect` and `capture` (manifest rect,
 widget rect, origin, pixel rect, logical rect, size). A stage without a crop
 carries only its refusal as `detail`, which `report.mjs` judges as having no
 crop: `not-captured`, `not-2x`, `not-live` (died or did not load),
-`show-refused`, `capture-refused`, `out-of-bounds` (the rect outside the
+`show-refused`, `capture-refused`, `date-not-hidden` (the date wait was not
+accepted; its `detail` names why), `out-of-bounds` (the rect outside the
 painted card or the snapshot), `write-failed`. Any of them fails the totals;
 a skipped crop is never a completed measurement.
 
@@ -411,13 +444,15 @@ taller than the visible area, so one capture cannot hold a card.
   show skipped, and no missing capture.
 - **Show and capture.** After the result wait and before the log and the
   removal, per band: a show of the band's rows on the current card
-  (`WidgetCardLocal()`), with no hover, needing `WidgetCardReady()`; then,
-  in the next stage, the snapshot's revalidation of the view, core, card and
-  geometry the show accepted and one `PreparedWidgetCapture` of the shown
-  rect of the list, its own paint. The image must be exactly `2w x 2h` of
-  the band's CSS size, from the device pixel ratio and the interface scale,
-  and is saved unconverted as `pictures/<id>.<theme>.<band>.png`, its size
-  read back from the file.
+  (`WidgetCardLocal()`), with no hover, needing `WidgetCardReady()`; the
+  snapshot's floating-date wait
+  ([stage snapshot and crops](#stage-snapshot-and-crops)); then, in the
+  stage after it, the snapshot's revalidation of the view, core, card and
+  geometry the show accepted, the date wait's acceptance and one
+  `PreparedWidgetCapture` of the shown rect of the list, its own paint. The
+  image must be exactly `2w x 2h` of the band's CSS size, from the device
+  pixel ratio and the interface scale, and is saved unconverted as
+  `pictures/<id>.<theme>.<band>.png`, its size read back from the file.
 - **One host, one size.** Band 0 is the first capture: it keeps the card's
   CSS size, its interactive core, the tap's host generation and the
   `stages` the widget published then. Band 1 is placed on that card size
@@ -432,7 +467,7 @@ taller than the visible area, so one capture cannot hold a card.
   hold a band among them), `capture-refused` (the revalidation, a card that
   is no whole number of CSS px, another core, generation or card size than
   band 0's, a shown rect other than the band's, or the capture itself),
-  `write-failed`.
+  `date-not-hidden` (the band's date wait was not accepted), `write-failed`.
 
 Each run with a requested picture, completed or not, carries the extra
 `picture`; the runner judges no pixel of it, and `report.mjs` reads none:
@@ -445,7 +480,7 @@ Each run with a requested picture, completed or not, carries the extra
 | `stages` | The `stages` the widget published at band 0, `null` when none. |
 | `devicePixelRatio`, `interfaceScale` | At the last band. |
 | `complete`, `missing` | Whether every needed band is saved at its rows, the card holds no rows below band 1, and what is missing otherwise. |
-| `bands` | Per band: `band`, `needed` (`null` while band 0's card is unknown), `css`, `list` (the shown rect, the list's logical px), `card` (the accepted card in its view), `core`, `generation`, `image`, `file`, `refusal`, `detail`, `show`; a band not needed is `{band, needed: false}` alone. |
+| `bands` | Per band: `band`, `needed` (`null` while band 0's card is unknown), `css`, `list` (the shown rect, the list's logical px), `card` (the accepted card in its view), `core`, `generation`, `image`, `file`, `refusal`, `detail`, `show`, `dateWait` (as the snapshot's); a band not needed is `{band, needed: false}` alone. |
 
 The totals stage, when any picture was asked for, Checks that every selected
 run with a requested picture is `complete`. A run file written from
@@ -946,7 +981,12 @@ visual, auto, unknown, unselected and no picture ids through
 `SelectPictures()` and the notes; the bands of a 544 CSS px card and the
 completeness of 336, 280 and 650 CSS px pictures, with band 1 refused,
 shifted, not needed or nothing captured; band 1 joining band 0 only from
-its core, host generation and card size after band 0 was saved); and a
+its core, host generation and card size after band 0 was saved; the date
+wait over literal scroll readings and times: the show's scroll top held
+for 3350 ms accepted and not a ms sooner, a scroll away and back
+restarting the count, another top refused `date-not-hidden` at the 8 s
+bound and not a ms sooner, a lost scroll and a show that showed nothing
+decided at once, no wait and an unended one refused by name); and a
 totals control
 (`CountTallies()` over runs no tap was armed for, one without a bridge
 reading, beside a good scan control).

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_widget_fixture.h"
 #include "test/test_widget_ops.h"
 #include "ui/style/style_core_scale.h"
+#include "ui/widgets/elastic_scroll.h"
 
 #include <QtCore/QJsonArray>
 #include <QtCore/QJsonObject>
@@ -39,6 +40,26 @@ namespace {
 // pictures do not, and two hold a card of up to 600 CSS px.
 constexpr auto kBandCss = 300;
 constexpr auto kBands = 2;
+
+// HistoryInner's floating date after a scroll (history_inner_widget.cpp):
+// hidden by a timer kScrollDateHideTimeout after an upward scroll, or
+// kScrollDateHideOnDayCrossingTimeout after a downward one that moved the
+// top message into another day, then faded out over
+// st::historyDateFadeDuration (ui/chat/chat.style). One window covers
+// both; the margin covers the coarse timer's slack and the fade's last
+// frame.
+constexpr auto kScrollDateHideTimeout = crl::time(1000);
+constexpr auto kScrollDateHideOnDayCrossingTimeout = crl::time(3000);
+constexpr auto kScrollDateFadeDuration = crl::time(200);
+constexpr auto kScrollDateMargin = crl::time(150);
+constexpr auto kScrollDateHideAndFade = std::max(
+		kScrollDateHideTimeout,
+		kScrollDateHideOnDayCrossingTimeout)
+	+ kScrollDateFadeDuration
+	+ kScrollDateMargin;
+// The date wait's own bound, from its run: room for the scroll to settle
+// again before the capture is refused.
+constexpr auto kScrollDateBound = crl::time(8000);
 
 // The requested pictures of the selected runs, and what each incomplete
 // one misses.
@@ -242,6 +263,7 @@ struct PictureCount {
 		{ u"refusal"_q, band.refusal },
 		{ u"detail"_q, band.detail },
 		{ u"show"_q, ShowObject(band.show.get()) },
+		{ u"dateWait"_q, DateWaitObject(band.date.get()) },
 	};
 }
 
@@ -263,6 +285,83 @@ struct PictureCount {
 		{ u"missing"_q, Strings(missing) },
 		{ u"bands"_q, bands },
 	};
+}
+
+// ---------------------------------------------------------------------
+// The floating-date wait before a capture.
+
+// The readings so far, for the bound's refusal and the stage's timeout.
+[[nodiscard]] QString DateWaitText(const DateWaitReading &reading) {
+	return u"the show's scrollTop=%1, last scrollTop=%2 held %3 ms of the "
+		u"%4 ms needed, %5 changes, %6 ms waited"_q.arg(
+			NumberText(reading.shownTop),
+			NumberText(reading.top),
+			NumberText(reading.stillMs),
+			NumberText(kScrollDateHideAndFade),
+			NumberText(reading.changes),
+			NumberText(reading.waitedMs));
+}
+
+// From the stage's run at |now|: the show's accepted scroll is the first
+// reading, still since |now|, as every earlier scroll is older. A show
+// that showed nothing has nothing to wait out.
+void StartDateWait(
+		DateWaitReading &reading,
+		const ChatListShow *shown,
+		crl::time now) {
+	reading = DateWaitReading{ .started = now, .stillSince = now };
+	if (!shown || !shown->shown()) {
+		reading.detail = u"the show showed nothing, so there was no capture "
+			u"to wait for"_q;
+		reading.finished = true;
+		return;
+	}
+	reading.shownTop = shown->scrollTop;
+	reading.top = shown->scrollTop;
+}
+
+// The owning Ui::ElasticScroll of the show's list, read only.
+[[nodiscard]] std::optional<int> ShownScrollTop(const ChatListShow &shown) {
+	const auto scroll = FixtureListScroll(shown.list.data());
+	return scroll ? std::make_optional(scroll->scrollTop()) : std::nullopt;
+}
+
+// One reading |top| at |now|, none without the list or its scroll: true
+// once decided, accepted when the show's scroll top held for
+// kScrollDateHideAndFade, refused when the list is gone or at the bound.
+[[nodiscard]] bool ObserveDateWait(
+		DateWaitReading &reading,
+		std::optional<int> top,
+		crl::time now) {
+	reading.waitedMs = now - reading.started;
+	if (!top) {
+		reading.detail = u"the show's list or its owning scroll is gone, "
+			u"after %1 ms"_q.arg(NumberText(reading.waitedMs));
+		reading.finished = true;
+		return true;
+	} else if (*top != reading.top) {
+		reading.top = *top;
+		reading.stillSince = now;
+		++reading.changes;
+	}
+	reading.stillMs = now - reading.stillSince;
+	if ((reading.top == reading.shownTop)
+		&& (reading.stillMs >= kScrollDateHideAndFade)) {
+		reading.detail = QString();
+		reading.hidden = true;
+		reading.finished = true;
+		return true;
+	} else if (reading.waitedMs >= kScrollDateBound) {
+		reading.detail = u"the list's scroll did not hold the show's scroll "
+			u"top for %1 ms within %2 ms, so HistoryInner's floating date "
+			u"may still cover the viewport's top: %3"_q.arg(
+				NumberText(kScrollDateHideAndFade),
+				NumberText(kScrollDateBound),
+				DateWaitText(reading));
+		reading.finished = true;
+		return true;
+	}
+	return false;
 }
 
 [[nodiscard]] PictureCount CountPictures(const ConformanceState &state) {
@@ -312,12 +411,13 @@ void RefuseBand(
 	band.detail = detail;
 }
 
-// In the stage right after band |index|'s show: nothing for a band the
-// card ends above; else the view, core, card and geometry the show
-// accepted, the band joining the earlier ones, one accepted capture of
-// the shown rect from the list's own paint, its 2x checked on the image,
-// then its file. The first capture keeps the card's CSS size, its core
-// and host generation and the stage rects the widget published.
+// In the stage after band |index|'s show and its date wait: nothing for a
+// band the card ends above; else the view, core, card and geometry the
+// show accepted, the band joining the earlier ones, the accepted date
+// wait, one accepted capture of the shown rect from the list's own paint,
+// its 2x checked on the image, then its file. The first capture keeps the
+// card's CSS size, its core and host generation and the stage rects the
+// widget published.
 void TakeBand(
 		const ConformanceState &state,
 		ConformanceRun &run,
@@ -393,6 +493,11 @@ void TakeBand(
 		: QString();
 	if (!refusal.isEmpty()) {
 		RefuseBand(band, u"capture-refused"_q, refusal);
+		return;
+	}
+	const auto date = DateWaitRefusal(band.date.get());
+	if (!date.name.isEmpty()) {
+		RefuseBand(band, date.name, date.detail);
 		return;
 	}
 	const auto list = WidgetFixtureList(*state.fixture);
@@ -653,7 +758,147 @@ void FillSelectionControl(
 		}));
 }
 
+// The date wait from a show at scroll top 40 at time 1000: held there for
+// the whole window accepted and not a ms sooner; a scroll away and back
+// restarting the window; held at another top refused at the bound, not a
+// ms sooner; a lost scroll and a show that showed nothing decided at once;
+// no wait refused by name.
+[[nodiscard]] WidgetOpsSelfCheckRow CheckDateWait() {
+	constexpr auto kStart = crl::time(1000);
+	constexpr auto kTop = 40;
+	const auto started = [&] {
+		auto result = DateWaitReading();
+		auto shown = ChatListShow{ .scrollTop = kTop, .finished = true };
+		StartDateWait(result, &shown, kStart);
+		return result;
+	};
+	const auto window = kStart + kScrollDateHideAndFade;
+	auto held = started();
+	const auto heldEarly = ObserveDateWait(held, kTop, window - 1);
+	const auto heldLate = ObserveDateWait(held, kTop, window);
+	auto moved = started();
+	const auto away = ObserveDateWait(moved, kTop + 22, kStart + 100);
+	const auto back = ObserveDateWait(moved, kTop, kStart + 200);
+	const auto movedEarly = ObserveDateWait(moved, kTop, window);
+	const auto movedLate = ObserveDateWait(moved, kTop, window + 200);
+	auto elsewhere = started();
+	const auto other = ObserveDateWait(elsewhere, kTop + 22, kStart + 100)
+		|| ObserveDateWait(elsewhere, kTop + 22, window + 100)
+		|| ObserveDateWait(elsewhere, kTop + 22, kStart + kScrollDateBound - 1);
+	const auto bound = ObserveDateWait(
+		elsewhere,
+		kTop + 22,
+		kStart + kScrollDateBound);
+	auto lost = started();
+	const auto gone = ObserveDateWait(lost, std::nullopt, kStart + 50);
+	auto nothing = DateWaitReading();
+	StartDateWait(nothing, nullptr, kStart);
+	const auto refused = DateWaitRefusal(&elsewhere);
+	const auto none = DateWaitRefusal(nullptr);
+	const auto pending = started();
+	const auto open = DateWaitRefusal(&pending);
+	const auto passed = !heldEarly
+		&& heldLate
+		&& held.hidden
+		&& !held.changes
+		&& DateWaitRefusal(&held).name.isEmpty()
+		&& (DateWaitObject(&held).value(u"hidden"_q) == QJsonValue(true))
+		&& !away
+		&& !back
+		&& !movedEarly
+		&& movedLate
+		&& moved.hidden
+		&& (moved.changes == 2)
+		&& !other
+		&& bound
+		&& !elsewhere.hidden
+		&& (refused.name == u"date-not-hidden"_q)
+		&& refused.detail.contains(u"scrollTop=40, last scrollTop=62"_q)
+		&& gone
+		&& !lost.hidden
+		&& (DateWaitRefusal(&lost).name == u"date-not-hidden"_q)
+		&& nothing.finished
+		&& !nothing.hidden
+		&& (none.name == u"date-not-hidden"_q)
+		&& (open.name == u"date-not-hidden"_q)
+		&& (DateWaitObject(nullptr)
+			== QJsonObject{ { u"finished"_q, false } });
+	return CheckRow(
+		passed,
+		u"the date wait accepts only the show's scroll top held for the "
+			u"longer of the two hide timeouts, the fade and the margin "
+			u"(3350 ms), restarts on a change, "
+			u"refuses date-not-hidden at the bound or without its scroll, "
+			u"and a capture without an accepted wait is refused by name"_q,
+		CompactJson(QJsonObject{
+			{ u"held"_q, DateWaitObject(&held) },
+			{ u"moved"_q, DateWaitObject(&moved) },
+			{ u"elsewhere"_q, DateWaitObject(&elsewhere) },
+			{ u"lost"_q, lost.detail },
+			{ u"nothing"_q, nothing.detail },
+			{ u"open"_q, open.detail },
+		}));
+}
+
 } // namespace
+
+std::shared_ptr<const DateWaitReading> AppendDateWait(
+		not_null<Runner*> runner,
+		const QString &name,
+		Fn<QString()> skipReason,
+		std::shared_ptr<const ChatListShow> shown) {
+	const auto reading = std::make_shared<DateWaitReading>();
+	runner->add({
+		.name = name,
+		.skipReason = std::move(skipReason),
+		.run = [=] {
+			StartDateWait(*reading, shown.get(), crl::now());
+		},
+		.until = [=] {
+			return reading->finished
+				|| ObserveDateWait(
+					*reading,
+					ShownScrollTop(*shown),
+					crl::now());
+		},
+		.timeout = kScrollDateBound + kDefaultStageTimeout,
+		.timeoutDetails = [=] {
+			return DateWaitText(*reading);
+		},
+	});
+	return reading;
+}
+
+ConformanceRefusal DateWaitRefusal(const DateWaitReading *reading) {
+	if (reading && reading->hidden) {
+		return {};
+	}
+	return {
+		.name = u"date-not-hidden"_q,
+		.detail = !reading
+			? u"no wait for the floating date was appended"_q
+			: !reading->finished
+			? u"the wait for the floating date did not run to its end"_q
+			: reading->detail,
+	};
+}
+
+QJsonObject DateWaitObject(const DateWaitReading *reading) {
+	if (!reading || !reading->finished) {
+		return QJsonObject{ { u"finished"_q, false } };
+	}
+	return QJsonObject{
+		{ u"finished"_q, true },
+		{ u"hidden"_q, reading->hidden },
+		{ u"shownTop"_q, reading->shownTop },
+		{ u"top"_q, reading->top },
+		{ u"changes"_q, reading->changes },
+		{ u"stillMs"_q, qint64(reading->stillMs) },
+		{ u"neededMs"_q, qint64(kScrollDateHideAndFade) },
+		{ u"waitedMs"_q, qint64(reading->waitedMs) },
+		{ u"detail"_q, reading->detail },
+	};
+}
 
 void SelectPictures(ConformanceState &state) {
 	if (!state.packageError.isEmpty()) {
@@ -724,6 +969,13 @@ void AppendPictureBands(
 			},
 			.timeout = kShowTimeout,
 		});
+		entry().picture.bands[i].date = AppendDateWait(
+			runner,
+			prefix + u"wait out the floating date before "_q + name,
+			[=] {
+				return BandSkip(*state, entry(), i);
+			},
+			entry().picture.bands[i].show);
 		runner->add({
 			.name = prefix + u"capture "_q + name + u" at 2x"_q,
 			.skipReason = [=] {
@@ -826,6 +1078,7 @@ std::vector<WidgetOpsSelfCheckRow> RunPictureCheck() {
 		CheckPictureSelection(),
 		CheckCoverage(),
 		CheckJoin(),
+		CheckDateWait(),
 	};
 }
 

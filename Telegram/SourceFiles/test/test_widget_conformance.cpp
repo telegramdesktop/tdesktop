@@ -1280,6 +1280,7 @@ void CaptureEnvironment(ConformanceState &state) {
 		{ u"refusal"_q, snapshot.refusal },
 		{ u"detail"_q, snapshot.detail },
 		{ u"show"_q, ShowObject(run.snapshotShow.get()) },
+		{ u"dateWait"_q, DateWaitObject(run.snapshotDate.get()) },
 	};
 }
 
@@ -2789,9 +2790,10 @@ void CropStage(
 		QJsonArray{ crop.width(), crop.height() });
 }
 
-// In the stage right after the snapshot show: the same view, core, card
-// and geometry, one accepted capture of the stage union from the list's
-// own paint, its 2x checked on the image itself, then each stage's crop.
+// In the stage after the snapshot show and its date wait: the same view,
+// core, card and geometry, the accepted date wait, one accepted capture of
+// the stage union from the list's own paint, its 2x checked on the image
+// itself, then each stage's crop.
 void TakeSnapshot(const ConformanceState &state, ConformanceRun &run) {
 	auto &snapshot = run.snapshot;
 	snapshot.css = StageUnion(run);
@@ -2825,6 +2827,11 @@ void TakeSnapshot(const ConformanceState &state, ConformanceRun &run) {
 		run.snapshotCard);
 	if (!changed.isEmpty()) {
 		RefuseSnapshot(run, u"capture-refused"_q, changed);
+		return;
+	}
+	const auto date = DateWaitRefusal(run.snapshotDate.get());
+	if (!date.name.isEmpty()) {
+		RefuseSnapshot(run, date.name, date.detail);
 		return;
 	}
 	const auto list = WidgetFixtureList(*state.fixture);
@@ -2998,8 +3005,8 @@ void AppendDoneWait(
 }
 
 // The show of the union of the run's stage rects, ready and with no hover,
-// then the snapshot and the crops in the stage right after it; appended
-// only for a run with stages in its theme.
+// the wait for the floating date, then the snapshot and the crops;
+// appended only for a run with stages in its theme.
 void AppendSnapshot(
 		not_null<Runner*> runner,
 		const std::shared_ptr<ConformanceState> &state,
@@ -3040,6 +3047,13 @@ void AppendSnapshot(
 		},
 		.timeout = kShowTimeout,
 	});
+	entry().snapshotDate = AppendDateWait(
+		runner,
+		prefix + u"wait out the floating date before the snapshot"_q,
+		[=] {
+			return SnapshotSkip(*state, entry());
+		},
+		entry().snapshotShow);
 	runner->add({
 		.name = prefix + u"snapshot the stages at 2x and crop them"_q,
 		.skipReason = [=] {

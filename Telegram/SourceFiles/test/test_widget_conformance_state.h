@@ -42,7 +42,8 @@ class InputField;
 // and the run file), test_widget_conformance_actions.cpp (the scripted
 // actions), test_widget_conformance_context.cpp (message contexts and the
 // played bot's records) and test_widget_conformance_pictures.cpp (the
-// requested pictures' bands). Internal to them; reference:
+// requested pictures' bands and the floating-date wait before every
+// capture). Internal to them; reference:
 // docs/helpers/test_widget_conformance.md.
 
 namespace Test {
@@ -165,13 +166,34 @@ struct SnapshotReading {
 	int scale = 0;
 };
 
+// The wait between a list-paint capture's show and its capture for the
+// floating date HistoryInner paints over its viewport's top after a
+// scroll, filled by AppendDateWait(): |hidden| once the list's own scroll
+// read the show's accepted |shownTop| unchanged long enough for the date
+// to hide. |top| is the last reading, |changes| the readings that differed
+// from the one before, |stillMs| how long the last one held and |waitedMs|
+// the whole wait; |detail| says why a |finished| wait was not accepted.
+struct DateWaitReading {
+	QString detail;
+	crl::time started = 0;
+	crl::time stillSince = 0;
+	crl::time stillMs = 0;
+	crl::time waitedMs = 0;
+	int shownTop = 0;
+	int top = 0;
+	int changes = 0;
+	bool finished = false;
+	bool hidden = false;
+};
+
 // One band of a run's picture: the card's rows |css|, in CSS px from the
 // widget's top-left at the card's whole width, the rect its show showed in
 // the list's logical px, the accepted image's size in pixels and its
 // |file| relative to the run file. |card| is what its show accepted (the
-// card's rect in its view, its core) and |generation| the tap's host
-// generation at its capture. |refusal| names why there is no file; a band
-// below the card is not needed and keeps none.
+// card's rect in its view, its core), |date| the floating-date wait after
+// that show and |generation| the tap's host generation at its capture.
+// |refusal| names why there is no file; a band below the card is not
+// needed and keeps none.
 struct PictureBand {
 	QRect css;
 	QRect list;
@@ -181,6 +203,7 @@ struct PictureBand {
 	QString detail;
 	WidgetCardReading card;
 	std::shared_ptr<const ChatListShow> show;
+	std::shared_ptr<const DateWaitReading> date;
 	int generation = 0;
 };
 
@@ -305,6 +328,7 @@ struct ConformanceRun {
 
 	std::shared_ptr<const ChatListShow> loadShow;
 	std::shared_ptr<const ChatListShow> snapshotShow;
+	std::shared_ptr<const DateWaitReading> snapshotDate;
 	WidgetCardReading snapshotCard;
 	SnapshotReading snapshot;
 	PictureReading picture;
