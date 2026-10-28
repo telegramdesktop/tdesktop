@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/mime_type.h"
 #include "storage/file_download.h"
 #include "ui/chat/attach/attach_prepare.h"
+#include "ui/image/image_prepare.h"
 #include "ui/image/svg_preview.h"
 #include "ui/rect.h"
 
@@ -102,6 +103,9 @@ enum class FileType {
 	auto file = QFile(path);
 	auto device = data.isEmpty() ? static_cast<QIODevice*>(&file) : &buffer;
 	auto reader = QImageReader(device);
+	if (Images::IsSvgFormat(reader.format())) {
+		return QImage();
+	}
 	const auto size = reader.size();
 	if (!reader.canRead()
 		|| (size.width() * size.height() > kReadAreaLimit)) {

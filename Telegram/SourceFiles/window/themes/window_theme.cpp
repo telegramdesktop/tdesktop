@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_theme.h"
 #include "ui/chat/chat_theme_readability.h"
 #include "ui/image/image.h"
+#include "ui/image/image_prepare.h"
 #include "ui/style/style_palette_colorizer.h"
 #include "ui/ui_utility.h"
 #include "ui/boxes/confirm_box.h"
@@ -356,6 +357,10 @@ bool LoadTheme(
 		if (!backgroundContent.isEmpty()) {
 			auto check = QBuffer(&backgroundContent);
 			auto reader = QImageReader(&check);
+			if (Images::IsSvgFormat(reader.format())) {
+				LOG(("Theme Error: SVG background is not supported."));
+				return false;
+			}
 			const auto size = reader.size();
 			if (size.isEmpty()
 				|| (int64(size.width()) * size.height() > kBackgroundSizeLimit)) {

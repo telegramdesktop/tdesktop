@@ -5102,7 +5102,9 @@ QByteArray HtmlWriter::Wrap::pushRichVideoMedia(
 	const auto &thumbPath = presentation.thumb.file.relativePath;
 	if (!thumbPath.isEmpty()) {
 		QImageReader reader(basePath + thumbPath);
-		if (!reader.canRead() || reader.read().isNull()) {
+		if (!reader.canRead()
+			|| Data::IsSvgFormat(reader.format())
+			|| reader.read().isNull()) {
 			presentation.thumb.file.relativePath.clear();
 		}
 	}
