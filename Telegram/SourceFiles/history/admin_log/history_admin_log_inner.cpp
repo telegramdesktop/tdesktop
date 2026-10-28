@@ -1691,14 +1691,38 @@ void InnerWidget::toggleDeleteGroup(uint64 groupEventId) {
 		anchor.view ? computeScrollFromAnchor(anchor) : scrollBefore);
 	const auto scrollFrom = scrollBefore + shift.difference + shift.above;
 	const auto scrollTarget = shift.target;
+	const auto consumed = [=] {
+		return Tgw::ListScroll::Consumed(this);
+	};
+	const auto count = consumed();
+	const auto end = Tgw::ListScroll::Placement(
+		this,
+		anchor.view,
+		anchor.delta,
+		scrollTarget);
 
 	_scrollToSignal.fire_copy(scrollFrom);
 	if (scrollFrom != scrollTarget) {
 		const auto from = scrollFrom;
 		const auto to = scrollTarget;
-		_toggleAnimation.start(
-			[=] { _scrollToSignal.fire_copy(anim::interpolate(
-				from, to, _toggleAnimation.value(1.))); },
+		_toggleFlight.start(
+			from,
+			to,
+			consumed,
+			count,
+			[=] { return Tgw::ListScroll::Inputs(this); },
+			end);
+		_toggleFlight.animate(
+			&_toggleAnimation,
+			[=] {
+				// Integral as before, so carrying adds exactly the change.
+				_toggleFlight.frame(
+					0,
+					anim::interpolate(from, to, _toggleAnimation.value(1.)),
+					_visibleTop,
+					!_toggleAnimation.animating(),
+					[=](int top) { _scrollToSignal.fire_copy(top); });
+			},
 			0.,
 			1.,
 			st::slideDuration,

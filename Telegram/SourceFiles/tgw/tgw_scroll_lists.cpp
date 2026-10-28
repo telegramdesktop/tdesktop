@@ -1302,4 +1302,36 @@ std::optional<int> ListScroll::Destination(
 	return list->jumpTarget(view, highlight);
 }
 
+Fn<std::optional<int>()> ListScroll::Placement(
+		not_null<AdminLog::InnerWidget*> list,
+		Element *anchor,
+		int delta,
+		int target) {
+	const auto start = anchor
+		? list->computeScrollFromAnchor({ anchor, delta })
+		: ScrollMax;
+	if (start == ScrollMax) {
+		return [] { return std::optional<int>(); };
+	}
+	const auto weak = base::make_weak(anchor);
+	const auto offset = target - start;
+	return [=] {
+		return Destination(list, weak, delta, offset);
+	};
+}
+
+std::optional<int> ListScroll::Destination(
+		not_null<AdminLog::InnerWidget*> list,
+		const base::weak_ptr<Element> &anchor,
+		int delta,
+		int offset) {
+	const auto view = anchor.get();
+	const auto now = view
+		? list->computeScrollFromAnchor({ view, delta })
+		: ScrollMax;
+	return (now != ScrollMax)
+		? std::make_optional(now + offset)
+		: std::nullopt;
+}
+
 } // namespace Tgw

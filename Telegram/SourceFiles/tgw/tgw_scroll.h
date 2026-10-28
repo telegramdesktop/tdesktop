@@ -153,6 +153,11 @@ public:
 		not_null<AdminLog::InnerWidget*> list,
 		FullMsgId id,
 		MessageHighlightId highlight);
+	[[nodiscard]] static Fn<std::optional<int>()> Placement(
+		not_null<AdminLog::InnerWidget*> list,
+		HistoryView::Element *anchor,
+		int delta,
+		int target);
 
 private:
 	[[nodiscard]] static std::optional<int> Destination(
@@ -165,6 +170,11 @@ private:
 		not_null<AdminLog::InnerWidget*> list,
 		FullMsgId id,
 		const MessageHighlightId &highlight);
+	[[nodiscard]] static std::optional<int> Destination(
+		not_null<AdminLog::InnerWidget*> list,
+		const base::weak_ptr<HistoryView::Element> &anchor,
+		int delta,
+		int offset);
 	[[nodiscard]] static HistoryView::Element *Displayed(
 		not_null<AdminLog::InnerWidget*> list,
 		FullMsgId id);

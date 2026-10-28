@@ -419,6 +419,7 @@ private:
 	// Old-edge eventId of each group from the previous pass; sticky boundary.
 	base::flat_set<uint64> _previousDeleteGroupAnchors;
 	base::flat_set<not_null<HistoryItem*>> _expandMarkupItems;
+	Tgw::ScrollFlight _toggleFlight;
 	Ui::Animations::Simple _toggleAnimation;
 	Tgw::ScrollFlight _scrollToFlight;
 	Ui::Animations::Simple _scrollToAnimation;
