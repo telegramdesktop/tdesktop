@@ -4459,7 +4459,15 @@ void ChatWidget::updateControlsGeometry() {
 		if (wasAtBottom) {
 			_scroll->scrollToY(_scroll->scrollTopMax());
 		} else if (newScrollDelta && _scroll->scrollTop()) {
-			_scroll->scrollToY(_scroll->scrollTop() + *newScrollDelta);
+			const auto requested = _scroll->scrollTop() + *newScrollDelta;
+			const auto target = _scroll->computeScrollToY(requested);
+			const auto now = _scroll->scrollTop();
+			// Past an edge ElasticScroll may not apply the computed target.
+			if (now >= 0 && now <= _scroll->scrollTopMax()) {
+				// Scrolling can re-enter layout and re-pin the collapse.
+				_inner->shiftScrollBaseline(target - now);
+			}
+			_scroll->scrollToY(requested);
 		}
 		updateInnerVisibleArea();
 	}

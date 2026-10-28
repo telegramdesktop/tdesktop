@@ -443,6 +443,18 @@ void ThanosEffectController::shiftGaps(int delta) {
 	}
 }
 
+void ThanosEffectController::shiftScrollBaseline(int delta) {
+	// WHY: a relayout between a batch capture and its removals resets the
+	// flag, yet pre-captured removals still collapse against this baseline.
+	const auto inUse = _restoreScrollPending
+		|| !_preCaptured.empty()
+		|| !_pending.empty()
+		|| !_collapseGaps.empty();
+	if (inUse && !_wasAtBottom) {
+		_savedScrollTop += delta;
+	}
+}
+
 void ThanosEffectController::notePrependBaseline(int contentHeight) {
 	if (_collapseGaps.empty() || _prependPending) {
 		return;
