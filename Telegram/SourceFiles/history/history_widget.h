@@ -1036,5 +1036,7 @@ private:
 	SendPaymentHelper _sendPayment;
 
 	rpl::event_stream<> _cancelRequests;
+	// Last, so the handler ends before any members it uses are destroyed.
+	rpl::lifetime _recordingStateLifetime;
 
 };
