@@ -139,18 +139,6 @@ void OffsetToPosition(
 	return kind == NodeKind::SoftBreak || kind == NodeKind::LineBreak;
 }
 
-void TrimBreakEdges(std::vector<MarkdownNode> *children) {
-	if (!children) {
-		return;
-	}
-	while (!children->empty() && IsBreakNode(children->front().kind)) {
-		children->erase(children->begin());
-	}
-	while (!children->empty() && IsBreakNode(children->back().kind)) {
-		children->pop_back();
-	}
-}
-
 [[nodiscard]] bool RangeContains(
 		const SourceRange &outer,
 		const SourceRange &inner) {
@@ -158,15 +146,6 @@ void TrimBreakEdges(std::vector<MarkdownNode> *children) {
 		&& inner.available
 		&& outer.startOffset <= inner.startOffset
 		&& outer.endOffset >= inner.endOffset;
-}
-
-[[nodiscard]] bool RangeOverlaps(
-		const SourceRange &range,
-		int clipStart,
-		int clipEnd) {
-	return range.available
-		&& (range.endOffset > clipStart)
-		&& (range.startOffset < clipEnd);
 }
 
 [[nodiscard]] bool FirstAvailableRange(
@@ -241,106 +220,178 @@ void TrimBreakEdges(std::vector<MarkdownNode> *children) {
 	return true;
 }
 
-[[nodiscard]] bool ClipNodeToOffsets(
+[[nodiscard]] bool ClipLeafToOffsets(
 		const MarkdownNode &node,
 		const QByteArray &source,
 		const std::vector<int> &lineStarts,
 		int clipStart,
 		int clipEnd,
 		MarkdownNode *out) {
-	if (!out || clipEnd <= clipStart || IsBreakNode(node.kind)) {
+	if (!out || !node.range.available) {
 		return false;
 	}
-	if (node.range.available && !RangeOverlaps(node.range, clipStart, clipEnd)) {
+	const auto clippedStart = std::max(node.range.startOffset, clipStart);
+	const auto clippedEnd = std::min(node.range.endOffset, clipEnd);
+	if (clippedEnd <= clippedStart) {
 		return false;
 	}
-	if (node.children.empty()) {
-		if (!node.range.available) {
-			return false;
-		}
-		const auto clippedStart = std::max(node.range.startOffset, clipStart);
-		const auto clippedEnd = std::min(node.range.endOffset, clipEnd);
-		if (clippedEnd <= clippedStart) {
-			return false;
-		}
-		*out = node;
-		out->range = RangeForOffsets(
-			lineStarts,
-			static_cast<int>(source.size()),
-			clippedStart,
-			clippedEnd);
-		if (clippedStart == node.range.startOffset
-			&& clippedEnd == node.range.endOffset) {
-			return true;
-		}
-		switch (node.kind) {
-		case NodeKind::Text:
-		case NodeKind::InlineCode:
-			out->text = SourceSlice(source, out->range);
-			break;
-		case NodeKind::HtmlBlock:
-		case NodeKind::HtmlInline:
-		case NodeKind::Unsupported:
-			out->raw = SourceSlice(source, out->range);
-			break;
-		default:
-			return false;
-		}
+	*out = node;
+	out->range = RangeForOffsets(
+		lineStarts,
+		static_cast<int>(source.size()),
+		clippedStart,
+		clippedEnd);
+	if (clippedStart == node.range.startOffset
+		&& clippedEnd == node.range.endOffset) {
 		return true;
 	}
-	auto result = node;
-	result.children.clear();
-	for (const auto &child : node.children) {
-		if (IsBreakNode(child.kind)) {
-			if (!result.children.empty()) {
-				result.children.push_back(child);
-			}
-			continue;
-		}
-		auto clippedChild = MarkdownNode();
-		if (ClipNodeToOffsets(
-				child,
-				source,
-				lineStarts,
-				clipStart,
-				clipEnd,
-				&clippedChild)) {
-			result.children.push_back(std::move(clippedChild));
-		}
-	}
-	TrimBreakEdges(&result.children);
-	if (result.children.empty()) {
+	switch (node.kind) {
+	case NodeKind::Text:
+	case NodeKind::InlineCode:
+		out->text = SourceSlice(source, out->range);
+		break;
+	case NodeKind::HtmlBlock:
+	case NodeKind::HtmlInline:
+	case NodeKind::Unsupported:
+		out->raw = SourceSlice(source, out->range);
+		break;
+	default:
 		return false;
 	}
-	auto clippedRange = SourceRange();
-	if (RangeFromChildren(result.children, &clippedRange)) {
-		result.range = clippedRange;
-	}
-	*out = std::move(result);
 	return true;
 }
 
-[[nodiscard]] bool ParagraphSegment(
-		const MarkdownNode &paragraph,
+struct ClipSegment {
+	int start = 0;
+	int end = 0;
+};
+
+using SegmentPieces = std::vector<std::pair<int, MarkdownNode>>;
+
+void ClipNodeToSegments(
+		MarkdownNode node,
 		const QByteArray &source,
 		const std::vector<int> &lineStarts,
-		int clipStart,
-		int clipEnd,
-		MarkdownNode *out) {
-	if (clipEnd <= clipStart) {
-		return false;
+		const std::vector<ClipSegment> &segments,
+		int segmentsFrom,
+		int segmentsTill,
+		SegmentPieces *out) {
+	if (!out || IsBreakNode(node.kind)) {
+		return;
 	}
-	return ClipNodeToOffsets(
-		paragraph,
-		source,
-		lineStarts,
-		clipStart,
-		clipEnd,
-		out);
+	if (node.range.available) {
+		// The partition-point run reproduces the old per-window overlap test.
+		const auto begin = segments.begin();
+		segmentsFrom = static_cast<int>(std::partition_point(
+			begin + segmentsFrom,
+			begin + segmentsTill,
+			[&](const ClipSegment &seg) {
+				return seg.end <= node.range.startOffset;
+			}) - begin);
+		segmentsTill = static_cast<int>(std::partition_point(
+			begin + segmentsFrom,
+			begin + segmentsTill,
+			[&](const ClipSegment &seg) {
+				return seg.start < node.range.endOffset;
+			}) - begin);
+	}
+	if (segmentsFrom >= segmentsTill) {
+		return;
+	}
+	if (node.children.empty()) {
+		if (!node.range.available) {
+			return;
+		}
+		for (auto i = segmentsFrom; i != segmentsTill; ++i) {
+			auto piece = MarkdownNode();
+			if (ClipLeafToOffsets(
+					node,
+					source,
+					lineStarts,
+					segments[i].start,
+					segments[i].end,
+					&piece)) {
+				out->push_back({ i, std::move(piece) });
+			}
+		}
+		return;
+	}
+	auto children = std::move(node.children);
+	node.children.clear();
+	const auto childCount = static_cast<int>(children.size());
+	auto breaks = std::vector<int>();
+	for (auto i = 0; i != childCount; ++i) {
+		if (IsBreakNode(children[i].kind)) {
+			breaks.push_back(i);
+		}
+	}
+	struct Collected {
+		int segment = 0;
+		int childIndex = 0;
+		MarkdownNode piece;
+	};
+	// Sparse collect-then-sort charges work only to emitted pieces.
+	auto collected = std::vector<Collected>();
+	auto childPieces = SegmentPieces();
+	for (auto i = 0; i != childCount; ++i) {
+		if (IsBreakNode(children[i].kind)) {
+			continue;
+		}
+		childPieces.clear();
+		ClipNodeToSegments(
+			std::move(children[i]),
+			source,
+			lineStarts,
+			segments,
+			segmentsFrom,
+			segmentsTill,
+			&childPieces);
+		for (auto &[segment, piece] : childPieces) {
+			collected.push_back({ segment, i, std::move(piece) });
+		}
+	}
+	std::sort(
+		collected.begin(),
+		collected.end(),
+		[](const Collected &a, const Collected &b) {
+			return (a.segment != b.segment)
+				? (a.segment < b.segment)
+				: (a.childIndex < b.childIndex);
+		});
+	auto index = std::size_t(0);
+	while (index != collected.size()) {
+		const auto segment = collected[index].segment;
+		auto pieceNode = node;
+		auto prevKeptChildIndex = -1;
+		while (index != collected.size()
+			&& collected[index].segment == segment) {
+			const auto childIndex = collected[index].childIndex;
+			// WHY: a break sits between two kept children of a segment, so a
+			// dropped non-break child between them must not drop the break
+			// that still separates the survivors.
+			if (prevKeptChildIndex >= 0) {
+				auto k = std::upper_bound(
+					breaks.begin(),
+					breaks.end(),
+					prevKeptChildIndex);
+				for (; k != breaks.end() && *k < childIndex; ++k) {
+					pieceNode.children.push_back(children[*k]);
+				}
+			}
+			pieceNode.children.push_back(std::move(collected[index].piece));
+			prevKeptChildIndex = childIndex;
+			++index;
+		}
+		auto clippedRange = SourceRange();
+		if (RangeFromChildren(pieceNode.children, &clippedRange)) {
+			pieceNode.range = clippedRange;
+		}
+		out->push_back({ segment, std::move(pieceNode) });
+	}
 }
 
 [[nodiscard]] std::vector<MarkdownNode> SplitParagraphAroundDisplayMath(
-		const MarkdownNode &paragraph,
+		MarkdownNode paragraph,
 		const std::vector<MathFormula> &formulas,
 		const std::vector<int> &displayIndexes,
 		int begin,
@@ -349,9 +400,11 @@ void TrimBreakEdges(std::vector<MarkdownNode> *children) {
 		const std::vector<int> &lineStarts) {
 	auto result = std::vector<MarkdownNode>();
 	if (!paragraph.range.available) {
-		result.push_back(paragraph);
+		result.push_back(std::move(paragraph));
 		return result;
 	}
+	auto segments = std::vector<ClipSegment>();
+	auto positions = std::vector<int>();
 	auto cursor = paragraph.range.startOffset;
 	for (auto i = begin; i != end; ++i) {
 		const auto formulaIndex = displayIndexes[i];
@@ -359,30 +412,42 @@ void TrimBreakEdges(std::vector<MarkdownNode> *children) {
 		if (!RangeContains(paragraph.range, formula.range)) {
 			continue;
 		}
-		auto segment = MarkdownNode();
-		if (ParagraphSegment(
-				paragraph,
-				source,
-				lineStarts,
-				cursor,
-				formula.range.startOffset,
-				&segment)) {
-			result.push_back(std::move(segment));
+		if (cursor < formula.range.startOffset) {
+			segments.push_back({ cursor, formula.range.startOffset });
+			positions.push_back(static_cast<int>(result.size()));
 		}
 		result.push_back(DisplayMathNode(formula, formulaIndex));
 		cursor = std::max(cursor, formula.range.endOffset);
 	}
-	auto tail = MarkdownNode();
-	if (ParagraphSegment(
-			paragraph,
-			source,
-			lineStarts,
-			cursor,
-			paragraph.range.endOffset,
-			&tail)) {
-		result.push_back(std::move(tail));
+	if (cursor < paragraph.range.endOffset) {
+		segments.push_back({ cursor, paragraph.range.endOffset });
+		positions.push_back(static_cast<int>(result.size()));
 	}
-	return result;
+	auto pieces = SegmentPieces();
+	ClipNodeToSegments(
+		std::move(paragraph),
+		source,
+		lineStarts,
+		segments,
+		0,
+		static_cast<int>(segments.size()),
+		&pieces);
+	auto merged = std::vector<MarkdownNode>();
+	merged.reserve(result.size() + pieces.size());
+	auto p = std::size_t(0);
+	for (auto i = std::size_t(0); i != result.size(); ++i) {
+		while (p != pieces.size()
+			&& positions[pieces[p].first] == static_cast<int>(i)) {
+			merged.push_back(std::move(pieces[p].second));
+			++p;
+		}
+		merged.push_back(std::move(result[i]));
+	}
+	while (p != pieces.size()) {
+		merged.push_back(std::move(pieces[p].second));
+		++p;
+	}
+	return merged;
 }
 
 [[nodiscard]] std::vector<int> DisplayFormulaIndexes(
@@ -455,7 +520,7 @@ void NormalizeDisplayMathChildren(
 		}
 		if (formula != childEnd && child.kind == NodeKind::Paragraph) {
 			auto split = SplitParagraphAroundDisplayMath(
-				child,
+				std::move(child),
 				formulas,
 				displayIndexes,
 				formula,
