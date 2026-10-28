@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h" // UserData::name
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
+#include "data/data_forum.h"
 #include "data/data_histories.h"
 #include "data/data_changes.h"
 #include "data/components/ephemeral_messages.h"
@@ -1243,6 +1244,20 @@ void AddConfirmedLocalPlaceholder(const ConfirmedLocalFile &local) {
 	}
 }
 
+[[nodiscard]] bool TargetsDiscardedTopic(
+		not_null<Main::Session*> session,
+		const std::shared_ptr<FilePrepareResult> &file) {
+	const auto rootId = file->to.replyTo.topicRootId;
+	if (!IsClientMsgId(rootId)) {
+		return false;
+	}
+	const auto history = session->data().history(file->to.peer);
+	const auto forum = history->asForum();
+	const auto &histories = session->data().histories();
+	return !(forum && forum->creating(rootId))
+		&& IsClientMsgId(histories.convertTopicReplyToId(history, rootId));
+}
+
 [[nodiscard]] bool FlushPreparedMusicBatch(
 		not_null<Main::Session*> session,
 		const std::shared_ptr<FilePrepareResult> &sample) {
@@ -1253,6 +1268,8 @@ void AddConfirmedLocalPlaceholder(const ConfirmedLocalFile &local) {
 	auto files = album->takePreparedMusic();
 	if (files.empty()) {
 		return false;
+	} else if (TargetsDiscardedTopic(session, files.front())) {
+		return true;
 	}
 
 	const auto peer = session->data().history(files.front()->to.peer)->peer;
@@ -1306,7 +1323,8 @@ void SendConfirmedFile(
 			return;
 		}
 	}
-	if (FlushPreparedMusicBatch(session, file)) {
+	if (FlushPreparedMusicBatch(session, file)
+		|| TargetsDiscardedTopic(session, file)) {
 		return;
 	}
 
