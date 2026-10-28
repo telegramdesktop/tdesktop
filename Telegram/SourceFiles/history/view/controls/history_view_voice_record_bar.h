@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio_capture_common.h"
 #include "ui/controls/round_video_recorder.h"
 #include "ui/effects/animations.h"
+#include "ui/layers/box_content.h"
 #include "ui/round_rect.h"
 #include "ui/rp_widget.h"
 
@@ -212,6 +213,7 @@ private:
 
 	base::unique_qptr<QObject> _keyFilterInRecordingState;
 
+	Ui::BoxPointer _discardBox;
 	bool _warningShown = false;
 	bool _pauseInsteadSend = false;
 

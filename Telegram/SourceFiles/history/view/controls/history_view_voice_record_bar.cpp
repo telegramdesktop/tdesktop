@@ -3323,7 +3323,7 @@ void VoiceRecordBar::showDiscardBox(
 			callback();
 		}
 	};
-	_show->showBox(Ui::MakeConfirmBox({
+	_discardBox = _show->show(Ui::MakeConfirmBox({
 		.text = (isListenState()
 			? (_recordingVideo
 				? tr::lng_record_listen_cancel_sure_round
