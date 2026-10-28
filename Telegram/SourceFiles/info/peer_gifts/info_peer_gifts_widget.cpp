@@ -1095,7 +1095,7 @@ void InnerWidget::editCollectionName(int id) {
 		peer(),
 		id,
 		i->title,
-		done));
+		crl::guard(this, done)));
 }
 
 void InnerWidget::confirmDeleteCollection(int id) {
@@ -1595,7 +1595,7 @@ void InnerWidget::refreshCollectionsTabs() {
 					_window,
 					peer(),
 					Data::SavedStarGiftId(),
-					added));
+					crl::guard(this, added)));
 			} else {
 				_collectionsTabs->setActiveTab(id);
 
