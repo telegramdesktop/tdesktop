@@ -63,8 +63,10 @@ QByteArray SerializeString(const QByteArray &value) {
 			&& *(p + 1) == char(0x80)) {
 			if (*(p + 2) == char(0xA8)) { // Line separator.
 				result.append("\\u2028", 6);
+				p += 2;
 			} else if (*(p + 2) == char(0xA9)) { // Paragraph separator.
 				result.append("\\u2029", 6);
+				p += 2;
 			} else {
 				result.append(ch);
 			}
