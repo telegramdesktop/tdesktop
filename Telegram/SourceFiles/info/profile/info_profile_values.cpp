@@ -337,6 +337,7 @@ rpl::producer<bool> NotificationsEnabledValue(
 	if (!topic) {
 		return NotificationsEnabledValue(thread->peer());
 	}
+	const auto weak = base::make_weak(topic);
 	return rpl::merge(
 		topic->session().changes().topicFlagsValue(
 			topic,
@@ -347,7 +348,9 @@ rpl::producer<bool> NotificationsEnabledValue(
 			UpdateFlag::Notifications
 		) | rpl::to_empty,
 		topic->owner().notifySettings().defaultUpdates(topic->peer())
-	) | rpl::map([=] {
+	) | rpl::filter([=] {
+		return (weak.get() != nullptr);
+	}) | rpl::map([=] {
 		return !topic->owner().notifySettings().isMuted(topic);
 	}) | rpl::distinct_until_changed();
 }
