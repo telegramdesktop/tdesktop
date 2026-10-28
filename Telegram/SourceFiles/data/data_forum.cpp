@@ -582,6 +582,9 @@ void Forum::discardCreatingId(MsgId rootId) {
 	const auto i = _topics.find(rootId);
 	if (i != end(_topics)) {
 		Assert(!i->second->inChatList());
+		const auto raw = i->second.get();
+		session().changes().topicRemoved(raw);
+		session().changes().entryRemoved(raw);
 		_topics.erase(i);
 	}
 	_creatingRootIds.remove(rootId);
@@ -610,6 +613,10 @@ void Forum::created(MsgId rootId, MsgId realId) {
 		reorderLastTopics();
 	}
 	owner().notifyItemIdChange({ id, rootId });
+	if (const auto raw = topic.get()) {
+		session().changes().topicRemoved(raw);
+		session().changes().entryRemoved(raw);
+	}
 }
 
 void Forum::clearAllUnreadMentions() {
