@@ -992,14 +992,6 @@ Type BusinessId() {
 	return Business::Id();
 }
 
-void ShowBusiness(not_null<Window::SessionController*> controller) {
-	if (!controller->session().premiumPossible()) {
-		controller->show(Box(PremiumUnavailableBox));
-		return;
-	}
-	controller->showSettings(Settings::BusinessId());
-}
-
 std::vector<PremiumFeature> BusinessFeaturesOrder(
 		not_null<::Main::Session*> session) {
 	const auto mtpOrder = session->appConfig().get<Order>(

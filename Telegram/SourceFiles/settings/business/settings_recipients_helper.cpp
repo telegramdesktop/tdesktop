@@ -385,10 +385,6 @@ rpl::producer<int> ShortcutMessagesCountValue(
 	});
 }
 
-bool ShortcutExists(not_null<Main::Session*> session, const QString &name) {
-	return ShortcutMessagesCount(session, name) > 0;
-}
-
 rpl::producer<bool> ShortcutExistsValue(
 		not_null<Main::Session*> session,
 		const QString &name) {
