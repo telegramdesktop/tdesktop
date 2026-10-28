@@ -1907,9 +1907,18 @@ void MainWidget::showSection(
 	//	return;
 	}
 
-	if (preventsCloseSection(
-		[=] { showSection(memento, params); },
-		params)) {
+	const auto thread = [&]() -> base::weak_ptr<Data::Thread> {
+		if (const auto topic = memento->topicForRemoveRequests()) {
+			return topic;
+		}
+		return memento->sublistForRemoveRequests();
+	}();
+	if (preventsCloseSection([=] {
+		// The confirmation can outlive the topic or sublist to be shown.
+		if (thread.null() || thread) {
+			showSection(memento, params);
+		}
+	}, params)) {
 		return;
 	}
 
