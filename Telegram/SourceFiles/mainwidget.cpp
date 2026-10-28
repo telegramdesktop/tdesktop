@@ -1915,7 +1915,8 @@ void MainWidget::showSection(
 	}();
 	if (preventsCloseSection([=] {
 		// The confirmation can outlive the topic or sublist to be shown.
-		if (thread.null() || thread) {
+		const auto info = dynamic_cast<Info::Memento*>(memento.get());
+		if ((thread.null() || thread) && (!info || info->stackSize() > 0)) {
 			showSection(memento, params);
 		}
 	}, params)) {
