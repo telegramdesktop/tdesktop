@@ -1331,6 +1331,30 @@ QString ChatListShowViewIdentity(const HistoryView::Element *view) {
 	return ElementIdentity(view);
 }
 
+// The same reads for test_chat_show_place.cpp, so the placement helper
+// resolves lists, messages and views exactly as this helper does.
+HistoryItem *ChatListShowItem(not_null<QWidget*> list, FullMsgId id) {
+	const auto resolved = ResolveChatList(list);
+	if ((resolved.kind == ListKind::None) || !id) {
+		return nullptr;
+	}
+	return ListSession(resolved).data().message(id);
+}
+
+HistoryView::Element *ChatListShowOwnView(
+		not_null<QWidget*> list,
+		not_null<HistoryItem*> item) {
+	return OwnView(ResolveChatList(list), item.get());
+}
+
+QRect ChatListShowElementRect(
+		not_null<QWidget*> list,
+		not_null<const HistoryView::Element*> view) {
+	return QRect(
+		ElementOrigin(ResolveChatList(list), view),
+		QSize(view->width(), view->height()));
+}
+
 } // namespace Test
 
 #endif // _DEBUG

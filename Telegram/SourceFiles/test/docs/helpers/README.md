@@ -54,6 +54,7 @@ should call.
 | [test_chat_menu](test_chat_menu.md) | API | Attribute chat-list context menus to the exact message |
 | [test_chat_show](test_chat_show.md) | API | Show a chat-list message wholly in view, painted, ready and hovered before input |
 | [test_chat_show_self_test](test_chat_show_self_test.md) | Self-test | Self-test for chat-list show acceptance, re-correction and named refusals |
+| [test_chat_show_place](test_chat_show_place.md) | API | Place several chat-list messages wholly in or out of view together, gated by geometry and a fresh visibility reading, and prove they stayed for a window |
 | [test_widget_ops](test_widget_ops.md) | API | Tap a widget message's validated ops: the `--attacks` leak scan, and the latest conformance result, scheme and theme message |
 | [test_widget_attacks](test_widget_attacks.md) | API | Run widget-sandbox's attack corpus through the chat list with tapped ops, one click each and loopback network controls |
 | [test_widget_bot](test_widget_bot.md) | API | Answer an armed widget message's bot requests from a table at the runtime's request seam, with a record per message |

@@ -2081,6 +2081,8 @@ PRIVATE
     test/test_chat_menu.h
     test/test_chat_show.cpp
     test/test_chat_show.h
+    test/test_chat_show_place.cpp
+    test/test_chat_show_place.h
     test/test_chat_show_self_test.cpp
     test/test_clipboard.cpp
     test/test_clipboard.h

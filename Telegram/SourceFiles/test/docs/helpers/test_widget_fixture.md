@@ -13,10 +13,13 @@ outgoing widget messages with tapped validated ops, card readings, the
 runtime log, loopback network controls and one idempotent release.
 
 Callers: `Test::AppendWidgetAttackAudit` in `test_widget_attacks.cpp`
-([test_widget_attacks](test_widget_attacks.md)), and
+([test_widget_attacks](test_widget_attacks.md)),
 `Test::AppendWidgetConformance` in `test_widget_conformance.cpp`, with its
 action stages in `test_widget_conformance_actions.cpp`
-([test_widget_conformance](test_widget_conformance.md)). The scoped evidence
+([test_widget_conformance](test_widget_conformance.md)), and
+`Test::AppendChatListPlaceSelfTest` in `test_chat_show_place.cpp`
+([test_chat_show_place](test_chat_show_place.md)), which injects two local
+widget cards and two text fillers and places them. The scoped evidence
 overlay of
 `2026/10/26/move-widgets-to-widget-sandbox-v0-2-2-and-give-them-their-state-and-message-context`
 also drives it directly, to inject local widget messages with a message
@@ -40,7 +43,8 @@ parse of the log.
   ports, the proxy without credentials and its conflicts) and
   `<marker>_NET_CONTROL` (one per probe). The attack audit passes
   `widget attack audit: ` and `ATTACK`, the conformance runner
-  `widget conformance: ` and `CONFORMANCE`.
+  `widget conformance: ` and `CONFORMANCE`, the chat-list place self-test
+  `chat-list place self-test: ` and `CHAT_LIST_PLACE_SELFTEST`.
 - **Gates.** `AppendWidgetFixtureOpen` appends "capture the baseline and show
   the window normally", "keep the window exposed" and "open the chat in the
   legacy HistoryWidget": the window's session is on the Test environment,
@@ -60,8 +64,8 @@ parse of the log.
   `WidgetFixtureOwns()` already answers for the message inside the
   history's new-item notification. The widget's width and height anchors
   are parameters (the attack audit passes 0 and 0, auto; the conformance
-  runner 390 and 0). The media's other layer-233 fields are an optional
-  `WidgetMessageFields`: `Tgw::WidgetFlags` (`isCopy`, `canQuery`,
+  runner 390 and 0; the chat-list place self-test 0 and 64). The media's
+  other layer-233 fields are an optional `WidgetMessageFields`: `Tgw::WidgetFlags` (`isCopy`, `canQuery`,
   `backgroundQuery`), `Tgw::WidgetState` (raw `chatData` and `publicData`
   bytes) and `widgetId`. The default is no flag, state or id, which is what
   the two packs pass. They are sent as given, never validated or derived:

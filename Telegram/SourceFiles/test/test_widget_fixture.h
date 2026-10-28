@@ -46,9 +46,10 @@ class ElasticScroll;
 // HistoryInner of the primary window, shown normally and kept exposed
 // without activation, local outgoing widget and text messages with tapped
 // widget ops, card readings, the runtime log, loopback network controls and
-// one idempotent release. Internal dependency of those two packs (and of
-// one task's scoped evidence overlay), not a general overlay fixture;
-// contract and callers: docs/helpers/test_widget_fixture.md.
+// one idempotent release. Internal dependency of those two packs, of the
+// chat-list place self-test (test_chat_show_place.cpp) and of one task's
+// scoped evidence overlay, not a general overlay fixture; contract and
+// callers: docs/helpers/test_widget_fixture.md.
 
 namespace Test {
 

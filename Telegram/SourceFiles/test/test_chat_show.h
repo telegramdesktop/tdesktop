@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <memory>
 
+class HistoryItem;
 class QWidget;
 
 namespace HistoryView {
@@ -229,8 +230,9 @@ struct ChatListShow {
 void AppendChatListShowSelfTest(not_null<Runner*> runner, PeerId channel);
 
 // Self-test access, not for overlays: the helper's own reads of a list,
-// shared by test_chat_show.cpp and test_chat_show_self_test.cpp so the
-// self-test's judge does not copy them. Those taking |list| read it only
+// shared by test_chat_show.cpp, test_chat_show_self_test.cpp and
+// test_chat_show_place.cpp so neither the self-test's judge nor the
+// placement helper copies them. Those taking |list| read it only
 // during the call; a widget that is none of the three lists is None, with
 // an empty visible area, nothing pending and mouse-active text "none".
 enum class ChatListShowKind {
@@ -264,5 +266,23 @@ enum class ChatListShowKind {
 // dereferenced; "none" for null.
 [[nodiscard]] QString ChatListShowViewIdentity(
 	const HistoryView::Element *view);
+
+// The message |id| as |list|'s own session knows it, or null (also for
+// a widget that is none of the three lists).
+[[nodiscard]] HistoryItem *ChatListShowItem(
+	not_null<QWidget*> list,
+	FullMsgId id);
+
+// The list's own current view of |item| by chat-lists.md's ownership
+// rule (never item->mainView() on trust), or null.
+[[nodiscard]] HistoryView::Element *ChatListShowOwnView(
+	not_null<QWidget*> list,
+	not_null<HistoryItem*> item);
+
+// |view|'s bounds in |list|'s own coordinates: its origin as the list's
+// mapPointToItem() places it, selection-mode offset included.
+[[nodiscard]] QRect ChatListShowElementRect(
+	not_null<QWidget*> list,
+	not_null<const HistoryView::Element*> view);
 
 } // namespace Test

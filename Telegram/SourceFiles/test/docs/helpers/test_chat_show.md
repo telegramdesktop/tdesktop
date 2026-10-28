@@ -28,6 +28,12 @@ Use something else when:
   [chat-list resolution](../chat-lists.md)); this helper never loads history;
 - the input is a context menu: `OpenChatListContextMenu`
   ([test_chat_menu](test_chat_menu.md)) owns its own enter, menu and leave;
+- several messages must be wholly in view together, wholly scrolled off
+  above or below, or must stay that way for a window:
+  `AppendPlaceInChatList` and `AppendStayedInChatList`
+  ([test_chat_show_place](test_chat_show_place.md)), gated by the caller's
+  fresh visibility reading - for a widget card `Tgw::Runtime::queryVisible()`
+  or `Tgw::Runtime::WatchingOnScreen()`, never the cached `_visible`;
 - only a frame is needed of something already in view: read
   `ReadMappedTarget` and capture with `CaptureMappedTarget`
   ([test_capture](test_capture.md)).

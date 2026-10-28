@@ -41,7 +41,11 @@ and prove the candidate owns the message:
   shows its own view, put that view (or a rectangle in it) wholly in view,
   laid out, painted, ready and optionally hovered before input with
   `Test::AppendShowInChatList` ([test_chat_show](helpers/test_chat_show.md)),
-  not a local scroll-and-wait; decide where the row sits with the list's
+  not a local scroll-and-wait; to put several messages wholly in view
+  together or wholly out of it and prove they stayed for a window,
+  `Test::AppendPlaceInChatList` with `Test::AppendStayedInChatList`
+  ([test_chat_show_place](helpers/test_chat_show_place.md)); decide where
+  the row sits with the list's
   public `elementIntersectsRange(view, from, till)`, and frame it with
   `Test::CaptureMappedRect`.
 
