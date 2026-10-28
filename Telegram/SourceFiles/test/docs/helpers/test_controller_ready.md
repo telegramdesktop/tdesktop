@@ -86,7 +86,9 @@ only.
   frame, OS activation, keyboard focus, membership in activation history, or
   which chat or section the controller shows. Keep a covered window painting
   with [window exposure](test_window_exposure.md); route focus-dependent
-  input through the [input helpers](test_widgets.md#input-helpers).
+  input through the [input helpers](test_widgets.md#input-helpers). Which
+  message list a chat's separate window builds is in
+  [chat-list resolution](../chat-lists.md#a-chats-separate-window).
 - The reading text prints storage indices, counts and flags only, never a
   user id, `uniqueId()`, name, peer or address.
 
