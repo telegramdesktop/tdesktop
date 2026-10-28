@@ -35,7 +35,7 @@ triggered - and keeps the main window minimized with
 `KeepMainWindowNotMarkingRead` from before the injection until both are
 destroyed. On the legacy `HistoryInner`, and then on the
 `HistoryView::ListWidget` of a `HistoryView::ChatWidget` opened through the
-`use-new-chat-view` option: a premise arm (A resolved last, the mouse outside
+`use-modern-chat-view` option: a premise arm (A resolved last, the mouse outside
 the list, the window inactive through `ClearWindowActive`, and an unprotected
 `OpenContextMenu` at B's point that the list resolved to A or to none, never
 to B, read at build through the observer); the protected reading for B under

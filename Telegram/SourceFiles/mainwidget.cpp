@@ -121,13 +121,14 @@ base::options::toggle ForceComposeSearchOneColumn({
 base::options::toggle OptionUseNewChatView({
 	.id = kOptionUseNewChatView,
 	.name = "New chat view",
-	.description = "Open chats through the new section."
+	.description = "Open chats through the new section.",
+	.defaultValue = true,
 });
 
 } // namespace
 
 const char kForceComposeSearchOneColumn[] = "force-compose-search-one-column";
-const char kOptionUseNewChatView[] = "use-new-chat-view";
+const char kOptionUseNewChatView[] = "use-modern-chat-view";
 
 enum StackItemType {
 	HistoryStackItem,

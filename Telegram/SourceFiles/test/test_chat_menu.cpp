@@ -1268,7 +1268,7 @@ void HideSelfTestMenu(SelfTestState &state, QWidget *widget) {
 		u"focusWindowSet=%1"_q.arg(FlagText(state.focusWindowSet)),
 		u"activeWindow=%1"_q.arg(state.activeWindowIdentity),
 		u"focusWidget=%1"_q.arg(state.focusWidgetIdentity),
-		u"use-new-chat-view=%1"_q.arg(FlagText(state.optionFound)),
+		u"use-modern-chat-view=%1"_q.arg(FlagText(state.optionFound)),
 		u"chat={%1}"_q.arg(state.baselineChat),
 		u"selections={%1}"_q.arg(state.baselineSelection),
 		u"activation=[%1]"_q.arg(state.baselineActivation),
@@ -1356,7 +1356,7 @@ void StartWait(SelfTestState &state) {
 
 // Shows Saved Messages in the background, at its end: in the legacy
 // HistoryWidget with |modern| false and in a HistoryView::ChatWidget with
-// it true, through the existing use-new-chat-view option. Background, so
+// it true, through the existing use-modern-chat-view option. Background, so
 // MainWidget::showHistory neither activates the window nor clears its
 // minimized bit; the lever is re-asserted anyway.
 void OpenSavedMessages(SelfTestState &state, bool modern) {
@@ -2621,7 +2621,7 @@ void RestoreChat(SelfTestState &state) {
 		result.done.push_back(u"option restored"_q);
 	}
 	result.optionRestored = (option.value() == state.optionFound);
-	result.option = u"use-new-chat-view found="_q
+	result.option = u"use-modern-chat-view found="_q
 		+ FlagText(state.optionFound)
 		+ u" now="_q
 		+ FlagText(option.value())
@@ -2708,7 +2708,7 @@ void CheckRelease(const SelfTestState &state) {
 		r.lists);
 	Check(
 		r.optionRestored,
-		prefix + u"the use-new-chat-view option is back to the value it was "
+		prefix + u"the use-modern-chat-view option is back to the value it was "
 			"found with"_q,
 		r.option);
 	Check(

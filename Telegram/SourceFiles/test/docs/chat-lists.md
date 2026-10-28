@@ -61,7 +61,7 @@ window's `MainWindow::setupMain` (`mainwindow.cpp`) shows the chat through
 `SessionController::showPeerHistory` (`window/window_session_controller.cpp`)
 to `MainWidget::showHistory` (`mainwidget.cpp`), where
 `if (peerId && OptionUseNewChatView.value())` picks the stack. With
-`use-new-chat-view` on, the window shows a `HistoryView::ChatMemento`
+`use-modern-chat-view` on, the window shows a `HistoryView::ChatMemento`
 section, a `ChatWidget` whose constructor `ChatWidget::ChatWidget`
 (`history/view/history_view_chat_section.cpp`) builds its own `ListWidget`.
 With it off, the window's own `HistoryWidget` builds a `HistoryInner` in
