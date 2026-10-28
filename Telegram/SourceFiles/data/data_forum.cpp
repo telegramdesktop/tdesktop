@@ -588,6 +588,7 @@ void Forum::discardCreatingId(MsgId rootId) {
 		_topics.erase(i);
 	}
 	_creatingRootIds.remove(rootId);
+	owner().histories().discardCreatingTopic(_history, rootId);
 }
 
 bool Forum::creating(MsgId rootId) const {

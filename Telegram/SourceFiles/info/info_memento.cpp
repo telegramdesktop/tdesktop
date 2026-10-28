@@ -53,6 +53,23 @@ namespace {
 	return nullptr;
 }
 
+[[nodiscard]] History *CreatingTopicHistory(Data::ForumTopic *topic) {
+	return (topic && topic->creating())
+		? topic->owningHistory().get()
+		: nullptr;
+}
+
+[[nodiscard]] object_ptr<Window::SectionWidget> OwningHistoryWidget(
+		not_null<History*> history,
+		QWidget *parent,
+		not_null<Window::SessionController*> controller,
+		Window::Column column,
+		const QRect &geometry) {
+	auto memento = HistoryView::ChatMemento(
+		HistoryView::ChatViewId{ .history = history });
+	return memento.createWidget(parent, controller, column, geometry);
+}
+
 } // namespace
 
 Memento::Memento(not_null<PeerData*> peer)
@@ -184,7 +201,12 @@ bool Memento::hasDyingContent() const {
 History *Memento::removeDyingContent() {
 	auto result = (History*)nullptr;
 	for (auto i = begin(_stack); i != end(_stack);) {
-		if (const auto history = DyingThreadHistory(i->get())) {
+		const auto content = i->get();
+		const auto dying = DyingThreadHistory(content);
+		const auto history = dying
+			? dying
+			: CreatingTopicHistory(content->topic());
+		if (history) {
 			result = history;
 			i = _stack.erase(i);
 		} else {
@@ -385,9 +407,12 @@ object_ptr<Window::SectionWidget> Memento::createWidget(
 			return nullptr;
 		}
 	} else if (const auto history = removeDyingContent()) {
-		auto memento = HistoryView::ChatMemento(
-			HistoryView::ChatViewId{ .history = history });
-		return memento.createWidget(parent, controller, column, geometry);
+		return OwningHistoryWidget(
+			history,
+			parent,
+			controller,
+			column,
+			geometry);
 	}
 	auto wrap = (column == Window::Column::Third)
 		? Wrap::Side
@@ -433,6 +458,18 @@ object_ptr<Window::SectionWidget> MoveMemento::createWidget(
 		not_null<Window::SessionController*> controller,
 		Window::Column column,
 		const QRect &geometry) {
+	const auto history = (column != Window::Column::Third)
+		? CreatingTopicHistory(_content->key().topic())
+		: nullptr;
+	if (history) {
+		_content.destroy();
+		return OwningHistoryWidget(
+			history,
+			parent,
+			controller,
+			column,
+			geometry);
+	}
 	auto wrap = (column == Window::Column::Third)
 		? Wrap::Side
 		: Wrap::Narrow;
