@@ -143,12 +143,17 @@ QImage PreviewImage::image(int size) {
 			if (!media || !media->hasReplyPreview()) {
 				return rpl::single(ContentWithoutPreview(item, repaint));
 			}
+			// Media resets free the old object before any Edited is sent.
+			const auto owned = [=] {
+				return (item->media() == media);
+			};
 			constexpr auto kFullLoaded = 2;
 			const auto loadedLevel = [=] {
 				constexpr auto kSomeLoaded = 1;
 				constexpr auto kNotLoaded = 0;
-				const auto preview = media->replyPreview();
-				return media->replyPreviewLoaded()
+				const auto current = item->media();
+				const auto preview = current->replyPreview();
+				return current->replyPreviewLoaded()
 					? kFullLoaded
 					: preview
 					? kSomeLoaded
@@ -158,17 +163,18 @@ QImage PreviewImage::image(int size) {
 				loadedLevel()
 			) | rpl::then(
 				item->history()->session().downloaderTaskFinished(
-				) | rpl::map(loadedLevel)
+				) | rpl::take_while(owned) | rpl::map(loadedLevel)
 			) | rpl::distinct_until_changed(
 			) | rpl::take_while([=](int loadLevel) {
 				return loadLevel < kFullLoaded;
 			}) | rpl::then(
 				rpl::single(kFullLoaded)
-			) | rpl::map([=] {
+			) | rpl::take_while(owned) | rpl::map([=] {
+				const auto current = item->media();
 				return ContentWithPreview(
 					item,
-					media->replyPreview(),
-					media->hasSpoilerForPreview(),
+					current->replyPreview(),
+					current->hasSpoilerForPreview(),
 					repaint);
 			});
 		}) | rpl::flatten_latest(
