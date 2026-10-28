@@ -1713,14 +1713,14 @@ QRect NotificationDisplayRect(Window::Controller *controller) {
 	}
 
 	if (screen) {
-		return screen->availableGeometry();
+		return Platform::ScreenAvailableGeometry(screen);
 	} else if (controller) {
 		return controller->widget()->desktopRect();
 	}
 	// When the last monitor is removed QGuiApplication has no screens at
 	// all, so primaryScreen() is nullptr.
 	const auto primary = QGuiApplication::primaryScreen();
-	return primary ? primary->availableGeometry() : QRect();
+	return primary ? Platform::ScreenAvailableGeometry(primary) : QRect();
 }
 
 } // namespace Notifications
