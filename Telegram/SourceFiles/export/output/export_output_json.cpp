@@ -93,6 +93,12 @@ QByteArray StringAllowNull(const Data::Utf8String &data) {
 	return data.isEmpty() ? QByteArray("null") : SerializeString(data);
 }
 
+QByteArray FloatAllowNull(float64 value) {
+	return std::isfinite(value)
+		? Data::NumberToString(value)
+		: QByteArray("null");
+}
+
 QByteArray Indentation(int size) {
 	return QByteArray(size, ' ');
 }
@@ -1081,12 +1087,6 @@ QByteArray SerializeRichChannel(
 	return SerializeObject(context.json, values);
 }
 
-QByteArray SerializeRichCoordinate(float64 value) {
-	return std::isfinite(value)
-		? Data::NumberToString(value)
-		: QByteArray("null");
-}
-
 QByteArray SerializeRichMapPoint(
 		RichSerializeContext &context,
 		const Data::RichMapPoint &data) {
@@ -1105,10 +1105,10 @@ QByteArray SerializeRichMapPoint(
 	case Source::InputGeoPoint:
 		values.emplace_back(
 			"latitude",
-			SerializeRichCoordinate(data.latitude));
+			FloatAllowNull(data.latitude));
 		values.emplace_back(
 			"longitude",
-			SerializeRichCoordinate(data.longitude));
+			FloatAllowNull(data.longitude));
 		break;
 	}
 	if (data.accessHash) {
@@ -2790,7 +2790,7 @@ Result JsonWriter::writeFrequentContacts(const Data::ContactsList &data) {
 				{ "category", SerializeString(category) },
 				{ "type", SerializeString(type) },
 				{ "name", StringAllowNull(top.peer.name()) },
-				{ "rating", Data::NumberToString(top.rating) },
+				{ "rating", FloatAllowNull(top.rating) },
 			}));
 		}
 	};
