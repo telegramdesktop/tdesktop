@@ -2497,11 +2497,14 @@ bool SessionController::jumpToChatListEntry(Dialogs::RowDescriptor row) {
 
 void SessionController::setDialogsEntryState(
 		Dialogs::EntryState state) {
-	_dialogsEntryState = state;
+	_dialogsEntryThread = state.key.thread();
+	_dialogsEntryState = std::move(state);
 }
 
 Dialogs::EntryState SessionController::dialogsEntryStateCurrent() const {
-	return _dialogsEntryState.current();
+	return _dialogsEntryThread
+		? _dialogsEntryState.current()
+		: Dialogs::EntryState();
 }
 
 bool SessionController::switchInlineQuery(

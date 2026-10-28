@@ -859,6 +859,8 @@ private:
 	bool _filtersActivated = false;
 
 	rpl::variable<Dialogs::EntryState> _dialogsEntryState;
+	// A topic or sublist can be freed without a destroyed() event.
+	base::weak_ptr<Data::Thread> _dialogsEntryThread;
 
 	base::Timer _invitePeekTimer;
 
