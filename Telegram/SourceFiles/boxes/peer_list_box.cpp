@@ -436,10 +436,6 @@ const style::PeerList &PeerListController::computeListSt() const {
 	return _listSt ? *_listSt : st::peerListBox;
 }
 
-const style::MultiSelect &PeerListController::computeSelectSt() const {
-	return _selectSt ? *_selectSt : st::defaultMultiSelect;
-}
-
 void PeerListController::showFinished() {
 	if (const auto onstack = _showFinished) {
 		onstack();
@@ -1616,12 +1612,10 @@ int PeerListContent::labelHeight() const {
 
 void PeerListContent::refreshRows() {
 	if (!_hiddenRows.empty()) {
-		if (!_ignoreHiddenRowsOnSearch || _normalizedSearchQuery.isEmpty()) {
-			_filterResults.clear();
-			for (const auto &row : _rows) {
-				if (!row->hidden()) {
-					_filterResults.push_back(row.get());
-				}
+		_filterResults.clear();
+		for (const auto &row : _rows) {
+			if (!row->hidden()) {
+				_filterResults.push_back(row.get());
 			}
 		}
 	}
@@ -2420,13 +2414,10 @@ void PeerListContent::checkScrollForPreload() {
 void PeerListContent::searchQueryChanged(QString query) {
 	const auto searchWordsList = TextUtilities::PrepareSearchWords(query);
 	const auto normalizedQuery = searchWordsList.join(' ');
-	if (_ignoreHiddenRowsOnSearch && !normalizedQuery.isEmpty()) {
-		_filterResults.clear();
-	}
 	if (_normalizedSearchQuery != normalizedQuery) {
 		setSearchQuery(query, normalizedQuery);
 		if (_controller->searchInLocal() && !searchWordsList.isEmpty()) {
-			Assert(_hiddenRows.empty() || _ignoreHiddenRowsOnSearch);
+			Assert(_hiddenRows.empty());
 
 			auto minimalList = (const std::vector<not_null<PeerListRow*>>*)nullptr;
 			for (const auto &searchWord : searchWordsList) {
@@ -2563,10 +2554,6 @@ PeerListRowId PeerListContent::updateFromParentDrag(QPoint globalPosition) {
 
 void PeerListContent::dragLeft() {
 	clearSelection();
-}
-
-void PeerListContent::setIgnoreHiddenRowsOnSearch(bool value) {
-	_ignoreHiddenRowsOnSearch = value;
 }
 
 void PeerListContent::visibleTopBottomUpdated(
