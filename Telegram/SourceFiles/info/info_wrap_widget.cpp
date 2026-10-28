@@ -153,7 +153,11 @@ WrapWidget::WrapWidget(
 
 void WrapWidget::subscribeToThreadDestroyed() {
 	_threadDestroyedLifetime.destroy();
+	_mementoThreadLifetime = nullptr;
 	if (const auto topic = _controller->topic()) {
+		_mementoThreadLifetime = Memento::WatchThread(
+			topic,
+			topic->destroyed());
 		topic->destroyed(
 		) | rpl::on_next([=] {
 			if (_wrap.current() == Wrap::Layer) {
@@ -168,6 +172,9 @@ void WrapWidget::subscribeToThreadDestroyed() {
 			}
 		}, _threadDestroyedLifetime);
 	} else if (const auto sublist = _controller->sublist()) {
+		_mementoThreadLifetime = Memento::WatchThread(
+			sublist,
+			sublist->destroyed());
 		sublist->destroyed(
 		) | rpl::on_next([=] {
 			auto keep = base::take(_threadDestroyedLifetime);
@@ -939,7 +946,9 @@ std::shared_ptr<Window::SectionMemento> WrapWidget::createMemento() {
 	// after it.
 	_mementoTaken = true;
 
-	return std::make_shared<Memento>(std::move(stack));
+	return std::make_shared<Memento>(
+		std::move(stack),
+		base::take(_mementoThreadLifetime));
 }
 
 SendMenu::Details WrapWidget::sendMenuDetails() const {

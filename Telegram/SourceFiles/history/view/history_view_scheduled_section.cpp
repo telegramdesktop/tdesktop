@@ -98,13 +98,6 @@ constexpr auto kVideoProcessingInfoDuration = 4 * crl::time(1000);
 	return nullptr;
 }
 
-[[nodiscard]] bool TopicIsDying(not_null<Data::ForumTopic*> topic) {
-	const auto forum = topic->forum();
-	const auto botGeneral = topic->isGeneral() && forum->peer()->isBot();
-	return (forum->peer()->forum() != forum)
-		|| (!botGeneral && forum->topicDeleted(topic->rootId()));
-}
-
 } // namespace
 
 ScheduledMemento::ScheduledMemento(
@@ -141,7 +134,7 @@ object_ptr<Window::SectionWidget> ScheduledMemento::createWidget(
 	if (column == Window::Column::Third) {
 		return nullptr;
 	}
-	if (_forumTopic && TopicIsDying(_forumTopic)) {
+	if (_forumTopic && _forumTopic->dying()) {
 		// A back navigation inside the topic's destruction must not rebuild it.
 		auto memento = ChatMemento(ChatViewId{ .history = _history });
 		return memento.createWidget(parent, controller, column, geometry);

@@ -339,6 +339,12 @@ bool ForumTopic::canTogglePinned() const {
 	return !creating() && peer()->canManageTopics();
 }
 
+bool ForumTopic::dying() const {
+	const auto botGeneral = isGeneral() && peer()->isBot();
+	return (peer()->forum() != _forum)
+		|| (!botGeneral && _forum->topicDeleted(_rootId));
+}
+
 bool ForumTopic::creating() const {
 	return _forum->creating(_rootId);
 }

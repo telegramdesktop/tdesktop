@@ -35,9 +35,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
+#include "history/view/history_view_chat_section.h"
 #include "main/main_session.h"
 
 namespace Info {
+namespace {
+
+[[nodiscard]] History *DyingThreadHistory(
+		not_null<ContentMemento*> content) {
+	if (const auto topic = content->topic()) {
+		return topic->dying() ? topic->owningHistory().get() : nullptr;
+	} else if (const auto sublist = content->sublist()) {
+		const auto chat = sublist->parentChat();
+		const auto dying = chat && (chat->monoforum() != sublist->parent());
+		return dying ? sublist->owningHistory().get() : nullptr;
+	}
+	return nullptr;
+}
+
+} // namespace
 
 Memento::Memento(not_null<PeerData*> peer)
 : Memento(peer, [&] {
@@ -87,8 +103,14 @@ Memento::Memento(
 : Memento(DefaultStack(std::move(whoReadIds), contextId, selected)) {
 }
 
-Memento::Memento(std::vector<std::shared_ptr<ContentMemento>> stack)
-: _stack(std::move(stack)) {
+Memento::Memento(
+	std::vector<std::shared_ptr<ContentMemento>> stack,
+	std::unique_ptr<MementoThreadLifetime> threadLifetime)
+: _stack(std::move(stack))
+, _threadLifetime(std::move(threadLifetime)) {
+	if (_threadLifetime) {
+		_threadLifetime->memento = this;
+	}
 	auto topics = base::flat_set<not_null<Data::ForumTopic*>>();
 	auto sublists = base::flat_set<not_null<Data::SavedSublist*>>();
 	for (auto &entry : _stack) {
@@ -101,33 +123,70 @@ Memento::Memento(std::vector<std::shared_ptr<ContentMemento>> stack)
 	for (const auto &topic : topics) {
 		topic->destroyed(
 		) | rpl::on_next([=] {
-			for (auto i = begin(_stack); i != end(_stack);) {
-				if (i->get()->topic() == topic) {
-					i = _stack.erase(i);
-				} else {
-					++i;
-				}
-			}
-			if (_stack.empty()) {
-				_removeRequests.fire({});
-			}
+			removeThread(topic);
 		}, _lifetime);
 	}
 	for (const auto &sublist : sublists) {
 		sublist->destroyed(
 		) | rpl::on_next([=] {
-			for (auto i = begin(_stack); i != end(_stack);) {
-				if (i->get()->sublist() == sublist) {
-					i = _stack.erase(i);
-				} else {
-					++i;
-				}
-			}
-			if (_stack.empty()) {
-				_removeRequests.fire({});
-			}
+			removeThread(sublist);
 		}, _lifetime);
 	}
+}
+
+std::unique_ptr<MementoThreadLifetime> Memento::WatchThread(
+		not_null<Data::Thread*> thread,
+		rpl::producer<> destroyed) {
+	auto result = std::make_unique<MementoThreadLifetime>();
+	const auto raw = result.get();
+
+	// WHY: made when the content is shown, before any section opened from
+	// it subscribes, so the saved memento drops the thread before such a
+	// section's destroyed() handler goes back to it.
+	std::move(
+		destroyed
+	) | rpl::on_next([=] {
+		if (const auto memento = raw->memento) {
+			memento->removeThread(thread);
+		}
+	}, raw->lifetime);
+	return result;
+}
+
+void Memento::removeThread(not_null<Data::Thread*> thread) {
+	const auto was = _stack.size();
+	for (auto i = begin(_stack); i != end(_stack);) {
+		const auto content = i->get();
+		if ((content->topic() == thread) || (content->sublist() == thread)) {
+			i = _stack.erase(i);
+		} else {
+			++i;
+		}
+	}
+	if (_stack.empty()) {
+		_removeRequests.fire({});
+	} else if (_stack.size() != was) {
+		_prunedThreads.push_back(base::make_weak(thread));
+	}
+}
+
+bool Memento::hasDyingContent() const {
+	return ranges::any_of(_stack, [](const auto &content) {
+		return DyingThreadHistory(content.get()) != nullptr;
+	});
+}
+
+History *Memento::removeDyingContent() {
+	auto result = (History*)nullptr;
+	for (auto i = begin(_stack); i != end(_stack);) {
+		if (const auto history = DyingThreadHistory(i->get())) {
+			result = history;
+			i = _stack.erase(i);
+		} else {
+			++i;
+		}
+	}
+	return _stack.empty() ? result : nullptr;
 }
 
 std::vector<std::shared_ptr<ContentMemento>> Memento::DefaultStack(
@@ -315,6 +374,16 @@ object_ptr<Window::SectionWidget> Memento::createWidget(
 		not_null<Window::SessionController*> controller,
 		Window::Column column,
 		const QRect &geometry) {
+	// Back navigation inside a thread's teardown must not rebuild its Info.
+	if (column == Window::Column::Third) {
+		if (hasDyingContent()) {
+			return nullptr;
+		}
+	} else if (const auto history = removeDyingContent()) {
+		auto memento = HistoryView::ChatMemento(
+			HistoryView::ChatViewId{ .history = history });
+		return memento.createWidget(parent, controller, column, geometry);
+	}
 	auto wrap = (column == Window::Column::Third)
 		? Wrap::Side
 		: Wrap::Narrow;
@@ -330,7 +399,13 @@ object_ptr<Window::SectionWidget> Memento::createWidget(
 object_ptr<Ui::LayerWidget> Memento::createLayer(
 		not_null<Window::SessionController*> controller,
 		const QRect &geometry) {
-	if (geometry.width() >= LayerWidget::MinimalSupportedWidth()) {
+	// A layer would leave the dying thread's section in the main column.
+	const auto pruning = ranges::any_of(_prunedThreads, [](const auto &weak) {
+		return !weak.empty();
+	});
+	if (!pruning
+		&& !hasDyingContent()
+		&& geometry.width() >= LayerWidget::MinimalSupportedWidth()) {
 		return object_ptr<LayerWidget>(controller, this);
 	}
 	return nullptr;

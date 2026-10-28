@@ -47,6 +47,7 @@ class MoveMemento;
 class ContentMemento;
 class ContentWidget;
 class TopBar;
+struct MementoThreadLifetime;
 
 enum class Wrap {
 	Layer,
@@ -246,6 +247,7 @@ private:
 	std::vector<StackItem> _historyStack;
 	rpl::event_stream<> _removeRequests;
 	rpl::lifetime _threadDestroyedLifetime;
+	std::unique_ptr<MementoThreadLifetime> _mementoThreadLifetime;
 	bool _shortcutsSetup = false;
 
 	rpl::event_stream<rpl::producer<int>> _desiredHeights;
