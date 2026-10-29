@@ -1,0 +1,831 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+#include "api/api_stories.h"
+
+#include "api/api_text_entities.h"
+#include "apiwrap.h"
+#include "base/random.h"
+#include "data/data_channel.h"
+#include "data/data_document.h"
+#include "data/data_photo.h"
+#include "data/data_premium_limits.h"
+#include "data/data_session.h"
+#include "data/data_user.h"
+#include "main/main_app_config.h"
+#include "main/main_session.h"
+#include "media/media_video_encode.h"
+#include "storage/file_upload.h"
+#include "storage/localimageloader.h"
+#include "ui/chat/attach/attach_prepare.h"
+#include "ui/text/text_utilities.h"
+
+#include <QtCore/QFile>
+
+namespace Api {
+namespace {
+
+constexpr auto kTranscodeShare = 0.3;
+constexpr auto kPreviewSide = 160;
+
+class PrepareStoryTask final : public Task {
+public:
+	PrepareStoryTask(
+		FileLoadTask::Args &&args,
+		Fn<void(std::shared_ptr<FilePrepareResult>)> done);
+
+	void process() override;
+	void finish() override;
+
+private:
+	FileLoadTask _task;
+	Fn<void(std::shared_ptr<FilePrepareResult>)> _done;
+
+};
+
+PrepareStoryTask::PrepareStoryTask(
+	FileLoadTask::Args &&args,
+	Fn<void(std::shared_ptr<FilePrepareResult>)> done)
+: _task(std::move(args))
+, _done(std::move(done)) {
+}
+
+void PrepareStoryTask::process() {
+	_task.process({ .generateGoodThumbnail = true });
+}
+
+void PrepareStoryTask::finish() {
+	_done(_task.peekResult());
+}
+
+[[nodiscard]] QImage PreparePreview(QImage image) {
+	if (image.isNull()) {
+		return image;
+	}
+	return image.scaled(
+		kPreviewSide,
+		kPreviewSide,
+		Qt::KeepAspectRatio,
+		Qt::SmoothTransformation);
+}
+
+[[nodiscard]] StoryId StoryIdFromUpdates(const MTPUpdates &updates) {
+	auto result = StoryId();
+	const auto check = [&](const MTPUpdate &update) {
+		update.match([&](const MTPDupdateStory &data) {
+			data.vstory().match([&](const MTPDstoryItem &data) {
+				result = data.vid().v;
+			}, [&](const MTPDstoryItemSkipped &data) {
+				result = data.vid().v;
+			}, [](const MTPDstoryItemDeleted &) {
+			});
+		}, [](const auto &) {
+		});
+	};
+	updates.match([&](const MTPDupdates &data) {
+		for (const auto &update : data.vupdates().v) {
+			check(update);
+		}
+	}, [&](const MTPDupdatesCombined &data) {
+		for (const auto &update : data.vupdates().v) {
+			check(update);
+		}
+	}, [&](const MTPDupdateShort &data) {
+		check(data.vupdate());
+	}, [](const auto &) {
+	});
+	return result;
+}
+
+[[nodiscard]] CanSendStory CanSendStoryFromError(const QString &error) {
+	using Type = CanSendStory::Type;
+	const auto weekly = u"STORY_SEND_FLOOD_WEEKLY_"_q;
+	const auto monthly = u"STORY_SEND_FLOOD_MONTHLY_"_q;
+	if (error == u"PREMIUM_ACCOUNT_REQUIRED"_q) {
+		return { .type = Type::PremiumRequired, .error = error };
+	} else if (error.contains(u"BOOSTS_REQUIRED"_q)) {
+		return { .type = Type::BoostsRequired, .error = error };
+	} else if (error == u"STORIES_TOO_MUCH"_q) {
+		return { .type = Type::CountLimit, .error = error };
+	} else if (error.startsWith(weekly)) {
+		return {
+			.type = Type::WeeklyLimit,
+			.until = error.mid(weekly.size()).toInt(),
+			.error = error,
+		};
+	} else if (error.startsWith(monthly)) {
+		return {
+			.type = Type::MonthlyLimit,
+			.until = error.mid(monthly.size()).toInt(),
+			.error = error,
+		};
+	} else if (error.startsWith(u"STORY_LIVE_ALREADY_"_q)) {
+		return { .type = Type::LiveAlready, .error = error };
+	}
+	return { .type = Type::Error, .error = error };
+}
+
+} // namespace
+
+struct Stories::Upload {
+	explicit Upload(StoryToSend &&story) : story(std::move(story)) {
+	}
+
+	StoryToSend story;
+	std::shared_ptr<std::atomic<bool>> cancelPreparing;
+	std::shared_ptr<FilePrepareResult> prepared;
+	FullMsgId uploadId;
+	QString tempPath;
+	uint64 id = 0;
+	uint64 generation = 0;
+	mtpRequestId requestId = 0;
+	bool hasAudio = false;
+	bool uploading = false;
+};
+
+QVector<MTPInputPrivacyRule> StoryPrivacyToInput(
+		not_null<Main::Session*> session,
+		const UserPrivacy::Rule &rule) {
+	using Option = UserPrivacy::Option;
+	const auto collectUsers = [](const UserPrivacy::Exceptions &list) {
+		auto result = QVector<MTPInputUser>();
+		result.reserve(list.peers.size());
+		for (const auto &peer : list.peers) {
+			if (const auto user = peer->asUser()) {
+				result.push_back(user->inputUser());
+			}
+		}
+		return result;
+	};
+	const auto collectChats = [](const UserPrivacy::Exceptions &list) {
+		auto result = QVector<MTPlong>();
+		result.reserve(list.peers.size());
+		for (const auto &peer : list.peers) {
+			if (!peer->isUser()) {
+				result.push_back(peerToBareMTPInt(peer->id));
+			}
+		}
+		return result;
+	};
+	auto result = QVector<MTPInputPrivacyRule>();
+	switch (rule.option) {
+	case Option::Everyone:
+		result.push_back(MTP_inputPrivacyValueAllowAll());
+		break;
+	case Option::Contacts:
+		result.push_back(MTP_inputPrivacyValueAllowContacts());
+		break;
+	case Option::CloseFriends:
+		result.push_back(MTP_inputPrivacyValueAllowCloseFriends());
+		break;
+	case Option::Nobody:
+		break;
+	}
+	if (rule.option == Option::Nobody) {
+		auto users = collectUsers(rule.always);
+		const auto chats = collectChats(rule.always);
+		if (users.empty() && chats.empty()) {
+			users.push_back(session->user()->inputUser());
+		}
+		if (!users.empty()) {
+			result.push_back(MTP_inputPrivacyValueAllowUsers(
+				MTP_vector<MTPInputUser>(users)));
+		}
+		if (!chats.empty()) {
+			result.push_back(MTP_inputPrivacyValueAllowChatParticipants(
+				MTP_vector<MTPlong>(chats)));
+		}
+	} else if (rule.option != Option::CloseFriends) {
+		const auto users = collectUsers(rule.never);
+		const auto chats = collectChats(rule.never);
+		if (!users.empty()) {
+			result.push_back(MTP_inputPrivacyValueDisallowUsers(
+				MTP_vector<MTPInputUser>(users)));
+		}
+		if (!chats.empty()) {
+			result.push_back(MTP_inputPrivacyValueDisallowChatParticipants(
+				MTP_vector<MTPlong>(chats)));
+		}
+	}
+	return result;
+}
+
+Stories::Stories(not_null<ApiWrap*> api)
+: _session(&api->session())
+, _api(&api->instance()) {
+	crl::on_main(_session, [=] {
+		subscribeToUploader();
+	});
+}
+
+void Stories::subscribeToUploader() {
+	const auto &uploader = _session->uploader();
+	uploader.photoReady(
+	) | rpl::on_next([=](const Storage::UploadedMedia &data) {
+		if (const auto upload = findByUploadId(data.fullId)) {
+			uploaded(upload, data);
+		}
+	}, _uploaderLifetime);
+	uploader.documentReady(
+	) | rpl::on_next([=](const Storage::UploadedMedia &data) {
+		if (const auto upload = findByUploadId(data.fullId)) {
+			uploaded(upload, data);
+		}
+	}, _uploaderLifetime);
+	uploader.photoProgress(
+	) | rpl::on_next([=](const FullMsgId &id) {
+		const auto upload = findByUploadId(id);
+		if (!upload || !upload->prepared) {
+			return;
+		}
+		const auto photo = _session->data().photo(upload->prepared->id);
+		const auto &state = photo->uploadingData;
+		if (state && state->size > 0) {
+			updateProgress(upload, state->offset / float64(state->size));
+		}
+	}, _uploaderLifetime);
+	uploader.documentProgress(
+	) | rpl::on_next([=](const FullMsgId &id) {
+		const auto upload = findByUploadId(id);
+		if (!upload || !upload->prepared) {
+			return;
+		}
+		const auto document = _session->data().document(
+			upload->prepared->id);
+		const auto &state = document->uploadingData;
+		if (state && state->size > 0) {
+			updateProgress(upload, state->offset / float64(state->size));
+		}
+	}, _uploaderLifetime);
+	uploader.photoFailed(
+	) | rpl::on_next([=](const FullMsgId &id) {
+		if (const auto upload = findByUploadId(id)) {
+			failed(upload, u"UPLOAD_FAILED"_q);
+		}
+	}, _uploaderLifetime);
+	uploader.documentFailed(
+	) | rpl::on_next([=](const FullMsgId &id) {
+		if (const auto upload = findByUploadId(id)) {
+			failed(upload, u"UPLOAD_FAILED"_q);
+		}
+	}, _uploaderLifetime);
+}
+
+Stories::~Stories() {
+	for (const auto &upload : _uploads) {
+		if (const auto cancel = base::take(upload->cancelPreparing)) {
+			cancel->store(true);
+		}
+		removeTempFile(upload.get());
+	}
+}
+
+void Stories::checkCanSend(
+		not_null<PeerData*> peer,
+		Fn<void(CanSendStory)> done) {
+	const auto premium = _session->premium();
+	const auto &config = _session->appConfig();
+	const auto premiumOnly = config.storiesPostingPremiumOnly();
+	if (!config.storiesPostingAvailable()) {
+		done({ .type = CanSendStory::Type::Error });
+		return;
+	} else if (peer->isSelf() && premiumOnly && !premium) {
+		done({ .type = CanSendStory::Type::PremiumRequired });
+		return;
+	}
+	_api.request(MTPstories_CanSendStory(
+		peer->input()
+	)).done([=](const MTPstories_CanSendStoryCount &result) {
+		const auto remains = result.data().vcount_remains().v;
+		done((remains > 0)
+			? CanSendStory{ .remains = remains }
+			: CanSendStory{ .type = CanSendStory::Type::CountLimit });
+	}).fail([=](const MTP::Error &error) {
+		done(CanSendStoryFromError(error.type()));
+	}).send();
+}
+
+void Stories::requestChatsToSend(
+		Fn<void(std::vector<not_null<PeerData*>>)> done) {
+	_api.request(MTPstories_GetChatsToSend(
+	)).done([=](const MTPmessages_Chats &result) {
+		const auto &chats = result.match([](const auto &data) {
+			return data.vchats().v;
+		});
+		auto list = std::vector<not_null<PeerData*>>();
+		list.reserve(chats.size());
+		for (const auto &chat : chats) {
+			if (const auto peer = _session->data().processChat(chat)) {
+				if (peer->canPostStories()) {
+					list.push_back(peer);
+				}
+			}
+		}
+		done(std::move(list));
+	}).fail([=] {
+		done({});
+	}).send();
+}
+
+void Stories::send(StoryToSend &&story) {
+	auto preview = QImage();
+	if (story.media) {
+		v::match(*story.media, [&](const SendStoryPhoto &data) {
+			preview = PreparePreview(data.image);
+		}, [&](const SendStoryVideo &data) {
+			preview = PreparePreview(data.cover);
+		}, [&](const SendStoryRepost &) {
+		});
+	}
+	const auto id = base::RandomValue<uint64>();
+	auto upload = std::make_unique<Upload>(std::move(story));
+	upload->id = id;
+	_uploadsInfo.push_back({
+		.id = id,
+		.peer = upload->story.peer,
+		.preview = std::move(preview),
+		.editId = upload->story.editId,
+		.preparing = true,
+	});
+	_uploads.push_back(std::move(upload));
+	start(_uploads.back().get());
+	notifyChanges();
+}
+
+void Stories::retry(uint64 uploadId) {
+	const auto upload = find(uploadId);
+	if (!upload || infoFor(upload).error.isEmpty()) {
+		return;
+	}
+	auto &info = infoFor(upload);
+	info.error = QString();
+	info.progress = 0.;
+	info.preparing = true;
+	if (upload->prepared) {
+		prepared(upload->id, upload->prepared);
+	} else {
+		start(upload);
+	}
+	notifyChanges();
+}
+
+void Stories::remove(uint64 uploadId) {
+	const auto upload = find(uploadId);
+	if (!upload) {
+		return;
+	}
+	cancelWork(upload);
+	removeTempFile(upload);
+	_uploadsInfo.erase(
+		ranges::remove(_uploadsInfo, uploadId, &StoryUpload::id),
+		end(_uploadsInfo));
+	_uploads.erase(
+		ranges::remove(_uploads, uploadId, [](const auto &entry) {
+			return entry->id;
+		}),
+		end(_uploads));
+	notifyChanges();
+}
+
+const std::vector<StoryUpload> &Stories::uploads() const {
+	return _uploadsInfo;
+}
+
+rpl::producer<> Stories::uploadsChanges() const {
+	return _uploadsChanges.events();
+}
+
+rpl::producer<StorySent> Stories::sent() const {
+	return _sent.events();
+}
+
+bool Stories::uploadingFor(not_null<PeerData*> peer) const {
+	return ranges::contains(_uploadsInfo, peer, &StoryUpload::peer);
+}
+
+Stories::Upload *Stories::find(uint64 id) {
+	const auto i = ranges::find(_uploads, id, [](const auto &entry) {
+		return entry->id;
+	});
+	return (i != end(_uploads)) ? i->get() : nullptr;
+}
+
+Stories::Upload *Stories::findByUploadId(FullMsgId uploadId) {
+	if (!uploadId) {
+		return nullptr;
+	}
+	const auto i = ranges::find_if(_uploads, [&](const auto &entry) {
+		return entry->uploading && (entry->uploadId == uploadId);
+	});
+	return (i != end(_uploads)) ? i->get() : nullptr;
+}
+
+StoryUpload &Stories::infoFor(not_null<Upload*> upload) {
+	const auto i = ranges::find(_uploadsInfo, upload->id, &StoryUpload::id);
+	Assert(i != end(_uploadsInfo));
+	return *i;
+}
+
+void Stories::notifyChanges() {
+	_uploadsChanges.fire({});
+}
+
+void Stories::start(not_null<Upload*> upload) {
+	++upload->generation;
+	auto &story = upload->story;
+	if (!story.media) {
+		if (story.editId) {
+			sendRequest(upload, std::nullopt, false);
+		} else {
+			failed(upload, u"MEDIA_EMPTY"_q);
+		}
+		return;
+	}
+	v::match(*story.media, [&](SendStoryPhoto &data) {
+		preparePhoto(upload, base::duplicate(data.image));
+	}, [&](SendStoryVideo &) {
+		transcodeVideo(upload);
+	}, [&](SendStoryRepost &data) {
+		if (data.photo) {
+			sendRequest(
+				upload,
+				MTP_inputMediaPhoto(
+					MTP_flags(0),
+					data.photo->mtpInput(),
+					MTPint(),
+					MTPInputDocument()),
+				true);
+		} else if (data.document) {
+			sendRequest(
+				upload,
+				MTP_inputMediaDocument(
+					MTP_flags(0),
+					data.document->mtpInput(),
+					MTPInputPhoto(),
+					MTPint(),
+					MTPint(),
+					MTPstring()),
+				true);
+		} else {
+			failed(upload, u"MEDIA_EMPTY"_q);
+		}
+	});
+}
+
+void Stories::preparePhoto(not_null<Upload*> upload, QImage &&image) {
+	if (image.isNull()) {
+		failed(upload, u"MEDIA_EMPTY"_q);
+		return;
+	}
+	const auto limit = QSize(kStoryPhotoWidth, kStoryPhotoHeight);
+	if (image.width() > limit.width() || image.height() > limit.height()) {
+		image = image.scaled(
+			limit,
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation);
+	}
+	prepareFile(upload, QString(), std::move(image));
+}
+
+void Stories::transcodeVideo(not_null<Upload*> upload) {
+	const auto &data = std::get<SendStoryVideo>(*upload->story.media);
+	if (!data.source) {
+		failed(upload, u"MEDIA_EMPTY"_q);
+		return;
+	}
+	const auto id = upload->id;
+	const auto generation = upload->generation;
+	const auto cancel = std::make_shared<std::atomic<bool>>(false);
+	upload->cancelPreparing = cancel;
+	updateProgress(upload, 0.);
+
+	const auto source = data.source;
+	crl::async([=, weak = base::make_weak(this)] {
+		auto lastReported = -1.;
+		auto result = Media::Encode::TranscodeVideo(*source, [&](
+				float64 value) {
+			if (value - lastReported >= 0.01 || value >= 1.) {
+				lastReported = value;
+				crl::on_main(weak, [=] {
+					const auto upload = find(id);
+					if (upload
+						&& (upload->generation == generation)
+						&& infoFor(upload).preparing) {
+						updateProgress(upload, value * kTranscodeShare);
+					}
+				});
+			}
+			return !cancel->load();
+		});
+		const auto hasAudio = result.empty()
+			? false
+			: Media::Encode::ProbeSource(result.path).hasAudio;
+		crl::on_main([=, result = std::move(result)]() mutable {
+			const auto strong = weak.get();
+			const auto upload = strong ? strong->find(id) : nullptr;
+			if (!upload
+				|| (upload->generation != generation)
+				|| cancel->load()) {
+				if (!result.path.isEmpty()) {
+					QFile::remove(result.path);
+				}
+				return;
+			}
+			strong->videoTranscoded(id, std::move(result), hasAudio);
+		});
+	});
+}
+
+void Stories::videoTranscoded(
+		uint64 id,
+		Media::Encode::TranscodeResult &&result,
+		bool hasAudio) {
+	const auto upload = find(id);
+	if (!upload) {
+		if (!result.path.isEmpty()) {
+			QFile::remove(result.path);
+		}
+		return;
+	}
+	upload->cancelPreparing = nullptr;
+	if (result.empty()) {
+		failed(upload, u"TRANSCODE_FAILED"_q);
+		return;
+	}
+	removeTempFile(upload);
+	upload->tempPath = result.path;
+	upload->hasAudio = hasAudio;
+	prepareFile(upload, result.path, QImage());
+}
+
+void Stories::prepareFile(
+		not_null<Upload*> upload,
+		const QString &path,
+		QImage &&image) {
+	const auto id = upload->id;
+	const auto generation = upload->generation;
+	const auto photo = path.isEmpty();
+	auto information = std::unique_ptr<Ui::PreparedFileInformation>();
+	if (photo) {
+		information = std::make_unique<Ui::PreparedFileInformation>();
+		information->filemime = u"image/jpeg"_q;
+		information->media = Ui::PreparedFileInformation::Image{
+			.data = std::move(image),
+		};
+	}
+	if (!_prepareQueue) {
+		_prepareQueue = std::make_unique<TaskQueue>();
+	}
+	const auto weak = base::make_weak(this);
+	_prepareQueue->addTask(std::make_unique<PrepareStoryTask>(
+		FileLoadTask::Args{
+			.session = _session,
+			.filepath = path,
+			.information = std::move(information),
+			.type = (photo ? SendMediaType::Photo : SendMediaType::File),
+			.to = FileLoadTo(
+				upload->story.peer->id,
+				SendOptions(),
+				FullReplyTo(),
+				MsgId()),
+			.sendLargePhotos = true,
+		},
+		[=](std::shared_ptr<FilePrepareResult> result) {
+			const auto strong = weak.get();
+			const auto upload = strong ? strong->find(id) : nullptr;
+			if (upload && (upload->generation == generation)) {
+				strong->prepared(id, std::move(result));
+			}
+		}));
+}
+
+void Stories::prepared(
+		uint64 id,
+		std::shared_ptr<FilePrepareResult> result) {
+	const auto upload = find(id);
+	if (!upload) {
+		return;
+	}
+	const auto photo = v::is<SendStoryPhoto>(*upload->story.media);
+	const auto expected = photo ? SendMediaType::Photo : SendMediaType::File;
+	if (!result || (result->type != expected) || (result->filesize <= 0)) {
+		failed(upload, u"PREPARE_FAILED"_q);
+		return;
+	}
+	upload->prepared = result;
+	upload->uploadId = FullMsgId(
+		upload->story.peer->id,
+		_session->data().nextLocalMessageId());
+	upload->uploading = true;
+	auto &info = infoFor(upload);
+	info.preparing = false;
+	notifyChanges();
+	_session->uploader().upload(upload->uploadId, result);
+}
+
+void Stories::uploaded(
+		not_null<Upload*> upload,
+		const Storage::UploadedMedia &data) {
+	upload->uploading = false;
+	const auto &prepared = upload->prepared;
+	if (!prepared) {
+		failed(upload, u"UPLOAD_FAILED"_q);
+		return;
+	}
+	if (prepared->type == SendMediaType::Photo) {
+		sendRequest(
+			upload,
+			MTP_inputMediaUploadedPhoto(
+				MTP_flags(0),
+				data.info.file,
+				MTP_vector<MTPInputDocument>(),
+				MTP_int(0),
+				MTPInputDocument()),
+			false);
+		return;
+	}
+	const auto attributes = prepared->document.match([](
+			const MTPDdocument &data) {
+		return data.vattributes();
+	}, [](const MTPDdocumentEmpty &) {
+		return MTPVector<MTPDocumentAttribute>(
+			MTP_vector<MTPDocumentAttribute>());
+	});
+	using Flag = MTPDinputMediaUploadedDocument::Flag;
+	const auto flags = (data.info.thumb ? Flag::f_thumb : Flag())
+		| (upload->hasAudio ? Flag() : Flag::f_nosound_video);
+	sendRequest(
+		upload,
+		MTP_inputMediaUploadedDocument(
+			MTP_flags(flags),
+			data.info.file,
+			data.info.thumb.value_or(MTPInputFile()),
+			MTP_string(u"video/mp4"_q),
+			attributes,
+			MTP_vector<MTPInputDocument>(),
+			MTPInputPhoto(),
+			MTP_int(0),
+			MTP_int(0)),
+		false);
+}
+
+void Stories::updateProgress(
+		not_null<Upload*> upload,
+		float64 progress) {
+	auto &info = infoFor(upload);
+	const auto video = upload->story.media
+		&& v::is<SendStoryVideo>(*upload->story.media);
+	const auto value = (video && !info.preparing)
+		? (kTranscodeShare + (1. - kTranscodeShare) * progress)
+		: progress;
+	if (info.progress != value) {
+		info.progress = value;
+		notifyChanges();
+	}
+}
+
+void Stories::sendRequest(
+		not_null<Upload*> upload,
+		std::optional<MTPInputMedia> media,
+		bool sameMediaAsRepost) {
+	const auto id = upload->id;
+	const auto &story = upload->story;
+	const auto peer = story.peer;
+	const auto limits = Data::PremiumLimits(_session);
+	const auto captionLimit = limits.storyCaptionLengthCurrent();
+	auto caption = TextWithEntities{
+		story.caption.text,
+		TextUtilities::ConvertTextTagsToEntities(story.caption.tags),
+	};
+	if (caption.text.size() > captionLimit) {
+		caption = Ui::Text::Mid(caption, 0, captionLimit);
+	}
+	if (!_session->appConfig().storiesEntitiesAvailable()
+		|| (_session->appConfig().storiesEntitiesPremiumOnly()
+			&& !_session->premium())) {
+		caption.entities.clear();
+	}
+	const auto entities = EntitiesToMTP(
+		_session,
+		caption.entities,
+		ConvertOption::SkipLocal);
+	const auto rules = StoryPrivacyToInput(_session, story.privacy);
+
+	auto &info = infoFor(upload);
+	info.preparing = false;
+	info.progress = 1.;
+	notifyChanges();
+
+	const auto done = [=](const MTPUpdates &result) {
+		const auto upload = find(id);
+		if (!upload) {
+			return;
+		}
+		upload->requestId = 0;
+		const auto storyId = StoryIdFromUpdates(result);
+		_session->api().applyUpdates(result);
+		finish(upload, storyId);
+	};
+	const auto fail = [=](const MTP::Error &error) {
+		if (const auto upload = find(id)) {
+			upload->requestId = 0;
+			failed(upload, error.type());
+		}
+	};
+	if (story.editId) {
+		using Flag = MTPstories_EditStory::Flag;
+		const auto flags = (media ? Flag::f_media : Flag())
+			| (story.editCaption ? Flag::f_caption : Flag())
+			| (story.editPrivacy ? Flag::f_privacy_rules : Flag());
+		upload->requestId = _api.request(MTPstories_EditStory(
+			MTP_flags(flags),
+			peer->input(),
+			MTP_int(story.editId),
+			media.value_or(MTPInputMedia()),
+			MTP_vector<MTPMediaArea>(),
+			MTP_string(caption.text),
+			entities,
+			MTP_vector<MTPInputPrivacyRule>(rules),
+			MTPInputDocument()
+		)).done(done).fail(fail).send();
+		return;
+	}
+	Assert(media.has_value());
+
+	const auto repost = std::get_if<SendStoryRepost>(&*story.media);
+	using Flag = MTPstories_SendStory::Flag;
+	const auto flags = (caption.text.isEmpty() ? Flag() : Flag::f_caption)
+		| (caption.entities.isEmpty() ? Flag() : Flag::f_entities)
+		| (story.pinned ? Flag::f_pinned : Flag())
+		| (story.noForwards ? Flag::f_noforwards : Flag())
+		| Flag::f_period
+		| (repost ? Flag::f_fwd_from_id : Flag())
+		| ((repost && !sameMediaAsRepost) ? Flag::f_fwd_modified : Flag())
+		| (story.albums.empty() ? Flag() : Flag::f_albums);
+	auto albums = QVector<MTPint>();
+	albums.reserve(story.albums.size());
+	for (const auto album : story.albums) {
+		albums.push_back(MTP_int(album));
+	}
+	upload->requestId = _api.request(MTPstories_SendStory(
+		MTP_flags(flags),
+		peer->input(),
+		*media,
+		MTP_vector<MTPMediaArea>(),
+		MTP_string(caption.text),
+		entities,
+		MTP_vector<MTPInputPrivacyRule>(rules),
+		MTP_long(base::RandomValue<uint64>()),
+		MTP_int(story.period),
+		(repost ? repost->peer->input() : MTPInputPeer()),
+		MTP_int(repost ? repost->id : 0),
+		MTP_vector<MTPint>(albums),
+		MTPInputDocument()
+	)).done(done).fail(fail).send();
+}
+
+void Stories::failed(not_null<Upload*> upload, const QString &error) {
+	cancelWork(upload);
+	auto &info = infoFor(upload);
+	info.error = error.isEmpty() ? u"UNKNOWN_ERROR"_q : error;
+	info.preparing = false;
+	info.progress = 0.;
+	notifyChanges();
+	_sent.fire({
+		.peer = upload->story.peer,
+		.error = info.error,
+		.edit = (upload->story.editId != 0),
+	});
+}
+
+void Stories::finish(not_null<Upload*> upload, StoryId id) {
+	const auto peer = upload->story.peer;
+	const auto edit = (upload->story.editId != 0);
+	remove(upload->id);
+	_sent.fire({ .peer = peer, .id = id, .edit = edit });
+}
+
+void Stories::cancelWork(not_null<Upload*> upload) {
+	++upload->generation;
+	if (const auto cancel = base::take(upload->cancelPreparing)) {
+		cancel->store(true);
+	}
+	if (base::take(upload->uploading)) {
+		_session->uploader().cancel(upload->uploadId);
+	}
+	if (const auto requestId = base::take(upload->requestId)) {
+		_api.request(requestId).cancel();
+	}
+}
+
+void Stories::removeTempFile(not_null<Upload*> upload) {
+	if (const auto path = base::take(upload->tempPath); !path.isEmpty()) {
+		QFile::remove(path);
+	}
+}
+
+} // namespace Api

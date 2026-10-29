@@ -224,6 +224,8 @@ PRIVATE
     api/api_statistics_sender.h
     api/api_stickers_creator.cpp
     api/api_stickers_creator.h
+    api/api_stories.cpp
+    api/api_stories.h
     api/api_suggest_post.cpp
     api/api_suggest_post.h
     api/api_text_entities.cpp
