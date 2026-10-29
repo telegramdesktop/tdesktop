@@ -58,6 +58,9 @@ public:
 
 	[[nodiscard]] VideoModifications collect() const;
 
+	[[nodiscard]] TextWithTags caption() const;
+	[[nodiscard]] int period() const;
+
 private:
 	void setupStreaming();
 	void setupControls();

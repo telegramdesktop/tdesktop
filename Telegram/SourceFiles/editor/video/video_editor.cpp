@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/event_filter.h"
 #include "base/timer.h"
+#include "api/api_stories.h"
 #include "editor/editor_crop.h"
 #include "editor/video/video_quality_slider.h"
 #include "editor/video/video_segment_player.h"
@@ -976,6 +977,14 @@ VideoModifications VideoEditor::collect() const {
 		.quality = _quality ? _quality->value() : 0,
 		.gif = _gif,
 	};
+}
+
+TextWithTags VideoEditor::caption() const {
+	return TextWithTags();
+}
+
+int VideoEditor::period() const {
+	return Api::kStoryDefaultPeriod;
 }
 
 void InitVideoEditorLayer(

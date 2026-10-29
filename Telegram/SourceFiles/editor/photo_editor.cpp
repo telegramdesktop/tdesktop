@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "api/api_stories.h"
 #include "editor/color_picker.h"
 #include "editor/controllers/controllers.h"
 #include "editor/photo_editor_content.h"
@@ -309,6 +310,7 @@ PhotoEditor::PhotoEditor(
 	data,
 	photo->size(),
 	Deserialize(Core::App().settings().photoEditorBrush()).fillShapes))
+, _story(data.story.has_value())
 , _brushes(Deserialize(Core::App().settings().photoEditorBrush()).brushes)
 , _brushTool(Deserialize(Core::App().settings().photoEditorBrush()).tool)
 , _shapesFilled(
@@ -514,19 +516,7 @@ PhotoEditor::PhotoEditor(
 	_controls->doneRequests(
 	) | rpl::on_next([=] {
 		_controls->commitTimelineEdits();
-		const auto mode = _mode.current().mode;
-		if (mode == PhotoEditorMode::Mode::Paint) {
-			_mode = PhotoEditorMode{
-				.mode = PhotoEditorMode::Mode::Transform,
-				.action = PhotoEditorMode::Action::Save,
-			};
-		} else if (mode == PhotoEditorMode::Mode::Transform) {
-			_mode = PhotoEditorMode{
-				.mode = PhotoEditorMode::Mode::Out,
-				.action = PhotoEditorMode::Action::Save,
-			};
-			save();
-		}
+		done();
 	}, lifetime());
 
 	_controls->cancelRequests(
@@ -679,6 +669,35 @@ void PhotoEditor::updateColorPickerVisibility(anim::type animated) {
 void PhotoEditor::save() {
 	_content->save(_modifications);
 	_done.fire_copy(_modifications);
+}
+
+void PhotoEditor::done() {
+	const auto mode = _mode.current().mode;
+	if (mode == PhotoEditorMode::Mode::Paint) {
+		_mode = PhotoEditorMode{
+			.mode = PhotoEditorMode::Mode::Transform,
+			.action = PhotoEditorMode::Action::Save,
+		};
+	} else if (mode != PhotoEditorMode::Mode::Transform) {
+		return;
+	} else if (_story) {
+		_content->save(_modifications);
+		_done.fire_copy(_modifications);
+	} else {
+		_mode = PhotoEditorMode{
+			.mode = PhotoEditorMode::Mode::Out,
+			.action = PhotoEditorMode::Action::Save,
+		};
+		save();
+	}
+}
+
+TextWithTags PhotoEditor::caption() const {
+	return TextWithTags();
+}
+
+int PhotoEditor::period() const {
+	return Api::kStoryDefaultPeriod;
 }
 
 rpl::producer<PhotoModifications> PhotoEditor::doneRequests() const {

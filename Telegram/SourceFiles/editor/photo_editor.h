@@ -57,10 +57,14 @@ public:
 	[[nodiscard]] rpl::producer<PhotoModifications> doneRequests() const;
 	[[nodiscard]] rpl::producer<> cancelRequests() const;
 
+	[[nodiscard]] TextWithTags caption() const;
+	[[nodiscard]] int period() const;
+
 private:
 	void keyPressEvent(QKeyEvent *e) override;
 	void keyReleaseEvent(QKeyEvent *e) override;
 	void updateColorPickerVisibility(anim::type animated);
+	void done();
 
 	PhotoModifications _modifications;
 
@@ -69,6 +73,7 @@ private:
 
 	base::unique_qptr<PhotoEditorContent> _content;
 	base::unique_qptr<PhotoEditorControls> _controls;
+	bool _story = false;
 	std::array<Brush, 5> _brushes;
 	Brush::Tool _brushTool = Brush::Tool::Pen;
 	bool _shapesFilled = false;
