@@ -110,6 +110,8 @@ public:
 
 	void updateZoom(float64 zoom);
 
+	[[nodiscard]] QRectF contentRect() const;
+
 	[[nodiscard]] virtual Placement placement() const;
 	virtual void applyPlacement(const Placement &placement);
 
@@ -140,7 +142,6 @@ protected:
 	void actionDuplicate();
 	void raiseToTop();
 
-	QRectF contentRect() const;
 	QRectF innerRect() const;
 	[[nodiscard]] QRectF fittedRect(QSizeF size) const;
 	[[nodiscard]] virtual QRectF visibleRect() const;

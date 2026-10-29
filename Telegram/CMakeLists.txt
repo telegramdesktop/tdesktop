@@ -942,6 +942,8 @@ PRIVATE
     editor/editor_message_video.h
     editor/editor_paint.cpp
     editor/editor_paint.h
+    editor/editor_story_areas.cpp
+    editor/editor_story_areas.h
     editor/photo_editor.cpp
     editor/photo_editor.h
     editor/photo_editor_content.cpp
