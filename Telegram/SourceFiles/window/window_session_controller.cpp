@@ -639,7 +639,7 @@ void SessionNavigation::showMessageByLinkResolved(
 	params.highlight.pollOption = info.pollOption;
 	const auto peer = item->history()->peer;
 	const auto topicId = peer->isForum() ? item->topicRootId() : 0;
-	if (topicId) {
+	if (topicId && !(peer->isBot() && peer->forum()->topicDeleted(topicId))) {
 		const auto messageId = (item->id == topicId) ? MsgId() : item->id;
 		showRepliesForMessage(item->history(), topicId, messageId, params);
 	} else {
@@ -713,17 +713,23 @@ void SessionNavigation::showPeerByLinkResolved(
 				Data::PeerUpdate::Flag::BotStartToken);
 		}
 	};
+	const auto botForumPost = bot
+		&& bot->isForum()
+		&& (info.resolveType == ResolveType::Default)
+		&& IsServerMsgId(info.messageId)
+		&& !info.attachBotToggleCommand;
 
 	// t.me/username/012345 - we thought it was a channel post link, but
 	// after resolving the username we found out it is a bot.
 	const auto resolveType = (bot
+		&& !botForumPost
 		&& !info.botAppName.isEmpty()
 		&& info.resolveType == ResolveType::Default)
 		? ResolveType::BotApp
 		: info.resolveType;
 
-	// Show specific posts only in channels / supergroups.
-	const auto useRequestedMessageId = peer->isChannel();
+	// Show specific posts only in channels / supergroups / bot forums.
+	const auto useRequestedMessageId = peer->isChannel() || botForumPost;
 	const auto msgId = useRequestedMessageId
 		? info.messageId
 		: info.startAutoSubmit
@@ -842,6 +848,9 @@ void SessionNavigation::showPeerByLinkResolved(
 			const auto callback = crl::guard(this, [=] {
 				if (const auto item = peer->owner().message(peer, msgId)) {
 					showMessageByLinkResolved(item, info);
+				} else if (bot) {
+					const auto history = peer->owner().history(peer);
+					showRepliesForMessage(history, msgId, MsgId(), params);
 				} else {
 					showPeerHistory(peer, params, msgId);
 				}
@@ -1346,9 +1355,13 @@ void SessionNavigation::showRepliesForMessage(
 			return;
 		}
 	}
+	const auto bot = history->peer->asBot();
 	if (_showingRepliesRequestId
 		&& _showingRepliesHistory == history.get()
 		&& _showingRepliesRootId == rootId) {
+		return;
+	} else if (bot && bot->isForum() && IsServerMsgId(rootId)) {
+		loadAndShowBotTopic(history, rootId, commentId, params);
 		return;
 	} else if (!history->peer->asChannel()) {
 		// HistoryView::ChatWidget replies right now handles only channels.

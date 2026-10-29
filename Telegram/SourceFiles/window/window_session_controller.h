@@ -374,6 +374,11 @@ private:
 	void showPeerByLinkResolved(
 		not_null<PeerData*> peer,
 		const PeerByLinkInfo &info);
+	void loadAndShowBotTopic(
+		not_null<History*> history,
+		MsgId rootId,
+		MsgId commentId,
+		const SectionShow &params);
 	void joinVoiceChatFromLink(
 		not_null<PeerData*> peer,
 		const PeerByLinkInfo &info);
@@ -399,6 +404,7 @@ private:
 	History *_showingRepliesHistory = nullptr;
 	MsgId _showingRepliesRootId = 0;
 	mtpRequestId _showingRepliesRequestId = 0;
+	int _botTopicLoads = 0;
 
 	ChannelData *_boostStateResolving = nullptr;
 	int _boostsToLift = 0;

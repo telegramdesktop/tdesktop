@@ -2454,6 +2454,7 @@ PRIVATE
     window/session/window_session_media.cpp
     window/window_session_controller.cpp
     window/window_session_controller.h
+    window/window_session_controller_bot_forum.cpp
     window/window_session_controller_contact.cpp
     window/window_session_controller_link_info.h
     window/window_setup_email.cpp

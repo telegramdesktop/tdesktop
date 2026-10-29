@@ -209,6 +209,8 @@ void Forum::requestTopics() {
 		if (error.type() == u"CHANNEL_FORUM_MISSING"_q && channel()) {
 			const auto flags = channel()->flags() & ~ChannelDataFlag::Forum;
 			channel()->setFlags(flags);
+		} else {
+			requestSomeStale();
 		}
 	}).send();
 }
@@ -430,7 +432,9 @@ void Forum::applyReceivedTopics(
 			}
 		};
 
-		_staleRootIds.remove(rootId);
+		if (!_topicRequests.contains(rootId)) {
+			_staleRootIds.remove(rootId);
+		}
 		topic.match([&](const MTPDforumTopicDeleted &data) {
 			if (rootId != ForumTopic::kGeneralId) {
 				applyTopicDeleted(rootId);
@@ -486,6 +490,7 @@ void Forum::requestSomeStale() {
 			finish();
 		}).fail([=] {
 			_staleRequestId = 0;
+			requestSomeStale();
 			call();
 			finish();
 		}).send();
