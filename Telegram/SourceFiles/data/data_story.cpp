@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
+#include "data/data_chat.h"
 #include "data/data_file_origin.h"
 #include "data/data_media_preload.h"
 #include "data/data_photo.h"
@@ -264,6 +265,47 @@ using UpdateFlag = StoryUpdate::Flag;
 	return nullptr;
 }
 
+void ParsePrivacyPeers(
+		Session &owner,
+		const MTPVector<MTPPrivacyRule> &rules,
+		std::vector<not_null<PeerData*>> &allowed,
+		std::vector<not_null<PeerData*>> &disallowed) {
+	const auto pushUsers = [&](
+			std::vector<not_null<PeerData*>> &to,
+			const QVector<MTPlong> &users) {
+		to.reserve(to.size() + users.size());
+		for (const auto &userId : users) {
+			to.push_back(owner.user(UserId(userId.v)));
+		}
+	};
+	const auto pushChats = [&](
+			std::vector<not_null<PeerData*>> &to,
+			const QVector<MTPlong> &chats) {
+		to.reserve(to.size() + chats.size());
+		for (const auto &chatId : chats) {
+			const auto chat = owner.chatLoaded(chatId);
+			const auto peer = chat
+				? static_cast<PeerData*>(chat)
+				: owner.channelLoaded(chatId);
+			if (peer) {
+				to.push_back(peer);
+			}
+		}
+	};
+	for (const auto &rule : rules.v) {
+		rule.match([&](const MTPDprivacyValueAllowUsers &data) {
+			pushUsers(allowed, data.vusers().v);
+		}, [&](const MTPDprivacyValueAllowChatParticipants &data) {
+			pushChats(allowed, data.vchats().v);
+		}, [&](const MTPDprivacyValueDisallowUsers &data) {
+			pushUsers(disallowed, data.vusers().v);
+		}, [&](const MTPDprivacyValueDisallowChatParticipants &data) {
+			pushChats(disallowed, data.vchats().v);
+		}, [](const auto &) {
+		});
+	}
+}
+
 } // namespace
 
 Story::Story(
@@ -431,6 +473,16 @@ StoryPrivacy Story::privacy() const {
 		: _privacySelectedContacts
 		? StoryPrivacy::SelectedContacts
 		: StoryPrivacy::Other;
+}
+
+auto Story::privacyAllowed() const
+-> const std::vector<not_null<PeerData*>> & {
+	return _privacyAllowed;
+}
+
+auto Story::privacyDisallowed() const
+-> const std::vector<not_null<PeerData*>> & {
+	return _privacyDisallowed;
 }
 
 bool Story::forbidsForward() const {
@@ -750,6 +802,14 @@ void Story::applyFields(
 		: StoryPrivacy::Other;
 	const auto noForwards = data.is_noforwards();
 	const auto out = data.is_min() ? _out : data.is_out();
+	auto privacyAllowed = std::vector<not_null<PeerData*>>();
+	auto privacyDisallowed = std::vector<not_null<PeerData*>>();
+	if (const auto rules = data.vprivacy()) {
+		ParsePrivacyPeers(owner(), *rules, privacyAllowed, privacyDisallowed);
+	} else if (data.is_min()) {
+		privacyAllowed = _privacyAllowed;
+		privacyDisallowed = _privacyDisallowed;
+	}
 	auto caption = TextWithEntities{
 		data.vcaption().value_or_empty(),
 		Api::EntitiesFromMTP(
@@ -820,6 +880,8 @@ void Story::applyFields(
 	_privacyCloseFriends = (privacy == StoryPrivacy::CloseFriends);
 	_privacyContacts = (privacy == StoryPrivacy::Contacts);
 	_privacySelectedContacts = (privacy == StoryPrivacy::SelectedContacts);
+	_privacyAllowed = std::move(privacyAllowed);
+	_privacyDisallowed = std::move(privacyDisallowed);
 	_edited = edited;
 	_inProfile = inProfile;
 	_noForwards = noForwards;

@@ -188,6 +188,10 @@ public:
 	void setInProfile(bool value);
 	[[nodiscard]] bool inProfile() const;
 	[[nodiscard]] StoryPrivacy privacy() const;
+	[[nodiscard]] auto privacyAllowed() const
+		-> const std::vector<not_null<PeerData*>> &;
+	[[nodiscard]] auto privacyDisallowed() const
+		-> const std::vector<not_null<PeerData*>> &;
 	[[nodiscard]] bool forbidsForward() const;
 	[[nodiscard]] bool edited() const;
 	[[nodiscard]] bool out() const;
@@ -281,6 +285,8 @@ private:
 	StoryMedia _media;
 	TextWithEntities _caption;
 	std::vector<not_null<PeerData*>> _recentViewers;
+	std::vector<not_null<PeerData*>> _privacyAllowed;
+	std::vector<not_null<PeerData*>> _privacyDisallowed;
 	std::vector<StoryLocation> _locations;
 	std::vector<SuggestedReaction> _suggestedReactions;
 	std::vector<ChannelPost> _channelPosts;
