@@ -122,9 +122,16 @@ retained in `session.cpp`.
 A scenario sketch against the real API; no Telegram translation unit
 compiles it. `ScenarioChannel`, `PlaceFixtureMessage` and
 `DestroyFixtureMessage` stand for the overlay's own code: the real channel's
-history, the local message built and shown in it (for example
-`History::addNewMessage(..., NewMessageType::Existing)` plus
-`addNewerSlice`), and its removal.
+history, the local message built and shown in it, and its removal. The
+modern `HistoryView::ListWidget` reads `History::messages()`, and
+`HistoryItem::addToMessagesIndex()` adds to that index only when
+`History::maybeMessages()` already exists (before that it does nothing), so
+the sequence that worked is: register the id, show the real chat and wait
+until its list is loaded at the bottom with `maybeMessages()` non-null, then
+create the message with `History::addNewMessage(...,
+NewMessageType::Existing)`, call `addNewerSlice` only when the legacy blocks
+are loaded at their bottom, call `addToMessagesIndex()`, and check that the
+shown list owns a view of it.
 
 ```cpp
 constexpr auto kFixtureMsgId = MsgId(2071000001); // reserved, unused
@@ -348,7 +355,7 @@ deliberate FAIL and leaves nothing to tear down. It catches a blanket refusal
 missing decision or row (the S2 and S3 positives) and a verdict that reads
 clean without inspection (S4).
 
-It does not prove the paste or the live path. The proposed consumer
+It does not prove the paste or the live path. The consumer
 campaign: a launch without the paste runs the self-test and appends the
 public check after registering one unused value, which must FAIL exactly
 `state=nothing-inspected inspected=0`; a launch with the combined paste
@@ -358,8 +365,19 @@ real Test channel, lets the product poll it, reads one refusal naming only
 that id, ends it with `DeliverControlledRpcError`, and audits the post-exit
 MTP log for the absence of the id in every outgoing `Send:`.
 
-**Status: proposed, not yet executed.** The live consumer campaign above has
-not run; replace this sentence with the executed evidence when it has.
+Executed in Run 1 of `2026/10/29/keep-local-fixture-ids-off-the-network-in-test-overlays`
+(`work/test.md`): the launch without the paste read the one expected
+`state=nothing-inspected inspected=0` FAIL; the launch with the paste
+answered the control through `done`, read `clean` before the fixture, and
+refused the product's `messages.getMessagesReactions` naming only
+`message:2071000001` with its handler still registered, ended it with
+`DeliverControlledRpcError` (route `Error`), and its post-exit MTP log held
+no request naming the id while the control's `Send:` and answer were there.
+Two facts it needed: `Data::Reactions::poll()` collects an item marked
+unknown (`updateReactionsUnknown()`) only from about 21 s of process age
+(`kPollEach`), and `Test::KeepMainWindowNotMarkingRead` minimizes the window,
+so the scenario rendered the chat's `ChatWidget` over the fixture row
+in-process to run the product paint that polls it.
 
 Static non-Debug shape: the header declares everything in every
 configuration and defines no inline code that calls a Debug-only definition;
