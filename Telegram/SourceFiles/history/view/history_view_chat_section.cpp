@@ -1293,8 +1293,13 @@ void ChatWidget::closeCurrent() {
 }
 
 void ChatWidget::topicDestroyed() {
-	if (controller()->windowId().chat() == _topic) {
+	const auto id = controller()->windowId();
+	if (id.chat() == _topic) {
 		closeCurrent();
+		return;
+	} else if (!id.hasChatsList()) {
+		// Show the owning group here before the topic is freed.
+		showHistoryAfterThreadDestroyed(_history);
 		return;
 	}
 	const auto showing = Core::App().windowForShowingHistory(_peer);
@@ -1339,16 +1344,6 @@ void ChatWidget::sublistDestroyed() {
 	closeCurrent();
 	if (weak && !id.hasChatsList()) {
 		Core::App().closeWindow(window);
-	}
-}
-
-void ChatWidget::topicDestroyed() {
-	const auto id = controller()->windowId();
-	if (id.chat() != _topic && !id.hasChatsList()) {
-		// Show the owning group here before the topic is freed.
-		showHistoryAfterThreadDestroyed(_history);
-	} else {
-		closeCurrent();
 	}
 }
 

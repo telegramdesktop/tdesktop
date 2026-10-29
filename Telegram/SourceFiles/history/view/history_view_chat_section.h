@@ -328,7 +328,6 @@ private:
 	void closeCurrent();
 	void topicDestroyed();
 	void sublistDestroyed();
-	void topicDestroyed();
 	void unreadCountUpdated();
 	void updateInnerVisibleArea();
 	void updateControlsGeometry();
