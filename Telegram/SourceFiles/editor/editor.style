@@ -381,6 +381,44 @@ videoEditorPlayBadgeBg: mediaviewCaptionBg;
 videoEditorAbout: FlatLabel(photoEditorAbout) {
 }
 videoEditorAboutMargin: margins(10px, 10px, 10px, 0px);
+videoEditorBarButtonRippleSkip: 5px;
+videoEditorCaptionSkip: 8px;
+
+storyCaptionBg: storiesComposeBg;
+storyCaptionRadius: 21px;
+storyCaptionHeightMin: 42px;
+storyCaptionEmojiLeft: 0px;
+storyCaptionFieldSkip: 2px;
+storyCaptionPeriodSize: 42px;
+storyCaptionPeriodRipple: 36px;
+storyCaptionPeriodDiameter: 21px;
+storyCaptionPeriodStroke: 2px;
+storyCaptionPeriodFg: storiesComposeWhiteText;
+storyCaptionPeriodFont: font(11px semibold);
+storyCaptionField: InputField(defaultInputField) {
+	style: boxTextStyle;
+	textMargins: margins(0px, 0px, 0px, 0px);
+	textAlign: align(left);
+	textFg: storiesComposeWhiteText;
+	textBg: transparent;
+	textBgActive: transparent;
+	heightMin: 20px;
+	heightMax: 108px;
+	placeholderFg: storiesComposeGrayText;
+	placeholderFgActive: storiesComposeGrayText;
+	placeholderFgError: storiesComposeGrayText;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderAlign: align(topleft);
+	placeholderScale: 0.;
+	placeholderFont: boxTextFont;
+	placeholderShift: -50px;
+	border: 0px;
+	borderActive: 0px;
+	duration: 100;
+	menu: storiesPopupMenu;
+}
+storyCaptionEmoji: storiesAttachEmoji;
+storyCaptionMenuLock: icon {{ "menu/lock", mediaviewMenuFg }};
 
 photoEditorMessageReferenceWidth: 600px;
 photoEditorLinkPreviewMargin: margins(24px, 12px, 24px, 6px);
