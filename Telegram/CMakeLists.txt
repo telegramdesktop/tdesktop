@@ -2077,6 +2077,8 @@ PRIVATE
     test/test_custom_emoji.h
     test/test_expiry_window.cpp
     test/test_expiry_window.h
+    test/test_fixture_fence.cpp
+    test/test_fixture_fence.h
     test/test_fixture_transaction.cpp
     test/test_fixture_transaction.h
     test/test_full_owner_capture.cpp

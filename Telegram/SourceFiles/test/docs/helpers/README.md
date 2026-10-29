@@ -61,6 +61,7 @@ should call.
 | [test_web_cache](test_web_cache.md) | API | Clear the exact web-document cache entry |
 | [test_rpc_retry](test_rpc_retry.md) | API | Observe server-error resends |
 | [test_rpc_fixture](test_rpc_fixture.md) | API | Boxed controlled RPC replies |
+| [test_fixture_fence](test_fixture_fence.md) | API | Refuse and record requests naming registered local fixture message or synthetic peer ids |
 | [test_fixture_transaction](test_fixture_transaction.md) | API | Read-before-write server fixture changes with rate deadlines and a resumable restoration record |
 | [test_wallet_ready](test_wallet_ready.md) | API | Judge served wallet freshness |
 | [test_wallet_intercept](test_wallet_intercept.md) | API | Controlled wallet request interception |

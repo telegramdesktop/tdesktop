@@ -523,6 +523,9 @@ so it can never run against real account data. The overlay must:
   throwaway target, clean up after) · `inject` (build fake local state without the network) ·
   `mock-api` (intercept specific requests, return canned responses — for payments/destructive).
   Prefer `inject` over `live-mutate` to avoid account/server accumulation and flake.
+  An `inject` overlay that places local messages, topics, sublists or synthetic peers in a
+  real chat registers their ids with the fixture fence, pastes its `sendPrepared` hook and
+  appends its check (`Telegram/SourceFiles/test/docs/helpers/test_fixture_fence.md`).
 - Express the flow as `Runner` stages with **condition-waits over fixed timers** (an `until`
   predicate on the target widget/data actually existing, with the stage timeout as fallback).
   Fixed sleeps are the main source of screenshot flake.
