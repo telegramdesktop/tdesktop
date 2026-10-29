@@ -19,6 +19,10 @@ class RpWidget;
 class Show;
 } // namespace Ui
 
+namespace Ui::Premium {
+class TopBar;
+} // namespace Ui::Premium
+
 namespace style {
 struct RoundButton;
 struct InputField;
@@ -27,6 +31,10 @@ struct InputField;
 namespace Main {
 class Session;
 } // namespace Main
+
+namespace Info {
+class Controller;
+} // namespace Info
 
 namespace Info::BotStarRef {
 
@@ -108,5 +116,17 @@ void FinishProgram(
 	not_null<QWidget*> parent,
 	not_null<Main::Session*> session,
 	int usersCount = 0);
+
+[[nodiscard]] object_ptr<Ui::RpWidget> MakeInfoRow(
+	not_null<QWidget*> parent,
+	rpl::producer<QString> title,
+	rpl::producer<QString> text,
+	not_null<const style::icon*> icon);
+[[nodiscard]] std::unique_ptr<Ui::Premium::TopBar> MakeTopBar(
+	not_null<QWidget*> parent,
+	not_null<Controller*> controller,
+	rpl::producer<QString> title,
+	rpl::producer<TextWithEntities> about,
+	Fn<void(int)> updateTopSkip);
 
 } // namespace Info::BotStarRef
