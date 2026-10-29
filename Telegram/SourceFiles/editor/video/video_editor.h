@@ -24,6 +24,7 @@ class FlatLabel;
 
 namespace Editor {
 
+class CaptionBar;
 class Crop;
 class SegmentPlayer;
 class TimelineSeeker;
@@ -81,9 +82,24 @@ private:
 	void invalidateCoverPreview();
 	void togglePause();
 	void paintPlayBadge(QPainter &p);
+	void paintCanvas(QPainter &p);
 	void applyGeometry();
 	void paint(QPainter &p);
 	void keyPressEvent(QKeyEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void wheelEvent(QWheelEvent *e) override;
+	bool eventHook(QEvent *e) override;
+
+	void layoutCanvas(QRect contentRect);
+	[[nodiscard]] QRectF canvasMediaRect() const;
+	[[nodiscard]] QRectF canvasBasePlacement() const;
+	[[nodiscard]] float64 canvasScale() const;
+	[[nodiscard]] QSize frameRequestSize() const;
+	void clampCanvasShift();
+	void zoomCanvas(float64 factor, QPoint about);
+	void canvasChanged();
 
 	const QString _path;
 	const QByteArray _content;
@@ -108,6 +124,7 @@ private:
 	std::unique_ptr<TimelineSeeker> _seeker;
 	base::unique_qptr<VideoQualitySlider> _quality;
 	base::unique_qptr<Ui::RpWidget> _controls;
+	base::unique_qptr<CaptionBar> _captionBar;
 	base::unique_qptr<Ui::RpWidget> _bar;
 	base::unique_qptr<Ui::IconButton> _rotate;
 	base::unique_qptr<Ui::IconButton> _flip;
@@ -125,6 +142,14 @@ private:
 	QRect _frameRect;
 	QTransform _frameMatrix;
 	QRect _innerRect;
+	QRect _contentRect;
+	QRect _canvasRect;
+	QRect _mediaRect;
+	float64 _canvasZoom = 1.;
+	QPointF _canvasShift;
+	QPointF _canvasDragShift;
+	std::optional<QPoint> _canvasPress;
+	bool _canvasMoved = false;
 	bool _dragging = false;
 	bool _userPaused = false;
 	crl::time _bubbleCover = -1;
