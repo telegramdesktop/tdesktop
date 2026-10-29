@@ -102,7 +102,6 @@ public:
 		return _persistReleased.events();
 	}
 
-	[[nodiscard]] bool chatsTabActive() const;
 	void setTabsOnly(bool tabsOnly);
 	[[nodiscard]] bool tabsOnly() const;
 	[[nodiscard]] int tabsHeight() const;

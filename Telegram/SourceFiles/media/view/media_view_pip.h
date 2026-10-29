@@ -223,7 +223,6 @@ private:
 	[[nodiscard]] QImage staticContent() const;
 	[[nodiscard]] OverState computeState(QPoint position) const;
 	void setOverState(OverState state);
-	void setPressedState(std::optional<OverState> state);
 	[[nodiscard]] OverState shownActiveState() const;
 	[[nodiscard]] float64 activeValue(const Button &button) const;
 	void updateActiveState(OverState was);

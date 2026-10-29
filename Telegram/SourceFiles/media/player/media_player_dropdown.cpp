@@ -818,10 +818,6 @@ bool SpeedController::isDefault() const {
 	return _isDefault;
 }
 
-float64 SpeedController::lastNonDefaultSpeed() const {
-	return _speed;
-}
-
 void SpeedController::toggleDefault() {
 	_isDefault = !_isDefault;
 	_speedChanged.fire(speed());

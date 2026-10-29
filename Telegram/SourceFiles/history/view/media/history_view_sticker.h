@@ -92,7 +92,6 @@ public:
 	[[nodiscard]] static QSize Size(not_null<DocumentData*> document);
 	[[nodiscard]] static QSize PremiumEffectSize(
 		not_null<DocumentData*> document);
-	[[nodiscard]] static QSize UsualPremiumEffectSize();
 	[[nodiscard]] static QSize EmojiEffectSize();
 	[[nodiscard]] static QSize MessageEffectSize();
 	[[nodiscard]] static QSize EmojiSize();

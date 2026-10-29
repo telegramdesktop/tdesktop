@@ -1940,7 +1940,6 @@ PRIVATE
     settings/sections/settings_calls.h
     settings/settings_codes.cpp
     settings/settings_codes.h
-    settings/settings_common_session.cpp
     settings/settings_common_session.h
     settings/detailed_settings_button.cpp
     settings/detailed_settings_button.h

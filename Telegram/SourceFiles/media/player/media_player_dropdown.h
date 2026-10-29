@@ -155,7 +155,6 @@ private:
 
 	[[nodiscard]] float64 speed() const;
 	[[nodiscard]] bool isDefault() const;
-	[[nodiscard]] float64 lastNonDefaultSpeed() const;
 	void toggleDefault();
 	void setSpeed(float64 newSpeed);
 	void setQuality(VideoQuality quality);

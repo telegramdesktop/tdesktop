@@ -3584,9 +3584,6 @@ auto Element::takeReactionAnimations()
 	return {};
 }
 
-void Element::animateUnreadEffect() {
-}
-
 auto Element::takeEffectAnimation()
 -> std::unique_ptr<Ui::ReactionFlyAnimation> {
 	return nullptr;

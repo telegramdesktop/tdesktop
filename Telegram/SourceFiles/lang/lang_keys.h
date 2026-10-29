@@ -16,8 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 [[nodiscard]] QString langDayOfMonth(const QDate &date);
 [[nodiscard]] QString langDayOfMonthFull(const QDate &date);
 [[nodiscard]] QString langDayOfMonthShort(const QDate &date);
-[[nodiscard]] QString langMonthOfYear(int month, int year);
-[[nodiscard]] QString langMonth(const QDate &date);
 [[nodiscard]] QString langMonthOfYearFull(int month, int year);
 [[nodiscard]] QString langMonthFull(const QDate &date);
 [[nodiscard]] QString langDayOfWeek(int index);

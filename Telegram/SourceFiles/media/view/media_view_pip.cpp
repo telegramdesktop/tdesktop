@@ -1059,15 +1059,6 @@ void Pip::setOverState(OverState state) {
 	_panel.update();
 }
 
-void Pip::setPressedState(std::optional<OverState> state) {
-	if (_pressed == state) {
-		return;
-	}
-	const auto wasShown = shownActiveState();
-	_pressed = state;
-	updateActiveState(wasShown);
-}
-
 Pip::OverState Pip::shownActiveState() const {
 	return ResolveShownOver(_pressed.value_or(_over));
 }

@@ -1262,10 +1262,6 @@ bool GroupCall::listenersHidden() const {
 	return _listenersHidden;
 }
 
-bool GroupCall::emptyRtmp() const {
-	return _emptyRtmp.current();
-}
-
 rpl::producer<bool> GroupCall::emptyRtmpValue() const {
 	return _emptyRtmp.value();
 }
@@ -3372,14 +3368,6 @@ void GroupCall::requestCurrentTimeStart(
 	}).handleAllErrors().toDC(
 		MTP::groupCallStreamDcId(_broadcastDcId)
 	).send();
-}
-
-void GroupCall::requestCurrentTimeCancel(
-		not_null<RequestCurrentTimeTask*> task) {
-	const auto i = _requestCurrentTimes.find(task.get());
-	if (i != end(_requestCurrentTimes)) {
-		_requestCurrentTimes.erase(i);
-	}
 }
 
 int64 GroupCall::approximateServerTimeInMs() const {

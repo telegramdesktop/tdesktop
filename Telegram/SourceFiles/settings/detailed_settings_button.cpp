@@ -84,11 +84,6 @@ rpl::producer<bool> DetailedSettingsButton::toggledChanges() const {
 	return _toggle->checkedChanges();
 }
 
-rpl::producer<not_null<QEvent*>>
-DetailedSettingsButton::clickAreaEvents() const {
-	return events();
-}
-
 void DetailedSettingsButton::setToggleLocked(bool locked) {
 	_toggleLocked = locked;
 	_toggle->setLocked(locked);

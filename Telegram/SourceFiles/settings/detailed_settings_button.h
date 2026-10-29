@@ -31,7 +31,6 @@ public:
 
 	[[nodiscard]] bool toggled() const;
 	[[nodiscard]] rpl::producer<bool> toggledChanges() const;
-	[[nodiscard]] rpl::producer<not_null<QEvent*>> clickAreaEvents() const;
 	void setToggleLocked(bool locked);
 	void finishAnimating();
 

@@ -1483,10 +1483,6 @@ QColor UniqueGiftCoverWidget::backgroundColor() const {
 	return _state->released.bg;
 }
 
-QColor UniqueGiftCoverWidget::foregroundColor() const {
-	return _state->released.fg;
-}
-
 void UniqueGiftCoverWidget::paintSpinnerAnimation(
 		QPainter &p,
 		const PaintContext &context) {
