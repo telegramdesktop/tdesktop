@@ -44,8 +44,6 @@ constexpr auto kReadableTextColumns = 12;
 constexpr auto kReadableTextLineHeights = 4;
 constexpr auto kReadableCodeColumns = 16;
 
-thread_local const LayoutContext *CurrentLayoutContext = nullptr;
-
 [[nodiscard]] size_t CombineHash(size_t accumulator, size_t value) {
 	return (accumulator * 1315423911U) ^ value;
 }
@@ -1195,15 +1193,6 @@ size_t CachedTextLeafKeyHasher::operator()(
 		return CombineHash(result, HashPreparedEditLeafSource(value.editLeaf));
 	}
 	return result;
-}
-
-LayoutContextScope::LayoutContextScope(const LayoutContext &context)
-: _previous(CurrentLayoutContext) {
-	CurrentLayoutContext = &context;
-}
-
-LayoutContextScope::~LayoutContextScope() {
-	CurrentLayoutContext = _previous;
 }
 
 void FillMediaCaptionContent(
