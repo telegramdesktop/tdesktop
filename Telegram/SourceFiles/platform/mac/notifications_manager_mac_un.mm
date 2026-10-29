@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "platform/mac/notifications_manager_mac_tokens.h"
 #include "settings.h"
 #include "window/notifications_utilities.h"
 
@@ -30,68 +31,13 @@ namespace {
 using Manager = Platform::Notifications::UNManager;
 using ContextId = Manager::ContextId;
 using NotificationId = Manager::NotificationId;
-
-struct NotificationParsed {
-	uint64 sessionId = 0;
-	uint64 peerId = 0;
-	int64 topicRootId = 0;
-	uint64 monoforumPeerId = 0;
-	int64 msgId = 0;
-	bool valid = false;
-};
+using NotificationTokens = Platform::Notifications::NotificationTokens;
 
 struct InFlightRequest {
 	QString identifier;
-	NotificationParsed parsed;
+	uint64 token = 0;
 	bool removeWhenDone = false;
 };
-
-[[nodiscard]] NotificationParsed ParseNotification(NSDictionary *userInfo) {
-	auto result = NotificationParsed();
-	NSNumber *sessionObject = [userInfo objectForKey:@"session"];
-	result.sessionId = sessionObject
-		? [sessionObject unsignedLongLongValue]
-		: 0;
-	NSNumber *peerObject = [userInfo objectForKey:@"peer"];
-	result.peerId = peerObject ? [peerObject unsignedLongLongValue] : 0;
-	NSNumber *topicObject = [userInfo objectForKey:@"topic"];
-	result.topicRootId = topicObject ? [topicObject longLongValue] : 0;
-	NSNumber *monoforumPeerObject = [userInfo objectForKey:@"monoforumpeer"];
-	result.monoforumPeerId = monoforumPeerObject
-		? [monoforumPeerObject unsignedLongLongValue]
-		: 0;
-	NSNumber *msgObject = [userInfo objectForKey:@"msgid"];
-	result.msgId = msgObject ? [msgObject longLongValue] : 0;
-	result.valid = (result.sessionId != 0)
-		&& (result.peerId != 0)
-		&& (topicObject != nil)
-		&& (monoforumPeerObject != nil);
-	return result;
-}
-
-[[nodiscard]] uint64 ParseManagerId(NSDictionary *userInfo) {
-	NSNumber *managerIdObject = [userInfo objectForKey:@"manager"];
-	return managerIdObject ? [managerIdObject unsignedLongLongValue] : 0ULL;
-}
-
-[[nodiscard]] ContextId ParsedContextId(const NotificationParsed &parsed) {
-	return parsed.topicRootId
-		? ContextId{
-			.sessionId = parsed.sessionId,
-			.peerId = PeerId(parsed.peerId),
-			.topicRootId = MsgId(parsed.topicRootId),
-		}
-		: parsed.monoforumPeerId
-		? ContextId{
-			.sessionId = parsed.sessionId,
-			.peerId = PeerId(parsed.peerId),
-			.monoforumPeerId = PeerId(parsed.monoforumPeerId),
-		}
-		: ContextId{
-			.sessionId = parsed.sessionId,
-			.peerId = PeerId(parsed.peerId),
-		};
-}
 
 [[nodiscard]] QString ResolveSoundsFolder() {
 	NSArray *paths = NSSearchPathForDirectoriesInDomains(
@@ -111,21 +57,25 @@ API_AVAILABLE(macos(10.14))
 }
 
 - (id) initWithManager:(base::weak_ptr<Manager>)manager
-		managerId:(uint64)managerId;
+		managerId:(uint64)managerId
+		tokens:(const NotificationTokens*)tokens;
 
 @end // @interface UserNotificationsDelegate
 
 @implementation UserNotificationsDelegate {
 	base::weak_ptr<Manager> _manager;
 	uint64 _managerId;
+	const NotificationTokens *_tokens;
 
 }
 
 - (id) initWithManager:(base::weak_ptr<Manager>)manager
-		managerId:(uint64)managerId {
+		managerId:(uint64)managerId
+		tokens:(const NotificationTokens*)tokens {
 	if (self = [super init]) {
 		_manager = manager;
 		_managerId = managerId;
+		_tokens = tokens;
 	}
 	return self;
 }
@@ -148,7 +98,8 @@ API_AVAILABLE(macos(10.14))
 		didReceiveNotificationResponse:(UNNotificationResponse *)response
 		withCompletionHandler:(void (^)(void))completionHandler {
 	NSDictionary *userInfo = response.notification.request.content.userInfo;
-	const auto notificationManagerId = ParseManagerId(userInfo);
+	const auto notificationManagerId
+		= Platform::Notifications::NotificationManagerId(userInfo);
 	DEBUG_LOG(("Received UN notification with instance %1, mine: %2"
 		).arg(notificationManagerId
 		).arg(_managerId));
@@ -156,39 +107,37 @@ API_AVAILABLE(macos(10.14))
 		completionHandler();
 		return;
 	}
-	const auto parsed = ParseNotification(userInfo);
-	if (!parsed.valid) {
+	const auto token = Platform::Notifications::NotificationToken(userInfo);
+	if (!token) {
 		LOG(("App Error: A UN notification with unknown data was received"));
 		completionHandler();
 		return;
 	}
-	const auto my = Window::Notifications::Manager::NotificationId{
-		.contextId = ContextId{
-			.sessionId = parsed.sessionId,
-			.peerId = PeerId(parsed.peerId),
-			.topicRootId = MsgId(parsed.topicRootId),
-			.monoforumPeerId = PeerId(parsed.monoforumPeerId),
-		},
-		.msgId = parsed.msgId,
-	};
 	const auto manager = _manager;
+	const auto tokens = _tokens;
 	NSString *actionIdentifier = response.actionIdentifier;
 	if ([response isKindOfClass:[UNTextInputNotificationResponse class]]) {
 		const auto text = QString::fromNSString(
 			((UNTextInputNotificationResponse*)response).userText);
 		crl::on_main(manager, [=] {
-			manager->notificationReplied(my, { text, {} });
+			if (const auto my = tokens->lookup(token)) {
+				manager->notificationReplied(*my, { text, {} });
+			}
 		});
 	} else if ([actionIdentifier
 			isEqualToString:UNNotificationDefaultActionIdentifier]) {
 		crl::on_main(manager, [=] {
-			manager->notificationActivated(my);
+			if (const auto my = tokens->lookup(token)) {
+				manager->notificationActivated(*my);
+			}
 		});
 	} else if (![actionIdentifier
 			isEqualToString:UNNotificationDismissActionIdentifier]) {
 		const auto action = QString::fromNSString(actionIdentifier);
 		crl::on_main(manager, [=] {
-			manager->notificationActionActivated(my, action);
+			if (const auto my = tokens->lookup(token)) {
+				manager->notificationActionActivated(*my, action);
+			}
 		});
 	}
 	completionHandler();
@@ -239,12 +188,14 @@ private:
 		bool withReply,
 		bool withMarkAsRead,
 		const std::vector<NotificationAction> &actions);
-	void removeDelivered(Fn<bool(const NotificationParsed &)> filter);
+	void clearTokens(base::flat_set<uint64> tokens);
+	void removeDelivered(Fn<bool(uint64)> filter);
 	void finishRequest(const QString &identifier);
 
 	const uint64 _managerId = 0;
 	QString _managerIdString;
 	const base::weak_ptr<UNManager> _manager;
+	NotificationTokens _tokens;
 
 	NSObject *_delegate = nil;
 	NSMutableArray *_categories = nil;
@@ -264,7 +215,8 @@ UNManager::Private::Private(UNManager *manager)
 	if (@available(macOS 10.14, *)) {
 		_delegate = [[UserNotificationsDelegate alloc]
 			initWithManager:manager
-			managerId:_managerId];
+			managerId:_managerId
+			tokens:&_tokens];
 		_categories = [[NSMutableArray alloc] init];
 		UNUserNotificationCenter *center
 			= [UNUserNotificationCenter currentNotificationCenter];
@@ -370,23 +322,16 @@ void UNManager::Private::showNotification(
 		[content setTitle:Q2NSString(info.title)];
 		[content setSubtitle:Q2NSString(info.subtitle)];
 		[content setBody:Q2NSString(info.message)];
-		const auto sessionId = peer->session().uniqueId();
-		const auto monoforumPeerId = info.monoforumPeerId.value;
-		[content setUserInfo:
-			[NSDictionary dictionaryWithObjectsAndKeys:
-				[NSNumber numberWithUnsignedLongLong:sessionId],
-				@"session",
-				[NSNumber numberWithUnsignedLongLong:peer->id.value],
-				@"peer",
-				[NSNumber numberWithLongLong:info.topicRootId.bare],
-				@"topic",
-				[NSNumber numberWithUnsignedLongLong:monoforumPeerId],
-				@"monoforumpeer",
-				[NSNumber numberWithLongLong:info.itemId.bare],
-				@"msgid",
-				[NSNumber numberWithUnsignedLongLong:_managerId],
-				@"manager",
-				nil]];
+		const auto token = _tokens.add(NotificationId{
+			.contextId = ContextId{
+				.sessionId = peer->session().uniqueId(),
+				.peerId = peer->id,
+				.topicRootId = info.topicRootId,
+				.monoforumPeerId = info.monoforumPeerId,
+			},
+			.msgId = info.itemId,
+		});
+		[content setUserInfo:NotificationUserInfo(_managerId, token)];
 
 		const auto category = ensureCategory(
 			!info.options.hideReplyButton,
@@ -429,11 +374,7 @@ void UNManager::Private::showNotification(
 			}
 		}
 
-		auto identifier = _managerIdString
-			+ '_'
-			+ QString::number(peer->id.value)
-			+ '_'
-			+ QString::number(info.itemId.bare);
+		auto identifier = _managerIdString + '_' + QString::number(token);
 		UNNotificationRequest *request = [UNNotificationRequest
 			requestWithIdentifier:Q2NSString(identifier)
 			content:content
@@ -442,14 +383,7 @@ void UNManager::Private::showNotification(
 			= [UNUserNotificationCenter currentNotificationCenter];
 		_inFlight.push_back({
 			.identifier = identifier,
-			.parsed = NotificationParsed{
-				.sessionId = sessionId,
-				.peerId = peer->id.value,
-				.topicRootId = info.topicRootId.bare,
-				.monoforumPeerId = monoforumPeerId,
-				.msgId = info.itemId.bare,
-				.valid = true,
-			},
+			.token = token,
 		});
 		const auto weak = _manager;
 		const auto that = this;
@@ -494,10 +428,18 @@ void UNManager::Private::finishRequest(const QString &identifier) {
 	}
 }
 
-void UNManager::Private::removeDelivered(
-		Fn<bool(const NotificationParsed &)> filter) {
+void UNManager::Private::clearTokens(base::flat_set<uint64> tokens) {
+	if (tokens.empty()) {
+		return;
+	}
+	removeDelivered([tokens = std::move(tokens)](uint64 token) {
+		return tokens.contains(token);
+	});
+}
+
+void UNManager::Private::removeDelivered(Fn<bool(uint64)> filter) {
 	for (auto &request : _inFlight) {
-		if (filter(request.parsed)) {
+		if (filter(request.token)) {
 			request.removeWhenDone = true;
 		}
 	}
@@ -513,11 +455,11 @@ void UNManager::Private::removeDelivered(
 			for (UNNotification *notification in notifications) {
 				NSDictionary *userInfo
 					= notification.request.content.userInfo;
-				if (ParseManagerId(userInfo) != managerId) {
+				if (NotificationManagerId(userInfo) != managerId) {
 					continue;
 				}
-				const auto parsed = ParseNotification(userInfo);
-				if (!parsed.valid || filter(parsed)) {
+				const auto token = NotificationToken(userInfo);
+				if (!token || filter(token)) {
 					[identifiers addObject:notification.request.identifier];
 				}
 			}
@@ -532,7 +474,8 @@ void UNManager::Private::removeDelivered(
 }
 
 void UNManager::Private::clearAll() {
-	removeDelivered([](const NotificationParsed &) {
+	_tokens.clear();
+	removeDelivered([](uint64) {
 		return true;
 	});
 }
@@ -544,12 +487,7 @@ void UNManager::Private::clearFromItem(not_null<HistoryItem*> item) {
 		.topicRootId = item->topicRootId(),
 		.monoforumPeerId = item->sublistPeerId(),
 	}, item->id };
-	removeDelivered([=](const NotificationParsed &parsed) {
-		return (parsed.msgId != 0)
-			&& (NotificationId{
-				ParsedContextId(parsed),
-				MsgId(parsed.msgId) } == target);
-	});
+	clearTokens(_tokens.takeFromItem(target));
 }
 
 void UNManager::Private::clearFromTopic(
@@ -559,9 +497,7 @@ void UNManager::Private::clearFromTopic(
 		.peerId = topic->history()->peer->id,
 		.topicRootId = topic->rootId(),
 	};
-	removeDelivered([=](const NotificationParsed &parsed) {
-		return ParsedContextId(parsed) == target;
-	});
+	clearTokens(_tokens.takeFromContext(target));
 }
 
 void UNManager::Private::clearFromSublist(
@@ -571,9 +507,7 @@ void UNManager::Private::clearFromSublist(
 		.peerId = sublist->owningHistory()->peer->id,
 		.monoforumPeerId = sublist->sublistPeer()->id,
 	};
-	removeDelivered([=](const NotificationParsed &parsed) {
-		return ParsedContextId(parsed) == target;
-	});
+	clearTokens(_tokens.takeFromContext(target));
 }
 
 void UNManager::Private::clearFromHistory(not_null<History*> history) {
@@ -581,20 +515,12 @@ void UNManager::Private::clearFromHistory(not_null<History*> history) {
 		.sessionId = history->session().uniqueId(),
 		.peerId = history->peer->id,
 	};
-	removeDelivered([=](const NotificationParsed &parsed) {
-		return ContextId{
-			.sessionId = parsed.sessionId,
-			.peerId = PeerId(parsed.peerId),
-		} == target;
-	});
+	clearTokens(_tokens.takeFromHistory(target));
 }
 
 void UNManager::Private::clearFromSession(
 		not_null<Main::Session*> session) {
-	const auto sessionId = session->uniqueId();
-	removeDelivered([=](const NotificationParsed &parsed) {
-		return parsed.sessionId == sessionId;
-	});
+	clearTokens(_tokens.takeFromSession(session->uniqueId()));
 }
 
 UNManager::Private::~Private() {

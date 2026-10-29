@@ -1803,6 +1803,8 @@ PRIVATE
     platform/mac/native_event_mac.mm
     platform/mac/notifications_manager_mac.mm
     platform/mac/notifications_manager_mac.h
+    platform/mac/notifications_manager_mac_tokens.mm
+    platform/mac/notifications_manager_mac_tokens.h
     platform/mac/notifications_manager_mac_un.mm
     platform/mac/notifications_manager_mac_un.h
     platform/mac/overlay_widget_mac.h

@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mainwindow.h"
+#include "platform/mac/notifications_manager_mac_tokens.h"
 #include "platform/mac/notifications_manager_mac_un.h"
 #include "platform/platform_specific.h"
 #include "ui/empty_userpic.h"
@@ -80,13 +81,14 @@ void queryDoNotDisturbState() {
 }
 
 using Manager = Platform::Notifications::Manager;
+using NotificationTokens = Platform::Notifications::NotificationTokens;
 
 } // namespace
 
 @interface NotificationDelegate : NSObject<NSUserNotificationCenterDelegate> {
 }
 
-- (id) initWithManager:(base::weak_ptr<Manager>)manager managerId:(uint64)managerId;
+- (id) initWithManager:(base::weak_ptr<Manager>)manager managerId:(uint64)managerId tokens:(const NotificationTokens*)tokens;
 - (void) userNotificationCenter:(NSUserNotificationCenter*)center didActivateNotification:(NSUserNotification*)notification;
 - (BOOL) userNotificationCenter:(NSUserNotificationCenter*)center shouldPresentNotification:(NSUserNotification*)notification;
 
@@ -95,21 +97,23 @@ using Manager = Platform::Notifications::Manager;
 @implementation NotificationDelegate {
 	base::weak_ptr<Manager> _manager;
 	uint64 _managerId;
+	const NotificationTokens *_tokens;
 
 }
 
-- (id) initWithManager:(base::weak_ptr<Manager>)manager managerId:(uint64)managerId {
+- (id) initWithManager:(base::weak_ptr<Manager>)manager managerId:(uint64)managerId tokens:(const NotificationTokens*)tokens {
 	if (self = [super init]) {
 		_manager = manager;
 		_managerId = managerId;
+		_tokens = tokens;
 	}
 	return self;
 }
 
 - (void) userNotificationCenter:(NSUserNotificationCenter *)center didActivateNotification:(NSUserNotification *)notification {
 	NSDictionary *notificationUserInfo = [notification userInfo];
-	NSNumber *managerIdObject = [notificationUserInfo objectForKey:@"manager"];
-	auto notificationManagerId = managerIdObject ? [managerIdObject unsignedLongLongValue] : 0ULL;
+	const auto notificationManagerId
+		= Platform::Notifications::NotificationManagerId(notificationUserInfo);
 	DEBUG_LOG(("Received notification with instance %1, mine: %2").arg(notificationManagerId).arg(_managerId));
 	if (notificationManagerId != _managerId) { // other app instance notification
 		crl::on_main([] {
@@ -127,58 +131,30 @@ using Manager = Platform::Notifications::Manager;
 		return;
 	}
 
-	NSNumber *sessionObject = [notificationUserInfo objectForKey:@"session"];
-	const auto notificationSessionId = sessionObject ? [sessionObject unsignedLongLongValue] : 0;
-	if (!notificationSessionId) {
-		LOG(("App Error: A notification with unknown session was received"));
+	const auto token
+		= Platform::Notifications::NotificationToken(notificationUserInfo);
+	if (!token) {
+		LOG(("App Error: A notification with unknown token was received"));
 		return;
 	}
-	NSNumber *peerObject = [notificationUserInfo objectForKey:@"peer"];
-	const auto notificationPeerId = peerObject ? [peerObject unsignedLongLongValue] : 0ULL;
-	if (!notificationPeerId) {
-		LOG(("App Error: A notification with unknown peer was received"));
-		return;
-	}
-	NSNumber *topicObject = [notificationUserInfo objectForKey:@"topic"];
-	if (!topicObject) {
-		LOG(("App Error: A notification with unknown topic was received"));
-		return;
-	}
-	const auto notificationTopicRootId = [topicObject longLongValue];
-	NSNumber *monoforumPeerObject = [notificationUserInfo objectForKey:@"monoforumpeer"];
-	if (!monoforumPeerObject) {
-		LOG(("App Error: A notification with unknown monoforum peer was received"));
-		return;
-	}
-	const auto notificationMonoforumPeerId = [monoforumPeerObject unsignedLongLongValue];
-
-	NSNumber *msgObject = [notificationUserInfo objectForKey:@"msgid"];
-	const auto notificationMsgId = msgObject ? [msgObject longLongValue] : 0LL;
-
-	const auto my = Window::Notifications::Manager::NotificationId{
-		.contextId = Manager::ContextId{
-			.sessionId = notificationSessionId,
-			.peerId = PeerId(notificationPeerId),
-			.topicRootId = MsgId(notificationTopicRootId),
-			.monoforumPeerId = PeerId(notificationMonoforumPeerId),
-		},
-		.msgId = notificationMsgId,
-	};
+	const auto manager = _manager;
+	const auto tokens = _tokens;
 	if (notification.activationType == NSUserNotificationActivationTypeReplied) {
 		const auto notificationReply = QString::fromUtf8([[[notification response] string] UTF8String]);
-		const auto manager = _manager;
 		crl::on_main(manager, [=] {
-			manager->notificationReplied(my, { notificationReply, {} });
+			if (const auto my = tokens->lookup(token)) {
+				manager->notificationReplied(*my, { notificationReply, {} });
+			}
 		});
 	} else if (notification.activationType == NSUserNotificationActivationTypeContentsClicked) {
-		const auto manager = _manager;
 		crl::on_main(manager, [=] {
-			manager->notificationActivated(my);
+			if (const auto my = tokens->lookup(token)) {
+				manager->notificationActivated(*my);
+			}
 		});
 	}
 	if (notification.activationType == NSUserNotificationActivationTypeAdditionalActionClicked
 		|| notification.activationType == NSUserNotificationActivationTypeActionButtonClicked) {
-		const auto manager = _manager;
 		NSString *actionId = nil;
 		if (notification.activationType == NSUserNotificationActivationTypeAdditionalActionClicked
 			&& [notification respondsToSelector:@selector(additionalActivationAction)]) {
@@ -190,7 +166,9 @@ using Manager = Platform::Notifications::Manager;
 		if (actionId) {
 			const auto actionStr = QString::fromNSString(actionId);
 			crl::on_main(manager, [=] {
-				manager->notificationActionActivated(my, actionStr);
+				if (const auto my = tokens->lookup(token)) {
+					manager->notificationActionActivated(*my, actionStr);
+				}
 			});
 		}
 	}
@@ -269,6 +247,7 @@ public:
 private:
 	template <typename Task>
 	void putClearTask(Task task);
+	void clearTokens(base::flat_set<uint64> tokens);
 
 	void clearingThreadLoop();
 	void initCachedMarkAsReadText();
@@ -276,39 +255,21 @@ private:
 	const uint64 _managerId = 0;
 	QString _managerIdString;
 
+	NotificationTokens _tokens;
 	NotificationDelegate *_delegate = nullptr;
 
 	std::thread _clearingThread;
 	std::mutex _clearingMutex;
 	std::condition_variable _clearingCondition;
 
-	struct ClearFromItem {
-		NotificationId id;
-	};
-	struct ClearFromTopic {
-		ContextId contextId;
-	};
-	struct ClearFromSublist {
-		ContextId contextId;
-	};
-	struct ClearFromHistory {
-		ContextId partialContextId;
-	};
-	struct ClearFromSession {
-		uint64 sessionId = 0;
+	struct ClearTokens {
+		base::flat_set<uint64> tokens;
 	};
 	struct ClearAll {
 	};
 	struct ClearFinish {
 	};
-	using ClearTask = std::variant<
-		ClearFromItem,
-		ClearFromTopic,
-		ClearFromSublist,
-		ClearFromHistory,
-		ClearFromSession,
-		ClearAll,
-		ClearFinish>;
+	using ClearTask = std::variant<ClearTokens, ClearAll, ClearFinish>;
 	std::vector<ClearTask> _clearingTasks;
 
 	Media::Audio::LocalDiskCache _sounds;
@@ -341,7 +302,10 @@ void AddActionIdToNotification(
 Manager::Private::Private(Manager *manager)
 : _managerId(base::RandomValue<uint64>())
 , _managerIdString(QString::number(_managerId))
-, _delegate([[NotificationDelegate alloc] initWithManager:manager managerId:_managerId])
+, _delegate([[NotificationDelegate alloc]
+	initWithManager:manager
+	managerId:_managerId
+	tokens:&_tokens])
 , _sounds(ResolveSoundsFolder()) {
 	Core::App().settings().workModeValue(
 	) | rpl::on_next([=](Core::Settings::WorkMode mode) {
@@ -361,31 +325,22 @@ void Manager::Private::showNotification(
 	@autoreleasepool {
 
 	const auto peer = info.peer;
+	const auto token = _tokens.add({
+		.contextId = {
+			.sessionId = peer->session().uniqueId(),
+			.peerId = peer->id,
+			.topicRootId = info.topicRootId,
+			.monoforumPeerId = info.monoforumPeerId,
+		},
+		.msgId = info.itemId,
+	});
 	NSUserNotification *notification = [[[NSUserNotification alloc] init] autorelease];
 	if ([notification respondsToSelector:@selector(setIdentifier:)]) {
-		auto identifier = _managerIdString
-			+ '_'
-			+ QString::number(peer->id.value)
-			+ '_'
-			+ QString::number(info.itemId.bare);
+		auto identifier = _managerIdString + '_' + QString::number(token);
 		auto identifierValue = Q2NSString(identifier);
 		[notification setIdentifier:identifierValue];
 	}
-	[notification setUserInfo:
-		[NSDictionary dictionaryWithObjectsAndKeys:
-			[NSNumber numberWithUnsignedLongLong:peer->session().uniqueId()],
-			@"session",
-			[NSNumber numberWithUnsignedLongLong:peer->id.value],
-			@"peer",
-			[NSNumber numberWithLongLong:info.topicRootId.bare],
-			@"topic",
-			[NSNumber numberWithUnsignedLongLong:info.monoforumPeerId.value],
-			@"monoforumpeer",
-			[NSNumber numberWithLongLong:info.itemId.bare],
-			@"msgid",
-			[NSNumber numberWithUnsignedLongLong:_managerId],
-			@"manager",
-			nil]];
+	[notification setUserInfo:NotificationUserInfo(_managerId, token)];
 
 	[notification setTitle:Q2NSString(info.title)];
 	[notification setSubtitle:Q2NSString(info.subtitle)];
@@ -459,98 +414,45 @@ void Manager::Private::showNotification(
 void Manager::Private::clearingThreadLoop() {
 	auto finished = false;
 	while (!finished) {
-		auto clearAll = false;
-		auto clearFromItems = base::flat_set<NotificationId>();
-		auto clearFromTopics = base::flat_set<ContextId>();
-		auto clearFromSublists = base::flat_set<ContextId>();
-		auto clearFromHistories = base::flat_set<ContextId>();
-		auto clearFromSessions = base::flat_set<uint64>();
+		auto tasks = std::vector<ClearTask>();
 		{
 			std::unique_lock<std::mutex> lock(_clearingMutex);
 			while (_clearingTasks.empty()) {
 				_clearingCondition.wait(lock);
 			}
-			for (auto &task : _clearingTasks) {
-				v::match(task, [&](ClearFinish) {
-					finished = true;
-					clearAll = true;
-				}, [&](ClearAll) {
-					clearAll = true;
-				}, [&](const ClearFromItem &value) {
-					clearFromItems.emplace(value.id);
-				}, [&](const ClearFromTopic &value) {
-					clearFromTopics.emplace(value.contextId);
-				}, [&](const ClearFromSublist &value) {
-					clearFromSublists.emplace(value.contextId);
-				}, [&](const ClearFromHistory &value) {
-					clearFromHistories.emplace(value.partialContextId);
-				}, [&](const ClearFromSession &value) {
-					clearFromSessions.emplace(value.sessionId);
-				});
-			}
-			_clearingTasks.clear();
+			tasks = base::take(_clearingTasks);
 		}
+		auto clearAll = false;
+		auto selected = std::vector<uint64>();
+		for (const auto &task : tasks) {
+			v::match(task, [&](ClearFinish) {
+				finished = true;
+				clearAll = true;
+			}, [&](ClearAll) {
+				clearAll = true;
+			}, [&](const ClearTokens &value) {
+				selected.insert(
+					selected.end(),
+					value.tokens.begin(),
+					value.tokens.end());
+			});
+		}
+		const auto tokens = base::flat_set<uint64>(
+			selected.begin(),
+			selected.end());
 
 		@autoreleasepool {
-
-		auto clearBySpecial = [&](NSDictionary *notificationUserInfo) {
-			NSNumber *sessionObject = [notificationUserInfo objectForKey:@"session"];
-			const auto notificationSessionId = sessionObject ? [sessionObject unsignedLongLongValue] : 0;
-			if (!notificationSessionId) {
-				return true;
-			}
-			NSNumber *peerObject = [notificationUserInfo objectForKey:@"peer"];
-			const auto notificationPeerId = peerObject ? [peerObject unsignedLongLongValue] : 0;
-			if (!notificationPeerId) {
-				return true;
-			}
-			NSNumber *topicObject = [notificationUserInfo objectForKey:@"topic"];
-			if (!topicObject) {
-				return true;
-			}
-			const auto notificationTopicRootId = [topicObject longLongValue];
-			NSNumber *monoforumPeerObject = [notificationUserInfo objectForKey:@"monoforumpeer"];
-			if (!monoforumPeerObject) {
-				return true;
-			}
-			const auto notificationMonoforumPeerId = [monoforumPeerObject unsignedLongLongValue];
-			NSNumber *msgObject = [notificationUserInfo objectForKey:@"msgid"];
-			const auto msgId = msgObject ? [msgObject longLongValue] : 0LL;
-			const auto partialContextId = ContextId{
-				.sessionId = notificationSessionId,
-				.peerId = PeerId(notificationPeerId),
-			};
-			const auto contextId = notificationTopicRootId
-			? ContextId{
-				.sessionId = notificationSessionId,
-				.peerId = PeerId(notificationPeerId),
-				.topicRootId = MsgId(notificationTopicRootId),
-			}
-			: notificationMonoforumPeerId
-			? ContextId{
-				.sessionId = notificationSessionId,
-				.peerId = PeerId(notificationPeerId),
-				.monoforumPeerId = PeerId(notificationMonoforumPeerId),
-			}
-			: partialContextId;
-			const auto id = NotificationId{ contextId, MsgId(msgId) };
-			return clearFromSessions.contains(notificationSessionId)
-				|| clearFromHistories.contains(partialContextId)
-				|| clearFromTopics.contains(contextId)
-				|| clearFromSublists.contains(contextId)
-				|| (msgId && clearFromItems.contains(id));
-		};
 
 		NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
 		NSArray *notificationsList = [center deliveredNotifications];
 		for (id notification in notificationsList) {
 			NSDictionary *notificationUserInfo = [notification userInfo];
-			NSNumber *managerIdObject = [notificationUserInfo objectForKey:@"manager"];
-			auto notificationManagerId = managerIdObject ? [managerIdObject unsignedLongLongValue] : 0ULL;
-			if (notificationManagerId == _managerId) {
-				if (clearAll || clearBySpecial(notificationUserInfo)) {
-					[center removeDeliveredNotification:notification];
-				}
+			if (NotificationManagerId(notificationUserInfo) != _managerId) {
+				continue;
+			}
+			const auto token = NotificationToken(notificationUserInfo);
+			if (clearAll || !token || tokens.contains(token)) {
+				[center removeDeliveredNotification:notification];
 			}
 		}
 
@@ -565,49 +467,56 @@ void Manager::Private::putClearTask(Task task) {
 	}
 
 	std::unique_lock<std::mutex> lock(_clearingMutex);
-	_clearingTasks.push_back(task);
+	_clearingTasks.push_back(std::move(task));
 	_clearingCondition.notify_one();
 }
 
+void Manager::Private::clearTokens(base::flat_set<uint64> tokens) {
+	if (!tokens.empty()) {
+		putClearTask(ClearTokens{ std::move(tokens) });
+	}
+}
+
 void Manager::Private::clearAll() {
+	_tokens.clear();
 	putClearTask(ClearAll());
 }
 
 void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
-	putClearTask(ClearFromItem{ ContextId{
+	clearTokens(_tokens.takeFromItem({ ContextId{
 		.sessionId = item->history()->session().uniqueId(),
 		.peerId = item->history()->peer->id,
 		.topicRootId = item->topicRootId(),
 		.monoforumPeerId = item->sublistPeerId(),
-	}, item->id });
+	}, item->id }));
 }
 
 void Manager::Private::clearFromTopic(not_null<Data::ForumTopic*> topic) {
-	putClearTask(ClearFromTopic{ ContextId{
+	clearTokens(_tokens.takeFromContext({
 		.sessionId = topic->session().uniqueId(),
 		.peerId = topic->history()->peer->id,
 		.topicRootId = topic->rootId(),
-	} });
+	}));
 }
 
 void Manager::Private::clearFromSublist(
 		not_null<Data::SavedSublist*> sublist) {
-	putClearTask(ClearFromSublist{ ContextId{
+	clearTokens(_tokens.takeFromContext({
 		.sessionId = sublist->session().uniqueId(),
 		.peerId = sublist->owningHistory()->peer->id,
 		.monoforumPeerId = sublist->sublistPeer()->id,
-	} });
+	}));
 }
 
 void Manager::Private::clearFromHistory(not_null<History*> history) {
-	putClearTask(ClearFromHistory{ ContextId{
+	clearTokens(_tokens.takeFromHistory({
 		.sessionId = history->session().uniqueId(),
 		.peerId = history->peer->id,
-	} });
+	}));
 }
 
 void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
-	putClearTask(ClearFromSession{ session->uniqueId() });
+	clearTokens(_tokens.takeFromSession(session->uniqueId()));
 }
 
 void Manager::Private::updateDelegate() {
