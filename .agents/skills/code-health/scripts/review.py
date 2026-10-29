@@ -20,7 +20,7 @@ from report import LIMITS, file_limit
 from sources import LANG_FILE, git, wanted
 
 
-HUNK = re.compile(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@')
+HUNK = re.compile(r'^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@')
 SCAFFOLDING = re.compile(
     r'^(#include .*|#pragma once|namespace [\w:]+ \{|\} // namespace.*|'
     r'namespace \{|\{|\}|\};|(class|struct) \w+;|public:|private:|protected:|'
@@ -81,12 +81,14 @@ def changed(repo, base, staged):
 
 
 def diff_lines(repo, base, staged):
-    """{path: (removed lines, added lines)} over the changed files."""
+    """{path: (removed lines, added lines)} over the changed files; each
+    removed line is (its number in the base, its text)."""
     args = ['diff', '-U0', '--no-color', '--no-renames']
     args += ['--cached', base] if staged else [base]
     raw = git(repo, *args, '--', 'Telegram').decode('utf-8', 'replace')
     result = {}
     path = None
+    number = 0
     for line in raw.splitlines():
         if line.startswith('--- '):
             path = line[6:] if line.startswith('--- a/') else None
@@ -94,10 +96,18 @@ def diff_lines(repo, base, staged):
         if line.startswith('+++ '):
             path = line[6:] if line.startswith('+++ b/') else path
             continue
+        hunk = HUNK.match(line)
+        if hunk:
+            number = int(hunk.group(1))
+            continue
         if not path or not tracked_path(path) or not line or line[0] not in '+-':
             continue
         entry = result.setdefault(path, ([], []))
-        entry[0 if line[0] == '-' else 1].append(line[1:])
+        if line[0] == '-':
+            entry[0].append((number, line[1:]))
+            number += 1
+        else:
+            entry[1].append(line[1:])
     if not staged:
         for path in untracked(repo):
             text = (Path(repo) / path).read_text(encoding='utf-8', errors='replace')
@@ -121,7 +131,7 @@ def added_hunks(repo, base, staged, path):
     for line in raw.splitlines():
         match = HUNK.match(line)
         if match:
-            number = int(match.group(1))
+            number = int(match.group(2))
             continue
         if line.startswith('+') and not line.startswith('+++'):
             hunk.append((number, line[1:]))
@@ -249,10 +259,37 @@ def identifiers(text):
     return [name for name in TOKEN.findall(text) if name]
 
 
-def defines(path, line, name):
+def else_branch(lines, index):
+    """Whether lines[index] is a ternary's else-branch `: value`. REVIEW.md
+    starts continuation lines with their operator, so walking back over blank
+    and deeper lines, and over lines of the same depth that start with other
+    punctuation (a closing bracket, an operator, a string), reaches the
+    `? value` line of the same depth; a constructor initializer reaches its
+    signature, which starts with a name, instead."""
+    line = lines[index]
+    if not line.lstrip().startswith(':'):
+        return False
+    depth = len(line) - len(line.lstrip())
+    for above in reversed(lines[:index]):
+        code = above.strip()
+        level = len(above) - len(above.lstrip())
+        if not code or level > depth:
+            continue
+        if level < depth:
+            return False
+        if code[0] == '?':
+            return True
+        if code[0] == '_' or code[0].isalnum():
+            return False
+    return False
+
+
+def defines(path, line, name, branch=False):
     """Whether this mention of `name` declares or defines it rather than
     using it: its key in the language file, its entry in a `.style` file, or
-    a declaration, definition or constructor initializer in code."""
+    a declaration, definition or constructor initializer in code. A `branch`
+    line is a ternary's else-branch (see `else_branch()`), whose leading
+    `: Name(` calls Name instead of initializing it."""
     escaped = re.escape(name)
     if path == LANG_FILE:
         return re.match(r'\s*"' + escaped + r'(?:#\w+)?"\s*=', line) is not None
@@ -260,7 +297,7 @@ def defines(path, line, name):
         return re.match(r'\s*' + escaped + r'\s*:', line) is not None
     stripped = line.strip()
     if re.match(r'[,:]\s*' + escaped + r'\s*[({]', stripped):
-        return True
+        return not branch
     if not line[:1].isspace():
         head = CLASS_HEAD.match(line)
         if head:
@@ -287,10 +324,15 @@ def orphaned(tree, base, staged):
     added = Counter()
     used = set()
     for path, (minus, plus) in diff_lines(tree.repo, base, staged).items():
-        for line in minus:
+        before = None
+        for number, line in minus:
             names = set(identifiers(line.split('//')[0]))
             removed.update(names)
-            used |= {name for name in names if not defines(path, line, name)}
+            branch = False
+            if line.lstrip().startswith(':'):
+                before = before or mention_lines(base_text(tree.repo, base, path))
+                branch = else_branch(before, number - 1)
+            used |= {name for name in names if not defines(path, line, name, branch)}
         for line in plus:
             added.update(identifiers(line.split('//')[0]))
     candidates = {
@@ -314,10 +356,12 @@ def orphaned(tree, base, staged):
         pattern = re.compile(r'\b' + re.escape(name) + r'\b')
         places = []
         for path in paths:
-            for number, line in enumerate(mention_lines(tree.files[path]), 1):
+            lines = mention_lines(tree.files[path])
+            for number, line in enumerate(lines, 1):
                 if not pattern.search(line):
                     continue
-                if not defines(path, line, name) or 'override' in line:
+                branch = else_branch(lines, number - 1)
+                if not defines(path, line, name, branch) or 'override' in line:
                     places = None
                     break
                 places.append((path, number))

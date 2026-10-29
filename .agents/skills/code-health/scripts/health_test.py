@@ -420,6 +420,83 @@ class CheckTests(unittest.TestCase):
         _, warnings = self.run_check()
         self.assertTrue(any(w.startswith('Helper:') and 'last use' in w for w in warnings), warnings)
 
+    def test_else_branch_call_is_a_use(self):
+        src = 'Telegram/SourceFiles/'
+        helpers = ('int Helper(int value) {\n\treturn value + 1;\n}\n\n'
+                   'int Fallback(int value) {\n\treturn value - 1;\n}\n\n')
+        branches = dedent('''
+            int Pick(bool flag, int value) {
+            	return flag
+            		? value
+            		: Helper(value);
+            }
+
+            int Chain(bool flag, bool other, int value) {
+            	return flag
+            		? 0
+            		: other
+            		? Apply([=] {
+            			return value;
+            		})
+            		: Fallback(value);
+            }
+        ''')
+        plain = '\nint Plain(int value) {\n\treturn Helper(value) + Fallback(value);\n}\n'
+        self.repo.write({src + 'low/low.cpp': LOW + '\n' + helpers + branches + plain})
+        self.repo.git('commit', '-qam', 'Helpers.')
+        self.repo.write({src + 'low/low.cpp': LOW + '\n' + helpers + branches
+                         + plain.replace('Helper(value) + Fallback(value)', 'value')})
+        self.assertEqual(self.run_check(), ([], []))
+
+    def test_removed_else_branch_call_reports_orphaned_helper(self):
+        src = 'Telegram/SourceFiles/'
+        helper = 'int Helper(int value) {\n\treturn value + 1;\n}\n\n'
+        pick = ('int Pick(bool flag, int value) {\n\treturn flag\n'
+                '\t\t? value\n\t\t: Helper(value);\n}\n')
+        self.repo.write({src + 'low/low.cpp': LOW + '\n' + helper + pick})
+        self.repo.git('commit', '-qam', 'Helper.')
+        self.repo.write({src + 'low/low.cpp': LOW + '\n' + helper
+                         + pick.replace(': Helper(value);', ': value + 1;')})
+        _, warnings = self.run_check()
+        orphans = [w.split(':')[0] for w in warnings if 'last use' in w]
+        self.assertEqual(orphans, ['Helper'], warnings)
+
+    def test_initializers_still_define_their_fields(self):
+        src = 'Telegram/SourceFiles/'
+        owner = dedent('''
+            class Owner {
+            public:
+            	Owner()
+            	: _first(0)
+            	, _second{ 0 } {
+            	}
+            	Owner(int value);
+
+            	[[nodiscard]] int sum() const;
+
+            private:
+            	int _first = 0;
+            	int _second = 0;
+
+            };
+
+            Owner::Owner(int value)
+            : _first(value)
+            , _second{ value } {
+            }
+
+            int Owner::sum() const {
+            	return _first + _second;
+            }
+        ''')
+        self.repo.write({src + 'low/owner.cpp': owner})
+        self.repo.git('add', '-A')
+        self.repo.git('commit', '-qm', 'Owner.')
+        self.repo.write({src + 'low/owner.cpp': owner.replace('_first + _second', '0')})
+        _, warnings = self.run_check()
+        orphans = [w.split(':')[0] for w in warnings if 'last use' in w]
+        self.assertEqual(sorted(orphans), ['_first', '_second'], warnings)
+
     def test_base_class_mention_is_a_use(self):
         src = 'Telegram/SourceFiles/'
         base = 'class Host {\npublic:\n\tvirtual ~Host() = default;\n};\n'
