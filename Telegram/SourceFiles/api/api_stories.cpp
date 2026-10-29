@@ -391,6 +391,31 @@ void Stories::remove(uint64 uploadId) {
 	notifyChanges();
 }
 
+void Stories::saveCloseFriends(
+		std::vector<not_null<PeerData*>> users,
+		Fn<void()> done) {
+	auto ids = QVector<MTPlong>();
+	ids.reserve(users.size());
+	for (const auto &peer : users) {
+		if (peer->isUser()) {
+			ids.push_back(peerToBareMTPInt(peer->id));
+		}
+	}
+	_api.request(MTPcontacts_EditCloseFriends(
+		MTP_vector<MTPlong>(ids)
+	)).done([=] {
+		_session->data().enumerateUsers([&](not_null<UserData*> user) {
+			const auto is = ranges::contains(users, user);
+			if (user->isCloseFriend() != is) {
+				user->setIsCloseFriend(is);
+			}
+		});
+		if (done) {
+			done();
+		}
+	}).send();
+}
+
 const std::vector<StoryUpload> &Stories::uploads() const {
 	return _uploadsInfo;
 }

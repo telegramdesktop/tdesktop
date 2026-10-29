@@ -131,6 +131,10 @@ public:
 	void retry(uint64 uploadId);
 	void remove(uint64 uploadId);
 
+	void saveCloseFriends(
+		std::vector<not_null<PeerData*>> users,
+		Fn<void()> done = nullptr);
+
 	[[nodiscard]] const std::vector<StoryUpload> &uploads() const;
 	[[nodiscard]] rpl::producer<> uploadsChanges() const;
 	[[nodiscard]] rpl::producer<StorySent> sent() const;

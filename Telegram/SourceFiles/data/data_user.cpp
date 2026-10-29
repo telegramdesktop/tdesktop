@@ -824,6 +824,18 @@ bool UserData::isContact() const {
 	return (contactStatus() == ContactStatus::Contact);
 }
 
+bool UserData::isCloseFriend() const {
+	return (flags() & UserDataFlag::CloseFriend);
+}
+
+void UserData::setIsCloseFriend(bool is) {
+	if (is) {
+		addFlags(UserDataFlag::CloseFriend);
+	} else {
+		removeFlags(UserDataFlag::CloseFriend);
+	}
+}
+
 UserData::CallsStatus UserData::callsStatus() const {
 	return _callsStatus;
 }

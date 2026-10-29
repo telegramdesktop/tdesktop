@@ -156,6 +156,7 @@ enum class UserDataFlag : uint32 {
 	HasActiveVideoStream = (1 << 28),
 	NoForwardsMyEnabled = (1 << 29),
 	NoForwardsPeerEnabled = (1 << 30),
+	CloseFriend = (1U << 31),
 };
 inline constexpr bool is_flag_type(UserDataFlag) { return true; };
 using UserDataFlags = base::flags<UserDataFlag>;
@@ -268,6 +269,8 @@ public:
 	[[nodiscard]] ContactStatus contactStatus() const;
 	[[nodiscard]] bool isContact() const;
 	void setIsContact(bool is);
+	[[nodiscard]] bool isCloseFriend() const;
+	void setIsCloseFriend(bool is);
 
 	[[nodiscard]] Data::LastseenStatus lastseen() const;
 	bool updateLastseen(Data::LastseenStatus value);
