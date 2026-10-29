@@ -17,7 +17,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "main/main_app_config.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "styles/style_layers.h"
+#include "window/window_controller.h"
+#include "ui/boxes/confirm_box.h"
+#include "core/application.h"
 #include "media/media_video_encode.h"
 #include "storage/file_upload.h"
 #include "storage/localimageloader.h"
@@ -534,6 +539,25 @@ bool Stories::posting() const {
 	return ranges::any_of(_uploadsInfo, [](const StoryUpload &info) {
 		return info.error.isEmpty();
 	});
+}
+
+void Stories::stopPostingWithConfirmation(Fn<void()> done) {
+	const auto window = Core::App().activePrimaryWindow();
+	if (!window) {
+		done();
+		return;
+	}
+	window->show(Ui::MakeConfirmBox({
+		.text = tr::lng_story_sure_stop(),
+		.confirmed = [=](Fn<void()> close) {
+			close();
+			done();
+		},
+		.confirmText = tr::lng_story_stop_button(),
+		.confirmStyle = &st::attentionBoxButton,
+		.title = tr::lng_story_sure_stop_title(),
+	}));
+	window->activate();
 }
 
 void Stories::cancelPosting() {

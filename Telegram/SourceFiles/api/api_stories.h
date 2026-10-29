@@ -151,6 +151,7 @@ public:
 
 	[[nodiscard]] bool posting() const;
 	void cancelPosting();
+	void stopPostingWithConfirmation(Fn<void()> done);
 
 private:
 	struct Upload;
