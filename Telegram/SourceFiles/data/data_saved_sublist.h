@@ -155,8 +155,6 @@ private:
 	[[nodiscard]] bool buildFromData(not_null<Viewer*> viewer);
 	[[nodiscard]] bool applyUpdate(const MessageUpdate &update);
 	void appendClientSideMessages(MessagesSlice &slice);
-	[[nodiscard]] std::optional<int> computeUnreadCountLocally(
-		MsgId afterId) const;
 	bool processMessagesIsEmpty(const MTPmessages_Messages &result);
 	void loadAround(MsgId id);
 	void loadBefore();

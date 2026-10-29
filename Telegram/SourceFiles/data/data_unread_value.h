@@ -27,4 +27,21 @@ namespace Data {
 
 [[nodiscard]] rpl::producer<bool> IncludeMutedCounterFoldersValue();
 
+[[nodiscard]] std::optional<int> ComputeUnreadCountLocally(
+	MsgId afterId,
+	MsgId minReadTillId,
+	const std::vector<MsgId> &list,
+	std::optional<int> skippedBefore,
+	std::optional<int> skippedAfter,
+	std::optional<int> fullCount,
+	std::optional<int> currentUnreadCountAfter,
+	MsgId wasReadTillId);
+[[nodiscard]] int ReconcileSkippedCounts(
+	std::optional<int> &skippedBefore,
+	std::optional<int> &skippedAfter,
+	bool toFront,
+	int wasSize,
+	int nowSize,
+	int fullCount);
+
 } // namespace Data
