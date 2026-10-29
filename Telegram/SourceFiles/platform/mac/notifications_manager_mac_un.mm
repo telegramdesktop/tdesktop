@@ -149,6 +149,9 @@ namespace Platform {
 namespace Notifications {
 namespace {
 
+// usernoted refuses NSUserNotification posts from a bundle that used UN.
+NSString *const kTelegramUserNotificationsUsed = @"TelegramUserNotificationsUsed";
+
 [[nodiscard]] const base::options::toggle &UNManagerOption() {
 	static const auto &result = base::options::lookup<bool>(
 		Window::Notifications::kOptionMacModernNotifications);
@@ -158,7 +161,9 @@ namespace {
 } // namespace
 
 bool UseUNManager() {
-	if (!UNManagerOption().value()) {
+	if (!UNManagerOption().value()
+		&& ![[NSUserDefaults standardUserDefaults]
+			boolForKey:kTelegramUserNotificationsUsed]) {
 		return false;
 	}
 	if (@available(macOS 10.14, *)) {
@@ -213,6 +218,9 @@ UNManager::Private::Private(UNManager *manager)
 , _sounds(ResolveSoundsFolder()) {
 	QDir().mkpath(cWorkingDir() + u"tdata/temp"_q);
 	if (@available(macOS 10.14, *)) {
+		[[NSUserDefaults standardUserDefaults]
+			setBool:YES
+			forKey:kTelegramUserNotificationsUsed];
 		_delegate = [[UserNotificationsDelegate alloc]
 			initWithManager:manager
 			managerId:_managerId

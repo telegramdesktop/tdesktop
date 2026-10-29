@@ -101,7 +101,9 @@ base::options::toggle OptionMacModernNotifications({
 	.name = "Modern macOS notifications",
 	.description = "Use UserNotifications framework"
 		" for native notifications (macOS 10.14+)."
-		" System asks for notifications permission on first launch.",
+		" System asks for notifications permission on first launch."
+		" Once used, it stays in use even if turned off,"
+		" because macOS stops showing the older notifications.",
 	.scope = base::options::macos,
 	.restartRequired = true,
 });
