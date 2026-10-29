@@ -130,6 +130,10 @@ public:
 	[[nodiscard]] bool walletAvailable() const;
 
 	[[nodiscard]] int storiesAlbumLimit() const;
+	[[nodiscard]] bool storiesPostingAvailable() const;
+	[[nodiscard]] bool storiesPostingPremiumOnly() const;
+	[[nodiscard]] bool storiesEntitiesPremiumOnly() const;
+	[[nodiscard]] bool storiesEntitiesAvailable() const;
 
 	[[nodiscard]] int groupCallMessageLengthLimit() const;
 	[[nodiscard]] TimeId groupCallMessageTTL() const;
