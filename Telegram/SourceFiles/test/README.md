@@ -86,9 +86,8 @@ optimized Qt; a Debug paint timing is not a paint cost.
 ## Helper catalog
 
 Find modules by purpose in the [helper index](docs/helpers/README.md).
-Each entry links its detailed contract and source header. Entries marked
-**Self-test** validate the harness; do not add them to every product scenario.
-Search [failure diagnosis](docs/diagnostics.md) by observed symptom on recovery.
+Entries marked **Self-test** validate the harness; do not add them to every
+product scenario.
 
 ## Building one reliable packed scenario
 
@@ -120,6 +119,11 @@ reset the funded wallet or discard a possibly unrewritten rotation.
 Metadata alone does not establish playable media. A media-dependent scenario
 must observe real playback and preserve the validated fixture across stages.
 Read [media fixtures](docs/media-fixtures.md) before selecting one.
+
+## macOS native notifications
+
+Read [notification evidence](docs/macos-notifications.md) before a run posts
+macOS native notifications.
 
 ## Scenario teardown before quit
 
