@@ -149,6 +149,9 @@ public:
 
 	[[nodiscard]] bool uploadingFor(not_null<PeerData*> peer) const;
 
+	[[nodiscard]] bool posting() const;
+	void cancelPosting();
+
 private:
 	struct Upload;
 

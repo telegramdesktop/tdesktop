@@ -530,6 +530,24 @@ bool Stories::uploadingFor(not_null<PeerData*> peer) const {
 	return ranges::contains(_uploadsInfo, peer, &StoryUpload::peer);
 }
 
+bool Stories::posting() const {
+	return ranges::any_of(_uploadsInfo, [](const StoryUpload &info) {
+		return info.error.isEmpty();
+	});
+}
+
+void Stories::cancelPosting() {
+	auto ids = std::vector<uint64>();
+	for (const auto &info : _uploadsInfo) {
+		if (info.error.isEmpty()) {
+			ids.push_back(info.id);
+		}
+	}
+	for (const auto id : ids) {
+		remove(id);
+	}
+}
+
 Stories::Upload *Stories::find(uint64 id) {
 	const auto i = ranges::find(_uploads, id, [](const auto &entry) {
 		return entry->id;
