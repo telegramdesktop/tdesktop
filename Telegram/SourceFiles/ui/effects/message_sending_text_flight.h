@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
+#include "base/variant.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/message_sending_animation_controller.h"
 #include "ui/rp_widget.h"
@@ -18,10 +19,11 @@ namespace Ui {
 
 class InputField;
 
-[[nodiscard]] auto GrabSendingFieldText(
+[[nodiscard]] std::optional<MessageSendingAnimationFrom> PrepareTextSending(
 	not_null<InputField*> field,
-	const TextWithTags &sending)
--> std::optional<MessageSendingAnimationFrom::FieldText>;
+	const TextWithTags &sending,
+	MsgId localId,
+	bool scheduled);
 [[nodiscard]] base::unique_qptr<RpWidget> ShowSendingFieldText(
 	not_null<RpWidget*> parent,
 	const MessageSendingAnimationFrom::FieldText &source);
@@ -31,13 +33,26 @@ public:
 	using FieldText = MessageSendingAnimationFrom::FieldText;
 	using SendingInfoTo = MessageSendingAnimationController::SendingInfoTo;
 
+	struct Morph {
+		QImage text;
+		QRect bubble;
+		QRect from;
+		QPoint cut;
+		QRect info;
+		int edgeRow = 0;
+	};
 	struct Prepared {
 		FieldText source;
+		QRect sourceRect;
 		QRect textRect;
 		QRect bubbleRect;
 		QSize viewSize;
+		std::optional<Morph> morph;
 	};
-	[[nodiscard]] static std::optional<Prepared> Prepare(
+	struct Refused {
+	};
+	using Preparation = std::variant<v::null_t, Refused, Prepared>;
+	[[nodiscard]] static Preparation Prepare(
 		const FieldText &source,
 		const SendingInfoTo &to);
 	[[nodiscard]] static MessageSendingReveal Reveal();
@@ -60,13 +75,19 @@ private:
 	[[nodiscard]] QPoint clampedTarget(int height) const;
 	[[nodiscard]] ChatPaintContext prepareContext(
 		not_null<HistoryView::Element*> view) const;
+	void paintMorph(
+		QPainter &p,
+		not_null<HistoryView::Element*> view,
+		const ChatPaintContext &context,
+		float64 progress) const;
 
 	SendingInfoTo _toInfo;
 	const QImage _source;
 	const QRect _sourceRect;
-	const QRect _textRect;
+	QRect _textRect;
 	QRect _bounds;
 	QSize _viewSize;
+	std::optional<Morph> _morph;
 	const QPoint _start;
 	QPoint _position;
 	std::optional<QPoint> _target;

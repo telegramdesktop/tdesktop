@@ -6014,17 +6014,15 @@ void HistoryWidget::sendTextWithTags(
 	const auto nextLocalMessageId = session().data().nextLocalMessageId();
 	const auto hasText = !message.textWithTags.text.trimmed().isEmpty();
 
-	if (hasText
-		&& message.webPage.url.isEmpty()
-		&& (_field->document()->size().height() <= _field->height())) {
-		controller()->sendingAnimation().appendSending({
-			.type = Ui::MessageSendingAnimationFrom::Type::Text,
-			.localId = nextLocalMessageId,
-			.globalStartGeometry = _field->mapToGlobal(Rect(_field->size())),
-			.fieldText = (options.scheduled
-				? std::nullopt
-				: Ui::GrabSendingFieldText(_field, textWithTags)),
-		});
+	if (hasText && message.webPage.url.isEmpty()) {
+		auto from = Ui::PrepareTextSending(
+			_field,
+			textWithTags,
+			nextLocalMessageId,
+			(options.scheduled != 0));
+		if (from) {
+			controller()->sendingAnimation().appendSending(std::move(*from));
+		}
 	}
 
 	// Just a flag not to drop reply info if we're not sending anything.

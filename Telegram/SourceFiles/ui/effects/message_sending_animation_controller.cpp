@@ -510,11 +510,13 @@ auto MessageSendingAnimationController::startAnimation(
 
 	auto prepared = from.fieldText
 		? MessageSendingTextFlight::Prepare(*from.fieldText, to)
-		: std::nullopt;
-	if (prepared) {
+		: MessageSendingTextFlight::Preparation(v::null);
+	const auto ready = std::get_if<MessageSendingTextFlight::Prepared>(
+		&prepared);
+	if (ready) {
 		auto flight = base::make_unique_q<MessageSendingTextFlight>(
 			container,
-			std::move(*prepared),
+			std::move(*ready),
 			std::move(to));
 
 		flight->destroyRequests(
@@ -524,7 +526,8 @@ auto MessageSendingAnimationController::startAnimation(
 
 		_processing.emplace(item, std::move(flight));
 		return MessageSendingTextFlight::Reveal();
-	} else if (textFlightOnly) {
+	} else if (textFlightOnly
+		|| v::is<MessageSendingTextFlight::Refused>(prepared)) {
 		return std::nullopt;
 	}
 

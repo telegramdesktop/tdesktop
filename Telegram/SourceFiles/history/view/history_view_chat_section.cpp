@@ -2643,19 +2643,16 @@ void ChatWidget::sendTextWithTags(
 	const auto nextLocalMessageId = session().data().nextLocalMessageId();
 	const auto hasText = !message.textWithTags.text.trimmed().isEmpty();
 
-	if (const auto field = _composeControls->fieldForMention(); field
-		&& hasText
-		&& message.webPage.url.isEmpty()
-		&& (field->document()->size().height() <= field->height())) {
-		controller()->sendingAnimation().appendSending({
-			.type = Ui::MessageSendingAnimationFrom::Type::Text,
-			.localId = nextLocalMessageId,
-			.globalStartGeometry = field->mapToGlobal(
-				Rect(field->size())),
-			.fieldText = (options.scheduled
-				? std::nullopt
-				: Ui::GrabSendingFieldText(field, textWithTags)),
-		});
+	const auto field = _composeControls->fieldForMention();
+	if (field && hasText && message.webPage.url.isEmpty()) {
+		auto from = Ui::PrepareTextSending(
+			field,
+			textWithTags,
+			nextLocalMessageId,
+			(options.scheduled != 0));
+		if (from) {
+			controller()->sendingAnimation().appendSending(std::move(*from));
+		}
 	}
 
 	const auto justMarkingAsRead = !hasText

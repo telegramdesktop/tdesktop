@@ -21,6 +21,9 @@ struct MessageSendingAnimationFrom {
 		QImage frame;
 		QRect globalGeometry;
 		crl::time capturedAt = 0;
+		bool singleLine = false;
+		bool scrolled = false;
+		bool rightToLeft = false;
 	};
 	Type type = Type::None;
 	std::optional<MsgId> localId;

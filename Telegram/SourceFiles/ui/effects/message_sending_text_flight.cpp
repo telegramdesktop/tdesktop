@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "ui/chat/chat_style.h"
+#include "ui/chat/chat_style_radius.h"
 #include "ui/effects/animation_value.h"
 #include "ui/effects/premium_3d_support.h"
 #include "ui/image/image_opaque_bounds.h"
@@ -23,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 
 #include <QtGui/QTextBlock>
 #include <QtGui/QTextDocument>
@@ -37,12 +39,34 @@ constexpr auto kDuration = crl::time(280);
 constexpr auto kSlideDuration = crl::time(160);
 constexpr auto kFadeDuration = crl::time(110);
 constexpr auto kGiveUpTimeout = crl::time(1000);
+constexpr auto kMorphMaxFieldHeights = 1.5;
+constexpr auto kMorphHiddenLines = 3;
 
 using SkipDrawingParts = ChatPaintContext::SkipDrawingParts;
 
 struct InkCrop {
 	QImage frame;
 	QRect geometry;
+};
+
+struct MorphLayout {
+	QRect source;
+	QRect from;
+	QPoint cut;
+	QRect info;
+	int edgeRow = 0;
+};
+
+struct MorphCut {
+	int position = 0;
+	int allowance = 0;
+};
+
+struct ResizeSpan {
+	int source = 0;
+	int sourceSize = 0;
+	int target = 0;
+	int targetSize = 0;
 };
 
 [[nodiscard]] QRect InkGeometry(const QImage &image) {
@@ -58,16 +82,20 @@ struct InkCrop {
 	return QRect(left, top, right - left, bottom - top);
 }
 
+[[nodiscard]] QImage CropImage(const QImage &image, QRect geometry) {
+	const auto ratio = int(image.devicePixelRatio());
+	return image.copy(QRect(
+		geometry.topLeft() * ratio,
+		geometry.size() * ratio));
+}
+
 [[nodiscard]] InkCrop CropToInk(const QImage &image) {
 	const auto geometry = InkGeometry(image);
 	if (geometry.isEmpty()) {
 		return {};
 	}
-	const auto ratio = int(image.devicePixelRatio());
 	return {
-		.frame = image.copy(QRect(
-			geometry.topLeft() * ratio,
-			geometry.size() * ratio)),
+		.frame = CropImage(image, geometry),
 		.geometry = geometry,
 	};
 }
@@ -86,6 +114,17 @@ struct InkCrop {
 	return (lines == 1);
 }
 
+[[nodiscard]] bool LastBlockRightToLeft(
+		not_null<const QTextDocument*> document) {
+	auto block = document->lastBlock();
+	while (block.isValid() && block.text().trimmed().isEmpty()) {
+		block = block.previous();
+	}
+	return block.isValid()
+		? (block.textDirection() == Qt::RightToLeft)
+		: style::RightToLeft();
+}
+
 [[nodiscard]] QImage GrabWithoutCaret(not_null<QTextEdit*> edit) {
 	const auto cursorWidth = edit->cursorWidth();
 	const auto restore = gsl::finally([&] {
@@ -93,6 +132,19 @@ struct InkCrop {
 	});
 	edit->setCursorWidth(0);
 	return GrabWidgetToImage(edit);
+}
+
+void ApplyTopFade(QImage &image, not_null<InputField*> field) {
+	const auto height = st::historyComposeFieldFadeHeight;
+	auto gradient = QLinearGradient(0, 1, 0, height);
+	gradient.setStops({
+		{ 0., field->st().textBg->c },
+		{ .9, Qt::transparent },
+	});
+	auto p = QPainter(&image);
+	p.setCompositionMode(QPainter::CompositionMode_DestinationOut);
+	p.translate(-field->rawTextEdit()->mapTo(field.get(), QPoint()));
+	p.fillRect(QRect(0, 0, field->width(), height), gradient);
 }
 
 [[nodiscard]] crl::time GiveUpDeadline(crl::time capturedAt) {
@@ -134,37 +186,257 @@ struct InkCrop {
 	return result;
 }
 
-[[nodiscard]] QRect MeasureLayer(
+[[nodiscard]] QImage RenderWhole(
 		not_null<HistoryView::Element*> view,
 		ChatPaintContext context,
 		SkipDrawingParts skip) {
 	const auto rect = Rect(QSize(view->width(), view->height()));
 	context.clip = rect;
 	context.outbg = view->hasOutLayout();
-	return InkGeometry(RenderLayer(view, std::move(context), skip, rect));
+	return RenderLayer(view, std::move(context), skip, rect);
+}
+
+[[nodiscard]] QRect MeasureLayer(
+		not_null<HistoryView::Element*> view,
+		ChatPaintContext context,
+		SkipDrawingParts skip) {
+	return InkGeometry(RenderWhole(view, std::move(context), skip));
 }
 
 [[nodiscard]] QImage MixText(
 		const QImage &from,
-		QPoint position,
+		QPoint fromPosition,
 		const QImage &to,
+		QPoint toPosition,
+		QSize size,
 		float64 progress) {
-	auto result = QImage(to.size(), QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(to.devicePixelRatio());
+	const auto ratio = to.devicePixelRatio();
+	auto result = QImage(size * ratio, QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
 	result.fill(Qt::transparent);
 	auto p = QPainter(&result);
 	p.setOpacity(1. - progress);
-	p.drawImage(position, from);
+	p.drawImage(fromPosition, from);
 	p.setCompositionMode(QPainter::CompositionMode_Plus);
 	p.setOpacity(progress);
-	p.drawImage(0, 0, to);
+	p.drawImage(toPosition, to);
 	p.end();
 	return result;
 }
 
-} // namespace
+[[nodiscard]] bool TooTallToMorph(int height) {
+	return (height > st::historyComposeFieldMaxHeight * kMorphMaxFieldHeights);
+}
 
-auto GrabSendingFieldText(
+[[nodiscard]] MorphCut ComputeCut(int from, int till, int fallback) {
+	if (from >= till) {
+		return { .position = fallback };
+	}
+	return {
+		.position = from + (till - from) / 2,
+		.allowance = till - from,
+	};
+}
+
+[[nodiscard]] QRect InfoGeometry(QRect body, int width) {
+	if (width <= 0) {
+		return QRect();
+	}
+	const auto height = st::msgDateFont->height;
+	const auto right = rect::right(body)
+		- st::msgPadding.right()
+		+ st::msgDateDelta.x();
+	const auto bottom = rect::bottom(body)
+		- st::msgPadding.bottom()
+		+ st::msgDateDelta.y();
+	return style::rtlrect(
+		right - width,
+		bottom - height,
+		width,
+		height,
+		2 * body.x() + body.width());
+}
+
+[[nodiscard]] MorphLayout ComputeMorphLayout(
+		QSize source,
+		QRect text,
+		QRect bubble,
+		QRect body,
+		int infoWidth,
+		bool rightToLeft) {
+	const auto radius = BubbleRadiusLarge();
+	const auto &padding = st::msgPadding;
+	const auto infoLeft = style::RightToLeft();
+	const auto info = InfoGeometry(body, infoWidth);
+	const auto columnsLimit = info.isEmpty()
+		? (infoLeft ? (body.x() + radius) : (rect::right(body) - radius))
+		: (infoLeft ? rect::right(info) : info.x());
+	const auto columnsFrom = text.x() + std::max(
+		infoLeft ? infoWidth : 0,
+		radius - padding.left());
+	const auto columnsTill = rect::right(text) - std::max(
+		infoLeft ? 0 : infoWidth,
+		radius - padding.right());
+	const auto columns = infoLeft
+		? ComputeCut(
+			std::max(columnsFrom, columnsLimit),
+			columnsTill,
+			columnsLimit)
+		: ComputeCut(
+			columnsFrom,
+			std::min(columnsTill, columnsLimit),
+			columnsLimit - 1);
+	const auto rowsLimit = info.isEmpty()
+		? (rect::bottom(body) - radius)
+		: std::min(info.y(), rect::bottom(body) - radius);
+	const auto rows = ComputeCut(
+		text.y() + std::max(0, radius - padding.top()),
+		rowsLimit,
+		rowsLimit - 1);
+	const auto edgeRow = rows.allowance
+		? rows.position
+		: std::min(
+			std::max(body.y() + radius, text.y()),
+			rect::bottom(body) - radius - 1);
+	const auto dw = std::max(
+		source.width() - text.width(),
+		-columns.allowance);
+	const auto dh = std::max(
+		source.height() - text.height(),
+		-rows.allowance);
+	const auto width = bubble.width() + dw;
+	const auto height = bubble.height() + dh;
+	const auto sourceLeft = rightToLeft
+		? (rect::right(text) - source.width())
+		: text.x();
+	const auto fromLeft = rightToLeft
+		? (rect::right(bubble) - width)
+		: bubble.x();
+	return {
+		.source = QRect(
+			QPoint(sourceLeft, rect::bottom(text) - source.height()),
+			source),
+		.from = QRect(fromLeft, rect::bottom(bubble) - height, width, height),
+		.cut = QPoint(columns.position, rows.position),
+		.info = info,
+		.edgeRow = edgeRow,
+	};
+}
+
+[[nodiscard]] std::array<ResizeSpan, 3> ResizeSpans(
+		int size,
+		int target,
+		int cut) {
+	if (target == size) {
+		return { { { 0, size, 0, size } } };
+	} else if (target > size) {
+		const auto at = std::clamp(cut, 0, size);
+		const auto growth = target - size;
+		return { {
+			{ 0, at, 0, at },
+			{ std::min(at, size - 1), 1, at, growth },
+			{ at, size - at, at + growth, size - at },
+		} };
+	}
+	const auto crop = size - target;
+	const auto start = std::clamp(cut - crop / 2, 0, size - crop);
+	const auto kept = size - start - crop;
+	return { {
+		{ 0, start, 0, start },
+		{ start + crop, kept, start, kept },
+	} };
+}
+
+[[nodiscard]] std::array<ResizeSpan, 3> SplitSpan(
+		const ResizeSpan &span,
+		int from,
+		int till) {
+	if (span.sourceSize != span.targetSize) {
+		const auto inside = (span.source >= from) && (span.source < till);
+		return inside
+			? std::array<ResizeSpan, 3>{ { {}, span, {} } }
+			: std::array<ResizeSpan, 3>{ { span, {}, {} } };
+	}
+	const auto shift = span.target - span.source;
+	const auto part = [&](int start, int end) {
+		return ResizeSpan{ start, end - start, start + shift, end - start };
+	};
+	const auto end = span.source + span.sourceSize;
+	const auto first = std::clamp(from, span.source, end);
+	const auto last = std::clamp(till, first, end);
+	return { {
+		part(span.source, first),
+		part(first, last),
+		part(last, end),
+	} };
+}
+
+void PaintSpans(
+		QPainter &p,
+		const QImage &layer,
+		QPoint origin,
+		const ResizeSpan &column,
+		const std::array<ResizeSpan, 3> &rows) {
+	if (!column.targetSize) {
+		return;
+	}
+	const auto ratio = int(layer.devicePixelRatio());
+	for (const auto &row : rows) {
+		if (!row.targetSize) {
+			continue;
+		}
+		p.drawImage(
+			QRect(
+				origin.x() + column.target,
+				origin.y() + row.target,
+				column.targetSize,
+				row.targetSize),
+			layer,
+			QRect(
+				column.source * ratio,
+				row.source * ratio,
+				column.sourceSize * ratio,
+				row.sourceSize * ratio));
+	}
+}
+
+void PaintResized(
+		QPainter &p,
+		const QImage &layer,
+		const MessageSendingTextFlight::Morph &morph,
+		QRect target) {
+	const auto &source = morph.bubble;
+	const auto origin = target.topLeft();
+	const auto rowsAt = [&](int cut) {
+		return ResizeSpans(
+			source.height(),
+			target.height(),
+			cut - source.y());
+	};
+	const auto rows = rowsAt(morph.cut.y());
+	const auto columns = ResizeSpans(
+		source.width(),
+		target.width(),
+		morph.cut.x() - source.x());
+	if (target.height() <= source.height()
+		|| morph.edgeRow == morph.cut.y()) {
+		for (const auto &column : columns) {
+			PaintSpans(p, layer, origin, column, rows);
+		}
+		return;
+	}
+	const auto edgeRows = rowsAt(morph.edgeRow);
+	const auto infoFrom = morph.info.x() - source.x();
+	const auto infoTill = rect::right(morph.info) - source.x();
+	for (const auto &column : columns) {
+		const auto parts = SplitSpan(column, infoFrom, infoTill);
+		PaintSpans(p, layer, origin, parts[0], edgeRows);
+		PaintSpans(p, layer, origin, parts[1], rows);
+		PaintSpans(p, layer, origin, parts[2], edgeRows);
+	}
+}
+
+[[nodiscard]] auto GrabSendingFieldText(
 		not_null<InputField*> field,
 		const TextWithTags &sending)
 -> std::optional<MessageSendingAnimationFrom::FieldText> {
@@ -177,26 +449,55 @@ auto GrabSendingFieldText(
 		|| (field->getTextWithAppliedMarkdown() != sending)) {
 		return std::nullopt;
 	}
-	const auto document = field->document();
-	if (field->scrollTopMax() > 0
-		|| field->scrollTop().current() != 0
-		|| edit->horizontalScrollBar()->value() != 0
-		|| document->size().height() > edit->viewport()->height()
-		|| !HasSingleVisualLine(document)) {
+	const auto hidden = field->scrollTopMax();
+	if (hidden > kMorphHiddenLines * field->st().style.font->height
+		|| field->scrollTop().current() != hidden
+		|| edit->horizontalScrollBar()->value() != 0) {
 		return std::nullopt;
 	}
-	auto ink = CropToInk(GrabWithoutCaret(edit));
-	const auto hidden = QRegion(ink.geometry).subtracted(
+	auto image = GrabWithoutCaret(edit);
+	if (hidden > 0) {
+		ApplyTopFade(image, field);
+	}
+	auto ink = CropToInk(image);
+	const auto invisible = QRegion(ink.geometry).subtracted(
 		edit->visibleRegion());
-	if (ink.geometry.isEmpty() || !hidden.isEmpty()) {
+	if (ink.geometry.isEmpty() || !invisible.isEmpty()) {
 		return std::nullopt;
 	}
+	const auto document = field->document();
 	return MessageSendingAnimationFrom::FieldText{
 		.frame = std::move(ink.frame),
 		.globalGeometry = QRect(
 			edit->mapToGlobal(ink.geometry.topLeft()),
 			ink.geometry.size()),
 		.capturedAt = crl::now(),
+		.singleLine = HasSingleVisualLine(document),
+		.scrolled = (hidden > 0),
+		.rightToLeft = LastBlockRightToLeft(document),
+	};
+}
+
+} // namespace
+
+std::optional<MessageSendingAnimationFrom> PrepareTextSending(
+		not_null<InputField*> field,
+		const TextWithTags &sending,
+		MsgId localId,
+		bool scheduled) {
+	auto fieldText = scheduled
+		? std::nullopt
+		: GrabSendingFieldText(field, sending);
+	if (!fieldText
+		&& ((field->document()->size().height() > field->height())
+			|| (!scheduled && field->scrollTopMax() > 0))) {
+		return std::nullopt;
+	}
+	return MessageSendingAnimationFrom{
+		.type = MessageSendingAnimationFrom::Type::Text,
+		.localId = localId,
+		.globalStartGeometry = field->mapToGlobal(Rect(field->size())),
+		.fieldText = std::move(fieldText),
 	};
 }
 
@@ -226,7 +527,10 @@ base::unique_qptr<RpWidget> ShowSendingFieldText(
 auto MessageSendingTextFlight::Prepare(
 		const FieldText &source,
 		const SendingInfoTo &to)
--> std::optional<Prepared> {
+-> Preparation {
+	const auto fallback = source.scrolled
+		? Preparation(Refused())
+		: Preparation(v::null);
 	const auto view = to.view();
 	const auto textItem = view ? view->textItem() : nullptr;
 	if (!textItem
@@ -241,26 +545,54 @@ auto MessageSendingTextFlight::Prepare(
 		|| view->onlyCustomEmoji()
 		|| view->width() <= 0
 		|| view->height() <= 0) {
-		return std::nullopt;
+		return fallback;
+	} else if (!source.singleLine
+		&& TooTallToMorph(view->innerGeometry().height())) {
+		return Refused();
 	}
 	const auto context = to.paintContext();
-	const auto text = MeasureLayer(view, context, SkipDrawingParts::Bubble);
+	const auto whole = RenderWhole(view, context, SkipDrawingParts::Bubble);
+	const auto text = InkGeometry(whole);
 	const auto bubble = MeasureLayer(
 		view,
 		context,
 		SkipDrawingParts::Content);
-	const auto line = st::messageTextStyle.font->height;
-	if (text.isEmpty()
-		|| bubble.isEmpty()
-		|| (text.height() >= source.globalGeometry.height() + line / 2)) {
-		return std::nullopt;
+	if (text.isEmpty() || bubble.isEmpty()) {
+		return fallback;
 	}
-	return Prepared{
+	const auto size = source.globalGeometry.size();
+	const auto line = st::messageTextStyle.font->height;
+	auto result = Prepared{
 		.source = source,
+		.sourceRect = QRect(text.topLeft(), size),
 		.textRect = text,
 		.bubbleRect = bubble,
 		.viewSize = QSize(view->width(), view->height()),
 	};
+	if (source.singleLine && (text.height() < size.height() + line / 2)) {
+		return result;
+	} else if (TooTallToMorph(bubble.height())) {
+		return Refused();
+	}
+	auto body = view->innerGeometry();
+	body.setTop(view->marginTop());
+	const auto layout = ComputeMorphLayout(
+		size,
+		text,
+		bubble,
+		body,
+		view->infoWidth(),
+		source.rightToLeft);
+	result.sourceRect = layout.source;
+	result.morph = Morph{
+		.text = CropImage(whole, text),
+		.bubble = bubble,
+		.from = layout.from,
+		.cut = layout.cut,
+		.info = layout.info,
+		.edgeRow = layout.edgeRow,
+	};
+	return result;
 }
 
 MessageSendingReveal MessageSendingTextFlight::Reveal() {
@@ -279,14 +611,16 @@ MessageSendingTextFlight::MessageSendingTextFlight(
 : RpWidget(parent)
 , _toInfo(std::move(to))
 , _source(std::move(prepared.source.frame))
-, _sourceRect(
-	prepared.textRect.topLeft(),
-	prepared.source.globalGeometry.size())
+, _sourceRect(prepared.sourceRect)
 , _textRect(prepared.textRect)
-, _bounds(prepared.bubbleRect.united(_sourceRect).united(_textRect))
+, _bounds(prepared.bubbleRect
+	.united(_sourceRect)
+	.united(_textRect)
+	.united(prepared.morph ? prepared.morph->from : QRect()))
 , _viewSize(prepared.viewSize)
+, _morph(std::move(prepared.morph))
 , _start(parent->mapFromGlobal(prepared.source.globalGeometry.topLeft())
-	- _textRect.topLeft())
+	- _sourceRect.topLeft())
 , _position(_start)
 , _giveUpTimer([=] { finish(); }) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -359,9 +693,20 @@ void MessageSendingTextFlight::refreshBounds(
 		return;
 	}
 	_viewSize = size;
+	const auto context = _toInfo.paintContext();
+	if (_morph) {
+		_morph->text = QImage();
+		const auto text = MeasureLayer(
+			view,
+			context,
+			SkipDrawingParts::Bubble);
+		if (!text.isEmpty()) {
+			_textRect = text;
+		}
+	}
 	const auto bubble = MeasureLayer(
 		view,
-		_toInfo.paintContext(),
+		context,
 		SkipDrawingParts::Content);
 	if (!bubble.isEmpty()) {
 		_bounds = bubble.united(_sourceRect).united(_textRect);
@@ -403,6 +748,9 @@ void MessageSendingTextFlight::paintEvent(QPaintEvent *e) {
 	if (mix == 1.) {
 		view->draw(p, context);
 		return;
+	} else if (_morph && !_morph->text.isNull()) {
+		paintMorph(p, view, context, mix);
+		return;
 	}
 	p.setOpacity(mix);
 	p.drawImage(
@@ -414,7 +762,43 @@ void MessageSendingTextFlight::paintEvent(QPaintEvent *e) {
 		_source,
 		_sourceRect.topLeft() - text.topLeft(),
 		RenderLayer(view, context, SkipDrawingParts::Bubble, text),
+		QPoint(),
+		text.size(),
 		mix));
+}
+
+void MessageSendingTextFlight::paintMorph(
+		QPainter &p,
+		not_null<HistoryView::Element*> view,
+		const ChatPaintContext &context,
+		float64 progress) const {
+	const auto &morph = *_morph;
+	const auto edge = [&](int from, int to) {
+		return anim::interpolate(from, to, progress);
+	};
+	const auto left = edge(morph.from.x(), morph.bubble.x());
+	const auto top = edge(morph.from.y(), morph.bubble.y());
+	const auto box = QRect(
+		left,
+		top,
+		edge(rect::right(morph.from), rect::right(morph.bubble)) - left,
+		edge(rect::bottom(morph.from), rect::bottom(morph.bubble)) - top);
+	p.setOpacity(progress);
+	PaintResized(
+		p,
+		RenderLayer(view, context, SkipDrawingParts::Content, morph.bubble),
+		morph,
+		box);
+	p.setOpacity(1.);
+	const auto text = _sourceRect.united(_textRect);
+	p.setClipRect(box);
+	p.drawImage(text.topLeft(), MixText(
+		_source,
+		_sourceRect.topLeft() - text.topLeft(),
+		morph.text,
+		_textRect.topLeft() - text.topLeft(),
+		text.size(),
+		progress));
 }
 
 void MessageSendingTextFlight::finish() {
