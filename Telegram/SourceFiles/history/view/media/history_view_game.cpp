@@ -56,13 +56,17 @@ QSize Game::countOptimalSize() {
 
 	const auto item = _parent->data();
 	if (!_openl && item->isRegular()) {
-		const auto row = 0;
-		const auto column = 0;
-		_openl = std::make_shared<ReplyMarkupClickHandler>(
-			&item->history()->owner(),
-			row,
-			column,
-			item->fullId());
+		if (item->hideInlineKeyboard()) {
+			item->setHasHiddenLinks(true);
+		} else {
+			const auto row = 0;
+			const auto column = 0;
+			_openl = std::make_shared<ReplyMarkupClickHandler>(
+				&item->history()->owner(),
+				row,
+				column,
+				item->fullId());
+		}
 	}
 
 	auto title = TextUtilities::SingleLine(_data->title);

@@ -358,6 +358,12 @@ rpl::producer<HistoryItem*> PinnedBarItemWithCustomButton(
 						pushUnique(update.item);
 					}
 				}, state->lifetime);
+				session->data().itemViewRefreshRequest(
+				) | rpl::filter([=](not_null<const HistoryItem*> refreshed) {
+					return (refreshed == item);
+				}) | rpl::on_next([=] {
+					pushUnique(item);
+				}, state->lifetime);
 				pushUnique(item);
 			};
 			if (const auto item = session->data().message(fullId)) {
@@ -400,6 +406,10 @@ rpl::producer<HistoryItem*> PinnedBarItemWithCustomButton(
 		if ((rows.size() == 1) && (rows.front().size() == 1)) {
 			const auto text = rows.front().front().text;
 			if (!text.isEmpty()) {
+				if (item->hideInlineKeyboard()) {
+					item->setHasHiddenLinks(true);
+					return nullptr;
+				}
 				const auto contextId = item->fullId();
 				const auto callback = [=] {
 					Api::ActivateBotCommand(context(contextId), 0, 0);

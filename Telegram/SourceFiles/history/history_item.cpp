@@ -2291,6 +2291,17 @@ bool HistoryItem::hideLinks() const {
 	return !out() && history()->peer->hideLinks();
 }
 
+bool HistoryItem::hideInlineKeyboard() const {
+	using Flag = ReplyMarkupFlag;
+	const auto markup = inlineReplyMarkup();
+	// Only the client sets these flags, for its own Accept / Decline rows.
+	const auto clientControls = Flag::SuggestionAccept
+		| Flag::SuggestionDecline;
+	return markup
+		&& !(markup->data.flags & clientControls)
+		&& hideLinks();
+}
+
 bool HistoryItem::isHistoryEntry() const {
 	return (_flags & MessageFlag::HistoryEntry);
 }
@@ -8640,6 +8651,11 @@ PreparedServiceText HistoryItem::prepareGameScoreText() {
 		if (gamescore && gamescore->msg) {
 			if (const auto media = gamescore->msg->media()) {
 				if (const auto game = media->game()) {
+					auto titleText = game->title;
+					if (gamescore->msg->hideInlineKeyboard()) {
+						setHasHiddenLinks(true);
+						return tr::marked(titleText);
+					}
 					const auto row = 0;
 					const auto column = 0;
 					result.links.push_back(
@@ -8648,7 +8664,6 @@ PreparedServiceText HistoryItem::prepareGameScoreText() {
 							row,
 							column,
 							gamescore->msg->fullId()));
-					auto titleText = game->title;
 					return tr::link(titleText, QString());
 				}
 			}

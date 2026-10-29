@@ -257,11 +257,51 @@ void RememberCanonicalInlineFormula(
 		context.renderHeightCap);
 }
 
+[[nodiscard]] std::optional<TextWithEntities> WithDisabledInlineButtons(
+		const TextWithEntities &text) {
+	using Type = HistoryMessageMarkupButton::Type;
+	auto result = std::optional<TextWithEntities>();
+	for (auto i = 0, count = int(text.entities.size()); i != count; ++i) {
+		const auto &entity = text.entities[i];
+		if (entity.type() != EntityType::CustomEmoji) {
+			continue;
+		}
+		auto parsed = ParseInlineTextObjectEntity(entity.data());
+		const auto button = parsed
+			? std::get_if<InlineTextObjectButtonData>(&parsed->data)
+			: nullptr;
+		if (!button || button->type == Type::Disabled) {
+			continue;
+		}
+		*button = InlineTextObjectButtonData{
+			.label = std::move(button->label),
+			.type = Type::Disabled,
+			.color = button->color,
+			.link = button->link,
+		};
+		if (!result) {
+			result = text;
+		}
+		result->entities[i] = EntityInText(
+			EntityType::CustomEmoji,
+			entity.offset(),
+			entity.length(),
+			SerializeInlineTextObjectEntity(*parsed));
+	}
+	return result;
+}
+
 void AppendCanonicalNativeIvRichText(
 		const Iv::RichPage::RichText &text,
 		PreparedIvRichText *result,
 		NativeIvPrepareState *state,
 		NativeIvRichTextContext context) {
+	auto disabled = std::optional<TextWithEntities>();
+	if (state->disableButtons) {
+		disabled = WithDisabledInlineButtons(text.text);
+		state->buttonsDisabled |= disabled.has_value();
+	}
+	const auto &canonical = disabled ? *disabled : text.text;
 	// A link-styled inline button stops being an object here: its normalized
 	// label becomes real characters of this text and, when it is actionable,
 	// one ordinary rich-page link over exactly those characters. The label's
@@ -271,12 +311,12 @@ void AppendCanonicalNativeIvRichText(
 	// target inside the link.
 	auto spliced = std::optional<TextWithEntities>();
 	auto buttons = std::vector<InlineLinkButtonSpan>();
-	if (!state->editMode && TextHasInlineLinkButton(text.text)) {
+	if (!state->editMode && TextHasInlineLinkButton(canonical)) {
 		const auto &runtime = state->result.mediaRuntime;
 		const auto quotable = IsQuotableNativeContent(state->result);
 		auto replacements = std::vector<PreparedTextReplacement>();
 		auto labelDates = std::vector<PreparedTextReplacement>();
-		spliced = text.text;
+		spliced = canonical;
 		buttons = ExpandInlineLinkButtons(
 			&*spliced,
 			RichButtonLabelDates::Resolve,
@@ -293,7 +333,7 @@ void AppendCanonicalNativeIvRichText(
 			});
 		}
 	}
-	const auto &source = spliced ? *spliced : text.text;
+	const auto &source = spliced ? *spliced : canonical;
 	const auto shift = result->text.text.size();
 	result->text.text.append(source.text);
 	result->text.entities.reserve(
@@ -794,10 +834,19 @@ bool PrepareNativeIvButtonRowBlock(
 	block.flowAlignment = NativeIvButtonRowAlignment(data.buttonAlignment);
 	block.buttonRow.id = GeneratePreparedMediaBlockId(state);
 	block.buttonRow.buttons.reserve(data.buttons.size());
+	using Type = HistoryMessageMarkupButton::Type;
 	for (const auto &button : data.buttons) {
+		auto prepared = button.button;
+		if (state->disableButtons && prepared.type != Type::Disabled) {
+			prepared = HistoryMessageMarkupButton(
+				Type::Disabled,
+				prepared.text,
+				prepared.visual);
+			state->buttonsDisabled = true;
+		}
 		block.buttonRow.buttons.push_back({
 			.text = NormalizeRichButtonLabel(button.text.text),
-			.button = button.button,
+			.button = std::move(prepared),
 		});
 	}
 	result->push_back(std::move(block));
