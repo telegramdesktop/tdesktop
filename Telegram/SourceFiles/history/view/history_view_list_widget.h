@@ -138,6 +138,8 @@ public:
 		not_null<HistoryItem*> first,
 		not_null<HistoryItem*> second) = 0;
 	virtual void listSelectionChanged(SelectedItems &&items) = 0;
+	virtual void listTextSelectionUpdated() {
+	}
 	virtual void listMarkReadTill(not_null<HistoryItem*> item) = 0;
 	virtual void listItemsAddedToEnd(
 		const std::vector<not_null<Element*>> &,
@@ -379,7 +381,9 @@ public:
 	[[nodiscard]] MessageSelection getSelectedTextSelection(
 		not_null<HistoryItem*> item) const;
 	void clearSelected();
+	void clearTextSelection();
 	void cancelSelection();
+	[[nodiscard]] bool wasSelectedText() const;
 	void selectItem(not_null<HistoryItem*> item);
 	void selectItemAsGroup(not_null<HistoryItem*> item);
 	void selectItemsUpTo(not_null<HistoryItem*> item);
@@ -805,7 +809,6 @@ private:
 	[[nodiscard]] HistorySelectedTextParts getSelectedTextParts() const;
 	SelectionModeResult inSelectionMode() const;
 	bool overSelectedItems() const;
-	void clearTextSelection();
 	void setTextSelection(
 		not_null<Element*> view,
 		MessageSelection selection);

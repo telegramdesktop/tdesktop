@@ -202,6 +202,7 @@ public:
 		not_null<HistoryItem*> first,
 		not_null<HistoryItem*> second) override;
 	void listSelectionChanged(SelectedItems &&items) override;
+	void listTextSelectionUpdated() override;
 	void listMarkReadTill(not_null<HistoryItem*> item) override;
 	void listItemsAddedToEnd(
 		const std::vector<not_null<Element*>> &items,

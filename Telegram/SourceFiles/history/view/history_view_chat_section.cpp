@@ -1615,6 +1615,12 @@ void ChatWidget::setupComposeControls() {
 		listCancelRequest();
 	}, lifetime());
 
+	_composeControls->focusedValue(
+	) | rpl::skip(1) | rpl::filter(rpl::mappers::_1) | rpl::on_next([=] {
+		_inner->clearTextSelection();
+		_inner->hideElementOverlay();
+	}, lifetime());
+
 	_composeControls->replyingToMessageValue(
 	) | rpl::skip(1) | rpl::on_next([=](FullReplyTo) {
 		refreshCanSendMessages();
@@ -3921,6 +3927,7 @@ void ChatWidget::doSetInnerFocus() {
 		_chooseTheme->setFocus();
 	} else if (!_inner->getSelectedText().rich.text.isEmpty()
 		|| !_inner->getSelectedItems().empty()
+		|| _inner->wasSelectedText()
 		|| !_composeControls->focus()) {
 		_inner->setFocus();
 	}
@@ -4765,7 +4772,9 @@ void ChatWidget::listCancelRequest() {
 		toggleChooseChatTheme(_peer, false);
 		return;
 	}
-	if (_inner && !_inner->getSelectedItems().empty()) {
+	if (_inner
+		&& (!_inner->getSelectedItems().empty()
+			|| !_inner->getSelectedText().rich.text.isEmpty())) {
 		clearSelected();
 		return;
 	} else if (_composeControls->handleCancelRequest()) {
@@ -5209,6 +5218,14 @@ void ChatWidget::listSelectionChanged(SelectedItems &&items) {
 		_composeSearch->hideAnimated();
 	}
 	if (!_inner->hasFocus() || !Ui::ScreenReaderModeActive()) {
+		doSetInnerFocus();
+	}
+}
+
+void ChatWidget::listTextSelectionUpdated() {
+	if (controller()->isLayerShown() || Core::App().passcodeLocked()) {
+		return;
+	} else if (!_inner->hasFocus() || !Ui::ScreenReaderModeActive()) {
 		doSetInnerFocus();
 	}
 }

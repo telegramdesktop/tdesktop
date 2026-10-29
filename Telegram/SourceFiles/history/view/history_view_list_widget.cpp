@@ -1701,6 +1701,10 @@ bool ListWidget::hasSelectedItems() const {
 	return !_selected.empty();
 }
 
+bool ListWidget::wasSelectedText() const {
+	return _wasSelectedText;
+}
+
 SelectionModeResult ListWidget::inSelectionMode() const {
 	const auto now = hasSelectedItems()
 		|| !_dragSelected.empty()
@@ -1918,8 +1922,12 @@ bool ListWidget::isPressInSelectedText(
 }
 
 void ListWidget::cancelSelection() {
+	const auto hadSelectedText = (_selectedTextItem != nullptr);
 	clearSelected();
 	clearTextSelection();
+	if (hadSelectedText) {
+		_delegate->listTextSelectionUpdated();
+	}
 }
 
 void ListWidget::setChooseReportReason(Data::ReportInput reportInput) {
@@ -5041,6 +5049,7 @@ void ListWidget::mouseActionFinish(
 	_mouseSelectType = TextSelectType::Letters;
 	_mouseTextAnchor = TextState();
 	_selectScroll.cancel();
+	_delegate->listTextSelectionUpdated();
 
 	if (QGuiApplication::clipboard()->supportsSelection()
 		&& _selectedTextItem
@@ -5857,6 +5866,7 @@ void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
 	}
 	if (_selectedTextItem == item) {
 		clearTextSelection();
+		_delegate->listTextSelectionUpdated();
 	}
 	const auto selected = _selected.find(item->fullId());
 	if (selected != end(_selected)) {
