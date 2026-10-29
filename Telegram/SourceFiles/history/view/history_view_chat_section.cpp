@@ -55,6 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/effects/message_sending_animation_controller.h"
+#include "ui/effects/message_sending_text_flight.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/screen_reader_mode.h"
@@ -2656,6 +2657,9 @@ void ChatWidget::sendTextWithTags(
 			.localId = nextLocalMessageId,
 			.globalStartGeometry = field->mapToGlobal(
 				Rect(field->size())),
+			.fieldText = (options.scheduled
+				? std::nullopt
+				: Ui::GrabSendingFieldText(field, textWithTags)),
 		});
 	}
 

@@ -2215,6 +2215,8 @@ PRIVATE
     ui/effects/message_sending_animation_common.h
     ui/effects/message_sending_animation_controller.cpp
     ui/effects/message_sending_animation_controller.h
+    ui/effects/message_sending_text_flight.cpp
+    ui/effects/message_sending_text_flight.h
     ui/effects/peer_qr_colors_panel.cpp
     ui/effects/peer_qr_colors_panel.h
     ui/effects/peer_qr_emoji_field.cpp
@@ -2251,6 +2253,8 @@ PRIVATE
     ui/image/image_location.h
     ui/image/image_location_factory.cpp
     ui/image/image_location_factory.h
+    ui/image/image_opaque_bounds.cpp
+    ui/image/image_opaque_bounds.h
     ui/text/format_song_document_name.cpp
     ui/text/format_song_document_name.h
     ui/widgets/expandable_peer_list.cpp

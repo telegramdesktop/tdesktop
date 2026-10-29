@@ -17,11 +17,17 @@ struct MessageSendingAnimationFrom {
 		Emoji,
 		Text,
 	};
+	struct FieldText {
+		QImage frame;
+		QRect globalGeometry;
+		crl::time capturedAt = 0;
+	};
 	Type type = Type::None;
 	std::optional<MsgId> localId;
 	QRect globalStartGeometry;
 	QImage frame;
 	bool crop = false;
+	std::optional<FieldText> fieldText;
 };
 
 } // namespace Ui

@@ -49,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/message_sending_animation_controller.h"
+#include "ui/effects/message_sending_text_flight.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/chat/message_bar.h"
@@ -6020,6 +6021,9 @@ void HistoryWidget::sendTextWithTags(
 			.type = Ui::MessageSendingAnimationFrom::Type::Text,
 			.localId = nextLocalMessageId,
 			.globalStartGeometry = _field->mapToGlobal(Rect(_field->size())),
+			.fieldText = (options.scheduled
+				? std::nullopt
+				: Ui::GrabSendingFieldText(_field, textWithTags)),
 		});
 	}
 
@@ -8762,6 +8766,7 @@ void HistoryWidget::revealItemsCallback() {
 			: _list->historyScrollTop();
 		const auto toY = std::clamp(newScrollTop, 0, _scroll->scrollTopMax());
 		synteticScrollToY(toY);
+		_itemsRevealHeightChanges.fire({});
 	}
 }
 
@@ -8770,7 +8775,7 @@ void HistoryWidget::startItemRevealAnimations() {
 		if (const auto view = item->mainView()) {
 			if (const auto top = _list->itemTop(view); top >= 0) {
 				if (const auto height = view->height()) {
-					startMessageSendingAnimation(item);
+					const auto reveal = startMessageSendingAnimation(item);
 					if (!_itemRevealAnimations.contains(item)) {
 						auto &animation = _itemRevealAnimations[item];
 						animation.startHeight = height;
@@ -8779,8 +8784,8 @@ void HistoryWidget::startItemRevealAnimations() {
 							[=] { revealItemsCallback(); },
 							0.,
 							1.,
-							st::itemRevealDuration,
-							anim::easeOutCirc);
+							reveal ? reveal->duration : st::itemRevealDuration,
+							reveal ? reveal->transition : anim::easeOutCirc);
 						if (item->out() || _history->peer->isSelf()) {
 							_list->theme()->rotateComplexGradientBackground();
 						}
@@ -8791,39 +8796,41 @@ void HistoryWidget::startItemRevealAnimations() {
 	}
 }
 
-void HistoryWidget::startMessageSendingAnimation(
-		not_null<HistoryItem*> item) {
+auto HistoryWidget::startMessageSendingAnimation(
+		not_null<HistoryItem*> item)
+-> std::optional<Ui::MessageSendingReveal> {
 	if (_list->elementChatMode() == HistoryView::ElementChatMode::Default
 		&& width() > st::columnMaximalWidthLeft
 		&& !item->media()) {
-		return;
+		return std::nullopt;
 	}
 	auto &sendingAnimation = controller()->sendingAnimation();
 	if (!sendingAnimation.checkExpectedType(item)) {
-		return;
+		return std::nullopt;
 	}
 	Assert(item->mainView() != nullptr);
 
-	auto globalEndTopLeft = rpl::merge(
+	auto changes = rpl::merge(
 		_scroll->innerResizes() | rpl::to_empty,
 		session().data().newItemAdded() | rpl::to_empty,
 		geometryValue() | rpl::to_empty,
 		_scroll->geometryValue() | rpl::to_empty,
-		_list->geometryValue() | rpl::to_empty
-	) | rpl::map([=]() -> std::optional<QPoint> {
+		_list->geometryValue() | rpl::to_empty);
+	const auto globalTopLeft = [=](bool live) -> std::optional<QPoint> {
 		const auto view = item->mainView();
 		const auto top = view ? _list->itemTop(view) : -1;
 		if (top < 0) {
 			return std::nullopt;
 		}
-		const auto additional = (_list->height() == _scroll->height())
-			? view->height()
-			: 0;
+		const auto shortList = (_list->height() == _scroll->height());
+		const auto additional = (!live && shortList) ? view->height() : 0;
 		return _list->mapToGlobal(QPoint(0, top - additional));
-	});
+	};
 
-	sendingAnimation.startAnimation({
-		.globalEndTopLeft = std::move(globalEndTopLeft),
+	return sendingAnimation.startAnimation({
+		.globalTopLeft = globalTopLeft,
+		.changes = std::move(changes),
+		.revealChanges = _itemsRevealHeightChanges.events(),
 		.view = [=] { return item->mainView(); },
 		.paintContext = [=] { return _list->preparePaintContext({}); },
 	});

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animation_value.h"
 #include "ui/effects/animation_value_f.h"
 #include "ui/effects/animations.h"
+#include "ui/effects/message_sending_text_flight.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/rp_widget.h"
@@ -418,6 +419,28 @@ void Content::createBubble() {
 	}, _bubble.widget->lifetime());
 }
 
+[[nodiscard]] MessageSendingAnimationController::SendingInfoTo TrackTarget(
+		MessageSendingAnimationController::SendingTarget &&target) {
+	const auto globalTopLeft = std::move(target.globalTopLeft);
+	auto globalEndTopLeft = rpl::duplicate(
+		target.changes
+	) | rpl::map([=] {
+		return globalTopLeft(false);
+	});
+	auto globalLiveTopLeft = rpl::merge(
+		std::move(target.changes),
+		std::move(target.revealChanges)
+	) | rpl::map([=] {
+		return globalTopLeft(true);
+	});
+	return {
+		.globalEndTopLeft = std::move(globalEndTopLeft),
+		.globalLiveTopLeft = std::move(globalLiveTopLeft),
+		.view = std::move(target.view),
+		.paintContext = std::move(target.paintContext),
+	};
+}
+
 } // namespace
 
 MessageSendingAnimationController::MessageSendingAnimationController(
@@ -449,24 +472,48 @@ void MessageSendingAnimationController::appendSending(
 	}
 }
 
-void MessageSendingAnimationController::startAnimation(SendingInfoTo &&to) {
+auto MessageSendingAnimationController::startAnimation(
+		SendingTarget &&target,
+		bool textFlightOnly)
+-> std::optional<MessageSendingReveal> {
 	if (anim::Disabled()
 		|| PowerSaving::On(PowerSaving::Flag::kChatEffects)) {
-		return;
+		return std::nullopt;
 	}
+	auto to = TrackTarget(std::move(target));
 	const auto container = _controller->content();
 	const auto view = to.view();
 	const auto item = view->data();
 
 	const auto it = _itemSendPending.find(item->fullId().msg);
 	if (it == end(_itemSendPending)) {
-		return;
+		return std::nullopt;
 	}
 	auto from = std::move(it->second);
 	_itemSendPending.erase(it);
 
 	if (view->isolatedEmoji() || view->onlyCustomEmoji()) {
-		return;
+		return std::nullopt;
+	}
+
+	auto prepared = from.fieldText
+		? MessageSendingTextFlight::Prepare(*from.fieldText, to)
+		: std::nullopt;
+	if (prepared) {
+		auto flight = base::make_unique_q<MessageSendingTextFlight>(
+			container,
+			std::move(*prepared),
+			std::move(to));
+
+		flight->destroyRequests(
+		) | rpl::on_next([=] {
+			_processing.erase(item);
+		}, flight->lifetime());
+
+		_processing.emplace(item, std::move(flight));
+		return MessageSendingTextFlight::Reveal();
+	} else if (textFlightOnly) {
+		return std::nullopt;
 	}
 
 	auto content = base::make_unique_q<Content>(
@@ -481,11 +528,24 @@ void MessageSendingAnimationController::startAnimation(SendingInfoTo &&to) {
 	}, content->lifetime());
 
 	_processing.emplace(item, std::move(content));
+	return std::nullopt;
 }
 
 bool MessageSendingAnimationController::hasAnimatedMessage(
 		not_null<HistoryItem*> item) const {
 	return _processing.contains(item);
+}
+
+void MessageSendingAnimationController::startPendingTextFlights(
+		const std::vector<not_null<HistoryView::Element*>> &views,
+		Fn<void(not_null<HistoryItem*>)> start) {
+	for (const auto &view : views) {
+		const auto item = view->data();
+		const auto i = _itemSendPending.find(item->id);
+		if ((i != end(_itemSendPending)) && i->second.fieldText) {
+			start(item);
+		}
+	}
 }
 
 void MessageSendingAnimationController::clear() {

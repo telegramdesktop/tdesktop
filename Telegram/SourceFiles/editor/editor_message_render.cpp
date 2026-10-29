@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/effects/path_shift_gradient.h"
+#include "ui/image/image_opaque_bounds.h"
 #include "ui/empty_userpic.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
@@ -31,51 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Editor {
 namespace {
-
-[[nodiscard]] QRect OpaqueBounds(const QImage &image) {
-	Expects(image.format() == QImage::Format_ARGB32_Premultiplied);
-
-	const auto width = image.width();
-	const auto height = image.height();
-	const auto rowHasContent = [&](int y) {
-		const auto row = reinterpret_cast<const uint32*>(
-			image.constScanLine(y));
-		for (auto x = 0; x != width; ++x) {
-			if (row[x]) {
-				return true;
-			}
-		}
-		return false;
-	};
-	auto top = 0;
-	while (top != height && !rowHasContent(top)) {
-		++top;
-	}
-	if (top == height) {
-		return QRect();
-	}
-	auto bottom = height - 1;
-	while (bottom > top && !rowHasContent(bottom)) {
-		--bottom;
-	}
-	auto left = width;
-	auto right = -1;
-	for (auto y = top; y <= bottom; ++y) {
-		const auto row = reinterpret_cast<const uint32*>(
-			image.constScanLine(y));
-		auto x = 0;
-		while (x < left && !row[x]) {
-			++x;
-		}
-		left = std::min(left, x);
-		x = width - 1;
-		while (x > right && !row[x]) {
-			--x;
-		}
-		right = std::max(right, x);
-	}
-	return QRect(left, top, right - left + 1, bottom - top + 1);
-}
 
 [[nodiscard]] std::unique_ptr<Ui::ChatTheme> MakeChatTheme(
 		std::optional<bool> dark,
@@ -277,7 +233,7 @@ void MessageRenderer::layout() {
 		+ (_element->hasFromPhoto() ? st::msgPhotoSkip : 0);
 	_element->resizeGetHeight(_width);
 	_base = renderFull(1);
-	_bounds = OpaqueBounds(_base).marginsAdded(Margins(1)) & _base.rect();
+	_bounds = Ui::OpaqueBounds(_base).marginsAdded(Margins(1)) & _base.rect();
 }
 
 QSize MessageRenderer::size() {
