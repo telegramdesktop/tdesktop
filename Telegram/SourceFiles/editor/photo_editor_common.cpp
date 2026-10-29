@@ -292,7 +292,11 @@ Media::Encode::Job ComposeAnimatedJob(
 }
 
 bool PhotoModifications::empty() const {
-	return !angle && !flipped && !crop.isValid() && !paint;
+	return !angle
+		&& !flipped
+		&& !crop.isValid()
+		&& !paint
+		&& canvasMediaRect.isEmpty();
 }
 
 PhotoModifications::operator bool() const {

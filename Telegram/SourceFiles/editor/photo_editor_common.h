@@ -45,6 +45,9 @@ struct StoryOptions {
 	TextWithTags caption;
 	int period = 0;
 	bool periodChoice = true;
+
+	QImage canvasMedia;
+	Media::Encode::CanvasBackground canvasBackground;
 };
 
 struct AudioTrack {
@@ -113,6 +116,7 @@ struct PhotoModifications {
 	EditorData::CropMode cropMode = EditorData::CropMode::Hint;
 	RoundedCornersLevel cornersLevel = RoundedCornersLevel::Large;
 	std::shared_ptr<Scene> paint = nullptr;
+	QRect canvasMediaRect;
 
 	[[nodiscard]] bool empty() const;
 	[[nodiscard]] explicit operator bool() const;
