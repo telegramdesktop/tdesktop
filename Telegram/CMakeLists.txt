@@ -835,6 +835,8 @@ PRIVATE
     data/data_stories_ids.h
     data/data_story.cpp
     data/data_story.h
+    data/data_story_drafts.cpp
+    data/data_story_drafts.h
     data/data_streaming.cpp
     data/data_streaming.h
     data/data_thread.cpp

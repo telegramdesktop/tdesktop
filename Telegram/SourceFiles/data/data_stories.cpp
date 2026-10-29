@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_stories.h"
 
+#include "data/data_story_drafts.h"
 #include "base/unixtime.h"
 #include "apiwrap.h"
 #include "core/application.h"
@@ -220,6 +221,13 @@ Stories::Stories(not_null<Session*> owner)
 Stories::~Stories() {
 	Expects(_pollingSettings.empty());
 	Expects(_pollingViews.empty());
+}
+
+StoryDrafts &Stories::drafts() {
+	if (!_drafts) {
+		_drafts = std::make_unique<StoryDrafts>(&session());
+	}
+	return *_drafts;
 }
 
 void Stories::clear() {
