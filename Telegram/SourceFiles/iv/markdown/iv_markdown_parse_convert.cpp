@@ -101,42 +101,12 @@ void AddWarning(ParserState *state, QString warning) {
 	return raw.isEmpty() ? u"unknown"_q : raw;
 }
 
-[[nodiscard]] SourceRange RangeFromCmarkLines(
-		const std::vector<int> &lineStarts,
-		int sourceSize,
-		int startLine,
-		int startColumn,
-		int endLine,
-		int endColumn) {
-	auto result = SourceRange();
-	result.startLine = startLine;
-	result.startColumn = startColumn;
-	result.endLine = endLine;
-	result.endColumn = endColumn;
-	const auto linesCount = static_cast<int>(lineStarts.size());
-	if (startLine <= 0
-		|| endLine <= 0
-		|| startLine > linesCount
-		|| endLine > linesCount) {
-		return result;
-	}
-	const auto maxOffset = std::max(sourceSize, 0);
-	const auto startOffset = lineStarts[startLine - 1]
-		+ std::max(0, startColumn - 1);
-	const auto endOffset = lineStarts[endLine - 1]
-		+ std::max(0, endColumn);
-	result.available = true;
-	result.startOffset = std::clamp(startOffset, 0, maxOffset);
-	result.endOffset = std::clamp(endOffset, 0, maxOffset);
-	return result;
-}
-
 [[nodiscard]] SourceRange NodeRange(
 		cmark_node *node,
 		const std::vector<int> &lineStarts,
 		int sourceSize) {
 	return node
-		? RangeFromCmarkLines(
+		? RangeFromLineColumns(
 			lineStarts,
 			sourceSize,
 			cmark_node_get_start_line(node),

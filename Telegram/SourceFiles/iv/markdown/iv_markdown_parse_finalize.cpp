@@ -17,33 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Iv::Markdown {
 namespace {
 
-void OffsetToPosition(
-		const std::vector<int> &lineStarts,
-		int offset,
-		int *line,
-		int *column) {
-	const auto clampedOffset = std::max(offset, 0);
-	auto resultLine = 1;
-	auto resultColumn = clampedOffset + 1;
-	if (!lineStarts.empty()) {
-		auto i = std::upper_bound(
-			lineStarts.begin(),
-			lineStarts.end(),
-			clampedOffset);
-		if (i != lineStarts.begin()) {
-			--i;
-			resultLine = static_cast<int>(i - lineStarts.begin()) + 1;
-			resultColumn = clampedOffset - *i + 1;
-		}
-	}
-	if (line) {
-		*line = resultLine;
-	}
-	if (column) {
-		*column = resultColumn;
-	}
-}
-
 [[nodiscard]] QString SourceSlice(
 		const QByteArray &source,
 		const SourceRange &range) {
@@ -55,30 +28,6 @@ void OffsetToPosition(
 	const auto end = std::clamp(range.endOffset, start, sourceSize);
 	const auto slice = source.mid(start, end - start);
 	return QString::fromUtf8(slice.constData(), slice.size());
-}
-
-[[nodiscard]] SourceRange RangeForOffsets(
-		const std::vector<int> &lineStarts,
-		int sourceSize,
-		int startOffset,
-		int endOffset) {
-	auto startLine = 0;
-	auto startColumn = 0;
-	auto endLine = 0;
-	auto endColumn = 0;
-	OffsetToPosition(lineStarts, startOffset, &startLine, &startColumn);
-	OffsetToPosition(
-		lineStarts,
-		std::max(startOffset, endOffset - 1),
-		&endLine,
-		&endColumn);
-	return RangeFromLineColumns(
-		lineStarts,
-		sourceSize,
-		startLine,
-		startColumn,
-		endLine,
-		endColumn);
 }
 
 [[nodiscard]] QString PlainText(const MarkdownNode &node) {
