@@ -847,6 +847,64 @@ void FinalizeCodeAndMathWidths(
 	analysis.ownerEligible = true;
 }
 
+void FinalizeLeafWidths(
+		WidthAnalysisNode &analysis,
+		const LayoutContext &context,
+		const style::Markdown &st) {
+	analysis.outerMinimumWidth = analysis.contentMinimumWidth;
+	analysis.outerPreferredWidth = analysis.contentPreferredWidth;
+	analysis.scrollOwnerMinimumWidth = analysis.outerMinimumWidth;
+	analysis.scrollViewportMinimumWidth
+		= NestedScrollViewportMinimumWidth(
+			context,
+			analysis.contentPreferredWidth,
+			st);
+	analysis.outerScrollViewportMinimumWidth = std::max(
+		analysis.outerMinimumWidth,
+		analysis.scrollViewportMinimumWidth);
+	analysis.scrollOwnerOverflowWidth
+		= (analysis.scrollViewportMinimumWidth > 1)
+		? analysis.outerScrollViewportMinimumWidth
+		: analysis.outerMinimumWidth;
+	analysis.scrollOwnerMinimumWidth = std::max({
+		analysis.scrollOwnerMinimumWidth,
+		analysis.outerScrollViewportMinimumWidth,
+	});
+}
+
+void FinalizeListWidths(
+		WidthAnalysisNode &analysis,
+		const style::Markdown &st,
+		int overhead) {
+	const auto childRequiredWidth
+		= MaxUnresolvedChildOuterScrollViewportMinimumWidth(
+			analysis.children);
+	const auto childNeedsScrollOwner = (childRequiredWidth > 1);
+	analysis.contentMinimumWidth = MaxChildOuterMinimumWidth(analysis.children);
+	analysis.contentPreferredWidth = MaxChildOuterPreferredWidth(
+		analysis.children);
+	analysis.outerMinimumWidth = overhead + analysis.contentMinimumWidth;
+	analysis.outerPreferredWidth = overhead + analysis.contentPreferredWidth;
+	const auto naturalOverflowWidth = overhead
+		+ analysis.contentMinimumWidth;
+	const auto requiredOverflowWidth = overhead
+		+ std::max(analysis.contentMinimumWidth, childRequiredWidth);
+	analysis.scrollViewportMinimumWidth = childNeedsScrollOwner
+		? ReadableScrollViewportMinimumWidth(
+			analysis.contentPreferredWidth,
+			st)
+		: 1;
+	analysis.outerScrollViewportMinimumWidth = overhead
+		+ (childNeedsScrollOwner ? childRequiredWidth : 1);
+	analysis.scrollOwnerOverflowWidth = childNeedsScrollOwner
+		? requiredOverflowWidth
+		: naturalOverflowWidth;
+	analysis.scrollOwnerMinimumWidth = std::max({
+		analysis.scrollOwnerOverflowWidth,
+		analysis.outerScrollViewportMinimumWidth,
+	});
+}
+
 [[nodiscard]] WidthAnalysisNode AnalyzeBlock(
 	const PreparedBlock &prepared,
 	const std::vector<PreparedFormulaSlot> &formulas,
@@ -931,25 +989,7 @@ void FinalizeCodeAndMathWidths(
 			mediaRuntime,
 			st,
 			context);
-		analysis.outerMinimumWidth = analysis.contentMinimumWidth;
-		analysis.outerPreferredWidth = analysis.contentPreferredWidth;
-		analysis.scrollOwnerMinimumWidth = analysis.outerMinimumWidth;
-		analysis.scrollViewportMinimumWidth
-			= NestedScrollViewportMinimumWidth(
-				context,
-				analysis.contentPreferredWidth,
-				st);
-		analysis.outerScrollViewportMinimumWidth = std::max(
-			analysis.outerMinimumWidth,
-			analysis.scrollViewportMinimumWidth);
-		analysis.scrollOwnerOverflowWidth
-			= (analysis.scrollViewportMinimumWidth > 1)
-			? analysis.outerScrollViewportMinimumWidth
-			: analysis.outerMinimumWidth;
-		analysis.scrollOwnerMinimumWidth = std::max({
-			analysis.scrollOwnerMinimumWidth,
-			analysis.outerScrollViewportMinimumWidth,
-		});
+		FinalizeLeafWidths(analysis, context, st);
 		analysis.ownerEligible = !IsAnchorOnlyBlock(prepared);
 		break;
 	case PreparedBlockKind::CodeBlock: {
@@ -987,25 +1027,7 @@ void FinalizeCodeAndMathWidths(
 			st,
 			context);
 		analysis.contentPreferredWidth = analysis.contentMinimumWidth;
-		analysis.outerMinimumWidth = analysis.contentMinimumWidth;
-		analysis.outerPreferredWidth = analysis.contentPreferredWidth;
-		analysis.scrollOwnerMinimumWidth = analysis.outerMinimumWidth;
-		analysis.scrollViewportMinimumWidth
-			= NestedScrollViewportMinimumWidth(
-				context,
-				analysis.contentPreferredWidth,
-				st);
-		analysis.outerScrollViewportMinimumWidth = std::max(
-			analysis.outerMinimumWidth,
-			analysis.scrollViewportMinimumWidth);
-		analysis.scrollOwnerOverflowWidth
-			= (analysis.scrollViewportMinimumWidth > 1)
-			? analysis.outerScrollViewportMinimumWidth
-			: analysis.outerMinimumWidth;
-		analysis.scrollOwnerMinimumWidth = std::max({
-			analysis.scrollOwnerMinimumWidth,
-			analysis.outerScrollViewportMinimumWidth,
-		});
+		FinalizeLeafWidths(analysis, context, st);
 		analysis.ownerEligible = true;
 		break;
 	case PreparedBlockKind::List: {
@@ -1029,33 +1051,7 @@ void FinalizeCodeAndMathWidths(
 			st,
 			childWidth,
 			childContext);
-		const auto childRequiredWidth
-			= MaxUnresolvedChildOuterScrollViewportMinimumWidth(
-				analysis.children);
-		const auto childNeedsScrollOwner = (childRequiredWidth > 1);
-		analysis.contentMinimumWidth = MaxChildOuterMinimumWidth(analysis.children);
-		analysis.contentPreferredWidth = MaxChildOuterPreferredWidth(
-			analysis.children);
-		analysis.outerMinimumWidth = overhead + analysis.contentMinimumWidth;
-		analysis.outerPreferredWidth = overhead + analysis.contentPreferredWidth;
-		const auto naturalOverflowWidth = overhead
-			+ analysis.contentMinimumWidth;
-		const auto requiredOverflowWidth = overhead
-			+ std::max(analysis.contentMinimumWidth, childRequiredWidth);
-		analysis.scrollViewportMinimumWidth = childNeedsScrollOwner
-			? ReadableScrollViewportMinimumWidth(
-				analysis.contentPreferredWidth,
-				st)
-			: 1;
-		analysis.outerScrollViewportMinimumWidth = overhead
-			+ (childNeedsScrollOwner ? childRequiredWidth : 1);
-		analysis.scrollOwnerOverflowWidth = childNeedsScrollOwner
-			? requiredOverflowWidth
-			: naturalOverflowWidth;
-		analysis.scrollOwnerMinimumWidth = std::max({
-			analysis.scrollOwnerOverflowWidth,
-			analysis.outerScrollViewportMinimumWidth,
-		});
+		FinalizeListWidths(analysis, st, overhead);
 		analysis.ownerEligible = !prepared.children.empty()
 			&& !context.listItemDepth;
 	} break;
@@ -1079,33 +1075,7 @@ void FinalizeCodeAndMathWidths(
 			st,
 			childWidth,
 			childContext);
-		const auto childRequiredWidth
-			= MaxUnresolvedChildOuterScrollViewportMinimumWidth(
-				analysis.children);
-		const auto childNeedsScrollOwner = (childRequiredWidth > 1);
-		analysis.contentMinimumWidth = MaxChildOuterMinimumWidth(analysis.children);
-		analysis.contentPreferredWidth = MaxChildOuterPreferredWidth(
-			analysis.children);
-		analysis.outerMinimumWidth = overhead + analysis.contentMinimumWidth;
-		analysis.outerPreferredWidth = overhead + analysis.contentPreferredWidth;
-		const auto naturalOverflowWidth = overhead
-			+ analysis.contentMinimumWidth;
-		const auto requiredOverflowWidth = overhead
-			+ std::max(analysis.contentMinimumWidth, childRequiredWidth);
-		analysis.scrollViewportMinimumWidth = childNeedsScrollOwner
-			? ReadableScrollViewportMinimumWidth(
-				analysis.contentPreferredWidth,
-				st)
-			: 1;
-		analysis.outerScrollViewportMinimumWidth = overhead
-			+ (childNeedsScrollOwner ? childRequiredWidth : 1);
-		analysis.scrollOwnerOverflowWidth = childNeedsScrollOwner
-			? requiredOverflowWidth
-			: naturalOverflowWidth;
-		analysis.scrollOwnerMinimumWidth = std::max({
-			analysis.scrollOwnerOverflowWidth,
-			analysis.outerScrollViewportMinimumWidth,
-		});
+		FinalizeListWidths(analysis, st, overhead);
 		analysis.ownerEligible = false;
 	} break;
 	case PreparedBlockKind::Quote: {
@@ -1448,25 +1418,7 @@ void FinalizeCodeAndMathWidths(
 		analysis.contentPreferredWidth = IsAnchorOnlyBlock(prepared)
 			? 1
 			: RetainedLeafMaxWidth(displayLeaf);
-		analysis.outerMinimumWidth = analysis.contentMinimumWidth;
-		analysis.outerPreferredWidth = analysis.contentPreferredWidth;
-		analysis.scrollOwnerMinimumWidth = analysis.outerMinimumWidth;
-		analysis.scrollViewportMinimumWidth
-			= NestedScrollViewportMinimumWidth(
-				context,
-				analysis.contentPreferredWidth,
-				st);
-		analysis.outerScrollViewportMinimumWidth = std::max(
-			analysis.outerMinimumWidth,
-			analysis.scrollViewportMinimumWidth);
-		analysis.scrollOwnerOverflowWidth
-			= (analysis.scrollViewportMinimumWidth > 1)
-			? analysis.outerScrollViewportMinimumWidth
-			: analysis.outerMinimumWidth;
-		analysis.scrollOwnerMinimumWidth = std::max({
-			analysis.scrollOwnerMinimumWidth,
-			analysis.outerScrollViewportMinimumWidth,
-		});
+		FinalizeLeafWidths(analysis, context, st);
 		analysis.ownerEligible = !IsAnchorOnlyBlock(prepared);
 	} break;
 	case PreparedBlockKind::CodeBlock: {
@@ -1567,33 +1519,7 @@ void FinalizeCodeAndMathWidths(
 			return std::nullopt;
 		}
 		analysis.children = std::move(*children);
-		const auto childRequiredWidth
-			= MaxUnresolvedChildOuterScrollViewportMinimumWidth(
-				analysis.children);
-		const auto childNeedsScrollOwner = (childRequiredWidth > 1);
-		analysis.contentMinimumWidth = MaxChildOuterMinimumWidth(analysis.children);
-		analysis.contentPreferredWidth = MaxChildOuterPreferredWidth(
-			analysis.children);
-		analysis.outerMinimumWidth = overhead + analysis.contentMinimumWidth;
-		analysis.outerPreferredWidth = overhead + analysis.contentPreferredWidth;
-		const auto naturalOverflowWidth = overhead
-			+ analysis.contentMinimumWidth;
-		const auto requiredOverflowWidth = overhead
-			+ std::max(analysis.contentMinimumWidth, childRequiredWidth);
-		analysis.scrollViewportMinimumWidth = childNeedsScrollOwner
-			? ReadableScrollViewportMinimumWidth(
-				analysis.contentPreferredWidth,
-				st)
-			: 1;
-		analysis.outerScrollViewportMinimumWidth = overhead
-			+ (childNeedsScrollOwner ? childRequiredWidth : 1);
-		analysis.scrollOwnerOverflowWidth = childNeedsScrollOwner
-			? requiredOverflowWidth
-			: naturalOverflowWidth;
-		analysis.scrollOwnerMinimumWidth = std::max({
-			analysis.scrollOwnerOverflowWidth,
-			analysis.outerScrollViewportMinimumWidth,
-		});
+		FinalizeListWidths(analysis, st, overhead);
 		analysis.ownerEligible = !prepared.children.empty()
 			&& !context.listItemDepth;
 	} break;
@@ -1627,33 +1553,7 @@ void FinalizeCodeAndMathWidths(
 			return std::nullopt;
 		}
 		analysis.children = std::move(*children);
-		const auto childRequiredWidth
-			= MaxUnresolvedChildOuterScrollViewportMinimumWidth(
-				analysis.children);
-		const auto childNeedsScrollOwner = (childRequiredWidth > 1);
-		analysis.contentMinimumWidth = MaxChildOuterMinimumWidth(analysis.children);
-		analysis.contentPreferredWidth = MaxChildOuterPreferredWidth(
-			analysis.children);
-		analysis.outerMinimumWidth = overhead + analysis.contentMinimumWidth;
-		analysis.outerPreferredWidth = overhead + analysis.contentPreferredWidth;
-		const auto naturalOverflowWidth = overhead
-			+ analysis.contentMinimumWidth;
-		const auto requiredOverflowWidth = overhead
-			+ std::max(analysis.contentMinimumWidth, childRequiredWidth);
-		analysis.scrollViewportMinimumWidth = childNeedsScrollOwner
-			? ReadableScrollViewportMinimumWidth(
-				analysis.contentPreferredWidth,
-				st)
-			: 1;
-		analysis.outerScrollViewportMinimumWidth = overhead
-			+ (childNeedsScrollOwner ? childRequiredWidth : 1);
-		analysis.scrollOwnerOverflowWidth = childNeedsScrollOwner
-			? requiredOverflowWidth
-			: naturalOverflowWidth;
-		analysis.scrollOwnerMinimumWidth = std::max({
-			analysis.scrollOwnerOverflowWidth,
-			analysis.outerScrollViewportMinimumWidth,
-		});
+		FinalizeListWidths(analysis, st, overhead);
 		analysis.ownerEligible = false;
 	} break;
 	case PreparedBlockKind::Quote: {
