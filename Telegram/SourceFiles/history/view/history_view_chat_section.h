@@ -253,6 +253,7 @@ public:
 		not_null<TranslateTracker*> tracker) override;
 	Ui::ChatPaintContext listPreparePaintContext(
 		Ui::ChatPaintContextArgs &&args) override;
+	bool listMarkingContentRead() override;
 	base::unique_qptr<Ui::PopupMenu> listFillSenderUserpicMenu(
 		PeerId userpicPeerId) override;
 	Ui::ElasticScroll *listScrollArea() const override;

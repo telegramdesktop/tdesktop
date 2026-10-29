@@ -507,17 +507,30 @@ InnerWidget::InnerWidget(
 		| UpdateFlag::IsContact
 		| UpdateFlag::FullInfo
 		| UpdateFlag::EmojiStatus
+		| UpdateFlag::BarSettings
 	) | rpl::on_next([=](const Data::PeerUpdate &update) {
 		if (update.flags
 			& (UpdateFlag::Name
 				| UpdateFlag::Photo
 				| UpdateFlag::FullInfo
-				| UpdateFlag::EmojiStatus)) {
+				| UpdateFlag::EmojiStatus
+				| UpdateFlag::BarSettings)) {
 			if (update.flags & UpdateFlag::Photo) {
 				invalidateLoadedUserpics();
 			}
 			const auto peer = update.peer;
 			const auto history = peer->owner().historyLoaded(peer);
+			if (update.flags & UpdateFlag::BarSettings) {
+				if (history) {
+					invalidateCachedRow(RowsCacheKey(history));
+				}
+				const auto sublist = _savedSublists
+					? _savedSublists->sublistLoaded(peer)
+					: nullptr;
+				if (sublist) {
+					refreshDialogRow({ sublist, FullMsgId() });
+				}
+			}
 			if (_state == WidgetState::Default) {
 				if (history) {
 					updateDialogRow({ history, FullMsgId() });

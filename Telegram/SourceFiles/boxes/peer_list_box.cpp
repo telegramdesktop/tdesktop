@@ -1197,7 +1197,10 @@ PeerListContent::PeerListContent(
 
 	using UpdateFlag = Data::PeerUpdate::Flag;
 	_controller->session().changes().peerUpdates(
-		UpdateFlag::Name | UpdateFlag::Photo | UpdateFlag::EmojiStatus
+		UpdateFlag::Name
+		| UpdateFlag::Photo
+		| UpdateFlag::EmojiStatus
+		| UpdateFlag::BarSettings
 	) | rpl::on_next([=](const Data::PeerUpdate &update) {
 		if (update.flags & UpdateFlag::Name) {
 			handleNameChanged(update.peer);
@@ -1205,6 +1208,15 @@ PeerListContent::PeerListContent(
 		if (update.flags & UpdateFlag::Photo) {
 			invalidateLoadedUserpics();
 			this->update();
+		}
+		if (update.flags & UpdateFlag::BarSettings) {
+			const auto byPeer = _rowsByPeer.find(update.peer);
+			if (byPeer != _rowsByPeer.cend()) {
+				for (const auto row : byPeer->second) {
+					_rowsScrollCache.invalidate(row->id());
+					updateRow(row);
+				}
+			}
 		}
 	}, lifetime());
 

@@ -6023,7 +6023,13 @@ auto Session::joinChatWebViewDecision() const
 }
 
 rpl::producer<not_null<PeerData*>> Session::peerDecorationsUpdated() const {
-	return _peerDecorationsUpdated.events();
+	return rpl::merge(
+		_peerDecorationsUpdated.events(),
+		session().changes().peerUpdates(
+			PeerUpdate::Flag::BarSettings
+		) | rpl::map([](const PeerUpdate &update) {
+			return update.peer;
+		}));
 }
 
 void Session::viewTagsChanged(
