@@ -25,4 +25,14 @@ void PaintCanvasBackground(
 	const QRect &rect,
 	const CanvasBackground &background);
 
+[[nodiscard]] QRect CanvasPlacement(QSize image, QSize canvas);
+
+[[nodiscard]] QRect RoundedCanvasRect(const QRectF &rect);
+
+[[nodiscard]] QImage FitOnCanvas(
+	const QImage &image,
+	QSize canvas,
+	const CanvasBackground &background,
+	QRect placement = QRect());
+
 } // namespace Media::Encode

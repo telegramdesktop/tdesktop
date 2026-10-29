@@ -1610,6 +1610,8 @@ private:
 struct GeometryPlan {
 	QSize target;
 	QRect crop;
+	std::optional<CanvasBackground> canvas;
+	QRect canvasMediaRect;
 	int fileRotation = 0;
 	int userRotation = 0;
 	bool flipped = false;
@@ -1628,11 +1630,14 @@ struct GeometryPlan {
 	if (plan.crop.isEmpty()) {
 		plan.crop = full;
 	}
+	plan.canvas = source.canvas;
+	plan.canvasMediaRect = source.canvasMediaRect;
 	plan.bake = (plan.crop != full)
 		|| plan.userRotation
 		|| plan.flipped
 		|| !source.exactSize.isEmpty()
-		|| (source.coverPosition >= 0);
+		|| (source.coverPosition >= 0)
+		|| plan.canvas.has_value();
 
 	auto oriented = plan.bake ? plan.crop.size() : display;
 	if (plan.bake && RotationSwapWidthHeight(plan.userRotation)) {
@@ -1742,8 +1747,15 @@ struct GeometryPlan {
 	const auto oriented = TransposeSizeByRotation(
 		crop.size(),
 		plan.userRotation);
+	const auto placement = !plan.canvas
+		? QRect()
+		: !plan.canvasMediaRect.isEmpty()
+		? plan.canvasMediaRect
+		: CanvasPlacement(oriented, plan.target);
 	auto scaled = oriented;
-	if (scaled != plan.target) {
+	if (plan.canvas) {
+		scaled = placement.size();
+	} else if (scaled != plan.target) {
 		scaled = oriented.scaled(plan.target, Qt::KeepAspectRatioByExpanding);
 		scaled = QSize(
 			std::max(scaled.width(), 1),
@@ -1781,6 +1793,15 @@ struct GeometryPlan {
 				Qt::IgnoreAspectRatio,
 				Qt::SmoothTransformation);
 		}
+	}
+	if (plan.canvas) {
+		auto result = QImage(
+			plan.target,
+			QImage::Format_ARGB32_Premultiplied);
+		auto p = QPainter(&result);
+		PaintCanvasBackground(p, result.rect(), *plan.canvas);
+		p.drawImage(placement.topLeft(), image);
+		return result;
 	}
 	if (image.size() != plan.target) {
 		const auto x = (image.width() - plan.target.width()) / 2;

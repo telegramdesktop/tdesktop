@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "media/media_video_canvas.h"
+
 namespace Media::Encode {
 
 struct AnimatedEntity {
@@ -92,6 +94,10 @@ struct VideoSource {
 	float64 fpsLimit = 0.;
 
 	crl::time coverPosition = -1;
+
+	std::optional<CanvasBackground> canvas;
+
+	QRect canvasMediaRect;
 
 	std::vector<MusicTrack> music;
 };
