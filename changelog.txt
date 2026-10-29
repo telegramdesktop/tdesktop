@@ -1,3 +1,12 @@
+7.3.4 beta (29.10.26)
+
+- Search apps, channels, posts and media in the search tabs.
+- Animate sent text messages flying into their bubbles.
+- Fix code blocks losing the indentation of their first line.
+- Fix save hotkeys doing nothing in media viewer.
+- Fix several crashes when forum topics are deleted.
+- Fix several other crashes and bugs.
+
 7.3.3 (21.10.26)
 
 - Show TON DNS gift owners as links, not address groups.
