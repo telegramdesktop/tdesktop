@@ -377,7 +377,7 @@ void VideoEditor::setupControls() {
 	_flip = base::make_unique_q<Ui::IconButton>(
 		bar,
 		st::photoEditorFlipButton);
-	if (!_data.removeAudio) {
+	if (!_data.removeAudio && _data.allowGif) {
 		// When the audio is dropped anyway there is nothing to choose.
 		_gifButton = base::make_unique_q<Ui::IconButton>(
 			bar,
