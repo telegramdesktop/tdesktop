@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/message_sending_text_flight.h"
 
 #include "data/data_session.h"
+#include "history/view/media/history_view_media.h"
 #include "history/view/history_view_element.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -186,21 +187,51 @@ void ApplyTopFade(QImage &image, not_null<InputField*> field) {
 	return result;
 }
 
-[[nodiscard]] QImage RenderWhole(
+[[nodiscard]] bool PaintsOutsideBubble(
+		not_null<HistoryView::Element*> view,
+		const ChatPaintContext &context) {
+	return view->Get<HistoryView::UnreadBar>()
+		|| view->Get<HistoryView::ServicePreMessage>()
+		|| (view->delegate()->elementInSelectionMode(view).progress > 0.)
+		|| context.gestureHorizontal.visualTranslationFor(
+			view->data()->id.bare);
+}
+
+[[nodiscard]] QRect BubbleSpan(
+		not_null<HistoryView::Element*> view,
+		const ChatPaintContext &context) {
+	const auto whole = Rect(QSize(view->width(), view->height()));
+	if (PaintsOutsideBubble(view, context)) {
+		return whole;
+	}
+	const auto &st = context.st->messageStyle(view->hasOutLayout(), false);
+	const auto tail = std::max(st.tailLeft.width(), st.tailRight.width());
+	const auto body = view->innerGeometry();
+	return whole.intersected(QRect(
+		body.x() - tail,
+		0,
+		body.width() + 2 * tail,
+		whole.height()));
+}
+
+[[nodiscard]] QImage RenderSpan(
 		not_null<HistoryView::Element*> view,
 		ChatPaintContext context,
-		SkipDrawingParts skip) {
-	const auto rect = Rect(QSize(view->width(), view->height()));
-	context.clip = rect;
+		SkipDrawingParts skip,
+		QRect span) {
+	context.clip = Rect(QSize(view->width(), view->height()));
 	context.outbg = view->hasOutLayout();
-	return RenderLayer(view, std::move(context), skip, rect);
+	return RenderLayer(view, std::move(context), skip, span);
 }
 
 [[nodiscard]] QRect MeasureLayer(
 		not_null<HistoryView::Element*> view,
 		ChatPaintContext context,
-		SkipDrawingParts skip) {
-	return InkGeometry(RenderWhole(view, std::move(context), skip));
+		SkipDrawingParts skip,
+		QRect span) {
+	return InkGeometry(
+		RenderSpan(view, std::move(context), skip, span)
+	).translated(span.topLeft());
 }
 
 [[nodiscard]] QImage MixText(
@@ -449,14 +480,17 @@ void PaintResized(
 		|| (field->getTextWithAppliedMarkdown() != sending)) {
 		return std::nullopt;
 	}
+	const auto &font = field->st().style.font;
 	const auto hidden = field->scrollTopMax();
-	if (hidden > kMorphHiddenLines * field->st().style.font->height
-		|| field->scrollTop().current() != hidden
+	const auto top = field->scrollTop().current();
+	if (hidden > kMorphHiddenLines * font->height
+		|| top > hidden
+		|| top + font->descent < hidden
 		|| edit->horizontalScrollBar()->value() != 0) {
 		return std::nullopt;
 	}
 	auto image = GrabWithoutCaret(edit);
-	if (hidden > 0) {
+	if (top > 0) {
 		ApplyTopFade(image, field);
 	}
 	auto ink = CropToInk(image);
@@ -551,12 +585,18 @@ auto MessageSendingTextFlight::Prepare(
 		return Refused();
 	}
 	const auto context = to.paintContext();
-	const auto whole = RenderWhole(view, context, SkipDrawingParts::Bubble);
-	const auto text = InkGeometry(whole);
+	const auto span = BubbleSpan(view, context);
+	const auto layer = RenderSpan(
+		view,
+		context,
+		SkipDrawingParts::Bubble,
+		span);
+	const auto text = InkGeometry(layer).translated(span.topLeft());
 	const auto bubble = MeasureLayer(
 		view,
 		context,
-		SkipDrawingParts::Content);
+		SkipDrawingParts::Content,
+		span);
 	if (text.isEmpty() || bubble.isEmpty()) {
 		return fallback;
 	}
@@ -585,7 +625,7 @@ auto MessageSendingTextFlight::Prepare(
 		source.rightToLeft);
 	result.sourceRect = layout.source;
 	result.morph = Morph{
-		.text = CropImage(whole, text),
+		.text = CropImage(layer, text.translated(-span.topLeft())),
 		.bubble = bubble,
 		.from = layout.from,
 		.cut = layout.cut,
@@ -694,12 +734,14 @@ void MessageSendingTextFlight::refreshBounds(
 	}
 	_viewSize = size;
 	const auto context = _toInfo.paintContext();
+	const auto span = BubbleSpan(view, context);
 	if (_morph) {
 		_morph->text = QImage();
 		const auto text = MeasureLayer(
 			view,
 			context,
-			SkipDrawingParts::Bubble);
+			SkipDrawingParts::Bubble,
+			span);
 		if (!text.isEmpty()) {
 			_textRect = text;
 		}
@@ -707,7 +749,8 @@ void MessageSendingTextFlight::refreshBounds(
 	const auto bubble = MeasureLayer(
 		view,
 		context,
-		SkipDrawingParts::Content);
+		SkipDrawingParts::Content,
+		span);
 	if (!bubble.isEmpty()) {
 		_bounds = bubble.united(_sourceRect).united(_textRect);
 	}
