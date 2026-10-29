@@ -135,6 +135,14 @@ public:
 		std::vector<not_null<PeerData*>> users,
 		Fn<void()> done = nullptr);
 
+	[[nodiscard]] auto blocklistValue()
+		-> rpl::producer<std::vector<not_null<PeerData*>>>;
+	[[nodiscard]] bool blocklistLoaded() const;
+	void reloadBlocklist();
+	void saveBlocklist(
+		std::vector<not_null<PeerData*>> peers,
+		Fn<void()> done = nullptr);
+
 	[[nodiscard]] const std::vector<StoryUpload> &uploads() const;
 	[[nodiscard]] rpl::producer<> uploadsChanges() const;
 	[[nodiscard]] rpl::producer<StorySent> sent() const;
@@ -173,6 +181,7 @@ private:
 	void finish(not_null<Upload*> upload, StoryId id);
 	void cancelWork(not_null<Upload*> upload);
 	void removeTempFile(not_null<Upload*> upload);
+	void requestBlocklist(int offset);
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
@@ -183,6 +192,13 @@ private:
 	rpl::event_stream<> _uploadsChanges;
 	rpl::event_stream<StorySent> _sent;
 	rpl::lifetime _uploaderLifetime;
+
+	std::vector<not_null<PeerData*>> _blocklist;
+	rpl::event_stream<> _blocklistChanges;
+	mtpRequestId _blocklistRequestId = 0;
+	int _blocklistCount = 0;
+	bool _blocklistFull = false;
+	bool _blocklistLoaded = false;
 
 };
 

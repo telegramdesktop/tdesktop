@@ -31,6 +31,7 @@ namespace {
 
 constexpr auto kTranscodeShare = 0.3;
 constexpr auto kPreviewSide = 160;
+constexpr auto kBlocklistPerPage = 100;
 
 class PrepareStoryTask final : public Task {
 public:
@@ -413,6 +414,103 @@ void Stories::saveCloseFriends(
 		if (done) {
 			done();
 		}
+	}).send();
+}
+
+auto Stories::blocklistValue()
+-> rpl::producer<std::vector<not_null<PeerData*>>> {
+	if (!_blocklistLoaded && !_blocklistRequestId) {
+		reloadBlocklist();
+	}
+	return _blocklistChanges.events_starting_with({}) | rpl::map([=] {
+		return _blocklist;
+	});
+}
+
+bool Stories::blocklistLoaded() const {
+	return _blocklistLoaded && _blocklistFull;
+}
+
+void Stories::reloadBlocklist() {
+	if (_blocklistRequestId) {
+		_api.request(base::take(_blocklistRequestId)).cancel();
+	}
+	_blocklistFull = false;
+	requestBlocklist(0);
+}
+
+void Stories::requestBlocklist(int offset) {
+	using Flag = MTPcontacts_GetBlocked::Flag;
+	_blocklistRequestId = _api.request(MTPcontacts_GetBlocked(
+		MTP_flags(Flag::f_my_stories_from),
+		MTP_int(offset),
+		MTP_int(kBlocklistPerPage)
+	)).done([=](const MTPcontacts_Blocked &result) {
+		_blocklistRequestId = 0;
+		auto &owner = _session->data();
+		auto list = offset
+			? _blocklist
+			: std::vector<not_null<PeerData*>>();
+		const auto append = [&](const auto &data) {
+			owner.processUsers(data.vusers());
+			owner.processChats(data.vchats());
+			for (const auto &blocked : data.vblocked().v) {
+				const auto peerId = peerFromMTP(blocked.data().vpeer_id());
+				const auto peer = owner.peerLoaded(peerId);
+				if (peer && !ranges::contains(list, not_null(peer))) {
+					list.push_back(peer);
+				}
+			}
+		};
+		result.match([&](const MTPDcontacts_blocked &data) {
+			append(data);
+			_blocklistCount = int(list.size());
+			_blocklistFull = true;
+		}, [&](const MTPDcontacts_blockedSlice &data) {
+			append(data);
+			_blocklistCount = std::max(data.vcount().v, int(list.size()));
+			_blocklistFull = (int(list.size()) >= _blocklistCount)
+				|| data.vblocked().v.isEmpty();
+		});
+		_blocklist = std::move(list);
+		_blocklistLoaded = true;
+		_blocklistChanges.fire({});
+		if (!_blocklistFull) {
+			requestBlocklist(int(_blocklist.size()));
+		}
+	}).fail([=] {
+		_blocklistRequestId = 0;
+		_blocklistLoaded = (offset > 0);
+		_blocklistFull = true;
+		_blocklistChanges.fire({});
+	}).send();
+}
+
+void Stories::saveBlocklist(
+		std::vector<not_null<PeerData*>> peers,
+		Fn<void()> done) {
+	using Flag = MTPcontacts_SetBlocked::Flag;
+	auto ids = QVector<MTPInputPeer>();
+	ids.reserve(peers.size());
+	for (const auto &peer : peers) {
+		ids.push_back(peer->input());
+	}
+	const auto limit = std::max(int(_blocklist.size()), int(peers.size()));
+	_blocklist = std::move(peers);
+	_blocklistCount = int(_blocklist.size());
+	_blocklistFull = true;
+	_blocklistLoaded = true;
+	_blocklistChanges.fire({});
+	_api.request(MTPcontacts_SetBlocked(
+		MTP_flags(Flag::f_my_stories_from),
+		MTP_vector<MTPInputPeer>(ids),
+		MTP_int(limit)
+	)).done([=] {
+		if (done) {
+			done();
+		}
+	}).fail([=] {
+		reloadBlocklist();
 	}).send();
 }
 
