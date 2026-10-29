@@ -768,6 +768,63 @@ void SessionNavigation::showPeerByLinkResolved(
 			info.startAdminRights);
 	} else if (resolveType == ResolveType::Boost && peer->isChannel()) {
 		resolveBoostState(peer->asChannel());
+	} else if (!info.attachBotUsername.isEmpty()) {
+		applyBotStartToken();
+		const auto attachBotUsername = info.attachBotUsername;
+		crl::on_main(this, [=] {
+			const auto history = peer->owner().history(peer);
+			showPeerHistory(history, params, msgId);
+
+			peer->session().attachWebView().openByUsername(
+				parentController(),
+				Api::SendAction(history),
+				attachBotUsername,
+				info.attachBotToggleCommand.value_or(QString()),
+				info.botAppFullScreen);
+		});
+	} else if (bot && info.attachBotMainOpen) {
+		applyBotStartToken();
+		const auto startCommand = info.attachBotToggleCommand.value_or(
+			QString());
+		bot->session().attachWebView().open({
+			.bot = bot,
+			.context = {
+				.controller = parentController(),
+				.fullscreen = info.botAppFullScreen,
+				.maySkipConfirmation = !info.botAppForceConfirmation,
+			},
+			.button = { .startCommand = startCommand },
+			.source = InlineBots::WebViewSourceLinkBotProfile{
+				.token = startCommand,
+				.compact = info.attachBotMainCompact,
+			},
+		});
+	} else if (bot && info.attachBotToggleCommand) {
+		applyBotStartToken();
+		const auto itemId = info.clickFromMessageId;
+		const auto item = _session->data().message(itemId);
+		const auto contextPeer = item
+			? item->history()->peer.get()
+			: nullptr;
+		const auto contextUser = contextPeer
+			? contextPeer->asUser()
+			: nullptr;
+		bot->session().attachWebView().open({
+			.bot = bot,
+			.context = {
+				.controller = parentController(),
+				.action = (contextUser
+					? Api::SendAction(
+						contextUser->owner().history(contextUser))
+					: std::optional<Api::SendAction>()),
+				.fullscreen = info.botAppFullScreen,
+			},
+			.button = { .startCommand = *info.attachBotToggleCommand },
+			.source = InlineBots::WebViewSourceLinkAttachMenu{
+				.choose = info.attachBotChooseTypes,
+				.token = *info.attachBotToggleCommand,
+			},
+		});
 	} else if (peer->isForum()) {
 		if (!msgId || !useRequestedMessageId) {
 			applyBotStartToken();
@@ -800,84 +857,28 @@ void SessionNavigation::showPeerByLinkResolved(
 		; monoforum && resolveType == ResolveType::ChannelDirect) {
 		showPeerHistory(monoforum, params, ShowAtUnreadMsgId);
 	} else {
-		const auto attachBotUsername = info.attachBotUsername;
 		applyBotStartToken();
-		if (!attachBotUsername.isEmpty()) {
-			crl::on_main(this, [=] {
-				const auto history = peer->owner().history(peer);
-				showPeerHistory(history, params, msgId);
-
-				peer->session().attachWebView().openByUsername(
-					parentController(),
-					Api::SendAction(history),
-					attachBotUsername,
-					info.attachBotToggleCommand.value_or(QString()),
-					info.botAppFullScreen);
-			});
-		} else if (bot && info.attachBotMainOpen) {
-			const auto startCommand = info.attachBotToggleCommand.value_or(
-				QString());
-			bot->session().attachWebView().open({
-				.bot = bot,
-				.context = {
-					.controller = parentController(),
-					.fullscreen = info.botAppFullScreen,
-					.maySkipConfirmation = !info.botAppForceConfirmation,
-				},
-				.button = { .startCommand = startCommand },
-				.source = InlineBots::WebViewSourceLinkBotProfile{
-					.token = startCommand,
-					.compact = info.attachBotMainCompact,
-				},
-			});
-		} else if (bot && info.attachBotToggleCommand) {
-			const auto itemId = info.clickFromMessageId;
-			const auto item = _session->data().message(itemId);
-			const auto contextPeer = item
-				? item->history()->peer.get()
+		const auto draft = info.text;
+		const auto historyInNewWindow = info.historyInNewWindow;
+		params.videoTimestamp = info.videoTimestamp;
+		crl::on_main(this, [=] {
+			if (peer->isUser() && !draft.isEmpty()) {
+				Data::SetChatLinkDraft(peer, { draft });
+			}
+			const auto id = SeparateId(peer);
+			const auto separate = (historyInNewWindow
+				&& CanShowSeparateWindow(id))
+				? Core::App().ensureSeparateWindowFor(id).get()
 				: nullptr;
-			const auto contextUser = contextPeer
-				? contextPeer->asUser()
-				: nullptr;
-			bot->session().attachWebView().open({
-				.bot = bot,
-				.context = {
-					.controller = parentController(),
-					.action = (contextUser
-						? Api::SendAction(
-							contextUser->owner().history(contextUser))
-						: std::optional<Api::SendAction>()),
-					.fullscreen = info.botAppFullScreen,
-				},
-				.button = { .startCommand = *info.attachBotToggleCommand },
-				.source = InlineBots::WebViewSourceLinkAttachMenu{
-					.choose = info.attachBotChooseTypes,
-					.token = *info.attachBotToggleCommand,
-				},
-			});
-		} else {
-			const auto draft = info.text;
-			const auto historyInNewWindow = info.historyInNewWindow;
-			params.videoTimestamp = info.videoTimestamp;
-			crl::on_main(this, [=] {
-				if (peer->isUser() && !draft.isEmpty()) {
-					Data::SetChatLinkDraft(peer, { draft });
-				}
-				const auto id = SeparateId(peer);
-				const auto separate = (historyInNewWindow
-					&& CanShowSeparateWindow(id))
-					? Core::App().ensureSeparateWindowFor(id).get()
-					: nullptr;
-				if (separate) {
-					separate->sessionController()->showPeerHistory(
-						peer,
-						params,
-						msgId);
-				} else {
-					showPeerHistory(peer, params, msgId);
-				}
-			});
-		}
+			if (separate) {
+				separate->sessionController()->showPeerHistory(
+					peer,
+					params,
+					msgId);
+			} else {
+				showPeerHistory(peer, params, msgId);
+			}
+		});
 	}
 }
 
