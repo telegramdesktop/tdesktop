@@ -187,6 +187,43 @@ backgroundScroll: ScrollArea(boxScroll) {
 
 sendMediaPreviewSize: 308px;
 sendMediaPreviewHeightMax: 1280;
+sendStoryBox: Box(defaultBox) {
+	buttonPadding: margins(16px, 12px, 16px, 12px);
+	buttonHeight: 42px;
+	buttonWide: true;
+	button: RoundButton(defaultActiveButton) {
+		height: 42px;
+		radius: 21px;
+		textTop: 12px;
+		style: semiboldTextStyle;
+	}
+}
+storyRowHeight: 56px;
+storyRowSendAsHeight: 62px;
+storyRowRadioLeft: 14px;
+storyRowIconLeft: 53px;
+storyRowIconLeftNoRadio: 16px;
+storyRowIconSize: 40px;
+storyRowTextLeft: 105px;
+storyRowTextLeftNoRadio: 68px;
+storyRowTextRight: 20px;
+storyRowTitleTop: 10px;
+storyRowSubtitleTop: 31px;
+storyRowTitleStyle: TextStyle(semiboldTextStyle) {
+	font: font(14px semibold);
+}
+storyRowSubtitleStyle: defaultTextStyle;
+storyRowArrowSize: 8px;
+storyRowArrowSkip: 4px;
+storyRowArrowStroke: 2px;
+storyRowChevronSize: 6px;
+storyRowChevronRight: 31px;
+storyRowChevronStroke: 2px;
+storyRowChevronOpacity: 0.3;
+storyPrivacyIconEveryone: icon {{ "stories/privacy_everyone", historyPeerUserpicFg }};
+storyPrivacyIconContacts: icon {{ "stories/privacy_contacts", historyPeerUserpicFg }};
+storyPrivacyIconCloseFriends: icon {{ "stories/privacy_close_friends", historyPeerUserpicFg }};
+storyPrivacyIconSelected: icon {{ "stories/privacy_selected", historyPeerUserpicFg }};
 sendMediaRowSkip: 10px;
 
 editMediaHintLabel: FlatLabel(defaultFlatLabel) {

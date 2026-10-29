@@ -8243,6 +8243,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_stories_album_add" = "Add Album";
 "lng_stories_album_new_title" = "Create a New Album";
+"lng_stories_album_new_button" = "New Album";
 "lng_stories_album_new_text" = "Choose a name for your album and start adding your stories there.";
 "lng_stories_album_new_ph" = "Title";
 "lng_stories_album_new_create" = "Create";

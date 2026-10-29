@@ -411,8 +411,14 @@ PRIVATE
     boxes/send_files_box.h
     boxes/send_files_box_reply_header.cpp
     boxes/send_files_box_reply_header.h
+    boxes/send_story_box.cpp
+    boxes/send_story_box.h
+    boxes/send_story_row.cpp
+    boxes/send_story_row.h
     boxes/share_box.cpp
     boxes/share_box.h
+    boxes/story_privacy_box.cpp
+    boxes/story_privacy_box.h
     boxes/star_gift_auction_box.cpp
     boxes/star_gift_auction_box.h
     boxes/star_gift_box.cpp
@@ -1615,6 +1621,8 @@ PRIVATE
     media/stories/media_stories_delegate.h
     media/stories/media_stories_header.cpp
     media/stories/media_stories_header.h
+    media/stories/media_stories_post.cpp
+    media/stories/media_stories_post.h
     media/stories/media_stories_reactions.cpp
     media/stories/media_stories_reactions.h
     media/stories/media_stories_recent_views.cpp
