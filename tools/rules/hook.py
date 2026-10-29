@@ -11,10 +11,8 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 SOURCES = (".cpp", ".h", ".mm", ".cxx")
 LICENSE = "This file is part of "
 HARNESS = "/SourceFiles/test/"
-MARKER = "// WHY:"
-MARKED_LINES = 3
+URL = re.compile(r"https?://")
 PLAIN_LINES = 2
-MARKED_BLOCKS = 1
 
 
 def banned():
@@ -97,11 +95,10 @@ def fault(block):
     """Why this comment block breaks the rule, or None."""
     if any(LICENSE in line for line in block):
         return None
-    if block[0].strip().startswith(MARKER):
-        return (f"a {MARKER} block runs {MARKED_LINES} lines at most"
-            if len(block) > MARKED_LINES else None)
-    return (f"a comment is one line; up to {MARKED_LINES} only when it opens"
-        f" with {MARKER}" if len(block) > 1 else None)
+    if any(URL.search(line) for line in block):
+        return None
+    return ("a comment is one line; longer only to carry a reference URL"
+        if len(block) > 1 else None)
 
 
 def written(payload):
@@ -166,7 +163,7 @@ def staged():
             number += 1
             if path.endswith(SOURCES):
                 added.setdefault(path, []).append((number, line[1:]))
-    plain, marked = 0, 0
+    plain = 0
     for path, lines in added.items():
         for name, into in banned():
             for number, line in lines:
@@ -184,17 +181,11 @@ def staged():
             if why:
                 print(f"{path}:{number}: {why}.", file=sys.stderr)
                 bad += 1
-            elif block[0].strip().startswith(MARKER):
-                marked += 1
-            else:
-                plain += len(block)
+            elif len(block) == 1:
+                plain += 1
     if plain > PLAIN_LINES:
         print(f"this commit adds {plain} comment lines; {PLAIN_LINES} is the"
-            " budget, and one marked block on top of it.", file=sys.stderr)
-        bad += 1
-    if marked > MARKED_BLOCKS:
-        print(f"this commit takes {marked} {MARKER} exceptions;"
-            f" {MARKED_BLOCKS} is the budget.", file=sys.stderr)
+            " budget.", file=sys.stderr)
         bad += 1
     return 1 if bad else 0
 
