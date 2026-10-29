@@ -41,8 +41,14 @@ namespace Data {
 namespace {
 
 constexpr auto kPremiumToastDuration = 5 * crl::time(1000);
+constexpr auto kSlice = 65536;
 
 using SetFlag = StickersSetFlag;
+
+struct StickerWithDate {
+	not_null<DocumentData*> document;
+	TimeId date = 0;
+};
 
 [[nodiscard]] TextWithEntities SavedGifsToast(
 		const Data::PremiumLimits &limits) {
@@ -131,6 +137,90 @@ void RemoveFromSet(
 	if (set->stickers.empty()) {
 		sets.erase(it);
 	}
+}
+
+void AddStickerWithDate(
+		std::vector<StickerWithDate> &result,
+		not_null<DocumentData*> document,
+		TimeId date) {
+	if (ranges::find(result, document, [](const StickerWithDate &data) {
+		return data.document;
+	}) == result.end()) {
+		result.push_back({ document, date });
+	}
+}
+
+[[nodiscard]] TimeId CreateSortKey(
+		not_null<DocumentData*> document,
+		int base,
+		uint64 seed) {
+	if (document->sticker() && document->sticker()->isAnimated()) {
+		base += kSlice;
+	}
+	return TimeId(base + int((document->id ^ seed) % kSlice));
+}
+
+[[nodiscard]] TimeId CreateRecentSortKey(
+		not_null<DocumentData*> document,
+		uint64 seed) {
+	return CreateSortKey(document, kSlice * 6, seed);
+}
+
+[[nodiscard]] int CreateMySortKey(
+		not_null<DocumentData*> document,
+		int &myCounter) {
+	auto base = kSlice * 6;
+	if (!document->sticker() || !document->sticker()->isAnimated()) {
+		base -= kSlice;
+	}
+	return (base - (++myCounter));
+}
+
+[[nodiscard]] TimeId CreateFeaturedSortKey(
+		not_null<DocumentData*> document,
+		uint64 seed) {
+	return CreateSortKey(document, kSlice * 2, seed);
+}
+
+[[nodiscard]] TimeId InstallDateAdjusted(
+		TimeId date,
+		not_null<DocumentData*> document) {
+	return (document->sticker() && document->sticker()->isAnimated())
+		? date
+		: date / 2;
+}
+
+[[nodiscard]] TimeId RecentInstallDate(
+		const StickersSets &sets,
+		not_null<DocumentData*> document) {
+	Expects(document->sticker() != nullptr);
+
+	const auto sticker = document->sticker();
+	if (sticker->set.id) {
+		const auto setIt = sets.find(sticker->set.id);
+		if (setIt != sets.end()) {
+			return InstallDateAdjusted(setIt->second->installDate, document);
+		}
+	}
+	return TimeId(0);
+}
+
+void AddRecentSticker(
+		std::vector<StickerWithDate> &result,
+		const StickersSets &sets,
+		not_null<const StickersSet*> recent,
+		not_null<DocumentData*> document,
+		int index,
+		uint64 seed) {
+	const auto usageDate = (recent->dates.empty() || index < 0)
+		? 0
+		: recent->dates[index];
+	const auto date = usageDate
+		? usageDate
+		: RecentInstallDate(sets, document);
+	result.push_back({
+		document,
+		date ? date : CreateRecentSortKey(document, seed) });
 }
 
 } // namespace
@@ -1156,64 +1246,10 @@ void Stickers::gifsReceived(const QVector<MTPDocument> &items, uint64 hash) {
 }
 
 std::vector<not_null<DocumentData*>> Stickers::getPremiumList(uint64 seed) {
-	struct StickerWithDate {
-		not_null<DocumentData*> document;
-		TimeId date = 0;
-	};
 	auto result = std::vector<StickerWithDate>();
 	auto &sets = setsRef();
 	auto setsToRequest = base::flat_map<uint64, uint64>();
-
-	const auto add = [&](not_null<DocumentData*> document, TimeId date) {
-		if (ranges::find(result, document, [](const StickerWithDate &data) {
-			return data.document;
-		}) == result.end()) {
-			result.push_back({ document, date });
-		}
-	};
-
-	constexpr auto kSlice = 65536;
-	const auto CreateSortKey = [&](
-			not_null<DocumentData*> document,
-			int base) {
-		if (document->sticker() && document->sticker()->isAnimated()) {
-			base += kSlice;
-		}
-		return TimeId(base + int((document->id ^ seed) % kSlice));
-	};
-	const auto CreateRecentSortKey = [&](not_null<DocumentData*> document) {
-		return CreateSortKey(document, kSlice * 6);
-	};
 	auto myCounter = 0;
-	const auto CreateMySortKey = [&](not_null<DocumentData*> document) {
-		auto base = kSlice * 6;
-		if (!document->sticker() || !document->sticker()->isAnimated()) {
-			base -= kSlice;
-		}
-		return (base - (++myCounter));
-	};
-	const auto CreateFeaturedSortKey = [&](not_null<DocumentData*> document) {
-		return CreateSortKey(document, kSlice * 2);
-	};
-	const auto InstallDateAdjusted = [&](
-			TimeId date,
-			not_null<DocumentData*> document) {
-		return (document->sticker() && document->sticker()->isAnimated())
-			? date
-			: date / 2;
-	};
-	const auto RecentInstallDate = [&](not_null<DocumentData*> document) {
-		Expects(document->sticker() != nullptr);
-
-		const auto sticker = document->sticker();
-		if (sticker->set.id) {
-			const auto setIt = sets.find(sticker->set.id);
-			if (setIt != sets.end()) {
-				return InstallDateAdjusted(setIt->second->installDate, document);
-			}
-		}
-		return TimeId(0);
-	};
 
 	auto recentIt = sets.find(Stickers::CloudRecentSetId);
 	if (recentIt != sets.cend()) {
@@ -1228,15 +1264,7 @@ std::vector<not_null<DocumentData*>> Stickers::getPremiumList(uint64 seed) {
 			} else {
 				index = recent->stickers.indexOf(document);
 			}
-			const auto usageDate = (recent->dates.empty() || index < 0)
-				? 0
-				: recent->dates[index];
-			const auto date = usageDate
-				? usageDate
-				: RecentInstallDate(document);
-			result.push_back({
-				document,
-				date ? date : CreateRecentSortKey(document) });
+			AddRecentSticker(result, sets, recent, document, index, seed);
 		}
 	}
 	const auto addList = [&](
@@ -1263,9 +1291,9 @@ std::vector<not_null<DocumentData*>> Stickers::getPremiumList(uint64 seed) {
 				const auto date = (installDate > 1)
 					? InstallDateAdjusted(installDate, document)
 					: my
-					? CreateMySortKey(document)
-					: CreateFeaturedSortKey(document);
-				add(document, date);
+					? CreateMySortKey(document, myCounter)
+					: CreateFeaturedSortKey(document, seed);
+				AddStickerWithDate(result, document, date);
 			}
 		}
 	};
@@ -1297,66 +1325,12 @@ std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
 	}
 	const auto single = (all.size() == 1) ? all.front() : nullptr;
 
-	struct StickerWithDate {
-		not_null<DocumentData*> document;
-		TimeId date = 0;
-	};
 	auto result = std::vector<StickerWithDate>();
 	auto &sets = setsRef();
 	auto setsToRequest = base::flat_map<uint64, uint64>();
-
-	const auto add = [&](not_null<DocumentData*> document, TimeId date) {
-		if (ranges::find(result, document, [](const StickerWithDate &data) {
-			return data.document;
-		}) == result.end()) {
-			result.push_back({ document, date });
-		}
-	};
-
-	constexpr auto kSlice = 65536;
-	const auto CreateSortKey = [&](
-			not_null<DocumentData*> document,
-			int base) {
-		if (document->sticker() && document->sticker()->isAnimated()) {
-			base += kSlice;
-		}
-		return TimeId(base + int((document->id ^ seed) % kSlice));
-	};
-	const auto CreateRecentSortKey = [&](not_null<DocumentData*> document) {
-		return CreateSortKey(document, kSlice * 6);
-	};
 	auto myCounter = 0;
-	const auto CreateMySortKey = [&](not_null<DocumentData*> document) {
-		auto base = kSlice * 6;
-		if (!document->sticker() || !document->sticker()->isAnimated()) {
-			base -= kSlice;
-		}
-		return (base - (++myCounter));
-	};
-	const auto CreateFeaturedSortKey = [&](not_null<DocumentData*> document) {
-		return CreateSortKey(document, kSlice * 2);
-	};
 	const auto CreateOtherSortKey = [&](not_null<DocumentData*> document) {
-		return CreateSortKey(document, 0);
-	};
-	const auto InstallDateAdjusted = [&](
-			TimeId date,
-			not_null<DocumentData*> document) {
-		return (document->sticker() && document->sticker()->isAnimated())
-			? date
-			: date / 2;
-	};
-	const auto RecentInstallDate = [&](not_null<DocumentData*> document) {
-		Expects(document->sticker() != nullptr);
-
-		const auto sticker = document->sticker();
-		if (sticker->set.id) {
-			const auto setIt = sets.find(sticker->set.id);
-			if (setIt != sets.end()) {
-				return InstallDateAdjusted(setIt->second->installDate, document);
-			}
-		}
-		return TimeId(0);
+		return CreateSortKey(document, 0, seed);
 	};
 
 	auto recentIt = sets.find(Stickers::CloudRecentSetId);
@@ -1387,15 +1361,7 @@ std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
 				} else {
 					index = recent->stickers.indexOf(document);
 				}
-				const auto usageDate = (recent->dates.empty() || index < 0)
-					? 0
-					: recent->dates[index];
-				const auto date = usageDate
-					? usageDate
-					: RecentInstallDate(document);
-				result.push_back({
-					document,
-					date ? date : CreateRecentSortKey(document) });
+				AddRecentSticker(result, sets, recent, document, index, seed);
 			}
 		}
 	}
@@ -1438,9 +1404,9 @@ std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
 					const auto date = (installDate > 1)
 						? InstallDateAdjusted(installDate, document)
 						: my
-						? CreateMySortKey(document)
-						: CreateFeaturedSortKey(document);
-					add(document, date);
+						? CreateMySortKey(document, myCounter)
+						: CreateFeaturedSortKey(document, seed);
+					AddStickerWithDate(result, document, date);
 				}
 			}
 		}
@@ -1466,7 +1432,10 @@ std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
 		if (others) {
 			result.reserve(result.size() + others->size());
 			for (const auto &document : *others) {
-				add(document, CreateOtherSortKey(document));
+				AddStickerWithDate(
+					result,
+					document,
+					CreateOtherSortKey(document));
 			}
 		} else if (!forceAllResults) {
 			return {};
