@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_polls.h"
 
 #include "api/api_common.h"
+#include "api/api_sending.h"
 #include "api/api_statistics_data_deserialize.h"
 #include "api/api_text_entities.h"
 #include "api/api_updates.h"
@@ -23,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_statistics_chart.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/history_item_helpers.h" // ShouldSendSilent
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "styles/style_polls.h"
@@ -223,56 +223,16 @@ void Polls::create(
 		SendAction action,
 		Fn<void()> done,
 		Fn<void(bool fileReferenceExpired)> fail) {
-	StripEphemeralReply(_session, action.replyTo);
-	_session->api().sendAction(action);
-
+	auto starsPaid = 0;
+	auto sendFlags = PrepareSendMedia(_session, action, starsPaid);
 	const auto history = action.history;
 	const auto peer = history->peer;
 	const auto topicRootId = action.replyTo.messageId
 		? action.replyTo.topicRootId
 		: 0;
 	const auto monoforumPeerId = action.replyTo.monoforumPeerId;
-	auto sendFlags = MTPmessages_SendMedia::Flags(0);
-	if (action.replyTo) {
-		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to;
-	}
 	const auto clearCloudDraft = action.clearDraft;
-	if (clearCloudDraft) {
-		sendFlags |= MTPmessages_SendMedia::Flag::f_clear_draft;
-		history->clearLocalDraft(topicRootId, monoforumPeerId);
-		history->clearCloudDraft(topicRootId, monoforumPeerId);
-		history->startSavingCloudDraft(topicRootId, monoforumPeerId);
-	}
-	const auto silentPost = ShouldSendSilent(peer, action.options);
-	const auto starsPaid = std::min(
-		peer->starsPerMessageChecked(),
-		action.options.starsApproved);
-	if (silentPost) {
-		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
-	}
-	if (action.options.scheduled) {
-		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
-		if (action.options.scheduleRepeatPeriod) {
-			sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_repeat_period;
-		}
-	}
-	if (action.options.shortcutId) {
-		sendFlags |= MTPmessages_SendMedia::Flag::f_quick_reply_shortcut;
-	}
-	if (action.options.effectId) {
-		sendFlags |= MTPmessages_SendMedia::Flag::f_effect;
-	}
-	if (action.options.suggest) {
-		sendFlags |= MTPmessages_SendMedia::Flag::f_suggested_post;
-	}
-	if (starsPaid) {
-		action.options.starsApproved -= starsPaid;
-		sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
-	}
 	const auto sendAs = action.options.sendAs;
-	if (sendAs) {
-		sendFlags |= MTPmessages_SendMedia::Flag::f_send_as;
-	}
 	auto sentEntities = Api::EntitiesToMTP(
 		_session,
 		text.entities,
