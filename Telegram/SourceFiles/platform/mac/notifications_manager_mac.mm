@@ -483,12 +483,7 @@ void Manager::Private::clearAll() {
 }
 
 void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
-	clearTokens(_tokens.takeFromItem({ ContextId{
-		.sessionId = item->history()->session().uniqueId(),
-		.peerId = item->history()->peer->id,
-		.topicRootId = item->topicRootId(),
-		.monoforumPeerId = item->sublistPeerId(),
-	}, item->id }));
+	clearTokens(_tokens.takeFromItem({ ItemContextId(item), item->id }));
 }
 
 void Manager::Private::clearFromTopic(not_null<Data::ForumTopic*> topic) {
@@ -501,11 +496,7 @@ void Manager::Private::clearFromTopic(not_null<Data::ForumTopic*> topic) {
 
 void Manager::Private::clearFromSublist(
 		not_null<Data::SavedSublist*> sublist) {
-	clearTokens(_tokens.takeFromContext({
-		.sessionId = sublist->session().uniqueId(),
-		.peerId = sublist->owningHistory()->peer->id,
-		.monoforumPeerId = sublist->sublistPeer()->id,
-	}));
+	clearTokens(_tokens.takeFromContext(SublistContextId(sublist)));
 }
 
 void Manager::Private::clearFromHistory(not_null<History*> history) {

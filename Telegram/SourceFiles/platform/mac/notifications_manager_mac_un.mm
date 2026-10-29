@@ -481,12 +481,7 @@ void UNManager::Private::clearAll() {
 }
 
 void UNManager::Private::clearFromItem(not_null<HistoryItem*> item) {
-	const auto target = NotificationId{ ContextId{
-		.sessionId = item->history()->session().uniqueId(),
-		.peerId = item->history()->peer->id,
-		.topicRootId = item->topicRootId(),
-		.monoforumPeerId = item->sublistPeerId(),
-	}, item->id };
+	const auto target = NotificationId{ ItemContextId(item), item->id };
 	clearTokens(_tokens.takeFromItem(target));
 }
 
@@ -502,11 +497,7 @@ void UNManager::Private::clearFromTopic(
 
 void UNManager::Private::clearFromSublist(
 		not_null<Data::SavedSublist*> sublist) {
-	const auto target = ContextId{
-		.sessionId = sublist->session().uniqueId(),
-		.peerId = sublist->owningHistory()->peer->id,
-		.monoforumPeerId = sublist->sublistPeer()->id,
-	};
+	const auto target = SublistContextId(sublist);
 	clearTokens(_tokens.takeFromContext(target));
 }
 

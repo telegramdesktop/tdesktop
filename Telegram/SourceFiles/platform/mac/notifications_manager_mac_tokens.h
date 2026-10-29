@@ -40,7 +40,7 @@ private:
 		Fn<bool(const NotificationId &)> predicate);
 
 	std::unordered_map<uint64, NotificationId> _ids;
-	std::multimap<NotificationId, uint64> _tokensByItem;
+	std::map<NotificationId, uint64> _tokensByItem;
 
 };
 

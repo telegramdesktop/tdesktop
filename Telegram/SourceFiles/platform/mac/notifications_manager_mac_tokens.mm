@@ -14,36 +14,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform::Notifications {
 namespace {
 
-using ContextId = NotificationTokens::ContextId;
 using NotificationId = NotificationTokens::NotificationId;
 
 constexpr auto kMinMsgId = MsgId(std::numeric_limits<int64>::min());
 
 NSString *const kManagerKey = @"manager";
 NSString *const kTokenKey = @"token";
-
-[[nodiscard]] ContextId NormalizedContextId(const ContextId &context) {
-	return context.topicRootId
-		? ContextId{
-			.sessionId = context.sessionId,
-			.peerId = context.peerId,
-			.topicRootId = context.topicRootId,
-		}
-		: context.monoforumPeerId
-		? ContextId{
-			.sessionId = context.sessionId,
-			.peerId = context.peerId,
-			.monoforumPeerId = context.monoforumPeerId,
-		}
-		: ContextId{
-			.sessionId = context.sessionId,
-			.peerId = context.peerId,
-		};
-}
-
-[[nodiscard]] NotificationId ItemKey(const NotificationId &id) {
-	return { NormalizedContextId(id.contextId), id.msgId };
-}
 
 [[nodiscard]] NotificationId LowestKey(uint64 sessionId, PeerId peerId) {
 	return {
@@ -67,19 +43,16 @@ NSString *const kTokenKey = @"token";
 
 uint64 NotificationTokens::add(const NotificationId &notificationId) {
 	// An equal id keeps its token, so the system replaces its notification.
-	const auto key = ItemKey(notificationId);
-	const auto [from, till] = _tokensByItem.equal_range(key);
-	for (auto i = from; i != till; ++i) {
-		if (lookup(i->second) == notificationId) {
-			return i->second;
-		}
+	const auto i = _tokensByItem.find(notificationId);
+	if (i != end(_tokensByItem)) {
+		return i->second;
 	}
 	auto token = base::RandomValue<uint64>();
 	while (!token || _ids.contains(token)) {
 		token = base::RandomValue<uint64>();
 	}
 	_ids.emplace(token, notificationId);
-	_tokensByItem.emplace(key, token);
+	_tokensByItem.emplace(notificationId, token);
 	return token;
 }
 

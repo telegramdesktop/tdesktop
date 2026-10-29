@@ -572,12 +572,7 @@ void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
 		return;
 	}
 
-	auto i = _notifications.find(ContextId{
-		.sessionId = item->history()->session().uniqueId(),
-		.peerId = item->history()->peer->id,
-		.topicRootId = item->topicRootId(),
-		.monoforumPeerId = item->sublistPeerId(),
-	});
+	auto i = _notifications.find(ItemContextId(item));
 	if (i == _notifications.cend()) {
 		return;
 	}
@@ -619,11 +614,7 @@ void Manager::Private::clearFromSublist(
 		return;
 	}
 
-	const auto i = _notifications.find(ContextId{
-		.sessionId = sublist->session().uniqueId(),
-		.peerId = sublist->owningHistory()->peer->id,
-		.monoforumPeerId = sublist->sublistPeer()->id,
-	});
+	const auto i = _notifications.find(SublistContextId(sublist));
 	if (i != _notifications.cend()) {
 		const auto temp = base::take(i->second);
 		_notifications.erase(i);
