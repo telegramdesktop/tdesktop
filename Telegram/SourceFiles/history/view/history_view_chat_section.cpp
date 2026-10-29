@@ -1291,6 +1291,27 @@ void ChatWidget::closeCurrent() {
 	}
 }
 
+void ChatWidget::topicDestroyed() {
+	if (controller()->windowId().chat() == _topic) {
+		closeCurrent();
+		return;
+	}
+	const auto showing = Core::App().windowForShowingHistory(_peer);
+	if (_history->peer->useSubsectionTabs()
+		&& (!showing || showing == &controller()->window())
+		&& controller()->activeChatCurrent().thread() == _topic) {
+		auto params = Window::SectionShow(
+			Window::SectionShow::Way::ClearStack,
+			anim::type::instant,
+			anim::activation::background);
+		params.preferCurrentWindow = true;
+
+		controller()->showThread(_history, ShowAtUnreadMsgId, params);
+		return;
+	}
+	closeCurrent();
+}
+
 void ChatWidget::sublistDestroyed() {
 	const auto window = &controller()->window();
 	const auto id = controller()->windowId();
