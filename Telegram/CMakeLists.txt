@@ -2215,6 +2215,8 @@ PRIVATE
     ui/effects/message_sending_animation_common.h
     ui/effects/message_sending_animation_controller.cpp
     ui/effects/message_sending_animation_controller.h
+    ui/effects/message_sending_history.cpp
+    ui/effects/message_sending_history.h
     ui/effects/message_sending_text_flight.cpp
     ui/effects/message_sending_text_flight.h
     ui/effects/peer_qr_colors_panel.cpp

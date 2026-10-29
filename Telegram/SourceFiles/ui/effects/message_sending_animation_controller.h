@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/unique_qptr.h"
-#include "ui/effects/animation_value.h"
 #include "ui/effects/message_sending_animation_common.h"
 
 namespace HistoryView {
@@ -26,7 +25,7 @@ struct ChatPaintContext;
 
 struct MessageSendingReveal {
 	crl::time duration = 0;
-	anim::transition transition = anim::linear;
+	Fn<int(int height, int lift, float64 progress)> height;
 };
 
 class MessageSendingAnimationController final {

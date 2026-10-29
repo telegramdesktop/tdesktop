@@ -160,6 +160,25 @@ void ApplyTopFade(QImage &image, not_null<InputField*> field) {
 	return Premium::CubicBezier(0.25, 0.1, 0.25, 1., progress);
 }
 
+[[nodiscard]] int RevealHeight(
+		int height,
+		int lift,
+		int lead,
+		float64 progress) {
+	const auto rise = RiseProgress(progress);
+	if (lift <= 0) {
+		return anim::interpolate(height, 0, rise);
+	}
+	// WHY: the morph box's top closes its lead over the bubble on the fade,
+	// not on the rise, so that part of the lifted reveal follows the fade
+	// to keep the message above clear of the flying box.
+	const auto start = height - lift;
+	const auto follow = std::clamp(lead, 0, std::max(start, 0));
+	const auto fade = std::min(progress * kDuration / kFadeDuration, 1.);
+	return anim::interpolate(start - follow, 0, rise)
+		+ anim::interpolate(follow, 0, fade);
+}
+
 [[nodiscard]] QImage TransparentImage(QSize size) {
 	const auto ratio = style::DevicePixelRatio();
 	auto result = QImage(
@@ -635,15 +654,6 @@ auto MessageSendingTextFlight::Prepare(
 	return result;
 }
 
-MessageSendingReveal MessageSendingTextFlight::Reveal() {
-	return {
-		.duration = kDuration,
-		.transition = [](float64 delta, float64 dt) {
-			return delta * RiseProgress(dt);
-		},
-	};
-}
-
 MessageSendingTextFlight::MessageSendingTextFlight(
 	not_null<RpWidget*> parent,
 	Prepared &&prepared,
@@ -685,6 +695,16 @@ MessageSendingTextFlight::MessageSendingTextFlight(
 	_animation.start([=](float64 value) {
 		tick(value);
 	}, 0., 1., kDuration);
+}
+
+MessageSendingReveal MessageSendingTextFlight::reveal() const {
+	const auto lead = _morph ? (_morph->from.y() - _morph->bubble.y()) : 0;
+	return {
+		.duration = kDuration,
+		.height = [=](int height, int lift, float64 progress) {
+			return RevealHeight(height, lift, lead, progress);
+		},
+	};
 }
 
 rpl::producer<> MessageSendingTextFlight::destroyRequests() const {

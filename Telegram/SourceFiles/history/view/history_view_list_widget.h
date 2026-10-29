@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
+#include "ui/effects/message_sending_history.h"
 #include "ui/effects/thanos_effect_controller.h"
 #include "ui/dragging_scroll_manager.h"
 #include "ui/widgets/middle_click_autoscroll.h"
@@ -350,6 +351,7 @@ public:
 
 	void resizeToWidth(int newWidth, int minHeight);
 	void shiftScrollBaseline(int delta);
+	void liftItemReveal(not_null<HistoryItem*> item, int lift);
 
 	void saveState(not_null<ListMemento*> memento);
 	void restoreState(not_null<ListMemento*> memento);
@@ -665,10 +667,6 @@ private:
 			return !(*this == other);
 		}
 	};
-	struct ItemRevealAnimation {
-		Ui::Animations::Simple animation;
-		int startHeight = 0;
-	};
 	enum class Direction {
 		Up,
 		Down,
@@ -967,7 +965,8 @@ private:
 	base::flat_set<not_null<Element*>> _itemRevealPending;
 	base::flat_map<
 		not_null<Element*>,
-		ItemRevealAnimation> _itemRevealAnimations;
+		Ui::ItemRevealAnimation> _itemRevealAnimations;
+	Ui::ItemRevealLift _itemRevealLift;
 	int _itemsRevealHeight = 0;
 	rpl::event_stream<> _itemsRevealHeightChanges;
 	base::flat_set<not_null<const HistoryItem*>> _animatedStickersPlayed;

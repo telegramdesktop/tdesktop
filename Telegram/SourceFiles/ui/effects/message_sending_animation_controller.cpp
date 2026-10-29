@@ -524,8 +524,9 @@ auto MessageSendingAnimationController::startAnimation(
 			_processing.erase(item);
 		}, flight->lifetime());
 
+		auto reveal = flight->reveal();
 		_processing.emplace(item, std::move(flight));
-		return MessageSendingTextFlight::Reveal();
+		return reveal;
 	} else if (textFlightOnly
 		|| v::is<MessageSendingTextFlight::Refused>(prepared)) {
 		return std::nullopt;

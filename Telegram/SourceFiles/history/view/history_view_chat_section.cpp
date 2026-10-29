@@ -2650,6 +2650,7 @@ void ChatWidget::sendTextWithTags(
 	const auto hasText = !message.textWithTags.text.trimmed().isEmpty();
 
 	const auto field = _composeControls->fieldForMention();
+	auto wasScrollBottom = std::optional<int>();
 	if (field && hasText && message.webPage.url.isEmpty()) {
 		auto from = Ui::PrepareTextSending(
 			field,
@@ -2657,6 +2658,12 @@ void ChatWidget::sendTextWithTags(
 			nextLocalMessageId,
 			(options.scheduled != 0));
 		if (from) {
+			if (from->fieldText
+				&& !_scroll->isHidden()
+				&& _inner->loadedAtBottom()
+				&& _scroll->scrollTop() >= _scroll->scrollTopMax()) {
+				wasScrollBottom = _scroll->y() + _scroll->height();
+			}
 			controller()->sendingAnimation().appendSending(std::move(*from));
 		}
 	}
@@ -2679,6 +2686,13 @@ void ChatWidget::sendTextWithTags(
 	//onDraftSave();
 
 	finishSending(options);
+	if (wasScrollBottom) {
+		const auto lift = _scroll->y() + _scroll->height() - *wasScrollBottom;
+		const auto item = session().data().message(_peer, nextLocalMessageId);
+		if (item && lift > 0) {
+			_inner->liftItemReveal(item, lift);
+		}
+	}
 	if (done) {
 		done();
 	}

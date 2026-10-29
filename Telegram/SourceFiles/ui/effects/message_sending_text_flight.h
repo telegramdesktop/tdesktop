@@ -55,13 +55,13 @@ public:
 	[[nodiscard]] static Preparation Prepare(
 		const FieldText &source,
 		const SendingInfoTo &to);
-	[[nodiscard]] static MessageSendingReveal Reveal();
 
 	MessageSendingTextFlight(
 		not_null<RpWidget*> parent,
 		Prepared &&prepared,
 		SendingInfoTo &&to);
 
+	[[nodiscard]] MessageSendingReveal reveal() const;
 	[[nodiscard]] rpl::producer<> destroyRequests() const;
 
 protected:

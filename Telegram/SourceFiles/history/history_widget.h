@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_widget.h"
 #include "window/window_session_controller.h"
 #include "history/view/controls/history_view_bot_menu_button.h"
+#include "ui/effects/message_sending_history.h"
 #include "ui/widgets/fields/input_field.h"
 #include "mtproto/sender.h"
 
@@ -386,10 +387,6 @@ private:
 		Fn<void(std::vector<MsgId>)> callback;
 		bool active = false;
 	};
-	struct ItemRevealAnimation {
-		Ui::Animations::Simple animation;
-		int startHeight = 0;
-	};
 	enum class TextUpdateEvent {
 		SaveDraft = (1 << 0),
 		SendTyping = (1 << 1),
@@ -695,6 +692,7 @@ private:
 	void updateListSize();
 	void startItemRevealAnimations();
 	void revealItemsCallback();
+	void liftItemReveal(not_null<HistoryItem*> item, int lift);
 
 	std::optional<Ui::MessageSendingReveal> startMessageSendingAnimation(
 		not_null<HistoryItem*> item);
@@ -1022,7 +1020,7 @@ private:
 	base::flat_set<not_null<HistoryItem*>> _itemRevealPending;
 	base::flat_map<
 		not_null<HistoryItem*>,
-		ItemRevealAnimation> _itemRevealAnimations;
+		Ui::ItemRevealAnimation> _itemRevealAnimations;
 	int _itemsRevealHeight = 0;
 	rpl::event_stream<> _itemsRevealHeightChanges;
 
