@@ -689,6 +689,11 @@ private:
 	void updateSendRestriction();
 	[[nodiscard]] Data::SendError computeSendRestriction() const;
 	void updateHistoryGeometry(bool initial = false, bool loadedDown = false, const ScrollChange &change = { ScrollChangeNone, 0 });
+	struct ListRevealHold;
+	[[nodiscard]] bool holdListReveal();
+	void scheduleListReveal(not_null<ListRevealHold*> hold);
+	void finishListReveal(not_null<ListRevealHold*> hold);
+	void resumeListReveal();
 	void updateListSize();
 	void startItemRevealAnimations();
 	void revealItemsCallback();
@@ -882,6 +887,7 @@ private:
 	object_ptr<HistoryView::TopBarWidget> _topBar;
 	object_ptr<Ui::ElasticScroll> _scroll;
 	QPointer<HistoryInner> _list;
+	base::weak_ptr<ListRevealHold> _listRevealHold;
 	History *_migrated = nullptr;
 	History *_history = nullptr;
 	mutable base::weak_ptr<Data::ForumTopic> _creatingBotTopic;

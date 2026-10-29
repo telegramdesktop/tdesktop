@@ -136,7 +136,28 @@ constexpr auto kScrollDateHideOnDayCrossingTimeout = crl::time(3000);
 		|| (context == Context::WelcomeMessages);
 }
 
+[[nodiscard]] bool HasWithheldButtons(not_null<HistoryItem*> item) {
+	if (!item->hideLinks()) {
+		return false;
+	} else if (item->translatedRichPage()) {
+		return true;
+	} else if (!item->hideInlineKeyboard()) {
+		return false;
+	}
+	const auto markup = item->inlineReplyMarkup();
+	return !markup->inlineKeyboard && !markup->hiddenBy(item->media());
+}
+
 } // namespace
+
+struct ListWidget::FirstContentHold final : base::has_weak_ptr {
+	std::optional<Data::MessagesSlice> slice;
+	base::flat_set<not_null<PeerData*>> watched;
+	base::Timer timer;
+	rpl::lifetime lifetime;
+	uint64 generation = 0;
+	bool releasePending = false;
+};
 
 WindowListDelegate::WindowListDelegate(
 	not_null<Window::SessionController*> window)
@@ -770,15 +791,96 @@ not_null<ListDelegate*> ListWidget::delegate() const {
 void ListWidget::refreshViewer() {
 	_viewerLifetime.destroy();
 	_refreshingViewer = true;
+	const auto hold = _firstContentShown
+		? nullptr
+		: _viewerLifetime.make_state<FirstContentHold>();
+	if (hold) {
+		hold->timer.setCallback([=] {
+			scheduleFirstContentRelease(hold);
+		});
+	}
 	_delegate->listSource(
 		_aroundPosition,
 		_idsLimit,
 		_idsLimit
 	) | rpl::on_next([=](Data::MessagesSlice &&slice) {
-		_refreshingViewer = false;
-		std::swap(_slice, slice);
-		refreshRows(slice);
+		if (hold && !_firstContentShown) {
+			hold->slice = std::move(slice);
+			checkFirstContentHold(hold);
+		} else {
+			applyViewerSlice(std::move(slice));
+		}
 	}, _viewerLifetime);
+}
+
+void ListWidget::applyViewerSlice(Data::MessagesSlice &&slice) {
+	_refreshingViewer = false;
+	std::swap(_slice, slice);
+	refreshRows(slice);
+}
+
+void ListWidget::checkFirstContentHold(not_null<FirstContentHold*> hold) {
+	Expects(hold->slice.has_value());
+
+	if (hold->releasePending) {
+		return;
+	}
+	auto empty = true;
+	auto waitFor = base::flat_set<not_null<PeerData*>>();
+	for (const auto &id : hold->slice->ids) {
+		if (const auto item = session().data().message(id)) {
+			empty = false;
+			if (const auto peer = FirstRevealWaitPeer(item)) {
+				waitFor.emplace(peer);
+			}
+		}
+	}
+	const auto now = crl::now();
+	if (!waitFor.empty()) {
+		if (!_firstContentDeadline) {
+			_firstContentDeadline = now + kFirstRevealTimeout;
+		}
+		if (now < _firstContentDeadline) {
+			for (const auto &peer : waitFor) {
+				if (hold->watched.emplace(peer).second) {
+					peer->barSettingsValue(
+					) | rpl::to_empty | rpl::on_next([=] {
+						scheduleFirstContentRelease(hold);
+					}, hold->lifetime);
+				}
+			}
+			if (!hold->timer.isActive()) {
+				hold->timer.callOnce(_firstContentDeadline - now);
+			}
+			return;
+		}
+	}
+	if (!empty) {
+		_firstContentShown = true;
+		hold->timer.cancel();
+		hold->lifetime.destroy();
+	}
+	applyViewerSlice(*base::take(hold->slice));
+}
+
+void ListWidget::scheduleFirstContentRelease(
+		not_null<FirstContentHold*> hold) {
+	hold->releasePending = true;
+	const auto generation = ++hold->generation;
+	crl::on_main(hold, [=] {
+		if (hold->generation != generation) {
+			return;
+		}
+		crl::on_main(hold, [=] {
+			if (hold->generation != generation) {
+				return;
+			}
+			hold->releasePending = false;
+			if (hold->slice) {
+				checkFirstContentHold(hold);
+			}
+		});
+	});
 }
 
 void ListWidget::refreshRows(const Data::MessagesSlice &old) {
@@ -6885,6 +6987,30 @@ CopyRestrictionType SelectRestrictionTypeFor(
 			: CopyRestrictionTypeFor(peer);
 	}
 	return CopyRestrictionTypeFor(peer);
+}
+
+PeerData *FirstRevealWaitPeer(not_null<HistoryItem*> item) {
+	if (item->out()) {
+		return nullptr;
+	}
+	auto peer = item->history()->peer.get();
+	while (const auto to = peer->migrateTo()) {
+		peer = to;
+	}
+	if (peer->barSettings()) {
+		return nullptr;
+	} else if (HasWithheldButtons(item)) {
+		return peer;
+	}
+	const auto &groups = item->history()->owner().groups();
+	if (const auto group = groups.find(item)) {
+		for (const auto &member : group->items) {
+			if (HasWithheldButtons(member)) {
+				return peer;
+			}
+		}
+	}
+	return nullptr;
 }
 
 } // namespace HistoryView

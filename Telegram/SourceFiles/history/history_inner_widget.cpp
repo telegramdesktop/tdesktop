@@ -368,7 +368,7 @@ HistoryInner::HistoryInner(
 	not_null<Ui::ElasticScroll*> scroll,
 	not_null<Window::SessionController*> controller,
 	not_null<History*> history)
-: RpWidget(nullptr)
+: RpWidget(scroll)
 , _widget(historyWidget)
 , _scroll(scroll)
 , _controller(controller)
@@ -405,6 +405,7 @@ HistoryInner::HistoryInner(
 	[=] { return window()->isActiveWindow(); })
 , _scrollDateCheck([this] { scrollDateCheck(); })
 , _scrollDateHideTimer([this] { scrollDateHideByTimer(); }) {
+	hide();
 	_history->delegateMixin()->setCurrent(this);
 	if (_migrated) {
 		_migrated->delegateMixin()->setCurrent(this);
