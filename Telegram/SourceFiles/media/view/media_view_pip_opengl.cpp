@@ -630,20 +630,28 @@ void Pip::RendererGL::paintButton(
 
 auto Pip::RendererGL::ControlMeta(OverState control, int index)
 -> Control {
+	if (const auto result = FindControlMeta(control, index)) {
+		return *result;
+	}
+	Unexpected("Control value in Pip::RendererGL::ControlIndex.");
+}
+
+auto Pip::Renderer::FindControlMeta(OverState control, int index)
+-> std::optional<Control> {
 	Expects(index >= 0);
 
 	switch (control) {
-	case OverState::Close: Assert(index < 1); return {
+	case OverState::Close: Assert(index < 1); return Control{
 		0,
 		&st::pipCloseIcon,
 		&st::pipCloseIconOver,
 	};
-	case OverState::Enlarge: Assert(index < 1); return {
+	case OverState::Enlarge: Assert(index < 1); return Control{
 		1,
 		&st::pipEnlargeIcon,
 		&st::pipEnlargeIconOver,
 	};
-	case OverState::VolumeToggle: Assert(index < 3); return {
+	case OverState::VolumeToggle: Assert(index < 3); return Control{
 		(2 + index),
 		(index == 0
 			? &st::pipVolumeIcon0
@@ -656,13 +664,13 @@ auto Pip::RendererGL::ControlMeta(OverState control, int index)
 			? &st::pipVolumeIcon1Over
 			: &st::pipVolumeIcon2Over),
 	};
-	case OverState::Other: Assert(index < 2); return {
+	case OverState::Other: Assert(index < 2); return Control{
 		(5 + index),
 		(index ? &st::pipPauseIcon : &st::pipPlayIcon),
 		(index ? &st::pipPauseIconOver : &st::pipPlayIconOver),
 	};
 	}
-	Unexpected("Control value in Pip::RendererGL::ControlIndex.");
+	return std::nullopt;
 }
 
 void Pip::RendererGL::validateControls() {
@@ -678,6 +686,14 @@ void Pip::RendererGL::validateControls() {
 		ControlMeta(OverState::Other),
 		ControlMeta(OverState::Other, 1),
 	};
+	_controlsImage.setImage(
+		PrepareControlsImage(metas, _controlsTextures, _ifactor));
+}
+
+QImage Pip::Renderer::PrepareControlsImage(
+		std::initializer_list<Control> metas,
+		std::array<QRect, kControlsCount * 2> &textures,
+		int factor) {
 	auto maxWidth = 0;
 	auto fullHeight = 0;
 	for (const auto &meta : metas) {
@@ -686,19 +702,19 @@ void Pip::RendererGL::validateControls() {
 		fullHeight += 2 * meta.icon->height();
 	}
 	auto image = QImage(
-		QSize(maxWidth, fullHeight) * _ifactor,
+		QSize(maxWidth, fullHeight) * factor,
 		QImage::Format_ARGB32_Premultiplied);
 	image.fill(Qt::transparent);
-	image.setDevicePixelRatio(_ifactor);
+	image.setDevicePixelRatio(factor);
 	{
 		auto p = QPainter(&image);
 		auto index = 0;
 		auto height = 0;
 		const auto paint = [&](not_null<const style::icon*> icon) {
 			icon->paint(p, 0, height, maxWidth);
-			_controlsTextures[index++] = QRect(
-				QPoint(0, height) * _ifactor,
-				icon->size() * _ifactor);
+			textures[index++] = QRect(
+				QPoint(0, height) * factor,
+				icon->size() * factor);
 			height += icon->height();
 		};
 		for (const auto &meta : metas) {
@@ -706,7 +722,7 @@ void Pip::RendererGL::validateControls() {
 			paint(meta.iconOver);
 		}
 	}
-	_controlsImage.setImage(std::move(image));
+	return image;
 }
 
 void Pip::RendererGL::invalidateControls() {

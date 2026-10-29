@@ -54,12 +54,6 @@ public:
 	}
 
 private:
-	struct Control {
-		int index = -1;
-		not_null<const style::icon*> icon;
-		not_null<const style::icon*> iconOver;
-	};
-
 	void paintTransformedVideoFrame(ContentGeometry geometry) override;
 	void paintTransformedStaticContent(
 		const QImage &image,
@@ -166,7 +160,6 @@ private:
 	Ui::Rhi::Image _playbackImage;
 	Ui::Rhi::Image _volumeControllerImage;
 
-	static constexpr auto kControlsCount = 7;
 	static constexpr auto kMaxDraws = 12;
 	static constexpr auto kVertexSlotSize = 4 * 6 * sizeof(float);
 	std::array<QRect, kControlsCount * 2> _controlsTextures;

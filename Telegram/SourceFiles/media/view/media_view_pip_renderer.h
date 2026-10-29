@@ -32,6 +32,22 @@ public:
 	virtual void paintPlayback(QRect outer, float64 shown) = 0;
 	virtual void paintVolumeController(QRect outer, float64 shown) = 0;
 
+protected:
+	struct Control {
+		int index = -1;
+		not_null<const style::icon*> icon;
+		not_null<const style::icon*> iconOver;
+	};
+	static constexpr auto kControlsCount = 7;
+
+	[[nodiscard]] static std::optional<Control> FindControlMeta(
+		OverState control,
+		int index);
+	[[nodiscard]] static QImage PrepareControlsImage(
+		std::initializer_list<Control> metas,
+		std::array<QRect, kControlsCount * 2> &textures,
+		int factor);
+
 };
 
 } // namespace Media::View
