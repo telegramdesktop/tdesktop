@@ -171,7 +171,6 @@ private:
 	rpl::variable<bool> _backToggles;
 	rpl::event_stream<> _backClicks;
 	rpl::event_stream<> _showFinished;
-	rpl::variable<std::optional<QColor>> _topBarColor;
 
 	Ui::VisibleRange _visibleRange;
 

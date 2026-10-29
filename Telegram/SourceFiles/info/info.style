@@ -1342,9 +1342,6 @@ collectionSubTabs: SubTabs(defaultSubTabs) {
 earnTonIconSize: 16px;
 earnTonIconMargin: margins(0px, 2px, 0px, 0px);
 
-infoMusicButtonRipple: universalRippleAnimation;
-infoMusicButtonPadding: margins(16px, 6px, 13px, 6px);
-
 memberTagPillPadding: margins(5px, -1px, 5px, 0px);
 
 infoSecurityRiskIconSize: 16px;

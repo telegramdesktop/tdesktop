@@ -1349,6 +1349,8 @@ PRIVATE
     info/profile/info_profile_members_controllers.h
     info/profile/info_profile_phone_menu.cpp
     info/profile/info_profile_phone_menu.h
+    info/profile/info_profile_pills.cpp
+    info/profile/info_profile_pills.h
     info/profile/info_profile_qr_emoji.cpp
     info/profile/info_profile_qr_emoji.h
     info/profile/info_profile_qr_gifts.cpp
@@ -1397,7 +1399,6 @@ PRIVATE
     info/reactions_list/info_reactions_list_widget.h
     info/requests_list/info_requests_list_widget.cpp
     info/requests_list/info_requests_list_widget.h
-    info/saved/info_saved_music_common.cpp
     info/saved/info_saved_music_common.h
     info/saved/info_saved_music_provider.cpp
     info/saved/info_saved_music_provider.h

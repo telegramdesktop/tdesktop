@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "boxes/share_box.h"
 #include "data/data_peer.h"
-#include "data/data_saved_music.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_user.h"
@@ -25,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_top_bar.h"
 #include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_widget.h"
-#include "info/saved/info_saved_music_common.h"
+#include "info/saved/info_saved_music_widget.h"
 #include "info/stories/info_stories_albums.h"
 #include "info/stories/info_stories_widget.h"
 #include "info/info_controller.h"
@@ -303,12 +302,6 @@ void InnerWidget::startTop() {
 void InnerWidget::createProfileTop() {
 	startTop();
 
-	Info::Saved::SetupSavedMusic(
-		_top,
-		_controller,
-		_peer,
-		_topBarColor.value());
-
 	using namespace Profile;
 	auto stack = SectionStack(_top);
 	BuildProfileDetailsSections(
@@ -530,10 +523,12 @@ base::weak_qptr<Ui::RpWidget> InnerWidget::createPinnedToTop(
 			.peer = _peer,
 			.backToggles = _backToggles.value(),
 			.showFinished = _showFinished.events(),
+			.showSavedMusic = [controller = _controller, peer = _peer] {
+				controller->showSection(Info::Saved::MakeMusic(peer));
+			},
 		});
 	content->backRequest(
 	) | rpl::start_to_stream(_backClicks, content->lifetime());
-	_topBarColor = content->edgeColor();
 	return base::make_weak(not_null<Ui::RpWidget*>{ content });
 }
 
