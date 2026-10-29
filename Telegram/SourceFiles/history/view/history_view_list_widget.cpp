@@ -2762,6 +2762,9 @@ auto ListWidget::startMessageSendingAnimation(
 	if (elementChatMode() == HistoryView::ElementChatMode::Default
 		&& width() > st::columnMaximalWidthLeft
 		&& !item->media()) {
+		if (const auto sending = _delegate->listSendingAnimation()) {
+			sending->dropPendingSnapshot(item);
+		}
 		return std::nullopt;
 	}
 	const auto sendingAnimation = _delegate->listSendingAnimation();

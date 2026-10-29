@@ -22,6 +22,9 @@ class InputField;
 	not_null<InputField*> field,
 	const TextWithTags &sending)
 -> std::optional<MessageSendingAnimationFrom::FieldText>;
+[[nodiscard]] base::unique_qptr<RpWidget> ShowSendingFieldText(
+	not_null<RpWidget*> parent,
+	const MessageSendingAnimationFrom::FieldText &source);
 
 class MessageSendingTextFlight final : public RpWidget {
 public:

@@ -447,6 +447,16 @@ MessageSendingAnimationController::MessageSendingAnimationController(
 	not_null<Window::SessionController*> controller)
 : _controller(controller) {
 	subscribeToDestructions();
+
+	_controller->session().data().newItemAdded(
+	) | rpl::on_next([=](not_null<HistoryItem*> item) {
+		const auto i = _itemSendPending.find(item->id);
+		if ((i != end(_itemSendPending)) && i->second.from.fieldText) {
+			i->second.snapshot = ShowSendingFieldText(
+				_controller->content(),
+				*i->second.from.fieldText);
+		}
+	}, _lifetime);
 }
 
 void MessageSendingAnimationController::subscribeToDestructions() {
@@ -468,7 +478,7 @@ void MessageSendingAnimationController::appendSending(
 		return;
 	}
 	if (from.localId) {
-		_itemSendPending[*from.localId] = std::move(from);
+		_itemSendPending[*from.localId].from = std::move(from);
 	}
 }
 
@@ -478,6 +488,7 @@ auto MessageSendingAnimationController::startAnimation(
 -> std::optional<MessageSendingReveal> {
 	if (anim::Disabled()
 		|| PowerSaving::On(PowerSaving::Flag::kChatEffects)) {
+		dropPendingSnapshot(target.view()->data());
 		return std::nullopt;
 	}
 	auto to = TrackTarget(std::move(target));
@@ -489,7 +500,8 @@ auto MessageSendingAnimationController::startAnimation(
 	if (it == end(_itemSendPending)) {
 		return std::nullopt;
 	}
-	auto from = std::move(it->second);
+	// The snapshot lives until return, so the text never blinks out.
+	auto [from, snapshot] = std::move(it->second);
 	_itemSendPending.erase(it);
 
 	if (view->isolatedEmoji() || view->onlyCustomEmoji()) {
@@ -542,9 +554,18 @@ void MessageSendingAnimationController::startPendingTextFlights(
 	for (const auto &view : views) {
 		const auto item = view->data();
 		const auto i = _itemSendPending.find(item->id);
-		if ((i != end(_itemSendPending)) && i->second.fieldText) {
+		if ((i != end(_itemSendPending)) && i->second.from.fieldText) {
 			start(item);
 		}
+	}
+}
+
+void MessageSendingAnimationController::dropPendingSnapshot(
+		not_null<HistoryItem*> item) {
+	const auto i = _itemSendPending.find(item->id);
+	if (i != end(_itemSendPending)) {
+		i->second.from.fieldText = std::nullopt;
+		i->second.snapshot = nullptr;
 	}
 }
 
@@ -559,7 +580,7 @@ bool MessageSendingAnimationController::checkExpectedType(
 	if (it == end(_itemSendPending)) {
 		return false;
 	}
-	const auto type = it->second.type;
+	const auto type = it->second.from.type;
 	const auto isSticker = type == MessageSendingAnimationFrom::Type::Sticker;
 	const auto isGif = type == MessageSendingAnimationFrom::Type::Gif;
 	const auto isText = type == MessageSendingAnimationFrom::Type::Text;

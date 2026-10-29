@@ -99,6 +99,10 @@ struct InkCrop {
 	return capturedAt + kGiveUpTimeout * anim::SlowMultiplier();
 }
 
+[[nodiscard]] crl::time StartDeadline(crl::time capturedAt) {
+	return GiveUpDeadline(capturedAt) - kDuration * anim::SlowMultiplier();
+}
+
 [[nodiscard]] float64 RiseProgress(float64 progress) {
 	return Premium::CubicBezier(0.25, 0.1, 0.25, 1., progress);
 }
@@ -196,17 +200,39 @@ auto GrabSendingFieldText(
 	};
 }
 
+base::unique_qptr<RpWidget> ShowSendingFieldText(
+		not_null<RpWidget*> parent,
+		const MessageSendingAnimationFrom::FieldText &source) {
+	auto result = base::make_unique_q<RpWidget>(parent);
+	const auto raw = result.get();
+	raw->setAttribute(Qt::WA_TransparentForMouseEvents);
+	raw->setGeometry(QRect(
+		parent->mapFromGlobal(source.globalGeometry.topLeft()),
+		source.globalGeometry.size()));
+	raw->paintRequest() | rpl::on_next([=, frame = source.frame] {
+		auto p = QPainter(raw);
+		p.drawImage(0, 0, frame);
+	}, raw->lifetime());
+	const auto giveUp = raw->lifetime().make_state<base::Timer>([=] {
+		raw->hide();
+	});
+	const auto left = StartDeadline(source.capturedAt) - crl::now();
+	giveUp->callOnce(std::max(left, crl::time()), Qt::PreciseTimer);
+	raw->show();
+	raw->raise();
+	return result;
+}
+
 auto MessageSendingTextFlight::Prepare(
 		const FieldText &source,
 		const SendingInfoTo &to)
 -> std::optional<Prepared> {
 	const auto view = to.view();
 	const auto textItem = view ? view->textItem() : nullptr;
-	const auto left = GiveUpDeadline(source.capturedAt) - crl::now();
 	if (!textItem
 		|| source.frame.isNull()
 		|| source.globalGeometry.isEmpty()
-		|| (left < kDuration * anim::SlowMultiplier())
+		|| (crl::now() > StartDeadline(source.capturedAt))
 		|| !view->hasBubble()
 		|| !view->hasVisibleText()
 		|| view->media()
