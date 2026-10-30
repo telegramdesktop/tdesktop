@@ -22,6 +22,13 @@ struct StoryDraftEdits {
 	QRect canvasMediaRect;
 };
 
+struct StoryDraftVideo {
+	QRectF rect;
+	float64 scale = 1.;
+	float64 rotation = 0.;
+	float64 volume = 1.;
+};
+
 struct StoryDraft {
 	uint64 id = 0;
 	TimeId date = 0;
@@ -33,6 +40,8 @@ struct StoryDraft {
 	TextWithTags caption;
 	int period = 0;
 	StoryDraftEdits edits;
+	StoryDraftVideo videoPlacement;
+	QString stillPath;
 	QImage thumbnail;
 };
 
@@ -61,6 +70,7 @@ private:
 	[[nodiscard]] QString storeMedia(
 		uint64 id,
 		const StoryDraftMedia &media) const;
+	[[nodiscard]] QString storeStill(uint64 id, const QImage &still) const;
 
 	const not_null<Main::Session*> _session;
 	std::vector<StoryDraft> _list;

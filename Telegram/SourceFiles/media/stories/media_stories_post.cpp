@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor.h"
 #include "editor/photo_editor_common.h"
 #include "editor/scene/scene.h"
+#include "editor/scene/scene_item_video.h"
 #include "info/channel_statistics/boosts/info_boosts_widget.h"
 #include "info/info_memento.h"
 #include "lang/lang_keys.h"
@@ -226,7 +227,8 @@ void SetupStoryEditorClose(
 [[nodiscard]] QImage ComposeStoryPhoto(
 		const QImage &image,
 		const Media::Encode::CanvasBackground &background,
-		const Editor::PhotoModifications &mods) {
+		const Editor::PhotoModifications &mods,
+		bool withPaint = true) {
 	auto media = image;
 	if (mods.angle || mods.flipped) {
 		auto transform = QTransform();
@@ -244,7 +246,7 @@ void SetupStoryEditorClose(
 		canvas,
 		background,
 		mods.canvasMediaRect);
-	if (mods.paint) {
+	if (withPaint && mods.paint) {
 		auto paint = Editor::PhotoModifications();
 		paint.paint = mods.paint;
 		result = Editor::ImageModified(std::move(result), paint);
@@ -319,6 +321,79 @@ void SetupStoryEditorClose(
 		: Editor::StoryAreas();
 }
 
+[[nodiscard]] Editor::StoryVideoObject VideoObjectFromScene(
+		const std::shared_ptr<Editor::Scene> &scene,
+		QRectF &rect) {
+	if (!scene) {
+		return {};
+	}
+	for (const auto &item : scene->items()) {
+		const auto clip = item->videoClip();
+		if (!clip || !item->isNormalStatus()) {
+			continue;
+		}
+		const auto base = static_cast<Editor::ItemBase*>(item.get());
+		const auto &source = *clip->source();
+		const auto placement = base->placement();
+		const auto width = placement.size;
+		const auto height = width * placement.aspectRatio;
+		const auto &position = placement.position;
+		rect = QRectF(
+			position.x() - width / 2.,
+			position.y() - height / 2.,
+			width,
+			height);
+		return {
+			.path = source.path,
+			.content = source.content,
+			.thumbnail = source.thumbnail,
+			.duration = clip->duration(),
+			.hasAudio = clip->hasAudio(),
+			.scale = placement.scale,
+			.rotation = placement.rotation,
+			.from = clip->trim().from,
+			.till = clip->trim().till,
+			.volume = clip->volume(),
+			.flipped = base->flipped(),
+		};
+	}
+	return {};
+}
+
+[[nodiscard]] QImage StillFromScene(
+		const QImage &image,
+		const Media::Encode::CanvasBackground &background,
+		const Editor::PhotoModifications &mods) {
+	if (!mods.paint) {
+		return QImage();
+	}
+	const auto hasStatic = ranges::any_of(
+		mods.paint->items(),
+		[](const auto &item) {
+			return item->isNormalStatus() && !item->videoClip();
+		});
+	if (!hasStatic) {
+		return QImage();
+	}
+	auto hidden = std::vector<QGraphicsItem *>();
+	for (const auto &item : mods.paint->items()) {
+		if (item->videoClip() && item->isVisible()) {
+			item->setVisible(false);
+			hidden.push_back(item.get());
+		}
+	}
+	auto still = ComposeStoryPhoto(image, background, mods, false);
+	if (!hidden.empty()) {
+		auto paintOnly = Editor::PhotoModifications();
+		paintOnly.paint = mods.paint;
+		still = Editor::ImageModified(std::move(still), paintOnly);
+	}
+	for (const auto item : hidden) {
+		item->setVisible(true);
+	}
+	return still;
+}
+
 [[nodiscard]] bool AcceptableStoryFile(const Ui::PreparedFile &file) {
 	using Type = Ui::PreparedFile::Type;
 	return (file.type == Type::Photo)
@@ -373,6 +448,8 @@ void OpenStoryPhotoEditor(
 	SetupStoryEditorClose(controller, not_null(raw), setup, close, [=] {
 		const auto mods = raw->collect();
 		const auto painted = mods.paint && !mods.paint->items().empty();
+		auto videoRect = QRectF();
+		const auto video = VideoObjectFromScene(mods.paint, videoRect);
 		const auto composed = ComposeStoryPhoto(image, background, mods);
 		auto draft = Data::StoryDraft{
 			.id = setup.draftId,
@@ -382,7 +459,25 @@ void OpenStoryPhotoEditor(
 			.thumbnail = DraftThumbnail(composed),
 		};
 		auto media = Data::StoryDraftMedia();
-		if (painted) {
+		if (!video.empty()) {
+			draft.video = true;
+			draft.dimensions = video.thumbnail.size();
+			draft.duration = video.duration;
+			draft.edits = {
+				.flipped = video.flipped,
+				.from = video.from,
+				.till = video.till,
+			};
+			draft.videoPlacement = {
+				.rect = videoRect,
+				.scale = video.scale,
+				.rotation = video.rotation,
+				.volume = video.volume,
+			};
+			media.photo = StillFromScene(image, background, mods);
+			media.videoPath = video.path;
+			media.videoContent = video.content;
+		} else if (painted) {
 			media.photo = composed;
 		} else {
 			media.photo = image;
@@ -392,7 +487,9 @@ void OpenStoryPhotoEditor(
 				.canvasMediaRect = mods.canvasMediaRect,
 			};
 		}
-		draft.dimensions = media.photo.size();
+		if (!draft.video) {
+			draft.dimensions = media.photo.size();
+		}
 		SaveStoryDraft(controller, std::move(draft), media, close);
 	});
 	raw->doneRequests(
@@ -678,9 +775,17 @@ void PostStoryDraft(
 			return;
 		}
 		const auto probed = Storage::ReadPhotoEditorMedia(draft.mediaPath, {});
+		auto canvas = EmptyStoryCanvas();
+		if (!draft.stillPath.isEmpty()) {
+			auto still = QImage(draft.stillPath);
+			if (!still.isNull()) {
+				canvas = std::move(still);
+			}
+		}
+		const auto &placement = draft.videoPlacement;
 		OpenStoryPhotoEditor(
 			controller,
-			EmptyStoryCanvas(),
+			std::move(canvas),
 			{},
 			setup,
 			{
@@ -694,9 +799,15 @@ void PostStoryDraft(
 					? probed.videoDuration
 					: draft.duration),
 				.hasAudio = probed.videoHasAudio,
-				.rotation = float64(edits.angle),
+				.position = placement.rect.isEmpty()
+					? QPointF()
+					: placement.rect.center(),
+				.size = placement.rect.width(),
+				.scale = placement.scale,
+				.rotation = placement.rotation,
 				.from = edits.from,
 				.till = edits.till,
+				.volume = placement.volume,
 				.flipped = edits.flipped,
 			},
 			done);

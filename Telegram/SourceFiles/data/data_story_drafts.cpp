@@ -72,6 +72,7 @@ template <typename Write>
 [[nodiscard]] QJsonObject Serialize(const StoryDraft &draft) {
 	const auto &edits = draft.edits;
 	const auto &rect = edits.canvasMediaRect;
+	const auto &video = draft.videoPlacement;
 	return QJsonObject{
 		{ u"id"_q, QString::number(draft.id) },
 		{ u"date"_q, qint64(draft.date) },
@@ -96,6 +97,16 @@ template <typename Write>
 				rect.height(),
 			} },
 		} },
+		{ u"still"_q, QFileInfo(draft.stillPath).fileName() },
+		{ u"vrect"_q, QJsonArray{
+			video.rect.x(),
+			video.rect.y(),
+			video.rect.width(),
+			video.rect.height(),
+		} },
+		{ u"vscale"_q, video.scale },
+		{ u"vrot"_q, video.rotation },
+		{ u"vol"_q, video.volume },
 	};
 }
 
@@ -132,6 +143,22 @@ template <typename Write>
 			canvas[2].toInt(),
 			canvas[3].toInt());
 	}
+	result.stillPath = folder + object[u"still"_q].toString();
+	if (!QFile::exists(result.stillPath)) {
+		result.stillPath = QString();
+	}
+	auto &video = result.videoPlacement;
+	const auto vrect = object[u"vrect"_q].toArray();
+	if (vrect.size() == 4) {
+		video.rect = QRectF(
+			vrect[0].toDouble(),
+			vrect[1].toDouble(),
+			vrect[2].toDouble(),
+			vrect[3].toDouble());
+	}
+	video.scale = object[u"vscale"_q].toDouble(1.);
+	video.rotation = object[u"vrot"_q].toDouble();
+	video.volume = object[u"vol"_q].toDouble(1.);
 	if (!QFile::exists(result.mediaPath)) {
 		return std::nullopt;
 	}
@@ -199,6 +226,20 @@ uint64 StoryDrafts::save(StoryDraft draft, const StoryDraftMedia &media) {
 		return 0;
 	}
 
+	const auto isVideo = !media.videoPath.isEmpty()
+		|| !media.videoContent.isEmpty();
+	auto stillPath = QString();
+	if (isVideo && !media.photo.isNull()) {
+		stillPath = storeStill(draft.id, media.photo);
+		if (stillPath.isEmpty()) {
+			return 0;
+		}
+	}
+	if (replacing && (existing->stillPath != stillPath)) {
+		QFile::remove(existing->stillPath);
+	}
+	draft.stillPath = stillPath;
+
 	const auto thumbnail = ThumbnailPath(folder(), draft.id);
 	if (!draft.thumbnail.isNull()) {
 		draft.thumbnail.save(thumbnail, "JPG", kThumbnailQuality);
@@ -224,6 +265,7 @@ void StoryDrafts::remove(uint64 id) {
 		return;
 	}
 	QFile::remove(i->mediaPath);
+	QFile::remove(i->stillPath);
 	QFile::remove(ThumbnailPath(folder(), id));
 	_list.erase(i);
 	write();
@@ -273,7 +315,9 @@ QString StoryDrafts::storeMedia(
 		uint64 id,
 		const StoryDraftMedia &media) const {
 	const auto base = folder() + QString::number(id);
-	if (!media.photo.isNull()) {
+	const auto isVideo = !media.videoPath.isEmpty()
+		|| !media.videoContent.isEmpty();
+	if (!isVideo) {
 		const auto alpha = media.photo.hasAlphaChannel();
 		const auto path = base + (alpha ? u".png"_q : u".jpg"_q);
 		return ReplaceFile(path, [&](const QString &temp) {
@@ -294,6 +338,18 @@ QString StoryDrafts::storeMedia(
 		auto file = QFile(temp);
 		return file.open(QIODevice::WriteOnly)
 			&& (file.write(media.videoContent) == media.videoContent.size());
+	});
+}
+
+QString StoryDrafts::storeStill(uint64 id, const QImage &still) const {
+	const auto alpha = still.hasAlphaChannel();
+	const auto path = folder() + QString::number(id)
+		+ u"_still."_q
+		+ (alpha ? u"png"_q : u"jpg"_q);
+	return ReplaceFile(path, [&](const QString &temp) {
+		return alpha
+			? still.save(temp, "PNG")
+			: still.save(temp, "JPG", kPhotoQuality);
 	});
 }
 
