@@ -4430,12 +4430,9 @@ void Message::ensureFromNameStatusLink(not_null<PeerData*> peer) const {
 }
 
 EmojiStatusId Message::fromNameStatusId(not_null<PeerData*> from) const {
-	const auto id = from->emojiStatusId();
-	if (id && data()->hideLinks()) {
-		data()->setHasHiddenLinks(true);
-		return EmojiStatusId();
-	}
-	return from->hideEmojiStatus() ? EmojiStatusId() : id;
+	return (data()->hideLinks() || from->hideEmojiStatus())
+		? EmojiStatusId()
+		: from->emojiStatusId();
 }
 
 bool Message::getStateTopicButton(

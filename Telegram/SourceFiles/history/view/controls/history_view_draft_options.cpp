@@ -239,6 +239,11 @@ PreviewWrap::PreviewWrap(
 		}
 	}, lifetime());
 
+	session->data().peerDecorationsUpdated(
+	) | rpl::on_next([=] {
+		update();
+	}, lifetime());
+
 	session->data().viewResizeRequest(
 	) | rpl::on_next([=](not_null<Element*> view) {
 		if (_rich && _views.contains(view)) {

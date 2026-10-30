@@ -165,6 +165,11 @@ MessageRenderer::MessageRenderer(std::shared_ptr<MessageSource> source)
 		}
 	}, _lifetime);
 
+	data->peerDecorationsUpdated(
+	) | rpl::on_next([=] {
+		repaint();
+	}, _lifetime);
+
 	session->downloaderTaskFinished(
 	) | rpl::on_next([=] {
 		repaint();
