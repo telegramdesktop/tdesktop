@@ -33,7 +33,8 @@ constexpr auto kTailBigRotation = -42.29;
 constexpr auto kTailSmallRotation = -40.87;
 constexpr auto kReactionSize = 0.7;
 constexpr auto kTailExtent = 0.12;
-constexpr auto kIconSide = 256;
+constexpr auto kBackgroundCacheSide = 600.;
+constexpr auto kIconSide = 512;
 constexpr auto kClickSlop = 10.;
 
 [[nodiscard]] DocumentData *ReactionDocument(
@@ -101,7 +102,7 @@ void ItemReaction::setDark(bool dark) {
 		return;
 	}
 	_dark = dark;
-	_backgroundFor = 0.;
+	_backgroundReady = false;
 	update();
 }
 
@@ -149,8 +150,9 @@ QRectF ItemReaction::boundingRect() const {
 		extent);
 }
 
-void ItemReaction::cacheBackground(float64 bubble) {
+void ItemReaction::cacheBackground() {
 	const auto ratio = style::DevicePixelRatio();
+	const auto bubble = kBackgroundCacheSide / (1. + 2 * kTailExtent);
 	const auto extent = bubble * kTailExtent;
 	const auto side = int(std::ceil(bubble + 2 * extent));
 	_background = QImage(
@@ -199,7 +201,7 @@ void ItemReaction::cacheBackground(float64 bubble) {
 		_background = Images::Blur(std::move(_background), true);
 	}
 	paintShape(_dark ? dark : QColor(255, 255, 255));
-	_backgroundFor = bubble;
+	_backgroundReady = true;
 }
 
 void ItemReaction::paint(
@@ -209,9 +211,10 @@ void ItemReaction::paint(
 	const auto rect = contentRect();
 	const auto bubble = rect.width();
 	if (bubble > 0.) {
-		if (_backgroundFor != bubble) {
-			cacheBackground(bubble);
+		if (!_backgroundReady) {
+			cacheBackground();
 		}
+		auto hq = PainterHighQualityEnabler(*p);
 		const auto extent = bubble * kTailExtent;
 		p->drawImage(
 			rect.adjusted(-extent, -extent, extent, extent),
@@ -239,7 +242,7 @@ void ItemReaction::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 
 void ItemReaction::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
 	ItemBase::mouseReleaseEvent(event);
-		const auto moved = (event->scenePos() - _pressPosition).manhattanLength();
+	const auto moved = (event->scenePos() - _pressPosition).manhattanLength();
 	if (_pressedSelected
 		&& (event->button() == Qt::LeftButton)
 		&& (moved < kClickSlop)) {
@@ -260,7 +263,7 @@ void ItemReaction::requestPick() {
 }
 
 void ItemReaction::performFlip() {
-	_backgroundFor = 0.;
+	_backgroundReady = false;
 	update();
 }
 

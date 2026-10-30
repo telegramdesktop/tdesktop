@@ -60,7 +60,7 @@ protected:
 private:
 	void updateIcon();
 	[[nodiscard]] bool createIcon();
-	void cacheBackground(float64 bubble);
+	void cacheBackground();
 	void requestPick();
 
 	const not_null<Main::Session*> _session;
@@ -69,7 +69,7 @@ private:
 	std::unique_ptr<Ui::AnimatedIcon> _icon;
 	rpl::lifetime _loadingLifetime;
 	QImage _background;
-	float64 _backgroundFor = 0.;
+	bool _backgroundReady = false;
 	QPointF _pressPosition;
 	bool _pressedSelected = false;
 	bool _dark = false;
