@@ -19,12 +19,15 @@ namespace {
 constexpr auto kIndexVersion = quint32(2);
 constexpr auto kRecordVersion = quint32(1);
 constexpr auto kQuota = uint64(twidget::sdk::STORAGE_QUOTA_BYTES);
-constexpr auto kMaxPairs = kQuota + 1;
+// WHY: records saved under the old 16 KB quota must still parse, so
+// their first read retires them instead of failing at every start.
+constexpr auto kMaxStoredBytes = std::max(kQuota, uint64(16384));
+constexpr auto kMaxPairs = kMaxStoredBytes + 1;
 constexpr auto kPairSize = uint64(2 * sizeof(quint32));
 constexpr auto kRecordHeaderSize = uint64(2 * sizeof(quint32));
 constexpr auto kMaxRecordSize = kRecordHeaderSize
 	+ kMaxPairs * kPairSize
-	+ kQuota;
+	+ kMaxStoredBytes;
 constexpr auto kIndexHeaderSize = uint64(
 	2 * sizeof(quint32) + sizeof(quint64));
 constexpr auto kIndexEntrySizeV1 = uint64(
@@ -90,7 +93,7 @@ using namespace Storage::details;
 		return std::nullopt;
 	}
 	auto result = StorageDisk::Area();
-	auto left = kQuota;
+	auto left = kMaxStoredBytes;
 	for (auto i = quint32(); i != count; ++i) {
 		auto key = ReadBytes(file.stream, left);
 		auto value = key ? ReadBytes(file.stream, left) : std::nullopt;
@@ -152,7 +155,7 @@ std::optional<StorageMeta> StorageDisk::lookup(FullMsgId key) const {
 	return i->second.meta;
 }
 
-std::optional<StorageDisk::Area> StorageDisk::read(FullMsgId key) const {
+std::optional<StorageDisk::Area> StorageDisk::read(FullMsgId key) {
 	const auto i = _entries.find(key);
 	if (i == end(_entries) || !i->second.file) {
 		return std::nullopt;
@@ -164,8 +167,18 @@ std::optional<StorageDisk::Area> StorageDisk::read(FullMsgId key) const {
 	if (!result) {
 		LOG(("Tgw Error: Could not read a widget storage record."));
 		return Area();
+	} else if (twidget::sdk::storageAreaFits(*result)) {
+		return result;
 	}
-	return result;
+	auto paths = std::vector<QString>();
+	AppendRecordPaths(paths, _folder, base::take(i->second.file));
+	if (i->second.height.height <= 0.) {
+		_entries.erase(i);
+	}
+	ScheduleRemoveFiles(std::move(paths));
+	writeIndex();
+	LOG(("Tgw dropped a widget storage record over the quota."));
+	return std::nullopt;
 }
 
 std::optional<HeightRecord> StorageDisk::height(FullMsgId key) const {

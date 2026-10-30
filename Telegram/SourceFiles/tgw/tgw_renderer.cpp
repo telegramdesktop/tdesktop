@@ -227,10 +227,14 @@ private:
 }
 
 [[nodiscard]] twidget::WidgetGestureClaim GestureClaim(
-		const twidget::Json &message) {
+		const std::vector<twidget::Json> &out) {
+	const auto i = ranges::find_if(out, OfType("gesture"));
+	if (i == end(out)) {
+		return {};
+	}
 	return {
-		.x = message["x"].asBool(),
-		.hold = message["hold"].asBool(),
+		.x = (*i)["x"].asBool(),
+		.hold = (*i)["hold"].asBool(),
 	};
 }
 
@@ -631,7 +635,6 @@ void RendererCore::pointerPress(QPointF point, int modifiers) {
 	const auto hit = elementAt(point);
 	const auto wasDirty = _renderer->dirty();
 	auto out = Touch(*_renderer, kTouchDown, point, modifiers);
-	out.erase(ranges::remove_if(out, OfType("gesture")), end(out));
 	holdPointer(point, hit, false);
 	inputDone(out, wasDirty);
 }
@@ -679,7 +682,7 @@ bool RendererCore::menuPress(QPointF point, int modifiers) {
 		modifiers,
 		kMousePointer,
 		kSecondaryButton);
-	const auto claim = GestureClaim(TakeMessage(out, "gesture"));
+	const auto claim = GestureClaim(out);
 	const auto verdict = twidget::GestureArbiter().down(
 		double(crl::now()),
 		point.x(),
@@ -711,7 +714,7 @@ std::optional<twidget::WidgetGestureClaim> RendererCore::fingerPress(
 	}
 	const auto wasDirty = _renderer->dirty();
 	auto out = Touch(*_renderer, kTouchDown, point, modifiers, kFingerPointer);
-	const auto claim = GestureClaim(TakeMessage(out, "gesture"));
+	const auto claim = GestureClaim(out);
 	_finger = { .position = point, .pressed = true };
 	inputDone(out, wasDirty);
 	return claim;

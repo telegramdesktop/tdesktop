@@ -39,7 +39,7 @@ public:
 
 	[[nodiscard]] bool empty() const;
 	[[nodiscard]] std::optional<StorageMeta> lookup(FullMsgId key) const;
-	[[nodiscard]] std::optional<Area> read(FullMsgId key) const;
+	[[nodiscard]] std::optional<Area> read(FullMsgId key);
 	[[nodiscard]] std::optional<HeightRecord> height(FullMsgId key) const;
 	[[nodiscard]] TimeId nextExpiry() const;
 

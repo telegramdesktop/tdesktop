@@ -302,8 +302,9 @@ void ApplyTheme(
 		.locale = UiLanguageTag().toStdString(),
 	};
 	result.cpuLimitMs *= kCpuLimitScale;
-	// After boot a task's query budget is the quota left; the rate is kept.
+	// Both quotas share the scaled window, so each scales to keep its rate.
 	result.cpuQuotaMs *= kCpuLimitScale;
+	result.mainThreadQuotaMs *= kCpuLimitScale;
 	result.cpuQuotaWindowMs *= kCpuLimitScale;
 	return result;
 }
