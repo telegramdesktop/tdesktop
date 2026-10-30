@@ -12,12 +12,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_stories.h"
 #include "editor/color_picker.h"
 #include "editor/controllers/controllers.h"
+#include "editor/editor_caption_bar.h"
 #include "editor/photo_editor_content.h"
 #include "editor/photo_editor_controls.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "ui/layers/layer_manager.h"
 #include "ui/layers/layer_widget.h"
+#include "ui/wrap/fade_wrap.h"
 #include "styles/style_calls.h"
 #include "styles/style_editor.h"
 
@@ -310,7 +312,11 @@ PhotoEditor::PhotoEditor(
 	data,
 	photo->size(),
 	Deserialize(Core::App().settings().photoEditorBrush()).fillShapes))
-, _story(data.story.has_value())
+, _captionBar(data.story
+	? base::make_unique_q<Ui::FadeWrap<CaptionBar>>(
+		this,
+		object_ptr<CaptionBar>(this, this, *data.story))
+	: nullptr)
 , _brushes(Deserialize(Core::App().settings().photoEditorBrush()).brushes)
 , _brushTool(Deserialize(Core::App().settings().photoEditorBrush()).tool)
 , _shapesFilled(
@@ -336,8 +342,22 @@ PhotoEditor::PhotoEditor(
 		if (size.isEmpty()) {
 			return;
 		}
-		_content->setGeometry(rect() - st::photoEditorContentMargins);
+		layoutContent();
 	}, lifetime());
+	if (_captionBar) {
+		const auto bar = _captionBar->entity();
+		bar->heightValue() | rpl::skip(1) | rpl::on_next([=] {
+			layoutContent();
+		}, bar->lifetime());
+		bar->submits() | rpl::on_next([=] {
+			if (_mode.current().mode == PhotoEditorMode::Mode::Transform) {
+				done();
+			}
+		}, bar->lifetime());
+		bar->cancels() | rpl::on_next([=] {
+			setFocus();
+		}, bar->lifetime());
+	}
 
 	_content->videoClipSelections(
 	) | rpl::on_next([=](std::shared_ptr<VideoClip> clip) {
@@ -434,6 +454,11 @@ PhotoEditor::PhotoEditor(
 	) | rpl::on_next([=](const PhotoEditorMode &mode) {
 		_content->applyMode(mode);
 		_controls->applyMode(mode);
+		if (_captionBar) {
+			_captionBar->toggle(
+				(mode.mode == PhotoEditorMode::Mode::Transform),
+				anim::type::normal);
+		}
 	}, lifetime());
 
 	_controls->rotateRequests(
@@ -680,7 +705,7 @@ void PhotoEditor::done() {
 		};
 	} else if (mode != PhotoEditorMode::Mode::Transform) {
 		return;
-	} else if (_story) {
+	} else if (_captionBar) {
 		_content->save(_modifications);
 		_done.fire_copy(_modifications);
 	} else {
@@ -693,11 +718,41 @@ void PhotoEditor::done() {
 }
 
 TextWithTags PhotoEditor::caption() const {
-	return TextWithTags();
+	return _captionBar ? _captionBar->entity()->caption() : TextWithTags();
 }
 
 int PhotoEditor::period() const {
-	return Api::kStoryDefaultPeriod;
+	return _captionBar ? _captionBar->entity()->period() : 0;
+}
+
+void PhotoEditor::layoutContent() {
+	_content->setGeometry(rect() - contentMargins());
+	if (!_captionBar) {
+		return;
+	}
+	const auto barWidth = std::min(
+		int(st::photoEditorButtonBarWidth),
+		width());
+	_captionBar->resizeToWidth(barWidth);
+	const auto top = height()
+		- st::photoEditorControlsBottomSkip
+		- st::photoEditorButtonBarHeight
+		- st::photoEditorControlsCenterSkip
+		- _captionBar->height();
+	_captionBar->moveToLeft((width() - barWidth) / 2, top);
+}
+
+QMargins PhotoEditor::contentMargins() const {
+	auto result = QMargins(st::photoEditorContentMargins);
+	if (_captionBar) {
+		const auto slot = st::photoEditorControlsHeight
+			- st::photoEditorControlsBottomSkip
+			- st::photoEditorButtonBarHeight
+			- st::photoEditorControlsCenterSkip;
+		result.setBottom(result.bottom()
+			+ std::max(_captionBar->height() - slot, 0));
+	}
+	return result;
 }
 
 rpl::producer<PhotoModifications> PhotoEditor::doneRequests() const {

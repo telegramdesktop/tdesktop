@@ -19,6 +19,8 @@ namespace Ui {
 class LayerManager;
 class LayerWidget;
 class Show;
+template <typename Widget>
+class FadeWrap;
 } // namespace Ui
 
 namespace ChatHelpers {
@@ -31,6 +33,7 @@ class Controller;
 
 namespace Editor {
 
+class CaptionBar;
 class ColorPicker;
 class PhotoEditorContent;
 class PhotoEditorControls;
@@ -65,6 +68,8 @@ private:
 	void keyReleaseEvent(QKeyEvent *e) override;
 	void updateColorPickerVisibility(anim::type animated);
 	void done();
+	void layoutContent();
+	[[nodiscard]] QMargins contentMargins() const;
 
 	PhotoModifications _modifications;
 
@@ -73,7 +78,7 @@ private:
 
 	base::unique_qptr<PhotoEditorContent> _content;
 	base::unique_qptr<PhotoEditorControls> _controls;
-	bool _story = false;
+	base::unique_qptr<Ui::FadeWrap<CaptionBar>> _captionBar;
 	std::array<Brush, 5> _brushes;
 	Brush::Tool _brushTool = Brush::Tool::Pen;
 	bool _shapesFilled = false;

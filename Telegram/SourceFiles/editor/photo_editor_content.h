@@ -95,13 +95,31 @@ private:
 	void updateAudioDisc();
 	void updateAudioDiscGeometry();
 
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void wheelEvent(QWheelEvent *e) override;
+	bool eventHook(QEvent *e) override;
+
+	[[nodiscard]] bool canvasMode() const;
+	[[nodiscard]] bool canvasGesturesActive() const;
+	[[nodiscard]] QRectF canvasBasePlacement() const;
+	[[nodiscard]] QRectF canvasMediaRect() const;
+	[[nodiscard]] float64 canvasScale() const;
+	void layoutCanvasMedia(QRect canvas);
+	void clampCanvasShift();
+	void zoomCanvas(float64 factor, QPoint about);
+	void canvasChanged();
+	void recomposeCanvas();
+	void paintCanvas(QPainter &p);
+
 	const QSize _photoSize;
 	const bool _fixedCrop = false;
 	const bool _composeAnimated = false;
 	const base::unique_qptr<Paint> _paint;
 	const base::unique_qptr<Crop> _crop;
 	const base::unique_qptr<AudioDiscButton> _audioDisc;
-	const std::shared_ptr<Image> _photo;
+	std::shared_ptr<Image> _photo;
 	const Media::Encode::CanvasBackground _background;
 
 	rpl::variable<QRect> _innerRect;
@@ -121,6 +139,18 @@ private:
 	bool _roomRequested = false;
 	bool _dragging = false;
 	bool _animateLayout = false;
+
+	const std::shared_ptr<Image> _canvasMedia;
+	const Media::Encode::CanvasBackground _canvasBackground;
+	QRect _canvasMediaDisplay;
+	QRect _canvasFrameRect;
+	QTransform _canvasMediaMatrix;
+	float64 _canvasZoom = 1.;
+	QPointF _canvasShift;
+	QPointF _canvasDragShift;
+	std::optional<QPoint> _canvasPress;
+	bool _canvasMoved = false;
+	bool _canvasDirty = false;
 
 };
 
