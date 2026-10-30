@@ -99,17 +99,18 @@ constexpr auto kVoiceBlobIdleLevel = 0.45;
 }
 
 [[nodiscard]] HistoryView::TtlPaintCallback CreateTtlPaintCallback(
-		std::shared_ptr<rpl::lifetime> lifetime,
+		rpl::producer<> stops,
 		Fn<void()> update) {
 	struct State final {
 		std::unique_ptr<Lottie::Icon> start;
 		std::unique_ptr<Lottie::Icon> idle;
 		bool started = false;
+		rpl::lifetime lifetime;
 	};
 	const auto iconSize = Size(std::min(
 		st::historyFileInPause.width(),
 		st::historyFileInPause.height()));
-	const auto state = lifetime->make_state<State>();
+	const auto state = std::make_shared<State>();
 	//state->start = Lottie::MakeIcon({
 	//	.name = u"voice_ttl_start"_q,
 	//	.color = &st::historyFileInIconFg,
@@ -120,10 +121,14 @@ constexpr auto kVoiceBlobIdleLevel = 0.45;
 		.color = &st::historyFileInIconFg,
 		.sizeOverride = iconSize,
 	});
+	std::move(stops) | rpl::on_next([raw = state.get()] {
+		raw->lifetime.destroy();
+		raw->start = nullptr;
+		raw->idle = nullptr;
+	}, state->lifetime);
 
-	const auto weak = std::weak_ptr(lifetime);
 	return [=](QPainter &p, QRect r, QColor c) {
-		if (weak.expired()) {
+		if (!state->idle && !state->start) {
 			return;
 		}
 		{
@@ -387,13 +392,9 @@ Document::Document(
 		&& media->ttlSeconds()) {
 		const auto fullId = _realParent->fullId();
 		if (_parent->delegate()->elementContext() == Context::TTLViewer) {
-			auto lifetime = std::make_shared<rpl::lifetime>();
-			TTLVoiceStops(fullId) | rpl::on_next([=]() mutable {
-				if (lifetime) {
-					base::take(lifetime)->destroy();
-				}
-			}, *lifetime);
-			_drawTtl = CreateTtlPaintCallback(lifetime, [=] { repaint(); });
+			_drawTtl = CreateTtlPaintCallback(
+				TTLVoiceStops(fullId),
+				[=] { repaint(); });
 		} else if (!_parent->data()->out()) {
 			const auto &data = &_parent->data()->history()->owner();
 			setDocumentLinks(_data, realParent, [=] {
