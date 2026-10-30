@@ -28,6 +28,7 @@ enum class LinkStyle : uchar {
 	Framed,
 	SemiTransparent,
 	Opaque,
+	Plain,
 };
 
 class LinkPill final {

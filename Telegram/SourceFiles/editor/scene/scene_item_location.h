@@ -48,6 +48,8 @@ public:
 
 	[[nodiscard]] const LocationData &location() const;
 	void setLocation(LocationData location);
+	[[nodiscard]] LinkStyle style() const;
+	void setStyle(LinkStyle style);
 	void setEditCallback(EditCallback callback);
 
 protected:

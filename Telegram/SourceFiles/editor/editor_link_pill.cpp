@@ -74,16 +74,18 @@ LinkStyle LinkPill::NextStyle(LinkStyle style) {
 	switch (style) {
 	case LinkStyle::Framed: return LinkStyle::SemiTransparent;
 	case LinkStyle::SemiTransparent: return LinkStyle::Opaque;
-	case LinkStyle::Opaque: return LinkStyle::Framed;
+	case LinkStyle::Opaque: return LinkStyle::Plain;
+	case LinkStyle::Plain: return LinkStyle::Framed;
 	}
 	Unexpected("Link style in LinkPill::NextStyle.");
 }
 
 LinkStyle LinkPill::PreviousStyle(LinkStyle style) {
 	switch (style) {
-	case LinkStyle::Framed: return LinkStyle::Opaque;
+	case LinkStyle::Framed: return LinkStyle::Plain;
 	case LinkStyle::SemiTransparent: return LinkStyle::Framed;
 	case LinkStyle::Opaque: return LinkStyle::SemiTransparent;
+	case LinkStyle::Plain: return LinkStyle::Opaque;
 	}
 	Unexpected("Link style in LinkPill::PreviousStyle.");
 }
@@ -105,6 +107,8 @@ QColor LinkPill::background() const {
 		return QColor(0, 0, 0, kSemiTransparentAlpha);
 	case LinkStyle::Opaque:
 		return QColor(0, 0, 0);
+	case LinkStyle::Plain:
+		return QColor(0, 0, 0, 0);
 	}
 	Unexpected("Link style in LinkPill::background.");
 }
@@ -134,10 +138,12 @@ void LinkPill::paint(QPainter &p, QPointF origin, float64 scale) const {
 	p.scale(scale, scale);
 
 	const auto pill = QRectF(QPointF(), _size);
-	const auto radius = pill.height() * kRadiusRatio;
-	p.setPen(Qt::NoPen);
-	p.setBrush(background());
-	p.drawRoundedRect(pill, radius, radius);
+	if (_style != LinkStyle::Plain) {
+		const auto radius = pill.height() * kRadiusRatio;
+		p.setPen(Qt::NoPen);
+		p.setBrush(background());
+		p.drawRoundedRect(pill, radius, radius);
+	}
 
 	const auto iconSide = kIconSize * _density;
 	const auto icon = QRectF(
