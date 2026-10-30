@@ -73,6 +73,7 @@ public:
 	bool needsBubble() const override;
 	ClickHandlerPtr networkMarkerLink() const override;
 	bool customInfoLayout() const override;
+	QPoint resolveCustomInfoRightBottom() const override;
 	bool enforceBubbleWidth() const override;
 
 	bool hasHeavyPart() const override;
@@ -92,9 +93,17 @@ private:
 	[[nodiscard]] uint32 ownerEpoch() const;
 	[[nodiscard]] int rowTop() const;
 	[[nodiscard]] QRect cardRect() const;
+	[[nodiscard]] int optimalCardWidth() const;
 	[[nodiscard]] int cardHeight() const;
 	[[nodiscard]] double maxCssHeight() const;
 	[[nodiscard]] int infoHeight() const;
+	[[nodiscard]] bool timeOverCorner() const;
+	[[nodiscard]] QSize infoBackingSize() const;
+	[[nodiscard]] int infoRight() const;
+	[[nodiscard]] QRect infoBacking() const;
+	[[nodiscard]] bool infoContains(QPoint point) const;
+	[[nodiscard]] QSize cssCornerSize() const;
+	[[nodiscard]] Tgw::ContentSafeArea contentSafeArea() const;
 	[[nodiscard]] Tgw::RendererCore *interactiveCore() const;
 	[[nodiscard]] Tgw::RendererCore *pointerCore() const;
 	void pressCard();
@@ -115,6 +124,7 @@ private:
 	mutable std::optional<HtmlWidgetGeometry> _placed;
 	mutable uint32 _placedEpoch = 0;
 	mutable uint32 _placedAt = 0;
+	int _cardWidth = 0;
 	mutable bool _heavy = false;
 	bool _cardHovered = false;
 	mutable bool _placedReplaced = false;

@@ -5362,7 +5362,9 @@ void Message::drawInfo(
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
 	const auto stm = context.messageStyle();
-	bool invertedsprites = (type == InfoDisplayType::Image)
+	const auto leftToRight = (type == InfoDisplayType::ImageLeftToRight);
+	const auto image = leftToRight || (type == InfoDisplayType::Image);
+	const auto invertedsprites = image
 		|| (type == InfoDisplayType::Background);
 	int32 infoRight = right, infoBottom = bottom;
 	switch (type) {
@@ -5372,6 +5374,7 @@ void Message::drawInfo(
 		p.setPen(stm->msgDateFg);
 	break;
 	case InfoDisplayType::Image:
+	case InfoDisplayType::ImageLeftToRight:
 		infoRight -= st::msgDateImgDelta + st::msgDateImgPadding.x();
 		infoBottom -= st::msgDateImgDelta + st::msgDateImgPadding.y();
 		p.setPen(st->msgDateImgFg());
@@ -5386,7 +5389,7 @@ void Message::drawInfo(
 	const auto size = _bottomInfo.currentSize();
 	const auto dateX = infoRight - size.width();
 	const auto dateY = infoBottom - size.height();
-	if (type == InfoDisplayType::Image) {
+	if (image) {
 		const auto dateW = size.width() + 2 * st::msgDateImgPadding.x();
 		const auto dateH = size.height() + 2 * st::msgDateImgPadding.y();
 		Ui::FillRoundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, sti->msgDateImgBg, sti->msgDateImgBgCorners);
@@ -5401,6 +5404,7 @@ void Message::drawInfo(
 		width,
 		delegate()->elementShownUnread(this),
 		invertedsprites,
+		leftToRight,
 		context);
 }
 
@@ -5420,6 +5424,7 @@ TextState Message::bottomInfoTextState(
 		infoBottom -= st::msgPadding.bottom() - st::msgDateDelta.y();
 		break;
 	case InfoDisplayType::Image:
+	case InfoDisplayType::ImageLeftToRight:
 		infoRight -= st::msgDateImgDelta + st::msgDateImgPadding.x();
 		infoBottom -= st::msgDateImgDelta + st::msgDateImgPadding.y();
 		break;

@@ -330,6 +330,15 @@ void ApplyTheme(
 	};
 }
 
+[[nodiscard]] twidget::WidgetContentSafeArea HostSafeArea(
+		ContentSafeArea area) {
+	return {
+		.bottom = double(area.bottom),
+		.cornerLeft = double(area.cornerLeft),
+		.cornerRight = double(area.cornerRight),
+	};
+}
+
 [[nodiscard]] std::optional<std::string> ViewerText(const QString &value) {
 	return value.isEmpty()
 		? std::nullopt
@@ -808,6 +817,14 @@ void Runtime::setSize(int width, double maxHeight) {
 	if (_live || _still) {
 		applySize();
 	}
+}
+
+void Runtime::setSafeArea(ContentSafeArea area) {
+	if (_safeArea == area) {
+		return;
+	}
+	_safeArea = area;
+	syncHostSafeArea();
 }
 
 void Runtime::laidOut(int height) {
@@ -1306,12 +1323,14 @@ void Runtime::construct(
 	_state = State::Constructing;
 	_hostVisible = _visible;
 	_hostTheme = _theme;
+	_hostSafeArea = _safeArea;
 	auto options = DefaultHostOptions(ratio, _visible);
 	options.storage = StoredAreas(_item);
 	options.data = HostData(_item);
 	options.context = HostContext(
 		_context,
 		_item->history()->session().user());
+	options.contentSafeArea = HostSafeArea(_hostSafeArea);
 	auto storage = OpenStorageHost(_item);
 	const auto id = storage.id;
 	StorageHostVisibility(id, _hostVisible);
@@ -1414,6 +1433,7 @@ void Runtime::constructed(
 	}
 	_live->setMaxHeight(_maxHeight);
 	syncHostVisibility();
+	syncHostSafeArea();
 	Test::WatchWidgetHost(_item->globalId(), *_host->pointer, _live.get());
 	_live->bindHost(_host->pointer.get());
 	_host->pointer->start();
@@ -1674,6 +1694,13 @@ void Runtime::ThemeDone(const std::shared_ptr<Host> &host) {
 void Runtime::syncHostData() {
 	if (_host) {
 		_host->pointer->setData(HostData(_item));
+	}
+}
+
+void Runtime::syncHostSafeArea() {
+	if (_host && _hostSafeArea != _safeArea) {
+		_hostSafeArea = _safeArea;
+		_host->pointer->setContentSafeArea(HostSafeArea(_safeArea));
 	}
 }
 

@@ -7,10 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_html_widget.h"
 
+#include "data/data_message_reaction_id.h"
 #include "data/data_session.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_element.h"
 #include "history/history.h"
+#include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "tgw/tgw_renderer.h"
 #include "tgw/tgw_runtime.h"
@@ -31,6 +33,18 @@ namespace HistoryView {
 namespace {
 
 constexpr auto kCssPercent = 100.;
+constexpr auto kMaxSafeAreaInset = 64;
+constexpr auto kMaxSafeAreaCorner = 200;
+
+[[nodiscard]] int CssCeil(int logical) {
+	return int(std::ceil(Tgw::CssFromLogical(logical)));
+}
+
+[[nodiscard]] InfoDisplayType CornerInfoType() {
+	return style::RightToLeft()
+		? InfoDisplayType::ImageLeftToRight
+		: InfoDisplayType::Image;
+}
 
 [[nodiscard]] QWidget *PaintWidget(const QPainter &p) {
 	const auto device = p.device();
@@ -214,19 +228,13 @@ void HtmlWidget::rememberPlacement() const {
 }
 
 QSize HtmlWidget::countOptimalSize() {
-	const auto cardWidth = (_anchors.width > 0)
-		? std::min(
-			Tgw::LogicalWidth(std::clamp(
-				double(_anchors.width),
-				Tgw::kMinWidth,
-				Tgw::CssFromLogical(st::msgMaxWidth))),
-			st::msgMaxWidth)
-		: st::msgMaxWidth;
-	return { cardWidth, cardHeight() + infoHeight() };
+	return { optimalCardWidth(), cardHeight() + infoHeight() };
 }
 
 QSize HtmlWidget::countCurrentSize(int newWidth) {
 	const auto cardWidth = std::min(newWidth, maxWidth());
+	// customInfoLayout() needs it below, before Object stores the width.
+	_cardWidth = cardWidth;
 	if (!_runtime) {
 		return { cardWidth, cardHeight() + infoHeight() };
 	}
@@ -237,6 +245,7 @@ QSize HtmlWidget::countCurrentSize(int newWidth) {
 		? std::make_optional(_placed->card)
 		: std::nullopt;
 	_runtime->setSize(cardWidth, maxCssHeight());
+	_runtime->setSafeArea(contentSafeArea());
 	const auto card = cardHeight();
 	_runtime->laidOut(card);
 	if (_anchors.height <= 0 && previous && *previous != card) {
@@ -258,7 +267,27 @@ ClickHandlerPtr HtmlWidget::networkMarkerLink() const {
 }
 
 bool HtmlWidget::customInfoLayout() const {
-	return false;
+	if ((_parent->media() != this)
+		|| _parent->hidesBottomInfo()
+		|| _parent->hasCommentsButton()
+		|| ((_parent->context() != Context::MediaEditor)
+			&& !_parent->data()->reactionsWithLocal().empty())) {
+		return false;
+	}
+	const auto corner = cssCornerSize();
+	const auto infoSkip = st::msgPadding.left()
+		+ st::msgPadding.right()
+		+ 2 * st::msgDateDelta.x();
+	const auto cardWidth = _cardWidth ? _cardWidth : optimalCardWidth();
+	return (corner.width() <= kMaxSafeAreaCorner)
+		&& (corner.height() <= kMaxSafeAreaInset)
+		&& (_parent->infoWidth() + infoSkip <= cardWidth);
+}
+
+QPoint HtmlWidget::resolveCustomInfoRightBottom() const {
+	const auto skipx = st::msgDateImgDelta + st::msgDateImgPadding.x();
+	const auto skipy = st::msgDateImgDelta + st::msgDateImgPadding.y();
+	return QPoint(infoRight() - skipx, height() - skipy);
 }
 
 bool HtmlWidget::enforceBubbleWidth() const {
@@ -267,6 +296,17 @@ bool HtmlWidget::enforceBubbleWidth() const {
 
 QRect HtmlWidget::cardRect() const {
 	return QRect(0, 0, width(), height() - infoHeight());
+}
+
+int HtmlWidget::optimalCardWidth() const {
+	return (_anchors.width > 0)
+		? std::min(
+			Tgw::LogicalWidth(std::clamp(
+				double(_anchors.width),
+				Tgw::kMinWidth,
+				Tgw::CssFromLogical(st::msgMaxWidth))),
+			st::msgMaxWidth)
+		: st::msgMaxWidth;
 }
 
 int HtmlWidget::cardHeight() const {
@@ -289,12 +329,65 @@ double HtmlWidget::maxCssHeight() const {
 int HtmlWidget::infoHeight() const {
 	if (!isBubbleBottom()
 		|| (_parent->media() != this)
-		|| _parent->hidesBottomInfo()) {
+		|| _parent->hidesBottomInfo()
+		|| customInfoLayout()) {
 		return 0;
 	}
 	return st::tgwBubbleInfoSkip
 		+ _parent->skipBlockHeight()
 		+ st::msgPadding.bottom();
+}
+
+bool HtmlWidget::timeOverCorner() const {
+	return isBubbleBottom() && customInfoLayout();
+}
+
+QSize HtmlWidget::infoBackingSize() const {
+	const auto padding = st::msgDateImgPadding;
+	return QSize(
+		_parent->infoWidth() + 2 * padding.x(),
+		st::msgDateFont->height + 2 * padding.y());
+}
+
+int HtmlWidget::infoRight() const {
+	return style::RightToLeft()
+		? (infoBackingSize().width() + 2 * st::msgDateImgDelta)
+		: width();
+}
+
+QRect HtmlWidget::infoBacking() const {
+	const auto size = infoBackingSize();
+	const auto skip = st::msgDateImgDelta;
+	return QRect(
+		QPoint(
+			infoRight() - skip - size.width(),
+			height() - skip - size.height()),
+		size);
+}
+
+bool HtmlWidget::infoContains(QPoint point) const {
+	return infoBacking().contains(point) && timeOverCorner();
+}
+
+QSize HtmlWidget::cssCornerSize() const {
+	const auto backing = infoBackingSize();
+	const auto skip = st::msgDateImgDelta;
+	return QSize(
+		CssCeil(backing.width() + skip),
+		CssCeil(backing.height() + skip));
+}
+
+Tgw::ContentSafeArea HtmlWidget::contentSafeArea() const {
+	if (!timeOverCorner()) {
+		return {};
+	}
+	const auto corner = cssCornerSize();
+	const auto rtl = style::RightToLeft();
+	return {
+		.bottom = corner.height(),
+		.cornerLeft = rtl ? corner.width() : 0,
+		.cornerRight = rtl ? 0 : corner.width(),
+	};
 }
 
 Tgw::RendererCore *HtmlWidget::interactiveCore() const {
@@ -313,7 +406,9 @@ QPointF HtmlWidget::cssPoint(QPoint point) const {
 }
 
 Tgw::RendererCore *HtmlWidget::touchCore(QPoint point) const {
-	return cardRect().contains(point) ? pointerCore() : nullptr;
+	return (cardRect().contains(point) && !infoContains(point))
+		? pointerCore()
+		: nullptr;
 }
 
 QPointF HtmlWidget::gesturePoint(QPoint point) const {
@@ -368,6 +463,15 @@ void HtmlWidget::draw(Painter &p, const PaintContext &context) const {
 		|| state == Tgw::Runtime::State::Failed) {
 		drawStopped(p, context, card);
 	}
+	if (timeOverCorner()) {
+		_parent->drawInfo(
+			p,
+			context,
+			infoRight(),
+			height(),
+			width(),
+			CornerInfoType());
+	}
 }
 
 void HtmlWidget::drawStopped(
@@ -415,6 +519,16 @@ TextState HtmlWidget::textState(
 	auto result = TextState(_parent);
 	if (!cardRect().contains(point)) {
 		return result;
+	} else if (infoContains(point)) {
+		const auto info = _parent->bottomInfoTextState(
+			infoRight(),
+			height(),
+			point,
+			CornerInfoType());
+		const auto meaningful = info.link
+			|| (info.cursor != CursorState::None)
+			|| info.customTooltip;
+		return meaningful ? info : result;
 	} else if (const auto core = pointerCore()) {
 		using Flag = Ui::Text::StateRequest::Flag;
 		const auto hand = (request.flags & Flag::LookupLink)

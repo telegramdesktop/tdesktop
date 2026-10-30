@@ -85,6 +85,7 @@ struct StateRequest {
 enum class InfoDisplayType : char {
 	Default,
 	Image,
+	ImageLeftToRight,
 	Background,
 };
 

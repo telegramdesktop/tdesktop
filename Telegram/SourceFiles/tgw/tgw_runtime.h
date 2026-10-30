@@ -47,6 +47,14 @@ struct HeightLayout {
 	ResizeAnchor anchor = ResizeAnchor::Top;
 };
 
+struct ContentSafeArea {
+	int bottom = 0;
+	int cornerLeft = 0;
+	int cornerRight = 0;
+
+	friend inline bool operator==(ContentSafeArea, ContentSafeArea) = default;
+};
+
 struct RuntimeDescriptor {
 	not_null<HistoryView::Element*> view;
 	not_null<HistoryItem*> item;
@@ -98,6 +106,7 @@ public:
 		Fn<void()> repaint,
 		Fn<void()> heavyChanged);
 	void setSize(int width, double maxHeight);
+	void setSafeArea(ContentSafeArea area);
 	void laidOut(int height);
 	void setTheme(std::shared_ptr<const twidget::WidgetTheme> theme);
 	void setWindow(not_null<QWidget*> window);
@@ -173,6 +182,7 @@ private:
 	void syncHostVisibility();
 	void syncHostTheme();
 	void syncHostData();
+	void syncHostSafeArea();
 	void applySize();
 	[[nodiscard]] int effectiveHeight() const;
 	[[nodiscard]] ResizeAnchor heightAnchor() const;
@@ -217,6 +227,8 @@ private:
 	int _generation = 0;
 	int _width = 0;
 	HeightLayout _layout;
+	ContentSafeArea _safeArea;
+	ContentSafeArea _hostSafeArea;
 	State _state = State::Idle;
 	bool _visible = false;
 	bool _hostVisible = false;
