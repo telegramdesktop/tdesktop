@@ -183,3 +183,59 @@ PRIVATE
     tdesktop::td_lang
     tdesktop::td_ui
 )
+
+# This test composition relies on ld64 dead stripping.
+if (APPLE AND NOT DESKTOP_APP_USE_PACKAGED
+    AND TARGET Qt${QT_VERSION_MAJOR}::QOffscreenIntegrationPlugin
+    AND TARGET Qt${QT_VERSION_MAJOR}::QOffscreenIntegrationPlugin_init)
+    add_executable(td_iv_article_test)
+    init_non_host_target(td_iv_article_test "(iv)")
+
+    target_precompile_headers(td_iv_article_test PRIVATE ${src_loc}/iv/iv_pch.h)
+    nice_target_sources(td_iv_article_test ${src_loc}
+    PRIVATE
+        iv/iv_rich_page_quote.cpp
+        iv/markdown/tests/iv_markdown_article_code_tests.cpp
+        iv/markdown/tests/iv_markdown_article_range_tests.cpp
+        iv/markdown/tests/iv_markdown_article_rich_copy_tests.cpp
+        iv/markdown/tests/iv_markdown_article_segment_tests.cpp
+        iv/markdown/tests/iv_markdown_article_table_tests.cpp
+        iv/markdown/tests/iv_markdown_article_tests.cpp
+        iv/markdown/tests/iv_markdown_article_tests.h
+        iv/markdown/tests/iv_markdown_article_tests_main.cpp
+    )
+
+    if (DESKTOP_APP_RELEASE_QT)
+        get_target_property(td_iv_article_test_offscreen_archive
+            Qt${QT_VERSION_MAJOR}::QOffscreenIntegrationPlugin
+            IMPORTED_LOCATION_RELWITHDEBINFO)
+    else()
+        set(td_iv_article_test_offscreen_archive
+            $<TARGET_FILE:Qt${QT_VERSION_MAJOR}::QOffscreenIntegrationPlugin>)
+    endif()
+
+    target_link_libraries(td_iv_article_test
+    PRIVATE
+        tdesktop::td_iv
+        desktop-app::lib_spellcheck
+        desktop-app::lib_webview
+        $<TARGET_OBJECTS:Qt${QT_VERSION_MAJOR}::QOffscreenIntegrationPlugin_init>
+        ${td_iv_article_test_offscreen_archive}
+    )
+
+    target_link_options(td_iv_article_test PRIVATE -Wl,-dead_strip)
+
+    set_target_properties(td_iv_article_test PROPERTIES
+        EXCLUDE_FROM_ALL TRUE
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/td_iv_article_test
+    )
+
+    add_custom_command(TARGET td_iv_article_test POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+            "$<TARGET_FILE_DIR:td_iv_article_test>/Contents/Resources"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_BINARY_DIR}/lib_ui.rcc"
+            "$<TARGET_FILE_DIR:td_iv_article_test>/Contents/Resources/"
+        VERBATIM
+    )
+endif()
