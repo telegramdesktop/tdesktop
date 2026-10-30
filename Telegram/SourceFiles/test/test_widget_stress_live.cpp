@@ -97,6 +97,8 @@ constexpr auto kDateBound = crl::time(8000);
 // refused: nothing else may animate on screen.
 constexpr auto kIdleWindow = crl::time(2000);
 constexpr auto kIdleOffsets = 20;
+// One isolated repaint is no animation; an animation repaints repeatedly.
+constexpr auto kIdleStrayUpdates = 1;
 
 // CLIENTS.md step 7.
 constexpr auto kLevelPause = crl::time(1000);
@@ -2070,7 +2072,7 @@ void CheckIdle(LiveState &state) {
 		{ u"focusAndCursor"_q, settle.focus },
 	});
 	filter.reset();
-	const auto ok = settle.settled && !updates;
+	const auto ok = settle.settled && (updates <= kIdleStrayUpdates);
 	const auto details = u"updates=%1 spanMs=%2 windowMs=%3 dateHeld=%4 "
 		u"scrollChanges=%5"_q.arg(
 			QString::number(updates),

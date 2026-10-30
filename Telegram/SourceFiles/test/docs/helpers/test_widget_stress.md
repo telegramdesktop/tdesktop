@@ -282,9 +282,12 @@ an update-cadence observation, not a display limit. The filter keeps 16384
 stamps a window; more is a runner error.
 
 The same filter first reads the window idle: before the first level, with
-no widget injected and the list settled, a launch whose window gets any
-`UpdateRequest` in 2000 ms is refused ("Nothing else animates" above), so
-nothing else on screen was updating the window when the launch began. It
+no widget injected and the list settled, a launch whose window gets more
+than one `UpdateRequest` in 2000 ms is refused ("Nothing else animates"
+above), so nothing on screen was animating when the launch began; one
+isolated update, a single repaint such as a badge or status refresh, is
+recorded with its offset and allowed, since an animation repaints the
+window repeatedly. It
 does not prove the unsampled instants of later levels; their own
 observations are below.
 
