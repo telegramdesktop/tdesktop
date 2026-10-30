@@ -645,7 +645,13 @@ stickersPhotoButtonPadding: margins(6px, 0px, 12px, 0px);
 stickersPhotoButtonIconSkip: 4px;
 stickersPhotoButtonEmojiSize: 24px;
 stickersPhotoButtonFont: font(14px bold);
-stickersWidgetReactionIcon: 22px;
+stickersWidgetReactionIcon: 20px;
+stickersReactionCloud: 32px;
+stickersReactionCloudShift: point(-2px, -1px);
+stickersReactionBubble: 10px;
+stickersReactionBubbleShift: point(11px, 9px);
+stickersReactionDot: 4px;
+stickersReactionDotShift: point(17px, 15px);
 stickersPhotoButtonSkip: 10px;
 mediaPreviewPhotoSkip: 48px;
 

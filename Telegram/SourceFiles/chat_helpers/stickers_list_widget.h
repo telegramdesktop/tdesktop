@@ -345,6 +345,10 @@ private:
 		const style::icon *icon = nullptr;
 		Data::ReactionId reaction;
 		QString emoji;
+		qint64 reactionImageKey = 0;
+		QImage reactionImage;
+		Ui::Animations::Simple pressScale;
+		bool pressed = false;
 		std::unique_ptr<WeatherSlide> slide;
 		std::unique_ptr<Ui::RippleAnimation> ripple;
 	};
@@ -361,8 +365,9 @@ private:
 	[[nodiscard]] int mediaButtonIndexAt(QPoint point) const;
 	void paintReactionButton(
 		Painter &p,
-		const MediaButton &button,
+		MediaButton &button,
 		QRect rect);
+	void animateMediaButtonPress(int index, bool pressed);
 	void pickMediaButtonReaction(MediaButton &button);
 	void paintMegagroupEmptySet(Painter &p, int y, bool buttonSelected);
 	void paintSticker(
