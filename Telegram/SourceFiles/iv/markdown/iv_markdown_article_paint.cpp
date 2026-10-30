@@ -3158,7 +3158,7 @@ void PaintBlock(
 					block.marker,
 					markerContext,
 					block.markerRect,
-					block.markerWidth);
+					block.marker.maxWidth());
 			} else if (block.listKind == ListKind::Bullet) {
 				PaintBulletMarker(p, block, st, markerContext);
 			}

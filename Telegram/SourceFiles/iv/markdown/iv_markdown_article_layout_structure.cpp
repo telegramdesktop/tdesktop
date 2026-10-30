@@ -1968,8 +1968,6 @@ using LayoutListChildCallback = std::function<std::optional<int>(
 			= context.taskMarkerRippleRuntimeFactory(*prepared.editListItem);
 	}
 	if (ordered) {
-		auto markerContext = context;
-		markerContext.rtl = false;
 		BuildOrReusePlainTextLeaf(
 			&block.marker,
 			CachedTextLeafSlot::Marker,
@@ -1977,7 +1975,7 @@ using LayoutListChildCallback = std::function<std::optional<int>(
 			st.body,
 			markerText,
 			PlainTextMinResizeWidth(st.body),
-			markerContext);
+			context);
 	}
 	const auto bottom = LayoutListItemBlockGeometry(
 		prepared,
