@@ -221,7 +221,9 @@ The message shapes are the ones `WidgetHost` sends and reads in widget-sandbox's
 `widget_host.cpp` (`toRenderer()`, `onLoaded()`, `onDied()`,
 `handleRendererMessage()`), with `docs/protocol.md` for `RenderOp`: a
 validated `el` carries `attrs` as `[name, value]` pairs, which is what the
-scanner reads. TwidgetCore marks every event it forwards `trusted`.
+scanner reads. TwidgetCore marks every event it forwards `trusted` except the
+`pointerdown` and `mousedown` of a real finger's press (widget-sandbox
+v0.3.0's finger rule); mouse presses and a tap's `click` stay trusted.
 
 A reading is final only when `factoriesReleased == factoriesSelected` and
 `wrappersDestroyed == wrappersBuilt`: then no factory selected for the message

@@ -525,9 +525,11 @@ still carry runner refusals; they fail the totals. Its fields:
 - `stages` as above; `observed`: `bridge` (`{method, args}`, `args` a JSON
   array), `height` (the card's height in CSS px before the removal),
   `chatFocused`, `focusHolder`, and `syntheticInput` false: the input goes
-  through the list's own handlers as real Qt events, and TwidgetCore marks
-  every event it forwards trusted, so `report.mjs` judges the gesture-gated
-  host checks; `errors` (the console's uncaught errors); `skippedActions`;
+  through the list's own handlers as real Qt events, mouse and keys and
+  never a touch, and TwidgetCore marks every such event it forwards trusted
+  (only a real finger's `pointerdown` and `mousedown` would not be), so
+  `report.mjs` judges the gesture-gated host checks; `errors` (the console's
+  uncaught errors); `skippedActions`;
 - `host`, only while the bridge calls are unknown (below);
 - extras: `key`, `set`, `skippedReasons`, `actions`, `runnerRefusals`
   (`{name, detail}`), `result` (`present`, `error`, generation, serial,
