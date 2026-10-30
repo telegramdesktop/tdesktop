@@ -139,16 +139,14 @@ constexpr auto kSendingLandingCheckDelay = crl::time(100);
 		|| (context == Context::WelcomeMessages);
 }
 
-[[nodiscard]] bool HasWithheldButtons(not_null<HistoryItem*> item) {
-	if (!item->hideLinks()) {
-		return false;
-	} else if (item->translatedRichPage()) {
-		return true;
-	} else if (!item->hideInlineKeyboard()) {
+[[nodiscard]] bool HasWithheldInlineKeyboard(not_null<HistoryItem*> item) {
+	if (!item->hideInlineKeyboard()) {
 		return false;
 	}
 	const auto markup = item->inlineReplyMarkup();
-	return !markup->inlineKeyboard && !markup->hiddenBy(item->media());
+	return !markup->data.rows.empty()
+		&& !markup->inlineKeyboard
+		&& !markup->hiddenBy(item->media());
 }
 
 } // namespace
@@ -7199,13 +7197,13 @@ PeerData *FirstRevealWaitPeer(not_null<HistoryItem*> item) {
 	}
 	if (peer->barSettings()) {
 		return nullptr;
-	} else if (HasWithheldButtons(item)) {
+	} else if (HasWithheldInlineKeyboard(item)) {
 		return peer;
 	}
 	const auto &groups = item->history()->owner().groups();
 	if (const auto group = groups.find(item)) {
 		for (const auto &member : group->items) {
-			if (HasWithheldButtons(member)) {
+			if (HasWithheldInlineKeyboard(member)) {
 				return peer;
 			}
 		}

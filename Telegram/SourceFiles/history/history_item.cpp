@@ -2297,9 +2297,13 @@ bool HistoryItem::hideInlineKeyboard() const {
 	// Only the client sets these flags, for its own Accept / Decline rows.
 	const auto clientControls = Flag::SuggestionAccept
 		| Flag::SuggestionDecline;
-	return markup
-		&& !(markup->data.flags & clientControls)
-		&& hideLinks();
+	if (!markup || (markup->data.flags & clientControls) || !hideLinks()) {
+		return false;
+	}
+	if (const auto user = history()->peer->asUser()) {
+		return !user->isBot() && !user->isContact();
+	}
+	return true;
 }
 
 bool HistoryItem::isHistoryEntry() const {
