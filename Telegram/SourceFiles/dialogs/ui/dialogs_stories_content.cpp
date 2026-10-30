@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/ui/dialogs_stories_content.h"
+#include "boxes/story_drafts_box.h"
 
 #include "base/unixtime.h"
 #include "data/data_changes.h"
@@ -16,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
+#include "data/data_story_drafts.h"
 #include "data/data_user.h"
 #include "dialogs/ui/dialogs_stories_list.h"
 #include "info/stories/info_stories_widget.h"
@@ -229,6 +231,11 @@ void FillSourceMenu(
 		}, &st::menuIconStoriesSavedSection);
 	}
 	if (peer->isSelf()) {
+		if (owner->stories().drafts().count() > 0) {
+			add(tr::lng_story_drafts_button(tr::now), [=] {
+				ShowStoryDraftsBox(controller);
+			}, &st::menuIconEdit);
+		}
 		add(tr::lng_stories_archive_button(tr::now), [=] {
 			controller->showSection(Info::Stories::Make(
 				peer,

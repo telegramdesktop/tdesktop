@@ -219,6 +219,9 @@ VideoEditor::VideoEditor(
 	_gifAllowed = (SourceSize(_path, _content) <= kMaxGifSize);
 	_geometry.cropType = _data.editor.cropType;
 	_geometry.cropMode = _data.editor.cropMode;
+	if (_data.canvas && !_initial.canvasMediaRect.isEmpty()) {
+		restoreCanvasPlacement(_initial.canvasMediaRect);
+	}
 	if (!_geometry.crop.isValid()
 		&& !_data.exactSize.isEmpty()
 		&& !_data.canvas) {
@@ -551,6 +554,7 @@ void VideoEditor::setupControls() {
 		while (_geometry.angle >= 360) {
 			_geometry.angle -= 360;
 		}
+		_canvasRestored = std::nullopt;
 		applyGeometry();
 		refreshSizeEstimate();
 		invalidateCoverPreview();
@@ -1043,6 +1047,9 @@ QRectF VideoEditor::canvasBasePlacement() const {
 }
 
 QRectF VideoEditor::canvasMediaRect() const {
+	if (_canvasRestored) {
+		return QRectF(*_canvasRestored);
+	}
 	const auto base = canvasBasePlacement();
 	const auto size = base.size() * _canvasZoom;
 	const auto center = base.center() + _canvasShift;
@@ -1096,6 +1103,34 @@ void VideoEditor::clampCanvasShift() {
 	_canvasShift = clamped - base.center();
 }
 
+void VideoEditor::restoreCanvasPlacement(QRect rect) {
+	const auto base = canvasBasePlacement();
+	if (base.isEmpty() || rect.isEmpty()) {
+		return;
+	}
+	_canvasZoom = std::clamp(
+		rect.width() / base.width(),
+		kCanvasZoomMin,
+		kCanvasZoomMax);
+	_canvasShift = QRectF(rect).center() - base.center();
+	_canvasRestored = rect;
+}
+
+bool VideoEditor::edited() const {
+	const auto now = collect();
+	const auto &was = _initial;
+	const auto till = [&](crl::time value) {
+		return value ? value : _duration;
+	};
+	return (now.geometry.angle != was.geometry.angle)
+		|| (now.geometry.flipped != was.geometry.flipped)
+		|| (now.canvasMediaRect != was.canvasMediaRect)
+		|| (now.from != was.from)
+		|| (till(now.till) != till(was.till))
+		|| (now.cover != was.cover)
+		|| (now.gif != was.gif);
+}
+
 void VideoEditor::zoomCanvas(float64 factor, QPoint about) {
 	const auto zoom = std::clamp(
 		_canvasZoom * factor,
@@ -1112,6 +1147,7 @@ void VideoEditor::zoomCanvas(float64 factor, QPoint about) {
 	const auto shifted = point - (point - center) * real;
 	_canvasZoom = zoom;
 	_canvasShift = shifted - base.center();
+	_canvasRestored = std::nullopt;
 	clampCanvasShift();
 	canvasChanged();
 }
@@ -1150,6 +1186,7 @@ void VideoEditor::mouseMoveEvent(QMouseEvent *e) {
 		setCursor(Qt::ClosedHandCursor);
 	}
 	_canvasShift = _canvasDragShift + QPointF(delta) / canvasScale();
+	_canvasRestored = std::nullopt;
 	clampCanvasShift();
 	layoutCanvas(_contentRect);
 	update();

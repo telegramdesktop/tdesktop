@@ -115,6 +115,9 @@ PhotoEditorContent::PhotoEditorContent(
 	_crop->setExpansionAllowed(!_fixedCrop);
 	if (canvasMode()) {
 		_crop->hide();
+		if (!modifications.canvasMediaRect.isEmpty()) {
+			restoreCanvasPlacement(modifications.canvasMediaRect);
+		}
 	}
 	_paint->setCanvasBackground(_background);
 	_paint->setCropRect(QRectF(_crop->cropRect()));
@@ -423,6 +426,28 @@ bool PhotoEditorContent::canvasGesturesActive() const {
 		&& (_mode.mode == PhotoEditorMode::Mode::Transform);
 }
 
+bool PhotoEditorContent::canvasMoved() const {
+	return canvasMode()
+		&& ((_canvasZoom != 1.) || !_canvasShift.isNull());
+}
+
+bool PhotoEditorContent::edited() const {
+	return canvasMoved() || _paint->hasItems();
+}
+
+void PhotoEditorContent::restoreCanvasPlacement(QRect rect) {
+	const auto base = canvasBasePlacement();
+	if (base.isEmpty() || rect.isEmpty()) {
+		return;
+	}
+	_canvasZoom = std::clamp(
+		rect.width() / base.width(),
+		kCanvasZoomMin,
+		kCanvasZoomMax);
+	_canvasShift = QRectF(rect).center() - base.center();
+	_canvasRestored = rect;
+}
+
 float64 PhotoEditorContent::canvasScale() const {
 	const auto canvas = _imageMatrix.mapRect(_imageRect);
 	return canvas.isEmpty()
@@ -439,6 +464,9 @@ QRectF PhotoEditorContent::canvasBasePlacement() const {
 }
 
 QRectF PhotoEditorContent::canvasMediaRect() const {
+	if (_canvasRestored) {
+		return QRectF(*_canvasRestored);
+	}
 	const auto base = canvasBasePlacement();
 	const auto size = base.size() * _canvasZoom;
 	const auto center = base.center() + _canvasShift;
@@ -526,6 +554,7 @@ void PhotoEditorContent::zoomCanvas(float64 factor, QPoint about) {
 	const auto shifted = point - (point - center) * real;
 	_canvasZoom = zoom;
 	_canvasShift = shifted - base.center();
+	_canvasRestored = std::nullopt;
 	clampCanvasShift();
 	canvasChanged();
 }
@@ -561,6 +590,7 @@ void PhotoEditorContent::mouseMoveEvent(QMouseEvent *e) {
 		setCursor(Qt::ClosedHandCursor);
 	}
 	_canvasShift = _canvasDragShift + QPointF(delta) / canvasScale();
+	_canvasRestored = std::nullopt;
 	clampCanvasShift();
 	canvasChanged();
 }
@@ -607,13 +637,17 @@ bool PhotoEditorContent::eventHook(QEvent *e) {
 
 void PhotoEditorContent::applyModifications(
 		PhotoModifications modifications) {
+	const auto &was = _modifications.current();
+	if (was.angle != modifications.angle) {
+		_canvasRestored = std::nullopt;
+	}
 	_modifications = std::move(modifications);
 	update();
 }
 
 void PhotoEditorContent::save(PhotoModifications &modifications) {
 	if (canvasMode()) {
-		const auto moved = (_canvasZoom != 1.) || !_canvasShift.isNull();
+		const auto moved = canvasMoved();
 		modifications.crop = QRect();
 		modifications.canvasMediaRect = moved
 			? Media::Encode::RoundedCanvasRect(canvasMediaRect())

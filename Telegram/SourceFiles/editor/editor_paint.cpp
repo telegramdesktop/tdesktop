@@ -523,6 +523,10 @@ std::shared_ptr<Scene> Paint::saveScene() const {
 		: _scene;
 }
 
+bool Paint::hasItems() const {
+	return !_scene->items().empty();
+}
+
 void Paint::restoreScene() {
 	_scene->restore(SaveState::Save);
 }

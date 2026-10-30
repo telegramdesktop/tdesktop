@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_story.h"
+#include "data/data_story_drafts.h"
 #include "data/data_user.h"
 #include "editor/editor_layer_widget.h"
 #include "editor/editor_story_areas.h"
@@ -48,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 
 namespace Media::Stories {
 namespace {
@@ -62,6 +64,106 @@ struct StoryVideoSource {
 };
 
 constexpr auto kCanvasSampleSide = 240;
+
+constexpr auto kDraftThumbnailSide = 320;
+
+[[nodiscard]] int InitialPeriod(const StoryEditorSetup &setup) {
+	return setup.period ? setup.period : Api::kStoryDefaultPeriod;
+}
+
+[[nodiscard]] QImage DraftThumbnail(const QImage &composed) {
+	return composed.isNull()
+		? QImage()
+		: composed.scaled(
+			kDraftThumbnailSide,
+			kDraftThumbnailSide,
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation);
+}
+
+[[nodiscard]] Data::StoryDrafts &Drafts(
+		not_null<Window::SessionController*> controller) {
+	return controller->session().data().stories().drafts();
+}
+
+void SaveStoryDraft(
+		not_null<Window::SessionController*> controller,
+		Data::StoryDraft draft,
+		const Data::StoryDraftMedia &media,
+		Fn<void()> close) {
+	const auto id = Drafts(controller).save(std::move(draft), media);
+	if (!id) {
+		controller->showToast(tr::lng_story_draft_failed(tr::now));
+		return;
+	}
+	controller->showToast(tr::lng_story_draft_saved(tr::now));
+	close();
+}
+
+struct DiscardStoryArgs {
+	bool draft = false;
+	bool allowDraft = true;
+	Fn<void()> discard;
+	Fn<void()> saveDraft;
+};
+
+void ShowDiscardStoryBox(
+		not_null<Window::SessionController*> controller,
+		DiscardStoryArgs args) {
+	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+		Ui::ConfirmBox(box, {
+			.text = tr::lng_story_discard_text(),
+			.confirmed = Fn<void(Fn<void()>)>([=](Fn<void()> close) {
+				close();
+				args.discard();
+			}),
+			.confirmText = (args.draft
+				? tr::lng_story_delete_draft()
+				: tr::lng_story_discard_button()),
+			.confirmStyle = &st::attentionBoxButton,
+			.title = tr::lng_story_discard_title(),
+		});
+		if (args.allowDraft) {
+			box->addLeftButton(
+				(args.draft
+					? tr::lng_story_keep_draft()
+					: tr::lng_story_save_draft()),
+				[=] {
+					box->closeBox();
+					args.saveDraft();
+				});
+		}
+	}));
+}
+
+template <typename Widget>
+void SetupStoryEditorClose(
+		not_null<Window::SessionController*> controller,
+		not_null<Widget*> raw,
+		const StoryEditorSetup &setup,
+		Fn<void()> close,
+		Fn<void()> saveDraft) {
+	raw->cancelRequests() | rpl::on_next([=] {
+		const auto changed = raw->edited()
+			|| (raw->caption() != setup.caption)
+			|| (raw->period() != InitialPeriod(setup));
+		if (!changed && !setup.draftId) {
+			close();
+			return;
+		}
+		ShowDiscardStoryBox(controller, {
+			.draft = (setup.draftId != 0),
+			.allowDraft = !setup.editing,
+			.discard = [=] {
+				if (setup.draftId) {
+					Drafts(controller).remove(setup.draftId);
+				}
+				close();
+			},
+			.saveDraft = saveDraft,
+		});
+	}, raw->lifetime());
+}
 
 [[nodiscard]] Editor::StoryOptions StoryEditorOptions(
 		not_null<Window::SessionController*> controller,
@@ -261,7 +363,31 @@ void OpenStoryPhotoEditor(
 			strong->closeLayer();
 		}
 	};
-	raw->cancelRequests() | rpl::on_next(close, raw->lifetime());
+	SetupStoryEditorClose(controller, not_null(raw), setup, close, [=] {
+		const auto mods = raw->collect();
+		const auto painted = mods.paint && !mods.paint->items().empty();
+		const auto composed = ComposeStoryPhoto(image, background, mods);
+		auto draft = Data::StoryDraft{
+			.id = setup.draftId,
+			.peer = setup.peer,
+			.caption = raw->caption(),
+			.period = raw->period(),
+			.thumbnail = DraftThumbnail(composed),
+		};
+		auto media = Data::StoryDraftMedia();
+		if (painted) {
+			media.photo = composed;
+		} else {
+			media.photo = image;
+			draft.edits = {
+				.angle = mods.angle,
+				.flipped = mods.flipped,
+				.canvasMediaRect = mods.canvasMediaRect,
+			};
+		}
+		draft.dimensions = media.photo.size();
+		SaveStoryDraft(controller, std::move(draft), media, close);
+	});
 	raw->doneRequests(
 	) | rpl::on_next([=](const Editor::PhotoModifications &mods) {
 		auto result = ComposeStoryPhoto(image, background, mods);
@@ -326,7 +452,37 @@ void OpenStoryVideoEditor(
 			strong->closeLayer();
 		}
 	};
-	raw->cancelRequests() | rpl::on_next(close, raw->lifetime());
+	SetupStoryEditorClose(controller, not_null(raw), setup, close, [=] {
+		const auto mods = raw->collect();
+		auto draft = Data::StoryDraft{
+			.id = setup.draftId,
+			.peer = setup.peer,
+			.dimensions = dimensions,
+			.duration = duration,
+			.video = true,
+			.caption = raw->caption(),
+			.period = raw->period(),
+			.edits = {
+				.angle = mods.geometry.angle,
+				.flipped = mods.geometry.flipped,
+				.from = mods.from,
+				.till = mods.till,
+				.cover = mods.cover,
+				.canvasMediaRect = mods.canvasMediaRect,
+			},
+			.thumbnail = DraftThumbnail(Editor::ExtractCoverImage(
+				path,
+				content,
+				mods,
+				dimensions,
+				kDraftThumbnailSide,
+				&data)),
+		};
+		SaveStoryDraft(controller, std::move(draft), {
+			.videoPath = path,
+			.videoContent = content,
+		}, close);
+	});
 	raw->doneRequests(
 	) | rpl::on_next([=](Editor::VideoModifications mods) {
 		auto source = Editor::ComposeVideoSource(path, mods, data, true);
@@ -423,7 +579,8 @@ void EditStoryFile(
 
 [[nodiscard]] StoryEditorDone ShowSendBoxWhenEdited(
 		not_null<Window::SessionController*> controller,
-		not_null<PeerData*> peer) {
+		not_null<PeerData*> peer,
+		uint64 draftId) {
 	return [=](StoryEditorResult result, Fn<void()> closeEditor) {
 		controller->show(Box(SendStoryBox, SendStoryBoxArgs{
 			.controller = controller,
@@ -434,7 +591,12 @@ void EditStoryFile(
 			.reactions = std::move(result.reactions),
 			.urls = std::move(result.urls),
 			.music = result.music,
-			.posted = std::move(closeEditor),
+			.posted = [=] {
+				if (draftId) {
+					Drafts(controller).remove(draftId);
+				}
+				closeEditor();
+			},
 		}));
 	};
 }
@@ -552,8 +714,8 @@ void PostStory(
 		ChooseStoryMedia(
 			controller,
 			peer,
-			StoryEditorSetup(),
-			ShowSendBoxWhenEdited(controller, peer));
+			StoryEditorSetup{ .peer = peer->id },
+			ShowSendBoxWhenEdited(controller, peer, 0));
 	}));
 }
 
@@ -574,8 +736,74 @@ void PostStoryWithFile(
 				QStringList(path),
 				st::sendMediaPreviewSize,
 				session->premium()),
-			StoryEditorSetup(),
-			ShowSendBoxWhenEdited(controller, peer));
+			StoryEditorSetup{ .peer = peer->id },
+			ShowSendBoxWhenEdited(controller, peer, 0));
+	}));
+}
+
+void PostStoryDraft(
+		not_null<Window::SessionController*> controller,
+		uint64 draftId) {
+	const auto session = &controller->session();
+	const auto drafts = &Drafts(controller);
+	const auto found = drafts->find(draftId);
+	if (!found) {
+		return;
+	}
+	const auto draft = *found;
+	const auto peer = session->data().peer(draft.peer
+		? draft.peer
+		: session->userPeerId());
+	session->api().stories().checkCanSend(peer, crl::guard(controller, [=](
+			Api::CanSendStory result) {
+		if (!result.allowed()) {
+			ShowCanSendStoryError(controller, peer, result);
+			return;
+		}
+		const auto setup = StoryEditorSetup{
+			.caption = draft.caption,
+			.period = draft.period,
+			.peer = peer->id,
+			.draftId = draft.id,
+		};
+		const auto done = ShowSendBoxWhenEdited(controller, peer, draft.id);
+		const auto &edits = draft.edits;
+		if (!draft.video) {
+			auto image = QImage(draft.mediaPath);
+			if (image.isNull()) {
+				controller->showToast(tr::lng_story_draft_lost(tr::now));
+				drafts->remove(draft.id);
+				return;
+			}
+			auto initial = Editor::PhotoModifications();
+			initial.angle = edits.angle;
+			initial.flipped = edits.flipped;
+			initial.canvasMediaRect = edits.canvasMediaRect;
+			OpenStoryPhotoEditor(
+				controller,
+				std::move(image),
+				std::move(initial),
+				setup,
+				done);
+			return;
+		}
+		auto initial = Editor::VideoModifications();
+		initial.geometry.angle = edits.angle;
+		initial.geometry.flipped = edits.flipped;
+		initial.from = edits.from;
+		initial.till = edits.till;
+		initial.cover = edits.cover;
+		initial.canvasMediaRect = edits.canvasMediaRect;
+		OpenStoryVideoEditor(
+			controller,
+			StoryVideoSource{
+				.path = draft.mediaPath,
+				.dimensions = draft.dimensions,
+				.duration = draft.duration,
+				.initial = initial,
+			},
+			setup,
+			done);
 	}));
 }
 

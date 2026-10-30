@@ -63,6 +63,8 @@ public:
 	[[nodiscard]] TextWithTags caption() const;
 	[[nodiscard]] int period() const;
 	[[nodiscard]] StoryAudio audio() const;
+	[[nodiscard]] bool edited() const;
+	[[nodiscard]] PhotoModifications collect();
 
 private:
 	void keyPressEvent(QKeyEvent *e) override;
@@ -73,6 +75,8 @@ private:
 	[[nodiscard]] QMargins contentMargins() const;
 
 	PhotoModifications _modifications;
+	const int _initialAngle = 0;
+	const bool _initialFlipped = false;
 
 	const std::unique_ptr<Ui::LayerManager> _layers;
 	const std::shared_ptr<Controllers> _controllers;

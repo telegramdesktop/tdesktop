@@ -287,6 +287,8 @@ PhotoEditor::PhotoEditor(
 	EditorData data)
 : RpWidget(parent)
 , _modifications(std::move(modifications))
+, _initialAngle(_modifications.angle)
+, _initialFlipped(_modifications.flipped)
 , _layers(MakeLayers(this))
 , _controllers(std::make_shared<Controllers>(
 	sessionShow
@@ -728,6 +730,17 @@ int PhotoEditor::period() const {
 
 StoryAudio PhotoEditor::audio() const {
 	return _captionBar ? _captionBar->entity()->audio() : StoryAudio();
+}
+
+bool PhotoEditor::edited() const {
+	return (_modifications.angle != _initialAngle)
+		|| (_modifications.flipped != _initialFlipped)
+		|| _content->edited();
+}
+
+PhotoModifications PhotoEditor::collect() {
+	_content->save(_modifications);
+	return _modifications;
 }
 
 void PhotoEditor::layoutContent() {

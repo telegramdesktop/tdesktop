@@ -62,6 +62,7 @@ public:
 	[[nodiscard]] TextWithTags caption() const;
 	[[nodiscard]] int period() const;
 	[[nodiscard]] StoryAudio audio() const;
+	[[nodiscard]] bool edited() const;
 
 private:
 	void setupStreaming();
@@ -99,6 +100,7 @@ private:
 	[[nodiscard]] float64 canvasScale() const;
 	[[nodiscard]] QSize frameRequestSize() const;
 	void clampCanvasShift();
+	void restoreCanvasPlacement(QRect rect);
 	void zoomCanvas(float64 factor, QPoint about);
 	void canvasChanged();
 
@@ -148,6 +150,7 @@ private:
 	QRect _mediaRect;
 	float64 _canvasZoom = 1.;
 	QPointF _canvasShift;
+	std::optional<QRect> _canvasRestored;
 	QPointF _canvasDragShift;
 	std::optional<QPoint> _canvasPress;
 	bool _canvasMoved = false;

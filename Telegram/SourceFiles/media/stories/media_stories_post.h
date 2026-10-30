@@ -25,6 +25,8 @@ struct StoryEditorSetup {
 	TextWithTags caption;
 	int period = 0;
 	bool editing = false;
+	PeerId peer;
+	uint64 draftId = 0;
 };
 
 struct StoryEditorResult {
@@ -63,6 +65,9 @@ void EditStoryPrivacy(
 void RepostStory(
 	not_null<Window::SessionController*> controller,
 	not_null<Data::Story*> story);
+void PostStoryDraft(
+	not_null<Window::SessionController*> controller,
+	uint64 draftId);
 
 [[nodiscard]] bool CanPostStory(not_null<PeerData*> peer);
 [[nodiscard]] bool CanRepostStory(not_null<Data::Story*> story);

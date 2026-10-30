@@ -71,6 +71,8 @@ public:
 	void setExpansionRoom(bool room);
 	void save(PhotoModifications &modifications);
 
+	[[nodiscard]] bool edited() const;
+
 	bool handleKeyPress(not_null<QKeyEvent*> e);
 
 	void setupDragArea();
@@ -106,6 +108,8 @@ private:
 	[[nodiscard]] QRectF canvasBasePlacement() const;
 	[[nodiscard]] QRectF canvasMediaRect() const;
 	[[nodiscard]] float64 canvasScale() const;
+	[[nodiscard]] bool canvasMoved() const;
+	void restoreCanvasPlacement(QRect rect);
 	void layoutCanvasMedia(QRect canvas);
 	void clampCanvasShift();
 	void zoomCanvas(float64 factor, QPoint about);
@@ -147,6 +151,7 @@ private:
 	QTransform _canvasMediaMatrix;
 	float64 _canvasZoom = 1.;
 	QPointF _canvasShift;
+	std::optional<QRect> _canvasRestored;
 	QPointF _canvasDragShift;
 	std::optional<QPoint> _canvasPress;
 	bool _canvasMoved = false;

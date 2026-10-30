@@ -52,6 +52,7 @@ public:
 	~Paint() override;
 
 	[[nodiscard]] std::shared_ptr<Scene> saveScene() const;
+	[[nodiscard]] bool hasItems() const;
 	void restoreScene();
 
 	void applyTransform(
