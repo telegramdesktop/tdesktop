@@ -353,6 +353,7 @@ void PhotoEditorContent::applyLayout(QRectF imageRect) {
 	if (_pendingVideo) {
 		auto pending = base::take(_pendingVideo);
 		_paint->addStoryVideoObject(std::move(*pending));
+		_paint->keepResult();
 	}
 
 	_innerRect = canvasGeometry;
