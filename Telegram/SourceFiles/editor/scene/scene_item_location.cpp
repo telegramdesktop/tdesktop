@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/widgets/popup_menu.h"
 #include "styles/style_editor.h"
+#include "styles/style_media_player.h"
+#include "styles/style_menu_icons.h"
 
 #include <QtWidgets/QGraphicsSceneMouseEvent>
 
@@ -95,8 +97,17 @@ void ItemLocation::setEditCallback(EditCallback callback) {
 	_edit = std::move(callback);
 }
 
+LinkStyle ItemLocation::style() const {
+	return _pill.style();
+}
+
+void ItemLocation::setStyle(LinkStyle style) {
+	_pill.setStyle(style);
+	update();
+}
+
 QRectF ItemLocation::visibleRect() const {
-	return fittedRect(_pill.size());
+	return contentRect();
 }
 
 bool ItemLocation::flippable() const {
@@ -108,7 +119,12 @@ void ItemLocation::paint(
 		const QStyleOptionGraphicsItem *option,
 		QWidget *w) {
 	const auto rect = visibleRect();
-	_pill.paint(*p, rect.topLeft(), rect.width() / _pill.size().width());
+	const auto scale = rect.width() / _pill.size().width();
+	const auto height = _pill.size().height() * scale;
+	_pill.paint(
+		*p,
+		QPointF(rect.x(), rect.y() + (rect.height() - height) / 2.),
+		scale);
 	ItemBase::paint(p, option, w);
 }
 
@@ -150,13 +166,43 @@ void ItemLocation::requestPick() {
 }
 
 void ItemLocation::fillContextMenu(not_null<Ui::PopupMenu*> menu) {
-	menu->addAction(tr::lng_story_location_change(tr::now), [=] {
-		if (_edit) {
-			_edit(this);
-		} else {
-			requestPick();
-		}
-	});
+	const auto current = _pill.style();
+	const auto addStyle = [&](
+			const QString &text,
+			LinkStyle style,
+			const style::icon *icon) {
+		const auto checked = (current == style);
+		menu->addAction(
+			text,
+			[=] { setStyle(style); },
+			checked ? &st::mediaPlayerMenuCheck : icon);
+	};
+	addStyle(
+		tr::lng_photo_editor_text_style_plain(tr::now),
+		LinkStyle::Plain,
+		&st::mediaMenuIconTextStylePlain);
+	addStyle(
+		tr::lng_photo_editor_text_style_framed(tr::now),
+		LinkStyle::Framed,
+		&st::mediaMenuIconTextStyleFramed);
+	addStyle(
+		tr::lng_photo_editor_text_style_semi_transparent(tr::now),
+		LinkStyle::SemiTransparent,
+		&st::mediaMenuIconTextStyleSemiTransparent);
+	addStyle(
+		tr::lng_photo_editor_text_style_opaque(tr::now),
+		LinkStyle::Opaque,
+		&st::mediaMenuIconTextStyleOpaque);
+	menu->addAction(
+		tr::lng_story_location_change(tr::now),
+		[=] {
+			if (_edit) {
+				_edit(this);
+			} else {
+				requestPick();
+			}
+		},
+		&st::mediaMenuIconLocation);
 }
 
 std::shared_ptr<ItemBase> ItemLocation::duplicate(ItemBase::Data data) const {
