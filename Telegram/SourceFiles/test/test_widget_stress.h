@@ -74,22 +74,29 @@ struct WidgetStressArgs {
 // Appends the runner, after an overlay's session and chats-loaded waits;
 // reads the package now and changes nothing until its stages run. The
 // stages: the fixture's gates; the day palette with the default day theme
-// kept over it; the primary window moved wholly onto the screen with the
-// highest refresh rate (ties: the primary), at most 1280x1000 logical px
-// 64 px inside its available area, with the text focus cleared and the
-// cursor moved off it; then each selected level in manifest order: a
-// check that no other widget is alive, its watched injection, a wait of
-// at most 60 s for loaded or dead, the card shown whole and the list's
-// scroll held 3350 ms, the warm-up, the measuring window, its entry, its
-// removal with the host barrier, and 1 s before the next level or 20 s
-// after a load's last one. Then the kept theme and the palette are
-// restored, the fixture closed and the launch published as |args| says.
-// A failed gate, a level's runner error or a host barrier that did not
-// pass stops the ladder, and such a launch only writes its launch file.
-// Its Runner::onFinish, registered at once, releases the update filter,
-// the theme and the fixture on every path and writes an unpublished
-// launch to its launch file. The window keeps its new place: the account
-// remembers it.
+// kept over it; the primary window given Qt::WindowStaysOnTopHint on its
+// QWindow and moved wholly onto the primary screen, 64 px inside its
+// available area, at most 1000 logical px tall and as wide as a body one
+// logical px narrower than columnMinimalWidthLeft + columnMinimalWidthMain
+// (plus the filters sidebar when it is shown) needs, so the app shows only
+// the chat in its one-column layout, with the text focus cleared and the
+// cursor moved off it; gates on that screen, that layout and the hint;
+// the list settled and no update of the window for 2000 ms with no widget
+// injected, then one screen capture of the window's frame; then each
+// selected level in manifest order: a check that no other widget is
+// alive, its watched injection, a wait of at most 60 s for loaded or dead,
+// the card shown whole and the list's scroll held 3350 ms, the warm-up,
+// the measuring window, its entry, its removal with the host barrier, and
+// 1 s before the next level or 20 s after a load's last one. Then the kept
+// theme and the palette are restored, the filter and the hint released,
+// the fixture closed and the launch published as |args| says. A failed
+// gate, a level's runner error or a host barrier that did not pass stops
+// the ladder, and such a launch only writes its launch file. Its
+// Runner::onFinish, registered at once, releases the update filter, the
+// stay-on-top hint (only one it set), the theme and the fixture on every
+// path and writes an unpublished launch to its launch file. It never
+// changes a display mode. The window keeps its new place and size: the
+// account remembers them.
 void AppendWidgetStress(not_null<Runner*> runner, WidgetStressArgs args);
 
 // Synchronous and pure: reads no Telegram state and no file. Literal
@@ -103,11 +110,12 @@ void AppendWidgetStress(not_null<Runner*> runner, WidgetStressArgs args);
 // data-stress values clipped at the window's start and end with the
 // largest maxGap between, and foreign, unparsable or backward values
 // refused with nulls; a counter reset named and null; a never-loaded death
-// entry; the envelope's names and requested and applied configurations;
-// integers without a fraction; a ladder's replacement keeping manifest
-// order, the first date, every note and each launch once; a merge with a
-// different device refused naming device; and the launch acceptance. The
-// caller turns each row into a Check().
+// entry; the envelope's names, its device with the window's size, layout
+// and filters sidebar, and requested and applied configurations; integers
+// without a fraction; a ladder's replacement keeping manifest order, the
+// first date, every note and each launch once; a merge with a different
+// device, or a different window, refused naming device; and the launch
+// acceptance. The caller turns each row into a Check().
 [[nodiscard]] std::vector<WidgetOpsSelfCheckRow> RunWidgetStressSelfCheck();
 
 } // namespace Test

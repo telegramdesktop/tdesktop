@@ -12,7 +12,7 @@ Internal to it:
 | `test_widget_stress.h` | The contract: `WidgetStressPass`, `WidgetStressArgs`, `AppendWidgetStress`, `RunWidgetStressSelfCheck`. |
 | `test_widget_stress_internal.h` | The model the two translation units share: the manifest, the selection, a level's readings, an entry, the launch, and the functions the live stages call. |
 | `test_widget_stress.cpp` | The kit (arguments, `manifest.json`, the selected HTML), each level's entry arithmetic (frames, renderer, host, widget), the envelope and its notes, the merge, the publication and the self-check. |
-| `test_widget_stress_live.cpp` | `AppendWidgetStress`: the stages, the theme, the window's placement, the update filter, the window observations and covering-window check, the one-alive check, the levels, the publication and the `Runner::onFinish` release. |
+| `test_widget_stress_live.cpp` | `AppendWidgetStress`: the stages, the theme, the window's placement, one-column layout and stay-on-top hint, the update filter, the idle check, the layout capture, the window observations and covering-window check, the one-alive check, the levels, the publication and the `Runner::onFinish` release. |
 
 ## Use when
 
@@ -67,14 +67,55 @@ Use something else when:
   kept in the campaign's overlay with the scenario and never committed.
   Without it every measured level is a runner error ("no renderer work was
   recorded"), never an all-null success.
-- **Display.** The runner moves the primary window wholly onto the screen
-  with the highest `QScreen::refreshRate()` (ties: the primary), at most
-  1280x1000 logical px placed 64 px inside its available geometry, out of a
-  maximized or full-screen state if needed. These are harness constants, not
-  product styles. It never changes a display mode. The window's `QWindow`
-  surface type is recorded, not required: on Windows the main window reads
-  `Direct3DSurface` once an RHI child exists, and Qt Widgets then flushes the
-  raster backing store through QRhi into a swapchain.
+- **Display.** The runner moves the main window wholly onto the primary
+  screen (`QGuiApplication::primaryScreen()`, whatever its refresh rate),
+  its frame placed 64 px inside the screen's available geometry and at most
+  1000 logical px tall, out of a maximized or full-screen state if needed;
+  the margin and the height are harness constants, not product styles. It
+  never changes a display mode: `device.refreshHz` is the rate Qt reports
+  for that screen, and a 30 Hz primary is measured at 30 Hz. Every screen's
+  name, geometry and refresh rate go into the launch record.
+- **One column.** The width is not a constant: it comes from the column
+  styles at runtime. `Window::SessionController::computeColumnLayout()`
+  lays the primary window out in one column when its body
+  (`bodyWidget()->width() - filtersWidth()`) is narrower than
+  `st::columnMinimalWidthLeft + st::columnMinimalWidthMain`, so the runner
+  asks for a `bodyWidget()` one logical px narrower than that, plus
+  `st::windowFiltersWidth` when the chat filters sidebar is shown, plus the
+  window's own margins beside its body, never below the window's minimum
+  width. A first move puts the window on the screen; once it has held its
+  geometry for 1 s a second one recomputes the target from the settled
+  window, whose frame margins and scale can differ on the new screen. A
+  gate then requires `adaptive().isOneColumn()`, a body below the
+  threshold, no `Dialogs::Widget` shown in `MainWidget` and the chat's
+  legacy `HistoryWidget` shown as wide as `MainWidget`: only the chat, no
+  chat list and no third column. The card's 390 CSS px width check of every
+  level proves the bubble is not squeezed.
+- **On top.** Before the move the runner sets `Qt::WindowStaysOnTopHint`
+  on the window's `QWindow` with `QWindow::setFlag`
+  ([window exposure](test_window_exposure.md)'s mechanism and bans: never
+  `QWidget::setWindowFlags`, `raise()`, `activateWindow()` or
+  `requestActivate()`). On Windows Qt applies it as a topmost
+  `SetWindowPos` without activation, with a frame change the placement's
+  settle covers. A gate requires the hint and, on Windows, `WS_EX_TOPMOST`.
+  Only a hint the runner set is cleared again, in the close stage and in
+  `Runner::onFinish`. The per-level covering-window check is unchanged.
+- **Surface.** The window's `QWindow` surface type is recorded, not
+  required: on Windows the main window reads `Direct3DSurface` once an RHI
+  child exists, and Qt Widgets then flushes the raster backing store
+  through QRhi into a swapchain.
+- **Nothing else animates.** After the placement, the theme and the
+  chat's opening, with no widget injected, the runner settles the list
+  (focus cleared, cursor off the window, the scroll held 3350 ms, at most
+  8 s) and counts the window's `QEvent::UpdateRequest` events over 2000 ms
+  with the levels' update filter. Any update, or a scroll that never held,
+  fails the gate and refuses the launch before it measures; the count,
+  the stamps' span and their first offsets go into the launch record, and
+  the stamps are cleared before the first level. Then one screen capture of
+  the window's frame (`QScreen::grabWindow(0, ...)`, screen-relative, so a
+  window over it would show) is saved as `stress-layout-<loads>.png`
+  through `SaveImage` (its `SCREENSHOT` row) with its size noted: evidence,
+  not a verdict, taken even when the idle check failed.
 - **Theme.** The day palette comes from [test_palette](test_palette.md). When
   the day theme it leaves kept is not the default one (a theme file, a cloud
   theme or another embedded theme), the runner keeps the default through the
@@ -166,10 +207,14 @@ Every stage name, Check and Note starts `widget stress: `, after
 - the fixture's `capture the baseline and show the window normally`, `keep
   the window exposed`, `open the chat in the legacy HistoryWidget`;
 - `palette switch: widget stress: the day palette`, `keep the default day
-  theme`, `place the window on the fastest screen` (it also clears the
+  theme`, `place the window on the primary screen, on top`, `size the
+  window for the one-column layout` (its gates; it also clears the
   window's text focus, moves the cursor off the window when it is over it,
   sends the list a leave and installs the update filter), `check the console
-  and the window's exposure`;
+  and the window's exposure`, `settle the list before the idle check`,
+  `check that nothing else updates the window while idle`, `capture the
+  window's layout from the screen` (an `addRecovery` stage, run once the
+  idle check ran);
 - per level, in manifest order:
   - `[<id>] check that no other widget is alive`;
   - `[<id>] inject the watched widget` (the pass's override for measure, an
@@ -191,15 +236,15 @@ Every stage name, Check and Note starts `widget stress: `, after
     stopped ladder once one of its levels was injected);
 - `keep the day theme the launch found again` (only when the runner changed
   it), `palette restore: widget stress: the day palette`, `judge the palette
-  restore`, `release the window's update filter`;
+  restore`, `release the window's update filter and stay-on-top hint`;
 - the fixture's `teardown` and `settle after the teardown`;
 - `publish the launch`.
 
 The fixture's opening stages, the setup and every level are composed in
 one `Runner::addGated` group whose gate is the fixture's gate, a failed
-setup gate, then the reason the ladder stopped; the write, removal and
-cool-down stages are `addRecovery` stages with their own reasons, and the
-stages after the ladders are outside the group.
+setup gate, then the reason the ladder stopped; the layout capture, write,
+removal and cool-down stages are `addRecovery` stages with their own
+reasons, and the stages after the ladders are outside the group.
 
 ## Readings and refusals
 
@@ -236,6 +281,13 @@ dropped frames, and `dropped` stays `null`. `report.mjs` treats a null
 an update-cadence observation, not a display limit. The filter keeps 16384
 stamps a window; more is a runner error.
 
+The same filter first reads the window idle: before the first level, with
+no widget injected and the list settled, a launch whose window gets any
+`UpdateRequest` in 2000 ms is refused ("Nothing else animates" above), so
+nothing else on screen was updating the window when the launch began. It
+does not prove the unsampled instants of later levels; their own
+observations are below.
+
 ### Run file
 
 | Field | Source |
@@ -245,21 +297,34 @@ stamps a window; more is a runner error.
 | `clientBuild` | `AppVersionStr`, `Debug` or `Release`, the build's CPU architecture, then `buildNote`. |
 | `framework`, `engine` | The arguments, as given. |
 | `device.model`, `device.os`, `device.ramMb` | The registry's `ProcessorNameString`, `QSysInfo`'s product name with its kernel, `GetPhysicallyInstalledSystemMemory`. |
-| `device.refreshHz`, `device.dpr` | The placed window's screen's `refreshRate()` and the window's `devicePixelRatio()`, read after the placement settled. |
+| `device.refreshHz`, `device.dpr` | The primary screen's `refreshRate()`, as Qt reports it for the display mode it found, and the placed window's `devicePixelRatio()`, read after the placement settled. |
+| `device.window` | An extra key (the schema allows them): `width` and `height`, the placed top-level `QWidget`'s logical size; `layout`, the session controller's column layout (`one-column` for an accepted launch); `filtersSidebar`, whether the chat filters sidebar takes its width. `null` when never read. Part of `device`, so the merge refuses a launch whose window differs from the file's. |
 | `pass` | `measure` or `production`. |
 | `config.requested` | Measure: `compat` and `CLIENTS.md`'s table (`cpuLimitMs` 500, `cpuQuotaMs` 10000, `cpuQuotaWindowMs` 1000, `mainThreadQuotaMs` 10000, `maxTimers` 256, `memoryLimitBytes` 67108864, `features` `["webAnimations"]`); production: `strict`. Both: `width`, `theme` `light`, `warmupMs`, `measureMs`. |
 | `config.applied` | The first level's host options exactly as they entered its `Job` (`policy`, the limits, `cpuKillAfterMs`, `features`, `devicePixelRatio`: the product's core ratio, not the window's), the first measured card's core CSS width and the scheme its renderer got. Every later level must match all three. |
 | `date`, `notes` | The first launch's start (UTC); the runner's definitions, the smoke marker, the live runner's observation note, then `notes`. |
 | `desktop` | `frameSource`; `screen` (name, geometry, refresh rate, surface) and `scales` (`windowDpr`, `coreRatio` = `style::DevicePixelRatio() * style::Scale() / 100`, `uiScale`); `launches`, one record per accepted launch. |
 
-A launch record has its id, date, loads, entries, durations, screen and
-scales, and the live runner's readings: `themeBefore` and `theme` (embedded
-theme, cloud, theme file, night, wallpaper kind, accent colorizer,
-`windowBg`), `themeChanged`, `rendererTheme` (the first measured renderer's
-`colorScheme` and `params`), `placement` (every screen, the chosen one, the
-window before and after, the target), `focusAndCursor`, `environment` (lock
-and exposure), `updateFilter` (UpdateRequests delivered since install) and
-`stopped` when the ladder stopped.
+A launch record has its id, date, loads, entries, durations, screen,
+scales and `window` (as in `device`), and the live runner's readings:
+`themeBefore` and `theme` (embedded theme, cloud, theme file, night,
+wallpaper kind, accent colorizer, `windowBg`), `themeChanged`,
+`rendererTheme` (the first measured renderer's `colorScheme` and `params`),
+`placement` (every screen with its name, geometry, available geometry,
+refresh rate, scale and whether it is the primary; the chosen one; the
+window before; the first move's `target` and the settled window's
+`corrected` one, each with its frame, client geometry, body width, layout
+reading and whether it moved the window; the window after), `layout` (the
+column layout, body, threshold, `bodyWidget()`, filters width, MainWidget
+and chat widths, shown chat and chat lists, minimum width), `stayOnTop`
+(the hint before, whether the runner applied it, the hint and Windows'
+`WS_EX_TOPMOST` after) and `stayOnTopRelease` (the same after the release),
+`focusAndCursor`, `environment` (lock and exposure), `idle` (`updates`,
+`spanMs`, the first 20 `offsetsMs`, `windowMs`, and the settle's
+`dateWaitMs`, `dateHeld`, `scrollChanges` and `focusAndCursor`),
+`layoutScreenshot` (file name, whether it was saved, the frame and the
+image's pixel size), `updateFilter` (UpdateRequests delivered since
+install) and `stopped` when the ladder stopped.
 
 ### Run entry
 
@@ -301,12 +366,16 @@ and covering readings, `samples`, `sampleEveryMs`, `sampleCostMs`,
   frames, renderer, the widget's fps.
 - `STRESS_LAUNCH: {...}` once: pass, loads, selected levels, entries,
   `merged`, the written file, its size and the refusal.
-- Checks: the package; each `fixture gate:` (theme, placement, raster
-  surface, console and exposure); per level `[<id>] one options call, one
-  host and one tap generation`, `[<id>] the entry has no runner error`,
-  `[<id>] the widget's host is gone before another injection`; the theme
-  kept again, the palette back, the fixture's teardown and settle; `the
-  launch is merged into the pass's run file`.
+- Checks: the package; each `fixture gate:` (the default day theme, `the
+  window is wholly on the primary screen`, `only the chat is shown, in the
+  one-column layout`, `the window stays on top`, the console and exposure,
+  `nothing else updates the window while idle`); per level `[<id>] one
+  options call, one host and one tap generation`, `[<id>] the entry has no
+  runner error`, `[<id>] the widget's host is gone before another
+  injection`; the theme kept again, the palette back, the fixture's
+  teardown and settle; `the launch is merged into the pass's run file`.
+- `SCREENSHOT: "screenshots/stress-layout-<loads>.png"` once per launch
+  whose idle check ran, after its `layout screenshot:` Note.
 
 ### Merge and acceptance
 
@@ -326,18 +395,21 @@ manifest's 127 entries.
 ## Lifetime and cleanup
 
 `Runner::onFinish` is registered first, before the palette helper's: on
-every path it removes the update filter, keeps the replaced day theme again
-(once), runs the fixture's idempotent release (messages destroyed, taps and
-host watches disarmed, so their cores leave the work registry; the option,
-the chat, the exposure hint and the window state restored) and, when the
-publish stage never ran, writes the launch file with "the launch ended
-before its publish stage". The palette helper's own release follows it.
+every path it removes the update filter, clears the stay-on-top hint when
+the runner set it (once; the close stage does it first on a normal path),
+keeps the replaced day theme again (once), runs the fixture's idempotent
+release (messages destroyed, taps and host watches disarmed, so their cores
+leave the work registry; the option, the chat, the exposure hint and the
+window state restored) and, when the publish stage never ran, writes the
+launch file with "the launch ended before its publish stage". The palette
+helper's own release follows it.
 
 Lasting effects, all in the portable account the launch runs in: the window
-keeps its placement and normal state (Telegram saves its geometry); the
-palette switch persists what `test_palette.h` describes; a changed day
-theme is kept again but a replaced custom wallpaper is not; the cursor is
-moved. Each launch writes its run file or launch file.
+keeps its placement on the primary screen, its one-column width and its
+normal state (Telegram saves its geometry); the palette switch persists
+what `test_palette.h` describes; a changed day theme is kept again but a
+replaced custom wallpaper is not; the cursor is moved. Each launch writes
+its run file or launch file and its layout capture.
 
 ## Verification
 
@@ -345,18 +417,22 @@ Executed: `RunWidgetStressSelfCheck()`'s 14 rows (manifest selection,
 frames, renderer groups and refusals, host rates, widget clipping and
 refusals, counter reset, a never-loaded death, envelope, integers, ladder
 merge and refusal, acceptance) passed in a standalone QtCore harness, and
-three deliberate breakages failed six of them; Debug single-file compiles of
-`test_widget_stress.cpp` and `test_widget_stress_live.cpp` (Windows, Win32,
-MSVC). The live stages have not run in the app.
+three deliberate breakages failed six of them; after `device.window` was
+added the 14 rows passed again, and a device without its window failed the
+envelope and the window-merge refusal. Debug and Release single-file
+compiles of `test_widget_stress.cpp` and `test_widget_stress_live.cpp`
+(Windows, Win32, MSVC). The one-column placement, the stay-on-top hint,
+the idle check and the layout capture have not run in the app yet.
 
 Proposed, by the campaign: a Release smoke of short loads (a small moving
 load, a query or canvas load, a production cap-crossing load) with
 `_SELF_CHECK`, smoke durations and the renderer overlay, whose files
 validate against `run.schema.json`, whose entries show one host per level,
-nonempty renderer work for a changing widget, unscaled applied options and
-the placed screen's refresh rate, and whose card crops, taken outside timed
-windows, show the whole light card on screen; and a deliberately covered or
-moved window refused before any timed run.
+nonempty renderer work for a changing widget, unscaled applied options,
+the primary screen's refresh rate and the one-column `device.window`, whose
+layout capture shows only the chat on top, and whose card crops, taken
+outside timed windows, show the whole light card on screen; and a
+deliberately covered or moved window refused before any timed run.
 
 ## Related guidance
 

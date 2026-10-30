@@ -144,6 +144,17 @@ struct StressScreen {
 	int uiScale = 0;
 };
 
+// The measured window as the live runner left it after placing it: its
+// logical size (the top-level QWidget's), the app's column layout
+// ("one-column", "normal" or "three-column") and whether the chat filters
+// sidebar takes its width. Empty |layout|: never read.
+struct StressWindowLayout {
+	QString layout;
+	int width = 0;
+	int height = 0;
+	bool filtersSidebar = false;
+};
+
 // What the levels' hosts were built with and what the card showed.
 struct StressApplied {
 	WidgetHostApplied options;
@@ -167,6 +178,7 @@ struct StressLaunch {
 	QStringList loads;
 	StressMachine machine;
 	StressScreen screen;
+	StressWindowLayout window;
 	std::optional<StressApplied> applied;
 	// The live runner's own readings for this launch's record.
 	QJsonObject record;
@@ -225,7 +237,7 @@ struct StressPublication {
 	const std::vector<StressEntry> &entries);
 
 // A launch of |selection| as |args| ask, with the machine read now; the
-// live runner fills its screen, applied options and record.
+// live runner fills its screen, window, applied options and record.
 [[nodiscard]] StressLaunch MakeLaunch(
 	const WidgetStressArgs &args,
 	const StressManifest &manifest,

@@ -1426,6 +1426,20 @@ namespace {
 	return (value > 0.) ? QJsonValue(value) : Null();
 }
 
+// The window the levels were measured in; null when the live runner never
+// read it. Part of device, so every launch merged into one file shares it.
+[[nodiscard]] QJsonValue WindowLayoutObject(const StressWindowLayout &window) {
+	if (window.layout.isEmpty()) {
+		return Null();
+	}
+	return QJsonObject{
+		{ u"width"_q, window.width },
+		{ u"height"_q, window.height },
+		{ u"layout"_q, window.layout },
+		{ u"filtersSidebar"_q, window.filtersSidebar },
+	};
+}
+
 [[nodiscard]] QJsonObject DeviceObject(const StressLaunch &launch) {
 	return {
 		{ u"model"_q, launch.machine.model },
@@ -1433,6 +1447,7 @@ namespace {
 		{ u"class"_q, QString::fromLatin1(kDeviceClass) },
 		{ u"refreshHz"_q, Positive(launch.screen.refreshHz) },
 		{ u"dpr"_q, Positive(launch.screen.windowDpr) },
+		{ u"window"_q, WindowLayoutObject(launch.window) },
 		{ u"ramMb"_q, NullableInteger(launch.machine.ramMb) },
 		{ u"lowPowerMode"_q, Null() },
 	};
@@ -1476,6 +1491,7 @@ namespace {
 	result.insert(u"measureMs"_q, qint64(launch.measureMs));
 	result.insert(u"screen"_q, ScreenObject(launch.screen));
 	result.insert(u"scales"_q, ScalesObject(launch.screen));
+	result.insert(u"window"_q, WindowLayoutObject(launch.window));
 	return result;
 }
 
@@ -1710,7 +1726,7 @@ namespace {
 } // namespace
 
 // A launch of |selection| as |args| ask; the live runner fills its screen,
-// applied options and record before the run file is written.
+// window, applied options and record before the run file is written.
 StressLaunch MakeLaunch(
 		const WidgetStressArgs &args,
 		const StressManifest &manifest,
@@ -1991,6 +2007,12 @@ constexpr auto kControlManifest = R"json({"version":1,
 			.coreRatio = 1.5,
 			.uiScale = 150,
 		},
+		.window = {
+			.layout = u"one-column"_q,
+			.width = 966,
+			.height = 1000,
+			.filtersSidebar = false,
+		},
 		.applied = StressApplied{
 			.options = options,
 			.theme = u"light"_q,
@@ -2041,6 +2063,12 @@ constexpr auto kControlManifest = R"json({"version":1,
 		result.push_back(launch.toObject().value(u"id"_q).toString());
 	}
 	return result;
+}
+
+[[nodiscard]] QJsonObject FirstLaunch(const QJsonObject &file) {
+	const auto launches = file.value(
+		u"desktop"_q).toObject().value(u"launches"_q).toArray();
+	return launches.isEmpty() ? QJsonObject() : launches[0].toObject();
 }
 
 [[nodiscard]] QStringList NoteList(const QJsonObject &file) {
@@ -2519,6 +2547,10 @@ constexpr auto kControlManifest = R"json({"version":1,
 	auto smokeLaunch = ControlLaunch(WidgetStressPass::Measure);
 	smokeLaunch.warmupMs = 500;
 	const auto smoke = RunFileObject(smokeLaunch, {});
+	auto unreadLaunch = ControlLaunch(WidgetStressPass::Measure);
+	unreadLaunch.window = StressWindowLayout();
+	const auto unreadDevice = RunFileObject(unreadLaunch, {}).value(
+		u"device"_q).toObject();
 	const auto requested = QJsonObject{
 		{ u"policy"_q, u"compat"_q },
 		{ u"cpuLimitMs"_q, 500 },
@@ -2576,6 +2608,15 @@ constexpr auto kControlManifest = R"json({"version":1,
 			{ u"class"_q, u"desktop"_q },
 			{ u"refreshHz"_q, 60 },
 			{ u"dpr"_q, 1.5 },
+			{
+				u"window"_q,
+				QJsonObject{
+					{ u"width"_q, 966 },
+					{ u"height"_q, 1000 },
+					{ u"layout"_q, u"one-column"_q },
+					{ u"filtersSidebar"_q, false },
+				},
+			},
 			{ u"ramMb"_q, 65536 },
 			{ u"lowPowerMode"_q, QJsonValue(QJsonValue::Null) },
 		})
@@ -2596,7 +2637,12 @@ constexpr auto kControlManifest = R"json({"version":1,
 			QJsonArray{ u"webAnimations"_q })
 		&& (desktop.value(u"frameSource"_q).toString()
 			== u"window-update-request"_q)
-		&& (LaunchIds(measure) == QStringList{ u"launch-1"_q });
+		&& (LaunchIds(measure) == QStringList{ u"launch-1"_q })
+		&& SameJson(
+			FirstLaunch(measure).value(u"window"_q),
+			device.value(u"window"_q))
+		&& (unreadDevice.value(u"window"_q)
+			== QJsonValue(QJsonValue::Null));
 	const auto noted = notes.join(u"\n"_q).contains(u"fullRateUpTo"_q)
 		&& (notes.last() == u"caller note"_q)
 		&& !hasSmoke(notes)
@@ -2606,7 +2652,9 @@ constexpr auto kControlManifest = R"json({"version":1,
 		names && described && noted,
 		u"envelope: kit version and tag, desktop, Telegram Desktop, "
 			u"twidget-core, own, the engine, clientBuild from the version, "
-			u"configuration, architecture and note, the device as measured, "
+			u"configuration, architecture and note, the device as measured "
+			u"with its window (size, one-column layout, filters sidebar; "
+			u"also in the launch record, null when never read), "
 			u"CLIENTS.md's measure table or strict as requested, the "
 			u"host's options with the card's width and theme as applied, "
 			u"the frame source, the null-dropped caveat, a smoke marker "
@@ -2641,6 +2689,8 @@ constexpr auto kControlManifest = R"json({"version":1,
 		u"\"ramMb\":65536,"_q,
 		u"\"warmupMs\":2000,"_q,
 		u"\"uiScale\":150"_q,
+		u"\"height\":1000,"_q,
+		u"\"width\":966}"_q,
 	};
 	auto missing = QStringList();
 	for (const auto &entry : expected) {
@@ -2657,9 +2707,9 @@ constexpr auto kControlManifest = R"json({"version":1,
 		passed,
 		u"integers: kit.version, frames.count, host.nodes, memoryBytes, "
 			u"throttledTasks and maxBatchOps, widget.frames and jank, "
-			u"displayListOps, the options' integers, ramMb and the "
-			u"durations serialize as whole numbers, without a fraction or "
-			u"an exponent"_q,
+			u"displayListOps, the options' integers, ramMb, the window's "
+			u"size and the durations serialize as whole numbers, without a "
+			u"fraction or an exponent"_q,
 		u"missing=[%1] bytes=%2"_q.arg(
 			missing.join(u" "_q),
 			QString::number(text.size())));
@@ -2775,6 +2825,9 @@ constexpr auto kControlManifest = R"json({"version":1,
 	auto otherDevice = base;
 	otherDevice.machine.model = u"Other CPU"_q;
 	otherDevice.applied->cardCssWidth = 380.;
+	auto otherWindow = base;
+	otherWindow.window.width = 1280;
+	otherWindow.window.layout = u"normal"_q;
 	auto otherPass = ControlLaunch(WidgetStressPass::Production);
 	auto smoke = base;
 	smoke.measureMs = 3000;
@@ -2786,23 +2839,33 @@ constexpr auto kControlManifest = R"json({"version":1,
 			launch.loads);
 	};
 	const auto device = refusal(otherDevice);
+	const auto window = refusal(otherWindow);
 	const auto pass = refusal(otherPass);
 	const auto config = refusal(smoke);
 	const auto prefix = u"the run file's "_q;
 	const auto passed = device.file.isEmpty()
 		&& device.error.startsWith(prefix + u"device differs"_q)
 		&& device.error.contains(u"Other CPU"_q)
+		&& window.file.isEmpty()
+		&& window.error.startsWith(prefix + u"device differs"_q)
+		&& window.error.contains(u"\"layout\":\"normal\""_q)
 		&& pass.file.isEmpty()
 		&& pass.error.startsWith(prefix + u"pass differs"_q)
 		&& config.file.isEmpty()
 		&& config.error.startsWith(prefix + u"config differs"_q);
 	return SelfCheckRow(
 		passed,
-		u"merge: a launch on another device is refused naming device, "
-			u"before its other configuration; another pass is refused "
-			u"naming pass and a smoke's durations naming config, each "
-			u"leaving no file to write"_q,
-		QStringList{ device.error, pass.error, config.error }.join(u" | "_q));
+		u"merge: a launch on another device, or in another window size or "
+			u"column layout, is refused naming device, before its other "
+			u"configuration; another pass is refused naming pass and a "
+			u"smoke's durations naming config, each leaving no file to "
+			u"write"_q,
+		QStringList{
+			device.error,
+			window.error,
+			pass.error,
+			config.error,
+		}.join(u" | "_q));
 }
 
 [[nodiscard]] WidgetOpsSelfCheckRow CheckAcceptance() {
