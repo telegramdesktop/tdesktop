@@ -504,14 +504,18 @@ void LocationPicker::setupWebview() {
 				// Another send can be handled before the queued close() runs.
 				const auto onstack = base::take(_callback);
 				if (onstack && point) {
-					onstack(*point, _geocoderAddress.current());
+					auto address = _geocoderFull;
+					address.name = _geocoderAddress.current();
+					onstack(*point, std::move(address));
 				}
 				close();
 			} else if (event == u"move_start"_q) {
 				if (const auto now = _geocoderAddress.current()
 					; !now.isEmpty()) {
 					_geocoderSavedAddress = now;
+					_geocoderSavedFull = _geocoderFull;
 					_geocoderAddress = QString();
+					_geocoderFull = {};
 				}
 				base::take(_geocoderResolvePostponed);
 				_geocoderResolveTimer.cancel();
@@ -525,6 +529,7 @@ void LocationPicker::setupWebview() {
 				if (AreTheSame(_geocoderResolvingFor, location)
 					&& !_geocoderSavedAddress.isEmpty()) {
 					_geocoderAddress = base::take(_geocoderSavedAddress);
+					_geocoderFull = base::take(_geocoderSavedFull);
 					_geocoderResolveTimer.cancel();
 				} else {
 					_geocoderResolvePostponed = location;
@@ -635,7 +640,9 @@ void LocationPicker::resolveAddress(Core::GeoLocation location) {
 	const auto done = [=](Core::GeoAddress address) {
 		if (!AreTheSame(_geocoderResolvingFor, location)) {
 			return;
-		} else if (address) {
+		}
+		_geocoderFull = address;
+		if (address) {
 			_geocoderAddress = address.name;
 		} else {
 			_geocoderAddress = u"(%1, %2)"_q

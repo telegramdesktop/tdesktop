@@ -3020,7 +3020,7 @@ void ChooseAndSendLocation(
 		state->send = nullptr;
 		Api::SendLocation(action, point.lat(), point.lon());
 	};
-	const auto callback = [=](Data::LocationPoint point, QString) {
+	const auto callback = [=](Data::LocationPoint point, Core::GeoAddress) {
 		state->send(point, action);
 	};
 	const auto picker = Ui::LocationPicker::Show({

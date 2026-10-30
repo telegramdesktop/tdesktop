@@ -39,6 +39,8 @@ struct GeoLocation {
 
 struct GeoAddress {
 	QString name;
+	QString country;
+	QString city;
 
 	[[nodiscard]] bool empty() const {
 		return name.isEmpty();

@@ -1780,12 +1780,12 @@ private:
 			.chooseLabel = tr::lng_maps_point_send(),
 			.callback = [weak, editorPointer](
 					::Data::LocationPoint point,
-					QString address) {
+					::Core::GeoAddress address) {
 				if (const auto session = weak.get()) {
 					session->applyMapSelection(
 						editorPointer,
 						point,
-						std::move(address));
+						std::move(address.name));
 				}
 			},
 			.quit = [] { Shortcuts::Launch(Shortcuts::Command::Quit); },

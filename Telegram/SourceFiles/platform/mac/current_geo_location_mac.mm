@@ -142,7 +142,11 @@ void ResolveLocationAddress(
 			push([placemark thoroughfare]);
 			push([placemark locality]);
 			push([placemark country]);
-			callback({ .name = list.join(u", "_q) });
+			callback({
+				.name = list.join(u", "_q),
+				.country = NS2QString([placemark country]),
+				.city = NS2QString([placemark locality]),
+			});
 		} else {
 			callback({});
 		}

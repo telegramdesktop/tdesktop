@@ -972,11 +972,17 @@ void Paint::chooseLocation(ItemBase *editing) {
 		.chooseLabel = tr::lng_stories_location_add(),
 		.callback = crl::guard(this, [=](
 				Data::LocationPoint point,
-				QString address) {
+				Core::GeoAddress address) {
+			const auto title = !address.city.isEmpty()
+				? (address.country.isEmpty()
+					? address.city
+					: address.city + u", "_q + address.country)
+				: address.name;
 			applyLocationResult(LocationData{
 				.lat = point.lat(),
 				.lon = point.lon(),
-				.title = address,
+				.title = title,
+				.address = address.name,
 			}, weak);
 		}),
 		.quit = [] { Shortcuts::Launch(Shortcuts::Command::Quit); },
