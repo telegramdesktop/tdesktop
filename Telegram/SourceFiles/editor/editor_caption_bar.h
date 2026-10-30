@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/unique_qptr.h"
+#include "editor/photo_editor_common.h"
 #include "ui/rp_widget.h"
 
 namespace ChatHelpers {
@@ -17,12 +18,14 @@ class TabbedPanel;
 
 namespace Ui {
 class EmojiButton;
+class IconButton;
 class InputField;
 class PopupMenu;
 } // namespace Ui
 
 namespace Editor {
 
+class AudioTimeline;
 class PeriodButton;
 struct StoryOptions;
 
@@ -36,6 +39,9 @@ public:
 
 	[[nodiscard]] TextWithTags caption() const;
 	[[nodiscard]] int period() const;
+	[[nodiscard]] StoryAudio audio() const;
+	void chooseAudio();
+	[[nodiscard]] rpl::producer<> audioChanges() const;
 
 	[[nodiscard]] rpl::producer<> submits() const;
 	[[nodiscard]] rpl::producer<> cancels() const;
@@ -51,6 +57,7 @@ private:
 	void setupField();
 	void setupEmoji();
 	void setupPeriod();
+	void refreshAudioTimeline();
 	void updatePanelGeometry();
 	void showPeriodMenu();
 	void showPremiumHint(int period);
@@ -61,12 +68,17 @@ private:
 	const base::unique_qptr<Ui::InputField> _field;
 	const base::unique_qptr<Ui::EmojiButton> _emojiToggle;
 	const base::unique_qptr<PeriodButton> _periodButton;
+	const base::unique_qptr<Ui::IconButton> _musicButton;
 	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
 	base::unique_qptr<Ui::PopupMenu> _periodMenu;
+	base::unique_qptr<AudioTimeline> _audioTimeline;
 	int _period = 0;
+	bool _musicChoice = false;
+	StoryAudio _audio;
 
 	rpl::event_stream<> _submits;
 	rpl::event_stream<> _cancels;
+	rpl::event_stream<> _audioChanges;
 
 };
 

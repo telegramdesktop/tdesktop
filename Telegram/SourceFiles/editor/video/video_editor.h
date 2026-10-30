@@ -61,6 +61,7 @@ public:
 
 	[[nodiscard]] TextWithTags caption() const;
 	[[nodiscard]] int period() const;
+	[[nodiscard]] StoryAudio audio() const;
 
 private:
 	void setupStreaming();

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_stories.h"
 #include "boxes/premium_preview_box.h"
+#include "boxes/story_audio_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/message_field.h"
@@ -22,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/stickers/data_stickers.h"
+#include "editor/editor_audio_timeline.h"
 #include "editor/photo_editor_common.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -154,11 +156,19 @@ CaptionBar::CaptionBar(
 , _periodButton(base::make_unique_q<PeriodButton>(
 	this,
 	options.period / 3600))
-, _period(options.period) {
+, _musicButton(base::make_unique_q<Ui::IconButton>(
+	this,
+	st::storyCaptionMusic))
+, _period(options.period)
+, _musicChoice(options.musicButton) {
 	setupField();
 	setupEmoji();
 	setupPeriod();
+	_musicButton->setClickedCallback([=] {
+		chooseAudio();
+	});
 	_periodButton->setVisible(options.periodChoice);
+	_musicButton->setVisible(_musicChoice);
 }
 
 CaptionBar::~CaptionBar() = default;
@@ -169,6 +179,69 @@ TextWithTags CaptionBar::caption() const {
 
 int CaptionBar::period() const {
 	return _period;
+}
+
+StoryAudio CaptionBar::audio() const {
+	auto result = _audio;
+	if (_audioTimeline) {
+		result.from = _audioTimeline->from();
+		result.till = _audioTimeline->till();
+	}
+	return result;
+}
+
+void CaptionBar::chooseAudio() {
+	ShowStoryAudioBox(_show, crl::guard(this, [=](StoryAudio audio) {
+		if (!audio.empty() && audio.till <= audio.from) {
+			audio.from = 0;
+			audio.till = 0;
+		}
+		_audio = std::move(audio);
+		refreshAudioTimeline();
+		if (width() > 0) {
+			resizeToWidth(width());
+		}
+		_audioChanges.fire({});
+	}));
+}
+
+rpl::producer<> CaptionBar::audioChanges() const {
+	return _audioChanges.events();
+}
+
+void CaptionBar::refreshAudioTimeline() {
+	if (_audio.empty()) {
+		_audioTimeline = nullptr;
+		return;
+	}
+	auto track = std::make_shared<AudioTrack>(AudioTrack{
+		.path = _audio.path,
+		.content = _audio.content,
+		.title = _audio.title,
+		.performer = _audio.performer,
+		.duration = _audio.duration,
+		.from = _audio.from,
+		.till = _audio.till,
+		.volume = _audio.volume,
+	});
+	_audioTimeline = base::make_unique_q<AudioTimeline>(
+		this,
+		std::move(track));
+	const auto timeline = _audioTimeline.get();
+	timeline->show();
+	timeline->trimChanges() | rpl::on_next([=] {
+		_audioChanges.fire({});
+	}, timeline->lifetime());
+	timeline->removeRequests() | rpl::on_next([=] {
+		crl::on_main(this, [=] {
+			_audio = {};
+			refreshAudioTimeline();
+			if (width() > 0) {
+				resizeToWidth(width());
+			}
+			_audioChanges.fire({});
+		});
+	}, timeline->lifetime());
 }
 
 rpl::producer<> CaptionBar::submits() const {
@@ -349,6 +422,12 @@ void CaptionBar::setPeriod(int period) {
 }
 
 int CaptionBar::resizeGetHeight(int newWidth) {
+	auto top = 0;
+	if (_audioTimeline) {
+		_audioTimeline->resizeToWidth(newWidth);
+		_audioTimeline->moveToLeft(0, 0);
+		top = _audioTimeline->height() + st::storyCaptionAudioSkip;
+	}
 	const auto skip = st::storyCaptionFieldSkip;
 	const auto fieldLeft = st::storyCaptionEmojiLeft
 		+ _emojiToggle->width()
@@ -356,8 +435,11 @@ int CaptionBar::resizeGetHeight(int newWidth) {
 	const auto periodWidth = _periodButton->isHidden()
 		? 0
 		: _periodButton->width();
+	const auto musicWidth = _musicButton->isHidden()
+		? 0
+		: _musicButton->width();
 	const auto fieldWidth = std::max(
-		newWidth - fieldLeft - periodWidth - skip,
+		newWidth - fieldLeft - periodWidth - musicWidth - skip,
 		1);
 	_field->resize(fieldWidth, _field->height());
 	const auto minimal = int(st::storyCaptionHeightMin);
@@ -365,14 +447,18 @@ int CaptionBar::resizeGetHeight(int newWidth) {
 	const auto pad = std::max((minimal - oneLine) / 2, 0);
 	const auto height = std::max(_field->height() + 2 * pad, minimal);
 
-	_field->moveToLeft(fieldLeft, pad);
+	_field->moveToLeft(fieldLeft, top + pad);
 	const auto buttonsBottom = (minimal - _emojiToggle->height()) / 2;
 	_emojiToggle->moveToLeft(
 		st::storyCaptionEmojiLeft,
-		height - buttonsBottom - _emojiToggle->height());
-	_periodButton->moveToRight(
+		top + height - buttonsBottom - _emojiToggle->height());
+	_musicButton->moveToRight(
 		0,
-		height - buttonsBottom - _periodButton->height(),
+		top + height - buttonsBottom - _musicButton->height(),
+		newWidth);
+	_periodButton->moveToRight(
+		musicWidth,
+		top + height - buttonsBottom - _periodButton->height(),
 		newWidth);
 	return height;
 }

@@ -45,6 +45,7 @@ struct StoryOptions {
 	TextWithTags caption;
 	int period = 0;
 	bool periodChoice = true;
+	bool musicButton = false;
 
 	QImage canvasMedia;
 	Media::Encode::CanvasBackground canvasBackground;

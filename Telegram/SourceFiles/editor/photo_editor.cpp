@@ -726,6 +726,10 @@ int PhotoEditor::period() const {
 	return _captionBar ? _captionBar->entity()->period() : 0;
 }
 
+StoryAudio PhotoEditor::audio() const {
+	return _captionBar ? _captionBar->entity()->audio() : StoryAudio();
+}
+
 void PhotoEditor::layoutContent() {
 	_content->setGeometry(rect() - contentMargins());
 	if (!_captionBar) {
