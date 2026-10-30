@@ -408,6 +408,8 @@ private:
 	[[nodiscard]] MsgId resolveTopicRootId(const FullReplyTo &replyTo) const;
 	[[nodiscard]] MsgId resolvedTopicRootId() const;
 	[[nodiscard]] Data::ForumTopic *resolvedTopic();
+	[[nodiscard]] bool monoforumReplyMissing() const;
+	[[nodiscard]] bool monoforumReplyRequired() const;
 	void refreshCanSendMessages();
 	void refreshResolvedTopicRootState();
 	void setKeyboardReplyTo(HistoryItem *item);
