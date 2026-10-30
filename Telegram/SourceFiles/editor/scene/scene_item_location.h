@@ -17,6 +17,8 @@ struct LocationData {
 	float64 lon = 0.;
 	QString title;
 	QString address;
+	QString countryIso2;
+	QString city;
 	QString provider;
 	QString venueId;
 	QString venueType;

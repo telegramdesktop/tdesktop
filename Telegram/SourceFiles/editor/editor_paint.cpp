@@ -983,6 +983,8 @@ void Paint::chooseLocation(ItemBase *editing) {
 				.lon = point.lon(),
 				.title = title,
 				.address = address.name,
+				.countryIso2 = address.countryIso2,
+				.city = address.city,
 			}, weak);
 		}),
 		.quit = [] { Shortcuts::Launch(Shortcuts::Command::Quit); },

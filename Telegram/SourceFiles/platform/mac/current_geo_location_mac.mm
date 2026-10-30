@@ -144,6 +144,7 @@ void ResolveLocationAddress(
 			push([placemark country]);
 			callback({
 				.name = list.join(u", "_q),
+				.countryIso2 = NS2QString([placemark ISOcountryCode]),
 				.country = NS2QString([placemark country]),
 				.city = NS2QString([placemark locality]),
 			});

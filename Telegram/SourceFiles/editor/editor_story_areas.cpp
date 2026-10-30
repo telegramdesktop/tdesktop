@@ -79,6 +79,8 @@ StoryAreas CollectStoryAreas(not_null<const Scene*> scene, QSize canvas) {
 				.point = *point,
 				.title = data.title,
 				.address = data.address,
+				.countryIso2 = data.countryIso2,
+				.city = data.city,
 				.provider = data.provider,
 				.venueId = data.venueId,
 				.venueType = data.venueType,

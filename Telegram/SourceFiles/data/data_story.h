@@ -100,6 +100,8 @@ struct StoryLocation {
 	Data::LocationPoint point;
 	QString title;
 	QString address;
+	QString countryIso2;
+	QString city;
 	QString provider;
 	QString venueId;
 	QString venueType;

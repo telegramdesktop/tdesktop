@@ -168,11 +168,23 @@ void PrepareStoryTask::finish() {
 			MTP_string(data.venueId),
 			MTP_string(data.venueType));
 	}
+	using Flag = MTPDmediaAreaGeoPoint::Flag;
+	using AddressFlag = MTPDgeoPointAddress::Flag;
+	const auto addressFlags = (!data.city.isEmpty()
+		? AddressFlag::f_city
+		: AddressFlag());
 	return MTP_mediaAreaGeoPoint(
-		MTP_flags(0),
+		MTP_flags((!data.countryIso2.isEmpty() || !data.city.isEmpty()
+			? Flag::f_address
+			: Flag())),
 		AreaCoordinatesToMTP(data.area),
 		data.point.toMTP(),
-		MTPGeoPointAddress());
+		MTP_geoPointAddress(
+			MTP_flags(addressFlags),
+			MTP_string(data.countryIso2),
+			MTP_string(QString()),
+			MTP_string(data.city),
+			MTP_string(QString())));
 }
 
 [[nodiscard]] MTPVector<MTPMediaArea> MediaAreasToMTP(

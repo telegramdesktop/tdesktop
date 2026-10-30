@@ -39,6 +39,7 @@ struct GeoLocation {
 
 struct GeoAddress {
 	QString name;
+	QString countryIso2;
 	QString country;
 	QString city;
 

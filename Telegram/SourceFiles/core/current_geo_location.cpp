@@ -148,6 +148,12 @@ void ResolveLocationAddressGeneric(
 			return QString();
 		};
 		const auto country = nameIn({ u"country"_q });
+		const auto countryIso2 = [&] {
+			const auto value = context[u"country"_q];
+			return value.isObject()
+				? value.toObject()[u"country_code"_q].toString()
+				: QString();
+		}();
 		const auto city = nameIn({ u"place"_q, u"region"_q });
 		auto names = QStringList();
 		auto add = [&](std::vector<QString> keys) {
@@ -167,6 +173,7 @@ void ResolveLocationAddressGeneric(
 		add({ u"country"_q });
 		finishWith({
 			.name = names.join(", "),
+			.countryIso2 = countryIso2,
 			.country = country,
 			.city = city,
 		});
