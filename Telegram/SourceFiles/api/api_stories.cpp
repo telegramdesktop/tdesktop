@@ -1056,8 +1056,7 @@ void Stories::sendRequest(
 				? Flag::f_media_areas
 				: Flag())
 			| (story.editCaption ? Flag::f_caption : Flag())
-			| (story.editPrivacy ? Flag::f_privacy_rules : Flag())
-			| (story.music ? Flag::f_music : Flag());
+			| (story.editPrivacy ? Flag::f_privacy_rules : Flag());
 		upload->requestId = _api.request(MTPstories_EditStory(
 			MTP_flags(flags),
 			peer->input(),
@@ -1067,9 +1066,7 @@ void Stories::sendRequest(
 			MTP_string(caption.text),
 			entities,
 			MTP_vector<MTPInputPrivacyRule>(rules),
-			(story.music
-				? story.music->mtpInput()
-				: MTPInputDocument())
+			MTPInputDocument()
 		)).done(done).fail(fail).send();
 		return;
 	}
@@ -1085,8 +1082,7 @@ void Stories::sendRequest(
 		| (repost ? Flag::f_fwd_from_id : Flag())
 		| ((repost && !sameMediaAsRepost) ? Flag::f_fwd_modified : Flag())
 		| (story.albums.empty() ? Flag() : Flag::f_albums)
-		| (areas.v.isEmpty() ? Flag() : Flag::f_media_areas)
-		| (story.music ? Flag::f_music : Flag());
+		| (areas.v.isEmpty() ? Flag() : Flag::f_media_areas);
 	auto albums = QVector<MTPint>();
 	albums.reserve(story.albums.size());
 	for (const auto album : story.albums) {
@@ -1105,9 +1101,7 @@ void Stories::sendRequest(
 		(repost ? repost->peer->input() : MTPInputPeer()),
 		MTP_int(repost ? repost->id : 0),
 		MTP_vector<MTPint>(albums),
-		(story.music
-			? story.music->mtpInput()
-			: MTPInputDocument())
+		MTPInputDocument()
 	)).done(done).fail(fail).send();
 }
 

@@ -212,7 +212,6 @@ void SetupStoryEditorClose(
 	auto story = StoryEditorOptions(controller, setup);
 	story.canvasMedia = media;
 	story.canvasBackground = background;
-	story.musicButton = true;
 	story.videoObject = videoObject;
 	return {
 		.confirm = StoryEditorConfirm(setup),
@@ -255,51 +254,19 @@ void SetupStoryEditorClose(
 	return result;
 }
 
-[[nodiscard]] Media::Encode::MusicTrack MusicTrackFor(
-		const Editor::StoryAudio &audio) {
-	return {
-		.path = audio.path,
-		.bytes = audio.content,
-		.position = audio.position,
-		.from = audio.from,
-		.till = (audio.till > audio.from) ? audio.till : audio.duration,
-		.volume = audio.volume,
-	};
-}
-
 [[nodiscard]] Api::SendStoryMedia StoryPhotoMedia(
 		QImage composed,
-		const Editor::PhotoModifications &mods,
-		const Editor::StoryAudio &audio) {
+		const Editor::PhotoModifications &mods) {
 	const auto animated = mods.paint && mods.paint->hasAnimatedItems();
-	if (audio.empty() && !animated) {
+	if (!animated) {
 		return Api::SendStoryPhoto{ std::move(composed) };
 	}
-	auto job = Media::Encode::Job();
-	if (animated) {
-		auto paintOnly = Editor::PhotoModifications();
-		paintOnly.paint = mods.paint;
-		job = Editor::ComposeAnimatedJob(composed, paintOnly, {
-			.maxSide = Api::kStoryVideoHeight,
-			.maxDuration = Api::kStoryVideoMaxDuration,
-		});
-	} else {
-		job.source = Media::Encode::StillSource{
-			.base = composed.scaled(
-				QSize(Api::kStoryVideoWidth, Api::kStoryVideoHeight),
-				Qt::IgnoreAspectRatio,
-				Qt::SmoothTransformation),
-			.fps = 30.,
-		};
-	}
-	auto &still = v::get<Media::Encode::StillSource>(job.source);
-	if (!audio.empty()) {
-		still.music.push_back(MusicTrackFor(audio));
-		still.duration = std::clamp(
-			audio.length(),
-			crl::time(1000),
-			Api::kStoryVideoMaxDuration);
-	}
+	auto paintOnly = Editor::PhotoModifications();
+	paintOnly.paint = mods.paint;
+	auto job = Editor::ComposeAnimatedJob(composed, paintOnly, {
+		.maxSide = Api::kStoryVideoHeight,
+		.maxDuration = Api::kStoryVideoMaxDuration,
+	});
 	job.silentLoop = false;
 	return Api::SendStoryVideo{
 		.cover = std::move(composed),
@@ -515,17 +482,15 @@ void OpenStoryPhotoEditor(
 			return;
 		}
 		auto areas = CollectAreas(mods, result.size());
-		const auto audio = raw->audio();
 		done({
-			.media = StoryPhotoMedia(std::move(result), mods, audio),
+			.media = StoryPhotoMedia(std::move(result), mods),
 			.caption = raw->caption(),
 			.period = raw->period(),
 			.reactions = std::move(areas.reactions),
 			.urls = std::move(areas.urls),
 			.locations = std::move(areas.locations),
 			.weather = std::move(areas.weather),
-			.music = audio.document,
-			.mediaChanged = !PhotoUnchanged(mods) || !audio.empty(),
+			.mediaChanged = !PhotoUnchanged(mods),
 		}, close);
 	}, raw->lifetime());
 	show->showLayer(std::move(layer), Ui::LayerOption::KeepOther);
@@ -595,7 +560,6 @@ void EditStoryFile(
 			.urls = std::move(result.urls),
 			.locations = std::move(result.locations),
 			.weather = std::move(result.weather),
-			.music = result.music,
 			.posted = [=] {
 				if (draftId) {
 					Drafts(controller).remove(draftId);
@@ -909,7 +873,6 @@ void EditStory(
 					.urls = std::move(result.urls),
 					.locations = std::move(result.locations),
 					.weather = std::move(result.weather),
-					.music = result.music,
 					.editId = (*found)->id(),
 					.editCaption = captionChanged,
 				});

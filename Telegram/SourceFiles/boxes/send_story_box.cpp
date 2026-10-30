@@ -60,7 +60,6 @@ struct State {
 	std::vector<Data::UrlArea> urls;
 	std::vector<Data::StoryLocation> locations;
 	std::vector<Data::WeatherArea> weather;
-	DocumentData *music = nullptr;
 	Data::Story *editing = nullptr;
 	Api::UserPrivacy::Rule initialPrivacy;
 	PrivacyLists lists;
@@ -571,7 +570,6 @@ void Submit(
 		.urls = std::move(state->urls),
 		.locations = std::move(state->locations),
 		.weather = std::move(state->weather),
-		.music = state->music,
 		.period = state->period,
 		.pinned = state->pinned.current(),
 		.noForwards = !state->allowForwards.current(),
@@ -596,7 +594,6 @@ void SendStoryBox(not_null<Ui::GenericBox*> box, SendStoryBoxArgs &&args) {
 	state->urls = std::move(args.urls);
 	state->locations = std::move(args.locations);
 	state->weather = std::move(args.weather);
-	state->music = args.music;
 	state->editing = editing;
 	state->posted = std::move(args.posted);
 	if (editing) {

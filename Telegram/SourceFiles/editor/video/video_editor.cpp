@@ -1287,10 +1287,6 @@ int VideoEditor::period() const {
 	return _captionBar ? _captionBar->period() : 0;
 }
 
-StoryAudio VideoEditor::audio() const {
-	return _captionBar ? _captionBar->audio() : StoryAudio();
-}
-
 void InitVideoEditorLayer(
 		not_null<Ui::LayerWidget*> layer,
 		not_null<VideoEditor*> editor,

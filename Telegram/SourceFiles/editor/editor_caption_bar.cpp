@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_stories.h"
 #include "boxes/premium_preview_box.h"
-#include "boxes/story_audio_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/message_field.h"
@@ -23,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/stickers/data_stickers.h"
-#include "editor/editor_audio_timeline.h"
 #include "editor/editor_round_record_button.h"
 #include "editor/photo_editor_common.h"
 #include "lang/lang_keys.h"
@@ -42,7 +40,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_editor.h"
-#include "styles/style_media_player.h"
 #include "styles/style_media_view.h"
 
 #include <QtCore/QLocale>
@@ -196,23 +193,15 @@ CaptionBar::CaptionBar(
 , _periodButton(base::make_unique_q<PeriodButton>(
 	this,
 	options.period / 3600))
-, _musicButton(base::make_unique_q<Ui::IconButton>(
-	this,
-	st::storyCaptionMusic))
 , _roundButton(base::make_unique_q<Ui::IconButton>(
 	this,
 	st::storyCaptionRound))
 , _period(options.period)
-, _periodChoice(options.periodChoice)
-, _musicChoice(options.musicButton) {
+, _periodChoice(options.periodChoice) {
 	setupField();
 	setupEmoji();
 	setupPeriod();
-	_musicButton->setClickedCallback([=] {
-		chooseAudio();
-	});
 	_periodButton->setVisible(_periodChoice);
-	_musicButton->setVisible(_musicChoice);
 	_roundButton->setVisible(options.roundVideo);
 	_recordAnimation.init([=](crl::time now) {
 		update();
@@ -230,34 +219,6 @@ int CaptionBar::period() const {
 	return _period;
 }
 
-StoryAudio CaptionBar::audio() const {
-	auto result = _audio;
-	if (_audioTimeline) {
-		result.from = _audioTimeline->from();
-		result.till = _audioTimeline->till();
-	}
-	return result;
-}
-
-void CaptionBar::chooseAudio() {
-	ShowStoryAudioBox(_show, crl::guard(this, [=](StoryAudio audio) {
-		if (!audio.empty() && audio.till <= audio.from) {
-			audio.from = 0;
-			audio.till = 0;
-		}
-		_audio = std::move(audio);
-		refreshAudioTimeline();
-		if (width() > 0) {
-			resizeToWidth(width());
-		}
-		_audioChanges.fire({});
-	}));
-}
-
-rpl::producer<> CaptionBar::audioChanges() const {
-	return _audioChanges.events();
-}
-
 rpl::producer<> CaptionBar::roundRequests() const {
 	return _roundButton->clicks() | rpl::to_empty;
 }
@@ -270,7 +231,6 @@ void CaptionBar::setRoundRecording(bool recording) {
 	_field->setVisible(!recording);
 	_emojiToggle->setVisible(!recording);
 	_periodButton->setVisible(!recording && _periodChoice);
-	_musicButton->setVisible(!recording && _musicChoice);
 	_roundButton->setVisible(!recording);
 	if (recording) {
 		_emojiPanel->hideAnimated();
@@ -323,41 +283,6 @@ rpl::producer<> CaptionBar::roundStopRequests() const {
 
 rpl::producer<> CaptionBar::roundCancelRequests() const {
 	return _roundCancels.events();
-}
-
-void CaptionBar::refreshAudioTimeline() {
-	if (_audio.empty()) {
-		_audioTimeline = nullptr;
-		return;
-	}
-	auto track = std::make_shared<AudioTrack>(AudioTrack{
-		.path = _audio.path,
-		.content = _audio.content,
-		.title = _audio.title,
-		.performer = _audio.performer,
-		.duration = _audio.duration,
-		.from = _audio.from,
-		.till = _audio.till,
-		.volume = _audio.volume,
-	});
-	_audioTimeline = base::make_unique_q<AudioTimeline>(
-		this,
-		std::move(track));
-	const auto timeline = _audioTimeline.get();
-	timeline->show();
-	timeline->trimChanges() | rpl::on_next([=] {
-		_audioChanges.fire({});
-	}, timeline->lifetime());
-	timeline->removeRequests() | rpl::on_next([=] {
-		crl::on_main(this, [=] {
-			_audio = {};
-			refreshAudioTimeline();
-			if (width() > 0) {
-				resizeToWidth(width());
-			}
-			_audioChanges.fire({});
-		});
-	}, timeline->lifetime());
 }
 
 rpl::producer<> CaptionBar::submits() const {
@@ -537,12 +462,6 @@ void CaptionBar::setPeriod(int period) {
 }
 
 int CaptionBar::resizeGetHeight(int newWidth) {
-	auto top = 0;
-	if (_audioTimeline) {
-		_audioTimeline->resizeToWidth(newWidth);
-		_audioTimeline->moveToLeft(0, 0);
-		top = _audioTimeline->height() + st::storyCaptionAudioSkip;
-	}
 	const auto skip = st::storyCaptionFieldSkip;
 	const auto fieldLeft = st::storyCaptionEmojiLeft
 		+ _emojiToggle->width()
@@ -553,11 +472,8 @@ int CaptionBar::resizeGetHeight(int newWidth) {
 	const auto roundWidth = _roundButton->isHidden()
 		? 0
 		: _roundButton->width();
-	const auto musicWidth = _musicButton->isHidden()
-		? 0
-		: _musicButton->width();
 	const auto fieldWidth = std::max(
-		newWidth - fieldLeft - periodWidth - roundWidth - musicWidth - skip,
+		newWidth - fieldLeft - periodWidth - roundWidth - skip,
 		1);
 	_field->resize(fieldWidth, _field->height());
 	const auto minimal = int(st::storyCaptionHeightMin);
@@ -571,27 +487,23 @@ int CaptionBar::resizeGetHeight(int newWidth) {
 		? minimal
 		: std::max(_field->height() + 2 * pad, minimal);
 
-	_field->moveToLeft(fieldLeft, top + pad);
+	_field->moveToLeft(fieldLeft, pad);
 	if (_recordCancel) {
 		_recordCancel->move(
 			(newWidth - _recordCancel->width()) / 2,
-			top + (height - _recordCancel->height()) / 2);
+			(height - _recordCancel->height()) / 2);
 	}
 	const auto buttonsBottom = (minimal - _emojiToggle->height()) / 2;
 	_emojiToggle->moveToLeft(
 		st::storyCaptionEmojiLeft,
-		top + height - buttonsBottom - _emojiToggle->height());
+		height - buttonsBottom - _emojiToggle->height());
 	_roundButton->moveToRight(
 		0,
-		top + height - buttonsBottom - _roundButton->height(),
+		height - buttonsBottom - _roundButton->height(),
 		newWidth);
 	_periodButton->moveToRight(
 		roundWidth,
-		top + height - buttonsBottom - _periodButton->height(),
-		newWidth);
-	_musicButton->moveToRight(
-		roundWidth + periodWidth,
-		top + height - buttonsBottom - _musicButton->height(),
+		height - buttonsBottom - _periodButton->height(),
 		newWidth);
 	return height;
 }
@@ -599,10 +511,7 @@ int CaptionBar::resizeGetHeight(int newWidth) {
 void CaptionBar::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 	auto hq = PainterHighQualityEnabler(p);
-	const auto top = _audioTimeline
-		? (_audioTimeline->height() + st::storyCaptionAudioSkip)
-		: 0;
-	const auto pill = QRect(0, top, width(), height() - top);
+	const auto pill = QRect(0, 0, width(), height());
 	const auto radius = std::min(pill.width(), pill.height()) / 2.;
 	p.setPen(Qt::NoPen);
 	p.setBrush(st::roundedBg);

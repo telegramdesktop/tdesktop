@@ -10,8 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/media_video_canvas.h"
 #include "media/media_video_encode.h"
 
-class DocumentData;
-
 namespace ChatHelpers {
 class Show;
 } // namespace ChatHelpers
@@ -19,26 +17,6 @@ class Show;
 namespace Editor {
 
 class Scene;
-
-struct StoryAudio {
-	QString path;
-	QByteArray content;
-	DocumentData *document = nullptr;
-	QString title;
-	QString performer;
-	crl::time duration = 0;
-	crl::time position = 0;
-	crl::time from = 0;
-	crl::time till = 0;
-	float64 volume = 1.;
-
-	[[nodiscard]] bool empty() const {
-		return path.isEmpty() && content.isEmpty();
-	}
-	[[nodiscard]] crl::time length() const {
-		return std::max((till > from ? till : duration) - from, crl::time(0));
-	}
-};
 
 struct StoryVideoObject {
 	QString path;
@@ -66,7 +44,6 @@ struct StoryOptions {
 	TextWithTags caption;
 	int period = 0;
 	bool periodChoice = true;
-	bool musicButton = false;
 	bool roundVideo = false;
 
 	QImage canvasMedia;

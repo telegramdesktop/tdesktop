@@ -450,11 +450,6 @@ storyRecordMinorBlobMinRadius: 71px;
 storyRecordMinorBlobMaxRadius: 85px;
 storyRecordMajorBlobMinRadius: 71px;
 storyRecordMajorBlobMaxRadius: 81px;
-storyCaptionMusic: IconButton(storiesAttach) {
-	icon: icon {{ "photo_editor/widget_music", storiesComposeGrayIcon }};
-	iconOver: icon {{ "photo_editor/widget_music", storiesComposeWhiteText }};
-}
-storyCaptionAudioSkip: 8px;
 storyCaptionMenuLock: icon {{ "menu/lock", mediaviewMenuFg }};
 
 photoEditorMessageReferenceWidth: 600px;

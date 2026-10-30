@@ -27,7 +27,6 @@ class PopupMenu;
 
 namespace Editor {
 
-class AudioTimeline;
 class PeriodButton;
 class RoundRecordButton;
 struct StoryOptions;
@@ -42,9 +41,6 @@ public:
 
 	[[nodiscard]] TextWithTags caption() const;
 	[[nodiscard]] int period() const;
-	[[nodiscard]] StoryAudio audio() const;
-	void chooseAudio();
-	[[nodiscard]] rpl::producer<> audioChanges() const;
 
 	[[nodiscard]] rpl::producer<> submits() const;
 	[[nodiscard]] rpl::producer<> cancels() const;
@@ -67,7 +63,6 @@ private:
 	void setupField();
 	void setupEmoji();
 	void setupPeriod();
-	void refreshAudioTimeline();
 	void updateRecordButtonGeometry();
 	void updatePanelGeometry();
 	void showPeriodMenu();
@@ -79,26 +74,21 @@ private:
 	const base::unique_qptr<Ui::InputField> _field;
 	const base::unique_qptr<Ui::EmojiButton> _emojiToggle;
 	const base::unique_qptr<PeriodButton> _periodButton;
-	const base::unique_qptr<Ui::IconButton> _musicButton;
 	const base::unique_qptr<Ui::IconButton> _roundButton;
 	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
 	base::unique_qptr<Ui::PopupMenu> _periodMenu;
-	base::unique_qptr<AudioTimeline> _audioTimeline;
 	base::unique_qptr<Ui::AbstractButton> _recordCancel;
 	base::unique_qptr<RoundRecordButton> _recordButton;
 	int _period = 0;
 	bool _periodChoice = false;
-	bool _musicChoice = false;
 	bool _recording = false;
 	crl::time _recordStarted = 0;
-	StoryAudio _audio;
 	Ui::Animations::Basic _recordAnimation;
 
 	rpl::event_stream<> _submits;
 	rpl::event_stream<> _cancels;
 	rpl::event_stream<> _roundStops;
 	rpl::event_stream<> _roundCancels;
-	rpl::event_stream<> _audioChanges;
 
 };
 

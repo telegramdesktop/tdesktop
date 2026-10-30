@@ -731,10 +731,6 @@ int PhotoEditor::period() const {
 	return _captionBar ? _captionBar->entity()->period() : 0;
 }
 
-StoryAudio PhotoEditor::audio() const {
-	return _captionBar ? _captionBar->entity()->audio() : StoryAudio();
-}
-
 bool PhotoEditor::edited() const {
 	return (_modifications.angle != _initialAngle)
 		|| (_modifications.flipped != _initialFlipped)

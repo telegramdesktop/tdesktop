@@ -9215,16 +9215,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_widget_location" = "Location";
 "lng_stories_location_add" = "Add This Location";
 "lng_story_weather_failed" = "Could not load weather.";
-"lng_story_audio_title" = "Add Audio";
-"lng_story_audio_files" = "Select from Files";
-"lng_story_audio_profile" = "Profile Music";
-"lng_story_audio_invalid" = "Could not read this audio file.";
-"lng_story_audio_failed" = "Could not load this track.";
-"lng_story_audio_shared" = "Shared Music";
-"lng_story_audio_more" = "Show more";
-"lng_story_audio_none" = "No results found";
-"lng_story_audio_none_info" = "Your music library is empty.";
-"lng_story_audio_none_query" = "There are no matches with **{query}**.";
 "lng_story_round_failed" = "Could not record the video message.";
 "lng_story_edited" = "Story updated.";
 "lng_story_upload_failed" = "Failed to upload the story.";
