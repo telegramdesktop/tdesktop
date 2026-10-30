@@ -7248,15 +7248,22 @@ Widget::activeTextInsertContext() const {
 	const auto textSize = int(full.text.size());
 	from = std::clamp(from, 0, textSize);
 	till = std::clamp(till, from, textSize);
-	auto before = (from > 0)
-		? Ui::Text::Mid(full, 0, from)
-		: TextWithEntities();
+	const auto edges = (textSize > 0);
+	auto before = TextWithEntities{
+		edges ? inlineFieldTrimmedLeft() : QString(),
+	};
+	if (from > 0) {
+		before.append(Ui::Text::Mid(full, 0, from));
+	}
 	auto selected = (till > from)
 		? Ui::Text::Mid(full, from, till - from)
 		: TextWithEntities();
 	auto after = (till < textSize)
 		? Ui::Text::Mid(full, till)
 		: TextWithEntities();
+	if (edges) {
+		after.append(inlineFieldTrimmedRight());
+	}
 	return State::ActiveTextInsertContext{
 		.before = std::move(before),
 		.selected = std::move(selected),
