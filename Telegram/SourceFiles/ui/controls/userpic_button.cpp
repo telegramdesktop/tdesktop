@@ -282,7 +282,7 @@ bool UserpicButton::canSuggestPhoto(not_null<UserData*> user) const {
 
 bool UserpicButton::hasPersonalPhotoLocally() const {
 	if (const auto user = _peer->asUser()) {
-		return _overrideHasPersonalPhoto.value_or(user->hasPersonalPhoto());
+		return user->hasPersonalPhoto();
 	}
 	return false;
 }
@@ -505,7 +505,7 @@ auto UserpicButton::makeResetToOriginalAction()
 		Menu::CreateAction(
 			_menu.get(),
 			tr::lng_profile_photo_reset(tr::now),
-			[=] { _resetPersonalRequests.fire({}); }),
+			[] {}),
 		nullptr,
 		nullptr);
 	const auto icon = CreateChild<UserpicButton>(
@@ -1178,16 +1178,6 @@ void UserpicButton::showSource(Source source) {
 
 	prepareUserpicPixmap();
 	update();
-}
-
-void UserpicButton::overrideHasPersonalPhoto(bool has) {
-	Expects(_peer && _peer->isUser());
-
-	_overrideHasPersonalPhoto = has;
-}
-
-rpl::producer<> UserpicButton::resetPersonalRequests() const {
-	return _resetPersonalRequests.events();
 }
 
 void UserpicButton::showUploadProgress() {

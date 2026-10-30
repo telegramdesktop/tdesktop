@@ -128,9 +128,6 @@ public:
 
 	[[nodiscard]] PopupMenu *showChangePhotoMenu();
 
-	void overrideHasPersonalPhoto(bool has);
-	[[nodiscard]] rpl::producer<> resetPersonalRequests() const;
-
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -215,8 +212,6 @@ private:
 	rpl::event_stream<ChosenImage> _chosenImages;
 
 	Source _source = Source::Custom;
-	std::optional<bool> _overrideHasPersonalPhoto;
-	rpl::event_stream<> _resetPersonalRequests;
 	rpl::lifetime _sourceLifetime;
 
 	std::unique_ptr<UploadProgressOverlay> _uploadOverlay;
