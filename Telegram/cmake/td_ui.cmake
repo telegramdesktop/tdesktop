@@ -197,6 +197,8 @@ PRIVATE
     editor/photo_editor_common.cpp
     editor/photo_editor_common.h
     editor/photo_editor_inner_common.h
+    editor/editor_round_record_button.cpp
+    editor/editor_round_record_button.h
     editor/scene/scene.cpp
     editor/scene/scene.h
     editor/scene/scene_item_animated.cpp

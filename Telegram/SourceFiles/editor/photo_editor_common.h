@@ -46,6 +46,7 @@ struct StoryOptions {
 	int period = 0;
 	bool periodChoice = true;
 	bool musicButton = false;
+	bool roundVideo = false;
 
 	QImage canvasMedia;
 	Media::Encode::CanvasBackground canvasBackground;

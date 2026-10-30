@@ -24,13 +24,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 #include "data/stickers/data_stickers.h"
 #include "editor/editor_audio_timeline.h"
+#include "editor/editor_round_record_button.h"
 #include "editor/photo_editor_common.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "menu/menu_checked_action.h"
+#include "ui/abstract_button.h"
 #include "ui/controls/emoji_button.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
+#include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
@@ -41,6 +44,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_editor.h"
 #include "styles/style_media_player.h"
 #include "styles/style_media_view.h"
+
+#include <QtCore/QLocale>
 
 namespace Editor {
 namespace {
@@ -56,7 +61,42 @@ constexpr auto kPeriodDashes = 5;
 constexpr auto kPeriodDashWeight = 1.;
 constexpr auto kPeriodGapWeight = 1.5;
 
+constexpr auto kRecordDotPeriod = crl::time(600);
+
+[[nodiscard]] QString RecordingTimeText(crl::time elapsed) {
+	return Ui::FormatDurationText(elapsed / 1000)
+		+ QLocale().decimalPoint()
+		+ QString::number((elapsed % 1000) / 100);
+}
+
 } // namespace
+
+class RecordCancelButton final : public Ui::AbstractButton {
+public:
+	explicit RecordCancelButton(QWidget *parent);
+
+private:
+	void paintEvent(QPaintEvent *e) override;
+
+	const QString _text;
+
+};
+
+RecordCancelButton::RecordCancelButton(QWidget *parent)
+: AbstractButton(parent)
+, _text(tr::lng_cancel(tr::now)) {
+	resize(
+		st::storyRecordFont->width(_text) + 2 * st::storyRecordCancelPadding,
+		st::storyCaptionHeightMin);
+	setPointerCursor(true);
+}
+
+void RecordCancelButton::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+	p.setFont(st::storyRecordFont);
+	p.setPen(st::storyRecordCancelFg);
+	p.drawText(rect(), Qt::AlignCenter, _text);
+}
 
 class PeriodButton final : public Ui::RippleButton {
 public:
@@ -159,7 +199,11 @@ CaptionBar::CaptionBar(
 , _musicButton(base::make_unique_q<Ui::IconButton>(
 	this,
 	st::storyCaptionMusic))
+, _roundButton(base::make_unique_q<Ui::IconButton>(
+	this,
+	st::storyCaptionRound))
 , _period(options.period)
+, _periodChoice(options.periodChoice)
 , _musicChoice(options.musicButton) {
 	setupField();
 	setupEmoji();
@@ -167,8 +211,13 @@ CaptionBar::CaptionBar(
 	_musicButton->setClickedCallback([=] {
 		chooseAudio();
 	});
-	_periodButton->setVisible(options.periodChoice);
+	_periodButton->setVisible(_periodChoice);
 	_musicButton->setVisible(_musicChoice);
+	_roundButton->setVisible(options.roundVideo);
+	_recordAnimation.init([=](crl::time now) {
+		update();
+		return true;
+	});
 }
 
 CaptionBar::~CaptionBar() = default;
@@ -207,6 +256,72 @@ void CaptionBar::chooseAudio() {
 
 rpl::producer<> CaptionBar::audioChanges() const {
 	return _audioChanges.events();
+}
+
+rpl::producer<> CaptionBar::roundRequests() const {
+	return _roundButton->clicks() | rpl::to_empty;
+}
+
+void CaptionBar::setRoundRecording(bool recording) {
+	if (_recording == recording) {
+		return;
+	}
+	_recording = recording;
+	_field->setVisible(!recording);
+	_emojiToggle->setVisible(!recording);
+	_periodButton->setVisible(!recording && _periodChoice);
+	_musicButton->setVisible(!recording && _musicChoice);
+	_roundButton->setVisible(!recording);
+	if (recording) {
+		if (!_recordCancel) {
+			_recordCancel = base::make_unique_q<RecordCancelButton>(this);
+			_recordCancel->setClickedCallback([=] {
+				_roundCancels.fire({});
+			});
+		}
+		if (!_recordButton) {
+			_recordButton = base::make_unique_q<RoundRecordButton>(
+				_panelParent);
+			_recordButton->setClickedCallback([=] {
+				_roundStops.fire({});
+			});
+		}
+		_recordStarted = crl::now();
+		_recordCancel->show();
+		_recordButton->showAnimated();
+		_recordAnimation.start();
+	} else {
+		_recordAnimation.stop();
+		_recordCancel->hide();
+		_recordButton->hideAnimated();
+	}
+	resizeToWidth(width());
+	updateRecordButtonGeometry();
+	update();
+}
+
+void CaptionBar::setRoundRecordingAmplitude(float64 amplitude) {
+	if (_recordButton) {
+		_recordButton->setAmplitude(amplitude);
+	}
+}
+
+void CaptionBar::updateRecordButtonGeometry() {
+	if (!_recordButton || !_recording) {
+		return;
+	}
+	const auto center = mapTo(
+		_panelParent.get(),
+		_roundButton->geometry().center());
+	_recordButton->move(center - _recordButton->center());
+}
+
+rpl::producer<> CaptionBar::roundStopRequests() const {
+	return _roundStops.events();
+}
+
+rpl::producer<> CaptionBar::roundCancelRequests() const {
+	return _roundCancels.events();
 }
 
 void CaptionBar::refreshAudioTimeline() {
@@ -435,30 +550,44 @@ int CaptionBar::resizeGetHeight(int newWidth) {
 	const auto periodWidth = _periodButton->isHidden()
 		? 0
 		: _periodButton->width();
+	const auto roundWidth = _roundButton->isHidden()
+		? 0
+		: _roundButton->width();
 	const auto musicWidth = _musicButton->isHidden()
 		? 0
 		: _musicButton->width();
 	const auto fieldWidth = std::max(
-		newWidth - fieldLeft - periodWidth - musicWidth - skip,
+		newWidth - fieldLeft - periodWidth - roundWidth - musicWidth - skip,
 		1);
 	_field->resize(fieldWidth, _field->height());
 	const auto minimal = int(st::storyCaptionHeightMin);
 	const auto oneLine = st::storyCaptionField.style.font->height;
 	const auto pad = std::max((minimal - oneLine) / 2, 0);
-	const auto height = std::max(_field->height() + 2 * pad, minimal);
+	const auto height = _recording
+		? minimal
+		: std::max(_field->height() + 2 * pad, minimal);
 
 	_field->moveToLeft(fieldLeft, top + pad);
+	if (_recordCancel) {
+		_recordCancel->move(
+			(newWidth - _recordCancel->width()) / 2,
+			top + (height - _recordCancel->height()) / 2);
+	}
 	const auto buttonsBottom = (minimal - _emojiToggle->height()) / 2;
 	_emojiToggle->moveToLeft(
 		st::storyCaptionEmojiLeft,
 		top + height - buttonsBottom - _emojiToggle->height());
-	_musicButton->moveToRight(
+	_roundButton->moveToRight(
 		0,
-		top + height - buttonsBottom - _musicButton->height(),
+		top + height - buttonsBottom - _roundButton->height(),
 		newWidth);
 	_periodButton->moveToRight(
-		musicWidth,
+		roundWidth,
 		top + height - buttonsBottom - _periodButton->height(),
+		newWidth);
+	_musicButton->moveToRight(
+		roundWidth + periodWidth,
+		top + height - buttonsBottom - _musicButton->height(),
 		newWidth);
 	return height;
 }
@@ -466,10 +595,39 @@ int CaptionBar::resizeGetHeight(int newWidth) {
 void CaptionBar::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 	auto hq = PainterHighQualityEnabler(p);
-	const auto radius = std::min(width(), height()) / 2.;
+	const auto top = _audioTimeline
+		? (_audioTimeline->height() + st::storyCaptionAudioSkip)
+		: 0;
+	const auto pill = QRect(0, top, width(), height() - top);
+	const auto radius = std::min(pill.width(), pill.height()) / 2.;
 	p.setPen(Qt::NoPen);
 	p.setBrush(st::roundedBg);
-	p.drawRoundedRect(rect(), radius, radius);
+	p.drawRoundedRect(pill, radius, radius);
+	if (_recording) {
+		paintRecording(p, pill);
+	}
+}
+
+void CaptionBar::paintRecording(QPainter &p, QRect pill) {
+	const auto elapsed = crl::now() - _recordStarted;
+	const auto phase = std::fmod(elapsed / float64(kRecordDotPeriod), 2.);
+	const auto alpha = (phase < 1.) ? (1. - phase) : (phase - 1.);
+	const auto radius = float64(st::storyRecordDotRadius);
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::storyRecordDotFg);
+	p.setOpacity(alpha);
+	p.drawEllipse(
+		QPointF(pill.x() + st::storyRecordDotLeft, pill.center().y()),
+		radius,
+		radius);
+	p.setOpacity(1.);
+
+	p.setFont(st::storyRecordFont);
+	p.setPen(st::storyRecordTimerFg);
+	p.drawText(
+		pill.translated(st::storyRecordTimerLeft, 0),
+		style::al_left,
+		RecordingTimeText(elapsed));
 }
 
 void CaptionBar::hideEvent(QHideEvent *e) {

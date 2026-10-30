@@ -418,6 +418,29 @@ storyCaptionField: InputField(defaultInputField) {
 	menu: storiesPopupMenu;
 }
 storyCaptionEmoji: storiesAttachEmoji;
+storyCaptionRound: IconButton(storiesAttach) {
+	icon: icon {{ "chat/input_video", storiesComposeGrayIcon }};
+	iconOver: icon {{ "chat/input_video", storiesComposeWhiteText }};
+}
+storyRecordDotLeft: 21px;
+storyRecordDotRadius: 5px;
+storyRecordDotFg: attentionButtonFg;
+storyRecordTimerLeft: 33px;
+storyRecordFont: font(15px semibold);
+storyRecordTimerFg: storiesComposeWhiteText;
+storyRecordCancelPadding: 12px;
+storyRecordCancelFg: storiesComposeGrayText;
+storyRecordButtonRadius: 41px;
+storyRecordButtonLevelRadius: 30px;
+storyRecordButtonMaxRadius: 55px;
+storyRecordButtonBg: storiesComposeBlue;
+storyRecordButtonFg: storiesComposeWhiteText;
+storyRecordStopSize: 19px;
+storyRecordStopRadius: 5px;
+storyRecordMinorBlobMinRadius: 71px;
+storyRecordMinorBlobMaxRadius: 85px;
+storyRecordMajorBlobMinRadius: 71px;
+storyRecordMajorBlobMaxRadius: 81px;
 storyCaptionMusic: IconButton(storiesAttach) {
 	icon: icon {{ "photo_editor/widget_music", storiesComposeGrayIcon }};
 	iconOver: icon {{ "photo_editor/widget_music", storiesComposeWhiteText }};
