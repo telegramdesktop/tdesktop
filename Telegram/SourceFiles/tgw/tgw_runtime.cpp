@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "platform/platform_specific.h"
 #include "test/test_widget_bot.h"
+#include "test/test_widget_host.h"
 #include "test/test_widget_ops.h"
 #include "tgw/tgw_bridge.h"
 #include "tgw/tgw_emoji_images.h"
@@ -1327,7 +1328,9 @@ void Runtime::construct(
 		.copy = _live->hostCopyHandler(),
 		.watch = _live->hostWatchHandler(),
 		.storage = std::move(storage.commit),
-		.options = std::move(options),
+		.options = Test::OverrideWidgetHostOptions(
+			_item->globalId(),
+			std::move(options)),
 		.theme = *_theme,
 		.stoppedLabel = tr::lng_tgw_stopped(tr::now).toStdString(),
 		// WHY: the slot is freed after ~WidgetHost delivered its last commits,
@@ -1411,6 +1414,7 @@ void Runtime::constructed(
 	}
 	_live->setMaxHeight(_maxHeight);
 	syncHostVisibility();
+	Test::WatchWidgetHost(_item->globalId(), *_host->pointer, _live.get());
 	_live->bindHost(_host->pointer.get());
 	_host->pointer->start();
 }
