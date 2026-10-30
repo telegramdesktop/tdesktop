@@ -354,6 +354,7 @@ void PhotoEditorContent::applyLayout(QRectF imageRect) {
 		auto pending = base::take(_pendingVideo);
 		_paint->addStoryVideoObject(std::move(*pending));
 		_paint->keepResult();
+		_selectVideoInPaint = true;
 	}
 
 	_innerRect = canvasGeometry;
@@ -698,6 +699,10 @@ void PhotoEditorContent::applyMode(const PhotoEditorMode &mode) {
 		_paint->cancel();
 	} else if (mode.action == PhotoEditorMode::Action::Save) {
 		_paint->keepResult();
+	}
+	if ((mode.mode == PhotoEditorMode::Mode::Paint) && _selectVideoInPaint) {
+		_selectVideoInPaint = false;
+		_paint->selectVideoObject();
 	}
 	_mode = mode;
 	updateCanvas();

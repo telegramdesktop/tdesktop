@@ -1008,6 +1008,18 @@ void Paint::addVideoItem(Storage::PhotoEditorMedia &&media) {
 		data));
 }
 
+void Paint::selectVideoObject() {
+	for (const auto &item : _scene->items()) {
+		if (item->videoClip() && item->isNormalStatus()) {
+			_scene->clearSelection();
+			item->setSelected(true);
+			item->setFocus();
+			_view->setFocus();
+			return;
+		}
+	}
+}
+
 void Paint::addStoryVideoObject(StoryVideoObject &&object) {
 	const auto thumbnail = object.thumbnail;
 	auto source = std::make_shared<VideoClipSource>(VideoClipSource{

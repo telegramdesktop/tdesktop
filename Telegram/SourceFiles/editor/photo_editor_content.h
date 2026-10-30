@@ -122,6 +122,7 @@ private:
 	const bool _fixedCrop = false;
 	const bool _composeAnimated = false;
 	std::optional<StoryVideoObject> _pendingVideo;
+	bool _selectVideoInPaint = false;
 	const base::unique_qptr<Paint> _paint;
 	const base::unique_qptr<Crop> _crop;
 	const base::unique_qptr<AudioDiscButton> _audioDisc;
