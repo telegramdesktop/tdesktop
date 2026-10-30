@@ -166,7 +166,7 @@ private:
 	Ui::Rhi::Image _playbackImage;
 	Ui::Rhi::Image _volumeControllerImage;
 
-	static constexpr auto kControlsCount = 7;
+	static constexpr auto kControlsCount = 9;
 	static constexpr auto kMaxDraws = 12;
 	static constexpr auto kVertexSlotSize = 4 * 6 * sizeof(float);
 	std::array<QRect, kControlsCount * 2> _controlsTextures;
