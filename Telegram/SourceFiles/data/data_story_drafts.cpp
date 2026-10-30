@@ -143,8 +143,9 @@ template <typename Write>
 			canvas[2].toInt(),
 			canvas[3].toInt());
 	}
-	result.stillPath = folder + object[u"still"_q].toString();
-	if (!QFile::exists(result.stillPath)) {
+	const auto still = object[u"still"_q].toString();
+	result.stillPath = still.isEmpty() ? QString() : (folder + still);
+	if (!result.stillPath.isEmpty() && !QFile::exists(result.stillPath)) {
 		result.stillPath = QString();
 	}
 	auto &video = result.videoPlacement;
