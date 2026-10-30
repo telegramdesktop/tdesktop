@@ -2074,12 +2074,16 @@ auto Element::contextDependentServiceText() -> TextWithLinks {
 
 void Element::validateText() {
 	const auto clearRichPage = [&] {
-		if (Has<HistoryMessageRichPage>()) {
+		if (const auto rich = richpage()) {
+			const auto heavy = rich->article.hasHeavyPart();
 			ClickHandler::clearActive(this);
 			RemoveComponents(0
 				| HistoryMessageRichPage::Bit()
 				| InstantViewMediaRuntime::Bit());
 			invalidateTextSizeCache();
+			if (heavy) {
+				checkHeavyPart();
+			}
 		}
 	};
 	const auto ensureRichPage = [&](
@@ -2140,6 +2144,7 @@ void Element::validateText() {
 		if (runtime->page == page && runtime->mediaRuntime) {
 			return;
 		}
+		const auto heavy = runtime->article.hasHeavyPart();
 		const auto &layoutSt = st::messageMarkdown;
 		const auto session = &history()->session();
 		const auto richLimits = Iv::ResolveRichMessageLimits(session);
@@ -2193,6 +2198,9 @@ void Element::validateText() {
 		runtime->handlerInlineButtonHandler = nullptr;
 		runtime->pressedInlineButtonHandler = nullptr;
 		invalidateTextSizeCache();
+		if (heavy) {
+			checkHeavyPart();
+		}
 	};
 	const auto item = data();
 	const auto media = item->media();
