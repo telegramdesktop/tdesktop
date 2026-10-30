@@ -365,6 +365,7 @@ struct LayoutContext {
 		const PreparedEditListItemSource&)> taskMarkerRippleRuntimeFactory;
 };
 
+void ResetBlockGeometryFields(LaidOutBlock *block);
 [[nodiscard]] bool TextNeedsRetainedLeaf(const QString &text);
 [[nodiscard]] bool MissingRetainedLeaf(
 	const QString &text,
