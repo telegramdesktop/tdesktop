@@ -3320,6 +3320,34 @@ bool State::isActiveTopLevelParagraph() const {
 	return owner && owner->kind == BlockKind::Paragraph;
 }
 
+bool State::activeParagraphAllowsInsertShortcuts() const {
+	if (isActiveTopLevelParagraph()) {
+		return true;
+	}
+	const auto descriptor = textNode(_activeTextOrdinal);
+	if (!descriptor || descriptor->leaf.kind != LeafKind::BlockText) {
+		return false;
+	}
+	const auto owner = block(descriptor->leaf.block);
+	if (!owner || owner->kind != BlockKind::Paragraph) {
+		return false;
+	}
+	auto parent = descriptor->leaf.block.container;
+	if (parent.steps.empty()) {
+		return false;
+	}
+	const auto step = parent.steps.back();
+	if (step.kind != BlockContainerKind::BlockChildren) {
+		return false;
+	}
+	parent.steps.pop_back();
+	const auto wrapper = block({
+		.container = parent,
+		.index = step.blockIndex,
+	});
+	return wrapper && wrapper->kind == BlockKind::Details;
+}
+
 bool State::isActiveTopLevelParagraphOrHeading() const {
 	const auto descriptor = textNode(_activeTextOrdinal);
 	if (!descriptor || !descriptor->leaf.block.container.steps.empty()) {

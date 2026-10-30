@@ -8611,7 +8611,7 @@ bool Widget::handleInsertSuggestionsKey(QKeyEvent *e) {
 		|| (modifiers != Qt::NoModifier)
 		|| _field->isHidden()
 		|| (_fieldMode != State::FieldMode::Rich)
-		|| !_state->isActiveTopLevelParagraph()
+		|| !_state->activeParagraphAllowsInsertShortcuts()
 		|| !_field->getLastText().isEmpty()) {
 		return false;
 	}
@@ -8672,7 +8672,7 @@ bool Widget::handleFieldInputRule(QKeyEvent *e) {
 		|| (modifiers != Qt::NoModifier)
 		|| _field->isHidden()
 		|| (_fieldMode != State::FieldMode::Rich)
-		|| !_state->isActiveTopLevelParagraph()) {
+		|| !_state->activeParagraphAllowsInsertShortcuts()) {
 		return false;
 	}
 	const auto cursor = _field->textCursor();
