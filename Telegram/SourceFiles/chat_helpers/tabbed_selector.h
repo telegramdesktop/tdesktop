@@ -156,6 +156,7 @@ public:
 		-> rpl::producer<Data::ReactionId>;
 	[[nodiscard]] rpl::producer<> audioRequests() const;
 	[[nodiscard]] rpl::producer<> linkRequests() const;
+	[[nodiscard]] rpl::producer<> locationRequests() const;
 
 	[[nodiscard]] rpl::producer<> cancelled() const;
 	[[nodiscard]] rpl::producer<> checkForHide() const;

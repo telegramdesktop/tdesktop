@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/style/style_core_types.h"
+
 namespace Editor {
 
 struct LinkPreview {
@@ -30,9 +32,15 @@ enum class LinkStyle : uchar {
 
 class LinkPill final {
 public:
-	LinkPill(const LinkPreview &link, float64 density, int maxWidth);
+	LinkPill(
+		const LinkPreview &link,
+		float64 density,
+		int maxWidth,
+		const style::icon *customIcon = nullptr);
 
 	[[nodiscard]] static float64 DensityFor(int canvasWidth);
+	[[nodiscard]] static LinkStyle NextStyle(LinkStyle style);
+	[[nodiscard]] static LinkStyle PreviousStyle(LinkStyle style);
 
 	[[nodiscard]] QSizeF size() const;
 	[[nodiscard]] LinkStyle style() const;
@@ -52,6 +60,7 @@ private:
 	QSizeF _size;
 	QImage _icon;
 	LinkStyle _style = LinkStyle::Framed;
+	const style::icon *_customIcon = nullptr;
 
 };
 

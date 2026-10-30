@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/compose/compose_show.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
+#include "core/shortcuts.h"
+#include "data/data_location.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "editor/controllers/controllers.h"
@@ -22,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_item_canvas.h"
 #include "editor/scene/scene_item_image.h"
 #include "editor/scene/scene_item_link.h"
+#include "editor/scene/scene_item_location.h"
 #include "editor/scene/scene_item_message.h"
 #include "editor/scene/scene_item_reaction.h"
 #include "editor/scene/scene_item_shape.h"
@@ -35,9 +38,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_single_player.h"
 #include "main/main_session.h"
 #include "platform/platform_file_utilities.h"
+#include "storage/storage_account.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/attach/attach_prepare.h"
+#include "ui/controls/location_picker.h"
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
 #include "window/themes/window_theme.h"
@@ -220,6 +225,8 @@ Paint::Paint(
 				) | rpl::map_to(ShowRequest::HideAnimated),
 				controllers->stickersPanelController->linkRequests(
 				) | rpl::map_to(ShowRequest::HideAnimated),
+				controllers->stickersPanelController->locationRequests(
+				) | rpl::map_to(ShowRequest::HideAnimated),
 				controllers->stickersPanelController->reactionRequests(
 				) | rpl::map_to(ShowRequest::HideAnimated)));
 
@@ -250,6 +257,11 @@ Paint::Paint(
 			addStoryReaction(reaction);
 		}, lifetime());
 
+		controllers->stickersPanelController->locationRequests(
+		) | rpl::on_next([=] {
+			chooseLocation();
+		}, lifetime());
+
 		_scene->reactionPickRequests(
 		) | rpl::on_next([=](not_null<ItemReaction*> item) {
 			_pickingReaction = _scene->itemShared(item);
@@ -258,6 +270,11 @@ Paint::Paint(
 			const auto center = _view->mapFromScene(item->pos());
 			controllers->stickersPanelController->showReactionsPicker(
 				mapToParent(QPoint(center.x(), bottom.y())));
+		}, lifetime());
+
+		_scene->locationPickRequests(
+		) | rpl::on_next([=](not_null<ItemLocation*> item) {
+			chooseLocation(item.get());
 		}, lifetime());
 
 		controllers->stickersPanelController->reactionPicked(
@@ -917,6 +934,77 @@ void Paint::addStoryReaction(Data::ReactionId reaction) {
 		reaction,
 		false,
 		std::move(data)));
+}
+
+void Paint::addStoryLocation(
+		LocationData location,
+		std::optional<QPointF> position) {
+	auto data = itemBaseData();
+	data.size = std::max(
+		int(std::ceil(ItemLocation::MakePill(location, _imageSize)
+			.size().width())),
+		1);
+	if (position) {
+		data.x = int(position->x());
+		data.y = int(position->y());
+	}
+	const auto item = std::make_shared<ItemLocation>(
+		std::move(location),
+		std::move(data));
+	item->setEditCallback(crl::guard(this, [=](
+			not_null<ItemLocation*> item) {
+		chooseLocation(item.get());
+	}));
+	addMediaItem(item);
+}
+
+void Paint::chooseLocation(ItemBase *editing) {
+	const auto session = Paint::session();
+	if (!session) {
+		return;
+	}
+	const auto weak = editing
+		? std::weak_ptr(_scene->itemShared(editing))
+		: std::weak_ptr<NumberedItem>();
+	Ui::LocationPicker::Show({
+		.parent = this,
+		.config = Ui::ResolveMapsConfig(session),
+		.chooseLabel = tr::lng_stories_location_add(),
+		.callback = crl::guard(this, [=](
+				Data::LocationPoint point,
+				QString address) {
+			applyLocationResult(LocationData{
+				.lat = point.lat(),
+				.lon = point.lon(),
+				.title = address,
+			}, weak);
+		}),
+		.quit = [] { Shortcuts::Launch(Shortcuts::Command::Quit); },
+		.storageId = session->local().resolveStorageIdBots(),
+		.closeRequests = death(),
+	});
+}
+
+void Paint::applyLocationResult(
+		LocationData data,
+		std::weak_ptr<NumberedItem> editing) {
+	const auto strong = editing.lock();
+	const auto raw = (strong
+		&& strong->isNormalStatus()
+		&& strong->type() == ItemLocation::Type)
+		? static_cast<ItemLocation*>(strong.get())
+		: nullptr;
+	if (raw) {
+		raw->setLocation(std::move(data));
+		return;
+	}
+	const auto position = strong
+		? std::make_optional(strong->scenePos())
+		: std::nullopt;
+	if (strong) {
+		_scene->removeItem(strong);
+	}
+	addStoryLocation(std::move(data), position);
 }
 
 void Paint::choosePhotoFile() {

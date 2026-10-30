@@ -110,6 +110,7 @@ public:
 		-> rpl::producer<Data::ReactionId>;
 	[[nodiscard]] rpl::producer<> audioRequests() const;
 	[[nodiscard]] rpl::producer<> linkRequests() const;
+	[[nodiscard]] rpl::producer<> locationRequests() const;
 	rpl::producer<> scrollUpdated() const;
 	rpl::producer<TabbedSelector::Action> choosingUpdated() const;
 
@@ -333,6 +334,7 @@ private:
 			Audio,
 			Link,
 			Reaction,
+			Location,
 		};
 		Kind kind = Kind::Photo;
 		QString text;
@@ -582,6 +584,7 @@ private:
 	rpl::event_stream<Data::ReactionId> _reactionRequests;
 	rpl::event_stream<> _audioRequests;
 	rpl::event_stream<> _linkRequests;
+	rpl::event_stream<> _locationRequests;
 	rpl::event_stream<> _scrollUpdated;
 	rpl::event_stream<TabbedSelector::Action> _choosingUpdated;
 

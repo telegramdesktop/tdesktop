@@ -521,6 +521,7 @@ void OpenStoryPhotoEditor(
 			.period = raw->period(),
 			.reactions = std::move(areas.reactions),
 			.urls = std::move(areas.urls),
+			.locations = std::move(areas.locations),
 			.music = audio.document,
 			.mediaChanged = !PhotoUnchanged(mods) || !audio.empty(),
 		}, close);
@@ -590,6 +591,7 @@ void EditStoryFile(
 			.period = result.period,
 			.reactions = std::move(result.reactions),
 			.urls = std::move(result.urls),
+			.locations = std::move(result.locations),
 			.music = result.music,
 			.posted = [=] {
 				if (draftId) {
@@ -855,6 +857,7 @@ void EditStory(
 					.caption = std::move(result.caption),
 					.reactions = std::move(result.reactions),
 					.urls = std::move(result.urls),
+					.locations = std::move(result.locations),
 					.music = result.music,
 					.editId = (*found)->id(),
 					.editCaption = captionChanged,

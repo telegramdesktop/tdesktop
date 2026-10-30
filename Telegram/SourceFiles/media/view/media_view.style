@@ -670,6 +670,7 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 		storiesComposeWhiteText
 	}};
 	linkButtonIcon: icon {{ "limits/links", storiesComposeWhiteText }};
+	locationButtonIcon: icon {{ "chat/filled_location", storiesComposeWhiteText }};
 	menu: storiesPopupMenuWithIcons;
 	menuAttention: storiesMenuWithIconsAttention;
 	expandedSeparator: mediaviewWideMenuSeparator;

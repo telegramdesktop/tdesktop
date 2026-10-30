@@ -453,6 +453,7 @@ photoEditorLinkPreviewMargin: margins(24px, 12px, 24px, 6px);
 photoEditorLinkPreviewMaxHeight: 320px;
 photoEditorLinkPreviewPadding: 12px;
 photoEditorLinkPillIcon: icon {{ "photo_editor/link", windowFg }};
+photoEditorLocationPillIcon: icon {{ "chat/filled_location", windowFg }};
 photoEditorLinkThemeSize: 36px;
 photoEditorLinkThemeIconSize: 28px;
 photoEditorLinkThemeSkip: 6px;

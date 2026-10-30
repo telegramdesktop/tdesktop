@@ -776,6 +776,10 @@ rpl::producer<> TabbedSelector::linkRequests() const {
 	return hasStickersTab() ? stickers()->linkRequests() : rpl::never<>();
 }
 
+rpl::producer<> TabbedSelector::locationRequests() const {
+	return hasStickersTab() ? stickers()->locationRequests() : rpl::never<>();
+}
+
 auto TabbedSelector::choosingStickerUpdated() const
 -> rpl::producer<TabbedSelector::Action>{
 	return hasStickersTab()

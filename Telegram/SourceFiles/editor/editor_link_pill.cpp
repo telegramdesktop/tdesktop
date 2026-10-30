@@ -38,12 +38,17 @@ constexpr auto kSemiTransparentAlpha = 0x4C;
 
 } // namespace
 
-LinkPill::LinkPill(const LinkPreview &link, float64 density, int maxWidth)
+LinkPill::LinkPill(
+		const LinkPreview &link,
+		float64 density,
+		int maxWidth,
+		const style::icon *customIcon)
 : _density(density)
 , _font(
 	int(base::SafeRound(kFontSize * density)),
 	style::FontFlag::Bold,
-	QString()) {
+	QString())
+, _customIcon(customIcon) {
 	const auto text = link.name.isEmpty()
 		? WithoutScheme(link.url).toUpper()
 		: link.name;
@@ -63,6 +68,24 @@ LinkPill::LinkPill(const LinkPreview &link, float64 density, int maxWidth)
 
 QSizeF LinkPill::size() const {
 	return _size;
+}
+
+LinkStyle LinkPill::NextStyle(LinkStyle style) {
+	switch (style) {
+	case LinkStyle::Framed: return LinkStyle::SemiTransparent;
+	case LinkStyle::SemiTransparent: return LinkStyle::Opaque;
+	case LinkStyle::Opaque: return LinkStyle::Framed;
+	}
+	Unexpected("Link style in LinkPill::NextStyle.");
+}
+
+LinkStyle LinkPill::PreviousStyle(LinkStyle style) {
+	switch (style) {
+	case LinkStyle::Framed: return LinkStyle::Opaque;
+	case LinkStyle::SemiTransparent: return LinkStyle::Framed;
+	case LinkStyle::Opaque: return LinkStyle::SemiTransparent;
+	}
+	Unexpected("Link style in LinkPill::PreviousStyle.");
 }
 
 LinkStyle LinkPill::style() const {
@@ -97,7 +120,9 @@ float64 LinkPill::DensityFor(int canvasWidth) {
 }
 
 void LinkPill::updateIcon() {
-	_icon = st::photoEditorLinkPillIcon.instance(
+	_icon = (_customIcon
+		? _customIcon
+		: &st::photoEditorLinkPillIcon)->instance(
 		foreground(),
 		style::kScaleMax);
 }

@@ -103,6 +103,8 @@ struct StoryLocation {
 	QString provider;
 	QString venueId;
 	QString venueType;
+	uint64 queryId = 0;
+	QString inlineResultId;
 
 	friend inline bool operator==(
 		const StoryLocation &,

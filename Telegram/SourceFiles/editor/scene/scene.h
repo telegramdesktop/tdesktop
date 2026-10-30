@@ -22,6 +22,7 @@ class RpWidget;
 namespace Editor {
 
 class ItemCanvas;
+class ItemLocation;
 class ItemReaction;
 class ItemShape;
 class ItemText;
@@ -74,6 +75,9 @@ public:
 	[[nodiscard]] auto reactionPickRequests() const
 	-> rpl::producer<not_null<ItemReaction*>>;
 	void requestReactionPick(not_null<ItemReaction*> item);
+	[[nodiscard]] auto locationPickRequests() const
+	-> rpl::producer<not_null<ItemLocation*>>;
+	void requestLocationPick(not_null<ItemLocation*> item);
 	[[nodiscard]] bool hasAnimatedItems() const;
 	[[nodiscard]] bool hasAnimatedResult() const;
 	[[nodiscard]] bool hasSoundResult() const;
@@ -203,6 +207,7 @@ private:
 	rpl::event_stream<> _textItemDeselections;
 	rpl::event_stream<QColor> _shapeItemSelections;
 	rpl::event_stream<not_null<ItemReaction*>> _reactionPickRequests;
+	rpl::event_stream<not_null<ItemLocation*>> _locationPickRequests;
 	rpl::event_stream<> _shapeItemDeselections;
 	rpl::event_stream<bool> _pendingShapeStates;
 	rpl::event_stream<std::shared_ptr<VideoClip>> _videoClipSelections;

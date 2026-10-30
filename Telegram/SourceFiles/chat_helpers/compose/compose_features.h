@@ -26,6 +26,7 @@ struct ComposeFeatures {
 	bool reactionButton : 1 = false;
 	bool audioButton : 1 = false;
 	bool linkButton : 1 = false;
+	bool locationButton : 1 = false;
 	bool autocompleteHashtags : 1 = true;
 	bool autocompleteMentions : 1 = true;
 	bool autocompleteCommands : 1 = true;

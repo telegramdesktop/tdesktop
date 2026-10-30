@@ -1364,6 +1364,7 @@ peerQrEmojiPan: EmojiPan(statusEmojiPan) {
 	photoButtonIcon: icon {{ "photo_editor/camera-24x24", windowFg }};
 	audioButtonIcon: icon {{ "photo_editor/widget_music", windowFg }};
 	linkButtonIcon: icon {{ "limits/links", windowFg }};
+	locationButtonIcon: icon {{ "chat/filled_location", windowFg }};
 }
 peerQrEmojiBadgeSize: 14px;
 peerQrEmojiBadgeInset: 6px;

@@ -232,18 +232,6 @@ private:
 
 };
 
-[[nodiscard]] Ui::LocationPickerConfig ResolveMapsConfig(
-		not_null<Main::Session*> session) {
-	const auto &appConfig = session->appConfig();
-	auto map = appConfig.get<base::flat_map<QString, QString>>(
-		u"tdesktop_config_map"_q,
-		base::flat_map<QString, QString>());
-	return {
-		.mapsToken = map[u"maps"_q],
-		.geoToken = map[u"geo"_q],
-	};
-}
-
 [[nodiscard]] QString PreparedFileName(const PreparedFile &file) {
 	return file.displayName.isEmpty()
 		? QFileInfo(file.path).fileName()
@@ -1780,7 +1768,7 @@ private:
 			return;
 		}
 		_editor = editor;
-		const auto config = ResolveMapsConfig(_session);
+		const auto config = Ui::ResolveMapsConfig(_session);
 		if (!Ui::LocationPicker::Available(config)) {
 			return;
 		}

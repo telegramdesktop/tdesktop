@@ -17,6 +17,10 @@ namespace Data {
 class LocationPoint;
 } // namespace Data
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Webview {
 class Window;
 } // namespace Webview
@@ -31,6 +35,9 @@ struct LocationPickerConfig {
 	QString mapsToken;
 	QString geoToken;
 };
+
+[[nodiscard]] LocationPickerConfig ResolveMapsConfig(
+	not_null<Main::Session*> session);
 
 class LocationPicker final : public base::has_weak_ptr {
 public:

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/controls/location_picker.h"
 #include "ui/emoji_config.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
@@ -27,7 +28,8 @@ namespace {
 // Works around MSVC 14.44 ICE on bitfields set in a member-init list.
 [[nodiscard]] ChatHelpers::ComposeFeatures PrepareFeatures(
 		bool withAudio,
-		bool storyWidgets) {
+		bool storyWidgets,
+		bool locationAvailable) {
 	return {
 		.megagroupSet = false,
 		.stickersSettings = false,
@@ -36,6 +38,7 @@ namespace {
 		.reactionButton = storyWidgets,
 		.audioButton = withAudio,
 		.linkButton = storyWidgets,
+		.locationButton = storyWidgets && locationAvailable,
 	};
 }
 
@@ -75,7 +78,11 @@ StickersPanelController::StickersPanelController(
 					.st = st::mediaviewEmojiPan,
 					.level = Window::GifPauseReason::Layer,
 					.mode = ChatHelpers::TabbedSelector::Mode::MediaEditor,
-					.features = PrepareFeatures(withAudio, storyWidgets),
+					.features = PrepareFeatures(
+						withAudio,
+						storyWidgets,
+						Ui::LocationPicker::Available(
+							Ui::ResolveMapsConfig(&session()))),
 				}),
 		})) {
 	_stickersPanel->setDesiredHeightValues(
@@ -119,6 +126,10 @@ rpl::producer<> StickersPanelController::linkRequests() const {
 auto StickersPanelController::reactionRequests() const
 -> rpl::producer<Data::ReactionId> {
 	return _stickersPanel->selector()->reactionRequests();
+}
+
+rpl::producer<> StickersPanelController::locationRequests() const {
+	return _stickersPanel->selector()->locationRequests();
 }
 
 void StickersPanelController::showReactionsPicker(QPoint middleBottom) {

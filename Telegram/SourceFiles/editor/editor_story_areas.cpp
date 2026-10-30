@@ -9,10 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "editor/scene/scene.h"
 #include "editor/scene/scene_item_link.h"
+#include "editor/scene/scene_item_location.h"
 #include "editor/scene/scene_item_reaction.h"
 
 namespace Editor {
 namespace {
+
+constexpr auto kLocationRadiusRatio = 0.2;
 
 [[nodiscard]] Data::StoryArea AreaOf(not_null<ItemBase*> item, QSize canvas) {
 	const auto content = item->contentRect();
@@ -55,6 +58,32 @@ StoryAreas CollectStoryAreas(not_null<const Scene*> scene, QSize canvas) {
 				.reaction = reaction->reaction(),
 				.flipped = reaction->flipped(),
 				.dark = reaction->dark(),
+			});
+		} else if (item->type() == ItemLocation::Type) {
+			const auto location = static_cast<ItemLocation*>(item.get());
+			const auto &data = location->location();
+			const auto point = Data::LocationPoint::FromCoordinates(
+				data.lat,
+				data.lon);
+			if (!point) {
+				continue;
+			}
+			auto area = AreaOf(location, canvas);
+			area.radius = kLocationRadiusRatio
+				* location->contentRect().height()
+				* location->scale()
+				/ canvas.width()
+				* 100.;
+			result.locations.push_back({
+				.area = std::move(area),
+				.point = *point,
+				.title = data.title,
+				.address = data.address,
+				.provider = data.provider,
+				.venueId = data.venueId,
+				.venueType = data.venueType,
+				.queryId = data.queryId,
+				.inlineResultId = data.inlineResultId,
 			});
 		}
 	}

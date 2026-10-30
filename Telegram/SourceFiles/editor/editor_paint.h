@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "data/data_types.h"
+#include "editor/scene/scene_item_location.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 
@@ -144,6 +145,13 @@ private:
 		std::optional<QPointF> position = std::nullopt);
 	void chooseLink(const QString &url, ItemBase *editing = nullptr);
 	void addStoryReaction(Data::ReactionId reaction);
+	void addStoryLocation(
+		LocationData location,
+		std::optional<QPointF> position = std::nullopt);
+	void chooseLocation(ItemBase *editing = nullptr);
+	void applyLocationResult(
+		LocationData data,
+		std::weak_ptr<NumberedItem> editing);
 	void applyLinkResult(
 		LinkBoxResult &&result,
 		std::weak_ptr<NumberedItem> editing);

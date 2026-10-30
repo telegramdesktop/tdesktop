@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
+#include "main/main_app_config.h"
+#include "main/main_session.h"
 #include "ui/chat/attach/attach_bot_webview.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/widgets/labels.h"
@@ -348,6 +350,17 @@ bool LocationPicker::Available(const LocationPickerConfig &config) {
 	return availability.customSchemeRequests
 		&& availability.customReferer
 		&& !config.mapsToken.isEmpty();
+}
+
+LocationPickerConfig ResolveMapsConfig(not_null<Main::Session*> session) {
+	const auto &appConfig = session->appConfig();
+	auto map = appConfig.get<base::flat_map<QString, QString>>(
+		u"tdesktop_config_map"_q,
+		base::flat_map<QString, QString>());
+	return {
+		.mapsToken = map[u"maps"_q],
+		.geoToken = map[u"geo"_q],
+	};
 }
 
 void LocationPicker::setup(const Descriptor &descriptor) {

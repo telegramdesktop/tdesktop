@@ -333,6 +333,10 @@ rpl::producer<> StickersListWidget::linkRequests() const {
 	return _linkRequests.events();
 }
 
+rpl::producer<> StickersListWidget::locationRequests() const {
+	return _locationRequests.events();
+}
+
 auto StickersListWidget::reactionRequests() const
 -> rpl::producer<Data::ReactionId> {
 	return _reactionRequests.events();
@@ -1019,6 +1023,12 @@ StickersListWidget::MakeMediaButtons(
 			MediaButton::Kind::Audio,
 			tr::lng_attach_audio(tr::now),
 			&st.audioButtonIcon);
+	}
+	if (features.locationButton) {
+		add(
+			MediaButton::Kind::Location,
+			tr::lng_stories_widget_location(tr::now),
+			&st.locationButtonIcon);
 	}
 	if (features.reactionButton) {
 		result.push_back({ .kind = MediaButton::Kind::Reaction });
@@ -3002,6 +3012,8 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 					_audioRequests.fire({});
 				} else if (kind == MediaButton::Kind::Link) {
 					_linkRequests.fire({});
+				} else if (kind == MediaButton::Kind::Location) {
+					_locationRequests.fire({});
 				} else if (kind == MediaButton::Kind::Reaction) {
 					auto &button = _mediaButtons[index];
 					_reactionRequests.fire_copy(button.reaction);

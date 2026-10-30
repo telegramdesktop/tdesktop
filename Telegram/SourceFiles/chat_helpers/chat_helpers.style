@@ -159,6 +159,7 @@ EmojiPan {
 	photoButtonIcon: icon;
 	audioButtonIcon: icon;
 	linkButtonIcon: icon;
+	locationButtonIcon: icon;
 	colorAll: IconButton;
 	colorAllLabel: FlatLabel;
 	removeSet: IconButton;
@@ -855,6 +856,7 @@ defaultEmojiPan: EmojiPan {
 	photoButtonIcon: icon {{ "photo_editor/camera-24x24", windowFg }};
 	audioButtonIcon: icon {{ "photo_editor/widget_music", windowFg }};
 	linkButtonIcon: icon {{ "limits/links", windowFg }};
+	locationButtonIcon: icon {{ "chat/filled_location", windowFg }};
 	colorAll: emojiPanColorAll;
 	colorAllLabel: emojiPanColorAllLabel;
 	removeSet: stickerPanRemoveSet;

@@ -213,6 +213,8 @@ PRIVATE
     editor/scene/scene_item_line.h
     editor/scene/scene_item_link.cpp
     editor/scene/scene_item_link.h
+    editor/scene/scene_item_location.cpp
+    editor/scene/scene_item_location.h
     editor/scene/scene_item_shape.cpp
     editor/scene/scene_item_shape.h
     editor/scene/scene_item_text.cpp

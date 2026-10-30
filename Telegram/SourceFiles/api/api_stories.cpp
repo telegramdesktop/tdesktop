@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_message_reaction_id.h"
 #include "data/data_photo.h"
 #include "data/data_premium_limits.h"
+#include "data/data_story.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "main/main_app_config.h"
@@ -151,10 +152,36 @@ void PrepareStoryTask::finish() {
 		MTP_double(area.radius));
 }
 
+[[nodiscard]] MTPMediaArea LocationToMTP(const Data::StoryLocation &data) {
+	if (data.queryId) {
+		return MTP_inputMediaAreaVenue(
+			AreaCoordinatesToMTP(data.area),
+			MTP_long(data.queryId),
+			MTP_string(data.inlineResultId));
+	} else if (!data.venueId.isEmpty()) {
+		return MTP_mediaAreaVenue(
+			AreaCoordinatesToMTP(data.area),
+			data.point.toMTP(),
+			MTP_string(data.title),
+			MTP_string(data.address),
+			MTP_string(data.provider),
+			MTP_string(data.venueId),
+			MTP_string(data.venueType));
+	}
+	return MTP_mediaAreaGeoPoint(
+		MTP_flags(0),
+		AreaCoordinatesToMTP(data.area),
+		data.point.toMTP(),
+		MTPGeoPointAddress());
+}
+
 [[nodiscard]] MTPVector<MTPMediaArea> MediaAreasToMTP(
 		const StoryToSend &story) {
 	auto result = QVector<MTPMediaArea>();
-	result.reserve(story.reactions.size() + story.urls.size());
+	result.reserve(
+		story.reactions.size()
+		+ story.urls.size()
+		+ story.locations.size());
 	for (const auto &reaction : story.reactions) {
 		using Flag = MTPDmediaAreaSuggestedReaction::Flag;
 		result.push_back(MTP_mediaAreaSuggestedReaction(
@@ -167,6 +194,9 @@ void PrepareStoryTask::finish() {
 		result.push_back(MTP_mediaAreaUrl(
 			AreaCoordinatesToMTP(url.area),
 			MTP_string(url.url)));
+	}
+	for (const auto &location : story.locations) {
+		result.push_back(LocationToMTP(location));
 	}
 	return MTP_vector<MTPMediaArea>(result);
 }

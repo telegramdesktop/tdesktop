@@ -828,6 +828,15 @@ void Scene::requestReactionPick(not_null<ItemReaction*> item) {
 	_reactionPickRequests.fire_copy(item);
 }
 
+auto Scene::locationPickRequests() const
+-> rpl::producer<not_null<ItemLocation*>> {
+	return _locationPickRequests.events();
+}
+
+void Scene::requestLocationPick(not_null<ItemLocation*> item) {
+	_locationPickRequests.fire_copy(item);
+}
+
 void Scene::setSelectedShapeBrush(
 		const QColor &color,
 		float64 strokeWidth) {
