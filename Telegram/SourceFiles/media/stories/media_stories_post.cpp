@@ -88,6 +88,7 @@ constexpr auto kCanvasSampleSide = 240;
 	auto story = StoryEditorOptions(controller, setup);
 	story.canvasMedia = media;
 	story.canvasBackground = background;
+	story.musicButton = true;
 	return {
 		.confirm = StoryEditorConfirm(setup),
 		.exactSize = QSize(Api::kStoryPhotoWidth, Api::kStoryPhotoHeight),
@@ -100,10 +101,12 @@ constexpr auto kCanvasSampleSide = 240;
 		not_null<Window::SessionController*> controller,
 		const StoryEditorSetup &setup,
 		const Media::Encode::CanvasBackground &background) {
+	auto story = StoryEditorOptions(controller, setup);
+	story.musicButton = true;
 	return {
 		.editor = Editor::EditorData{
 			.confirm = StoryEditorConfirm(setup),
-			.story = StoryEditorOptions(controller, setup),
+			.story = std::move(story),
 		},
 		.hint = tr::lng_story_cover_hint(tr::now),
 		.exactSize = QSize(Api::kStoryVideoWidth, Api::kStoryVideoHeight),
@@ -141,6 +144,58 @@ constexpr auto kCanvasSampleSide = 240;
 		result = Editor::ImageModified(std::move(result), paint);
 	}
 	return result;
+}
+
+[[nodiscard]] Media::Encode::MusicTrack MusicTrackFor(
+		const Editor::StoryAudio &audio) {
+	return {
+		.path = audio.path,
+		.bytes = audio.content,
+		.position = audio.position,
+		.from = audio.from,
+		.till = (audio.till > audio.from) ? audio.till : audio.duration,
+		.volume = audio.volume,
+	};
+}
+
+[[nodiscard]] Api::SendStoryMedia StoryPhotoMedia(
+		QImage composed,
+		const Editor::PhotoModifications &mods,
+		const Editor::StoryAudio &audio) {
+	const auto animated = mods.paint && mods.paint->hasAnimatedItems();
+	if (audio.empty() && !animated) {
+		return Api::SendStoryPhoto{ std::move(composed) };
+	}
+	auto job = Media::Encode::Job();
+	if (animated) {
+		auto paintOnly = Editor::PhotoModifications();
+		paintOnly.paint = mods.paint;
+		job = Editor::ComposeAnimatedJob(composed, paintOnly, {
+			.maxSide = Api::kStoryVideoHeight,
+			.maxDuration = Api::kStoryVideoMaxDuration,
+		});
+	} else {
+		job.source = Media::Encode::StillSource{
+			.base = composed.scaled(
+				QSize(Api::kStoryVideoWidth, Api::kStoryVideoHeight),
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation),
+			.fps = 30.,
+		};
+	}
+	auto &still = v::get<Media::Encode::StillSource>(job.source);
+	if (!audio.empty()) {
+		still.music.push_back(MusicTrackFor(audio));
+		still.duration = std::clamp(
+			audio.length(),
+			crl::time(1000),
+			Api::kStoryVideoMaxDuration);
+	}
+	job.silentLoop = false;
+	return Api::SendStoryVideo{
+		.cover = std::move(composed),
+		.job = std::make_shared<Media::Encode::Job>(std::move(job)),
+	};
 }
 
 [[nodiscard]] bool PhotoUnchanged(const Editor::PhotoModifications &mods) {
@@ -215,13 +270,15 @@ void OpenStoryPhotoEditor(
 			return;
 		}
 		auto areas = CollectAreas(mods, result.size());
+		const auto audio = raw->audio();
 		done({
-			.media = Api::SendStoryPhoto{ std::move(result) },
+			.media = StoryPhotoMedia(std::move(result), mods, audio),
 			.caption = raw->caption(),
 			.period = raw->period(),
 			.reactions = std::move(areas.reactions),
 			.urls = std::move(areas.urls),
-			.mediaChanged = !PhotoUnchanged(mods),
+			.music = audio.document,
+			.mediaChanged = !PhotoUnchanged(mods) || !audio.empty(),
 		}, close);
 	}, raw->lifetime());
 	show->showLayer(std::move(layer), Ui::LayerOption::KeepOther);
@@ -274,9 +331,13 @@ void OpenStoryVideoEditor(
 	) | rpl::on_next([=](Editor::VideoModifications mods) {
 		auto source = Editor::ComposeVideoSource(path, mods, data, true);
 		source.bytes = path.isEmpty() ? content : QByteArray();
+		const auto audio = raw->audio();
+		if (!audio.empty()) {
+			source.music.push_back(MusicTrackFor(audio));
+		}
 		const auto caption = raw->caption();
 		const auto period = raw->period();
-		const auto changed = Editor::VideoEdited(
+		const auto changed = !audio.empty() || Editor::VideoEdited(
 			mods,
 			dimensions,
 			duration,
@@ -294,6 +355,7 @@ void OpenStoryVideoEditor(
 				},
 				.caption = caption,
 				.period = period,
+				.music = audio.document,
 				.mediaChanged = changed,
 			}, close);
 		})]() mutable {
@@ -369,6 +431,9 @@ void EditStoryFile(
 			.media = std::move(result.media),
 			.caption = std::move(result.caption),
 			.period = result.period,
+			.reactions = std::move(result.reactions),
+			.urls = std::move(result.urls),
+			.music = result.music,
 			.posted = std::move(closeEditor),
 		}));
 	};
@@ -541,6 +606,7 @@ void EditStory(
 					.caption = std::move(result.caption),
 					.reactions = std::move(result.reactions),
 					.urls = std::move(result.urls),
+					.music = result.music,
 					.editId = (*found)->id(),
 					.editCaption = captionChanged,
 				});

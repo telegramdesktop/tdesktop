@@ -29,6 +29,7 @@ struct SendStoryBoxArgs {
 	int period = Api::kStoryDefaultPeriod;
 	std::vector<Data::SuggestedReaction> reactions;
 	std::vector<Data::UrlArea> urls;
+	DocumentData *music = nullptr;
 	Data::Story *editing = nullptr;
 	Fn<void()> posted;
 };

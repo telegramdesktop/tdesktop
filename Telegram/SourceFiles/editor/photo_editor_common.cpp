@@ -148,9 +148,17 @@ QImage ImageModified(QImage image, const PhotoModifications &mods) {
 
 Media::Encode::Job ComposeAnimatedJob(
 		const QImage &image,
-		const PhotoModifications &mods) {
+		const PhotoModifications &mods,
+		ComposeAnimatedOptions options) {
 	Expects(mods.paint != nullptr);
 	Expects(!image.isNull());
+
+	const auto maxSide = options.maxSide
+		? float64(options.maxSide)
+		: kAnimatedMaxSide;
+	const auto maxDuration = options.maxDuration
+		? options.maxDuration
+		: crl::time(0);
 
 	const auto scene = mods.paint.get();
 	const auto crop = mods.crop.isValid()
@@ -173,8 +181,8 @@ Media::Encode::Job ComposeAnimatedJob(
 		return {};
 	}
 	const auto fit = std::min({
-		kAnimatedMaxSide / rotated.width(),
-		kAnimatedMaxSide / rotated.height(),
+		maxSide / rotated.width(),
+		maxSide / rotated.height(),
 		1.,
 	});
 	const auto target = QSize(
@@ -283,7 +291,9 @@ Media::Encode::Job ComposeAnimatedJob(
 		Media::Encode::DominantCanvasBackground(image));
 	job.source = Media::Encode::StillSource{
 		.base = std::move(base),
-		.duration = std::max(longest, kAnimatedMinDuration),
+		.duration = maxDuration
+			? std::clamp(longest, kAnimatedMinDuration, maxDuration)
+			: std::max(longest, kAnimatedMinDuration),
 		.fps = kAnimatedFps,
 		.music = std::move(music),
 	};

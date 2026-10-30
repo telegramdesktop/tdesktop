@@ -33,6 +33,7 @@ struct StoryEditorResult {
 	int period = 0;
 	std::vector<Data::SuggestedReaction> reactions;
 	std::vector<Data::UrlArea> urls;
+	DocumentData *music = nullptr;
 	bool mediaChanged = true;
 };
 

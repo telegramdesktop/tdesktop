@@ -129,9 +129,14 @@ struct PhotoModifications {
 	QImage image,
 	const PhotoModifications &mods);
 
+struct ComposeAnimatedOptions {
+	int maxSide = 0;
+	crl::time maxDuration = 0;
+};
 [[nodiscard]] Media::Encode::Job ComposeAnimatedJob(
 	const QImage &image,
-	const PhotoModifications &mods);
+	const PhotoModifications &mods,
+	ComposeAnimatedOptions options = {});
 
 void ApplyShapeMask(QImage &image, const PhotoModifications &mods);
 
