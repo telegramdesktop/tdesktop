@@ -119,6 +119,9 @@ PhotoEditorContent::PhotoEditorContent(
 			restoreCanvasPlacement(modifications.canvasMediaRect);
 		}
 	}
+	if (data.story && !data.story->videoObject.empty()) {
+		_pendingVideo = data.story->videoObject;
+	}
 	_paint->setCanvasBackground(_background);
 	_paint->setCropRect(QRectF(_crop->cropRect()));
 	_layoutAnimation.init([=](crl::time now) {
@@ -346,6 +349,10 @@ void PhotoEditorContent::applyLayout(QRectF imageRect) {
 		mods.flipped);
 	if (canvasMode()) {
 		layoutCanvasMedia(canvasGeometry);
+	}
+	if (_pendingVideo) {
+		auto pending = base::take(_pendingVideo);
+		_paint->addStoryVideoObject(std::move(*pending));
 	}
 
 	_innerRect = canvasGeometry;
@@ -883,7 +890,7 @@ void PhotoEditorContent::addMimeData(not_null<const QMimeData*> data) {
 }
 
 void PhotoEditorContent::addVideoObject(StoryVideoObject &&object) {
-	_paint->addStoryVideoObject(std::move(object));
+	_pendingVideo = std::move(object);
 }
 
 void PhotoEditorContent::setupDragArea() {
