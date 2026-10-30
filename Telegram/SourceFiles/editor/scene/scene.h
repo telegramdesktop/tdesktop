@@ -66,6 +66,10 @@ public:
 
 	[[nodiscard]] std::vector<ItemPtr> items(
 		Qt::SortOrder order = Qt::DescendingOrder) const;
+	void renderBaked(
+		QPainter *p,
+		const QRectF &target,
+		const QRectF &source = QRectF());
 	[[nodiscard]] bool hasAnimatedItems() const;
 	[[nodiscard]] bool hasAnimatedResult() const;
 	[[nodiscard]] bool hasSoundResult() const;

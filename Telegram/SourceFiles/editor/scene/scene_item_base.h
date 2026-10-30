@@ -58,6 +58,8 @@ public:
 	virtual void save(SaveState state);
 	virtual void restore(SaveState state);
 	virtual bool hasState(SaveState state) const;
+
+	[[nodiscard]] virtual bool bakes() const;
 private:
 	int _number = 0;
 	Status _status = Status::Normal;

@@ -802,6 +802,23 @@ void Scene::setSelectedTextColor(const QColor &color) {
 	}
 }
 
+void Scene::renderBaked(
+		QPainter *p,
+		const QRectF &target,
+		const QRectF &source) {
+	auto hidden = std::vector<QGraphicsItem*>();
+	for (const auto &item : _items) {
+		if (item->isVisible() && !item->bakes()) {
+			item->setVisible(false);
+			hidden.push_back(item.get());
+		}
+	}
+	render(p, target, source);
+	for (const auto item : hidden) {
+		item->setVisible(true);
+	}
+}
+
 void Scene::setSelectedShapeBrush(
 		const QColor &color,
 		float64 strokeWidth) {

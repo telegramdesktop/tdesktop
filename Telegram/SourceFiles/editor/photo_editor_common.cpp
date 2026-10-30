@@ -33,7 +33,7 @@ constexpr auto kAnimatedMinDuration = crl::time(1000);
 	if (scene) {
 		p.setCompositionMode(QPainter::CompositionMode_SourceOver);
 		PainterHighQualityEnabler hq(p);
-		scene->render(&p, QRectF(result.rect()), QRectF(crop));
+		scene->renderBaked(&p, QRectF(result.rect()), QRectF(crop));
 	}
 	return result;
 }
@@ -118,7 +118,7 @@ QImage ImageModified(QImage image, const PhotoModifications &mods) {
 		Painter p(&image);
 		PainterHighQualityEnabler hq(p);
 
-		mods.paint->render(&p, image.rect());
+		mods.paint->renderBaked(&p, image.rect());
 	}
 	auto cropped = expanded
 		? ExpandCanvas(image, mods.crop, mods.paint.get())
@@ -222,7 +222,7 @@ Media::Encode::Job ComposeAnimatedJob(
 		{
 			auto p = Painter(&layer);
 			PainterHighQualityEnabler hq(p);
-			scene->render(&p, QRectF(layer.rect()), QRectF(crop));
+			scene->renderBaked(&p, QRectF(layer.rect()), QRectF(crop));
 		}
 		for (const auto item : normal) {
 			item->setVisible(true);

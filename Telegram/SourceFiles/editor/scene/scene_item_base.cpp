@@ -480,6 +480,10 @@ std::optional<float64> ItemBase::stickyGuide(
 	return StickyLine(owner->canvasRect(), orientation, sticky.line);
 }
 
+bool NumberedItem::bakes() const {
+	return true;
+}
+
 void ItemBase::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 	if (scene()) {
 		scene()->clearSelection();
