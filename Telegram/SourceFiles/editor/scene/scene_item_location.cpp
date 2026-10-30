@@ -19,9 +19,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Editor {
 namespace {
 
-constexpr auto kMaxWidthRatio = 0.9;
+constexpr auto kPillSideMarginDp = 58;
 
-[[nodiscard]] QString CoordinatePart(float64 value, QChar positive, QChar negative) {
+[[nodiscard]] QString CoordinatePart(
+		float64 value,
+		QChar positive,
+		QChar negative) {
 	const auto hemisphere = (value < 0) ? negative : positive;
 	value = std::abs(value);
 	auto degrees = int(std::floor(value));
@@ -65,11 +68,13 @@ ItemLocation::ItemLocation(LocationData location, ItemBase::Data data)
 LinkPill ItemLocation::MakePill(
 		const LocationData &location,
 		QSize imageSize) {
+	const auto density = LinkPill::DensityFor(imageSize.width());
 	return LinkPill(
 		LinkPreview{ .name = LocationText(location) },
-		LinkPill::DensityFor(imageSize.width()),
-		int(imageSize.width() * kMaxWidthRatio),
-		&st::photoEditorLocationPillIcon);
+		density,
+		int(imageSize.width() - kPillSideMarginDp * density),
+		&st::photoEditorLocationPillIcon,
+		PillTextFit::Scale);
 }
 
 int ItemLocation::type() const {
