@@ -426,6 +426,7 @@ parts:
       - -DINSTALL_LIBDIR=/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
       - -DBUILD_SHARED_LIBS=OFF
       - -DQT_QPA_PLATFORMS="wayland;xcb"
+      - -DFEATURE_brotli=OFF
       - -DFEATURE_eglfs=OFF
       - -DINPUT_openssl=linked
     override-pull: |
