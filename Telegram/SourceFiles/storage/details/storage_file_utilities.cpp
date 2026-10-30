@@ -17,7 +17,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <openssl/core_names.h>
 #include <openssl/kdf.h>
 #include <openssl/opensslv.h>
+#ifndef LIBRESSL_VERSION_NUMBER
 #include <openssl/params.h>
+#endif
 #include <QtCore/QtEndian>
 #include <QtCore/QSaveFile>
 
@@ -523,6 +525,7 @@ MTP::AuthKeyPtr CreatePasscodeKey(
 		LOG(("App Error: Argon2id is not available."));
 		return nullptr;
 #endif // OPENSSL_VERSION_NUMBER < 0x30200000L
+#ifndef LIBRESSL_VERSION_NUMBER
 	} else if (kdf.kind == kPasscodeKdfScrypt) {
 		if (!EVP_PBE_scrypt(
 			passcode.constData(),
@@ -538,6 +541,7 @@ MTP::AuthKeyPtr CreatePasscodeKey(
 			LOG(("App Error: Scrypt derivation failed."));
 			return nullptr;
 		}
+#endif
 	} else {
 		LOG(("App Error: Unknown passcode KDF family."));
 		return nullptr;
