@@ -357,6 +357,10 @@ InnerWidget::InnerWidget(
 			}
 		}
 	}, lifetime());
+	session().data().peerDecorationsUpdated(
+	) | rpl::on_next([=] {
+		update();
+	}, lifetime());
 
 	controller->adaptive().chatWideValue(
 	) | rpl::on_next([=](bool wide) {
