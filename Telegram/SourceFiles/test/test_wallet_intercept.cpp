@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "test/test_wallet_intercept.h"
 
-#ifdef _DEBUG
+#if defined _DEBUG || defined TDESKTOP_RELEASE_TEST_HARNESS
 
 #include "gram/api/gram_api_request.h"
 #include "mtproto/mtp_instance.h"
@@ -1522,4 +1522,4 @@ void AppendWalletInterceptSelfTest(not_null<Runner*> runner) {
 
 } // namespace Test
 
-#endif // _DEBUG
+#endif // _DEBUG || TDESKTOP_RELEASE_TEST_HARNESS

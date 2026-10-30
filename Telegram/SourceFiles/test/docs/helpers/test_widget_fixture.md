@@ -72,7 +72,12 @@ parse of the log.
   each true flag and each present field sets its TL flag, so a present
   empty `chatData` or `publicData` and a present zero `widgetId` reach the
   media as present, distinct from absent. The record keeps them in
-  `WidgetFixtureMessage::fields`. The message is a local outgoing client-id
+  `WidgetFixtureMessage::fields`. A caller that sets the record's
+  `watchHost` (a `WidgetHostOverride`; an empty one only watches) before the
+  injection also gets `WidgetFixtureMessage::host`, the message's host watch
+  ([test_widget_host](test_widget_host.md)), armed with the tap for the same
+  key and disarmed with it; the three existing callers set none and arm no
+  watch. The message is a local outgoing client-id
   message, never sent, and a history entry, so it cannot stand for a Recent
   Actions, scheduled or quick-reply entry; its Web Storage never reaches the
   disk. `InjectTextMessage()` adds a local outgoing client-id text message
@@ -109,7 +114,7 @@ parse of the log.
 | `RuntimeLogDecided` / `FinishRuntimeLog` | `log.source`: `requestLog`, `logText` (the runtime kept no callback), `logText-at-bound`, `unavailable`; `log.chars`, `log.pending`. |
 | `log.summary` | The raw `Tgw::Runtime::_summary` (the `Summarize()` text) with `log.summaryState`. |
 | `RevalidateWidgetCard` | Empty, or what changed: show refused, list gone, no hover, view gone or another, card not ready, core, card or view geometry. |
-| `FixtureBarrierDecided` | True once no tap, the tap finished (`WidgetTapFinished()`: every factory released, every wrapper destroyed), or the bound passed; only a reading after a finished tap is final. |
+| `FixtureBarrierDecided` | True once no tap, the tap finished (`WidgetTapFinished()`: every factory released, every wrapper destroyed), or the bound passed; only a reading after a finished tap is final. True at the bound too, so a caller that needs the hosts gone (one widget alive at a time) checks `WidgetTapFinished(ReadWidgetOps(*message.tap))` after it and stops before another injection when it is false. |
 
 `log.summaryState` is explicit about provenance; the fixture never parses the
 summary:
@@ -135,8 +140,9 @@ The summary and the log are bounded by the product (`kMaxLogLine`,
 The caller registers its `Runner::onFinish` before any stage that changes
 state and calls `ReleaseWidgetFixture()` there; `AppendWidgetFixtureClose()`
 appends "teardown" (the same release, then its Checks) and "settle after the
-teardown". The release is idempotent: it disarms every registered tap by its
-kept key, destroys every registered message by id (its text counts them as
+teardown". The release is idempotent: it disarms every registered tap and
+host watch by its kept key, as `RemoveFixtureMessage()` does for one record,
+destroys every registered message by id (its text counts them as
 `files`), closes the control sockets, leaves the list, and restores the
 `use-new-chat-view` value, the baseline chat, the stacking hint and the
 window state it changed, nothing else. A layer shown over the chat is hidden
@@ -165,14 +171,19 @@ public=none widgetId=none`, and 16 injections with given fields in a
 private chat, a basic group, a supergroup and a channel kept every flag,
 state byte and presence and id as given, a present empty `chatData`, an
 absent field and a present zero `widgetId` included, with
-`CheckWidgetMessage()` passing for each. Windows has not
-built it; the code is portable.
+`CheckWidgetMessage()` passing for each. None of this has run on Windows.
+The optional host watch (`watchHost`, `host`, their arming next to the tap
+and their disarming) compiled, with the rest of the module, in a Windows
+Win32 Debug single-file compile for
+`2026/10/30/run-the-widget-stress-kit-at-v0-4-0-on-a-release-build-without-lto`;
+no existing caller sets it, and it has not run in the app.
 
 ## Related guidance
 
 [Widget attack audit](test_widget_attacks.md);
 [widget conformance runner](test_widget_conformance.md);
 [validated-ops tap](test_widget_ops.md);
+[widget host watch](test_widget_host.md);
 [chat-list show before input](test_chat_show.md);
 [window exposure](test_window_exposure.md);
 [scenario teardown](../teardown.md);

@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#ifdef _DEBUG
+#if defined _DEBUG || defined TDESKTOP_RELEASE_TEST_HARNESS
 
 #include "test/test_widget_fixture.h"
 
@@ -1082,6 +1082,18 @@ void RestoreChat(WidgetFixture &state) {
 		&& (window->isHidden() == state.windowHidden);
 }
 
+// The tap and the host watch, both armed by the kept key.
+void DisarmMessage(WidgetFixtureMessage &message) {
+	if (!message.armed) {
+		return;
+	}
+	DisarmWidgetOpsTap(message.key);
+	if (message.host) {
+		DisarmWidgetHostWatch(message.key);
+	}
+	message.armed = false;
+}
+
 // The one release, run by the teardown stage and again by the caller's
 // Runner::onFinish. Idempotent: a step already done is only read again.
 [[nodiscard]] FixtureRelease Release(
@@ -1091,8 +1103,7 @@ void RestoreChat(WidgetFixture &state) {
 	for (const auto &entry : state.messages) {
 		auto &message = *entry;
 		if (message.armed) {
-			DisarmWidgetOpsTap(message.key);
-			message.armed = false;
+			DisarmMessage(message);
 			++result.disarmed;
 		}
 		if (const auto item = WidgetFixtureItem(state, message.id)) {
@@ -1458,6 +1469,9 @@ QString InjectWidgetMessage(
 		history->owner().nextLocalMessageId());
 	message.key = GlobalMsgId{ message.id, history->session().uniqueId() };
 	message.tap = ArmWidgetOpsTap(message.key);
+	if (message.watchHost) {
+		message.host = ArmWidgetHostWatch(message.key, *message.watchHost);
+	}
 	message.armed = true;
 	const auto item = history->addNewLocalMessage(
 		LocalFields(history, message.id.msg),
@@ -1602,10 +1616,7 @@ void RemoveFixtureMessage(
 		WidgetFixture &state,
 		WidgetFixtureMessage &message) {
 	HideFixtureLayers(state, message, u"before the removal"_q);
-	if (message.armed) {
-		DisarmWidgetOpsTap(message.key);
-		message.armed = false;
-	}
+	DisarmMessage(message);
 	if (const auto item = WidgetFixtureItem(state, message.id)) {
 		item->destroy();
 	}
@@ -1875,4 +1886,4 @@ bool FixtureBoundReached(const WidgetFixtureWait &wait, crl::time bound) {
 
 } // namespace Test
 
-#endif // _DEBUG
+#endif // _DEBUG || TDESKTOP_RELEASE_TEST_HARNESS

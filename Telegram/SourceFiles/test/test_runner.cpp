@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#ifdef _DEBUG
+#if defined _DEBUG || defined TDESKTOP_RELEASE_TEST_HARNESS
 
 #include "test/test_runner.h"
 
@@ -666,7 +666,7 @@ void AppendFinishReleaseSelfTest(
 
 } // namespace Test
 
-#else // _DEBUG
+#else // _DEBUG || TDESKTOP_RELEASE_TEST_HARNESS
 
 #include "test/test_agent.h"
 
@@ -677,4 +677,4 @@ void Start() {
 
 } // namespace Test
 
-#endif // _DEBUG
+#endif // _DEBUG || TDESKTOP_RELEASE_TEST_HARNESS

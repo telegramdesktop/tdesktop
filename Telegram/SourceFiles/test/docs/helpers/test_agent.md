@@ -32,3 +32,4 @@ it was cut from, neither touching the golden sibling; `GramAccountLivePath()`
 ## Related guidance
 
 [Launch and background behavior](../launch.md); [account fixtures](../account-fixtures.md).
+[Release builds with the harness](../launch.md#release-builds-with-the-harness): when `Active()` can be true outside Debug.

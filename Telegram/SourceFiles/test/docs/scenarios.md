@@ -2,8 +2,10 @@
 
 [Harness guide](../README.md) · [Helper index](helpers/README.md)
 
-The permanent Debug-only harness supports `perform-task` overlays. Use the
-[helper index](helpers/README.md) to select references for this scenario.
+The permanent harness, compiled in Debug builds and in Release builds with
+the [harness option](launch.md#release-builds-with-the-harness), supports
+`perform-task` overlays. Use the [helper index](helpers/README.md) to select
+references for this scenario.
 The overlay adds task-specific fixtures, production entry points, checks
 and captures; do not recreate facilities already here.
 

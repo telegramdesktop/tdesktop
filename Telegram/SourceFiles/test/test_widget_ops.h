@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QByteArray>
 #include <QtCore/QString>
 
+#include <crl/crl_time.h>
+
 #include <memory>
 #include <optional>
 #include <string>
@@ -20,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 // The validated-ops tap of a widget message's sandbox host: what
 // twidget::WidgetHost sends the product renderer, scanned with widget-sandbox's
-// --attacks leak definition and read for the conformance result.
+// --attacks leak definition and read for the conformance and stress results.
 // Reference: docs/helpers/test_widget_ops.md.
 
 namespace Test {
@@ -33,14 +35,15 @@ namespace Test {
 // and |id| is armed by ArmWidgetOpsTap(). For an armed id it returns a
 // factory that calls |factory| exactly once, with the same arguments, on
 // its caller's thread, and wraps the renderer that call returns in a tap
-// that forwards every call and callback directly. Main thread. The Release
-// branch of this module defines this function alone, as that identity.
+// that forwards every call and callback directly. Main thread. Without the
+// harness this module defines this function alone, as that identity.
 [[nodiscard]] twidget::RendererFactory TapWidgetRenderer(
 	GlobalMsgId id,
 	twidget::RendererFactory factory);
 
-// Everything below is Debug-only: declared here and deliberately left
-// undefined in a Release build, because no production code reads it.
+// Everything below is harness-only: declared here and deliberately left
+// undefined in a build without the harness, because no production code
+// reads it.
 
 // One armed message's record, shared by the main thread, the host's Build
 // worker, its host thread and its deleter worker. Opaque; read it with
@@ -102,10 +105,24 @@ struct WidgetOpsReading {
 	int fatalFrozen = 0;
 };
 
+// The `data-stress` values one WidgetOpsLatest keeps at most.
+inline constexpr auto kWidgetStressValuesLimit = 4096;
+
+// One `data-stress` value of the adopted <html>, with its receipt.
+struct WidgetStressValue {
+	// The raw attribute text, not checked to be JSON.
+	std::string value;
+	// crl::profile() (monotonic microseconds, the clock of test_widget_host's
+	// stamps) when the host handed the batch carrying it to the tap, on its
+	// host thread, before the tap parsed the batch.
+	crl::profile_time receivedAt = 0;
+};
+
 // What the newest host selected for one tap was last told: its widget's
-// result, read as CLIENTS.md's "Reading the ops" does, and the scheme and
-// theme its renderer got. Every field but `serial` and `staleUpdates`
-// describes the host of `generation` alone and restarts with a newer one.
+// results, read as CLIENTS.md's "Reading the ops" does, its batch counts,
+// and the scheme and theme its renderer got. Every field but `serial` and
+// `staleUpdates` describes the host of `generation` alone and restarts with
+// a newer one.
 struct WidgetOpsLatest {
 	// The last `data-conformance` value of the adopted <html>: set by the
 	// adopting `el` op's attribute, replaced by each later `attr` op on that
@@ -113,6 +130,12 @@ struct WidgetOpsLatest {
 	// value, once a newer host is selected, and after a later adoption
 	// without one; a `rattr` is ignored, as CLIENTS.md's reader does.
 	std::optional<std::string> conformance;
+	// Every `data-stress` value of the adopted <html>, read as `conformance`
+	// is but all kept, in the order the host sent them: the adopting `el`
+	// op's attribute, then each later `attr` op on that id. Holds the first
+	// kWidgetStressValuesLimit; a later adoption clears it and
+	// `stressDropped`.
+	std::vector<WidgetStressValue> stress;
 	// The raw `{"type":"theme",...}` host message last sent to its renderer.
 	std::string themeMessage;
 	// The scheme its renderer was given: the factory's theme argument, then
@@ -120,19 +143,33 @@ struct WidgetOpsLatest {
 	std::string scheme;
 	// The id of the adopting `el` op, while `adopted`.
 	int64 htmlId = 0;
+	// This host's `ops` messages with an `ops` array, each counted whatever
+	// it carries, result or not; their ops, and the ops of the largest one
+	// (CLIENTS.md's maxBatchOps since the host was created).
+	int64 ops = 0;
+	int batches = 0;
+	int maxBatchOps = 0;
+	// `data-stress` values that found `stress` full: nonzero means `stress`
+	// stopped early and is incomplete.
+	int stressDropped = 0;
 	// The 1-based count of wrapping factories selected for the message when
 	// this host's was: above 1, more than one host was constructed for it,
 	// and these fields, like a runtime's log, cover only the last.
 	int generation = 0;
-	// Values this host published, the probe fixture's `updates`.
+	// `data-conformance` values this host published, the probe fixture's
+	// `updates`.
 	int updates = 0;
 	// Advances whenever `conformance` changes, a clear included; never reset.
+	// A `data-stress` value never moves it.
 	int serial = 0;
 	// setTheme() calls of this host that changed `scheme`.
 	int schemeChanges = 0;
-	// Host messages with an adoption, a `data-conformance` attribute or a
-	// theme, setTheme() calls and builds of an older host's wrapper after a
-	// newer host was selected: ignored above, counted here; never reset.
+	// Host messages with an adoption, a `data-conformance` or `data-stress`
+	// attribute or a theme, setTheme() calls and builds of an older host's
+	// wrapper after a newer host was selected: ignored above, counted here;
+	// never reset. An older host's batches count in WidgetOpsReading alone,
+	// never in `batches`, `ops` or `maxBatchOps`, and never here unless they
+	// carry such an op.
 	int staleUpdates = 0;
 	bool adopted = false;
 };
@@ -155,8 +192,9 @@ void DisarmWidgetOpsTap(GlobalMsgId id);
 // wrappersBuilt; only a reading taken after that is final.
 [[nodiscard]] WidgetOpsReading ReadWidgetOps(const WidgetOpsTap &tap);
 
-// Any thread. A snapshot taken under the tap's lock; a caller that parses
-// `conformance` can cache the result by `generation` and `serial`.
+// Any thread. A snapshot taken under the tap's lock, `stress` copied whole;
+// a caller that parses `conformance` can cache the result by `generation`
+// and `serial`.
 [[nodiscard]] WidgetOpsLatest ReadWidgetOpsLatest(const WidgetOpsTap &tap);
 
 // Any thread. Restarts the trusted event fields, right before a click.
@@ -182,8 +220,16 @@ struct WidgetOpsSelfCheck {
 // violation and trusted-event readings, a throwing product factory, normal
 // destruction, and one FullMsgId in two sessions (only the armed one
 // wrapped, separate readings when both are armed, disarming one leaves the
-// other). Disarms its ids before it returns. The caller turns each row
-// into a Check().
+// other). Its stress leg replaces an older host whose wrapper adopted <html>
+// with a value, then gives the newer one a one-op adopting batch with a
+// `data-stress` value and batches of 3 and 5 ops with an `attr` value
+// each: 3 batches, 9 ops, a largest of 5 and the three values in order,
+// receipts non-decreasing, conformance untouched; the older wrapper's late
+// 6-op batch with a value is scanned but counts in none of them; a batch
+// without a value counts; values past kWidgetStressValuesLimit only count
+// as dropped; a later adoption clears values and drops, not counts.
+// Disarms its ids before it returns. The caller turns each row into a
+// Check().
 [[nodiscard]] WidgetOpsSelfCheck RunWidgetOpsSelfCheck();
 
 // Main thread, synchronous, needs Active(). |fixture| is the bytes of

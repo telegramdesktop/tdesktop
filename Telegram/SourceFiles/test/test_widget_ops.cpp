@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "test/test_widget_ops.h"
 
-#ifdef _DEBUG
+#if defined _DEBUG || defined TDESKTOP_RELEASE_TEST_HARNESS
 
 #include "test/test_agent.h"
 #include "twidget/json.h"
@@ -40,6 +40,7 @@ constexpr auto kDetailBytes = 240;
 constexpr auto kAckQid = -1;
 
 constexpr auto kResultAttribute = "data-conformance";
+constexpr auto kStressAttribute = "data-stress";
 
 // Integral doubles are exact up to 2^53; node ids stay far below.
 constexpr auto kMaxNodeId = 9007199254740992.;
@@ -115,12 +116,19 @@ static void scanForLeaks(const Json& op, std::vector<std::string>& leaks, std::v
 
 } // namespace Upstream
 
+enum class ResultKind {
+	Adopt,
+	Conformance,
+	Stress,
+};
+
 // An op of CLIENTS.md's result reader: an <html> adoption, or a
-// `data-conformance` value for element |id|, in batch order.
+// `data-conformance` or `data-stress` value for element |id|, in batch
+// order.
 struct ResultOp {
 	int64 id = 0;
 	std::string value;
-	bool adopt = false;
+	ResultKind kind = ResultKind::Adopt;
 };
 
 struct HostScan {
@@ -165,6 +173,8 @@ public:
 	[[nodiscard]] WidgetOpsLatest latest() const;
 
 private:
+	// Under the lock: whether |selection| is the newest host's.
+	[[nodiscard]] bool newest(int selection) const;
 	// Under the lock: false, counted as stale, for an older host's wrapper.
 	[[nodiscard]] bool current(int selection);
 
@@ -356,6 +366,56 @@ constexpr auto kHtmlId = 2;
 constexpr auto kReadoptHtmlId = 6;
 constexpr auto kProbeTextChars = 400;
 
+// The stress leg's batches: the older host's adoption with a value; the
+// newer host's 1, 3 and 5 ops with one value on <html> each (a value on
+// another element and a `rattr` ignored); the older host's late 6 ops with
+// a value on the same id; the newer host's 2 ops without a value and its
+// 2-op re-adoption followed by a value on the earlier id.
+
+constexpr auto kStressOldAdopt = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"el","id":2,"tag":"html","attrs":[["data-stress",)json"
+	R"json("{\"v\":1,\"id\":\"self/old\",\"status\":\"running\"}"]],)json"
+	R"json("adopt":"html"}]})json";
+constexpr auto kStressAdopt = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"el","id":2,"tag":"html","attrs":[["data-stress",)json"
+	R"json("{\"v\":1,\"id\":\"self/new\",\"status\":\"setup\"}"]],)json"
+	R"json("adopt":"html"}]})json";
+constexpr auto kStressThree = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"el","id":3,"tag":"div","attrs":[]},)json"
+	R"json({"op":"style","id":3,"name":"opacity","value":"0.5"},)json"
+	R"json({"op":"attr","id":2,"name":"data-stress","value":"{\"v\":1,)json"
+	R"json(\"id\":\"self/new\",\"status\":\"running\",\"t\":0}"}]})json";
+constexpr auto kStressFive = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"style","id":3,"name":"opacity","value":"0.25"},)json"
+	R"json({"op":"attr","id":3,"name":"data-stress","value":"elsewhere"},)json"
+	R"json({"op":"rattr","id":2,"name":"data-stress"},)json"
+	R"json({"op":"style","id":3,"name":"width","value":"10px"},)json"
+	R"json({"op":"attr","id":2,"name":"data-stress","value":"{\"v\":1,)json"
+	R"json(\"id\":\"self/new\",\"status\":\"running\",\"t\":500}"}]})json";
+constexpr auto kStressLate = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"style","id":3,"name":"opacity","value":"0.1"},)json"
+	R"json({"op":"style","id":3,"name":"opacity","value":"0.2"},)json"
+	R"json({"op":"style","id":3,"name":"opacity","value":"0.3"},)json"
+	R"json({"op":"style","id":3,"name":"opacity","value":"0.4"},)json"
+	R"json({"op":"style","id":3,"name":"opacity","value":"0.6"},)json"
+	R"json({"op":"attr","id":2,"name":"data-stress","value":"late"}]})json";
+constexpr auto kStressPlain = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"style","id":3,"name":"opacity","value":"0.7"},)json"
+	R"json({"op":"style","id":3,"name":"opacity","value":"0.8"}]})json";
+constexpr auto kStressReadopt = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"el","id":7,"tag":"html","attrs":[],"adopt":"html"},)json"
+	R"json({"op":"attr","id":2,"name":"data-stress","value":"old id"}]})json";
+
+constexpr auto kStressSetupValue
+	= R"json({"v":1,"id":"self/new","status":"setup"})json";
+constexpr auto kStressStartValue
+	= R"json({"v":1,"id":"self/new","status":"running","t":0})json";
+constexpr auto kStressHalfValue
+	= R"json({"v":1,"id":"self/new","status":"running","t":500})json";
+constexpr auto kStressHtmlId = 2;
+constexpr auto kStressReadoptHtmlId = 7;
+constexpr auto kStressShownValues = 3;
+
 [[nodiscard]] bool IsAck(const twidget::Json &qid) {
 	return qid.isNumber() && (qid.asInt() == kAckQid);
 }
@@ -369,9 +429,19 @@ constexpr auto kProbeTextChars = 400;
 	return int64(value);
 }
 
+[[nodiscard]] std::optional<ResultKind> ValueKind(const std::string &name) {
+	if (name == kResultAttribute) {
+		return ResultKind::Conformance;
+	} else if (name == kStressAttribute) {
+		return ResultKind::Stress;
+	}
+	return std::nullopt;
+}
+
 // CLIENTS.md's "Reading the ops": an `el` op adopting <html> with its
-// `data-conformance` attributes, and every `attr` op of that name, whose
-// element is matched against the adopted id only when merged.
+// `data-conformance` and `data-stress` attributes, and every `attr` op of
+// those names, whose element is matched against the adopted id only when
+// merged.
 void ReadResultOps(const twidget::Json &op, std::vector<ResultOp> &to) {
 	const auto id = NodeId(op);
 	if (!id) {
@@ -379,17 +449,24 @@ void ReadResultOps(const twidget::Json &op, std::vector<ResultOp> &to) {
 	}
 	const auto &kind = op["op"].asString();
 	if (kind == "el" && op["adopt"].asString() == "html") {
-		to.push_back({ .id = *id, .adopt = true });
+		to.push_back({ .id = *id, .kind = ResultKind::Adopt });
 		for (const auto &pair : op["attrs"].arr()) {
-			if (pair[size_t(0)].asString() == kResultAttribute) {
+			if (const auto attribute = ValueKind(pair[size_t(0)].asString())) {
 				to.push_back({
 					.id = *id,
 					.value = pair[size_t(1)].asString(),
+					.kind = *attribute,
 				});
 			}
 		}
-	} else if (kind == "attr" && op["name"].asString() == kResultAttribute) {
-		to.push_back({ .id = *id, .value = op["value"].asString() });
+	} else if (kind == "attr") {
+		if (const auto attribute = ValueKind(op["name"].asString())) {
+			to.push_back({
+				.id = *id,
+				.value = op["value"].asString(),
+				.kind = *attribute,
+			});
+		}
 	}
 }
 
@@ -400,16 +477,49 @@ void ClearResult(WidgetOpsLatest &latest) {
 	}
 }
 
-void ApplyResults(WidgetOpsLatest &latest, std::vector<ResultOp> &&results) {
+void ClearStress(WidgetOpsLatest &latest) {
+	latest.stress.clear();
+	latest.stressDropped = 0;
+}
+
+void AppendStress(
+		WidgetOpsLatest &latest,
+		std::string &&value,
+		crl::profile_time receivedAt) {
+	if (int(latest.stress.size()) < kWidgetStressValuesLimit) {
+		latest.stress.push_back({
+			.value = std::move(value),
+			.receivedAt = receivedAt,
+		});
+	} else {
+		++latest.stressDropped;
+	}
+}
+
+void CountBatch(WidgetOpsLatest &latest, int ops) {
+	++latest.batches;
+	latest.ops += ops;
+	latest.maxBatchOps = std::max(latest.maxBatchOps, ops);
+}
+
+void ApplyResults(
+		WidgetOpsLatest &latest,
+		std::vector<ResultOp> &&results,
+		crl::profile_time receivedAt) {
 	for (auto &op : results) {
-		if (op.adopt) {
+		if (op.kind == ResultKind::Adopt) {
 			ClearResult(latest);
+			ClearStress(latest);
 			latest.adopted = true;
 			latest.htmlId = op.id;
 		} else if (latest.adopted && (op.id == latest.htmlId)) {
-			latest.conformance = std::move(op.value);
-			++latest.updates;
-			++latest.serial;
+			if (op.kind == ResultKind::Conformance) {
+				latest.conformance = std::move(op.value);
+				++latest.updates;
+				++latest.serial;
+			} else {
+				AppendStress(latest, std::move(op.value), receivedAt);
+			}
 		}
 	}
 }
@@ -700,6 +810,9 @@ std::unique_ptr<twidget::Renderer> StubFactory::operator()(
 // an id. The session values only tell the self-check's own ids apart.
 constexpr auto kSelfCheckSession = uint64(1);
 constexpr auto kOtherSession = uint64(2);
+
+// The stress leg's id, after the four of the legs before it.
+constexpr auto kStressIndex = 5;
 
 // The conformance probe check's ids; its fixture cases count from the last.
 constexpr auto kProbeReplacementIndex = 11;
@@ -1414,6 +1527,11 @@ struct ProbeFixture {
 		u"staleUpdates="_q + QString::number(latest.staleUpdates),
 		(u"themeMessageBytes="_q
 			+ QString::number(int(latest.themeMessage.size()))),
+		u"batches="_q + QString::number(latest.batches),
+		u"ops="_q + QString::number(latest.ops),
+		u"maxBatchOps="_q + QString::number(latest.maxBatchOps),
+		u"stressValues="_q + QString::number(int(latest.stress.size())),
+		u"stressDropped="_q + QString::number(latest.stressDropped),
 		u"conformance=["_q + conformance + u"]"_q,
 	}.join(QChar(' '));
 }
@@ -1727,6 +1845,211 @@ void CheckProbeTheme(std::vector<WidgetOpsSelfCheckRow> &rows) {
 			ReadingText(reading)));
 }
 
+[[nodiscard]] std::string StressBulkBatch(int index) {
+	return R"json({"type":"ops","ops":[{"op":"attr","id":2,)json"
+		R"json("name":"data-stress","value":"bulk/)json"
+		+ std::to_string(index)
+		+ R"json("}]})json";
+}
+
+[[nodiscard]] std::vector<std::string> StressValues(
+		const WidgetOpsLatest &latest) {
+	auto result = std::vector<std::string>();
+	result.reserve(latest.stress.size());
+	for (const auto &entry : latest.stress) {
+		result.push_back(entry.value);
+	}
+	return result;
+}
+
+// Every receipt within [from, till], none before the one ahead of it.
+[[nodiscard]] bool ReceiptsInOrder(
+		const std::vector<WidgetStressValue> &values,
+		crl::profile_time from,
+		crl::profile_time till) {
+	auto last = from;
+	for (const auto &value : values) {
+		if (value.receivedAt < last) {
+			return false;
+		}
+		last = value.receivedAt;
+	}
+	return (last <= till);
+}
+
+// The first values and the last, and the receipts of the first, in
+// microseconds after |from|.
+[[nodiscard]] QString StressText(
+		const WidgetOpsLatest &latest,
+		crl::profile_time from) {
+	const auto count = int(latest.stress.size());
+	const auto value = [&](int index) {
+		return QString::fromStdString(
+			latest.stress[index].value).left(kProbeTextChars);
+	};
+	auto values = QStringList();
+	auto receipts = QStringList();
+	for (auto i = 0; i != std::min(count, kStressShownValues); ++i) {
+		values.push_back(value(i));
+		receipts.push_back(
+			QString::number(latest.stress[i].receivedAt - from));
+	}
+	if (count > kStressShownValues) {
+		values.push_back(u"... "_q + value(count - 1));
+	}
+	return u"{%1} values=[%2] receipts=[%3]"_q.arg(
+		LatestText(latest),
+		values.join(u" | "_q),
+		receipts.join(QChar(',')));
+}
+
+// An older host adopts <html> with a value, then a newer host is selected:
+// its batches alone, from its own adoption on, give the newest counts and
+// values, as a stress runner reads them for one level.
+void CheckStress(WidgetOpsSelfCheck &result) {
+	const auto id = SelfCheckId(kStressIndex);
+	const auto tap = ArmWidgetOpsTap(id);
+	const auto resources = std::make_shared<twidget::SandboxResources>();
+	const auto oldState = std::make_shared<StubState>();
+	auto oldFactory = TapWidgetRenderer(id, StubFactory{ oldState });
+	auto oldWrapper = oldFactory(resources, kTheme, kWidth);
+	SendTo(oldWrapper, kStressOldAdopt);
+	const auto old = ReadWidgetOpsLatest(*tap);
+
+	const auto newState = std::make_shared<StubState>();
+	auto newFactory = TapWidgetRenderer(id, StubFactory{ newState });
+	const auto selected = ReadWidgetOpsLatest(*tap);
+	auto newWrapper = newFactory(resources, kTheme, kWidth);
+	const auto from = crl::profile();
+	SendTo(newWrapper, kStressAdopt);
+	SendTo(newWrapper, kStressThree);
+	SendTo(newWrapper, kStressFive);
+	const auto till = crl::profile();
+	const auto own = ReadWidgetOpsLatest(*tap);
+	const auto ownReading = ReadWidgetOps(*tap);
+
+	SendTo(oldWrapper, kStressLate);
+	const auto late = ReadWidgetOpsLatest(*tap);
+	const auto lateReading = ReadWidgetOps(*tap);
+	const auto lateForwarded = CountOf(
+		oldState->log,
+		std::string("renderer.send ") + kStressLate);
+
+	SendTo(newWrapper, kStressPlain);
+	const auto plain = ReadWidgetOpsLatest(*tap);
+
+	const auto bulk = kWidgetStressValuesLimit - 2;
+	for (auto i = 0; i != bulk; ++i) {
+		SendTo(newWrapper, StressBulkBatch(i));
+	}
+	const auto filledTill = crl::profile();
+	const auto filled = ReadWidgetOpsLatest(*tap);
+	const auto lastKept = "bulk/" + std::to_string(bulk - 2);
+
+	SendTo(newWrapper, kStressReadopt);
+	const auto readopted = ReadWidgetOpsLatest(*tap);
+
+	newWrapper = nullptr;
+	oldWrapper = nullptr;
+	newFactory = nullptr;
+	oldFactory = nullptr;
+	DisarmWidgetOpsTap(id);
+
+	const auto ownValues = std::vector<std::string>{
+		kStressSetupValue,
+		kStressStartValue,
+		kStressHalfValue,
+	};
+	AddRow(
+		result,
+		(old.generation == 1)
+			&& (old.batches == 1)
+			&& (old.stress.size() == 1)
+			&& (selected.generation == 2)
+			&& !selected.adopted
+			&& (selected.batches == 0)
+			&& (selected.ops == 0)
+			&& (selected.maxBatchOps == 0)
+			&& selected.stress.empty()
+			&& (own.generation == 2)
+			&& own.adopted
+			&& (own.htmlId == kStressHtmlId)
+			&& (own.batches == 3)
+			&& (own.ops == 9)
+			&& (own.maxBatchOps == 5)
+			&& (StressValues(own) == ownValues)
+			&& ReceiptsInOrder(own.stress, from, till)
+			&& (own.stressDropped == 0)
+			&& !own.conformance
+			&& (own.updates == 0)
+			&& (own.serial == selected.serial),
+		u"stress: a newer host counts its own 3 batches, 9 ops and a "
+		"largest of 5 and keeps its three data-stress values in order, "
+		"receipts non-decreasing, its conformance reading untouched"_q,
+		u"old{%1} selected{%2} own%3 till=%4"_q.arg(
+			LatestText(old),
+			LatestText(selected),
+			StressText(own, from),
+			QString::number(till - from)));
+	AddRow(
+		result,
+		(late.batches == own.batches)
+			&& (late.ops == own.ops)
+			&& (late.maxBatchOps == own.maxBatchOps)
+			&& (StressValues(late) == ownValues)
+			&& (late.stressDropped == 0)
+			&& (late.staleUpdates == own.staleUpdates + 1)
+			&& (lateReading.batches == ownReading.batches + 1)
+			&& (lateReading.ops == ownReading.ops + 6)
+			&& (lateForwarded == 1),
+		u"stress: an older wrapper's late 6-op batch with a value on the "
+		"same id is forwarded and scanned, but its value and counts never "
+		"reach the newer host's reading"_q,
+		u"late%1 forwarded=%2 %3"_q.arg(
+			StressText(late, from),
+			QString::number(lateForwarded),
+			ReadingText(lateReading)));
+	AddRow(
+		result,
+		(plain.batches == 4)
+			&& (plain.ops == 11)
+			&& (plain.maxBatchOps == 5)
+			&& (StressValues(plain) == ownValues)
+			&& (plain.staleUpdates == late.staleUpdates),
+		u"stress: a batch without a value counts with its ops"_q,
+		StressText(plain, from));
+	AddRow(
+		result,
+		(int(filled.stress.size()) == kWidgetStressValuesLimit)
+			&& (filled.stressDropped == 1)
+			&& (filled.stress[kStressShownValues].value == "bulk/0")
+			&& (filled.stress.back().value == lastKept)
+			&& ReceiptsInOrder(filled.stress, from, filledTill)
+			&& (filled.batches == 4 + bulk)
+			&& (filled.ops == 11 + bulk)
+			&& (filled.maxBatchOps == 5),
+		u"stress: a value past the limit counts as dropped and never "
+		"replaces a kept one"_q,
+		u"limit=%1 lastKept=%2 %3"_q.arg(
+			QString::number(kWidgetStressValuesLimit),
+			QString::fromStdString(lastKept),
+			StressText(filled, from)));
+	AddRow(
+		result,
+		readopted.adopted
+			&& (readopted.htmlId == kStressReadoptHtmlId)
+			&& readopted.stress.empty()
+			&& (readopted.stressDropped == 0)
+			&& (readopted.batches == filled.batches + 1)
+			&& (readopted.ops == filled.ops + 2)
+			&& (readopted.maxBatchOps == 5)
+			&& !readopted.conformance
+			&& (readopted.serial == own.serial),
+		u"stress: a later adoption clears the values and the drops, a "
+		"value on the earlier id is ignored, and the counts go on"_q,
+		StressText(readopted, from));
+}
+
 } // namespace
 
 int WidgetOpsTap::factorySelected() {
@@ -1768,6 +2091,7 @@ void WidgetOpsTap::wrapperDestroyed() {
 }
 
 void WidgetOpsTap::hostMessage(int selection, const std::string &json) {
+	const auto receivedAt = crl::profile();
 	auto scan = ScanHostMessage(json);
 	auto lock = std::lock_guard(_mutex);
 	auto &reading = _reading;
@@ -1783,6 +2107,9 @@ void WidgetOpsTap::hostMessage(int selection, const std::string &json) {
 		reading.notes += int(scan.notes.size());
 		AppendExamples(reading.leakExamples, std::move(scan.leaks));
 		AppendExamples(reading.noteExamples, std::move(scan.notes));
+		if (newest(selection)) {
+			CountBatch(_latest, scan.ops);
+		}
 	}
 	if (scan.ack) {
 		++reading.ackQueries;
@@ -1793,7 +2120,7 @@ void WidgetOpsTap::hostMessage(int selection, const std::string &json) {
 	if ((scan.results.empty() && !scan.theme) || !current(selection)) {
 		return;
 	}
-	ApplyResults(_latest, std::move(scan.results));
+	ApplyResults(_latest, std::move(scan.results), receivedAt);
 	if (scan.theme) {
 		_latest.themeMessage = std::move(*scan.theme);
 	}
@@ -1808,8 +2135,12 @@ void WidgetOpsTap::themeSet(int selection, const std::string &theme) {
 	++_latest.schemeChanges;
 }
 
+bool WidgetOpsTap::newest(int selection) const {
+	return (selection == _latest.generation);
+}
+
 bool WidgetOpsTap::current(int selection) {
-	if (selection == _latest.generation) {
+	if (newest(selection)) {
 		return true;
 	}
 	++_latest.staleUpdates;
@@ -1910,6 +2241,7 @@ WidgetOpsSelfCheck RunWidgetOpsSelfCheck() {
 	result.control = CheckArmed(result);
 	CheckThrowing(result);
 	CheckSessions(result);
+	CheckStress(result);
 	return result;
 }
 
@@ -1946,7 +2278,7 @@ auto RunWidgetConformanceProbeCheck(const QByteArray &fixture)
 
 } // namespace Test
 
-#else // _DEBUG
+#else // _DEBUG || TDESKTOP_RELEASE_TEST_HARNESS
 
 namespace Test {
 
@@ -1958,4 +2290,4 @@ twidget::RendererFactory TapWidgetRenderer(
 
 } // namespace Test
 
-#endif // _DEBUG
+#endif // _DEBUG || TDESKTOP_RELEASE_TEST_HARNESS

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "crl/crl_time.h"
 #include "data/data_msg_id.h"
 #include "data/data_peer_id.h"
+#include "test/test_widget_host.h"
 #include "test/test_widget_ops.h"
 #include "tgw/tgw_media.h"
 #include "tgw/tgw_runtime.h"
@@ -132,16 +133,21 @@ struct WidgetMessageFields {
 // set before History::addNewLocalMessage() can notify observers; the
 // session-qualified |key| is kept for every disarm. |fields| are the
 // injected media fields, |shape| describes the injected message, |layers|
-// when a layer was hidden over it.
+// when a layer was hidden over it. A caller that sets |watchHost| before
+// InjectWidgetMessage() also gets |host|, the message's host watch, armed
+// with that override next to the tap (an empty override only watches) and
+// disarmed with it.
 struct WidgetFixtureMessage {
 	QString name;
 	QByteArray html;
 	WidgetMessageFields fields;
+	std::optional<WidgetHostOverride> watchHost;
 	QString shape;
 	QStringList layers;
 	FullMsgId id;
 	GlobalMsgId key;
 	std::shared_ptr<WidgetOpsTap> tap;
+	std::shared_ptr<WidgetHostWatch> host;
 	WidgetFixtureWait wait;
 	WidgetRuntimeLog log;
 	crl::time removedAt = 0;
@@ -203,10 +209,11 @@ void AppendWidgetFixtureClose(
 	not_null<Runner*> runner,
 	const std::shared_ptr<WidgetFixture> &fixture);
 
-// Idempotent: disarms every registered tap by its kept key, destroys every
-// registered message by id, closes the control sockets, leaves the list and
-// restores the option, the chat, the exposure hint and the window state the
-// fixture changed. Returns its text for the caller's Note.
+// Idempotent: disarms every registered tap and host watch by its kept key,
+// destroys every registered message by id, closes the control sockets,
+// leaves the list and restores the option, the chat, the exposure hint and
+// the window state the fixture changed. Returns its text for the caller's
+// Note.
 [[nodiscard]] QString ReleaseWidgetFixture(
 	WidgetFixture &fixture,
 	const QString &path);
@@ -234,13 +241,14 @@ void AppendWidgetFixtureClose(
 	WidgetFixture &fixture,
 	const QString &name);
 
-// Starts |message|'s wait, arms the tap for the id the injection uses and
-// adds a local outgoing client-id widget message of |html| with the width
-// and height anchors (0 is auto), then processes the pending layout. The
-// media carries |fields| as given (an absent field stays unset, a present
-// empty one or a zero id is sent), the record keeps them and
-// CheckWidgetMessage() reads them back. Returns empty, or the refusal
-// ("not injected: ..." when nothing was added).
+// Starts |message|'s wait, arms the tap (and the host watch |watchHost|
+// asks for) for the id the injection uses and adds a local outgoing
+// client-id widget message of |html| with the width and height anchors (0
+// is auto), then processes the pending layout. The media carries |fields|
+// as given (an absent field stays unset, a present empty one or a zero id
+// is sent), the record keeps them and CheckWidgetMessage() reads them back.
+// Returns empty, or the refusal ("not injected: ..." when nothing was
+// added).
 [[nodiscard]] QString InjectWidgetMessage(
 	WidgetFixture &fixture,
 	WidgetFixtureMessage &message,
@@ -276,7 +284,8 @@ void HideFixtureLayers(
 	WidgetFixtureMessage &message,
 	const QString &when);
 
-// Hides layers, disarms the tap and destroys the message by id.
+// Hides layers, disarms the tap and the host watch and destroys the message
+// by id.
 void RemoveFixtureMessage(
 	WidgetFixture &fixture,
 	WidgetFixtureMessage &message);
@@ -285,7 +294,9 @@ void RemoveFixtureMessage(
 [[nodiscard]] bool WidgetTapFinished(const WidgetOpsReading &reading);
 
 // An until after RemoveFixtureMessage(): no tap, the tap finished, or
-// kWidgetBarrierBound passed since the removal.
+// kWidgetBarrierBound passed since the removal. True at the bound as well:
+// a caller that needs the message's hosts gone checks
+// WidgetTapFinished(ReadWidgetOps(*message.tap)) after it.
 [[nodiscard]] bool FixtureBarrierDecided(const WidgetFixtureMessage &message);
 
 // Starts the wait and asks the runtime of the list's own view for its log.

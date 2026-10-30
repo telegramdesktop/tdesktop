@@ -20,11 +20,13 @@ post-load ack, the renderer's answer to it, a fatal `frozen`, renderer
 `violation` messages and trusted renderer events, and it says when no factory
 call or wrapper of the message is still pending.
 
-The same scan also reads what a conformance widget publishes:
+The same scan also reads what a conformance or stress widget publishes:
 `ReadWidgetOpsLatest()` returns the last `data-conformance` value of the
 adopted `<html>`, as widget-sandbox's `packages/conformance/CLIENTS.md`
-("Reading the ops") reads it, with the scheme and the `theme` message the
-newest host gave its renderer.
+("Reading the ops") reads it, every `data-stress` value of it in order with
+its receipt time (`packages/stress/CLIENTS.md`, "What a widget tells you"),
+the newest host's `ops` batch count, op total and largest batch, and the
+scheme and the `theme` message the newest host gave its renderer.
 
 Callers: the attack-corpus audit of
 `2026/10/24/audit-the-widget-attack-corpus-through-a-validated-ops-tap`, and
@@ -33,7 +35,10 @@ the conformance runner of
 ([test_widget_conformance](test_widget_conformance.md)), which reads its
 results, scheme and theme message with `ReadWidgetOpsLatest()` and checks
 that reader against the package's `probe-fixture.json` with
-`RunWidgetConformanceProbeCheck()`.
+`RunWidgetConformanceProbeCheck()`. The stress-kit runner of
+`2026/10/30/run-the-widget-stress-kit-at-v0-4-0-on-a-release-build-without-lto`
+is the planned reader of the `data-stress` values and the batch counts;
+until it lands nothing reads them.
 
 Use something else when:
 
@@ -59,7 +64,7 @@ Use something else when:
   active then.
 - **Active harness.** `TapWidgetRenderer()` returns the product factory
   unchanged unless `Test::Active()`, and for every message id that is not
-  armed; the Release branch defines it alone, as that identity.
+  armed; a build without the harness defines it alone, as that identity.
 - **What the scan is.** A leak or a note is exactly what the copied
   `mentionsNetwork()`, `scanCssForLeaks()` and `scanForLeaks()` report for
   each op of a batch, nothing else. A URL in a non-`ops` message, a note and
@@ -78,15 +83,35 @@ Use something else when:
   completes a newer host's load. Whatever an older host's wrapper still sends
   afterwards is forwarded and, for batches, scanned as always; a result, a
   `theme` message or a `setTheme()` among it leaves the latest fields alone
-  and is counted in `staleUpdates`.
+  and is counted in `staleUpdates`, and none of its batches enters the
+  latest `batches`, `ops` or `maxBatchOps`.
   `generation` above 1 names a run in which more than one host was
   constructed; the latest fields, like `Tgw::Runtime`'s log, cover only the
   last of them.
-- **The value is raw.** `conformance` is the attribute text, not checked to
-  be JSON; the caller parses it and can cache that by `generation` and
-  `serial`. A later `el` op adopting `<html>` without the attribute clears
-  it, a `data-conformance` before the adoption or on another element is
-  ignored, and so is a `rattr`, as the `CLIENTS.md` reader does.
+- **The value is raw.** `conformance` and each `stress` value are the
+  attribute text, not checked to be JSON; the caller parses them and can
+  cache a parsed `conformance` by `generation` and `serial`. A later `el` op
+  adopting `<html>` without the attribute clears `conformance`; any later
+  adoption clears `stress` and `stressDropped`. A value before the adoption
+  or on another element is ignored, and so is a `rattr`, as the
+  `CLIENTS.md` reader does.
+- **Stress values are kept, not replaced.** `stress` holds every
+  `data-stress` value of this host's adopted `<html>`, in the order the host
+  sent them, each with `receivedAt`: `crl::profile()` (monotonic
+  microseconds, the clock of [test_widget_host](test_widget_host.md)'s
+  stamps) taken on the host thread when the host handed the batch to the
+  tap, before the tap parsed it. That is before the renderer applies the
+  batch on the main thread, and it is not the widget's own `t`. The list
+  keeps the first `kWidgetStressValuesLimit` (4096) values, about 34
+  minutes of the kit's 500 ms publications; each later value only counts in
+  `stressDropped`, and a nonzero `stressDropped` makes the list incomplete,
+  never silently shortened.
+- **Batch counts are the newest host's.** `batches`, `ops` and
+  `maxBatchOps` count every `ops` message with an `ops` array that the
+  newest host sent, with or without a result attribute, from its selection
+  on: the stress kit's `maxBatchOps` "since the host was created". A scan gap
+  is not a batch. `WidgetOpsReading`'s `batches` and `ops` stay the
+  cumulative counts over every host of the message.
 
 ## Minimal use
 
@@ -168,6 +193,28 @@ runner->add({
 });
 ```
 
+A stress widget's values are read once, after a measuring window whose
+endpoints are `crl::profile()` stamps; the receipts place each value:
+
+```cpp
+runner->add({
+	.name = u"read the window's data-stress values"_q,
+	.run = [=] {
+		const auto latest = Test::ReadWidgetOpsLatest(*message->tap);
+		Test::Check(
+			(latest.generation == 1) && !latest.stressDropped,
+			u"one host, every data-stress value kept"_q);
+		for (const auto &entry : latest.stress) {
+			if (entry.receivedAt >= state->windowStart
+				&& entry.receivedAt <= state->windowEnd) {
+				state->windowValues.push_back(entry.value);
+			}
+		}
+		state->maxBatchOps = latest.maxBatchOps;
+	},
+});
+```
+
 The self-checks are run from one stage each and turned into checks by their
 caller; the probe check gets the bytes of the pinned `probe-fixture.json`:
 
@@ -235,19 +282,25 @@ not have called its factory yet. Readings before that point are diagnostic.
 
 `ReadWidgetOpsLatest(tap)` returns a `WidgetOpsLatest` snapshot taken under
 the same lock, safe from any thread. Every field but `serial` and
-`staleUpdates` describes the host of `generation` alone.
+`staleUpdates` describes the host of `generation` alone. `stress` is copied
+whole, under the lock the host thread merges into: a level's few hundred
+short values cost little, but a reader polling far more often than the
+widget publishes adds that copy each time.
 
 | Field | Meaning |
 | --- | --- |
 | `generation` | The 1-based count of wrapping factories selected for the message when the newest was; 0 before any. |
 | `adopted`, `htmlId` | Whether an `el` op with `"adopt":"html"` reached this host's renderer, and its `id`. |
 | `conformance` | The last `data-conformance` value: the adopting op's attribute, replaced by each later `attr` op on `htmlId`. Empty before the first value, from a newer selection on, and after a later adoption without one. |
-| `updates` | Values this host published; the probe fixture's `updates`. A clear is not a value. |
-| `serial` | Advances on every change of `conformance`, a clear included; never reset. |
+| `updates` | `data-conformance` values this host published; the probe fixture's `updates`. A clear is not a value. |
+| `serial` | Advances on every change of `conformance`, a clear included; never reset. A `data-stress` value never moves it. |
+| `stress` | Every `data-stress` value on `htmlId` (`value`, raw) with its `receivedAt`, in order: the adopting op's attribute, then each later `attr` op. Cleared by a later adoption and a newer selection. |
+| `stressDropped` | `data-stress` values that found `stress` holding `kWidgetStressValuesLimit` (4096); nonzero means `stress` is incomplete. |
+| `batches`, `ops`, `maxBatchOps` | This host's `ops` messages, every one counted; their ops (`int64`); the ops of the largest. Restart with a newer selection only. |
 | `scheme` | The theme argument of this host's factory, then each `setTheme()`; empty until its wrapper is built. |
 | `schemeChanges` | `setTheme()` calls of this host that changed `scheme`; a repeated scheme is forwarded but not counted. |
 | `themeMessage` | The raw `{"type":"theme",...}` message last sent to this host's renderer: the bubble's palette, button and text tokens. |
-| `staleUpdates` | Messages with an adoption, a `data-conformance` attribute or a theme, `setTheme()` calls and wrapper builds of an older host after a newer one was selected; ignored above. |
+| `staleUpdates` | Messages with an adoption, a `data-conformance` or `data-stress` attribute or a theme, `setTheme()` calls and wrapper builds of an older host after a newer one was selected; ignored above. An older host's batch without such an op is not counted here. |
 
 The result fields follow `CLIENTS.md` and twidget's reference runner
 (`tools/conformance`, `OffscreenRenderer::probe()`), apart from two
@@ -310,11 +363,13 @@ differs from the reference `--attacks` run only in where it sits: at
 
 The production call is the single `.factory` initializer in
 `Tgw::Runtime::construct()` (`tgw_runtime.cpp`), which passes
-`_item->globalId()`. The Release branch of
+`_item->globalId()`. Without the harness, in a build that is neither Debug
+nor configured with `TDESKTOP_RELEASE_TEST_HARNESS`
+([Release builds with the harness](../launch.md#release-builds-with-the-harness)),
 `test_widget_ops.cpp` defines only `TapWidgetRenderer()`, returning its
 `factory` argument; every other declaration of the header is left undefined
-there. In Debug, an inactive harness and an unarmed id return the same
-`factory` before any observation state is allocated.
+there. With the harness, an inactive harness and an unarmed id return the
+same `factory` before any observation state is allocated.
 
 ## Verification
 
@@ -347,7 +402,24 @@ session has, and disarms them before it returns:
   second gets the stub factory itself and the first tap counts nothing;
   with both armed, two taps read the control batch (2 leaks) and a removal
   batch (no leak) apart; disarming the first leaves the second wrapping new
-  factories and its wrapper recording.
+  factories and its wrapper recording;
+- the stress leg (rows named `stress: ...`): an older wrapper adopts
+  `<html>` (id 2) with a `data-stress` value, then a newer factory is
+  selected, which clears that host's values and counts before the newer
+  wrapper is built. The newer wrapper gets a one-op adopting batch with a
+  value and batches of 3 and 5 ops with an `attr` value each (the 5 also
+  hold a value on another element and a `rattr`, both ignored): 3 batches,
+  9 ops, a largest of 5, the three literal values in order with receipts
+  non-decreasing and inside the sends' own `crl::profile()` bounds,
+  `conformance`, `updates` and `serial` untouched. The older wrapper's late
+  6-op batch with a value on id 2 is forwarded once and scanned (the
+  cumulative reading grows by 1 batch and 6 ops) but changes none of the
+  newer host's counts or values and adds one `staleUpdates`. A 2-op batch
+  without a value counts (4 batches, 11 ops). 4094 more single-op values
+  fill `stress` to 4096 with exactly 1 dropped, the kept values unchanged
+  and in order. A 2-op re-adoption as id 7 followed by a value on id 2
+  clears the values and the drop, keeps counting the batch, and ignores the
+  value on the earlier id.
 
 Every expected value is a literal of the self-check, not derived from the tap.
 
@@ -403,6 +475,18 @@ whose first case expects 4 values and for five mutations of the reader: no
 generation check, no clear on a newer selection, none on a re-adoption,
 every `setTheme()` a change, and values from any element. The rows run in
 the real binary in that task's conformance campaign, which records them.
+
+The `data-stress` values, their receipts, the newest host's batch counts
+and the stress leg were added by
+`2026/10/30/run-the-widget-stress-kit-at-v0-4-0-on-a-release-build-without-lto`.
+Executed so far, on Windows Win32 with MSVC 14.44: a Debug single-file
+compile of `test_widget_ops.cpp` through MSBuild and of `tgw_runtime.cpp`,
+which includes the header, and standalone compiles of
+`test_widget_ops.cpp` with the Release command line both with
+`TDESKTOP_RELEASE_TEST_HARNESS` and without it. No row of the stress leg,
+and no row since this change, has run in the app yet: they run where a
+scenario calls `RunWidgetOpsSelfCheck()`. The earlier rows' expectations
+are unchanged, as the conformance reading and the cumulative counts are.
 
 ## Related guidance
 

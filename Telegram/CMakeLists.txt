@@ -2210,8 +2210,14 @@ PRIVATE
     test/test_widget_conformance_state.h
     test/test_widget_fixture.cpp
     test/test_widget_fixture.h
+    test/test_widget_host.cpp
+    test/test_widget_host.h
     test/test_widget_ops.cpp
     test/test_widget_ops.h
+    test/test_widget_stress.cpp
+    test/test_widget_stress.h
+    test/test_widget_stress_internal.h
+    test/test_widget_stress_live.cpp
     test/test_widgets.cpp
     test/test_widgets.h
     test/test_window_exposure.cpp

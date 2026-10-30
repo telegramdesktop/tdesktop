@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "test/test_transfer.h"
 
-#ifdef _DEBUG
+#if defined _DEBUG || defined TDESKTOP_RELEASE_TEST_HARNESS
 
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
@@ -191,7 +191,7 @@ void NotifyDocumentLoadFailed(
 
 } // namespace Test
 
-#else // _DEBUG
+#else // _DEBUG || TDESKTOP_RELEASE_TEST_HARNESS
 
 namespace Test {
 
@@ -206,4 +206,4 @@ void NotifyDocumentLoadFailed(not_null<DocumentData*>, bool) {
 
 } // namespace Test
 
-#endif // _DEBUG
+#endif // _DEBUG || TDESKTOP_RELEASE_TEST_HARNESS

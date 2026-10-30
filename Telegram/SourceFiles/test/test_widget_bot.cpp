@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "test/test_widget_bot.h"
 
-#ifdef _DEBUG
+#if defined _DEBUG || defined TDESKTOP_RELEASE_TEST_HARNESS
 
 #include "test/test_agent.h"
 
@@ -380,7 +380,7 @@ std::vector<WidgetOpsSelfCheckRow> RunWidgetBotSelfCheck() {
 
 } // namespace Test
 
-#else // _DEBUG
+#else // _DEBUG || TDESKTOP_RELEASE_TEST_HARNESS
 
 namespace Test {
 
@@ -393,4 +393,4 @@ bool PlayWidgetBot(
 
 } // namespace Test
 
-#endif // _DEBUG
+#endif // _DEBUG || TDESKTOP_RELEASE_TEST_HARNESS
