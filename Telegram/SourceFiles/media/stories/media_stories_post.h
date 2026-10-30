@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_stories.h"
 
+class QMimeData;
+
 namespace Data {
 class Story;
 } // namespace Data
@@ -58,6 +60,10 @@ void PostStoryWithFile(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
 	const QString &path);
+void PostStoryWithMimeData(
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> peer,
+	not_null<const QMimeData*> data);
 void EditStory(
 	not_null<Window::SessionController*> controller,
 	not_null<Data::Story*> story);

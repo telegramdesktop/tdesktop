@@ -109,6 +109,9 @@ public:
 
 	[[nodiscard]] bool toggledHidden() const;
 	void setToggledHidden(bool hiddenInstant, bool hiddenAnimated);
+	void updateFromParentDrag(QPoint globalPos);
+	void dragLeft();
+	[[nodiscard]] uint64 finishDropAt(QPoint globalPos);
 
 private:
 	struct Layout;
@@ -165,6 +168,7 @@ private:
 	void updateTooltipGeometry();
 	[[nodiscard]] TextWithEntities computeTooltipText() const;
 	void toggleTooltip(bool fast);
+	[[nodiscard]] bool overMineElement();
 
 	bool checkForFullState();
 	void setState(State state);
@@ -237,6 +241,7 @@ private:
 
 	int _selected = -1;
 	int _pressed = -1;
+	bool _dragOverBadge = false;
 
 	rpl::event_stream<not_null<QWheelEvent*>> _verticalScrollEvents;
 

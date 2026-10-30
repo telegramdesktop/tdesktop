@@ -49,6 +49,7 @@ constexpr auto kCollapseAfterRatio = 0.68;
 constexpr auto kFrictionRatio = 0.15;
 constexpr auto kExpandCatchUpDuration = crl::time(200);
 constexpr auto kMaxTooltipNames = 3;
+constexpr auto kDragOverBadgeScale = 1.2;
 
 [[nodiscard]] int AvailableNameWidth(const style::DialogsStoriesList &st) {
 	const auto &full = st.full;
@@ -848,7 +849,7 @@ void List::paintAddBadge(
 		QPainter &p,
 		uint64 id,
 		const QRectF &userpic) const {
-		const auto size = float64(st::dialogsStoriesAddSize);
+	const auto size = float64(st::dialogsStoriesAddSize);
 	const auto line = float64(st::dialogsStoriesAddLine);
 	const auto offset = userpic.width() / 3.;
 	const auto center = userpic.center() + QPointF(offset, offset);
@@ -857,14 +858,24 @@ void List::paintAddBadge(
 		center.y() - size / 2.,
 		size,
 		size);
+	const auto drawn = _dragOverBadge
+		? QRectF(
+			center.x() - size * kDragOverBadgeScale / 2.,
+			center.y() - size * kDragOverBadgeScale / 2.,
+			size * kDragOverBadgeScale,
+			size * kDragOverBadgeScale)
+		: rect;
 	auto hq = PainterHighQualityEnabler(p);
 	p.setPen(Qt::NoPen);
 	p.setBrush(_st.bg);
-	p.drawEllipse(rect.marginsAdded({ line, line, line, line }));
+	p.drawEllipse(drawn.marginsAdded({ line, line, line, line }));
 	p.setBrush(st::windowBgActive);
-	p.drawEllipse(rect);
-	_addBadge = std::pair{ id, rect.marginsAdded({ line, line, line, line }) };
-	const auto half = float64(st::dialogsStoriesAddHalf);
+	p.drawEllipse(drawn);
+	_addBadge = std::pair{
+		id,
+		rect.marginsAdded({ line, line, line, line }) };
+	const auto half = float64(st::dialogsStoriesAddHalf)
+		* (_dragOverBadge ? kDragOverBadgeScale : 1.);
 	auto pen = QPen(st::windowFgActive->c, st::dialogsStoriesAddStroke);
 	pen.setCapStyle(Qt::RoundCap);
 	p.setPen(pen);
@@ -1000,6 +1011,9 @@ void List::mousePressEvent(QMouseEvent *e) {
 	if (e->button() != Qt::LeftButton) {
 		return;
 	} else if (_state == State::Small) {
+		if (std::exchange(_dragOverBadge, false)) {
+			update();
+		}
 		requestExpanded(true);
 		if (const auto onstack = _tooltipHide) {
 			onstack();
@@ -1017,6 +1031,9 @@ void List::mousePressEvent(QMouseEvent *e) {
 
 void List::mouseMoveEvent(QMouseEvent *e) {
 	_lastMousePosition = e->globalPos();
+	if (std::exchange(_dragOverBadge, false)) {
+		update();
+	}
 	updateSelected();
 
 	if (!_dragging && _mouseDownPosition && _state == State::Full) {
@@ -1429,6 +1446,44 @@ bool List::finishDragging() {
 	_dragging = false;
 	updateSelected();
 	return true;
+}
+
+bool List::overMineElement() {
+	return (_selected >= 0)
+		&& (_selected < _data.items.size())
+		&& _data.items[_selected].element.mine;
+}
+
+void List::updateFromParentDrag(QPoint globalPos) {
+	_lastMousePosition = globalPos;
+	updateSelected();
+	if (!_expanded && _selected >= 0) {
+		requestExpanded(true);
+	}
+	const auto over = overMineElement();
+	if (_dragOverBadge != over) {
+		_dragOverBadge = over;
+		update();
+	}
+}
+
+void List::dragLeft() {
+	const auto cleared = std::exchange(_dragOverBadge, false);
+	const auto deselected = std::exchange(_selected, -1);
+	if (cleared || deselected >= 0) {
+		update();
+	}
+}
+
+uint64 List::finishDropAt(QPoint globalPos) {
+	_lastMousePosition = globalPos;
+	updateSelected();
+	const auto id = overMineElement()
+		? _data.items[_selected].element.id
+		: 0;
+	const auto result = id;
+	dragLeft();
+	return result;
 }
 
 void List::updateSelected() {

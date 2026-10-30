@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_preview_box.h"
 #include "boxes/send_story_box.h"
 #include "core/file_utilities.h"
+#include "core/mime_type.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -742,6 +743,53 @@ void PostStoryWithFile(
 				session->premium()),
 			StoryEditorSetup{ .peer = peer->id },
 			ShowSendBoxWhenEdited(controller, peer, 0));
+	}));
+}
+
+void PostStoryWithMimeData(
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer,
+		not_null<const QMimeData*> data) {
+	const auto session = &controller->session();
+	const auto setup = StoryEditorSetup{ .peer = peer->id };
+	const auto done = ShowSendBoxWhenEdited(controller, peer, 0);
+	if (data->hasImage()) {
+		const auto read = Core::ReadMimeImage(data);
+		auto bytes = read.content;
+		auto image = read.image;
+		session->api().stories().checkCanSend(peer, crl::guard(
+			controller,
+			[=](Api::CanSendStory result) mutable {
+				if (!result.allowed()) {
+					ShowCanSendStoryError(controller, peer, result);
+					return;
+				}
+				EditStoryFile(
+					controller,
+					Storage::PrepareMediaFromImage(
+						std::move(image),
+						std::move(bytes),
+						st::sendMediaPreviewSize),
+					setup,
+					done);
+			}));
+		return;
+	}
+	const auto urls = Core::ReadMimeUrls(data);
+	session->api().stories().checkCanSend(peer, crl::guard(controller, [=](
+			Api::CanSendStory result) {
+		if (!result.allowed()) {
+			ShowCanSendStoryError(controller, peer, result);
+			return;
+		}
+		EditStoryFile(
+			controller,
+			Storage::PrepareMediaList(
+				urls,
+				st::sendMediaPreviewSize,
+				session->premium()),
+			setup,
+			done);
 	}));
 }
 

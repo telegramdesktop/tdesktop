@@ -112,6 +112,17 @@ constexpr auto kSearchPerPage = 50;
 constexpr auto kStoriesExpandDuration = crl::time(200);
 constexpr auto kSearchRequestDelay = crl::time(900);
 
+[[nodiscard]] bool IsAcceptableStoryDragState(
+		Storage::MimeDataState state) {
+	using State = Storage::MimeDataState;
+	return state == State::Image
+		|| state == State::Media
+		|| state == State::PhotoFiles
+		|| state == State::PhotoFilesArchive
+		|| state == State::MediaFiles
+		|| state == State::MediaFilesArchive;
+}
+
 base::options::toggle OptionForumHideChatsList({
 	.id = kOptionForumHideChatsList,
 	.name = "Hide chat list in forums",
@@ -3702,6 +3713,7 @@ void Widget::dragMoveEvent(QDragMoveEvent *e) {
 		const auto thread = suggestionsCoverList()
 			? _suggestions->updateFromParentDrag(global)
 			: _inner->updateFromParentDrag(global);
+		_stories->dragLeft();
 		e->setDropAction(thread ? Qt::CopyAction : Qt::IgnoreAction);
 	} else {
 		if (_dragForward) {
@@ -3711,9 +3723,32 @@ void Widget::dragMoveEvent(QDragMoveEvent *e) {
 			_suggestions->dragLeft();
 		}
 		_inner->dragLeft();
-		e->setDropAction(Qt::IgnoreAction);
+		if (!updateStoriesDrag(e)) {
+			e->setDropAction(Qt::IgnoreAction);
+		}
 	}
 	e->accept();
+}
+
+bool Widget::updateStoriesDrag(not_null<QDragMoveEvent*> e) {
+	if (_stories->isHidden()) {
+		return false;
+	}
+	const auto peer = session().data().peer(session().userPeerId());
+	if (!Media::Stories::CanPostStory(peer)) {
+		return false;
+	}
+	if (!_stories->geometry().contains(e->pos())) {
+		_stories->dragLeft();
+		return false;
+	}
+	if (!IsAcceptableStoryDragState(Storage::ComputeMimeDataState(e->mimeData()))) {
+		_stories->dragLeft();
+		return false;
+	}
+	_stories->updateFromParentDrag(mapToGlobal(e->pos()));
+	e->setDropAction(Qt::CopyAction);
+	return true;
 }
 
 void Widget::dragLeaveEvent(QDragLeaveEvent *e) {
@@ -3726,6 +3761,7 @@ void Widget::dragLeaveEvent(QDragLeaveEvent *e) {
 		_suggestions->dragLeft();
 	}
 	_inner->dragLeft();
+	_stories->dragLeft();
 	e->accept();
 }
 
@@ -3745,6 +3781,7 @@ void Widget::dropEvent(QDropEvent *e) {
 
 	_chooseByDragTimer.cancel();
 	if (_scroll->geometry().contains(e->pos())) {
+		_stories->dragLeft();
 		const auto globalPosition = mapToGlobal(e->pos());
 		const auto thread = suggestionsCoverList()
 			? _suggestions->updateFromParentDrag(globalPosition)
@@ -3767,6 +3804,24 @@ void Widget::dropEvent(QDropEvent *e) {
 			controller()->widget()->raise();
 			controller()->widget()->activateWindow();
 		}
+	} else if (!_stories->isHidden()
+		&& _stories->geometry().contains(e->pos())) {
+		const auto id = _stories->finishDropAt(mapToGlobal(e->pos()));
+		const auto peer = id
+			? session().data().peer(PeerId(int64(id))).get()
+			: nullptr;
+		if (peer
+			&& Media::Stories::CanPostStory(peer)
+			&& IsAcceptableStoryDragState(ComputeMimeDataState(e->mimeData()))) {
+			e->setDropAction(Qt::CopyAction);
+			e->accept();
+			Media::Stories::PostStoryWithMimeData(
+				controller(),
+				peer,
+				e->mimeData());
+			return;
+		}
+		e->setDropAction(Qt::IgnoreAction);
 	}
 }
 
