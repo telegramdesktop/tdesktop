@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "editor/scene/scene.h"
 #include "editor/scene/scene_item_link.h"
+#include "editor/scene/scene_item_reaction.h"
 
 namespace Editor {
 namespace {
@@ -46,6 +47,14 @@ StoryAreas CollectStoryAreas(not_null<const Scene*> scene, QSize canvas) {
 			result.urls.push_back({
 				.area = AreaOf(link, canvas),
 				.url = link->link().url,
+			});
+		} else if (item->type() == ItemReaction::Type) {
+			const auto reaction = static_cast<ItemReaction*>(item.get());
+			result.reactions.push_back({
+				.area = AreaOf(reaction, canvas),
+				.reaction = reaction->reaction(),
+				.flipped = reaction->flipped(),
+				.dark = reaction->dark(),
 			});
 		}
 	}

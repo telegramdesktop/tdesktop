@@ -56,6 +56,8 @@ struct State {
 	std::optional<Api::SendStoryMedia> media;
 	TextWithTags caption;
 	int period = Api::kStoryDefaultPeriod;
+	std::vector<Data::SuggestedReaction> reactions;
+	std::vector<Data::UrlArea> urls;
 	Data::Story *editing = nullptr;
 	Api::UserPrivacy::Rule initialPrivacy;
 	PrivacyLists lists;
@@ -562,6 +564,8 @@ void Submit(
 		.albums = (state->pinned.current()
 			? state->chosenAlbums.current()
 			: std::vector<int>()),
+		.reactions = std::move(state->reactions),
+		.urls = std::move(state->urls),
 		.period = state->period,
 		.pinned = state->pinned.current(),
 		.noForwards = !state->allowForwards.current(),
@@ -582,6 +586,8 @@ void SendStoryBox(not_null<Ui::GenericBox*> box, SendStoryBoxArgs &&args) {
 	state->media = std::move(args.media);
 	state->caption = std::move(args.caption);
 	state->period = args.period;
+	state->reactions = std::move(args.reactions);
+	state->urls = std::move(args.urls);
 	state->editing = editing;
 	state->posted = std::move(args.posted);
 	if (editing) {

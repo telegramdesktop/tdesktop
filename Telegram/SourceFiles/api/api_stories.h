@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_user_privacy.h"
 #include "base/weak_ptr.h"
+#include "data/data_story.h"
 #include "mtproto/sender.h"
 
 class ApiWrap;
@@ -66,6 +67,8 @@ struct StoryToSend {
 	TextWithTags caption;
 	UserPrivacy::Rule privacy;
 	std::vector<int> albums;
+	std::vector<Data::SuggestedReaction> reactions;
+	std::vector<Data::UrlArea> urls;
 	StoryId editId = 0;
 	int period = kStoryDefaultPeriod;
 	bool pinned = true;

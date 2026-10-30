@@ -31,6 +31,8 @@ struct StoryEditorResult {
 	StoryMedia media;
 	TextWithTags caption;
 	int period = 0;
+	std::vector<Data::SuggestedReaction> reactions;
+	std::vector<Data::UrlArea> urls;
 	bool mediaChanged = true;
 };
 

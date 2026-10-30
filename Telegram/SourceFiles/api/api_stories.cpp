@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
+#include "data/data_message_reaction_id.h"
 #include "data/data_photo.h"
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
@@ -133,6 +134,40 @@ void PrepareStoryTask::finish() {
 		return { .type = Type::LiveAlready, .error = error };
 	}
 	return { .type = Type::Error, .error = error };
+}
+
+[[nodiscard]] MTPMediaAreaCoordinates AreaCoordinatesToMTP(
+		const Data::StoryArea &area) {
+	using Flag = MTPDmediaAreaCoordinates::Flag;
+	const auto &geometry = area.geometry;
+	return MTP_mediaAreaCoordinates(
+		MTP_flags(area.radius ? Flag::f_radius : Flag()),
+		MTP_double(geometry.center().x() * 100.),
+		MTP_double(geometry.center().y() * 100.),
+		MTP_double(geometry.width() * 100.),
+		MTP_double(geometry.height() * 100.),
+		MTP_double(area.rotation),
+		MTP_double(area.radius));
+}
+
+[[nodiscard]] MTPVector<MTPMediaArea> MediaAreasToMTP(
+		const StoryToSend &story) {
+	auto result = QVector<MTPMediaArea>();
+	result.reserve(story.reactions.size() + story.urls.size());
+	for (const auto &reaction : story.reactions) {
+		using Flag = MTPDmediaAreaSuggestedReaction::Flag;
+		result.push_back(MTP_mediaAreaSuggestedReaction(
+			MTP_flags((reaction.dark ? Flag::f_dark : Flag())
+				| (reaction.flipped ? Flag::f_flipped : Flag())),
+			AreaCoordinatesToMTP(reaction.area),
+			Data::ReactionToMTP(reaction.reaction)));
+	}
+	for (const auto &url : story.urls) {
+		result.push_back(MTP_mediaAreaUrl(
+			AreaCoordinatesToMTP(url.area),
+			MTP_string(url.url)));
+	}
+	return MTP_vector<MTPMediaArea>(result);
 }
 
 } // namespace
@@ -901,9 +936,13 @@ void Stories::sendRequest(
 			failed(upload, error.type());
 		}
 	};
+	const auto areas = MediaAreasToMTP(story);
 	if (story.editId) {
 		using Flag = MTPstories_EditStory::Flag;
 		const auto flags = (media ? Flag::f_media : Flag())
+			| ((media && !areas.v.isEmpty())
+				? Flag::f_media_areas
+				: Flag())
 			| (story.editCaption ? Flag::f_caption : Flag())
 			| (story.editPrivacy ? Flag::f_privacy_rules : Flag());
 		upload->requestId = _api.request(MTPstories_EditStory(
@@ -911,7 +950,7 @@ void Stories::sendRequest(
 			peer->input(),
 			MTP_int(story.editId),
 			media.value_or(MTPInputMedia()),
-			MTP_vector<MTPMediaArea>(),
+			areas,
 			MTP_string(caption.text),
 			entities,
 			MTP_vector<MTPInputPrivacyRule>(rules),
@@ -930,7 +969,8 @@ void Stories::sendRequest(
 		| Flag::f_period
 		| (repost ? Flag::f_fwd_from_id : Flag())
 		| ((repost && !sameMediaAsRepost) ? Flag::f_fwd_modified : Flag())
-		| (story.albums.empty() ? Flag() : Flag::f_albums);
+		| (story.albums.empty() ? Flag() : Flag::f_albums)
+		| (areas.v.isEmpty() ? Flag() : Flag::f_media_areas);
 	auto albums = QVector<MTPint>();
 	albums.reserve(story.albums.size());
 	for (const auto album : story.albums) {
@@ -940,7 +980,7 @@ void Stories::sendRequest(
 		MTP_flags(flags),
 		peer->input(),
 		*media,
-		MTP_vector<MTPMediaArea>(),
+		areas,
 		MTP_string(caption.text),
 		entities,
 		MTP_vector<MTPInputPrivacyRule>(rules),

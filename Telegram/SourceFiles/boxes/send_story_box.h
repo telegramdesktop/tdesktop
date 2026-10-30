@@ -27,6 +27,8 @@ struct SendStoryBoxArgs {
 	std::optional<Api::SendStoryMedia> media;
 	TextWithTags caption;
 	int period = Api::kStoryDefaultPeriod;
+	std::vector<Data::SuggestedReaction> reactions;
+	std::vector<Data::UrlArea> urls;
 	Data::Story *editing = nullptr;
 	Fn<void()> posted;
 };

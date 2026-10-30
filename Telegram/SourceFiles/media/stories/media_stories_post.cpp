@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_story.h"
 #include "data/data_user.h"
 #include "editor/editor_layer_widget.h"
+#include "editor/editor_story_areas.h"
 #include "editor/photo_editor.h"
 #include "editor/photo_editor_common.h"
 #include "editor/scene/scene.h"
@@ -149,6 +150,14 @@ constexpr auto kCanvasSampleSide = 240;
 		&& (!mods.paint || mods.paint->items().empty());
 }
 
+[[nodiscard]] Editor::StoryAreas CollectAreas(
+		const Editor::PhotoModifications &mods,
+		QSize canvas) {
+	return mods.paint
+		? Editor::CollectStoryAreas(mods.paint.get(), canvas)
+		: Editor::StoryAreas();
+}
+
 [[nodiscard]] bool AcceptableStoryFile(const Ui::PreparedFile &file) {
 	using Type = Ui::PreparedFile::Type;
 	return (file.type == Type::Photo)
@@ -205,10 +214,13 @@ void OpenStoryPhotoEditor(
 			controller->showToast(tr::lng_bad_photo(tr::now));
 			return;
 		}
+		auto areas = CollectAreas(mods, result.size());
 		done({
 			.media = Api::SendStoryPhoto{ std::move(result) },
 			.caption = raw->caption(),
 			.period = raw->period(),
+			.reactions = std::move(areas.reactions),
+			.urls = std::move(areas.urls),
 			.mediaChanged = !PhotoUnchanged(mods),
 		}, close);
 	}, raw->lifetime());
@@ -527,6 +539,8 @@ void EditStory(
 						? std::optional(std::move(result.media))
 						: std::nullopt),
 					.caption = std::move(result.caption),
+					.reactions = std::move(result.reactions),
+					.urls = std::move(result.urls),
 					.editId = (*found)->id(),
 					.editCaption = captionChanged,
 				});
