@@ -11,9 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "data/data_cloud_file.h"
 #include "data/data_groups.h"
+#include "data/data_location.h"
 #include "data/data_star_gift.h"
 #include "dialogs/dialogs_main_list.h"
-#include "history/history_location_manager.h"
 #include "storage/storage_databases.h"
 
 class Image;
