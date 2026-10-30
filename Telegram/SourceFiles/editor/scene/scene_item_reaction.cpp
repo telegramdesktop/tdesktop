@@ -36,12 +36,7 @@ constexpr auto kTailExtent = 0.12;
 constexpr auto kIconSide = 256;
 constexpr auto kClickSlop = 10.;
 
-struct ReactionIconDocument {
-	DocumentData *document = nullptr;
-	bool fromSelectAnimation = false;
-};
-
-[[nodiscard]] ReactionIconDocument ReactionDocument(
+[[nodiscard]] DocumentData *ReactionDocument(
 		not_null<Main::Session*> session,
 		const ::Data::ReactionId &id) {
 	if (const auto custom = id.custom()) {
@@ -53,12 +48,10 @@ struct ReactionIconDocument {
 		const auto &list = reactions.list(type);
 		const auto i = ranges::find(list, id, &::Data::Reaction::id);
 		if (i != end(list)) {
-			return i->centerIcon
-				? ReactionIconDocument{ i->centerIcon }
-				: ReactionIconDocument{ i->selectAnimation.get(), true };
+			return i->selectAnimation;
 		}
 	}
-	return {};
+	return nullptr;
 }
 
 } // namespace
@@ -120,12 +113,11 @@ void ItemReaction::updateIcon() {
 	_loadingLifetime.destroy();
 	_icon = nullptr;
 	_media = nullptr;
-	const auto resolved = ReactionDocument(_session, _reaction);
-	if (!resolved.document) {
+	const auto document = ReactionDocument(_session, _reaction);
+	if (!document) {
 		return;
 	}
-	_iconHalved = resolved.fromSelectAnimation;
-	_media = resolved.document->createMediaView();
+	_media = document->createMediaView();
 	_media->checkStickerLarge();
 	if (createIcon()) {
 		return;
@@ -225,8 +217,7 @@ void ItemReaction::paint(
 			rect.adjusted(-extent, -extent, extent, extent),
 			_background);
 		if (iconReady()) {
-			const auto factor = _iconHalved ? 0.5 : 1.;
-			const auto side = bubble * kReactionSize * factor;
+			const auto side = bubble * kReactionSize;
 			const auto center = rect.center();
 			p->drawImage(
 				QRectF(

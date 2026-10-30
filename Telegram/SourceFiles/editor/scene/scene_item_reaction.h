@@ -73,7 +73,6 @@ private:
 	QPointF _pressPosition;
 	bool _pressedSelected = false;
 	bool _dark = false;
-	bool _iconHalved = false;
 
 };
 
