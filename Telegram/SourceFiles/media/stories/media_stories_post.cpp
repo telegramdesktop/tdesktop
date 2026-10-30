@@ -306,11 +306,25 @@ void SetupStoryEditorClose(
 	};
 }
 
+[[nodiscard]] bool UntouchedVideoOnly(const Editor::Scene *scene) {
+	if (!scene || scene->audio()) {
+		return false;
+	}
+	const auto items = scene->items();
+	if (items.size() != 1) {
+		return false;
+	}
+	const auto &item = items.front();
+	return (item->type() == Editor::ItemVideo::Type)
+		&& item->isNormalStatus()
+		&& static_cast<Editor::ItemVideo*>(item.get())->atInitialState();
+}
+
 [[nodiscard]] bool PhotoUnchanged(const Editor::PhotoModifications &mods) {
 	return !mods.angle
 		&& !mods.flipped
 		&& mods.canvasMediaRect.isEmpty()
-		&& (!mods.paint || mods.paint->items().empty());
+		&& (!mods.paint || UntouchedVideoOnly(mods.paint.get()));
 }
 
 [[nodiscard]] Editor::StoryAreas CollectAreas(
