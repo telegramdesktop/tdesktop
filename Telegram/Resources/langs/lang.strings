@@ -9214,6 +9214,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_story_location_change" = "Change Location";
 "lng_stories_widget_location" = "Location";
 "lng_stories_location_add" = "Add This Location";
+"lng_story_weather_failed" = "Could not load weather.";
 "lng_story_audio_title" = "Add Audio";
 "lng_story_audio_files" = "Select from Files";
 "lng_story_audio_profile" = "Profile Music";

@@ -17,6 +17,7 @@ struct StoryAreas {
 	std::vector<Data::SuggestedReaction> reactions;
 	std::vector<Data::UrlArea> urls;
 	std::vector<Data::StoryLocation> locations;
+	std::vector<Data::WeatherArea> weather;
 };
 
 [[nodiscard]] StoryAreas CollectStoryAreas(

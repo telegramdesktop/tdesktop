@@ -31,7 +31,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_item_sticker.h"
 #include "editor/scene/scene_item_text.h"
 #include "editor/scene/scene_item_video.h"
+#include "editor/scene/scene_item_weather.h"
 #include "editor/scene/scene.h"
+#include "editor/editor_weather.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
@@ -227,6 +229,8 @@ Paint::Paint(
 				) | rpl::map_to(ShowRequest::HideAnimated),
 				controllers->stickersPanelController->locationRequests(
 				) | rpl::map_to(ShowRequest::HideAnimated),
+				controllers->stickersPanelController->weatherRequests(
+				) | rpl::map_to(ShowRequest::HideAnimated),
 				controllers->stickersPanelController->reactionRequests(
 				) | rpl::map_to(ShowRequest::HideAnimated)));
 
@@ -260,6 +264,11 @@ Paint::Paint(
 		controllers->stickersPanelController->locationRequests(
 		) | rpl::on_next([=] {
 			chooseLocation();
+		}, lifetime());
+
+		controllers->stickersPanelController->weatherRequests(
+		) | rpl::on_next([=] {
+			chooseWeather();
 		}, lifetime());
 
 		_scene->reactionPickRequests(
@@ -1013,6 +1022,58 @@ void Paint::applyLocationResult(
 		_scene->removeItem(strong);
 	}
 	addStoryLocation(std::move(data), position);
+}
+
+void Paint::addStoryWeather(
+		WeatherData weather,
+		std::optional<QPointF> position) {
+	auto data = itemBaseData();
+	data.size = std::max(
+		int(std::ceil(ItemWeather::PillSize(weather, _imageSize).width())),
+		1);
+	if (position) {
+		data.x = int(position->x());
+		data.y = int(position->y());
+	}
+	addMediaItem(std::make_shared<ItemWeather>(
+		std::move(weather),
+		std::move(data)));
+}
+
+void Paint::chooseWeather() {
+	const auto session = Paint::session();
+	if (!session) {
+		return;
+	}
+	for (const auto &item : _scene->items(Qt::AscendingOrder)) {
+		if (item->isNormalStatus() && item->type() == ItemWeather::Type) {
+			_scene->clearSelection();
+			item->setSelected(true);
+			return;
+		}
+	}
+	const auto done = crl::guard(this, [=](WeatherInfo info) {
+		addStoryWeather(WeatherData{
+			.emoji = info.emoji,
+			.celsius = info.celsius,
+		});
+	});
+	const auto fail = crl::guard(this, [=] {
+		_controllers->show->showToast(tr::lng_story_weather_failed(tr::now));
+	});
+	for (const auto &item : _scene->items(Qt::AscendingOrder)) {
+		if (item->isNormalStatus() && item->type() == ItemLocation::Type) {
+			const auto &location = static_cast<ItemLocation*>(
+				item.get())->location();
+			FetchWeather(
+				session,
+				QPointF(location.lat, location.lon),
+				done,
+				fail);
+			return;
+		}
+	}
+	FetchWeatherForCurrentLocation(session, done, fail);
 }
 
 void Paint::choosePhotoFile() {

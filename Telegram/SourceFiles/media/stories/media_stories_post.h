@@ -36,6 +36,7 @@ struct StoryEditorResult {
 	std::vector<Data::SuggestedReaction> reactions;
 	std::vector<Data::UrlArea> urls;
 	std::vector<Data::StoryLocation> locations;
+	std::vector<Data::WeatherArea> weather;
 	DocumentData *music = nullptr;
 	bool mediaChanged = true;
 };

@@ -13,5 +13,6 @@ namespace Ui {
 [[nodiscard]] std::optional<QColor> MaybeColorFromSerialized(
 	quint32 serialized);
 [[nodiscard]] QColor Color32FromSerialized(quint32 serialized);
+[[nodiscard]] quint32 Color32ToSerialized(QColor color);
 
 } // namespace Ui

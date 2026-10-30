@@ -47,6 +47,7 @@ public:
 	[[nodiscard]] rpl::producer<> audioRequests() const;
 	[[nodiscard]] rpl::producer<> linkRequests() const;
 	[[nodiscard]] rpl::producer<> locationRequests() const;
+	[[nodiscard]] rpl::producer<> weatherRequests() const;
 	[[nodiscard]] auto reactionRequests() const
 	-> rpl::producer<Data::ReactionId>;
 	void showReactionsPicker(QPoint middleBottom);

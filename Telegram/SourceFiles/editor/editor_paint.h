@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "data/data_types.h"
 #include "editor/scene/scene_item_location.h"
+#include "editor/scene/scene_item_weather.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 
@@ -149,6 +150,10 @@ private:
 		LocationData location,
 		std::optional<QPointF> position = std::nullopt);
 	void chooseLocation(ItemBase *editing = nullptr);
+	void addStoryWeather(
+		WeatherData weather,
+		std::optional<QPointF> position = std::nullopt);
+	void chooseWeather();
 	void applyLocationResult(
 		LocationData data,
 		std::weak_ptr<NumberedItem> editing);

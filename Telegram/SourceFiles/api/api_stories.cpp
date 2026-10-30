@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "window/window_controller.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/color_int_conversion.h"
 #include "core/application.h"
 #include "media/media_video_encode.h"
 #include "storage/file_upload.h"
@@ -193,7 +194,8 @@ void PrepareStoryTask::finish() {
 	result.reserve(
 		story.reactions.size()
 		+ story.urls.size()
-		+ story.locations.size());
+		+ story.locations.size()
+		+ story.weather.size());
 	for (const auto &reaction : story.reactions) {
 		using Flag = MTPDmediaAreaSuggestedReaction::Flag;
 		result.push_back(MTP_mediaAreaSuggestedReaction(
@@ -209,6 +211,13 @@ void PrepareStoryTask::finish() {
 	}
 	for (const auto &location : story.locations) {
 		result.push_back(LocationToMTP(location));
+	}
+	for (const auto &weather : story.weather) {
+		result.push_back(MTP_mediaAreaWeather(
+			AreaCoordinatesToMTP(weather.area),
+			MTP_string(weather.emoji),
+			MTP_double(weather.millicelsius / 1000.),
+			MTP_int(Ui::Color32ToSerialized(weather.color))));
 	}
 	return MTP_vector<MTPMediaArea>(result);
 }

@@ -654,6 +654,10 @@ bool UserData::isPremium() const {
 	return flags() & UserDataFlag::Premium;
 }
 
+bool UserData::isBotInlineGeo() const {
+	return flags() & UserDataFlag::BotInlineGeo;
+}
+
 bool UserData::isBot() const {
 	return botInfo != nullptr;
 }

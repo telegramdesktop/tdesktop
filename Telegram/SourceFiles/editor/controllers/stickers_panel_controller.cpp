@@ -39,6 +39,7 @@ namespace {
 		.audioButton = withAudio,
 		.linkButton = storyWidgets,
 		.locationButton = storyWidgets && locationAvailable,
+		.weatherButton = storyWidgets,
 	};
 }
 
@@ -130,6 +131,10 @@ auto StickersPanelController::reactionRequests() const
 
 rpl::producer<> StickersPanelController::locationRequests() const {
 	return _stickersPanel->selector()->locationRequests();
+}
+
+rpl::producer<> StickersPanelController::weatherRequests() const {
+	return _stickersPanel->selector()->weatherRequests();
 }
 
 void StickersPanelController::showReactionsPicker(QPoint middleBottom) {

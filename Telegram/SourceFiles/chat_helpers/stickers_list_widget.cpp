@@ -9,7 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/options.h"
 #include "base/timer_rpl.h"
+#include "base/platform/base_platform_info.h"
 #include "core/application.h"
+#include "editor/editor_weather.h"
 #include "data/data_document.h"
 #include "base/random.h"
 #include "data/data_message_reactions.h"
@@ -101,6 +103,16 @@ base::options::toggle OptionUnlimitedRecentStickers({
 } // namespace
 
 const char kOptionUnlimitedRecentStickers[] = "unlimited-recent-stickers";
+
+constexpr auto kWeatherSlideDuration = crl::time(200);
+constexpr auto kWeatherSlideDelay = crl::time(150);
+
+struct StickersListWidget::WeatherSlide {
+	EmojiPtr previousEmoji = nullptr;
+	QString previous;
+	int previousWidth = 0;
+	Ui::Animations::Simple animation;
+};
 
 struct StickersListWidget::Sticker {
 	not_null<DocumentData*> document;
@@ -335,6 +347,10 @@ rpl::producer<> StickersListWidget::linkRequests() const {
 
 rpl::producer<> StickersListWidget::locationRequests() const {
 	return _locationRequests.events();
+}
+
+rpl::producer<> StickersListWidget::weatherRequests() const {
+	return _weatherRequests.events();
 }
 
 auto StickersListWidget::reactionRequests() const
@@ -1018,6 +1034,20 @@ StickersListWidget::MakeMediaButtons(
 			tr::lng_stories_widget_location(tr::now),
 			&st.locationButtonIcon);
 	}
+	if (features.weatherButton) {
+		const auto cached = Editor::CachedWeather();
+		const auto emoji = cached
+			? cached->emoji
+			: QString(QChar(0xD83C)) + QChar(0xDF24);
+		auto button = MediaButton{
+			.kind = MediaButton::Kind::Weather,
+			.text = Editor::WeatherTemperatureText(
+				cached ? cached->celsius : 24.),
+			.emoji = emoji,
+		};
+		button.textWidth = st::stickersPhotoButtonFont->width(button.text);
+		result.push_back(std::move(button));
+	}
 	if (features.photoButton) {
 		add(
 			MediaButton::Kind::Photo,
@@ -1063,6 +1093,13 @@ int StickersListWidget::mediaButtonsRowCount() const {
 int StickersListWidget::mediaButtonWidth(const MediaButton &button) const {
 	if (button.kind == MediaButton::Kind::Reaction) {
 		return st::stickersPhotoButtonHeight;
+	} else if (button.kind == MediaButton::Kind::Weather) {
+		const auto &padding = st::stickersPhotoButtonPadding;
+		return padding.left()
+			+ st::stickersPhotoButtonEmojiSize
+			+ st::stickersPhotoButtonIconSkip
+			+ button.textWidth
+			+ padding.right();
 	}
 	const auto &padding = st::stickersPhotoButtonPadding;
 	return padding.left()
@@ -1143,6 +1180,116 @@ void StickersListWidget::paintReactionButton(
 		image);
 }
 
+void StickersListWidget::checkWeatherSlide() {
+	const auto cached = Editor::CachedWeather();
+	if (!cached) {
+		return;
+	}
+	for (auto &button : _mediaButtons) {
+		if (button.kind != MediaButton::Kind::Weather) {
+			continue;
+		}
+		const auto text = Editor::WeatherTemperatureText(cached->celsius);
+		if (button.text == text && button.emoji == cached->emoji) {
+			continue;
+		}
+		if (!button.slide) {
+			button.slide = std::make_unique<WeatherSlide>();
+		}
+		button.slide->previousEmoji = Ui::Emoji::Find(button.emoji);
+		button.slide->previous = button.text;
+		button.slide->previousWidth = button.textWidth;
+		button.emoji = cached->emoji;
+		button.text = text;
+		button.textWidth = st::stickersPhotoButtonFont->width(text);
+		button.slide->animation.start(
+			[=] { update(); },
+			0.,
+			1.,
+			kWeatherSlideDuration,
+			anim::easeOutCubic);
+	}
+	update();
+}
+
+void StickersListWidget::paintWeatherButton(
+		Painter &p,
+		MediaButton &button,
+		QRect rect) {
+	const auto &padding = st::stickersPhotoButtonPadding;
+	const auto size = st::stickersPhotoButtonEmojiSize;
+	const auto emoji = Ui::Emoji::Find(button.emoji);
+	const auto progress = button.slide
+		? button.slide->animation.value(1.)
+		: 1.;
+	const auto animating = (progress < 1.)
+		&& button.slide
+		&& !button.slide->previous.isEmpty();
+	if (animating) {
+		auto path = QPainterPath();
+		path.addRoundedRect(
+			QRectF(rect),
+			st::stickersPhotoButtonRadius,
+			st::stickersPhotoButtonRadius);
+		p.save();
+		p.setClipPath(path);
+	}
+	const auto drawEmoji = [&](EmojiPtr emoji, int dy, float64 opacity) {
+		if (!emoji) {
+			return;
+		}
+		const auto base = Ui::Emoji::GetSizeLarge();
+		const auto baseLogical = base / float64(style::DevicePixelRatio());
+		p.save();
+		p.setOpacity(opacity);
+		p.translate(
+			rect.x() + padding.left(),
+			rect.y() + (rect.height() - size) / 2 + dy);
+		p.scale(size / baseLogical, size / baseLogical);
+		Ui::Emoji::Draw(p, emoji, base, 0, 0);
+		p.restore();
+	};
+	if (animating) {
+		drawEmoji(
+			button.slide->previousEmoji,
+			int(size * progress),
+			1. - progress);
+	}
+	drawEmoji(
+		emoji,
+		animating ? -int(size * (1. - progress)) : 0,
+		animating ? progress : 1.);
+	const auto &font = st::stickersPhotoButtonFont;
+	const auto textLeft = rect.x()
+		+ padding.left()
+		+ size
+		+ st::stickersPhotoButtonIconSkip;
+	const auto textTop = rect.y() + (rect.height() - font->height) / 2;
+	p.setFont(font);
+	p.setPen(st().textFg);
+	const auto slide = float64(font->height);
+	if (animating) {
+		p.setOpacity(1. - progress);
+		p.drawTextLeft(
+			textLeft,
+			textTop + int(slide * progress),
+			width(),
+			button.slide->previous,
+			button.slide->previousWidth);
+	}
+	p.setOpacity(animating ? progress : 1.);
+	p.drawTextLeft(
+		textLeft,
+		textTop - int(animating ? (slide * (1. - progress)) : 0.),
+		width(),
+		button.text,
+		button.textWidth);
+	if (animating) {
+		p.restore();
+	}
+	p.setOpacity(1.);
+}
+
 void StickersListWidget::pickMediaButtonReaction(MediaButton &button) {
 	const auto &list = session().data().reactions().list(
 		Data::Reactions::Type::Active);
@@ -1174,6 +1321,9 @@ void StickersListWidget::paintMediaButtons(Painter &p, QRect clip) {
 				pickMediaButtonReaction(button);
 			}
 			paintReactionButton(p, button, rect);
+			continue;
+		} else if (button.kind == MediaButton::Kind::Weather) {
+			paintWeatherButton(p, button, rect);
 			continue;
 		}
 		const auto &padding = st::stickersPhotoButtonPadding;
@@ -3040,6 +3190,8 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 					_linkRequests.fire({});
 				} else if (kind == MediaButton::Kind::Location) {
 					_locationRequests.fire({});
+				} else if (kind == MediaButton::Kind::Weather) {
+					_weatherRequests.fire({});
 				} else if (kind == MediaButton::Kind::Reaction) {
 					auto &button = _mediaButtons[index];
 					_reactionRequests.fire_copy(button.reaction);
@@ -4092,6 +4244,9 @@ void StickersListWidget::afterShown() {
 	if (_search) {
 		_search->stealFocus();
 	}
+	QTimer::singleShot(kWeatherSlideDelay, this, [=] {
+		checkWeatherSlide();
+	});
 }
 
 void StickersListWidget::beforeHiding() {

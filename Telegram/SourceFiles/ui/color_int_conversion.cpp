@@ -30,4 +30,11 @@ QColor Color32FromSerialized(quint32 serialized) {
 		int((serialized >> 24) & 0xFFU));
 }
 
+quint32 Color32ToSerialized(QColor color) {
+	return (quint32(std::clamp(color.alpha(), 0, 255)) << 24)
+		| (quint32(std::clamp(color.blue(), 0, 255)) << 16)
+		| (quint32(std::clamp(color.green(), 0, 255)) << 8)
+		| quint32(std::clamp(color.red(), 0, 255));
+}
+
 } // namespace Ui

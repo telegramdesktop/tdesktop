@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/stories/media_stories_controller.h"
 
-#include "base/platform/base_platform_info.h"
 #include "base/power_save_blocker.h"
 #include "base/qt_signal_producer.h"
 #include "base/unixtime.h"
@@ -28,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
+#include "editor/editor_weather.h"
 #include "history/view/controls/compose_controls_common.h"
 #include "history/view/reactions/history_view_reactions_strip.h"
 #include "history/view/history_view_paid_reaction_toast.h"
@@ -139,13 +139,6 @@ struct SameDayRange {
 	return origin + QPoint(
 		int(base::SafeRound(acos * point.x() - asin * point.y())),
 		int(base::SafeRound(asin * point.x() + acos * point.y())));
-}
-
-[[nodiscard]] bool ResolveWeatherInCelsius() {
-	const auto saved = Core::App().settings().weatherInCelsius();
-	return saved.value_or(!ranges::contains(
-		std::array{ u"US"_q, u"BS"_q, u"KY"_q, u"LR"_q, u"BZ"_q },
-		Platform::SystemCountry().toUpper()));
 }
 
 } // namespace
@@ -311,7 +304,7 @@ Controller::Controller(not_null<Delegate*> delegate)
 	[=](not_null<Calls::GroupCall*> call) {
 		return _videoStreamCall.get() == call;
 	}))
-, _weatherInCelsius(ResolveWeatherInCelsius()){
+, _weatherInCelsius(Editor::WeatherInCelsius()){
 	initLayout();
 
 	using namespace rpl::mappers;

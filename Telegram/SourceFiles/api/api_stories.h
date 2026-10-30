@@ -72,6 +72,7 @@ struct StoryToSend {
 	std::vector<Data::SuggestedReaction> reactions;
 	std::vector<Data::UrlArea> urls;
 	std::vector<Data::StoryLocation> locations;
+	std::vector<Data::WeatherArea> weather;
 	DocumentData *music = nullptr;
 	StoryId editId = 0;
 	int period = kStoryDefaultPeriod;

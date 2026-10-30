@@ -30,6 +30,7 @@ struct SendStoryBoxArgs {
 	std::vector<Data::SuggestedReaction> reactions;
 	std::vector<Data::UrlArea> urls;
 	std::vector<Data::StoryLocation> locations;
+	std::vector<Data::WeatherArea> weather;
 	DocumentData *music = nullptr;
 	Data::Story *editing = nullptr;
 	Fn<void()> posted;

@@ -7,15 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/editor_story_areas.h"
 
+#include "base/algorithm.h"
 #include "editor/scene/scene.h"
 #include "editor/scene/scene_item_link.h"
 #include "editor/scene/scene_item_location.h"
 #include "editor/scene/scene_item_reaction.h"
+#include "editor/scene/scene_item_weather.h"
 
 namespace Editor {
 namespace {
 
-constexpr auto kLocationRadiusRatio = 0.2;
+constexpr auto kPillRadiusRatio = 0.2;
 
 [[nodiscard]] Data::StoryArea AreaOf(not_null<ItemBase*> item, QSize canvas) {
 	const auto content = item->contentRect();
@@ -69,7 +71,7 @@ StoryAreas CollectStoryAreas(not_null<const Scene*> scene, QSize canvas) {
 				continue;
 			}
 			auto area = AreaOf(location, canvas);
-			area.radius = kLocationRadiusRatio
+			area.radius = kPillRadiusRatio
 				* location->contentRect().height()
 				* location->scale()
 				/ canvas.width()
@@ -86,6 +88,21 @@ StoryAreas CollectStoryAreas(not_null<const Scene*> scene, QSize canvas) {
 				.venueType = data.venueType,
 				.queryId = data.queryId,
 				.inlineResultId = data.inlineResultId,
+			});
+		} else if (item->type() == ItemWeather::Type) {
+			const auto weather = static_cast<ItemWeather*>(item.get());
+			const auto &data = weather->weather();
+			auto area = AreaOf(weather, canvas);
+			area.radius = kPillRadiusRatio
+				* weather->contentRect().height()
+				* weather->scale()
+				/ canvas.width()
+				* 100.;
+			result.weather.push_back({
+				.area = std::move(area),
+				.emoji = data.emoji,
+				.color = data.color,
+				.millicelsius = int(base::SafeRound(data.celsius * 1000.)),
 			});
 		}
 	}

@@ -111,6 +111,7 @@ public:
 	[[nodiscard]] rpl::producer<> audioRequests() const;
 	[[nodiscard]] rpl::producer<> linkRequests() const;
 	[[nodiscard]] rpl::producer<> locationRequests() const;
+	[[nodiscard]] rpl::producer<> weatherRequests() const;
 	rpl::producer<> scrollUpdated() const;
 	rpl::producer<TabbedSelector::Action> choosingUpdated() const;
 
@@ -328,6 +329,7 @@ private:
 	void readVisibleFeatured(int visibleTop, int visibleBottom);
 
 	void paintStickers(Painter &p, QRect clip);
+	struct WeatherSlide;
 	struct MediaButton {
 		enum class Kind {
 			Photo,
@@ -335,18 +337,23 @@ private:
 			Link,
 			Reaction,
 			Location,
+			Weather,
 		};
 		Kind kind = Kind::Photo;
 		QString text;
 		int textWidth = 0;
 		const style::icon *icon = nullptr;
 		Data::ReactionId reaction;
+		QString emoji;
+		std::unique_ptr<WeatherSlide> slide;
 		std::unique_ptr<Ui::RippleAnimation> ripple;
 	};
 	[[nodiscard]] static std::vector<MediaButton> MakeMediaButtons(
 		const ComposeFeatures &features,
 		const style::EmojiPan &st);
 	void paintMediaButtons(Painter &p, QRect clip);
+	void paintWeatherButton(Painter &p, MediaButton &button, QRect rect);
+	void checkWeatherSlide();
 	[[nodiscard]] int mediaButtonsRowHeight() const;
 	[[nodiscard]] int mediaButtonsRowCount() const;
 	[[nodiscard]] int mediaButtonWidth(const MediaButton &button) const;
@@ -586,6 +593,7 @@ private:
 	rpl::event_stream<> _audioRequests;
 	rpl::event_stream<> _linkRequests;
 	rpl::event_stream<> _locationRequests;
+	rpl::event_stream<> _weatherRequests;
 	rpl::event_stream<> _scrollUpdated;
 	rpl::event_stream<TabbedSelector::Action> _choosingUpdated;
 
