@@ -528,7 +528,7 @@ parts:
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-commit: ec71c06aaaed1cfda8669d51cf3b8d5b447b2031
+    source-commit: 49ceed3985d8626b3a24bdb14d9c593a115cc6e8
     plugin: cmake
     build-packages:
       - libopenh264-dev
