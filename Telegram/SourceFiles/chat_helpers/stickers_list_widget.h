@@ -348,6 +348,7 @@ private:
 		const style::EmojiPan &st);
 	void paintMediaButtons(Painter &p, QRect clip);
 	[[nodiscard]] int mediaButtonsRowHeight() const;
+	[[nodiscard]] int mediaButtonsRowCount() const;
 	[[nodiscard]] int mediaButtonWidth(const MediaButton &button) const;
 	[[nodiscard]] QRect mediaButtonRect(int index) const;
 	[[nodiscard]] int mediaButtonIndexAt(QPoint point) const;

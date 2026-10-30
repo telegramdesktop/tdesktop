@@ -1012,6 +1012,12 @@ StickersListWidget::MakeMediaButtons(
 			tr::lng_link_header_short(tr::now),
 			&st.linkButtonIcon);
 	}
+	if (features.locationButton) {
+		add(
+			MediaButton::Kind::Location,
+			tr::lng_stories_widget_location(tr::now),
+			&st.locationButtonIcon);
+	}
 	if (features.photoButton) {
 		add(
 			MediaButton::Kind::Photo,
@@ -1024,12 +1030,6 @@ StickersListWidget::MakeMediaButtons(
 			tr::lng_attach_audio(tr::now),
 			&st.audioButtonIcon);
 	}
-	if (features.locationButton) {
-		add(
-			MediaButton::Kind::Location,
-			tr::lng_stories_widget_location(tr::now),
-			&st.locationButtonIcon);
-	}
 	if (features.reactionButton) {
 		result.push_back({ .kind = MediaButton::Kind::Reaction });
 	}
@@ -1037,11 +1037,27 @@ StickersListWidget::MakeMediaButtons(
 }
 
 int StickersListWidget::mediaButtonsRowHeight() const {
-	if (_mediaButtons.empty() || _isMasks || _section == Section::Search) {
+	const auto rows = mediaButtonsRowCount();
+	if (!rows) {
 		return 0;
 	}
 	const auto &padding = st::stickersPhotoRowPadding;
-	return padding.top() + st::stickersPhotoButtonHeight + padding.bottom();
+	return padding.top()
+		+ rows * st::stickersPhotoButtonHeight
+		+ (rows - 1) * st::stickersPhotoRowPadding.top()
+		+ padding.bottom();
+}
+
+int StickersListWidget::mediaButtonsRowCount() const {
+	if (_mediaButtons.empty() || _isMasks || _section == Section::Search) {
+		return 0;
+	}
+	const auto skip = st::stickersPhotoButtonSkip;
+	auto full = -skip;
+	for (const auto &button : _mediaButtons) {
+		full += mediaButtonWidth(button) + skip;
+	}
+	return (width() > 0 && full > width()) ? 2 : 1;
 }
 
 int StickersListWidget::mediaButtonWidth(const MediaButton &button) const {
@@ -1060,16 +1076,26 @@ QRect StickersListWidget::mediaButtonRect(int index) const {
 	Expects(index >= 0 && index < int(_mediaButtons.size()));
 
 	const auto skip = st::stickersPhotoButtonSkip;
+	const auto count = int(_mediaButtons.size());
+	const auto firstRow = mediaButtonsRowCount() == 2
+		? ((count + 1) / 2)
+		: count;
+	const auto row = (index >= firstRow) ? 1 : 0;
+	const auto from = row ? firstRow : 0;
+	const auto till = row ? count : firstRow;
 	auto full = -skip;
-	for (const auto &button : _mediaButtons) {
-		full += mediaButtonWidth(button) + skip;
+	for (auto i = from; i != till; ++i) {
+		full += mediaButtonWidth(_mediaButtons[i]) + skip;
 	}
 	auto left = (width() - full) / 2;
-	for (auto i = 0; i != index; ++i) {
+	for (auto i = from; i != index; ++i) {
 		left += mediaButtonWidth(_mediaButtons[i]) + skip;
 	}
 	const auto top = (_search ? _search->height() : 0)
-		+ st::stickersPhotoRowPadding.top();
+		+ st::stickersPhotoRowPadding.top()
+		+ row
+			* (st::stickersPhotoButtonHeight
+				+ st::stickersPhotoRowPadding.top());
 	return QRect(
 		left,
 		top,
