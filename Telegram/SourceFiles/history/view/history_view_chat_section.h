@@ -348,6 +348,8 @@ private:
 		FullMsgId originItemId,
 		const Window::SectionShow &params);
 	void finishSending(const Api::SendOptions &options);
+	void setupSendingLanding();
+	[[nodiscard]] bool showsSendingItem(not_null<HistoryItem*> item) const;
 
 	void setupComposeControls();
 	void setupSwipeReplyAndBack();

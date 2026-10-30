@@ -353,6 +353,13 @@ public:
 	void shiftScrollBaseline(int delta);
 	void liftItemReveal(not_null<HistoryItem*> item, int lift);
 
+	// While a message sent to this list lands, keep the list at its very
+	// bottom (or let it get there), until it settles or the user scrolls.
+	void armSendingLanding(not_null<HistoryItem*> item);
+	void sendingLandingUserScroll();
+	[[nodiscard]] bool sendingLandingAtBottom() const;
+	[[nodiscard]] bool processSendingLandingWheel(not_null<QWheelEvent*> e);
+
 	void saveState(not_null<ListMemento*> memento);
 	void restoreState(not_null<ListMemento*> memento);
 	std::optional<int> scrollTopForPosition(
@@ -787,7 +794,8 @@ private:
 	void computeScrollTo(
 		int to,
 		Data::MessagePosition position,
-		anim::type animated);
+		anim::type animated,
+		crl::time duration = 0);
 	enum class AnimatedScroll {
 		Full,
 		Part,
@@ -797,7 +805,8 @@ private:
 		int scrollTop,
 		Data::MessagePosition attachPosition,
 		int delta,
-		AnimatedScroll type);
+		AnimatedScroll type,
+		crl::time duration = 0);
 
 	void trySwitchToWordSelection();
 	void switchToWordSelection();
@@ -889,8 +898,16 @@ private:
 	void checkUnreadBarCreation(bool markLastAsRead = false);
 	void applyUpdatedScrollState();
 	void scrollToAnimationCallback(FullMsgId attachToId, int relativeTo);
+	[[nodiscard]] bool scrollingToBottom() const;
 	void startItemRevealAnimations();
 	void revealItemsCallback();
+	[[nodiscard]] bool keepsBottomForSending() const;
+	void extendSendingLanding(crl::time duration);
+	void checkSendingLanding();
+	void cancelSendingLanding();
+	void landInsertedSending();
+	void scrollToBottomForSending();
+	void keepRoomAtTheEnd(int idsLimit);
 	void maybeMarkReactionsRead(not_null<HistoryItem*> item);
 
 	std::optional<Ui::MessageSendingReveal> startMessageSendingAnimation(
@@ -972,6 +989,15 @@ private:
 		not_null<Element*>,
 		Ui::ItemRevealAnimation> _itemRevealAnimations;
 	Ui::ItemRevealLift _itemRevealLift;
+	struct SendingLanding {
+		base::flat_set<not_null<const HistoryItem*>> pending;
+		base::flat_set<not_null<const HistoryItem*>> landed;
+		crl::time till = 0;
+		bool active = false;
+		bool reached = false;
+	};
+	SendingLanding _sendingLanding;
+	base::Timer _sendingLandingTimer;
 	int _itemsRevealHeight = 0;
 	rpl::event_stream<> _itemsRevealHeightChanges;
 	base::flat_set<not_null<const HistoryItem*>> _animatedStickersPlayed;
@@ -1007,6 +1033,7 @@ private:
 	int _visibleTopFromItem = 0;
 	ScrollTopState _scrollTopState;
 	Ui::Animations::Simple _scrollToAnimation;
+	bool _scrollToBottomAnimation = false;
 	Fn<bool()> _overrideInitialScroll;
 
 	bool _scrollInited = false;
