@@ -450,7 +450,6 @@ storyRecordMinorBlobMinRadius: 71px;
 storyRecordMinorBlobMaxRadius: 85px;
 storyRecordMajorBlobMinRadius: 71px;
 storyRecordMajorBlobMaxRadius: 81px;
-storyCaptionMenuLock: icon {{ "menu/lock", mediaviewMenuFg }};
 
 photoEditorMessageReferenceWidth: 600px;
 photoEditorLinkPreviewMargin: margins(24px, 12px, 24px, 6px);

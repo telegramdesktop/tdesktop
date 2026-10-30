@@ -406,7 +406,7 @@ void CaptionBar::setupPeriod() {
 void CaptionBar::showPeriodMenu() {
 	_periodMenu = base::make_unique_q<Ui::PopupMenu>(
 		_periodButton.get(),
-		st::photoEditorCropRatioMenu);
+		st::storiesPopupMenu);
 	_periodMenu->setForcedOrigin(Ui::PanelAnimation::Origin::BottomRight);
 	auto about = base::make_unique_q<Ui::Menu::MultilineAction>(
 		_periodMenu->menu(),
@@ -430,7 +430,7 @@ void CaptionBar::showPeriodMenu() {
 					setPeriod(period);
 				}
 			},
-			locked ? &st::storyCaptionMenuLock : nullptr,
+			nullptr,
 			(_period == period));
 	}
 	_periodMenu->popup(_periodButton->mapToGlobal(
