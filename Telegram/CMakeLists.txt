@@ -417,6 +417,8 @@ PRIVATE
     boxes/send_story_row.h
     boxes/share_box.cpp
     boxes/share_box.h
+    boxes/story_audio_box.cpp
+    boxes/story_audio_box.h
     boxes/story_privacy_box.cpp
     boxes/story_privacy_box.h
     boxes/star_gift_auction_box.cpp

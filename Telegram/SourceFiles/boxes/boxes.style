@@ -224,6 +224,27 @@ storyPrivacyIconEveryone: icon {{ "stories/privacy_everyone", historyPeerUserpic
 storyPrivacyIconContacts: icon {{ "stories/privacy_contacts", historyPeerUserpicFg }};
 storyPrivacyIconCloseFriends: icon {{ "stories/privacy_close_friends", historyPeerUserpicFg }};
 storyPrivacyIconSelected: icon {{ "stories/privacy_selected", historyPeerUserpicFg }};
+storyAudioSearchHeight: 36px;
+storyAudioSearchMargins: margins(20px, 8px, 20px, 8px);
+storyAudioSearchIcon: icon {{ "box_search", menuIconFg }};
+storyAudioSearchIconLeft: 10px;
+storyAudioSearchFieldLeft: 36px;
+storyAudioSearchFieldRight: 10px;
+storyAudioSearchField: InputField(defaultMultiSelectSearchField) {
+}
+storyAudioRowHeight: 56px;
+storyAudioRowThumbLeft: 12px;
+storyAudioRowThumbTop: 6px;
+storyAudioRowThumbSize: 44px;
+storyAudioRowTextLeft: 72px;
+storyAudioRowTextRight: 12px;
+storyAudioRowTitleTop: 9px;
+storyAudioRowTitleFont: font(15px semibold);
+storyAudioRowInfoTop: 29px;
+storyAudioRowInfoFont: font(13px);
+storyAudioRowRing: 2px;
+storyAudioRowRingInset: 3px;
+storyAudioEmptyPadding: margins(24px, 16px, 24px, 8px);
 sendMediaRowSkip: 10px;
 
 editMediaHintLabel: FlatLabel(defaultFlatLabel) {
