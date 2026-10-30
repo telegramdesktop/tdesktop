@@ -62,6 +62,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_location.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
+#include "ui/text/text_custom_emoji.h"
 #include "ui/text/text_entity.h"
 #include "ui/text/text_html_tags.h"
 #include "ui/text/text_utilities.h"
