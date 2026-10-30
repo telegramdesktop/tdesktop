@@ -2922,6 +2922,10 @@ void ApiWrap::refreshFileReference(
 				request(MTPstories_GetStoriesByID(
 					_session->data().peer(storyId.peer)->input(),
 					MTP_vector<MTPint>(1, MTP_int(storyId.story))));
+			} else if ((item->isScheduled() || item->isBusinessShortcut())
+				&& (item->isSending() || item->hasFailed())) {
+				// Not sent yet, there is no server id to request.
+				fail();
 			} else if (item->isScheduled()) {
 				const auto realId = _session->scheduledMessages().lookupId(
 					item);
