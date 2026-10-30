@@ -19,6 +19,24 @@ namespace {
 
 constexpr auto kMaxWidthRatio = 0.9;
 
+[[nodiscard]] LinkStyle NextStyle(LinkStyle style) {
+	switch (style) {
+	case LinkStyle::Framed: return LinkStyle::SemiTransparent;
+	case LinkStyle::SemiTransparent: return LinkStyle::Opaque;
+	case LinkStyle::Opaque: return LinkStyle::Framed;
+	}
+	Unexpected("Link style in NextStyle.");
+}
+
+[[nodiscard]] LinkStyle PreviousStyle(LinkStyle style) {
+	switch (style) {
+	case LinkStyle::Framed: return LinkStyle::Opaque;
+	case LinkStyle::SemiTransparent: return LinkStyle::Framed;
+	case LinkStyle::Opaque: return LinkStyle::SemiTransparent;
+	}
+	Unexpected("Link style in PreviousStyle.");
+}
+
 } // namespace
 
 ItemLink::ItemLink(LinkPreview link, ItemBase::Data data)
@@ -67,7 +85,7 @@ void ItemLink::setStyle(LinkStyle style) {
 }
 
 void ItemLink::nextStyle() {
-	setStyle(LinkPill::NextStyle(_pill.style()));
+	setStyle(NextStyle(_pill.style()));
 }
 
 void ItemLink::setEditCallback(EditCallback callback) {
@@ -111,7 +129,7 @@ void ItemLink::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
 
 void ItemLink::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) {
 	if (base::take(_styleCycled)) {
-		setStyle(LinkPill::PreviousStyle(_pill.style()));
+		setStyle(PreviousStyle(_pill.style()));
 	}
 	_wasSelected = false;
 	if (_edit) {
