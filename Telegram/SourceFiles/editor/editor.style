@@ -417,7 +417,16 @@ storyCaptionField: InputField(defaultInputField) {
 	duration: 100;
 	menu: storiesPopupMenu;
 }
-storyCaptionEmoji: storiesAttachEmoji;
+storyCaptionEmoji: EmojiButton(storiesAttachEmoji) {
+	bg: transparent;
+	lineFgOver: storiesComposeWhiteText;
+	inner: IconButton(storiesAttachEmojiInner) {
+		icon: icon {{ "chat/input_smile_face", storiesComposeGrayIcon }};
+		iconOver: icon {{ "chat/input_smile_face", storiesComposeWhiteText }};
+		rippleAreaPosition: point(0px, 0px);
+		rippleAreaSize: 42px;
+	}
+}
 storyCaptionRound: IconButton(storiesAttach) {
 	icon: icon {{ "chat/input_video", storiesComposeGrayIcon }};
 	iconOver: icon {{ "chat/input_video", storiesComposeWhiteText }};

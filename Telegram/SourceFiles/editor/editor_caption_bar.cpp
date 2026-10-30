@@ -273,6 +273,7 @@ void CaptionBar::setRoundRecording(bool recording) {
 	_musicButton->setVisible(!recording && _musicChoice);
 	_roundButton->setVisible(!recording);
 	if (recording) {
+		_emojiPanel->hideAnimated();
 		if (!_recordCancel) {
 			_recordCancel = base::make_unique_q<RecordCancelButton>(this);
 			_recordCancel->setClickedCallback([=] {
@@ -455,7 +456,6 @@ void CaptionBar::setupEmoji() {
 		}
 	}, field->lifetime());
 
-	_emojiToggle->installEventFilter(panel);
 	_emojiToggle->setClickedCallback([=] {
 		updatePanelGeometry();
 		panel->toggleAnimated();
@@ -563,7 +563,11 @@ int CaptionBar::resizeGetHeight(int newWidth) {
 	const auto minimal = int(st::storyCaptionHeightMin);
 	const auto oneLine = st::storyCaptionField.style.font->height;
 	const auto pad = std::max((minimal - oneLine) / 2, 0);
+	const auto singleLine
+		= _field->height() <= st::storyCaptionField.heightMin;
 	const auto height = _recording
+		? minimal
+		: singleLine
 		? minimal
 		: std::max(_field->height() + 2 * pad, minimal);
 
