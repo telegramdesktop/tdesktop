@@ -1020,7 +1020,22 @@ void Paint::addStoryVideoObject(StoryVideoObject &&object) {
 		.initialVolume = object.volume,
 	});
 	auto data = mediaItemData(thumbnail.size());
+	data.maxSizeRatio = kImageMaxSizeRatio;
 	data.flipped = object.flipped;
+	if (object.size <= 0.
+		&& !_scene->canvasRect().isEmpty()
+		&& (_transform.zoom > 0.)) {
+		const auto canvas = _scene->canvasRect();
+		const auto aspect = thumbnail.height() / float64(thumbnail.width());
+		const auto margin = st::photoEditorItemHandleSize
+			/ (_transform.zoom * 2.);
+		const auto width = std::min(canvas.width(), canvas.height() / aspect)
+			+ 2. * margin * std::max(1. / aspect, 1.);
+		data.size = int(width);
+		const auto center = canvas.center();
+		data.x = center.x();
+		data.y = center.y();
+	}
 	auto item = std::make_shared<ItemVideo>(std::move(source), data);
 	if (object.size > 0.) {
 		auto placement = item->placement();
