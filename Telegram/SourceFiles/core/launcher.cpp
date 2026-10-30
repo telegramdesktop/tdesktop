@@ -603,6 +603,7 @@ void Launcher::processArguments() {
 		{ "-fixprevious"    , KeyFormat::NoValues },
 		{ "-cleanup"        , KeyFormat::NoValues },
 		{ "-noupdate"       , KeyFormat::NoValues },
+		{ "-noliquidglass"  , KeyFormat::NoValues },
 		{ "-tosettings"     , KeyFormat::NoValues },
 		{ "-startintray"    , KeyFormat::NoValues },
 		{ "-quit"           , KeyFormat::NoValues },
@@ -652,6 +653,7 @@ void Launcher::processArguments() {
 		: parseResult.contains("-cleanup") ? LaunchModeCleanup
 		: LaunchModeNormal;
 	gNoStartUpdate = parseResult.contains("-noupdate");
+	gNoLiquidGlass = parseResult.contains("-noliquidglass");
 	gStartToSettings = parseResult.contains("-tosettings");
 	gStartInTray = parseResult.contains("-startintray");
 	gQuit = parseResult.contains("-quit");

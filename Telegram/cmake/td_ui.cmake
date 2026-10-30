@@ -24,6 +24,7 @@ set(style_files
     ui/color_indices.style
     ui/controls/ttl_media.style
     ui/controls/userpic_button.style
+    ui/glass/glass.style
     boxes/boxes.style
     api/api_chat_invite.style
     boxes/add_contact_box.style
@@ -696,6 +697,14 @@ PRIVATE
     ui/color_int_conversion.h
     ui/empty_userpic.cpp
     ui/empty_userpic.h
+    ui/glass/glass_option.cpp
+    ui/glass/glass_option.h
+    ui/glass/glass_policy.cpp
+    ui/glass/glass_policy.h
+    ui/glass/glass_surface.cpp
+    ui/glass/glass_surface.h
+    ui/glass/glass_tokens.cpp
+    ui/glass/glass_tokens.h
     ui/grouped_layout.cpp
     ui/grouped_layout.h
     ui/grouped_layout_geometry.cpp

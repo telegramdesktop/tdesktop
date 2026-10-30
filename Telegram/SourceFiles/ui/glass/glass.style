@@ -1,0 +1,122 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/colors.palette";
+
+GlassMaterial {
+	bg: color;
+	stroke: color;
+	highlight: color;
+	shadow: color;
+	strokeWidth: pixels;
+	highlightWidth: pixels;
+	shadowSpread: pixels;
+	shadowOffsetY: pixels;
+	bgOpacity: double;
+	strokeOpacity: double;
+	highlightOpacity: double;
+	shadowOpacity: double;
+}
+
+glassTintedDark: GlassMaterial {
+	bg: windowBg;
+	stroke: windowFg;
+	highlight: windowFg;
+	shadow: shadowFg;
+	strokeWidth: 1px;
+	highlightWidth: 1px;
+	shadowSpread: 16px;
+	shadowOffsetY: 2px;
+	bgOpacity: 0.86;
+	strokeOpacity: 0.14;
+	highlightOpacity: 0.06;
+	shadowOpacity: 0.30;
+}
+
+glassTintedLight: GlassMaterial {
+	bg: windowBg;
+	stroke: windowFg;
+	highlight: windowFg;
+	shadow: shadowFg;
+	strokeWidth: 1px;
+	highlightWidth: 1px;
+	shadowSpread: 14px;
+	shadowOffsetY: 2px;
+	bgOpacity: 0.88;
+	strokeOpacity: 0.10;
+	highlightOpacity: 0.04;
+	shadowOpacity: 0.18;
+}
+
+glassOpaqueDark: GlassMaterial {
+	bg: windowBg;
+	stroke: windowFg;
+	highlight: windowFg;
+	shadow: shadowFg;
+	strokeWidth: 1px;
+	highlightWidth: 1px;
+	shadowSpread: 12px;
+	shadowOffsetY: 1px;
+	bgOpacity: 1.;
+	strokeOpacity: 0.16;
+	highlightOpacity: 0.06;
+	shadowOpacity: 0.26;
+}
+
+glassOpaqueLight: GlassMaterial {
+	bg: windowBg;
+	stroke: windowFg;
+	highlight: windowFg;
+	shadow: shadowFg;
+	strokeWidth: 1px;
+	highlightWidth: 1px;
+	shadowSpread: 12px;
+	shadowOffsetY: 1px;
+	bgOpacity: 1.;
+	strokeOpacity: 0.12;
+	highlightOpacity: 0.04;
+	shadowOpacity: 0.16;
+}
+
+glassHighContrastDark: GlassMaterial {
+	bg: windowBg;
+	stroke: windowFg;
+	highlight: windowFg;
+	shadow: shadowFg;
+	strokeWidth: 2px;
+	highlightWidth: 0px;
+	shadowSpread: 0px;
+	shadowOffsetY: 0px;
+	bgOpacity: 1.;
+	strokeOpacity: 0.60;
+	highlightOpacity: 0.;
+	shadowOpacity: 0.;
+}
+
+glassHighContrastLight: GlassMaterial {
+	bg: windowBg;
+	stroke: windowFg;
+	highlight: windowFg;
+	shadow: shadowFg;
+	strokeWidth: 2px;
+	highlightWidth: 0px;
+	shadowSpread: 0px;
+	shadowOffsetY: 0px;
+	bgOpacity: 1.;
+	strokeOpacity: 0.55;
+	highlightOpacity: 0.;
+	shadowOpacity: 0.;
+}
+
+glassRadiusSmall: 8px;
+glassRadiusMedium: 12px;
+glassRadiusLarge: 16px;
+
+glassSpacingTiny: 4px;
+glassSpacingSmall: 6px;
+glassSpacingMedium: 10px;
+glassSpacingLarge: 16px;
