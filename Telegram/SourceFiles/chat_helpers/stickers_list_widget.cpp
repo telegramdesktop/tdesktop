@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer_rpl.h"
 #include "core/application.h"
 #include "data/data_document.h"
+#include "base/random.h"
+#include "data/data_message_reactions.h"
 #include "data/data_document_media.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
@@ -329,6 +331,11 @@ rpl::producer<> StickersListWidget::audioRequests() const {
 
 rpl::producer<> StickersListWidget::linkRequests() const {
 	return _linkRequests.events();
+}
+
+auto StickersListWidget::reactionRequests() const
+-> rpl::producer<Data::ReactionId> {
+	return _reactionRequests.events();
 }
 
 rpl::producer<> StickersListWidget::scrollUpdated() const {
@@ -1013,6 +1020,9 @@ StickersListWidget::MakeMediaButtons(
 			tr::lng_attach_audio(tr::now),
 			&st.audioButtonIcon);
 	}
+	if (features.reactionButton) {
+		result.push_back({ .kind = MediaButton::Kind::Reaction });
+	}
 	return result;
 }
 
@@ -1025,6 +1035,9 @@ int StickersListWidget::mediaButtonsRowHeight() const {
 }
 
 int StickersListWidget::mediaButtonWidth(const MediaButton &button) const {
+	if (button.kind == MediaButton::Kind::Reaction) {
+		return st::stickersPhotoButtonHeight;
+	}
 	const auto &padding = st::stickersPhotoButtonPadding;
 	return padding.left()
 		+ button.icon->width()
@@ -1066,6 +1079,43 @@ int StickersListWidget::mediaButtonIndexAt(QPoint point) const {
 	return -1;
 }
 
+void StickersListWidget::paintReactionButton(
+		Painter &p,
+		const MediaButton &button,
+		QRect rect) {
+	auto hq = PainterHighQualityEnabler(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(Qt::white);
+	const auto side = float64(rect.height());
+	const auto bounds = QRectF(rect);
+	p.drawEllipse(bounds);
+	if (button.reaction.empty()) {
+		return;
+	}
+	const auto image = session().data().reactions().resolveReactionImageFor(
+		button.reaction);
+	if (image.isNull()) {
+		return;
+	}
+	const auto icon = float64(st::stickersWidgetReactionIcon);
+	p.drawImage(
+		QRectF(
+			bounds.center().x() - icon / 2.,
+			bounds.center().y() - icon / 2.,
+			icon,
+			icon),
+		image);
+}
+
+void StickersListWidget::pickMediaButtonReaction(MediaButton &button) {
+	const auto &list = session().data().reactions().list(
+		Data::Reactions::Type::Active);
+	if (list.empty()) {
+		return;
+	}
+	button.reaction = list[base::RandomIndex(list.size())].id;
+}
+
 void StickersListWidget::paintMediaButtons(Painter &p, QRect clip) {
 	if (!mediaButtonsRowHeight()) {
 		return;
@@ -1082,6 +1132,13 @@ void StickersListWidget::paintMediaButtons(Painter &p, QRect clip) {
 			if (button.ripple->empty()) {
 				button.ripple.reset();
 			}
+		}
+		if (button.kind == MediaButton::Kind::Reaction) {
+			if (button.reaction.empty()) {
+				pickMediaButtonReaction(button);
+			}
+			paintReactionButton(p, button, rect);
+			continue;
 		}
 		const auto &padding = st::stickersPhotoButtonPadding;
 		const auto &icon = *button.icon;
@@ -2945,6 +3002,10 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 					_audioRequests.fire({});
 				} else if (kind == MediaButton::Kind::Link) {
 					_linkRequests.fire({});
+				} else if (kind == MediaButton::Kind::Reaction) {
+					auto &button = _mediaButtons[index];
+					_reactionRequests.fire_copy(button.reaction);
+					pickMediaButtonReaction(button);
 				}
 			}
 			return;

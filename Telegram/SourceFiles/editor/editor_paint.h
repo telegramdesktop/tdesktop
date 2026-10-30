@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 
 #include "editor/photo_editor_common.h"
+#include "data/data_message_reaction_id.h"
 #include "editor/photo_editor_inner_common.h"
 #include "editor/scene/scene_item_base.h"
 #include "media/media_video_canvas.h"
@@ -139,6 +140,7 @@ private:
 		LinkPreview link,
 		std::optional<QPointF> position = std::nullopt);
 	void chooseLink(const QString &url, ItemBase *editing = nullptr);
+	void addStoryReaction(Data::ReactionId reaction);
 	void applyLinkResult(
 		LinkBoxResult &&result,
 		std::weak_ptr<NumberedItem> editing);
@@ -157,6 +159,7 @@ private:
 
 	const std::shared_ptr<Controllers> _controllers;
 	const std::shared_ptr<Scene> _scene;
+	std::weak_ptr<NumberedItem> _pickingReaction;
 	const base::unique_qptr<QGraphicsView> _view;
 	QPointer<QWidget> _viewport;
 	const QSize _imageSize;

@@ -761,6 +761,13 @@ rpl::producer<> TabbedSelector::photoRequests() const {
 	return hasStickersTab() ? stickers()->photoRequests() : rpl::never<>();
 }
 
+auto TabbedSelector::reactionRequests() const
+-> rpl::producer<Data::ReactionId> {
+	return hasStickersTab()
+		? stickers()->reactionRequests()
+		: rpl::never<Data::ReactionId>();
+}
+
 rpl::producer<> TabbedSelector::audioRequests() const {
 	return hasStickersTab() ? stickers()->audioRequests() : rpl::never<>();
 }

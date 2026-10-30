@@ -23,6 +23,7 @@ struct ComposeFeatures {
 	bool stickersSettings : 1 = true;
 	bool openStickerSets : 1 = true;
 	bool photoButton : 1 = false;
+	bool reactionButton : 1 = false;
 	bool audioButton : 1 = false;
 	bool linkButton : 1 = false;
 	bool autocompleteHashtags : 1 = true;

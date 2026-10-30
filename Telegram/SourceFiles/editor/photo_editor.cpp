@@ -293,7 +293,8 @@ PhotoEditor::PhotoEditor(
 		? std::make_unique<StickersPanelController>(
 			this,
 			sessionShow,
-			data.composeSound)
+			data.composeSound,
+			data.story.has_value())
 		: nullptr,
 	std::make_unique<UndoController>(),
 	show,

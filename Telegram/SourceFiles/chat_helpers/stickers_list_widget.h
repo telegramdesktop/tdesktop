@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "chat_helpers/compose/compose_features.h"
 #include "chat_helpers/tabbed_selector.h"
+#include "data/data_message_reaction_id.h"
 #include "data/stickers/data_stickers.h"
 #include "ui/effects/animations.h"
 #include "ui/round_rect.h"
@@ -105,6 +106,8 @@ public:
 
 	rpl::producer<FileChosen> chosen() const;
 	[[nodiscard]] rpl::producer<> photoRequests() const;
+	[[nodiscard]] auto reactionRequests() const
+		-> rpl::producer<Data::ReactionId>;
 	[[nodiscard]] rpl::producer<> audioRequests() const;
 	[[nodiscard]] rpl::producer<> linkRequests() const;
 	rpl::producer<> scrollUpdated() const;
@@ -329,11 +332,13 @@ private:
 			Photo,
 			Audio,
 			Link,
+			Reaction,
 		};
 		Kind kind = Kind::Photo;
 		QString text;
 		int textWidth = 0;
 		const style::icon *icon = nullptr;
+		Data::ReactionId reaction;
 		std::unique_ptr<Ui::RippleAnimation> ripple;
 	};
 	[[nodiscard]] static std::vector<MediaButton> MakeMediaButtons(
@@ -344,6 +349,11 @@ private:
 	[[nodiscard]] int mediaButtonWidth(const MediaButton &button) const;
 	[[nodiscard]] QRect mediaButtonRect(int index) const;
 	[[nodiscard]] int mediaButtonIndexAt(QPoint point) const;
+	void paintReactionButton(
+		Painter &p,
+		const MediaButton &button,
+		QRect rect);
+	void pickMediaButtonReaction(MediaButton &button);
 	void paintMegagroupEmptySet(Painter &p, int y, bool buttonSelected);
 	void paintSticker(
 		Painter &p,
@@ -569,6 +579,7 @@ private:
 
 	rpl::event_stream<FileChosen> _chosen;
 	rpl::event_stream<> _photoRequests;
+	rpl::event_stream<Data::ReactionId> _reactionRequests;
 	rpl::event_stream<> _audioRequests;
 	rpl::event_stream<> _linkRequests;
 	rpl::event_stream<> _scrollUpdated;

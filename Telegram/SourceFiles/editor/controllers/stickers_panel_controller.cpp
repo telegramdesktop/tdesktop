@@ -7,8 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/controllers/stickers_panel_controller.h"
 
+#include "boxes/premium_preview_box.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
+#include "data/data_document.h"
+#include "lang/lang_keys.h"
+#include "main/main_session.h"
+#include "ui/emoji_config.h"
+#include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "window/window_session_controller.h" // Window::GifPauseReason
 
 #include "styles/style_chat_helpers.h"
@@ -18,15 +25,34 @@ namespace Editor {
 namespace {
 
 // Works around MSVC 14.44 ICE on bitfields set in a member-init list.
-[[nodiscard]] ChatHelpers::ComposeFeatures PrepareFeatures(bool withAudio) {
+[[nodiscard]] ChatHelpers::ComposeFeatures PrepareFeatures(
+		bool withAudio,
+		bool storyWidgets) {
 	return {
 		.megagroupSet = false,
 		.stickersSettings = false,
 		.openStickerSets = false,
 		.photoButton = true,
+		.reactionButton = storyWidgets,
 		.audioButton = withAudio,
-		.linkButton = false,
+		.linkButton = storyWidgets,
 	};
+}
+
+void ShowStoryLinkPremiumToast(std::shared_ptr<ChatHelpers::Show> show) {
+	show->showToast(Ui::Toast::Config{
+		.text = tr::lng_story_link_premium(
+			tr::now,
+			lt_link,
+			Ui::Text::Link(
+				tr::lng_story_period_premium_link(tr::now),
+				u"internal:premium"_q),
+			Ui::Text::WithEntities),
+		.filter = [=](const ClickHandlerPtr &, Qt::MouseButton) {
+			ShowPremiumPreviewToBuy(show, PremiumFeature::Stories);
+			return true;
+		},
+	});
 }
 
 } // namespace
@@ -34,8 +60,11 @@ namespace {
 StickersPanelController::StickersPanelController(
 	not_null<Ui::RpWidget*> panelContainer,
 	std::shared_ptr<ChatHelpers::Show> show,
-	bool withAudio)
-: _stickersPanel(
+	bool withAudio,
+	bool storyWidgets)
+: _panelContainer(panelContainer)
+, _show(show)
+, _stickersPanel(
 	base::make_unique_q<ChatHelpers::TabbedPanel>(
 		panelContainer,
 		ChatHelpers::TabbedPanelDescriptor{
@@ -46,7 +75,7 @@ StickersPanelController::StickersPanelController(
 					.st = st::mediaviewEmojiPan,
 					.level = Window::GifPauseReason::Layer,
 					.mode = ChatHelpers::TabbedSelector::Mode::MediaEditor,
-					.features = PrepareFeatures(withAudio),
+					.features = PrepareFeatures(withAudio, storyWidgets),
 				}),
 		})) {
 	_stickersPanel->setDesiredHeightValues(
@@ -72,8 +101,68 @@ rpl::producer<> StickersPanelController::audioRequests() const {
 	return _stickersPanel->selector()->audioRequests();
 }
 
+Main::Session &StickersPanelController::session() const {
+	return _show->session();
+}
+
 rpl::producer<> StickersPanelController::linkRequests() const {
-	return _stickersPanel->selector()->linkRequests();
+	return _stickersPanel->selector()->linkRequests(
+	) | rpl::filter([=] {
+		if (session().premium()) {
+			return true;
+		}
+		ShowStoryLinkPremiumToast(_show);
+		return false;
+	});
+}
+
+auto StickersPanelController::reactionRequests() const
+-> rpl::producer<Data::ReactionId> {
+	return _stickersPanel->selector()->reactionRequests();
+}
+
+void StickersPanelController::showReactionsPicker(QPoint middleBottom) {
+	if (!_reactionsPanel) {
+		_reactionsPanel = base::make_unique_q<ChatHelpers::TabbedPanel>(
+			_panelContainer,
+			ChatHelpers::TabbedPanelDescriptor{
+				.ownedSelector = object_ptr<ChatHelpers::TabbedSelector>(
+					nullptr,
+					ChatHelpers::TabbedSelectorDescriptor{
+						.show = _show,
+						.st = st::mediaviewEmojiPan,
+						.level = Window::GifPauseReason::Layer,
+						.mode = ChatHelpers::TabbedSelectorMode::FullReactions,
+					}),
+			});
+		_reactionsPanel->setDesiredHeightValues(
+			1.,
+			st::emojiPanMinHeight / 2,
+			st::emojiPanMinHeight);
+		const auto selector = _reactionsPanel->selector();
+		const auto picked = [=](Data::ReactionId id) {
+			_reactionsPanel->hideAnimated();
+			_reactionPicked.fire_copy(id);
+		};
+		selector->emojiChosen(
+		) | rpl::on_next([=](ChatHelpers::EmojiChosen data) {
+			picked(Data::ReactionId{ data.emoji->text() });
+		}, _reactionsPanel->lifetime());
+		selector->customEmojiChosen(
+		) | rpl::on_next([=](ChatHelpers::FileChosen data) {
+			picked(Data::ReactionId{ data.document->id });
+		}, _reactionsPanel->lifetime());
+	}
+	_stickersPanel->hideAnimated();
+	_reactionsPanel->moveBottomRight(
+		middleBottom.y(),
+		middleBottom.x() + _reactionsPanel->width() / 2);
+	_reactionsPanel->showAnimated();
+}
+
+auto StickersPanelController::reactionPicked() const
+-> rpl::producer<Data::ReactionId> {
+	return _reactionPicked.events();
 }
 
 rpl::producer<bool> StickersPanelController::panelShown() const {

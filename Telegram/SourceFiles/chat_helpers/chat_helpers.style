@@ -643,6 +643,7 @@ stickersPhotoButtonRadius: 8px;
 stickersPhotoButtonPadding: margins(6px, 0px, 12px, 0px);
 stickersPhotoButtonIconSkip: 4px;
 stickersPhotoButtonFont: font(14px bold);
+stickersWidgetReactionIcon: 22px;
 stickersPhotoButtonSkip: 10px;
 mediaPreviewPhotoSkip: 48px;
 

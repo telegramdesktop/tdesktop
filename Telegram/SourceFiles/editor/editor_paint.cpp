@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_item_image.h"
 #include "editor/scene/scene_item_link.h"
 #include "editor/scene/scene_item_message.h"
+#include "editor/scene/scene_item_reaction.h"
 #include "editor/scene/scene_item_shape.h"
 #include "editor/scene/scene_item_sticker.h"
 #include "editor/scene/scene_item_text.h"
@@ -218,6 +219,8 @@ Paint::Paint(
 				controllers->stickersPanelController->audioRequests(
 				) | rpl::map_to(ShowRequest::HideAnimated),
 				controllers->stickersPanelController->linkRequests(
+				) | rpl::map_to(ShowRequest::HideAnimated),
+				controllers->stickersPanelController->reactionRequests(
 				) | rpl::map_to(ShowRequest::HideAnimated)));
 
 		controllers->stickersPanelController->stickerChosen(
@@ -240,6 +243,29 @@ Paint::Paint(
 		controllers->stickersPanelController->linkRequests(
 		) | rpl::on_next([=] {
 			chooseLink(QString());
+		}, lifetime());
+
+		controllers->stickersPanelController->reactionRequests(
+		) | rpl::on_next([=](Data::ReactionId reaction) {
+			addStoryReaction(reaction);
+		}, lifetime());
+
+		_scene->reactionPickRequests(
+		) | rpl::on_next([=](not_null<ItemReaction*> item) {
+			_pickingReaction = _scene->itemShared(item);
+			const auto bottom = _view->mapFromScene(
+				item->mapToScene(item->boundingRect().bottomLeft()));
+			const auto center = _view->mapFromScene(item->pos());
+			controllers->stickersPanelController->showReactionsPicker(
+				mapToParent(QPoint(center.x(), bottom.y())));
+		}, lifetime());
+
+		controllers->stickersPanelController->reactionPicked(
+		) | rpl::on_next([=](Data::ReactionId reaction) {
+			const auto item = _pickingReaction.lock();
+			if (item && (item->type() == ItemReaction::Type)) {
+				static_cast<ItemReaction*>(item.get())->setReaction(reaction);
+			}
 		}, lifetime());
 	}
 
@@ -873,6 +899,20 @@ void Paint::readMediaFile(const QString &path, const QByteArray &content) {
 			Storage::PhotoEditorMedia &&media) {
 		addMedia(std::move(media));
 	}));
+}
+
+void Paint::addStoryReaction(Data::ReactionId reaction) {
+	const auto controller = _controllers->stickersPanelController.get();
+	if (!controller || reaction.empty()) {
+		return;
+	}
+	auto data = itemBaseData();
+	data.size = std::min(data.size, _imageSize.width() / 3);
+	addMediaItem(std::make_shared<ItemReaction>(
+		&controller->session(),
+		reaction,
+		false,
+		std::move(data)));
 }
 
 void Paint::choosePhotoFile() {
