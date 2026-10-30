@@ -23,7 +23,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "core/shortcuts.h"
 #include "core/application.h"
+#include "core/click_handler_types.h"
 #include "core/core_settings.h"
+#include "core/local_url_handlers.h"
 #include "core/ui_integration.h"
 #include "lottie/lottie_icon.h"
 #include "info/profile/info_profile_icon.h"
@@ -40,8 +42,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_document.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "chat_helpers/compose/compose_show.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "history/view/controls/compose_controls_common.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -377,6 +381,44 @@ TextWithEntities StripSupportHashtag(TextWithEntities text) {
 	return text;
 }
 
+[[nodiscard]] bool OpensInApp(const EntityLinkData &link) {
+	if (link.type == EntityType::Email) {
+		return false;
+	} else if (link.type != EntityType::Url
+		&& link.type != EntityType::CustomUrl) {
+		return true;
+	}
+	const auto external = UrlClickHandler::ExternalUrlFromInternalUrl(
+		link.data);
+	const auto url = external.isEmpty()
+		? UrlClickHandler::EncodeForOpening(link.data)
+		: external;
+	const auto inApp = [](const QString &local) {
+		return local.startsWith(u"tg://"_q, Qt::CaseInsensitive)
+			|| local.startsWith(u"internal:"_q, Qt::CaseInsensitive)
+			|| local.startsWith(u"tonsite://"_q, Qt::CaseInsensitive)
+			|| Core::InternalPassportOrOAuthLink(local);
+	};
+	const auto converted = Core::TryConvertUrlToLocal(url);
+	return inApp(converted)
+		|| inApp(Core::TryConvertUrlToLocal(UrlWithoutWebAuthTokens(url)))
+		|| inApp(Core::TryConvertUrlToLocal(
+			UrlWithoutWebAuthTokens(converted)));
+}
+
+[[nodiscard]] Window::SessionController *ExistingWindowFor(
+		not_null<Main::Session*> session) {
+	auto &app = Core::App();
+	const auto account = not_null(&session->account());
+	for (const auto window : { app.activeWindow(), app.windowFor(account) }) {
+		const auto controller = window ? window->sessionController() : nullptr;
+		if (controller && (&controller->session() == session)) {
+			return controller;
+		}
+	}
+	return nullptr;
+}
+
 } // namespace
 
 QString PrepareMentionTag(not_null<UserData*> user) {
@@ -534,6 +576,45 @@ Fn<void(QString now, Fn<void(QString)> save)> DefaultEditLanguageCallback(
 	};
 }
 
+Fn<bool(
+	EntityLinkData link,
+	Ui::InputField::OpenLinkAction action)> DefaultOpenLinkCallback(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<Ui::InputField*> field,
+		OpenLinkOptions options) {
+	return [=](EntityLinkData link, Ui::InputField::OpenLinkAction action) {
+		if (!options.inAppLinks && OpensInApp(link)) {
+			return false;
+		}
+		const auto session = &show->session();
+		const auto handler = Ui::Integration::Instance().createLinkHandler(
+			link,
+			Core::TextContext({ .session = session }));
+		if (!handler) {
+			return false;
+		} else if (action == Ui::InputField::OpenLinkAction::Check) {
+			return true;
+		}
+		const auto window = options.inAppLinks
+			? ChatHelpers::ResolveWindowDefault()(session)
+			: ExistingWindowFor(session);
+		const auto context = ClickContext{
+			.button = Qt::LeftButton,
+			.other = QVariant::fromValue(ClickHandlerContext{
+				.sessionWindow = base::make_weak(window),
+				.show = show,
+				.ignoreIv = !options.inAppLinks,
+				.ctrlRequired = true,
+				.dark = options.dark,
+			}),
+		};
+		crl::on_main(field.get(), [=] {
+			handler->onClick(context);
+		});
+		return true;
+	};
+}
+
 auto InitMessageFieldHandlers(MessageFieldHandlersArgs &&args)
 -> std::shared_ptr<Ui::ChatStyle> {
 	const auto paused = [passed = args.customEmojiPaused] {
@@ -586,6 +667,8 @@ auto InitMessageFieldHandlers(MessageFieldHandlersArgs &&args)
 				args.fieldStyle,
 				args.linkValidator));
 		field->setEditLanguageCallback(DefaultEditLanguageCallback(show));
+		field->setOpenLinkCallback(
+			DefaultOpenLinkCallback(show, field, args.openLinks));
 		InitSpellchecker(show, field, args.fieldStyle != nullptr);
 	}
 	const auto style = std::make_shared<Ui::ChatStyle>(
