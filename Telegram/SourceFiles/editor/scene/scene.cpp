@@ -819,6 +819,15 @@ void Scene::renderBaked(
 	}
 }
 
+auto Scene::reactionPickRequests() const
+-> rpl::producer<not_null<ItemReaction*>> {
+	return _reactionPickRequests.events();
+}
+
+void Scene::requestReactionPick(not_null<ItemReaction*> item) {
+	_reactionPickRequests.fire_copy(item);
+}
+
 void Scene::setSelectedShapeBrush(
 		const QColor &color,
 		float64 strokeWidth) {

@@ -962,6 +962,8 @@ PRIVATE
     editor/photo_editor_layer_widget.h
     editor/scene/scene_item_message.cpp
     editor/scene/scene_item_message.h
+    editor/scene/scene_item_reaction.cpp
+    editor/scene/scene_item_reaction.h
     editor/scene/scene_item_sticker.cpp
     editor/scene/scene_item_sticker.h
     editor/video/video_editor.cpp

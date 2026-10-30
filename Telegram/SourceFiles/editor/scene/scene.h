@@ -22,6 +22,7 @@ class RpWidget;
 namespace Editor {
 
 class ItemCanvas;
+class ItemReaction;
 class ItemShape;
 class ItemText;
 class NumberedItem;
@@ -70,6 +71,9 @@ public:
 		QPainter *p,
 		const QRectF &target,
 		const QRectF &source = QRectF());
+	[[nodiscard]] auto reactionPickRequests() const
+	-> rpl::producer<not_null<ItemReaction*>>;
+	void requestReactionPick(not_null<ItemReaction*> item);
 	[[nodiscard]] bool hasAnimatedItems() const;
 	[[nodiscard]] bool hasAnimatedResult() const;
 	[[nodiscard]] bool hasSoundResult() const;
@@ -198,6 +202,7 @@ private:
 	rpl::event_stream<QColor> _textItemSelections;
 	rpl::event_stream<> _textItemDeselections;
 	rpl::event_stream<QColor> _shapeItemSelections;
+	rpl::event_stream<not_null<ItemReaction*>> _reactionPickRequests;
 	rpl::event_stream<> _shapeItemDeselections;
 	rpl::event_stream<bool> _pendingShapeStates;
 	rpl::event_stream<std::shared_ptr<VideoClip>> _videoClipSelections;
