@@ -28,6 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_unread_value.h"
 #include "lang/lang_keys.h"
 #include "ui/filter_icons.h"
+#include "ui/glass/glass_policy.h"
+#include "ui/glass/glass_surface.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/vertical_layout_reorder.h"
 #include "ui/wrap/slide_wrap.h"
@@ -138,6 +140,12 @@ void FiltersMenu::setup() {
 		p.setPen(Qt::NoPen);
 		p.setBrush(st::windowFiltersButton.textBg);
 		p.drawRect(clip);
+		Glass::PaintSurface(p, _outer.rect());
+	}, _outer.lifetime());
+
+	Glass::Changes(
+	) | rpl::on_next([=] {
+		_outer.update();
 	}, _outer.lifetime());
 
 	_parent->heightValue(

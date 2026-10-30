@@ -39,6 +39,7 @@ bool gNoStartUpdate = false;
 bool gStartToSettings = false;
 bool gDebugMode = false;
 bool gTestAgent = false;
+bool gNoLiquidGlass = false;
 
 uint32 gConnectionsInSession = 1;
 

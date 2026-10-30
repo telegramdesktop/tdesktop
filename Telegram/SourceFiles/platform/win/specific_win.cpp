@@ -533,6 +533,37 @@ bool AmbientScreenshotProtectionSupported() {
 	return false;
 }
 
+GlassCapabilities QueryGlassCapabilities() {
+	auto result = GlassCapabilities();
+	auto composition = BOOL(FALSE);
+	if (SUCCEEDED(DwmIsCompositionEnabled(&composition))) {
+		result.composition = (composition == TRUE);
+	}
+	auto uiEffects = BOOL(FALSE);
+	if (SystemParametersInfo(SPI_GETUIEFFECTS, 0, &uiEffects, 0)) {
+		result.transparency = (uiEffects != FALSE);
+	}
+	HIGHCONTRAST highContrast = {};
+	highContrast.cbSize = static_cast<UINT>(sizeof(HIGHCONTRAST));
+	if (SystemParametersInfo(
+			SPI_GETHIGHCONTRAST,
+			highContrast.cbSize,
+			&highContrast,
+			0)) {
+		result.highContrast = (highContrast.dwFlags & HCF_HIGHCONTRASTON) != 0;
+	}
+	auto clientAnimation = BOOL(FALSE);
+	if (SystemParametersInfo(
+			SPI_GETCLIENTAREAANIMATION,
+			0,
+			&clientAnimation,
+			0)) {
+		result.reducedMotion = (clientAnimation == FALSE);
+	}
+	result.remoteSession = (GetSystemMetrics(SM_REMOTESESSION) != 0);
+	return result;
+}
+
 void SetWindowScreenshotProtection(not_null<QWidget*> window, bool enabled) {
 	const auto handle = window->internalWinId();
 	if (!handle) {

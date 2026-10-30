@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "platform/platform_glass_capabilities.h"
+
 namespace Core {
 enum class QuitReason;
 } // namespace Core

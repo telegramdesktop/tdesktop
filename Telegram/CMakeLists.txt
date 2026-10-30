@@ -1864,6 +1864,7 @@ PRIVATE
     platform/win/windows_toast_activator.h
     platform/platform_file_utilities.cpp
     platform/platform_file_utilities.h
+    platform/platform_glass_capabilities.h
     platform/platform_launcher.h
     platform/platform_integration.cpp
     platform/platform_integration.h
