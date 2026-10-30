@@ -521,7 +521,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 1470f2fd1a1c76b19869517ea9a8cc5fd9e9c39c
+    git checkout 5654f182a2d34410d95a94050a863957476ceb47
 mac:
     sed -i '' "s/10.13/$MACOSX_DEPLOYMENT_TARGET/g" macos_meson_*.txt
     git clone https://github.com/desktop-app/qt6_highsierra_patches.git qt6_highsierra
@@ -1178,6 +1178,13 @@ stage('regex', """
 stage('ffmpeg', """
     git clone -b n8.1.3 https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
+depends:patches/ffmpeg/*.patch
+win:
+    for %%i in (..\\patches\\ffmpeg\\*.patch) do (
+        git apply "%%i" || exit /b 1
+    )
+mac:
+    find ../patches/ffmpeg -type f -name '*.patch' -print0 | sort -z | xargs -0 git apply
 win:
 depends:patches/ffmpeg.patch
     git apply ../patches/ffmpeg.patch

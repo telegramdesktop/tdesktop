@@ -161,7 +161,7 @@ RUN <<EOF
 git init patches
 cd patches
 git remote add origin https://github.com/desktop-app/patches.git
-git fetch --depth=1 origin 1470f2fd1a1c76b19869517ea9a8cc5fd9e9c39c
+git fetch --depth=1 origin 5654f182a2d34410d95a94050a863957476ceb47
 git reset --hard FETCH_HEAD
 rm -rf .git
 EOF
@@ -596,7 +596,7 @@ make -C nv-codec-headers DESTDIR=/usr/src/nv-codec-headers-cache install
 rm -rf nv-codec-headers
 EOF
 
-FROM builder AS ffmpeg
+FROM patches AS ffmpeg
 COPY --link --from=opus /usr/src/opus-cache /
 COPY --link --from=openh264 /usr/src/openh264-cache /
 COPY --link --from=dav1d /usr/src/dav1d-cache /
@@ -608,6 +608,7 @@ COPY --link --from=nv-codec-headers /usr/src/nv-codec-headers-cache /
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b n8.1.3 --depth=1 https://github.com/FFmpeg/FFmpeg.git
 cd FFmpeg
+find ../patches/ffmpeg -type f -name '*.patch' -print0 | sort -z | xargs -r0 git apply
 ./configure \
 	--extra-cflags="-fno-lto -DCONFIG_SAFE_BITSTREAM_READER=1" \
 	--extra-cxxflags="-fno-lto -DCONFIG_SAFE_BITSTREAM_READER=1" \
