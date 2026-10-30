@@ -23,6 +23,7 @@ class Session;
 } // namespace Main
 
 namespace Media::Encode {
+struct Job;
 struct VideoSource;
 struct TranscodeResult;
 } // namespace Media::Encode
@@ -47,6 +48,7 @@ struct SendStoryPhoto {
 struct SendStoryVideo {
 	std::shared_ptr<Media::Encode::VideoSource> source;
 	QImage cover;
+	std::shared_ptr<Media::Encode::Job> job;
 };
 
 struct SendStoryRepost {
@@ -69,6 +71,7 @@ struct StoryToSend {
 	std::vector<int> albums;
 	std::vector<Data::SuggestedReaction> reactions;
 	std::vector<Data::UrlArea> urls;
+	DocumentData *music = nullptr;
 	StoryId editId = 0;
 	int period = kStoryDefaultPeriod;
 	bool pinned = true;
@@ -171,6 +174,10 @@ private:
 		uint64 id,
 		Media::Encode::TranscodeResult &&result,
 		bool hasAudio);
+	void encodeJob(
+		not_null<Upload*> upload,
+		std::shared_ptr<Media::Encode::Job> job,
+		QImage cover);
 	void prepareFile(
 		not_null<Upload*> upload,
 		const QString &path,

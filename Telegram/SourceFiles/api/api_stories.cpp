@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/text/text_utilities.h"
 
+#include <QtCore/QDir>
 #include <QtCore/QFile>
 
 namespace Api {
@@ -693,8 +694,12 @@ void Stories::preparePhoto(not_null<Upload*> upload, QImage &&image) {
 
 void Stories::transcodeVideo(not_null<Upload*> upload) {
 	const auto &data = std::get<SendStoryVideo>(*upload->story.media);
-	if (!data.source) {
+	if (!data.source && !data.job) {
 		failed(upload, u"MEDIA_EMPTY"_q);
+		return;
+	}
+	if (data.job) {
+		encodeJob(upload, data.job, data.cover);
 		return;
 	}
 	const auto id = upload->id;
@@ -724,6 +729,62 @@ void Stories::transcodeVideo(not_null<Upload*> upload) {
 		const auto hasAudio = result.empty()
 			? false
 			: Media::Encode::ProbeSource(result.path).hasAudio;
+		crl::on_main([=, result = std::move(result)]() mutable {
+			const auto strong = weak.get();
+			const auto upload = strong ? strong->find(id) : nullptr;
+			if (!upload
+				|| (upload->generation != generation)
+				|| cancel->load()) {
+				if (!result.path.isEmpty()) {
+					QFile::remove(result.path);
+				}
+				return;
+			}
+			strong->videoTranscoded(id, std::move(result), hasAudio);
+		});
+	});
+}
+
+void Stories::encodeJob(
+		not_null<Upload*> upload,
+		std::shared_ptr<Media::Encode::Job> job,
+		QImage cover) {
+	const auto id = upload->id;
+	const auto generation = upload->generation;
+	const auto still = std::get_if<Media::Encode::StillSource>(&job->source);
+	const auto hasAudio = !still || !still->music.empty();
+	const auto cancel = upload->cancelPreparing;
+	crl::async([=, weak = base::make_weak(this)] {
+		auto copy = *job;
+		auto lastReported = -1.;
+		const auto encoded = Media::Encode::Run(std::move(copy), [&](
+				float64 value) {
+			if (value - lastReported >= 0.01 || value >= 1.) {
+				lastReported = value;
+				crl::on_main(weak, [=] {
+					const auto upload = find(id);
+					if (upload
+						&& (upload->generation == generation)
+						&& infoFor(upload).preparing) {
+						updateProgress(upload, value * kTranscodeShare);
+					}
+				});
+			}
+			return !cancel->load();
+		});
+		auto result = Media::Encode::TranscodeResult();
+		if (!encoded.empty()) {
+			const auto path = QDir::tempPath()
+				+ u"/tdesktop_story_%1.mp4"_q.arg(id);
+			auto file = QFile(path);
+			if (file.open(QIODevice::WriteOnly | QIODevice::Truncate)
+				&& (file.write(encoded.bytes) == encoded.bytes.size())) {
+				result.path = path;
+				result.cover = cover;
+				result.dimensions = encoded.dimensions;
+				result.duration = encoded.duration;
+			}
+		}
 		crl::on_main([=, result = std::move(result)]() mutable {
 			const auto strong = weak.get();
 			const auto upload = strong ? strong->find(id) : nullptr;
@@ -944,7 +1005,8 @@ void Stories::sendRequest(
 				? Flag::f_media_areas
 				: Flag())
 			| (story.editCaption ? Flag::f_caption : Flag())
-			| (story.editPrivacy ? Flag::f_privacy_rules : Flag());
+			| (story.editPrivacy ? Flag::f_privacy_rules : Flag())
+			| (story.music ? Flag::f_music : Flag());
 		upload->requestId = _api.request(MTPstories_EditStory(
 			MTP_flags(flags),
 			peer->input(),
@@ -954,7 +1016,9 @@ void Stories::sendRequest(
 			MTP_string(caption.text),
 			entities,
 			MTP_vector<MTPInputPrivacyRule>(rules),
-			MTPInputDocument()
+			(story.music
+				? story.music->mtpInput()
+				: MTPInputDocument())
 		)).done(done).fail(fail).send();
 		return;
 	}
@@ -970,7 +1034,8 @@ void Stories::sendRequest(
 		| (repost ? Flag::f_fwd_from_id : Flag())
 		| ((repost && !sameMediaAsRepost) ? Flag::f_fwd_modified : Flag())
 		| (story.albums.empty() ? Flag() : Flag::f_albums)
-		| (areas.v.isEmpty() ? Flag() : Flag::f_media_areas);
+		| (areas.v.isEmpty() ? Flag() : Flag::f_media_areas)
+		| (story.music ? Flag::f_music : Flag());
 	auto albums = QVector<MTPint>();
 	albums.reserve(story.albums.size());
 	for (const auto album : story.albums) {
@@ -989,7 +1054,9 @@ void Stories::sendRequest(
 		(repost ? repost->peer->input() : MTPInputPeer()),
 		MTP_int(repost ? repost->id : 0),
 		MTP_vector<MTPint>(albums),
-		MTPInputDocument()
+		(story.music
+			? story.music->mtpInput()
+			: MTPInputDocument())
 	)).done(done).fail(fail).send();
 }
 
