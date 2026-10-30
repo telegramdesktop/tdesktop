@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_scheduled_section.h"
 #include "history/view/history_view_subsection_tabs.h"
 #include "media/player/media_player_instance.h"
+#include "media/stories/media_stories_post.h"
 #include "media/view/media_view_open_common.h"
 #include "data/components/gift_auctions.h"
 #include "data/components/recent_peers.h"
@@ -1774,6 +1775,7 @@ SessionController::SessionController(
 		crl::on_main(base::make_weak(this), [=] {
 			Theme::CheckChatThemeWallPaper(this);
 		});
+		Media::Stories::SetupStoryPostToasts(this);
 	}
 	style::PaletteChanged(
 	) | rpl::on_next([=] {

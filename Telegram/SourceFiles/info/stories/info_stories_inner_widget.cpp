@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_memento.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "media/stories/media_stories_post.h"
 #include "mtproto/sender.h"
 #include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
@@ -281,7 +282,8 @@ void InnerWidget::setupTop() {
 	} else if (_isStackBottom || _myProfile) {
 		if (_peer->isSelf()) {
 			createProfileTop();
-		} else if (_peer->owner().stories().hasArchive(_peer)) {
+		} else if (_peer->owner().stories().hasArchive(_peer)
+			|| ::Media::Stories::CanPostStory(_peer)) {
 			createButtons();
 		} else {
 			startTop();
@@ -315,22 +317,25 @@ void InnerWidget::createProfileTop() {
 		{ v::null });
 
 	stack.addPlainSeparator();
+	auto buttons = std::vector<not_null<Ui::SlideWrap<>*>>();
 	const auto addButton = [&](object_ptr<Ui::SlideWrap<>> button) {
+		if (!button) {
+			return;
+		}
 		const auto raw = button.data();
 		stack.add({
 			.widget = std::move(button),
 			.shown = raw->toggledValue(),
 		});
-		return raw;
+		buttons.push_back(raw);
 	};
-	const auto buttons = {
-		addButton(makeGiftsButton()),
-		addButton(makeArchiveButton()),
-		addButton(makeRecentButton()),
-	};
+	addButton(makeGiftsButton());
+	addButton(makePostButton());
+	addButton(makeArchiveButton());
+	addButton(makeRecentButton());
 	stack.finalize();
 	// Layout insertion shows even wrappers whose initial toggle is off.
-	for (const auto button : buttons) {
+	for (const auto &button : buttons) {
 		button->finishAnimating();
 	}
 
@@ -339,9 +344,37 @@ void InnerWidget::createProfileTop() {
 
 void InnerWidget::createButtons() {
 	startTop();
+	if (auto post = makePostButton()) {
+		_top->add(std::move(post))->finishAnimating();
+	}
 	_top->add(makeArchiveButton())->finishAnimating();
 	_top->add(makeRecentButton())->finishAnimating();
 	finalizeTop();
+}
+
+object_ptr<Ui::SlideWrap<>> InnerWidget::makePostButton() {
+	Expects(_top != nullptr);
+
+	if (!::Media::Stories::CanPostStory(_peer)) {
+		return nullptr;
+	}
+	auto wrap = object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+		_top,
+		object_ptr<Ui::SettingsButton>(
+			_top,
+			tr::lng_story_post_button(),
+			st::infoSharedMediaButton));
+	const auto post = wrap.data()->entity();
+	post->addClickHandler([=] {
+		::Media::Stories::PostStory(
+			_controller->parentController(),
+			_peer);
+	});
+	object_ptr<Profile::FloatingIcon>(
+		post,
+		st::infoIconMediaStories,
+		st::infoSharedMediaButtonIconPosition)->show();
+	return wrap;
 }
 
 object_ptr<Ui::SlideWrap<>> InnerWidget::makeArchiveButton() {

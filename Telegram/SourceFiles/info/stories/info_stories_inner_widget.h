@@ -122,6 +122,7 @@ private:
 	void createAboutArchive();
 
 	void startTop();
+	[[nodiscard]] object_ptr<Ui::SlideWrap<>> makePostButton();
 	[[nodiscard]] object_ptr<Ui::SlideWrap<>> makeArchiveButton();
 	[[nodiscard]] object_ptr<Ui::SlideWrap<>> makeRecentButton();
 	[[nodiscard]] object_ptr<Ui::SlideWrap<>> makeGiftsButton();

@@ -68,6 +68,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_view_video_stream.h"
 #include "media/stories/media_stories_share.h"
 #include "media/stories/media_stories_view.h"
+#include "media/stories/media_stories_post.h"
 #include "media/streaming/media_streaming_document.h"
 #include "media/streaming/media_streaming_player.h"
 #include "media/player/media_player_instance.h"
@@ -2385,6 +2386,47 @@ void OverlayWidget::fillContextMenuActions(
 	if (story && story->canShare()) {
 		addAction(tr::lng_mediaview_forward(tr::now), [=] {
 			_stories->shareRequested();
+		}, &st::mediaMenuIconForward);
+	}
+	if (story && Stories::CanEditStory(story)) {
+		const auto id = story->fullId();
+		addAction(tr::lng_story_edit(tr::now), [=] {
+			const auto window = findWindow();
+			if (!window || !_session) {
+				return;
+			}
+			const auto &stories = _session->data().stories();
+			if (const auto found = stories.lookup(id)) {
+				close();
+				Stories::EditStory(window, *found);
+			}
+		}, &st::mediaMenuIconEdit);
+	}
+	if (story && Stories::CanEditStoryPrivacy(story)) {
+		const auto id = story->fullId();
+		addAction(tr::lng_story_edit_privacy(tr::now), [=] {
+			const auto window = findWindow();
+			if (!window || !_session) {
+				return;
+			}
+			const auto &stories = _session->data().stories();
+			if (const auto found = stories.lookup(id)) {
+				Stories::EditStoryPrivacy(window, *found);
+			}
+		}, &st::mediaMenuIconPrivacy);
+	}
+	if (story && Stories::CanRepostStory(story)) {
+		const auto id = story->fullId();
+		addAction(tr::lng_story_repost(tr::now), [=] {
+			const auto window = findWindow();
+			if (!window || !_session) {
+				return;
+			}
+			const auto &stories = _session->data().stories();
+			if (const auto found = stories.lookup(id)) {
+				close();
+				Stories::RepostStory(window, *found);
+			}
 		}, &st::mediaMenuIconForward);
 	}
 	const auto canDelete = [&] {

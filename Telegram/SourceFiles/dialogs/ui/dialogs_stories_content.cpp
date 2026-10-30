@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "main/main_session.h"
+#include "media/stories/media_stories_post.h"
 #include "media/stories/media_stories_stealth.h"
 #include "lang/lang_keys.h"
 #include "ui/dynamic_image.h"
@@ -222,6 +223,11 @@ void FillSourceMenu(
 	const auto owner = &controller->session().data();
 	const auto peer = owner->peer(PeerId(request.id));
 	const auto &add = request.callback;
+	if (!peer->isSelf() && Media::Stories::CanPostStory(peer)) {
+		add(tr::lng_story_post_button(tr::now), [=] {
+			Media::Stories::PostStory(controller, peer);
+		}, &st::menuIconStoriesSavedSection);
+	}
 	if (peer->isSelf()) {
 		add(tr::lng_stories_archive_button(tr::now), [=] {
 			controller->showSection(Info::Stories::Make(
