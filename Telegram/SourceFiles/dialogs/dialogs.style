@@ -800,6 +800,10 @@ dialogsStoriesListInfo: DialogsStoriesList(dialogsStoriesList) {
 dialogsStoriesListMine: DialogsStoriesList(dialogsStoriesListInfo) {
 	readOpacity: 1.;
 }
+dialogsStoriesAddSize: 18px;
+dialogsStoriesAddLine: 2px;
+dialogsStoriesAddStroke: 2px;
+dialogsStoriesAddHalf: 4px;
 dialogsStoriesTooltip: ImportantTooltip(defaultImportantTooltip) {
 	padding: margins(0px, 0px, 0px, 0px);
 }

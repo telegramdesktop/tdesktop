@@ -1631,6 +1631,14 @@ void Widget::setupStories() {
 		}
 	}, lifetime());
 
+	_stories->addStoryClicks(
+	) | rpl::on_next([=](uint64 id) {
+		const auto peer = session().data().peer(PeerId(int64(id)));
+		if (Media::Stories::CanPostStory(peer)) {
+			Media::Stories::PostStory(controller(), peer);
+		}
+	}, lifetime());
+
 	_stories->showMenuRequests(
 	) | rpl::on_next([=](const Stories::ShowMenuRequest &request) {
 		FillSourceMenu(controller(), request);

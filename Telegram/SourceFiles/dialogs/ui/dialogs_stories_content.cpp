@@ -6,6 +6,9 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/ui/dialogs_stories_content.h"
+
+#include "api/api_stories.h"
+#include "apiwrap.h"
 #include "boxes/story_drafts_box.h"
 
 #include "base/unixtime.h"
@@ -45,6 +48,8 @@ public:
 	[[nodiscard]] Content next();
 
 private:
+	void applyUploads(Content &result);
+
 	const not_null<Data::Stories*> _data;
 	const Data::StorySourcesList _list;
 	base::flat_map<
@@ -86,10 +91,53 @@ Content State::next() {
 			.unreadCount = info.unreadCount,
 			.hasVideoStream = info.hasVideoStream ? 1U : 0U,
 			.skipSmall = peer->isSelf() ? 1U : 0U,
+			.mine = peer->isSelf() ? 1U : 0U,
 		});
+	}
+	if (_list == Data::StorySourcesList::NotHidden) {
+		applyUploads(result);
 	}
 	_userpics = std::move(userpics);
 	return result;
+}
+
+void State::applyUploads(Content &result) {
+	const auto &uploads = _data->session().api().stories().uploads();
+	for (const auto &upload : uploads) {
+		const auto peer = upload.peer;
+		const auto id = uint64(peer->id.value);
+		const auto i = ranges::find(result.elements, id, &Element::id);
+		const auto progress = uint32(std::clamp(
+			int(std::round(upload.progress * 100)),
+			0,
+			100));
+		if (i != end(result.elements)) {
+			i->uploading = 1;
+			i->uploadFailed = upload.error.isEmpty() ? 0U : 1U;
+			i->uploadProgress = progress;
+			continue;
+		}
+		auto userpic = std::shared_ptr<Ui::DynamicImage>();
+		if (const auto j = _userpics.find(peer); j != end(_userpics)) {
+			userpic = j->second;
+		} else {
+			userpic = Ui::MakeUserpicThumbnail(peer, true);
+			_userpics.emplace(peer, userpic);
+		}
+		result.elements.insert(begin(result.elements), {
+			.id = id,
+			.name = (peer->isSelf()
+				? tr::lng_story_my_story(tr::now)
+				: peer->shortName()),
+			.thumbnail = std::move(userpic),
+			.skipSmall = peer->isSelf() ? 1U : 0U,
+			.mine = peer->isSelf() ? 1U : 0U,
+			.uploading = 1,
+			.uploadFailed = upload.error.isEmpty() ? 0U : 1U,
+			.uploadProgress = progress,
+		});
+		++result.total;
+	}
 }
 
 } // namespace
@@ -103,9 +151,10 @@ rpl::producer<Content> ContentForSession(
 		const auto state = result.make_state<State>(stories, list);
 		rpl::single(
 			rpl::empty
-		) | rpl::then(
-			stories->sourcesChanged(list)
-		) | rpl::on_next([=] {
+		) | rpl::then(rpl::merge(
+			stories->sourcesChanged(list),
+			session->api().stories().uploadsChanges()
+		)) | rpl::on_next([=] {
 			consumer.put_next(state->next());
 		}, result);
 		return result;
@@ -225,6 +274,19 @@ void FillSourceMenu(
 	const auto owner = &controller->session().data();
 	const auto peer = owner->peer(PeerId(request.id));
 	const auto &add = request.callback;
+	const auto api = &controller->session().api().stories();
+	for (const auto &upload : api->uploads()) {
+		if (upload.peer != peer || upload.error.isEmpty()) {
+			continue;
+		}
+		const auto id = upload.id;
+		add(tr::lng_story_upload_retry(tr::now), [=] {
+			api->retry(id);
+		}, &st::menuIconRestore);
+		add(tr::lng_story_upload_cancel(tr::now), [=] {
+			api->remove(id);
+		}, &st::menuIconDelete);
+	}
 	if (!peer->isSelf() && Media::Stories::CanPostStory(peer)) {
 		add(tr::lng_story_post_button(tr::now), [=] {
 			Media::Stories::PostStory(controller, peer);

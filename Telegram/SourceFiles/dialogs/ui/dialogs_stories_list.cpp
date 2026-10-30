@@ -35,6 +35,14 @@ namespace Dialogs::Stories {
 namespace {
 
 constexpr auto kSmallThumbsShown = 3;
+constexpr auto kUploadRotationDuration = crl::time(3000);
+constexpr auto kUploadProgressDuration = crl::time(300);
+constexpr auto kUploadArcMin = 4.;
+constexpr auto kUploadArcFull = 360.;
+
+[[nodiscard]] float64 Decelerate(float64 t) {
+	return 1. - (1. - t) * (1. - t);
+}
 constexpr auto kPreloadPages = 2;
 constexpr auto kExpandAfterRatio = 0.72;
 constexpr auto kCollapseAfterRatio = 0.68;
@@ -126,10 +134,15 @@ void List::showContent(Content &&content) {
 			item.element.count = element.count;
 			item.element.unreadCount = element.unreadCount;
 			item.element.hasVideoStream = element.hasVideoStream;
+			item.element.mine = element.mine;
+			item.element.uploading = element.uploading;
+			item.element.uploadFailed = element.uploadFailed;
+			item.element.uploadProgress = element.uploadProgress;
 		} else {
 			_data.items.emplace_back(Item{ .element = element });
 		}
 	}
+	updateUploadAnimation();
 	_lastCollapsedGeometry = {};
 	if (int(_data.items.size()) != wasCount) {
 		updateGeometry();
@@ -181,6 +194,10 @@ void List::updateScrollMax() {
 
 rpl::producer<uint64> List::clicks() const {
 	return _clicks.events();
+}
+
+rpl::producer<uint64> List::addStoryClicks() const {
+	return _addStoryClicks.events();
 }
 
 rpl::producer<ShowMenuRequest> List::showMenuRequests() const {
@@ -378,6 +395,7 @@ List::Layout List::computeLayout(float64 expanded) const {
 }
 
 void List::paintEvent(QPaintEvent *e) {
+	_addBadge = std::nullopt;
 	const auto hidden = _hiddenAnimation.value(toggledHidden() ? 1. : 0.);
 	if (hidden >= 1.) {
 		return;
@@ -581,6 +599,39 @@ void List::paint(
 			: itemFull
 			? itemFull->element.unreadCount
 			: 0;
+		const auto uploading = (small && small->element.uploading)
+			|| (itemFull && itemFull->element.uploading);
+		if (uploading) {
+			const auto element = (itemFull && itemFull->element.uploading)
+				? &itemFull->element
+				: &small->element;
+			const auto outerAdd = 1.5 * line;
+			const auto outer = userpic.marginsAdded(
+				{ outerAdd, outerAdd, outerAdd, outerAdd });
+			gradient.setStart(userpic.topRight());
+			gradient.setFinalStop(userpic.bottomLeft());
+			p.setPen(element->uploadFailed
+				? QPen(st::attentionButtonFg->c, line)
+				: QPen(gradient, line));
+			p.setBrush(Qt::NoBrush);
+			if (element->uploadFailed) {
+				p.drawEllipse(outer);
+			} else {
+				const auto now = crl::now();
+				const auto passed = (now - _uploadStarted)
+					% kUploadRotationDuration;
+				const auto spin = passed / float64(kUploadRotationDuration);
+				const auto sweep = std::max(
+					kUploadArcFull * uploadShownProgress(element->id, now),
+					kUploadArcMin);
+				p.drawArc(
+					outer,
+					int(base::SafeRound((90. - spin * kUploadArcFull) * 16.)),
+					-int(base::SafeRound(sweep * 16.)));
+			}
+			p.setOpacity(1.);
+			return;
+		}
 		const auto unreadOpacity = (smallUnread && fullUnreadCount)
 			? 1.
 			: smallUnread
@@ -707,6 +758,11 @@ void List::paint(
 					std::ceil(userpic.y() - skip),
 					std::ceil(userpic.width() + 2 * skip),
 					st::windowBg->c);
+			} else if (full->element.mine
+				&& !full->element.uploading
+				&& expandRatio > 0.) {
+				p.setOpacity(expandRatio);
+				paintAddBadge(p, full->element.id, userpic);
 			}
 		}
 		p.setOpacity(1.);
@@ -735,6 +791,89 @@ void List::paint(
 		p.drawText(QPointF(left, top + font->ascent), _title);
 		p.setOpacity(1.);
 	}
+}
+
+void List::updateUploadAnimation() {
+	const auto now = crl::now();
+	auto uploading = false;
+	for (const auto &item : _data.items) {
+		const auto &element = item.element;
+		if (!element.uploading || element.uploadFailed) {
+			continue;
+		}
+		uploading = true;
+		const auto to = element.uploadProgress / 100.;
+		auto &entry = _uploadProgress[element.id];
+		if (!entry.started) {
+			entry = { .from = to, .to = to, .started = now };
+		} else if (entry.to != to) {
+			entry.from = uploadShownProgress(element.id, now);
+			entry.to = to;
+			entry.started = now;
+		}
+	}
+	for (auto i = begin(_uploadProgress); i != end(_uploadProgress);) {
+		const auto id = i->first;
+		const auto still = ranges::any_of(_data.items, [&](const Item &item) {
+			return (item.element.id == id)
+				&& item.element.uploading
+				&& !item.element.uploadFailed;
+		});
+		i = still ? (i + 1) : _uploadProgress.erase(i);
+	}
+	if (uploading && !_uploadAnimation.animating()) {
+		_uploadStarted = now;
+		_uploadAnimation.init([=] { update(); });
+		_uploadAnimation.start();
+	} else if (!uploading && _uploadAnimation.animating()) {
+		_uploadAnimation.stop();
+	}
+}
+
+float64 List::uploadShownProgress(uint64 id, crl::time now) const {
+	const auto i = _uploadProgress.find(id);
+	if (i == end(_uploadProgress)) {
+		return 0.;
+	}
+	const auto &entry = i->second;
+	const auto passed = now - entry.started;
+	const auto t = std::clamp(
+		passed / float64(kUploadProgressDuration),
+		0.,
+		1.);
+	return entry.from + (entry.to - entry.from) * Decelerate(t);
+}
+
+void List::paintAddBadge(
+		QPainter &p,
+		uint64 id,
+		const QRectF &userpic) const {
+		const auto size = float64(st::dialogsStoriesAddSize);
+	const auto line = float64(st::dialogsStoriesAddLine);
+	const auto offset = userpic.width() / 3.;
+	const auto center = userpic.center() + QPointF(offset, offset);
+	const auto rect = QRectF(
+		center.x() - size / 2.,
+		center.y() - size / 2.,
+		size,
+		size);
+	auto hq = PainterHighQualityEnabler(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(_st.bg);
+	p.drawEllipse(rect.marginsAdded({ line, line, line, line }));
+	p.setBrush(st::windowBgActive);
+	p.drawEllipse(rect);
+	_addBadge = std::pair{ id, rect.marginsAdded({ line, line, line, line }) };
+	const auto half = float64(st::dialogsStoriesAddHalf);
+	auto pen = QPen(st::windowFgActive->c, st::dialogsStoriesAddStroke);
+	pen.setCapStyle(Qt::RoundCap);
+	p.setPen(pen);
+	p.drawLine(
+		QPointF(center.x() - half, center.y()),
+		QPointF(center.x() + half, center.y()));
+	p.drawLine(
+		QPointF(center.x(), center.y() - half),
+		QPointF(center.x(), center.y() + half));
 }
 
 void List::validateThumbnail(not_null<Item*> item) {
@@ -927,7 +1066,15 @@ void List::mouseReleaseEvent(QMouseEvent *e) {
 		if (!_expanded) {
 			requestExpanded(true);
 		} else if (_selected < _data.items.size()) {
-			_clicks.fire_copy(_data.items[_selected].element.id);
+			const auto id = _data.items[_selected].element.id;
+			const auto point = QPointF(mapFromGlobal(e->globalPos()));
+			if (_addBadge
+				&& (_addBadge->first == id)
+				&& _addBadge->second.contains(point)) {
+				_addStoryClicks.fire_copy(id);
+			} else {
+				_clicks.fire_copy(id);
+			}
 		}
 	}
 }
