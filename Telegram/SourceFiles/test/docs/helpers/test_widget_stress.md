@@ -71,8 +71,10 @@ Use something else when:
   with the highest `QScreen::refreshRate()` (ties: the primary), at most
   1280x1000 logical px placed 64 px inside its available geometry, out of a
   maximized or full-screen state if needed. These are harness constants, not
-  product styles. It never changes a display mode. The window must paint into
-  a raster surface.
+  product styles. It never changes a display mode. The window's `QWindow`
+  surface type is recorded, not required: on Windows the main window reads
+  `Direct3DSurface` once an RHI child exists, and Qt Widgets then flushes the
+  raster backing store through QRhi into a swapchain.
 - **Theme.** The day palette comes from [test_palette](test_palette.md). When
   the day theme it leaves kept is not the default one (a theme file, a cloud
   theme or another embedded theme), the runner keeps the default through the
@@ -226,8 +228,8 @@ ladder. Samples do not prove the instants between them.
 `frames` are the intervals between consecutive `QEvent::UpdateRequest`
 events delivered to the exact top-level `QWidget` that shows the card, inside
 the window, stamped by a harness event filter that handles nothing and never
-repaints (`desktop.frameSource` `raster-window-update-request`). It is an
-observable window-update proxy on Qt's raster path, not a DWM presentation:
+repaints (`desktop.frameSource` `window-update-request`). It is an
+observable window-update proxy, not a DWM presentation proven display-paced:
 the window updates on demand, so a static widget's sparse updates are not
 dropped frames, and `dropped` stays `null`. `report.mjs` treats a null
 `dropped` as zero for `fullRateUpTo`, so its client-frame full-rate column is

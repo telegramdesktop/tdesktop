@@ -55,7 +55,7 @@ constexpr auto kClient = "Telegram Desktop";
 constexpr auto kRenderer = "twidget-core";
 constexpr auto kRendererKind = "own";
 constexpr auto kDeviceClass = "desktop";
-constexpr auto kFrameSource = "raster-window-update-request";
+constexpr auto kFrameSource = "window-update-request";
 
 // The `v` of every data-stress value the kit's widgets publish.
 constexpr auto kStressVersion = 1;
@@ -1267,18 +1267,21 @@ namespace {
 	auto result = QStringList{
 		u"frames: the intervals between consecutive QEvent::UpdateRequest "
 			u"events delivered to the exact top-level window that shows the "
-			u"widget's card (a Qt Widgets raster window; a harness event "
+			u"widget's card (a Qt Widgets top-level window, its QWindow "
+			u"surface type in desktop.screen.surface; a harness event "
 			u"filter stamps each with crl::profile() and never repaints), "
 			u"inside the measuring window. count is the number of "
 			u"intervals, p50 and p95 the nearest ranks v[min(n - 1, "
 			u"round(p (n - 1)))] of the sorted intervals, max the largest; "
 			u"fewer than two updates give count 0 and nulls. It is an "
-			u"observable window-update proxy, not a DWM presentation or a "
-			u"display-paced callback: the window updates on demand, so a "
-			u"static widget's sparse updates are not dropped frames."_q,
-		u"frames.dropped is null in every entry: an unsynchronized, "
-			u"demand-driven surface cannot measure the share of physical "
-			u"display frames missed. tools/report.mjs treats a null dropped "
+			u"observable window-update proxy, not a DWM presentation proven "
+			u"to be display-paced: the window updates on demand, so a "
+			u"static widget's sparse updates are not dropped frames. With a "
+			u"Direct3DSurface Qt Widgets paints the raster backing store "
+			u"and flushes it through QRhi into a swapchain."_q,
+		u"frames.dropped is null in every entry: demand-driven window "
+			u"updates, not proven to be display-paced, cannot measure the "
+			u"share of physical display frames missed. tools/report.mjs treats a null dropped "
 			u"as zero when it computes fullRateUpTo, so its client-frame "
 			u"full-rate column is only an update-cadence observation, not a "
 			u"display-performance limit, and \"none\" for a sparse or "
@@ -2592,7 +2595,7 @@ constexpr auto kControlManifest = R"json({"version":1,
 			applied.value(u"features"_q),
 			QJsonArray{ u"webAnimations"_q })
 		&& (desktop.value(u"frameSource"_q).toString()
-			== u"raster-window-update-request"_q)
+			== u"window-update-request"_q)
 		&& (LaunchIds(measure) == QStringList{ u"launch-1"_q });
 	const auto noted = notes.join(u"\n"_q).contains(u"fullRateUpTo"_q)
 		&& (notes.last() == u"caller note"_q)

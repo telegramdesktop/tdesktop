@@ -676,6 +676,19 @@ void CheckRendererTheme(
 	return result;
 }
 
+[[nodiscard]] QString SurfaceName(QSurface::SurfaceType type) {
+	switch (type) {
+	case QSurface::RasterSurface: return u"RasterSurface"_q;
+	case QSurface::OpenGLSurface: return u"OpenGLSurface"_q;
+	case QSurface::RasterGLSurface: return u"RasterGLSurface"_q;
+	case QSurface::OpenVGSurface: return u"OpenVGSurface"_q;
+	case QSurface::VulkanSurface: return u"VulkanSurface"_q;
+	case QSurface::MetalSurface: return u"MetalSurface"_q;
+	case QSurface::Direct3DSurface: return u"Direct3DSurface"_q;
+	}
+	return u"surface type %1"_q.arg(int(type));
+}
+
 [[nodiscard]] QString PlacementText(not_null<QWidget*> window) {
 	const auto handle = window->windowHandle();
 	const auto screen = handle ? handle->screen() : nullptr;
@@ -789,8 +802,6 @@ void CheckPlacement(LiveState &state) {
 	const auto screen = state.screen.data();
 	const auto handle = window ? window->windowHandle() : nullptr;
 	const auto placed = handle && screen && Placed(window, screen);
-	const auto raster = handle
-		&& (handle->surfaceType() == QSurface::RasterSurface);
 	auto &read = state.launch.screen;
 	if (handle && screen) {
 		read.name = screen->name();
@@ -799,9 +810,7 @@ void CheckPlacement(LiveState &state) {
 		read.windowDpr = handle->devicePixelRatio();
 		read.coreRatio = style::DevicePixelRatio() * style::Scale() / 100.;
 		read.uiScale = style::Scale();
-		read.surface = raster
-			? u"RasterSurface"_q
-			: u"surface type %1"_q.arg(int(handle->surfaceType()));
+		read.surface = SurfaceName(handle->surfaceType());
 		state.frame = window->frameGeometry();
 	}
 	auto placement = state.launch.record.value(u"placement"_q).toObject();
@@ -815,11 +824,8 @@ void CheckPlacement(LiveState &state) {
 		Prefixed(u"fixture gate: the window is wholly on the screen with "
 			u"the highest refresh rate"_q),
 		details);
-	Check(
-		raster,
-		Prefixed(u"fixture gate: the window paints into a raster surface"_q),
-		details);
-	if (!placed || !raster) {
+	Note(Prefixed(u"window surface: "_q + read.surface));
+	if (!placed) {
 		state.setupError = Prefixed(u"the window is not placed: "_q + details);
 		return;
 	}
