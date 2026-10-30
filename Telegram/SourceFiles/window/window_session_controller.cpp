@@ -2324,7 +2324,14 @@ bool SessionController::showForumInDifferentWindow(
 	if (windowId().forum() == forum) {
 		return false;
 	}
-	const auto window = Core::App().windowForShowingForum(forum);
+	const auto found = Core::App().windowForShowingForum(forum);
+
+	// A separate chat window has no chats list to show the topics in.
+	const auto window = (found
+		&& params.forceTopicsList
+		&& !found->id().hasChatsList())
+		? nullptr
+		: found;
 	if (window == _window) {
 		return false;
 	} else if (window) {
