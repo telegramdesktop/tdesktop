@@ -882,6 +882,10 @@ void PhotoEditorContent::addMimeData(not_null<const QMimeData*> data) {
 	_paint->handleMimeData(data);
 }
 
+void PhotoEditorContent::addVideoObject(StoryVideoObject &&object) {
+	_paint->addStoryVideoObject(std::move(object));
+}
+
 void PhotoEditorContent::setupDragArea() {
 	auto dragEnterFilter = [=](const QMimeData *data) {
 		return _paint->canHandleMimeData(data);

@@ -35,6 +35,9 @@ public:
 	int type() const override;
 	[[nodiscard]] VideoClip *videoClip() override;
 
+	void keepInitialState();
+	[[nodiscard]] bool atInitialState() const;
+
 protected:
 	[[nodiscard]] Media::Encode::AnimatedEntity::Kind entityKind()
 		const override;
@@ -46,6 +49,9 @@ private:
 	const std::unique_ptr<VideoClip> _clip;
 	const QSize _frameSize;
 	QImage _image;
+	std::optional<Placement> _initialPlacement;
+	VideoClip::State _initialState;
+	bool _hasInitial = false;
 	VideoClip::State _saved;
 	VideoClip::State _kept;
 

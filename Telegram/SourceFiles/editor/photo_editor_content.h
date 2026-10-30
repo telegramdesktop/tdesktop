@@ -78,6 +78,7 @@ public:
 	void setupDragArea();
 	void addMimeData(not_null<const QMimeData*> data);
 	bool pasteFromClipboard();
+	void addVideoObject(StoryVideoObject &&object);
 
 	[[nodiscard]] rpl::producer<QRect> innerRect() const {
 		return _innerRect.value();

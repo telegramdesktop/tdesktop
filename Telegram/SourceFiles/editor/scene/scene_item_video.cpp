@@ -49,6 +49,18 @@ VideoClip *ItemVideo::videoClip() {
 	return _clip.get();
 }
 
+void ItemVideo::keepInitialState() {
+	_initialPlacement = placement();
+	_initialState = _clip->state();
+	_hasInitial = true;
+}
+
+bool ItemVideo::atInitialState() const {
+	return _hasInitial
+		&& (_initialPlacement == placement())
+		&& (_initialState == _clip->state());
+}
+
 VideoTrim ItemVideo::trim() const {
 	return _clip->trim();
 }

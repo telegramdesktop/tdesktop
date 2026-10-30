@@ -332,6 +332,9 @@ PhotoEditor::PhotoEditor(
 	_brushTool)) {
 	_modifications.cropType = data.cropType;
 	_modifications.cropMode = data.cropMode;
+	if (data.story && !data.story->videoObject.empty()) {
+		_content->addVideoObject(std::move(data.story->videoObject));
+	}
 
 	events(
 	) | rpl::on_next([=](not_null<QEvent*> e) {

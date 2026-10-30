@@ -1008,6 +1008,32 @@ void Paint::addVideoItem(Storage::PhotoEditorMedia &&media) {
 		data));
 }
 
+void Paint::addStoryVideoObject(StoryVideoObject &&object) {
+	const auto thumbnail = object.thumbnail;
+	auto source = std::make_shared<VideoClipSource>(VideoClipSource{
+		.path = object.path,
+		.content = std::move(object.content),
+		.thumbnail = std::move(object.thumbnail),
+		.duration = object.duration,
+		.hasAudio = object.hasAudio && _composeSound,
+		.initialTrim = { .from = object.from, .till = object.till },
+		.initialVolume = object.volume,
+	});
+	auto data = mediaItemData(thumbnail.size());
+	data.flipped = object.flipped;
+	auto item = std::make_shared<ItemVideo>(std::move(source), data);
+	if (object.size > 0.) {
+		auto placement = item->placement();
+		placement.position = object.position;
+		placement.size = object.size;
+		placement.scale = object.scale;
+		placement.rotation = object.rotation;
+		item->applyPlacement(placement);
+	}
+	item->keepInitialState();
+	addMediaItem(std::move(item));
+}
+
 void Paint::addImageItem(QImage &&image) {
 	const auto maxSide = std::max(_imageSize.width(), _imageSize.height());
 	if (image.width() > maxSide || image.height() > maxSide) {

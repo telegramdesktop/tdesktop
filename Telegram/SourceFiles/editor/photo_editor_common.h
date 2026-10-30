@@ -40,6 +40,27 @@ struct StoryAudio {
 	}
 };
 
+struct StoryVideoObject {
+	QString path;
+	QByteArray content;
+	QImage thumbnail;
+	crl::time duration = 0;
+	bool hasAudio = false;
+
+	QPointF position;
+	float64 size = 0.;
+	float64 scale = 1.;
+	float64 rotation = 0.;
+	crl::time from = 0;
+	crl::time till = 0;
+	float64 volume = 1.;
+	bool flipped = false;
+
+	[[nodiscard]] bool empty() const {
+		return path.isEmpty() && content.isEmpty();
+	}
+};
+
 struct StoryOptions {
 	std::shared_ptr<ChatHelpers::Show> show;
 	TextWithTags caption;
@@ -50,6 +71,7 @@ struct StoryOptions {
 
 	QImage canvasMedia;
 	Media::Encode::CanvasBackground canvasBackground;
+	StoryVideoObject videoObject;
 };
 
 struct AudioTrack {

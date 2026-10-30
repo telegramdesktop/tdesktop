@@ -25,6 +25,8 @@ VideoClip::VideoClip(
 	_player->repaints(
 	) | rpl::on_next(std::move(repaint), _lifetime);
 	_player->start();
+	setTrim(_source->initialTrim);
+	setVolume(_source->initialVolume);
 }
 
 VideoClip::~VideoClip() = default;

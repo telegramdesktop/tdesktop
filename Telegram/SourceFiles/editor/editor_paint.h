@@ -108,6 +108,7 @@ public:
 	void paintCanvas(QPainter &p) const;
 	void paintImage(QPainter &p, const QPixmap &image) const;
 	void resetView();
+	void addStoryVideoObject(StoryVideoObject &&object);
 
 	bool zoomSceneItems(float64 wheelDelta, bool fine = false);
 	bool zoomSceneItemsByFactor(float64 factor);
