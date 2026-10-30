@@ -3385,6 +3385,69 @@ void Message::clickHandlerPressedChanged(
 		toggleCommentsButtonRipple(pressed);
 	} else if (_topicButton && (handler == _topicButton->link)) {
 		toggleTopicButtonRipple(pressed);
+	} else if (const auto rich = richpage()
+		; rich
+		&& ((handler == rich->handler)
+			|| (handler == rich->handlerHorizontalScrollPressed)
+			|| (handler == rich->pressedPlaceholderHandler)
+			|| (handler == rich->handlerButtonRowHandler)
+			|| (handler == rich->pressedButtonRowHandler)
+			|| (handler == rich->handlerInlineButtonHandler)
+			|| (handler == rich->pressedInlineButtonHandler))) {
+		if (pressed) {
+			if ((handler == rich->handler)
+				&& rich->handlerHorizontalScrollHit
+				&& rich->article.beginHorizontalScroll(
+					rich->handlerHorizontalScrollPoint,
+					false)) {
+				rich->handlerHorizontalScrollActive = true;
+				rich->handlerHorizontalScrollPressed = handler;
+			}
+		} else if (rich->handlerHorizontalScrollActive
+			&& (handler == rich->handlerHorizontalScrollPressed)) {
+			rich->article.endHorizontalScroll();
+			rich->handlerHorizontalScrollActive = false;
+			rich->handlerHorizontalScrollPressed = nullptr;
+		}
+		if (pressed) {
+			if ((handler == rich->handler) && rich->handlerPlaceholderId) {
+				rich->pressedPlaceholderId = rich->handlerPlaceholderId;
+				rich->pressedPlaceholderHandler = handler;
+				rich->article.addPlaceholderRipple(
+					rich->pressedPlaceholderId,
+					rich->handlerPlaceholderPoint);
+			}
+		} else if (handler == rich->pressedPlaceholderHandler) {
+			rich->article.stopPlaceholderRipple(
+				base::take(rich->pressedPlaceholderId));
+			rich->pressedPlaceholderHandler = nullptr;
+		}
+		if (pressed) {
+			if ((handler == rich->handlerButtonRowHandler)
+				&& (rich->handlerButtonRow.index >= 0)) {
+				rich->pressedButtonRow = rich->handlerButtonRow;
+				rich->pressedButtonRowHandler = handler;
+				rich->article.addButtonRowRipple(
+					rich->pressedButtonRow.id,
+					rich->pressedButtonRow.index,
+					rich->pressedButtonRow.localPoint);
+			}
+		} else if (handler == rich->pressedButtonRowHandler) {
+			rich->article.stopButtonRowRipple(rich->pressedButtonRow.id);
+			rich->pressedButtonRow = {};
+			rich->pressedButtonRowHandler = nullptr;
+		}
+		if (pressed) {
+			if ((handler == rich->handlerInlineButtonHandler)
+				&& rich->handlerInlineButtonPoint) {
+				rich->pressedInlineButtonHandler = handler;
+				rich->article.addInlineButtonRipple(
+					*rich->handlerInlineButtonPoint);
+			}
+		} else if (handler == rich->pressedInlineButtonHandler) {
+			rich->article.stopInlineButtonRipple();
+			rich->pressedInlineButtonHandler = nullptr;
+		}
 	} else if (_viewButton) {
 		_viewButton->checkLink(handler, pressed);
 	} else if (const auto reply = Get<Reply>()
@@ -3424,64 +3487,6 @@ void Message::clickHandlerPressedChanged(
 		&& IsRippleLink(handler)
 		&& !text().linkRangeFor(handler).empty()) {
 		startLinkRipple();
-	} else if (const auto rich = richpage()
-		; rich
-		&& ((handler == rich->handler)
-			|| (handler == rich->handlerHorizontalScrollPressed)
-			|| (handler == rich->handlerButtonRowHandler)
-			|| (handler == rich->pressedButtonRowHandler)
-			|| (handler == rich->handlerInlineButtonHandler)
-			|| (handler == rich->pressedInlineButtonHandler))) {
-		if (pressed) {
-			if ((handler == rich->handler)
-				&& rich->handlerHorizontalScrollHit
-				&& rich->article.beginHorizontalScroll(
-					rich->handlerHorizontalScrollPoint,
-					false)) {
-				rich->handlerHorizontalScrollActive = true;
-				rich->handlerHorizontalScrollPressed = handler;
-			}
-		} else if (rich->handlerHorizontalScrollActive
-			&& (handler == rich->handlerHorizontalScrollPressed)) {
-			rich->article.endHorizontalScroll();
-			rich->handlerHorizontalScrollActive = false;
-			rich->handlerHorizontalScrollPressed = nullptr;
-		}
-		if ((handler == rich->handler) && rich->handlerPlaceholderId) {
-			if (pressed) {
-				rich->article.addPlaceholderRipple(
-					rich->handlerPlaceholderId,
-					rich->handlerPlaceholderPoint);
-			} else {
-				rich->article.stopPlaceholderRipple(rich->handlerPlaceholderId);
-			}
-		}
-		if (pressed) {
-			if ((handler == rich->handlerButtonRowHandler)
-				&& (rich->handlerButtonRow.index >= 0)) {
-				rich->pressedButtonRow = rich->handlerButtonRow;
-				rich->pressedButtonRowHandler = handler;
-				rich->article.addButtonRowRipple(
-					rich->pressedButtonRow.id,
-					rich->pressedButtonRow.index,
-					rich->pressedButtonRow.localPoint);
-			}
-		} else if (handler == rich->pressedButtonRowHandler) {
-			rich->article.stopButtonRowRipple(rich->pressedButtonRow.id);
-			rich->pressedButtonRow = {};
-			rich->pressedButtonRowHandler = nullptr;
-		}
-		if (pressed) {
-			if ((handler == rich->handlerInlineButtonHandler)
-				&& rich->handlerInlineButtonPoint) {
-				rich->pressedInlineButtonHandler = handler;
-				rich->article.addInlineButtonRipple(
-					*rich->handlerInlineButtonPoint);
-			}
-		} else if (handler == rich->pressedInlineButtonHandler) {
-			rich->article.stopInlineButtonRipple();
-			rich->pressedInlineButtonHandler = nullptr;
-		}
 	} else if (_reactions) {
 		_reactions->clickHandlerPressedChanged(
 			handler,
