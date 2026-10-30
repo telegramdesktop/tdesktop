@@ -572,46 +572,7 @@ bool Shown::activateMarkdownMedia(
 		const Markdown::MediaActivation &activation,
 		Qt::MouseButton button,
 		const QVariant &clickHandlerContext) const {
-	if (button != Qt::LeftButton && button != Qt::MiddleButton) {
-		return false;
-	}
-	switch (activation.kind) {
-	case Markdown::MediaActivationKind::None:
-		return false;
-	case Markdown::MediaActivationKind::ExternalUrl:
-		if (activation.url.isEmpty()) {
-			return false;
-		}
-		HiddenUrlClickHandler::Open(activation.url, clickHandlerContext);
-		return true;
-	case Markdown::MediaActivationKind::Embed:
-		return false;
-	case Markdown::MediaActivationKind::Photo:
-		if (!activation.photo) {
-			return false;
-		}
-		activation.photo->open(button);
-		return true;
-	case Markdown::MediaActivationKind::Document:
-		if (!activation.document) {
-			return false;
-		}
-		activation.document->open(button);
-		return true;
-	case Markdown::MediaActivationKind::OpenChannel:
-		if (!activation.channel) {
-			return false;
-		}
-		activation.channel->open(button);
-		return true;
-	case Markdown::MediaActivationKind::JoinChannel:
-		if (!activation.channel) {
-			return false;
-		}
-		activation.channel->join(button);
-		return true;
-	}
-	return false;
+	return ActivateRichMessageMedia(activation, button, clickHandlerContext);
 }
 
 bool Shown::showing(
