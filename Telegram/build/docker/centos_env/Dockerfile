@@ -161,7 +161,7 @@ RUN <<EOF
 git init patches
 cd patches
 git remote add origin https://github.com/desktop-app/patches.git
-git fetch --depth=1 origin 13b4eb3dc1b8ef404b4ab04750e0fd7aafbe06c2
+git fetch --depth=1 origin 5c5d6e06bc5bc875d1a1fd239b0515b2e54d70db
 git reset --hard FETCH_HEAD
 rm -rf .git
 EOF
@@ -285,13 +285,14 @@ cd ..
 rm -rf openh264
 EOF
 
-FROM builder AS vpx
+FROM patches AS vpx
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git init libvpx
 cd libvpx
 git remote add origin https://github.com/webmproject/libvpx.git
 git fetch --depth=1 origin 12f3a2ac603e8f10742105519e0cd03c3b8f71dd
 git reset --hard FETCH_HEAD
+find ../patches/libvpx -type f -name '*.patch' -print0 | sort -z | xargs -r0 git apply
 CFLAGS="$CFLAGS -fno-lto" CXXFLAGS="$CXXFLAGS -fno-lto" ./configure \
 	--disable-examples \
 	--disable-unit-tests \
