@@ -224,7 +224,10 @@ Every stage name, Check and Note starts `widget stress: `, after
     it has a runtime), `[<id>] wait for loaded or dead` (60 s from the
     injection);
   - for a loaded widget that has not died: `show in chat list: widget stress
-    <id> card` (the whole card, `WidgetCardReady()`), `[<id>] settle the list
+    <id> card` (the whole card, `WidgetCardReady()`; a card in view and
+    painted whose runtime cut no frame for it within the bound is measured
+    anyway, `desktop.cardFrameLate` true and a Note, because a renderer too
+    slow to show a level is that level's reading), `[<id>] settle the list
     and its floating date` (focus cleared and cursor off again, then the
     list's scroll unchanged for 3350 ms, at most 8 s), `[<id>] warm up`,
     `[<id>] measure`;

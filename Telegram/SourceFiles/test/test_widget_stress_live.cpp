@@ -295,6 +295,10 @@ struct LiveLevel {
 	// The manifest.widgets index.
 	int widget = 0;
 	bool lastOfLoad = false;
+	// The card was in view and painted, but the runtime had cut no frame for
+	// it within the show's bound: a renderer too slow to show this level,
+	// measured as it is rather than refused.
+	bool cardFrameLate = false;
 	bool started = false;
 	bool written = false;
 };
@@ -1712,14 +1716,26 @@ void StartSettle(const LiveState &state, ListSettle &settle) {
 void AcceptWindow(LiveState &state, LiveLevel &level) {
 	level.settle.settledAt = crl::now();
 	const auto shown = level.cardShow.get();
-	if (!shown || !shown->shown()) {
+	const auto frameLate = shown
+		&& shown->finished
+		&& (shown->refusal == ChatListShowRefusal::NotReady)
+		&& shown->inView
+		&& shown->painted;
+	if (frameLate) {
+		level.cardFrameLate = true;
+		Note(Prefixed(u"[%1] no frame was cut for the card within %2 ms; "
+			u"the level is measured as the renderer shows it"_q.arg(
+				level.level.id,
+				QString::number(shown->timeout))));
+	} else if (!shown || !shown->shown()) {
 		const auto sample = HostSample(level);
 		if (!sample || !sample->dead) {
 			Refuse(state, level, u"the card show refused: "_q
 				+ ShowText(shown));
 		}
 		return;
-	} else if (!level.settle.settled) {
+	}
+	if (!level.settle.settled) {
 		Refuse(state, level, SettleText(level.settle) + u" over the card"_q);
 		return;
 	}
@@ -1884,6 +1900,7 @@ void CheckOneHost(
 		{ u"loadDecidedMs"_q, Since(level.injectedAt, level.decidedAt) },
 		{ u"loadShow"_q, ShowObject(level.loadShow.get()) },
 		{ u"cardShow"_q, ShowObject(level.cardShow.get()) },
+		{ u"cardFrameLate"_q, level.cardFrameLate },
 		{
 			u"dateWaitMs"_q,
 			Since(level.settle.started, level.settle.settledAt),
