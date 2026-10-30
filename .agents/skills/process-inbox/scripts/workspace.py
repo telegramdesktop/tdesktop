@@ -630,9 +630,11 @@ def update_state(path, changes):
 	path.write_bytes((newline.join(lines) + newline).encode("utf-8"))
 
 
-def task_ready(task, states):
+def task_ready(task, states, retired=()):
+	# A retired dependency will never be delivered, so it no longer holds work back.
 	return all(
-		dependency in states and states[dependency]["status"] == "approved"
+		dependency in retired
+		or (dependency in states and states[dependency]["status"] == "approved")
 		for dependency in task["depends_on"]
 	)
 
@@ -1026,11 +1028,11 @@ def commit_paths(config, paths, subject, validate=None):
 	return publish_slot(config, validate=validate)
 
 
-def task_summary(task, states):
+def task_summary(task, states, retired=()):
 	return {
 		**task,
 		"ready": (
-			task_ready(task, states)
+			task_ready(task, states, retired)
 			if task["status"] != "split"
 			else False
 		),
@@ -1227,7 +1229,20 @@ def load_splits(root):
 	return result
 
 
-def resolve_split_targets(states, superseded, splits, task_id, visited=None):
+def load_retired(root):
+	# Retired history keeps only task.md: no live, alias or split record.
+	result = set()
+	for path in sorted((root / "tasks").glob("*/*/*/*/task.md")):
+		task_id = "/".join(path.relative_to(root).parts[1:5])
+		if TASK_ID_PATTERN.fullmatch(task_id) and not any(
+			(path.parent / name).is_file()
+			for name in ("state.yaml", "superseded.yaml", "split.yaml")
+		):
+			result.add(task_id)
+	return result
+
+
+def resolve_split_targets(states, superseded, splits, task_id, visited=None, retired=()):
 	visited = [] if visited is None else visited
 	if task_id in visited:
 		raise WorkspaceError(
@@ -1235,6 +1250,8 @@ def resolve_split_targets(states, superseded, splits, task_id, visited=None):
 		)
 	if task_id in states:
 		return [task_id]
+	if task_id in retired:
+		return []
 	if task_id in superseded:
 		return resolve_split_targets(
 			states,
@@ -1242,6 +1259,7 @@ def resolve_split_targets(states, superseded, splits, task_id, visited=None):
 			splits,
 			superseded[task_id]["superseded_by"],
 			visited + [task_id],
+			retired,
 		)
 	split = splits.get(task_id)
 	if split is None:
@@ -1254,6 +1272,7 @@ def resolve_split_targets(states, superseded, splits, task_id, visited=None):
 			splits,
 			target,
 			visited + [task_id],
+			retired,
 		):
 			if resolved not in result:
 				result.append(resolved)
@@ -1279,7 +1298,11 @@ def split_task_summary(root, states, superseded, splits, task_id):
 		"depends_on": split["depends_on"],
 		"claimed_by": None,
 		"split_into": resolve_split_targets(
-			states, superseded, splits, task_id,
+			states,
+			superseded,
+			splits,
+			task_id,
+			retired=load_retired(root),
 		),
 		"implementation_carrier": split["implementation_carrier"],
 		"receipt": split["receipt"],
@@ -1499,7 +1522,8 @@ def command_queue(args):
 			sync_canonical(config)
 	states = load_states(slot)
 	tag = config["checkout_tag"]
-	values = [task_summary(task, states) for task in states.values()]
+	retired = load_retired(slot)
+	values = [task_summary(task, states, retired) for task in states.values()]
 	own_in_progress = sorted(
 		(
 			task for task in values
@@ -1605,7 +1629,11 @@ def command_resolve(args):
 	if not changed_paths(slot) and not unpublished_counts(config)["slot_only"]:
 		sync_canonical(config)
 	states = load_states(slot)
-	task = task_summary(resolve_task(slot, states, args.name), states)
+	task = task_summary(
+		resolve_task(slot, states, args.name),
+		states,
+		load_retired(slot),
+	)
 	active = sorted(
 		value["id"] for value in states.values()
 		if value["claimed_by"] == config["checkout_tag"]
@@ -1657,7 +1685,7 @@ def command_start(args):
 				f"Task has an invalid carried implementation source: {args.task}"
 			)
 		validate_carried_worktree(config, slot, carried_from)
-	if not task_ready(task, states):
+	if not task_ready(task, states, load_retired(slot)):
 		raise WorkspaceError(f"Task has unfinished dependencies: {args.task}")
 	lineage = source_lineage_report(
 		config,
@@ -1772,7 +1800,7 @@ def command_retry(args):
 			f"Task is not blocked work owned by this checkout: {args.task}"
 		)
 	ensure_task_branch(config, slot, task)
-	if not task_ready(task, states):
+	if not task_ready(task, states, load_retired(slot)):
 		raise WorkspaceError(f"Task has unfinished dependencies: {args.task}")
 	lineage = source_lineage_report(
 		config,
@@ -1941,9 +1969,12 @@ def source_lineage_report(config, slot, task_id, extra_requirements=()):
 	if task is None:
 		raise WorkspaceError(f"Task does not exist: {task_id}")
 	superseded = load_superseded(slot)
+	retired = load_retired(slot)
 	required = []
 	unfinished = []
 	for dependency in (*task["depends_on"], *extra_requirements):
+		if dependency in retired:
+			continue
 		resolved = resolve_task_id(states, superseded, dependency)["id"]
 		state = states[resolved]
 		if state["status"] != "approved":
@@ -5865,19 +5896,30 @@ def parse_consolidation_mapping(value):
 	return tuple(parts)
 
 
-def validate_dependency_graph(states):
+def report_graph_problem(problems, message, involved):
+	if problems is None:
+		raise WorkspaceError(message)
+	problems.append((message, set(involved)))
+
+
+def validate_dependency_graph(states, retired=(), problems=None):
 	dependents = {task_id: [] for task_id in states}
 	remaining = {}
 	for task in states.values():
 		missing = [
 			dependency for dependency in task["depends_on"]
-			if dependency not in states
+			if dependency not in states and dependency not in retired
 		]
 		if missing:
-			raise WorkspaceError(
-				f"{task['id']} has missing dependencies: " + ", ".join(missing)
+			report_graph_problem(
+				problems,
+				f"{task['id']} has missing dependencies: " + ", ".join(missing),
+				[task["id"], *missing],
 			)
-		dependencies = set(task["depends_on"])
+		dependencies = {
+			dependency for dependency in task["depends_on"]
+			if dependency in states
+		}
 		remaining[task["id"]] = len(dependencies)
 		for dependency in dependencies:
 			dependents[dependency].append(task["id"])
@@ -5895,58 +5937,124 @@ def validate_dependency_graph(states):
 			task_id for task_id, count in remaining.items()
 			if count
 		)
-		raise WorkspaceError(
-			"Task dependency cycle includes: " + ", ".join(cycle_members)
+		report_graph_problem(
+			problems,
+			"Task dependency cycle includes: " + ", ".join(cycle_members),
+			cycle_members,
 		)
 
 
-def validate_superseded_graph(root, states, superseded):
+def check_superseded_alias(root, states, superseded, splits, retired, task_id, chain):
+	alias = superseded[task_id]
+	if task_id in states:
+		raise WorkspaceError(
+			f"Superseded task still has live state.yaml: {task_id}"
+		)
+	directory = root / "tasks" / task_id
+	if not (directory / "task.md").is_file():
+		raise WorkspaceError(f"Superseded task lost task.md: {task_id}")
+	actual_digest = retained_task_digest(directory)
+	if actual_digest != alias["content_sha256"]:
+		raise WorkspaceError(
+			f"Superseded task retained content changed: {task_id}"
+		)
+	current = task_id
+	while (
+		current not in states
+		and current not in splits
+		and current not in retired
+	):
+		if current in chain:
+			raise WorkspaceError(
+				"Superseded task cycle: " + " -> ".join(chain + [current])
+			)
+		chain.append(current)
+		current_alias = superseded.get(current)
+		if current_alias is None:
+			raise WorkspaceError(
+				f"Superseded task {task_id} targets missing task {current}"
+			)
+		current = current_alias["superseded_by"]
+
+
+def validate_superseded_graph(root, states, superseded, retired=None, problems=None):
 	splits = load_splits(root)
-	for task_id, alias in superseded.items():
-		if task_id in states:
-			raise WorkspaceError(
-				f"Superseded task still has live state.yaml: {task_id}"
+	if retired is None:
+		retired = load_retired(root)
+	for task_id in superseded:
+		chain = []
+		try:
+			check_superseded_alias(
+				root, states, superseded, splits, retired, task_id, chain,
 			)
-		directory = root / "tasks" / task_id
-		if not (directory / "task.md").is_file():
-			raise WorkspaceError(f"Superseded task lost task.md: {task_id}")
-		actual_digest = retained_task_digest(directory)
-		if actual_digest != alias["content_sha256"]:
-			raise WorkspaceError(
-				f"Superseded task retained content changed: {task_id}"
-			)
-		current = task_id
-		visited = []
-		while current not in states and current not in splits:
-			if current in visited:
-				raise WorkspaceError(
-					"Superseded task cycle: " + " -> ".join(visited + [current])
-				)
-			visited.append(current)
-			current_alias = superseded.get(current)
-			if current_alias is None:
-				raise WorkspaceError(
-					f"Superseded task {task_id} targets missing task {current}"
-				)
-			current = current_alias["superseded_by"]
+		except WorkspaceError as error:
+			report_graph_problem(problems, str(error), [task_id, *chain])
 
 
-def validate_split_graph(root, states, superseded, splits):
+def check_split_record(root, states, superseded, splits, retired, task_id):
+	split = splits[task_id]
+	if task_id in states or task_id in superseded:
+		raise WorkspaceError(
+			f"Split task still has live or superseded state: {task_id}"
+		)
+	directory = root / "tasks" / task_id
+	if not (directory / "task.md").is_file():
+		raise WorkspaceError(f"Split task lost task.md: {task_id}")
+	actual_digest = retained_task_digest(directory)
+	if actual_digest != split["content_sha256"]:
+		raise WorkspaceError(f"Split task retained content changed: {task_id}")
+	receipt = root / split["receipt"]
+	if not receipt.is_file():
+		raise WorkspaceError(f"Split task receipt is missing: {receipt}")
+	resolve_split_targets(states, superseded, splits, task_id, retired=retired)
+
+
+def validate_split_graph(root, states, superseded, splits, retired=None, problems=None):
+	if retired is None:
+		retired = load_retired(root)
 	for task_id, split in splits.items():
-		if task_id in states or task_id in superseded:
-			raise WorkspaceError(
-				f"Split task still has live or superseded state: {task_id}"
+		try:
+			check_split_record(root, states, superseded, splits, retired, task_id)
+		except WorkspaceError as error:
+			report_graph_problem(
+				problems, str(error), [task_id, *split["split_into"]],
 			)
-		directory = root / "tasks" / task_id
-		if not (directory / "task.md").is_file():
-			raise WorkspaceError(f"Split task lost task.md: {task_id}")
-		actual_digest = retained_task_digest(directory)
-		if actual_digest != split["content_sha256"]:
-			raise WorkspaceError(f"Split task retained content changed: {task_id}")
-		receipt = root / split["receipt"]
-		if not receipt.is_file():
-			raise WorkspaceError(f"Split task receipt is missing: {receipt}")
-		resolve_split_targets(states, superseded, splits, task_id)
+
+
+def touched_task_ids(root):
+	# None when there is no master to compare with: every problem then blocks.
+	if run_git(
+		root, "rev-parse", "--verify", "--quiet", "master", check=False,
+	).returncode:
+		return None
+	paths = literal_paths(root, "diff", "--name-only", "--no-renames", "master")
+	paths += literal_paths(root, "ls-files", "--others", "--exclude-standard")
+	return {
+		"/".join(parts[1:5])
+		for parts in (path.split("/") for path in paths)
+		if len(parts) > 5 and parts[0] == "tasks"
+	}
+
+
+def validate_queue_graph(root):
+	# A problem blocks only a publication that touches one of its records, so a
+	# record broken on master never stops unrelated work from publishing.
+	states = load_states(root)
+	superseded = load_superseded(root)
+	splits = load_splits(root)
+	retired = load_retired(root)
+	problems = []
+	validate_dependency_graph(states, retired, problems)
+	validate_superseded_graph(root, states, superseded, retired, problems)
+	validate_split_graph(root, states, superseded, splits, retired, problems)
+	if not problems:
+		return
+	touched = touched_task_ids(root)
+	for message, involved in problems:
+		if touched is None or involved & touched:
+			raise WorkspaceError(message)
+	for message, _ in problems:
+		print(f"warning: queue graph problem already on master: {message}", file=sys.stderr)
 
 
 def validate_split_tree(root, source_task, replacements, receipt, carrier):
@@ -5962,9 +6070,7 @@ def validate_split_tree(root, source_task, replacements, receipt, carrier):
 		)
 	if split["receipt"] != receipt or split["implementation_carrier"] != carrier:
 		raise WorkspaceError(f"Split routing metadata changed for {source_task}")
-	validate_dependency_graph(states)
-	validate_superseded_graph(root, states, superseded)
-	validate_split_graph(root, states, superseded, splits)
+	validate_queue_graph(root)
 	receipt_path = root / receipt
 	receipt_text = receipt_path.read_text(encoding="utf-8-sig")
 	for task_id in [source_task, *replacements]:
@@ -6246,9 +6352,7 @@ def validate_consolidation_tree(root, source_task, mappings, receipt):
 			f"Consolidation completion marker must name {source_task} and "
 			f"contain STATUS: {expected_status}"
 		)
-	validate_dependency_graph(states)
-	validate_superseded_graph(root, states, superseded)
-	validate_split_graph(root, states, superseded, splits)
+	validate_queue_graph(root)
 	if not mappings:
 		if receipt is not None:
 			raise WorkspaceError("A no-merge consolidation must not publish a receipt")
@@ -6812,11 +6916,7 @@ def command_route_ensure(args):
 
 def ensure_routing_valid(worktree):
 	ensure_revisions_unclaimed(worktree)
-	states = load_states(worktree)
-	superseded = load_superseded(worktree)
-	validate_dependency_graph(states)
-	validate_superseded_graph(worktree, states, superseded)
-	validate_split_graph(worktree, states, superseded, load_splits(worktree))
+	validate_queue_graph(worktree)
 
 
 def ensure_revisions_unclaimed(worktree):

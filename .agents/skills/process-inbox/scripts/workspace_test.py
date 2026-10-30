@@ -177,6 +177,43 @@ inbox_receipt: receipts/2026/01/10/test.md
 	return directory
 
 
+def write_retired_task(root, task_id):
+	directory = root / "tasks" / task_id
+	directory.mkdir(parents=True)
+	(directory / "task.md").write_text(
+		"# Retired task\n\n## Retired\n\nThe owner dropped it.\n",
+		encoding="utf-8",
+	)
+	return directory
+
+
+def write_split_source(root, task_id, targets):
+	directory = root / "tasks" / task_id
+	directory.mkdir(parents=True)
+	(directory / "task.md").write_text("# Split source\n", encoding="utf-8")
+	receipt = "receipts/2026/07/20/split.md"
+	(root / receipt).parent.mkdir(parents=True, exist_ok=True)
+	(root / receipt).write_text("# Split\n", encoding="utf-8")
+	git(root, "add", "-A")
+	git(root, "commit", "-q", "-m", "Retain the split source")
+	(directory / "split.yaml").write_text(
+		f"""split_into: [{", ".join(targets)}]
+implementation_carrier: null
+receipt: {receipt}
+type: implement
+created: 2026-07-18
+project: null
+depends_on: []
+model: claude-opus-5
+content_sha256: {workspace.retained_task_digest(directory)}
+""",
+		encoding="utf-8",
+	)
+	git(root, "add", "-A")
+	git(root, "commit", "-q", "-m", "Split the source")
+	return directory
+
+
 def git(repo, *args):
 	return subprocess.run(
 		["git", "-C", str(repo), *args],
@@ -830,6 +867,77 @@ content_sha256: {content_digest}
 		with self.assertRaisesRegex(workspace.WorkspaceError, "dependency cycle"):
 			workspace.validate_dependency_graph({TASK_ID: first, other_id: other})
 
+	def test_a_retired_dependency_counts_as_met(self):
+		retired_id = "2026/07/18/retired-task"
+		task = {**task_state("todo", None), "depends_on": [retired_id]}
+		states = {TASK_ID: task}
+
+		self.assertFalse(workspace.task_ready(task, states))
+		self.assertTrue(workspace.task_ready(task, states, {retired_id}))
+		workspace.validate_dependency_graph(states, {retired_id})
+		with self.assertRaisesRegex(workspace.WorkspaceError, "missing dependencies"):
+			workspace.validate_dependency_graph(states)
+
+	def test_a_split_may_name_a_retired_successor(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			git_repo(root)
+			git(root, "symbolic-ref", "HEAD", "refs/heads/master")
+			write_task(root, status="todo", claimed_by=None)
+			retired_id = "2026/07/20/retired-successor"
+			write_retired_task(root, retired_id)
+			source_id = "2026/07/18/split-source"
+			write_split_source(root, source_id, [TASK_ID, retired_id])
+			states = workspace.load_states(root)
+			superseded = workspace.load_superseded(root)
+			splits = workspace.load_splits(root)
+
+			self.assertEqual(
+				workspace.load_retired(root),
+				{retired_id},
+			)
+			self.assertEqual(
+				workspace.resolve_split_targets(
+					states,
+					superseded,
+					splits,
+					source_id,
+					retired={retired_id},
+				),
+				[TASK_ID],
+			)
+			workspace.validate_queue_graph(root)
+
+	def test_a_graph_problem_on_master_blocks_only_its_own_records(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			git_repo(root)
+			git(root, "symbolic-ref", "HEAD", "refs/heads/master")
+			write_task(root, status="todo", claimed_by=None)
+			broken_id = "2026/07/20/broken-dependency"
+			broken = write_project_task(root, broken_id, "null", "todo", "2026-07-20")
+			state = broken / "state.yaml"
+			state.write_text(
+				state.read_text(encoding="utf-8").replace(
+					"depends_on: []", "depends_on: [2026/07/18/never-existed]",
+				),
+				encoding="utf-8",
+			)
+			git(root, "add", "-A")
+			git(root, "commit", "-q", "-m", "Break a dependency on master")
+			git(root, "checkout", "-q", "-b", "routing")
+			task_file = root / "tasks" / TASK_ID / "task.md"
+			task_file.write_text("# Revised unrelated task\n", encoding="utf-8")
+
+			stderr = io.StringIO()
+			with contextlib.redirect_stderr(stderr):
+				workspace.validate_queue_graph(root)
+			self.assertIn("already on master", stderr.getvalue())
+
+			(broken / "task.md").write_text("# Revised broken task\n", encoding="utf-8")
+			with self.assertRaisesRegex(workspace.WorkspaceError, "missing dependencies"):
+				workspace.validate_queue_graph(root)
+
 	def test_queue_inventory_finds_pending_consolidation_markers(self):
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary)
@@ -1157,6 +1265,7 @@ inbox_receipt: {receipt}
 				mappings,
 				receipt,
 			)
+			git(root, "checkout", "-q", "-b", "publication")
 			(root / "tasks" / old_ids[0] / "task.md").write_text(
 				"# Late changed acceptance\n", encoding="utf-8",
 			)

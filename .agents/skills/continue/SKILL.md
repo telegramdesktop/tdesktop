@@ -722,8 +722,9 @@ it needs. Beyond discovered routing it may:
 - rewrite an unclaimed `todo` task of the project whose assumptions the result
   changed, or retire one the result made obsolete by removing its
   `state.yaml` and appending a `## Retired` section that says why, updating
-  its dependents and the project index; never retire a task a split or
-  superseded record names as a successor;
+  its dependents and the project index. A retired task may be named by a
+  split or alias record: it resolves to no successor, and a dependency on it
+  counts as met;
 - add the tasks the result revealed;
 - route around a `Block`: another approach, a smaller task, or an `improve`
   task (an `## Objective` section) for a threshold the code could not meet;
@@ -736,7 +737,8 @@ it needs. Beyond discovered routing it may:
 `route-publish` refuses a revision of a task another checkout started since
 the worker read it, a revision of retired history, and a result that breaks
 the dependency, alias or split graphs; drop that revision and publish the
-rest.
+rest. A graph problem already on master, in records the publication does not
+touch, is printed as a warning and does not block it.
 
 A planner pass interrupted before it published leaves its source result
 without `work/discovered-routed.md`. A planner pass covers the whole project,
