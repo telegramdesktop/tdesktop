@@ -29,8 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor.h"
 #include "editor/photo_editor_common.h"
 #include "editor/scene/scene.h"
-#include "editor/video/video_editor.h"
-#include "editor/video/video_editor_common.h"
 #include "info/channel_statistics/boosts/info_boosts_widget.h"
 #include "info/info_memento.h"
 #include "lang/lang_keys.h"
@@ -53,15 +51,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Media::Stories {
 namespace {
-
-struct StoryVideoSource {
-	QString path;
-	QByteArray content;
-	QSize dimensions;
-	crl::time duration = 0;
-	QImage thumbnail;
-	Editor::VideoModifications initial;
-};
 
 constexpr auto kCanvasSampleSide = 240;
 
@@ -182,42 +171,57 @@ void SetupStoryEditorClose(
 		: tr::lng_intro_next(tr::now);
 }
 
+[[nodiscard]] QImage EmptyStoryCanvas() {
+	auto result = QImage(
+		QSize(Api::kStoryPhotoWidth, Api::kStoryPhotoHeight),
+		QImage::Format_ARGB32_Premultiplied);
+	result.fill(Qt::transparent);
+	return result;
+}
+
+[[nodiscard]] QImage StoryVideoThumbnail(
+		const QString &path,
+		const QByteArray &content,
+		const Storage::PhotoEditorMedia &probed,
+		QSize fallbackSize) {
+	auto thumbnail = probed.image;
+	if (thumbnail.isNull()) {
+		thumbnail = Media::Video::ExtractFrame(
+			path,
+			content,
+			0,
+			QSize(kCanvasSampleSide, kCanvasSampleSide));
+	}
+	if (thumbnail.isNull()) {
+		thumbnail = QImage(
+			fallbackSize,
+			QImage::Format_ARGB32_Premultiplied);
+		thumbnail.fill(Qt::black);
+	}
+	return thumbnail;
+}
+
 [[nodiscard]] Editor::EditorData StoryPhotoEditorData(
 		not_null<Window::SessionController*> controller,
 		const StoryEditorSetup &setup,
 		const QImage &media,
-		const Media::Encode::CanvasBackground &background) {
+		const Media::Encode::CanvasBackground &background,
+		const Editor::StoryVideoObject &videoObject) {
 	auto story = StoryEditorOptions(controller, setup);
 	story.canvasMedia = media;
 	story.canvasBackground = background;
 	story.musicButton = true;
+	story.videoObject = videoObject;
 	return {
 		.confirm = StoryEditorConfirm(setup),
 		.exactSize = QSize(Api::kStoryPhotoWidth, Api::kStoryPhotoHeight),
 		.keepAspectRatio = true,
+		.composeAnimated = true,
+		.composeSound = true,
 		.story = std::move(story),
 	};
 }
 
-[[nodiscard]] Editor::VideoEditorData StoryVideoEditorData(
-		not_null<Window::SessionController*> controller,
-		const StoryEditorSetup &setup,
-		const Media::Encode::CanvasBackground &background) {
-	auto story = StoryEditorOptions(controller, setup);
-	story.musicButton = true;
-	return {
-		.editor = Editor::EditorData{
-			.confirm = StoryEditorConfirm(setup),
-			.story = std::move(story),
-		},
-		.hint = tr::lng_story_cover_hint(tr::now),
-		.exactSize = QSize(Api::kStoryVideoWidth, Api::kStoryVideoHeight),
-		.canvas = background,
-		.maxDuration = Api::kStoryVideoMaxDuration,
-		.allowGif = false,
-		.transcodeAlways = true,
-	};
-}
 
 [[nodiscard]] QImage ComposeStoryPhoto(
 		const QImage &image,
@@ -338,10 +342,13 @@ void OpenStoryPhotoEditor(
 		QImage image,
 		Editor::PhotoModifications initial,
 		const StoryEditorSetup &setup,
+		Editor::StoryVideoObject object,
 		StoryEditorDone done) {
 	const auto parent = controller->widget();
 	const auto show = controller->uiShow();
-	const auto background = Media::Encode::DominantCanvasBackground(image);
+	const auto background = object.empty()
+		? Media::Encode::DominantCanvasBackground(image)
+		: Media::Encode::DominantCanvasBackground(object.thumbnail);
 	const auto photo = std::make_shared<Image>(Media::Encode::FitOnCanvas(
 		image,
 		QSize(Api::kStoryPhotoWidth, Api::kStoryPhotoHeight),
@@ -352,7 +359,7 @@ void OpenStoryPhotoEditor(
 		show,
 		photo,
 		std::move(initial),
-		StoryPhotoEditorData(controller, setup, image, background));
+		StoryPhotoEditorData(controller, setup, image, background, object));
 	const auto raw = editor.get();
 	auto layer = std::make_unique<Editor::LayerWidget>(
 		parent,
@@ -410,129 +417,6 @@ void OpenStoryPhotoEditor(
 	show->showLayer(std::move(layer), Ui::LayerOption::KeepOther);
 }
 
-void OpenStoryVideoEditor(
-		not_null<Window::SessionController*> controller,
-		StoryVideoSource video,
-		const StoryEditorSetup &setup,
-		StoryEditorDone done) {
-	const auto parent = controller->widget();
-	const auto show = controller->uiShow();
-	const auto path = video.path;
-	const auto content = video.content;
-	const auto dimensions = video.dimensions;
-	const auto duration = video.duration;
-	const auto thumbnail = video.thumbnail.isNull()
-		? Media::Video::ExtractFrame(
-			path,
-			content,
-			video.initial.cover,
-			QSize(kCanvasSampleSide, kCanvasSampleSide))
-		: video.thumbnail;
-	const auto data = StoryVideoEditorData(
-		controller,
-		setup,
-		Media::Encode::DominantCanvasBackground(thumbnail));
-	auto editor = base::make_unique_q<Editor::VideoEditor>(
-		parent,
-		Editor::VideoEditorDescriptor{
-			.path = path,
-			.content = content,
-			.dimensions = dimensions,
-			.duration = duration,
-			.data = data,
-			.initial = video.initial,
-		});
-	const auto raw = editor.get();
-	auto layer = std::make_unique<Editor::LayerWidget>(
-		parent,
-		std::move(editor));
-	const auto weak = base::make_weak(layer.get());
-	const auto close = [=] {
-		if (const auto strong = weak.get()) {
-			strong->closeLayer();
-		}
-	};
-	SetupStoryEditorClose(controller, not_null(raw), setup, close, [=] {
-		const auto mods = raw->collect();
-		auto draft = Data::StoryDraft{
-			.id = setup.draftId,
-			.peer = setup.peer,
-			.dimensions = dimensions,
-			.duration = duration,
-			.video = true,
-			.caption = raw->caption(),
-			.period = raw->period(),
-			.edits = {
-				.angle = mods.geometry.angle,
-				.flipped = mods.geometry.flipped,
-				.from = mods.from,
-				.till = mods.till,
-				.cover = mods.cover,
-				.canvasMediaRect = mods.canvasMediaRect,
-			},
-			.thumbnail = DraftThumbnail(Editor::ExtractCoverImage(
-				path,
-				content,
-				mods,
-				dimensions,
-				kDraftThumbnailSide,
-				&data)),
-		};
-		SaveStoryDraft(controller, std::move(draft), {
-			.videoPath = path,
-			.videoContent = content,
-		}, close);
-	});
-	raw->doneRequests(
-	) | rpl::on_next([=](Editor::VideoModifications mods) {
-		auto source = Editor::ComposeVideoSource(path, mods, data, true);
-		source.bytes = path.isEmpty() ? content : QByteArray();
-		const auto audio = raw->audio();
-		if (!audio.empty()) {
-			source.music.push_back(MusicTrackFor(audio));
-		}
-		const auto caption = raw->caption();
-		const auto period = raw->period();
-		const auto changed = !audio.empty() || Editor::VideoEdited(
-			mods,
-			dimensions,
-			duration,
-			true);
-		crl::async([=, ready = crl::guard(controller, [=](
-				QImage &&cover) mutable {
-			if (cover.isNull()) {
-				controller->showToast(tr::lng_bad_video(tr::now));
-				return;
-			}
-			done({
-				.media = Api::SendStoryVideo{
-					std::make_shared<Media::Encode::VideoSource>(source),
-					cover,
-				},
-				.caption = caption,
-				.period = period,
-				.music = audio.document,
-				.mediaChanged = changed,
-			}, close);
-		})]() mutable {
-			auto cover = Editor::ExtractCoverImage(
-				path,
-				content,
-				mods,
-				dimensions,
-				Api::kStoryVideoWidth,
-				&data);
-			crl::on_main([
-				ready = std::move(ready),
-				cover = std::move(cover)
-			]() mutable {
-				ready(std::move(cover));
-			});
-		});
-	}, raw->lifetime());
-	show->showLayer(std::move(layer), Ui::LayerOption::KeepOther);
-}
-
 void EditStoryFile(
 		not_null<Window::SessionController*> controller,
 		Ui::PreparedList &&list,
@@ -554,6 +438,7 @@ void EditStoryFile(
 			std::move(image->data),
 			std::move(image->modifications),
 			setup,
+			{},
 			std::move(done));
 		return;
 	}
@@ -563,17 +448,21 @@ void EditStoryFile(
 		controller->showToast(tr::lng_send_media_invalid_files(tr::now));
 		return;
 	}
-	OpenStoryVideoEditor(
+	OpenStoryPhotoEditor(
 		controller,
-		StoryVideoSource{
+		EmptyStoryCanvas(),
+		{},
+		setup,
+		{
 			.path = file.path,
 			.content = file.content,
-			.dimensions = video->thumbnail.size(),
-			.duration = video->duration,
 			.thumbnail = video->thumbnail,
-			.initial = video->modifications,
+			.duration = video->duration,
+			.hasAudio = video->hasAudio,
+			.till = (video->duration > Api::kStoryVideoMaxDuration)
+				? Api::kStoryVideoMaxDuration
+				: 0,
 		},
-		setup,
 		std::move(done));
 }
 
@@ -784,25 +673,32 @@ void PostStoryDraft(
 				std::move(image),
 				std::move(initial),
 				setup,
+				{},
 				done);
 			return;
 		}
-		auto initial = Editor::VideoModifications();
-		initial.geometry.angle = edits.angle;
-		initial.geometry.flipped = edits.flipped;
-		initial.from = edits.from;
-		initial.till = edits.till;
-		initial.cover = edits.cover;
-		initial.canvasMediaRect = edits.canvasMediaRect;
-		OpenStoryVideoEditor(
+		const auto probed = Storage::ReadPhotoEditorMedia(draft.mediaPath, {});
+		OpenStoryPhotoEditor(
 			controller,
-			StoryVideoSource{
-				.path = draft.mediaPath,
-				.dimensions = draft.dimensions,
-				.duration = draft.duration,
-				.initial = initial,
-			},
+			EmptyStoryCanvas(),
+			{},
 			setup,
+			{
+				.path = draft.mediaPath,
+				.thumbnail = StoryVideoThumbnail(
+					draft.mediaPath,
+					{},
+					probed,
+					draft.dimensions),
+				.duration = (probed.videoDuration
+					? probed.videoDuration
+					: draft.duration),
+				.hasAudio = probed.videoHasAudio,
+				.rotation = float64(edits.angle),
+				.from = edits.from,
+				.till = edits.till,
+				.flipped = edits.flipped,
+			},
 			done);
 	}));
 }
@@ -857,6 +753,7 @@ void EditStory(
 				media->image(Data::PhotoSize::Large)->original(),
 				Editor::PhotoModifications(),
 				setup,
+				{},
 				done);
 		});
 	} else if (const auto document = story->document()) {
@@ -870,15 +767,28 @@ void EditStory(
 		};
 		WaitForStoryMedia(controller, ready, failed, [=] {
 			const auto path = document->filepath();
-			OpenStoryVideoEditor(
+			const auto content = path.isEmpty()
+				? media->bytes()
+				: QByteArray();
+			const auto probed = Storage::ReadPhotoEditorMedia(path, content);
+			OpenStoryPhotoEditor(
 				controller,
-				StoryVideoSource{
-					.path = path,
-					.content = path.isEmpty() ? media->bytes() : QByteArray(),
-					.dimensions = document->dimensions,
-					.duration = document->duration(),
-				},
+				EmptyStoryCanvas(),
+				Editor::PhotoModifications(),
 				setup,
+				{
+					.path = path,
+					.content = content,
+					.thumbnail = StoryVideoThumbnail(
+						path,
+						content,
+						probed,
+						document->dimensions),
+					.duration = (probed.videoDuration
+						? probed.videoDuration
+						: document->duration()),
+					.hasAudio = probed.videoHasAudio,
+				},
 				done);
 		});
 	}

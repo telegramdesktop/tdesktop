@@ -9147,7 +9147,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_story_my_story" = "My Story";
 "lng_story_choose_media" = "Choose photo or video";
 "lng_story_caption_ph" = "Add a caption...";
-"lng_story_cover_hint" = "Choose a frame for the story cover.";
 "lng_story_privacy_header" = "Who can view your story";
 "lng_story_privacy_everyone" = "Everyone";
 "lng_story_privacy_contacts" = "My Contacts";
