@@ -75,7 +75,8 @@ struct WidgetStressArgs {
 // reads the package now and changes nothing until its stages run. The
 // stages: the fixture's gates; the day palette with the default day theme
 // kept over it; the primary window given Qt::WindowStaysOnTopHint on its
-// QWindow and moved wholly onto the primary screen, 64 px inside its
+// QWindow and moved wholly onto the screen with the highest refresh rate
+// (ties: the primary), 64 px inside its
 // available area, at most 1000 logical px tall and as wide as a body one
 // logical px narrower than columnMinimalWidthLeft + columnMinimalWidthMain
 // (plus the filters sidebar when it is shown) needs, so the app shows only

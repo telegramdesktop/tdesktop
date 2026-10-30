@@ -67,17 +67,17 @@ Use something else when:
   kept in the campaign's overlay with the scenario and never committed.
   Without it every measured level is a runner error ("no renderer work was
   recorded"), never an all-null success.
-- **Display.** The runner moves the main window wholly onto the primary
-  screen (`QGuiApplication::primaryScreen()`, whatever its refresh rate),
+- **Display.** The runner moves the main window wholly onto the screen
+  with the highest `QScreen::refreshRate()` (ties: the primary screen),
   its frame placed 64 px inside the screen's available geometry and at most
   1000 logical px tall, out of a maximized or full-screen state if needed;
   the margin and the height are harness constants, not product styles. It
   never changes a display mode: `device.refreshHz` is the rate Qt reports
-  for that screen, and a 30 Hz primary is measured at 30 Hz. Every screen's
+  for that screen; a screen slower than another is never chosen. Every screen's
   name, geometry and refresh rate go into the launch record.
 - **One column.** The width is not a constant: it comes from the column
   styles at runtime. `Window::SessionController::computeColumnLayout()`
-  lays the primary window out in one column when its body
+  lays the main window out in one column when its body
   (`bodyWidget()->width() - filtersWidth()`) is narrower than
   `st::columnMinimalWidthLeft + st::columnMinimalWidthMain`, so the runner
   asks for a `bodyWidget()` one logical px narrower than that, plus
@@ -207,7 +207,7 @@ Every stage name, Check and Note starts `widget stress: `, after
 - the fixture's `capture the baseline and show the window normally`, `keep
   the window exposed`, `open the chat in the legacy HistoryWidget`;
 - `palette switch: widget stress: the day palette`, `keep the default day
-  theme`, `place the window on the primary screen, on top`, `size the
+  theme`, `place the window on the fastest screen, on top`, `size the
   window for the one-column layout` (its gates; it also clears the
   window's text focus, moves the cursor off the window when it is over it,
   sends the list a leave and installs the update filter), `check the console
@@ -297,7 +297,7 @@ observations are below.
 | `clientBuild` | `AppVersionStr`, `Debug` or `Release`, the build's CPU architecture, then `buildNote`. |
 | `framework`, `engine` | The arguments, as given. |
 | `device.model`, `device.os`, `device.ramMb` | The registry's `ProcessorNameString`, `QSysInfo`'s product name with its kernel, `GetPhysicallyInstalledSystemMemory`. |
-| `device.refreshHz`, `device.dpr` | The primary screen's `refreshRate()`, as Qt reports it for the display mode it found, and the placed window's `devicePixelRatio()`, read after the placement settled. |
+| `device.refreshHz`, `device.dpr` | The chosen screen's `refreshRate()`, as Qt reports it for the display mode it found, and the placed window's `devicePixelRatio()`, read after the placement settled. |
 | `device.window` | An extra key (the schema allows them): `width` and `height`, the placed top-level `QWidget`'s logical size; `layout`, the session controller's column layout (`one-column` for an accepted launch); `filtersSidebar`, whether the chat filters sidebar takes its width. `null` when never read. Part of `device`, so the merge refuses a launch whose window differs from the file's. |
 | `pass` | `measure` or `production`. |
 | `config.requested` | Measure: `compat` and `CLIENTS.md`'s table (`cpuLimitMs` 500, `cpuQuotaMs` 10000, `cpuQuotaWindowMs` 1000, `mainThreadQuotaMs` 10000, `maxTimers` 256, `memoryLimitBytes` 67108864, `features` `["webAnimations"]`); production: `strict`. Both: `width`, `theme` `light`, `warmupMs`, `measureMs`. |
@@ -367,7 +367,7 @@ and covering readings, `samples`, `sampleEveryMs`, `sampleCostMs`,
 - `STRESS_LAUNCH: {...}` once: pass, loads, selected levels, entries,
   `merged`, the written file, its size and the refusal.
 - Checks: the package; each `fixture gate:` (the default day theme, `the
-  window is wholly on the primary screen`, `only the chat is shown, in the
+  window is wholly on the screen with the highest refresh rate`, `only the chat is shown, in the
   one-column layout`, `the window stays on top`, the console and exposure,
   `nothing else updates the window while idle`); per level `[<id>] one
   options call, one host and one tap generation`, `[<id>] the entry has no
@@ -405,7 +405,7 @@ launch file with "the launch ended before its publish stage". The palette
 helper's own release follows it.
 
 Lasting effects, all in the portable account the launch runs in: the window
-keeps its placement on the primary screen, its one-column width and its
+keeps its placement on the chosen screen, its one-column width and its
 normal state (Telegram saves its geometry); the palette switch persists
 what `test_palette.h` describes; a changed day theme is kept again but a
 replaced custom wallpaper is not; the cursor is moved. Each launch writes
@@ -429,7 +429,7 @@ load, a query or canvas load, a production cap-crossing load) with
 `_SELF_CHECK`, smoke durations and the renderer overlay, whose files
 validate against `run.schema.json`, whose entries show one host per level,
 nonempty renderer work for a changing widget, unscaled applied options,
-the primary screen's refresh rate and the one-column `device.window`, whose
+the chosen screen's refresh rate and the one-column `device.window`, whose
 layout capture shows only the chat on top, and whose card crops, taken
 outside timed windows, show the whole light card on screen; and a
 deliberately covered or moved window refused before any timed run.

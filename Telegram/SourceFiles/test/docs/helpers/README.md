@@ -60,7 +60,7 @@ should call.
 | [test_widget_attacks](test_widget_attacks.md) | API | Run widget-sandbox's attack corpus through the chat list with tapped ops, one click each and loopback network controls |
 | [test_widget_bot](test_widget_bot.md) | API | Answer an armed widget message's bot requests from a table at the runtime's request seam, with a record per message |
 | [test_widget_conformance](test_widget_conformance.md) | API | Run widget-sandbox's conformance sets through the chat list with real input, 2x stage crops and requested whole-card pictures, into the run file `report.mjs` reads |
-| [test_widget_stress](test_widget_stress.md) | API | Run widget-sandbox's stress kit through the chat list, one widget alive at a time in a one-column window on the primary screen, with frame, renderer, host and widget readings per level, into the run file of one pass that `report.mjs` reads |
+| [test_widget_stress](test_widget_stress.md) | API | Run widget-sandbox's stress kit through the chat list, one widget alive at a time in a one-column window on the fastest screen, with frame, renderer, host and widget readings per level, into the run file of one pass that `report.mjs` reads |
 | [test_widget_fixture](test_widget_fixture.md) | Internal dependency | Shared live-chat fixture of the widget stage packs: gates, local widget messages with their media fields, cards, runtime log, controls and release |
 | [test_messages](test_messages.md) | API | Observe matching sent server messages |
 | [test_history_fixtures](test_history_fixtures.md) | API | Lifetime-owned history service-message fixtures |

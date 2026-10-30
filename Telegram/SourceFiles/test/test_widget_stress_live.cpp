@@ -126,9 +126,9 @@ constexpr auto kMaxZOrderWalk = 4096;
 
 // The live runner's own observers, carried by every run file it writes.
 constexpr auto kPlacementNote = "window: before the first level of each "
-	"launch the main window is put wholly on the primary screen (its "
-	"display mode untouched; device.refreshHz is the rate Qt reports for "
-	"it), 64 px inside its available area and at most 1000 logical px tall, "
+	"launch the main window is put wholly on the screen with the highest "
+	"refresh rate, ties to the primary (its display mode untouched; "
+	"device.refreshHz is the rate Qt reports for it), 64 px inside its available area and at most 1000 logical px tall, "
 	"with a body one logical px narrower than columnMinimalWidthLeft + "
 	"columnMinimalWidthMain (plus the chat filters sidebar when it is "
 	"shown), so the app uses its one-column layout and shows only the "
@@ -1024,8 +1024,8 @@ void MoveWindow(LiveState &state, const QString &key) {
 			+ target.error);
 		Check(
 			false,
-			Prefixed(u"fixture gate: the window is wholly on the primary "
-				u"screen"_q),
+			Prefixed(u"fixture gate: the window is wholly on the screen "
+				u"with the highest refresh rate"_q),
 			target.error);
 		return;
 	} else if (moved) {
@@ -1033,14 +1033,26 @@ void MoveWindow(LiveState &state, const QString &key) {
 	}
 }
 
-// D7: the primary screen, whatever its refresh rate; out of a maximized
-// or full-screen state, and on top before the move.
+[[nodiscard]] QScreen *FastestScreen() {
+	const auto primary = QGuiApplication::primaryScreen();
+	auto result = primary;
+	for (const auto screen : QGuiApplication::screens()) {
+		if (!result || screen->refreshRate() > result->refreshRate()) {
+			result = screen;
+		}
+	}
+	return result;
+}
+
+// D4/D7: the screen with the highest refresh rate (ties: the primary), its
+// display mode untouched; out of a maximized or full-screen state, and on
+// top before the move.
 void PlaceWindow(LiveState &state) {
 	state.waitStarted = state.stableSince = crl::now();
 	state.sample = QString();
 	const auto list = WidgetFixtureList(*state.fixture);
 	const auto window = list ? list->window() : nullptr;
-	const auto screen = QGuiApplication::primaryScreen();
+	const auto screen = FastestScreen();
 	state.window = window;
 	state.screen = screen;
 	if (!window || !screen) {
@@ -1088,7 +1100,7 @@ void ResizeWindow(LiveState &state) {
 		|| (now - state.waitStarted >= kPlaceBound);
 }
 
-// Three gates: the frame wholly on the primary screen, only the chat in
+// Three gates: the frame wholly on the fastest screen, only the chat in
 // the one-column layout, and the window on top. Then the launch's screen,
 // scales and window are read, the update filter installed and the focus
 // and the cursor cleared.
@@ -1131,8 +1143,8 @@ void CheckPlacement(LiveState &state) {
 		: u"the window is gone"_q;
 	Check(
 		placed,
-		Prefixed(u"fixture gate: the window is wholly on the primary "
-			u"screen"_q),
+		Prefixed(u"fixture gate: the window is wholly on the screen "
+			u"with the highest refresh rate"_q),
 		details);
 	Note(Prefixed(u"window surface: "_q + read.surface));
 	const auto onlyChat = OnlyChatShown(layout);
@@ -2267,7 +2279,7 @@ void AppendSetup(
 		.timeout = kThemeBound + kDefaultStageTimeout,
 	});
 	runner->add({
-		.name = Prefixed(u"place the window on the primary screen, on "
+		.name = Prefixed(u"place the window on the fastest screen, on "
 			u"top"_q),
 		.run = [=] {
 			PlaceWindow(*state);
