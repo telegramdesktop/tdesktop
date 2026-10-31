@@ -61,11 +61,8 @@ namespace {
 }
 
 [[nodiscard]] bool WalletUsable(not_null<Main::Session*> session) {
-	auto &wallet = session->wallet();
-	return !session->supportMode()
-		&& session->appConfig().walletAvailable()
-		&& (wallet.presenceCurrent() != Presence::Unavailable)
-		&& !wallet.userAddresses().unavailable();
+	return Available(session)
+		&& !session->wallet().userAddresses().unavailable();
 }
 
 } // namespace
@@ -223,6 +220,21 @@ bool CanOfferSendMoney(not_null<UserData*> user) {
 	return WalletUsable(session)
 		&& session->wallet().userAddresses().recipientError(
 			peerToUser(user->id)).isEmpty();
+}
+
+bool Available(not_null<Main::Session*> session) {
+	return !session->supportMode()
+		&& session->appConfig().walletAvailable()
+		&& (session->wallet().presenceCurrent() != Presence::Unavailable);
+}
+
+rpl::producer<bool> AvailableValue(not_null<Main::Session*> session) {
+	return rpl::merge(
+		session->appConfig().value(),
+		session->wallet().stateKnownValue() | rpl::to_empty
+	) | rpl::map([=] {
+		return Available(session);
+	}) | rpl::distinct_until_changed();
 }
 
 void OpenSendMoney(

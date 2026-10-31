@@ -393,11 +393,21 @@ struct TransferReceipt {
 struct TonConnectSendResult {
 	QString signedBoc;
 	SendError error = SendError::None;
+	QByteArray messageHash;
 };
 
 struct TonConnectSendLink {
 	std::string operationId;
 	Fn<bool(const QString &signedBoc)> handoff;
+};
+
+struct TonConnectSignature {
+	QByteArray body;
+	QByteArray signature;
+	QByteArray publicKey;
+	QString address;
+	QByteArray stateInit;
+	TimeId timestamp = 0;
 };
 
 enum class TonConnectSendFate : uchar {
@@ -738,13 +748,14 @@ public:
 		TonConnectResponse response,
 		Fn<void(QByteArray)> done,
 		Fn<void()> fail);
+	// An empty key (no dApp session) names the wallet; null data signs nothing.
 	void signTonConnectData(
 		KeyAuthorization auth,
 		TonConnectKey key,
 		QString requestId,
 		std::shared_ptr<const TonConnectSignData> data,
 		QString domain,
-		Fn<void(QByteArray)> done,
+		Fn<void(TonConnectSignature)> done,
 		Fn<void(TonConnectKeyError)> fail);
 	[[nodiscard]] bool rotationOffered();
 	void quoteRotationFee(KeyAuthorization auth, Fn<void(FeeResult)> done);

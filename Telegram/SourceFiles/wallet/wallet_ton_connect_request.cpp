@@ -379,7 +379,7 @@ void TonConnectRequests::edited(not_null<HistoryItem*> item) {
 }
 
 void TonConnectRequests::showNext() {
-	if (_stopped || _active) {
+	if (_stopped || _active || _held) {
 		return;
 	}
 	const auto now = base::unixtime::now();
@@ -458,10 +458,12 @@ void TonConnectRequests::opened(
 	if (i != end(_waiting)) {
 		_waiting.erase(i);
 	}
-	if (_active) {
+	if (_active || _held) {
 		entry.order = 0;
 		_waiting.insert(begin(_waiting), std::move(entry));
-		_active->activate();
+		if (_active) {
+			_active->activate();
+		}
 		return;
 	}
 	start(
@@ -881,6 +883,21 @@ void TonConnectRequests::stop() {
 	_active = nullptr;
 	_silent.clear();
 	_lifetime.destroy();
+}
+
+bool TonConnectRequests::showing() const {
+	return (_held > 0) || (_active && _active->_box);
+}
+
+void TonConnectRequests::hold(rpl::lifetime &lifetime) {
+	++_held;
+	lifetime.add([weak = base::make_weak(this)] {
+		if (const auto strong = weak.get()) {
+			if (!--strong->_held) {
+				crl::on_main(strong, [=] { strong->showNext(); });
+			}
+		}
+	});
 }
 
 TonConnectRequests::Flow::Flow(
@@ -1605,9 +1622,9 @@ void TonConnectRequests::Flow::sign() {
 		_request.id,
 		_request.signData,
 		domain,
-		crl::guard(this, [=](QByteArray body) {
+		crl::guard(this, [=](TonConnectSignature result) {
 			if (!stopped()) {
-				_response = std::move(body);
+				_response = std::move(result.body);
 				registerKey();
 			}
 		}),

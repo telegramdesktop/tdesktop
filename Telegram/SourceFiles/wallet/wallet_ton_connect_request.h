@@ -42,6 +42,9 @@ public:
 		const QString &dappClientId);
 	void stop();
 
+	[[nodiscard]] bool showing() const;
+	void hold(rpl::lifetime &lifetime);
+
 private:
 	class Flow;
 	enum class TonConnectRecovery : uchar {
@@ -111,6 +114,7 @@ private:
 	bool _recoveryPolling = false;
 	mtpRequestId _pendingRequestId = 0;
 	uint64 _order = 0;
+	int _held = 0;
 	bool _stopped = false;
 	rpl::lifetime _lifetime;
 

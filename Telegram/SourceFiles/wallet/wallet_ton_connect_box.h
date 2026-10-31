@@ -19,6 +19,7 @@ class SessionShow;
 } // namespace Main
 
 namespace Ui {
+class DynamicImage;
 class GenericBox;
 class RoundButton;
 class VerticalLayout;
@@ -61,6 +62,7 @@ struct TonConnectHeaderState {
 	QString title;
 	QString domain;
 	WebFileLocation icon;
+	std::shared_ptr<Ui::DynamicImage> userpic;
 	bool loading = false;
 };
 
@@ -77,7 +79,8 @@ struct TonConnectButtons {
 [[nodiscard]] TonConnectButtons SetTonConnectButtons(
 	not_null<Ui::GenericBox*> box,
 	rpl::producer<QString> secondary,
-	rpl::producer<QString> primary);
+	rpl::producer<QString> primary,
+	Fn<void()> close = nullptr);
 
 void TonConnectBox(not_null<Ui::GenericBox*> box, TonConnectBoxArgs args);
 

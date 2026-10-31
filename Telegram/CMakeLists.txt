@@ -2469,6 +2469,8 @@ PRIVATE
     wallet/wallet_stream.h
     wallet/wallet_ton_connect.cpp
     wallet/wallet_ton_connect.h
+    wallet/wallet_ton_connect_bot.cpp
+    wallet/wallet_ton_connect_bot.h
     wallet/wallet_ton_connect_box.cpp
     wallet/wallet_ton_connect_box.h
     wallet/wallet_ton_connect_claims.cpp
