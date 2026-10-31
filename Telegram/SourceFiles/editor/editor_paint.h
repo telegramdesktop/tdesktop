@@ -57,6 +57,8 @@ public:
 
 	[[nodiscard]] std::shared_ptr<Scene> saveScene() const;
 	[[nodiscard]] bool hasItems() const;
+	void resetSceneBaseline();
+	[[nodiscard]] bool sceneChanged() const;
 	void restoreScene();
 
 	void applyTransform(
@@ -219,6 +221,7 @@ private:
 
 	rpl::variable<bool> _hasUndo = true;
 	rpl::variable<bool> _hasRedo = true;
+	uint64 _sceneBaseline = 0;
 	rpl::variable<bool> _textEditing = false;
 	base::Timer _textBakeTimer;
 

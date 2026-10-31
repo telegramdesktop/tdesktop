@@ -132,4 +132,6 @@ struct SceneDraftFiles {
 	const QJsonArray &items,
 	Fn<QString(int index)> file);
 
+[[nodiscard]] uint64 SceneFingerprint(not_null<const Scene*> scene);
+
 } // namespace Editor

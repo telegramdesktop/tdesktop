@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/core_types.h"
 #include "data/data_document.h"
 #include "editor/editor_message_source.h"
+#include "editor/photo_editor_common.h"
 #include "editor/scene/scene.h"
 #include "editor/scene/scene_item_image.h"
 #include "editor/scene/scene_item_line.h"
@@ -23,6 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_item_video.h"
 #include "editor/scene/scene_item_weather.h"
 #include "history/history_item.h"
+
+#include <QtCore/QCryptographicHash>
 
 #include <QtCore/QJsonArray>
 #include <QtCore/QJsonObject>
@@ -532,6 +535,215 @@ SceneItems ParseSceneItems(
 		}
 	}
 	return result;
+}
+
+namespace {
+
+void FeedItemFingerprint(
+		QCryptographicHash &hash,
+		quint32 type,
+		const ItemBase::Placement &placement) {
+	const auto feed = [&](const void *data, qsizetype size) {
+		hash.addData(QByteArrayView(static_cast<const char*>(data), size));
+	};
+	feed(&type, sizeof(type));
+	feed(&placement.position, sizeof(placement.position));
+	feed(&placement.rotation, sizeof(placement.rotation));
+	feed(&placement.scale, sizeof(placement.scale));
+	feed(&placement.size, sizeof(placement.size));
+	feed(&placement.aspectRatio, sizeof(placement.aspectRatio));
+	feed(&placement.zValue, sizeof(placement.zValue));
+	const auto flipped = placement.flipped ? quint8(1) : quint8(0);
+	feed(&flipped, sizeof(flipped));
+}
+
+void FeedFingerprintImage(
+		QCryptographicHash &hash,
+		const QPixmap &pixmap) {
+	const auto image = pixmap.toImage();
+	if (image.isNull()) {
+		return;
+	}
+	const auto bytes = QByteArrayView(
+		reinterpret_cast<const char*>(image.constBits()),
+		image.sizeInBytes());
+	hash.addData(bytes);
+}
+
+} // namespace
+
+uint64 SceneFingerprint(not_null<const Scene*> scene) {
+	auto hash = QCryptographicHash(QCryptographicHash::Md5);
+	for (const auto &item : scene->items(Qt::AscendingOrder)) {
+		if (!item->isNormalStatus()) {
+			continue;
+		}
+		const auto base = static_cast<ItemBase*>(item.get());
+		FeedItemFingerprint(hash, quint32(item->type()), base->placement());
+		if (item->type() == ItemSticker::Type) {
+			const auto sticker = static_cast<ItemSticker*>(item.get());
+			const auto id = quint64(sticker->sticker()->id);
+			hash.addData(QByteArrayView(
+				reinterpret_cast<const char*>(&id),
+				sizeof(id)));
+		} else if (item->type() == ItemText::Type) {
+			const auto text = static_cast<ItemText*>(item.get());
+			hash.addData(text->text().toUtf8());
+			const auto color = text->color().rgba();
+			hash.addData(QByteArrayView(
+				reinterpret_cast<const char*>(&color),
+				sizeof(color)));
+			const auto fontSize = text->fontSize();
+			hash.addData(QByteArrayView(
+				reinterpret_cast<const char*>(&fontSize),
+				sizeof(fontSize)));
+			const auto meta = std::array<quint8, 3>{
+				quint8(text->textStyle()),
+				quint8(text->typeface()),
+				quint8(text->alignment()),
+			};
+			hash.addData(QByteArrayView(meta.data(), meta.size()));
+		} else if (item->type() == ItemShape::Type) {
+			const auto shape = static_cast<ItemShape*>(item.get());
+			const auto color = shape->color().rgba();
+			hash.addData(QByteArrayView(
+				reinterpret_cast<const char*>(&color),
+				sizeof(color)));
+			const auto meta = std::array<quint8, 2>{
+				quint8(shape->shapeType()),
+				quint8(shape->fill() ? 1 : 0),
+			};
+			hash.addData(QByteArrayView(meta.data(), meta.size()));
+			const auto stroke = shape->strokeWidth();
+			hash.addData(QByteArrayView(
+				reinterpret_cast<const char*>(&stroke),
+				sizeof(stroke)));
+			const auto bend = shape->bend();
+			hash.addData(QByteArrayView(
+				reinterpret_cast<const char*>(&bend),
+				sizeof(bend)));
+		} else if (item->type() == ItemImage::Type) {
+			FeedFingerprintImage(
+				hash,
+				static_cast<ItemImage*>(item.get())->pixmap());
+		} else if (item->type() == ItemLine::Type) {
+			FeedFingerprintImage(
+				hash,
+				static_cast<ItemLine*>(item.get())->pixmap());
+		} else if (item->type() == ItemMessage::Type) {
+			const auto message = static_cast<ItemMessage*>(item.get());
+			const auto history = message->source()->item();
+			if (history) {
+				const auto fullId = history->fullId();
+				const auto peer = quint64(fullId.peer.value);
+				const auto msg = quint64(fullId.msg.bare);
+				hash.addData(QByteArrayView(
+					reinterpret_cast<const char*>(&peer),
+					sizeof(peer)));
+				hash.addData(QByteArrayView(
+					reinterpret_cast<const char*>(&msg),
+					sizeof(msg)));
+			}
+			const auto dark = message->dark();
+			const auto darkState = dark ? quint8(*dark ? 2 : 1) : quint8(0);
+			hash.addData(QByteArrayView(&darkState, sizeof(darkState)));
+			if (const auto clip = message->videoClip()) {
+				const auto trim = clip->trim();
+				const auto volume = clip->volume();
+				hash.addData(QByteArrayView(
+					reinterpret_cast<const char*>(&trim.from),
+					sizeof(trim.from)));
+				hash.addData(QByteArrayView(
+					reinterpret_cast<const char*>(&trim.till),
+					sizeof(trim.till)));
+				hash.addData(QByteArrayView(
+					reinterpret_cast<const char*>(&volume),
+					sizeof(volume)));
+			}
+		} else if (item->type() == ItemVideo::Type) {
+			const auto video = static_cast<ItemVideo*>(item.get());
+			const auto clip = video->videoClip();
+			if (!clip) {
+				continue;
+			}
+			const auto trim = clip->trim();
+			const auto volume = clip->volume();
+			const auto round = clip->source()->round ? quint8(1) : quint8(0);
+			const auto duration = crl::time(clip->duration());
+			hash.addData(QByteArrayView(
+				reinterpret_cast<const char*>(&trim.from),
+				sizeof(trim.from)));
+			hash.addData(QByteArrayView(
+				reinterpret_cast<const char*>(&trim.till),
+				sizeof(trim.till)));
+			hash.addData(QByteArrayView(
+				reinterpret_cast<const char*>(&volume),
+				sizeof(volume)));
+			hash.addData(QByteArrayView(
+				reinterpret_cast<const char*>(&duration),
+				sizeof(duration)));
+			hash.addData(QByteArrayView(&round, sizeof(round)));
+		} else if (item->type() == ItemLink::Type) {
+			const auto link = static_cast<ItemLink*>(item.get());
+			hash.addData(link->link().url.toUtf8());
+			hash.addData(QString::number(int(link->style())).toUtf8());
+			hash.addData(QString::number(link->link().dark).toUtf8());
+		} else if (item->type() == ItemReaction::Type) {
+			const auto reaction = static_cast<ItemReaction*>(item.get());
+			const auto &id = reaction->reaction();
+			hash.addData(id.emoji().toUtf8());
+			const auto custom = quint64(id.custom());
+			hash.addData(QByteArrayView(
+				reinterpret_cast<const char*>(&custom),
+				sizeof(custom)));
+			const auto dark = reaction->dark() ? quint8(1) : quint8(0);
+			hash.addData(QByteArrayView(&dark, sizeof(dark)));
+		} else if (item->type() == ItemLocation::Type) {
+			const auto location = static_cast<ItemLocation*>(item.get());
+			const auto &data = location->location();
+			hash.addData(QString::number(data.lat).toUtf8());
+			hash.addData(QString::number(data.lon).toUtf8());
+			hash.addData(data.title.toUtf8());
+			hash.addData(data.address.toUtf8());
+			hash.addData(QString::number(int(location->style())).toUtf8());
+		} else if (item->type() == ItemWeather::Type) {
+			const auto weather = static_cast<ItemWeather*>(item.get());
+			const auto &data = weather->weather();
+			hash.addData(data.emoji.toUtf8());
+			const auto celsius = data.celsius;
+			hash.addData(QByteArrayView(
+				reinterpret_cast<const char*>(&celsius),
+				sizeof(celsius)));
+			const auto color = data.color.rgba();
+			hash.addData(QByteArrayView(
+				reinterpret_cast<const char*>(&color),
+				sizeof(color)));
+		}
+	}
+	if (const auto audio = scene->audio()) {
+		hash.addData(audio->path.toUtf8());
+		hash.addData(audio->title.toUtf8());
+		hash.addData(audio->performer.toUtf8());
+		const auto numbers = std::array<qint64, 4>{
+			qint64(audio->duration),
+			qint64(audio->from),
+			qint64(audio->till),
+			qint64(audio->content.size()),
+		};
+		hash.addData(QByteArrayView(
+			reinterpret_cast<const char*>(numbers.data()),
+			sizeof(numbers)));
+		const auto volume = audio->volume;
+		hash.addData(QByteArrayView(
+			reinterpret_cast<const char*>(&volume),
+			sizeof(volume)));
+	}
+	const auto audioSelected = scene->audioSelected()
+		? quint8(1)
+		: quint8(0);
+	hash.addData(QByteArrayView(&audioSelected, sizeof(audioSelected)));
+	const auto result = hash.result();
+	return *reinterpret_cast<const uint64*>(result.constData());
 }
 
 } // namespace Editor

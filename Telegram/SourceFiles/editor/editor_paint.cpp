@@ -585,6 +585,14 @@ bool Paint::hasItems() const {
 	return !_scene->items().empty();
 }
 
+void Paint::resetSceneBaseline() {
+	_sceneBaseline = SceneFingerprint(_scene.get());
+}
+
+bool Paint::sceneChanged() const {
+	return SceneFingerprint(_scene.get()) != _sceneBaseline;
+}
+
 void Paint::restoreScene() {
 	_scene->restore(SaveState::Save);
 }

@@ -137,6 +137,7 @@ PhotoEditorContent::PhotoEditorContent(
 			data.story->storyAudioSelected);
 		_paint->keepResult();
 	}
+	_paint->resetSceneBaseline();
 	_paint->setCanvasBackground(_background);
 	_paint->setCropRect(QRectF(_crop->cropRect()));
 	_layoutAnimation.init([=](crl::time now) {
@@ -369,6 +370,7 @@ void PhotoEditorContent::applyLayout(QRectF imageRect) {
 		auto pending = base::take(_pendingVideo);
 		_paint->addStoryVideoObject(std::move(*pending));
 		_paint->keepResult();
+		_paint->resetSceneBaseline();
 		_selectVideoInPaint = true;
 	}
 
@@ -456,7 +458,7 @@ bool PhotoEditorContent::canvasMoved() const {
 }
 
 bool PhotoEditorContent::edited() const {
-	return canvasMoved() || _paint->hasItems();
+	return canvasMoved() || _paint->sceneChanged();
 }
 
 void PhotoEditorContent::restoreCanvasPlacement(QRect rect) {
