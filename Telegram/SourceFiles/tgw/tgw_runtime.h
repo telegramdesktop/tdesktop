@@ -16,8 +16,13 @@ namespace HistoryView {
 class Element;
 } // namespace HistoryView
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace twidget {
 class SandboxResources;
+struct WalletCall;
 struct WidgetData;
 class WidgetHost;
 struct WidgetRequestOutcome;
@@ -134,6 +139,7 @@ private:
 		bool last,
 		QString text);
 	static void ThemeDone(const std::shared_ptr<Host> &host);
+	static void WalletAvailabilityChanged(not_null<Main::Session*> session);
 	[[nodiscard]] static Runtime *FindVictim();
 
 	[[nodiscard]] bool currentContent() const;
@@ -173,6 +179,11 @@ private:
 	void botRequested(
 		not_null<RendererCore*> renderer,
 		const std::string &data,
+		bool wallet,
+		const twidget::WalletCall *call,
+		Fn<void(const twidget::WidgetRequestOutcome &outcome)> respond);
+	void walletCalled(
+		const twidget::WalletCall &call,
 		Fn<void(const twidget::WidgetRequestOutcome &outcome)> respond);
 	void copyRequested(
 		not_null<RendererCore*> renderer,

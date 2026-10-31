@@ -532,6 +532,16 @@ RendererCore::RequestHandler RendererCore::hostRequestHandler() const {
 		link->postBotRequest({
 			.data = request.data,
 			.respond = std::move(respond),
+			.wallet = request.wallet,
+		});
+	};
+}
+
+RendererCore::WalletHandler RendererCore::hostWalletHandler() const {
+	return [link = _link](const twidget::WalletCall &call, Respond respond) {
+		link->postBotRequest({
+			.respond = std::move(respond),
+			.call = std::make_shared<const twidget::WalletCall>(call),
 		});
 	};
 }

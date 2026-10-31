@@ -30,10 +30,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_state.h"
 #include "tgw/tgw_storage.h"
 #include "tgw/tgw_theme.h"
+#include "tgw/tgw_wallet.h"
 #include "twidget/sdk_policy.h"
 #include "twidget/widget_host.h"
 #include "TwidgetCore/src/renderer.h"
 #include "ui/style/style_core_scale.h"
+#include "wallet/wallet_panel.h"
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #include <QtCore/QStringDecoder>
@@ -115,6 +117,7 @@ struct Job {
 	twidget::RendererFactory factory;
 	Fn<void(const twidget::WidgetAction &)> action;
 	RendererCore::RequestHandler request;
+	RendererCore::WalletHandler wallet;
 	RendererCore::CopyHandler copy;
 	RendererCore::WatchHandler watch;
 	Fn<void(
@@ -377,6 +380,7 @@ void ApplyTheme(
 		.viewer = (context.flags.canQuery
 			? std::make_optional(HostViewer(self))
 			: std::nullopt),
+		.wallet = context.wallet,
 	};
 }
 
@@ -590,6 +594,7 @@ void AppendTail(
 			HostDeleter{ std::move(job.slot) });
 		host->onAction = std::move(job.action);
 		host->onRequest = std::move(job.request);
+		host->onWallet = std::move(job.wallet);
 		host->onCopyText = std::move(job.copy);
 		host->onWatchPublicData = std::move(job.watch);
 		host->onStorageCommit = std::move(job.storage);
@@ -1001,6 +1006,11 @@ std::shared_ptr<MessageMemory> Runtime::RememberMessage(
 				i->second.remove(removed);
 			}
 		}, session->lifetime());
+		Wallet::AvailableValue(
+			session
+		) | rpl::skip(1) | rpl::on_next([=](bool) {
+			WalletAvailabilityChanged(session);
+		}, session->lifetime());
 		session->lifetime().add([=] {
 			Runtimes().sessions.remove(session);
 		});
@@ -1022,6 +1032,20 @@ std::shared_ptr<MessageMemory> Runtime::RememberMessage(
 	}
 	RememberHtml(*memory, html);
 	return memory;
+}
+
+void Runtime::WalletAvailabilityChanged(not_null<Main::Session*> session) {
+	auto items = base::flat_set<not_null<HistoryItem*>>();
+	for (const auto &runtime : Runtimes().list) {
+		const auto item = runtime->_item;
+		if (runtime->_context.flags.canQuery
+			&& (&item->history()->session() == session)) {
+			items.emplace(item);
+		}
+	}
+	for (const auto &item : items) {
+		item->history()->owner().requestItemViewRefresh(item);
+	}
 }
 
 void Runtime::PostCheck() {
@@ -1344,6 +1368,7 @@ void Runtime::construct(
 			_live->hostFactory()),
 		.action = _live->hostActionHandler(),
 		.request = _live->hostRequestHandler(),
+		.wallet = _live->hostWalletHandler(),
 		.copy = _live->hostCopyHandler(),
 		.watch = _live->hostWatchHandler(),
 		.storage = std::move(storage.commit),
@@ -1512,7 +1537,12 @@ void Runtime::subscribeLive() {
 
 	renderer->botRequests(
 	) | rpl::on_next([=](const RendererCore::BotRequest &request) {
-		botRequested(renderer, request.data, request.respond);
+		botRequested(
+			renderer,
+			request.data,
+			request.wallet,
+			request.call.get(),
+			request.respond);
 	}, _liveLifetime);
 
 	renderer->copyRequests(
@@ -1596,18 +1626,40 @@ void Runtime::linkRequested(
 void Runtime::botRequested(
 		not_null<RendererCore*> renderer,
 		const std::string &data,
+		bool wallet,
+		const twidget::WalletCall *call,
 		Fn<void(const twidget::WidgetRequestOutcome &outcome)> respond) {
 	if (_state != State::Live
 		|| renderer.get() != _live.get()
 		|| !renderer->attached()) {
 		respond({ .failure = twidget::WidgetRequestFailure::Failed });
 		return;
-	}
-	// conformance runs play their bot here: the bridge refuses local messages
-	if (Test::PlayWidgetBot(_item->globalId(), data, respond)) {
+	} else if (call) {
+		walletCalled(*call, std::move(respond));
 		return;
 	}
-	_bridge->request(data, std::move(respond));
+	// conformance runs play their bot here: the bridge refuses local messages
+	if (Test::PlayWidgetBot(_item->globalId(), data, respond, wallet)) {
+		return;
+	}
+	_bridge->request(data, wallet, std::move(respond));
+}
+
+void Runtime::walletCalled(
+		const twidget::WalletCall &call,
+		Fn<void(const twidget::WidgetRequestOutcome &outcome)> respond) {
+	const auto window = _window.data();
+	const auto refusal = !queryVisible()
+		? u"Wallet call refused, the widget is not visible."_q
+		: !window
+		? u"Wallet call refused, the widget has no window."_q
+		: QString();
+	if (!refusal.isEmpty()) {
+		addNote(refusal);
+		respond({ .failure = twidget::WidgetRequestFailure::Failed });
+		return;
+	}
+	RunWalletCall(_item, window, call, std::move(respond));
 }
 
 void Runtime::copyRequested(

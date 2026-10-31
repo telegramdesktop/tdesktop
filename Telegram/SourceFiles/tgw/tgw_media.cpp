@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "tgw/tgw_state.h"
 #include "ui/text/text_utilities.h"
+#include "wallet/wallet_panel.h"
 
 #include <zlib.h>
 
@@ -167,6 +168,8 @@ MessageContext WidgetMedia::context() const {
 		.chatType = (flags.isCopy
 			? ChatType::None
 			: ChatTypeOf(item->history()->peer)),
+		.wallet = (flags.canQuery
+			&& Wallet::Available(&item->history()->session())),
 	};
 }
 

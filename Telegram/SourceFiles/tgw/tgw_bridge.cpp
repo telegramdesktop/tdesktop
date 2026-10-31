@@ -113,17 +113,85 @@ void ConfirmExternalUrl(
 
 } // namespace
 
-Bridge::Bridge(not_null<HistoryItem*> item)
-: _item(item)
-, _api(&item->history()->session().mtp())
+BotQueries::BotQueries(not_null<Main::Session*> session)
+: _api(&session->mtp())
 , _deadlines([=] { checkDeadlines(); }) {
 }
 
-Bridge::~Bridge() {
+BotQueries::~BotQueries() {
 	_deadlines.cancel();
 	for (auto &[id, pending] : base::take(_pending)) {
 		pending.respond(Outcome(Failure::Failed));
 	}
+}
+
+void BotQueries::send(
+		not_null<PeerData*> peer,
+		MsgId msgId,
+		const MTPWidgetQueryType &type,
+		const std::string &data,
+		Respond respond) {
+	if (!IsServerMsgId(msgId)) {
+		respond(Outcome(Failure::Failed));
+		return;
+	}
+	const auto id = _api.request(MTPmessages_GetBotWidgetQueryAnswer(
+		peer->input(),
+		MTP_int(msgId),
+		type,
+		MTP_bytes(QByteArray::fromStdString(data))
+	)).done([=](
+			const MTPmessages_BotWidgetQueryAnswer &result,
+			mtpRequestId requestId) {
+		finish(requestId, AnswerOutcome(result));
+	}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
+		finish(requestId, ErrorOutcome(error));
+	}).handleAllErrors().send();
+	_pending.emplace(id, Pending{
+		.respond = std::move(respond),
+		.deadline = crl::now() + kRequestTimeout,
+	});
+	if (!_deadlines.isActive()) {
+		_deadlines.callOnce(kRequestTimeout);
+	}
+}
+
+void BotQueries::finish(
+		mtpRequestId id,
+		const twidget::WidgetRequestOutcome &outcome) {
+	const auto i = _pending.find(id);
+	if (i == end(_pending)) {
+		return;
+	}
+	const auto respond = std::move(i->second.respond);
+	_pending.erase(i);
+	respond(outcome);
+}
+
+void BotQueries::checkDeadlines() {
+	const auto now = crl::now();
+	auto expired = std::vector<mtpRequestId>();
+	for (const auto &[id, pending] : _pending) {
+		if (pending.deadline <= now) {
+			expired.push_back(id);
+		}
+	}
+	for (const auto id : expired) {
+		_api.request(id).cancel();
+		finish(id, Outcome(Failure::Failed));
+	}
+	if (_pending.empty()) {
+		return;
+	}
+	const auto nearest = ranges::min_element(_pending, {}, [](auto &&pair) {
+		return pair.second.deadline;
+	})->second.deadline;
+	_deadlines.callOnce(std::max(nearest - crl::now(), crl::time()));
+}
+
+Bridge::Bridge(not_null<HistoryItem*> item)
+: _item(item)
+, _queries(&item->history()->session()) {
 }
 
 Window::SessionController *Bridge::findController() const {
@@ -158,8 +226,8 @@ QString Bridge::openLink(const QString &url, bool telegram) {
 }
 
 QString Bridge::copyText(const QString &text, not_null<QWidget*> window) {
-	const auto controller = ControllerOf(
-		Core::App().findWindow(window),
+	const auto controller = WindowController(
+		window,
 		&_item->history()->session());
 	if (!controller) {
 		return u"copyText: refused, no window of this account shows it"_q;
@@ -179,63 +247,28 @@ QString Bridge::copyText(const QString &text, not_null<QWidget*> window) {
 	return u"copyText: copied %1 UTF-16 units"_q.arg(text.size());
 }
 
-void Bridge::request(const std::string &data, Respond respond) {
+void Bridge::request(
+		const std::string &data,
+		bool wallet,
+		Respond respond) {
 	if (!_item->isRegular()) {
 		respond(Outcome(Failure::Failed));
 		return;
 	}
-	const auto id = _api.request(MTPmessages_GetBotWidgetQueryAnswer(
-		_item->history()->peer->input(),
-		MTP_int(_item->id),
-		MTP_widgetQueryTypeData(MTP_flags(0)),
-		MTP_bytes(QByteArray::fromStdString(data))
-	)).done([=](
-			const MTPmessages_BotWidgetQueryAnswer &result,
-			mtpRequestId requestId) {
-		finish(requestId, AnswerOutcome(result));
-	}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
-		finish(requestId, ErrorOutcome(error));
-	}).handleAllErrors().send();
-	_pending.emplace(id, Pending{
-		.respond = std::move(respond),
-		.deadline = crl::now() + kRequestTimeout,
-	});
-	if (!_deadlines.isActive()) {
-		_deadlines.callOnce(kRequestTimeout);
-	}
+	using Flag = MTPDwidgetQueryTypeData::Flag;
+	_queries.send(
+		_item->history()->peer,
+		_item->id,
+		MTP_widgetQueryTypeData(
+			MTP_flags(wallet ? Flag::f_with_wallet : Flag())),
+		data,
+		std::move(respond));
 }
 
-void Bridge::finish(
-		mtpRequestId id,
-		const twidget::WidgetRequestOutcome &outcome) {
-	const auto i = _pending.find(id);
-	if (i == end(_pending)) {
-		return;
-	}
-	const auto respond = std::move(i->second.respond);
-	_pending.erase(i);
-	respond(outcome);
-}
-
-void Bridge::checkDeadlines() {
-	const auto now = crl::now();
-	auto expired = std::vector<mtpRequestId>();
-	for (const auto &[id, pending] : _pending) {
-		if (pending.deadline <= now) {
-			expired.push_back(id);
-		}
-	}
-	for (const auto id : expired) {
-		_api.request(id).cancel();
-		finish(id, Outcome(Failure::Failed));
-	}
-	if (_pending.empty()) {
-		return;
-	}
-	const auto nearest = ranges::min_element(_pending, {}, [](auto &&pair) {
-		return pair.second.deadline;
-	})->second.deadline;
-	_deadlines.callOnce(std::max(nearest - crl::now(), crl::time()));
+Window::SessionController *WindowController(
+		not_null<QWidget*> window,
+		not_null<Main::Session*> session) {
+	return ControllerOf(Core::App().findWindow(window), session);
 }
 
 } // namespace Tgw

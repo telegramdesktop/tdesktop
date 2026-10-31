@@ -2267,6 +2267,8 @@ PRIVATE
     tgw/tgw_touch.cpp
     tgw/tgw_touch.h
     tgw/tgw_touch_lists.cpp
+    tgw/tgw_wallet.cpp
+    tgw/tgw_wallet.h
     ui/boxes/edit_invite_link_session.cpp
     ui/boxes/edit_invite_link_session.h
     ui/boxes/emoji_stake_box.cpp

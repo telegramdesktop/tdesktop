@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace twidget {
 class Json;
 class WidgetHost;
+struct WalletCall;
 struct WidgetAction;
 struct WidgetRequest;
 struct WidgetRequestOutcome;
@@ -54,6 +55,9 @@ public:
 	using RequestHandler = Fn<void(
 		const twidget::WidgetRequest &request,
 		Respond respond)>;
+	using WalletHandler = Fn<void(
+		const twidget::WalletCall &call,
+		Respond respond)>;
 	using CopyHandler = Fn<void(const std::string &text)>;
 	using WatchHandler = Fn<void(bool on)>;
 
@@ -64,6 +68,8 @@ public:
 	struct BotRequest {
 		std::string data;
 		Respond respond;
+		std::shared_ptr<const twidget::WalletCall> call;
+		bool wallet = false;
 	};
 
 	RendererCore(double width, double dpr);
@@ -73,6 +79,7 @@ public:
 	[[nodiscard]] auto hostActionHandler() const
 	-> Fn<void(const twidget::WidgetAction &action)>;
 	[[nodiscard]] RequestHandler hostRequestHandler() const;
+	[[nodiscard]] WalletHandler hostWalletHandler() const;
 	[[nodiscard]] CopyHandler hostCopyHandler() const;
 	[[nodiscard]] WatchHandler hostWatchHandler() const;
 	void bindHost(not_null<twidget::WidgetHost*> host);

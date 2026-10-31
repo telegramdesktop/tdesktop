@@ -11,6 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 
 class HistoryItem;
+class PeerData;
+
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace twidget {
 struct WidgetRequestOutcome;
@@ -22,18 +27,19 @@ class SessionController;
 
 namespace Tgw {
 
-class Bridge final {
+class BotQueries final {
 public:
 	using Respond = Fn<void(const twidget::WidgetRequestOutcome&)>;
 
-	explicit Bridge(not_null<HistoryItem*> item);
-	~Bridge();
+	explicit BotQueries(not_null<Main::Session*> session);
+	~BotQueries();
 
-	[[nodiscard]] QString openLink(const QString &url, bool telegram);
-	[[nodiscard]] QString copyText(
-		const QString &text,
-		not_null<QWidget*> window);
-	void request(const std::string &data, Respond respond);
+	void send(
+		not_null<PeerData*> peer,
+		MsgId msgId,
+		const MTPWidgetQueryType &type,
+		const std::string &data,
+		Respond respond);
 
 private:
 	struct Pending {
@@ -41,17 +47,39 @@ private:
 		crl::time deadline = 0;
 	};
 
-	[[nodiscard]] Window::SessionController *findController() const;
 	void finish(
 		mtpRequestId id,
 		const twidget::WidgetRequestOutcome &outcome);
 	void checkDeadlines();
 
-	const not_null<HistoryItem*> _item;
 	MTP::Sender _api;
 	base::flat_map<mtpRequestId, Pending> _pending;
 	base::Timer _deadlines;
 
 };
+
+class Bridge final {
+public:
+	using Respond = BotQueries::Respond;
+
+	explicit Bridge(not_null<HistoryItem*> item);
+
+	[[nodiscard]] QString openLink(const QString &url, bool telegram);
+	[[nodiscard]] QString copyText(
+		const QString &text,
+		not_null<QWidget*> window);
+	void request(const std::string &data, bool wallet, Respond respond);
+
+private:
+	[[nodiscard]] Window::SessionController *findController() const;
+
+	const not_null<HistoryItem*> _item;
+	BotQueries _queries;
+
+};
+
+[[nodiscard]] Window::SessionController *WindowController(
+	not_null<QWidget*> window,
+	not_null<Main::Session*> session);
 
 } // namespace Tgw

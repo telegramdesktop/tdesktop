@@ -65,6 +65,7 @@ enum class ChatType : uchar {
 struct MessageContext {
 	WidgetFlags flags;
 	ChatType chatType = ChatType::None;
+	bool wallet = false;
 
 	friend inline bool operator==(MessageContext, MessageContext) = default;
 };
