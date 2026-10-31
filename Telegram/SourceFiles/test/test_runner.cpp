@@ -141,7 +141,7 @@ void StartChatsLoadedWait(
 		return;
 	}
 	Core::App().domain().activeSessionValue(
-	) | rpl::map([](Main::Session *session) {
+	) | rpl::map([](Main::Session *session) -> rpl::producer<Data::Folder*> {
 		if (!session) {
 			return rpl::never<Data::Folder*>();
 		}
