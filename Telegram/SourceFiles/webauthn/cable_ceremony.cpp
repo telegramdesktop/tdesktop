@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <crl/crl.h>
 
+#include <algorithm>
 #include <memory>
 #include <vector>
 
@@ -44,6 +45,8 @@ struct Ceremony final : std::enable_shared_from_this<Ceremony> {
 	LoginRequest loginRequest;
 	Fn<void(RegisterResult)> registerDone;
 	Fn<void(LoginResult)> loginDone;
+	std::vector<GetAssertionResponse> loginAssertions;
+	size_t loginExpectedAssertions = 0;
 
 	QRKey qrKey;
 	std::array<uint8_t, kEidKeySize> eidKey = {};
@@ -103,13 +106,29 @@ void FinishSuccessRegister(
 
 void FinishSuccessLogin(
 		std::shared_ptr<Ceremony> ceremony,
-		const GetAssertionResponse &response) {
+		std::vector<GetAssertionResponse> assertions) {
 	if (ceremony->loginDone) {
 		auto result = LoginResult();
-		result.credentialId = response.credentialId;
-		result.authData = response.authData;
-		result.signature = response.signature;
-		result.userHandle = response.userHandle;
+		result.assertions.reserve(assertions.size());
+		for (auto &assertion : assertions) {
+			auto item = LoginAssertion();
+			item.credentialId = std::move(assertion.credentialId);
+			item.authData = std::move(assertion.authData);
+			item.signature = std::move(assertion.signature);
+			item.userHandle = std::move(assertion.userHandle);
+			item.userName = std::move(assertion.userName);
+			item.userDisplayName = std::move(assertion.userDisplayName);
+			result.assertions.push_back(std::move(item));
+		}
+		if (!result.assertions.empty()) {
+			const auto &selected = result.assertions.front();
+			result.credentialId = selected.credentialId;
+			result.authData = selected.authData;
+			result.signature = selected.signature;
+			result.userHandle = selected.userHandle;
+			result.userName = selected.userName;
+			result.userDisplayName = selected.userDisplayName;
+		}
 		result.outcome = Outcome::Success;
 		base::take(ceremony->loginDone)(std::move(result));
 	}
@@ -165,7 +184,9 @@ void Finish(std::shared_ptr<Ceremony> ceremony, Outcome outcome) {
 	});
 }
 
-[[nodiscard]] QByteArray BuildCtapRequest(not_null<Ceremony*> ceremony) {
+[[nodiscard]] QByteArray BuildCtapRequest(
+		not_null<Ceremony*> ceremony,
+		bool getNextAssertion) {
 	if (ceremony->isRegister) {
 		const auto &request = ceremony->registerRequest;
 		return ToByteArray(BuildMakeCredentialRequest(
@@ -177,6 +198,9 @@ void Finish(std::shared_ptr<Ceremony> ceremony, Outcome outcome) {
 			request.userDisplayName,
 			request.algorithms));
 	}
+	if (getNextAssertion) {
+		return ToByteArray(BuildGetNextAssertionRequest());
+	}
 	const auto &request = ceremony->loginRequest;
 	return ToByteArray(BuildGetAssertionRequest(
 		request.rpId,
@@ -184,12 +208,15 @@ void Finish(std::shared_ptr<Ceremony> ceremony, Outcome outcome) {
 		request.allowCredentialIds));
 }
 
-void SendCtapRequest(std::shared_ptr<Ceremony> ceremony) {
+void SendCtapRequest(
+		std::shared_ptr<Ceremony> ceremony,
+		bool getNextAssertion = false) {
 	auto plaintext = Bytes();
 	if (ceremony->protocolRevision >= 1) {
 		plaintext.push_back(uint8_t(MessageType::Ctap));
 	}
-	const auto request = FromByteArray(BuildCtapRequest(ceremony.get()));
+	const auto request = FromByteArray(
+		BuildCtapRequest(ceremony.get(), getNextAssertion));
 	plaintext.insert(plaintext.end(), request.begin(), request.end());
 
 	auto encrypted = ceremony->crypter->encrypt(plaintext);
@@ -230,7 +257,32 @@ void HandleReply(std::shared_ptr<Ceremony> ceremony, Bytes plaintext) {
 			Finish(std::move(ceremony), Outcome::Failed);
 			return;
 		}
-		FinishSuccessLogin(std::move(ceremony), *parsed);
+		if (ceremony->loginAssertions.empty()) {
+			ceremony->loginExpectedAssertions = std::min(
+				parsed->numberOfCredentials.value_or(size_t(1)),
+				kMaxLoginAssertions);
+		} else if (parsed->numberOfCredentials
+			&& std::min(*parsed->numberOfCredentials, kMaxLoginAssertions)
+				!= ceremony->loginExpectedAssertions) {
+			Finish(std::move(ceremony), Outcome::Failed);
+			return;
+		}
+		if (ceremony->loginExpectedAssertions > 1
+			&& parsed->credentialId.empty()) {
+			Finish(std::move(ceremony), Outcome::Failed);
+			return;
+		}
+		ceremony->loginAssertions.push_back(*parsed);
+		if (ceremony->loginAssertions.size() < ceremony->loginExpectedAssertions) {
+			SendCtapRequest(ceremony, true);
+			return;
+		} else if (ceremony->loginAssertions.size()
+			== ceremony->loginExpectedAssertions) {
+			auto assertions = std::move(ceremony->loginAssertions);
+			FinishSuccessLogin(std::move(ceremony), std::move(assertions));
+			return;
+		}
+		Finish(std::move(ceremony), Outcome::Failed);
 	}
 }
 
