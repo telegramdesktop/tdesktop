@@ -310,6 +310,9 @@ class MapTests(unittest.TestCase):
 
 
 class CheckTests(unittest.TestCase):
+    PARAMETERS = ('first', 'second', 'third', 'fourth', 'fifth',
+                  'sixth', 'seventh', 'eighth', 'ninth', 'tenth')
+
     def setUp(self):
         self.repo = Repo(fixture())
         self.addCleanup(self.repo.temp.cleanup)
@@ -351,6 +354,150 @@ class CheckTests(unittest.TestCase):
         self.repo.write({'Telegram/SourceFiles/app/app.cpp': APP + 'void B() {\n' + body + '}\n'})
         _, warnings = self.run_check()
         self.assertTrue(any('repeats' in w for w in warnings))
+
+    def signature(self, end, name='Combine', extra=(), head='int'):
+        """`<head> <name>(` with the ten one-per-line `int` parameters and
+        `extra` ones, closed by `end`: `);` declares it, `) {` opens its body."""
+        indent = '\t' if end == ');' else '\t\t'
+        parameters = [f'int {parameter}' for parameter in self.PARAMETERS] + list(extra)
+        return (f'{head} {name}(\n' + ',\n'.join(indent + item for item in parameters)
+                + end + '\n')
+
+    def in_namespace(self, text, code):
+        """`text` with `code` added at the end of its namespace."""
+        at = text.rindex('} // namespace ')
+        return text[:at] + code + '\n' + text[at:]
+
+    def declared(self, **signature):
+        header = fixture()['Telegram/SourceFiles/low/low.h']
+        return self.in_namespace(header, self.signature(');', **signature))
+
+    def defined(self, text, end=') {', **signature):
+        return self.in_namespace(text, self.signature(end, **signature)
+                                 + '\treturn first + tenth;\n}\n')
+
+    def owner(self, *members, derived=False):
+        """low.h with `class Owner` declaring `members`; a `derived` one
+        overrides `Base`, which declares `combine` const on one line."""
+        line = ', '.join(f'int {parameter}' for parameter in self.PARAMETERS)
+        head = 'class Owner {'
+        if derived:
+            head = (f'class Base {{\npublic:\n\tvirtual int combine({line}) const = 0;\n\n}};\n\n'
+                    'class Owner : public Base {')
+        header = fixture()['Telegram/SourceFiles/low/low.h']
+        return self.in_namespace(header, head + '\npublic:\n' + ''.join(members) + '\n};\n')
+
+    def repeats(self, *copies):
+        """The check's messages for (path:start-end, lines, source path:line)."""
+        src = 'Telegram/SourceFiles/'
+        return [f'{src}{where}: repeats {lines} lines of {src}{source}; '
+                f'reuse or promote it instead.' for where, lines, source in copies]
+
+    def test_declaration_and_its_definition_are_not_copies(self):
+        src = 'Telegram/SourceFiles/'
+        self.repo.write({
+            src + 'low/low.h': self.declared(),
+            src + 'low/low.cpp': self.defined(LOW),
+        })
+        self.assertEqual(self.run_check(), ([], []))
+        self.assertEqual(self.run_check(strict=True), ([], []))
+
+    def test_declaration_of_a_committed_definition_is_not_a_copy(self):
+        src = 'Telegram/SourceFiles/'
+        self.repo.write({src + 'low/low.cpp': self.defined(LOW)})
+        self.repo.git('commit', '-qam', 'Combine.')
+        self.repo.write({src + 'low/low.h': self.declared()})
+        self.assertEqual(self.run_check(), ([], []))
+        self.assertEqual(self.run_check(strict=True), ([], []))
+
+    def test_repeated_call_wiring_is_reported(self):
+        src = 'Telegram/SourceFiles/'
+
+        def arguments(indent, end):
+            return ',\n'.join(indent + name for name in self.PARAMETERS) + end + '\n'
+
+        in_bodies = ('int Total() {\n\tconst auto total = Combine(\n'
+                     + arguments('\t\t', ');') + '\treturn total;\n}\n\n'
+                     'bool Positive() {\n\tif (Combine(\n' + arguments('\t\t\t', ') > 0) {')
+                     + '\t\treturn true;\n\t}\n\treturn false;\n}\n')
+        at_namespace = ('const auto kCombined = Combine(\n' + arguments('\t', ',')
+                        + '\t[] {\n\t\treturn 1;\n\t});\n\n'
+                        'void Use() {\n\tconst auto combined = Combine(\n'
+                        + arguments('\t\t', ',') + '\t\tcallback);\n}\n')
+        cases = (
+            ('initializer and condition', in_bodies, self.repeats(
+                ('low/low.cpp:11-19', 9, 'low/low.cpp:26'),
+                ('low/low.cpp:26-34', 9, 'low/low.cpp:11'))),
+            ('namespace initializer and body call', at_namespace, self.repeats(
+                ('low/low.cpp:10-19', 10, 'low/low.cpp:26'),
+                ('low/low.cpp:26-35', 10, 'low/low.cpp:10'))),
+        )
+        for title, calls, expected in cases:
+            with self.subTest(title):
+                self.repo.write({src + 'low/low.cpp': self.in_namespace(LOW, calls)})
+                self.assertEqual(self.run_check(), ([], expected))
+                self.assertEqual(self.run_check(strict=True), (expected, []))
+
+    def test_copied_definition_is_reported(self):
+        src = 'Telegram/SourceFiles/'
+        self.repo.write({
+            src + 'low/low.h': self.declared(),
+            src + 'low/low.cpp': self.defined(LOW),
+        })
+        self.repo.git('commit', '-qam', 'Combine.')
+        self.repo.write({src + 'app/app.cpp': self.defined(APP)})
+        expected = self.repeats(('app/app.cpp:11-22', 12, 'low/low.cpp:9'))
+        self.assertEqual(self.run_check(), ([], expected))
+        self.assertEqual(self.run_check(strict=True), (expected, []))
+
+    def test_other_signatures_are_still_reported(self):
+        src = 'Telegram/SourceFiles/'
+        cases = (
+            ('another overload', {'extra': ('bool flag',)}, {'extra': ('int last',)},
+             ('low/low.h:5-15', 11, 'low/low.cpp:9')),
+            ('another function', {'name': 'Other'}, {},
+             ('low/low.h:6-14', 9, 'low/low.cpp:10')),
+        )
+        for title, definition, declaration, copy in cases:
+            with self.subTest(title):
+                self.repo.write({
+                    src + 'low/low.h': fixture()[src + 'low/low.h'],
+                    src + 'low/low.cpp': self.defined(LOW, **definition),
+                })
+                self.repo.git('commit', '-qam', title)
+                self.repo.write({src + 'low/low.h': self.declared(**declaration)})
+                self.assertEqual(self.run_check(), ([], self.repeats(copy)))
+
+    def test_method_declaration_and_its_definition_are_not_copies(self):
+        src = 'Telegram/SourceFiles/'
+        self.repo.write({
+            src + 'low/low.h': self.owner(
+                '\t' + self.signature(') const override;', name='combine'), derived=True),
+            src + 'low/low.cpp': self.defined(
+                LOW, ') const -> int {', name='Owner::combine', head='auto'),
+        })
+        self.assertEqual(self.run_check(), ([], []))
+        self.assertEqual(self.run_check(strict=True), ([], []))
+
+    def test_qualified_overloads_are_still_reported(self):
+        src = 'Telegram/SourceFiles/'
+        line = ', '.join(f'int {parameter}' for parameter in self.PARAMETERS)
+        expected = self.repeats(('low/low.h:9-17', 9, 'low/low.cpp:10'))
+        for title, existing, added in (
+                ('const overload', '', ' const'),
+                ('ref-qualified overload', ' &', ' &&')):
+            with self.subTest(title):
+                declaration = f'\tint combine({line}){existing};\n'
+                self.repo.write({
+                    src + 'low/low.h': self.owner(declaration),
+                    src + 'low/low.cpp': self.defined(
+                        LOW, f'){existing} {{', name='Owner::combine'),
+                })
+                self.repo.git('commit', '-qam', title)
+                self.repo.write({src + 'low/low.h': self.owner(
+                    declaration, '\t' + self.signature(f'){added};', name='combine'))})
+                self.assertEqual(self.run_check(), ([], expected))
+                self.assertEqual(self.run_check(strict=True), (expected, []))
 
     def test_removed_definition_still_mentioned_is_reported(self):
         platform = 'Telegram/SourceFiles/platform/win/specific_win.cpp'
