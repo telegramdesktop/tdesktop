@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_item_text.h"
 #include "editor/scene/scene_item_video.h"
 #include "editor/scene/scene_item_weather.h"
+#include "editor/scene/scene_draft.h"
 #include "editor/scene/scene.h"
 #include "editor/editor_weather.h"
 #include "history/history.h"
@@ -1276,6 +1277,75 @@ void Paint::addStoryVideoObject(StoryVideoObject &&object) {
 	}
 	item->keepInitialState();
 	addMediaItem(std::move(item));
+}
+
+void Paint::addStoryWidgets(const QJsonArray &widgets) {
+	const auto parsed = ParseSceneWidgets(widgets);
+	for (const auto &link : parsed.links) {
+		auto data = itemBaseData();
+		data.initialZoom = _scene->currentZoom();
+		data.size = std::max(
+			int(std::ceil(ItemLink::MakePill(link.preview, _imageSize)
+				.size().width())),
+			1);
+		auto item = std::make_shared<ItemLink>(link.preview, std::move(data));
+		item->setStyle(link.style);
+		item->setEditCallback(crl::guard(this, [=](not_null<ItemLink*> item) {
+			chooseLink(item->link().url, item);
+		}));
+		item->applyPlacement(link.placement);
+		addMediaItem(std::move(item));
+	}
+	const auto controller = _controllers->stickersPanelController.get();
+	if (!parsed.reactions.empty() && controller) {
+		for (const auto &reaction : parsed.reactions) {
+			if (reaction.reaction.empty()) {
+				continue;
+			}
+			auto data = itemBaseData();
+			data.initialZoom = _scene->currentZoom();
+			data.size = std::min(data.size, _imageSize.width() / 3);
+			auto item = std::make_shared<ItemReaction>(
+				&controller->session(),
+				reaction.reaction,
+				reaction.dark,
+				std::move(data));
+			item->applyPlacement(reaction.placement);
+			addMediaItem(std::move(item));
+		}
+	}
+	for (const auto &location : parsed.locations) {
+		auto data = itemBaseData();
+		data.initialZoom = _scene->currentZoom();
+		data.size = std::max(
+			int(std::ceil(ItemLocation::MakePill(location.location, _imageSize)
+				.size().width())),
+			1);
+		auto item = std::make_shared<ItemLocation>(
+			location.location,
+			std::move(data));
+		item->setStyle(location.style);
+		item->setEditCallback(crl::guard(this, [=](
+				not_null<ItemLocation*> item) {
+			chooseLocation(item.get());
+		}));
+		item->applyPlacement(location.placement);
+		addMediaItem(std::move(item));
+	}
+	for (const auto &weather : parsed.weather) {
+		auto data = itemBaseData();
+		data.initialZoom = _scene->currentZoom();
+		data.size = std::max(
+			int(std::ceil(ItemWeather::PillSize(weather.weather, _imageSize)
+				.width())),
+			1);
+		auto item = std::make_shared<ItemWeather>(
+			weather.weather,
+			std::move(data));
+		item->applyPlacement(weather.placement);
+		addMediaItem(std::move(item));
+	}
+	_scene->clearSelection();
 }
 
 void Paint::addRoundVideo(QByteArray content, crl::time duration) {

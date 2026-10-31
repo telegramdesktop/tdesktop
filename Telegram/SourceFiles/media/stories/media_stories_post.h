@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_stories.h"
 
+#include <QtCore/QJsonArray>
+
 class QMimeData;
 
 namespace ChatHelpers {
@@ -33,6 +35,7 @@ struct StoryEditorSetup {
 	bool editing = false;
 	PeerId peer;
 	uint64 draftId = 0;
+	QJsonArray sceneWidgets;
 };
 
 struct StoryEditorResult {

@@ -122,6 +122,10 @@ PhotoEditorContent::PhotoEditorContent(
 	if (data.story && !data.story->videoObject.empty()) {
 		_pendingVideo = data.story->videoObject;
 	}
+	if (data.story && !data.story->sceneWidgets.isEmpty()) {
+		_paint->addStoryWidgets(data.story->sceneWidgets);
+		_paint->keepResult();
+	}
 	_paint->setCanvasBackground(_background);
 	_paint->setCropRect(QRectF(_crop->cropRect()));
 	_layoutAnimation.init([=](crl::time now) {

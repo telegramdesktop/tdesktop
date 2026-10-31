@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class QGraphicsItem;
 class QGraphicsView;
+class QJsonArray;
 class QKeyEvent;
 
 namespace Main {
@@ -112,6 +113,7 @@ public:
 	void paintImage(QPainter &p, const QPixmap &image) const;
 	void resetView();
 	void addStoryVideoObject(StoryVideoObject &&object);
+	void addStoryWidgets(const QJsonArray &widgets);
 	void selectVideoObject();
 	void addRoundVideo(QByteArray content, crl::time duration);
 

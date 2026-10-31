@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/media_video_canvas.h"
 #include "media/media_video_encode.h"
 
+#include <QtCore/QJsonArray>
+
 namespace ChatHelpers {
 class Show;
 } // namespace ChatHelpers
@@ -49,6 +51,7 @@ struct StoryOptions {
 	QImage canvasMedia;
 	Media::Encode::CanvasBackground canvasBackground;
 	StoryVideoObject videoObject;
+	QJsonArray sceneWidgets;
 };
 
 struct AudioTrack {

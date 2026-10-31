@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor.h"
 #include "editor/photo_editor_common.h"
 #include "editor/scene/scene.h"
+#include "editor/scene/scene_draft.h"
 #include "editor/scene/scene_item_video.h"
 #include "info/channel_statistics/boosts/info_boosts_widget.h"
 #include "info/info_memento.h"
@@ -166,6 +167,7 @@ void SetupStoryEditorClose(
 		.caption = setup.caption,
 		.period = setup.period ? setup.period : Api::kStoryDefaultPeriod,
 		.periodChoice = !setup.editing,
+		.sceneWidgets = setup.sceneWidgets,
 	};
 }
 
@@ -443,6 +445,10 @@ void OpenStoryPhotoEditor(
 			.period = raw->period(),
 			.thumbnail = DraftThumbnail(composed),
 		};
+		if (mods.paint) {
+			draft.widgets = Editor::SerializeSceneWidgets(
+				Editor::CollectSceneWidgets(mods.paint.get()));
+		}
 		auto media = Data::StoryDraftMedia();
 		if (!video.empty()) {
 			draft.video = true;
@@ -784,6 +790,7 @@ void PostStoryDraft(
 			.period = draft.period,
 			.peer = peer->id,
 			.draftId = draft.id,
+			.sceneWidgets = draft.widgets,
 		};
 		const auto done = ShowSendBoxWhenEdited(controller, peer, draft.id);
 		const auto &edits = draft.edits;

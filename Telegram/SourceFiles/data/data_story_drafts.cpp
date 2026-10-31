@@ -98,6 +98,7 @@ template <typename Write>
 			} },
 		} },
 		{ u"still"_q, QFileInfo(draft.stillPath).fileName() },
+		{ u"widgets"_q, draft.widgets },
 		{ u"vrect"_q, QJsonArray{
 			video.rect.x(),
 			video.rect.y(),
@@ -148,6 +149,7 @@ template <typename Write>
 	if (!result.stillPath.isEmpty() && !QFile::exists(result.stillPath)) {
 		result.stillPath = QString();
 	}
+	result.widgets = object[u"widgets"_q].toArray();
 	auto &video = result.videoPlacement;
 	const auto vrect = object[u"vrect"_q].toArray();
 	if (vrect.size() == 4) {

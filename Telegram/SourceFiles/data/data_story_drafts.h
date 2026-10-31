@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QtCore/QJsonArray>
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -42,6 +44,7 @@ struct StoryDraft {
 	StoryDraftEdits edits;
 	StoryDraftVideo videoPlacement;
 	QString stillPath;
+	QJsonArray widgets;
 	QImage thumbnail;
 };
 
