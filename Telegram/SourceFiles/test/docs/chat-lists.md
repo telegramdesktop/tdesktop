@@ -67,8 +67,11 @@ section, a `ChatWidget` whose constructor `ChatWidget::ChatWidget`
 With it off, the window's own `HistoryWidget` builds a `HistoryInner` in
 `HistoryWidget::showHistory` (`history/history_widget.cpp`).
 
-The option is off by default and the same gate serves every window, the
-primary one included. It decides for an ordinary History only: forum topics
+The option is on by default (`OptionUseNewChatView` in `mainwidget.cpp` has
+`.defaultValue = true`), and the same gate serves every window, the primary
+one included. An explicit `false` for it in `tdata/experimental_options.json`
+or a runtime change can leave it off; the read/set/restore idiom below guards
+those cases. It decides for an ordinary History only: forum topics
 and sublists take their own `ChatMemento` routes, `SessionNavigation::showTopic`
 and `showSublist`, whatever its value, and `SessionController::showPeerHistory`
 opens a community's info instead. `MainWidget::showHistory` returns
