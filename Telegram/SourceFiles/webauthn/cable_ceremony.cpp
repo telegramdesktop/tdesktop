@@ -104,6 +104,13 @@ void FinishSuccessRegister(
 	Finish(std::move(ceremony), Outcome::Success);
 }
 
+[[nodiscard]] bool UsableAssertion(const GetAssertionResponse &response) {
+	return !response.credentialId.empty()
+		&& !response.signature.empty()
+		&& response.authData.size() > 32
+		&& (response.authData[32] & 0x01); // flags byte, bit 0: user presence
+}
+
 void FinishSuccessLogin(
 		std::shared_ptr<Ceremony> ceremony,
 		std::vector<GetAssertionResponse> assertions) {
@@ -111,23 +118,13 @@ void FinishSuccessLogin(
 		auto result = LoginResult();
 		result.assertions.reserve(assertions.size());
 		for (auto &assertion : assertions) {
-			auto item = LoginAssertion();
+			auto &item = result.assertions.emplace_back();
 			item.credentialId = std::move(assertion.credentialId);
 			item.authData = std::move(assertion.authData);
 			item.signature = std::move(assertion.signature);
 			item.userHandle = std::move(assertion.userHandle);
 			item.userName = std::move(assertion.userName);
 			item.userDisplayName = std::move(assertion.userDisplayName);
-			result.assertions.push_back(std::move(item));
-		}
-		if (!result.assertions.empty()) {
-			const auto &selected = result.assertions.front();
-			result.credentialId = selected.credentialId;
-			result.authData = selected.authData;
-			result.signature = selected.signature;
-			result.userHandle = selected.userHandle;
-			result.userName = selected.userName;
-			result.userDisplayName = selected.userDisplayName;
 		}
 		result.outcome = Outcome::Success;
 		base::take(ceremony->loginDone)(std::move(result));
@@ -252,37 +249,28 @@ void HandleReply(std::shared_ptr<Ceremony> ceremony, Bytes plaintext) {
 		}
 		FinishSuccessRegister(std::move(ceremony), *parsed);
 	} else {
-		const auto parsed = ParseGetAssertionResponse(plaintext);
-		if (!parsed) {
-			Finish(std::move(ceremony), Outcome::Failed);
-			return;
-		}
+		auto parsed = ParseGetAssertionResponse(plaintext);
 		if (ceremony->loginAssertions.empty()) {
+			if (!parsed || !UsableAssertion(*parsed)) {
+				Finish(std::move(ceremony), Outcome::Failed);
+				return;
+			}
 			ceremony->loginExpectedAssertions = std::min(
 				parsed->numberOfCredentials.value_or(size_t(1)),
 				kMaxLoginAssertions);
-		} else if (parsed->numberOfCredentials
-			&& std::min(*parsed->numberOfCredentials, kMaxLoginAssertions)
-				!= ceremony->loginExpectedAssertions) {
-			Finish(std::move(ceremony), Outcome::Failed);
-			return;
-		}
-		if (ceremony->loginExpectedAssertions > 1
-			&& parsed->credentialId.empty()) {
-			Finish(std::move(ceremony), Outcome::Failed);
-			return;
-		}
-		ceremony->loginAssertions.push_back(*parsed);
-		if (ceremony->loginAssertions.size() < ceremony->loginExpectedAssertions) {
-			SendCtapRequest(ceremony, true);
-			return;
-		} else if (ceremony->loginAssertions.size()
-			== ceremony->loginExpectedAssertions) {
+		} else if (!parsed || !UsableAssertion(*parsed)) {
 			auto assertions = std::move(ceremony->loginAssertions);
 			FinishSuccessLogin(std::move(ceremony), std::move(assertions));
 			return;
 		}
-		Finish(std::move(ceremony), Outcome::Failed);
+		ceremony->loginAssertions.push_back(std::move(*parsed));
+		if (ceremony->loginAssertions.size()
+			< ceremony->loginExpectedAssertions) {
+			SendCtapRequest(ceremony, true);
+			return;
+		}
+		auto assertions = std::move(ceremony->loginAssertions);
+		FinishSuccessLogin(std::move(ceremony), std::move(assertions));
 	}
 }
 

@@ -60,12 +60,6 @@ struct LoginAssertion {
 };
 
 struct LoginResult {
-	Bytes credentialId;
-	Bytes authData;
-	Bytes signature;
-	Bytes userHandle;
-	std::string userName;
-	std::string userDisplayName;
 	std::vector<LoginAssertion> assertions;
 	Outcome outcome = Outcome::Failed;
 };

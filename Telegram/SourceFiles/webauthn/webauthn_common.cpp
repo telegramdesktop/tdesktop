@@ -108,7 +108,7 @@ struct LoginState {
 	bool replacingBox = false;
 };
 
-struct LoginAssertion {
+struct AssertionOption {
 	LoginResult result;
 	QString userName;
 	QString userDisplayName;
@@ -207,7 +207,7 @@ void ShowMessage(const QString &text) {
 }
 
 [[nodiscard]] QString AssertionOptionText(
-		const LoginAssertion &assertion,
+		const AssertionOption &assertion,
 		int index) {
 	const auto displayName = assertion.userDisplayName.trimmed();
 	const auto userName = assertion.userName.trimmed();
@@ -224,8 +224,8 @@ void ShowMessage(const QString &text) {
 		+ QString::number(index + 1);
 }
 
-[[nodiscard]] base::weak_qptr<Ui::GenericBox> ShowAssertionChoiceBox(
-		std::vector<LoginAssertion> assertions,
+base::weak_qptr<Ui::GenericBox> ShowAssertionChoiceBox(
+		std::vector<AssertionOption> assertions,
 		Fn<void(LoginResult)> submit,
 		Fn<void()> cancel) {
 	const auto show = ActiveShow();
@@ -233,25 +233,42 @@ void ShowMessage(const QString &text) {
 		cancel();
 		return {};
 	}
-	return show->show(Box([=,
-			assertions = std::move(assertions)](
-				not_null<Ui::GenericBox*> box) {
-		auto options = std::vector<QString>();
-		options.reserve(assertions.size());
-		for (auto i = 0; i != int(assertions.size()); ++i) {
-			options.push_back(AssertionOptionText(assertions[i], i));
+	auto base = std::vector<QString>();
+	base.reserve(assertions.size());
+	for (auto i = 0; i != int(assertions.size()); ++i) {
+		base.push_back(AssertionOptionText(assertions[i], i));
+	}
+	auto options = std::vector<QString>();
+	options.reserve(base.size());
+	for (auto i = 0; i != int(base.size()); ++i) {
+		auto label = base[i];
+		const auto &id = assertions[i].result.credentialId;
+		for (auto j = 0; j != int(base.size()) && !id.isEmpty(); ++j) {
+			if (j != i && base[j] == label) {
+				label += u" ("_q
+					+ QString::fromLatin1(id.toHex().right(8))
+					+ u')';
+				break;
+			}
 		}
+		options.push_back(std::move(label));
+	}
+	const auto shared = std::make_shared<std::vector<AssertionOption>>(
+		std::move(assertions));
+	return show->show(Box([=,
+			options = std::move(options)](
+				not_null<Ui::GenericBox*> box) {
 		const auto selected = std::make_shared<bool>(false);
-		Ui::SingleChoiceBox(box, {
-			.title = tr::lng_passkey_cable_login_title(),
+		SingleChoiceBox(box, {
+			.title = tr::lng_passkey_choose_passkey(),
 			.options = options,
 			.initialSelection = -1,
 			.callback = [=](int index) {
-				if (index < 0 || index >= int(assertions.size())) {
+				if (index < 0 || index >= int(shared->size())) {
 					return;
 				}
 				*selected = true;
-				submit(assertions[index].result);
+				submit((*shared)[index].result);
 			},
 		});
 		box->boxClosing() | rpl::on_next([=] {
@@ -362,7 +379,7 @@ void CloseBox(const std::shared_ptr<State> &state) {
 		const LoginState &state,
 		const QString &pin,
 		LoginResult &out,
-		std::vector<LoginAssertion> &assertionsOut) {
+		std::vector<AssertionOption> &assertionsOut) {
 	const auto paths = DevicePaths();
 	if (paths.empty()) {
 		return Outcome::NoDevice;
@@ -416,10 +433,10 @@ void CloseBox(const std::shared_ptr<State> &state) {
 			const auto limitedCount = (count > Cable::kMaxLoginAssertions)
 				? Cable::kMaxLoginAssertions
 				: count;
-			auto assertions = std::vector<LoginAssertion>();
+			auto assertions = std::vector<AssertionOption>();
 			assertions.reserve(limitedCount);
 			for (auto i = size_t(0); i != limitedCount; ++i) {
-				auto assertion = LoginAssertion();
+				auto assertion = AssertionOption();
 				assertion.result.clientDataJSON = QByteArray::fromStdString(
 					clientData);
 				assertion.result.credentialId = QByteArray(
@@ -581,7 +598,7 @@ void AttemptLogin(std::shared_ptr<LoginState> state, QString pin) {
 	});
 	crl::async([state, pin] {
 		auto result = LoginResult();
-		auto assertions = std::vector<LoginAssertion>();
+		auto assertions = std::vector<AssertionOption>();
 		const auto outcome = RunLoginCeremony(
 			*state,
 			pin,
@@ -746,10 +763,10 @@ void AttemptRegister(std::shared_ptr<RegisterState> state, QString pin) {
 		int(bytes.size()));
 }
 
-[[nodiscard]] LoginAssertion ToLoginAssertion(
+[[nodiscard]] AssertionOption ToAssertionOption(
 		const Cable::LoginAssertion &assertion,
 		const std::string &clientDataJson) {
-	auto result = LoginAssertion();
+	auto result = AssertionOption();
 	result.result.credentialId = FromCableBytes(assertion.credentialId);
 	result.result.clientDataJSON = QByteArray::fromStdString(clientDataJson);
 	result.result.authenticatorData = FromCableBytes(assertion.authData);
@@ -852,45 +869,36 @@ void LoginViaCable(
 			LoginViaSecurityKey(data, callback);
 			return;
 		}
-		if (cable.outcome == Cable::Outcome::Success) {
-			if (!cable.assertions.empty()) {
-				auto assertions = std::vector<LoginAssertion>();
-				assertions.reserve(cable.assertions.size());
-				for (const auto &assertion : cable.assertions) {
-					assertions.push_back(ToLoginAssertion(
-						assertion,
-						*clientDataJson));
-				}
-				if (assertions.size() == 1) {
-					callback(assertions.front().result);
-					return;
-				}
-				ShowAssertionChoiceBox(
-					std::move(assertions),
-					[=](LoginResult selected) {
-						callback(selected);
-					},
-					[=] {
-						crl::on_main([=] {
-							auto cancelled = LoginResult();
-							cancelled.error = Error::Cancelled;
-							callback(cancelled);
-						});
-					});
-				return;
-			}
-			auto result = LoginResult();
-			result.credentialId = FromCableBytes(cable.credentialId);
-			result.clientDataJSON = QByteArray::fromStdString(*clientDataJson);
-			result.authenticatorData = FromCableBytes(cable.authData);
-			result.signature = FromCableBytes(cable.signature);
-			result.userHandle = FromCableBytes(cable.userHandle);
-			callback(result);
-		} else {
+		if (cable.outcome != Cable::Outcome::Success
+			|| cable.assertions.empty()) {
 			auto result = LoginResult();
 			result.error = MapCableError(cable.outcome);
 			callback(result);
+			return;
 		}
+		auto assertions = std::vector<AssertionOption>();
+		assertions.reserve(cable.assertions.size());
+		for (auto &assertion : cable.assertions) {
+			assertions.push_back(ToAssertionOption(
+				assertion,
+				*clientDataJson));
+		}
+		if (assertions.size() == 1) {
+			callback(std::move(assertions.front().result));
+			return;
+		}
+		ShowAssertionChoiceBox(
+			std::move(assertions),
+			[=](LoginResult selected) {
+				callback(selected);
+			},
+			[=] {
+				crl::on_main([=] {
+					auto cancelled = LoginResult();
+					cancelled.error = Error::Cancelled;
+					callback(cancelled);
+				});
+			});
 	});
 }
 
