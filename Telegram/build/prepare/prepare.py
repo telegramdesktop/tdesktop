@@ -532,12 +532,12 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 23d349a3ff09dbc1fa8127ce39ba9223de0edf21
+    git checkout 6a257fce95a64798ccce3a4d240cf9fc4e261398
 mac:
     sed -i '' "s/10.13/$MACOSX_DEPLOYMENT_TARGET/g" macos_meson_*.txt
     git clone https://github.com/desktop-app/qt6_highsierra_patches.git qt6_highsierra
     cd qt6_highsierra
-    git checkout 7387476bb3b7200d3b044015696cb3c28f78593c
+    git checkout 3cd83625d13de9a4011cf91d6d9faed9fbb394a2
 """)
 
 stage('msys64', """
@@ -1611,7 +1611,7 @@ if win and qt >= '6':
 win32_win64:
     git clone https://github.com/desktop-app/qt6_windows7_patches.git qt6_windows7
     cd qt6_windows7
-    git checkout 9ce1ffe051161a22f7e78f715b042c773f868e59
+    git checkout fd8d5035b25bce04b849b6f87818ad3a2ba66c7d
 """)
 
 if win:
@@ -1713,6 +1713,8 @@ depends:patches/qtbase_""" + qt + """/*.patch
 depends:patches/qtsvg_""" + qt + """/*.patch
 win32_win64:
 depends:qt6_windows7/*.patch
+mac:
+depends:patches/qt6_highsierra/*.patch
 version:""" + computeFileHash(qtAngleCmake) + """
 mac:
     if [ -d "../patches/qt6_highsierra" ]; then
@@ -2062,14 +2064,14 @@ release:
 tlottieRevision = '92df98dc20'
 walletEngineRevision = 'e59e0d89d7ee90c388bf36e3334c5b276f396697'
 stage('tlottie', """
-version: 2
+version: 3
     git clone https://github.com/dkaraush/tlottie.git
     cd tlottie
     git checkout """ + tlottieRevision + """
 """)
 
 stage('wallet-engine', """
-version: 2
+version: 3
 depends:patches/wallet-engine.patch
 win:
     SET "GIT_LFS_SKIP_SMUDGE=1"
@@ -2098,7 +2100,7 @@ win_mac:
 # flushes a cache whose generated source the CI prune had already deleted.
 # The wallet-engine patch rewrites those sources, so it is a dependency here.
 stage('tdesktop_rust', """
-version: 2.""" + tlottieRevision + '.' + walletEngineRevision + """
+version: 3.""" + tlottieRevision + '.' + walletEngineRevision + """
 depends:patches/wallet-engine.patch
 win:
     SET "RUSTUP_HOME=%THIRDPARTY_DIR%\\rust\\rustup"
