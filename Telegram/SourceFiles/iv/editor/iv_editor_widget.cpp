@@ -268,6 +268,38 @@ struct SplitCommittedFieldOffset {
 	return std::nullopt;
 }
 
+[[nodiscard]] auto CaptureCommittedFieldSelection(
+		const Ui::InputField &field,
+		const State &state,
+		const Widget &widget,
+		int (Widget::*richOffset)(const TextWithEntities &, int) const)
+-> std::optional<CommittedFieldSelectionCapture> {
+	if (field.isHidden()
+		|| (state.activeFieldMode() != State::FieldMode::Rich)) {
+		return std::optional<CommittedFieldSelectionCapture>();
+	}
+	const auto leaf = state.activeLeafPath();
+	if (!leaf) {
+		return std::optional<CommittedFieldSelectionCapture>();
+	}
+	const auto text = ConvertEditorTagsToRichText(
+		field.getTextWithAppliedMarkdown());
+	const auto cursor = field.textCursor();
+	const auto length = int(text.text.size());
+	return std::make_optional(CommittedFieldSelectionCapture{
+		.leaf = *leaf,
+		.text = text,
+		.anchorOffset = std::clamp(
+			(widget.*richOffset)(text, cursor.anchor()),
+			0,
+			length),
+		.cursorOffset = std::clamp(
+			(widget.*richOffset)(text, cursor.position()),
+			0,
+			length),
+	});
+}
+
 [[nodiscard]] std::optional<CommittedFieldSelectionRestore>
 MapCommittedFieldSelectionAfterCommit(
 		const State &state,
@@ -8383,32 +8415,11 @@ std::optional<PreparedEditHit> Widget::boundaryHitFromTarget(
 }
 
 bool Widget::enterStructuralSelectionFromField(bool forward, bool page) {
-	const auto committedSelection = [&]() {
-		if (_field->isHidden()
-			|| (_state->activeFieldMode() != State::FieldMode::Rich)) {
-			return std::optional<CommittedFieldSelectionCapture>();
-		}
-		const auto leaf = _state->activeLeafPath();
-		if (!leaf) {
-			return std::optional<CommittedFieldSelectionCapture>();
-		}
-		const auto text = ConvertEditorTagsToRichText(
-			_field->getTextWithAppliedMarkdown());
-		const auto cursor = _field->textCursor();
-		const auto length = int(text.text.size());
-		return std::make_optional(CommittedFieldSelectionCapture{
-			.leaf = *leaf,
-			.text = text,
-			.anchorOffset = std::clamp(
-				richOffsetForFieldOffset(text, cursor.anchor()),
-				0,
-				length),
-			.cursorOffset = std::clamp(
-				richOffsetForFieldOffset(text, cursor.position()),
-				0,
-				length),
-		});
-	}();
+	const auto committedSelection = CaptureCommittedFieldSelection(
+		*_field,
+		*_state,
+		*this,
+		&Widget::richOffsetForFieldOffset);
 	const auto committed = commitInlineFieldForClose();
 	if (committed == ApplyResult::Failed) {
 		return false;
@@ -9425,32 +9436,11 @@ bool Widget::moveListItemDepth(bool deeper) {
 
 bool Widget::removeBoundaryOwner(bool forward) {
 	auto handled = false;
-	const auto committedSelection = [&]() {
-		if (_field->isHidden()
-			|| (_state->activeFieldMode() != State::FieldMode::Rich)) {
-			return std::optional<CommittedFieldSelectionCapture>();
-		}
-		const auto leaf = _state->activeLeafPath();
-		if (!leaf) {
-			return std::optional<CommittedFieldSelectionCapture>();
-		}
-		const auto text = ConvertEditorTagsToRichText(
-			_field->getTextWithAppliedMarkdown());
-		const auto cursor = _field->textCursor();
-		const auto length = int(text.text.size());
-		return std::make_optional(CommittedFieldSelectionCapture{
-			.leaf = *leaf,
-			.text = text,
-			.anchorOffset = std::clamp(
-				richOffsetForFieldOffset(text, cursor.anchor()),
-				0,
-				length),
-			.cursorOffset = std::clamp(
-				richOffsetForFieldOffset(text, cursor.position()),
-				0,
-				length),
-		});
-	}();
+	const auto committedSelection = CaptureCommittedFieldSelection(
+		*_field,
+		*_state,
+		*this,
+		&Widget::richOffsetForFieldOffset);
 	beginArticleRelayoutDeferral();
 	const auto relayoutGuard = gsl::finally([&] {
 		endArticleRelayoutDeferral();
